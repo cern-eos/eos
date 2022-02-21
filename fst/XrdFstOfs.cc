@@ -1315,7 +1315,7 @@ XrdFstOfs::_rem(const char* path, XrdOucErrInfo& error,
     }
   }
 
-  gFmdDbMapHandler.LocalDeleteFmd(fid, fsid);
+  mFmdHandler->LocalDeleteFmd(fid, fsid);
   return SFS_OK;
 }
 
@@ -1448,7 +1448,7 @@ XrdFstOfs::FSctl(const int cmd, XrdSfsFSctl& args, XrdOucErrInfo& error,
 
       unsigned long long fileid = eos::common::FileId::Hex2Fid(afid);
       unsigned long fsid = atoi(afsid);
-      auto fmd = gFmdDbMapHandler.LocalGetFmd(fileid, fsid, true);
+      auto fmd = mFmdHandler->LocalGetFmd(fileid, fsid, true);
 
       if (!fmd) {
         eos_static_err("msg=\"no FMD record found\" fxid=%08llx fsid=%lu", fileid,
@@ -2067,9 +2067,9 @@ XrdFstOfs::HandleResync(XrdOucEnv& env, XrdOucErrInfo& err_obj)
 
   if (!fid) {
     eos_static_warning("msg=\"deleting fmd\" fsid=%lu fxid=%08llx", fsid, fid);
-    gFmdDbMapHandler.LocalDeleteFmd(fid, fsid);
+    mFmdHandler->LocalDeleteFmd(fid, fsid);
   } else {
-    auto fmd = gFmdDbMapHandler.LocalGetFmd(fid, fsid, true, force);
+    auto fmd = mFmdHandler->LocalGetFmd(fid, fsid, true, force);
 
     if (fmd) {
       if (force) {
@@ -2078,8 +2078,8 @@ XrdFstOfs::HandleResync(XrdOucEnv& env, XrdOucErrInfo& err_obj)
                             (eos::common::FileId::Fid2Hex(fid).c_str(),
                              gOFS.Storage->GetStoragePath(fsid).c_str());
 
-        if (gFmdDbMapHandler.ResyncDisk(fpath.c_str(), fsid, false) == 0) {
-          if (gFmdDbMapHandler.ResyncFileFromQdb(fid, fsid, fpath, gOFS.mFsckQcl)) {
+        if (mFmdHandler->ResyncDisk(fpath.c_str(), fsid, false) == 0) {
+          if (mFmdHandler->ResyncFileFromQdb(fid, fsid, fpath, gOFS.mFsckQcl)) {
             eos_static_err("msg=\"resync qdb failed\" fid=%08llx fsid=%lu",
                            fid, fsid);
           }
@@ -2551,9 +2551,9 @@ XrdFstOfs::DoResync(XrdOucEnv& env)
     if (!fid) {
       eos_warning("msg=\"deleting fmd\" fsid=%lu fxid=%08llx",
                   (unsigned long) fsid, fid);
-      gFmdDbMapHandler.LocalDeleteFmd(fid, fsid);
+      mFmdHandler->LocalDeleteFmd(fid, fsid);
     } else {
-      auto fMd = gFmdDbMapHandler.LocalGetFmd(fid, fsid, true, force);
+      auto fMd = mFmdHandler->LocalGetFmd(fid, fsid, true, force);
 
       if (fMd) {
         if (force) {
@@ -2563,8 +2563,8 @@ XrdFstOfs::DoResync(XrdOucEnv& env)
                               (eos::common::FileId::Fid2Hex(fid).c_str(),
                                gOFS.Storage->GetStoragePath(fsid).c_str());
 
-          if (gFmdDbMapHandler.ResyncDisk(fpath.c_str(), fsid, false) == 0) {
-            if (gFmdDbMapHandler.ResyncFileFromQdb(fid, fsid, fpath,
+          if (mFmdHandler->ResyncDisk(fpath.c_str(), fsid, false) == 0) {
+            if (mFmdHandler->ResyncFileFromQdb(fid, fsid, fpath,
                                                    gOFS.mFsckQcl) == 0) {
               return;
             } else {

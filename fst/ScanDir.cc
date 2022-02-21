@@ -225,13 +225,13 @@ ScanDir::AccountMissing()
           // File missing on disk - create fmd entry and mark it as missing but
           // then also check the MGM info since the file might be 0-size so we
           // need to remove the kMissing flag
-          auto fmd = gFmdDbMapHandler.LocalGetFmd(fid, mFsId, true, true);
+          auto fmd = gOFS.mFmdHandler->LocalGetFmd(fid, mFsId, true, true);
 
           if (fmd) {
             fmd->mProtoFmd.set_layouterror(fmd->mProtoFmd.layouterror() |
                                            LayoutId::kMissing);
-            gFmdDbMapHandler.Commit(fmd.get());
-            (void) gFmdDbMapHandler.ResyncFileFromQdb(fid, mFsId, fpath,
+            gOFS.mFmdHandler->Commit(fmd.get());
+            (void) gOFS.mFmdHandler->ResyncFileFromQdb(fid, mFsId, fpath,
                 gOFS.mFsckQcl);
           } else {
             eos_err("msg=\"faile to create local fmd entry for missing file\" "
@@ -499,7 +499,7 @@ ScanDir::RunDiskScan(ThreadAssistant& assistant) noexcept
       // Call the ghost entry clean-up function
       // eos_notice("msg=\"cleaning ghost entries\" dir=%s fsid=%d",
       //            mDirPath.c_str(), mFsId);
-      // gFmdDbMapHandler.RemoveGhostEntries(mDirPath.c_str(), mFsId);
+      // gOFS.mFmdHandler->RemoveGhostEntries(mDirPath.c_str(), mFsId);
     } else {
       break;
     }
@@ -673,7 +673,7 @@ ScanDir::CheckFile(const std::string& fpath)
 #ifndef _NOOFS
 
   if (mBgThread) {
-    gFmdDbMapHandler.UpdateWithScanInfo(fid, mFsId, fpath, scan_size,
+    gOFS.mFmdHandler->UpdateWithScanInfo(fid, mFsId, fpath, scan_size,
                                         scan_xs_hex, gOFS.mFsckQcl);
   }
 
