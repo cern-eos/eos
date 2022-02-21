@@ -213,9 +213,11 @@ public:
   //!        slot 0 -> 1MB
   //!        slot 1 -> 2MB
   //!        slot 2 -> 4MB
+  //!        ...
+  //!        slot 6 -> 64MB
   //! @param slot_base_sz size of the blocks in the first slot
   //----------------------------------------------------------------------------
-  BufferManager(uint64_t max_size = 256 * 1024 * 1024 , uint32_t slots = 2,
+  BufferManager(uint64_t max_size = 256 * 1024 * 1024 , uint32_t slots = 6,
                 uint64_t slot_base_sz = 1024 * 1024):
     mMaxSize(max_size), mAllocatedSize(0ull), mNumSlots(slots)
   {
@@ -238,24 +240,30 @@ public:
   //----------------------------------------------------------------------------
   std::shared_ptr<Buffer> GetBuffer(uint64_t size)
   {
+    // No new buffer if we already hold more than half of system memory
+    if (mAllocatedSize > (GetSystemMemorySize() >> 1)) {
+      return nullptr;
+    }
+
     uint32_t slot {UINT32_MAX};
 
     // Find appropriate slot for the given size
     for (uint32_t i = 0; i <= mNumSlots; ++i) {
-      if (size <= (1 << (i + 20))) {
+      if (size <= (slot_base_sz * std::pow(2, i))) {
         slot = i;
         break;
       }
     }
 
-    // Can not provide a buffer big enough for the required size
+    // No slot big enough for the given request
     if (slot == UINT32_MAX) {
-      return nullptr;
-    }
+      // No buffer if size is unreasonably large > 512MB
+      if (size > 512 * eos::common::MB) {
+        return nullptr;
+      }
 
-    // No new buffer if we already hold more than half of system memory
-    if (mAllocatedSize > (GetSystemMemorySize() >> 1)) {
-      return nullptr;
+      mAllocatedSize += size;
+      return std::make_shared<Buffer>(size);
     }
 
     std::pair<std::shared_ptr<Buffer>, bool> pair = mSlots[slot].GetBuffer();
@@ -282,14 +290,16 @@ public:
 
     // Find appropriate slot for given buffer
     for (uint32_t i = 0; i <= mNumSlots; ++i) {
-      if (buffer->mCapacity == (1 << (i + 20))) {
+      if (buffer->mCapacity == (slot_base_sz * std::pow(2, i))) {
         slot = i;
         break;
       }
     }
 
-    // Not a buffer allocated by us
+    // Buffer larger then our biggest slot, just deallocate
     if (slot == UINT32_MAX) {
+      mAllocatedSize -= buffer->mCapacity;
+      buffer.release();
       return;
     }
 
