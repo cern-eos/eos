@@ -39,6 +39,10 @@ Period LAST_DAY = Period::DAY;
 Period LAST_HOUR = Period::HOUR;
 Period LAST_5MIN = Period::FIVEMIN;
 Period LAST_1MIN = Period::ONEMIN;
+PercentComplete P90 = PercentComplete::p90;
+PercentComplete P95 = PercentComplete::p95;
+PercentComplete P99 = PercentComplete::p99;
+PercentComplete ALL = PercentComplete::p100;
 
 class IostatTest : public :: testing::Test
 {
@@ -155,13 +159,169 @@ TEST_F(IostatTest, AddRemoveUdpTargets)
   ASSERT_EQ(expected, out);
 }
 
+TEST(IostatPeriods, GetAddBufferData)
+{
+  using namespace std::chrono;
+  IostatPeriods iostattbins;
+  time_t now = 86400;
+  ASSERT_EQ(0, iostattbins.GetDataInPeriod(86400, 0, now));
+  ASSERT_EQ(0, iostattbins.GetDataInPeriod(86400, 86400, now));
+  ASSERT_EQ(0, iostattbins.GetDataInPeriod(0, 86400, now));
+  ASSERT_EQ(0, iostattbins.GetDataInPeriod(0, 0, now));
+  ASSERT_EQ(0, iostattbins.GetLongestTransferTime());
+
+  for (int i = 0; i < 86400; i++) {
+    iostattbins.mDataBuffer[i] = 1;
+  }
+
+  for (int i = 0; i < 86401; i++) {
+    ASSERT_EQ(i, iostattbins.GetDataInPeriod(i, 0, now));
+  }
+
+  for (int i = 0; i < 86400; i++) {
+    iostattbins.mDataBuffer[i] = 0;
+    iostattbins.mIntegralBuffer[i] = 0;
+  }
+
+  time_t stop = 86400;
+  time_t start = 0;
+  // (unsigned long long val,
+  //                             time_t start, time_t stop, time_t now)
+  iostattbins.AddToDataBuffer(86400, start, stop, now);
+
+  for (int i = 0; i < 86401; i++) {
+    ASSERT_EQ(i, iostattbins.GetDataInPeriod(i, 0, now));
+
+    if (i > 43200) {
+      ASSERT_EQ(86400 - i, iostattbins.GetDataInPeriod(i, i, now));
+    } else {
+      ASSERT_EQ(i, iostattbins.GetDataInPeriod(i, i, now));
+    }
+  }
+
+  // UpdateTransferSampleInfo called every 5 min
+  // call to StampBufferZero triggers it (every 512 ms)
+  iostattbins.UpdateTransferSampleInfo(now);
+  ASSERT_EQ(77760, iostattbins.GetTimeToPercComplete(P90));
+  ASSERT_EQ(82080, iostattbins.GetTimeToPercComplete(P95));
+  ASSERT_EQ(85536, iostattbins.GetTimeToPercComplete(P99));
+  ASSERT_EQ(86400, iostattbins.GetTimeToPercComplete(ALL));
+  ASSERT_EQ(86400, iostattbins.GetLongestTransferTime());
+
+  // test stamping zero all bins
+  for (int i = 0; i < 86401; i++) {
+    time_t stamp = now + i;
+    iostattbins.StampBufferZero(stamp);
+    ASSERT_EQ(86400 - i, iostattbins.GetDataInPeriod(86400, 0, stamp));
+
+    if (i < 86399) {
+      ASSERT_EQ(1, iostattbins.GetDataInPeriod(1, i, stamp));
+    }
+
+    if (i < 86400 && i > 0) {
+      ASSERT_EQ(86400 - i, iostattbins.GetDataInPeriod(86399, 1, stamp));
+    }
+
+    if (i < 86340) {
+      ASSERT_EQ(60, iostattbins.GetDataInPeriod(60, i, stamp));
+    }
+
+    if (i >= 86340) {
+      ASSERT_EQ(86400 - i, iostattbins.GetDataInPeriod(60, i, stamp));
+    }
+  }
+
+  // testing adding and getting transfers of the same length and size
+  // but different start and stop times (adding integer value per bin)
+  double total = 0;
+  now = 2 * 86400;
+
+  for (int i = 0; i < 2 * 86400 - 100; i++) {
+    start += 1;
+    stop = start + 100;
+    iostattbins.AddToDataBuffer(2000, start, stop, now);
+
+    if (stop < 86400) {
+      ASSERT_EQ(0, iostattbins.GetDataInPeriod(86400, 0, now));
+    } else {
+      int out = (86400 - start);
+
+      if (out > 0) {
+        total += (100 - out) * 20;
+      } else {
+        total += 2000;
+      }
+
+      ASSERT_EQ(std::ceil(total), iostattbins.GetDataInPeriod(86400, 0, now));
+    }
+  }
+
+  // zero the data buffer
+  for (int i = 0; i < 86401; i++) {
+    time_t stamp = now + i;
+    iostattbins.StampBufferZero(stamp);
+  }
+
+  ASSERT_EQ(0, iostattbins.GetDataInPeriod(86400, 0, now));
+  // testing adding and getting transfers of the same length and size
+  // but different start and stop times (adding double value per bin)
+  total = 0;
+  now = 2 * 86400;
+  start = 0;
+
+  for (int i = 0; i < 2 * 86400 - 10; i++) {
+    start += 1;
+    stop = start + 10;
+    iostattbins.AddToDataBuffer(1, start, stop, now);
+
+    if (stop < 86400) {
+      ASSERT_EQ(0, iostattbins.GetDataInPeriod(86400, 0, now));
+    } else {
+      int out = (86400 - start);
+
+      if (out > 0) {
+        total += (10 - out) * 0.1;
+      } else {
+        total += 1;
+      }
+
+      std::cout << "out" << out << " start" << start << " stop" << stop << " total" <<
+                total << std::endl;
+      ASSERT_EQ(std::ceil(total), iostattbins.GetDataInPeriod(86400, 0, now));
+    }
+  }
+
+  // zero the data buffer
+  for (int i = 0; i < 86401; i++) {
+    time_t stamp = now + i;
+    iostattbins.StampBufferZero(stamp);
+  }
+
+  ASSERT_EQ(0, iostattbins.GetDataInPeriod(86400, 0, now));
+  // testing Integral of the buffer for 4 transfers
+  // with same rate 1B/s, but with different length
+  // and start time
+  now = 86400;
+  iostattbins.UpdateTransferSampleInfo(now);
+
+  for (int i = 1; i < 5; i++) {
+    start = i * 10000;
+    stop = start + i * 10000;
+    //4*10000 + 3*10000 + 2*10000 + 1*10000
+    iostattbins.AddToDataBuffer(i * 10000, start, stop, now);
+  }
+
+  iostattbins.UpdateTransferSampleInfo(now);
+  ASSERT_EQ(30000, iostattbins.GetTimeToPercComplete(P90));
+  ASSERT_EQ(35000, iostattbins.GetTimeToPercComplete(P95));
+  ASSERT_EQ(39000, iostattbins.GetTimeToPercComplete(P99));
+  ASSERT_EQ(40000, iostattbins.GetTimeToPercComplete(ALL));
+}
+
 TEST(IostatPeriods, GetStatStampZeroAdd)
 {
   using namespace std::chrono;
   IostatPeriods iostattbins;
-  // the values summed up finish in integer array The GetStat methods add doubles
-  // of them which is pointless unless we want to change the array definition as
-  // well (which is int !!!) (???)
   ASSERT_EQ(0, iostattbins.GetSumForPeriod(LAST_DAY));
   ASSERT_EQ(0, iostattbins.GetSumForPeriod(LAST_HOUR));
   ASSERT_EQ(0, iostattbins.GetSumForPeriod(LAST_5MIN));
@@ -260,4 +420,3 @@ TEST(IostatPeriods, GetStatStampZeroAdd)
     }
   }
 }
-

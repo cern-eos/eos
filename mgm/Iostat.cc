@@ -53,6 +53,11 @@ Period LAST_DAY = Period::DAY;
 Period LAST_HOUR = Period::HOUR;
 Period LAST_5MIN = Period::FIVEMIN;
 Period LAST_1MIN = Period::ONEMIN;
+PercentComplete P90 = PercentComplete::p90;
+PercentComplete P95 = PercentComplete::p95;
+PercentComplete P99 = PercentComplete::p99;
+PercentComplete ALL = PercentComplete::p100;
+
 
 namespace
 {
@@ -134,6 +139,8 @@ IostatPeriods::Add(unsigned long long val, time_t start, time_t stop,
       AddToPeriod(pidx, val, tdiff, stop);
     }
   }
+
+  AddToDataBuffer(val, start, stop, now);
 }
 
 //------------------------------------------------------------------------------
@@ -165,6 +172,216 @@ IostatPeriods::AddToPeriod(size_t period_indx, unsigned long long val,
       mPeriodBins[period_indx][bin_indx] += (norm_val + 1);
     } else {
       mPeriodBins[period_indx][bin_indx] += norm_val;
+    }
+  }
+}
+
+
+//------------------------------------------------------------------------------
+// Adds transfer data on a 24h timeline of [mDataBuffer]
+// Provides:
+// - [mLongestTransferTime] in last 24h
+// - populates [mIntegralBuffer] and every 5 min extracts the
+//   time of transfer for > 90/95/100 percent of data
+// - [mDataBuffer] circular buffer for all transfers in the last 24h
+//------------------------------------------------------------------------------
+void
+IostatPeriods::AddToDataBuffer(unsigned long long val,
+                               time_t start, time_t stop, time_t now)
+{
+  double value = (double)val;
+  // window start/end times = |
+  // bin start [ and end ] times
+  // period window = |-----------[--]----------|
+  // time_t t_bin_end = now;
+  // time_t t_bin_start = t_bin_end - sBinWidth;
+  // size_t t_window_end = t_bin_end;
+  time_t t_window_start = now - (sBins * sBinWidth);
+
+  if (stop > now) {
+    eos_static_err("%s",
+                   "msg=\"Failed to digest report, transfer stop time > now\"");
+    return;
+  }
+
+  if (stop > t_window_start) {
+    time_t tdiff = stop - start;
+
+    if (tdiff < 0) {
+      eos_static_err("%s", "msg=\"Transfer start time after stop time\"");
+      return;
+    }
+
+    StampBufferZero(now);
+    mTfCount += 1;
+
+    if (stop > mLastAddTime) {
+      mLastAddTime = stop;
+    }
+
+    if (mLongestTransferTime < (unsigned int)tdiff) {
+      if ((size_t)now % sPeriod) {
+        mLongestTransferTime = 0;
+      }
+
+      mLongestTransferTime = tdiff;
+    }
+
+    // cutting off data out of time window
+    if (start < t_window_start) {
+      // re-calculate data portion to save into our time window
+      value = ((stop - t_window_start) * value) / tdiff;
+      start = t_window_start;
+      tdiff = stop - start;
+    }
+
+    // Number of bins the measurement hits
+    size_t mbins = tdiff / sBinWidth;
+
+    if (mbins == 0) {
+      mbins = 1;
+    }
+
+    // the following should be able to handle in particular also
+    // tf taking < 1sec
+    // tf taking exactly boundaries of the 24h window
+    // tf taking boundary of bins for start and stop time
+    for (size_t ibin = 0; ibin < mbins; ibin++) {
+      time_t t_ibin_end = stop - (ibin * sBinWidth);
+      time_t t_ibin_start = t_ibin_end - sBinWidth;
+      size_t bin_indx = ((t_ibin_end / sBinWidth) % sBins);
+      time_t t_idata_end = t_ibin_end;
+      time_t t_idata_start = t_ibin_start;
+
+      if (ibin == 0) {
+        t_idata_end = stop;
+      }
+
+      if (ibin == mbins - 1) {
+        t_idata_start = start;
+      }
+
+      double ival = ((t_idata_end - t_idata_start) * value) / tdiff;
+
+      if (t_idata_end - t_idata_start == 0) {
+        ival = value;
+      }
+
+      //eos_static_info("msg=\"Filled bin, with value %s\"", std::to_string(ival));
+      // recording tf on a 24h timeline of [mDataBuffer]
+      mDataBuffer[bin_indx] += ival;
+      //std::cout<< "add " << mbins<< " : " << ibin << " : " << bin_indx << " : " <<  mDataBuffer[bin_indx] << std::endl;
+      // adding portion of data to the integral histogram
+      // (shifting all tf start time to 0)
+      // we could also make integral over rate distribution
+      // to see what is the speed of 95% of transfers (e.g. faster then x B/s)
+      mIntegralBuffer[ibin] += ival;
+    }
+  }
+}
+
+//------------------------------------------------------------------------------
+// Update Transfer Buffer to iterate over and calculate how long does it take
+// to transfer [mPercComplete] % of the data within sample rate of 5 min [mLastTfSampleUpdateInterval]
+//------------------------------------------------------------------------------
+void
+IostatPeriods::UpdateTransferSampleInfo(time_t now)
+{
+  // sum data of all transfers
+  double sumTx = 0.;
+
+  for (size_t i = 0; i < sBins; i++) {
+    // update rating (% of transfers)
+    sumTx += mIntegralBuffer[i];
+  }
+
+  //std::cout << "sumTx" << sumTx << std::endl;
+  if (sumTx > 0) {
+    mTfCountInSample = mTfCount;
+    mAvgTfSize = std::ceil((double)sumTx / mTfCountInSample);
+    mTfCount = 0;
+    const double multiplier = std::pow(10.0, 6);
+
+    // integrate up to [mPercComplete] and record
+    // the time the transfers took in [mDurationToPercComplete]
+    for (size_t iperc = 0; iperc < std::size(mPercComplete); iperc++) {
+      double sum_percent = 0;
+
+      for (size_t ibin = 0; ibin < sBins; ibin++) {
+        sum_percent += mIntegralBuffer[ibin] / sumTx;
+
+        if ((unsigned int)std::ceil(sum_percent * multiplier) >=
+            (unsigned int)std::ceil(mPercComplete[iperc]*multiplier)) {
+          mDurationToPercComplete[iperc] = ((ibin + 1) * sBinWidth);
+          //std::cout << sum_percent << std::endl;
+          break;
+        }
+      }
+    }
+  } else {
+    for (size_t iperc = 0; iperc < std::size(mPercComplete); iperc++) {
+      mDurationToPercComplete[iperc] = 0;
+    }
+
+    mAvgTfSize = 0;
+    mTfCountInSample = 0;
+    mTfCount = 0;
+  }
+
+  memset(mIntegralBuffer, 0, sizeof(mIntegralBuffer));
+  mLastTfMaxLenUpdateTime = now;
+}
+
+//------------------------------------------------------------------------------
+// Reset bin content of the buffer w.r.t. given timstamp
+//------------------------------------------------------------------------------
+void
+IostatPeriods::StampBufferZero(time_t& now)
+{
+  // Clean-up all bins which are older than sPeriod (24h)
+  // last_end_index is the index of the timestamp corresponding
+  // to the last transfer stop time recorded
+  if ((now - mLastTfMaxLenUpdateTime) > mLastTfSampleUpdateInterval) {
+    UpdateTransferSampleInfo(now);
+  }
+
+  size_t last_end_index = (mLastAddTime / sBinWidth) % sBins;
+  size_t now_indx = (now / sBinWidth) % sBins;
+  int zero_range = now_indx - last_end_index ;
+
+  if (zero_range < 0) {
+    zero_range = now_indx + (sBins - last_end_index);
+  }
+
+  if (now - mLastAddTime >= (time_t)sPeriod || zero_range > (int)sBins) {
+    zero_range = sBins;
+  }
+
+  //std::cout << zero_range << " " << now << " "<< now_indx << " " << last_end_index << " " << mLastStampZeroIndex << std::endl;
+  if (zero_range > 0) {
+    int idx = 0;
+
+    for (size_t pidx_cnt = 0; pidx_cnt < (size_t)zero_range; pidx_cnt++) {
+      idx = (now_indx - pidx_cnt);
+
+      if (idx < 0) {
+        idx = (sBins + idx);
+      }
+
+      mDataBuffer[idx] = 0.;
+    }
+
+    //std::cout << "last del idx " << idx << std::endl;
+  }
+
+  // in case we change bin, record the change in mLastStampZeroIndex
+  if (now_indx != mLastStampZeroIndex) {
+    mLastStampZeroIndex = now_indx;
+
+    // and in case last transfer stop was same as now, we delete content of this new bin
+    if (zero_range == 0) {
+      mDataBuffer[now_indx] = 0.;
+      //std::cout << "del zero range" << now_indx << std::endl;
     }
   }
 }
@@ -202,6 +419,105 @@ IostatPeriods::GetSumForPeriod(Period period) const
 unsigned long long IostatPeriods::GetTotalSum() const
 {
   return mTotal;
+}
+
+//------------------------------------------------------------------------------
+// Return max data size per transfer
+//------------------------------------------------------------------------------
+unsigned long long IostatPeriods::GetAvgTransferSize() const
+{
+  return mAvgTfSize;
+}
+
+//------------------------------------------------------------------------------
+// Return number of transfers seen during sample time [mLastTfSampleUpdateInterval]
+//------------------------------------------------------------------------------
+unsigned long long IostatPeriods::GetTfCountInSample() const
+{
+  return mTfCountInSample;
+}
+
+//------------------------------------------------------------------------------
+// Getting the timestamp of the last time the transfer sample was taken
+//------------------------------------------------------------------------------
+std::string IostatPeriods::GetLastSampleUpdateTimestamp(bool date_format) const
+{
+  if (date_format) {
+    struct tm* timedatestr;
+    timedatestr = localtime(
+                    &mLastTfMaxLenUpdateTime);   // Convert time to struct tm form
+    return (std::string)asctime(timedatestr);
+  } else {
+    return std::to_string(mLastTfMaxLenUpdateTime);
+  }
+}
+
+
+//------------------------------------------------------------------------------
+// Get the sum of values for the given buffer period
+//------------------------------------------------------------------------------
+unsigned long long
+IostatPeriods::GetDataInPeriod(size_t period, unsigned long long time_offset,
+                               time_t& now) const
+{
+  double sum = 0.;
+
+  if (time_offset > sPeriod) {
+    time_offset = sPeriod;
+  }
+
+  if (time_offset + period > sPeriod) {
+    period = sPeriod - time_offset;
+  }
+
+  size_t start_index = ((now - time_offset) / sBinWidth) % sBins;
+  size_t stop_index = ((now - time_offset - period) / sBinWidth) % sBins;
+  int range = start_index - stop_index ;
+
+  if (period >= sPeriod) {
+    range = sBins;
+  }
+
+  if (range < 0) {
+    range = sBins - (stop_index - start_index);
+  }
+
+  if (range > 0) {
+    int idx = 0;
+
+    for (size_t pidx_cnt = 0; pidx_cnt < (size_t)range; pidx_cnt++) {
+      idx = (start_index - pidx_cnt);
+
+      if (idx < 0) {
+        idx = sBins + idx;
+      }
+
+      sum += mDataBuffer[idx];
+    }
+
+    //std::cout<< "get "<< range<< " "<< start_index << " " << stop_index << "sum" << sum << " idx" << idx << std::endl;
+  }
+
+  return std::ceil(sum);
+}
+
+unsigned long long
+IostatPeriods::GetLongestTransferTime() const
+{
+  return mLongestTransferTime;
+}
+
+//------------------------------------------------------------------------------
+// Set Update interval for exploring transfer distribution
+//------------------------------------------------------------------------------
+//void IostatPeriods::SetTfUpdateInterval(size_t interval) const{
+//  mLastTfSampleUpdateInterval = interval;
+//}
+
+unsigned long long
+IostatPeriods::GetTimeToPercComplete(PercentComplete perc) const
+{
+  return (unsigned long long)mDurationToPercComplete[(int)perc];
 }
 
 //------------------------------------------------------------------------------
@@ -615,10 +931,10 @@ Iostat::AddToQdb(const std::string& tag, uid_t uid, gid_t gid,
 }
 
 //------------------------------------------------------------------------------
-// Get sum of measurements for the given tag
+// Get sum of measurements for the given uid
 //------------------------------------------------------------------------------
 unsigned long long
-Iostat::GetTotalStatForTag(const char* tag) const
+Iostat::GetTotalStatForUid(const char* tag) const
 {
   unsigned long long val = 0ull;
 
@@ -636,21 +952,22 @@ Iostat::GetTotalStatForTag(const char* tag) const
 }
 
 //------------------------------------------------------------------------------
-// Get sum of measurements for the given tag an period
+// Get sum of measurements for the given uid an period
 //------------------------------------------------------------------------------
 unsigned long long
-Iostat::GetPeriodStatForTag(const char* tag, Period period) const
+Iostat::GetPeriodStatForUid(const char* uid, size_t period, time_t secago) const
 {
   unsigned long long val = 0ull;
 
-  if (!IostatPeriodsUid.count(tag)) {
+  if (!IostatPeriodsUid.count(uid)) {
     return val;
   }
 
-  const auto map_uid = IostatPeriodsUid.find(tag)->second;
+  const auto map_uid = IostatPeriodsUid.find(uid)->second;
+  time_t now = time(0ull);
 
   for (auto it = map_uid.begin(); it != map_uid.end(); ++it) {
-    val += it->second.GetSumForPeriod(period);
+    val += it->second.GetDataInPeriod(period, secago, now);
   }
 
   return val;
@@ -913,7 +1230,8 @@ Iostat::WriteRecord(const std::string& record)
 void
 Iostat::PrintOut(XrdOucString& out, bool summary, bool details,
                  bool monitoring, bool numerical, bool top,
-                 bool domain, bool apps, XrdOucString option)
+                 bool domain, bool apps, time_t time_ago,
+                 time_t time_interval, XrdOucString option)
 {
   std::string format_s = (!monitoring ? "s" : "os");
   std::string format_ss = (!monitoring ? "-s" : "os");
@@ -921,9 +1239,18 @@ Iostat::PrintOut(XrdOucString& out, bool summary, bool details,
   std::string format_ll = (!monitoring ? "l." : "ol");
   std::vector<std::string> tags;
   std::unique_lock<std::mutex> scope_lock(mDataMutex);
+  time_t now = time(NULL);
 
   for (auto tit = IostatUid.begin(); tit != IostatUid.end(); ++tit) {
     tags.push_back(tit->first);
+  }
+
+  bool interval = false;
+  time_ago = time_ago % 86400;
+  time_interval = time_interval % 86400;
+
+  if (time_interval != 0) {
+    interval = true;
   }
 
   std::sort(tags.begin(), tags.end());
@@ -932,27 +1259,46 @@ Iostat::PrintOut(XrdOucString& out, bool summary, bool details,
     TableFormatterBase table;
     TableData table_data;
 
-    if (!monitoring) {
-      table.SetHeader({
-        std::make_tuple("who", 3, format_ss),
-        std::make_tuple("io value", 24, format_s),
-        std::make_tuple("sum", 8, format_l),
-        std::make_tuple("1min", 8, format_l),
-        std::make_tuple("5min", 8, format_l),
-        std::make_tuple("1h", 8, format_l),
-        std::make_tuple("24h", 8, format_l)
-      });
+    if (interval) {
+      if (!monitoring) {
+        table.SetHeader({
+          std::make_tuple("who", 3, format_ss),
+          std::make_tuple("io value", 24, format_s),
+          std::make_tuple("data in interval", 8, format_l),
+          std::make_tuple("avg rate [B/s]", 8, format_l),
+        });
+      } else {
+        table.SetHeader({
+          std::make_tuple("uid", 0, format_ss),
+          std::make_tuple("gid", 0, format_s),
+          std::make_tuple("measurement", 0, format_s),
+          std::make_tuple("intervaldata", 8, format_l),
+          std::make_tuple("intervalrate", 8, format_l),
+        });
+      }
     } else {
-      table.SetHeader({
-        std::make_tuple("uid", 0, format_ss),
-        std::make_tuple("gid", 0, format_s),
-        std::make_tuple("measurement", 0, format_s),
-        std::make_tuple("total", 0, format_l),
-        std::make_tuple("60s", 0, format_l),
-        std::make_tuple("300s", 0, format_l),
-        std::make_tuple("3600s", 0, format_l),
-        std::make_tuple("86400s", 0, format_l)
-      });
+      if (!monitoring) {
+        table.SetHeader({
+          std::make_tuple("who", 3, format_ss),
+          std::make_tuple("io value", 24, format_s),
+          std::make_tuple("1min", 8, format_l),
+          std::make_tuple("5min", 8, format_l),
+          std::make_tuple("1h", 8, format_l),
+          std::make_tuple("24h", 8, format_l),
+          std::make_tuple("sum", 8, format_l),
+        });
+      } else {
+        table.SetHeader({
+          std::make_tuple("uid", 0, format_ss),
+          std::make_tuple("gid", 0, format_s),
+          std::make_tuple("measurement", 0, format_s),
+          std::make_tuple("60s", 0, format_l),
+          std::make_tuple("300s", 0, format_l),
+          std::make_tuple("3600s", 0, format_l),
+          std::make_tuple("86400s", 0, format_l),
+          std::make_tuple("total", 0, format_l),
+        });
+      }
     }
 
     for (const auto& elem : tags) {
@@ -966,19 +1312,27 @@ Iostat::PrintOut(XrdOucString& out, bool summary, bool details,
       }
 
       row.emplace_back(tag, format_s);
-      row.emplace_back(GetTotalStatForTag(tag), format_ll);
-      // getting tag stat sums for 1day (idx=0), 1h (idx=1), 5m (idx=2), 1min (idx=3)
-      row.emplace_back(GetPeriodStatForTag(tag, LAST_1MIN), format_ll);
-      row.emplace_back(GetPeriodStatForTag(tag, LAST_5MIN), format_ll);
-      row.emplace_back(GetPeriodStatForTag(tag, LAST_HOUR), format_ll);
-      row.emplace_back(GetPeriodStatForTag(tag, LAST_DAY), format_ll);
+
+      if (interval) {
+        row.emplace_back(GetPeriodStatForUid(tag, time_interval, time_ago), format_ll);
+        row.emplace_back(GetPeriodStatForUid(tag, time_interval,
+                                             time_ago) / (float)time_interval, format_ll);
+      } else {
+        // getting tag stat sums for 1day (idx=0), 1h (idx=1), 5m (idx=2), 1min (idx=3)
+        row.emplace_back(GetPeriodStatForUid(tag, 60), format_ll);
+        row.emplace_back(GetPeriodStatForUid(tag, 300), format_ll);
+        row.emplace_back(GetPeriodStatForUid(tag, 3600), format_ll);
+        row.emplace_back(GetPeriodStatForUid(tag, 86400), format_ll);
+        row.emplace_back(GetTotalStatForUid(tag), format_ll);
+      }
     }
 
     table.AddRows(table_data);
     out += table.GenerateTable(HEADER).c_str();
     table_data.clear();
-    //! UDP Popularity Broadcast Target
-    {
+
+    if (!interval) {
+      //! UDP Popularity Broadcast Target
       std::unique_lock<std::mutex> mLock(mBcastMutex);
 
       if (!mUdpPopularityTarget.empty()) {
@@ -1004,133 +1358,408 @@ Iostat::PrintOut(XrdOucString& out, bool summary, bool details,
   }
 
   if (details) {
-    std::vector<std::tuple<std::string, std::string, unsigned long long,
-        unsigned long long, unsigned long long, unsigned long long, unsigned long long>>
-        uidout, gidout;
-    //! User statistic
-    TableFormatterBase table_user;
-    TableData table_data;
+    if (interval) {
+      std::vector<std::tuple<std::string, std::string, unsigned long long, unsigned long long>>
+          uidout, gidout;
+      TableFormatterBase table_user;
+      TableData table_data;
 
-    if (!monitoring) {
-      table_user.SetHeader({
-        std::make_tuple("user", 4, format_ss),
-        std::make_tuple("io value", 24, format_s),
-        std::make_tuple("sum", 8, format_l),
-        std::make_tuple("1min", 8, format_l),
-        std::make_tuple("5min", 8, format_l),
-        std::make_tuple("1h", 8, format_l),
-        std::make_tuple("24h", 8, format_l)
-      });
-    } else {
-      table_user.SetHeader({
-        std::make_tuple("uid", 0, format_ss),
-        std::make_tuple("measurement", 0, format_s),
-        std::make_tuple("total", 0, format_l),
-        std::make_tuple("60s", 0, format_l),
-        std::make_tuple("300s", 0, format_l),
-        std::make_tuple("3600s", 0, format_l),
-        std::make_tuple("86400s", 0, format_l)
-      });
-    }
-
-    for (auto tuit = IostatPeriodsUid.begin(); tuit != IostatPeriodsUid.end();
-         tuit++) {
-      for (auto it = tuit->second.begin(); it != tuit->second.end(); ++it) {
-        std::string username;
-
-        if (numerical) {
-          username = std::to_string(it->first);
-        } else {
-          int terrc = 0;
-          username = eos::common::Mapping::UidToUserName(it->first, terrc);
-        }
-
-        // getting tag stat sums for 1day (idx=0), 1h (idx=1), 5m (idx=2), 1min (idx=3)
-        uidout.emplace_back(std::make_tuple(username, tuit->first.c_str(),
-                                            IostatUid[tuit->first][it->first],
-                                            it->second.GetSumForPeriod(LAST_1MIN), it->second.GetSumForPeriod(LAST_5MIN),
-                                            it->second.GetSumForPeriod(LAST_HOUR), it->second.GetSumForPeriod(LAST_DAY)));
+      //! User statistic
+      if (!monitoring) {
+        table_user.SetHeader({
+          std::make_tuple("user", 5, format_ss),
+          std::make_tuple("io value", 24, format_s),
+          std::make_tuple("data in interval", 8, format_l),
+          std::make_tuple("avg rate [B/s]", 8, format_l),
+        });
+      } else {
+        table_user.SetHeader({
+          std::make_tuple("uid", 0, format_ss),
+          std::make_tuple("measurement", 0, format_s),
+          std::make_tuple("intervaldata", 8, format_l),
+          std::make_tuple("intervalrate", 8, format_l),
+        });
       }
-    }
 
-    std::sort(uidout.begin(), uidout.end());
+      for (auto tuit = IostatPeriodsUid.begin(); tuit != IostatPeriodsUid.end();
+           tuit++) {
+        for (auto it = tuit->second.begin(); it != tuit->second.end(); ++it) {
+          std::string username;
 
-    for (auto& tup : uidout) {
-      table_data.emplace_back();
-      TableRow& row = table_data.back();
-      row.emplace_back(std::get<0>(tup), format_ss);
-      row.emplace_back(std::get<1>(tup), format_s);
-      row.emplace_back(std::get<2>(tup), format_l);
-      row.emplace_back(std::get<3>(tup), format_l);
-      row.emplace_back(std::get<4>(tup), format_l);
-      row.emplace_back(std::get<5>(tup), format_l);
-      row.emplace_back(std::get<6>(tup), format_l);
-    }
+          if (numerical) {
+            username = std::to_string(it->first);
+          } else {
+            int terrc = 0;
+            username = eos::common::Mapping::UidToUserName(it->first, terrc);
+          }
 
-    table_user.AddRows(table_data);
-    out += table_user.GenerateTable(HEADER).c_str();
-    table_data.clear();
-    //! Group statistic
-    TableFormatterBase table_group;
-
-    if (!monitoring) {
-      table_group.SetHeader({
-        std::make_tuple("group", 5, format_ss),
-        std::make_tuple("io value", 24, format_s),
-        std::make_tuple("sum", 8, format_l),
-        std::make_tuple("1min", 8, format_l),
-        std::make_tuple("5min", 8, format_l),
-        std::make_tuple("1h", 8, format_l),
-        std::make_tuple("24h", 8, format_l)
-      });
-    } else {
-      table_group.SetHeader({
-        std::make_tuple("gid", 0, format_ss),
-        std::make_tuple("measurement", 0, format_s),
-        std::make_tuple("total", 0, format_l),
-        std::make_tuple("60s", 0, format_l),
-        std::make_tuple("300s", 0, format_l),
-        std::make_tuple("3600s", 0, format_l),
-        std::make_tuple("86400s", 0, format_l)
-      });
-    }
-
-    for (auto tgit = IostatPeriodsGid.begin(); tgit != IostatPeriodsGid.end();
-         tgit++) {
-      for (auto it = tgit->second.begin(); it != tgit->second.end(); ++it) {
-        std::string groupname;
-
-        if (numerical) {
-          groupname = std::to_string(it->first);
-        } else {
-          int terrc = 0;
-          groupname = eos::common::Mapping::GidToGroupName(it->first, terrc);
+          // getting tag stat sums for 1day (idx=0), 1h (idx=1), 5m (idx=2), 1min (idx=3)
+          uidout.emplace_back(std::make_tuple(username, tuit->first.c_str(),
+                                              it->second.GetDataInPeriod(time_interval, time_ago, now),
+                                              it->second.GetDataInPeriod(time_interval, time_ago, now) / (float)time_interval
+                                             ));
         }
-
-        // getting stat sums for 1day (idx=0), 1h (idx=1), 5m (idx=2), 1min (idx=3)
-        gidout.emplace_back(std::make_tuple(groupname, tgit->first.c_str(),
-                                            IostatGid[tgit->first][it->first],
-                                            it->second.GetSumForPeriod(LAST_1MIN), it->second.GetSumForPeriod(LAST_5MIN),
-                                            it->second.GetSumForPeriod(LAST_HOUR), it->second.GetSumForPeriod(LAST_DAY)));
       }
+
+      std::sort(uidout.begin(), uidout.end());
+
+      for (auto& tup : uidout) {
+        table_data.emplace_back();
+        TableRow& row = table_data.back();
+        row.emplace_back(std::get<0>(tup), format_ss);
+        row.emplace_back(std::get<1>(tup), format_s);
+        row.emplace_back(std::get<2>(tup), format_l);
+        row.emplace_back(std::get<3>(tup), format_l);
+      }
+
+      table_user.AddRows(table_data);
+      out += table_user.GenerateTable(HEADER).c_str();
+      table_data.clear();
+      // Group statistics
+      TableFormatterBase table_group;
+
+      if (!monitoring) {
+        table_group.SetHeader({
+          std::make_tuple("user", 5, format_ss),
+          std::make_tuple("io value", 24, format_s),
+          std::make_tuple("data in interval", 8, format_l),
+          std::make_tuple("avg rate [B/s]", 8, format_l),
+        });
+      } else {
+        table_group.SetHeader({
+          std::make_tuple("uid", 0, format_ss),
+          std::make_tuple("measurement", 0, format_s),
+          std::make_tuple("intervaldata", 8, format_l),
+          std::make_tuple("intervalrate", 8, format_l),
+        });
+      }
+
+      for (auto tgit = IostatPeriodsGid.begin(); tgit != IostatPeriodsGid.end();
+           tgit++) {
+        for (auto it = tgit->second.begin(); it != tgit->second.end(); ++it) {
+          std::string groupname;
+
+          if (numerical) {
+            groupname = std::to_string(it->first);
+          } else {
+            int terrc = 0;
+            groupname = eos::common::Mapping::GidToGroupName(it->first, terrc);
+          }
+
+          // getting stat sums for 1day (idx=0), 1h (idx=1), 5m (idx=2), 1min (idx=3)
+          gidout.emplace_back(std::make_tuple(groupname, tgit->first.c_str(),
+                                              it->second.GetDataInPeriod(time_interval, time_ago, now),
+                                              it->second.GetDataInPeriod(time_interval, time_ago, now) / (float)time_interval
+                                             ));
+        }
+      }
+
+      std::sort(gidout.begin(), gidout.end());
+
+      for (auto& tup : gidout) {
+        table_data.emplace_back();
+        TableRow& row = table_data.back();
+        row.emplace_back(std::get<0>(tup), format_ss);
+        row.emplace_back(std::get<1>(tup), format_s);
+        row.emplace_back(std::get<2>(tup), format_l);
+        row.emplace_back(std::get<3>(tup), format_l);
+      }
+
+      table_group.AddRows(table_data);
+      out += table_group.GenerateTable(HEADER).c_str();
+      table_data.clear();
+    } else {
+      std::vector<std::tuple<std::string, std::string, unsigned long long,
+          unsigned long long, unsigned long long, unsigned long long,
+          unsigned long long, unsigned long long, unsigned long long,
+          std::string>>
+          uidout_sec, gidout_sec;
+      std::vector<std::tuple<std::string, std::string, unsigned long long,
+          unsigned long long, unsigned long long, unsigned long long,
+          unsigned long long>>
+          uidout_b, gidout_b;
+      //std::vector<std::tuple<std::string, std::string, unsigned long long,
+      //    unsigned long long, unsigned long long, unsigned long long, unsigned long long>>
+      //    uidout, gidout;
+      TableData table_data;
+      XrdOucString marker_b =
+        "\n┏━> Sum of bytes transferred in last 1m/5m/1h/24h and total sum: \n";
+      //! User statistic
+      TableFormatterBase table_user_b;
+
+      if (!monitoring) {
+        table_user_b.SetHeader({
+          std::make_tuple("user", 5, format_ss),
+          std::make_tuple("io value", 24, format_s),
+          std::make_tuple("1min", 8, format_l),
+          std::make_tuple("5min", 8, format_l),
+          std::make_tuple("1h", 8, format_l),
+          std::make_tuple("24h", 8, format_l),
+          std::make_tuple("sum", 8, format_l),
+        });
+      } else {
+        table_user_b.SetHeader({
+          std::make_tuple("uid", 0, format_ss),
+          std::make_tuple("measurement", 0, format_s),
+          std::make_tuple("60s", 0, format_l),
+          std::make_tuple("300s", 0, format_l),
+          std::make_tuple("3600s", 0, format_l),
+          std::make_tuple("86400s", 0, format_l),
+          std::make_tuple("total", 0, format_l),
+        });
+      }
+
+      XrdOucString marker_sec =
+        "\n┏━> Transfer (tf) sample info every 5 min: tf time for 90/95/99/100% of data, max tf time (last 24h), average tf size, tf count.\n";
+      TableFormatterBase table_user_sec;
+
+      if (!monitoring) {
+        table_user_sec.SetHeader({
+          std::make_tuple("group", 5, format_ss),
+          std::make_tuple("io value", 24, format_s),
+          std::make_tuple("90% [s]", 8, format_l),
+          std::make_tuple("95% [s]", 8, format_l),
+          std::make_tuple("99% [s]", 8, format_l),
+          std::make_tuple("100% [s]", 8, format_l),
+          std::make_tuple("max [s]", 8, format_l),
+          std::make_tuple("avg tf size", 8, format_l),
+          std::make_tuple("tf #", 8, format_l),
+          std::make_tuple("sample time", 24, format_s)
+        });
+      } else {
+        table_user_sec.SetHeader({
+          std::make_tuple("gid", 0, format_ss),
+          std::make_tuple("measurement", 0, format_s),
+          std::make_tuple("tfsecto90p", 0, format_l),
+          std::make_tuple("tfsecto95p", 0, format_l),
+          std::make_tuple("tfsecto99p", 0, format_l),
+          std::make_tuple("tfsecto100p", 0, format_l),
+          std::make_tuple("maxtransfersec", 0, format_l),
+          std::make_tuple("avgtfsize5min", 0, format_l),
+          std::make_tuple("tfcount", 0, format_l),
+          std::make_tuple("sampletimestamp", 0, format_s)
+        });
+      }
+
+      for (auto tuit = IostatPeriodsUid.begin(); tuit != IostatPeriodsUid.end();
+           tuit++) {
+        for (auto it = tuit->second.begin(); it != tuit->second.end(); ++it) {
+          std::string username;
+          unsigned long long offset95p = it->second.GetTimeToPercComplete(P95);
+          unsigned long long offset100p = it->second.GetTimeToPercComplete(ALL);
+
+          if (numerical) {
+            username = std::to_string(it->first);
+          } else {
+            int terrc = 0;
+            username = eos::common::Mapping::UidToUserName(it->first, terrc);
+          }
+
+          std::string sample_time = "";
+
+          if (!monitoring) {
+            sample_time = it->second.GetLastSampleUpdateTimestamp(true);
+          } else {
+            sample_time = it->second.GetLastSampleUpdateTimestamp(false);
+          }
+
+          // getting tag stat sums for 1day (idx=0), 1h (idx=1), 5m (idx=2), 1min (idx=3)
+          uidout_b.emplace_back(std::make_tuple(username, tuit->first.c_str(),
+                                                it->second.GetDataInPeriod(60, 0, now), it->second.GetDataInPeriod(300, 0, now),
+                                                it->second.GetDataInPeriod(3600, 0, now), it->second.GetDataInPeriod(86400, 0,
+                                                    now),
+                                                IostatUid[tuit->first][it->first]
+                                               ));
+          uidout_sec.emplace_back(std::make_tuple(username, tuit->first.c_str(),
+                                                  it->second.GetTimeToPercComplete(P90),
+                                                  offset95p,
+                                                  it->second.GetTimeToPercComplete(P99),
+                                                  offset100p,
+                                                  it->second.GetLongestTransferTime(),
+                                                  it->second.GetAvgTransferSize(),
+                                                  it->second.GetTfCountInSample(),
+                                                  sample_time
+                                                 ));
+        }
+      }
+
+      std::sort(uidout_b.begin(), uidout_b.end());
+      std::sort(uidout_sec.begin(), uidout_sec.end());
+
+      for (auto& tup : uidout_b) {
+        table_data.emplace_back();
+        TableRow& row = table_data.back();
+        row.emplace_back(std::get<0>(tup), format_ss);
+        row.emplace_back(std::get<1>(tup), format_s);
+        row.emplace_back(std::get<2>(tup), format_l);
+        row.emplace_back(std::get<3>(tup), format_l);
+        row.emplace_back(std::get<4>(tup), format_l);
+        row.emplace_back(std::get<5>(tup), format_l);
+        row.emplace_back(std::get<6>(tup), format_l);
+      }
+
+      table_user_b.AddRows(table_data);
+      out += !monitoring ? marker_b : "";
+      out += table_user_b.GenerateTable(HEADER).c_str();
+      table_data.clear();
+
+      for (auto& tup : uidout_sec) {
+        table_data.emplace_back();
+        TableRow& row = table_data.back();
+        row.emplace_back(std::get<0>(tup), format_ss);
+        row.emplace_back(std::get<1>(tup), format_s);
+        row.emplace_back(std::get<2>(tup), format_l);
+        row.emplace_back(std::get<3>(tup), format_l);
+        row.emplace_back(std::get<4>(tup), format_l);
+        row.emplace_back(std::get<5>(tup), format_l);
+        row.emplace_back(std::get<6>(tup), format_l);
+        row.emplace_back(std::get<7>(tup), format_l);
+        row.emplace_back(std::get<8>(tup), format_l);
+        row.emplace_back(std::get<9>(tup), format_s);
+      }
+
+      table_user_sec.AddRows(table_data);
+      out += !monitoring ? marker_sec : "";
+      out += table_user_sec.GenerateTable(HEADER).c_str();
+      table_data.clear();
+      //! Group statistic
+      TableFormatterBase table_group_b;
+
+      if (!monitoring) {
+        table_group_b.SetHeader({
+          std::make_tuple("group", 5, format_ss),
+          std::make_tuple("io value", 24, format_s),
+          std::make_tuple("1min", 8, format_l),
+          std::make_tuple("5min", 8, format_l),
+          std::make_tuple("1h", 8, format_l),
+          std::make_tuple("24h", 8, format_l),
+          std::make_tuple("sum", 8, format_l),
+        });
+      } else {
+        table_group_b.SetHeader({
+          std::make_tuple("gid", 0, format_ss),
+          std::make_tuple("measurement", 0, format_s),
+          std::make_tuple("60s", 0, format_l),
+          std::make_tuple("300s", 0, format_l),
+          std::make_tuple("3600s", 0, format_l),
+          std::make_tuple("86400s", 0, format_l),
+          std::make_tuple("total", 0, format_l),
+        });
+      }
+
+      TableFormatterBase table_group_sec;
+
+      if (!monitoring) {
+        table_group_sec.SetHeader({
+          std::make_tuple("group", 5, format_ss),
+          std::make_tuple("io value", 24, format_s),
+          std::make_tuple("90% [s]", 8, format_l),
+          std::make_tuple("95% [s]", 8, format_l),
+          std::make_tuple("99% [s]", 8, format_l),
+          std::make_tuple("100% [s]", 8, format_l),
+          std::make_tuple("max [s]", 8, format_l),
+          std::make_tuple("avg tf size", 8, format_l),
+          std::make_tuple("tf #", 8, format_l),
+          std::make_tuple("sample time", 24, format_s)
+        });
+      } else {
+        table_group_sec.SetHeader({
+          std::make_tuple("gid", 0, format_ss),
+          std::make_tuple("measurement", 0, format_s),
+          std::make_tuple("tfsecto90p", 0, format_l),
+          std::make_tuple("tfsecto95p", 0, format_l),
+          std::make_tuple("tfsecto99p", 0, format_l),
+          std::make_tuple("tfsecto100p", 0, format_l),
+          std::make_tuple("maxtransfersec", 0, format_l),
+          std::make_tuple("avgtfsize5min", 0, format_l),
+          std::make_tuple("tfcount", 0, format_l),
+          std::make_tuple("sampletimestamp", 0, format_s)
+
+        });
+      }
+
+      for (auto tgit = IostatPeriodsGid.begin(); tgit != IostatPeriodsGid.end();
+           tgit++) {
+        for (auto it = tgit->second.begin(); it != tgit->second.end(); ++it) {
+          std::string groupname;
+          unsigned long long offset95p = it->second.GetTimeToPercComplete(P95);
+          unsigned long long offset100p = it->second.GetTimeToPercComplete(ALL);
+
+          if (numerical) {
+            groupname = std::to_string(it->first);
+          } else {
+            int terrc = 0;
+            groupname = eos::common::Mapping::GidToGroupName(it->first, terrc);
+          }
+
+          std::string sample_time = "";
+
+          if (!monitoring) {
+            sample_time = it->second.GetLastSampleUpdateTimestamp(true);
+          } else {
+            sample_time = it->second.GetLastSampleUpdateTimestamp(false);
+          }
+
+          // getting stat sums for 1day (idx=0), 1h (idx=1), 5m (idx=2), 1min (idx=3)
+          gidout_b.emplace_back(std::make_tuple(groupname, tgit->first.c_str(),
+                                                it->second.GetDataInPeriod(60, 0, now), it->second.GetDataInPeriod(300, 0, now),
+                                                it->second.GetDataInPeriod(3600, 0, now), it->second.GetDataInPeriod(86400, 0,
+                                                    now),
+                                                IostatGid[tgit->first][it->first]
+                                               ));
+          gidout_sec.emplace_back(std::make_tuple(groupname, tgit->first.c_str(),
+                                                  it->second.GetTimeToPercComplete(P90),
+                                                  offset95p,
+                                                  it->second.GetTimeToPercComplete(P99),
+                                                  offset100p,
+                                                  it->second.GetLongestTransferTime(),
+                                                  it->second.GetAvgTransferSize(),
+                                                  it->second.GetTfCountInSample(),
+                                                  sample_time
+                                                 ));
+        }
+      }
+
+      std::sort(gidout_b.begin(), gidout_b.end());
+      std::sort(gidout_sec.begin(), gidout_sec.end());
+
+      for (auto& tup : gidout_b) {
+        table_data.emplace_back();
+        TableRow& row = table_data.back();
+        row.emplace_back(std::get<0>(tup), format_ss);
+        row.emplace_back(std::get<1>(tup), format_s);
+        row.emplace_back(std::get<2>(tup), format_l);
+        row.emplace_back(std::get<3>(tup), format_l);
+        row.emplace_back(std::get<4>(tup), format_l);
+        row.emplace_back(std::get<5>(tup), format_l);
+        row.emplace_back(std::get<6>(tup), format_l);
+      }
+
+      table_group_b.AddRows(table_data);
+      out += !monitoring ? marker_b : "";
+      out += table_group_b.GenerateTable(HEADER).c_str();
+      table_data.clear();
+
+      for (auto& tup : gidout_sec) {
+        table_data.emplace_back();
+        TableRow& row = table_data.back();
+        row.emplace_back(std::get<0>(tup), format_ss);
+        row.emplace_back(std::get<1>(tup), format_s);
+        row.emplace_back(std::get<2>(tup), format_l);
+        row.emplace_back(std::get<3>(tup), format_l);
+        row.emplace_back(std::get<4>(tup), format_l);
+        row.emplace_back(std::get<5>(tup), format_l);
+        row.emplace_back(std::get<6>(tup), format_l);
+        row.emplace_back(std::get<7>(tup), format_l);
+        row.emplace_back(std::get<8>(tup), format_l);
+        row.emplace_back(std::get<9>(tup), format_s);
+      }
+
+      table_group_sec.AddRows(table_data);
+      out += !monitoring ? marker_sec : "";
+      out += table_group_sec.GenerateTable(HEADER).c_str();
+      table_data.clear();
     }
-
-    std::sort(gidout.begin(), gidout.end());
-
-    for (auto& tup : gidout) {
-      table_data.emplace_back();
-      TableRow& row = table_data.back();
-      row.emplace_back(std::get<0>(tup), format_ss);
-      row.emplace_back(std::get<1>(tup), format_s);
-      row.emplace_back(std::get<2>(tup), format_l);
-      row.emplace_back(std::get<3>(tup), format_l);
-      row.emplace_back(std::get<4>(tup), format_l);
-      row.emplace_back(std::get<5>(tup), format_l);
-      row.emplace_back(std::get<6>(tup), format_l);
-    }
-
-    table_group.AddRows(table_data);
-    out += table_group.GenerateTable(HEADER).c_str();
   }
 
   if (top) {
@@ -1245,129 +1874,444 @@ Iostat::PrintOut(XrdOucString& out, bool summary, bool details,
   }
 
   if (domain) {
-    TableFormatterBase table;
     TableData table_data;
 
-    if (!monitoring) {
-      table.SetHeader({
-        std::make_tuple("io", 3, format_ss),
-        std::make_tuple("domain", 24, format_s),
-        std::make_tuple("1min", 8, format_l),
-        std::make_tuple("5min", 8, format_l),
-        std::make_tuple("1h", 8, format_l),
-        std::make_tuple("24h", 8, format_l),
-        std::make_tuple("sum", 8, format_l)
-      });
+    if (interval) {
+      TableFormatterBase table;
+
+      //! User statistic
+      if (!monitoring) {
+        table.SetHeader({
+          std::make_tuple("io", 5, format_ss),
+          std::make_tuple("domain", 24, format_s),
+          std::make_tuple("data in interval", 8, format_l),
+          std::make_tuple("avg rate [B/s]", 8, format_l),
+        });
+      } else {
+        table.SetHeader({
+          std::make_tuple("measurement", 0, format_ss),
+          std::make_tuple("domain", 0, format_s),
+          std::make_tuple("intervaldata", 8, format_l),
+          std::make_tuple("intervalrate", 8, format_l),
+        });
+      }
+
+      // IO out bytes
+      for (auto it = IostatPeriodsDomainIOrb.begin();
+           it != IostatPeriodsDomainIOrb.end();
+           ++it) {
+        table_data.emplace_back();
+        TableRow& row = table_data.back();
+        std::string name = !monitoring ? "out" : "domain_io_out";
+        row.emplace_back(name, format_ss);
+        row.emplace_back(it->first.c_str(), format_s);
+        row.emplace_back(it->second.GetDataInPeriod(time_interval, time_ago, now),
+                         format_ll);
+        row.emplace_back(it->second.GetDataInPeriod(time_interval, time_ago,
+                         now) / (float)time_interval, format_ll);
+      }
+
+      // IO in bytes
+      for (auto it = IostatPeriodsDomainIOwb.begin();
+           it != IostatPeriodsDomainIOwb.end();
+           ++it) {
+        table_data.emplace_back();
+        TableRow& row = table_data.back();
+        std::string name = !monitoring ? "in" : "domain_io_in";
+        row.emplace_back(name, format_ss);
+        row.emplace_back(it->first.c_str(), format_s);
+        // getting stat sums for 1day (idx=0), 1h (idx=1), 5m (idx=2), 1min (idx=3)
+        row.emplace_back(it->second.GetDataInPeriod(time_interval, time_ago, now),
+                         format_ll);
+        row.emplace_back(it->second.GetDataInPeriod(time_interval, time_ago,
+                         now) / (float)time_interval, format_ll);
+      }
+
+      table.AddRows(table_data);
+      out += table.GenerateTable(HEADER).c_str();
+      table_data.clear();
     } else {
-      table.SetHeader({
-        std::make_tuple("measurement", 0, format_ss),
-        std::make_tuple("domain", 0, format_s),
-        std::make_tuple("60s", 0, format_l),
-        std::make_tuple("300s", 0, format_l),
-        std::make_tuple("3600s", 0, format_l),
-        std::make_tuple("86400s", 0, format_l),
-        std::make_tuple("total", 0, format_l)
-      });
-    }
+      XrdOucString marker_b =
+        "\n┏━> Sum of bytes transferred in last 1m/5m/1h/24h and total sum: \n";
+      //! User statistic
+      TableFormatterBase table_domain_b;
 
-    // IO out bytes
-    for (auto it = IostatPeriodsDomainIOrb.begin();
-         it != IostatPeriodsDomainIOrb.end();
-         ++it) {
-      table_data.emplace_back();
-      TableRow& row = table_data.back();
-      std::string name = !monitoring ? "out" : "domain_io_out";
-      row.emplace_back(name, format_ss);
-      row.emplace_back(it->first.c_str(), format_s);
-      // getting stat sums for 1day (idx=0), 1h (idx=1), 5m (idx=2), 1min (idx=3)
-      row.emplace_back(it->second.GetSumForPeriod(LAST_1MIN), format_l);
-      row.emplace_back(it->second.GetSumForPeriod(LAST_5MIN), format_l);
-      row.emplace_back(it->second.GetSumForPeriod(LAST_HOUR), format_l);
-      row.emplace_back(it->second.GetSumForPeriod(LAST_DAY), format_l);
-      row.emplace_back(it->second.GetTotalSum(), format_l);
-    }
+      if (!monitoring) {
+        table_domain_b.SetHeader({
+          std::make_tuple("io", 5, format_ss),
+          std::make_tuple("domain", 24, format_s),
+          std::make_tuple("1min", 8, format_l),
+          std::make_tuple("5min", 8, format_l),
+          std::make_tuple("1h", 8, format_l),
+          std::make_tuple("24h", 8, format_l),
+          std::make_tuple("sum", 8, format_l),
+        });
+      } else {
+        table_domain_b.SetHeader({
+          std::make_tuple("measurement", 0, format_ss),
+          std::make_tuple("domain", 0, format_s),
+          std::make_tuple("60s", 0, format_l),
+          std::make_tuple("300s", 0, format_l),
+          std::make_tuple("3600s", 0, format_l),
+          std::make_tuple("86400s", 0, format_l),
+          std::make_tuple("total", 0, format_l),
+        });
+      }
 
-    // IO in bytes
-    for (auto it = IostatPeriodsDomainIOwb.begin();
-         it != IostatPeriodsDomainIOwb.end();
-         ++it) {
-      table_data.emplace_back();
-      TableRow& row = table_data.back();
-      std::string name = !monitoring ? "in" : "domain_io_in";
-      row.emplace_back(name, format_ss);
-      row.emplace_back(it->first.c_str(), format_s);
-      // getting stat sums for 1day (idx=0), 1h (idx=1), 5m (idx=2), 1min (idx=3)
-      row.emplace_back(it->second.GetSumForPeriod(LAST_1MIN), format_l);
-      row.emplace_back(it->second.GetSumForPeriod(LAST_5MIN), format_l);
-      row.emplace_back(it->second.GetSumForPeriod(LAST_HOUR), format_l);
-      row.emplace_back(it->second.GetSumForPeriod(LAST_DAY), format_l);
-      row.emplace_back(it->second.GetTotalSum(), format_l);
-    }
+      XrdOucString marker_sec =
+        "\n┏━> Transfer (tf) sample info every 5 min: tf time for 90/95/99/100% of data, max tf time (last 24h), average tf size, tf count.\n";
+      TableFormatterBase table_domain_sec;
 
-    table.AddRows(table_data);
-    out += table.GenerateTable(HEADER).c_str();
+      if (!monitoring) {
+        table_domain_sec.SetHeader({
+          std::make_tuple("io", 5, format_ss),
+          std::make_tuple("domain", 24, format_s),
+          std::make_tuple("90% [s]", 8, format_l),
+          std::make_tuple("95% [s]", 8, format_l),
+          std::make_tuple("99% [s]", 8, format_l),
+          std::make_tuple("100% [s]", 8, format_l),
+          std::make_tuple("max [s]", 8, format_l),
+          std::make_tuple("avg tf size", 8, format_l),
+          std::make_tuple("tf #", 8, format_l),
+          std::make_tuple("sample time", 24, format_s)
+        });
+      } else {
+        table_domain_sec.SetHeader({
+          std::make_tuple("measurement", 0, format_ss),
+          std::make_tuple("domain", 0, format_s),
+          std::make_tuple("tfsecto90p", 0, format_l),
+          std::make_tuple("tfsecto95p", 0, format_l),
+          std::make_tuple("tfsecto99p", 0, format_l),
+          std::make_tuple("tfsecto100p", 0, format_l),
+          std::make_tuple("maxtransfersec", 0, format_l),
+          std::make_tuple("avgtfsize5min", 0, format_l),
+          std::make_tuple("tfcount", 0, format_l),
+          std::make_tuple("sampletimestamp", 0, format_s)
+        });
+      }
+
+      // IO out bytes
+      for (auto it = IostatPeriodsDomainIOrb.begin();
+           it != IostatPeriodsDomainIOrb.end();
+           ++it) {
+        table_data.emplace_back();
+        TableRow& row = table_data.back();
+        std::string name = !monitoring ? "out" : "domain_io_out";
+        row.emplace_back(name, format_ss);
+        row.emplace_back(it->first.c_str(), format_s);
+        // getting stat sums for 1day (idx=0), 1h (idx=1), 5m (idx=2), 1min (idx=3)
+        row.emplace_back(it->second.GetDataInPeriod(60, 0, now), format_l);
+        row.emplace_back(it->second.GetDataInPeriod(300, 0, now), format_l);
+        row.emplace_back(it->second.GetDataInPeriod(3600, 0, now), format_l);
+        row.emplace_back(it->second.GetDataInPeriod(86400, 0, now), format_l);
+        row.emplace_back(it->second.GetTotalSum(), format_l);
+      }
+
+      // IO in bytes
+      for (auto it = IostatPeriodsDomainIOwb.begin();
+           it != IostatPeriodsDomainIOwb.end();
+           ++it) {
+        table_data.emplace_back();
+        TableRow& row = table_data.back();
+        std::string name = !monitoring ? "in" : "domain_io_in";
+        row.emplace_back(name, format_ss);
+        row.emplace_back(it->first.c_str(), format_s);
+        // getting stat sums for 1day (idx=0), 1h (idx=1), 5m (idx=2), 1min (idx=3)
+        row.emplace_back(it->second.GetDataInPeriod(60, 0, now), format_l);
+        row.emplace_back(it->second.GetDataInPeriod(300, 0, now), format_l);
+        row.emplace_back(it->second.GetDataInPeriod(3600, 0, now), format_l);
+        row.emplace_back(it->second.GetDataInPeriod(86400, 0, now), format_l);
+        row.emplace_back(it->second.GetTotalSum(), format_l);
+      }
+
+      table_domain_b.AddRows(table_data);
+      out += !monitoring ? marker_b : "";
+      out += table_domain_b.GenerateTable(HEADER).c_str();
+      table_data.clear();
+
+      // IO out bytes
+      for (auto it = IostatPeriodsDomainIOrb.begin();
+           it != IostatPeriodsDomainIOrb.end();
+           ++it) {
+        table_data.emplace_back();
+        std::string sample_time = "";
+
+        if (!monitoring) {
+          sample_time = it->second.GetLastSampleUpdateTimestamp(true);
+        } else {
+          sample_time = it->second.GetLastSampleUpdateTimestamp(false);
+        }
+
+        TableRow& row = table_data.back();
+        unsigned long long offset95p = it->second.GetTimeToPercComplete(P95);
+        unsigned long long offset100p = it->second.GetTimeToPercComplete(ALL);
+        std::string name = !monitoring ? "out" : "domain_io_out";
+        row.emplace_back(name, format_ss);
+        row.emplace_back(it->first.c_str(), format_s);
+        // getting stat sums for 1day (idx=0), 1h (idx=1), 5m (idx=2), 1min (idx=3)
+        row.emplace_back(it->second.GetTimeToPercComplete(P90), format_l);
+        row.emplace_back(offset95p, format_l);
+        row.emplace_back(it->second.GetTimeToPercComplete(P99), format_l);
+        row.emplace_back(offset100p, format_l);
+        row.emplace_back(it->second.GetLongestTransferTime(), format_l);
+        row.emplace_back(it->second.GetAvgTransferSize(), format_l);
+        row.emplace_back(it->second.GetTfCountInSample(), format_l);
+        row.emplace_back(sample_time, format_s);
+      }
+
+      // IO in bytes
+      for (auto it = IostatPeriodsDomainIOwb.begin();
+           it != IostatPeriodsDomainIOwb.end();
+           ++it) {
+        table_data.emplace_back();
+        TableRow& row = table_data.back();
+        unsigned long long offset95p = it->second.GetTimeToPercComplete(P95);
+        unsigned long long offset100p = it->second.GetTimeToPercComplete(ALL);
+        std::string name = !monitoring ? "in" : "domain_io_in";
+        std::string sample_time = "";
+
+        if (!monitoring) {
+          sample_time = it->second.GetLastSampleUpdateTimestamp(true);
+        } else {
+          sample_time = it->second.GetLastSampleUpdateTimestamp(false);
+        }
+
+        row.emplace_back(name, format_ss);
+        row.emplace_back(it->first.c_str(), format_s);
+        // getting stat sums for 1day (idx=0), 1h (idx=1), 5m (idx=2), 1min (idx=3)
+        row.emplace_back(it->second.GetTimeToPercComplete(P90), format_l);
+        row.emplace_back(offset95p, format_l);
+        row.emplace_back(it->second.GetTimeToPercComplete(P99), format_l);
+        row.emplace_back(offset100p, format_l);
+        row.emplace_back(it->second.GetLongestTransferTime(), format_l);
+        row.emplace_back(it->second.GetAvgTransferSize(), format_l);
+        row.emplace_back(it->second.GetTfCountInSample(), format_l);
+        row.emplace_back(sample_time, format_s);
+      }
+
+      table_domain_sec.AddRows(table_data);
+      out += !monitoring ? marker_sec : "";
+      out += table_domain_sec.GenerateTable(HEADER).c_str();
+      table_data.clear();
+    }
   }
 
   if (apps) {
-    TableFormatterBase table;
     TableData table_data;
 
-    if (!monitoring) {
-      table.SetHeader({
-        std::make_tuple("io", 3, format_ss),
-        std::make_tuple("application", 24, format_s),
-        std::make_tuple("1min", 8, format_l),
-        std::make_tuple("5min", 8, format_l),
-        std::make_tuple("1h", 8, format_l),
-        std::make_tuple("24h", 8, format_l),
-        std::make_tuple("sum", 8, format_l)
-      });
+    if (interval) {
+      TableFormatterBase table;
+
+      //! User statistic
+      if (!monitoring) {
+        table.SetHeader({
+          std::make_tuple("io", 5, format_ss),
+          std::make_tuple("application", 24, format_s),
+          std::make_tuple("data in interval", 8, format_l),
+          std::make_tuple("avg rate [B/s]", 8, format_l),
+        });
+      } else {
+        table.SetHeader({
+          std::make_tuple("measurement", 0, format_ss),
+          std::make_tuple("application", 0, format_s),
+          std::make_tuple("intervaldata", 8, format_l),
+          std::make_tuple("intervalrate", 8, format_l),
+        });
+      }
+
+      // IO out bytes
+      for (auto it = IostatPeriodsAppIOrb.begin(); it != IostatPeriodsAppIOrb.end();
+           ++it) {
+        table_data.emplace_back();
+        TableRow& row = table_data.back();
+        std::string name = (!monitoring ? "out" : "app_io_out");
+        row.emplace_back(name, format_ss);
+        row.emplace_back(it->first.c_str(), format_s);
+        // getting stat sums for 1day (idx=0), 1h (idx=1), 5m (idx=2), 1min (idx=3)
+        row.emplace_back(it->second.GetDataInPeriod(time_interval, time_ago, now),
+                         format_ll);
+        row.emplace_back(it->second.GetDataInPeriod(time_interval, time_ago,
+                         now) / (float)time_interval, format_ll);
+      }
+
+      // IO in bytes
+      for (auto it = IostatPeriodsAppIOwb.begin(); it != IostatPeriodsAppIOwb.end();
+           ++it) {
+        table_data.emplace_back();
+        TableRow& row = table_data.back();
+        std::string name = (!monitoring ? "in" : "app_io_in");
+        row.emplace_back(name, format_ss);
+        row.emplace_back(it->first.c_str(), format_s);
+        // getting stat sums for 1day (idx=0), 1h (idx=1), 5m (idx=2), 1min (idx=3)
+        row.emplace_back(it->second.GetDataInPeriod(time_interval, time_ago, now),
+                         format_ll);
+        row.emplace_back(it->second.GetDataInPeriod(time_interval, time_ago,
+                         now) / (float)time_interval, format_ll);
+      }
+
+      table.AddRows(table_data);
+      out += table.GenerateTable(HEADER).c_str();
+      table_data.clear();
     } else {
-      table.SetHeader({
-        std::make_tuple("measurement", 0, format_ss),
-        std::make_tuple("application", 0, format_s),
-        std::make_tuple("60s", 0, format_l),
-        std::make_tuple("300s", 0, format_l),
-        std::make_tuple("3600s", 0, format_l),
-        std::make_tuple("86400s", 0, format_l),
-        std::make_tuple("total", 0, format_l)
-      });
-    }
+      XrdOucString marker_b =
+        "\n┏━> Sum of bytes transferred in last 1m/5m/1h/24h and total sum: \n";
+      //! User statistic
+      TableFormatterBase table_app_b;
 
-    // IO out bytes
-    for (auto it = IostatPeriodsAppIOrb.begin(); it != IostatPeriodsAppIOrb.end();
-         ++it) {
-      table_data.emplace_back();
-      TableRow& row = table_data.back();
-      std::string name = (!monitoring ? "out" : "app_io_out");
-      row.emplace_back(name, format_ss);
-      row.emplace_back(it->first.c_str(), format_s);
-      // getting stat sums for 1day (idx=0), 1h (idx=1), 5m (idx=2), 1min (idx=3)
-      row.emplace_back(it->second.GetSumForPeriod(LAST_1MIN), format_l);
-      row.emplace_back(it->second.GetSumForPeriod(LAST_5MIN), format_l);
-      row.emplace_back(it->second.GetSumForPeriod(LAST_HOUR), format_l);
-      row.emplace_back(it->second.GetSumForPeriod(LAST_DAY), format_l);
-      row.emplace_back(it->second.GetTotalSum(), format_l);
-    }
+      if (!monitoring) {
+        table_app_b.SetHeader({
+          std::make_tuple("io", 5, format_ss),
+          std::make_tuple("application", 24, format_s),
+          std::make_tuple("1min", 8, format_l),
+          std::make_tuple("5min", 8, format_l),
+          std::make_tuple("1h", 8, format_l),
+          std::make_tuple("24h", 8, format_l),
+          std::make_tuple("sum", 8, format_l),
+        });
+      } else {
+        table_app_b.SetHeader({
+          std::make_tuple("measurement", 0, format_ss),
+          std::make_tuple("application", 0, format_s),
+          std::make_tuple("60s", 0, format_l),
+          std::make_tuple("300s", 0, format_l),
+          std::make_tuple("3600s", 0, format_l),
+          std::make_tuple("86400s", 0, format_l),
+          std::make_tuple("total", 0, format_l),
+        });
+      }
 
-    // IO in bytes
-    for (auto it = IostatPeriodsAppIOwb.begin(); it != IostatPeriodsAppIOwb.end();
-         ++it) {
-      table_data.emplace_back();
-      TableRow& row = table_data.back();
-      std::string name = (!monitoring ? "in" : "app_io_in");
-      row.emplace_back(name, format_ss);
-      row.emplace_back(it->first.c_str(), format_s);
-      // getting stat sums for 1day (idx=0), 1h (idx=1), 5m (idx=2), 1min (idx=3)
-      row.emplace_back(it->second.GetSumForPeriod(LAST_1MIN), format_l);
-      row.emplace_back(it->second.GetSumForPeriod(LAST_5MIN), format_l);
-      row.emplace_back(it->second.GetSumForPeriod(LAST_HOUR), format_l);
-      row.emplace_back(it->second.GetSumForPeriod(LAST_DAY), format_l);
-      row.emplace_back(it->second.GetTotalSum(), format_l);
-    }
+      XrdOucString marker_sec =
+        "\n┏━> Transfer (tf) sample info every 5 min: tf time for 90/95/99/100% of data, max tf time (last 24h), average tf size, tf count.\n";
+      TableFormatterBase table_app_sec;
 
-    table.AddRows(table_data);
-    out += table.GenerateTable(HEADER).c_str();
+      if (!monitoring) {
+        table_app_sec.SetHeader({
+          std::make_tuple("io", 5, format_ss),
+          std::make_tuple("application", 24, format_s),
+          std::make_tuple("90% [s]", 8, format_l),
+          std::make_tuple("95% [s]", 8, format_l),
+          std::make_tuple("99% [s]", 8, format_l),
+          std::make_tuple("100% [s]", 8, format_l),
+          std::make_tuple("max [s]", 8, format_l),
+          std::make_tuple("avg tf size", 8, format_l),
+          std::make_tuple("tf #", 8, format_l),
+          std::make_tuple("sample time", 24, format_s),
+        });
+      } else {
+        table_app_sec.SetHeader({
+          std::make_tuple("measurement", 0, format_ss),
+          std::make_tuple("application", 0, format_s),
+          std::make_tuple("tfsecto90p", 0, format_l),
+          std::make_tuple("tfsecto95p", 0, format_l),
+          std::make_tuple("tfsecto99p", 0, format_l),
+          std::make_tuple("tfsecto100p", 0, format_l),
+          std::make_tuple("maxtransfersec", 0, format_l),
+          std::make_tuple("avgtfsize5min", 0, format_l),
+          std::make_tuple("tfcount", 0, format_l),
+          std::make_tuple("sampletimestamp", 0, format_s)
+        });
+      }
+
+      // IO out bytes
+      for (auto it = IostatPeriodsAppIOrb.begin(); it != IostatPeriodsAppIOrb.end();
+           ++it) {
+        table_data.emplace_back();
+        TableRow& row = table_data.back();
+        std::string name = (!monitoring ? "out" : "app_io_out");
+        row.emplace_back(name, format_ss);
+        row.emplace_back(it->first.c_str(), format_s);
+        // getting stat sums for 1day (idx=0), 1h (idx=1), 5m (idx=2), 1min (idx=3)
+        row.emplace_back(it->second.GetDataInPeriod(60, 0, now), format_l);
+        row.emplace_back(it->second.GetDataInPeriod(300, 0, now), format_l);
+        row.emplace_back(it->second.GetDataInPeriod(3600, 0, now), format_l);
+        row.emplace_back(it->second.GetDataInPeriod(86400, 0, now), format_l);
+        row.emplace_back(it->second.GetTotalSum(), format_l);
+      }
+
+      // IO in bytes
+      for (auto it = IostatPeriodsAppIOwb.begin(); it != IostatPeriodsAppIOwb.end();
+           ++it) {
+        table_data.emplace_back();
+        TableRow& row = table_data.back();
+        std::string name = (!monitoring ? "in" : "app_io_in");
+        row.emplace_back(name, format_ss);
+        row.emplace_back(it->first.c_str(), format_s);
+        // getting stat sums for 1day (idx=0), 1h (idx=1), 5m (idx=2), 1min (idx=3)
+        row.emplace_back(it->second.GetDataInPeriod(60, 0, now), format_l);
+        row.emplace_back(it->second.GetDataInPeriod(300, 0, now), format_l);
+        row.emplace_back(it->second.GetDataInPeriod(3600, 0, now), format_l);
+        row.emplace_back(it->second.GetDataInPeriod(86400, 0, now), format_l);
+        row.emplace_back(it->second.GetTotalSum(), format_l);
+      }
+
+      out += !monitoring ? marker_b : "";
+      table_app_b.AddRows(table_data);
+      out += table_app_b.GenerateTable(HEADER).c_str();
+      table_data.clear();
+
+      // IO out bytes
+      for (auto it = IostatPeriodsAppIOrb.begin(); it != IostatPeriodsAppIOrb.end();
+           ++it) {
+        table_data.emplace_back();
+        TableRow& row = table_data.back();
+        unsigned long long offset95p = it->second.GetTimeToPercComplete(P95);
+        unsigned long long offset100p = it->second.GetTimeToPercComplete(ALL);
+        std::string name = (!monitoring ? "out" : "app_io_out");
+        std::string sample_time = "";
+
+        if (!monitoring) {
+          sample_time = it->second.GetLastSampleUpdateTimestamp(true);
+        } else {
+          sample_time = it->second.GetLastSampleUpdateTimestamp(false);
+        }
+
+        row.emplace_back(name, format_ss);
+        row.emplace_back(it->first.c_str(), format_s);
+        // getting stat sums for 1day (idx=0), 1h (idx=1), 5m (idx=2), 1min (idx=3)
+        row.emplace_back(it->second.GetTimeToPercComplete(P90), format_l);
+        row.emplace_back(offset95p, format_l);
+        row.emplace_back(it->second.GetTimeToPercComplete(P99), format_l);
+        row.emplace_back(offset100p, format_l);
+        row.emplace_back(it->second.GetLongestTransferTime(), format_l);
+        row.emplace_back(it->second.GetAvgTransferSize(), format_l);
+        row.emplace_back(it->second.GetTfCountInSample(), format_l);
+        row.emplace_back(sample_time, format_s);
+      }
+
+      // IO in bytes
+      for (auto it = IostatPeriodsAppIOwb.begin(); it != IostatPeriodsAppIOwb.end();
+           ++it) {
+        table_data.emplace_back();
+        TableRow& row = table_data.back();
+        unsigned long long offset95p = it->second.GetTimeToPercComplete(P95);
+        unsigned long long offset100p = it->second.GetTimeToPercComplete(ALL);
+        std::string sample_time = "";
+
+        if (!monitoring) {
+          sample_time = it->second.GetLastSampleUpdateTimestamp(true);
+        } else {
+          sample_time = it->second.GetLastSampleUpdateTimestamp(false);
+        }
+
+        std::string name = (!monitoring ? "in" : "app_io_in");
+        row.emplace_back(name, format_ss);
+        row.emplace_back(it->first.c_str(), format_s);
+        // getting stat sums for 1day (idx=0), 1h (idx=1), 5m (idx=2), 1min (idx=3)
+        row.emplace_back(it->second.GetTimeToPercComplete(P90), format_l);
+        row.emplace_back(offset95p, format_l);
+        row.emplace_back(it->second.GetTimeToPercComplete(P99), format_l);
+        row.emplace_back(offset100p, format_l);
+        row.emplace_back(it->second.GetLongestTransferTime(), format_l);
+        row.emplace_back(it->second.GetAvgTransferSize(), format_l);
+        row.emplace_back(it->second.GetTfCountInSample(), format_l);
+        row.emplace_back(sample_time, format_s);
+      }
+
+      out += !monitoring ? marker_sec : "";
+      table_app_sec.AddRows(table_data);
+      out += table_app_sec.GenerateTable(HEADER).c_str();
+      table_data.clear();
+    }
   }
 }
 
@@ -1848,6 +2792,7 @@ Iostat::Circulate(ThreadAssistant& assistant) noexcept
 
       for (it = tit->second.begin(); it != tit->second.end(); ++it) {
         it->second.StampZero(now);
+        it->second.StampBufferZero(now);
       }
     }
 
@@ -1857,6 +2802,7 @@ Iostat::Circulate(ThreadAssistant& assistant) noexcept
 
       for (it = tit->second.begin(); it != tit->second.end(); ++it) {
         it->second.StampZero(now);
+        it->second.StampBufferZero(now);
       }
     }
 
@@ -1865,23 +2811,27 @@ Iostat::Circulate(ThreadAssistant& assistant) noexcept
          dit != IostatPeriodsDomainIOrb.end();
          dit++) {
       dit->second.StampZero(now);
+      dit->second.StampBufferZero(now);
     }
 
     for (dit = IostatPeriodsDomainIOwb.begin();
          dit != IostatPeriodsDomainIOwb.end();
          dit++) {
       dit->second.StampZero(now);
+      dit->second.StampBufferZero(now);
     }
 
     // loop over app accounting
     for (dit = IostatPeriodsAppIOrb.begin(); dit != IostatPeriodsAppIOrb.end();
          dit++) {
       dit->second.StampZero(now);
+      dit->second.StampBufferZero(now);
     }
 
     for (dit = IostatPeriodsAppIOwb.begin(); dit != IostatPeriodsAppIOwb.end();
          dit++) {
       dit->second.StampZero(now);
+      dit->second.StampBufferZero(now);
     }
 
     size_t popularitybin = (((time(NULL))) % (IOSTAT_POPULARITY_DAY *
