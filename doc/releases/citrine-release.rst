@@ -27,6 +27,9 @@ Bug
 * FST: Make sure promise is still valid even in the event that an exception
   is thrown in the XrdIoHandler constructor.
 * MGM: Groupbalancer: fix app tag to not create proc directories
+* COMMON: Make sure the BufferManager satisfies buffer requests that don't
+  fit the existing slots. Also increase the default number of slots from 2
+  to 6 which covers buffers up to 64MB.
 
 
 ``v4.8.77 Citrine``
