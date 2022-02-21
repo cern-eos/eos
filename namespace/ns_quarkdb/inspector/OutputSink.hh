@@ -84,6 +84,11 @@ public:
     const std::string &customPath);
 
   //----------------------------------------------------------------------------
+  //! Print everything known about a FileMD -- custom path
+  //----------------------------------------------------------------------------
+  void printWithAdditionalFields(const eos::ns::FileMdProto &proto, const FilePrintingOptions &opts,
+    std::map<std::string, std::string> &extension);
+  //----------------------------------------------------------------------------
   //! Print everything known about a FileMD, including full path if available
   //----------------------------------------------------------------------------
   void print(const eos::ns::FileMdProto &proto, const FilePrintingOptions &opts,
