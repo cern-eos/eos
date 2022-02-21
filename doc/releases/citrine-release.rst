@@ -26,6 +26,7 @@ Bug
 
 * FST: Make sure promise is still valid even in the event that an exception
   is thrown in the XrdIoHandler constructor.
+* MGM: Groupbalancer: fix app tag to not create proc directories
 
 
 ``v4.8.77 Citrine``
