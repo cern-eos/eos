@@ -613,6 +613,10 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
     }
   }
 
+  if (isCreation && !gOFS.FmdOnDb()) {
+    gOFS.mFmdHandler->Commit(mFmd.get());
+  }
+
   if (!isCreation) {
     COMMONTIMING("layout::stat", &tm);
     // Get the real size of the file, not the local stripe size!

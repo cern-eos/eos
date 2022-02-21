@@ -66,7 +66,7 @@ FmdAttrHandler::LocalPutFmd(const std::string& path, const eos::common::FmdHelpe
     eos_err("Failed to Set Fmd Attribute at path:%s, errno=%d", path.c_str(),
             errno);
   }
-  return rc != 0;
+  return rc == 0;
 }
 
 void
