@@ -43,7 +43,7 @@
 
 namespace
 {
-eos::common::BufferManager gBuffMgr;
+eos::common::BufferManager gBuffMgr(2 * eos::common::GB);
 }
 
 EOSFSTNAMESPACE_BEGIN
