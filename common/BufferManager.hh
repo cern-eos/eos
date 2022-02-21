@@ -219,10 +219,11 @@ public:
   //----------------------------------------------------------------------------
   BufferManager(uint64_t max_size = 256 * 1024 * 1024 , uint32_t slots = 6,
                 uint64_t slot_base_sz = 1024 * 1024):
-    mMaxSize(max_size), mAllocatedSize(0ull), mNumSlots(slots)
+    mMaxSize(max_size), mAllocatedSize(0ull), mNumSlots(slots),
+    mSlotBaseSize(slot_base_sz)
   {
     for (uint32_t i = 0u; i <= mNumSlots; ++i) {
-      mSlots.emplace_back((1 << i) * slot_base_sz);
+      mSlots.emplace_back((1 << i) * mSlotBaseSize);
     }
   }
 
@@ -249,7 +250,7 @@ public:
 
     // Find appropriate slot for the given size
     for (uint32_t i = 0; i <= mNumSlots; ++i) {
-      if (size <= (slot_base_sz * std::pow(2, i))) {
+      if (size <= (mSlotBaseSize * std::pow(2, i))) {
         slot = i;
         break;
       }
@@ -290,7 +291,7 @@ public:
 
     // Find appropriate slot for given buffer
     for (uint32_t i = 0; i <= mNumSlots; ++i) {
-      if (buffer->mCapacity == (slot_base_sz * std::pow(2, i))) {
+      if (buffer->mCapacity == (mSlotBaseSize * std::pow(2, i))) {
         slot = i;
         break;
       }
@@ -299,7 +300,7 @@ public:
     // Buffer larger then our biggest slot, just deallocate
     if (slot == UINT32_MAX) {
       mAllocatedSize -= buffer->mCapacity;
-      buffer.release();
+      buffer.reset();
       return;
     }
 
@@ -387,6 +388,7 @@ private:
   std::atomic<uint64_t> mMaxSize;
   std::atomic<uint64_t> mAllocatedSize;
   std::atomic<uint32_t> mNumSlots;
+  const uint64_t mSlotBaseSize;
   std::vector<BufferSlot> mSlots;
 };
 
