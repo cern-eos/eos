@@ -16,6 +16,18 @@ Introduction
 This release is based on XRootD V4 and IPV6 enabled.
 
 
+``v4.8.78 Citrine``
+===================
+
+2022-02-21
+
+Bug
+---
+
+* FST: Make sure promise is still valid even in the event that an exception
+  is thrown in the XrdIoHandler constructor.
+
+
 ``v4.8.77 Citrine``
 ===================
 
