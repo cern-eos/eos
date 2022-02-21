@@ -259,6 +259,14 @@ public:
   // A shutdown/cleanup routine for the specific handler, meant to be overriden
   // if the class handles some objects needing cleanup
   virtual void Shutdown() {}
+
+  static std::unique_ptr<eos::common::FmdHelper>
+  make_fmd_helper(common::FileId::fileid_t fid,
+                  common::FileSystem::fsid_t fsid,
+                  uid_t uid,
+                  gid_t gid,
+                  common::LayoutId::layoutid_t layoutid);
+
 private:
 
   // Virtual private methods are overrideable at derived classes, this allows
@@ -279,7 +287,6 @@ private:
   // TODO: Technically we could hold move the mIsSyncing map & mutex to this class. Do
   // this if AttrHandler also needs a syncing lock vs noop
   virtual void SetSyncStatus(eos::common::FileSystem::fsid_t fsid, bool is_syncing) = 0;
-
 };
 
 EOSFSTNAMESPACE_END

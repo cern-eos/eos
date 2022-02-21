@@ -1,3 +1,6 @@
+#include "fst/XrdFstOfs.hh"
+#include "fst/io/local/LocalIo.hh"
+#include "FmdAttr.hh"
 #include "FmdHandler.hh"
 #include "common/Path.hh"
 #include "fst/io/FileIoPluginCommon.hh"
@@ -9,7 +12,6 @@
 #include "namespace/ns_quarkdb/QdbContactDetails.hh"
 #include "qclient/structures/QSet.hh"
 #include <fts.h>
-
 
 EOSFSTNAMESPACE_BEGIN
 
@@ -789,5 +791,26 @@ FmdHandler::ResyncAllFromQdb(const QdbContactDetails& contact_details,
   return true;
 }
 
+std::unique_ptr<eos::common::FmdHelper>
+eos::fst::FmdHandler::make_fmd_helper(common::FileId::fileid_t fid,
+                                      common::FileSystem::fsid_t fsid,
+                                      uid_t uid,
+                                      gid_t gid,
+                                      unsigned long layoutid)
+{ // creating an fmd
+  auto fmd = make_unique<common::FmdHelper>();
+  fmd->mProtoFmd.set_uid(uid);
+  fmd->mProtoFmd.set_gid(gid);
+  fmd->mProtoFmd.set_lid(layoutid);
+  fmd->mProtoFmd.set_fsid(fsid);
+  fmd->mProtoFmd.set_fid(fid);
+
+  struct timeval tv;
+  struct timezone tz;
+  gettimeofday(&tv, &tz);
+  fmd->mProtoFmd.set_ctime(tv.tv_sec);
+  fmd->mProtoFmd.set_ctime_ns(tv.tv_usec * 1000);
+  return fmd;
+}
 
 EOSFSTNAMESPACE_END

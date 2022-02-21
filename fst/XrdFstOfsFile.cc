@@ -405,14 +405,17 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
   }
 
   COMMONTIMING("get::localfmd", &tm);
-  mFmd = gOFS.mFmdHandler->LocalGetFmd(mFileId, mFsId, isRepairRead, mIsRW,
-                                       vid.uid, vid.gid, mLid);
+  bool create_fmd = mIsRW && gOFS.FmdOnDb();
+  mFmd = gOFS.mFmdHandler->LocalGetFmd(mFileId, mFsId, isRepairRead, create_fmd,
+                                      vid.uid, vid.gid, mLid);
+
   COMMONTIMING("resync::localfmd", &tm);
 
   if (mFmd == nullptr) {
     if (gOFS.mFmdHandler->ResyncMgm(mFsId, mFileId, mRedirectManager.c_str())) {
       eos_info("msg=\"resync ok\" fsid=%lu fxid=%llx", mFsId, mFileId);
-      mFmd = gOFS.mFmdHandler->LocalGetFmd(mFileId, mFsId, isRepairRead, mIsRW,
+      mFmd = gOFS.mFmdHandler->LocalGetFmd(mFileId, mFsId, isRepairRead,
+                                           create_fmd,
                                           vid.uid, vid.gid, mLid);
       std::string dummy_xs;
       int rc=0;
@@ -424,6 +427,11 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
     } else {
       eos_err("msg=\"resync failed\" fsid=%lu fxid=%08llx", mFsId, mFileId);
     }
+  }
+
+  if (mFmd == nullptr && isCreation && !gOFS.FmdOnDb()) {
+    mFmd = FmdHandler::make_fmd_helper(mFileId, mFsId, vid.uid, vid.gid,
+                                       mLid);
   }
 
   if (mFmd == nullptr) {
