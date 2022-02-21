@@ -74,14 +74,34 @@ TEST(BufferManager, MatchingSizes)
   buffer = buff_mgr.GetBuffer(buff_sz);
   ASSERT_NE(buffer, nullptr);
   ASSERT_EQ(buffer->mCapacity, 4 * MB);
-  buff_sz = 4 * MB + 33 * KB;
+  buff_sz = 512 * MB + 33 * KB;
   buffer = buff_mgr.GetBuffer(buff_sz);
   ASSERT_EQ(buffer, nullptr);
   uint64_t total_size {0ull};
   auto slot_sizes = buff_mgr.GetSortedSlotSizes(total_size);
-  ASSERT_EQ(total_size , 11 * MB);
-  ASSERT_EQ(slot_sizes[0].first, 0);
-  ASSERT_EQ(slot_sizes[0].second, 3 * MB);
+  ASSERT_EQ(11 * MB, total_size);
+  // By default there are 6 slots populated like this
+  // index: 0 slot: 3 size: 0
+  // index: 1 slot: 4 size: 0
+  // index: 2 slot: 5 size: 0
+  // index: 3 slot: 6 size: 0
+  // index: 4 slot: 0 size: 3145728
+  // index: 5 slot: 1 size: 4194304
+  // index: 6 slot: 2 size: 4194304
+  ASSERT_EQ(3, slot_sizes[0].first);
+  ASSERT_EQ(0, slot_sizes[0].second);
+  ASSERT_EQ(4, slot_sizes[1].first);
+  ASSERT_EQ(0, slot_sizes[1].second);
+  ASSERT_EQ(5, slot_sizes[2].first);
+  ASSERT_EQ(0, slot_sizes[2].second);
+  ASSERT_EQ(6, slot_sizes[3].first);
+  ASSERT_EQ(0, slot_sizes[3].second);
+  ASSERT_EQ(0, slot_sizes[4].first);
+  ASSERT_EQ(3145728, slot_sizes[4].second);
+  ASSERT_EQ(1,       slot_sizes[5].first);
+  ASSERT_EQ(4194304, slot_sizes[5].second);
+  ASSERT_EQ(2,       slot_sizes[6].first);
+  ASSERT_EQ(4194304, slot_sizes[6].second);
 }
 
 TEST(BufferManager, RecycleSingleBuffer)
