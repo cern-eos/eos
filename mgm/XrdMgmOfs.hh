@@ -185,6 +185,10 @@ namespace eos::mgm::bulk {
   class BulkRequestProcCleaner;
 }
 
+namespace eos::mgm::rest {
+  class TapeRestHandler;
+}
+
 namespace eos::auth
 {
 class RequestProto;
@@ -1905,6 +1909,7 @@ public:
   //! BulkRequestProcCleaner
   std::unique_ptr<bulk::BulkRequestProcCleaner> mBulkReqProcCleaner;
 
+  std::unique_ptr<rest::TapeRestHandler> mTapeRestApiHandler;
   //! HTTP TAPE REST API BulkRequestProcCleaner
   std::unique_ptr<bulk::BulkRequestProcCleaner> mHttpTapeRestApiBulkReqProcCleaner;
 

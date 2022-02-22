@@ -362,8 +362,7 @@ EosMgmHttpHandler::ProcessReq(XrdHttpExtReq& req)
     }
   }
 
-  bool isRestRequest = mMgmOfsHandler->mHttpd->isRestRequest(req);
-
+  bool isRestRequest = mMgmOfsHandler->mTapeRestApiHandler != nullptr && mMgmOfsHandler->mTapeRestApiHandler->isRestRequest(req.resource);
   if(isRestRequest){
     std::optional<int> retCode = readBody(req,body);
     if(retCode){

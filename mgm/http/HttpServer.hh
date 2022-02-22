@@ -122,11 +122,6 @@ public:
                  const XrdSecEntity& client
                 );
 
-  virtual bool isRestRequest(const XrdHttpExtReq& req);
-
-  //Tape REST API handler
-  rest::TapeRestHandler mTapeRestHandler;
-
 private:
 #ifdef IN_TEST_HARNESS
 public:
