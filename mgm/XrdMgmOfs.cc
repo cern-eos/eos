@@ -117,6 +117,7 @@
 #include "mgm/bulk-request/prepare/query-prepare/QueryPrepareResult.hh"
 #include "mgm/bulk-request/dao/proc/cleaner/BulkRequestProcCleaner.hh"
 #include "mgm/bulk-request/utils/json/QueryPrepareResponseJson.hh"
+#include "mgm/http/rest-api/handler/tape/TapeRestHandler.hh"
 
 #ifdef __APPLE__
 #define ECOMM 70
@@ -329,6 +330,8 @@ XrdMgmOfs::XrdMgmOfs(XrdSysError* ep):
   } else {
     mFusePlacementBooking = 5 * 1024 * 1024 * 1024ll;
   }
+
+  mTapeRestApiHandler = std::make_unique<rest::TapeRestHandler>();
 
   {
     // Run a dummy command so that the ShellExecutor is forked before any XrdCl
