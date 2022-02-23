@@ -681,14 +681,16 @@ int Inspector::oneReplicaLayout(bool showName, bool showPaths,
 //----------------------------------------------------------------------------
 // Find files with non-nominal number of stripes (replicas)
 //----------------------------------------------------------------------------
-int Inspector::stripediff(bool printTime, std::ostream& out, std::ostream& err)
+int Inspector::stripediff()
 {
-  FileScanner fileScanner(mQcl);
+  FilePrintingOptions filePrintingOpts;
+  FileScanner fileScanner(mQcl, true);
 
   while (fileScanner.valid()) {
+    FileScanner::Item item;
     eos::ns::FileMdProto proto;
 
-    if (!fileScanner.getItem(proto)) {
+    if (!fileScanner.getItem(proto,&item)) {
       break;
     }
 
@@ -703,20 +705,13 @@ int Inspector::stripediff(bool printTime, std::ostream& out, std::ostream& err)
     }
 
     if (actual != expected && size != 0) {
-      out << "id=" << proto.id() << " container=" << proto.cont_id() << " size=" <<
-          size << " actual-stripes=" << actual << " expected-stripes=" << expected <<
-          " unlinked-stripes=" << unlinked <<  " locations=" << serializeLocations(
-            proto.locations()) << " unlinked-locations=" << serializeLocations(
-            proto.unlink_locations());
-
-      if (printTime) {
-        out << " mtime=" << Printing::timespecToTimestamp(Printing::parseTimespec(
-              proto.mtime()));
-        out << " ctime=" << Printing::timespecToTimestamp(Printing::parseTimespec(
-              proto.ctime()));
-      }
-
-      out << std::endl;
+      // Use output sink for complete report / json
+      std::map<std::string, std::string> extended;
+      extended["path"] =  fetchNameOrPath(proto,item);
+      extended["actual-stripes"] = std::to_string(actual);
+      extended["expected-stripes"] = std::to_string(expected);
+      extended["unlinked-stripes"] = std::to_string(unlinked);
+      mOutputSink.printWithAdditionalFields(proto, filePrintingOpts, extended);  
     }
 
     fileScanner.next();
@@ -725,7 +720,7 @@ int Inspector::stripediff(bool printTime, std::ostream& out, std::ostream& err)
   std::string errorString;
 
   if (fileScanner.hasError(errorString)) {
-    err << errorString;
+    mOutputSink.err(errorString);
     return 1;
   }
 

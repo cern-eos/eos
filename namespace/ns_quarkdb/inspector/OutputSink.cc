@@ -297,6 +297,15 @@ void OutputSink::printWithCustomPath(const eos::ns::FileMdProto &proto, const Fi
   print(out);
 }
 
+//----------------------------------------------------------------------------
+//! Print everything known about a FileMD -- Additional fields to add
+//----------------------------------------------------------------------------
+void OutputSink::printWithAdditionalFields(const eos::ns::FileMdProto &proto, const FilePrintingOptions &opts,
+  std::map<std::string, std::string> &extension) {
+  populateMetadata(proto, opts, extension);
+  print(extension);
+}
+
 //------------------------------------------------------------------------------
 //! Print everything known about a FileMD, including full path if available
 //------------------------------------------------------------------------------
