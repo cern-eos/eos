@@ -121,43 +121,45 @@ class IAM_Server:
                     response = json.loads(response.read())
                     if filter_function is not None:
                         users.update(filter_function(*response['Resources'], **kwargs))
+                    else:
+                        users.update(reponse)
                 except Exception as e:
                     logging.error(f'{req} generated an exception: {e}')
 
         return users
 
-    def name_map_filter(self, *users, kwargs=None):
-        """
-        Collect user's id to build 'Mapfile format' rules:
-        https://github.com/xrootd/xrootd/tree/master/src/XrdSciTokens
-        """
-        logging.debug(f"This request has {len(users)}")
-        ids=set()
-        return set((user.get('id') for user in users if user.get('id') is not None))
+def name_map_filter(*users, kwargs=None):
+    """
+    Collect user's id to build 'Mapfile format' rules:
+    https://github.com/xrootd/xrootd/tree/master/src/XrdSciTokens
+    """
+    logging.debug(f"This request has {len(users)}")
+    ids=set()
+    return set((user.get('id') for user in users if user.get('id') is not None))
 
-    def dn_filter(self, *users, pattern=None, sensitive=0, prefer_cern=False):
-        """
-        Collect users with DN certificates matching regex
-        """
-        logging.debug(f"This request has {len(users)}")
-        matching_dn = set()
-        for user in users:
-            try:
-                certs = user['urn:indigo-dc:scim:schemas:IndigoUser']['certificates']
-                # Is there a CERN certificate if prefered?
-                if prefer_cern:
-                    certs = [*filter(lambda x: x.get('subjectDn',x.get('issuerDn')).endswith('DC=cern,DC=ch'), certs)] or certs
+def dn_filter(*users, pattern=None, prefer_cern=False):
+    """
+    Collect users with DN certificates matching regex
+    """
+    logging.debug(f"This request has {len(users)}")
+    matching_dn = set()
+    for user in users:
+        try:
+            certs = user['urn:indigo-dc:scim:schemas:IndigoUser']['certificates']
+            # Is there a CERN certificate if prefered?
+            if prefer_cern:
+                certs = [*filter(lambda x: x.get('subjectDn',x.get('issuerDn')).endswith('DC=cern,DC=ch'), certs)]
 
-                for cert in certs:
-                    # Revert subjectDn and replace , with /
-                    grid_dn = '/'.join(cert["subjectDn"].split(',')[::-1])
-                    if pattern is None or pattern.search(grid_dn):
-                        matching_dn.add(f'/{grid_dn}')
-            except KeyError:
-                logging.warning(f"User {user['id']} doesn't have certificate to extract info (skipping it)")
+            for cert in certs:
+                # Revert subjectDn and replace , with /
+                grid_dn = '/'.join(cert["subjectDn"].split(',')[::-1])
+                if pattern is None or pattern.search(grid_dn):
+                    matching_dn.add(f'/{grid_dn}')
+        except KeyError:
+            logging.warning(f"User {user['id']} doesn't have certificate to extract info (skipping it)")
 
-        logging.info(f"{len(matching_dn)} matching certificates")
-        return matching_dn
+    logging.info(f"{len(matching_dn)} matching certificates")
+    return matching_dn
 
 def build_namemap_file(users_id, account, ifile, ofile):
     name_map=set() # serialized dictionary!
@@ -178,7 +180,7 @@ def build_namemap_file(users_id, account, ifile, ofile):
             with open(ofile,'w') as f:
                 json.dump([pickle.loads(rule) for rule in name_map],f)
         except Exception as e:
-            logging.error(f'Unable to write to {ofile}, raised exception {e}')
+            logging.error(f'Unable to write to {ofile},raised exception {e}')
             exit(4)
     else:
         print(json.dumps([pickle.loads(rule) for rule in name_map]))
@@ -279,11 +281,11 @@ def main(server = None, credentials=None, targets = None, account=None, ifile=No
     users = set()
     for iam in iam_servers:
         if type_of_format == "GRIDMAP":
-            users.update(iam.get_users(count=100, filter_function=iam.dn_filter,
+            users.update(iam.get_users(count=100, filter_function=dn_filter,
                                        pattern=pattern, sensitive=sensitive,
                                        prefer_cern=prefer_cern))
         elif type_of_format == "MAPFILE":
-            users.update(iam.get_users(count=100, filter_function=iam.name_map_filter))
+            users.update(iam.get_users(count=100, filter_function=name_map_filter))
 
     if type_of_format == "GRIDMAP":
         build_gridmap_file(users, account, ifile, ofile)
