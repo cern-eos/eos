@@ -159,7 +159,7 @@ target_link_libraries(
   XROOTD::POSIX
   EosFstIo-Static)
 
-install(PROGRAMS eosadmin
+install(PROGRAMS eosadmin eos-iam-mapfile
   DESTINATION ${CMAKE_INSTALL_FULL_SBINDIR})
 
 install(TARGETS eos
