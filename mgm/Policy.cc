@@ -116,18 +116,33 @@ Policy::GetLayoutAndSpace(const char* path,
       bandwidth = it->second->GetConfigMember("policy.bandwidth");
       schedule = (it->second->GetConfigMember("policy.schedule")=="1");
       iopriority = it->second->GetConfigMember("policy.iopriority");
-      iopriority = it->second->GetConfigMember("policy.iotype");
+      iotype = it->second->GetConfigMember("policy.iotype");
 
-      // try application specific bandwidth setting
-      std::string appkey = "bw.";
-      if (env.Get("eos.app")) {
-	appkey += env.Get("eos.app");
-      } else {
-	appkey += "default";
+      {
+	// try application specific bandwidth setting
+	std::string appkey = "bw.";
+	if (env.Get("eos.app")) {
+	  appkey += env.Get("eos.app");
+	} else {
+	  appkey += "default";
+	}
+	std::string app_bandwidth = it->second->GetConfigMember(appkey);
+	if (app_bandwidth.length()) {
+	  bandwidth = app_bandwidth;
+	}
       }
-      std::string app_bandwidth = it->second->GetConfigMember(appkey);
-      if (app_bandwidth.length()) {
-	bandwidth = app_bandwidth;
+      {
+	// try application specific iotype setting
+	std::string appkey = "iotype.";
+	if (env.Get("eos.app")) {
+	  appkey += env.Get("eos.app");
+	} else {
+	  appkey += "default";
+	}
+	std::string app_iotype = it->second->GetConfigMember(appkey);
+	if (app_iotype.length()) {
+	  iotype = app_iotype;
+	}
       }
     }
   }
@@ -144,7 +159,6 @@ Policy::GetLayoutAndSpace(const char* path,
       }
     }
   }
-
 
   if (!conversion) {
     auto it = FsView::gFsView.mSpaceView.find(space.c_str());
@@ -177,16 +191,31 @@ Policy::GetLayoutAndSpace(const char* path,
       iopriority = it->second->GetConfigMember("policy.iopriority");
       iotype = it->second->GetConfigMember("policy.iotype");
 
-      // try application specific bandwidth setting
-      std::string appkey = "bw.";
-      if (env.Get("eos.app")) {
-	appkey += env.Get("eos.app");
-      } else {
-	appkey += "default";
-      }
-      std::string app_bandwidth = it->second->GetConfigMember(appkey);
-      if (app_bandwidth.length()) {
+      {
+	// try application specific bandwidth setting
+	std::string appkey = "bw.";
+	if (env.Get("eos.app")) {
+	  appkey += env.Get("eos.app");
+	} else {
+	  appkey += "default";
+	}
+	std::string app_bandwidth = it->second->GetConfigMember(appkey);
+	if (app_bandwidth.length()) {
 	bandwidth = app_bandwidth;
+	}
+      }
+      {
+	// try application specific iotype setting
+	std::string appkey = "iotype.";
+	if (env.Get("eos.app")) {
+	  appkey += env.Get("eos.app");
+	} else {
+	  appkey += "default";
+	}
+	std::string app_iotype = it->second->GetConfigMember(appkey);
+	if (app_iotype.length()) {
+	  iotype = app_iotype;
+	}
       }
     }
   }
