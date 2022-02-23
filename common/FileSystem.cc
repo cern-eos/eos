@@ -1048,7 +1048,7 @@ static void printOntoTable(mq::SharedHashWrapper& hash,
             TableCell(hash.get(formattags["key"]), format));
         }
 
-        if ((format.find("S")) != std::string::npos) {
+        if (format.find("S") != std::string::npos) {
           std::string shortstring = hash.get(formattags["key"].c_str());
           const size_t pos = shortstring.find(".");
 
@@ -1085,22 +1085,25 @@ static void printOntoTable(mq::SharedHashWrapper& hash,
       }
 
       if (formattags.count("compute")) {
-	if (formattags["compute"] == "usage") {
-	  // compute the percentage usage
-	  long long used_bytes = hash.getLongLong("stat.statfs.usedbytes");
-	  long long capacity = hash.getLongLong("stat.statfs.capacity");
-	  long long headroom = hash.getLongLong("headroom");
-	  double usage = 0;
-	  if (capacity) {
-	    usage = 100.0 * (used_bytes + headroom) / (capacity);
-	    if (usage > 100.0) {
-	      usage = 100.0;
-	    }
-	  }
-	  table_mq_data.back().push_back(
-					 TableCell(usage, format, unit));
-	  table_mq_header.push_back(std::make_tuple("usage", width, format));
-	}
+        if (formattags["compute"] == "usage") {
+          // compute the percentage usage
+          long long used_bytes = hash.getLongLong("stat.statfs.usedbytes");
+          long long capacity = hash.getLongLong("stat.statfs.capacity");
+          long long headroom = hash.getLongLong("headroom");
+          double usage = 0;
+
+          if (capacity) {
+            usage = 100.0 * (used_bytes + headroom) / (capacity);
+
+            if (usage > 100.0) {
+              usage = 100.0;
+            }
+          }
+
+          table_mq_data.back().push_back(
+            TableCell(usage, format, unit));
+          table_mq_header.push_back(std::make_tuple("usage", width, format));
+        }
       }
     }
   }

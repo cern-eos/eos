@@ -1186,7 +1186,7 @@ bool FsView::UnderNominalQuota(const std::string& space, bool isroot)
 //------------------------------------------------------------------------------
 // @brief return's the printout format for a given option
 // @param option see the implementation for valid options
-// @return std;:string with format line passed to the printout routine
+// @return std::string with format line passed to the printout routine
 //------------------------------------------------------------------------------
 std::string
 FsView::GetNodeFormat(std::string option)
@@ -1284,7 +1284,7 @@ FsView::GetNodeFormat(std::string option)
   } else if (option == "l") {
     // long format
     format = "header=1:member=type:width=10:format=-s|";
-    format += "member=hostport:width=32:format=s|";
+    format += "member=hostport:width=32:format=sS|";
     format += "member=cfg.stat.geotag:width=16:format=s|";
     format += "member=status:width=10:format=s|";
     format += "member=cfg.status:width=12:format=s:tag=activated|";
@@ -1296,7 +1296,7 @@ FsView::GetNodeFormat(std::string option)
   } else {
     // default format
     format = "header=1:member=type:width=10:format=-s|";
-    format += "member=hostport:width=32:format=s|";
+    format += "member=hostport:width=32:format=sS|";
     format += "member=cfg.stat.geotag:width=16:format=s|";
     format += "member=status:width=10:format=s|";
     format += "member=cfg.status:width=12:format=s:tag=activated|";
