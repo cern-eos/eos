@@ -4,7 +4,7 @@ io
 .. code-block:: text
 
    usage:
-  io stat [-l] [-a] [-m] [-n] [-t] [-d] [-x] : print io statistics
+  io stat [-l] [-a] [-m] [-n] [-t] [-d] [-x] [--sa] [--si]: print io statistics
   	  -l : show summary information (this is the default if -a,-t,-d,-x is not selected)
   	  -a : break down by uid/gid
   	  -m : print in <key>=<val> monitoring format
@@ -12,6 +12,12 @@ io
   	  -t : print top user stats
   	  -d : break down by domains
   	  -x : break down by application
+     --sa : start collection of statistics given number of seconds ago
+     --si : collect statistics over given interval of seconds
+     Note: this tool shows data for finished transfers only (using storage node reports)
+     Example: asking for data of finished transfers which were transferred during interval [now - 180s, now - 120s]:
+              eos io stat -x --sa 120 --si 60\n"
+
   io enable [-r] [-p] [-n] [--udp <address>] : enable collection of io statistics
   	              -r : enable collection of io reports
   	              -p : enable popularity accounting
@@ -32,4 +38,3 @@ io
   	  -10000 :  show the first 10000 in the ranking
   	      -w :  show history for the last 7 days
   	      -f :  show the 'hotfiles' which are the files with highest number of present file opens
-  

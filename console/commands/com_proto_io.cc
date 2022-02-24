@@ -245,6 +245,9 @@ void com_io_help()
       << "\t  -x : break down by application\n"
       << "\t  --sa : start collection of statistics given number of seconds ago\n"
       << "\t  --si : collect statistics over given interval of seconds\n"
+      << "\t  Note: this tool shows data for finished transfers only (using storage node reports)\n"
+      << "\t  Example: asking for data of finished transfers which were transferred during interval [now - 180s, now - 120s]:\n"
+      << "\t           eos io stat -x --sa 120 --si 60\n"
       << std::endl
       << "io enable [-r] [-p] [-n] [--udp <address>] : enable collection of io statistics\n"
       << "\t              -r : enable collection of io reports\n"
