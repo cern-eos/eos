@@ -54,6 +54,7 @@ protected:
       throw JsonValidationException(oss.str());
     }
   }
+  virtual ~JsonCppModelBuilder(){}
 };
 
 EOSMGMRESTNAMESPACE_END

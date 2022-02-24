@@ -94,6 +94,8 @@ public:
    */
   void deleteBulkRequest(const BulkRequest * bulkRequest) override;
 
+  virtual ~ProcDirectoryBulkRequestDAO(){}
+
 private:
   //Interface to the EOS filesystem to allow the creation of files and directories
   XrdMgmOfs * mFileSystem;

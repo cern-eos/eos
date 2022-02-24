@@ -64,6 +64,8 @@ public:
    * @return the access URL of this controller
    */
   const std::string getAccessURL() const;
+
+  virtual ~Controller(){}
 protected:
   /**
    * Depending on the URL coming from the client's request, the dispatcher will
