@@ -57,6 +57,8 @@ public:
   virtual bool isRestRequest(common::HttpRequest * request);
 
   virtual bool isRestRequest(const std::string & requestURL);
+
+  virtual ~RestHandler(){}
 protected:
   ControllerManager mControllerManager;
   std::string mEntryPointURL;

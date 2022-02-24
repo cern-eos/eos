@@ -97,6 +97,8 @@ public:
    */
   virtual std::unique_ptr<QueryPrepareResult> queryPrepare(XrdSfsPrep &pargs,XrdOucErrInfo & error, const common::VirtualIdentity * vid);
 
+  virtual ~PrepareManager(){}
+
 protected:
 
   virtual void initializeStagePrepareRequest(XrdOucString & reqid, const common::VirtualIdentity & vid);

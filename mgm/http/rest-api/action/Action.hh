@@ -38,6 +38,7 @@ public:
   virtual common::HttpResponse * run(common::HttpRequest * request, const common::VirtualIdentity * vid) = 0;
   inline const std::string & getURLPattern() const { return mURLPattern; }
   inline const common::HttpHandler::Methods getMethod() const { return mMethod; }
+  virtual ~Action(){}
 protected:
   std::string mURLPattern;
   eos::common::HttpHandler::Methods mMethod;

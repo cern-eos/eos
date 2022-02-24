@@ -81,6 +81,8 @@ public:
    * @param bulkRequest the bulk-request to delete
    */
   virtual void deleteBulkRequest(const BulkRequest * bulkRequest) = 0;
+
+  virtual ~IBulkRequestDAO(){}
 };
 
 EOSBULKNAMESPACE_END
