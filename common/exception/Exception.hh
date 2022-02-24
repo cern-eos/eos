@@ -50,6 +50,8 @@ public:
    * @return the error code linked to this exception
    */
   virtual int fillXrdErrInfo(XrdOucErrInfo & error,int errorCode) const;
+
+  virtual ~Exception(){}
 private:
   std::string mErrorMsg;
 };

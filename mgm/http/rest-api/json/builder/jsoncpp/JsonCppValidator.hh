@@ -27,6 +27,7 @@
 #include "mgm/Namespace.hh"
 #include <json/json.h>
 #include <memory>
+#include "common/exception/Exception.hh"
 
 EOSMGMRESTNAMESPACE_BEGIN
 
@@ -38,6 +39,7 @@ public:
 class JsonCppValidator {
 public:
   virtual void validate(const Json::Value & value) = 0;
+  virtual ~JsonCppValidator(){}
 };
 
 class NonEmptyArrayValidator : public JsonCppValidator {

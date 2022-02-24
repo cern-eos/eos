@@ -34,6 +34,7 @@ template<typename Obj>
 class TapeRestApiJsonifier : public virtual common::Jsonifier<Obj>{
 public:
   virtual void jsonify(const Obj * obj,std::stringstream & ss) = 0;
+  virtual ~TapeRestApiJsonifier(){}
 };
 
 EOSMGMRESTNAMESPACE_END

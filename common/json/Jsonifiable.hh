@@ -51,6 +51,7 @@ public:
       mJsonifier->jsonify(thisptr,ss);
     }
   }
+  virtual ~Jsonifiable(){}
 protected:
   std::shared_ptr<common::Jsonifier<Object>> mJsonifier;
 };
