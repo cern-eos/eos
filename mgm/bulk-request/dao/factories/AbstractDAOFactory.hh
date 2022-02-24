@@ -40,6 +40,8 @@ public:
    * @return a BulkRequestDAO object that will allow to access the persistency layer that will be used to store/access bulk requests metadata
    */
   virtual std::unique_ptr<IBulkRequestDAO> getBulkRequestDAO() const = 0;
+
+  virtual ~AbstractDAOFactory(){}
 };
 
 EOSBULKNAMESPACE_END
