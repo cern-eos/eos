@@ -35,7 +35,7 @@ template<typename Model>
 class JsonModelBuilder {
 public:
   virtual std::unique_ptr<Model> buildFromJson(const std::string & json) = 0;
-
+  virtual ~JsonModelBuilder(){}
 };
 
 EOSMGMRESTNAMESPACE_END

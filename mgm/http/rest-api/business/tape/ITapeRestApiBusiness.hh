@@ -43,6 +43,7 @@ public:
   virtual void deleteStageBulkRequest(const std::string & requestId, const common::VirtualIdentity * vid) = 0;
   virtual std::shared_ptr<bulk::QueryPrepareResponse> getFileInfo(const PathsModel * model, const common::VirtualIdentity * vid) = 0;
   virtual void releasePaths(const PathsModel * model, const common::VirtualIdentity * vid) = 0;
+  virtual ~ITapeRestApiBusiness(){};
 };
 
 EOSMGMRESTNAMESPACE_END
