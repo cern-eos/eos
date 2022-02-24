@@ -2901,9 +2901,7 @@ metad::mdcommunicate(ThreadAssistant& assistant)
                     if (EOS_LOGS_DEBUG) {
                       eos_static_debug("%s", dump_md(md).c_str());
                     }
-                  } else {
-                    md->Locker().UnLock();
-                  }
+		  }
                 }
               } else {
                 // there might have been several caps and the first has wiped already the MD,
