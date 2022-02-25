@@ -76,8 +76,10 @@ FmdAttrHandler::LocalDeleteFmd(const std::string& path)
   LocalIo localio {path};
   if (int rc = localio.attrDelete(gFmdAttrName);
       rc != 0) {
-    if (errno != ENOATTR)
-      eos_err("Failed to Delete Fmd Attribute at path:%s, rc=%d", path.c_str(), errno);
+    if (errno == ENOATTR || errno == ENOENT) {
+      return;
+    }
+    eos_err("Failed to Delete Fmd Attribute at path:%s, rc=%d", path.c_str(), errno);
   }
 }
 
