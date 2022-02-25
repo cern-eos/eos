@@ -257,6 +257,7 @@ add_library(
   http/webdav/PropFindResponse.cc
   http/webdav/PropPatchResponse.cc
   http/webdav/LockResponse.cc
+  http/rest-api/manager/RestApiManager.cc
   http/rest-api/handler/RestHandler.cc
   http/rest-api/handler/tape/TapeRestHandler.cc
   http/rest-api/action/tape/stage/CreateStageBulkRequest.cc
