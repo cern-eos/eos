@@ -32,6 +32,7 @@
 #include "common/http/OwnCloud.hh"
 #include "namespace/utils/Mode.hh"
 #include "mgm/http/rest-api/handler/tape/TapeRestHandler.hh"
+#include "mgm/http/rest-api/manager/RestApiManager.hh"
 
 EOSMGMNAMESPACE_BEGIN
 
@@ -57,9 +58,9 @@ HttpHandler::HandleRequest(eos::common::HttpRequest* request)
 {
   eos_static_debug("handling http request");
   eos::common::HttpResponse* response = 0;
-  auto & tapeRestHandler = gOFS->mTapeRestApiHandler;
-  if(tapeRestHandler != nullptr && tapeRestHandler->isRestRequest(request)) {
-    response = tapeRestHandler->handleRequest(request,mVirtualIdentity);
+  bool isRestRequest = gOFS->mTapeRestApiManager->isRestRequest(request->GetUrl());
+  if(isRestRequest) {
+    response = gOFS->mTapeRestApiManager->getTapeRestHandler()->handleRequest(request,mVirtualIdentity);
   } else {
     request->AddEosApp();
 

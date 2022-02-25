@@ -186,7 +186,7 @@ namespace eos::mgm::bulk {
 }
 
 namespace eos::mgm::rest {
-  class TapeRestHandler;
+  class RestApiManager;
 }
 
 namespace eos::auth
@@ -1909,7 +1909,8 @@ public:
   //! BulkRequestProcCleaner
   std::unique_ptr<bulk::BulkRequestProcCleaner> mBulkReqProcCleaner;
 
-  std::unique_ptr<rest::TapeRestHandler> mTapeRestApiHandler;
+  //! REST API manager
+  std::unique_ptr<rest::RestApiManager> mTapeRestApiManager;
   //! HTTP TAPE REST API BulkRequestProcCleaner
   std::unique_ptr<bulk::BulkRequestProcCleaner> mHttpTapeRestApiBulkReqProcCleaner;
 

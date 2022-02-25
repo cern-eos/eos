@@ -35,6 +35,7 @@
 #include "XrdAcc/XrdAccAuthorize.hh"
 #include "XrdOuc/XrdOucPinPath.hh"
 #include <stdio.h>
+#include "mgm/http/rest-api/manager/RestApiManager.hh"
 
 XrdVERSIONINFO(XrdHttpGetExtHandler, EosMgmHttp);
 static XrdVERSIONINFODEF(compiledVer, EosMgmHttp, XrdVNUMBER, XrdVERSION);
@@ -362,7 +363,7 @@ EosMgmHttpHandler::ProcessReq(XrdHttpExtReq& req)
     }
   }
 
-  bool isRestRequest = mMgmOfsHandler->mTapeRestApiHandler != nullptr && mMgmOfsHandler->mTapeRestApiHandler->isRestRequest(req.resource);
+  bool isRestRequest = mMgmOfsHandler->mTapeRestApiManager->isRestRequest(req.resource);
   if(isRestRequest){
     std::optional<int> retCode = readBody(req,body);
     if(retCode){
