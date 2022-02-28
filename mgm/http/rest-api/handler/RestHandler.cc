@@ -36,11 +36,6 @@ bool RestHandler::isRestRequest(const std::string & requestUrl) {
   return ::strncmp(mEntryPointURL.c_str(),requestUrl.c_str(),mEntryPointURL.length()) == 0;
 }
 
-bool RestHandler::isRestRequest(common::HttpRequest * request){
-  //The URL should start with the API entry URL and the content type must be application/json
-  return isRestRequest(request->GetUrl());
-}
-
 void RestHandler::verifyRestApiEntryPoint(const std::string & entryPointURL) {
   std::regex entryPointRegex(cEntryPointRegex);
   if(!std::regex_match(entryPointURL,entryPointRegex)){

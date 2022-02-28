@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// File: RestApiManager.hh
+// File: TapeRestApiConfig.hh
 // Author: Cedric Caffy - CERN
 // ----------------------------------------------------------------------
 
@@ -20,29 +20,34 @@
  * You should have received a copy of the GNU General Public License    *
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
+#ifndef EOS_TAPERESTAPICONFIG_HH
+#define EOS_TAPERESTAPICONFIG_HH
 
-#ifndef EOS_RESTAPIMANAGER_HH
-#define EOS_RESTAPIMANAGER_HH
-
-#include <string>
-#include <memory>
 #include "mgm/Namespace.hh"
-#include "mgm/http/rest-api/handler/tape/TapeRestHandler.hh"
-#include "mgm/http/rest-api/config/tape/TapeRestApiConfig.hh"
+#include <string>
+#include "common/RWMutex.hh"
+#include <atomic>
 
 EOSMGMRESTNAMESPACE_BEGIN
 
-class RestApiManager {
+class TapeRestApiConfig {
 public:
-  RestApiManager();
-  virtual std::unique_ptr<rest::TapeRestHandler> getTapeRestHandler();
-  virtual bool isRestRequest(const std::string & requestURL);
-  virtual TapeRestApiConfig * getTapeRestApiConfig();
-  virtual ~RestApiManager(){}
+  TapeRestApiConfig();
+  TapeRestApiConfig(const std::string & accessURL);
+  void setSiteName(const std::string & siteName);
+  const bool isActivated() const;
+  void setActivated(const bool activated);
+  const std::string getSiteName() const;
+  const std::string & getAccessURL() const;
 private:
-  std::unique_ptr<TapeRestApiConfig> mTapeRestApiConfig;
+  std::string mSiteName;
+  std::string mAccessURL;
+  //By default, the tape REST API is not activated
+  std::atomic<bool> mIsActivated = false;
+  //Mutex protecting all variables of this configuration
+  mutable common::RWMutex mConfigMutex;
 };
 
 EOSMGMRESTNAMESPACE_END
 
-#endif // EOS_RESTAPIMANAGER_HH
+#endif // EOS_TAPERESTAPICONFIG_HH

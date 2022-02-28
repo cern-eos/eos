@@ -30,6 +30,7 @@
 #include "mgm/http/rest-api/controllers/Controller.hh"
 #include "common/VirtualIdentity.hh"
 #include "mgm/http/rest-api/response/tape/factories/TapeRestApiResponseFactory.hh"
+#include "mgm/http/rest-api/config/tape/TapeRestApiConfig.hh"
 
 EOSMGMRESTNAMESPACE_BEGIN
 
@@ -43,15 +44,18 @@ public:
    * Constructor of the TapeRestHandler
    * @param restApiUrl the base URL of the REST API without the instance name
    */
-  TapeRestHandler(const std::string & entryPointURL = "/api/");
+  TapeRestHandler(const TapeRestApiConfig * config);
   common::HttpResponse * handleRequest(common::HttpRequest * request, const common::VirtualIdentity * vid) override;
+  bool isRestRequest(const std::string & requestURL) override;
 private:
-  void initializeControllers();
-  std::unique_ptr<Controller> initializeStageController(const std::string & apiVersion, std::shared_ptr<ITapeRestApiBusiness> tapeRestApiBusiness);
+  void initializeControllers(const TapeRestApiConfig * config);
+  std::unique_ptr<Controller> initializeStageController(const std::string & apiVersion, std::shared_ptr<ITapeRestApiBusiness> tapeRestApiBusiness, const TapeRestApiConfig * config);
   std::unique_ptr<Controller> initializeFileInfoController(const std::string & apiVersion, std::shared_ptr<ITapeRestApiBusiness> tapeRestApiBusiness);
   std::unique_ptr<Controller> initializeReleaseController(const std::string & apiVersion, std::shared_ptr<ITapeRestApiBusiness> tapeRestApiBusiness);
   TapeRestApiResponseFactory mTapeRestApiResponseFactory;
   inline static const std::string VERSION_0 = "v1";
+  bool mIsActivated = false;
+  std::string mSiteName;
 };
 
 EOSMGMRESTNAMESPACE_END

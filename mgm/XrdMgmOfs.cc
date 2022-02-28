@@ -332,7 +332,7 @@ XrdMgmOfs::XrdMgmOfs(XrdSysError* ep):
     mFusePlacementBooking = 5 * 1024 * 1024 * 1024ll;
   }
 
-  mTapeRestApiManager = std::make_unique<rest::RestApiManager>();
+  mRestApiManager = std::make_unique<rest::RestApiManager>();
 
   {
     // Run a dummy command so that the ShellExecutor is forked before any XrdCl

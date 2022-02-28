@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// File: RestApiManager.hh
+// File: TapeRestApiConfig.cc
 // Author: Cedric Caffy - CERN
 // ----------------------------------------------------------------------
 
@@ -21,28 +21,35 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifndef EOS_RESTAPIMANAGER_HH
-#define EOS_RESTAPIMANAGER_HH
-
-#include <string>
-#include <memory>
-#include "mgm/Namespace.hh"
-#include "mgm/http/rest-api/handler/tape/TapeRestHandler.hh"
-#include "mgm/http/rest-api/config/tape/TapeRestApiConfig.hh"
+#include "TapeRestApiConfig.hh"
 
 EOSMGMRESTNAMESPACE_BEGIN
 
-class RestApiManager {
-public:
-  RestApiManager();
-  virtual std::unique_ptr<rest::TapeRestHandler> getTapeRestHandler();
-  virtual bool isRestRequest(const std::string & requestURL);
-  virtual TapeRestApiConfig * getTapeRestApiConfig();
-  virtual ~RestApiManager(){}
-private:
-  std::unique_ptr<TapeRestApiConfig> mTapeRestApiConfig;
-};
+TapeRestApiConfig::TapeRestApiConfig() :mAccessURL("/api/"){}
+
+TapeRestApiConfig::TapeRestApiConfig(const std::string& accessURL):mAccessURL(accessURL) {}
+
+void TapeRestApiConfig::setSiteName(const std::string& siteName) {
+  common::RWMutexWriteLock rwlock(mConfigMutex);
+  mSiteName = siteName;
+}
+
+const std::string TapeRestApiConfig::getSiteName() const {
+  common::RWMutexReadLock rwlock(mConfigMutex);
+  return mSiteName;
+}
+
+const bool TapeRestApiConfig::isActivated() const {
+  return mIsActivated;
+}
+
+void TapeRestApiConfig::setActivated(const bool activated) {
+  mIsActivated = activated;
+}
+
+const std::string & TapeRestApiConfig::getAccessURL() const {
+  //This parameter does not need mutex protection as it cannot be modified
+  return mAccessURL;
+}
 
 EOSMGMRESTNAMESPACE_END
-
-#endif // EOS_RESTAPIMANAGER_HH

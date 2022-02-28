@@ -25,6 +25,10 @@
 
 EOSMGMRESTNAMESPACE_BEGIN
 
+RestApiManager::RestApiManager() {
+  mTapeRestApiConfig = std::make_unique<TapeRestApiConfig>();
+}
+
 bool RestApiManager::isRestRequest(const std::string& requestURL) {
   //Check REST Handlers configuration, check if URL can
   //identify a REST API
@@ -32,8 +36,12 @@ bool RestApiManager::isRestRequest(const std::string& requestURL) {
   return getTapeRestHandler()->isRestRequest(requestURL);
 }
 
+TapeRestApiConfig * RestApiManager::getTapeRestApiConfig() {
+  return mTapeRestApiConfig.get();
+}
+
 std::unique_ptr<TapeRestHandler> RestApiManager::getTapeRestHandler() {
-  return std::make_unique<TapeRestHandler>();
+  return std::make_unique<TapeRestHandler>(mTapeRestApiConfig.get());
 }
 
 EOSMGMRESTNAMESPACE_END
