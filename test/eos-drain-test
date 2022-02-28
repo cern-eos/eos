@@ -117,11 +117,15 @@ while [[ $? -eq 0 ]]; do
       eos fs ls | grep " 1 " | grep "drain" | grep "prepare\|draining"
 done
 
+eos fs ls # (abhi) debug print on what the status is right now;
+
 eos fs ls | grep " 1 " | grep "empty" | grep "drained"
 
 if [[ $? -ne 0 ]]; then
-      echo "error: file system 1 is not drained"
-      exit 1
+    echo "error: file system 1 is not drained"
+    echo "Current metadata content"
+    eos fs dumpmd 1
+    exit 1
 else
     echo "File system 1 successfully drained"
 fi
