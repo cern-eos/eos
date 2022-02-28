@@ -83,6 +83,7 @@
 #include "mgm/bulk-request/dao/proc/ProcDirectoryBulkRequestLocations.hh"
 #include "mgm/bulk-request/dao/proc/cleaner/BulkRequestProcCleaner.hh"
 #include "mgm/bulk-request/dao/proc/cleaner/BulkRequestProcCleanerConfig.hh"
+#include "mgm/http/rest-api/manager/RestApiManager.hh"
 
 extern XrdOucTrace gMgmOfsTrace;
 extern void xrdmgmofs_shutdown(int sig);
@@ -1210,6 +1211,19 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
           if (val != nullptr) {
             ProtoWFResource = val;
           }
+        }
+      }
+
+      if(!strcmp("taperestapi.sitename", var)) {
+        val = Config.GetWord();
+        auto tapeRestApiConfig = mRestApiManager->getTapeRestApiConfig();
+        if(val != nullptr) {
+          tapeRestApiConfig->setSiteName(val);
+          tapeRestApiConfig->setActivated(true);
+          Eroute.Say("=====> taperestapi.sitename: ", val, "");
+        } else {
+          tapeRestApiConfig->setActivated(false);
+          Eroute.Say("Config warning: REST API sitename not specified, disabling tape REST API.");
         }
       }
     }

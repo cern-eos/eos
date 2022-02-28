@@ -259,7 +259,9 @@ add_library(
   http/webdav/LockResponse.cc
   http/rest-api/manager/RestApiManager.cc
   http/rest-api/handler/RestHandler.cc
+  http/rest-api/config/tape/TapeRestApiConfig.cc
   http/rest-api/handler/tape/TapeRestHandler.cc
+  http/rest-api/handler/factory/TapeRestHandlerFactory.cc
   http/rest-api/action/tape/stage/CreateStageBulkRequest.cc
   http/rest-api/action/tape/stage/CancelStageBulkRequest.cc
   http/rest-api/action/tape/stage/GetStageBulkRequest.cc

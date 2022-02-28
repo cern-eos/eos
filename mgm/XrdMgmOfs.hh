@@ -1910,7 +1910,7 @@ public:
   std::unique_ptr<bulk::BulkRequestProcCleaner> mBulkReqProcCleaner;
 
   //! REST API manager
-  std::unique_ptr<rest::RestApiManager> mTapeRestApiManager;
+  std::unique_ptr<rest::RestApiManager> mRestApiManager;
   //! HTTP TAPE REST API BulkRequestProcCleaner
   std::unique_ptr<bulk::BulkRequestProcCleaner> mHttpTapeRestApiBulkReqProcCleaner;
 
