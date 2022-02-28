@@ -29,21 +29,20 @@
 
 TEST_F(RestApiTest,RestHandlerConstructorShouldThrowIfProgrammerGaveWrongURL){
   std::unique_ptr<TapeRestHandler> restHandler;
-  ASSERT_THROW(restHandler.reset(new TapeRestHandler("WRONG_URL")),
+  ASSERT_THROW(restHandler.reset(new TapeRestHandler(createConfig("WRONG_URL").get())),RestException);
+  ASSERT_THROW(restHandler.reset(new TapeRestHandler(createConfig("//test.fr").get())),
                RestException);
-  ASSERT_THROW(restHandler.reset(new TapeRestHandler("//test.fr")),
+  ASSERT_THROW(restHandler.reset(new TapeRestHandler(createConfig("/api/v1/").get())),
                RestException);
-  ASSERT_THROW(restHandler.reset(new TapeRestHandler("/api/v1/")),
-               RestException);
-  ASSERT_THROW(restHandler.reset(new TapeRestHandler("//")), RestException);
-  ASSERT_THROW(restHandler.reset(new TapeRestHandler("/ /")), RestException);
-  ASSERT_NO_THROW(restHandler.reset(new TapeRestHandler("/rest-api-entry-point/")));
+  ASSERT_THROW(restHandler.reset(new TapeRestHandler(createConfig("//").get())), RestException);
+  ASSERT_THROW(restHandler.reset(new TapeRestHandler(createConfig("/ /").get())), RestException);
+  ASSERT_NO_THROW(restHandler.reset(new TapeRestHandler(createConfig("/rest-api-entry-point/").get())));
 }
 
 TEST_F(RestApiTest,RestHandlerHandleRequestNoResource){
   eos::common::VirtualIdentity vid;
   std::unique_ptr<TapeRestHandler> restHandler;
-  restHandler.reset(new TapeRestHandler("/rest-api-entry-point/"));
+  restHandler.reset(new TapeRestHandler(createConfig("/rest-api-entry-point/").get()));
   std::unique_ptr<eos::common::HttpRequest> request(createHttpRequestWithEmptyBody("/rest-api-entry-point/"));
   std::unique_ptr<eos::common::HttpResponse> response(restHandler->handleRequest(request.get(),&vid));
   ASSERT_EQ(eos::common::HttpResponse::ResponseCodes::NOT_FOUND,response->GetResponseCode());
@@ -55,7 +54,7 @@ TEST_F(RestApiTest,RestHandlerHandleRequestNoResource){
 TEST_F(RestApiTest,RestHandlerHandleRequestResourceButNoVersion){
   eos::common::VirtualIdentity vid;
   std::unique_ptr<TapeRestHandler> restHandler;
-  restHandler.reset(new TapeRestHandler("/rest-api-entry-point/"));
+  restHandler.reset(new TapeRestHandler(createConfig("/rest-api-entry-point/").get()));
   std::unique_ptr<eos::common::HttpRequest> request(createHttpRequestWithEmptyBody("/rest-api-entry-point/tape/"));
   std::unique_ptr<eos::common::HttpResponse> response(restHandler->handleRequest(request.get(),&vid));
   ASSERT_EQ(eos::common::HttpResponse::ResponseCodes::NOT_FOUND,response->GetResponseCode());
@@ -64,7 +63,7 @@ TEST_F(RestApiTest,RestHandlerHandleRequestResourceButNoVersion){
 TEST_F(RestApiTest,RestHandlerHandleRequestResourceDoesNotExist){
   eos::common::VirtualIdentity vid;
   std::unique_ptr<TapeRestHandler> restHandler;
-  restHandler.reset(new TapeRestHandler("/rest-api-entry-point/"));
+  restHandler.reset(new TapeRestHandler(createConfig("/rest-api-entry-point/").get()));
   std::unique_ptr<eos::common::HttpRequest> request(createHttpRequestWithEmptyBody("/rest-api-entry-point/v1/NOT_EXIST_RESOURCE"));
   std::unique_ptr<eos::common::HttpResponse> response(restHandler->handleRequest(request.get(),&vid));
   ASSERT_EQ(eos::common::HttpResponse::ResponseCodes::NOT_FOUND,response->GetResponseCode());
@@ -73,7 +72,7 @@ TEST_F(RestApiTest,RestHandlerHandleRequestResourceDoesNotExist){
 TEST_F(RestApiTest,RestHandlerHandleRequestResourceAndVersionExist){
   eos::common::VirtualIdentity vid;
   std::unique_ptr<TapeRestHandler> restHandler;
-  restHandler.reset(new TapeRestHandler("/rest-api-entry-point/"));
+  restHandler.reset(new TapeRestHandler(createConfig("/rest-api-entry-point/").get()));
   std::unique_ptr<eos::common::HttpRequest> request(createHttpRequestWithEmptyBody("/rest-api-entry-point/v1/stage/"));
   std::unique_ptr<eos::common::HttpResponse> response(restHandler->handleRequest(request.get(),&vid));
   //ASSERT_EQ(response->)

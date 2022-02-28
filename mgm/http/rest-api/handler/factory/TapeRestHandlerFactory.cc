@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// File: RestApiManager.hh
+// File: TapeRestHandlerFactory.cc
 // Author: Cedric Caffy - CERN
 // ----------------------------------------------------------------------
 
@@ -21,28 +21,15 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifndef EOS_RESTAPIMANAGER_HH
-#define EOS_RESTAPIMANAGER_HH
-
-#include <string>
-#include <memory>
-#include "mgm/Namespace.hh"
+#include "TapeRestHandlerFactory.hh"
 #include "mgm/http/rest-api/handler/tape/TapeRestHandler.hh"
-#include "mgm/http/rest-api/config/tape/TapeRestApiConfig.hh"
 
 EOSMGMRESTNAMESPACE_BEGIN
 
-class RestApiManager {
-public:
-  RestApiManager();
-  virtual std::unique_ptr<rest::TapeRestHandler> getTapeRestHandler();
-  virtual bool isRestRequest(const std::string & requestURL);
-  virtual TapeRestApiConfig * getTapeRestApiConfig();
-  virtual ~RestApiManager(){}
-private:
-  std::unique_ptr<TapeRestApiConfig> mTapeRestApiConfig;
-};
+TapeRestHandlerFactory::TapeRestHandlerFactory(const TapeRestApiConfig* config) : mConfig(config){}
+
+std::unique_ptr<RestHandler> TapeRestHandlerFactory::createRestHandler() {
+  return std::make_unique<TapeRestHandler>(mConfig);
+}
 
 EOSMGMRESTNAMESPACE_END
-
-#endif // EOS_RESTAPIMANAGER_HH

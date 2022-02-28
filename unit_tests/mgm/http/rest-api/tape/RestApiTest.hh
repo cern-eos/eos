@@ -26,12 +26,16 @@
 
 #include "mgm/Namespace.hh"
 #include "mgm/http/rest-api/handler/RestHandler.hh"
+#include "mgm/http/rest-api/config/tape/TapeRestApiConfig.hh"
 #include <gtest/gtest.h>
 
 USE_EOSMGMRESTNAMESPACE;
 
 class RestApiTest : public ::testing::Test {
 protected:
+  std::unique_ptr<TapeRestApiConfig> mDefaultConfig;
+
+  RestApiTest():testing::Test(),mDefaultConfig(std::make_unique<TapeRestApiConfig>()){}
 
   virtual void SetUp() {
 
@@ -47,6 +51,21 @@ protected:
     eos::common::HttpRequest::HeaderMap cookies;
     std::unique_ptr<eos::common::HttpRequest> request(new eos::common::HttpRequest(headers,"POST",url,"","",&dataSize,cookies));
     return request;
+  }
+
+  static std::unique_ptr<TapeRestApiConfig> createConfig(const std::string & accessURL, const std::string & siteName) {
+    std::unique_ptr<TapeRestApiConfig> ret = std::make_unique<TapeRestApiConfig>(accessURL);
+    ret->setSiteName(siteName);
+    return ret;
+  }
+
+  static std::unique_ptr<TapeRestApiConfig> createConfig(const std::string & accessURL) {
+    std::unique_ptr<TapeRestApiConfig> ret = std::make_unique<TapeRestApiConfig>(accessURL);
+    return ret;
+  }
+
+  static const std::unique_ptr<TapeRestApiConfig> createDefaultConfig() {
+    return createConfig("/api/","sitename");
   }
 };
 

@@ -43,13 +43,13 @@
 
 EOSMGMRESTNAMESPACE_BEGIN
 
-TapeRestHandler::TapeRestHandler(const std::string& entryPointURL): RestHandler(entryPointURL) {
-  initializeControllers();
+TapeRestHandler::TapeRestHandler(const TapeRestApiConfig * config): RestHandler(config->getAccessURL()),mIsActivated(config->isActivated()),mSiteName(config->getSiteName()) {
+  initializeControllers(config);
 }
 
-void TapeRestHandler::initializeControllers() {
+void TapeRestHandler::initializeControllers(const TapeRestApiConfig * config) {
   std::shared_ptr<TapeRestApiBusiness> restApiBusiness = std::make_shared<TapeRestApiBusiness>();
-  std::unique_ptr<Controller> stageController = initializeStageController(VERSION_0,restApiBusiness);
+  std::unique_ptr<Controller> stageController = initializeStageController(VERSION_0,restApiBusiness, config);
   mControllerManager.addController(std::move(stageController));
 
   std::unique_ptr<Controller> fileInfoController = initializeFileInfoController(VERSION_0,restApiBusiness);
@@ -59,10 +59,10 @@ void TapeRestHandler::initializeControllers() {
   mControllerManager.addController(std::move(releaseController));
 }
 
-std::unique_ptr<Controller> TapeRestHandler::initializeStageController(const std::string & apiVersion, std::shared_ptr<ITapeRestApiBusiness> tapeRestApiBusiness) {
+std::unique_ptr<Controller> TapeRestHandler::initializeStageController(const std::string & apiVersion, std::shared_ptr<ITapeRestApiBusiness> tapeRestApiBusiness, const TapeRestApiConfig * config) {
   std::unique_ptr<Controller> stageController(ControllerFactory::getStageController(mEntryPointURL + apiVersion + "/stage/"));
   const std::string & controllerAccessURL = stageController->getAccessURL();
-  stageController->addAction(std::make_unique<CreateStageBulkRequest>(controllerAccessURL,common::HttpHandler::Methods::POST,tapeRestApiBusiness,std::make_shared<CreateStageRequestModelBuilder>("localhost"),std::make_shared<CreatedStageBulkRequestJsonifier>()));
+  stageController->addAction(std::make_unique<CreateStageBulkRequest>(controllerAccessURL,common::HttpHandler::Methods::POST,tapeRestApiBusiness,std::make_shared<CreateStageRequestModelBuilder>(mSiteName),std::make_shared<CreatedStageBulkRequestJsonifier>()));
   stageController->addAction(std::make_unique<CancelStageBulkRequest>(controllerAccessURL + "/" + URLParametersConstants::ID + "/cancel",common::HttpHandler::Methods::POST,tapeRestApiBusiness,std::make_shared<PathsModelBuilder>()));
   stageController->addAction(std::make_unique<GetStageBulkRequest>(controllerAccessURL + "/" + URLParametersConstants::ID,common::HttpHandler::Methods::GET,tapeRestApiBusiness,std::make_shared<GetStageBulkRequestJsonifier>()));
   stageController->addAction(std::make_unique<DeleteStageBulkRequest>(controllerAccessURL + "/" + URLParametersConstants::ID, common::HttpHandler::Methods::DELETE,tapeRestApiBusiness));
@@ -83,26 +83,28 @@ std::unique_ptr<Controller> TapeRestHandler::initializeReleaseController(const s
   return releaseController;
 }
 
+bool TapeRestHandler::isRestRequest(const std::string& requestURL) {
+  return mIsActivated && RestHandler::isRestRequest(requestURL);
+}
+
 common::HttpResponse* TapeRestHandler::handleRequest(common::HttpRequest* request, const common::VirtualIdentity * vid) {
   //URL = /entrypoint/version/resource-name/...
   std::string url = request->GetUrl();
-  if(isRestRequest(request)) {
-    try {
-      Controller * controller = mControllerManager.getController(url);
-      return controller->handleRequest(request,vid);
-    } catch (const ControllerNotFoundException &ex) {
-      eos_static_info(ex.what());
-      return mTapeRestApiResponseFactory.createNotFoundError().getHttpResponse();
-    } catch (const MethodNotAllowedException &ex) {
-      eos_static_info(ex.what());
-      return mTapeRestApiResponseFactory.createMethodNotAllowedError(ex.what()).getHttpResponse();
-    } catch (const ForbiddenException & ex) {
-      eos_static_info(ex.what());
-      return mTapeRestApiResponseFactory.createForbiddenError(ex.what()).getHttpResponse();
-    } catch(const RestException &ex) {
-      eos_static_info(ex.what());
-      return mTapeRestApiResponseFactory.createInternalServerError(ex.what()).getHttpResponse();
-    }
+  try {
+    Controller * controller = mControllerManager.getController(url);
+    return controller->handleRequest(request,vid);
+  } catch (const ControllerNotFoundException &ex) {
+    eos_static_info(ex.what());
+    return mTapeRestApiResponseFactory.createNotFoundError().getHttpResponse();
+  } catch (const MethodNotAllowedException &ex) {
+    eos_static_info(ex.what());
+    return mTapeRestApiResponseFactory.createMethodNotAllowedError(ex.what()).getHttpResponse();
+  } catch (const ForbiddenException & ex) {
+    eos_static_info(ex.what());
+    return mTapeRestApiResponseFactory.createForbiddenError(ex.what()).getHttpResponse();
+  } catch(const RestException &ex) {
+    eos_static_info(ex.what());
+    return mTapeRestApiResponseFactory.createInternalServerError(ex.what()).getHttpResponse();
   }
   return nullptr;
 }
