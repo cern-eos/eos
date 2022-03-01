@@ -26,6 +26,10 @@ FmdAttrHandler::LocalRetrieveFmd(const std::string& path)
 
   eos::common::FmdHelper fmd;
   bool status = fmd.mProtoFmd.ParsePartialFromString(attrval);
+  if (!status) {
+    eos_err("msg=\"Failed Parsing attrval\" attrval_sz=%lu", attrval.size());
+  }
+
   return {status, std::move(fmd)};
 }
 
@@ -133,8 +137,8 @@ FmdAttrHandler::LocalGetFmd(eos::common::FileId::fileid_t fid,
     return nullptr;
   }
 
-  // Check the various conditions
-  if (!do_create) {
+  // Check the various conditions if we have a fmd attr already
+  if (status || force_retrieve) {
     auto fmd = std::make_unique<eos::common::FmdHelper>(std::move(_fmd.mProtoFmd));
     if ((fmd->mProtoFmd.fid() != fid) || (fmd->mProtoFmd.fsid() != fsid)) {
       eos_crit("msg=\"mismatch between requested fid/fsid and retrieved ones\" "
@@ -181,7 +185,9 @@ FmdAttrHandler::LocalGetFmd(eos::common::FileId::fileid_t fid,
         return nullptr;
       }
     }
-  } // !do_create
+    return fmd;
+  } // status || force_retrieve
+
   auto fmd = eos::fst::FmdHandler::make_fmd_helper(fid, fsid, uid, gid,
                                                    layoutid);
 
