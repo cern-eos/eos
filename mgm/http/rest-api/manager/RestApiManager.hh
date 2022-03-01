@@ -29,18 +29,20 @@
 #include "mgm/Namespace.hh"
 #include "mgm/http/rest-api/handler/tape/TapeRestHandler.hh"
 #include "mgm/http/rest-api/config/tape/TapeRestApiConfig.hh"
+#include "mgm/http/rest-api/handler/factory/TapeRestHandlerFactory.hh"
 
 EOSMGMRESTNAMESPACE_BEGIN
 
 class RestApiManager {
 public:
   RestApiManager();
-  virtual std::unique_ptr<rest::TapeRestHandler> getTapeRestHandler();
   virtual bool isRestRequest(const std::string & requestURL);
   virtual TapeRestApiConfig * getTapeRestApiConfig();
+  virtual std::unique_ptr<rest::RestHandler> getRestHandler(const std::string & requestURL);
   virtual ~RestApiManager(){}
 private:
   std::unique_ptr<TapeRestApiConfig> mTapeRestApiConfig;
+  std::map<std::string,std::unique_ptr<RestHandlerFactory>> mMapAccessURLRestHandlerFactory;
 };
 
 EOSMGMRESTNAMESPACE_END
