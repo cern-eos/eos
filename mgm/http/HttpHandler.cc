@@ -60,7 +60,7 @@ HttpHandler::HandleRequest(eos::common::HttpRequest* request)
   eos::common::HttpResponse* response = 0;
   bool isRestRequest = gOFS->mRestApiManager->isRestRequest(request->GetUrl());
   if(isRestRequest) {
-    response = gOFS->mRestApiManager->getTapeRestHandler()->handleRequest(request,mVirtualIdentity);
+    response = gOFS->mRestApiManager->getRestHandler(request->GetUrl())->handleRequest(request,mVirtualIdentity);
   } else {
     request->AddEosApp();
 

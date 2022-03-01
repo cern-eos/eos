@@ -54,7 +54,7 @@ private:
   std::unique_ptr<Controller> initializeReleaseController(const std::string & apiVersion, std::shared_ptr<ITapeRestApiBusiness> tapeRestApiBusiness);
   TapeRestApiResponseFactory mTapeRestApiResponseFactory;
   inline static const std::string VERSION_0 = "v1";
-  bool mIsActivated = false;
+  bool mIsActivated;
   std::string mSiteName;
 };
 
