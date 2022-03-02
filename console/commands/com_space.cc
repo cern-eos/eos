@@ -610,6 +610,8 @@ com_space_usage:
   fprintf(stdout,
           "       space config <space-name> fs.<key>=<value>                    : configure file system parameters for each filesystem in this space (see help of 'fs config' for details)\n");
   fprintf(stdout, "\n");
+  fprintf(stdout,
+          "       space config default taperestapi=on|off            : enable/disable the tape REST API handler [ default=off ]\n");
 
   fprintf(stdout,
           "       space define <space-name> [<groupsize> [<groupmod>]]          : define how many filesystems can end up in one scheduling group <groupsize> [default=0]\n");

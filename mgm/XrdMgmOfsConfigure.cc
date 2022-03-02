@@ -84,6 +84,7 @@
 #include "mgm/bulk-request/dao/proc/cleaner/BulkRequestProcCleaner.hh"
 #include "mgm/bulk-request/dao/proc/cleaner/BulkRequestProcCleanerConfig.hh"
 #include "mgm/http/rest-api/manager/RestApiManager.hh"
+#include "mgm/http/rest-api/Constants.hh"
 
 extern XrdOucTrace gMgmOfsTrace;
 extern void xrdmgmofs_shutdown(int sig);
@@ -2181,6 +2182,20 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
 
   mHttpTapeRestApiBulkReqProcCleaner.reset(new bulk::BulkRequestProcCleaner(*gOFS->mProcDirectoryBulkRequestTapeRestApiLocations,bulk::BulkRequestProcCleanerConfig::getDefaultConfig()));
   mHttpTapeRestApiBulkReqProcCleaner->Start();
+
+  {
+    eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
+    if(FsView::gFsView.mSpaceView.find("default") != FsView::gFsView.mSpaceView.end()) {
+      const std::string & restApiSwitchOnOff = FsView::gFsView.mSpaceView["default"]->GetConfigMember(eos::mgm::rest::TAPE_REST_API_SWITCH_ON_OFF);
+      if(restApiSwitchOnOff == "on") {
+        mRestApiManager->getTapeRestApiConfig()->setActivated(true);
+      } else {
+        mRestApiManager->getTapeRestApiConfig()->setActivated(false);
+      }
+    } else {
+      mRestApiManager->getTapeRestApiConfig()->setActivated(false);
+    }
+  }
 
   // start the LRU daemon
   mLRUEngine->Start();

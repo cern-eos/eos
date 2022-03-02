@@ -65,4 +65,7 @@ static constexpr auto SCAN_NS_INTERVAL_NAME = "scan_ns_interval";
 static constexpr auto FSCK_REFRESH_INTERVAL_NAME = "fsck_refresh_interval";
 //! Special EOS scheduling group space
 static constexpr auto EOS_SPARE_GROUP = "spare";
+//! Tape REST API switch ON/OFF
+static constexpr auto TAPE_REST_API_NAME = "taperestapi";
+
 EOSCOMMONNAMESPACE_END

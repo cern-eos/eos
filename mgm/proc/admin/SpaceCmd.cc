@@ -24,6 +24,8 @@
 #include "SpaceCmd.hh"
 #include "mgm/proc/ProcInterface.hh"
 #include "mgm/tgc/Constants.hh"
+#include "mgm/http/rest-api/Constants.hh"
+#include "mgm/http/rest-api/manager/RestApiManager.hh"
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/LRU.hh"
 #include "common/Path.hh"
@@ -627,6 +629,34 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config,
   bool applied = false;
 
   if (FsView::gFsView.mSpaceView.count(config.mgmspace_name())) {
+    if(!strcmp(mgm::rest::TAPE_REST_API_SWITCH_ON_OFF, key.c_str())) {
+      applied = true;
+      //REST API activation
+      if ((value != "on") && (value != "off")) {
+        ret_c = EINVAL;
+        std_err.str("error: value has to either on or off");
+      } else {
+        const std::string & spaceName = config.mgmspace_name();
+        if(spaceName != "default") {
+          ret_c = EIO;
+          std_err.str("error: the tape REST API can only be enabled on the default space");
+        } else {
+          if (!FsView::gFsView.mSpaceView[config.mgmspace_name()]
+                   ->SetConfigMember(key, value)) {
+            ret_c = EIO;
+            std_err.str("error: cannot set space config value");
+          } else {
+            if(value == "on") {
+              gOFS->mRestApiManager->getTapeRestApiConfig()->setActivated(true);
+              std_out << "success: Tape REST API enabled";
+            } else {
+              gOFS->mRestApiManager->getTapeRestApiConfig()->setActivated(false);
+              std_out << "success: Tape REST API disabled";
+            }
+          }
+        }
+      }
+    }
     // set a space related parameter
     if (!key.compare(0, 6, "space.")) {
       key.erase(0, 6);
