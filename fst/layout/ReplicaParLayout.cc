@@ -169,11 +169,8 @@ ReplicaParLayout::Open(XrdSfsFileOpenMode flags, mode_t mode,
 
   for (auto& fut : open_futures) {
     open_replies.push_back(fut.get());
-
     // Populate vector of responses for write ops - to be dropped with eosd
-    if (mOfsFile->mIsRW) {
-      mResponses.emplace_back();
-    }
+    mResponses.emplace_back();
   }
 
   int count = 0;
