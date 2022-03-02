@@ -466,6 +466,9 @@ void com_space_help()
       << "space config <space-name> space.policy.recycle=on\n"
       << "                                                                      : globally enforce using always a recycle bin\n"
       << std::endl
+      << "REST API specific parameters:\n"
+      << "space config default taperestapi=on|off                               : enable/disable the tape REST API handler [ default=off ]\n"
+      << std::endl
       << "Tape specific configuration parameters:\n"
       << "space config <space-name> space." << eos::mgm::tgc::TGC_NAME_QRY_PERIOD_SECS
       << "=<#>                 : tape-aware GC query period in seconds [ default=" <<

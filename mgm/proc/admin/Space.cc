@@ -26,6 +26,8 @@
 #include "common/token/EosTok.hh"
 #include "mgm/proc/ProcInterface.hh"
 #include "mgm/tgc/Constants.hh"
+#include "mgm/http/rest-api/Constants.hh"
+#include "mgm/http/rest-api/manager/RestApiManager.hh"
 #include "mgm/tracker/ReplicationTracker.hh"
 #include "mgm/inspector/FileInspector.hh"
 #include "mgm/XrdMgmOfs.hh"
@@ -485,6 +487,33 @@ ProcCommand::Space()
         std::string path = identifier;
 
         if (FsView::gFsView.mSpaceView.count(identifier)) {
+          if(!strcmp(mgm::rest::TAPE_REST_API_SWITCH_ON_OFF, key.c_str())) {
+            //REST API activation
+            if ((value != "on") && (value != "off")) {
+              retc = EINVAL;
+              stdErr = "error: value has to either on or off";
+            } else {
+              const std::string & spaceName = identifier;
+              if(spaceName != "default") {
+                retc = EIO;
+                stdErr = "error: the tape REST API can only be enabled on the default space";
+              } else {
+                if (!FsView::gFsView.mSpaceView[identifier]
+                         ->SetConfigMember(key, value)) {
+                  retc = EIO;
+                  stdErr = "error: cannot set space config value";
+                } else {
+                  if(value == "on") {
+                    gOFS->mRestApiManager->getTapeRestApiConfig()->setActivated(true);
+                    stdOut += "success: Tape REST API enabled";
+                  } else {
+                    gOFS->mRestApiManager->getTapeRestApiConfig()->setActivated(false);
+                    stdOut += "success: Tape REST API disabled";
+                  }
+                }
+              }
+            }
+          }
           // set a space related parameter
           if (!key.compare(0, 6, "space.")) {
             key.erase(0, 6);
