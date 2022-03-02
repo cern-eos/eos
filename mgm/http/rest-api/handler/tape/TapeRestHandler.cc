@@ -40,6 +40,7 @@
 #include "mgm/http/rest-api/json/tape/jsonifiers/fileinfo/GetFileInfoResponseJsonifier.hh"
 #include "mgm/http/rest-api/json/tape/model-builders/PathsModelBuilder.hh"
 #include "mgm/http/rest-api/business/tape/TapeRestApiBusiness.hh"
+#include "mgm/http/rest-api/Constants.hh"
 
 EOSMGMRESTNAMESPACE_BEGIN
 
@@ -84,7 +85,27 @@ std::unique_ptr<Controller> TapeRestHandler::initializeReleaseController(const s
 }
 
 bool TapeRestHandler::isRestRequest(const std::string& requestURL) {
-  return mIsActivated && RestHandler::isRestRequest(requestURL);
+  bool siteNameEmpty = mSiteName.empty();
+  bool isRestRequest = RestHandler::isRestRequest(requestURL);
+  if(isRestRequest) {
+    if (siteNameEmpty) {
+      std::string errorMsg =
+          std::string("msg=\"No taperestapi.sitename has been specified, the tape REST API is therefore disabled\"") +
+          " requestURL=\"" + requestURL + "\"";
+
+      eos_static_err(errorMsg.c_str());
+      return false;
+    }
+    if (mIsActivated == false) {
+      std::string errorMsg =
+          std::string(
+              "msg=\"The tape REST API is not enabled, verify that the \"") + rest::TAPE_REST_API_SWITCH_ON_OFF + "\" space configuration is set to \"on\"\"" +
+          " requestURL=\"" + requestURL + "\"";
+      eos_static_err(errorMsg.c_str());
+      return false;
+    }
+  }
+  return mIsActivated && !siteNameEmpty && isRestRequest;
 }
 
 common::HttpResponse* TapeRestHandler::handleRequest(common::HttpRequest* request, const common::VirtualIdentity * vid) {

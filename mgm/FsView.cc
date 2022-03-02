@@ -34,6 +34,7 @@
 #include "mgm/GeoTreeEngine.hh"
 #include "mgm/config/IConfigEngine.hh"
 #include "mgm/tgc/Constants.hh"
+#include "mgm/http/rest-api/Constants.hh"
 #include "mgm/ZMQ.hh"
 #include "common/table_formatter/TableFormatterBase.hh"
 #include "common/StringConversion.hh"
@@ -1040,6 +1041,12 @@ FsSpace::FsSpace(const char* name)
     if (GetConfigMember(tgc::TGC_NAME_TOTAL_BYTES).empty()) {
       SetConfigMember(tgc::TGC_NAME_TOTAL_BYTES,
                       std::to_string(tgc::TGC_DEFAULT_TOTAL_BYTES));
+    }
+
+    //Switch off the tape REST API by default
+    if (GetConfigMember(rest::TAPE_REST_API_SWITCH_ON_OFF).empty()) {
+      SetConfigMember(rest::TAPE_REST_API_SWITCH_ON_OFF,
+                      "off");
     }
   }
 
