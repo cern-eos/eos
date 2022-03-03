@@ -35,7 +35,9 @@ void GetStageBulkRequestJsonifier::jsonify(const GetStageBulkRequestResponseMode
   for(auto & file: obj->getFiles()) {
     Json::Value fileObj;
     fileObj["path"] = file->mPath;
-    fileObj["error"] = file->mError;
+    if(!file->mError.empty()) {
+      fileObj["error"] = file->mError;
+    }
     fileObj["onDisk"] = file->mOnDisk;
     files.append(fileObj);
   }
