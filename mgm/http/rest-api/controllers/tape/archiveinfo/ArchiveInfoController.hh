@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// File: GetFileInfo.cc
+// File: ArchiveInfoController.hh
 // Author: Cedric Caffy - CERN
 // ----------------------------------------------------------------------
 
@@ -21,31 +21,20 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "GetFileInfo.hh"
-#include "mgm/http/rest-api/exception/JsonValidationException.hh"
-#include "mgm/http/rest-api/exception/tape/TapeRestApiBusinessException.hh"
-#include "mgm/http/rest-api/model/tape/fileinfo/GetFileInfoResponseModel.hh"
+#ifndef EOS_ARCHIVEINFOCONTROLLER_HH
+#define EOS_ARCHIVEINFOCONTROLLER_HH
+
+#include "mgm/Namespace.hh"
+#include "mgm/http/rest-api/controllers/Controller.hh"
 
 EOSMGMRESTNAMESPACE_BEGIN
 
-common::HttpResponse* GetFileInfo::run(common::HttpRequest* request, const common::VirtualIdentity* vid) {
-  std::unique_ptr<PathsModel> paths;
-  try {
-    paths = mInputJsonModelBuilder->buildFromJson(request->GetBody());
-  } catch (const JsonValidationException& ex) {
-    return mResponseFactory.createBadRequestError(ex).getHttpResponse();
-  }
-  //Get the information about the files
-  std::shared_ptr<bulk::QueryPrepareResponse> queryPrepareResponse;
-  try {
-    queryPrepareResponse = mTapeRestApiBusiness->getFileInfo(paths.get(), vid);
-  } catch(const TapeRestApiBusinessException & ex) {
-    return mResponseFactory.createInternalServerError(ex.what()).getHttpResponse();
-  }
-  //Build the json response and return it to the client
-  std::shared_ptr<GetFileInfoResponseModel> response = std::make_shared<GetFileInfoResponseModel>(queryPrepareResponse);
-  response->setJsonifier(mOutputObjectJsonifier);
-  return mResponseFactory.createResponse(response,common::HttpResponse::ResponseCodes::OK).getHttpResponse();
-}
+class ArchiveInfoController : public Controller {
+public:
+  ArchiveInfoController(const std::string & accessURL);
+  virtual common::HttpResponse * handleRequest(common::HttpRequest * request,const common::VirtualIdentity * vid) override;
+};
 
 EOSMGMRESTNAMESPACE_END
+
+#endif // EOS_ARCHIVEINFOCONTROLLER_HH

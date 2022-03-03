@@ -23,7 +23,7 @@
 
 #include "ControllerFactory.hh"
 #include "mgm/http/rest-api/controllers/tape/stage/StageController.hh"
-#include "mgm/http/rest-api/controllers/tape/fileinfo/FileInfoController.hh"
+#include "mgm/http/rest-api/controllers/tape/archiveinfo/ArchiveInfoController.hh"
 #include "mgm/http/rest-api/controllers/tape/release/ReleaseController.hh"
 
 EOSMGMRESTNAMESPACE_BEGIN
@@ -32,8 +32,8 @@ std::unique_ptr<Controller> ControllerFactory::getStageController(const std::str
   return std::make_unique<StageController>(accessURL);
 }
 
-std::unique_ptr<Controller> ControllerFactory::getFileinfoController(const std::string& accessURL){
-  return std::make_unique<FileInfoController>(accessURL);
+std::unique_ptr<Controller> ControllerFactory::getArchiveInfoController(const std::string& accessURL){
+  return std::make_unique<ArchiveInfoController>(accessURL);
 }
 
 std::unique_ptr<Controller> ControllerFactory::getReleaseController(const std::string& accessURL) {
