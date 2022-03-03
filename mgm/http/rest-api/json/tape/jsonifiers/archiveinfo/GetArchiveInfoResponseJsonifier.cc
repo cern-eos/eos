@@ -33,10 +33,20 @@ GetArchiveInfoResponseJsonifier::jsonify(const GetArchiveInfoResponseModel* obj,
   for(const auto & queryPrepareFileResponse: queryPrepareResponse->responses) {
     Json::Value fileResponse;
     fileResponse["path"] = queryPrepareFileResponse.path;
-    fileResponse["exists"] = queryPrepareFileResponse.is_exists;
-    fileResponse["error"] = queryPrepareFileResponse.error_text;
-    fileResponse["onDisk"] = queryPrepareFileResponse.is_online;
-    fileResponse["onTape"] = queryPrepareFileResponse.is_on_tape;
+    std::string locality = "";
+    if(queryPrepareFileResponse.is_online && queryPrepareFileResponse.is_on_tape) {
+      locality = "DISK_AND_TAPE";
+    } else if(queryPrepareFileResponse.is_online){
+      locality = "DISK";
+    } else if(queryPrepareFileResponse.is_on_tape){
+      locality = "TAPE";
+    }
+    if(!locality.empty()) {
+      fileResponse["locality"] = locality;
+    }
+    if(!queryPrepareFileResponse.error_text.empty()) {
+      fileResponse["error"] = queryPrepareFileResponse.error_text;
+    }
     root.append(fileResponse);
   }
   ss << root;
