@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// File: GetFileInfoResponseJsonifier.hh
+// File: GetArchiveInfo.hh
 // Author: Cedric Caffy - CERN
 // ----------------------------------------------------------------------
 
@@ -21,22 +21,27 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifndef EOS_GETFILEINFORESPONSEJSONIFIER_HH
-#define EOS_GETFILEINFORESPONSEJSONIFIER_HH
+#ifndef EOS_GETARCHIVEINFO_HH
+#define EOS_GETARCHIVEINFO_HH
 
 #include "mgm/Namespace.hh"
-#include "common/json/JsonCppJsonifier.hh"
+#include "mgm/http/rest-api/action/tape/TapeAction.hh"
+#include "mgm/http/rest-api/json/builder/JsonModelBuilder.hh"
 #include "mgm/http/rest-api/json/tape/TapeRestApiJsonifier.hh"
-#include "mgm/http/rest-api/model/tape/fileinfo/GetFileInfoResponseModel.hh"
+#include "mgm/http/rest-api/model/tape/archiveinfo/GetArchiveInfoResponseModel.hh"
 
 EOSMGMRESTNAMESPACE_BEGIN
 
-class GetFileInfoResponseJsonifier
-    : public TapeRestApiJsonifier<GetFileInfoResponseModel>, public common::JsonCppJsonifier<GetFileInfoResponseModel> {
+class GetArchiveInfo : public TapeAction {
 public:
-  void jsonify(const GetFileInfoResponseModel * obj, std::stringstream & ss) override;
+  GetArchiveInfo(const std::string & accessURL,const common::HttpHandler::Methods method,std::shared_ptr<ITapeRestApiBusiness> tapeRestApiBusiness,std::shared_ptr<JsonModelBuilder<PathsModel>> inputJsonModelBuilder,std::shared_ptr<TapeRestApiJsonifier<GetArchiveInfoResponseModel>> outputObjectJsonifier):
+    TapeAction(accessURL,method,tapeRestApiBusiness),mInputJsonModelBuilder(inputJsonModelBuilder),mOutputObjectJsonifier(outputObjectJsonifier){}
+  common::HttpResponse * run(common::HttpRequest * request, const common::VirtualIdentity * vid) override;
+private:
+  std::shared_ptr<JsonModelBuilder<PathsModel>> mInputJsonModelBuilder;
+  std::shared_ptr<TapeRestApiJsonifier<GetArchiveInfoResponseModel>>  mOutputObjectJsonifier;
 };
 
 EOSMGMRESTNAMESPACE_END
 
-#endif // EOS_GETFILEINFORESPONSEJSONIFIER_HH
+#endif // EOS_GETARCHIVEINFO_HH

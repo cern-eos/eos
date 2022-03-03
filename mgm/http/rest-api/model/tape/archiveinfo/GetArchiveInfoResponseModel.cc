@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// File: GetFileInfo.hh
+// File: GetArchiveInfoResponseModel.cc
 // Author: Cedric Caffy - CERN
 // ----------------------------------------------------------------------
 
@@ -21,27 +21,13 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifndef EOS_GETFILEINFO_HH
-#define EOS_GETFILEINFO_HH
-
-#include "mgm/Namespace.hh"
-#include "mgm/http/rest-api/action/tape/TapeAction.hh"
-#include "mgm/http/rest-api/json/builder/JsonModelBuilder.hh"
-#include "mgm/http/rest-api/json/tape/TapeRestApiJsonifier.hh"
-#include "mgm/http/rest-api/model/tape/fileinfo/GetFileInfoResponseModel.hh"
+#include "GetArchiveInfoResponseModel.hh"
 
 EOSMGMRESTNAMESPACE_BEGIN
 
-class GetFileInfo : public TapeAction {
-public:
-  GetFileInfo(const std::string & accessURL,const common::HttpHandler::Methods method,std::shared_ptr<ITapeRestApiBusiness> tapeRestApiBusiness,std::shared_ptr<JsonModelBuilder<PathsModel>> inputJsonModelBuilder,std::shared_ptr<TapeRestApiJsonifier<GetFileInfoResponseModel>> outputObjectJsonifier):
-    TapeAction(accessURL,method,tapeRestApiBusiness),mInputJsonModelBuilder(inputJsonModelBuilder),mOutputObjectJsonifier(outputObjectJsonifier){}
-  common::HttpResponse * run(common::HttpRequest * request, const common::VirtualIdentity * vid) override;
-private:
-  std::shared_ptr<JsonModelBuilder<PathsModel>> mInputJsonModelBuilder;
-  std::shared_ptr<TapeRestApiJsonifier<GetFileInfoResponseModel>>  mOutputObjectJsonifier;
-};
+std::shared_ptr<bulk::QueryPrepareResponse>
+GetArchiveInfoResponseModel::getQueryPrepareResponse() const {
+  return mQueryPrepareResponse;
+}
 
 EOSMGMRESTNAMESPACE_END
-
-#endif // EOS_GETFILEINFO_HH

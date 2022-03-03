@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// File: FileInfoController.hh
+// File: GetArchiveInfoResponseModel.hh
 // Author: Cedric Caffy - CERN
 // ----------------------------------------------------------------------
 
@@ -20,21 +20,24 @@
  * You should have received a copy of the GNU General Public License    *
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
-
-#ifndef EOS_FILEINFOCONTROLLER_HH
-#define EOS_FILEINFOCONTROLLER_HH
+#ifndef EOS_GETARCHIVEINFORESPONSEMODEL_HH
+#define EOS_GETARCHIVEINFORESPONSEMODEL_HH
 
 #include "mgm/Namespace.hh"
-#include "mgm/http/rest-api/controllers/Controller.hh"
+#include "common/json/Jsonifiable.hh"
+#include "mgm/bulk-request/response/QueryPrepareResponse.hh"
 
 EOSMGMRESTNAMESPACE_BEGIN
 
-class FileInfoController : public Controller {
+class GetArchiveInfoResponseModel
+    : public common::Jsonifiable<GetArchiveInfoResponseModel> {
 public:
-  FileInfoController(const std::string & accessURL);
-  virtual common::HttpResponse * handleRequest(common::HttpRequest * request,const common::VirtualIdentity * vid) override;
+  GetArchiveInfoResponseModel(std::shared_ptr<bulk::QueryPrepareResponse> queryPrepareResponse):mQueryPrepareResponse(queryPrepareResponse){}
+  std::shared_ptr<bulk::QueryPrepareResponse> getQueryPrepareResponse() const;
+private:
+  std::shared_ptr<bulk::QueryPrepareResponse> mQueryPrepareResponse;
 };
 
 EOSMGMRESTNAMESPACE_END
 
-#endif // EOS_FILEINFOCONTROLLER_HH
+#endif // EOS_GETARCHIVEINFORESPONSEMODEL_HH

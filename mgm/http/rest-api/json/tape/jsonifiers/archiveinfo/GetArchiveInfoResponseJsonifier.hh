@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// File: FileInfoController.hh
+// File: GetArchiveInfoResponseJsonifier.hh
 // Author: Cedric Caffy - CERN
 // ----------------------------------------------------------------------
 
@@ -21,14 +21,22 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "FileInfoController.hh"
+#ifndef EOS_GETARCHIVEINFORESPONSEJSONIFIER_HH
+#define EOS_GETARCHIVEINFORESPONSEJSONIFIER_HH
+
+#include "mgm/Namespace.hh"
+#include "common/json/JsonCppJsonifier.hh"
+#include "mgm/http/rest-api/json/tape/TapeRestApiJsonifier.hh"
+#include "mgm/http/rest-api/model/tape/archiveinfo/GetArchiveInfoResponseModel.hh"
 
 EOSMGMRESTNAMESPACE_BEGIN
 
-FileInfoController::FileInfoController(const std::string & accessURL):Controller(accessURL){}
-
-common::HttpResponse * FileInfoController::handleRequest(common::HttpRequest * request,const common::VirtualIdentity * vid) {
-  return mControllerActionDispatcher.getAction(request)->run(request,vid);
-}
+class GetArchiveInfoResponseJsonifier
+    : public TapeRestApiJsonifier<GetArchiveInfoResponseModel>, public common::JsonCppJsonifier<GetArchiveInfoResponseModel> {
+public:
+  void jsonify(const GetArchiveInfoResponseModel* obj, std::stringstream & ss) override;
+};
 
 EOSMGMRESTNAMESPACE_END
+
+#endif // EOS_GETARCHIVEINFORESPONSEJSONIFIER_HH
