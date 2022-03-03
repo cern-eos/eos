@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// File: GetFileInfoResponseModel.cc
+// File: GetArchiveInfoResponseJsonifier.cc
 // Author: Cedric Caffy - CERN
 // ----------------------------------------------------------------------
 
@@ -21,12 +21,25 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "GetFileInfoResponseModel.hh"
+#include "GetArchiveInfoResponseJsonifier.hh"
 
 EOSMGMRESTNAMESPACE_BEGIN
 
-std::shared_ptr<bulk::QueryPrepareResponse> GetFileInfoResponseModel::getQueryPrepareResponse() const {
-  return mQueryPrepareResponse;
+void
+GetArchiveInfoResponseJsonifier::jsonify(const GetArchiveInfoResponseModel* obj, std::stringstream& ss) {
+  Json::Value root;
+  initializeArray(root);
+  auto queryPrepareResponse = obj->getQueryPrepareResponse();
+  for(const auto & queryPrepareFileResponse: queryPrepareResponse->responses) {
+    Json::Value fileResponse;
+    fileResponse["path"] = queryPrepareFileResponse.path;
+    fileResponse["exists"] = queryPrepareFileResponse.is_exists;
+    fileResponse["error"] = queryPrepareFileResponse.error_text;
+    fileResponse["onDisk"] = queryPrepareFileResponse.is_online;
+    fileResponse["onTape"] = queryPrepareFileResponse.is_on_tape;
+    root.append(fileResponse);
+  }
+  ss << root;
 }
 
 EOSMGMRESTNAMESPACE_END

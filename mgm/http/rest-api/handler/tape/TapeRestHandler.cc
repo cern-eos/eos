@@ -31,13 +31,13 @@
 #include "mgm/http/rest-api/action/tape/stage/CancelStageBulkRequest.hh"
 #include "mgm/http/rest-api/action/tape/stage/GetStageBulkRequest.hh"
 #include "mgm/http/rest-api/action/tape/stage/DeleteStageBulkRequest.hh"
-#include "mgm/http/rest-api/action/tape/fileinfo/GetFileInfo.hh"
+#include "mgm/http/rest-api/action/tape/archiveinfo/GetArchiveInfo.hh"
 #include "mgm/http/rest-api/action/tape/release/CreateReleaseBulkRequest.hh"
 #include "mgm/http/rest-api/controllers/tape/URLParametersConstants.hh"
 #include "mgm/http/rest-api/json/tape/model-builders/CreateStageRequestModelBuilder.hh"
 #include "mgm/http/rest-api/json/tape/jsonifiers/stage/CreatedStageBulkRequestJsonifier.hh"
 #include "mgm/http/rest-api/json/tape/jsonifiers/stage/GetStageBulkRequestJsonifier.hh"
-#include "mgm/http/rest-api/json/tape/jsonifiers/fileinfo/GetFileInfoResponseJsonifier.hh"
+#include "mgm/http/rest-api/json/tape/jsonifiers/archiveinfo/GetArchiveInfoResponseJsonifier.hh"
 #include "mgm/http/rest-api/json/tape/model-builders/PathsModelBuilder.hh"
 #include "mgm/http/rest-api/business/tape/TapeRestApiBusiness.hh"
 #include "mgm/http/rest-api/Constants.hh"
@@ -53,7 +53,8 @@ void TapeRestHandler::initializeControllers(const TapeRestApiConfig * config) {
   std::unique_ptr<Controller> stageController = initializeStageController(VERSION_0,restApiBusiness, config);
   mControllerManager.addController(std::move(stageController));
 
-  std::unique_ptr<Controller> fileInfoController = initializeFileInfoController(VERSION_0,restApiBusiness);
+  std::unique_ptr<Controller> fileInfoController =
+      initializeArchiveinfoController(VERSION_0, restApiBusiness);
   mControllerManager.addController(std::move(fileInfoController));
 
   std::unique_ptr<Controller> releaseController = initializeReleaseController(VERSION_0, restApiBusiness);
@@ -70,11 +71,12 @@ std::unique_ptr<Controller> TapeRestHandler::initializeStageController(const std
   return stageController;
 }
 
-std::unique_ptr<Controller> TapeRestHandler::initializeFileInfoController(const std::string& apiVersion, std::shared_ptr<ITapeRestApiBusiness> tapeRestApiBusiness) {
-  std::unique_ptr<Controller> fileInfoController(ControllerFactory::getFileinfoController(mEntryPointURL + apiVersion + "/fileinfo/"));
-  const std::string & fileinfoControllerAccessURL = fileInfoController->getAccessURL();
-  fileInfoController->addAction(std::make_unique<GetFileInfo>(fileinfoControllerAccessURL,common::HttpHandler::Methods::POST,tapeRestApiBusiness,std::make_shared<PathsModelBuilder>(),std::make_shared<GetFileInfoResponseJsonifier>()));
-  return fileInfoController;
+std::unique_ptr<Controller> TapeRestHandler::initializeArchiveinfoController(const std::string& apiVersion, std::shared_ptr<ITapeRestApiBusiness> tapeRestApiBusiness) {
+  std::unique_ptr<Controller> archiveInfoController(ControllerFactory::getArchiveInfoController(mEntryPointURL + apiVersion + "/archiveinfo/"));
+  const std::string & archiveinfoControllerAccessURL = archiveInfoController->getAccessURL();
+  archiveInfoController->addAction(std::make_unique<GetArchiveInfo>(
+      archiveinfoControllerAccessURL,common::HttpHandler::Methods::POST,tapeRestApiBusiness,std::make_shared<PathsModelBuilder>(),std::make_shared<GetArchiveInfoResponseJsonifier>()));
+  return archiveInfoController;
 }
 
 std::unique_ptr<Controller> TapeRestHandler::initializeReleaseController(const std::string& apiVersion, std::shared_ptr<ITapeRestApiBusiness> tapeRestApiBusiness) {

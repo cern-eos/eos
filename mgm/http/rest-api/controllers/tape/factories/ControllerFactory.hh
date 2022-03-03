@@ -37,7 +37,8 @@ EOSMGMRESTNAMESPACE_BEGIN
 class ControllerFactory {
 public:
   static std::unique_ptr<Controller> getStageController(const std::string & accessURL);
-  static std::unique_ptr<Controller> getFileinfoController(const std::string & accessURL);
+  static std::unique_ptr<Controller>
+  getArchiveInfoController(const std::string & accessURL);
   static std::unique_ptr<Controller> getReleaseController(const std::string & accessURL);
 };
 

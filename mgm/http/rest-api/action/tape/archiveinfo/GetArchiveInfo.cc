@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// File: GetFileInfoResponseJsonifier.cc
+// File: GetArchiveInfo.cc
 // Author: Cedric Caffy - CERN
 // ----------------------------------------------------------------------
 
@@ -21,24 +21,31 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "GetFileInfoResponseJsonifier.hh"
+#include "GetArchiveInfo.hh"
+#include "mgm/http/rest-api/exception/JsonValidationException.hh"
+#include "mgm/http/rest-api/exception/tape/TapeRestApiBusinessException.hh"
+#include "mgm/http/rest-api/model/tape/archiveinfo/GetArchiveInfoResponseModel.hh"
 
 EOSMGMRESTNAMESPACE_BEGIN
 
-void GetFileInfoResponseJsonifier::jsonify(const GetFileInfoResponseModel* obj, std::stringstream& ss) {
-  Json::Value root;
-  initializeArray(root);
-  auto queryPrepareResponse = obj->getQueryPrepareResponse();
-  for(const auto & queryPrepareFileResponse: queryPrepareResponse->responses) {
-    Json::Value fileResponse;
-    fileResponse["path"] = queryPrepareFileResponse.path;
-    fileResponse["exists"] = queryPrepareFileResponse.is_exists;
-    fileResponse["error"] = queryPrepareFileResponse.error_text;
-    fileResponse["onDisk"] = queryPrepareFileResponse.is_online;
-    fileResponse["onTape"] = queryPrepareFileResponse.is_on_tape;
-    root.append(fileResponse);
+common::HttpResponse* GetArchiveInfo::run(common::HttpRequest* request, const common::VirtualIdentity* vid) {
+  std::unique_ptr<PathsModel> paths;
+  try {
+    paths = mInputJsonModelBuilder->buildFromJson(request->GetBody());
+  } catch (const JsonValidationException& ex) {
+    return mResponseFactory.createBadRequestError(ex).getHttpResponse();
   }
-  ss << root;
+  //Get the information about the files
+  std::shared_ptr<bulk::QueryPrepareResponse> queryPrepareResponse;
+  try {
+    queryPrepareResponse = mTapeRestApiBusiness->getFileInfo(paths.get(), vid);
+  } catch(const TapeRestApiBusinessException & ex) {
+    return mResponseFactory.createInternalServerError(ex.what()).getHttpResponse();
+  }
+  //Build the json response and return it to the client
+  std::shared_ptr<GetArchiveInfoResponseModel> response = std::make_shared<GetArchiveInfoResponseModel>(queryPrepareResponse);
+  response->setJsonifier(mOutputObjectJsonifier);
+  return mResponseFactory.createResponse(response,common::HttpResponse::ResponseCodes::OK).getHttpResponse();
 }
 
 EOSMGMRESTNAMESPACE_END
