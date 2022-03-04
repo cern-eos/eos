@@ -34,6 +34,7 @@ class TapeRestHandlerFactory : public RestHandlerFactory {
 public:
   TapeRestHandlerFactory(const TapeRestApiConfig * config);
   std::unique_ptr<RestHandler> createRestHandler() override;
+  virtual ~TapeRestHandlerFactory() = default;
 private:
   const TapeRestApiConfig * mConfig;
 };
