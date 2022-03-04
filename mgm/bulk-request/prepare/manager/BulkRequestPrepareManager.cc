@@ -77,4 +77,8 @@ const std::shared_ptr<FileCollection::Files> BulkRequestPrepareManager::getFileC
   return ret;
 }
 
+bool BulkRequestPrepareManager::ignorePrepareFailures() {
+  return true;
+}
+
 EOSBULKNAMESPACE_END

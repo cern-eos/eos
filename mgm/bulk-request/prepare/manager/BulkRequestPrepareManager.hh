@@ -70,6 +70,7 @@ protected:
    */
   const std::shared_ptr<FileCollection::Files> getFileCollectionFromPersistency(const std::string & reqid) override;
 
+  bool ignorePrepareFailures() override;
 private:
   //The bulk-request business allowing the persistence of the bulk-request
   std::shared_ptr<BulkRequestBusiness> mBulkRequestBusiness;
