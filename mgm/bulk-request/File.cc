@@ -39,8 +39,10 @@ const std::string File::getPath() const {
 }
 
 void File::setError(const std::string& error) {
-  std::optional<std::string> errorOpt(error);
-  setError(errorOpt);
+  if(!error.empty()) {
+    std::optional<std::string> errorOpt(error);
+    setError(errorOpt);
+  }
 }
 
 void File::setErrorIfNotAlreadySet(const std::string& error) {

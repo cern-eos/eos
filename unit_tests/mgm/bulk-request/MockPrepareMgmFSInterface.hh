@@ -76,6 +76,9 @@ public:
   static std::function<int(const char* Name, struct stat* buf, XrdOucErrInfo& out_error, eos::common::VirtualIdentity& vid, const char* opaque, std::string* etag, bool follow, std::string* uri)> _STAT_FILE_ON_DISK_ONLY;
   //Lambda that will be called by the mock method _stat on the file. This lambda will fill the stat buffer to fake the fact that the file is on disk AND on tape
   static std::function<int(const char* Name, struct stat* buf, XrdOucErrInfo& out_error, eos::common::VirtualIdentity& vid, const char* opaque, std::string* etag, bool follow, std::string* uri)> _STAT_FILE_ON_DISK_AND_TAPE;
+
+  static std::function<int(const char* path, int mode,XrdOucErrInfo& error, eos::common::VirtualIdentity& vid, const char* info, bool lock)> _ACCESS_FILE_PREPARE_PERMISSION_LAMBDA;
+  static std::function<int(const char* path, int mode,XrdOucErrInfo& error, eos::common::VirtualIdentity& vid, const char* info, bool lock)> _ACCESS_FILE_NO_PREPARE_PERMISSION_LAMBDA;
 };
 
 EOSBULKNAMESPACE_END
