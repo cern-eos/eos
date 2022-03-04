@@ -54,7 +54,16 @@ int PrepareManager::prepare(XrdSfsPrep &pargs, XrdOucErrInfo & error, const comm
 }
 
 void PrepareManager::initializeStagePrepareRequest(XrdOucString& reqid, const common::VirtualIdentity & vid) {
-  reqid = eos::common::StringConversion::timebased_uuidstring().c_str();
+  // Override the XRootD-supplied request ID. The request ID can be any arbitrary string, so long as
+  // it is guaranteed to be unique for each request.
+  //
+  // Note: To use the default request ID supplied in pargs.reqid, return SFS_OK instead of SFS_DATA.
+  //       Overriding is only possible in the case of PREPARE. In the case of ABORT and QUERY requests,
+  //       pargs.reqid should contain the request ID that was returned by the corresponding PREPARE.
+  // Request ID = XRootD-generated request ID + timestamp
+  ostringstream ss;
+  ss << ':' << time(0);
+  reqid.append(ss.str().c_str());
 }
 
 void PrepareManager::initializeCancelPrepareRequest(XrdOucString& reqid) {
@@ -86,9 +95,10 @@ int PrepareManager::doPrepare(XrdSfsPrep& pargs, XrdOucErrInfo& error, const Xrd
     const char* ininfo = "";
     MAYREDIRECT;
   }
+  const int nbFilesProvidedByUser = eos::common::XrdUtils::countNbElementsInXrdOucTList(pargs.paths);
   {
-    const int nbFilesInPrepareRequest = eos::common::XrdUtils::countNbElementsInXrdOucTList(pargs.paths);
-    mMgmFsInterface->addStats("Prepare",vid.uid, vid.gid, nbFilesInPrepareRequest);
+    mMgmFsInterface->addStats("Prepare",vid.uid, vid.gid,
+                              nbFilesProvidedByUser);
   }
   std::string cmd = "mgm.pcmd=event";
   std::list<std::pair<char**, char**>> pathsToPrepare;
@@ -162,10 +172,13 @@ int PrepareManager::doPrepare(XrdSfsPrep& pargs, XrdOucErrInfo& error, const Xrd
 
 #endif
 
+  int error_counter = 0;
+  XrdOucErrInfo first_error;
+
   // check that all files exist
-  while (pptr) {
-    //Extended attributes for the current file's parent directory
-    eos::IContainerMD::XAttrMap attributes;
+  for (
+      ; pptr
+      ; pptr = pptr->next, optr = optr ? optr->next : optr) {
 
     XrdOucString prep_path = (pptr->text ? pptr->text : "");
     std::string orig_path = prep_path.c_str();
@@ -189,25 +202,38 @@ int PrepareManager::doPrepare(XrdSfsPrep& pargs, XrdOucErrInfo& error, const Xrd
     XrdSfsFileExistence check;
 
     if (prep_path.length() == 0) {
-      eos_info("msg=\"Ignoring empty path or path formed with forbidden characters\" path=\"%s\")",orig_path.c_str());
-      goto nextPath;
+      mMgmFsInterface->Emsg(epname, error, ENOENT,
+           "prepare - path empty or uses forbidden characters:",
+           orig_path.c_str());
+      if (error_counter == 0) {
+        first_error = error;
+      }
+
+      error_counter++;
+      continue;
     }
 
     currentFile = std::make_unique<File>(prep_path.c_str());
 
     if (mMgmFsInterface->_exists(prep_path.c_str(), check, error, vid, "") ||
         (check != XrdSfsFileExistIsFile)) {
-      //https://its.cern.ch/jira/browse/EOS-4739
-      //For every prepare scenario, we continue to process the files even if they do not exist or are not correct
-      //The user will then have to query prepare to figure out that the files do not exist
-      std::ostringstream oss;
       std::string errorMsg = "prepare - file does not exist or is not accessible to you";
-      oss << "msg=\"" << errorMsg << "\" path=\"" << prep_path.c_str() << "\"";
-      eos_info(oss.str().c_str());
+      mMgmFsInterface->Emsg(epname, error, ENOENT,
+                            errorMsg.append(":").c_str(),
+                            prep_path.c_str());
+
       currentFile->setError(errorMsg);
-      goto nextPath;
+      if (error_counter == 0) {
+        first_error = error;
+      }
+
+      error_counter++;
+      addFileToBulkRequest(std::move(currentFile));
+      continue;
     }
 
+    //Extended attributes for the current file's parent directory
+    eos::IContainerMD::XAttrMap attributes;
     if (!event.empty() &&
         mMgmFsInterface->_attr_ls(eos::common::Path(prep_path.c_str()).GetParentPath(), error, vid,
                        nullptr, attributes) == 0) {
@@ -225,7 +251,9 @@ int PrepareManager::doPrepare(XrdSfsPrep& pargs, XrdOucErrInfo& error, const Xrd
         // don't do workflow if no such tag
         std::ostringstream oss;
         oss << "No prepare workflow set on the directory " << eos::common::Path(prep_path.c_str()).GetParentPath();
-        goto nextPath;
+        currentFile->setError(oss.str());
+        addFileToBulkRequest(std::move(currentFile));
+        continue;
       }
     } else {
       // don't do workflow if event not set or we can't check attributes
@@ -235,39 +263,58 @@ int PrepareManager::doPrepare(XrdSfsPrep& pargs, XrdOucErrInfo& error, const Xrd
             << eos::common::Path(prep_path.c_str()).GetParentPath();
         currentFile->setError(oss.str());
       }
-      goto nextPath;
+      addFileToBulkRequest(std::move(currentFile));
+      continue;
     }
 
     // check that we have write permission on path
     if (mMgmFsInterface->_access(prep_path.c_str(), P_OK, error, vid, "")) {
-      //https://its.cern.ch/jira/browse/EOS-4739
-      //For every prepare scenario, we continue to process the files even if they do not exist or are not correct
-      //The user will then have to query prepare to figure out that the directory where the files are located has
-      //no workflow permission
-      std::ostringstream oss;
-      std::string errorMsg = "Ignoring file because there is no workflow permission";
-      oss << "msg=\"" << errorMsg << "\" path=\"" << prep_path.c_str() << "\"";
-      eos_info(oss.str().c_str());
+      std::string errorMsg = "prepare - you don't have prepare permission";
+      mMgmFsInterface->Emsg(epname, error, EPERM,
+                            errorMsg.append(":").c_str(),
+           prep_path.c_str());
+
       currentFile->setError(errorMsg);
       pathsToPrepare.pop_back();
-      goto nextPath;
+      if (error_counter == 0) {
+        first_error = error;
+      }
+
+      error_counter++;
+      addFileToBulkRequest(std::move(currentFile));
+      continue;
     }
 
-    nextPath:
-      if(currentFile != nullptr) {
-        addFileToBulkRequest(std::move(currentFile));
-      }
-      pptr = pptr->next;
-
-      if (optr) {
-        optr = optr->next;
-      }
+    if(currentFile != nullptr) {
+      addFileToBulkRequest(std::move(currentFile));
+    }
   }
 
   try {
     saveBulkRequest();
   } catch(const PersistencyException &ex){
     return ex.fillXrdErrInfo(error, EIO);
+  }
+
+  if(isStagePrepare() && nbFilesProvidedByUser == error_counter) {
+    //All stage request failed
+    eos_err("Unable to prepare - failed to prepare all files with reqID %s",
+            reqid.c_str());
+    if (error_counter > 0) {
+      int err_code;
+      std::stringstream err_message;
+      err_message << first_error.getErrText(err_code);
+
+      if (error_counter > 1) {
+        err_message << " (all " << (error_counter - 1) <<
+            " other files also failed with errors)";
+      }
+
+      error.setErrInfo(err_code, err_message.str().c_str());
+    }
+    if(!ignorePrepareFailures()){
+      return SFS_ERROR;
+    }
   }
 
   //Trigger the prepare workflow
@@ -281,6 +328,22 @@ int PrepareManager::doPrepare(XrdSfsPrep& pargs, XrdOucErrInfo& error, const Xrd
     // If we return SFS_DATA, the first parameter is the length of the buffer, not the error code
     error.setErrInfo(reqid.length() + 1, reqid.c_str());
     retc = SFS_DATA;
+  } else {
+    if(error_counter > 0) {
+      if(!ignorePrepareFailures()) {
+        int err_code;
+        std::stringstream err_message;
+        err_message << first_error.getErrText(err_code);
+
+        if (error_counter > 1) {
+          err_message << " (" << (error_counter - 1) <<
+              " other files also failed with errors)";
+        }
+
+        error.setErrInfo(err_code, err_message.str().c_str());
+        retc = SFS_ERROR;
+      }
+    }
   }
 
 #endif
@@ -290,6 +353,10 @@ int PrepareManager::doPrepare(XrdSfsPrep& pargs, XrdOucErrInfo& error, const Xrd
 
 void PrepareManager::saveBulkRequest() {
 
+}
+
+bool PrepareManager::ignorePrepareFailures() {
+  return false;
 }
 
 void PrepareManager::addFileToBulkRequest(std::unique_ptr<File>&& file){
@@ -475,13 +542,13 @@ int PrepareManager::doQueryPrepare(XrdSfsPrep &pargs, XrdOucErrInfo & error, con
     XrdSfsFileExistence check;
 
     if (prep_path.length() == 0) {
-      currentFile->setErrorIfNotAlreadySet("path empty or uses forbidden characters");
+      currentFile->setErrorIfNotAlreadySet("USER ERROR: path empty or uses forbidden characters");
       goto logErrorAndContinue;
     }
 
     if (mMgmFsInterface->_exists(prep_path.c_str(), check, error, vid, "") ||
         check != XrdSfsFileExistIsFile) {
-      currentFile->setErrorIfNotAlreadySet("file does not exist or is not accessible to you");
+      currentFile->setErrorIfNotAlreadySet("USER ERROR: file does not exist or is not accessible to you");
       goto logErrorAndContinue;
     }
 
@@ -527,6 +594,11 @@ int PrepareManager::doQueryPrepare(XrdSfsPrep &pargs, XrdOucErrInfo & error, con
     } else {
       // failed to read extended attributes
       currentFile->setErrorIfNotAlreadySet(xrd_error.getErrText());
+      goto logErrorAndContinue;
+    }
+    if(mMgmFsInterface->_access(prep_path.c_str(), P_OK, error, vid, "")){
+      currentFile->setErrorIfNotAlreadySet("USER ERROR: you don't have prepare permission");
+      goto logErrorAndContinue;
     }
     logErrorAndContinue:
       if(file.second->getError()) {

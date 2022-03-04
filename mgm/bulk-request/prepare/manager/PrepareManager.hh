@@ -105,6 +105,8 @@ protected:
 
   virtual void initializeCancelPrepareRequest(XrdOucString & reqid);
 
+  virtual bool ignorePrepareFailures();
+
   virtual void setErrorToBulkRequest(const std::string & path, const std::string & error) {}
 
   /**
@@ -169,7 +171,7 @@ protected:
    */
   int doQueryPrepare(XrdSfsPrep &pargs, XrdOucErrInfo & error, const XrdSecEntity* client, QueryPrepareResult & result, const common::VirtualIdentity * vidClient = nullptr);
 
-  const std::string mEpname="prepare";
+  inline static std::string mEpname="prepare";
   //The prepare action that is launched by the "prepare()" method
   PrepareAction mPrepareAction;
   //MGM file system interface
