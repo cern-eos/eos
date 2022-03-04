@@ -444,3 +444,54 @@ TEST_F(PrepareManagerTest,queryPrepare){
 
   ASSERT_EQ(SFS_DATA,retQueryPrepare->getReturnCode());
 }
+
+TEST_F(PrepareManagerTest,queryPrepareWithNoPreparePermission){
+  int nbFiles = 2;
+  std::vector<std::string> paths = PrepareManagerTest::generateDefaultPaths(nbFiles);
+  std::vector<std::string> oinfos = PrepareManagerTest::generateEmptyOinfos(nbFiles);
+
+  std::unique_ptr<NiceMock<MockPrepareMgmFSInterface>> mgmOfsPtr = std::make_unique<NiceMock<MockPrepareMgmFSInterface>>();
+  NiceMock<MockPrepareMgmFSInterface> & mgmOfs = *mgmOfsPtr;
+  //Exist will first return true for the first file, then return false
+  EXPECT_CALL(mgmOfs,_exists(_,_,_,_,_,_)).Times(nbFiles).WillRepeatedly(Invoke(
+                                                                             MockPrepareMgmFSInterface::_EXISTS_VID_FILE_EXISTS_LAMBDA));
+  //stat with one file on disk, on file on disk and tape
+  EXPECT_CALL(mgmOfs,_stat(_,_,_,_,_,_,_,_)).Times(nbFiles).WillRepeatedly(Invoke(
+      MockPrepareMgmFSInterface::_STAT_FILE_ON_DISK_AND_TAPE));
+  EXPECT_CALL(mgmOfs, _attr_ls(_,_,_,_,_,_,_)).Times(nbFiles)
+      .WillRepeatedly(Invoke(
+          MockPrepareMgmFSInterface::_ATTR_LS_STAGE_PREPARE_LAMBDA
+          ));
+
+  EXPECT_CALL(mgmOfs,_access(_,_,_,_,_,_)).Times(nbFiles).WillOnce(Invoke(
+      MockPrepareMgmFSInterface::_ACCESS_FILE_PREPARE_PERMISSION_LAMBDA
+      )).WillRepeatedly(Invoke(
+          MockPrepareMgmFSInterface::_ACCESS_FILE_NO_PREPARE_PERMISSION_LAMBDA
+      ));
+  ClientWrapper client = PrepareManagerTest::getDefaultClient();
+  std::string requestId = "testReqId";
+  PrepareArgumentsWrapper pargs(requestId, Prep_QUERY, paths, oinfos);
+  ErrorWrapper errorWrapper = PrepareManagerTest::getDefaultError();
+  XrdOucErrInfo * error = errorWrapper.getError();
+
+  eos::mgm::bulk::PrepareManager pm(std::move(mgmOfsPtr));
+
+  std::unique_ptr<eos::mgm::bulk::QueryPrepareResult> retQueryPrepare = pm.queryPrepare(*(pargs.getPrepareArguments()),*error,client.getClient());
+  const auto & response = retQueryPrepare->getResponse();
+  ASSERT_EQ(requestId,response->request_id);
+  const auto & existingFile = response->responses.front();
+  ASSERT_TRUE(existingFile.is_online);
+  ASSERT_TRUE(existingFile.is_on_tape);
+  ASSERT_TRUE(existingFile.is_exists);
+  ASSERT_EQ(paths.front(),existingFile.path);
+
+  const auto & noPreparePermissionFile = response->responses.back();
+
+  ASSERT_TRUE(noPreparePermissionFile.is_online);
+  ASSERT_TRUE(noPreparePermissionFile.is_on_tape);
+  ASSERT_TRUE(noPreparePermissionFile.is_exists);
+  ASSERT_EQ("USER ERROR: you don't have prepare permission",noPreparePermissionFile.error_text);
+  ASSERT_EQ(paths.back(),noPreparePermissionFile.path);
+
+  ASSERT_EQ(SFS_DATA,retQueryPrepare->getReturnCode());
+}

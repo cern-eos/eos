@@ -597,12 +597,12 @@ int PrepareManager::doQueryPrepare(XrdSfsPrep &pargs, XrdOucErrInfo & error, con
       goto logErrorAndContinue;
     }
     if(mMgmFsInterface->_access(prep_path.c_str(), P_OK, error, vid, "")){
-      currentFile->setErrorIfNotAlreadySet("USER ERROR: you don't have prepare permission");
+      currentFile->setError("USER ERROR: you don't have prepare permission"s);
       goto logErrorAndContinue;
     }
     logErrorAndContinue:
-      if(file.second->getError()) {
-        rsp.error_text = file.second->getError().value();
+      if(currentFile->getError()) {
+        rsp.error_text = currentFile->getError().value();
       }
   }
 

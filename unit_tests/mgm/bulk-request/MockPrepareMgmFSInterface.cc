@@ -104,4 +104,16 @@ std::function<int(const char* Name, struct stat* buf, XrdOucErrInfo& out_error, 
       buf->st_rdev &= ~XRDSFS_OFFLINE;
       return SFS_OK;
     };
+
+std::function<int(const char* path, int mode,XrdOucErrInfo& error, eos::common::VirtualIdentity& vid, const char* info, bool lock)>
+    MockPrepareMgmFSInterface::_ACCESS_FILE_NO_PREPARE_PERMISSION_LAMBDA =
+    [](const char* path, int mode,XrdOucErrInfo& error, eos::common::VirtualIdentity& vid, const char* info, bool lock) {
+      return SFS_ERROR;
+    };
+
+std::function<int(const char* path, int mode,XrdOucErrInfo& error, eos::common::VirtualIdentity& vid, const char* info, bool lock)>
+    MockPrepareMgmFSInterface::_ACCESS_FILE_PREPARE_PERMISSION_LAMBDA =
+    [](const char* path, int mode,XrdOucErrInfo& error, eos::common::VirtualIdentity& vid, const char* info, bool lock) {
+      return SFS_OK;
+    };
 EOSBULKNAMESPACE_END
