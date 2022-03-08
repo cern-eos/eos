@@ -299,14 +299,14 @@ extern XrdMgmOfs* gOFS; //< global handle to XrdMgmOfs object
     const char* pf=0;                                                   \
     /* check for redirection with prefixes */                           \
     if ( ininfo && (pf=strstr(ininfo,"eos.prefix=")) ) {                \
-      if (!store_path.beginswith("/proc")) {                            \
+      if (!store_path.beginswith("/proc/")) {                            \
         XrdOucEnv env(pf);                                              \
         /* check for redirection with LFN rewrite */                    \
         store_path.insert(env.Get("eos.prefix"),0);                     \
       }                                                                 \
     }                                                                   \
     if ( ininfo && (pf=strstr(ininfo,"eos.lfn=")) ) {                   \
-      if ((!store_path.beginswith("/proc"))) {                          \
+      if ((!store_path.beginswith("/proc/"))) {                          \
         XrdOucEnv env(pf);                                              \
         store_path = env.Get("eos.lfn");                                \
       }                                                                 \
