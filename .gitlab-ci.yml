@@ -679,7 +679,7 @@ code_quality_html:
     - eos-unit-tests
     - eos-unit-tests-fst
     - eos-fusex-tests
-    - pip3 install pytest; python3 pytest /usr/sbin/test-eos-iam-mapfile.py
+    - pip3 install pytest; python3 -m pytest /usr/sbin/test-eos-iam-mapfile.py
     # namespace specific unit tests
     - export EOS_QUARKDB_HOSTPORT=localhost:7777
     - quarkdb-create --path /var/quarkdb/node-0
