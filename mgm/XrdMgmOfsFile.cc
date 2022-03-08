@@ -1283,6 +1283,10 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
 
       gOFS->MgmStats.Add("OpenWriteTruncate", vid.uid, vid.gid, 1);
     } else {
+      if (isInjection && !fmd) {
+	errno = ENOENT;
+	return Emsg(epname, error, errno, "inject into a non-existing file", path);
+      }
       if (!(fmd) && ((open_flag & O_CREAT))) {
         gOFS->MgmStats.Add("OpenWriteCreate", vid.uid, vid.gid, 1);
       } else {
