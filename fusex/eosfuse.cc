@@ -2264,7 +2264,7 @@ EosFuse::setattr(fuse_req_t req, fuse_ino_t ino, struct stat* attr, int op,
       if ((op & FUSE_SET_ATTR_UID) && (md->uid() == (int) attr->st_uid)) {
         rc = 0;
       } else {
-        if ((op & FUSE_SET_ATTR_GID) && (md->uid() == (int) attr->st_gid)) {
+        if ((op & FUSE_SET_ATTR_GID) && (md->gid() == (int) attr->st_gid)) {
           rc = 0;
         } else {
           rc = pcap->errc();
