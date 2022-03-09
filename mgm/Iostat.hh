@@ -183,10 +183,8 @@ public:
   time_t mLastTfMaxLenUpdateTime = 0;
   // average transfer size in last 5 min [sLastTfMaxLenUpdateRate]
   unsigned long long mAvgTfSize = 0;
-  // average transfer size in last 5 min [sLastTfMaxLenUpdateRate]
   unsigned long long mTfCount = 0;
   unsigned long long mTfCountInSample = 0;
-
   unsigned long long mDurationToPercComplete[4] {0, 0, 0, 0};
 
 

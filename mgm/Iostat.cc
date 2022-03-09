@@ -176,7 +176,6 @@ IostatPeriods::AddToPeriod(size_t period_indx, unsigned long long val,
   }
 }
 
-
 //------------------------------------------------------------------------------
 // Adds transfer data on a 24h timeline of [mDataBuffer]
 // Provides:
@@ -190,144 +189,149 @@ IostatPeriods::AddToDataBuffer(unsigned long long val,
                                time_t start, time_t stop, time_t now)
 {
   double value = (double)val;
-  // window start/end times = |
-  // bin start [ and end ] times
-  // period window = |-----------[--]----------|
-  // time_t t_bin_end = now;
-  // time_t t_bin_start = t_bin_end - sBinWidth;
-  // size_t t_window_end = t_bin_end;
-  time_t t_window_start = now - (sBins * sBinWidth);
 
+  // Window start/end times are "|", bin start [ and end ] times
+  // period window = |-----------[--]----------|
   if (stop > now) {
-    eos_static_err("%s",
-                   "msg=\"Failed to digest report, transfer stop time > now\"");
+    eos_static_err("%s", "msg=\"failed report digest, transfer "
+                   "stop time in the future\"");
     return;
   }
 
-  if (stop > t_window_start) {
-    time_t tdiff = stop - start;
+  time_t t_window_start = now - (sBins * sBinWidth);
 
-    if (tdiff < 0) {
-      eos_static_err("%s", "msg=\"Transfer start time after stop time\"");
-      return;
+  if (stop <= t_window_start) {
+    eos_static_warning("%s", "msg=\"failed report digest, transfer stopped "
+                       "outside of collection time window\"");
+    return;
+  }
+
+  time_t tdiff = stop - start;
+
+  if (tdiff < 0) {
+    eos_static_err("%s", "msg=\"transfer start time after stop time\"");
+    return;
+  }
+
+  StampBufferZero(now);
+  mTfCount += 1;
+
+  if (stop > mLastAddTime) {
+    mLastAddTime = stop;
+  }
+
+  if (mLongestTransferTime < (unsigned int)tdiff) {
+    // @todo(guenther) how can this influence the behaviour since the value is
+    // is then overwritten with tdiff? can't we just remove the whole "if"?
+    if ((size_t)now % sPeriod) {
+      mLongestTransferTime = 0;
     }
 
-    StampBufferZero(now);
-    mTfCount += 1;
+    mLongestTransferTime = tdiff;
+  }
 
-    if (stop > mLastAddTime) {
-      mLastAddTime = stop;
+  // cutting off data out of time window
+  if (start < t_window_start) {
+    // re-calculate data portion to save into our time window
+    value = ((stop - t_window_start) * value) / tdiff;
+    start = t_window_start;
+    tdiff = stop - start;
+  }
+
+  // Number of bins the measurement hits
+  size_t mbins = tdiff / sBinWidth;
+
+  if (mbins == 0) {
+    mbins = 1;
+  }
+
+  // This can handle also corner cases like:
+  // * transfers taking < 1sec
+  // * transfers taking exactly boundaries of the 24h window
+  // * transfers taking boundary of bins for start and stop time
+  for (size_t ibin = 0; ibin < mbins; ++ibin) {
+    time_t t_ibin_end = stop - (ibin * sBinWidth);
+    time_t t_ibin_start = t_ibin_end - sBinWidth;
+    size_t bin_indx = ((t_ibin_end / sBinWidth) % sBins);
+    time_t t_idata_end = t_ibin_end;
+    time_t t_idata_start = t_ibin_start;
+
+    // @todo(guenther) isnt' this already the case?
+    if (ibin == 0) {
+      t_idata_end = stop;
     }
 
-    if (mLongestTransferTime < (unsigned int)tdiff) {
-      if ((size_t)now % sPeriod) {
-        mLongestTransferTime = 0;
-      }
-
-      mLongestTransferTime = tdiff;
+    if (ibin == mbins - 1) {
+      t_idata_start = start;
     }
 
-    // cutting off data out of time window
-    if (start < t_window_start) {
-      // re-calculate data portion to save into our time window
-      value = ((stop - t_window_start) * value) / tdiff;
-      start = t_window_start;
-      tdiff = stop - start;
+    double ival = ((t_idata_end - t_idata_start) * value) / tdiff;
+
+    if (t_idata_end - t_idata_start == 0) {
+      ival = value;
     }
 
-    // Number of bins the measurement hits
-    size_t mbins = tdiff / sBinWidth;
-
-    if (mbins == 0) {
-      mbins = 1;
-    }
-
-    // the following should be able to handle in particular also
-    // tf taking < 1sec
-    // tf taking exactly boundaries of the 24h window
-    // tf taking boundary of bins for start and stop time
-    for (size_t ibin = 0; ibin < mbins; ibin++) {
-      time_t t_ibin_end = stop - (ibin * sBinWidth);
-      time_t t_ibin_start = t_ibin_end - sBinWidth;
-      size_t bin_indx = ((t_ibin_end / sBinWidth) % sBins);
-      time_t t_idata_end = t_ibin_end;
-      time_t t_idata_start = t_ibin_start;
-
-      if (ibin == 0) {
-        t_idata_end = stop;
-      }
-
-      if (ibin == mbins - 1) {
-        t_idata_start = start;
-      }
-
-      double ival = ((t_idata_end - t_idata_start) * value) / tdiff;
-
-      if (t_idata_end - t_idata_start == 0) {
-        ival = value;
-      }
-
-      //eos_static_info("msg=\"Filled bin, with value %s\"", std::to_string(ival));
-      // recording tf on a 24h timeline of [mDataBuffer]
-      mDataBuffer[bin_indx] += ival;
-      //std::cout<< "add " << mbins<< " : " << ibin << " : " << bin_indx << " : " <<  mDataBuffer[bin_indx] << std::endl;
-      // adding portion of data to the integral histogram
-      // (shifting all tf start time to 0)
-      // we could also make integral over rate distribution
-      // to see what is the speed of 95% of transfers (e.g. faster then x B/s)
-      mIntegralBuffer[ibin] += ival;
-    }
+    // eos_static_info("msg=\"Filled bin, with value %s\"", std::to_string(ival));
+    // recording tf on a 24h timeline of [mDataBuffer]
+    mDataBuffer[bin_indx] += ival;
+    //std::cout << "add " << mbins<< " : " << ibin << " : "
+    //          << bin_indx << " : " <<  mDataBuffer[bin_indx] << std::endl;
+    // Adding portion of data to the integral histogram
+    // (shifting all tf start time to 0)
+    // We could also make integral over rate distribution  to see what is the
+    // speed of 95% of transfers (e.g. faster then x B/s)
+    mIntegralBuffer[ibin] += ival;
   }
 }
 
 //------------------------------------------------------------------------------
 // Update Transfer Buffer to iterate over and calculate how long does it take
-// to transfer [mPercComplete] % of the data within sample rate of 5 min [mLastTfSampleUpdateInterval]
+// to transfer [mPercComplete] % of the data within sample rate of 5 min
+// [mLastTfSampleUpdateInterval]
 //------------------------------------------------------------------------------
 void
 IostatPeriods::UpdateTransferSampleInfo(time_t now)
 {
-  // sum data of all transfers
+  // Sum data of all transfers
   double sumTx = 0.;
 
-  for (size_t i = 0; i < sBins; i++) {
-    // update rating (% of transfers)
+  // Update rating (% of transfers)
+  for (size_t i = 0; i < sBins; ++i) {
     sumTx += mIntegralBuffer[i];
   }
+
+  // Reset counters for current sample
+  mTfCountInSample = 0ull;
+  mAvgTfSize = 0ull;
 
   //std::cout << "sumTx" << sumTx << std::endl;
   if (sumTx > 0) {
     mTfCountInSample = mTfCount;
     mAvgTfSize = std::ceil((double)sumTx / mTfCountInSample);
-    mTfCount = 0;
     const double multiplier = std::pow(10.0, 6);
 
     // integrate up to [mPercComplete] and record
     // the time the transfers took in [mDurationToPercComplete]
-    for (size_t iperc = 0; iperc < std::size(mPercComplete); iperc++) {
+    for (size_t iperc = 0; iperc < std::size(mPercComplete); ++iperc) {
       double sum_percent = 0;
 
       for (size_t ibin = 0; ibin < sBins; ibin++) {
         sum_percent += mIntegralBuffer[ibin] / sumTx;
 
         if ((unsigned int)std::ceil(sum_percent * multiplier) >=
-            (unsigned int)std::ceil(mPercComplete[iperc]*multiplier)) {
+            (unsigned int)std::ceil(mPercComplete[iperc] * multiplier)) {
           mDurationToPercComplete[iperc] = ((ibin + 1) * sBinWidth);
-          //std::cout << sum_percent << std::endl;
           break;
         }
       }
     }
   } else {
-    for (size_t iperc = 0; iperc < std::size(mPercComplete); iperc++) {
+    for (size_t iperc = 0; iperc < std::size(mPercComplete); ++iperc) {
       mDurationToPercComplete[iperc] = 0;
     }
-
-    mAvgTfSize = 0;
-    mTfCountInSample = 0;
-    mTfCount = 0;
   }
 
+  mTfCount = 0;
   memset(mIntegralBuffer, 0, sizeof(mIntegralBuffer));
   mLastTfMaxLenUpdateTime = now;
 }
@@ -353,35 +357,32 @@ IostatPeriods::StampBufferZero(time_t& now)
     zero_range = now_indx + (sBins - last_end_index);
   }
 
-  if (now - mLastAddTime >= (time_t)sPeriod || zero_range > (int)sBins) {
+  if ((now - mLastAddTime >= (time_t)sPeriod) || (zero_range > (int)sBins)) {
     zero_range = sBins;
   }
 
-  //std::cout << zero_range << " " << now << " "<< now_indx << " " << last_end_index << " " << mLastStampZeroIndex << std::endl;
+  // std::cout << zero_range << " " << now << " "<< now_indx << " "
+  //           << last_end_index << " " << mLastStampZeroIndex << std::endl;
   if (zero_range > 0) {
-    int idx = 0;
-
     for (size_t pidx_cnt = 0; pidx_cnt < (size_t)zero_range; pidx_cnt++) {
-      idx = (now_indx - pidx_cnt);
+      int idx = now_indx - pidx_cnt;
 
       if (idx < 0) {
-        idx = (sBins + idx);
+        idx = sBins + idx;
       }
 
       mDataBuffer[idx] = 0.;
     }
-
-    //std::cout << "last del idx " << idx << std::endl;
   }
 
-  // in case we change bin, record the change in mLastStampZeroIndex
+  // In case we change bin, record the change in mLastStampZeroIndex
   if (now_indx != mLastStampZeroIndex) {
     mLastStampZeroIndex = now_indx;
 
-    // and in case last transfer stop was same as now, we delete content of this new bin
+    // In case last transfer stop was same as now, we delete the contents
+    // of this new bin
     if (zero_range == 0) {
       mDataBuffer[now_indx] = 0.;
-      //std::cout << "del zero range" << now_indx << std::endl;
     }
   }
 }
@@ -444,8 +445,8 @@ std::string IostatPeriods::GetLastSampleUpdateTimestamp(bool date_format) const
 {
   if (date_format) {
     struct tm* timedatestr;
-    timedatestr = localtime(
-                    &mLastTfMaxLenUpdateTime);   // Convert time to struct tm form
+    // Convert time to struct tm form
+    timedatestr = localtime(&mLastTfMaxLenUpdateTime);
     return (std::string)asctime(timedatestr);
   } else {
     return std::to_string(mLastTfMaxLenUpdateTime);
