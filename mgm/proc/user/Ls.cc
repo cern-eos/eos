@@ -46,26 +46,27 @@ ProcCommand::Ls()
     std::string err;
     int retc;
 
-    std::string getCacheName(uint64_t ino, uint64_t mtime_sec, uint64_t mtime_nsec, std::string options) {
+    std::string getCacheName(uint64_t ino, uint64_t mtime_sec, uint64_t mtime_nsec,
+                             std::string options)
+    {
       std::string cacheentry;
       cacheentry = std::to_string(ino);
       cacheentry += ":";
       cacheentry += std::to_string(mtime_sec);
       cacheentry += ".";
       cacheentry += std::to_string(mtime_nsec);
+
       if (options.length()) {
-	cacheentry += ":";
-	cacheentry += options;
+        cacheentry += ":";
+        cacheentry += options;
       }
+
       return cacheentry;
     }
   };
-
-
-
-
   static eos::common::LRU::Cache<std::string, struct result> dirCache;
-  static bool use_cache = (getenv("EOS_MGM_LISTING_CACHE") && (dirCache.setMaxSize(atoi(getenv("EOS_MGM_LISTING_CACHE")))));
+  static bool use_cache = (getenv("EOS_MGM_LISTING_CACHE") &&
+                           (dirCache.setMaxSize(atoi(getenv("EOS_MGM_LISTING_CACHE")))));
   std::ostringstream oss;
   gOFS->MgmStats.Add("Ls", pVid->uid, pVid->gid, 1);
   XrdOucString spath = pOpaque->Get("mgm.path");
@@ -85,9 +86,7 @@ ProcCommand::Ls()
   NAMESPACEMAP;
   PROC_BOUNCE_ILLEGAL_NAMES;
   PROC_BOUNCE_NOT_ALLOWED;
-
   PROC_TOKEN_SCOPE;
-
   eos_info("mapped to %s", path);
   spath = path;
   XrdOucString option = pOpaque->Get("mgm.option");
@@ -111,7 +110,6 @@ ProcCommand::Ls()
 
     XrdOucString ls_file;
     std::string uri;
-
     std::string cacheentry;
     struct result cachedresult;
 
@@ -122,21 +120,21 @@ ProcCommand::Ls()
     } else {
       // put the resolved uri path
       spath = uri.c_str();
-
-      cacheentry = cachedresult.getCacheName(buf.st_ino, buf.st_mtim.tv_sec, buf.st_mtim.tv_nsec, std::string(option.length()?option.c_str():""));
+      cacheentry = cachedresult.getCacheName(buf.st_ino, buf.st_mtim.tv_sec,
+                                             buf.st_mtim.tv_nsec, std::string(option.length() ? option.c_str() : ""));
 
       if (use_cache && dirCache.tryGet(cacheentry, cachedresult)) {
+        if (!gOFS->_access(spath.c_str(), R_OK | X_OK, *mError, *pVid, 0, true)) {
+          // return from cache
+          retc = cachedresult.retc;
+          stdOut = cachedresult.out.c_str();
+          stdErr = cachedresult.err.c_str();
+          // reinsert LRU
+          dirCache.insert(cacheentry, cachedresult);
+          return SFS_OK;
+        }
 
-	if (!gOFS->_access(spath.c_str(), R_OK|X_OK, *mError, *pVid,0,true)) {
-	  // return from cache
-	  retc = cachedresult.retc;
-	  stdOut = cachedresult.out.c_str();
-	  stdErr = cachedresult.err.c_str();
-	  // reinsert LRU
-	  dirCache.insert(cacheentry, cachedresult);
-	  return SFS_OK;
-	}
-	// fall through to report permission errors
+        // fall through to report permission errors
       }
 
       // if this is a directory open it and list
@@ -144,7 +142,7 @@ ProcCommand::Ls()
         listrc = dir.open(spath.c_str(), *pVid, (const char*) 0);
       } else {
         // if this is a file, open the parent and set the filter
-        if (spath.endswith("/")) {
+        if ((spath.length() > 1) && spath.endswith("/")) {
           spath.erase(spath.length() - 1);
         }
 
@@ -157,7 +155,7 @@ ProcCommand::Ls()
           // this is an 'ls <file>' command which has to return only one entry!
           ls_file.assign(spath, rpos + 1);
           spath.erase(rpos);
-          listrc = 0;
+          listrc = SFS_OK;
         }
       }
 
@@ -178,7 +176,7 @@ ProcCommand::Ls()
       }
 
       if ((option.find("l") != STR_NPOS)) {
-	longlisting = true;
+        longlisting = true;
       }
 
       if (!listrc) {
@@ -218,15 +216,17 @@ ProcCommand::Ls()
             }
 
             struct stat buf;
-	    std::string cks;
+
+            std::string cks;
+
             if (gOFS->_stat(statpath.c_str(), &buf, *mError, *pVid, (const char*) 0, 0,
                             false, 0, &cks)) {
-	      if (errno != ENOENT) {
-		stdErr += "error: unable to stat path ";
-		stdErr += statpath;
-		stdErr += "\n";
-		retc = errno;
-	      }
+              if (errno != ENOENT) {
+                stdErr += "error: unable to stat path ";
+                stdErr += statpath;
+                stdErr += "\n";
+                retc = errno;
+              }
             } else {
               // TODO: convert virtual IDs back
               XrdOucString suid = "";
@@ -241,7 +241,8 @@ ProcCommand::Ls()
               eos::modeToBuffer(buf.st_mode, modestr);
 
               if (showbackendstatus) {
-		std::string rsymbol = eos::common::LayoutId::GetRedundancySymbol(buf.st_mode & EOS_TAPE_MODE_T, buf.st_nlink);
+                std::string rsymbol = eos::common::LayoutId::GetRedundancySymbol(
+                                        buf.st_mode & EOS_TAPE_MODE_T, buf.st_nlink);
                 char sbsts[256];
                 snprintf(sbsts, sizeof(sbsts), "%-9s", rsymbol.c_str());
                 backendstatus = sbsts;
@@ -297,12 +298,12 @@ ProcCommand::Ls()
                 stdOut += lsline;
               }
 
-	      if ((option.find("c")) != STR_NPOS) {
-		// add checksum information
-		char checksum[36];
-		sprintf(checksum, "%-34s",cks.c_str());
-		stdOut += checksum;
-	      }
+              if ((option.find("c")) != STR_NPOS) {
+                // add checksum information
+                char checksum[36];
+                sprintf(checksum, "%-34s", cks.c_str());
+                stdOut += checksum;
+              }
 
               if ((option.find("h")) == STR_NPOS)
                 sprintf(lsline, "%s%s %3d %-8.8s %-8.8s %12s %s %s%s", backendstatus.c_str(),
@@ -362,16 +363,21 @@ ProcCommand::Ls()
         }
       } else {
         stdErr += "error: unable to open directory";
-        retc = errno;
+
+        if (retc == 0) {
+          retc = errno;
+        }
       }
     }
+
     if (!retc && !showbackendstatus && !longlisting) {
       // we cannot cache listing where people ask for dynamicinformation of children like folder size, Y option ...
       cachedresult.retc = retc;
       cachedresult.out = stdOut.c_str();
       cachedresult.err = stdErr.c_str();
+
       if (use_cache) {
-	dirCache.insert(cacheentry, cachedresult);
+        dirCache.insert(cacheentry, cachedresult);
       }
     }
   }
