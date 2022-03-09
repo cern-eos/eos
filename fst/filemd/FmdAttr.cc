@@ -1,7 +1,9 @@
 #include "FmdAttr.hh"
 #include "fst/io/local/LocalIo.hh"
 #include "fst/XrdFstOfs.hh"
+#include "fst/utils/FTSWalkTree.hh"
 #include "FmdHandler.hh"
+#include <functional>
 
 namespace eos::fst {
 
@@ -198,6 +200,36 @@ FmdAttrHandler::LocalGetFmd(eos::common::FileId::fileid_t fid,
   eos_crit("msg=\"failed to commit fmd to storage\" fid=%08llx fsid=%lu",
            fid, fsid);
   return nullptr;
+}
+
+
+
+bool
+FmdAttrHandler::GetInconsistencyStatistics(
+    eos::common::FileSystem::fsid_t fsid,
+    std::map<std::string, size_t>& statistics,
+    std::map<std::string, std::set<eos::common::FileId::fileid_t>>& fidset)
+{
+  auto ret = WalkFSTree(gOFS.Storage->GetStoragePath(fsid),
+                        [this, &statistics, &fidset ](const char* path) {
+                          this->UpdateInconsistencyStat(path, statistics, fidset);
+                        }
+);
+  statistics["mem_n"] += ret.count;
+  return ret.status;
+}
+
+bool
+FmdAttrHandler::UpdateInconsistencyStat(
+    const std::string& path, std::map<std::string, size_t>& statistics,
+    std::map<std::string, std::set<eos::common::FileId::fileid_t>>& fidset)
+{
+  auto&& [status, fmd] = LocalRetrieveFmd(path);
+  if (!status) {
+    return status;
+  }
+  UpdateInconsistencyStats(fmd, statistics, fidset);
+  return true;
 }
 
 } // namespace eos::fst

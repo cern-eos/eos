@@ -238,15 +238,11 @@ FileSystem::UpdateInconsistencyInfo()
   decltype(mInconsistencyStats) tmp_stats;
   decltype(mInconsistencySets) tmp_sets;
 
-  if (gOFS.FmdOnDb()) {
-    auto fmd_handler = static_cast<FmdDbMapHandler*>(gOFS.mFmdHandler.get());
-    if (!fmd_handler->GetInconsistencyStatistics(mLocalId, tmp_stats,
-                                                 tmp_sets)) {
-      eos_static_err("msg=\"failed to get inconsistency statistics\" fsid=%lu",
-                     mLocalId);
-      return;
-    }
-
+  if (!gOFS.mFmdHandler->GetInconsistencyStatistics(mLocalId, tmp_stats,
+                                                    tmp_sets)) {
+    eos_static_err("msg=\"failed to get inconsistency statistics\" fsid=%lu",
+                   mLocalId);
+    return;
   }
 
   eos::common::RWMutexWriteLock wr_lock(mInconsistencyMutex);
