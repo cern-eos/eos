@@ -73,7 +73,7 @@ cap::capx::dump(bool dense)
              (*this)()->vtime_ns(), (*this)()->uid(), (*this)()->gid(),
              (*this)()->clientid().c_str(),
              (*this)()->authid().c_str(),
-             (*this)()-> errc(),
+	     (*this)()->errc(),
              (*this)()->max_file_size(),
              (*this)()->_quota().quota_inode(),
              (*this)()->_quota().inode_quota(),
@@ -327,7 +327,7 @@ cap::acquire(fuse_req_t req, fuse_ino_t ino, mode_t mode, bool lock)
 
     if (!cap->valid()) {
       if (refresh(req, cap)) {
-        (*cap)()->set_errc(errno ? errno : EIO);
+	(*cap)()->set_errc(errno ? errno : EIO);
         return cap;
       }
 
@@ -490,9 +490,11 @@ cap::capx::valid(bool debug)
 double
 cap::capx::lifetime()
 {
+  // call this with this cap locked
   struct timespec ts;
   ts.tv_sec = (*this)()->vtime();
   ts.tv_nsec = (*this)()->vtime_ns();
+
   double lifetime = -1.0 * (eos::common::Timing::GetCoarseAgeInNs(&ts,
                             0)) / 1000000000.0;
   eos_static_debug("inode=%08lx client-id=%s lifetime=%.02f",
@@ -583,9 +585,9 @@ cap::qmap::get(shared_cap cap)
     shared_quota quota = (*this)[qid];
 
     // check if we have a newer quota value
-    if (((*cap)()->vtime() > quota->get_vtime()) ||
-        (((*cap)()->vtime() == quota->get_vtime()) &&
-         ((*cap)()->vtime_ns() > quota->get_vtime_ns()))) {
+    if ((cap->vtime() > quota->get_vtime()) ||
+        ((cap->vtime() == quota->get_vtime()) &&
+         (cap->vtime_ns() > quota->get_vtime_ns()))) {
       eos_static_notice("updating qnode=%s volume=%lu inodes=%lu",
                         sqid, (*quota)()->volume_quota(),
                         (*quota)()->inode_quota());
@@ -595,7 +597,7 @@ cap::qmap::get(shared_cap cap)
         *quota = (*cap)()->_quota();
       }
       // store latest vtime
-      quota->set_vtime((*cap)()->vtime(), (*cap)()->vtime_ns());
+      quota->set_vtime(cap->vtime(), cap->vtime_ns());
       // zero local accounting
       quota->local_reset();
     }
@@ -605,7 +607,7 @@ cap::qmap::get(shared_cap cap)
   } else {
     shared_quota quota = std::make_shared<quotax>();
     *quota = (*cap)()->_quota();
-    quota->set_vtime((*cap)()->vtime(), (*cap)()->vtime_ns());
+    quota->set_vtime(cap->vtime(), cap->vtime_ns());
     (*this)[qid] = quota;
     return quota;
   }

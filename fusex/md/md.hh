@@ -403,6 +403,15 @@ public:
       return &proto;
     }
 
+    uint64_t pidTS() {
+      XrdSysMutexHelper cLock(mLock);
+      return proto.pid();
+    }
+    
+    uint64_t pid() {
+      return proto.pid();
+    }
+    
   private:
     XrdSysMutex mLock;
     XrdSysCondVar mSync;

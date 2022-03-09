@@ -513,7 +513,6 @@ XrdCl::Proxy::OpenAsyncHandler::HandleResponseWithHosts(
       delete response;
     }
   }
-  dLock.Release();
   mProxy->CheckSelfDestruction();
 }
 
@@ -591,8 +590,8 @@ XrdCl::Proxy::ScheduleCloseAsync(uint16_t timeout)
   {
     bool no_chunks_left = true;
 
-    if ((stateTS() == OPENING) ||
-        (stateTS() == OPENED)) {
+    if ((state() == OPENING) ||
+        (state() == OPENED)) {
       {
         XrdSysCondVarHelper lLock(WriteCondVar());
 
@@ -690,7 +689,6 @@ XrdCl::Proxy::CloseAsyncHandler::HandleResponse(XrdCl::XRootDStatus* status,
     delete response;
     delete status;
   }
-  dLock.Release();
   mProxy->CheckSelfDestruction();
 }
 
@@ -877,7 +875,6 @@ XrdCl::Proxy::WriteAsyncHandler::HandleResponse(XrdCl::XRootDStatus* status,
   }
 
   if (no_chunks_left) {
-    dLock.Release();
     mProxy->CheckSelfDestruction();
   }
 }
@@ -1001,13 +998,13 @@ XrdCl::Proxy::WaitWrite()
   eos_debug("");
   WaitOpen();
 
-  if (stateTS() == WAITWRITE) {
+  if (state() == WAITWRITE) {
     XrdSysCondVarHelper openLock(OpenCondVar());
     return XOpenState;
   }
 
   // check if the open failed
-  if (stateTS() != OPENED) {
+  if (state() != OPENED) {
     XrdSysCondVarHelper openLock(OpenCondVar());
     return XOpenState;
   }
@@ -1163,7 +1160,6 @@ XrdCl::Proxy::ReadAsyncHandler::HandleResponse(XrdCl::XRootDStatus* status,
   }
 
   if (!proxy()->HasReadsInFlight()) {
-    dLock.Release();
     proxy()->CheckSelfDestruction();
   }
 }
@@ -1355,13 +1351,13 @@ XrdCl::Proxy::CheckSelfDestruction()
     if (IsOpen()) {
       // close the file if it is open
       CloseAsync();
+      return;
     }
 
     if (IsClosed()) {
       // don't destroy if we still expect an async close callback
       eos_debug("self-destruction %llx", this);
-      eos::common::RWMutexWriteLock wLock(XrdCl::Proxy::gDeleteMutex);
-      delete this;
+      std::shared_ptr<XrdCl::Proxy> proxy(this); 
     }
   }
 }

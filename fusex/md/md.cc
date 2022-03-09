@@ -633,6 +633,7 @@ metad::get(fuse_req_t req,
     } else {
       if (ino != 1) {
         // we need this to refetch a hard link target which was removed server side
+	XrdSysMutexHelper mLock(md->Locker());
         (*md)()->set_md_ino(ino);
       }
     }
@@ -1170,10 +1171,11 @@ metad::begin_flush(fuse_req_t req, shared_md emd, std::string authid)
   if (!((*emd))()->md_ino()) {
     //TODO wait for the remote inode to be known
   }
-
+  
+  XrdSysMutexHelper mLock(md->Locker());
   (*md)()->set_md_ino((*emd)()->md_ino());
 
-  if ((rc = mdbackend->putMD(req, (*md)(), authid, 0))) {
+  if ((rc = mdbackend->putMD(req, (*md)(), authid, &(md->Locker()) ))) {
     eos_static_err("metad::begin_flush backend::putMD failed rc=%d", rc);
   }
 
@@ -1192,9 +1194,11 @@ metad::end_flush(fuse_req_t req, shared_md emd, std::string authid)
     //TODO wait for the remote inode to be known
   }
 
+  XrdSysMutexHelper mLock(md->Locker());
+
   (*md)()->set_md_ino((*emd)()->md_ino());
 
-  if ((rc = mdbackend->putMD(req, (*md)(), authid, 0))) {
+  if ((rc = mdbackend->putMD(req, (*md)(), authid, &(md->Locker()) ))) {
     eos_static_err("metad::begin_flush backend::putMD failed rc=%d", rc);
   }
 
@@ -2233,10 +2237,10 @@ metad::mdcflush(ThreadAssistant& assistant)
           }
         }
 
+	md->Locker().Lock();
         if ((*md)()->id()) {
           uint64_t removeentry = 0;
           {
-            md->Locker().Lock();
             int rc = 0;
 
             if (op == metad::mdx::RM) {
@@ -2329,7 +2333,9 @@ metad::mdcflush(ThreadAssistant& assistant)
               }
             }
           }
-        }
+        } else {
+	  md->Locker().UnLock();
+	}
       }
     }
   }
@@ -2375,7 +2381,7 @@ metad::mdstackfree(ThreadAssistant& assistant)
         }
 
         // if the parent is gone, we can remove the child
-        if ((!mdmap.count((*(it->second))()->pid())) &&
+        if ((!mdmap.count((it->second->pid()))) &&
             (!S_ISDIR((*(it->second))()->mode()) || it->second->deleted())) {
           eos_static_debug("removing orphaned inode from mdmap ino=%#lx path=%s",
                            it->first, (*(it->second))()->fullpath().c_str());

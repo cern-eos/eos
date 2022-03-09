@@ -454,12 +454,6 @@ public:
     return open_state;
   }
 
-  OPEN_STATE stateTS()
-  {
-    XrdSysCondVarHelper lLock(OpenCondVar());
-    return state();
-  }
-
   XRootDStatus read_state()
   {
     return XReadState;
@@ -1346,7 +1340,7 @@ public:
   }
 
 private:
-  OPEN_STATE open_state;
+  std::atomic<OPEN_STATE> open_state;
   struct timespec open_state_time;
   XRootDStatus XOpenState;
   OpenAsyncHandler XOpenAsyncHandler;

@@ -211,6 +211,24 @@ public:
       return lastusage;
     }
 
+    uint64_t vtimeTS() {
+      XrdSysMutexHelper cLock(Locker());
+      return mCapProto.vtime();
+    }
+
+    uint64_t vtime_nsTS() {
+      XrdSysMutexHelper cLock(Locker());
+      return mCapProto.vtime_ns();
+    }
+
+    uint64_t vtime() {
+      return mCapProto.vtime();
+    }
+
+    uint64_t vtime_ns() {
+      return mCapProto.vtime_ns();
+    }
+
   private:
     XrdSysMutex mLock;
     time_t lastusage;

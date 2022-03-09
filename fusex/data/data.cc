@@ -409,7 +409,7 @@ data::datax::flush_nolock(fuse_req_t req, bool wait_open, bool wait_writes)
   XrdCl::Proxy* proxy = mFile->has_xrdiorw(req) ? mFile->xrdiorw(req) : 0;
 
   if (proxy) {
-    if (proxy->stateTS() == XrdCl::Proxy::FAILED) {
+    if (proxy->state() == XrdCl::Proxy::FAILED) {
       int rc = 0;
       eos_debug("try recovery");
       mRecoveryStack.push_back(eos_log(LOG_SILENT,
@@ -557,7 +557,6 @@ void
 data::datax::set_id(uint64_t ino, fuse_req_t req)
 /* -------------------------------------------------------------------------- */
 {
-  XrdSysMutexHelper mLock(Locker());
   mIno = ino;
   mReq = req;
   mFile = cachehandler::instance().get(ino);
@@ -1039,12 +1038,12 @@ data::datax::TryRecovery(fuse_req_t req, bool iswrite)
       return XrdCl::Proxy::status2errno(proxy->opening_state());
     }
 
-    switch (proxy->stateTS()) {
+    switch (proxy->state()) {
     case XrdCl::Proxy::FAILED:
     case XrdCl::Proxy::OPENED:
     case XrdCl::Proxy::WAITWRITE:
     default:
-      eos_crit("triggering write recovery state = %d", proxy->stateTS());
+      eos_crit("triggering write recovery state = %d", proxy->state());
       return recover_write(req);
       eos_crit("default action");
     }
@@ -1071,7 +1070,7 @@ data::datax::TryRecovery(fuse_req_t req, bool iswrite)
       return XrdCl::Proxy::status2errno(proxy->opening_state());
     }
 
-    switch (proxy->stateTS()) {
+    switch (proxy->state()) {
     case XrdCl::Proxy::FAILED:
       mReadErrorStack.push_back("open-failed");
       return recover_ropen(req);
@@ -1174,12 +1173,13 @@ data::datax::recover_ropen(fuse_req_t req)
     // once all callbacks are there, this object can destroy itself since we don't track it anymore
     if (proxy->IsClosed()) {
       proxy->flag_selfdestructionTS();
+      eos::common::RWMutexWriteLock wLock(XrdCl::Proxy::gDeleteMutex);
       proxy->CheckSelfDestruction();
     } else {
       proxy->flag_selfdestructionTS();
     }
 
-    if (newproxy->stateTS() == XrdCl::Proxy::OPENED) { // that worked !
+    if (newproxy->state() == XrdCl::Proxy::OPENED) { // that worked !
       eos_warning("recover reopened file successfully");
       return 0;
     }
@@ -1250,7 +1250,7 @@ data::datax::try_ropen(fuse_req_t req, XrdCl::Proxy*& proxy,
     return EINTR;
   }
 
-  if (proxy->stateTS() == XrdCl::Proxy::OPENED) { // that worked !
+  if (proxy->state() == XrdCl::Proxy::OPENED) { // that worked !
     eos_warning("recover read-open succesfull");
     return 0;
   }
@@ -1328,6 +1328,7 @@ data::datax::try_ropen(fuse_req_t req, XrdCl::Proxy*& proxy,
     if (proxy->IsClosed()) {
       proxy->flag_selfdestructionTS();
       proxy->detach();
+      eos::common::RWMutexWriteLock wLock(XrdCl::Proxy::gDeleteMutex);
       proxy->CheckSelfDestruction();
     } else {
       proxy->flag_selfdestructionTS();
@@ -1337,7 +1338,7 @@ data::datax::try_ropen(fuse_req_t req, XrdCl::Proxy*& proxy,
     // replace the proxy object
     proxy = newproxy;
 
-    if (newproxy->stateTS() == XrdCl::Proxy::OPENED) { // that worked !
+    if (newproxy->state() == XrdCl::Proxy::OPENED) { // that worked !
       eos_warning("recover reopened file successfully");
       return 0;
     }
@@ -1409,7 +1410,7 @@ data::datax::try_wopen(fuse_req_t req, XrdCl::Proxy*& proxy,
   }
 
   // if that worked we are already fine, otherwise we enter a timebased logic for retries
-  if (proxy->stateTS() == XrdCl::Proxy::OPENED) { // that worked !
+  if (proxy->state() == XrdCl::Proxy::OPENED) { // that worked !
     eos_warning("re-opening for write succeeded");
     return 0;
   }
@@ -1467,7 +1468,7 @@ data::datax::try_wopen(fuse_req_t req, XrdCl::Proxy*& proxy,
     // replace the proxy object
     proxy = newproxy;
 
-    if (newproxy->stateTS() == XrdCl::Proxy::OPENED) { // that worked !
+    if (newproxy->state() == XrdCl::Proxy::OPENED) { // that worked !
       eos_warning("recover reopened file successfully");
       return 0;
     }
@@ -1854,6 +1855,7 @@ data::datax::recover_write(fuse_req_t req)
     proxy->flag_selfdestructionTS();
 
     if (proxy->IsClosed()) {
+      eos::common::RWMutexWriteLock wLock(XrdCl::Proxy::gDeleteMutex);
       proxy->CheckSelfDestruction();
     }
   } else {
@@ -1895,7 +1897,6 @@ data::datax::detach(fuse_req_t req, std::string& cookie, int flags)
   }
 
   eos_info("cookie=%s flags=%o isrw=%d", cookie.c_str(), flags, isRW);
-  int rflush = flush(req);
   XrdSysMutexHelper lLock(mLock);
   int bcache = mFile->file() ? mFile->file()->detach(cookie) : 0;
   int jcache = mFile->journal() ? ((isRW ||
@@ -1913,7 +1914,7 @@ data::datax::detach(fuse_req_t req, std::string& cookie, int flags)
     }
   }
 
-  return rflush | bcache | jcache | xio;
+  return bcache | jcache | xio;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -2946,7 +2947,7 @@ data::dmap::ioflush(ThreadAssistant& assistant)
                 }
 
                 if (fit->second->IsOpening() || fit->second->IsClosing()) {
-                  eos_static_info("skipping xrdclproxyrw state=%d %d", fit->second->stateTS(),
+                  eos_static_info("skipping xrdclproxyrw state=%d %d", fit->second->state(),
                                   fit->second->IsClosed());
                   // skip files which are opening or closing
                   fit++;
@@ -3001,7 +3002,7 @@ data::dmap::ioflush(ThreadAssistant& assistant)
                 }
 
                 if (fit->second->IsOpening() || fit->second->IsClosing()) {
-                  eos_static_info("skipping xrdclproxyrw state=%d %d", fit->second->stateTS(),
+                  eos_static_info("skipping xrdclproxyrw state=%d %d", fit->second->state(),
                                   fit->second->IsClosed());
                   // skip files which are opening or closing
                   break;
@@ -3165,7 +3166,7 @@ data::dmap::ioflush(ThreadAssistant& assistant)
                     }
                   }
 
-                  eos_static_info("deleting xrdclproxyrw state=%d %d", fit->second->stateTS(),
+                  eos_static_info("deleting xrdclproxyrw state=%d %d", fit->second->state(),
                                   fit->second->IsClosed());
                   {
                     eos::common::RWMutexWriteLock wLock(XrdCl::Proxy::gDeleteMutex);

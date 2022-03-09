@@ -585,9 +585,7 @@ backend::putMD(fuse_id& id, eos::fusex::md* md, std::string authid,
   md->clear_clientuuid();
   md->clear_implied_authid();
 
-  if (locker) {
-    locker->UnLock();
-  }
+  locker->UnLock();
 
   eos_static_info("proto-serialize unlock");
   XrdCl::Buffer arg;
@@ -607,9 +605,6 @@ backend::putMD(fuse_id& id, eos::fusex::md* md, std::string authid,
 
   if (status.IsOK()) {
     if (response && response->GetBuffer()) {
-      // eos_static_debug("response=%s response-size=%d",
-      // response->GetBuffer(),
-      //        response->GetSize());
       std::string responseprefix;
 
       if (response->GetSize() > 6) {
@@ -619,9 +614,7 @@ backend::putMD(fuse_id& id, eos::fusex::md* md, std::string authid,
         eos_static_err("protocol error - to short response received");
         delete response;
 
-        if (locker) {
-          locker->Lock();
-        }
+	locker->Lock();
 
         return EIO;
       }
@@ -630,9 +623,7 @@ backend::putMD(fuse_id& id, eos::fusex::md* md, std::string authid,
         eos_static_err("protocol error - fusex: prefix missing in response");
         delete response;
 
-        if (locker) {
-          locker->Lock();
-        }
+	locker->Lock();
 
         return EIO;
       }
@@ -648,9 +639,7 @@ backend::putMD(fuse_id& id, eos::fusex::md* md, std::string authid,
         eos_static_err("parsing error/wrong response type received");
         delete response;
 
-        if (locker) {
-          locker->Lock();
-        }
+	locker->Lock();
 
         return EIO;
       }
@@ -659,12 +648,10 @@ backend::putMD(fuse_id& id, eos::fusex::md* md, std::string authid,
         if (resp.ack_().code() == resp.ack_().OK) {
           eos_static_info("relock do");
 
-          if (locker) {
-            locker->Lock();
-          }
+	  locker->Lock();
 
           if (resp.ack_().md_ino()) {
-            md->set_md_ino(resp.ack_().md_ino());
+	    md->set_md_ino(resp.ack_().md_ino());
           }
 
           eos_static_debug("directory inode %lx => %lx/%lx tid=%lx error='%s'", md->id(),
@@ -685,9 +672,7 @@ backend::putMD(fuse_id& id, eos::fusex::md* md, std::string authid,
 
         delete response;
 
-        if (locker) {
-          locker->Lock();
-        }
+	locker->Lock();
 
         return EIO;
       }
@@ -695,9 +680,7 @@ backend::putMD(fuse_id& id, eos::fusex::md* md, std::string authid,
       if (resp.type() == resp.NONE) {
         delete response;
 
-        if (locker) {
-          locker->Lock();
-        }
+	locker->Lock();
 
         return 0;
       }
@@ -709,25 +692,19 @@ backend::putMD(fuse_id& id, eos::fusex::md* md, std::string authid,
         delete response;
       }
 
-      if (locker) {
-        locker->Lock();
-      }
+      locker->Lock();
 
       return EIO;
     }
 
-    if (locker) {
-      locker->Lock();
-    }
+    locker->Lock();
 
     return 0;
   } else {
     eos_static_err("query resulted in error for ino=%lx url=%s", md->id(),
                    id.getid()->url.GetURL().c_str());
 
-    if (locker) {
-      locker->Lock();
-    }
+    locker->Lock();
 
     if (status.code == XrdCl::errErrorResponse) {
       eos_static_err("errno=%i", status.errNo);
