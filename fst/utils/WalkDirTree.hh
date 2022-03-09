@@ -101,12 +101,11 @@ WalkFSTree(std::string path, F&& f, Ptr ptr, Args&&... args)
 {
   static_assert(std::is_pointer<Ptr>::value,
                 "This function expects a pointer");
-  return WalkDirTree({path.data()},
+  return WalkDirTree({path.data(),nullptr},
                     exclude_xs_map,
                     std::forward<F>(f),
                     ptr,
                     std::forward<Args>(args)...);
 }
-
 
 } // namespace eos::fst
