@@ -199,7 +199,7 @@ public:
                                   std::map<std::string, size_t>& statistics,
                                   std::map<std::string,
                                   std::set < eos::common::FileId::fileid_t>
-                                  >& fidset);
+                                  >& fidset) override;
 
   //----------------------------------------------------------------------------
   //! Reset(clear) the contents of the DB

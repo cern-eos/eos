@@ -28,6 +28,7 @@
 #include "common/LayoutId.hh"
 #include "namespace/interface/IFileMD.hh"
 #include "namespace/ns_quarkdb/FileMD.hh"
+#include <set>
 
 //! Forward declaration
 namespace eos
@@ -266,6 +267,20 @@ public:
                   uid_t uid,
                   gid_t gid,
                   common::LayoutId::layoutid_t layoutid);
+
+  //----------------------------------------------------------------------------
+  //! Get inconsistency statistics
+  //!
+  //! @param fsid file system id
+  //! @param statistics map of inconsistency type to counter
+  //! @param fidset map of fid to set of inconsitent file ids
+  //!
+  //! @return true if successful, otherwise false
+  //----------------------------------------------------------------------------
+  virtual bool GetInconsistencyStatistics(eos::common::FileSystem::fsid_t fsid,
+                                          std::map<std::string, size_t>& statistics,
+                                          std::map<std::string,
+                                              std::set <eos::common::FileId::fileid_t>>& fidset) = 0;
 
 private:
 
