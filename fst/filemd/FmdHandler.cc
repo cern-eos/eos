@@ -11,7 +11,7 @@
 #include "namespace/ns_quarkdb/persistency/RequestBuilder.hh"
 #include "namespace/ns_quarkdb/QdbContactDetails.hh"
 #include "qclient/structures/QSet.hh"
-#include <fts.h>
+#include "fst/utils/WalkDirTree.hh"
 
 EOSFSTNAMESPACE_BEGIN
 
@@ -291,15 +291,6 @@ FmdHandler::ResyncAllDisk(const char* path,
                           eos::common::FileSystem::fsid_t fsid,
                           bool flaglayouterror)
 {
-  char** paths = (char**) calloc(2, sizeof(char*));
-
-  if (!paths) {
-    eos_err("error: failed to allocate memory");
-    return false;
-  }
-
-  paths[0] = (char*) path;
-  paths[1] = 0;
 
   if (flaglayouterror) {
     SetSyncStatus(fsid, true);
@@ -308,51 +299,16 @@ FmdHandler::ResyncAllDisk(const char* path,
   if (!ResetDiskInformation(fsid)) {
     eos_err("failed to reset the disk information before resyncing fsid=%lu",
             fsid);
-    free(paths);
     return false;
   }
 
-  // Scan all the files
-  FTS* tree = fts_open(paths, FTS_NOCHDIR, 0);
-
-  if (!tree) {
-    eos_err("fts_open failed");
-    free(paths);
-    return false;
-  }
-
-  FTSENT* node;
-  unsigned long long cnt = 0;
-
-  while ((node = fts_read(tree))) {
-    if (node->fts_level > 0 && node->fts_name[0] == '.') {
-      fts_set(tree, node, FTS_SKIP);
-    } else {
-      if (node->fts_info == FTS_F) {
-        XrdOucString filePath = node->fts_accpath;
-
-        if (!filePath.matches("*.xsmap")) {
-          cnt++;
-          eos_debug("file=%s", filePath.c_str());
-          ResyncDisk(filePath.c_str(), fsid, flaglayouterror);
-
-          if (!(cnt % 10000)) {
-            eos_info("msg=\"synced files so far\" nfiles=%llu fsid=%u", cnt,
-                     (unsigned long) fsid);
-          }
-        }
-      }
-    }
-  }
-
-  if (fts_close(tree)) {
-    eos_err("fts_close failed");
-    free(paths);
-    return false;
-  }
-
-  free(paths);
-  return true;
+  uint64_t scan_sz;
+  std::string scan_xs_hex;
+  auto ret = WalkFSTree(path,
+                        std::mem_fn(&FmdHandler::ResyncDisk),
+                        this,
+                        fsid, flaglayouterror, scan_sz, scan_xs_hex);
+  return ret.status;
 }
 
 //------------------------------------------------------------------------------

@@ -55,6 +55,18 @@ public:
   // nothing related to AttrHandler as such
   static std::string GetPath(eos::common::FileId::fileid_t fid,
                              eos::common::FileSystem::fsid_t fsid);
+
+  bool GetInconsistencyStatistics(
+      eos::common::FileSystem::fsid_t fsid,
+      std::map<std::string, size_t>& statistics,
+      std::map<std::string, std::set<eos::common::FileId::fileid_t>>& fidset)
+      override;
+
+
+  bool UpdateInconsistencyStat(const std::string& path,
+                               std::map<std::string, size_t>& statistics,
+                               std::map<std::string, std::set<eos::common::FileId::fileid_t>>& fidset);
+
 private:
   bool LocalPutFmd(eos::common::FileId::fileid_t fid,
                    eos::common::FileSystem::fsid_t fsid,
