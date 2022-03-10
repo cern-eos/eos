@@ -1,4 +1,4 @@
-#!/bin/bash -e
+#!/bin/bash -ex
 
 # ******************************************************************************
 # EOS - the CERN Disk Storage System
@@ -22,10 +22,11 @@ SCRIPTPATH="$( cd "$(dirname "$0")" >/dev/null 2>&1 ; pwd -P )"
 source ${SCRIPTPATH}/eos-test-utils
 
 function usage() {
-  echo "usage: $(basename $0) [--max-delay <sec_delay>] --type docker/k8s <k8s_namespace>"
+  echo "usage: $(basename $0) [--max-delay <sec_delay>] --type docker/local/k8s <k8s_namespace>"
   echo "  --max-delay : optional max delay in seconds"
   echo "       docker : script runs in a Docker based setup"
   echo "       k8s    : script runs in a Kubernetes setup and requires a namespace argument"
+  echo "       local  : script runs locally, needs EOS_MGM_URL to be set"
 }
 
 # Create and upload test files to the eos instance. We create a random file and
@@ -301,6 +302,7 @@ fi
 
 # Set up global variables
 IS_DOCKER=false
+IS_LOCAL=false
 K8S_NAMESPACE=""
 
 if [[ $# -lt 2 ]]; then
@@ -316,16 +318,23 @@ if [[ "$1" != "--type" ]]; then
 fi
 
 if [[ "$2" == "docker" ]]; then
-  IS_DOCKER=true
+    IS_DOCKER=true
+elif [[ "$2" == "local" ]]; then
+    IS_LOCAL=true
 elif [[ "$2" == "k8s" ]]; then
-  IS_DOCKER=false
+    IS_DOCKER=false
 else
   echo "error: unknown type of executor \"$2\""
   usage
   exit 1
 fi
 
-if [[ "${IS_DOCKER}" == false ]]; then
+if [[ "${IS_LOCAL}" == true && -z "${EOS_MGM_URL}" ]]; then
+   echo "error: EOS_MGM_URL env needs to be set for local!"
+   exit 1
+fi
+
+if [[ "${IS_DOCKER}" == false && "${IS_LOCAL}" == false ]]; then
   # For the Kubernetes setup we also need a namespace argument
   if [[ $# -lt 3 ]]; then
     echo "error: missing Kubernetes namespace argument"
@@ -338,6 +347,7 @@ fi
 echo "eos-fsck-test configuration:"
 echo "MAX_DELAY=$MAX_DELAY"
 echo "IS_DOCKER=$IS_DOCKER"
+echo "IS_LOCAL=$IS_LOCAL"
 echo "K8S_NAMESPACE=$K8S_NAMESPACE (if IS_DOCKER=false)"
 echo
 

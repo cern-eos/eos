@@ -26,9 +26,11 @@ secs_to_human() {
 # as argument a container name and a shell command to be executed
 function exec_cmd() {
   if [[ "${IS_DOCKER}" == true ]]; then
-    exec_cmd_docker "$@"
+      exec_cmd_docker "$@"
+  elif [[ "${IS_LOCAL}" == true ]]; then
+      exec_cmd_local "$@"
   else
-    exec_cmd_k8s "$@"
+      exec_cmd_k8s "$@"
   fi
 }
 
@@ -46,4 +48,8 @@ function exec_cmd_k8s() {
   set -o xtrace
   kubectl exec --namespace=$K8S_NAMESPACE $(kubectl get pods --namespace=$K8S_NAMESPACE --no-headers -o custom-columns=":metadata.name" -l app=$1) -- /bin/bash -l -c "${@:2}"
   set +o xtrace
+}
+
+function exec_cmd_local() {
+    /bin/bash -l -c "EOS_MGM_URL=${EOS_MGM_URL} ${@:2}"
 }
