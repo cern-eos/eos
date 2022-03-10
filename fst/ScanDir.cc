@@ -230,13 +230,25 @@ ScanDir::AccountMissing()
           if (fmd) {
             fmd->mProtoFmd.set_layouterror(fmd->mProtoFmd.layouterror() |
                                            LayoutId::kMissing);
-            gOFS.mFmdHandler->Commit(fmd.get());
-            (void) gOFS.mFmdHandler->ResyncFileFromQdb(fid, mFsId, fpath,
-                gOFS.mFsckQcl);
           } else {
-            eos_err("msg=\"faile to create local fmd entry for missing file\" "
+            // With Force Retrieve if we come up null, this means this file
+            // doesn't exist! This path will only execute for the FmdAttr layer
+            // as leveldb will still have an entry even if hte original file was
+            // dropped Create a dummy file so that we can set kMissing!
+            fmd.reset(new common::FmdHelper());
+            fmd->mProtoFmd.set_fid(fid);
+            fmd->mProtoFmd.set_fsid(mFsId);
+            fmd->mProtoFmd.set_layouterror(LayoutId::kMissing);
+          }
+
+          if (!gOFS.mFmdHandler->Commit(fmd.get())) {
+            eos_err("msg=\"failed to create local fmd entry for missing file\" "
                     "fxid=%08llx fsid=%lu", fid, mFsId);
           }
+
+          (void) gOFS.mFmdHandler->ResyncFileFromQdb(fid, mFsId, fpath,
+                                                     gOFS.mFsckQcl);
+
         }
       } catch (eos::MDException& e) {
         // No file on disk, no ns file metadata object but we have a ghost entry
