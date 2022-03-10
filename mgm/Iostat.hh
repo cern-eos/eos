@@ -120,7 +120,12 @@ public:
   //------------------------------------------------------------------------------
   // Get longest transfer time in past 24h
   //------------------------------------------------------------------------------
-  unsigned long long GetLongestTransferTime() const;
+  unsigned long long GetLongestTransferTime()const;
+
+  //------------------------------------------------------------------------------
+  // Get longest transfer report time (time it took to FST report to arrive at MGM) in past 24h
+  //------------------------------------------------------------------------------
+  unsigned long long GetLongestReportTime() const;
 
   //------------------------------------------------------------------------------
   // Return time to completion of transfer of 90/95/99/100% of data for transfers seen
@@ -169,6 +174,8 @@ public:
   // even if you wait for longest transfer time - you still do not know if the longest
   // transfer length is not longer because there is longer transfer in the pipe !
   unsigned long long mLongestTransferTime = 0;
+  // for safety we monitor how long it took to the transfer report to get to the MGM
+  unsigned long long mLongestReportTime = 0;
   // how much data was transferred during ibin = mDataBuffer[ibin]
   double mDataBuffer[sBins];
   // what we can measure is choosing a period of time [sLastTfMaxLenUpdateRate] `

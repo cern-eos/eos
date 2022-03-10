@@ -220,14 +220,19 @@ IostatPeriods::AddToDataBuffer(unsigned long long val,
     mLastAddTime = stop;
   }
 
-  if (mLongestTransferTime < (unsigned int)tdiff) {
-    // @todo(guenther) how can this influence the behaviour since the value is
-    // is then overwritten with tdiff? can't we just remove the whole "if"?
-    if ((size_t)now % sPeriod) {
-      mLongestTransferTime = 0;
-    }
+  if ((size_t)now % sPeriod == 0) {
+    mLongestTransferTime = 0;
+    mLongestReportTime = 0;
+  }
 
+  if (mLongestTransferTime < (unsigned int)tdiff) {
     mLongestTransferTime = tdiff;
+  }
+
+  time_t trep = now - stop;
+
+  if (mLongestReportTime < (unsigned int)(trep)) {
+    mLongestReportTime = trep;
   }
 
   // cutting off data out of time window
@@ -255,11 +260,6 @@ IostatPeriods::AddToDataBuffer(unsigned long long val,
     size_t bin_indx = ((t_ibin_end / sBinWidth) % sBins);
     time_t t_idata_end = t_ibin_end;
     time_t t_idata_start = t_ibin_start;
-
-    // @todo(guenther) isnt' this already the case?
-    if (ibin == 0) {
-      t_idata_end = stop;
-    }
 
     if (ibin == mbins - 1) {
       t_idata_start = start;
@@ -507,6 +507,13 @@ IostatPeriods::GetLongestTransferTime() const
 {
   return mLongestTransferTime;
 }
+
+unsigned long long
+IostatPeriods::GetLongestReportTime() const
+{
+  return mLongestReportTime;
+}
+
 
 //------------------------------------------------------------------------------
 // Set Update interval for exploring transfer distribution
@@ -1473,7 +1480,7 @@ Iostat::PrintOut(XrdOucString& out, bool summary, bool details,
       std::vector<std::tuple<std::string, std::string, unsigned long long,
           unsigned long long, unsigned long long, unsigned long long,
           unsigned long long, unsigned long long, unsigned long long,
-          std::string>>
+          unsigned long long, std::string>>
           uidout_sec, gidout_sec;
       std::vector<std::tuple<std::string, std::string, unsigned long long,
           unsigned long long, unsigned long long, unsigned long long,
@@ -1511,7 +1518,7 @@ Iostat::PrintOut(XrdOucString& out, bool summary, bool details,
       }
 
       XrdOucString marker_sec =
-        "\n┏━> Transfer (tf) sample info every 5 min: tf time for 90/95/99/100% of data, max tf time (last 24h), average tf size, tf count.\n";
+        "\n┏━> Transfer (tf) sample info every 5 min: tf time for 90/95/99/100% of data, max tf and report times (last 24h), average tf size, tf count.\n";
       TableFormatterBase table_user_sec;
 
       if (!monitoring) {
@@ -1523,6 +1530,7 @@ Iostat::PrintOut(XrdOucString& out, bool summary, bool details,
           std::make_tuple("99% [s]", 8, format_l),
           std::make_tuple("100% [s]", 8, format_l),
           std::make_tuple("max [s]", 8, format_l),
+          std::make_tuple("max report [s]", 8, format_l),
           std::make_tuple("avg tf size", 8, format_l),
           std::make_tuple("tf #", 8, format_l),
           std::make_tuple("sample time", 24, format_s)
@@ -1536,6 +1544,7 @@ Iostat::PrintOut(XrdOucString& out, bool summary, bool details,
           std::make_tuple("tfsecto99p", 0, format_l),
           std::make_tuple("tfsecto100p", 0, format_l),
           std::make_tuple("maxtransfersec", 0, format_l),
+          std::make_tuple("maxreportsec", 0, format_l),
           std::make_tuple("avgtfsize5min", 0, format_l),
           std::make_tuple("tfcount", 0, format_l),
           std::make_tuple("sampletimestamp", 0, format_s)
@@ -1577,6 +1586,7 @@ Iostat::PrintOut(XrdOucString& out, bool summary, bool details,
                                                   it->second.GetTimeToPercComplete(P99),
                                                   offset100p,
                                                   it->second.GetLongestTransferTime(),
+                                                  it->second.GetLongestReportTime(),
                                                   it->second.GetAvgTransferSize(),
                                                   it->second.GetTfCountInSample(),
                                                   sample_time
@@ -1617,6 +1627,7 @@ Iostat::PrintOut(XrdOucString& out, bool summary, bool details,
         row.emplace_back(std::get<7>(tup), format_l);
         row.emplace_back(std::get<8>(tup), format_l);
         row.emplace_back(std::get<9>(tup), format_s);
+        row.emplace_back(std::get<10>(tup), format_s);
       }
 
       table_user_sec.AddRows(table_data);
@@ -1659,6 +1670,7 @@ Iostat::PrintOut(XrdOucString& out, bool summary, bool details,
           std::make_tuple("99% [s]", 8, format_l),
           std::make_tuple("100% [s]", 8, format_l),
           std::make_tuple("max [s]", 8, format_l),
+          std::make_tuple("max report [s]", 8, format_l),
           std::make_tuple("avg tf size", 8, format_l),
           std::make_tuple("tf #", 8, format_l),
           std::make_tuple("sample time", 24, format_s)
@@ -1672,6 +1684,7 @@ Iostat::PrintOut(XrdOucString& out, bool summary, bool details,
           std::make_tuple("tfsecto99p", 0, format_l),
           std::make_tuple("tfsecto100p", 0, format_l),
           std::make_tuple("maxtransfersec", 0, format_l),
+          std::make_tuple("maxreportsec", 0, format_l),
           std::make_tuple("avgtfsize5min", 0, format_l),
           std::make_tuple("tfcount", 0, format_l),
           std::make_tuple("sampletimestamp", 0, format_s)
@@ -1714,6 +1727,7 @@ Iostat::PrintOut(XrdOucString& out, bool summary, bool details,
                                                   it->second.GetTimeToPercComplete(P99),
                                                   offset100p,
                                                   it->second.GetLongestTransferTime(),
+                                                  it->second.GetLongestReportTime(),
                                                   it->second.GetAvgTransferSize(),
                                                   it->second.GetTfCountInSample(),
                                                   sample_time
@@ -1754,6 +1768,7 @@ Iostat::PrintOut(XrdOucString& out, bool summary, bool details,
         row.emplace_back(std::get<7>(tup), format_l);
         row.emplace_back(std::get<8>(tup), format_l);
         row.emplace_back(std::get<9>(tup), format_s);
+        row.emplace_back(std::get<10>(tup), format_s);
       }
 
       table_group_sec.AddRows(table_data);
@@ -1960,7 +1975,7 @@ Iostat::PrintOut(XrdOucString& out, bool summary, bool details,
       }
 
       XrdOucString marker_sec =
-        "\n┏━> Transfer (tf) sample info every 5 min: tf time for 90/95/99/100% of data, max tf time (last 24h), average tf size, tf count.\n";
+        "\n┏━> Transfer (tf) sample info every 5 min: tf time for 90/95/99/100% of data, max tf and report times (last 24h), average tf size, tf count.\n";
       TableFormatterBase table_domain_sec;
 
       if (!monitoring) {
@@ -1972,6 +1987,7 @@ Iostat::PrintOut(XrdOucString& out, bool summary, bool details,
           std::make_tuple("99% [s]", 8, format_l),
           std::make_tuple("100% [s]", 8, format_l),
           std::make_tuple("max [s]", 8, format_l),
+          std::make_tuple("max report [s]", 8, format_l),
           std::make_tuple("avg tf size", 8, format_l),
           std::make_tuple("tf #", 8, format_l),
           std::make_tuple("sample time", 24, format_s)
@@ -1985,6 +2001,7 @@ Iostat::PrintOut(XrdOucString& out, bool summary, bool details,
           std::make_tuple("tfsecto99p", 0, format_l),
           std::make_tuple("tfsecto100p", 0, format_l),
           std::make_tuple("maxtransfersec", 0, format_l),
+          std::make_tuple("maxreportsec", 0, format_l),
           std::make_tuple("avgtfsize5min", 0, format_l),
           std::make_tuple("tfcount", 0, format_l),
           std::make_tuple("sampletimestamp", 0, format_s)
@@ -2055,6 +2072,7 @@ Iostat::PrintOut(XrdOucString& out, bool summary, bool details,
         row.emplace_back(it->second.GetTimeToPercComplete(P99), format_l);
         row.emplace_back(offset100p, format_l);
         row.emplace_back(it->second.GetLongestTransferTime(), format_l);
+        row.emplace_back(it->second.GetLongestReportTime(), format_l);
         row.emplace_back(it->second.GetAvgTransferSize(), format_l);
         row.emplace_back(it->second.GetTfCountInSample(), format_l);
         row.emplace_back(sample_time, format_s);
@@ -2085,6 +2103,7 @@ Iostat::PrintOut(XrdOucString& out, bool summary, bool details,
         row.emplace_back(it->second.GetTimeToPercComplete(P99), format_l);
         row.emplace_back(offset100p, format_l);
         row.emplace_back(it->second.GetLongestTransferTime(), format_l);
+        row.emplace_back(it->second.GetLongestReportTime(), format_l);
         row.emplace_back(it->second.GetAvgTransferSize(), format_l);
         row.emplace_back(it->second.GetTfCountInSample(), format_l);
         row.emplace_back(sample_time, format_s);
@@ -2182,7 +2201,7 @@ Iostat::PrintOut(XrdOucString& out, bool summary, bool details,
       }
 
       XrdOucString marker_sec =
-        "\n┏━> Transfer (tf) sample info every 5 min: tf time for 90/95/99/100% of data, max tf time (last 24h), average tf size, tf count.\n";
+        "\n┏━> Transfer (tf) sample info every 5 min: tf time for 90/95/99/100% of data, max tf and report times (last 24h), average tf size, tf count.\n";
       TableFormatterBase table_app_sec;
 
       if (!monitoring) {
@@ -2194,6 +2213,7 @@ Iostat::PrintOut(XrdOucString& out, bool summary, bool details,
           std::make_tuple("99% [s]", 8, format_l),
           std::make_tuple("100% [s]", 8, format_l),
           std::make_tuple("max [s]", 8, format_l),
+          std::make_tuple("max report [s]", 8, format_l),
           std::make_tuple("avg tf size", 8, format_l),
           std::make_tuple("tf #", 8, format_l),
           std::make_tuple("sample time", 24, format_s),
@@ -2207,6 +2227,7 @@ Iostat::PrintOut(XrdOucString& out, bool summary, bool details,
           std::make_tuple("tfsecto99p", 0, format_l),
           std::make_tuple("tfsecto100p", 0, format_l),
           std::make_tuple("maxtransfersec", 0, format_l),
+          std::make_tuple("maxreportsec", 0, format_l),
           std::make_tuple("avgtfsize5min", 0, format_l),
           std::make_tuple("tfcount", 0, format_l),
           std::make_tuple("sampletimestamp", 0, format_s)
@@ -2274,6 +2295,7 @@ Iostat::PrintOut(XrdOucString& out, bool summary, bool details,
         row.emplace_back(it->second.GetTimeToPercComplete(P99), format_l);
         row.emplace_back(offset100p, format_l);
         row.emplace_back(it->second.GetLongestTransferTime(), format_l);
+        row.emplace_back(it->second.GetLongestReportTime(), format_l);
         row.emplace_back(it->second.GetAvgTransferSize(), format_l);
         row.emplace_back(it->second.GetTfCountInSample(), format_l);
         row.emplace_back(sample_time, format_s);
@@ -2303,6 +2325,7 @@ Iostat::PrintOut(XrdOucString& out, bool summary, bool details,
         row.emplace_back(it->second.GetTimeToPercComplete(P99), format_l);
         row.emplace_back(offset100p, format_l);
         row.emplace_back(it->second.GetLongestTransferTime(), format_l);
+        row.emplace_back(it->second.GetLongestReportTime(), format_l);
         row.emplace_back(it->second.GetAvgTransferSize(), format_l);
         row.emplace_back(it->second.GetTfCountInSample(), format_l);
         row.emplace_back(sample_time, format_s);
