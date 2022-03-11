@@ -113,7 +113,6 @@ Policy::GetLayoutAndSpace(const char* path,
       spacepolicies["checksum"]  = it->second->GetConfigMember("policy.checksum");
       spacepolicies["blocksize"] = it->second->GetConfigMember("policy.blocksize");
       spacepolicies["blockchecksum"] = it->second->GetConfigMember("policy.blockchecksum");
-      spacepolicies["localredirect.default"] = it->second->GetConfigMember("policy.localredirect");
       bandwidth = it->second->GetConfigMember("policy.bandwidth");
       schedule = (it->second->GetConfigMember("policy.schedule")=="1");
       iopriority = it->second->GetConfigMember("policy.iopriority");
@@ -187,7 +186,7 @@ Policy::GetLayoutAndSpace(const char* path,
 	spacepolicies["blockchecksum"] = space_blockxs;
       }
       if (space_localrdr.length()) {
-	spacepolicies[std::string("localredirect") + space.c_str()] = space_localrdr;
+	spacepolicies[std::string("localredirect")] = space_localrdr;
       }
       bandwidth = it->second->GetConfigMember("policy.bandwidth");
       schedule = (it->second->GetConfigMember("policy.schedule")=="1");
@@ -476,17 +475,25 @@ Policy::RedirectLocal(const char* path,
 		      eos::IContainerMD::XAttrMap &map,
 		      const eos::common::VirtualIdentity &vid,
 		      unsigned long &layoutId,
-		      XrdOucString &space
+		      XrdOucString &space,
+		      XrdOucEnv &env
 		      )
 {
-  std::string rkey = "sys.forced.localredirect.";
-  rkey += space.c_str();
+  std::string rkey = "sys.forced.localredirect";
   if (map.count(rkey) && ( (map[rkey] == "true")  || (map[rkey] == "1")) && 
       ( (eos::common::LayoutId::GetLayoutType(layoutId) == eos::common::LayoutId::kReplica) ||
 	(eos::common::LayoutId::GetLayoutType(layoutId) == eos::common::LayoutId::kPlain) ) ) {
-    return true;
+    if (env.Get("eos.localredirect") && (std::string(env.Get("eos.localredirect"))=="0")) {
+      return false;
+    } else {
+      return true;
+    }
   }
-  return false;
+  if (env.Get("eos.localredirect") && (std::string(env.Get("eos.localredirect"))=="1")) {
+    return true;
+  } else {
+    return false;
+  }
 }
 
 

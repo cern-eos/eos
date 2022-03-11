@@ -72,7 +72,8 @@ public:
 			    eos::IContainerMD::XAttrMap &map,
 			    const eos::common::VirtualIdentity &vid,
 			    unsigned long &layoutId,
-			    XrdOucString &space
+			    XrdOucString &space,
+			    XrdOucEnv &env
 			    );
 
   static unsigned long GetSpacePolicyLayout(const char* space);

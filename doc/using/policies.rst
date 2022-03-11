@@ -234,6 +234,38 @@ You can define a minimum or maximum size criteria to apply automatic policy conv
    # convert files on injection only if they are smaller than 1M
    eos space config ssd space.policy.conversion.injection.size=<1000000
 
+Shared Filesystem Redirection
+-----------------------------
 
+When all FSTs in a space store data into a shared filesystem and clients might have access to all the data for reading, one can enable the redirection to a local filesystem:
 
- 
+.. code-block:: bash
+
+   # define the local redirection policy in the given space called 'nfs'
+   eos space config nfs space.policy.localredirect=1
+
+   # define local redirection on a per directory basis
+   eos attr set sys.forced.localredirect.nfs=1
+
+Please note: a space defined policy overwrites any directory policy. 
+
+Local redirection is currently supported for single replica files. It is disabled for PIO access with *eoscp* (default)), but works with *xrdcp* and *eoscp -0*.
+If the client does not see the shared filesystem, the client will fall back to the MGM and read with the FST. If the client sees the shared filesystem but cannot read it, the client will fail. 
+
+One can manually select/disable local redirection using a CGI tag: 
+
+.. code-block:: bash
+
+   # enable local redirection via CGI
+   root://localhost//eos/shared/file?eos.localredirect=1
+
+   # disable local redirection via CGI
+   root://localhost//eos/shared/file?eos.localredirect=0
+
+Redirections are accounted in the *eos ns stat* accounting as failed and successful redirection on open:
+
+.. code-block:: bash
+
+   eos ns stat | grep RedirectLocal
+   all OpenFailedRedirectLocal             0     0.00     0.00     0.00     0.00     -NA-      -NA-     -NA-     -NA- 
+   all OpenRedirectLocal                  14     0.00     0.00     0.00     0.00     -NA-      -NA-     -NA-     -NA-  

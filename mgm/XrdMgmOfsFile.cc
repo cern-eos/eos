@@ -1564,7 +1564,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
                             forcedFsId, forced_group, bandwidth, schedule, ioprio, iotype);
 
   // do a local redirect here if there is only one replica attached
-  if (!isRW && !isPio && (fmd->getNumLocation()==1) && Policy::RedirectLocal(path, attrmap, vid, layoutId, space)) {
+  if (!isRW && !isPio && (fmd->getNumLocation()==1) && Policy::RedirectLocal(path, attrmap, vid, layoutId, space, *openOpaque)) {
     XrdCl::URL url(std::string("root://localhost//") + std::string(path?path:"/dummy/") + std::string("?") + std::string(ininfo?ininfo:""));
     std::string localhost = "localhost";
     if (gOFS->Tried(url,localhost, "*")) {
