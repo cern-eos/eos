@@ -38,7 +38,7 @@ public:
   virtual std::unique_ptr<CreateStageBulkRequestModel> buildFromJson(const std::string & json) override;
   inline static const std::string FILES_KEY_NAME = "files";
   inline static const std::string PATH_KEY_NAME = "path";
-  inline static const std::string TARGETED_METADATA_KEY_NAME = "targeted_metadata";
+  inline static const std::string TARGETED_METADATA_KEY_NAME = "targetedMetadata";
 protected:
   TapeJsonCppValidatorFactory mValidatorFactory;
   std::string mRestApiEndpointId;
