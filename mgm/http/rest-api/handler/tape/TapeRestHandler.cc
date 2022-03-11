@@ -95,7 +95,7 @@ bool TapeRestHandler::isRestRequest(const std::string& requestURL) {
           std::string("msg=\"No taperestapi.sitename has been specified, the tape REST API is therefore disabled\"") +
           " requestURL=\"" + requestURL + "\"";
 
-      eos_static_err(errorMsg.c_str());
+      eos_static_warning(errorMsg.c_str());
       return false;
     }
     if (mIsActivated == false) {
@@ -103,7 +103,7 @@ bool TapeRestHandler::isRestRequest(const std::string& requestURL) {
           std::string(
               "msg=\"The tape REST API is not enabled, verify that the \"") + rest::TAPE_REST_API_SWITCH_ON_OFF + "\" space configuration is set to \"on\"\"" +
           " requestURL=\"" + requestURL + "\"";
-      eos_static_err(errorMsg.c_str());
+      eos_static_warning(errorMsg.c_str());
       return false;
     }
   }
@@ -128,6 +128,10 @@ common::HttpResponse* TapeRestHandler::handleRequest(common::HttpRequest* reques
   } catch(const RestException &ex) {
     eos_static_info(ex.what());
     return mTapeRestApiResponseFactory.createInternalServerError(ex.what()).getHttpResponse();
+  } catch (...) {
+    std::string errorMsg = "Unknown exception occured";
+    eos_static_err(errorMsg.c_str());
+    return mTapeRestApiResponseFactory.createInternalServerError(errorMsg).getHttpResponse();
   }
   return nullptr;
 }
