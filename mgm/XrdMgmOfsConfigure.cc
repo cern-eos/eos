@@ -2335,6 +2335,9 @@ XrdMgmOfs::InitStats()
   MgmStats.Add("AttrLs", 0, 0, 0);
   MgmStats.Add("AttrRm", 0, 0, 0);
   MgmStats.Add("AttrSet", 0, 0, 0);
+  MgmStats.Add("BulkRequestBusiness::getBulkRequest",0,0,0);
+  MgmStats.Add("BulkRequestBusiness::getStageBulkRequest",0,0,0);
+  MgmStats.Add("BulkRequestBusiness::saveBulkRequest",0,0,0);
   MgmStats.Add("Cd", 0, 0, 0);
   MgmStats.Add("Checksum", 0, 0, 0);
   MgmStats.Add("Chmod", 0, 0, 0);
@@ -2488,6 +2491,12 @@ XrdMgmOfs::InitStats()
   MgmStats.Add("Stall", 0, 0, 0);
   MgmStats.Add("Stat", 0, 0, 0);
   MgmStats.Add("Symlink", 0, 0, 0);
+  MgmStats.Add("TapeRestApiBusiness::cancelStageBulkRequest",0,0,0);
+  MgmStats.Add("TapeRestApiBusiness::createStageBulkRequest",0,0,0);
+  MgmStats.Add("TapeRestApiBusiness::deleteStageBulkRequest",0,0,0);
+  MgmStats.Add("TapeRestApiBusiness::getFileInfo",0,0,0);
+  MgmStats.Add("TapeRestApiBusiness::getStageBulkRequest",0,0,0);
+  MgmStats.Add("TapeRestApiBusiness::releasePaths",0,0,0);
   MgmStats.Add("Touch", 0, 0, 0);
   MgmStats.Add("TxState", 0, 0, 0);
   MgmStats.Add("Truncate", 0, 0, 0);
