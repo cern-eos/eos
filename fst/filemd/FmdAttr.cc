@@ -140,7 +140,7 @@ FmdAttrHandler::LocalGetFmd(eos::common::FileId::fileid_t fid,
   }
 
   // Check the various conditions if we have a fmd attr already
-  if (status || force_retrieve) {
+  if (status) {
     auto fmd = std::make_unique<eos::common::FmdHelper>(std::move(_fmd.mProtoFmd));
     if ((fmd->mProtoFmd.fid() != fid) || (fmd->mProtoFmd.fsid() != fsid)) {
       eos_crit("msg=\"mismatch between requested fid/fsid and retrieved ones\" "
