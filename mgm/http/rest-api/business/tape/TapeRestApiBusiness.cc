@@ -33,11 +33,14 @@
 #include "mgm/http/rest-api/exception/tape/FileDoesNotBelongToBulkRequestException.hh"
 #include "mgm/http/rest-api/exception/ForbiddenException.hh"
 #include "mgm/bulk-request/exception/PersistencyException.hh"
+#include "mgm/Stat.hh"
 
 EOSMGMRESTNAMESPACE_BEGIN
 
 std::shared_ptr<bulk::BulkRequest> TapeRestApiBusiness::createStageBulkRequest(const CreateStageBulkRequestModel* model, const common::VirtualIdentity * vid) {
   const FilesContainer & files = model->getFiles();
+  EXEC_TIMING_BEGIN("TapeRestApiBusiness::createStageBulkRequest");
+  gOFS->MgmStats.Add("TapeRestApiBusiness::createStageBulkRequest",vid->uid,vid->gid,1);
   bulk::PrepareArgumentsWrapper pargsWrapper(
       "fake_id", Prep_STAGE, files.getPaths(), files.getOpaqueInfos());
   auto prepareManager = createBulkRequestPrepareManager();
@@ -46,10 +49,13 @@ std::shared_ptr<bulk::BulkRequest> TapeRestApiBusiness::createStageBulkRequest(c
   if(prepareRetCode != SFS_DATA){
     throw TapeRestApiBusinessException(error.getErrText());
   }
+  EXEC_TIMING_END("TapeRestApiBusiness::createStageBulkRequest");
   return prepareManager->getBulkRequest();
 }
 
 void TapeRestApiBusiness::cancelStageBulkRequest(const std::string & requestId, const PathsModel* model, const common::VirtualIdentity * vid) {
+  EXEC_TIMING_BEGIN("TapeRestApiBusiness::cancelStageBulkRequest");
+  gOFS->MgmStats.Add("TapeRestApiBusiness::cancelStageBulkRequest",vid->uid,vid->gid,1);
   std::shared_ptr<bulk::BulkRequestBusiness> bulkRequestBusiness = createBulkRequestBusiness();
   auto bulkRequest = bulkRequestBusiness->getStageBulkRequest(requestId);
   if(bulkRequest == nullptr) {
@@ -90,9 +96,12 @@ void TapeRestApiBusiness::cancelStageBulkRequest(const std::string & requestId, 
       throw TapeRestApiBusinessException(ss.str());
     }
   }
+  EXEC_TIMING_END("TapeRestApiBusiness::cancelStageBulkRequest");
 }
 
 std::shared_ptr<GetStageBulkRequestResponseModel> TapeRestApiBusiness::getStageBulkRequest(const std::string& requestId,const common::VirtualIdentity * vid) {
+  EXEC_TIMING_BEGIN("TapeRestApiBusiness::getStageBulkRequest");
+  gOFS->MgmStats.Add("TapeRestApiBusiness::getStageBulkRequest",vid->uid,vid->gid,1);
   std::shared_ptr<GetStageBulkRequestResponseModel> ret = std::make_shared<GetStageBulkRequestResponseModel>();
   auto bulkRequestBusiness = createBulkRequestBusiness();
   std::unique_ptr<bulk::StageBulkRequest> bulkRequest;
@@ -143,10 +152,13 @@ std::shared_ptr<GetStageBulkRequestResponseModel> TapeRestApiBusiness::getStageB
       ret->addFile(std::move(item));
     }
   }
+  EXEC_TIMING_END("TapeRestApiBusiness::getStageBulkRequest");
   return ret;
 }
 
 void TapeRestApiBusiness::deleteStageBulkRequest(const std::string& requestId, const common::VirtualIdentity* vid) {
+  EXEC_TIMING_BEGIN("TapeRestApiBusiness::deleteStageBulkRequest");
+  gOFS->MgmStats.Add("TapeRestApiBusiness::deleteStageBulkRequest",vid->uid,vid->gid,1);
   //Get the prepare request from the persistency
   std::shared_ptr<bulk::BulkRequestBusiness> bulkRequestBusiness = createBulkRequestBusiness();
   auto bulkRequest = bulkRequestBusiness->getStageBulkRequest(requestId);
@@ -177,9 +189,12 @@ void TapeRestApiBusiness::deleteStageBulkRequest(const std::string& requestId, c
   } catch (bulk::PersistencyException &ex) {
     throw TapeRestApiBusinessException(ex.what());
   }
+  EXEC_TIMING_END("TapeRestApiBusiness::deleteStageBulkRequest");
 }
 
 std::shared_ptr<bulk::QueryPrepareResponse> TapeRestApiBusiness::getFileInfo(const PathsModel * model, const common::VirtualIdentity* vid) {
+  EXEC_TIMING_BEGIN("TapeRestApiBusiness::getFileInfo");
+  gOFS->MgmStats.Add("TapeRestApiBusiness::getFileInfo",vid->uid,vid->gid,1);
   auto & filesContainer = model->getFiles();
   bulk::PrepareArgumentsWrapper pargsWrapper("fake_id", Prep_QUERY);
   for(const auto & pathFromUser : filesContainer.getPaths()){
@@ -193,10 +208,13 @@ std::shared_ptr<bulk::QueryPrepareResponse> TapeRestApiBusiness::getFileInfo(con
     ss << "Unable to get information about the files provided. errMsg=\"" << error.getErrText() << "\"";
     throw TapeRestApiBusinessException(ss.str());
   }
+  EXEC_TIMING_END("TapeRestApiBusiness::getFileInfo");
   return queryPrepareResult->getResponse();
 }
 
 void TapeRestApiBusiness::releasePaths(const PathsModel* model, const common::VirtualIdentity* vid) {
+  EXEC_TIMING_BEGIN("TapeRestApiBusiness::releasePaths");
+  gOFS->MgmStats.Add("TapeRestApiBusiness::releasePaths",vid->uid,vid->gid,1);
   auto & filesContainer = model->getFiles();
   bulk::PrepareArgumentsWrapper pargsWrapper("fake_id", Prep_EVICT,
                                              filesContainer.getPaths(),
@@ -209,6 +227,7 @@ void TapeRestApiBusiness::releasePaths(const PathsModel* model, const common::Vi
     ss << "Unable to release the files provided. errMsg=\"" << error.getErrText() << "\"";
     throw TapeRestApiBusinessException(ss.str());
   }
+  EXEC_TIMING_END("TapeRestApiBusiness::releasePaths");
 }
 
 std::unique_ptr<bulk::BulkRequestPrepareManager> TapeRestApiBusiness::createBulkRequestPrepareManager() {
