@@ -1563,6 +1563,39 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
   Policy::GetLayoutAndSpace(path, attrmap, vid, new_lid, space, *openOpaque,
                             forcedFsId, forced_group, bandwidth, schedule, ioprio, iotype);
 
+  // do a local redirect here if there is only one replica attached
+  if (!isRW && !isPio && (fmd->getNumLocation()==1) && Policy::RedirectLocal(path, attrmap, vid, layoutId, space)) {
+    XrdCl::URL url(std::string("root://localhost//") + std::string(path?path:"/dummy/") + std::string("?") + std::string(ininfo?ininfo:""));
+    std::string localhost = "localhost";
+    if (gOFS->Tried(url,localhost, "*")) {
+      gOFS->MgmStats.Add("OpenFailedRedirectLocal", vid.uid, vid.gid, 1);
+      eos_info("msg=\"local-redirect disabled - forwarding to FST\" path=\"%s\" info=\"%s\"", path, ininfo);
+    } else {
+      eos::common::FileSystem::fs_snapshot_t local_snapshot;
+      unsigned int local_id = fmd->getLocation(0);
+      eos::mgm::FileSystem* local_fs = FsView::gFsView.mIdView.lookupByID(local_id);
+      local_fs->SnapShotFileSystem(local_snapshot);
+      
+      // compute the local path
+      std::string local_path = eos::common::FileId::FidPrefix2FullPath(eos::common::FileId::Fid2Hex(fmd->getId()).c_str(),
+							  local_snapshot.mPath.c_str());
+
+      eos_info("msg=\"local-redirect screening - forwarding to local\" local-path=\"%s\" path=\"%s\" info=\"%s\"", local_path.c_str(), path, ininfo);
+      redirectionhost = "file://localhost";
+      redirectionhost += local_path.c_str();
+      ecode = -1;
+      if (!gOFS->SetRedirectionInfo(error, redirectionhost.c_str(), ecode)) {
+	eos_err("msg=\"failed setting redirection\" path=\"%s\"", path);
+	return SFS_ERROR;
+      }
+      
+      rcode = SFS_REDIRECT;
+      gOFS->MgmStats.Add("OpenRedirectLocal", vid.uid, vid.gid, 1);
+      eos_info("local-redirect=\"%s\"", redirectionhost.c_str());
+      return rcode;
+    }
+  }
+  
   if (ioPriority.length()) {
     capability += "&mgm.iopriority=";
     capability += ioPriority.c_str();

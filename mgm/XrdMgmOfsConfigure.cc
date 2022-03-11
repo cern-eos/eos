@@ -2340,6 +2340,8 @@ XrdMgmOfs::InitStats()
   MgmStats.Add("OpenFileOffline", 0, 0, 0);
   MgmStats.Add("OpenProc", 0, 0, 0);
   MgmStats.Add("OpenRead", 0, 0, 0);
+  MgmStats.Add("OpenRedirectLocal", 0, 0, 0);
+  MgmStats.Add("OpenFailedRedirectLocal", 0, 0, 0);
   MgmStats.Add("OpenShared", 0, 0, 0);
   MgmStats.Add("OpenStalled", 0, 0, 0);
   MgmStats.Add("OpenStalled", 0, 0, 0);

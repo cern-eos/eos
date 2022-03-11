@@ -1583,7 +1583,7 @@ XrdMgmOfs::Tried(XrdCl::URL& url, std::string& host, const char* terr)
   for (size_t i = 0; i < v_hosts.size(); ++i) {
     if ((v_hosts[i] == host) &&
         (i < v_rc.size()) &&
-        (v_rc[i] == std::string(terr))) {
+        ( (v_rc[i] == std::string(terr)) || (std::string(terr) == "*"))) {
       return true;
     }
   }
