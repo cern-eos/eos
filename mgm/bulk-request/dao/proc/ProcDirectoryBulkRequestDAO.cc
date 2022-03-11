@@ -268,7 +268,6 @@ void ProcDirectoryBulkRequestDAO::deleteDirectory(const std::string & path){
 }
 
 std::unique_ptr<BulkRequest> ProcDirectoryBulkRequestDAO::getBulkRequest(const std::string & id, const BulkRequest::Type & type) {
-  EXEC_TIMING_BEGIN("ProcDirectoryBulkRequestDAO::getBulkRequest");
   std::unique_ptr<BulkRequest> bulkRequest = nullptr;
   std::string bulkRequestProcPath = this->generateBulkRequestProcPath(id, type);
   try {
@@ -297,7 +296,6 @@ std::unique_ptr<BulkRequest> ProcDirectoryBulkRequestDAO::getBulkRequest(const s
         << "ErrorMsg=\"" << ex.what() << "\"";
     throw PersistencyException(oss.str());
   }
-  EXEC_TIMING_END("ProcDirectoryBulkRequestDAO::getBulkRequest");
   return bulkRequest;
 }
 

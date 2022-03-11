@@ -1098,8 +1098,7 @@ XrdMgmOfs::_prepare_query(XrdSfsPrep& pargs, XrdOucErrInfo& error,
 #endif
   std::unique_ptr<QueryPrepareResult> result = pm.queryPrepare(pargs,error,client);
   if(result->hasQueryPrepareFinished()){
-    // Build a JSON reply in the following format :
-    // { request ID, [ array of queryPrepareFileResponses objects, one for each file ] }
+    //Create the JSON response
     bulk::QueryPrepareResponseJson jsonQueryPrepareResponse;
     std::stringstream json_ss;
     auto queryPrepareResponse = result->getResponse();
