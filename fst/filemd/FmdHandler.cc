@@ -580,7 +580,7 @@ FmdHandler::ResyncFileFromQdb(eos::common::FileId::fileid_t fid,
     local_fmd->mProtoFmd.set_layouterror(LayoutId::kOrphan);
 
     if (!Commit(local_fmd.get())) {
-      eos_static_err("msg=\"failed to mark orphan entry\" fxid=%08llx fsid=%u",
+      eos_err("msg=\"failed to mark orphan entry\" fxid=%08llx fsid=%u",
                      fid, fsid);
     }
 
