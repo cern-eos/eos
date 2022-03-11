@@ -69,16 +69,32 @@ public:
   static std::function<int(const char* path, XrdOucErrInfo& out_error, const eos::common::VirtualIdentity& vid, const char* opaque, eos::IContainerMD::XAttrMap& map, bool take_lock, bool links)> _ATTR_LS_ABORT_PREPARE_LAMBDA;
   //Lambda that will be called by the mock method _attr_ls on the files' parent directory in the case of evict prepare
   static std::function<int(const char* path, XrdOucErrInfo& out_error, const eos::common::VirtualIdentity& vid, const char* opaque, eos::IContainerMD::XAttrMap& map, bool take_lock, bool links)> _ATTR_LS_EVICT_PREPARE_LAMBDA;
-
+  //Lambda that will be called by the mock method _attr_ls on the files and will return empty RETRIEVE and empty ARCHIVE errors
+  static std::function<int(const char* path, XrdOucErrInfo& out_error, const eos::common::VirtualIdentity& vid, const char* opaque, eos::IContainerMD::XAttrMap& map, bool take_lock, bool links)>
+      _ATTR_LS_QUERY_PREPARE_NO_ERROR_LAMBDA;
+  //Lambda that will be called by the mock method _attr_ls on the files and will return a RETRIEVE ERROR
+  static std::function<int(const char* path, XrdOucErrInfo& out_error, const eos::common::VirtualIdentity& vid, const char* opaque, eos::IContainerMD::XAttrMap& map, bool take_lock, bool links)> _ATTR_LS_RETRIEVE_ERROR_LAMBDA;
+  //Lambda that will be called by the mock method _attr_ls on the files and will return a ARCHIVE ERROR
+  static std::function<int(const char* path, XrdOucErrInfo& out_error, const eos::common::VirtualIdentity& vid, const char* opaque, eos::IContainerMD::XAttrMap& map, bool take_lock, bool links)> _ATTR_LS_ARCHIVE_ERROR_LAMBDA;
+  //Lambda that will be called by the mock method _attr_ls on the files and will return a ARCHIVE AND RETRIEVE ERROR
+  static std::function<int(const char* path, XrdOucErrInfo& out_error, const eos::common::VirtualIdentity& vid, const char* opaque, eos::IContainerMD::XAttrMap& map, bool take_lock, bool links)> _ATTR_LS_ARCHIVE_RETRIEVE_ERROR_LAMBDA;
   //Lambda that will be called by the mock method _stat on the file. This lambda will fill the stat buffer to fake the fact that the file is on tape only
   static std::function<int(const char* Name, struct stat* buf, XrdOucErrInfo& out_error, eos::common::VirtualIdentity& vid, const char* opaque, std::string* etag, bool follow, std::string* uri)> _STAT_FILE_ON_TAPE_ONLY;
   //Lambda that will be called by the mock method _stat on the file. This lambda will fill the stat buffer to fake the fact that the file is on disk only
   static std::function<int(const char* Name, struct stat* buf, XrdOucErrInfo& out_error, eos::common::VirtualIdentity& vid, const char* opaque, std::string* etag, bool follow, std::string* uri)> _STAT_FILE_ON_DISK_ONLY;
   //Lambda that will be called by the mock method _stat on the file. This lambda will fill the stat buffer to fake the fact that the file is on disk AND on tape
   static std::function<int(const char* Name, struct stat* buf, XrdOucErrInfo& out_error, eos::common::VirtualIdentity& vid, const char* opaque, std::string* etag, bool follow, std::string* uri)> _STAT_FILE_ON_DISK_AND_TAPE;
+  //Lambda that will be called by the mock method _stat on the file. This lambda will fake an error of the stat method
+  static std::function<int(const char* Name, struct stat* buf, XrdOucErrInfo& out_error, eos::common::VirtualIdentity& vid, const char* opaque, std::string* etag, bool follow, std::string* uri)> _STAT_ERROR;
 
   static std::function<int(const char* path, int mode,XrdOucErrInfo& error, eos::common::VirtualIdentity& vid, const char* info, bool lock)> _ACCESS_FILE_PREPARE_PERMISSION_LAMBDA;
   static std::function<int(const char* path, int mode,XrdOucErrInfo& error, eos::common::VirtualIdentity& vid, const char* info, bool lock)> _ACCESS_FILE_NO_PREPARE_PERMISSION_LAMBDA;
+
+  static inline const std::string ERROR_RETRIEVE_STR = "ERROR_RETRIEVE";
+  static inline const std::string ERROR_ARCHIVE_STR = "ERROR_ARCHIVE";
+  static inline const std::string RETRIEVE_REQ_ID = "RETRIEVE_REQ_ID";
+  static inline const std::string RETRIEVE_REQ_TIME = "RETRIEVE_REQ_TIME";
+  static inline const std::string ERROR_STAT_STR = "ERROR_STAT";
 };
 
 EOSBULKNAMESPACE_END

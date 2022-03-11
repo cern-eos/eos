@@ -23,6 +23,7 @@
 
 #include "MockPrepareMgmFSInterface.hh"
 #include "XrdSfs/XrdSfsFlags.hh"
+#include "common/Constants.hh"
 
 EOSBULKNAMESPACE_BEGIN
 
@@ -75,6 +76,39 @@ std::function<int(const char* path, XrdOucErrInfo& out_error, const eos::common:
       return SFS_OK;
     };
 
+std::function<int(const char* path, XrdOucErrInfo& out_error, const eos::common::VirtualIdentity& vid, const char* opaque, eos::IContainerMD::XAttrMap& map, bool take_lock, bool links)>
+    MockPrepareMgmFSInterface::_ATTR_LS_QUERY_PREPARE_NO_ERROR_LAMBDA =
+        [](const char* path, XrdOucErrInfo& out_error, const eos::common::VirtualIdentity& vid, const char* opaque, eos::IContainerMD::XAttrMap& map, bool take_lock, bool links){
+          map[common::RETRIEVE_ERROR_ATTR_NAME] = "";
+          map[common::ARCHIVE_ERROR_ATTR_NAME] = "";
+          return SFS_OK;
+        };
+
+std::function<int(const char* path, XrdOucErrInfo& out_error, const eos::common::VirtualIdentity& vid, const char* opaque, eos::IContainerMD::XAttrMap& map, bool take_lock, bool links)>
+    MockPrepareMgmFSInterface::_ATTR_LS_RETRIEVE_ERROR_LAMBDA =
+        [](const char* path, XrdOucErrInfo& out_error, const eos::common::VirtualIdentity& vid, const char* opaque, eos::IContainerMD::XAttrMap& map, bool take_lock, bool links){
+          map[common::RETRIEVE_ERROR_ATTR_NAME] = ERROR_RETRIEVE_STR;
+          map[common::ARCHIVE_ERROR_ATTR_NAME] = "";
+          map[common::RETRIEVE_REQID_ATTR_NAME] = RETRIEVE_REQ_ID;
+          map[common::RETRIEVE_REQTIME_ATTR_NAME] = RETRIEVE_REQ_TIME;
+          return SFS_OK;
+    };
+
+std::function<int(const char* path, XrdOucErrInfo& out_error, const eos::common::VirtualIdentity& vid, const char* opaque, eos::IContainerMD::XAttrMap& map, bool take_lock, bool links)>
+    MockPrepareMgmFSInterface::_ATTR_LS_ARCHIVE_ERROR_LAMBDA =
+        [](const char* path, XrdOucErrInfo& out_error, const eos::common::VirtualIdentity& vid, const char* opaque, eos::IContainerMD::XAttrMap& map, bool take_lock, bool links){
+          //No retrieve error if archive error
+          map[common::ARCHIVE_ERROR_ATTR_NAME] = ERROR_ARCHIVE_STR;
+          return SFS_OK;
+    };
+
+std::function<int(const char* path, XrdOucErrInfo& out_error, const eos::common::VirtualIdentity& vid, const char* opaque, eos::IContainerMD::XAttrMap& map, bool take_lock, bool links)>
+    MockPrepareMgmFSInterface::_ATTR_LS_ARCHIVE_RETRIEVE_ERROR_LAMBDA =
+        [](const char* path, XrdOucErrInfo& out_error, const eos::common::VirtualIdentity& vid, const char* opaque, eos::IContainerMD::XAttrMap& map, bool take_lock, bool links){
+          map[common::RETRIEVE_ERROR_ATTR_NAME] = ERROR_RETRIEVE_STR;
+          map[common::ARCHIVE_ERROR_ATTR_NAME] = ERROR_ARCHIVE_STR;
+          return SFS_OK;
+    };
 std::function<int(const char* Name, struct stat* buf, XrdOucErrInfo& out_error, eos::common::VirtualIdentity& vid, const char* opaque, std::string* etag, bool follow, std::string* uri)>
     MockPrepareMgmFSInterface::_STAT_FILE_ON_TAPE_ONLY =
     [](const char* Name, struct stat* buf, XrdOucErrInfo& out_error, eos::common::VirtualIdentity& vid, const char* opaque, std::string* etag, bool follow, std::string* uri){
@@ -103,6 +137,13 @@ std::function<int(const char* Name, struct stat* buf, XrdOucErrInfo& out_error, 
       //File is on disk
       buf->st_rdev &= ~XRDSFS_OFFLINE;
       return SFS_OK;
+    };
+
+std::function<int(const char* Name, struct stat* buf, XrdOucErrInfo& out_error, eos::common::VirtualIdentity& vid, const char* opaque, std::string* etag, bool follow, std::string* uri)>
+    MockPrepareMgmFSInterface::_STAT_ERROR =
+        [](const char* Name, struct stat* buf, XrdOucErrInfo& out_error, eos::common::VirtualIdentity& vid, const char* opaque, std::string* etag, bool follow, std::string* uri){
+          out_error.setErrInfo(666,ERROR_STAT_STR.c_str());
+          return SFS_ERROR;
     };
 
 std::function<int(const char* path, int mode,XrdOucErrInfo& error, eos::common::VirtualIdentity& vid, const char* info, bool lock)>
