@@ -41,7 +41,7 @@ std::unique_ptr<BulkRequest> BulkRequestPrepareManager::getBulkRequest() {
 }
 
 void BulkRequestPrepareManager::initializeStagePrepareRequest(XrdOucString& reqid, const common::VirtualIdentity & vid){
-  mBulkRequest =std::move(BulkRequestFactory::createStageBulkRequest(vid));
+  mBulkRequest = std::move(BulkRequestFactory::createStageBulkRequest(vid));
   reqid = mBulkRequest->getId().c_str();
 }
 

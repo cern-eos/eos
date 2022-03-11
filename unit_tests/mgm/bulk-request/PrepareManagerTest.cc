@@ -445,29 +445,25 @@ TEST_F(PrepareManagerTest,queryPrepare){
   ASSERT_EQ(SFS_DATA,retQueryPrepare->getReturnCode());
 }
 
-TEST_F(PrepareManagerTest,queryPrepareWithNoPreparePermission){
-  int nbFiles = 2;
+TEST_F(PrepareManagerTest,queryPrepareFileDoesNotExist){
+  int nbFiles = 1;
   std::vector<std::string> paths = PrepareManagerTest::generateDefaultPaths(nbFiles);
   std::vector<std::string> oinfos = PrepareManagerTest::generateEmptyOinfos(nbFiles);
 
   std::unique_ptr<NiceMock<MockPrepareMgmFSInterface>> mgmOfsPtr = std::make_unique<NiceMock<MockPrepareMgmFSInterface>>();
   NiceMock<MockPrepareMgmFSInterface> & mgmOfs = *mgmOfsPtr;
-  //Exist will first return true for the first file, then return false
-  EXPECT_CALL(mgmOfs,_exists(_,_,_,_,_,_)).Times(nbFiles).WillRepeatedly(Invoke(
-                                                                             MockPrepareMgmFSInterface::_EXISTS_VID_FILE_EXISTS_LAMBDA));
-  //stat with one file on disk, on file on disk and tape
-  EXPECT_CALL(mgmOfs,_stat(_,_,_,_,_,_,_,_)).Times(nbFiles).WillRepeatedly(Invoke(
-      MockPrepareMgmFSInterface::_STAT_FILE_ON_DISK_AND_TAPE));
-  EXPECT_CALL(mgmOfs, _attr_ls(_,_,_,_,_,_,_)).Times(nbFiles)
-      .WillRepeatedly(Invoke(
-          MockPrepareMgmFSInterface::_ATTR_LS_STAGE_PREPARE_LAMBDA
-          ));
+  //First file does not exist
+  EXPECT_CALL(mgmOfs,_exists(_,_,_,_,_,_)).Times(nbFiles).WillRepeatedly(
+      Invoke(
+          MockPrepareMgmFSInterface::_EXISTS_VID_FILE_DOES_NOT_EXIST_LAMBDA)
+      );
 
-  EXPECT_CALL(mgmOfs,_access(_,_,_,_,_,_)).Times(nbFiles).WillOnce(Invoke(
-      MockPrepareMgmFSInterface::_ACCESS_FILE_PREPARE_PERMISSION_LAMBDA
-      )).WillRepeatedly(Invoke(
-          MockPrepareMgmFSInterface::_ACCESS_FILE_NO_PREPARE_PERMISSION_LAMBDA
-      ));
+  EXPECT_CALL(mgmOfs,_stat(_,_,_,_,_,_,_,_)).Times(0);
+
+  EXPECT_CALL(mgmOfs, _attr_ls(_,_,_,_,_,_,_)).Times(0);
+
+  EXPECT_CALL(mgmOfs,_access(_,_,_,_,_,_)).Times(0);
+
   ClientWrapper client = PrepareManagerTest::getDefaultClient();
   std::string requestId = "testReqId";
   PrepareArgumentsWrapper pargs(requestId, Prep_QUERY, paths, oinfos);
@@ -479,19 +475,197 @@ TEST_F(PrepareManagerTest,queryPrepareWithNoPreparePermission){
   std::unique_ptr<eos::mgm::bulk::QueryPrepareResult> retQueryPrepare = pm.queryPrepare(*(pargs.getPrepareArguments()),*error,client.getClient());
   const auto & response = retQueryPrepare->getResponse();
   ASSERT_EQ(requestId,response->request_id);
-  const auto & existingFile = response->responses.front();
-  ASSERT_TRUE(existingFile.is_online);
-  ASSERT_TRUE(existingFile.is_on_tape);
-  ASSERT_TRUE(existingFile.is_exists);
-  ASSERT_EQ(paths.front(),existingFile.path);
+  const auto & fileDoesNotExist = response->responses[0];
+  ASSERT_FALSE(fileDoesNotExist.is_online);
+  ASSERT_FALSE(fileDoesNotExist.is_on_tape);
+  ASSERT_FALSE(fileDoesNotExist.is_exists);
+  ASSERT_FALSE(fileDoesNotExist.is_reqid_present);
+  ASSERT_FALSE(fileDoesNotExist.is_requested);
+  ASSERT_FALSE(fileDoesNotExist.error_text.empty());
+  ASSERT_TRUE(fileDoesNotExist.request_time.empty());
+  ASSERT_EQ(paths[0],fileDoesNotExist.path);
+}
 
-  const auto & noPreparePermissionFile = response->responses.back();
+TEST_F(PrepareManagerTest,queryPrepareFileStatFails){
+  int nbFiles = 1;
+  std::vector<std::string> paths = PrepareManagerTest::generateDefaultPaths(nbFiles);
+  std::vector<std::string> oinfos = PrepareManagerTest::generateEmptyOinfos(nbFiles);
 
-  ASSERT_TRUE(noPreparePermissionFile.is_online);
-  ASSERT_TRUE(noPreparePermissionFile.is_on_tape);
-  ASSERT_TRUE(noPreparePermissionFile.is_exists);
-  ASSERT_EQ("USER ERROR: you don't have prepare permission",noPreparePermissionFile.error_text);
-  ASSERT_EQ(paths.back(),noPreparePermissionFile.path);
+  std::unique_ptr<NiceMock<MockPrepareMgmFSInterface>> mgmOfsPtr = std::make_unique<NiceMock<MockPrepareMgmFSInterface>>();
+  NiceMock<MockPrepareMgmFSInterface> & mgmOfs = *mgmOfsPtr;
+  EXPECT_CALL(mgmOfs,_exists(_,_,_,_,_,_)).Times(nbFiles).WillRepeatedly(
+      Invoke(
+          MockPrepareMgmFSInterface::_EXISTS_VID_FILE_EXISTS_LAMBDA)
+      );
+  EXPECT_CALL(mgmOfs,_stat(_,_,_,_,_,_,_,_)).Times(nbFiles).
+      WillRepeatedly(
+          Invoke(
+            //Stat fails for one file
+MockPrepareMgmFSInterface::_STAT_ERROR
+      ));
+  EXPECT_CALL(mgmOfs, _attr_ls(_,_,_,_,_,_,_)).Times(0);
+  EXPECT_CALL(mgmOfs,_access(_,_,_,_,_,_)).Times(0);
 
-  ASSERT_EQ(SFS_DATA,retQueryPrepare->getReturnCode());
+  ClientWrapper client = PrepareManagerTest::getDefaultClient();
+  std::string requestId = "testReqId";
+  PrepareArgumentsWrapper pargs(requestId, Prep_QUERY, paths, oinfos);
+  ErrorWrapper errorWrapper = PrepareManagerTest::getDefaultError();
+  XrdOucErrInfo * error = errorWrapper.getError();
+
+  eos::mgm::bulk::PrepareManager pm(std::move(mgmOfsPtr));
+
+  std::unique_ptr<eos::mgm::bulk::QueryPrepareResult> retQueryPrepare = pm.queryPrepare(*(pargs.getPrepareArguments()),*error,client.getClient());
+  const auto & response = retQueryPrepare->getResponse();
+  ASSERT_EQ(requestId,response->request_id);
+  const auto & file = response->responses[0];
+  ASSERT_FALSE(file.is_online);
+  ASSERT_FALSE(file.is_on_tape);
+  ASSERT_TRUE(file.is_exists);
+  ASSERT_FALSE(file.is_reqid_present);
+  ASSERT_FALSE(file.is_requested);
+  ASSERT_EQ(MockPrepareMgmFSInterface::ERROR_STAT_STR,file.error_text);
+  ASSERT_TRUE(file.request_time.empty());
+  ASSERT_EQ(paths[0], file.path);
+
+}
+
+TEST_F(PrepareManagerTest,queryPrepareFileOnTapeRetrieveError){
+  int nbFiles = 1;
+  std::vector<std::string> paths = PrepareManagerTest::generateDefaultPaths(nbFiles);
+  std::vector<std::string> oinfos = PrepareManagerTest::generateEmptyOinfos(nbFiles);
+
+  std::unique_ptr<NiceMock<MockPrepareMgmFSInterface>> mgmOfsPtr = std::make_unique<NiceMock<MockPrepareMgmFSInterface>>();
+  NiceMock<MockPrepareMgmFSInterface> & mgmOfs = *mgmOfsPtr;
+  EXPECT_CALL(mgmOfs,_exists(_,_,_,_,_,_)).Times(nbFiles).WillRepeatedly(
+      Invoke(
+          MockPrepareMgmFSInterface::_EXISTS_VID_FILE_EXISTS_LAMBDA)
+  );
+  EXPECT_CALL(mgmOfs,_stat(_,_,_,_,_,_,_,_)).WillRepeatedly(
+      Invoke(
+          //File could not be recalled
+          MockPrepareMgmFSInterface::_STAT_FILE_ON_TAPE_ONLY
+      ));
+
+  EXPECT_CALL(mgmOfs, _attr_ls(_,_,_,_,_,_,_)).Times(nbFiles).WillRepeatedly(
+   Invoke(
+ MockPrepareMgmFSInterface::_ATTR_LS_RETRIEVE_ERROR_LAMBDA
+         ));
+  EXPECT_CALL(mgmOfs,_access(_,_,_,_,_,_)).Times(nbFiles);
+
+  ClientWrapper client = PrepareManagerTest::getDefaultClient();
+  std::string requestId = MockPrepareMgmFSInterface::RETRIEVE_REQ_ID;
+  PrepareArgumentsWrapper pargs(requestId, Prep_QUERY, paths, oinfos);
+  ErrorWrapper errorWrapper = PrepareManagerTest::getDefaultError();
+  XrdOucErrInfo * error = errorWrapper.getError();
+
+  eos::mgm::bulk::PrepareManager pm(std::move(mgmOfsPtr));
+
+  std::unique_ptr<eos::mgm::bulk::QueryPrepareResult> retQueryPrepare = pm.queryPrepare(*(pargs.getPrepareArguments()),*error,client.getClient());
+  const auto & response = retQueryPrepare->getResponse();
+  ASSERT_EQ(requestId,response->request_id);
+  const auto & file = response->responses[0];
+  ASSERT_FALSE(file.is_online);
+  ASSERT_TRUE(file.is_on_tape);
+  ASSERT_TRUE(file.is_exists);
+  ASSERT_TRUE(file.is_reqid_present);
+  ASSERT_TRUE(file.is_requested);
+  ASSERT_EQ(MockPrepareMgmFSInterface::ERROR_RETRIEVE_STR,file.error_text);
+  ASSERT_EQ(MockPrepareMgmFSInterface::RETRIEVE_REQ_TIME,file.request_time);
+  ASSERT_EQ(paths[0], file.path);
+}
+
+TEST_F(PrepareManagerTest,queryPrepareFileOnDiskArchiveError){
+  int nbFiles = 1;
+  std::vector<std::string> paths = PrepareManagerTest::generateDefaultPaths(nbFiles);
+  std::vector<std::string> oinfos = PrepareManagerTest::generateEmptyOinfos(nbFiles);
+
+  std::unique_ptr<NiceMock<MockPrepareMgmFSInterface>> mgmOfsPtr = std::make_unique<NiceMock<MockPrepareMgmFSInterface>>();
+  NiceMock<MockPrepareMgmFSInterface> & mgmOfs = *mgmOfsPtr;
+  EXPECT_CALL(mgmOfs,_exists(_,_,_,_,_,_)).Times(nbFiles).WillRepeatedly(
+      Invoke(
+          MockPrepareMgmFSInterface::_EXISTS_VID_FILE_EXISTS_LAMBDA)
+  );
+  EXPECT_CALL(mgmOfs,_stat(_,_,_,_,_,_,_,_)).WillRepeatedly(
+      Invoke(
+          //File could not be recalled
+          MockPrepareMgmFSInterface::_STAT_FILE_ON_DISK_ONLY
+          ));
+
+  EXPECT_CALL(mgmOfs, _attr_ls(_,_,_,_,_,_,_)).Times(nbFiles).WillRepeatedly(
+      Invoke(
+          MockPrepareMgmFSInterface::_ATTR_LS_ARCHIVE_ERROR_LAMBDA
+          ));
+  EXPECT_CALL(mgmOfs,_access(_,_,_,_,_,_)).Times(nbFiles);
+
+  ClientWrapper client = PrepareManagerTest::getDefaultClient();
+  std::string requestId = "testReqId";
+  PrepareArgumentsWrapper pargs(requestId, Prep_QUERY, paths, oinfos);
+  ErrorWrapper errorWrapper = PrepareManagerTest::getDefaultError();
+  XrdOucErrInfo * error = errorWrapper.getError();
+
+  eos::mgm::bulk::PrepareManager pm(std::move(mgmOfsPtr));
+
+  std::unique_ptr<eos::mgm::bulk::QueryPrepareResult> retQueryPrepare = pm.queryPrepare(*(pargs.getPrepareArguments()),*error,client.getClient());
+  const auto & response = retQueryPrepare->getResponse();
+  ASSERT_EQ(requestId,response->request_id);
+  const auto & file = response->responses[0];
+  ASSERT_TRUE(file.is_online);
+  ASSERT_FALSE(file.is_on_tape);
+  ASSERT_TRUE(file.is_exists);
+  ASSERT_FALSE(file.is_reqid_present);
+  ASSERT_FALSE(file.is_requested);
+  ASSERT_EQ(MockPrepareMgmFSInterface::ERROR_ARCHIVE_STR,file.error_text);
+  ASSERT_TRUE(file.request_time.empty());
+  ASSERT_EQ(paths[0], file.path);
+}
+
+TEST_F(PrepareManagerTest,queryPrepareFileNoPreparePermissionOnDirectory){
+  int nbFiles = 1;
+  std::vector<std::string> paths = PrepareManagerTest::generateDefaultPaths(nbFiles);
+  std::vector<std::string> oinfos = PrepareManagerTest::generateEmptyOinfos(nbFiles);
+
+  std::unique_ptr<NiceMock<MockPrepareMgmFSInterface>> mgmOfsPtr = std::make_unique<NiceMock<MockPrepareMgmFSInterface>>();
+  NiceMock<MockPrepareMgmFSInterface> & mgmOfs = *mgmOfsPtr;
+  EXPECT_CALL(mgmOfs,_exists(_,_,_,_,_,_)).Times(nbFiles).WillRepeatedly(
+      Invoke(
+          MockPrepareMgmFSInterface::_EXISTS_VID_FILE_EXISTS_LAMBDA)
+  );
+  EXPECT_CALL(mgmOfs,_stat(_,_,_,_,_,_,_,_)).WillRepeatedly(
+      Invoke(
+          //File could not be recalled
+          MockPrepareMgmFSInterface::_STAT_FILE_ON_TAPE_ONLY
+          ));
+
+  EXPECT_CALL(mgmOfs, _attr_ls(_,_,_,_,_,_,_)).Times(nbFiles).WillRepeatedly(
+      Invoke(
+          //Set all possible errors, we want to see the "USER ERROR: you don't have prepare permission" error message in all cases.
+          MockPrepareMgmFSInterface::_ATTR_LS_ARCHIVE_RETRIEVE_ERROR_LAMBDA
+          ));
+  EXPECT_CALL(mgmOfs,_access(_,_,_,_,_,_)).Times(nbFiles).WillRepeatedly(
+      Invoke(
+          MockPrepareMgmFSInterface::_ACCESS_FILE_NO_PREPARE_PERMISSION_LAMBDA
+          )
+      );
+
+  ClientWrapper client = PrepareManagerTest::getDefaultClient();
+  std::string requestId = "testReqId";
+  PrepareArgumentsWrapper pargs(requestId, Prep_QUERY, paths, oinfos);
+  ErrorWrapper errorWrapper = PrepareManagerTest::getDefaultError();
+  XrdOucErrInfo * error = errorWrapper.getError();
+
+  eos::mgm::bulk::PrepareManager pm(std::move(mgmOfsPtr));
+
+  std::unique_ptr<eos::mgm::bulk::QueryPrepareResult> retQueryPrepare = pm.queryPrepare(*(pargs.getPrepareArguments()),*error,client.getClient());
+  const auto & response = retQueryPrepare->getResponse();
+  ASSERT_EQ(requestId,response->request_id);
+  const auto & file = response->responses[0];
+  ASSERT_FALSE(file.is_online);
+  ASSERT_TRUE(file.is_on_tape);
+  ASSERT_TRUE(file.is_exists);
+  ASSERT_FALSE(file.is_reqid_present);
+  ASSERT_FALSE(file.is_requested);
+  ASSERT_FALSE(file.error_text.empty());
+  ASSERT_EQ("USER ERROR: you don't have prepare permission",file.error_text);
+  ASSERT_TRUE(file.request_time.empty());
+  ASSERT_EQ(paths[0], file.path);
 }
