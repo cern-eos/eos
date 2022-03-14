@@ -329,7 +329,7 @@ FmdHandler::ResyncMgm(eos::common::FileSystem::fsid_t fsid,
 
       if (fid == 0) {
         eos_warning("msg=\"removing fxid=0 entry\"");
-        LocalDeleteFmd(fMd.mProtoFmd.fid(), fsid);
+        LocalDeleteFmd(fMd.mProtoFmd.fid(), fsid, false);
         return true;
       }
     }
@@ -349,7 +349,7 @@ FmdHandler::ResyncMgm(eos::common::FileSystem::fsid_t fsid,
           // disk, so remove it from the database
           eos_warning("msg=\"removing ghost fmd from db\" fsid=%u fxid=%08llx",
                       fsid, fid);
-          LocalDeleteFmd(fMd.mProtoFmd.fid(), fsid);
+          LocalDeleteFmd(fMd.mProtoFmd.fid(), fsid, false);
           return true;
         }
       }
@@ -393,7 +393,7 @@ FmdHandler::ResyncMgm(eos::common::FileSystem::fsid_t fsid,
         // disk, so remove it from the database
         eos_warning("removing <ghost> entry for fxid=%08llx on fsid=%u", fid,
                     (unsigned long) fsid);
-        LocalDeleteFmd(fMd.mProtoFmd.fid(), fsid);
+        LocalDeleteFmd(fMd.mProtoFmd.fid(), fsid, false);
         return true;
       }
     } else {

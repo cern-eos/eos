@@ -92,7 +92,8 @@ public:
   //! @param fsid filesystem id
   //----------------------------------------------------------------------------
   virtual void LocalDeleteFmd(eos::common::FileId::fileid_t fid,
-                              eos::common::FileSystem::fsid_t fsid) = 0;
+                              eos::common::FileSystem::fsid_t fsid,
+                              bool drop_file = false) = 0;
 
   //----------------------------------------------------------------------------
   //! Commit modified Fmd record to the local database
