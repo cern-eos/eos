@@ -1221,7 +1221,7 @@ Storage::CleanupOrphansDb(eos::common::FileSystem::fsid_t fsid)
   }
 
   for (const auto& fid : set_orphans) {
-    gOFS.mFmdHandler->LocalDeleteFmd(fid, fsid);
+    gOFS.mFmdHandler->LocalDeleteFmd(fid, fsid, true);
   }
 
   return true;
