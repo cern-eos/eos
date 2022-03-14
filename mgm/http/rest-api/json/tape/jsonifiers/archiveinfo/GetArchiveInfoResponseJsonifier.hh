@@ -31,6 +31,9 @@
 
 EOSMGMRESTNAMESPACE_BEGIN
 
+/**
+ * Transforms the GetArchiveInfoResponseModel object into JSON
+ */
 class GetArchiveInfoResponseJsonifier
     : public TapeRestApiJsonifier<GetArchiveInfoResponseModel>, public common::JsonCppJsonifier<GetArchiveInfoResponseModel> {
 public:

@@ -30,16 +30,47 @@
 
 EOSMGMRESTNAMESPACE_BEGIN
 
+/**
+ * This class holds all the configuration related
+ * to the Tape REST API
+ */
 class TapeRestApiConfig {
 public:
+  /**
+   * Default constructor: the accessURL is "api"
+   */
   TapeRestApiConfig();
+  /**
+   * Constructor with the accessURL
+   * @param accessURL the accessURL that will allow
+   * the user to access the REST API
+   */
   TapeRestApiConfig(const std::string & accessURL);
+  /**
+   * Sets the siteName that will be used for
+   * targetedMetadata
+   */
   void setSiteName(const std::string & siteName);
+  /**
+   * Returns true if the tape REST API has been
+   * activated, false otherwise
+   */
   const bool isActivated() const;
+  /**
+   * Enables/disables the tape REST API
+   * @param activated is set to true if the tape REST API
+   * should be activated, false otherwise
+   */
   void setActivated(const bool activated);
+
   const std::string getSiteName() const;
   const std::string & getAccessURL() const;
 private:
+  /**
+   * This parameter represents the STAGE targeted
+   * metadata identifier that allows the user to pass any
+   * extra information for this API endpoint
+   */
   std::string mSiteName;
   std::string mAccessURL;
   //By default, the tape REST API is not activated

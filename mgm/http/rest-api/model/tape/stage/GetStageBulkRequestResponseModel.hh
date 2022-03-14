@@ -31,6 +31,10 @@
 
 EOSMGMRESTNAMESPACE_BEGIN
 
+/**
+ * This class represents the object that will be returned to the client
+ * that wants to track the progression of a previously submitted STAGE bulk-request
+ */
 class GetStageBulkRequestResponseModel : public common::Jsonifiable<GetStageBulkRequestResponseModel> {
 public:
   class File {

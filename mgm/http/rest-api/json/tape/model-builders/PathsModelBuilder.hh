@@ -32,6 +32,9 @@
 
 EOSMGMRESTNAMESPACE_BEGIN
 
+/**
+ * Constructs a PathsModel object out of a JSON string
+ */
 class PathsModelBuilder : public JsonCppModelBuilder<PathsModel> {
 public:
   std::unique_ptr<PathsModel> buildFromJson(const std::string & json) override;

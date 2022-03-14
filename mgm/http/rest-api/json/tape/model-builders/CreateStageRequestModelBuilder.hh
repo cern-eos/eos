@@ -31,7 +31,9 @@
 
 EOSMGMRESTNAMESPACE_BEGIN
 
-
+/**
+ * Constructs a CreateStageBulkRequestModel out of a JSON string
+ */
 class CreateStageRequestModelBuilder : public JsonCppModelBuilder<CreateStageBulkRequestModel> {
 public:
   CreateStageRequestModelBuilder(const std::string & restApiEndpointId);

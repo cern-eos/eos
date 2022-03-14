@@ -31,11 +31,18 @@
 
 EOSMGMRESTNAMESPACE_BEGIN
 
+/**
+ * Global exception class for JSON validation exception
+ */
 class ValidatorException : public common::Exception {
 public:
   ValidatorException(const std::string & msg): common::Exception(msg){}
 };
 
+/**
+ * This abstract class should be inherited in order
+ * to validate a specific JSON CPP Value
+ */
 class JsonCppValidator {
 public:
   virtual void validate(const Json::Value & value) = 0;
@@ -60,15 +67,6 @@ public:
   }
 };
 
-class NotNullValidator : public JsonCppValidator {
-public:
-  virtual void validate(const Json::Value & value) override {
-    if(value.empty()) {
-      throw ValidatorException("Field is null.");
-    }
-  }
-};
-
 class ObjectValidator : public JsonCppValidator {
 public:
   virtual void validate(const Json::Value & value) override {
@@ -78,6 +76,9 @@ public:
   }
 };
 
+/**
+ * Factory of validators
+ */
 class JsonCppValidatorFactory {
 public:
   std::unique_ptr<JsonCppValidator> getNonEmptyArrayValidator() {

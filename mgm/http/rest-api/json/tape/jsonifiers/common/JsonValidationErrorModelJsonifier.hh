@@ -30,6 +30,9 @@
 
 EOSMGMRESTNAMESPACE_BEGIN
 
+/**
+ * Transforms the JsonValidationErrorModel object into JSON
+ */
 class JsonValidationErrorModelJsonifier : public ErrorModelJsonifier, public TapeRestApiJsonifier<JsonValidationErrorModel>, public common::JsonCppJsonifier<JsonValidationErrorModel> {
 public:
   void jsonify(const JsonValidationErrorModel * model, std::stringstream & ss) override;

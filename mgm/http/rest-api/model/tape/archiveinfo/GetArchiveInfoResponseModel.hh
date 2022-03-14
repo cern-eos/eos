@@ -29,6 +29,10 @@
 
 EOSMGMRESTNAMESPACE_BEGIN
 
+/**
+ * This Model represents the object that will be returned to the client
+ * for any ArchiveInfo request
+ */
 class GetArchiveInfoResponseModel
     : public common::Jsonifiable<GetArchiveInfoResponseModel> {
 public:

@@ -30,6 +30,9 @@
 
 EOSMGMRESTNAMESPACE_BEGIN
 
+/**
+ * Transforms a CreatedStageBulkRequestResponseModel into JSON
+ */
 class CreatedStageBulkRequestJsonifier
     : public TapeRestApiJsonifier<CreatedStageBulkRequestResponseModel>, public common::JsonCppJsonifier<CreatedStageBulkRequestResponseModel> {
 public:
