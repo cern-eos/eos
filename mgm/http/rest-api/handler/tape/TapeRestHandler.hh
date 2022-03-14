@@ -53,7 +53,10 @@ public:
    */
   common::HttpResponse * handleRequest(common::HttpRequest * request, const common::VirtualIdentity * vid) override;
   /**
-   * Returns true if the request URL coming from the client matches the Tape REST API access URL but also
+   * Returns true if the request URL coming from the client matches the Tape REST API access URL but also:
+   * - the tape REST API is activated
+   * - a sitename has been configured in the MGM configuration file
+   * - the MGM configuration file contains the tapeenabled flag and it is set to true
    * if the tape REST API is activated and if a sitename has been configured in the MGM configuration file
    * @param requestURL the URL called by the client
    */
@@ -95,6 +98,8 @@ private:
   bool mIsActivated;
   //The site name that will be used for the targetedMetadata
   std::string mSiteName;
+  //Must be set to true if the MGM has tape enabled, false otherwise
+  bool mIsTapeEnabled;
 };
 
 EOSMGMRESTNAMESPACE_END

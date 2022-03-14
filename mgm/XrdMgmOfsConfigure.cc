@@ -767,6 +767,9 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
           } else {
             if ((!strcmp("true", val) || (!strcmp("1", val)))) {
               mTapeEnabled = true;
+              mRestApiManager->getTapeRestApiConfig()->setTapeEnabled(mTapeEnabled);
+            } else {
+              mRestApiManager->getTapeRestApiConfig()->setTapeEnabled(false);
             }
 
             Eroute.Say("=====> mgmofs.tapeenabled : ", val);
