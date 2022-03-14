@@ -117,7 +117,8 @@ public:
   //! @param fsid filesystem id
   //----------------------------------------------------------------------------
   void LocalDeleteFmd(eos::common::FileId::fileid_t fid,
-                      eos::common::FileSystem::fsid_t fsid) override;
+                      eos::common::FileSystem::fsid_t fsid,
+                      bool drop_file=false) override;
 
   //----------------------------------------------------------------------------
   //! Commit modified Fmd record to the local database

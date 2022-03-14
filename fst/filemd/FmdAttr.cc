@@ -77,9 +77,17 @@ FmdAttrHandler::LocalPutFmd(const std::string& path, const eos::common::FmdHelpe
 }
 
 void
-FmdAttrHandler::LocalDeleteFmd(const std::string& path)
+FmdAttrHandler::LocalDeleteFmd(const std::string& path, bool drop_file)
 {
   LocalIo localio {path};
+  if (drop_file) {
+    int rc = localio.fileRemove();
+    if (rc && errno != ENOENT) {
+      eos_err("Failed to drop file at path=%s, errno=%d", path.c_str(), errno)
+    }
+    return;
+  }
+
   if (int rc = localio.attrDelete(gFmdAttrName);
       rc != 0) {
     if (errno == ENOATTR || errno == ENOENT) {
@@ -106,9 +114,10 @@ FmdAttrHandler::LocalPutFmd(eos::common::FileId::fileid_t fid,
 
 void
 FmdAttrHandler::LocalDeleteFmd(eos::common::FileId::fileid_t fid,
-                               eos::common::FileSystem::fsid_t fsid)
+                               eos::common::FileSystem::fsid_t fsid,
+                               bool drop_file)
 {
-  return LocalDeleteFmd(FmdAttrHandler::GetPath(fid, fsid));
+  return LocalDeleteFmd(FmdAttrHandler::GetPath(fid, fsid), drop_file);
 }
 
 bool

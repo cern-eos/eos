@@ -309,7 +309,8 @@ FmdDbMapHandler::LocalRetrieveFmd(eos::common::FileId::fileid_t fid,
 //------------------------------------------------------------------------------
 void
 FmdDbMapHandler::LocalDeleteFmd(eos::common::FileId::fileid_t fid,
-                                eos::common::FileSystem::fsid_t fsid)
+                                eos::common::FileSystem::fsid_t fsid,
+                                bool drop_file)
 {
   eos::common::RWMutexReadLock map_rd_lock(mMapMutex);
   FsWriteLock fs_wr_lock(this, fsid);
