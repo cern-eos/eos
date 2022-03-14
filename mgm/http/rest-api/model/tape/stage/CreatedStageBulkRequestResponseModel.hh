@@ -32,6 +32,10 @@
 
 EOSMGMRESTNAMESPACE_BEGIN
 
+/**
+ * This object is the model that will be returned to the client
+ * after a STAGE bulk-request submission via the tape REST API
+ */
 class CreatedStageBulkRequestResponseModel : public common::Jsonifiable<CreatedStageBulkRequestResponseModel> {
 public:
   CreatedStageBulkRequestResponseModel(const std::string & requestId);

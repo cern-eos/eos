@@ -30,6 +30,10 @@
 
 EOSMGMRESTNAMESPACE_BEGIN
 
+/**
+ * Specific TapeRestApi JSONification object
+ * @tparam Obj
+ */
 template<typename Obj>
 class TapeRestApiJsonifier : public virtual common::Jsonifier<Obj>{
 public:

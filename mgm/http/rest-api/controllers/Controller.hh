@@ -49,7 +49,7 @@ public:
    * method according to what the URL of the request is.
    * @param request the client's request
    * @param vid the virtual identity of the client
-   * @return the response the client expects.
+   * @return the to be returned to the client
    */
   virtual common::HttpResponse * handleRequest(common::HttpRequest * request,const common::VirtualIdentity * vid) = 0;
 

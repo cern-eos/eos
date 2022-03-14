@@ -281,7 +281,6 @@ add_library(
   http/rest-api/exception/ForbiddenException.cc
   http/rest-api/exception/JsonValidationException.cc
   http/rest-api/exception/MethodNotAllowedException.cc
-  http/rest-api/exception/InvalidRestURLException.cc
   http/rest-api/model/tape/common/FilesContainer.cc
   http/rest-api/model/tape/common/ErrorModel.cc
   http/rest-api/model/tape/common/JsonValidationErrorModel.cc

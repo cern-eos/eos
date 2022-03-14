@@ -31,6 +31,9 @@
 
 EOSMGMRESTNAMESPACE_BEGIN
 
+/**
+ * Transforms an ErrorModel object into JSONs
+ */
 class ErrorModelJsonifier : public TapeRestApiJsonifier<ErrorModel>, public common::JsonCppJsonifier<ErrorModel>  {
 public:
   void jsonify(const ErrorModel * model, std::stringstream & ss) override;

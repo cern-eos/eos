@@ -33,6 +33,10 @@
 
 EOSMGMRESTNAMESPACE_BEGIN
 
+/**
+ * This class holds JsonCPP-related operations
+ * @tparam Model
+ */
 template<typename Model>
 class JsonCppModelBuilder : public JsonModelBuilder<Model> {
 public:

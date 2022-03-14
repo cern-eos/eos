@@ -30,6 +30,9 @@
 
 EOSMGMRESTNAMESPACE_BEGIN
 
+/**
+ * Class representing a general REST API exception
+ */
 class RestException : public common::Exception {
 public:
   RestException(const std::string & exceptionMsg);

@@ -37,8 +37,8 @@
 EOSMGMRESTNAMESPACE_BEGIN
 
 /**
- * This class holds a map of <<URL,HttpMethod>,std::function> allowing to identify
- * which function to run on a specific URL,method
+ * This class holds a map of <<URL,HttpMethod>,Action> allowing to identify
+ * which action to run on a specific URL,method call
  */
 class ControllerActionDispatcher {
 public:
@@ -47,18 +47,17 @@ public:
 
   ControllerActionDispatcher() = default;
   /**
-   * Set a ControllerHandler function to a specific URL pattern and Http method
-   * @param urlPattern the URL (with possible parameters) associated to the handler to run
-   * @param method Http method associated with the URL and the handler to run
-   * @param controllerHandler the handler function that corresponds to the URL and the method
+   * Adds an action to this dispatcher, the URL and the method of this
+   * action will be used to be inserted in this dispatcher's map
+   * @param action, the action to add
    */
   void addAction(std::unique_ptr<Action> && action);
   /**
-   * Returns the handler depending on the URL and the Http method located in the urlMethodFunctionItem passed in parameter
-   * @param urlMethodFunctionItem the urlMethodFunctionItem allowing to return the handler
-   * @return the handler depending on the URL and the Http method located in the urlMethodFunctionItem passed in parameter
+   * Returns the Action depending on the URL and the Http method located in the request passed in parameter
+   * @param request the request allowing to return the Action
+   * @return the Action depending on the URL and the Http method located in the request passed in parameter
    */
-  Action * getAction(common::HttpRequest * urlMethodFunctionItem);
+  Action * getAction(common::HttpRequest * request);
 private:
   //The map storing the URL,HttpMethod and the associated handler
   URLMethodFunctionMap mURLMapMethodFunctionMap;

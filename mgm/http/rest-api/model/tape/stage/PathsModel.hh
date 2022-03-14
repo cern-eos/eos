@@ -31,6 +31,10 @@
 
 EOSMGMRESTNAMESPACE_BEGIN
 
+/**
+ * This object represents an array of paths.
+ * The client would use this object for archiveinfo or release.
+ */
 class PathsModel {
 public:
   PathsModel() = default;

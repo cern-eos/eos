@@ -31,9 +31,21 @@
 
 EOSMGMRESTNAMESPACE_BEGIN
 
+/**
+ * This class allows to build a Model object
+ * from a json string.
+ * @tparam Model the object to create from the JSON string
+ */
 template<typename Model>
 class JsonModelBuilder {
 public:
+  /**
+   * Returns a unique_ptr to the Model object created from the JSON string passed
+   * in parameter
+   * @param json the JSON string from which the Model object should be created from
+   * @return the unique_ptr to the Model corresponding to the JSON string passed
+   * in parameter
+   */
   virtual std::unique_ptr<Model> buildFromJson(const std::string & json) = 0;
   virtual ~JsonModelBuilder(){}
 };

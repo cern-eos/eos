@@ -30,6 +30,11 @@
 
 EOSMGMRESTNAMESPACE_BEGIN
 
+/**
+ * This model is an extension of the basic ErrorModel
+ * object. It has to be used in the case there are JSON validation errors
+ * that need to be reported to the client
+ */
 class JsonValidationErrorModel : public ErrorModel, public common::Jsonifiable<JsonValidationErrorModel> {
 public:
   using common::Jsonifiable<JsonValidationErrorModel>::setJsonifier;
