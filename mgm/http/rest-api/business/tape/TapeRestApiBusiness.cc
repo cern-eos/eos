@@ -64,7 +64,7 @@ void TapeRestApiBusiness::cancelStageBulkRequest(const std::string & requestId, 
     throw ObjectNotFoundException(ss.str());
   }
   //First, check if the issuer of the cancellation is root, or is the person who submitted the stage request
-  checkIssuerAuthorizedToAccessStageBulkRequest(bulkRequest.get(), vid,"cancel");
+  //checkIssuerAuthorizedToAccessStageBulkRequest(bulkRequest.get(), vid,"cancel");
   //Create the prepare arguments, we will only cancel the files that were given by the user
   const FilesContainer & filesFromClient = model->getFiles();
   auto filesFromBulkRequestContainer = bulkRequest->getFiles();
@@ -115,7 +115,7 @@ std::shared_ptr<GetStageBulkRequestResponseModel> TapeRestApiBusiness::getStageB
   } catch(bulk::PersistencyException & ex){
     throw TapeRestApiBusinessException(ex.what());
   }
-  checkIssuerAuthorizedToAccessStageBulkRequest(bulkRequest.get(), vid,"get");
+  //checkIssuerAuthorizedToAccessStageBulkRequest(bulkRequest.get(), vid,"get");
 
   //Set bulk-request related attributes
   ret->setCreationTime(bulkRequest->getCreationTime());
@@ -167,7 +167,7 @@ void TapeRestApiBusiness::deleteStageBulkRequest(const std::string& requestId, c
     ss << "Unable to find the STAGE bulk-request ID = " << requestId;
     throw ObjectNotFoundException(ss.str());
   }
-  checkIssuerAuthorizedToAccessStageBulkRequest(bulkRequest.get(), vid,"delete");
+  //checkIssuerAuthorizedToAccessStageBulkRequest(bulkRequest.get(), vid,"delete");
   //Create the prepare arguments, we will cancel all the files from this bulk-request
   auto filesFromBulkRequest = bulkRequest->getFiles();
   bulk::PrepareArgumentsWrapper pargsWrapper(requestId, Prep_CANCEL);
