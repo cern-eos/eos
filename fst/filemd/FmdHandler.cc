@@ -71,7 +71,7 @@ FmdHandler::UpdateWithDiskInfo(eos::common::FileSystem::fsid_t fsid,
   valfmd.mProtoFmd.set_fid(fid);
   valfmd.mProtoFmd.set_fsid(fsid);
   valfmd.mProtoFmd.set_disksize(disk_size);
-  valfmd.mProtoFmd.set_diskchecksum(disk_xs);
+
   valfmd.mProtoFmd.set_checktime(check_ts_sec);
   valfmd.mProtoFmd.set_filecxerror(filexs_err ? 1 : 0);
   valfmd.mProtoFmd.set_blockcxerror(blockxs_err ? 1 : 0);
@@ -85,6 +85,11 @@ FmdHandler::UpdateWithDiskInfo(eos::common::FileSystem::fsid_t fsid,
       }
   }
 
+  if (disk_xs.empty() && disk_size == 0)  {
+    valfmd.mProtoFmd.set_diskchecksum(common::LayoutId::GetEmptyFileChecksum(valfmd.mProtoFmd.lid()));
+  } else {
+    valfmd.mProtoFmd.set_diskchecksum(disk_xs);
+  }
   // Update the reference checksum only if empty
   if (valfmd.mProtoFmd.checksum().empty()) {
     valfmd.mProtoFmd.set_checksum(disk_xs);
