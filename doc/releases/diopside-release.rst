@@ -17,6 +17,25 @@ Introduction
 This release is based on XRootD V5.
 
 
+``v5.0.14 Diopside``
+===================
+
+2022-03-14
+
+Bug
+----
+
+* [EOS-5090] - convert clear is not a admin command
+* [EOS-5133] - node ls -b does not remove the domain names
+* FUSEX: Fix deadlocks and race-conditions reported by TSAN
+
+Improvement
+------------
+
+* [EOS-5108] - workaround: drop forced automount expiry on FUSEX updates
+* [EOS-5126] - [eos-ns-inspect] Complement `stripediff` ouput
+
+
 ``v5.0.13 Diopside``
 ===================
 
@@ -29,8 +48,8 @@ Note
 
 Bug
 ---
-   
-* [EOS-5110] - Consolidate Access control in GRPC MD, MDSTreaming 
+
+* [EOS-5110] - Consolidate Access control in GRPC MD, MDSTreaming
 * [EOS-5116] - Workaround for XrdOucBuffPool bug
 * [EOS-5118] - eos-ns-inspect scan is initializing maxdepth to 0, even if not used
 * [EOS-5119] - Deadlock scenario in eosxd
