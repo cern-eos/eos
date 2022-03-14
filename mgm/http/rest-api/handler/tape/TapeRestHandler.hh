@@ -45,16 +45,55 @@ public:
    * @param restApiUrl the base URL of the REST API without the instance name
    */
   TapeRestHandler(const TapeRestApiConfig * config);
+  /**
+   * Handles the user request
+   * @param request the user request
+   * @param vid the virtual identity of the user
+   * @return the HttpResponse to the user request
+   */
   common::HttpResponse * handleRequest(common::HttpRequest * request, const common::VirtualIdentity * vid) override;
+  /**
+   * Returns true if the request URL coming from the client matches the Tape REST API access URL but also
+   * if the tape REST API is activated and if a sitename has been configured in the MGM configuration file
+   * @param requestURL the URL called by the client
+   */
   bool isRestRequest(const std::string & requestURL) override;
 private:
+  /**
+   * Initialize the controllers of the tape REST API
+   * @param config the configuration object that contains the tape REST API configuration parameters
+   */
   void initializeControllers(const TapeRestApiConfig * config);
+  /**
+   * Initializes the STAGE controller for a specific version
+   * @param apiVersion the version to apply to this stage controller
+   * @param tapeRestApiBusiness the business layer of the tape REST API
+   * @param config the configuration of the tape REST API
+   * @return the StageController for a specific version
+   */
   std::unique_ptr<Controller> initializeStageController(const std::string & apiVersion, std::shared_ptr<ITapeRestApiBusiness> tapeRestApiBusiness, const TapeRestApiConfig * config);
+  /**
+   * Initializes the ARCHIVEINFO controller for a specific version
+   * @param apiVersion the version to apply to this ARCHIVEINFO controller
+   * @param tapeRestApiBusiness the business layer of the tape REST API
+   * @return the ArchiveInfoController for a specific version
+   */
   std::unique_ptr<Controller> initializeArchiveinfoController(const std::string & apiVersion, std::shared_ptr<ITapeRestApiBusiness> tapeRestApiBusiness);
+  /**
+   * Initializes the RELEASE controller for a specific version
+   * @param apiVersion the version to apply to this RELEASE controller
+   * @param tapeRestApiBusiness the business layer of the tape REST API
+   * @return the ReleaseController for a specific version
+   */
   std::unique_ptr<Controller> initializeReleaseController(const std::string & apiVersion, std::shared_ptr<ITapeRestApiBusiness> tapeRestApiBusiness);
+  /**
+   * HttpResponse factory for the tape REST API
+   */
   TapeRestApiResponseFactory mTapeRestApiResponseFactory;
   inline static const std::string VERSION_0 = "v1";
+  //Is set to true if the tape REST API is activated, false otherwise
   bool mIsActivated;
+  //The site name that will be used for the targetedMetadata
   std::string mSiteName;
 };
 

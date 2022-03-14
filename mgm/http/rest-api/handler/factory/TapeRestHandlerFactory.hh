@@ -30,8 +30,17 @@
 
 EOSMGMRESTNAMESPACE_BEGIN
 
+/**
+ * This Factory allows to create a tape REST API handler
+ */
 class TapeRestHandlerFactory : public RestHandlerFactory {
 public:
+  /**
+   * Constructor of this factory, the tape REST API handler
+   * will be instanciated depending to the config passed in parameter
+   * @param config the object containing the configuration of the Tape REST API handler
+   * to instanciate
+   */
   TapeRestHandlerFactory(const TapeRestApiConfig * config);
   std::unique_ptr<RestHandler> createRestHandler() override;
   virtual ~TapeRestHandlerFactory() = default;

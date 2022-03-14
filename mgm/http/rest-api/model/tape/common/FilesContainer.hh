@@ -30,6 +30,10 @@
 
 EOSMGMRESTNAMESPACE_BEGIN
 
+/**
+ * This class is convenient for passing a list of path
+ * and opaque infos to the PrepareManager::prepare()/queryPrepare()
+ */
 class FilesContainer {
 public:
   FilesContainer() = default;

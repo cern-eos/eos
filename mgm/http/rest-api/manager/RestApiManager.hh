@@ -33,15 +33,39 @@
 
 EOSMGMRESTNAMESPACE_BEGIN
 
+/**
+ * This class is responsible for managing all the REST API
+ * that the EOS instance is running
+ */
 class RestApiManager {
 public:
   RestApiManager();
+  /**
+   * Returns true if the request URL maps to
+   * a specific REST Handler and if the REST handler
+   * accepts requests.
+   * @param requestURL the URL provided by the client
+   */
   virtual bool isRestRequest(const std::string & requestURL);
+  /**
+   * Returns the tape REST API configuration object hold by this
+   * manager
+   * Use this method to access the configuration but also to modify its content
+   * @return a pointer to the tape REST API configuration object
+   */
   virtual TapeRestApiConfig * getTapeRestApiConfig();
+  /**
+   * Instanciate a RestHandler depending on the request URL provided
+   * @param requestURL the URL of the client's request
+   * @return a unique_ptr pointing to an instaciated RestHandler, nullptr if no RestHandler
+   * matches the requestURL
+   */
   virtual std::unique_ptr<rest::RestHandler> getRestHandler(const std::string & requestURL);
   virtual ~RestApiManager(){}
 private:
+  //The Tape REST API configuration object
   std::unique_ptr<TapeRestApiConfig> mTapeRestApiConfig;
+  //A map of <URL, RestHandlerFactory>
   std::map<std::string,std::unique_ptr<RestHandlerFactory>> mMapAccessURLRestHandlerFactory;
 };
 

@@ -30,6 +30,9 @@
 
 EOSMGMRESTNAMESPACE_BEGIN
 
+/**
+ * Abstract Factory of REST handler objects
+ */
 class RestHandlerFactory {
 public:
   virtual std::unique_ptr<RestHandler> createRestHandler() = 0;
