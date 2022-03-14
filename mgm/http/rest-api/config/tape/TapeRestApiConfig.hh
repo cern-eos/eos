@@ -63,6 +63,17 @@ public:
    */
   void setActivated(const bool activated);
 
+  /**
+   * Sets the tape enabled flag
+   * @param tapeEnabled this value should come from the MGM configuration
+   */
+  void setTapeEnabled(const bool tapeEnabled);
+
+  /**
+   * Returns the value of the tape enabled flag
+   */
+  const bool isTapeEnabled() const;
+
   const std::string getSiteName() const;
   const std::string & getAccessURL() const;
 private:
@@ -77,6 +88,8 @@ private:
   std::atomic<bool> mIsActivated = false;
   //Mutex protecting all variables of this configuration
   mutable common::RWMutex mConfigMutex;
+  //The tape enabled flag of the EOS instance where the tape REST API is running
+  std::atomic<bool> mTapeEnabled = false;
 };
 
 EOSMGMRESTNAMESPACE_END

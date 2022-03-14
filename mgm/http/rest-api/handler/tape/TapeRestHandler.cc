@@ -44,7 +44,7 @@
 
 EOSMGMRESTNAMESPACE_BEGIN
 
-TapeRestHandler::TapeRestHandler(const TapeRestApiConfig * config): RestHandler(config->getAccessURL()),mIsActivated(config->isActivated()),mSiteName(config->getSiteName()) {
+TapeRestHandler::TapeRestHandler(const TapeRestApiConfig * config): RestHandler(config->getAccessURL()),mIsActivated(config->isActivated()),mSiteName(config->getSiteName()),mIsTapeEnabled(config->isTapeEnabled()) {
   initializeControllers(config);
 }
 
@@ -98,7 +98,7 @@ bool TapeRestHandler::isRestRequest(const std::string& requestURL) {
       eos_static_warning(errorMsg.c_str());
       return false;
     }
-    if (mIsActivated == false) {
+    if (!mIsActivated) {
       std::string errorMsg =
           std::string(
               "msg=\"The tape REST API is not enabled, verify that the \"") + rest::TAPE_REST_API_SWITCH_ON_OFF + "\" space configuration is set to \"on\"\"" +
@@ -106,8 +106,16 @@ bool TapeRestHandler::isRestRequest(const std::string& requestURL) {
       eos_static_warning(errorMsg.c_str());
       return false;
     }
+    if(!mIsTapeEnabled) {
+      std::string errorMsg =
+          std::string(
+              "msg=\"The MGM tapeenabled flag has not been set or is set to false, the tape REST API is therefore disabled. Verify that the tapeenabled flag is set to true on the MGM configuration file.\"") +
+          " requestURL=\"" + requestURL + "\"";
+      eos_static_warning(errorMsg.c_str());
+      return false;
+    }
   }
-  return mIsActivated && !siteNameEmpty && isRestRequest;
+  return mIsActivated && !siteNameEmpty && mIsTapeEnabled && isRestRequest;
 }
 
 common::HttpResponse* TapeRestHandler::handleRequest(common::HttpRequest* request, const common::VirtualIdentity * vid) {

@@ -47,6 +47,15 @@ void TapeRestApiConfig::setActivated(const bool activated) {
   mIsActivated = activated;
 }
 
+
+void TapeRestApiConfig::setTapeEnabled(const bool tapeEnabled) {
+  mTapeEnabled = tapeEnabled;
+}
+
+const bool TapeRestApiConfig::isTapeEnabled() const {
+  return mTapeEnabled;
+}
+
 const std::string & TapeRestApiConfig::getAccessURL() const {
   //This parameter does not need mutex protection as it cannot be modified
   return mAccessURL;
