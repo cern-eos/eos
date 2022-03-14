@@ -1048,7 +1048,7 @@ static void printOntoTable(mq::SharedHashWrapper& hash,
             TableCell(hash.get(formattags["key"]), format));
         }
 
-        if ((format.find("S")) != std::string::npos) {
+        if (format.find("S") != std::string::npos) {
           std::string shortstring = hash.get(formattags["key"].c_str());
           const size_t pos = shortstring.find(".");
 

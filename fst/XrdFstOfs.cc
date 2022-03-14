@@ -1983,7 +1983,7 @@ XrdFstOfs::HandleFsck(XrdOucEnv& env, XrdOucErrInfo& err_obj)
   }
   // Use XrdOucBuffPool to manage XrdOucBuffer objects that can hold redirection
   // info >= 2kb but not bigger than MaxSize
-  const uint32_t aligned_sz = eos::common::power_ceil(response.length() + 1);
+  const uint32_t aligned_sz = eos::common::GetPowerCeil(response.length() + 1);
   XrdOucBuffer* buff = mXrdBuffPool.Alloc(aligned_sz);
 
   if (buff == nullptr) {
@@ -2127,7 +2127,7 @@ XrdFstOfs::HandleRtlog(XrdOucEnv& env, XrdOucErrInfo& err_obj)
 
   // Use XrdOucBuffPool to manage XrdOucBuffer objects that can hold redirection
   // info >= 2kb but not bigger than MaxSize
-  const uint32_t aligned_sz = eos::common::power_ceil(response.length() + 1);
+  const uint32_t aligned_sz = eos::common::GetPowerCeil(response.length() + 1);
   XrdOucBuffer* buff = mXrdBuffPool.Alloc(aligned_sz);
 
   if (buff == nullptr) {

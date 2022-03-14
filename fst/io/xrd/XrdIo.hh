@@ -695,6 +695,19 @@ private:
 };
 
 //------------------------------------------------------------------------------
+//! Class BufferAllocateException
+//------------------------------------------------------------------------------
+class BufferAllocateException: public std::exception
+{
+public:
+  const char* what() const noexcept override
+  {
+    return "failed to allocate buffer";
+  }
+};
+
+
+//------------------------------------------------------------------------------
 //! Class XrdIoHandler
 //------------------------------------------------------------------------------
 class XrdIoHandler: public XrdCl::ResponseHandler
@@ -716,18 +729,35 @@ public:
   //! @param buffer user buffer object to be dulicated if valid and needed
   //! @param buffer_len useful contents of the buffer to be used
   //----------------------------------------------------------------------------
-  XrdIoHandler(std::promise<XrdCl::XRootDStatus> promise, OpType op,
+  XrdIoHandler(std::promise<XrdCl::XRootDStatus>&& promise, OpType op,
                eos::common::BufferManager* buf_mgr = nullptr,
                const char* buffer = nullptr,
                unsigned long long buffer_len = 0ull):
-    mOperationType(op), mPromise(std::move(promise)), mBufMgr(buf_mgr),
-    mBuffer(nullptr)
+    mOperationType(op), mBufMgr(buf_mgr), mBuffer(nullptr)
   {
     if (mBufMgr && buffer && buffer_len) {
-      mBuffer = mBufMgr->GetBuffer(buffer_len);
-      mBuffer->mLength = buffer_len;
-      (void) memcpy(mBuffer->GetDataPtr(), buffer, buffer_len);
+      int attempts = 5;
+
+      do {
+        mBuffer = mBufMgr->GetBuffer(buffer_len);
+
+        if (mBuffer) {
+          mBuffer->mLength = buffer_len;
+          (void) memcpy(mBuffer->GetDataPtr(), buffer, buffer_len);
+          break;
+        } else {
+          std::this_thread::sleep_for(std::chrono::seconds(1));
+        }
+      } while (--attempts);
+
+      if (!mBuffer) {
+        throw BufferAllocateException();
+      }
     }
+
+    // The promise must be swaped after any potential exception is thrown
+    // otherwise the caller will be left with an invalid promise.
+    std::swap(mPromise, promise);
   }
 
   //----------------------------------------------------------------------------

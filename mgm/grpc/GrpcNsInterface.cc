@@ -44,6 +44,7 @@
 #include "namespace/MDException.hh"
 #include "namespace/interface/ContainerIterators.hh"
 #include "namespace/utils/Etag.hh"
+#include "namespace/utils/Attributes.hh"
 
 #include <regex.h>
 /*----------------------------------------------------------------------------*/
@@ -453,7 +454,8 @@ grpc::Status
 GrpcNsInterface::GetMD(eos::common::VirtualIdentity& vid,
                        grpc::ServerWriter<eos::rpc::MDResponse>* writer,
                        const eos::rpc::MDRequest* request, bool check_perms,
-                       bool lock)
+                       bool lock,
+                       bool access_self)
 {
   eos::common::RWMutexReadLock viewReadLock;
 
@@ -463,6 +465,7 @@ GrpcNsInterface::GetMD(eos::common::VirtualIdentity& vid,
     eos::common::RWMutexReadLock viewReadLock;
     std::shared_ptr<eos::IFileMD> fmd;
     std::shared_ptr<eos::IContainerMD> pmd;
+    eos::IFileMD::XAttrMap attrmapF;
     unsigned long fid = 0;
     uint64_t clock = 0;
     std::string path;
@@ -490,6 +493,7 @@ GrpcNsInterface::GetMD(eos::common::VirtualIdentity& vid,
       try {
         fmd = gOFS->eosFileService->getFileMD(fid, &clock);
         path = gOFS->eosView->getUri(fmd.get());
+        eos::listAttributes(gOFS->eosView, fmd.get(), attrmapF, false);
 
         if (check_perms) {
           pmd = gOFS->eosDirectoryService->getContainerMD(fmd->getContainerId());
@@ -509,6 +513,7 @@ GrpcNsInterface::GetMD(eos::common::VirtualIdentity& vid,
       try {
         fmd = gOFS->eosView->getFile(request->id().path());
         path = gOFS->eosView->getUri(fmd.get());
+        eos::listAttributes(gOFS->eosView, fmd.get(), attrmapF, false);
 
         if (check_perms) {
           pmd = gOFS->eosDirectoryService->getContainerMD(fmd->getContainerId());
@@ -527,7 +532,7 @@ GrpcNsInterface::GetMD(eos::common::VirtualIdentity& vid,
     }
 
     if (!fallthrough) {
-      if (check_perms && !Access(vid, R_OK, pmd)) {
+      if (check_perms && !Access(vid, X_OK, pmd, &attrmapF)) {
         return grpc::Status(grpc::StatusCode::PERMISSION_DENIED,
                             "access to parent container denied");
       }
@@ -642,9 +647,16 @@ GrpcNsInterface::GetMD(eos::common::VirtualIdentity& vid,
       }
     }
 
-    if (!Access(vid, R_OK, pmd)) {
-      return grpc::Status(grpc::StatusCode::PERMISSION_DENIED,
-                          "access to parent container denied");
+    if (access_self) {
+      if (!Access(vid, X_OK, cmd)) {
+        return grpc::Status(grpc::StatusCode::PERMISSION_DENIED,
+                            "access to container denied");
+      }
+    } else {
+      if (!Access(vid, X_OK, pmd)) {
+        return grpc::Status(grpc::StatusCode::PERMISSION_DENIED,
+                            "access to parent container denied");
+      }
     }
 
     if (Filter(cmd, request->selection())) {
@@ -789,6 +801,12 @@ GrpcNsInterface::StreamMD(eos::common::VirtualIdentity& ivid,
     }
   }
 
+  // check if we can read this directory
+  if (!Access(vid, R_OK, cmd)) {
+    return grpc::Status(grpc::StatusCode::PERMISSION_DENIED,
+                        std::string("access to read directory denied"));
+  }
+
   grpc::Status status;
 
   if (streamparent && (request->type() != eos::rpc::FILE)) {
@@ -797,7 +815,7 @@ GrpcNsInterface::StreamMD(eos::common::VirtualIdentity& ivid,
     c_dir.mutable_selection()->CopyFrom(request->selection());
     c_dir.mutable_id()->set_id(cid);
     c_dir.set_type(eos::rpc::CONTAINER);
-    status = GetMD(vid, writer, &c_dir, true, false);
+    status = GetMD(vid, writer, &c_dir, true, false, true);
 
     if (!status.ok()) {
       return status;
@@ -891,7 +909,7 @@ GrpcNsInterface::Find(eos::common::VirtualIdentity& ivid,
     if (request->type() != eos::rpc::FILE) {
       c_dir.mutable_selection()->CopyFrom(request->selection());
       c_dir.set_type(eos::rpc::CONTAINER);
-      status = GetMD(vid, writer, &c_dir, true, false);
+      status = GetMD(vid, writer, &c_dir, true, false, true);
     }
 
     return status;
@@ -948,7 +966,8 @@ GrpcNsInterface::Find(eos::common::VirtualIdentity& ivid,
 
 bool
 GrpcNsInterface::Access(eos::common::VirtualIdentity& vid, int mode,
-                        std::shared_ptr<eos::IContainerMD> cmd)
+                        std::shared_ptr<eos::IContainerMD> cmd,
+                        eos::IFileMD::XAttrMap* attrmapF)
 {
   // UNIX permissions
   if (cmd->access(vid.uid, vid.gid, mode)) {
@@ -957,7 +976,8 @@ GrpcNsInterface::Access(eos::common::VirtualIdentity& vid, int mode,
 
   // ACLs - WARNING: this does not support ACLs to be linked attributes !
   eos::IContainerMD::XAttrMap xattr = cmd->getAttributes();
-  eos::mgm::Acl acl(xattr, vid);
+  eos::mgm::Acl acl;
+  acl.SetFromAttrMap(xattr, vid, attrmapF);
 
   // check for immutable
   if (vid.uid && !acl.IsMutable() && (mode & W_OK)) {

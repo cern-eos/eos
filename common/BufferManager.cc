@@ -29,7 +29,7 @@ EOSCOMMONNAMESPACE_BEGIN
 // Get the nearest power of 2 value bigger then the given input but always
 // greater than min
 //------------------------------------------------------------------------------
-uint32_t power_ceil(const uint32_t input, const uint32_t min)
+uint32_t GetPowerCeil(const uint32_t input, const uint32_t min)
 {
   uint32_t power = min;
 
@@ -38,6 +38,22 @@ uint32_t power_ceil(const uint32_t input, const uint32_t min)
   }
 
   return power;
+}
+
+//------------------------------------------------------------------------------
+// Get amount of system memory
+//------------------------------------------------------------------------------
+uint64_t GetSystemMemorySize()
+{
+  static uint64_t total_size = 0ull;
+
+  if (!total_size) {
+    uint64_t pages = sysconf(_SC_PHYS_PAGES);
+    uint64_t page_size = sysconf(_SC_PAGE_SIZE);
+    total_size = pages * page_size;
+  }
+
+  return total_size;
 }
 
 //------------------------------------------------------------------------------

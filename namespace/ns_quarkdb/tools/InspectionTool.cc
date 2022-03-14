@@ -150,7 +150,7 @@ int main(int argc, char* argv[])
   scanSubcommand->add_option("--path", dumpPath, "The target path to scan")
   ->required();
   scanSubcommand->add_option("--trim", trimPaths,
-                             "REGEX to not expand scan for matching paths");
+                             "REGEX for paths to be excluded");
   scanSubcommand->add_flag("--relative-paths", relativePaths,
                            "Print paths relative to --path");
   scanSubcommand->add_flag("--raw-paths", rawPaths,
@@ -186,9 +186,7 @@ int main(int argc, char* argv[])
                               "Find files which have non-nominal number of stripes (replicas)");
   addClusterOptions(stripediffSubcommand, membersStr, memberValidator, password,
                     passwordFile);
-  bool printTime = false;
-  stripediffSubcommand->add_flag("--time", printTime,
-                                 "Print mtime and ctime of found files");
+  stripediffSubcommand->add_flag("--json", json, "Use json output");
   //----------------------------------------------------------------------------
   // Set-up one-replica-layout subcommand..
   //----------------------------------------------------------------------------
@@ -530,7 +528,7 @@ int main(int argc, char* argv[])
   }
 
   if (stripediffSubcommand->parsed()) {
-    return inspector.stripediff(printTime, std::cout, std::cerr);
+    return inspector.stripediff();
   }
 
   if (oneReplicaLayoutSubcommand->parsed()) {

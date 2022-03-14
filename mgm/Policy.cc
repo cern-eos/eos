@@ -115,20 +115,38 @@ Policy::GetLayoutAndSpace(const char* path,
       bandwidth = it->second->GetConfigMember("policy.bandwidth");
       schedule = (it->second->GetConfigMember("policy.schedule") == "1");
       iopriority = it->second->GetConfigMember("policy.iopriority");
-      iopriority = it->second->GetConfigMember("policy.iotype");
-      // try application specific bandwidth setting
-      std::string appkey = "bw.";
+      iotype = it->second->GetConfigMember("policy.iotype");
+      {
+        // try application specific bandwidth setting
+        std::string appkey = "bw.";
 
-      if (env.Get("eos.app")) {
-        appkey += env.Get("eos.app");
-      } else {
-        appkey += "default";
+        if (env.Get("eos.app")) {
+          appkey += env.Get("eos.app");
+        } else {
+          appkey += "default";
+        }
+
+        std::string app_bandwidth = it->second->GetConfigMember(appkey);
+
+        if (app_bandwidth.length()) {
+          bandwidth = app_bandwidth;
+        }
       }
+      {
+        // try application specific iotype setting
+        std::string appkey = "iotype.";
 
-      std::string app_bandwidth = it->second->GetConfigMember(appkey);
+        if (env.Get("eos.app")) {
+          appkey += env.Get("eos.app");
+        } else {
+          appkey += "default";
+        }
 
-      if (app_bandwidth.length()) {
-        bandwidth = app_bandwidth;
+        std::string app_iotype = it->second->GetConfigMember(appkey);
+
+        if (app_iotype.length()) {
+          iotype = app_iotype;
+        }
       }
     }
   }
@@ -157,6 +175,8 @@ Policy::GetLayoutAndSpace(const char* path,
       std::string space_blocksize = it->second->GetConfigMember("policy.blocksize");
       std::string space_blockxs  =
         it->second->GetConfigMember("policy.blockchecksum");
+      std::string space_localrdr =
+        it->second->GetConfigMember("policy.localredirect");
 
       if (space_layout.length()) {
         spacepolicies["layout"] = space_layout;
@@ -178,23 +198,45 @@ Policy::GetLayoutAndSpace(const char* path,
         spacepolicies["blockchecksum"] = space_blockxs;
       }
 
+      if (space_localrdr.length()) {
+        spacepolicies[std::string("localredirect")] = space_localrdr;
+      }
+
       bandwidth = it->second->GetConfigMember("policy.bandwidth");
       schedule = (it->second->GetConfigMember("policy.schedule") == "1");
       iopriority = it->second->GetConfigMember("policy.iopriority");
       iotype = it->second->GetConfigMember("policy.iotype");
-      // try application specific bandwidth setting
-      std::string appkey = "bw.";
+      {
+        // try application specific bandwidth setting
+        std::string appkey = "bw.";
 
-      if (env.Get("eos.app")) {
-        appkey += env.Get("eos.app");
-      } else {
-        appkey += "default";
+        if (env.Get("eos.app")) {
+          appkey += env.Get("eos.app");
+        } else {
+          appkey += "default";
+        }
+
+        std::string app_bandwidth = it->second->GetConfigMember(appkey);
+
+        if (app_bandwidth.length()) {
+          bandwidth = app_bandwidth;
+        }
       }
+      {
+        // try application specific iotype setting
+        std::string appkey = "iotype.";
 
-      std::string app_bandwidth = it->second->GetConfigMember(appkey);
+        if (env.Get("eos.app")) {
+          appkey += env.Get("eos.app");
+        } else {
+          appkey += "default";
+        }
 
-      if (app_bandwidth.length()) {
-        bandwidth = app_bandwidth;
+        std::string app_iotype = it->second->GetConfigMember(appkey);
+
+        if (app_iotype.length()) {
+          iotype = app_iotype;
+        }
       }
     }
   }
@@ -444,6 +486,41 @@ Policy::GetPlctPolicy(const char* path,
 
   return;
 }
+
+
+/*----------------------------------------------------------------------------*/
+bool
+Policy::RedirectLocal(const char* path,
+                      eos::IContainerMD::XAttrMap& map,
+                      const eos::common::VirtualIdentity& vid,
+                      unsigned long& layoutId,
+                      XrdOucString& space,
+                      XrdOucEnv& env
+                     )
+{
+  std::string rkey = "sys.forced.localredirect";
+
+  if (map.count(rkey) && ((map[rkey] == "true")  || (map[rkey] == "1")) &&
+      ((eos::common::LayoutId::GetLayoutType(layoutId) ==
+        eos::common::LayoutId::kReplica) ||
+       (eos::common::LayoutId::GetLayoutType(layoutId) ==
+        eos::common::LayoutId::kPlain))) {
+    if (env.Get("eos.localredirect") &&
+        (std::string(env.Get("eos.localredirect")) == "0")) {
+      return false;
+    } else {
+      return true;
+    }
+  }
+
+  if (env.Get("eos.localredirect") &&
+      (std::string(env.Get("eos.localredirect")) == "1")) {
+    return true;
+  } else {
+    return false;
+  }
+}
+
 
 /*----------------------------------------------------------------------------*/
 bool

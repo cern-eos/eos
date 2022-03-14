@@ -142,7 +142,7 @@ ProcCommand::Ls()
         listrc = dir.open(spath.c_str(), *pVid, (const char*) 0);
       } else {
         // if this is a file, open the parent and set the filter
-        if (spath.endswith("/")) {
+        if ((spath.length() > 1) && spath.endswith("/")) {
           spath.erase(spath.length() - 1);
         }
 
@@ -155,7 +155,7 @@ ProcCommand::Ls()
           // this is an 'ls <file>' command which has to return only one entry!
           ls_file.assign(spath, rpos + 1);
           spath.erase(rpos);
-          listrc = 0;
+          listrc = SFS_OK;
         }
       }
 
@@ -363,7 +363,10 @@ ProcCommand::Ls()
         }
       } else {
         stdErr += "error: unable to open directory";
-        retc = errno;
+
+        if (retc == 0) {
+          retc = errno;
+        }
       }
     }
 

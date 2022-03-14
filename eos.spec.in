@@ -399,6 +399,7 @@ The EOS server installation containing MGM, FST & MQ service.
 %{_sbindir}/eosfstregister
 %{_sbindir}/eosfstinfo
 %{_sbindir}/eosadmin
+%{_sbindir}/eos-iam-mapfile
 %{_sbindir}/eos-check-blockxs
 %{_sbindir}/eos-udp-dumper
 %{_sbindir}/eos-compute-blockxs
@@ -717,11 +718,6 @@ if [ "$1" -ge "1" ]; then # Upgrade
   do
     /usr/sbin/semodule -i %{_datarootdir}/selinux/$VARIANT/eosfuse.pp || :
   done
-
-  # If the automount daemon catches a USR1 signal, it will umount all currently
-  # unused autofs managed mounted filesystems and continue running (forced
-  # expire).
-  /usr/bin/killall --quiet --signal USR1 automount ||:
 fi
 
 #-------------------------------------------------------------------------------
@@ -1123,6 +1119,7 @@ Contains an instance and fuse test script and some test executables and test arc
 %{_sbindir}/eos-fusex-ioverify
 %{_sbindir}/eos-fusex-recovery
 %{_sbindir}/eos-checksum-benchmark
+%{_sbindir}/test-eos-iam-mapfile.py
 %{_sbindir}/xrdcpabort
 %{_sbindir}/xrdcpappend
 %{_sbindir}/xrdcpposixcache

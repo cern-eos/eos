@@ -1597,7 +1597,7 @@ XrdMgmOfs::Tried(XrdCl::URL& url, std::string& host, const char* terr)
   for (size_t i = 0; i < v_hosts.size(); ++i) {
     if ((v_hosts[i] == host) &&
         (i < v_rc.size()) &&
-        (v_rc[i] == std::string(terr))) {
+        ((v_rc[i] == std::string(terr)) || (std::string(terr) == "*"))) {
       return true;
     }
   }
@@ -1742,7 +1742,7 @@ XrdMgmOfs::SetRedirectionInfo(XrdOucErrInfo& err_obj,
 
   // Otherwise use the XrdOucBuffPool to manage XrdOucBuffer objects that
   // can hold redirection info >= 2kb
-  const uint32_t aligned_sz = eos::common::power_ceil(rdr_info.length() + 1,
+  const uint32_t aligned_sz = eos::common::GetPowerCeil(rdr_info.length() + 1,
                               2 * eos::common::KB);
   XrdOucBuffer* buff = mXrdBuffPool.Alloc(aligned_sz);
 

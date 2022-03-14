@@ -785,7 +785,8 @@ public:
              const char* ininfo = 0,
              bool doLock = true,
              bool useLayout = false,
-             bool truncate = false);
+             bool truncate = false,
+             size_t size = 0);
 
   //----------------------------------------------------------------------------
   //! List extended attributes for a given file/directory - high-level API.

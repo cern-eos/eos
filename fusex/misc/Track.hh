@@ -41,6 +41,7 @@ public:
     {
       openr = openw = 0;
       mInUse.SetBlockedStackTracing(false); // disable stacktracing
+      mInUse.SetBlocking(true); // do not use a timed mutex
     }
 
     RWMutex mInUse;
@@ -63,43 +64,49 @@ public:
   }
 
   void
-  clear() {
+  clear()
+  {
     XrdSysMutexHelper l(iMutex);
     iNodes.clear();
   }
 
   void
-  clean() 
+  clean()
   {
     eos_static_info("");
     auto now = std::chrono::steady_clock::now();
     XrdSysMutexHelper l(iMutex);
     eos_static_info("size=%lu", iNodes.size());
-
     size_t clean_age = 60000;
 
-    if (iNodes.size() > 32*1024) {
+    if (iNodes.size() > 32 * 1024) {
       clean_age = 1000;
     }
-    
+
     for (auto it = iNodes.begin() ; it != iNodes.end();) {
-      if (EOS_LOGS_DEBUG)
-	eos_static_debug("usage=%lu", it->second.use_count());
-      if ( (it->second.use_count()==1) ) {
-	double age = std::chrono::duration_cast<std::chrono::milliseconds>
-	  (now.time_since_epoch()).count() - it->second->attachtime;
-	if (EOS_LOGS_DEBUG)
-	  eos_static_crit("age=%f", age);
-	if (age > clean_age)  {
-	  it = iNodes.erase(it);
-	} else {
-	  it ++;
-	}
-      } else {
-	++it;
+      if (EOS_LOGS_DEBUG) {
+        eos_static_debug("usage=%lu", it->second.use_count());
       }
+
+      if ((it->second.use_count() == 1)) {
+        double age = std::chrono::duration_cast<std::chrono::milliseconds>
+                     (now.time_since_epoch()).count() - it->second->attachtime;
+
+        if (EOS_LOGS_DEBUG) {
+          eos_static_crit("age=%f", age);
+        }
+
+        if (age > clean_age)  {
+          it = iNodes.erase(it);
+        } else {
+          it ++;
+        }
+      } else {
+        ++it;
+      }
+
       if (iNodes.size() < 512) {
-	break;
+        break;
       }
     }
   }
@@ -112,31 +119,33 @@ public:
   }
 
   size_t
-  size() 
+  size()
   {
     XrdSysMutexHelper l(iMutex);
     return iNodes.size();
   }
 
-  double blocked_ms(std::string& function, uint64_t& inode) {
+  double blocked_ms(std::string& function, uint64_t& inode)
+  {
     // return's the time of the longest blocked mutex
     double max_blocked = 0;
     function = "";
     inode = 0;
     // get current time
     auto now = std::chrono::steady_clock::now();
-
     XrdSysMutexHelper l(iMutex);
-    for ( auto it : iNodes ) {
+
+    for (auto it : iNodes) {
       if (it.second->openr || it.second->openw) {
-	// get duration since first lock
-	double is_blocked = std::chrono::duration_cast<std::chrono::milliseconds>
-	  (now.time_since_epoch()).count() - it.second->attachtime;
-	if (is_blocked > max_blocked) {
-	  max_blocked = is_blocked;
-	  function = it.second->caller;
-	  inode = it.first;
-	}
+        // get duration since first lock
+        double is_blocked = std::chrono::duration_cast<std::chrono::milliseconds>
+                            (now.time_since_epoch()).count() - it.second->attachtime;
+
+        if (is_blocked > max_blocked) {
+          max_blocked = is_blocked;
+          function = it.second->caller;
+          inode = it.first;
+        }
       }
     }
 
@@ -145,6 +154,7 @@ public:
       max_blocked = 0;
       function = "";
     }
+
     return max_blocked;
   }
 
@@ -166,8 +176,9 @@ public:
     if (!m->openr && !m->openw) {
       // track first attach time
       m->attachtime = std::chrono::duration_cast<std::chrono::milliseconds>
-	(std::chrono::steady_clock::now().time_since_epoch()).count();
+                      (std::chrono::steady_clock::now().time_since_epoch()).count();
     }
+
     if (exclusive) {
       m->mInUse.LockWrite();
       m->openw++;
@@ -188,18 +199,19 @@ public:
             bool exclusive = false, bool disable = false)
     {
       if (!disable) {
-	if (EOS_LOGS_DEBUG)
-	  eos_static_debug("trylock caller=%s self=%lld in=%llu exclusive=%d", caller,
-			   thread_id(), ino, exclusive);
+        if (EOS_LOGS_DEBUG)
+          eos_static_debug("trylock caller=%s self=%lld in=%llu exclusive=%d", caller,
+                           thread_id(), ino, exclusive);
+
         this->ino = ino;
         this->caller = caller;
         this->exclusive = exclusive;
         this->me = tracker.Attach(ino, exclusive, caller);
 
-	if (EOS_LOGS_DEBUG)
-	  eos_static_debug("locked  caller=%s self=%lld in=%llu exclusive=%d obj=%llx",
-			   caller, thread_id(), ino, exclusive,
-			   &(*(this->me)));
+        if (EOS_LOGS_DEBUG)
+          eos_static_debug("locked  caller=%s self=%lld in=%llu exclusive=%d obj=%llx",
+                           caller, thread_id(), ino, exclusive,
+                           &(*(this->me)));
       } else {
         this->ino = 0;
         this->caller = 0;
@@ -210,21 +222,21 @@ public:
     ~Monitor()
     {
       if (this->me) {
-	if (EOS_LOGS_DEBUG)
-	  eos_static_debug("unlock  caller=%s self=%lld in=%llu exclusive=%d", caller,
-			   thread_id(), ino, exclusive);
+        if (EOS_LOGS_DEBUG)
+          eos_static_debug("unlock  caller=%s self=%lld in=%llu exclusive=%d", caller,
+                           thread_id(), ino, exclusive);
 
         if (exclusive) {
           me->mInUse.UnLockWrite();
-	  me->openw--;
+          me->openw--;
         } else {
           me->mInUse.UnLockRead();
-	  me->openr--;
+          me->openr--;
         }
 
-	if (EOS_LOGS_DEBUG)
-	  eos_static_debug("unlocked  caller=%s self=%lld in=%llu exclusive=%d", caller,
-			   thread_id(), ino, exclusive);
+        if (EOS_LOGS_DEBUG)
+          eos_static_debug("unlocked  caller=%s self=%lld in=%llu exclusive=%d", caller,
+                           thread_id(), ino, exclusive);
       }
     }
   private:

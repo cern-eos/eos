@@ -29,7 +29,8 @@ EOSNSNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 //! Convert to octal string
 //------------------------------------------------------------------------------
-static std::string to_octal_string(uint32_t v) {
+static std::string to_octal_string(uint32_t v)
+{
   std::ostringstream ss;
   ss << std::oct << v;
   return ss.str();
@@ -38,15 +39,18 @@ static std::string to_octal_string(uint32_t v) {
 //------------------------------------------------------------------------------
 //! Return full path, if possible, otherwise empty
 //------------------------------------------------------------------------------
-static std::string populateFullPath(const eos::ns::FileMdProto &proto, FileScanner::Item &item) {
+static std::string populateFullPath(const eos::ns::FileMdProto& proto,
+                                    FileScanner::Item& item)
+{
   item.fullPath.wait();
-  if(item.fullPath.hasException()) {
+
+  if (item.fullPath.hasException()) {
     return std::string();
   }
 
   std::string fullPath = std::move(item.fullPath).get();
 
-  if(fullPath.empty()) {
+  if (fullPath.empty()) {
     return std::string();
   }
 
@@ -56,15 +60,18 @@ static std::string populateFullPath(const eos::ns::FileMdProto &proto, FileScann
 //------------------------------------------------------------------------------
 //! Return full path, if possible, otherwise empty
 //------------------------------------------------------------------------------
-static std::string populateFullPath(const eos::ns::ContainerMdProto &proto, ContainerScanner::Item &item) {
+static std::string populateFullPath(const eos::ns::ContainerMdProto& proto,
+                                    ContainerScanner::Item& item)
+{
   item.fullPath.wait();
-  if(item.fullPath.hasException()) {
+
+  if (item.fullPath.hasException()) {
     return std::string();
   }
 
   std::string fullPath = std::move(item.fullPath).get();
 
-  if(fullPath.empty()) {
+  if (fullPath.empty()) {
     return std::string();
   }
 
@@ -75,12 +82,14 @@ static std::string populateFullPath(const eos::ns::ContainerMdProto &proto, Cont
 // Serialize locations vector
 //------------------------------------------------------------------------------
 template<typename T>
-static std::string serializeLocations(const T& vec) {
+static std::string serializeLocations(const T& vec)
+{
   std::ostringstream stream;
 
-  for(int i = 0; i < vec.size(); i++) {
+  for (int i = 0; i < vec.size(); i++) {
     stream << vec[i];
-    if(i != vec.size() - 1) {
+
+    if (i != vec.size() - 1) {
       stream << ",";
     }
   }
@@ -91,55 +100,58 @@ static std::string serializeLocations(const T& vec) {
 //------------------------------------------------------------------------------
 //! Populate map with container attributes
 //------------------------------------------------------------------------------
-static void populateMetadata(const eos::ns::ContainerMdProto &proto,
-  const ContainerPrintingOptions &opts, std::map<std::string, std::string> &out) {
-
-  if(opts.showId) {
+static void populateMetadata(const eos::ns::ContainerMdProto& proto,
+                             const ContainerPrintingOptions& opts, std::map<std::string, std::string>& out)
+{
+  if (opts.showId) {
     out["cid"] = std::to_string(proto.id());
   }
 
-  if(opts.showParent) {
+  if (opts.showParent) {
     out["parent_id"] = std::to_string(proto.parent_id());
   }
 
-  if(opts.showUid) {
+  if (opts.showUid) {
     out["uid"] = std::to_string(proto.uid());
   }
 
-  if(opts.showGid) {
+  if (opts.showGid) {
     out["gid"] = std::to_string(proto.gid());
   }
 
-  if(opts.showTreeSize) {
+  if (opts.showTreeSize) {
     out["tree_size"] = std::to_string(proto.tree_size());
   }
 
-  if(opts.showMode) {
+  if (opts.showMode) {
     out["mode"] = to_octal_string(proto.mode());
   }
 
-  if(opts.showMode) {
+  if (opts.showMode) {
     out["flags"] = to_octal_string(proto.flags());
   }
 
-  if(opts.showName) {
+  if (opts.showName) {
     out["name"] = proto.name();
   }
 
-  if(opts.showCTime) {
-    out["ctime"] = Printing::timespecToTimestamp(Printing::parseTimespec(proto.ctime()));
+  if (opts.showCTime) {
+    out["ctime"] = Printing::timespecToTimestamp(Printing::parseTimespec(
+                     proto.ctime()));
   }
 
-  if(opts.showMTime) {
-    out["mtime"] = Printing::timespecToTimestamp(Printing::parseTimespec(proto.mtime()));
+  if (opts.showMTime) {
+    out["mtime"] = Printing::timespecToTimestamp(Printing::parseTimespec(
+                     proto.mtime()));
   }
 
-  if(opts.showSTime) {
-    out["stime"] = Printing::timespecToTimestamp(Printing::parseTimespec(proto.stime()));
+  if (opts.showSTime) {
+    out["stime"] = Printing::timespecToTimestamp(Printing::parseTimespec(
+                     proto.stime()));
   }
 
-  if(opts.showXAttr) {
-    for(auto it = proto.xattrs().begin(); it != proto.xattrs().end(); it++) {
+  if (opts.showXAttr) {
+    for (auto it = proto.xattrs().begin(); it != proto.xattrs().end(); it++) {
       out[SSTR("xattr." << it->first)] = it->second;
     }
   }
@@ -148,7 +160,9 @@ static void populateMetadata(const eos::ns::ContainerMdProto &proto,
 //------------------------------------------------------------------------------
 //! Print everything known about a ContainerMD
 //------------------------------------------------------------------------------
-void OutputSink::print(const eos::ns::ContainerMdProto &proto, const ContainerPrintingOptions &opts) {
+void OutputSink::print(const eos::ns::ContainerMdProto& proto,
+                       const ContainerPrintingOptions& opts)
+{
   std::map<std::string, std::string> out;
   populateMetadata(proto, opts, out);
   print(out);
@@ -157,8 +171,10 @@ void OutputSink::print(const eos::ns::ContainerMdProto &proto, const ContainerPr
 //----------------------------------------------------------------------------
 //! Print everything known about a ContainerMD -- custom path
 //----------------------------------------------------------------------------
-void OutputSink::printWithCustomPath(const eos::ns::ContainerMdProto &proto, const ContainerPrintingOptions &opts,
-  const std::string &customPath) {
+void OutputSink::printWithCustomPath(const eos::ns::ContainerMdProto& proto,
+                                     const ContainerPrintingOptions& opts,
+                                     const std::string& customPath)
+{
   std::map<std::string, std::string> out;
   out["path"] = customPath;
   populateMetadata(proto, opts, out);
@@ -168,32 +184,35 @@ void OutputSink::printWithCustomPath(const eos::ns::ContainerMdProto &proto, con
 //------------------------------------------------------------------------------
 // Get count as string
 //------------------------------------------------------------------------------
-static std::string countAsString(folly::Future<uint64_t> &fut) {
+static std::string countAsString(folly::Future<uint64_t>& fut)
+{
   fut.wait();
 
-  if(fut.hasException()) {
+  if (fut.hasException()) {
     return "N/A";
   }
 
   uint64_t val = std::move(fut).get();
   fut = val;
-
   return std::to_string(val);
 }
 
 //------------------------------------------------------------------------------
 //! Print everything known about a ContainerMD, including full path if available
 //------------------------------------------------------------------------------
-void OutputSink::print(const eos::ns::ContainerMdProto &proto, const ContainerPrintingOptions &opts, ContainerScanner::Item &item, bool showCounts) {
+void OutputSink::print(const eos::ns::ContainerMdProto& proto,
+                       const ContainerPrintingOptions& opts, ContainerScanner::Item& item,
+                       bool showCounts)
+{
   std::map<std::string, std::string> out;
   populateMetadata(proto, opts, out);
-
   std::string fullPath = populateFullPath(proto, item);
-  if(!fullPath.empty()) {
+
+  if (!fullPath.empty()) {
     out["path"] = fullPath;
   }
 
-  if(showCounts) {
+  if (showCounts) {
     out["file-count"] = countAsString(item.fileCount);
     out["container-count"] = countAsString(item.containerCount);
   }
@@ -204,82 +223,87 @@ void OutputSink::print(const eos::ns::ContainerMdProto &proto, const ContainerPr
 //------------------------------------------------------------------------------
 //! Populate map with file attributes
 //------------------------------------------------------------------------------
-static void populateMetadata(const eos::ns::FileMdProto &proto,
-  const FilePrintingOptions &opts, std::map<std::string, std::string> &out) {
-
-  if(opts.showId) {
+static void populateMetadata(const eos::ns::FileMdProto& proto,
+                             const FilePrintingOptions& opts, std::map<std::string, std::string>& out)
+{
+  if (opts.showId) {
     out["fid"] = std::to_string(proto.id());
   }
 
-  if(opts.showContId) {
+  if (opts.showContId) {
     out["pid"] = std::to_string(proto.cont_id());
   }
 
-  if(opts.showUid) {
+  if (opts.showUid) {
     out["uid"] = std::to_string(proto.uid());
   }
 
-  if(opts.showGid) {
+  if (opts.showGid) {
     out["gid"] = std::to_string(proto.gid());
   }
 
-  if(opts.showSize) {
+  if (opts.showSize) {
     out["size"] = std::to_string(proto.size());
   }
 
-  if(opts.showLayoutId) {
+  if (opts.showLayoutId) {
     out["layout_id"] = std::to_string(proto.layout_id());
   }
 
-  if(opts.showFlags) {
+  if (opts.showFlags) {
     out["flags"] = to_octal_string(proto.flags());
   }
 
-  if(opts.showName) {
+  if (opts.showName) {
     out["name"] = proto.name();
   }
 
-  if(opts.showLinkName) {
+  if (opts.showLinkName) {
     out["link_name"] = proto.link_name();
   }
 
-  if(opts.showCTime) {
-    out["ctime"] = Printing::timespecToTimestamp(Printing::parseTimespec(proto.ctime()));
+  if (opts.showCTime) {
+    out["ctime"] = Printing::timespecToTimestamp(Printing::parseTimespec(
+                     proto.ctime()));
   }
 
-  if(opts.showMTime) {
-    out["mtime"] = Printing::timespecToTimestamp(Printing::parseTimespec(proto.mtime()));
+  if (opts.showMTime) {
+    out["mtime"] = Printing::timespecToTimestamp(Printing::parseTimespec(
+                     proto.mtime()));
   }
 
-  if(opts.showChecksum) {
+  if (opts.showChecksum) {
     std::string xs;
     eos::appendChecksumOnStringProtobuf(proto, xs);
     out["xs"] = xs;
   }
 
-  if(opts.showLocations) {
+  if (opts.showLocations) {
     out["locations"] = serializeLocations(proto.locations());
   }
 
-  if(opts.showLocations) {
+  if (opts.showLocations) {
     out["unlink_locations"] = serializeLocations(proto.unlink_locations());
   }
 
-  if(opts.showXAttr) {
-    for(auto it = proto.xattrs().begin(); it != proto.xattrs().end(); it++) {
+  if (opts.showXAttr) {
+    for (auto it = proto.xattrs().begin(); it != proto.xattrs().end(); it++) {
       out[SSTR("xattr." << it->first)] = it->second;
     }
   }
 
-  if(opts.showSTime) {
-    out["stime"] = Printing::timespecToTimestamp(Printing::parseTimespec(proto.stime()));
+  if (opts.showSTime) {
+    out["stime"] = Printing::timespecToTimestamp(Printing::parseTimespec(
+                     proto.stime()));
   }
 }
 
 //------------------------------------------------------------------------------
 //! Print everything known about a FileMD
 //------------------------------------------------------------------------------
-void OutputSink::print(const eos::ns::FileMdProto &proto, const FilePrintingOptions &opts) {
+void OutputSink::print(const eos::ns::FileMdProto& proto,
+                       const FilePrintingOptions& opts)
+{
   std::map<std::string, std::string> out;
   populateMetadata(proto, opts, out);
   print(out);
@@ -288,24 +312,38 @@ void OutputSink::print(const eos::ns::FileMdProto &proto, const FilePrintingOpti
 //----------------------------------------------------------------------------
 // Print everything known about a FileMD -- custom path
 //----------------------------------------------------------------------------
-void OutputSink::printWithCustomPath(const eos::ns::FileMdProto &proto, const FilePrintingOptions &opts,
-    const std::string &customPath) {
-
+void OutputSink::printWithCustomPath(const eos::ns::FileMdProto& proto,
+                                     const FilePrintingOptions& opts,
+                                     const std::string& customPath)
+{
   std::map<std::string, std::string> out;
   out["path"] = customPath;
   populateMetadata(proto, opts, out);
   print(out);
 }
 
+//----------------------------------------------------------------------------
+//! Print everything known about a FileMD -- Additional fields to add
+//----------------------------------------------------------------------------
+void OutputSink::printWithAdditionalFields(const eos::ns::FileMdProto& proto,
+    const FilePrintingOptions& opts,
+    std::map<std::string, std::string>& extension)
+{
+  populateMetadata(proto, opts, extension);
+  print(extension);
+}
+
 //------------------------------------------------------------------------------
 //! Print everything known about a FileMD, including full path if available
 //------------------------------------------------------------------------------
-void OutputSink::print(const eos::ns::FileMdProto &proto, const FilePrintingOptions &opts, FileScanner::Item &item) {
+void OutputSink::print(const eos::ns::FileMdProto& proto,
+                       const FilePrintingOptions& opts, FileScanner::Item& item)
+{
   std::map<std::string, std::string> out;
   populateMetadata(proto, opts, out);
-
   std::string fullPath = populateFullPath(proto, item);
-  if(!fullPath.empty()) {
+
+  if (!fullPath.empty()) {
     out["path"] = fullPath;
   }
 
@@ -315,19 +353,21 @@ void OutputSink::print(const eos::ns::FileMdProto &proto, const FilePrintingOpti
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
-StreamSink::StreamSink(std::ostream &out, std::ostream &err)
-: mOut(out), mErr(err) {}
+StreamSink::StreamSink(std::ostream& out, std::ostream& err)
+  : mOut(out), mErr(err) {}
 
 //------------------------------------------------------------------------------
 // Print implementation
 //------------------------------------------------------------------------------
-void StreamSink::print(const std::map<std::string, std::string> &line) {
-  for(auto it = line.begin(); it != line.end(); it++) {
-    if(it != line.begin()) {
+void StreamSink::print(const std::map<std::string, std::string>& line)
+{
+  for (auto it = line.begin(); it != line.end(); it++) {
+    if (it != line.begin()) {
       mOut << " ";
     }
 
-    mOut << Printing::escapeNonPrintable(it->first) << "=" << Printing::escapeNonPrintable(it->second);
+    mOut << Printing::escapeNonPrintable(it->first) << "=" <<
+         Printing::escapeNonPrintable(it->second);
   }
 
   mOut << std::endl;
@@ -336,46 +376,49 @@ void StreamSink::print(const std::map<std::string, std::string> &line) {
 //------------------------------------------------------------------------------
 // Print interface, single string implementation
 //------------------------------------------------------------------------------
-void StreamSink::print(const std::string &out) {
+void StreamSink::print(const std::string& out)
+{
   mOut << Printing::escapeNonPrintable(out) << std::endl;
 }
 
 //------------------------------------------------------------------------------
 // Debug output
 //------------------------------------------------------------------------------
-void StreamSink::err(const std::string &str) {
+void StreamSink::err(const std::string& str)
+{
   mErr << Printing::escapeNonPrintable(str) << std::endl;
 }
 
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
-JsonStreamSink::JsonStreamSink(std::ostream &out, std::ostream &err)
-: mOut(out), mErr(err), mFirst(true) {
-
+JsonStreamSink::JsonStreamSink(std::ostream& out, std::ostream& err)
+  : mOut(out), mErr(err), mFirst(true)
+{
   mOut << "[" << std::endl;
 }
 
 //------------------------------------------------------------------------------
 // Destructor
 //------------------------------------------------------------------------------
-JsonStreamSink::~JsonStreamSink() {
+JsonStreamSink::~JsonStreamSink()
+{
   mOut << "]" << std::endl;
 }
 
 //------------------------------------------------------------------------------
 // Print implementation
 //------------------------------------------------------------------------------
-void JsonStreamSink::print(const std::map<std::string, std::string> &line) {
-  if(!mFirst) {
+void JsonStreamSink::print(const std::map<std::string, std::string>& line)
+{
+  if (!mFirst) {
     mOut << "," << std::endl;
   }
 
   mFirst = false;
-
   Json::Value json;
 
-  for(auto it = line.begin(); it != line.end(); it++) {
+  for (auto it = line.begin(); it != line.end(); it++) {
     json[it->first] = it->second;
   }
 
@@ -385,14 +428,16 @@ void JsonStreamSink::print(const std::map<std::string, std::string> &line) {
 //------------------------------------------------------------------------------
 // Print interface, single string implementation
 //------------------------------------------------------------------------------
-void JsonStreamSink::print(const std::string &out) {
+void JsonStreamSink::print(const std::string& out)
+{
   mOut << out << std::endl;
 }
 
 //------------------------------------------------------------------------------
 // Debug output
 //------------------------------------------------------------------------------
-void JsonStreamSink::err(const std::string &str) {
+void JsonStreamSink::err(const std::string& str)
+{
   mErr << str << std::endl;
 }
 

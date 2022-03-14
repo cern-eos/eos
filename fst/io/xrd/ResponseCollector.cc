@@ -39,10 +39,17 @@ ResponseCollector::CollectFuture(std::future<XrdCl::XRootDStatus> fut)
 // Check the status of the responses
 //------------------------------------------------------------------------------
 bool
-ResponseCollector::CheckResponses(bool wait_all)
+ResponseCollector::CheckResponses(bool wait_all, uint32_t max_pending)
 {
   bool ok = true;
+  // If more then max_pending responses in-flight then wait for at least
+  // half of them.
+  bool wait_partial = false;
   std::unique_lock<std::mutex> lock(mMutex);
+
+  if (mResponses.size() > max_pending) {
+    wait_partial = true;
+  }
 
   while (!mResponses.empty()) {
     auto& fut = mResponses.front();
@@ -56,8 +63,17 @@ ResponseCollector::CheckResponses(bool wait_all)
     if (wait_all) {
       fut.wait();
     } else {
-      if (fut.wait_for(std::chrono::seconds(0)) != std::future_status::ready) {
-        break;
+      if (wait_partial) {
+        if (mResponses.size() > (max_pending >> 1)) {
+          fut.wait();
+        } else {
+          break;
+        }
+      } else {
+        // If current response is available then retrieve it
+        if (fut.wait_for(std::chrono::seconds(0)) != std::future_status::ready) {
+          break;
+        }
       }
     }
 
@@ -71,6 +87,16 @@ ResponseCollector::CheckResponses(bool wait_all)
   }
 
   return ok;
+}
+
+//------------------------------------------------------------------------------
+// Get number of registered responses
+//------------------------------------------------------------------------------
+uint32_t
+ResponseCollector::GetNumResponses() const
+{
+  std::unique_lock<std::mutex> lock(mMutex);
+  return mResponses.size();
 }
 
 EOSFSTNAMESPACE_END

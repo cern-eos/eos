@@ -16,8 +16,46 @@ Introduction
 This release is based on XRootD V4 and IPV6 enabled.
 
 
+``v4.8.78 Citrine``
+===================
+
+2022-02-21
+
+Bug
+---
+
+* FST: Make sure promise is still valid even in the event that an exception
+  is thrown in the XrdIoHandler constructor.
+* MGM: Groupbalancer: fix app tag to not create proc directories
+* COMMON: Make sure the BufferManager satisfies buffer requests that don't
+  fit the existing slots. Also increase the default number of slots from 2
+  to 6 which covers buffers up to 64MB.
+
+
+``v4.8.77 Citrine``
+===================
+
+2022-02-18
+
+Bug
+----
+
+* FST: Make sure the async write implementation does not exhaust the system
+  memory in case the client(s) are pushing in more data than the machine can
+  distribute futher in the cluster for replica layouts.
+* [EOS-5090] - convert clear is not a admin command
+* [EOS-5122] - MD and Find calls via GRPC don't obey ACLs
+
+Improvement
+------------
+
+* [EOS-5108] - workaround: drop forced automount expiry on FUSEX updates
+
+
 ``v4.8.76 Citrine``
 ===================
+
+2022-02-14
 
 Bug
 ----

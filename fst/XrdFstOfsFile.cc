@@ -695,7 +695,7 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
   COMMONTIMING("end", &tm);
   timeToOpen = tm.RealTime();
   // slow open reports
-  eos_info("open-duration=%.03fms path='%s' fxid=%08llx %s\n", timeToOpen,
+  eos_info("open-duration=%.03fms path='%s' fxid=%08llx %s", timeToOpen,
            mNsPath.c_str(), mFileId, tm.Dump().c_str());
   return SFS_OK;
 }
@@ -3097,6 +3097,9 @@ XrdFstOfsFile::MakeReportEnv(XrdOucString& reportString)
       ioprio_default = true;
     }
 
+    std::string path = (mCapOpaque->Get("mgm.path") ?
+                        mCapOpaque->Get("mgm.path") : mNsPath.c_str());
+    std::string sanitized_path = eos::common::StringConversion::SealXrdPath(path);
     snprintf(report, sizeof(report) - 1,
              "log=%s&path=%s&fstpath=%s&ruid=%u&rgid=%u&td=%s&"
              "host=%s&lid=%lu&fid=%llu&fsid=%lu&"
@@ -3113,7 +3116,7 @@ XrdFstOfsFile::MakeReportEnv(XrdOucString& reportString)
              "ot=%.03frt=%.02f&rvt=%.02f&wt=%.02f&osize=%llu&csize=%llu&"
              "delete_on_close=%d&prio_c=%d&prio_l=%d&prio_d=%d&forced_bw=%d&ms_sleep=%llu&%s"
              , this->logId
-             , mCapOpaque->Get("mgm.path") ? mCapOpaque->Get("mgm.path") : mNsPath.c_str()
+             , sanitized_path.c_str()
              , mFstPath.c_str()
              , this->vid.uid, this->vid.gid, mTident.c_str()
              , gOFS.mHostName, mLid, mFileId, mFsId

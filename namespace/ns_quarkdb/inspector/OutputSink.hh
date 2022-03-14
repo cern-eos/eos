@@ -37,7 +37,8 @@ struct FilePrintingOptions;
 //------------------------------------------------------------------------------
 //! Interface for printing output
 //------------------------------------------------------------------------------
-class OutputSink {
+class OutputSink
+{
 public:
   //----------------------------------------------------------------------------
   //! Virtual destructor
@@ -47,52 +48,62 @@ public:
   //----------------------------------------------------------------------------
   //! Print interface
   //----------------------------------------------------------------------------
-  virtual void print(const std::map<std::string, std::string> &out) = 0;
+  virtual void print(const std::map<std::string, std::string>& out) = 0;
 
   //----------------------------------------------------------------------------
   //! Print interface, single string
   //----------------------------------------------------------------------------
-  virtual void print(const std::string &out) = 0;
+  virtual void print(const std::string& out) = 0;
 
   //----------------------------------------------------------------------------
   //! Print everything known about a ContainerMD
   //----------------------------------------------------------------------------
-  void print(const eos::ns::ContainerMdProto &proto, const ContainerPrintingOptions &opts);
+  void print(const eos::ns::ContainerMdProto& proto,
+             const ContainerPrintingOptions& opts);
 
   //----------------------------------------------------------------------------
   //! Print everything known about a ContainerMD -- custom path
   //----------------------------------------------------------------------------
-  void printWithCustomPath(const eos::ns::ContainerMdProto &proto, const ContainerPrintingOptions &opts,
-    const std::string &customPath);
+  void printWithCustomPath(const eos::ns::ContainerMdProto& proto,
+                           const ContainerPrintingOptions& opts,
+                           const std::string& customPath);
 
   //----------------------------------------------------------------------------
   //! Print everything known about a ContainerMD, including
   //! full path if available
   //----------------------------------------------------------------------------
-  void print(const eos::ns::ContainerMdProto &proto, const ContainerPrintingOptions &opts,
-    ContainerScanner::Item &item, bool showCounts);
+  void print(const eos::ns::ContainerMdProto& proto,
+             const ContainerPrintingOptions& opts,
+             ContainerScanner::Item& item, bool showCounts);
 
   //----------------------------------------------------------------------------
   //! Print everything known about a FileMD
   //----------------------------------------------------------------------------
-  void print(const eos::ns::FileMdProto &proto, const FilePrintingOptions &opts);
+  void print(const eos::ns::FileMdProto& proto, const FilePrintingOptions& opts);
 
   //----------------------------------------------------------------------------
   //! Print everything known about a FileMD -- custom path
   //----------------------------------------------------------------------------
-  void printWithCustomPath(const eos::ns::FileMdProto &proto, const FilePrintingOptions &opts,
-    const std::string &customPath);
+  void printWithCustomPath(const eos::ns::FileMdProto& proto,
+                           const FilePrintingOptions& opts,
+                           const std::string& customPath);
 
+  //----------------------------------------------------------------------------
+  //! Print everything known about a FileMD -- custom path
+  //----------------------------------------------------------------------------
+  void printWithAdditionalFields(const eos::ns::FileMdProto& proto,
+                                 const FilePrintingOptions& opts,
+                                 std::map<std::string, std::string>& extension);
   //----------------------------------------------------------------------------
   //! Print everything known about a FileMD, including full path if available
   //----------------------------------------------------------------------------
-  void print(const eos::ns::FileMdProto &proto, const FilePrintingOptions &opts,
-    FileScanner::Item &item);
+  void print(const eos::ns::FileMdProto& proto, const FilePrintingOptions& opts,
+             FileScanner::Item& item);
 
   //----------------------------------------------------------------------------
   //! Debug output
   //----------------------------------------------------------------------------
-  virtual void err(const std::string &str) = 0;
+  virtual void err(const std::string& str) = 0;
 
 private:
 
@@ -101,42 +112,44 @@ private:
 //------------------------------------------------------------------------------
 //! OutputSink implementation based on streams
 //------------------------------------------------------------------------------
-class StreamSink : public OutputSink {
+class StreamSink : public OutputSink
+{
 public:
   //----------------------------------------------------------------------------
   //! Constructor
   //----------------------------------------------------------------------------
-  StreamSink(std::ostream &out, std::ostream &err);
+  StreamSink(std::ostream& out, std::ostream& err);
 
   //----------------------------------------------------------------------------
   //! Print implementation
   //----------------------------------------------------------------------------
-  virtual void print(const std::map<std::string, std::string> &line) override;
+  virtual void print(const std::map<std::string, std::string>& line) override;
 
   //----------------------------------------------------------------------------
   //! Print interface, single string implementation
   //----------------------------------------------------------------------------
-  virtual void print(const std::string &out) override;
+  virtual void print(const std::string& out) override;
 
   //----------------------------------------------------------------------------
   //! Debug output
   //----------------------------------------------------------------------------
-  virtual void err(const std::string &str) override;
+  virtual void err(const std::string& str) override;
 
 private:
-  std::ostream &mOut;
-  std::ostream &mErr;
+  std::ostream& mOut;
+  std::ostream& mErr;
 };
 
 //------------------------------------------------------------------------------
 //! OutputSink implementation based on json streams
 //------------------------------------------------------------------------------
-class JsonStreamSink : public OutputSink {
+class JsonStreamSink : public OutputSink
+{
 public:
   //----------------------------------------------------------------------------
   //! Constructor
   //----------------------------------------------------------------------------
-  JsonStreamSink(std::ostream &out, std::ostream &err);
+  JsonStreamSink(std::ostream& out, std::ostream& err);
 
   //----------------------------------------------------------------------------
   //! Destructor
@@ -146,21 +159,21 @@ public:
   //----------------------------------------------------------------------------
   //! Print implementation
   //----------------------------------------------------------------------------
-  virtual void print(const std::map<std::string, std::string> &line) override;
+  virtual void print(const std::map<std::string, std::string>& line) override;
 
   //----------------------------------------------------------------------------
   //! Print interface, single string implementation
   //----------------------------------------------------------------------------
-  virtual void print(const std::string &out) override;
+  virtual void print(const std::string& out) override;
 
   //----------------------------------------------------------------------------
   //! Debug output
   //----------------------------------------------------------------------------
-  virtual void err(const std::string &str) override;
+  virtual void err(const std::string& str) override;
 
 private:
-  std::ostream &mOut;
-  std::ostream &mErr;
+  std::ostream& mOut;
+  std::ostream& mErr;
 
   bool mFirst;
 };

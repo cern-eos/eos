@@ -59,7 +59,8 @@ public:
   static grpc::Status GetMD(eos::common::VirtualIdentity& vid,
                             grpc::ServerWriter<eos::rpc::MDResponse>* writer,
                             const eos::rpc::MDRequest* request, bool check_perms = true,
-                            bool lock = true);
+                            bool lock = true,
+                            bool access_self = false);
 
   static grpc::Status Stat(eos::common::VirtualIdentity& vid,
                            grpc::ServerWriter<eos::rpc::MDResponse>* writer,
@@ -153,7 +154,8 @@ public:
                             const eos::rpc::NSRequest::QuotaRequest* request);
 
   static bool Access(eos::common::VirtualIdentity& vid, int mode,
-                     std::shared_ptr<eos::IContainerMD> cmd);
+                     std::shared_ptr<eos::IContainerMD> cmd,
+                     eos::IFileMD::XAttrMap* attrmapF = 0);
 
 };
 

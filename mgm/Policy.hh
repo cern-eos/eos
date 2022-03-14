@@ -68,6 +68,14 @@ public:
                             eos::mgm::Scheduler::tPlctPolicy& plctpo,
                             std::string& targetgeotag);
 
+  static bool RedirectLocal(const char* path,
+                            eos::IContainerMD::XAttrMap& map,
+                            const eos::common::VirtualIdentity& vid,
+                            unsigned long& layoutId,
+                            XrdOucString& space,
+                            XrdOucEnv& env
+                           );
+
   static unsigned long GetSpacePolicyLayout(const char* space);
 
 

@@ -65,10 +65,17 @@ public:
   //!
   //! @param wait_all if true then block waiting for replies, otherwise only
   //!        check replies that are ready
+  //! @param max_pending maximum number of pending responses, if this is
+  //!        reached then we wait for at least max_pending / 2
   //!
   //! @return true if all responses successful, otherwise false
   //----------------------------------------------------------------------------
-  bool CheckResponses(bool wait_all);
+  bool CheckResponses(bool wait_all, uint32_t max_pending = 40);
+
+  //----------------------------------------------------------------------------
+  //! Get number of registered responses
+  //----------------------------------------------------------------------------
+  uint32_t GetNumResponses() const;
 
 private:
   mutable std::mutex mMutex;

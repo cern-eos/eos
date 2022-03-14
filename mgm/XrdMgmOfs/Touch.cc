@@ -35,7 +35,8 @@ XrdMgmOfs::_touch(const char* path,
                   const char* ininfo,
                   bool doLock,
                   bool useLayout,
-                  bool truncate)
+                  bool truncate,
+                  size_t size)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief create(touch) a no-replica file in the namespace
@@ -129,6 +130,10 @@ XrdMgmOfs::_touch(const char* path,
 
     if (truncate) {
       fmd->setSize(0);
+    } else {
+      if (size) {
+        fmd->setSize(size);
+      }
     }
 
     // Store the birth time as an extended attribute if this is a creation

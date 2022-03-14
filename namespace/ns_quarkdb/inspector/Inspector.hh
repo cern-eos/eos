@@ -144,7 +144,7 @@ public:
   //----------------------------------------------------------------------------
   //! Find files with non-nominal number of stripes (replicas)
   //----------------------------------------------------------------------------
-  int stripediff(bool printTime, std::ostream& out, std::ostream& err);
+  int stripediff();
 
   //----------------------------------------------------------------------------
   //! Find orphan files and orphan directories

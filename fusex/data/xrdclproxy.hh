@@ -934,6 +934,7 @@ public:
       roffset = other->offset();
       mDone = false;
       mEOF = false;
+      mCreationTime = other->creationtime();
     }
 
     ReadAsyncHandler(Proxy* file, off_t off, uint32_t size,
@@ -950,6 +951,7 @@ public:
       mDone = false;
       mEOF = false;
       mProxy = file;
+      mCreationTime = time(NULL);
 
       if (valid()) {
         eos_static_debug("----: creating chunk offset=%ld size=%u addr=%lx", off, size,
@@ -988,6 +990,21 @@ public:
     Proxy* proxy()
     {
       return mProxy;
+    }
+
+    time_t creationtime()
+    {
+      return mCreationTime;
+    }
+
+    bool expired()
+    {
+      // a read should never take that long
+      if ((time(NULL) - creationtime()) > 300) {
+        return true;
+      } else {
+        return false;
+      }
     }
 
     off_t offset()
@@ -1066,7 +1083,18 @@ public:
     }
 
     virtual void HandleResponse(XrdCl::XRootDStatus* pStatus,
+
                                 XrdCl::AnyObject* pResponse);
+    static size_t nexpired()
+    {
+      std::lock_guard<std::mutex> lock(gExpiredChunksMutex);
+      return gExpiredChunks.size();
+    }
+
+    static std::mutex
+    gExpiredChunksMutex; // protecting expired global expired chunks vector
+    static std::vector<std::shared_ptr<ReadAsyncHandler>>
+        gExpiredChunks;     // global expired chunks vector
 
   private:
     bool mDone;
@@ -1076,6 +1104,7 @@ public:
     off_t roffset;
     XRootDStatus mStatus;
     XrdSysCondVar mAsyncCond;
+    time_t mCreationTime;
   };
 
 

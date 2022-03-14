@@ -1568,6 +1568,9 @@ EosFuse::run(int argc, char* argv[], void* userdata)
               eos::common::Logging::GetInstance().LB->log_suspended,
               eos::common::Logging::GetInstance().LB->log_thread_started,
               eos::common::Logging::GetInstance().LB->log_buffer_in_q);
+      // make deletion mutex blocking and disable stack tracing
+      XrdCl::Proxy::gDeleteMutex.SetBlockedStackTracing(false);
+      XrdCl::Proxy::gDeleteMutex.SetBlocking(true);
       // initialize mKV in case no cache is configured to act as no-op
       mKV.reset(new NoKV());
 #ifdef HAVE_ROCKSDB
@@ -1969,6 +1972,7 @@ EosFuse::DumpStatistic(ThreadAssistant& assistant)
              "ALL        inodes-vmap         := %lu\n"
              "ALL        inodes-caps         := %lu\n"
              "ALL        inodes-tracker      := %lu\n"
+             "ALL        rh-expired          := %lu\n"
              "ALL        proxies             := %d\n"
              "# -----------------------------------------------------------------------------------------------------------\n",
              this->getMdStat().inodes(),
@@ -1981,6 +1985,7 @@ EosFuse::DumpStatistic(ThreadAssistant& assistant)
              this->mds.vmaps().size(),
              this->caps.size(),
              this->Tracker().size(),
+             XrdCl::Proxy::ReadAsyncHandler::nexpired(),
              XrdCl::Proxy::Proxies()
             );
     sout += ino_stat;
@@ -4671,7 +4676,7 @@ EosFuse::fsync(fuse_req_t req, fuse_ino_t ino, int datasync,
         }
       } else {
         if (Instance().Config().options.global_flush) {
-	  XrdSysMutexHelper mLock(io->md->Locker());
+          XrdSysMutexHelper mLock(io->md->Locker());
           Instance().mds.begin_flush(req, io->md,
                                      io->authid()); // flag an ongoing flush centrally
         }
@@ -4746,90 +4751,91 @@ EosFuse::flush(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info* fi)
   EXEC_TIMING_BEGIN(__func__);
   int rc = 0;
   fuse_id id(req);
-  
   data::data_fh* io = (data::data_fh*) fi->fh;
   bool invalidate_inode = false;
 
   if (io) {
     if (io->rw) {
       Track::Monitor mon("flush", Instance().Tracker(), ino, true);
+
       if (io->has_update()) {
-	cap::shared_cap pcap;
-	{
-	  XrdSysMutexHelper mLock(io->md->Locker());
-	  auto map = (*(io->md))()->attr();
-	  
-	  if (map.count("user.acl") > 0) { /* file has it's own ACL */
-	    mLock.UnLock();
-	    cap::shared_cap ccap = Instance().caps.acquire(req, (*(io->md))()->id(), W_OK,
-							   true);
-	    rc = (*ccap)()->errc();
-	    
-	    if (rc == 0) {
-	      pcap = Instance().caps.acquire(req, (*(io->md))()->pid(), S_IFDIR | X_OK, true);
-	    }
-	  } else {
-	    mLock.UnLock();
-	    pcap = Instance().caps.acquire(req, (*(io->md))()->pid(), S_IFDIR | W_OK, true);
-	  }
-	}
-	XrdSysMutexHelper capLock(pcap->Locker());
-	
-	if (rc == 0 && (*pcap)()->errc() != 0) {
-	  rc = (*pcap)()->errc();
-	}
-	
-	if (rc == 0) {
-	  {
-	    ssize_t size_change = (int64_t)(*(io->md))()->size() - (int64_t) io->opensize();
-	    
-	    if (size_change > 0) {
-	      Instance().caps.book_volume(pcap, size_change);
-	    } else {
-	      Instance().caps.free_volume(pcap, size_change);
-	    }
-	    
-	    eos_static_debug("booking %ld bytes on cap ", size_change);
-	  }
-	  capLock.UnLock();
-	  struct timespec tsnow;
-	  eos::common::Timing::GetTimeSpec(tsnow);
-	  
-	  // possibly inline the file in extended attribute before mds update
-	  if (io->ioctx()->inline_file()) {
-	    eos_static_debug("file is inlined");
-	  } else {
-	    eos_static_debug("file is not inlined");
-	  }
-	  
-	  XrdSysMutexHelper mLock(io->md->Locker());
-	  auto map = (*(io->md))()->attr();
-	  
-	  // actually do the flush
-	  if ((rc = io->ioctx()->flush(req))) {
-	    // if we have a flush error, we don't update the MD record
-	    invalidate_inode = true;
-	    (*(io->md))()->set_size(io->opensize());
-	  } else {
-	    Instance().mds.update(req, io->md, io->authid());
-	  }
-	  
-	  std::string cookie = io->md->Cookie();
-	  io->ioctx()->store_cookie(cookie);
-	  capLock.Lock(&pcap->Locker());
-	}
+        cap::shared_cap pcap;
+        {
+          XrdSysMutexHelper mLock(io->md->Locker());
+          auto map = (*(io->md))()->attr();
+
+          if (map.count("user.acl") > 0) { /* file has it's own ACL */
+            mLock.UnLock();
+            cap::shared_cap ccap = Instance().caps.acquire(req, (*(io->md))()->id(), W_OK,
+                                   true);
+            rc = (*ccap)()->errc();
+
+            if (rc == 0) {
+              pcap = Instance().caps.acquire(req, (*(io->md))()->pid(), S_IFDIR | X_OK, true);
+            }
+          } else {
+            mLock.UnLock();
+            pcap = Instance().caps.acquire(req, (*(io->md))()->pid(), S_IFDIR | W_OK, true);
+          }
+        }
+        XrdSysMutexHelper capLock(pcap->Locker());
+
+        if (rc == 0 && (*pcap)()->errc() != 0) {
+          rc = (*pcap)()->errc();
+        }
+
+        if (rc == 0) {
+          {
+            ssize_t size_change = (int64_t)(*(io->md))()->size() - (int64_t) io->opensize();
+
+            if (size_change > 0) {
+              Instance().caps.book_volume(pcap, size_change);
+            } else {
+              Instance().caps.free_volume(pcap, size_change);
+            }
+
+            eos_static_debug("booking %ld bytes on cap ", size_change);
+          }
+          capLock.UnLock();
+          struct timespec tsnow;
+          eos::common::Timing::GetTimeSpec(tsnow);
+
+          // possibly inline the file in extended attribute before mds update
+          if (io->ioctx()->inline_file()) {
+            eos_static_debug("file is inlined");
+          } else {
+            eos_static_debug("file is not inlined");
+          }
+
+          XrdSysMutexHelper mLock(io->md->Locker());
+          auto map = (*(io->md))()->attr();
+
+          // actually do the flush
+          if ((rc = io->ioctx()->flush(req))) {
+            // if we have a flush error, we don't update the MD record
+            invalidate_inode = true;
+            (*(io->md))()->set_size(io->opensize());
+          } else {
+            Instance().mds.update(req, io->md, io->authid());
+          }
+
+          std::string cookie = io->md->Cookie();
+          io->ioctx()->store_cookie(cookie);
+          capLock.Lock(&pcap->Locker());
+        }
       }
-      
+
       // unlock all locks for that owner
       struct flock lock;
       lock.l_type = F_UNLCK;
       lock.l_start = 0;
       lock.l_len = -1;
       lock.l_pid = fi->lock_owner;
-      
+
       if (io->flocked) {
-	lock.l_pid = fuse_req_ctx(req)->pid;
+        lock.l_pid = fuse_req_ctx(req)->pid;
       }
+
       rc |= Instance().mds.setlk(req, io->mdctx(), &lock, 0);
     }
   }

@@ -185,9 +185,7 @@ public:
   virtual int Close();
 
 private:
-  ///! Max offset for async writes before trying to collect some responses
-  static const uint64_t sMaxOffsetWrAsync {5 * 1024 * 1024 * 1024ull};
-  int mNumReplicas; ///< number of replicas for current file
+  int mNumReplicas; ///< Number of replicas for current file
   std::atomic<bool> mHasWriteErr;
   std::atomic<bool> mDoAsyncWrite;
   ///! Replica file object, index 0 is the local file
