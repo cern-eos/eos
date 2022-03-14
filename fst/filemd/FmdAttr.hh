@@ -38,9 +38,9 @@ public:
     return fmd_handler_t::ATTR;
   }
 
-
   void LocalDeleteFmd(eos::common::FileId::fileid_t fid,
-                      eos::common::FileSystem::fsid_t fsid) override;
+                      eos::common::FileSystem::fsid_t fsid,
+                      bool drop_file=false) override;
 
   bool Commit(eos::common::FmdHelper* fmd, bool lockit = true) override;
 
@@ -84,7 +84,7 @@ private:
   std::pair<bool,eos::common::FmdHelper>
   LocalRetrieveFmd(const std::string& path);
 
-  void LocalDeleteFmd(const std::string& path);
+  void LocalDeleteFmd(const std::string& path, bool drop_file);
 
   bool ResetDiskInformation(eos::common::FileSystem::fsid_t fsid) override { return true; };
   bool ResetMgmInformation(eos::common::FileSystem::fsid_t fsid) override { return true; };
