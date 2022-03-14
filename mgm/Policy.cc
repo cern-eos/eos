@@ -148,6 +148,19 @@ Policy::GetLayoutAndSpace(const char* path,
           iotype = app_iotype;
         }
       }
+      {
+	// try application specific iopriority setting
+	std::string appkey = "iopriority.";
+	if (env.Get("eos.app")) {
+	  appkey += env.Get("eos.app");
+	} else {
+	  appkey += "default";
+	}
+	std::string app_iopriority = it->second->GetConfigMember(appkey);
+	if (app_iopriority.length()) {
+	  iopriority = app_iopriority;
+	}
+      }
     }
   }
 
@@ -237,6 +250,19 @@ Policy::GetLayoutAndSpace(const char* path,
         if (app_iotype.length()) {
           iotype = app_iotype;
         }
+      }
+      {
+	// try application specific iopriority setting
+	std::string appkey = "iopriority.";
+	if (env.Get("eos.app")) {
+	  appkey += env.Get("eos.app");
+	} else {
+	  appkey += "default";
+	}
+	std::string app_iopriority = it->second->GetConfigMember(appkey);
+	if (app_iopriority.length()) {
+	  iopriority = app_iopriority;
+	}
       }
     }
   }
@@ -340,7 +366,7 @@ Policy::GetLayoutAndSpace(const char* path,
     }
 
     if (attrmap.count("sys.forced.iopriority")) {
-      iotype = attrmap["sys.forced.iopriority"];
+      iopriority = attrmap["sys.forced.iopriority"];
       eos_static_debug("sys.forced.iopriority i %s : %s", path, iopriority.c_str());
     }
 
