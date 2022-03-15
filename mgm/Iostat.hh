@@ -57,8 +57,7 @@ enum class Period {DAY, HOUR, FIVEMIN, ONEMIN};
 enum class PercentComplete {p90, p95, p99, p100};
 
 //------------------------------------------------------------------------------
-//! Class IostatPeriods holds read/write stats in 60 bins per each period of
-//! last 1day, 1h, 5min, 1min
+//! Class IostatPeriods holds read/write stats for the past 24h
 //------------------------------------------------------------------------------
 class IostatPeriods
 {
@@ -68,10 +67,6 @@ public:
   //----------------------------------------------------------------------------
   IostatPeriods()
   {
-    for (size_t i = 0; i < std::size(mPeriodBins); ++i) {
-      memset(mPeriodBins[i], 0, sizeof(mPeriodBins[i]));
-    }
-
     memset(mDataBuffer, 0, sizeof(mDataBuffer));
     memset(mIntegralBuffer, 0, sizeof(mIntegralBuffer));
   }
@@ -92,64 +87,72 @@ public:
   void Add(unsigned long long val, time_t start, time_t stop,
            time_t now);
 
-  //----------------------------------------------------------------------------
-  //! Reset the bin affected by the given timestamp
-  //----------------------------------------------------------------------------
-  void StampZero(time_t& timestamp);
-
   //------------------------------------------------------------------------------
-  // Reset bin content of the buffer w.r.t. given timstamp
+  //! Reset bin content of the buffer w.r.t. given timstamp
   //------------------------------------------------------------------------------
   void StampBufferZero(time_t& now);
 
-  //----------------------------------------------------------------------------
-  //! Get the sum of values for the given period
-  //!
-  //! @param period type of period
-  //!
-  //! @return sum for the given period
-  //----------------------------------------------------------------------------
-  unsigned long long GetSumForPeriod(Period period) const;
-
   //------------------------------------------------------------------------------
-  // Get the sum of values for the given buffer period
+  //! Get the sum of values for the given buffer period
   //------------------------------------------------------------------------------
   unsigned long long GetDataInPeriod(size_t period,
-                                     unsigned long long time_offset, time_t& now) const;
+                                     unsigned long long time_offset,
+                                     time_t& now) const;
 
   //------------------------------------------------------------------------------
-  // Get longest transfer time in past 24h
+  //! Get longest transfer time in past 24h
   //------------------------------------------------------------------------------
-  unsigned long long GetLongestTransferTime()const;
+  inline unsigned long long GetLongestTransferTime() const
+  {
+    return mLongestTransferTime;
+  }
 
   //------------------------------------------------------------------------------
-  // Get longest transfer report time (time it took to FST report to arrive at MGM) in past 24h
+  //! Get longest transfer report time (time it took to FST report to arrive at
+  //! MGM) in past 24h
   //------------------------------------------------------------------------------
-  unsigned long long GetLongestReportTime() const;
+  unsigned long long GetLongestReportTime() const
+  {
+    return mLongestReportTime;
+  }
+
+  //----------------------------------------------------------------------------
+  //! Return time to completion of transfer of 90/95/99/100% of data for
+  //! transfers seen during sample time [mLastTfSampleUpdateInterval]
+  //------------------------------------------------------------------------------
+  inline unsigned long long GetTimeToPercComplete(PercentComplete perc) const
+  {
+    return (unsigned long long)mDurationToPercComplete[(int)perc];
+  }
 
   //------------------------------------------------------------------------------
-  // Return time to completion of transfer of 90/95/99/100% of data for transfers seen
-  // during sample time [mLastTfSampleUpdateInterval]
+  //! Return average transfer size seen during sample time
+  //! [mLastTfSampleUpdateInterval]
   //------------------------------------------------------------------------------
-  unsigned long long GetTimeToPercComplete(PercentComplete perc) const;
+  inline unsigned long long GetAvgTransferSize() const
+  {
+    return mAvgTfSize;
+  }
 
   //------------------------------------------------------------------------------
-  // Return average transfer size seen during sample time [mLastTfSampleUpdateInterval]
+  //! Return number of transfers seen during sample time
+  //! [mLastTfSampleUpdateInterval]
   //------------------------------------------------------------------------------
-  unsigned long long GetAvgTransferSize() const;
+  inline unsigned long long GetTfCountInSample() const
+  {
+    return mTfCountInSample;
+  }
 
   //------------------------------------------------------------------------------
-  // Return number of transfers seen during sample time [mLastTfSampleUpdateInterval]
+  //! Return total IostatPeriod sum
   //------------------------------------------------------------------------------
-  unsigned long long GetTfCountInSample() const;
+  inline unsigned long long GetTotalSum() const
+  {
+    return mTotal;
+  }
 
   //------------------------------------------------------------------------------
-  // Return total IostatPeriod sum
-  //------------------------------------------------------------------------------
-  unsigned long long GetTotalSum() const;
-
-  //------------------------------------------------------------------------------
-  // Getting the timestamp of the last time the transfer sample was taken
+  //! Getting the timestamp of the last time the transfer sample was taken
   //------------------------------------------------------------------------------
   std::string GetLastSampleUpdateTimestamp(bool date_format = false) const;
 
@@ -157,26 +160,19 @@ private:
 #ifdef IN_TEST_HARNESS
 public:
 #endif
-  static constexpr size_t sNumberOfPeriods = 4;
-  static constexpr size_t sBinsPerPeriod = 60;
-  //! 3 arrays to collect stat per 1day, 1h, 5m and 60sec each within 60 bins
-  unsigned long long mPeriodBins[sNumberOfPeriods][sBinsPerPeriod];
-  unsigned long long mTotal = 0;
-  //! Setting the width of the (60) time bins of the arrays in mPeriodBins to
-  //! 1440sec, 60sec, 5sec and 1 sec respectively
-  const size_t mPeriodBinWidth[sNumberOfPeriods] {1440, 60, 5, 1};
+  unsigned long long mTotal = 0ull;
   static constexpr size_t sBinWidth = 1;
   static constexpr int sBins = 86400;
   //! Number of seconds the sBins correspond to
   static constexpr int sPeriod = sBins * sBinWidth;
   time_t mLastAddTime = 0;
-  unsigned int mLastStampZeroIndex = 99999;
+  time_t mLastStampZeroTime = 0;
   // even if you wait for longest transfer time - you still do not know if the longest
   // transfer length is not longer because there is longer transfer in the pipe !
   unsigned long long mLongestTransferTime = 0;
-  // for safety we monitor how long it took to the transfer report to get to the MGM
+  // Monitor how long it took to the transfer report to get to the MGM
   unsigned long long mLongestReportTime = 0;
-  // how much data was transferred during ibin = mDataBuffer[ibin]
+  // How much data was transferred during ibin = mDataBuffer[ibin]
   double mDataBuffer[sBins];
   // what we can measure is choosing a period of time [sLastTfMaxLenUpdateRate] `
   // for collecting newly finished transfers, distribute these tf into bins,
@@ -185,38 +181,20 @@ public:
   // through the network in the last e.g. 5 min [sLastTfMaxLenUpdateRate] `
   const double mPercComplete[4] {0.90, 0.95, 0.99, 1.0};
   double mIntegralBuffer[sBins];
-  // update rate every 5 minutes
+  // Udate rate every 5 minutes
   const time_t mLastTfSampleUpdateInterval = 300;
   time_t mLastTfMaxLenUpdateTime = 0;
-  // average transfer size in last 5 min [sLastTfMaxLenUpdateRate]
+  // Average transfer size in last 5 min [sLastTfMaxLenUpdateRate]
   unsigned long long mAvgTfSize = 0;
   unsigned long long mTfCount = 0;
   unsigned long long mTfCountInSample = 0;
   unsigned long long mDurationToPercComplete[4] {0, 0, 0, 0};
 
-
-  //----------------------------------------------------------------------------
-  //! Measurement stop time and duration determine which of the bins of the
-  //! corresponding period will get populated with the new values
+  //------------------------------------------------------------------------------
+  //! Update Transfer Buffer to iterate over and calculate how long does it take
+  //! to transfer [mPercComplete] % of the data
   //!
-  //! @param period_indx index of the period to be updated [0, sNumberOfPeriods)
-  //! @param val measured value
-  //! @param tdiff duration of the measurement
-  //! @param stop end time of the measurement
-  //----------------------------------------------------------------------------
-  void AddToPeriod(size_t period_indx, unsigned long long val,
-                   size_t tdiff, time_t stop);
-
-  //------------------------------------------------------------------------------
-  // Measurement stop time and duration determine which of the bins of the
-  // mDataBuffer will get populated with the new stat values
-  //------------------------------------------------------------------------------
-  void AddToDataBuffer(unsigned long long val,
-                       time_t start, time_t stop, time_t now);
-
-  //------------------------------------------------------------------------------
-  // Update Transfer Buffer to iterate over and calculate how long does it take
-  // to transfer [mPercComplete] % of the data
+  //! @param now current timestamp
   //------------------------------------------------------------------------------
   void UpdateTransferSampleInfo(time_t now);
 

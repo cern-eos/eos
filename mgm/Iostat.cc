@@ -123,60 +123,6 @@ void GetTopLevelDomains(std::set<std::string>& domains)
 //------------------------------------------------------------------------------
 
 //------------------------------------------------------------------------------
-// Add measurement to the various periods it overlaps with
-//------------------------------------------------------------------------------
-void
-IostatPeriods::Add(unsigned long long val, time_t start, time_t stop,
-                   time_t now)
-{
-  size_t tdiff = stop - start;
-  size_t toff = now - stop;
-  mTotal += val;
-
-  for (size_t pidx = 0; pidx < std::size(mPeriodBinWidth); ++pidx) {
-    // Chech if stop time falls into the last day/hour/5min/1min interval
-    if (toff < mPeriodBinWidth[pidx] * sBinsPerPeriod) {
-      AddToPeriod(pidx, val, tdiff, stop);
-    }
-  }
-
-  AddToDataBuffer(val, start, stop, now);
-}
-
-//------------------------------------------------------------------------------
-// Measurement stop time and duration determine which of the bins of the
-// corresponding period (period_indx) will get populated with the new stat values
-//------------------------------------------------------------------------------
-void
-IostatPeriods::AddToPeriod(size_t period_indx, unsigned long long val,
-                           size_t tdiff, time_t stop)
-{
-  // Get bin width for the given period
-  size_t bin_width = mPeriodBinWidth[period_indx];
-  // Number of bins the measurement hits
-  size_t mbins = tdiff / bin_width;
-
-  if (mbins == 0) {
-    mbins = 1;
-  }
-
-  // We partially mitigate the precision loss in integer division
-  // when getting norm_val below by redistribution of reminder into bins
-  unsigned long long remainder = val % mbins;
-  unsigned long long norm_val = val / mbins;
-
-  for (size_t bins = 0; bins < mbins; bins++) {
-    size_t bin_indx = (((stop - (bins * bin_width)) / bin_width) % sBinsPerPeriod);
-
-    if (bins < remainder) {
-      mPeriodBins[period_indx][bin_indx] += (norm_val + 1);
-    } else {
-      mPeriodBins[period_indx][bin_indx] += norm_val;
-    }
-  }
-}
-
-//------------------------------------------------------------------------------
 // Adds transfer data on a 24h timeline of [mDataBuffer]
 // Provides:
 // - [mLongestTransferTime] in last 24h
@@ -185,9 +131,10 @@ IostatPeriods::AddToPeriod(size_t period_indx, unsigned long long val,
 // - [mDataBuffer] circular buffer for all transfers in the last 24h
 //------------------------------------------------------------------------------
 void
-IostatPeriods::AddToDataBuffer(unsigned long long val,
-                               time_t start, time_t stop, time_t now)
+IostatPeriods::Add(unsigned long long val, time_t start, time_t stop,
+                   time_t now)
 {
+  mTotal += val;
   double value = (double)val;
 
   // Window start/end times are "|", bin start [ and end ] times
@@ -206,9 +153,9 @@ IostatPeriods::AddToDataBuffer(unsigned long long val,
     return;
   }
 
-  time_t tdiff = stop - start;
+  time_t tdiff = stop - start + 1;
 
-  if (tdiff < 0) {
+  if (tdiff < 1) {
     eos_static_err("%s", "msg=\"transfer start time after stop time\"");
     return;
   }
@@ -245,42 +192,13 @@ IostatPeriods::AddToDataBuffer(unsigned long long val,
 
   // Number of bins the measurement hits
   size_t mbins = tdiff / sBinWidth;
+  double val_per_bin = value / mbins;
+  int index_start = (start / sBinWidth) % sBins;
 
-  if (mbins == 0) {
-    mbins = 1;
-  }
-
-  // This can handle also corner cases like:
-  // * transfers taking < 1sec
-  // * transfers taking exactly boundaries of the 24h window
-  // * transfers taking boundary of bins for start and stop time
   for (size_t ibin = 0; ibin < mbins; ++ibin) {
-    time_t t_ibin_end = stop - (ibin * sBinWidth);
-    time_t t_ibin_start = t_ibin_end - sBinWidth;
-    size_t bin_indx = ((t_ibin_end / sBinWidth) % sBins);
-    time_t t_idata_end = t_ibin_end;
-    time_t t_idata_start = t_ibin_start;
-
-    if (ibin == mbins - 1) {
-      t_idata_start = start;
-    }
-
-    double ival = ((t_idata_end - t_idata_start) * value) / tdiff;
-
-    if (t_idata_end - t_idata_start == 0) {
-      ival = value;
-    }
-
-    // eos_static_info("msg=\"Filled bin, with value %s\"", std::to_string(ival));
-    // recording tf on a 24h timeline of [mDataBuffer]
-    mDataBuffer[bin_indx] += ival;
-    //std::cout << "add " << mbins<< " : " << ibin << " : "
-    //          << bin_indx << " : " <<  mDataBuffer[bin_indx] << std::endl;
-    // Adding portion of data to the integral histogram
-    // (shifting all tf start time to 0)
-    // We could also make integral over rate distribution  to see what is the
-    // speed of 95% of transfers (e.g. faster then x B/s)
-    mIntegralBuffer[ibin] += ival;
+    int bin_index = (index_start + ibin) % sBins;
+    mDataBuffer[bin_index] += val_per_bin;
+    mIntegralBuffer[ibin] += val_per_bin;
   }
 }
 
@@ -297,7 +215,11 @@ IostatPeriods::UpdateTransferSampleInfo(time_t now)
 
   // Update rating (% of transfers)
   for (size_t i = 0; i < sBins; ++i) {
-    sumTx += mIntegralBuffer[i];
+    if (mIntegralBuffer[i]) {
+      sumTx += mIntegralBuffer[i];
+    } else {
+      break;
+    }
   }
 
   // Reset counters for current sample
@@ -349,93 +271,34 @@ IostatPeriods::StampBufferZero(time_t& now)
     UpdateTransferSampleInfo(now);
   }
 
-  size_t last_end_index = (mLastAddTime / sBinWidth) % sBins;
-  size_t now_indx = (now / sBinWidth) % sBins;
-  int zero_range = now_indx - last_end_index ;
+  time_t last_upd_time = std::max(mLastAddTime, mLastStampZeroTime);
+  int zero_bins = 0;
 
-  if (zero_range < 0) {
-    zero_range = now_indx + (sBins - last_end_index);
-  }
-
-  if ((now - mLastAddTime >= (time_t)sPeriod) || (zero_range > (int)sBins)) {
-    zero_range = sBins;
-  }
-
-  // std::cout << zero_range << " " << now << " "<< now_indx << " "
-  //           << last_end_index << " " << mLastStampZeroIndex << std::endl;
-  if (zero_range > 0) {
-    for (size_t pidx_cnt = 0; pidx_cnt < (size_t)zero_range; pidx_cnt++) {
-      int idx = now_indx - pidx_cnt;
-
-      if (idx < 0) {
-        idx = sBins + idx;
+  if (now - last_upd_time >= sPeriod) {
+    zero_bins = sBins;
+  } else {
+    if (last_upd_time < now) {
+      zero_bins = (now - last_upd_time) / sBinWidth;
+    } else {
+      if ((last_upd_time == mLastStampZeroTime) &&
+          (last_upd_time != mLastAddTime)) {
+        zero_bins = 1;
       }
-
-      mDataBuffer[idx] = 0.;
     }
   }
 
-  // In case we change bin, record the change in mLastStampZeroIndex
-  if (now_indx != mLastStampZeroIndex) {
-    mLastStampZeroIndex = now_indx;
+  int start_index = (last_upd_time / sBinWidth) % sBins;
 
-    // In case last transfer stop was same as now, we delete the contents
-    // of this new bin
-    if (zero_range == 0) {
-      mDataBuffer[now_indx] = 0.;
-    }
-  }
-}
-
-//------------------------------------------------------------------------------
-// Reset the bin affected by the given timestamp
-//------------------------------------------------------------------------------
-void
-IostatPeriods::StampZero(time_t& timestamp)
-{
-  for (size_t pidx = 0; pidx < std::size(mPeriodBinWidth); ++pidx) {
-    size_t binT = (timestamp / mPeriodBinWidth[pidx]);
-    mPeriodBins[pidx][(binT + 1) % sBinsPerPeriod] = 0;
-  }
-}
-
-//------------------------------------------------------------------------------
-// Get the sum of values for the given period
-//------------------------------------------------------------------------------
-unsigned long long
-IostatPeriods::GetSumForPeriod(Period period) const
-{
-  unsigned long long sum = 0ull;
-
-  for (size_t i = 0; i < sBinsPerPeriod; ++i) {
-    sum += mPeriodBins[(int)period][i];
+  if (last_upd_time != now) {
+    start_index = (start_index + 1) % sBins;
   }
 
-  return sum;
-}
+  for (int i = 0; i < zero_bins; ++i) {
+    int index = (start_index + i) % sBins;
+    mDataBuffer[index] = 0.;
+  }
 
-//------------------------------------------------------------------------------
-// Return total IostatPeriod sum
-//------------------------------------------------------------------------------
-unsigned long long IostatPeriods::GetTotalSum() const
-{
-  return mTotal;
-}
-
-//------------------------------------------------------------------------------
-// Return max data size per transfer
-//------------------------------------------------------------------------------
-unsigned long long IostatPeriods::GetAvgTransferSize() const
-{
-  return mAvgTfSize;
-}
-
-//------------------------------------------------------------------------------
-// Return number of transfers seen during sample time [mLastTfSampleUpdateInterval]
-//------------------------------------------------------------------------------
-unsigned long long IostatPeriods::GetTfCountInSample() const
-{
-  return mTfCountInSample;
+  mLastStampZeroTime = now;
 }
 
 //------------------------------------------------------------------------------
@@ -471,61 +334,25 @@ IostatPeriods::GetDataInPeriod(size_t period, unsigned long long time_offset,
     period = sPeriod - time_offset;
   }
 
-  size_t start_index = ((now - time_offset) / sBinWidth) % sBins;
-  size_t stop_index = ((now - time_offset - period) / sBinWidth) % sBins;
-  int range = start_index - stop_index ;
+  size_t start_index = ((now - time_offset - period) / sBinWidth) % sBins;
+  size_t stop_index = ((now - time_offset) / sBinWidth) % sBins;
+  int range = stop_index - start_index ;
 
   if (period >= sPeriod) {
     range = sBins;
+    start_index = 0;
   }
 
   if (range < 0) {
-    range = sBins - (stop_index - start_index);
+    range = sBins + range;
   }
 
-  if (range > 0) {
-    int idx = 0;
-
-    for (size_t pidx_cnt = 0; pidx_cnt < (size_t)range; pidx_cnt++) {
-      idx = (start_index - pidx_cnt);
-
-      if (idx < 0) {
-        idx = sBins + idx;
-      }
-
-      sum += mDataBuffer[idx];
-    }
-
-    //std::cout<< "get "<< range<< " "<< start_index << " " << stop_index << "sum" << sum << " idx" << idx << std::endl;
+  for (int pidx_cnt = 0; pidx_cnt < range; ++pidx_cnt) {
+    int idx = (start_index + pidx_cnt) % sBins;
+    sum += mDataBuffer[idx];
   }
 
   return std::ceil(sum);
-}
-
-unsigned long long
-IostatPeriods::GetLongestTransferTime() const
-{
-  return mLongestTransferTime;
-}
-
-unsigned long long
-IostatPeriods::GetLongestReportTime() const
-{
-  return mLongestReportTime;
-}
-
-
-//------------------------------------------------------------------------------
-// Set Update interval for exploring transfer distribution
-//------------------------------------------------------------------------------
-//void IostatPeriods::SetTfUpdateInterval(size_t interval) const{
-//  mLastTfSampleUpdateInterval = interval;
-//}
-
-unsigned long long
-IostatPeriods::GetTimeToPercComplete(PercentComplete perc) const
-{
-  return (unsigned long long)mDurationToPercComplete[(int)perc];
 }
 
 //------------------------------------------------------------------------------
@@ -2815,7 +2642,6 @@ Iostat::Circulate(ThreadAssistant& assistant) noexcept
       google::sparse_hash_map<uid_t, IostatPeriods>::iterator it;
 
       for (it = tit->second.begin(); it != tit->second.end(); ++it) {
-        it->second.StampZero(now);
         it->second.StampBufferZero(now);
       }
     }
@@ -2825,7 +2651,6 @@ Iostat::Circulate(ThreadAssistant& assistant) noexcept
       google::sparse_hash_map<uid_t, IostatPeriods>::iterator it;
 
       for (it = tit->second.begin(); it != tit->second.end(); ++it) {
-        it->second.StampZero(now);
         it->second.StampBufferZero(now);
       }
     }
@@ -2834,27 +2659,23 @@ Iostat::Circulate(ThreadAssistant& assistant) noexcept
     for (dit = IostatPeriodsDomainIOrb.begin();
          dit != IostatPeriodsDomainIOrb.end();
          dit++) {
-      dit->second.StampZero(now);
       dit->second.StampBufferZero(now);
     }
 
     for (dit = IostatPeriodsDomainIOwb.begin();
          dit != IostatPeriodsDomainIOwb.end();
          dit++) {
-      dit->second.StampZero(now);
       dit->second.StampBufferZero(now);
     }
 
     // loop over app accounting
     for (dit = IostatPeriodsAppIOrb.begin(); dit != IostatPeriodsAppIOrb.end();
          dit++) {
-      dit->second.StampZero(now);
       dit->second.StampBufferZero(now);
     }
 
     for (dit = IostatPeriodsAppIOwb.begin(); dit != IostatPeriodsAppIOwb.end();
          dit++) {
-      dit->second.StampZero(now);
       dit->second.StampBufferZero(now);
     }
 
