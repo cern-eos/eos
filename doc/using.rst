@@ -15,6 +15,7 @@ Using EOS
    using/reports
    using/manila
    using/policies
+   using/priorities
    using/systemd
    using/fusex
    using/versions
