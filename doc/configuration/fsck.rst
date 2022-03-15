@@ -4,6 +4,11 @@
    single: Fsck
 
 
+Fsck
+=====
+
+This section describles how the internal file system consystency checks (FSCK) are configured and work.
+
 Enable FST Scan
 ---------------
 
