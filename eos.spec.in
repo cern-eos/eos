@@ -195,6 +195,7 @@ BuildRequires: glibc-headers
 BuildRequires: binutils-devel
 BuildRequires: cppunit-devel
 BuildRequires: help2man
+BuildRequires: libcap-devel
 
 %if 0%{?rhel} != 8
 BuildRequires: openssl-static, ncurses-static
