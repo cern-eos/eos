@@ -406,14 +406,12 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
 
   COMMONTIMING("get::localfmd", &tm);
 
-  if (isCreation) {
-    if (gOFS.FmdOnDb()) {
-      mFmd = gOFS.mFmdHandler->LocalGetFmd(mFileId, mFsId, isRepairRead, mIsRW,
-                                           vid.uid, vid.gid, mLid);
-    } else {
-      mFmd = FmdHandler::make_fmd_helper(mFileId, mFsId, vid.uid, vid.gid,
-                                         mLid);
-    }
+  if (isCreation && !gOFS.FmdOnDb()) {
+    mFmd = FmdHandler::make_fmd_helper(mFileId, mFsId, vid.uid, vid.gid,
+                                       mLid);
+  } else {
+    mFmd = gOFS.mFmdHandler->LocalGetFmd(mFileId, mFsId, isRepairRead, mIsRW,
+                                         vid.uid, vid.gid, mLid);
   }
 
   COMMONTIMING("resync::localfmd", &tm);
