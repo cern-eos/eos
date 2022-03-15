@@ -163,12 +163,13 @@ FmdAttrHandler::LocalGetFmd(eos::common::FileId::fileid_t fid,
     }
 
     if (!eos::common::LayoutId::IsRain(fmd->mProtoFmd.lid())) {
-      if ((fmd->mProtoFmd.disksize() &&
+      if (!do_create &&
+          ((fmd->mProtoFmd.disksize() &&
           (fmd->mProtoFmd.disksize() != eos::common::FmdHelper::UNDEF) &&
           (fmd->mProtoFmd.disksize() != fmd->mProtoFmd.size())) ||
          (fmd->mProtoFmd.mgmsize() &&
           (fmd->mProtoFmd.mgmsize() != eos::common::FmdHelper::UNDEF) &&
-          (fmd->mProtoFmd.mgmsize() != fmd->mProtoFmd.size()))) {
+          (fmd->mProtoFmd.mgmsize() != fmd->mProtoFmd.size())))) {
         eos_crit("msg=\"size mismatch disk/mgm vs memory\" fxid=%08llx "
                  "fsid=%lu size=%llu disksize=%llu mgmsize=%llu",
                  fid, (unsigned long) fsid, fmd->mProtoFmd.size(),
@@ -176,9 +177,10 @@ FmdAttrHandler::LocalGetFmd(eos::common::FileId::fileid_t fid,
         return nullptr;
       }
 
-      if ((fmd->mProtoFmd.filecxerror() == 1) ||
+      if (!do_create &&
+          ((fmd->mProtoFmd.filecxerror() == 1) ||
           (fmd->mProtoFmd.mgmchecksum().length() &&
-           (fmd->mProtoFmd.mgmchecksum() != fmd->mProtoFmd.checksum()))) {
+           (fmd->mProtoFmd.mgmchecksum() != fmd->mProtoFmd.checksum())))) {
         eos_crit("msg=\"checksum error flagged/detected\" fxid=%08llx "
                  "fsid=%lu checksum=%s diskchecksum=%s mgmchecksum=%s "
                  "filecxerror=%d blockcxerror=%d", fid,
