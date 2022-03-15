@@ -95,6 +95,7 @@ ConverterDriver::Convert(ThreadAssistant& assistant) noexcept
       eos_static_err("msg=\"invalid conversion scheduled\" fxid=%08llx "
                      "conversion_id=%s", fid, info.second.c_str());
       mQdbHelper.RemovePendingJob(fid);
+      gOFS->mFidTracker.RemoveEntry(fid);
     }
 
     HandleRunningJobs();
