@@ -2,8 +2,8 @@
 .. index::
    single: Developing EOS
 
-Develop
-=================================================
+Developing EOS
+===============
 
 .. image:: cpp.jpg
    :scale: 40%
