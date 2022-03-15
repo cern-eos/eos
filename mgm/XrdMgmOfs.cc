@@ -1583,7 +1583,7 @@ XrdMgmOfs::Tried(XrdCl::URL& url, std::string& host, const char* terr)
   for (size_t i = 0; i < v_hosts.size(); ++i) {
     if ((v_hosts[i] == host) &&
         (i < v_rc.size()) &&
-        ( (v_rc[i] == std::string(terr)) || (std::string(terr) == "*"))) {
+        ((v_rc[i] == std::string(terr)) || (std::string(terr) == "*"))) {
       return true;
     }
   }
@@ -1875,7 +1875,6 @@ XrdMgmOfs::BroadcastQuery(const std::string& request,
       eos_static_err("msg=\"invalid url\" url=\"%s\"", oss.str().c_str());
       std::unique_lock<std::mutex> lock(mutex);
       responses.emplace(ep, std::make_pair(EINVAL, "invalid url"));
-      --num_resp;
       continue;
     }
 
@@ -1887,7 +1886,6 @@ XrdMgmOfs::BroadcastQuery(const std::string& request,
                      ep.c_str());
       std::unique_lock<std::mutex> lock(mutex);
       responses.emplace(ep, std::make_pair(EINVAL, "failed query insert"));
-      --num_resp;
       continue;
     }
 
@@ -1904,7 +1902,6 @@ XrdMgmOfs::BroadcastQuery(const std::string& request,
                      ep.c_str());
       std::unique_lock<std::mutex> lock(mutex);
       responses.emplace(ep, std::make_pair(EINVAL, "failed query send"));
-      --num_resp;
       continue;
     }
   }
