@@ -60,6 +60,7 @@ RainMetaLayout::RainMetaLayout(XrdFstOfsFile* file,
   mDoneRecovery(false),
   mIsStreaming(true),
   mStoreRecovery(storeRecovery),
+  mStoreRecoveryRW(false),
   mStripeHead(-1),
   mNbTotalFiles(0),
   mNbDataBlocks(0),
@@ -183,7 +184,7 @@ RainMetaLayout::Open(XrdSfsFileOpenMode flags, mode_t mode, const char* opaque)
     flags = SFS_O_RDWR;
     mIsRw = true;
   } else if (flags & (SFS_O_RDWR | SFS_O_TRUNC | SFS_O_WRONLY)) {
-    mStoreRecovery = true;
+    mStoreRecoveryRW = true;
     mIsRw = true;
     // Files are never open in update mode!
     flags |= (SFS_O_RDWR | SFS_O_TRUNC);
@@ -399,10 +400,13 @@ RainMetaLayout::OpenPio(std::vector<std::string> stripeUrls,
   //!!!!
   // TODO: allow open only in read only mode
   // Set the correct open flags for the stripe
-  if (mStoreRecovery ||
-      (flags & (SFS_O_CREAT | SFS_O_WRONLY | SFS_O_RDWR | SFS_O_TRUNC))) {
+  if (mStoreRecovery) {
+    flags = SFS_O_RDWR;
     mIsRw = true;
-    mStoreRecovery = true;
+    eos_debug("%s", "msg=\"write recovery case\"");
+  } else if (flags & (SFS_O_CREAT | SFS_O_WRONLY | SFS_O_RDWR | SFS_O_TRUNC)) {
+    mStoreRecoveryRW = true;
+    mIsRw = true;
     eos_debug("%s", "msg=\"write case\"");
   } else {
     mode = 0;
@@ -569,7 +573,7 @@ RainMetaLayout::ValidateHeader()
           mHdrInfo[hd_id_valid]->GetSizeLastBlock());
 
         // If file successfully opened, we need to store the info
-        if (mStoreRecovery && mStripe[physical_id]) {
+        if ((mStoreRecovery || mStoreRecoveryRW) && mStripe[physical_id]) {
           eos_info("msg=\"recovered header for stripe %i\"", mapPL[physical_id]);
           mHdrInfo[physical_id]->WriteToFile(mStripe[physical_id].get(), mTimeout);
         }
@@ -629,6 +633,8 @@ RainMetaLayout::Read(XrdSfsFileOffset offset, char* buffer,
     }
 
     if (((offset < 0) && (mIsRw)) || ((offset == 0) && mStoreRecovery)) {
+      eos_info("msg=\"force file recover mode\" path=%s",
+               mOfsFile->mOpenOpaque->Get("mgm.path"));
       // Force recover file mode - use first extra block as dummy buffer
       offset = 0;
       int64_t len = mFileSize;
@@ -1452,7 +1458,7 @@ RainMetaLayout::Close()
 
   if (mIsOpen) {
     if (mIsEntryServer) {
-      if (mStoreRecovery) {
+      if (mStoreRecovery || mStoreRecoveryRW) {
         if (mDoneRecovery || mDoTruncate) {
           eos_debug("%s", "msg=\"truncating after recovery or at end of write\"");
           mDoTruncate = false;

@@ -236,6 +236,8 @@ protected:
   //! Set if recovery also triggers writing back to the files, this also means
   //! that all files must be available
   bool mStoreRecovery;
+  //! Store recovery flags due to file begin opened in RW mode
+  bool mStoreRecoveryRW;
   int mStripeHead; ///< head stripe value
   int mPhysicalStripeIndex; ///< physical index of the current stripe
   unsigned int mNbParityFiles; ///< number of parity files

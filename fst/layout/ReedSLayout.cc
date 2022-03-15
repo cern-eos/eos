@@ -301,7 +301,7 @@ ReedSLayout::RecoverPiecesInGroup(XrdCl::ChunkList& grp_errs)
     stripe_id = *iter;
     physical_id = mapLP[stripe_id];
 
-    if (mStoreRecovery && mStripe[physical_id]) {
+    if ((mStoreRecovery || mStoreRecoveryRW) && mStripe[physical_id]) {
       phandler = static_cast<AsyncMetaHandler*>
                  (mStripe[physical_id]->fileGetAsyncHandler());
 
@@ -342,7 +342,7 @@ ReedSLayout::RecoverPiecesInGroup(XrdCl::ChunkList& grp_errs)
   for (auto iter = invalid_ids.begin(); iter != invalid_ids.end(); ++iter) {
     physical_id = mapLP[*iter];
 
-    if (mStoreRecovery && mStripe[physical_id]) {
+    if ((mStoreRecovery || mStoreRecoveryRW) && mStripe[physical_id]) {
       phandler = static_cast<AsyncMetaHandler*>
                  (mStripe[physical_id]->fileGetAsyncHandler());
 
