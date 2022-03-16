@@ -2018,14 +2018,15 @@ if [ $NUM_FST -ge 6 ]; then
    # Run xrdcpnonstreaming test to make sure the final file checksum which
    # requires re-reading the entire file for computation is correct
    TESTFILE_NONSTREAMING=$EOS_TEST_TESTSYS/cp_non_streaming.dat
-   dd if=/dev/urandom of=$TESTFILE_NONSTREAMING bs=1M count=40
-   CKS_NONSTREAMING=`eos-adler32 $TESTFILE_NONSTREAMING | awk '{print $4}' | sed s/adler32=//`
-   runtest "### WrNonStreamRaiddp" unix 0 "" cp_nonstreaming  $TESTFILE_NONSTREAMING "/eos/$EOS_TEST_INSTANCE/test/instancetest/raiddp/eos_non_stream.dat"
-   runtest "### CheckXsRaiddp    " unix 0 "" shell eos -j -b fileinfo "/eos/$EOS_TEST_INSTANCE/test/instancetest/raiddp/eos_non_stream.dat" | jq -r .checksumvalue | grep $CKS_NONSTREAMING
-   runtest "### WrNonStreamRaid6 " unix 0 "" cp_nonstreaming $TESTFILE_NONSTREAMING "/eos/$EOS_TEST_INSTANCE/test/instancetest/raid6/eos_non_stream.dat"
-   runtest "### CheckXsRaid6     " unix 0 "" shell eos -j -b fileinfo "/eos/$EOS_TEST_INSTANCE/test/instancetest/raid6/eos_non_stream.dat" | jq -r .checksumvalue | grep $CKS_NONSTREAMING
-   runtest "### WrNonStreamQrain " unix 0 "" cp_nonstreaming $TESTFILE_NONSTREAMING "/eos/$EOS_TEST_INSTANCE/test/instancetest/qrain/eos_non_stream.dat"
-   runtest "### CheckXsQrain     " unix 0 "" shell eos -j -b fileinfo "/eos/$EOS_TEST_INSTANCE/test/instancetest/qrain/eos_non_stream.dat" | jq -r .checksumvalue | grep $CKS_NONSTREAMING
+   dd if=/dev/urandom of=$TESTFILE_NONSTREAMING bs=1M count=40 > /dev/null 2>&1
+   CKS_NONSTREAMING=`eos-checksum crc32c $TESTFILE_NONSTREAMING | awk '{print $4}' | sed s/crc32c=//`
+   runtest "### NStreamDp     " unix 0 "" cp_nonstreaming  $TESTFILE_NONSTREAMING "/eos/$EOS_TEST_INSTANCE/test/instancetest/raiddp/eos_non_stream.dat"
+   eos fileinfo "/eos/$EOS_TEST_INSTANCE/test/instancetest/raiddp/eos_non_stream.dat"
+   runtest "### XsRaiddp      " unix 0 "" eosj fileinfo "/eos/$EOS_TEST_INSTANCE/test/instancetest/raiddp/eos_non_stream.dat | jq -r '.checksumvalue' | grep $CKS_NONSTREAMING"
+   runtest "### NStream6      " unix 0 "" cp_nonstreaming $TESTFILE_NONSTREAMING "/eos/$EOS_TEST_INSTANCE/test/instancetest/raid6/eos_non_stream.dat"
+   runtest "### XsRaid6       " unix 0 "" eosj fileinfo "/eos/$EOS_TEST_INSTANCE/test/instancetest/raid6/eos_non_stream.dat | jq -r '.checksumvalue' | grep $CKS_NONSTREAMING"
+   runtest "### NStreamQ      " unix 0 "" cp_nonstreaming $TESTFILE_NONSTREAMING "/eos/$EOS_TEST_INSTANCE/test/instancetest/qrain/eos_non_stream.dat"
+   runtest "### XsQrain       " unix 0 "" eosj fileinfo "/eos/$EOS_TEST_INSTANCE/test/instancetest/qrain/eos_non_stream.dat | jq -r '.checksumvalue' | grep $CKS_NONSTREAMING"
 
    # Clean up the files used for the RAIN test
    runtest "### Cleanup   " unix 2 "" eos rm "-r" "/eos/$EOS_TEST_INSTANCE/test/instancetest/raiddp"
