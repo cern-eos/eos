@@ -93,7 +93,7 @@ private:
    * HttpResponse factory for the tape REST API
    */
   TapeRestApiResponseFactory mTapeRestApiResponseFactory;
-  inline static const std::string VERSION_0 = "v1";
+  inline static const std::string VERSION_0 = "v0";
   //Is set to true if the tape REST API is activated, false otherwise
   bool mIsActivated;
   //The site name that will be used for the targetedMetadata
