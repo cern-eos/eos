@@ -28,6 +28,7 @@ EOS - Open Storage Documentation
    configuration
    clicommands
    restapi
+   taperestapi
    QuarkDB Documentation <https://quarkdb.web.cern.ch>
 
 .. image:: grafana.jpg
