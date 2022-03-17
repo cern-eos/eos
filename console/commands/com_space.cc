@@ -611,8 +611,8 @@ com_space_usage:
   fprintf(stdout,
           "       space config <space-name> fs.<key>=<value>                    : configure file system parameters for each filesystem in this space (see help of 'fs config' for details)\n");
   fprintf(stdout, "\n");
-  std::string restApiConfig = std::string("       space config default ") + eos::mgm::rest::TAPE_REST_API_SWITCH_ON_OFF + std::string("=on|off            : enable/disable the tape REST API handler [ default=off ]\n");
-  fprintf(stdout,
+  std::string restApiConfig = std::string("       space config default ") + eos::mgm::rest::TAPE_REST_API_SWITCH_ON_OFF + std::string("=on|off            : enable/disable the tape REST API handler [ default=off ]");
+  fprintf(stdout,"%s\n",
           restApiConfig.c_str());
 
   fprintf(stdout,

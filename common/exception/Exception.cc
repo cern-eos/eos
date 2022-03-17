@@ -39,7 +39,7 @@ int Exception::fillXrdErrInfo(XrdOucErrInfo & error,int errorCode) const {
   if (errorCode < 0) {
     errorCode = -errorCode;
   }
-  snprintf(buffer, sizeof(buffer), mErrorMsg.c_str());
+  snprintf(buffer, sizeof(buffer), "%s" ,mErrorMsg.c_str());
   error.setErrInfo(errorCode,buffer);
   return SFS_ERROR;
 }
