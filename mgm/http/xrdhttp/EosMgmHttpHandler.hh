@@ -24,6 +24,7 @@
 #include "XrdHttp/XrdHttpExtHandler.hh"
 #include "common/Logging.hh"
 #include "XrdVersion.hh"
+#include <optional>
 
 //! Forward declaration
 class XrdMgmOfs;
