@@ -1751,7 +1751,6 @@ data::datax::recover_write(fuse_req_t req)
 
       ::close(fd);
       {
-        eos::common::RWMutexWriteLock wLock(XrdCl::Proxy::gDeleteMutex);
         delete uploadproxy;
       }
 
@@ -1782,7 +1781,7 @@ data::datax::recover_write(fuse_req_t req)
 
           sBufferManager.put_buffer(buffer);
           {
-            eos::common::RWMutexWriteLock wLock(XrdCl::Proxy::gDeleteMutex);
+	    uploadproxy->WaitWrite(req);
             delete uploadproxy;
           }
 
@@ -1811,7 +1810,6 @@ data::datax::recover_write(fuse_req_t req)
         sBufferManager.put_buffer(buffer);
         eos_crit("got failure when collecting outstanding writes from the upload proxy");
         {
-          eos::common::RWMutexWriteLock wLock(XrdCl::Proxy::gDeleteMutex);
           delete uploadproxy;
         }
 
