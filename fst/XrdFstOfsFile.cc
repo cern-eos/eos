@@ -476,7 +476,18 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
       /* Populate local DB (future reads need it) */
       unsigned long long clFid = eos::common::FileId::Hex2Fid(sCloneFST);
       auto lfmd = gOFS.mFmdHandler->LocalGetFmd(clFid, mFsId, false, mIsRW,
-                  vid.uid, vid.gid, mLid);
+                                                vid.uid, vid.gid, mLid);
+
+      if (lfmd == nullptr) {
+        // We have an invalid FMD, drop and try again!
+        gOFS.mFmdHandler->LocalDeleteFmd(clFid,mFsId);
+        lfmd = gOFS.mFmdHandler->LocalGetFmd(clFid, mFsId, false, mIsRW,
+                                             vid.uid, vid.gid, mLid);
+        // FIXME: maybe we don't need to exit here?
+        if (!lfmd) {
+          return gOFS.Emsg(epname, error, ENOENT, "open unable to create FMD");
+        }
+      }
       lfmd->mProtoFmd.set_checksum(mFmd->mProtoFmd.checksum());
       lfmd->mProtoFmd.set_diskchecksum(mFmd->mProtoFmd.diskchecksum());
       lfmd->mProtoFmd.set_mgmchecksum(mFmd->mProtoFmd.mgmchecksum());
