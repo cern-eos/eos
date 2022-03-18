@@ -16,6 +16,35 @@ Introduction
 This release is based on XRootD V4 and IPV6 enabled.
 
 
+``v4.8.79 Citrine``
+===================
+
+2022-03-18
+
+Bug
+----
+
+* FST: Fix reference size for RAIN layouts which needs to match the logical
+  size of the file and not the physical size of the local stripe. This can
+  lead to HTTP errors when trying to read these such files.
+* [EOS-5133] - node ls -b does not remove the domain names
+* [EOS-5153] - EC file written via FUSEx - mismatching checksum
+* FST: Add support for real-time IO priority
+
+
+Improvement
+-----------
+
+* [EOS-5126] - [eos-ns-inspect] Complement `stripediff` ouput
+* DOC: Add documentation on IO priorities configuration
+
+New Feature
+------------
+
+* MGM: Added tape REST API support
+* Add eos-iam-gridmap file support for interacting with IAMs
+
+
 ``v4.8.78 Citrine``
 ===================
 
