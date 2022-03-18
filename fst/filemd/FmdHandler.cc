@@ -307,12 +307,12 @@ FmdHandler::ResyncAllDisk(const char* path,
     return false;
   }
 
-  uint64_t scan_sz;
+  uint64_t scan_sz=0;
   std::string scan_xs_hex;
   auto ret = WalkFSTree(path,
-                        std::mem_fn(&FmdHandler::ResyncDisk),
-                        this,
-                        fsid, flaglayouterror, scan_sz, scan_xs_hex);
+                        [&](const char* path) {
+                          this->ResyncDisk(path, fsid, flaglayouterror, scan_sz, scan_xs_hex);
+                        });
   return ret.status;
 }
 

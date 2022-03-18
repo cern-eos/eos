@@ -48,10 +48,9 @@ struct walk_tree_ret_t {
 // It is necessary that the function's first argument is a const char* path
 // This function uses FTS to walk through directory entries and
 // doesn't follow symlinks and only operates on regular files atm
-template <typename ExcludeFn, typename MemFn,
-          typename Ptr, typename... Args>
+template <typename ExcludeFn, typename PathOp>
 walk_tree_ret_t
-WalkDirTree(std::vector<char*>&& paths, ExcludeFn exclude_fn, MemFn&& f, Ptr ptr, Args&&... args)
+WalkDirTree(std::vector<char*>&& paths, ExcludeFn exclude_fn, PathOp path_op)
 {
 
   FTS* tree = fts_open(paths.data(), FTS_NOCHDIR, 0);
@@ -69,12 +68,9 @@ WalkDirTree(std::vector<char*>&& paths, ExcludeFn exclude_fn, MemFn&& f, Ptr ptr
     } else {
       if (node->fts_info == FTS_F) {
         if (!exclude_fn(node->fts_accpath)) {
-          cnt++;
+          ++cnt;
           eos_static_debug("file=%s", node->fts_accpath);
-          std::invoke(std::forward<MemFn>(f),
-                      ptr,
-                      node->fts_accpath,
-                      std::forward<Args>(args)...);
+          path_op(node->fts_path);
 
           if (!(cnt % 10000)) {
             eos_static_info("msg=\"synced files so far\" nfiles=%llu", cnt);
@@ -95,17 +91,13 @@ WalkDirTree(std::vector<char*>&& paths, ExcludeFn exclude_fn, MemFn&& f, Ptr ptr
 
 // A function useful for walking FST trees, where xsmap files are usually excluded
 // This variant expects a member function to be applied across the tree
-template <typename F, typename Ptr, typename... Args>
+template <typename UnaryOp>
 walk_tree_ret_t
-WalkFSTree(std::string path, F&& f, Ptr ptr, Args&&... args)
+WalkFSTree(std::string path, UnaryOp&& op)
 {
-  static_assert(std::is_pointer<Ptr>::value,
-                "This function expects a pointer");
   return WalkDirTree({path.data(),nullptr},
                     exclude_xs_map,
-                    std::forward<F>(f),
-                    ptr,
-                    std::forward<Args>(args)...);
+                    std::forward<UnaryOp>(op));
 }
 
 } // namespace eos::fst

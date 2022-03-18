@@ -222,9 +222,10 @@ FmdAttrHandler::GetInconsistencyStatistics(
     std::map<std::string, std::set<eos::common::FileId::fileid_t>>& fidset)
 {
   auto ret = WalkFSTree(gOFS.Storage->GetStoragePath(fsid),
-                        std::mem_fn(&FmdAttrHandler::UpdateInconsistencyStat),
-                        this,
-                        statistics, fidset);
+                        [this, &statistics, &fidset ](const char* path) {
+                          this->UpdateInconsistencyStat(path, statistics, fidset);
+                        }
+);
   statistics["mem_n"] += ret.count;
   return ret.status;
 }
