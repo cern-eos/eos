@@ -1,17 +1,20 @@
 .. highlight:: rst
 
+.. index::
+   single: Configuration
+
 Configuration
 =============
 
 Enable XRootD HTTP support on the MGM
 -------------------------------------
 
-Enable XRootD HTTP support by following the :ref:`http_tpc`
+Enable XRootD HTTP support by following the :doc:`../configuration/http_tpc`
 
 xrd.cf.mgm configuration
 ------------------------
 
-On the ``/etc/xrd.cf.mgm`` configuration file, the following parameters must set.
+On the ``/etc/xrd.cf.mgm`` configuration file, the following parameters must be set:
 
 .. code-block:: text
 
