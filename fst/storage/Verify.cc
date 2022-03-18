@@ -130,31 +130,40 @@ Storage::Verify()
       eos_static_err("unable to verify id=%x on fs=%u path=%s - no local MD stored",
                      verifyfile->fId, verifyfile->fsId, fstPath.c_str());
     } else {
-      if ((fMd->mProtoFmd.size() != (unsigned long long) statinfo.st_size)  ||
-          (fMd->mProtoFmd.disksize() != (unsigned long long) statinfo.st_size)) {
-        eos_static_err("updating file size: path=%s fxid=%s fs value %llu - changelog value %llu",
-                       verifyfile->path.c_str(), hex_fid.c_str(), statinfo.st_size,
-                       fMd->mProtoFmd.size());
+      if (fMd->mProtoFmd.disksize() != (unsigned long long) statinfo.st_size) {
+        eos_static_err("msg=\"updating disk size\" path=\"%s\" fxid=%s "
+                       "stat_sz=%llu disk_sz=%llu", verifyfile->path.c_str(),
+                       hex_fid.c_str(), statinfo.st_size,
+                       fMd->mProtoFmd.disksize());
         fMd->mProtoFmd.set_disksize(statinfo.st_size);
         localUpdate = true;
       }
 
       if (fMd->mProtoFmd.lid() != verifyfile->lId) {
-        eos_static_err("updating layout id: path=%s fxid=%s central value %u - changelog value %u",
-                       verifyfile->path.c_str(), hex_fid.c_str(), verifyfile->lId,
-                       fMd->mProtoFmd.lid());
+        eos_static_err("msg=\"updating layout id\" path=\"%s\" fxid=%s "
+                       "central value %u - changelog value %u",
+                       verifyfile->path.c_str(), hex_fid.c_str(),
+                       verifyfile->lId, fMd->mProtoFmd.lid());
         localUpdate = true;
       }
 
       if (fMd->mProtoFmd.cid() != verifyfile->cId) {
-        eos_static_err("updating container: path=%s fxid=%s central value %llu - changelog value %llu",
-                       verifyfile->path.c_str(), hex_fid.c_str(), verifyfile->cId,
-                       fMd->mProtoFmd.cid());
+        eos_static_err("msg=\"updating container id\" path=\"%s\" fxid=%s "
+                       "central value %llu - changelog value %llu",
+                       verifyfile->path.c_str(), hex_fid.c_str(),
+                       verifyfile->cId, fMd->mProtoFmd.cid());
         localUpdate = true;
       }
 
-      // update size
-      fMd->mProtoFmd.set_size(statinfo.st_size);
+      // Update reference size
+      if (eos::common::LayoutId::IsRain(fMd->mProtoFmd.lid())) {
+        // This is the best he have, no easy way to know the logical size
+        // for a RAIN file
+        fMd->mProtoFmd.set_size(fMd->mProtoFmd.mgmsize());
+      } else {
+        fMd->mProtoFmd.set_size(statinfo.st_size);
+      }
+
       fMd->mProtoFmd.set_lid(verifyfile->lId);
       fMd->mProtoFmd.set_cid(verifyfile->cId);
       std::unique_ptr<CheckSum> checksummer =
@@ -280,8 +289,7 @@ Storage::Verify()
             capOpaqueFile += "&mgm.commit.size=1";
           }
 
-	  capOpaqueFile += "&mgm.commit.verify=1";
-
+          capOpaqueFile += "&mgm.commit.verify=1";
           capOpaqueFile += "&mgm.mtime=";
           capOpaqueFile += eos::common::StringConversion::GetSizeString(mTimeString,
                            (unsigned long long) fMd->mProtoFmd.mtime());
