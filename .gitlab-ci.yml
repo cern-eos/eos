@@ -332,6 +332,7 @@ build_cc7_clang:
     RPMBUILD_OPTIONS: "--with clang"
   only:
     - schedules
+    - triggers
 
 build_cc7_xrd_testing: # @todo Re-enable xrd_testing jobs once project ugprades to XRootD 5
   before_script:
