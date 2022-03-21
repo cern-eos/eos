@@ -38,7 +38,7 @@ For FSCK engine to function correctly, FSTs must be able to connect to QuarkDB d
 
 
 Overview
-========
+--------
 
 High level summary
 ------------------
@@ -109,7 +109,7 @@ orphans_n      orphan files (no record for replica/file in mgm)      no action a
 
 
 Configuration
-=============
+--------------
 
 space
 -----
@@ -227,12 +227,12 @@ For a more comprehensive error report, use **eos fsck report** this will only co
 
 
 Repair
-=======
+-------
 
 Most of the repair operations are implemented using the DrainTransferJob functionality.
 
 Operations
-===========
+-----------
 
 Inspect FST local error stats
 -----------------------------
@@ -277,7 +277,7 @@ See if the fsck repair thread is active and how log its work queue is (cross che
    all FsckRepairSuccessful          63.12 M   857.75  1106.88  1110.64   917.44     -NA-      -NA-
 
 Log examples
-============
+------------
 
 Startup of FST service and initializing fsck threads:
 
@@ -341,7 +341,7 @@ The file has an FsckEntry i.e. is marked from repair, and was previously listed 
 
 
 Discrepancy reported errors
------------------------------------------------------------------------------------------
+----------------------------
 
 ... between fsck report summary / per filesystem and fsck stat.
 EOS fsck report is giving different numbers for total report and per filesystem summary. This is expected.
