@@ -41,6 +41,7 @@
 #include "mgm/http/rest-api/json/tape/model-builders/PathsModelBuilder.hh"
 #include "mgm/http/rest-api/business/tape/TapeRestApiBusiness.hh"
 #include "mgm/http/rest-api/Constants.hh"
+#include "mgm/IMaster.hh"
 
 EOSMGMRESTNAMESPACE_BEGIN
 
@@ -121,6 +122,9 @@ bool TapeRestHandler::isRestRequest(const std::string& requestURL) {
 common::HttpResponse* TapeRestHandler::handleRequest(common::HttpRequest* request, const common::VirtualIdentity * vid) {
   //URL = /entrypoint/version/resource-name/...
   std::string url = request->GetUrl();
+  if(gOFS != nullptr && !gOFS->mMaster->IsMaster()){
+    return mTapeRestApiResponseFactory.createInternalServerError("The tape REST API can only be called on a MASTER MGM").getHttpResponse();
+  }
   try {
     Controller * controller = mControllerManager.getController(url);
     return controller->handleRequest(request,vid);
