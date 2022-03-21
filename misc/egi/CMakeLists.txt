@@ -1,10 +1,11 @@
 # ----------------------------------------------------------------------
 # File: CMakeLists.txt
+# Author: Elvin-Alin Sindrilaru - CERN
 # ----------------------------------------------------------------------
 
 # ************************************************************************
 # * EOS - the CERN Disk Storage System                                   *
-# * Copyright (C) 2016 CERN/Switzerland                                  *
+# * Copyright (C) 2012 CERN/Switzerland                                  *
 # *                                                                      *
 # * This program is free software: you can redistribute it and/or modify *
 # * it under the terms of the GNU General Public License as published by *
@@ -20,10 +21,8 @@
 # * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
 # ************************************************************************
 
-if (NOT APPLE)
-add_subdirectory(etc)
-add_subdirectory(sbin)
-add_subdirectory(selinux)
-add_subdirectory(var)
-add_subdirectory(egi)
-endif()
+install(FILES eos-star-accounting.py eos-info-provider.py
+        DESTINATION ${CMAKE_INSTALL_FULL_BINDIR}
+        PERMISSIONS OWNER_READ OWNER_EXECUTE
+                    GROUP_READ GROUP_EXECUTE
+                    WORLD_READ WORLD_EXECUTE)
