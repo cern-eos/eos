@@ -1,6 +1,9 @@
 //------------------------------------------------------------------------------
 // File: Iostat.cc
 // Authors: Andreas-Joachim Peters/Jaroslav Guenther      - CERN
+//
+// Implementation follows presentation from EOS Workshop in 2022
+// https://indico.cern.ch/event/1103358/contributions/4758312/attachments/2402845/4109660/EOS_IO_stat_monitoring.pdf
 //------------------------------------------------------------------------------
 
 /************************************************************************
@@ -167,11 +170,6 @@ IostatPeriods::Add(unsigned long long val, time_t start, time_t stop,
     mLastAddTime = stop;
   }
 
-  if ((size_t)now % sPeriod == 0) {
-    mLongestTransferTime = 0;
-    mLongestReportTime = 0;
-  }
-
   if (mLongestTransferTime < (unsigned int)tdiff) {
     mLongestTransferTime = tdiff;
   }
@@ -212,6 +210,7 @@ IostatPeriods::UpdateTransferSampleInfo(time_t now)
 {
   // Sum data of all transfers
   double sumTx = 0.;
+  
 
   // Update rating (% of transfers)
   for (size_t i = 0; i < sBins; ++i) {
@@ -254,6 +253,10 @@ IostatPeriods::UpdateTransferSampleInfo(time_t now)
   }
 
   mTfCount = 0;
+  mLongestTransferTimeInSample = mLongestTransferTime;
+  mLongestReportTimeInSample = mLongestReportTime;
+  mLongestTransferTime= 0;
+  mLongestReportTime = 0;
   memset(mIntegralBuffer, 0, sizeof(mIntegralBuffer));
   mLastTfMaxLenUpdateTime = now;
 }
@@ -1345,7 +1348,7 @@ Iostat::PrintOut(XrdOucString& out, bool summary, bool details,
       }
 
       XrdOucString marker_sec =
-        "\n┏━> Transfer (tf) sample info every 5 min: tf time for 90/95/99/100% of data, max tf and report times (last 24h), average tf size, tf count.\n";
+        "\n┏━> Transfer (tf) sample info every 5 min: tf time for 90/95/99/100% of data, max tf and report times, average tf size, tf count.\n";
       TableFormatterBase table_user_sec;
 
       if (!monitoring) {
@@ -1802,7 +1805,7 @@ Iostat::PrintOut(XrdOucString& out, bool summary, bool details,
       }
 
       XrdOucString marker_sec =
-        "\n┏━> Transfer (tf) sample info every 5 min: tf time for 90/95/99/100% of data, max tf and report times (last 24h), average tf size, tf count.\n";
+        "\n┏━> Transfer (tf) sample info every 5 min: tf time for 90/95/99/100% of data, max tf and report times, average tf size, tf count.\n";
       TableFormatterBase table_domain_sec;
 
       if (!monitoring) {
@@ -2028,7 +2031,7 @@ Iostat::PrintOut(XrdOucString& out, bool summary, bool details,
       }
 
       XrdOucString marker_sec =
-        "\n┏━> Transfer (tf) sample info every 5 min: tf time for 90/95/99/100% of data, max tf and report times (last 24h), average tf size, tf count.\n";
+        "\n┏━> Transfer (tf) sample info every 5 min: tf time for 90/95/99/100% of data, max tf and report times, average tf size, tf count.\n";
       TableFormatterBase table_app_sec;
 
       if (!monitoring) {

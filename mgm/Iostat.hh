@@ -104,7 +104,7 @@ public:
   //------------------------------------------------------------------------------
   inline unsigned long long GetLongestTransferTime() const
   {
-    return mLongestTransferTime;
+    return mLongestTransferTimeInSample;
   }
 
   //------------------------------------------------------------------------------
@@ -113,7 +113,7 @@ public:
   //------------------------------------------------------------------------------
   unsigned long long GetLongestReportTime() const
   {
-    return mLongestReportTime;
+    return mLongestReportTimeInSample;
   }
 
   //----------------------------------------------------------------------------
@@ -168,10 +168,6 @@ public:
   time_t mLastAddTime = 0;
   time_t mLastStampZeroTime = 0;
   // even if you wait for longest transfer time - you still do not know if the longest
-  // transfer length is not longer because there is longer transfer in the pipe !
-  unsigned long long mLongestTransferTime = 0;
-  // Monitor how long it took to the transfer report to get to the MGM
-  unsigned long long mLongestReportTime = 0;
   // How much data was transferred during ibin = mDataBuffer[ibin]
   double mDataBuffer[sBins];
   // what we can measure is choosing a period of time [sLastTfMaxLenUpdateRate] `
@@ -186,10 +182,19 @@ public:
   time_t mLastTfMaxLenUpdateTime = 0;
   // Average transfer size in last 5 min [sLastTfMaxLenUpdateRate]
   unsigned long long mAvgTfSize = 0;
-  unsigned long long mTfCount = 0;
-  unsigned long long mTfCountInSample = 0;
   unsigned long long mDurationToPercComplete[4] {0, 0, 0, 0};
-
+// Transfer count
+  unsigned long long mTfCount = 0;
+  // Transfer length is not longer because there is longer transfer in the pipe !
+  unsigned long long mLongestTransferTime = 0;
+  // Monitor how long it took to the transfer report to get to the MGM
+  unsigned long long mLongestReportTime = 0;
+  // The next 3 variables mean the same as the last 3 above, but these are
+  // to be exposed to the user, evaluated every [mLastTfSampleUpdateInterval]
+  unsigned long long mTfCountInSample = 0;
+  unsigned long long mLongestTransferTimeInSample = 0;
+  unsigned long long mLongestReportTimeInSample = 0;
+  
   //------------------------------------------------------------------------------
   //! Update Transfer Buffer to iterate over and calculate how long does it take
   //! to transfer [mPercComplete] % of the data
