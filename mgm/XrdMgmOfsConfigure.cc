@@ -1792,6 +1792,12 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
 
   eos_info("msg=\"/ permissions are %o\"", rootmd->getMode());
 
+  //mProcDirectoryBulkRequestLocations.reset(new bulk::ProcDirectoryBulkRequestLocations(MgmProcPath.c_str()));
+
+  std::string restApiProcBulkRequestPath = MgmProcPath.c_str();
+  restApiProcBulkRequestPath += "/tape-rest-api";
+  mProcDirectoryBulkRequestTapeRestApiLocations.reset(new bulk::ProcDirectoryBulkRequestLocations(restApiProcBulkRequestPath));
+
   if (mMaster->IsMaster()) {
     // Create /eos/ and /eos/<instance>/ directories
     std::shared_ptr<eos::IContainerMD> eosmd;
@@ -1998,8 +2004,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
     }
 
     // Create bulkrequest-related directories
-    mProcDirectoryBulkRequestLocations.reset(new bulk::ProcDirectoryBulkRequestLocations(MgmProcPath.c_str()));
-
+    /*
     for(const std::string & bulkReqDirPath : mProcDirectoryBulkRequestLocations->getAllBulkRequestDirectoriesPath()){
       try {
         eosmd = gOFS->eosView->getContainer(bulkReqDirPath);
@@ -2031,10 +2036,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
         }
       }
     }
-
-    std::string restApiProcBulkRequestPath = MgmProcPath.c_str();
-    restApiProcBulkRequestPath += "/tape-rest-api";
-    mProcDirectoryBulkRequestTapeRestApiLocations.reset(new bulk::ProcDirectoryBulkRequestLocations(restApiProcBulkRequestPath));
+     */
 
     for(const std::string & bulkReqDirPath : mProcDirectoryBulkRequestTapeRestApiLocations->getAllBulkRequestDirectoriesPath()){
       try {
@@ -2072,6 +2074,14 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
       SetupProcFiles();
     }
   }
+  /*
+  // start the bulk-request proc directory cleaner
+  mBulkReqProcCleaner.reset(new bulk::BulkRequestProcCleaner(*gOFS->mProcDirectoryBulkRequestLocations,bulk::BulkRequestProcCleanerConfig::getDefaultConfig()));
+  mBulkReqProcCleaner->Start();
+   */
+
+  mHttpTapeRestApiBulkReqProcCleaner.reset(new bulk::BulkRequestProcCleaner(*gOFS->mProcDirectoryBulkRequestTapeRestApiLocations,bulk::BulkRequestProcCleanerConfig::getDefaultConfig()));
+  mHttpTapeRestApiBulkReqProcCleaner->Start();
 
   // Initialize the replication tracker
   mReplicationTracker.reset(ReplicationTracker::Create(
@@ -2178,13 +2188,6 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
                                     std::string("/.admin_socket:") + std::to_string(ManagerPort);
     AdminSocketServer.reset(new eos::mgm::AdminSocket(admin_socket_path));
   }
-
-  // start the bulk-request proc directory cleaner
-  mBulkReqProcCleaner.reset(new bulk::BulkRequestProcCleaner(*gOFS->mProcDirectoryBulkRequestLocations,bulk::BulkRequestProcCleanerConfig::getDefaultConfig()));
-  mBulkReqProcCleaner->Start();
-
-  mHttpTapeRestApiBulkReqProcCleaner.reset(new bulk::BulkRequestProcCleaner(*gOFS->mProcDirectoryBulkRequestTapeRestApiLocations,bulk::BulkRequestProcCleanerConfig::getDefaultConfig()));
-  mHttpTapeRestApiBulkReqProcCleaner->Start();
 
   {
     eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
