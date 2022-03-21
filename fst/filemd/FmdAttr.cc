@@ -1,7 +1,7 @@
 #include "FmdAttr.hh"
 #include "fst/io/local/LocalIo.hh"
 #include "fst/XrdFstOfs.hh"
-#include "fst/utils/WalkDirTree.hh"
+#include "fst/utils/FTSWalkTree.hh"
 #include "FmdHandler.hh"
 #include <functional>
 

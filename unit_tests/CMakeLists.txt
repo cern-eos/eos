@@ -134,7 +134,7 @@ set(UT_SRCS
   ${COMMON_UT_SRCS})
 
 set(UT_FST_SRCS
-  ${FST_UT_SRCS})
+  ${FST_UT_SRCS} fst/WalkDirTreeTests.cc)
 
 #-------------------------------------------------------------------------------
 # eos-unit-tests executable

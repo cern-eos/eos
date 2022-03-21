@@ -11,7 +11,7 @@
 #include "namespace/ns_quarkdb/persistency/RequestBuilder.hh"
 #include "namespace/ns_quarkdb/QdbContactDetails.hh"
 #include "qclient/structures/QSet.hh"
-#include "fst/utils/WalkDirTree.hh"
+#include "fst/utils/FTSWalkTree.hh"
 
 EOSFSTNAMESPACE_BEGIN
 
