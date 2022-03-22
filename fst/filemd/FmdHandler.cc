@@ -78,7 +78,6 @@ FmdHandler::UpdateWithDiskInfo(eos::common::FileSystem::fsid_t fsid,
 
   // Update reference size only if undefined
   if (valfmd.mProtoFmd.size() == eos::common::FmdHelper::UNDEF) {
-    valfmd.mProtoFmd.set_size(disk_size);
       // This is done only for non-rain layouts
       if (!eos::common::LayoutId::IsRain(valfmd.mProtoFmd.lid())) {
         valfmd.mProtoFmd.set_size(disk_size);
