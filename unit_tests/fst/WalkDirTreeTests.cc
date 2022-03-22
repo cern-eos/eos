@@ -27,7 +27,13 @@
 #include "fst/utils/StdFSWalkTree.hh"
 #include "fst/utils/FTSWalkTree.hh"
 
+
+#if defined(__clang__) && __clang_major__ < 6
+namespace fs = std::experimental::filesystem::v1;
+#else
 namespace fs = std::filesystem;
+#endif
+
 
 static const std::string BASE_DIR="fstest";
 
@@ -88,12 +94,13 @@ std::unordered_set<std::string> expected_files = {
     "/tmp/fstest/file1",
     "/tmp/fstest/file2"
 };
+using eos::fst::stdfs::IsRegularFile;
 
 TEST_F(TmpDirTree, WalkFSTree)
 {
   std::unordered_set<std::string> files;
   auto filter_fn = [](const auto& p)  {
-    return p->is_regular_file() && p->path().extension() != ".xsmap";
+    return IsRegularFile(p) && p->path().extension() != ".xsmap";
   };
 
   auto process_fn  = [&files](const fs::path& p, int) {

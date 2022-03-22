@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// File: FSWalkDirTree
+// File: StdFSWalkDirTree
 // Author: Abhishek Lekshmanan - CERN
 // ----------------------------------------------------------------------
 
@@ -21,13 +21,27 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 #pragma once
-#include <filesystem>
+
 #include <string_view>
 
+#if defined(__clang__) && __clang_major__ < 6
+#include <experimental/filesystem>
+#else
+#include <filesystem>
+#endif
+
+
+
 // A std::filesystem version of Filesystem like functions for eos
+// Clang support is in experimental namespace until clang 6
 namespace eos::fst::stdfs {
 
+#if defined(__clang__) && __clang_major__ < 6
+namespace fs = std::experimental::filesystem::v1;
+#else
 namespace fs = std::filesystem;
+#endif
+
 
 // A walk directory tree function using the recursive directory iterator.
 // Hidden files or directories are not visited, and symlinks not followed
@@ -78,6 +92,17 @@ uint64_t WalkFSTree(std::string_view path, FilterFn&& filter, PathOp&& path_op,
   }
 
   return count;
+}
+
+// This works with multiple directory iterator types hence the template
+template <typename It>
+bool IsRegularFile(It it)
+{
+#if defined(__clang__) && __clang_major__ < 6
+  return fs::is_regular_file(it->path());
+#else
+  return it->is_regular_file();
+#endif
 }
 
 } // namespace eos::fst::fsutils
