@@ -17,6 +17,26 @@ Introduction
 This release is based on XRootD V5.
 
 
+``v5.0.15 Diopside``
+===================
+
+2022-03-22
+
+Note
+-----
+
+* Includes all the changes from 4.8.79
+
+Bug
+----
+
+* FUSEX: never keep the deletion mutex when distroying an upload proxy because
+  the destructor still needs a free call back thread to use HandleResponse
+* [EOS-5153] - EC file written via FUSEx - mismatching checksum
+* [EOS-5167] - MGM segv in a non-tape enabled instance
+
+
+
 ``v5.0.14 Diopside``
 ===================
 
