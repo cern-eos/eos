@@ -171,19 +171,6 @@ TEST(IostatPeriods, GetAddBufferData)
   ASSERT_EQ(0, iostattbins.GetDataInPeriod(0, 0, now));
   ASSERT_EQ(0, iostattbins.GetLongestTransferTime());
 
-  for (int i = 0; i < 86400; i++) {
-    iostattbins.mDataBuffer[i] = 1;
-  }
-
-  for (int i = 0; i < 86401; i++) {
-    ASSERT_EQ(i, iostattbins.GetDataInPeriod(i, 0, now));
-  }
-
-  for (int i = 0; i < 86400; i++) {
-    iostattbins.mDataBuffer[i] = 0;
-    iostattbins.mIntegralBuffer[i] = 0;
-  }
-
   time_t stop = 86399;
   time_t start = 0;
   iostattbins.Add(86400, start, stop, now);
@@ -239,7 +226,10 @@ TEST(IostatPeriods, GetAddBufferData)
     iostattbins.Add(2000, start, stop, now);
 
     if (stop < 86400) {
-      ASSERT_EQ(0, iostattbins.GetDataInPeriod(86400, 0, now));
+      if (i % 100 == 0){
+        // modulo operation to speed up the testing 
+        ASSERT_EQ(0, iostattbins.GetDataInPeriod(86400, 0, now));
+      }
     } else {
       int out = (86400 - start + 1);
 
@@ -248,12 +238,13 @@ TEST(IostatPeriods, GetAddBufferData)
       } else {
         total += 2000;
       }
-
-      ASSERT_EQ(std::ceil(total), iostattbins.GetDataInPeriod(86400, 0, now));
+      if (i % 100 == 0){
+        // modulo operation to speed up the testing 
+        ASSERT_EQ(std::ceil(total), iostattbins.GetDataInPeriod(86400, 0, now));
+      }
       start += 1;
     }
   }
-
   // Zero the data buffer
   for (int i = 0; i < 86401; i++) {
     time_t stamp = now + i;
@@ -265,7 +256,7 @@ TEST(IostatPeriods, GetAddBufferData)
   auto ts_end = std::chrono::system_clock::now();
   auto duration = std::chrono::duration_cast<std::chrono::microseconds>
                   (ts_end - ts_start);
-  std::cerr << "Time: " << duration.count() << " us\n";
+  std::cerr << "Time to GetDataInPeriod for all bins: " << duration.count() << " us\n";
   // Test adding and getting transfers of the same length and size
   // but different start and stop times (adding double value per bin)
   total = 0;
@@ -275,9 +266,11 @@ TEST(IostatPeriods, GetAddBufferData)
   for (int i = 0; i < 2 * 86400 - 9; i++) {
     stop = start + 9;
     iostattbins.Add(1, start, stop, now);
-
     if (stop < 86400) {
-      ASSERT_EQ(0, iostattbins.GetDataInPeriod(86400, 0, now));
+      if (i % 100 == 0){
+        // modulo operation to speed up the testing 
+        ASSERT_EQ(0, iostattbins.GetDataInPeriod(86400, 0, now));
+      }
     } else {
       int out = (86400 - start + 1);
 
@@ -289,7 +282,10 @@ TEST(IostatPeriods, GetAddBufferData)
 
       //std::cout << "out" << out << " start" << start << " stop" << stop << " total" <<
       //          total << std::endl;
-      ASSERT_EQ(std::ceil(total), iostattbins.GetDataInPeriod(86400, 0, now));
+      if (i % 100 == 0){
+        // modulo operation to speed up the testing 
+        ASSERT_EQ(std::ceil(total), iostattbins.GetDataInPeriod(86400, 0, now));
+      }
       start += 1;
     }
   }

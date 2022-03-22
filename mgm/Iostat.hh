@@ -161,6 +161,9 @@ private:
 public:
 #endif
   unsigned long long mTotal = 0ull;
+  // If sBinWidth !=1 please beware of the trasfer
+  // start and stop bins getting the right transfer volume and add code block
+  // currently commented out starting from line 199
   static constexpr size_t sBinWidth = 1;
   static constexpr int sBins = 86400;
   //! Number of seconds the sBins correspond to
