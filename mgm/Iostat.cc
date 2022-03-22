@@ -195,6 +195,16 @@ IostatPeriods::Add(unsigned long long val, time_t start, time_t stop,
 
   for (size_t ibin = 0; ibin < mbins; ++ibin) {
     int bin_index = (index_start + ibin) % sBins;
+    // Code block to be added and tested in case sBinWidth !=1
+    // double ival = val_per_bin;
+    // if (ibin == 0 and mbins > 1):
+    //   time_t t_start_bin_duration = (sBins * sBinWidth) - (start - t_window_start) - sBinWidth * (mbins - 1)
+    //   ival = (t_start_bin_duration * value) / tdiff;
+    // if (ibin == mbins - 1 and mbins > 1):
+    //   time_t t_stop_bin_duration = (sBins * sBinWidth) - (now - stop) - sBinWidth * (mbins - 1)
+    //   ival = (t_stop_bin_duration * value) / tdiff;
+    // mDataBuffer[bin_index] += ival;
+    // mIntegralBuffer[ibin] += ival;
     mDataBuffer[bin_index] += val_per_bin;
     mIntegralBuffer[ibin] += val_per_bin;
   }
@@ -210,7 +220,6 @@ IostatPeriods::UpdateTransferSampleInfo(time_t now)
 {
   // Sum data of all transfers
   double sumTx = 0.;
-  
 
   // Update rating (% of transfers)
   for (size_t i = 0; i < sBins; ++i) {
@@ -255,7 +264,7 @@ IostatPeriods::UpdateTransferSampleInfo(time_t now)
   mTfCount = 0;
   mLongestTransferTimeInSample = mLongestTransferTime;
   mLongestReportTimeInSample = mLongestReportTime;
-  mLongestTransferTime= 0;
+  mLongestTransferTime = 0;
   mLongestReportTime = 0;
   memset(mIntegralBuffer, 0, sizeof(mIntegralBuffer));
   mLastTfMaxLenUpdateTime = now;
