@@ -1,17 +1,18 @@
 .. highlight:: rst
+
 .. index::
    single: Developing EOS
 
-Develop
-=================================================
+Developing EOS
+===============
 
 .. image:: cpp.jpg
    :scale: 40%
    :align: left
 
 
-Getting a development machine [CERN specific]:
-=================================================
+Getting a development machine [CERN specific]
+----------------------------------------------
 
 Go to `CERN Openstack <https://openstack.cern.ch/>`_ and find project 'IT EOS development' (if you are not a member ask your colleagues to give you access). Check in the Menu:Project/Compute/Overview if there are still free resources to be used. If not, coordinate with your colleagues on reviewing if all currently existing machines are needed. If yes, inform your section leader that you would like to ask for more resources, then follow `Request Quota <https://clouddocs.web.cern.ch/projects/project_quota_request.html>`_.
 
@@ -21,7 +22,7 @@ Once the machine is running, you can log-in from aiadm.cern.ch to your machine (
 
 
 Source Code
-=================================================
+-------------
 
 Ask EOS developers at CERN to give you write permissions to the `EOS repository <https://gitlab.cern.ch/dss/eos.git>`_.
 The current development model is that anyone with permission can directly commit to master branch. Newcomers are encouraged to create a separate branch and make a merge request with review from one of the main developers.
@@ -51,7 +52,7 @@ Create a build directory ...
    cd build
 
 Create your dev environment using utils scripts (Recommended)
-============================================================
+--------------------------------------------------------------
 
 Two utility scripts have been created to ease the setup of the development environment necessary to build and install EOS on a bare Centos VM.
 These scripts are located in the :code:`utils` directory. Feel free to modify them as they could be outdated. These scripts automate what is documented in
@@ -90,12 +91,12 @@ You are ready to compile
 You can skip the next parts and go directly to the `Compilation`_ part of this documentation. Though you can also read them if you need to troubleshoot future problems.
 
 Dependencies
-=================================================
+-------------
 
 .. warning:: Before compilation of the master branch you have to make sure that you installed all required dependencies.
 
 EL7
-------------------------------------
+----
 
 There is a convenience scripts to install all dependencies in the EOS source tree:
 
@@ -106,7 +107,7 @@ There is a convenience scripts to install all dependencies in the EOS source tre
 This script might not be up to date. To be sure you are having all the dependencies installed consistently with the version of EOS code you just downloaded, one first needs to define the EOS yum repositories as stated in the `Quick Start Guide/Setup YUM Repository <http://eos-docs.web.cern.ch/eos-docs/quickstart/setup_repo.html#eos-base-setup-repos>`_. One may also look for inspiration at the Dockerfiles in the :code:`eos/gitlab-ci/prebuild_OSbase` of your repository, which follows a similar process we will layout below.
 
 In general
-------------------------------------
+----------
 
 Ask the developers which cmake version is currently supported (cmake3 as of Dec 2020), then, install the following packages (e.g. ccache for speeding up compiling):
 
@@ -148,8 +149,8 @@ Then, run:
     yum install quarkdb quarkdb-debuginfo redis
 
 
-Important troubleshooting steps:
-++++++++++++++++++++++++++++++++++
+Important troubleshooting steps
+--------------------------------
 
 During the last command, you may encounter error such as *Error: No Package found for libmicrohttpd-devel >= 0.9.38*, this can be resolved by:
 
@@ -194,7 +195,7 @@ It may also currently install *eos-folly-2020.10.05.00-1.el7.cern.x86_64* which 
 
 
 Optional
-++++++++++++++++++++++++++++++++++
+--------
 
 .. code-block:: bash
 
@@ -206,7 +207,7 @@ install moreutils just for 'ts', nice to benchmark the build time.
 
 
 Compilation
-=================================================
+------------
 
 
 EOS is a system of libraries which gets loaded by the xrootd executable. In order to run the version you just cloned (or later modified), you have to compile those libraries and then make sure xrootd loads the correct ones. In order to facilitate the deployment, we install ninja-build package (like :code:`make` but faster):
@@ -225,8 +226,8 @@ Create a new build directory and try to run cmake (see troubleshooting below):
     cmake3 ../ -G Ninja -DCMAKE_INSTALL_PREFIX=/usr/ -Wno-dev -DCMAKE_C_COMPILER=/opt/rh/devtoolset-8/root/usr/bin/cc -DCMAKE_CXX_COMPILER=/opt/rh/devtoolset-8/root/usr/bin/c++
 
 
-Compile:
-------------------------------------
+Compile
+--------
 
 
 .. code-block:: bash
@@ -236,8 +237,8 @@ Compile:
     unit_tests/eos-unit-tests
 
 
-Troubleshooting:
-++++++++++++++++++++++++++++++++++
+Troubleshooting
+----------------
 
 The following dependencies might not be required (you should be able to ignore these in the cmake3 output):
 
@@ -254,7 +255,7 @@ The following dependencies might not be required (you should be able to ignore t
 If when executing the unit tests you have errors about the linker that could not find .so files, you can update your :code:`LD_LIBRARY_PATH` to add to it the :code:`common` and the :code:`mq` directory of your EOS build directory.
 
 Deployment
-=================================================
+----------
 
 
 Use Ninja to install EOS on your development machine:
@@ -286,13 +287,13 @@ After you finish your deployment configuration (see below) and you start modifyi
     systemctl start eos
 
 
-Deployment Configuration:
-=================================================
+Deployment Configuration
+-------------------------
 
 We need to configure and run the following set of daemons: MGM, MQ (messaging service between MGM and FSTs), several FSTs and QuarkDB.
 
 QuarkDB
-------------------------------------
+-------
 
 Create a configuration file :code:`/etc/xrootd/xrootd-quarkdb.cfg` with the following content:
 
@@ -367,7 +368,7 @@ Test if the QuarkDB runs fine by saving and retrieving key-value pair:
 
 
 MGM
-------------------------------------
+----
 
 
 The environment configuration will be loaded from :code:`/etc/sysconfig/eos_env` which you need to create from a provided example.
@@ -459,7 +460,7 @@ You will see errors *RefreshBrokersEndpoints* this is due to the fact that MQ is
     ...
 
 Troubleshooting:
-++++++++++++++++++++++++++++++++++
+----------------
 
 If by looking at the :code:`/var/log/eos/mgm/xrdlog.mgm` log file, you see the following error:
 
@@ -475,7 +476,7 @@ Then do
 
 
 MQ
-------------------------------------
+---
 
 Look at :code:`/etc/sysconfig/eos_env` and :code:`/etc/xrd.cf.mq` in case you would want any changes there (this can stay as provided by default).
 
@@ -491,7 +492,7 @@ On the other hand the *RefreshBrokersEndpoints* of the MGM  :code:`/var/log/eos/
 
 
 FST
-------------------------------------
+----
 
 Look at :code:`/etc/sysconfig/eos_env` in case you would want any changes there (this can stay as provided by default). For each of XRD_ROLES there has to be a configuration file created. For each the file systems you wish to add, you need to create a new configuration file from a provided template :code:`/etc/xrd.cf.fst`. The template can be used directly, but you might want to change the port number in each:
 
@@ -564,7 +565,7 @@ If you now run :code:` eos node ls`, you should see the list of (3) FST nodes as
 
 
 Troubleshooting:
-++++++++++++++++++++++++++++++++++
+-----------------
 
 If you see in the log file :code:`/var/log/eos/fstX/xrdlog.fst1`
 
@@ -590,7 +591,7 @@ Note: If you are running multiple MGM nodes on separate hosts, you may also need
 
 
 EOS namespace configuration
-------------------------------------
+----------------------------
 
 
 We have QuarkDB, MQ, MGM, and FST daemons running. Now we need to define the EOS space

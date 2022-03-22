@@ -24,6 +24,7 @@
 #include "XrdHttp/XrdHttpExtHandler.hh"
 #include "common/Logging.hh"
 #include "XrdVersion.hh"
+#include <optional>
 
 //! Forward declaration
 class XrdMgmOfs;
@@ -176,4 +177,24 @@ private:
   //----------------------------------------------------------------------------
   bool GetOfsPlugin(XrdSysError* eDest, const std::string& confg,
                     XrdOucEnv* myEnv);
+  //----------------------------------------------------------------------------
+  //! Reads the body of the XrdHttpExtReq object and put it in the
+  //! body string
+  //!
+  //! @param req the request from which we will read the body content from
+  //! @param body, the string where the body from the request will be put on
+  //!
+  //! @return a return code if there was an error during the reading. Nothing otherwise,
+  //! hence the optional<int>
+  //----------------------------------------------------------------------------
+  std::optional<int> readBody(XrdHttpExtReq& req, std::string& body);
+
+  //----------------------------------------------------------------------------
+  //! Returns true if the request is a macaroon token request
+  //! false otherwise
+  //! @param req the request from which we will read the header and the HTTP verb
+  //!
+  //! @return true if the request is a macaroon token request, false otherwise
+  //----------------------------------------------------------------------------
+  bool isMacaroonRequest(const XrdHttpExtReq& req);
 };

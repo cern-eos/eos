@@ -77,6 +77,11 @@
 #include "XrdSys/XrdSysPlugin.hh"
 #include "XrdOuc/XrdOucTrace.hh"
 #include "qclient/shared/SharedManager.hh"
+#include "mgm/bulk-request/dao/proc/ProcDirectoryBulkRequestLocations.hh"
+#include "mgm/bulk-request/dao/proc/cleaner/BulkRequestProcCleaner.hh"
+#include "mgm/bulk-request/dao/proc/cleaner/BulkRequestProcCleanerConfig.hh"
+#include "mgm/http/rest-api/manager/RestApiManager.hh"
+#include "mgm/http/rest-api/Constants.hh"
 
 extern XrdOucTrace gMgmOfsTrace;
 extern void xrdmgmofs_shutdown(int sig);
@@ -614,6 +619,9 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
           } else {
             if ((!strcmp("true", val) || (!strcmp("1", val)))) {
               mTapeEnabled = true;
+              mRestApiManager->getTapeRestApiConfig()->setTapeEnabled(mTapeEnabled);
+            } else {
+              mRestApiManager->getTapeRestApiConfig()->setTapeEnabled(false);
             }
 
             Eroute.Say("=====> mgmofs.tapeenabled : ", val);
@@ -1048,6 +1056,20 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
           }
         }
       }
+
+      if (!strcmp("taperestapi.sitename", var)) {
+        val = Config.GetWord();
+        auto tapeRestApiConfig = mRestApiManager->getTapeRestApiConfig();
+
+        if (val != nullptr) {
+          tapeRestApiConfig->setSiteName(val);
+          tapeRestApiConfig->setActivated(true);
+          Eroute.Say("=====> taperestapi.sitename: ", val, "");
+        } else {
+          tapeRestApiConfig->setActivated(false);
+          Eroute.Say("Config warning: REST API sitename not specified, disabling tape REST API.");
+        }
+      }
     }
 
     if ((retc = Config.LastError())) {
@@ -1403,7 +1425,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
     eos_crit(msg.str().c_str());
     return 1;
   }
-  
+
   // Initialize the HA setup
   mMaster.reset(new eos::mgm::QdbMaster(mQdbContactDetails, ManagerId.c_str()));
 
@@ -1508,6 +1530,8 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   MgmProcTrackerPath += "/tracker";
   MgmProcTokenPath = MgmProcPath;
   MgmProcTokenPath += "/token";
+  MgmProcBulkRequestPath = MgmProcPath;
+  MgmProcBulkRequestPath += "/bulkrequests";
   Recycle::gRecyclingPrefix.insert(0, MgmProcPath.c_str());
   instancepath += subpath;
   // Initialize user mapping
@@ -1581,6 +1605,11 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   }
 
   eos_info("msg=\"/ permissions are %o\"", rootmd->getMode());
+  //mProcDirectoryBulkRequestLocations.reset(new bulk::ProcDirectoryBulkRequestLocations(MgmProcPath.c_str()));
+  std::string restApiProcBulkRequestPath = MgmProcPath.c_str();
+  restApiProcBulkRequestPath += "/tape-rest-api";
+  mProcDirectoryBulkRequestTapeRestApiLocations.reset(new
+      bulk::ProcDirectoryBulkRequestLocations(restApiProcBulkRequestPath));
 
   if (mMaster->IsMaster()) {
     // Create /eos/ and /eos/<instance>/ directories
@@ -1787,9 +1816,86 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
       }
     }
 
+    // Create bulkrequest-related directories
+    /*
+    for(const std::string & bulkReqDirPath : mProcDirectoryBulkRequestLocations->getAllBulkRequestDirectoriesPath()){
+      try {
+        eosmd = gOFS->eosView->getContainer(bulkReqDirPath);
+      } catch (const eos::MDException& e) {
+        eosmd = nullptr;
+      }
+
+      if (!eosmd) {
+        try {
+          eosmd = gOFS->eosView->createContainer(bulkReqDirPath, true);
+          eosmd->setMode(S_IFDIR | S_IRWXU);
+          eosmd->setCUid(2); // bulk-request directories are owned by daemon
+          eosmd->setCGid(2);
+          gOFS->eosView->updateContainerStore(eosmd.get());
+        } catch (const eos::MDException& e) {
+          {
+            std::ostringstream errorMsg;
+            errorMsg << "cannot set the " << bulkReqDirPath
+                     << " directory mode to initial mode";
+            Eroute.Emsg("Config", errorMsg.str().c_str());
+          }
+          {
+            std::ostringstream errorMsg;
+            errorMsg << "cannot set the " << bulkReqDirPath
+                     << " directory mode to 700";
+            eos_crit(errorMsg.str().c_str());
+          }
+          return 1;
+        }
+      }
+    }
+     */
+
+    for (const std::string& bulkReqDirPath :
+         mProcDirectoryBulkRequestTapeRestApiLocations->getAllBulkRequestDirectoriesPath()) {
+      try {
+        eosmd = gOFS->eosView->getContainer(bulkReqDirPath);
+      } catch (const eos::MDException& e) {
+        eosmd = nullptr;
+      }
+
+      if (!eosmd) {
+        try {
+          eosmd = gOFS->eosView->createContainer(bulkReqDirPath, true);
+          eosmd->setMode(S_IFDIR | S_IRWXU);
+          eosmd->setCUid(2); // bulk-request directories are owned by daemon
+          eosmd->setCGid(2);
+          gOFS->eosView->updateContainerStore(eosmd.get());
+        } catch (const eos::MDException& e) {
+          {
+            std::ostringstream errorMsg;
+            errorMsg << "cannot set the " << bulkReqDirPath
+                     << " directory mode to initial mode";
+            Eroute.Emsg("Config", errorMsg.str().c_str());
+          }
+          {
+            std::ostringstream errorMsg;
+            errorMsg << "cannot set the " << bulkReqDirPath
+                     << " directory mode to 700";
+            eos_crit(errorMsg.str().c_str());
+          }
+          return 1;
+        }
+      }
+    }
+
     SetupProcFiles();
   }
 
+  /*
+  // start the bulk-request proc directory cleaner
+  mBulkReqProcCleaner.reset(new bulk::BulkRequestProcCleaner(*gOFS->mProcDirectoryBulkRequestLocations,bulk::BulkRequestProcCleanerConfig::getDefaultConfig()));
+  mBulkReqProcCleaner->Start();
+   */
+  mHttpTapeRestApiBulkReqProcCleaner.reset(new bulk::BulkRequestProcCleaner(
+        *gOFS->mProcDirectoryBulkRequestTapeRestApiLocations,
+        bulk::BulkRequestProcCleanerConfig::getDefaultConfig()));
+  mHttpTapeRestApiBulkReqProcCleaner->Start();
   // Initialize the replication tracker
   mReplicationTracker.reset(ReplicationTracker::Create(
                               MgmProcTrackerPath.c_str()));
@@ -1874,6 +1980,24 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
     std::string admin_socket_path = std::string(gOFS->MgmMetaLogDir.c_str()) +
                                     std::string("/.admin_socket:") + std::to_string(ManagerPort);
     AdminSocketServer.reset(new eos::mgm::AdminSocket(admin_socket_path));
+  }
+  {
+    eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
+
+    if (FsView::gFsView.mSpaceView.find("default") !=
+        FsView::gFsView.mSpaceView.end()) {
+      const std::string& restApiSwitchOnOff =
+        FsView::gFsView.mSpaceView["default"]->GetConfigMember(
+          eos::mgm::rest::TAPE_REST_API_SWITCH_ON_OFF);
+
+      if (restApiSwitchOnOff == "on") {
+        mRestApiManager->getTapeRestApiConfig()->setActivated(true);
+      } else {
+        mRestApiManager->getTapeRestApiConfig()->setActivated(false);
+      }
+    } else {
+      mRestApiManager->getTapeRestApiConfig()->setActivated(false);
+    }
   }
   // start the LRU daemon
   mLRUEngine->Start();
@@ -1984,7 +2108,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
     mConverterDriver.reset(new eos::mgm::ConverterDriver(mQdbContactDetails));
     mConverterDriver->Start();
   }
-  
+
   {
     eos_static_info("%s", "msg=\"test mutex extra info deduction");
     eos::common::RWMutexWriteLock wr_lock(eosViewRWMutex);
@@ -2013,6 +2137,9 @@ XrdMgmOfs::InitStats()
   MgmStats.Add("AttrLs", 0, 0, 0);
   MgmStats.Add("AttrRm", 0, 0, 0);
   MgmStats.Add("AttrSet", 0, 0, 0);
+  MgmStats.Add("BulkRequestBusiness::getBulkRequest", 0, 0, 0);
+  MgmStats.Add("BulkRequestBusiness::getStageBulkRequest", 0, 0, 0);
+  MgmStats.Add("BulkRequestBusiness::saveBulkRequest", 0, 0, 0);
   MgmStats.Add("Cd", 0, 0, 0);
   MgmStats.Add("Checksum", 0, 0, 0);
   MgmStats.Add("Chmod", 0, 0, 0);
@@ -2168,6 +2295,12 @@ XrdMgmOfs::InitStats()
   MgmStats.Add("Stall", 0, 0, 0);
   MgmStats.Add("Stat", 0, 0, 0);
   MgmStats.Add("Symlink", 0, 0, 0);
+  MgmStats.Add("TapeRestApiBusiness::cancelStageBulkRequest", 0, 0, 0);
+  MgmStats.Add("TapeRestApiBusiness::createStageBulkRequest", 0, 0, 0);
+  MgmStats.Add("TapeRestApiBusiness::deleteStageBulkRequest", 0, 0, 0);
+  MgmStats.Add("TapeRestApiBusiness::getFileInfo", 0, 0, 0);
+  MgmStats.Add("TapeRestApiBusiness::getStageBulkRequest", 0, 0, 0);
+  MgmStats.Add("TapeRestApiBusiness::releasePaths", 0, 0, 0);
   MgmStats.Add("Touch", 0, 0, 0);
   MgmStats.Add("TxState", 0, 0, 0);
   MgmStats.Add("Truncate", 0, 0, 0);

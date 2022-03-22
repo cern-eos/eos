@@ -256,11 +256,74 @@ add_library(
   http/webdav/PropFindResponse.cc
   http/webdav/PropPatchResponse.cc
   http/webdav/LockResponse.cc
+  http/rest-api/manager/RestApiManager.cc
+  http/rest-api/handler/RestHandler.cc
+  http/rest-api/config/tape/TapeRestApiConfig.cc
+  http/rest-api/handler/tape/TapeRestHandler.cc
+  http/rest-api/handler/factory/TapeRestHandlerFactory.cc
+  http/rest-api/action/tape/stage/CreateStageBulkRequest.cc
+  http/rest-api/action/tape/stage/CancelStageBulkRequest.cc
+  http/rest-api/action/tape/stage/GetStageBulkRequest.cc
+  http/rest-api/action/tape/stage/DeleteStageBulkRequest.cc
+  http/rest-api/action/tape/archiveinfo/GetArchiveInfo.cc
+  http/rest-api/action/tape/release/CreateReleaseBulkRequest.cc
+  http/rest-api/business/tape/TapeRestApiBusiness.cc
+  http/rest-api/controllers/Controller.cc
+  http/rest-api/controllers/tape/factories/ControllerFactory.cc
+  http/rest-api/controllers/ControllerManager.cc
+  http/rest-api/controllers/ControllerActionDispatcher.cc
+  http/rest-api/controllers/tape/stage/StageController.cc
+  http/rest-api/controllers/tape/archiveinfo/ArchiveInfoController.cc
+  http/rest-api/controllers/tape/release/ReleaseController.cc
+  http/rest-api/exception/RestException.cc
+  http/rest-api/exception/ControllerNotFoundException.cc
+  http/rest-api/exception/ForbiddenException.cc
+  http/rest-api/exception/JsonValidationException.cc
+  http/rest-api/exception/MethodNotAllowedException.cc
+  http/rest-api/model/tape/common/FilesContainer.cc
+  http/rest-api/model/tape/common/ErrorModel.cc
+  http/rest-api/model/tape/common/JsonValidationErrorModel.cc
+  http/rest-api/model/tape/archiveinfo/GetArchiveInfoResponseModel.cc
+  http/rest-api/model/tape/stage/PathsModel.cc
+  http/rest-api/model/tape/stage/CreateStageBulkRequestModel.cc
+  http/rest-api/model/tape/stage/CreatedStageBulkRequestResponseModel.cc
+  http/rest-api/model/tape/stage/GetStageBulkRequestResponseModel.cc
+  http/rest-api/json/tape/model-builders/CreateStageRequestModelBuilder.cc
+  http/rest-api/json/tape/model-builders/PathsModelBuilder.cc
+  http/rest-api/json/tape/jsonifiers/stage/CreatedStageBulkRequestJsonifier.cc
+  http/rest-api/json/tape/jsonifiers/stage/GetStageBulkRequestJsonifier.cc
+  http/rest-api/json/tape/jsonifiers/common/ErrorModelJsonifier.cc
+  http/rest-api/json/tape/jsonifiers/common/JsonValidationErrorModelJsonifier.cc
+  http/rest-api/json/tape/jsonifiers/archiveinfo/GetArchiveInfoResponseJsonifier.cc
+  http/rest-api/response/tape/factories/TapeRestApiResponseFactory.cc
+  http/rest-api/utils/URLParser.cc
+  http/rest-api/utils/URLBuilder.cc
   geotree/SchedulingTreeTest.cc
   geotree/SchedulingSlowTree.cc
   geotree/SchedulingTreeCommon.cc
   tracker/ReplicationTracker.cc
   inspector/FileInspector.cc
+  bulk-request/File.cc
+  bulk-request/FileCollection.cc
+  bulk-request/prepare/manager/PrepareManager.cc
+  bulk-request/prepare/manager/BulkRequestPrepareManager.cc
+  bulk-request/BulkRequest.cc
+  bulk-request/prepare/StageBulkRequest.cc
+  bulk-request/prepare/EvictBulkRequest.cc
+  bulk-request/prepare/CancellationBulkRequest.cc
+  bulk-request/business/BulkRequestBusiness.cc
+  bulk-request/BulkRequestFactory.cc
+  bulk-request/dao/factories/ProcDirectoryDAOFactory.cc
+  bulk-request/dao/proc/ProcDirectoryBulkRequestDAO.cc
+  bulk-request/dao/proc/ProcDirectoryBulkRequestLocations.cc
+  bulk-request/dao/proc/ProcDirBulkRequestFile.cc
+  bulk-request/exception/PersistencyException.cc
+  bulk-request/exception/BulkRequestException.cc
+  bulk-request/interface/RealMgmFileSystemInterface.cc
+  bulk-request/prepare/PrepareUtils.cc
+  bulk-request/prepare/query-prepare/QueryPrepareResult.cc
+  bulk-request/dao/proc/cleaner/BulkRequestProcCleaner.cc
+  bulk-request/dao/proc/cleaner/BulkRequestProcCleanerConfig.cc
   ${FUSEX_SRCS})
 
 target_link_libraries(XrdEosMgm-Objects PUBLIC

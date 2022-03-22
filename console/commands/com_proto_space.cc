@@ -31,6 +31,7 @@
 #include "console/ConsoleMain.hh"
 #include "console/commands/ICmdHelper.hh"
 #include "mgm/tgc/Constants.hh"
+#include "mgm/http/rest-api/Constants.hh"
 
 extern int com_space(char*);
 void com_space_help();
@@ -467,6 +468,10 @@ void com_space_help()
       << std::endl
       << "space config <space-name> space.policy.recycle=on\n"
       << "                                                                      : globally enforce using always a recycle bin\n"
+      << std::endl
+      << "REST API specific parameters:\n"
+      << "space config default " << eos::mgm::rest::TAPE_REST_API_SWITCH_ON_OFF <<
+      "=on|off                               : enable/disable the tape REST API handler [ default=off ]\n"
       << std::endl
       << "Tape specific configuration parameters:\n"
       << "space config <space-name> space." << eos::mgm::tgc::TGC_NAME_QRY_PERIOD_SECS

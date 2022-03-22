@@ -81,9 +81,9 @@
 #include "mgm/tracker/ReplicationTracker.hh"
 #include "mgm/inspector/FileInspector.hh"
 #include "mgm/XrdMgmOfs/fsctl/CommitHelper.hh"
-#include "mgm/QueryPrepareResponse.hh"
 #include "mgm/auth/AccessChecker.hh"
 #include "mgm/config/IConfigEngine.hh"
+#include "mgm/bulk-request/prepare/manager/PrepareManager.hh"
 #include "mq/SharedHashWrapper.hh"
 #include "mq/FileSystemChangeListener.hh"
 #include "mq/GlobalConfigChangeListener.hh"
@@ -108,6 +108,18 @@
 #include "XrdSfs/XrdSfsAio.hh"
 #include "XrdSfs/XrdSfsFlags.hh"
 #include "google/protobuf/io/zero_copy_stream_impl.h"
+#include "mgm/bulk-request/dao/factories/AbstractDAOFactory.hh"
+#include "mgm/bulk-request/dao/factories/ProcDirectoryDAOFactory.hh"
+#include "mgm/bulk-request/business/BulkRequestBusiness.hh"
+#include "mgm/bulk-request/interface/RealMgmFileSystemInterface.hh"
+#include "mgm/bulk-request/prepare/manager/BulkRequestPrepareManager.hh"
+#include "mgm/bulk-request/dao/proc/ProcDirectoryBulkRequestLocations.hh"
+#include "mgm/bulk-request/response/QueryPrepareResponse.hh"
+#include "mgm/bulk-request/prepare/query-prepare/QueryPrepareResult.hh"
+#include "mgm/bulk-request/dao/proc/cleaner/BulkRequestProcCleaner.hh"
+#include "mgm/bulk-request/utils/json/QueryPrepareResponseJson.hh"
+#include "mgm/http/rest-api/handler/tape/TapeRestHandler.hh"
+#include "mgm/http/rest-api/manager/RestApiManager.hh"
 
 #ifdef __APPLE__
 #define ECOMM 70
@@ -325,13 +337,13 @@ XrdMgmOfs::XrdMgmOfs(XrdSysError* ep):
     mFusePlacementBooking = 5 * 1024 * 1024 * 1024ll;
   }
 
+  mRestApiManager = std::make_unique<rest::RestApiManager>();
   {
     // Run a dummy command so that the ShellExecutor is forked before any XrdCl
     // is initialized. Otherwise it might segv due to the following bug:
     // https://github.com/xrootd/xrootd/issues/1515
     eos::common::ShellCmd dummy_cmd("uname -a");
   }
-
   eos::common::LogId::SetSingleShotLogId();
   mZmqContext = new zmq::context_t(1);
   IoStats.reset(new eos::mgm::Iostat());
@@ -699,6 +711,10 @@ XrdMgmOfs::getVersion()
   return FullVersion.c_str();
 }
 
+//Temporary preprocessor flag to enable the old way to do prepares if necessary
+#define OLD_PREPARE 0
+
+#if OLD_PREPARE
 //------------------------------------------------------------------------------
 // Returns the number of elements within the specified XrdOucTList
 //------------------------------------------------------------------------------
@@ -714,6 +730,7 @@ static unsigned int countNbElementsInXrdOucTList(const XrdOucTList* listPtr)
   return count;
 }
 
+#endif
 
 //-------------------------------------------------------------------------------------
 // Prepare a file or query the status of a previous prepare request
@@ -739,6 +756,25 @@ int
 XrdMgmOfs::_prepare(XrdSfsPrep& pargs, XrdOucErrInfo& error,
                     const XrdSecEntity* client)
 {
+#if !OLD_PREPARE
+  USE_EOSBULKNAMESPACE;
+  //Temporary preprocessing directive for testing the bulk-request persistency
+  //If set to 1, xrdfs prepare will be issued and a bulk-request will be persisted in the proc directory
+#define BULK_REQ_PERSISTENCY 0
+#if BULK_REQ_PERSISTENCY
+  BulkRequestPrepareManager pm(std::make_unique<RealMgmFileSystemInterface>
+                               (gOFS));
+  std::unique_ptr<AbstractDAOFactory> daoFactory(new ProcDirectoryDAOFactory(gOFS,
+      *mProcDirectoryBulkRequestLocations));
+  std::shared_ptr<BulkRequestBusiness> bulkRequestBusiness(
+    new BulkRequestBusiness(std::move(daoFactory)));
+  pm.setBulkRequestBusiness(bulkRequestBusiness);
+#else
+  PrepareManager pm(std::make_unique<RealMgmFileSystemInterface>(gOFS));
+#endif
+  int prepareRetCode = pm.prepare(pargs, error, client);
+  return prepareRetCode;
+#else
   EXEC_TIMING_BEGIN("Prepare");
   eos_info("prepareOpts=\"%s\"", prepareOptsToString(pargs.opts).c_str());
   static const char* epname = "prepare";
@@ -1050,6 +1086,7 @@ XrdMgmOfs::_prepare(XrdSfsPrep& pargs, XrdOucErrInfo& error,
 #endif
   EXEC_TIMING_END("Prepare");
   return retc;
+#endif
 }
 
 
@@ -1060,6 +1097,44 @@ int
 XrdMgmOfs::_prepare_query(XrdSfsPrep& pargs, XrdOucErrInfo& error,
                           const XrdSecEntity* client)
 {
+#if !OLD_PREPARE
+  USE_EOSBULKNAMESPACE;
+  RealMgmFileSystemInterface mgmFsInterface(gOFS);
+#if BULK_REQ_PERSISTENCY
+  BulkRequestPrepareManager pm(std::make_unique<RealMgmFileSystemInterface>
+                               (gOFS));
+  std::unique_ptr<AbstractDAOFactory> daoFactory(new ProcDirectoryDAOFactory(gOFS,
+      *mProcDirectoryBulkRequestLocations));
+  std::shared_ptr<BulkRequestBusiness> bulkRequestBusiness(
+    new BulkRequestBusiness(std::move(daoFactory)));
+  pm.setBulkRequestBusiness(bulkRequestBusiness);
+#else
+  PrepareManager pm(std::make_unique<RealMgmFileSystemInterface>(gOFS));
+#endif
+  std::unique_ptr<QueryPrepareResult> result = pm.queryPrepare(pargs, error,
+      client);
+
+  if (result->hasQueryPrepareFinished()) {
+    //Create the JSON response
+    bulk::QueryPrepareResponseJson jsonQueryPrepareResponse;
+    std::stringstream json_ss;
+    auto queryPrepareResponse = result->getResponse();
+    queryPrepareResponse->setJsonifier(
+      std::make_shared<bulk::QueryPrepareResponseJson>());
+    jsonQueryPrepareResponse.jsonify(queryPrepareResponse.get(), json_ss);
+    // Send the reply. XRootD requires that we put it into a buffer that can be released with free().
+    auto  json_len = json_ss.str().length();
+    char* json_buf = reinterpret_cast<char*>(malloc(json_len));
+    strncpy(json_buf, json_ss.str().c_str(), json_len);
+    // Ownership of this buffer is passed to xrd_buff which has a Recycle() method.
+    XrdOucBuffer* xrd_buff = new XrdOucBuffer(json_buf, json_len);
+    // Ownership of xrd_buff is passed to error. Note that as we are returning SFS_DATA, the first
+    // parameter is the buffer length rather than an error code.
+    error.setErrInfo(xrd_buff->BuffSize(), xrd_buff);
+  }
+
+  return result->getReturnCode();
+#else
   EXEC_TIMING_BEGIN("QueryPrepare");
   ACCESSMODE_R;
   eos_info("cmd=\"_prepare_query\"");
@@ -1087,7 +1162,7 @@ XrdMgmOfs::_prepare_query(XrdSfsPrep& pargs, XrdOucErrInfo& error,
   // the request, as they are provided in the arguments. Anyway we return it in the reply
   // as a convenience for the client to track which prepare request the query applies to.
   XrdOucString reqid(pargs.reqid);
-  std::vector<QueryPrepareResponse> response;
+  std::vector<bulk::QueryPrepareFileResponse> response;
 
   // Set the response for each file in the list
   for (XrdOucTList* pptr = pargs.paths; pptr; pptr = pptr->next) {
@@ -1095,7 +1170,7 @@ XrdMgmOfs::_prepare_query(XrdSfsPrep& pargs, XrdOucErrInfo& error,
       continue;
     }
 
-    response.push_back(QueryPrepareResponse(pptr->text));
+    response.push_back(bulk::QueryPrepareFileResponse(pptr->text));
     auto& rsp = response.back();
     // check if the file exists
     XrdOucString prep_path;
@@ -1211,6 +1286,7 @@ XrdMgmOfs::_prepare_query(XrdSfsPrep& pargs, XrdOucErrInfo& error,
   error.setErrInfo(xrd_buff->BuffSize(), xrd_buff);
   EXEC_TIMING_END("QueryPrepare");
   return SFS_DATA;
+#endif
 }
 
 
@@ -1889,7 +1965,6 @@ XrdMgmOfs::BroadcastQuery(const std::string& request,
       eos_static_err("msg=\"invalid url\" url=\"%s\"", oss.str().c_str());
       std::unique_lock<std::mutex> lock(mutex);
       responses.emplace(ep, std::make_pair(EINVAL, "invalid url"));
-      --num_resp;
       continue;
     }
 
@@ -1901,7 +1976,6 @@ XrdMgmOfs::BroadcastQuery(const std::string& request,
                      ep.c_str());
       std::unique_lock<std::mutex> lock(mutex);
       responses.emplace(ep, std::make_pair(EINVAL, "failed query insert"));
-      --num_resp;
       continue;
     }
 
@@ -1918,7 +1992,6 @@ XrdMgmOfs::BroadcastQuery(const std::string& request,
                      ep.c_str());
       std::unique_lock<std::mutex> lock(mutex);
       responses.emplace(ep, std::make_pair(EINVAL, "failed query send"));
-      --num_resp;
       continue;
     }
   }

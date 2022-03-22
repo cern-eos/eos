@@ -50,6 +50,7 @@ inspector
     : configure default file layout creation settings as a space policy - a value='remove' deletes the space policy
   space config <space-name> space.policy.recycle=on
     : globally enforce using always a recycle bin
+  space config default taperestapi=on|off                               : enable/disable the tape REST API handler [ default=off ]
   space define <space-name> [<groupsize> [<groupmod>]] : define how many filesystems can end up in one scheduling group <groupsize> [ default=0 ]
     => <groupsize>=0 means that no groups are built within a space, otherwise it should be the maximum number of nodes in a scheduling group
     => <groupmod> maximum number of groups in the space, which should be at least equal to the maximum number of filesystems per node

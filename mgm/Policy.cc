@@ -149,17 +149,36 @@ Policy::GetLayoutAndSpace(const char* path,
         }
       }
       {
-	// try application specific iopriority setting
-	std::string appkey = "iopriority.";
-	if (env.Get("eos.app")) {
-	  appkey += env.Get("eos.app");
-	} else {
-	  appkey += "default";
-	}
-	std::string app_iopriority = it->second->GetConfigMember(appkey);
-	if (app_iopriority.length()) {
-	  iopriority = app_iopriority;
-	}
+        // try application specific iopriority setting
+        std::string appkey = "iopriority.";
+
+        if (env.Get("eos.app")) {
+          appkey += env.Get("eos.app");
+        } else {
+          appkey += "default";
+        }
+
+        std::string app_iopriority = it->second->GetConfigMember(appkey);
+
+        if (app_iopriority.length()) {
+          iopriority = app_iopriority;
+        }
+      }
+      {
+        // try application specific iopriority setting
+        std::string appkey = "iopriority.";
+
+        if (env.Get("eos.app")) {
+          appkey += env.Get("eos.app");
+        } else {
+          appkey += "default";
+        }
+
+        std::string app_iopriority = it->second->GetConfigMember(appkey);
+
+        if (app_iopriority.length()) {
+          iopriority = app_iopriority;
+        }
       }
     }
   }
@@ -252,17 +271,36 @@ Policy::GetLayoutAndSpace(const char* path,
         }
       }
       {
-	// try application specific iopriority setting
-	std::string appkey = "iopriority.";
-	if (env.Get("eos.app")) {
-	  appkey += env.Get("eos.app");
-	} else {
-	  appkey += "default";
-	}
-	std::string app_iopriority = it->second->GetConfigMember(appkey);
-	if (app_iopriority.length()) {
-	  iopriority = app_iopriority;
-	}
+        // try application specific iopriority setting
+        std::string appkey = "iopriority.";
+
+        if (env.Get("eos.app")) {
+          appkey += env.Get("eos.app");
+        } else {
+          appkey += "default";
+        }
+
+        std::string app_iopriority = it->second->GetConfigMember(appkey);
+
+        if (app_iopriority.length()) {
+          iopriority = app_iopriority;
+        }
+      }
+      {
+        // try application specific iopriority setting
+        std::string appkey = "iopriority.";
+
+        if (env.Get("eos.app")) {
+          appkey += env.Get("eos.app");
+        } else {
+          appkey += "default";
+        }
+
+        std::string app_iopriority = it->second->GetConfigMember(appkey);
+
+        if (app_iopriority.length()) {
+          iopriority = app_iopriority;
+        }
       }
     }
   }

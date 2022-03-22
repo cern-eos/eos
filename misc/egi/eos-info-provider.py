@@ -1,12 +1,12 @@
 #!/usr/bin/python2
 #-------------------------------------------------------------------------------
 # @file eos-info-provider.py
-# @author: Elvin-Alin Sindrilaru - CERN 2021
+# @author: Elvin-Alin Sindrilaru - CERN 2022
 #-------------------------------------------------------------------------------
 #
 # ******************************************************************************
 # EOS - the CERN Disk Storage System
-# Copyright (C) 2021 CERN/Switzerland
+# Copyright (C) 2022 CERN/Switzerland
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by

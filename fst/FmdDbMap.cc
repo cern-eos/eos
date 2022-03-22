@@ -606,7 +606,10 @@ FmdDbMapHandler::UpdateWithDiskInfo(eos::common::FileSystem::fsid_t fsid,
 
   // Update reference size only if undefined
   if (valfmd.mProtoFmd.size() == eos::common::FmdHelper::UNDEF) {
-    valfmd.mProtoFmd.set_size(disk_size);
+    // This is done only for non-rain layouts
+    if (!eos::common::LayoutId::IsRain(valfmd.mProtoFmd.lid())) {
+      valfmd.mProtoFmd.set_size(disk_size);
+    }
   }
 
   // Update the reference checksum only if empty
@@ -672,6 +675,12 @@ FmdDbMapHandler::UpdateWithMgmInfo(eos::common::FileSystem::fsid_t fsid,
   // Update reference size only if undefined
   if (valfmd.mProtoFmd.size() == eos::common::FmdHelper::UNDEF) {
     valfmd.mProtoFmd.set_size(mgmsize);
+  } else {
+    // For RAIN layouts the logical size (should) matche the MGM size
+    // even if it is already set
+    if (eos::common::LayoutId::IsRain(lid)) {
+      valfmd.mProtoFmd.set_size(mgmsize);
+    }
   }
 
   // Update the reference checksum only if empty

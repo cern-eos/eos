@@ -36,6 +36,7 @@
 #include "XrdAcc/XrdAccAuthorize.hh"
 #include "XrdOuc/XrdOucPinPath.hh"
 #include <stdio.h>
+#include "mgm/http/rest-api/manager/RestApiManager.hh"
 
 XrdVERSIONINFO(XrdHttpGetExtHandler, EosMgmHttp);
 static XrdVERSIONINFODEF(compiledVer, EosMgmHttp, XrdVNUMBER, XrdVERSION);
@@ -351,7 +352,7 @@ EosMgmHttpHandler::ProcessReq(XrdHttpExtReq& req)
                               errmsg.length());
   }
 
-  if (req.verb == "POST") {
+  if (isMacaroonRequest(req)) {
     if (mTokenHttpHandler) {
       // Delegate request to the XrdMacaroons library
       eos_info("%s", "msg=\"delegate request to XrdMacaroons library\"");
@@ -363,7 +364,18 @@ EosMgmHttpHandler::ProcessReq(XrdHttpExtReq& req)
     }
   }
 
-  if (req.verb == "PROPFIND") {
+  bool isRestRequest = mMgmOfsHandler->mRestApiManager->isRestRequest(
+                         req.resource);
+
+  if (isRestRequest) {
+    std::optional<int> retCode = readBody(req, body);
+
+    if (retCode) {
+      return retCode.value();
+    }
+  }
+
+  if (req.verb == "PROPFIND" && !isRestRequest) {
     // read the body
     body.resize(req.length);
     char* data = 0;
@@ -575,4 +587,64 @@ EosMgmHttpHandler::GetOfsPlugin(XrdSysError* eDest, const std::string& confg,
   }
 
   return (mMgmOfsHandler != nullptr);
+}
+
+std::optional<int> EosMgmHttpHandler::readBody(XrdHttpExtReq& req,
+    std::string& body)
+{
+  std::optional<int> returnCode;
+  body.reserve(req.length);
+  const unsigned long long eoshttp_sz = 1024 * 1024;
+  const unsigned long long xrdhttp_sz = 256 * 1024;
+  unsigned long long contentLeft = req.length;
+  std::string bodyTemp;
+
+  do {
+    unsigned long long contentToRead = std::min(eoshttp_sz, contentLeft);
+    bodyTemp.clear();
+    bodyTemp.reserve(contentToRead);
+    char* data = nullptr;
+    unsigned long long dataRead = 0;
+
+    do {
+      size_t chunk_len = std::min(xrdhttp_sz, contentToRead - dataRead);
+      int bytesRead = req.BuffgetData(chunk_len, &data, true);
+      eos_static_debug("contentToRead=%lli rb=%i body=%u contentLeft=%lli",
+                       contentToRead, bytesRead, body.size(), contentLeft);
+
+      if (bytesRead > 0) {
+        bodyTemp.append(data, bytesRead);
+        dataRead += bytesRead;
+      } else if (bytesRead == -1) {
+        std::ostringstream oss;
+        oss << "msg=\"In EosMgmHttpHandler::ProcessReq(), unable to read the body of the request coming from the user. Internal XRootD Http request buffer error\"";
+        eos_static_err(oss.str().c_str());
+        std::string errorMsg = "Http server error: unable to read the request received";
+        return req.SendSimpleResp(500, errorMsg.c_str(), "", errorMsg.c_str(),
+                                  errorMsg.length());
+      } else {
+        break;
+      }
+    } while (dataRead < contentToRead);
+
+    contentLeft -= dataRead;
+    body += bodyTemp;
+  } while (contentLeft);
+
+  return returnCode;
+}
+
+bool EosMgmHttpHandler::isMacaroonRequest(const XrdHttpExtReq& req)
+{
+  if (req.verb == "POST") {
+    const auto& contentTypeItor = req.headers.find("Content-Type");
+
+    if (contentTypeItor != req.headers.end()) {
+      if (contentTypeItor->second == "application/macaroon-request") {
+        return true;
+      }
+    }
+  }
+
+  return false;
 }

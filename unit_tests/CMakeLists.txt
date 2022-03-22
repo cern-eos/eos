@@ -74,7 +74,12 @@ set(MGM_UT_SRCS
   mgm/tgc/TapeGcTests.cc
   mgm/tgc/UtilsTests.cc
   mgm/XrdMgmOfsTests.cc
-  mgm/XrdMgmOfsFileTests.cc)
+  mgm/XrdMgmOfsFileTests.cc
+  mgm/bulk-request/PrepareManagerTest.cc
+  mgm/bulk-request/BulkRequestPrepareManagerTest.cc
+  mgm/bulk-request/MockPrepareMgmFSInterface.cc
+  mgm/http/rest-api/tape/RestApiTest.cc
+  mgm/http/rest-api/tape/JsonCPPTapeModelBuilderTest.cc)
 
 set(COMMON_UT_SRCS
   common/FileIdTests.cc

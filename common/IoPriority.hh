@@ -25,6 +25,7 @@
 #ifndef __APPLE__
 #include <sys/syscall.h>
 #include <asm/unistd.h>
+#include <sys/capability.h>
 #endif
 
 
@@ -118,3 +119,64 @@ static int ioprio_value(std::string& v)
     return 0;
   }
 }
+
+static int
+ioprio_needs_sysadm(int iopriority)
+{
+  if ((IOPRIO_PRIO_CLASS(iopriority) == IOPRIO_CLASS_RT) ||
+      (IOPRIO_PRIO_CLASS(iopriority) == IOPRIO_CLASS_IDLE)) {
+    return true;
+  } else {
+    return false;
+  }
+}
+
+static int
+ioprio_begin(int which, int iopriority, int local_iopriority)
+{
+  int rc = 0;
+
+  if (local_iopriority == iopriority) {
+    return 0;
+  }
+
+#ifndef __APPLE__
+
+  if (ioprio_needs_sysadm(iopriority)) {
+    struct __user_cap_header_struct cap_header;
+    struct __user_cap_data_struct cap_data;
+    cap_header.pid = 0;
+    cap_header.version = _LINUX_CAPABILITY_VERSION_1;
+    cap_data.effective = cap_data.permitted = 0x0000001fffffffff;
+    cap_data.inheritable = 0;
+    rc |= capset(&cap_header, &cap_data);
+  }
+
+#endif
+  rc |= ioprio_set(which, iopriority);
+  return rc;
+}
+
+static int
+ioprio_end(int which, int iopriority)
+{
+#ifndef __APPLE__
+
+  if (ioprio_needs_sysadm(iopriority)) {
+    struct __user_cap_header_struct cap_header;
+    struct __user_cap_data_struct cap_data;
+    cap_header.pid = 0;
+    cap_header.version = _LINUX_CAPABILITY_VERSION_1;
+    cap_data.permitted = 0x0000001fffffffff;
+    cap_data.effective = 0;
+    cap_data.inheritable = 0;
+    capset(&cap_header, &cap_data);
+  }
+
+#endif
+  ioprio_set(which, IOPRIO_PRIO_VALUE(IOPRIO_CLASS_BE, 4));
+  int current_iopriority = ioprio_get(which);
+  return current_iopriority;
+}
+
+

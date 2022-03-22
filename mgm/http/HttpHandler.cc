@@ -31,6 +31,8 @@
 #include "common/http/PlainHttpResponse.hh"
 #include "common/http/OwnCloud.hh"
 #include "namespace/utils/Mode.hh"
+#include "mgm/http/rest-api/handler/tape/TapeRestHandler.hh"
+#include "mgm/http/rest-api/manager/RestApiManager.hh"
 
 EOSMGMNAMESPACE_BEGIN
 
@@ -56,89 +58,97 @@ HttpHandler::HandleRequest(eos::common::HttpRequest* request)
 {
   eos_static_debug("handling http request");
   eos::common::HttpResponse* response = 0;
-  request->AddEosApp();
+  bool isRestRequest = gOFS->mRestApiManager->isRestRequest(request->GetUrl());
 
-  for (auto it = request->GetHeaders().begin(); it != request->GetHeaders().end();
-       ++it) {
-    eos_static_info("header:%s => %s", it->first.c_str(), it->second.c_str());
-  }
+  if (isRestRequest) {
+    response = gOFS->mRestApiManager->getRestHandler(
+                 request->GetUrl())->handleRequest(request, mVirtualIdentity);
+  } else {
+    request->AddEosApp();
 
-  int meth = ParseMethodString(request->GetMethod());
-  {
-    // call the routing module before doing anything with http
-    int port;
-    std::string host;
-    int stall_timeout = 0;
-
-    if (gOFS->ShouldRoute(__FUNCTION__, 0, *mVirtualIdentity,
-                          request->GetUrl().c_str(),
-                          request->GetQuery().c_str(),
-                          host, port, stall_timeout)) {
-      response = HttpServer::HttpRedirect(request->GetUrl().c_str(),
-                                          host.c_str(), port, false);
-      mHttpResponse = response;
-      return;
+    for (auto it = request->GetHeaders().begin();
+         it != request->GetHeaders().end(); ++it) {
+      eos_static_info("header:%s => %s", it->first.c_str(), it->second.c_str());
     }
-  }
 
-  switch (meth) {
-  case GET:
-    gOFS->MgmStats.Add("Http-GET", mVirtualIdentity->uid, mVirtualIdentity->gid, 1);
-    response = Get(request);
-    break;
+    int meth = ParseMethodString(request->GetMethod());
+    {
+      // call the routing module before doing anything with http
+      int port;
+      std::string host;
+      int stall_timeout = 0;
 
-  case HEAD:
-    gOFS->MgmStats.Add("Http-HEAD", mVirtualIdentity->uid, mVirtualIdentity->gid,
-                       1);
-    response = Head(request);
-    response->SetBody("");
-    break;
+      if (gOFS->ShouldRoute(
+            __FUNCTION__, 0, *mVirtualIdentity, request->GetUrl().c_str(),
+            request->GetQuery().c_str(), host, port, stall_timeout)) {
+        response = HttpServer::HttpRedirect(request->GetUrl().c_str(),
+                                            host.c_str(), port, false);
+        mHttpResponse = response;
+        return;
+      }
+    }
 
-  case POST:
-    gOFS->MgmStats.Add("Http-POST", mVirtualIdentity->uid, mVirtualIdentity->gid,
-                       1);
-    response = Post(request);
-    break;
+    switch (meth) {
+    case GET:
+      gOFS->MgmStats.Add("Http-GET", mVirtualIdentity->uid,
+                         mVirtualIdentity->gid, 1);
+      response = Get(request);
+      break;
 
-  case PUT:
-    gOFS->MgmStats.Add("Http-PUT", mVirtualIdentity->uid, mVirtualIdentity->gid, 1);
-    response = Put(request);
-    break;
+    case HEAD:
+      gOFS->MgmStats.Add("Http-HEAD", mVirtualIdentity->uid,
+                         mVirtualIdentity->gid, 1);
+      response = Head(request);
+      response->SetBody("");
+      break;
 
-  case DELETE:
-    gOFS->MgmStats.Add("Http-DELETE", mVirtualIdentity->uid, mVirtualIdentity->gid,
-                       1);
-    response = Delete(request);
-    break;
+    case POST:
+      gOFS->MgmStats.Add("Http-POST", mVirtualIdentity->uid,
+                         mVirtualIdentity->gid, 1);
+      response = Post(request);
+      break;
 
-  case TRACE:
-    gOFS->MgmStats.Add("Http-TRACE", mVirtualIdentity->uid, mVirtualIdentity->gid,
-                       1);
-    response = Trace(request);
-    break;
+    case PUT:
+      gOFS->MgmStats.Add("Http-PUT", mVirtualIdentity->uid,
+                         mVirtualIdentity->gid, 1);
+      response = Put(request);
+      break;
 
-  case OPTIONS:
-    gOFS->MgmStats.Add("Http-OPTIONS", mVirtualIdentity->uid, mVirtualIdentity->gid,
-                       1);
-    response = Options(request);
-    break;
+    case DELETE:
+      gOFS->MgmStats.Add("Http-DELETE", mVirtualIdentity->uid,
+                         mVirtualIdentity->gid, 1);
+      response = Delete(request);
+      break;
 
-  case CONNECT:
-    gOFS->MgmStats.Add("Http-CONNECT", mVirtualIdentity->uid, mVirtualIdentity->gid,
-                       1);
-    response = Connect(request);
-    break;
+    case TRACE:
+      gOFS->MgmStats.Add("Http-TRACE", mVirtualIdentity->uid,
+                         mVirtualIdentity->gid, 1);
+      response = Trace(request);
+      break;
 
-  case PATCH:
-    gOFS->MgmStats.Add("Http-PATCH", mVirtualIdentity->uid, mVirtualIdentity->gid,
-                       1);
-    response = Patch(request);
-    break;
+    case OPTIONS:
+      gOFS->MgmStats.Add("Http-OPTIONS", mVirtualIdentity->uid,
+                         mVirtualIdentity->gid, 1);
+      response = Options(request);
+      break;
 
-  default:
-    response = new eos::common::PlainHttpResponse();
-    response->SetResponseCode(eos::common::HttpResponse::BAD_REQUEST);
-    response->SetBody("No such method");
+    case CONNECT:
+      gOFS->MgmStats.Add("Http-CONNECT", mVirtualIdentity->uid,
+                         mVirtualIdentity->gid, 1);
+      response = Connect(request);
+      break;
+
+    case PATCH:
+      gOFS->MgmStats.Add("Http-PATCH", mVirtualIdentity->uid,
+                         mVirtualIdentity->gid, 1);
+      response = Patch(request);
+      break;
+
+    default:
+      response = new eos::common::PlainHttpResponse();
+      response->SetResponseCode(eos::common::HttpResponse::BAD_REQUEST);
+      response->SetBody("No such method");
+    }
   }
 
   mHttpResponse = response;

@@ -32,6 +32,7 @@
 #include <streambuf>
 #include <string>
 #include <cerrno>
+#include "mgm/http/rest-api/Constants.hh"
 
 using namespace eos::common;
 
@@ -609,6 +610,11 @@ com_space_usage:
   fprintf(stdout,
           "       space config <space-name> fs.<key>=<value>                    : configure file system parameters for each filesystem in this space (see help of 'fs config' for details)\n");
   fprintf(stdout, "\n");
+  std::string restApiConfig = std::string("       space config default ") +
+                              eos::mgm::rest::TAPE_REST_API_SWITCH_ON_OFF +
+                              std::string("=on|off            : enable/disable the tape REST API handler [ default=off ]");
+  fprintf(stdout, "%s\n",
+          restApiConfig.c_str());
   fprintf(stdout,
           "       space define <space-name> [<groupsize> [<groupmod>]]          : define how many filesystems can end up in one scheduling group <groupsize> [default=0]\n");
   fprintf(stdout, "\n");

@@ -78,6 +78,7 @@
 #include <thread>
 #include <cctype>
 #include <algorithm>
+#include <sys/prctl.h>
 
 // The global OFS handle
 eos::fst::XrdFstOfs eos::fst::gOFS;
@@ -119,6 +120,7 @@ extern "C"
     OfsEroute.Say("++++++ (c) 2010 CERN/IT-DSS ", oss.str().c_str());
     // Initialize the subsystems
     eos::fst::gOFS.ConfigFN = (configFn && *configFn ? strdup(configFn) : 0);
+    fprintf(stderr, "pcrctl= %d\n", prctl(PR_SET_KEEPCAPS, 1, 0, 0, 0));
 
     if (eos::fst::gOFS.Configure(OfsEroute, envP)) {
       return 0;

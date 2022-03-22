@@ -25,19 +25,28 @@
 #pragma once
 
 #include "mgm/Namespace.hh"
+#include <sstream>
+#include <string>
+#include <vector>
+#include "common/json/Jsonifiable.hh"
 
-EOSMGMNAMESPACE_BEGIN
+EOSBULKNAMESPACE_BEGIN
 
-struct QueryPrepareResponse {
-  QueryPrepareResponse() :
+class QueryPrepareFileResponse
+{
+public:
+
+  QueryPrepareFileResponse() :
     is_exists(false), is_on_tape(false), is_online(false), is_requested(false),
     is_reqid_present(false) {}
 
-  QueryPrepareResponse(const std::string _path) :
+  QueryPrepareFileResponse(const std::string _path) :
     path(_path), is_exists(false), is_on_tape(false), is_online(false),
     is_requested(false), is_reqid_present(false) {}
 
-  friend std::ostream& operator<<(std::ostream& json, QueryPrepareResponse& qpr)
+  // @ccaffy TODO: to be removed at the end of the bulk-request implementation
+  friend std::ostream& operator<<(std::ostream& json,
+                                  QueryPrepareFileResponse& qpr)
   {
     json << "{"
          << "\"path\":\""       << qpr.path << "\","
@@ -52,14 +61,34 @@ struct QueryPrepareResponse {
     return json;
   }
 
+  //Path of the file
   std::string path;
+  //Does it exist?
   bool is_exists;
+  //Is it on tape?
   bool is_on_tape;
+  //Is it on disk?
   bool is_online;
+  //Is it currently requested?
   bool is_requested;
+  //Is this file has a request id?
   bool is_reqid_present;
+  //The time this file was requested
   std::string request_time;
+  //The eventual error that the file encountered while being staged or archived
   std::string error_text;
 };
 
-EOSMGMNAMESPACE_END
+/**
+ * Class holding the information contained in the response
+ * of a QueryPrepare query. This is the class that will be
+ * returned to the user in json format
+ */
+class QueryPrepareResponse : public common::Jsonifiable<QueryPrepareResponse>
+{
+public:
+  std::string request_id;
+  std::vector<QueryPrepareFileResponse> responses;
+};
+
+EOSBULKNAMESPACE_END

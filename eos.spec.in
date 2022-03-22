@@ -173,6 +173,7 @@ BuildRequires: help2man
 BuildRequires: libzstd, libzstd-devel
 BuildRequires: lz4
 Requires: zstd, lz4
+BuildRequires: libcap-devel
 
 %if 0%{?rhel} != 8
 BuildRequires: openssl-static, ncurses-static
@@ -1120,6 +1121,7 @@ Contains an instance and fuse test script and some test executables and test arc
 %{_sbindir}/eos-fusex-recovery
 %{_sbindir}/eos-checksum-benchmark
 %{_sbindir}/test-eos-iam-mapfile.py
+%{_sbindir}/xrdcpnonstreaming
 %{_sbindir}/xrdcpabort
 %{_sbindir}/xrdcpappend
 %{_sbindir}/xrdcpposixcache

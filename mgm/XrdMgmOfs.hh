@@ -182,6 +182,17 @@ class RealTapeGcMgm;
 class MultiSpaceTapeGc;
 }
 
+namespace eos::mgm::bulk
+{
+class ProcDirectoryBulkRequestLocations;
+class BulkRequestProcCleaner;
+}
+
+namespace eos::mgm::rest
+{
+class RestApiManager;
+}
+
 namespace eos::auth
 {
 class RequestProto;
@@ -1546,6 +1557,7 @@ public:
   MgmProcTrackerPath; ///< Directory with file creations which are not consistent (yet)
   XrdOucString
   MgmProcTokenPath; ///< Directory storing the token generation as ext attribute and vouchers
+  XrdOucString MgmProcBulkRequestPath; ///< Directory storing the bulk requests
   //! Full path to the master indication proc file
   XrdOucString MgmProcMasterPath;
   XrdOucString MgmProcArchivePath; ///< EOS directory where archive dir inodes
@@ -1882,6 +1894,21 @@ public:
   std::set<std::string> mTapeGcSpaces;
   //! Tracker for drain, balance and convert fids
   eos::mgm::IdTrackerWithValidity<eos::IFileMD::id_t> mFidTracker;
+  //! The class holding the paths where the bulk-requets will be persisted
+  std::unique_ptr<eos::mgm::bulk::ProcDirectoryBulkRequestLocations>
+  mProcDirectoryBulkRequestLocations;
+  //! The class holding the paths where the bulk-requests coming from the HTTP tape REST API will be persisted
+  std::unique_ptr<eos::mgm::bulk::ProcDirectoryBulkRequestLocations>
+  mProcDirectoryBulkRequestTapeRestApiLocations;
+
+  //! BulkRequestProcCleaner
+  std::unique_ptr<bulk::BulkRequestProcCleaner> mBulkReqProcCleaner;
+
+  //! REST API manager
+  std::unique_ptr<rest::RestApiManager> mRestApiManager;
+  //! HTTP TAPE REST API BulkRequestProcCleaner
+  std::unique_ptr<bulk::BulkRequestProcCleaner>
+  mHttpTapeRestApiBulkReqProcCleaner;
 
   //----------------------------------------------------------------------------
   //! Return string representation of prepare options

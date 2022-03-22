@@ -36,6 +36,8 @@
 #include "common/Mapping.hh"
 #include <map>
 #include <string>
+#include "mgm/http/rest-api/handler/tape/TapeRestHandler.hh"
+#include <XrdHttp/XrdHttpExtHandler.hh>
 
 EOSMGMNAMESPACE_BEGIN
 
