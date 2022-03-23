@@ -200,16 +200,10 @@ EosMgmHttpHandler::Config(XrdSysError* eDest, const char* confg,
                           const char* parms, XrdOucEnv* myEnv)
 {
   using namespace eos::common;
-  std::string macaroons_lib_path {""};
-  std::string scitokens_lib_path {""};
-
-  // XRootD guarantees that the XRootD protocol and its associated plugins are
-  // loaded before HTTP therefore we can get a pointer to the MGM OFS plugin
-  if (!GetOfsPlugin(eDest, confg, myEnv)) {
-    eDest->Emsg("Config", "failed to get MGM OFS plugin pointer");
-    return 1;
-  }
-
+  const std::string ofs_lib_tag = "xrootd.fslib";
+  const std::string authz_lib_tag = "mgmofs.macaroonslib";
+  std::list<std::string> authz_libs;
+  std::string ofs_lib_path, http_ext_lib_path;
   std::string cfg;
   StringConversion::LoadFileIntoString(confg, cfg);
   auto lines = StringTokenizer::split<std::vector<std::string>>(cfg, '\n');
@@ -219,101 +213,77 @@ EosMgmHttpHandler::Config(XrdSysError* eDest, const char* confg,
 
     if (line.find("eos::mgm::http::redirect-to-https=1") != std::string::npos) {
       mRedirectToHttps = true;
-    } else if (line.find("mgmofs.macaroonslib") == 0) {
-      auto tokens = StringTokenizer::split<std::vector<std::string>>(line, ' ');
+    } else if (line.find(ofs_lib_tag) == 0) {
+      ofs_lib_path = GetOfsLibPath(line);
+      // XRootD guarantees that the XRootD protocol and its associated
+      // plugins are loaded before HTTP therefore we can get a pointer
+      // to the MGM OFS plugin
+      mMgmOfsHandler = GetOfsPlugin(eDest, ofs_lib_path, confg);
 
-      if (tokens.size() < 2) {
-        eos_err("%s", "msg=\"missing mgmofs.macaroonslib configuration\"");
-        eos_err("tokens_size=%i", tokens.size());
+      if (!mMgmOfsHandler) {
+        eDest->Emsg("Config", "failed to get MGM OFS plugin pointer");
         return 1;
       }
+    } else if (line.find(authz_lib_tag) == 0) {
+      authz_libs = GetAuthzLibPaths(line);
+      http_ext_lib_path = GetHttpExtLibPath(line);
 
-      macaroons_lib_path = tokens[1];
-      eos::common::trim(macaroons_lib_path);
-
-      // Enable also the SciTokens library if present in the configuration
-      if (tokens.size() > 2) {
-        scitokens_lib_path = tokens[2];
-        eos::common::trim(scitokens_lib_path);
+      if (authz_libs.empty() || http_ext_lib_path.empty()) {
+        eos_err("msg=\"wrong mgmofs.macaroonslib configuration\" data=\"%s\"",
+                line.c_str());
+        return 1;
       }
     }
+  }
+
+  if (authz_libs.empty() || http_ext_lib_path.empty())  {
+    eos_err("%s", "msg=\"mgmofs.macaroonslib configuration missing\"");
+    return 1;
+  }
+
+  if (!mMgmOfsHandler || !mMgmOfsHandler->mMgmAuthz) {
+    eos_err("%s", "msg=\"missing MGM OFS handler or MGM AUTHZ handler\"");
+    return 1;
   }
 
   eos_notice("configuration: redirect-to-https:%d", mRedirectToHttps);
 
-  if (!macaroons_lib_path.empty()) {
-    // Try to load the XrdHttpGetExtHandler from the libXrdMacaroons library
-    bool no_alt_path = false;
-    char resolve_path[2048];
-
-    if (!XrdOucPinPath(macaroons_lib_path.c_str(), no_alt_path, resolve_path,
-                       sizeof(resolve_path))) {
-      eos_err("msg=\"failed to locate library path\" lib=\"%s\"",
-              macaroons_lib_path.c_str());
-      return 1;
-    }
-
-    eos_info("msg=\"loading XrdMacaroons(http) plugin\" path=\"%s\"",
-             resolve_path);
-    XrdHttpExtHandler *(*ep)(XrdHttpExtHandlerArgs);
-    std::string http_symbol {"XrdHttpGetExtHandler"};
-    XrdSysPlugin tokens_plugin(eDest, resolve_path, "macaroonslib",
-                               &compiledVer, 1);
-    void* http_addr = tokens_plugin.getPlugin(http_symbol.c_str(), 0, 0);
-    tokens_plugin.Persist();
-    ep = (XrdHttpExtHandler * (*)(XrdHttpExtHandlerArgs))(http_addr);
-
-    if (!http_addr) {
-      eos_err("msg=\"no XrdHttpGetExtHandler entry point in library\" "
-              "lib=\"%s\"", macaroons_lib_path.c_str());
-      return 1;
-    }
-
-    // Add a pointer to the MGM authz handler so that it can be used by the
-    // macaroons library to get access permissions for token requests
-    myEnv->PutPtr("XrdAccAuthorize*", (void*)mMgmOfsHandler->mMgmAuthz);
-
-    if (ep && (mTokenHttpHandler = ep(eDest, confg, (const char*) nullptr,
-                                      myEnv))) {
-      eos_info("%s", "msg=\"XrdHttpGetExthandler from libXrdMacaroons loaded "
-               "successfully\"");
-    } else {
-      eos_err("%s", "msg=\"failed loading XrdHttpGetExtHandler from "
-              "libXrdMacaroons\"");
-      return 1;
-    }
-
-    // Load the XrdAccAuthorizeObject provided by the libXrdMacaroons library
-    XrdAccAuthorize *(*authz_ep)(XrdSysLogger*, const char*, const char*);
-    std::string authz_symbol {"XrdAccAuthorizeObject"};
-    void* authz_addr = tokens_plugin.getPlugin(authz_symbol.c_str(), 0, 0);
-    authz_ep = (XrdAccAuthorize * (*)(XrdSysLogger*, const char*,
-                                      const char*))(authz_addr);
-    // The "authz_parms" argument needs to be set to
-    // [<sci_tokens_lib_path>] <libEosMgmOfs.so>
-    // so that the XrdMacaroons library properly chains the various authz plugins
-    std::string authz_parms = "libXrdEosMgm.so";
-
-    if (!scitokens_lib_path.empty()) {
-      std::ostringstream oss;
-      oss <<  scitokens_lib_path << " " << authz_parms;
-      authz_parms = oss.str();
-    }
-
-    if (authz_ep &&
-        (mTokenAuthzHandler = authz_ep(eDest->logger(), confg,
-                                       (authz_parms.empty() ?
-                                        nullptr : authz_parms.c_str())))) {
-      eos_info("%s", "msg=\"XrdAccAuthorizeObject from libXrdMacaroons loaded "
-               "successfully\"");
-      mMgmOfsHandler->SetTokenAuthzHandler(mTokenAuthzHandler);
-    } else {
-      eos_err("%s", "msg=\"failed loading XrdAccAuthorizeObject from "
-              "libXrdMacaroons\"");
-      return 1;
-    }
+  // Load the XrdHttpExHandler plugin from the XrdMacaroons library which
+  // is always on the first position
+  if (!(mTokenHttpHandler = GetHttpExtPlugin(eDest, *authz_libs.begin(),
+                            confg, myEnv))) {
+    return 1;
   }
 
+  // The chaining of the authz libs always has the XrdAccAuthorize plugin
+  // from the MGM in the last postion as a fallback. Therefore, we can
+  // have the following combinations:
+  // libXrdMacaroons.so -> libEosMgmOfs.so
+  // libXrdMacaroons.so -> libXrdAccSciTokens.so -> libEosMgmOfs.so
+  XrdAccAuthorize* authz {nullptr};
+  XrdAccAuthorize* chain_authz = (XrdAccAuthorize*)mMgmOfsHandler->mMgmAuthz;
+
+  for (auto it = authz_libs.rbegin(); it != authz_libs.rend(); ++it) {
+    eos_info("msg=\"chaining XrdAccAuthorize object\" lib=\"%s\"", it->c_str());
+
+    try {
+      if (!(authz = GetAuthzPlugin(eDest, *it, confg, myEnv, chain_authz))) {
+        eos_err("msg=\"failed to chain XrdAccAuthorize plugin\" lib=\"%s\"",
+                it->c_str());
+        return 1;
+      }
+    } catch (const std::exception& e) {
+      eos_err("msg=\"caught execption\" msg=\"%s\"", e.what());
+      return 1;
+    }
+
+    chain_authz = authz;
+  }
+
+  eos_info("%s", "msg=\"successfully chained the XrdAccAuthorizeObject "
+           "plugins and updated the MGM token authorization handler\"");
+  mTokenAuthzHandler = authz;
+  mMgmOfsHandler->SetTokenAuthzHandler(mTokenAuthzHandler);
   return 0;
 }
 
@@ -521,74 +491,226 @@ EosMgmHttpHandler::ProcessReq(XrdHttpExtReq& req)
 }
 
 //------------------------------------------------------------------------------
-// Get a pointer to the MGM OFS plug-in
+// Get OFS library path from the given configuration
 //------------------------------------------------------------------------------
-bool
-EosMgmHttpHandler::GetOfsPlugin(XrdSysError* eDest, const std::string& confg,
-                                XrdOucEnv* myEnv)
+std::string
+EosMgmHttpHandler::GetOfsLibPath(const std::string& cfg_line)
 {
   using namespace eos::common;
-  std::string cfg;
-  StringConversion::LoadFileIntoString(confg.c_str(), cfg);
-  auto lines = StringTokenizer::split<std::vector<std::string>>(cfg, '\n');
+  std::string lib_path;
+  auto tokens = StringTokenizer::split<std::vector<std::string>>(cfg_line, ' ');
 
-  for (const auto& line : lines) {
-    if (line.find("xrootd.fslib") == 0) {
-      auto tokens = StringTokenizer::split<std::vector<std::string>>(line, ' ');
-
-      if (tokens.size() < 2) {
-        eDest->Emsg("Config", "Failed parsing xrootd.fslib directive", "");
-        break;
-      }
-
-      std::string lib = tokens[1];
-
-      // Account for different specifications of the OFS plugin
-      if (lib == "-2")  {
-        if (tokens.size() < 3) {
-          eDest->Emsg("Config", "Failed parsing xrootd.fslib directive", "");
-          break;
-        }
-
-        lib = tokens[2];
-      }
-
-      char resolve_path[2048];
-      bool no_alt_path {false};
-
-      if (!XrdOucPinPath(lib.c_str(), no_alt_path, resolve_path,
-                         sizeof(resolve_path))) {
-        eDest->Emsg("Config", "Failed to locate the MGM OFS library path for ",
-                    lib.c_str());
-        break;
-      }
-
-      // Try to load the XrdSfsGetFileSystem from the libXrdEosMgm library
-      XrdSfsFileSystem *(*ep)(XrdSfsFileSystem*, XrdSysLogger*, const char*);
-      std::string ofs_symbol {"XrdSfsGetFileSystem"};
-      XrdSysPlugin ofs_plugin(eDest, resolve_path, "mgmofs", &compiledVer, 1);
-      void* ofs_addr = ofs_plugin.getPlugin(ofs_symbol.c_str(), 0, 0);
-      ofs_plugin.Persist();
-      ep = (XrdSfsFileSystem * (*)(XrdSfsFileSystem*, XrdSysLogger*, const char*))
-           (ofs_addr);
-      XrdSfsFileSystem* sfs_fs {nullptr};
-
-      if (!(ep && (sfs_fs = ep(nullptr, eDest->logger(), confg.c_str())))) {
-        eDest->Emsg("Config", "Failed loading XrdSfsFileSystem from "
-                    "libXrdEosMgm");
-        break;
-      }
-
-      mMgmOfsHandler = static_cast<XrdMgmOfs*>(sfs_fs);
-      eos_info("msg=\"XrdSfsFileSystem from libXrdEosMgm loaded successfully\""
-               " mgm_plugin_addr=%p", mMgmOfsHandler);
-      break;
-    }
+  if (tokens.size() < 2) {
+    eos_err("msg=\"failed parsing xrootd.ofslib directive\" line=\"%s\"",
+            cfg_line.c_str());
+    return lib_path;
   }
 
-  return (mMgmOfsHandler != nullptr);
+  eos::common::trim(tokens[1]);
+  lib_path = tokens[1];
+
+  // Account for different specifications of the OFS plugin
+  if (lib_path == "-2")  {
+    if (tokens.size() < 3) {
+      eos_err("msg=\"failed parsing xrootd.ofslib directive\" line=\"%s\"",
+              cfg_line.c_str());
+      lib_path.clear();
+      return lib_path;
+    }
+
+    eos::common::trim(tokens[2]);
+    lib_path = tokens[2];
+  }
+
+  return lib_path;
 }
 
+//------------------------------------------------------------------------------
+// Get list of external authorization libraries present in the configuration.
+// If multiple are present then the order is kept to properly apply chaining
+// to these libraries.
+//------------------------------------------------------------------------------
+std::list<std::string>
+EosMgmHttpHandler::GetAuthzLibPaths(const std::string& cfg_line)
+{
+  using namespace eos::common;
+  std::list<std::string> authz_libs;
+  auto tokens = StringTokenizer::split<std::vector<std::string>>(cfg_line, ' ');
+
+  if (tokens.size() < 2) {
+    eos_err("msg=\"missing mgmofs.macaroonslib configuration\" "
+            "tokens_sz=%i", tokens.size());
+    return authz_libs;
+  }
+
+  // The first one MUST BE the XrdMacroons lib
+  eos::common::trim(tokens[1]);
+  authz_libs.push_back(tokens[1]);
+
+  // Enable also the SciTokens library if present in the configuration
+  if (tokens.size() > 2) {
+    eos::common::trim(tokens[2]);
+    authz_libs.push_back(tokens[2]);
+  }
+
+  return authz_libs;
+}
+
+//----------------------------------------------------------------------------
+// Get XrdHttpExHandler library path from the given configuration
+//----------------------------------------------------------------------------
+std::string
+EosMgmHttpHandler::GetHttpExtLibPath(const std::string& cfg_line)
+{
+  using namespace eos::common;
+  auto tokens = StringTokenizer::split<std::vector<std::string>>(cfg_line, ' ');
+
+  if (tokens.size() < 2) {
+    eos_err("msg=\"missing mgmofs.macaroonslib configuration\" "
+            "tokens_sz=%i", tokens.size());
+    return std::string();
+  }
+
+  // The first one MUST BE the XrdMacroons lib
+  eos::common::trim(tokens[1]);
+  return tokens[1];
+}
+
+//------------------------------------------------------------------------------
+// Get a pointer to the MGM OFS plug-in
+//------------------------------------------------------------------------------
+XrdMgmOfs*
+EosMgmHttpHandler::GetOfsPlugin(XrdSysError* eDest, const std::string& lib_path,
+                                const char* confg)
+{
+  char resolve_path[2048];
+  bool no_alt_path {false};
+  XrdMgmOfs* mgm_ofs_handler {nullptr};
+
+  if (!XrdOucPinPath(lib_path.c_str(), no_alt_path, resolve_path,
+                     sizeof(resolve_path))) {
+    eDest->Emsg("Config", "Failed to locate the MGM OFS library path for ",
+                lib_path.c_str());
+    return mgm_ofs_handler;
+  }
+
+  // Try to load the XrdSfsGetFileSystem from the library (libXrdEosMgm.so)
+  XrdSfsFileSystem *(*ep)(XrdSfsFileSystem*, XrdSysLogger*, const char*);
+  std::string ofs_symbol {"XrdSfsGetFileSystem"};
+  XrdSysPlugin ofs_plugin(eDest, resolve_path, "mgmofs", &compiledVer, 1);
+  void* ofs_addr = ofs_plugin.getPlugin(ofs_symbol.c_str(), 0, 0);
+  ofs_plugin.Persist();
+  ep = (XrdSfsFileSystem * (*)(XrdSfsFileSystem*, XrdSysLogger*, const char*))
+       (ofs_addr);
+  XrdSfsFileSystem* sfs_fs {nullptr};
+
+  if (!(ep && (sfs_fs = ep(nullptr, eDest->logger(), confg)))) {
+    eDest->Emsg("Config", "Failed loading XrdSfsFileSystem from ",
+                lib_path.c_str());
+    return mgm_ofs_handler;
+  }
+
+  mgm_ofs_handler = static_cast<XrdMgmOfs*>(sfs_fs);
+  eos_info("msg=\"successfully loaed XrdSfsFileSystem\" mgm_plugin_addr=%p",
+           mgm_ofs_handler);
+  return mgm_ofs_handler;
+}
+
+//------------------------------------------------------------------------------
+// Get a pointer to the XrdHttpExtHandler plugin
+//------------------------------------------------------------------------------
+XrdHttpExtHandler*
+EosMgmHttpHandler::GetHttpExtPlugin(XrdSysError* eDest,
+                                    const std::string& lib_path,
+                                    const char* confg, XrdOucEnv* myEnv)
+{
+  bool no_alt_path = false;
+  char resolve_path[2048];
+  XrdHttpExtHandler* http_ptr {nullptr};
+
+  if (!XrdOucPinPath(lib_path.c_str(), no_alt_path, resolve_path,
+                     sizeof(resolve_path))) {
+    eos_err("msg=\"failed to locate library path\" lib=\"%s\"",
+            lib_path.c_str());
+    return http_ptr;
+  }
+
+  eos_info("msg=\"loading HttpExtHandler(XrdMacaroons) plugin\" path=\"%s\"",
+           resolve_path);
+  XrdHttpExtHandler *(*ep)(XrdHttpExtHandlerArgs);
+  std::string http_symbol {"XrdHttpGetExtHandler"};
+  XrdSysPlugin http_plugin(eDest, resolve_path, "httpexthandler",
+                           &compiledVer, 1);
+  void* http_addr = http_plugin.getPlugin(http_symbol.c_str(), 0, 0);
+  http_plugin.Persist();
+  ep = (XrdHttpExtHandler * (*)(XrdHttpExtHandlerArgs))(http_addr);
+
+  if (!http_addr) {
+    eos_err("msg=\"no XrdHttpGetExtHandler entry point in library\" "
+            "lib=\"%s\"", resolve_path);
+    return http_ptr;
+  }
+
+  // Add a pointer to the MGM authz handler so that it can be used by the
+  // macaroons library to get access permissions for token requests
+  myEnv->PutPtr("XrdAccAuthorize*", (void*)mMgmOfsHandler->mMgmAuthz);
+
+  if (ep && (http_ptr = ep(eDest, confg, (const char*) nullptr, myEnv))) {
+    eos_info("msg=\"successfully loaded XrdHttpGetExtHandler\" lib=\"%s\"",
+             resolve_path);
+  } else {
+    eos_err("msg=\"failed loading XrdHttpGetExtHandler\" lib=\"%s\"",
+            resolve_path);
+  }
+
+  return http_ptr;
+}
+
+//------------------------------------------------------------------------------
+// Get a pointer to the XrdAccAuthorize plugin present in the given library
+//------------------------------------------------------------------------------
+XrdAccAuthorize*
+EosMgmHttpHandler::GetAuthzPlugin(XrdSysError* eDest,
+                                  const std::string& lib_path,
+                                  const char* confg, XrdOucEnv* myEnv,
+                                  XrdAccAuthorize* to_chain)
+{
+  bool no_alt_path = false;
+  char resolve_path[2048];
+  XrdAccAuthorize* authz_ptr {nullptr};
+
+  if (!XrdOucPinPath(lib_path.c_str(), no_alt_path, resolve_path,
+                     sizeof(resolve_path))) {
+    eos_err("msg=\"failed to locate library path\" lib=\"%s\"",
+            lib_path.c_str());
+    return authz_ptr;
+  }
+
+  eos_info("msg=\"loading XrdAccAuthorize plugin\" lib=\"%s\"", resolve_path);
+  XrdAccAuthorize *(*authz_add_ep)(XrdSysLogger*, const char*, const char*,
+                                   XrdOucEnv*, XrdAccAuthorize*);
+  std::string authz_add_symbol {"XrdAccAuthorizeObjAdd"};
+  XrdSysPlugin authz_add_plugin(eDest, resolve_path, "authz", &compiledVer, 1);
+  void* authz_addr = authz_add_plugin.getPlugin(authz_add_symbol.c_str(), 0, 0);
+  authz_add_plugin.Persist();
+  authz_add_ep = (XrdAccAuthorize * (*)(XrdSysLogger*, const char*, const char*,
+                                        XrdOucEnv*, XrdAccAuthorize*))(authz_addr);
+
+  if (authz_add_ep &&
+      (authz_ptr = authz_add_ep(eDest->logger(), confg, nullptr, myEnv, to_chain))) {
+    eos_info("msg=\"successfully loaded XrdAccAuthorizeObject\" lib=\"%s\" ptr=%p",
+             resolve_path, authz_ptr);
+  } else {
+    eos_err("msg=\"failed loading XrdAccAuthorizeObject\" lib=\"%s\"",
+            resolve_path);
+  }
+
+  return authz_ptr;
+}
+
+//------------------------------------------------------------------------------
+// Reads the body of the XrdHttpExtReq object and put it in the body string
+//------------------------------------------------------------------------------
 std::optional<int> EosMgmHttpHandler::readBody(XrdHttpExtReq& req,
     std::string& body)
 {
@@ -617,7 +739,9 @@ std::optional<int> EosMgmHttpHandler::readBody(XrdHttpExtReq& req,
         dataRead += bytesRead;
       } else if (bytesRead == -1) {
         std::ostringstream oss;
-        oss << "msg=\"In EosMgmHttpHandler::ProcessReq(), unable to read the body of the request coming from the user. Internal XRootD Http request buffer error\"";
+        oss << "msg=\"In EosMgmHttpHandler::ProcessReq(), unable to read the "
+            << "body of the request coming from the user. Internal XRootD Http"
+            << " request buffer error\"";
         eos_static_err(oss.str().c_str());
         std::string errorMsg = "Http server error: unable to read the request received";
         return req.SendSimpleResp(500, errorMsg.c_str(), "", errorMsg.c_str(),
@@ -634,6 +758,9 @@ std::optional<int> EosMgmHttpHandler::readBody(XrdHttpExtReq& req,
   return returnCode;
 }
 
+//------------------------------------------------------------------------------
+// Returns true if the request is a macaroon token request false otherwise
+//------------------------------------------------------------------------------
 bool EosMgmHttpHandler::isMacaroonRequest(const XrdHttpExtReq& req)
 {
   if (req.verb == "POST") {

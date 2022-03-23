@@ -25,6 +25,7 @@
 #include "common/Logging.hh"
 #include "XrdVersion.hh"
 #include <optional>
+#include <list>
 
 //! Forward declaration
 class XrdMgmOfs;
@@ -166,17 +167,79 @@ private:
   void CopyXrdSecEntity(const XrdSecEntity& src, XrdSecEntity& dst) const;
 
   //----------------------------------------------------------------------------
+  //! Get OFS library path from the given configuration
+  //!
+  //! @param cfg_line relevant config line from file i.e xrd.cf.mgm
+  //!
+  //! @return string representing the OFS library
+  //----------------------------------------------------------------------------
+  std::string GetOfsLibPath(const std::string& cfg_line);
+
+  //----------------------------------------------------------------------------
+  //! Get XrdHttpExHandler library path from the given configuration
+  //!
+  //! @param cfg_line relevant config line from file i.e xrd.cf.mgm
+  //!
+  //! @return string representing the OFS library
+  //----------------------------------------------------------------------------
+  std::string GetHttpExtLibPath(const std::string& cfg_line);
+
+  //----------------------------------------------------------------------------
+  //! Get list of external authorization libraries present in the configuration.
+  //! If multiple are present then the order is kept to properly apply chaining
+  //! to these libraries.
+  //!
+  //! @param cfg_line relevant config line from file i.e xrd.cf.mgm
+  //!
+  //! @return list of external authorization libraries configured
+  //----------------------------------------------------------------------------
+  std::list<std::string> GetAuthzLibPaths(const std::string& cfg_line);
+
+  //----------------------------------------------------------------------------
   //! Get a pointer to the MGM OFS plugin
   //!
   //! @param eDest error object that must be used to print any errors or msgs
-  //! @param confg name of the configuration file
-  //! @param myEnv environment variables for configuring the external handler;
-  //!              it may be null.
+  //! @param lib_path library path
+  //! @param confg configuration file path
   //!
   //! @return true if successful, otherwise false
   //----------------------------------------------------------------------------
-  bool GetOfsPlugin(XrdSysError* eDest, const std::string& confg,
-                    XrdOucEnv* myEnv);
+  XrdMgmOfs* GetOfsPlugin(XrdSysError* eDest, const std::string& lib_path,
+                          const char* confg);
+
+  //----------------------------------------------------------------------------
+  //! Get a pointer to the XrdHttpExtHandler plugin
+  //!
+  //! @param eDest error object that must be used to print any errors or msgs
+  //! @param lib_path library path
+  //! @param confg configuration file path
+  //! @param myEnv environment variables for configuring the external handler;
+  //!       it my be null.
+  //!
+  //! @return true if successful, otherwise false
+  //----------------------------------------------------------------------------
+  XrdHttpExtHandler*
+  GetHttpExtPlugin(XrdSysError* eDest, const std::string& lib_path,
+                   const char* confg, XrdOucEnv* myEnv);
+
+  //----------------------------------------------------------------------------
+  //! Get a pointer to the XrdAccAuthorize plugin present in the given library
+  //!
+  //! @param eDest error object that must be used to print any errors or msgs
+  //! @param lib_path library path
+  //! @param confg configuration file path
+  //! @param myEnv environment variables for configuring the external handler;
+  //!              it may be null.
+  //! @param to_chain XrdAccAuthorize plugin to chain to the newly loaded
+  //!        authorization plugin
+  //!
+  //! @return true if successful, otherwise false
+  //----------------------------------------------------------------------------
+  XrdAccAuthorize* GetAuthzPlugin(XrdSysError* eDest,
+                                  const std::string& lib_path,
+                                  const char* confg, XrdOucEnv* myEnv,
+                                  XrdAccAuthorize* to_chain);
+
   //----------------------------------------------------------------------------
   //! Reads the body of the XrdHttpExtReq object and put it in the
   //! body string
@@ -184,8 +247,8 @@ private:
   //! @param req the request from which we will read the body content from
   //! @param body, the string where the body from the request will be put on
   //!
-  //! @return a return code if there was an error during the reading. Nothing otherwise,
-  //! hence the optional<int>
+  //! @return a return code if there was an error during the reading. Nothing
+  //!         otherwise, hence the optional<int>.
   //----------------------------------------------------------------------------
   std::optional<int> readBody(XrdHttpExtReq& req, std::string& body);
 

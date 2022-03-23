@@ -43,28 +43,70 @@ XrdVERSIONINFO(XrdAccAuthorizeObject, EosMgmAuthz);
 // parm  -> Paramexters specified on the authlib directive. If none it is zero.
 //------------------------------------------------------------------------------
 extern "C"
-XrdAccAuthorize* XrdAccAuthorizeObject(XrdSysLogger* lp, const char*   cfn,
-                                       const char*   parm)
 {
-  XrdSysError eroute(lp, "mgmauthz_");
+  XrdAccAuthorize* XrdAccAuthorizeObject(XrdSysLogger* lp, const char*   cfn,
+                                         const char*   parm)
+  {
+    XrdSysError eroute(lp, "mgmauthz_");
 
-  if (gMgmAuthz) {
-    eroute.Say("====== XrdMgmAuthz plugin already loaded and available");
-    return gMgmAuthz;
+    if (gMgmAuthz) {
+      eroute.Say("====== XrdMgmAuthz plugin already loaded and available");
+      return gMgmAuthz;
+    }
+
+    XrdOucString version = "EOS MGM Authorization (XrdMgmAuthz) ";
+    version += VERSION;
+    eroute.Say("++++++ (c) 2020 CERN/IT-ST ", version.c_str());
+    gMgmAuthz = new XrdMgmAuthz();
+
+    if (!gMgmAuthz) {
+      eroute.Say("------ XrdMgmAuthz plugin initialization failed!");
+    } else {
+      eroute.Say("------ XrdMgmAuthz plugin initialization successful");
+    }
+
+    return static_cast<XrdAccAuthorize*>(gMgmAuthz);
   }
 
-  XrdOucString version = "EOS MGM Authorization (XrdMgmAuthz) ";
-  version += VERSION;
-  eroute.Say("++++++ (c) 2020 CERN/IT-ST ", version.c_str());
-  gMgmAuthz = new XrdMgmAuthz();
 
-  if (!gMgmAuthz) {
-    eroute.Say("------ XrdMgmAuthz plugin initialization failed!");
-  } else {
-    eroute.Say("------ XrdMgmAuthz plugin initialization successful");
+//------------------------------------------------------------------------------
+//! Add an authorization object as a wrapper to the existing object.
+//!
+//! XrdAccAuthorizeObjAdd() is an extern "C" function that is called to obtain
+//! an instance of the auth object that should wrap the existing object. The
+//! wrapper becomes the actual authorization object. The wrapper must be
+//! in the plug-in shared library, it is passed additional parameters.
+//! All the following extern symbols must be defined at file level!
+//!
+//! @param lp   -> XrdSysLogger to be tied to an XrdSysError object for messages
+//! @param cfn  -> The name of the configuration file
+//! @param parm -> Parameters specified on the authlib directive. If none it
+//!                is zero.
+//! @param envP -> Environmental information and may be nil.
+//! @param accP -> to the existing authorization object.
+//!
+//! @return Success: A pointer to the authorization object.
+//!         Failure: Null pointer which causes initialization to fail.
+  XrdAccAuthorize* XrdAccAuthorizeObjAdd(XrdSysLogger* log,
+                                         const char*   config,
+                                         const char*   params,
+                                         XrdOucEnv*     /*not used*/,
+                                         XrdAccAuthorize* chain_authz)
+  {
+    XrdSysError eroute(log, "mgmauthz_");
+
+    if (gMgmAuthz) {
+      if (chain_authz) {
+        eroute.Say("====== XrdMgmAuthz does not support chaining other "
+                   "authorization objects");
+      }
+
+      eroute.Say("====== XrdMgmAuthz plugin already loaded and available");
+      return gMgmAuthz;
+    }
+
+    return XrdAccAuthorizeObject(log, config, params);
   }
-
-  return static_cast<XrdAccAuthorize*>(gMgmAuthz);
 }
 
 //------------------------------------------------------------------------------
