@@ -147,7 +147,6 @@ if (NOT CLIENT)
   add_subdirectory(archive)
   add_subdirectory(auth_plugin)
   add_subdirectory(unit_tests)
-  add_subdirectory(eos-scitokens)
   add_subdirectory(quarkdb)
 endif ()
 
