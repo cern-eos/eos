@@ -56,7 +56,7 @@ extern "C"
 
     XrdOucString version = "EOS MGM Authorization (XrdMgmAuthz) ";
     version += VERSION;
-    eroute.Say("++++++ (c) 2020 CERN/IT-ST ", version.c_str());
+    eroute.Say("++++++ (c) 2022 CERN/IT-ST ", version.c_str());
     gMgmAuthz = new XrdMgmAuthz();
 
     if (!gMgmAuthz) {
