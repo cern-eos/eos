@@ -60,7 +60,7 @@ Stat::AddExec(const char* tag, float exectime)
 {
   XrdSysMutexHelper lock(mMutex);
   StatExec[tag].push_back(exectime);
-
+  CumulativeTimeExec[tag] += exectime;
   // we average over 100 entries
   if (StatExec[tag].size() > 100) {
     StatExec[tag].pop_front();
@@ -68,6 +68,7 @@ Stat::AddExec(const char* tag, float exectime)
 }
 
 /*----------------------------------------------------------------------------*/
+// warning: you have to lock the mutex if directly used
 unsigned long long
 Stat::GetTotal(const char* tag)
 {
@@ -83,6 +84,18 @@ Stat::GetTotal(const char* tag)
   }
 
   return val;
+}
+
+/*----------------------------------------------------------------------------*/
+// warning: you have to lock the mutex if directly used
+double
+Stat::GetCumulativeExecTime(const char* tag)
+{
+  if(!CumulativeTimeExec.count(tag)){
+    return 0.0;
+  }
+
+  return CumulativeTimeExec[tag];
 }
 
 /*----------------------------------------------------------------------------*/
@@ -678,7 +691,8 @@ Stat::PrintOutTotal(XrdOucString& out, bool details, bool monitoring,
       std::make_tuple("exec(ms)", 8, format_f),
       std::make_tuple("sigma(ms)", 8, format_ff),
       std::make_tuple("99p(ms)", 8, format_f),
-      std::make_tuple("max(ms)", 8, format_f)
+      std::make_tuple("max(ms)", 8, format_f),
+      std::make_tuple("cumul",8,format_f)
     });
   } else {
     table_all.SetHeader({
@@ -693,7 +707,8 @@ Stat::PrintOutTotal(XrdOucString& out, bool details, bool monitoring,
       std::make_tuple("exec", 0, format_f),
       std::make_tuple("execsig", 0, format_ff),
       std::make_tuple("exec99", 8, format_f),
-      std::make_tuple("execmax", 8, format_f)
+      std::make_tuple("execmax", 8, format_f),
+      std::make_tuple("cumulexecms",8,format_f)
     });
   }
 
@@ -701,9 +716,10 @@ Stat::PrintOutTotal(XrdOucString& out, bool details, bool monitoring,
     const char* tag = it->c_str();
     double avg = 0, sig = 0;
     double max = 0, perc = 0;
+    double cumulativeExecTimeMs = 0;
 
     avg = GetExec(tag, sig, max, perc);
-
+    cumulativeExecTimeMs = GetCumulativeExecTime(tag);
     TableData table_data;
     table_data.emplace_back();
     table_data.back().push_back(TableCell("all", format_ss));
@@ -724,7 +740,18 @@ Stat::PrintOutTotal(XrdOucString& out, bool details, bool monitoring,
       table_data.back().push_back(TableCell(sig, format_f));
       table_data.back().push_back(TableCell(perc, format_f));
       table_data.back().push_back(TableCell(max, format_f));
+
+      if(!monitoring) {
+        //We want the output to be displayed in day/hours/min/seconds in the table output
+        XrdOucString cumulativeExecTimeStr;
+        common::StringConversion::GetReadableAgeString(cumulativeExecTimeStr, llround(cumulativeExecTimeMs) / 1000);
+        table_data.back().push_back(
+            TableCell(cumulativeExecTimeStr.c_str(), format_ss));
+      } else {
+        table_data.back().push_back(TableCell(cumulativeExecTimeMs, format_f));
+      }
     } else {
+      table_data.back().push_back(TableCell(na, format_s));
       table_data.back().push_back(TableCell(na, format_s));
       table_data.back().push_back(TableCell(na, format_s));
       table_data.back().push_back(TableCell(na, format_s));

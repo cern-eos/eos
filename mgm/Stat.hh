@@ -509,6 +509,7 @@ public:
   google::sparse_hash_map<std::string, google::sparse_hash_map<gid_t, StatExt> >
   StatExtGid;
   google::sparse_hash_map<std::string, std::deque<float> > StatExec;
+  google::sparse_hash_map<std::string, double> CumulativeTimeExec;
 
   void Add(const char* tag, uid_t uid, gid_t gid, unsigned long val);
 
@@ -517,7 +518,9 @@ public:
 
   void AddExec(const char* tag, float exectime);
 
+  // warning: you have to lock the mutex if directly used
   unsigned long long GetTotal(const char* tag);
+  double GetCumulativeExecTime(const char * tag);
 
   // warning: you have to lock the mutex if directly used
   double GetTotalAvg3600(const char* tag);
