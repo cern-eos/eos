@@ -26,74 +26,8 @@
 #include <unordered_set>
 #include "fst/utils/StdFSWalkTree.hh"
 #include "fst/utils/FTSWalkTree.hh"
+#include "TmpDirTree.hh"
 
-
-#if defined(__clang__) && __clang_major__ < 6
-namespace fs = std::experimental::filesystem::v1;
-#else
-namespace fs = std::filesystem;
-#endif
-
-
-static const std::string BASE_DIR="fstest";
-
-
-// Creates the following tree
-// fstest
-//        a0
-//           a1
-//              file0
-//              [..] file5
-// ...
-
-void create_files(std::string path, int count){
-  for (int i=0; i < count; ++i) {
-    std::string filename = path + "/file" + std::to_string(i);
-    std::ofstream f(filename.c_str());
-  }
-}
-
-static std::string base_path = fs::temp_directory_path().native() + "/fstest";
-
-class TmpDirTree: public ::testing::Test
-{
-protected:
-  void SetUp() override {
-    fs::current_path(fs::temp_directory_path());
-    fs::create_directories("fstest/a0/a1");
-    fs::create_directories("fstest/b0/b1");
-    fs::create_directories("fstest/c0/c1");
-
-    create_files("fstest/a0/a1", 3);
-    create_files("fstest/b0/b1", 3);
-    create_files("fstest/c0/c1", 3);
-    create_files("fstest",3);
-    std::ofstream f(base_path + "/test.xsmap");
-
-    fs::create_directories("fstest/.hidden/hidden0");
-    create_files("fstest/.hidden/hidden0",3);
-    create_files("fstest/.hidden", 3);
-  }
-
-  void TearDown() override {
-    fs::remove_all("fstest");
-  }
-};
-
-std::unordered_set<std::string> expected_files = {
-    "/tmp/fstest/a0/a1/file0",
-    "/tmp/fstest/a0/a1/file1",
-    "/tmp/fstest/a0/a1/file2",
-    "/tmp/fstest/b0/b1/file0",
-    "/tmp/fstest/b0/b1/file1",
-    "/tmp/fstest/b0/b1/file2",
-    "/tmp/fstest/c0/c1/file0",
-    "/tmp/fstest/c0/c1/file1",
-    "/tmp/fstest/c0/c1/file2",
-    "/tmp/fstest/file0",
-    "/tmp/fstest/file1",
-    "/tmp/fstest/file2"
-};
 using eos::fst::stdfs::IsRegularFile;
 
 TEST_F(TmpDirTree, WalkFSTree)
