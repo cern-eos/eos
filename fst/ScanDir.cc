@@ -477,6 +477,10 @@ ScanDir::RunDiskScan(ThreadAssistant& assistant) noexcept
     ScanSubtree(assistant);
     auto finish_ts = mClock.getTime();
     seconds duration = duration_cast<seconds>(finish_ts - start_ts);
+    // Check if there was a config update before we sleep
+    DiskIntervalSec = mDiskIntervalSec.load(std::memory_order_acquire);
+    FsckIntervalSec = mFsckRefreshIntervalSec.load(std::memory_order_acquire);
+
     std::string log_msg =
       SSTR("[ScanDir] Directory: " << mDirPath << " files=" << mNumTotalFiles
            << " scanduration=" << duration.count() << " [s] scansize="
