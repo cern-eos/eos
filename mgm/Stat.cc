@@ -629,6 +629,7 @@ Stat::Clear()
     StatAvgGid[ittag->first].resize(1000);
     StatExec[ittag->first].clear();
     StatExec[ittag->first].resize(1000);
+    CumulativeTimeExec[ittag->first] = 0.0;
   }
 }
 
