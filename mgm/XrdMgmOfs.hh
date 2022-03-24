@@ -120,6 +120,7 @@
 #include "namespace/interface/INamespaceGroup.hh"
 #include "namespace/ns_quarkdb/QdbContactDetails.hh"
 #include "mgm/InFlightTracker.hh"
+#include "mgm/namespacestats/NamespaceStats.hh"
 #include "XrdAcc/XrdAccPrivs.hh"
 #include <google/sparse_hash_map>
 #include <chrono>
@@ -1629,6 +1630,7 @@ public:
   eos::IFileMDChangeListener* eosContainerAccounting; ///< subtree accounting
   //! Subtree mtime propagation
   eos::IContainerMDChangeListener* eosSyncTimeAccounting;
+  eos::mgm::NamespaceStats mNamespaceStats; //namespace-related stats operation
   eos::common::RWMutex eosViewRWMutex; ///< RW namespace mutex
   XrdOucString
   MgmMetaLogDir; ///<  Directory containing the meta data (change) log files

@@ -102,6 +102,7 @@ add_library(
   Messaging.cc
   ${MGM_TGC_SRC_FILES}
   Policy.cc
+  namespacestats/NamespaceStats.cc
   proc/IProcCommand.cc
   proc/ProcInterface.cc
   proc/ProcCommand.cc

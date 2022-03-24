@@ -32,6 +32,7 @@
 #include <list>
 #include <unordered_map>
 #include <atomic>
+#include "namespace/interface/INamespaceStats.hh"
 
 EOSNSNAMESPACE_BEGIN
 
@@ -89,6 +90,14 @@ public:
   //----------------------------------------------------------------------------
   void QueueForUpdate(IContainerMD::id_t id);
 
+  //----------------------------------------------------------------------------
+  //! Sets the object that allows to communicate some execution timing statistics
+  //!
+  //! @param namespaceStats the object that will allow to communicate some execution
+  //! timing statistics
+  //----------------------------------------------------------------------------
+  void setNamespaceStats(INamespaceStats * namespaceStats);
+
 private:
 
   //----------------------------------------------------------------------------
@@ -128,6 +137,7 @@ private:
   uint32_t mUpdateIntervalSec; ///< Interval in seconds when updates are pushed
   IContainerMDSvc* mContainerMDSvc; ///< Container meta-data service
   eos::common::RWMutex* gNsRwMutex; ///< Global(MGM) namespace RW mutex
+  INamespaceStats * mNamespaceStats;
 };
 
 EOSNSNAMESPACE_END
