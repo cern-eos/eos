@@ -169,7 +169,7 @@ SecurityChecker::Info SecurityChecker::lookupNonLocalJail(
   // supported openat with AT_THIS_ROOT ...
   //----------------------------------------------------------------------------
 
-  if(eos::common::startsWith(path,"/")) {
+  if(!eos::common::startsWith(path,"/")) {
     //--------------------------------------------------------------------------
     // User is attempting to open a relative path ?! No.
     //--------------------------------------------------------------------------
