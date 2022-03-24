@@ -307,6 +307,11 @@ bool CredentialValidator::validate(const JailInformation &jail,
   //----------------------------------------------------------------------------
   switch(info.state) {
     case CredentialState::kCannotStat:
+      //------------------------------------------------------------------------
+      // Credential file cannot be stat'ed
+      //------------------------------------------------------------------------
+      LOGBOOK_INSERT(scope, "Credential file unable to stat");
+      return false;
     case CredentialState::kBadPermissions: {
       //------------------------------------------------------------------------
       // Credential file cannot be used.
