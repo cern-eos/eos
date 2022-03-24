@@ -30,7 +30,7 @@ QuarkSyncTimeAccounting::QuarkSyncTimeAccounting(IContainerMDSvc* svc,
     uint32_t update_interval):
   mAccumulateIndx(0), mCommitIndx(1), mShutdown(false),
   mUpdateIntervalSec(update_interval), mContainerMDSvc(svc),
-  gNsRwMutex(ns_mutex)
+  gNsRwMutex(ns_mutex),mNamespaceStats(nullptr)
 {
   mBatch.resize(2);
 
@@ -88,6 +88,10 @@ QuarkSyncTimeAccounting::QueueForUpdate(IContainerMD::id_t id)
   }
 }
 
+void QuarkSyncTimeAccounting::setNamespaceStats(INamespaceStats* namespaceStats) {
+  mNamespaceStats = namespaceStats;
+}
+
 //------------------------------------------------------------------------------
 // Propagate updates in the hierarchical structure. Method ran by an
 // asynchronous thread.
@@ -125,6 +129,10 @@ QuarkSyncTimeAccounting::PropagateUpdates(ThreadAssistant* assistant)
     // Start updating form the last node (most recent) and also collect the
     // nodes that we've updated so that older updates don't propagate further
     // up than strictly necessary.
+    struct timeval start;
+    struct timeval stop;
+    struct timezone tz;
+    gettimeofday(&start, &tz);
     for (auto it_id = lst.rbegin(); it_id != lst.rend(); ++it_id) {
       deepness = 0;
       id = *it_id;
@@ -178,7 +186,12 @@ QuarkSyncTimeAccounting::PropagateUpdates(ThreadAssistant* assistant)
         ++deepness;
       }
     }
-
+    gettimeofday(&stop, &tz);                                 \
+    double execTime = ((stop.tv_sec-start.tv_sec)*1000.0) + ((stop.tv_usec-start.tv_usec)/1000.0);
+    if(mNamespaceStats != nullptr){
+      mNamespaceStats->Add("QuarkSyncTimeAccounting",0,0,lst.size());
+      mNamespaceStats->AddExec("QuarkSyncTimeAccounting",execTime);
+    }
     // Clean up the batch
     mBatch[mCommitIndx].Clean();
 

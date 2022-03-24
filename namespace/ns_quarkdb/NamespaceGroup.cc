@@ -72,9 +72,11 @@ QuarkNamespaceGroup::~QuarkNamespaceGroup()
 //------------------------------------------------------------------------------
 bool QuarkNamespaceGroup::initialize(eos::common::RWMutex* nsMtx,
                                      const std::map<std::string, std::string>& config,
-                                     std::string& err)
+                                     std::string& err,
+                                     INamespaceStats * namespaceStats)
 {
   mNsMutex = nsMtx;
+  mNamespaceStats = namespaceStats;
   // Mandatory configuration option: queue_path
   auto it = config.find("queue_path");
 
@@ -238,8 +240,9 @@ IContainerMDChangeListener* QuarkNamespaceGroup::getSyncTimeAccountingView()
   std::lock_guard<std::recursive_mutex> lock(mMutex);
 
   if (!mSyncAccounting) {
-    mSyncAccounting.reset(new QuarkSyncTimeAccounting(getContainerService(),
-                          mNsMutex));
+    std::unique_ptr<QuarkSyncTimeAccounting> syncAccounting = std::make_unique<QuarkSyncTimeAccounting>(getContainerService(),mNsMutex);
+    syncAccounting->setNamespaceStats(mNamespaceStats);
+    mSyncAccounting = std::move(syncAccounting);
     getContainerService()->addChangeListener(mSyncAccounting.get());
   }
 

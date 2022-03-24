@@ -58,8 +58,9 @@ InMemNamespaceGroup::~InMemNamespaceGroup() {
 // Initialization may fail - in such case, "false" will be returned, and
 // "err" will be filled out.
 //----------------------------------------------------------------------------
-bool InMemNamespaceGroup::initialize(eos::common::RWMutex* nsMtx, const std::map<std::string, std::string> &config, std::string &err) {
+bool InMemNamespaceGroup::initialize(eos::common::RWMutex* nsMtx, const std::map<std::string, std::string> &config, std::string &err,INamespaceStats * nameSpaceStats) {
   mNsMutex = nsMtx;
+  mNamespaceStats = nameSpaceStats;
   return true;
 }
 

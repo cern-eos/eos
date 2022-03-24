@@ -23,6 +23,7 @@
 
 #pragma once
 #include "namespace/Namespace.hh"
+#include "namespace/interface/INamespaceStats.hh"
 #include <map>
 #include <string>
 
@@ -62,7 +63,7 @@ public:
   //! "err" will be filled out.
   //----------------------------------------------------------------------------
   virtual bool initialize(eos::common::RWMutex* mtx,
-    const std::map<std::string, std::string> &config, std::string &err) = 0;
+    const std::map<std::string, std::string> &config, std::string &err, INamespaceStats * namespaceStats) = 0;
 
   //----------------------------------------------------------------------------
   //! Provide file service
@@ -114,6 +115,11 @@ protected:
   //! Global namespace mutex - no ownership
   //----------------------------------------------------------------------------
   eos::common::RWMutex* mNsMutex;
+
+  //----------------------------------------------------------------------------
+  //! MGM Namespace stats object - no ownership
+  //----------------------------------------------------------------------------
+  eos::INamespaceStats * mNamespaceStats;
 };
 
 EOSNSNAMESPACE_END

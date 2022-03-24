@@ -60,7 +60,7 @@ public:
   //! "err" will be filled out.
   //----------------------------------------------------------------------------
   virtual bool initialize(eos::common::RWMutex* nsMtx, const
-    std::map<std::string, std::string> &config, std::string &err) override final;
+    std::map<std::string, std::string> &config, std::string &err, INamespaceStats * namespaceStats) override final;
 
   //----------------------------------------------------------------------------
   //! Provide container service

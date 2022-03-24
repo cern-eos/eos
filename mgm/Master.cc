@@ -1752,7 +1752,7 @@ Master::BootNamespace()
   }
 
   if (!gOFS->namespaceGroup->initialize(&gOFS->eosViewRWMutex,
-                                        namespaceConfig, err)) {
+                                        namespaceConfig, err, &gOFS->mNamespaceStats)) {
     eos_err("msg=\"could not initialize namespace group, err: %s\"", err.c_str());
     return false;
   }
