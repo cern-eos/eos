@@ -643,6 +643,10 @@ FileSystem::GetConfigStatusAsString(ConfigStatus status)
     return "draindead";
   }
 
+  case ConfigStatus::kGroupDrain: {
+    return "groupdrain";
+  }
+
   case ConfigStatus::kDrain: {
     return "drain";
   }

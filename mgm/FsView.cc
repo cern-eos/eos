@@ -2459,7 +2459,8 @@ FsView::ReapplyDrainStatus()
     eos::common::ConfigStatus cs = it->second->GetConfigStatus();
 
     if ((cs == eos::common::ConfigStatus::kDrain) ||
-        (cs == eos::common::ConfigStatus::kDrainDead)) {
+        (cs == eos::common::ConfigStatus::kDrainDead) ||
+        (cs == eos::common::ConfigStatus::kGroupDrain)) {
       it->second->SetConfigStatus(cs);
     }
   }

@@ -25,9 +25,12 @@
 #include "mgm/proc/ProcInterface.hh"
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/FsView.hh"
+#include "mgm/GeoTreeEngine.hh"
 
 EOSMGMNAMESPACE_BEGIN
 
+static constexpr auto GEOTAG_KEY="stat.geotag";
+static constexpr auto GEOTAG_PLCT_KEY = "plct";
 //------------------------------------------------------------------------------
 // Method implementing the specific behavior of the command executed by the
 // asynchronous thread
@@ -216,7 +219,17 @@ GroupCmd::SetSubcmd(const eos::console::GroupProto_SetProto& set,
 
   eos::common::RWMutexWriteLock lock(FsView::gFsView.ViewMutex);
 
-  if (!FsView::gFsView.mGroupView.count(set.group())) {
+  // FIXME unify the various methods doing group iteration below!
+  bool non_existant_group = FsView::gFsView.mGroupView.count(set.group()) == 0;
+
+  if (set.group_state() == "drain" && non_existant_group)
+  {
+    reply.set_std_err("error: group does not exist!");
+    reply.set_retc(EINVAL);
+    return;
+  }
+
+  if (non_existant_group) {
     reply.set_std_out(("info: creating group '" + set.group() + "'").c_str());
 
     if (!FsView::gFsView.RegisterGroup(set.group().c_str())) {
@@ -288,6 +301,33 @@ GroupCmd::SetSubcmd(const eos::console::GroupProto_SetProto& set,
 
         if (fs) {
           fs->SetString("stat.drainer", "off");
+        }
+      }
+    }
+  }
+
+  if (set.group_state() == "drain") {
+    auto group = FsView::gFsView.mGroupView.find(set.group());
+    if (group != FsView::gFsView.mGroupView.end()) {
+      std::unordered_set<std::string> geotags;
+      for (auto fs_it = group->second->cbegin();
+           fs_it != group->second->cend(); ++fs_it) {
+        auto fs = FsView::gFsView.mIdView.lookupByID(*fs_it);
+        if (fs) {
+          geotags.emplace(fs->GetString(GEOTAG_KEY));
+        }
+      }
+      XrdOucString output;
+      for (const auto& geotag : geotags) {
+        // TODO: review whether only plct needs to be disabled or every op!
+        bool status = gOFS->mGeoTreeEngine->addDisabledBranch(set.group().c_str(),
+                                                              GEOTAG_PLCT_KEY,
+                                                              geotag.c_str(),
+                                                              &output, true);
+        if (!status) {
+          reply.set_retc(EIO);
+          reply.set_std_err(output.c_str());
+          return;
         }
       }
     }

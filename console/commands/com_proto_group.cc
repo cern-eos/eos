@@ -129,7 +129,7 @@ bool GroupHelper::ParseCommand(const char* arg)
       return false;
     }
 
-    if (token == "on" || token == "off") {
+    if (token == "on" || token == "off" || token == "drain") {
       set->set_group_state(token);
     } else {
       return false;
@@ -186,9 +186,10 @@ void com_group_help()
       << std::endl
       << "group rm <group-name> : remove group\n"
       << std::endl
-      << "group set <group-name> on|off : activate/deactivate group\n"
+      << "group set <group-name> on|drain|off : activate/drain/deactivate group\n"
       << "\t  => when a group is (re-)enabled, the drain pull flag is recomputed for all filesystems within a group\n"
       << "\t  => when a group is (re-)disabled, the drain pull flag is removed from all members in the group\n"
+      << "\t  => when a group is in drain, all the filesystems in the group will be drained to other groups\n"
       << std::endl;
   std::cerr << oss.str() << std::endl;
 }
