@@ -754,7 +754,7 @@ EosFuse::run(int argc, char* argv[], void* userdata)
       XrdCl::DefaultEnv::GetEnv()->PutInt("StreamErrorWindow", 120);
       XrdCl::DefaultEnv::GetEnv()->PutInt("RequestTimeout", 60);
       XrdCl::DefaultEnv::GetEnv()->PutInt("StreamTimeout", 120);
-      XrdCl::DefaultEnv::GetEnv()->PutInt("RedirectLimit", 3);
+      XrdCl::DefaultEnv::GetEnv()->PutInt("RedirectLimit", 2);
 
       for (auto it = xrdcl_options.begin(); it != xrdcl_options.end(); ++it) {
         if (root["xrdcl"].isMember(*it)) {
@@ -2044,6 +2044,7 @@ EosFuse::DumpStatistic(ThreadAssistant& assistant)
                "ALL        iops                := %d\n"
                "ALL        xoffs               := %lu\n"
                "ALL        instance-url        := %s\n"
+	       "ALL        endpoint-url        := %s\n"
                "ALL        client-uuid         := %s\n"
                "ALL        server-version      := %s\n"
                "ALL        automounted         := %d\n"
@@ -2084,6 +2085,7 @@ EosFuse::DumpStatistic(ThreadAssistant& assistant)
                sum,
                Instance().datas.get_xoff(),
                EosFuse::Instance().config.hostport.c_str(),
+	       lastMgmHostPort.get().c_str(),
                EosFuse::Instance().config.clientuuid.c_str(),
                EosFuse::Instance().mds.server_version().c_str(),
                EosFuse::Instance().Config().options.automounted,
