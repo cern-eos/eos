@@ -141,30 +141,31 @@ extern XrdMgmOfs* gOFS; //< global handle to XrdMgmOfs object
 //------------------------------------------------------------------------------
 //! Redirect Macro
 //------------------------------------------------------------------------------
-#define MAYREDIRECT { \
-    if (gOFS != nullptr) {\
-      if (gOFS->IsRedirect) {                                 \
-        int port{0};                                                             \
-        std::string host{""};                                                    \
-        int stall_timeout{0};                                                    \
-        std::string stall_msg{"No master MGM available"};                        \
-        if (gOFS->ShouldRedirect(__FUNCTION__, __AccessMode__, vid, host, port)) {  \
-          return gOFS->Redirect(error, host.c_str(), port);                       \
-        }                                                                         \
-        if (gOFS->ShouldRoute(__FUNCTION__, __AccessMode__, vid, path, ininfo,     \
-                              host, port, stall_timeout)) {                       \
-          if (stall_timeout) {                                                    \
-            return gOFS->Stall(error, stall_timeout, stall_msg.c_str());          \
-          } else {                                                                \
-            XrdCl::URL url; url.SetParams(ininfo ? ininfo : "");                  \
-            if (gOFS->Tried(url, host, "enoent"))                                 \
+#define MAYREDIRECT {							\
+    if (gOFS != nullptr) {						\
+      if (gOFS->IsRedirect) {						\
+        int port{0};							\
+        std::string host{""};						\
+        int stall_timeout{0};						\
+	bool collapse=false;						\
+        std::string stall_msg{"No master MGM available"};		\
+        if (gOFS->ShouldRedirect(__FUNCTION__, __AccessMode__, vid, host, port, collapse)) { \
+	  return gOFS->Redirect(error, host.c_str(), port , path ,collapse); \
+	}								\
+	if (gOFS->ShouldRoute(__FUNCTION__, __AccessMode__, vid, path, ininfo, \
+                              host, port, stall_timeout)) {		\
+          if (stall_timeout) {						\
+            return gOFS->Stall(error, stall_timeout, stall_msg.c_str()); \
+          } else {							\
+            XrdCl::URL url; url.SetParams(ininfo ? ininfo : "");	\
+            if (gOFS->Tried(url, host, "enoent"))			\
               return gOFS->Emsg("redirect", error, ENOENT, "no such file or directory", path); \
-            return gOFS->Redirect(error, host.c_str(), port);                     \
-          }                                                                       \
-        }                                                                         \
-      }                                                                           \
-    }                                                                             \
-}
+            return gOFS->Redirect(error, host.c_str(), port);		\
+          }								\
+        }								\
+      }									\
+    }									\
+  }
 
 //------------------------------------------------------------------------------
 //! ENOENT Redirect Macro

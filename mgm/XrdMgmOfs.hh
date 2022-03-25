@@ -1246,9 +1246,10 @@ public:
   //! @param error error object with text/code
   //! @param host redirection target host
   //! @param port redirection target port
-  //!
+  //! @param path
+  //! @param collapse should the redirect collpase
   //!---------------------------------------------------------------------------
-  int Redirect(XrdOucErrInfo& error, const char* host, int& port);
+  int Redirect(XrdOucErrInfo& error, const char* host, int& port, const char* path="", bool collapse=false);
 
   //----------------------------------------------------------------------------
   //! Function to test if a client based on the called function and his
@@ -1279,13 +1280,13 @@ public:
   //!reading or writing (namespace modifying) function
   //! @param host returns the target host of a redirection
   //! @param port returns the target port of a redirection
-  //!
+  //! @param collapse returns if the redirection should collapse
   //! @return true if client should get a redirected otherwise false
   //!
   //----------------------------------------------------------------------------
   bool ShouldRedirect(const char* function, int accessmode,
                       eos::common::VirtualIdentity& vid,
-                      std::string& host, int& port);
+                      std::string& host, int& port, bool& collapse);
 
   //----------------------------------------------------------------------------
   //! @brief Test if a client based on the called function and his identity

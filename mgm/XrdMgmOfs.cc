@@ -879,13 +879,25 @@ XrdMgmOfs::Stall(XrdOucErrInfo& error,
 int
 XrdMgmOfs::Redirect(XrdOucErrInfo& error,
                     const char* host,
-                    int& port)
+                    int& port,
+		    const char* path, 
+		    bool collapse)
 {
   EPNAME("Redirect");
   const char* tident = error.getErrUser();
   ZTRACE(delay, "Redirect " << host << ":" << port);
-  // Place the error message in the error object and return
-  error.setErrInfo(port, host);
+  if (collapse && strlen(path)) {
+    std::string url = "root://";
+    url += host;
+    url += ":";
+    url += std::to_string(port);
+    url += "/";
+    url += path;
+    error.setErrInfo( ~( ~( -1 ) | kXR_collapseRedir ), url.c_str());
+  } else {
+    // Place the error message in the error object and return
+    error.setErrInfo(port, host);
+  }
   return SFS_REDIRECT;
 }
 

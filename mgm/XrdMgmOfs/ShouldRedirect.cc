@@ -33,7 +33,7 @@
 bool
 XrdMgmOfs::ShouldRedirect(const char* function, int __AccessMode__,
                           eos::common::VirtualIdentity& vid,
-                          std::string& host, int& port)
+                          std::string& host, int& port, bool& collapse)
 {
   eos::common::RWMutexReadLock lock(Access::gAccessMutex);
 
@@ -104,6 +104,7 @@ XrdMgmOfs::ShouldRedirect(const char* function, int __AccessMode__,
 	}
       }
 
+      collapse = true;
       return true;
     }
   }
