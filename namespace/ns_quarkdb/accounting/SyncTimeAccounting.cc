@@ -143,7 +143,6 @@ QuarkSyncTimeAccounting::PropagateUpdates(ThreadAssistant* assistant)
 
       eos_debug("Container_id=%lu sync time", id);
       IContainerMD::ctime_t mtime {0};
-      eos::common::RWMutexWriteLock wr_lock(*gNsRwMutex);
 
       while ((id > 1) && (deepness < 255)) {
         std::shared_ptr<IContainerMD> cont;
