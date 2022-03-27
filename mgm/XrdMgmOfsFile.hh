@@ -244,6 +244,20 @@ public:
 private:
 #endif
   //----------------------------------------------------------------------------
+  //! Check if this is a client retry with exclusion of some diskserver. This
+  //! happens usually for CMS workflows. To distinguish such a scenario from
+  //! a legitimate retry due to a recoverable error, we need to serarch for the
+  //! "tried=" opaque tag without a corresponding "triedrc=" tag.
+  //!
+  //! @param is_rw true if is RW otherwise false
+  //! @param lid file layout id
+  //!
+  //! @return true if this is a retry for a RAIN file with the user excluding
+  //!         some diskservers, otherwise false.
+  //----------------------------------------------------------------------------
+  bool IsRainRetryWithExclusion(unsigned long lid) const;
+
+  //----------------------------------------------------------------------------
   //! Parse the triedrc opaque info and return the corresponding error number
   //!
   //! @param input input string in the form of "enoent,ioerr,fserr,srverr"

@@ -1212,18 +1212,10 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
     isInjection = false;
   }
 
-  // short cut to block multi-source access to EC files
-  if (!isRW && LayoutId::IsRain(fmdlid)) {
-    char* triedrc = openOpaque->Get("triedrc");
-
-    if (triedrc) {
-      int errno_tried = GetTriedrcErrno(triedrc);
-
-      if (!errno_tried) {
-        return Emsg(epname, error, ENETUNREACH,
-                    "open file - multi-source reading on EC file blocked for ", path);
-      }
-    }
+  // Short-cut to block multi-source access to EC files
+  if (IsRainRetryWithExclusion(isRW, fmdlid)) {
+    return Emsg(epname, error, ENETUNREACH,  "open file - "
+                "multi-source reading on EC file blocked for ", path);
   }
 
   if (isRW) {
@@ -1284,9 +1276,10 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
       gOFS->MgmStats.Add("OpenWriteTruncate", vid.uid, vid.gid, 1);
     } else {
       if (isInjection && !fmd) {
-	errno = ENOENT;
-	return Emsg(epname, error, errno, "inject into a non-existing file", path);
+        errno = ENOENT;
+        return Emsg(epname, error, errno, "inject into a non-existing file", path);
       }
+
       if (!(fmd) && ((open_flag & O_CREAT))) {
         gOFS->MgmStats.Add("OpenWriteCreate", vid.uid, vid.gid, 1);
       } else {
@@ -1564,38 +1557,44 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
                             forcedFsId, forced_group, bandwidth, schedule, ioprio, iotype);
 
   // do a local redirect here if there is only one replica attached
-  if (!isRW && !isPio && (fmd->getNumLocation()==1) && Policy::RedirectLocal(path, attrmap, vid, layoutId, space, *openOpaque)) {
-    XrdCl::URL url(std::string("root://localhost//") + std::string(path?path:"/dummy/") + std::string("?") + std::string(ininfo?ininfo:""));
+  if (!isRW && !isPio && (fmd->getNumLocation() == 1) &&
+      Policy::RedirectLocal(path, attrmap, vid, layoutId, space, *openOpaque)) {
+    XrdCl::URL url(std::string("root://localhost//") + std::string(
+                     path ? path : "/dummy/") + std::string("?") + std::string(
+                     ininfo ? ininfo : ""));
     std::string localhost = "localhost";
-    if (gOFS->Tried(url,localhost, "*")) {
+
+    if (gOFS->Tried(url, localhost, "*")) {
       gOFS->MgmStats.Add("OpenFailedRedirectLocal", vid.uid, vid.gid, 1);
-      eos_info("msg=\"local-redirect disabled - forwarding to FST\" path=\"%s\" info=\"%s\"", path, ininfo);
+      eos_info("msg=\"local-redirect disabled - forwarding to FST\" path=\"%s\" info=\"%s\"",
+               path, ininfo);
     } else {
       eos::common::FileSystem::fs_snapshot_t local_snapshot;
       unsigned int local_id = fmd->getLocation(0);
       eos::mgm::FileSystem* local_fs = FsView::gFsView.mIdView.lookupByID(local_id);
       local_fs->SnapShotFileSystem(local_snapshot);
-      
       // compute the local path
-      std::string local_path = eos::common::FileId::FidPrefix2FullPath(eos::common::FileId::Fid2Hex(fmd->getId()).c_str(),
-							  local_snapshot.mPath.c_str());
-
-      eos_info("msg=\"local-redirect screening - forwarding to local\" local-path=\"%s\" path=\"%s\" info=\"%s\"", local_path.c_str(), path, ininfo);
+      std::string local_path = eos::common::FileId::FidPrefix2FullPath(
+                                 eos::common::FileId::Fid2Hex(fmd->getId()).c_str(),
+                                 local_snapshot.mPath.c_str());
+      eos_info("msg=\"local-redirect screening - forwarding to local\" local-path=\"%s\" path=\"%s\" info=\"%s\"",
+               local_path.c_str(), path, ininfo);
       redirectionhost = "file://localhost";
       redirectionhost += local_path.c_str();
       ecode = -1;
+
       if (!gOFS->SetRedirectionInfo(error, redirectionhost.c_str(), ecode)) {
-	eos_err("msg=\"failed setting redirection\" path=\"%s\"", path);
-	return SFS_ERROR;
+        eos_err("msg=\"failed setting redirection\" path=\"%s\"", path);
+        return SFS_ERROR;
       }
-      
+
       rcode = SFS_REDIRECT;
       gOFS->MgmStats.Add("OpenRedirectLocal", vid.uid, vid.gid, 1);
       eos_info("local-redirect=\"%s\"", redirectionhost.c_str());
       return rcode;
     }
   }
-  
+
   if (ioPriority.length()) {
     capability += "&mgm.iopriority=";
     capability += ioPriority.c_str();
@@ -3375,6 +3374,33 @@ XrdMgmOfsFile::Emsg(const char* pfx,
   einfo.setErrInfo(ecode, buffer);
   return SFS_ERROR;
 }
+
+//------------------------------------------------------------------------------
+// Check if this is a client retry with exclusion of some diskserver. This
+// happens usually for CMS workflows. To distinguish such a scenario from
+// a legitimate retry due to a recoverable error, we need to serarch for the
+// "tried=" opaque tag without a corresponding "triedrc=" tag.
+//------------------------------------------------------------------------------
+bool
+XrdMgmOfsFile::IsRainRetryWithExclusion(bool is_rw, unsigned long lid) const
+{
+  if (!is_rw && eos::common::LayoutId::IsRain(lid)) {
+    char* tried_info = openOpaque->Get("tried");
+
+    if (tried_info == nullptr) {
+      return false;
+    }
+
+    char* tried_rc = openOpaque->Get("triedrc");
+
+    if (tried_rc == nullptr) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
 
 //------------------------------------------------------------------------------
 // Parse the triedrc opaque info and return the corresponding error number
