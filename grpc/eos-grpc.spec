@@ -34,7 +34,7 @@
 #-------------------------------------------------------------------------------
 Summary: gRPC, A high performance, open-source universal RPC framework
 Name: eos-grpc
-Version: 1.41.0
+Version: 1.45.0
 Release: 1%{?dist}
 License: BSD
 URL: http://www.grpc.io/
@@ -99,7 +99,7 @@ git submodule update --init --recursive
 sed -i 's/${protobuf_VERSION}.0/${protobuf_VERSION}/g' third_party/protobuf/cmake/CMakeLists.txt
 %build
 cd grpc
-%if %{?fedora}%{!?fedora:0} >= 19 || 0%{distribution} == 8 || 0%{distribution} == 9
+%if %{?fedora}%{!?fedora:0} >= 19 || 0%{distribution} == 8
 export CPPFLAGS="-Wno-error=class-memaccess -Wno-error=tautological-compare -Wno-error=ignored-qualifiers -Wno-error=stringop-truncation"
 export HAS_SYSTEM_PROTOBUF=false
 %endif
@@ -147,6 +147,8 @@ rm -rf %{buildroot}
 %{_libdir}/*.a
 
 %changelog
+* Mon Mar 28 2022 Manuel Reis <manuel.b.reis@cern.ch> - 1.45.0-1
+- Add CentOS Stream 9 build
 * Thu Jan 16 2020 Mihai Patrascoiu <mihai.patrascoiu@cern.ch> - 1.19.0-2
 - Add CentOS 8 build
 * Fri Jul 27 2018 AJP
