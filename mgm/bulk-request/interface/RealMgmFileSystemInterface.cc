@@ -23,6 +23,7 @@
 
 #include "RealMgmFileSystemInterface.hh"
 #include "mgm/Stat.hh"
+#include "mgm/Iostat.hh"
 
 EOSBULKNAMESPACE_BEGIN
 
@@ -65,6 +66,26 @@ int RealMgmFileSystemInterface::_stat(const char* path, struct stat* buf, XrdOuc
 
 void RealMgmFileSystemInterface::_stat_set_flags(struct stat* buf) {
   mMgmOfs->_stat_set_flags(buf);
+}
+
+std::string RealMgmFileSystemInterface::get_logId() {
+  return std::string(mMgmOfs->logId);
+}
+
+std::string RealMgmFileSystemInterface::get_host() {
+  if (mMgmOfs->MgmOfsAlias.length()) {
+    return std::string(mMgmOfs->MgmOfsAlias.c_str());
+  } else if (mMgmOfs->HostName != nullptr) {
+    return std::string(mMgmOfs->HostName);
+  } else {
+    return "unknown";
+  }
+}
+
+void RealMgmFileSystemInterface::writeEosReportRecord(const std::string & record) {
+  if (mMgmOfs->IoStats) {
+    mMgmOfs->IoStats->WriteRecord(record);
+  }
 }
 
 EOSBULKNAMESPACE_END

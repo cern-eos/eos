@@ -48,6 +48,9 @@ public:
   MOCK_METHOD4(FSctl,int(const int cmd, XrdSfsFSctl& args, XrdOucErrInfo& error, const XrdSecEntity* client));
   MOCK_METHOD8(_stat,int(const char* Name, struct stat* buf, XrdOucErrInfo& out_error, eos::common::VirtualIdentity& vid, const char* opaque, std::string* etag, bool follow, std::string* uri));
   MOCK_METHOD1(_stat_set_flags,void(struct stat* buf));
+  MOCK_METHOD0(get_logId,std::string());
+  MOCK_METHOD0(get_host,std::string());
+  MOCK_METHOD1(writeEosReportRecord,void(const std::string & record));
   ~MockPrepareMgmFSInterface(){}
 
   /**
@@ -95,6 +98,7 @@ public:
   static inline const std::string RETRIEVE_REQ_ID = "RETRIEVE_REQ_ID";
   static inline const std::string RETRIEVE_REQ_TIME = "RETRIEVE_REQ_TIME";
   static inline const std::string ERROR_STAT_STR = "ERROR_STAT";
+  static inline const std::string EOS_REPORT_STR_FORMAT = "(([^&=]+)=([^&]*))(&(([^&=]+)=([^&]*)))*";
 };
 
 EOSBULKNAMESPACE_END

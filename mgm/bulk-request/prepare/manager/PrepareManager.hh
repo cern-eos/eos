@@ -25,6 +25,7 @@
 
 #include "common/Logging.hh"
 #include "mgm/Namespace.hh"
+#include "mgm/EosCtaReporter.hh"
 #include <XrdSfs/XrdSfsInterface.hh>
 #include <list>
 #include <string>
@@ -130,7 +131,7 @@ protected:
    * @param error The error that will be returned to the client if an error happens
    * @param vid the identity of the person who issued the prepare request
    */
-  void triggerPrepareWorkflow(const std::list<std::pair<char**, char**>> & pathsToPrepare, const std::string & cmd, const std::string &event, const XrdOucString & reqid, XrdOucErrInfo & error, const eos::common::VirtualIdentity& vid);
+  void triggerPrepareWorkflow(std::list<std::tuple<char**, char**, EosCtaReporterPrepareReq>> & pathsToPrepare, const std::string & cmd, const std::string &event, const XrdOucString & reqid, XrdOucErrInfo & error, const eos::common::VirtualIdentity& vid);
 
   /**
    * Will call the business layer to persist the bulk request

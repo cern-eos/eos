@@ -51,6 +51,9 @@ public:
   virtual int FSctl(const int cmd, XrdSfsFSctl& args, XrdOucErrInfo& error, const XrdSecEntity* client) = 0;
   virtual int _stat(const char* Name, struct stat* buf, XrdOucErrInfo& out_error, eos::common::VirtualIdentity& vid, const char* opaque = 0, std::string* etag = 0, bool follow = true, std::string* uri = 0) = 0;
   virtual void _stat_set_flags(struct stat* buf) = 0;
+  virtual std::string get_logId() = 0;
+  virtual std::string get_host() = 0;
+  virtual void writeEosReportRecord(const std::string & record) = 0;
   virtual ~IMgmFileSystemInterface() {}
 };
 
