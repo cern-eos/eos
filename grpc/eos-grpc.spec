@@ -99,7 +99,7 @@ git submodule update --init --recursive
 sed -i 's/${protobuf_VERSION}.0/${protobuf_VERSION}/g' third_party/protobuf/cmake/CMakeLists.txt
 %build
 cd grpc
-%if %{?fedora}%{!?fedora:0} >= 19 || 0%{distribution} == 8
+%if %{?fedora}%{!?fedora:0} >= 19 || 0%{distribution} == 8 || 0%{distribution} == 9
 export CPPFLAGS="-Wno-error=class-memaccess -Wno-error=tautological-compare -Wno-error=ignored-qualifiers -Wno-error=stringop-truncation"
 export HAS_SYSTEM_PROTOBUF=false
 %endif
