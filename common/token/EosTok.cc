@@ -34,8 +34,6 @@
 #define EKEYEXPIRED 127
 #endif
 
-
-
 #include "EosTok.hh"
 #include "proto/ConsoleRequest.pb.h"
 #include <google/protobuf/util/json_util.h>
@@ -45,6 +43,7 @@
 #include <errno.h>
 #include <regex>
 #include <iostream>
+#include <XrdOuc/XrdOucEnv.hh>
 
 EOSCOMMONNAMESPACE_BEGIN
 
@@ -332,14 +331,15 @@ EosTok::VerifyOrigin(const std::string& host, const std::string& name,
 
   for (int i = 0; i < share->token().origins_size(); ++i) {
     const eos::console::TokenAuth& auth = share->token().origins(i);
-
     int m1 = Match(host, auth.host());
     int m2 = Match(name, auth.name());
     int m3 = Match(prot, auth.prot());
-    if ( (m1 < 0 ) || ( m2 < 0 ) || ( m3 < 0 )) {
+
+    if ((m1 < 0) || (m2 < 0) || (m3 < 0)) {
       return -EBADE;
     }
-    if ( (m1 == 1) && (m2 == 1) && (m3 == 1) ) {
+
+    if ((m1 == 1) && (m2 == 1) && (m3 == 1)) {
       return 0;
     }
   }
@@ -357,7 +357,8 @@ EosTok::Match(const std::string& input, const std::string& regexString)
     bool match = std::regex_match(input, re);
     return match;
   } catch (regex_error& e) {
-    std::cerr << "error: invalid regex : " << e.what() << " : " << "CODE IS: " << e.code() << std::endl;
+    std::cerr << "error: invalid regex : " << e.what() << " : " << "CODE IS: " <<
+              e.code() << std::endl;
     return -1;
   }
 }
@@ -437,15 +438,29 @@ EosTok::Requester() const
 }
 
 bool
-EosTok::isEosToken(const char* pathcgi)
+EosTok::IsEosToken(XrdOucEnv* env)
 
 {
-  std::string cgi=pathcgi;
-  if ( (cgi.find("?authz=zteos") != std::string::npos) ||
-       (cgi.find("&authz=zteos") != std::string::npos) ){
-    return true;
-  } else {
-    return false;
+  const std::string http_enc_tag = "Bearer%20zteos64";
+  const std::string http_tag = "Bearer zteos64";
+  const std::string tag = "zteos64";
+  const char* authz_opaque = env->Get("authz");
+
+  if (authz_opaque) {
+    if (strncmp(authz_opaque, http_enc_tag.c_str(),
+                http_enc_tag.length()) == 0) {
+      return true;
+    }
+
+    if (strncmp(authz_opaque, http_tag.c_str(), http_tag.length()) == 0) {
+      return true;
+    }
+
+    if (strncmp(authz_opaque, tag.c_str(), tag.length()) == 0) {
+      return true;
+    }
   }
+
+  return false;
 }
 EOSCOMMONNAMESPACE_END

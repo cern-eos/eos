@@ -251,7 +251,29 @@ HttpServer::XrdHttpHandler(std::string& method,
     headers.erase("x-real-ip");
     vid = new eos::common::VirtualIdentity();
     EXEC_TIMING_BEGIN("IdMap");
-    eos::common::Mapping::IdMap(&client, "eos.app=http", client.tident, *vid, true);
+    std::string env = "eos.app=http";
+    // For the eos token we need to append it to the opaque info that is then
+    // used in subsequent calls to the OFS layer.
+    auto it_authz = headers.find("authorization");
+
+    if (it_authz != headers.end()) {
+      const std::string bearer_tag = "Bearer ";
+      const std::string eos_token_tag = "zteos64";
+      std::string authz = it_authz->second;
+
+      if (authz.find(bearer_tag) == 0) {
+        authz.erase(0, bearer_tag.length());
+
+        if (authz.find(eos_token_tag) == 0) {
+          env += "&authz=";
+          env += authz;
+          query += "&authz=";
+          query += authz;
+        }
+      }
+    }
+
+    eos::common::Mapping::IdMap(&client, env.c_str(), client.tident, *vid, true);
     EXEC_TIMING_END("IdMap");
   } else {   // HTTP access through Nginx
     headers["client-real-ip"] = "NOIPLOOKUP";

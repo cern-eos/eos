@@ -74,7 +74,10 @@ XrdAccPrivs
 XrdMgmAuthz::Access(const XrdSecEntity* Entity, const char* path,
                     const Access_Operation oper, XrdOucEnv* Env)
 {
-  if (eos::common::EosTok::isEosToken(path)) {
+  int envlen;
+  eos_static_debug("path=\"%s\" opaque=\"%s\"", path, Env->Env(envlen));
+
+  if (eos::common::EosTok::IsEosToken(Env)) {
     return XrdAccPriv_All;
   }
 
