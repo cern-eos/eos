@@ -255,7 +255,7 @@ private:
   //! @return true if this is a retry for a RAIN file with the user excluding
   //!         some diskservers, otherwise false.
   //----------------------------------------------------------------------------
-  bool IsRainRetryWithExclusion(unsigned long lid) const;
+  bool IsRainRetryWithExclusion(bool is_rw, unsigned long lid) const;
 
   //----------------------------------------------------------------------------
   //! Parse the triedrc opaque info and return the corresponding error number
