@@ -31,7 +31,8 @@ StdDrainerEngine::updateGroup(const std::string& group_name)
     data.mGroupsUnderThreshold.erase(group_name);
   } else if (groupSizeInfo.on()) {
     double diffWithAvg = groupSizeInfo.filled() - mAvgUsedSize;
-    if (std::abs(diffWithAvg) > mThreshold && diffWithAvg < 0) {
+    if (mThreshold == 0 ||
+        (std::abs(diffWithAvg) > mThreshold && diffWithAvg < 0)) {
       data.mGroupsUnderThreshold.emplace(group_name);
     }
   }

@@ -223,6 +223,7 @@ add_library(
   txengine/TransferFsDB.cc
   convert/old/Converter.cc
   GroupBalancer.cc
+  GroupDrainer.cc
   groupbalancer/BalancerEngine.cc
   groupbalancer/MinMaxBalancerEngine.cc
   groupbalancer/StdDevBalancerEngine.cc
