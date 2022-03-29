@@ -47,8 +47,8 @@ public:
   //! @param vid client virtual identity
   //----------------------------------------------------------------------------
   explicit NewfindCmd(eos::console::RequestProto&& req,
-                   eos::common::VirtualIdentity& vid):
-  IProcCommand(std::move(req), vid, false)
+                      eos::common::VirtualIdentity& vid):
+    IProcCommand(std::move(req), vid, true)
   {}
   //----------------------------------------------------------------------------
   //! Destructor
