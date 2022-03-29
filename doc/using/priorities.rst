@@ -56,10 +56,10 @@ IO priorities can be set in various ways:
    eos space config erasure space.policy.iopriority=idle:0
 
    # as a default application policy e.g. for application foo 
-   eos space config default space.policy.iopriority.foo=be:4
+   eos space config default space.iopriority.foo=be:4
 
    # as a space application policy e.g. for application bar
-   eos space config erasure space.policy.iopriority.bar=be:7
+   eos space config erasure space.iopriority.bar=be:7
 
 The CGI (if allowed via the operator role) is overruling any other priority configuration. Otherwise the order of evaluation is shown as in the block above. 
 
