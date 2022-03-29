@@ -103,7 +103,7 @@ FsckEntry::CollectMgmInfo()
     // we need to clean it up and mark the parentId with 0 otherwise the fsck
     // mechanism gets confused.
     try {
-      eos::common::RWMutexWriteLock ns_rd_lock(gOFS->eosViewRWMutex);
+      eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
       (void) gOFS->eosDirectoryService->getContainerMD(mMgmFmd.cont_id());
     } catch (const eos::MDException& e) {
       mMgmFmd.set_cont_id(0ull);
