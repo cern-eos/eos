@@ -758,6 +758,23 @@ XrdFstOfsFile::read(XrdSfsFileOffset fileOffset, char* buffer,
     }
   }
 
+  if (mBandwidth) {
+    gettimeofday(&currentTime, &tz);
+    float abs_time = static_cast<float>((currentTime.tv_sec -
+                                         openTime.tv_sec) * 1000 +
+                                        (currentTime.tv_usec - openTime.tv_usec) / 1000);
+    //........................................................................
+    // Regulate the io - sleep as desired
+    //........................................................................
+    float exp_time = totalBytes / mBandwidth / 1000.0;
+
+    if (abs_time < exp_time) {
+      msSleep += (exp_time - abs_time);
+      std::int64_t thisSleep = msSleep;
+      std::this_thread::sleep_for(std::chrono::milliseconds(thisSleep));
+    }
+  }
+
   int rc = mLayout->Read(fileOffset, buffer, buffer_size);
   eos_debug("layout read %d checkSum %d", rc, mCheckSum.get());
 
