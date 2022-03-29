@@ -31,20 +31,28 @@
 
 namespace eos::mgm::group_balancer {
 
+enum class GroupStatus {
+  ON,
+  OFF,
+  DRAIN
+};
 //------------------------------------------------------------------------------
 //! @brief Class representing a group's size
 //! It holds the capacity and the current used space of a group.
 //------------------------------------------------------------------------------
-class GroupSize
-{
+class GroupSize {
 public:
   //------------------------------------------------------------------------------
   //! Constructor
   //------------------------------------------------------------------------------
-  GroupSize(uint64_t usedBytes, uint64_t capacity) : mSize(usedBytes),
-                                                     mCapacity(capacity)
-  {}
+  GroupSize(uint64_t usedBytes, uint64_t capacity)
+      : mStatus(GroupStatus::ON), mSize(usedBytes), mCapacity(capacity)
+  {
+  }
 
+  GroupSize(GroupStatus status, uint64_t usedBytes, uint64_t capacity)
+      : mStatus(status), mSize(usedBytes), mCapacity(capacity)
+  {}
   //------------------------------------------------------------------------------
   //! Subtracts the given size from this group and adds it to the given toGroup
   //!
@@ -75,7 +83,16 @@ public:
     return (double) mSize / (double) mCapacity;
   }
 
+  bool draining() const {
+    return mStatus == GroupStatus::DRAIN;
+  }
+
+  bool on() const {
+    return mStatus == GroupStatus::ON;
+  }
+
 private:
+  GroupStatus mStatus;
   uint64_t mSize;
   uint64_t mCapacity;
 };
