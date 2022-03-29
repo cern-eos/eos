@@ -17,6 +17,33 @@ Introduction
 This release is based on XRootD V5.
 
 
+``v5.0.16 Diopside``
+===================
+
+2022-03-29
+
+Bug
+----
+
+* [EOS-5181] - Slave to Master redirection creates IO errors on FUSEx mounts
+* [EOS-5176] - Make OAuth tolerant to self-signed//invalid certificates used by identity provider
+
+Improvement
+-----------
+
+* [EOS-5184] - Add RedirectCollapse to XrdMgmOfs::Redirect responses
+* MGM: Add protection against multi-source retry for RAIN layouts
+* MGM: Rewrite of the IoStat implementation for better accuracy
+* MGM: Remove dependency on eos-scitokens and use the library provided by XRootD framework
+* DOC: Update documentation concerning the MGM configuration for SciTokens support
+* NS: QuarkSyncTimeAccounting - removed namespace lock usage
+
+New feature
+-----------
+
+* MGM: Add support for eos tokens over https
+
+
 ``v5.0.15 Diopside``
 ===================
 
