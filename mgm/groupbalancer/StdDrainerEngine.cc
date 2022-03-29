@@ -24,7 +24,7 @@ StdDrainerEngine::updateGroup(const std::string& group_name)
     return;
   }
 
-  const GroupSize& groupSizeInfo = kv->second;
+  const GroupSizeInfo& groupSizeInfo = kv->second;
 
   if (groupSizeInfo.draining()) {
     data.mGroupsOverThreshold.emplace(group_name);

@@ -83,7 +83,7 @@ group_size_map eosBalancerInfoFetcher::fetch()
       continue;
     }
 
-    mGroupSizes.emplace((*it)->mName, GroupSize(size, capacity));
+    mGroupSizes.emplace((*it)->mName, GroupSizeInfo(size, capacity));
   }
 
   return mGroupSizes;

@@ -20,16 +20,16 @@ TEST(GroupBalancerUtils, Avg)
 
   // Div By 0 for capacity isn't a concern as GroupBalancerInfo::fetch()
   // validates capacity before filling
-  m.insert_or_assign("group2", GroupSize{80,100});
+  m.insert_or_assign("group2", GroupSizeInfo{80,100});
   EXPECT_DOUBLE_EQ(.848, calculateAvg(m));
 
-  m.insert_or_assign("group4", GroupSize{90,100});
+  m.insert_or_assign("group4", GroupSizeInfo{90,100});
   EXPECT_DOUBLE_EQ(0.85, calculateAvg(m));
 
-  m.insert_or_assign("group6", GroupSize{85,100});
+  m.insert_or_assign("group6", GroupSizeInfo{85,100});
   EXPECT_DOUBLE_EQ(0.85, calculateAvg(m));
 
-  m.insert_or_assign("group7", GroupSize{92,100});
+  m.insert_or_assign("group7", GroupSizeInfo{92,100});
   EXPECT_DOUBLE_EQ(0.86, calculateAvg(m));
 
 }

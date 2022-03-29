@@ -32,7 +32,7 @@
 #include <ctime>
 #include <map>
 #include <unordered_set>
-#include "mgm/groupbalancer/BalancerEngine.hh"
+#include "mgm/groupbalancer/BalancerEngineTypes.hh"
 
 EOSMGMNAMESPACE_BEGIN
 
@@ -41,7 +41,12 @@ class FsSpace;
 static constexpr uint64_t GROUPBALANCER_MIN_FILE_SIZE = 1ULL << 30;
 static constexpr uint64_t GROUPBALANCER_MAX_FILE_SIZE = 16ULL << 30;
 static constexpr int GROUPBALANCER_FILE_ATTEMPTS = 50;
-using eos::mgm::group_balancer::GroupSize;
+using eos::mgm::group_balancer::GroupSizeInfo;
+
+namespace group_balancer {
+class BalancerEngine;
+} // group_balancer
+
 //------------------------------------------------------------------------------
 //! @brief Class running the balancing among groups
 //! For it to work, the Converter also needs to be enabled.

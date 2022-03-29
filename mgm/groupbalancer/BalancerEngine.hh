@@ -28,95 +28,15 @@
 #include <string>
 #include <unordered_set>
 #include <random>
+#include "mgm/groupbalancer/BalancerEngineTypes.hh"
 
 namespace eos::mgm::group_balancer {
-
-enum class GroupStatus {
-  ON,
-  OFF,
-  DRAIN
-};
-//------------------------------------------------------------------------------
-//! @brief Class representing a group's size
-//! It holds the capacity and the current used space of a group.
-//------------------------------------------------------------------------------
-class GroupSize {
-public:
-  //------------------------------------------------------------------------------
-  //! Constructor
-  //------------------------------------------------------------------------------
-  GroupSize(uint64_t usedBytes, uint64_t capacity)
-      : mStatus(GroupStatus::ON), mSize(usedBytes), mCapacity(capacity)
-  {
-  }
-
-  GroupSize(GroupStatus status, uint64_t usedBytes, uint64_t capacity)
-      : mStatus(status), mSize(usedBytes), mCapacity(capacity)
-  {}
-  //------------------------------------------------------------------------------
-  //! Subtracts the given size from this group and adds it to the given toGroup
-  //!
-  //! @param toGroup the group where to add the size
-  //! @param size the file size that should be swapped
-  //------------------------------------------------------------------------------
-  void swapFile(GroupSize* toGroup, uint64_t size)
-  {
-    toGroup->mSize += size;
-    mSize -= size;
-  }
-
-  uint64_t
-  usedBytes() const
-  {
-    return mSize;
-  }
-
-  uint64_t
-  capacity() const
-  {
-    return mCapacity;
-  }
-
-  double
-  filled() const
-  {
-    return (double) mSize / (double) mCapacity;
-  }
-
-  bool draining() const {
-    return mStatus == GroupStatus::DRAIN;
-  }
-
-  bool on() const {
-    return mStatus == GroupStatus::ON;
-  }
-
-private:
-  GroupStatus mStatus;
-  uint64_t mSize;
-  uint64_t mCapacity;
-};
-
-
-
-// Allow std::string_view -> std::string lookups on keys
-using group_size_map = std::map<std::string,GroupSize, std::less<>>;
-using threshold_group_set = std::unordered_set<std::string>;
-using groups_picked_t = std::pair<std::string, std::string>;
-using engine_conf_t = std::map<std::string, std::string, std::less<>>;
-
-enum class BalancerEngineT {
-  stddev,
-  minmax,
-  total_count
-};
 
 // A simple interface to populate the group_size map per group. This is useful
 // for DI scenarios where we can alternatively fill in the group_size structures
 struct IBalancerInfoFetcher {
   virtual group_size_map fetch() = 0;
 };
-
 
 struct IBalancerEngine
 {

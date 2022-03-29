@@ -58,7 +58,7 @@ void StdDevBalancerEngine::updateGroup(const std::string& group_name)
     return;
   }
 
-  const GroupSize& groupSize = kv->second;
+  const GroupSizeInfo& groupSize = kv->second;
   double diffWithAvg = groupSize.filled() - mAvgUsedSize;
   // set erase only erases if found, so this is safe without key checking
   data.mGroupsOverThreshold.erase(group_name);

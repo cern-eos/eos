@@ -62,6 +62,7 @@ set(MGM_UT_SRCS
   mgm/FsckEntryTests.cc
   mgm/FusexCastBatchTests.cc
   mgm/CapsTests.cc
+  mgm/groupbalancer/BalancerEngineTypeTests.cc
   mgm/groupbalancer/StdDevBalancerEngineTests.cc
   mgm/groupbalancer/StdDrainerTests.cc
   mgm/groupbalancer/MinMaxBalancerEngineTests.cc
