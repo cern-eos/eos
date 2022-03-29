@@ -989,7 +989,7 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config,
     }
 
     // Set iopriority parameter
-    if (!key.compare(0, 3, "iopriority.")) {
+    if (!key.compare(0, 11, "iopriority.")) {
       applied = true;
 
       if (value == "remove") {
@@ -1012,7 +1012,7 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config,
     }
 
     // Set schedule parameter
-    if (!key.compare(0, 3, "schedule.")) {
+    if (!key.compare(0, 9, "schedule.")) {
       applied = true;
 
       if (value == "remove") {
