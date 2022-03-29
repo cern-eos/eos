@@ -91,6 +91,10 @@ git clone https://github.com/grpc/grpc
 cd grpc
 git checkout -b %{version} tags/v%{version}
 git submodule update --init --recursive
+cd third_party/abseil-cpp
+echo "Note: update abseil-cpp to avoid compilation error https://github.com/abseil/abseil-cpp/issues/952"
+git checkout 278e0a071885a22dcd2fd1b5576cc44757299343
+cd -
 #!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 # Patch the protobuf code so that we get properly formatted library versions.
 # If we don't to this then we'll get libprotobuf.so.3.17.3.0 instead of the usual
