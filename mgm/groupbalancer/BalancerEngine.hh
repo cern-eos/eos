@@ -138,10 +138,6 @@ struct IBalancerEngine
 
   virtual void configure(const engine_conf_t& conf) = 0;
 
-  virtual int record_transfer(std::string_view source_group,
-                              std::string_view target_group,
-                              uint64_t filesize) = 0;
-
   virtual const group_size_map& get_group_sizes() const = 0;
 
   virtual std::string get_status_str(bool detail,bool monitoring) const = 0;
@@ -169,10 +165,6 @@ public:
   {
     return data.mGroupSizes;
   }
-
-  int record_transfer(std::string_view source_group,
-                      std::string_view target_group,
-                      uint64_t filesize) override;
 
   std::string get_status_str(bool detail=false, bool monitoring=false) const override;
 

@@ -45,22 +45,6 @@ void BalancerEngine::updateGroups()
   }
 }
 
-int BalancerEngine::record_transfer(std::string_view source_group,
-                                    std::string_view target_group,
-                                    uint64_t filesize)
-{
-  auto source_grp = data.mGroupSizes.find(source_group);
-  auto target_grp = data.mGroupSizes.find(target_group);
-
-  if (source_grp == data.mGroupSizes.end() || target_grp == data.mGroupSizes.end()) {
-    eos_static_err("Invalid source/target groups given!");
-    return ENOENT;
-  }
-
-  source_grp->second.swapFile(&target_grp->second, filesize);
-  return 0;
-}
-
 groups_picked_t
 BalancerEngine::pickGroupsforTransfer()
 {
