@@ -42,6 +42,8 @@ class TokenEnclosure;
 }
 }
 
+class XrdOucEnv;
+
 EOSCOMMONNAMESPACE_BEGIN
 
 
@@ -90,7 +92,7 @@ public:
   static std::atomic<uint64_t>
   sTokenGeneration; ///< generation value for token issuing/verification
 
-  static bool isEosToken(const char* pathcgi);
+  static bool IsEosToken(XrdOucEnv* env);
 private:
 
   int Match(const std::string& input, const std::string& match);

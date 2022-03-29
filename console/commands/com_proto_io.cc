@@ -90,6 +90,50 @@ bool IoHelper::ParseCommand(const char* arg)
         stat->set_domain(true);
       } else if (token == "-x") {
         stat->set_apps(true);
+      } else if (token == "--sa") {
+        if (!(tokenizer.NextToken(token))) {
+          continue;
+        } else {
+          // Parse <time_ago>
+          bool not_numeric = (token.find_first_not_of("0123456789") !=
+                              std::string::npos);
+
+          if (not_numeric) {
+            std::cerr << "error: --sa value needs to be numeric (seconds ago)" << std::endl;
+            return false;
+          } else {
+            try {
+              uint64_t tago = std::stoull(token);
+              stat->set_time_ago(tago);
+            } catch (const std::exception& e) {
+              std::cerr << "error: --sa value needs to be numeric (seconds ago)" << std::endl;
+              return false;
+            }
+          }
+        }
+      } else if (token == "--si") {
+        if (!(tokenizer.NextToken(token))) {
+          continue;
+        } else {
+          // Parse <time_interval>
+          bool not_numeric = (token.find_first_not_of("0123456789") !=
+                              std::string::npos);
+
+          if (not_numeric) {
+            std::cerr << "error: --si value needs to be numeric (interval in seconds)" <<
+                      std::endl;
+            return false;
+          } else {
+            try {
+              uint64_t tint = std::stoull(token);
+              stat->set_time_interval(tint);
+            } catch (const std::exception& e) {
+              std::cerr << "error: --si value needs to be numeric (interval in seconds)" <<
+                        std::endl;
+              return false;
+            }
+          }
+        }
       } else if (token == "-l") {
         stat->set_summary(true);
       } else {
@@ -179,7 +223,6 @@ int com_protoio(char* arg)
   }
 
   global_retc = io.Execute();
-
   return global_retc;
 }
 
@@ -192,7 +235,7 @@ void com_io_help()
   oss
       << " usage:\n"
       << std::endl
-      << "io stat [-l] [-a] [-m] [-n] [-t] [-d] [-x] : print io statistics\n"
+      << "io stat [-l] [-a] [-m] [-n] [-t] [-d] [-x] [--sa] [--si] : print io statistics\n"
       << "\t  -l : show summary information (this is the default if -a,-t,-d,-x is not selected)\n"
       << "\t  -a : break down by uid/gid\n"
       << "\t  -m : print in <key>=<val> monitoring format\n"
@@ -200,6 +243,11 @@ void com_io_help()
       << "\t  -t : print top user stats\n"
       << "\t  -d : break down by domains\n"
       << "\t  -x : break down by application\n"
+      << "\t  --sa : start collection of statistics given number of seconds ago\n"
+      << "\t  --si : collect statistics over given interval of seconds\n"
+      << "\t  Note: this tool shows data for finished transfers only (using storage node reports)\n"
+      << "\t  Example: asking for data of finished transfers which were transferred during interval [now - 180s, now - 120s]:\n"
+      << "\t           eos io stat -x --sa 120 --si 60\n"
       << std::endl
       << "io enable [-r] [-p] [-n] [--udp <address>] : enable collection of io statistics\n"
       << "\t              -r : enable collection of io reports\n"

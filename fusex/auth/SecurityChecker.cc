@@ -33,7 +33,8 @@
 //------------------------------------------------------------------------------
 // Portability helper: Extract timespec from stat struct
 //------------------------------------------------------------------------------
-struct timespec extractTimespec(const struct stat &st) {
+struct timespec extractTimespec(const struct stat& st)
+{
 #ifdef __APPLE__
   return st.st_mtimespec;
 #else
@@ -51,7 +52,7 @@ SecurityChecker::SecurityChecker(bool ij) : ignoreJails(ij) {}
 // data is faked.
 //------------------------------------------------------------------------------
 void SecurityChecker::inject(const JailIdentifier& jail,
-  const std::string& path, uid_t uid, mode_t mode, struct timespec mtime)
+                             const std::string& path, uid_t uid, mode_t mode, struct timespec mtime)
 {
   std::lock_guard<std::mutex> lock(mtx);
   useInjectedData = true;
@@ -69,8 +70,8 @@ SecurityChecker::Info SecurityChecker::lookupInjected(
 
   if (it == injections.end()) return {};
 
-  if(!checkPermissions(it->second.uid, it->second.mode, uid)) {
-    return Info(CredentialState::kBadPermissions, {0, 0} );
+  if (!checkPermissions(it->second.uid, it->second.mode, uid)) {
+    return Info(CredentialState::kBadPermissions, {0, 0});
   }
 
   return Info(CredentialState::kOk, it->second.mtime);
@@ -82,7 +83,7 @@ SecurityChecker::Info SecurityChecker::lookupInjected(
 // a credential file - only _we_ should be able to read it and no-one else.
 //------------------------------------------------------------------------------
 bool SecurityChecker::checkPermissions(uid_t uid, mode_t mode,
-  uid_t expectedUid)
+                                       uid_t expectedUid)
 {
   if (uid != expectedUid) {
     return false;
@@ -105,17 +106,16 @@ bool SecurityChecker::checkPermissions(uid_t uid, mode_t mode,
 // Lookup given path in the context of our local jail.
 //------------------------------------------------------------------------------
 SecurityChecker::Info SecurityChecker::lookupLocalJail(const std::string& path,
-  uid_t uid)
+    uid_t uid)
 {
   std::string resolvedPath;
-
   // is "path" a symlink?
   char buffer[1024];
   const ssize_t retsize = readlink(path.c_str(), buffer, 1023);
-  if(retsize != -1) {
+
+  if (retsize != -1) {
     resolvedPath = std::string(buffer, retsize);
-  }
-  else {
+  } else {
     resolvedPath = path;
   }
 
@@ -126,10 +126,10 @@ SecurityChecker::Info SecurityChecker::lookupLocalJail(const std::string& path,
     return {};
   }
 
-  if(!checkPermissions(filestat.st_uid, filestat.st_mode, uid)) {
+  if (!checkPermissions(filestat.st_uid, filestat.st_mode, uid)) {
     eos_static_alert("Uid %d is asking to use credentials '%s', but file "
-      "belongs to uid %d! Refusing.", uid, path.c_str(), filestat.st_uid);
-    return Info(CredentialState::kBadPermissions, {0, 0} );
+                     "belongs to uid %d! Refusing.", uid, path.c_str(), filestat.st_uid);
+    return Info(CredentialState::kBadPermissions, {0, 0});
   }
 
   return Info(CredentialState::kOk, extractTimespec(filestat));
@@ -148,9 +148,9 @@ SecurityChecker::Info SecurityChecker::lookupNonLocalJail(
   std::string jailPath = SSTR("/proc/" << jail.pid << "/root");
   FileDescriptor jailfd(open(jailPath.c_str(), O_DIRECTORY | O_RDONLY));
 
-  if(!jailfd.ok()) {
+  if (!jailfd.ok()) {
     eos_static_alert("Opening jail '%s' failed", jailPath.c_str());
-    return Info(CredentialState::kCannotStat, {0, 0} );
+    return Info(CredentialState::kCannotStat, {0, 0});
   }
 
   //----------------------------------------------------------------------------
@@ -158,10 +158,12 @@ SecurityChecker::Info SecurityChecker::lookupNonLocalJail(
   //----------------------------------------------------------------------------
 #ifdef __linux__
   ScopedFsUidSetter uidSetter(uid, gid);
-  if(!uidSetter.IsOk()) {
+
+  if (!uidSetter.IsOk()) {
     eos_static_alert("Setting uid,gid to %d,%d failed", uid, gid);
-    return Info(CredentialState::kCannotStat, {0, 0} );
+    return Info(CredentialState::kCannotStat, {0, 0});
   }
+
 #endif
 
   //----------------------------------------------------------------------------
@@ -169,29 +171,29 @@ SecurityChecker::Info SecurityChecker::lookupNonLocalJail(
   // supported openat with AT_THIS_ROOT ...
   //----------------------------------------------------------------------------
 
-  if(eos::common::startsWith(path,"/")) {
+  if (!eos::common::startsWith(path, "/")) {
     //--------------------------------------------------------------------------
     // User is attempting to open a relative path ?! No.
     //--------------------------------------------------------------------------
-    return Info(CredentialState::kCannotStat, {0, 0} );
+    return Info(CredentialState::kCannotStat, {0, 0});
   }
 
   FileDescriptor current = std::move(jailfd);
   auto splitPath = eos::common::SplitPath(path);
 
-  for(const auto& segment: splitPath) {
+  for (const auto& segment : splitPath) {
     //--------------------------------------------------------------------------
     // ".." in path? Disallow for now.
     //--------------------------------------------------------------------------
-    if(segment == "..") {
-      return Info(CredentialState::kCannotStat, {0, 0} );
+    if (segment == "..") {
+      return Info(CredentialState::kCannotStat, {0, 0});
     }
 
     FileDescriptor next(openat(current.getFD(), segment.c_str(),
-      O_DIRECTORY | O_NOFOLLOW | O_RDONLY));
+                               O_DIRECTORY | O_NOFOLLOW | O_RDONLY));
 
-    if(!next.ok()) {
-      return Info(CredentialState::kCannotStat, {0, 0} );
+    if (!next.ok()) {
+      return Info(CredentialState::kCannotStat, {0, 0});
     }
 
     current = std::move(next);
@@ -201,29 +203,31 @@ SecurityChecker::Info SecurityChecker::lookupNonLocalJail(
   // We survived, up to the last chunk. Now try to read file contents.
   //----------------------------------------------------------------------------
   FileDescriptor fileFd(openat(current.getFD(), splitPath.back().c_str(),
-    O_NOFOLLOW | O_RDONLY));
+                               O_NOFOLLOW | O_RDONLY));
 
-  if(!fileFd.ok()) {
-    return Info(CredentialState::kCannotStat, {0, 0} );
+  if (!fileFd.ok()) {
+    return Info(CredentialState::kCannotStat, {0, 0});
   }
 
   //----------------------------------------------------------------------------
   // First stat the fd, make sure file permissions are OK.
   //----------------------------------------------------------------------------
   struct stat filestat;
+
   if (::fstat(fileFd.getFD(), &filestat) != 0) {
-    return Info(CredentialState::kCannotStat, {0, 0} );
+    return Info(CredentialState::kCannotStat, {0, 0});
   }
 
-  if(!checkPermissions(filestat.st_uid, filestat.st_mode, uid)) {
-    return Info(CredentialState::kBadPermissions, {0, 0} );
+  if (!checkPermissions(filestat.st_uid, filestat.st_mode, uid)) {
+    return Info(CredentialState::kBadPermissions, {0, 0});
   }
 
   //----------------------------------------------------------------------------
   // All is good, try to read contents.
   //----------------------------------------------------------------------------
   std::string contents;
-  if(!readFile(fileFd.getFD(), contents)) {
+
+  if (!readFile(fileFd.getFD(), contents)) {
     return Info::CannotStat();
   }
 
@@ -237,7 +241,7 @@ SecurityChecker::Info SecurityChecker::lookupNonLocalJail(
 // Lookup given path.
 //------------------------------------------------------------------------------
 SecurityChecker::Info SecurityChecker::lookup(const JailInformation& jail,
-  const std::string& path, uid_t uid, gid_t gid)
+    const std::string& path, uid_t uid, gid_t gid)
 {
   //----------------------------------------------------------------------------
   // Simulation?
@@ -260,7 +264,7 @@ SecurityChecker::Info SecurityChecker::lookup(const JailInformation& jail,
   // Also, if ignoreJails is set to true we ignore containerization completely,
   // and treat all paths relative to the host.
   //----------------------------------------------------------------------------
-  if(jail.sameJailAsThisPid || ignoreJails) {
+  if (jail.sameJailAsThisPid || ignoreJails) {
     return lookupLocalJail(path, uid);
   }
 

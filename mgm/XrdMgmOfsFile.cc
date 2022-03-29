@@ -1211,18 +1211,10 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
     isInjection = false;
   }
 
-  // short cut to block multi-source access to EC files
-  if (!isRW && LayoutId::IsRain(fmdlid)) {
-    char* triedrc = openOpaque->Get("triedrc");
-
-    if (triedrc) {
-      int errno_tried = GetTriedrcErrno(triedrc);
-
-      if (!errno_tried) {
-        return Emsg(epname, error, ENETUNREACH,
-                    "open file - multi-source reading on EC file blocked for ", path);
-      }
-    }
+  // Short-cut to block multi-source access to EC files
+  if (IsRainRetryWithExclusion(isRW, fmdlid)) {
+    return Emsg(epname, error, ENETUNREACH,  "open file - "
+                "multi-source reading on EC file blocked for ", path);
   }
 
   if (isRW) {
@@ -3326,6 +3318,33 @@ XrdMgmOfsFile::Emsg(const char* pfx,
   einfo.setErrInfo(ecode, buffer);
   return SFS_ERROR;
 }
+
+//------------------------------------------------------------------------------
+// Check if this is a client retry with exclusion of some diskserver. This
+// happens usually for CMS workflows. To distinguish such a scenario from
+// a legitimate retry due to a recoverable error, we need to serarch for the
+// "tried=" opaque tag without a corresponding "triedrc=" tag.
+//------------------------------------------------------------------------------
+bool
+XrdMgmOfsFile::IsRainRetryWithExclusion(bool is_rw, unsigned long lid) const
+{
+  if (!is_rw && eos::common::LayoutId::IsRain(lid)) {
+    char* tried_info = openOpaque->Get("tried");
+
+    if (tried_info == nullptr) {
+      return false;
+    }
+
+    char* tried_rc = openOpaque->Get("triedrc");
+
+    if (tried_rc == nullptr) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
 
 //------------------------------------------------------------------------------
 // Parse the triedrc opaque info and return the corresponding error number

@@ -34,8 +34,6 @@
 #define EKEYEXPIRED 127
 #endif
 
-
-
 #include "EosTok.hh"
 #include "proto/ConsoleRequest.pb.h"
 #include <google/protobuf/util/json_util.h>
@@ -45,6 +43,7 @@
 #include <errno.h>
 #include <regex>
 #include <iostream>
+#include <XrdOuc/XrdOucEnv.hh>
 
 EOSCOMMONNAMESPACE_BEGIN
 
@@ -439,16 +438,29 @@ EosTok::Requester() const
 }
 
 bool
-EosTok::isEosToken(const char* pathcgi)
+EosTok::IsEosToken(XrdOucEnv* env)
 
 {
-  std::string cgi = pathcgi;
+  const std::string http_enc_tag = "Bearer%20zteos64";
+  const std::string http_tag = "Bearer zteos64";
+  const std::string tag = "zteos64";
+  const char* authz_opaque = env->Get("authz");
 
-  if ((cgi.find("?authz=zteos") != std::string::npos) ||
-      (cgi.find("&authz=zteos") != std::string::npos)) {
-    return true;
-  } else {
-    return false;
+  if (authz_opaque) {
+    if (strncmp(authz_opaque, http_enc_tag.c_str(),
+                http_enc_tag.length()) == 0) {
+      return true;
+    }
+
+    if (strncmp(authz_opaque, http_tag.c_str(), http_tag.length()) == 0) {
+      return true;
+    }
+
+    if (strncmp(authz_opaque, tag.c_str(), tag.length()) == 0) {
+      return true;
+    }
   }
+
+  return false;
 }
 EOSCOMMONNAMESPACE_END

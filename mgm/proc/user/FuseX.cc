@@ -285,7 +285,7 @@ ProcCommand::FuseX()
       eos::common::SymKey::Base64(result, b64response);
       XrdOucBuffer* buff = new XrdOucBuffer(strndup(b64response.c_str(),
                                             b64response.size()), b64response.size());
-      mError->setErrInfo(ECANCELED, buff);
+      mError->setErrInfo(EIDRM, buff);
       return SFS_ERROR;
     }
   }

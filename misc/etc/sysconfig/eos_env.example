@@ -366,3 +366,5 @@ EOS_TTY_BROACAST_EGREP="\"CRIT|ALERT|EMERG|PROGRESS\""
 # ------------------------------------------------------------------
 # by default the sub field is mapped from OIDC tokens
 # EOS_MGM_OIDC_MAP_FIELD=sub
+# by default (undefined) the server certificate and hostname are verified, to skip this, define
+# EOS_MGM_OIDC_INSECURE=1
