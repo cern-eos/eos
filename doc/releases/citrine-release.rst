@@ -15,6 +15,29 @@ Introduction
 ------------
 This release is based on XRootD V4 and IPV6 enabled.
 
+``v4.8.80 Citrine``
+===================
+
+2022-03-30
+
+Bug
+----
+
+* [EOS-5181] - Slave to Master redirection creates IO errors on FUSEx mounts
+* [EOS-5176] - Make OAuth tolerant to self-signed//invalid certificates used by identity provider
+* [EOS-5167] - Fix segmentation fault by not starting the BulkRequestProcCleaner
+  threads if the MGM is not the master.
+* MGM: Add support for eos tokens over HTTPS (XrdHttp)
+* MGM: Fix console parsing for schedule/iopriority settings per application
+* FUSEX: fix logical refactoring bug when checking in local jails (container)
+
+
+
+New Feature
+------------
+
+* NS: Added the possibility for namespace-related operations to communicate about some specific timings.
+
 
 ``v4.8.79 Citrine``
 ===================
