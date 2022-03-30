@@ -985,6 +985,29 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config,
       }
     }
 
+    // Set iotype parameter
+    if (!key.compare(0, 7, "iotype.")) {
+      applied = true;
+
+      if (value == "remove") {
+        if (!FsView::gFsView.mSpaceView[config.mgmspace_name()]->DeleteConfigMember(
+              key)) {
+          ret_c = ENOENT;
+          std_err.str("error: key has not been deleted");
+        } else {
+          std_out.str("success: deleted iotype setting: " + key);
+        }
+      } else {
+        if (!FsView::gFsView.mSpaceView[config.mgmspace_name()]->SetConfigMember(key,
+            value)) {
+          ret_c = EIO;
+          std_err.str("error: cannot set space config value");
+        } else {
+          std_out.str("success: defining space iotype: " + key + "=" + value);
+        }
+      }
+    }
+
     // Set schedule parameter
     if (!key.compare(0, 9, "schedule.")) {
       applied = true;
