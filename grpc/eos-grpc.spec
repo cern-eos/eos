@@ -45,13 +45,8 @@ Source: https://github.com/grpc/grpc/archive/v%{version}.tar.gz
 BuildRequires: cmake3
 %define cmake cmake3
 %else
-%if 0%{distribution} == 8
-BuildRequires: eos-cmake
-%define cmake /opt/eos/cmake/bin/cmake
-%else
 BuildRequires: cmake
 %define cmake cmake
-%endif
 %endif
 
 BuildRequires: pkgconfig gcc-c++
