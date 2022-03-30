@@ -236,8 +236,10 @@ contains a description of the functionality provided.
    # second library is optional. When the SciTokens library is present and the
    # XrdMacaroons can not deal with the request then this is delegated to the
    # SciTokens library.
-   # Note: this is subject to change in future versions!
-   mgmofs.macaroonslib /usr/lib64/libXrdMacaroons.so /opt/eos/lib64/libXrdAccSciTokens.so
+   # Note: Until eos-5.0.15 one needs to use the EOS specific SciTokens library
+   # mgmofs.macaroonslib /usr/lib64/libXrdMacaroons.so /usr/lib64/libEosAccSciTokens.so
+   # Starting with eos-5.0.16 one can use the XRootD provided SciTokens library
+   mgmofs.macaroonslib /usr/lib64/libXrdMacaroons.so /usr/lib64/libXrdAccSciTokens.so
    # Base64-encoded secret key used for generating macroons. A simple way to
    # generate such a secret key is to use the following command:
    # openssl rand -base64 -out /etc/eos.macaroon.secret 64
