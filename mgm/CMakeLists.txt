@@ -227,6 +227,7 @@ add_library(
   groupbalancer/MinMaxBalancerEngine.cc
   groupbalancer/StdDevBalancerEngine.cc
   groupbalancer/StdDrainerEngine.cc
+  groupbalancer/GroupsInfoFetcher.cc
   GeoBalancer.cc
   Features.cc
   ZMQ.cc

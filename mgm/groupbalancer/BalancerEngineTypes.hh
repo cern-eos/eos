@@ -24,6 +24,7 @@
 #pragma once
 #include <string_view>
 #include <unordered_set>
+#include <map>
 
 // Some enums and typedefs for various types used in BalancerEngines
 namespace eos::mgm::group_balancer {

@@ -32,18 +32,12 @@
 
 namespace eos::mgm::group_balancer {
 
-// A simple interface to populate the group_size map per group. This is useful
-// for DI scenarios where we can alternatively fill in the group_size structures
-struct IBalancerInfoFetcher {
-  virtual group_size_map fetch() = 0;
-};
-
 struct IBalancerEngine
 {
   // //----------------------------------------------------------------------------
   // // Fills mGroupSizes, calculates avg and classifies the data
   // //----------------------------------------------------------------------------
-  // virtual void populateGroupsInfo(IBalancerInfoFetcher* f) = 0;
+  // virtual void populateGroupsInfo(IGroupsInfoFetcher* f) = 0;
 
 
   //----------------------------------------------------------------------------
