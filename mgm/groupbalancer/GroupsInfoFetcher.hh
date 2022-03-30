@@ -25,6 +25,7 @@
 #pragma once
 #include "mgm/groupbalancer/BalancerEngineTypes.hh"
 #include <memory>
+#include <string>
 
 namespace eos::mgm::group_balancer {
 // A simple interface to populate the group_size map per group. This is useful
@@ -34,34 +35,56 @@ struct IGroupsInfoFetcher {
   virtual ~IGroupsInfoFetcher() = default;
 };
 
-struct GroupStatusFilter {
-  virtual bool operator()(GroupStatus status) = 0;
-};
 
-struct OnGroupStatusFilter : public GroupStatusFilter {
-  bool operator()(GroupStatus status) override {
+struct OnGroupStatusFilter {
+  bool operator()(GroupStatus status)  {
     return status == GroupStatus::ON;
   }
 };
 
+// This class fetches groups info from a given space and returns a map of groupname
+// GroupSizeInfo, the groups can be filtered based on a status function that takes
+// any callable object which returns bool and takes a GroupStatus argument
+// examples:
+//     eosGroupsInfoFetcher fetcher(space); // default. filters "ON" group
+//                                          // ie. only these will be selected
+//     eosGroupsInfoFetcher fetcher(space, OnGroupStatusFilter{});
+//     eosGroupsInfoFetcher fetcher(space, [](GroupStatus s) { return s==GroupStatus::ON; });
+//
 class eosGroupsInfoFetcher final: public IGroupsInfoFetcher
 {
+  // A base filter function that must implement a apply method with status arg
+  struct base_group_status_filter {
+    virtual bool apply(GroupStatus status) = 0;
+    virtual ~base_group_status_filter() = default;
+  };
+
+  // We inherit from the above base, to hold any callable which implements a
+  // bool operator()(GroupStatus), since all of this is private, you can
+  // hold almost any object that implements a call operator taking a status
+  template <typename F>
+  struct group_status_filter : public base_group_status_filter {
+    group_status_filter(F&& _f): f(std::forward<F>(_f)) {};
+    virtual bool apply(GroupStatus status) { return f(status);}
+    F f;
+  };
+
 public:
 
   template <typename F>
   eosGroupsInfoFetcher(const std::string& _spaceName, F&& f): spaceName(_spaceName),
-                                                              status_filter_fn(std::make_unique<F>(std::forward<F>(f))) {}
+                                                              status_filter_fn(std::make_unique<group_status_filter<F>>(std::forward<F>(f))) {}
 
   eosGroupsInfoFetcher(const std::string& _spaceName): spaceName(_spaceName),
-                                                       status_filter_fn(std::make_unique<OnGroupStatusFilter>())
+                                                       status_filter_fn(new group_status_filter(OnGroupStatusFilter{}))
   {}
 
   group_size_map fetch() override;
 
-  bool is_valid_status(GroupStatus status) { return status_filter_fn->operator()(status); }
+  bool is_valid_status(GroupStatus status) { return status_filter_fn->apply(status); }
 private:
   std::string spaceName;
-  std::unique_ptr<GroupStatusFilter> status_filter_fn;
+  std::unique_ptr<base_group_status_filter> status_filter_fn;
 };
 
 
