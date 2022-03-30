@@ -17,7 +17,8 @@ eosGroupsInfoFetcher::fetch()
   auto set_fsgrp = FsView::gFsView.mSpaceGroupView[spaceName];
 
   for (auto it = set_fsgrp.cbegin(); it != set_fsgrp.cend(); it++) {
-    if ((*it)->GetConfigMember("status") != "on") {
+    auto group_status = getGroupStatus((*it)->GetConfigMember("status"));
+    if (!is_valid_status(group_status)) {
       continue;
     }
 
@@ -28,7 +29,7 @@ eosGroupsInfoFetcher::fetch()
       continue;
     }
 
-    mGroupSizes.emplace((*it)->mName, GroupSizeInfo(size, capacity));
+    mGroupSizes.emplace((*it)->mName, GroupSizeInfo{group_status, size, capacity});
   }
 
   return mGroupSizes;

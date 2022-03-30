@@ -34,15 +34,34 @@ struct IGroupsInfoFetcher {
   virtual ~IGroupsInfoFetcher() = default;
 };
 
+struct GroupStatusFilter {
+  virtual bool operator()(GroupStatus status) = 0;
+};
+
+struct OnGroupStatusFilter : public GroupStatusFilter {
+  bool operator()(GroupStatus status) override {
+    return status == GroupStatus::ON;
+  }
+};
+
 class eosGroupsInfoFetcher final: public IGroupsInfoFetcher
 {
 public:
-  eosGroupsInfoFetcher(const std::string& _spaceName): spaceName(_spaceName) {}
+
+  template <typename F>
+  eosGroupsInfoFetcher(const std::string& _spaceName, F&& f): spaceName(_spaceName),
+                                                              status_filter_fn(std::make_unique<F>(std::forward<F>(f))) {}
+
+  eosGroupsInfoFetcher(const std::string& _spaceName): spaceName(_spaceName),
+                                                       status_filter_fn(std::make_unique<OnGroupStatusFilter>())
+  {}
 
   group_size_map fetch() override;
 
+  bool is_valid_status(GroupStatus status) { return status_filter_fn->operator()(status); }
 private:
   std::string spaceName;
+  std::unique_ptr<GroupStatusFilter> status_filter_fn;
 };
 
 
