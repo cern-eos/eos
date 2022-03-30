@@ -31,7 +31,6 @@ Bug
 Improvement
 -----------
 
-* [EOS-5184] - Add RedirectCollapse to XrdMgmOfs::Redirect responses
 * MGM: Add protection against multi-source retry for RAIN layouts
 * MGM: Rewrite of the IoStat implementation for better accuracy
 * MGM: Remove dependency on eos-scitokens and use the library provided by XRootD framework
