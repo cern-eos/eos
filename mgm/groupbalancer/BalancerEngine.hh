@@ -117,10 +117,11 @@ public:
 
   groups_picked_t pickGroupsforTransfer(uint64_t index) override;
 
-  // a simple function that always returns 0 to size-1;
-  static uint64_t clamp_index(uint64_t index, uint64_t size) {
-    return index >= size ? index % size : index;
+  bool canPick() const {
+    return !data.mGroupsOverThreshold.empty() &&
+           !data.mGroupsUnderThreshold.empty();
   }
+
 protected:
   BalancerEngineData data;
 
