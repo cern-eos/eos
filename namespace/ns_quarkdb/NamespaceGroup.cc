@@ -240,8 +240,7 @@ IContainerMDChangeListener* QuarkNamespaceGroup::getSyncTimeAccountingView()
   std::lock_guard<std::recursive_mutex> lock(mMutex);
 
   if (!mSyncAccounting) {
-    std::unique_ptr<QuarkSyncTimeAccounting> syncAccounting = std::make_unique<QuarkSyncTimeAccounting>(getContainerService(),mNsMutex);
-    syncAccounting->setNamespaceStats(mNamespaceStats);
+    std::unique_ptr<QuarkSyncTimeAccounting> syncAccounting = std::make_unique<QuarkSyncTimeAccounting>(getContainerService(),QuarkSyncTimeAccounting::DEFAULT_UPDATE_INTERVAL,mNamespaceStats);
     mSyncAccounting = std::move(syncAccounting);
     getContainerService()->addChangeListener(mSyncAccounting.get());
   }

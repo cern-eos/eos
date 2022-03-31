@@ -26,11 +26,9 @@ EOSNSNAMESPACE_BEGIN
 // Constructor
 //------------------------------------------------------------------------------
 QuarkSyncTimeAccounting::QuarkSyncTimeAccounting(IContainerMDSvc* svc,
-    eos::common::RWMutex* ns_mutex,
-    uint32_t update_interval):
+    uint32_t update_interval, INamespaceStats * namespaceStats):
   mAccumulateIndx(0), mCommitIndx(1), mShutdown(false),
-  mUpdateIntervalSec(update_interval), mContainerMDSvc(svc),
-  gNsRwMutex(ns_mutex),mNamespaceStats(nullptr)
+  mUpdateIntervalSec(update_interval), mContainerMDSvc(svc),mNamespaceStats(namespaceStats)
 {
   mBatch.resize(2);
 
@@ -86,10 +84,6 @@ QuarkSyncTimeAccounting::QueueForUpdate(IContainerMD::id_t id)
     auto it_new = batch.mLstUpd.emplace(batch.mLstUpd.end(), id);
     batch.mMap[id] = it_new;
   }
-}
-
-void QuarkSyncTimeAccounting::setNamespaceStats(INamespaceStats* namespaceStats) {
-  mNamespaceStats = namespaceStats;
 }
 
 //------------------------------------------------------------------------------

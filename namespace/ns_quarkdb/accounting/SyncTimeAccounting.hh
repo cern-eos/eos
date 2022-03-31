@@ -43,15 +43,16 @@ class QuarkSyncTimeAccounting : public IContainerMDChangeListener,
   public eos::common::LogId
 {
 public:
+  const static constexpr uint32_t DEFAULT_UPDATE_INTERVAL = 5;
   //----------------------------------------------------------------------------
   //! Constructor
   //!
   //! @param svc container meta-data service
-  //! @param ns_mutex global namespace view mutex
   //! @param update_interval interval in seconds when updates are propagated
+  // ! @param namespaceStats the object that will allow to communicate some execution timings
   //----------------------------------------------------------------------------
-  QuarkSyncTimeAccounting(IContainerMDSvc* svc, eos::common::RWMutex* ns_mutex,
-                          uint32_t update_interval = 5);
+  QuarkSyncTimeAccounting(IContainerMDSvc* svc,
+                          uint32_t update_interval = DEFAULT_UPDATE_INTERVAL, INamespaceStats * namespaceStats = nullptr);
 
   //----------------------------------------------------------------------------
   //! Destructor
@@ -89,14 +90,6 @@ public:
   //! @param obj container id
   //----------------------------------------------------------------------------
   void QueueForUpdate(IContainerMD::id_t id);
-
-  //----------------------------------------------------------------------------
-  //! Sets the object that allows to communicate some execution timing statistics
-  //!
-  //! @param namespaceStats the object that will allow to communicate some execution
-  //! timing statistics
-  //----------------------------------------------------------------------------
-  void setNamespaceStats(INamespaceStats * namespaceStats);
 
 private:
 
@@ -136,7 +129,6 @@ private:
   std::atomic<bool> mShutdown; ///< Flag to shutdown async thread
   uint32_t mUpdateIntervalSec; ///< Interval in seconds when updates are pushed
   IContainerMDSvc* mContainerMDSvc; ///< Container meta-data service
-  eos::common::RWMutex* gNsRwMutex; ///< Global(MGM) namespace RW mutex
   INamespaceStats * mNamespaceStats;
 };
 
