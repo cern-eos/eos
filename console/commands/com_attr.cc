@@ -655,7 +655,7 @@ com_attr_usage:
   fprintf(stdout,
           "- re-configure a layout for different number of stripes (e.g. 10) ...\n");
   fprintf(stdout,
-          "     |eos> attr set sys.forced.stripes=10 /eos/instance/archive\n");
+          "     |eos> attr set sys.forced.nstripes=10 /eos/instance/archive\n");
   fprintf(stdout, "\n");
   fprintf(stdout, "................\n");
   fprintf(stdout, "....... ACLs ...\n");
