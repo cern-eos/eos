@@ -53,12 +53,12 @@ com_attr(char* arg1)
 
     if (subcommand == "set") {
       if (arg.beginswith("-")) {
-	if (arg == "-c") {
-	  option += "c";
-	  arg = subtokenizer.GetToken(false);
-	} else {
-	  goto com_attr_usage;
-	}
+        if (arg == "-c") {
+          option += "c";
+          arg = subtokenizer.GetToken(false);
+        } else {
+          goto com_attr_usage;
+        }
       }
     }
 
@@ -67,19 +67,20 @@ com_attr(char* arg1)
   } else {
     if (subcommand == "set") {
       arg = subtokenizer.GetToken(false);
+
       if (arg.beginswith("-")) {
-	if (arg == "-c") {
-	  in += "&mgm.option=c";
-	  arg = subtokenizer.GetToken(false);
-	} else {
-	  goto com_attr_usage;
-	}
+        if (arg == "-c") {
+          in += "&mgm.option=c";
+          arg = subtokenizer.GetToken(false);
+        } else {
+          goto com_attr_usage;
+        }
       }
     } else {
       if (subcommand == "ls") {
-	arg = subtokenizer.GetToken(true);
+        arg = subtokenizer.GetToken(true);
       } else {
-	arg = subtokenizer.GetToken(false);
+        arg = subtokenizer.GetToken(false);
       }
     }
   }
@@ -102,7 +103,6 @@ com_attr(char* arg1)
     }
 
     path = path_identifier(path.c_str(), true);
-
     in += "&mgm.subcmd=ls";
     in += "&mgm.path=";
     in += path;
@@ -164,7 +164,6 @@ com_attr(char* arg1)
     }
 
     path = path_identifier(path.c_str(), true);
-
     in += "&mgm.subcmd=set&mgm.attr.key=";
     in += key;
     in += "&mgm.attr.value=";
@@ -368,7 +367,6 @@ com_attr(char* arg1)
     }
 
     path = path_identifier(path.c_str(), true);
-
     in += "&mgm.subcmd=get&mgm.attr.key=";
     in += key;
     in += "&mgm.path=";
@@ -383,7 +381,6 @@ com_attr(char* arg1)
     }
 
     path = path_identifier(path.c_str(), true);
-
     in += "&mgm.subcmd=fold";
     in += "&mgm.path=";
     in += path;
@@ -403,7 +400,6 @@ com_attr(char* arg1)
     }
 
     path = path_identifier(path.c_str(), true);
-
     in += "&mgm.subcmd=rm&mgm.attr.key=";
     in += key;
     in += "&mgm.path=";
@@ -497,8 +493,8 @@ com_attr_usage:
   fprintf(stdout,
           "         sys.forced.leasetime=86400            : allows to overwrite the eosxd client provided leasetime with a new value\n");
   fprintf(stdout,
-	  "         sys.forced.iotype=direct|sync|dsync|csync"
-	  "                                               : force the given iotype for that directory");
+          "         sys.forced.iotype=direct|sync|dsync|csync"
+          "                                               : force the given iotype for that directory");
   fprintf(stdout,
           "         sys.mtime.propagation=1               : if present a change under this directory propagates an mtime change up to all parents until the attribute is not present anymore\n");
   fprintf(stdout,
@@ -659,7 +655,7 @@ com_attr_usage:
   fprintf(stdout,
           "- re-configure a layout for different number of stripes (e.g. 10) ...\n");
   fprintf(stdout,
-          "     |eos> attr set sys.forced.stripes=10 /eos/instance/archive\n");
+          "     |eos> attr set sys.forced.nstripes=10 /eos/instance/archive\n");
   fprintf(stdout, "\n");
   fprintf(stdout, "................\n");
   fprintf(stdout, "....... ACLs ...\n");
