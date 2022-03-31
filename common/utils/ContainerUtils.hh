@@ -52,6 +52,7 @@ inline constexpr bool can_remove_if =
 }
 
 //----------------------------------------------------------------------------
+//! erase_if that erases elements in place for elements matching a predicate
 //! This is useful in erase remove idiom useful for assoc. containers where
 //! std::remove_if will not compile, almost borrowed from erase_if C++ ref page
 //!
@@ -82,6 +83,36 @@ erase_if(C& c, Pred pred)
     }
   }
   return init_sz - c.size();
+}
+
+inline constexpr uint64_t clamp_index(uint64_t index, uint64_t size)
+{
+  return index >= size ? (index % size) : index;
+}
+
+//----------------------------------------------------------------------------
+//! A simple Round Robin like picker for a container, for indices past the size
+//! we simply wrap around giving a feel of circular iterator
+//! NOTE: In case of an empty container this function raises out_of_range
+//! exception, so please ensure container is not empty!
+//!
+//! @param C Container to pick from
+//! @param index
+//! @return item at index
+//! Usage eg:
+//!   vector<int> v {1,2,3};
+//!   pickIndexRR(v,3) -> 1 (v,4)->2 (v,5) -> 3  ...
+//----------------------------------------------------------------------------
+template <typename C>
+typename C::value_type
+pickIndexRR(const C& c, uint64_t index)
+{
+  if (!c.size()) {
+    throw std::out_of_range("Empty Container!");
+  }
+  auto iter = c.begin();
+  std::advance(iter, clamp_index(index, c.size()));
+  return *iter;
 }
 
 } // eos::common
