@@ -2,6 +2,7 @@
 #include "common/Logging.hh"
 #include "mgm/groupbalancer/BalancerEngineUtils.hh"
 #include "common/table_formatter/TableFormatterBase.hh"
+#include "common/utils/ContainerUtils.hh"
 
 namespace eos::mgm::group_balancer {
 
@@ -132,4 +133,25 @@ std::string BalancerEngine::get_status_str(bool detail, bool monitoring) const
 
   return oss.str();
 }
+
+groups_picked_t
+BalancerEngine::pickGroupsforTransfer(uint64_t index)
+{
+  if (data.mGroupsUnderThreshold.size() == 0 || data.mGroupsOverThreshold.size() == 0) {
+    if (data.mGroupsOverThreshold.size() == 0) {
+      eos_static_debug("No groups over the average!");
+    }
+
+    if (data.mGroupsUnderThreshold.size() == 0) {
+      eos_static_debug("No groups under the average!");
+    }
+
+    recalculate();
+    return {};
+  }
+
+  return {common::pickIndexRR(data.mGroupsOverThreshold, index),
+          common::pickIndexRR(data.mGroupsUnderThreshold, index)};
+}
+
 } // eos::mgm::GroupBalancer

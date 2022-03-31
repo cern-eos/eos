@@ -61,11 +61,15 @@ struct IBalancerEngine
   virtual void updateGroups() = 0;
 
   //----------------------------------------------------------------------------
-  //! Return a pair of groups over avg & under avg that will be used for
-  //transferring
+  //! Return randomly a pair of groups over avg & under avg that will be used
+  //! for transferring
   //----------------------------------------------------------------------------
   virtual groups_picked_t pickGroupsforTransfer() = 0;
 
+  //----------------------------------------------------------------------------
+  //! Return a pair of groups over avg & under avg at given index
+  //----------------------------------------------------------------------------
+  virtual groups_picked_t pickGroupsforTransfer(uint64_t index) = 0;
 
   virtual void configure(const engine_conf_t& conf) = 0;
 
@@ -111,6 +115,12 @@ public:
 
   groups_picked_t pickGroupsforTransfer() override;
 
+  groups_picked_t pickGroupsforTransfer(uint64_t index) override;
+
+  // a simple function that always returns 0 to size-1;
+  static uint64_t clamp_index(uint64_t index, uint64_t size) {
+    return index >= size ? index % size : index;
+  }
 protected:
   BalancerEngineData data;
 
