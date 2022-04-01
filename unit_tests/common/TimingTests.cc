@@ -117,6 +117,25 @@ TEST(SteadyClock, FakeTests)
   ASSERT_EQ(sc.getTime(), startOfTime);
 }
 
+TEST(SteadyClock, constructor)
+{
+  // Yes the 50 different ways to initialize!
+  auto clock1 = eos::common::SteadyClock();
+  ASSERT_FALSE(clock1.IsFake());
+  auto clock2 = eos::common::SteadyClock(false);
+  ASSERT_FALSE(clock2.IsFake());
+  eos::common::SteadyClock default_clock;
+  ASSERT_FALSE(default_clock.IsFake());
+  eos::common::SteadyClock default_clock2 {};
+  ASSERT_FALSE(default_clock2.IsFake());
+  eos::common::SteadyClock clock3(false);
+  ASSERT_FALSE(clock3.IsFake());
+  eos::common::SteadyClock clock4{false};
+  ASSERT_FALSE(clock4.IsFake());
+  auto fake_clock = eos::common::SteadyClock(true);
+  ASSERT_TRUE(fake_clock.IsFake());
+}
+
 TEST(Timing, TimespecToString)
 {
   struct timespec ts;
