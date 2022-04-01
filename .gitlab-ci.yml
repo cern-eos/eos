@@ -46,10 +46,20 @@ prebuild-cc7:
   variables:
     PREBUILD_NAME: cc7
 
+prebuild-el8  :
+  <<: *prebuild-template_definition
+  variables:
+    PREBUILD_NAME: rl8
+
 prebuild-cs8:
   <<: *prebuild-template_definition
   variables:
     PREBUILD_NAME: cs8
+
+prebuild-cs9  :
+  <<: *prebuild-template_definition
+  variables:
+    PREBUILD_NAME: cs9
 
 .prebuild-cc7_clang:
   <<: *prebuild-template_definition
@@ -156,6 +166,34 @@ build_cs8:
     expire_in: 1 day
     paths:
       - cs8_artifacts/
+  allow_failure: true # @todo dont allow failure when/if we drop Centos8 and switch to Stream
+
+build_cs9:
+  stage: build:rpm
+  image: gitlab-registry.cern.ch/dss/eos/prebuild-cs9-${CODENAME}
+  script:
+    - git submodule update --init --recursive
+    - ./misc/cmake/cmake-3.19.7-Linux-x86_64.sh --prefix=/usr/ --skip-license \
+    - mkdir build
+    - cd build/
+    - cmake ../ -DPACKAGEONLY=1
+    - make srpm
+    - cd ../
+    - echo -e "[eos-depend]\nname=EOS dependencies\nbaseurl=http://storage-ci.web.cern.ch/storage-ci/eos/${CODENAME}-depend/el-9s/x86_64/\ngpgcheck=0\nenabled=1\npriority=4\n" >> /etc/yum.repos.d/eos-depend.repo
+    - dnf builddep --nogpgcheck --allowerasing -y build/SRPMS/*
+    - if [[ -n "$CI_COMMIT_TAG" ]]; then export CCACHE_DISABLE=1; else source gitlab-ci/setup_ccache.sh; fi
+    - rpmbuild --rebuild --with server --define "_rpmdir build/RPMS/" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" build/SRPMS/* | ts
+    - ccache -s
+    - if [[ -n "$CI_COMMIT_TAG" ]]; then gpg2 --import $STCI_REPO_KEY; printf "" | setsid rpmsign --define='%_gpg_name stci@cern.ch' --define='%_signature gpg' --addsign build/RPMS/*.rpm; fi
+    - mkdir cs9_artifacts; cp -R build/SRPMS/ build/RPMS cs9_artifacts
+  cache:
+    key: "$CI_JOB_NAME-$CI_COMMIT_REF_SLUG"
+    paths:
+      - ccache/
+  artifacts:
+    expire_in: 1 day
+    paths:
+      - cs9_artifacts/
   allow_failure: true # @todo dont allow failure when/if we drop Centos8 and switch to Stream
 
 .build_ubuntu-template: &build_ubuntu-template_definition
@@ -735,6 +773,16 @@ unit_test_asan:
   tags:
     - docker_node
     - publish
+
+publish_koji_cs9:
+  <<: *publish_koji_template_definition
+  variables:
+    TARGET: "eos9"
+    BUILD_NAME: "cs9"
+  dependencies:
+    - build_cs9
+  when:
+    - manual
 
 publish_koji_cs8:
   <<: *publish_koji_template_definition

@@ -175,7 +175,7 @@ BuildRequires: lz4
 Requires: zstd, lz4
 BuildRequires: libcap-devel
 
-%if 0%{?rhel} != 8
+%if 0%{?rhel} < 8
 BuildRequires: openssl-static, ncurses-static
 %endif
 
