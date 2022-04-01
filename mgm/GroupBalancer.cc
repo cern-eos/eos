@@ -86,7 +86,7 @@ GroupBalancer::~GroupBalancer()
 //------------------------------------------------------------------------------
 std::string
 GroupBalancer::getFileProcTransferNameAndSize(eos::common::FileId::fileid_t fid,
-    FsGroup* group, uint64_t* size)
+                                              const string& target_group, uint64_t* size)
 
 {
   char fileName[1024];
@@ -127,7 +127,7 @@ GroupBalancer::getFileProcTransferNameAndSize(eos::common::FileId::fileid_t fid,
   }
   snprintf(fileName, 1024, "%s/%016llx:%s#%08lx",
            gOFS->MgmProcConversionPath.c_str(),
-           fileid, group->mName.c_str(), (unsigned long) layoutid);
+           fileid, target_group.c_str(), (unsigned long) layoutid);
   return std::string(fileName);
 }
 
@@ -306,7 +306,7 @@ GroupBalancer::chooseFileFromGroup(FsGroup* from_group, FsGroup* to_group,
       continue;
     }
 
-    auto filename = getFileProcTransferNameAndSize(fid, to_group, &filesize);
+    auto filename = getFileProcTransferNameAndSize(fid, to_group->mName, &filesize);
 
     if (filename.empty() ||
         (mCfg.mMinFileSize > filesize) ||
