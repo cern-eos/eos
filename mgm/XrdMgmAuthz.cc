@@ -22,10 +22,12 @@
  ************************************************************************/
 
 #include "common/token/EosTok.hh"
+#include "common/SecEntity.hh"
 #include "mgm/XrdMgmAuthz.hh"
 #include "XrdSys/XrdSysError.hh"
 #include "XrdOuc/XrdOucString.hh"
 #include "XrdOuc/XrdOucEnv.hh"
+#include "XrdSec/XrdSecEntityAttr.hh"
 #include "XrdVersion.hh"
 
 XrdMgmAuthz* gMgmAuthz {nullptr};
@@ -116,24 +118,28 @@ XrdAccPrivs
 XrdMgmAuthz::Access(const XrdSecEntity* Entity, const char* path,
                     const Access_Operation oper, XrdOucEnv* Env)
 {
+  using eos::common::SecEntity;
   int envlen;
-  eos_static_debug("path=\"%s\" opaque=\"%s\"", path, Env->Env(envlen));
+  eos_static_info("path=\"%s\" opaque=\"%s\" client_info=\"%s\"",
+                  path, Env->Env(envlen),
+                  (Entity ? SecEntity::ToString(Entity, "").c_str() : "none"));
 
   if (eos::common::EosTok::IsEosToken(Env)) {
     return XrdAccPriv_All;
   }
 
-  eos_static_info("msg=\"checking access\" path=\"%s\", name=\"%s\"",
-                  path, Entity->name);
+  bool has_user = false;
 
-  if ((Entity == nullptr) || (Entity->name == nullptr)) {
-    return XrdAccPriv_None;
+  if (Entity) {
+    std::string user_value;
+    std::string user_key = "request.name";
+    has_user = Entity->eaAPI->Get(user_key, user_value);
+    eos_static_debug("msg=\"checking access\" path=\"%s\", name=\"%s\" "
+                     "request.name=\"%s\"", path, Entity->name,
+                     (has_user ? user_value.c_str() : ""));
   }
 
-  // When a bearer token is already supplied the token library is responsible
-  // for deciding the access permissions therefore, in this case the MGM Authz
-  // module will not give any additional permissions.
-  if (Env && Env->Get("authz")) {
+  if ((Entity == nullptr) || ((Entity->name == nullptr) && !has_user)) {
     return XrdAccPriv_None;
   }
 
