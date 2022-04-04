@@ -139,6 +139,34 @@ clone_docker:
       - eos-docker/
 
 # schedules ------------------------------
+# build for rocky linux
+build_rl8:
+  stage: build:rpm
+  image: gitlab-registry.cern.ch/dss/eos/prebuild-rl8-${CODENAME}
+  script:
+    - git submodule update --init --recursive
+    - ./misc/cmake/cmake-3.19.7-Linux-x86_64.sh --prefix=/usr/ --skip-license \
+    - mkdir build
+    - cd build/
+    - cmake ../ -DPACKAGEONLY=1
+    - make srpm
+    - cd ../
+    - echo -e "[eos-depend]\nname=EOS dependencies\nbaseurl=http://storage-ci.web.cern.ch/storage-ci/eos/${CODENAME}-depend/el-8/x86_64/\ngpgcheck=0\nenabled=1\npriority=4\n" >> /etc/yum.repos.d/eos-depend.repo
+    - dnf builddep --nogpgcheck --allowerasing -y build/SRPMS/*
+    - if [[ -n "$CI_COMMIT_TAG" ]]; then export CCACHE_DISABLE=1; else source gitlab-ci/setup_ccache.sh; fi
+    - rpmbuild --rebuild --with server --define "_rpmdir build/RPMS/" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" build/SRPMS/* | ts
+    - ccache -s
+    - if [[ -n "$CI_COMMIT_TAG" ]]; then gpg2 --import $STCI_REPO_KEY; printf "" | setsid rpmsign --define='%_gpg_name stci@cern.ch' --define='%_signature gpg' --addsign build/RPMS/*.rpm; fi
+    - mkdir rl8_artifacts; cp -R build/SRPMS/ build/RPMS rl8_artifacts
+  cache:
+    key: "$CI_JOB_NAME-$CI_COMMIT_REF_SLUG"
+    paths:
+      - ccache/
+  artifacts:
+    expire_in: 1 day
+    paths:
+      - rl8_artifacts/
+  allow_failure: true # @todo dont allow failure when/if we drop Centos8 and switch to Stream
 
 build_cs8:
   stage: build:rpm
