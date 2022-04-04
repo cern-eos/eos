@@ -58,6 +58,7 @@ class GeoTree;
 class TableFormatterBase;
 class Balancer;
 class GroupBalancer;
+class GroupDrainer;
 class GeoBalancer;
 class Converter;
 class IConfigEngine;
@@ -542,7 +543,7 @@ public:
   Converter* mConverter; ///< Threaded object running layout conversion jobs
   GroupBalancer* mGroupBalancer; ///< Threaded object running group balancing
   GeoBalancer* mGeoBalancer; ///< Threaded object running geotag balancing
-
+  std::unique_ptr<GroupDrainer> mGroupDrainer; ///< Threaded object running group drainer
   //----------------------------------------------------------------------------
   //! Constructor
   //!
