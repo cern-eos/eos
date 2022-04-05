@@ -1,4 +1,4 @@
-FROM gitlab-registry.cern.ch/linuxsupport/cs8-base
+FROM gitlab-registry.cern.ch/linuxsupport/cs9-base
 
 LABEL maintainer="Manuel Reis, manuel.b.reis@cern.ch, CERN 2022"
 
