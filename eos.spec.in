@@ -50,14 +50,14 @@
 %define major_version @CPACK_PACKAGE_VERSION_MAJOR@
 %define release_version @CPACK_PACKAGE_RELEASE@
 
-# releases for el-7 or el-8 distributions enable automatically to build with eos-xrootd
-%if 0%{?rhel} == 7 || 0%{?rhel} == 8
+# releases for el 7,8 or 9 distributions enable automatically to build with eos-xrootd
+%if 0%{?rhel} >= 7 && 0%{?rhel} <= 9 
 %define _with_eos_xrootd_rh 1
 %endif
 
-# Explicit python macro for CentOS 8
+# Explicit python macro for CentOS > 8
 # Note: RHEL8 does not provide a default python anymore
-%if 0%{?rhel} == 8
+%if 0%{?rhel} >= 8
 %define __python /usr/bin/python3
 %endif
 
@@ -70,6 +70,7 @@
   %define compiler clang
 %endif
 
+# CentOS 9 comes with cmake > 3.17, no need for eos-cmake
 %if %{?fedora:1}%{!?fedora:0} || 0%{?rhel} == 8
   %define cmake cmake
 %if 0%{?rhel} == 8
@@ -541,7 +542,7 @@ Requires: xrootd-client >= %{xrootd_version_min}
 %endif
 
 # Select protobuf package
-%if 0%{?rhel} == 7 || 0%{?rhel} == 8
+%if 0%{?rhel} >= 7 && 0%{?rhel} <=9
 Requires: eos-protobuf3 >= 3.3
 %else
 Requires: protobuf >= 3.3
@@ -576,7 +577,7 @@ Requires: elfutils
 # Select xrootd package
 %if %{?_with_eos_xrootd_rh:1}%{!?_with_eos_xrootd_rh:0}
 # Install eos-xrootd
-%if 0%{?rhel} == 7 || 0%{?rhel} == 8
+%if 0%{?rhel} >= 7 && 0%{?rhel} <= 9
 Requires: eos-xrootd == %{eos_xrootd_version_min}
 %else
 Requires: xrootd-client >= %{xrootd_version_min}
@@ -586,7 +587,7 @@ Requires: xrootd-client >= %{xrootd_version_min}
 %endif
 
 # Select protobuf package
-%if 0%{?rhel} == 7 || 0%{?rhel} == 8
+%if 0%{?rhel} >= 7 && 0%{?rhel} <= 9
 Requires: eos-protobuf3 >= 3.3
 %else
 Requires: protobuf >= 3.3
