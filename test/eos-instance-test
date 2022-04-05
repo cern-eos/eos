@@ -1281,18 +1281,18 @@ runtest H "### Rm        " sss  0 "EOSROLE='-r 99 99'" eos rm /eos/$EOS_TEST_INS
 # chown on file
 runtest H "### Upload    " sss  0 "" upload "$TESTSYSFILE1K" "/eos/$EOS_TEST_INSTANCE/test/instancetest/file.1k" "-ODeos.ruid=99\&eos.rgid=99"  # owned by 99
 runtest   "### Chmod     " unix 0 "" eos chmod 775 /eos/$EOS_TEST_INSTANCE/test/instancetest
-runtest   "### Attr      " unix 0 "" eos attr set user.acl=g:99:rwxc /eos/$EOS_TEST_INSTANCE/test/instancetest              # 'c' (chown) in user.acl 
+runtest   "### Attr      " unix 0 "" eos attr set user.acl=g:99:rwxc /eos/$EOS_TEST_INSTANCE/test/instancetest              # 'c' (chown) in user.acl
 runtest H "### Chown     " sss  0 "EOSROLE='-r 99 99'" eos chown 98 /eos/$EOS_TEST_INSTANCE/test/instancetest/file.1k       # fail: user.acl cannot grant this chown but 99 is the owner
-runtest   "### Attr      " unix 0 "" eos attr set sys.acl=g:99:c /eos/$EOS_TEST_INSTANCE/test/instancetest                  # 'c' (chown) in sys.ascl 
+runtest   "### Attr      " unix 0 "" eos attr set sys.acl=g:99:c /eos/$EOS_TEST_INSTANCE/test/instancetest                  # 'c' (chown) in sys.ascl
 runtest H "### Chown     " sss  0 "EOSROLE='-r 99 99'" eos chown 98 /eos/$EOS_TEST_INSTANCE/test/instancetest/file.1k
 runtest   "### Attr      " unix 0 "" eos attr rm sys.acl /eos/$EOS_TEST_INSTANCE/test/instancetest
 runtest H "### Chown     " sss  0 "EOSROLE='-r 99 99'" eos chown 99 /eos/$EOS_TEST_INSTANCE/test/instancetest/file.1k       # chown to self should work in user.acl
 
 # chown on directory - the ACL that applies is that of the directory itself
 runtest   "### Chown     " unix 0 "" eos chown 99:99 /eos/$EOS_TEST_INSTANCE/test/instancetest/testAcl                      # same tests with a directory
-runtest   "### Attr      " unix 0 "" eos attr set user.acl=g:99:rwxc /eos/$EOS_TEST_INSTANCE/test/instancetest/testAcl      # 'c' (chown) in user.acl 
+runtest   "### Attr      " unix 0 "" eos attr set user.acl=g:99:rwxc /eos/$EOS_TEST_INSTANCE/test/instancetest/testAcl      # 'c' (chown) in user.acl
 runtest H "### Chown     " sss  1 "EOSROLE='-r 99 99'" eos chown 98 /eos/$EOS_TEST_INSTANCE/test/instancetest/testAcl       # fail: user.acl cannot grant this chown
-runtest   "### Attr      " unix 0 "" eos attr set sys.acl=g:99:c /eos/$EOS_TEST_INSTANCE/test/instancetest/testAcl          # 'c' (chown) in sys.ascl 
+runtest   "### Attr      " unix 0 "" eos attr set sys.acl=g:99:c /eos/$EOS_TEST_INSTANCE/test/instancetest/testAcl          # 'c' (chown) in sys.ascl
 runtest H "### Chown     " sss  0 "EOSROLE='-r 99 99'" eos chown 98 /eos/$EOS_TEST_INSTANCE/test/instancetest/testAcl
 runtest   "### Attr      " unix 0 "" eos attr set sys.acl= /eos/$EOS_TEST_INSTANCE/test/instancetest/testAcl                # rm sys.acl, user.acl remains
 runtest H "### Chown     " sss  0 "EOSROLE='-r 99 99'" eos chown 99 /eos/$EOS_TEST_INSTANCE/test/instancetest/testAcl       # chown to self should work in user.acl
@@ -1937,7 +1937,7 @@ runtest "### OcChunk   " unix 0 "" shell eos-oc-test chunkedupload chunked /eos/
 # check that versions are kept as expected
 runtest "### Stat      " unix 0 "" meta stat "/eos/$EOS_TEST_INSTANCE/test/instancetest/oc/.sys.v#.chunked/"
 runtest "### Find      " unix 0 "" eos find "-f --count /eos/$EOS_TEST_INSTANCE/test/instancetest/oc | grep nfiles=3"
-runtest "### Newfind      " unix 0 "" eos newfind "-f --count /eos/$EOS_TEST_INSTANCE/test/instancetest/oc | grep nfiles=3"
+runtest "### Newfind   " unix 0 "" eos newfind "-f --count /eos/$EOS_TEST_INSTANCE/test/instancetest/oc | grep nfiles=3"
 
 #----------------------------------------------------------------------------
 # Clean up the files created in owncloud tests
@@ -2027,6 +2027,14 @@ if [ $NUM_FST -ge 6 ]; then
    runtest "### XsRaid6       " unix 0 "" eosj fileinfo "/eos/$EOS_TEST_INSTANCE/test/instancetest/raid6/eos_non_stream.dat | jq -r '.checksumvalue' | grep $CKS_NONSTREAMING"
    runtest "### NStreamQ      " unix 0 "" cp_nonstreaming $TESTFILE_NONSTREAMING "/eos/$EOS_TEST_INSTANCE/test/instancetest/qrain/eos_non_stream.dat"
    runtest "### XsQrain       " unix 0 "" eosj fileinfo "/eos/$EOS_TEST_INSTANCE/test/instancetest/qrain/eos_non_stream.dat | jq -r '.checksumvalue' | grep $CKS_NONSTREAMING"
+
+   # Run simple test to check the RAIN PIO mode which is by default enabled when doing eoscp
+   runtest "### eoscp pio     " unix 0 "" shell eoscp "root://$EOS_TEST_REDIRECTOR//eos/$EOS_TEST_INSTANCE/test/instancetest/raiddp/eos_non_stream.dat" "$EOS_TEST_RAIN_TMP/pio_raiddp_check.dat"
+   runtest "### eoscp pio xs  " unix 0 "" shell eos-checksum crc32 "$EOS_TEST_RAIN_TMP/pio_raiddp_check.dat" | grep $CKS_NONSTREAMING
+   runtest "### eoscp pio     " unix 0 "" shell eoscp "root://$EOS_TEST_REDIRECTOR//eos/$EOS_TEST_INSTANCE/test/instancetest/raid6/eos_non_stream.dat" "$EOS_TEST_RAIN_TMP/pio_raid6_check.dat"
+   runtest "### eoscp pio xs  " unix 0 "" shell eos-checksum crc32 "$EOS_TEST_RAIN_TMP/pio_raid6_check.dat" | grep $CKS_NONSTREAMING
+   runtest "### eoscp pio     " unix 0 "" shell eoscp "root://$EOS_TEST_REDIRECTOR//eos/$EOS_TEST_INSTANCE/test/instancetest/qrain/eos_non_stream.dat" "$EOS_TEST_RAIN_TMP/pio_qrain_check.dat"
+   runtest "### eoscp pio xs  " unix 0 "" shell eos-checksum crc32 "$EOS_TEST_RAIN_TMP/pio_qrain_check.dat" | grep $CKS_NONSTREAMING
 
    # Clean up the files used for the RAIN test
    runtest "### Cleanup   " unix 2 "" eos rm "-r" "/eos/$EOS_TEST_INSTANCE/test/instancetest/raiddp"
