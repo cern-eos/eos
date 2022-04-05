@@ -201,7 +201,8 @@ RainMetaLayout::Open(XrdSfsFileOpenMode flags, mode_t mode, const char* opaque)
   enhanced_opaque += static_cast<int>(mStripeWidth);
   std::vector<std::string> stripe_urls;
   // Local stripe is always on the first position
-  stripe_urls.push_back(mLocalPath);
+  std::string local_url = SSTR(mLocalPath << "?" << enhanced_opaque).c_str();
+  stripe_urls.push_back(local_url);
   XrdOucString ns_path = mOfsFile->mOpenOpaque->Get("mgm.path");
 
   // Operations done only by the entry server
@@ -273,8 +274,16 @@ RainMetaLayout::Open(XrdSfsFileOpenMode flags, mode_t mode, const char* opaque)
       open_futures.emplace_back();
       mStripe.push_back(nullptr);
     } else {
+      size_t pos = stripe_urls[i].find('?');
+      std::string stripe_url = stripe_urls[i].substr(0, pos);
+      std::string stripe_opaque;
+
+      if ((pos != std::string::npos) && (*stripe_urls[i].rbegin() != '?')) {
+        stripe_opaque = stripe_urls[i].substr(pos + 1);
+      }
+
       std::unique_ptr<FileIo> file
-      {FileIoPlugin::GetIoObject(stripe_urls[i], mOfsFile, mSecEntity)};
+      {FileIoPlugin::GetIoObject(stripe_url, mOfsFile, mSecEntity)};
 
       if (file) {
         // The local stripe is expected to be reconstructed during recovery
@@ -285,7 +294,7 @@ RainMetaLayout::Open(XrdSfsFileOpenMode flags, mode_t mode, const char* opaque)
           flags |= SFS_O_CREAT;
         }
 
-        open_futures.push_back(file->fileOpenAsync(flags, mode, enhanced_opaque,
+        open_futures.push_back(file->fileOpenAsync(flags, mode, stripe_opaque,
                                mTimeout));
         mStripe.push_back(std::move(file));
       } else {

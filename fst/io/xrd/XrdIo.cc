@@ -389,7 +389,16 @@ XrdIo::fileOpenAsync(XrdSfsFileOpenMode flags, mode_t mode,
   }
 
   mXrdFile = new XrdCl::File();
+
   // Final path + opaque info used in the open
+  if (!opaque.empty()) {
+    if (mOpaque.empty()) {
+      mOpaque = opaque;
+    } else {
+      mOpaque = mOpaque + "&" + opaque;
+    }
+  }
+
   mTargetUrl.FromString(BuildRequestUrl());
   mXrdIdHelper.reset(new eos::common::XrdConnIdHelper(mXrdConnPool, mTargetUrl));
 
