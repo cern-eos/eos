@@ -36,7 +36,7 @@ GroupDrainer::GroupDrain(ThreadAssistant& assistant) noexcept
                                  return s == GroupStatus::DRAIN || s == GroupStatus::ON;
                                });
   std::map<std::string,string, std::less<>> config_map = {{"threshold",std::to_string(mThreshold)}};
-  bool refresh_groups = true;
+  mRefreshGroups = true;
   while (!assistant.terminationRequested()) {
     if (!gOFS->mMaster->IsMaster()) {
       assistant.wait_for(std::chrono::seconds(60));
@@ -54,10 +54,10 @@ GroupDrainer::GroupDrain(ThreadAssistant& assistant) noexcept
       continue;
     }
 
-    if (isUpdateNeeded(mLastUpdated, refresh_groups)) {
+    if (isUpdateNeeded(mLastUpdated, mRefreshGroups)) {
       mEngine->configure(config_map);
       mEngine->populateGroupsInfo(fetcher.fetch());
-      refresh_groups = false;
+      mRefreshGroups = false;
     }
 
     if (!mEngine->canPick()) {
@@ -111,11 +111,17 @@ GroupDrainer::prepareTransfers()
   try {
     for (uint64_t i = 0; i < allowed_tx; ++i) {
       prepareTransfer(i);
+      if (mRefreshGroups) {
+        return;
+      }
     }
   } catch (std::exception& ec) {
+    // Very unlikely to reach here, since we already x-check that we don't supply
+    // empty containers to RR picker, but in the rare case, just force a refresh of
+    // our cached groups info
     eos_crit("msg=\"Got an exception while creating transfers=%s\"", ec.what());
+    mRefreshGroups = true;
   }
-
 }
 
 void
@@ -132,6 +138,17 @@ GroupDrainer::prepareTransfer(uint64_t index)
   if (fsids == mDrainFsMap.end() || isUpdateNeeded(mDrainMapLastUpdated, mRefreshFSMap)) {
     std::tie(fsids, std::ignore) = mDrainFsMap.insert_or_assign(grp_drain_from,
                                                                 FsidsinGroup(grp_drain_from));
+    if (fsids->second.empty()) {
+      // We reach here when all the FSes in the group are either offline or empty!
+      // force a refresh of Groups Info for the next cycle, in that case the new
+      // Groups Info will have 0 capacity groups and the engine will find that it
+      // has no more targets to pick effectively stopping any further processing
+      // other than the Groups Refresh every few minutes to check any new drain states
+      eos_static_info("msg=\"Encountered group with no online FS\" group_name=%s",
+                      grp_drain_from.c_str());
+      mRefreshGroups = true;
+      return;
+    }
     mRefreshFSMap = false;
   }
 
@@ -158,7 +175,6 @@ GroupDrainer::prepareTransfer(uint64_t index)
   }
 }
 
-//! TODO: implement the following!!!!
 void
 GroupDrainer::scheduleTransfer(eos::common::FileId::fileid_t fid,
                                const string& src_grp, const string& tgt_grp)

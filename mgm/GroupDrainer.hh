@@ -69,6 +69,7 @@ private:
   std::chrono::time_point<std::chrono::steady_clock> mDrainMapLastUpdated;
   std::chrono::seconds mCacheExpiryTime {300};
   bool mRefreshFSMap {true};
+  bool mRefreshGroups {true};
   std::string mSpaceName;
   AssistedThread mThread;
   std::unique_ptr<group_balancer::BalancerEngine> mEngine;
