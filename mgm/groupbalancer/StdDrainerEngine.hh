@@ -32,6 +32,9 @@ public:
   void recalculate() override;
   void updateGroup(const std::string& group_name) override;
   void configure(const engine_conf_t& conf) override;
+
+  // getters, can be used to validate config
+  double get_threshold() const { return mThreshold; }
 private:
   double mAvgUsedSize;
   double mThreshold;

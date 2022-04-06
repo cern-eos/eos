@@ -1,5 +1,6 @@
 #include "mgm/groupbalancer/StdDrainerEngine.hh"
 #include "mgm/groupbalancer/BalancerEngineUtils.hh"
+#include "common/Logging.hh"
 
 namespace eos::mgm::group_balancer {
 
@@ -8,7 +9,11 @@ StdDrainerEngine::configure(const engine_conf_t& conf)
 {
   using namespace std::string_view_literals;
   std::string err;
-  mThreshold = extract_percent_value(conf, "threshold", 0.01, &err);
+  mThreshold = extract_percent_value(conf, "threshold"sv, 0.01, &err);
+
+  if (!err.empty()) {
+    eos_static_err("msg=\"Failed to set threshold\" err=%s", err.c_str());
+  }
 }
 
 void StdDrainerEngine::recalculate()
