@@ -970,6 +970,9 @@ Summary: The EOS archive daemon
 Group: Applications/File
 ExclusiveArch: x86_64 aarch64
 
+%if 0%{?rhel} == 9
+BuildRequires:  python-rpm-macros
+%endif
 %if 0%{?rhel} == 7
 Requires: python-daemon python-zmq python3-fusepy
 %else
