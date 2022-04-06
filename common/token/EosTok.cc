@@ -444,20 +444,23 @@ EosTok::IsEosToken(XrdOucEnv* env)
   const std::string http_enc_tag = "Bearer%20zteos64";
   const std::string http_tag = "Bearer zteos64";
   const std::string tag = "zteos64";
-  const char* authz_opaque = env->Get("authz");
 
-  if (authz_opaque) {
-    if (strncmp(authz_opaque, http_enc_tag.c_str(),
-                http_enc_tag.length()) == 0) {
-      return true;
-    }
+  if (env) {
+    const char* authz_opaque = env->Get("authz");
 
-    if (strncmp(authz_opaque, http_tag.c_str(), http_tag.length()) == 0) {
-      return true;
-    }
+    if (authz_opaque) {
+      if (strncmp(authz_opaque, http_enc_tag.c_str(),
+                  http_enc_tag.length()) == 0) {
+        return true;
+      }
 
-    if (strncmp(authz_opaque, tag.c_str(), tag.length()) == 0) {
-      return true;
+      if (strncmp(authz_opaque, http_tag.c_str(), http_tag.length()) == 0) {
+        return true;
+      }
+
+      if (strncmp(authz_opaque, tag.c_str(), tag.length()) == 0) {
+        return true;
+      }
     }
   }
 
