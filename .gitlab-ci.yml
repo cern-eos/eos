@@ -201,7 +201,6 @@ build_cs9:
   image: gitlab-registry.cern.ch/dss/eos/prebuild-cs9-${CODENAME}
   script:
     - git submodule update --init --recursive
-    - ./misc/cmake/cmake-3.19.7-Linux-x86_64.sh --prefix=/usr/ --skip-license \
     - mkdir build
     - cd build/
     - cmake ../ -DPACKAGEONLY=1
@@ -222,7 +221,7 @@ build_cs9:
     expire_in: 1 day
     paths:
       - cs9_artifacts/
-  allow_failure: true # @todo dont allow failure when/if we drop Centos8 and switch to Stream
+  allow_failure: true # @todo dont allow failure when/if we switch to Stream
 
 .build_ubuntu-template: &build_ubuntu-template_definition
   stage: build:rpm

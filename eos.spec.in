@@ -217,7 +217,7 @@ BuildRequires: eos-librichacl-devel, eos-richacl >= 1.12
 
 # ISA-L[_crypto], XXHash and scitokens dependencies for CC7 and C8
 %if %{?_with_server:1}%{!?_with_server:0}
-%if 0%{?rhel} == 7 || 0%{?rhel} == 8
+%if 0%{?rhel} >= 7 && 0%{?rhel} <= 8
 BuildRequires: scitokens-cpp, scitokens-cpp-devel
 BuildRequires: xxhash-devel
 %if 0%{?rhel} == 7
@@ -812,7 +812,7 @@ ExclusiveArch: x86_64 aarch64
 # Select xrootd package
 %if %{?_with_eos_xrootd_rh:1}%{!?_with_eos_xrootd_rh:0}
 # Install eos-xrootd
-%if 0%{?rhel} >= 7 && 0%{?rhel} <= 9
+%if 0%{?rhel} == 7 || 0%{?rhel} == 8
 Requires: eos-xrootd == %{eos_xrootd_version_min}
 %else
 Requires: xrootd-client >= %{xrootd_version_min}
