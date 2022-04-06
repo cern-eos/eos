@@ -33,8 +33,8 @@ EOSMGMNAMESPACE_BEGIN
 //! @brief Structure holding conversion details
 //------------------------------------------------------------------------------
 struct ConversionInfo {
-  ///! Marker for ctime updae of the converted file
-  static constexpr char UPDATE_CTIME = '!';
+  ///! Marker for ctime update of the converted file
+  static constexpr char UPDATE_CTIME = '+';
 
   //----------------------------------------------------------------------------
   //! Constructor

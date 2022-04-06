@@ -65,7 +65,7 @@ ConversionInfo::ConversionInfo(const eos::common::FileId::fileid_t fid,
 // Parse a conversion string representation into a conversion info object
 //
 // A conversion string has the following format:
-// <fid(016hex)>:<space.group>#<layoutid(08hex)>[~<placement_policy>][!]
+// <fid(016hex)>:<space.group>#<layoutid(08hex)>[~<placement_policy>][^eos.app=tag^][+]
 //----------------------------------------------------------------------------
 std::shared_ptr<ConversionInfo> ConversionInfo::parseConversionString(
   std::string sconversion)
@@ -134,7 +134,8 @@ std::shared_ptr<ConversionInfo> ConversionInfo::parseConversionString(
   pos = sconversion.find('^');
 
   if (pos != std::string::npos) {
-    auto end_pos = sconversion.find('^', pos+1);
+    auto end_pos = sconversion.find('^', pos + 1);
+
     if (end_pos == std::string::npos) {
       eos_static_err("msg='%s' conversion_string=%s ",
                      "reason=\"invalid app tag\"", errmsg, sconversion.c_str());
@@ -143,7 +144,6 @@ std::shared_ptr<ConversionInfo> ConversionInfo::parseConversionString(
 
     // Parse only substr excluding ^
     app_tag = sconversion.substr(pos + 1, end_pos - (pos + 1));
-
     // Erase [start, size including trailing ^]
     sconversion.erase(pos, (end_pos - pos) + 1);
   }
@@ -174,7 +174,6 @@ std::shared_ptr<ConversionInfo> ConversionInfo::parseConversionString(
   if (pos != std::string::npos) {
     policy = sconversion.substr(pos + 1);
   }
-
 
   return std::make_shared<ConversionInfo>(fid, lid, location, policy,
                                           update_ctime, app_tag);
