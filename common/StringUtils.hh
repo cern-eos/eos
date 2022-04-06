@@ -28,8 +28,10 @@
 #include <map>
 #include <sstream>
 #include <string>
+#include <charconv>
 
 #include "common/Namespace.hh"
+#include "common/utils/TypeTraits.hh"
 
 EOSCOMMONNAMESPACE_BEGIN
 
@@ -137,5 +139,102 @@ static inline std::string hexToString(const std::string& in) {
 
   return output;
 }
+
+//----------------------------------------------------------------------------
+//! Get a Numeric Value from String supports all unsigned + integer types,
+//! can set a default value on failure if supplied.
+//! Also fills a string for log_msg if supplied, On Linux this is usually
+//! faster than atoi and friends, no allocation is promised in case the StrT
+//! doesn't allocate, the template arguments are inferred based on the given
+//! value of value. Unfortunately gcc < 11 does not support floating point
+//! conversions just yet, to save from long template compilation failures we
+//! SFINAE for this and fallback to stod and friends for float, this can be
+//! removed once we move to gcc11 everywhere, where std::from_chars natively
+//! does the right thing and also does some neat optimisations
+//!
+//! @tparam StrT A string like container type, std::string/string_view or
+//!              a container of chars will also work, however const char* will
+//!              not as we need a start and end position (use operator ""s/sv for
+//!              arguments in case you're doing strings at compile time)
+//! @tparam NumT The numeric type, will be inferred from the given arguments
+//! @param key the string key which needs to be converted to a number
+//! @param value the value that will be filled on conversion
+//! @param default_val a default in case conversion fails (Set to Integer Default)
+//! @param log_msg a string log msg that can be later used for logging
+//!
+//! @return bool indicating successful conversion
+//----------------------------------------------------------------------------
+template <typename StrT, typename NumT>
+auto StringToNumeric(const StrT& key, NumT& value,
+                     NumT default_val={},
+                     std::string* log_msg = nullptr) noexcept
+    -> std::enable_if_t<detail::is_charconv_numeric_v<NumT>, bool>
+{
+  NumT result;
+
+  static_assert(detail::has_data_t<StrT>::value,
+                "StringToNumeric requires a string like container with data(),"
+                "consider wrapping a string_view or operator sv for string literals");
+
+  auto ret = std::from_chars(key.data(), key.data() + key.size(), result);
+
+  if (ret.ec != std::errc()) {
+    value = default_val;
+    if (log_msg != nullptr) {
+      auto _ec  = std::make_error_condition(ret.ec);
+      // Obligatory gripe about the std; since we can not concat str_view + str
+      // doing it this way so that it will work for any str like types
+      log_msg->append("\"msg=Failed Numeric conversion\" key=");
+      log_msg->append(key);
+      log_msg->append(" error_msg=");
+      log_msg->append(_ec.message());
+    }
+    return false;
+  }
+
+  value = result;
+  return true;
+}
+
+#if __cpp_lib_to_chars < 201611
+// A floating point version of StringToNumeric, that iterates through
+// the various stod and friends depending on the type supplied
+// Currently the str overload will only work for const str& type
+// or anything convertible to std::string that stod understands
+// TODO: Remove this whenever we update to gcc11!!
+template <typename StrT, typename NumT>
+auto StringToNumeric(const StrT& key, NumT& value,
+                     NumT default_val= {},
+                     std::string* log_msg = nullptr) noexcept
+    -> std::enable_if_t<std::is_floating_point_v<NumT>, bool>
+{
+  // Not super nice, but gets the job done, a lazy way to iterate through
+  // the different fp types, since the evaluation hapens at compile time
+  // only the relevant branch will be compiled.
+  try {
+    if constexpr(std::is_same_v<NumT, float>) {
+      value = std::stof(key);
+    } else if constexpr(std::is_same_v<NumT, double>) {
+      value = std::stod(key);
+    } else if constexpr(std::is_same_v<NumT, long double>) {
+      value = std::stold(key);
+    }
+  } catch (std::exception& ec) {
+    value = default_val;
+    if (log_msg != nullptr) {
+      // Slightly tweak the error message, can be used in tests to identify
+      // that no silly float -> int conversion took place and this function
+      // was only selected for floats
+      log_msg->append("\"msg=Failed float conversion\" key=");
+      log_msg->append(key);
+      log_msg->append(" error_msg=");
+      log_msg->append(ec.what());
+    }
+    return false;
+  }
+  return true;
+}
+
+#endif
 
 EOSCOMMONNAMESPACE_END

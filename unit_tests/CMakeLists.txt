@@ -97,6 +97,7 @@ set(COMMON_UT_SRCS
   common/StringConversionTests.cc
   common/StringTokenizerTests.cc
   common/StringSplitTests.cc
+  common/StringUtilsTests.cc
   common/SymKeysTests.cc
   common/ThreadPoolTest.cc
   common/TimingTests.cc
