@@ -368,6 +368,7 @@ Requires: jsoncpp
 Requires: psmisc
 Requires: libcurl
 Requires: logrotate
+Requires: redis
 
 %if 0%{?rhel} >= 7 && 0%{?rhel} <= 9
 Requires: eos-protobuf3 >= 3.3
