@@ -265,7 +265,9 @@ GrpcServer::Vid(grpc::ServerContext* context,
   XrdSecEntity client("grpc");
   std::string dn = DN(context);
   client.name = const_cast<char*>(dn.c_str());
-  std::string tident = dn.length() ? dn.c_str() : authkey.c_str();
+
+  bool isEosToken = (authkey.substr(0,8) == "zteos64:");
+  std::string tident = dn.length() ? dn.c_str() : (isEosToken?"eostoken":authkey.c_str());
   std::string id;
   std::string ip = GrpcServer::IP(context, &id).c_str();
   tident += ".1:";
