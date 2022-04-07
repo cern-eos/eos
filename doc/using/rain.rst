@@ -6,7 +6,7 @@ RAIN
 ECC Layout Types
 ----------------
 
-EOS supports three types of RAIN layouts:
+EOS supports five types of RAIN layouts:
 
 .. epigraph::
 
@@ -21,5 +21,7 @@ EOS supports three types of RAIN layouts:
    ========== ============= ================================ ====================================
 
 The layout is set in a namespace tree via ``eos attr -r set default=<name> <tree>``.
+
+The minimum number of stripes is currently 6 for all erasure coding layouts (raiddp, raid6, archive, qrain).
 
 The default layout can be defined using default space policies. See :ref:`space-policies`.
