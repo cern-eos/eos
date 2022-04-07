@@ -173,24 +173,27 @@ SecurityChecker::Info SecurityChecker::lookupNonLocalJail(
     //--------------------------------------------------------------------------
     // User is attempting to open a relative path ?! No.
     //--------------------------------------------------------------------------
+    eos_static_alert("Forbidden relative path '%s' ", path.c_str());
     return Info(CredentialState::kCannotStat, {0, 0} );
   }
 
   FileDescriptor current = std::move(jailfd);
   auto splitPath = eos::common::SplitPath(path);
 
-  for(const auto& segment: splitPath) {
+  for (size_t i=0; i< splitPath.size() -1; i++) {
     //--------------------------------------------------------------------------
     // ".." in path? Disallow for now.
     //--------------------------------------------------------------------------
-    if(segment == "..") {
+    if(splitPath[i] == "..") {
+      eos_static_alert(".. in sub-path");
       return Info(CredentialState::kCannotStat, {0, 0} );
     }
 
-    FileDescriptor next(openat(current.getFD(), segment.c_str(),
+    FileDescriptor next(openat(current.getFD(), splitPath[i].c_str(),
       O_DIRECTORY | O_NOFOLLOW | O_RDONLY));
 
     if(!next.ok()) {
+      eos_static_alert("Failed to openat next child");
       return Info(CredentialState::kCannotStat, {0, 0} );
     }
 
@@ -204,6 +207,7 @@ SecurityChecker::Info SecurityChecker::lookupNonLocalJail(
     O_NOFOLLOW | O_RDONLY));
 
   if(!fileFd.ok()) {
+    eos_static_alert("Failed to openat file");
     return Info(CredentialState::kCannotStat, {0, 0} );
   }
 
@@ -212,6 +216,7 @@ SecurityChecker::Info SecurityChecker::lookupNonLocalJail(
   //----------------------------------------------------------------------------
   struct stat filestat;
   if (::fstat(fileFd.getFD(), &filestat) != 0) {
+    eos_static_alert("failed to stat by fd");
     return Info(CredentialState::kCannotStat, {0, 0} );
   }
 
@@ -224,6 +229,7 @@ SecurityChecker::Info SecurityChecker::lookupNonLocalJail(
   //----------------------------------------------------------------------------
   std::string contents;
   if(!readFile(fileFd.getFD(), contents)) {
+    eos_static_alert("failed to read file");
     return Info::CannotStat();
   }
 
