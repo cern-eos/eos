@@ -4,7 +4,7 @@
 
 global:
   repository: gitlab-registry.cern.ch/dss/eos/eos-ci
-  tag: "--set $IMAGE_TAG"
+  tag: "--set-string $IMAGE_TAG"
   keytab:
     # matches the fusex chart value
     secret: eos-sss-keytab
