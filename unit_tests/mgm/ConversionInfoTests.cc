@@ -39,20 +39,20 @@ TEST(ConversionInfo, Construction)
   ASSERT_EQ(input, ConversionInfo::parseConversionString(input)->ToString());
   input = "000000000000000c:default.3#00100002~scattered:tag1::tag2";
   ASSERT_EQ(input, ConversionInfo::parseConversionString(input)->ToString());
-  input = "000000000000000d:default.3#00100002!";
+  input = "000000000000000d:default.3#00100002+";
   ASSERT_EQ(input, ConversionInfo::parseConversionString(input)->ToString());
-  input = "000000000000000d:default.3#00100002~hybrid:tag1::tag3!";
+  input = "000000000000000d:default.3#00100002~hybrid:tag1::tag3+";
   ASSERT_EQ(input, ConversionInfo::parseConversionString(input)->ToString());
-  input = "000000000000000d:default.3#00100002~hybrid:tag1::tag3^someapp^!";
+  input = "000000000000000d:default.3#00100002~hybrid:tag1::tag3^someapp^+";
   ASSERT_EQ(input, ConversionInfo::parseConversionString(input)->ToString());
   // Test false conditions
-  input = "dummy0000000000d:default.3#00100002~hybrid:tag1::tag3!";
+  input = "dummy0000000000d:default.3#00100002~hybrid:tag1::tag3+";
   ASSERT_EQ(nullptr, ConversionInfo::parseConversionString(input));
-  input = "000000000000000d:default.3#00xyz02~hybrid:tag1::tag3!";
+  input = "000000000000000d:default.3#00xyz02~hybrid:tag1::tag3+";
   ASSERT_EQ(nullptr, ConversionInfo::parseConversionString(input));
-  input = "000000000000000d:default.3#00100002~hybrid:tag1::tag3^someapp!";
+  input = "000000000000000d:default.3#00100002~hybrid:tag1::tag3^someapp+";
   ASSERT_EQ(nullptr, ConversionInfo::parseConversionString(input));
-  input = "000000000000000d:default.3#00100002^someapp~hybrid:tag1::tag3!";
+  input = "000000000000000d:default.3#00100002^someapp~hybrid:tag1::tag3+";
   ASSERT_EQ(nullptr, ConversionInfo::parseConversionString(input));
 }
 
@@ -61,8 +61,8 @@ TEST(ConversionInfo, OptionalMembers)
   using namespace eos::mgm;
   std::string input;
   {
-    // make sure that we didn't bring in any reserved chars!
-    input = "000000000000000d:default.3#00100002~hybrid:tag1::tag3^eos/someapp^!";
+    // make sure that we didn't bring in any reserved chars+
+    input = "000000000000000d:default.3#00100002~hybrid:tag1::tag3^eos/someapp^+";
     auto info = ConversionInfo::parseConversionString(input);
     EXPECT_EQ(1048578, info->mLid); // 100002 x to d
     EXPECT_EQ("eos/someapp", info->mAppTag);
@@ -72,9 +72,9 @@ TEST(ConversionInfo, OptionalMembers)
   }
   {
     // AppTag need not be in the tail position however output will always align to tail
-    input = "000000000000000d:default.3#00100002^eos/someapp^~hybrid:tag1::tag3!";
+    input = "000000000000000d:default.3#00100002^eos/someapp^~hybrid:tag1::tag3+";
     std::string expected =
-      "000000000000000d:default.3#00100002~hybrid:tag1::tag3^eos/someapp^!";
+      "000000000000000d:default.3#00100002~hybrid:tag1::tag3^eos/someapp^+";
     auto info = ConversionInfo::parseConversionString(input);
     EXPECT_EQ(1048578, info->mLid); // 100002 x to d
     EXPECT_EQ(expected, info->ToString());
@@ -83,7 +83,7 @@ TEST(ConversionInfo, OptionalMembers)
   }
   {
     // Have only placement tag at tail
-    input = "000000000000000d:default.3#00100002^eos/someapp^!";
+    input = "000000000000000d:default.3#00100002^eos/someapp^+";
     auto info = ConversionInfo::parseConversionString(input);
     EXPECT_EQ(1048578, info->mLid); // 100002 x to d
     EXPECT_EQ(input, info->ToString());
