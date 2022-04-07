@@ -393,6 +393,7 @@ Requires: jsoncpp
 Requires: psmisc
 Requires: libcurl
 Requires: logrotate
+Requires: redis
 
 # -----------------------
 # select protobuf package
