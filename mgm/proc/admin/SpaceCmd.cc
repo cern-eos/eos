@@ -34,6 +34,7 @@
 #include "mgm/Egroup.hh"
 #include "mgm/config/IConfigEngine.hh"
 #include "mgm/GroupBalancer.hh"
+#include "mgm/GroupDrainer.hh"
 #include "namespace/interface/IChLogFileMDSvc.hh"
 #include "namespace/interface/IChLogContainerMDSvc.hh"
 #include "namespace/interface/IFsView.hh"
@@ -46,6 +47,7 @@
 
 EOSMGMNAMESPACE_BEGIN
 static const std::string GROUPBALANCER_KEY_PREFIX = "groupbalancer";
+static const std::string GROUPDRAINER_KEY_PREFIX = "groupdrainer";
 
 //------------------------------------------------------------------------------
 // Method implementing the specific behavior of the command executed by the
@@ -761,6 +763,10 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config,
             (key == "geobalancer") ||
             (key == "geobalancer.ntx") ||
             (key == "geobalancer.threshold") ||
+            (key == "groupdrainer") ||
+            (key == "groupdrainer.threshold") ||
+            (key == "groupdrainer.group_refresh_interval") ||
+            (key == "groupdrainer.ntx") ||
             (key == "geo.access.policy.read.exact") ||
             (key == "geo.access.policy.write.exact") ||
             (key == "filearchivedgc") ||
@@ -782,7 +788,8 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config,
               (key == "groupbalancer") || (key == "geobalancer") ||
               (key == "geo.access.policy.read.exact") ||
               (key == "geo.access.policy.write.exact") ||
-              (key == "filearchivedgc")) {
+              (key == "filearchivedgc") ||
+              (key == "groupdrainer")) {
             applied = true;
 
             if ((value != "on") && (value != "off")) {
@@ -837,6 +844,7 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config,
                     std_out << "success: groupbalancer is disabled!";
                   }
                   FsView::gFsView.mSpaceView[config.mgmspace_name()]->mGroupBalancer->reconfigure();
+
                 }
 
                 if (key == "geobalancer") {
@@ -845,6 +853,16 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config,
                   } else {
                     std_out << "success: geobalancer is disabled!";
                   }
+                }
+
+                if (key == "groupdrainer") {
+                  if (value == "on") {
+                    std_out << "success: groupdrainer is enabled!";
+                  } else {
+                    std_out << "success: groupdrainer is disabled!";
+                  }
+                  FsView::gFsView.mSpaceView[config.mgmspace_name()]->mGroupDrainer->reconfigure();
+
                 }
 
                 if (key == "geo.access.policy.read.exact") {
@@ -928,7 +946,8 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config,
 		    (key != "geobalancer.threshold") &&
 		    (key != "groupbalancer.threshold") &&
 		    (key != "groupbalancer.min_threshold") &&
-		    (key != "groupbalancer.max_threshold")) {
+		    (key != "groupbalancer.max_threshold") &&
+                    (key != "groupdrainer.threshold")) {
 		  // the threshold is allowed to be decimal!
 		  char ssize[1024];
 		  snprintf(ssize, sizeof(ssize) - 1, "%llu", size);
@@ -952,6 +971,8 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config,
 
                   if (eos::common::startsWith(key, GROUPBALANCER_KEY_PREFIX)) {
                     FsView::gFsView.mSpaceView[config.mgmspace_name()]->mGroupBalancer->reconfigure();
+                  } else if (eos::common::startsWith(key, GROUPDRAINER_KEY_PREFIX)) {
+                    FsView::gFsView.mSpaceView[config.mgmspace_name()]->mGroupDrainer->reconfigure();
                   }
 		}
 	      } else {

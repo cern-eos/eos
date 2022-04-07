@@ -5,10 +5,12 @@
 #include "mgm/groupbalancer/GroupsInfoFetcher.hh"
 #include "mgm/GroupBalancer.hh"
 #include "common/utils/ContainerUtils.hh"
+#include "common/StringUtils.hh"
 #include "namespace/interface/IView.hh"
 #include "namespace/interface/IFsView.hh"
 #include "mgm/FsView.hh"
 #include "common/FileSystem.hh"
+
 
 namespace eos::mgm {
 
@@ -17,8 +19,7 @@ using group_balancer::GroupStatus;
 
 GroupDrainer::GroupDrainer(std::string_view spacename) : mSpaceName(spacename),
                                                          mEngine(std::make_unique<group_balancer::StdDrainerEngine>()),
-                                                         numTx(10000),
-                                                         mThreshold(0.0)
+                                                         numTx(10000)
 {
   mThread.reset(&GroupDrainer::GroupDrain, this);
 }
@@ -35,12 +36,25 @@ GroupDrainer::GroupDrain(ThreadAssistant& assistant) noexcept
                                [](GroupStatus s) {
                                  return s == GroupStatus::DRAIN || s == GroupStatus::ON;
                                });
-  std::map<std::string,string, std::less<>> config_map = {{"threshold",std::to_string(mThreshold)}};
   mRefreshGroups = true;
+  bool config_status = false;
   while (!assistant.terminationRequested()) {
     if (!gOFS->mMaster->IsMaster()) {
       assistant.wait_for(std::chrono::seconds(60));
       eos_debug("%s", "msg=\"GroupDrainer disabled for slave\"");
+      continue;
+    }
+
+    bool expected_reconfiguration = true;
+    if (mDoConfigUpdate.compare_exchange_strong(expected_reconfiguration, false,
+                                                std::memory_order_acq_rel)) {
+      config_status = Configure(mSpaceName);
+    }
+
+    if (!config_status) {
+      // wait for a few seconds before trying to see for reconfiguration in order
+      // to not simply always check the atomic in an inf loop
+      assistant.wait_for(std::chrono::seconds(30));
       continue;
     }
 
@@ -54,10 +68,13 @@ GroupDrainer::GroupDrain(ThreadAssistant& assistant) noexcept
       continue;
     }
 
-    if (isUpdateNeeded(mLastUpdated, mRefreshGroups)) {
-      mEngine->configure(config_map);
+
+
+    if (isUpdateNeeded(mLastUpdated, mRefreshGroups || config_status)) {
+      mEngine->configure(mDrainerEngineConf);
       mEngine->populateGroupsInfo(fetcher.fetch());
       mRefreshGroups = false;
+      config_status = false;
     }
 
     if (!mEngine->canPick()) {
@@ -189,7 +206,7 @@ GroupDrainer::scheduleTransfer(eos::common::FileId::fileid_t fid,
   conv_tag += "^groupdrainer^";
   conv_tag.erase(0, gOFS->MgmProcConversionPath.length()+1);
   if (gOFS->mConverterDriver->ScheduleJob(fid, conv_tag)) {
-    eos_static_info("msg=\"group drainer scheduled job file=\"%s\" "
+    eos_info("msg=\"group drainer scheduled job file=\"%s\" "
                     "src_grp=\"%s\" dst_grp=\"%s\"", conv_tag.c_str(),
                     src_grp.c_str(), tgt_grp.c_str());
     mTransfers.emplace(fid);
@@ -249,6 +266,52 @@ GroupDrainer::ApplyDrainedStatus(unsigned int fsid)
     fs->applyBatch(batch);
   }
 }
+
+
+bool
+GroupDrainer::Configure(const string& spaceName)
+{
+  using eos::common::StringToNumeric;
+  eos::common::RWMutexReadLock vlock(FsView::gFsView.ViewMutex);
+  FsSpace *space = nullptr;
+  if (auto kv = FsView::gFsView.mSpaceView.find(spaceName);
+      kv != FsView::gFsView.mSpaceView.end()) {
+    space = kv->second;
+  }
+
+  if (space == nullptr) {
+    eos_err("msg=\"No such space found\" space=%s", spaceName.c_str());
+    return false;
+  }
+
+  bool is_enabled = space->GetConfigMember("groupdrainer") == "on";
+  bool is_conv_enabled = space->GetConfigMember("converter") == "on";
+
+  if (!is_enabled || !is_conv_enabled) {
+    eos_info("msg=\"group drainer or converter not enabled\""
+             " space=%s drainer_status=%d converter_status=%d",
+             mSpaceName.c_str(), is_enabled, is_conv_enabled);
+    return false;
+  }
+  eos::common::StringToNumeric(
+      space->GetConfigMember("groupdrainer.ntx"), numTx, DEFAULT_NUM_TX);
+  uint64_t cache_expiry_time;
+  bool status = eos::common::StringToNumeric(
+      space->GetConfigMember("groupdrainer.group_refresh_interval"),
+      cache_expiry_time, DEFAULT_CACHE_EXPIRY_TIME);
+
+  if (status) {
+    mCacheExpiryTime = std::chrono::seconds(cache_expiry_time);
+  }
+  auto threshold_str = space->GetConfigMember("groupbalancer.threshold");
+  if (!threshold_str.empty()) {
+    mDrainerEngineConf.insert_or_assign("threshold", std::move(threshold_str));
+  }
+
+  return true;
+}
+
+
 
 std::vector<eos::common::FileSystem::fsid_t>
 FsidsinGroup(const string& groupname)

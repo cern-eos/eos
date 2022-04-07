@@ -27,8 +27,10 @@
 #include "common/Logging.hh"
 #include "common/FileId.hh"
 #include "common/FileSystem.hh"
+#include "FsView.hh"
 #include <vector>
 #include <unordered_set>
+#include "mgm/groupbalancer/BalancerEngineTypes.hh"
 
 namespace eos::mgm {
 
@@ -40,6 +42,8 @@ std::vector<eos::common::FileSystem::fsid_t>
 FsidsinGroup(const string& groupname);
 
 constexpr uint32_t FID_CACHE_LIST_SZ=1000;
+constexpr uint32_t DEFAULT_NUM_TX = 1000;
+constexpr uint64_t DEFAULT_CACHE_EXPIRY_TIME = 300;
 
 class GroupDrainer: public eos::common::LogId {
 public:
@@ -64,17 +68,27 @@ public:
   std::pair<bool, cache_fid_map_t::iterator>
   populateFids(eos::common::FileSystem::fsid_t fsid);
 
+  void reconfigure() {
+    mDoConfigUpdate.store(true, std::memory_order_release);
+  }
+
+  bool Configure(const string& spaceName);
+
 private:
+  bool mRefreshFSMap {true};
+  bool mRefreshGroups {true};
+  std::atomic<bool> mDoConfigUpdate {true};
   std::chrono::time_point<std::chrono::steady_clock> mLastUpdated;
   std::chrono::time_point<std::chrono::steady_clock> mDrainMapLastUpdated;
   std::chrono::seconds mCacheExpiryTime {300};
-  bool mRefreshFSMap {true};
-  bool mRefreshGroups {true};
+
   std::string mSpaceName;
   AssistedThread mThread;
   std::unique_ptr<group_balancer::BalancerEngine> mEngine;
   uint32_t numTx; // < Max no of transactions to keep in flight
   double mThreshold;
+
+  group_balancer::engine_conf_t mDrainerEngineConf; ///< string k-v map of engine conf
   //! map tracking scheduled transfers, will be cleared periodically
   //! TODO: use a flat_map structure here, we are usually size capped to ~10K
   std::unordered_set<eos::common::FileId::fileid_t> mTransfers;
@@ -87,6 +101,5 @@ private:
   cache_fid_map_t mCacheFileList;
   void ApplyDrainedStatus(unsigned int fsid);
 };
-
 
 } // namespace eos::mgm
