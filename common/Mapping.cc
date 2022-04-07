@@ -646,9 +646,9 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
   if ((vid.prot == "grpc") && vid.key.length()) {
     std::string keyname = vid.key.c_str();
     if (keyname.substr(0, 8) == "zteos64:") {
-      vid = VirtualIdentity::Nobody();
       // this is an eos token
       authz = vid.key;
+      vid = VirtualIdentity::Nobody();
     }  else {
       std::string maptident = "tident:\"grpc@";
       std::string wildcardmaptident = "tident:\"grpc@*\":uid";
