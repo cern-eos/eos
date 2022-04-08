@@ -140,6 +140,9 @@ std::string replicationType = "";
 //TODO: deal with the case when both the source and the destination are RAIN files
 eos::fst::RainMetaLayout* redundancyObj = NULL;
 
+std::string dst_lasturl;
+std::string src_lasturl;
+
 //..............................................................................
 // Checksum variables
 //..............................................................................
@@ -340,6 +343,21 @@ print_summary(VectLocationType& src,
               VectLocationType& dst,
               unsigned long long bytesread)
 {
+  std::string src_clientinfo;
+  std::string dst_clientinfo;
+  if (src_lasturl.length()) {
+    XrdCl::URL url(src_clientinfo);
+    XrdCl::URL::ParamsMap cgi = url.GetParams();
+    std::string zclientinfo =cgi["eos.clientinfo"];
+    eos::common::SymKey::ZDeBase(zclientinfo, src_clientinfo);
+  }
+  if (dst_lasturl.length()) {
+    XrdCl::URL url(dst_clientinfo);
+    XrdCl::URL::ParamsMap cgi = url.GetParams();
+    std::string zclientinfo =cgi["eos.clientinfo"];
+    eos::common::SymKey::ZDeBase(zclientinfo, dst_clientinfo);
+  }
+
   gettimeofday(&abs_stop_time, &tz);
   float abs_time = ((float)((abs_stop_time.tv_sec - abs_start_time.tv_sec) * 1000
                             +
@@ -411,6 +429,12 @@ print_summary(VectLocationType& src,
       COUT(("[eoscp] # Read  Start Position     : %lld\n", startbyte));
       COUT(("[eoscp] # Read  Stop  Position     : %lld\n", stopbyte));
     }
+    if (!src_clientinfo.empty()) {
+      COUT(("[eoscp] # Read Server Information  : %s\n", src_clientinfo.c_str()));
+    }
+    if (!dst_clientinfo.empty()) {
+      COUT(("[eoscp] # Write Server Information : %s\n", dst_clientinfo.c_str()));
+    }
   } else {
     COUT(("bytes_copied=%lld ", bytesread));
 
@@ -451,6 +475,7 @@ print_summary(VectLocationType& src,
       COUT(("read_stop=%lld ", stopbyte));
     }
   }
+
 }
 
 
@@ -1716,6 +1741,8 @@ main(int argc, char* argv[])
         fprintf(stderr, "error: source file open failed - errno=%d : %s\n", errno,
                 strerror(errno));
         exit(-errno);
+      } else {
+	src_lasturl = file->GetLastUrl();
       }
 
       src_handler.push_back(std::make_pair(0, (void*)file));
@@ -1929,6 +1956,8 @@ main(int argc, char* argv[])
         fprintf(stderr, "error: target file open failed - errno=%d : %s\n",
                 errno, strerror(errno));
         exit(-errno);
+      } else {
+	dst_lasturl = file->GetLastUrl();
       }
 
       dst_handler.push_back(std::make_pair(0, file));
@@ -1968,6 +1997,8 @@ main(int argc, char* argv[])
         fprintf(stderr, "error: target file open failed - errno=%d : %s\n", errno,
                 strerror(errno));
         exit(-errno);
+      } else {
+	dst_lasturl = file->GetLastUrl();
       }
 
       dst_handler.push_back(std::make_pair(0, file));
