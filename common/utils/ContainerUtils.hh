@@ -22,34 +22,12 @@
  ************************************************************************/
 
 #pragma once
-#include <type_traits>
+#include "common/utils/TypeTraits.hh"
+#include <iterator>
 
 namespace eos::common
 {
 
-namespace detail {
-
-// A simple test for containers that expose a C::key_type
-// Ideally std::remove_if requires a dereferenced iterator to be MoveAssignable
-// ie *it = std::move(value) to be legal
-// However for all assoc. containers this would be illegal as keys have
-// pointer stability, so this will fail (with long compiler messages)
-// A poor man's choice of tests for detecting associative containers is just
-// testing for key_type which is kind of ok for std:: containers
-template <typename, typename = void>
-struct is_assoc_container_t : std::false_type {};
-
-template <typename T>
-struct is_assoc_container_t<T, std::void_t<typename T::key_type>>:
-    std::true_type {};
-
-template <typename T>
-inline constexpr bool is_assoc_container_v = is_assoc_container_t<T>::value;
-
-template <typename T>
-inline constexpr bool can_remove_if =
-    std::is_move_assignable<typename T::value_type>::value;
-}
 
 //----------------------------------------------------------------------------
 //! erase_if that erases elements in place for elements matching a predicate
