@@ -1,4 +1,3 @@
-
 # @todo consider to move the variables in the global 'variable' yaml keymap, not sure it works with ever-changing content
 .helm_before_script_template: &helm_before_script_template
   # Setup a KDC server, an EOS instance, and an EOS client with an eos-fusex mount
@@ -24,15 +23,22 @@
       kubectl exec kuberos-kuberos-kdc-0 -c kdc -- /usr/sbin/kadmin.local -r $TEST_REALM addprinc -pw $TEST_USERPRINC_PASSWORD $TEST_USERPRINC_NAME
     - |
       ######## EOS-CHARTS/SERVER ########
-      helm install -f ./gitlab-ci/.gitlab-ci-test-helm_server_values.yml eos eos/server --version $HELM_EOS_SERVER_VERSION \
+      helm install --wait --timeout 10m0s \
+        -f ./gitlab-ci/.gitlab-ci-test-helm_server_values.yml eos eos/server \
+        --version $HELM_EOS_SERVER_VERSION \
         --atomic --create-namespace --namespace $K8S_NAMESPACE \
-        --set-string global.tag=$IMAGE_TAG --set mgm.kerberos.adminPrinc.name=$TEST_ADMINPRINC_NAME --set mgm.kerberos.adminPrinc.password=$TEST_ADMINPRINC_PASSWORD
+        --set-string global.tag=$IMAGE_TAG \
+        --set mgm.kerberos.adminPrinc.name=$TEST_ADMINPRINC_NAME \
+        --set mgm.kerberos.adminPrinc.password=$TEST_ADMINPRINC_PASSWORD
     - |
       ######## EOS-CHARTS/FUSEX ########
-      helm install -f ./gitlab-ci/.gitlab-ci-test-helm_fusex_values.yml eos-client1 eos/fusex --version $HELM_EOS_FUSEX_VERSION \
+      helm install -f ./gitlab-ci/.gitlab-ci-test-helm_fusex_values.yml eos-client1 eos/fusex \
+        --version $HELM_EOS_FUSEX_VERSION \
         --atomic --create-namespace --namespace $K8S_NAMESPACE \
-        --set-string image.tag=$CLI_IMAGE_TAG --set fusex.config.eos_mgm_alias=eos-mgm.$K8S_NAMESPACE.svc.cluster.local \
-        --set fusex.config.auth.sss=1 --set fusex.config.auth.krb5=1
+        --set-string image.tag=$CLI_IMAGE_TAG \
+        --set fusex.config.eos_mgm_alias=eos-mgm.$K8S_NAMESPACE.svc.cluster.local \
+        --set fusex.config.auth.sss=1 \
+        --set fusex.config.auth.krb5=1
     - |
       # allow backward compatibility with our legacy k8s utilities functions
       for i in $(seq 1 8); do kubectl label pod eos-fst-$((i -1)) app=eos-fst${i}; done
