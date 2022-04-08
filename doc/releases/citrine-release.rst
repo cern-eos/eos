@@ -15,6 +15,22 @@ Introduction
 ------------
 This release is based on XRootD V4 and IPV6 enabled.
 
+``v4.8.81 Citrine``
+===================
+
+2022-04-08
+
+Bug
+---
+
+* FST: Forward the opaque info also for the async open API
+* COMMON: Fix crash when checking for eos token when no env object is present
+* MGM: Update conversion string marker for ctime update from "!" to "+" to avoid
+  failures in non-UTF8 enabled instances.
+* COMMON: make EOS tokens work via GRPC
+* FUSEX: fix logical refactoring bug when introducing splitPath to validate credentials in jails
+
+
 ``v4.8.80 Citrine``
 ===================
 
