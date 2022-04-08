@@ -107,7 +107,7 @@ QdbMaster::BootNamespace()
   fillNamespaceCacheConfig(gOFS->ConfEngine, namespaceConfig);
 
   if (!gOFS->namespaceGroup->initialize(&gOFS->eosViewRWMutex, namespaceConfig,
-                                        err,&gOFS->mNamespaceStats)) {
+                                        err, &gOFS->mNamespaceStats)) {
     eos_err("msg=\"could not initialize namespace group, err: %s\"", err.c_str());
     return false;
   }
@@ -124,9 +124,9 @@ QdbMaster::BootNamespace()
   if (!gOFS->eosDirectoryService || !gOFS->eosFileService || !gOFS->eosView ||
       !gOFS->eosFsView || !gOFS->eosContainerAccounting ||
       !gOFS->eosSyncTimeAccounting) {
-    MasterLog(eos_log(LOG_ERR, "namespace implementation could not be loaded using "
-                      "the provided library plugin - one of the required "
-                      "namespace views could not be created"));
+    MasterLog(eos_log(LOG_ERR, "%s", "msg=\"namespace implementation could not "
+                      "be loaded using the provided library plugin - one of "
+                      "the required namespace views could not be created\""));
     gOFS->mNamespaceState = NamespaceState::kFailed;
     return false;
   }
@@ -143,20 +143,19 @@ QdbMaster::BootNamespace()
     gOFS->eosView->getQuotaStats()->registerSizeMapper(Quota::MapSizeCB);
     gOFS->eosView->initialize1();
     gOFS->mBootContainerId = gOFS->eosDirectoryService->getFirstFreeId();
-    MasterLog(eos_log(LOG_NOTICE,
-                      "msg=\"container initialization done\" duration=%ds",
-                      (time(nullptr) - tstart)));
+    MasterLog(eos_log(LOG_NOTICE, "msg=\"container initialization done\" "
+                      "duration=%ds", (time(nullptr) - tstart)));
   } catch (eos::MDException& e) {
-    MasterLog(eos_log(LOG_NOTICE,
-                      "msg=\"container initialization failed\" duration=%ds, "
-                      "errc=%d, reason=\"%s\"", (time(nullptr) - tstart),
-                      e.getErrno(), e.getMessage().str().c_str()));
+    MasterLog(eos_log(LOG_NOTICE, "msg=\"container initialization failed\" "
+                      "duration=%ds errc=%d  reason=\"%s\"",
+                      (time(nullptr) - tstart), e.getErrno(),
+                      e.getMessage().str().c_str()));
     gOFS->mNamespaceState = NamespaceState::kFailed;
     return false;
   } catch (const std::runtime_error& qdb_err) {
-    MasterLog(eos_log(LOG_NOTICE,
-                      "msg=\"container initialization failed unable to connect to "
-                      "QuarkDB cluster\" reason=\"%s\"", qdb_err.what()));
+    MasterLog(eos_log(LOG_NOTICE, "msg=\"container initialization failed "
+                      "unable to connect to QuarkDB cluster\" reason=\"%s\"",
+                      qdb_err.what()));
     gOFS->mNamespaceState = NamespaceState::kFailed;
     return false;
   }
@@ -165,16 +164,17 @@ QdbMaster::BootNamespace()
   gOFS->mFileInitTime = time(nullptr);
 
   try {
-    eos_notice("%s", "msg=\"eos file view initialize2 starting ...\"");
+    MasterLog(eos_log(LOG_NOTICE, "%s",
+                      "msg=\"eos file view initialize2 starting ...\""));
     eos::common::RWMutexWriteLock wr_view_lock(gOFS->eosViewRWMutex);
     gOFS->eosView->initialize2();
-    eos_notice("msg=\"file view initialize2 done\" duration=%ds",
-               time(nullptr) - gOFS->mFileInitTime);
+    MasterLog(eos_log(LOG_NOTICE, "msg=\"file view initialize2 done\" duration=%ds",
+                      time(nullptr) - gOFS->mFileInitTime));
     gOFS->mBootFileId = gOFS->eosFileService->getFirstFreeId();
   } catch (eos::MDException& e) {
-    eos_crit("msg=\"file view initialize2 failed\" duration=%ds, "
-             "errc=%d reason=\"%s\"", (time(nullptr) - gOFS->mFileInitTime),
-             e.getErrno(), e.getMessage().str().c_str());
+    MasterLog(eos_log(LOG_CRIT, "msg=\"file view initialize2 failed\" duration=%ds "
+                      "errc=%d reason=\"%s\"", (time(nullptr) - gOFS->mFileInitTime),
+                      e.getErrno(), e.getMessage().str().c_str()));
     gOFS->mNamespaceState = NamespaceState::kFailed;
     return false;;
   }
@@ -183,16 +183,18 @@ QdbMaster::BootNamespace()
   gOFS->mFileInitTime = time(nullptr) - gOFS->mFileInitTime;
   gOFS->mTotalInitTime = time(nullptr) - gOFS->mTotalInitTime;
   gOFS->mNamespaceState = NamespaceState::kBooted;
-  eos_static_alert("msg=\"QDB namespace booted\"");
+  MasterLog(eos_log(LOG_ALERT, "%s", "msg=\"QDB namespace booted\""));
 
   // Get process status after boot
   if (!eos::common::LinuxStat::GetStat(gOFS->LinuxStatsStartup)) {
-    eos_err("%s", "msg=\"failed to grab /proc/self/stat information\"");
+    MasterLog(eos_log(LOG_ERR, "%s",
+                      "msg=\"failed to grab /proc/self/stat information\""));
   }
 
   while (mOneOff) {
     std::this_thread::sleep_for(std::chrono::seconds(1));
-    eos_info("%s", "msg=\"wait for the supervisor to run once\"");
+    MasterLog(eos_log(LOG_INFO,
+                      "%s" "msg=\"wait for the supervisor to run once\""));
   }
 
   return true;
@@ -213,17 +215,20 @@ QdbMaster::ConfigureTimeouts(uint64_t& master_init_lease)
                      (std::stoull(getenv("EOS_QDB_MASTER_LEASE_MS")));
 
     if (mLeaseValidity > std::chrono::minutes(5)) {
-      eos_warning("%s", "msg=\"QDB master lease validity set to the "
-                  "maximum of 5 minutes\"");
+      MasterLog(eos_log(LOG_WARNING, "%s", "msg=\"QDB master lease validity set "
+                        "to the maximum of 5 minutes\""));
       mLeaseValidity = std::chrono::minutes(5);
     }
 
     if (master_init_lease < (uint64_t)mLeaseValidity.count()) {
-      eos_warning("%s", "msg=\"QDB master init lease validity modified"
-                  " to the value of the QDB master lease\"");
+      MasterLog(eos_log(LOG_WARNING, "%s", "msg=\"QDB master init lease validity "
+                        "modified to the value of the QDB master lease\""));
       master_init_lease = mLeaseValidity.count();
     }
   }
+
+  MasterLog(eos_log(LOG_INFO, "%s", "msg=\"QDB master lease vailidy configured "
+                    "as %u ms\"",  mLeaseValidity.count()));
 }
 
 //------------------------------------------------------------------------------
@@ -247,8 +252,9 @@ QdbMaster::Supervisor(ThreadAssistant& assistant) noexcept
   while ((gOFS->mNamespaceState != NamespaceState::kBooted) &&
          !assistant.terminationRequested()) {
     assistant.wait_for(std::chrono::seconds(1));
-    eos_info("msg=\"waiting for namespace boot\" mNamespaceState=%s",
-             namespaceStateToString(gOFS->mNamespaceState).c_str());
+    MasterLog(eos_log(LOG_INFO,
+                      "msg=\"waiting for namespace boot\" mNamespaceState=%s",
+                      namespaceStateToString(gOFS->mNamespaceState).c_str()));
   }
 
   // Loop updating the master status
@@ -256,17 +262,18 @@ QdbMaster::Supervisor(ThreadAssistant& assistant) noexcept
     old_master_id = GetMasterId();
     new_is_master = AcquireLeaseWithDelay();
     UpdateMasterId(GetLeaseHolder());
-    eos_info("old_is_master=%s, is_master=%s, old_master_id=%s, master_id=%s",
-             mIsMaster.load() ? "true" : "false",
-             new_is_master ? "true" : "false",
-             old_master_id.c_str(), GetMasterId().c_str());
+    MasterLog(eos_log(LOG_INFO, "old_is_master=%s, is_master=%s, old_master_id=%s,"
+                      " master_id=%s", mIsMaster.load() ? "true" : "false",
+                      new_is_master ? "true" : "false",
+                      old_master_id.c_str(), GetMasterId().c_str()));
 
     // Run one-off after boot
     if (mOneOff) {
       if (new_is_master) {
         // Increase the lease validity for the transition
         if (!AcquireLease(master_init_lease)) {
-          eos_err("%s", "msg=\"failed to renew lease during transition\"");
+          MasterLog(eos_log(LOG_ERR, "%s", "msg=\"failed to renew lease during"
+                            " transition\""));
           continue;
         }
 
@@ -275,7 +282,7 @@ QdbMaster::Supervisor(ThreadAssistant& assistant) noexcept
         MasterToSlave();
       }
 
-      eos_notice("%s", "msg=\"remove booting stall rule\"");
+      MasterLog(eos_log(LOG_NOTICE, "%s", "msg=\"remove booting stall rule\""));
       Access::StallInfo dummy_stall;
       Access::SetStallRule(old_stall, dummy_stall);
       mOneOff = false;
@@ -283,14 +290,17 @@ QdbMaster::Supervisor(ThreadAssistant& assistant) noexcept
       // There was a master-slave transition
       if (mIsMaster != new_is_master) {
         if (mIsMaster) {
+          MasterLog(eos_log(LOG_ERR, "%s", "msg=\"lost the master lease\""));
           MasterToSlave();
         } else {
           // Increase the lease validity for the transition
           if (!AcquireLease(master_init_lease)) {
-            eos_err("%s", "msg=\"failed to renew lease during transition\"");
+            MasterLog(eos_log(LOG_ERR, "%s", "msg=\"failed to renew lease "
+                              "during transition\""));
             continue;
           }
 
+          MasterLog(eos_log(LOG_ERR, "%s", "msg=\"acquired the master lease\""));
           SlaveToMaster();
         }
       } else {
