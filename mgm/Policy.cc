@@ -114,10 +114,18 @@ Policy::GetLayoutAndSpace(const char* path,
       spacepolicies["blocksize"] = it->second->GetConfigMember("policy.blocksize");
       spacepolicies["blockchecksum"] = it->second->GetConfigMember("policy.blockchecksum");
       spacepolicies["localredirect"] = it->second->GetConfigMember("policy.localredirect");
-      bandwidth = it->second->GetConfigMember("policy.bandwidth");
-      schedule = (it->second->GetConfigMember("policy.schedule") == "1");
-      iopriority = it->second->GetConfigMember("policy.iopriority");
-      iotype = it->second->GetConfigMember("policy.iotype");
+
+      if (rw) {
+	schedule = (it->second->GetConfigMember("policy.schedule:w")=="1");
+	iopriority = it->second->GetConfigMember("policy.iopriority:w");
+	iotype = it->second->GetConfigMember("policy.iotype:w");
+	bandwidth = it->second->GetConfigMember("policy.bandwidth:w");
+      } else {
+	schedule = (it->second->GetConfigMember("policy.schedule:r")=="1");
+	iopriority = it->second->GetConfigMember("policy.iopriority:r");
+	iotype = it->second->GetConfigMember("policy.iotype:r");
+	bandwidth = it->second->GetConfigMember("policy.bandwidth:r");
+      }
       {
 	std::list<std::string> keylist;
 	std::string io=rw?":w":":r";

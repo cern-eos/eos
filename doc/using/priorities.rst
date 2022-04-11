@@ -49,17 +49,17 @@ IO priorities can be set in various ways:
    # use URLs like
    "root://localhost//eos/higgs.root?eos.iopriority=be:0"
 
-   # as a default space policy
-   eos space config default space.policy.iopriority=rt:0
+   # as a default space policy for readers
+   eos space config default space.policy.iopriority:r=rt:0
 
    # as a space policy
-   eos space config erasure space.policy.iopriority=idle:0
+   eos space config erasure space.policy.iopriority:w=idle:0
 
-   # as a default application policy e.g. for application foo 
-   eos space config default space.iopriority.foo=be:4
+   # as a default application policy e.g. for application foo writers 
+   eos space config default space.iopriority:w.app:foo=be:4
 
-   # as a space application policy e.g. for application bar
-   eos space config erasure space.iopriority.bar=be:7
+   # as a space application policy e.g. for application bar writers
+   eos space config erasure space.iopriority:w.app:bar=be:7
 
 The CGI (if allowed via the operator role) is overruling any other priority configuration. Otherwise the order of evaluation is shown as in the block above. 
 
