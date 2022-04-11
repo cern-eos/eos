@@ -436,6 +436,7 @@ public:
   google::sparse_hash_map<std::string, IostatPeriods> IostatPeriodsAppIOwb;
   std::set<std::string> IoDomains;
   std::set<std::string> IoNodes;
+  std::atomic<bool> mDoneInit;
   //! Flusher to QDB backend
   std::unique_ptr<eos::MetadataFlusher> mFlusher;
   std::string mFlusherPath;

@@ -375,8 +375,9 @@ IostatPeriods::GetDataInPeriod(size_t period, unsigned long long time_offset,
 // Iostat constructor
 //------------------------------------------------------------------------------
 Iostat::Iostat():
-  mLegacyMode(false), mRunning(false), mQcl(nullptr), mReport(true),
-  mReportNamespace(false), mReportPopularity(true), mHashKeyBase("")
+  mDoneInit(false), mFlusher(nullptr), mLegacyMode(false), mRunning(false),
+  mQcl(nullptr), mReport(true), mReportNamespace(false), mReportPopularity(true),
+  mHashKeyBase("")
 {
   GetTopLevelDomains(IoDomains);
   // push default nodes to watch TODO: make generic
@@ -465,6 +466,7 @@ Iostat::Init(const std::string& instance_name, int port,
   }
 
   mCirculateThread.reset(&Iostat::Circulate, this);
+  mDoneInit = true;
   return true;
 }
 
@@ -762,19 +764,23 @@ Iostat::AddToQdb(const std::string& tag, uid_t uid, gid_t gid,
     timestamp = steady_clock::now();
     std::string new_hash_key = mHashKeyBase + Timing::GetCurrentYear();
 
-    if ((mFlusher == nullptr) || (new_hash_key != hash_key)) {
-      hash_key = new_hash_key;
-      mFlusher.reset(new eos::MetadataFlusher(mFlusherPath,
-                                              gOFS->mQdbContactDetails));
+    if (!mFlusherPath.empty()) {
+      if ((mFlusher == nullptr) || (new_hash_key != hash_key)) {
+        hash_key = new_hash_key;
+        mFlusher.reset(new eos::MetadataFlusher(mFlusherPath,
+                                                gOFS->mQdbContactDetails));
+      }
     }
   }
 
-  const std::string svalue = std::to_string(val);
-  mFlusher->exec("HINCRBYMULTI",
-                 hash_key, EncodeKey(USER_ID_TYPE, std::to_string(uid), tag),
-                 svalue,
-                 hash_key, EncodeKey(GROUP_ID_TYPE, std::to_string(gid), tag),
-                 svalue);
+  if (mFlusher) {
+    const std::string svalue = std::to_string(val);
+    mFlusher->exec("HINCRBYMULTI",
+                   hash_key, EncodeKey(USER_ID_TYPE, std::to_string(uid), tag),
+                   svalue,
+                   hash_key, EncodeKey(GROUP_ID_TYPE, std::to_string(gid), tag),
+                   svalue);
+  }
 }
 
 //------------------------------------------------------------------------------
@@ -828,6 +834,14 @@ Iostat::Receive(ThreadAssistant& assistant) noexcept
 {
   if (gOFS == nullptr) {
     return;
+  }
+
+  while (!mDoneInit) {
+    assistant.wait_for(std::chrono::seconds(5));
+
+    if (assistant.terminationRequested()) {
+      break;
+    }
   }
 
   mq::ReportListener listener(gOFS->MgmOfsBroker.c_str(), gOFS->HostName);
