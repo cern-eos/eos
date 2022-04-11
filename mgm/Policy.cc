@@ -49,21 +49,23 @@ Policy::GetSpacePolicyLayout(const char* space)
   bool schedule = 0;
   std::string iopriority;
   std::string iotype;
+  bool isrw=false; // does not matter
   eos::IContainerMD::XAttrMap attrmap;
   eos::common::VirtualIdentity rootvid = eos::common::VirtualIdentity::Root();
   GetLayoutAndSpace("/",
-                    attrmap,
-                    rootvid,
-                    layoutid,
-                    ret_space,
-                    env,
-                    forcedfsid,
-                    forcedgroup,
-                    bandwidth,
-                    schedule,
-                    iopriority,
-                    iotype,
-                    true);
+		    attrmap,
+		    rootvid,
+		    layoutid,
+		    ret_space,
+		    env,
+		    forcedfsid,
+		    forcedgroup,
+		    bandwidth,
+		    schedule,
+		    iopriority,
+		    iotype,
+		    isrw,
+		    true);
   return layoutid;
 }
 
@@ -75,13 +77,13 @@ Policy::GetLayoutAndSpace(const char* path,
                           unsigned long& layoutId, XrdOucString& space,
                           XrdOucEnv& env,
                           unsigned long& forcedfsid,
-                          long& forcedgroup,
-                          std::string& bandwidth,
-                          bool& schedule,
-                          std::string& iopriority,
-                          std::string& iotype,
-                          bool lockview)
-
+                          long& forcedgroup, 
+			  std::string& bandwidth,
+			  bool& schedule,
+			  std::string& iopriority,
+			  std::string& iotype,
+			  bool rw,
+			  bool lockview)
 {
   eos::common::RWMutexReadLock lock;
   // this is for the moment only defaulting or manual selection
@@ -110,75 +112,45 @@ Policy::GetLayoutAndSpace(const char* path,
       spacepolicies["nstripes"]  = it->second->GetConfigMember("policy.nstripes");
       spacepolicies["checksum"]  = it->second->GetConfigMember("policy.checksum");
       spacepolicies["blocksize"] = it->second->GetConfigMember("policy.blocksize");
-      spacepolicies["blockchecksum"] =
-        it->second->GetConfigMember("policy.blockchecksum");
+      spacepolicies["blockchecksum"] = it->second->GetConfigMember("policy.blockchecksum");
+      spacepolicies["localredirect"] = it->second->GetConfigMember("policy.localredirect");
       bandwidth = it->second->GetConfigMember("policy.bandwidth");
       schedule = (it->second->GetConfigMember("policy.schedule") == "1");
       iopriority = it->second->GetConfigMember("policy.iopriority");
       iotype = it->second->GetConfigMember("policy.iotype");
       {
-        // try application specific bandwidth setting
-        std::string appkey = "bw.";
-
-        if (env.Get("eos.app")) {
-          appkey += env.Get("eos.app");
-        } else {
-          appkey += "default";
-        }
-
-        std::string app_bandwidth = it->second->GetConfigMember(appkey);
-
-        if (app_bandwidth.length()) {
-          bandwidth = app_bandwidth;
-        }
-      }
-      {
-        // try application specific iotype setting
-        std::string appkey = "iotype.";
-
-        if (env.Get("eos.app")) {
-          appkey += env.Get("eos.app");
-        } else {
-          appkey += "default";
-        }
-
-        std::string app_iotype = it->second->GetConfigMember(appkey);
-
-        if (app_iotype.length()) {
-          iotype = app_iotype;
-        }
-      }
-      {
-        // try application specific iopriority setting
-        std::string appkey = "iopriority.";
-
-        if (env.Get("eos.app")) {
-          appkey += env.Get("eos.app");
-        } else {
-          appkey += "default";
-        }
-
-        std::string app_iopriority = it->second->GetConfigMember(appkey);
-
-        if (app_iopriority.length()) {
-          iopriority = app_iopriority;
-        }
-      }
-      {
-        // try application specific iopriority setting
-        std::string appkey = "iopriority.";
-
-        if (env.Get("eos.app")) {
-          appkey += env.Get("eos.app");
-        } else {
-          appkey += "default";
-        }
-
-        std::string app_iopriority = it->second->GetConfigMember(appkey);
-
-        if (app_iopriority.length()) {
-          iopriority = app_iopriority;
-        }
+	std::list<std::string> keylist;
+	std::string io=rw?":w":":r";
+	keylist.push_back("policy.bandwidth"+io);
+	keylist.push_back("policy.iopriority"+io);
+	keylist.push_back("policy.iotype"+io);
+	keylist.push_back("policy.schedule"+io);
+	for (auto const& k : keylist ) {
+	  std::list<std::string> configlist;
+	  // try application specific setting
+	  std::string key = k;
+	  std::string app = (env.Get("eos.app"))? env.Get("eos.app") : "default";
+	  configlist.push_back(key+".group:" + vid.gid_string);
+	  configlist.push_back(key+".user:" + vid.uid_string);
+	  configlist.push_back(key+".app:" + app);
+	  for ( auto const& n : configlist ) {
+	    std::string val = it->second->GetConfigMember(n);
+	    if (val.length()) {
+	      if ( k.substr(0,16) == "policy.bandwidth" ) {
+		bandwidth = val;
+	      }
+	      if ( k.substr(0,17) == "policy.iopriority" ) {
+		iopriority = val;
+	      }
+	      if ( k.substr(0,13) == "policy.iotype" ) {
+		iotype = val;
+	      }
+	      if ( k.substr(0,15) == "policy.schedule" ) {
+		schedule = (val == "1")? true:false;
+	      }
+	    }
+	  }
+	}
       }
     }
   }
@@ -196,7 +168,8 @@ Policy::GetLayoutAndSpace(const char* path,
     }
   }
 
-  if (!conversion) {
+  // the settings from the default space have been already defined before
+  if (!conversion && space != "default") {
     auto it = FsView::gFsView.mSpaceView.find(space.c_str());
 
     if (it != FsView::gFsView.mSpaceView.end()) {
@@ -231,7 +204,7 @@ Policy::GetLayoutAndSpace(const char* path,
       }
 
       if (space_localrdr.length()) {
-        spacepolicies[std::string("localredirect")] = space_localrdr;
+	spacepolicies["localredirect"] = space_localrdr;
       }
 
       bandwidth = it->second->GetConfigMember("policy.bandwidth");
@@ -255,52 +228,39 @@ Policy::GetLayoutAndSpace(const char* path,
         }
       }
       {
-        // try application specific iotype setting
-        std::string appkey = "iotype.";
+	std::list<std::string> keylist;
+	std::string io=rw?":w":":r";
+	keylist.push_back("policy.bandwidth"+io);
+	keylist.push_back("policy.iopriority"+io);
+	keylist.push_back("policy.iotype"+io);
+	keylist.push_back("policy.schedule"+io);
+	for (auto const& k : keylist ) {
+	  std::list<std::string> configlist;
+	  // try application specific setting
+	  std::string key = k;
+	  std::string app = (env.Get("eos.app"))? env.Get("eos.app") : "default";
+	  configlist.push_back(key+".group:" + vid.gid_string);
+	  configlist.push_back(key+".user:" + vid.uid_string);
+	  configlist.push_back(key+".app:" + app);
+	  for ( auto const& n : configlist ) {
+	    std::string val = it->second->GetConfigMember(n);
+	    if (val.length()) {
+	      if ( k.substr(0,16) == "policy.bandwidth" ) {
+		bandwidth = val;
+	      }
+	      if ( k.substr(0,17) == "policy.iopriority" ) {
+		iopriority = val;
+	      }
 
-        if (env.Get("eos.app")) {
-          appkey += env.Get("eos.app");
-        } else {
-          appkey += "default";
-        }
-
-        std::string app_iotype = it->second->GetConfigMember(appkey);
-
-        if (app_iotype.length()) {
-          iotype = app_iotype;
-        }
-      }
-      {
-        // try application specific iopriority setting
-        std::string appkey = "iopriority.";
-
-        if (env.Get("eos.app")) {
-          appkey += env.Get("eos.app");
-        } else {
-          appkey += "default";
-        }
-
-        std::string app_iopriority = it->second->GetConfigMember(appkey);
-
-        if (app_iopriority.length()) {
-          iopriority = app_iopriority;
-        }
-      }
-      {
-        // try application specific iopriority setting
-        std::string appkey = "iopriority.";
-
-        if (env.Get("eos.app")) {
-          appkey += env.Get("eos.app");
-        } else {
-          appkey += "default";
-        }
-
-        std::string app_iopriority = it->second->GetConfigMember(appkey);
-
-        if (app_iopriority.length()) {
-          iopriority = app_iopriority;
-        }
+	      if ( k.substr(0,13) == "policy.iotype" ) {
+		iotype = val;
+	      }
+	      if ( k.substr(0,15) == "policy.schedule" ) {
+		schedule = (val == "1")? true:false;
+	      }
+	    }
+	  }
+	}
       }
     }
   }

@@ -191,7 +191,7 @@ SpaceQuota::UpdateLogicalSizeFactor()
     std::string iotype;
     // get the layout in this quota node
     Policy::GetLayoutAndSpace(pPath.c_str(), map, vid, layoutId, spn, env,
-                              forcedfsid, forcedgroup, bandwidth, schedule, iopriority, iotype);
+                              forcedfsid, forcedgroup, bandwidth, schedule, iopriority, iotype, false);
     mLayoutSizeFactor = eos::common::LayoutId::GetSizeFactor(layoutId);
   } else {
     mLayoutSizeFactor = 1.0;

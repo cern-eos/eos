@@ -42,6 +42,7 @@
 #include "XrdOuc/XrdOucString.hh"
 #include "common/XrdErrorMap.hh"
 #include "common/Timing.hh"
+#include "common/SymKeys.hh"
 #include "fst/layout/RaidDpLayout.hh"
 #include "fst/layout/ReedSLayout.hh"
 #include "fst/io/AsyncMetaHandler.hh"
@@ -345,17 +346,18 @@ print_summary(VectLocationType& src,
 {
   std::string src_clientinfo;
   std::string dst_clientinfo;
+  fprintf(stderr,"last %s %s\n", src_lasturl.c_str(), dst_lasturl.c_str());
   if (src_lasturl.length()) {
-    XrdCl::URL url(src_clientinfo);
+    XrdCl::URL url(src_lasturl);
     XrdCl::URL::ParamsMap cgi = url.GetParams();
     std::string zclientinfo =cgi["eos.clientinfo"];
-    eos::common::SymKey::ZDeBase(zclientinfo, src_clientinfo);
+    eos::common::SymKey::ZDeBase64(zclientinfo, src_clientinfo);
   }
   if (dst_lasturl.length()) {
-    XrdCl::URL url(dst_clientinfo);
+    XrdCl::URL url(dst_lasturl);
     XrdCl::URL::ParamsMap cgi = url.GetParams();
     std::string zclientinfo =cgi["eos.clientinfo"];
-    eos::common::SymKey::ZDeBase(zclientinfo, dst_clientinfo);
+    eos::common::SymKey::ZDeBase64(zclientinfo, dst_clientinfo);
   }
 
   gettimeofday(&abs_stop_time, &tz);
@@ -395,21 +397,21 @@ print_summary(VectLocationType& src,
       COUT(("[eoscp] # Tot. Data Copied [bytes] : %lld\n", bytesread * ndst));
     }
 
-    COUT(("[eoscp] # Realtime [s]             : %f\n", abs_time / 1000.0));
+    COUT(("[eoscp] # Realtime [s]             : %.03f\n", abs_time / 1000.0));
 
     if (abs_time > 0) {
-      COUT(("[eoscp] # Eff.Copy. Rate[MB/s]     : %f\n",
+      COUT(("[eoscp] # Eff.Copy. Rate[MB/s]     : %.02f\n",
             bytesread / abs_time / 1000.0));
     }
 
     if (ingress_microseconds) {
-      COUT(("[eoscp] # INGRESS [MB/s]           : %f\n",
-            bytesread / ingress_microseconds));
+      COUT(("[eoscp] # INGRESS [MB/s]           : %.02f\n", 
+	    bytesread / ingress_microseconds));
     }
 
     if (egress_microseconds) {
-      COUT(("[eoscp] # EGRESS [MB/s]            : %f\n",
-            bytesread / egress_microseconds));
+      COUT(("[eoscp] # EGRESS [MB/s]            : %.02f\n", 
+	    bytesread / egress_microseconds));
     }
 
     if (bandwidth) {
@@ -430,10 +432,10 @@ print_summary(VectLocationType& src,
       COUT(("[eoscp] # Read  Stop  Position     : %lld\n", stopbyte));
     }
     if (!src_clientinfo.empty()) {
-      COUT(("[eoscp] # Read Server Information  : %s\n", src_clientinfo.c_str()));
+      COUT(("[eoscp] # INGRESS Server Info      : %s\n", src_clientinfo.c_str()));
     }
     if (!dst_clientinfo.empty()) {
-      COUT(("[eoscp] # Write Server Information : %s\n", dst_clientinfo.c_str()));
+      COUT(("[eoscp] # EGRESS  Server info      : %s\n", dst_clientinfo.c_str()));
     }
   } else {
     COUT(("bytes_copied=%lld ", bytesread));
@@ -588,6 +590,7 @@ main(int argc, char* argv[])
   extern char* optarg;
   extern int optind;
   XrdCl::DefaultEnv::GetEnv()->PutInt("MetalinkProcessing", 0);
+  XrdCl::DefaultEnv::GetEnv()->PutInt("ParallelEvtLoop", 8 ); // needed for high performance on 100GE
 
   while ((c = getopt(argc, argv,
                      "nshxdvlipfce:P:X:b:m:u:g:t:S:D:5aA:r:N:L:RT:O:V0q:")) != -1) {
@@ -1708,6 +1711,8 @@ main(int argc, char* argv[])
         errmsg = status.GetErrorMessage();
         fprintf(stderr, "error: %s\n", status.ToStr().c_str());
         exit(-status.errNo ? -status.errNo : -EIO);
+      } else {
+	file->GetProperty("LastURL", src_lasturl);
       }
 
       src_handler.push_back(std::make_pair(0, (void*)file));

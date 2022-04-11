@@ -43,30 +43,31 @@ class Policy
 {
 public:
 
-  Policy() { };
+  Policy () { };
 
-  ~Policy() { };
+  ~Policy () { };
 
-  static void GetLayoutAndSpace(const char* path,
-                                eos::IContainerMD::XAttrMap& map,
-                                const eos::common::VirtualIdentity& vid,
-                                unsigned long& layoutId,
-                                XrdOucString& space,
-                                XrdOucEnv& env,
-                                unsigned long& forcedfsid,
-                                long& forcedgroup,
-                                std::string& bandwidth,
-                                bool& schedul,
-                                std::string& iopriority,
-                                std::string& ioptype,
-                                bool lock_view = false);
+  static void GetLayoutAndSpace (const char* path,
+                                 eos::IContainerMD::XAttrMap &map,
+                                 const eos::common::VirtualIdentity &vid,
+                                 unsigned long &layoutId,
+                                 XrdOucString &space,
+                                 XrdOucEnv &env,
+                                 unsigned long &forcedfsid,
+                                 long &forcedgroup, 
+				 std::string& bandwidth,
+				 bool &schedul,
+				 std::string& iopriority,
+				 std::string& ioptype,
+				 bool isrw,
+				 bool lock_view = false);
 
-  static void GetPlctPolicy(const char* path,
-                            eos::IContainerMD::XAttrMap& map,
-                            const eos::common::VirtualIdentity& vid,
-                            XrdOucEnv& env,
-                            eos::mgm::Scheduler::tPlctPolicy& plctpo,
-                            std::string& targetgeotag);
+  static void GetPlctPolicy (const char* path,
+                             eos::IContainerMD::XAttrMap &map,
+                             const eos::common::VirtualIdentity &vid,
+                             XrdOucEnv &env,
+                             eos::mgm::Scheduler::tPlctPolicy &plctpo,
+                             std::string &targetgeotag);
 
   static bool RedirectLocal(const char* path,
                             eos::IContainerMD::XAttrMap& map,
