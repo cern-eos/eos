@@ -212,7 +212,7 @@ public:
   template<typename T>
   struct TreeNodeState {
     TreeNodeState() :
-      mStatus(Available), ulScore(0), dlScore(0), totalSpace(0), fillRatio(0)
+      mStatus(Available), ulScore(0), dlScore(0), totalSpace(0), totalWritableSpace(0), fillRatio(0)
     {
     }
     typedef TreeNodeState<T> tSelf;
@@ -222,6 +222,7 @@ public:
     T dlScore;
     //half mTotalSpace; // this brings 10% speed improvement and also a lower memory footprint but add yet another dependency
     float totalSpace;
+    float totalWritableSpace;
     T fillRatio;
   };
 
@@ -250,6 +251,7 @@ public:
       target->ulScore = (char) ulScore;
       target->dlScore = (char) dlScore;
       target->totalSpace = totalSpace;
+      target->totalWritableSpace = totalWritableSpace;
       target->fillRatio = (char) fillRatio;
     }
   };

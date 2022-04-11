@@ -1363,7 +1363,7 @@ protected:
         // we prebook the space on all the possible nodes before the selection
         // reminder : this is just a working copy of the tree and will affect only the current placement
         const SchedTreeBase::tFastTreeIdx& idx = (*it).second;
-        float& freeSpace = tree->pNodes[idx].fsData.totalSpace;
+        float& freeSpace = tree->pNodes[idx].fsData.totalWritableSpace;
 
         if (freeSpace > bookingSize) { // if there is enough space , prebook it
           freeSpace -= bookingSize;
@@ -1378,7 +1378,7 @@ protected:
       // Test at lest that we have some free space
       for (auto it = tree->pFs2Idx->begin(); it != tree->pFs2Idx->end(); ++it) {
         const SchedTreeBase::tFastTreeIdx& idx = (*it).second;
-        float& freeSpace = tree->pNodes[idx].fsData.totalSpace;
+        float& freeSpace = tree->pNodes[idx].fsData.totalWritableSpace;
 
         if (!freeSpace) {
           tree->pNodes[idx].fsData.mStatus = tree->pNodes[idx].fsData.mStatus &

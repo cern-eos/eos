@@ -768,8 +768,8 @@ int mainFull()
         std::make_tuple("totS", 4, "+l")
       });
       std::set<std::tuple<std::string, unsigned, unsigned, TableFormatterColor,
-          unsigned, unsigned, std::string, std::string, unsigned, std::string,
-          int, int, int, std::string, int, int, int, double>> data_snapshot;
+			  unsigned, unsigned, std::string, std::string, unsigned, std::string,
+			  int, int, int, std::string, int, int, int, double, double>> data_snapshot;
       fptrees[idx].recursiveDisplay(data_snapshot, geo_depth_max, "test_operation",
                                     "test_op", true);
 
