@@ -1554,7 +1554,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
   eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
   // select space and layout according to policies
   Policy::GetLayoutAndSpace(path, attrmap, vid, new_lid, space, *openOpaque,
-                            forcedFsId, forced_group, bandwidth, schedule, ioprio, iotype);
+                            forcedFsId, forced_group, bandwidth, schedule, ioprio, iotype, isRW);
 
   // do a local redirect here if there is only one replica attached
   if (!isRW && !isPio && (fmd->getNumLocation() == 1) &&
@@ -1596,6 +1596,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
   }
 
   if (ioPriority.length()) {
+    ioprio = ioPriority;
     capability += "&mgm.iopriority=";
     capability += ioPriority.c_str();
   } else {
@@ -3052,11 +3053,6 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
 
   rcode = SFS_REDIRECT;
 
-  if (!gOFS->SetRedirectionInfo(error, redirectionhost.c_str(), ecode)) {
-    eos_err("msg=\"failed setting redirection\" path=\"%s\"", path);
-    return SFS_ERROR;
-  }
-
   XrdOucString predirectionhost = redirectionhost.c_str();
   eos::common::StringConversion::MaskTag(predirectionhost, "cap.msg");
   eos::common::StringConversion::MaskTag(predirectionhost, "cap.sym");
@@ -3070,9 +3066,6 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
              "http_port=%d", path, pinfo.c_str(), infolog.c_str(),
              predirectionhost.c_str(), targetport, targethttpport);
   }
-
-  eos_info("info=\"redirection\" hostport=%s:%d", predirectionhost.c_str(),
-           ecode);
 
   if (attrmap.count("sys.force.atime")) {
     // -------------------------------------------------------------------------
@@ -3122,7 +3115,21 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
   }
 
   EXEC_TIMING_END("Open");
-  eos_info("path=%s rt=%.02f", path, __exec_time__);
+  char clientinfo[1024];
+  snprintf(clientinfo,sizeof(clientinfo),"open:rt=%.02f io:bw=%s io:sched=%d io:type=%s io:prio=%s io:redirect=%s:%d", __exec_time__, bandwidth.length()?bandwidth.c_str():"inf", schedule, iotype.length()?iotype.c_str():"buffered", ioprio.length()?ioprio.c_str():"default", targethost.c_str(),ecode);
+
+  std::string sclientinfo(clientinfo);
+  std::string zclientinfo;
+  eos::common::SymKey::ZBase64(sclientinfo,zclientinfo);
+
+  redirectionhost+="&eos.clientinfo=";
+  redirectionhost+=zclientinfo.c_str();
+  if (!gOFS->SetRedirectionInfo(error, redirectionhost.c_str(), ecode)) {
+    eos_err("msg=\"failed setting redirection\" path=\"%s\"", path);
+    return SFS_ERROR;
+  }
+
+  eos_info("path=%s %s",path, clientinfo);
   return rcode;
 }
 

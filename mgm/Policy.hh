@@ -59,6 +59,7 @@ public:
 				 bool &schedul,
 				 std::string& iopriority,
 				 std::string& ioptype,
+				 bool isrw,
 				 bool lock_view = false);
 
   static void GetPlctPolicy (const char* path,
