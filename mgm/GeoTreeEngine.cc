@@ -527,16 +527,16 @@ bool GeoTreeEngine::removeFsFromGroup(FileSystem* fs, FsGroup* group,
 uint64_t GeoTreeEngine::placementSpace(const std::string& space, const std::string& schedgroup)
 {
   RWMutexReadLock lock(pTreeMapMutex);
-  uint64_t totalSpace = 0;
+  uint64_t totalWritableSpace = 0;
   for (auto it = pGroup2SchedTME.begin(); it != pGroup2SchedTME.end(); it++) {
     std::string ispace;
     std::string index;
     eos::common::StringConversion::SplitKeyValue(it->second->group->mName, ispace, index, ".");
     if ( (ispace == space) && ( (schedgroup=="") || (schedgroup == it->second->group->mName)) ) {
-      totalSpace += it->second->foregroundFastStruct->placementTree->getTotalSpace();
+      totalWritableSpace += it->second->foregroundFastStruct->placementTree->getTotalWritableSpace();
     }
   }
-  return totalSpace;
+  return totalWritableSpace;
 }
 
 
@@ -789,10 +789,10 @@ void GeoTreeEngine::printInfo(std::string& info, bool dispTree, bool dispSnaps,
       int, int, std::string>> data_tree;
   // Set for snapshot: group, num of line, depth, color, prefix_1, prefix_2,
   //                   operation, operation_short, fsid, geotag/host,
-  //                   free, repl, pidx, status, ulSc, dlSc, filR, totS
+  //                   free, repl, pidx, status, ulSc, dlSc, filR, totS, totW
   std::set<std::tuple<std::string, unsigned, unsigned, TableFormatterColor,
-      unsigned, unsigned, std::string, std::string, unsigned, std::string,
-      int, int, int, std::string, int, int, int, double>> data_snapshot;
+		      unsigned, unsigned, std::string, std::string, unsigned, std::string,
+		      int, int, int, std::string, int, int, int, double, double>> data_snapshot;
 
   for (auto it = pGroup2SchedTME.begin(); it != pGroup2SchedTME.end(); it++) {
     if (dispTree && (schedgroup.empty() || schedgroup == "*" ||
@@ -1020,6 +1020,7 @@ void GeoTreeEngine::printInfo(std::string& info, bool dispTree, bool dispSnaps,
   snapshot_header.push_back(std::make_tuple("dlSc", 4, format_l));
   snapshot_header.push_back(std::make_tuple("filR", 4, format_l));
   snapshot_header.push_back(std::make_tuple("totS", 4, format_lll));
+  snapshot_header.push_back(std::make_tuple("totW", 4, format_lll));
   table_snapshot.SetHeader(snapshot_header);
   set<std::string> operations;
 
@@ -1162,6 +1163,12 @@ void GeoTreeEngine::printInfo(std::string& info, bool dispTree, bool dispSnaps,
     table_data.back().push_back(TableCell(std::get<15>(it), format_l));
     table_data.back().push_back(TableCell(std::get<16>(it), format_l));
     table_data.back().push_back(TableCell(std::get<17>(it), format_lll));
+    if ( (std::get<13>(it).find("RW")!= std::string::npos) ||
+	 (std::get<13>(it).find("OK")!= std::string::npos) ) {
+      table_data.back().push_back(TableCell(std::get<18>(it), format_lll));
+    } else {
+      table_data.back().push_back(TableCell(0, format_lll));
+    }
     table_snapshot.AddRows(table_data);
   }
 
@@ -2509,10 +2516,12 @@ bool GeoTreeEngine::updateTreeInfo(SchedTME* entry,
 
     if (ftIdx) {
       setOneStateVarInAllFastTrees(totalSpace, ts);
+      setOneStateVarInAllFastTrees(totalWritableSpace, ts);
     }
 
     if (stn) {
       stn->pNodeState.totalSpace = ts;
+      stn->pNodeState.totalWritableSpace = ts;
     }
   }
 

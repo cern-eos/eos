@@ -1552,6 +1552,8 @@ public:
     double _mUlScore = 0;
     double _mFillRatio = 0;
     double _mTotalSpace = 0;
+    double _mTotalWritableSpace = 0;
+
     int count = 0;
 
     for (tFastTreeIdx bidx = pNodes[node].treeData.firstBranchIdx;
@@ -1560,6 +1562,7 @@ public:
       tFastTreeIdx childNode = pBranches[bidx].sonIdx;
       bool availableBranch = ((pNodes[childNode].fsData.mStatus &
                                (Available | Disabled)) == Available);
+      bool writableBranch = ((pNodes[childNode].fsData.mStatus & Writable));
 
       if (availableBranch) {
         if (pNodes[childNode].fsData.dlScore > 0) {
@@ -1571,6 +1574,10 @@ public:
         }
 
         _mTotalSpace += pNodes[childNode].fsData.totalSpace;
+
+	if (writableBranch) {
+	  _mTotalWritableSpace += pNodes[childNode].fsData.totalWritableSpace;
+	}
         //_mFillRatio += pNodes[childNode].fsData.fillRatio *
         //               pNodes[childNode].fsData.totalSpace;
         _mFillRatio += pNodes[childNode].fsData.fillRatio;
@@ -1595,6 +1602,7 @@ public:
     pNodes[node].fsData.ulScore = (char)(count ? _mUlScore / count : 0);
     pNodes[node].fsData.fillRatio = (char)_mFillRatio;
     pNodes[node].fsData.totalSpace = (float)_mTotalSpace;
+    pNodes[node].fsData.totalWritableSpace =(float)_mTotalWritableSpace;
     return true;
   }
 
@@ -1618,6 +1626,11 @@ public:
   uint64_t getTotalSpace(const tFastTreeIdx& node = 0)
   {
     return pNodes[node].fsData.totalSpace;
+  }
+
+  uint64_t getTotalWritableSpace(const tFastTreeIdx& node = 0)
+  {
+    return pNodes[node].fsData.totalWritableSpace;
   }
 
   inline void
@@ -1838,7 +1851,7 @@ public:
   recursiveDisplay(std::set<std::tuple<std::string, unsigned, unsigned,
                    TableFormatterColor, unsigned, unsigned, std::string,
                    std::string, unsigned, std::string, int, int, int, std::string,
-                   int, int, int, double>>& data_snapshot,  unsigned& geo_depth_max,
+                   int, int, int, double, double>>& data_snapshot,  unsigned& geo_depth_max,
                    std::string operation = "", std::string operation_short = "",
                    bool useColors = false)
   {
@@ -1945,7 +1958,7 @@ public:
   recursiveDisplay(std::set<std::tuple<std::string, unsigned, unsigned,
                    TableFormatterColor, unsigned, unsigned, std::string,
                    std::string, unsigned, std::string, int, int, int, std::string,
-                   int, int, int, double>>& data_snapshot, tFastTreeIdx node,
+                   int, int, int, double, double>>& data_snapshot, tFastTreeIdx node,
                    std::string group, unsigned& geo_depth_max,
                    std::string operation = "", std::string operation_short = "",
                    bool useColors = false, unsigned prefix1 = 0, unsigned prefix2 = 0)
@@ -2002,7 +2015,8 @@ public:
                                            pNodes[node].fsData.ulScore,
                                            pNodes[node].fsData.dlScore,
                                            pNodes[node].fsData.fillRatio,
-                                           pNodes[node].fsData.totalSpace));
+                                           pNodes[node].fsData.totalSpace,
+					   pNodes[node].fsData.totalWritableSpace));
     } else {
       // Print group (depth=1) and geotag (depth=2)
       unsigned depth = (prefix1 == 0 && prefix2 == 0) ? 1 : 2;
@@ -2017,7 +2031,8 @@ public:
                                            pNodes[node].fsData.ulScore,
                                            pNodes[node].fsData.dlScore,
                                            pNodes[node].fsData.fillRatio,
-                                           pNodes[node].fsData.totalSpace));
+                                           pNodes[node].fsData.totalSpace,
+					   pNodes[node].fsData.totalWritableSpace));
       // How many deep is geotag
       unsigned geo_depth = 1;
       std::string geotag_temp = (*pTreeInfo)[node].fullGeotag;
