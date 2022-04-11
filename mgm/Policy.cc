@@ -358,14 +358,25 @@ Policy::GetLayoutAndSpace(const char* path,
       eos_static_debug("sys.forced.blocksize in %s : %llu", path, blocksize);
     }
 
-    if (attrmap.count("sys.forced.iotype")) {
-      iotype = attrmap["sys.forced.iotype"];
+    std::string iotypeattr = rw?"sys.forced.iotype:w":"sys.forced.iotype:r";
+    if (attrmap.count(iotypeattr)) {
+      iotype = attrmap[iotypeattr];
       eos_static_debug("sys.forced.iotype i %s : %s", path, iotype.c_str());
     }
-
-    if (attrmap.count("sys.forced.iopriority")) {
-      iopriority = attrmap["sys.forced.iopriority"];
+    std::string iopriorityattr = rw?"sys.forced.iopriority:w":"sys.forced.iopriority:r";
+    if (attrmap.count(iopriorityattr)) {
+      iopriority = attrmap[iopriorityattr];
       eos_static_debug("sys.forced.iopriority i %s : %s", path, iopriority.c_str());
+    }
+    std::string bandwidthattr = rw?"sys.forced.bandwidth:w":"sys.forced.bandwidth:r";
+    if (attrmap.count(bandwidthattr)) {
+      bandwidth = attrmap[bandwidthattr];
+      eos_static_debug("sys.forced.bandwidth i %s : %s", path, bandwidth.c_str());
+    }
+    std::string scheduleattr = rw?"sys.forced.schedule:w":"sys.forced.schedule:r";
+    if (attrmap.count(scheduleattr)) {
+      schedule = (attrmap[scheduleattr]=="1");
+      eos_static_debug("sys.forced.schedule i %s : %d", path);
     }
 
     if (((!attrmap.count("sys.forced.nouserlayout")) ||
