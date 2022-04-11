@@ -413,6 +413,13 @@ void QuotaCmd::SetSubcmd(const eos::console::QuotaProto_SetProto& set,
     reply.set_std_err("error: the volume quota you specified is not a valid number");
     return;
   } else if (set.maxbytes().length()) {
+    if (size < gOFS->getFuseBookingSize()) {
+      reply.set_retc(EINVAL);
+      std_err << "error: the volume quota has to be offset by the minimum booking size for mounted filesystem acccess : min(quota) >> " << gOFS->getFuseBookingSize() << " bytes";
+      reply.set_std_err(std_err.str());
+      return ;
+    }
+    
     // Set volume quota
     if (!Quota::SetQuotaTypeForId(space, id, id_type, Quota::Type::kVolume, size,
                                   msg, ret_c)) {
