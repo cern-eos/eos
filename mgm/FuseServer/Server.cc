@@ -39,7 +39,7 @@
 #include "mgm/ZMQ.hh"
 #include "mgm/Stat.hh"
 #include "mgm/tracker/ReplicationTracker.hh"
-
+#include "mgm/GeoTreeEngine.hh"
 #include "namespace/interface/IView.hh"
 #include "namespace/interface/IFileMD.hh"
 #include "namespace/interface/IContainerMD.hh"
@@ -2172,10 +2172,31 @@ Server::OpSetFile(const std::string& id,
                         vid.gid);
                 return EDQUOT;
               }
+
+              if (avail_bytes < gOFS->getFuseBookingSize()) {
+                eos_err("name=%s out-of-volume-quota (<%llu bytes) uid=%u gid=%u",
+                        md.name().c_str(),
+			gOFS->getFuseBookingSize(),
+                        vid.uid,
+                        vid.gid);
+                return EDQUOT;
+              }
             }
           }
         } catch (eos::MDException& e) {
         }
+      }
+
+      {
+	std::string nogroup;
+	long phys_space = gOFS->mGeoTreeEngine->placementSpace(space.c_str(), nogroup);
+	eos_info("msg=\"writable-space=%lu\"\n", phys_space);
+	// check physical space
+	if (phys_space < gOFS->getFuseBookingSize()) {
+	  eos_err("msg=\"instance out of placement space\" sched.capacity=%ld", 
+		  phys_space);
+	  return ENOSPC;
+	}
       }
 
       fmd = gOFS->eosFileService->createFile(0);
