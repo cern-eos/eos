@@ -265,10 +265,10 @@ ConverterDriver::QdbHelper::AddFailedJob(
 //------------------------------------------------------------------------------
 // Get list of pending jobs
 //------------------------------------------------------------------------------
-std::list<ConverterDriver::JobInfoT>
+std::vector<ConverterDriver::JobInfoT>
 ConverterDriver::QdbHelper::GetPendingJobs()
 {
-  std::list<JobInfoT> pending;
+  std::vector<JobInfoT> pending;
 
   for (auto it = mQHashPending.getIterator(cBatchSize, "0");
        it.valid(); it.next()) {
@@ -283,10 +283,10 @@ ConverterDriver::QdbHelper::GetPendingJobs()
 //------------------------------------------------------------------------------
 // Get list of failed jobs
 //------------------------------------------------------------------------------
-std::list<ConverterDriver::JobFailedT>
+std::vector<ConverterDriver::JobFailedT>
 ConverterDriver::QdbHelper::GetFailedJobs()
 {
-  std::list<JobFailedT> failed;
+  std::vector<JobFailedT> failed;
 
   for (auto it = mQHashFailed.getIterator(cBatchSize, "0");
        it.valid(); it.next()) {

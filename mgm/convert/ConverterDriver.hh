@@ -149,7 +149,7 @@ public:
   //!
   //! @return list of pending jobs
   //----------------------------------------------------------------------------
-  inline std::list<JobInfoT> GetPendingJobs()
+  inline std::vector<JobInfoT> GetPendingJobs()
   {
     return mQdbHelper.GetPendingJobs();
   }
@@ -159,7 +159,7 @@ public:
   //!
   //! @return list of failed jobs
   //----------------------------------------------------------------------------
-  inline std::list<JobFailedT> GetFailedJobs()
+  inline std::vector<JobFailedT> GetFailedJobs()
   {
     return mQdbHelper.GetFailedJobs();
   }
@@ -208,14 +208,14 @@ private:
     //!
     //! @return list of pending jobs
     //--------------------------------------------------------------------------
-    std::list<JobInfoT> GetPendingJobs();
+    std::vector<ConverterDriver::JobInfoT> GetPendingJobs();
 
     //--------------------------------------------------------------------------
     //! Get list of failed jobs
     //!
     //! @return list of failed jobs
     //--------------------------------------------------------------------------
-    std::list<JobFailedT> GetFailedJobs();
+    std::vector<ConverterDriver::JobFailedT> GetFailedJobs();
 
     //--------------------------------------------------------------------------
     //! Clear list of pending jobs
