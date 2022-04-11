@@ -735,8 +735,13 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
       // try oauth2
       std::string oauthname;
 
+      // release the map mutex to avoid any inteference with a queued up write lock and an oauth callout being slow 
+      lock.Release();
+      oauthname = gOAuth.Handle(keyname, vid);
+      lock.Grab(gMapMutex);
+      
       // check for OAuth contents
-      if ((oauthname = gOAuth.Handle(keyname, vid)).empty() ||
+      if (oauthname.empty() ||
           // enable/disable oauth2 mapping
           !gVirtualUidMap.count("oauth2:\"<pwd>\":uid")) {
         // treat as mapping key
