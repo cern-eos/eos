@@ -11,18 +11,20 @@ The following policies can be configured
 
 .. epigraph::
 
-   ============= ==============================================
-   key           values
-   ============= ==============================================
-   space         default,...
-   layout        plain,replica,raid5,raid6,raiddp,archive,qrain           
-   nstripes      1..255           
-   checksum      adler,md5,sha1,crc32,crc32c        
-   blockchecksum adler,md5,sha1,crc32,crc32c           
-   blocksize     4k,64k,128k,512k,1M,4M,16M,64M           
-   bandwidth     IO limit in MB/s
-   iotype        io flavour [ direct, sync, csync, dsync ]
-   ============= ==============================================
+   ============== ==============================================
+   key            values
+   ============== ==============================================
+   space          default,...
+   layout         plain,replica,raid5,raid6,raiddp,archive,qrain           
+   nstripes       1..255           
+   checksum       adler,md5,sha1,crc32,crc32c        
+   blockchecksum  adler,md5,sha1,crc32,crc32c           
+   blocksize      4k,64k,128k,512k,1M,4M,16M,64M           
+   bandwidth:r|w  IO limit in MB/s for reader/writer
+   iotype:r|w     io flavour [ direct, sync, csync, dsync ] 
+   iopriority:r|w io priority [ rt:0...rt:7,be:0,be:7,idle ]
+   schedule:r|w   fair FST scheduling [1 or 0]
+   ============== ==============================================
 
 
 Setting space policies
@@ -49,26 +51,30 @@ Setting space policies
    # configure a global bandwidth limitation for all streams of 100 MB/s in a space
    eos space config default space.policy.bandwidth=100
 
-   # configure FST fair thread scheduling
-   eos space config default space.policy.schedule=1
+   # configure FST fair thread scheduling for readers
+   eos space config default space.policy.schedule:r=1
 
-   # configure default FST iopriority
-   eos space config default space.policy.iopriority=be:4
+   # configure default FST iopriority for writers
+   eos space config default space.policy.iopriority:w=be:4
 
    # configure default FST iotype
-   eos space config default space.policy.iotype=direct
+   eos space config default space.policy.iotype:w=direct
 
-Setting application policies
+Setting user,group and application policies
 -------------------------------------
 
-Application bandwidth policies apply for all read and write streams.
+IO policies as iotype,iopriority,bandwidth and schedule can be scoped to a group,user or an application
 
 .. code-block:: bash
 
-   # configure an application specific bandwidth limitations for all streams in a space
-   eos space config default space.bw.myapp=100 # streams tagged as ?eos.app=myapp are limited to 100 MB/s
+   # configure an application specific bandwidth limitations for all reading streams in a space
+   eos space config default space.bandwidth:r.app:myapp=100 # reading streams tagged as ?eos.app=myapp are limited to 100 MB/s
 
-   eos space config default space.bw.eoscp=200 # limit untagged eoscp to 200 MB/s
+   eos space config default space.iotype:w.user:root=direct # use direct IO for writing streams by user root
+
+   eos space config default space.iopriority:r.group:adm=rt:1 # use IO priority realtime level 1 for the adm group when reading
+
+The evaluation order is by space (lowest), by group, by user, by app (highest). Finally IO policies can be overwritten by extended **sys.forced** attributes (see the following).
 
 Policy Selection and Scopes
 ----------------------------
@@ -116,8 +122,10 @@ The space polcies are overwritten by the local extended attribute settings of th
    checksum      sys.forced.checksum, user.forced.checksum
    blockchecksum sys.forced.blockchecksum, user.forced.blockchecksum   
    blocksize     sys.forced.blocksize, user.forced.blocksize
-   iopritoiry    sys.forced.iopriority
-   iotype        sys.forced.iotype
+   iopriority    sys.forced.iopriority:r|w
+   iotype        sys.forced.iotype:r|w
+   bandwidth     sys.forced.bandwidth:r|w
+   schedule      sys.forced.schedule:r|w
    ============= ===================================================
 
 
@@ -154,8 +162,10 @@ Policies are displayd using the ``space status`` command:
    policy.checksum                  := adler
    policy.layout                    := replica
    policy.nstripes                  := 2
-   policy.bandwidth                 := 100
-   policy.iotype                    := direct
+   policy.bandwidth:r               := 100
+   policy.bandwidth:w               := 200
+   policy.iotype:w                  := direct
+   policy.iotype:r                  := direct
    ...
    bw.myapp                         := 100
    bw.eoscp                         := 200
