@@ -773,6 +773,7 @@ runtest "### Quota     " unix 0 "" eos quota set -u 99 -p /eos/$EOS_TEST_INSTANC
 runtest "### Upload    " unix 0 "" upload "/etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/instancetest/passwd.quota" "-ODeos.ruid=99" "-DITransactionTimeout 30"
 runtest "### Quota     " unix 0 "" eos quota set -u 99 -p /eos/$EOS_TEST_INSTANCE/test -v 1T -i 1M
 runtest "### Upload    " unix 0 "" upload "/etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/instancetest/passwd.quota" "-ODeos.ruid=99" "-DITransactionTimeout 30"
+-runtest "### Rem      " unix 2 "" eos rm    "/eos/$EOS_TEST_INSTANCE/test/instancetest/passwd.quota"
 runtest "### Quota     " unix 0 "" eos quota set -u 99 -p /eos/$EOS_TEST_INSTANCE/test -v 1T -i 1M
 runtest "### Quota     " unix 1 "" eos quota set -u 99 -p /doesnotexist -v 1T -i 1M
 runtest "### Quota     " unix 0 "" eos quota set -u 3 -p /eos/$EOS_TEST_INSTANCE/test -v 1T -i 1M
@@ -830,7 +831,7 @@ runtest "### Attr Set   " unix 0 "" eos attr set default=replica "/eos/$EOS_TEST
 runtest "### Stress Wpp " unix 0 "" stress "-d root://localhost//eos/$EOS_TEST_INSTANCE/test -o wr -f 50 -s 1KB -n stress -j 10 -c -p"
 runtest "### Stress Wp  " unix 0 "" stress "-d root://localhost//eos/$EOS_TEST_INSTANCE/test -o wr -f 50 -s 1KB -n stress -j 10 -c "
 runtest "### Find       " unix 0 "" eos find "-f --count /eos/$EOS_TEST_INSTANCE/test/ | grep nfiles=100"
-runtest "### Newfind       " unix 0 "" eos newfind "-f --count /eos/$EOS_TEST_INSTANCE/test/ | grep nfiles=100"
+runtest "### Newfind    " unix 0 "" eos newfind "-f --count /eos/$EOS_TEST_INSTANCE/test/ | grep nfiles=100"
 runtest "### Stress Rp  " unix 0 "" stress "-d root://localhost//eos/$EOS_TEST_INSTANCE/test -o rd -f 50 -s 1KB -n stress -j 10 -c"
 runtest "### Stress Rpp " unix 0 "" stress "-d root://localhost//eos/$EOS_TEST_INSTANCE/test -o rd -f 50 -s 1KB -n stress -j 10 -c -p"
 runtest "### Cleanup    " unix 2 "" eos rm "-r" "/eos/$EOS_TEST_INSTANCE/test/stress/*"
