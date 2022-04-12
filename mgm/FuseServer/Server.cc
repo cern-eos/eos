@@ -2173,10 +2173,10 @@ Server::OpSetFile(const std::string& id,
                 return EDQUOT;
               }
 
-              if (avail_bytes < gOFS->getFuseBookingSize()) {
+              if ((uint64_t)avail_bytes < gOFS->getFuseBookingSize()) {
                 eos_err("name=%s out-of-volume-quota (<%llu bytes) uid=%u gid=%u",
                         md.name().c_str(),
-			gOFS->getFuseBookingSize(),
+                        gOFS->getFuseBookingSize(),
                         vid.uid,
                         vid.gid);
                 return EDQUOT;
@@ -2188,15 +2188,17 @@ Server::OpSetFile(const std::string& id,
       }
 
       {
-	std::string nogroup;
-	long phys_space = gOFS->mGeoTreeEngine->placementSpace(space.c_str(), nogroup);
-	eos_info("msg=\"writable-space=%lu\"\n", phys_space);
-	// check physical space
-	if (phys_space < gOFS->getFuseBookingSize()) {
-	  eos_err("msg=\"instance out of placement space\" sched.capacity=%ld", 
-		  phys_space);
-	  return ENOSPC;
-	}
+        std::string nogroup;
+        uint64_t phys_space = gOFS->mGeoTreeEngine->placementSpace(space.c_str(),
+                              nogroup);
+        eos_info("msg=\"writable-space=%lu\"\n", phys_space);
+
+        // check physical space
+        if (phys_space < gOFS->getFuseBookingSize()) {
+          eos_err("msg=\"instance out of placement space\" sched.capacity=%ld",
+                  phys_space);
+          return ENOSPC;
+        }
       }
 
       fmd = gOFS->eosFileService->createFile(0);
