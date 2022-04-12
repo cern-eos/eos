@@ -15,6 +15,26 @@ Introduction
 ------------
 This release is based on XRootD V4 and IPV6 enabled.
 
+
+``v4.8.82 Citrine``
+===================
+
+2022-04-12
+
+Bug
+----
+
+* MGM: Ensure IoStat tables are properly formatted
+
+Improvement
+------------
+
+* [EOS-5201] - Allow for more fine grained IO policies
+* [EOS-5204] - Only create files  via FUSEX if there is inode and volume quota and physical space available
+* [EOS-5205] - Distinguish writable space and total space
+* [EOS-5206] - Don't allow to set quota volume lower than the minimum fuse quota booking size
+
+
 ``v4.8.81 Citrine``
 ===================
 
