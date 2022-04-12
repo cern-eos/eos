@@ -31,6 +31,7 @@
 #include "common/Logging.hh"
 #include "common/Timing.hh"
 #include "common/StringTokenizer.hh"
+#include "common/StringUtils.hh"
 #include "mgm/Iostat.hh"
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/IMaster.hh"
@@ -318,14 +319,19 @@ IostatPeriods::StampBufferZero(time_t& now)
 //------------------------------------------------------------------------------
 std::string IostatPeriods::GetLastSampleUpdateTimestamp(bool date_format) const
 {
+  std::string ts;
+
   if (date_format) {
     struct tm* timedatestr;
     // Convert time to struct tm form
     timedatestr = localtime(&mLastTfMaxLenUpdateTime);
-    return (std::string)asctime(timedatestr);
+    ts = asctime(timedatestr);
   } else {
-    return std::to_string(mLastTfMaxLenUpdateTime);
+    ts = std::to_string(mLastTfMaxLenUpdateTime);
   }
+
+  eos::common::trim(ts);
+  return ts;
 }
 
 
