@@ -41,7 +41,7 @@ addEOSCmakeDirToPATHBashrc() {
 
 installEosCMake() {
   echo "Installing EOS CMake"
-  sudo yum install -y eos-cmake --disablerepo=* --enablerepo=eos-citrine-dep
+  sudo yum install -y eos-cmake --disablerepo=* --enablerepo=eos-diopside-dep
   sudo ln -fs $PATH_CMAKE_DIR/cmake $PATH_CMAKE_DIR/cmake3
 }
 
@@ -79,17 +79,17 @@ gpgkey=http://xrootd.cern.ch/sw/releases/RPM-GPG-KEY.txt
 EOF
 }
 
-createEosAndEosCitrineRepo() {
+createEosAndEosDiopsideRepo() {
   echo "Creating the eos.repo and adding it to the yum repository directory"
   sudo cat >/etc/yum.repos.d/eos.repo <<'EOF'
-[eos-citrine]
-name=EOS 4.0 Version
-baseurl=https://storage-ci.web.cern.ch/storage-ci/eos/citrine/tag/el-8/x86_64/
+[eos-diopside]
+name=EOS 5.0 Version
+baseurl=https://storage-ci.web.cern.ch/storage-ci/eos/diopside/tag/testing/el-8/x86_64/
 gpgcheck=0
 
-[eos-citrine-dep]
-name=EOS 4.0 Dependencies
-baseurl=https://storage-ci.web.cern.ch/storage-ci/eos/citrine-depend/el-8/x86_64/
+[eos-diopside-dep]
+name=EOS 5.0 Dependencies
+baseurl=https://storage-ci.web.cern.ch/storage-ci/eos/diopside-depend/el-8/x86_64/
 gpgcheck=0
 
 EOF
@@ -112,7 +112,7 @@ sudo yum install --nogpg -y python3 wget ccache gcc-c++ gdb make rpm-build rpm-s
 
 createXrootdRepo
 
-createEosAndEosCitrineRepo
+createEosAndEosDiopsideRepo
 
 createQuarkdbRepo
 
@@ -128,8 +128,8 @@ cd $EOS_PROJECT_ROOT_DIR
 
 sudo yum clean all
 
-echo "Installing libmicrohttpd-devel"
-sudo yum install -y libmicrohttpd-devel || die 'ERROR while installing libmicrohttp packages'
+echo "Installing eos-libmicrohttpd-devel"
+sudo yum install -y eos-libmicrohttpd-devel || die 'ERROR while installing eos-libmicrohttp packages'
 echo "Running yum-builddep to build the EOS dependencies"
 sudo yum-builddep --nogpgcheck --allowerasing -y ./build/SRPMS/* || die 'ERROR while building the dependencies'
 
