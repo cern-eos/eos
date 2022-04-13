@@ -20,17 +20,17 @@ gpgkey=http://xrootd.cern.ch/sw/releases/RPM-GPG-KEY.txt
 EOF
 }
 
-createEosAndEosCitrineRepo() {
+createEosAndEosDiopsideRepo() {
 echo "Creating the eos.repo and adding it to the yum repository directory"
 sudo cat > /etc/yum.repos.d/eos.repo <<'EOF'
-[eos-citrine]
-name=EOS 4.0 Version
-baseurl=https://storage-ci.web.cern.ch/storage-ci/eos/citrine/tag/el-7/x86_64/
+[eos-diopside]
+name=EOS 5.0 Version
+baseurl=https://storage-ci.web.cern.ch/storage-ci/eos/diopside/tag/testing/el-7/x86_64/
 gpgcheck=0
 
-[eos-citrine-dep]
-name=EOS 4.0 Dependencies
-baseurl=https://storage-ci.web.cern.ch/storage-ci/eos/citrine-depend/el-7/x86_64/
+[eos-diopside-dep]
+name=EOS 5.0 Dependencies
+baseurl=https://storage-ci.web.cern.ch/storage-ci/eos/diopside-depend/el-7/x86_64/
 gpgcheck=0
 
 EOF
@@ -70,16 +70,16 @@ cmake3 ../ -DPACKAGEONLY=1 && make srpm || die "Unable to make the srpm"
 
 createXrootdRepo
 
-createEosAndEosCitrineRepo
+createEosAndEosDiopsideRepo
 
 createQuarkDbRepo
 
 sudo yum clean all
 
-echo "Installing libmicrohttpd-devel"
-sudo yum install -y libmicrohttpd-devel --disablerepo="*" --enablerepo=eos-citrine-dep || die 'ERROR while installing libmicrohttp packages'
+echo "Installing eos-libmicrohttpd-devel"
+sudo yum install -y eos-libmicrohttpd-devel --disablerepo="*" --enablerepo=eos-diopside-dep || die 'ERROR while installing eos-libmicrohttp packages'
 echo "Running yum-builddep to build the dependencies of EOS"
-sudo yum-builddep --nogpgcheck --setopt="cern*.exclude=xrootd*,libmicrohttp*" -y SRPMS/* || die 'ERROR while building the dependencies'
+sudo yum-builddep --nogpgcheck --setopt="cern*.exclude=xrootd*,eos-libmicrohttp*" -y SRPMS/* || die 'ERROR while building the dependencies'
 
 echo "Installing quarkdb"
 sudo yum install -y quarkdb quarkdb-debuginfo redis || die 'ERROR while installing quarkdb packages'
