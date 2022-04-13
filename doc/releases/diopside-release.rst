@@ -17,6 +17,25 @@ Introduction
 This release is based on XRootD V5.
 
 
+``v5.0.17 Diopside``
+===================
+
+2022-04-13
+
+Note
+----
+
+* This version includes add the fixes up to 4.8.82.
+
+Improvement
+------------
+
+* [EOS-5201] - Allow for more fine grained IO policies
+* [EOS-5204] - Only create files  via FUSEX if there is inode and volume quota and physical space available
+* [EOS-5205] - Distinguish writable space and total space
+* [EOS-5206] - Don't allow to set quota volume lower than the minimum fuse quota booking size
+
+
 ``v5.0.16 Diopside``
 ===================
 
