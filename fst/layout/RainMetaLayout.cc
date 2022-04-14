@@ -318,11 +318,13 @@ RainMetaLayout::Open(XrdSfsFileOpenMode flags, mode_t mode, const char* opaque)
       } else {
         eos_warning("msg=\"failed open stripe\" url=\"%s\"",
                     stripe_urls[i].c_str());
+        mStripe[i] = nullptr;
         ++num_failures;
       }
     } else {
       eos_warning("msg=\"failed open stripe\" url=\"%s\"",
                   stripe_urls[i].c_str());
+      mStripe[i] = nullptr;
       ++num_failures;
     }
   }
@@ -474,11 +476,11 @@ RainMetaLayout::OpenPio(std::vector<std::string> stripeUrls,
           if (ret == SFS_ERROR) {
             eos_err("msg=\"failed open create stripe\" url=%s",
                     stripe_urls[i].c_str());
-            mStripe[i].release();
+            mStripe[i] = nullptr;
             ++num_failures;
           }
         } else {
-          mStripe[i].release();
+          mStripe[i] = nullptr;
           ++num_failures;
         }
       }
@@ -711,20 +713,24 @@ RainMetaLayout::Read(XrdSfsFileOffset offset, char* buffer,
 
         // Save errors in the map to be recovered
         if (got_error) {
-          eos_err("msg=\"read error\" offset=%llu length=%d msg=\"%s\"",
-                  chunk->offset, chunk->length,
-                  (mStripe[physical_id] ?
-                   mStripe[physical_id]->GetLastErrMsg().c_str() :
-                   "file is null"));
+          if (mStripe[physical_id]) {
+            eos_err("msg=\"read error\" offset=%llu length=%d msg=\"%s\"",
+                    chunk->offset, chunk->length,
+                    mStripe[physical_id]->GetLastErrMsg().c_str());
+          }
+
           all_errs.push_back(*chunk);
           do_recovery = true;
         }
       }
 
       // Try to recover any corrupted blocks
-      if (do_recovery && (!RecoverPieces(all_errs))) {
-        eos_err("%s", "msg=\"read recovery failed\"");
-        return SFS_ERROR;
+      if (do_recovery) {
+        if (!RecoverPieces(all_errs)) {
+          eos_err("msg=\"failed read recovery\" offset=%llu lenght=%d",
+                  offset, length);
+          return SFS_ERROR;
+        }
       }
 
       read_length = length;
@@ -843,7 +849,7 @@ RainMetaLayout::ReadV(XrdCl::ChunkList& chunkList, uint32_t len)
             if (error_type == XrdCl::errOperationExpired) {
               eos_debug("%s", "msg=\"calling close after timeout error\"");
               mStripe[j]->fileClose(mTimeout);
-              mStripe[j].release();
+              mStripe[j] = nullptr;
             }
           }
         }
