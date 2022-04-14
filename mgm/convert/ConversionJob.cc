@@ -158,7 +158,7 @@ void ConversionJob::DoIt() noexcept
     return;
   }
 
-  mStatus = Status::RUNNING;
+  mStatus.store(Status::RUNNING, std::memory_order_relaxed);
 
   // Retrieve file metadata
   try {
@@ -343,7 +343,7 @@ void ConversionJob::DoIt() noexcept
   gOFS->MgmStats.Add("ConversionJobSuccessful", 0, 0, 1);
   eos_static_info("msg=\"conversion successful\" conversion_id=%s",
                   mConversionInfo.ToString().c_str());
-  mStatus = Status::DONE;
+  mStatus.store(Status::DONE, std::memory_order_relaxed);
 
   // Notify the tape garbage collector if tape support is enabled
   if (gOFS->mTapeEnabled) {
@@ -375,7 +375,7 @@ void ConversionJob::HandleError(const std::string& emsg,
   eos_static_err("msg=\"%s\" %s conversion_id=%s", emsg.c_str(), details.c_str(),
                  mConversionInfo.ToString().c_str());
   mErrorString = (details.empty()) ? emsg : (emsg + " -- " + details);
-  mStatus = Status::FAILED;
+  mStatus.store(Status::FAILED, std::memory_order_relaxed);
 }
 
 //------------------------------------------------------------------------------

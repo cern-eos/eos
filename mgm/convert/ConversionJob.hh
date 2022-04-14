@@ -148,7 +148,7 @@ public:
   //----------------------------------------------------------------------------
   inline ConversionJob::Status GetStatus() const
   {
-    return mStatus.load();
+    return mStatus.load(std::memory_order_relaxed);
   }
 
   //----------------------------------------------------------------------------
