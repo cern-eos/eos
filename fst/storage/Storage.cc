@@ -1091,24 +1091,25 @@ Storage::CleanupOrphans(eos::common::FileSystem::fsid_t fsid,
     eos::common::RWMutexReadLock rd_lock(mFsMutex);
 
     for (const auto& elem : mFsMap) {
-      if (elem.second->GetStatus() != eos::common::BootStatus::kBooted) {
-        err_msg << "skip orphans clean up for not-booted file system fsid="
-                << elem.first << std::endl;
-        eos_static_warning("msg=\"skip orphans clean up for not-booted file "
-                           "system\" fsid=%lu", elem.first);
-        success = false;
-
-        if (fsid == 0ul) {
-          continue; // best-effort for general cleanup
-        } else {
-          break;
-        }
-      }
-
       if (fsid == 0ul) {
+        if (elem.second->GetStatus() != eos::common::BootStatus::kBooted) {
+          eos_static_warning("msg=\"skip orphans clean up for not-booted file "
+                             "system, best-effort\" fsid=%lu", elem.first);
+          continue;
+        }
+
         map.emplace(elem.first, elem.second->GetPath());
       } else {
         if (fsid == elem.first) {
+          if (elem.second->GetStatus() != eos::common::BootStatus::kBooted) {
+            err_msg << "skip orphans clean up for not-booted file system fsid="
+                    << elem.first << std::endl;
+            eos_static_warning("msg=\"skip orphans clean up for not-booted file "
+                               "system\" fsid=%lu", elem.first);
+            success = false;
+            break;
+          }
+
           map.emplace(elem.first, elem.second->GetPath());
           break;
         }
