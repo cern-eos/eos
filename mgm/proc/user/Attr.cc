@@ -122,6 +122,11 @@ ProcCommand::Attr()
                         nullptr, true)) {
           stdErr += "error: unable to search in path";
           retc = errno;
+        } else {
+          // Path may be a file, so add it to the list
+          if (found.empty()) {
+            (void) found[spath.c_str()].size();
+          }
         }
       } else {
         // the single dir case
@@ -215,7 +220,7 @@ ProcCommand::Attr()
 
               // Check if the origin exists and is a directory
               if (key == "sys.attr.link") {
-                eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
+                eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
 
                 try {
                   auto cmd = gOFS->eosView->getContainer(val.c_str());
