@@ -1549,7 +1549,7 @@ Quota::SetQuotaTypeForId(const std::string& qpath, long id, Quota::IdT id_type,
 
   // Make sure the quota node exist
   if (!Create(path)) {
-    oss_msg << "error: failed to create quota node: " << path << std::endl;
+    oss_msg << "error: failed to create quota node: " << path;
     msg = oss_msg.str();
     return false;
   }
@@ -1558,7 +1558,7 @@ Quota::SetQuotaTypeForId(const std::string& qpath, long id, Quota::IdT id_type,
   SpaceQuota* squota = GetSpaceQuota(path);
 
   if (!squota) {
-    oss_msg << "error: no quota space defined for node " << path << std::endl;
+    oss_msg << "error: no quota space defined for node " << path;
     msg = oss_msg.str();
     return false;
   }
@@ -1572,7 +1572,7 @@ Quota::SetQuotaTypeForId(const std::string& qpath, long id, Quota::IdT id_type,
           << ((quota_type == Type::kVolume) ? "volume" : "inode")
           << " quota for "
           << ((id_type == IdT::kUid) ? "uid=" : "gid=") << id
-          << " for node " << path << std::endl;
+          << " for node " << path;
   msg = oss_msg.str();
   retc = 0;
   return true;
@@ -1642,7 +1642,7 @@ Quota::RmQuotaTypeForId(const std::string& qpath, long id, Quota::IdT id_type,
   SpaceQuota* squota = GetSpaceQuota(path);
 
   if (!squota) {
-    oss_msg << "error: no quota space defined for node " << path << std::endl;
+    oss_msg << "error: no quota space defined for node " << path;
     msg = oss_msg.str();
     return false;
   }
@@ -1654,7 +1654,7 @@ Quota::RmQuotaTypeForId(const std::string& qpath, long id, Quota::IdT id_type,
             << ((quota_type == Type::kVolume) ? "volume" : "inode")
             << " quota for "
             << ((id_type == IdT::kUid) ? "uid=" : "gid=") << id
-            << " from node " << path << std::endl;
+            << " from node " << path;
     msg = oss_msg.str();
     retc = 0;
     return true;
@@ -1662,8 +1662,7 @@ Quota::RmQuotaTypeForId(const std::string& qpath, long id, Quota::IdT id_type,
     oss_msg << "error: no "
             << ((quota_type == Type::kVolume) ? "volume" : "inode")
             << " quota defined on node " << path << " for "
-            << ((id_type == IdT::kUid) ? "user id" : "group id")
-            << std::endl;
+            << ((id_type == IdT::kUid) ? "user id" : "group id");
     msg = oss_msg.str();
     return false;
   }
