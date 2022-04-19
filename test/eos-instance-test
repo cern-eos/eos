@@ -785,6 +785,7 @@ runtest "### Quota     " unix 0 "" eos quota set -g 99 -p /eos/$EOS_TEST_INSTANC
 runtest "### Upload    " unix 0 "" upload "$TESTSYSFILE1K" "/eos/$EOS_TEST_INSTANCE/test/testproj/1k" "-ODeos.ruid=3"
 runtest "### QUpdate   " unix 0 "" eos quota ls -m "/eos/$EOS_TEST_INSTANCE/test/testproj" | grep "gid=project space=/eos/$EOS_TEST_INSTANCE/test/testproj"
 runtest "### Rem       " unix 2 "" eos rm  "/eos/$EOS_TEST_INSTANCE/test/testproj/1k"
+untest "### RmdQuota   " unix 0 "" eos quota rmnode --really-want -p "/eos/$EOS_TEST_INSTANCE/test/testproj/"
 runtest "### Rmdir     " unix 0 "" eos rmdir "/eos/$EOS_TEST_INSTANCE/test/testproj/"
 fi
 ################################################################################
