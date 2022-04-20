@@ -202,6 +202,17 @@ public:
     return task->get_future();
   }
 
+  template <typename Ret>
+  std::future<Ret> PushTask(std::shared_ptr<std::packaged_task<Ret(void)>>&& task)
+  {
+    auto taskFunc =
+        std::make_pair(true,
+                       std::make_shared<std::function<void(void)>>([task] {
+                         (*task)();
+                       }));
+    mTasks.push(taskFunc);
+    return task->get_future();
+  }
   //----------------------------------------------------------------------------
   //! @brief Stop the thread pool. All threads will be stopped and the pool
   //! cannot be used again.
