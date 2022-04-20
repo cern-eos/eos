@@ -107,7 +107,8 @@ set(COMMON_UT_SRCS
   common/EosTokenTests.cc
   common/BufferManagerTests.cc
   common/ConcurrentQueueTests.cc
-  common/ContainerUtilsTests.cc)
+  common/ContainerUtilsTests.cc
+  common/ObserverMgrTests.cc)
 
 set(FST_UT_SRCS
   fst/XrdFstOfsTests.cc
