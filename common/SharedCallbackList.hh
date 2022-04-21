@@ -37,10 +37,13 @@
  * since you'd use the shared_ptr's internal lock to realize the weak_ptr at callsite
 
  */
+// slot index of where we store the callback, this is indexed from 1;
+using shared_callback_slot_t = uint32_t;
+
 template <typename Ret, typename... Args>
 class SharedRetCallbackList {
 public:
-  using slot_t = uint32_t;
+
   using callable_t = std::function<Ret(Args...)>;
 
   virtual ~SharedRetCallbackList() = default;
@@ -52,7 +55,7 @@ public:
    * @return a tag that you'd need to erase a callback
    */
   template <typename F>
-  [[nodiscard]] slot_t
+  [[nodiscard]] shared_callback_slot_t
   addCallback(F&& f)
   {
     std::lock_guard lg{mtx};
@@ -93,16 +96,16 @@ public:
   }
 
   void
-  rmCallback(slot_t slot)
+  rmCallback(shared_callback_slot_t slot)
   {
     std::lock_guard lg{mtx};
     callables.erase(slot);
   }
 
 private:
-  std::mutex mtx;
-  slot_t index {0};
-  std::map<slot_t, std::shared_ptr<callable_t>> callables;
+  mutable std::mutex mtx;
+  shared_callback_slot_t index {0};
+  std::map<shared_callback_slot_t, std::shared_ptr<callable_t>> callables;
 };
 
 

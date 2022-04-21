@@ -32,11 +32,12 @@ namespace eos::common {
  * notifies all of them of changes
  * @tparam Args - the list of args that you'd need the callbacks to accept
  */
+ // Exposing this here as it'll be hard to use typename ObserverMgr<Args..>::tag
+using observer_tag_t = shared_callback_slot_t;
 
 template <typename... Args>
 class ObserverMgr {
 public:
-  using observer_tag_t = typename SharedCallbackList<Args...>::slot_t;
 
   ObserverMgr() : mThreadPool(2) {}
 
@@ -82,7 +83,8 @@ public:
 
   /*!
    * Synchronously notify all the listeners of the changes, note that this will
-   * block the calling thread, so only meant to be called if it can be ensured that the callbacks would be really small to affect the calling thread
+   * block the calling thread, so only meant to be called if it can be ensured
+   * that the callbacks would be really small to affect the calling thread
    * @param args arguments to be provided for each callback
    */
   void
@@ -96,6 +98,11 @@ public:
     }
   }
 
+  /*!
+   * Asynchronously notify all the listeners of the changes, this job runs
+   * in the ObserverMgr Threadpool and hence doesn't block the calling thread
+   * @param args arguments to be provided for each callback
+   */
   void
   notifyChange(Args&&... args)
   {
@@ -116,8 +123,8 @@ public:
   }
 
 private:
-  eos::common::ThreadPool mThreadPool;
-  std::vector<std::future<void>> async_completions;
+  mutable eos::common::ThreadPool mThreadPool;
+  mutable std::vector<std::future<void>> async_completions;
   SharedCallbackList<Args...> mObservers;
 };
 
