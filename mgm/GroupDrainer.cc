@@ -54,7 +54,7 @@ GroupDrainer::GroupDrain(ThreadAssistant& assistant) noexcept
       config_status = Configure(mSpaceName);
     }
 
-    if (!config_status) {
+    if (!gOFS->mConverterDriver || !config_status) {
       // wait for a few seconds before trying to see for reconfiguration in order
       // to not simply always check the atomic in an inf loop
       assistant.wait_for(std::chrono::seconds(30));
@@ -62,6 +62,8 @@ GroupDrainer::GroupDrain(ThreadAssistant& assistant) noexcept
     }
 
     if (!observer_tag) {
+      // Safe to access gOFS->mConverterDriver as config_status would've failed
+      // before this!
       if (auto mgr = gOFS->mConverterDriver->getObserverMgr()) {
         observer_tag = mgr->addObserver([this](
             ConverterDriver::JobStatusT status,
@@ -76,16 +78,22 @@ GroupDrainer::GroupDrain(ThreadAssistant& assistant) noexcept
           switch (status) {
           case ConverterDriver::JobStatusT::DONE:
             this->dropTransferEntry(info->mFid);
-            eos_static_info("msg=\"Dropping completed entry fid=\"%ul", info->mFid);
+            eos_static_info("msg=\"Dropping completed entry fid=\"%lu", info->mFid);
             break;
           case ConverterDriver::JobStatusT::FAILED:
             this->addFailedTransferEntry(info->mFid, std::move(tag));
-            eos_static_info("msg=\"Tracking failed transfer fid=\"%ul", info->mFid);
+            eos_static_info("msg=\"Tracking failed transfer fid=\"%lu", info->mFid);
             break;
           default:
             eos_static_debug("Handler not applied");
           }
         });
+      } else {
+        // We're reaching here as the converter is still initializing, wait a few seconds
+        eos_info("%s",
+                 "msg=\"Couldn't register observers on Converter, trying again after 30s\"");
+        assistant.wait_for(std::chrono::seconds(30));
+        continue;
       }
     }
 
@@ -317,6 +325,11 @@ GroupDrainer::Configure(const string& spaceName)
   }
   eos::common::StringToNumeric(
       space->GetConfigMember("groupdrainer.ntx"), numTx, DEFAULT_NUM_TX);
+
+  eos::common::StringToNumeric(
+      space->GetConfigMember("groupdrainer.retry_interval"), mRetryInterval,
+      DEFAULT_RETRY_INTERVAL);
+
   uint64_t cache_expiry_time;
   bool status = eos::common::StringToNumeric(
       space->GetConfigMember("groupdrainer.group_refresh_interval"),
@@ -344,7 +357,9 @@ GroupDrainer::handleRetries(eos::common::FileSystem::fsid_t fsid,
     return;
   }
 
-  if (tracker.need_update()) {
+  if (tracker.need_update(mRetryInterval)) {
+    eos_info("msg=\"Retrying failed transfers for\" fsid=%lu, count=%lu",
+             fsid, fids.size());
     mCacheFileList.insert_or_assign(fsid, std::move(fids));
     mFsidRetryCtr[fsid].update();
   }

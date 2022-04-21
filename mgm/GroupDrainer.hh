@@ -41,7 +41,7 @@ class BalancerEngine;
 constexpr uint32_t FID_CACHE_LIST_SZ=1000;
 constexpr uint32_t DEFAULT_NUM_TX = 1000;
 constexpr uint64_t DEFAULT_CACHE_EXPIRY_TIME = 300;
-constexpr uint64_t DEFAULT_RETRY_INTERVAL = 2*3600;
+constexpr uint64_t DEFAULT_RETRY_INTERVAL = 4*3600;
 constexpr uint16_t MAX_RETRIES = 5;
 
 class GroupDrainer: public eos::common::LogId {
@@ -123,6 +123,7 @@ private:
   AssistedThread mThread;
   std::unique_ptr<group_balancer::BalancerEngine> mEngine;
   uint32_t numTx; // < Max no of transactions to keep in flight
+  uint64_t mRetryInterval; // < Retry Interval for failed transfers
   double mThreshold;
 
   group_balancer::engine_conf_t mDrainerEngineConf; ///< string k-v map of engine conf

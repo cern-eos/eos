@@ -766,6 +766,7 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config,
             (key == "groupdrainer") ||
             (key == "groupdrainer.threshold") ||
             (key == "groupdrainer.group_refresh_interval") ||
+            (key == "groupdrainer.retry_interval") ||
             (key == "groupdrainer.ntx") ||
             (key == "geo.access.policy.read.exact") ||
             (key == "geo.access.policy.write.exact") ||
@@ -783,6 +784,20 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config,
             (key == eos::common::SCAN_NS_INTERVAL_NAME) ||
             (key == eos::common::SCAN_NS_RATE_NAME) ||
             (key == eos::common::FSCK_REFRESH_INTERVAL_NAME)) {
+
+          // Fix for the rare case someone sends this command at startup wherein
+          // the various subcomponents aren't initialized yet. In case of these
+          // we call the reconfigure() method, so we need to make sure that the component
+          // exists beforehand
+          if ((eos::common::startsWith(key, "groupdrainer") &&
+               !FsView::gFsView.mSpaceView[config.mgmspace_name()]->mGroupDrainer) ||
+              (eos::common::startsWith(key, "groupbalancer") &&
+               !FsView::gFsView.mSpaceView[config.mgmspace_name()]->mGroupBalancer)) {
+            reply.set_std_err("Component not initialized, please wait!");
+            reply.set_retc(EIO);
+            return;
+          }
+
           if ((key == "balancer") || (key == "converter") || (key == "tracker") ||
               (key == "inspector") || (key == "lru") ||
               (key == "groupbalancer") || (key == "geobalancer") ||

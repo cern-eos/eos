@@ -443,6 +443,7 @@ void com_space_help()
       << "space config <space-name> space.groupdrainer=on|off                   : enable/disable the group drainer [ default=on ]\n"
       << "space config <space-name> space.groupdrainer.threshold=<threshold>    : configure the threshold(%) for picking target groups\n"
       << "space config <space-name> space.groupdrainer.group_refresh_interval   : configure time in seconds for refreshing cached groups info [default=300]\n"
+      << "space config <space-name> space.groupdrainer.retry_interval           : configure time in seconds for retrying failed drains [default=4*3600]\n"
       << "space config <space-name> space.groupdrainer.ntx                      : configure the max file transfer queue size [default=10000]\n"
       << "space config <space-name> space.lru=on|off                            : enable/disable the LRU policy engine [ default=off ]\n"
       << "space config <space-name> space.lru.interval=<sec>                    : configure the default lru scan interval\n"
