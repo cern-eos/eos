@@ -152,8 +152,9 @@ ConverterDriver::HandleRunningJobs()
   eos::common::RWMutexWriteLock wlock(mJobsMutex);
 
   for (auto it = mJobsRunning.begin(); it != mJobsRunning.end(); /**/) {
-    if (((*it)->GetStatus() == ConversionJob::Status::DONE) ||
-        ((*it)->GetStatus() == ConversionJob::Status::FAILED)) {
+    if (auto job_status = (*it)->GetStatus();
+        (job_status == ConversionJob::Status::DONE) ||
+        (job_status == ConversionJob::Status::FAILED)) {
       auto fid = (*it)->GetFid();
 
       if (!mQdbHelper.RemovePendingJob(fid)) {
@@ -161,10 +162,10 @@ ConverterDriver::HandleRunningJobs()
                        "fid=%llu", fid);
       }
 
-      if ((*it)->GetStatus() == ConversionJob::Status::FAILED) {
+      if (job_status == ConversionJob::Status::FAILED) {
         mQdbHelper.AddFailedJob(*it);
       }
-
+      mObserverMgr->notifyChange(job_status, (*it)->GetConversionString());
       it = mJobsRunning.erase(it);
     } else {
       ++it;
