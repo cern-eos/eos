@@ -1576,6 +1576,8 @@ FmdDbMapHandler::GetInconsistencyStatistics(eos::common::FileSystem::fsid_t
     }
   }
 
+  eos_static_info("msg=\"finished inconsistency statistics update\" fsid=%lu",
+                  fsid);
   return true;
 }
 
