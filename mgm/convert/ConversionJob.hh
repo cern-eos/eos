@@ -35,6 +35,8 @@ EOSMGMNAMESPACE_BEGIN
 
 //! Forward declaration
 class ConversionJob;
+enum class ConversionJobStatus { DONE, RUNNING, PENDING, FAILED };
+
 static std::string EOS_APP_NAME="eos/converter";
 
 //------------------------------------------------------------------------------
@@ -114,9 +116,9 @@ private:
 class ConversionJob : public eos::common::LogId
 {
 public:
-  //! Possible status of a conversion job
-  enum class Status { DONE, RUNNING, PENDING, FAILED };
 
+  //! Possible status of a conversion job
+  using Status = ConversionJobStatus;
   //----------------------------------------------------------------------------
   //! Constructor
   //!

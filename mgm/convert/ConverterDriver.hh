@@ -24,6 +24,7 @@
 #pragma once
 
 #include "common/Logging.hh"
+#include "common/ObserverMgr.hh"
 #include "mgm/Namespace.hh"
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/convert/ConversionJob.hh"
@@ -36,7 +37,7 @@ EOSMGMNAMESPACE_BEGIN
 
 //! Forward declaration
 class ConversionJob;
-
+enum class ConversionJobStatus;
 //------------------------------------------------------------------------------
 //! @brief Class running the conversion threadpool
 //------------------------------------------------------------------------------
@@ -45,6 +46,8 @@ class ConverterDriver : public eos::common::LogId
 public:
   using JobInfoT = std::pair<eos::IFileMD::id_t, std::string>;
   using JobFailedT = std::pair<std::string, std::string>;
+  using JobStatusT = ConversionJobStatus;
+  using ObserverT = eos::common::ObserverMgr<JobStatusT, std::string>;
 
   //----------------------------------------------------------------------------
   //! Constructor
@@ -53,7 +56,8 @@ public:
     mQdbHelper(qdb_details), mIsRunning(false),
     mThreadPool(std::thread::hardware_concurrency(), cDefaultMaxThreadPoolSize,
                 10, 5, 3, "converter"),
-    mMaxThreadPoolSize(cDefaultMaxThreadPoolSize), mTimestamp()
+    mMaxThreadPoolSize(cDefaultMaxThreadPoolSize), mTimestamp(),
+    mObserverMgr(std::make_unique<ObserverT>())
   {}
 
   //----------------------------------------------------------------------------
@@ -178,6 +182,14 @@ public:
   void ClearFailedJobs()
   {
     return mQdbHelper.ClearFailedJobs();
+  }
+
+  //----------------------------------------------------------------------------
+  //! Get Observer Mgr, useful for other threads to register observers
+  //----------------------------------------------------------------------------
+  auto getObserverMgr()
+  {
+    return mObserverMgr.get();
   }
 
 private:
@@ -308,6 +320,8 @@ private:
   mutable eos::common::RWMutex mJobsMutex;
   ///! Pending jobs in memory
   eos::common::ConcurrentQueue<JobInfoT> mPendingJobs;
+  std::unique_ptr<ObserverT> mObserverMgr;
+
 };
 
 EOSMGMNAMESPACE_END
