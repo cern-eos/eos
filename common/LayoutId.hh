@@ -1529,15 +1529,53 @@ public:
     return mode_xrdcl;
   }
 
+  //----------------------------------------------------------------------------
+  //! Get expected stripe size for RAIN layouts given the logical size of the
+  //! file
+  //!
+  //! @param lid layout id
+  //! @param file size logical file size
+  //!
+  //! @return expected physical files of the stripes
+  //----------------------------------------------------------------------------
+  static uint64_t ExpectedStripeSize(const uint32_t lid,
+                                     const uint64_t file_size)
+  {
+    if (!IsRain(lid)) {
+      return file_size;
+    }
+
+    uint64_t stripe_size = 0ull;
+    unsigned long layout_type = GetLayoutType(lid);
+    unsigned long block_size = GetBlocksize(lid);
+    unsigned long num_all_stripes = GetStripeNumber(lid) + 1;
+    unsigned long num_parity_stripes = GetRedundancyStripeNumber(lid);
+    unsigned long num_data_stripes = num_all_stripes - num_parity_stripes;
+    unsigned long rain_group_sz = 0ull;
+    unsigned long stripe_group_sz = 0ull;
+
+    if (layout_type == kRaidDP) {
+      rain_group_sz = num_data_stripes * num_data_stripes * block_size;
+      stripe_group_sz = num_data_stripes * block_size;
+    } else {
+      rain_group_sz = num_data_stripes * block_size;
+      stripe_group_sz = block_size;
+    }
+
+    stripe_size = std::ceil(1.0 * file_size / rain_group_sz) * stripe_group_sz;
+    stripe_size += OssXsBlockSize;
+    return stripe_size;
+  }
+
   //--------------------------------------------------------------------------
   //! Constructor
   //--------------------------------------------------------------------------
-  LayoutId();
+  LayoutId() = default;
 
   //--------------------------------------------------------------------------
   //! Destructor
   //--------------------------------------------------------------------------
-  ~LayoutId();
+  ~LayoutId() = default;
 };
 
 EOSCOMMONNAMESPACE_END

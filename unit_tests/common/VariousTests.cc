@@ -26,6 +26,7 @@
 #include "common/TransferQueue.hh"
 #include "common/Locators.hh"
 #include "common/InstanceName.hh"
+#include "common/LayoutId.hh"
 #include "Namespace.hh"
 #include "gtest/gtest.h"
 #include <list>
@@ -55,9 +56,9 @@ TEST(FileSystemLocator, BasicSanity)
   ASSERT_EQ(locator.getHostPort(), "somehost.cern.ch:1095");
   ASSERT_EQ(locator.getQueuePath(), "/eos/somehost.cern.ch:1095/fst/data05");
   ASSERT_EQ(locator.getFSTQueue(), "/eos/somehost.cern.ch:1095/fst");
-
   SharedHashLocator hashLocator(locator, true);
-  ASSERT_EQ(hashLocator.getQDBKey(), "eos-hash||fs||somehost.cern.ch:1095||/data05");
+  ASSERT_EQ(hashLocator.getQDBKey(),
+            "eos-hash||fs||somehost.cern.ch:1095||/data05");
 }
 
 TEST(FileSystemLocator, ParseStorageType)
@@ -115,9 +116,9 @@ TEST(FileSystemLocator, RemoteFileSystem)
   ASSERT_EQ(locator.getQueuePath(),
             "/eos/example-host.cern.ch:1095/fsthttps://remote.example.cern.ch/path/");
   ASSERT_EQ(locator.getFSTQueue(), "/eos/example-host.cern.ch:1095/fst");
-
   SharedHashLocator hashLocator(locator, true);
-  ASSERT_EQ(hashLocator.getQDBKey(), "eos-hash||fs||example-host.cern.ch:1095||https://remote.example.cern.ch/path/");
+  ASSERT_EQ(hashLocator.getQDBKey(),
+            "eos-hash||fs||example-host.cern.ch:1095||https://remote.example.cern.ch/path/");
 }
 
 TEST(GroupLocator, BasicSanity)
@@ -196,14 +197,12 @@ TEST(SharedHashLocator, BasicSanity)
   ASSERT_EQ(locator.getConfigQueue(), "/config/eosdev/space/default");
   ASSERT_EQ(locator.getBroadcastQueue(), "/eos/*/mgm");
   ASSERT_EQ(locator.getQDBKey(), "eos-hash||space||default");
-
   locator = SharedHashLocator("eosdev", SharedHashLocator::Type::kGroup,
                               "default.0");
   ASSERT_FALSE(locator.empty());
   ASSERT_EQ(locator.getConfigQueue(), "/config/eosdev/group/default.0");
   ASSERT_EQ(locator.getBroadcastQueue(), "/eos/*/mgm");
   ASSERT_EQ(locator.getQDBKey(), "eos-hash||group||default.0");
-
   locator = SharedHashLocator("eosdev", SharedHashLocator::Type::kNode,
                               "/eos/example.com:3003/fst");
   ASSERT_FALSE(locator.empty());
@@ -269,7 +268,8 @@ TEST(SharedHashLocator, ForFilesystem)
   ASSERT_EQ(hashLocator.getConfigQueue(),
             "/eos/somehost.cern.ch:1095/fst/data05");
   ASSERT_EQ(hashLocator.getBroadcastQueue(), "/eos/somehost.cern.ch:1095/fst");
-  ASSERT_EQ(hashLocator.getQDBKey(), "eos-hash||fs||somehost.cern.ch:1095||/data05");
+  ASSERT_EQ(hashLocator.getQDBKey(),
+            "eos-hash||fs||somehost.cern.ch:1095||/data05");
 }
 
 TEST(SharedHashLocator, Initialization)
@@ -286,7 +286,6 @@ TEST(SharedHashLocator, Parsing)
   ASSERT_EQ(locator.getConfigQueue(), "/config/eosdev/space/default");
   ASSERT_EQ(locator.getBroadcastQueue(), "/eos/*/mgm");
   ASSERT_EQ(locator.getQDBKey(), "eos-hash||space||default");
-
   ASSERT_FALSE(
     SharedHashLocator::fromConfigQueue("/config/eosdev/space/default/aa", locator));
   ASSERT_FALSE(SharedHashLocator::fromConfigQueue("/config/eosdev/space",
@@ -296,18 +295,48 @@ TEST(SharedHashLocator, Parsing)
   ASSERT_EQ(locator.getConfigQueue(), "/config/eosdev/group/default.0");
   ASSERT_EQ(locator.getBroadcastQueue(), "/eos/*/mgm");
   ASSERT_EQ(locator.getQDBKey(), "eos-hash||group||default.0");
-
   ASSERT_TRUE(
     SharedHashLocator::fromConfigQueue("/config/eosdev/node/example.com:3003",
                                        locator));
   ASSERT_EQ(locator.getConfigQueue(), "/config/eosdev/node/example.com:3003");
   ASSERT_EQ(locator.getBroadcastQueue(), "/eos/example.com:3003/fst");
   ASSERT_EQ(locator.getQDBKey(), "eos-hash||node||example.com:3003");
-
   ASSERT_TRUE(SharedHashLocator::fromConfigQueue("/config/eosdev/mgm/", locator));
   ASSERT_EQ(locator.getConfigQueue(), "/config/eosdev/mgm/");
   ASSERT_EQ(locator.getBroadcastQueue(), "/eos/*/mgm");
   ASSERT_EQ(locator.getQDBKey(), "eos-global-config-hash");
+}
+
+TEST(LayoutId, RainStripeSize)
+{
+  using eos::common::LayoutId;
+  // std::map<expected_stripe_size, std::pair<layout_id, file_size>
+  std::map<uint64_t, std::pair<std::string, uint32_t>> map_tests {
+    // 0KB file size RAIDDP with 1MB block size
+    {4 * KB, {"0x20640532", 0}},
+    // 4KB file size RAIDDP with 1MB block size
+    {4 * MB + 4 * KB , {"0x20640532", 4 * KB}},
+    // 10MB file size RAIDDP with 1MB block size
+    {4 * MB + 4 * KB, {"0x20640532", 10 * MB}},
+    // 17MB file size RAIDDP with 1MB block size
+    {8 * MB + 4 * KB, {"0x20640532", 17 * MB}},
+    // 17MB file size RAIDDP with 1MB block size
+    {40 * MB + 4 * KB, {"0x20640532", 151 * MB}},
+    // 1 bytes file size RAIN 4+2 with 1MB block size
+    {1 * MB + 4 * KB, {"0x20640542", 1}},
+    // 7MB + 5 file size RAIN 4+2 with 1MB block size
+    {2 * MB + 4 * KB, {"0x20640542", 7 * MB + 5}},
+    // 33MB + 8KB file size RAIN 4+2 with 1MB block size
+    {9 * MB + 4 * KB, {"0x20640542", 33 * MB + 8 * KB}},
+    // 33MB + 8KB file size RAIN 4+2 with 1MB block size
+    {69 * MB + 4 * KB, {"0x20640542", 273 * MB}}
+  };
+
+  for (const auto& test : map_tests) {
+    ASSERT_EQ(test.first,
+              LayoutId::ExpectedStripeSize(std::stoul(test.second.first, nullptr, 16),
+                                           test.second.second));
+  }
 }
 
 EOSCOMMONTESTING_END
