@@ -611,7 +611,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
     if ((val = openOpaque->Get("eos.key"))) {
       mEosKey = val;
 
-      if (mEosObfuscate == 0) {
+      if (mEosObfuscate != 0) {
         mEosObfuscate = 1;
       }
     }

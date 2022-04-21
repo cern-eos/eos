@@ -903,12 +903,13 @@ ScanDir::EnforceAndAdjustScanRate(const off_t offset,
   if (scan_rate && mFstLoad) {
     uint64_t now_ts_msec = duration_cast<milliseconds>
                            (mClock.getTime().time_since_epoch()).count();
-    uint64_t scan_duration_msec = now_ts_sec - open_ts_msec;
+    uint64_t scan_duration_msec = now_ts_msec - open_ts_msec;
     uint64_t expect_duration_msec = (uint64_t)((1.0 * offset) /
                                     (scan_rate * 1024 * 1024)) * 1000;
 
     if (expect_duration_msec > scan_duration_msec) {
-      std::this_thread::sleep_for(milliseconds(expect_duration - scan_duration));
+      std::this_thread::sleep_for(milliseconds(expect_duration_msec -
+                                  scan_duration_msec));
     }
 
     // Adjust the rate according to the load information
