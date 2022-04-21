@@ -155,43 +155,47 @@ com_io(char* arg1)
                       if (option == "-x") {
                         options += "x";
                       } else {
-                        if (option == "--sa") {
-                          option = subtokenizer.GetToken();
-
-                          if (!option.length()) {
-                            goto com_io_usage;
-                          } else {
-                            time_ago = option.c_str();
-                          }
-
-                          continue;
+                        if (option == "--ss") {
+                          options += "ss";
                         } else {
-                          if (option == "--si") {
+                          if (option == "--sa") {
                             option = subtokenizer.GetToken();
-
+  
                             if (!option.length()) {
                               goto com_io_usage;
                             } else {
-                              time_interval = option.c_str();
+                              time_ago = option.c_str();
                             }
-
+  
                             continue;
                           } else {
-                            if (option == "-l") {
-                              options += "l";
-                            } else {
-                              if (option == "-p") {
-                                options += "p";
+                            if (option == "--si") {
+                              option = subtokenizer.GetToken();
+  
+                              if (!option.length()) {
+                                goto com_io_usage;
                               } else {
-                                if (option == "--udp") {
-                                  target = subtokenizer.GetToken();
-
-                                  if ((!target.length()) ||
-                                      (target.beginswith("-"))) {
+                                time_interval = option.c_str();
+                              }
+  
+                              continue;
+                            } else {
+                              if (option == "-l") {
+                                options += "l";
+                              } else {
+                                if (option == "-p") {
+                                  options += "p";
+                                } else {
+                                  if (option == "--udp") {
+                                    target = subtokenizer.GetToken();
+  
+                                    if ((!target.length()) ||
+                                        (target.beginswith("-"))) {
+                                      goto com_io_usage;
+                                    }
+                                  } else {
                                     goto com_io_usage;
                                   }
-                                } else {
-                                  goto com_io_usage;
                                 }
                               }
                             }
@@ -230,7 +234,7 @@ com_io(char* arg1)
   return (0);
 com_io_usage:
   fprintf(stdout,
-          "usage: io stat [-l] [-a] [-m] [-n] [-t] [-d] [-x] [--sa] [--si]              :  print io statistics\n");
+          "usage: io stat [-l] [-a] [-m] [-n] [-t] [-d] [-x] [--ss] [--sa] [--si]              :  print io statistics\n");
   fprintf(stdout,
           "                -l                                                   -  show summary information (this is the default if -t,-d,-x is not selected)\n");
   fprintf(stdout,
@@ -245,6 +249,8 @@ com_io_usage:
           "                -d                                                   -  break down by domains\n");
   fprintf(stdout,
           "                -x                                                   -  break down by application\n");
+  fprintf(stdout,
+          "                --ss                                                 -  show table with transfer sample statistics\n");    
   fprintf(stdout,
           "                --sa                                                 -  start collection of statistics given number of seconds ago\n");
   fprintf(stdout,

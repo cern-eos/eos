@@ -16,8 +16,9 @@ message IoProto {
     bool domain       = 5;
     bool apps         = 6;
     bool summary      = 7;
-    uint64 time_ago  = 8;
-    uint64 time_interval = 9;
+    bool sample_stat   = 8;
+    uint64 time_ago  = 9;
+    uint64 time_interval = 10;
   }
 
   message EnableProto {

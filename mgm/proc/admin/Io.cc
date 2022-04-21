@@ -173,6 +173,7 @@ ProcCommand::Io()
     bool domain = false;
     bool apps = false;
     bool summary = false;
+    bool sample_stat = false;
     time_t time_ago = std::stoull(pOpaque->Get("mgm.timeago"));
     time_t time_interval = std::stoull(pOpaque->Get("mgm.timeinterval"));
 
@@ -204,6 +205,10 @@ ProcCommand::Io()
       summary = true;
     }
 
+    if ((option.find("ss") != STR_NPOS)) {
+      sample_stat = true;
+    }
+
     // If nothing is selected, we show the summary information
     if (!(apps | domain | top | details)) {
       summary = true;
@@ -211,7 +216,7 @@ ProcCommand::Io()
 
     eos_info("io stat");
     gOFS->IoStats->PrintOut(stdOut, summary, details, monitoring, numerical,
-                            top, domain, apps, time_ago, time_interval, option);
+                            top, domain, apps, sample_stat, time_ago, time_interval, option);
   }
 
   if (mSubCmd == "ns") {

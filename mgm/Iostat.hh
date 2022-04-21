@@ -361,7 +361,7 @@ public:
   //------------------------------------------------------------------------------
   void PrintOut(XrdOucString& out, bool summary, bool details, bool monitoring,
                 bool numerical = false, bool top = false, bool domain = false,
-                bool apps = false, time_t time_ago = 0,
+                bool apps = false, bool sample_stat = false, time_t time_ago = 0,
                 time_t time_interval = 0, XrdOucString option = "");
 
   //----------------------------------------------------------------------------

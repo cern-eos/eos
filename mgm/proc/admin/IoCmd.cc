@@ -76,12 +76,14 @@ void IoCmd::StatSubcmd(const eos::console::IoProto_StatProto& stat,
     gOFS->IoStats->PrintOut(out, true, stat.details(),
                             monitoring, stat.numerical(),
                             stat.top(), stat.domain(), stat.apps(), 
-                            stat.time_ago(), stat.time_interval());
+                            stat.sample_stat(), stat.time_ago(), 
+                            stat.time_interval());
   } else {
     gOFS->IoStats->PrintOut(out, stat.summary(), stat.details(),
                             monitoring, stat.numerical(),
                             stat.top(), stat.domain(), stat.apps(), 
-                            stat.time_ago(), stat.time_interval());
+                            stat.sample_stat(), stat.time_ago(), 
+                            stat.time_interval());
   }
 
   if (WantsJsonOutput()) {
