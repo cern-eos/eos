@@ -676,7 +676,7 @@ FmdDbMapHandler::UpdateWithMgmInfo(eos::common::FileSystem::fsid_t fsid,
   if (valfmd.mProtoFmd.size() == eos::common::FmdHelper::UNDEF) {
     valfmd.mProtoFmd.set_size(mgmsize);
   } else {
-    // For RAIN layouts the logical size (should) matche the MGM size
+    // For RAIN layouts the logical size (should) match the MGM size
     // even if it is already set
     if (eos::common::LayoutId::IsRain(lid)) {
       valfmd.mProtoFmd.set_size(mgmsize);
@@ -1543,11 +1543,17 @@ FmdDbMapHandler::GetInconsistencyStatistics(eos::common::FileSystem::fsid_t
         statistics["d_sync_n"]++;
 
         if (proto_fmd.size() != eos::common::FmdHelper::UNDEF) {
-          // Report missmatch only for non-rain layout files
-          if (!LayoutId::IsRain(proto_fmd.lid()) &&
-              (proto_fmd.size() != proto_fmd.disksize())) {
-            statistics["d_mem_sz_diff"]++;
-            fidset["d_mem_sz_diff"].insert(proto_fmd.fid());
+          if (LayoutId::IsRain(proto_fmd.lid())) {
+            if (proto_fmd.disksize() != LayoutId::ExpectedStripeSize(proto_fmd.lid(),
+                proto_fmd.size())) {
+              statistics["d_mem_sz_diff"]++;
+              fidset["d_mem_sz_diff"].insert(proto_fmd.fid());
+            }
+          } else {
+            if (proto_fmd.size() != proto_fmd.disksize()) {
+              statistics["d_mem_sz_diff"]++;
+              fidset["d_mem_sz_diff"].insert(proto_fmd.fid());
+            }
           }
         }
       }
