@@ -12,7 +12,7 @@
 #include "namespace/interface/IFsView.hh"
 #include "mgm/FsView.hh"
 #include "common/FileSystem.hh"
-
+#include "mgm/utils/FileSystemStatusUtils.hh"
 
 namespace eos::mgm {
 
@@ -190,7 +190,7 @@ GroupDrainer::prepareTransfer(uint64_t index)
   auto fsids = mDrainFsMap.find(grp_drain_from);
   if (fsids == mDrainFsMap.end() || isUpdateNeeded(mDrainMapLastUpdated, mRefreshFSMap)) {
     std::tie(fsids, std::ignore) = mDrainFsMap.insert_or_assign(grp_drain_from,
-                                                                FsidsinGroup(grp_drain_from));
+                                                                fsutils::FsidsinGroup(grp_drain_from));
     if (fsids->second.empty()) {
       // We reach here when all the FSes in the group are either offline or empty!
       // force a refresh of Groups Info for the next cycle, in that case the new
@@ -258,58 +258,37 @@ GroupDrainer::populateFids(eos::common::FileSystem::fsid_t fsid)
   //TODO: mark FSes in RO after threshold percent drain
   auto total_files = gOFS->eosFsView->getNumFilesOnFs(fsid);
   if (total_files == 0) {
-    ApplyDrainedStatus(fsid);
+    fsutils::ApplyDrainedStatus(fsid);
     mCacheFileList.erase(fsid);
 
     return {false, mCacheFileList.end()};
   }
-  std::vector<eos::common::FileId::fileid_t> local_fids;
-  uint32_t ctr = 0;
-  for (auto it_fid = gOFS->eosFsView->getStreamingFileList(fsid);
-       it_fid && it_fid->valid();
-       it_fid->next())
-  {
-    if (ctr > FID_CACHE_LIST_SZ)
-      break;
 
-    auto fid = it_fid->getElement();
-    if (!mTransfers.count(fid) && !mFailedTransfers.count(fid)) {
-      local_fids.emplace_back(it_fid->getElement());
-      ++ctr;
+  std::vector<eos::common::FileId::fileid_t> local_fids;
+  std::vector<eos::common::FileId::fileid_t> failed_fids;
+  uint32_t ctr = 0;
+
+  {
+    std::scoped_lock slock(mTransfersMtx, mFailedTransfersMtx);
+    for (auto it_fid = gOFS->eosFsView->getStreamingFileList(fsid);
+         it_fid && it_fid->valid() && ctr < FID_CACHE_LIST_SZ;
+         it_fid->next()) {
+      auto fid = it_fid->getElement();
+      if (mFailedTransfers.count(fid)) {
+        failed_fids.emplace_back(fid);
+      } else if (!mTransfers.count(fid)) {
+        local_fids.emplace_back(fid);
+        ++ctr;
+      }
     }
+  }
+
+  if (local_fids.empty() && !failed_fids.empty()) {
+    handleRetries(fsid, std::move(failed_fids));
   }
   auto [it, _] = mCacheFileList.insert_or_assign(fsid, std::move(local_fids));
   return {true, it};
 }
-
-void
-GroupDrainer::ApplyDrainedStatus(unsigned int fsid)
-{
-  eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
-  auto fs = FsView::gFsView.mIdView.lookupByID(fsid);
-
-  if (fs) {
-    auto status = eos::common::DrainStatus::kDrained;
-    eos::common::FileSystemUpdateBatch batch;
-    batch.setDrainStatusLocal(status);
-    batch.setLongLongLocal("local.drain.bytesleft", 0);
-    batch.setLongLongLocal("local.drain.timeleft", 0);
-    batch.setLongLongLocal("local.drain.failed", 0);
-    batch.setLongLongLocal("local.drain.files", 0);
-
-    if (!gOFS->Shutdown) {
-      // If drain done and the system is not shutting down then set the
-      // file system to "empty" state
-      batch.setLongLongLocal("local.drain.progress", 100);
-      batch.setLongLongLocal("local.drain.failed", 0);
-      batch.setStringDurable("configstatus", "empty");
-      FsView::gFsView.StoreFsConfig(fs);
-    }
-
-    fs->applyBatch(batch);
-  }
-}
-
 
 bool
 GroupDrainer::Configure(const string& spaceName)
@@ -354,30 +333,21 @@ GroupDrainer::Configure(const string& spaceName)
   return true;
 }
 
-
-
-
-std::vector<eos::common::FileSystem::fsid_t>
-FsidsinGroup(const string& groupname)
+void
+GroupDrainer::handleRetries(eos::common::FileSystem::fsid_t fsid,
+                            std::vector<eos::common::FileId::fileid_t>&& fids)
 {
-  std::vector<eos::common::FileSystem::fsid_t> result;
-  eos::common::RWMutexReadLock rlock(FsView::gFsView.ViewMutex);
-  auto group_it = FsView::gFsView.mGroupView.find(groupname);
-  if (group_it == FsView::gFsView.mGroupView.end()) {
-    eos_static_err("msg=\"group not found: \" %s", groupname.c_str());
-    return {};
+  auto tracker = mFsidRetryCtr[fsid];
+  if (tracker.count > MAX_RETRIES) {
+    fsutils::ApplyFailedDrainStatus(fsid, fids.size());
+    mCacheFileList.erase(fsid);
+    return;
   }
 
-  for (auto fs_it=group_it->second->begin();
-       fs_it != group_it->second->end();
-       ++fs_it) {
-    auto target = FsView::gFsView.mIdView.lookupByID(*fs_it);
-    if (target &&
-        target->GetActiveStatus() == eos::common::ActiveStatus::kOnline &&
-        target->GetDrainStatus() == eos::common::DrainStatus::kNoDrain) {
-      result.emplace_back(*fs_it);
-    }
+  if (tracker.need_update()) {
+    mCacheFileList.insert_or_assign(fsid, std::move(fids));
+    mFsidRetryCtr[fsid].update();
   }
-  return result;
 }
+
 } // eos::mgm

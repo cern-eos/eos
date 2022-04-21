@@ -36,14 +36,13 @@ namespace eos::mgm {
 
 namespace group_balancer {
 class BalancerEngine;
-} // group_balancer
-
-std::vector<eos::common::FileSystem::fsid_t>
-FsidsinGroup(const string& groupname);
+} // namespace group_balancer
 
 constexpr uint32_t FID_CACHE_LIST_SZ=1000;
 constexpr uint32_t DEFAULT_NUM_TX = 1000;
 constexpr uint64_t DEFAULT_CACHE_EXPIRY_TIME = 300;
+constexpr uint64_t DEFAULT_RETRY_INTERVAL = 2*3600;
+constexpr uint16_t MAX_RETRIES = 5;
 
 class GroupDrainer: public eos::common::LogId {
 public:
@@ -87,6 +86,31 @@ public:
     mFailedTransfers.emplace(fid, std::move(entry));
   }
 
+  void handleRetries(eos::common::FileSystem::fsid_t fsid,
+                     std::vector<eos::common::FileId::fileid_t>&& fids);
+
+  struct RetryTracker {
+    uint16_t count;
+    std::chrono::time_point<std::chrono::steady_clock> last_run_time;
+
+    RetryTracker() : count(0) {}
+
+    bool need_update(uint64_t retry_interval=DEFAULT_RETRY_INTERVAL) {
+      if (count == 0) {
+        return true;
+      }
+      using namespace std::chrono_literals;
+      auto curr_time  = chrono::steady_clock::now();
+      auto elapsed = chrono::duration_cast<chrono::seconds>(curr_time - last_run_time);
+      return elapsed.count() > retry_interval;
+    }
+
+    void update() {
+      ++count;
+      last_run_time = chrono::steady_clock::now();
+    }
+  };
+
 private:
   bool mRefreshFSMap {true};
   bool mRefreshGroups {true};
@@ -113,8 +137,9 @@ private:
   //! this is unlikely to have more than a single digit number of keys..maybe a
   //! a vector of pairs might be ok?
   std::map<std::string, std::vector<common::FileSystem::fsid_t>> mDrainFsMap;
+  std::map<common::FileSystem::fsid_t, RetryTracker> mFsidRetryCtr;
+  std::set<common::FileSystem::fsid_t> mFailedFsids;
   cache_fid_map_t mCacheFileList;
-  void ApplyDrainedStatus(unsigned int fsid);
 };
 
 } // namespace eos::mgm
