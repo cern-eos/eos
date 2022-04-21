@@ -89,6 +89,8 @@ public:
   void handleRetries(eos::common::FileSystem::fsid_t fsid,
                      std::vector<eos::common::FileId::fileid_t>&& fids);
 
+  std::string getStatus() const;
+
   struct RetryTracker {
     uint16_t count;
     std::chrono::time_point<std::chrono::steady_clock> last_run_time;

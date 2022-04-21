@@ -112,6 +112,10 @@ SpaceCmd::ProcessRequest() noexcept
     GroupBalancerSubCmd(space.groupbalancer(), reply);
     break;
 
+  case eos::console::SpaceProto::kGroupdrainer:
+    GroupDrainerSubCmd(space.groupdrainer(), reply);
+    break;
+
   default:
     reply.set_std_err("error: not supported");
     reply.set_retc(EINVAL);
@@ -1332,6 +1336,7 @@ void SpaceCmd::GroupBalancerSubCmd(const
   if (groupbalancer.mgmspace().empty()) {
     reply.set_std_err("error: A spacename is needed for this cmd");
     reply.set_retc(EINVAL);
+    return;
   }
 
   auto space_it = FsView::gFsView.mSpaceView.find(groupbalancer.mgmspace());
@@ -1369,6 +1374,34 @@ void SpaceCmd::GroupBalancerStatusCmd(const
   bool monitoring = status.options().find('m') != std::string::npos;
   bool detail = status.options().find('d') != std::string::npos;
   reply.set_std_out(fs_space->mGroupBalancer->Status(detail, monitoring));
+  reply.set_retc(0);
+}
+void
+SpaceCmd::GroupDrainerSubCmd(const eos::console::SpaceProto_GroupDrainerProto& groupdrainer,
+                             console::ReplyProto& reply)
+{
+  if (groupdrainer.mgmspace().empty()) {
+    reply.set_std_err("error: A spacename is needed for this cmd");
+    reply.set_retc(EINVAL);
+    return;
+  }
+
+  auto space_it = FsView::gFsView.mSpaceView.find(groupdrainer.mgmspace());
+
+  if (space_it == FsView::gFsView.mSpaceView.end()) {
+    reply.set_std_err("error: No such space exists!");
+    reply.set_retc(EINVAL);
+    return;
+  }
+
+  const auto fs_space = space_it->second;
+  if (!fs_space->mGroupDrainer) {
+    reply.set_std_out("GroupDrainer not enabled or is configuring!");
+    reply.set_retc(EIO);
+    return;
+  }
+
+  reply.set_std_out(fs_space->mGroupDrainer->getStatus());
   reply.set_retc(0);
 }
 

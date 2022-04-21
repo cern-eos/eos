@@ -179,6 +179,9 @@ private:
   void GroupBalancerStatusCmd(const eos::console::SpaceProto_GroupBalancerStatusProto& status,
                               eos::console::ReplyProto& reply,
                               FsSpace* const fs_space);
+
+  void GroupDrainerSubCmd(const eos::console::SpaceProto_GroupDrainerProto& groupdrainer,
+                          eos::console::ReplyProto& reply);
 };
 
 EOSMGMNAMESPACE_END

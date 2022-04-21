@@ -100,6 +100,10 @@ message SpaceProto {
     }
   }
 
+  message GroupDrainerProto {
+     string mgmspace = 1;
+  }
+
   oneof subcmd {
     LsProto ls = 1;
     StatusProto status = 2;
@@ -114,6 +118,7 @@ message SpaceProto {
     TrackerProto tracker = 11;
     InspectorProto inspector = 12;
     GroupBalancerProto groupbalancer = 13;
+    GroupDrainerProto groupdrainer = 14;
   }
 
 }

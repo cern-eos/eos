@@ -365,4 +365,17 @@ GroupDrainer::handleRetries(eos::common::FileSystem::fsid_t fsid,
   }
 }
 
+std::string
+GroupDrainer::getStatus() const
+{
+  auto tx_sz = mTransfers.size();
+  auto failed_tx_sz = mFailedTransfers.size();
+
+  std::stringstream ss;
+  ss << "Transfers in Queue     : " << tx_sz << "\n";
+  ss << "Transfers Failed       : " << failed_tx_sz << "\n";
+  ss << mEngine->get_status_str();
+  return ss.str();
+}
+
 } // eos::mgm

@@ -370,6 +370,20 @@ bool SpaceHelper::ParseCommand(const char* arg)
     }
 
     return false;
+  } else if (token == "groupdrainer") {
+    auto groupdrainer = space->mutable_groupdrainer();
+    // subcmd
+    if (!tokenizer.NextToken(token)) {
+      return false;
+    }
+
+    if (token == "status") {
+      if (!tokenizer.NextToken(token)) {
+        return false;
+      }
+      groupdrainer->set_mgmspace(token);
+      return true;
+    }
   } else { // no proper subcommand
     return false;
   }
