@@ -1,4 +1,6 @@
 #include "mgm/GroupDrainer.hh"
+#include "mgm/convert/ConversionInfo.hh"
+#include "mgm/convert/ConverterDriver.hh"
 #include "mgm/groupbalancer/StdDrainerEngine.hh"
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/Master.hh"
@@ -38,6 +40,7 @@ GroupDrainer::GroupDrain(ThreadAssistant& assistant) noexcept
                                });
   mRefreshGroups = true;
   bool config_status = false;
+  eos::common::observer_tag_t observer_tag = {0};
   while (!assistant.terminationRequested()) {
     if (!gOFS->mMaster->IsMaster()) {
       assistant.wait_for(std::chrono::seconds(60));
@@ -56,6 +59,34 @@ GroupDrainer::GroupDrain(ThreadAssistant& assistant) noexcept
       // to not simply always check the atomic in an inf loop
       assistant.wait_for(std::chrono::seconds(30));
       continue;
+    }
+
+    if (!observer_tag) {
+      if (auto mgr = gOFS->mConverterDriver->getObserverMgr()) {
+        observer_tag = mgr->addObserver([this](
+            ConverterDriver::JobStatusT status,
+            std::string tag) {
+          auto info = ConversionInfo::parseConversionString(tag);
+          if (!info) {
+            eos_static_crit("Unable to parse conversion info from tag=%s",
+                     tag.c_str());
+            return;
+          }
+
+          switch (status) {
+          case ConverterDriver::JobStatusT::DONE:
+            this->dropTransferEntry(info->mFid);
+            eos_static_info("msg=\"Dropping completed entry fid=\"%ul", info->mFid);
+            break;
+          case ConverterDriver::JobStatusT::FAILED:
+            this->addFailedTransferEntry(info->mFid, std::move(tag));
+            eos_static_info("msg=\"Tracking failed transfer fid=\"%ul", info->mFid);
+            break;
+          default:
+            eos_static_debug("Handler not applied");
+          }
+        });
+      }
     }
 
     pruneTransfers();
@@ -113,9 +144,14 @@ GroupDrainer::isUpdateNeeded(std::chrono::time_point<std::chrono::steady_clock>&
 void
 GroupDrainer::pruneTransfers()
 {
-  auto prune_count = eos::common::erase_if(mTransfers, [](const auto& p) {
-    return !gOFS->mFidTracker.HasEntry(p);
-  });
+  size_t prune_count {0};
+  {
+    std::lock_guard lg(mTransfersMtx);
+    prune_count = eos::common::erase_if(mTransfers, [](const auto& p) {
+      return !gOFS->mFidTracker.HasEntry(p);
+    });
+  }
+
 
   eos_info("msg=\"pruned %ul transfers, transfers in flight=%ul\"",
            prune_count, mTransfers.size());
@@ -230,10 +266,17 @@ GroupDrainer::populateFids(eos::common::FileSystem::fsid_t fsid)
   std::vector<eos::common::FileId::fileid_t> local_fids;
   uint32_t ctr = 0;
   for (auto it_fid = gOFS->eosFsView->getStreamingFileList(fsid);
-       ctr++ < FID_CACHE_LIST_SZ && it_fid && it_fid->valid();
+       it_fid && it_fid->valid();
        it_fid->next())
   {
-    local_fids.emplace_back(it_fid->getElement());
+    if (ctr > FID_CACHE_LIST_SZ)
+      break;
+
+    auto fid = it_fid->getElement();
+    if (!mTransfers.count(fid) && !mFailedTransfers.count(fid)) {
+      local_fids.emplace_back(it_fid->getElement());
+      ++ctr;
+    }
   }
   auto [it, _] = mCacheFileList.insert_or_assign(fsid, std::move(local_fids));
   return {true, it};
@@ -310,6 +353,7 @@ GroupDrainer::Configure(const string& spaceName)
 
   return true;
 }
+
 
 
 

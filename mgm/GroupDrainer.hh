@@ -74,6 +74,19 @@ public:
 
   bool Configure(const string& spaceName);
 
+  void dropTransferEntry(eos::common::FileId::fileid_t fid)
+  {
+    std::lock_guard lg(mTransfersMtx);
+    mTransfers.erase(fid);
+  }
+
+  void addFailedTransferEntry(eos::common::FileId::fileid_t fid,
+                              std::string&& entry)
+  {
+    std::lock_guard lg(mFailedTransfersMtx);
+    mFailedTransfers.emplace(fid, std::move(entry));
+  }
+
 private:
   bool mRefreshFSMap {true};
   bool mRefreshGroups {true};
@@ -91,6 +104,8 @@ private:
   group_balancer::engine_conf_t mDrainerEngineConf; ///< string k-v map of engine conf
   //! map tracking scheduled transfers, will be cleared periodically
   //! TODO: use a flat_map structure here, we are usually size capped to ~10K
+  mutable std::mutex mTransfersMtx;
+  mutable std::mutex mFailedTransfersMtx;
   std::unordered_set<eos::common::FileId::fileid_t> mTransfers;
   std::unordered_map<eos::common::FileId::fileid_t, std::string> mFailedTransfers;
 
