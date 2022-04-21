@@ -219,6 +219,7 @@ add_library(
   fsck/FsckEntry.cc
   utils/FileSystemRegistry.cc                  utils/FileSystemRegistry.hh
   utils/FilesystemUuidMapper.cc                utils/FilesystemUuidMapper.hh
+  utils/FileSystemStatusUtils.cc
   txengine/TransferEngine.cc
   txengine/TransferFsDB.cc
   convert/old/Converter.cc
