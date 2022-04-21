@@ -87,13 +87,14 @@ public:
    * that the callbacks would be really small to affect the calling thread
    * @param args arguments to be provided for each callback
    */
+  template <typename... Args2>
   void
-  notifyChangeSync(Args&&... args)
+  notifyChangeSync(Args2&&... args)
   {
     auto callbacks = mObservers.getCallbacks();
     for (auto callback : callbacks) {
       if (auto shared_fn = callback.lock()) {
-        std::invoke(*shared_fn, std::forward<Args>(args)...);
+        std::invoke(*shared_fn, std::forward<Args2>(args)...);
       }
     }
   }
@@ -103,23 +104,26 @@ public:
    * in the ObserverMgr Threadpool and hence doesn't block the calling thread
    * @param args arguments to be provided for each callback
    */
+  template <typename... Args2>
   void
-  notifyChange(Args&&... args)
+  notifyChange(Args2&&... args)
   {
     auto callbacks = mObservers.getCallbacks();
     for (auto callback : callbacks) {
       if (auto shared_fn = callback.lock()) {
         async_completions.emplace_back(mThreadPool.PushTask(std::make_shared<
-            std::packaged_task<void(void)>>(bindArgs(*shared_fn, std::forward<Args>(args)...))));
+            std::packaged_task<void(void)>>(bindArgs(*shared_fn,
+                                                     std::forward<Args2>(args)...))));
       }
     }
     // reap the finished completions every time!
     async_completions.erase(std::remove_if(async_completions.begin(),
                                            async_completions.end(),
                                           [](std::future<void>& fut) {
-                                            return (fut.wait_for(std::chrono::seconds(0)) == std::future_status::ready);
+                                            return (fut.wait_for(std::chrono::seconds(0)) ==
+                                                    std::future_status::ready);
                                           }),
-                           async_completions.end());
+                            async_completions.end());
   }
 
 private:
