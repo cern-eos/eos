@@ -75,7 +75,8 @@ XrdMgmAuthz::Access(const XrdSecEntity* Entity, const char* path,
                     const Access_Operation oper, XrdOucEnv* Env)
 {
   int envlen;
-  eos_static_debug("path=\"%s\" opaque=\"%s\"", path, Env->Env(envlen));
+  eos_static_debug("path=\"%s\" opaque=\"%s\"", path,
+                   (Env ? Env->Env(envlen) : "none"));
 
   if (eos::common::EosTok::IsEosToken(Env)) {
     return XrdAccPriv_All;
@@ -88,9 +89,9 @@ XrdMgmAuthz::Access(const XrdSecEntity* Entity, const char* path,
     return XrdAccPriv_None;
   }
 
-  // When a bearer token is already supplied the token library is responsible
-  // for deciding the access permissions therefore, in this case the MGM Authz
-  // module will not give any additional permissions.
+// When a bearer token is already supplied the token library is responsible
+// for deciding the access permissions therefore, in this case the MGM Authz
+// module will not give any additional permissions.
   if (Env && Env->Get("authz")) {
     return XrdAccPriv_None;
   }
