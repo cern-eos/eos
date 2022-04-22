@@ -805,8 +805,8 @@ ScanDir::ScanFileLoadAware(const std::unique_ptr<eos::fst::FileIo>& io,
 
   int64_t nread = 0;
   off_t offset = 0;
-  uint64_t open_ts_sec = std::chrono::duration_cast<std::chrono::seconds>
-                         (mClock.getTime().time_since_epoch()).count();
+  uint64_t open_ts_msec = std::chrono::duration_cast<std::chrono::milliseconds>
+                          (mClock.getTime().time_since_epoch()).count();
 
   do {
     nread = io->fileRead(offset, mBuffer, mBufferSize);
@@ -844,7 +844,7 @@ ScanDir::ScanFileLoadAware(const std::unique_ptr<eos::fst::FileIo>& io,
       }
 
       offset += nread;
-      EnforceAndAdjustScanRate(offset, open_ts_sec, scan_rate);
+      EnforceAndAdjustScanRate(offset, open_ts_msec, scan_rate);
     }
   } while (nread == mBufferSize);
 
@@ -895,20 +895,21 @@ ScanDir::ScanFileLoadAware(const std::unique_ptr<eos::fst::FileIo>& io,
 //------------------------------------------------------------------------------
 void
 ScanDir::EnforceAndAdjustScanRate(const off_t offset,
-                                  const uint64_t open_ts_sec,
+                                  const uint64_t open_ts_msec,
                                   int& scan_rate)
 {
   using namespace std::chrono;
 
   if (scan_rate && mFstLoad) {
-    uint64_t now_ts_sec = duration_cast<seconds>
-                          (mClock.getTime().time_since_epoch()).count();
-    uint64_t scan_duration = now_ts_sec - open_ts_sec;
-    uint64_t expect_duration = (uint64_t)((1.0 * offset) /
-                                          (scan_rate * 1024 * 1024));
+    uint64_t now_ts_msec = duration_cast<milliseconds>
+                           (mClock.getTime().time_since_epoch()).count();
+    uint64_t scan_duration_msec = now_ts_msec - open_ts_msec;
+    uint64_t expect_duration_msec = (uint64_t)((1.0 * offset) /
+                                    (scan_rate * 1024 * 1024)) * 1000;
 
-    if (expect_duration > scan_duration) {
-      std::this_thread::sleep_for(milliseconds(expect_duration - scan_duration));
+    if (expect_duration_msec > scan_duration_msec) {
+      std::this_thread::sleep_for(milliseconds(expect_duration_msec -
+                                  scan_duration_msec));
     }
 
     // Adjust the rate according to the load information

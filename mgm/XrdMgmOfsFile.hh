@@ -71,7 +71,8 @@ public:
   //! Constructor
   //----------------------------------------------------------------------------
   XrdMgmOfsFile(char* user = 0, int MonID = 0):
-    XrdSfsFile(user, MonID), eos::common::LogId(), mProcCmd(nullptr)
+    XrdSfsFile(user, MonID), eos::common::LogId(), mProcCmd(nullptr),
+    mEosObfuscate(-1)
   {
     oh = 0;
     openOpaque = 0;
@@ -423,8 +424,9 @@ private:
   std::unique_ptr<IProcCommand> mProcCmd; // proc command object
   std::shared_ptr<eos::IFileMD> fmd; //< file meta data object
   eos::common::VirtualIdentity vid; //< virtual ID of the client
-  std::string eoskey; //< file specific encryption key
-  int eosobfuscate; //< flag to toggle obfuscation (-1 take directory default, 0 disable, 1 enable)
+  std::string mEosKey; ///< File specific encryption key
+  //! Flag to toggle obfuscation (-1 take directory default, 0 disable, 1 enable)
+  int mEosObfuscate;
 };
 
 #endif

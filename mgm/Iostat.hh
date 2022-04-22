@@ -97,7 +97,7 @@ public:
   //------------------------------------------------------------------------------
   unsigned long long GetDataInPeriod(size_t period,
                                      unsigned long long time_offset,
-                                     time_t& now) const;
+                                     time_t now) const;
 
   //------------------------------------------------------------------------------
   //! Get longest transfer time in past 24h
@@ -361,7 +361,7 @@ public:
   //------------------------------------------------------------------------------
   void PrintOut(XrdOucString& out, bool summary, bool details, bool monitoring,
                 bool numerical = false, bool top = false, bool domain = false,
-                bool apps = false, time_t time_ago = 0,
+                bool apps = false, bool sample_stat = false, time_t time_ago = 0,
                 time_t time_interval = 0, XrdOucString option = "");
 
   //----------------------------------------------------------------------------
@@ -395,17 +395,17 @@ public:
            time_t start, time_t stop, time_t now);
 
   //----------------------------------------------------------------------------
-  //! Get sum of measurements for the given uid
+  //! Get sum of measurements for the given tag (looping all uids per tag)
   //! @note: needs a lock on the mDataMutex
   //!
   //! @param tag measurement info tag
   //!
   //! @return total value
   //----------------------------------------------------------------------------
-  unsigned long long GetTotalStatForUid(const char* tag) const;
+  unsigned long long GetTotalStatForTag(const char* tag) const;
 
   //----------------------------------------------------------------------------
-  //! Get sum of measurements for the given uid an period
+  //! Get sum of measurements for the given tag (looping all uids per tag) and period
   //! @note: needs a lock on the mDataMutex
   //!
   //! @param tag measurement info tag
@@ -413,7 +413,7 @@ public:
   //!
   //! @return total value
   //----------------------------------------------------------------------------
-  unsigned long long GetPeriodStatForUid(const char* uid, size_t period,
+  unsigned long long GetPeriodStatForTag(const char* tag, size_t period,
                                          time_t secago = 0) const;
 
 private:
@@ -422,6 +422,9 @@ public:
 #endif
   inline static const std::string USER_ID_TYPE = "u";
   inline static const std::string GROUP_ID_TYPE = "g";
+  google::sparse_hash_map<std::string, unsigned long long> IostatTag;
+  google::sparse_hash_map<std::string, IostatPeriods> IostatPeriodsTag;
+
   google::sparse_hash_map<std::string,
          google::sparse_hash_map<uid_t, unsigned long long>> IostatUid;
   google::sparse_hash_map<std::string,

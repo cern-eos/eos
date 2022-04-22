@@ -257,7 +257,6 @@ public:
   int Config(); // @todo (faluchet) drop when move to 5.0.0
   int Debug(); // @todo (faluchet) drop when move to 5.0.0
   int Group(); // @todo (faluchet) drop when move to 5.0.0
-  int Io(); // @todo (faluchet) drop when move to 5.0.0
   int Node(); // @todo (faluchet) drop when move to 5.0.0
   int Space(); // @todo (faluchet) drop when move to 5.0.0
   int AdminQuota(); // @todo (faluchet) drop when move to 5.0.0

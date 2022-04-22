@@ -589,26 +589,29 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
         // admin members can set iopriority
         ioPriority = val;
       } else {
-        eos_info("suppressing IO priority setting '%s' (no operator role)",
+        eos_info("msg=\"suppressing IO priority setting '%s', no operator role\"",
                  val);
       }
     }
   }
 
   {
-    eosobfuscate = -1;
-    // handle obfuscation and encryption
+    // Handle obfuscation and encryption
     const char* val = 0;
 
     if ((val = openOpaque->Get("eos.obfuscate"))) {
-      eosobfuscate = std::strtoul(val, 0, 10);
+      try {
+        mEosObfuscate = std::strtoul(val, 0, 10);
+      } catch (...) {
+        eos_warning("msg=\"ignore invalid eos.obfuscate\" value=\"%s\"", val);
+      }
     }
 
     if ((val = openOpaque->Get("eos.key"))) {
-      eoskey = val;
+      mEosKey = val;
 
-      if (!eosobfuscate) {
-        eosobfuscate = 1;
+      if (mEosObfuscate == 0) {
+        mEosObfuscate = 1;
       }
     }
   }
@@ -1343,13 +1346,14 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
 
             fmd = gOFS->eosView->createFile(creation_path, vid.uid, vid.gid);
 
-            if ((eosobfuscate > 0) || (attrmap.count("sys.file.obfuscate") &&
-                                       (attrmap["sys.file.obfuscate"] == "1"))) {
-              std::string skey = eos::common::SymKey::RandomCipher(eoskey);
+            if ((mEosObfuscate > 0) ||
+                (attrmap.count("sys.file.obfuscate") &&
+                 (attrmap["sys.file.obfuscate"] == "1"))) {
+              std::string skey = eos::common::SymKey::RandomCipher(mEosKey);
               // attach an obfucation key
               fmd->setAttribute("user.obfuscate.key", skey);
 
-              if (eoskey.length()) {
+              if (mEosKey.length()) {
                 fmd->setAttribute("user.encrypted", "1");
               }
 
@@ -1360,6 +1364,13 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
               fmd->setFlags(0);
             } else {
               fmd->setFlags(Mode & (S_IRWXU | S_IRWXG | S_IRWXO));
+            }
+
+            // For versions copy xattrs over from the original file
+            if (versioning) {
+              for (const auto& xattr : attrmapF) {
+                fmd->setAttribute(xattr.first, xattr.second);
+              }
             }
 
             fmd->setAttribute("sys.utrace", logId);
@@ -1516,7 +1527,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
     }
   }
 
-  if (eosobfuscate && !isFuse) {
+  if (mEosObfuscate && !isFuse) {
     // add obfuscation key to redirection capability
     if (attrmapF.count("user.obfuscate.key")) {
       capability += "&mgm.obfuscate.key=";
@@ -1524,9 +1535,9 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
     }
 
     // add encryption key to redirection capability
-    if (eoskey.length()) {
+    if (mEosKey.length()) {
       capability += "&mgm.encryption.key=";
-      capability += eoskey.c_str();
+      capability += mEosKey.c_str();
     }
   }
 
@@ -3051,7 +3062,6 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
   }
 
   rcode = SFS_REDIRECT;
-
   XrdOucString predirectionhost = redirectionhost.c_str();
   eos::common::StringConversion::MaskTag(predirectionhost, "cap.msg");
   eos::common::StringConversion::MaskTag(predirectionhost, "cap.sym");
@@ -3115,20 +3125,23 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
 
   EXEC_TIMING_END("Open");
   char clientinfo[1024];
-  snprintf(clientinfo,sizeof(clientinfo),"open:rt=%.02f io:bw=%s io:sched=%d io:type=%s io:prio=%s io:redirect=%s:%d", __exec_time__, bandwidth.length()?bandwidth.c_str():"inf", schedule, iotype.length()?iotype.c_str():"buffered", ioprio.length()?ioprio.c_str():"default", targethost.c_str(),ecode);
-
+  snprintf(clientinfo, sizeof(clientinfo),
+           "open:rt=%.02f io:bw=%s io:sched=%d io:type=%s io:prio=%s io:redirect=%s:%d",
+           __exec_time__, bandwidth.length() ? bandwidth.c_str() : "inf", schedule,
+           iotype.length() ? iotype.c_str() : "buffered",
+           ioprio.length() ? ioprio.c_str() : "default", targethost.c_str(), ecode);
   std::string sclientinfo(clientinfo);
   std::string zclientinfo;
-  eos::common::SymKey::ZBase64(sclientinfo,zclientinfo);
+  eos::common::SymKey::ZBase64(sclientinfo, zclientinfo);
+  redirectionhost += "&eos.clientinfo=";
+  redirectionhost += zclientinfo.c_str();
 
-  redirectionhost+="&eos.clientinfo=";
-  redirectionhost+=zclientinfo.c_str();
   if (!gOFS->SetRedirectionInfo(error, redirectionhost.c_str(), ecode)) {
     eos_err("msg=\"failed setting redirection\" path=\"%s\"", path);
     return SFS_ERROR;
   }
 
-  eos_info("path=%s %s",path, clientinfo);
+  eos_info("path=%s %s", path, clientinfo);
   return rcode;
 }
 

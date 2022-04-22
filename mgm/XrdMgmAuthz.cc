@@ -120,9 +120,9 @@ XrdMgmAuthz::Access(const XrdSecEntity* Entity, const char* path,
 {
   using eos::common::SecEntity;
   int envlen;
-  eos_static_info("path=\"%s\" opaque=\"%s\" client_info=\"%s\"",
-                  path, Env->Env(envlen),
-                  (Entity ? SecEntity::ToString(Entity, "").c_str() : "none"));
+  eos_static_debug("path=\"%s\" opaque=\"%s\" client_info=\"%s\"", path,
+                   (Env ? Env->Env(envlen) : "none"),
+                   (Entity ? SecEntity::ToString(Entity, "").c_str() : "none"));
 
   if (eos::common::EosTok::IsEosToken(Env)) {
     return XrdAccPriv_All;

@@ -126,7 +126,6 @@ add_library(
   proc/admin/DebugCmd.cc proc/admin/DebugCmd.hh
   proc/admin/Group.cc # @todo (faluchet) drop when move to 5.0.0
   proc/admin/GroupCmd.cc proc/admin/GroupCmd.hh
-  proc/admin/Io.cc # @todo (faluchet) drop when move to 5.0.0
   proc/admin/IoCmd.cc proc/admin/IoCmd.hh
   proc/admin/Node.cc # @todo (faluchet) drop when move to 5.0.0
   proc/admin/NodeCmd.cc proc/admin/NodeCmd.hh

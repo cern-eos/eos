@@ -90,6 +90,8 @@ bool IoHelper::ParseCommand(const char* arg)
         stat->set_domain(true);
       } else if (token == "-x") {
         stat->set_apps(true);
+      } else if (token == "--ss") {
+        stat->set_sample_stat(true);
       } else if (token == "--sa") {
         if (!(tokenizer.NextToken(token))) {
           continue;
@@ -235,7 +237,7 @@ void com_io_help()
   oss
       << " usage:\n"
       << std::endl
-      << "io stat [-l] [-a] [-m] [-n] [-t] [-d] [-x] [--sa] [--si] : print io statistics\n"
+      << "io stat [-l] [-a] [-m] [-n] [-t] [-d] [-x] [--ss] [--sa] [--si] : print io statistics\n"
       << "\t  -l : show summary information (this is the default if -a,-t,-d,-x is not selected)\n"
       << "\t  -a : break down by uid/gid\n"
       << "\t  -m : print in <key>=<val> monitoring format\n"
@@ -243,6 +245,7 @@ void com_io_help()
       << "\t  -t : print top user stats\n"
       << "\t  -d : break down by domains\n"
       << "\t  -x : break down by application\n"
+      << "\t  --ss : show table with transfer sample statistics\n"
       << "\t  --sa : start collection of statistics given number of seconds ago\n"
       << "\t  --si : collect statistics over given interval of seconds\n"
       << "\t  Note: this tool shows data for finished transfers only (using storage node reports)\n"

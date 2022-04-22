@@ -2,15 +2,17 @@
 #!/bin/bash
 # the sleep statemens are required because quota ls caching ...
 echo path=$1
+grep_str=${2:-"uid=adm"}
+echo grep_str=$grep_str
 sleep 6
-a=`eos quota ls -m $1 | grep uid=adm`
+a=`eos quota ls -m $1 | grep $grep_str`
 eos ns update_quotanode $1 uid:3 inodes:1000 bytes:2000 physicalbytes:3000
 sleep 6
-c=`eos quota ls -m $1 | grep uid=adm`
+c=`eos quota ls -m $1 | grep $grep_str`
 echo $c
 eos ns update_quotanode $1 uid:3
 sleep 6
-d=`eos quota ls -m $1 | grep uid=adm`
+d=`eos quota ls -m $1 | grep $grep_str`
 echo $d
 
 if [ "$a" != "$d" ]; then

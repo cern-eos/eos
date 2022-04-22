@@ -3,8 +3,8 @@ set -e
 fusedir=$1
 eosdir=$2
 # Sync time propgation happens every 5 seconds on average, set the sleep_time
-# to 7 seconds to make sure sync info is propagated.
-sleep_time=7
+# to 10 seconds to make sure sync info is propagated.
+sleep_time=10
 
 # this test script creates a file/direcotry, chmod, rename's it and verifies that the sync times are updated accordingly
 
