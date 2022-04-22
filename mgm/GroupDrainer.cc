@@ -70,7 +70,7 @@ GroupDrainer::GroupDrain(ThreadAssistant& assistant) noexcept
             std::string tag) {
           auto info = ConversionInfo::parseConversionString(tag);
           if (!info) {
-            eos_static_crit("Unable to parse conversion info from tag=%s",
+            eos_crit("Unable to parse conversion info from tag=%s",
                      tag.c_str());
             return;
           }
@@ -78,14 +78,16 @@ GroupDrainer::GroupDrain(ThreadAssistant& assistant) noexcept
           switch (status) {
           case ConverterDriver::JobStatusT::DONE:
             this->dropTransferEntry(info->mFid);
-            eos_static_info("msg=\"Dropping completed entry fid=\"%lu", info->mFid);
+            eos_info("msg=\"Dropping completed entry\" fid=%lu tag=%s",
+                     info->mFid, tag.c_str());
             break;
           case ConverterDriver::JobStatusT::FAILED:
+            eos_info("msg=\"Tracking failed transfer\" fid=%lu tag=%s",
+                     info->mFid, tag.c_str());
             this->addFailedTransferEntry(info->mFid, std::move(tag));
-            eos_static_info("msg=\"Tracking failed transfer fid=\"%lu", info->mFid);
             break;
           default:
-            eos_static_debug("Handler not applied");
+            eos_debug("Handler not applied");
           }
         });
       } else {
