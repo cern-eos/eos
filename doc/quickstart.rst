@@ -25,6 +25,7 @@ The `conventional` service deployment is done via YUM and explained here.
 
    quickstart/setup_repo
    quickstart/install
+   quickstart/update_eos4to5
    quickstart/ubuntu
    quickstart/client/configure
    quickstart/admin/configure
