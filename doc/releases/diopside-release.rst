@@ -17,6 +17,33 @@ Introduction
 This release is based on XRootD V5.
 
 
+``v5.0.18 Diopside``
+===================
+
+2022-04-22
+
+Bug
+----
+
+* [EOS-5197] - Deleting an xattr via console does not delete the key
+* [EOS-5199] - Metadata (xattrs) is lost when creating new versions
+* MGM: Fix crash in debug message when Env object is null for Access method
+
+New Feature
+------------
+
+* [EOS-5215] - Fsck handle stripe size inconsistencies for RAIN layouts
+
+
+Improvement
+------------
+
+* [EOS-4955] - Add project quota tests as a part of CI
+* MGM: Iostat performance improvements for summary output
+* MGM: Iostat make extra tables optional by default and add separate
+  flag for displaying them.
+
+
 ``v5.0.17 Diopside``
 ===================
 
