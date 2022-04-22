@@ -294,8 +294,9 @@ GroupDrainer::populateFids(eos::common::FileSystem::fsid_t fsid)
   }
 
   if (local_fids.empty() && !failed_fids.empty()) {
-    handleRetries(fsid, std::move(failed_fids));
+    return handleRetries(fsid, std::move(failed_fids));
   }
+
   auto [it, _] = mCacheFileList.insert_or_assign(fsid, std::move(local_fids));
   return {true, it};
 }
@@ -348,7 +349,7 @@ GroupDrainer::Configure(const string& spaceName)
   return true;
 }
 
-void
+std::pair<bool, GroupDrainer::cache_fid_map_t::iterator>
 GroupDrainer::handleRetries(eos::common::FileSystem::fsid_t fsid,
                             std::vector<eos::common::FileId::fileid_t>&& fids)
 {
@@ -356,15 +357,18 @@ GroupDrainer::handleRetries(eos::common::FileSystem::fsid_t fsid,
   if (tracker.count > MAX_RETRIES) {
     fsutils::ApplyFailedDrainStatus(fsid, fids.size());
     mCacheFileList.erase(fsid);
-    return;
+    mRefreshFSMap = true;
   }
 
   if (tracker.need_update(mRetryInterval)) {
-    eos_info("msg=\"Retrying failed transfers for\" fsid=%lu, count=%lu",
-             fsid, fids.size());
-    mCacheFileList.insert_or_assign(fsid, std::move(fids));
     mFsidRetryCtr[fsid].update();
+    eos_info("msg=\"Retrying failed transfers for\" fsid=%lu, count=%lu retry_count=%d",
+             fsid, fids.size(), tracker.count);
+    auto [it, _] = mCacheFileList.insert_or_assign(fsid, std::move(fids));
+    return {true, it};
   }
+
+  return {false, mCacheFileList.end()};
 }
 
 std::string

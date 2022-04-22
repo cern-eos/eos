@@ -92,7 +92,8 @@ public:
     mFailedTransfers.emplace(fid, std::move(entry));
   }
 
-  void handleRetries(eos::common::FileSystem::fsid_t fsid,
+  std::pair<bool, GroupDrainer::cache_fid_map_t::iterator>
+  handleRetries(eos::common::FileSystem::fsid_t fsid,
                      std::vector<eos::common::FileId::fileid_t>&& fids);
 
   std::string getStatus() const;
