@@ -222,7 +222,11 @@ XrdMgmOfs::Schedule2Delete(const char* path,
         eos_static_debug("msg=\"query2delete reponse\" data=\"%s\"", json.c_str());
       }
 
+#if GOOGLE_PROTOBUF_VERSION < 3004000
       const auto sz = del_fst.ByteSize();
+#else
+      const auto sz = del_fst.ByteSizeLong();
+#endif
       const uint32_t aligned_sz = eos::common::GetPowerCeil(sz, 2 * eos::common::KB);
       XrdOucBuffer* buff = mXrdBuffPool.Alloc(aligned_sz);
 
