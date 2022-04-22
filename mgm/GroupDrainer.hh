@@ -75,8 +75,14 @@ public:
 
   void dropTransferEntry(eos::common::FileId::fileid_t fid)
   {
-    std::lock_guard lg(mTransfersMtx);
-    mTransfers.erase(fid);
+    {
+      std::lock_guard lg(mTransfersMtx);
+      mTransfers.erase(fid);
+    }
+    {
+      std::lock_guard lg(mFailedTransfersMtx);
+      mFailedTransfers.erase(fid);
+    }
   }
 
   void addFailedTransferEntry(eos::common::FileId::fileid_t fid,
