@@ -77,11 +77,11 @@ public:
   void dropTransferEntry(eos::common::FileId::fileid_t fid)
   {
     {
-      std::lock_guard lg(mTransfersMtx);
+      std::scoped_lock slock(mTransfersMtx);
       mTransfers.erase(fid);
     }
     {
-      std::lock_guard lg(mFailedTransfersMtx);
+      std::scoped_lock slock(mFailedTransfersMtx);
       mFailedTransfers.erase(fid);
     }
   }
@@ -89,13 +89,19 @@ public:
   void addFailedTransferEntry(eos::common::FileId::fileid_t fid,
                               std::string&& entry)
   {
-    std::lock_guard lg(mFailedTransfersMtx);
-    mFailedTransfers.emplace(fid, std::move(entry));
+    {
+      std::scoped_lock slock(mFailedTransfersMtx);
+      mFailedTransfers.emplace(fid, std::move(entry));
+    }
+    {
+      std::scoped_lock slock(mTransfersMtx);
+      mTransfers.erase(fid);
+    }
   }
 
   std::pair<bool, GroupDrainer::cache_fid_map_t::iterator>
   handleRetries(eos::common::FileSystem::fsid_t fsid,
-                     std::vector<eos::common::FileId::fileid_t>&& fids);
+                std::vector<eos::common::FileId::fileid_t>&& fids);
 
   std::string getStatus() const;
 

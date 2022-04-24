@@ -41,6 +41,8 @@ GroupDrainer::GroupDrain(ThreadAssistant& assistant) noexcept
   mRefreshGroups = true;
   bool config_status = false;
   eos::common::observer_tag_t observer_tag = {0};
+  eos_info("%s", "msg=\"starting group drainer thread\"");
+
   while (!assistant.terminationRequested()) {
     if (!gOFS->mMaster->IsMaster()) {
       assistant.wait_for(std::chrono::seconds(60));
@@ -57,6 +59,8 @@ GroupDrainer::GroupDrain(ThreadAssistant& assistant) noexcept
     if (!gOFS->mConverterDriver || !config_status) {
       // wait for a few seconds before trying to see for reconfiguration in order
       // to not simply always check the atomic in an inf loop
+      eos_info("msg=\"Invalid GroupDrainer Configuration or Converter "
+               "not enabled, sleeping 30s!\" config_status=%d", config_status);
       assistant.wait_for(std::chrono::seconds(30));
       continue;
     }
@@ -115,7 +119,6 @@ GroupDrainer::GroupDrain(ThreadAssistant& assistant) noexcept
       mEngine->configure(mDrainerEngineConf);
       mEngine->populateGroupsInfo(fetcher.fetch());
       mRefreshGroups = false;
-      config_status = false;
     }
 
     if (!mEngine->canPick()) {
@@ -125,7 +128,6 @@ GroupDrainer::GroupDrain(ThreadAssistant& assistant) noexcept
       assistant.wait_for(std::chrono::seconds(60));
       continue;
     }
-
     prepareTransfers();
   }
 }
@@ -162,9 +164,9 @@ GroupDrainer::pruneTransfers()
     });
   }
 
-
-  eos_info("msg=\"pruned %ul transfers, transfers in flight=%ul\"",
-           prune_count, mTransfers.size());
+  if (prune_count > 0)
+    eos_info("msg=\"pruned %lu transfers, transfers in flight=%lu\"",
+             prune_count, mTransfers.size());
 }
 
 void
@@ -197,6 +199,7 @@ GroupDrainer::prepareTransfer(uint64_t index)
     return;
   }
 
+  eos_debug("msg=\"Doing transfer \" index=%d", index);
   auto fsids = mDrainFsMap.find(grp_drain_from);
   if (fsids == mDrainFsMap.end() || isUpdateNeeded(mDrainMapLastUpdated, mRefreshFSMap)) {
     std::tie(fsids, std::ignore) = mDrainFsMap.insert_or_assign(grp_drain_from,
@@ -209,7 +212,7 @@ GroupDrainer::prepareTransfer(uint64_t index)
       // other than the Groups Refresh every few minutes to check any new drain states
       eos_static_info("msg=\"Encountered group with no online FS\" group_name=%s",
                       grp_drain_from.c_str());
-      mRefreshGroups = true;
+      //mRefreshGroups = true;
       return;
     }
     mRefreshFSMap = false;
@@ -232,9 +235,11 @@ GroupDrainer::prepareTransfer(uint64_t index)
     if (fids->second.size() > 0) {
       scheduleTransfer(fids->second.back(), grp_drain_from, grp_drain_to);
       fids->second.pop_back();
+    } else {
+      eos_debug("%s", "Got a valid iter but empty files!");
     }
   } else {
-    eos_info("\"msg=couldn't find files in fsid=%d\"", fsid);
+    eos_debug("\"msg=couldn't find files in fsid=%d\"", fsid);
   }
 }
 
@@ -265,6 +270,7 @@ GroupDrainer::scheduleTransfer(eos::common::FileId::fileid_t fid,
 std::pair<bool, GroupDrainer::cache_fid_map_t::iterator>
 GroupDrainer::populateFids(eos::common::FileSystem::fsid_t fsid)
 {
+  eos_debug("%s", "populating FIDS");
   //TODO: mark FSes in RO after threshold percent drain
   auto total_files = gOFS->eosFsView->getNumFilesOnFs(fsid);
   if (total_files == 0) {
@@ -294,6 +300,7 @@ GroupDrainer::populateFids(eos::common::FileSystem::fsid_t fsid)
   }
 
   if (local_fids.empty() && !failed_fids.empty()) {
+    eos_debug("msg=\"Handling Retries for\" fsid=%lu", fsid);
     return handleRetries(fsid, std::move(failed_fids));
   }
 
@@ -357,7 +364,7 @@ GroupDrainer::handleRetries(eos::common::FileSystem::fsid_t fsid,
   if (tracker.count > MAX_RETRIES) {
     fsutils::ApplyFailedDrainStatus(fsid, fids.size());
     mCacheFileList.erase(fsid);
-    mRefreshFSMap = true;
+    return {false, mCacheFileList.end()};
   }
 
   if (tracker.need_update(mRetryInterval)) {
@@ -367,8 +374,8 @@ GroupDrainer::handleRetries(eos::common::FileSystem::fsid_t fsid,
     auto [it, _] = mCacheFileList.insert_or_assign(fsid, std::move(fids));
     return {true, it};
   }
-
-  return {false, mCacheFileList.end()};
+  eos_debug("%s","Nothing to do here, returning empty!");
+  return {true, mCacheFileList.end()};
 }
 
 std::string

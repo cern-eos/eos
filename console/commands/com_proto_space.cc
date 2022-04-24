@@ -549,6 +549,8 @@ void com_space_help()
       << "space quota <space-name> on|off : enable/disable quota\n"
       << std::endl
       << "space groupbalancer status <space-name> [--detail(-d)|-m] : print groupbalancer status\n"
+      << std::endl
+      << "space groupdrainer status <space-name> : print groupdrainer status\n"
       << std::endl;
   std::cerr << oss.str();
 }
