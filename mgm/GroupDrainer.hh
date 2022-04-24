@@ -27,6 +27,7 @@
 #include "common/Logging.hh"
 #include "common/FileId.hh"
 #include "common/FileSystem.hh"
+#include "common/SteadyClock.hh"
 #include "FsView.hh"
 #include <vector>
 #include <unordered_set>
@@ -100,16 +101,17 @@ public:
 
   struct RetryTracker {
     uint16_t count;
-    std::chrono::time_point<std::chrono::steady_clock> last_run_time;
+    std::chrono::time_point<std::chrono::steady_clock> last_run_time {};
 
     RetryTracker() : count(0) {}
 
-    bool need_update(uint64_t retry_interval=DEFAULT_RETRY_INTERVAL) {
+    bool need_update(uint64_t retry_interval=DEFAULT_RETRY_INTERVAL,
+                     eos::common::SteadyClock* clock = nullptr) const {
       if (count == 0) {
         return true;
       }
       using namespace std::chrono_literals;
-      auto curr_time  = chrono::steady_clock::now();
+      auto curr_time  = eos::common::SteadyClock::now(clock);
       auto elapsed = chrono::duration_cast<chrono::seconds>(curr_time - last_run_time);
       return elapsed.count() > retry_interval;
     }
