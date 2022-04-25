@@ -131,6 +131,7 @@ public:
 private:
   bool mRefreshFSMap {true};
   bool mRefreshGroups {true};
+  bool mPauseExecution {false};
   std::atomic<bool> mDoConfigUpdate {true};
   std::chrono::time_point<std::chrono::steady_clock> mLastUpdated;
   std::chrono::time_point<std::chrono::steady_clock> mDrainMapLastUpdated;

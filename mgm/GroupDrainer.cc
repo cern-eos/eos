@@ -54,6 +54,7 @@ GroupDrainer::GroupDrain(ThreadAssistant& assistant) noexcept
     if (mDoConfigUpdate.compare_exchange_strong(expected_reconfiguration, false,
                                                 std::memory_order_acq_rel)) {
       config_status = Configure(mSpaceName);
+      mRefreshGroups = config_status;
     }
 
     if (!gOFS->mConverterDriver || !config_status) {
@@ -115,7 +116,7 @@ GroupDrainer::GroupDrain(ThreadAssistant& assistant) noexcept
 
 
 
-    if (isUpdateNeeded(mLastUpdated, mRefreshGroups || config_status)) {
+    if (isUpdateNeeded(mLastUpdated, mRefreshGroups)) {
       mEngine->configure(mDrainerEngineConf);
       mEngine->populateGroupsInfo(fetcher.fetch());
       mRefreshGroups = false;
@@ -128,7 +129,12 @@ GroupDrainer::GroupDrain(ThreadAssistant& assistant) noexcept
       assistant.wait_for(std::chrono::seconds(60));
       continue;
     }
+
     prepareTransfers();
+
+    if (mPauseExecution) {
+      assistant.wait_for(std::chrono::seconds(60));
+    }
   }
 }
 
@@ -195,6 +201,7 @@ GroupDrainer::prepareTransfer(uint64_t index)
   auto [grp_drain_from, grp_drain_to] = mEngine->pickGroupsforTransfer(index);
 
   if (grp_drain_from.empty() || grp_drain_to.empty()) {
+    // will not be likely reached, as Engine->canPick shouldn't reply earlier
     eos_static_info("msg=\"engine gave us empty groups skipping\"");
     return;
   }
@@ -210,12 +217,19 @@ GroupDrainer::prepareTransfer(uint64_t index)
       // Groups Info will have 0 capacity groups and the engine will find that it
       // has no more targets to pick effectively stopping any further processing
       // other than the Groups Refresh every few minutes to check any new drain states
-      eos_static_info("msg=\"Encountered group with no online FS\" group_name=%s",
-                      grp_drain_from.c_str());
-      //mRefreshGroups = true;
+      eos_debug("msg=\"Encountered group with no online FS\" group_name=%s",
+                grp_drain_from.c_str());
+      mRefreshGroups = true;
+      // Check if only one source group is involved; then we're sure that this status
+      // will only change once a while. We don't need to keep checking this in a
+      // tight loop anymore
+      if (mEngine->sourceGroupCount() == 1) {
+        mPauseExecution = true;
+      }
       return;
     }
     mRefreshFSMap = false;
+    mPauseExecution = false;
   }
 
   auto fsid = eos::common::pickIndexRR(fsids->second, index);

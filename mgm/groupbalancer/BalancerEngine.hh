@@ -122,6 +122,14 @@ public:
            !data.mGroupsUnderThreshold.empty();
   }
 
+  size_t sourceGroupCount() const {
+    return data.mGroupsOverThreshold.size();
+  }
+
+  size_t targetGroupCount() const {
+    return data.mGroupsUnderThreshold.size();
+  }
+
 protected:
   BalancerEngineData data;
 
