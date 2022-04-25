@@ -1,0 +1,146 @@
+#!/bin/bash
+# ----------------------------------------------------------------------
+# File: eos-groupdrain-test
+# Author: Abhishek Lekshmanan - CERN
+# ----------------------------------------------------------------------
+# ******************************************************************************
+# EOS - the CERN Disk Storage System
+# Copyright (C) 2022 CERN/Switzerland
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+# ******************************************************************************
+#
+#------------------------------------------------------------------------------
+# Description: Script testing the draining mechanism of EOS. It assumes that
+#              there are at least 14 FSTs available in the instance.
+#
+# Usage:
+# eos-groupdrain-test <eos_mgm_hostname>
+#------------------------------------------------------------------------------
+set -x
+
+if [[ $# -eq 0 || $# -gt 2 ]]; then
+      echo "Usage: $0 <eos_mgm_hostname>"
+      exit 1
+fi
+
+EOS_MGM_HOSTNAME=$1
+
+# Check preconditions and make sure central draining is enabled
+FST_ONLINE=$(eos fs ls | grep "online" | wc -l)
+
+if [[ ${FST_ONLINE} -lt 14 ]]; then
+      echo "error: not enough FSTs configured"
+      exit 1
+fi
+
+# Create dummy test files
+TEST_FN0=/tmp/zero.dat
+TEST_FN1=/tmp/32kb.dat
+TEST_FN2=/tmp/5mb.dat
+
+touch ${TEST_FN0}
+dd if=/dev/urandom of=${TEST_FN1} bs=1k count=32 &> /dev/null
+dd if=/dev/urandom of=${TEST_FN2} bs=1M count=5  &> /dev/null
+
+eos space config default space.converter=on
+eos space config default space.groupdrainer=on
+eos space config default space.groupdrainer.threshold=0
+eos space config default space.groupdrainer.retry_interval=10
+# Create eos directory for tests and copy some files in
+eos mkdir -p /eos/dockertest/drain_test/replica/
+eos mkdir -p /eos/dockertest/drain_test/raiddp/
+eos mkdir -p /eos/dockertest/drain_test/rain/
+eos chmod 2777 /eos/dockertest/
+eos chmod 2777 /eos/dockertest/drain_test/replica/
+eos chmod 2777 /eos/dockertest/drain_test/raiddp/
+eos chmod 2777 /eos/dockertest/drain_test/rain/
+eos attr set default=replica /eos/dockertest/drain_test/replica/
+eos attr set default=raiddp /eos/dockertest/drain_test/raiddp/
+eos attr set default=raid6 /eos/dockertest/drain_test/rain/
+eos fs ls
+
+eos group ls | grep "default.1"
+if [[ $? -ne 0 ]]; then
+      echo "error: group default.1 is not online  ..."
+      eos fs ls
+      exit 1
+fi
+
+eos geosched disabled show \* \* \* | grep -v "default.1"
+if [[ $? -ne 0 ]]; then
+      echo "error: group default.1 is already disabled ..."
+      eos fs ls
+      exit 1
+fi
+
+
+for i in {1..4}; do
+      xrdcp -f --nopbar ${TEST_FN0} root://${EOS_MGM_HOSTNAME}//eos/dockertest/drain_test/replica/0kb_file${i}.dat
+      xrdcp -f --nopbar ${TEST_FN0} root://${EOS_MGM_HOSTNAME}//eos/dockertest/drain_test/raiddp/0kb_file${i}.dat
+      xrdcp -f --nopbar ${TEST_FN0} root://${EOS_MGM_HOSTNAME}//eos/dockertest/drain_test/rain/0kb_file${i}.dat
+      xrdcp -f --nopbar ${TEST_FN1} root://${EOS_MGM_HOSTNAME}//eos/dockertest/drain_test/replica/32kb_file${i}.dat
+      xrdcp -f --nopbar ${TEST_FN1} root://${EOS_MGM_HOSTNAME}//eos/dockertest/drain_test/raiddp/32kb_file${i}.dat
+      xrdcp -f --nopbar ${TEST_FN1} root://${EOS_MGM_HOSTNAME}//eos/dockertest/drain_test/rain/32kb_file${i}.dat
+      xrdcp -f --nopbar ${TEST_FN2} root://${EOS_MGM_HOSTNAME}//eos/dockertest/drain_test/replica/5mb_file${i}.dat
+      xrdcp -f --nopbar ${TEST_FN2} root://${EOS_MGM_HOSTNAME}//eos/dockertest/drain_test/raiddp/5mb_file${i}.dat
+      xrdcp -f --nopbar ${TEST_FN2} root://${EOS_MGM_HOSTNAME}//eos/dockertest/drain_test/rain/5mb_file${i}.dat
+done
+
+
+
+eos group set default.1 drain
+eos group ls
+eos geosched disabled show \* \* \* | grep "default.1"
+if [[ $? -ne 0 ]]; then
+      echo "error: group default.1 is not disabled ..."
+      exit 1
+fi
+
+
+
+count=$(eos fs ls | grep -c "drained\|failed")
+
+while [[ "$count" -lt "7" ]]; do
+      sleep 10
+      count=$(eos fs ls | grep -c "drained\|failed")
+done
+
+drained_fsids=$(eos -j fs ls default.1 | jq .result[].id)
+
+for fsid in $drained_fsids; do
+    eos fs ls | grep " $fsid " | grep "empty" | grep "drained"
+    if [[ $? -ne 0 ]]; then
+        echo "error: file system $fsid is not drained"
+        exit 1
+    else
+        echo "File system $fsid successfully drained"
+    fi
+done
+
+eos group config default.1 on
+
+if [[ $? -ne 0 ]]; then
+    echo "error: failed to put group in rw mode"
+    exit 1
+fi
+# Remove all the files and directories
+eos rm -rF "/eos/dockertest/drain_test/replica/*"
+eos rm -rF "/eos/dockertest/drain_test/raiddp/*"
+eos rm -rF "/eos/dockertest/drain_test/rain/*"
+eos rmdir "/eos/dockertest/drain_test/replica/"
+eos rmdir "/eos/dockertest/drain_test/raiddp/"
+eos rmdir "/eos/dockertest/drain_test/rain/"
+eos rmdir "/eos/dockertest/drain_test/"
+exit 0
