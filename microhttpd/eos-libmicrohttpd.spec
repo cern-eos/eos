@@ -107,12 +107,6 @@ rm -rf %{buildroot}
 #/sbin/install-info %{_infodir}/microhttpd.info.gz %{_infodir}/dir || :
 #/sbin/install-info %{_infodir}/microhttpd-tutorial.info.gz %{_infodir}/dir || :
 
-%preun doc
-if [ $1 = 0 ] ; then
-#/sbin/install-info --delete %{_infodir}/microhttpd.info.gz %{_infodir}/dir || :
-#/sbin/install-info --delete %{_infodir}/microhttpd-tutorial.info.gz %{_infodir}/dir || :
-fi
-
 %post -p /sbin/ldconfig
 %postun -p /sbin/ldconfig
 
