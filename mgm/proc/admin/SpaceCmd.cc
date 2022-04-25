@@ -966,7 +966,7 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config,
 		    (key != "groupbalancer.threshold") &&
 		    (key != "groupbalancer.min_threshold") &&
 		    (key != "groupbalancer.max_threshold") &&
-                    (key != "groupdrainer.threshold")) {
+        (key != "groupdrainer.threshold")) {
 		  // the threshold is allowed to be decimal!
 		  char ssize[1024];
 		  snprintf(ssize, sizeof(ssize) - 1, "%llu", size);

@@ -348,7 +348,7 @@ GroupDrainer::Configure(const string& spaceName)
   if (status) {
     mCacheExpiryTime = std::chrono::seconds(cache_expiry_time);
   }
-  auto threshold_str = space->GetConfigMember("groupbalancer.threshold");
+  auto threshold_str = space->GetConfigMember("groupdrainer.threshold");
   if (!threshold_str.empty()) {
     mDrainerEngineConf.insert_or_assign("threshold", std::move(threshold_str));
   }
