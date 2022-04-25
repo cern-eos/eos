@@ -99,6 +99,7 @@ helm_cbox:
   needs:
     - job: cc7_docker_image
       artifacts: false
+  allow_failure: true
 
 helm_cbox_cs8:
   extends: .helm_cbox_test_template
@@ -139,6 +140,7 @@ helm_cnvrt_fsck:
   needs:
     - job: cc7_docker_image
       artifacts: false
+  allow_failure: true
 
 .helm_fusex_test_template:
   stage: test
@@ -177,12 +179,14 @@ helm_cnvrt_fsck:
     expire_in: 3 days
     paths:
       - eos-logs-${CI_JOB_ID}/
+  allow_failure: true
 
 helm_fusex:
   extends: .helm_fusex_test_template
   needs:
    - job: cc7_docker_image
      artifacts: false
+  allow_failure: true
 
 helm_fusex_ub_focal:
   extends: .helm_fusex_test_template
@@ -267,6 +271,7 @@ helm_system:
   needs:
     - job: cc7_docker_image
       artifacts: false
+  allow_failure: true
 
 helm_system_cs8:
   extends: .helm_system_test_template
