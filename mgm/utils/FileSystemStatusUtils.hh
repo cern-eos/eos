@@ -25,6 +25,7 @@
 
 #include "common/FileSystem.hh"
 #include <vector>
+#include <map>
 
 namespace eos::mgm::fsutils {
 
@@ -54,6 +55,17 @@ FsidsinGroup(const std::string& groupname,
              eos::common::ActiveStatus active_status = eos::common::ActiveStatus::kOnline,
              eos::common::DrainStatus drain_status = eos::common::DrainStatus::kNoDrain);
 
+struct FsidStatus {
+  eos::common::ActiveStatus active_status;
+  eos::common::DrainStatus drain_status;
+  explicit FsidStatus(eos::common::ActiveStatus _active_status,
+                      eos::common::DrainStatus _drain_status) : active_status(_active_status),
+                                                                drain_status(_drain_status) {}
+};
 
+using fs_status_map_t = std::map<eos::common::FileSystem::fsid_t,FsidStatus>;
+
+fs_status_map_t
+GetGroupFsStatus(const std::string& groupname);
 
 } // eos::mgm::fsutils

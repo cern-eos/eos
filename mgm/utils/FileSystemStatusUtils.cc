@@ -102,4 +102,27 @@ FsidsinGroup(const std::string& groupname,
   return result;
 }
 
+std::map<eos::common::FileSystem::fsid_t, FsidStatus>
+GetGroupFsStatus(const std::string& groupname)
+{
+  eos::common::RWMutexReadLock rlock(FsView::gFsView.ViewMutex);
+  auto group_it = FsView::gFsView.mGroupView.find(groupname);
+  if (group_it == FsView::gFsView.mGroupView.end()) {
+    eos_static_err("msg=\"group not found: \" %s", groupname.c_str());
+    return {};
+  }
+
+  fs_status_map_t result;
+  for (auto fs_it=group_it->second->begin();
+       fs_it != group_it->second->end();
+       ++fs_it) {
+    auto target = FsView::gFsView.mIdView.lookupByID(*fs_it);
+    if (target) {
+      result.emplace(*fs_it, FsidStatus{target->GetActiveStatus(),
+                                        target->GetDrainStatus()});
+    }
+  }
+  return result;
+}
+
 } // eos::mgm::fsutils
