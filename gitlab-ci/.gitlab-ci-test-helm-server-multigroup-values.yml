@@ -17,13 +17,3 @@ fst:
   selfRegister:
     groupsize: 7
     groupmod: 2
-
-mgm:
-  kerberos:
-    enabled: true
-    clientConfig:
-      # matches the default kerberos.fullname from the kuberos chart
-      configMap: kuberos-kuberos-krb5-config
-    adminPrinc:
-      name: "--set $TEST_ADMINPRINC_NAME"
-      password: "--set $TEST_ADMINPRINC_PASSWORD"
