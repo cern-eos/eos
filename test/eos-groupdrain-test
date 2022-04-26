@@ -36,7 +36,7 @@ if [[ $# -eq 0 || $# -gt 2 ]]; then
 fi
 
 EOS_MGM_HOSTNAME=$1
-
+eos fs ls
 # Check preconditions and make sure central draining is enabled
 FST_ONLINE=$(eos fs ls | grep "online" | wc -l)
 
@@ -71,7 +71,7 @@ eos attr set default=raiddp /eos/dockertest/drain_test/raiddp/
 eos attr set default=raid6 /eos/dockertest/drain_test/rain/
 FST_ONLINE=$(eos fs ls | grep "online" | wc -l)
 
-for i in {1..$FST_ONLINE}; do
+for ((i=1;i<=FST_ONLINE;i++)); do
     eos fs config $i headroom=100M
 done
 
@@ -133,7 +133,11 @@ for fsid in $drained_fsids; do
     fi
 done
 
-eos group config default.1 on
+echo "Drain Complete, FS Status:"
+eos fs ls
+eos group ls
+echo "Setting Group Back to RW"
+eos group set default.1 on
 
 if [[ $? -ne 0 ]]; then
     echo "error: failed to put group in rw mode"
