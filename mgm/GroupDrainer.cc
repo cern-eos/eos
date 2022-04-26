@@ -2,13 +2,12 @@
 #include "mgm/convert/ConversionInfo.hh"
 #include "mgm/convert/ConverterDriver.hh"
 #include "mgm/groupbalancer/StdDrainerEngine.hh"
+#include "mgm/groupbalancer/ConverterUtils.hh"
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/Master.hh"
 #include "mgm/groupbalancer/GroupsInfoFetcher.hh"
-#include "mgm/GroupBalancer.hh"
 #include "common/utils/ContainerUtils.hh"
 #include "common/StringUtils.hh"
-#include "namespace/interface/IView.hh"
 #include "namespace/interface/IFsView.hh"
 #include "mgm/FsView.hh"
 #include "common/FileSystem.hh"
@@ -18,6 +17,7 @@ namespace eos::mgm {
 
 using group_balancer::eosGroupsInfoFetcher;
 using group_balancer::GroupStatus;
+using group_balancer::getFileProcTransferNameAndSize;
 
 GroupDrainer::GroupDrainer(std::string_view spacename) : mSpaceName(spacename),
                                                          mEngine(std::make_unique<group_balancer::StdDrainerEngine>()),
@@ -266,8 +266,7 @@ GroupDrainer::scheduleTransfer(eos::common::FileId::fileid_t fid,
   }
 
   uint64_t filesz;
-  auto conv_tag = GroupBalancer::getFileProcTransferNameAndSize(fid, tgt_grp,
-                                                                &filesz);
+  auto conv_tag = getFileProcTransferNameAndSize(fid, tgt_grp, &filesz);
   conv_tag += "^groupdrainer^";
   conv_tag.erase(0, gOFS->MgmProcConversionPath.length()+1);
   if (gOFS->mConverterDriver->ScheduleJob(fid, conv_tag)) {
