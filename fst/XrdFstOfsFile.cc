@@ -46,7 +46,7 @@ EOSFSTNAMESPACE_BEGIN
 constexpr uint64_t XrdFstOfsFile::msMinSizeAsyncClose;
 constexpr uint16_t XrdFstOfsFile::msDefaultTimeout;
 
-thread_local int t_iopriority=0;
+thread_local int t_iopriority = 0;
 
 //------------------------------------------------------------------------------
 // Constructor
@@ -494,7 +494,7 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
   oss_opaque += "&mgm.lid=";
   oss_opaque += std::to_string(mLid).c_str();
   oss_opaque += "&mgm.bookingsize=";
-  oss_opaque += static_cast<int>(mBookingSize);
+  oss_opaque += std::to_string(mBookingSize).c_str();
 
   if (!(val = mCapOpaque->Get("mgm.iotype"))) {
     // provided by a client
@@ -2092,7 +2092,8 @@ XrdFstOfsFile::readofs(XrdSfsFileOffset fileOffset, char* buffer,
   rCalls++;
 
   if (!getenv("EOS_FST_NO_IOPRIORITY")) {
-    if (ioprio_begin(IOPRIO_WHO_PROCESS,IOPRIO_PRIO_VALUE(mIoPriorityClass, mIoPriorityValue), t_iopriority)) {
+    if (ioprio_begin(IOPRIO_WHO_PROCESS, IOPRIO_PRIO_VALUE(mIoPriorityClass,
+                     mIoPriorityValue), t_iopriority)) {
       if (!mIoPriorityErrorReported) {
         eos_warning("failed to set IO priority to %d:%d - errno=%d\n", mIoPriorityClass,
                     mIoPriorityValue, errno);
@@ -2104,9 +2105,9 @@ XrdFstOfsFile::readofs(XrdSfsFileOffset fileOffset, char* buffer,
   eos_debug("read %llu %llu %i rc=%d", this, fileOffset, buffer_size, rc);
 
   if (!getenv("EOS_FST_NO_IOPRIORITY")) {
-    t_iopriority = ioprio_end(IOPRIO_WHO_PROCESS,IOPRIO_PRIO_VALUE(mIoPriorityClass, mIoPriorityValue));
+    t_iopriority = ioprio_end(IOPRIO_WHO_PROCESS,
+                              IOPRIO_PRIO_VALUE(mIoPriorityClass, mIoPriorityValue));
   }
-      
 
   if (gOFS.mSimIoReadErr) {
     if ((gOFS.mSimErrIoReadOff == 0) ||
@@ -2249,7 +2250,8 @@ XrdFstOfsFile::writeofs(XrdSfsFileOffset fileOffset, const char* buffer,
   int rc;
 
   if (!getenv("EOS_FST_NO_IOPRIORITY")) {
-    if (ioprio_begin(IOPRIO_WHO_PROCESS,IOPRIO_PRIO_VALUE(mIoPriorityClass, mIoPriorityValue), t_iopriority)) {
+    if (ioprio_begin(IOPRIO_WHO_PROCESS, IOPRIO_PRIO_VALUE(mIoPriorityClass,
+                     mIoPriorityValue), t_iopriority)) {
       if (!mIoPriorityErrorReported) {
         eos_warning("failed to set IO priority to %d:%d - errno=%d\n", mIoPriorityClass,
                     mIoPriorityValue, errno);
@@ -2267,7 +2269,8 @@ XrdFstOfsFile::writeofs(XrdSfsFileOffset fileOffset, const char* buffer,
   }
 
   if (!getenv("EOS_FST_NO_IOPRIORITY")) {
-    t_iopriority = ioprio_end(IOPRIO_WHO_PROCESS,IOPRIO_PRIO_VALUE(mIoPriorityClass, mIoPriorityValue));
+    t_iopriority = ioprio_end(IOPRIO_WHO_PROCESS,
+                              IOPRIO_PRIO_VALUE(mIoPriorityClass, mIoPriorityValue));
   }
 
   if (rc != buffer_size) {
