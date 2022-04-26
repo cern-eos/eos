@@ -166,18 +166,18 @@ dock_cbox_cs8:
     - dock
   when: manual
 
-dock_fusex_ub_bionic:
+dock_fusex_ub_jammy:
   extends: .dock8s_fusex_test_template
   image: gitlab-registry.cern.ch/dss/docker-enhanced:19.03.12
   services:
     - docker:19.03.12-dind
   variables:
     DOCKER_TLS_CERTDIR: "/certs"
-    CLI_BASETAG: "ubuntu_bionic_client_"
+    CLI_BASETAG: "ubuntu_jammy_client_"
   needs:
     - job: cc7_docker_image
       artifacts: false
-    - job: ubuntu_bionic_docker_image
+    - job: ubuntu_jammy_docker_image
       artifacts: false
     - job: clone_docker
   allow_failure: true
@@ -190,18 +190,18 @@ dock_fusex_ub_bionic:
     - dock
   when: manual
 
-dock_fusex_ub_focal:
+dock_fusex_ub_jammy:
   extends: .dock8s_fusex_test_template
   image: gitlab-registry.cern.ch/dss/docker-enhanced:19.03.12
   services:
     - docker:19.03.12-dind
   variables:
     DOCKER_TLS_CERTDIR: "/certs"
-    CLI_BASETAG: "ubuntu_focal_client_"
+    CLI_BASETAG: "ubuntu_jammy_client_"
   needs:
     - job: cc7_docker_image
       artifacts: false
-    - job: ubuntu_focal_docker_image
+    - job: ubuntu_jammy_docker_image
       artifacts: false
     - job: clone_docker
   allow_failure: true

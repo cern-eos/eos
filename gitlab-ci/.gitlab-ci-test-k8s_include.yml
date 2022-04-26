@@ -112,15 +112,15 @@ k8s_cbox_cs8:
     - docker_node
     - k8s
 
-k8s_fusex_ub_bionic:
+k8s_fusex_ub_focal:
   extends: .dock8s_fusex_test_template
   image: alpine/k8s:1.18.2
   variables:
-    CLI_BASETAG: "ubuntu_bionic_client_"
+    CLI_BASETAG: "ubuntu_focal_client_"
   needs:
     - job: cc7_docker_image
       artifacts: false
-    - job: ubuntu_bionic_docker_image
+    - job: ubuntu_focal_docker_image
       artifacts: false
   retry: 1
   allow_failure: true
@@ -131,15 +131,15 @@ k8s_fusex_ub_bionic:
     - docker_node
     - k8s
 
-k8s_fusex_ub_focal:
+k8s_fusex_ub_jammy:
   extends: .dock8s_fusex_test_template
   image: alpine/k8s:1.18.2
   variables:
-    CLI_BASETAG: "ubuntu_focal_client_"
+    CLI_BASETAG: "ubuntu_jammy_client_"
   needs:
     - job: cc7_docker_image
       artifacts: false
-    - job: ubuntu_focal_docker_image
+    - job: ubuntu_jammy_docker_image
       artifacts: false
   retry: 1
   allow_failure: true
