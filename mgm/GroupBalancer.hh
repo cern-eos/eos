@@ -142,20 +142,6 @@ public:
     mDoConfigUpdate.store(true, std::memory_order_release);
   }
 
-  //----------------------------------------------------------------------------
-  //! Produces a file conversion path to be placed in the proc directory taking
-  //! into account the given group and also returns its size
-  //!
-  //! @param fid the file ID
-  //! @param target_group the group to which the file will be transferred
-  //! @param size return address for the size of the file
-  //!
-  //! @return name of the proc transfer file
-  //----------------------------------------------------------------------------
-  static std::string
-  getFileProcTransferNameAndSize(eos::common::FileId::fileid_t fid,
-                                 const string& target_group, uint64_t* size);
-
 private:
   AssistedThread mThread; ///< Thread scheduling jobs
   std::string mSpaceName; ///< Attached space name
