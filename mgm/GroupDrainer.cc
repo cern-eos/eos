@@ -19,9 +19,9 @@ using group_balancer::eosGroupsInfoFetcher;
 using group_balancer::GroupStatus;
 using group_balancer::getFileProcTransferNameAndSize;
 
-GroupDrainer::GroupDrainer(std::string_view spacename) : mSpaceName(spacename),
-                                                         mEngine(std::make_unique<group_balancer::StdDrainerEngine>()),
-                                                         numTx(10000)
+GroupDrainer::GroupDrainer(std::string_view spacename) : mMaxTransfers(10000),
+                                                         mSpaceName(spacename),
+                                                         mEngine(std::make_unique<group_balancer::StdDrainerEngine>())
 {
   mThread.reset(&GroupDrainer::GroupDrain, this);
 }
@@ -178,7 +178,7 @@ GroupDrainer::pruneTransfers()
 void
 GroupDrainer::prepareTransfers()
 {
-  uint64_t allowed_tx = numTx - mTransfers.size();
+  uint64_t allowed_tx = mMaxTransfers - mTransfers.size();
   try {
     for (uint64_t i = 0; i < allowed_tx; ++i) {
       prepareTransfer(i);
@@ -347,11 +347,16 @@ GroupDrainer::Configure(const string& spaceName)
     return false;
   }
   eos::common::StringToNumeric(
-      space->GetConfigMember("groupdrainer.ntx"), numTx, DEFAULT_NUM_TX);
+      space->GetConfigMember("groupdrainer.ntx"), mMaxTransfers,
+      DEFAULT_NUM_TX);
 
   eos::common::StringToNumeric(
       space->GetConfigMember("groupdrainer.retry_interval"), mRetryInterval,
       DEFAULT_RETRY_INTERVAL);
+
+  eos::common::StringToNumeric(
+      space->GetConfigMember("groupdrainer.retry_count"), mRetryCount,
+      MAX_RETRIES);
 
   uint64_t cache_expiry_time;
   bool status = eos::common::StringToNumeric(
@@ -374,7 +379,7 @@ GroupDrainer::handleRetries(eos::common::FileSystem::fsid_t fsid,
                             std::vector<eos::common::FileId::fileid_t>&& fids)
 {
   auto tracker = mFsidRetryCtr[fsid];
-  if (tracker.count > MAX_RETRIES) {
+  if (tracker.count > mRetryCount) {
     fsutils::ApplyFailedDrainStatus(fsid, fids.size());
     mCacheFileList.erase(fsid);
     return {false, mCacheFileList.end()};

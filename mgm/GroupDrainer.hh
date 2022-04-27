@@ -57,7 +57,7 @@ public:
                       bool force=false);
   void pruneTransfers();
   bool isTransfersFull() const {
-    return mTransfers.size() > numTx;
+    return mTransfers.size() > mMaxTransfers;
   }
 
   void prepareTransfers();
@@ -133,6 +133,9 @@ private:
   bool mRefreshGroups {true};
   bool mPauseExecution {false};
   std::atomic<bool> mDoConfigUpdate {true};
+  uint16_t mRetryCount; // < Max retries for failed transfers
+  uint32_t mMaxTransfers; // < Max no of transactions to keep in flight
+  uint64_t mRetryInterval; // < Retry Interval for failed transfers
   std::chrono::time_point<std::chrono::steady_clock> mLastUpdated;
   std::chrono::time_point<std::chrono::steady_clock> mDrainMapLastUpdated;
   std::chrono::seconds mCacheExpiryTime {300};
@@ -140,9 +143,6 @@ private:
   std::string mSpaceName;
   AssistedThread mThread;
   std::unique_ptr<group_balancer::BalancerEngine> mEngine;
-  uint32_t numTx; // < Max no of transactions to keep in flight
-  uint64_t mRetryInterval; // < Retry Interval for failed transfers
-  double mThreshold;
 
   group_balancer::engine_conf_t mDrainerEngineConf; ///< string k-v map of engine conf
   //! map tracking scheduled transfers, will be cleared periodically

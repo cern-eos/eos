@@ -771,6 +771,7 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config,
             (key == "groupdrainer.threshold") ||
             (key == "groupdrainer.group_refresh_interval") ||
             (key == "groupdrainer.retry_interval") ||
+            (key == "groupdrainer.retry_count") ||
             (key == "groupdrainer.ntx") ||
             (key == "geo.access.policy.read.exact") ||
             (key == "geo.access.policy.write.exact") ||
