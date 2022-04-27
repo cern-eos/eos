@@ -40,7 +40,7 @@ GroupDrainer::GroupDrain(ThreadAssistant& assistant) noexcept
                                });
   mRefreshGroups = true;
   bool config_status = false;
-  eos::common::observer_tag_t observer_tag = {0};
+  eos::common::observer_tag_t observer_tag {};
   eos_info("%s", "msg=\"starting group drainer thread\"");
 
   while (!assistant.terminationRequested()) {

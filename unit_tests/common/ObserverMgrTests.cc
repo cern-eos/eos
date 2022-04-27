@@ -4,6 +4,7 @@
 #include <folly/executors/IOThreadPoolExecutor.h>
 
 using eos::common::ObserverMgr;
+using eos::common::observer_tag_t;
 
 TEST(ObserverMgr, NotifyChangeSync)
 {
@@ -68,6 +69,9 @@ TEST(ObserverMgr, SimpleAsync)
   mgr.notifyChange(1);
   mgr.notifyChange(2);
 
+  // NOTE: This is not meant to be called in normal code unless really necessary
+  // to drain all pending jobs in the ObserverMgr. This is a blocking call.
+  // We only do this in tests to ensure that we can see the values
   mgr.syncAllNotifications();
   ASSERT_EQ(gval, 3);
   ASSERT_EQ(gval2, 6);
@@ -83,4 +87,10 @@ TEST(ObserverMgr, SimpleAsync)
 
   mgr.rmObserver(tag3);
   ASSERT_NO_THROW(mgr.notifyChange(101));
+}
+
+TEST(ObserverMgr, observert_tag_t)
+{
+  observer_tag_t default_tag {};
+  ASSERT_FALSE(default_tag);
 }
