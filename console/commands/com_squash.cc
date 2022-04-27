@@ -548,8 +548,9 @@ com_squash(char* arg1)
       }
 
       if (::rmdir(packagepath.GetPath())) {
-	fprintf(stderr,"error: failed to clean squashfs release under '%s'\n", path.c_str());
-	global_retc = errno;
+        global_retc = errno;
+        fprintf(stderr,"error: failed to clean squashfs release under '%s' error=%d\n",
+                path.c_str(), global_retc);
       }
 
       return (0);
