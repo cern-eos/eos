@@ -69,6 +69,7 @@ set(MGM_UT_SRCS
   mgm/groupbalancer/GroupBalancerUtilsTests.cc
   mgm/groupbalancer/GroupsInfoFetcherTests.cc
   mgm/groupdrainer/GroupDrainerRetry.cc
+  mgm/groupdrainer/GroupDrainerTests.cc
   mgm/tgc/CachedValueTests.cc
   mgm/tgc/FreedBytesHistogramTests.cc
   mgm/tgc/LruTests.cc

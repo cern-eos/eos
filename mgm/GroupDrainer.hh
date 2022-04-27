@@ -32,6 +32,7 @@
 #include <vector>
 #include <unordered_set>
 #include "mgm/groupbalancer/BalancerEngineTypes.hh"
+#include "mgm/utils/FileSystemStatusUtils.hh"
 
 namespace eos::mgm {
 
@@ -44,6 +45,13 @@ constexpr uint32_t DEFAULT_NUM_TX = 1000;
 constexpr uint64_t DEFAULT_CACHE_EXPIRY_TIME = 300;
 constexpr uint64_t DEFAULT_RETRY_INTERVAL = 4*3600;
 constexpr uint16_t MAX_RETRIES = 5;
+
+enum class GroupDrainStatus {
+  OFFLINE,
+  ONLINE,
+  COMPLETE,
+  FAILED
+};
 
 class GroupDrainer: public eos::common::LogId {
 public:
@@ -127,6 +135,12 @@ public:
       last_run_time = chrono::steady_clock::now();
     }
   };
+
+  static GroupDrainStatus
+  checkGroupDrainStatus(const fsutils::fs_status_map_t& fs_map);
+
+  static GroupDrainStatus
+  checkGroupDrainStatus(const std::string& groupname);
 
 private:
   bool mRefreshFSMap {true};

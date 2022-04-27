@@ -409,4 +409,53 @@ GroupDrainer::getStatus() const
   return ss.str();
 }
 
+GroupDrainStatus
+GroupDrainer::checkGroupDrainStatus(const fsutils::fs_status_map_t& fs_map)
+{
+
+  uint16_t total_fs = 0, failed_fs = 0, drained_fs = 0;
+
+  for (const auto &kv: fs_map) {
+    if (kv.second.active_status == eos::common::ActiveStatus::kOffline) {
+      return GroupDrainStatus::OFFLINE;
+    }
+    ++total_fs;
+    switch(kv.second.drain_status) {
+    case eos::common::DrainStatus::kDrainFailed:
+      ++failed_fs;
+      break;
+    case eos::common::DrainStatus::kDrained:
+      ++drained_fs;
+      break;
+    case eos::common::DrainStatus::kNoDrain: [[fallthrough]];
+    default:
+      // We've reached here because the fs is in one of the
+      // regular draining states and not one from GroupDrainer, this means
+      // the FS is either actually draining or in a state we don't recognize
+      return GroupDrainStatus::ONLINE;
+    }
+  }
+
+  if (failed_fs + drained_fs != total_fs) {
+    // Unlikely to reach!
+    eos_static_crit("msg=\"some FSes in unrecognized state\" total_fs=%d, "
+                    "failed_fs=%d drained_fs=%d", total_fs, failed_fs,
+                    drained_fs);
+    return GroupDrainStatus::ONLINE;
+  }
+
+  if (failed_fs > 0) {
+    return GroupDrainStatus::FAILED;
+  }
+
+  return GroupDrainStatus::COMPLETE;
+}
+
+GroupDrainStatus
+GroupDrainer::checkGroupDrainStatus(const string& groupname)
+{
+  auto fs_map = fsutils::GetGroupFsStatus(groupname);
+  return checkGroupDrainStatus(fs_map);
+}
+
 } // eos::mgm
