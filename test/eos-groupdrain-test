@@ -82,6 +82,10 @@ if [[ $? -ne 0 ]]; then
       exit 1
 fi
 
+# disable default.0 for writes right now
+echo "disabling group default.0 for writes"
+eos fs ls default.0 | grep online | awk '{print $6}' | sort | uniq | xargs -I {} eos geosched disabled add {} plct default.0
+eos geosched disabled show \* \* \*
 eos geosched disabled show \* \* \* | grep -v "default.1"
 if [[ $? -ne 0 ]]; then
       echo "error: group default.1 is already disabled ..."
@@ -103,6 +107,9 @@ for i in {1..4}; do
 done
 
 
+echo "re-enabling group default.0 for writes"
+eos fs ls default.0 | grep online | awk '{print $6}' | sort | uniq | xargs -I {} eos geosched disabled rm {} plct default.0
+eos geosched disabled show \* \* \*
 
 eos group set default.1 drain
 eos group ls
