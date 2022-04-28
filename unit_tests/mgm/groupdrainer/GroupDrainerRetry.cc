@@ -1,12 +1,12 @@
 #include "gtest/gtest.h"
-#include "mgm/GroupDrainer.hh"
+#include "mgm/groupdrainer/RetryTracker.hh"
 
 
 TEST(RetryTracker, basic)
 {
   using namespace eos::mgm;
   using namespace std::chrono_literals;
-  GroupDrainer::RetryTracker tracker;
+  RetryTracker tracker;
   std::chrono::time_point<std::chrono::steady_clock> time0 {};
   ASSERT_EQ(tracker.count, 0);
   EXPECT_EQ(tracker.last_run_time, time0);
