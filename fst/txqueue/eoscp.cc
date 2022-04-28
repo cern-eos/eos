@@ -346,7 +346,6 @@ print_summary(VectLocationType& src,
 {
   std::string src_clientinfo;
   std::string dst_clientinfo;
-  fprintf(stderr,"last %s %s\n", src_lasturl.c_str(), dst_lasturl.c_str());
   if (src_lasturl.length()) {
     XrdCl::URL url(src_lasturl);
     XrdCl::URL::ParamsMap cgi = url.GetParams();
