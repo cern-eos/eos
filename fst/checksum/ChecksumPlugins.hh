@@ -33,6 +33,7 @@
 #include "fst/checksum/SHA1.hh"
 #include "fst/checksum/CRC64.hh"
 #include "fst/checksum/SHA256.hh"
+#include "fst/checksum/HWH64.hh"
 
 #ifdef XXHASH_FOUND
 #include "fst/checksum/XXHASH64.hh"
@@ -72,6 +73,8 @@ public:
       return static_cast<CheckSum*>(new CRC64());
     } else if (xs_type == eos::common::LayoutId::kSHA256) {
       return static_cast<CheckSum*>(new SHA256());
+    } else if (xs_type == eos::common::LayoutId::kHWH64) {
+      return static_cast<CheckSum*>(new HWH64());
 #ifdef XXHASH_FOUND
     } else if (xs_type == eos::common::LayoutId::kXXHASH64) {
       return static_cast<CheckSum*>(new XXHASH64());

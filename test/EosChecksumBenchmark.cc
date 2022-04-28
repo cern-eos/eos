@@ -56,6 +56,8 @@ int main(int argc, char* argv[])
   checksumnames.push_back("sha1");
   checksumnames.push_back("xxhash64");
   checksumnames.push_back("blake3");
+  checksumnames.push_back("hwh64");
+  checksumnames.push_back("crc64");
   checksumids.push_back(eos::common::LayoutId::kAdler);
   checksumids.push_back(eos::common::LayoutId::kCRC32);
   checksumids.push_back(eos::common::LayoutId::kMD5);
@@ -63,6 +65,8 @@ int main(int argc, char* argv[])
   checksumids.push_back(eos::common::LayoutId::kSHA1);
   checksumids.push_back(eos::common::LayoutId::kXXHASH64);
   checksumids.push_back(eos::common::LayoutId::kBLAKE3);
+  checksumids.push_back(eos::common::LayoutId::kHWH64);
+  checksumids.push_back(eos::common::LayoutId::kCRC64);
   size_t nforks = 1;
 
   if (argc == 2) {

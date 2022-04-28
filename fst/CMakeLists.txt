@@ -23,7 +23,9 @@
 
 include_directories(
   ${CMAKE_SOURCE_DIR}/namespace/ns_quarkdb/qclient/include
-  ${CMAKE_SOURCE_DIR}/common/xrootd-ssi-protobuf-interface/include)
+  ${CMAKE_SOURCE_DIR}/common/xrootd-ssi-protobuf-interface/include
+  ${CMAKE_SOURCE_DIR}/common
+)
 
 #-------------------------------------------------------------------------------
 # Add XrdCl RAIN plugin library only if explicitly requested by using the
