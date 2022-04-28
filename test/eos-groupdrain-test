@@ -58,6 +58,7 @@ eos space config default space.converter=on
 eos space config default space.groupdrainer=on
 eos space config default space.groupdrainer.threshold=0
 eos space config default space.groupdrainer.retry_interval=10
+eos space config default space.groupdrainer.retry_count=3
 # Create eos directory for tests and copy some files in
 eos mkdir -p /eos/dockertest/drain_test/replica/
 eos mkdir -p /eos/dockertest/drain_test/raiddp/
@@ -142,7 +143,17 @@ done
 
 echo "Drain Complete, FS Status:"
 eos fs ls
+
+echo "Group Status"
 eos group ls
+
+eos group ls | grep -i drained
+
+if [[ $? -ne 0 ]]; then
+    echo "Error: group drain not complete"
+    exit 1
+fi
+
 echo "Setting Group Back to RW"
 eos group set default.1 on
 

@@ -219,7 +219,15 @@ GroupDrainer::prepareTransfer(uint64_t index)
       // other than the Groups Refresh every few minutes to check any new drain states
       eos_debug("msg=\"Encountered group with no online FS\" group_name=%s",
                 grp_drain_from.c_str());
-      mRefreshGroups = true;
+
+
+      mRefreshGroups = setDrainCompleteStatus(grp_drain_from,
+                                              checkGroupDrainStatus(grp_drain_from));
+      if (mRefreshGroups) {
+        eos_info("msg=\"Group completed drain!\" group=%s",
+                 grp_drain_from.c_str());
+        return;
+      }
       // Check if only one source group is involved; then we're sure that this status
       // will only change once a while. We don't need to keep checking this in a
       // tight loop anymore
@@ -409,7 +417,7 @@ GroupDrainer::getStatus() const
   return ss.str();
 }
 
-GroupDrainStatus
+GroupStatus
 GroupDrainer::checkGroupDrainStatus(const fsutils::fs_status_map_t& fs_map)
 {
 
@@ -417,7 +425,7 @@ GroupDrainer::checkGroupDrainStatus(const fsutils::fs_status_map_t& fs_map)
 
   for (const auto &kv: fs_map) {
     if (kv.second.active_status == eos::common::ActiveStatus::kOffline) {
-      return GroupDrainStatus::OFFLINE;
+      return GroupStatus::OFF;
     }
     ++total_fs;
     switch(kv.second.drain_status) {
@@ -432,7 +440,7 @@ GroupDrainer::checkGroupDrainStatus(const fsutils::fs_status_map_t& fs_map)
       // We've reached here because the fs is in one of the
       // regular draining states and not one from GroupDrainer, this means
       // the FS is either actually draining or in a state we don't recognize
-      return GroupDrainStatus::ONLINE;
+      return GroupStatus::ON;
     }
   }
 
@@ -441,21 +449,43 @@ GroupDrainer::checkGroupDrainStatus(const fsutils::fs_status_map_t& fs_map)
     eos_static_crit("msg=\"some FSes in unrecognized state\" total_fs=%d, "
                     "failed_fs=%d drained_fs=%d", total_fs, failed_fs,
                     drained_fs);
-    return GroupDrainStatus::ONLINE;
+    return GroupStatus::ON;
   }
 
   if (failed_fs > 0) {
-    return GroupDrainStatus::FAILED;
+    return GroupStatus::DRAINFAILED;
   }
 
-  return GroupDrainStatus::COMPLETE;
+  return GroupStatus::DRAINCOMPLETE;
 }
 
-GroupDrainStatus
+
+GroupStatus
 GroupDrainer::checkGroupDrainStatus(const string& groupname)
 {
   auto fs_map = fsutils::GetGroupFsStatus(groupname);
   return checkGroupDrainStatus(fs_map);
 }
+
+bool
+GroupDrainer::setDrainCompleteStatus(const std::string& groupname,
+                                     GroupStatus s)
+{
+  if (!isValidDrainCompleteStatus(s)) {
+    return false;
+  }
+
+  eos::common::RWMutexWriteLock lock(FsView::gFsView.ViewMutex);
+  auto group_it = FsView::gFsView.mGroupView.find(groupname);
+  if (group_it == FsView::gFsView.mGroupView.end()) {
+    return false;
+  }
+
+  return group_it->second->SetConfigMember("status",
+                                           group_balancer::GroupStatusToStr(s));
+
+}
+
+
 
 } // eos::mgm

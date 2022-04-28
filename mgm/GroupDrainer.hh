@@ -46,12 +46,8 @@ constexpr uint64_t DEFAULT_CACHE_EXPIRY_TIME = 300;
 constexpr uint64_t DEFAULT_RETRY_INTERVAL = 4*3600;
 constexpr uint16_t MAX_RETRIES = 5;
 
-enum class GroupDrainStatus {
-  OFFLINE,
-  ONLINE,
-  COMPLETE,
-  FAILED
-};
+
+using mgm::group_balancer::GroupStatus;
 
 class GroupDrainer: public eos::common::LogId {
 public:
@@ -136,12 +132,29 @@ public:
     }
   };
 
-  static GroupDrainStatus
+  static GroupStatus
   checkGroupDrainStatus(const fsutils::fs_status_map_t& fs_map);
 
-  static GroupDrainStatus
-  checkGroupDrainStatus(const std::string& groupname);
+  //! Check the drain statuses of all FSes in a group and map this to
+  //! a groupstatus. This might move a GroupDrainStatus in the future, but given
+  //! that we don't have a separate GroupDrain info, we just map it back to
+  //! a group status. This function is to be used to check the statuses of all FSes in a group.
+  //! Do not use this to actually just check the status of a group
+  //! from FSView!
+  //! \param groupname the group whose status to check
+  //! \return DrainFailed if one of the FSes is having a DrainFailed status
+  //!         DrainComplete if all of the FSes have completed draining
+  //!         Offline      if any of the FSes are offline
+  //!         Online       any other status
+  static GroupStatus checkGroupDrainStatus(const std::string& groupname);
 
+  static bool isValidDrainCompleteStatus(GroupStatus s) {
+    return s == GroupStatus::DRAINCOMPLETE ||
+           s == GroupStatus::DRAINFAILED;
+  }
+
+  static bool setDrainCompleteStatus(const std::string& groupname,
+                                     GroupStatus s);
 private:
   bool mRefreshFSMap {true};
   bool mRefreshGroups {true};

@@ -33,7 +33,9 @@ namespace eos::mgm::group_balancer {
 enum class GroupStatus {
   ON,
   OFF,
-  DRAIN
+  DRAIN,
+  DRAINCOMPLETE,
+  DRAINFAILED
 };
 
 inline constexpr GroupStatus getGroupStatus(std::string_view status) {
@@ -42,8 +44,30 @@ inline constexpr GroupStatus getGroupStatus(std::string_view status) {
     return GroupStatus::ON;
   } else if (status.compare("drain"sv) == 0) {
     return GroupStatus::DRAIN;
+  } else if (status.compare("draincomplete"sv) == 0) {
+    return GroupStatus::DRAINCOMPLETE;
+  } else if (status.compare("drainfailed"sv) == 0) {
+    return GroupStatus::DRAINCOMPLETE;
   }
+
   return GroupStatus::OFF;
+}
+
+inline std::string GroupStatusToStr(GroupStatus s) {
+  switch(s) {
+  case GroupStatus::ON:
+    return "on";
+  case GroupStatus::OFF:
+    return "off";
+  case GroupStatus::DRAIN:
+    return "drain";
+  case GroupStatus::DRAINCOMPLETE:
+    return "drained";
+  case GroupStatus::DRAINFAILED:
+    return "drainfailed";
+  }
+  // unknown status - unreachable as far as new types are in switch
+  return "on";
 }
 
 //------------------------------------------------------------------------------
