@@ -4812,6 +4812,16 @@ EosFuse::flush(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info* fi)
     rc |= Instance().mds.setlk(req, io->mdctx(), &lock, 0);
   }
 
+  // report slow flush before sending the response, because otherwise the 'io' object can be removed by a release happening
+  if (Instance().Trace() || (timing.RealTime() > 2000)) {
+    std::string path = Instance().mds.calculateLocalPath(io->md);
+    std::string s;
+    eos_static_warning("flush of '%s' took %.03fms\n%s",
+                       Instance().Prefix(path).c_str(),
+                       timing.RealTime(),
+                       io->ioctx()->Dump(s));
+  }
+
   fuse_reply_err(req, rc);
 
   if (invalidate_inode) {
@@ -4822,15 +4832,6 @@ EosFuse::flush(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info* fi)
   EXEC_TIMING_END(__func__);
   COMMONTIMING("_stop_", &timing);
 
-  // report slow flush
-  if (Instance().Trace() || (timing.RealTime() > 2000)) {
-    std::string path = Instance().mds.calculateLocalPath(io->md);
-    std::string s;
-    eos_static_warning("flush of '%s' took %.03fms\n%s",
-                       Instance().Prefix(path).c_str(),
-                       timing.RealTime(),
-                       io->ioctx()->Dump(s));
-  }
 
   eos_static_notice("t(ms)=%.03f %s", timing.RealTime(),
                     dump(id, ino, 0, rc).c_str());
