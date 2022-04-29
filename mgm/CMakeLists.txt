@@ -231,6 +231,7 @@ add_library(
   groupbalancer/StdDevBalancerEngine.cc
   groupbalancer/StdDrainerEngine.cc
   groupbalancer/GroupsInfoFetcher.cc
+  groupdrainer/DrainProgressTracker.cc
   GeoBalancer.cc
   Features.cc
   ZMQ.cc

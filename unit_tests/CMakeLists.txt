@@ -70,6 +70,7 @@ set(MGM_UT_SRCS
   mgm/groupbalancer/GroupsInfoFetcherTests.cc
   mgm/groupdrainer/GroupDrainerRetry.cc
   mgm/groupdrainer/GroupDrainerTests.cc
+  mgm/groupdrainer/DrainProgressTrackerTests.cc
   mgm/tgc/CachedValueTests.cc
   mgm/tgc/FreedBytesHistogramTests.cc
   mgm/tgc/LruTests.cc
