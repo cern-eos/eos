@@ -30,6 +30,9 @@
 #include "namespace/utils/Checksum.hh"
 #include "namespace/interface/IView.hh"
 #include "namespace/interface/IFileMDSvc.hh"
+#include "namespace/ns_quarkdb/NamespaceGroup.hh"
+#include "namespace/ns_quarkdb/flusher/MetadataFlusher.hh"
+
 
 //------------------------------------------------------------------------------
 // Utility functions to help with file conversion
@@ -564,6 +567,15 @@ ConversionJob::Merge()
     }
 
     gOFS->eosView->updateFileStore(orig_fmd.get());
+  }
+
+  // Synchronize the flusher to avoid a race condition with the resync
+  // happening on the FSTs
+  auto* qdb_ns_grp = dynamic_cast<eos::QuarkNamespaceGroup*>
+                     (gOFS->namespaceGroup.get());
+
+  if (qdb_ns_grp) {
+    qdb_ns_grp->getMetadataFlusher()->synchronize();
   }
 
   // Trigger a resync of the local information for the new locations
