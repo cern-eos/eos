@@ -1173,6 +1173,21 @@ public:
   }
 
   //--------------------------------------------------------------------------
+  //! Return iotype string from env
+  //--------------------------------------------------------------------------
+  static std::string
+  GetIotypeFromEnv(XrdOucEnv& env)
+  {
+    const char* val = 0;
+
+    if ((val = env.Get("eos.iotype"))) {
+      return std::string(env.Get("eos.iotype"));
+    }
+
+    return "";
+  }
+
+  //--------------------------------------------------------------------------
   //! Return block checksum enum from string representation
   //--------------------------------------------------------------------------
   static unsigned long
