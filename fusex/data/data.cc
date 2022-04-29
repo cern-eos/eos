@@ -1142,11 +1142,13 @@ data::datax::recover_ropen(fuse_req_t req)
       eos_warning("applying exclusion list: tried=%s,%s", last_host.c_str(),
                   new_cgi["tried"].c_str());
       new_cgi["tried"] = last_host.c_str() + std::string(",") + last_cgi["tried"];
+      new_cgi["triedrc"] = "EIO";
       new_cgi["eos.repairread"] = "1";
       newurl.SetParams(new_cgi);
       mRemoteUrlRO = newurl.GetURL();
     } else {
       new_cgi.erase("tried");
+      new_cgi.erase("triedrc");
       new_cgi["eos.repairread"] = "1";
       newurl.SetParams(new_cgi);
       mRemoteUrlRO = newurl.GetURL();
@@ -1210,6 +1212,7 @@ data::datax::recover_ropen(fuse_req_t req)
 
         // empty the tried= CGI tag
         new_cgi.erase("tried");
+	new_cgi.erase("triedrc");
         newurl.SetParams(new_cgi);
         mRemoteUrlRO = newurl.GetURL();
         continue;
@@ -1302,10 +1305,12 @@ data::datax::try_ropen(fuse_req_t req, XrdCl::Proxy*& proxy,
       eos_warning("applying exclusion list: tried=%s,%s", last_host.c_str(),
                   new_cgi["tried"].c_str());
       new_cgi["tried"] = last_host.c_str() + std::string(",") + last_cgi["tried"];
+      new_cgi["triedrc"] = "EIO" + std::string(",") + last_cgi["triedrc"];
       newurl.SetParams(new_cgi);
       open_url = newurl.GetURL();
     } else {
       new_cgi.erase("tried");
+      new_cgi.erase("triedrc");
       newurl.SetParams(new_cgi);
       open_url = newurl.GetURL();
     }
