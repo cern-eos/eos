@@ -158,8 +158,6 @@ QuarkContainerAccounting::PropagateUpdates(ThreadAssistant* assistant)
     auto& batch = mBatch[mCommitIndx];
 
     if(!batch.mMap.empty()){
-      // Need to lock the namespace
-      eos::common::RWMutexWriteLock wr_lock(*gNsRwMutex);
       std::shared_ptr<IContainerMD> cont;
 
       for (auto const& elem : batch.mMap) {
