@@ -33,7 +33,9 @@
 #include "fst/checksum/SHA1.hh"
 #include "fst/checksum/CRC64.hh"
 #include "fst/checksum/SHA256.hh"
+#ifndef __APPLE__
 #include "fst/checksum/HWH64.hh"
+#endif
 
 #ifdef XXHASH_FOUND
 #include "fst/checksum/XXHASH64.hh"
@@ -73,8 +75,10 @@ public:
       return static_cast<CheckSum*>(new CRC64());
     } else if (xs_type == eos::common::LayoutId::kSHA256) {
       return static_cast<CheckSum*>(new SHA256());
+#ifndef __APPLE__      
     } else if (xs_type == eos::common::LayoutId::kHWH64) {
       return static_cast<CheckSum*>(new HWH64());
+#endif
 #ifdef XXHASH_FOUND
     } else if (xs_type == eos::common::LayoutId::kXXHASH64) {
       return static_cast<CheckSum*>(new XXHASH64());
