@@ -32,6 +32,7 @@
 #include <unordered_set>
 #include "mgm/groupbalancer/BalancerEngineTypes.hh"
 #include "mgm/groupdrainer/RetryTracker.hh"
+#include "mgm/groupdrainer/DrainProgressTracker.hh"
 #include "mgm/utils/FileSystemStatusUtils.hh"
 
 namespace eos::mgm {
@@ -159,10 +160,15 @@ private:
   //! a map holding the current list of FSes in the draining groups
   //! this is unlikely to have more than a single digit number of keys..maybe a
   //! a vector of pairs might be ok?
+  mutable std::mutex mDrainFsMapMtx; ///< This mutex is only to sync. b/w UI thread
+  // and the internal GroupDrainer Threads, there is no need for locking for
+  // reads within GroupDrainer!
+
   std::map<std::string, std::vector<common::FileSystem::fsid_t>> mDrainFsMap;
   std::map<common::FileSystem::fsid_t, RetryTracker> mFsidRetryCtr;
   std::set<common::FileSystem::fsid_t> mFailedFsids;
   cache_fid_map_t mCacheFileList;
+  DrainProgressTracker mDrainProgressTracker;
 };
 
 } // namespace eos::mgm

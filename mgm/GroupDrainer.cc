@@ -8,16 +8,22 @@
 #include "mgm/groupbalancer/GroupsInfoFetcher.hh"
 #include "common/utils/ContainerUtils.hh"
 #include "common/StringUtils.hh"
+#include "common/table_formatter/TableFormatterBase.hh"
 #include "namespace/interface/IFsView.hh"
 #include "mgm/FsView.hh"
 #include "common/FileSystem.hh"
 #include "mgm/utils/FileSystemStatusUtils.hh"
+
 
 namespace eos::mgm {
 
 using group_balancer::eosGroupsInfoFetcher;
 using group_balancer::GroupStatus;
 using group_balancer::getFileProcTransferNameAndSize;
+
+static const std::string format_s = "-s";
+static const std::string format_l = "l";
+static const std::string format_f = "f";
 
 GroupDrainer::GroupDrainer(std::string_view spacename) : mMaxTransfers(10000),
                                                          mSpaceName(spacename),
@@ -207,10 +213,21 @@ GroupDrainer::prepareTransfer(uint64_t index)
   }
 
   eos_debug("msg=\"Doing transfer \" index=%d", index);
+  // No need for lock here as if there is a write it is serial here and sync., the UI
+  // call from another thread doesn't do modifications! Also we expect the failure
+  // conditions to only happen during the initial phases when we haven't yet filled the
+  // various drain Fs Maps or during periodic intervals when we run out files to
+  // transfer!
   auto fsids = mDrainFsMap.find(grp_drain_from);
-  if (fsids == mDrainFsMap.end() || isUpdateNeeded(mDrainMapLastUpdated, mRefreshFSMap)) {
-    std::tie(fsids, std::ignore) = mDrainFsMap.insert_or_assign(grp_drain_from,
-                                                                fsutils::FsidsinGroup(grp_drain_from));
+
+  if (fsids == mDrainFsMap.end() ||
+      isUpdateNeeded(mDrainMapLastUpdated, mRefreshFSMap)) {
+    {
+      std::scoped_lock slock(mDrainFsMapMtx);
+      std::tie(fsids, std::ignore) = mDrainFsMap.insert_or_assign(grp_drain_from,
+                                                                  fsutils::FsidsinGroup(grp_drain_from));
+    }
+
     if (fsids->second.empty()) {
       // We reach here when all the FSes in the group are either offline or empty!
       // force a refresh of Groups Info for the next cycle, in that case the new
@@ -256,6 +273,7 @@ GroupDrainer::prepareTransfer(uint64_t index)
   if (fids != mCacheFileList.end()) {
     if (fids->second.size() > 0) {
       scheduleTransfer(fids->second.back(), grp_drain_from, grp_drain_to);
+      mDrainProgressTracker.increment(fsid);
       fids->second.pop_back();
     } else {
       eos_debug("%s", "Got a valid iter but empty files!");
@@ -300,6 +318,7 @@ GroupDrainer::populateFids(eos::common::FileSystem::fsid_t fsid)
 
     return {false, mCacheFileList.end()};
   }
+  mDrainProgressTracker.setTotalFiles(fsid, total_files);
 
   std::vector<eos::common::FileId::fileid_t> local_fids;
   std::vector<eos::common::FileId::fileid_t> failed_fids;
@@ -404,19 +423,6 @@ GroupDrainer::handleRetries(eos::common::FileSystem::fsid_t fsid,
   return {true, mCacheFileList.end()};
 }
 
-std::string
-GroupDrainer::getStatus() const
-{
-  auto tx_sz = mTransfers.size();
-  auto failed_tx_sz = mFailedTransfers.size();
-
-  std::stringstream ss;
-  ss << "Transfers in Queue     : " << tx_sz << "\n";
-  ss << "Transfers Failed       : " << failed_tx_sz << "\n";
-  ss << mEngine->get_status_str();
-  return ss.str();
-}
-
 GroupStatus
 GroupDrainer::checkGroupDrainStatus(const fsutils::fs_status_map_t& fs_map)
 {
@@ -484,6 +490,61 @@ GroupDrainer::setDrainCompleteStatus(const std::string& groupname,
   return group_it->second->SetConfigMember("status",
                                            group_balancer::GroupStatusToStr(s));
 
+}
+
+static TableRow
+generate_progress_row(eos::common::FileSystem::fsid_t fsid,
+                      float drain_percent, uint64_t file_ctr,
+                      uint64_t total_files)
+{
+  TableRow row;
+  row.emplace_back(fsid, format_l);
+  row.emplace_back((double)drain_percent, format_f);
+  row.emplace_back((long long)file_ctr, format_l);
+  row.emplace_back((long long)total_files, format_l);
+  return row;
+}
+
+std::string
+GroupDrainer::getStatus() const
+{
+  auto tx_sz = mTransfers.size();
+  auto failed_tx_sz = mFailedTransfers.size();
+
+  std::stringstream ss;
+  ss << "Transfers in Queue     : " << tx_sz << "\n";
+  ss << "Transfers Failed       : " << failed_tx_sz << "\n";
+  ss << mEngine->get_status_str();
+
+  if (mDrainFsMap.empty()) {
+    return ss.str();
+  }
+
+  {
+    std::scoped_lock sl(mDrainFsMapMtx);
+    for (const auto& kv: mDrainFsMap) {
+      ss << "Group: " << kv.first << "\n";
+
+      TableFormatterBase table_fs_status(true);
+      TableData table_data;
+      table_fs_status.SetHeader({
+          {"fsid", 10, format_l},
+          {"Drain Progress", 10 , format_f},
+          {"Total Transfers", 10, format_l},
+          {"Total files", 10, format_l}
+      });
+      for (const auto& fsid: kv.second) {
+        table_data.emplace_back(generate_progress_row(fsid,
+                                                      mDrainProgressTracker.getDrainStatus(fsid),
+                                                      mDrainProgressTracker.getFileCounter(fsid),
+                                                      mDrainProgressTracker.getTotalFiles(fsid)));
+      }
+      table_fs_status.AddRows(table_data);
+      ss << table_fs_status.GenerateTable() << "\n";
+    }
+  }
+
+  return ss.str();
 }
 
 
