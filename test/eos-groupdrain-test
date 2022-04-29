@@ -57,6 +57,7 @@ dd if=/dev/urandom of=${TEST_FN2} bs=1M count=5  &> /dev/null
 eos space config default space.converter=on
 eos space config default space.groupdrainer=on
 eos space config default space.groupdrainer.threshold=0
+eos space config default space.groupdrainer.group_refresh_interval=30
 eos space config default space.groupdrainer.retry_interval=10
 eos space config default space.groupdrainer.retry_count=3
 # Create eos directory for tests and copy some files in
@@ -107,6 +108,12 @@ for i in {1..4}; do
       xrdcp -f --nopbar ${TEST_FN2} root://${EOS_MGM_HOSTNAME}//eos/dockertest/drain_test/rain/5mb_file${i}.dat
 done
 
+# Dump file info of the 3 layouts
+echo "File info:"
+eos file info /eos/dockertest/drain_test/replica/5mb_file1.dat
+eos file info /eos/dockertest/drain_test/raiddp/5mb_file1.dat
+eos file info /eos/dockertest/drain_test/rain/5mb_file1.dat
+
 
 echo "re-enabling group default.0 for writes"
 eos fs ls default.0 | grep online | awk '{print $6}' | sort | uniq | xargs -I {} eos geosched disabled rm {} plct default.0
@@ -148,6 +155,13 @@ echo "Drain Status: "
 eos space groupdrainer status default
 echo "Group Status"
 eos group ls
+echo "Converter Status"
+eos convert status
+# Dump file info of the 3 layouts
+echo "File info:"
+eos file info /eos/dockertest/drain_test/replica/5mb_file1.dat
+eos file info /eos/dockertest/drain_test/raiddp/5mb_file1.dat
+eos file info /eos/dockertest/drain_test/rain/5mb_file1.dat
 
 eos group ls | grep -i drained
 
