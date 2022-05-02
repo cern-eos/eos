@@ -385,6 +385,11 @@ FsckEntry::RepairFstXsSzDiff()
   size_t num_nominal_rep = LayoutId::GetStripeNumber(mMgmFmd.layout_id() + 1);
 
   if (!good_fsids.empty() && (good_fsids.size() > num_nominal_rep)) {
+    if (LayoutId::IsRain(mMgmFmd.layout_id())) {
+      eos_crit("msg=\"more stripes than RAIN layout\" fxid=%08llx", mFid);
+      return false;
+    }
+
     while (good_fsids.size() > num_nominal_rep) {
       bad_fsids.insert(*good_fsids.begin());
       good_fsids.erase(good_fsids.begin());
