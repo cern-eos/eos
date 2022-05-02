@@ -217,13 +217,19 @@ add_library(
   fsck/FsckEntry.cc
   utils/FileSystemRegistry.cc                  utils/FileSystemRegistry.hh
   utils/FilesystemUuidMapper.cc                utils/FilesystemUuidMapper.hh
+  utils/FileSystemStatusUtils.cc
   txengine/TransferEngine.cc
   txengine/TransferFsDB.cc
   convert/old/Converter.cc
   GroupBalancer.cc
+  GroupDrainer.cc
   groupbalancer/BalancerEngine.cc
+  groupbalancer/ConverterUtils.cc
   groupbalancer/MinMaxBalancerEngine.cc
   groupbalancer/StdDevBalancerEngine.cc
+  groupbalancer/StdDrainerEngine.cc
+  groupbalancer/GroupsInfoFetcher.cc
+  groupdrainer/DrainProgressTracker.cc
   GeoBalancer.cc
   Features.cc
   ZMQ.cc

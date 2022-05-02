@@ -23,7 +23,7 @@
       kubectl exec kuberos-kuberos-kdc-0 -c kdc -- /usr/sbin/kadmin.local -r $TEST_REALM addprinc -pw $TEST_USERPRINC_PASSWORD $TEST_USERPRINC_NAME
     - |
       ######## EOS-CHARTS/SERVER ########
-      helm install --wait --timeout 10m0s \
+      helm install --wait --timeout 20m0s \
         -f ./gitlab-ci/.gitlab-ci-test-helm_server_values.yml eos eos/server \
         --version $HELM_EOS_SERVER_VERSION \
         --atomic --create-namespace --namespace $K8S_NAMESPACE \
@@ -48,6 +48,33 @@
       client1_pod="$(kubectl get pods --no-headers -o custom-columns=':metadata.name' | grep 'eos-client1')"
       kubectl label pod $client1_pod app=eos-cli1
       kubectl exec eos-mgm-0 -- eos fs ls
+
+.helm_groups_before_script_template: &helm_groups_before_script_template
+  before_script:
+    - |
+      chmod 600 $K8S_CONFIG
+      export KUBECONFIG=$K8S_CONFIG # get access configs for the cluster
+      K8S_NAMESPACE=$(echo ${CI_JOB_NAME}-${CI_JOB_ID}-${CI_PIPELINE_ID} | tr '_' '-' | tr '[:upper:]' '[:lower:]')
+      kubectl config set-context --current --namespace=$K8S_NAMESPACE
+      IMAGE_TAG="${BASETAG}${CI_COMMIT_TAG:-$CI_COMMIT_SHORT_SHA}"
+      CLI_IMAGE_TAG="${BASETAG}${CLI_BASETAG}${CI_COMMIT_TAG:-$CI_COMMIT_SHORT_SHA}" # may be different from the server image (eg ubuntu)
+    - |
+      helm repo add eos https://registry.cern.ch/chartrepo/eos
+      HELM_EOS_SERVER_VERSION=0.1.3
+    - |
+      ######## EOS-CHARTS/SERVER ########
+      helm install --wait --timeout 20m0s \
+        -f ./gitlab-ci/.gitlab-ci-test-helm-server-multigroup-values.yml eos eos/server \
+        --version $HELM_EOS_SERVER_VERSION \
+        --atomic --create-namespace --namespace $K8S_NAMESPACE \
+        --set-string global.tag=$IMAGE_TAG
+    - |
+      # allow backward compatibility with our legacy k8s utilities functions
+      for i in $(seq 1 15); do kubectl label pod eos-fst-$((i -1)) app=eos-fst${i}; done
+      kubectl label pod eos-mgm-0 app=eos-mgm1
+      #kubectl label pod eos-mq-0 app=eos-mq Shared Pod for mgm/mq in newer releases
+      kubectl label pod eos-qdb-0 app=eos-qdb
+
 
 .helm_after_script_template: &helm_after_script_template
   after_script:
@@ -181,6 +208,7 @@ helm_cnvrt_fsck:
     expire_in: 3 days
     paths:
       - eos-logs-${CI_JOB_ID}/
+  allow_failure: true
 
 helm_fusex:
   extends: .helm_fusex_test_template
@@ -275,6 +303,26 @@ helm_system:
     - job: cc7_docker_image
       artifacts: false
   when: manual
+
+helm_groupdrainer:
+  stage: test
+  image: gitlab-registry.cern.ch/dss/alpine-enhanced:3.13.5
+  <<: *helm_groups_before_script_template
+  script:
+    - TEST_URL=$(kubectl exec eos-mgm-0 -- hostname -f)
+    - kubectl exec eos-mgm-0 -- eos chmod 2777 /eos/dockertest
+    - kubectl exec eos-mgm-0 -- eos-groupdrain-test ${TEST_URL}
+  <<: *helm_after_script_template
+  artifacts:
+    when: on_failure
+    expire_in: 3 days
+    paths:
+      - eos-logs-${CI_JOB_ID}/
+  needs:
+    - job: cc7_docker_image
+      artifacts: false
+  # @todo(esindril) remove in eos5 once we have grid-hammer built with XRootD5
+  allow_failure: true
 
 helm_system_cs8:
   extends: .helm_system_test_template

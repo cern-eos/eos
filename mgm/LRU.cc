@@ -834,7 +834,7 @@ LRU::ConvertMatch(const char* dir,
       // ctime to be updated since this doesn't happen by default
       conv_tag += eos::mgm::ConversionInfo::UPDATE_CTIME;
 
-      if (!gOFS->mConverterDriver->ScheduleJob(fid, conv_tag)) {
+      if (gOFS->mConverterDriver->ScheduleJob(fid, conv_tag)) {
         eos_static_info("msg=\"LRU scheduled conversion job\" tag=\"%s\"",
                         conv_tag.c_str());
       } else {

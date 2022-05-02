@@ -152,8 +152,9 @@ ConverterDriver::HandleRunningJobs()
   eos::common::RWMutexWriteLock wlock(mJobsMutex);
 
   for (auto it = mJobsRunning.begin(); it != mJobsRunning.end(); /**/) {
-    if (((*it)->GetStatus() == ConversionJob::Status::DONE) ||
-        ((*it)->GetStatus() == ConversionJob::Status::FAILED)) {
+    if (auto job_status = (*it)->GetStatus();
+        (job_status == ConversionJob::Status::DONE) ||
+        (job_status == ConversionJob::Status::FAILED)) {
       auto fid = (*it)->GetFid();
 
       if (!mQdbHelper.RemovePendingJob(fid)) {
@@ -161,10 +162,11 @@ ConverterDriver::HandleRunningJobs()
                        "fid=%llu", fid);
       }
 
-      if ((*it)->GetStatus() == ConversionJob::Status::FAILED) {
+      if (job_status == ConversionJob::Status::FAILED) {
         mQdbHelper.AddFailedJob(*it);
       }
 
+      mObserverMgr->notifyChange(job_status, (*it)->GetConversionString());
       it = mJobsRunning.erase(it);
     } else {
       ++it;
@@ -265,10 +267,10 @@ ConverterDriver::QdbHelper::AddFailedJob(
 //------------------------------------------------------------------------------
 // Get list of pending jobs
 //------------------------------------------------------------------------------
-std::list<ConverterDriver::JobInfoT>
+std::vector<ConverterDriver::JobInfoT>
 ConverterDriver::QdbHelper::GetPendingJobs()
 {
-  std::list<JobInfoT> pending;
+  std::vector<JobInfoT> pending;
 
   for (auto it = mQHashPending.getIterator(cBatchSize, "0");
        it.valid(); it.next()) {
@@ -283,10 +285,10 @@ ConverterDriver::QdbHelper::GetPendingJobs()
 //------------------------------------------------------------------------------
 // Get list of failed jobs
 //------------------------------------------------------------------------------
-std::list<ConverterDriver::JobFailedT>
+std::vector<ConverterDriver::JobFailedT>
 ConverterDriver::QdbHelper::GetFailedJobs()
 {
-  std::list<JobFailedT> failed;
+  std::vector<JobFailedT> failed;
 
   for (auto it = mQHashFailed.getIterator(cBatchSize, "0");
        it.valid(); it.next()) {

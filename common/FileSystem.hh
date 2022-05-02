@@ -94,6 +94,7 @@ enum class ConfigStatus {
   kOff = 0,
   kEmpty,
   kDrainDead,
+  kGroupDrain,
   kDrain,
   kRO,
   kWO,

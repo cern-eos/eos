@@ -4842,17 +4842,7 @@ EosFuse::flush(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info* fi)
     }
   }
 
-  fuse_reply_err(req, rc);
-
-  if (invalidate_inode) {
-    eos_static_warning("invalidating ino=%#lx after flush error", ino);
-    kernelcache::inval_inode(ino, true);
-  }
-
-  EXEC_TIMING_END(__func__);
-  COMMONTIMING("_stop_", &timing);
-
-  // report slow flush
+  // report slow flush before sending the response, because otherwise the 'io' object can be removed by a release happening
   if (Instance().Trace() || (timing.RealTime() > 2000)) {
     std::string path = Instance().mds.calculateLocalPath(io->md);
     std::string s;
@@ -4862,6 +4852,15 @@ EosFuse::flush(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info* fi)
                        io->ioctx()->Dump(s));
   }
 
+  fuse_reply_err(req, rc);
+
+  if (invalidate_inode) {
+    eos_static_warning("invalidating ino=%#lx after flush error", ino);
+    kernelcache::inval_inode(ino, true);
+  }
+
+  EXEC_TIMING_END(__func__);
+  COMMONTIMING("_stop_", &timing);
   eos_static_notice("t(ms)=%.03f %s", timing.RealTime(),
                     dump(id, ino, 0, rc).c_str());
 }

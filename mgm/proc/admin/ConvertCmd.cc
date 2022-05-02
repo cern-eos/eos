@@ -432,11 +432,9 @@ ConvertCmd::ListSubcmd(const eos::console::ConvertProto_ListProto& list,
                        eos::console::ReplyProto& reply, bool jsonOutput)
 {
   std::ostringstream oss;
-  std::list<ConverterDriver::JobInfoT> pending;
-  std::list<ConverterDriver::JobFailedT> failed;
 
   if (list.type() == "pending") {
-    pending = gOFS->mConverterDriver->GetPendingJobs();
+    auto pending = gOFS->mConverterDriver->GetPendingJobs();
 
     if (pending.empty()) {
       reply.set_std_out("info: no pending conversions");
@@ -470,7 +468,7 @@ ConvertCmd::ListSubcmd(const eos::console::ConvertProto_ListProto& list,
       oss << table.GenerateTable();
     }
   } else if (list.type() == "failed") {
-    failed = gOFS->mConverterDriver->GetFailedJobs();
+    auto failed = gOFS->mConverterDriver->GetFailedJobs();
 
     if (failed.empty()) {
       reply.set_std_out("info: no failed conversions");

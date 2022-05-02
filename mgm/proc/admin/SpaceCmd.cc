@@ -34,6 +34,7 @@
 #include "mgm/Egroup.hh"
 #include "mgm/config/IConfigEngine.hh"
 #include "mgm/GroupBalancer.hh"
+#include "mgm/GroupDrainer.hh"
 #include "namespace/interface/IFsView.hh"
 #include "namespace/interface/IContainerMDSvc.hh"
 #include "namespace/interface/IView.hh"
@@ -44,6 +45,7 @@
 
 EOSMGMNAMESPACE_BEGIN
 static const std::string GROUPBALANCER_KEY_PREFIX = "groupbalancer";
+static const std::string GROUPDRAINER_KEY_PREFIX = "groupdrainer";
 
 //------------------------------------------------------------------------------
 // Method implementing the specific behavior of the command executed by the
@@ -106,6 +108,10 @@ SpaceCmd::ProcessRequest() noexcept
 
   case eos::console::SpaceProto::kGroupbalancer:
     GroupBalancerSubCmd(space.groupbalancer(), reply);
+    break;
+
+  case eos::console::SpaceProto::kGroupdrainer:
+    GroupDrainerSubCmd(space.groupdrainer(), reply);
     break;
 
   default:
@@ -733,6 +739,12 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config,
             (key == "geobalancer") ||
             (key == "geobalancer.ntx") ||
             (key == "geobalancer.threshold") ||
+            (key == "groupdrainer") ||
+            (key == "groupdrainer.threshold") ||
+            (key == "groupdrainer.group_refresh_interval") ||
+            (key == "groupdrainer.retry_interval") ||
+            (key == "groupdrainer.retry_count") ||
+            (key == "groupdrainer.ntx") ||
             (key == "geo.access.policy.read.exact") ||
             (key == "geo.access.policy.write.exact") ||
             (key == "filearchivedgc") ||
@@ -749,12 +761,26 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config,
             (key == eos::common::SCAN_NS_INTERVAL_NAME) ||
             (key == eos::common::SCAN_NS_RATE_NAME) ||
             (key == eos::common::FSCK_REFRESH_INTERVAL_NAME)) {
+          // Fix for the rare case someone sends this command at startup wherein
+          // the various subcomponents aren't initialized yet. In case of these
+          // we call the reconfigure() method, so we need to make sure that the component
+          // exists beforehand
+          if ((eos::common::startsWith(key, "groupdrainer") &&
+               !FsView::gFsView.mSpaceView[config.mgmspace_name()]->mGroupDrainer) ||
+              (eos::common::startsWith(key, "groupbalancer") &&
+               !FsView::gFsView.mSpaceView[config.mgmspace_name()]->mGroupBalancer)) {
+            reply.set_std_err("Component not initialized, please wait!");
+            reply.set_retc(EIO);
+            return;
+          }
+
           if ((key == "balancer") || (key == "converter") || (key == "tracker") ||
               (key == "inspector") || (key == "lru") ||
               (key == "groupbalancer") || (key == "geobalancer") ||
               (key == "geo.access.policy.read.exact") ||
               (key == "geo.access.policy.write.exact") ||
-              (key == "filearchivedgc")) {
+              (key == "filearchivedgc") ||
+              (key == "groupdrainer")) {
             applied = true;
 
             if ((value != "on") && (value != "off")) {
@@ -818,6 +844,16 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config,
                   } else {
                     std_out << "success: geobalancer is disabled!";
                   }
+                }
+
+                if (key == "groupdrainer") {
+                  if (value == "on") {
+                    std_out << "success: groupdrainer is enabled!";
+                  } else {
+                    std_out << "success: groupdrainer is disabled!";
+                  }
+
+                  FsView::gFsView.mSpaceView[config.mgmspace_name()]->mGroupDrainer->reconfigure();
                 }
 
                 if (key == "geo.access.policy.read.exact") {
@@ -902,7 +938,8 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config,
                     (key != "geobalancer.threshold") &&
                     (key != "groupbalancer.threshold") &&
                     (key != "groupbalancer.min_threshold") &&
-                    (key != "groupbalancer.max_threshold")) {
+                    (key != "groupbalancer.max_threshold") &&
+                    (key != "groupdrainer.threshold")) {
                   // the threshold is allowed to be decimal!
                   char ssize[1024];
                   snprintf(ssize, sizeof(ssize) - 1, "%llu", size);
@@ -926,6 +963,8 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config,
 
                   if (eos::common::startsWith(key, GROUPBALANCER_KEY_PREFIX)) {
                     FsView::gFsView.mSpaceView[config.mgmspace_name()]->mGroupBalancer->reconfigure();
+                  } else if (eos::common::startsWith(key, GROUPDRAINER_KEY_PREFIX)) {
+                    FsView::gFsView.mSpaceView[config.mgmspace_name()]->mGroupDrainer->reconfigure();
                   }
                 }
               } else {
@@ -1270,6 +1309,7 @@ void SpaceCmd::GroupBalancerSubCmd(const
   if (groupbalancer.mgmspace().empty()) {
     reply.set_std_err("error: A spacename is needed for this cmd");
     reply.set_retc(EINVAL);
+    return;
   }
 
   auto space_it = FsView::gFsView.mSpaceView.find(groupbalancer.mgmspace());
@@ -1307,6 +1347,36 @@ void SpaceCmd::GroupBalancerStatusCmd(const
   bool monitoring = status.options().find('m') != std::string::npos;
   bool detail = status.options().find('d') != std::string::npos;
   reply.set_std_out(fs_space->mGroupBalancer->Status(detail, monitoring));
+  reply.set_retc(0);
+}
+void
+SpaceCmd::GroupDrainerSubCmd(const eos::console::SpaceProto_GroupDrainerProto&
+                             groupdrainer,
+                             console::ReplyProto& reply)
+{
+  if (groupdrainer.mgmspace().empty()) {
+    reply.set_std_err("error: A spacename is needed for this cmd");
+    reply.set_retc(EINVAL);
+    return;
+  }
+
+  auto space_it = FsView::gFsView.mSpaceView.find(groupdrainer.mgmspace());
+
+  if (space_it == FsView::gFsView.mSpaceView.end()) {
+    reply.set_std_err("error: No such space exists!");
+    reply.set_retc(EINVAL);
+    return;
+  }
+
+  const auto fs_space = space_it->second;
+
+  if (!fs_space->mGroupDrainer) {
+    reply.set_std_out("GroupDrainer not enabled or is configuring!");
+    reply.set_retc(EIO);
+    return;
+  }
+
+  reply.set_std_out(fs_space->mGroupDrainer->getStatus());
   reply.set_retc(0);
 }
 

@@ -27,9 +27,10 @@
 #include "common/LayoutId.hh"
 
 
-void usage() 
+void usage()
 {
-  fprintf(stderr,"usage: eos-checksum adler|blake7|crc32|crc32c|crc64|md5|sha|sha256|xxhash64 <path>|/dev/stdin\n");
+  fprintf(stderr,
+          "usage: eos-checksum adler|blake7|crc32|crc32c|crc64|md5|sha|sha256|xxhash64|hwh64 <path>|/dev/stdin\n");
 }
 
 int
@@ -41,15 +42,17 @@ main(int argc, char* argv[])
   }
 
   std::string requested_checksum = argv[1];
-  int checksum_type=0;
+  int checksum_type = 0;
 
-  if ( (checksum_type = eos::common::LayoutId::GetChecksumFromString(requested_checksum) == eos::common::LayoutId::kNone) ) {
-    fprintf(stderr,"error: checksum <%s> is not supported\n", argv[1]);
+  if ((checksum_type = eos::common::LayoutId::GetChecksumFromString(
+                         requested_checksum) == eos::common::LayoutId::kNone)) {
+    fprintf(stderr, "error: checksum <%s> is not supported\n", argv[1]);
     exit(-EINVAL);
   }
 
   std::unique_ptr<eos::fst::CheckSum> normalXS =
-    std::unique_ptr<eos::fst::CheckSum> (eos::fst::ChecksumPlugins::GetXsObj(eos::common::LayoutId::GetChecksumFromString(requested_checksum)));
+    std::unique_ptr<eos::fst::CheckSum> (eos::fst::ChecksumPlugins::GetXsObj(
+        eos::common::LayoutId::GetChecksumFromString(requested_checksum)));
 
   if (normalXS) {
     XrdOucString path = (argv[2]) ? argv[2] : "";

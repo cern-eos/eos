@@ -25,21 +25,12 @@
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/FsView.hh"
 #include "namespace/interface/IFsView.hh"
-#include "namespace/interface/IView.hh"
-#include "namespace/Prefetcher.hh"
 #include "common/StringConversion.hh"
 #include "common/FileId.hh"
-#include "common/LayoutId.hh"
-#include "XrdSys/XrdSysError.hh"
-#include "XrdOuc/XrdOucTrace.hh"
-#include "Xrd/XrdScheduler.hh"
-#include <random>
-#include <cmath>
 #include "mgm/groupbalancer/BalancerEngineFactory.hh"
 #include "mgm/groupbalancer/BalancerEngineUtils.hh"
-
-extern XrdSysError gMgmOfsEroute;
-extern XrdOucTrace gMgmOfsTrace;
+#include "mgm/groupbalancer/GroupsInfoFetcher.hh"
+#include "mgm/groupbalancer/ConverterUtils.hh"
 
 #define CACHE_LIFE_TIME 60 // seconds
 
@@ -47,46 +38,8 @@ EOSMGMNAMESPACE_BEGIN
 
 using group_balancer::BalancerEngineT;
 using group_balancer::group_size_map;
-using group_balancer::IBalancerInfoFetcher;
+using group_balancer::eosGroupsInfoFetcher;
 
-class eosBalancerInfoFetcher final: public IBalancerInfoFetcher
-{
-  std::string spaceName;
-public:
-  eosBalancerInfoFetcher(const std::string& _spaceName):
-    spaceName(_spaceName) {}
-  group_size_map fetch() override;
-};
-
-group_size_map eosBalancerInfoFetcher::fetch()
-{
-  group_size_map mGroupSizes;
-  eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
-
-  if (FsView::gFsView.mSpaceGroupView.count(spaceName) == 0) {
-    eos_static_err("msg=\"no such space %s\"", spaceName.c_str());
-    return mGroupSizes;
-  }
-
-  auto set_fsgrp = FsView::gFsView.mSpaceGroupView[spaceName];
-
-  for (auto it = set_fsgrp.cbegin(); it != set_fsgrp.cend(); it++) {
-    if ((*it)->GetConfigMember("status") != "on") {
-      continue;
-    }
-
-    uint64_t size = (*it)->AverageDouble("stat.statfs.usedbytes", false);
-    uint64_t capacity = (*it)->AverageDouble("stat.statfs.capacity", false);
-
-    if (capacity == 0) {
-      continue;
-    }
-
-    mGroupSizes.emplace((*it)->mName, GroupSize(size, capacity));
-  }
-
-  return mGroupSizes;
-}
 
 //-------------------------------------------------------------------------------
 // GroupBalancer constructor
@@ -114,57 +67,6 @@ GroupBalancer::~GroupBalancer()
 {
   Stop();
   mEngine->clear();
-}
-
-//------------------------------------------------------------------------------
-// Produces a file conversion path to be placed in the proc directory taking
-// into account the given group and also returns its size
-//------------------------------------------------------------------------------
-std::string
-GroupBalancer::getFileProcTransferNameAndSize(eos::common::FileId::fileid_t fid,
-    FsGroup* group, uint64_t* size)
-
-{
-  char fileName[1024];
-  std::shared_ptr<eos::IFileMD> fmd;
-  eos::common::LayoutId::layoutid_t layoutid = 0;
-  eos::common::FileId::fileid_t fileid = 0;
-  {
-    eos::Prefetcher::prefetchFileMDAndWait(gOFS->eosView, fid);
-    eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
-
-    try {
-      fmd = gOFS->eosFileService->getFileMD(fid);
-      layoutid = fmd->getLayoutId();
-      fileid = fmd->getId();
-
-      if (fmd->getContainerId() == 0) {
-        return std::string("");
-      }
-
-      if (size) {
-        *size = fmd->getSize();
-      }
-
-      XrdOucString fileURI = gOFS->eosView->getUri(fmd.get()).c_str();
-
-      if (fileURI.beginswith(gOFS->MgmProcPath.c_str())) {
-        // don't touch files in any ../proc/ directory
-        return std::string("");
-      }
-
-      eos_static_debug("msg=\"found file for transfering\" file=\"%s\"",
-                       fileURI.c_str());
-    } catch (eos::MDException& e) {
-      eos_static_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n", e.getErrno(),
-                       e.getMessage().str().c_str());
-      return std::string("");
-    }
-  }
-  snprintf(fileName, 1024, "%s/%016llx:%s#%08lx",
-           gOFS->MgmProcConversionPath.c_str(),
-           fileid, group->mName.c_str(), (unsigned long) layoutid);
-  return std::string(fileName);
 }
 
 //------------------------------------------------------------------------------
@@ -342,7 +244,9 @@ GroupBalancer::chooseFileFromGroup(FsGroup* from_group, FsGroup* to_group,
       continue;
     }
 
-    auto filename = getFileProcTransferNameAndSize(fid, to_group, &filesize);
+    auto filename = group_balancer::getFileProcTransferNameAndSize(fid,
+                    to_group->mName,
+                    &filesize);
 
     if (filename.empty() ||
         (mCfg.mMinFileSize > filesize) ||
@@ -534,7 +438,7 @@ GroupBalancer::GroupBalance(ThreadAssistant& assistant) noexcept
   uint64_t timeout_ns = 100 * 1e6; // 100 ms
   gOFS->WaitUntilNamespaceIsBooted();
   eos_static_info("%s", "msg=\"starting group balancer thread\"");
-  eosBalancerInfoFetcher fetcher(mSpaceName);
+  eosGroupsInfoFetcher fetcher(mSpaceName);
   group_balancer::BalancerEngineT prev_engine_type {BalancerEngineT::stddev};
   bool engine_reconfigured = false;
   bool config_status = true;

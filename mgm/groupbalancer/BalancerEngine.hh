@@ -28,85 +28,16 @@
 #include <string>
 #include <unordered_set>
 #include <random>
+#include "mgm/groupbalancer/BalancerEngineTypes.hh"
 
 namespace eos::mgm::group_balancer
 {
-
-//------------------------------------------------------------------------------
-//! @brief Class representing a group's size
-//! It holds the capacity and the current used space of a group.
-//------------------------------------------------------------------------------
-class GroupSize
-{
-public:
-  //------------------------------------------------------------------------------
-  //! Constructor
-  //------------------------------------------------------------------------------
-  GroupSize(uint64_t usedBytes, uint64_t capacity) : mSize(usedBytes),
-    mCapacity(capacity)
-  {}
-
-  //------------------------------------------------------------------------------
-  //! Subtracts the given size from this group and adds it to the given toGroup
-  //!
-  //! @param toGroup the group where to add the size
-  //! @param size the file size that should be swapped
-  //------------------------------------------------------------------------------
-  void swapFile(GroupSize* toGroup, uint64_t size)
-  {
-    toGroup->mSize += size;
-    mSize -= size;
-  }
-
-  uint64_t
-  usedBytes() const
-  {
-    return mSize;
-  }
-
-  uint64_t
-  capacity() const
-  {
-    return mCapacity;
-  }
-
-  double
-  filled() const
-  {
-    return (double) mSize / (double) mCapacity;
-  }
-
-private:
-  uint64_t mSize;
-  uint64_t mCapacity;
-};
-
-
-
-// Allow std::string_view -> std::string lookups on keys
-using group_size_map = std::map<std::string, GroupSize, std::less<>>;
-using threshold_group_set = std::unordered_set<std::string>;
-using groups_picked_t = std::pair<std::string, std::string>;
-using engine_conf_t = std::map<std::string, std::string, std::less<>>;
-
-enum class BalancerEngineT {
-  stddev,
-  minmax,
-  total_count
-};
-
-// A simple interface to populate the group_size map per group. This is useful
-// for DI scenarios where we can alternatively fill in the group_size structures
-struct IBalancerInfoFetcher {
-  virtual group_size_map fetch() = 0;
-};
-
 
 struct IBalancerEngine {
   // //----------------------------------------------------------------------------
   // // Fills mGroupSizes, calculates avg and classifies the data
   // //----------------------------------------------------------------------------
-  // virtual void populateGroupsInfo(IBalancerInfoFetcher* f) = 0;
+  // virtual void populateGroupsInfo(IGroupsInfoFetcher* f) = 0;
 
 
   //----------------------------------------------------------------------------
@@ -130,17 +61,17 @@ struct IBalancerEngine {
   virtual void updateGroups() = 0;
 
   //----------------------------------------------------------------------------
-  //! Return a pair of groups over avg & under avg that will be used for
-  //transferring
+  //! Return randomly a pair of groups over avg & under avg that will be used
+  //! for transferring
   //----------------------------------------------------------------------------
   virtual groups_picked_t pickGroupsforTransfer() = 0;
 
+  //----------------------------------------------------------------------------
+  //! Return a pair of groups over avg & under avg at given index
+  //----------------------------------------------------------------------------
+  virtual groups_picked_t pickGroupsforTransfer(uint64_t index) = 0;
 
   virtual void configure(const engine_conf_t& conf) = 0;
-
-  virtual int record_transfer(std::string_view source_group,
-                              std::string_view target_group,
-                              uint64_t filesize) = 0;
 
   virtual const group_size_map& get_group_sizes() const = 0;
 
@@ -169,15 +100,11 @@ public:
     return data.mGroupSizes;
   }
 
-  int record_transfer(std::string_view source_group,
-                      std::string_view target_group,
-                      uint64_t filesize) override;
-
   std::string get_status_str(bool detail = false,
                              bool monitoring = false) const override;
 
-
   BalancerEngine() = default;
+
   virtual ~BalancerEngine() = default;
 
   // Only useful for unit-testing/ validating the status of the balancerengine
@@ -187,6 +114,24 @@ public:
   }
 
   groups_picked_t pickGroupsforTransfer() override;
+
+  groups_picked_t pickGroupsforTransfer(uint64_t index) override;
+
+  bool canPick() const
+  {
+    return !data.mGroupsOverThreshold.empty() &&
+           !data.mGroupsUnderThreshold.empty();
+  }
+
+  size_t sourceGroupCount() const
+  {
+    return data.mGroupsOverThreshold.size();
+  }
+
+  size_t targetGroupCount() const
+  {
+    return data.mGroupsUnderThreshold.size();
+  }
 
 protected:
   BalancerEngineData data;

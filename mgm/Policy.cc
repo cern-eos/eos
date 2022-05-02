@@ -93,6 +93,7 @@ Policy::GetLayoutAndSpace(const char* path,
   unsigned long stripes = eos::common::LayoutId::GetStripeNumberFromEnv(env);
   unsigned long blocksize = eos::common::LayoutId::GetBlocksizeFromEnv(env);
   bandwidth = eos::common::LayoutId::GetBandwidthFromEnv(env);
+  iotype = eos::common::LayoutId::GetIotypeFromEnv(env);
   bool noforcedchecksum = false;
   const char* val = 0;
   bool conversion = IsProcConversion(path);

@@ -372,6 +372,22 @@ bool SpaceHelper::ParseCommand(const char* arg)
     }
 
     return false;
+  } else if (token == "groupdrainer") {
+    auto groupdrainer = space->mutable_groupdrainer();
+
+    // subcmd
+    if (!tokenizer.NextToken(token)) {
+      return false;
+    }
+
+    if (token == "status") {
+      if (!tokenizer.NextToken(token)) {
+        return false;
+      }
+
+      groupdrainer->set_mgmspace(token);
+      return true;
+    }
   } else { // no proper subcommand
     return false;
   }
@@ -442,6 +458,12 @@ void com_space_help()
       << "space config <space-name> space.geobalancer=on|off                    : enable/disable the geo balancer [ default=off ]\n"
       << "space config <space-name> space.geobalancer.ntx=<ntx>                 : configure the numebr of parallel geobalancer jobs [ default=0 ]\n"
       << "space config <space-name> space.geobalancer.threshold=<threshold>     : configure the threshold when a geotag is balanced [ default=0 ] \n"
+      << "space config <space-name> space.groupdrainer=on|off                   : enable/disable the group drainer [ default=on ]\n"
+      << "space config <space-name> space.groupdrainer.threshold=<threshold>    : configure the threshold(%) for picking target groups\n"
+      << "space config <space-name> space.groupdrainer.group_refresh_interval   : configure time in seconds for refreshing cached groups info [default=300]\n"
+      << "space config <space-name> space.groupdrainer.retry_interval           : configure time in seconds for retrying failed drains [default=4*3600]\n"
+      << "space config <space-name> space.groupdrainer.retry_count              : configure the amount of retries for failed drains [default=5]\n"
+      << "space config <space-name> space.groupdrainer.ntx                      : configure the max file transfer queue size [default=10000]\n"
       << "space config <space-name> space.lru=on|off                            : enable/disable the LRU policy engine [ default=off ]\n"
       << "space config <space-name> space.lru.interval=<sec>                    : configure the default lru scan interval\n"
       << "space config <space-name> fs.max.ropen=<n>                         : allow now more than <n> read streams per disk in the given space\n"
@@ -533,6 +555,8 @@ void com_space_help()
       << "space quota <space-name> on|off : enable/disable quota\n"
       << std::endl
       << "space groupbalancer status <space-name> [--detail(-d)|-m] : print groupbalancer status\n"
+      << std::endl
+      << "space groupdrainer status <space-name> : print groupdrainer status\n"
       << std::endl;
   std::cerr << oss.str();
 }

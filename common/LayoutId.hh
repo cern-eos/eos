@@ -72,7 +72,8 @@ public:
     kSHA256 = 0x8,
     kXXHASH64 = 0x9,
     kBLAKE3 = 0xa,
-    kXSmax = kBLAKE3
+    kHWH64 = 0xb,
+    kXSmax = kHWH64
   };
 
 
@@ -334,6 +335,10 @@ public:
       return 8;
     }
 
+    if ((layout & 0xf) == kHWH64) {
+      return 8;
+    }
+
     if ((layout & 0xf) == kSHA256) {
       return 32;
     }
@@ -373,6 +378,8 @@ public:
       return 20;
     } else if (xs_type == "sha256") {
       return 32;
+    } else if (xs_type == "hwh64") {
+      return 8;
     } else {
       return 0;
     }
@@ -409,6 +416,13 @@ public:
     case kBLAKE3:
       hexchecksum =
         "af1349b9f5f9a1a6a0404dea36dcc9499bcb25c9adc112b7cc9a93cae41f3262";
+      break;
+
+    case kHWH64:
+    case kCRC64:
+    case kXXHASH64:
+      hexchecksum =
+        "0000000000000000";
       break;
     }
 
@@ -760,6 +774,10 @@ public:
       return "xxhash64";
     }
 
+    if (GetChecksum(layout) == kHWH64) {
+      return "hwh64";
+    }
+
     return "none";
   }
 
@@ -787,6 +805,8 @@ public:
       return kSHA256;
     } else if (checksum == "xxhash64") {
       return kXXHASH64;
+    } else if (checksum == "hwh64") {
+      return kHWH64;
     } else if (checksum == "none") {
       return kNone;
     }
@@ -840,6 +860,10 @@ public:
       return "xxhash64";
     }
 
+    if (GetChecksum(layout) == kHWH64) {
+      return "hwh64";
+    }
+
     return "none";
   }
 
@@ -887,6 +911,10 @@ public:
 
     if (GetBlockChecksum(layout) == kXXHASH64) {
       return "xxhash64";
+    }
+
+    if (GetBlockChecksum(layout) == kHWH64) {
+      return "hwh64";
     }
 
     return "none";
@@ -1105,6 +1133,10 @@ public:
       if (xsum == "xxhash64") {
         return kXXHASH64;
       }
+
+      if (xsum == "hwh64") {
+        return kHWH64;
+      }
     }
 
     return kNone;
@@ -1135,6 +1167,21 @@ public:
 
     if ((val = env.Get("eos.iobw"))) {
       return std::string(env.Get("eos.iobw"));
+    }
+
+    return "";
+  }
+
+  //--------------------------------------------------------------------------
+  //! Return iotype string from env
+  //--------------------------------------------------------------------------
+  static std::string
+  GetIotypeFromEnv(XrdOucEnv& env)
+  {
+    const char* val = 0;
+
+    if ((val = env.Get("eos.iotype"))) {
+      return std::string(env.Get("eos.iotype"));
     }
 
     return "";

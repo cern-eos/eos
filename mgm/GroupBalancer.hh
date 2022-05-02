@@ -32,7 +32,7 @@
 #include <ctime>
 #include <map>
 #include <unordered_set>
-#include "mgm/groupbalancer/BalancerEngine.hh"
+#include "mgm/groupbalancer/BalancerEngineTypes.hh"
 
 EOSMGMNAMESPACE_BEGIN
 
@@ -41,7 +41,13 @@ class FsSpace;
 static constexpr uint64_t GROUPBALANCER_MIN_FILE_SIZE = 1ULL << 30;
 static constexpr uint64_t GROUPBALANCER_MAX_FILE_SIZE = 16ULL << 30;
 static constexpr int GROUPBALANCER_FILE_ATTEMPTS = 50;
-using eos::mgm::group_balancer::GroupSize;
+using eos::mgm::group_balancer::GroupSizeInfo;
+
+namespace group_balancer
+{
+class BalancerEngine;
+} // group_balancer
+
 //------------------------------------------------------------------------------
 //! @brief Class running the balancing among groups
 //! For it to work, the Converter also needs to be enabled.
@@ -152,19 +158,7 @@ private:
   //! Scheduled transfers (maps fid to path in proc)
   std::map<eos::common::FileId::fileid_t, std::string> mTransfers;
   group_balancer::engine_conf_t mEngineConf;
-  //----------------------------------------------------------------------------
-  //! Produces a file conversion path to be placed in the proc directory taking
-  //! into account the given group and also returns its size
-  //!
-  //! @param fid the file ID
-  //! @param group the group to which the file will be transferred
-  //! @param size return address for the size of the file
-  //!
-  //! @return name of the proc transfer file
-  //----------------------------------------------------------------------------
-  static std::string
-  getFileProcTransferNameAndSize(eos::common::FileId::fileid_t fid,
-                                 FsGroup* group, uint64_t* size);
+
 
   //----------------------------------------------------------------------------
   //! Chooses a random file ID from a random filesystem in the given group

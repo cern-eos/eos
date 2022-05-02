@@ -385,6 +385,11 @@ FsckEntry::RepairFstXsSzDiff()
   size_t num_nominal_rep = LayoutId::GetStripeNumber(mMgmFmd.layout_id() + 1);
 
   if (!good_fsids.empty() && (good_fsids.size() > num_nominal_rep)) {
+    if (LayoutId::IsRain(mMgmFmd.layout_id())) {
+      eos_crit("msg=\"more stripes than RAIN layout\" fxid=%08llx", mFid);
+      return false;
+    }
+
     while (good_fsids.size() > num_nominal_rep) {
       bad_fsids.insert(*good_fsids.begin());
       good_fsids.erase(good_fsids.begin());
@@ -445,9 +450,11 @@ FsckEntry::RepairInconsistencies()
 bool
 FsckEntry::RepairRainInconsistencies()
 {
+  std::set<eos::common::FileSystem::fsid_t> exclude_dsts;
+
   if (mReportedErr == FsckErr::UnregRepl) {
-    if (static_cast<unsigned long>(mMgmFmd.locations_size()) >=
-        LayoutId::GetStripeNumber(mMgmFmd.layout_id() + 1)) {
+    if (static_cast<unsigned long>(mMgmFmd.locations_size()) >
+        LayoutId::GetStripeNumber(mMgmFmd.layout_id()) + 1) {
       // If we have enough stripes - just drop it
       DropReplica(mFsidErr);
       return true;
@@ -479,12 +486,13 @@ FsckEntry::RepairRainInconsistencies()
       eos::common::FileSystem::fsid_t drop_fsid = *mMgmFmd.locations().rbegin();
       mMgmFmd.mutable_locations()->RemoveLast();
       DropReplica(drop_fsid);
+      exclude_dsts.insert(drop_fsid);
     }
   }
 
   bool drop_src_fsid = false;
   // Trigger a fsck repair job to make sure all the remaining stripes are
-  // recovered and and new ones are created if need be. By default pick the
+  // recovered and new ones are created if need be. By default pick the
   // first stripe as "source" unless we have a better candidate
   eos::common::FileSystem::fsid_t src_fsid = mMgmFmd.locations(0);
 
@@ -500,7 +508,7 @@ FsckEntry::RepairRainInconsistencies()
     src_fsid = 0;
   }
 
-  auto repair_job = mRepairFactory(mFid, src_fsid, 0, {}, {},
+  auto repair_job = mRepairFactory(mFid, src_fsid, 0, {}, exclude_dsts,
                                    drop_src_fsid, "fsck");
   repair_job->DoIt();
 

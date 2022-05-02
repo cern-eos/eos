@@ -706,11 +706,20 @@ CommitHelper::handle_versioning(eos::common::VirtualIdentity& vid,
           gOFS->FuseXCastRefresh(vfid, vdid);
           gOFS->FuseXCastContainer(vdid);
         });
-        // Update the ownership and mode of the new file to the original
-        // one
+        // Update the ownership and mode of the new file to the original one
         fmd->setCUid(versionfmd->getCUid());
         fmd->setCGid(versionfmd->getCGid());
         fmd->setFlags(versionfmd->getFlags());
+        // Copy over the xattrs from the original one to the new one
+        std::set<std::string> exclude_xattrs {"sys.utrace", "sys.vtrace"};
+        eos::IFileMD::XAttrMap map_xattrs = versionfmd->getAttributes();
+
+        for (const auto& xattr : map_xattrs) {
+          if (exclude_xattrs.find(xattr.first) == exclude_xattrs.end()) {
+            fmd->setAttribute(xattr.first, xattr.second);
+          }
+        }
+
         gOFS->eosView->updateFileStore(fmd.get());
       } catch (eos::MDException& e) {
         errno = e.getErrno();

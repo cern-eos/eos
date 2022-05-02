@@ -495,7 +495,7 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
   oss_opaque += "&mgm.lid=";
   oss_opaque += std::to_string(mLid).c_str();
   oss_opaque += "&mgm.bookingsize=";
-  oss_opaque += static_cast<int>(mBookingSize);
+  oss_opaque += std::to_string(mBookingSize).c_str();
 
   if (!(val = mCapOpaque->Get("mgm.iotype"))) {
     // provided by a client

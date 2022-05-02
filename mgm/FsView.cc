@@ -29,6 +29,7 @@
 #include "mgm/GeoBalancer.hh"
 #include "mgm/Balancer.hh"
 #include "mgm/GroupBalancer.hh"
+#include "mgm/GroupDrainer.hh"
 #include "mgm/convert/old/Converter.hh"
 #include "mgm/GeoTreeEngine.hh"
 #include "mgm/config/IConfigEngine.hh"
@@ -826,6 +827,7 @@ FsSpace::FsSpace(const char* name)
   mBalancer = new Balancer(name);
   mGroupBalancer = new GroupBalancer(name);
   mGeoBalancer = new GeoBalancer(name);
+  mGroupDrainer.reset(new GroupDrainer(name));
 
   // Start old converter if the new one is disabled on purpose
   if (getenv("EOS_FORCE_DISABLE_NEW_CONVERTER")) {
@@ -2398,10 +2400,16 @@ FsView::HeartBeatCheck(ThreadAssistant& assistant) noexcept
           }
 
           std::string group = fs->GetString("schedgroup");
+          bool is_group_active = false;
+
+          if (auto group_key = FsView::gFsView.mGroupView.find(group);
+              group_key != FsView::gFsView.mGroupView.end()) {
+            auto group_status = group_key->second->GetConfigMember("status");
+            is_group_active = group_status == "on" || group_status == "drain";
+          }
 
           if ((node->GetConfigMember("status") == "on") &&
-              FsView::gFsView.mGroupView.count(group) &&
-              (FsView::gFsView.mGroupView[group]->GetConfigMember("status") == "on")) {
+              is_group_active) {
             ssize_t max_ropen = fs->GetLongLong("max.ropen");
             ssize_t max_wopen = fs->GetLongLong("max.wopen");
             bool overloaded = ((max_ropen &&
@@ -2457,7 +2465,8 @@ FsView::ReapplyDrainStatus()
     eos::common::ConfigStatus cs = it->second->GetConfigStatus();
 
     if ((cs == eos::common::ConfigStatus::kDrain) ||
-        (cs == eos::common::ConfigStatus::kDrainDead)) {
+        (cs == eos::common::ConfigStatus::kDrainDead) ||
+        (cs == eos::common::ConfigStatus::kGroupDrain)) {
       it->second->SetConfigStatus(cs);
     }
   }

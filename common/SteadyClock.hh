@@ -41,6 +41,11 @@ public:
   SteadyClock(bool fake_) : mFake(fake_) {}
 
   //----------------------------------------------------------------------------
+  //! Default constructor - Sets fake to false
+  //----------------------------------------------------------------------------
+  SteadyClock() : mFake(false) {}
+
+  //----------------------------------------------------------------------------
   //! Static now function - it's also possible to pass a nullptr
   //----------------------------------------------------------------------------
   static std::chrono::steady_clock::time_point now(SteadyClock* clock)

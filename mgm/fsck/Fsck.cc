@@ -617,7 +617,7 @@ Fsck::ReportJsonFormat(std::ostringstream& oss,
       }
 
       for (auto it = fids.begin(); it != fids.end(); ++it) {
-        json_ids.append((Json::Value::UInt64)(*it));
+        json_ids.append(GetFidFormat(*it, display_fxid, display_lfn));
       }
 
       json_entry["count"] = (Json::Value::UInt64)fids.size();

@@ -30,6 +30,9 @@
 #include "namespace/utils/Checksum.hh"
 #include "namespace/interface/IView.hh"
 #include "namespace/interface/IFileMDSvc.hh"
+#include "namespace/ns_quarkdb/NamespaceGroup.hh"
+#include "namespace/ns_quarkdb/flusher/MetadataFlusher.hh"
+
 
 //------------------------------------------------------------------------------
 // Utility functions to help with file conversion
@@ -158,7 +161,7 @@ void ConversionJob::DoIt() noexcept
     return;
   }
 
-  mStatus = Status::RUNNING;
+  mStatus.store(Status::RUNNING, std::memory_order_relaxed);
 
   // Retrieve file metadata
   try {
@@ -343,7 +346,7 @@ void ConversionJob::DoIt() noexcept
   gOFS->MgmStats.Add("ConversionJobSuccessful", 0, 0, 1);
   eos_static_info("msg=\"conversion successful\" conversion_id=%s",
                   mConversionInfo.ToString().c_str());
-  mStatus = Status::DONE;
+  mStatus.store(Status::DONE, std::memory_order_relaxed);
 
   // Notify the tape garbage collector if tape support is enabled
   if (gOFS->mTapeEnabled) {
@@ -375,7 +378,7 @@ void ConversionJob::HandleError(const std::string& emsg,
   eos_static_err("msg=\"%s\" %s conversion_id=%s", emsg.c_str(), details.c_str(),
                  mConversionInfo.ToString().c_str());
   mErrorString = (details.empty()) ? emsg : (emsg + " -- " + details);
-  mStatus = Status::FAILED;
+  mStatus.store(Status::FAILED, std::memory_order_relaxed);
 }
 
 //------------------------------------------------------------------------------
@@ -564,6 +567,15 @@ ConversionJob::Merge()
     }
 
     gOFS->eosView->updateFileStore(orig_fmd.get());
+  }
+
+  // Synchronize the flusher to avoid a race condition with the resync
+  // happening on the FSTs
+  auto* qdb_ns_grp = dynamic_cast<eos::QuarkNamespaceGroup*>
+                     (gOFS->namespaceGroup.get());
+
+  if (qdb_ns_grp) {
+    qdb_ns_grp->getMetadataFlusher()->synchronize();
   }
 
   // Trigger a resync of the local information for the new locations

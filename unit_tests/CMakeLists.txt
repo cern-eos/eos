@@ -62,9 +62,15 @@ set(MGM_UT_SRCS
   mgm/FsckEntryTests.cc
   mgm/FusexCastBatchTests.cc
   mgm/CapsTests.cc
+  mgm/groupbalancer/BalancerEngineTypeTests.cc
   mgm/groupbalancer/StdDevBalancerEngineTests.cc
+  mgm/groupbalancer/StdDrainerTests.cc
   mgm/groupbalancer/MinMaxBalancerEngineTests.cc
   mgm/groupbalancer/GroupBalancerUtilsTests.cc
+  mgm/groupbalancer/GroupsInfoFetcherTests.cc
+  mgm/groupdrainer/GroupDrainerRetry.cc
+  mgm/groupdrainer/GroupDrainerTests.cc
+  mgm/groupdrainer/DrainProgressTrackerTests.cc
   mgm/tgc/CachedValueTests.cc
   mgm/tgc/FreedBytesHistogramTests.cc
   mgm/tgc/LruTests.cc
@@ -94,6 +100,7 @@ set(COMMON_UT_SRCS
   common/StringConversionTests.cc
   common/StringTokenizerTests.cc
   common/StringSplitTests.cc
+  common/StringUtilsTests.cc
   common/SymKeysTests.cc
   common/ThreadPoolTest.cc
   common/TimingTests.cc
@@ -103,7 +110,9 @@ set(COMMON_UT_SRCS
   common/EosTokenTests.cc
   common/ConfigTests.cc
   common/BufferManagerTests.cc
-  common/ConcurrentQueueTests.cc)
+  common/ConcurrentQueueTests.cc
+  common/ContainerUtilsTests.cc
+  common/ObserverMgrTests.cc)
 
 set(FST_UT_SRCS
   fst/XrdFstOfsTests.cc
