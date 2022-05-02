@@ -20,6 +20,29 @@ This release is based on XRootD V5.
 ``v5.0.18 Diopside``
 ===================
 
+2022-05-02
+
+Bug
+---
+
+* MGM: Fix race condition in Converter which can lead to wrong metadata stored
+  in leveldb for converted files.
+* MGM: Fix wrong computation of number of stripes for RAIN layout
+* [EOS-5199] - Metadata (xattrs) is lost when creating new versions
+* [EOS-5219] - eos fsck report json output does not reflect command line options -l and -i
+* [EOS-5224] - No update is perfomed when adding a new member to an e-group in EOSATLAS
+
+
+New Feature
+-----------
+
+* [EOS-5178] - Implement Group Drain
+* [EOS-5225] - Have a useful GroupDrain Status
+
+
+``v5.0.18 Diopside``
+===================
+
 2022-04-22
 
 Bug
