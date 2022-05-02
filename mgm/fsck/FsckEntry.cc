@@ -453,10 +453,23 @@ FsckEntry::RepairRainInconsistencies()
   std::set<eos::common::FileSystem::fsid_t> exclude_dsts;
 
   if (mReportedErr == FsckErr::UnregRepl) {
-    if (static_cast<unsigned long>(mMgmFmd.locations_size()) >
+    if (static_cast<unsigned long>(mMgmFmd.locations_size()) >=
         LayoutId::GetStripeNumber(mMgmFmd.layout_id()) + 1) {
-      // If we have enough stripes - just drop it
-      DropReplica(mFsidErr);
+      // If we have enough stripes and current error refers to a stripe which
+      // is not in the list of locations then drop it
+      bool found = false;
+
+      for (const auto loc : mMgmFmd.locations()) {
+        if (mFsidErr == loc) {
+          found = true;
+          break;
+        }
+      }
+
+      if (!found) {
+        DropReplica(mFsidErr);
+      }
+
       return true;
     } else {
       // If not enough stripes then register it and trigger a check
