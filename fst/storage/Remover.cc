@@ -81,21 +81,21 @@ Storage::Remover()
         OpaqueString += to_del->mLocalPrefix;
         XrdOucEnv Opaque(OpaqueString.c_str());
         capOpaqueString += OpaqueString;
-
         // Delete local file
-	std::string deletionreport;
-	std::string deletionreport64;
+        std::string deletionreport;
+        std::string deletionreport64;
+
         if ((gOFS._rem("/DELETION", error, (const XrdSecEntity*) 0, &Opaque,
                        0, 0, 0, true, &deletionreport) != SFS_OK)) {
           eos_static_warning("msg=\"unable to remove local file\" fxid=%s "
                              "fsid=%lu localprefix=%s", hex_fid.c_str(),
                              to_del->mFsid, to_del->mLocalPrefix.c_str());
+        } else {
+          // Encode the deletion report only if deletion is successful
+          eos::common::SymKey::ZBase64(deletionreport, deletionreport64);
+          capOpaqueString += "&mgm.report=";
+          capOpaqueString += deletionreport64.c_str();
         }
-
-	// encode the deletion report as base64
-	eos::common::SymKey::ZBase64(deletionreport,deletionreport64);
-	capOpaqueString += "&mgm.report=";
-	capOpaqueString += deletionreport64.c_str();
 
         // Update the manager
         if (gOFS.CallManager(&error, 0, 0 , capOpaqueString)) {
