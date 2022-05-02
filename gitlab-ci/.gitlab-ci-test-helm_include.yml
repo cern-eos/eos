@@ -23,7 +23,7 @@
       kubectl exec kuberos-kuberos-kdc-0 -c kdc -- /usr/sbin/kadmin.local -r $TEST_REALM addprinc -pw $TEST_USERPRINC_PASSWORD $TEST_USERPRINC_NAME
     - |
       ######## EOS-CHARTS/SERVER ########
-      helm install --wait --timeout 10m0s \
+      helm install --wait --timeout 20m0s \
         -f ./gitlab-ci/.gitlab-ci-test-helm_server_values.yml eos eos/server \
         --version $HELM_EOS_SERVER_VERSION \
         --atomic --create-namespace --namespace $K8S_NAMESPACE \
@@ -62,7 +62,7 @@
       HELM_EOS_SERVER_VERSION=0.1.3
     - |
       ######## EOS-CHARTS/SERVER ########
-      helm install --wait --timeout 15m0s \
+      helm install --wait --timeout 20m0s \
         -f ./gitlab-ci/.gitlab-ci-test-helm-server-multigroup-values.yml eos eos/server \
         --version $HELM_EOS_SERVER_VERSION \
         --atomic --create-namespace --namespace $K8S_NAMESPACE \
