@@ -1708,6 +1708,9 @@ WFE::Job::IdempotentPrepare(const std::string& fullPath,
   XrdOucErrInfo errInfo;
   bool onDisk;
   bool onTape;
+  struct timespec ts_now;
+  eos::common::Timing::GetTimeSpec(ts_now);
+
   EosCtaReporterPrepareWfe eosLog;
   eosLog
     .addParam(EosCtaReportParam::LOG, std::string(gOFS->logId))
@@ -1716,7 +1719,9 @@ WFE::Job::IdempotentPrepare(const std::string& fullPath,
     .addParam(EosCtaReportParam::RGID, mVid.gid)
     .addParam(EosCtaReportParam::TD, mVid.tident.c_str())
     .addParam(EosCtaReportParam::PREP_WFE_EVENT, "stage")
-    .addParam(EosCtaReportParam::PREP_WFE_ACTIVITY, prepareActivity);
+    .addParam(EosCtaReportParam::PREP_WFE_ACTIVITY, prepareActivity)
+    .addParam(EosCtaReportParam::PREP_WFE_TS, ts_now.tv_sec)
+    .addParam(EosCtaReportParam::PREP_WFE_TNS, ts_now.tv_nsec);
 
   // Check if we have a disk replica and if not, whether it's on tape
   if (gOFS->_stat(fullPath.c_str(), &buf, errInfo, mVid, nullptr, nullptr,

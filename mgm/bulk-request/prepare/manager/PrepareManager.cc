@@ -29,6 +29,7 @@
 #include <XrdOuc/XrdOucTList.hh>
 #include <XrdVersion.hh>
 #include <common/Path.hh>
+#include "common/Timing.hh"
 #include <common/SecEntity.hh>
 #include <common/utils/XrdUtils.hh>
 #include <mgm/Acl.hh>
@@ -175,6 +176,8 @@ int PrepareManager::doPrepare(XrdSfsPrep& pargs, XrdOucErrInfo& error, const Xrd
 
   int error_counter = 0;
   XrdOucErrInfo first_error;
+  struct timespec ts_now;
+  eos::common::Timing::GetTimeSpec(ts_now);
 
   // check that all files exist
   for (
@@ -193,7 +196,9 @@ int PrepareManager::doPrepare(XrdSfsPrep& pargs, XrdOucErrInfo& error, const Xrd
       .addParam(EosCtaReportParam::RGID, vid.gid)
       .addParam(EosCtaReportParam::TD, vid.tident.c_str())
       .addParam(EosCtaReportParam::HOST, mMgmFsInterface->get_host())
-      .addParam(EosCtaReportParam::PREP_REQ_REQID, reqid.c_str());
+      .addParam(EosCtaReportParam::PREP_REQ_REQID, reqid.c_str())
+      .addParam(EosCtaReportParam::PREP_REQ_TS, ts_now.tv_sec)
+      .addParam(EosCtaReportParam::PREP_REQ_TNS, ts_now.tv_nsec);
 
     eos_info("msg=\"checking file exists\" path=\"%s\"", prep_path.c_str());
     {

@@ -23,6 +23,7 @@
 
 
 #include "common/Path.hh"
+#include "common/Timing.hh"
 #include "StagerRmCmd.hh"
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/EosCtaReporter.hh"
@@ -41,6 +42,8 @@ eos::mgm::StagerRmCmd::ProcessRequest() noexcept
   const auto& stagerRm = mReqProto.stagerrm();
   XrdOucErrInfo errInfo;
   eos::common::VirtualIdentity root_vid = eos::common::VirtualIdentity::Root();
+  struct timespec ts_now;
+  eos::common::Timing::GetTimeSpec(ts_now);
 
   for (auto i = 0; i < stagerRm.file_size(); i++) {
     EosCtaReporterStagerRm eosLog;
@@ -48,7 +51,9 @@ eos::mgm::StagerRmCmd::ProcessRequest() noexcept
       .addParam(EosCtaReportParam::LOG, std::string(gOFS->logId))
       .addParam(EosCtaReportParam::RUID, mVid.uid)
       .addParam(EosCtaReportParam::RGID, mVid.gid)
-      .addParam(EosCtaReportParam::TD, mVid.tident.c_str());
+      .addParam(EosCtaReportParam::TD, mVid.tident.c_str())
+      .addParam(EosCtaReportParam::STAGERRM_TS, ts_now.tv_sec)
+      .addParam(EosCtaReportParam::STAGERRM_TNS, ts_now.tv_nsec);
 
     const auto& file = stagerRm.file(i);
     std::string path;
