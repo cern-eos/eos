@@ -450,13 +450,24 @@ FsckEntry::RepairInconsistencies()
 bool
 FsckEntry::RepairRainInconsistencies()
 {
-  std::set<eos::common::FileSystem::fsid_t> exclude_dsts;
-
   if (mReportedErr == FsckErr::UnregRepl) {
-    if (static_cast<unsigned long>(mMgmFmd.locations_size()) >
+    if (static_cast<unsigned long>(mMgmFmd.locations_size()) >=
         LayoutId::GetStripeNumber(mMgmFmd.layout_id()) + 1) {
-      // If we have enough stripes - just drop it
-      DropReplica(mFsidErr);
+      // If we have enough stripes and current error refers to a stripe which
+      // is not in the list of locations then drop it
+      bool found = false;
+
+      for (const auto loc : mMgmFmd.locations()) {
+        if (mFsidErr == loc) {
+          found = true;
+          break;
+        }
+      }
+
+      if (!found) {
+        DropReplica(mFsidErr);
+      }
+
       return true;
     } else {
       // If not enough stripes then register it and trigger a check
@@ -478,16 +489,6 @@ FsckEntry::RepairRainInconsistencies()
         mMgmFmd.mutable_locations()->Add(mFsidErr);
       }
     }
-  } else  if (mReportedErr == FsckErr::DiffRepl) {
-    // If "over-replicated" (this should hardly ever happen) then drop the excess
-    // stripes and trigger a check (drain) with first stripe as source
-    while (static_cast<unsigned long>(mMgmFmd.locations_size()) >
-           LayoutId::GetStripeNumber(mMgmFmd.layout_id() + 1)) {
-      eos::common::FileSystem::fsid_t drop_fsid = *mMgmFmd.locations().rbegin();
-      mMgmFmd.mutable_locations()->RemoveLast();
-      DropReplica(drop_fsid);
-      exclude_dsts.insert(drop_fsid);
-    }
   }
 
   bool drop_src_fsid = false;
@@ -499,17 +500,23 @@ FsckEntry::RepairRainInconsistencies()
   if (mReportedErr == FsckErr::MissRepl) {
     src_fsid = mFsidErr;
     drop_src_fsid = true;
-  }
-
-  if (mReportedErr == FsckErr::DiffRepl) {
+  } else if (mReportedErr == FsckErr::DiffRepl) {
     // For rep_diff_n errors the source file systems is not to be dropped
     // or skipped during the scheduling process as it's a valid stripe
     // useful when doing the transfer.
     src_fsid = 0;
+
+    // Over-replication should never happend for RAIN files
+    if (static_cast<unsigned long>(mMgmFmd.locations_size()) >
+        LayoutId::GetStripeNumber(mMgmFmd.layout_id()) + 1) {
+      eos_err("msg=\RAIN file over-replicated, to be handled manually\" "
+              "fxid=%08llu fsid_err=%lu", mFid, mFsidErr);
+      return false;
+    }
   }
 
-  auto repair_job = mRepairFactory(mFid, src_fsid, 0, {}, exclude_dsts,
-                                   drop_src_fsid, "fsck");
+  auto repair_job = mRepairFactory(mFid, src_fsid, 0, {}, {}, drop_src_fsid,
+                                   "fsck");
   repair_job->DoIt();
 
   if (repair_job->GetStatus() != FsckRepairJob::Status::OK) {
@@ -830,8 +837,8 @@ FsckEntry::Repair()
       return success;
     }
 
-    eos_static_info("msg=\"fsck repair\" fxid=%08llx err_type=%i",
-                    mFid, mReportedErr);
+    eos_static_info("msg=\"fsck repair\" fxid=%08llx err_type=%i fsid_err=%lu",
+                    mFid, mReportedErr, mFsidErr);
     auto fn_with_obj = std::bind(it->second, this);
     success = fn_with_obj();
     UpdateMgmStats(success);

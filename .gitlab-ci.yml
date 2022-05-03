@@ -272,6 +272,7 @@ build_ubuntu_bionic:
   only:
     - schedules
     - tags
+  allow_failure: true
 
 build_ubuntu_focal:
   image: ubuntu:focal
