@@ -23,7 +23,7 @@
 
 #pragma once
 #include <string_view>
-#include <unordered_set>
+#include <set>
 #include <map>
 
 // Some enums and typedefs for various types used in BalancerEngines
@@ -140,7 +140,7 @@ private:
 //     group_size_map.find(some_str)       // good
 //     group_size_map.find("default.20") // bad will use an overload of std::less<char[xx]> here
 using group_size_map = std::map<std::string, GroupSizeInfo, std::less<>>;
-using threshold_group_set = std::unordered_set<std::string>;
+using threshold_group_set = std::set<std::string>;
 using groups_picked_t = std::pair<std::string, std::string>;
 using engine_conf_t = std::map<std::string, std::string, std::less<>>;
 

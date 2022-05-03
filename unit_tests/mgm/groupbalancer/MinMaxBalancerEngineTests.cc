@@ -65,8 +65,8 @@ TEST(MinMaxBalancerEngine, updatethreshold)
     // FIXME this actually happens because we do a floating point compare in
     // this case using diffWithAvg will be slightly greater than threshold at
     // boundary values when doing the subtraction
-    std::unordered_set<std::string> grps_over = {"group5","group4"};
-    std::unordered_set<std::string> grps_under = {"group1","group2"};
+    threshold_group_set grps_over = {"group5","group4"};
+    threshold_group_set grps_under = {"group1","group2"};
     EXPECT_EQ(d.mGroupsOverThreshold, grps_over);
     EXPECT_EQ(d.mGroupsUnderThreshold, grps_under);
   }
