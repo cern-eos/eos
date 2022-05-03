@@ -28,6 +28,7 @@ Improvements
 MGM: Improve fsck handling for rain files with rep_diff_n errors
 MGM: Add extra logging in fsck and be more defensive when handling
 unregistered stripes
+MGM: Group drainer prune transfers only once every few minutes
 
 
 ``v5.0.19 Diopside``
