@@ -57,8 +57,17 @@ public:
   ~GroupDrainer();
   void GroupDrain(ThreadAssistant& assistant) noexcept;
 
+  /*!
+   * Deteremine if an update is needed depending on the time point supplied
+   * We check against the set value of mCacheExpiryTime which is configured
+   * via groupdrainer.
+   * @param tp  The time point of last update, this will be modified to current
+   * time if an update happens
+   * @param force Force an update. This param will be reset on update
+   * @return
+   */
   bool isUpdateNeeded(std::chrono::time_point<std::chrono::steady_clock>& tp,
-                      bool force=false);
+                      bool& force);
   void pruneTransfers();
   bool isTransfersFull() const {
     return mTransfers.size() > mMaxTransfers;
