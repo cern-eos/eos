@@ -17,7 +17,20 @@ Introduction
 This release is based on XRootD V5.
 
 
-``v5.0.18 Diopside``
+``v5.0.20 Diopside``
+===================
+
+2022-05-03
+
+Improvements
+------------
+
+MGM: Improve fsck handling for rain files with rep_diff_n errors
+MGM: Add extra logging in fsck and be more defensive when handling
+unregistered stripes
+
+
+``v5.0.19 Diopside``
 ===================
 
 2022-05-02
