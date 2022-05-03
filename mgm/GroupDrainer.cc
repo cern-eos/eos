@@ -126,7 +126,6 @@ GroupDrainer::GroupDrain(ThreadAssistant& assistant) noexcept
     if (isUpdateNeeded(mLastUpdated, mRefreshGroups)) {
       mEngine->configure(mDrainerEngineConf);
       mEngine->populateGroupsInfo(fetcher.fetch());
-      mRefreshGroups = false;
       pruneTransfers();
     }
 
@@ -149,17 +148,18 @@ GroupDrainer::GroupDrain(ThreadAssistant& assistant) noexcept
 bool
 GroupDrainer::isUpdateNeeded(std::chrono::time_point<std::chrono::steady_clock>&
                              tp,
-                             bool force)
+                             bool& force)
 {
   using namespace std::chrono_literals;
   auto now = chrono::steady_clock::now();
 
   if (force) {
     tp = now;
+    force = false;
     return true;
   }
 
-  auto elapsed = chrono::duration_cast<chrono::seconds>(now - mLastUpdated);
+  auto elapsed = chrono::duration_cast<chrono::seconds>(now - tp);
 
   if (elapsed > mCacheExpiryTime) {
     tp = now;
@@ -236,6 +236,7 @@ GroupDrainer::prepareTransfer(uint64_t index)
       std::tie(fsids, std::ignore) = mDrainFsMap.insert_or_assign(grp_drain_from,
                                      fsutils::FsidsinGroup(grp_drain_from));
     }
+    mDrainMapLastUpdated = chrono::steady_clock::now();
 
     if (fsids->second.empty()) {
       // We reach here when all the FSes in the group are either offline or empty!
@@ -264,7 +265,6 @@ GroupDrainer::prepareTransfer(uint64_t index)
       return;
     }
 
-    mRefreshFSMap = false;
     mPauseExecution = false;
   }
 
