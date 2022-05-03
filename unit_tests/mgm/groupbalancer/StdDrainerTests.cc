@@ -25,7 +25,7 @@ TEST(StdDrainerEngine, simple)
     {"group4", {GroupStatus::ON, 80, 100}}
   });
   ASSERT_EQ(static_cast<StdDrainerEngine*>(engine.get())->get_threshold(), 0.02);
-  std::unordered_set<std::string> expected_targets = {"group1", "group4"};
+  threshold_group_set expected_targets = {"group1", "group4"};
   auto d = engine->get_data();
   EXPECT_EQ(d.mGroupSizes.size(), 4);
   EXPECT_EQ(d.mGroupsOverThreshold.size(), 1);

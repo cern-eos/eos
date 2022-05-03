@@ -69,8 +69,8 @@ TEST(StdDevBalancerEngine, updatethreshold)
     // FIXME this actually happens because we do a floating point compare in
     // this case using diffWithAvg will be slightly greater than threshold at
     // boundary values when doing the subtraction
-    std::unordered_set<std::string> grps_over = {"group5", "group4"};
-    std::unordered_set<std::string> grps_under = {"group1"};
+    threshold_group_set grps_over = {"group5", "group4"};
+    threshold_group_set grps_under = {"group1"};
     EXPECT_EQ(d.mGroupsOverThreshold, grps_over);
     EXPECT_EQ(d.mGroupsUnderThreshold, grps_under);
   }
@@ -102,12 +102,21 @@ TEST(StdDevBalancerEngine, multithreshold)
   EXPECT_DOUBLE_EQ(e->get_max_threshold(), 0.05);
   {
     auto d = engine->get_data();
+    <<< <<< < HEAD
     EXPECT_NEAR(calculateAvg(d.mGroupSizes), 0.85, 0.0000001);
     EXPECT_EQ(d.mGroupSizes.size(), 5);
     EXPECT_EQ(d.mGroupsOverThreshold.size(), 1);
     EXPECT_EQ(d.mGroupsUnderThreshold.size(), 1);
     std::unordered_set<std::string> grps_over = {"group5"};
     std::unordered_set<std::string> grps_under = {"group1"};
+    == == == =
+      EXPECT_NEAR(calculateAvg(d.mGroupSizes), 0.85, 0.0000001);
+    EXPECT_EQ(d.mGroupSizes.size(), 5);
+    EXPECT_EQ(d.mGroupsOverThreshold.size(), 1);
+    EXPECT_EQ(d.mGroupsUnderThreshold.size(), 1);
+    threshold_group_set grps_over = {"group5"};
+    threshold_group_set grps_under = {"group1"};
+    >>> >>> > origin / master
     EXPECT_EQ(d.mGroupsOverThreshold, grps_over);
     EXPECT_EQ(d.mGroupsUnderThreshold, grps_under);
   }
