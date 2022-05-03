@@ -29,6 +29,7 @@ MGM: Improve fsck handling for rain files with rep_diff_n errors
 MGM: Add extra logging in fsck and be more defensive when handling
 unregistered stripes
 MGM: Group drainer prune transfers only once every few minutes
+FST: Silence stat errors for TPC transfers during preparation stages
 
 
 ``v5.0.19 Diopside``
