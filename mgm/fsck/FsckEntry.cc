@@ -509,7 +509,7 @@ FsckEntry::RepairRainInconsistencies()
     // Over-replication should never happend for RAIN files
     if (static_cast<unsigned long>(mMgmFmd.locations_size()) >
         LayoutId::GetStripeNumber(mMgmFmd.layout_id()) + 1) {
-      eos_err("msg=\RAIN file over-replicated, to be handled manually\" "
+      eos_err("msg=\"RAIN file over-replicated, to be handled manually\" "
               "fxid=%08llu fsid_err=%lu", mFid, mFsidErr);
       return false;
     }
