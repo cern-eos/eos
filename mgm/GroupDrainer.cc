@@ -110,13 +110,12 @@ GroupDrainer::GroupDrain(ThreadAssistant& assistant) noexcept
       }
     }
 
-    pruneTransfers();
 
     if (isTransfersFull()) {
       // We are currently full, wait for a few seconds before pruning & trying
       // again
       eos_info("msg=\"transfer queue full, pausing before trying again\"");
-      assistant.wait_for(std::chrono::seconds(10));
+      assistant.wait_for(std::chrono::seconds(30));
       continue;
     }
 
@@ -126,6 +125,7 @@ GroupDrainer::GroupDrain(ThreadAssistant& assistant) noexcept
       mEngine->configure(mDrainerEngineConf);
       mEngine->populateGroupsInfo(fetcher.fetch());
       mRefreshGroups = false;
+      pruneTransfers();
     }
 
     if (!mEngine->canPick()) {
