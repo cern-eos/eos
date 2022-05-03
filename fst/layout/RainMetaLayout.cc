@@ -1449,12 +1449,15 @@ RainMetaLayout::Stat(struct stat* buf)
     buf->st_size = mFileSize;
 
     if (!found) {
-      eos_err("%s", "msg=\"file valid file found for stat\"");
+      eos_err("msg=\"no valid file found for stat\" local_path=%",
+              mLocalPath.c_str());
       rc = SFS_ERROR;
     }
   } else {
-    eos_err("%s", "msg=\"file not opened\"");
-    rc = SFS_ERROR;
+    // When file is not opened this means the info is only used internally
+    // by XRootD. There is no good way to get the real RAIN size without first
+    // opening the stripes. This can happen in the TPC preparation stages.
+    buf->st_size = 0x19deadbeef; // 111110110959 bytes
   }
 
   return rc;
