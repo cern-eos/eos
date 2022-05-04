@@ -33,6 +33,7 @@
 namespace XrdCl
 {
 class Proxy;
+  typedef std::shared_ptr<XrdCl::Proxy> shared_proxy;
 }
 
 class io
@@ -59,15 +60,6 @@ public:
   {
     delete _file;
     delete _journal;
-
-    // delete all proxy objects
-    for (auto it = _xrdioro.begin(); it != _xrdioro.end(); ++it) {
-      delete it->second;
-    }
-
-    for (auto it = _xrdiorw.begin(); it != _xrdiorw.end(); ++it) {
-      delete it->second;
-    }
   }
 
   void disable_caches()
@@ -99,13 +91,12 @@ public:
   {
     _journal = journal;
   }
-
-  void set_xrdioro(fuse_req_t req, XrdCl::Proxy* _cl)
+  void set_xrdioro(fuse_req_t req, XrdCl::shared_proxy _cl)
   {
     _xrdioro["default"] = _cl;
   }
 
-  void set_xrdiorw(fuse_req_t req, XrdCl::Proxy* _cl)
+  void set_xrdiorw(fuse_req_t req, XrdCl::shared_proxy _cl)
   {
     _xrdiorw["default"] = _cl;
   }
@@ -120,12 +111,12 @@ public:
     return _journal;
   }
 
-  XrdCl::Proxy* xrdioro(fuse_req_t req)
+  XrdCl::shared_proxy xrdioro(fuse_req_t req)
   {
     return _xrdioro["default"];
   }
 
-  XrdCl::Proxy* xrdiorw(fuse_req_t req)
+  XrdCl::shared_proxy xrdiorw(fuse_req_t req)
   {
     return _xrdiorw["default"];
   }
@@ -140,29 +131,28 @@ public:
     return _xrdiorw.count("default");
   }
 
-  XrdCl::Proxy* xrdioro(std::string& id)
+  XrdCl::shared_proxy xrdioro(std::string& id)
   {
     return _xrdioro[id];
   }
 
-  XrdCl::Proxy* xrdiorw(std::string& id)
+  XrdCl::shared_proxy xrdiorw(std::string& id)
   {
     return _xrdiorw[id];
   }
 
-  std::map<std::string, XrdCl::Proxy*>& get_xrdiorw()
+  std::map<std::string, XrdCl::shared_proxy>& get_xrdiorw()
   {
     return _xrdiorw;
   }
 
-  std::map<std::string, XrdCl::Proxy*>& get_xrdioro()
+  std::map<std::string, XrdCl::shared_proxy>& get_xrdioro()
   {
     return _xrdioro;
   }
 
   bool erase_xrdioro(fuse_req_t req)
   {
-    delete _xrdioro["default"];
     _xrdioro.erase("default");
     return true;
   }
@@ -176,8 +166,8 @@ public:
 private:
   cache* _file;
   journalcache* _journal;
-  std::map<std::string, XrdCl::Proxy*> _xrdioro;
-  std::map<std::string, XrdCl::Proxy*> _xrdiorw;
+  std::map<std::string, XrdCl::shared_proxy> _xrdioro;
+  std::map<std::string, XrdCl::shared_proxy> _xrdiorw;
   fuse_ino_t ino;
   bool caching;
 };

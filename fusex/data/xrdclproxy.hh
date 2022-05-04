@@ -88,6 +88,9 @@ private:
 
 // ---------------------------------------------------------------------- //
 typedef std::shared_ptr<std::vector<char>> shared_buffer;
+class Proxy;
+typedef std::shared_ptr<Proxy> shared_proxy;
+
 // ---------------------------------------------------------------------- //
 
 // ---------------------------------------------------------------------- //
@@ -276,6 +279,7 @@ private:
 
 // ---------------------------------------------------------------------- //
 
+
 class Proxy : public XrdCl::File, public eos::common::LogId
 // ---------------------------------------------------------------------- //
 {
@@ -286,14 +290,17 @@ public:
   static BufferManager sWrBufferManager; // write buffer manager
   static BufferManager sRaBufferManager; // async read buffer manager
 
+  static XrdCl::shared_proxy Factory();
+
   // ---------------------------------------------------------------------- //
-  XRootDStatus OpenAsync(const std::string& url,
+  XRootDStatus OpenAsync(XrdCl::shared_proxy proxy,
+			 const std::string& url,
                          OpenFlags::Flags flags,
                          Access::Mode mode,
                          uint16_t timeout);
 
   // ---------------------------------------------------------------------- //
-  XRootDStatus ReOpenAsync();
+  XRootDStatus ReOpenAsync(XrdCl::shared_proxy proxy);
 
   // ---------------------------------------------------------------------- //
   XRootDStatus WaitOpen();
@@ -346,7 +353,8 @@ public:
   }
 
   // ---------------------------------------------------------------------- //
-  XRootDStatus Read(uint64_t offset,
+  XRootDStatus Read(XrdCl::shared_proxy proxy,
+		    uint64_t offset,
                     uint32_t size,
                     void* buffer,
                     uint32_t& bytesRead,
@@ -358,9 +366,9 @@ public:
 
   // ---------------------------------------------------------------------- //
 
-  XRootDStatus CloseAsync(uint16_t timeout = 0);
+  XRootDStatus CloseAsync(XrdCl::shared_proxy proxy, uint16_t timeout = 0);
 
-  XRootDStatus ScheduleCloseAsync(uint16_t timeout = 0);
+  XRootDStatus ScheduleCloseAsync(XrdCl::shared_proxy proxy, uint16_t timeout = 0);
 
 
   XRootDStatus WaitClose();
@@ -373,19 +381,22 @@ public:
 
   // ---------------------------------------------------------------------- //
 
-  void inherit_attached(XrdCl::Proxy* proxy)
+  void inherit_attached(shared_proxy proxy)
   {
     XrdSysMutex mAttachedMutex;
     mAttached = proxy ? proxy->get_attached() : 1;
   }
 
-  void inherit_writequeue(XrdCl::Proxy* proxy)
+  void inherit_writequeue(shared_proxy new_proxy, shared_proxy proxy)
   {
     XWriteQueue = proxy->WriteQueue();
     proxy->WriteQueue().clear();
+    for ( auto i : XWriteQueue ) {
+      i->SetProxy(new_proxy);
+    }
   }
 
-  void inherit_protocol(XrdCl::Proxy* proxy)
+  void inherit_protocol(shared_proxy proxy)
   {
     mProtocol = proxy->getProtocol();
   }
@@ -633,8 +644,7 @@ public:
 
   // ---------------------------------------------------------------------- //
 
-  Proxy() : XOpenAsyncHandler(this),
-    XCloseAsyncHandler(this),
+  Proxy() :
     XOpenAsyncCond(0),
     XWriteAsyncCond(0),
     XReadAsyncCond(0),
@@ -668,7 +678,6 @@ public:
     mTotalReadAheadBytes = 0;
     mAttached = 0;
     mTimeout = 0;
-    mSelfDestruction.store(false, std::memory_order_seq_cst);
     mRChunksInFlight.store(0, std::memory_order_seq_cst);
     mDeleted = false;
     mReadAheadMaximumPosition = 64 * 1024ll * 1024ll * 1024ll * 1024ll;
@@ -772,22 +781,26 @@ public:
 
     OpenAsyncHandler() { }
 
-    OpenAsyncHandler(Proxy* file) :
+    OpenAsyncHandler(shared_proxy file) :
       mProxy(file) { }
 
+    void SetProxy(shared_proxy file) {
+      mProxy = file;
+    }
+    
     virtual ~OpenAsyncHandler() { }
 
     virtual void HandleResponseWithHosts(XrdCl::XRootDStatus* status,
                                          XrdCl::AnyObject* response,
                                          XrdCl::HostList* hostList);
 
-    Proxy* proxy()
+    shared_proxy proxy()
     {
       return mProxy;
     }
 
   private:
-    Proxy* mProxy;
+    shared_proxy mProxy;
   };
 
   // ---------------------------------------------------------------------- //
@@ -799,21 +812,25 @@ public:
 
     CloseAsyncHandler() { }
 
-    CloseAsyncHandler(Proxy* file) :
+    CloseAsyncHandler(shared_proxy file) :
       mProxy(file) { }
+
+    void SetProxy(shared_proxy file) {
+      mProxy = file;
+    }
 
     virtual ~CloseAsyncHandler() { }
 
     virtual void HandleResponse(XrdCl::XRootDStatus* pStatus,
                                 XrdCl::AnyObject* pResponse);
 
-    Proxy* proxy()
+    shared_proxy proxy()
     {
       return mProxy;
     }
 
   private:
-    Proxy* mProxy;
+    shared_proxy mProxy;
   };
 
 
@@ -834,15 +851,14 @@ public:
       mTimeout = other->timeout();
     }
 
-    WriteAsyncHandler(Proxy* file, uint32_t size, off_t off = 0,
+    WriteAsyncHandler(shared_proxy file, uint32_t size, off_t off = 0,
                       uint16_t timeout = 0) : mProxy(file), woffset(off), mTimeout(timeout)
     {
       mBuffer = sWrBufferManager.get_buffer(size);
       mBuffer->resize(size);
-
       if (file) {
         std::lock_guard<std::mutex> lock(gBuffReferenceMutex);
-        mId = std::to_string((uint64_t) file);
+        mId = std::to_string((uint64_t) file.get());
         mId += ":open=";
         mId += std::to_string(file->state());
         mId += ":";
@@ -859,8 +875,13 @@ public:
       sWrBufferManager.put_buffer(mBuffer);
       std::lock_guard<std::mutex> lock(gBuffReferenceMutex);
       gBufferReference.erase(mId);
+      mProxy = 0;
     }
 
+    void SetProxy(shared_proxy proxy) {
+      mProxy = proxy;
+    }
+    
     char* buffer()
     {
       return &((*mBuffer)[0]);
@@ -881,7 +902,7 @@ public:
       return *mBuffer;
     }
 
-    Proxy* proxy()
+    shared_proxy proxy()
     {
       return mProxy;
     }
@@ -906,7 +927,7 @@ public:
     static void DumpReferences(std::string& out);
 
   private:
-    Proxy* mProxy;
+    shared_proxy mProxy;
     shared_buffer mBuffer;
     off_t woffset;
     uint16_t mTimeout;
@@ -937,7 +958,7 @@ public:
       mCreationTime = other->creationtime();
     }
 
-    ReadAsyncHandler(Proxy* file, off_t off, uint32_t size,
+    ReadAsyncHandler(shared_proxy file, off_t off, uint32_t size,
                      bool blocking = true) : mProxy(file),
       mAsyncCond(0)
     {
@@ -987,7 +1008,7 @@ public:
       return *mBuffer;
     }
 
-    Proxy* proxy()
+    shared_proxy proxy()
     {
       return mProxy;
     }
@@ -1099,7 +1120,7 @@ public:
   private:
     bool mDone;
     bool mEOF;
-    Proxy* mProxy;
+    shared_proxy mProxy;
     shared_buffer mBuffer;
     off_t roffset;
     XRootDStatus mStatus;
@@ -1119,7 +1140,7 @@ public:
   typedef std::vector<read_handler> chunk_rvector;
 
   // ---------------------------------------------------------------------- //
-  write_handler WriteAsyncPrepare(uint32_t size, uint64_t offset = 0,
+  write_handler WriteAsyncPrepare(XrdCl::shared_proxy proxy, uint32_t size, uint64_t offset = 0,
                                   uint16_t timeout = 0);
 
 
@@ -1160,7 +1181,8 @@ public:
 
   // ---------------------------------------------------------------------- //
 
-  read_handler ReadAsyncPrepare(off_t offset, uint32_t size,
+  read_handler ReadAsyncPrepare(XrdCl::shared_proxy proxy,
+				off_t offset, uint32_t size,
                                 bool blocking = true);
 
 
@@ -1181,6 +1203,10 @@ public:
                          uint32_t& bytesRead
                         );
 
+  // ---------------------------------------------------------------------- //
+  bool DoneAsync(read_handler handler);
+
+  
   std::deque<write_handler>& WriteQueue()
   {
     return XWriteQueue;
@@ -1287,22 +1313,6 @@ public:
     return mMode;
   }
 
-  void flag_selfdestructionTS()
-  {
-    mSelfDestruction.store(true, std::memory_order_seq_cst);
-  }
-
-  bool should_selfdestroy()
-  {
-    bool destroy = mSelfDestruction.load();
-
-    if (destroy) {
-      mSelfDestruction.store(false, std::memory_order_seq_cst);
-    }
-
-    return destroy;;
-  }
-
   int read_chunks_in_flight()
   {
     return mRChunksInFlight.load();
@@ -1322,8 +1332,6 @@ public:
   {
     mRChunksInFlight.fetch_sub(1, std::memory_order_seq_cst);
   }
-
-  void CheckSelfDestruction();
 
   static ssize_t chunk_timeout(ssize_t to = 0)
   {
@@ -1361,13 +1369,33 @@ public:
     return mProtocol;
   }
 
-  static eos::common::RWMutex gDeleteMutex;
   static std::atomic<int> sProxy;
   static int Proxies()
   {
     return sProxy;
   }
 
+  class ProxyStat : public XrdSysMutex {
+  public:
+    std::map<std::string, uint64_t> mMap;
+  };
+
+  class ProxyStatHandle {
+  public:
+    static std::shared_ptr<ProxyStatHandle> Get();
+    ProxyStatHandle() {
+      sProxyStats.Lock();
+    }
+
+    ~ProxyStatHandle() {
+      sProxyStats.UnLock();
+    }
+    static ProxyStat sProxyStats;
+  };
+
+
+
+  
 private:
   std::atomic<OPEN_STATE> open_state;
   struct timespec open_state_time;
@@ -1429,11 +1457,11 @@ private:
   uint16_t mTimeout;
 
   std::atomic<int> mRChunksInFlight;
-  std::atomic<bool> mSelfDestruction;
 
   Protocol mProtocol;
   bool mDeleted;
 };
+
 }
 
 #endif /* FUSE_XRDCLPROXY_HH_ */

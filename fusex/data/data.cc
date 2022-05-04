@@ -406,7 +406,7 @@ data::datax::flush_nolock(fuse_req_t req, bool wait_open, bool wait_writes)
   }
 
   // check if the open failed
-  XrdCl::Proxy* proxy = mFile->has_xrdiorw(req) ? mFile->xrdiorw(req) : 0;
+  XrdCl::shared_proxy proxy = mFile->has_xrdiorw(req) ? mFile->xrdiorw(req) : nullptr;
 
   if (proxy) {
     if (proxy->state() == XrdCl::Proxy::FAILED) {
@@ -470,7 +470,7 @@ data::datax::journalflush(fuse_req_t req)
   }
 
   eos_info("syncing cache");
-  cachesyncer cachesync(*((XrdCl::File*)mFile->xrdiorw(req)));
+  cachesyncer cachesync(*((XrdCl::File*)mFile->xrdiorw(req).get()));
 
   if ((mFile->journal())->remote_sync(cachesync)) {
     eos_err("async journal-cache-sync failed - ino=%#lx", id());
@@ -500,7 +500,7 @@ data::datax::journalflush(std::string cid)
 
   if (mFile->journal()) {
     eos_info("syncing cache");
-    cachesyncer cachesync(*((XrdCl::File*)mFile->xrdiorw(cid)));
+    cachesyncer cachesync(*((XrdCl::File*)mFile->xrdiorw(cid).get()));
 
     if ((mFile->journal())->remote_sync(cachesync)) {
       eos_err("async journal-cache-sync failed - ino=%#lx", id());
@@ -718,7 +718,7 @@ data::datax::attach(fuse_req_t freq, std::string& cookie, int flags)
         mFile->xrdiorw(freq)->attach();
       } else {
         // attach an rw io object
-        mFile->set_xrdiorw(freq, new XrdCl::Proxy());
+        mFile->set_xrdiorw(freq, XrdCl::Proxy::Factory());
         mFile->xrdiorw(freq)->attach();
         mFile->xrdiorw(freq)->set_id(id(), req());
       }
@@ -726,7 +726,7 @@ data::datax::attach(fuse_req_t freq, std::string& cookie, int flags)
       XrdCl::OpenFlags::Flags targetFlags = XrdCl::OpenFlags::Update;
       XrdCl::Access::Mode mode = XrdCl::Access::UR | XrdCl::Access::UW |
                                  XrdCl::Access::UX;
-      mFile->xrdiorw(freq)->OpenAsync(mRemoteUrlRW.c_str(), targetFlags, mode, 0);
+      mFile->xrdiorw(freq)->OpenAsync(mFile->xrdiorw(freq),mRemoteUrlRW.c_str(), targetFlags, mode, 0);
     } else {
       if (mFile->xrdiorw(freq)->IsWaitWrite()) {
         // re-open the file in the state machine
@@ -751,7 +751,7 @@ data::datax::attach(fuse_req_t freq, std::string& cookie, int flags)
         mFile->xrdioro(freq)->WaitClose();
         mFile->xrdioro(freq)->attach();
       } else {
-        mFile->set_xrdioro(freq, new XrdCl::Proxy());
+        mFile->set_xrdioro(freq, XrdCl::Proxy::Factory());
         mFile->xrdioro(freq)->attach();
         mFile->xrdioro(freq)->set_id(id(), req());
 
@@ -780,7 +780,7 @@ data::datax::attach(fuse_req_t freq, std::string& cookie, int flags)
       XrdCl::Access::Mode mode = XrdCl::Access::UR | XrdCl::Access::UX;
       // we might need to wait for a creation to go through
       WaitOpen();
-      mFile->xrdioro(freq)->OpenAsync(mRemoteUrlRO.c_str(), targetFlags, mode, 0);
+      mFile->xrdioro(freq)->OpenAsync(mFile->xrdioro(freq), mRemoteUrlRO.c_str(), targetFlags, mode, 0);
     } else {
       if (mFile->has_xrdiorw(freq)) {
         // we have to drop all existing read-ahead buffers to avoid reading outdated buffers
@@ -859,7 +859,7 @@ data::datax::prefetch(fuse_req_t req, bool lock)
   }
 
   if (!mPrefetchHandler && mFile->file() && !mFile->file()->size() && file_size) {
-    XrdCl::Proxy* proxy = mFile->has_xrdioro(req) ? mFile->xrdioro(
+    XrdCl::shared_proxy proxy = mFile->has_xrdioro(req) ? mFile->xrdioro(
                             req) : mFile->xrdiorw(req);
 
     if (proxy) {
@@ -867,7 +867,7 @@ data::datax::prefetch(fuse_req_t req, bool lock)
       size_t prefetch_size = std::min((size_t) file_size,
                                       (size_t) mFile->file()->prefetch_size());
       // try to send an async read request
-      mPrefetchHandler = proxy->ReadAsyncPrepare(0, prefetch_size, false);
+      mPrefetchHandler = proxy->ReadAsyncPrepare(proxy, 0, prefetch_size, false);
       bool nobuffer = false;
 
       if (mPrefetchHandler->valid()) {
@@ -918,7 +918,7 @@ data::datax::WaitPrefetch(fuse_req_t req, bool lock)
   size_t file_size = (*mMd)()->size();
 
   if (mPrefetchHandler && mFile->file()) {
-    XrdCl::Proxy* proxy = mFile->has_xrdioro(req) ? mFile->xrdioro(
+    XrdCl::shared_proxy proxy = mFile->has_xrdioro(req) ? mFile->xrdioro(
                             req) : mFile->xrdiorw(req);
 
     if (mPrefetchHandler && proxy) {
@@ -992,7 +992,7 @@ data::datax::TryRecovery(fuse_req_t req, bool iswrite)
 
     // clean-up pending in-memory requests
     if (iswrite) {
-      XrdCl::Proxy* proxy = mFile->xrdiorw(req);
+      XrdCl::shared_proxy proxy = mFile->xrdiorw(req);
 
       if (proxy) {
         proxy->CleanWriteQueue();
@@ -1027,7 +1027,7 @@ data::datax::TryRecovery(fuse_req_t req, bool iswrite)
       return EFAULT;
     }
 
-    XrdCl::Proxy* proxy = mFile->xrdiorw(req);
+    XrdCl::shared_proxy proxy = mFile->xrdiorw(req);
 
     if (proxy->opening_state().IsError() &&
         ! proxy->opening_state_should_retry()) {
@@ -1059,7 +1059,7 @@ data::datax::TryRecovery(fuse_req_t req, bool iswrite)
       return EFAULT;
     }
 
-    XrdCl::Proxy* proxy = mFile->xrdioro(req);
+    XrdCl::shared_proxy proxy = mFile->xrdioro(req);
 
     if (proxy->opening_state().IsError() &&
         ! proxy->opening_state_should_retry()) {
@@ -1093,7 +1093,7 @@ int
 data::datax::recover_ropen(fuse_req_t req)
 /* -------------------------------------------------------------------------- */
 {
-  XrdCl::Proxy* proxy = 0;
+  XrdCl::shared_proxy proxy = 0;
   struct timespec ts;
   eos::common::Timing::GetTimeSpec(ts, true);
 
@@ -1153,8 +1153,8 @@ data::datax::recover_ropen(fuse_req_t req)
     }
 
     // issue a new open
-    XrdCl::Proxy* newproxy = new XrdCl::Proxy();
-    newproxy->OpenAsync(mRemoteUrlRO.c_str(), targetFlags, mode, 0);
+    XrdCl::shared_proxy newproxy = XrdCl::Proxy::Factory();
+    newproxy->OpenAsync(newproxy, mRemoteUrlRO.c_str(), targetFlags, mode, 0);
     // wait this time for completion
 
     if ((req && fuse_req_interrupted(req)) || (newproxy->WaitOpen(req) == EINTR)) {
@@ -1169,15 +1169,6 @@ data::datax::recover_ropen(fuse_req_t req)
     proxy->detach();
     // save the error status of the previous proxy object
     status = proxy->opening_state();
-
-    // once all callbacks are there, this object can destroy itself since we don't track it anymore
-    if (proxy->IsClosed()) {
-      proxy->flag_selfdestructionTS();
-      eos::common::RWMutexWriteLock wLock(XrdCl::Proxy::gDeleteMutex);
-      proxy->CheckSelfDestruction();
-    } else {
-      proxy->flag_selfdestructionTS();
-    }
 
     if (newproxy->state() == XrdCl::Proxy::OPENED) { // that worked !
       eos_warning("recover reopened file successfully");
@@ -1234,7 +1225,7 @@ data::datax::recover_ropen(fuse_req_t req)
 /* -------------------------------------------------------------------------- */
 int
 /* -------------------------------------------------------------------------- */
-data::datax::try_ropen(fuse_req_t req, XrdCl::Proxy*& proxy,
+data::datax::try_ropen(fuse_req_t req, XrdCl::shared_proxy proxy,
                        std::string open_url)
 {
   mRecoveryStack.push_back(eos_log(LOG_SILENT, "hint='try read-open'"));
@@ -1242,7 +1233,7 @@ data::datax::try_ropen(fuse_req_t req, XrdCl::Proxy*& proxy,
   eos::common::Timing::GetTimeSpec(ts, true);
   XrdCl::OpenFlags::Flags targetFlags = XrdCl::OpenFlags::Read;
   XrdCl::Access::Mode mode = XrdCl::Access::UR | XrdCl::Access::UX;
-  proxy->OpenAsync(open_url, targetFlags, mode, 0);
+  proxy->OpenAsync(proxy, open_url, targetFlags, mode, 0);
 
   // wait this time for completion
   if ((req && fuse_req_interrupted(req)) || (proxy->WaitOpen(req) == EINTR)) {
@@ -1312,8 +1303,8 @@ data::datax::try_ropen(fuse_req_t req, XrdCl::Proxy*& proxy,
     }
 
     // issue a new open
-    XrdCl::Proxy* newproxy = new XrdCl::Proxy();
-    newproxy->OpenAsync(open_url.c_str(), targetFlags, mode, 0);
+    XrdCl::shared_proxy newproxy = XrdCl::Proxy::Factory();
+    newproxy->OpenAsync(newproxy, open_url.c_str(), targetFlags, mode, 0);
     // wait this time for completion
 
     if ((req && fuse_req_interrupted(req)) || (newproxy->WaitOpen(req) == EINTR)) {
@@ -1324,16 +1315,7 @@ data::datax::try_ropen(fuse_req_t req, XrdCl::Proxy*& proxy,
     newproxy->inherit_attached(proxy);
     newproxy->inherit_protocol(proxy);
 
-    // once all callbacks are there, this object can destroy itself since we don't track it anymore
-    if (proxy->IsClosed()) {
-      proxy->flag_selfdestructionTS();
-      proxy->detach();
-      eos::common::RWMutexWriteLock wLock(XrdCl::Proxy::gDeleteMutex);
-      proxy->CheckSelfDestruction();
-    } else {
-      proxy->flag_selfdestructionTS();
-      proxy->detach();
-    }
+    proxy->detach();
 
     // replace the proxy object
     proxy = newproxy;
@@ -1389,7 +1371,7 @@ data::datax::try_ropen(fuse_req_t req, XrdCl::Proxy*& proxy,
 /* -------------------------------------------------------------------------- */
 int
 /* -------------------------------------------------------------------------- */
-data::datax::try_wopen(fuse_req_t req, XrdCl::Proxy*& proxy,
+data::datax::try_wopen(fuse_req_t req, XrdCl::shared_proxy proxy,
                        std::string open_url)
 {
   mRecoveryStack.push_back(eos_log(LOG_SILENT, "hint='try write-open'"));
@@ -1400,7 +1382,7 @@ data::datax::try_wopen(fuse_req_t req, XrdCl::Proxy*& proxy,
   XrdCl::Access::Mode mode = XrdCl::Access::UR | XrdCl::Access::UW |
                              XrdCl::Access::UX;
   // try to open
-  XrdCl::XRootDStatus status = proxy->OpenAsync(open_url.c_str(), targetFlags,
+  XrdCl::XRootDStatus status = proxy->OpenAsync(proxy, open_url.c_str(), targetFlags,
                                mode, 0);
 
   if (proxy->WaitOpen(req) == EINTR) {
@@ -1450,8 +1432,8 @@ data::datax::try_wopen(fuse_req_t req, XrdCl::Proxy*& proxy,
 
     eos_warning("recover reopening file for writing");
     // issue a new open
-    XrdCl::Proxy* newproxy = new XrdCl::Proxy();
-    newproxy->OpenAsync(open_url.c_str(), targetFlags, mode, 0);
+    XrdCl::shared_proxy newproxy = XrdCl::Proxy::Factory();
+    newproxy->OpenAsync(newproxy, open_url.c_str(), targetFlags, mode, 0);
     // wait this time for completion
 
     if ((req && fuse_req_interrupted(req)) || (newproxy->WaitOpen(req) == EINTR)) {
@@ -1462,9 +1444,7 @@ data::datax::try_wopen(fuse_req_t req, XrdCl::Proxy*& proxy,
 
     newproxy->inherit_attached(proxy);
     newproxy->inherit_protocol(proxy);
-    newproxy->inherit_writequeue(proxy);
-    // once all callbacks are there, this object can destroy itself since we don't track it anymore
-    proxy->flag_selfdestructionTS();
+    newproxy->inherit_writequeue(newproxy, proxy);
     // replace the proxy object
     proxy = newproxy;
 
@@ -1526,7 +1506,7 @@ data::datax::recover_read(fuse_req_t req)
 /* -------------------------------------------------------------------------- */
 {
   mRecoveryStack.push_back(eos_log(LOG_SILENT, "hint='recover read'"));
-  XrdCl::Proxy* proxy = mFile->xrdioro(req);
+  XrdCl::shared_proxy proxy = mFile->xrdioro(req);
   // recover a pread error
   XrdCl::XRootDStatus status = proxy->read_state();
 
@@ -1555,7 +1535,7 @@ data::datax::recover_write(fuse_req_t req)
 {
   mRecoveryStack.push_back(eos_log(LOG_SILENT, "hint='recover write'"));
   eos_debug("");
-  XrdCl::Proxy* proxy = mFile->xrdiorw(req);
+  XrdCl::shared_proxy proxy = mFile->xrdiorw(req);
   // check if we have a problem with the open
   XrdCl::XRootDStatus status = proxy->WaitOpen();
 
@@ -1600,26 +1580,20 @@ data::datax::recover_write(fuse_req_t req)
                                      "hint='recover from remote file'"));
   }
 
-  XrdCl::Proxy* aproxy = new XrdCl::Proxy();
+  XrdCl::shared_proxy newproxy = XrdCl::Proxy::Factory();
 
   if (!recover_from_file_cache && !recover_truncate) {
     // we need to open this file because it is not complete locally
-    int rc = try_ropen(req, aproxy,
+    int rc = try_ropen(req, newproxy,
                        mRemoteUrlRW + "&eos.checksum=ignore&eos.repairread=1");
 
     if (rc) {
       mRecoveryStack.push_back(eos_log(LOG_SILENT,
                                        "hint='read-open failed with rc=%d'", rc));
-      {
-        eos::common::RWMutexWriteLock wLock(XrdCl::Proxy::gDeleteMutex);
-        delete aproxy;
-      }
       proxy->CleanWriteQueue();
       return rc;
     }
   }
-
-  std::unique_ptr<XrdCl::Proxy> newproxy(aproxy);
 
   if (mFile->file() || recover_truncate) {
     void* buf = 0;
@@ -1681,7 +1655,7 @@ data::datax::recover_write(fuse_req_t req)
         uint32_t bytesRead = 0;
 
         do {
-          status = newproxy->Read(off, size, buf, bytesRead);
+          status = newproxy->Read(newproxy, off, size, buf, bytesRead);
           eos_debug("off=%lu bytesread=%u", off, bytesRead);
 
           if (!status.IsOK()) {
@@ -1722,9 +1696,9 @@ data::datax::recover_write(fuse_req_t req)
     }
 
     // upload into identical inode using the drop & replace option (repair flag)
-    XrdCl::Proxy* uploadproxy = new XrdCl::Proxy();
+    XrdCl::shared_proxy uploadproxy = XrdCl::Proxy::Factory();
     uploadproxy->inherit_attached(proxy);
-    uploadproxy->inherit_writequeue(proxy);
+    uploadproxy->inherit_writequeue(uploadproxy,proxy);
 
     // we have to remove the flush otherwise we cannot open this file even ourselfs
     if (req && end_flush(req)) {
@@ -1750,9 +1724,6 @@ data::datax::recover_write(fuse_req_t req)
       }
 
       ::close(fd);
-      {
-        delete uploadproxy;
-      }
 
       if (req && end_flush(req)) {
         eos_warning("failed to signal end-flush");
@@ -1782,7 +1753,6 @@ data::datax::recover_write(fuse_req_t req)
           sBufferManager.put_buffer(buffer);
           {
 	    uploadproxy->WaitWrite(req);
-            delete uploadproxy;
           }
 
           if (req && end_flush(req)) {
@@ -1795,8 +1765,9 @@ data::datax::recover_write(fuse_req_t req)
 
         if (nr) {
           // send asynchronous upstream writes
-          XrdCl::Proxy::write_handler handler = uploadproxy->WriteAsyncPrepare(nr,
-                                                upload_offset, 60);
+          XrdCl::Proxy::write_handler handler = uploadproxy->WriteAsyncPrepare(
+									       uploadproxy,nr,
+									       upload_offset, 60);
           uploadproxy->ScheduleWriteAsync(buf, handler);
           upload_offset += nr;
         }
@@ -1809,9 +1780,6 @@ data::datax::recover_write(fuse_req_t req)
       if (!uploadproxy->write_state().IsOK()) {
         sBufferManager.put_buffer(buffer);
         eos_crit("got failure when collecting outstanding writes from the upload proxy");
-        {
-          delete uploadproxy;
-        }
 
         if (req && end_flush(req)) {
           eos_warning("failed to signal end-flush");
@@ -1829,6 +1797,7 @@ data::datax::recover_write(fuse_req_t req)
     eos_notice("finished write recovery successfully");
     // replace the proxy object
     mFile->set_xrdiorw(req, uploadproxy);
+    proxy->CleanWriteQueue();
     proxy->detach();
 
     // replay the journal
@@ -1847,14 +1816,6 @@ data::datax::recover_write(fuse_req_t req)
     // re-open the file centrally for access
     if (req && end_flush(req)) {
       eos_warning("failed to signal end-flush");
-    }
-
-    // once all callbacks are there, this object can destroy itself since we don't track it anymore
-    proxy->flag_selfdestructionTS();
-
-    if (proxy->IsClosed()) {
-      eos::common::RWMutexWriteLock wLock(XrdCl::Proxy::gDeleteMutex);
-      proxy->CheckSelfDestruction();
     }
   } else {
     eos_crit("no local cache data for recovery");
@@ -2043,8 +2004,8 @@ data::datax::pread(fuse_req_t req, void* buf, size_t count, off_t offset)
   }
 
   // read the missing part remote
-  XrdCl::Proxy* proxy = mFile->has_xrdioro(req) ? mFile->xrdioro(
-                          req) : mFile->xrdiorw(req);
+  XrdCl::shared_proxy proxy = mFile->has_xrdioro(req) ? mFile->xrdioro(
+								req) : mFile->xrdiorw(req);
   XrdCl::XRootDStatus status;
 
   if (proxy) {
@@ -2061,7 +2022,8 @@ data::datax::pread(fuse_req_t req, void* buf, size_t count, off_t offset)
 
     uint32_t bytesRead = 0;
 
-    if (proxy->Read(offset + br,
+    if (proxy->Read(proxy,
+		    offset + br,
                     count - br,
                     (char*) buf + br,
                     bytesRead).IsOK()) {
@@ -2182,7 +2144,7 @@ data::datax::pwrite(fuse_req_t req, const void* buf, size_t count, off_t offset)
 
     {
       // stop sending more writes in case of unrecoverable errors
-      XrdCl::Proxy* proxy = mFile->xrdiorw(req);
+      XrdCl::shared_proxy proxy = mFile->xrdiorw(req);
 
       // block writes on read-only fds
       if (!proxy) {
@@ -2203,7 +2165,7 @@ data::datax::pwrite(fuse_req_t req, const void* buf, size_t count, off_t offset)
 
     // send an asynchronous upstream write, which does not wait for the file open to be done
     XrdCl::Proxy::write_handler handler =
-      mFile->xrdiorw(req)->WriteAsyncPrepare(count, offset, 60);
+      mFile->xrdiorw(req)->WriteAsyncPrepare(mFile->xrdiorw(req),count, offset, 60);
     XrdCl::XRootDStatus status =
       mFile->xrdiorw(req)->ScheduleWriteAsync(buf, handler);
     // test if we switch to xoff mode, where we only write into the journal
@@ -2262,7 +2224,7 @@ data::datax::pwrite(fuse_req_t req, const void* buf, size_t count, off_t offset)
                                            status.ToString().c_str()));
           // re-send the write again
           XrdCl::Proxy::write_handler handler =
-            mFile->xrdiorw(req)->WriteAsyncPrepare(count, offset, 60);
+            mFile->xrdiorw(req)->WriteAsyncPrepare(mFile->xrdiorw(req), count, offset, 60);
           XrdCl::XRootDStatus status =
             mFile->xrdiorw(req)->ScheduleWriteAsync(buf, handler);
         }
@@ -2290,7 +2252,7 @@ data::datax::pwrite(fuse_req_t req, const void* buf, size_t count, off_t offset)
                                            status.ToString().c_str()));
           // re-send the write again
           XrdCl::Proxy::write_handler handler =
-            mFile->xrdiorw(req)->WriteAsyncPrepare(count, offset, 60);
+            mFile->xrdiorw(req)->WriteAsyncPrepare(mFile->xrdiorw(req),count, offset, 60);
           XrdCl::XRootDStatus status =
             mFile->xrdiorw(req)->ScheduleWriteAsync(buf, handler);
           status = mFile->xrdiorw(req)->WaitWrite();
@@ -2420,8 +2382,8 @@ data::datax::peek_pread(fuse_req_t req, char*& buf, size_t count, off_t offset)
   }
 
   // read the missing part remote
-  XrdCl::Proxy* proxy = mFile->has_xrdioro(req) ? mFile->xrdioro(
-                          req) : mFile->xrdiorw(req);
+  XrdCl::shared_proxy proxy = mFile->has_xrdioro(req) ? mFile->xrdioro(
+								req) : mFile->xrdiorw(req);
   XrdCl::XRootDStatus status;
   eos_debug("ro=%d offset=%llu count=%lu br=%lu jr=%lu", mFile->has_xrdioro(req),
             offset, count, br, jr);
@@ -2458,7 +2420,7 @@ data::datax::peek_pread(fuse_req_t req, char*& buf, size_t count, off_t offset)
     }
 
     if (mFile->has_xrdiorw(req)) {
-      XrdCl::Proxy* wproxy = mFile->xrdiorw(req);
+      XrdCl::shared_proxy wproxy = mFile->xrdiorw(req);
 
       if (wproxy->OutstandingWrites()) {
         status = wproxy->WaitWrite();
@@ -2489,7 +2451,8 @@ data::datax::peek_pread(fuse_req_t req, char*& buf, size_t count, off_t offset)
 
       proxy = mFile->has_xrdioro(req) ? mFile->xrdioro(req) : mFile->xrdiorw(
                 req); // recovery might change the proxy object
-      status = proxy->Read(offset + br + jr,
+      status = proxy->Read(proxy,
+			   offset + br + jr,
                            count - br - jr,
                            (char*) buf + br + jr,
                            bytesRead);
@@ -2935,7 +2898,7 @@ data::dmap::ioflush(ThreadAssistant& assistant)
 
             while (repeat) {
               // close all readers in async fashion
-              std::map<std::string, XrdCl::Proxy*>& rmap = (*it)->file()->get_xrdioro();
+              std::map<std::string, XrdCl::shared_proxy>& rmap = (*it)->file()->get_xrdioro();
 
               for (auto fit = rmap.begin();
                    fit != rmap.end();) {
@@ -2963,7 +2926,7 @@ data::dmap::ioflush(ThreadAssistant& assistant)
                     }
 
                     // closing read-only file
-                    fit->second->CloseAsync();
+                    fit->second->CloseAsync(fit->second);
                     eos_static_info("closing reader");
                     fit++;
                     continue;
@@ -2978,10 +2941,6 @@ data::dmap::ioflush(ThreadAssistant& assistant)
 
                 if (fit->second->IsClosed()) {
                   if (fit->second->DoneReadAhead()) {
-                    {
-                      eos::common::RWMutexWriteLock wLock(XrdCl::Proxy::gDeleteMutex);
-                      delete fit->second;
-                    }
                     fit = (*it)->file()->get_xrdioro().erase(fit);
                     eos_static_info("deleting reader");
                     continue;
@@ -2991,7 +2950,7 @@ data::dmap::ioflush(ThreadAssistant& assistant)
                 fit++;
               }
 
-              std::map<std::string, XrdCl::Proxy*>& map = (*it)->file()->get_xrdiorw();
+              std::map<std::string, XrdCl::shared_proxy>& map = (*it)->file()->get_xrdiorw();
 
               for (auto fit = map.begin();
                    fit != map.end(); ++fit) {
@@ -3051,7 +3010,7 @@ data::dmap::ioflush(ThreadAssistant& assistant)
                       eos_static_info("changing to close async state - age = %f ino:%16lx has-flush=%s",
                                       fit->second->state_age(), (*it)->id(),
                                       EosFuse::Instance().mds.has_flush((*it)->id()) ? "true" : "false");
-                      fit->second->CloseAsync();
+                      fit->second->CloseAsync(fit->second);
                       break;
                     } else {
                       if (fit->second->state_age() < 1.0) {
@@ -3090,15 +3049,11 @@ data::dmap::ioflush(ThreadAssistant& assistant)
                       eos_static_warning("re-issuing OpenAsync request after timeout - ino:%16lx err-code:%d",
                                          (*it)->id(), status.code);
                       // to recover this errors XRootD requires new XrdCl::File object ... sigh ...
-                      XrdCl::Proxy* newproxy = new XrdCl::Proxy();
-                      newproxy->OpenAsync(fit->second->url(), fit->second->flags(),
+                      XrdCl::shared_proxy newproxy = XrdCl::Proxy::Factory();
+                      newproxy->OpenAsync(newproxy, fit->second->url(), fit->second->flags(),
                                           fit->second->mode(), 0);
                       newproxy->inherit_attached(fit->second);
                       newproxy->inherit_protocol(fit->second);
-                      {
-                        eos::common::RWMutexWriteLock wLock(XrdCl::Proxy::gDeleteMutex);
-                        delete(fit->second);
-                      }
                       map[fit->first] = newproxy;
                       continue;
                     } else {
@@ -3166,10 +3121,6 @@ data::dmap::ioflush(ThreadAssistant& assistant)
 
                   eos_static_info("deleting xrdclproxyrw state=%d %d", fit->second->state(),
                                   fit->second->IsClosed());
-                  {
-                    eos::common::RWMutexWriteLock wLock(XrdCl::Proxy::gDeleteMutex);
-                    delete fit->second;
-                  }
                   (*it)->file()->get_xrdiorw().erase(fit);
                   break;
                 }

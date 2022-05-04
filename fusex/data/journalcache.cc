@@ -535,7 +535,7 @@ int journalcache::remote_sync(cachesyncer& syncer)
   return ret;
 }
 
-int journalcache::remote_sync_async(XrdCl::Proxy* proxy)
+int journalcache::remote_sync_async(XrdCl::shared_proxy proxy)
 {
   // sends all the journal content as asynchronous write requests
   int ret = 0;
@@ -551,7 +551,7 @@ int journalcache::remote_sync_async(XrdCl::Proxy* proxy)
     off_t cacheoff = itr->value + offshift;
     size_t size = itr->high - itr->low;
     // prepare async buffer
-    XrdCl::Proxy::write_handler handler = proxy->WriteAsyncPrepare(size, itr->low,
+    XrdCl::Proxy::write_handler handler = proxy->WriteAsyncPrepare(proxy, size, itr->low,
                                           0);
     int bytesRead = ::pread(fd, (void*) handler->buffer(), size, cacheoff);
 
