@@ -32,8 +32,6 @@ using namespace XrdCl;
 
 ssize_t XrdCl::Proxy::sChunkTimeout = 300;
 
-eos::common::RWMutex XrdCl::Proxy::gDeleteMutex;
-
 XrdCl::BufferManager XrdCl::Proxy::sWrBufferManager;
 XrdCl::BufferManager XrdCl::Proxy::sRaBufferManager;
 
@@ -46,6 +44,17 @@ XrdCl::Proxy::WriteAsyncHandler::gBufferReference;
 std::mutex XrdCl::Proxy::ReadAsyncHandler::gExpiredChunksMutex;
 std::vector<XrdCl::Proxy::read_handler>
 XrdCl::Proxy::ReadAsyncHandler::gExpiredChunks;
+
+XrdCl::shared_proxy XrdCl::Proxy::Factory() {
+  shared_proxy sp = std::make_shared<Proxy>();
+  return sp;
+}
+
+XrdCl::Proxy::ProxyStat XrdCl::Proxy::ProxyStatHandle::sProxyStats;
+
+std::shared_ptr<XrdCl::Proxy::ProxyStatHandle> XrdCl::Proxy::ProxyStatHandle::Get() {
+  return std::make_shared<XrdCl::Proxy::ProxyStatHandle>();
+}
 
 /* -------------------------------------------------------------------------- */
 XRootDStatus
@@ -69,7 +78,8 @@ XrdCl::Proxy::Write(uint64_t offset,
 
 /* -------------------------------------------------------------------------- */
 XRootDStatus
-XrdCl::Proxy::Read(uint64_t offset,
+XrdCl::Proxy::Read(XrdCl::shared_proxy proxy,
+		   uint64_t offset,
                    uint32_t size,
                    void* buffer,
                    uint32_t& bytesRead,
@@ -261,7 +271,6 @@ XrdCl::Proxy::Read(uint64_t offset,
       }
 
       for (auto it = delete_chunk.begin(); it != delete_chunk.end(); ++it) {
-        eos::common::RWMutexReadLock dLock(XrdCl::Proxy::gDeleteMutex);
         ChunkRMap().erase(*it);
       }
 
@@ -275,7 +284,6 @@ XrdCl::Proxy::Read(uint64_t offset,
         }
         {
           // delete form the read-ahead map
-          eos::common::RWMutexReadLock dLock(XrdCl::Proxy::gDeleteMutex);
           ChunkRMap().erase(*it);
         }
       }
@@ -359,8 +367,8 @@ XrdCl::Proxy::Read(uint64_t offset,
 
         if (!ChunkRMap().count(mReadAheadPosition)) {
           ReadCondVar().UnLock();
-          XrdCl::Proxy::read_handler rahread = ReadAsyncPrepare(mReadAheadPosition,
-                                               XReadAheadNom, false);
+          XrdCl::Proxy::read_handler rahread = ReadAsyncPrepare(proxy, mReadAheadPosition,
+								XReadAheadNom, false);
 
           if (!rahread->valid()) {
             ReadCondVar().Lock();
@@ -418,7 +426,8 @@ XrdCl::Proxy::Read(uint64_t offset,
 /* -------------------------------------------------------------------------- */
 XRootDStatus
 /* -------------------------------------------------------------------------- */
-XrdCl::Proxy::OpenAsync(const std::string& url,
+XrdCl::Proxy::OpenAsync(XrdCl::shared_proxy proxy,
+			const std::string& url,
                         OpenFlags::Flags flags,
                         Access::Mode mode,
                         uint16_t timeout)
@@ -476,6 +485,7 @@ XrdCl::Proxy::OpenAsync(const std::string& url,
 
   if (!status.IsOK()) {
   } else {
+    XOpenAsyncHandler.SetProxy(proxy);
     status = Open(url.c_str(),
                   flags,
                   mode,
@@ -488,6 +498,7 @@ XrdCl::Proxy::OpenAsync(const std::string& url,
   } else {
     eos_err("url=%s flags=%x mode=%x state=failed errmsg=%s", url.c_str(),
             (int) flags, (int) mode, status.ToString().c_str());
+    XOpenAsyncHandler.SetProxy(0);
     set_state(FAILED);
   }
 
@@ -504,7 +515,6 @@ XrdCl::Proxy::OpenAsyncHandler::HandleResponseWithHosts(
 /* -------------------------------------------------------------------------- */
 {
   eos_static_debug("");
-  eos::common::RWMutexReadLock dLock(XrdCl::Proxy::gDeleteMutex);
   {
     XrdSysCondVarHelper openLock(proxy()->OpenCondVar());
     XRootDStatus fuzzingstatus = proxy()->fuzzing().OpenAsyncResponseFuzz();
@@ -563,18 +573,18 @@ XrdCl::Proxy::OpenAsyncHandler::HandleResponseWithHosts(
       delete response;
     }
   }
-  mProxy->CheckSelfDestruction();
+  mProxy=0;
 }
 
 /* -------------------------------------------------------------------------- */
 XRootDStatus
 /* -------------------------------------------------------------------------- */
-XrdCl::Proxy::ReOpenAsync()
+XrdCl::Proxy::ReOpenAsync(XrdCl::shared_proxy proxy)
 /* -------------------------------------------------------------------------- */
 {
   if (mUrl.length()) {
     set_state_TS(CLOSED);
-    return OpenAsync(mUrl, mFlags, mMode, mTimeout);
+    return OpenAsync(proxy, mUrl, mFlags, mMode, mTimeout);
   } else {
     XRootDStatus status(XrdCl::stError,
                         suRetry,
@@ -590,7 +600,7 @@ XrdCl::Proxy::ReOpenAsync()
 /* -------------------------------------------------------------------------- */
 XRootDStatus
 /* -------------------------------------------------------------------------- */
-XrdCl::Proxy::CloseAsync(uint16_t timeout)
+XrdCl::Proxy::CloseAsync(XrdCl::shared_proxy proxy, uint16_t timeout)
 /* -------------------------------------------------------------------------- */
 {
   eos_debug("");
@@ -602,17 +612,20 @@ XrdCl::Proxy::CloseAsync(uint16_t timeout)
   }
 
   WaitOpen();
+  DropReadAhead();
   XrdSysCondVarHelper lLock(OpenCondVar());
 
   // only an opened file requires a close, otherwise we return the last known state
   if ((state() == OPENED) ||
       (state() == WAITWRITE)) {
+    XCloseAsyncHandler.SetProxy(proxy);
     XrdCl::XRootDStatus status = XrdCl::File::Close(&XCloseAsyncHandler,
                                  timeout);
 
     if (!status.IsOK()) {
       eos_err("state=failed closeasync errms=%s", status.ToString().c_str());
       set_state(FAILED, &status);
+      XCloseAsyncHandler.SetProxy(0);
     } else {
       set_state(CLOSING, &status);
     }
@@ -627,7 +640,7 @@ XrdCl::Proxy::CloseAsync(uint16_t timeout)
 /* -------------------------------------------------------------------------- */
 XRootDStatus
 /* -------------------------------------------------------------------------- */
-XrdCl::Proxy::ScheduleCloseAsync(uint16_t timeout)
+XrdCl::Proxy::ScheduleCloseAsync(XrdCl::shared_proxy proxy, uint16_t timeout)
 /* -------------------------------------------------------------------------- */
 {
   eos_debug("");
@@ -641,8 +654,9 @@ XrdCl::Proxy::ScheduleCloseAsync(uint16_t timeout)
     bool no_chunks_left = true;
 
     if ((state() == OPENING) ||
-        (state() == OPENED)) {
+        (state() == OPENED)) {    
       {
+	DropReadAhead();
         XrdSysCondVarHelper lLock(WriteCondVar());
 
         // either we have submitted chunks
@@ -664,7 +678,7 @@ XrdCl::Proxy::ScheduleCloseAsync(uint16_t timeout)
       }
 
       if (no_chunks_left) {
-        return CloseAsync(timeout);
+        return CloseAsync(proxy, timeout);
       } else {
         return XOpenState;
       }
@@ -698,6 +712,8 @@ XrdCl::Proxy::Close(uint16_t timeout)
     Collect();
   }
 
+  DropReadAhead();
+
   XrdSysCondVarHelper lLock(OpenCondVar());
   XrdCl::XRootDStatus status = XrdCl::File::Close(timeout);
   set_state(CLOSED, &status);
@@ -712,7 +728,6 @@ XrdCl::Proxy::CloseAsyncHandler::HandleResponse(XrdCl::XRootDStatus* status,
 /* -------------------------------------------------------------------------- */
 {
   eos_static_debug("");
-  eos::common::RWMutexReadLock dLock(XrdCl::Proxy::gDeleteMutex);
   {
     XrdSysCondVarHelper lLock(mProxy->OpenCondVar());
 
@@ -739,7 +754,7 @@ XrdCl::Proxy::CloseAsyncHandler::HandleResponse(XrdCl::XRootDStatus* status,
     delete response;
     delete status;
   }
-  mProxy->CheckSelfDestruction();
+  mProxy=0;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -886,8 +901,8 @@ XrdCl::Proxy::WriteAsyncHandler::HandleResponse(XrdCl::XRootDStatus* status,
 /* -------------------------------------------------------------------------- */
 {
   eos_static_debug("ino=%llx", mProxy->id());
-  eos::common::RWMutexReadLock dLock(XrdCl::Proxy::gDeleteMutex);
   bool no_chunks_left = true;
+  write_handler myself;
   {
     {
       XrdSysCondVarHelper lLock(mProxy->WriteCondVar());
@@ -903,15 +918,9 @@ XrdCl::Proxy::WriteAsyncHandler::HandleResponse(XrdCl::XRootDStatus* status,
       }
     }
   }
-  write_handler
-  myhandler; // we have to keep a self reference, otherwise we delete ourselfs when removing from the map
   {
     XrdSysCondVarHelper lLock(mProxy->WriteCondVar());
-
-    if (mProxy->ChunkMap().count((uint64_t)this)) {
-      myhandler = mProxy->ChunkMap()[(uint64_t)this];
-    }
-
+    myself = mProxy->ChunkMap()[(int64_t)this];
     mProxy->ChunkMap().erase((uint64_t)this);
   }
 
@@ -919,13 +928,9 @@ XrdCl::Proxy::WriteAsyncHandler::HandleResponse(XrdCl::XRootDStatus* status,
     if (mProxy->close_after_write()) {
       eos_static_debug("sending close-after-write");
       // send an asynchronous close now
-      XrdCl::XRootDStatus status = mProxy->CloseAsync(
+      XrdCl::XRootDStatus status = mProxy->CloseAsync(mProxy,
                                      mProxy->close_after_write_timeout());
     }
-  }
-
-  if (no_chunks_left) {
-    mProxy->CheckSelfDestruction();
   }
 }
 
@@ -950,12 +955,12 @@ XrdCl::Proxy::WriteAsyncHandler::DumpReferences(std::string& out)
 /* -------------------------------------------------------------------------- */
 XrdCl::Proxy::write_handler
 /* -------------------------------------------------------------------------- */
-XrdCl::Proxy::WriteAsyncPrepare(uint32_t size, uint64_t offset,
+XrdCl::Proxy::WriteAsyncPrepare(XrdCl::shared_proxy proxy, uint32_t size, uint64_t offset,
                                 uint16_t timeout)
 /* -------------------------------------------------------------------------- */
 {
   eos_debug("");
-  write_handler dst = std::make_shared<WriteAsyncHandler>(this, size, offset,
+  write_handler dst = std::make_shared<WriteAsyncHandler>(proxy, size, offset,
                       timeout);
   XrdSysCondVarHelper lLock(WriteCondVar());
   ChunkMap()[(uint64_t) dst.get()] = dst;
@@ -1034,6 +1039,10 @@ XrdCl::Proxy::ScheduleWriteAsync(
                         "in progress"
                        );
     return status;
+  } else {
+    // remove requests with failed open
+    XrdSysCondVarHelper lLock(WriteCondVar());
+    ChunkMap().erase((uint64_t) handler.get());
   }
 
   return XOpenState;
@@ -1157,7 +1166,6 @@ XrdCl::Proxy::ReadAsyncHandler::HandleResponse(XrdCl::XRootDStatus* status,
 /* -------------------------------------------------------------------------- */
 {
   eos_static_debug("");
-  eos::common::RWMutexReadLock dLock(XrdCl::Proxy::gDeleteMutex);
   {
     XrdSysCondVarHelper lLock(ReadCondVar());
     mStatus = *status;
@@ -1208,20 +1216,16 @@ XrdCl::Proxy::ReadAsyncHandler::HandleResponse(XrdCl::XRootDStatus* status,
     mProxy->dec_read_chunks_in_flight();
     ReadCondVar().Signal();
   }
-
-  if (!proxy()->HasReadsInFlight()) {
-    proxy()->CheckSelfDestruction();
-  }
 }
 
 /* -------------------------------------------------------------------------- */
 XrdCl::Proxy::read_handler
 /* -------------------------------------------------------------------------- */
-XrdCl::Proxy::ReadAsyncPrepare(off_t offset, uint32_t size, bool blocking)
+XrdCl::Proxy::ReadAsyncPrepare(XrdCl::shared_proxy proxy, off_t offset, uint32_t size, bool blocking)
 /* -------------------------------------------------------------------------- */
 {
   eos_debug("");
-  read_handler src = std::make_shared<ReadAsyncHandler>(this, offset, size,
+  read_handler src = std::make_shared<ReadAsyncHandler>(proxy, offset, size,
                      blocking);
 
   if (!src->valid()) {
@@ -1340,6 +1344,19 @@ XrdCl::Proxy::ReadAsync(read_handler handler,
 }
 
 /* -------------------------------------------------------------------------- */
+bool
+/* -------------------------------------------------------------------------- */
+XrdCl::Proxy::DoneAsync(read_handler handler)
+{
+  eos_debug("");
+  XRootDStatus status = WaitRead(handler);
+
+  XrdSysCondVarHelper lLock(ReadCondVar());
+  ChunkRMap().erase(handler->offset());
+  return true;
+}
+
+/* -------------------------------------------------------------------------- */
 XRootDStatus
 /* -------------------------------------------------------------------------- */
 XrdCl::Proxy::Sync(uint16_t timeout)
@@ -1390,26 +1407,6 @@ XrdCl::Proxy::get_attached()
 {
   XrdSysMutexHelper lLock(mAttachedMutex);
   return mAttached;
-}
-
-/* -------------------------------------------------------------------------- */
-void
-/* -------------------------------------------------------------------------- */
-XrdCl::Proxy::CheckSelfDestruction()
-{
-  if (should_selfdestroy()) {
-    if (IsOpen()) {
-      // close the file if it is open
-      CloseAsync();
-      return;
-    }
-
-    if (IsClosed()) {
-      // don't destroy if we still expect an async close callback
-      eos_debug("self-destruction %llx", this);
-      std::shared_ptr<XrdCl::Proxy> proxy(this);
-    }
-  }
 }
 
 

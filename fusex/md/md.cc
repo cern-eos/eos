@@ -131,6 +131,10 @@ metad::connect(std::string zmqtarget, std::string zmqidentity,
   z_socket = new zmq::socket_t(*z_ctx, ZMQ_DEALER);
   z_socket->setsockopt(ZMQ_IDENTITY, zmq_identity.c_str(), zmq_identity.length()
                       );
+  z_socket->setsockopt(ZMQ_TCP_KEEPALIVE, 1);
+  z_socket->setsockopt(ZMQ_TCP_KEEPALIVE_IDLE, 90);
+  z_socket->setsockopt(ZMQ_TCP_KEEPALIVE_INTVL, 90);
+  
 
   while (1) {
     try {

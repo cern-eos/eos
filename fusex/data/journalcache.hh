@@ -110,7 +110,7 @@ public:
 
   int remote_sync(cachesyncer& syncer);
 
-  int remote_sync_async(XrdCl::Proxy* proxy);
+  int remote_sync_async(XrdCl::shared_proxy proxy);
 
   static int init(const cacheconfig& config);
   static int init_daemonized(const cacheconfig& config);
