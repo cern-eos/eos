@@ -452,7 +452,7 @@ EosFuse::run(int argc, char* argv[], void* userdata)
                 jsonconfiglocal.c_str(), reader.getFormattedErrorMessages().c_str());
         exit(EINVAL);
       }
-
+      
       Merge(root, localjson);
     } else {
       fprintf(stderr, "# no config file for local overwrites\n");
@@ -652,7 +652,6 @@ EosFuse::run(int argc, char* argv[], void* userdata)
           root["auth"]["credential-store"] = "/var/cache/eos/fusex/credential-store/";
         }
       }
-
       if ((root["auth"]["sss"] == 1) || (root["auth"]["oauth2"] == 1)) {
         if (!root["auth"].isMember("ssskeytab")) {
           root["auth"]["ssskeytab"] = default_ssskeytab;
@@ -745,604 +744,605 @@ EosFuse::run(int argc, char* argv[], void* userdata)
 
     if (!root["options"].isMember("submounts")) {
       root["options"]["submounts"] = 0;
-
-      if (!root["options"].isMember("inmemory-inodes")) {
-        root["options"]["inmemory-inodes"] = 16384;
-      }
-
-      // xrdcl default options
-      XrdCl::DefaultEnv::GetEnv()->PutInt("TimeoutResolution", 1);
-      XrdCl::DefaultEnv::GetEnv()->PutInt("ConnectionWindow", 10);
-      XrdCl::DefaultEnv::GetEnv()->PutInt("ConnectionRetry", 0);
-      XrdCl::DefaultEnv::GetEnv()->PutInt("StreamErrorWindow", 120);
-      XrdCl::DefaultEnv::GetEnv()->PutInt("RequestTimeout", 60);
-      XrdCl::DefaultEnv::GetEnv()->PutInt("StreamTimeout", 120);
-      XrdCl::DefaultEnv::GetEnv()->PutInt("RedirectLimit", 2);
-
-      for (auto it = xrdcl_options.begin(); it != xrdcl_options.end(); ++it) {
-        if (root["xrdcl"].isMember(*it)) {
-          XrdCl::DefaultEnv::GetEnv()->PutInt(it->c_str(),
-                                              root["xrdcl"][it->c_str()].asInt());
-
-          if (*it == "RequestTimeout") {
+    }
+    
+    if (!root["options"].isMember("inmemory-inodes")) {
+      root["options"]["inmemory-inodes"] = 16384;
+    }
+    
+    // xrdcl default options
+    XrdCl::DefaultEnv::GetEnv()->PutInt("TimeoutResolution", 1);
+    XrdCl::DefaultEnv::GetEnv()->PutInt("ConnectionWindow", 10);
+    XrdCl::DefaultEnv::GetEnv()->PutInt("ConnectionRetry", 0);
+    XrdCl::DefaultEnv::GetEnv()->PutInt("StreamErrorWindow", 120);
+    XrdCl::DefaultEnv::GetEnv()->PutInt("RequestTimeout", 60);
+    XrdCl::DefaultEnv::GetEnv()->PutInt("StreamTimeout", 120);
+    XrdCl::DefaultEnv::GetEnv()->PutInt("RedirectLimit", 2);
+    
+    for (auto it = xrdcl_options.begin(); it != xrdcl_options.end(); ++it) {
+      if (root["xrdcl"].isMember(*it)) {
+	XrdCl::DefaultEnv::GetEnv()->PutInt(it->c_str(),
+					    root["xrdcl"][it->c_str()].asInt());
+	
+	if (*it == "RequestTimeout") {
             int rtimeout = root["xrdcl"][it->c_str()].asInt();
-
+	    
             if (rtimeout > XrdCl::Proxy::chunk_timeout()) {
               XrdCl::Proxy::chunk_timeout(rtimeout + 60);
             }
-          }
-        }
+	}
       }
+    }
+    
+    if (root["xrdcl"].isMember("LogLevel")) {
+      XrdCl::DefaultEnv::GetEnv()->PutString("LogLevel",
+					     root["xrdcl"]["LogLevel"].asString());
+      setenv((char*) "XRD_LOGLEVEL", root["xrdcl"]["LogLevel"].asString().c_str(), 1);
+      XrdCl::DefaultEnv::ReInitializeLogging();
+    }
+    
+    // recovery setting
+    if (!root["recovery"].isMember("read")) {
+      root["recovery"]["read"] = 1;
+    }
+    
+    if (!root["recovery"].isMember("read-open")) {
+      root["recovery"]["read-open"] = 1;
+    }
+    
+    if (!root["recovery"].isMember("read-open-noserver")) {
+      root["recovery"]["read-open-noserver"] = 1;
+    }
+    
+    if (!root["recovery"].isMember("read-open-noserver-retrywindow")) {
+      root["recovery"]["read-open-noserver-retrywindow"] = 15;
+    }
+    
+    if (!root["recovery"].isMember("write")) {
+      root["recovery"]["write"] = 1;
+    }
+    
+    if (!root["recovery"].isMember("write-open")) {
+      root["recovery"]["write-open"] = 1;
+    }
+    
+    if (!root["recovery"].isMember("write-open-noserver")) {
+      root["recovery"]["write-open-noserver"] = 1;
+    }
 
-      if (root["xrdcl"].isMember("LogLevel")) {
-        XrdCl::DefaultEnv::GetEnv()->PutString("LogLevel",
-                                               root["xrdcl"]["LogLevel"].asString());
-        setenv((char*) "XRD_LOGLEVEL", root["xrdcl"]["LogLevel"].asString().c_str(), 1);
-        XrdCl::DefaultEnv::ReInitializeLogging();
-      }
-
-      // recovery setting
-      if (!root["recovery"].isMember("read")) {
-        root["recovery"]["read"] = 1;
-      }
-
-      if (!root["recovery"].isMember("read-open")) {
-        root["recovery"]["read-open"] = 1;
-      }
-
-      if (!root["recovery"].isMember("read-open-noserver")) {
-        root["recovery"]["read-open-noserver"] = 1;
-      }
-
-      if (!root["recovery"].isMember("read-open-noserver-retrywindow")) {
-        root["recovery"]["read-open-noserver-retrywindow"] = 15;
-      }
-
-      if (!root["recovery"].isMember("write")) {
-        root["recovery"]["write"] = 1;
-      }
-
-      if (!root["recovery"].isMember("write-open")) {
-        root["recovery"]["write-open"] = 1;
-      }
-
-      if (!root["recovery"].isMember("write-open-noserver")) {
-        root["recovery"]["write-open-noserver"] = 1;
-      }
-
-      if (!root["recovery"].isMember("write-open-noserver-retrywindow")) {
-        root["recovery"]["write-open-noserver-retrywindow"] = 15;
-      }
-
-      // fuzzing settings
-      if (!root["fuzzing"].isMember("open-async-submit")) {
-        root["fuzzing"]["open-async-submit"] = 0;
-      }
-
-      if (!root["fuzzing"].isMember("open-async-return")) {
-        root["fuzzing"]["open-async-return"] = 0;
-      }
-
-      if (!root["fuzzing"].isMember("open-async-submit-fatal")) {
-        root["fuzzing"]["open-async-submit-fatal"] = 0;
-      }
-
-      if (!root["fuzzing"].isMember("open-async-return-fatal")) {
-        root["fuzzing"]["open-async-return-fatal"] = 0;
-      }
-
-      config.name = root["name"].asString();
-      config.hostport = root["hostport"].asString();
-      config.remotemountdir = root["remotemountdir"].asString();
-      config.localmountdir = root["localmountdir"].asString();
-      config.statfilesuffix = root["statfilesuffix"].asString();
-      config.statfilepath = root["statfilepath"].asString();
-      config.appname = "fuse";
-
-      if (root["appname"].asString().length()) {
-        if (root["appname"].asString().find("&") == std::string::npos) {
-          config.appname += "::";
-          config.appname += root["appname"].asString();
-        } else {
-          fprintf(stderr, "error: appname cannot contain '&' character!\n");
-          exit(EINVAL);
-        }
-      }
-
-      config.options.debug = root["options"]["debug"].asInt();
-      config.options.debuglevel = root["options"]["debuglevel"].asInt();
-      config.options.enable_backtrace = root["options"]["backtrace"].asInt();
-      config.options.libfusethreads = root["options"]["libfusethreads"].asInt();
-      config.options.md_kernelcache = root["options"]["md-kernelcache"].asInt();
-      config.options.md_kernelcache_enoent_timeout =
-        root["options"]["md-kernelcache.enoent.timeout"].asDouble();
-      config.options.md_backend_timeout =
-        root["options"]["md-backend.timeout"].asDouble();
-      config.options.md_backend_put_timeout =
-        root["options"]["md-backend.put.timeout"].asDouble();
-      config.options.data_kernelcache = root["options"]["data-kernelcache"].asInt();
-      config.options.rename_is_sync = root["options"]["rename-is-sync"].asInt();
-      config.options.rmdir_is_sync = root["options"]["rmdir-is-sync"].asInt();
-      config.options.global_flush = root["options"]["global-flush"].asInt();
-      config.options.flush_wait_open = root["options"]["flush-wait-open"].asInt();
-      config.options.flush_wait_open_size =
-        root["options"]["flush-wait-open-size"].asInt();
-      config.options.flush_wait_umount = root["options"]["flush-wait-umount"].asInt();
-      config.options.global_locking = root["options"]["global-locking"].asInt();
-      config.options.overlay_mode = strtol(
-                                      root["options"]["overlay-mode"].asString().c_str(), 0, 8);
-
-      if (config.options.overlay_mode & 1) {
-        config.options.x_ok = 0;
+    if (!root["recovery"].isMember("write-open-noserver-retrywindow")) {
+      root["recovery"]["write-open-noserver-retrywindow"] = 15;
+    }
+    
+    // fuzzing settings
+    if (!root["fuzzing"].isMember("open-async-submit")) {
+      root["fuzzing"]["open-async-submit"] = 0;
+    }
+    
+    if (!root["fuzzing"].isMember("open-async-return")) {
+      root["fuzzing"]["open-async-return"] = 0;
+    }
+    
+    if (!root["fuzzing"].isMember("open-async-submit-fatal")) {
+      root["fuzzing"]["open-async-submit-fatal"] = 0;
+    }
+    
+    if (!root["fuzzing"].isMember("open-async-return-fatal")) {
+      root["fuzzing"]["open-async-return-fatal"] = 0;
+    }
+    
+    config.name = root["name"].asString();
+    config.hostport = root["hostport"].asString();
+    config.remotemountdir = root["remotemountdir"].asString();
+    config.localmountdir = root["localmountdir"].asString();
+    config.statfilesuffix = root["statfilesuffix"].asString();
+    config.statfilepath = root["statfilepath"].asString();
+    config.appname = "fuse";
+    
+    if (root["appname"].asString().length()) {
+      if (root["appname"].asString().find("&") == std::string::npos) {
+	config.appname += "::";
+	config.appname += root["appname"].asString();
       } else {
-        config.options.x_ok = X_OK;
+	fprintf(stderr, "error: appname cannot contain '&' character!\n");
+	exit(EINVAL);
       }
-
-      config.options.fdlimit = root["options"]["fd-limit"].asInt();
-      config.options.rm_rf_protect_levels =
-        root["options"]["rm-rf-protect-levels"].asInt();
-      config.options.rm_rf_bulk =
-        root["options"]["rm-rf-bulk"].asInt();
-      config.options.show_tree_size = root["options"]["show-tree-size"].asInt();
-      config.options.hide_versions = root["options"]["hide-versions"].asInt();
-      config.options.protect_directory_symlink_loops =
-        root["options"]["protect-directory-symlink-loops"].asInt();
-      config.options.cpu_core_affinity = root["options"]["cpu-core-affinity"].asInt();
-      config.options.no_xattr = root["options"]["no-xattr"].asInt();
-      config.options.no_eos_xattr_listing =
-        root["options"]["no-eos-xattr-listing"].asInt();
-      config.options.no_hardlinks = root["options"]["no-link"].asInt();
-      config.options.write_size_flush_interval =
-        root["options"]["write-size-flush-interval"].asInt();
-      config.options.inmemory_inodes = root["options"]["inmemory-inodes"].asInt();
-      config.options.flock = false;
+    }
+    
+    config.options.debug = root["options"]["debug"].asInt();
+    config.options.debuglevel = root["options"]["debuglevel"].asInt();
+    config.options.enable_backtrace = root["options"]["backtrace"].asInt();
+    config.options.libfusethreads = root["options"]["libfusethreads"].asInt();
+    config.options.md_kernelcache = root["options"]["md-kernelcache"].asInt();
+    config.options.md_kernelcache_enoent_timeout =
+      root["options"]["md-kernelcache.enoent.timeout"].asDouble();
+    config.options.md_backend_timeout =
+      root["options"]["md-backend.timeout"].asDouble();
+    config.options.md_backend_put_timeout =
+      root["options"]["md-backend.put.timeout"].asDouble();
+    config.options.data_kernelcache = root["options"]["data-kernelcache"].asInt();
+    config.options.rename_is_sync = root["options"]["rename-is-sync"].asInt();
+    config.options.rmdir_is_sync = root["options"]["rmdir-is-sync"].asInt();
+    config.options.global_flush = root["options"]["global-flush"].asInt();
+    config.options.flush_wait_open = root["options"]["flush-wait-open"].asInt();
+    config.options.flush_wait_open_size =
+      root["options"]["flush-wait-open-size"].asInt();
+    config.options.flush_wait_umount = root["options"]["flush-wait-umount"].asInt();
+    config.options.global_locking = root["options"]["global-locking"].asInt();
+    config.options.overlay_mode = strtol(
+					 root["options"]["overlay-mode"].asString().c_str(), 0, 8);
+    
+    if (config.options.overlay_mode & 1) {
+      config.options.x_ok = 0;
+    } else {
+      config.options.x_ok = X_OK;
+    }
+    
+    config.options.fdlimit = root["options"]["fd-limit"].asInt();
+    config.options.rm_rf_protect_levels =
+      root["options"]["rm-rf-protect-levels"].asInt();
+    config.options.rm_rf_bulk =
+      root["options"]["rm-rf-bulk"].asInt();
+    config.options.show_tree_size = root["options"]["show-tree-size"].asInt();
+    config.options.hide_versions = root["options"]["hide-versions"].asInt();
+    config.options.protect_directory_symlink_loops =
+      root["options"]["protect-directory-symlink-loops"].asInt();
+    config.options.cpu_core_affinity = root["options"]["cpu-core-affinity"].asInt();
+    config.options.no_xattr = root["options"]["no-xattr"].asInt();
+    config.options.no_eos_xattr_listing =
+      root["options"]["no-eos-xattr-listing"].asInt();
+    config.options.no_hardlinks = root["options"]["no-link"].asInt();
+    config.options.write_size_flush_interval =
+      root["options"]["write-size-flush-interval"].asInt();
+    config.options.inmemory_inodes = root["options"]["inmemory-inodes"].asInt();
+    config.options.flock = false;
 #ifdef FUSE_SUPPORTS_FLOCK
-      config.options.flock = true;
+    config.options.flock = true;
 #endif
-
-      if (config.options.no_xattr) {
-        disable_xattr();
-      }
-
-      if (config.options.no_hardlinks) {
-        disable_link();
-      }
-
-      config.options.nocache_graceperiod =
-        root["options"]["nocache-graceperiod"].asInt();
-      config.options.leasetime = root["options"]["leasetime"].asInt();
-      config.options.submounts = root["options"]["submounts"].asInt();
-      config.recovery.read = root["recovery"]["read"].asInt();
-      config.recovery.read_open = root["recovery"]["read-open"].asInt();
-      config.recovery.read_open_noserver =
-        root["recovery"]["read-open-noserver"].asInt();
-      config.recovery.read_open_noserver_retrywindow =
-        root["recovery"]["read-open-noserver-retrywindow"].asInt();
-      config.recovery.write = root["recovery"]["write"].asInt();
-      config.recovery.write_open = root["recovery"]["write-open"].asInt();
-      config.recovery.write_open_noserver =
-        root["recovery"]["write-open-noserver"].asInt();
-      config.recovery.write_open_noserver_retrywindow =
-        root["recovery"]["write-open-noserver-retrywindow"].asInt();
-      config.fuzzing.open_async_submit = root["fuzzing"]["open-async-submit"].asInt();
-      config.fuzzing.open_async_return = root["fuzzing"]["open-async-return"].asInt();
-      config.fuzzing.read_async_return = root["fuzzing"]["read-async-return"].asInt();
-      config.fuzzing.open_async_submit_fatal = (bool)
-          root["fuzzing"]["open-async-submit-fatal"].asInt();
-      config.fuzzing.open_async_return_fatal = (bool)
-          root["fuzzing"]["open-async-return-fatal"].asInt();
-      XrdCl::Fuzzing::Configure(config.fuzzing.open_async_submit,
-                                config.fuzzing.open_async_return,
-                                config.fuzzing.open_async_submit_fatal,
-                                config.fuzzing.open_async_return_fatal,
-                                config.fuzzing.read_async_return);
-      config.mdcachedir = root["mdcachedir"].asString();
-      config.mqtargethost = root["mdzmqtarget"].asString();
-      config.mqidentity = root["mdzmqidentity"].asString();
-      config.mqname = config.mqidentity;
-      config.auth.fuse_shared = root["auth"]["shared-mount"].asInt();
-      config.auth.use_user_krb5cc = root["auth"]["krb5"].asInt();
-      config.auth.use_user_oauth2 = root["auth"]["oauth2"].asInt();
-      config.auth.use_user_unix = root["auth"]["unix"].asInt();
-      config.auth.ignore_containerization =
-        root["auth"]["ignore-containerization"].asInt();
-      config.auth.use_user_gsiproxy = root["auth"]["gsi"].asInt();
-      config.auth.use_user_sss = root["auth"]["sss"].asInt();
-      config.auth.credentialStore = root["auth"]["credential-store"].asString();
-
-      if (config.auth.use_user_sss || config.auth.use_user_oauth2) {
-        // store keytab location for this mount
-        setenv("XrdSecSSSKT", root["auth"]["ssskeytab"].asString().c_str(), 1);
-      }
-
-      config.auth.tryKrb5First = !((bool)root["auth"]["gsi-first"].asInt());
-      config.auth.environ_deadlock_timeout =
-        root["auth"]["environ-deadlock-timeout"].asInt();
-      config.auth.forknoexec_heuristic = root["auth"]["forknoexec-heuristic"].asInt();
-
-      if (config.auth.environ_deadlock_timeout <= 0) {
-        config.auth.environ_deadlock_timeout = 500;
-      }
-
-      config.inliner.max_size = root["inline"]["max-size"].asInt();
-      config.inliner.default_compressor =
-        root["inline"]["default-compressor"].asString();
-
-      if ((config.inliner.default_compressor != "none") &&
-          (config.inliner.default_compressor != "zlib")) {
-        std::cerr <<
-                  "inline default compressor value can only be 'none' or 'zlib'."
-                  << std::endl;
-        exit(EINVAL);
-      }
-
-      for (Json::Value::iterator it = root["options"]["no-fsync"].begin();
-           it != root["options"]["no-fsync"].end(); ++it) {
-        config.options.no_fsync_suffixes.push_back(it->asString());
-        no_fsync_list += it->asString();
-        no_fsync_list += ",";
-      }
-
-      for (Json::Value::iterator it =
-             root["options"]["flush-nowait-executables"].begin();
-           it != root["options"]["flush-nowait-executables"].end(); ++it) {
-        config.options.nowait_flush_executables.push_back(it->asString());
-        nowait_flush_exec_list += it->asString();
-        nowait_flush_exec_list += ",";
-      }
-
-      // reset mdcachedir if compiled without rocksdb support
+    
+    if (config.options.no_xattr) {
+      disable_xattr();
+    }
+    
+    if (config.options.no_hardlinks) {
+      disable_link();
+    }
+    
+    config.options.nocache_graceperiod =
+      root["options"]["nocache-graceperiod"].asInt();
+    config.options.leasetime = root["options"]["leasetime"].asInt();
+    config.options.submounts = root["options"]["submounts"].asInt();
+    config.recovery.read = root["recovery"]["read"].asInt();
+    config.recovery.read_open = root["recovery"]["read-open"].asInt();
+    config.recovery.read_open_noserver =
+      root["recovery"]["read-open-noserver"].asInt();
+    config.recovery.read_open_noserver_retrywindow =
+      root["recovery"]["read-open-noserver-retrywindow"].asInt();
+    config.recovery.write = root["recovery"]["write"].asInt();
+    config.recovery.write_open = root["recovery"]["write-open"].asInt();
+    config.recovery.write_open_noserver =
+      root["recovery"]["write-open-noserver"].asInt();
+    config.recovery.write_open_noserver_retrywindow =
+      root["recovery"]["write-open-noserver-retrywindow"].asInt();
+    config.fuzzing.open_async_submit = root["fuzzing"]["open-async-submit"].asInt();
+    config.fuzzing.open_async_return = root["fuzzing"]["open-async-return"].asInt();
+    config.fuzzing.read_async_return = root["fuzzing"]["read-async-return"].asInt();
+    config.fuzzing.open_async_submit_fatal = (bool)
+      root["fuzzing"]["open-async-submit-fatal"].asInt();
+    config.fuzzing.open_async_return_fatal = (bool)
+      root["fuzzing"]["open-async-return-fatal"].asInt();
+    XrdCl::Fuzzing::Configure(config.fuzzing.open_async_submit,
+			      config.fuzzing.open_async_return,
+			      config.fuzzing.open_async_submit_fatal,
+			      config.fuzzing.open_async_return_fatal,
+			      config.fuzzing.read_async_return);
+    config.mdcachedir = root["mdcachedir"].asString();
+    config.mqtargethost = root["mdzmqtarget"].asString();
+    config.mqidentity = root["mdzmqidentity"].asString();
+    config.mqname = config.mqidentity;
+    config.auth.fuse_shared = root["auth"]["shared-mount"].asInt();
+    config.auth.use_user_krb5cc = root["auth"]["krb5"].asInt();
+    config.auth.use_user_oauth2 = root["auth"]["oauth2"].asInt();
+    config.auth.use_user_unix = root["auth"]["unix"].asInt();
+    config.auth.ignore_containerization =
+      root["auth"]["ignore-containerization"].asInt();
+    config.auth.use_user_gsiproxy = root["auth"]["gsi"].asInt();
+    config.auth.use_user_sss = root["auth"]["sss"].asInt();
+    config.auth.credentialStore = root["auth"]["credential-store"].asString();
+    
+    if (config.auth.use_user_sss || config.auth.use_user_oauth2) {
+      // store keytab location for this mount
+      setenv("XrdSecSSSKT", root["auth"]["ssskeytab"].asString().c_str(), 1);
+    }
+    
+    config.auth.tryKrb5First = !((bool)root["auth"]["gsi-first"].asInt());
+    config.auth.environ_deadlock_timeout =
+      root["auth"]["environ-deadlock-timeout"].asInt();
+    config.auth.forknoexec_heuristic = root["auth"]["forknoexec-heuristic"].asInt();
+    
+    if (config.auth.environ_deadlock_timeout <= 0) {
+      config.auth.environ_deadlock_timeout = 500;
+    }
+    
+    config.inliner.max_size = root["inline"]["max-size"].asInt();
+    config.inliner.default_compressor =
+      root["inline"]["default-compressor"].asString();
+    
+    if ((config.inliner.default_compressor != "none") &&
+	(config.inliner.default_compressor != "zlib")) {
+      std::cerr <<
+	"inline default compressor value can only be 'none' or 'zlib'."
+		<< std::endl;
+      exit(EINVAL);
+    }
+    
+    for (Json::Value::iterator it = root["options"]["no-fsync"].begin();
+	 it != root["options"]["no-fsync"].end(); ++it) {
+      config.options.no_fsync_suffixes.push_back(it->asString());
+      no_fsync_list += it->asString();
+      no_fsync_list += ",";
+    }
+    
+    for (Json::Value::iterator it =
+	   root["options"]["flush-nowait-executables"].begin();
+	 it != root["options"]["flush-nowait-executables"].end(); ++it) {
+      config.options.nowait_flush_executables.push_back(it->asString());
+      nowait_flush_exec_list += it->asString();
+      nowait_flush_exec_list += ",";
+    }
+    
+    // reset mdcachedir if compiled without rocksdb support
 #ifndef HAVE_ROCKSDB
-
-      if (!config.mdcachedir.empty()) {
-        std::cerr <<
-                  "Options mdcachedir is unavailable, fusex was compiled without rocksdb support."
-                  << std::endl;
-        config.mdcachedir = "";
-      }
-
+    
+    if (!config.mdcachedir.empty()) {
+      std::cerr <<
+	"Options mdcachedir is unavailable, fusex was compiled without rocksdb support."
+		<< std::endl;
+      config.mdcachedir = "";
+    }
+    
 #endif // HAVE_ROCKSDB
-
+    
+    if (config.mdcachedir.length()) {
+      // add the instance name to all cache directories
+      if (config.mdcachedir.rfind("/") != (config.mdcachedir.size() - 1)) {
+	config.mdcachedir += "/";
+      }
+      
+      config.mdcachedir += config.name.length() ? config.name : "default";
+    }
+    
+    // the store directory is the tree before we append individual UUIDs for each mount
+    store_directory = config.mdcachedir;
+    
+    // default settings
+    if (!config.statfilesuffix.length()) {
+      config.statfilesuffix = "stats";
+    }
+    
+    if (!config.mqtargethost.length()) {
+      std::string h = config.hostport;
+      
+      if (h.find(":") != std::string::npos) {
+	h.erase(h.find(":"));
+      }
+      
+      config.mqtargethost = "tcp://" + h + ":1100";
+    }
+    
+    {
+      config.mqidentity.insert(0, "fuse://");
+      config.mqidentity += "@";
+      char hostname[4096];
+      
+      if (gethostname(hostname, sizeof(hostname))) {
+	fprintf(stderr, "error: failed to get hostname!\n");
+	exit(EINVAL);
+      }
+      
+      config.clienthost = hostname;
+      config.mqidentity += hostname;
+      char suuid[40];
+      uuid_t uuid;
+      uuid_generate_time(uuid);
+      uuid_unparse(uuid, suuid);
+      config.clientuuid = suuid;
+      config.mqidentity += "//";
+      config.mqidentity += suuid;
+      config.mqidentity += ":";
+      char spid[16];
+      snprintf(spid, sizeof(spid), "%d", getpid());
+      config.mqidentity += spid;
+      
       if (config.mdcachedir.length()) {
-        // add the instance name to all cache directories
-        if (config.mdcachedir.rfind("/") != (config.mdcachedir.size() - 1)) {
-          config.mdcachedir += "/";
-        }
-
-        config.mdcachedir += config.name.length() ? config.name : "default";
+	config.mdcachedir += "/";
+	config.mdcachedir += suuid;
       }
-
-      // the store directory is the tree before we append individual UUIDs for each mount
-      store_directory = config.mdcachedir;
-
-      // default settings
-      if (!config.statfilesuffix.length()) {
-        config.statfilesuffix = "stats";
+    }
+    
+    if (config.options.fdlimit > 0) {
+      struct rlimit newrlimit;
+      newrlimit.rlim_cur = config.options.fdlimit;
+      newrlimit.rlim_max = config.options.fdlimit;
+      
+      if ((setrlimit(RLIMIT_NOFILE, &newrlimit) != 0) && (!geteuid())) {
+	fprintf(stderr, "warning: unable to set fd limit to %lu - errno %d\n",
+		config.options.fdlimit, errno);
       }
-
-      if (!config.mqtargethost.length()) {
-        std::string h = config.hostport;
-
-        if (h.find(":") != std::string::npos) {
-          h.erase(h.find(":"));
-        }
-
-        config.mqtargethost = "tcp://" + h + ":1100";
-      }
-
-      {
-        config.mqidentity.insert(0, "fuse://");
-        config.mqidentity += "@";
-        char hostname[4096];
-
-        if (gethostname(hostname, sizeof(hostname))) {
-          fprintf(stderr, "error: failed to get hostname!\n");
-          exit(EINVAL);
-        }
-
-        config.clienthost = hostname;
-        config.mqidentity += hostname;
-        char suuid[40];
-        uuid_t uuid;
-        uuid_generate_time(uuid);
-        uuid_unparse(uuid, suuid);
-        config.clientuuid = suuid;
-        config.mqidentity += "//";
-        config.mqidentity += suuid;
-        config.mqidentity += ":";
-        char spid[16];
-        snprintf(spid, sizeof(spid), "%d", getpid());
-        config.mqidentity += spid;
-
-        if (config.mdcachedir.length()) {
-          config.mdcachedir += "/";
-          config.mdcachedir += suuid;
-        }
-      }
-
-      if (config.options.fdlimit > 0) {
-        struct rlimit newrlimit;
-        newrlimit.rlim_cur = config.options.fdlimit;
-        newrlimit.rlim_max = config.options.fdlimit;
-
-        if ((setrlimit(RLIMIT_NOFILE, &newrlimit) != 0) && (!geteuid())) {
-          fprintf(stderr, "warning: unable to set fd limit to %lu - errno %d\n",
-                  config.options.fdlimit, errno);
-        }
-      }
-
-      struct rlimit nofilelimit;
-
-      if (getrlimit(RLIMIT_NOFILE, &nofilelimit) != 0) {
-        fprintf(stderr, "error: unable to get fd limit - errno %d\n", errno);
-        exit(EINVAL);
-      }
-
-      fprintf(stderr, "# File descriptor limit: %lu soft, %lu hard\n",
-              nofilelimit.rlim_cur, nofilelimit.rlim_max);
-      // store the current limit
-      config.options.fdlimit = nofilelimit.rlim_cur;
-      // data caching configuration
-      cconfig.type = cache_t::INVALID;
-      cconfig.clean_on_startup = true;
-
-      if (root["cache"]["type"].asString() == "disk") {
-        cconfig.type = cache_t::DISK;
-      } else if (root["cache"]["type"].asString() == "memory") {
-        cconfig.type = cache_t::MEMORY;
+    }
+    
+    struct rlimit nofilelimit;
+    
+    if (getrlimit(RLIMIT_NOFILE, &nofilelimit) != 0) {
+      fprintf(stderr, "error: unable to get fd limit - errno %d\n", errno);
+      exit(EINVAL);
+    }
+    
+    fprintf(stderr, "# File descriptor limit: %lu soft, %lu hard\n",
+	    nofilelimit.rlim_cur, nofilelimit.rlim_max);
+    // store the current limit
+    config.options.fdlimit = nofilelimit.rlim_cur;
+    // data caching configuration
+    cconfig.type = cache_t::INVALID;
+    cconfig.clean_on_startup = true;
+    
+    if (root["cache"]["type"].asString() == "disk") {
+      cconfig.type = cache_t::DISK;
+    } else if (root["cache"]["type"].asString() == "memory") {
+      cconfig.type = cache_t::MEMORY;
+    } else {
+      if (root["cache"]["type"].asString().length()) {
+	fprintf(stderr, "error: invalid cache type configuration\n");
+	exit(EINVAL);
       } else {
-        if (root["cache"]["type"].asString().length()) {
-          fprintf(stderr, "error: invalid cache type configuration\n");
-          exit(EINVAL);
-        } else {
-          cconfig.type = cache_t::DISK;
-        }
+	cconfig.type = cache_t::DISK;
       }
-
-      if (!root["cache"].isMember("read-ahead-bytes-nominal")) {
-        root["cache"]["read-ahead-bytes-nominal"] = 256 * 1024;
+    }
+    
+    if (!root["cache"].isMember("read-ahead-bytes-nominal")) {
+      root["cache"]["read-ahead-bytes-nominal"] = 256 * 1024;
+    }
+    
+    if (!root["cache"].isMember("read-ahead-bytes-max")) {
+      root["cache"]["read-ahead-bytes-max"] = 2 * 1024 * 1024;
+    }
+    
+    if (!root["cache"].isMember("read-ahead-blocks-max")) {
+      root["cache"]["read-ahead-blocks-max"] = 16;
+    }
+    
+    if (!root["cache"].isMember("read-ahead-strategy")) {
+      root["cache"]["read-ahead-strategy"] = "dynamic";
+    }
+    
+    if (!root["cache"].isMember("read-ahead-sparse-ratio")) {
+      root["cache"]["read-ahead-sparse-ratio"] = 0.0;
+    }
+    
+    // auto-scale read-ahead and write-back buffer
+    uint64_t best_io_buffer_size = meminfo.get().totalram / 8;
+    
+    if (best_io_buffer_size > 128 * 1024 * 1024) {
+      best_io_buffer_size = 128 * 1024 * 1024;
+    } else {
+      // we take 1/8 of the total available memory, if we don't have one GB available
+      best_io_buffer_size /= 8;
+    }
+    
+    if (!root["cache"].isMember("max-read-ahead-buffer")) {
+      fprintf(stderr, "# allowing max read-ahead buffers of %lu bytes\n",
+	      best_io_buffer_size);
+      root["cache"]["max-read-ahead-buffer"] = (Json::Value::UInt64)
+	best_io_buffer_size;
+    }
+    
+    if (!root["cache"].isMember("max-write-buffer")) {
+      fprintf(stderr, "# allowing max write-back buffers of %lu bytes\n",
+	      best_io_buffer_size);
+      root["cache"]["max-write-buffer"] = (Json::Value::UInt64)best_io_buffer_size;
+    }
+    
+    cconfig.location = root["cache"]["location"].asString();
+    cconfig.journal = root["cache"]["journal"].asString();
+    cconfig.default_read_ahead_size =
+      root["cache"]["read-ahead-bytes-nominal"].asInt();
+    cconfig.max_read_ahead_size = root["cache"]["read-ahead-bytes-max"].asInt();
+    cconfig.max_read_ahead_blocks = root["cache"]["read-ahead-blocks-max"].asInt();
+    cconfig.read_ahead_strategy = root["cache"]["read-ahead-strategy"].asString();
+    cconfig.read_ahead_sparse_ratio =
+      root["cache"]["read-ahead-sparse-ratio"].asFloat();
+    
+    if ((cconfig.read_ahead_strategy != "none") &&
+	(cconfig.read_ahead_strategy != "static") &&
+	(cconfig.read_ahead_strategy != "dynamic")) {
+      fprintf(stderr,
+	      "error: invalid read-ahead-strategy specified - only 'none' 'static' 'dynamic' allowed\n");
+      exit(EINVAL);
+    }
+    
+    cconfig.max_inflight_read_ahead_buffer_size =
+      root["cache"]["max-read-ahead-buffer"].asInt();
+    cconfig.max_inflight_write_buffer_size =
+      root["cache"]["max-write-buffer"].asInt();
+    
+    // set defaults for journal and file-start cache
+    if (geteuid()) {
+      if (!cconfig.location.length()) {
+	cconfig.location = "/var/tmp/eos/fusex/cache/";
+	
+	if (getenv("USER")) {
+	  cconfig.location += getenv("USER");
+	} else {
+	  cconfig.location += std::to_string(geteuid());
+	}
+	
+	cconfig.location += "/";
       }
-
-      if (!root["cache"].isMember("read-ahead-bytes-max")) {
-        root["cache"]["read-ahead-bytes-max"] = 2 * 1024 * 1024;
+      
+      if (!cconfig.journal.length()) {
+	cconfig.journal = "/var/tmp/eos/fusex/cache/";
+	
+	if (getenv("USER")) {
+	  cconfig.journal += getenv("USER");
+	} else {
+	  cconfig.location += std::to_string(geteuid());
+	}
+	
+	cconfig.journal += "/";
       }
-
-      if (!root["cache"].isMember("read-ahead-blocks-max")) {
-        root["cache"]["read-ahead-blocks-max"] = 16;
+      
+      // default cache size 512 MB
+      if (!root["cache"]["size-mb"].asString().length()) {
+	root["cache"]["size-mb"] = 512;
       }
-
-      if (!root["cache"].isMember("read-ahead-strategy")) {
-        root["cache"]["read-ahead-strategy"] = "dynamic";
+      
+      // default cache size 64k inodes
+      if (!root["cache"]["size-ino"].asString().length()) {
+	root["cache"]["size-ino"] = 65536;
       }
-
-      if (!root["cache"].isMember("read-ahead-sparse-ratio")) {
-        root["cache"]["read-ahead-sparse-ratio"] = 0.0;
+      
+      // default journal cache size 2 G
+      if (!root["cache"]["journal-mb"].asString().length()) {
+	root["cache"]["journal-mb"] = 2048;
       }
-
-      // auto-scale read-ahead and write-back buffer
-      uint64_t best_io_buffer_size = meminfo.get().totalram / 8;
-
-      if (best_io_buffer_size > 128 * 1024 * 1024) {
-        best_io_buffer_size = 128 * 1024 * 1024;
-      } else {
-        // we take 1/8 of the total available memory, if we don't have one GB available
-        best_io_buffer_size /= 8;
+      
+      // default journal size 64k inodes
+      if (!root["cache"]["journal-ino"].asString().length()) {
+	root["cache"]["journal-ino"] = 65536;
       }
-
-      if (!root["cache"].isMember("max-read-ahead-buffer")) {
-        fprintf(stderr, "# allowing max read-ahead buffers of %lu bytes\n",
-                best_io_buffer_size);
-        root["cache"]["max-read-ahead-buffer"] = (Json::Value::UInt64)
-            best_io_buffer_size;
+      
+      // default cleaning threshold
+      if (!root["cache"]["clean-threshold"].asString().length()) {
+	root["cache"]["clean-threshold"] = 85.0;
       }
-
-      if (!root["cache"].isMember("max-write-buffer")) {
-        fprintf(stderr, "# allowing max write-back buffers of %lu bytes\n",
-                best_io_buffer_size);
-        root["cache"]["max-write-buffer"] = (Json::Value::UInt64)best_io_buffer_size;
+      
+      if (!root["cache"]["file-cache-max-kb"].asString().length()) {
+	root["cache"]["file-cache-max-kb"] = 256;
       }
-
-      cconfig.location = root["cache"]["location"].asString();
-      cconfig.journal = root["cache"]["journal"].asString();
-      cconfig.default_read_ahead_size =
-        root["cache"]["read-ahead-bytes-nominal"].asInt();
-      cconfig.max_read_ahead_size = root["cache"]["read-ahead-bytes-max"].asInt();
-      cconfig.max_read_ahead_blocks = root["cache"]["read-ahead-blocks-max"].asInt();
-      cconfig.read_ahead_strategy = root["cache"]["read-ahead-strategy"].asString();
-      cconfig.read_ahead_sparse_ratio =
-        root["cache"]["read-ahead-sparse-ratio"].asFloat();
-
-      if ((cconfig.read_ahead_strategy != "none") &&
-          (cconfig.read_ahead_strategy != "static") &&
-          (cconfig.read_ahead_strategy != "dynamic")) {
-        fprintf(stderr,
-                "error: invalid read-ahead-strategy specified - only 'none' 'static' 'dynamic' allowed\n");
-        exit(EINVAL);
+    } else {
+      if (!cconfig.location.length()) {
+	cconfig.location = "/var/cache/eos/fusex/cache/";
       }
-
-      cconfig.max_inflight_read_ahead_buffer_size =
-        root["cache"]["max-read-ahead-buffer"].asInt();
-      cconfig.max_inflight_write_buffer_size =
-        root["cache"]["max-write-buffer"].asInt();
-
-      // set defaults for journal and file-start cache
-      if (geteuid()) {
-        if (!cconfig.location.length()) {
-          cconfig.location = "/var/tmp/eos/fusex/cache/";
-
-          if (getenv("USER")) {
-            cconfig.location += getenv("USER");
-          } else {
-            cconfig.location += std::to_string(geteuid());
-          }
-
-          cconfig.location += "/";
-        }
-
-        if (!cconfig.journal.length()) {
-          cconfig.journal = "/var/tmp/eos/fusex/cache/";
-
-          if (getenv("USER")) {
-            cconfig.journal += getenv("USER");
-          } else {
-            cconfig.location += std::to_string(geteuid());
-          }
-
-          cconfig.journal += "/";
-        }
-
-        // default cache size 512 MB
-        if (!root["cache"]["size-mb"].asString().length()) {
-          root["cache"]["size-mb"] = 512;
-        }
-
-        // default cache size 64k inodes
-        if (!root["cache"]["size-ino"].asString().length()) {
-          root["cache"]["size-ino"] = 65536;
-        }
-
-        // default journal cache size 2 G
-        if (!root["cache"]["journal-mb"].asString().length()) {
-          root["cache"]["journal-mb"] = 2048;
-        }
-
-        // default journal size 64k inodes
-        if (!root["cache"]["journal-ino"].asString().length()) {
-          root["cache"]["journal-ino"] = 65536;
-        }
-
-        // default cleaning threshold
-        if (!root["cache"]["clean-threshold"].asString().length()) {
-          root["cache"]["clean-threshold"] = 85.0;
-        }
-
-        if (!root["cache"]["file-cache-max-kb"].asString().length()) {
-          root["cache"]["file-cache-max-kb"] = 256;
-        }
-      } else {
-        if (!cconfig.location.length()) {
-          cconfig.location = "/var/cache/eos/fusex/cache/";
-        }
-
-        if (!cconfig.journal.length()) {
-          cconfig.journal = "/var/cache/eos/fusex/cache/";
-        }
-
-        // default cache size 1 GB
-        if (!root["cache"]["size-mb"].asString().length()) {
-          root["cache"]["size-mb"] = 1000;
-        }
-
-        // default cache size 64k indoes
-        if (!root["cache"]["size-ino"].asString().length()) {
-          root["cache"]["size-ino"] = 65536;
-        }
-
-        // default cleaning threshold
-        if (!root["cache"]["clean-threshold"].asString().length()) {
-          root["cache"]["clean-threshold"] = 85.0;
-        }
-
-        if (!root["cache"]["file-cache-max-kb"].asString().length()) {
-          root["cache"]["file-cache-max-kb"] = 256;
-        }
+      
+      if (!cconfig.journal.length()) {
+	cconfig.journal = "/var/cache/eos/fusex/cache/";
       }
-
-      if (cconfig.location == "OFF") {
-        // disable file-start cache
-        cconfig.location = "";
+      
+      // default cache size 1 GB
+      if (!root["cache"]["size-mb"].asString().length()) {
+	root["cache"]["size-mb"] = 1000;
       }
-
-      if (cconfig.journal == "OFF") {
-        // disable journal
-        cconfig.journal = "";
+      
+      // default cache size 64k indoes
+      if (!root["cache"]["size-ino"].asString().length()) {
+	root["cache"]["size-ino"] = 65536;
       }
-
-      if (cconfig.location.length()) {
-        if (cconfig.location.rfind("/") != (cconfig.location.size() - 1)) {
-          cconfig.location += "/";
-        }
-
-        cconfig.location += config.name.length() ? config.name : "default";
+      
+      // default cleaning threshold
+      if (!root["cache"]["clean-threshold"].asString().length()) {
+	root["cache"]["clean-threshold"] = 85.0;
       }
-
-      if (cconfig.journal.length()) {
-        if (cconfig.journal.rfind("/") != (cconfig.journal.size() - 1)) {
-          cconfig.journal += "/";
-        }
-
-        cconfig.journal += config.name.length() ? config.name : "default";
+      
+      if (!root["cache"]["file-cache-max-kb"].asString().length()) {
+	root["cache"]["file-cache-max-kb"] = 256;
       }
-
-      config.auth.credentialStore += config.name.length() ? config.name : "default";
-      // apply some defaults for all existing options
-      // by default create all the specified cache paths
-      std::string mk_cachedir = "mkdir -p " + config.mdcachedir;
-      std::string mk_journaldir = "mkdir -p " + cconfig.journal;
-      std::string mk_locationdir = "mkdir -p " + cconfig.location;
-      std::string mk_credentialdir = "mkdir -p " + config.auth.credentialStore;
-
-      if (config.mdcachedir.length()) {
-        system(mk_cachedir.c_str());
-        size_t slashes = std::count(config.mdcachedir.begin(), config.mdcachedir.end(),
-                                    '/');
-
-        // just some paranoid safety to avoid wiping by accident something we didn't intend to wipe
-        if ((slashes > 2)  &&
-            config.mdcachedir[config.mdcachedir.length() - 37] == '/') {
-          config.mdcachedir_unlink = config.mdcachedir;
-        }
+    }
+    
+    if (cconfig.location == "OFF") {
+      // disable file-start cache
+      cconfig.location = "";
+    }
+    
+    if (cconfig.journal == "OFF") {
+      // disable journal
+      cconfig.journal = "";
+    }
+    
+    if (cconfig.location.length()) {
+      if (cconfig.location.rfind("/") != (cconfig.location.size() - 1)) {
+	cconfig.location += "/";
       }
-
-      if (cconfig.journal.length()) {
-        system(mk_journaldir.c_str());
+      
+      cconfig.location += config.name.length() ? config.name : "default";
+    }
+    
+    if (cconfig.journal.length()) {
+      if (cconfig.journal.rfind("/") != (cconfig.journal.size() - 1)) {
+	cconfig.journal += "/";
       }
-
-      if (cconfig.location.length()) {
-        system(mk_locationdir.c_str());
+      
+      cconfig.journal += config.name.length() ? config.name : "default";
+    }
+    
+    config.auth.credentialStore += config.name.length() ? config.name : "default";
+    
+    // apply some defaults for all existing options
+    // by default create all the specified cache paths
+    std::string mk_cachedir = "mkdir -p " + config.mdcachedir;
+    std::string mk_journaldir = "mkdir -p " + cconfig.journal;
+    std::string mk_locationdir = "mkdir -p " + cconfig.location;
+    std::string mk_credentialdir = "mkdir -p " + config.auth.credentialStore;
+    
+    if (config.mdcachedir.length()) {
+      system(mk_cachedir.c_str());
+      size_t slashes = std::count(config.mdcachedir.begin(), config.mdcachedir.end(),
+				  '/');
+      
+      // just some paranoid safety to avoid wiping by accident something we didn't intend to wipe
+      if ((slashes > 2)  &&
+	  config.mdcachedir[config.mdcachedir.length() - 37] == '/') {
+	config.mdcachedir_unlink = config.mdcachedir;
       }
+    }
+    
+    if (cconfig.journal.length()) {
+      system(mk_journaldir.c_str());
+    }
+    
+    if (cconfig.location.length()) {
+      system(mk_locationdir.c_str());
+    }
+    
+    if (config.auth.credentialStore.length()) {
+      system(mk_credentialdir.c_str());
+    }
 
-      if (config.auth.credentialStore.length()) {
-        system(mk_credentialdir.c_str());
-      }
-
-      // make the cache directories private to root
-      chmod_to_700_or_die(config.mdcachedir);
-      chmod_to_700_or_die(cconfig.journal);
-      chmod_to_700_or_die(cconfig.location);
-      chmod_to_700_or_die(config.auth.credentialStore);
-      {
-        char list[64];
+    // make the cache directories private to root
+    chmod_to_700_or_die(config.mdcachedir);
+    chmod_to_700_or_die(cconfig.journal);
+    chmod_to_700_or_die(cconfig.location);
+    chmod_to_700_or_die(config.auth.credentialStore);
+    {
+      char list[64];
 #ifndef __APPLE__
-
-        if (::listxattr(cconfig.location.c_str(), list, sizeof(list))) {
+      
+      if (::listxattr(cconfig.location.c_str(), list, sizeof(list))) {
 #else
-
-        if (::listxattr(cconfig.location.c_str(), list, sizeof(list), 0)) {
+	
+      if (::listxattr(cconfig.location.c_str(), list, sizeof(list), 0)) {
 #endif
-
-          if (errno == ENOTSUP) {
-            fprintf(stderr,
-                    "error: eosxd requires XATTR support on partition %s errno=%d\n",
-                    cconfig.location.c_str(), errno);
-            exit(-1);
-          }
-        }
+	  
+        if (errno == ENOTSUP) {
+	  fprintf(stderr,
+		  "error: eosxd requires XATTR support on partition %s errno=%d\n",
+		  cconfig.location.c_str(), errno);
+	  exit(-1);
+	}
       }
-
+      
       cconfig.total_file_cache_size = root["cache"]["size-mb"].asUInt64() * 1024 *
-                                      1024;
+	1024;
       cconfig.total_file_cache_inodes = root["cache"]["size-ino"].asUInt64();
       cconfig.total_file_journal_size = root["cache"]["journal-mb"].asUInt64() *
-                                        1024 * 1024;
+	1024 * 1024;
       cconfig.total_file_journal_inodes = root["cache"]["journal-ino"].asUInt64();
       cconfig.per_file_cache_max_size = root["cache"]["file-cache-max-kb"].asUInt64()
-                                        * 1024;
+	* 1024;
       cconfig.per_file_journal_max_size =
         root["cache"]["file-journal-max-kb"].asUInt64() * 1024;
       cconfig.clean_threshold = root["cache"]["clean-threshold"].asDouble();
       int rc = 0;
-
+      
       if ((rc = cachehandler::instance().init(cconfig))) {
         exit(rc);
       }
@@ -1355,11 +1355,11 @@ EosFuse::run(int argc, char* argv[], void* userdata)
       } else {
         config.localmountdir = mountpoint;
       }
-
+      
       if (mountpoint.length()) {
         DIR* d = 0;
         struct stat d_stat;
-
+	
         // sanity check of the mount directory
         if (!(d = ::opendir(mountpoint.c_str()))) {
           // check for a broken mount
@@ -1370,7 +1370,7 @@ EosFuse::run(int argc, char* argv[], void* userdata)
             fprintf(stderr, "# dead mount detected - forcing '%s'\n", systemline.c_str());
             system(systemline.c_str());
           }
-
+	  
           if (stat(mountpoint.c_str(), &d_stat)) {
             if (errno == ENOENT) {
               fprintf(stderr, "error: mountpoint '%s' does not exist\n", mountpoint.c_str());
@@ -1389,21 +1389,21 @@ EosFuse::run(int argc, char* argv[], void* userdata)
     std::string nodelay = getenv("XRD_NODELAY") ? getenv("XRD_NODELAY") : "";
     umount_system_line = "fusermount -u -z ";
     umount_system_line += EosFuse::Instance().Config().localmountdir;
-
+    
     if (nodelay == "1") {
       fprintf(stderr, "# Running with XRD_NODELAY=1 (nagle algorithm is disabled)\n");
     } else {
       putenv((char*) "XRD_NODELAY=1");
       fprintf(stderr, "# Disabling nagle algorithm (XRD_NODELAY=1)\n");
     }
-
+    
     if (!getenv("MALLOC_CONF")) {
       fprintf(stderr, "# Setting MALLOC_CONF=dirty_decay_ms:0\n");
       putenv((char*) "MALLOC_CONF=dirty_decay_ms:0");
     } else {
       fprintf(stderr, "# MALLOC_CONF=%s\n", getenv("MALLOC_CONF"));
     }
-
+    
     int debug;
     {
       // C-style fuse configuration optionss
@@ -1463,10 +1463,9 @@ EosFuse::run(int argc, char* argv[], void* userdata)
                   config.options.cpu_core_affinity - 1);
         }
       }
-
 #endif
+      fprintf(stderr,"initialize process cache '%s'\n", config.auth.credentialStore.c_str());
       fusexrdlogin::initializeProcessCache(config.auth);
-
       if (config.options.foreground) {
         if (nodelay != "1") {
           fprintf(stderr,
@@ -1568,9 +1567,6 @@ EosFuse::run(int argc, char* argv[], void* userdata)
               eos::common::Logging::GetInstance().LB->log_suspended,
               eos::common::Logging::GetInstance().LB->log_thread_started,
               eos::common::Logging::GetInstance().LB->log_buffer_in_q);
-      // make deletion mutex blocking and disable stack tracing
-      XrdCl::Proxy::gDeleteMutex.SetBlockedStackTracing(false);
-      XrdCl::Proxy::gDeleteMutex.SetBlocking(true);
       // initialize mKV in case no cache is configured to act as no-op
       mKV.reset(new NoKV());
 #ifdef HAVE_ROCKSDB
@@ -4842,6 +4838,16 @@ EosFuse::flush(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info* fi)
     }
   }
 
+  // report slow flush before we send a reply, otherwise we can get a segv because io can be deleted!
+  if (Instance().Trace() || (timing.RealTime() > 2000)) {
+    std::string path = Instance().mds.calculateLocalPath(io->md);
+    std::string s;
+    eos_static_warning("flush of '%s' took %.03fms\n%s",
+                       Instance().Prefix(path).c_str(),
+                       timing.RealTime(),
+                       io->ioctx()->Dump(s));
+  }
+
   fuse_reply_err(req, rc);
 
   if (invalidate_inode) {
@@ -4852,15 +4858,6 @@ EosFuse::flush(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info* fi)
   EXEC_TIMING_END(__func__);
   COMMONTIMING("_stop_", &timing);
 
-  // report slow flush
-  if (Instance().Trace() || (timing.RealTime() > 2000)) {
-    std::string path = Instance().mds.calculateLocalPath(io->md);
-    std::string s;
-    eos_static_warning("flush of '%s' took %.03fms\n%s",
-                       Instance().Prefix(path).c_str(),
-                       timing.RealTime(),
-                       io->ioctx()->Dump(s));
-  }
 
   eos_static_notice("t(ms)=%.03f %s", timing.RealTime(),
                     dump(id, ino, 0, rc).c_str());
