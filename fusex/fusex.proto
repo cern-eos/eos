@@ -165,6 +165,8 @@ message statistics {
   fixed64 wrnobuf = 26; //< write buffer no buffer available
   float blockedms = 27; //< max time in ms an inode tracking mutex is held in a lock
   string blockedfunc = 28; //< function with is blocked for ms
+  fixed32 recovery_ok = 29; // < number of recoveries ok
+  fixed32 recovery_fail = 30; // < number of recoveries failed
 }
 
 message container {

@@ -1985,6 +1985,29 @@ EosFuse::DumpStatistic(ThreadAssistant& assistant)
              XrdCl::Proxy::Proxies()
             );
     sout += ino_stat;
+
+    {
+      auto recovery = XrdCl::Proxy::ProxyStatHandle::Get()->Stats();
+      int32_t recovery_ok = 0;
+      int32_t recovery_fail = 0;
+      
+      for ( auto it : recovery ) {
+	if (it.first.find("success") != std::string::npos){
+	  recovery_ok++;
+	}
+	if (it.first.find("failed") != std::string::npos) {
+	  recovery_fail++;
+	}
+	snprintf(ino_stat, sizeof(ino_stat),
+		 "ALL        %-45s := %lu\n", it.first.c_str(), it.second);
+	sout += ino_stat;
+      }
+      sout += "# -----------------------------------------------------------------------------------------------------------\n";
+      Instance().aRecoveryOk = recovery_ok;
+      Instance().aRecoveryFail = recovery_ok;
+	
+    }
+    
     std::string s1;
     std::string s2;
     std::string s3;
@@ -2260,13 +2283,19 @@ EosFuse::setattr(fuse_req_t req, fuse_ino_t ino, struct stat* attr, int op,
       pcap = Instance().caps.acquire(req, cap_ino,
                                      W_OK);
 
+      pcap->Locker().Lock();
       if ((*pcap)()->errc()) {
+	pcap->Locker().UnLock();
         // retrieve cap for set utime
         pcap = Instance().caps.acquire(req, cap_ino, SU_OK);
+      } else {
+	pcap->Locker().UnLock();
       }
     }
-
+      
+    pcap->Locker().Lock();
     if ((*pcap)()->errc()) {
+      pcap->Locker().UnLock();
       // don't fail chown not changing the owner,
       if ((op & FUSE_SET_ATTR_UID) && ((*md)()->uid() == (int) attr->st_uid)) {
         rc = 0;
@@ -2278,6 +2307,7 @@ EosFuse::setattr(fuse_req_t req, fuse_ino_t ino, struct stat* attr, int op,
         }
       }
     } else {
+      pcap->Locker().UnLock();
       if (op & FUSE_SET_ATTR_MODE) {
         /*
           EACCES Search permission is denied on a component of the path prefix.
@@ -6369,6 +6399,8 @@ EosFuse::getHbStat(eos::fusex::statistics& hbs)
   hbs.set_pid(getpid());
   hbs.set_logfilesize(sizeLogFile());
   hbs.set_wrnobuf(XrdCl::Proxy::sWrBufferManager.nobuf());
+  hbs.set_recovery_ok(Instance().aRecoveryOk); // computed by DumpStatistics
+  hbs.set_recovery_fail(Instance().aRecoveryFail); // computed by Dumpstatistics
 }
 
 /* -------------------------------------------------------------------------- */

@@ -736,12 +736,12 @@ XrdCl::Proxy::CloseAsyncHandler::HandleResponse(XrdCl::XRootDStatus* status,
       if (!mProxy->isDeleted()) {
         if (mProxy->state() != XrdCl::Proxy::FAILED) {
           eos_static_crit("%x current status = %d - setting CLOSEFAILED - msg=%s url=%s\n",
-                          mProxy, mProxy->state(), status->ToString().c_str(), mProxy->url().c_str());
+                          mProxy.get(), mProxy->state(), status->ToString().c_str(), mProxy->url().c_str());
           mProxy->set_state(XrdCl::Proxy::CLOSEFAILED, status);
         }
       } else {
         eos_static_info("%x current status = %d - silencing CLOSEFAILED - msg=%s url=%s\n",
-                        mProxy, mProxy->state(), status->ToString().c_str(), mProxy->url().c_str());
+                        mProxy.get(), mProxy->state(), status->ToString().c_str(), mProxy->url().c_str());
         // an unlinked file can have a close failure response
         XRootDStatus okstatus;
         mProxy->set_state(XrdCl::Proxy::CLOSED, &okstatus);

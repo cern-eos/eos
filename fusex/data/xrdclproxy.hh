@@ -1375,9 +1375,55 @@ public:
     return sProxy;
   }
 
-  class ProxyStat : public XrdSysMutex {
+  class ProxyStat : public XrdSysMutex, public std::map<std::string, uint64_t>  {
   public:
-    std::map<std::string, uint64_t> mMap;
+    ProxyStat() {
+      (*this)["recover:n"]= 0;
+      (*this)["recover:read:exceeded"]= 0;
+      (*this)["recover:write:disabled"]= 0;
+      (*this)["recover:write:noproxy"]= 0;
+      (*this)["recover:write:unrecoverable"]= 0;
+      (*this)["recover:write:n"]= 0;
+      (*this)["recover:read:disabled"]= 0;
+      (*this)["recover:read:noproxy"]= 0;
+      (*this)["recover:read:unrecoverble"]= 0;
+      (*this)["recover:read:reopen:n"]= 0;
+      (*this)["recover:read:reread:n"]= 0;
+      (*this)["recover:read:reopen:disabled"]= 0;
+      (*this)["recover:read:reopen:noserver:disabled"]= 0;
+      (*this)["recover:read:reopen:failed"]= 0;
+      (*this)["recover:read:reopen:success"]= 0;
+      (*this)["recover:read:reopen:noserver:retry"]= 0;
+      (*this)["recover:read:reopen:noserver:fatal"]= 0;
+      (*this)["recover:write:reopen:n"]= 0;
+      (*this)["recover:write:reopen:success"]= 0;
+      (*this)["recover:write:reopen:disabled"]= 0;
+      (*this)["recover:write:reopen:noserver::retry"]= 0;
+      (*this)["recover:write:reopen:noserver::disabled"]= 0;
+      (*this)["recover:write:reopen:unrecoverable"]= 0;
+      (*this)["recover:write:reopen:overquota"]= 0;
+      (*this)["recover:write:reopen:success"]= 0;
+      (*this)["recover:write:reopen:nosever"]= 0;
+      (*this)["recover:write:reopen:noserver:failed"]= 0;
+      (*this)["recover:read:n"]= 0;
+      (*this)["recover:read:success"]= 0;
+      (*this)["recover:read:failed"]= 0;
+      (*this)["recover:write:n"]= 0;
+      (*this)["recover:write:unrecoverable"]= 0;
+      (*this)["recover:write:fromcache"]= 0;
+      (*this)["recover:write:fromremote"]= 0;
+      (*this)["recover:write:fromcache:failed"]= 0;
+      (*this)["recover:write:fromremote:local:failed"]= 0;
+      (*this)["recover:write:fromcache:read:failed"]= 0;
+      (*this)["recover:write:fromremote:read:failed"]= 0;
+      (*this)["recover:write:fromremote:localwrite:failed"]= 0;
+      (*this)["recover:write:fromremote:beginflush:failed"]= 0;
+      (*this)["recover:write:fromremote:endflush:failed"]= 0;
+      (*this)["recover:write:fromremote:write:failed"]= 0;
+      (*this)["recover:write:journalflush:failed"]= 0;
+      (*this)["recover:write:journalflush:success"]= 0;
+      (*this)["recover:write:nocache:failed"]= 0;
+    }
   };
 
   class ProxyStatHandle {
@@ -1389,6 +1435,9 @@ public:
 
     ~ProxyStatHandle() {
       sProxyStats.UnLock();
+    }
+    ProxyStat& Stats() {
+      return sProxyStats;
     }
     static ProxyStat sProxyStats;
   };
