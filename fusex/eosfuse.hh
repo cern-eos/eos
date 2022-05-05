@@ -520,7 +520,9 @@ private:
   struct fuse_session* fusesession;
   struct fuse_chan* fusechan;
 
-
+  std::atomic<int32_t> aRecoveryOk;
+  std::atomic<int32_t> aRecoveryFail;
+  
   AssistedThread tDumpStatistic;
   AssistedThread tStatCirculate;
   AssistedThread tMetaCacheFlush;
