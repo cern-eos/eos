@@ -1442,7 +1442,9 @@ public:
     static ProxyStat sProxyStats;
   };
 
-
+  std::string getLastUrl() {
+    return mLastUrl;
+  }
 
   
 private:

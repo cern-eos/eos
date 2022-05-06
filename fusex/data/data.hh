@@ -273,6 +273,8 @@ public:
 
     const char* Dump(std::string& out);
 
+    std::string url();
+    
   private:
     XrdSysMutex mLock;
     uint64_t mIno;
@@ -431,6 +433,9 @@ public:
   bool has(fuse_ino_t ino, bool checkwriteopen = false);
   metad::shared_md retrieve_wr_md(fuse_ino_t ino);
 
+
+  std::string url(fuse_ino_t ino);
+  
   void release(fuse_req_t req,
                fuse_ino_t ino);
 
