@@ -148,6 +148,27 @@ data::has(fuse_ino_t ino, bool checkwriteopen)
 }
 
 /* -------------------------------------------------------------------------- */
+std::string
+/* -------------------------------------------------------------------------- */
+data::url(fuse_ino_t ino)
+/* -------------------------------------------------------------------------- */
+{
+  std::string p;
+  XrdSysMutexHelper mLock(datamap);
+
+  if (datamap.count(ino)) {
+    p = datamap[ino]->fullpath();
+    while(p.find("//") != std::string::npos) {
+      p.replace(p.find("//"),p.size(), "/");
+    }
+    p += " [";
+    p += datamap[ino]->url();
+    p += " ]";
+  }
+  return p;
+}
+    
+/* -------------------------------------------------------------------------- */
 metad::shared_md
 data::retrieve_wr_md(fuse_ino_t ino)
 /* -------------------------------------------------------------------------- */
@@ -2889,6 +2910,29 @@ data::datax::Dump(std::string& out)
 }
 
 
+/* -------------------------------------------------------------------------- */
+std::string
+data::datax::url()
+/* -------------------------------------------------------------------------- */
+{
+  std::string p;
+  if (mFile->has_xrdiorw(mReq)) {
+    p=mFile->xrdiorw(mReq)->getLastUrl();
+  } else {
+    if (mFile->has_xrdioro(mReq)) {
+      p=mFile->xrdioro(mReq)->getLastUrl();
+    }
+  }
+  size_t f1 = p.find("/fusex-open");
+  size_t f2 = p.find("eos.app");
+  if (f1!=std::string::npos) {
+    p.erase(f1,f2);
+    p.insert(f1," : ");
+    std::replace( p.begin(), p.end(), '&', ' ');
+  }
+  return p;
+}
+  
 /* -------------------------------------------------------------------------- */
 bool
 /* -------------------------------------------------------------------------- */

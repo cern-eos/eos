@@ -2124,13 +2124,18 @@ EosFuse::DumpStatistic(ThreadAssistant& assistant)
 
       if (blocker_inode != 1) {
         if (blocker.length() && last_blocker.empty()) {
-          eos_static_warning("IO blocked on ino=%#lx for op=%s since %.02f ms",
-                             blocker_inode, blocker.c_str(), blocked_ms);
+	  std::string url = Instance().datas.url(blocker_inode);
+	  if (url.empty()) { url = Instance().mds.getpath(blocker_inode);}
+	   
+          eos_static_warning("IO blocked on ino=%#lx for op=%s since %.02f ms { %s }",
+                             blocker_inode, blocker.c_str(), blocked_ms, url.c_str());
         }
 
         if (blocker.empty() && last_blocker.length()) {
-          eos_static_warning("IO unblock on ino=%#lx for op=%s since %.02f ms",
-                             last_blocker_inode, last_blocker.c_str(), last_blocked_ms);
+	  std::string url = Instance().datas.url(last_blocker_inode).c_str();
+	  if (url.empty()) { url = Instance().mds.getpath(last_blocker_inode);}
+          eos_static_warning("IO unblock on ino=%#lx for op=%s since %.02f ms { %s }",
+                             last_blocker_inode, last_blocker.c_str(), last_blocked_ms, url.c_str());
         }
       }
 
