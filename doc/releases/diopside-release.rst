@@ -17,6 +17,16 @@ Introduction
 This release is based on XRootD V5.
 
 
+``v5.0.21 Diopside``
+===================
+
+2022-05-06
+
+* Note: this is a scratch build on top of XRootD-5.4.3-RC1 trying to test
+a bug fix concerning vector reads
+* Update dependency to XRootD-5.4.3-RC1
+
+
 ``v5.0.20 Diopside``
 ===================
 
