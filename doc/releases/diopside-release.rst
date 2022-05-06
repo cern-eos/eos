@@ -17,10 +17,24 @@ Introduction
 This release is based on XRootD V5.
 
 
+``v5.0.22 Diopside``
+===================
+
+2022-05-06
+
+Improvements
+------------
+
+FUSEX: Refactoring async response handling
+
+
 ``v5.0.21 Diopside``
 ===================
 
 2022-05-06
+
+Notes
+------
 
 * Note: this is a scratch build on top of XRootD-5.4.3-RC1 trying to test
 a bug fix concerning vector reads
