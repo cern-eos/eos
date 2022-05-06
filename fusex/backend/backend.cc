@@ -177,6 +177,8 @@ backend::fetchQueryResponse(std::string& requestURL,
   XrdCl::XRootDStatus status = Query(url, XrdCl::QueryCode::OpaqueFile, arg,
                                      bresponse, 30, false);
 
+  std::unique_ptr<XrdCl::Buffer> rsp(bresponse);
+  
   if (status.IsOK()) {
     eos_static_debug("%x", bresponse);
     eos_static_debug("response-size=%d",
@@ -236,11 +238,6 @@ backend::fetchQueryResponse(std::string& requestURL,
 
       return 0;
     }
-
-    if (bresponse) {
-      delete bresponse;
-    }
-
     eos_static_debug("");
   } else {
     if (status.errNo == XErrorCode::kXR_NotFound) {
@@ -599,6 +596,9 @@ backend::putMD(fuse_id& id, eos::fusex::md* md, std::string authid,
   XrdCl::XRootDStatus status = Query(id.getid()->url,
                                      XrdCl::QueryCode::OpaqueFile, arg,
                                      response, put_timeout);
+
+  std::unique_ptr<XrdCl::Buffer> rsp(response);
+  
   eos_static_info("sync-response");
   eos_static_debug("response-size=%d",
                    response ? response->GetSize() : 0);
@@ -612,7 +612,6 @@ backend::putMD(fuse_id& id, eos::fusex::md* md, std::string authid,
         // retrieve response
       } else {
         eos_static_err("protocol error - to short response received");
-        delete response;
 
 	locker->Lock();
 
@@ -621,7 +620,6 @@ backend::putMD(fuse_id& id, eos::fusex::md* md, std::string authid,
 
       if (responseprefix != "Fusex:") {
         eos_static_err("protocol error - fusex: prefix missing in response");
-        delete response;
 
 	locker->Lock();
 
@@ -637,7 +635,6 @@ backend::putMD(fuse_id& id, eos::fusex::md* md, std::string authid,
       if (!resp.ParseFromString(sresponse) ||
           ((resp.type() != resp.ACK) && (resp.type() != resp.NONE))) {
         eos_static_err("parsing error/wrong response type received");
-        delete response;
 
 	locker->Lock();
 
@@ -659,7 +656,6 @@ backend::putMD(fuse_id& id, eos::fusex::md* md, std::string authid,
                            resp.ack_().md_ino(), resp.ack_().transactionid(),
                            resp.ack_().err_msg().c_str());
           eos_static_info("relock done");
-          delete response;
           return 0;
         }
 
@@ -670,16 +666,12 @@ backend::putMD(fuse_id& id, eos::fusex::md* md, std::string authid,
           eos_static_err("MD:\n%s", EosFuse::Instance().mds.dump_md(*md).c_str());
         }
 
-        delete response;
-
 	locker->Lock();
 
         return EIO;
       }
 
       if (resp.type() == resp.NONE) {
-        delete response;
-
 	locker->Lock();
 
         return 0;
@@ -687,10 +679,6 @@ backend::putMD(fuse_id& id, eos::fusex::md* md, std::string authid,
     } else {
       eos_static_err("no response retrieved response=%lu response-buffer=%lu",
                      response, response ? response->GetBuffer() : 0);
-
-      if (response) {
-        delete response;
-      }
 
       locker->Lock();
 
@@ -753,6 +741,9 @@ backend::doLock(fuse_req_t req,
                    prefix.c_str(), mdstream.length());
   XrdCl::XRootDStatus status = Query(url, XrdCl::QueryCode::OpaqueFile, arg,
                                      response);
+
+  std::unique_ptr<XrdCl::Buffer> rsp(response);
+  
   eos_static_info("sync-response");
 
   if (status.IsOK()) {
@@ -999,13 +990,14 @@ backend::statvfs(fuse_req_t req,
                                      response, 2, true);
   eos_static_info("calling %s\n", url.GetURL().c_str());
 
+  std::unique_ptr<XrdCl::Buffer> rsp(response);
+  
   if (status.IsOK() && response && response->GetBuffer()) {
     int retc;
     char tag[1024];
 
     if (!response->GetBuffer()) {
       errno = EFAULT;
-      delete response;
       return errno;
     }
 
@@ -1017,7 +1009,6 @@ backend::statvfs(fuse_req_t req,
 
     if ((items != 6) || (strcmp(tag, "statvfs:"))) {
       errno = EFAULT;
-      delete response;
       return errno;
     }
 
@@ -1037,7 +1028,6 @@ backend::statvfs(fuse_req_t req,
     ;
   }
 
-  delete response;
   return errno;
 }
 
@@ -1071,6 +1061,9 @@ backend::getChecksum(fuse_req_t req,
   eos_static_debug("query: url=%s", url.GetURL().c_str());
   XrdCl::XRootDStatus status = Query(url, XrdCl::QueryCode::OpaqueFile, arg,
                                      response, put_timeout);
+
+  std::unique_ptr<XrdCl::Buffer> rsp(response);
+  
   eos_static_info("sync-response");
   eos_static_debug("response-size=%d",
                    response ? response->GetSize() : 0);
@@ -1093,11 +1086,9 @@ backend::getChecksum(fuse_req_t req,
             // an old server might not be able to call getChecksum by file id, we return an empty one in that case
             checksum_return = "unknown";
           } else {
-            delete response;
             return retc;
           }
         } else {
-          delete response;
           return ENODATA;
         }
       } else {
@@ -1105,17 +1096,12 @@ backend::getChecksum(fuse_req_t req,
           if (retc == ENOENT) {
             checksum_return = "unknown";
           } else {
-            delete response;
             return ENODATA;
           }
         } else {
           checksum_return = checksum;
         }
       }
-    }
-
-    if (response) {
-      delete response;
     }
 
     return 0;
