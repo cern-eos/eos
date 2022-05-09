@@ -297,6 +297,45 @@ public:
     return mName;
   }
 
+  void addBlockingTimeInfos(std::chrono::system_clock::time_point acquiredAt, std::chrono::system_clock::time_point releasedAt) {
+    auto acquiredAtSinceEpoch = acquiredAt.time_since_epoch();
+    auto releasedAtSinceEpoch = releasedAt.time_since_epoch();
+
+    auto acquiredAtSecondsSinceEpoch = std::chrono::duration_cast<std::chrono::seconds>(acquiredAtSinceEpoch).count();
+    auto releasedAtSecondsSinceEpoch = std::chrono::duration_cast<std::chrono::seconds>(releasedAtSinceEpoch).count();
+
+    auto acquiredAtMsSinceEpoch = std::chrono::duration_cast<std::chrono::milliseconds>(acquiredAtSinceEpoch).count();
+    auto releasedAtMsSinceEpoch = std::chrono::duration_cast<std::chrono::milliseconds>(releasedAtSinceEpoch).count();
+
+    auto blockedForTimepoint = releasedAt - acquiredAt;
+    auto blockedForMs = std::chrono::duration_cast<std::chrono::milliseconds>(blockedForTimepoint).count();
+    auto blockedForSeconds = std::chrono::duration_cast<std::chrono::seconds>(blockedForTimepoint).count();
+
+    if (blockedForSeconds >= 2) {
+      //The second before the current one, the mutex was locked the entire time
+      mNbMsMutexLocked[(releasedAtSecondsSinceEpoch - 1) % 4] += std::chrono::milliseconds(1000);
+      //We add to the current second the amount of milliseconds between the start of the current second and the releasedAt milliseconds
+      mNbMsMutexLocked[releasedAtSecondsSinceEpoch % 4] += std::chrono::milliseconds(releasedAtMsSinceEpoch - (releasedAtSecondsSinceEpoch * 1000));
+    } else if (blockedForSeconds >= 1) {
+      //The lock time is overlapping between the previous second and the current second
+      //compute lock time during last second to add it to last second
+      mNbMsMutexLocked[(releasedAtSecondsSinceEpoch - 1) % 4] += std::chrono::milliseconds((releasedAtSecondsSinceEpoch * 1000) - acquiredAtMsSinceEpoch);
+      //Compute lock time during the current second and add it to the current second
+      mNbMsMutexLocked[(releasedAtSecondsSinceEpoch) % 4] += std::chrono::milliseconds(releasedAtMsSinceEpoch - (releasedAtSecondsSinceEpoch * 1000));
+    } else {
+      //The lock was acquired and released within the current second, just add the amount of milliseconds
+      mNbMsMutexLocked[(releasedAtSecondsSinceEpoch) % 4] += std::chrono::milliseconds(blockedForMs);
+    }
+    //Reset the next second lock time
+    mNbMsMutexLocked[(releasedAtSecondsSinceEpoch + 1) % 4] = std::chrono::milliseconds(0);
+  }
+
+  const std::chrono::milliseconds
+  getNbMsMutexWriteLockedPenultimateSecond() {
+    auto now = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+    //We take the amount of milliseconds the mutex was locked 2 seconds before the current second
+    return mNbMsMutexLocked[(now - 2) % 4];
+  }
 
 #ifdef EOS_INSTRUMENTED_RWMUTEX
   typedef std::map<uint64_t, std::string> MapMutexNameT;
@@ -602,6 +641,18 @@ private:
   int64_t mBlockedForInterval; // interval in ms after which we might stacktrace a long-lasted mutex
   bool mBlockedStackTracing; // en-disable stacktracing long-lasted mutexes
 
+  /**
+   * Array of 4 elements representing the amount of milliseconds the mutex
+   * was locked per second
+   * This array therefore represent 4 seconds of run.
+   * - Second 3: represents the current second of run
+   * - Second 2: the last second before the current one
+   * - Second 1: the second that will be displayed by eos ns stat
+   * - Second 0: Will be set to 0 to reset the counter because this second
+   * will be the one to be considered after the current one
+   */
+  std::chrono::milliseconds mNbMsMutexLocked[4] = {std::chrono::milliseconds(0)};
+
   std::string mName;
 
 #ifdef EOS_INSTRUMENTED_RWMUTEX
@@ -740,6 +791,9 @@ public:
 
 private:
   std::chrono::steady_clock::time_point mAcquiredAt;
+  std::chrono::system_clock::time_point mAcquiredAtSystem;
+  std::chrono::steady_clock::time_point mReleasedAt;
+  std::chrono::system_clock::time_point mReleasedAtSystem;
   RWMutex* mWrMutex {nullptr};
   const char* mFile;
   const char* mFunction;
