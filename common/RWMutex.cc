@@ -1357,6 +1357,7 @@ RWMutexWriteLock::Grab(RWMutex& mutex, const char* function,
   RWMutex::RecordMutexOp((uint64_t)mWrMutex->GetRawPtr(),
                          RWMutex::LOCK_T::eLockWrite);
   mAcquiredAt = std::chrono::steady_clock::now();
+  mAcquiredAtSystem = std::chrono::system_clock::now();
 }
 
 
@@ -1374,10 +1375,11 @@ RWMutexWriteLock::Release()
     int64_t blockedinterval = mWrMutex->BlockedForMsInterval();
     mWrMutex->AddWriteLockTime(blockedinterval);
     bool blockedtracing = mWrMutex->BlockedStackTracing();
+    mReleasedAt = std::chrono::steady_clock::now();
+    mReleasedAtSystem = std::chrono::system_clock::now();
+    mWrMutex->addBlockingTimeInfos(mAcquiredAtSystem,mReleasedAtSystem);
     std::chrono::milliseconds blockedFor =
-      std::chrono::duration_cast<std::chrono::milliseconds>
-      (std::chrono::steady_clock::now() - mAcquiredAt);
-
+      std::chrono::duration_cast<std::chrono::milliseconds> (mReleasedAt - mAcquiredAt);
     if (blockedFor.count() > blockedinterval) {
       std::ostringstream ss;
       ss << "write lock [ " << mWrMutex->getName() << " ] held for "
