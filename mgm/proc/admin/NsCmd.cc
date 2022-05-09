@@ -314,6 +314,10 @@ NsCmd::StatSubcmd(const eos::console::NsProto_StatProto& stat,
     gOFS->eosDirectoryService->getCacheStatistics();
   common::MutexLatencyWatcher::LatencySpikes viewLatency =
     gOFS->mViewMutexWatcher.getLatencySpikes();
+  double eosViewMutexPenultimateSecWriteLockTimePercentage = (gOFS->eosViewRWMutex.getNbMsMutexWriteLockedPenultimateSecond().count() / 1000.0) * 100.0;
+  if(eosViewMutexPenultimateSecWriteLockTimePercentage > 100) {
+    eosViewMutexPenultimateSecWriteLockTimePercentage = 100;
+  }
 
   double rnorm = gOFS->MgmStats.GetTotalAvg5("NsUsedR");
   double readcontention = (rnorm)?100.0*gOFS->MgmStats.GetTotalAvg5("NsLeadR")/rnorm:0.0;
@@ -379,7 +383,9 @@ NsCmd::StatSubcmd(const eos::console::NsProto_StatProto& stat,
         << "uid=all gid=all ns.latencypeak.eosviewmutex.2min=" <<
         viewLatency.last2Minutes.count() << std::endl
         << "uid=all gid=all ns.latencypeak.eosviewmutex.5min=" <<
-        viewLatency.last5Minutes.count() << std::endl;
+        viewLatency.last5Minutes.count() << std::endl
+        << "uid=all gid=all ns.eosviewmutex.penultimateseclocktimepercent="
+        << eosViewMutexPenultimateSecWriteLockTimePercentage << std::endl;
 
     if (!gOFS->namespaceGroup->isInMemory()) {
       auto* qdb_group = dynamic_cast<eos::QuarkNamespaceGroup*>
@@ -560,7 +566,9 @@ NsCmd::StatSubcmd(const eos::console::NsProto_StatProto& stat,
         << viewLatency.lastMinute.count() << "ms (1 min) " <<
         viewLatency.last2Minutes.count() << "ms (2 min) " <<
         viewLatency.last5Minutes.count() << "ms (5 min)"
-        << std::endl << line << std::endl;
+        << std::endl;
+    oss << "ALL      eosViewRWMutex locked for " << eosViewMutexPenultimateSecWriteLockTimePercentage
+        << "% of the penultimate second" << std::endl << line << std::endl;
 
     if (!gOFS->namespaceGroup->isInMemory()) {
       auto* qdb_group = dynamic_cast<eos::QuarkNamespaceGroup*>
