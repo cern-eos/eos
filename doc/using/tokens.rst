@@ -49,6 +49,14 @@ To enable issuing of tokens, the space configuration value ``token.enegeration``
    eos space config default space.token.generation=1
 
    
+By default the signing key is derived from the instance sss keytab. If you want to define your own signature key, you can point to a file containing the key in **/etc/sysconfig/eos_env**:
+
+.. code-block:: bash
+
+   EOS_MGM_TOKEN_KEYFILE=/etc/eos/token.key
+
+The token key file must be owned by the daemon user and have 400 permission!
+
 Token creation
 --------------
 

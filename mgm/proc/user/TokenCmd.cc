@@ -129,6 +129,24 @@ eos::mgm::TokenCmd::ProcessRequest() noexcept
   eos::common::SymKey* symkey = eos::common::gSymKeyStore.GetCurrentKey();
   std::string key=symkey?symkey->GetKey64():"0123456789defaultkey";
 
+  if (getenv("EOS_MGM_TOKEN_KEYFILE")) {
+    struct stat buf;
+    if (::stat(getenv("EOS_MGM_TOKEN_KEYFILE"), &buf)) {
+      reply.set_retc(-ENOKEY);
+      reply.set_std_err("error: unable to load token keyfile");
+      return reply;
+    } else {
+      if ( (buf.st_uid != DAEMONUID) ||
+	   (buf.st_mode != 0100400) ) {
+	reply.set_retc(-ENOKEY);
+	eos_static_err("mode bit is %o", buf.st_mode);
+	reply.set_std_err("error: unable to load token keyfile - wrong ownership (must be daemon:400)");
+	return reply;
+      }
+    }
+    key = eos::common::StringConversion::LoadFileIntoString(getenv("EOS_MGM_TOKEN_KEYFILE"), key);
+  }
+
   if (token.vtoken().empty()) {
     if (token.permission().find(":") != std::string::npos) {
       // someone could try to inject more acl entries here
