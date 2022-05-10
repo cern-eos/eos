@@ -16,6 +16,37 @@ Introduction
 This release is based on XRootD V4 and IPV6 enabled.
 
 
+``v4.8.84 Citrine``
+===================
+
+2022-05-10
+
+Bug
+----
+
+* [EOS-5199] - Metadata (xattrs) is lost when creating new versions
+* [EOS-5219] - eos fsck report json output does not reflect command line options -l and -i
+* [EOS-5224] - No update is perfomed when adding a new member to an e-group in EOSATLAS
+* MGM: Fix eternal connect problem in Egroup ldap search
+
+New Feature
+------------
+
+* [EOS-5178] - Implement Group Drain
+* [EOS-5213] - Introduce a generic Observer class
+
+Task
+-----
+
+* [EOS-5225] - Have a useful GroupDrain Status
+
+Improvements
+------------
+
+* FUSEX: Rewrite the handling of async messages in XrdCl using shared pointers
+* MGM: Improve handling of RAIN files with rep_diff_n errors
+
+
 ``v4.8.83 Citrine``
 ===================
 
