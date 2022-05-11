@@ -506,8 +506,13 @@ generate_progress_row(eos::common::FileSystem::fsid_t fsid,
 }
 
 std::string
-GroupDrainer::getStatus() const
+GroupDrainer::getStatus(StatusFormat status_fmt) const
 {
+  // TODO: Expose more counters in monitoring!
+  if (status_fmt == StatusFormat::MONITORING) {
+    return mEngine->get_status_str(false, true);
+  }
+
   auto tx_sz = mTransfers.size();
   auto failed_tx_sz = mFailedTransfers.size();
 
@@ -520,6 +525,7 @@ GroupDrainer::getStatus() const
     return ss.str();
   }
 
+  if (status_fmt == StatusFormat::DETAIL)
   {
     std::scoped_lock sl(mDrainFsMapMtx);
     for (const auto& kv: mDrainFsMap) {
@@ -547,6 +553,23 @@ GroupDrainer::getStatus() const
   return ss.str();
 }
 
+void
+GroupDrainer::resetFailedTransfers()
+{
+  std::scoped_lock sl(mFailedTransfersMtx);
+  mFailedTransfers.clear();
+}
 
+void
+GroupDrainer::resetCaches()
+{
+  {
+    std::scoped_lock sl(mFailedTransfersMtx);
+    mFailedTransfers.clear();
+  }
+  // force a refresh of the global groups map info
+  mDoConfigUpdate.store(true, std::memory_order_relaxed);
+  // TODO: Have a functionality to clear cached filelists as well!
+}
 
 } // eos::mgm

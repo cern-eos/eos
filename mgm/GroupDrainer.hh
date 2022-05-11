@@ -116,8 +116,16 @@ public:
   handleRetries(eos::common::FileSystem::fsid_t fsid,
                 std::vector<eos::common::FileId::fileid_t>&& fids);
 
-  std::string getStatus() const;
+  enum class StatusFormat {
+    NONE,
+    DETAIL,
+    MONITORING
+  };
 
+  std::string getStatus(StatusFormat status_fmt = StatusFormat::NONE) const;
+
+  void resetFailedTransfers();
+  void resetCaches();
 
   static GroupStatus
   checkGroupDrainStatus(const fsutils::fs_status_map_t& fs_map);
