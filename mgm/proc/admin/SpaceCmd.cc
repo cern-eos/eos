@@ -1377,6 +1377,7 @@ void SpaceCmd::GroupBalancerStatusCmd(const
   reply.set_std_out(fs_space->mGroupBalancer->Status(detail, monitoring));
   reply.set_retc(0);
 }
+
 void
 SpaceCmd::GroupDrainerSubCmd(const eos::console::SpaceProto_GroupDrainerProto& groupdrainer,
                              console::ReplyProto& reply)
@@ -1402,7 +1403,42 @@ SpaceCmd::GroupDrainerSubCmd(const eos::console::SpaceProto_GroupDrainerProto& g
     return;
   }
 
-  reply.set_std_out(fs_space->mGroupDrainer->getStatus());
+  switch (groupdrainer.cmd_case()) {
+  case eos::console::SpaceProto_GroupDrainerProto::kStatus:
+    switch (groupdrainer.status().outformat()) {
+    case eos::console::SpaceProto::GroupDrainerStatusProto::MONITORING:
+      reply.set_std_out(fs_space->mGroupDrainer->getStatus(GroupDrainer::StatusFormat::MONITORING));
+      break;
+    case eos::console::SpaceProto::GroupDrainerStatusProto::DETAIL:
+      reply.set_std_out(fs_space->mGroupDrainer->getStatus(GroupDrainer::StatusFormat::DETAIL));
+      break;
+    default:
+      reply.set_std_out(fs_space->mGroupDrainer->getStatus(GroupDrainer::StatusFormat::NONE));
+    }
+    break;
+
+  case eos::console::SpaceProto_GroupDrainerProto::kReset:
+    switch (groupdrainer.reset().option()) {
+    case eos::console::SpaceProto::GroupDrainerResetProto::FAILED:
+      fs_space->mGroupDrainer->resetFailedTransfers();
+      reply.set_std_out("Done resetting all failed transfers!");
+      break;
+    case eos::console::SpaceProto::GroupDrainerResetProto::ALL:
+      fs_space->mGroupDrainer->resetCaches();
+      reply.set_std_out("Done clearing all GroupDrainer caches!");
+      break;
+    default:
+      reply.set_std_out("Unknown option!");
+      reply.set_retc(EINVAL);
+      return;
+    }
+    break;
+
+  default:
+    reply.set_std_err("Unknown option!");
+    reply.set_retc(EINVAL);
+    return;
+  }
   reply.set_retc(0);
 }
 

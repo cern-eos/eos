@@ -134,7 +134,7 @@ count=$(eos fs ls | grep -c "drained\|failed")
 while [[ "$count" -lt "7" ]]; do
       sleep 10
       count=$(eos fs ls | grep -c "drained\|failed")
-      eos space groupdrainer status default
+      eos space groupdrainer status default --detail
 done
 
 drained_fsids=$(eos -j fs ls default.1 | jq .result[].id)
@@ -152,7 +152,7 @@ done
 echo "Drain Complete, FS Status:"
 eos fs ls
 echo "Drain Status: "
-eos space groupdrainer status default
+eos space groupdrainer status default --detail
 echo "Group Status"
 eos group ls
 echo "Converter Status"

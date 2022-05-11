@@ -382,8 +382,33 @@ bool SpaceHelper::ParseCommand(const char* arg)
         return false;
       }
       groupdrainer->set_mgmspace(token);
+      auto status_cmd = groupdrainer->mutable_status();
+
+      if (tokenizer.NextToken(token)) {
+        if (token == "--detail" || token == "-d")
+          status_cmd->set_outformat(eos::console::SpaceProto::GroupDrainerStatusProto::DETAIL);
+        else if (token == "-m")
+          status_cmd->set_outformat(eos::console::SpaceProto::GroupDrainerStatusProto::MONITORING);
+      }
       return true;
+    } else if (token == "reset") {
+      if (!tokenizer.NextToken(token)) {
+        return false;
+      }
+      groupdrainer->set_mgmspace(token);
+      auto reset_cmd = groupdrainer->mutable_reset();
+      if (!tokenizer.NextToken(token)) {
+        return false;
+      }
+
+      if (token == "--failed") {
+        reset_cmd->set_option(eos::console::SpaceProto::GroupDrainerResetProto::FAILED);
+      } else if (token == "--all") {
+        reset_cmd->set_option(eos::console::SpaceProto::GroupDrainerResetProto::ALL);
+      }
+
     }
+
   } else { // no proper subcommand
     return false;
   }
@@ -551,7 +576,8 @@ void com_space_help()
       << std::endl
       << "space groupbalancer status <space-name> [--detail(-d)|-m] : print groupbalancer status\n"
       << std::endl
-      << "space groupdrainer status <space-name> : print groupdrainer status\n"
+      << "space groupdrainer status <space-name> [--detail(-d)|-m]  : print groupdrainer status\n"
+      << "space groupdrainer reset <space-name> <--failed|--all>    : reset failed transfers/all caches\n"
       << std::endl;
   std::cerr << oss.str();
 }
