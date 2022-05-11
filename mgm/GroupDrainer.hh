@@ -148,6 +148,7 @@ private:
   bool mPauseExecution {false};
   std::atomic<bool> mDoConfigUpdate {true};
   uint16_t mRetryCount; // < Max retries for failed transfers
+  uint16_t mRRSeed {0};
   uint32_t mMaxTransfers; // < Max no of transactions to keep in flight
   uint64_t mRetryInterval; // < Retry Interval for failed transfers
   std::chrono::time_point<std::chrono::steady_clock> mLastUpdated;

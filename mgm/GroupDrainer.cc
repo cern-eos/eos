@@ -25,7 +25,7 @@ static const std::string format_s = "-s";
 static const std::string format_l = "l";
 static const std::string format_f = "f";
 
-GroupDrainer::GroupDrainer(std::string_view spacename) : mMaxTransfers(10000),
+GroupDrainer::GroupDrainer(std::string_view spacename) : mMaxTransfers(DEFAULT_NUM_TX),
                                                          mSpaceName(spacename),
                                                          mEngine(std::make_unique<group_balancer::StdDrainerEngine>())
 {
@@ -187,7 +187,7 @@ GroupDrainer::prepareTransfers()
   uint64_t allowed_tx = mMaxTransfers - mTransfers.size();
   try {
     for (uint64_t i = 0; i < allowed_tx; ++i) {
-      prepareTransfer(i);
+      prepareTransfer(mRRSeed++);
       if (mRefreshGroups) {
         return;
       }
