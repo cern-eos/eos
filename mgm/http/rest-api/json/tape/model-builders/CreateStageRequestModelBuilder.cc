@@ -61,18 +61,30 @@ std::unique_ptr<CreateStageBulkRequestModel> CreateStageRequestModelBuilder::bui
       std::stringstream ss;
       ss << "The field has not been provided or does not contain a valid string.";
       validationErrors->addError(PATH_KEY_NAME,ss.str());
-      continue;
+      throw JsonValidationException(std::move(validationErrors));
     }
     Json::Value & targetedMetadata = file[TARGETED_METADATA_KEY_NAME];
     std::string opaqueInfos = "";
     if(!targetedMetadata.empty()) {
-      // The targeted_metadata object is set, let's see if there are metadata
-      // targeted to us
-      //TODO: HARDCODED FOR TESTING, THE UNIQUE ID OF THE ENDPOINT MUST BE PASSED
-      //VIA THE CONSTRUCTOR OF THIS CLASS
+      // The targeted_metadata object is set, check the correctness of the targetedMetadata
+      // provided, should just be an object
+      try {
+        mValidatorFactory.getObjectValidator()->validate(targetedMetadata);
+      } catch(const ValidatorException & ex) {
+        validationErrors->addError(TARGETED_METADATA_KEY_NAME,ex.what());
+        throw JsonValidationException(std::move(validationErrors));
+      }
+      // let's see if there are metadata targeted to us
       Json::Value & myTargetedMetadata = targetedMetadata[mRestApiEndpointId];
-      if(!myTargetedMetadata.empty() && myTargetedMetadata.isObject()) {
+      if(!myTargetedMetadata.empty()) {
         //There are metadata for us
+        //Check the correctness of the targeted metadata, should be an object
+        try {
+          mValidatorFactory.getObjectValidator()->validate(myTargetedMetadata);
+        } catch(const ValidatorException & ex) {
+          validationErrors->addError(mRestApiEndpointId,ex.what());
+          throw JsonValidationException(std::move(validationErrors));
+        }
         //Each metadata will be converted into an opaque info
         const auto metadataKeys = myTargetedMetadata.getMemberNames();
         //Get all the keys
@@ -85,7 +97,7 @@ std::unique_ptr<CreateStageBulkRequestModel> CreateStageRequestModelBuilder::bui
             opaqueInfos += metadataKey + "=" + opaqueInfoValue + "&";
           } else {
             validationErrors->addError(metadataKey,"The value must be convertible into a string");
-            continue;
+            throw JsonValidationException(std::move(validationErrors));
           }
         }
         //Remove the trailing "&" from the opaque infos
@@ -94,9 +106,6 @@ std::unique_ptr<CreateStageBulkRequestModel> CreateStageRequestModelBuilder::bui
       }
     }
     model->addFile(path.asString(),opaqueInfos);
-  }
-  if(validationErrors->hasAnyError()) {
-    throw JsonValidationException(std::move(validationErrors));
   }
   return std::move(model);
 }

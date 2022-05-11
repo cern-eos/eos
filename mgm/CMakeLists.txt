@@ -289,7 +289,6 @@ add_library(
   http/rest-api/exception/MethodNotAllowedException.cc
   http/rest-api/model/tape/common/FilesContainer.cc
   http/rest-api/model/tape/common/ErrorModel.cc
-  http/rest-api/model/tape/common/JsonValidationErrorModel.cc
   http/rest-api/model/tape/archiveinfo/GetArchiveInfoResponseModel.cc
   http/rest-api/model/tape/stage/PathsModel.cc
   http/rest-api/model/tape/stage/CreateStageBulkRequestModel.cc
@@ -300,7 +299,6 @@ add_library(
   http/rest-api/json/tape/jsonifiers/stage/CreatedStageBulkRequestJsonifier.cc
   http/rest-api/json/tape/jsonifiers/stage/GetStageBulkRequestJsonifier.cc
   http/rest-api/json/tape/jsonifiers/common/ErrorModelJsonifier.cc
-  http/rest-api/json/tape/jsonifiers/common/JsonValidationErrorModelJsonifier.cc
   http/rest-api/json/tape/jsonifiers/archiveinfo/GetArchiveInfoResponseJsonifier.cc
   http/rest-api/response/tape/factories/TapeRestApiResponseFactory.cc
   http/rest-api/utils/URLParser.cc
