@@ -854,7 +854,7 @@ com_file(char* arg1)
           cx += "00";
         }
 
-        XrdOucString disk_cx = proto_fmd.diskchecksum().c_str();
+        std::string disk_cx = proto_fmd.diskchecksum().c_str();
 
         for (unsigned int k = (disk_cx.length() / 2); k < SHA256_DIGEST_LENGTH; ++k) {
           disk_cx += "00";
@@ -880,7 +880,7 @@ com_file(char* arg1)
           uint64_t disk_cx_val = 0ull;
 
           try {
-            disk_cx_val = std::stoull(disk_cx.c_str(), nullptr, 16);
+            disk_cx_val = std::stoull(disk_cx.substr(0, 8), nullptr, 16);
           } catch (...) {
             // error during conversion
           }
