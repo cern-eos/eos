@@ -932,6 +932,8 @@ public:
     return hideversion;
   }
 
+  std::atomic<time_t> last_heartbeat; // timestamp of the last heartbeat sent
+  
 private:
 
   // Lock _two_ md objects in the given order.
@@ -962,7 +964,7 @@ private:
         md2->Locker().UnLock();
       }
     }
-
+    
   private:
     shared_md md1;
     shared_md md2;
@@ -990,6 +992,7 @@ private:
   std::map<uint64_t, size_t> mdqueue; // inode, counter of mds to flush
   std::deque<flushentry> mdflushqueue; // linear queue with all entries to flush
 
+  
   size_t mdqueue_max_backlog;
 
   // ZMQ objects

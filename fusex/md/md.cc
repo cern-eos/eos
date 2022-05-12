@@ -3174,6 +3174,8 @@ metad::mdcommunicate(ThreadAssistant& assistant)
 //      } else {
 //        eos_static_debug("debug sending heartbeat: hbstream.c_str()=%s, hbstream.length()=%d, hbstream:hex=%s",
 //                       hbstream.c_str(), hbstream.length(), eos::common::stringToHex(hbstream).c_str());
+      } else {
+	last_heartbeat = time(NULL);
       }
 
       if (!is_visible()) {

@@ -2021,6 +2021,8 @@ EosFuse::DumpStatistic(ThreadAssistant& assistant)
     static std::string last_blocker = "";
     static uint64_t last_blocker_inode = 0;
     static double last_blocked_ms = 0;
+    static int last_heartbeat_age = 0;
+    static bool hb_warning = false;
     {
       unsigned long long rbytes, wbytes = 0;
       unsigned long nops = 0;
@@ -2043,6 +2045,7 @@ EosFuse::DumpStatistic(ThreadAssistant& assistant)
         loads0 = meminfo.getref().loads[0];
       }
       double blocked_ms = this->Tracker().blocked_ms(blocker, blocker_inode);
+      int heartbeat_age = time(NULL) - EosFuse::Instance().mds.last_heartbeat;
       snprintf(ino_stat, sizeof(ino_stat),
                "ALL        threads             := %llu\n"
                "ALL        visze               := %s\n"
@@ -2078,6 +2081,7 @@ EosFuse::DumpStatistic(ThreadAssistant& assistant)
                "ALL        server-version      := %s\n"
                "ALL        automounted         := %d\n"
                "ALL        max-inode-lock-ms   := %.02f [%s]\n"
+	       "ALL        last heartbeat age  := %d\n"
                "# -----------------------------------------------------------------------------------------------------------\n",
                osstat.threads,
                eos::common::StringConversion::GetReadableSizeString(s1, osstat.vsize, "b"),
@@ -2119,7 +2123,8 @@ EosFuse::DumpStatistic(ThreadAssistant& assistant)
                EosFuse::Instance().mds.server_version().c_str(),
                EosFuse::Instance().Config().options.automounted,
                blocked_ms,
-               blocker.c_str()
+               blocker.c_str(),
+	       heartbeat_age
               );
 
       if (blocker_inode != 1) {
@@ -2139,6 +2144,27 @@ EosFuse::DumpStatistic(ThreadAssistant& assistant)
         }
       }
 
+      if (!EosFuse::Instance().mds.last_heartbeat) {
+	eos_static_warning("HB (heartbeat) has not started!");
+	hb_warning=true;
+      } else {
+	if (hb_warning) {
+	  eos_static_warning("HB (heartbeat) has started!");
+	  hb_warning = false;
+	}
+	if (heartbeat_age > 10) {
+	  if ( (heartbeat_age - last_heartbeat_age) > 15) {
+	    eos_static_warning("HB (heartbeat) is stuck since %d seconds - we might get evicted", heartbeat_age);
+	    last_heartbeat_age = heartbeat_age;
+	  }
+	} else {
+	  if (last_heartbeat_age > 10) {
+	    eos_static_warning("HB (heartbeat) is back");
+	  }
+	  last_heartbeat_age = 0;
+	}
+      }
+      
       last_blocker_inode = blocker_inode;
       last_blocker = blocker;
       last_blocked_ms = blocked_ms;
