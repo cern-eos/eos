@@ -471,6 +471,13 @@ data::datax::journalflush(fuse_req_t req)
   eos_info("syncing cache");
   cachesyncer cachesync(*((XrdCl::File*)mFile->xrdiorw(req)));
 
+
+  if (!mFile->journal()) {
+    // no journal this has to fail
+    errno = EOPNOTSUPP;
+    return errno;
+  }
+
   if ((mFile->journal())->remote_sync(cachesync)) {
     eos_err("async journal-cache-sync failed - ino=%#lx", id());
     return EREMOTEIO;
