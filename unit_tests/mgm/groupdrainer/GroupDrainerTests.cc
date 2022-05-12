@@ -5,6 +5,7 @@ using eos::mgm::GroupDrainer;
 using eos::mgm::GroupStatus;
 using eos::mgm::fsutils::FsidStatus;
 using eos::mgm::fsutils::fs_status_map_t;
+using drain_fs_map_t = eos::mgm::GroupDrainer::drain_fs_map_t;
 
 TEST(GroupDrainerStatus, DrainComplete)
 {
@@ -99,4 +100,19 @@ TEST(GroupDrainerStatus, Online)
 
   ASSERT_EQ(GroupStatus::ON,
             GroupDrainer::checkGroupDrainStatus(fsmap));
+}
+
+TEST(GroupDrainer, isDrainFSMapEmpty)
+{
+  ASSERT_TRUE(GroupDrainer::isDrainFSMapEmpty({}));
+  drain_fs_map_t m = {{"group1", {}},
+                      {"group2", {}}};
+
+  ASSERT_TRUE(GroupDrainer::isDrainFSMapEmpty(m));
+
+  drain_fs_map_t m2 = {{"group1", {}},
+                      {"group2", {}},
+                      {"group3", {10}}};
+
+  ASSERT_FALSE(GroupDrainer::isDrainFSMapEmpty(m2));
 }

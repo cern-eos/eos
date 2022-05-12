@@ -53,6 +53,8 @@ class GroupDrainer: public eos::common::LogId {
 public:
   using cache_fid_map_t = std::map<eos::common::FileSystem::fsid_t,
                                    std::vector<eos::common::FileId::fileid_t>>;
+  using drain_fs_map_t = std::map<std::string,
+                                  std::vector<common::FileSystem::fsid_t>>;
   GroupDrainer(std::string_view spacename);
   ~GroupDrainer();
   void GroupDrain(ThreadAssistant& assistant) noexcept;
@@ -150,6 +152,8 @@ public:
 
   static bool setDrainCompleteStatus(const std::string& groupname,
                                      GroupStatus s);
+
+  static bool isDrainFSMapEmpty(const drain_fs_map_t& drainFsMap);
 private:
   bool mRefreshFSMap {true};
   bool mRefreshGroups {true};
@@ -182,7 +186,7 @@ private:
   // and the internal GroupDrainer Threads, there is no need for locking for
   // reads within GroupDrainer!
 
-  std::map<std::string, std::vector<common::FileSystem::fsid_t>> mDrainFsMap;
+  drain_fs_map_t mDrainFsMap;
   std::map<common::FileSystem::fsid_t, RetryTracker> mFsidRetryCtr;
   std::set<common::FileSystem::fsid_t> mFailedFsids;
   cache_fid_map_t mCacheFileList;
