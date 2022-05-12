@@ -1327,15 +1327,15 @@ runtest   "### Chmod     " sss  0 "" eos chown root:root "/eos/$EOS_TEST_INSTANC
 runtest H "### Upload    " sss  0 "" upload "$TESTSYSFILE1K" "/eos/$EOS_TEST_INSTANCE/test/instancetest/file.4"
 runtest   "### Chmod     " sss  0 "" eos chmod 700 "/eos/$EOS_TEST_INSTANCE/test/instancetest/"
 runtest   "### Ls        " sss  0 "" eos ls -la "/eos/$EOS_TEST_INSTANCE/test/instancetest/"
-runtest   "### Download  " unix 0 "EOSROLE='-r 0 0'" eos cp "/eos/$EOS_TEST_INSTANCE/test/instancetest/file.4" /dev/null
-runtest   "### Download  " unix 1 "EOSROLE='-r 99 99'" eos cp "/eos/$EOS_TEST_INSTANCE/test/instancetest/file.4" /dev/null
+runtest   "### Download  " unix 0 "EOSROLE='-r 0 0'" eos cp "/eos/$EOS_TEST_INSTANCE/test/instancetest/file.4" $EOS_TEST_TESTSYS/null.txt
+runtest   "### Download  " unix 1 "EOSROLE='-r 99 99'" eos cp "/eos/$EOS_TEST_INSTANCE/test/instancetest/file.4" $EOS_TEST_TESTSYS/null.txt
 runtest   "### Attr      " unix 0 "" eos attr set sys.acl=u:99:rx "/eos/$EOS_TEST_INSTANCE/test/instancetest/file.4"
-runtest   "### Download  " unix 0 "EOSROLE='-r 0 0'" eos cp "/eos/$EOS_TEST_INSTANCE/test/instancetest/file.4" /dev/null
-runtest   "### Download  " unix 0 "EOSROLE='-r 99 99'" eos cp "/eos/$EOS_TEST_INSTANCE/test/instancetest/file.4" /dev/null
+runtest   "### Download  " unix 0 "EOSROLE='-r 0 0'" eos cp "/eos/$EOS_TEST_INSTANCE/test/instancetest/file.4" $EOS_TEST_TESTSYS/null.txt
+runtest   "### Download  " unix 0 "EOSROLE='-r 99 99'" eos cp "/eos/$EOS_TEST_INSTANCE/test/instancetest/file.4" $EOS_TEST_TESTSYS/null.txt
 runtest   "### Chmod     " sss  0 "" eos chmod 700 "/eos/$EOS_TEST_INSTANCE/test/instancetest/"
 runtest   "### Attr      " unix 0 "" eos attr set sys.acl=u:99:w "/eos/$EOS_TEST_INSTANCE/test/instancetest/file.4"
-runtest   "### Download  " unix 0 "EOSROLE='-r 0 0'" eos cp "/eos/$EOS_TEST_INSTANCE/test/instancetest/file.4" /dev/null
-runtest   "### Download  " unix 1 "EOSROLE='-r 99 99'" eos cp "/eos/$EOS_TEST_INSTANCE/test/instancetest/file.4" /dev/null
+runtest   "### Download  " unix 0 "EOSROLE='-r 0 0'" eos cp "/eos/$EOS_TEST_INSTANCE/test/instancetest/file.4" $EOS_TEST_TESTSYS/null.txt
+runtest   "### Download  " unix 1 "EOSROLE='-r 99 99'" eos cp "/eos/$EOS_TEST_INSTANCE/test/instancetest/file.4" $EOS_TEST_TESTSYS/null.txt
 runtest   "### Chmod     " sss  0 "" eos chmod 777 "/eos/$EOS_TEST_INSTANCE/test/instancetest/"
 
 # date +%s.%N;exit
