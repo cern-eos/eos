@@ -317,6 +317,15 @@ GroupDrainer::populateFids(eos::common::FileSystem::fsid_t fsid)
   }
   mDrainProgressTracker.setTotalFiles(fsid, total_files);
 
+  if (auto kv = mFsidRetryCtr.find(fsid);
+      kv != mFsidRetryCtr.end()) {
+    if (!kv->second.need_update(mRetryInterval)) {
+      eos_debug("msg=\"skipping retries as retry_interval hasn't passed\", fsid=%d",
+                fsid);
+      return {false, mCacheFileList.end()};
+    }
+  }
+
   std::vector<eos::common::FileId::fileid_t> local_fids;
   std::vector<eos::common::FileId::fileid_t> failed_fids;
   uint32_t ctr = 0;
