@@ -1702,6 +1702,7 @@ void
 metad::cleanup(shared_md md)
 /* -------------------------------------------------------------------------- */
 {
+  // called with locked md, returns with unlocked md
   eos_static_debug("id=%16x", (*md)()->id());
   std::vector<std::string> inval_entry_name;
   std::vector<fuse_ino_t> inval_files;
@@ -2927,6 +2928,9 @@ metad::mdcommunicate(ThreadAssistant& assistant)
                     if (EOS_LOGS_DEBUG) {
                       eos_static_debug("%s", dump_md(md).c_str());
                     }
+		  } else {
+		    // in case this should somehow happen
+		    md->Locker().UnLock();
 		  }
                 }
               } else {
