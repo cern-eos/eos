@@ -44,7 +44,7 @@ common::HttpResponse* CancelStageBulkRequest::run(common::HttpRequest* request, 
     return mResponseFactory.createBadRequestError(ex).getHttpResponse();
   }
   //Get the id of the request from the URL
-  parser.matchesAndExtractParameters(this->mURLPattern,requestParameters);
+  parser.matchesAndExtractParameters(this->mAccessURLPattern,requestParameters);
   const std::string & requestId = requestParameters[URLParametersConstants::ID];
   try {
     mTapeRestApiBusiness->cancelStageBulkRequest(requestId, paths.get(), vid);

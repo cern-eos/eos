@@ -66,7 +66,7 @@ private:
    * Initialize the controllers of the tape REST API
    * @param config the configuration object that contains the tape REST API configuration parameters
    */
-  void initializeControllers(const TapeRestApiConfig * config);
+  void initializeControllers();
   /**
    * Initializes the STAGE controller for a specific version
    * @param apiVersion the version to apply to this stage controller
@@ -74,7 +74,7 @@ private:
    * @param config the configuration of the tape REST API
    * @return the StageController for a specific version
    */
-  std::unique_ptr<Controller> initializeStageController(const std::string & apiVersion, std::shared_ptr<ITapeRestApiBusiness> tapeRestApiBusiness, const TapeRestApiConfig * config);
+  std::unique_ptr<Controller> initializeStageController(const std::string & apiVersion, std::shared_ptr<ITapeRestApiBusiness> tapeRestApiBusiness);
   /**
    * Initializes the ARCHIVEINFO controller for a specific version
    * @param apiVersion the version to apply to this ARCHIVEINFO controller
@@ -94,12 +94,7 @@ private:
    */
   TapeRestApiResponseFactory mTapeRestApiResponseFactory;
   inline static const std::string VERSION_0 = "v0";
-  //Is set to true if the tape REST API is activated, false otherwise
-  bool mIsActivated;
-  //The site name that will be used for the targetedMetadata
-  std::string mSiteName;
-  //Must be set to true if the MGM has tape enabled, false otherwise
-  bool mIsTapeEnabled;
+  const TapeRestApiConfig * mTapeRestApiConfig;
 };
 
 EOSMGMRESTNAMESPACE_END

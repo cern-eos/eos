@@ -45,27 +45,26 @@
 
 EOSMGMRESTNAMESPACE_BEGIN
 
-TapeRestHandler::TapeRestHandler(const TapeRestApiConfig * config): RestHandler(config->getAccessURL()),mIsActivated(config->isActivated()),mSiteName(config->getSiteName()),mIsTapeEnabled(config->isTapeEnabled()) {
-  initializeControllers(config);
+TapeRestHandler::TapeRestHandler(const TapeRestApiConfig * config): RestHandler(config->getAccessURL()),mTapeRestApiConfig(config) {
+  initializeControllers();
 }
 
-void TapeRestHandler::initializeControllers(const TapeRestApiConfig * config) {
+void TapeRestHandler::initializeControllers() {
   std::shared_ptr<TapeRestApiBusiness> restApiBusiness = std::make_shared<TapeRestApiBusiness>();
-  std::unique_ptr<Controller> stageController = initializeStageController(VERSION_0,restApiBusiness, config);
+  std::unique_ptr<Controller> stageController = initializeStageController(VERSION_0,restApiBusiness);
   mControllerManager.addController(std::move(stageController));
 
-  std::unique_ptr<Controller> fileInfoController =
-      initializeArchiveinfoController(VERSION_0, restApiBusiness);
+  std::unique_ptr<Controller> fileInfoController = initializeArchiveinfoController(VERSION_0, restApiBusiness);
   mControllerManager.addController(std::move(fileInfoController));
 
   std::unique_ptr<Controller> releaseController = initializeReleaseController(VERSION_0, restApiBusiness);
   mControllerManager.addController(std::move(releaseController));
 }
 
-std::unique_ptr<Controller> TapeRestHandler::initializeStageController(const std::string & apiVersion, std::shared_ptr<ITapeRestApiBusiness> tapeRestApiBusiness, const TapeRestApiConfig * config) {
+std::unique_ptr<Controller> TapeRestHandler::initializeStageController(const std::string & apiVersion, std::shared_ptr<ITapeRestApiBusiness> tapeRestApiBusiness) {
   std::unique_ptr<Controller> stageController(ControllerFactory::getStageController(mEntryPointURL + apiVersion + "/stage/"));
   const std::string & controllerAccessURL = stageController->getAccessURL();
-  stageController->addAction(std::make_unique<CreateStageBulkRequest>(controllerAccessURL,common::HttpHandler::Methods::POST,tapeRestApiBusiness,std::make_shared<CreateStageRequestModelBuilder>(mSiteName),std::make_shared<CreatedStageBulkRequestJsonifier>()));
+  stageController->addAction(std::make_unique<CreateStageBulkRequest>(controllerAccessURL,common::HttpHandler::Methods::POST,tapeRestApiBusiness,std::make_shared<CreateStageRequestModelBuilder>(mTapeRestApiConfig->getSiteName()),std::make_shared<CreatedStageBulkRequestJsonifier>(),mTapeRestApiConfig));
   stageController->addAction(std::make_unique<CancelStageBulkRequest>(controllerAccessURL + "/" + URLParametersConstants::ID + "/cancel",common::HttpHandler::Methods::POST,tapeRestApiBusiness,std::make_shared<PathsModelBuilder>()));
   stageController->addAction(std::make_unique<GetStageBulkRequest>(controllerAccessURL + "/" + URLParametersConstants::ID,common::HttpHandler::Methods::GET,tapeRestApiBusiness,std::make_shared<GetStageBulkRequestJsonifier>()));
   stageController->addAction(std::make_unique<DeleteStageBulkRequest>(controllerAccessURL + "/" + URLParametersConstants::ID, common::HttpHandler::Methods::DELETE,tapeRestApiBusiness));
@@ -88,10 +87,9 @@ std::unique_ptr<Controller> TapeRestHandler::initializeReleaseController(const s
 }
 
 bool TapeRestHandler::isRestRequest(const std::string& requestURL) {
-  bool siteNameEmpty = mSiteName.empty();
   bool isRestRequest = RestHandler::isRestRequest(requestURL);
   if(isRestRequest) {
-    if (siteNameEmpty) {
+    if (mTapeRestApiConfig->getSiteName().empty()) {
       std::string errorMsg =
           std::string("msg=\"No taperestapi.sitename has been specified, the tape REST API is therefore disabled\"") +
           " requestURL=\"" + requestURL + "\"";
@@ -99,7 +97,15 @@ bool TapeRestHandler::isRestRequest(const std::string& requestURL) {
       eos_static_warning(errorMsg.c_str());
       return false;
     }
-    if (!mIsActivated) {
+    if(mTapeRestApiConfig->getHostAlias().empty()) {
+      std::string errorMsg =
+          std::string("msg=\"No mgmofs.alias has been specified, the tape REST API is therefore disabled\"") +
+          " requestURL=\"" + requestURL + "\"";
+
+      eos_static_warning(errorMsg.c_str());
+      return false;
+    }
+    if (!mTapeRestApiConfig->isActivated()) {
       std::string errorMsg =
           std::string(
               "msg=\"The tape REST API is not enabled, verify that the \"") + rest::TAPE_REST_API_SWITCH_ON_OFF + "\" space configuration is set to \"on\"\"" +
@@ -107,7 +113,7 @@ bool TapeRestHandler::isRestRequest(const std::string& requestURL) {
       eos_static_warning(errorMsg.c_str());
       return false;
     }
-    if(!mIsTapeEnabled) {
+    if(!mTapeRestApiConfig->isTapeEnabled()) {
       std::string errorMsg =
           std::string(
               "msg=\"The MGM tapeenabled flag has not been set or is set to false, the tape REST API is therefore disabled. Verify that the tapeenabled flag is set to true on the MGM configuration file.\"") +
@@ -116,7 +122,7 @@ bool TapeRestHandler::isRestRequest(const std::string& requestURL) {
       return false;
     }
   }
-  return mIsActivated && !siteNameEmpty && mIsTapeEnabled && isRestRequest;
+  return isRestRequest;
 }
 
 common::HttpResponse* TapeRestHandler::handleRequest(common::HttpRequest* request, const common::VirtualIdentity * vid) {
@@ -145,7 +151,6 @@ common::HttpResponse* TapeRestHandler::handleRequest(common::HttpRequest* reques
     eos_static_err(errorMsg.c_str());
     return mTapeRestApiResponseFactory.createInternalServerError(errorMsg).getHttpResponse();
   }
-  return nullptr;
 }
 
 EOSMGMRESTNAMESPACE_END

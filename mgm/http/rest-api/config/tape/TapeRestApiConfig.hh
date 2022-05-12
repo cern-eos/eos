@@ -70,6 +70,30 @@ public:
   void setTapeEnabled(const bool tapeEnabled);
 
   /**
+   * Sets the DNS alias of the server where the REST API
+   * is running
+   * @param mgmOfsAlias the DNS alias of the server where the REST API is running
+   */
+  void setHostAlias(const std::string & mgmOfsAlias);
+
+  /**
+   * @return Gets the DNS alias of the server where the REST API
+   * is running
+   */
+  const std::string getHostAlias() const;
+
+  /**
+   * Sets the port of the XrdHttp server where the tape REST API is running
+   * @param xrdHttpPort
+   */
+  void setXrdHttpPort(const uint16_t xrdHttpPort);
+
+  /**
+   * @return the port of the XrdHttp server where the tape REST API is running
+   */
+  const uint16_t getXrdHttpPort() const;
+
+  /**
    * Returns the value of the tape enabled flag
    */
   const bool isTapeEnabled() const;
@@ -83,13 +107,18 @@ private:
    * extra information for this API endpoint
    */
   std::string mSiteName;
+  //Access URL of the tape REST API (without https://fqdn)
   std::string mAccessURL;
+  //The mgmofs.alias value coming from the MGM configuration file
+  std::string mHostAlias;
   //By default, the tape REST API is not activated
   std::atomic<bool> mIsActivated = false;
-  //Mutex protecting all variables of this configuration
-  mutable common::RWMutex mConfigMutex;
   //The tape enabled flag of the EOS instance where the tape REST API is running
   std::atomic<bool> mTapeEnabled = false;
+  //The port of the XrdHttp server where the tape REST API is running
+  std::atomic<uint16_t> mXrdHttpPort;
+  //Mutex protecting all variables of this configuration
+  mutable common::RWMutex mConfigMutex;
 };
 
 EOSMGMRESTNAMESPACE_END
