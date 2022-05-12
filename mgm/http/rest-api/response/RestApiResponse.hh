@@ -44,6 +44,8 @@ public:
    */
   RestApiResponse();
   RestApiResponse(std::shared_ptr<Model> model, const common::HttpResponse::ResponseCodes retCode);
+  RestApiResponse(std::shared_ptr<Model> model, const common::HttpResponse::ResponseCodes retCode, const common::HttpResponse::HeaderMap & responseHeader);
+
   /**
    * Returns the actual HttpResponse created from the model and the return code
    * of this instance
@@ -53,6 +55,7 @@ public:
 private:
   std::shared_ptr<Model> mModel;
   common::HttpResponse::ResponseCodes mRetCode;
+  mutable common::HttpResponse::HeaderMap mHeaderMap;
 };
 
 template<typename Model>
@@ -63,12 +66,15 @@ RestApiResponse<Model>::RestApiResponse(std::shared_ptr<Model> model, const comm
     mModel(model),mRetCode(retCode){}
 
 template<typename Model>
-inline common::HttpResponse * RestApiResponse<Model>::getHttpResponse() const{
+RestApiResponse<Model>::RestApiResponse(std::shared_ptr<Model> model, const common::HttpResponse::ResponseCodes retCode, const common::HttpResponse::HeaderMap & responseHeader) :
+    mModel(model),mRetCode(retCode),mHeaderMap(responseHeader){}
+
+template<typename Model>
+inline common::HttpResponse * RestApiResponse<Model>::getHttpResponse() const {
   common::HttpResponse * response = new common::PlainHttpResponse();
   if(mModel) {
-    common::HttpResponse::HeaderMap headerMap;
-    headerMap["application/type"] = "json";
-    response->SetHeaders(headerMap);
+    mHeaderMap["application/type"] = "json";
+    response->SetHeaders(mHeaderMap);
     std::stringstream ss;
     mModel->jsonify(ss);
     response->SetBody(ss.str());

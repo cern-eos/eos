@@ -52,6 +52,24 @@ void TapeRestApiConfig::setTapeEnabled(const bool tapeEnabled) {
   mTapeEnabled = tapeEnabled;
 }
 
+void TapeRestApiConfig::setHostAlias(const std::string& mgmOfsAlias) {
+  common::RWMutexWriteLock rwlock(mConfigMutex);
+  mHostAlias = mgmOfsAlias;
+}
+
+const std::string TapeRestApiConfig::getHostAlias() const {
+  common::RWMutexReadLock rwlock(mConfigMutex);
+  return mHostAlias;
+}
+
+void TapeRestApiConfig::setXrdHttpPort(const uint16_t xrdHttpPort) {
+  mXrdHttpPort = xrdHttpPort;
+}
+
+const uint16_t TapeRestApiConfig::getXrdHttpPort() const {
+  return mXrdHttpPort;
+}
+
 const bool TapeRestApiConfig::isTapeEnabled() const {
   return mTapeEnabled;
 }
