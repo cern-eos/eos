@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// File: ForbiddenException.cc
+// File: GetTapeWellKnownModelJsonifier.cc
 // Author: Cedric Caffy - CERN
 // ----------------------------------------------------------------------
 
@@ -21,10 +21,22 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "ForbiddenException.hh"
+#include "GetTapeWellKnownModelJsonifier.hh"
 
 EOSMGMRESTNAMESPACE_BEGIN
 
-ForbiddenException::ForbiddenException(const std::string& exceptionMsg): RestException(exceptionMsg){}
+void GetTapeWellKnownModelJsonifier::jsonify(const GetTapeWellKnownModel* model, std::stringstream& oss) {
+  Json::Value root;
+  const TapeWellKnownInfos * tapeWellKnownInfos = model->getTapeWellKnownInfos();
+  root["sitename"] = tapeWellKnownInfos->getSiteName();
+  initializeArray(root["endpoints"]);
+  for(auto & endpoint: tapeWellKnownInfos->getEndpoints()) {
+    Json::Value endpointJson;
+    endpointJson["uri"] = endpoint->getUri();
+    endpointJson["version"] = endpoint->getVersion();
+    root["endpoints"].append(endpointJson);
+  }
+  oss << root;
+}
 
 EOSMGMRESTNAMESPACE_END

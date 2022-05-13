@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// File: MethodNotAllowedException.cc
+// File: WellKnownResponseFactory.hh
 // Author: Cedric Caffy - CERN
 // ----------------------------------------------------------------------
 
@@ -21,10 +21,23 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "MethodNotAllowedException.hh"
+#ifndef EOS_WELLKNOWNRESPONSEFACTORY_HH
+#define EOS_WELLKNOWNRESPONSEFACTORY_HH
+
+#include "mgm/Namespace.hh"
+#include "mgm/http/rest-api/response/RestApiResponse.hh"
+#include "mgm/http/rest-api/response/RestApiResponseFactory.hh"
 
 EOSMGMRESTNAMESPACE_BEGIN
 
-MethodNotAllowedException::MethodNotAllowedException(const std::string& exceptionMsg): RestException(exceptionMsg){}
+/**
+ * Factory of response for the .well-known endpoint
+ */
+class WellKnownResponseFactory : public RestApiResponseFactory {
+public:
+  RestApiResponse<void> createError(const common::HttpResponse::ResponseCodes & retCode);
+};
 
 EOSMGMRESTNAMESPACE_END
+
+#endif // EOS_WELLKNOWNRESPONSEFACTORY_HH

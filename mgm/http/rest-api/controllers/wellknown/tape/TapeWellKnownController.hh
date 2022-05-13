@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// File: ControllerNotFoundException.hh
+// File: TapeRestApiWellKnownController.hh
 // Author: Cedric Caffy - CERN
 // ----------------------------------------------------------------------
 
@@ -21,19 +21,28 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifndef EOS_CONTROLLERNOTFOUNDEXCEPTION_HH
-#define EOS_CONTROLLERNOTFOUNDEXCEPTION_HH
+#ifndef EOS_TAPEWELLKNOWNCONTROLLER_HH
+#define EOS_TAPEWELLKNOWNCONTROLLER_HH
 
 #include "mgm/Namespace.hh"
-#include "mgm/http/rest-api/exception/NotFoundException.hh"
+#include "mgm/http/rest-api/controllers/Controller.hh"
+#include "mgm/http/rest-api/response/tape/factories/TapeRestApiResponseFactory.hh"
 
 EOSMGMRESTNAMESPACE_BEGIN
 
-class ControllerNotFoundException : public NotFoundException {
+/**
+ * The controller for the discovery endpoint of any REST API.
+ * accessURL = /.well-known/
+ */
+class TapeWellKnownController : public Controller {
 public:
-  ControllerNotFoundException(const std::string & exceptionMsg): NotFoundException(exceptionMsg){}
+  TapeWellKnownController(const std::string & accessURL);
+  virtual common::HttpResponse * handleRequest(common::HttpRequest * request,const common::VirtualIdentity * vid) override;
+  virtual ~TapeWellKnownController(){}
+private:
+  TapeRestApiResponseFactory mTapeRestApiResponseFactory;
 };
 
 EOSMGMRESTNAMESPACE_END
 
-#endif // EOS_CONTROLLERNOTFOUNDEXCEPTION_HH
+#endif // EOS_TAPEWELLKNOWNCONTROLLER_HH

@@ -265,28 +265,29 @@ add_library(
   http/webdav/LockResponse.cc
   http/rest-api/manager/RestApiManager.cc
   http/rest-api/handler/RestHandler.cc
+  http/rest-api/handler/wellknown/WellKnownHandler.cc
   http/rest-api/config/tape/TapeRestApiConfig.cc
   http/rest-api/handler/tape/TapeRestHandler.cc
   http/rest-api/handler/factory/TapeRestHandlerFactory.cc
+  http/rest-api/handler/factory/WellKnownRestHandlerFactory.cc
   http/rest-api/action/tape/stage/CreateStageBulkRequest.cc
   http/rest-api/action/tape/stage/CancelStageBulkRequest.cc
   http/rest-api/action/tape/stage/GetStageBulkRequest.cc
   http/rest-api/action/tape/stage/DeleteStageBulkRequest.cc
   http/rest-api/action/tape/archiveinfo/GetArchiveInfo.cc
   http/rest-api/action/tape/release/CreateReleaseBulkRequest.cc
+  http/rest-api/action/wellknown/tape/GetTapeRestApiWellKnown.cc
   http/rest-api/business/tape/TapeRestApiBusiness.cc
   http/rest-api/controllers/Controller.cc
-  http/rest-api/controllers/tape/factories/ControllerFactory.cc
+  http/rest-api/controllers/tape/factories/TapeControllerFactory.cc
+  http/rest-api/controllers/wellknown/factories/WellKnownControllerFactory.cc
   http/rest-api/controllers/ControllerManager.cc
   http/rest-api/controllers/ControllerActionDispatcher.cc
   http/rest-api/controllers/tape/stage/StageController.cc
   http/rest-api/controllers/tape/archiveinfo/ArchiveInfoController.cc
   http/rest-api/controllers/tape/release/ReleaseController.cc
-  http/rest-api/exception/RestException.cc
-  http/rest-api/exception/ControllerNotFoundException.cc
-  http/rest-api/exception/ForbiddenException.cc
+  http/rest-api/controllers/wellknown/tape/TapeWellKnownController.cc
   http/rest-api/exception/JsonValidationException.cc
-  http/rest-api/exception/MethodNotAllowedException.cc
   http/rest-api/model/tape/common/FilesContainer.cc
   http/rest-api/model/tape/common/ErrorModel.cc
   http/rest-api/model/tape/archiveinfo/GetArchiveInfoResponseModel.cc
@@ -294,15 +295,20 @@ add_library(
   http/rest-api/model/tape/stage/CreateStageBulkRequestModel.cc
   http/rest-api/model/tape/stage/CreatedStageBulkRequestResponseModel.cc
   http/rest-api/model/tape/stage/GetStageBulkRequestResponseModel.cc
+  http/rest-api/model/wellknown/tape/GetTapeWellKnownModel.cc
   http/rest-api/json/tape/model-builders/CreateStageRequestModelBuilder.cc
   http/rest-api/json/tape/model-builders/PathsModelBuilder.cc
   http/rest-api/json/tape/jsonifiers/stage/CreatedStageBulkRequestJsonifier.cc
   http/rest-api/json/tape/jsonifiers/stage/GetStageBulkRequestJsonifier.cc
   http/rest-api/json/tape/jsonifiers/common/ErrorModelJsonifier.cc
   http/rest-api/json/tape/jsonifiers/archiveinfo/GetArchiveInfoResponseJsonifier.cc
+  http/rest-api/json/wellknown/tape/jsonifiers/GetTapeWellKnownModelJsonifier.cc
   http/rest-api/response/tape/factories/TapeRestApiResponseFactory.cc
+  http/rest-api/response/wellknown/WellKnownResponseFactory.cc
   http/rest-api/utils/URLParser.cc
   http/rest-api/utils/URLBuilder.cc
+  http/rest-api/wellknown/tape/TapeWellKnownInfos.cc
+  http/rest-api/wellknown/tape/TapeRestApiEndpoint.cc
   geotree/SchedulingTreeTest.cc
   geotree/SchedulingSlowTree.cc
   geotree/SchedulingTreeCommon.cc

@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// File: ControllerNotFoundException.hh
+// File: ActionNotFoundException.hh
 // Author: Cedric Caffy - CERN
 // ----------------------------------------------------------------------
 
@@ -21,19 +21,19 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifndef EOS_CONTROLLERNOTFOUNDEXCEPTION_HH
-#define EOS_CONTROLLERNOTFOUNDEXCEPTION_HH
+#ifndef EOS_ACTIONNOTFOUNDEXCEPTION_HH
+#define EOS_ACTIONNOTFOUNDEXCEPTION_HH
 
 #include "mgm/Namespace.hh"
 #include "mgm/http/rest-api/exception/NotFoundException.hh"
 
 EOSMGMRESTNAMESPACE_BEGIN
 
-class ControllerNotFoundException : public NotFoundException {
+class ActionNotFoundException : public NotFoundException {
 public:
-  ControllerNotFoundException(const std::string & exceptionMsg): NotFoundException(exceptionMsg){}
+  ActionNotFoundException(const std::string & exceptionMsg): NotFoundException(exceptionMsg){}
 };
 
 EOSMGMRESTNAMESPACE_END
 
-#endif // EOS_CONTROLLERNOTFOUNDEXCEPTION_HH
+#endif // EOS_ACTIONNOTFOUNDEXCEPTION_HH

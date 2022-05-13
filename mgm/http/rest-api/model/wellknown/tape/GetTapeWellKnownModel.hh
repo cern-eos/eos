@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// File: ControllerNotFoundException.hh
+// File: GetTapeWellKnownModel.hh
 // Author: Cedric Caffy - CERN
 // ----------------------------------------------------------------------
 
@@ -21,19 +21,28 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifndef EOS_CONTROLLERNOTFOUNDEXCEPTION_HH
-#define EOS_CONTROLLERNOTFOUNDEXCEPTION_HH
+#ifndef EOS_GETTAPEWELLKNOWNMODEL_HH
+#define EOS_GETTAPEWELLKNOWNMODEL_HH
 
 #include "mgm/Namespace.hh"
-#include "mgm/http/rest-api/exception/NotFoundException.hh"
+#include "common/json/Jsonifiable.hh"
+#include "mgm/http/rest-api/wellknown/tape/TapeWellKnownInfos.hh"
 
 EOSMGMRESTNAMESPACE_BEGIN
 
-class ControllerNotFoundException : public NotFoundException {
+/**
+ * Model class representing the response that will be sent to the user
+ * after a call to the tape REST API discovery endpoint
+ */
+class GetTapeWellKnownModel
+    : public common::Jsonifiable<GetTapeWellKnownModel> {
 public:
-  ControllerNotFoundException(const std::string & exceptionMsg): NotFoundException(exceptionMsg){}
+  GetTapeWellKnownModel(const TapeWellKnownInfos * tapeWellKnownInfos);
+  const TapeWellKnownInfos * getTapeWellKnownInfos() const;
+private:
+  const TapeWellKnownInfos * mTapeWellKnownInfos;
 };
 
 EOSMGMRESTNAMESPACE_END
 
-#endif // EOS_CONTROLLERNOTFOUNDEXCEPTION_HH
+#endif // EOS_GETTAPEWELLKNOWNMODEL_HH

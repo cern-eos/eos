@@ -33,6 +33,7 @@
 #include "mgm/http/rest-api/json/tape/TapeRestApiJsonifier.hh"
 #include "mgm/http/rest-api/model/tape/stage/CreatedStageBulkRequestResponseModel.hh"
 #include "mgm/http/rest-api/config/tape/TapeRestApiConfig.hh"
+#include "mgm/http/rest-api/handler/tape/TapeRestHandler.hh"
 
 EOSMGMRESTNAMESPACE_BEGIN
 
@@ -41,16 +42,15 @@ public:
   CreateStageBulkRequest(const std::string & accessURL,const common::HttpHandler::Methods method,std::shared_ptr<ITapeRestApiBusiness> tapeRestApiBusiness,
                          std::shared_ptr<JsonModelBuilder<CreateStageBulkRequestModel>> inputJsonModelBuilder,
                          std::shared_ptr<TapeRestApiJsonifier<CreatedStageBulkRequestResponseModel>> outputObjectJsonifier,
-                         const TapeRestApiConfig * config): TapeAction(accessURL,method,tapeRestApiBusiness),
+                         const TapeRestHandler * tapeRestHandler): TapeAction(accessURL,method,tapeRestApiBusiness),
                                                             mInputJsonModelBuilder(inputJsonModelBuilder),
-                                                            mOutputObjectJsonifier(outputObjectJsonifier),
-                                                            mTapeRestApiConfig(config){}
+                                                            mOutputObjectJsonifier(outputObjectJsonifier), mTapeRestHandler(tapeRestHandler){}
   common::HttpResponse * run(common::HttpRequest * request, const common::VirtualIdentity * vid) override;
 private:
   const std::string generateAccessURL(const std::string & bulkRequestId);
   std::shared_ptr<JsonModelBuilder<CreateStageBulkRequestModel>> mInputJsonModelBuilder;
   std::shared_ptr<TapeRestApiJsonifier<CreatedStageBulkRequestResponseModel>> mOutputObjectJsonifier;
-  const TapeRestApiConfig * mTapeRestApiConfig;
+  const TapeRestHandler * mTapeRestHandler;
 };
 
 EOSMGMRESTNAMESPACE_END

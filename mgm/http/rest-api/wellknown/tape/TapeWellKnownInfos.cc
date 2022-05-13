@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// File: ControllerNotFoundException.hh
+// File: TapeWellKnownInfos.cc
 // Author: Cedric Caffy - CERN
 // ----------------------------------------------------------------------
 
@@ -21,19 +21,22 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifndef EOS_CONTROLLERNOTFOUNDEXCEPTION_HH
-#define EOS_CONTROLLERNOTFOUNDEXCEPTION_HH
-
-#include "mgm/Namespace.hh"
-#include "mgm/http/rest-api/exception/NotFoundException.hh"
+#include "TapeWellKnownInfos.hh"
 
 EOSMGMRESTNAMESPACE_BEGIN
 
-class ControllerNotFoundException : public NotFoundException {
-public:
-  ControllerNotFoundException(const std::string & exceptionMsg): NotFoundException(exceptionMsg){}
-};
+TapeWellKnownInfos::TapeWellKnownInfos(const std::string& siteName) : mSiteName(siteName){}
+
+void TapeWellKnownInfos::addEndpoint(const std::string& uri, const std::string& version) {
+  mEndpoints.push_back(std::make_unique<TapeRestApiEndpoint>(uri,version));
+}
+
+const TapeWellKnownInfos::Endpoints & TapeWellKnownInfos::getEndpoints() const {
+  return mEndpoints;
+}
+
+const std::string TapeWellKnownInfos::getSiteName() const {
+  return mSiteName;
+}
 
 EOSMGMRESTNAMESPACE_END
-
-#endif // EOS_CONTROLLERNOTFOUNDEXCEPTION_HH

@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// File: ControllerNotFoundException.hh
+// File: TapeRestApiEndpoint.cc
 // Author: Cedric Caffy - CERN
 // ----------------------------------------------------------------------
 
@@ -21,19 +21,18 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifndef EOS_CONTROLLERNOTFOUNDEXCEPTION_HH
-#define EOS_CONTROLLERNOTFOUNDEXCEPTION_HH
-
-#include "mgm/Namespace.hh"
-#include "mgm/http/rest-api/exception/NotFoundException.hh"
+#include "TapeRestApiEndpoint.hh"
 
 EOSMGMRESTNAMESPACE_BEGIN
 
-class ControllerNotFoundException : public NotFoundException {
-public:
-  ControllerNotFoundException(const std::string & exceptionMsg): NotFoundException(exceptionMsg){}
-};
+TapeRestApiEndpoint::TapeRestApiEndpoint(const std::string& uri, const std::string& version) : mUri(uri),mVersion(version){}
+
+const std::string TapeRestApiEndpoint::getUri() const {
+  return mUri;
+}
+
+const std::string TapeRestApiEndpoint::getVersion() const {
+  return mVersion;
+}
 
 EOSMGMRESTNAMESPACE_END
-
-#endif // EOS_CONTROLLERNOTFOUNDEXCEPTION_HH

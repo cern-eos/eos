@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// File: TapeRestHandlerFactory.cc
+// File: GetTapeRestApiWellKnown.cc
 // Author: Cedric Caffy - CERN
 // ----------------------------------------------------------------------
 
@@ -21,15 +21,28 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "TapeRestHandlerFactory.hh"
-#include "mgm/http/rest-api/handler/tape/TapeRestHandler.hh"
+#include "GetTapeRestApiWellKnown.hh"
 
 EOSMGMRESTNAMESPACE_BEGIN
 
-TapeRestHandlerFactory::TapeRestHandlerFactory(const TapeRestApiConfig* config) : mConfig(config){}
+GetTapeRestApiWellKnown::GetTapeRestApiWellKnown(const std::string& accessURLPattern, const common::HttpHandler::Methods method,
+                                                 std::unique_ptr<TapeRestHandler> tapeRestHandler,
+                                                 std::shared_ptr<common::Jsonifier<GetTapeWellKnownModel>> outputJsonModelBuilder) :
+                             Action(accessURLPattern,method),
+                             mTapeRestHandler(std::move(tapeRestHandler)),
+                             mOutputObjectJsonifier(outputJsonModelBuilder){}
 
-std::unique_ptr<RestHandler> TapeRestHandlerFactory::createRestHandler() const {
-  return std::make_unique<TapeRestHandler>(mConfig);
+common::HttpResponse* GetTapeRestApiWellKnown::run(common::HttpRequest* request, const common::VirtualIdentity* vid) {
+  const mgm::rest::TapeWellKnownInfos * tapeWellKnownInfos = mTapeRestHandler->getWellKnownInfos();
+  std::string errorMsg;
+  //If the Tape REST API is deactivated or misconfigured, an error message will be given to the user
+  //indicating what is wrong
+  if(!mTapeRestHandler->isRestRequest(mTapeRestHandler->getEntryPointURL(),errorMsg)){
+    return mResponseFactory.createInternalServerError(errorMsg).getHttpResponse();
+  }
+  std::shared_ptr<GetTapeWellKnownModel> model = std::make_shared<GetTapeWellKnownModel>(tapeWellKnownInfos);
+  model->setJsonifier(mOutputObjectJsonifier);
+  return mResponseFactory.createResponse(model, common::HttpResponse::OK).getHttpResponse();
 }
 
 EOSMGMRESTNAMESPACE_END

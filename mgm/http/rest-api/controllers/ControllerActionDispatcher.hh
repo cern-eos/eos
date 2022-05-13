@@ -56,6 +56,8 @@ public:
    * Returns the Action depending on the URL and the Http method located in the request passed in parameter
    * @param request the request allowing to return the Action
    * @return the Action depending on the URL and the Http method located in the request passed in parameter
+   * @throws ControllerNotFoundException if a controller cannot be found for a specific URL
+   * @throws MethodNotAllowedException if a method cannot be applied to a specific resource
    */
   Action * getAction(common::HttpRequest * request);
 private:

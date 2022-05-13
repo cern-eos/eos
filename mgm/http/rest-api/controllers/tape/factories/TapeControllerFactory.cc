@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// File: ControllerNotFoundException.hh
+// File: ControllerFactory.cc
 // Author: Cedric Caffy - CERN
 // ----------------------------------------------------------------------
 
@@ -21,19 +21,26 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifndef EOS_CONTROLLERNOTFOUNDEXCEPTION_HH
-#define EOS_CONTROLLERNOTFOUNDEXCEPTION_HH
-
-#include "mgm/Namespace.hh"
-#include "mgm/http/rest-api/exception/NotFoundException.hh"
+#include "TapeControllerFactory.hh"
+#include "mgm/http/rest-api/controllers/tape/archiveinfo/ArchiveInfoController.hh"
+#include "mgm/http/rest-api/controllers/tape/release/ReleaseController.hh"
+#include "mgm/http/rest-api/controllers/tape/stage/StageController.hh"
 
 EOSMGMRESTNAMESPACE_BEGIN
 
-class ControllerNotFoundException : public NotFoundException {
-public:
-  ControllerNotFoundException(const std::string & exceptionMsg): NotFoundException(exceptionMsg){}
-};
+std::unique_ptr<Controller>
+TapeControllerFactory::getStageController(const std::string & accessURL) {
+  return std::make_unique<StageController>(accessURL);
+}
+
+std::unique_ptr<Controller>
+TapeControllerFactory::getArchiveInfoController(const std::string& accessURL){
+  return std::make_unique<ArchiveInfoController>(accessURL);
+}
+
+std::unique_ptr<Controller>
+TapeControllerFactory::getReleaseController(const std::string& accessURL) {
+  return std::make_unique<ReleaseController>(accessURL);
+}
 
 EOSMGMRESTNAMESPACE_END
-
-#endif // EOS_CONTROLLERNOTFOUNDEXCEPTION_HH

@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// File: ControllerFactory.cc
+// File: WellKnownControllerFactory.cc
 // Author: Cedric Caffy - CERN
 // ----------------------------------------------------------------------
 
@@ -21,23 +21,12 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "ControllerFactory.hh"
-#include "mgm/http/rest-api/controllers/tape/stage/StageController.hh"
-#include "mgm/http/rest-api/controllers/tape/archiveinfo/ArchiveInfoController.hh"
-#include "mgm/http/rest-api/controllers/tape/release/ReleaseController.hh"
-
+#include "WellKnownControllerFactory.hh"
+#include "mgm/http/rest-api/controllers/wellknown/tape/TapeWellKnownController.hh"
 EOSMGMRESTNAMESPACE_BEGIN
 
-std::unique_ptr<Controller> ControllerFactory::getStageController(const std::string & accessURL) {
-  return std::make_unique<StageController>(accessURL);
-}
-
-std::unique_ptr<Controller> ControllerFactory::getArchiveInfoController(const std::string& accessURL){
-  return std::make_unique<ArchiveInfoController>(accessURL);
-}
-
-std::unique_ptr<Controller> ControllerFactory::getReleaseController(const std::string& accessURL) {
-  return std::make_unique<ReleaseController>(accessURL);
+std::unique_ptr<Controller> WellKnownControllerFactory::getWellKnownController(const std::string& accessURL) {
+  return std::make_unique<TapeWellKnownController>(accessURL);
 }
 
 EOSMGMRESTNAMESPACE_END

@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// File: ControllerNotFoundException.hh
+// File: WellKnownHandler.hh
 // Author: Cedric Caffy - CERN
 // ----------------------------------------------------------------------
 
@@ -21,19 +21,32 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifndef EOS_CONTROLLERNOTFOUNDEXCEPTION_HH
-#define EOS_CONTROLLERNOTFOUNDEXCEPTION_HH
+#ifndef EOS_WELLKNOWNHANDLER_HH
+#define EOS_WELLKNOWNHANDLER_HH
 
 #include "mgm/Namespace.hh"
-#include "mgm/http/rest-api/exception/NotFoundException.hh"
+#include "mgm/http/rest-api/handler/RestHandler.hh"
+#include "mgm/http/rest-api/manager/RestApiManager.hh"
+#include "mgm/http/rest-api/response/wellknown/WellKnownResponseFactory.hh"
 
 EOSMGMRESTNAMESPACE_BEGIN
 
-class ControllerNotFoundException : public NotFoundException {
+class WellKnownHandler : public RestHandler {
 public:
-  ControllerNotFoundException(const std::string & exceptionMsg): NotFoundException(exceptionMsg){}
+  WellKnownHandler(const std::string & accessURL,const RestApiManager * restApiManager);
+  /**
+   * Handles the user request
+   * @param request the user request
+   * @param vid the virtual identity of the user
+   * @return the HttpResponse to the user request
+   */
+  common::HttpResponse * handleRequest(common::HttpRequest * request, const common::VirtualIdentity * vid) override;
+
+private:
+  void initializeControllers();
+  const RestApiManager * mRestApiManager;
+  WellKnownResponseFactory mWellknownResponseFactory;
 };
 
 EOSMGMRESTNAMESPACE_END
-
-#endif // EOS_CONTROLLERNOTFOUNDEXCEPTION_HH
+#endif // EOS_WELLKNOWNHANDLER_HH

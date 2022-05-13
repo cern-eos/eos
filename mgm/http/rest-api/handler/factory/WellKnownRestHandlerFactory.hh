@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// File: ControllerNotFoundException.cc
+// File: WellKnownRestHandlerFactory.hh
 // Author: Cedric Caffy - CERN
 // ----------------------------------------------------------------------
 
@@ -21,10 +21,26 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "ControllerNotFoundException.hh"
+#ifndef EOS_WELLKNOWNRESTHANDLERFACTORY_HH
+#define EOS_WELLKNOWNRESTHANDLERFACTORY_HH
+
+#include "mgm/Namespace.hh"
+#include <memory>
+#include "mgm/http/rest-api/handler/RestHandler.hh"
+#include "mgm/http/rest-api/handler/factory/RestHandlerFactory.hh"
+#include "mgm/http/rest-api/manager/RestApiManager.hh"
 
 EOSMGMRESTNAMESPACE_BEGIN
 
-ControllerNotFoundException::ControllerNotFoundException(const std::string& exceptionMsg): RestException(exceptionMsg){}
+class WellKnownRestHandlerFactory : public RestHandlerFactory {
+public:
+  WellKnownRestHandlerFactory(const RestApiManager * restApiManager);
+  std::unique_ptr<RestHandler> createRestHandler() const override;
+  virtual ~WellKnownRestHandlerFactory() = default;
+private:
+  const RestApiManager * mRestApiManager;
+};
 
 EOSMGMRESTNAMESPACE_END
+
+#endif // EOS_WELLKNOWNRESTHANDLERFACTORY_HH

@@ -42,7 +42,7 @@ public:
    * to instanciate
    */
   TapeRestHandlerFactory(const TapeRestApiConfig * config);
-  std::unique_ptr<RestHandler> createRestHandler() override;
+  std::unique_ptr<RestHandler> createRestHandler() const override;
   virtual ~TapeRestHandlerFactory() = default;
 private:
   const TapeRestApiConfig * mConfig;

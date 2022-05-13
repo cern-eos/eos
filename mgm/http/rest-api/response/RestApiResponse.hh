@@ -43,6 +43,7 @@ public:
    * @param model the model that will be used to create the http response
    */
   RestApiResponse();
+  RestApiResponse(const common::HttpResponse::ResponseCodes retCode);
   RestApiResponse(std::shared_ptr<Model> model, const common::HttpResponse::ResponseCodes retCode);
   RestApiResponse(std::shared_ptr<Model> model, const common::HttpResponse::ResponseCodes retCode, const common::HttpResponse::HeaderMap & responseHeader);
 
@@ -52,6 +53,9 @@ public:
    * The body will be the JSON representation of the model
    */
   common::HttpResponse * getHttpResponse() const;
+
+  static RestApiResponse<Model> createResponse(std::shared_ptr<Model> model,const common::HttpResponse::ResponseCodes code);
+  static RestApiResponse<Model> createResponse(std::shared_ptr<Model> model,const common::HttpResponse::ResponseCodes code, const common::HttpResponse::HeaderMap & responseHeader);
 private:
   std::shared_ptr<Model> mModel;
   common::HttpResponse::ResponseCodes mRetCode;
@@ -60,6 +64,9 @@ private:
 
 template<typename Model>
 RestApiResponse<Model>::RestApiResponse() : mRetCode(common::HttpResponse::ResponseCodes::OK){}
+
+template<typename Model>
+RestApiResponse<Model>::RestApiResponse(const common::HttpResponse::ResponseCodes retCode) :mRetCode(retCode){}
 
 template<typename Model>
 RestApiResponse<Model>::RestApiResponse(std::shared_ptr<Model> model, const common::HttpResponse::ResponseCodes retCode) :

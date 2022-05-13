@@ -38,25 +38,23 @@ URLBuilderHostname * URLBuilder::setHttpsProtocol() {
   return this;
 }
 
-URLBuilderControllerAccessURL * URLBuilder::setHostname(const std::string & hostname) {
+URLBuilderPort * URLBuilder::setHostname(const std::string & hostname) {
   mURL += hostname;
+  return this;
+}
+
+URLBuilder* URLBuilder::setPort(const uint16_t & port) {
+  mURL += ":" + std::to_string(port);
+  return this;
+}
+
+URLBuilder * URLBuilder::add(const std::string& urlItem) {
   addSlashIfNecessary();
+  mURL += urlItem;
   return this;
 }
 
-URLBuilderRequestId * URLBuilder::setControllerAccessURL(const std::string & controllerAccessURL) {
-  addSlashIfNecessary(controllerAccessURL);
-  mURL += controllerAccessURL;
-  return this;
-}
-
-URLBuilder * URLBuilder::setRequestId(const std::string & requestId) {
-  addSlashIfNecessary();
-  mURL += requestId;
-  return this;
-}
-
-std::string URLBuilder::build() {
+std::string URLBuilder::build() const {
   return mURL;
 }
 

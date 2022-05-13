@@ -35,7 +35,7 @@ EOSMGMRESTNAMESPACE_BEGIN
  */
 class RestException : public common::Exception {
 public:
-  RestException(const std::string & exceptionMsg);
+  RestException(const std::string & exceptionMsg): common::Exception(exceptionMsg){};
 };
 
 EOSMGMRESTNAMESPACE_END

@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// File: ControllerNotFoundException.hh
+// File: TapeRestApiResponseFactory.hh
 // Author: Cedric Caffy - CERN
 // ----------------------------------------------------------------------
 
@@ -21,19 +21,30 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifndef EOS_CONTROLLERNOTFOUNDEXCEPTION_HH
-#define EOS_CONTROLLERNOTFOUNDEXCEPTION_HH
+#ifndef EOS_RESTAPIRESPONSEFACTORY_HH
+#define EOS_RESTAPIRESPONSEFACTORY_HH
 
 #include "mgm/Namespace.hh"
-#include "mgm/http/rest-api/exception/NotFoundException.hh"
+#include "mgm/http/rest-api/response/RestApiResponse.hh"
 
 EOSMGMRESTNAMESPACE_BEGIN
 
-class ControllerNotFoundException : public NotFoundException {
+class RestApiResponseFactory {
 public:
-  ControllerNotFoundException(const std::string & exceptionMsg): NotFoundException(exceptionMsg){}
+  RestApiResponseFactory() = default;
+  template<typename Model>
+  RestApiResponse<Model> createResponse(std::shared_ptr<Model> model, const common::HttpResponse::ResponseCodes code) const {
+    return RestApiResponse(model,code);
+  }
+
+  template<typename Model>
+  RestApiResponse<Model> createResponse(std::shared_ptr<Model> model, const common::HttpResponse::ResponseCodes code, const common::HttpResponse::HeaderMap & responseHeader) const {
+    return RestApiResponse(model,code,responseHeader);
+  }
+  ~RestApiResponseFactory() = default;
+private:
 };
 
 EOSMGMRESTNAMESPACE_END
 
-#endif // EOS_CONTROLLERNOTFOUNDEXCEPTION_HH
+#endif // EOS_RESTAPIRESPONSEFACTORY_HH

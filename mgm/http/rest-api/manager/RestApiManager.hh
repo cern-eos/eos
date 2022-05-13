@@ -46,27 +46,34 @@ public:
    * accepts requests.
    * @param requestURL the URL provided by the client
    */
-  virtual bool isRestRequest(const std::string & requestURL);
+  virtual bool isRestRequest(const std::string & requestURL) const;
   /**
    * Returns the tape REST API configuration object hold by this
    * manager
    * Use this method to access the configuration but also to modify its content
    * @return a pointer to the tape REST API configuration object
    */
-  virtual TapeRestApiConfig * getTapeRestApiConfig();
+  virtual TapeRestApiConfig * getTapeRestApiConfig() const;
   /**
    * Instanciate a RestHandler depending on the request URL provided
    * @param requestURL the URL of the client's request
    * @return a unique_ptr pointing to an instaciated RestHandler, nullptr if no RestHandler
    * matches the requestURL
    */
-  virtual std::unique_ptr<rest::RestHandler> getRestHandler(const std::string & requestURL);
+  virtual std::unique_ptr<rest::RestHandler> getRestHandler(const std::string & requestURL) const;
+  /**
+   * @return the .well-known endpoint access URL
+   */
+  virtual const std::string getWellKnownAccessURL() const;
+
   virtual ~RestApiManager(){}
 private:
   //The Tape REST API configuration object
   std::unique_ptr<TapeRestApiConfig> mTapeRestApiConfig;
   //A map of <URL, RestHandlerFactory>
   std::map<std::string,std::unique_ptr<RestHandlerFactory>> mMapAccessURLRestHandlerFactory;
+  //URL of the wellknown access URL
+  std::string mWellKnownAccessURL;
 };
 
 EOSMGMRESTNAMESPACE_END

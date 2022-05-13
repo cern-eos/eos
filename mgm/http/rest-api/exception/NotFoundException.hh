@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// File: RestException.cc
+// File: NotFoundException.hh
 // Author: Cedric Caffy - CERN
 // ----------------------------------------------------------------------
 
@@ -21,11 +21,18 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
+#ifndef EOS_NOTFOUNDEXCEPTION_HH
+#define EOS_NOTFOUNDEXCEPTION_HH
 
-#include "RestException.hh"
+#include "mgm/Namespace.hh"
+#include "mgm/http/rest-api/exception/RestException.hh"
 
 EOSMGMRESTNAMESPACE_BEGIN
 
-RestException::RestException(const std::string& exceptionMsg): common::Exception(exceptionMsg){}
+class NotFoundException : public RestException {
+public:
+  NotFoundException(const std::string & exceptionMsg): RestException(exceptionMsg){}
+};
 
 EOSMGMRESTNAMESPACE_END
+#endif // EOS_NOTFOUNDEXCEPTION_HH

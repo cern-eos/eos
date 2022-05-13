@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// File: ControllerNotFoundException.hh
+// File: ControllerFactory.hh
 // Author: Cedric Caffy - CERN
 // ----------------------------------------------------------------------
 
@@ -21,19 +21,27 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifndef EOS_CONTROLLERNOTFOUNDEXCEPTION_HH
-#define EOS_CONTROLLERNOTFOUNDEXCEPTION_HH
+#ifndef EOS_TAPECONTROLLERFACTORY_HH
+#define EOS_TAPECONTROLLERFACTORY_HH
 
 #include "mgm/Namespace.hh"
-#include "mgm/http/rest-api/exception/NotFoundException.hh"
+#include <string>
+#include "mgm/http/rest-api/controllers/Controller.hh"
+#include <memory>
 
 EOSMGMRESTNAMESPACE_BEGIN
 
-class ControllerNotFoundException : public NotFoundException {
+/**
+ * Factory of REST API controllers.
+ */
+class TapeControllerFactory {
 public:
-  ControllerNotFoundException(const std::string & exceptionMsg): NotFoundException(exceptionMsg){}
+  static std::unique_ptr<Controller> getStageController(const std::string & accessURL);
+  static std::unique_ptr<Controller>
+  getArchiveInfoController(const std::string & accessURL);
+  static std::unique_ptr<Controller> getReleaseController(const std::string & accessURL);
 };
 
 EOSMGMRESTNAMESPACE_END
 
-#endif // EOS_CONTROLLERNOTFOUNDEXCEPTION_HH
+#endif // EOS_TAPECONTROLLERFACTORY_HH

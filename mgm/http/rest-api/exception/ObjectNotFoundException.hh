@@ -24,13 +24,13 @@
 #define EOS_OBJECTNOTFOUNDEXCEPTION_HH
 
 #include "mgm/Namespace.hh"
-#include "mgm/http/rest-api/exception/RestException.hh"
+#include "mgm/http/rest-api/exception/NotFoundException.hh"
 
 EOSMGMRESTNAMESPACE_BEGIN
 
-class ObjectNotFoundException : public RestException {
+class ObjectNotFoundException : public NotFoundException {
 public:
-  ObjectNotFoundException(const std::string & exceptionMsg): RestException(exceptionMsg){}
+  ObjectNotFoundException(const std::string & exceptionMsg): NotFoundException(exceptionMsg){}
 };
 
 EOSMGMRESTNAMESPACE_END

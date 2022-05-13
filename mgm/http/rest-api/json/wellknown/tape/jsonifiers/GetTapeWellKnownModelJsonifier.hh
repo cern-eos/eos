@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// File: ControllerNotFoundException.hh
+// File: GetTapeWellKnownModelJsonifier.hh
 // Author: Cedric Caffy - CERN
 // ----------------------------------------------------------------------
 
@@ -21,19 +21,19 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifndef EOS_CONTROLLERNOTFOUNDEXCEPTION_HH
-#define EOS_CONTROLLERNOTFOUNDEXCEPTION_HH
+#ifndef EOS_GETTAPEWELLKNOWNMODELJSONIFIER_HH
+#define EOS_GETTAPEWELLKNOWNMODELJSONIFIER_HH
 
 #include "mgm/Namespace.hh"
-#include "mgm/http/rest-api/exception/NotFoundException.hh"
+#include "common/json/JsonCppJsonifier.hh"
+#include "mgm/http/rest-api/model/wellknown/tape/GetTapeWellKnownModel.hh"
 
 EOSMGMRESTNAMESPACE_BEGIN
 
-class ControllerNotFoundException : public NotFoundException {
-public:
-  ControllerNotFoundException(const std::string & exceptionMsg): NotFoundException(exceptionMsg){}
+class GetTapeWellKnownModelJsonifier : public common::JsonCppJsonifier<GetTapeWellKnownModel> {
+  void jsonify(const GetTapeWellKnownModel * model, std::stringstream & oss) override;
 };
 
 EOSMGMRESTNAMESPACE_END
 
-#endif // EOS_CONTROLLERNOTFOUNDEXCEPTION_HH
+#endif // EOS_GETTAPEWELLKNOWNMODELJSONIFIER_HH

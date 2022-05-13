@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// File: ControllerNotFoundException.hh
+// File: TapeRestApiWellKnownController.cc
 // Author: Cedric Caffy - CERN
 // ----------------------------------------------------------------------
 
@@ -21,19 +21,29 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifndef EOS_CONTROLLERNOTFOUNDEXCEPTION_HH
-#define EOS_CONTROLLERNOTFOUNDEXCEPTION_HH
-
-#include "mgm/Namespace.hh"
+#include "TapeWellKnownController.hh"
 #include "mgm/http/rest-api/exception/NotFoundException.hh"
+#include "mgm/http/rest-api/exception/MethodNotAllowedException.hh"
 
 EOSMGMRESTNAMESPACE_BEGIN
 
-class ControllerNotFoundException : public NotFoundException {
-public:
-  ControllerNotFoundException(const std::string & exceptionMsg): NotFoundException(exceptionMsg){}
-};
+TapeWellKnownController::TapeWellKnownController(const std::string& accessURL): Controller(accessURL) {}
+
+common::HttpResponse*
+TapeWellKnownController::handleRequest(common::HttpRequest* request, const common::VirtualIdentity* vid) {
+  try {
+    return mControllerActionDispatcher.getAction(request)->run(request, vid);
+  } catch (const NotFoundException &ex) {
+    eos_static_info(ex.what());
+    return mTapeRestApiResponseFactory.createNotFoundError().getHttpResponse();
+  } catch (const MethodNotAllowedException &ex) {
+    eos_static_info(ex.what());
+    return mTapeRestApiResponseFactory.createMethodNotAllowedError(ex.what()).getHttpResponse();
+  } catch (...) {
+    std::string errorMsg = "Unknown exception occured";
+    eos_static_err(errorMsg.c_str());
+    return mTapeRestApiResponseFactory.createInternalServerError(errorMsg).getHttpResponse();
+  }
+}
 
 EOSMGMRESTNAMESPACE_END
-
-#endif // EOS_CONTROLLERNOTFOUNDEXCEPTION_HH

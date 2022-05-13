@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// File: ControllerFactory.hh
+// File: TapeRestApiEndpoint.hh
 // Author: Cedric Caffy - CERN
 // ----------------------------------------------------------------------
 
@@ -20,28 +20,41 @@
  * You should have received a copy of the GNU General Public License    *
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
-
-#ifndef EOS_CONTROLLERFACTORY_HH
-#define EOS_CONTROLLERFACTORY_HH
+#ifndef EOS_TAPERESTAPIENDPOINT_HH
+#define EOS_TAPERESTAPIENDPOINT_HH
 
 #include "mgm/Namespace.hh"
 #include <string>
-#include "mgm/http/rest-api/controllers/Controller.hh"
-#include <memory>
 
 EOSMGMRESTNAMESPACE_BEGIN
 
 /**
- * Factory of REST API controllers.
+ * This class represent a tape REST API endpoint
+ * It gathers information like the URI to access the tape REST API endpoint depending
+ * on the version
  */
-class ControllerFactory {
+class TapeRestApiEndpoint {
 public:
-  static std::unique_ptr<Controller> getStageController(const std::string & accessURL);
-  static std::unique_ptr<Controller>
-  getArchiveInfoController(const std::string & accessURL);
-  static std::unique_ptr<Controller> getReleaseController(const std::string & accessURL);
+  /**
+   * Constructor of the endpoint
+   * @param uri the full URI to access a specific version of the tape REST API
+   * @param version the version ass
+   */
+  TapeRestApiEndpoint(const std::string & uri, const std::string & version);
+  /**
+   * The full URI to access the tape REST API
+   */
+  const std::string getUri() const;
+  /**
+   * The version of the tape REST API associated to this endpoint
+   * @return v0,v1...
+   */
+  const std::string getVersion() const;
+private:
+  std::string mUri;
+  std::string mVersion;
 };
 
 EOSMGMRESTNAMESPACE_END
 
-#endif // EOS_CONTROLLERFACTORY_HH
+#endif // EOS_TAPERESTAPIENDPOINT_HH

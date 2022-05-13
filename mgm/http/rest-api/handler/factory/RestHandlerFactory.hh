@@ -35,7 +35,7 @@ EOSMGMRESTNAMESPACE_BEGIN
  */
 class RestHandlerFactory {
 public:
-  virtual std::unique_ptr<RestHandler> createRestHandler() = 0;
+  virtual std::unique_ptr<RestHandler> createRestHandler() const = 0;
   virtual ~RestHandlerFactory() = default;
 };
 EOSMGMRESTNAMESPACE_END
