@@ -35,7 +35,7 @@ common::HttpResponse* DeleteStageBulkRequest::run(common::HttpRequest* request,
   URLParser parser(request->GetUrl());
   std::map<std::string, std::string> requestParameters;
   //Get the id of the request from the URL
-  parser.matchesAndExtractParameters(this->mURLPattern, requestParameters);
+  parser.matchesAndExtractParameters(this->mAccessURLPattern, requestParameters);
   std::string requestId = requestParameters[URLParametersConstants::ID];
 
   try {

@@ -27,7 +27,6 @@
 #include "mgm/Namespace.hh"
 #include "mgm/http/rest-api/response/RestApiResponse.hh"
 #include "mgm/http/rest-api/model/tape/common/ErrorModel.hh"
-#include "mgm/http/rest-api/model/tape/common/JsonValidationErrorModel.hh"
 #include "mgm/http/rest-api/exception/JsonValidationException.hh"
 
 EOSMGMRESTNAMESPACE_BEGIN
@@ -40,8 +39,8 @@ class TapeRestApiResponseFactory
 public:
   RestApiResponse<ErrorModel> createBadRequestError(const std::string& detail)
   const;
-  RestApiResponse<JsonValidationErrorModel> createBadRequestError(
-    const JsonValidationException& ex) const;
+  RestApiResponse<ErrorModel> createBadRequestError(const JsonValidationException&
+      ex) const;
   RestApiResponse<ErrorModel> createNotFoundError() const;
   RestApiResponse<ErrorModel> createMethodNotAllowedError(
     const std::string& detail) const;
@@ -53,6 +52,10 @@ public:
   template<typename Model>
   RestApiResponse<Model> createResponse(std::shared_ptr<Model> model,
                                         const common::HttpResponse::ResponseCodes code) const;
+  template<typename Model>
+  RestApiResponse<Model> createResponse(std::shared_ptr<Model> model,
+                                        const common::HttpResponse::ResponseCodes code,
+                                        const common::HttpResponse::HeaderMap& responseHeader) const;
 private:
   RestApiResponse<ErrorModel> createError(const
                                           common::HttpResponse::ResponseCodes code, const std::string& title,
@@ -67,6 +70,14 @@ inline RestApiResponse<Model> TapeRestApiResponseFactory::createResponse(
   const common::HttpResponse::ResponseCodes code) const
 {
   return RestApiResponse(model, code);
+}
+
+template<typename Model>
+inline RestApiResponse<Model> TapeRestApiResponseFactory::createResponse(
+  std::shared_ptr<Model> model, const common::HttpResponse::ResponseCodes code,
+  const common::HttpResponse::HeaderMap& responseHeader) const
+{
+  return RestApiResponse(model, code, responseHeader);
 }
 
 EOSMGMRESTNAMESPACE_END

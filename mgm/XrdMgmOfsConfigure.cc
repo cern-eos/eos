@@ -388,6 +388,9 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
     Eroute.Say("=====> mgmofs.managerid: ", ManagerId.c_str(), "");
   }
 
+  std::string tapeRestApiSitename;
+  XrdHttpPort = ManagerPort;
+
   if (!ConfigFN || !*ConfigFN) {
     Eroute.Emsg("Config", "Configuration file not specified.");
   } else {
@@ -619,9 +622,6 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
           } else {
             if ((!strcmp("true", val) || (!strcmp("1", val)))) {
               mTapeEnabled = true;
-              mRestApiManager->getTapeRestApiConfig()->setTapeEnabled(mTapeEnabled);
-            } else {
-              mRestApiManager->getTapeRestApiConfig()->setTapeEnabled(false);
             }
 
             Eroute.Say("=====> mgmofs.tapeenabled : ", val);
@@ -1057,16 +1057,41 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
         }
       }
 
-      if (!strcmp("taperestapi.sitename", var)) {
+      //Get the XrdHttp server port number
+      if (!strcmp("xrd.protocol", var)) {
         val = Config.GetWord();
-        auto tapeRestApiConfig = mRestApiManager->getTapeRestApiConfig();
 
         if (val != nullptr) {
-          tapeRestApiConfig->setSiteName(val);
-          tapeRestApiConfig->setActivated(true);
+          std::vector<std::string> xrdProtocolValues;
+          eos::common::StringConversion::Tokenize(val, xrdProtocolValues);
+          auto xrdHttpProtocolItor = std::find_if(xrdProtocolValues.begin(),
+          xrdProtocolValues.end(), [](const std::string & str) {
+            return str.find("XrdHttp") != string::npos;
+          });
+
+          if (xrdHttpProtocolItor != xrdProtocolValues.end()) {
+            //We have the XrdHttp protocol set
+            const std::string& xrdHttpProtocol = *xrdHttpProtocolItor;
+            size_t posPort = xrdHttpProtocol.find(':');
+
+            if (posPort != std::string::npos && posPort < xrdHttpProtocol.size()) {
+              try {
+                XrdHttpPort = std::stoi(xrdHttpProtocol.substr(posPort + 1));
+              } catch (const std::exception& ex) {
+                // The port is not a number, don't set it
+              }
+            }
+          }
+        }
+      }
+
+      if (!strcmp("taperestapi.sitename", var)) {
+        val = Config.GetWord();
+
+        if (val != nullptr) {
+          tapeRestApiSitename = val;
           Eroute.Say("=====> taperestapi.sitename: ", val, "");
         } else {
-          tapeRestApiConfig->setActivated(false);
           Eroute.Say("Config warning: REST API sitename not specified, disabling tape REST API.");
         }
       }
@@ -1981,23 +2006,29 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
                                     std::string("/.admin_socket:") + std::to_string(ManagerPort);
     AdminSocketServer.reset(new eos::mgm::AdminSocket(admin_socket_path));
   }
+  bool restApiActivated = false;
   {
     eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
 
     if (FsView::gFsView.mSpaceView.find("default") !=
         FsView::gFsView.mSpaceView.end()) {
       const std::string& restApiSwitchOnOff =
-        FsView::gFsView.mSpaceView["default"]->GetConfigMember(
-          eos::mgm::rest::TAPE_REST_API_SWITCH_ON_OFF);
+        FsView::gFsView.mSpaceView["default"]->GetConfigMember
+        (eos::mgm::rest::TAPE_REST_API_SWITCH_ON_OFF);
 
       if (restApiSwitchOnOff == "on") {
-        mRestApiManager->getTapeRestApiConfig()->setActivated(true);
-      } else {
-        mRestApiManager->getTapeRestApiConfig()->setActivated(false);
+        restApiActivated = true;
       }
-    } else {
-      mRestApiManager->getTapeRestApiConfig()->setActivated(false);
     }
+  }
+  {
+    //Tape REST API configuration
+    auto tapeRestApiConfig = mRestApiManager->getTapeRestApiConfig();
+    tapeRestApiConfig->setTapeEnabled(mTapeEnabled);
+    tapeRestApiConfig->setActivated(restApiActivated);
+    tapeRestApiConfig->setSiteName(tapeRestApiSitename);
+    tapeRestApiConfig->setHostAlias(MgmOfsAlias.c_str());
+    tapeRestApiConfig->setXrdHttpPort(XrdHttpPort);
   }
   // start the LRU daemon
   mLRUEngine->Start();

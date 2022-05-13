@@ -64,8 +64,23 @@ common::HttpResponse* CreateStageBulkRequest::run(common::HttpRequest* request,
   createdStageBulkRequestModel(new CreatedStageBulkRequestResponseModel(
                                  bulkRequest->getId()));
   createdStageBulkRequestModel->setJsonifier(mOutputObjectJsonifier);
+  //Add the location URL in the response of the request
+  common::HttpResponse::HeaderMap responseMap;
+  responseMap["Location"] = generateAccessURL(bulkRequest->getId());
   return mResponseFactory.createResponse(createdStageBulkRequestModel,
-                                         common::HttpResponse::ResponseCodes::CREATED).getHttpResponse();
+                                         common::HttpResponse::ResponseCodes::CREATED, responseMap).getHttpResponse();
+}
+
+const std::string CreateStageBulkRequest::generateAccessURL(
+  const std::string& bulkRequestId)
+{
+  auto builder = URLBuilder::getInstance();
+  std::stringstream hostnamePort;
+  hostnamePort << mTapeRestApiConfig->getHostAlias()  << ":" <<
+               mTapeRestApiConfig->getXrdHttpPort();
+  return builder->setHttpsProtocol()->setHostname(
+           hostnamePort.str())->setControllerAccessURL(
+           getAccessURLPattern())->setRequestId(bulkRequestId)->build();
 }
 
 EOSMGMRESTNAMESPACE_END

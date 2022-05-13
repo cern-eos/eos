@@ -48,7 +48,7 @@ common::HttpResponse* CancelStageBulkRequest::run(common::HttpRequest* request,
   }
 
   //Get the id of the request from the URL
-  parser.matchesAndExtractParameters(this->mURLPattern, requestParameters);
+  parser.matchesAndExtractParameters(this->mAccessURLPattern, requestParameters);
   const std::string& requestId = requestParameters[URLParametersConstants::ID];
 
   try {

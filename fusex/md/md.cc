@@ -129,12 +129,10 @@ metad::connect(std::string zmqtarget, std::string zmqidentity,
                   zmq_target.c_str(), zmq_identity.c_str(), zmq_identity.length());
   z_ctx = new zmq::context_t(1);
   z_socket = new zmq::socket_t(*z_ctx, ZMQ_DEALER);
-  z_socket->setsockopt(ZMQ_IDENTITY, zmq_identity.c_str(), zmq_identity.length()
-                      );
+  z_socket->setsockopt(ZMQ_IDENTITY, zmq_identity.c_str(), zmq_identity.length());
   z_socket->setsockopt(ZMQ_TCP_KEEPALIVE, 1);
   z_socket->setsockopt(ZMQ_TCP_KEEPALIVE_IDLE, 90);
   z_socket->setsockopt(ZMQ_TCP_KEEPALIVE_INTVL, 90);
-  
 
   while (1) {
     try {
@@ -653,7 +651,7 @@ metad::get(fuse_req_t req,
     } else {
       if (ino != 1) {
         // we need this to refetch a hard link target which was removed server side
-	XrdSysMutexHelper mLock(md->Locker());
+        XrdSysMutexHelper mLock(md->Locker());
         (*md)()->set_md_ino(ino);
       }
     }
@@ -1191,11 +1189,11 @@ metad::begin_flush(fuse_req_t req, shared_md emd, std::string authid)
   if (!((*emd))()->md_ino()) {
     //TODO wait for the remote inode to be known
   }
-  
+
   XrdSysMutexHelper mLock(md->Locker());
   (*md)()->set_md_ino((*emd)()->md_ino());
 
-  if ((rc = mdbackend->putMD(req, (*md)(), authid, &(md->Locker()) ))) {
+  if ((rc = mdbackend->putMD(req, (*md)(), authid, &(md->Locker())))) {
     eos_static_err("metad::begin_flush backend::putMD failed rc=%d", rc);
   }
 
@@ -1215,10 +1213,9 @@ metad::end_flush(fuse_req_t req, shared_md emd, std::string authid)
   }
 
   XrdSysMutexHelper mLock(md->Locker());
-
   (*md)()->set_md_ino((*emd)()->md_ino());
 
-  if ((rc = mdbackend->putMD(req, (*md)(), authid, &(md->Locker()) ))) {
+  if ((rc = mdbackend->putMD(req, (*md)(), authid, &(md->Locker())))) {
     eos_static_err("metad::begin_flush backend::putMD failed rc=%d", rc);
   }
 
@@ -2258,7 +2255,8 @@ metad::mdcflush(ThreadAssistant& assistant)
           }
         }
 
-	md->Locker().Lock();
+        md->Locker().Lock();
+
         if ((*md)()->id()) {
           uint64_t removeentry = 0;
           {
@@ -2355,8 +2353,8 @@ metad::mdcflush(ThreadAssistant& assistant)
             }
           }
         } else {
-	  md->Locker().UnLock();
-	}
+          md->Locker().UnLock();
+        }
       }
     }
   }
@@ -2928,10 +2926,10 @@ metad::mdcommunicate(ThreadAssistant& assistant)
                     if (EOS_LOGS_DEBUG) {
                       eos_static_debug("%s", dump_md(md).c_str());
                     }
-		  } else {
-		    // in case this should somehow happen
-		    md->Locker().UnLock();
-		  }
+                  } else {
+                    // in case this should somehow happen
+                    md->Locker().UnLock();
+                  }
                 }
               } else {
                 // there might have been several caps and the first has wiped already the MD,
@@ -3179,7 +3177,7 @@ metad::mdcommunicate(ThreadAssistant& assistant)
 //        eos_static_debug("debug sending heartbeat: hbstream.c_str()=%s, hbstream.length()=%d, hbstream:hex=%s",
 //                       hbstream.c_str(), hbstream.length(), eos::common::stringToHex(hbstream).c_str());
       } else {
-	last_heartbeat = time(NULL);
+        last_heartbeat = time(NULL);
       }
 
       if (!is_visible()) {

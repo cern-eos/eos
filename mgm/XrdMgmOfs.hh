@@ -1249,7 +1249,8 @@ public:
   //! @param path
   //! @param collapse should the redirect collpase
   //!---------------------------------------------------------------------------
-  int Redirect(XrdOucErrInfo& error, const char* host, int& port, const char* path="", bool collapse=false);
+  int Redirect(XrdOucErrInfo& error, const char* host, int& port,
+               const char* path = "", bool collapse = false);
 
   //----------------------------------------------------------------------------
   //! Function to test if a client based on the called function and his
@@ -1575,6 +1576,7 @@ public:
   XrdOucString ManagerId; ///< manager id in <host>:<port> format
   XrdOucString ManagerIp; ///< manager ip in <xxx.yyy.zzz.vvv> format
   int ManagerPort; ///< manager port as number e.g. 1094
+  uint16_t XrdHttpPort; ///< The port on which the XrdHttp server is running
   std::string
   ProtoWFEndPoint; ///< host and port of service to communicate with in case of proto workflows (typically CTA frontend)
   std::string

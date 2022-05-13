@@ -55,7 +55,7 @@ void ErrorModel::setDetail(const std::string& detail)
   mDetail = detail;
 }
 
-const std::string ErrorModel::getType() const
+const std::optional<std::string> ErrorModel::getType() const
 {
   return mType;
 }

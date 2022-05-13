@@ -368,3 +368,9 @@ EOS_TTY_BROACAST_EGREP="\"CRIT|ALERT|EMERG|PROGRESS\""
 # EOS_MGM_OIDC_MAP_FIELD=sub
 # by default (undefined) the server certificate and hostname are verified, to skip this, define
 # EOS_MGM_OIDC_INSECURE=1
+
+# ------------------------------------------------------------------
+# MGM token generation configuration
+# ------------------------------------------------------------------
+# by default the token generation key is derived from an sss key
+# EOS_MGM_TOKEN_KEYFILE=/etc/eos/token.key

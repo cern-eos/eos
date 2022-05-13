@@ -56,6 +56,9 @@ class GroupDrainer: public eos::common::LogId
 public:
   using cache_fid_map_t = std::map<eos::common::FileSystem::fsid_t,
         std::vector<eos::common::FileId::fileid_t>>;
+  using drain_fs_map_t = std::map<std::string,
+        std::vector<common::FileSystem::fsid_t>>;
+
   GroupDrainer(std::string_view spacename);
   ~GroupDrainer();
   void GroupDrain(ThreadAssistant& assistant) noexcept;
@@ -121,8 +124,16 @@ public:
   handleRetries(eos::common::FileSystem::fsid_t fsid,
                 std::vector<eos::common::FileId::fileid_t>&& fids);
 
-  std::string getStatus() const;
+  enum class StatusFormat {
+    NONE,
+    DETAIL,
+    MONITORING
+  };
 
+  std::string getStatus(StatusFormat status_fmt = StatusFormat::NONE) const;
+
+  void resetFailedTransfers();
+  void resetCaches();
 
   static GroupStatus
   checkGroupDrainStatus(const fsutils::fs_status_map_t& fs_map);
@@ -148,12 +159,15 @@ public:
 
   static bool setDrainCompleteStatus(const std::string& groupname,
                                      GroupStatus s);
+
+  static bool isDrainFSMapEmpty(const drain_fs_map_t& drainFsMap);
 private:
   bool mRefreshFSMap {true};
   bool mRefreshGroups {true};
   bool mPauseExecution {false};
   std::atomic<bool> mDoConfigUpdate {true};
   uint16_t mRetryCount; // < Max retries for failed transfers
+  uint16_t mRRSeed {0};
   uint32_t mMaxTransfers; // < Max no of transactions to keep in flight
   uint64_t mRetryInterval; // < Retry Interval for failed transfers
   std::chrono::time_point<std::chrono::steady_clock> mLastUpdated;
@@ -181,7 +195,7 @@ private:
   // and the internal GroupDrainer Threads, there is no need for locking for
   // reads within GroupDrainer!
 
-  std::map<std::string, std::vector<common::FileSystem::fsid_t>> mDrainFsMap;
+  drain_fs_map_t mDrainFsMap;
   std::map<common::FileSystem::fsid_t, RetryTracker> mFsidRetryCtr;
   std::set<common::FileSystem::fsid_t> mFailedFsids;
   cache_fid_map_t mCacheFileList;

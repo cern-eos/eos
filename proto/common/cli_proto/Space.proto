@@ -100,8 +100,29 @@ message SpaceProto {
     }
   }
 
+  message GroupDrainerStatusProto {
+    enum OutFormat {
+      NONE = 0;
+      DETAIL = 1;
+      MONITORING = 2;
+    }
+    OutFormat outformat = 1;
+  }
+
+  message GroupDrainerResetProto {
+    enum Option {
+      FAILED = 0;
+      ALL = 1;
+    }
+    Option option = 1;
+  }
+
   message GroupDrainerProto {
      string mgmspace = 1;
+     oneof cmd {
+       GroupDrainerStatusProto status = 2;
+       GroupDrainerResetProto reset = 3;
+     }
   }
 
   oneof subcmd {

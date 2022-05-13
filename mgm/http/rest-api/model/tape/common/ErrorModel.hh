@@ -49,7 +49,7 @@ public:
   void setTitle(const std::string& title);
   void setStatus(const uint32_t status);
   void setDetail(const std::string& detail);
-  const std::string getType() const;
+  const std::optional<std::string> getType() const;
   const std::string getTitle() const;
   const uint32_t getStatus() const;
   const std::optional<std::string> getDetail() const;
@@ -57,10 +57,9 @@ public:
 private:
   /**
    * A URI reference that identifies the problem type This specification encourages that, when dereferenced,
-   * it provide human-readable documentation for the problem type (e.g., using HTML). When this member is not present,
-   * its value is assumed to be "about:blank".
+   * it provide human-readable documentation for the problem type (e.g., using HTML).
    */
-  std::string mType = "about:blank";
+  std::optional<std::string> mType;
   /**
    * A short, human-readable summary of the problem type
    */

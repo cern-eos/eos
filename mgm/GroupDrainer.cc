@@ -26,7 +26,8 @@ static const std::string format_s = "-s";
 static const std::string format_l = "l";
 static const std::string format_f = "f";
 
-GroupDrainer::GroupDrainer(std::string_view spacename) : mMaxTransfers(10000),
+GroupDrainer::GroupDrainer(std::string_view spacename):
+  mMaxTransfers(DEFAULT_NUM_TX),
   mSpaceName(spacename),
   mEngine(std::make_unique<group_balancer::StdDrainerEngine>())
 {
@@ -140,7 +141,8 @@ GroupDrainer::GroupDrain(ThreadAssistant& assistant) noexcept
     prepareTransfers();
 
     if (mPauseExecution) {
-      assistant.wait_for(std::chrono::seconds(60));
+      eos_info("%s", "msg=\"Pausing Execution for 30s!\"");
+      assistant.wait_for(std::chrono::seconds(30));
     }
   }
 }
@@ -195,9 +197,9 @@ GroupDrainer::prepareTransfers()
 
   try {
     for (uint64_t i = 0; i < allowed_tx; ++i) {
-      prepareTransfer(i);
+      prepareTransfer(mRRSeed++);
 
-      if (mRefreshGroups) {
+      if (mRefreshGroups || mPauseExecution) {
         return;
       }
     }
@@ -230,21 +232,25 @@ GroupDrainer::prepareTransfer(uint64_t index)
   auto fsids = mDrainFsMap.find(grp_drain_from);
 
   if (fsids == mDrainFsMap.end() ||
-      isUpdateNeeded(mDrainMapLastUpdated, mRefreshFSMap)) {
+      isUpdateNeeded(mDrainMapLastUpdated, mRefreshFSMap) ||
+      fsids->second.empty()) {
     {
       std::scoped_lock slock(mDrainFsMapMtx);
       std::tie(fsids, std::ignore) = mDrainFsMap.insert_or_assign(grp_drain_from,
                                      fsutils::FsidsinGroup(grp_drain_from));
+      mPauseExecution = isDrainFSMapEmpty(mDrainFsMap);
     }
     mDrainMapLastUpdated = chrono::steady_clock::now();
 
+    // We enter the following conditional if the group concerned is having empty FSes
+    // check if we reach a drain complete state!
     if (fsids->second.empty()) {
       // We reach here when all the FSes in the group are either offline or empty!
       // force a refresh of Groups Info for the next cycle, in that case the new
       // Groups Info will have 0 capacity groups and the engine will find that it
       // has no more targets to pick effectively stopping any further processing
       // other than the Groups Refresh every few minutes to check any new drain states
-      eos_debug("msg=\"Encountered group with no online FS\" group_name=%s",
+      eos_debug("msg=\"Encountered group with no online FS\" group=%s",
                 grp_drain_from.c_str());
       mRefreshGroups = setDrainCompleteStatus(grp_drain_from,
                                               checkGroupDrainStatus(grp_drain_from));
@@ -252,20 +258,10 @@ GroupDrainer::prepareTransfer(uint64_t index)
       if (mRefreshGroups) {
         eos_info("msg=\"Group completed drain!\" group=%s",
                  grp_drain_from.c_str());
-        return;
-      }
-
-      // Check if only one source group is involved; then we're sure that this status
-      // will only change once a while. We don't need to keep checking this in a
-      // tight loop anymore
-      if (mEngine->sourceGroupCount() == 1) {
-        mPauseExecution = true;
       }
 
       return;
     }
-
-    mPauseExecution = false;
   }
 
   auto fsid = eos::common::pickIndexRR(fsids->second, index);
@@ -276,7 +272,7 @@ GroupDrainer::prepareTransfer(uint64_t index)
     std::tie(status, fids) = populateFids(fsid);
 
     if (!status) {
-      eos_info("\"Refreshing FS drain statuses\"")
+      eos_debug("%s", "\"Refreshing FS drain statuses\"");
       mRefreshFSMap = true;
       return;
     }
@@ -333,7 +329,15 @@ GroupDrainer::populateFids(eos::common::FileSystem::fsid_t fsid)
     return {false, mCacheFileList.end()};
   }
 
-  mDrainProgressTracker.setTotalFiles(fsid, total_files);
+  if (auto kv = mFsidRetryCtr.find(fsid);
+      kv != mFsidRetryCtr.end()) {
+    if (!kv->second.need_update(mRetryInterval)) {
+      eos_debug("msg=\"skipping retries as retry_interval hasn't passed\", "
+                " fsid=%d", fsid);
+      return {false, mCacheFileList.end()};
+    }
+  }
+
   std::vector<eos::common::FileId::fileid_t> local_fids;
   std::vector<eos::common::FileId::fileid_t> failed_fids;
   uint32_t ctr = 0;
@@ -529,8 +533,13 @@ generate_progress_row(eos::common::FileSystem::fsid_t fsid,
 }
 
 std::string
-GroupDrainer::getStatus() const
+GroupDrainer::getStatus(StatusFormat status_fmt) const
 {
+  // TODO: Expose more counters in monitoring!
+  if (status_fmt == StatusFormat::MONITORING) {
+    return mEngine->get_status_str(false, true);
+  }
+
   auto tx_sz = mTransfers.size();
   auto failed_tx_sz = mFailedTransfers.size();
   std::stringstream ss;
@@ -542,8 +551,12 @@ GroupDrainer::getStatus() const
     return ss.str();
   }
 
-  {
+  if (status_fmt == StatusFormat::DETAIL) {
     std::scoped_lock sl(mDrainFsMapMtx);
+
+    if (isDrainFSMapEmpty(mDrainFsMap)) {
+      return ss.str();
+    }
 
     for (const auto& kv : mDrainFsMap) {
       ss << "Group: " << kv.first << "\n";
@@ -571,6 +584,32 @@ GroupDrainer::getStatus() const
   return ss.str();
 }
 
+void
+GroupDrainer::resetFailedTransfers()
+{
+  std::scoped_lock sl(mFailedTransfersMtx);
+  mFailedTransfers.clear();
+}
 
+void
+GroupDrainer::resetCaches()
+{
+  {
+    std::scoped_lock sl(mFailedTransfersMtx);
+    mFailedTransfers.clear();
+  }
+  // force a refresh of the global groups map info
+  mDoConfigUpdate.store(true, std::memory_order_relaxed);
+  // TODO: Have a functionality to clear cached filelists as well!
+}
+
+bool
+GroupDrainer::isDrainFSMapEmpty(const drain_fs_map_t& drainFsMap)
+{
+  return std::all_of(drainFsMap.begin(), drainFsMap.end(),
+  [](const auto & p) {
+    return p.second.empty();
+  });
+}
 
 } // eos::mgm

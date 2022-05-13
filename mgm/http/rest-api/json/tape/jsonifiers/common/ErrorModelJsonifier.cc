@@ -35,7 +35,10 @@ void ErrorModelJsonifier::jsonify(const ErrorModel* model,
 
 void ErrorModelJsonifier::jsonify(const ErrorModel* model, Json::Value& root)
 {
-  root["type"] = model->getType();
+  if (model->getType()) {
+    root["type"] = model->getType().value();
+  }
+
   root["title"] = model->getTitle();
   root["status"] = model->getStatus();
   root["detail"] = model->getDetail() ? model->getDetail().value() : "";

@@ -28,6 +28,7 @@
 #include "mgm/http/rest-api/action/Action.hh"
 #include "mgm/http/rest-api/business/tape/ITapeRestApiBusiness.hh"
 #include "mgm/http/rest-api/response/tape/factories/TapeRestApiResponseFactory.hh"
+#include "mgm/http/rest-api/config/tape/TapeRestApiConfig.hh"
 
 EOSMGMRESTNAMESPACE_BEGIN
 

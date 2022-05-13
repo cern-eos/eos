@@ -24,7 +24,6 @@
 #include "TapeRestApiResponseFactory.hh"
 #include "mgm/http/rest-api/json/tape/TapeRestApiJsonifier.hh"
 #include "mgm/http/rest-api/json/tape/jsonifiers/common/ErrorModelJsonifier.hh"
-#include "mgm/http/rest-api/json/tape/jsonifiers/common/JsonValidationErrorModelJsonifier.hh"
 
 EOSMGMRESTNAMESPACE_BEGIN
 
@@ -46,17 +45,22 @@ RestApiResponse<ErrorModel> TapeRestApiResponseFactory::createBadRequestError(
   return createError(common::HttpResponse::BAD_REQUEST, "Bad request", detail);
 }
 
-RestApiResponse<JsonValidationErrorModel>
-TapeRestApiResponseFactory::createBadRequestError(const JsonValidationException&
-    ex) const
+RestApiResponse<ErrorModel> TapeRestApiResponseFactory::createBadRequestError(
+  const JsonValidationException& ex) const
 {
-  std::shared_ptr<JsonValidationErrorModel> errorModel =
-    std::make_shared<JsonValidationErrorModel>(ex.what());
-  errorModel->setValidationErrors(ex.getValidationErrors());
-  std::shared_ptr<JsonValidationErrorModelJsonifier> jsonifier =
-    std::make_shared<JsonValidationErrorModelJsonifier>();
-  errorModel->setJsonifier(jsonifier);
-  return createResponse(errorModel, common::HttpResponse::BAD_REQUEST);
+  //The bad request error will only return to the client the first validation error encountered
+  const auto& validationErrors = ex.getValidationErrors();
+  std::string detail;
+
+  if (validationErrors != nullptr && validationErrors->hasAnyError()) {
+    auto& error = validationErrors->getErrors()->front();
+    detail += error->getFieldName() + " - " + error->getReason();
+  } else {
+    detail = ex.what();
+  }
+
+  return createError(common::HttpResponse::BAD_REQUEST, "JSON Validation error",
+                     detail);
 }
 
 RestApiResponse<ErrorModel> TapeRestApiResponseFactory::createNotFoundError()
