@@ -446,9 +446,9 @@ FuseServer::Clients::Print(std::string& out, std::string options)
                "......   ra-nobuf     : %lu\n"
                "......   wr-nobuf     : %lu\n"
                "......   idle         : %ld\n"
-               "......   recovery-ok  : %ld\n",
-	       "......   recovery-fail: %ld\n",
-	       "......   blockedms    : %.02f [%s]\n",
+               "......   recovery-ok  : %d\n"
+               "......   recovery-fail: %d\n"
+               "......   blockedms    : %.02f [%s]\n",
                it->second.statistics().inodes(),
                it->second.statistics().inodes_todelete(),
                it->second.statistics().inodes_backlog(),
@@ -476,8 +476,8 @@ FuseServer::Clients::Print(std::string& out, std::string options)
                it->second.statistics().ranobuf(),
                it->second.statistics().wrnobuf(),
                idletime,
-	       it->second.statistics().recovery_ok(),
-	       it->second.statistics().recovery_fail(),
+               it->second.statistics().recovery_ok(),
+               it->second.statistics().recovery_fail(),
                it->second.statistics().blockedms(),
                it->second.statistics().blockedfunc().c_str()
               );
@@ -514,8 +514,8 @@ FuseServer::Clients::Print(std::string& out, std::string options)
                "ra-nobuf=%lu "
                "wr-nobuf=%lu "
                "idle=%ld "
-	       "recovery-ok=%ld "
-	       "recovery-fail=%ld "
+               "recovery-ok=%d "
+               "recovery-fail=%d "
                "blockedms=%f "
                "blockedfunc=%s\n",
                it->second.heartbeat().name().c_str(),
@@ -560,12 +560,11 @@ FuseServer::Clients::Print(std::string& out, std::string options)
                it->second.statistics().ranobuf(),
                it->second.statistics().wrnobuf(),
                idletime,
-	       it->second.statistics().recovery_ok(),
-	       it->second.statistics().recovery_fail(),
+               it->second.statistics().recovery_ok(),
+               it->second.statistics().recovery_fail(),
                it->second.statistics().blockedms(),
                it->second.statistics().blockedfunc().length() ?
-               it->second.statistics().blockedfunc().c_str() : "none"
-              );
+               it->second.statistics().blockedfunc().c_str() : "none");
       out += formatline;
     }
 
