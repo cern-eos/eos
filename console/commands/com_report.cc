@@ -46,6 +46,10 @@ com_report(char* arg1)
   time_t start_time=0;
   time_t stop_time=0;
 
+
+  time_t first_ts=0;
+  time_t last_ts=0;
+
   do {
     arg = subtokenizer.GetToken();
     if (!arg.length() && path.length()) {
@@ -173,6 +177,12 @@ com_report(char* arg1)
 
 	  time_t start_ots = std::stoul(map["ots"]);
 
+	  if (!first_ts) {
+	    first_ts = start_ots;
+	  }
+
+	  last_ts = start_ots;
+
 	  if (start_time) {
 	    if (start_ots < start_time) {
 	      continue;
@@ -214,29 +224,39 @@ com_report(char* arg1)
       }
       std::string sizestring1, sizestring2;
 
-      fprintf(stdout,"---------------------------------------------------------------\n");
-      fprintf(stdout,"n(r): %lu vol(r): %s n(w): %lu vol(w): %s\n",
+      fprintf(stdout,"---------------------------------------------------------------------\n");
+      fprintf(stdout,"- n(r): %lu vol(r): %s n(w): %lu vol(w): %s\n",
 	      r_t.size(),
 	      eos::common::StringConversion::GetReadableSizeString(sizestring1, sum_r,"B"),
 	      w_t.size(),
 	      eos::common::StringConversion::GetReadableSizeString(sizestring2, sum_w,"B"));
-      fprintf(stdout,"---------------------------------------------------------------\n");
-      fprintf(stdout,"r:t avg: %s +- %s 95-perc: %s 99-perc: %s max: %s \n",
+      fprintf(stdout,"---------------------------------------------------------------------\n");
+      fprintf(stdout,"- r:t avg: %s +- %s 95-perc: %s 99-perc: %s max: %s \n",
 	      eos::common::StringConversion::GetFixedDouble(eos::common::Statistics::avg(r_t),6,2).c_str(),
 	      eos::common::StringConversion::GetFixedDouble(eos::common::Statistics::sig(r_t),6,2).c_str(),
 	      eos::common::StringConversion::GetFixedDouble(eos::common::Statistics::nperc(r_t,95),6,2).c_str(),
 	      eos::common::StringConversion::GetFixedDouble(eos::common::Statistics::nperc(r_t,99),6,2).c_str(),
 	      eos::common::StringConversion::GetFixedDouble(eos::common::Statistics::max(r_t),6,2).c_str()
 	      );
-      fprintf(stdout,"w:t avg: %s +- %s 95-perc: %s 99-perc: %s max: %s \n",
+      fprintf(stdout,"- w:t avg: %s +- %s 95-perc: %s 99-perc: %s max: %s \n",
 	      eos::common::StringConversion::GetFixedDouble(eos::common::Statistics::avg(w_t),6,2).c_str(),
 	      eos::common::StringConversion::GetFixedDouble(eos::common::Statistics::sig(w_t),6,2).c_str(),
 	      eos::common::StringConversion::GetFixedDouble(eos::common::Statistics::nperc(w_t,95),6,2).c_str(),
 	      eos::common::StringConversion::GetFixedDouble(eos::common::Statistics::nperc(w_t,99),6,2).c_str(),
 	      eos::common::StringConversion::GetFixedDouble(eos::common::Statistics::max(w_t),6,2).c_str()
 	      );
-      fprintf(stdout,"---------------------------------------------------------------\n");
+      fprintf(stdout,"---------------------------------------------------------------------\n");
+      XrdOucString agestring;
 
+      fprintf(stdout,"- first-ts:%ld last-ts:%ld time-span:%ld s [ %s ] \n",
+	      first_ts,
+	      last_ts,
+	      last_ts-first_ts,
+	      eos::common::StringConversion::GetReadableAgeString(agestring, last_ts-first_ts));
+      fprintf(stdout,"- r:rate avg: %.02f MB/s ", (last_ts-first_ts)?sum_r/1000000.0 / (last_ts-first_ts):0);
+      fprintf(stdout,"- w:rate avg: %.02f MB/s\n", (last_ts-first_ts)?sum_w/1000000.0 / (last_ts-first_ts):0);
+      fprintf(stdout,"---------------------------------------------------------------------\n");
+	      
       file.close();
       if (sregex.length()) {
 	regfree(&regex);
