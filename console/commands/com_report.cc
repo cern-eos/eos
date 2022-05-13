@@ -151,6 +151,7 @@ com_report(char* arg1)
 	  }
 	}
 
+	std::map<std::string,std::string> map;
 	if (eos::common::StringConversion::GetKeyValueMap(line.c_str(),
 							map,
 							  "=",
