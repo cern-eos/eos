@@ -16,6 +16,27 @@ Introduction
 
 This release is based on XRootD V5.
 
+``v5.0.23 Diopside``
+===================
+
+2022-05-16
+
+Note
+----
+
+* This release uses eos-xrootd-5.4.4 which is based on XRootD-5.4.3-rc3.
+
+Bug
+----
+
+* [EOS-5246] - replica show 'error_label=none' while having checksum mismatch.
+
+Improvement
+------------
+
+* [EOS-5184] - Add RedirectCollapse to XrdMgmOfs::Redirect responses
+* [EOS-5198] - Add few log lines to MasterLog
+
 
 ``v5.0.22 Diopside``
 ===================
