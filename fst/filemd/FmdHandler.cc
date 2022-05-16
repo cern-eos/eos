@@ -1,18 +1,18 @@
-#include "fst/XrdFstOfs.hh"
-#include "fst/io/local/LocalIo.hh"
-#include "FmdAttr.hh"
-#include "FmdHandler.hh"
+
 #include "common/Path.hh"
-#include "fst/io/FileIoPluginCommon.hh"
-#include "fst/checksum/ChecksumPlugins.hh"
-#include "fst/filemd/FmdMgm.hh"
 #include "namespace/ns_quarkdb/persistency/FileMDSvc.hh"
 #include "namespace/ns_quarkdb/persistency/MetadataFetcher.hh"
 #include "namespace/ns_quarkdb/persistency/RequestBuilder.hh"
 #include "namespace/ns_quarkdb/QdbContactDetails.hh"
 #include "qclient/structures/QSet.hh"
 #include "fst/utils/FTSWalkTree.hh"
-
+#include "fst/checksum/ChecksumPlugins.hh"
+#include "fst/XrdFstOfs.hh"
+#include "fst/io/local/LocalIo.hh"
+#include "fst/io/FileIoPluginCommon.hh"
+#include "fst/filemd/FmdMgm.hh"
+#include "fst/filemd/FmdAttr.hh"
+#include "fst/filemd/FmdHandler.hh"
 EOSFSTNAMESPACE_BEGIN
 
 

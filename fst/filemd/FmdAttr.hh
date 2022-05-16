@@ -22,7 +22,7 @@
  ************************************************************************/
 
 #pragma once
-#include "FmdHandler.hh"
+#include "fst/filemd/FmdHandler.hh"
 
 namespace eos::fst {
 
