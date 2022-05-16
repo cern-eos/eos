@@ -157,13 +157,17 @@ target_link_libraries(eos-unit-tests PRIVATE
 # eos-unit-tests-fst executable
 #-------------------------------------------------------------------------------
 add_executable(eos-unit-tests-fst ${UT_FST_SRCS})
-target_compile_definitions(eos-unit-tests-fst PRIVATE -D_NOOFS=1)
+target_compile_definitions(eos-unit-tests-fst PUBLIC -D_NOOFS=1)
+
+target_include_directories(eos-unit-tests-fst PUBLIC
+  ${CMAKE_SOURCE_DIR}/common)
 
 target_link_libraries(eos-unit-tests-fst PRIVATE
   gtest_main
   gmock
   EosFstOss-Static
-  XrdEosFst-Static)
+  XrdEosFst-Static
+  XXHASH::XXHASH)
 
 #-------------------------------------------------------------------------------
 # eos-unit-tests-with-instance executable

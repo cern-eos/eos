@@ -28,7 +28,7 @@
 #undef IN_TEST_HARNESS
 #include "fst/Load.hh"
 #include "common/Constants.hh"
-#include "TmpDirTree.hh"
+#include "unit_tests/fst/TmpDirTree.hh"
 //------------------------------------------------------------------------------
 // Helper method to convert current timestamp to string microseconds
 // representation
@@ -137,6 +137,7 @@ TEST_F(TmpDirTree, ScanDirSetConfig)
   ASSERT_EQ(sd.mDiskIntervalSec, eos::fst::DEFAULT_DISK_INTERVAL);
   ASSERT_EQ(sd.mFsckRefreshIntervalSec, eos::fst::DEFAULT_FSCK_INTERVAL);
 
+#ifdef _NOOFS
   sd.SetConfig(eos::common::SCAN_DISK_INTERVAL_NAME, 3000);
   ASSERT_EQ(sd.mDiskIntervalSec, 3000);
   // This toggle logic is to ensure that CAS functions correctly
@@ -151,4 +152,5 @@ TEST_F(TmpDirTree, ScanDirSetConfig)
   ASSERT_EQ(sd.mFsckRefreshIntervalSec, 2500);
   sd.SetConfig(eos::common::FSCK_REFRESH_INTERVAL_NAME, eos::fst::DEFAULT_FSCK_INTERVAL);
   ASSERT_EQ(sd.mFsckRefreshIntervalSec, eos::fst::DEFAULT_FSCK_INTERVAL);
+#endif
 }
