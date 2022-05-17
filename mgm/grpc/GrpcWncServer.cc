@@ -309,7 +309,7 @@ GrpcWncServer::RunWnc(ThreadAssistant& assistant) noexcept
       mSSLCert
     };
     grpc::SslServerCredentialsOptions sslOps(
-      GRPC_SSL_REQUEST_AND_REQUIRE_CLIENT_CERTIFICATE_AND_VERIFY);
+      GRPC_SSL_REQUEST_CLIENT_CERTIFICATE_AND_VERIFY);
     sslOps.pem_root_certs = mSSLCa;
     sslOps.pem_key_cert_pairs.push_back(keycert);
     wncBuilder.AddListeningPort(bind_address_Wnc,
