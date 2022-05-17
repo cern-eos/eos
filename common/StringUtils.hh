@@ -29,6 +29,7 @@
 #include <sstream>
 #include <string>
 #include <charconv>
+#include <string_view>
 
 #include "common/Namespace.hh"
 #include "common/utils/TypeTraits.hh"
@@ -48,6 +49,11 @@ inline bool startsWith(const std::string& str, const std::string& prefix)
   }
 
   return true;
+}
+
+inline bool endsWith(std::string_view str, std::string_view suffix)
+{
+  return str.size() >= suffix.size() && 0 == str.compare(str.size()-suffix.size(), suffix.size(), suffix);
 }
 
 //------------------------------------------------------------------------------
