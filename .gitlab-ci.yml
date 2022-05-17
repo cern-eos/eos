@@ -194,7 +194,6 @@ build_cs8:
     expire_in: 1 day
     paths:
       - cs8_artifacts/
-  allow_failure: true # @todo dont allow failure when/if we drop Centos8 and switch to Stream
 
 build_cs9:
   stage: build:rpm
@@ -843,8 +842,6 @@ publish_koji_cs9:
     BUILD_NAME: "cs9"
   dependencies:
     - build_cs9
-  when:
-    - manual
 
 publish_koji_cs8:
   <<: *publish_koji_template_definition
