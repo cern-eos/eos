@@ -190,6 +190,14 @@ public:
   }
 
   //----------------------------------------------------------------------------
+  //! Get stdJson of a proc command
+  //----------------------------------------------------------------------------
+  inline const char* GetStdJson() const
+  {
+    return stdJson.c_str();
+  }
+
+  //----------------------------------------------------------------------------
   //! Get the result stream  of a proc command
   //----------------------------------------------------------------------------
   inline const char* GetResult(size_t& size) const override
@@ -324,6 +332,11 @@ public:
   {
     mError = error;
   }
+
+  //----------------------------------------------------------------------------
+  //! Convert output to json format for EOS-wnc
+  //----------------------------------------------------------------------------
+  static Json::Value CallJsonFormatter(const std::string& output);
 
 protected:
   eos::common::VirtualIdentity* pVid; ///< Pointer to virtual identity

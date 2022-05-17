@@ -7,17 +7,14 @@
 //-----------------------------------------------------------------------------
 #include "GrpcWncServer.hh"
 //-----------------------------------------------------------------------------
-#include "GrpcServer.hh"
-#include "GrpcWncInterface.hh"
 #include "console/ConsoleMain.hh"
+#include "GrpcServer.hh"
 #include "mgm/Macros.hh"
 //-----------------------------------------------------------------------------
 #ifdef EOS_GRPC
-
 #include "proto/EosWnc.grpc.pb.h"
 using eos::console::EosWnc;
 using grpc::ServerContext;
-
 #endif // EOS_GRPC
 //-----------------------------------------------------------------------------
 
@@ -213,7 +210,8 @@ class WncService final : public EosWnc::Service
     eos::common::VirtualIdentity vid;
     GrpcServer::Vid(context, vid, request->auth().authkey());
     WAIT_BOOT;
-    return GrpcWncInterface::ExecCmd(vid, request, reply);
+    GrpcWncInterface wnc;
+    return wnc.ExecCmd(vid, request, reply);
   }
 
   // Process gRPC request from the EOS Windows native client for metadata or realtime reply
@@ -250,7 +248,8 @@ class WncService final : public EosWnc::Service
     eos::common::VirtualIdentity vid;
     GrpcServer::Vid(context, vid, request->auth().authkey());
     WAIT_BOOT;
-    return GrpcWncInterface::ExecStreamCmd(vid, request, writer);
+    GrpcWncInterface wnc;
+    return wnc.ExecStreamCmd(vid, request, writer);
   }
 };
 

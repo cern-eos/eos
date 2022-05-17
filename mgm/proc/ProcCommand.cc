@@ -731,4 +731,9 @@ table
   return ok;
 }
 
+Json::Value ProcCommand::CallJsonFormatter(const std::string& output)
+{
+  return IProcCommand::ConvertOutputToJsonFormat(output);
+}
+
 EOSMGMNAMESPACE_END
