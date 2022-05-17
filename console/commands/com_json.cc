@@ -29,10 +29,18 @@
 int
 com_json (char*)
 {
-  json = (!json);
+  gGlobalOpts.mJsonFormat = json = (!json);
+
+  if (json) {
+    interactive = false;
+    global_highlighting = false;
+    runpipe = false;
+  }
+
   if (!silent)
   {
     fprintf(stderr, "json=%d\n", json);
   }
+
   return (0);
 }
