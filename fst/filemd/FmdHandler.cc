@@ -813,4 +813,97 @@ eos::fst::FmdHandler::make_fmd_helper(common::FileId::fileid_t fid,
   return fmd;
 }
 
+void
+UpdateInconsistencyStats(
+    const eos::common::FmdHelper& fmd,
+    std::map<std::string, size_t>& statistics,
+    std::map<std::string, std::set<eos::common::FileId::fileid_t>>& fidset)
+{
+
+  const auto& proto_fmd = fmd.mProtoFmd;
+  if (proto_fmd.blockcxerror()) {
+    statistics["blockxs_err"]++;
+    fidset["blockxs_err"].insert(proto_fmd.fid());
+  }
+
+  if (proto_fmd.layouterror()) {
+    if (proto_fmd.layouterror() & LayoutId::kOrphan) {
+      statistics["orphans_n"]++;
+      fidset["orphans_n"].insert(proto_fmd.fid());
+    }
+
+    if (proto_fmd.layouterror() & LayoutId::kUnregistered) {
+      statistics["unreg_n"]++;
+      fidset["unreg_n"].insert(proto_fmd.fid());
+    }
+
+    if (proto_fmd.layouterror() & LayoutId::kReplicaWrong) {
+      statistics["rep_diff_n"]++;
+      fidset["rep_diff_n"].insert(proto_fmd.fid());
+    }
+
+    if (proto_fmd.layouterror() & LayoutId::kMissing) {
+      statistics["rep_missing_n"]++;
+      fidset["rep_missing_n"].insert(proto_fmd.fid());
+    }
+  }
+
+  if (proto_fmd.mgmsize() != eos::common::FmdHelper::UNDEF) {
+    statistics["m_sync_n"]++;
+
+    if (proto_fmd.size() != eos::common::FmdHelper::UNDEF) {
+      // Report missmatch only for non-rain layout files
+      if (!LayoutId::IsRain(proto_fmd.lid()) &&
+          proto_fmd.size() != proto_fmd.mgmsize()) {
+        statistics["m_mem_sz_diff"]++;
+        fidset["m_mem_sz_diff"].insert(proto_fmd.fid());
+      }
+    } else {
+      // RAIN stripes with mgmsize != 0 and disksize == 0 are broken
+      if (LayoutId::IsRain(proto_fmd.lid())) {
+        if (proto_fmd.mgmsize() && (proto_fmd.disksize() == 0)) {
+          statistics["d_mem_sz_diff"]++;
+          fidset["d_mem_sz_diff"].insert(proto_fmd.fid());
+        }
+      }
+    }
+  }
+
+  if (proto_fmd.disksize() != eos::common::FmdHelper::UNDEF) {
+    statistics["d_sync_n"]++;
+
+    if (proto_fmd.size() != eos::common::FmdHelper::UNDEF) {
+      if (LayoutId::IsRain(proto_fmd.lid())) {
+        if (proto_fmd.disksize() != LayoutId::ExpectedStripeSize(proto_fmd.lid(),
+                                                                 proto_fmd.size())) {
+          statistics["d_mem_sz_diff"]++;
+          fidset["d_mem_sz_diff"].insert(proto_fmd.fid());
+        }
+      } else {
+        if (proto_fmd.size() != proto_fmd.disksize()) {
+          statistics["d_mem_sz_diff"]++;
+          fidset["d_mem_sz_diff"].insert(proto_fmd.fid());
+        }
+      }
+    }
+  }
+
+  if (!proto_fmd.layouterror()) {
+    if (!LayoutId::IsRain(proto_fmd.lid())) {
+      if (proto_fmd.size() && proto_fmd.diskchecksum().length() &&
+          (proto_fmd.diskchecksum() != proto_fmd.checksum())) {
+        statistics["d_cx_diff"]++;
+        fidset["d_cx_diff"].insert(proto_fmd.fid());
+      }
+
+      if (proto_fmd.size() && proto_fmd.mgmchecksum().length() &&
+          (proto_fmd.mgmchecksum() != proto_fmd.checksum())) {
+        statistics["m_cx_diff"]++;
+        fidset["m_cx_diff"].insert(proto_fmd.fid());
+      }
+    }
+  }
+}
+
+
 EOSFSTNAMESPACE_END

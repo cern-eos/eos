@@ -289,4 +289,9 @@ private:
   virtual void SetSyncStatus(eos::common::FileSystem::fsid_t fsid, bool is_syncing) = 0;
 };
 
+void UpdateInconsistencyStats(const eos::common::FmdHelper& fmd,
+                             std::map<std::string, size_t>& statistics,
+                             std::map<std::string,
+                                      std::set<eos::common::FileId::fileid_t>>& fidset);
+
 EOSFSTNAMESPACE_END
