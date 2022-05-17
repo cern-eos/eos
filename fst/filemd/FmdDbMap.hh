@@ -29,36 +29,21 @@
 #include "common/LayoutId.hh"
 #include "namespace/interface/IFileMD.hh"
 #include "namespace/ns_quarkdb/FileMD.hh"
+#include "fst/filemd/FmdHandler.hh"
 
 #ifdef __APPLE__
 #define ECOMM 70
 #endif
 
-//! Forward declaration
-namespace eos
-{
-class QdbContactDetails;
-}
 
 EOSFSTNAMESPACE_BEGIN
 
 //------------------------------------------------------------------------------
 //! Class handling many Fmd changelog files at a time
 //------------------------------------------------------------------------------
-class FmdDbMapHandler : public eos::common::LogId
+class FmdDbMapHandler final : public FmdHandler
 {
 public:
-  //----------------------------------------------------------------------------
-  //! Check if entry has a file checksum error
-  //!
-  //! @param lpath file local path
-  //! @param fsid file system identifier
-  //!
-  //! @return true if file has checksum error, otherwise false
-  //----------------------------------------------------------------------------
-  bool FileHasXsError(const std::string& lpath,
-                      eos::common::FileSystem::fsid_t fsid);
-
   //----------------------------------------------------------------------------
   //! Constructor
   //----------------------------------------------------------------------------
@@ -119,8 +104,7 @@ public:
               eos::common::FileSystem::fsid_t fsid,
               bool force_retrieve = false, bool do_create = false,
               uid_t uid = 0, gid_t gid = 0,
-              eos::common::LayoutId::layoutid_t layoutid = 0);
-
+              eos::common::LayoutId::layoutid_t layoutid = 0) override;
   //----------------------------------------------------------------------------
   //! Delete a record associated with fid and filesystem fsid
   //!
@@ -128,7 +112,7 @@ public:
   //! @param fsid filesystem id
   //----------------------------------------------------------------------------
   void LocalDeleteFmd(eos::common::FileId::fileid_t fid,
-                      eos::common::FileSystem::fsid_t fsid);
+                      eos::common::FileSystem::fsid_t fsid) override;
 
   //----------------------------------------------------------------------------
   //! Commit modified Fmd record to the local database
@@ -137,7 +121,7 @@ public:
   //!
   //! @return true if record was committed, otherwise false
   //----------------------------------------------------------------------------
-  bool Commit(eos::common::FmdHelper* fmd, bool lockit = true);
+  bool Commit(eos::common::FmdHelper* fmd, bool lockit = true) override;
 
   //----------------------------------------------------------------------------
   //! Update local fmd with info from the disk i.e. physical file extended
@@ -159,7 +143,7 @@ public:
                           unsigned long long disk_size,
                           const std::string& disk_xs,
                           unsigned long check_ts_sec, bool filexs_err,
-                          bool blockxs_err, bool layout_err);
+                          bool blockxs_err, bool layout_err) override;
 
   //----------------------------------------------------------------------------
   //! Update local fmd with info from the MGM
@@ -184,123 +168,7 @@ public:
                          unsigned long long ctime_ns,
                          unsigned long long mtime,
                          unsigned long long mtime_ns,
-                         int layouterror, std::string locations);
-
-  //----------------------------------------------------------------------------
-  //! Update local fmd with info from the scanner
-  //!
-  //! @param fid file identifier
-  //! @param fsid file system id
-  //! @param fpath local file path
-  //! @param scan_sz size of the file computed by the scanner
-  //! @param scan_xs_hex hex checksum of the file computed by the scanner
-  //! @param qcl QClient used to communicate to QDB backend
-  //!
-  //! @note: the qclient should favor followers as we're doing only read
-  //!        operations and this should reduce the load on the master QDB
-  //----------------------------------------------------------------------------
-  void UpdateWithScanInfo(eos::common::FileId::fileid_t fid,
-                          eos::common::FileSystem::fsid_t fsid,
-                          const std::string& fpath,
-                          uint64_t scan_sz, const std::string& scan_xs_hex,
-                          std::shared_ptr<qclient::QClient> qcl);
-
-  //----------------------------------------------------------------------------
-  //! Reset disk information for all files stored on a particular file system
-  //!
-  //! @param fsid file system id
-  //!
-  //! @return true if information has been reset successfully
-  //----------------------------------------------------------------------------
-  bool ResetDiskInformation(eos::common::FileSystem::fsid_t fsid);
-
-  //----------------------------------------------------------------------------
-  //! Reset mgm information for all files stored on a particular file system
-  //!
-  //! @param fsid file system id
-  //!
-  //! return true if information has been reset successfully
-  //----------------------------------------------------------------------------
-  bool ResetMgmInformation(eos::common::FileSystem::fsid_t fsid);
-
-  //----------------------------------------------------------------------------
-  //! Resync a single entry from disk
-  //!
-  //! @param fstpath file system location
-  //! @param fsid filesystem id
-  //! @param flaglayouterror indicates a layout error
-  //! @param scan_sz size of file computed by the scanner
-  //! @param scan_xs_hex hex checksum of the file computed by the scanner
-  //!
-  //! @return 0 if successful, otherwise errno
-  //----------------------------------------------------------------------------
-  int ResyncDisk(const char* fstpath,
-                 eos::common::FileSystem::fsid_t fsid,
-                 bool flaglayouterror, uint64_t scan_sz = 0ull,
-                 const std::string& scan_xs_hex = "");
-
-  //----------------------------------------------------------------------------
-  //! Resync files under path into local database
-  //!
-  //! @param path path to scan
-  //! @param fsid file system id
-  //! @param flaglayouterror flag to indicate a layout error
-  //!
-  //! @return true if successful, otherwise false
-  //----------------------------------------------------------------------------
-  bool ResyncAllDisk(const char* path,
-                     eos::common::FileSystem::fsid_t fsid,
-                     bool flaglayouterror);
-
-  //----------------------------------------------------------------------------
-  //! Resync file meta data from MGM into local database
-  //!
-  //! @param fsid filesystem id
-  //! @param fid file id
-  //! @param manager manager hostname
-  //!
-  //! @return true if successful, otherwise false
-  //----------------------------------------------------------------------------
-  bool ResyncMgm(eos::common::FileSystem::fsid_t fsid,
-                 eos::common::FileId::fileid_t fid, const char* manager);
-
-  //----------------------------------------------------------------------------
-  //! Resync all meta data from MGM into local database
-  //!
-  //! @param fsid filesystem id
-  //! param manager manger hostname
-  //!
-  //! @return true if successful, otherwise false
-  //----------------------------------------------------------------------------
-  bool ResyncAllMgm(eos::common::FileSystem::fsid_t fsid,
-                    const char* manager);
-
-  //------------------------------------------------------------------------------
-  //! Resync file meta data from QuarkDB into local database
-  //!
-  //! @param fid file identifier
-  //! @param fsid file system identifier
-  //! @param fpath local file path
-  //! @param qcl QClient object used to connect to QuarkDB (this should have a
-  //!        preference to connect to followers as it's doing only read ops.)
-  //!
-  //! @return 0 if successful, otherwise errno
-  //------------------------------------------------------------------------------
-  int ResyncFileFromQdb(eos::common::FileId::fileid_t fid,
-                        eos::common::FileSystem::fsid_t fsid,
-                        const std::string& fpath,
-                        std::shared_ptr<qclient::QClient> qcl);
-
-  //----------------------------------------------------------------------------
-  //! Resync all meta data from QuarkdDB
-  //!
-  //! @param contact_details QDB contact details
-  //! @param fsid filesystem id
-  //!
-  //! @return true if successful, otherwise false
-  //----------------------------------------------------------------------------
-  bool ResyncAllFromQdb(const QdbContactDetails& contact_details,
-                        eos::common::FileSystem::fsid_t fsid);
+                         int layouterror, std::string locations) override;
 
   //----------------------------------------------------------------------------
   //! Remove ghost entries - entries which are neither on disk nor at the MGM
@@ -426,14 +294,6 @@ private:
   void SetSyncStatus(eos::common::FileSystem::fsid_t fsid, bool is_syncing);
 
   //----------------------------------------------------------------------------
-  //! Move given file to orphans directory and also set its extended attribute
-  //! to reflect the original path to the file.
-  //!
-  //! @param fpath file to move
-  //----------------------------------------------------------------------------
-  void MoveToOrphans(const std::string& fpath) const;
-
-  //----------------------------------------------------------------------------
   //! Lock mutex corresponding to the given file systemd id
   //!
   //! @param fsid file system id
@@ -510,7 +370,7 @@ private:
   //----------------------------------------------------------------------------
   bool LocalRetrieveFmd(eos::common::FileId::fileid_t fid,
                         eos::common::FileSystem::fsid_t fsid,
-                        eos::common::FmdHelper& fmd)
+                        eos::common::FmdHelper& fmd) override
   {
     fmd.Reset();
     auto it = mDbMap.find(fsid);
@@ -544,7 +404,7 @@ private:
   //----------------------------------------------------------------------------
   bool LocalPutFmd(eos::common::FileId::fileid_t fid,
                    eos::common::FileSystem::fsid_t fsid,
-                   const eos::common::FmdHelper& fmd)
+                   const eos::common::FmdHelper& fmd) override
   {
     std::string sval;
     fmd.mProtoFmd.SerializePartialToString(&sval);
@@ -557,6 +417,24 @@ private:
       return false;
     }
   }
+
+  //----------------------------------------------------------------------------
+  //! Reset mgm information for all files stored on a particular file system
+  //!
+  //! @param fsid file system id
+  //!
+  //! return true if information has been reset successfully
+  //----------------------------------------------------------------------------
+  bool ResetMgmInformation(eos::common::FileSystem::fsid_t fsid) final;
+
+  //----------------------------------------------------------------------------
+  //! Reset disk information for all files stored on a particular file system
+  //!
+  //! @param fsid file system id
+  //!
+  //! @return true if information has been reset successfully
+  //----------------------------------------------------------------------------
+  bool ResetDiskInformation(eos::common::FileSystem::fsid_t fsid);
 };
 
 extern FmdDbMapHandler gFmdDbMapHandler;
