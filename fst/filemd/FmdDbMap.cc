@@ -617,16 +617,14 @@ FmdDbMapHandler::GetInconsistencyStatistics(eos::common::FileSystem::fsid_t
     FsReadLock fs_rd_lock(this, fsid);
 
     // We report values only when we are not in the sync phase from disk/mgm
-    for (mDbMap[fsid]->beginIter(false); mDbMap[fsid]->iterate(&k, &v, false);) {
+    for (mDbMap[fsid]->beginIter(false);
+         mDbMap[fsid]->iterate(&k, &v, false);) {
       eos::common::FmdHelper f;
       auto& proto_fmd = f.mProtoFmd;
       proto_fmd.ParseFromString(v->value);
       CollectInconcistencies(f, statistics, fidset);
     }
   }
-
-  eos_static_info("msg=\"finished inconsistency statistics update\" fsid=%lu",
-                  fsid);
   return true;
 }
 
