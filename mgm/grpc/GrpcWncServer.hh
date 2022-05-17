@@ -8,8 +8,7 @@
 //-----------------------------------------------------------------------------
 #include "common/AssistedThread.hh"
 #include "common/Logging.hh"
-#include "common/Mapping.hh"
-#include "mgm/Namespace.hh"
+#include "GrpcWncInterface.hh"
 //-----------------------------------------------------------------------------
 #ifdef EOS_GRPC
 #include <grpc++/grpc++.h>
@@ -47,7 +46,7 @@ public:
   // Default Constructor - enabling port 50052 by default
   GrpcWncServer(int port = 50052) : mWncPort(port), mSSL(false) { }
 
-  virtual ~GrpcWncServer()
+  ~GrpcWncServer()
   {
 #ifdef EOS_GRPC
 

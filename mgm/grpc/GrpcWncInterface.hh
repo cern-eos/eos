@@ -9,8 +9,8 @@
 #ifdef EOS_GRPC
 
 //-----------------------------------------------------------------------------
-#include "namespace/interface/IContainerMD.hh"
-#include "GrpcWncServer.hh"
+#include "common/VirtualIdentity.hh"
+#include "mgm/Namespace.hh"
 #include "proto/EosWnc.grpc.pb.h"
 //-----------------------------------------------------------------------------
 using grpc::ServerWriter;
@@ -31,195 +31,119 @@ public:
 //-----------------------------------------------------------------------------
 // Call appropriate function to execute command from the EOS-wnc gRPC request
 //-----------------------------------------------------------------------------
-  static grpc::Status ExecCmd(eos::common::VirtualIdentity& vid,
-                              const eos::console::RequestProto* request,
-                              eos::console::ReplyProto* reply);
+  grpc::Status ExecCmd(eos::common::VirtualIdentity& vid,
+                       const eos::console::RequestProto* request,
+                       eos::console::ReplyProto* reply);
 
-  static grpc::Status ExecStreamCmd(eos::common::VirtualIdentity& vid,
-                                    const eos::console::RequestProto* request,
-                                    ServerWriter<eos::console::ReplyProto>* writer);
+  grpc::Status ExecStreamCmd(eos::common::VirtualIdentity& vid,
+                             const eos::console::RequestProto* request,
+                             ServerWriter<eos::console::ReplyProto>* writer);
 //-----------------------------------------------------------------------------
 
 private:
 
-  static void RoleChanger(eos::common::VirtualIdentity& vid,
-                          const eos::console::RequestProto* request);
+//-----------------------------------------------------------------------------
+// Class member variables
+//-----------------------------------------------------------------------------
+  bool mJsonFormat;
+  eos::common::VirtualIdentity* mVid;
+  const eos::console::RequestProto* mRequest;
+  eos::console::ReplyProto* mReply;
+  ServerWriter<eos::console::ReplyProto>* mWriter;
+//-----------------------------------------------------------------------------
+
+  void RoleChanger();
+
+  void ExecProcCmd(std::string input, bool admin = true);
 
 //-----------------------------------------------------------------------------
 //  Execute specific EOS command from the EOS-wnc gRPC request
 //-----------------------------------------------------------------------------
-  static grpc::Status Access(eos::common::VirtualIdentity& vid,
-                             const eos::console::RequestProto* request,
-                             eos::console::ReplyProto* reply);
+  grpc::Status Access();
 
-  static grpc::Status Acl(eos::common::VirtualIdentity& vid,
-                          const eos::console::RequestProto* request,
-                          eos::console::ReplyProto* reply);
+  grpc::Status Acl();
 
-  static grpc::Status Archive(eos::common::VirtualIdentity& vid,
-                              const eos::console::RequestProto* request,
-                              eos::console::ReplyProto* reply);
+  grpc::Status Archive();
 
-  static grpc::Status Attr(eos::common::VirtualIdentity& vid,
-                           const eos::console::RequestProto* request,
-                           eos::console::ReplyProto* reply);
+  grpc::Status Attr();
 
-  static grpc::Status Backup(eos::common::VirtualIdentity& vid,
-                             const eos::console::RequestProto* request,
-                             eos::console::ReplyProto* reply);
+  grpc::Status Backup();
 
-  static grpc::Status Chmod(eos::common::VirtualIdentity& vid,
-                            const eos::console::RequestProto* request,
-                            eos::console::ReplyProto* reply);
+  grpc::Status Chmod();
 
-  static grpc::Status Chown(eos::common::VirtualIdentity& vid,
-                            const eos::console::RequestProto* request,
-                            eos::console::ReplyProto* reply);
+  grpc::Status Chown();
 
-  static grpc::Status Config(eos::common::VirtualIdentity& vid,
-                             const eos::console::RequestProto* request,
-                             eos::console::ReplyProto* reply);
+  grpc::Status Config();
 
-  static grpc::Status Convert(eos::common::VirtualIdentity& vid,
-                              const eos::console::RequestProto* request,
-                              eos::console::ReplyProto* reply);
+  grpc::Status Convert();
 
-  static grpc::Status Cp(eos::common::VirtualIdentity& vid,
-                         const eos::console::RequestProto* request,
-                         eos::console::ReplyProto* reply);
+  grpc::Status Cp();
 
-  static grpc::Status Debug(eos::common::VirtualIdentity& vid,
-                            const eos::console::RequestProto* request,
-                            eos::console::ReplyProto* reply);
+  grpc::Status Debug();
 
-  static grpc::Status File(eos::common::VirtualIdentity& vid,
-                           const eos::console::RequestProto* request,
-                           eos::console::ReplyProto* reply);
+  grpc::Status File();
 
-  static grpc::Status Fileinfo(eos::common::VirtualIdentity& vid,
-                               const eos::console::RequestProto* request,
-                               eos::console::ReplyProto* reply);
+  grpc::Status Fileinfo();
 
-  static grpc::Status Find(eos::common::VirtualIdentity& vid,
-                           const eos::console::RequestProto* request,
-                           ServerWriter<eos::console::ReplyProto>* writer);
+  grpc::Status Find();
 
-  static grpc::Status Fs(eos::common::VirtualIdentity& vid,
-                         const eos::console::RequestProto* request,
-                         eos::console::ReplyProto* reply);
+  grpc::Status Fs();
 
-  static grpc::Status Fsck(eos::common::VirtualIdentity& vid,
-                           const eos::console::RequestProto* request,
-                           eos::console::ReplyProto* reply);
+  grpc::Status Fsck();
 
-  static grpc::Status Geosched(eos::common::VirtualIdentity& vid,
-                               const eos::console::RequestProto* request,
-                               eos::console::ReplyProto* reply);
+  grpc::Status Geosched();
 
-  static grpc::Status Group(eos::common::VirtualIdentity& vid,
-                            const eos::console::RequestProto* request,
-                            eos::console::ReplyProto* reply);
+  grpc::Status Group();
 
-  static grpc::Status Health(eos::common::VirtualIdentity& vid,
-                             const eos::console::RequestProto* request,
-                             eos::console::ReplyProto* reply);
+  grpc::Status Health();
 
-  static grpc::Status Io(eos::common::VirtualIdentity& vid,
-                         const eos::console::RequestProto* request,
-                         eos::console::ReplyProto* reply);
+  grpc::Status Io();
 
-  static grpc::Status Ls(eos::common::VirtualIdentity& vid,
-                         const eos::console::RequestProto* request,
-                         ServerWriter<eos::console::ReplyProto>* writer);
+  grpc::Status Ls();
 
-  static grpc::Status Map(eos::common::VirtualIdentity& vid,
-                          const eos::console::RequestProto* request,
-                          eos::console::ReplyProto* reply);
+  grpc::Status Map();
 
-  static grpc::Status Member(eos::common::VirtualIdentity& vid,
-                             const eos::console::RequestProto* request,
-                             eos::console::ReplyProto* reply);
+  grpc::Status Member();
 
-  static grpc::Status Mkdir(eos::common::VirtualIdentity& vid,
-                            const eos::console::RequestProto* request,
-                            eos::console::ReplyProto* reply);
+  grpc::Status Mkdir();
 
-  static grpc::Status Mv(eos::common::VirtualIdentity& vid,
-                         const eos::console::RequestProto* request,
-                         eos::console::ReplyProto* reply);
+  grpc::Status Mv();
 
-  static grpc::Status Node(eos::common::VirtualIdentity& vid,
-                           const eos::console::RequestProto* request,
-                           eos::console::ReplyProto* reply);
+  grpc::Status Node();
 
-  static grpc::Status Ns(eos::common::VirtualIdentity& vid,
-                         const eos::console::RequestProto* request,
-                         eos::console::ReplyProto* reply);
+  grpc::Status Ns();
 
-  static grpc::Status Quota(eos::common::VirtualIdentity& vid,
-                            const eos::console::RequestProto* request,
-                            eos::console::ReplyProto* reply);
+  grpc::Status Quota();
 
-  static grpc::Status Recycle(eos::common::VirtualIdentity& vid,
-                              const eos::console::RequestProto* request,
-                              eos::console::ReplyProto* reply);
+  grpc::Status Recycle();
 
-  static grpc::Status Rm(eos::common::VirtualIdentity& vid,
-                         const eos::console::RequestProto* request,
-                         eos::console::ReplyProto* reply);
+  grpc::Status Rm();
 
-  static grpc::Status Rmdir(eos::common::VirtualIdentity& vid,
-                            const eos::console::RequestProto* request,
-                            eos::console::ReplyProto* reply);
+  grpc::Status Rmdir();
 
-  static grpc::Status Route(eos::common::VirtualIdentity& vid,
-                            const eos::console::RequestProto* request,
-                            eos::console::ReplyProto* reply);
+  grpc::Status Route();
 
-  static grpc::Status Space(eos::common::VirtualIdentity& vid,
-                            const eos::console::RequestProto* request,
-                            eos::console::ReplyProto* reply);
+  grpc::Status Space();
 
-  static grpc::Status StagerRm(eos::common::VirtualIdentity& vid,
-                               const eos::console::RequestProto* request,
-                               eos::console::ReplyProto* reply);
+  grpc::Status StagerRm();
 
-  static grpc::Status Stat(eos::common::VirtualIdentity& vid,
-                           const eos::console::RequestProto* request,
-                           eos::console::ReplyProto* reply);
+  grpc::Status Stat();
 
-  static grpc::Status Status(eos::common::VirtualIdentity& vid,
-                             const eos::console::RequestProto* request,
-                             eos::console::ReplyProto* reply);
+  grpc::Status Status();
 
-  static grpc::Status Token(eos::common::VirtualIdentity& vid,
-                            const eos::console::RequestProto* request,
-                            eos::console::ReplyProto* reply);
+  grpc::Status Token();
 
-  static grpc::Status Touch(eos::common::VirtualIdentity& vid,
-                            const eos::console::RequestProto* request,
-                            eos::console::ReplyProto* reply);
+  grpc::Status Touch();
 
-  static grpc::Status Transfer(eos::common::VirtualIdentity& vid,
-                               const eos::console::RequestProto* request,
-                               eos::console::ReplyProto* reply,
-                               ServerWriter<eos::console::ReplyProto>* writer);
+  grpc::Status Transfer();
 
-  static grpc::Status Version(eos::common::VirtualIdentity& vid,
-                              const eos::console::RequestProto* request,
-                              eos::console::ReplyProto* reply);
+  grpc::Status Version();
 
-  static grpc::Status Vid(eos::common::VirtualIdentity& vid,
-                          const eos::console::RequestProto* request,
-                          eos::console::ReplyProto* reply);
+  grpc::Status Vid();
 
-  static grpc::Status Who(eos::common::VirtualIdentity& vid,
-                          const eos::console::RequestProto* request,
-                          eos::console::ReplyProto* reply);
+  grpc::Status Who();
 
-  static grpc::Status Whoami(eos::common::VirtualIdentity& vid,
-                             const eos::console::RequestProto* request,
-                             eos::console::ReplyProto* reply);
+  grpc::Status Whoami();
 //-----------------------------------------------------------------------------
 };
 
