@@ -194,7 +194,7 @@ void DebugCmd::SetSubcmd(const eos::console::DebugProto_SetProto& set,
     }
   }
 
-  if (set.nodename() == "/eos/*/mgm") {
+  if ((set.nodename() == "/eos/*/mgm") || set.nodename().empty()) {
     reply.set_retc(ret_c);
     return;
   }
