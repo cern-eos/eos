@@ -3072,7 +3072,7 @@ XrdFstOfsFile::MakeReportEnv(XrdOucString& reportString)
              "wb=%llu&wb_min=%llu&wb_max=%llu&wb_sigma=%.02f&"
              "sfwdb=%llu&sbwdb=%llu&sxlfwdb=%llu&sxlbwdb=%llu&"
              "nfwds=%lu&nbwds=%lu&nxlfwds=%lu&nxlbwds=%lu&"
-             "ot=%.03frt=%.02f&rvt=%.02f&wt=%.02f&osize=%llu&csize=%llu&"
+             "ot=%.03f&rt=%.02f&rvt=%.02f&wt=%.02f&osize=%llu&csize=%llu&"
              "delete_on_close=%d&prio_c=%d&prio_l=%d&prio_d=%d&forced_bw=%d&ms_sleep=%llu&%s"
              , this->logId
              , sanitized_path.c_str()
