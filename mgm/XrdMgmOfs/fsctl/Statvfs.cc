@@ -79,8 +79,9 @@ XrdMgmOfs::Statvfs(const char* path,
       // Use caching to avoid often expensive space recomputations
       if ((now - laststat) > (10 + rand() / RAND_MAX)) {
         // Take the sums from all file systems in 'default' space
+        eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
+
         if (FsView::gFsView.mSpaceView.count("default")) {
-          eos::common::RWMutexReadLock vlock(FsView::gFsView.ViewMutex);
           freebytes =
             FsView::gFsView.mSpaceView["default"]->SumLongLong("stat.statfs.freebytes",
                 false);
