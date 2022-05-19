@@ -63,3 +63,27 @@ TEST(DrainProgressTracker, Deletions)
   tracker.dropFsid(fsid);
   EXPECT_FLOAT_EQ(0, tracker.getDrainStatus(fsid));
 }
+
+TEST(DrainProgressTracker, NullTests)
+{
+  DrainProgressTracker tracker;
+  int fsid=1;
+  tracker.setTotalFiles(fsid,0);
+  tracker.increment(fsid);
+  EXPECT_FLOAT_EQ(0, tracker.getDrainStatus(fsid));
+  tracker.setTotalFiles(fsid, 1);
+  EXPECT_FLOAT_EQ(100, tracker.getDrainStatus(fsid));
+}
+
+TEST(DrainProgressTracker, InvalidFS)
+{
+  DrainProgressTracker tracker;
+  int fsid = 100;
+  EXPECT_FLOAT_EQ(0, tracker.getDrainStatus(fsid));
+  tracker.increment(fsid);
+  EXPECT_FLOAT_EQ(0, tracker.getDrainStatus(fsid));
+  tracker.setTotalFiles(fsid, 0);
+  EXPECT_FLOAT_EQ(0, tracker.getDrainStatus(fsid));
+  tracker.setTotalFiles(fsid, 1);
+  EXPECT_FLOAT_EQ(100, tracker.getDrainStatus(fsid));
+}

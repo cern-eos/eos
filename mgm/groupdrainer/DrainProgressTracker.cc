@@ -34,7 +34,8 @@ DrainProgressTracker::getDrainStatus(DrainProgressTracker::fsid_t fsid) const
   auto counter_it = mFsScheduledCounter.find(fsid);
 
   if (total_it == mFsTotalfiles.end() ||
-      counter_it == mFsScheduledCounter.end()) {
+      counter_it == mFsScheduledCounter.end() ||
+      total_it->second == 0) {
     return 0;
   }
 
