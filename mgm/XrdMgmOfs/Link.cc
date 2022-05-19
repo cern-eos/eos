@@ -281,6 +281,7 @@ XrdMgmOfs::readlink(const char* inpath,
   AUTHORIZE(client, &readlink_Env, AOP_Read, "link", inpath, error);
   NAMESPACEMAP;
   BOUNCE_ILLEGAL_NAMES;
+  TOKEN_SCOPE;
   BOUNCE_NOT_ALLOWED;
   ACCESSMODE_R;
   MAYSTALL;

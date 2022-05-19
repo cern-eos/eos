@@ -61,6 +61,7 @@ XrdMgmOfs::access(const char* inpath,
   EXEC_TIMING_END("IdMap");
   gOFS->MgmStats.Add("IdMap", vid.uid, vid.gid, 1);
   BOUNCE_NOT_ALLOWED;
+  TOKEN_SCOPE;
   ACCESSMODE_R;
   MAYSTALL;
   MAYREDIRECT;
