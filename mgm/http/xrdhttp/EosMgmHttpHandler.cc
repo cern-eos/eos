@@ -237,8 +237,9 @@ EosMgmHttpHandler::Config(XrdSysError* eDest, const char* confg,
   }
 
   if (authz_libs.empty() || http_ext_lib_path.empty())  {
-    eos_err("%s", "msg=\"mgmofs.macaroonslib configuration missing\"");
-    return 1;
+    eos_notice("%s", "msg=\"mgmofs.macaroonslib configuration missing so "
+               "there is no token authorization support\"");
+    return 0;
   }
 
   if (!mMgmOfsHandler || !mMgmOfsHandler->mMgmAuthz) {
