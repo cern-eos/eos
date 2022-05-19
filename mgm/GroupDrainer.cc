@@ -297,7 +297,7 @@ GroupDrainer::scheduleTransfer(eos::common::FileId::fileid_t fid,
                                const string& src_grp, const string& tgt_grp)
 {
   if (src_grp.empty() || tgt_grp.empty()) {
-    eos_err("msg=\"Got empty transfer groups!\"");
+    eos_err("%s", "msg=\"Got empty transfer groups!\"");
   }
 
   uint64_t filesz;
@@ -319,7 +319,7 @@ GroupDrainer::scheduleTransfer(eos::common::FileId::fileid_t fid,
 std::pair<bool, GroupDrainer::cache_fid_map_t::iterator>
 GroupDrainer::populateFids(eos::common::FileSystem::fsid_t fsid)
 {
-  eos_debug("%s", "populating FIDS");
+  eos_debug("msg=\"populating FIDS from\" fsid=%d", fsid);
   //TODO: mark FSes in RO after threshold percent drain
   auto total_files = gOFS->eosFsView->getNumFilesOnFs(fsid);
 
@@ -328,7 +328,10 @@ GroupDrainer::populateFids(eos::common::FileSystem::fsid_t fsid)
     mCacheFileList.erase(fsid);
     return {false, mCacheFileList.end()};
   }
-
+  mDrainProgressTracker.setTotalFiles(fsid, total_files);
+  //Check if the FS is in the Retrytracker, skip these FSes,
+  //TODO: We could skip getNumFilesOnFs altogether every loop if we have
+  //RetryTracker entry and only check once every minute or so for the FSID
   if (auto kv = mFsidRetryCtr.find(fsid);
       kv != mFsidRetryCtr.end()) {
     if (!kv->second.need_update(mRetryInterval)) {
