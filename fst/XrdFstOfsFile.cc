@@ -871,7 +871,28 @@ XrdFstOfsFile::pgRead(XrdSfsAio* aioparm, uint64_t opts)
 XrdSfsXferSize
 XrdFstOfsFile::readv(XrdOucIOVec* readV, int readCount)
 {
-  eos_debug("read count=%i", readCount);
+  eos_debug("msg=\"readv request\" count=%i", readCount);
+  std::string output_init, output_final;
+  auto print_readv_request = [](XrdOucIOVec * readv, int num_chunks) {
+    std::ostringstream oss;
+
+    for (int i = 0; i < num_chunks; ++i) {
+      oss << "index=" << i
+          << " offset=" << readv[i].offset
+          << " length=" << readv[i].size
+          << " data_ptr=" << readv[i].data
+          << std::endl;
+    }
+
+    return oss.str();
+  };
+
+  if (EOS_LOGS_DEBUG) {
+    output_init = print_readv_request(readV, readCount);
+    eos_debug("msg=\"initial readv request\" obj=%p content=\"%s\"",
+              readV, output_init.c_str());
+  }
+
   // Copy the XrdOucIOVec structure to XrdCl::ChunkList
   uint32_t total_read = 0;
   XrdCl::ChunkList chunkList;
@@ -886,6 +907,17 @@ XrdFstOfsFile::readv(XrdOucIOVec* readV, int readCount)
 
   uint64_t rv = mLayout->ReadV(chunkList, total_read);
   totalBytes += rv;
+
+  if (EOS_LOGS_DEBUG) {
+    output_final = print_readv_request(readV, readCount);
+    eos_debug("msg=\"final readv request\" obj=%p content=\"%s\"",
+              readV, output_final.c_str());
+
+    if (output_init != output_final) {
+      eos_crit("%s", "msg=\"readv object corrupted\"");
+    }
+  }
+
   return rv;
 }
 
