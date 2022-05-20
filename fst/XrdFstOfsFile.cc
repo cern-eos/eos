@@ -880,7 +880,6 @@ XrdFstOfsFile::readv(XrdOucIOVec* readV, int readCount)
       oss << "index=" << i
           << " offset=" << readv[i].offset
           << " length=" << readv[i].size
-          << " data_ptr=" << readv[i].data
           << std::endl;
     }
 
