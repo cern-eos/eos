@@ -181,17 +181,14 @@ GeoBalancer::populateGeotagsInfo()
   const FsSpace* spaceView = FsView::gFsView.mSpaceView[spaceName];
 
   if (spaceView->size() == 0) {
-    eos_static_info("No filesystems in space=%s", spaceName);
+    eos_static_info("msg=\"no filesystems in space\" space=%s", spaceName);
     return;
   }
 
-  //std::set<eos::common::FileSystem::fsid_t>::const_iterator it;
-  eos::mgm::BaseView::const_iterator it;
-
-  for (it = spaceView->cbegin(); it != spaceView->cend(); it++) {
+  for (auto it = spaceView->cbegin(); it != spaceView->cend(); it++) {
     FileSystem* fs = FsView::gFsView.mIdView.lookupByID(*it);
 
-    if (!fs || fs->GetActiveStatus() != eos::common::ActiveStatus::kOnline) {
+    if (!fs || (fs->GetActiveStatus() != eos::common::ActiveStatus::kOnline)) {
       continue;
     }
 
@@ -230,14 +227,11 @@ GeoBalancer::populateGeotagsInfo()
   }
 
   mAvgUsedSize /= ((double) mGeotagSizes.size());
-  eos_static_info("New average calculated: average=%.02f %%",
+  eos_static_info("msg=\"geo_balancer update average fill\" average=%.02f %%",
                   mAvgUsedSize * 100.0);
   fillGeotagsByAvg();
 }
 
-/*----------------------------------------------------------------------------*/
-bool
-GeoBalancer::fileIsInDifferentLocations(const eos::IFileMD* fmd)
 /*----------------------------------------------------------------------------*/
 /**
  * @brief Checks if a file is spread in more than one location
@@ -245,6 +239,8 @@ GeoBalancer::fileIsInDifferentLocations(const eos::IFileMD* fmd)
  * @return whether the file is in more than one location or not
  */
 /*----------------------------------------------------------------------------*/
+bool
+GeoBalancer::fileIsInDifferentLocations(const eos::IFileMD* fmd)
 {
   const std::string* geotag = 0;
   eos::IFileMD::LocationVector::const_iterator lociter;
@@ -254,6 +250,12 @@ GeoBalancer::fileIsInDifferentLocations(const eos::IFileMD* fmd)
     // ignore filesystem id 0
     if (!(*lociter)) {
       eos_static_err("msg=\"fsid 0 found\" fxid=%08llx", fmd->getId());
+      continue;
+    }
+
+    // Ignore EOS_TAPE_FSID
+    if (EOS_TAPE_FSID == *lociter) {
+      eos_static_debug("msg=\"skip tape fsid\" fxid=%08llx", fmd->getId());
       continue;
     }
 
@@ -268,10 +270,6 @@ GeoBalancer::fileIsInDifferentLocations(const eos::IFileMD* fmd)
 }
 
 /*----------------------------------------------------------------------------*/
-std::string
-GeoBalancer::getFileProcTransferNameAndSize(eos::common::FileId::fileid_t fid,
-    uint64_t* size)
-/*----------------------------------------------------------------------------*/
 /**
  * @brief Produces a file conversion path to be placed in the proc directory
  *        and also returns its size
@@ -280,6 +278,9 @@ GeoBalancer::getFileProcTransferNameAndSize(eos::common::FileId::fileid_t fid,
  * @return the file path
  */
 /*----------------------------------------------------------------------------*/
+std::string
+GeoBalancer::getFileProcTransferNameAndSize(eos::common::FileId::fileid_t fid,
+    uint64_t* size)
 {
   char fileName[1024];
   std::shared_ptr<eos::IFileMD> fmd;
@@ -307,8 +308,8 @@ GeoBalancer::getFileProcTransferNameAndSize(eos::common::FileId::fileid_t fid,
       }
 
       if (fileIsInDifferentLocations(fmd.get())) {
-        eos_static_debug("msg=\"filename=%s fxid=%08llx is already in more than "
-                         "one location\"", fmd->getName().c_str(), fileid);
+        eos_static_debug("msg=\"file is already in more than one location\" "
+                         "name=%s fxid=%08llx", fmd->getName().c_str(), fileid);
         return std::string("");
       }
 
@@ -337,65 +338,89 @@ GeoBalancer::getFileProcTransferNameAndSize(eos::common::FileId::fileid_t fid,
   return std::string(fileName);
 }
 
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Update the list of ongoing transfers
+//------------------------------------------------------------------------------
 void
 GeoBalancer::updateTransferList()
-/*----------------------------------------------------------------------------*/
-/**
- * @brief For each entry in mTransfers, checks if the files' paths exist, if
- *        they don't, they are deleted from the mTransfers
- */
-/*----------------------------------------------------------------------------*/
 {
-  std::map<eos::common::FileId::fileid_t, std::string>::iterator it;
+  // Update tracker for scheduled jobs if using new converter
+  if (gOFS->mConverterDriver) {
+    gOFS->mFidTracker.DoCleanup(TrackerType::Convert);
+  }
 
-  for (it = mTransfers.begin(); it != mTransfers.end();) {
-    eos::common::VirtualIdentity rootvid = eos::common::VirtualIdentity::Root();
-    XrdOucErrInfo error;
-    const std::string& fileName = (*it).second;
-    struct stat buf;
-
-    if (gOFS->_stat(fileName.c_str(), &buf, error, rootvid, "")) {
-      mTransfers.erase(it++);
+  for (auto it = mTransfers.begin(); it != mTransfers.end();) {
+    if (gOFS->mConverterDriver) {
+      if (!gOFS->mFidTracker.HasEntry(it->first)) {
+        mTransfers.erase(it++);
+      } else {
+        ++it;
+      }
     } else {
-      ++it;
+      eos::common::VirtualIdentity rootvid = eos::common::VirtualIdentity::Root();
+      XrdOucErrInfo error;
+      const std::string& fileName = (*it).second;
+      struct stat buf;
+
+      if (gOFS->_stat(fileName.c_str(), &buf, error, rootvid, "")) {
+        mTransfers.erase(it++);
+      } else {
+        ++it;
+      }
     }
   }
 
-  eos_static_info("scheduledtransfers=%d", mTransfers.size());
+  eos_static_info("msg=\"geo_balancer update transfers\" scheduled_transfers=%d",
+                  mTransfers.size());
 }
 
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Creates the conversion file in proc for the file ID, from the given
+// fromGeotag (updates the cache structures).
+//
+// @note: All this works based on the assumption that kScattered is the default
+// placement policy.
+//------------------------------------------------------------------------------
 bool
 GeoBalancer::scheduleTransfer(eos::common::FileId::fileid_t fid,
                               const std::string& fromGeotag)
-/*----------------------------------------------------------------------------*/
-/**
- * @brief Creates the conversion file in proc for the file ID, from the given
- *        fromGeotag (updates the cache structures)
- * @param fid the id of the file to be transferred
- * @param fromGeotag the geotag of the location where the file is located
- * @return whether the transfer file was successfully created or not
- */
-/*----------------------------------------------------------------------------*/
 {
-  eos::common::VirtualIdentity rootvid = eos::common::VirtualIdentity::Root();
-  XrdOucErrInfo mError;
   uint64_t size = 0;
-  std::string fileName = getFileProcTransferNameAndSize(fid, &size);
+  std::string file_path = getFileProcTransferNameAndSize(fid, &size);
 
-  if (fileName == "") {
+  if (file_path == "") {
     return false;
   }
 
-  if (!gOFS->_touch(fileName.c_str(), mError, rootvid, 0)) {
-    eos_static_info("scheduledfile=%s", fileName.c_str());
-  } else {
-    eos_static_err("msg=\"failed to schedule transfer\" schedulingfile=\"%s\"",
-                   fileName.c_str());
+  if (gOFS->mConverterDriver) { // use new converter
+    std::string conv_tag = file_path;
+    conv_tag += "^geobalancer^";
+    conv_tag.erase(0, gOFS->MgmProcConversionPath.length() + 1);
+
+    if (gOFS->mConverterDriver->ScheduleJob(fid, conv_tag)) {
+      eos_static_info("msg=\"geo_balancer scheduled job\" file=\"%s\" "
+                      "from_geotag=\"%s\"", conv_tag.c_str(),
+                      fromGeotag.c_str());
+    } else {
+      eos_static_err("msg=\"geo_balancer failed to schedule job\" "
+                     "file=\"%s\" from_geotag=\"%s\"", conv_tag.c_str(),
+                     fromGeotag.c_str());
+      return false;
+    }
+  } else { // use old converter
+    XrdOucErrInfo error;
+    eos::common::VirtualIdentity rootvid = eos::common::VirtualIdentity::Root();
+
+    if (!gOFS->_touch(file_path.c_str(), error, rootvid, 0)) {
+      eos_static_info("msg=\"successfully scheduled transfer\" file=%s",
+                      file_path.c_str());
+    } else {
+      eos_static_err("msg=\"failed to schedule transfer\" file=\"%s\"",
+                     file_path.c_str());
+    }
   }
 
-  mTransfers[fid] = fileName.c_str();
+  mTransfers[fid] = file_path.c_str();
   uint64_t usedBytes = mGeotagSizes[fromGeotag]->usedBytes();
   mGeotagSizes[fromGeotag]->setUsedBytes(usedBytes - size);
   fillGeotagsByAvg();
@@ -469,7 +494,7 @@ GeoBalancer::prepareTransfer()
 /*----------------------------------------------------------------------------*/
 {
   if (mGeotagsOverAvg.size() == 0) {
-    eos_static_debug("No geotags over the average!");
+    eos_static_debug("%s", "msg=\"no geotags above average\"");
     return;
   }
 
@@ -484,7 +509,7 @@ GeoBalancer::prepareTransfer()
     eos::common::FileId::fileid_t fid = chooseFidFromGeotag(*over_it);
 
     if ((int) fid == -1) {
-      eos_static_debug("Couldn't choose any FID to schedule: failedgeotag=%s",
+      eos_static_debug("msg=\"no fid found to schedule\" failed_geotag=%s",
                        (*over_it).c_str());
       continue;
     }
@@ -516,14 +541,11 @@ GeoBalancer::cacheExpired()
   return false;
 }
 
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+//Schedule a pre-defined number of transfers
+//------------------------------------------------------------------------------
 void
 GeoBalancer::prepareTransfers(int nrTransfers)
-/*--------------------------------------------------------------------------*/
-/**
- * @brief Schedule a pre-defined number of transfers
- */
-/*--------------------------------------------------------------------------*/
 {
   int allowedTransfers = nrTransfers - mTransfers.size();
 
@@ -542,58 +564,65 @@ GeoBalancer::prepareTransfers(int nrTransfers)
 void
 GeoBalancer::GeoBalance(ThreadAssistant& assistant) noexcept
 {
+  uint64_t timeout_ns = 100 * 1e6; // 100ms
   eos::common::VirtualIdentity rootvid = eos::common::VirtualIdentity::Root();
-  XrdOucErrInfo error;
   gOFS->WaitUntilNamespaceIsBooted(assistant);
   assistant.wait_for(std::chrono::seconds(10));
 
   // Loop forever until cancelled
   while (!assistant.terminationRequested()) {
-    bool isSpaceGeoBalancer = true;
-    bool isMaster = true;
+    bool is_enabled = true;
     int nrTransfers = 0;
-    {
-      // Extract the current settings if conversion enabled and how many
-      // conversion jobs should run
-      uint64_t timeout_ns = 100 * 1e6; // 100ms
+    FsSpace* space {nullptr};
+    decltype(FsView::gFsView.mSpaceView.begin()) it_space;
 
-      // Try to read lock the mutex
-      while (!FsView::gFsView.ViewMutex.TimedRdLock(timeout_ns)) {
-        if (assistant.terminationRequested()) {
-          return;
-        }
+    if (!gOFS->mMaster->IsMaster()) {
+      eos_static_debug("%s", "msg=\"geo balancer is disabled for slave\"");
+      goto wait;
+    }
+
+    // Try to read lock the mutex
+    while (!FsView::gFsView.ViewMutex.TimedRdLock(timeout_ns)) {
+      if (assistant.terminationRequested()) {
+        return;
       }
+    }
 
-      FsSpace* space = FsView::gFsView.mSpaceView[mSpaceName.c_str()];
-
-      if (space->GetConfigMember("converter") != "on") {
-        eos_static_debug("Converter is off for! It needs to be on "
-                         "for the geotag balancer to work. space=%s",
-                         mSpaceName.c_str());
-        FsView::gFsView.ViewMutex.UnLockRead();
-        goto wait;
-      }
-
-      isSpaceGeoBalancer = space->GetConfigMember("geobalancer") == "on";
-      nrTransfers = atoi(space->GetConfigMember("geobalancer.ntx").c_str());
-      mThreshold =
-        atof(space->GetConfigMember("geobalancer.threshold").c_str());
-      mThreshold /= 100.0;
+    if (!FsView::gFsView.mSpaceGroupView.count(mSpaceName.c_str())) {
       FsView::gFsView.ViewMutex.UnLockRead();
-    }
-    isMaster = gOFS->mMaster->IsMaster();
-
-    if (isMaster && isSpaceGeoBalancer) {
-      eos_static_info("geobalancer is enabled ntx=%d ", nrTransfers);
-    } else {
-      if (isMaster) {
-        eos_static_debug("geotag balancer is disabled");
-      } else {
-        eos_static_debug("geotag balancer is in slave mode");
-      }
+      eos_static_warning("msg=\"no space to geo balance\" space=\"%s\"",
+                         mSpaceName.c_str());
+      break;
     }
 
-    if (isMaster && isSpaceGeoBalancer) {
+    it_space = FsView::gFsView.mSpaceView.find(mSpaceName.c_str());
+
+    if (it_space == FsView::gFsView.mSpaceView.end()) {
+      eos_static_err("msg=\"geo_balancer terminating, no such space\" space=%s",
+                     mSpaceName.c_str());
+      break;
+    }
+
+    space = it_space->second;
+
+    if (space->GetConfigMember("converter") != "on") {
+      eos_static_debug("msg=\"geo balancer disabled since it needs the "
+                       "converter enabled to work and it's not\" space=%s",
+                       mSpaceName.c_str());
+      FsView::gFsView.ViewMutex.UnLockRead();
+      goto wait;
+    }
+
+    // Extract the current settings if conversion enabled and how many
+    // conversion jobs should run
+    is_enabled = space->GetConfigMember("geobalancer") == "on";
+    nrTransfers = atoi(space->GetConfigMember("geobalancer.ntx").c_str());
+    mThreshold = atof(space->GetConfigMember("geobalancer.threshold").c_str());
+    mThreshold /= 100.0;
+    FsView::gFsView.ViewMutex.UnLockRead();
+
+    if (is_enabled) {
+      eos_static_info("msg=\"geo balancer is enabled\" ntx=%d ", nrTransfers);
       updateTransferList();
 
       if ((int) mTransfers.size() >= nrTransfers) {
@@ -606,6 +635,8 @@ GeoBalancer::GeoBalance(ThreadAssistant& assistant) noexcept
       }
 
       prepareTransfers(nrTransfers);
+    } else {
+      eos_static_debug("%s", "msg=\"geo balancer is disabled\"");
     }
 
 wait:

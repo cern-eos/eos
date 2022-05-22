@@ -65,7 +65,7 @@ ConversionInfo::ConversionInfo(const eos::common::FileId::fileid_t fid,
 // Parse a conversion string representation into a conversion info object
 //
 // A conversion string has the following format:
-// <fid(016hex)>:<space.group>#<layoutid(08hex)>[~<placement_policy>][^eos.app=tag^][+]
+// <fid(016hex)>:<space.group>#<layoutid(08hex)>[^app_tag^][~<placement_policy>][+]
 //----------------------------------------------------------------------------
 std::shared_ptr<ConversionInfo> ConversionInfo::parseConversionString(
   std::string sconversion)

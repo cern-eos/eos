@@ -147,6 +147,18 @@ private:
 
   void prepareTransfer(void);
 
+  //----------------------------------------------------------------------------
+  //! @brief Creates the conversion file in proc for the file ID, from the
+  //! given fromGeotag (updates the cache structures)
+  //!
+  //! @note: All this works based on the assumption that kScattered is the
+  //! default placement policy.
+  //!
+  //! @param fid the id of the file to be transferred
+  //! @param fromGeotag the geotag of the location where the file is located
+  //!
+  //! @return whether the transfer file was successfully created or not
+  //----------------------------------------------------------------------------
   bool scheduleTransfer(eos::common::FileId::fileid_t fid,
                         const std::string& sourceGeotag);
 
