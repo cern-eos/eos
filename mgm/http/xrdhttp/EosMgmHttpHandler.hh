@@ -152,6 +152,9 @@ public:
   int ProcessReq(XrdHttpExtReq& req) override;
 
 private:
+#ifdef IN_TEST_HARNESS
+public:
+#endif
   bool mRedirectToHttps; ///< Flag if http traffic should be redirected to https
   XrdHttpExtHandler* mTokenHttpHandler; ///< Macaroons ext http handler
   //! Authz plugin from libMacaroons/libXrdSciTokens
@@ -259,5 +262,18 @@ private:
   //!
   //! @return true if the request is a macaroon token request, false otherwise
   //----------------------------------------------------------------------------
-  bool isMacaroonRequest(const XrdHttpExtReq& req);
+  bool IsMacaroonRequest(const XrdHttpExtReq& req);
+
+  //----------------------------------------------------------------------------
+  //! Build path and opaque information based on the HTTP headers
+  //!
+  //! @param normalized_headers HTTP headers
+  //! @param path canonical path of the HTTP request
+  //! @param env_opaque opaque information stored in XrdOucEnv object
+  //!
+  //! @return true if successful, otherwise false
+  //----------------------------------------------------------------------------
+  bool BuildPathAndEnvOpaque(const std::map<std::string, std::string>&
+                             normalized_headers, std::string& path,
+                             std::unique_ptr<XrdOucEnv>& env_opaque);
 };

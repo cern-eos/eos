@@ -311,7 +311,6 @@ EosMgmHttpHandler::MatchesPath(const char* verb, const char* path)
 int
 EosMgmHttpHandler::ProcessReq(XrdHttpExtReq& req)
 {
-  using eos::common::StringConversion;
   std::string body;
   // @todo(esindril): handle redirection to new MGM master if the
   // current one is a slave
@@ -323,7 +322,7 @@ EosMgmHttpHandler::ProcessReq(XrdHttpExtReq& req)
                               errmsg.length());
   }
 
-  if (isMacaroonRequest(req)) {
+  if (IsMacaroonRequest(req)) {
     if (mTokenHttpHandler) {
       // Delegate request to the XrdMacaroons library
       eos_info("%s", "msg=\"delegate request to XrdMacaroons library\"");
@@ -368,23 +367,22 @@ EosMgmHttpHandler::ProcessReq(XrdHttpExtReq& req)
 
   // Native XrdHttp access
   if (normalized_headers.find("x-forwarded-for") == normalized_headers.end()) {
-    std::string authz_data = (normalized_headers.count("authorization") ?
-                              normalized_headers["authorization"] : "");
-    std::string path = normalized_headers["xrd-http-fullresource"];
-    eos::common::Path canonical_path(path);
-    path = canonical_path.GetFullPath().c_str();
-    std::string enc_authz = StringConversion::curl_default_escaped(authz_data);
+    std::string path;
+    std::unique_ptr<XrdOucEnv> env_opaque;
     Access_Operation oper = MapHttpVerbToAOP(req.verb);
-    std::string data = "authz=";
-    data += enc_authz;
-    std::unique_ptr<XrdOucEnv> env = std::make_unique<XrdOucEnv>(data.c_str(),
-                                     data.length());
+
+    if (!BuildPathAndEnvOpaque(normalized_headers, path, env_opaque)) {
+      const std::string errmsg = "conflicting authorization info present";
+      eos_static_err("msg=\"%s\" path=\"%s\"", errmsg.c_str(), path.c_str());
+      return req.SendSimpleResp(400, errmsg.c_str(), "", errmsg.c_str(),
+                                errmsg.length());
+    }
 
     // Make a copy of the original XrdSecEntity so that the authorization plugin
     // can update the name of the client from the macaroon info
     if (mTokenAuthzHandler &&
         mTokenAuthzHandler->Access(&client, path.c_str(), oper,
-                                   env.get()) == XrdAccPriv_None) {
+                                   env_opaque.get()) == XrdAccPriv_None) {
       eos_static_err("msg=\"(token) authorization failed\" path=\"%s\"",
                      path.c_str());
       std::string errmsg = "token authorization failed";
@@ -762,7 +760,7 @@ std::optional<int> EosMgmHttpHandler::readBody(XrdHttpExtReq& req,
 //------------------------------------------------------------------------------
 // Returns true if the request is a macaroon token request false otherwise
 //------------------------------------------------------------------------------
-bool EosMgmHttpHandler::isMacaroonRequest(const XrdHttpExtReq& req)
+bool EosMgmHttpHandler::IsMacaroonRequest(const XrdHttpExtReq& req)
 {
   if (req.verb == "POST") {
     const auto& contentTypeItor = req.headers.find("Content-Type");
@@ -775,4 +773,64 @@ bool EosMgmHttpHandler::isMacaroonRequest(const XrdHttpExtReq& req)
   }
 
   return false;
+}
+
+//------------------------------------------------------------------------------
+// Build path and opaque information based on the HTTP headers
+//------------------------------------------------------------------------------
+bool
+EosMgmHttpHandler::BuildPathAndEnvOpaque(const
+    std::map<std::string, std::string>&
+    normalized_headers, std::string& path,
+    std::unique_ptr<XrdOucEnv>& env_opaque)
+{
+  using eos::common::StringConversion;
+  // Extract path and any opaque info that might be present in the headers
+  // /path/to/file?and=some&opaque=info
+  path.clear();
+  auto it = normalized_headers.find("xrd-http-fullresource");
+
+  if (it == normalized_headers.end()) {
+    eos_static_err("%s", "msg=\"no xrd-http-fullresource header\"");
+    return false;
+  }
+
+  path = it->second;
+  std::string opaque;
+  size_t pos = path.find('?');
+
+  if ((pos != std::string::npos) && (pos != path.length())) {
+    opaque = path.substr(pos + 1);
+    path = path.substr(0, pos);
+    eos::common::Path canonical_path(path);
+    path = canonical_path.GetFullPath().c_str();
+  }
+
+  // Check if there is an explicit authorization header
+  std::string http_authz;
+  it = normalized_headers.find("authorization");
+
+  if (it != normalized_headers.end()) {
+    http_authz = it->second;
+  }
+
+  // If opaque data aleady contains authorization info i.e. "&authz=..." and we also
+  // have a HTTP authorization header then we fail
+  bool has_opaque_authz = (opaque.find("authz=") != std::string::npos);
+
+  if (has_opaque_authz && !http_authz.empty()) {
+    eos_static_err("msg=\"request has both opaque and http authorization\" "
+                   "opaque=\"%s\" http_authz=\"%s\"", opaque.c_str(),
+                   http_authz.c_str());
+    return false;
+  }
+
+  if (!http_authz.empty()) {
+    std::string enc_authz = StringConversion::curl_default_escaped(http_authz);
+    opaque += "&authz=";
+    opaque += enc_authz;
+  }
+
+  env_opaque = std::make_unique<XrdOucEnv>(opaque.c_str(), opaque.length());
+  return true;
 }

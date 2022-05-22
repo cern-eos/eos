@@ -439,7 +439,6 @@ EosTok::Requester() const
 
 bool
 EosTok::IsEosToken(XrdOucEnv* env)
-
 {
   const std::string http_enc_tag = "Bearer%20zteos64";
   const std::string http_tag = "Bearer zteos64";
