@@ -84,6 +84,7 @@ set(MGM_UT_SRCS
   mgm/bulk-request/PrepareManagerTest.cc
   mgm/bulk-request/BulkRequestPrepareManagerTest.cc
   mgm/bulk-request/MockPrepareMgmFSInterface.cc
+  mgm/http/EosMgmHttpHandlerTests.cc
   mgm/http/rest-api/tape/RestApiTest.cc
   mgm/http/rest-api/tape/JsonCPPTapeModelBuilderTest.cc)
 
@@ -145,6 +146,7 @@ add_executable(eos-unit-tests ${UT_SRCS})
 target_link_libraries(eos-unit-tests PRIVATE
   EosConsoleHelpers-Objects
   EosConsoleCommands-Objects
+  EosMgmHttp-Objects
   gtest_main
   gmock
   qclient
