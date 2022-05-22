@@ -496,8 +496,9 @@ ConversionJob::Merge()
                                           response, timeout);
 
     if (!status.IsOK() || (response->ToString() != "OK")) {
-      eos_static_err("msg=\"failed local rename on file system\" fsid=%u status=%d",
-                     loc, status.IsOK());
+      eos_static_err("msg=\"failed local rename on file system\" fsid=%u "
+                     "status=%d err_msg=\"%s\"", loc, status.IsOK(),
+                     status.GetErrorMessage().c_str());
       failed_rename = true;
       delete response;
       break;
