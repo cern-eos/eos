@@ -166,7 +166,11 @@ build_rl8:
     expire_in: 1 day
     paths:
       - rl8_artifacts/
+  only:
+    - schedules
+    - tags
   allow_failure: true # @todo dont allow failure when/if we drop Centos8 and switch to Stream
+
 
 build_cs8:
   stage: build:rpm
@@ -194,6 +198,10 @@ build_cs8:
     expire_in: 1 day
     paths:
       - cs8_artifacts/
+  only:
+    - schedules
+    - tags
+
 
 build_cs9:
   stage: build:rpm
@@ -220,6 +228,9 @@ build_cs9:
     expire_in: 1 day
     paths:
       - cs9_artifacts/
+  only:
+    - schedules
+    - tags
   allow_failure: true # @todo dont allow failure when/if we switch to Stream
 
 
@@ -253,6 +264,9 @@ build_cs9_arm:
     expire_in: 1 day
     paths:
       - cs9_artifacts/
+  only:
+    - schedules
+    - tags
   allow_failure: true # @todo dont allow failure when/if we switch to Stream
   tags:
     - docker-arm
