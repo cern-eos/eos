@@ -1268,7 +1268,7 @@ ProcCommand::File()
       cmdok = true;
       bool useLayout = true;
       bool truncate = false;
-      size_t size=0;
+      size_t size = 0;
 
       if (pOpaque->Get("mgm.file.touch.nolayout")) {
         useLayout = false;
@@ -1279,7 +1279,7 @@ ProcCommand::File()
       }
 
       if (pOpaque->Get("mgm.file.touch.size")) {
-	size = strtoull(pOpaque->Get("mgm.file.touch.size"),0,10);
+        size = strtoull(pOpaque->Get("mgm.file.touch.size"), 0, 10);
       }
 
       if (!spath.length()) {
@@ -1288,7 +1288,8 @@ ProcCommand::File()
         stdErr += "'";
         retc = ENOENT;
       } else {
-        if (gOFS->_touch(spath.c_str(), *mError, *pVid, 0, true, useLayout, truncate, size)) {
+        if (gOFS->_touch(spath.c_str(), *mError, *pVid, 0, true, useLayout, truncate,
+                         size)) {
           stdErr = "error: unable to touch '";
           stdErr += spath.c_str();
           stdErr += "'";
@@ -2079,6 +2080,29 @@ ProcCommand::File()
           retc = errno;
           return SFS_OK;
         } else {
+          {
+            // Copy the xattrs of the current file to the newly restored one
+            std::set<std::string> exclude_xattrs {"sys.utrace", "sys.vtrace"};
+            eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
+            auto versioned_fmd = gOFS->eosView->getFile(versionedpath.c_str());
+            auto restored_fmd = gOFS->eosView->getFile(spath.c_str());
+
+            if (!versioned_fmd || !restored_fmd) {
+              stdErr = "error: failed to copy xattrs";
+              retc = EINVAL;
+              return SFS_OK;
+            }
+
+            eos::IFileMD::XAttrMap map_xattrs = versioned_fmd->getAttributes();
+
+            for (const auto& xattr : map_xattrs) {
+              if (exclude_xattrs.find(xattr.first) == exclude_xattrs.end()) {
+                restored_fmd->setAttribute(xattr.first, xattr.second);
+              }
+            }
+
+            gOFS->eosView->updateFileStore(restored_fmd.get());
+          }
           stdOut += "success: staged '";
           stdOut += versionpath;
           stdOut += "' back to '";
