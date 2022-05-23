@@ -571,7 +571,7 @@ void SpaceCmd::DefineSubcmd(const eos::console::SpaceProto_DefineProto& define,
   }
 
   if ( (define.groupsize() * define.groupmod()) > 65536 ) {
-    reply.set_std_err("error: the product of <groupsize>*<groupsize>must be a positive integer (<=65536)!");
+    reply.set_std_err("error: the product of <groupsize>*<groupsize> must be a positive integer (<=65536)!");
     reply.set_retc(EINVAL);
     return;
   }
