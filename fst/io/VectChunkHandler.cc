@@ -83,6 +83,7 @@ VectChunkHandler::Update(AsyncMetaHandler* metaHandler,
   mRespLength = 0;
   mLength = 0;
   mIsWrite = isWrite;
+  mChunkList.clear();
 
   // Copy the list of chunks and compute buffer size
   for (auto chunk = chunkList.begin(); chunk != chunkList.end(); ++chunk) {

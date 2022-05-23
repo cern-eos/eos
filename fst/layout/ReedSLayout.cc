@@ -253,8 +253,9 @@ ReedSLayout::RecoverPiecesInGroup(XrdCl::ChunkList& grp_errs)
     RecycleGroup(grp);
     return true;
   } else if (invalid_ids.size() > mNbParityFiles) {
-    eos_static_err("%s", "msg=\"more blocks corrupted than the maximum "
-                   "number supported\"");
+    eos_err("msg=\"more blocks corrupted than the maximum number "
+            "supported\" parity=%d corrupted=%d", mNbParityFiles,
+            invalid_ids.size());
     RecycleGroup(grp);
     return false;
   }
