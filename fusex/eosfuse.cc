@@ -194,6 +194,9 @@ EosFuse::UsageSet()
     "                     system.eos.resetstat - <mount>     : reset the statistic counters\n";
   usage +=
     "                     system.eos.log <mode> <mount>      : make log file public or private with <mode>=public|private\n";
+
+  usage +=          
+    "                     system.eos.fuzz all|config <mount> : enabling fuzzing in all modes with scaler 1 (all) or switch back to the initial configuration (config)\n";
   usage += "\n";
   return usage;
 }
@@ -5268,6 +5271,47 @@ EosFuse::setxattr(fuse_req_t req, fuse_ino_t ino, const char* xattr_name,
     static std::string s_dropallcap = "system.eos.dropallcap";
     static std::string s_resetstat = "system.eos.resetstat";
     static std::string s_log = "system.eos.log";
+    static std::string s_fuzz = "system.eos.fuzz";
+
+    if (key.substr(0, s_fuzz.length()) == s_fuzz) {
+      local_setxattr = true;
+      // only root can do this configuration changes
+      if (fuse_req_ctx(req)->uid == 0) {
+        rc = EINVAL;
+	if (value == "all") {
+	  // set all scalers to fail all the time
+	  XrdCl::Fuzzing::Configure(1,
+				    1,
+				    1,
+				    1,
+				    1);
+	  rc = 0;
+	} 
+
+	if (value == "config") {
+	  // set all scalers as referenced in the startup configuration
+	  XrdCl::Fuzzing::Configure(Instance().Config().fuzzing.open_async_submit,
+				    Instance().Config().fuzzing.open_async_return,
+				    Instance().Config().fuzzing.open_async_submit_fatal,
+				    Instance().Config().fuzzing.open_async_return_fatal,
+				    Instance().Config().fuzzing.read_async_return);
+	  rc = 0;
+	}
+
+
+	if (value == "none") {
+	  // disable all fuzzing
+	  XrdCl::Fuzzing::Configure(0,
+				    0,
+				    0,
+				    0,
+				    0);
+	  rc = 0;
+	}
+      } else {
+	rc = EPERM;
+      }      
+    }
 
     if (key.substr(0, s_debug.length()) == s_debug) {
       local_setxattr = true;
