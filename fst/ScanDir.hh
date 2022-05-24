@@ -163,11 +163,13 @@ public:
   //! depending on the IO load on the mountpoint
   //!
   //! @param offset current offset in file
-  //! @param open_ts_sec open timestamp in seconds from epoch
+  //! @param open_ts time point when file was opened
   //! @param scan_rate current scan rate, if 0 then then rate limiting is
   //!        disabled
   //----------------------------------------------------------------------------
-  void EnforceAndAdjustScanRate(const off_t offset, const uint64_t open_ts_sec,
+  void EnforceAndAdjustScanRate(const off_t offset,
+                                std::chrono::time_point
+                                <std::chrono::system_clock> open_ts,
                                 int& scan_rate);
 
 #ifndef _NOOFS
@@ -266,7 +268,7 @@ public:
   bool mBgThread; ///< If true running as background thread inside the FST
   AssistedThread mDiskThread; ///< Thread doing the scanning of the disk
   AssistedThread mNsThread; ///< Thread doing the scanning of NS entries
-  eos::common::SteadyClock mClock; ///< Clock wrapper also used for testing
+  eos::common::SteadyClock mClock; ///< Clock wrapper used for testing
   //! Rate limiter for ns scanning which actually limits the number of stat
   //! requests send across the disks in one FSTs.
   std::unique_ptr<eos::common::IRateLimit> mRateLimit;

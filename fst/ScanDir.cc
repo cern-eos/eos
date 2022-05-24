@@ -446,10 +446,10 @@ ScanDir::RunDiskScan(ThreadAssistant& assistant) noexcept
   while (!assistant.terminationRequested()) {
     mNumScannedFiles =  mTotalScanSize =  mNumCorruptedFiles = 0;
     mNumHWCorruptedFiles =  mNumTotalFiles = mNumSkippedFiles = 0;
-    auto start_ts = mClock.getTime();
+    auto start_ts = std::chrono::system_clock::now();
     // Do the heavy work
     ScanSubtree(assistant);
-    auto finish_ts = mClock.getTime();
+    auto finish_ts = std::chrono::system_clock::now();
     seconds duration = duration_cast<seconds>(finish_ts - start_ts);
     std::string log_msg =
       SSTR("[ScanDir] Directory: " << mDirPath << " files=" << mNumTotalFiles
@@ -805,8 +805,7 @@ ScanDir::ScanFileLoadAware(const std::unique_ptr<eos::fst::FileIo>& io,
 
   int64_t nread = 0;
   off_t offset = 0;
-  uint64_t open_ts_msec = std::chrono::duration_cast<std::chrono::milliseconds>
-                          (mClock.getTime().time_since_epoch()).count();
+  const auto open_ts = std::chrono::system_clock::now();
 
   do {
     nread = io->fileRead(offset, mBuffer, mBufferSize);
@@ -844,11 +843,17 @@ ScanDir::ScanFileLoadAware(const std::unique_ptr<eos::fst::FileIo>& io,
       }
 
       offset += nread;
-      EnforceAndAdjustScanRate(offset, open_ts_msec, scan_rate);
+      EnforceAndAdjustScanRate(offset, open_ts, scan_rate);
     }
   } while (nread == mBufferSize);
 
   scan_size = (unsigned long long) offset;
+  const auto close_ts = std::chrono::system_clock().now();
+  auto tx_duration_ms = std::chrono::duration_cast<std::chrono::milliseconds>
+                        (close_ts - open_ts).count();
+  eos_static_debug("path=%s size(bytes)=%llu scan_duration_ms=%llu rate(MB/s)=%.02f",
+                   file_path.c_str(), scan_size, tx_duration_ms,
+                   (((1.0 * offset) / (1024 * 1024)) * 1000) / tx_duration_ms)
 
   if (comp_file_xs) {
     comp_file_xs->Finalize();
@@ -895,17 +900,18 @@ ScanDir::ScanFileLoadAware(const std::unique_ptr<eos::fst::FileIo>& io,
 //------------------------------------------------------------------------------
 void
 ScanDir::EnforceAndAdjustScanRate(const off_t offset,
-                                  const uint64_t open_ts_msec,
+                                  const std::chrono::time_point
+                                  <std::chrono::system_clock> open_ts,
                                   int& scan_rate)
 {
   using namespace std::chrono;
 
   if (scan_rate && mFstLoad) {
-    uint64_t now_ts_msec = duration_cast<milliseconds>
-                           (mClock.getTime().time_since_epoch()).count();
-    uint64_t scan_duration_msec = now_ts_msec - open_ts_msec;
-    uint64_t expect_duration_msec = (uint64_t)((1.0 * offset) /
-                                    (scan_rate * 1024 * 1024)) * 1000;
+    const auto now_ts = std::chrono::system_clock::now();
+    uint64_t scan_duration_msec =
+      duration_cast<milliseconds>(now_ts - open_ts).count();
+    uint64_t expect_duration_msec =
+      (uint64_t)((1.0 * offset) / (scan_rate * 1024 * 1024)) * 1000;
 
     if (expect_duration_msec > scan_duration_msec) {
       std::this_thread::sleep_for(milliseconds(expect_duration_msec -
