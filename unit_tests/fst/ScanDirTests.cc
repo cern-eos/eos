@@ -112,15 +112,14 @@ TEST(ScanDir, AdjustScanRate)
   off_t offset = 0;
   int rate = 75;  // MB/s
   eos::fst::ScanDir sd(path.c_str(), fsid, &load, false, 0, rate, true);
-  uint64_t open_ts_sec = duration_cast<seconds>
-                         (sd.GetClock().getTime().time_since_epoch()).count();
+  const auto open_ts = std::chrono::system_clock::now();
   int old_rate = rate;
-  sd.EnforceAndAdjustScanRate(offset, open_ts_sec, rate);
+  sd.EnforceAndAdjustScanRate(offset, open_ts, rate);
   ASSERT_EQ(rate, old_rate);
 
   while (rate > 5) {
     old_rate = rate;
-    sd.EnforceAndAdjustScanRate(offset, open_ts_sec, rate);
+    sd.EnforceAndAdjustScanRate(offset, open_ts, rate);
     ASSERT_EQ(rate, (int)(old_rate * 0.9));
   }
 
