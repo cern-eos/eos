@@ -26,6 +26,7 @@
 #include "mgm/FsView.hh"
 #include "mgm/tgc/MultiSpaceTapeGc.hh"
 #include "common/Constants.hh"
+#include "common/Timing.hh"
 #include "namespace/Prefetcher.hh"
 #include "namespace/utils/Checksum.hh"
 #include "namespace/interface/IView.hh"
@@ -374,10 +375,19 @@ void ConversionJob::DoIt() noexcept
 void ConversionJob::HandleError(const std::string& emsg,
                                 const std::string& details)
 {
+  using std::chrono::system_clock;
+  using eos::common::Timing;
   gOFS->MgmStats.Add("ConversionJobFailed", 0, 0, 1);
   eos_static_err("msg=\"%s\" %s conversion_id=%s", emsg.c_str(), details.c_str(),
                  mConversionInfo.ToString().c_str());
-  mErrorString = (details.empty()) ? emsg : (emsg + " -- " + details);
+  const std::time_t now = system_clock::to_time_t(system_clock::now());
+  const std::string timestamp = Timing::UnixTimestamp_to_ISO8601(now);
+  mErrorString = timestamp + " | " + emsg;
+
+  if (!details.empty()) {
+    mErrorString += " | " + details;
+  }
+
   mStatus.store(Status::FAILED, std::memory_order_relaxed);
 }
 
