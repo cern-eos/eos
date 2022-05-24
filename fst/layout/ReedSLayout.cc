@@ -215,7 +215,7 @@ ReedSLayout::RecoverPiecesInGroup(XrdCl::ChunkList& grp_errs)
               mStripeWidth, mTimeout);
 
       if (nread != (int64_t)mStripeWidth) {
-        eos_debug("msg=\"read block corrupted\" stripe=%u.", i);
+        eos_debug("msg=\"read block corrupted\" stripe=%u", i);
         invalid_ids.insert(i);
       }
     } else {

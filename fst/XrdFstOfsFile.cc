@@ -904,7 +904,7 @@ XrdFstOfsFile::readv(XrdOucIOVec* readV, int readCount)
                                          (void*)readV[i].data));
   }
 
-  uint64_t rv = mLayout->ReadV(chunkList, total_read);
+  int64_t rv = mLayout->ReadV(chunkList, total_read);
   totalBytes += rv;
 
   if (EOS_LOGS_DEBUG) {

@@ -758,7 +758,7 @@ RainMetaLayout::ReadV(XrdCl::ChunkList& chunkList, uint32_t len)
       nread = mStripe[0]->fileReadV(chunkList);
 
       if (nread != len) {
-        eos_err("%s", "msg=\"error local vector read\"");
+        eos_err("%s", "msg=\"failed local vector read\"");
         return SFS_ERROR;
       }
     }
@@ -797,8 +797,8 @@ RainMetaLayout::ReadV(XrdCl::ChunkList& chunkList, uint32_t len)
                 mTimeout);
 
         if (nread == SFS_ERROR) {
-          eos_err("msg=\"readv error\" msg=\"%s\"",
-                  mStripe[physical_id]->GetLastErrMsg().c_str());
+          eos_err("msg=\"readv error\" msg=\"%s\" physical_id=%u",
+                  mStripe[physical_id]->GetLastErrMsg().c_str(), physical_id);
           got_error = true;
         }
       } else {
@@ -813,8 +813,9 @@ RainMetaLayout::ReadV(XrdCl::ChunkList& chunkList, uint32_t len)
         for (auto chunk = stripe_chunks[stripe_id].begin();
              chunk != stripe_chunks[stripe_id].end(); ++chunk) {
           chunk->offset = GetGlobalOff(stripe_id, chunk->offset - mSizeHeader);
-          eos_err("msg=\"vector read error\" offset=%llu, length=%d",
-                  chunk->offset, chunk->length);
+          eos_err("msg=\"vector read error\" offset=%llu length=%d "
+                  "physical_id=%u", chunk->offset, chunk->length,
+                  physical_id);
           all_errs.push_back(*chunk);
         }
       }
@@ -837,8 +838,9 @@ RainMetaLayout::ReadV(XrdCl::ChunkList& chunkList, uint32_t len)
 
             for (auto chunk = local_errs.begin(); chunk != local_errs.end(); chunk++) {
               chunk->offset = GetGlobalOff(stripe_id, chunk->offset - mSizeHeader);
-              eos_err("msg=\"vector read error\" offset=%llu, length=%d",
-                      chunk->offset, chunk->length);
+              eos_err("msg=\"vector read error\" offset=%llu length=%d "
+                      "xrdcl_errno=%u physical_id=%u", chunk->offset,
+                      chunk->length, error_type, j);
               all_errs.push_back(*chunk);
             }
 
@@ -847,7 +849,8 @@ RainMetaLayout::ReadV(XrdCl::ChunkList& chunkList, uint32_t len)
             // If timeout error, then disable current file as we asume that
             // the server is down
             if (error_type == XrdCl::errOperationExpired) {
-              eos_debug("%s", "msg=\"calling close after timeout error\"");
+              eos_debug("msg=\"calling close after timeout error\" "
+                        "physical_id=%u", j);
               mStripe[j]->fileClose(mTimeout);
               mStripe[j] = nullptr;
             }
@@ -858,8 +861,12 @@ RainMetaLayout::ReadV(XrdCl::ChunkList& chunkList, uint32_t len)
 
     // Try to recover any corrupted blocks
     if (do_recovery && (!RecoverPieces(all_errs))) {
-      eos_err("%s", "msg=\"read recovery failed\"");
-      return SFS_ERROR;
+      char eMsg[512];
+      snprintf(eMsg, sizeof(eMsg), "readv recovery failed count=%ul",
+               chunkList.size());
+      eos_err("msg=\"%s\"", eMsg);
+      return Emsg("RainReadV", *mError, EFAULT, "readv recovery failed",
+                  mOfsFile->mOpenOpaque->Get("mgm.path"));
     }
   }
 
