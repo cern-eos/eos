@@ -914,12 +914,20 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
             /* A hard link to another file */
             if (fmd->hasAttribute(XrdMgmOfsFile::k_mdino)) {
               std::shared_ptr<eos::IFileMD> gmd;
-              uint64_t mdino = std::stoull(fmd->getAttribute(XrdMgmOfsFile::k_mdino));
-              gmd = gOFS->eosFileService->getFileMD(eos::common::FileId::InodeToFid(mdino));
-              eos_info("hlnk switched from %s (%#lx) to file %s (%#lx)",
-                       fmd->getName().c_str(), fmd->getId(),
-                       gmd->getName().c_str(), gmd->getId());
-              fmd = gmd;
+              uint64_t mdino;
+              std::string strToNumConvError;
+              if(eos::common::StringToNumeric(fmd->getAttribute(XrdMgmOfsFile::k_mdino),mdino,(uint64_t)0,&strToNumConvError)) {
+                gmd = gOFS->eosFileService->getFileMD(
+                    eos::common::FileId::InodeToFid(mdino));
+                eos_info("hlnk switched from %s (%#lx) to file %s (%#lx)",
+                         fmd->getName().c_str(), fmd->getId(),
+                         gmd->getName().c_str(), gmd->getId());
+                fmd = gmd;
+              } else {
+                //Conversion from string to inode number failed, log the error and return an error to the client
+                eos_err("%s path=\"%s\"", strToNumConvError.c_str(), path);
+                return SFS_ERROR;
+              }
             }
 
             uint64_t dmd_id = fmd->getContainerId();
