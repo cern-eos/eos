@@ -915,8 +915,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
             if (fmd->hasAttribute(XrdMgmOfsFile::k_mdino)) {
               std::shared_ptr<eos::IFileMD> gmd;
               uint64_t mdino;
-              std::string strToNumConvError;
-              if(eos::common::StringToNumeric(fmd->getAttribute(XrdMgmOfsFile::k_mdino),mdino,(uint64_t)0,&strToNumConvError)) {
+              if(eos::common::StringToNumeric(fmd->getAttribute(XrdMgmOfsFile::k_mdino),mdino)) {
                 gmd = gOFS->eosFileService->getFileMD(
                     eos::common::FileId::InodeToFid(mdino));
                 eos_info("hlnk switched from %s (%#lx) to file %s (%#lx)",
@@ -925,8 +924,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
                 fmd = gmd;
               } else {
                 //Conversion from string to inode number failed, log the error and return an error to the client
-                eos_err("%s path=\"%s\"", strToNumConvError.c_str(), path);
-                return SFS_ERROR;
+                return Emsg(epname,error,ENOENT,"convert the inode extended attribute to a number",path);
               }
             }
 
