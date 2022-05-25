@@ -101,3 +101,47 @@ TEST(StdDrainerEngine, RRTestsLoop)
   uint64_t max_uint8_t = std::numeric_limits<uint8_t>::max() + 1;
   EXPECT_EQ(seed, 5000 % max_uint8_t);
 }
+
+TEST(StdDrainerTests, pickFS)
+{
+  auto engine = std::make_unique<StdDrainerEngine>();
+  engine_conf_t conf {{"threshold","0"}};
+  engine->configure(conf);
+  engine->populateGroupsInfo({{"group0", {GroupStatus::DRAIN, 95, 100}},
+                              {"group1", {GroupStatus::ON, 80,100}},
+                              {"group2", {GroupStatus::ON, 86,100}},
+                              {"group3", {GroupStatus::ON, 80,100}},
+                              {"group4", {GroupStatus::DRAIN, 99, 100}},
+                              {"group5", {GroupStatus::DRAIN, 20, 100}}
+  });
+  std::string src, tgt;
+  std::vector<std::string> sources = {"group0","group4","group5"};
+  std::vector<std::string> targets = {"group1","group2","group3"};
+  uint8_t seed {0};
+  std::map<std::string, std::vector<uint64_t>> FSMap
+      {{"group0",{1,2,3,10}},
+       {"group4",{4,5,6,11}},
+       {"group5",{7,9,9,12}}};
+
+  std::map<std::string,uint8_t> mGroupFSSeed;
+
+  std::tie(src, tgt) = engine->pickGroupsforTransfer(seed++);
+  EXPECT_EQ(eos::common::pickIndexRR(FSMap[src],
+                                     mGroupFSSeed[src]++),1);
+
+  std::tie(src,tgt) = engine->pickGroupsforTransfer(seed++);
+  EXPECT_EQ(eos::common::pickIndexRR(FSMap[src],
+                                     mGroupFSSeed[src]++),4);
+
+  std::tie(src, tgt) = engine->pickGroupsforTransfer(4);
+  ASSERT_EQ("group4",src);
+  EXPECT_EQ(eos::common::pickIndexRR(FSMap[src],
+                                     mGroupFSSeed[src]++),5);
+  // current seed is at 6, add by 1 more to increment by 2,
+  // and go to the last element of group4 map
+  EXPECT_EQ(eos::common::pickIndexRR(FSMap[src],
+                                     mGroupFSSeed[src]+1),11);
+  //incr by 1 again, loop back
+  EXPECT_EQ(eos::common::pickIndexRR(FSMap[src],
+                                     mGroupFSSeed[src]+2),4);
+}

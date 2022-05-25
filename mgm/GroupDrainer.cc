@@ -254,7 +254,8 @@ GroupDrainer::prepareTransfer(uint64_t index)
     }
   }
 
-  auto fsid = eos::common::pickIndexRR(fsids->second, index);
+  auto fsid = eos::common::pickIndexRR(fsids->second,
+                                       mGroupFSSeed[grp_drain_from]++);
   auto fids = mCacheFileList.find(fsid);
   if (fids == mCacheFileList.end() || fids->second.empty()) {
     bool status;

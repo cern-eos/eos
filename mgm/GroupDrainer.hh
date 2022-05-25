@@ -179,6 +179,9 @@ private:
   std::unordered_set<eos::common::FileId::fileid_t> mTransfers;
   std::unordered_map<eos::common::FileId::fileid_t, std::string> mFailedTransfers;
 
+  //! map holding a seed for RR picker for every Group for the FS
+  std::map<std::string, uint16_t> mGroupFSSeed;
+
   //! a map holding the current list of FSes in the draining groups
   //! this is unlikely to have more than a single digit number of keys..maybe a
   //! a vector of pairs might be ok?
