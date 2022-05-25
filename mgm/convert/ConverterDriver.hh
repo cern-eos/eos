@@ -56,7 +56,8 @@ public:
     mQdbHelper(qdb_details), mIsRunning(false),
     mThreadPool(std::thread::hardware_concurrency(), cDefaultMaxThreadPoolSize,
                 10, 5, 3, "converter"),
-    mMaxThreadPoolSize(cDefaultMaxThreadPoolSize), mTimestamp(),
+    mMaxThreadPoolSize(cDefaultMaxThreadPoolSize),
+    mMaxQueueSize(1000), mTimestamp(),
     mObserverMgr(std::make_unique<ObserverT>())
   {}
 
@@ -137,6 +138,15 @@ public:
     return mQdbHelper.NumFailedJobs();
   }
 
+
+  //----------------------------------------------------------------------------
+  //! Get max queue size
+  //----------------------------------------------------------------------------
+  inline uint32_t GetMaxQueueSize() const
+  {
+    return mMaxQueueSize.load();
+  }
+
   //----------------------------------------------------------------------------
   //! Set maximum size of the converter thread pool
   //!
@@ -146,6 +156,16 @@ public:
   {
     mThreadPool.SetMaxThreads(max);
     mMaxThreadPoolSize = max;
+  }
+
+  //----------------------------------------------------------------------------
+  //! Set maximum queue size
+  //!
+  //! @param max maximum (submitted) queue size
+  //----------------------------------------------------------------------------
+  inline void SetMaxQueueSize(uint32_t max)
+  {
+    mMaxQueueSize = max;
   }
 
   //----------------------------------------------------------------------------
@@ -306,12 +326,13 @@ private:
   //! Default maximum thread pool size constant
   static constexpr unsigned int cDefaultMaxThreadPoolSize{100};
   //! Max queue size from the thread pool when we delay new jobs
-  static constexpr unsigned int cDefaultMaxQueueSize{1000};
+
   AssistedThread mThread; ///< Thread controller object
   QdbHelper mQdbHelper; ///< QuarkDB helper object
   std::atomic<bool> mIsRunning; ///< Mark if converter is running
   eos::common::ThreadPool mThreadPool; ///< Thread pool for conversion jobs
   std::atomic<unsigned int> mMaxThreadPoolSize; ///< Max threadpool size
+  std::atomic<unsigned int> mMaxQueueSize; ///< Max submitted queue size
   //! Timestamp of last jobs request
   std::chrono::steady_clock::time_point mTimestamp;
   //! Collection of running conversion jobs
