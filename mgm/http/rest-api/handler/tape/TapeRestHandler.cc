@@ -45,20 +45,25 @@
 EOSMGMRESTNAMESPACE_BEGIN
 
 TapeRestHandler::TapeRestHandler(const TapeRestApiConfig * config): RestHandler(config->getAccessURL()),mTapeRestApiConfig(config) {
-  initializeControllers();
-  mTapeWellKnownInfos = initializeTapeWellKnownInfos();
+  initializeTapeWellKnownInfos();
+  initializeV1();
 }
 
-void TapeRestHandler::initializeControllers() {
+void TapeRestHandler::initializeV1() {
+  const std::string version = "v1";
   std::shared_ptr<TapeRestApiBusiness> restApiBusiness = std::make_shared<TapeRestApiBusiness>();
-  std::unique_ptr<Controller> stageController = initializeStageController(VERSION_0,restApiBusiness);
+  std::unique_ptr<Controller> stageController = initializeStageController(version,restApiBusiness);
   mControllerManager.addController(std::move(stageController));
 
-  std::unique_ptr<Controller> fileInfoController = initializeArchiveinfoController(VERSION_0, restApiBusiness);
+  std::unique_ptr<Controller> fileInfoController = initializeArchiveinfoController(version, restApiBusiness);
   mControllerManager.addController(std::move(fileInfoController));
 
-  std::unique_ptr<Controller> releaseController = initializeReleaseController(VERSION_0, restApiBusiness);
+  std::unique_ptr<Controller> releaseController = initializeReleaseController(version, restApiBusiness);
   mControllerManager.addController(std::move(releaseController));
+
+  auto accessURLBuilder = getAccessURLBuilder();
+  accessURLBuilder->add(version);
+  mTapeWellKnownInfos->addEndpoint(accessURLBuilder->build(),version);
 }
 
 std::unique_ptr<Controller> TapeRestHandler::initializeStageController(const std::string & apiVersion, std::shared_ptr<ITapeRestApiBusiness> tapeRestApiBusiness) {
@@ -89,12 +94,8 @@ std::unique_ptr<Controller> TapeRestHandler::initializeReleaseController(const s
   return releaseController;
 }
 
-std::unique_ptr<TapeWellKnownInfos> TapeRestHandler::initializeTapeWellKnownInfos() {
-  auto ret = std::make_unique<TapeWellKnownInfos>(mTapeRestApiConfig->getSiteName());
-  auto accessURLBuilder = getAccessURLBuilder();
-  accessURLBuilder->add(VERSION_0);
-  ret->addEndpoint(accessURLBuilder->build(),VERSION_0);
-  return ret;
+void TapeRestHandler::initializeTapeWellKnownInfos() {
+  mTapeWellKnownInfos = std::make_unique<TapeWellKnownInfos>(mTapeRestApiConfig->getSiteName());
 }
 
 bool TapeRestHandler::isRestRequest(const std::string& requestURL, std::string & errorMsg) const {

@@ -76,10 +76,9 @@ public:
   const TapeWellKnownInfos * getWellKnownInfos() const;
 private:
   /**
-   * Initialize the controllers of the tape REST API
-   * @param config the configuration object that contains the tape REST API configuration parameters
+   * Initialize the version 1 of the tape REST API
    */
-  void initializeControllers();
+  void initializeV1();
   /**
    * Initializes the STAGE controller for a specific version
    * @param apiVersion the version to apply to this stage controller
@@ -103,10 +102,7 @@ private:
    */
   std::unique_ptr<Controller> initializeReleaseController(const std::string & apiVersion, std::shared_ptr<ITapeRestApiBusiness> tapeRestApiBusiness);
 
-  /**
-   * Edit the content of this method to add extra information to the .well-known endpoint
-   */
-  std::unique_ptr<TapeWellKnownInfos> initializeTapeWellKnownInfos();
+    void initializeTapeWellKnownInfos();
 
   /**
    * HttpResponse factory for the tape REST API
