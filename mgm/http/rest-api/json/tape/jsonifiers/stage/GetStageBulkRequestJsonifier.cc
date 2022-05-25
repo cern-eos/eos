@@ -30,6 +30,7 @@ void GetStageBulkRequestJsonifier::jsonify(const GetStageBulkRequestResponseMode
   root["createdAt"] = Json::UInt64(obj->getCreationTime());
   //Started time is the same as the creation time
   root["startedAt"] = Json::UInt64(obj->getCreationTime());
+  root["id"] = obj->getId();
   initializeArray(root["files"]);
   Json::Value & files = root["files"];
   for(auto & file: obj->getFiles()) {
