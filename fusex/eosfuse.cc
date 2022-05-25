@@ -2081,7 +2081,7 @@ EosFuse::DumpStatistic(ThreadAssistant& assistant)
                "ALL        server-version      := %s\n"
                "ALL        automounted         := %d\n"
                "ALL        max-inode-lock-ms   := %.02f [%s]\n"
-	       "ALL        last heartbeat age  := %d\n"
+               "ALL        last-heartbeat-secs := %d\n"
                "# -----------------------------------------------------------------------------------------------------------\n",
                osstat.threads,
                eos::common::StringConversion::GetReadableSizeString(s1, osstat.vsize, "b"),
