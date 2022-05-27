@@ -139,7 +139,8 @@ void ConvertCmd::StatusSubcmd(
   // Extract Converter Driver parameters
   std::string threadpool = gOFS->mConverterDriver->GetThreadPoolInfo();
   std::string config =
-    SSTR("maxthreads=" << gOFS->mConverterDriver->GetMaxThreadPoolSize());
+    SSTR("maxthreads=" << gOFS->mConverterDriver->GetMaxThreadPoolSize()
+         << " maxqueuesize=" << gOFS->mConverterDriver->GetMaxQueueSize());
   uint64_t running = gOFS->mConverterDriver->NumRunningJobs();
   uint64_t failed = gOFS->mConverterDriver->NumQdbFailedJobs();
   int64_t pending = gOFS->mConverterDriver->NumPendingJobs();
@@ -189,6 +190,11 @@ void ConvertCmd::ConfigSubcmd(
       gOFS->mConverterDriver->SetMaxThreadPoolSize(config.maxthreads());
       output["maxthreads"] = std::to_string(config.maxthreads());
     }
+  }
+
+  if (config.maxqueuesize()) {
+    gOFS->mConverterDriver->SetMaxQueueSize(config.maxqueuesize());
+    output["maxqueuesize"] = std::to_string(config.maxqueuesize());
   }
 
   if (output.empty()) {

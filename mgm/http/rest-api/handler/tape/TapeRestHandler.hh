@@ -31,6 +31,8 @@
 #include "common/VirtualIdentity.hh"
 #include "mgm/http/rest-api/response/tape/factories/TapeRestApiResponseFactory.hh"
 #include "mgm/http/rest-api/config/tape/TapeRestApiConfig.hh"
+#include "mgm/http/rest-api/utils/URLBuilder.hh"
+#include "mgm/http/rest-api/wellknown/tape/TapeWellKnownInfos.hh"
 
 EOSMGMRESTNAMESPACE_BEGIN
 
@@ -61,14 +63,26 @@ public:
    * - the MGM configuration file contains the tapeenabled flag and it is set to true
    * if the tape REST API is activated and if a sitename has been configured in the MGM configuration file
    * @param requestURL the URL called by the client
+   * @param errorMsg a string allowing to indicate why the request will not trigger a tape REST API call
    */
-  bool isRestRequest(const std::string& requestURL) override;
+  bool isRestRequest(const std::string& requestURL,
+                     std::string& errorMsg) const override;
+
+  /**
+   * Returns a builder object allowing to build URLs that are linked to the tape REST API
+   */
+  std::unique_ptr<URLBuilder> getAccessURLBuilder() const;
+
+  /**
+   * Returns some information useful for building the .well-known endpoint of this tape REST API
+   */
+  const TapeWellKnownInfos* getWellKnownInfos() const;
+
 private:
   /**
-   * Initialize the controllers of the tape REST API
-   * @param config the configuration object that contains the tape REST API configuration parameters
+   * Initialize the version 1 of the tape REST API
    */
-  void initializeControllers();
+  void initializeV1();
   /**
    * Initializes the STAGE controller for a specific version
    * @param apiVersion the version to apply to this stage controller
@@ -98,12 +112,16 @@ private:
   std::unique_ptr<Controller> initializeReleaseController(
     const std::string& apiVersion,
     std::shared_ptr<ITapeRestApiBusiness> tapeRestApiBusiness);
+
+  void initializeTapeWellKnownInfos();
+
   /**
    * HttpResponse factory for the tape REST API
    */
   TapeRestApiResponseFactory mTapeRestApiResponseFactory;
   inline static const std::string VERSION_0 = "v0";
   const TapeRestApiConfig* mTapeRestApiConfig;
+  std::unique_ptr<TapeWellKnownInfos> mTapeWellKnownInfos;
 };
 
 EOSMGMRESTNAMESPACE_END

@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// File: MethodNotAllowedException.cc
+// File: NotFoundException.hh
 // Author: Cedric Caffy - CERN
 // ----------------------------------------------------------------------
 
@@ -21,11 +21,20 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "MethodNotAllowedException.hh"
+#ifndef EOS_NOTFOUNDEXCEPTION_HH
+#define EOS_NOTFOUNDEXCEPTION_HH
+
+#include "mgm/Namespace.hh"
+#include "mgm/http/rest-api/exception/RestException.hh"
 
 EOSMGMRESTNAMESPACE_BEGIN
 
-MethodNotAllowedException::MethodNotAllowedException(const std::string&
-    exceptionMsg): RestException(exceptionMsg) {}
+class NotFoundException : public RestException
+{
+public:
+  NotFoundException(const std::string& exceptionMsg): RestException(
+      exceptionMsg) {}
+};
 
 EOSMGMRESTNAMESPACE_END
+#endif // EOS_NOTFOUNDEXCEPTION_HH

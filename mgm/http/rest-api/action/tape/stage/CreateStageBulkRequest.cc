@@ -28,8 +28,6 @@
 #include "mgm/bulk-request/BulkRequestFactory.hh"
 #include "mgm/http/HttpHandler.hh"
 #include "mgm/http/rest-api/exception/JsonValidationException.hh"
-#include "mgm/http/rest-api/response/tape/factories/TapeRestApiResponseFactory.hh"
-#include "mgm/http/rest-api/utils/URLBuilder.hh"
 #include "mgm/http/rest-api/controllers/tape/URLParametersConstants.hh"
 #include "mgm/http/rest-api/exception/tape/TapeRestApiBusinessException.hh"
 #include "common/SymKeys.hh"
@@ -74,13 +72,8 @@ common::HttpResponse* CreateStageBulkRequest::run(common::HttpRequest* request,
 const std::string CreateStageBulkRequest::generateAccessURL(
   const std::string& bulkRequestId)
 {
-  auto builder = URLBuilder::getInstance();
-  std::stringstream hostnamePort;
-  hostnamePort << mTapeRestApiConfig->getHostAlias()  << ":" <<
-               mTapeRestApiConfig->getXrdHttpPort();
-  return builder->setHttpsProtocol()->setHostname(
-           hostnamePort.str())->setControllerAccessURL(
-           getAccessURLPattern())->setRequestId(bulkRequestId)->build();
+  return mTapeRestHandler->getAccessURLBuilder()->add(getAccessURLPattern())->add(
+           bulkRequestId)->build();
 }
 
 EOSMGMRESTNAMESPACE_END

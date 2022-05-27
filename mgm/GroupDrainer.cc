@@ -264,7 +264,8 @@ GroupDrainer::prepareTransfer(uint64_t index)
     }
   }
 
-  auto fsid = eos::common::pickIndexRR(fsids->second, index);
+  auto fsid = eos::common::pickIndexRR(fsids->second,
+                                       mGroupFSSeed[grp_drain_from]++);
   auto fids = mCacheFileList.find(fsid);
 
   if (fids == mCacheFileList.end() || fids->second.empty()) {
@@ -328,7 +329,9 @@ GroupDrainer::populateFids(eos::common::FileSystem::fsid_t fsid)
     mCacheFileList.erase(fsid);
     return {false, mCacheFileList.end()};
   }
+
   mDrainProgressTracker.setTotalFiles(fsid, total_files);
+
   //Check if the FS is in the Retrytracker, skip these FSes,
   //TODO: We could skip getNumFilesOnFs altogether every loop if we have
   //RetryTracker entry and only check once every minute or so for the FSID

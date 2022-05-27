@@ -539,14 +539,8 @@ void SpaceCmd::DefineSubcmd(const eos::console::SpaceProto_DefineProto& define,
     return;
   }
 
-  if (define.groupsize() > 1024) {
-    reply.set_std_err("error: <groupsize> must be a positive integer (<=1024)!");
-    reply.set_retc(EINVAL);
-    return;
-  }
-
-  if (define.groupmod() > 256) {
-    reply.set_std_err("error: <groupmod> must be a positive integer (<=256)!");
+  if ((define.groupsize() * define.groupmod()) > 65536) {
+    reply.set_std_err("error: the product of <groupsize>*<groupsize> must be a positive integer (<=65536)!");
     reply.set_retc(EINVAL);
     return;
   }

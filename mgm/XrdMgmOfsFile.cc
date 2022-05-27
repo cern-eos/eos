@@ -913,12 +913,21 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
             /* A hard link to another file */
             if (fmd->hasAttribute(XrdMgmOfsFile::k_mdino)) {
               std::shared_ptr<eos::IFileMD> gmd;
-              uint64_t mdino = std::stoll(fmd->getAttribute(XrdMgmOfsFile::k_mdino));
-              gmd = gOFS->eosFileService->getFileMD(eos::common::FileId::InodeToFid(mdino));
-              eos_info("hlnk switched from %s (%#lx) to file %s (%#lx)",
-                       fmd->getName().c_str(), fmd->getId(),
-                       gmd->getName().c_str(), gmd->getId());
-              fmd = gmd;
+              uint64_t mdino;
+
+              if (eos::common::StringToNumeric(fmd->getAttribute(XrdMgmOfsFile::k_mdino),
+                                               mdino)) {
+                gmd = gOFS->eosFileService->getFileMD(
+                        eos::common::FileId::InodeToFid(mdino));
+                eos_info("hlnk switched from %s (%#lx) to file %s (%#lx)",
+                         fmd->getName().c_str(), fmd->getId(),
+                         gmd->getName().c_str(), gmd->getId());
+                fmd = gmd;
+              } else {
+                //Conversion from string to inode number failed, log the error and return an error to the client
+                return Emsg(epname, error, ENOENT,
+                            "convert the inode extended attribute to a number", path);
+              }
             }
 
             uint64_t dmd_id = fmd->getContainerId();

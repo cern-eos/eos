@@ -27,6 +27,7 @@
 #include "mgm/Namespace.hh"
 #include <string>
 #include <memory>
+#include <optional>
 
 EOSMGMRESTNAMESPACE_BEGIN
 
@@ -36,44 +37,42 @@ EOSMGMRESTNAMESPACE_BEGIN
  */
 class URLBuilder;
 
-class URLBuilderRequestId
+class URLBuilderPort
 {
 public:
-  virtual URLBuilder* setRequestId(const std::string& requestId) = 0;
-};
-
-class URLBuilderControllerAccessURL
-{
-public:
-  virtual URLBuilderRequestId* setControllerAccessURL(const std::string&
-      controllerAccessURL) = 0;
+  virtual URLBuilder* setPort(const uint16_t& port) = 0;
+  virtual URLBuilder* add(const std::string& urlItem) = 0;
+  virtual ~URLBuilderPort() = default;
 };
 
 class URLBuilderHostname
 {
 public:
-  virtual URLBuilderControllerAccessURL* setHostname(const std::string& hostname)
-    = 0;
+  virtual URLBuilderPort* setHostname(const std::string& hostname) = 0;
+  virtual ~URLBuilderHostname() = default;
 };
 
 class URLBuilderProtocol
 {
 public:
   virtual URLBuilderHostname* setHttpsProtocol() = 0;
+  virtual ~URLBuilderProtocol() = default;
 };
 
 /**
  * Actual URL builder
  */
 class URLBuilder : public URLBuilderProtocol, URLBuilderHostname,
-  URLBuilderControllerAccessURL, URLBuilderRequestId
+  URLBuilderPort
 {
 public:
   /**
    * Returns the URL built with the builder
    * @return the URL built with the builder
    */
-  std::string build();
+  std::string build() const;
+  URLBuilder* add(const std::string& urlItem) override;
+
   /**
    * Get the instance of the builder. It will first return the Builder allowing to generate the protocol of the URL
    * @return the pointer to the instance of the builder allowing to generate the protocol of the URL
@@ -90,11 +89,8 @@ private:
    * Generates and add the builder
    * @return
    */
-  URLBuilderControllerAccessURL* setHostname(const std::string& hostname)
-  override;
-  URLBuilderRequestId* setControllerAccessURL(const std::string&
-      controllerAccessURL) override;
-  URLBuilder* setRequestId(const std::string& requestId) override;
+  URLBuilderPort* setHostname(const std::string& hostname) override;
+  URLBuilder* setPort(const uint16_t& port) override;
   std::string mURL;
   void addSlashIfNecessary(const std::string& nextItem = "");
 };

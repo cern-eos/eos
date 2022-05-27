@@ -32,7 +32,8 @@ EOSMGMRESTNAMESPACE_BEGIN
 class MethodNotAllowedException : public RestException
 {
 public:
-  MethodNotAllowedException(const std::string& exceptionMsg);
+  MethodNotAllowedException(const std::string& exceptionMsg): RestException(
+      exceptionMsg) {}
 };
 
 EOSMGMRESTNAMESPACE_END

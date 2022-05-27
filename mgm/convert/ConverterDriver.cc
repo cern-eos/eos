@@ -74,7 +74,7 @@ ConverterDriver::Convert(ThreadAssistant& assistant) noexcept
       assistant.wait_for(std::chrono::seconds(5));
     }
 
-    while ((mThreadPool.GetQueueSize() > cDefaultMaxQueueSize) &&
+    while ((mThreadPool.GetQueueSize() > mMaxQueueSize) &&
            !assistant.terminationRequested()) {
       eos_static_notice("%s", "msg=\"convert thread pool queue full, delay "
                         "pending jobs");
@@ -132,7 +132,7 @@ ConverterDriver::SubmitQdbPending(ThreadAssistant& assistant)
       mJobsRunning.push_back(job);
     }
 
-    while ((mThreadPool.GetQueueSize() > cDefaultMaxQueueSize) &&
+    while ((mThreadPool.GetQueueSize() > mMaxQueueSize) &&
            !assistant.terminationRequested()) {
       assistant.wait_for(std::chrono::seconds(5));
     }

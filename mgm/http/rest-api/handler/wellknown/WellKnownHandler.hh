@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// File: RestException.cc
+// File: WellKnownHandler.hh
 // Author: Cedric Caffy - CERN
 // ----------------------------------------------------------------------
 
@@ -21,12 +21,35 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
+#ifndef EOS_WELLKNOWNHANDLER_HH
+#define EOS_WELLKNOWNHANDLER_HH
 
-#include "RestException.hh"
+#include "mgm/Namespace.hh"
+#include "mgm/http/rest-api/handler/RestHandler.hh"
+#include "mgm/http/rest-api/manager/RestApiManager.hh"
+#include "mgm/http/rest-api/response/wellknown/WellKnownResponseFactory.hh"
 
 EOSMGMRESTNAMESPACE_BEGIN
 
-RestException::RestException(const std::string& exceptionMsg):
-  common::Exception(exceptionMsg) {}
+class WellKnownHandler : public RestHandler
+{
+public:
+  WellKnownHandler(const std::string& accessURL,
+                   const RestApiManager* restApiManager);
+  /**
+   * Handles the user request
+   * @param request the user request
+   * @param vid the virtual identity of the user
+   * @return the HttpResponse to the user request
+   */
+  common::HttpResponse* handleRequest(common::HttpRequest* request,
+                                      const common::VirtualIdentity* vid) override;
+
+private:
+  void initializeControllers();
+  const RestApiManager* mRestApiManager;
+  WellKnownResponseFactory mWellknownResponseFactory;
+};
 
 EOSMGMRESTNAMESPACE_END
+#endif // EOS_WELLKNOWNHANDLER_HH

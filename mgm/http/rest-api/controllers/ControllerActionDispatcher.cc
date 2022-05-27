@@ -23,7 +23,7 @@
 
 #include "ControllerActionDispatcher.hh"
 #include "mgm/http/rest-api/exception/MethodNotAllowedException.hh"
-#include "mgm/http/rest-api/exception/ControllerNotFoundException.hh"
+#include "mgm/http/rest-api/exception/ActionNotFoundException.hh"
 #include "mgm/http/rest-api/utils/URLParser.hh"
 #include <sstream>
 EOSMGMRESTNAMESPACE_BEGIN
@@ -71,8 +71,8 @@ Action* ControllerActionDispatcher::getAction(common::HttpRequest* request)
     //URL not found
     std::ostringstream oss;
     oss << "The url provided (" << request->GetUrl() <<
-        ") does not allow to identify a controller";
-    throw ControllerNotFoundException(oss.str());
+        ") does not allow to identify a resource";
+    throw ActionNotFoundException(oss.str());
   }
 }
 

@@ -25,14 +25,15 @@
 #define EOS_CONTROLLERNOTFOUNDEXCEPTION_HH
 
 #include "mgm/Namespace.hh"
-#include "mgm/http/rest-api/exception/RestException.hh"
+#include "mgm/http/rest-api/exception/NotFoundException.hh"
 
 EOSMGMRESTNAMESPACE_BEGIN
 
-class ControllerNotFoundException : public RestException
+class ControllerNotFoundException : public NotFoundException
 {
 public:
-  ControllerNotFoundException(const std::string& exceptionMsg);
+  ControllerNotFoundException(const std::string& exceptionMsg): NotFoundException(
+      exceptionMsg) {}
 };
 
 EOSMGMRESTNAMESPACE_END

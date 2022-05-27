@@ -54,18 +54,25 @@ public:
    * Returns true if the requestURL passed in parameter should trigger an API handling,
    * false otherwise
    * @param requestUrl the user request URL
+   * @param errorMsg the error message that one can use to indicate why the call to the REST API will not have any action
    * @return true if the requestURL passed in parameter should trigger an API handling,
    * false otherwise
    */
-  virtual bool isRestRequest(const std::string& requestURL);
+  virtual bool isRestRequest(const std::string& requestURL,
+                             std::string& errorMsg) const;
+
+  /**
+   * @return the RestHandler entry point URL (example: /api/)
+   */
+  std::string getEntryPointURL() const;
 
   virtual ~RestHandler() {}
 protected:
   ControllerManager mControllerManager;
   std::string mEntryPointURL;
 private:
-  inline static const std::string cEntryPointRegex = "^\\/([a-z0-9-]+)+\\/$";
-  void verifyRestApiEntryPoint(const std::string& entryPointURL);
+  inline static const std::string cEntryPointRegex = "^\\/(\\.?[a-z0-9-]+)+\\/$";
+  void verifyRestApiEntryPoint(const std::string& entryPointURL) const;
 };
 
 EOSMGMRESTNAMESPACE_END

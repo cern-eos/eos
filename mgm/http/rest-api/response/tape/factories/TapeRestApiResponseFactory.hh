@@ -26,6 +26,7 @@
 
 #include "mgm/Namespace.hh"
 #include "mgm/http/rest-api/response/RestApiResponse.hh"
+#include "mgm/http/rest-api/response/RestApiResponseFactory.hh"
 #include "mgm/http/rest-api/model/tape/common/ErrorModel.hh"
 #include "mgm/http/rest-api/exception/JsonValidationException.hh"
 
@@ -34,7 +35,7 @@ EOSMGMRESTNAMESPACE_BEGIN
 /**
  * Factory of tape REST API responses
  */
-class TapeRestApiResponseFactory
+class TapeRestApiResponseFactory : public RestApiResponseFactory
 {
 public:
   RestApiResponse<ErrorModel> createBadRequestError(const std::string& detail)
@@ -49,36 +50,11 @@ public:
   RestApiResponse<void> createOkEmptyResponse() const;
   RestApiResponse<ErrorModel> createForbiddenError(const std::string& detail)
   const;
-  template<typename Model>
-  RestApiResponse<Model> createResponse(std::shared_ptr<Model> model,
-                                        const common::HttpResponse::ResponseCodes code) const;
-  template<typename Model>
-  RestApiResponse<Model> createResponse(std::shared_ptr<Model> model,
-                                        const common::HttpResponse::ResponseCodes code,
-                                        const common::HttpResponse::HeaderMap& responseHeader) const;
 private:
   RestApiResponse<ErrorModel> createError(const
                                           common::HttpResponse::ResponseCodes code, const std::string& title,
                                           const std::string& detail) const;
 };
-
-
-
-template<typename Model>
-inline RestApiResponse<Model> TapeRestApiResponseFactory::createResponse(
-  std::shared_ptr<Model> model,
-  const common::HttpResponse::ResponseCodes code) const
-{
-  return RestApiResponse(model, code);
-}
-
-template<typename Model>
-inline RestApiResponse<Model> TapeRestApiResponseFactory::createResponse(
-  std::shared_ptr<Model> model, const common::HttpResponse::ResponseCodes code,
-  const common::HttpResponse::HeaderMap& responseHeader) const
-{
-  return RestApiResponse(model, code, responseHeader);
-}
 
 EOSMGMRESTNAMESPACE_END
 

@@ -16,6 +16,35 @@ Introduction
 This release is based on XRootD V4 and IPV6 enabled.
 
 
+``v4.8.85 Citrine``
+===================
+
+2022-05-27
+
+Bug
+----
+
+* [EOS-3713] - sys.eos.mdino should not use old-style inodes
+* [EOS-5230] - Keep xattrs when restoring versions
+* [EOS-5246] - Replica shows 'error_label=none' while having checksum mismatch
+* [EOS-5262] - GeoBalancer not working with the new converter
+
+New Feature
+------------
+
+* [EOS-4983] - Implementation of the WLCG TAPE REST API on EOS
+* [EOS-5137] - Implementation of the .well-known endpoint of the tape REST API
+* [EOS-5244] - Allow to have the token secret key in a separate file
+
+
+Improvement
+------------
+
+* [EOS-5198] - Add few log lines to MasterLog
+* [EOS-5263] - groupmod is hard limited to 256 groups
+* [EOS-5267] - Provide timestamp in eos convert list failed errors
+
+
 ``v4.8.84 Citrine``
 ===================
 

@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// File: ControllerFactory.hh
+// File: TapeRestApiResponseFactory.hh
 // Author: Cedric Caffy - CERN
 // ----------------------------------------------------------------------
 
@@ -21,30 +21,36 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifndef EOS_CONTROLLERFACTORY_HH
-#define EOS_CONTROLLERFACTORY_HH
+#ifndef EOS_RESTAPIRESPONSEFACTORY_HH
+#define EOS_RESTAPIRESPONSEFACTORY_HH
 
 #include "mgm/Namespace.hh"
-#include <string>
-#include "mgm/http/rest-api/controllers/Controller.hh"
-#include <memory>
+#include "mgm/http/rest-api/response/RestApiResponse.hh"
 
 EOSMGMRESTNAMESPACE_BEGIN
 
-/**
- * Factory of REST API controllers.
- */
-class ControllerFactory
+class RestApiResponseFactory
 {
 public:
-  static std::unique_ptr<Controller> getStageController(const std::string&
-      accessURL);
-  static std::unique_ptr<Controller>
-  getArchiveInfoController(const std::string& accessURL);
-  static std::unique_ptr<Controller> getReleaseController(
-    const std::string& accessURL);
+  RestApiResponseFactory() = default;
+  template<typename Model>
+  RestApiResponse<Model> createResponse(std::shared_ptr<Model> model,
+                                        const common::HttpResponse::ResponseCodes code) const
+  {
+    return RestApiResponse(model, code);
+  }
+
+  template<typename Model>
+  RestApiResponse<Model> createResponse(std::shared_ptr<Model> model,
+                                        const common::HttpResponse::ResponseCodes code,
+                                        const common::HttpResponse::HeaderMap& responseHeader) const
+  {
+    return RestApiResponse(model, code, responseHeader);
+  }
+  ~RestApiResponseFactory() = default;
+private:
 };
 
 EOSMGMRESTNAMESPACE_END
 
-#endif // EOS_CONTROLLERFACTORY_HH
+#endif // EOS_RESTAPIRESPONSEFACTORY_HH

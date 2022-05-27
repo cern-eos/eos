@@ -98,7 +98,7 @@ ConvertHelper::ParseCommand(const char* arg)
 
     while (tokenizer.NextToken(token)) {
       if (token.beginswith("--maxthreads")) {
-        uint32_t maxthreads = 0;
+        uint32_t maxthreads = 0ul;
 
         if (token.beginswith("--maxthreads=")) {
           token.replace("--maxthreads=", "");
@@ -119,6 +119,29 @@ ConvertHelper::ParseCommand(const char* arg)
         }
 
         config->set_maxthreads(maxthreads);
+        option = true;
+      } else if (token.beginswith("--maxqueuesize")) {
+        uint32_t max_queue_size = 0ul;
+
+        if (token.beginswith("--maxqueuesize=")) {
+          token.replace("--maxqueuesize=", "");
+        } else {
+          tokenizer.NextToken(token);
+        }
+
+        try {
+          max_queue_size = std::stoul(token.c_str());
+
+          if (max_queue_size == 0) {
+            throw std::invalid_argument("value zero not allowed");
+          }
+        } catch (...) {
+          std::cerr << "error: invalid value for <maxqueuesize>='"
+                    << token << "'" << std::endl;
+          return false;
+        }
+
+        config->set_maxqueuesize(max_queue_size);
         option = true;
       } else {
         std::cerr << "warning: unknown config option '"
@@ -332,7 +355,6 @@ int com_convert(char* arg)
   }
 
   global_retc = convert.Execute();
-
   return global_retc;
 }
 
@@ -351,7 +373,8 @@ void com_convert_help()
       << std::endl
       << "  convert config <option> [<option>]               " << std::endl
       << "    set converter engine configuration option      " << std::endl
-      << "    --maxthreads=<#> : max threadpool size         " << std::endl
+      << "    --maxthreads=<#>   : max threadpool size (default 100)" << std::endl
+      << "    --maxqueuesize=<#> : max queue size (default 1000)" << std::endl
       << std::endl
       << "  convert list [<option>]                          " << std::endl
       << "    list conversion jobs where <option> is:        " << std::endl

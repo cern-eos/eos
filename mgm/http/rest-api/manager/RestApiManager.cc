@@ -22,6 +22,8 @@
  ************************************************************************/
 
 #include "RestApiManager.hh"
+#include "mgm/http/rest-api/handler/factory/WellKnownRestHandlerFactory.hh"
+#include "mgm/http/rest-api/utils/URLParser.hh"
 
 EOSMGMRESTNAMESPACE_BEGIN
 
@@ -30,26 +32,33 @@ RestApiManager::RestApiManager()
   mTapeRestApiConfig = std::make_unique<TapeRestApiConfig>();
   mMapAccessURLRestHandlerFactory[mTapeRestApiConfig->getAccessURL()] =
     std::make_unique<TapeRestHandlerFactory>(mTapeRestApiConfig.get());
+  mMapAccessURLRestHandlerFactory[getWellKnownAccessURL()] =
+    std::make_unique<WellKnownRestHandlerFactory>(this);
 }
 
-bool RestApiManager::isRestRequest(const std::string& requestURL)
+bool RestApiManager::isRestRequest(const std::string& requestURL) const
 {
   const auto& restHandler = getRestHandler(requestURL);
-  return (restHandler != nullptr && restHandler->isRestRequest(requestURL));
+  //We do not need an error message in the caller of this method.
+  //If we need this one day, one may need to add this parameter to RestApiManager::isRestRequest()
+  std::string errorMsg;
+  return (restHandler != nullptr &&
+          restHandler->isRestRequest(requestURL, errorMsg));
 }
 
-TapeRestApiConfig* RestApiManager::getTapeRestApiConfig()
+TapeRestApiConfig* RestApiManager::getTapeRestApiConfig() const
 {
   return mTapeRestApiConfig.get();
 }
 
 std::unique_ptr<rest::RestHandler> RestApiManager::getRestHandler(
-  const std::string& requestURL)
+  const std::string& requestURL) const
 {
   const auto& restHandlerFactory = std::find_if(
                                      mMapAccessURLRestHandlerFactory.begin(),
   mMapAccessURLRestHandlerFactory.end(), [&requestURL](const auto & kv) {
-    return ::strncmp(kv.first.c_str(), requestURL.c_str(), kv.first.length()) == 0;
+    URLParser parser(requestURL);
+    return parser.startsBy(kv.first);
   });
 
   if (restHandlerFactory != mMapAccessURLRestHandlerFactory.end()) {
@@ -57,6 +66,11 @@ std::unique_ptr<rest::RestHandler> RestApiManager::getRestHandler(
   }
 
   return nullptr;
+}
+
+const std::string RestApiManager::getWellKnownAccessURL() const
+{
+  return "/.well-known/";
 }
 
 EOSMGMRESTNAMESPACE_END

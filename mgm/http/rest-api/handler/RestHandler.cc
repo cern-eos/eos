@@ -22,8 +22,10 @@
  ************************************************************************/
 
 #include "RestHandler.hh"
-#include <regex>
 #include "mgm/http/rest-api/exception/RestException.hh"
+#include <common/Logging.hh>
+#include <regex>
+#include "mgm/http/rest-api/utils/URLParser.hh"
 
 EOSMGMRESTNAMESPACE_BEGIN
 
@@ -33,14 +35,16 @@ RestHandler::RestHandler(const std::string& entryPointURL): mEntryPointURL(
   verifyRestApiEntryPoint(entryPointURL);
 }
 
-bool RestHandler::isRestRequest(const std::string& requestUrl)
+bool RestHandler::isRestRequest(const std::string& requestUrl,
+                                std::string& errorMsg) const
 {
   //The URL should start with the API entry URL
-  return ::strncmp(mEntryPointURL.c_str(), requestUrl.c_str(),
-                   mEntryPointURL.length()) == 0;
+  URLParser parser(requestUrl);
+  return parser.startsBy(mEntryPointURL);
 }
 
 void RestHandler::verifyRestApiEntryPoint(const std::string& entryPointURL)
+const
 {
   std::regex entryPointRegex(cEntryPointRegex);
 
@@ -50,6 +54,11 @@ void RestHandler::verifyRestApiEntryPoint(const std::string& entryPointURL)
        ") is malformed. It should have the format: /apientrypoint/.";
     throw RestException(ss.str());
   }
+}
+
+std::string RestHandler::getEntryPointURL() const
+{
+  return mEntryPointURL;
 }
 
 EOSMGMRESTNAMESPACE_END

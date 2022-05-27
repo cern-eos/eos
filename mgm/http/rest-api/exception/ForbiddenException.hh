@@ -36,8 +36,8 @@ EOSMGMRESTNAMESPACE_BEGIN
 class ForbiddenException : public RestException
 {
 public:
-  ForbiddenException();
-  ForbiddenException(const std::string& exceptionMsg);
+  ForbiddenException(const std::string& exceptionMsg): RestException(
+      exceptionMsg) {}
 };
 
 EOSMGMRESTNAMESPACE_END

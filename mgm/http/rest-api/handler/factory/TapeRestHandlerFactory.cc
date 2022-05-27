@@ -29,7 +29,7 @@ EOSMGMRESTNAMESPACE_BEGIN
 TapeRestHandlerFactory::TapeRestHandlerFactory(const TapeRestApiConfig* config)
   : mConfig(config) {}
 
-std::unique_ptr<RestHandler> TapeRestHandlerFactory::createRestHandler()
+std::unique_ptr<RestHandler> TapeRestHandlerFactory::createRestHandler() const
 {
   return std::make_unique<TapeRestHandler>(mConfig);
 }

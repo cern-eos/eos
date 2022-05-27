@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// File: ControllerFactory.cc
+// File: WellKnownRestHandlerFactory.hh
 // Author: Cedric Caffy - CERN
 // ----------------------------------------------------------------------
 
@@ -21,29 +21,27 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "ControllerFactory.hh"
-#include "mgm/http/rest-api/controllers/tape/stage/StageController.hh"
-#include "mgm/http/rest-api/controllers/tape/archiveinfo/ArchiveInfoController.hh"
-#include "mgm/http/rest-api/controllers/tape/release/ReleaseController.hh"
+#ifndef EOS_WELLKNOWNRESTHANDLERFACTORY_HH
+#define EOS_WELLKNOWNRESTHANDLERFACTORY_HH
+
+#include "mgm/Namespace.hh"
+#include <memory>
+#include "mgm/http/rest-api/handler/RestHandler.hh"
+#include "mgm/http/rest-api/handler/factory/RestHandlerFactory.hh"
+#include "mgm/http/rest-api/manager/RestApiManager.hh"
 
 EOSMGMRESTNAMESPACE_BEGIN
 
-std::unique_ptr<Controller> ControllerFactory::getStageController(
-  const std::string& accessURL)
+class WellKnownRestHandlerFactory : public RestHandlerFactory
 {
-  return std::make_unique<StageController>(accessURL);
-}
-
-std::unique_ptr<Controller> ControllerFactory::getArchiveInfoController(
-  const std::string& accessURL)
-{
-  return std::make_unique<ArchiveInfoController>(accessURL);
-}
-
-std::unique_ptr<Controller> ControllerFactory::getReleaseController(
-  const std::string& accessURL)
-{
-  return std::make_unique<ReleaseController>(accessURL);
-}
+public:
+  WellKnownRestHandlerFactory(const RestApiManager* restApiManager);
+  std::unique_ptr<RestHandler> createRestHandler() const override;
+  virtual ~WellKnownRestHandlerFactory() = default;
+private:
+  const RestApiManager* mRestApiManager;
+};
 
 EOSMGMRESTNAMESPACE_END
+
+#endif // EOS_WELLKNOWNRESTHANDLERFACTORY_HH

@@ -340,7 +340,7 @@ QdbMaster::Supervisor(ThreadAssistant& assistant) noexcept
 void
 QdbMaster::SlaveToMaster()
 {
-  eos_info("%s", "msg=\"start slave to master transition\"");
+  MasterLog(eos_log(LOG_INFO, "%s", "msg=\"start slave to master transition\""));
   Access::StallInfo old_stall; // to be discarded
   Access::StallInfo new_stall("*", "5", "slave->master transition", true);
   Access::SetStallRule(new_stall, old_stall);
@@ -394,7 +394,8 @@ QdbMaster::SlaveToMaster()
     }
   }
 
-  eos_info("%s", "msg=\"finished slave to master transition\"");
+  MasterLog(eos_log(LOG_INFO, "%s",
+                    "msg=\"finished slave to master transition\""));
 }
 
 //------------------------------------------------------------------------------
@@ -403,7 +404,7 @@ QdbMaster::SlaveToMaster()
 void
 QdbMaster::MasterToSlave()
 {
-  eos_info("%s", "msg=\"master to slave transition\"");
+  MasterLog(eos_log(LOG_INFO, "%s", "msg=\"start master to slave transition\""));
   RemoveStatusFile(EOSMGMMASTER_SUBSYS_RW_LOCKFILE);
   mIsMaster = false;
   UpdateMasterId("");
@@ -451,6 +452,8 @@ QdbMaster::MasterToSlave()
   }
 
   gOFS->mTracker.SetAcceptingRequests(true);
+  MasterLog(eos_log(LOG_INFO, "%s",
+                    "msg=\"finished master to slave transition\""));
 }
 
 //------------------------------------------------------------------------------

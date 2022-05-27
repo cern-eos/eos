@@ -42,6 +42,7 @@ message ConvertProto {
 
   message ConfigProto {
     uint32 maxthreads = 1;
+    uint32 maxqueuesize = 2;
   }
 
   message ListProto {

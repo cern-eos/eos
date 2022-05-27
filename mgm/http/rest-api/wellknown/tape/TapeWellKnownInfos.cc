@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// File: ForbiddenException.cc
+// File: TapeWellKnownInfos.cc
 // Author: Cedric Caffy - CERN
 // ----------------------------------------------------------------------
 
@@ -21,11 +21,27 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "ForbiddenException.hh"
+#include "TapeWellKnownInfos.hh"
 
 EOSMGMRESTNAMESPACE_BEGIN
 
-ForbiddenException::ForbiddenException(const std::string& exceptionMsg):
-  RestException(exceptionMsg) {}
+TapeWellKnownInfos::TapeWellKnownInfos(const std::string& siteName) : mSiteName(
+    siteName) {}
+
+void TapeWellKnownInfos::addEndpoint(const std::string& uri,
+                                     const std::string& version)
+{
+  mEndpoints.push_back(std::make_unique<TapeRestApiEndpoint>(uri, version));
+}
+
+const TapeWellKnownInfos::Endpoints& TapeWellKnownInfos::getEndpoints() const
+{
+  return mEndpoints;
+}
+
+const std::string TapeWellKnownInfos::getSiteName() const
+{
+  return mSiteName;
+}
 
 EOSMGMRESTNAMESPACE_END
