@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// File: TapeRestApiResponseFactory.hh
+// File: NotImplementedException.hh
 // Author: Cedric Caffy - CERN
 // ----------------------------------------------------------------------
 
@@ -21,35 +21,19 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifndef EOS_TAPERESTAPIRESPONSEFACTORY_HH
-#define EOS_TAPERESTAPIRESPONSEFACTORY_HH
+#ifndef EOS_NOTIMPLEMENTEDEXCEPTION_HH
+#define EOS_NOTIMPLEMENTEDEXCEPTION_HH
 
 #include "mgm/Namespace.hh"
-#include "mgm/http/rest-api/response/RestApiResponse.hh"
-#include "mgm/http/rest-api/response/RestApiResponseFactory.hh"
-#include "mgm/http/rest-api/model/tape/common/ErrorModel.hh"
-#include "mgm/http/rest-api/exception/JsonValidationException.hh"
+#include "mgm/http/rest-api/exception/RestException.hh"
 
 EOSMGMRESTNAMESPACE_BEGIN
 
-/**
- * Factory of tape REST API responses
- */
-class TapeRestApiResponseFactory : public RestApiResponseFactory {
+class NotImplementedException: public RestException {
 public:
-  RestApiResponse<ErrorModel> createBadRequestError(const std::string & detail) const;
-  RestApiResponse<ErrorModel> createBadRequestError(const JsonValidationException &ex) const;
-  RestApiResponse<ErrorModel> createNotFoundError() const;
-  RestApiResponse<ErrorModel> createMethodNotAllowedError(const std::string & detail) const;
-  RestApiResponse<ErrorModel> createInternalServerError(const std::string & detail) const;
-  RestApiResponse<ErrorModel> createNotImplementedError() const;
-  RestApiResponse<void> createOkEmptyResponse() const;
-  RestApiResponse<ErrorModel> createForbiddenError(const std::string & detail) const;
-private:
-  RestApiResponse<ErrorModel> createError(const common::HttpResponse::ResponseCodes code,const std::string & title, const std::string & detail) const;
+  NotImplementedException(const std::string & exceptionMsg): RestException(exceptionMsg){}
 };
-
 
 EOSMGMRESTNAMESPACE_END
 
-#endif // EOS_TAPERESTAPIRESPONSEFACTORY_HH
+#endif // EOS_NOTIMPLEMENTEDEXCEPTION_HH

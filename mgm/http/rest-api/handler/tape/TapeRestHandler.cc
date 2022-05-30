@@ -36,6 +36,7 @@
 #include "mgm/http/rest-api/exception/ControllerNotFoundException.hh"
 #include "mgm/http/rest-api/exception/ForbiddenException.hh"
 #include "mgm/http/rest-api/exception/MethodNotAllowedException.hh"
+#include "mgm/http/rest-api/exception/NotImplementedException.hh"
 #include "mgm/http/rest-api/json/tape/jsonifiers/archiveinfo/GetArchiveInfoResponseJsonifier.hh"
 #include "mgm/http/rest-api/json/tape/jsonifiers/stage/CreatedStageBulkRequestJsonifier.hh"
 #include "mgm/http/rest-api/json/tape/jsonifiers/stage/GetStageBulkRequestJsonifier.hh"
@@ -46,13 +47,32 @@ EOSMGMRESTNAMESPACE_BEGIN
 
 TapeRestHandler::TapeRestHandler(const TapeRestApiConfig * config): RestHandler(config->getAccessURL()),mTapeRestApiConfig(config) {
   initializeTapeWellKnownInfos();
-  initializeV1();
+  //initializeV1();
+  initializeV0Dot1();
 }
 
 void TapeRestHandler::initializeV1() {
   const std::string version = "v1";
   std::shared_ptr<TapeRestApiBusiness> restApiBusiness = std::make_shared<TapeRestApiBusiness>();
   std::unique_ptr<Controller> stageController = initializeStageController(version,restApiBusiness);
+  mControllerManager.addController(std::move(stageController));
+
+  std::unique_ptr<Controller> fileInfoController = initializeArchiveinfoController(version, restApiBusiness);
+  mControllerManager.addController(std::move(fileInfoController));
+
+  std::unique_ptr<Controller> releaseController = initializeReleaseController(version, restApiBusiness);
+  mControllerManager.addController(std::move(releaseController));
+
+  auto accessURLBuilder = getAccessURLBuilder();
+  accessURLBuilder->add(version);
+  mTapeWellKnownInfos->addEndpoint(accessURLBuilder->build(),version);
+}
+
+void TapeRestHandler::initializeV0Dot1() {
+  const std::string version = "v0.1";
+  std::shared_ptr<TapeRestApiBusiness> restApiBusiness = std::make_shared<TapeRestApiBusiness>();
+  //The STAGE resource is marked as NON_IMPLEMENTED for version 0.1
+  std::unique_ptr<Controller> stageController = TapeControllerFactory::getNotImplementedController(mEntryPointURL + version + "/stage/");
   mControllerManager.addController(std::move(stageController));
 
   std::unique_ptr<Controller> fileInfoController = initializeArchiveinfoController(version, restApiBusiness);
@@ -152,6 +172,9 @@ common::HttpResponse* TapeRestHandler::handleRequest(common::HttpRequest* reques
   } catch (const ForbiddenException & ex) {
     eos_static_info(ex.what());
     return mTapeRestApiResponseFactory.createForbiddenError(ex.what()).getHttpResponse();
+  } catch (const NotImplementedException & ex) {
+    eos_static_info(ex.what());
+    return mTapeRestApiResponseFactory.createNotImplementedError().getHttpResponse();
   } catch(const RestException &ex) {
     eos_static_info(ex.what());
     return mTapeRestApiResponseFactory.createInternalServerError(ex.what()).getHttpResponse();

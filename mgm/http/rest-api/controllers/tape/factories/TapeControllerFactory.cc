@@ -43,4 +43,8 @@ TapeControllerFactory::getReleaseController(const std::string& accessURL) {
   return std::make_unique<ReleaseController>(accessURL);
 }
 
+std::unique_ptr<Controller>
+TapeControllerFactory::getNotImplementedController(const std::string& accessURL){
+  return std::make_unique<NotImplementedController>(accessURL);
+}
 EOSMGMRESTNAMESPACE_END

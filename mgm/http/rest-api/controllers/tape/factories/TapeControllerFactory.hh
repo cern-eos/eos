@@ -37,9 +37,9 @@ EOSMGMRESTNAMESPACE_BEGIN
 class TapeControllerFactory {
 public:
   static std::unique_ptr<Controller> getStageController(const std::string & accessURL);
-  static std::unique_ptr<Controller>
-  getArchiveInfoController(const std::string & accessURL);
+  static std::unique_ptr<Controller> getArchiveInfoController(const std::string & accessURL);
   static std::unique_ptr<Controller> getReleaseController(const std::string & accessURL);
+  static std::unique_ptr<Controller> getNotImplementedController(const std::string & accessURL);
 };
 
 EOSMGMRESTNAMESPACE_END

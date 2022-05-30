@@ -75,6 +75,7 @@ public:
    */
   const TapeWellKnownInfos * getWellKnownInfos() const;
 private:
+  void initializeV0Dot1();
   /**
    * Initialize the version 1 of the tape REST API
    */
@@ -108,7 +109,6 @@ private:
    * HttpResponse factory for the tape REST API
    */
   TapeRestApiResponseFactory mTapeRestApiResponseFactory;
-  inline static const std::string VERSION_0 = "v0";
   const TapeRestApiConfig * mTapeRestApiConfig;
   std::unique_ptr<TapeWellKnownInfos> mTapeWellKnownInfos;
 };
