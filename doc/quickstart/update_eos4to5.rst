@@ -6,6 +6,8 @@
 Update from EOS 4 to EOS 5
 ================
 
+.. warning::
+   Warning: With EOS5, the MGM is expecting to have its configuration in QuarkDB already, so, before starting the upgrade, it is really important to follow the instructions for exporting the file configuration into QuarkDB: :ref:`quarkdbconfig`.
 
 .. warning::
    Before you start: please make sure you already run in HA mode, or that you start the upgrade process with the active MGM, otherwise you risk of running two active MGMs at the same time, with unknown consequences.
