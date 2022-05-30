@@ -16,6 +16,26 @@ Introduction
 
 This release is based on XRootD V5.
 
+``v5.0.24 Diopside``
+===================
+
+2022-05-27
+
+
+Bug
+---
+
+* [EOS-3713] - sys.eos.mdino should not use old-style inodes
+* [EOS-5230] - Keep xattrs when restoring versions
+* [EOS-5269] - Certain FSes not picked up by the group drainer
+
+Improvement
+-----------
+
+* [EOS-5263] - groupmod is hard limited to 256 groups
+* [EOS-5267] - Provide timestamp in eos convert list failed errors
+
+
 ``v5.0.23 Diopside``
 ===================
 
