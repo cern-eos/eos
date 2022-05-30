@@ -3,6 +3,8 @@
 .. index::
    single: Master/Slave QuarkDB Configuration
 
+.. _quarkdbconfig:
+
 Master/Slave QuarkDB Configuration
 ===================================
 

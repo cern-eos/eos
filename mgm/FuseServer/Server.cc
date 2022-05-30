@@ -525,7 +525,8 @@ Server::FillFileMD(uint64_t inode, eos::fusex::md& file,
     }
 
     if (has_mdino) {
-      (*file.mutable_attr())[k_mdino] = eos::common::FileId::FidToInode(fmd->getId());
+      (*file.mutable_attr())[k_mdino] = std::to_string(
+                                          eos::common::FileId::FidToInode(fmd->getId()));
     }
 
     file.clear_err();

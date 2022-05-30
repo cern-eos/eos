@@ -15,6 +15,16 @@ Introduction
 ------------
 This release is based on XRootD V4 and IPV6 enabled.
 
+``v4.8.86 Citrine``
+===================
+
+2022-05-27
+
+Bug
+---
+
+* [EOS-5272] - Fusex crash while handling hardlinks
+
 
 ``v4.8.85 Citrine``
 ===================
