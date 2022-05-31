@@ -843,7 +843,7 @@ unit_test_asan:
   script:
     - yum install --nogpg -y sssd-client
     - kinit stci@CERN.CH -k -t /stci.krb5/stci.keytab
-    - koji build --scratch ${TARGET} ${BUILD_NAME}_artifacts/SRPMS/*.src.rpm --wait 
+    - koji build ${TARGET} ${BUILD_NAME}_artifacts/SRPMS/*.src.rpm --wait 
   only:
     - tags
   tags:
