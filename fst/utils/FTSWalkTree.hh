@@ -59,7 +59,7 @@ WalkDirTree(std::vector<char*>&& paths, ExcludeFn exclude_fn, PathOp path_op)
     eos_static_err("msg=%s","fts_open failed");
     return {false, 0};
   }
-  uint64_t cnt;
+  uint64_t cnt {0};
   FTSENT * node;
 
   while ((node = fts_read(tree))) {
