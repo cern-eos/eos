@@ -29,6 +29,7 @@
 #include "XrdOuc/XrdOucHash.hh"
 #include "XrdSys/XrdSysPthread.hh"
 #include "common/AssistedThread.hh"
+#include "common/LockMonitor.hh"
 /*----------------------------------------------------------------------------*/
 #include <google/sparse_hash_map>
 /*----------------------------------------------------------------------------*/
@@ -176,26 +177,26 @@ public:
     memset(n5, 0, sizeof(n5));
 
     for (int k = 0; k < 3600; k++) {
-      min3600[k] = std::numeric_limits<long long>::max();
-      max3600[k] = std::numeric_limits<size_t>::min();
+      min3600[k] = (double) std::numeric_limits<long long>::max();
+      max3600[k] = (double) std::numeric_limits<size_t>::min();
       sum3600[k] = 0;
     }
 
     for (int k = 0; k < 300; k++) {
-      min300[k] = std::numeric_limits<long long>::max();
-      max300[k] = std::numeric_limits<size_t>::min();
+      min300[k] = (double) std::numeric_limits<long long>::max();
+      max300[k] = (double) std::numeric_limits<size_t>::min();
       sum300[k] = 0;
     }
 
     for (int k = 0; k < 60; k++) {
-      min60[k] = std::numeric_limits<long long>::max();
-      max60[k] = std::numeric_limits<size_t>::min();
+      min60[k] = (double) std::numeric_limits<long long>::max();
+      max60[k] = (double) std::numeric_limits<size_t>::min();
       sum60[k] = 0;
     }
 
     for (int k = 0; k < 5; k++) {
-      min5[k] = std::numeric_limits<long long>::max();
-      max5[k] = std::numeric_limits<size_t>::min();
+      min5[k] = (double) std::numeric_limits<long long>::max();
+      max5[k] = (double) std::numeric_limits<size_t>::min();
       sum5[k] = 0;
     }
   }
@@ -220,33 +221,33 @@ public:
     n3600[bin3600] += nsample;
     sum3600[(bin3600 + 1) % 3600] = 0;
     sum3600[bin3600] += avgv * nsample;
-    min3600[(bin3600 + 1) % 3600] = std::numeric_limits<long long>::max();
+    min3600[(bin3600 + 1) % 3600] = (double) std::numeric_limits<long long>::max();
     min3600[bin3600] = std::min(min3600[bin3600], minv);
-    max3600[(bin3600 + 1) % 3600] = std::numeric_limits<size_t>::min();
+    max3600[(bin3600 + 1) % 3600] = (double) std::numeric_limits<size_t>::min();
     max3600[bin3600] = std::max(max3600[bin3600], maxv);
     n300[(bin300 + 1) % 300] = 0;
     n300[bin300] += nsample;
     sum300[(bin300 + 1) % 300] = 0;
     sum300[bin300] += avgv * nsample;
-    min300[(bin300 + 1) % 300] = std::numeric_limits<long long>::max();
+    min300[(bin300 + 1) % 300] = (double) std::numeric_limits<long long>::max();
     min300[bin300] = std::min(min300[bin300], minv);
-    max300[(bin300 + 1) % 300] = std::numeric_limits<size_t>::min();
+    max300[(bin300 + 1) % 300] = (double) std::numeric_limits<size_t>::min();
     max300[bin300] = std::max(max300[bin300], maxv);
     n60[(bin60 + 1) % 60] = 0;
     n60[bin60] += nsample;
     sum60[(bin60 + 1) % 60] = 0;
     sum60[bin60] += avgv * nsample;
-    min60[(bin60 + 1) % 60] = std::numeric_limits<long long>::max();
+    min60[(bin60 + 1) % 60] = (double) std::numeric_limits<long long>::max();
     min60[bin60] = std::min(min60[bin60], minv);
-    max60[(bin60 + 1) % 60] = std::numeric_limits<size_t>::min();
+    max60[(bin60 + 1) % 60] = (double) std::numeric_limits<size_t>::min();
     max60[bin60] = std::max(max60[bin60], maxv);
     n5[(bin5 + 1) % 5] = 0;
     n5[bin5] += nsample;
     sum5[(bin5 + 1) % 5] = 0;
     sum5[bin5] += avgv * nsample;
-    min5[(bin5 + 1) % 5] = std::numeric_limits<long long>::max();
+    min5[(bin5 + 1) % 5] = (double) std::numeric_limits<long long>::max();
     min5[bin5] = std::min(min5[bin5], minv);
-    max5[(bin5 + 1) % 5] = std::numeric_limits<size_t>::min();
+    max5[(bin5 + 1) % 5] = (double) std::numeric_limits<size_t>::min();
     max5[bin5] = std::max(max5[bin5], maxv);
   }
 
@@ -265,14 +266,14 @@ public:
     sum300[(bin300 + 1) % 300] = 0;
     sum60[(bin60 + 1) % 60] = 0;
     sum5[(bin5 + 1) % 5] = 0;
-    min3600[(bin3600 + 1) % 3600] = std::numeric_limits<long long>::max();
-    min300[(bin300 + 1) % 300] = std::numeric_limits<long long>::max();
-    min60[(bin60 + 1) % 60] = std::numeric_limits<long long>::max();
-    min5[(bin5 + 1) % 5] = std::numeric_limits<long long>::max();
-    max3600[(bin3600 + 1) % 3600] = std::numeric_limits<size_t>::min();
-    max300[(bin300 + 1) % 300] = std::numeric_limits<size_t>::min();
-    max60[(bin60 + 1) % 60] = std::numeric_limits<size_t>::min();
-    max5[(bin5 + 1) % 5] = std::numeric_limits<size_t>::min();
+    min3600[(bin3600 + 1) % 3600] = (double) std::numeric_limits<long long>::max();
+    min300[(bin300 + 1) % 300] = (double) std::numeric_limits<long long>::max();
+    min60[(bin60 + 1) % 60] = (double) std::numeric_limits<long long>::max();
+    min5[(bin5 + 1) % 5] = (double) std::numeric_limits<long long>::max();
+    max3600[(bin3600 + 1) % 3600] = (double) std::numeric_limits<size_t>::min();
+    max300[(bin300 + 1) % 300] = (double) std::numeric_limits<size_t>::min();
+    max60[(bin60 + 1) % 60] = (double) std::numeric_limits<size_t>::min();
+    max5[(bin5 + 1) % 5] = (double) std::numeric_limits<size_t>::min();
   }
 
   double
@@ -304,7 +305,7 @@ public:
   double
   GetMin3600()
   {
-    double minval = std::numeric_limits<long long>::max();
+    double minval = (double) std::numeric_limits<long long>::max();
 
     for (int i = 0; i < 3600; i++) {
       minval = std::min(min3600[i], minval);
@@ -316,7 +317,7 @@ public:
   double
   GetMax3600()
   {
-    double maxval = std::numeric_limits<size_t>::min();
+    double maxval = (double) std::numeric_limits<size_t>::min();
 
     for (int i = 0; i < 3600; i++) {
       maxval = std::max(max3600[i], maxval);
@@ -354,7 +355,7 @@ public:
   double
   GetMin300()
   {
-    double minval = std::numeric_limits<long long>::max();
+    double minval = (double) std::numeric_limits<long long>::max();
 
     for (int i = 0; i < 300; i++) {
       minval = std::min(min300[i], minval);
@@ -366,7 +367,7 @@ public:
   double
   GetMax300()
   {
-    double maxval = std::numeric_limits<size_t>::min();
+    double maxval = (double) std::numeric_limits<size_t>::min();
 
     for (int i = 0; i < 300; i++) {
       maxval = std::max(max300[i], maxval);
@@ -404,7 +405,7 @@ public:
   double
   GetMin60()
   {
-    double minval = std::numeric_limits<long long>::max();
+    double minval = (double) std::numeric_limits<long long>::max();
 
     for (int i = 0; i < 60; i++) {
       minval = std::min(min60[i], minval);
@@ -416,7 +417,7 @@ public:
   double
   GetMax60()
   {
-    double maxval = std::numeric_limits<size_t>::min();
+    double maxval = (double) std::numeric_limits<size_t>::min();
 
     for (int i = 0; i < 60; i++) {
       maxval = std::max(max60[i], maxval);
@@ -454,7 +455,7 @@ public:
   double
   GetMin5()
   {
-    double minval = std::numeric_limits<long long>::max();
+    double minval = (double) std::numeric_limits<long long>::max();
 
     for (int i = 0; i < 5; i++) {
       minval = std::min(min5[i], minval);
@@ -466,7 +467,7 @@ public:
   double
   GetMax5()
   {
-    double maxval = std::numeric_limits<size_t>::min();
+    double maxval = (double) std::numeric_limits<size_t>::min();
 
     for (int i = 0; i < 5; i++) {
       maxval = std::max(max5[i], maxval);
@@ -508,7 +509,7 @@ class Stat
 {
 public:
 
-  XrdSysMutex Mutex;
+  eos::common::TrackMutex Mutex;
 
   // first is name of value, then the map
   google::sparse_hash_map<std::string, google::sparse_hash_map<uid_t, unsigned long long> >
@@ -536,7 +537,7 @@ public:
 
   size_t GetOpsTS()
   {
-    XrdSysMutexHelper sLock(Mutex);
+    eos::common::LockMonitor sLock(Mutex);
     return GetOps();
   }
 

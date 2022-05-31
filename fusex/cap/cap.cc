@@ -89,8 +89,8 @@ void
 cap::reset()
 /* -------------------------------------------------------------------------- */
 {
-  XrdSysMutexHelper mLock(capmap);
-  XrdSysMutexHelper rLock(revocationLock);
+  eos::common::LockMonitor mLock(capmap);
+  eos::common::LockMonitor rLock(revocationLock);
 
   for (auto it : capmap) {
     revocationset.insert((*it.second)()->authid());
@@ -160,7 +160,7 @@ cap::ls()
 /* -------------------------------------------------------------------------- */
 {
   std::string listing;
-  XrdSysMutexHelper mLock(capmap);
+  eos::common::LockMonitor mLock(capmap);
 
   for (auto it = capmap.begin(); it != capmap.end(); ++it) {
     listing += it->second->dump(false);
@@ -188,7 +188,7 @@ cap::get(fuse_req_t req,
   std::string cid = cap::capx::capid(req, ino);
   std::string clientid = cap::capx::getclientid(req);
   eos_static_debug("inode=%08lx cap-id=%s", ino, cid.c_str());
-  XrdSysMutexHelper mLock(capmap);
+  eos::common::LockMonitor mLock(capmap);
 
   if (capmap.count(cid)) {
     shared_cap cap = capmap[cid];
@@ -215,7 +215,7 @@ cap::get(fuse_ino_t ino, std::string clientid)
 {
   std::string cid = cap::capx::capid(ino, clientid);
   eos_static_debug("inode=%08lx cap-id=%s", ino, cid.c_str());
-  XrdSysMutexHelper mLock(capmap);
+  eos::common::LockMonitor mLock(capmap);
 
   if (capmap.count(cid)) {
     shared_cap cap = capmap[cid];
@@ -236,7 +236,7 @@ cap::store(fuse_req_t req,
   std::string clientid = cap::capx::getclientid(req);
   uint64_t id = mds->vmaps().forward(icap.id());
   std::string cid = cap::capx::capid(req, id); // cid uses the local inode
-  XrdSysMutexHelper mLock(capmap);
+  eos::common::LockMonitor mLock(capmap);
 
   if (capmap.count(cid)) {
     shared_cap cap = capmap[cid];
@@ -261,7 +261,7 @@ cap::forget(const std::string& cid)
 {
   fuse_ino_t inode = 0;
   {
-    XrdSysMutexHelper mLock(capmap);
+    eos::common::LockMonitor mLock(capmap);
 
     if (capmap.count(cid)) {
       eos_static_debug("forget capid=%s cap: %s", cid.c_str(),
@@ -269,7 +269,7 @@ cap::forget(const std::string& cid)
       shared_cap cap = capmap[cid];
       inode = (*cap)()->id();
       capmap.erase(cid);
-      XrdSysMutexHelper rLock(revocationLock);
+      eos::common::LockMonitor rLock(revocationLock);
       revocationset.insert((*cap)()->authid());
     } else {
       eos_static_debug("forget capid=%s cap: ENOENT", cid.c_str());
@@ -301,7 +301,7 @@ cap::imply(shared_cap cap,
                               EosFuse::Instance().Config().options.leasetime);
   std::string clientid = (*cap)()->clientid();
   std::string cid = capx::capid(ino, clientid);
-  XrdSysMutexHelper mLock(capmap);
+  eos::common::LockMonitor mLock(capmap);
   // TODO: deal with the influence of mode to the cap itself
   capmap[cid] = implied_cap;
   return cid;
@@ -323,7 +323,7 @@ cap::acquire(fuse_req_t req, fuse_ino_t ino, mode_t mode, bool lock)
   bool try_attach = false;
   // avoid we create the same cap concurrently
   {
-    XrdSysMutexHelper cLock(cap->Locker());
+    eos::common::LockMonitor cLock(cap->Locker());
 
     if (!cap->valid()) {
       if (refresh(req, cap)) {
@@ -348,8 +348,8 @@ cap::acquire(fuse_req_t req, fuse_ino_t ino, mode_t mode, bool lock)
 
     eos_static_debug("%s", cap->dump().c_str());
   }
-  XrdSysMutexHelper mLock(capmap);
-  XrdSysMutexHelper mLock2(cap->Locker());
+  eos::common::LockMonitor mLock(capmap);
+  eos::common::LockMonitor mLock2(cap->Locker());
 
   if (try_attach) {
     if (!capmap.count(cid)) {
@@ -389,7 +389,7 @@ cap::refresh(fuse_req_t req, shared_cap cap)
         case eos::fusex::container::CAP: {
           uint64_t id = mds->vmaps().forward(it->cap_().id());
 
-          //XrdSysMutexHelper mLock(cap->Locker());
+          //eos::common::LockMonitor mLock(cap->Locker());
           // check if the cap received matches what we think about local mapping
           if ((*cap)()->id() == id) {
             eos_static_debug("correct cap received for inode=%#lx", (*cap)()->id());
@@ -445,7 +445,7 @@ cap::refresh(fuse_req_t req, shared_cap cap)
 bool
 cap::capx::satisfy(mode_t mode)
 {
-  //XrdSysMutexHelper mLock(Locker());
+  //eos::common::LockMonitor mLock(Locker());
   if (((mode & (*this)()->mode())) == mode) {
     eos_static_debug("inode=%08lx client-id=%s mode=%x test-mode=%x satisfy=true",
                      (*this)()->id(), (*this)()->clientid().c_str(),
@@ -512,7 +512,7 @@ cap::capx::lifetime()
 void
 cap::capx::invalidate()
 {
-  XrdSysMutexHelper cLock(Locker());
+  eos::common::LockMonitor cLock(Locker());
   (*this)()->set_vtime(0);
 }
 
@@ -528,12 +528,12 @@ cap::capflush(ThreadAssistant& assistant)
       cmap flushcaps;
       // avoid keeping two mutexes
       {
-        XrdSysMutexHelper capLock(capmap);
+        eos::common::LockMonitor capLock(capmap);
         flushcaps = capmap;
       }
 
       for (auto it = flushcaps.begin(); it != flushcaps.end(); ++it) {
-        XrdSysMutexHelper cLock(it->second->Locker());
+        eos::common::LockMonitor cLock(it->second->Locker());
 
         // make a list of caps to timeout
         if (!it->second->valid(false)) {
@@ -549,7 +549,7 @@ cap::capflush(ThreadAssistant& assistant)
       }
 
       {
-        XrdSysMutexHelper capLock(capmap);
+        eos::common::LockMonitor capLock(capmap);
 
         for (auto it = capdelmap.begin(); it != capdelmap.end(); ++it) {
           // remove the expired or invalidated by delete caps
@@ -573,7 +573,7 @@ cap::shared_quota
 /* -------------------------------------------------------------------------- */
 cap::qmap::get(shared_cap cap)
 {
-  XrdSysMutexHelper mLock(this);
+  eos::common::LockMonitor mLock(this);
   uint64_t ino = (*cap)()->_quota().quota_inode();
   char sqid[128];
   snprintf(sqid, sizeof(sqid), "%u:%u:%16lx", (*cap)()->uid(),
@@ -592,7 +592,7 @@ cap::qmap::get(shared_cap cap)
                         sqid, (*quota)()->volume_quota(),
                         (*quota)()->inode_quota());
       {
-        XrdSysMutexHelper qLock(quota->Locker());
+        eos::common::LockMonitor qLock(quota->Locker());
         // if there is no open file on that quota node, we can refresh from remote
         *quota = (*cap)()->_quota();
       }
@@ -621,7 +621,7 @@ cap::quotax::dump()
   options.always_print_primitive_fields = true;
   std::string jsonstring;
   {
-    XrdSysMutexHelper qLock(Locker());
+    eos::common::LockMonitor qLock(Locker());
     google::protobuf::util::MessageToJsonString(*((eos::fusex::quota*)((*this)())),
         &jsonstring, options);
   }
