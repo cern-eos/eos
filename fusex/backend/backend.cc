@@ -527,7 +527,7 @@ backend::rmRf(fuse_req_t req, eos::fusex::md* md)
 int
 /* -------------------------------------------------------------------------- */
 backend::putMD(fuse_req_t req, eos::fusex::md* md, std::string authid,
-               XrdSysMutex* locker)
+               eos::common::TrackMutex* locker)
 {
   fuse_id id(req);
   return putMD(id, md, authid, locker);
@@ -537,7 +537,7 @@ backend::putMD(fuse_req_t req, eos::fusex::md* md, std::string authid,
 int
 /* -------------------------------------------------------------------------- */
 backend::putMD(fuse_id& id, eos::fusex::md* md, std::string authid,
-               XrdSysMutex* locker)
+               eos::common::TrackMutex* locker)
 {
   XrdCl::URL url;
   XrdCl::URL::ParamsMap query;
@@ -708,7 +708,7 @@ int
 /* -------------------------------------------------------------------------- */
 backend::doLock(fuse_req_t req,
                 eos::fusex::md& md,
-                XrdSysMutex* locker)
+                eos::common::TrackMutex* locker)
 /* -------------------------------------------------------------------------- */
 {
   XrdCl::URL url("root://" + hostport);

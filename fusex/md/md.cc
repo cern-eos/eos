@@ -80,7 +80,7 @@ metad::init(backend* _mdbackend)
   std::string mdstream;
   // load the root node
   fuse_req_t req = 0;
-  XrdSysMutexHelper mLock(mdmap);
+  eos::common::LockMonitor mLock(mdmap);
   update(req, mdmap[1], "", true);
   mdmap.init(EosFuse::Instance().getKV());
   dentrymessaging = false;
@@ -171,7 +171,7 @@ metad::lookup(fuse_req_t req, fuse_ino_t parent, const char* name)
   shared_md md;
 
   if ((*pmd)()->id() == parent) {
-    XrdSysMutexHelper mLock(pmd->Locker());
+    eos::common::LockMonitor mLock(pmd->Locker());
     fuse_ino_t inode = 0; // inode referenced by parent + name
 
     // self lookup required for NFS exports
@@ -278,7 +278,7 @@ metad::forget(fuse_req_t req, fuse_ino_t ino, int nlookup)
   }
 
   {
-    XrdSysMutexHelper mLock(md->Locker());
+    eos::common::LockMonitor mLock(md->Locker());
 
     if (!(*md)()->id()) {
       return EAGAIN;
@@ -324,7 +324,7 @@ metad::forget(fuse_req_t req, fuse_ino_t ino, int nlookup)
   }
 
   if (EOS_LOGS_DEBUG) {
-    XrdSysMutexHelper mLock(md->Locker());
+    eos::common::LockMonitor mLock(md->Locker());
     eos_static_debug("delete md object - ino=%#lx name=%s", ino,
                      (*md)()->name().c_str());
   }
@@ -510,10 +510,10 @@ metad::map_children_to_local(shared_md pmd)
       if (map->first.substr(0,
                             strlen(EOS_COMMON_PATH_VERSION_FILE_PREFIX)) ==
           EOS_COMMON_PATH_VERSION_FILE_PREFIX) {
-        // check if there is actually a 'babysitting' reference file for this version, if now we display it!
+        // check if there is actually a 'babysitting' reference file for this version, if not we display it!
         std::string nvfile = map->first.substr(strlen(
             EOS_COMMON_PATH_VERSION_FILE_PREFIX));
-        eos_static_crit("hide %d:%d %s",
+        eos_static_debug("hide %d:%d %s",
                         EosFuse::Instance().Config().options.hide_versions,
                         EosFuse::Instance().mds.supports_hideversion(),
                         nvfile.c_str());
@@ -651,7 +651,7 @@ metad::get(fuse_req_t req,
     } else {
       if (ino != 1) {
         // we need this to refetch a hard link target which was removed server side
-        XrdSysMutexHelper mLock(md->Locker());
+        eos::common::LockMonitor mLock(md->Locker());
         (*md)()->set_md_ino(ino);
       }
     }
@@ -690,7 +690,7 @@ metad::get(fuse_req_t req,
       uint64_t md_pid = 0;
       mode_t md_mode = 0;
       {
-        XrdSysMutexHelper mLock(md->Locker());
+        eos::common::LockMonitor mLock(md->Locker());
 
         if (((!listing) || (listing && (*md)()->type() == (*md)()->MDLS)) &&
             (*md)()->md_ino() &&
@@ -720,7 +720,7 @@ metad::get(fuse_req_t req,
       }
     }
 
-    XrdSysMutexHelper mLock(md->Locker());
+    eos::common::LockMonitor mLock(md->Locker());
 
     if (((*md)()->id() != 1) && !(*md)()->pid() && !md->needs_refresh()) {
       // this must have been generated locally, we return this entry
@@ -768,7 +768,7 @@ metad::get(fuse_req_t req,
       // prevent resyning when we have deletions pending
       /*while (1)
       {
-        XrdSysMutexHelper mdLock(pmd->Locker());
+        eos::common::LockMonitor mdLock(pmd->Locker());
         if (pmd->WaitSync(1))
         {
           if (pmd->get_todelete().size())
@@ -796,14 +796,14 @@ metad::get(fuse_req_t req,
     // -------------------------------------------------------------------------
   {
     thecase = 3;
-    XrdSysMutexHelper mLock(md->Locker());
+    eos::common::LockMonitor mLock(md->Locker());
 
     if ((*md)()->md_ino()) {
       /*
       // prevent resyncing when we have deletions pending
       while (1)
       {
-        XrdSysMutexHelper mdLock(md->Locker());
+        eos::common::LockMonitor mdLock(md->Locker());
         if (md->WaitSync(1))
         {
           if (md->get_todelete().size())
@@ -880,7 +880,7 @@ metad::get(fuse_req_t req,
         if (pmd && (*pmd)()->id()) {
           std::string encname = eos::common::StringConversion::EncodeInvalidUTF8
                                 ((*md)()->name());
-          XrdSysMutexHelper mLock(pmd->Locker());
+          eos::common::LockMonitor mLock(pmd->Locker());
 
           if (!pmd->local_children().count(encname) &&
               !pmd->get_todelete().count(encname) &&
@@ -1033,7 +1033,7 @@ metad::add(fuse_req_t req, metad::shared_md pmd, metad::shared_md md,
   // avoid lock-order violation
   md->Locker().UnLock();
   {
-    XrdSysMutexHelper mLock(pmd->Locker());
+    eos::common::LockMonitor mLock(pmd->Locker());
 
     if (!pmd->local_children().count(StringConversion::EncodeInvalidUTF8(
                                        (*md)()->name()))) {
@@ -1082,7 +1082,7 @@ metad::add_sync(fuse_req_t req, shared_md pmd, shared_md md, std::string authid)
   // this is called with a lock on the md object
   int rc = 0;
   // store the local and remote parent inode
-  XrdSysMutexHelper mLockParent(pmd->Locker());
+  eos::common::LockMonitor mLockParent(pmd->Locker());
   (*md)()->set_pid((*pmd)()->id());
   (*md)()->set_md_pino((*pmd)()->md_ino());
   mLockParent.UnLock();
@@ -1148,7 +1148,7 @@ metad::add_sync(fuse_req_t req, shared_md pmd, shared_md md, std::string authid)
   // avoid lock-order violation
   md->Locker().UnLock();
   {
-    XrdSysMutexHelper mLock(pmd->Locker());
+    eos::common::LockMonitor mLock(pmd->Locker());
 
     if (!pmd->local_children().count(
           eos::common::StringConversion::EncodeInvalidUTF8(md_name))) {
@@ -1190,7 +1190,7 @@ metad::begin_flush(fuse_req_t req, shared_md emd, std::string authid)
     //TODO wait for the remote inode to be known
   }
 
-  XrdSysMutexHelper mLock(md->Locker());
+  eos::common::LockMonitor mLock(md->Locker());
   (*md)()->set_md_ino((*emd)()->md_ino());
 
   if ((rc = mdbackend->putMD(req, (*md)(), authid, &(md->Locker())))) {
@@ -1212,7 +1212,7 @@ metad::end_flush(fuse_req_t req, shared_md emd, std::string authid)
     //TODO wait for the remote inode to be known
   }
 
-  XrdSysMutexHelper mLock(md->Locker());
+  eos::common::LockMonitor mLock(md->Locker());
   (*md)()->set_md_ino((*emd)()->md_ino());
 
   if ((rc = mdbackend->putMD(req, (*md)(), authid, &(md->Locker())))) {
@@ -1257,7 +1257,7 @@ metad::remove(fuse_req_t req, metad::shared_md pmd, metad::shared_md md,
   // avoid lock order violation
   md->Locker().UnLock();
   {
-    XrdSysMutexHelper mLock(pmd->Locker());
+    eos::common::LockMonitor mLock(pmd->Locker());
     pmd->local_children().erase(eos::common::StringConversion::EncodeInvalidUTF8(
                                   name));
     (*pmd)()->set_nchildren((*pmd)()->nchildren() - 1);
@@ -1307,7 +1307,7 @@ metad::mv(fuse_req_t req, shared_md p1md, shared_md p2md, shared_md md,
                      newname.c_str(),
                      (*p1md)()->name().c_str(), (*p2md)()->name().c_str(), (*md)()->id());
 
-  XrdSysMutexHelper mLock(md->Locker());
+  eos::common::LockMonitor mLock(md->Locker());
   struct timespec ts;
   eos::common::Timing::GetTimeSpec(ts);
 
@@ -1353,7 +1353,7 @@ metad::mv(fuse_req_t req, shared_md p1md, shared_md p2md, shared_md md,
     p2md->setop_update();
   } else {
     // move within directory
-    XrdSysMutexHelper m1Lock(p1md->Locker());
+    eos::common::LockMonitor m1Lock(p1md->Locker());
 
     if (p2md->local_children().count(
           eos::common::StringConversion::EncodeInvalidUTF8(newname))) {
@@ -1537,7 +1537,7 @@ metad::dump_container(eos::fusex::container& cont)
 int
 metad::getlk(fuse_req_t req, shared_md md, struct flock* lock)
 {
-  XrdSysMutexHelper locker(md->Locker());
+  eos::common::LockMonitor locker(md->Locker());
   // fill lock request structure
   (*md)()->mutable_flock()->set_pid(fuse_req_ctx(req)->pid);
   (*md)()->mutable_flock()->set_len(lock->l_len);
@@ -1606,7 +1606,7 @@ metad::getlk(fuse_req_t req, shared_md md, struct flock* lock)
 int
 metad::setlk(fuse_req_t req, shared_md md, struct flock* lock, int sleep)
 {
-  XrdSysMutexHelper locker(md->Locker());
+  eos::common::LockMonitor locker(md->Locker());
   // fill lock request structure
   (*md)()->mutable_flock()->set_pid(fuse_req_ctx(req)->pid);
   (*md)()->mutable_flock()->set_len(lock->l_len);
@@ -1710,7 +1710,7 @@ metad::cleanup(shared_md md)
     shared_md cmd;
 
     if (mdmap.retrieveTS(it->second, cmd)) {
-      // XrdSysMutexHelper cmLock(cmd->Locker());
+      // eos::common::LockMonitor cmLock(cmd->Locker());
       bool in_flush = has_flush(it->second);
 
       if (!S_ISDIR((*cmd)()->mode())) {
@@ -1871,7 +1871,7 @@ metad::apply(fuse_req_t req, eos::fusex::container& cont, bool listing)
     md->Locker().UnLock();
 
     if (is_new) {
-      XrdSysMutexHelper mLock(mdmap);
+      eos::common::LockMonitor mLock(mdmap);
       mdmap[ino] = md;
       stat.inodes_inc();
       stat.inodes_ever_inc();
@@ -2037,7 +2037,7 @@ metad::apply(fuse_req_t req, eos::fusex::container& cont, bool listing)
 
               // we don't wipe meta-data children which we still have to flush or have open
               // if they have to be deleted, there is an explicit callback arriving for deletion
-              XrdSysMutexHelper scope_lock(pmd->Locker());
+              eos::common::LockMonitor scope_lock(pmd->Locker());
               std::vector<std::string> clear_children;
 
               for (auto it = pmd->local_children().begin() ;
@@ -2111,7 +2111,7 @@ metad::apply(fuse_req_t req, eos::fusex::container& cont, bool listing)
               eos_static_debug("clearing out %0016lx", (*pmd)()->id());
             }
 
-            XrdSysMutexHelper scope_lock(pmd->Locker());
+            eos::common::LockMonitor scope_lock(pmd->Locker());
             pmd->local_children().clear();
             pmd->get_todelete().clear();
           }
@@ -2233,7 +2233,7 @@ metad::mdcflush(ThreadAssistant& assistant)
         eos_static_info("metacache::flush ino=%016lx", (unsigned long long) ino);
 
         if (op != metad::mdx::LSTORE) {
-          XrdSysMutexHelper mdLock(md->Locker());
+          eos::common::LockMonitor mdLock(md->Locker());
 
           if (!(*md)()->md_pino()) {
             // when creating objects locally faster than pushed upstream
@@ -2316,7 +2316,7 @@ metad::mdcflush(ThreadAssistant& assistant)
                   eos_static_debug("count=%d(-%d) - ino=%#lx", md->lookup_is(), 1, ino);
                 }
 
-                XrdSysMutexHelper mLock(md->Locker());
+                eos::common::LockMonitor mLock(md->Locker());
 
                 if (md->lookup_dec(1)) {
                   // forget this inode
@@ -2343,7 +2343,7 @@ metad::mdcflush(ThreadAssistant& assistant)
 
             {
               if (pmd) {
-                XrdSysMutexHelper mmLock(pmd->Locker());
+                eos::common::LockMonitor mmLock(pmd->Locker());
                 // we don't remote entries from the local deletion list because there could be
                 // a race condition of a thread doing MDLS overwriting the locally deleted entry
                 pmd->get_todelete().erase(eos::common::StringConversion::EncodeInvalidUTF8(
@@ -2359,19 +2359,6 @@ metad::mdcflush(ThreadAssistant& assistant)
     }
   }
 }
-
-/* -------------------------------------------------------------------------- */
-void
-metad::mdsizeflush(ThreadAssistant& assistant)
-{
-  // TODO: implement MGM size updates while writing files
-  while (!assistant.terminationRequested()) {
-    std::this_thread::sleep_for(std::chrono::milliseconds(128));
-  }
-
-  return;
-}
-
 
 /* -------------------------------------------------------------------------- */
 void
@@ -2391,7 +2378,7 @@ metad::mdstackfree(ThreadAssistant& assistant)
 
     // do this ~every 128 seconds
     if (!(cnt % 256)) {
-      XrdSysMutexHelper mLock(mdmap);
+      eos::common::LockMonitor mLock(mdmap);
 
       for (auto it = mdmap.begin(); it != mdmap.end();) {
         if (!it->second) {
@@ -2432,7 +2419,7 @@ metad::mdstackfree(ThreadAssistant& assistant)
       size_t filled = 0;
       size_t empty = 0;
       {
-        XrdSysMutexHelper mLock(mdmap);
+        eos::common::LockMonitor mLock(mdmap);
 
         for (auto it = mdmap.begin(); it != mdmap.end(); ++it) {
           if (it->second) {
@@ -2541,7 +2528,7 @@ metad::determineLockOrder(shared_md md1, shared_md md2)
 bool
 metad::isChild(shared_md potentialChild, fuse_ino_t parentId)
 {
-  XrdSysMutexHelper helper(potentialChild->Locker());
+  eos::common::LockMonitor helper(potentialChild->Locker());
 
   if ((*potentialChild)()->id() == 1 || (*potentialChild)()->id() == 0) {
     return false;
@@ -2585,7 +2572,7 @@ metad::calculateDepth(shared_md md)
     return -1;
   }
 
-  XrdSysMutexHelper mmLock(pmd->Locker());
+  eos::common::LockMonitor mmLock(pmd->Locker());
   return calculateDepth(pmd) + 1;
 }
 
@@ -2615,7 +2602,7 @@ metad::calculateLocalPath(shared_md md)
     return "";
   }
 
-  XrdSysMutexHelper mmLock(pmd->Locker());
+  eos::common::LockMonitor mmLock(pmd->Locker());
   return calculateLocalPath(pmd) + lpath;
 }
 
@@ -2807,7 +2794,7 @@ metad::mdcommunicate(ThreadAssistant& assistant)
                                    rsp.config_().hideversion() ? "hidden" : "visible",
                                    rsp.config_().serverversion().c_str());
                 interval = (int) rsp.config_().hbrate();
-                XrdSysMutexHelper cLock(EosFuse::Instance().mds.ConfigMutex);
+                eos::common::LockMonitor cLock(EosFuse::Instance().mds.ConfigMutex);
                 EosFuse::Instance().mds.dentrymessaging = rsp.config_().dentrymessaging();
                 EosFuse::Instance().mds.writesizeflush = rsp.config_().writesizeflush();
                 EosFuse::Instance().mds.appname = rsp.config_().appname();
@@ -2839,7 +2826,7 @@ metad::mdcommunicate(ThreadAssistant& assistant)
                 shared_md pmd;
 
                 if (ino && mdmap.retrieveTS(ino, pmd)) {
-                  XrdSysMutexHelper mLock(pmd->Locker());
+                  eos::common::LockMonitor mLock(pmd->Locker());
 
                   if (pmd->local_children().count(
                         eos::common::StringConversion::EncodeInvalidUTF8(name))) {
@@ -2863,7 +2850,7 @@ metad::mdcommunicate(ThreadAssistant& assistant)
 
               // force meta data refresh
               if (ino && mdmap.retrieveTS(ino, md)) {
-                XrdSysMutexHelper mLock(md->Locker());
+                eos::common::LockMonitor mLock(md->Locker());
                 md->force_refresh();
                 mode = (*md)()->mode();
               }
@@ -2912,8 +2899,10 @@ metad::mdcommunicate(ThreadAssistant& assistant)
                 fuse_ino_t ino = EosFuse::Instance().getCap().forget(capid);
                 shared_md md;
 
+		bool locked=false;
                 if (mdmap.retrieveTS(ino, md)) {
                   md->Locker().Lock();
+		  locked = true;
                 }
 
                 // invalidate children
@@ -2922,15 +2911,15 @@ metad::mdcommunicate(ThreadAssistant& assistant)
                     // force an update of the metadata with next access
                     eos_static_info("md=%16x", (*md)()->id());
                     cleanup(md);
-
+		    locked = false;
                     if (EOS_LOGS_DEBUG) {
                       eos_static_debug("%s", dump_md(md).c_str());
                     }
-                  } else {
-                    // in case this should somehow happen
-                    md->Locker().UnLock();
                   }
                 }
+		if (locked) {
+		  md->Locker().UnLock();
+		}
               } else {
                 // there might have been several caps and the first has wiped already the MD,
                 // still we want to remove the cap entry
@@ -3095,7 +3084,7 @@ metad::mdcommunicate(ThreadAssistant& assistant)
                     eos_static_info("invalidate md cache for ino=%016lx", pino);
                     kernelcache::inval_entry(pino, (*md)()->name());
                     kernelcache::inval_inode(pino, false);
-                    XrdSysMutexHelper mLock(pmd->Locker());
+                    eos::common::LockMonitor mLock(pmd->Locker());
                     pmd->local_enoent().erase((*md)()->name());
                   }
                 } else {
@@ -3140,7 +3129,7 @@ metad::mdcommunicate(ThreadAssistant& assistant)
 
       {
         // add caps to be revoked
-        XrdSysMutexHelper rLock(EosFuse::Instance().getCap().get_revocationLock());
+	eos::common::LockMonitor rLock(EosFuse::Instance().getCap().get_revocationLock());
         // clear the hb map
         hb.mutable_heartbeat_()->mutable_authrevocation()->clear();
         auto rmap = hb.mutable_heartbeat_()->mutable_authrevocation();
@@ -3205,7 +3194,7 @@ metad::vmap::insert(fuse_ino_t a, fuse_ino_t b)
   }
 
   eos_static_info("inserting %llx <=> %llx", a, b);
-  XrdSysMutexHelper mLock(mMutex);
+  eos::common::LockMonitor mLock(mMutex);
 
   if (fwd_map.count(a) && fwd_map[a] == b) {
     return;
@@ -3223,7 +3212,7 @@ metad::vmap::insert(fuse_ino_t a, fuse_ino_t b)
 std::string
 metad::vmap::dump()
 {
-  //XrdSysMutexHelper mLock(this);
+  //eos::common::LockMonitor mLock(this);
   std::string sout;
   char stime[1024];
   snprintf(stime, sizeof(stime), "%lu this=%llx forward=%lu backward=%lu",
@@ -3251,7 +3240,7 @@ metad::vmap::dump()
 void
 metad::vmap::erase_fwd(fuse_ino_t lookup)
 {
-  XrdSysMutexHelper mLock(mMutex);
+  eos::common::LockMonitor mLock(mMutex);
 
   if (fwd_map.count(lookup)) {
     bwd_map.erase(fwd_map[lookup]);
@@ -3264,7 +3253,7 @@ metad::vmap::erase_fwd(fuse_ino_t lookup)
 void
 metad::vmap::erase_bwd(fuse_ino_t lookup)
 {
-  XrdSysMutexHelper mLock(mMutex);
+  eos::common::LockMonitor mLock(mMutex);
 
   if (bwd_map.count(lookup)) {
     fwd_map.erase(bwd_map[lookup]);
@@ -3277,7 +3266,7 @@ metad::vmap::erase_bwd(fuse_ino_t lookup)
 fuse_ino_t
 metad::vmap::forward(fuse_ino_t lookup)
 {
-  XrdSysMutexHelper mLock(mMutex);
+  eos::common::LockMonitor mLock(mMutex);
   auto it = fwd_map.find(lookup);
   fuse_ino_t ino = (it == fwd_map.end()) ? 0 : it->second;
 
@@ -3292,7 +3281,7 @@ metad::vmap::forward(fuse_ino_t lookup)
 fuse_ino_t
 metad::vmap::backward(fuse_ino_t lookup)
 {
-  XrdSysMutexHelper mLock(mMutex);
+  eos::common::LockMonitor mLock(mMutex);
   auto it = bwd_map.find(lookup);
   return (it == bwd_map.end()) ? lookup : it->second;
 }
@@ -3302,7 +3291,7 @@ metad::vmap::backward(fuse_ino_t lookup)
 size_t
 metad::pmap::sizeTS()
 {
-  XrdSysMutexHelper mLock(this);
+  eos::common::LockMonitor mLock(this);
   return size();
 }
 
@@ -3310,7 +3299,7 @@ metad::pmap::sizeTS()
 bool
 metad::pmap::retrieveOrCreateTS(fuse_ino_t ino, shared_md& ret)
 {
-  XrdSysMutexHelper mLock(this);
+  eos::common::LockMonitor mLock(this);
 
   if (this->retrieve(ino, ret)) {
     return false;
@@ -3329,7 +3318,7 @@ metad::pmap::retrieveOrCreateTS(fuse_ino_t ino, shared_md& ret)
 bool
 metad::pmap::retrieveTS(fuse_ino_t ino, shared_md& ret)
 {
-  XrdSysMutexHelper mLock(this);
+  eos::common::LockMonitor mLock(this);
   return this->retrieve(ino, ret);
 }
 
@@ -3706,7 +3695,7 @@ metad::pmap::swap_rm(fuse_ino_t ino)
 void
 metad::pmap::insertTS(fuse_ino_t ino, shared_md& md)
 {
-  XrdSysMutexHelper mLock(this);
+  eos::common::LockMonitor mLock(this);
   bool exists = this->count(ino);
   (*this)[ino] = md;
   // lru list handling
@@ -3722,7 +3711,7 @@ metad::pmap::insertTS(fuse_ino_t ino, shared_md& md)
 bool
 metad::pmap::eraseTS(fuse_ino_t ino)
 {
-  XrdSysMutexHelper mLock(this);
+  eos::common::LockMonitor mLock(this);
   // lru list handling
   lru_remove(ino);
   bool exists = false;
@@ -3756,7 +3745,7 @@ metad::pmap::retrieveWithParentTS(fuse_ino_t ino, shared_md& md, shared_md& pmd)
     // which locks md first, and then mdmap.
     md.reset();
     pmd.reset();
-    XrdSysMutexHelper mLock(this);
+    eos::common::LockMonitor mLock(this);
 
     if (!retrieve(ino, md)) {
       return; // ino not there, nothing to do
