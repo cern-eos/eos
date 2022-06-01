@@ -89,6 +89,12 @@ public:
 
   bool Configure(const string& spaceName);
 
+  void addTransferEntry(eos::common::FileId::fileid_t fid)
+  {
+    std::scoped_lock slock(mTransfersMtx);
+    mTransfers.emplace(fid);
+  }
+
   void dropTransferEntry(eos::common::FileId::fileid_t fid)
   {
     {

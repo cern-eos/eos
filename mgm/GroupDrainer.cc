@@ -297,10 +297,9 @@ GroupDrainer::scheduleTransfer(eos::common::FileId::fileid_t fid,
     eos_info("msg=\"group drainer scheduled job file=\"%s\" "
                     "src_grp=\"%s\" dst_grp=\"%s\"", conv_tag.c_str(),
                     src_grp.c_str(), tgt_grp.c_str());
-    mTransfers.emplace(fid);
+    addTransferEntry(fid);
   } else {
-    // TODO have a routine to handle this!
-    mFailedTransfers.emplace(fid, std::move(conv_tag));
+    addFailedTransferEntry(fid, std::move(conv_tag));
   }
 }
 
