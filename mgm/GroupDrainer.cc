@@ -67,7 +67,8 @@ GroupDrainer::GroupDrain(ThreadAssistant& assistant) noexcept
       // wait for a few seconds before trying to see for reconfiguration in order
       // to not simply always check the atomic in an inf loop
       eos_info("msg=\"Invalid GroupDrainer Configuration or Converter "
-               "not enabled, sleeping 30s!\" config_status=%d", config_status);
+               "not enabled, sleeping 30s!\" config_status=%d, space=%s",
+               config_status, mSpaceName.c_str());
       assistant.wait_for(std::chrono::seconds(30));
       continue;
     }
