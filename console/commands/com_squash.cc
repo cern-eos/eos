@@ -28,6 +28,8 @@
 #include "XrdPosix/XrdPosixXrootd.hh"
 #include "XrdOuc/XrdOucEnv.hh"
 #include "pwd.h"
+#include <thread>
+#include <chrono>
 
 /* List a directory */
 int
@@ -545,6 +547,16 @@ com_squash(char* arg1)
 	scmd = "eos rm -rf "; scmd += archive;
 	std::string out = eos::common::StringConversion::StringFromShellCmd(scmd.c_str());
 	fprintf(stdout,"%s", out.c_str());
+      }
+
+      for ( size_t i = 0; i< 50; ++i) {
+	struct stat buf;
+	if (!::stat(archive.c_str(), &buf)) {
+	  // we might have to wait for callback notification on the fuse mount that the archive directory was wiped
+	  std::this_thread::sleep_for(std::chrono::milliseconds(100));
+	} else {
+	  break;
+	}
       }
 
       if (::rmdir(packagepath.GetPath())) {
