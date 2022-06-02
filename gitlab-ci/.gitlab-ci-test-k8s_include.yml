@@ -80,25 +80,6 @@ k8s_stress:
 
 # schedules ------------------------------
 
-k8s_fusex_ub_bionic:
-  extends: .dock8s_fusex_test_template
-  image: alpine/k8s:1.18.2
-  variables:
-    CLI_BASETAG: "ubuntu_bionic_client_"
-  needs:
-    - job: cc7_docker_image
-      artifacts: false
-    - job: ubuntu_bionic_docker_image
-      artifacts: false
-  retry: 1
-  allow_failure: true
-  only:
-    - schedules
-    - tags
-  tags:
-    - docker_node
-    - k8s
-
 k8s_fusex_ub_focal:
   extends: .dock8s_fusex_test_template
   image: alpine/k8s:1.18.2
