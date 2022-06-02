@@ -26,6 +26,7 @@
 
 #include "Namespace.hh"
 #include "common/StringTokenizer.hh"
+#include <memory>
 
 
 EOSCOMMONTESTING_BEGIN

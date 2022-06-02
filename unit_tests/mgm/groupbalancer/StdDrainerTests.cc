@@ -3,6 +3,7 @@
 #include "mgm/groupbalancer/BalancerEngineUtils.hh"
 #include "mgm/groupbalancer/StdDrainerEngine.hh"
 #include "gtest/gtest.h"
+#include <memory>
 
 using namespace eos::mgm::group_balancer;
 
