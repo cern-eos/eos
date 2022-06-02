@@ -39,9 +39,13 @@ void BulkRequest::addFile(std::unique_ptr<File> && file) {
   mFileCollection.addFile(std::move(file));
 }
 
-const std::shared_ptr<FileCollection::Files> BulkRequest:: getFiles() const
+const std::shared_ptr<FileCollection::Files> BulkRequest::getFiles() const
 {
   return mFileCollection.getAllFiles();
+}
+
+const std::shared_ptr<FileCollection::FilesMap> BulkRequest::getFilesMap() const {
+  return mFileCollection.getFilesMap();
 }
 
 const std::shared_ptr<std::set<File>> BulkRequest::getAllFilesInError() const {

@@ -27,6 +27,7 @@
 #include "File.hh"
 #include "mgm/Namespace.hh"
 #include <set>
+#include <vector>
 #include <map>
 #include <memory>
 
@@ -42,13 +43,9 @@ public:
   /**
    * The collection is a map of <path,File>
    */
-  typedef std::map<std::string,std::unique_ptr<File>> Files;
-
-  /**
-   * Creates a new file object associated to the path passed in parameter
-   * @param path the path of the file to add in the collection
-   */
-  void addFile(const std::string & path);
+  typedef std::vector<File *> Files;
+  typedef std::multimap<std::string,std::unique_ptr<File>> FilesMap;
+  typedef std::vector<FilesMap::iterator> FilesInsertOrder;
   /**
    * Adds the file passed in parameter to this collection
    * The key of this item will be the path of the file and the value
@@ -57,24 +54,24 @@ public:
    */
   void addFile(std::unique_ptr<File> && file);
   /**
-   * Returns the pointer of the collection (map) managed by this class
+   * Returns all the files that belongs to this collection
    * @return the pointer of the collection (map) managed by this class
    */
   const std::shared_ptr<FileCollection::Files> getAllFiles() const;
+
   /**
-   * Adds an error to the File associated to the path passed in parameter
-   * @param path the path of the file to add the error to
-   * @param error the error to add to the file
-   * @throws an exception if the path does not exist in the collection managed by this instance
+   * Returns the pointer of the map<path,File> that contains the files of this collection
+   * @return the pointer of the map<path,File> that contains the files of this collection
    */
-  void addError(const std::string &path, const std::string & error);
+  const std::shared_ptr<FileCollection::FilesMap> getFilesMap() const;
   /**
    * Returns the files that have an error
    * @return the files that have an error
    */
   const std::shared_ptr<std::set<File>> getAllFilesInError() const;
 private:
-  std::shared_ptr<FileCollection::Files> mFiles;
+  std::shared_ptr<FileCollection::FilesMap> mFiles;
+  std::shared_ptr<FileCollection::FilesInsertOrder> mFilesInsertOrder;
 };
 
 EOSBULKNAMESPACE_END

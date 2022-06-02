@@ -95,17 +95,17 @@ void ProcDirectoryBulkRequestDAO::generateXattrsMapFromBulkRequest(const StageBu
   xattrs[CREATION_TIME_XATTR_NAME] = std::to_string(bulkRequest->getCreationTime());
 
   std::map<bulk::File,folly::Future<IFileMDPtr>> filesWithMDFutures;
-  const auto & files = *bulkRequest->getFiles();
-  for(auto & file : files){
-    std::string path = file.first;
-    std::pair<bulk::File,folly::Future<IFileMDPtr>> itemToInsert(*file.second,mFileSystem->eosView->getFileFut(path , false));
+  const auto files = bulkRequest->getFiles();
+  for(auto & file : *files){
+    std::string path = file->getPath();
+    std::pair<bulk::File,folly::Future<IFileMDPtr>> itemToInsert(*file,mFileSystem->eosView->getFileFut(path , false));
     filesWithMDFutures.emplace(std::move(itemToInsert));
   }
   for(auto & fileMd: filesWithMDFutures){
     fileMd.second.wait();
   }
   for(auto & fileWithMDFuture : filesWithMDFutures) {
-    const std::string& currentFilePath = fileWithMDFuture.first.getPath();
+    const std::string currentFilePath = fileWithMDFuture.first.getPath();
     std::shared_ptr<IFileMD> file;
     std::string fid;
     try {

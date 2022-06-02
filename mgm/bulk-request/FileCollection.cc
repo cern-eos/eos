@@ -29,7 +29,8 @@
 EOSBULKNAMESPACE_BEGIN
 
 FileCollection::FileCollection() {
-  mFiles.reset(new Files());
+  mFiles.reset(new FilesMap());
+  mFilesInsertOrder.reset(new FilesInsertOrder());
 }
 
 FileCollection & FileCollection::operator=(const FileCollection& other) {
@@ -39,26 +40,21 @@ FileCollection & FileCollection::operator=(const FileCollection& other) {
   return *this;
 }
 
-void FileCollection::addFile(const std::string & path) {
-  (*mFiles)[path] = std::make_unique<File>(path);
-}
-
 void FileCollection::addFile(std::unique_ptr<File> && file){
-  (*mFiles)[file->getPath()] = std::move(file);
+  auto insertedElementItor = mFiles->insert(std::pair<std::string,std::unique_ptr<File>>(file->getPath(),std::move(file)));
+  mFilesInsertOrder->emplace_back(insertedElementItor);
 }
 
 const std::shared_ptr<FileCollection::Files> FileCollection::getAllFiles() const {
-  return this->mFiles;
+  std::shared_ptr<FileCollection::Files> ret = std::make_shared<FileCollection::Files>();
+  for(auto & itor: *mFilesInsertOrder){
+    ret->emplace_back(itor->second.get());
+  }
+  return ret;
 }
 
-void FileCollection::addError(const std::string & path, const std::string & error) {
-  try {
-    mFiles->at(path)->setError(error);
-  } catch(const std::exception & ex){
-    std::ostringstream ss;
-    ss << "Cannot add the error " << error << " to the path " << path << " because it does not exist in the file collection";
-    throw common::Exception(ss.str());
-  }
+const std::shared_ptr<FileCollection::FilesMap> FileCollection::getFilesMap() const {
+  return mFiles;
 }
 
 const std::shared_ptr<std::set<File>> FileCollection::getAllFilesInError() const {

@@ -70,6 +70,8 @@ public:
    */
   const std::shared_ptr<FileCollection::Files> getFiles() const;
 
+  const std::shared_ptr<FileCollection::FilesMap> getFilesMap() const;
+
   /**
    * Adds a File to the bulk-request
    * @param file the file to add to the bulk-request File container

@@ -67,7 +67,7 @@ void TapeRestApiBusiness::cancelStageBulkRequest(const std::string & requestId, 
   //checkIssuerAuthorizedToAccessStageBulkRequest(bulkRequest.get(), vid,"cancel");
   //Create the prepare arguments, we will only cancel the files that were given by the user
   const FilesContainer & filesFromClient = model->getFiles();
-  auto filesFromBulkRequestContainer = bulkRequest->getFiles();
+  auto filesFromBulkRequestContainer = bulkRequest->getFilesMap();
   bulk::PrepareArgumentsWrapper pargsWrapper(requestId, Prep_CANCEL);
   for(const auto & fileFromClient: filesFromClient.getPaths()) {
     const auto & fileFromBulkRequestKeyVal = filesFromBulkRequestContainer->find(fileFromClient);
@@ -123,8 +123,9 @@ std::shared_ptr<GetStageBulkRequestResponseModel> TapeRestApiBusiness::getStageB
 
   //Instanciate prepare manager to get the tape, disk residency and an eventual error (set by CTA)
   bulk::PrepareArgumentsWrapper pargsWrapper(requestId,Prep_QUERY);
-  for(auto &kv: *bulkRequest->getFiles()) {
-    pargsWrapper.addFile(kv.first, "");
+  auto files = bulkRequest->getFiles();
+  for(auto &file: *files) {
+    pargsWrapper.addFile(file->getPath(), "");
   }
   auto pm = createPrepareManager();
   XrdOucErrInfo error;
@@ -136,7 +137,7 @@ std::shared_ptr<GetStageBulkRequestResponseModel> TapeRestApiBusiness::getStageB
   }
 
   for(const auto & queryPrepareResponse: queryPrepareResult->getResponse()->responses) {
-    auto & filesFromBulkRequest = bulkRequest->getFiles();
+    auto & filesFromBulkRequest = bulkRequest->getFilesMap();
     auto fileFromBulkRequestItor = filesFromBulkRequest->find(queryPrepareResponse.path);
     if(fileFromBulkRequestItor != filesFromBulkRequest->end()) {
       auto & fileFromBulkRequest = fileFromBulkRequestItor->second;
@@ -173,7 +174,7 @@ void TapeRestApiBusiness::deleteStageBulkRequest(const std::string& requestId, c
   bulk::PrepareArgumentsWrapper pargsWrapper(requestId, Prep_CANCEL);
 
   for(auto & fileFromBulkRequest: *filesFromBulkRequest) {
-    pargsWrapper.addFile(fileFromBulkRequest.first, "");
+    pargsWrapper.addFile(fileFromBulkRequest->getPath(), "");
   }
   auto pm = createPrepareManager();
   XrdOucErrInfo error;

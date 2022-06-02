@@ -47,7 +47,7 @@ EOSMGMRESTNAMESPACE_BEGIN
 
 TapeRestHandler::TapeRestHandler(const TapeRestApiConfig * config): RestHandler(config->getAccessURL()),mTapeRestApiConfig(config) {
   initializeTapeWellKnownInfos();
-  //initializeV1();
+  initializeV1();
   initializeV0Dot1();
 }
 

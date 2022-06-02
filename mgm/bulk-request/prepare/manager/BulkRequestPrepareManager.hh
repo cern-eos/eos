@@ -63,13 +63,6 @@ protected:
    */
   void saveBulkRequest() override;
 
-  /**
-   * Returns the files that were persisted if the id corresponds to an already persisted stage bulk-request
-   * @param reqid the request id of the already submitted prepare stage request (bulk-request id)
-   * @return the collection of the files that were submitted for staging (bulk-request) if it is found, an empty file collection if not
-   */
-  const std::shared_ptr<FileCollection::Files> getFileCollectionFromPersistency(const std::string & reqid) override;
-
   bool ignorePrepareFailures() override;
 private:
   //The bulk-request business allowing the persistence of the bulk-request
