@@ -121,13 +121,12 @@ extern "C"
     OfsEroute.Say("++++++ (c) 2010 CERN/IT-DSS ", oss.str().c_str());
     // Initialize the subsystems
     eos::fst::gOFS.ConfigFN = (configFn && *configFn ? strdup(configFn) : 0);
-
-    fprintf(stderr,"pcrctl= %d\n", prctl(PR_SET_KEEPCAPS, 1, 0, 0, 0));
+    fprintf(stderr, "pcrctl= %d\n", prctl(PR_SET_KEEPCAPS, 1, 0, 0, 0));
 
     if (eos::fst::gOFS.Configure(OfsEroute, envP)) {
       return 0;
     }
-    
+
     XrdOfsFS = &eos::fst::gOFS;
     return &eos::fst::gOFS;
   }
@@ -2051,8 +2050,8 @@ XrdFstOfs::HandleResync(XrdOucEnv& env, XrdOucErrInfo& err_obj)
                              gOFS.Storage->GetStoragePath(fsid).c_str());
 
         if (gFmdDbMapHandler.ResyncDisk(fpath.c_str(), fsid, false) == 0) {
-          if (gFmdDbMapHandler.ResyncFileFromQdb(fid, fsid, fpath, gOFS.mFsckQcl)) {
-            eos_static_err("msg=\"resync qdb failed\" fid=%08llx fsid=%lu",
+          if (gFmdDbMapHandler.ResyncMgm(fsid, fid, nullptr)) {
+            eos_static_err("msg=\"resync mgm failed\" fid=%08llx fsid=%lu",
                            fid, fsid);
           }
         } else {

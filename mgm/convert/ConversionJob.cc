@@ -580,15 +580,6 @@ ConversionJob::Merge()
     gOFS->eosView->updateFileStore(orig_fmd.get());
   }
 
-  // Synchronize the flusher to avoid a race condition with the resync
-  // happening on the FSTs
-  auto* qdb_ns_grp = dynamic_cast<eos::QuarkNamespaceGroup*>
-                     (gOFS->namespaceGroup.get());
-
-  if (qdb_ns_grp) {
-    qdb_ns_grp->getMetadataFlusher()->synchronize();
-  }
-
   // Trigger a resync of the local information for the new locations
   for (const auto& loc : conv_locations) {
     if (gOFS->QueryResync(orig_fid, loc, true)) {
