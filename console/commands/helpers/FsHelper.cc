@@ -117,6 +117,11 @@ FsHelper::ParseCommand(const char* arg)
           add->set_status(option);
         }
       }
+
+      // Parse sharedfs name
+      if ((option = tokenizer.GetToken())) {
+        add->set_sharedfs(option);
+      }
     }
   } else if (cmd == "boot") {
     using eos::console::FsProto_BootProto;

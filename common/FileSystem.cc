@@ -302,10 +302,10 @@ bool GroupLocator::parseGroup(const std::string& description,
 // Constructor
 //------------------------------------------------------------------------------
 FileSystemCoreParams::FileSystemCoreParams(uint32_t id,
-    const FileSystemLocator& fsLocator, const GroupLocator& grpLocator,
-    const std::string& uuid, ConfigStatus cfg)
+					   const FileSystemLocator& fsLocator, const GroupLocator& grpLocator,
+					   const std::string& uuid, ConfigStatus cfg, const std::string& sharedfs)
   : mFsId(id), mLocator(fsLocator), mGroup(grpLocator), mUuid(uuid),
-    mConfigStatus(cfg) {}
+    mConfigStatus(cfg), mSharedFs(sharedfs) {}
 
 //------------------------------------------------------------------------------
 // Get locator
@@ -337,6 +337,14 @@ uint32_t FileSystemCoreParams::getId() const
 std::string FileSystemCoreParams::getUuid() const
 {
   return mUuid;
+}
+
+//------------------------------------------------------------------------------
+// Get SharedFs  name
+//------------------------------------------------------------------------------
+std::string FileSystemCoreParams::getSharedFs() const
+{
+  return mSharedFs;
 }
 
 //------------------------------------------------------------------------------
@@ -470,6 +478,7 @@ void FileSystem::fs_snapshot_t::fillFromCoreParams(const FileSystemCoreParams&
   mHostPort = coreParams.getHostPort();
   mPort = coreParams.getLocator().getPort();
   mConfigStatus = coreParams.getConfigStatus();
+  mSharedFs = coreParams.getSharedFs();
 }
 
 //------------------------------------------------------------------------------
@@ -940,6 +949,14 @@ FileSystem::GetSpace()
 }
 
 //------------------------------------------------------------------------------
+// Get SharedFs  name
+//------------------------------------------------------------------------------
+std::string FileSystem::getSharedFs()
+{
+  return getCoreParams().getSharedFs();
+}
+
+//------------------------------------------------------------------------------
 // Serializes hash contents as follows 'key1=val1 key2=val2 ... keyn=valn'
 // but return only keys that don't start with filter_prefix.
 //------------------------------------------------------------------------------
@@ -1163,15 +1180,16 @@ FileSystemCoreParams FileSystem::getCoreParams()
 
   if (!hash.get("id", id) || id.empty()) {
     return FileSystemCoreParams(0, FileSystemLocator(), GroupLocator(), "",
-                                ConfigStatus::kOff);
+                                ConfigStatus::kOff, "");
   }
 
   GroupLocator groupLocator;
   GroupLocator::parseGroup(hash.get("schedgroup"), groupLocator);
   std::string uuid = hash.get("uuid");
   ConfigStatus cfg = GetConfigStatusFromString(hash.get("configstatus").c_str());
+  std::string sharedfs = hash.get("sharedfs");
   return FileSystemCoreParams(atoi(id.c_str()), mLocator, groupLocator, uuid,
-                              cfg);
+                              cfg, sharedfs);
 }
 
 //------------------------------------------------------------------------------

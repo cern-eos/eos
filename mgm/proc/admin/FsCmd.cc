@@ -116,9 +116,11 @@ FsCmd::Add(const eos::console::FsProto::AddProto& addProto)
   std::string mountpoint = addProto.mountpoint();
   std::string space = addProto.schedgroup();
   std::string configstatus = addProto.status();
+  std::string sharedfs = addProto.sharedfs();
+
   XrdOucString out, err;
   mRetc = proc_fs_add(gOFS->mMessagingRealm.get(), sfsid, uuid, nodequeue,
-                      mountpoint, space, configstatus, out, err, mVid);
+                      mountpoint, space, configstatus, sharedfs, out, err, mVid);
   mOut = out.c_str() != nullptr ? out.c_str() : "";
   mErr = err.c_str() != nullptr ? err.c_str() : "";
   return mRetc;

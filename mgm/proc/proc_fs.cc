@@ -386,6 +386,7 @@ proc_fs_config(std::string& identifier, std::string& key, std::string& value,
             (key == "headroom") || (key == "graceperiod") ||
             (key == "drainperiod") || (key == "proxygroup") ||
             (key == "filestickyproxydepth") || (key == "forcegeotag") ||
+	    (key == "sharedfs") ||
             (key == "s3credentials")))) {
         // Check permissions
         size_t dpos = 0;
@@ -540,7 +541,7 @@ proc_fs_config(std::string& identifier, std::string& key, std::string& value,
 int
 proc_fs_add(mq::MessagingRealm* realm, std::string& sfsid, std::string& uuid,
             std::string& nodename, std::string& mountpoint, std::string& space,
-            std::string& configstatusStr, XrdOucString& stdOut,
+            std::string& configstatusStr, std::string& sharedfs, XrdOucString& stdOut,
             XrdOucString& stdErr, eos::common::VirtualIdentity& vid_in, bool force)
 {
   using eos::common::StringConversion;
@@ -754,7 +755,7 @@ proc_fs_add(mq::MessagingRealm* realm, std::string& sfsid, std::string& uuid,
                              splitspace : SSTR(splitspace << "." << splitgroup));
   common::GroupLocator::parseGroup(description, groupLocator);
   common::FileSystemCoreParams coreParams(fsid, locator, groupLocator, uuid,
-                                          configStatus);
+                                          configStatus, sharedfs);
 
   if (FsView::gFsView.Register(fs, coreParams)) {
     // Set all the space related default parameters
@@ -1303,6 +1304,7 @@ proc_mv_fs_node(FsView& fs_view, const std::string& src,
       std::string path = snapshot.mPath;
       std::string space = snapshot.mSpace;
       std::string group = snapshot.mGroup;
+      std::string sharedfs = snapshot.mSharedFs;
       std::string configstatus = eos::common::FileSystem::GetConfigStatusAsString(
                                    snapshot.mConfigStatus);
       int rc = proc_fs_rm(a , b, id, stdOut, stdErr, vid_in);
@@ -1314,7 +1316,7 @@ proc_mv_fs_node(FsView& fs_view, const std::string& src,
         nodename += "/fst";
         int rc = proc_fs_add(realm, id, uuid, nodename, path,
                              getenv("EOS_ALLOW_SAME_HOST_IN_GROUP") ? group : space,
-                             configstatus, stdOut, stdErr, vid_in, true);
+                             configstatus, sharedfs, stdOut, stdErr, vid_in, true);
 
         if (rc) {
           oss << "error: failed to reinsert filesystem with id='" << fsid <<

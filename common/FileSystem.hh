@@ -308,7 +308,7 @@ public:
   //----------------------------------------------------------------------------
   FileSystemCoreParams(uint32_t id, const FileSystemLocator& fsLocator,
                        const GroupLocator& grpLocator, const std::string& uuid,
-                       ConfigStatus cfg);
+                       ConfigStatus cfg, const std::string& sharedfs);
 
   //----------------------------------------------------------------------------
   //! Get locator
@@ -365,12 +365,18 @@ public:
   //----------------------------------------------------------------------------
   std::string getSpace() const;
 
+  //----------------------------------------------------------------------------
+  //! Get SharedFs name
+  //----------------------------------------------------------------------------
+  std::string getSharedFs() const;
+
 private:
   uint32_t mFsId;
   FileSystemLocator mLocator;
   GroupLocator mGroup;
   std::string mUuid;
   ConfigStatus mConfigStatus;
+  std::string mSharedFs;
 };
 
 
@@ -396,6 +402,8 @@ protected:
   TransferQueue* mExternQueue;
   //! boot status stored inside the object not the hash
   BootStatus mInternalBootStatus;
+  //! SharedFs name
+
 public:
   //----------------------------------------------------------------------------
   //! Struct & Type definitions
@@ -416,6 +424,7 @@ public:
     std::string mHost;
     std::string mHostPort;
     std::string mProxyGroup;
+    std::string mSharedFs;
     std::string mS3Credentials;
     int8_t      mFileStickyProxyDepth;
     int32_t mPort;
@@ -879,6 +888,12 @@ public:
   //! Get space name
   //--------------------------------------------------------------------------
   std::string GetSpace();
+
+  //----------------------------------------------------------------------------
+  //! Get SharedFs name
+  //----------------------------------------------------------------------------
+  std::string getSharedFs();
+
 
 };
 
