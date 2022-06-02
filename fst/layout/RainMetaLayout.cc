@@ -862,7 +862,7 @@ RainMetaLayout::ReadV(XrdCl::ChunkList& chunkList, uint32_t len)
     // Try to recover any corrupted blocks
     if (do_recovery && (!RecoverPieces(all_errs))) {
       char eMsg[512];
-      snprintf(eMsg, sizeof(eMsg), "readv recovery failed count=%ul",
+      snprintf(eMsg, sizeof(eMsg), "readv recovery failed count=%lu",
                chunkList.size());
       eos_err("msg=\"%s\"", eMsg);
       return Emsg("RainReadV", *mError, EFAULT, "readv recovery failed",
