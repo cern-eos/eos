@@ -26,6 +26,7 @@
 #include "common/Path.hh"
 #include "common/http/OwnCloud.hh"
 #include "common/StringTokenizer.hh"
+#include "common/StringUtils.hh"
 #include "common/SecEntity.hh"
 #include "common/CtaCommon.hh"
 #include "common/IoPriority.hh"
@@ -44,9 +45,7 @@ extern XrdOssSys* XrdOfsOss;
 
 EOSFSTNAMESPACE_BEGIN
 
-constexpr uint64_t XrdFstOfsFile::msMinSizeAsyncClose;
 constexpr uint16_t XrdFstOfsFile::msDefaultTimeout;
-
 thread_local int t_iopriority = 0;
 
 //------------------------------------------------------------------------------
@@ -788,9 +787,9 @@ XrdFstOfsFile::read(XrdSfsFileOffset fileOffset, char* buffer,
 
   if (rc > 0) {
     // if required, unobfuscate a buffer server side
-    if (mLayout->IsEntryServer() && hmac.key.length()) {
+    if (mLayout->IsEntryServer() && mHmac.key.length()) {
       eos::common::SymKey::UnobfuscateBuffer(const_cast<char*>(buffer), rc,
-                                             fileOffset, hmac);
+                                             fileOffset, mHmac);
     }
 
     rOffset = fileOffset + rc;
@@ -994,9 +993,9 @@ XrdFstOfsFile::write(XrdSfsFileOffset fileOffset, const char* buffer,
   }
 
   // if required, obfuscate a buffer server side
-  if (mLayout->IsEntryServer() && hmac.key.length()) {
+  if (mLayout->IsEntryServer() && mHmac.key.length()) {
     eos::common::SymKey::ObfuscateBuffer(const_cast<char*>(buffer),
-                                         const_cast<char*>(buffer), buffer_size, fileOffset, hmac);
+                                         const_cast<char*>(buffer), buffer_size, fileOffset, mHmac);
   }
 
   int rc = mLayout->Write(fileOffset, const_cast<char*>(buffer), buffer_size);
@@ -1334,15 +1333,17 @@ XrdFstOfsFile::close()
     return _close();
   }
 
+  static uint64_t min_size_async_close = GetMinSizeAsyncClose();
+
   // Close happening the in the same XRootD thread
   if (viaDelete || mWrDelete || mIsDevNull || (mIsRW == false) ||
-      (mIsRW && (mMaxOffsetWritten <= msMinSizeAsyncClose))) {
+      (mIsRW && (mMaxOffsetWritten <= min_size_async_close))) {
     return _close();
   }
 
   // Delegate close to a different thread while the client is waiting for the
   // callback (SFS_STARTED). This only happens for written files with size
-  // bigger than msMinSizeAsyncClose (2GB).
+  // bigger than min size bytes async close
   eos_info("msg=\"close delegated to async thread \" fxid=%08llx "
            "ns_path=\"%s\" fs_path=\"%s\"", mFileId, mNsPath.c_str(),
            mFstPath.c_str());
@@ -2757,7 +2758,7 @@ XrdFstOfsFile::ProcessCapOpaque(bool& is_repair_read,
     encryption_key = val;
   }
 
-  hmac.set(obfuscation_key, encryption_key);
+  mHmac.set(obfuscation_key, encryption_key);
   SetLogId(logId, vid, mTident.c_str());
   return SFS_OK;
 }
@@ -4016,6 +4017,27 @@ XrdFstOfsFile::GetHostFromTident(const std::string& tident,
   size_t dot_pos = tident.find('.', pos + 1);
   hostname = tident.substr(pos + 1, dot_pos - pos - 1);
   return true;
+}
+
+//----------------------------------------------------------------------------
+//! Get configured minimum file size for which the asynchronous close method
+//! is called.
+//----------------------------------------------------------------------------
+uint64_t
+XrdFstOfsFile::GetMinSizeAsyncClose()
+{
+  uint64_t min_size_async_close = 0ull;
+  const char* ptr = getenv("EOS_FST_MIN_SIZE_BYTES_ASYNC_CLOSE");
+
+  if (ptr) {
+    if (!eos::common::StringToNumeric(std::string(ptr), min_size_async_close,
+                                      0ul)) {
+      eos_static_err("%s", "msg=\"failed to convert "
+                     "EOS_FST_MIN_SIZE_BYTES_ASYNC_CLOSE, using by default 0\"");
+    }
+  }
+
+  return min_size_async_close;
 }
 
 EOSFSTNAMESPACE_END

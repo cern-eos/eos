@@ -85,8 +85,6 @@ class XrdFstOfsFile : public XrdOfsFileBase, public eos::common::LogId
 
 public:
 
-  //! Minimum file size for which async close is triggered
-  static constexpr uint64_t msMinSizeAsyncClose {2u * 1024 * 1024 * 1024}; // 2GB
   static constexpr uint16_t msDefaultTimeout {300};
   static int LayoutReadCB(eos::fst::CheckSum::ReadCallBack::callback_data_t* cbd);
   static int FileIoReadCB(eos::fst::CheckSum::ReadCallBack::callback_data_t* cbd);
@@ -295,9 +293,7 @@ private:
 #ifdef IN_TEST_HARNESS
 public:
 #endif
-
-  eos::common::SymKey::hmac_t hmac;
-
+  eos::common::SymKey::hmac_t mHmac;
   std::unique_ptr<XrdOucEnv> mOpenOpaque; ///< Open opaque info (encrypted)
   std::unique_ptr<XrdOucEnv> mCapOpaque; ///< Capability opaque info (decrypted)
   std::string mFstPath; ///< Physical path on the FST
@@ -453,6 +449,14 @@ public:
   int mTpcRetc; ///< TPC job return code
   std::atomic<bool> mTpcCancel; ///< Mark TPC cancellation request
   uint16_t mTimeout; ///< timeout for layout operations
+
+  //----------------------------------------------------------------------------
+  //! Get configured minimum file size for which the asynchronous close method
+  //! is called.
+  //!
+  //! @return min file size
+  //----------------------------------------------------------------------------
+  static uint64_t GetMinSizeAsyncClose();
 
   //----------------------------------------------------------------------------
   //! Get hostname from tident. This is used when checking the origin match for
