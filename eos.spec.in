@@ -246,11 +246,7 @@ BuildRequires: llvm-toolset-7
 %endif
 
 %if %{?_with_asan:1}%{!?_with_asan:0}
-%if 0%{?rhel} == 7
-BuildRequires: %{devtoolset}-libasan-devel
-%else
 BuildRequires: libasan
-%endif
 %endif
 
 %if %{use_systemd}
