@@ -66,6 +66,8 @@ ConverterDriver::Convert(ThreadAssistant& assistant) noexcept
     assistant.wait_for(std::chrono::seconds(10));
   } while (!assistant.terminationRequested() && !gOFS->mMaster->IsMaster());
 
+  // load the config from the global store once we're the master
+  initConfig();
   SubmitQdbPending(assistant);
 
   while (!assistant.terminationRequested()) {
@@ -223,6 +225,17 @@ ConverterDriver::ScheduleJob(const eos::IFileMD::id_t& id,
   JobInfoT info = std::make_pair(id, conversion_info);
   mPendingJobs.push(info);
   return mQdbHelper.AddPendingJob(info);
+}
+
+void
+ConverterDriver::initConfig()
+{
+  unsigned int max_threads = mConfigStore->get(kConverterMaxThreads,
+                                               cDefaultMaxThreadPoolSize);
+  unsigned int max_queue_sz = mConfigStore->get(kConverterMaxQueueSize,
+                                                cDefaultMaxQueueSize);
+  mMaxThreadPoolSize.store(max_threads, std::memory_order_relaxed);
+  mMaxQueueSize.store(max_queue_sz, std::memory_order_relaxed);
 }
 
 //------------------------------------------------------------------------------
