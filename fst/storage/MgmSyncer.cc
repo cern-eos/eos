@@ -97,7 +97,7 @@ Storage::MgmSyncer()
 
       if (!isopenforwrite) {
         // now do the consistency check
-        if (gFmdDbMapHandler.ResyncMgm(fmd.mProtoFmd.fsid(),
+        if (gOFS.mFmdHandler->ResyncMgm(fmd.mProtoFmd.fsid(),
                                        fmd.mProtoFmd.fid(), nullptr)) {
           eos_static_debug("msg=\"resync ok\" fsid=%lu fxid=%08llx",
                            (unsigned long) fmd.mProtoFmd.fsid(),

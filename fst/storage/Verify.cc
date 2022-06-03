@@ -94,7 +94,7 @@ Storage::Verify()
     std::string fstPath = FileId::FidPrefix2FullPath(hex_fid.c_str(),
                           verifyfile->localPrefix.c_str());
     {
-      auto fMd = gFmdDbMapHandler.LocalGetFmd(verifyfile->fId,
+      auto fMd = gOFS.mFmdHandler->LocalGetFmd(verifyfile->fId,
                                               verifyfile->fsId, true);
 
       if (fMd) {
@@ -123,7 +123,7 @@ Storage::Verify()
     // even if the stat failed, we run this code to tag the file as is ...
     // attach meta data
     bool localUpdate = false;
-    auto fMd = gFmdDbMapHandler.LocalGetFmd(verifyfile->fId, verifyfile->fsId,
+    auto fMd = gOFS.mFmdHandler->LocalGetFmd(verifyfile->fId, verifyfile->fsId,
                                             true, verifyfile->commitFmd);
 
     if (!fMd) {
@@ -251,7 +251,7 @@ Storage::Verify()
         eos::common::Path cPath(verifyfile->path.c_str());
 
         // commit local
-        if (localUpdate && (!gFmdDbMapHandler.Commit(fMd.get()))) {
+        if (localUpdate && (!gOFS.mFmdHandler->Commit(fMd.get()))) {
           eos_static_err("unable to verify file id=%llu on fs=%u path=%s - commit "
                          "to local MD storage failed", verifyfile->fId,
                          verifyfile->fsId, fstPath.c_str());
