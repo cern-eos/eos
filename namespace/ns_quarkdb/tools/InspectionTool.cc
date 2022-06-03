@@ -65,15 +65,17 @@ using namespace eos;
 //------------------------------------------------------------------------------
 // Given a subcommand, add common-to-all options such as --members
 // and --password
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void addClusterOptions(CLI::App* subcmd, std::string& membersStr,
                        MemberValidator& memberValidator, std::string& password,
-                       std::string& passwordFile)
+                       std::string& passwordFile, unsigned int connectionRetries)
 {
   subcmd->add_option("--members", membersStr,
                      "One or more members of the QDB cluster")
   ->required()
   ->check(memberValidator);
+  subcmd->add_option("--connection-retries", connectionRetries,
+                     "Number of connection retries - default infinite");
   auto passwordGroup = subcmd->add_option_group("Authentication",
                        "Specify QDB authentication options");
   passwordGroup->add_option("--password", password,
@@ -106,13 +108,14 @@ int main(int argc, char* argv[])
   bool noDryRun = false;
   std::unique_ptr<FileMetadataFilter> metadataFilter;
   std::string filterExpression;
+  unsigned int connectionRetries = 0;
   //----------------------------------------------------------------------------
   // Set-up dump subcommand..
   //----------------------------------------------------------------------------
   auto dumpSubcommand = app.add_subcommand("dump",
                         "[DEPRECATED] Recursively dump entire namespace contents under a specific path");
   addClusterOptions(dumpSubcommand, membersStr, memberValidator, password,
-                    passwordFile);
+                    passwordFile, connectionRetries);
   std::string dumpPath;
   std::string trimPaths;
   std::string attrQuery;
@@ -146,7 +149,7 @@ int main(int argc, char* argv[])
   auto scanSubcommand = app.add_subcommand("scan",
                         "Recursively scan and print entire namespace contents under a specific path");
   addClusterOptions(scanSubcommand, membersStr, memberValidator, password,
-                    passwordFile);
+                    passwordFile, connectionRetries);
   scanSubcommand->add_option("--path", dumpPath, "The target path to scan")
   ->required();
   scanSubcommand->add_option("--trim", trimPaths,
@@ -168,7 +171,7 @@ int main(int argc, char* argv[])
   auto printSubcommand = app.add_subcommand("print",
                          "Print everything known about a given file, or container");
   addClusterOptions(printSubcommand, membersStr, memberValidator, password,
-                    passwordFile);
+                    passwordFile, connectionRetries);
   printSubcommand->add_flag("--with-parents", withParents,
                             "Show detailed information for each parent container as well");
   uint64_t fid = 0;
@@ -185,7 +188,7 @@ int main(int argc, char* argv[])
   auto stripediffSubcommand = app.add_subcommand("stripediff",
                               "Find files which have non-nominal number of stripes (replicas)");
   addClusterOptions(stripediffSubcommand, membersStr, memberValidator, password,
-                    passwordFile);
+                    passwordFile, connectionRetries);
   stripediffSubcommand->add_flag("--json", json, "Use json output");
   //----------------------------------------------------------------------------
   // Set-up one-replica-layout subcommand..
@@ -193,7 +196,7 @@ int main(int argc, char* argv[])
   auto oneReplicaLayoutSubcommand = app.add_subcommand("one-replica-layout",
                                     "Find all files whose layout asks for a single replica");
   addClusterOptions(oneReplicaLayoutSubcommand, membersStr, memberValidator,
-                    password, passwordFile);
+                    password, passwordFile, connectionRetries);
   bool showName = false;
   bool fullPaths = false;
   bool filterInternal = false;
@@ -208,7 +211,7 @@ int main(int argc, char* argv[])
   auto scanDirsSubcommand = app.add_subcommand("scan-dirs",
                             "Dump the full list of container metadata across the entire namespace");
   addClusterOptions(scanDirsSubcommand, membersStr, memberValidator, password,
-                    passwordFile);
+                    passwordFile, connectionRetries);
   bool onlyNoAttrs = false;
   bool countContents = false;
   size_t countThreshold = 0;
@@ -227,7 +230,7 @@ int main(int argc, char* argv[])
   auto scanFilesSubcommand = app.add_subcommand("scan-files",
                              "Dump the full list of file metadata across the entire namespace");
   addClusterOptions(scanFilesSubcommand, membersStr, memberValidator, password,
-                    passwordFile);
+                    passwordFile, connectionRetries);
   bool onlySizes = false;
   bool findUnknownFsids = false;
   scanFilesSubcommand->add_flag("--only-sizes", onlySizes,
@@ -245,14 +248,14 @@ int main(int argc, char* argv[])
   auto scanDeathrowSubcommand = app.add_subcommand("scan-deathrow",
                                 "Show all files currently scheduled to be deleted");
   addClusterOptions(scanDeathrowSubcommand, membersStr, memberValidator, password,
-                    passwordFile);
+                    passwordFile, connectionRetries);
   //----------------------------------------------------------------------------
   // Set-up check-naming-conflicts subcommand..
   //----------------------------------------------------------------------------
   auto namingConflictsSubcommand = app.add_subcommand("check-naming-conflicts",
                                    "Scan through the entire namespace looking for naming conflicts");
   addClusterOptions(namingConflictsSubcommand, membersStr, memberValidator,
-                    password, passwordFile);
+                    password, passwordFile, connectionRetries);
   bool onePerLine = false;
   namingConflictsSubcommand->add_flag("--one-per-line", onePerLine,
                                       "Don't group results in a single line - useful to count how many conflicts there are in total");
@@ -262,49 +265,49 @@ int main(int argc, char* argv[])
   auto cursedNamesSubcommand = app.add_subcommand("check-cursed-names",
                                "Scan through the namespace to find files / containers with invalid names");
   addClusterOptions(cursedNamesSubcommand, membersStr, memberValidator, password,
-                    passwordFile);
+                    passwordFile, connectionRetries);
   //----------------------------------------------------------------------------
   // Set-up check-orphans subcommand..
   //----------------------------------------------------------------------------
   auto checkOrphansSubcommand = app.add_subcommand("check-orphans",
                                 "Find files and directories with invalid parents");
   addClusterOptions(checkOrphansSubcommand, membersStr, memberValidator, password,
-                    passwordFile);
+                    passwordFile, connectionRetries);
   //----------------------------------------------------------------------------
   // Set-up check-fsview-missing subcommand..
   //----------------------------------------------------------------------------
   auto checkFsViewMissingSubcommand = app.add_subcommand("check-fsview-missing",
                                       "Check which FileMDs have locations / unlinked locations not present in the filesystem view");
   addClusterOptions(checkFsViewMissingSubcommand, membersStr, memberValidator,
-                    password, passwordFile);
+                    password, passwordFile, connectionRetries);
   //----------------------------------------------------------------------------
   // Set-up check-fsview-extra subcommand..
   //----------------------------------------------------------------------------
   auto checkFsViewExtraSubcommand = app.add_subcommand("check-fsview-extra",
                                     "Check whether there exist FsView entries without a corresponding FMD location");
   addClusterOptions(checkFsViewExtraSubcommand, membersStr, memberValidator,
-                    password, passwordFile);
+                    password, passwordFile, connectionRetries);
   //----------------------------------------------------------------------------
   // Set-up check-shadow-directories subcommand..
   //----------------------------------------------------------------------------
   auto checkShadowDirectories = app.add_subcommand("check-shadow-directories",
                                 "Check for naming conflicts between directories inside the same subdirectory");
   addClusterOptions(checkShadowDirectories, membersStr, memberValidator, password,
-                    passwordFile);
+                    passwordFile, connectionRetries);
   //----------------------------------------------------------------------------
   // Set-up check-simulated-hardlinks subcommand..
   //----------------------------------------------------------------------------
   auto checkSimulatedHardlinks = app.add_subcommand("check-simulated-hardlinks",
                                  "Check for corruption in simulated hardlinks");
   addClusterOptions(checkSimulatedHardlinks, membersStr, memberValidator,
-                    password, passwordFile);
+                    password, passwordFile, connectionRetries);
   //----------------------------------------------------------------------------
   // Set-up fix-detached-parent subcommand..
   //----------------------------------------------------------------------------
   auto fixDetachedParent = app.add_subcommand("fix-detached-parent",
                            "[CAUTION] Attempt to fix a detached parent of the given fid / cid,\nby re-creating said parent in a given destination");
   addClusterOptions(fixDetachedParent, membersStr, memberValidator, password,
-                    passwordFile);
+                    passwordFile, connectionRetries);
   addDryRun(fixDetachedParent, noDryRun);
   std::string destinationPath;
   fixDetachedParent->add_option("--destination-path", destinationPath,
@@ -324,7 +327,7 @@ int main(int argc, char* argv[])
   auto fixShadowFileSubcommand = app.add_subcommand("fix-shadow-file",
                                  "[CAUTION] Attempt to fix a shadowed file.\nIf the given fid is indeed shadowed by a different fid / cid, it's moved to the given destination.");
   addClusterOptions(fixShadowFileSubcommand, membersStr, memberValidator,
-                    password, passwordFile);
+                    password, passwordFile, connectionRetries);
   addDryRun(fixShadowFileSubcommand, noDryRun);
   fixShadowFileSubcommand->add_option("--destination-path", destinationPath,
                                       "Path in which the conflicting file will be stored.")
@@ -338,7 +341,7 @@ int main(int argc, char* argv[])
   auto dropFromDeathrow = app.add_subcommand("drop-from-deathrow",
                           "[CAUTION] Delete a FileMD which is currently on deathrow.\nAny pending replicas on the FSTs will not be touched, potentially resulting in dark data!");
   addClusterOptions(dropFromDeathrow, membersStr, memberValidator, password,
-                    passwordFile);
+                    passwordFile, connectionRetries);
   addDryRun(dropFromDeathrow, noDryRun);
   dropFromDeathrow->add_option("--fid", fid,
                                "Specify which file to drop - it should currently be stuck on deathrow")
@@ -349,7 +352,7 @@ int main(int argc, char* argv[])
   auto dropEmptyCid = app.add_subcommand("drop-empty-cid",
                                          "[CAUTION] Drop an empty container. The command will fail if it appears the directory is not empty.");
   addClusterOptions(dropEmptyCid, membersStr, memberValidator, password,
-                    passwordFile);
+                    passwordFile, connectionRetries);
   addDryRun(dropEmptyCid, noDryRun);
   dropEmptyCid->add_option("--cid", cid,
                            "Specify which container ID to drop")
@@ -360,7 +363,7 @@ int main(int argc, char* argv[])
   auto changeFidSubcommand = app.add_subcommand("change-fid",
                              "[DANGEROUS] Change specified properties of a single fid. Better know what you're doing before using this!");
   addClusterOptions(changeFidSubcommand, membersStr, memberValidator, password,
-                    passwordFile);
+                    passwordFile, connectionRetries);
   addDryRun(changeFidSubcommand, noDryRun);
   uint64_t newParent = 0ull;
   std::string newChecksum;
@@ -386,7 +389,7 @@ int main(int argc, char* argv[])
   auto renameFidSubcommand = app.add_subcommand("rename-fid",
                              "[DANGEROUS] Rename a file onto the specified container ID - the respective container maps are modified.");
   addClusterOptions(renameFidSubcommand, membersStr, memberValidator, password,
-                    passwordFile);
+                    passwordFile, connectionRetries);
   addDryRun(renameFidSubcommand, noDryRun);
   renameFidSubcommand->add_option("--fid", fid, "Specify the FileMD to rename")
   ->required();
@@ -401,7 +404,7 @@ int main(int argc, char* argv[])
   auto renameCidSubcommand = app.add_subcommand("rename-cid",
                              "[DANGEROUS] Rename a container onto the specified container ID - the respective container maps are modified.");
   addClusterOptions(renameCidSubcommand, membersStr, memberValidator, password,
-                    passwordFile);
+                    passwordFile, connectionRetries);
   addDryRun(renameCidSubcommand, noDryRun);
   renameCidSubcommand->add_option("--cid", cid, "Specify the FileMD to rename")
   ->required();
@@ -416,7 +419,7 @@ int main(int argc, char* argv[])
   auto overwriteContainerSubcommand = app.add_subcommand("overwrite-container",
                                       "[DANGEROUS] Overwrite the given ContainerMD - USE WITH CAUTION");
   addClusterOptions(overwriteContainerSubcommand, membersStr, memberValidator,
-                    password, passwordFile);
+                    password, passwordFile, connectionRetries);
   addDryRun(overwriteContainerSubcommand, noDryRun);
   uint64_t parent;
   std::string containerName;
@@ -471,7 +474,13 @@ int main(int argc, char* argv[])
   //----------------------------------------------------------------------------
   qclient::Members members = qclient::Members::fromString(membersStr);
   QdbContactDetails contactDetails(members, password);
-  qclient::QClient qcl(contactDetails.members, contactDetails.constructOptions());
+  qclient::Options opts = contactDeatils.constructOptions();
+
+  if (connectionRetries) {
+    opst.retryStrategy = qclient::RetryStrategy::NRetries(connectionRetries);
+  }
+
+  qclient::QClient qcl(contactDetails.members, opts);
   //----------------------------------------------------------------------------
   // Set-up Inspector object, ensure sanity
   //----------------------------------------------------------------------------

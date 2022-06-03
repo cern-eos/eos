@@ -91,7 +91,8 @@ public:
   qclient::SubscriptionOptions constructSubscriptionOptions() const
   {
     qclient::SubscriptionOptions opts;
-    if(!password.empty()) {
+
+    if (!password.empty()) {
       opts.handshake.reset(new qclient::HmacAuthHandshake(password));
     }
 
