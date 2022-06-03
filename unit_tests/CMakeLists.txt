@@ -111,7 +111,8 @@ set(COMMON_UT_SRCS
   common/BufferManagerTests.cc
   common/ConcurrentQueueTests.cc
   common/ContainerUtilsTests.cc
-  common/ObserverMgrTests.cc)
+  common/ObserverMgrTests.cc
+  common/ConfigStoreTests.cc)
 
 set(FST_UT_SRCS
   fst/XrdFstOfsTests.cc
