@@ -64,15 +64,6 @@ public:
   }
 
   //----------------------------------------------------------------------------
-  //! Truncate file
-  //!
-  //! @param offset truncate size value
-  //!
-  //! @return 0 if successful, otherwise error
-  //----------------------------------------------------------------------------
-  virtual int Truncate(XrdSfsFileOffset offset);
-
-  //----------------------------------------------------------------------------
   //! Allocate file space
   //!
   //! @param length space to be allocated

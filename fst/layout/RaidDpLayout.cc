@@ -696,54 +696,6 @@ RaidDpLayout::GetDParityBlock(std::vector<unsigned int>& rStripe)
 }
 
 //------------------------------------------------------------------------------
-// Truncate file
-//------------------------------------------------------------------------------
-int
-RaidDpLayout::Truncate(XrdSfsFileOffset offset)
-{
-  eos_debug("offset=%llu", offset);
-  int rc = SFS_OK;
-  uint64_t truncate_offset = 0;
-  truncate_offset = ceil((offset * 1.0) / mSizeGroup) * mSizeLine;
-  truncate_offset += mSizeHeader;
-
-  if (mStripe[0]) {
-    mStripe[0]->fileTruncate(truncate_offset, mTimeout);
-  }
-
-  eos_debug("msg=\"truncate local stripe\"file_offset=%llu stripe_offset=%llu",
-            offset, truncate_offset);
-
-  if (mIsEntryServer) {
-    if (!mIsPio) {
-      // In non PIO access each stripe will compute its own truncate value
-      truncate_offset = offset;
-    }
-
-    for (unsigned int i = 1; i < mStripe.size(); i++) {
-      eos_debug("msg=\"truncate stripe\" stripe_id=%i file_offset=%llu "
-                " stripe_offset=%llu", i, offset, truncate_offset);
-
-      if (mStripe[i]) {
-        if (mStripe[i]->fileTruncate(truncate_offset, mTimeout)) {
-          eos_err("%s", "msg=\"error while truncating\"");
-          return SFS_ERROR;
-        }
-      }
-    }
-  }
-
-  // *!!!* Reset the mMaxOffsetWritten from XrdFstOfsFile to logical offset
-  mFileSize = offset;
-
-  if (!mIsPio) {
-    mOfsFile->mMaxOffsetWritten = offset;
-  }
-
-  return rc;
-}
-
-//------------------------------------------------------------------------------
 // Allocate file space (reserve)
 //------------------------------------------------------------------------------
 int

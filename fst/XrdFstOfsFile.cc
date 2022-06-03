@@ -1479,6 +1479,10 @@ XrdFstOfsFile::_close()
                      mMaxOffsetWritten);
             mLayout->Truncate(mMaxOffsetWritten);
           }
+
+          //@note: there is a small probability here to have a race condition when
+          // computing the checksum for RAIN file in non-streaming mode. We should
+          // first collect all write replis and then re-read the file for the xs.
         } else {
           if ((long long) mMaxOffsetWritten > (long long) openSize) {
             // Check if we have to deallocate something for this file transaction

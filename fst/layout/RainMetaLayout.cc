@@ -56,7 +56,6 @@ RainMetaLayout::RainMetaLayout(XrdFstOfsFile* file,
   mIsOpen(false),
   mIsPio(false),
   mDoTruncate(false),
-  mUpdateHeader(false),
   mDoneRecovery(false),
   mIsStreaming(true),
   mStoreRecovery(storeRecovery),
@@ -266,7 +265,6 @@ RainMetaLayout::Open(XrdSfsFileOpenMode flags, mode_t mode, const char* opaque)
 
   unsigned int num_failures = 0u;
   std::vector<std::future<XrdCl::XRootDStatus>> open_futures;
-  std::vector<XrdCl::XRootDStatus> open_replies;
 
   // Open stripes
   for (unsigned int i = 0; i < stripe_urls.size(); ++i) {
@@ -427,7 +425,6 @@ RainMetaLayout::OpenPio(std::vector<std::string> stripeUrls,
   unsigned int num_failures = 0u;
   std::vector<std::string> stripe_urls = stripeUrls;
   std::vector<std::future<XrdCl::XRootDStatus>> open_futures;
-  std::vector<XrdCl::XRootDStatus> open_replies;
 
   // Open stripes
   for (unsigned int i = 0; i < stripe_urls.size(); ++i) {
@@ -988,7 +985,6 @@ RainMetaLayout::Write(XrdSfsFileOffset offset,
   return write_length;
 }
 
-
 //------------------------------------------------------------------------------
 // Add a new data used to compute parity block
 //------------------------------------------------------------------------------
@@ -1471,6 +1467,66 @@ RainMetaLayout::Stat(struct stat* buf)
 }
 
 //------------------------------------------------------------------------------
+// Truncate file
+//------------------------------------------------------------------------------
+int
+RainMetaLayout::Truncate(XrdSfsFileOffset offset)
+{
+  int rc = SFS_OK;
+  std::vector<std::future<XrdCl::XRootDStatus>> truncate_futures;
+  uint64_t truncate_offset = ceil((offset * 1.0) / mSizeGroup) *
+                             mStripeWidth + mSizeHeader;
+  eos_debug("msg=\"rain truncate\" logical_offset=%lli stripe_offset=%zu",
+            offset, truncate_offset);
+  eos::common::Timing tm("truncate");
+  COMMONTIMING("begin", &tm);
+
+  for (unsigned int i = 0; i < mStripe.size(); ++i) {
+    if (!mStripe[i]) {
+      eos_err("msg=\"failed to truncate null stripe\", stripe_id=%u", i);
+      rc = SFS_ERROR;
+      break;
+    }
+
+    uint64_t tr_offset = offset;
+
+    if (mIsPio || (i == 0)) {
+      tr_offset = truncate_offset;
+    }
+
+    truncate_futures.push_back(mStripe[i]->fileTruncateAsync(tr_offset, mTimeout));
+  }
+
+  COMMONTIMING("async_req", &tm);
+
+  for (unsigned int i = 0; i < truncate_futures.size(); ++i) {
+    if (truncate_futures[i].valid()) {
+      XrdCl::XRootDStatus st = truncate_futures[i].get();
+
+      if (!st.IsOK()) {
+        rc = SFS_ERROR;
+        eos_err("msg=\"failed truncate stripe\" stripe_id=%u err=\"%s\"",
+                i, st.GetErrorMessage().c_str());
+      }
+    } else {
+      eos_err("msg=\"failed truncate stripe\" stripe_id=%u", i);
+      rc = SFS_ERROR;
+    }
+  }
+
+  COMMONTIMING("end", &tm);
+  eos_info("msg=\"done truncate\" %s", tm.Dump().c_str());
+  // *!!!* Reset the mMaxOffsetWritten from XrdFstOfsFile to logical offset
+  mFileSize = offset;
+
+  if (!mIsPio) {
+    mOfsFile->mMaxOffsetWritten = offset;
+  }
+
+  return rc;
+}
+
+//------------------------------------------------------------------------------
 // Close file
 //------------------------------------------------------------------------------
 int
@@ -1544,21 +1600,23 @@ RainMetaLayout::Close()
           num_blocks++;
         }
 
+        bool update_header = false;
+
         for (unsigned int i = 0; i < mHdrInfo.size(); i++) {
           if (num_blocks != mHdrInfo[i]->GetNoBlocks()) {
             mHdrInfo[i]->SetNoBlocks(num_blocks);
-            mUpdateHeader = true;
+            update_header = true;
           }
 
           if (size_last_block != mHdrInfo[i]->GetSizeLastBlock()) {
             mHdrInfo[i]->SetSizeLastBlock(size_last_block);
-            mUpdateHeader = true;
+            update_header = true;
           }
         }
 
         COMMONTIMING("updateheader", &ct);
 
-        if (mUpdateHeader) {
+        if (update_header) {
           for (unsigned int i = 0; i < mStripe.size(); i++) {
             mHdrInfo[i]->SetIdStripe(mapPL[i]);
 
@@ -1571,8 +1629,6 @@ RainMetaLayout::Close()
               eos_warning("%s", "msg=\"failed write header to null file\"");
             }
           }
-
-          mUpdateHeader = false;
         }
       }
 
@@ -1596,7 +1652,7 @@ RainMetaLayout::Close()
         rc = SFS_ERROR;
       }
     } else {
-      eos_warning("%s", "msg=\"failed cloase for null local filed\"");
+      eos_warning("%s", "msg=\"failed close for null local filed\"");
     }
   } else {
     eos_err("%s", "msg=\"file is not opened\"");
@@ -1791,7 +1847,7 @@ RainMetaLayout::StartParityThread(ThreadAssistant& assistant) noexcept
       eos_err("msg=\"failed parity computation\" grp_off=%llu", grp_off);
       break;
     } else {
-      eos_info("msg=\"successful parity computation\" grp_off=%llu", grp_off);
+      eos_debug("msg=\"successful parity computation\" grp_off=%llu", grp_off);
     }
   }
 

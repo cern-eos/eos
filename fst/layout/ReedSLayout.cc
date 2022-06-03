@@ -395,52 +395,6 @@ ReedSLayout::WriteParityToFiles(std::shared_ptr<eos::fst::RainGroup>& grp)
 }
 
 //------------------------------------------------------------------------------
-// Truncate file
-//------------------------------------------------------------------------------
-int
-ReedSLayout::Truncate(XrdSfsFileOffset offset)
-{
-  int rc = SFS_OK;
-  uint64_t truncate_offset = 0;
-  truncate_offset = ceil((offset * 1.0) / mSizeGroup) * mStripeWidth;
-  truncate_offset += mSizeHeader;
-  eos_debug("Truncate local stripe to file_offset = %lli, stripe_offset = %zu",
-            offset, truncate_offset);
-
-  if (mStripe[0]) {
-    mStripe[0]->fileTruncate(truncate_offset, mTimeout);
-  }
-
-  if (mIsEntryServer) {
-    if (!mIsPio) {
-      // In non PIO access each stripe will compute its own truncate value
-      truncate_offset = offset;
-    }
-
-    for (unsigned int i = 1; i < mStripe.size(); i++) {
-      eos_debug("Truncate stripe %i, to file_offset=%lli, stripe_offset=%zu",
-                i, offset, truncate_offset);
-
-      if (mStripe[i]) {
-        if (mStripe[i]->fileTruncate(truncate_offset, mTimeout)) {
-          eos_err("error while truncating");
-          return SFS_ERROR;
-        }
-      }
-    }
-  }
-
-  // *!!!* Reset the mMaxOffsetWritten from XrdFstOfsFile to logical offset
-  mFileSize = offset;
-
-  if (!mIsPio) {
-    mOfsFile->mMaxOffsetWritten = offset;
-  }
-
-  return rc;
-}
-
-//------------------------------------------------------------------------------
 // Return the same index in the Reed-Solomon case
 //------------------------------------------------------------------------------
 unsigned int

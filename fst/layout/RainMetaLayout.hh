@@ -139,7 +139,7 @@ public:
   //!
   //! @return 0 if successful, -1 otherwise and error code is set
   //----------------------------------------------------------------------------
-  virtual int Truncate(XrdSfsFileOffset offset) = 0;
+  virtual int Truncate(XrdSfsFileOffset offset);
 
   //----------------------------------------------------------------------------
   //! Allocate file space
@@ -230,13 +230,12 @@ protected:
   bool mIsOpen; ///< mark if open
   bool mIsPio; ///< mark if opened for parallel IO access
   bool mDoTruncate; ///< mark if there is a need to truncate
-  bool mUpdateHeader; ///< mark if header updated
   bool mDoneRecovery; ///< mark if recovery done
   bool mIsStreaming; ///< file is written in streaming mode
   //! Set if recovery also triggers writing back to the files, this also means
   //! that all files must be available
   bool mStoreRecovery;
-  //! Store recovery flags due to file begin opened in RW mode
+  //! Store recovery flag due to file begin opened in RW mode
   bool mStoreRecoveryRW;
   int mStripeHead; ///< head stripe value
   int mPhysicalStripeIndex; ///< physical index of the current stripe

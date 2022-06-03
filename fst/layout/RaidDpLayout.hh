@@ -61,16 +61,6 @@ public:
                off_t targetSize = 0,
                std::string bookingOpaque = "oss.size");
 
-
-  //----------------------------------------------------------------------------
-  //! Truncate file
-  //!
-  //! @param offset truncate value
-  //!
-  //! @return 0 if successful, otherwise error
-  //----------------------------------------------------------------------------
-  virtual int Truncate(XrdSfsFileOffset offset);
-
   //----------------------------------------------------------------------------
   //! Allocate file space
   //!
