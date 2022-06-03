@@ -2930,6 +2930,7 @@ EosFuse::opendir(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info* fi)
           metad::shared_md pmd = Instance().mds.getlocal(req, (*md)()->pid());
 
           if (pmd) {
+	    LockMonitor pLock(pmd->Locker());
             pmd->local_children().erase(eos::common::StringConversion::EncodeInvalidUTF8(
                                           name));
             (*pmd)()->mutable_children()->erase(

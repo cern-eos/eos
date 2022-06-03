@@ -3643,10 +3643,12 @@ metad::pmap::swap_in(fuse_ino_t ino, shared_md md)
     md_key += std::to_string(ino);
 
     if (store->get(md_key, mdstream)) {
+      eos_static_err("unable to swap-in md ino=%16x errno=%d", ino, EIO);
       return EIO;
     }
 
     if (!(*md)()->ParseFromString(mdstream)) {
+      eos_static_err("unable to swap-in md ino=%16x errno=%d", ino, EFAULT);
       return EFAULT;
     }
 
@@ -3654,10 +3656,12 @@ metad::pmap::swap_in(fuse_ino_t ino, shared_md md)
     md_state_key += std::to_string(ino);
 
     if (store->get(md_state_key, mdsstream)) {
+      eos_static_err("unable to swap-in md-state ino=%16x errno=%d", ino, EIO);
       return EIO;
     }
 
     if (md->state_deserialize(mdsstream)) {
+      eos_static_err("unable to swap-in md-state ino=%16x errno=%d", ino, EFAULT);
       return EFAULT;
     }
   }
