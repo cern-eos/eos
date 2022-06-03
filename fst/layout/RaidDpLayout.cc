@@ -725,7 +725,7 @@ RaidDpLayout::Fdeallocate(XrdSfsFileOffset fromOffset,
 // must be done before calling this method.
 //------------------------------------------------------------------------------
 std::pair<int, uint64_t>
-RaidDpLayout::GetLocalPos(uint64_t global_off)
+RaidDpLayout::GetLocalOff(uint64_t global_off)
 {
   uint64_t local_off = (global_off / mSizeGroup) * mSizeLine +
                        ((global_off % mSizeGroup) / mSizeLine) * mStripeWidth +
@@ -745,6 +745,16 @@ RaidDpLayout::GetGlobalOff(int stripe_id, uint64_t local_off)
                         ((local_off % mSizeLine) / mStripeWidth) * mSizeLine +
                         (stripe_id * mStripeWidth) + (local_off % mStripeWidth);
   return global_off;
+}
+
+//------------------------------------------------------------------------------
+// Get truncate offset for stripe
+//------------------------------------------------------------------------------
+uint64_t
+RaidDpLayout::GetStripeTruncateOffset(uint64_t offset)
+{
+  return static_cast<uint64_t>(ceil((offset * 1.0) / mSizeGroup) *
+                               mSizeLine + mSizeHeader);
 }
 
 EOSFSTNAMESPACE_END

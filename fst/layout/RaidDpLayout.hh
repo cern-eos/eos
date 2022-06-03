@@ -216,7 +216,7 @@ private:
   //!
   //! @return index with values between 0 and 23, -1 if error
   //----------------------------------------------------------------------------
-  virtual unsigned int MapSmallToBig(unsigned int idSmall);
+  unsigned int MapSmallToBig(unsigned int idSmall) override;
 
   //----------------------------------------------------------------------------
   //! Convert a global offset (from the inital file) to a local offset within
@@ -229,8 +229,7 @@ private:
   //! @return tuple made up of the logical index of the stripe data file the
   //!         piece belongs to and the local offset within that file.
   //----------------------------------------------------------------------------
-  virtual std::pair<int, uint64_t>
-  GetLocalPos(uint64_t global_off);
+  std::pair<int, uint64_t> GetLocalOff(uint64_t global_off) override;
 
   //----------------------------------------------------------------------------
   //! Convert a local position (from a stripe data file) to a global position
@@ -243,8 +242,16 @@ private:
   //!
   //! @return offset in the initial file of the local given piece
   //----------------------------------------------------------------------------
-  virtual uint64_t
-  GetGlobalOff(int stripe_id, uint64_t local_off);
+  uint64_t GetGlobalOff(int stripe_id, uint64_t local_off) override;
+
+  //----------------------------------------------------------------------------
+  //! Get truncate offset for stripe
+  //!
+  //! @param offset logical file truncate offset
+  //!
+  //! @return local stripe truncate offset
+  //----------------------------------------------------------------------------
+  uint64_t GetStripeTruncateOffset(uint64_t offset) override;
 };
 
 EOSFSTNAMESPACE_END

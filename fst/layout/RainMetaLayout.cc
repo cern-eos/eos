@@ -688,7 +688,7 @@ RainMetaLayout::Read(XrdSfsFileOffset offset, char* buffer,
       for (auto chunk = split_chunk.begin(); chunk != split_chunk.end(); ++chunk) {
         COMMONTIMING("read remote in", &rt);
         got_error = false;
-        auto local_pos = GetLocalPos(chunk->offset);
+        auto local_pos = GetLocalOff(chunk->offset);
         physical_id = mapLP[local_pos.first];
         off_local = local_pos.second + mSizeHeader;
 
@@ -912,7 +912,7 @@ RainMetaLayout::Write(XrdSfsFileOffset offset,
     mLastWriteOffset += length;
 
     while (length) {
-      auto pos = GetLocalPos(offset);
+      auto pos = GetLocalOff(offset);
       physical_id = mapLP[pos.first];
       off_local = pos.second;
       off_local += mSizeHeader;
@@ -1474,8 +1474,7 @@ RainMetaLayout::Truncate(XrdSfsFileOffset offset)
 {
   int rc = SFS_OK;
   std::vector<std::future<XrdCl::XRootDStatus>> truncate_futures;
-  uint64_t truncate_offset = ceil((offset * 1.0) / mSizeGroup) *
-                             mStripeWidth + mSizeHeader;
+  uint64_t truncate_offset = GetStripeTruncateOffset(offset);
   eos_debug("msg=\"rain truncate\" logical_offset=%lli stripe_offset=%zu",
             offset, truncate_offset);
   eos::common::Timing tm("truncate");
@@ -1739,7 +1738,7 @@ RainMetaLayout::SplitReadV(XrdCl::ChunkList& chunkList, uint32_t sizeHdr)
     // Split each readV request to the corresponding stripe file from which we
     // need to read it, adjusting the relative offset inside the stripe file
     for (auto iter = split_read.begin(); iter != split_read.end(); ++iter) {
-      auto pos = GetLocalPos(iter->offset);
+      auto pos = GetLocalOff(iter->offset);
       iter->offset = pos.second + sizeHdr;
       stripe_readv[pos.first].push_back(*iter);
     }

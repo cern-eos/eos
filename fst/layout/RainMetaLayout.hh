@@ -376,6 +376,41 @@ protected:
   //----------------------------------------------------------------------------
   bool SparseParityComputation(bool force);
 
+  //----------------------------------------------------------------------------
+  //! Get truncate offset for stripe
+  //!
+  //! @param offset logical file truncate offset
+  //!
+  //! @return local stripe truncate offset
+  //----------------------------------------------------------------------------
+  virtual uint64_t GetStripeTruncateOffset(uint64_t offset) = 0;
+
+  //----------------------------------------------------------------------------
+  //! Convert a global offset (from the inital file) to a local offset within
+  //! a stripe data file. The initial block does *NOT* span multiple chunks
+  //! (stripes) therefore if the original length is bigger than one chunk the
+  //! splitting must be done before calling this method.
+  //!
+  //! @param global_off initial offset
+  //!
+  //! @return tuple made up of the logical index of the stripe data file the
+  //!         piece belongs to and the local offset within that file.
+  //----------------------------------------------------------------------------
+  virtual std::pair<int, uint64_t> GetLocalOff(uint64_t global_off) = 0;
+
+  //----------------------------------------------------------------------------
+  //! Convert a local position (from a stripe data file) to a global position
+  //! within the initial file file. Note that the local offset has to come
+  //! from a stripe data file since there is no corresponde in the original
+  //! file for a piece which is in the parity stripe.
+  //!
+  //! @param stripe_id logical stripe index
+  //! @param local_off local offset
+  //!
+  //! @return offset in the initial file of the local given piece
+  //----------------------------------------------------------------------------
+  virtual uint64_t GetGlobalOff(int stripe_id, uint64_t local_off) = 0;
+
 private:
   //----------------------------------------------------------------------------
   //! Disable copy/move assign/constructor operators
@@ -428,33 +463,6 @@ private:
   //! @return true if operation successful, otherwise error
   //----------------------------------------------------------------------------
   bool ReadGroup(uint64_t offsetGroup);
-
-  //----------------------------------------------------------------------------
-  //! Convert a global offset (from the inital file) to a local offset within
-  //! a stripe data file. The initial block does *NOT* span multiple chunks
-  //! (stripes) therefore if the original length is bigger than one chunk the
-  //! splitting must be done before calling this method.
-  //!
-  //! @param global_off initial offset
-  //!
-  //! @return tuple made up of the logical index of the stripe data file the
-  //!         piece belongs to and the local offset within that file.
-  //----------------------------------------------------------------------------
-  virtual std::pair<int, uint64_t> GetLocalPos(uint64_t global_off) = 0;
-
-  //----------------------------------------------------------------------------
-  //! Convert a local position (from a stripe data file) to a global position
-  //! within the initial file file. Note that the local offset has to come
-  //! from a stripe data file since there is no corresponde in the original
-  //! file for a piece which is in the parity stripe.
-  //!
-  //! @param stripe_id logical stripe index
-  //! @param local_off local offset
-  //!
-  //! @return offset in the initial file of the local given piece
-  //----------------------------------------------------------------------------
-  virtual uint64_t
-  GetGlobalOff(int stripe_id, uint64_t local_off) = 0;
 
   //----------------------------------------------------------------------------
   //! Split read request into requests spanning just one chunk so that each

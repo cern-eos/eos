@@ -439,7 +439,7 @@ ReedSLayout::Fdeallocate(XrdSfsFileOffset fromOffset,
 // must be done before calling this method.
 //------------------------------------------------------------------------------
 std::pair<int, uint64_t>
-ReedSLayout::GetLocalPos(uint64_t global_off)
+ReedSLayout::GetLocalOff(uint64_t global_off)
 {
   uint64_t local_off = (global_off / mSizeLine) * mStripeWidth +
                        (global_off % mStripeWidth);
@@ -458,6 +458,16 @@ ReedSLayout::GetGlobalOff(int stripe_id, uint64_t local_off)
                         (stripe_id * mStripeWidth) +
                         (local_off % mStripeWidth);
   return global_off;
+}
+
+//------------------------------------------------------------------------------
+// Get truncate offset for stripe
+//------------------------------------------------------------------------------
+uint64_t
+ReedSLayout::GetStripeTruncateOffset(uint64_t offset)
+{
+  return static_cast<uint64_t>(ceil((offset * 1.0) / mSizeGroup) *
+                               mStripeWidth + mSizeHeader);
 }
 
 EOSFSTNAMESPACE_END
