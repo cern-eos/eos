@@ -103,7 +103,18 @@ private:
    */
   std::unique_ptr<Controller> initializeReleaseController(const std::string & apiVersion, std::shared_ptr<ITapeRestApiBusiness> tapeRestApiBusiness);
 
-    void initializeTapeWellKnownInfos();
+  /**
+   * Initialize the well-known information
+   * that will later be used by the .well-known handler
+   */
+  void initializeTapeWellKnownInfos();
+
+  /**
+   * Adds the tape REST API endpoint to the well-known information
+   * that will later be used by the .well-known handler
+   * @param version
+   */
+  void addEndpointToWellKnown(const std::string & version);
 
   /**
    * HttpResponse factory for the tape REST API
