@@ -930,6 +930,25 @@ public:
   }
 
   //----------------------------------------------------------------------------
+  //! ReduceString
+  //! 
+  //! @param input string
+  //! @param maxsize
+  //!
+  //! @return reduced string - if the string is longer than maxsize it is truncated and a '|>' marker added in the beginning
+  //----------------------------------------------------------------------------
+  static std::string ReduceString(const std::string& input, size_t max=127)
+  {
+    std::string rs = input;
+    if (rs.length() > max) {
+      rs.erase(0,127);
+      rs.insert(0, "|>");
+    }
+    return rs;
+  }
+
+
+  //----------------------------------------------------------------------------
   //! Constructor
   //----------------------------------------------------------------------------
   StringConversion() = default;
