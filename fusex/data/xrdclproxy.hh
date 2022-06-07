@@ -872,9 +872,11 @@ public:
 
     virtual ~WriteAsyncHandler()
     {
-      sWrBufferManager.put_buffer(mBuffer);
-      std::lock_guard<std::mutex> lock(gBuffReferenceMutex);
-      gBufferReference.erase(mId);
+      {
+	sWrBufferManager.put_buffer(mBuffer);
+	std::lock_guard<std::mutex> lock(gBuffReferenceMutex);
+	gBufferReference.erase(mId);
+      }
       mProxy = 0;
     }
 
