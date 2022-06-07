@@ -576,6 +576,30 @@ com_squash(char* arg1)
 	} else {
 	  break;
 	}
+	if ( i == 49 ) {
+	  {
+	    fprintf(stderr,"=====================================\n");
+	    fprintf(stderr,"warning: mount didn't see cleanup ...\n");
+	    fprintf(stderr,"remote:\n");
+	    fprintf(stderr,"=====================================\n");
+	    scmd = "eos ls -la ";
+	    scmd += packagepath.GetPath();
+	    std::string out = eos::common::StringConversion::StringFromShellCmd(
+										scmd.c_str());
+	    fprintf(stdout, "%s", out.c_str());
+	  }
+	  {
+	    fprintf(stderr,"=====================================\n");
+	    fprintf(stderr,"local:\n");
+	    fprintf(stderr,"=====================================\n");
+	    scmd = "ls -la ";
+	    scmd += packagepath.GetPath();
+	    std::string out = eos::common::StringConversion::StringFromShellCmd(
+										scmd.c_str());
+	    fprintf(stdout, "%s", out.c_str());
+	    fprintf(stderr,"=====================================\n");
+	  }
+	}
       }
 
       if (::rmdir(packagepath.GetPath())) {
