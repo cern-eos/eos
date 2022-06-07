@@ -258,7 +258,7 @@ File State Tracking for eosxd
 
 The namespace registers the state changes of a file inside the extended attribute *sys.fusex.state*.
 
-The extended attribute can track up to 127 operations, then gets truncated. A truncation is indicated with a leading *|>* in the attribute.
+The extended attribute can track up to 127 operations, then gets truncated to half. A truncation is indicated with a leading *|>* in the attribute.
 Possible state flags are:
 
 * C      := File has been created by the FuseServer
