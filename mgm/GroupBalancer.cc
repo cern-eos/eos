@@ -511,6 +511,13 @@ GroupBalancer::GroupBalance(ThreadAssistant& assistant) noexcept
       }
     }
 
+    if (!mEngine->canPick()) {
+      eos_static_debug("msg=\"Empty source or target groups, cannot pick\""
+                       " engine_status=%s",
+                       mEngine->get_status_str(false, true).c_str());
+      continue;
+    }
+
     prepareTransfers(mCfg.num_tx);
   }
 }
