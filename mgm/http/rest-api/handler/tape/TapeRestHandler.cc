@@ -63,9 +63,7 @@ void TapeRestHandler::initializeV1() {
   std::unique_ptr<Controller> releaseController = initializeReleaseController(version, restApiBusiness);
   mControllerManager.addController(std::move(releaseController));
 
-  auto accessURLBuilder = getAccessURLBuilder();
-  accessURLBuilder->add(version);
-  mTapeWellKnownInfos->addEndpoint(accessURLBuilder->build(),version);
+  addEndpointToWellKnown(version);
 }
 
 void TapeRestHandler::initializeV0Dot1() {
@@ -81,9 +79,7 @@ void TapeRestHandler::initializeV0Dot1() {
   std::unique_ptr<Controller> releaseController = initializeReleaseController(version, restApiBusiness);
   mControllerManager.addController(std::move(releaseController));
 
-  auto accessURLBuilder = getAccessURLBuilder();
-  accessURLBuilder->add(version);
-  mTapeWellKnownInfos->addEndpoint(accessURLBuilder->build(),version);
+  addEndpointToWellKnown(version);
 }
 
 std::unique_ptr<Controller> TapeRestHandler::initializeStageController(const std::string & apiVersion, std::shared_ptr<ITapeRestApiBusiness> tapeRestApiBusiness) {
@@ -116,6 +112,13 @@ std::unique_ptr<Controller> TapeRestHandler::initializeReleaseController(const s
 
 void TapeRestHandler::initializeTapeWellKnownInfos() {
   mTapeWellKnownInfos = std::make_unique<TapeWellKnownInfos>(mTapeRestApiConfig->getSiteName());
+}
+
+void TapeRestHandler::addEndpointToWellKnown(const std::string& version) {
+  auto accessURLBuilder = getAccessURLBuilder();
+  accessURLBuilder->add(mEntryPointURL);
+  accessURLBuilder->add(version);
+  mTapeWellKnownInfos->addEndpoint(accessURLBuilder->build(),version);
 }
 
 bool TapeRestHandler::isRestRequest(const std::string& requestURL, std::string & errorMsg) const {
@@ -188,7 +191,7 @@ common::HttpResponse* TapeRestHandler::handleRequest(common::HttpRequest* reques
 std::unique_ptr<URLBuilder> TapeRestHandler::getAccessURLBuilder() const {
   std::unique_ptr<URLBuilder> ret;
   auto builder = URLBuilder::getInstance();
-  builder->setHttpsProtocol()->setHostname(mTapeRestApiConfig->getHostAlias())->setPort(mTapeRestApiConfig->getXrdHttpPort())->add(mEntryPointURL);
+  builder->setHttpsProtocol()->setHostname(mTapeRestApiConfig->getHostAlias())->setPort(mTapeRestApiConfig->getXrdHttpPort());
   ret.reset(static_cast<URLBuilder *>(builder.release()));
   return ret;
 }
