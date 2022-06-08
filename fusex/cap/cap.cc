@@ -238,17 +238,11 @@ cap::store(fuse_req_t req,
   std::string cid = cap::capx::capid(req, id); // cid uses the local inode
   eos::common::LockMonitor mLock(capmap);
 
-  if (capmap.count(cid)) {
-    shared_cap cap = capmap[cid];
-    *cap = icap;
-    (*cap)()->set_id(id);
-  } else {
-    shared_cap cap = std::make_shared<capx>();
-    (*cap)()->set_clientid(clientid);
-    *cap = icap;
-    (*cap)()->set_id(id);
-    capmap[cid] = cap;
-  }
+  shared_cap cap = std::make_shared<capx>();
+  (*cap)()->set_clientid(clientid);
+  *cap = icap;
+  (*cap)()->set_id(id);
+  capmap[cid] = cap;
 
   eos_static_debug("store inode=[r:%lx l:%lx] capid=%s cap: %s", icap.id(),
                    id, cid.c_str(), capmap[cid]->dump().c_str());
