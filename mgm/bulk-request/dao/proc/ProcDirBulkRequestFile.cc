@@ -26,10 +26,7 @@
 
 EOSBULKNAMESPACE_BEGIN
 
-ProcDirBulkRequestFile::ProcDirBulkRequestFile() {
-}
-
-ProcDirBulkRequestFile::ProcDirBulkRequestFile(const std::string& path):mFullPath(path){
+ProcDirBulkRequestFile::ProcDirBulkRequestFile(const std::string& path):mName(path){
 }
 
 void ProcDirBulkRequestFile::setFileId(const eos::common::FileId::fileid_t fileId) {
@@ -48,14 +45,6 @@ const std::optional<std::string> ProcDirBulkRequestFile::getError() const {
   return mError;
 }
 
-void ProcDirBulkRequestFile::setFullPath(const std::string& fullPath){
-  mFullPath = fullPath;
-}
-
-const std::string ProcDirBulkRequestFile::getFullPath() const {
-  return mFullPath;
-}
-
 void ProcDirBulkRequestFile::setName(const std::string& name){
   mName = name;
 }
@@ -65,11 +54,11 @@ const std::string ProcDirBulkRequestFile::getName() const {
 }
 
 bool ProcDirBulkRequestFile::operator<(const ProcDirBulkRequestFile& other) const {
-  return mFullPath < other.mFullPath;
+  return getName() < other.getName();
 }
 
 bool ProcDirBulkRequestFile::operator==(const ProcDirBulkRequestFile& other) const {
-  return mFullPath == other.mFullPath;
+  return getName() == other.getName();
 }
 
 EOSBULKNAMESPACE_END

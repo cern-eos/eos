@@ -348,8 +348,7 @@ void ProcDirectoryBulkRequestDAO::fillBulkRequestFromXattrs(bulk::BulkRequest * 
       continue;
     }
     //The files in the bulk-request proc directory will be wrapped into a ProcDirBulkRequestFile object.
-    ProcDirBulkRequestFile file;
-    file.setName(fileIdOrObfuscatedPath);
+    ProcDirBulkRequestFile file(fileIdOrObfuscatedPath);
     if(currentFileError){
       file.setError(*currentFileError);
     }
