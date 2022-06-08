@@ -296,7 +296,6 @@ Mounting for UNIX gateways
 
 Use these authentication directives in the config files:
 ```
-```
   "auth" : {
     "shared-mount" : 1,
     "unix" : 1,
