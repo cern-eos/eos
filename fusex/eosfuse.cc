@@ -1655,7 +1655,6 @@ EosFuse::run(int argc, char* argv[], void* userdata)
       tDumpStatistic.reset(&EosFuse::DumpStatistic, this);
       tStatCirculate.reset(&EosFuse::StatCirculate, this);
       tMetaCacheFlush.reset(&metad::mdcflush, &mds);
-      tMetaSizeFlush.reset(&metad::mdsizeflush, &mds);
       tMetaStackFree.reset(&metad::mdstackfree, &mds);
       tMetaCommunicate.reset(&metad::mdcommunicate, &mds);
       tCapFlush.reset(&cap::capflush, &caps);
@@ -1808,7 +1807,6 @@ EosFuse::run(int argc, char* argv[], void* userdata)
       tDumpStatistic.join();
       tStatCirculate.join();
       tMetaCacheFlush.join();
-      tMetaSizeFlush.join();
       tMetaStackFree.join();
       tMetaCommunicate.join();
       tCapFlush.join();

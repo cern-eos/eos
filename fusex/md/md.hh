@@ -615,9 +615,6 @@ public:
   void mdcommunicate(ThreadAssistant&
                      assistant); // thread interacting with the MGM for meta data
 
-  void mdsizeflush(ThreadAssistant&
-                   assistant); // thread updating filesize during long lasting writes
-
   void mdstackfree(ThreadAssistant&
                    assistant); // thread removing stacked inodes
 

@@ -100,7 +100,7 @@ metad::connect(std::string zmqtarget, std::string zmqidentity,
   std::lock_guard<std::mutex> connectionMutex(zmq_socket_mutex);
 
   if (z_socket && z_socket->connected() && (zmqtarget != zmq_target)) {
-    // delete the exinsting ZMQ connection
+    // delete the existing ZMQ connection
     delete z_socket;
     delete z_ctx;
   }
@@ -2362,19 +2362,6 @@ metad::mdcflush(ThreadAssistant& assistant)
 
 /* -------------------------------------------------------------------------- */
 void
-metad::mdsizeflush(ThreadAssistant& assistant)
-{
-  // TODO: implement MGM size updates while writing files
-  while (!assistant.terminationRequested()) {
-    std::this_thread::sleep_for(std::chrono::milliseconds(128));
-  }
-
-  return;
-}
-
-
-/* -------------------------------------------------------------------------- */
-void
 metad::mdstackfree(ThreadAssistant& assistant)
 {
   size_t cnt = 0;
@@ -2696,7 +2683,8 @@ metad::mdcommunicate(ThreadAssistant& assistant)
             zmq_getsockopt(static_cast<void*>(*z_socket), ZMQ_RCVMORE, &more, &more_size);
           } while (more);
 
-          std::string s((const char*) zmq_msg_data(&message), zmq_msg_size(&message));
+	  std::string s((const char*) zmq_msg_data(&message), zmq_msg_size(&message));
+	  
           rsp.Clear();
 
           if (rsp.ParseFromString(s)) {
