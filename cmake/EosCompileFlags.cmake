@@ -74,6 +74,7 @@ if (ASAN)
     message(FATAL_ERROR "A compiler with '-fsanitize=address' support is required.")
   endif()
 
+  message(STATUS "Enabling ASAN FLAGS")
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=address")
 endif()
 
@@ -91,5 +92,6 @@ if (TSAN)
     message(FATAL_ERROR "A compiler with '-fsanitize=thread' support is required.")
   endif()
 
+  message(STATUS "Enabling TSAN FLAGS")
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=thread")
 endif()
