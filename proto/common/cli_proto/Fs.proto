@@ -12,6 +12,7 @@ message FsProto {
     string Mountpoint = 7;
     string Schedgroup = 8;
     string Status = 9;
+    string SharedFs = 10;
   }
 
   message BootProto {

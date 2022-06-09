@@ -22,4 +22,4 @@ Using EOS
    using/oauth2
    using/tokens
    using/squashfs
-
+   using/sharedfs

@@ -27,6 +27,7 @@
 #include "common/ObserverMgr.hh"
 #include "mgm/Namespace.hh"
 #include "mgm/XrdMgmOfs.hh"
+#include "mgm/config/GlobalConfigStore.hh"
 #include "mgm/convert/ConversionJob.hh"
 #include "namespace/interface/IFileMD.hh"
 #include "namespace/ns_quarkdb/QdbContactDetails.hh"
@@ -38,6 +39,8 @@ EOSMGMNAMESPACE_BEGIN
 //! Forward declaration
 class ConversionJob;
 enum class ConversionJobStatus;
+static const std::string kConverterMaxThreads {"converter-max-threads"};
+static const std::string kConverterMaxQueueSize {"converter-max-queuesize"};
 //------------------------------------------------------------------------------
 //! @brief Class running the conversion threadpool
 //------------------------------------------------------------------------------
@@ -57,8 +60,9 @@ public:
     mThreadPool(std::thread::hardware_concurrency(), cDefaultMaxThreadPoolSize,
                 10, 5, 3, "converter"),
     mMaxThreadPoolSize(cDefaultMaxThreadPoolSize),
-    mMaxQueueSize(1000), mTimestamp(),
-    mObserverMgr(std::make_unique<ObserverT>())
+    mMaxQueueSize(cDefaultMaxQueueSize), mTimestamp(),
+    mObserverMgr(std::make_unique<ObserverT>()),
+    mConfigStore(std::make_unique<GlobalConfigStore>(&FsView::gFsView))
   {}
 
   //----------------------------------------------------------------------------
@@ -156,6 +160,7 @@ public:
   {
     mThreadPool.SetMaxThreads(max);
     mMaxThreadPoolSize = max;
+    mConfigStore->save(kConverterMaxThreads, std::to_string(max));
   }
 
   //----------------------------------------------------------------------------
@@ -166,6 +171,7 @@ public:
   inline void SetMaxQueueSize(uint32_t max)
   {
     mMaxQueueSize = max;
+    mConfigStore->save(kConverterMaxQueueSize, std::to_string(max));
   }
 
   //----------------------------------------------------------------------------
@@ -212,6 +218,11 @@ public:
     return mObserverMgr.get();
   }
 
+  //----------------------------------------------------------------------------
+  //! Initialize the saved value of config vals like max threads/queue sz from
+  //! config store
+  //----------------------------------------------------------------------------
+  void initConfig();
 private:
   struct QdbHelper {
     //--------------------------------------------------------------------------
@@ -326,6 +337,7 @@ private:
   //! Default maximum thread pool size constant
   static constexpr unsigned int cDefaultMaxThreadPoolSize{100};
   //! Max queue size from the thread pool when we delay new jobs
+  static constexpr unsigned int cDefaultMaxQueueSize{1000};
 
   AssistedThread mThread; ///< Thread controller object
   QdbHelper mQdbHelper; ///< QuarkDB helper object
@@ -342,6 +354,7 @@ private:
   ///! Pending jobs in memory
   eos::common::ConcurrentQueue<JobInfoT> mPendingJobs;
   std::unique_ptr<ObserverT> mObserverMgr;
+  std::unique_ptr<common::ConfigStore> mConfigStore;
 
 };
 

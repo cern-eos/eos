@@ -2265,5 +2265,58 @@ Quota::GetStatfs(const std::string& path, unsigned long long& maxbytes,
 }
 
 
+//------------------------------------------------------------------------------
+// Remove file from corresponding quota node
+//------------------------------------------------------------------------------
+bool
+Quota::RemoveFile(eos::IFileMD::id_t fid)
+{
+  std::shared_ptr<eos::IFileMD> fmd {nullptr};
+  std::shared_ptr<eos::IContainerMD> cmd {nullptr};
+  eos::IQuotaNode* ns_quota {nullptr};
+  eos::common::RWMutexWriteLock ns_wr_lock(gOFS->eosViewRWMutex);
+
+  try {
+    fmd = gOFS->eosFileService->getFileMD(fid);
+    cmd = gOFS->eosDirectoryService->getContainerMD(fmd->getContainerId());
+    ns_quota = gOFS->eosView->getQuotaNode(cmd.get());
+  } catch (const eos::MDException& e) {
+    return false;
+  }
+
+  if (ns_quota && fmd) {
+    ns_quota->removeFile(fmd.get());
+    return true;
+  }
+
+  return false;
+}
+
+//------------------------------------------------------------------------------
+// Remove file from corresponding quota node
+//------------------------------------------------------------------------------
+bool
+Quota::AddFile(eos::IFileMD::id_t fid)
+{
+  std::shared_ptr<eos::IFileMD> fmd {nullptr};
+  std::shared_ptr<eos::IContainerMD> cmd {nullptr};
+  eos::IQuotaNode* ns_quota {nullptr};
+  eos::common::RWMutexWriteLock ns_wr_lock(gOFS->eosViewRWMutex);
+
+  try {
+    fmd = gOFS->eosFileService->getFileMD(fid);
+    cmd = gOFS->eosDirectoryService->getContainerMD(fmd->getContainerId());
+    ns_quota = gOFS->eosView->getQuotaNode(cmd.get());
+  } catch (const eos::MDException& e) {
+    return false;
+  }
+
+  if (ns_quota && fmd) {
+    ns_quota->addFile(fmd.get());
+    return true;
+  }
+
+  return false;
+}
 
 EOSMGMNAMESPACE_END

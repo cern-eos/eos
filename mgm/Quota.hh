@@ -185,7 +185,7 @@ private:
   //! @warning Caller needs to hold a read-lock on both eosViewRWMutex and
   //!          pMapMutex
   //----------------------------------------------------------------------------
-  void Refresh(time_t age=0);
+  void Refresh(time_t age = 0);
 
   //----------------------------------------------------------------------------
   //! Calculate the size factor used to estimate the logical available bytes
@@ -616,9 +616,26 @@ public:
   //----------------------------------------------------------------------------
   //! Get logical free und max bytes for this space
   //----------------------------------------------------------------------------
-  static void GetStatfs(const std::string& path, unsigned long long& maxbytes, unsigned long long& freebytes);
+  static void GetStatfs(const std::string& path, unsigned long long& maxbytes,
+                        unsigned long long& freebytes);
 
+  //----------------------------------------------------------------------------
+  //! Remove file from corresponding quota node
+  //
+  //! @param fid file identifier
+  //!
+  //! @return true if file remove successfully and quota node exists
+  //----------------------------------------------------------------------------
+  static bool RemoveFile(eos::IFileMD::id_t fid);
 
+  //----------------------------------------------------------------------------
+  //! Remove file from corresponding quota node
+  //
+  //! @param fid file identifier
+  //!
+  //! @return true if file added successful and quota node exists
+  //----------------------------------------------------------------------------
+  static bool AddFile(eos::IFileMD::id_t fid);
 
 
   static gid_t gProjectId; ///< gid indicating project quota

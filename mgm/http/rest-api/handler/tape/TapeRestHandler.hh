@@ -79,6 +79,7 @@ public:
   const TapeWellKnownInfos* getWellKnownInfos() const;
 
 private:
+  void initializeV0Dot1();
   /**
    * Initialize the version 1 of the tape REST API
    */
@@ -113,13 +114,23 @@ private:
     const std::string& apiVersion,
     std::shared_ptr<ITapeRestApiBusiness> tapeRestApiBusiness);
 
+  /**
+   * Initialize the well-known information
+   * that will later be used by the .well-known handler
+   */
   void initializeTapeWellKnownInfos();
+
+  /**
+   * Adds the tape REST API endpoint to the well-known information
+   * that will later be used by the .well-known handler
+   * @param version
+   */
+  void addEndpointToWellKnown(const std::string& version);
 
   /**
    * HttpResponse factory for the tape REST API
    */
   TapeRestApiResponseFactory mTapeRestApiResponseFactory;
-  inline static const std::string VERSION_0 = "v0";
   const TapeRestApiConfig* mTapeRestApiConfig;
   std::unique_ptr<TapeWellKnownInfos> mTapeWellKnownInfos;
 };

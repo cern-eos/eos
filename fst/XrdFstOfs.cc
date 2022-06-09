@@ -2049,8 +2049,8 @@ XrdFstOfs::HandleResync(XrdOucEnv& env, XrdOucErrInfo& err_obj)
                              gOFS.Storage->GetStoragePath(fsid).c_str());
 
         if (gFmdDbMapHandler.ResyncDisk(fpath.c_str(), fsid, false) == 0) {
-          if (gFmdDbMapHandler.ResyncFileFromQdb(fid, fsid, fpath, gOFS.mFsckQcl)) {
-            eos_static_err("msg=\"resync qdb failed\" fid=%08llx fsid=%lu",
+          if (gFmdDbMapHandler.ResyncMgm(fsid, fid, nullptr)) {
+            eos_static_err("msg=\"resync mgm failed\" fid=%08llx fsid=%lu",
                            fid, fsid);
           }
         } else {

@@ -70,7 +70,8 @@ GroupDrainer::GroupDrain(ThreadAssistant& assistant) noexcept
       // wait for a few seconds before trying to see for reconfiguration in order
       // to not simply always check the atomic in an inf loop
       eos_info("msg=\"Invalid GroupDrainer Configuration or Converter "
-               "not enabled, sleeping 30s!\" config_status=%d", config_status);
+               "not enabled, sleeping 30s!\" config_status=%d, space=%s",
+               config_status, mSpaceName.c_str());
       assistant.wait_for(std::chrono::seconds(30));
       continue;
     }
@@ -193,7 +194,7 @@ GroupDrainer::pruneTransfers()
 void
 GroupDrainer::prepareTransfers()
 {
-  uint64_t allowed_tx = mMaxTransfers - mTransfers.size();
+  uint64_t allowed_tx = getAllowedTransfers();
 
   try {
     for (uint64_t i = 0; i < allowed_tx; ++i) {
@@ -310,10 +311,9 @@ GroupDrainer::scheduleTransfer(eos::common::FileId::fileid_t fid,
     eos_info("msg=\"group drainer scheduled job file=\"%s\" "
              "src_grp=\"%s\" dst_grp=\"%s\"", conv_tag.c_str(),
              src_grp.c_str(), tgt_grp.c_str());
-    mTransfers.emplace(fid);
+    addTransferEntry(fid);
   } else {
-    // TODO have a routine to handle this!
-    mFailedTransfers.emplace(fid, std::move(conv_tag));
+    addFailedTransferEntry(fid, std::move(conv_tag));
   }
 }
 
@@ -398,6 +398,13 @@ GroupDrainer::Configure(const string& spaceName)
              " space=%s drainer_status=%d converter_status=%d",
              mSpaceName.c_str(), is_enabled, is_conv_enabled);
     return false;
+  }
+
+  {
+    std::scoped_lock slock(mTransfersMtx);
+    eos::common::StringToNumeric(
+      space->GetConfigMember("groupdrainer.ntx"), mMaxTransfers,
+      DEFAULT_NUM_TX);
   }
 
   eos::common::StringToNumeric(
@@ -546,10 +553,13 @@ GroupDrainer::getStatus(StatusFormat status_fmt) const
     return mEngine->get_status_str(false, true);
   }
 
-  auto tx_sz = mTransfers.size();
-  auto failed_tx_sz = mFailedTransfers.size();
   std::stringstream ss;
-  ss << "Transfers in Queue     : " << tx_sz << "\n";
+  {
+    std::scoped_lock sl(mTransfersMtx);
+    ss << "Max allowed Transfers  : " << mMaxTransfers << "\n"
+       << "Transfers in Queue     : " << mTransfers.size() << "\n";
+  }
+  auto failed_tx_sz = mFailedTransfers.size();
   ss << "Transfers Failed       : " << failed_tx_sz << "\n";
   ss << mEngine->get_status_str();
 
@@ -601,8 +611,9 @@ void
 GroupDrainer::resetCaches()
 {
   {
-    std::scoped_lock sl(mFailedTransfersMtx);
+    std::scoped_lock sl(mFailedTransfersMtx, mTransfersMtx);
     mFailedTransfers.clear();
+    mTransfers.clear();
   }
   // force a refresh of the global groups map info
   mDoConfigUpdate.store(true, std::memory_order_relaxed);

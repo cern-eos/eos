@@ -23,6 +23,7 @@
 
 #include "mgm/convert/ConversionJob.hh"
 #include "mgm/Stat.hh"
+#include "mgm/Quota.hh"
 #include "mgm/FsView.hh"
 #include "mgm/tgc/MultiSpaceTapeGc.hh"
 #include "common/Constants.hh"
@@ -434,6 +435,7 @@ ConversionJob::Merge()
   std::list<eos::IFileMD::location_t> conv_locations;
   eos::IFileMD::id_t orig_fid {0ull}, conv_fid {0ull};
   std::shared_ptr<eos::IFileMD> orig_fmd, conv_fmd;
+  bool has_quota = Quota::RemoveFile(mFid);
   {
     eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
 
@@ -443,6 +445,12 @@ ConversionJob::Merge()
     } catch (const eos::MDException& e) {
       eos_static_err("msg=\"failed to retrieve file metadata\" msg=\"%s\"",
                      e.what());
+
+      if (has_quota) {
+        ns_rd_lock.Release();
+        Quota::AddFile(mFid);
+      }
+
       return false;
     }
 
@@ -541,6 +549,12 @@ ConversionJob::Merge()
     }
 
     gOFS->eosView->updateFileStore(orig_fmd.get());
+
+    if (has_quota) {
+      ns_rd_lock.Release();
+      Quota::AddFile(mFid);
+    }
+
     return false;
   }
 
@@ -580,13 +594,9 @@ ConversionJob::Merge()
     gOFS->eosView->updateFileStore(orig_fmd.get());
   }
 
-  // Synchronize the flusher to avoid a race condition with the resync
-  // happening on the FSTs
-  auto* qdb_ns_grp = dynamic_cast<eos::QuarkNamespaceGroup*>
-                     (gOFS->namespaceGroup.get());
-
-  if (qdb_ns_grp) {
-    qdb_ns_grp->getMetadataFlusher()->synchronize();
+  // Update quota node given the new possible layout
+  if (has_quota) {
+    Quota::AddFile(mFid);
   }
 
   // Trigger a resync of the local information for the new locations

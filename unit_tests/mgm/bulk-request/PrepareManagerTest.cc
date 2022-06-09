@@ -118,6 +118,15 @@ TEST_F(PrepareManagerTest, stagePrepareFilesWorkflow)
                                      nbFiles);
   std::vector<std::string> oinfos = PrepareManagerTest::generateEmptyOinfos(
                                       nbFiles);
+  // Add twice the same file to verify that the prepare workflow will be triggered
+  // for duplicated path
+  paths.push_back("a");
+  paths.push_back("b");
+  paths.push_back("a");
+  oinfos.push_back("");
+  oinfos.push_back("");
+  oinfos.push_back("");
+  nbFiles += 3;
   std::unique_ptr<MockPrepareMgmFSInterface> mgmOfsPtr =
     std::make_unique<MockPrepareMgmFSInterface>();
   MockPrepareMgmFSInterface& mgmOfs = *mgmOfsPtr;
@@ -414,6 +423,15 @@ TEST_F(PrepareManagerTest, queryPrepare)
                                      nbFiles);
   std::vector<std::string> oinfos = PrepareManagerTest::generateEmptyOinfos(
                                       nbFiles);
+  //Add twice the same file to verify that query prepare will return the result twice for the same file
+  paths.push_back("a");
+  //One file in the middle to test that the order will be preserved
+  paths.push_back("b");
+  paths.push_back("a");
+  oinfos.push_back("");
+  oinfos.push_back("");
+  oinfos.push_back("");
+  nbFiles += 3;
   std::unique_ptr<NiceMock<MockPrepareMgmFSInterface>> mgmOfsPtr =
         std::make_unique<NiceMock<MockPrepareMgmFSInterface>>();
   NiceMock<MockPrepareMgmFSInterface>& mgmOfs = *mgmOfsPtr;
@@ -452,6 +470,12 @@ TEST_F(PrepareManagerTest, queryPrepare)
   ASSERT_EQ("USER ERROR: file does not exist or is not accessible to you",
             notExistingFile.error_text);
   ASSERT_EQ(paths.back(), notExistingFile.path);
+
+  //Test that the files are returned in the same order as they were submitted by the client
+  for (int i = 0; i < nbFiles; ++i) {
+    ASSERT_EQ(paths[i], retQueryPrepare->getResponse()->responses[i].path);
+  }
+
   ASSERT_EQ(SFS_DATA, retQueryPrepare->getReturnCode());
 }
 

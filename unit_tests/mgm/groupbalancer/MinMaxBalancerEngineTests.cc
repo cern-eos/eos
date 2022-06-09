@@ -1,6 +1,7 @@
 #include "gtest/gtest.h"
 #include "mgm/groupbalancer/BalancerEngine.hh"
 #include "mgm/groupbalancer/MinMaxBalancerEngine.hh"
+#include <memory>
 
 
 using namespace eos::mgm::group_balancer;

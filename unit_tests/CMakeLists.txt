@@ -113,7 +113,8 @@ set(COMMON_UT_SRCS
   common/BufferManagerTests.cc
   common/ConcurrentQueueTests.cc
   common/ContainerUtilsTests.cc
-  common/ObserverMgrTests.cc)
+  common/ObserverMgrTests.cc
+  common/ConfigStoreTests.cc)
 
 set(FST_UT_SRCS
   fst/XrdFstOfsTests.cc
@@ -122,9 +123,11 @@ set(FST_UT_SRCS
   fst/UtilsTest.cc
   fst/XrdFstOfsFileInternalTest.cc
   fst/ScanDirTests.cc
+  ${CMAKE_SOURCE_DIR}/fst/ScanDir.cc # To pass on the NOOFS flag explicitly
   fst/LoadTests.cc
   fst/MonitorVarPartitionTest.cc
-  fst/ResponseCollectorTests.cc)
+  fst/ResponseCollectorTests.cc
+  fst/WalkDirTreeTests.cc)
 
 #-------------------------------------------------------------------------------
 # unit tests source files
@@ -158,12 +161,17 @@ target_link_libraries(eos-unit-tests PRIVATE
 # eos-unit-tests-fst executable
 #-------------------------------------------------------------------------------
 add_executable(eos-unit-tests-fst ${UT_FST_SRCS})
+target_compile_definitions(eos-unit-tests-fst PUBLIC -D_NOOFS=1)
+
+target_include_directories(eos-unit-tests-fst PUBLIC
+  ${CMAKE_SOURCE_DIR}/common)
 
 target_link_libraries(eos-unit-tests-fst PRIVATE
   gtest_main
   gmock
   EosFstOss-Static
-  XrdEosFst-Static)
+  XrdEosFst-Static
+  XXHASH::XXHASH)
 
 #-------------------------------------------------------------------------------
 # eos-unit-tests-with-instance executable

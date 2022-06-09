@@ -662,6 +662,7 @@ static std::string BuildConversionId(const std::string& layout,
                              stripes,
                              LayoutId::eBlockSize::k4M,
                              LayoutId::eChecksum::kCRC32C,
+                             0, // excess replicas
                              LayoutId::GetRedundancyFromLayoutString(layout));
   char buff[4096];
   snprintf(buff, std::size(buff), "%016llx:%s#%08lx",

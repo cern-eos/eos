@@ -139,3 +139,19 @@ TEST_F(RestApiTest, URLParserTestMatchesAndExtractParameters)
                params));
   ASSERT_EQ(0, params.size());
 }
+
+TEST_F(RestApiTest, URLBuilderTest)
+{
+  auto urlBuilder = URLBuilder::getInstance();
+  std::string hostname = "hostname.cern.ch";
+  uint16_t port = 1234;
+  std::string url1 = urlBuilder->setHttpsProtocol()->setHostname(
+                       hostname)->setPort(port)->build();
+  ASSERT_EQ(std::string("https://")  + hostname + ":" + std::to_string(port),
+            url1);
+  auto urlBuilder2 = URLBuilder::getInstance();
+  std::string urlstage = urlBuilder2->setHttpsProtocol()->setHostname(
+                           hostname)->setPort(port)->add("/api/")->add("v1")->add("stage")->build();
+  ASSERT_EQ(std::string("https://")  + hostname + ":" + std::to_string(
+              port) + "/api/v1/stage", urlstage);
+}

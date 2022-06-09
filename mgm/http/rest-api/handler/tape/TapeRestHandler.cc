@@ -36,6 +36,7 @@
 #include "mgm/http/rest-api/exception/ControllerNotFoundException.hh"
 #include "mgm/http/rest-api/exception/ForbiddenException.hh"
 #include "mgm/http/rest-api/exception/MethodNotAllowedException.hh"
+#include "mgm/http/rest-api/exception/NotImplementedException.hh"
 #include "mgm/http/rest-api/json/tape/jsonifiers/archiveinfo/GetArchiveInfoResponseJsonifier.hh"
 #include "mgm/http/rest-api/json/tape/jsonifiers/stage/CreatedStageBulkRequestJsonifier.hh"
 #include "mgm/http/rest-api/json/tape/jsonifiers/stage/GetStageBulkRequestJsonifier.hh"
@@ -48,7 +49,8 @@ TapeRestHandler::TapeRestHandler(const TapeRestApiConfig* config): RestHandler(
     config->getAccessURL()), mTapeRestApiConfig(config)
 {
   initializeTapeWellKnownInfos();
-  initializeV1();
+  initializeV0Dot1();
+  //initializeV1();
 }
 
 void TapeRestHandler::initializeV1()
@@ -65,9 +67,26 @@ void TapeRestHandler::initializeV1()
   std::unique_ptr<Controller> releaseController = initializeReleaseController(
         version, restApiBusiness);
   mControllerManager.addController(std::move(releaseController));
-  auto accessURLBuilder = getAccessURLBuilder();
-  accessURLBuilder->add(version);
-  mTapeWellKnownInfos->addEndpoint(accessURLBuilder->build(), version);
+  addEndpointToWellKnown(version);
+}
+
+void TapeRestHandler::initializeV0Dot1()
+{
+  const std::string version = "v0.1";
+  std::shared_ptr<TapeRestApiBusiness> restApiBusiness =
+    std::make_shared<TapeRestApiBusiness>();
+  //The STAGE resource is marked as NON_IMPLEMENTED for version 0.1
+  std::unique_ptr<Controller> stageController =
+    TapeControllerFactory::getNotImplementedController(mEntryPointURL + version +
+        "/stage/");
+  mControllerManager.addController(std::move(stageController));
+  std::unique_ptr<Controller> fileInfoController =
+    initializeArchiveinfoController(version, restApiBusiness);
+  mControllerManager.addController(std::move(fileInfoController));
+  std::unique_ptr<Controller> releaseController = initializeReleaseController(
+        version, restApiBusiness);
+  mControllerManager.addController(std::move(releaseController));
+  addEndpointToWellKnown(version);
 }
 
 std::unique_ptr<Controller> TapeRestHandler::initializeStageController(
@@ -133,6 +152,14 @@ void TapeRestHandler::initializeTapeWellKnownInfos()
 {
   mTapeWellKnownInfos = std::make_unique<TapeWellKnownInfos>
                         (mTapeRestApiConfig->getSiteName());
+}
+
+void TapeRestHandler::addEndpointToWellKnown(const std::string& version)
+{
+  auto accessURLBuilder = getAccessURLBuilder();
+  accessURLBuilder->add(mEntryPointURL);
+  accessURLBuilder->add(version);
+  mTapeWellKnownInfos->addEndpoint(accessURLBuilder->build(), version);
 }
 
 bool TapeRestHandler::isRestRequest(const std::string& requestURL,
@@ -205,6 +232,9 @@ common::HttpResponse* TapeRestHandler::handleRequest(common::HttpRequest*
     eos_static_info(ex.what());
     return mTapeRestApiResponseFactory.createForbiddenError(
              ex.what()).getHttpResponse();
+  } catch (const NotImplementedException& ex) {
+    eos_static_info(ex.what());
+    return mTapeRestApiResponseFactory.createNotImplementedError().getHttpResponse();
   } catch (const RestException& ex) {
     eos_static_info(ex.what());
     return mTapeRestApiResponseFactory.createInternalServerError(
@@ -223,7 +253,7 @@ std::unique_ptr<URLBuilder> TapeRestHandler::getAccessURLBuilder() const
   auto builder = URLBuilder::getInstance();
   builder->setHttpsProtocol()->setHostname(
     mTapeRestApiConfig->getHostAlias())->setPort(
-      mTapeRestApiConfig->getXrdHttpPort())->add(mEntryPointURL);
+      mTapeRestApiConfig->getXrdHttpPort());
   ret.reset(static_cast<URLBuilder*>(builder.release()));
   return ret;
 }

@@ -38,14 +38,11 @@ EOSBULKNAMESPACE_BEGIN
 class ProcDirBulkRequestFile
 {
 public:
-  ProcDirBulkRequestFile();
-  ProcDirBulkRequestFile(const std::string& path);
+  ProcDirBulkRequestFile(const std::string& name);
   void setFileId(const eos::common::FileId::fileid_t fileId);
   const std::optional<eos::common::FileId::fileid_t> getFileId() const;
   void setError(const std::string& error);
   const std::optional<std::string> getError() const;
-  void setFullPath(const std::string& fullPath);
-  const std::string getFullPath() const;
   void setName(const std::string& name);
   const std::string getName() const;
   bool operator<(const ProcDirBulkRequestFile& other) const;
@@ -55,7 +52,6 @@ private:
   std::optional<eos::common::FileId::fileid_t> mFileId;
   std::string mName;
   std::optional<std::string> mError;
-  std::string mFullPath;
 };
 
 EOSBULKNAMESPACE_END

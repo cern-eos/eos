@@ -132,9 +132,9 @@ protected:
   {
     std::vector<std::string> paths;
 
-    for (uint64_t i = 0; i < nbFiles; ++i) {
+    for (uint64_t i = nbFiles; i > 0; --i) {
       std::stringstream ss;
-      ss << "path" << i + 1;
+      ss << "path" << i;
       paths.push_back(ss.str());
     }
 

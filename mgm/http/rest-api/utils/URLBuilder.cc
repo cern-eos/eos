@@ -54,7 +54,7 @@ URLBuilder* URLBuilder::setPort(const uint16_t& port)
 
 URLBuilder* URLBuilder::add(const std::string& urlItem)
 {
-  addSlashIfNecessary();
+  addSlashIfNecessary(urlItem);
   mURL += urlItem;
   return this;
 }

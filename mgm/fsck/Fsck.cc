@@ -393,6 +393,8 @@ Fsck::RepairErrs(ThreadAssistant& assistant) noexcept
       eos::common::RWMutexReadLock rd_lock(mErrMutex);
       local_emap.insert(eFsMap.begin(), eFsMap.end());
     }
+    uint64_t count = 0ull;
+    uint64_t msg_delay = 0;
     std::list<std::string> err_priority {"blockxs_err", "unreg_n", "rep_diff_n",
                                          "rep_missing_n", "m_mem_sz_diff",
                                          "m_cx_diff", "d_mem_sz_diff",
@@ -412,18 +414,31 @@ Fsck::RepairErrs(ThreadAssistant& assistant) noexcept
             return job->Repair();
           });
 
-          while (mThreadPool.GetQueueSize() > mMaxQueuedJobs) {
-            assistant.wait_for(std::chrono::seconds(1));
-
+          // Check regularly if we should exit and sleep if queue is full
+          while ((mThreadPool.GetQueueSize() > mMaxQueuedJobs) ||
+                 (++count % 100 == 0)) {
             if (assistant.terminationRequested()) {
-              // Wait that there are not more jobs in the queue
+              // Wait that there are not more jobs in the queue - this can
+              // take a while depending on the queue size
               while (mThreadPool.GetQueueSize()) {
                 assistant.wait_for(std::chrono::seconds(1));
+
+                if (++msg_delay % 5 == 0) {
+                  eos_info("%s", "msg=\"stopping fsck repair waiting for thread "
+                           "pool queue to be consummed\"");
+                  msg_delay = 0;
+                }
               }
 
               eos_info("%s", "msg=\"stopped fsck repair thread\"");
               mRepairRunning = false;
               return;
+            } else {
+              if (mThreadPool.GetQueueSize() > mMaxQueuedJobs) {
+                assistant.wait_for(std::chrono::seconds(1));
+              } else {
+                break;
+              }
             }
           }
         }

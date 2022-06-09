@@ -225,6 +225,29 @@ XrdMgmOfs::Commit(const char* path,
                     "commit file, parent container removed [EIDRM]", "");
       }
 
+      if (option["fusex"]) {
+        std::string fusexstate;
+
+        try {
+          fusexstate = fmd->getAttribute("sys.fusex.state");
+        } catch (...) {}
+
+        if (option["update"]) {
+          fusexstate += "+";
+          fusexstate += std::to_string(fsid);
+        }
+
+        if (option["commitsize"]) {
+          fusexstate += "s";
+        }
+
+        if (option["commitchecksum"]) {
+          fusexstate += "c";
+        }
+
+        fmd->setAttribute("sys.fusex.state", fusexstate);
+      }
+
       // Advance oc upload parameters if concerned
       CommitHelper::handle_occhunk(vid, fmd, option, params);
       // Set checksum if concerned

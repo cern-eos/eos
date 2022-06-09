@@ -1708,6 +1708,18 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
       // Set the layout and commit new meta data
       fmd->setLayoutId(layoutId);
 
+      if (isFuse && (open_mode == SFS_O_TRUNC)) {
+        std::string s;
+
+        try {
+          s = fmd->getAttribute("sys.fusex.state");
+        } catch (...) {}
+
+        s += "T";
+        fmd->setAttribute("sys.fusex.state",
+                          eos::common::StringConversion::ReduceString(s).c_str());
+      }
+
       // if specified set an external modification/creation time
       if (ext_mtime_sec) {
         eos::IFileMD::ctime_t mtime;
@@ -2293,6 +2305,18 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
 
             if (isRecreation) {
               fmd->unlinkAllLocations();
+            }
+
+            if (isRecreation) {
+              std::string s;
+
+              try {
+                s = fmd->getAttribute("sys.fusex.state");
+              } catch (...) {}
+
+              s += "Z";
+              fmd->setAttribute("sys.fusex.state,",
+                                eos::common::StringConversion::ReduceString(s).c_str());
             }
 
             for (auto& fsid : selectedfs) {

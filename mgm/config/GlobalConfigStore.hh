@@ -1,11 +1,11 @@
 //------------------------------------------------------------------------------
-//! @file ProcDirBulkRequestFile.cc
-//! @author Cedric Caffy - CERN
+// File: GlobalConfigStore.hh
+// Author: Abhishek Lekshmanan - CERN
 //------------------------------------------------------------------------------
 
 /************************************************************************
  * EOS - the CERN Disk Storage System                                   *
- * Copyright (C) 2017 CERN/Switzerland                                  *
+ * Copyright (C) 2022 CERN/Switzerland                                  *
  *                                                                      *
  * This program is free software: you can redistribute it and/or modify *
  * it under the terms of the GNU General Public License as published by *
@@ -21,58 +21,42 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "ProcDirBulkRequestFile.hh"
-#include <regex>
+#include "common/config/ConfigStore.hh"
+#include "mgm/FsView.hh"
 
-EOSBULKNAMESPACE_BEGIN
-
-ProcDirBulkRequestFile::ProcDirBulkRequestFile(const std::string& path): mName(
-    path)
+namespace eos::mgm
 {
-}
 
-void ProcDirBulkRequestFile::setFileId(const eos::common::FileId::fileid_t
-                                       fileId)
+class GlobalConfigStore final: public common::ConfigStore
 {
-  mFileId = fileId;
-}
+public:
+  GlobalConfigStore(FsView* _fsView): common::ConfigStore(), fsView(_fsView) {}
+  ~GlobalConfigStore() = default;
 
-const std::optional<eos::common::FileId::fileid_t>
-ProcDirBulkRequestFile::getFileId() const
-{
-  return mFileId;
-}
+  bool save(const std::string& key, const std::string& val) override
+  {
+    if (fsView == nullptr) {
+      eos_crit("%s", "msg=\"Cannot save, FsView in Invalid State!\"");
+      return false;
+    }
 
-void ProcDirBulkRequestFile::setError(const std::string& error)
-{
-  mError = error;
-}
+    return fsView->SetGlobalConfig(key, val);
+  }
 
-const std::optional<std::string> ProcDirBulkRequestFile::getError() const
-{
-  return mError;
-}
+  std::string load(const std::string& key) override
+  {
+    if (fsView == nullptr) {
+      eos_crit("%s", "msg=\"Cannot load, FsView in Invalid State!\"");
+      return {};
+    }
 
-void ProcDirBulkRequestFile::setName(const std::string& name)
-{
-  mName = name;
-}
+    return fsView->GetGlobalConfig(key);
+  }
 
-const std::string ProcDirBulkRequestFile::getName() const
-{
-  return mName;
-}
+private:
+  FsView* fsView;
+};
 
-bool ProcDirBulkRequestFile::operator<(const ProcDirBulkRequestFile& other)
-const
-{
-  return getName() < other.getName();
-}
+} // namespace eos::mgm
 
-bool ProcDirBulkRequestFile::operator==(const ProcDirBulkRequestFile& other)
-const
-{
-  return getName() == other.getName();
-}
 
-EOSBULKNAMESPACE_END

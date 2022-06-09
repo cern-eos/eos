@@ -2220,6 +2220,41 @@ Server::OpSetFile(const std::string& id,
       fmd->setName(md.name());
     }
 
+    std::string s;
+
+    try {
+      s = fmd->getAttribute("sys.fusex.state");
+    } catch (...) {}
+
+    if ((fmd->getSize() > 0) && (!md.size())) {
+      // this is a truncation
+      s += "T";
+    }
+
+    switch (op) {
+    case MOVE:
+      s += "M";
+      break;
+
+    case UPDATE:
+      s += "U";
+      break;
+
+    case CREATE:
+      s += "C";
+      break;
+
+    case RENAME:
+      s += "R";
+      break;
+
+    default:
+      s += "0";
+      break;
+    }
+
+    fmd->setAttribute("sys.fusex.state",
+                      eos::common::StringConversion::ReduceString(s).c_str());
     fmd->setCUid(md.uid());
     fmd->setCGid(md.gid());
     {
@@ -2484,21 +2519,35 @@ Server::OpSetLink(const std::string& id,
       fmd = gOFS->eosFileService->createFile(0);
     }
 
+    std::string s;
+
+    try {
+      s = fmd->getAttribute("sys.fusex.state");
+    } catch (...) {}
+
     switch (op) {
     case MOVE:
+      s += "M";
       gOFS->MgmStats.Add("Eosxd::ext::MV", vid.uid, vid.gid, 1);
       break;
 
     case UPDATE:
+      s += "U";
       gOFS->MgmStats.Add("Eosxd::ext::UPDATE", vid.uid, vid.gid, 1);
       break;
 
     case CREATE:
+      s += "C";
       gOFS->MgmStats.Add("Eosxd::ext::CREATELNK", vid.uid, vid.gid, 1);
       break;
 
     case RENAME:
+      s += "R";
       gOFS->MgmStats.Add("Eosxd::ext::RENAME", vid.uid, vid.gid, 1);
+      break;
+
+    default:
+      s += "0";
       break;
     }
 
@@ -2510,6 +2559,8 @@ Server::OpSetLink(const std::string& id,
              (long) md.md_pino(), md_ino);
     fmd->setCUid(md.uid());
     fmd->setCGid(md.gid());
+    fmd->setAttribute("sys.fusex.state",
+                      eos::common::StringConversion::ReduceString(s).c_str());
     fmd->setSize(md.target().length());
     fmd->setFlags(md.mode() & (S_IRWXU | S_IRWXG | S_IRWXO));
     eos::IFileMD::ctime_t ctime;

@@ -525,54 +525,26 @@ int PrepareManager::doQueryPrepare(XrdSfsPrep& pargs, XrdOucErrInfo& error,
   // as a convenience for the client to track which prepare request the query applies to.
   XrdOucString reqid(pargs.reqid);
   int path_cnt = 0;
-  FileCollection::Files userProvidedFiles;
+  FileCollection filesToQueryCollection;
 
   for (XrdOucTList* pptr = pargs.paths; pptr; pptr = pptr->next) {
     if (!pptr->text) {
       continue;
     }
 
-    userProvidedFiles[pptr->text] = std::make_unique<File>(pptr->text);
+    filesToQueryCollection.addFile(std::make_unique<File>(pptr->text));
     ++path_cnt;
   }
 
   mMgmFsInterface->addStats("QueryPrepare", vid.uid, vid.gid, path_cnt);
-  std::shared_ptr<FileCollection::Files> filesFromPersistency;
-
-  if (reqid.length()) {
-    //Look in the persistency layer for informations about files submitted previously for staging
-    try {
-      filesFromPersistency = getFileCollectionFromPersistency(reqid.c_str());
-    } catch (const PersistencyException& ex) {
-      return ex.fillXrdErrInfo(error, EIO);
-    }
-  }
-
-  std::shared_ptr<FileCollection::Files> filesToQuery(new
-      FileCollection::Files());
-
-  //If files were provided by the user, we will only query those which were provided
-  //If no files were provided, we will query the files that got fetched from the persistency layer
-  for (auto& userProvidedFile : userProvidedFiles) {
-    try {
-      (*filesToQuery)[userProvidedFile.first] = std::move(filesFromPersistency->at(
-            userProvidedFile.first));
-    } catch (const std::out_of_range&) {
-      (*filesToQuery)[userProvidedFile.first] = std::move(userProvidedFile.second);
-    }
-  }
-
-  if (filesToQuery->empty()) {
-    filesToQuery = filesFromPersistency;
-  }
-
+  auto filesToQuery = filesToQueryCollection.getAllFiles();
   std::shared_ptr<QueryPrepareResponse> response = result.getResponse();
 
   // Set the queryPrepareFileResponses for each file in the list
   for (auto& file : *filesToQuery) {
-    response->responses.push_back(QueryPrepareFileResponse(file.first));
+    response->responses.push_back(QueryPrepareFileResponse(file->getPath()));
     auto& rsp = response->responses.back();
-    auto& currentFile = file.second;
+    auto currentFile = file;
     // check if the file exists
     XrdOucString prep_path;
     {
@@ -686,12 +658,6 @@ logErrorAndContinue:
   result.setQueryPrepareFinished();
   EXEC_TIMING_END("QueryPrepare");
   return SFS_DATA;
-}
-
-const std::shared_ptr<FileCollection::Files>
-PrepareManager::getFileCollectionFromPersistency(const std::string& reqid)
-{
-  return std::shared_ptr<FileCollection::Files>(new FileCollection::Files());
 }
 
 EOSBULKNAMESPACE_END

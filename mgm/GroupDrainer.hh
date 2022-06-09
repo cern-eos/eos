@@ -77,7 +77,20 @@ public:
   void pruneTransfers();
   bool isTransfersFull() const
   {
+    std::scoped_lock slock(mTransfersMtx);
     return mTransfers.size() > mMaxTransfers;
+  }
+
+  uint64_t getAllowedTransfers() const
+  {
+    std::scoped_lock slock(mTransfersMtx);
+
+    // unlikely, we always call this after checking isTransfersFull()
+    if (mMaxTransfers <= mTransfers.size()) {
+      return 0;
+    }
+
+    return mMaxTransfers - mTransfers.size();
   }
 
   void prepareTransfers();
@@ -94,6 +107,12 @@ public:
   }
 
   bool Configure(const string& spaceName);
+
+  void addTransferEntry(eos::common::FileId::fileid_t fid)
+  {
+    std::scoped_lock slock(mTransfersMtx);
+    mTransfers.emplace(fid);
+  }
 
   void dropTransferEntry(eos::common::FileId::fileid_t fid)
   {

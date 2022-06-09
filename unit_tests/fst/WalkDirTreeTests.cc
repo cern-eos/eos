@@ -1,11 +1,11 @@
 // ----------------------------------------------------------------------
-// File: ControllerFactory.hh
-// Author: Cedric Caffy - CERN
+// File: WalkDirTreeTests
+// Author: Abhishek Lekshmanan - CERN
 // ----------------------------------------------------------------------
 
 /************************************************************************
  * EOS - the CERN Disk Storage System                                   *
- * Copyright (C) 2013 CERN/Switzerland                                  *
+ * Copyright (C) 2022 CERN/Switzerland                                  *
  *                                                                      *
  * This program is free software: you can redistribute it and/or modify *
  * it under the terms of the GNU General Public License as published by *
@@ -21,32 +21,39 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifndef EOS_TAPECONTROLLERFACTORY_HH
-#define EOS_TAPECONTROLLERFACTORY_HH
+#include <gtest/gtest.h>
+#include <fstream>
+#include <unordered_set>
+#include "fst/utils/StdFSWalkTree.hh"
+#include "fst/utils/FTSWalkTree.hh"
+#include "TmpDirTree.hh"
 
-#include "mgm/Namespace.hh"
-#include <string>
-#include "mgm/http/rest-api/controllers/Controller.hh"
-#include <memory>
+using eos::fst::stdfs::IsRegularFile;
 
-EOSMGMRESTNAMESPACE_BEGIN
-
-/**
- * Factory of REST API controllers.
- */
-class TapeControllerFactory
+TEST_F(TmpDirTree, WalkFSTree)
 {
-public:
-  static std::unique_ptr<Controller> getStageController(const std::string&
-      accessURL);
-  static std::unique_ptr<Controller> getArchiveInfoController(
-    const std::string& accessURL);
-  static std::unique_ptr<Controller> getReleaseController(
-    const std::string& accessURL);
-  static std::unique_ptr<Controller> getNotImplementedController(
-    const std::string& accessURL);
-};
+  std::unordered_set<std::string> files;
+  auto filter_fn = [](const auto & p)  {
+    return IsRegularFile(p) && p->path().extension() != ".xsmap";
+  };
+  auto process_fn  = [&files](const fs::path & p, int) {
+    files.emplace(p);
+  };
+  auto count = eos::fst::stdfs::WalkFSTree("/tmp/fstest", filter_fn, process_fn);
+  ASSERT_EQ(count, 12);
+  EXPECT_EQ(files, expected_files);
+}
 
-EOSMGMRESTNAMESPACE_END
 
-#endif // EOS_TAPECONTROLLERFACTORY_HH
+TEST_F(TmpDirTree, FTSWalkTree)
+{
+  std::unordered_set<std::string> files;
+  auto process_fn  = [&files](const char* p) {
+    //std::cout << "working on " << p << std::endl;
+    files.emplace(p);
+  };
+  auto ret = eos::fst::WalkFSTree("/tmp/fstest", process_fn);
+  ASSERT_TRUE(ret.status);
+  ASSERT_EQ(ret.count, 12);
+  EXPECT_EQ(files, expected_files);
+}

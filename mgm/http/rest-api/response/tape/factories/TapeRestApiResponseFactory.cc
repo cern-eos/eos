@@ -85,6 +85,13 @@ const
                      "Internal server error", detail);
 }
 
+RestApiResponse<ErrorModel>
+TapeRestApiResponseFactory::createNotImplementedError() const
+{
+  return createError(common::HttpResponse::NOT_IMPLEMENTED, "Not implemented",
+                     "");
+}
+
 RestApiResponse<void> TapeRestApiResponseFactory::createOkEmptyResponse() const
 {
   return RestApiResponse<void>();

@@ -79,7 +79,7 @@ void TapeRestApiBusiness::cancelStageBulkRequest(const std::string& requestId,
   //checkIssuerAuthorizedToAccessStageBulkRequest(bulkRequest.get(), vid,"cancel");
   //Create the prepare arguments, we will only cancel the files that were given by the user
   const FilesContainer& filesFromClient = model->getFiles();
-  auto filesFromBulkRequestContainer = bulkRequest->getFiles();
+  auto filesFromBulkRequestContainer = bulkRequest->getFilesMap();
   bulk::PrepareArgumentsWrapper pargsWrapper(requestId, Prep_CANCEL);
 
   for (const auto& fileFromClient : filesFromClient.getPaths()) {
@@ -150,9 +150,10 @@ TapeRestApiBusiness::getStageBulkRequest(const std::string& requestId,
   ret->setId(bulkRequest->getId());
   //Instanciate prepare manager to get the tape, disk residency and an eventual error (set by CTA)
   bulk::PrepareArgumentsWrapper pargsWrapper(requestId, Prep_QUERY);
+  auto files = bulkRequest->getFiles();
 
-  for (auto& kv : *bulkRequest->getFiles()) {
-    pargsWrapper.addFile(kv.first, "");
+  for (auto& file : *files) {
+    pargsWrapper.addFile(file->getPath(), "");
   }
 
   auto pm = createPrepareManager();
@@ -169,7 +170,7 @@ TapeRestApiBusiness::getStageBulkRequest(const std::string& requestId,
 
   for (const auto& queryPrepareResponse :
        queryPrepareResult->getResponse()->responses) {
-    auto& filesFromBulkRequest = bulkRequest->getFiles();
+    auto& filesFromBulkRequest = bulkRequest->getFilesMap();
     auto fileFromBulkRequestItor = filesFromBulkRequest->find(
                                      queryPrepareResponse.path);
 
@@ -218,7 +219,7 @@ void TapeRestApiBusiness::deleteStageBulkRequest(const std::string& requestId,
   bulk::PrepareArgumentsWrapper pargsWrapper(requestId, Prep_CANCEL);
 
   for (auto& fileFromBulkRequest : *filesFromBulkRequest) {
-    pargsWrapper.addFile(fileFromBulkRequest.first, "");
+    pargsWrapper.addFile(fileFromBulkRequest->getPath(), "");
   }
 
   auto pm = createPrepareManager();

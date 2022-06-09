@@ -3232,11 +3232,27 @@ BaseView::SumLongLong(const char* param, bool lock,
 
   std::set<std::string> used_nodes;
   fsid_iterator it(subset, this);
+  std::set<std::string> unique_fs;
 
   for (; it.valid(); it.next()) {
     FileSystem* fs = FsView::gFsView.mIdView.lookupByID(*it);
 
     if (!fs) {
+      continue;
+    }
+
+    if (fs->getSharedFs() != "" &&
+        fs->getSharedFs() != "none" &&
+        (
+          (sparam == "stat.statfs.usedbytes") ||
+          (sparam == "stat.statfs.capacity") ||
+          (sparam == "stat.usedfiles") ||
+          (sparam == "stat.statfs.files") ||
+          (sparam == "stat.statfs.ffiles") ||
+          (sparam == "stat.statfs.freebytes") ||
+          (sparam == "stat.totalspace")) &&
+        unique_fs.count(fs->getSharedFs())) {
+      // don't account shared fs more than once for these keys
       continue;
     }
 
@@ -3277,6 +3293,8 @@ BaseView::SumLongLong(const char* param, bool lock,
         sum += v;
       }
     }
+
+    unique_fs.insert(fs->getSharedFs());
   }
 
   return sum;

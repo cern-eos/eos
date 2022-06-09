@@ -1,11 +1,6 @@
-// ----------------------------------------------------------------------
-// File: ControllerFactory.hh
-// Author: Cedric Caffy - CERN
-// ----------------------------------------------------------------------
-
 /************************************************************************
  * EOS - the CERN Disk Storage System                                   *
- * Copyright (C) 2013 CERN/Switzerland                                  *
+ * Copyright (C) 2022 CERN/Switzerland                           *
  *                                                                      *
  * This program is free software: you can redistribute it and/or modify *
  * it under the terms of the GNU General Public License as published by *
@@ -21,32 +16,33 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifndef EOS_TAPECONTROLLERFACTORY_HH
-#define EOS_TAPECONTROLLERFACTORY_HH
+#ifndef EOS_MEMCONFIGSTORE_HH
+#define EOS_MEMCONFIGSTORE_HH
 
-#include "mgm/Namespace.hh"
-#include <string>
-#include "mgm/http/rest-api/controllers/Controller.hh"
-#include <memory>
+#include "common/config/ConfigStore.hh"
 
-EOSMGMRESTNAMESPACE_BEGIN
-
-/**
- * Factory of REST API controllers.
- */
-class TapeControllerFactory
+class MemConfigStore : public eos::common::ConfigStore
 {
 public:
-  static std::unique_ptr<Controller> getStageController(const std::string&
-      accessURL);
-  static std::unique_ptr<Controller> getArchiveInfoController(
-    const std::string& accessURL);
-  static std::unique_ptr<Controller> getReleaseController(
-    const std::string& accessURL);
-  static std::unique_ptr<Controller> getNotImplementedController(
-    const std::string& accessURL);
+  bool save(const std::string& key, const std::string& val) override
+  {
+    kvstore[key] = val;
+    return true;
+  }
+
+  std::string load(const std::string& key) override
+  {
+    if (auto kv = kvstore.find(key);
+        kv != kvstore.end()) {
+      return kv->second;
+    }
+
+    return {};
+  }
+
+private:
+  std::map<std::string, std::string> kvstore;
 };
 
-EOSMGMRESTNAMESPACE_END
 
-#endif // EOS_TAPECONTROLLERFACTORY_HH
+#endif // EOS_MEMCONFIGSTORE_HH

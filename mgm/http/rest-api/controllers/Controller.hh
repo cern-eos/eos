@@ -29,6 +29,7 @@
 #include "common/http/HttpResponse.hh"
 #include "mgm/Namespace.hh"
 #include "mgm/http/rest-api/controllers/ControllerActionDispatcher.hh"
+#include "mgm/http/rest-api/exception/NotImplementedException.hh"
 
 EOSMGMRESTNAMESPACE_BEGIN
 
@@ -77,6 +78,17 @@ protected:
   ControllerActionDispatcher mControllerActionDispatcher;
   //The URL to access the functionalities of this controller
   std::string mAccessURL;
+};
+
+class NotImplementedController : public Controller
+{
+public:
+  NotImplementedController(const std::string& accessURL): Controller(accessURL) {}
+  virtual common::HttpResponse* handleRequest(common::HttpRequest* request,
+      const common::VirtualIdentity* vid) override
+  {
+    throw NotImplementedException("Not implemented");
+  }
 };
 
 EOSMGMRESTNAMESPACE_END

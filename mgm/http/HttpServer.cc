@@ -246,7 +246,7 @@ HttpServer::XrdHttpHandler(std::string& method,
 
   // Native XrdHttp access
   if (headers.find("x-forwarded-for") == headers.end()) {
-    // Security enahncement:
+    // Security enhancement:
     // block manually injection a proxy x-real-ip header
     headers.erase("x-real-ip");
     vid = new eos::common::VirtualIdentity();

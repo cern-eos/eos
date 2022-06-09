@@ -115,11 +115,11 @@ void ProcDirectoryBulkRequestDAO::generateXattrsMapFromBulkRequest(
   xattrs[CREATION_TIME_XATTR_NAME] = std::to_string(
                                        bulkRequest->getCreationTime());
   std::map<bulk::File, folly::Future<IFileMDPtr>> filesWithMDFutures;
-  const auto& files = *bulkRequest->getFiles();
+  const auto files = bulkRequest->getFiles();
 
-  for (auto& file : files) {
-    std::string path = file.first;
-    std::pair<bulk::File, folly::Future<IFileMDPtr>> itemToInsert(*file.second,
+  for (auto& file : *files) {
+    std::string path = file->getPath();
+    std::pair<bulk::File, folly::Future<IFileMDPtr>> itemToInsert(*file,
         mFileSystem->eosView->getFileFut(path , false));
     filesWithMDFutures.emplace(std::move(itemToInsert));
   }
@@ -129,7 +129,7 @@ void ProcDirectoryBulkRequestDAO::generateXattrsMapFromBulkRequest(
   }
 
   for (auto& fileWithMDFuture : filesWithMDFutures) {
-    const std::string& currentFilePath = fileWithMDFuture.first.getPath();
+    const std::string currentFilePath = fileWithMDFuture.first.getPath();
     std::shared_ptr<IFileMD> file;
     std::string fid;
 
@@ -416,8 +416,7 @@ void ProcDirectoryBulkRequestDAO::fillBulkRequestFromXattrs(
     }
 
     //The files in the bulk-request proc directory will be wrapped into a ProcDirBulkRequestFile object.
-    ProcDirBulkRequestFile file;
-    file.setName(fileIdOrObfuscatedPath);
+    ProcDirBulkRequestFile file(fileIdOrObfuscatedPath);
 
     if (currentFileError) {
       file.setError(*currentFileError);

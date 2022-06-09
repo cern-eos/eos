@@ -24,6 +24,28 @@
 #include "unit_tests/mgm/bulk-request/PrepareManagerTest.hh"
 #include "unit_tests/mgm/bulk-request/MockPrepareMgmFSInterface.hh"
 #include "mgm/bulk-request/prepare/manager/BulkRequestPrepareManager.hh"
+#include "mgm/bulk-request/BulkRequestFactory.hh"
+#include "mgm/Namespace.hh"
+#include "common/VirtualIdentity.hh"
+
+TEST_F(BulkRequestPrepareManagerTest, bulkRequestTest)
+{
+  USE_EOSBULKNAMESPACE
+  std::unique_ptr<StageBulkRequest> request =
+    BulkRequestFactory::createStageBulkRequest("requestId",
+        eos::common::VirtualIdentity::Root());
+  //Let's add 10 files
+  uint8_t nbFiles = 10;
+
+  for (uint8_t i = 0; i < nbFiles; ++i) {
+    std::stringstream ss;
+    ss << "path" << i;
+    std::unique_ptr<File> fileToAdd = std::make_unique<File>(ss.str());
+    request->addFile(std::move(fileToAdd));
+  }
+
+  ASSERT_EQ(nbFiles, request->getFiles()->size());
+}
 
 TEST_F(BulkRequestPrepareManagerTest, stagePrepareFilesWorkflow)
 {
@@ -201,15 +223,11 @@ TEST_F(BulkRequestPrepareManagerTest,
                               client.getClient());
   //All the files should be in the bulk-request, even the one that does not exist
   auto bulkRequest = pm.getBulkRequest();
-  const auto& bulkReqPaths = *bulkRequest->getFiles();
-  ASSERT_EQ(nbFiles, bulkReqPaths.size());
-  auto bulkReqPathsItor = bulkReqPaths.begin();
-  int i = 0;
+  const auto& bulkReqPaths = bulkRequest->getFiles();
+  ASSERT_EQ(nbFiles, bulkReqPaths->size());
 
-  while (bulkReqPathsItor != bulkReqPaths.end()) {
-    ASSERT_EQ(paths.at(i), bulkReqPathsItor->first);
-    i++;
-    bulkReqPathsItor++;
+  for (uint8_t i = 0; i < bulkReqPaths->size(); ++i) {
+    ASSERT_EQ(paths[i], (*bulkReqPaths)[i]->getPath());
   }
 
   //Prepare is a success

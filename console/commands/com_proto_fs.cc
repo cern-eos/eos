@@ -65,7 +65,7 @@ void com_fs_help()
       << std::endl
       << "  Options:" << std::endl
       << "  fs add [-m|--manual <fsid>] <uuid> <node-queue>|<host>[:<port>] "
-      << "<mountpoint> [<space_info>] [<status>]" << std::endl
+      << "<mountpoint> [<space_info> [<status> [<sharedfs>]]]" << std::endl
       << "    add and assign a filesystem based on the unique identifier of the disk <uuid>"
       << std::endl
       << "    -m|--manual  : add with user specified <fsid> and <space>"
@@ -86,6 +86,8 @@ void com_fs_help()
       << "                   default, default.7, ssd.3, spare"
       << std::endl
       << "    <status>     : set filesystem status after insertion e.g off|rw|ro|empty etc."
+      << std::endl
+      << "    <sharedfs>   : set the name of a shared filesystem"
       << std::endl
       << std::endl
       << "  fs boot <fsid>|<uuid>|<node-queue>|* [--syncmgm]" << std::endl
@@ -174,6 +176,9 @@ void com_fs_help()
       << "    s3credentials=<accesskey>:<secretkey>" << std::endl
       << "      the access and secret key pair used to authenticate" << std::endl
       << "      with the S3 storage endpoint" << std::endl
+      << "    sharedfs=<name>" << std::endl
+      << "      the sharedfs this filesystem is to be assigned to. To unlabel set the sharedfs name to 'none' !"
+      << std::endl
       << std::endl
       << "  fs dropdeletion <fsid> " << std::endl
       << "    drop all pending deletions on the filesystem" << std::endl

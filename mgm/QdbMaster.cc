@@ -198,7 +198,7 @@ QdbMaster::BootNamespace()
   while (mOneOff) {
     std::this_thread::sleep_for(std::chrono::seconds(1));
     MasterLog(eos_log(LOG_INFO,
-                      "%s" "msg=\"wait for the supervisor to run once\""));
+                      "%s", "msg=\"wait for the supervisor to run once\""));
   }
 
   return true;

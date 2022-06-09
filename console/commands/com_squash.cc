@@ -28,6 +28,8 @@
 #include "XrdPosix/XrdPosixXrootd.hh"
 #include "XrdOuc/XrdOucEnv.hh"
 #include "pwd.h"
+#include <thread>
+#include <chrono>
 
 /* List a directory */
 int
@@ -566,6 +568,42 @@ com_squash(char* arg1)
         fprintf(stdout, "%s", out.c_str());
       }
 
+      for (size_t i = 0; i < 50; ++i) {
+        struct stat buf;
+
+        if (!::stat(archive.c_str(), &buf)) {
+          // we might have to wait for callback notification on the fuse mount that the archive directory was wiped
+          std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        } else {
+          break;
+        }
+
+        if (i == 49) {
+          {
+            fprintf(stderr, "=====================================\n");
+            fprintf(stderr, "warning: mount didn't see cleanup ...\n");
+            fprintf(stderr, "remote:\n");
+            fprintf(stderr, "=====================================\n");
+            scmd = "eos ls -la ";
+            scmd += packagepath.GetPath();
+            std::string out = eos::common::StringConversion::StringFromShellCmd(
+                                scmd.c_str());
+            fprintf(stdout, "%s", out.c_str());
+          }
+          {
+            fprintf(stderr, "=====================================\n");
+            fprintf(stderr, "local:\n");
+            fprintf(stderr, "=====================================\n");
+            scmd = "ls -la ";
+            scmd += packagepath.GetPath();
+            std::string out = eos::common::StringConversion::StringFromShellCmd(
+                                scmd.c_str());
+            fprintf(stdout, "%s", out.c_str());
+            fprintf(stderr, "=====================================\n");
+          }
+        }
+      }
+
       if (::rmdir(packagepath.GetPath())) {
         global_retc = errno;
         fprintf(stderr, "error: failed to clean squashfs release under '%s' error=%d\n",
@@ -574,7 +612,8 @@ com_squash(char* arg1)
 
       return (0);
     } else {
-      fprintf(stderr, "info: there is no squashfs release uner '%s'\n", path.c_str());
+      fprintf(stderr, "info: there is no squashfs release under '%s'\n",
+              path.c_str());
       return (0);
     }
   }
