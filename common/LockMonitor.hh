@@ -46,6 +46,9 @@ public:
 							 fprintf(stderr,"[%llx] MUTEX LOCK violation: %s:%s:%s:%d [%s:%s:%s:%d]\n",
 								 &mMutex, _class, function,file,line,
 								 mClass.c_str(),mFunc.c_str(), mFile.c_str(), mLine);
+							 for ( auto s : mSerial ) {
+							   fprintf(stderr, "[%llx] %x %x \n",tid, s);
+							 }
 							 return;
 						       }
 						       mSerial.insert(tid);
@@ -111,38 +114,39 @@ public:
 		     bool check_violation=true) {
 			pid_t tid = syscall(SYS_gettid);
 			pid_t owner = 0;
-
+			
 			{
-			 XrdSysMutexHelper t(mTag);
-			 if (!mSerial.count(tid)) {
-			   owner = mLockOwner;
-			   if (check_violation) {
-			     fprintf(stderr,"[%llx] MUTEX UNLOCK violation %d (%d) %lu %s:%s:%s:%d [%s:%s:%s:%d] \n",
-				     &mMutex, (int)mLocked, tid, owner,
-				     _class, function, file, line,
-				     mClass.c_str(), mFunc.c_str(),  mFile.c_str(), mLine);
-			     return;
-			   } else {
-			     if (sDebug) {
-			       fprintf(stderr,"[%llx] MUTEX UNLOCK skipped %d (%d) %lu %s:%s:%s:%d [%s:%s:%s:%d] \n",
-				       &mMutex, (int)mLocked, tid, owner,
-				       _class, function, file, line,
-				       mClass.c_str(), mFunc.c_str(),  mFile.c_str(), mLine);
-			       return;
-			     }
-			   }
-			 }
-			 mSerial.erase(tid);
+			  XrdSysMutexHelper t(mTag);
+			  if (!mSerial.count(tid)) {
+			    owner = mLockOwner;
+			    if (check_violation) {
+			      fprintf(stderr,"[%llx] MUTEX UNLOCK violation %d (%d) %lu %s:%s:%s:%d [%s:%s:%s:%d] \n",
+				      &mMutex, (int)mLocked, tid, owner,
+				      _class, function, file, line,
+				      mClass.c_str(), mFunc.c_str(),  mFile.c_str(), mLine);
+			      return;
+			    } else {
+			      if (sDebug) {
+				fprintf(stderr,"[%llx] MUTEX UNLOCK skipped %d (%d) %lu %s:%s:%s:%d [%s:%s:%s:%d] \n",
+					&mMutex, (int)mLocked, tid, owner,
+					_class, function, file, line,
+					mClass.c_str(), mFunc.c_str(),  mFile.c_str(), mLine);
+				return;
+			      }
+			    }
+			  }
 			}
-
 			if (sDebug) {
 			  fprintf(stderr,"[%llx] MUTEX UNLOCK %d (%d) %lu %s:%s:%s:%d [%s:%s:%s:%d]\n",
 				  &mMutex, (int)mLocked, tid, owner,
 				  _class, function, file, line,
 				  mClass.c_str(), mFunc.c_str(),  mFile.c_str(), mLine);
 			}
-			
 			mMutex.UnLock();
+			{
+			  XrdSysMutexHelper t(mTag);
+			  mSerial.erase(tid);
+			}
 			if (sDebug) {
 			  fprintf(stderr,"[%llx] MUTEX UNLOCKED %d (%d) %lu \n",
 				  &mMutex, (int)mLocked, tid, owner);
@@ -158,6 +162,8 @@ public:
 		      s << "Mutex: " << mClass << "::" << mFunc << "::" << mFile << ":" << mLine << "::" << mLockOwner << std::endl;
 		      return s.str();
   }
+
+  uint64_t Address() { return (uint64_t) &mMutex; }
   
   class Tracker {
   public:
@@ -232,9 +238,10 @@ public:
 	      const char* function = EOS_FUNCTION,
 	      const char* file     = EOS_FILE,
 	      int line             = EOS_LINE) : mMutex(mutex) {
-    
+
+    ILocked = false;
     if (mutex) {
-      mMutex->Lock(_class, function,file,line);
+      Lock(mutex, _class, function,file,line);
     }
   }
   
@@ -243,12 +250,12 @@ public:
 	      const char* function = EOS_FUNCTION,
 	      const char* file     = EOS_FILE,
 	      int line             = EOS_LINE) : mMutex(&mutex) {
-    
-    mMutex->Lock(_class, function,file,line);
+    ILocked = false;
+    Lock(&mutex, _class, function,file,line);
   }
   
   virtual ~LockMonitor() {
-    mMutex->UnLock(EOS_CLASS, EOS_FUNCTION, EOS_FILE, EOS_LINE, false);
+    UnLock(EOS_CLASS, EOS_FUNCTION, EOS_FILE, EOS_LINE);
   }
 
   void Tag(const char* _class = EOS_CLASS,
@@ -267,16 +274,20 @@ public:
 		   const char* function = EOS_FUNCTION,
 		   const char* file     = EOS_FILE,
 		   int line             = EOS_LINE) {
-    if (mtx) {
-      mMutex = mtx;
-      mMutex->Lock(_class, function,file,line);
+    if (!ILocked) {
+      // avoid re-entrant locking
+      if (mtx) {
+	mMutex = mtx;
+	mMutex->Lock(_class, function,file,line);
+	ILocked = true;
+      }
     }
   }
   
   inline int CondLock(const char* _class   = EOS_CLASS,
 		      const char* function = EOS_FUNCTION,
 		      const char* file     = EOS_FILE,
-		      int line             = EOS_LINE) {if (mMutex) {int rc = mMutex->CondLock(_class, function,file,line); return rc;}}
+		      int line             = EOS_LINE) {if (mMutex) {int rc = mMutex->CondLock(_class, function,file,line); if(rc) ILocked = true; return rc;}}
   
   
   inline void UnLock(
@@ -285,13 +296,20 @@ public:
 		     const char* file     = EOS_FILE,
 		     int line             = EOS_LINE
 		     ) {
-    if (mMutex) {mMutex->UnLock(_class, function, file, line);}
+    bool s = ILocked;
+    if (mMutex && ILocked) {
+      // avoid double unlocking
+      mMutex->UnLock(_class, function, file, line);
+    }
+    ILocked = false;
   }
   
 private:
   std::string mClass;
   std::string mFunc;
   std::string mFile;
+  std::atomic<bool> ILocked;
+  
   volatile int mLine;
   TrackMutex* mMutex;
 };
