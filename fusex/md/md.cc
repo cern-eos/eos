@@ -2911,8 +2911,9 @@ metad::mdcommunicate(ThreadAssistant& assistant)
                 eos_static_debug("");
                 fuse_ino_t ino = EosFuse::Instance().getCap().forget(capid);
                 shared_md md;
-
+		bool is_locked=false;
                 if (mdmap.retrieveTS(ino, md)) {
+		  is_locked=true;
                   md->Locker().Lock();
                 }
 
@@ -2927,8 +2928,10 @@ metad::mdcommunicate(ThreadAssistant& assistant)
                       eos_static_debug("%s", dump_md(md).c_str());
                     }
                   } else {
-                    // in case this should somehow happen
-                    md->Locker().UnLock();
+		    if(is_locked) {
+		      // in case this should somehow happen
+		      md->Locker().UnLock();
+		    }
                   }
                 }
               } else {
