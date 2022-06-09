@@ -15,6 +15,26 @@ Introduction
 ------------
 This release is based on XRootD V4 and IPV6 enabled.
 
+``v4.8.87 Citrine``
+===================
+
+2022-06-09
+
+Bug
+---
+
+* [EOS-5286] - Physical quota is not updated when we set EC conversion
+* [EOS-5288] - Wrong layout id after conversion operation leading to wrong physical size
+* MGM: The initial behaviour of xrdfs prepare -s/-a/-e and xrdfs query prepare have been restored
+
+Improvement
+-----------
+
+* MGM: Tape REST API v0.1 release - Support for ArchiveInfo and Release
+  functionality + discovery endpoint
+* [EOS-5282] - Allow converter configuration to persist on restarts
+
+
 ``v4.8.86 Citrine``
 ===================
 
