@@ -16,11 +16,37 @@ Introduction
 
 This release is based on XRootD V5.
 
+``v5.0.25 Diopside``
+===================
+
+2022-06-09
+
+Bug
+----
+
+* [EOS-5278] - Segmentation fault around eos::mgm::GroupDrainer::scheduleTransfer
+* [EOS-5284] - GroupBalancer: spurious logs when no transfers can be scheduled
+* [EOS-5286] - Physical quota is not updated when we set EC conversion
+* [EOS-5288] - Wrong layout id after conversion operation leading to wrong physical size
+* [EOS-5218] - Infinite loop in XrdCl::XRootDMsgHandler::Copy
+* MGM: The initial behaviour of xrdfs prepare -s/-a/-e and xrdfs query prepare have been restored
+
+Improvement
+------------
+
+* [EOS-5277] - Add LockMonitor class wrapping standard mutex
+* [EOS-5282] - Allow converter configuration to persist on restarts
+* [EOS-5285] - GroupDrainer: Allow all transfers to be reset
+* [EOS-5289] - File truncate can be slow especially for RAIN layouts
+* [EOS-5290] - File close operation for RAIN layouts can trigger client timeouts
+* MGM: Tape REST API v0.1 release - Support for ArchiveInfo and Release
+  functionality + discovery endpoint
+
+
 ``v5.0.24 Diopside``
 ===================
 
 2022-05-27
-
 
 Bug
 ---
