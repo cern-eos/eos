@@ -3034,7 +3034,12 @@ data::datax::url()
   size_t f2 = p.find("eos.app");
 
   if (f1 != std::string::npos) {
-    p.erase(f1, f2);
+    if (f2 != std::string::npos) {
+      p.erase(f1, f2-f1);
+    } else {
+      p.erase(f1);
+    }
+
     p.insert(f1, " : ");
     std::replace(p.begin(), p.end(), '&', ' ');
   }
