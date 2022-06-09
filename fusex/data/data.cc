@@ -2464,7 +2464,7 @@ data::datax::peek_pread(fuse_req_t req, char*& buf, size_t count, off_t offset)
 {
   size_t md_size = 0;
   {
-    eos::common::LockMonitor lLock(mMd->Locker());
+    XrdSysMutexHelper lLock(mMd->Locker());
     md_size = (*mMd)()->size();
   }
   mLock.Lock();
@@ -3029,15 +3029,12 @@ data::datax::url()
       p = mFile->xrdioro(mReq)->getLastUrl();
     }
   }
+
   size_t f1 = p.find("/fusex-open");
   size_t f2 = p.find("eos.app");
 
   if (f1 != std::string::npos) {
-    if (f2 != std::string::npos) {
-      p.erase(f1, f2-f1);
-    } else {
-      p.erase(f1);
-    }
+    p.erase(f1, f2);
     p.insert(f1, " : ");
     std::replace(p.begin(), p.end(), '&', ' ');
   }

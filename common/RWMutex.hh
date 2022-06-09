@@ -613,9 +613,6 @@ private:
 #undef EOS_RWMUTEX_TIMER_STOP_AND_UPDATE
 #endif
 
-extern std::string getClassName(const char* fullFuncName);
-#define EOS_CLASS getClassName(__PRETTY_FUNCTION__).c_str()
-
 // For old clang avoid the use of builtin functions
 #if defined(__clang__) && defined(__clang_major__) && (__clang_major__ < 12)
 #define EOS_FUNCTION __FUNCTION__

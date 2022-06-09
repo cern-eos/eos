@@ -32,11 +32,12 @@
 void
 Stat::Add(const char* tag, uid_t uid, gid_t gid, unsigned long val)
 {
-  eos::common::LockMonitor lLock(Mutex);
+  Mutex.Lock();
   StatsUid[tag][uid] += val;
   StatsGid[tag][gid] += val;
   StatAvgUid[tag][uid].Add(val);
   StatAvgGid[tag][gid].Add(val);
+  Mutex.UnLock();
 }
 
 /*----------------------------------------------------------------------------*/
@@ -44,16 +45,17 @@ void
 Stat::AddExt(const char* tag, uid_t uid, gid_t gid, unsigned long nsample,
              const double& avgv, const double& minv, const double& maxv)
 {
-  eos::common::LockMonitor lLock(Mutex);
+  Mutex.Lock();
   StatExtUid[tag][uid].Insert(nsample, avgv, minv, maxv);
   StatExtGid[tag][gid].Insert(nsample, avgv, minv, maxv);
+  Mutex.UnLock();
 }
 
 /*----------------------------------------------------------------------------*/
 void
 Stat::AddExec(const char* tag, float exectime)
 {
-  eos::common::LockMonitor lLock(Mutex);
+  Mutex.Lock();
   StatExec[tag].push_back(exectime);
   
   // skip asynchronous calls release / releasedir
@@ -65,6 +67,8 @@ Stat::AddExec(const char* tag, float exectime)
   if (StatExec[tag].size() > 1000) {
     StatExec[tag].pop_front();
   }
+
+  Mutex.UnLock();
 }
 
 /*----------------------------------------------------------------------------*/
@@ -162,7 +166,7 @@ double
 Stat::GetTotalMinExt3600(const char* tag)
 {
   google::sparse_hash_map<uid_t, StatExt>::iterator it;
-  double minval = (double) std::numeric_limits<unsigned long>::max();
+  double minval = std::numeric_limits<unsigned long>::max();
 
   if (!StatExtUid.count(tag)) {
     return 0;
@@ -182,7 +186,7 @@ double
 Stat::GetTotalMaxExt3600(const char* tag)
 {
   google::sparse_hash_map<uid_t, StatExt>::iterator it;
-  double maxval = (double) std::numeric_limits<unsigned long>::min();
+  double maxval = std::numeric_limits<unsigned long>::min();
 
   if (!StatExtUid.count(tag)) {
     return 0;
@@ -272,7 +276,7 @@ double
 Stat::GetTotalMinExt300(const char* tag)
 {
   google::sparse_hash_map<uid_t, StatExt>::iterator it;
-  double minval = (double) std::numeric_limits<unsigned long>::max();
+  double minval = std::numeric_limits<unsigned long>::max();
 
   if (!StatExtUid.count(tag)) {
     return 0;
@@ -292,7 +296,7 @@ double
 Stat::GetTotalMaxExt300(const char* tag)
 {
   google::sparse_hash_map<uid_t, StatExt>::iterator it;
-  double maxval = (double) std::numeric_limits<unsigned long>::min();
+  double maxval = std::numeric_limits<unsigned long>::min();
 
   if (!StatExtUid.count(tag)) {
     return 0;
@@ -383,7 +387,7 @@ double
 Stat::GetTotalMinExt60(const char* tag)
 {
   google::sparse_hash_map<uid_t, StatExt>::iterator it;
-  double minval = (double) std::numeric_limits<unsigned long>::max();
+  double minval = std::numeric_limits<unsigned long>::max();
 
   if (!StatExtUid.count(tag)) {
     return 0;
@@ -403,7 +407,7 @@ double
 Stat::GetTotalMaxExt60(const char* tag)
 {
   google::sparse_hash_map<uid_t, StatExt>::iterator it;
-  double maxval = (double) std::numeric_limits<unsigned long>::min();
+  double maxval = std::numeric_limits<unsigned long>::min();
 
   if (!StatExtUid.count(tag)) {
     return 0;
@@ -494,7 +498,7 @@ double
 Stat::GetTotalMinExt5(const char* tag)
 {
   google::sparse_hash_map<uid_t, StatExt>::iterator it;
-  double minval = (double) std::numeric_limits<unsigned long>::max();
+  double minval = std::numeric_limits<unsigned long>::max();
 
   if (!StatExtUid.count(tag)) {
     return 0;
@@ -514,7 +518,7 @@ double
 Stat::GetTotalMaxExt5(const char* tag)
 {
   google::sparse_hash_map<uid_t, StatExt>::iterator it;
-  double maxval = (double) std::numeric_limits<unsigned long>::min();
+  double maxval = std::numeric_limits<unsigned long>::min();
 
   if (!StatExtUid.count(tag)) {
     return 0;
@@ -609,7 +613,7 @@ Stat::GetTotalExec(double& deviation, size_t& ops)
 void
 Stat::Clear()
 {
-  eos::common::LockMonitor lLock(Mutex);
+  Mutex.Lock();
 
   for (auto ittag = StatsUid.begin(); ittag != StatsUid.end(); ittag++) {
     StatsUid[ittag->first].clear();
@@ -634,6 +638,7 @@ Stat::Clear()
   }
 
   TotalExec = 0;
+  Mutex.UnLock();
 }
 
 /*----------------------------------------------------------------------------*/
@@ -641,7 +646,7 @@ void
 Stat::PrintOutTotal(XrdOucString& out, bool details, bool monitoring,
                     bool numerical)
 {
-  eos::common::LockMonitor lLock(Mutex);
+  Mutex.Lock();
   std::vector<std::string> tags, tags_ext;
   std::vector<std::string>::iterator it;
   google::sparse_hash_map<std::string, google::sparse_hash_map<uid_t, unsigned long long> >::iterator
@@ -659,7 +664,7 @@ Stat::PrintOutTotal(XrdOucString& out, bool details, bool monitoring,
 
   std::sort(tags.begin(), tags.end());
   std::sort(tags_ext.begin(), tags_ext.end());
-  char outline[8192];
+  char outline[1024];
   double avg = 0;
   double sig = 0;
   size_t ops = 0;
@@ -668,19 +673,19 @@ Stat::PrintOutTotal(XrdOucString& out, bool details, bool monitoring,
   sum_ops = ops;
 
   if (!monitoring) {
-    snprintf(outline, sizeof(outline), "%-7s %-32s %3.02f +- %3.02f = %.02fs (%lu ops)\n", "ALL",
+    sprintf(outline, "%-7s %-32s %3.02f +- %3.02f = %.02fs (%lu ops)\n", "ALL",
             "Execution Time", avg,
             sig, TotalExec/1000.0, ops);
     out += outline;
     out += "# -----------------------------------------------------------------------------------------------------------------------\n";
-    snprintf(outline, sizeof(outline), "%-7s %-32s %-9s %8s %8s %8s %8s %-8s +- %-10s = %-10s", "who",
+    sprintf(outline, "%-7s %-32s %-9s %8s %8s %8s %8s %-8s +- %-10s = %-10s", "who",
             "command", "sum", "5s", "1min", "5min", "1h", "exec(ms)", "sigma(ms)",
             "cumul(s)");
     out += outline;
     out += "\n";
     out += "# -----------------------------------------------------------------------------------------------------------------------\n";
   } else {
-    snprintf(outline, sizeof(outline),
+    sprintf(outline,
             "uid=all gid=all total.exec.avg=%.02f total.exec.sigma=%.02f total.exec.sum=%.02f\n", avg, sig, TotalExec);
     out += outline;
   }
@@ -723,11 +728,11 @@ Stat::PrintOutTotal(XrdOucString& out, bool details, bool monitoring,
     sprintf(atotal, "%04.02f", total);
 
     if (!monitoring) {
-      snprintf(outline, sizeof(outline), "ALL     %-32s %12llu %8s %8s %8s %8s %8s +- %-10s = %-10s\n",
+      sprintf(outline, "ALL     %-32s %12llu %8s %8s %8s %8s %8s +- %-10s = %-10s\n",
               tag,
               GetTotal(tag), a5, a60, a300, a3600, aexec, aexecsig, atotal);
     } else {
-      snprintf(outline, sizeof(outline),
+      sprintf(outline,
               "uid=all gid=all cmd=%s total=%llu 5s=%s 60s=%s 300s=%s 3600s=%s exec=%f execsig=%f cumulated=%f\n",
               tag, GetTotal(tag), a5, a60, a300, a3600, avg, sig, total);
     }
@@ -794,29 +799,29 @@ Stat::PrintOutTotal(XrdOucString& out, bool details, bool monitoring,
 
     if (details) {
       if (!monitoring) {
-        snprintf(outline, sizeof(outline), "ALL     %-32s %12s %8s %8s %8s %8s\n", tag, "spl", n5, n60,
+        sprintf(outline, "ALL     %-32s %12s %8s %8s %8s %8s\n", tag, "spl", n5, n60,
                 n300, n3600);
         out += outline;
-        snprintf(outline, sizeof(outline), "ALL     %-32s %12s %8s %8s %8s %8s\n", tag, "min", m5, m60,
+        sprintf(outline, "ALL     %-32s %12s %8s %8s %8s %8s\n", tag, "min", m5, m60,
                 m300, m3600);
         out += outline;
-        snprintf(outline, sizeof(outline), "ALL     %-32s %12s %8s %8s %8s %8s\n", tag, "avg", a5, a60,
+        sprintf(outline, "ALL     %-32s %12s %8s %8s %8s %8s\n", tag, "avg", a5, a60,
                 a300, a3600);
         out += outline;
-        snprintf(outline, sizeof(outline), "ALL     %-32s %12s %8s %8s %8s %8s\n", tag, "max", M5, M60,
+        sprintf(outline, "ALL     %-32s %12s %8s %8s %8s %8s\n", tag, "max", M5, M60,
                 M300, M3600);
         out += outline;
       } else {
-        snprintf(outline, sizeof(outline), "uid=all gid=all cmd=%s:spl 5s=%s 60s=%s 300s=%s 3600s=%s\n",
+        sprintf(outline, "uid=all gid=all cmd=%s:spl 5s=%s 60s=%s 300s=%s 3600s=%s\n",
                 tag, n5, n60, n300, n3600);
         out += outline;
-        snprintf(outline, sizeof(outline), "uid=all gid=all cmd=%s:min 5s=%s 60s=%s 300s=%s 3600s=%s\n",
+        sprintf(outline, "uid=all gid=all cmd=%s:min 5s=%s 60s=%s 300s=%s 3600s=%s\n",
                 tag, m5, m60, m300, m3600);
         out += outline;
-        snprintf(outline, sizeof(outline), "uid=all gid=all cmd=%s:avg 5s=%s 60s=%s 300s=%s 3600s=%s\n",
+        sprintf(outline, "uid=all gid=all cmd=%s:avg 5s=%s 60s=%s 300s=%s 3600s=%s\n",
                 tag, a5, a60, a300, a3600);
         out += outline;
-        snprintf(outline, sizeof(outline), "uid=all gid=all cmd=%s:max 5s=%s 60s=%s 300s=%s 3600s=%s\n",
+        sprintf(outline, "uid=all gid=all cmd=%s:max 5s=%s 60s=%s 300s=%s 3600s=%s\n",
                 tag, M5, M60, M300, M3600);
         out += outline;
       }
@@ -832,7 +837,10 @@ Stat::PrintOutTotal(XrdOucString& out, bool details, bool monitoring,
     tuit_ext;
     google::sparse_hash_map<std::string, google::sparse_hash_map<gid_t, StatExt > >::iterator
     tgit_ext;
-   
+    Mutex.UnLock();
+    // -----------------------------------------------------------------------------------------------------------
+    // don't translate names with a mutex lock
+    // -----------------------------------------------------------------------------------------------------------
     std::map<uid_t, std::string> umap;
     std::map<gid_t, std::string> gmap;
 
@@ -876,6 +884,8 @@ Stat::PrintOutTotal(XrdOucString& out, bool details, bool monitoring,
       }
     }
 
+    Mutex.Lock();
+
     if (!monitoring) {
       out += "# -----------------------------------------------------------------------------------------------------------------------\n";
     }
@@ -912,11 +922,11 @@ Stat::PrintOutTotal(XrdOucString& out, bool details, bool monitoring,
         }
 
         if (!monitoring) {
-          snprintf(outline, sizeof(outline), "%-10s %-32s %12llu %8s %8s %8s %8s\n", identifier,
+          sprintf(outline, "%-10s %-32s %12llu %8s %8s %8s %8s\n", identifier,
                   tuit->first.c_str(), StatsUid[tuit->first.c_str()][it->first], a5, a60, a300,
                   a3600);
         } else {
-          snprintf(outline, sizeof(outline), "%s cmd=%s total=%llu 5s=%s 60s=%s 300s=%s 3600s=%s\n",
+          sprintf(outline, "%s cmd=%s total=%llu 5s=%s 60s=%s 300s=%s 3600s=%s\n",
                   identifier, tuit->first.c_str(), StatsUid[tuit->first.c_str()][it->first], a5,
                   a60, a300, a3600);
         }
@@ -1011,29 +1021,29 @@ Stat::PrintOutTotal(XrdOucString& out, bool details, bool monitoring,
         }
 
         if (!monitoring) {
-          snprintf(outline, sizeof(outline), "%-10s %-32s %12s %8s %8s %8s %8s\n", identifier, tag, "spl",
+          sprintf(outline, "%-10s %-32s %12s %8s %8s %8s %8s\n", identifier, tag, "spl",
                   n5, n60, n300, n3600);
           out += outline;
-          snprintf(outline, sizeof(outline), "%-10s %-32s %12s %8s %8s %8s %8s\n", identifier, tag, "min",
+          sprintf(outline, "%-10s %-32s %12s %8s %8s %8s %8s\n", identifier, tag, "min",
                   m5, m60, m300, m3600);
           out += outline;
-          snprintf(outline, sizeof(outline), "%-10s %-32s %12s %8s %8s %8s %8s\n", identifier, tag, "avg",
+          sprintf(outline, "%-10s %-32s %12s %8s %8s %8s %8s\n", identifier, tag, "avg",
                   a5, a60, a300, a3600);
           out += outline;
-          snprintf(outline, sizeof(outline), "%-10s %-32s %12s %8s %8s %8s %8s\n", identifier, tag, "max",
+          sprintf(outline, "%-10s %-32s %12s %8s %8s %8s %8s\n", identifier, tag, "max",
                   M5, M60, M300, M3600);
           out += outline;
         } else {
-          snprintf(outline, sizeof(outline), "%s cmd=%s:spl 5s=%s 60s=%s 300s=%s 3600s=%s\n", identifier,
+          sprintf(outline, "%s cmd=%s:spl 5s=%s 60s=%s 300s=%s 3600s=%s\n", identifier,
                   tag, n5, n60, n300, n3600);
           out += outline;
-          snprintf(outline, sizeof(outline), "%s cmd=%s:min 5s=%s 60s=%s 300s=%s 3600s=%s\n", identifier,
+          sprintf(outline, "%s cmd=%s:min 5s=%s 60s=%s 300s=%s 3600s=%s\n", identifier,
                   tag, m5, m60, m300, m3600);
           out += outline;
-          snprintf(outline, sizeof(outline), "%s cmd=%s:avg 5s=%s 60s=%s 300s=%s 3600s=%s\n", identifier,
+          sprintf(outline, "%s cmd=%s:avg 5s=%s 60s=%s 300s=%s 3600s=%s\n", identifier,
                   tag, a5, a60, a300, a3600);
           out += outline;
-          snprintf(outline, sizeof(outline), "%s cmd=%s:max 5s=%s 60s=%s 300s=%s 3600s=%s\n", identifier,
+          sprintf(outline, "%s cmd=%s:max 5s=%s 60s=%s 300s=%s 3600s=%s\n", identifier,
                   tag, M5, M60, M300, M3600);
           out += outline;
         }
@@ -1079,11 +1089,11 @@ Stat::PrintOutTotal(XrdOucString& out, bool details, bool monitoring,
         }
 
         if (!monitoring) {
-          snprintf(outline, sizeof(outline), "%-10s %-32s %12llu %8s %8s %8s %8s\n", identifier,
+          sprintf(outline, "%-10s %-32s %12llu %8s %8s %8s %8s\n", identifier,
                   tgit->first.c_str(), StatsGid[tgit->first.c_str()][it->first], a5, a60, a300,
                   a3600);
         } else {
-          snprintf(outline, sizeof(outline), "%s cmd=%s total=%llu 5s=%s 60s=%s 300s=%s 3600s=%s\n",
+          sprintf(outline, "%s cmd=%s total=%llu 5s=%s 60s=%s 300s=%s 3600s=%s\n",
                   identifier, tgit->first.c_str(), StatsUid[tgit->first.c_str()][it->first], a5,
                   a60, a300, a3600);
         }
@@ -1187,6 +1197,8 @@ Stat::PrintOutTotal(XrdOucString& out, bool details, bool monitoring,
       out += "# --------------------------------------------------------------------------------------\n";
     }
   }
+
+  Mutex.UnLock();
 }
 
 /*----------------------------------------------------------------------------*/
@@ -1202,7 +1214,7 @@ Stat::Circulate(ThreadAssistant& assistant)
     }
 
     // --------------------------------------------
-    eos::common::LockMonitor lLock(Mutex);
+    Mutex.Lock();
     google::sparse_hash_map<std::string, google::sparse_hash_map<uid_t, StatAvg> >::iterator
     tit;
     google::sparse_hash_map<std::string, google::sparse_hash_map<uid_t, StatExt> >::iterator
@@ -1244,5 +1256,7 @@ Stat::Circulate(ThreadAssistant& assistant)
         it->second.StampZero();
       }
     }
+
+    Mutex.UnLock();
   }
 }

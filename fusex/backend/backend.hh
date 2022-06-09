@@ -26,7 +26,6 @@
 #define FUSE_BACKEND_HH_
 
 #include "common/Logging.hh"
-#include "common/LockMonitor.hh"
 #include "fusex/fusex.pb.h"
 #include "misc/FuseId.hh"
 #include "llfusexx.hh"
@@ -72,7 +71,7 @@ public:
 
   int doLock(fuse_req_t req,
              eos::fusex::md& md,
-             eos::common::TrackMutex* locker);
+             XrdSysMutex* locker);
 
 
   int fetchResponse(std::string& url,
@@ -87,9 +86,9 @@ public:
   int rmRf(fuse_req_t req, eos::fusex::md* md);
 
   int putMD(fuse_req_t req, eos::fusex::md* md, std::string authid,
-            eos::common::TrackMutex* locker);
+            XrdSysMutex* locker);
   int putMD(fuse_id& id, eos::fusex::md* md, std::string authid,
-            eos::common::TrackMutex* locker);
+            XrdSysMutex* locker);
 
   int getCAP(fuse_req_t req,
              uint64_t inode,

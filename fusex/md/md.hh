@@ -33,7 +33,6 @@
 #include "backend/backend.hh"
 #include "common/Logging.hh"
 #include "common/RWMutex.hh"
-#include "common/LockMonitor.hh"
 #include "common/AssistedThread.hh"
 #include "common/SymKeys.hh"
 #include "kv/kv.hh"
@@ -98,7 +97,7 @@ public:
 
     virtual ~mdx() { }
 
-    eos::common::TrackMutex& Locker()
+    XrdSysMutex& Locker()
     {
       return mLock;
     }
@@ -267,8 +266,7 @@ public:
 
     size_t sizeTS()
     {
-      eos::common::LockMonitor lLock(mLock);
-      eos_static_warning("%s\n",lLock.Dump().c_str());
+      XrdSysMutexHelper lLock(mLock);
       return (*this)()->size();
     }
 
@@ -406,8 +404,7 @@ public:
     }
 
     uint64_t pidTS() {
-      eos::common::LockMonitor cLock(mLock);
-      eos_static_warning("%s\n",cLock.Dump().c_str());
+      XrdSysMutexHelper cLock(mLock);
       return proto.pid();
     }
     
@@ -416,7 +413,7 @@ public:
     }
     
   private:
-    eos::common::TrackMutex mLock;
+    XrdSysMutex mLock;
     XrdSysCondVar mSync;
     std::atomic<md_op> op;
     std::atomic<int> lookup_cnt;
@@ -469,14 +466,14 @@ public:
 
     void clear()
     {
-      eos::common::LockMonitor mLock(mMutex);
+      XrdSysMutexHelper mLock(mMutex);
       fwd_map.clear();
       bwd_map.clear();
     }
 
     size_t size()
     {
-      eos::common::LockMonitor mLock(mMutex);
+      XrdSysMutexHelper mLock(mMutex);
       return fwd_map.size();
     }
 
@@ -486,10 +483,10 @@ public:
     std::map<fuse_ino_t, fuse_ino_t>
     bwd_map; // backward map points from local remote inode
 
-    eos::common::TrackMutex mMutex;
+    XrdSysMutex mMutex;
   };
 
-  class pmap : public std::map<fuse_ino_t, shared_md>, public eos::common::TrackMutex
+  class pmap : public std::map<fuse_ino_t, shared_md>, public XrdSysMutex
   //----------------------------------------------------------------------------
   {
   public:
@@ -617,6 +614,9 @@ public:
 
   void mdcommunicate(ThreadAssistant&
                      assistant); // thread interacting with the MGM for meta data
+
+  void mdsizeflush(ThreadAssistant&
+                   assistant); // thread updating filesize during long lasting writes
 
   void mdstackfree(ThreadAssistant&
                    assistant); // thread removing stacked inodes
@@ -750,7 +750,7 @@ public:
 
   void mdreset()
   {
-    eos::common::LockMonitor lock(mdmap);
+    XrdSysMutexHelper lock(mdmap);
     shared_md md1 = mdmap[1];
     (*md1)()->set_type((*md1)()->MD);
     md1->force_refresh();
@@ -771,7 +771,7 @@ public:
       return;
     }
 
-    eos::common::LockMonitor iLock(md->Locker());
+    XrdSysMutexHelper iLock(md->Locker());
     md->cap_count_reset();
     eos_static_err("reset cap counter for ino=%lx", ino);
   }
@@ -904,31 +904,31 @@ public:
 
   bool should_flush_write_size()
   {
-    eos::common::LockMonitor cLock(ConfigMutex);
+    XrdSysMutexHelper cLock(ConfigMutex);
     return writesizeflush;
   }
 
   std::string server_version()
   {
-    eos::common::LockMonitor cLock(ConfigMutex);
+    XrdSysMutexHelper cLock(ConfigMutex);
     return serverversion;
   }
 
   bool supports_appname()
   {
-    eos::common::LockMonitor cLock(ConfigMutex);
+    XrdSysMutexHelper cLock(ConfigMutex);
     return appname;
   }
 
   bool supports_mdquery()
   {
-    eos::common::LockMonitor cLock(ConfigMutex);
+    XrdSysMutexHelper cLock(ConfigMutex);
     return mdquery;
   }
 
   bool supports_hideversion()
   {
-    eos::common::LockMonitor cLock(ConfigMutex);
+    XrdSysMutexHelper cLock(ConfigMutex);
     return hideversion;
   }
 
@@ -979,7 +979,7 @@ private:
   mdstat stat;
 
   // broadcasted config
-  eos::common::TrackMutex ConfigMutex;
+  XrdSysMutex ConfigMutex;
   bool dentrymessaging;
   bool writesizeflush;
   bool appname;

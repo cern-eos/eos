@@ -32,17 +32,6 @@
 
 EOSCOMMONNAMESPACE_BEGIN
 
-std::string getClassName(const char* fullFuncName)
-{
-    std::string fullFuncNameStr(fullFuncName);
-    size_t pos = fullFuncNameStr.find_last_of("::");
-    if (pos == std::string::npos)
-    {
-        return "";
-    }
-    return fullFuncNameStr.substr(0, pos-1);
-}
-
 #ifdef EOS_INSTRUMENTED_RWMUTEX
 std::atomic<uint64_t> RWMutex::mRdCumulatedWait_static {0};
 std::atomic<uint64_t> RWMutex::mWrCumulatedWait_static {0};

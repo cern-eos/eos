@@ -140,7 +140,7 @@ void EnvironmentReader::worker()
         std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime);
 
       if (duration.count() > 5) {
-        eos_static_notice("Reading /proc/%d/environ took %dms (uid=%d)", request.pid,
+        eos_static_warning("Reading /proc/%d/environ took %dms (uid=%d)", request.pid,
                            duration.count(), request.uid);
       }
 

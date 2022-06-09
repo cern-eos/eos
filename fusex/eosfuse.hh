@@ -398,7 +398,7 @@ public:
     struct timespec pmd_mtime;
     struct reply_buf b;
 
-    eos::common::TrackMutex items_lock;
+    XrdSysMutex items_lock;
   } opendir_t;
 
   static int readdir_filler(fuse_req_t req, opendir_t* md,

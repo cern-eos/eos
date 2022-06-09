@@ -137,7 +137,6 @@ add_library(EosCommon-Objects OBJECT
   config/ConfigParsing.cc
   token/EosTok.cc
   Config.cc
-  LockMonitor.cc
   utils/XrdUtils.cc
   exception/Exception.cc)
 

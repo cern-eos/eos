@@ -29,7 +29,6 @@
 #include <sys/types.h>
 #include "llfusexx.hh"
 #include "backend/backend.hh"
-#include "common/LockMonitor.hh"
 #include "md/md.hh"
 #include "fusex/fusex.pb.h"
 
@@ -61,8 +60,8 @@ public:
     {
       return &mQuotaProto;
     }
-    
-    eos::common::TrackMutex& Locker()
+
+    XrdSysMutex& Locker()
     {
       return mLock;
     }
@@ -144,7 +143,7 @@ public:
       return local_volume;
     }
   private:
-    eos::common::TrackMutex mLock;
+    XrdSysMutex mLock;
     std::atomic<uint64_t> vtime;
     std::atomic<uint64_t> vtime_ns;
     std::atomic<int> writer_cnt;
@@ -187,7 +186,7 @@ public:
       return *this;
     }
 
-    eos::common::TrackMutex& Locker()
+    XrdSysMutex& Locker()
     {
       return mLock;
     }
@@ -213,12 +212,12 @@ public:
     }
 
     uint64_t vtimeTS() {
-      eos::common::LockMonitor cLock(Locker());
+      XrdSysMutexHelper cLock(Locker());
       return mCapProto.vtime();
     }
 
     uint64_t vtime_nsTS() {
-      eos::common::LockMonitor cLock(Locker());
+      XrdSysMutexHelper cLock(Locker());
       return mCapProto.vtime_ns();
     }
 
@@ -231,7 +230,7 @@ public:
     }
 
   private:
-    eos::common::TrackMutex mLock;
+    XrdSysMutex mLock;
     time_t lastusage;
     eos::fusex::cap mCapProto;
   };
@@ -244,7 +243,7 @@ public:
 
   //----------------------------------------------------------------------------
 
-  class qmap : public qmap_t, public eos::common::TrackMutex
+  class qmap : public qmap_t, public XrdSysMutex
   {
     // map from quota inode to quota information
   public:
@@ -256,7 +255,7 @@ public:
     shared_quota get(shared_cap cap);
   };
 
-  class cmap : public std::map<std::string, shared_cap>, public eos::common::TrackMutex
+  class cmap : public std::map<std::string, shared_cap>, public XrdSysMutex
   //----------------------------------------------------------------------------
   {
   public:
@@ -335,7 +334,7 @@ public:
   {
     shared_quota q = quotamap.get(cap);
     {
-      eos::common::LockMonitor qLock(q->Locker());
+      XrdSysMutexHelper qLock(q->Locker());
       ssize_t volume = (*q)()->volume_quota() - q->get_local_volume();
       ssize_t inodes = (*q)()->inode_quota()  - q->get_local_inode();
 
@@ -354,7 +353,7 @@ public:
   void set_volume_edquota(shared_cap cap)
   {
     shared_quota q = quotamap.get(cap);
-    eos::common::LockMonitor qLock(q->Locker());
+    XrdSysMutexHelper qLock(q->Locker());
 
     if (q) {
       (*q)()->set_volume_quota(0);
@@ -364,7 +363,7 @@ public:
   void update_quota(shared_cap cap, const eos::fusex::quota& new_quota)
   {
     shared_quota q = quotamap.get(cap);
-    eos::common::LockMonitor qLock(q->Locker());
+    XrdSysMutexHelper qLock(q->Locker());
     *q = new_quota;
     q->set_vtime((*cap)()->vtime(), (*cap)()->vtime_ns());
   }
@@ -399,7 +398,7 @@ public:
 
   void capflush(ThreadAssistant& assistant); // thread removing capabilities
 
-  eos::common::TrackMutex& get_revocationLock()
+  XrdSysMutex& get_revocationLock()
   {
     return revocationLock;
   }
@@ -408,7 +407,7 @@ public:
 
   size_t size()
   {
-    eos::common::LockMonitor lLock(capmap);
+    XrdSysMutexHelper mLock(capmap);
     return capmap.size();
   }
 
@@ -426,7 +425,7 @@ private:
   backend* mdbackend;
   metad* mds;
 
-  eos::common::TrackMutex revocationLock;
+  XrdSysMutex revocationLock;
   revocation_set_t revocationset; // set containing all authids to revoke
 
 };

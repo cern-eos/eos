@@ -193,8 +193,6 @@ EosFuse::UsageSet()
   usage +=
     "                     system.eos.resetstat - <mount>     : reset the statistic counters\n";
   usage +=
-    "                     system.eos.mutexdebug 1|0 <mount>  : enable/disable mutex debugging\n";
-  usage +=
     "                     system.eos.log <mode> <mount>      : make log file public or private with <mode>=public|private\n";
   usage +=
     "                     system.eos.fuzz all|config <mount> : enabling fuzzing in all modes with scaler 1 (all) or switch back to the initial configuration (config)\n";
@@ -570,7 +568,7 @@ EosFuse::run(int argc, char* argv[], void* userdata)
       }
 
       if (!root["options"].isMember("backtrace")) {
-        root["options"]["backtrace"] = 0;
+        root["options"]["backtrace"] = 1;
       }
 
       if (!root["options"].isMember("md-kernelcache")) {
@@ -1657,6 +1655,7 @@ EosFuse::run(int argc, char* argv[], void* userdata)
       tDumpStatistic.reset(&EosFuse::DumpStatistic, this);
       tStatCirculate.reset(&EosFuse::StatCirculate, this);
       tMetaCacheFlush.reset(&metad::mdcflush, &mds);
+      tMetaSizeFlush.reset(&metad::mdsizeflush, &mds);
       tMetaStackFree.reset(&metad::mdstackfree, &mds);
       tMetaCommunicate.reset(&metad::mdcommunicate, &mds);
       tCapFlush.reset(&cap::capflush, &caps);
@@ -1809,6 +1808,7 @@ EosFuse::run(int argc, char* argv[], void* userdata)
       tDumpStatistic.join();
       tStatCirculate.join();
       tMetaCacheFlush.join();
+      tMetaSizeFlush.join();
       tMetaStackFree.join();
       tMetaCommunicate.join();
       tCapFlush.join();
@@ -1981,9 +1981,6 @@ EosFuse::DumpStatistic(ThreadAssistant& assistant)
              "ALL        inodes-tracker      := %lu\n"
              "ALL        rh-expired          := %lu\n"
              "ALL        proxies             := %d\n"
-	     "ALL        mutexes             := %lu\n"
-	     "ALL        mutex-lock          := %lu\n"
-	     "ALL        mutex-unlock        := %lu\n"
              "# -----------------------------------------------------------------------------------------------------------\n",
              this->getMdStat().inodes(),
              this->getMdStat().inodes_stacked(),
@@ -1996,20 +1993,9 @@ EosFuse::DumpStatistic(ThreadAssistant& assistant)
              this->caps.size(),
              this->Tracker().size(),
              XrdCl::Proxy::ReadAsyncHandler::nexpired(),
-             XrdCl::Proxy::Proxies(),
-	     eos::common::TrackMutex::sTracker.getTracked(),
-	     eos::common::TrackMutex::sTracker.getLocks(),
-	     eos::common::TrackMutex::sTracker.getUnLocks()
+             XrdCl::Proxy::Proxies()
             );
     sout += ino_stat;
-    {
-      std::string locks =  eos::common::TrackMutex::sTracker.Dump();
-      if (!locks.empty()) {
-	sout += locks;
-	sout += "# -----------------------------------------------------------------------------------------------------------\n";
-      }
-    }
-    
     {
       auto recovery = XrdCl::Proxy::ProxyStatHandle::Get()->Stats();
       int32_t recovery_ok = 0;
@@ -2055,7 +2041,7 @@ EosFuse::DumpStatistic(ThreadAssistant& assistant)
       int sum = 0;
       unsigned long totalram, freeram, loads0 = 0;
       {
-        LockMonitor sLock(getFuseStat().Mutex);
+        XrdSysMutexHelper sLock(getFuseStat().Mutex);
         rbytes = this->getFuseStat().GetTotal("rbytes");
         wbytes = this->getFuseStat().GetTotal("wbytes");
         nops = this->getFuseStat().GetOps();
@@ -2240,7 +2226,7 @@ EosFuse::getattr(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info* fi)
   metad::shared_md md = Instance().mds.getlocal(req, ino);
 
   if (ino != 1) {
-    LockMonitor mLock(md->Locker());
+    XrdSysMutexHelper mLock(md->Locker());
 
     if (!(*md)()->id() || (md->deleted() && !md->lookup_is())) {
       rc = md->deleted() ? ENOENT : (*md)()->err();
@@ -2249,7 +2235,7 @@ EosFuse::getattr(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info* fi)
       cap::shared_cap pcap = Instance().caps.acquire(req, cap_ino ? cap_ino : 1,
                              S_IFDIR | Instance().Config().options.x_ok);
       double cap_lifetime = 0;
-      LockMonitor capLock(pcap->Locker());
+      XrdSysMutexHelper capLock(pcap->Locker());
 
       if ((*pcap)()->errc()) {
         rc = (*pcap)()->errc();
@@ -2764,7 +2750,7 @@ EosFuse::lookup(fuse_req_t req, fuse_ino_t parent, const char* name)
     if ((*md)()->id() && !md->deleted()) {
       cap::shared_cap pcap = Instance().caps.acquire(req, parent,
                              Instance().Config().options.x_ok);
-      LockMonitor mLock(md->Locker());
+      XrdSysMutexHelper mLock(md->Locker());
       (*md)()->set_pid(parent);
       eos_static_info("%s", md->dump(e).c_str());
       md->lookup_inc();
@@ -2794,7 +2780,7 @@ EosFuse::lookup(fuse_req_t req, fuse_ino_t parent, const char* name)
 
         if (pmd && (*pmd)()->id()) {
           // remember negative lookups
-          LockMonitor mLock(pmd->Locker());
+          XrdSysMutexHelper mLock(pmd->Locker());
           pmd->local_enoent().insert(name);
         }
       }
@@ -2845,7 +2831,7 @@ EosFuse::listdir(fuse_req_t req, fuse_ino_t ino, metad::shared_md& md)
   // retrieve cap
   cap::shared_cap pcap = Instance().caps.acquire(req, ino,
                          S_IFDIR | R_OK, true);
-  LockMonitor cLock(pcap->Locker());
+  XrdSysMutexHelper cLock(pcap->Locker());
 
   if ((*pcap)()->errc()) {
     rc = (*pcap)()->errc();
@@ -2902,7 +2888,7 @@ EosFuse::opendir(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info* fi)
         eos_static_warning("Running recursive rm (pid = %d)", fuse_req_ctx(req)->pid);
         // bulk rm only when a recycle bin is configured
         {
-          LockMonitor mLock(md->Locker());
+          XrdSysMutexHelper mLock(md->Locker());
           name = (*md)()->name();
 
           if (!(*md)()->id() || md->deleted()) {
@@ -2957,7 +2943,7 @@ EosFuse::opendir(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info* fi)
     }
 
     if (!rc) {
-      LockMonitor mLock(md->Locker());
+      XrdSysMutexHelper mLock(md->Locker());
 
       if (!(*md)()->id() || md->deleted()) {
         rc = md->deleted() ? ENOENT : (*md)()->err();
@@ -3011,7 +2997,7 @@ EosFuse::readdir_filler(fuse_req_t req, EosFuse::opendir_t* md,
   int rc = 0;
   metad::shared_md pmd = md->md;
   // avoid to have more than one md object locked at a time
-  LockMonitor mLock(pmd->Locker());
+  XrdSysMutexHelper mLock(pmd->Locker());
   pmd_id = (*pmd)()->id();
   pmd_mode = (*pmd)()->mode();
 
@@ -3115,7 +3101,7 @@ EBADF  Invalid directory stream descriptor fi->fh
     // refresh the current directory state
     rc = readdir_filler(req, md, pmd_mode, pmd_id);
     // only one readdir at a time
-    LockMonitor lLock(md->items_lock);
+    XrdSysMutexHelper lLock(md->items_lock);
     eos_static_info("off=%lu size-%lu", off, md->pmd_children.size());
     fuse_ino_t cino = pmd_id;
     struct stat stbuf;
@@ -3158,7 +3144,7 @@ EBADF  Invalid directory stream descriptor fi->fh
         fuse_ino_t cino = 0;
         mode_t mode = 0;
         {
-          LockMonitor ppLock(ppmd->Locker());
+          XrdSysMutexHelper ppLock(ppmd->Locker());
           cino = (*pmd)()->id();
           mode = (*pmd)()->mode();
         }
@@ -3203,7 +3189,7 @@ EBADF  Invalid directory stream descriptor fi->fh
 
       mode_t mode;
       {
-        LockMonitor cLock(cmd->Locker());
+        XrdSysMutexHelper cLock(cmd->Locker());
         mode = (*cmd)()->mode();
 
         // skip deleted entries or hidden entries
@@ -3405,7 +3391,7 @@ EROFS  pathname refers to a file on a read-only filesystem.
       {
         // logic avoiding a mkdir/rmdir/mkdir sync/async race
         {
-          LockMonitor pLock(pmd->Locker());
+          XrdSysMutexHelper pLock(pmd->Locker());
           auto it = pmd->get_todelete().find(
                       eos::common::StringConversion::EncodeInvalidUTF8(name));
 
@@ -3418,7 +3404,7 @@ EROFS  pathname refers to a file on a read-only filesystem.
           Instance().mds.wait_upstream(req, del_ino);
         }
       }
-      LockMonitor mLock(md->Locker());
+      XrdSysMutexHelper mLock(md->Locker());
 
       if ((*md)()->id() && !md->deleted()) {
         rc = EEXIST;
@@ -3452,7 +3438,7 @@ EROFS  pathname refers to a file on a read-only filesystem.
           auto attrMap = (*md)()->mutable_attr();
           auto pattrMap = (*pmd)()->attr();
 
-          for (auto const& it : pattrMap) {
+          for (auto const it : pattrMap) {
             eos_static_debug("adding xattr[%s]=%s", it.first.c_str(), it.second.c_str());
             (*attrMap)[it.first] = it.second;
           }
@@ -3478,7 +3464,7 @@ EROFS  pathname refers to a file on a read-only filesystem.
             md->lookup_inc();
             eos_static_info("%s", md->dump(e).c_str());
             {
-              LockMonitor pLock(pmd->Locker());
+              XrdSysMutexHelper pLock(pmd->Locker());
               pmd->local_enoent().erase(name);
             }
           }
@@ -3583,7 +3569,7 @@ EROFS  pathname refers to a file on a read-only filesystem.
     if (!rc) {
       metad::shared_md md;
       md = Instance().mds.lookup(req, parent, name);
-      LockMonitor lLock(md->Locker());
+      XrdSysMutexHelper lLock(md->Locker());
 
       if (!Instance().Config().options.rename_is_sync) {
         if (Instance().mds.has_flush((*md)()->id())) {
@@ -3624,7 +3610,7 @@ EROFS  pathname refers to a file on a read-only filesystem.
               char nameBuf[256];
               snprintf(nameBuf, sizeof(nameBuf), "...eos.ino...%lx", hardlink_target_ino);
               std::string newname = nameBuf;
-              LockMonitor pLock(pmd->Locker());
+              XrdSysMutexHelper pLock(pmd->Locker());
 
               if (pmd->local_children().count(
                     eos::common::StringConversion::EncodeInvalidUTF8(newname))) {
@@ -3675,7 +3661,7 @@ EROFS  pathname refers to a file on a read-only filesystem.
         }
       }
 
-      LockMonitor pLock(pcap->Locker());
+      XrdSysMutexHelper pLock(pcap->Locker());
       Instance().caps.free_volume(pcap, freesize);
       Instance().caps.free_inode(pcap);
       eos_static_debug("freeing %llu bytes on cap ", freesize);
@@ -3780,7 +3766,7 @@ EROFS  pathname refers to a directory on a read-only filesystem.
       metad::shared_md pmd;
       md = Instance().mds.lookup(req, parent, name);
       Track::Monitor mon("rmdir", Instance().Tracker(), (*md)()->id(), true);
-      LockMonitor mLock(md->Locker());
+      XrdSysMutexHelper mLock(md->Locker());
 
       if (!(*md)()->id() || md->deleted()) {
         rc = ENOENT;
@@ -3902,7 +3888,7 @@ EosFuse::rename(fuse_req_t req, fuse_ino_t parent, const char* name,
     {
       // logic avoiding a delete/rename sync.async race
       {
-        LockMonitor pLock(p2md->Locker());
+        XrdSysMutexHelper pLock(p2md->Locker());
         auto it = p2md->get_todelete().find(
                     eos::common::StringConversion::EncodeInvalidUTF8(newname));
 
@@ -3915,7 +3901,7 @@ EosFuse::rename(fuse_req_t req, fuse_ino_t parent, const char* name,
         Instance().mds.wait_upstream(req, del_ino);
       }
 
-      LockMonitor mLock(md->Locker());
+      XrdSysMutexHelper mLock(md->Locker());
 
       if (md->deleted()) {
         // we need to wait that this entry is really gone
@@ -3935,7 +3921,7 @@ EosFuse::rename(fuse_req_t req, fuse_ino_t parent, const char* name,
         metad::shared_md dst_same_name = Instance().mds.lookup(req, newparent, name);
 
         if (dst_same_name) {
-          LockMonitor dst_dir_lock(dst_same_name->Locker());
+          XrdSysMutexHelper dst_dir_lock(dst_same_name->Locker());
 
           if (dst_same_name->local_children().size()) {
             rc = ENOTEMPTY;
@@ -3951,7 +3937,7 @@ EosFuse::rename(fuse_req_t req, fuse_ino_t parent, const char* name,
                         (*p2cap)()->authid());
 
       if (Instance().Config().options.rename_is_sync) {
-        LockMonitor mLock(md->Locker());
+        XrdSysMutexHelper mLock(md->Locker());
         Instance().mds.wait_flush(req, md);
       }
     }
@@ -3986,7 +3972,7 @@ EosFuse::access(fuse_req_t req, fuse_ino_t ino, int mask)
   bool is_deleted = false;
   fuse_ino_t pino = 0;
   {
-    LockMonitor mLock(md->Locker());
+    XrdSysMutexHelper mLock(md->Locker());
     pino = ((*md)()->id() == 1) ? (*md)()->id() : (*md)()->pid();
     mode = (*md)()->mode();
     is_deleted = md->deleted();
@@ -4011,7 +3997,7 @@ EosFuse::access(fuse_req_t req, fuse_ino_t ino, int mask)
       // We need a fresh cap for pmd
       cap::shared_cap pcap = Instance().caps.acquire(req, (*pmd)()->id(),
                              S_IFDIR | pmode);
-      LockMonitor mLock(pcap->Locker());
+      XrdSysMutexHelper mLock(pcap->Locker());
 
       if ((*pcap)()->errc()) {
         rc = (*pcap)()->errc();
@@ -4087,7 +4073,7 @@ EosFuse::open(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info* fi)
   {
     metad::shared_md md;
     md = Instance().mds.get(req, ino);
-    LockMonitor mLock(md->Locker());
+    XrdSysMutexHelper mLock(md->Locker());
 
     if (!(*md)()->id() || md->deleted()) {
       rc = md->deleted() ? ENOENT : (*md)()->err();
@@ -4106,7 +4092,7 @@ EosFuse::open(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info* fi)
       }
 
       cap::shared_cap pcap = Instance().caps.acquire(req, cap_ino, mode);
-      LockMonitor capLock(pcap->Locker());
+      XrdSysMutexHelper capLock(pcap->Locker());
 
       if (EOS_LOGS_DEBUG) {
         eos_static_debug("id=%#lx cap-ino=%#lx mode=%#o", (*md)()->id(), cap_ino, mode);
@@ -4337,7 +4323,7 @@ The O_NONBLOCK flag was specified, and an incompatible lease was held on the fil
     cap::shared_cap pcap = Instance().caps.acquire(req, parent,
                            S_IFDIR | W_OK, true);
     struct fuse_entry_param e;
-    LockMonitor capLock(pcap->Locker());
+    XrdSysMutexHelper capLock(pcap->Locker());
 
     if ((*pcap)()->errc()) {
       rc = (*pcap)()->errc();
@@ -4361,7 +4347,7 @@ The O_NONBLOCK flag was specified, and an incompatible lease was held on the fil
           uint64_t del_ino = 0;
           // logic avoiding a create/unlink/create sync/async race
           {
-            LockMonitor pLock(pmd->Locker());
+            XrdSysMutexHelper pLock(pmd->Locker());
             auto it = pmd->get_todelete().find(
                         eos::common::StringConversion::EncodeInvalidUTF8(name));
 
@@ -4376,7 +4362,7 @@ The O_NONBLOCK flag was specified, and an incompatible lease was held on the fil
             Instance().mds.wait_upstream(req, del_ino);
           }
         }
-        LockMonitor mLock(md->Locker());
+        XrdSysMutexHelper mLock(md->Locker());
 
         if ((*md)()->id() && !md->deleted()) {
           rc = EEXIST;
@@ -4451,7 +4437,7 @@ The O_NONBLOCK flag was specified, and an incompatible lease was held on the fil
             // avoid lock-order violation
             {
               mLock.UnLock();
-              LockMonitor mLockParent(pmd->Locker());
+              XrdSysMutexHelper mLockParent(pmd->Locker());
               (*pmd)()->set_mtime(ts.tv_sec);
               (*pmd)()->set_mtime_ns(ts.tv_nsec);
 
@@ -4506,7 +4492,7 @@ The O_NONBLOCK flag was specified, and an incompatible lease was held on the fil
               io->ioctx()->attach(req, cookie, fi->flags);
             }
 
-            LockMonitor pLock(pmd->Locker());
+            XrdSysMutexHelper pLock(pmd->Locker());
             pmd->local_enoent().erase(name);
             pino = (*pmd)()->id();
           }
@@ -4645,7 +4631,7 @@ EosFuse::write(fuse_req_t req, fuse_ino_t ino, const char* buf, size_t size,
           }
         } else {
           {
-            LockMonitor mLock(io->mdctx()->Locker());
+            XrdSysMutexHelper mLock(io->mdctx()->Locker());
             (*(io->mdctx()))()->set_size(io->ioctx()->size());
             {
               struct timespec tsnow;
@@ -4762,7 +4748,7 @@ EosFuse::fsync(fuse_req_t req, fuse_ino_t ino, int datasync,
     {
       std::string fname = "";
       {
-        LockMonitor mLock(io->md->Locker());
+        XrdSysMutexHelper mLock(io->md->Locker());
         fname = (*(io->md))()->name();
       }
 
@@ -4774,7 +4760,7 @@ EosFuse::fsync(fuse_req_t req, fuse_ino_t ino, int datasync,
         }
       } else {
         if (Instance().Config().options.global_flush) {
-          LockMonitor mLock(io->md->Locker());
+          XrdSysMutexHelper mLock(io->md->Locker());
           Instance().mds.begin_flush(req, io->md,
                                      io->authid()); // flag an ongoing flush centrally
         }
@@ -4783,7 +4769,7 @@ EosFuse::fsync(fuse_req_t req, fuse_ino_t ino, int datasync,
 
         eos::common::Timing::GetTimeSpec(tsnow);
 
-        LockMonitor mLock(io->md->Locker());
+        XrdSysMutexHelper mLock(io->md->Locker());
 
         (*(io->md))()->set_mtime(tsnow.tv_sec);
 
@@ -4859,7 +4845,7 @@ EosFuse::flush(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info* fi)
       if (io->has_update()) {
         cap::shared_cap pcap;
         {
-          LockMonitor mLock(io->md->Locker());
+          XrdSysMutexHelper mLock(io->md->Locker());
           auto map = (*(io->md))()->attr();
 
           if (map.count("user.acl") > 0) { /* file has it's own ACL */
@@ -4876,7 +4862,7 @@ EosFuse::flush(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info* fi)
             pcap = Instance().caps.acquire(req, (*(io->md))()->pid(), S_IFDIR | W_OK, true);
           }
         }
-        LockMonitor capLock(pcap->Locker());
+        XrdSysMutexHelper capLock(pcap->Locker());
 
         if (rc == 0 && (*pcap)()->errc() != 0) {
           rc = (*pcap)()->errc();
@@ -4905,7 +4891,7 @@ EosFuse::flush(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info* fi)
             eos_static_debug("file is not inlined");
           }
 
-          LockMonitor mLock(io->md->Locker());
+          XrdSysMutexHelper mLock(io->md->Locker());
           auto map = (*(io->md))()->attr();
 
           // actually do the flush
@@ -4999,7 +4985,7 @@ EosFuse::getxattr(fuse_req_t req, fuse_ino_t ino, const char* xattr_name,
     static std::string s_cap = "system.eos.cap";
     static std::string s_ls_caps = "system.eos.caps";
     static std::string s_ls_vmap = "system.eos.vmap";
-    
+
     if (key.substr(0, s_md.length()) == s_md) {
       local_getxattr = true;
       metad::shared_md md;
@@ -5133,7 +5119,7 @@ EosFuse::getxattr(fuse_req_t req, fuse_ino_t ino, const char* xattr_name,
         }
       } else if (!rc) {
         md = Instance().mds.get(req, ino);
-        LockMonitor mLock(md->Locker());
+        XrdSysMutexHelper mLock(md->Locker());
 
         if (!(*md)()->id() || md->deleted()) {
           rc = md->deleted() ? ENOENT : (*md)()->err();
@@ -5188,7 +5174,7 @@ EosFuse::getxattr(fuse_req_t req, fuse_ino_t ino, const char* xattr_name,
                      ++it) {
                   fuse_ino_t cino = it->second;
                   metad::shared_md cmd = Instance().mds.get(req, cino, "", 0, 0, 0, true);
-                  LockMonitor mLock(cmd->Locker());
+                  XrdSysMutexHelper mLock(cmd->Locker());
 
                   if ((*cmd)()->id()) {
                     if (S_ISREG((*cmd)()->mode())) {
@@ -5226,7 +5212,7 @@ EosFuse::getxattr(fuse_req_t req, fuse_ino_t ino, const char* xattr_name,
                 rc = (*pcap)()->errc();
               } else {
                 cap::shared_quota q = Instance().caps.quota(pcap);
-                LockMonitor qLock(q->Locker());
+                XrdSysMutexHelper qLock(q->Locker());
                 char qline[4096];
                 snprintf(qline, sizeof(qline),
                          "%-32s %8s %8s %20s %20s %20s %32s %s\n"
@@ -5439,19 +5425,6 @@ EosFuse::setxattr(fuse_req_t req, fuse_ino_t ino, const char* xattr_name,
       }
     }
 
-    static std::string s_mutexdebug = "system.eos.mutexdebug";
-
-    if (key.substr(0, s_mutexdebug.length()) == s_mutexdebug) {
-      local_setxattr = true;
-      if ( ( value == "1") ||
-	   ( value == "on") ||
-	   ( value == "yes") ){
-	eos::common::TrackMutex::sDebug = true;
-      } else {
-	eos::common::TrackMutex::sDebug = false;
-      }
-    }
-    
     if (key.substr(0, s_debug.length()) == s_debug) {
       local_setxattr = true;
       // only root can do this configuration changes
@@ -5550,7 +5523,7 @@ EosFuse::setxattr(fuse_req_t req, fuse_ino_t ino, const char* xattr_name,
   if (!local_setxattr) {
     metad::shared_md md;
     md = Instance().mds.get(req, ino);
-    LockMonitor mLock(md->Locker());
+    XrdSysMutexHelper mLock(md->Locker());
 
     if (!(*md)()->id() || md->deleted()) {
       rc = md->deleted() ? ENOENT : (*md)()->err();
@@ -5704,7 +5677,7 @@ EosFuse::listxattr(fuse_req_t req, fuse_ino_t ino, size_t size)
   if ((*pcap)()->errc()) {
     rc = (*pcap)()->errc();
   } else {
-    LockMonitor mLock(md->Locker());
+    XrdSysMutexHelper mLock(md->Locker());
 
     if (!(*md)()->id() || md->deleted()) {
       rc = md->deleted() ? ENOENT : (*md)()->err();
@@ -5811,7 +5784,7 @@ EosFuse::removexattr(fuse_req_t req, fuse_ino_t ino, const char* xattr_name)
   if ((*pcap)()->errc()) {
     rc = (*pcap)()->errc();
   } else {
-    LockMonitor mLock(md->Locker());
+    XrdSysMutexHelper mLock(md->Locker());
 
     if (!(*md)()->id() || md->deleted()) {
       rc = md->deleted() ? ENOENT : (*md)()->err();
@@ -5927,7 +5900,7 @@ EosFuse::readlink(fuse_req_t req, fuse_ino_t ino)
     if ((*pcap)()->errc()) {
       rc = (*pcap)()->errc();
     } else {
-      LockMonitor mLock(md->Locker());
+      XrdSysMutexHelper mLock(md->Locker());
 
       if (!(*md)()->id() || md->deleted()) {
         rc = ENOENT;
@@ -5945,7 +5918,7 @@ EosFuse::readlink(fuse_req_t req, fuse_ino_t ino)
       std::string localpath = Instance().Prefix(Instance().mds.calculateLocalPath(
                                 md));
 
-      if (target.front() == '/') {
+      if ((target.front() == '/')) {
         if (localpath.substr(0, target.size()) == target) {
           target = "/#_invalidated_link";
         }
@@ -6054,7 +6027,7 @@ EosFuse::symlink(fuse_req_t req, const char* link, fuse_ino_t parent,
     metad::shared_md pmd;
     md = Instance().mds.lookup(req, parent, name);
     pmd = Instance().mds.get(req, parent, (*pcap)()->authid());
-    LockMonitor mLock(md->Locker());
+    XrdSysMutexHelper mLock(md->Locker());
 
     if ((*md)()->id() && !md->deleted()) {
       rc = EEXIST;
@@ -6063,7 +6036,7 @@ EosFuse::symlink(fuse_req_t req, const char* link, fuse_ino_t parent,
         uint64_t del_ino = 0;
         // logic avoiding a create/unlink/create sync/async race
         {
-          LockMonitor pLock(pmd->Locker());
+          XrdSysMutexHelper pLock(pmd->Locker());
           auto it = pmd->get_todelete().find(
                       eos::common::StringConversion::EncodeInvalidUTF8(name));
 
@@ -6099,7 +6072,7 @@ EosFuse::symlink(fuse_req_t req, const char* link, fuse_ino_t parent,
 
       if (!rc) {
         Instance().mds.insert(req, md, (*pcap)()->authid());
-        LockMonitor pLock(pmd->Locker());
+        XrdSysMutexHelper pLock(pmd->Locker());
         pmd->local_enoent().erase(name);
       }
 
@@ -6151,7 +6124,7 @@ EosFuse::link(fuse_req_t req, fuse_ino_t ino, fuse_ino_t parent,
     metad::shared_md tmd; /* the link target */
     md = Instance().mds.lookup(req, parent, newname);
     pmd = Instance().mds.get(req, parent, (*pcap)()->authid());
-    LockMonitor mLock(md->Locker());
+    XrdSysMutexHelper mLock(md->Locker());
 
     if ((*md)()->id() && !md->deleted()) {
       rc = EEXIST;
@@ -6160,7 +6133,7 @@ EosFuse::link(fuse_req_t req, fuse_ino_t ino, fuse_ino_t parent,
         uint64_t del_ino = 0;
         // logic avoiding a create/unlink/create sync/async race
         {
-          LockMonitor pLock(pmd->Locker());
+          XrdSysMutexHelper pLock(pmd->Locker());
           auto it = pmd->get_todelete().find(
                       eos::common::StringConversion::EncodeInvalidUTF8(newname));
 
@@ -6180,7 +6153,7 @@ EosFuse::link(fuse_req_t req, fuse_ino_t ino, fuse_ino_t parent,
       } else if ((*tmd)()->pid() != parent) {
         rc = EXDEV; /* only same parent supported */
       } else {
-        LockMonitor tmLock(tmd->Locker());
+        XrdSysMutexHelper tmLock(tmd->Locker());
 
         if (EOS_LOGS_DEBUG) {
           eos_static_debug("hlnk tmd id=%ld %s", (*tmd)()->id(),
@@ -6232,7 +6205,7 @@ EosFuse::link(fuse_req_t req, fuse_ino_t ino, fuse_ino_t parent,
         mLock.UnLock();
 
         if (!rc) {
-          LockMonitor tmLock(tmd->Locker());
+          XrdSysMutexHelper tmLock(tmd->Locker());
           memset(&e, 0, sizeof(e));
           tmd->convert(e, pcap->lifetime());
 
@@ -6242,7 +6215,7 @@ EosFuse::link(fuse_req_t req, fuse_ino_t ino, fuse_ino_t parent,
           }
 
           {
-            LockMonitor pLock(pmd->Locker());
+            XrdSysMutexHelper pLock(pmd->Locker());
             pmd->local_enoent().erase(newname);
           }
 
@@ -6507,7 +6480,7 @@ EosFuse::getHbStat(eos::fusex::statistics& hbs)
     hbs.set_load1(1.0 * meminfo.getref().loads[0] / (1 << SI_LOAD_SHIFT));
   }
   {
-    LockMonitor sLock(getFuseStat().Mutex);
+    XrdSysMutexHelper sLock(getFuseStat().Mutex);
     hbs.set_rbytes(getFuseStat().GetTotal("rbytes"));
     hbs.set_wbytes(getFuseStat().GetTotal("wbytes"));
     hbs.set_nio(getFuseStat().GetOps());
