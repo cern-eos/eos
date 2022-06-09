@@ -445,6 +445,7 @@ build_client_cc7_tsan:
     - yum install -y cmake3 centos-release-scl devtoolset-8
     - yum install -y libtsan --disablerepo=* --enablerepo=centos-sclo-rh
     - yum install -y devtoolset-8-libtsan-devel
+    - source /opt/rh/devtoolset-8/enable && gcc --version
     - echo -e "[eos-tsan-depend]\nname=EOS dependencies\nbaseurl=http://storage-ci.web.cern.ch/storage-ci/eos/${CODENAME}-depend/el-7-tsan/x86_64/\ngpgcheck=0\nenabled=1\npriority=2\n" > /etc/yum.repos.d/eos-tsan-depend.repo;
     - yum remove -y eos-xrootd;
     - yum install -y eos-xrootd;
