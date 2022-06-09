@@ -128,9 +128,8 @@ ScanDir::SetConfig(const std::string& key, long long value)
     mEntryIntervalSec.store(value, std::memory_order_release);
   } else if (key == eos::common::SCAN_DISK_INTERVAL_NAME) {
     if (mDiskIntervalSec.compare_exchange_strong(mConfDiskIntervalSec,
-                                                 static_cast<uint64_t>(value),
-                                                 std::memory_order_acq_rel))
-    {
+        static_cast<uint64_t>(value),
+        std::memory_order_acq_rel)) {
       // Move the following line after join if you want to prevent a toggle until join
       mConfDiskIntervalSec = static_cast<uint64_t>(value);
       mDiskThread.join();
@@ -138,9 +137,8 @@ ScanDir::SetConfig(const std::string& key, long long value)
     }
   } else if (key == eos::common::FSCK_REFRESH_INTERVAL_NAME) {
     if (mFsckRefreshIntervalSec.compare_exchange_strong(mConfFsckIntervalSec,
-                                                        static_cast<uint64_t>(value),
-                                                        std::memory_order_acq_rel))
-    {
+        static_cast<uint64_t>(value),
+        std::memory_order_acq_rel)) {
       mConfFsckIntervalSec = static_cast<uint64_t>(value);
       mDiskThread.join();
       mDiskThread.reset(&ScanDir::RunDiskScan, this);
@@ -189,7 +187,8 @@ ScanDir::RunNsScan(ThreadAssistant& assistant) noexcept
   }
 
   // Get a random smearing and avoid that all start at the same time
-  size_t sleep_sec = (1.0 * mNsIntervalSec.load(std::memory_order_relaxed) * random() / RAND_MAX);
+  size_t sleep_sec = (1.0 * mNsIntervalSec.load(std::memory_order_relaxed) *
+                      random() / RAND_MAX);
   eos_info("msg=\"delay ns scan thread by %llu seconds\" fsid=%lu dirpath=\"%s\"",
            sleep_sec, mFsId, mDirPath.c_str());
   assistant.wait_for(seconds(sleep_sec));
@@ -435,8 +434,9 @@ ScanDir::RunDiskScan(ThreadAssistant& assistant) noexcept
 #endif
   // If there is a reconfiguration of Disk/Fsck Interval, reload these only
   // after current run
-  uint64_t DiskIntervalSec = mDiskIntervalSec.load(std::memory_order_acquire);
-  uint64_t FsckIntervalSec = mFsckRefreshIntervalSec.load(std::memory_order_acquire);
+  uint64_t disk_interval_sec = mDiskIntervalSec.load(std::memory_order_acquire);
+  uint64_t fsck_interval_sec = mFsckRefreshIntervalSec.load(
+                                 std::memory_order_acquire);
 
   if (mBgThread) {
     // Make sure we update the inconsistencies once before the initial sleep
@@ -448,12 +448,12 @@ ScanDir::RunDiskScan(ThreadAssistant& assistant) noexcept
     } else {
       eos_info("msg=\"done initial collection of inconsistency stats\" fsid=%lu "
                "disk_scan_interval_sec=%llu fsck_refresh_interval_sec=%llu",
-               mFsId, DiskIntervalSec, FsckIntervalSec);
+               mFsId, disk_interval_sec, fsck_interval_sec);
     }
 
 #endif
     // Get a random smearing and avoid that all start at the same time! 0-4 hours
-    size_t sleeper = (1.0 * DiskIntervalSec * random() / RAND_MAX);
+    size_t sleeper = (1.0 * disk_interval_sec * random() / RAND_MAX);
     assistant.wait_for(seconds(sleeper));
   }
 
@@ -466,9 +466,8 @@ ScanDir::RunDiskScan(ThreadAssistant& assistant) noexcept
     auto finish_ts = std::chrono::system_clock::now();
     seconds duration = duration_cast<seconds>(finish_ts - start_ts);
     // Check if there was a config update before we sleep
-    DiskIntervalSec = mDiskIntervalSec.load(std::memory_order_acquire);
-    FsckIntervalSec = mFsckRefreshIntervalSec.load(std::memory_order_acquire);
-
+    disk_interval_sec = mDiskIntervalSec.load(std::memory_order_acquire);
+    fsck_interval_sec = mFsckRefreshIntervalSec.load(std::memory_order_acquire);
     std::string log_msg =
       SSTR("[ScanDir] Directory: " << mDirPath << " files=" << mNumTotalFiles
            << " scanduration=" << duration.count() << " [s] scansize="
@@ -476,8 +475,8 @@ ScanDir::RunDiskScan(ThreadAssistant& assistant) noexcept
            << " MB ] scannedfiles=" << mNumScannedFiles << " corruptedfiles="
            << mNumCorruptedFiles << " hwcorrupted=" << mNumHWCorruptedFiles
            << " skippedfiles=" << mNumSkippedFiles
-           << " disk_scan_interval_sec=" << DiskIntervalSec
-           << " fsck_refresh_interval_sec=" << FsckIntervalSec);
+           << " disk_scan_interval_sec=" << disk_interval_sec
+           << " fsck_refresh_interval_sec=" << fsck_interval_sec);
 
     if (mBgThread) {
       syslog(LOG_ERR, "%s\n", log_msg.c_str());
@@ -490,8 +489,8 @@ ScanDir::RunDiskScan(ThreadAssistant& assistant) noexcept
       // Run again after (default) 4 hours. In the meantime update the
       // inconsistencies every mFsckRefreshIntervalSec or every mDiskIntervalSec
       // if this is more frequent.
-      long effective_delay = (FsckIntervalSec > DiskIntervalSec ?
-                              DiskIntervalSec : FsckIntervalSec) - 1;
+      long effective_delay = (fsck_interval_sec > disk_interval_sec ?
+                              disk_interval_sec : fsck_interval_sec) - 1;
       auto deadline = std::chrono::system_clock::now() +
                       std::chrono::seconds(effective_delay);
 
@@ -959,7 +958,6 @@ ScanDir::GetTimestampSmearedSec() const
 {
   using namespace std::chrono;
   uint64_t entry_interval_sec = mEntryIntervalSec.load(std::memory_order_relaxed);
-
   int64_t smearing =
     (int64_t)(0.2 * 2 * entry_interval_sec * random() / RAND_MAX) -
     (int64_t)(0.2 * entry_interval_sec);
