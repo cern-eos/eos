@@ -314,44 +314,42 @@ cap::acquire(fuse_req_t req, fuse_ino_t ino, mode_t mode, bool lock)
   std::string cid = cap::capx::capid(req, ino);
   eos_static_debug("inode=%08lx cap-id=%s mode=%x", ino, cid.c_str(), mode);
   shared_cap cap = get(req, ino);
-  bool try_attach = false;
   // avoid we create the same cap concurrently
   {
-    XrdSysMutexHelper cLock(cap->Locker());
-
-    if (!cap->valid()) {
+    bool valid=false;
+    {
+      XrdSysMutexHelper cLock(cap->Locker());
+      valid = cap->valid();
+    }
+    
+    if (!valid) {
       if (refresh(req, cap)) {
 	(*cap)()->set_errc(errno ? errno : EIO);
         return cap;
       }
 
-      try_attach = true;
+      cap = get(req, ino);
     }
 
-    if (!cap->satisfy(mode) || !cap->valid()) {
-      if (!cap->valid()) {
-        eos_static_err("msg=\"unsynchronized clocks between fuse client machine "
-                       "and MGM\" now_time=%lu cap_time=%lu", time(nullptr),
-                       (*cap)()->vtime());
+    {
+      XrdSysMutexHelper cLock(cap->Locker());
+      if (!cap->satisfy(mode) || !cap->valid()) {
+	if (!cap->valid()) {
+	  eos_static_err("msg=\"unsynchronized clocks between fuse client machine "
+			 "and MGM\" now_time=%lu cap_time=%lu", time(nullptr),
+			 (*cap)()->vtime());
+	}
+	
+	(*cap)()->set_errc(EPERM);
+      } else {
+	(*cap)()->set_errc(0);
       }
-
-      (*cap)()->set_errc(EPERM);
-    } else {
-      (*cap)()->set_errc(0);
+      
+      eos_static_debug("%s", cap->dump().c_str());
     }
-
-    eos_static_debug("%s", cap->dump().c_str());
   }
-  XrdSysMutexHelper mLock(capmap);
+
   XrdSysMutexHelper mLock2(cap->Locker());
-
-  if (try_attach) {
-    if (!capmap.count(cid)) {
-      capmap[cid] = cap;
-      (*cap)()->set_id(ino);
-    }
-  }
-
   // stamp latest time of use
   cap->use();
   return cap;
@@ -386,10 +384,8 @@ cap::refresh(fuse_req_t req, shared_cap cap)
           //XrdSysMutexHelper mLock(cap->Locker());
           // check if the cap received matches what we think about local mapping
           if ((*cap)()->id() == id) {
+	    store(req, it->cap_());
             eos_static_debug("correct cap received for inode=%#lx", (*cap)()->id());
-            // great
-            *cap = it->cap_();
-            (*cap)()->set_id(id);
           } else {
             eos_static_debug("wrong cap received for inode=%#lx", (*cap)()->id());
             // that is a fatal logical error
