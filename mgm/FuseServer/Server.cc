@@ -2249,6 +2249,12 @@ Server::OpSetFile(const std::string& id,
       s += "0";
       break;
     }
+
+    if (fmd->getSize() != md.size()) {
+      // this is a size change
+      s+= "±";
+    }
+
     fmd->setAttribute("sys.fusex.state",eos::common::StringConversion::ReduceString(s).c_str());
     fmd->setCUid(md.uid());
     fmd->setCGid(md.gid());

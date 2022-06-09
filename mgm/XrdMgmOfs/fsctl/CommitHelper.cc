@@ -478,7 +478,18 @@ CommitHelper::handle_location(eos::common::VirtualIdentity& vid,
     ns_quota->removeFile(fmd.get());
   }
 
+  std::string locations;
+  try {
+    locations = fmd->getAttribute("sys.fs.tracking");
+  } catch (...) {}
+
+  if (!fmd->hasLocation(fsid)) {
+    locations += "+";
+    locations += std::to_string(fsid);
+  }
+
   fmd->addLocation(fsid);
+
 
   // If fsid is in the deletion list, we try to remove it if there
   // is something in the deletion list
@@ -490,6 +501,14 @@ CommitHelper::handle_location(eos::common::VirtualIdentity& vid,
     unsigned long dropfsid = std::stoul(cgi["dropfsid"]);
     eos_thread_debug("commit: dropping replica on fs %lu", dropfsid);
     fmd->unlinkLocation((unsigned short) dropfsid);
+    locations += "-";
+    locations += std::to_string(fsid);
+  }
+
+
+  std::string tracking = eos::common::StringConversion::ReduceString(locations);
+  if (tracking.length()) {
+    fmd->setAttribute("sys.fs.tracking", tracking.c_str());
   }
 
   option["update"] = false;

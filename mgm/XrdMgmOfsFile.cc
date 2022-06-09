@@ -2292,15 +2292,21 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
             } else {
               fmd = gOFS->eosView->getFile(creation_path);
             }
-
+	   
             if (!fmd) {
               errno = ENOENT;
               gOFS->MgmStats.Add("OpenFailedENOENT", vid.uid, vid.gid, 1);
               return Emsg(epname, error, errno, "open file - file is not existing");
             }
 
+	    std::string locations;
+	    try {
+	      locations = fmd->getAttribute("sys.fs.tracking");
+	    } catch (...) {}
+	    
             if (isRecreation) {
               fmd->unlinkAllLocations();
+	      locations += "=";
             }
 
 	    if (isRecreation) {
@@ -2308,14 +2314,18 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
 	      try {
 		s = fmd->getAttribute("sys.fusex.state");
 	      } catch (...) {}
+
 	      s += "Z";
 	      fmd->setAttribute("sys.fusex.state,", eos::common::StringConversion::ReduceString(s).c_str());
 	    }
 
+
             for (auto& fsid : selectedfs) {
               fmd->addLocation(fsid);
+	      locations += "+";
+	      locations += std::to_string(fsid);
             }
-
+	    fmd->setAttribute("sys.fs.tracking", eos::common::StringConversion::ReduceString(locations).c_str());
             fmd->setChecksum(cx);
             gOFS->eosView->updateFileStore(fmd.get());
           } catch (eos::MDException& e) {
@@ -2343,12 +2353,18 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
           // first open call
           eos::Prefetcher::prefetchFileMDAndWait(gOFS->eosView, byfid);
           eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
-
+	  std::string locations;
           try {
             fmd = gOFS->eosFileService->getFileMD(byfid);
 
+	    try {
+	      locations = fmd->getAttribute("sys.fs.tracking");
+	    } catch (...) {}
+	    
             for (auto& fsid : selectedfs) {
               fmd->addLocation(fsid);
+	      locations += "+";
+	      locations += std::to_string(fsid);
             }
 
             gOFS->eosView->updateFileStore(fmd.get());

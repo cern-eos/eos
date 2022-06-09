@@ -263,10 +263,18 @@ XrdMgmOfs::_dropstripe(const char* path,
       fmd = gOFS->eosView->getFile(path);
     }
 
+    std::string locations;
+    try {
+      locations = fmd->getAttribute("sys.fs.tracking");
+    } catch (...) {}
+
     if (!forceRemove) {
       // we only unlink a location
       if (fmd->hasLocation(fsid)) {
         fmd->unlinkLocation(fsid);
+	locations += "-";
+	locations += std::to_string(fsid);
+	fmd->setAttribute("sys.fs.tracking", eos::common::StringConversion::ReduceString(locations).c_str());
         gOFS->eosView->updateFileStore(fmd.get());
         eos_debug("unlinking location %u", fsid);
       } else {
@@ -276,8 +284,11 @@ XrdMgmOfs::_dropstripe(const char* path,
       // we unlink and remove a location by force
       if (fmd->hasLocation(fsid)) {
         fmd->unlinkLocation(fsid);
+	locations += "-";
+	locations += std::to_string(fsid);
+	fmd->setAttribute("sys.fs.tracking", eos::common::StringConversion::ReduceString(locations).c_str());
       }
-
+      
       fmd->removeLocation(fsid);
       // eraseEntry is only needed if the fsview is inconsistent with the
       // FileMD: It exists on the selected fsview, but not in the fmd locations.

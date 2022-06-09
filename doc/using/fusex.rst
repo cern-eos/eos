@@ -264,6 +264,7 @@ Possible state flags are:
 * C      := File has been created by the FuseServer
 * U      := File has been updated in the FuseServer
 * T      := File has been truncated in the FuseServer or opened with a TRUNCATE flag
+* ±      := File size has been changed
 * R      := File has been renamed in the FuseServer
 * M      := File has been moved in the FuseServer
 * 0      := an invalid operation has been seen in the FuseServer (should never happen)
@@ -271,4 +272,7 @@ Possible state flags are:
 * +fs    := File replica/stripe has been committed ( multiple entries possible, fs is the filesystem id in decimal)
 * c      := File checksum has been committed
 * s      := File size has been committed
+* v      := Replica has been verified for the checkusm
+* V      := Replica has been verified for the size
+* |      := Terminates a commit sequence started with +fs
 * |>     := tracked operations exceeded 127 and the attribute has been truncated

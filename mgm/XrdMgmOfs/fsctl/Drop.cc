@@ -72,14 +72,19 @@ XrdMgmOfs::Drop(const char* path,
     eos::common::RWMutexWriteLock ns_wr_lock(gOFS->eosViewRWMutex);
 
     try {
-      fmd = eosFileService->getFileMD(fid);
+      fmd = eosFileService->getFileMD(fid);      
     } catch (...) {
       eos_thread_warning("msg=\"no meta record exists anymore\" fxid=%s", afid);
       // Nevertheless drop the file identifier from the file system view
       gOFS->eosFsView->eraseEntry(fsid, fid);
     }
-
+    
     if (fmd) {
+      std::string locations;
+      try {
+	locations = fmd->getAttribute("sys.fs.tracking");
+      } catch (...) {}
+
       try {
         container =
           gOFS->eosDirectoryService->getContainerMD(fmd->getContainerId());
@@ -116,14 +121,19 @@ XrdMgmOfs::Drop(const char* path,
           if (fmd->hasLocation(id)) {
             fmd->unlinkLocation(id);
             updatestore = true;
+	    locations += "-";
+	    locations += std::to_string(id);
           }
 
           if (fmd->hasUnlinkedLocation(id)) {
             fmd->removeLocation(id);
             updatestore = true;
+	    locations += "/";
+	    locations += std::to_string(id);
           }
 
           if (updatestore) {
+	    fmd->setAttribute("sys.fs.tracking", eos::common::StringConversion::ReduceString(locations).c_str());
             gOFS->eosView->updateFileStore(fmd.get());
             // After update we might have to get the new address
             fmd = eosFileService->getFileMD(eos::common::FileId::Hex2Fid(afid));
