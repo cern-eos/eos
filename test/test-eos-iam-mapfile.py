@@ -32,7 +32,7 @@ loader.exec_module(iam)
 # Disable iam logging
 iam.logging.disable(iam.logging.WARNING)
 
-def make_user(id='123',fname='dwight',lname='shrutte', role='sales', cert=None):
+def make_user(id='123',fname='dwight',lname='shrutte', role='sales', cert=None, fancyCN=False):
     ret = {
         'id': f'{id}',
         'meta': {
@@ -82,6 +82,12 @@ def make_user(id='123',fname='dwight',lname='shrutte', role='sales', cert=None):
             dn = dn.lower()
             issuer="CN=CERN Grid Certification Authority,DC=cern,DC=ch"
 
+        if fancyCN:
+            dn = f"CN={ret['displayName'].replace(' ',', ')}, {ret['emails'][0]['value']},OU={role[0].upper()}{role[1:]},{dn}"
+            print(dn)
+        else:
+            dn = f"CN={ret['displayName']},OU={role[0].upper()}{role[1:]},{dn}"
+
         ret["urn:indigo-dc:scim:schemas:IndigoUser"] = {
             "oidcIds": [
                 {
@@ -92,7 +98,7 @@ def make_user(id='123',fname='dwight',lname='shrutte', role='sales', cert=None):
             "certificates": [
                 {
                     "primary": True,
-                    "subjectDn": f"CN={ret['displayName']},OU={role[0].upper()}{role[1:]},{dn}",
+                    "subjectDn": dn,
                     "issuerDn": issuer,
                     "pemEncodedCertificate": "-----BEGIN CERTIFICATE-----\n THIS IS A VALID VERTIFICATE!?==\n-----END CERTIFICATE-----",
                     "display": "cert-0",
@@ -135,6 +141,12 @@ class FiltersTestCase(TestCase):
         import re
         p = re.compile(r'michael', flags=re.IGNORECASE)
         assert iam.dn_filter(dwight,pam,jim,kevin,creed,michael, prefer_cern=True, pattern=p) == {michaelSubDN}
+
+    def test_dn_filter_with_commas_CN(self):
+        # Test commas on the CN
+        angela  = make_user(id='71231231-3123-3123-3123-312312312312',fname='Angela',lname='Kinsey', role='accounting',cert='cern', fancyCN=True)
+        angelaSubDn='/DC=ch/DC=cern/OU=Accounting/CN=Angela, Kinsey, akinsey@example.com'
+        assert iam.dn_filter(angela) == {angelaSubDn}
 
     def test_name_map_filter(self):
         user1 = make_user(id='123')
