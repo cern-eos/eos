@@ -195,7 +195,7 @@ target_link_libraries(EosCommon-Static PUBLIC
   XROOTD::CL
   UUID::UUID
   ZLIB::ZLIB_STATIC
-  NCURSES::NCURSES)
+  NCURSES::NCURSES "${FROM_CHARS_LINKER_FLAGS}")
 
 set_target_properties(EosCommon-Static PROPERTIES
   POSITION_INDEPENDENT_CODE TRUE)

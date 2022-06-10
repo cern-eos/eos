@@ -93,3 +93,45 @@ if (TSAN)
 
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=thread")
 endif()
+
+
+# from_chars will invoke __builtin_mul_overflow to check for promoting
+# integer types
+macro(try_compile_from_chars
+        from_chars_link_flags
+        from_chars_compile_result)
+  set(_from_chars_compiler_args CXX_STANDARD 17)
+  if (NOT from_chars_link_flags STREQUAL "")
+    list(APPEND _from_chars_compiler_args
+            LINK_LIBRARIES ${from_chars_link_flags})
+  endif()
+  try_compile(_from_chars_compile_result
+          ${CMAKE_CURRENT_BINARY_DIR}
+          SOURCES "${CMAKE_CURRENT_LIST_DIR}/fromchars.cpp"
+          ${_from_chars_compiler_args})
+  set(${from_chars_compile_result} ${_from_chars_compile_result})
+  if (_from_chars_compile_result)
+    message(STATUS "Compiler supports std::from_chars")
+  else()
+    message(STATUS "No compiler support with std::from_chars")
+  endif()
+endmacro()
+
+# For clang with  fsantize=undefined will go for 4 word multiply calling _mulodi4 which
+# is only implemented by compiler-rt, see https://bugs.llvm.org/show_bug.cgi?id=16404
+# and https://bugs.llvm.org/show_bug.cgi?id=28629 we add these flags only for clang compiler
+# Additionally clang minor versions of 7 may not be patched with https://bugzilla.redhat.com/show_bug.cgi?id=1657544
+try_compile_from_chars("" from_chars_compiles)
+if (NOT from_chars_compiles)
+  if("${CMAKE_CXX_COMPILER_ID}" MATCHES Clang)
+    message(STATUS "Trying new linker flags for from_chars")
+    set(FROM_CHARS_LINKER_FLAGS "-rtlib=compiler-rt -lgcc_s")
+    try_compile_from_chars("${FROM_CHARS_LINKER_FLAGS}" from_chars_compiles)
+  endif()
+  if (NOT from_chars_compiles)
+    message(FATAL_ERROR "Cannot compile from_chars")
+  else()
+    message(STATUS "Adding linker flags for std::from_chars ${FROM_CHARS_LINKER_FLAGS}")
+  endif()
+endif()
+
