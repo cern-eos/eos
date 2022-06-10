@@ -137,7 +137,8 @@ for TEST_FILE in ${EOS_CONVERTER_DIR}/test_replica.dat ${EOS_CONVERTER_DIR}/test
      s/layout=[[:alnum:]]\+[[:space:]]//g;
      s/nstripes=[[:digit:]]\+[[:space:]]//g;
      s/lid=[[:digit:]]\+[[:space:]]//g;
-     s/nrep=[[:digit:]]\+[[:space:]]//g
+     s/nrep=[[:digit:]]\+[[:space:]]//g;
+     s/xattrn=sys.fs.tracking xattrv=[-/+[:digit:]]\+[[:space:]]//g
    }' | xargs")
 
   if [[ "${ORIG_FINFO}" != "${NEW_FINFO}" ]]; then
