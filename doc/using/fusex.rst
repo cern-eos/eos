@@ -259,6 +259,7 @@ File State Tracking for eosxd
 The namespace registers the state changes of a file inside the extended attribute *sys.fusex.state*.
 
 The extended attribute can track up to 127 operations, then gets truncated to half. A truncation is indicated with a leading *|>* in the attribute.
+
 Possible state flags are:
 
 * C      := File has been created by the FuseServer
@@ -276,3 +277,44 @@ Possible state flags are:
 * V      := Replica has been verified for the size
 * |      := Terminates a commit sequence started with +fs
 * |>     := tracked operations exceeded 127 and the attribute has been truncated
+
+
+Example:
+
+.. code-block:: bash
+
+   [root@eos ]# eos attr ls /eos/file
+                ...
+                sys.fusex.state="CU±+2sc|+1v|U±+2sc|+1v|U±+2sc|+1v|"
+                ...
+
+This examples show the creation "C", the file size update "U±", a commit from filesystem 2 with checksum and size "+2sc", a commit from filesystem 1 with checksum verification "+1v", then subsequent two update sequences to the file resulting in filesize change.
+
+
+Replica/Chunk Tracking 
+----------------------
+
+The namespace registers all replica/stripe create,unlink and delete operation inside the extended attribute *sys.fs.tracking*.
+
+The extended attribute truncates when it exceeds 127 letters to half. A truncation is nidicated with a leading *|>* in the attribute.
+
+Possible indicators are:
+
+* +fsid  := a replica/stripe was attached on filesystem fsid
+* -fsid  := a replica/stripe has been unlinked for filesystem fsid
+* /fsid  := a replica/stripe has been deleted on filesystem fsid
+
+Example:
+
+.. code-block:: bash
+  
+   [root@eos  ]# eos attr ls /eos/file
+                 ...
+                 sys.fs.tracking="+1+2+3+4-1-2/1/2"
+                 ...
+
+This examples shows the how replicas are attached on filesystems 1,2,3,4, then unlinked on 1,2 and finally deleted on 1,2. 
+
+
+
+  
