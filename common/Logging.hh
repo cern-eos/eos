@@ -509,8 +509,8 @@ public:
   LogCircularIndex gLogCircularIndex; //< global circular index
   LogArray gLogMemory; //< global logging memory
   unsigned long gCircularIndexSize; //< global circular index size
-  int gLogMask; //< log mask
-  int gPriorityLevel; //< log priority
+  std::atomic<int> gLogMask; //< log mask
+  std::atomic<int> gPriorityLevel; //< log priority
   bool gToSysLog; //< duplicate into syslog
   XrdSysMutex gMutex; //< global mutex
   XrdOucString gUnit; //< global unit name
