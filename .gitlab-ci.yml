@@ -389,8 +389,6 @@ build_fedora_rawhide:
 .build_cc7_exotic-template: &build_cc7_exotic-template_definition
   stage: build:rpm
   image: gitlab-registry.cern.ch/dss/eos/prebuild-cc7-${CODENAME}
-  variables:
-    SERVER_OPTIONS: "--with server"
   script:
     - git submodule update --init --recursive
     - mkdir build
@@ -408,7 +406,7 @@ build_fedora_rawhide:
       fi
     - yum-builddep --nogpgcheck --setopt="cern*.exclude=xrootd*" -y build/SRPMS/*
     - if [[ -n "$CI_COMMIT_TAG" ]]; then export CCACHE_DISABLE=1; else source gitlab-ci/setup_ccache.sh; fi
-    - rpmbuild --rebuild ${SERVER_OPTIONS} ${RPMBUILD_OPTIONS} --define "_rpmdir build/RPMS/" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" build/SRPMS/* | ts
+    - rpmbuild --rebuild ${RPMBUILD_OPTIONS} --define "_rpmdir build/RPMS/" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" build/SRPMS/* | ts
     - ccache -s
     - if [[ -n "$CI_COMMIT_TAG" ]]; then gpg --import $STCI_REPO_KEY; printf "" | setsid rpmsign --define='%_gpg_name stci@cern.ch' --define='%_signature gpg' --addsign build/RPMS/*.rpm; fi
     - mkdir ${BUILD_NAME}_artifacts; cp -R build/SRPMS/ build/RPMS/ ${BUILD_NAME}_artifacts
@@ -428,7 +426,7 @@ build_cc7_asan:
   variables:
     BUILD_NAME: cc7_asan
     CMAKE_OPTIONS: "-DASAN=1"
-    RPMBUILD_OPTIONS: "--with asan"
+    RPMBUILD_OPTIONS: "--with server --with asan"
     CXXFLAGS: "-Wno-parentheses"    # Avoid boost header compilation errors
   before_script:
     - yum install -y cmake3 centos-release-scl devtoolset-8
@@ -443,8 +441,7 @@ build_client_cc7_tsan:
     BUILD_NAME: cc7_tsan
     CMAKE_OPTIONS: "-DTSAN=1"
     RPMBUILD_OPTIONS: "--with tsan"
-    SERVER_OPTIONS: "" # drop server build 
-    CXXFLAGS: "-Wno-parentheses"
+        CXXFLAGS: "-Wno-parentheses"
   before_script:
     - yum install -y cmake3 centos-release-scl devtoolset-8
     - yum install -y libtsan --disablerepo=* --enablerepo=centos-sclo-rh
