@@ -3020,13 +3020,17 @@ std::string
 data::datax::url()
 /* -------------------------------------------------------------------------- */
 {
-  std::string p;
 
-  if (mFile->has_xrdiorw(mReq)) {
-    p = mFile->xrdiorw(mReq)->getLastUrl();
-  } else {
-    if (mFile->has_xrdioro(mReq)) {
-      p = mFile->xrdioro(mReq)->getLastUrl();
+  
+  std::string p;
+  {
+    XrdSysMutexHelper lLock(mLock);
+    if (mFile->has_xrdiorw(mReq)) {
+      p = mFile->xrdiorw(mReq)->getLastUrl();
+    } else {
+      if (mFile->has_xrdioro(mReq)) {
+	p = mFile->xrdioro(mReq)->getLastUrl();
+      }
     }
   }
 
