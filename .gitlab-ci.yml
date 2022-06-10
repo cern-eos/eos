@@ -441,7 +441,7 @@ build_client_cc7_tsan:
     BUILD_NAME: cc7_tsan
     CMAKE_OPTIONS: "-DTSAN=1"
     RPMBUILD_OPTIONS: "--with tsan"
-        CXXFLAGS: "-Wno-parentheses"
+    CXXFLAGS: "-Wno-parentheses"
   before_script:
     - yum install -y cmake3 centos-release-scl devtoolset-8
     - yum install -y libtsan --disablerepo=* --enablerepo=centos-sclo-rh
