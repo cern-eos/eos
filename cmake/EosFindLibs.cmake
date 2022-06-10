@@ -59,9 +59,10 @@ if(NOT PACKAGEONLY)
   find_package(Scitokens)
 
   if (Linux)
-    # Clang Linux build requires libatomic
+    # Clang Linux build requires libatomic & special flags for charconv
     if (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
       find_package(Atomic REQUIRED)
+      find_package(CharConv REQUIRED)
     endif()
 
     find_package(help2man)
@@ -154,4 +155,5 @@ else()
   add_library(ISAL::ISAL                   STATIC IMPORTED)
   add_library(ISAL::ISAL_CRYPTO            STATIC IMPORTED)
   add_library(XXHASH::XXHASH               STATIC IMPORTED)
+  add_library(CHARCONV::CHARCONV           INTERFACE IMPORTED)
 endif()
