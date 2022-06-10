@@ -430,6 +430,10 @@ build_cc7_asan:
     CMAKE_OPTIONS: "-DASAN=1"
     RPMBUILD_OPTIONS: "--with asan"
     CXXFLAGS: "-Wno-parentheses"    # Avoid boost header compilation errors
+  before_script:
+    - yum install -y cmake3 centos-release-scl devtoolset-8
+    - yum install -y devtoolset-8-libasan-devel # explicitly install libasan from devtoolset-8
+    - source /opt/rh/devtoolset-8/enable && gcc --version
   when: manual
   allow_failure: true
 
