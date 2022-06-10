@@ -41,6 +41,7 @@ Improvement
 * [EOS-5290] - File close operation for RAIN layouts can trigger client timeouts
 * MGM: Tape REST API v0.1 release - Support for ArchiveInfo and Release
   functionality + discovery endpoint
+* MISC: Allow the eos-iam-mapfile tool to deal with DNs containing commas
 
 
 ``v5.0.24 Diopside``
