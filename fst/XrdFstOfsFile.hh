@@ -291,7 +291,9 @@ public:
     kOfsMaxSizeError = 2, //! maximum file size error
     kOfsDiskFullError = 3, //! disk full error
     kOfsSimulatedIoError = 4, //! simulated IO error
-    kOfsFsRemovedError = 5 //! filesystem has been unregistered
+    kOfsFsRemovedError = 5, //! filesystem has been unregistered
+    kOfsSimulatedCloseError = 6, //! simulated error when closing the file
+    kOfsSimulatedUnresponsive = 7 // ! simulated unresponsivness of an FST
   };
 
 ///< In-memory file meta data object

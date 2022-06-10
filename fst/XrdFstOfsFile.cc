@@ -865,6 +865,12 @@ XrdSfsXferSize
 XrdFstOfsFile::write(XrdSfsFileOffset fileOffset, const char* buffer,
                      XrdSfsXferSize buffer_size)
 {
+
+  if (gOFS.mSimUnresponsive) {
+    eos_warning("simulating unresponsiveness in write delaying by 120s");
+    std::this_thread::sleep_for(std::chrono::seconds(120));
+  }
+
   if (mIsDevNull) {
     eos_debug("offset=%llu, length=%li discarded for sink file", fileOffset,
               buffer_size);
@@ -1224,6 +1230,11 @@ XrdFstOfsFile::truncate(XrdSfsFileOffset fsize)
 int
 XrdFstOfsFile::close()
 {
+  if (gOFS.mSimUnresponsive) {
+    eos_warning("simulating unresponsiveness in close delaying by 120s");
+    std::this_thread::sleep_for(std::chrono::seconds(120));
+  }
+  
   // Reset the error.getErrInfo() value to 0 since this was hijacked by the
   // XrdXrootdFile object to store the actual file descriptor corresponding to
   // the current object. This was confusing when logging the error.getErrInfo()
@@ -1713,8 +1724,16 @@ XrdFstOfsFile::_close()
     }
 
     closerc = mLayout->Close();
+
+    if (gOFS.mSimCloseErr) {
+      // simulate an error during the close call
+      closerc = 1;
+    }
+
     rc |= closerc;
     closed = true;
+
+
 
     if (closerc || (mRainReconstruct && hasReadError)) {
       // For RAIN layouts if there is an error on close when writing then we
@@ -1725,7 +1744,7 @@ XrdFstOfsFile::_close()
       } else {
         // Some (remote) replica didn't make it through ... trigger an auto-repair
         if (!deleteOnClose) {
-          repairOnClose = true;
+	  repairOnClose = true;
         }
       }
     }
