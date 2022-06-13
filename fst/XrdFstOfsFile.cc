@@ -865,7 +865,6 @@ XrdSfsXferSize
 XrdFstOfsFile::write(XrdSfsFileOffset fileOffset, const char* buffer,
                      XrdSfsXferSize buffer_size)
 {
-
   if (gOFS.mSimUnresponsive) {
     eos_warning("simulating unresponsiveness in write delaying by 120s");
     std::this_thread::sleep_for(std::chrono::seconds(120));
@@ -1234,7 +1233,7 @@ XrdFstOfsFile::close()
     eos_warning("simulating unresponsiveness in close delaying by 120s");
     std::this_thread::sleep_for(std::chrono::seconds(120));
   }
-  
+
   // Reset the error.getErrInfo() value to 0 since this was hijacked by the
   // XrdXrootdFile object to store the actual file descriptor corresponding to
   // the current object. This was confusing when logging the error.getErrInfo()
@@ -1509,7 +1508,8 @@ XrdFstOfsFile::_close()
             // Update size
             closeSize = statinfo.st_size;
             mFmd->mProtoFmd.set_size(statinfo.st_size);
-            mFmd->mProtoFmd.set_disksize(statinfo.st_size);
+            mFmd->mProtoFmd.set_disksize
+            (eos::common::LayoutId::ExpectedStripeSize(mLid, statinfo.st_size));
             // Reset the diskchecksum after an update otherwise we might falsely report
             // a checksum error. The diskchecksum will be updated by the scanner.
             mFmd->mProtoFmd.set_diskchecksum("");
@@ -1733,8 +1733,6 @@ XrdFstOfsFile::_close()
     rc |= closerc;
     closed = true;
 
-
-
     if (closerc || (mRainReconstruct && hasReadError)) {
       // For RAIN layouts if there is an error on close when writing then we
       // delete the whole file. If we do RAIN reconstruction we cleanup this
@@ -1744,7 +1742,7 @@ XrdFstOfsFile::_close()
       } else {
         // Some (remote) replica didn't make it through ... trigger an auto-repair
         if (!deleteOnClose) {
-	  repairOnClose = true;
+          repairOnClose = true;
         }
       }
     }
