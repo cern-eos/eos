@@ -187,33 +187,37 @@ int Inspector::scan(const std::string& rootPath, bool relative, bool rawPaths,
   ExplorationOptions explorerOpts;
   explorerOpts.ignoreFiles = noFiles;
   explorerOpts.depthLimit = maxDepth;
-  if (!trimPaths.empty()){
+
+  if (!trimPaths.empty()) {
     try {
       auto expT = new ExpansionTrim(std::regex(trimPaths));
       explorerOpts.expansionDecider.reset(expT);
-    }
-    catch (const std::regex_error& e) {
-        std::cout << "regex_error caught: " << e.what() << '\n';
-        if (e.code() == std::regex_constants::error_brack) {
-            std::cout << "The code was error_brack\n";
-        }
+    } catch (const std::regex_error& e) {
+      std::cout << "regex_error caught: " << e.what() << '\n';
+
+      if (e.code() == std::regex_constants::error_brack) {
+        std::cout << "The code was error_brack\n";
+      }
     }
   }
 
   NamespaceItem item;
   std::unique_ptr<folly::Executor> executor(new folly::IOThreadPoolExecutor(4));
   std::unique_ptr<NamespaceExplorer> explorer = nullptr;
+
   try {
-    explorer = std::unique_ptr<NamespaceExplorer>(new NamespaceExplorer(rootPath, explorerOpts, mQcl, executor.get()));
+    explorer = std::unique_ptr<NamespaceExplorer>(new NamespaceExplorer(rootPath,
+               explorerOpts, mQcl, executor.get()));
   } catch (const eos::MDException& exc) {
     mOutputSink.err(SSTR("NamespaceExplorer -- " << exc.what()));
     return 1;
   }
-  while(explorer->fetch(item)) {
-      
+
+  while (explorer->fetch(item)) {
     if (noDirs && !item.isFile) {
       continue;
     }
+
     std::string outputPath = constructPath(rootPath, item.fullPath, relative);
 
     if (rawPaths) {
@@ -232,6 +236,7 @@ int Inspector::scan(const std::string& rootPath, bool relative, bool rawPaths,
       continue;
     }
   }
+
   return 0;
 }
 
@@ -248,12 +253,15 @@ int Inspector::dump(const std::string& dumpPath, bool relative, bool rawPaths,
   std::unique_ptr<folly::Executor> executor(new folly::IOThreadPoolExecutor(4));
   NamespaceItem item;
   std::unique_ptr<NamespaceExplorer> explorer = nullptr;
+
   try {
-    explorer = std::unique_ptr<NamespaceExplorer>(new NamespaceExplorer(dumpPath, explorerOpts, mQcl, executor.get()));
+    explorer = std::unique_ptr<NamespaceExplorer>(new NamespaceExplorer(dumpPath,
+               explorerOpts, mQcl, executor.get()));
   } catch (const eos::MDException& exc) {
     mOutputSink.err(SSTR("NamespaceExplorer -- " << exc.what()));
     return 1;
   }
+
   while (explorer->fetch(item)) {
     if (noDirs && !item.isFile) {
       continue;
@@ -690,7 +698,7 @@ int Inspector::stripediff()
     FileScanner::Item item;
     eos::ns::FileMdProto proto;
 
-    if (!fileScanner.getItem(proto,&item)) {
+    if (!fileScanner.getItem(proto, &item)) {
       break;
     }
 
@@ -707,11 +715,13 @@ int Inspector::stripediff()
     if (actual != expected && size != 0) {
       // Use output sink for complete report / json
       std::map<std::string, std::string> extended;
-      extended["path"] =  fetchNameOrPath(proto,item);
+      extended["path"] =  fetchNameOrPath(proto, item);
       extended["actual-stripes"] = std::to_string(actual);
       extended["expected-stripes"] = std::to_string(expected);
       extended["unlinked-stripes"] = std::to_string(unlinked);
-      mOutputSink.printWithAdditionalFields(proto, filePrintingOpts, extended);  
+      mOutputSink.printWithAdditionalFields(proto, filePrintingOpts, extended);
+    } else {
+      (void) fetchNameOrPath(proto, item);
     }
 
     fileScanner.next();
