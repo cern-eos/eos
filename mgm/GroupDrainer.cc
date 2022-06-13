@@ -289,10 +289,16 @@ GroupDrainer::scheduleTransfer(eos::common::FileId::fileid_t fid,
 {
   if (src_grp.empty() || tgt_grp.empty()) {
     eos_err("%s", "msg=\"Got empty transfer groups!\"");
+    return;
   }
 
   uint64_t filesz;
   auto conv_tag = getFileProcTransferNameAndSize(fid, tgt_grp, &filesz);
+  if (conv_tag.empty()) {
+    eos_err("msg=\"Possibly failed proc file found\" fid=%08llx", fid);
+    return;
+  }
+
   conv_tag += "^groupdrainer^";
   conv_tag.erase(0, gOFS->MgmProcConversionPath.length()+1);
   if (gOFS->mConverterDriver->ScheduleJob(fid, conv_tag)) {

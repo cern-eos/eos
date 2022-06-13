@@ -217,6 +217,11 @@ ConverterDriver::ScheduleJob(const eos::IFileMD::id_t& id,
     return false;
   }
 
+  if (conversion_info.empty()) {
+    eos_static_err("msg=\"Invalid conversion_info string for file\" fid=%08llx", id);
+    return false;
+  }
+
   if (!gOFS->mFidTracker.AddEntry(id, TrackerType::Convert)) {
     eos_static_debug("msg=\"skip recently scheduled file\" fxid=%08llx", id);
     return false;
