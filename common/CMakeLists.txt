@@ -187,7 +187,7 @@ set_target_properties(EosCommon PROPERTIES
 
 add_library(EosCommon-Static STATIC $<TARGET_OBJECTS:EosCommon-Objects>)
 
-target_link_libraries(EosCommon-Static PUBLIC
+set(EosCommonLinkLibs
   EosCommon-Objects
   EosFstProto-Objects
   EosCliProto-Objects
@@ -195,7 +195,15 @@ target_link_libraries(EosCommon-Static PUBLIC
   XROOTD::CL
   UUID::UUID
   ZLIB::ZLIB_STATIC
-  NCURSES::NCURSES "${FROM_CHARS_LINKER_FLAGS}")
+  NCURSES::NCURSES)
+
+if (CHARCONV_FOUND)
+  LIST(APPEND EosCommonLinkLibs "CHARCONV::CHARCONV")
+endif()
+
+
+target_link_libraries(EosCommon-Static PUBLIC
+  ${EosCommonLinkLibs})
 
 set_target_properties(EosCommon-Static PROPERTIES
   POSITION_INDEPENDENT_CODE TRUE)
