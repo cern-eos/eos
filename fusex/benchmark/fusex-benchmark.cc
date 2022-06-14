@@ -31,7 +31,8 @@
 #define LOOP_17 1234
 #define LOOP_18 100
 #define LOOP_19 100
-#define LOOP_20 10
+#define LOOP_20 100
+#define LOOP_21 10000
 
 int main(int argc, char* argv[])
 {
@@ -842,7 +843,7 @@ int main(int argc, char* argv[])
     char rbuffer[1024];
     sprintf(buffer,"https://git.test.cern.ch");
 
-    for (size_t i = 0; i < LOOP_19; i++) {
+    for (size_t i = 0; i < LOOP_20; i++) {
 
       int fd = creat("config.lock", S_IRWXU);
       if (fd < 0) {
@@ -884,6 +885,18 @@ int main(int argc, char* argv[])
       close(fd);
     }
     COMMONTIMING("version-rename-loop", &tm);
+  }
+
+  // ------------------------------------------------------------------------ //
+  testno = 21;
+
+  if ((testno >= test_start) && (testno <= test_stop)) {
+    fprintf(stderr, ">>> test %04d\n", testno);
+    struct stat buf;
+    for (size_t i = 0 ; i< LOOP_21; ++i) {
+      ::stat("_does_not_exist", &buf);
+    }
+    COMMONTIMING("repeat-enoent", &tm);
   }
 
   tm.Print();
