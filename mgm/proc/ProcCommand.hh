@@ -25,6 +25,7 @@
 #include "mgm/Namespace.hh"
 #include "IProcCommand.hh"
 #include "XrdOuc/XrdOucEnv.hh"
+#include "namespace/interface/IView.hh"
 #include <iomanip>
 
 //! Forward declaration
@@ -306,6 +307,12 @@ public:
   //! table format
   //----------------------------------------------------------------------------
   bool KeyValToHttpTable(XrdOucString& stdOut);
+
+  //----------------------------------------------------------------------------
+  //! Helper function to classify the current file state
+  //----------------------------------------------------------------------------
+
+  std::string  FileMDToStatus(std::shared_ptr<eos::IFileMD> fmd);
 
   //----------------------------------------------------------------------------
   //! Return the name of the command
