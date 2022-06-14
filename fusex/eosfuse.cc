@@ -2697,6 +2697,7 @@ EosFuse::lookup(fuse_req_t req, fuse_ino_t parent, const char* name)
 
       if (e.entry_timeout) {
         rc = 0;
+	md->set_err(0);
       } else {
         rc = md->deleted() ? ENOENT : md->err();
       }
@@ -2718,8 +2719,8 @@ EosFuse::lookup(fuse_req_t req, fuse_ino_t parent, const char* name)
     eos_static_notice("t(ms)=%.03f %s", timing.RealTime(),
                       dump(id, parent, 0, rc, name).c_str());
   } else {
-    eos_static_notice("t(ms)=%.03f ENOENT pino=%#lx name=%s lifetime=%.02f",
-                      timing.RealTime(), parent, name, e.entry_timeout);
+    eos_static_notice("t(ms)=%.03f ENOENT pino=%#lx name=%s lifetime=%.02f rc=%d",
+                      timing.RealTime(), parent, name, e.entry_timeout, rc);
   }
 
   if (rc) {
