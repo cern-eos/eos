@@ -330,7 +330,6 @@ build_ubuntu_focal:
   only:
     - schedules
     - tags
-    - eos5
 
 .build_fedora-template: &build_fedora-template_definition
   stage: build:rpm
