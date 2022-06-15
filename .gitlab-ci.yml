@@ -292,6 +292,7 @@ build_cs9_arm:
     # Priority >= 1000 causes a version to be installed even if this constitutes a downgrade of the package
     - export XROOTD_VERSION=$(grep "define xrootd_version_min" eos.spec.in | awk -F ':' '{print $2;}')
     - echo -e "Package:"" xrootd* libxrd* libxrootd*\nPin:"" version $XROOTD_VERSION\nPin-Priority:"" 1000" > /etc/apt/preferences.d/xrootd.pref
+    - sed -e "s/_XRD_DEB_VER_/$XROOTD_VERSION/g" debian/control.template > debian/control
     - mk-build-deps --build-dep debian/control
     - gdebi -n eos-build-deps-depends*.deb
     - dch --create -v `./genversion.sh` --package eos --urgency low --distribution ${EOS_DIST} -M "This package is built and released automatically. For important notices and releases subscribe to our mailing lists or visit our website."
@@ -329,7 +330,7 @@ build_ubuntu_focal:
   only:
     - schedules
     - tags
-
+    - eos5
 
 .build_fedora-template: &build_fedora-template_definition
   stage: build:rpm

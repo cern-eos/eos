@@ -50,3 +50,4 @@ my_clang_cache.cmake
 # documentation artifacts
 doc/_build/
 doc/html/
+debian/control
