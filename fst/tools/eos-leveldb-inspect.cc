@@ -85,12 +85,12 @@ private:
 void print_usage(const char* prg_name)
 {
   std::cerr << "Usage: : " << prg_name << " --dbpath <full_path> "
-            << "[--dump_ids] [--fid <fid_dec>] [--fsck] [--verbose_fsck]"
+            << "[--dump_ids] [--fid <fid> | --fxid <fxid>] [--fsck] [--verbose_fsck]"
             << std::endl
             << "   --dump_ids      :"
             << "dumpd the decimal file ids stored in the DB" << std::endl
-            << "   --fid <fid_dec> : "
-            << " display stored metadata info about given file id"
+            << "   --fid <fid> | --fxid <fxid> : "
+            << " display stored metadata info about given file id decimal/hex"
             << std::endl
             << "   --fsck          : "
             << " display fsck inconsistencies counters" << std::endl
@@ -355,6 +355,7 @@ int main(int argc, char* argv[])
   static struct option long_options[] = {
     {"dbpath",           required_argument, 0,   0 },
     {"fid",              required_argument, 0,   0 },
+    {"fxid",             required_argument, 0,   0 },
     {"dump_ids",         no_argument,       0,  'e'},
     {"fsck",             no_argument,       0,  'f'},
     {"verbose_fsck",     no_argument,       0,  'v'},
@@ -371,8 +372,25 @@ int main(int argc, char* argv[])
         if (*dbpath.rbegin() != '/') {
           dbpath += "/";
         }
-      } else if (strcmp(long_options[long_index].name, "fid") == 0) {
+      } else if (strncmp(long_options[long_index].name, "fid", 3) == 0) {
         sfid = optarg;
+      } else if (strncmp(long_options[long_index].name, "fxid", 4) == 0) {
+        const std::string sarg = optarg;
+        size_t pos = 0;
+        uint64_t fid {0ull};
+
+        try {
+          fid = std::stoull(sarg, &pos, 16);
+
+          if (pos != sarg.size()) {
+            throw std::invalid_argument("failed fxid conversion");
+          }
+        } catch (...) {
+          std::cerr << "error: failed to convert fxid" << std::endl;
+          return -1;
+        }
+
+        sfid = std::to_string(fid);
       }
 
       break;
