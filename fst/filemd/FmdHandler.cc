@@ -773,6 +773,38 @@ eos::fst::FmdHandler::make_fmd_helper(common::FileId::fileid_t fid,
   return fmd;
 }
 
+bool
+FmdHandler::Convert(eos::common::FileId::fileid_t fid,
+                    eos::common::FileSystem::fsid_t fsid,
+                    FmdHandler* const target_fmd_handler,
+                    bool lock_it)
+{
+  auto [ok, fmd] = this->LocalRetrieveFmd(fid, fsid);
+  if (!ok) {
+    return false;
+  }
+
+  return target_fmd_handler->Commit(&fmd, lock_it);
+
+}
+bool
+FmdHandler::ConvertFrom(eos::common::FileId::fileid_t fid,
+                        eos::common::FileSystem::fsid_t fsid,
+                        FmdHandler* const src_fmd_handler, bool lock_it)
+{
+  auto [ok, _] = this->LocalRetrieveFmd(fid, fsid);
+  if (!ok) {
+    return true;
+  }
+
+  auto [status, fmd] = src_fmd_handler->LocalRetrieveFmd(fid, fsid);
+  if (!status) {
+    return false;
+  }
+
+  return Commit(&fmd, lock_it);
+}
+
 void
 UpdateInconsistencyStats(
     const eos::common::FmdHelper& fmd,
@@ -864,6 +896,7 @@ UpdateInconsistencyStats(
     }
   }
 }
+
 
 
 EOSFSTNAMESPACE_END

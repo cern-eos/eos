@@ -738,4 +738,29 @@ FmdDbMapHandler::LocalPutFmd(eos::common::FileId::fileid_t fid,
   }
 }
 
+void
+FmdDbMapHandler::ConvertAllFmd(eos::common::FileSystem::fsid_t fsid,
+                               FmdHandler* const target_fmd_handler)
+{
+  const eos::common::DbMapTypes::Tkey* k;
+  const eos::common::DbMapTypes::Tval* v;
+  //eos::common::DbMapTypes::Tval val;
+  FsReadLock fs_rd_lock(this, fsid);
+
+  for (mDbMap[fsid]->beginIter(false);
+       mDbMap[fsid]->iterate(&k, &v, false);) {
+
+    eos::common::FmdHelper f;
+    auto& proto_fmd = f.mProtoFmd;
+    proto_fmd.ParseFromString(v->value);
+
+    auto [status, _] = target_fmd_handler->LocalRetrieveFmd(fsid, proto_fmd.fid());
+    if (status) {
+      continue;
+    }
+
+    target_fmd_handler->Commit(&f);
+  }
+}
+
 EOSFSTNAMESPACE_END

@@ -277,6 +277,9 @@ public:
   //----------------------------------------------------------------------------
   bool IsSyncing(eos::common::FileSystem::fsid_t fsid) const;
 
+
+  void ConvertAllFmd(eos::common::FileSystem::fsid_t fsid,
+                     FmdHandler * const target_fmd_handler);
 private:
   std::map<eos::common::FileSystem::fsid_t, eos::common::DbMap*> mDbMap;
   mutable eos::common::RWMutex mMapMutex; ///< Mutex protecting the Fmd handler

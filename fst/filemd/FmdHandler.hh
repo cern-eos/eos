@@ -283,6 +283,21 @@ public:
                                           std::map<std::string,
                                               std::set <eos::common::FileId::fileid_t>>& fidset) = 0;
 
+
+  virtual bool Convert(eos::common::FileId::fileid_t fid,
+                       eos::common::FileSystem::fsid_t fsid,
+                       FmdHandler * const target_fmd_handler,
+                       bool lock_it);
+
+  virtual std::pair<bool,eos::common::FmdHelper>
+  LocalRetrieveFmd(eos::common::FileId::fileid_t fid,
+                   eos::common::FileSystem::fsid_t fsid) = 0;
+
+  virtual bool ConvertFrom(eos::common::FileId::fileid_t fid,
+                           eos::common::FileSystem::fsid_t fsid,
+                           FmdHandler * const src_fmd_handler,
+                           bool lock_it);
+
 private:
 
   // Virtual private methods are overrideable at derived classes, this allows
@@ -292,9 +307,6 @@ private:
                            eos::common::FileSystem::fsid_t fsid,
                            const eos::common::FmdHelper& fmd) = 0;
 
-  virtual std::pair<bool,eos::common::FmdHelper>
-  LocalRetrieveFmd(eos::common::FileId::fileid_t fid,
-                   eos::common::FileSystem::fsid_t fsid) = 0;
 
 
   virtual bool ResetDiskInformation(eos::common::FileSystem::fsid_t fsid) = 0;
