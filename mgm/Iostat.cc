@@ -103,23 +103,32 @@ void GetTopLevelDomains(std::set<std::string>& domains)
       std::string tld;
 
       while ((line = tokenizer.GetLine())) {
+	std::string sline = line;
         // Skip commented lines
-        if (*line == '#') {
+        if (sline.front() == '#') {
           continue;
         }
+	if (sline.empty()) {
+	  continue;
+	}
 
         tld = ".";
-        tld += line;
+        tld += LC_STRING(sline);
         domains.insert(tld);
+	eos_static_debug("domain='%s'", tld.c_str());
       }
     }
+
+    eos_static_info("msg=\"%d domains loaded\" url=\"%s\"", domains.size(), url.c_str());
+
   }
 
   // If there were any issues then we add some default values
   if (domains.empty()) {
     domains = {".ch", ".it", ".ru", ".de", ".nl", ".fr", ".se", ".ro",
                ".su", ".no", ".dk", ".cz", ".uk", ".se", ".org", ".edu"
-              };
+    };
+    eos_static_info("msg=\"%d default domains configured\"", domains.size());
   }
 }
 }
@@ -387,15 +396,6 @@ Iostat::Iostat():
   mQcl(nullptr), mReport(true), mReportNamespace(false), mReportPopularity(true),
   mHashKeyBase("")
 {
-  GetTopLevelDomains(IoDomains);
-  // push default nodes to watch TODO: make generic
-  IoNodes.insert("lxplus"); // CERN interactive cluster
-  IoNodes.insert("lxb"); // CERN batch cluster
-  IoNodes.insert("pb-d-128-141"); // CERN DHCP
-  IoNodes.insert("aldaq"); // ALICE DAQ
-  IoNodes.insert("cms-cdr"); // CMS DAQ
-  IoNodes.insert("pc-tdq"); // ATLAS DAQ
-
   for (size_t i = 0; i < IOSTAT_POPULARITY_HISTORY_DAYS; i++) {
     IostatPopularity[i].set_deleted_key("");
     IostatPopularity[i].resize(100000);
@@ -444,6 +444,12 @@ Iostat::Init(const std::string& instance_name, int port,
   mHashKeyBase = SSTR("eos-iostat:" << instance_name << ":");
   mFlusherPath = SSTR("/var/eos/ns-queue/" << instance_name << ":" << port
                       << "_iostat");
+
+
+  GetTopLevelDomains(IoDomains);
+  // push default nodes to watch TODO: make generic
+  IoNodes.insert("lxplus"); // CERN interactive cluster
+  IoNodes.insert("b7"); // CERN batch cluster
 
   if (gOFS) {
     // QDB namespace, initialize qclient
