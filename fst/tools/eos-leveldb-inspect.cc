@@ -195,72 +195,7 @@ void DumpFsckStats(eos::common::DbMap& db, bool verbose = false)
   for (db.beginIter(false); db.iterate(&k, &v, false);) {
     eos::common::FmdHelper f;
     f.mProtoFmd.ParseFromString(v->value);
-
-    if (f.mProtoFmd.layouterror()) {
-      if (f.mProtoFmd.layouterror() & LayoutId::kOrphan) {
-        statistics["orphans_n"]++;
-        fid_set["orphans_n"].insert(f.mProtoFmd.fid());
-      }
-
-      if (f.mProtoFmd.layouterror() & LayoutId::kUnregistered) {
-        statistics["unreg_n"]++;
-        fid_set["unreg_n"].insert(f.mProtoFmd.fid());
-      }
-
-      if (f.mProtoFmd.layouterror() & LayoutId::kReplicaWrong) {
-        statistics["rep_diff_n"]++;
-        fid_set["rep_diff_n"].insert(f.mProtoFmd.fid());
-      }
-
-      if (f.mProtoFmd.layouterror() & LayoutId::kMissing) {
-        statistics["rep_missing_n"]++;
-        fid_set["rep_missing_n"].insert(f.mProtoFmd.fid());
-      }
-    }
-
-    if (f.mProtoFmd.mgmsize() != eos::common::FmdHelper::UNDEF) {
-      statistics["m_sync_n"]++;
-
-      if (f.mProtoFmd.size() != eos::common::FmdHelper::UNDEF) {
-        // Report missmatch only for non-rain layout files
-        if (!LayoutId::IsRain(f.mProtoFmd.lid()) &&
-            f.mProtoFmd.size() != f.mProtoFmd.mgmsize()) {
-          statistics["m_mem_sz_diff"]++;
-          fid_set["m_mem_sz_diff"].insert(f.mProtoFmd.fid());
-        }
-      }
-    }
-
-    if (!f.mProtoFmd.layouterror()) {
-      if (f.mProtoFmd.size() && !LayoutId::IsRain(f.mProtoFmd.lid()) &&
-          f.mProtoFmd.diskchecksum().length() &&
-          (f.mProtoFmd.diskchecksum() != f.mProtoFmd.checksum())) {
-        statistics["d_cx_diff"]++;
-        fid_set["d_cx_diff"].insert(f.mProtoFmd.fid());
-      }
-
-      if (f.mProtoFmd.size() && !LayoutId::IsRain(f.mProtoFmd.lid()) &&
-          f.mProtoFmd.mgmchecksum().length() &&
-          (f.mProtoFmd.mgmchecksum() != f.mProtoFmd.checksum())) {
-        statistics["m_cx_diff"]++;
-        fid_set["m_cx_diff"].insert(f.mProtoFmd.fid());
-      }
-    }
-
-    statistics["mem_n"]++;
-
-    if (f.mProtoFmd.disksize() != eos::common::FmdHelper::UNDEF) {
-      statistics["d_sync_n"]++;
-
-      if (f.mProtoFmd.size() != eos::common::FmdHelper::UNDEF) {
-        // Report missmatch only for replica layout files
-        if ((f.mProtoFmd.size() != f.mProtoFmd.disksize()) &&
-            !LayoutId::IsRain(f.mProtoFmd.lid())) {
-          statistics["d_mem_sz_diff"]++;
-          fid_set["d_mem_sz_diff"].insert(f.mProtoFmd.fid());
-        }
-      }
-    }
+    CollectInconcistencies(f, statistics, fid_set);
   }
 
   // Display summary

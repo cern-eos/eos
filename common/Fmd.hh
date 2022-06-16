@@ -1,4 +1,3 @@
-
 /************************************************************************
  * EOS - the CERN Disk Storage System                                   *
  * Copyright (C) 2017 CERN/Switzerland                                  *
@@ -114,5 +113,19 @@ public:
 //! @return true if successful, otherwise false
 //------------------------------------------------------------------------------
 bool EnvToFstFmd(XrdOucEnv& env, FmdHelper& fmd);
+
+//------------------------------------------------------------------------------
+//! Populate data structures with any inconsistencies deteced while inspecting
+//! the FmdHelper object
+//!
+//! @param fmd file info object
+//! @param statistics map of errors to number of currences
+//! @param map of errors to file identifiers
+//------------------------------------------------------------------------------
+void
+CollectInconcistencies(const FmdHelper& fmd,
+                       std::map<std::string, size_t> statistics,
+                       std::map<std::string,
+                       std::set<eos::common::FileId::fileid_t>>& fidset);
 
 EOSCOMMONNAMESPACE_END
