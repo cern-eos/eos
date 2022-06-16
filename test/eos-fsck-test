@@ -122,7 +122,7 @@ function corrupt_m_mem_sz_diff2() {
   # Corrupt the size and disksize values registered in the db by appending
   # some data to the physical file and then triggering a file verify
   exec_cmd "eos-fst${FSID}" "echo \"dummy content\" >> ${LPATH}"
-  exec_cmd "eos-mgm" "eos file verify fxid:${FXID_M_MEM_SZ_DIFF2}"
+  exec_cmd "eos-mgm1" "eos file verify fxid:${FXID_M_MEM_SZ_DIFF2}"
 }
 
 # Corrupt file to generate d_cx_diff error
