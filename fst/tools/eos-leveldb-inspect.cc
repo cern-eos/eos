@@ -85,17 +85,15 @@ private:
 void print_usage(const char* prg_name)
 {
   std::cerr << "Usage: : " << prg_name << " --dbpath <full_path> "
-            << "[--dump_ids] [--fid <fid> | --fxid <fxid>] [--fsck] [--verbose_fsck]"
-            << std::endl
+            << "[--dump_ids] [--fid <fid> | --fxid <fxid>] [--fsck] [--verbose_fsck]\n"
             << "   --dump_ids      :"
-            << "dumpd the decimal file ids stored in the DB" << std::endl
+            << "dumpd the decimal file ids stored in the DB\n"
             << "   --fid <fid> | --fxid <fxid> : "
-            << " display stored metadata info about given file id decimal/hex"
-            << std::endl
-            << "   --fsck          : "
-            << " display fsck inconsistencies counters" << std::endl
+            << " display stored metadata info about given file id decimal/hex\n"
+            << "   --fsck          :"
+            << " display fsck inconsistencies counters\n"
             << "   --verbose_fsck  : "
-            << " display fsck counters together with the hex file ids"
+            << " display fsck counters together with the hex file ids\n"
             << std::endl;
 }
 
@@ -291,9 +289,9 @@ int main(int argc, char* argv[])
     {"dbpath",           required_argument, 0,   0 },
     {"fid",              required_argument, 0,   0 },
     {"fxid",             required_argument, 0,   0 },
-    {"dump_ids",         no_argument,       0,  'e'},
-    {"fsck",             no_argument,       0,  'f'},
-    {"verbose_fsck",     no_argument,       0,  'v'},
+    {"dump_ids",         no_argument,       0,   0 },
+    {"fsck",             no_argument,       0,   0 },
+    {"verbose_fsck",     no_argument,       0,   0 },
     {0,                  0,                 0,   0 }
   };
 

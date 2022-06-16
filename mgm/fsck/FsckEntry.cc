@@ -241,7 +241,9 @@ FsckEntry::RepairMgmXsSzDiff()
       xs_val = finfo->mFstFmd.mProtoFmd.diskchecksum();
       sz_val = finfo->mFstFmd.mProtoFmd.size();
 
-      if ((mgm_xs_val == xs_val) && (mMgmFmd.size() == sz_val)) {
+      if ((mgm_xs_val == xs_val) &&
+          (mMgmFmd.size() == sz_val) &&
+          (mMgmFmd.size() == finfo->mDiskSize)) {
         mgm_xs_sz_match = true;
         break;
       }
@@ -249,13 +251,17 @@ FsckEntry::RepairMgmXsSzDiff()
       uint64_t current_sz_val = finfo->mFstFmd.mProtoFmd.size();
       std::string current_xs_val = finfo->mFstFmd.mProtoFmd.diskchecksum();
 
-      if ((mgm_xs_val == current_xs_val) && (mMgmFmd.size() == current_sz_val)) {
+      if ((mgm_xs_val == current_xs_val) &&
+          (mMgmFmd.size() == current_sz_val) &&
+          (mMgmFmd.size() == finfo->mDiskSize)) {
         mgm_xs_sz_match = true;
         break;
       }
 
-      if ((xs_val != current_xs_val) || (sz_val != current_sz_val)) {
-        // There is a xs/size diff between two replicas, we can not fix this case
+      if ((xs_val != current_xs_val) ||
+          (sz_val != current_sz_val) ||
+          (sz_val != finfo->mDiskSize)) {
+        // There is a xs/size diff between two replicas, we can not fix
         disk_xs_sz_match = false;
         break;
       }
@@ -263,11 +269,62 @@ FsckEntry::RepairMgmXsSzDiff()
   }
 
   if (mgm_xs_sz_match) {
-    eos_warning("msg=\"mgm xs/size repair skip - found replica with matching "
-                "xs and size\" fxid=%08llx", mFid);
-    // The local info stored on of the the FSTs might be wrong, trigger a resync
-    ResyncFstMd(false);
-    return true;
+    std::set<eos::common::FileSystem::fsid_t> good_fsids;
+    std::set<eos::common::FileSystem::fsid_t> bad_fsids;
+
+    for (auto it = mFstFileInfo.cbegin(); it != mFstFileInfo.cend(); ++it) {
+      auto& finfo = it->second;
+
+      if ((mMgmFmd.size() != finfo->mFstFmd.mProtoFmd.size()) ||
+          (mMgmFmd.size() != finfo->mDiskSize) ||
+          (mgm_xs_val != finfo->mFstFmd.mProtoFmd.diskchecksum())) {
+        if ((mMgmFmd.size() != finfo->mDiskSize)) {
+          bad_fsids.insert(it->first);
+        } else {
+          // Trigger a resync of the FST info as it looks to be out of sync
+          ResyncFstMd(false);
+          return false;
+        }
+      } else {
+        good_fsids.insert(it->first);
+      }
+    }
+
+    if (good_fsids.empty()) {
+      eos_err("msg=\"mgm xs/size repair failed, no correct replicas\" "
+              "fxid=%08llx", mFid);
+      return false;
+    }
+
+    for (const auto bad_fsid : bad_fsids) {
+      DropReplica(bad_fsid);
+    }
+
+    bool all_repaired = true;
+
+    for (auto bad_fsid : bad_fsids) {
+      // Trigger an fsck repair job (much like a drain job) doing a TPC
+      auto repair_job = mRepairFactory(mFid, bad_fsid, 0, bad_fsids,
+                                       bad_fsids, true, "fsck");
+      repair_job->DoIt();
+
+      if (repair_job->GetStatus() != FsckRepairJob::Status::OK) {
+        eos_err("msg=\"mgm xs/size repair failed\" fxid=%08llx bad_fsid=%lu",
+                mFid, bad_fsid);
+        all_repaired = false;
+      } else {
+        eos_info("msg=\"mgm xs/size repair replica successful\" "
+                 "fxid=%08llx bad_fsid=%lu",  mFid, bad_fsid);
+      }
+    }
+
+    if (all_repaired) {
+      eos_info("msg=\"mgm xs/size repair successful\" fxid=%08llx", mFid);
+    } else {
+      eos_warning("msg=\"mgm xs/size repair failed\" fxid=%08llx", mFid);
+    }
+
+    return all_repaired;
   }
 
   if (disk_xs_sz_match && sz_val) {
@@ -309,7 +366,7 @@ FsckEntry::RepairMgmXsSzDiff()
     eos_info("msg=\"mgm xs/size repair successful\" fxid=%08llx old_mgm_xs=\"%s\" "
              "new_mgm_xs=\"%s\"", mFid, mgm_xs_val.c_str(), xs_val.c_str());
   } else {
-    eos_err("msg=\"mgm xs/size repair failed - no all disk xs/size match\" "
+    eos_err("msg=\"mgm xs/size repair failed - not all disk xs/size match\" "
             "fxid=%08llx", mFid);
   }
 
@@ -407,8 +464,8 @@ FsckEntry::RepairFstXsSzDiff()
 
   for (auto bad_fsid : bad_fsids) {
     // Trigger an fsck repair job (much like a drain job) doing a TPC
-    auto repair_job = mRepairFactory(mFid, bad_fsid, 0, {bad_fsids}, {},
-                                     true, "fsck");
+    auto repair_job = mRepairFactory(mFid, bad_fsid, 0, bad_fsids,
+                                     bad_fsids, true, "fsck");
     repair_job->DoIt();
 
     if (repair_job->GetStatus() != FsckRepairJob::Status::OK) {
