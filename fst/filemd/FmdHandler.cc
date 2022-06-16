@@ -308,11 +308,16 @@ FmdHandler::ResyncAllDisk(const char* path,
 
   uint64_t scan_sz=0;
   std::string scan_xs_hex;
-  auto ret = WalkFSTree(path,
-                        [&](const char* path) {
-                          this->ResyncDisk(path, fsid, flaglayouterror, scan_sz, scan_xs_hex);
-                        });
-  return ret.status;
+  std::error_code ec;
+  WalkFSTree(path,
+             [&](const char* path, uint64_t) {
+               this->ResyncDisk(path, fsid, flaglayouterror, scan_sz, scan_xs_hex);
+             }, ec);
+  if (ec) {
+    eos_err("msg=\"Walk FST tree failed\" error=%s", ec.message());
+    return false;
+  }
+  return true;
 }
 
 //------------------------------------------------------------------------------

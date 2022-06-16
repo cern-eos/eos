@@ -221,13 +221,24 @@ FmdAttrHandler::GetInconsistencyStatistics(
     std::map<std::string, size_t>& statistics,
     std::map<std::string, std::set<eos::common::FileId::fileid_t>>& fidset)
 {
+  std::error_code ec;
   auto ret = WalkFSTree(gOFS.Storage->GetStoragePath(fsid),
-                        [this, &statistics, &fidset ](const char* path) {
+                        [this, &statistics, &fidset ](const char* path,
+                                                      uint64_t count) {
+                          eos_debug("msg=\"Accessing file=\"%s", path);
+                          if (count % 10000) {
+                            eos_info("msg=\"synced files so far\" nfiles=%llu",
+                                           count);
+                          }
                           this->UpdateInconsistencyStat(path, statistics, fidset);
-                        }
-);
-  statistics["mem_n"] += ret.count;
-  return ret.status;
+                        },
+                        ec);
+  statistics["mem_n"] += ret;
+
+  if (ec) {
+    eos_err("msg=\"Failed to walk FST Tree\" error=%s", ec.message());
+  }
+  return true;
 }
 
 bool
