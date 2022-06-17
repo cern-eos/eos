@@ -123,5 +123,5 @@ WalkFSTree(std::string_view path, UnaryOp&& op, std::error_code& ec)
                      ec);
 }
 
-} // namespace eos::fst::fsutils
+} // namespace eos::fst::stdfs
 
