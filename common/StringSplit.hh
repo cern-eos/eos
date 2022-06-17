@@ -218,4 +218,12 @@ C SplitPath(std::string_view input)
   return StringSplit<C>(input, "/");
 }
 
+inline std::string
+GetRootPath(std::string_view path)
+{
+  using namespace std::string_view_literals;
+  auto it = StringSplitIt(path, "/"sv).begin();
+  return std::string(*it);
+}
+
 } // namespace eos::common

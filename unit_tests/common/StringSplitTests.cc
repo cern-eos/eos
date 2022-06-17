@@ -191,3 +191,11 @@ TEST(StringSplit, PathSplitter)
   ASSERT_EQ(SplitPath("/////eos//foo//bar////"), expect_v);
   ASSERT_EQ(SplitPath("eos//foo//bar"), expect_v);
 }
+
+TEST(StringSplitIt, GetRootPath)
+{
+  ASSERT_EQ(GetRootPath("/eos"), "eos");
+  ASSERT_EQ(GetRootPath(""),"");
+  ASSERT_EQ(GetRootPath("/////root"),"root");
+  ASSERT_EQ(GetRootPath("no-split-string"), "no-split-string");
+}
