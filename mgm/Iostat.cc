@@ -65,74 +65,6 @@ PercentComplete P99 = PercentComplete::p99;
 PercentComplete ALL = PercentComplete::p100;
 
 
-namespace
-{
-//------------------------------------------------------------------------------
-// Write callback used by CURL
-//------------------------------------------------------------------------------
-static size_t
-CurlWriteCallback(void* contents, size_t size, size_t nmemb, void* userp)
-{
-  ((std::string*)userp)->append((char*) contents, size * nmemb);
-  return size * nmemb;
-}
-
-//------------------------------------------------------------------------------
-// Get list of top level domains
-//------------------------------------------------------------------------------
-void GetTopLevelDomains(std::set<std::string>& domains)
-{
-  const std::string url = "http://data.iana.org/TLD/tlds-alpha-by-domain.txt";
-  CURL* curl = curl_easy_init();
-  std::string data;
-
-  if (curl) {
-    curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
-    curl_easy_setopt(curl, CURLOPT_TIMEOUT, 5L);
-    curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, CurlWriteCallback);
-    curl_easy_setopt(curl, CURLOPT_WRITEDATA, &data);
-    CURLcode res = curl_easy_perform(curl);
-    curl_easy_cleanup(curl);
-
-    if ((res != CURLE_OK) || data.empty()) {
-      domains.clear();
-    } else {
-      // Parse line by line each top level domain
-      eos::common::StringTokenizer tokenizer(data);
-      const char* line;
-      std::string tld;
-
-      while ((line = tokenizer.GetLine())) {
-	std::string sline = line;
-        // Skip commented lines
-        if (sline.front() == '#') {
-          continue;
-        }
-	if (sline.empty()) {
-	  continue;
-	}
-
-        tld = ".";
-        tld += LC_STRING(sline);
-        domains.insert(tld);
-	eos_static_debug("domain='%s'", tld.c_str());
-      }
-    }
-
-    eos_static_info("msg=\"%d domains loaded\" url=\"%s\"", domains.size(), url.c_str());
-
-  }
-
-  // If there were any issues then we add some default values
-  if (domains.empty()) {
-    domains = {".ch", ".it", ".ru", ".de", ".nl", ".fr", ".se", ".ro",
-               ".su", ".no", ".dk", ".cz", ".uk", ".se", ".org", ".edu"
-    };
-    eos_static_info("msg=\"%d default domains configured\"", domains.size());
-  }
-}
-}
-
 //------------------------------------------------------------------------------
 // IostatPeriods implementation
 //------------------------------------------------------------------------------
@@ -151,7 +83,7 @@ IostatPeriods::Add(unsigned long long val, time_t start, time_t stop,
 {
   mTotal += val;
   double value = (double)val;
-
+  
   // Window start/end times are "|", bin start [ and end ] times
   // period window = |-----------[--]----------|
   if (stop > now) {
@@ -159,7 +91,7 @@ IostatPeriods::Add(unsigned long long val, time_t start, time_t stop,
                    "stop time in the future\"");
     return;
   }
-
+  
   time_t t_window_start = now - (sBins * sBinWidth);
 
   if (stop <= t_window_start) {
@@ -444,13 +376,6 @@ Iostat::Init(const std::string& instance_name, int port,
   mHashKeyBase = SSTR("eos-iostat:" << instance_name << ":");
   mFlusherPath = SSTR("/var/eos/ns-queue/" << instance_name << ":" << port
                       << "_iostat");
-
-
-  GetTopLevelDomains(IoDomains);
-  // push default nodes to watch TODO: make generic
-  IoNodes.insert("lxplus"); // CERN interactive cluster
-  IoNodes.insert("b7"); // CERN batch cluster
-
   if (gOFS) {
     // QDB namespace, initialize qclient
     if (!gOFS->namespaceGroup->isInMemory()) {
@@ -921,8 +846,6 @@ Iostat::Receive(ThreadAssistant& assistant) noexcept
           IostatPeriodsDomainIOwb["eos"].Add(report->wb, report->ots, report->cts, now);
         }
       } else {
-        bool dfound = false;
-
         if (mReportPopularity) {
           // do the popularity accounting here for everything which is not replication!
           AddToPopularity(report->path, report->rb, report->ots, report->cts);
@@ -930,55 +853,18 @@ Iostat::Receive(ThreadAssistant& assistant) noexcept
 
         size_t pos = 0;
 
-        if ((pos = report->sec_domain.rfind(".")) != std::string::npos) {
-          // we can sort in by domain
-          std::string sdomain = report->sec_domain.substr(pos);
+	std::string sdomain = report->sec_domain;
 
-          if (IoDomains.find(sdomain) != IoDomains.end()) {
-            std::unique_lock<std::mutex> scope_lock(mDataMutex);
-
-            if (report->rb) {
-              IostatPeriodsDomainIOrb[sdomain].Add(report->rb, report->ots, report->cts, now);
-            }
-
-            if (report->wb) {
-              IostatPeriodsDomainIOwb[sdomain].Add(report->wb, report->ots, report->cts, now);
-            }
-
-            dfound = true;
-          }
-        }
-
-        // do the node accounting here - keep the node list small !!!
-        std::set<std::string>::const_iterator nit;
-
-        for (nit = IoNodes.begin(); nit != IoNodes.end(); nit++) {
-          if (*nit == report->sec_host.substr(0, nit->length())) {
-            std::unique_lock<std::mutex> scope_lock(mDataMutex);
-
-            if (report->rb) {
-              IostatPeriodsDomainIOrb[*nit].Add(report->rb, report->ots, report->cts, now);
-            }
-
-            if (report->wb) {
-              IostatPeriodsDomainIOwb[*nit].Add(report->wb, report->ots, report->cts, now);
-            }
-
-            dfound = true;
-          }
-        }
-
-        if (!dfound) {
-          // push into the 'other' domain
-          std::unique_lock<std::mutex> scope_lock(mDataMutex);
-
-          if (report->rb) {
-            IostatPeriodsDomainIOrb["other"].Add(report->rb, report->ots, report->cts, now);
-          }
-
-          if (report->wb) {
-            IostatPeriodsDomainIOwb["other"].Add(report->wb, report->ots, report->cts, now);
-          }
+	{
+	  std::unique_lock<std::mutex> scope_lock(mDataMutex);
+	  
+	  if (report->rb) {
+	    IostatPeriodsDomainIOrb[sdomain].Add(report->rb, report->ots, report->cts, now);
+	  }
+	  
+	  if (report->wb) {
+	    IostatPeriodsDomainIOwb[sdomain].Add(report->wb, report->ots, report->cts, now);
+	  }
         }
       }
 

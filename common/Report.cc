@@ -24,7 +24,7 @@
 /*----------------------------------------------------------------------------*/
 #include "common/Namespace.hh"
 #include "common/Report.hh"
-
+#include <regex>
 /*----------------------------------------------------------------------------*/
 
 EOSCOMMONNAMESPACE_BEGIN
@@ -106,11 +106,43 @@ Report::Report(XrdOucEnv& report)
   sec_name = report.Get("sec.name") ? report.Get("sec.name") : "";
   sec_host = report.Get("sec.host") ? report.Get("sec.host") : "";
   sec_domain = report.Get("sec.host") ? report.Get("sec.host") : "";
-  dpos = sec_host.find('.');
 
-  if (dpos != std::string::npos) {
-    sec_host.erase(dpos);
-    sec_domain.erase(0, dpos + 1);
+  std::regex lxplus( "(lxplus)(.*)(.cern.ch)");
+  std::regex lxbatch( "(b7)(.*)(.cern.ch)");
+  std::regex ipv4("(([0-9]|[1-9][0-9]|1[0-9][0-9]|2[0-4][0-9]|25[0-5])\\.){3}([0-9]|[1-9][0-9]|1[0-9][0-9]|2[0-4][0-9]|25[0-5])");
+
+
+  dpos=sec_host.find(".");
+
+  if (sec_host.front() == '[' &&
+      sec_host.back() == ']') {
+    // ipv6
+    sec_domain = "other-ipv6";
+  } else {
+    if (regex_match(sec_host, ipv4)) {
+      // ipv4
+      sec_domain ="other-ipv4";
+    } else {
+      if (regex_match(sec_host,lxbatch)) {
+        // cern-batch
+        sec_domain = "cern-batch";
+        sec_host.erase(dpos);
+      } else {
+        if (regex_match(sec_host, lxplus)) {
+          // cern-lxplus
+          sec_domain = "cern-lxplus";
+          sec_host.erase(dpos);
+        } else {
+          if (dpos != std::string::npos) {
+	    // regular (sub-)domains
+            sec_domain.erase(0, dpos+1);
+            sec_host.erase(dpos);
+          } else {
+            sec_domain = "other";
+          }
+        }
+      }
+    }
   }
 
   sec_vorg = report.Get("sec.vorg") ? report.Get("sec.vorg") : "";
