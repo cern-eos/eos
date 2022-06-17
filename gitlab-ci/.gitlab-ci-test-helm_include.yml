@@ -16,6 +16,9 @@
       HELM_EOS_SERVER_VERSION=0.1.0
       HELM_EOS_FUSEX_VERSION=0.1.0
     - |
+      echo "Clone eos-on-k8s repository for helper scripts"
+      git clone https://gitlab.cern.ch/eos/eos-on-k8s.git
+    - |
       ######## KUBEROS ########
       helm install -f ./gitlab-ci/.gitlab-ci-test-helm_kuberos_values.yml kuberos ./kuberos/kuberos/ --atomic --create-namespace --namespace $K8S_NAMESPACE
       sleep 10 # kadmind not quite ready by the time the following triggers. Perform the task of the kuberos k8s Job post-install hook since here we set "admin_princ.enabled=false"
@@ -81,7 +84,7 @@
       chmod 600 $K8S_CONFIG
       export KUBECONFIG=$K8S_CONFIG # get access configs for the cluster
       export K8S_NAMESPACE=$(echo ${CI_JOB_NAME}-${CI_JOB_ID}-${CI_PIPELINE_ID} | tr '_' '-' | tr '[:upper:]' '[:lower:]')
-      # ./eos-on-k8s/collect_logs.sh ${K8S_NAMESPACE} eos-logs-${CI_JOB_ID}/ @todo need to collect logs!
+      ./eos-on-k8s/collect_logs.sh ${K8S_NAMESPACE} eos-logs-${CI_JOB_ID} || true
       helm uninstall eos-client1 --namespace $K8S_NAMESPACE || true
       helm uninstall eos --namespace $K8S_NAMESPACE || true
       helm uninstall kuberos --namespace $K8S_NAMESPACE || true
