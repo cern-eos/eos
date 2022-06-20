@@ -71,24 +71,25 @@ FmdHandler::UpdateWithDiskInfo(eos::common::FileSystem::fsid_t fsid,
   valfmd.mProtoFmd.set_fid(fid);
   valfmd.mProtoFmd.set_fsid(fsid);
   valfmd.mProtoFmd.set_disksize(disk_size);
-
   valfmd.mProtoFmd.set_checktime(check_ts_sec);
   valfmd.mProtoFmd.set_filecxerror(filexs_err ? 1 : 0);
   valfmd.mProtoFmd.set_blockcxerror(blockxs_err ? 1 : 0);
 
   // Update reference size only if undefined
   if (valfmd.mProtoFmd.size() == eos::common::FmdHelper::UNDEF) {
-      // This is done only for non-rain layouts
-      if (!eos::common::LayoutId::IsRain(valfmd.mProtoFmd.lid())) {
-        valfmd.mProtoFmd.set_size(disk_size);
-      }
+    // This is done only for non-rain layouts
+    if (!eos::common::LayoutId::IsRain(valfmd.mProtoFmd.lid())) {
+      valfmd.mProtoFmd.set_size(disk_size);
+    }
   }
 
   if (disk_xs.empty() && disk_size == 0)  {
-    valfmd.mProtoFmd.set_diskchecksum(common::LayoutId::GetEmptyFileChecksum(valfmd.mProtoFmd.lid()));
+    valfmd.mProtoFmd.set_diskchecksum(common::LayoutId::GetEmptyFileChecksum(
+                                        valfmd.mProtoFmd.lid()));
   } else {
     valfmd.mProtoFmd.set_diskchecksum(disk_xs);
   }
+
   // Update the reference checksum only if empty
   if (valfmd.mProtoFmd.checksum().empty()) {
     valfmd.mProtoFmd.set_checksum(disk_xs);
@@ -171,11 +172,11 @@ FmdHandler::UpdateWithMgmInfo(eos::common::FileSystem::fsid_t fsid,
 //------------------------------------------------------------------------------
 void
 FmdHandler::UpdateWithScanInfo(eos::common::FileId::fileid_t fid,
-                                    eos::common::FileSystem::fsid_t fsid,
-                                    const std::string& fpath,
-                                    uint64_t scan_sz,
-                                    const std::string& scan_xs_hex,
-                                    std::shared_ptr<qclient::QClient> qcl)
+                               eos::common::FileSystem::fsid_t fsid,
+                               const std::string& fpath,
+                               uint64_t scan_sz,
+                               const std::string& scan_xs_hex,
+                               std::shared_ptr<qclient::QClient> qcl)
 {
   eos_debug("msg=\"resyncing qdb and disk info\" fxid=%08llx fsid=%lu",
             fid, fsid);
@@ -295,7 +296,6 @@ FmdHandler::ResyncAllDisk(const char* path,
                           eos::common::FileSystem::fsid_t fsid,
                           bool flaglayouterror)
 {
-
   if (flaglayouterror) {
     SetSyncStatus(fsid, true);
   }
@@ -306,17 +306,19 @@ FmdHandler::ResyncAllDisk(const char* path,
     return false;
   }
 
-  uint64_t scan_sz=0;
+  uint64_t scan_sz = 0;
   std::string scan_xs_hex;
   std::error_code ec;
   WalkFSTree(path,
-             [&](const char* path, uint64_t) {
-               this->ResyncDisk(path, fsid, flaglayouterror, scan_sz, scan_xs_hex);
-             }, ec);
+  [&](const char* path, uint64_t) {
+    this->ResyncDisk(path, fsid, flaglayouterror, scan_sz, scan_xs_hex);
+  }, ec);
+
   if (ec) {
     eos_err("msg=\"Walk FST tree failed\" error=%s", ec.message());
     return false;
   }
+
   return true;
 }
 
@@ -325,8 +327,8 @@ FmdHandler::ResyncAllDisk(const char* path,
 //------------------------------------------------------------------------------
 bool
 FmdHandler::ResyncMgm(eos::common::FileSystem::fsid_t fsid,
-                           eos::common::FileId::fileid_t fid,
-                           const char* manager)
+                      eos::common::FileId::fileid_t fid,
+                      const char* manager)
 {
   eos::common::FmdHelper fMd;
   int rc = FmdMgmHandler::GetMgmFmd((manager ? manager : ""), fid, fMd);
@@ -523,7 +525,7 @@ FmdHandler::MoveToOrphans(const std::string& fpath)
   // If orphan move it into the orphaned directory
   if (!rename(fpath.c_str(), forphan.c_str())) {
     eos_static_warning("msg=\"orphaned/unregistered quarantined\" "
-                "fst-path=%s orphan-path=%s", fpath.c_str(), forphan.c_str());
+                       "fst-path=%s orphan-path=%s", fpath.c_str(), forphan.c_str());
   } else {
     eos_static_err("msg=\"failed to quarantine orphaned/unregistered\" "
                    "fst-path=%s orphan-path=%s", fpath.c_str(), forphan.c_str());
@@ -535,9 +537,9 @@ FmdHandler::MoveToOrphans(const std::string& fpath)
 //------------------------------------------------------------------------------
 int
 FmdHandler::ResyncFileFromQdb(eos::common::FileId::fileid_t fid,
-                                   eos::common::FileSystem::fsid_t fsid,
-                                   const std::string& fpath,
-                                   std::shared_ptr<qclient::QClient> qcl)
+                              eos::common::FileSystem::fsid_t fsid,
+                              const std::string& fpath,
+                              std::shared_ptr<qclient::QClient> qcl)
 {
   using eos::common::FileId;
 
@@ -590,7 +592,7 @@ FmdHandler::ResyncFileFromQdb(eos::common::FileId::fileid_t fid,
 
     if (!Commit(local_fmd.get())) {
       eos_err("msg=\"failed to mark orphan entry\" fxid=%08llx fsid=%u",
-                     fid, fsid);
+              fid, fsid);
     }
 
     return ENOENT;
@@ -630,7 +632,7 @@ FmdHandler::ResyncFileFromQdb(eos::common::FileId::fileid_t fid,
 //------------------------------------------------------------------------------
 bool
 FmdHandler::ResyncAllFromQdb(const QdbContactDetails& contact_details,
-                                  eos::common::FileSystem::fsid_t fsid)
+                             eos::common::FileSystem::fsid_t fsid)
 {
   using namespace std::chrono;
 
@@ -762,14 +764,14 @@ eos::fst::FmdHandler::make_fmd_helper(common::FileId::fileid_t fid,
                                       uid_t uid,
                                       gid_t gid,
                                       unsigned long layoutid)
-{ // creating an fmd
+{
+  // creating an fmd
   auto fmd = make_unique<common::FmdHelper>();
   fmd->mProtoFmd.set_uid(uid);
   fmd->mProtoFmd.set_gid(gid);
   fmd->mProtoFmd.set_lid(layoutid);
   fmd->mProtoFmd.set_fsid(fsid);
   fmd->mProtoFmd.set_fid(fid);
-
   struct timeval tv;
   struct timezone tz;
   gettimeofday(&tv, &tz);
@@ -785,12 +787,12 @@ FmdHandler::Convert(eos::common::FileId::fileid_t fid,
                     bool lock_it)
 {
   auto [ok, fmd] = this->LocalRetrieveFmd(fid, fsid);
+
   if (!ok) {
     return false;
   }
 
   return target_fmd_handler->Commit(&fmd, lock_it);
-
 }
 bool
 FmdHandler::ConvertFrom(eos::common::FileId::fileid_t fid,
@@ -798,110 +800,18 @@ FmdHandler::ConvertFrom(eos::common::FileId::fileid_t fid,
                         FmdHandler* const src_fmd_handler, bool lock_it)
 {
   auto [ok, _] = this->LocalRetrieveFmd(fid, fsid);
+
   if (!ok) {
     return true;
   }
 
   auto [status, fmd] = src_fmd_handler->LocalRetrieveFmd(fid, fsid);
+
   if (!status) {
     return false;
   }
 
   return Commit(&fmd, lock_it);
 }
-
-void
-UpdateInconsistencyStats(
-    const eos::common::FmdHelper& fmd,
-    std::map<std::string, size_t>& statistics,
-    std::map<std::string, std::set<eos::common::FileId::fileid_t>>& fidset)
-{
-
-  const auto& proto_fmd = fmd.mProtoFmd;
-  if (proto_fmd.blockcxerror()) {
-    statistics["blockxs_err"]++;
-    fidset["blockxs_err"].insert(proto_fmd.fid());
-  }
-
-  if (proto_fmd.layouterror()) {
-    if (proto_fmd.layouterror() & LayoutId::kOrphan) {
-      statistics["orphans_n"]++;
-      fidset["orphans_n"].insert(proto_fmd.fid());
-    }
-
-    if (proto_fmd.layouterror() & LayoutId::kUnregistered) {
-      statistics["unreg_n"]++;
-      fidset["unreg_n"].insert(proto_fmd.fid());
-    }
-
-    if (proto_fmd.layouterror() & LayoutId::kReplicaWrong) {
-      statistics["rep_diff_n"]++;
-      fidset["rep_diff_n"].insert(proto_fmd.fid());
-    }
-
-    if (proto_fmd.layouterror() & LayoutId::kMissing) {
-      statistics["rep_missing_n"]++;
-      fidset["rep_missing_n"].insert(proto_fmd.fid());
-    }
-  }
-
-  if (proto_fmd.mgmsize() != eos::common::FmdHelper::UNDEF) {
-    statistics["m_sync_n"]++;
-
-    if (proto_fmd.size() != eos::common::FmdHelper::UNDEF) {
-      // Report missmatch only for non-rain layout files
-      if (!LayoutId::IsRain(proto_fmd.lid()) &&
-          proto_fmd.size() != proto_fmd.mgmsize()) {
-        statistics["m_mem_sz_diff"]++;
-        fidset["m_mem_sz_diff"].insert(proto_fmd.fid());
-      }
-    } else {
-      // RAIN stripes with mgmsize != 0 and disksize == 0 are broken
-      if (LayoutId::IsRain(proto_fmd.lid())) {
-        if (proto_fmd.mgmsize() && (proto_fmd.disksize() == 0)) {
-          statistics["d_mem_sz_diff"]++;
-          fidset["d_mem_sz_diff"].insert(proto_fmd.fid());
-        }
-      }
-    }
-  }
-
-  if (proto_fmd.disksize() != eos::common::FmdHelper::UNDEF) {
-    statistics["d_sync_n"]++;
-
-    if (proto_fmd.size() != eos::common::FmdHelper::UNDEF) {
-      if (LayoutId::IsRain(proto_fmd.lid())) {
-        if (proto_fmd.disksize() != LayoutId::ExpectedStripeSize(proto_fmd.lid(),
-                                                                 proto_fmd.size())) {
-          statistics["d_mem_sz_diff"]++;
-          fidset["d_mem_sz_diff"].insert(proto_fmd.fid());
-        }
-      } else {
-        if (proto_fmd.size() != proto_fmd.disksize()) {
-          statistics["d_mem_sz_diff"]++;
-          fidset["d_mem_sz_diff"].insert(proto_fmd.fid());
-        }
-      }
-    }
-  }
-
-  if (!proto_fmd.layouterror()) {
-    if (!LayoutId::IsRain(proto_fmd.lid())) {
-      if (proto_fmd.size() && proto_fmd.diskchecksum().length() &&
-          (proto_fmd.diskchecksum() != proto_fmd.checksum())) {
-        statistics["d_cx_diff"]++;
-        fidset["d_cx_diff"].insert(proto_fmd.fid());
-      }
-
-      if (proto_fmd.size() && proto_fmd.mgmchecksum().length() &&
-          (proto_fmd.mgmchecksum() != proto_fmd.checksum())) {
-        statistics["m_cx_diff"]++;
-        fidset["m_cx_diff"].insert(proto_fmd.fid());
-      }
-    }
-  }
-}
-
-
 
 EOSFSTNAMESPACE_END

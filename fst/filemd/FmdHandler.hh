@@ -33,7 +33,7 @@
 //! Forward declaration
 namespace eos
 {
-  class QdbContactDetails;
+class QdbContactDetails;
 }
 
 EOSFSTNAMESPACE_BEGIN
@@ -281,21 +281,21 @@ public:
   virtual bool GetInconsistencyStatistics(eos::common::FileSystem::fsid_t fsid,
                                           std::map<std::string, size_t>& statistics,
                                           std::map<std::string,
-                                              std::set <eos::common::FileId::fileid_t>>& fidset) = 0;
+                                          std::set <eos::common::FileId::fileid_t>>& fidset) = 0;
 
 
   virtual bool Convert(eos::common::FileId::fileid_t fid,
                        eos::common::FileSystem::fsid_t fsid,
-                       FmdHandler * const target_fmd_handler,
+                       FmdHandler* const target_fmd_handler,
                        bool lock_it);
 
-  virtual std::pair<bool,eos::common::FmdHelper>
+  virtual std::pair<bool, eos::common::FmdHelper>
   LocalRetrieveFmd(eos::common::FileId::fileid_t fid,
                    eos::common::FileSystem::fsid_t fsid) = 0;
 
   virtual bool ConvertFrom(eos::common::FileId::fileid_t fid,
                            eos::common::FileSystem::fsid_t fsid,
-                           FmdHandler * const src_fmd_handler,
+                           FmdHandler* const src_fmd_handler,
                            bool lock_it);
 
 private:
@@ -314,12 +314,8 @@ private:
 
   // TODO: Technically we could hold move the mIsSyncing map & mutex to this class. Do
   // this if AttrHandler also needs a syncing lock vs noop
-  virtual void SetSyncStatus(eos::common::FileSystem::fsid_t fsid, bool is_syncing) = 0;
+  virtual void SetSyncStatus(eos::common::FileSystem::fsid_t fsid,
+                             bool is_syncing) = 0;
 };
-
-void UpdateInconsistencyStats(const eos::common::FmdHelper& fmd,
-                             std::map<std::string, size_t>& statistics,
-                             std::map<std::string,
-                                      std::set<eos::common::FileId::fileid_t>>& fidset);
 
 EOSFSTNAMESPACE_END
