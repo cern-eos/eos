@@ -152,9 +152,7 @@ target_link_libraries(eos-unit-tests PRIVATE
   qclient
   XROOTD::POSIX
   XROOTD::SERVER
-  XrdEosMgm-Static
-  EosFstIo-Static
-)
+  XrdEosMgm-Static)
 
 #-------------------------------------------------------------------------------
 # eos-unit-tests-fst executable

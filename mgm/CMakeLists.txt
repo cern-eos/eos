@@ -366,7 +366,6 @@ target_link_libraries(XrdEosMgm-${XRDPLUGIN_SOVERSION} PUBLIC
   XrdEosMgm-Objects
   EosAuthProto-Objects
   EosGrpcProto-Objects
-  EosFstIo
   ZLIB::ZLIB
   XROOTD::CL
   XROOTD::SSI

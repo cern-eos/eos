@@ -38,12 +38,12 @@ XrdMgmOfs::_touch(const char* path,
                   const char* ininfo,
                   bool doLock,
                   bool useLayout,
-                  bool truncate, 
-		  size_t size, 
-		  bool absorb, 
-		  const char* linkpath, 
-		  const char* checksuminfo,
-		  std::string* errmsg)
+                  bool truncate,
+                  size_t size,
+                  bool absorb,
+                  const char* linkpath,
+                  const char* xs_hex,
+                  std::string* errmsg)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief create(touch) a no-replica file in the namespace
@@ -55,9 +55,9 @@ XrdMgmOfs::_touch(const char* path,
  * @param doLock take the namespace lock
  * @param useLayout create a file using the layout an space policies
  * @param size to preset on the file
- * @param link path - file to hardlink/symlink to the FST store - requires shared filesystem access
  * @param absorb - if true we will try to move the file into the FST tree without hardlinking it
- * @param checksum - checksum value to register
+ * @param link path - file to hardlink/symlink to the FST store - requires shared filesystem access
+ * @param xs_hex - checksum value in hex format to register
  *
  * @return SFS_OK or SFS_ERROR
  */
@@ -77,7 +77,6 @@ XrdMgmOfs::_touch(const char* path,
 
   eos::Prefetcher::prefetchFileMDAndWait(gOFS->eosView, path);
   eos::common::RWMutexWriteLock lock;
-
   std::string fullpath;
   bool verify = true;
   std::vector<eos::IFileMD::location_t> locations;
@@ -99,18 +98,29 @@ XrdMgmOfs::_touch(const char* path,
               e.getErrno(), e.getMessage().str().c_str());
   }
 
-  if ( ( absorb && truncate ) || (absorb && !useLayout) || 
-       ( linkpath && strlen(linkpath) && !useLayout) ) {
-    error.setErrInfo(EINVAL, "error: -a can not be combined with -0 and -n - a linkpath can only be combined with -a!\n");
+  if ((absorb && truncate) || (absorb && !useLayout) ||
+      (linkpath && strlen(linkpath) && !useLayout)) {
+    error.setErrInfo(EINVAL,
+                     "error: -a can not be combined with -0 and -n - a linkpath can only be combined with -a!\n");
     eos_err("-a can not be combined with -0 and -n - a linkpath can only be combined with -a!\n");
-    if (errmsg)*errmsg += "error: -a can not be combined with -0 and -n - a linkpath can only be combined with -a!\n";
+
+    if (errmsg) {
+      *errmsg +=
+        "error: -a can not be combined with -0 and -n - a linkpath can only be combined with -a!\n";
+    }
+
     return SFS_ERROR;
   }
 
-  if ( ( absorb || (linkpath && strlen(linkpath))) && vid.uid ) {
-    error.setErrInfo(EINVAL, "error: external files can only be registered by the root user\n");
+  if ((absorb || (linkpath && strlen(linkpath))) && vid.uid) {
+    error.setErrInfo(EINVAL,
+                     "error: external files can only be registered by the root user\n");
     eos_err("external files can only be registred by the root user\n");
-    if (errmsg)*errmsg += "error: external files can only be registered by the root user\n";
+
+    if (errmsg) {
+      *errmsg += "error: external files can only be registered by the root user\n";
+    }
+
     return SFS_ERROR;
   }
 
@@ -123,38 +133,61 @@ XrdMgmOfs::_touch(const char* path,
 
   if (linkpath && strlen(linkpath)) {
     struct stat buf;
+
     if (!::stat(linkpath, &buf)) {
-      if (!::access(linkpath, W_OK )) {
-	size = buf.st_size;
-	char xv[4096];
-	// check if target has already an EOS lfn
-	if (lgetxattr(linkpath, "user.eos.lfn", xv, sizeof(xv)) > 0) {
-	  eos_static_err("file had already an EOS lfn path='%s'", linkpath);
-	  error.setErrInfo(EEXIST, "error: file has already a registered LFN stored on the extended attributes");
-	  if (errmsg)*errmsg += "error: file has already a registered LFN stored on the extended attributes";
-	  return SFS_ERROR;
-	}
+      if (!::access(linkpath, W_OK)) {
+        size = buf.st_size;
+        char xv[4096];
+
+        // check if target has already an EOS lfn
+        if (lgetxattr(linkpath, "user.eos.lfn", xv, sizeof(xv)) > 0) {
+          eos_static_err("file had already an EOS lfn path='%s'", linkpath);
+          error.setErrInfo(EEXIST,
+                           "error: file has already a registered LFN stored on the extended attributes");
+
+          if (errmsg) {
+            *errmsg +=
+              "error: file has already a registered LFN stored on the extended attributes";
+          }
+
+          return SFS_ERROR;
+        }
       } else {
-	eos_static_err("is not writable to us path='%s'", linkpath);
-	error.setErrInfo(EPERM,"error: provided path is not writable for the MGM");
-	if (errmsg)*errmsg += "error: provided path is not writable for the MGM";
-	return SFS_ERROR;
+        eos_static_err("is not writable to us path='%s'", linkpath);
+        error.setErrInfo(EPERM, "error: provided path is not writable for the MGM");
+
+        if (errmsg) {
+          *errmsg += "error: provided path is not writable for the MGM";
+        }
+
+        return SFS_ERROR;
       }
     } else {
       eos_err("link path does not exist path='%s'", linkpath);
-      error.setErrInfo(ENOENT, "error: provided path is not accessible on the MGM or does not exist");
-      if (errmsg)*errmsg += "error: provided path is not accessible on the MGM or does not exist";
+      error.setErrInfo(ENOENT,
+                       "error: provided path is not accessible on the MGM or does not exist");
+
+      if (errmsg) {
+        *errmsg +=
+          "error: provided path is not accessible on the MGM or does not exist";
+      }
+
       return SFS_ERROR;
     }
   } else {
     if (absorb) {
-      error.setErrInfo(EINVAL, "error: link path has to be provdied to absorb a file");
+      error.setErrInfo(EINVAL,
+                       "error: link path has to be provdied to absorb a file");
       eos_err("link path has to be provided to absorb a file");
-      if (errmsg)*errmsg += "error: when using -a to absorb a file you have to privde the source path";
+
+      if (errmsg) {
+        *errmsg +=
+          "error: when using -a to absorb a file you have to privde the source path";
+      }
+
       return SFS_ERROR;
     }
   }
-
 
   try {
     if (!fmd) {
@@ -196,104 +229,173 @@ XrdMgmOfs::_touch(const char* path,
       fmd->setCTimeNow();
       fmd->setSize(0);
       fullpath = gOFS->eosView->getUri(fmd.get());
-      
+
       if (linkpath && strlen(linkpath)) {
-	for (unsigned int i = 0; i < fmd->getNumLocation(); i++) {
-	  const auto loc = fmd->getLocation(i);
-	  locations.push_back(loc);
-	  if (loc != 0 && loc != eos::common::TAPE_FS_ID) {
-	    eos::common::FileSystem::fs_snapshot_t local_snapshot;
-	    eos::mgm::FileSystem* local_fs = FsView::gFsView.mIdView.lookupByID(loc);
-	    local_fs->SnapShotFileSystem(local_snapshot);
-	    std::string local_path = eos::common::FileId::FidPrefix2FullPath(eos::common::FileId::Fid2Hex(fmd->getId()).c_str(),
-									     local_snapshot.mPath.c_str());
-	    if (absorb) {
-	      // try renaming
-	      int rc = ::rename(linkpath, local_path.c_str());
-	      fprintf(stderr,"rename gave %d %d\n", rc,errno);
-	      if (rc) {
-		linking = errno;
-		if (errmsg)*errmsg += "error: failed to rename path='" + std::string(linkpath) + std::string("'\n");
-	      } else {
-		eos_info("renamed '%s' => '%s'", linkpath, local_path.c_str());
-		if (errmsg) {
-		  *errmsg += "info: renamed '";
-		  *errmsg += linkpath;
-		  *errmsg += "' => '";
-		  *errmsg += local_path.c_str();
-		  *errmsg += "'\n";
-		}
-		linkpath = local_path.c_str();
-	      }
-	    } else {
-	      // try with links
-	      int rc = ::link(linkpath, local_path.c_str());
-	      if (rc && (errno = EXDEV)) {
-		eos_info("cross-device registration detected - using symlink for path='%s'", linkpath);
-		if (::symlink(linkpath, local_path.c_str())) {
-		  linking = errno;
-		  if (errmsg)*errmsg += "error: failed to create symlink for path='" + std::string(linkpath) + std::string("'\n");
-		} else {
-		  create_symlink = true;
-		  eos_info("created symlink '%s' => '%s'", local_path.c_str(), linkpath);
-		  if (errmsg)*errmsg += "info: created symlink '";
-		  if (errmsg)*errmsg += local_path.c_str();
-		  if (errmsg)*errmsg += "' => '";
-		  if (errmsg)*errmsg += linkpath;
-		  if (errmsg)*errmsg += "\n";
-		  
-		}
-	      } else {
-		create_hardlink = true;
-		eos_info("created hardlink '%s' => '%s'", local_path.c_str(), linkpath);
-		if (errmsg)*errmsg += "info: created hardlink '";
-		if (errmsg)*errmsg += local_path.c_str();
-		if (errmsg)*errmsg += "' => '";
-		if (errmsg)*errmsg += linkpath;
-		if (errmsg)*errmsg += "\n";
-	      }
-	      
-	      if (create_hardlink) {
-		if (lsetxattr (linkpath, "user.eos.lfn", 
-			       fullpath.c_str(), fullpath.length(), 0)) {
-		  eos_err("can not set user.eos.lfn extended attribute on: '%s'", linkpath);
-		  if (errmsg)*errmsg += "error: cannot set user.eos.lfn extended attribute on :'";
-		  if (errmsg)*errmsg += linkpath;
-		  if (errmsg)*errmsg += "'\n";
-		}
-	      }
-	    }
-	  }
-	}
+        for (unsigned int i = 0; i < fmd->getNumLocation(); i++) {
+          const auto loc = fmd->getLocation(i);
+          locations.push_back(loc);
+
+          if (loc != 0 && loc != eos::common::TAPE_FS_ID) {
+            eos::common::FileSystem::fs_snapshot_t local_snapshot;
+            eos::mgm::FileSystem* local_fs = FsView::gFsView.mIdView.lookupByID(loc);
+            local_fs->SnapShotFileSystem(local_snapshot);
+            std::string local_path = eos::common::FileId::FidPrefix2FullPath(
+                                       eos::common::FileId::Fid2Hex(fmd->getId()).c_str(),
+                                       local_snapshot.mPath.c_str());
+
+            if (absorb) {
+              // try renaming
+              int rc = ::rename(linkpath, local_path.c_str());
+              fprintf(stderr, "rename gave %d %d\n", rc, errno);
+
+              if (rc) {
+                linking = errno;
+
+                if (errmsg) {
+                  *errmsg += "error: failed to rename path='" + std::string(
+                               linkpath) + std::string("'\n");
+                }
+              } else {
+                eos_info("renamed '%s' => '%s'", linkpath, local_path.c_str());
+
+                if (errmsg) {
+                  *errmsg += "info: renamed '";
+                  *errmsg += linkpath;
+                  *errmsg += "' => '";
+                  *errmsg += local_path.c_str();
+                  *errmsg += "'\n";
+                }
+
+                linkpath = local_path.c_str();
+              }
+            } else {
+              // try with links
+              int rc = ::link(linkpath, local_path.c_str());
+
+              if (rc && (errno = EXDEV)) {
+                eos_info("cross-device registration detected - using symlink for path='%s'",
+                         linkpath);
+
+                if (::symlink(linkpath, local_path.c_str())) {
+                  linking = errno;
+
+                  if (errmsg) {
+                    *errmsg += "error: failed to create symlink for path='" + std::string(
+                                 linkpath) + std::string("'\n");
+                  }
+                } else {
+                  create_symlink = true;
+                  eos_info("created symlink '%s' => '%s'", local_path.c_str(), linkpath);
+
+                  if (errmsg) {
+                    *errmsg += "info: created symlink '";
+                  }
+
+                  if (errmsg) {
+                    *errmsg += local_path.c_str();
+                  }
+
+                  if (errmsg) {
+                    *errmsg += "' => '";
+                  }
+
+                  if (errmsg) {
+                    *errmsg += linkpath;
+                  }
+
+                  if (errmsg) {
+                    *errmsg += "\n";
+                  }
+                }
+              } else {
+                create_hardlink = true;
+                eos_info("created hardlink '%s' => '%s'", local_path.c_str(), linkpath);
+
+                if (errmsg) {
+                  *errmsg += "info: created hardlink '";
+                }
+
+                if (errmsg) {
+                  *errmsg += local_path.c_str();
+                }
+
+                if (errmsg) {
+                  *errmsg += "' => '";
+                }
+
+                if (errmsg) {
+                  *errmsg += linkpath;
+                }
+
+                if (errmsg) {
+                  *errmsg += "\n";
+                }
+              }
+
+              if (create_hardlink) {
+                if (lsetxattr(linkpath, "user.eos.lfn",
+                              fullpath.c_str(), fullpath.length(), 0)) {
+                  eos_err("can not set user.eos.lfn extended attribute on: '%s'", linkpath);
+
+                  if (errmsg) {
+                    *errmsg += "error: cannot set user.eos.lfn extended attribute on :'";
+                  }
+
+                  if (errmsg) {
+                    *errmsg += linkpath;
+                  }
+
+                  if (errmsg) {
+                    *errmsg += "'\n";
+                  }
+                }
+              }
+            }
+          }
+        }
       }
     }
 
-    if (!linking && checksuminfo) {
+    if (!linking && xs_hex) {
+      size_t out_sz;
       unsigned long lid = fmd->getLayoutId();
-      std::unique_ptr<eos::fst::CheckSum> checksum = eos::fst::ChecksumPlugins::GetChecksumObject(lid);
-      checksum->ResetInit(0, size, checksuminfo);
-      std::string checksum_name = checksum->GetName();
-      int checksumlen=0;
-      eos::Buffer checksumbuffer;
-      std::string binchecksum;
-      eos::hexArrayToByteArray(checksuminfo, 8, binchecksum);
-      checksumbuffer.putData(binchecksum.c_str(), SHA256_DIGEST_LENGTH);
-      if (lsetxattr(linkpath, "user.eos.checksumtype", checksum_name.c_str(), checksum_name.length(),0) ||
-	  lsetxattr(linkpath, "user.eos.checksum", checksum->GetBinChecksum(checksumlen), checksum->GetCheckSumLen(), 0) ) {
-	if (errmsg)*errmsg += "error: failed to store checksum extended attributes on '";
-	if (errmsg)*errmsg += linkpath;
-	if (errmsg)*errmsg += "'\n";
+      std::string checksum_name = eos::common::LayoutId::GetChecksumString(lid);
+      auto xs_binary = eos::common::StringConversion::Hex2BinDataChar
+                       (std::string(xs_hex), out_sz, SHA256_DIGEST_LENGTH);
+
+      if (xs_binary == nullptr) {
+        if (errmsg) {
+          *errmsg += "error: failed to store checksum extended attributes on '";
+          *errmsg += linkpath;
+          *errmsg += "'\n";
+        }
       } else {
-	if (errmsg)*errmsg += "info: stored checksum '";
-	if (errmsg)*errmsg += checksum_name.c_str();
-	if (errmsg)*errmsg += ":";
-	if (errmsg)*errmsg += checksum->GetHexChecksum();
-	if (errmsg)*errmsg += "'\n";
-	// store this checksum
-	fmd->setChecksum(checksumbuffer);
+        if (lsetxattr(linkpath, "user.eos.checksumtype",
+                      checksum_name.c_str(), checksum_name.length(), 0) ||
+            lsetxattr(linkpath, "user.eos.checksum",
+                      xs_binary.get(), out_sz, 0)) {
+          if (errmsg) {
+            *errmsg += "error: failed to store checksum extended attributes on '";
+            *errmsg += linkpath;
+            *errmsg += "'\n";
+          }
+        } else {
+          if (errmsg) {
+            *errmsg += "info: stored checksum '";
+            *errmsg += checksum_name.c_str();
+            *errmsg += ":";
+            *errmsg += xs_hex;
+            *errmsg += "'\n";
+          }
+
+          // Store this checksum
+          eos::Buffer xs_buff;
+          xs_buff.putData(xs_binary.get(), SHA256_DIGEST_LENGTH);
+          fmd->setChecksum(xs_buff);
+        }
       }
     }
-    
+
     fmd->setMTimeNow();
     eos::IFileMD::ctime_t mtime;
     fmd->getMTime(mtime);
@@ -303,9 +405,10 @@ XrdMgmOfs::_touch(const char* path,
       fmd->setSize(0);
     } else {
       if (size) {
-	fmd->setSize(size);
+        fmd->setSize(size);
       }
     }
+
     // Store the birth time as an extended attribute if this is a creation
     if (!existedAlready) {
       char btime[256];
@@ -320,11 +423,11 @@ XrdMgmOfs::_touch(const char* path,
     if (create_symlink) {
       fmd->setAttribute("sys.symlink.path", linkpath);
     }
-    
+
     if (absorb) {
       fmd->setAttribute("sys.absorbed.path", linkpath);
     }
-    
+
     gOFS->eosView->updateFileStore(fmd.get());
     unsigned long long cid = fmd->getContainerId();
     std::shared_ptr<eos::IContainerMD> cmd =
@@ -363,16 +466,17 @@ XrdMgmOfs::_touch(const char* path,
     eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
               e.getErrno(), e.getMessage().str().c_str());
   }
-  
+
   if (linking) {
     errno = linking;
   } else {
     if (verify) {
       XrdOucString options;
-      for ( auto loc : locations ) {
-	if (gOFS->_verifystripe(fullpath.c_str(), error, vid, loc, options)) {
-	  // failed
-	}
+
+      for (auto loc : locations) {
+        if (gOFS->_verifystripe(fullpath.c_str(), error, vid, loc, options)) {
+          // failed
+        }
       }
     }
   }
