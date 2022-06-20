@@ -104,6 +104,7 @@ public:
   {
     std::scoped_lock slock(mTransfersMtx);
     mTransfers.emplace(fid);
+    mTrackedTransfers.emplace(fid);
   }
 
   void dropTransferEntry(eos::common::FileId::fileid_t fid)
@@ -195,6 +196,11 @@ private:
   mutable std::mutex mFailedTransfersMtx;
   std::unordered_set<eos::common::FileId::fileid_t> mTransfers;
   std::unordered_map<eos::common::FileId::fileid_t, std::string> mFailedTransfers;
+
+  // TODO future: use a bloom filter here if we find heavy mem. usage
+  // The only use case is to check if a file is not a member of a set, so a
+  // perfect use case as we don't care about false +ve memberships
+  std::unordered_set<eos::common::FileId::fileid_t> mTrackedTransfers;
 
   //! map holding a seed for RR picker for every Group for the FS
   std::map<std::string, uint16_t> mGroupFSSeed;

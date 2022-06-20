@@ -348,7 +348,7 @@ GroupDrainer::populateFids(eos::common::FileSystem::fsid_t fsid)
       auto fid = it_fid->getElement();
       if (mFailedTransfers.count(fid)) {
         failed_fids.emplace_back(fid);
-      } else if (!mTransfers.count(fid)) {
+      } else if (!mTransfers.count(fid) && !mTrackedTransfers.count(fid)) {
         local_fids.emplace_back(fid);
         ++ctr;
       }
@@ -539,7 +539,8 @@ GroupDrainer::getStatus(StatusFormat status_fmt) const
   {
     std::scoped_lock sl(mTransfersMtx);
     ss << "Max allowed Transfers  : " << mMaxTransfers << "\n"
-       << "Transfers in Queue     : " << mTransfers.size() << "\n";
+       << "Transfers in Queue     : " << mTransfers.size() << "\n"
+       << "Total Transfers        : " << mTrackedTransfers.size() << "\n";
   }
 
   auto failed_tx_sz = mFailedTransfers.size();
@@ -586,8 +587,9 @@ GroupDrainer::getStatus(StatusFormat status_fmt) const
 void
 GroupDrainer::resetFailedTransfers()
 {
-  std::scoped_lock sl(mFailedTransfersMtx);
+  std::scoped_lock sl(mFailedTransfersMtx, mTransfersMtx);
   mFailedTransfers.clear();
+  mTrackedTransfers.clear();
 }
 
 void
@@ -597,6 +599,7 @@ GroupDrainer::resetCaches()
     std::scoped_lock sl(mFailedTransfersMtx, mTransfersMtx);
     mFailedTransfers.clear();
     mTransfers.clear();
+    mTrackedTransfers.clear();
   }
   // force a refresh of the global groups map info
   mDoConfigUpdate.store(true, std::memory_order_relaxed);
