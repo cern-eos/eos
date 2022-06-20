@@ -421,6 +421,16 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
       eos_info("msg=\"resync ok\" fsid=%lu fxid=%llx", mFsId, mFileId);
       mFmd = gOFS.mFmdHandler->LocalGetFmd(mFileId, mFsId, isRepairRead,
                                            mIsRW, vid.uid, vid.gid, mLid);
+      std::string dummy_xs;
+      int rc = 0;
+
+      if ((rc = gOFS.mFmdHandler->ResyncDisk(mFstPath.c_str(), mFsId, false, 0,
+                                             dummy_xs))) {
+        eos_err("msg=\"failed to resync from disk\" fsid=%lu fxid=%llx path=%s rc=%d",
+                mFsId, mFileId, mFstPath.c_str(), rc);
+      } else {
+        eos_info("msg=\"resync from disk\" path=%s", mFstPath.c_str());
+      }
     } else {
       eos_err("msg=\"resync failed\" fsid=%lu fxid=%08llx", mFsId, mFileId);
     }
@@ -476,18 +486,20 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
       /* Populate local DB (future reads need it) */
       unsigned long long clFid = eos::common::FileId::Hex2Fid(sCloneFST);
       auto lfmd = gOFS.mFmdHandler->LocalGetFmd(clFid, mFsId, false, mIsRW,
-                                                vid.uid, vid.gid, mLid);
+                  vid.uid, vid.gid, mLid);
 
       if (lfmd == nullptr) {
         // We have an invalid FMD, drop and try again!
-        gOFS.mFmdHandler->LocalDeleteFmd(clFid,mFsId);
+        gOFS.mFmdHandler->LocalDeleteFmd(clFid, mFsId);
         lfmd = gOFS.mFmdHandler->LocalGetFmd(clFid, mFsId, false, mIsRW,
                                              vid.uid, vid.gid, mLid);
+
         // FIXME: maybe we don't need to exit here?
         if (!lfmd) {
           return gOFS.Emsg(epname, error, ENOENT, "open unable to create FMD");
         }
       }
+
       lfmd->mProtoFmd.set_checksum(mFmd->mProtoFmd.checksum());
       lfmd->mProtoFmd.set_diskchecksum(mFmd->mProtoFmd.diskchecksum());
       lfmd->mProtoFmd.set_mgmchecksum(mFmd->mProtoFmd.mgmchecksum());
