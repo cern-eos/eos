@@ -17,35 +17,39 @@
  ************************************************************************
  */
 
-
-#ifndef EOS_FMDCONVERTER_HH
-#define EOS_FMDCONVERTER_HH
-
-#include "fst/filemd/FmdHandler.hh"
-#include <folly/futures/Future.h>
-#include <memory>
-
-namespace folly {
-class Executor;
-} // namespace folly
+#pragma once
+#include "common/FileId.hh"
+#include "common/FileSystem.hh"
+#include <string_view>
+#include <string>
 
 namespace eos::fst {
 
-class FmdConverter {
-public:
-  FmdConverter(FmdHandler * src_handler,
-               FmdHandler * tgt_handler,
-               size_t per_disk_pool);
 
-  folly::Future<bool> Convert(std::string_view path, uint64_t count);
-  void ConvertFS(std::string_view fspath);
-private:
-  FmdHandler * mSrcFmdHandler;
-  FmdHandler * mTgtFmdHandler;
-  std::unique_ptr<folly::Executor> mExecutor;
+struct FSPathHandler {
+  virtual std::string GetFSPath(eos::common::FileSystem::fsid_t fsid) = 0;
+  virtual std::string GetPath(eos::common::FileId::fileid_t fid,
+                              eos::common::FileSystem::fsid_t fsid);
+  static eos::common::FileSystem::fsid_t GetFsid(std::string_view path);
+  virtual ~FSPathHandler() = default;
 };
 
+class FixedFSPathHandler : public FSPathHandler {
+public:
+  FixedFSPathHandler(std::string_view _fs_path) : fs_path(_fs_path), FSPathHandler()
+  {}
+
+  std::string GetFSPath(eos::common::FileSystem::fsid_t fsid) override;
+
+
+private:
+  std::string fs_path;
+};
+
+inline std::unique_ptr<FSPathHandler>
+makeFSPathHandler(std::string_view path)
+{
+  return std::make_unique<FixedFSPathHandler>(path);
+}
 
 } // namespace eos::fst
-
-#endif // EOS_FMDCONVERTER_HH

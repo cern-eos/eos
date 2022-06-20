@@ -17,35 +17,30 @@
  ************************************************************************
  */
 
+#pragma once
 
-#ifndef EOS_FMDCONVERTER_HH
-#define EOS_FMDCONVERTER_HH
+#include "fst/utils/FSPathHandler.hh"
 
-#include "fst/filemd/FmdHandler.hh"
-#include <folly/futures/Future.h>
-#include <memory>
+namespace eos::fst
+{
 
-namespace folly {
-class Executor;
-} // namespace folly
+class XrdFstOfs;
 
-namespace eos::fst {
-
-class FmdConverter {
+class XrdOfsPathHandler final: public FSPathHandler {
 public:
-  FmdConverter(FmdHandler * src_handler,
-               FmdHandler * tgt_handler,
-               size_t per_disk_pool);
+  XrdOfsPathHandler(XrdFstOfs const * pOFS): mOFS(pOFS), FSPathHandler() {}
 
-  folly::Future<bool> Convert(std::string_view path, uint64_t count);
-  void ConvertFS(std::string_view fspath);
+  std::string GetFSPath(eos::common::FileSystem::fsid_t fsid) override;
+
 private:
-  FmdHandler * mSrcFmdHandler;
-  FmdHandler * mTgtFmdHandler;
-  std::unique_ptr<folly::Executor> mExecutor;
+  XrdFstOfs const* mOFS;
 };
 
 
-} // namespace eos::fst
+inline std::unique_ptr<FSPathHandler>
+makeFSPathHandler(std::string_view pOFS)
+{
+  return std::make_unique<XrdOfsPathHandler>(pOFS);
+}
 
-#endif // EOS_FMDCONVERTER_HH
+} // namespace eos::fst

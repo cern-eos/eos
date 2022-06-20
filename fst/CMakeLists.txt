@@ -139,7 +139,8 @@ add_library(EosFstIo-Objects OBJECT
   layout/RainGroup.cc            layout/RainGroup.hh
   layout/RainMetaLayout.cc       layout/RainMetaLayout.hh
   layout/RaidDpLayout.cc         layout/RaidDpLayout.hh
-  layout/ReedSLayout.cc          layout/ReedSLayout.hh)
+  layout/ReedSLayout.cc          layout/ReedSLayout.hh
+  utils/FSPathHandler.cc)
 
 target_link_libraries(EosFstIo-Objects PUBLIC
   Jerasure-Objects
@@ -293,7 +294,8 @@ set(XRDEOSFST_SRCS
   http/HttpHandler.cc   http/HttpHandler.hh
   http/s3/S3Handler.cc  http/s3/S3Handler.hh
   # EosFstIo interface
-  io/local/LocalIo.cc  io/local/LocalIo.hh)
+  io/local/LocalIo.cc  io/local/LocalIo.hh
+  utils/XrdOfsPathHandler.cc)
 
 add_library(XrdEosFst-Objects OBJECT ${XRDEOSFST_SRCS})
 
