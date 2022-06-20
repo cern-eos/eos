@@ -89,7 +89,8 @@ public:
   void prepareTransfers();
   void prepareTransfer(uint64_t index);
   void scheduleTransfer(eos::common::FileId::fileid_t fid,
-                        const string& src_grp, const string& tgt_grp);
+                        const string& src_grp, const string& tgt_grp,
+                        eos::common::FileSystem::fsid_t src_fsid);
 
   std::pair<bool, cache_fid_map_t::iterator>
   populateFids(eos::common::FileSystem::fsid_t fsid);
@@ -130,6 +131,21 @@ public:
       std::scoped_lock slock(mTransfersMtx);
       mTransfers.erase(fid);
     }
+  }
+
+  // Returns if a transfer is tracked already by GroupDrainer, we are NOT
+  // supposed to schedule if (trackedTransferEntry(fid)) returns true, as it means
+  // we have already scheduled this transfer before.
+  // We allow failed transfers to be rescheduled again.
+  bool trackedTransferEntry(eos::common::FileId::fileid_t fid)
+  {
+    std::scoped_lock slock(mFailedTransfersMtx, mTransfersMtx);
+    if (mFailedTransfers.count(fid)) {
+      // Allow scheduling of failed transfers
+      return false;
+    }
+    // return if we have a tracked transfer entry
+    return mTrackedTransfers.find(fid) != mTrackedTransfers.end();
   }
 
   std::pair<bool, GroupDrainer::cache_fid_map_t::iterator>

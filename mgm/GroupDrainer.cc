@@ -272,8 +272,7 @@ GroupDrainer::prepareTransfer(uint64_t index)
   // Cross check that we do have a valid iterator anyway!
   if (fids != mCacheFileList.end()) {
     if (fids->second.size() > 0) {
-      scheduleTransfer(fids->second.back(), grp_drain_from, grp_drain_to);
-      mDrainProgressTracker.increment(fsid);
+      scheduleTransfer(fids->second.back(), grp_drain_from, grp_drain_to, fsid);
       fids->second.pop_back();
     } else {
       eos_debug("%s", "Got a valid iter but empty files!");
@@ -285,10 +284,18 @@ GroupDrainer::prepareTransfer(uint64_t index)
 
 void
 GroupDrainer::scheduleTransfer(eos::common::FileId::fileid_t fid,
-                               const string& src_grp, const string& tgt_grp)
+                               const string& src_grp, const string& tgt_grp,
+                               eos::common::FileSystem::fsid_t src_fsid)
 {
   if (src_grp.empty() || tgt_grp.empty()) {
     eos_err("%s", "msg=\"Got empty transfer groups!\"");
+    return;
+  }
+
+  // Cross-check that the file wasn't scheduled before we attempt to check FS
+  // and possibly redo a transfer
+  if (trackedTransferEntry(fid)) {
+    eos_info("msg=\"Skipping scheduling of Tracked Transfer\" fid=%08llx", fid);
     return;
   }
 
@@ -306,6 +313,7 @@ GroupDrainer::scheduleTransfer(eos::common::FileId::fileid_t fid,
                     "src_grp=\"%s\" dst_grp=\"%s\"", conv_tag.c_str(),
                     src_grp.c_str(), tgt_grp.c_str());
     addTransferEntry(fid);
+    mDrainProgressTracker.increment(src_fsid);
   } else {
     addFailedTransferEntry(fid, std::move(conv_tag));
   }
