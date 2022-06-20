@@ -414,6 +414,13 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
       eos_info("msg=\"resync ok\" fsid=%lu fxid=%llx", mFsId, mFileId);
       mFmd = gFmdDbMapHandler.LocalGetFmd(mFileId, mFsId, isRepairRead, mIsRW,
                                           vid.uid, vid.gid, mLid);
+      std::string dummy_xs;
+      int rc=0;
+      if ( (rc = gFmdDbMapHandler.ResyncDisk(mFstPath.c_str(),mFsId, false, 0, dummy_xs)) ) {
+	eos_err("msg=\"failed to resync from disk\" fsid=%lu fxid=%llx, path=%s rc=%d", mFsId,mFileId,mFstPath.c_str(), rc);
+      } else {
+	eos_info("msg=\"resync from disk\" path=%s", mFstPath.c_str());
+      }
     } else {
       eos_err("msg=\"resync failed\" fsid=%lu fxid=%08llx", mFsId, mFileId);
     }

@@ -335,7 +335,7 @@ com_file(char* arg1)
     if (!path.length()) {
       goto com_file_usage;
     }
-
+    
     in += Path2FileDenominator(path) ? "&mgm.file.id=" : "&mgm.path=";
     in += path;
     in += "&mgm.subcmd=touch";
@@ -346,6 +346,24 @@ com_file(char* arg1)
 
     if (option.find("0") != STR_NPOS) {
       in += "&mgm.file.touch.truncate=true";
+    }
+
+    if (option.find("a") != STR_NPOS) {
+      in += "&mgm.file.touch.absorb=true";
+    }
+
+    if (fsid1.length()) {
+      if (fsid1.beginswith("/")) {
+	in += "&mgm.file.touch.hardlinkpath=";
+	in += fsid1.c_str();
+      } else {
+	in += "&mgm.file.touch.size=";
+	in += fsid1.c_str();
+      }
+    }
+    if (fsid2.length()) {
+      in += "&mgm.file.touch.checksuminfo=";
+      in += fsid2.c_str();
     }
   }
 
@@ -1080,13 +1098,21 @@ com_file_usage:
   fprintf(stdout,
           "                                                  unlink keeps the location in the list of deleted files e.g. the location get's a deletion request\n");
   fprintf(stdout,
-          "file touch [-n] [-0] [<path>|fid:<fid-dec>|fxid:<fid-hex>] :\n");
+          "file touch [-a] [-n] [-0] [<path>|fid:<fid-dec>|fxid:<fid-hex>] [linkpath|size] [checksumtype:checksum] :\n");
   fprintf(stdout,
           "                                                  create/touch a 0-size/0-replica file if <path> does not exist or update modification time of an existing file to the present time\n");
   fprintf(stdout,
           "                                          - by default it uses placement logic - use [-n] to disable placement\n");
   fprintf(stdout,
           "                                          - use 'file touch -0 myfile' to truncate a file\n");
+  fprintf(stdout,                            
+	  "                                          - use 'file touch -a myfile /external/path' if you want to adopt (absorb) a file which is provied by the hardlink argument - this means that the file disappears from the given hardlink path and is taken under control of an EOS FST\n");
+  fprintf(stdout,
+	  "                                          - provide the optional size argument to preset the size\n");
+  fprintf(stdout,
+	  "                                          - provide the optional linkpath argument to hard- or softlink the touched file to a shared filesystem\n");
+  fprintf(stdout, 
+	  "                                          - provide the optional checksum information for a new touched file\n");
   fprintf(stdout,
           "file verify <path>|fid:<fid-dec>|fxid:<fid-hex> [<fsid>] [-checksum] [-commitchecksum] [-commitsize] [-rate <rate>] : \n");
   fprintf(stdout,

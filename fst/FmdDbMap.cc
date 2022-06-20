@@ -872,7 +872,6 @@ FmdDbMapHandler::ResyncDisk(const char* path,
 
       if (io->attrGet("user.eos.checksum", xs_val, xs_len) == 0) {
         std::unique_ptr<CheckSum> xs_obj {ChecksumPlugins::GetXsObj(sxs_type)};
-
         if (xs_obj) {
           if (xs_obj->SetBinChecksum(xs_val, xs_len)) {
             disk_xs_hex = xs_obj->GetHexChecksum();

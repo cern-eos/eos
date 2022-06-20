@@ -1268,7 +1268,13 @@ ProcCommand::File()
       cmdok = true;
       bool useLayout = true;
       bool truncate = false;
+      bool absorb = false;
+
       size_t size = 0;
+
+      const char* hardlinkpath=0;
+      const char* checksuminfo=0;
+      std::string errmsg;
 
       if (pOpaque->Get("mgm.file.touch.nolayout")) {
         useLayout = false;
@@ -1282,22 +1288,37 @@ ProcCommand::File()
         size = strtoull(pOpaque->Get("mgm.file.touch.size"), 0, 10);
       }
 
+      if (pOpaque->Get("mgm.file.touch.absorb")) {
+	absorb = true;
+      }
+
+      hardlinkpath = pOpaque->Get("mgm.file.touch.hardlinkpath");
+      checksuminfo = pOpaque->Get("mgm.file.touch.checksuminfo");
+
       if (!spath.length()) {
         stdErr = "error: There is no file with given id! '";
         stdErr += spathid;
         stdErr += "'";
         retc = ENOENT;
       } else {
-        if (gOFS->_touch(spath.c_str(), *mError, *pVid, 0, true, useLayout, truncate,
-                         size)) {
+        if (gOFS->_touch(spath.c_str(), *mError, *pVid, 0, true, useLayout, truncate, size, absorb, hardlinkpath, checksuminfo, &errmsg)) {
           stdErr = "error: unable to touch '";
           stdErr += spath.c_str();
           stdErr += "'";
+	  if (errmsg.length()) {
+	    stdErr += "\n";
+	    stdErr += errmsg.c_str();
+	  }
+	  
           retc = errno;
         } else {
           stdOut += "success: touched '";
           stdOut += spath.c_str();
           stdOut += "'";
+	  if (errmsg.length()) {
+	    stdOut += "\n";
+	    stdOut += errmsg.c_str();
+	  }
         }
       }
     }
