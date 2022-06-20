@@ -406,19 +406,6 @@ add_executable(eos-scan-fs
 
 target_compile_definitions(eos-scan-fs PUBLIC -D_NOOFS=1)
 
-add_executable(eos-fsck-fs
-  Fsck.cc
-  Load.cc
-  filemd/FmdDbMap.cc
-  filemd/FmdHandler.cc
-  filemd/FmdMgm.cc
-  Config.cc
-  tools/Fsck.cc
-  checksum/Adler.cc
-  checksum/CheckSum.cc)
-
-target_compile_definitions(eos-fsck-fs PUBLIC -D_NOOFS=1)
-
 add_executable(eos-adler32
   tools/Adler32.cc
   checksum/Adler.cc
@@ -429,7 +416,6 @@ add_executable(eos-checksum
   checksum/CheckSum.cc)
 
 set_target_properties(eos-scan-fs PROPERTIES COMPILE_FLAGS -D_NOOFS=1)
-set_target_properties(eos-fsck-fs PROPERTIES COMPILE_FLAGS -D_NOOFS=1)
 
 add_executable(eos-ioping tools/IoPing.c)
 target_compile_options(eos-ioping PRIVATE -std=gnu99)
@@ -439,8 +425,6 @@ target_link_libraries(eos-compute-blockxs PRIVATE EosFstIo XROOTD::SERVER)
 target_link_libraries(eos-adler32 PRIVATE EosFstIo XROOTD::SERVER)
 target_link_libraries(eos-checksum PRIVATE EosFstIo XROOTD::SERVER)
 target_link_libraries(eos-scan-fs PRIVATE
-  EosFstIo EosCommonServer EosNsCommon-Static XROOTD::SERVER stdc++fs)
-target_link_libraries(eos-fsck-fs PRIVATE
   EosFstIo EosCommonServer EosNsCommon-Static XROOTD::SERVER stdc++fs)
 
 add_executable(eos-create-file-pattern
@@ -461,7 +445,7 @@ install(PROGRAMS
 
 install(TARGETS
   eos-ioping eos-adler32 eos-checksum eos-leveldb-inspect eos-rain-hd-dump
-  eos-check-blockxs eos-compute-blockxs eos-scan-fs eos-fsck-fs
+  eos-check-blockxs eos-compute-blockxs eos-scan-fs
   eos-create-file-pattern eos-readv-pattern
   RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_SBINDIR})
 
