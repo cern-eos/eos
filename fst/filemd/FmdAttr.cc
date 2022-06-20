@@ -1,5 +1,5 @@
 #include "FmdAttr.hh"
-#include "fst/io/local/LocalIo.hh"
+#include "fst/io/local/FsIo.hh"
 #include "fst/XrdFstOfs.hh"
 #include "fst/utils/FTSWalkTree.hh"
 #include "FmdHandler.hh"
@@ -20,7 +20,7 @@ std::string FmdAttrHandler::GetPath(eos::common::FileId::fileid_t fid,
 std::pair<bool, eos::common::FmdHelper>
 FmdAttrHandler::LocalRetrieveFmd(const std::string& path)
 {
-  LocalIo localIo {path};
+  FsIo localIo {path};
   std::string attrval;
   int result = localIo.attrGet(gFmdAttrName, attrval);
 
@@ -63,7 +63,7 @@ bool
 FmdAttrHandler::LocalPutFmd(const std::string& path,
                             const eos::common::FmdHelper& fmd)
 {
-  LocalIo localio {path};
+  FsIo localio {path};
   int rc;
   rc = CreateFile(&localio);
 
@@ -88,7 +88,7 @@ FmdAttrHandler::LocalPutFmd(const std::string& path,
 void
 FmdAttrHandler::LocalDeleteFmd(const std::string& path, bool drop_file)
 {
-  LocalIo localio {path};
+  FsIo localio {path};
 
   if (drop_file) {
     int rc = localio.fileRemove();
