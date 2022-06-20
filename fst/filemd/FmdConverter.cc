@@ -9,9 +9,11 @@
 #include "fst/utils/StdFSWalkTree.hh"
 #include <folly/executors/IOThreadPoolExecutor.h>
 
-namespace eos::fst {
+namespace eos::fst
+{
 
-eos::common::FileSystem::fsid_t GetFsid(std::string_view path)
+eos::common::FileSystem::fsid_t
+FsidPathInfo::GetFsid(std::string_view path)
 {
   eos::common::FileSystem::fsid_t fsid;
   std::string err_msg;
@@ -37,17 +39,17 @@ std::string XrdOfsPathInfo::GetPath(eos::common::FileSystem::fsid_t fsid)
 FmdConverter::FmdConverter(FmdHandler* src_handler,
                            FmdHandler* tgt_handler,
                            size_t per_disk_pool) :
-    mSrcFmdHandler(src_handler), mTgtFmdHandler(tgt_handler),
-    mExecutor(std::make_unique<folly::IOThreadPoolExecutor>(per_disk_pool))
+  mSrcFmdHandler(src_handler), mTgtFmdHandler(tgt_handler),
+  mExecutor(std::make_unique<folly::IOThreadPoolExecutor>(per_disk_pool))
 {}
 
 
 folly::Future<bool>
 FmdConverter::Convert(std::string_view path, uint64_t count)
 {
-
   auto fsid = FsidPathInfo::GetFsid(path);
   auto fid = eos::common::FileId::PathToFid(path.data());
+
   if (!fsid) {
     return false;
   }
@@ -55,6 +57,7 @@ FmdConverter::Convert(std::string_view path, uint64_t count)
   if (!mSrcFmdHandler->ConvertFrom(fsid, fid, mTgtFmdHandler, false)) {
     return false;
   }
+
   return true;
 }
 
@@ -64,13 +67,13 @@ FmdConverter::ConvertFS(std::string_view fspath)
   std::error_code ec;
   stdfs::WalkFSTree(fspath, [this](std::string path, uint64_t count) {
     this->Convert(path, count)
-            .via(mExecutor.get())
-            .thenValue([&path](bool status) {
-              eos_static_info("msg=\"Conversion status\" file=%s, status =%d",
-                              path.c_str(),
-                              status);
-                       }
-            );
+    .via(mExecutor.get())
+    .thenValue([&path](bool status) {
+      eos_static_info("msg=\"Conversion status\" file=%s, status =%d",
+                      path.c_str(),
+                      status);
+    }
+              );
   }, ec);
 }
 
