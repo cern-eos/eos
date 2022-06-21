@@ -33,6 +33,7 @@
 #include "fst/Messaging.hh"
 #include "fst/Deletion.hh"
 #include "fst/Verify.hh"
+#include "fst/utils/XrdOfsPathHandler.hh"
 #include "common/PasswordHandler.hh"
 #include "common/FileId.hh"
 #include "common/FileSystem.hh"
@@ -678,7 +679,7 @@ XrdFstOfs::Configure(XrdSysError& Eroute, XrdOucEnv* envP)
             mFmdHandler.reset(new FmdDbMapHandler);
             Eroute.Say("Config", "creating DB Handler");
           } else if (value == "attr") {
-            mFmdHandler.reset(new FmdAttrHandler);
+            mFmdHandler.reset(new FmdAttrHandler(makeFSPathHandler(this)));
             Eroute.Say("Config", "creating Attr Handler");
           }
 
@@ -721,7 +722,7 @@ XrdFstOfs::Configure(XrdSysError& Eroute, XrdOucEnv* envP)
   }
 
   if (!mFmdHandler) {
-    mFmdHandler.reset(new FmdAttrHandler);
+    mFmdHandler.reset(new FmdAttrHandler(makeFSPathHandler(this)));
     Eroute.Say("=====> fstofs.filemd_handler : attr");
   }
 

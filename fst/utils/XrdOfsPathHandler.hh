@@ -38,7 +38,7 @@ private:
 
 
 inline std::unique_ptr<FSPathHandler>
-makeFSPathHandler(std::string_view pOFS)
+makeFSPathHandler(XrdFstOfs* pOFS)
 {
   return std::make_unique<XrdOfsPathHandler>(pOFS);
 }

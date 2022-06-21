@@ -2,20 +2,19 @@
 #include "fst/io/local/FsIo.hh"
 #include "fst/XrdFstOfs.hh"
 #include "fst/utils/FTSWalkTree.hh"
+#include "fst/utils/FSPathHandler.hh"
 #include "FmdHandler.hh"
 #include <functional>
 
 namespace eos::fst
 {
 
-std::string FmdAttrHandler::GetPath(eos::common::FileId::fileid_t fid,
-                                    eos::common::FileSystem::fsid_t fsid)
+
+FmdAttrHandler::FmdAttrHandler(std::unique_ptr<FSPathHandler>&& _FSPathHandler) :
+    mFSPathHandler(std::move(_FSPathHandler))
 {
-  // TODO: make this common fn take a couple of strings
-  return eos::common::FileId::FidPrefix2FullPath(eos::common::FileId::Fid2Hex(
-           fid).c_str(),
-         gOFS.Storage->GetStoragePath(fsid).c_str());
 }
+
 
 std::pair<bool, eos::common::FmdHelper>
 FmdAttrHandler::LocalRetrieveFmd(const std::string& path)
@@ -115,7 +114,7 @@ std::pair<bool, eos::common::FmdHelper>
 FmdAttrHandler::LocalRetrieveFmd(eos::common::FileId::fileid_t fid,
                                  eos::common::FileSystem::fsid_t fsid)
 {
-  return LocalRetrieveFmd(FmdAttrHandler::GetPath(fid, fsid));
+  return LocalRetrieveFmd(mFSPathHandler->GetPath(fid, fsid));
 }
 
 bool
@@ -123,7 +122,7 @@ FmdAttrHandler::LocalPutFmd(eos::common::FileId::fileid_t fid,
                             eos::common::FileSystem::fsid_t fsid,
                             const eos::common::FmdHelper& fmd)
 {
-  return LocalPutFmd(FmdAttrHandler::GetPath(fid, fsid), fmd);
+  return LocalPutFmd(mFSPathHandler->GetPath(fid, fsid), fmd);
 }
 
 void
@@ -131,7 +130,7 @@ FmdAttrHandler::LocalDeleteFmd(eos::common::FileId::fileid_t fid,
                                eos::common::FileSystem::fsid_t fsid,
                                bool drop_file)
 {
-  return LocalDeleteFmd(FmdAttrHandler::GetPath(fid, fsid), drop_file);
+  return LocalDeleteFmd(mFSPathHandler->GetPath(fid, fsid), drop_file);
 }
 
 bool
@@ -238,7 +237,7 @@ FmdAttrHandler::GetInconsistencyStatistics(
   std::map<std::string, std::set<eos::common::FileId::fileid_t>>& fidset)
 {
   std::error_code ec;
-  auto ret = WalkFSTree(gOFS.Storage->GetStoragePath(fsid),
+  auto ret = WalkFSTree(mFSPathHandler->GetFSPath(fsid),
                         [this, &statistics, &fidset ](const char* path,
   uint64_t count) {
     eos_debug("msg=\"Accessing file=\"%s", path);
@@ -274,5 +273,6 @@ FmdAttrHandler::UpdateInconsistencyStat(
   CollectInconsistencies(fmd, statistics, fidset);
   return true;
 }
+
 
 } // namespace eos::fst

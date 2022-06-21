@@ -26,6 +26,8 @@
 
 namespace eos::fst {
 
+class FSPathHandler;
+
 class FileIo;
 
 class FmdAttrHandler final: public FmdHandler
@@ -33,6 +35,8 @@ class FmdAttrHandler final: public FmdHandler
 public:
   // We don't maintain any local other than the mutexes held by the parent class
   ~FmdAttrHandler() = default;
+
+  FmdAttrHandler(std::unique_ptr<FSPathHandler>&& _FSPathHandler);
 
   fmd_handler_t get_type() override {
     return fmd_handler_t::ATTR;
@@ -51,11 +55,6 @@ public:
               uid_t uid = 0, gid_t gid = 0,
               eos::common::LayoutId::layoutid_t layoutid = 0) override;
 
-  // TODO(abhi): Move this to a more appropriate location somewhere higher, this is
-  // nothing related to AttrHandler as such
-  static std::string GetPath(eos::common::FileId::fileid_t fid,
-                             eos::common::FileSystem::fsid_t fsid);
-
   bool GetInconsistencyStatistics(
       eos::common::FileSystem::fsid_t fsid,
       std::map<std::string, size_t>& statistics,
@@ -68,6 +67,8 @@ public:
                                std::map<std::string, std::set<eos::common::FileId::fileid_t>>& fidset);
 
 private:
+  std::unique_ptr<FSPathHandler> mFSPathHandler;
+
   bool LocalPutFmd(eos::common::FileId::fileid_t fid,
                    eos::common::FileSystem::fsid_t fsid,
                    const eos::common::FmdHelper& fmd) override;
@@ -90,6 +91,8 @@ private:
   bool ResetMgmInformation(eos::common::FileSystem::fsid_t fsid) override { return true; };
 
   void SetSyncStatus(eos::common::FileSystem::fsid_t, bool) override {}
+
+
 };
 
 static constexpr auto gFmdAttrName = "user.eos.fmd";
