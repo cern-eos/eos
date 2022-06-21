@@ -438,6 +438,23 @@ add_executable(eos-readv-pattern
 target_link_libraries(eos-readv-pattern
   XROOTD::CL)
 
+
+add_executable(eos-filemd-convert
+  tools/ConvertFileMD.cc
+  # File metadata interface
+  filemd/FmdHandler.cc
+  filemd/FmdDbMap.cc
+  filemd/FmdAttr.cc
+  filemd/FmdConverter.cc
+  filemd/FmdMgm.cc
+  utils/FSPathHandler.cc
+  )
+
+target_link_libraries(eos-filemd-convert PRIVATE
+ EosFstIo EosCommonServer stdc++fs
+  XrdEosFst-Static
+ )
+
 install(PROGRAMS
   tools/eosfstregister
   tools/eosfstinfo
