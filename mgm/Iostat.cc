@@ -65,65 +65,6 @@ PercentComplete P99 = PercentComplete::p99;
 PercentComplete ALL = PercentComplete::p100;
 
 
-namespace
-{
-//------------------------------------------------------------------------------
-// Write callback used by CURL
-//------------------------------------------------------------------------------
-static size_t
-CurlWriteCallback(void* contents, size_t size, size_t nmemb, void* userp)
-{
-  ((std::string*)userp)->append((char*) contents, size * nmemb);
-  return size * nmemb;
-}
-
-//------------------------------------------------------------------------------
-// Get list of top level domains
-//------------------------------------------------------------------------------
-void GetTopLevelDomains(std::set<std::string>& domains)
-{
-  const std::string url = "http://data.iana.org/TLD/tlds-alpha-by-domain.txt";
-  CURL* curl = curl_easy_init();
-  std::string data;
-
-  if (curl) {
-    curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
-    curl_easy_setopt(curl, CURLOPT_TIMEOUT, 5L);
-    curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, CurlWriteCallback);
-    curl_easy_setopt(curl, CURLOPT_WRITEDATA, &data);
-    CURLcode res = curl_easy_perform(curl);
-    curl_easy_cleanup(curl);
-
-    if ((res != CURLE_OK) || data.empty()) {
-      domains.clear();
-    } else {
-      // Parse line by line each top level domain
-      eos::common::StringTokenizer tokenizer(data);
-      const char* line;
-      std::string tld;
-
-      while ((line = tokenizer.GetLine())) {
-        // Skip commented lines
-        if (*line == '#') {
-          continue;
-        }
-
-        tld = ".";
-        tld += line;
-        domains.insert(tld);
-      }
-    }
-  }
-
-  // If there were any issues then we add some default values
-  if (domains.empty()) {
-    domains = {".ch", ".it", ".ru", ".de", ".nl", ".fr", ".se", ".ro",
-               ".su", ".no", ".dk", ".cz", ".uk", ".se", ".org", ".edu"
-              };
-  }
-}
-}
-
 //------------------------------------------------------------------------------
 // IostatPeriods implementation
 //------------------------------------------------------------------------------
@@ -387,15 +328,6 @@ Iostat::Iostat():
   mQcl(nullptr), mReport(true), mReportNamespace(false), mReportPopularity(true),
   mHashKeyBase("")
 {
-  GetTopLevelDomains(IoDomains);
-  // push default nodes to watch TODO: make generic
-  IoNodes.insert("lxplus"); // CERN interactive cluster
-  IoNodes.insert("lxb"); // CERN batch cluster
-  IoNodes.insert("pb-d-128-141"); // CERN DHCP
-  IoNodes.insert("aldaq"); // ALICE DAQ
-  IoNodes.insert("cms-cdr"); // CMS DAQ
-  IoNodes.insert("pc-tdq"); // ATLAS DAQ
-
   for (size_t i = 0; i < IOSTAT_POPULARITY_HISTORY_DAYS; i++) {
     IostatPopularity[i].set_deleted_key("");
     IostatPopularity[i].resize(100000);
@@ -915,63 +847,22 @@ Iostat::Receive(ThreadAssistant& assistant) noexcept
           IostatPeriodsDomainIOwb["eos"].Add(report->wb, report->ots, report->cts, now);
         }
       } else {
-        bool dfound = false;
-
         if (mReportPopularity) {
           // do the popularity accounting here for everything which is not replication!
           AddToPopularity(report->path, report->rb, report->ots, report->cts);
         }
 
         size_t pos = 0;
-
-        if ((pos = report->sec_domain.rfind(".")) != std::string::npos) {
-          // we can sort in by domain
-          std::string sdomain = report->sec_domain.substr(pos);
-
-          if (IoDomains.find(sdomain) != IoDomains.end()) {
-            std::unique_lock<std::mutex> scope_lock(mDataMutex);
-
-            if (report->rb) {
-              IostatPeriodsDomainIOrb[sdomain].Add(report->rb, report->ots, report->cts, now);
-            }
-
-            if (report->wb) {
-              IostatPeriodsDomainIOwb[sdomain].Add(report->wb, report->ots, report->cts, now);
-            }
-
-            dfound = true;
-          }
-        }
-
-        // do the node accounting here - keep the node list small !!!
-        std::set<std::string>::const_iterator nit;
-
-        for (nit = IoNodes.begin(); nit != IoNodes.end(); nit++) {
-          if (*nit == report->sec_host.substr(0, nit->length())) {
-            std::unique_lock<std::mutex> scope_lock(mDataMutex);
-
-            if (report->rb) {
-              IostatPeriodsDomainIOrb[*nit].Add(report->rb, report->ots, report->cts, now);
-            }
-
-            if (report->wb) {
-              IostatPeriodsDomainIOwb[*nit].Add(report->wb, report->ots, report->cts, now);
-            }
-
-            dfound = true;
-          }
-        }
-
-        if (!dfound) {
-          // push into the 'other' domain
+        std::string sdomain = report->sec_domain;
+        {
           std::unique_lock<std::mutex> scope_lock(mDataMutex);
 
           if (report->rb) {
-            IostatPeriodsDomainIOrb["other"].Add(report->rb, report->ots, report->cts, now);
+            IostatPeriodsDomainIOrb[sdomain].Add(report->rb, report->ots, report->cts, now);
           }
 
           if (report->wb) {
-            IostatPeriodsDomainIOwb["other"].Add(report->wb, report->ots, report->cts, now);
+            IostatPeriodsDomainIOwb[sdomain].Add(report->wb, report->ots, report->cts, now);
           }
         }
       }

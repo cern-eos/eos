@@ -96,7 +96,8 @@ public:
   void prepareTransfers();
   void prepareTransfer(uint64_t index);
   void scheduleTransfer(eos::common::FileId::fileid_t fid,
-                        const string& src_grp, const string& tgt_grp);
+                        const string& src_grp, const string& tgt_grp,
+                        eos::common::FileSystem::fsid_t src_fsid);
 
   std::pair<bool, cache_fid_map_t::iterator>
   populateFids(eos::common::FileSystem::fsid_t fsid);
@@ -112,6 +113,7 @@ public:
   {
     std::scoped_lock slock(mTransfersMtx);
     mTransfers.emplace(fid);
+    mTrackedTransfers.emplace(fid);
   }
 
   void dropTransferEntry(eos::common::FileId::fileid_t fid)
@@ -137,6 +139,23 @@ public:
       std::scoped_lock slock(mTransfersMtx);
       mTransfers.erase(fid);
     }
+  }
+
+  // Returns if a transfer is tracked already by GroupDrainer, we are NOT
+  // supposed to schedule if (trackedTransferEntry(fid)) returns true, as it means
+  // we have already scheduled this transfer before.
+  // We allow failed transfers to be rescheduled again.
+  bool trackedTransferEntry(eos::common::FileId::fileid_t fid)
+  {
+    std::scoped_lock slock(mFailedTransfersMtx, mTransfersMtx);
+
+    if (mFailedTransfers.count(fid)) {
+      // Allow scheduling of failed transfers
+      return false;
+    }
+
+    // return if we have a tracked transfer entry
+    return mTrackedTransfers.find(fid) != mTrackedTransfers.end();
   }
 
   std::pair<bool, GroupDrainer::cache_fid_map_t::iterator>
@@ -205,6 +224,11 @@ private:
   mutable std::mutex mFailedTransfersMtx;
   std::unordered_set<eos::common::FileId::fileid_t> mTransfers;
   std::unordered_map<eos::common::FileId::fileid_t, std::string> mFailedTransfers;
+
+  // TODO future: use a bloom filter here if we find heavy mem. usage
+  // The only use case is to check if a file is not a member of a set, so a
+  // perfect use case as we don't care about false +ve memberships
+  std::unordered_set<eos::common::FileId::fileid_t> mTrackedTransfers;
 
   //! map holding a seed for RR picker for every Group for the FS
   std::map<std::string, uint16_t> mGroupFSSeed;

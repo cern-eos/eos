@@ -798,7 +798,11 @@ public:
              bool doLock = true,
              bool useLayout = false,
              bool truncate = false,
-             size_t size = 0);
+             size_t size = 0,
+             bool absorb = false,
+             const char* hardlinkpath = 0,
+             const char* checksuminfo = 0,
+             std::string* errmsg = 0);
 
   //----------------------------------------------------------------------------
   //! List extended attributes for a given file/directory - high-level API.

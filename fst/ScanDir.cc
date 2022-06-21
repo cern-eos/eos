@@ -400,9 +400,10 @@ void
 ScanDir::RunDiskScan(ThreadAssistant& assistant) noexcept
 {
   using namespace std::chrono;
+  pid_t tid = 0;
 
   if (mBgThread) {
-    pid_t tid = (pid_t) syscall(SYS_gettid);
+    tid = (pid_t) syscall(SYS_gettid);
     int retc = 0;
 
     if ((retc = ioprio_set(IOPRIO_WHO_PROCESS,
@@ -410,7 +411,8 @@ ScanDir::RunDiskScan(ThreadAssistant& assistant) noexcept
       eos_err("msg=\"cannot set io priority to lowest best effort\" "
               "retc=%d errno=%d\n", retc, errno);
     } else {
-      eos_notice("msg=\"set io priority to 7(lowest best-effort)\" pid=%u", tid);
+      eos_notice("msg=\"set io priority to 7(lowest best-effort)\" pid=%u "
+                 "fsid=%lu", tid, mFsId);
     }
   }
 
@@ -521,6 +523,8 @@ ScanDir::RunDiskScan(ThreadAssistant& assistant) noexcept
       break;
     }
   }
+
+  eos_notice("msg=\"done disk scan\" pid=%u fsid=%lu", tid, mFsId);
 }
 
 //------------------------------------------------------------------------------

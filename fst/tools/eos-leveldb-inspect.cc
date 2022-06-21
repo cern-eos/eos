@@ -85,17 +85,15 @@ private:
 void print_usage(const char* prg_name)
 {
   std::cerr << "Usage: : " << prg_name << " --dbpath <full_path> "
-            << "[--dump_ids] [--fid <fid_dec>] [--fsck] [--verbose_fsck]"
-            << std::endl
+            << "[--dump_ids] [--fid <fid> | --fxid <fxid>] [--fsck] [--verbose_fsck]\n"
             << "   --dump_ids      :"
-            << "dumpd the decimal file ids stored in the DB" << std::endl
-            << "   --fid <fid_dec> : "
-            << " display stored metadata info about given file id"
-            << std::endl
-            << "   --fsck          : "
-            << " display fsck inconsistencies counters" << std::endl
+            << "dumpd the decimal file ids stored in the DB\n"
+            << "   --fid <fid> | --fxid <fxid> : "
+            << " display stored metadata info about given file id decimal/hex\n"
+            << "   --fsck          :"
+            << " display fsck inconsistencies counters\n"
             << "   --verbose_fsck  : "
-            << " display fsck counters together with the hex file ids"
+            << " display fsck counters together with the hex file ids\n"
             << std::endl;
 }
 
@@ -195,72 +193,7 @@ void DumpFsckStats(eos::common::DbMap& db, bool verbose = false)
   for (db.beginIter(false); db.iterate(&k, &v, false);) {
     eos::common::FmdHelper f;
     f.mProtoFmd.ParseFromString(v->value);
-
-    if (f.mProtoFmd.layouterror()) {
-      if (f.mProtoFmd.layouterror() & LayoutId::kOrphan) {
-        statistics["orphans_n"]++;
-        fid_set["orphans_n"].insert(f.mProtoFmd.fid());
-      }
-
-      if (f.mProtoFmd.layouterror() & LayoutId::kUnregistered) {
-        statistics["unreg_n"]++;
-        fid_set["unreg_n"].insert(f.mProtoFmd.fid());
-      }
-
-      if (f.mProtoFmd.layouterror() & LayoutId::kReplicaWrong) {
-        statistics["rep_diff_n"]++;
-        fid_set["rep_diff_n"].insert(f.mProtoFmd.fid());
-      }
-
-      if (f.mProtoFmd.layouterror() & LayoutId::kMissing) {
-        statistics["rep_missing_n"]++;
-        fid_set["rep_missing_n"].insert(f.mProtoFmd.fid());
-      }
-    }
-
-    if (f.mProtoFmd.mgmsize() != eos::common::FmdHelper::UNDEF) {
-      statistics["m_sync_n"]++;
-
-      if (f.mProtoFmd.size() != eos::common::FmdHelper::UNDEF) {
-        // Report missmatch only for non-rain layout files
-        if (!LayoutId::IsRain(f.mProtoFmd.lid()) &&
-            f.mProtoFmd.size() != f.mProtoFmd.mgmsize()) {
-          statistics["m_mem_sz_diff"]++;
-          fid_set["m_mem_sz_diff"].insert(f.mProtoFmd.fid());
-        }
-      }
-    }
-
-    if (!f.mProtoFmd.layouterror()) {
-      if (f.mProtoFmd.size() && !LayoutId::IsRain(f.mProtoFmd.lid()) &&
-          f.mProtoFmd.diskchecksum().length() &&
-          (f.mProtoFmd.diskchecksum() != f.mProtoFmd.checksum())) {
-        statistics["d_cx_diff"]++;
-        fid_set["d_cx_diff"].insert(f.mProtoFmd.fid());
-      }
-
-      if (f.mProtoFmd.size() && !LayoutId::IsRain(f.mProtoFmd.lid()) &&
-          f.mProtoFmd.mgmchecksum().length() &&
-          (f.mProtoFmd.mgmchecksum() != f.mProtoFmd.checksum())) {
-        statistics["m_cx_diff"]++;
-        fid_set["m_cx_diff"].insert(f.mProtoFmd.fid());
-      }
-    }
-
-    statistics["mem_n"]++;
-
-    if (f.mProtoFmd.disksize() != eos::common::FmdHelper::UNDEF) {
-      statistics["d_sync_n"]++;
-
-      if (f.mProtoFmd.size() != eos::common::FmdHelper::UNDEF) {
-        // Report missmatch only for replica layout files
-        if ((f.mProtoFmd.size() != f.mProtoFmd.disksize()) &&
-            !LayoutId::IsRain(f.mProtoFmd.lid())) {
-          statistics["d_mem_sz_diff"]++;
-          fid_set["d_mem_sz_diff"].insert(f.mProtoFmd.fid());
-        }
-      }
-    }
+    CollectInconcistencies(f, statistics, fid_set);
   }
 
   // Display summary
@@ -355,9 +288,10 @@ int main(int argc, char* argv[])
   static struct option long_options[] = {
     {"dbpath",           required_argument, 0,   0 },
     {"fid",              required_argument, 0,   0 },
-    {"dump_ids",         no_argument,       0,  'e'},
-    {"fsck",             no_argument,       0,  'f'},
-    {"verbose_fsck",     no_argument,       0,  'v'},
+    {"fxid",             required_argument, 0,   0 },
+    {"dump_ids",         no_argument,       0,   0 },
+    {"fsck",             no_argument,       0,   0 },
+    {"verbose_fsck",     no_argument,       0,   0 },
     {0,                  0,                 0,   0 }
   };
 
@@ -371,8 +305,25 @@ int main(int argc, char* argv[])
         if (*dbpath.rbegin() != '/') {
           dbpath += "/";
         }
-      } else if (strcmp(long_options[long_index].name, "fid") == 0) {
+      } else if (strncmp(long_options[long_index].name, "fid", 3) == 0) {
         sfid = optarg;
+      } else if (strncmp(long_options[long_index].name, "fxid", 4) == 0) {
+        const std::string sarg = optarg;
+        size_t pos = 0;
+        uint64_t fid {0ull};
+
+        try {
+          fid = std::stoull(sarg, &pos, 16);
+
+          if (pos != sarg.size()) {
+            throw std::invalid_argument("failed fxid conversion");
+          }
+        } catch (...) {
+          std::cerr << "error: failed to convert fxid" << std::endl;
+          return -1;
+        }
+
+        sfid = std::to_string(fid);
       }
 
       break;

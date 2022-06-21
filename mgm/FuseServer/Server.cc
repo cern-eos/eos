@@ -514,6 +514,14 @@ Server::FillFileMD(uint64_t inode, eos::fusex::md& file,
         continue;
       }
 
+      if ((elem.first) == "sys.fusex.state") {
+        continue;
+      }
+
+      if ((elem.first) == "sys.fs.tracking") {
+        continue;
+      }
+
       (*file.mutable_attr())[elem.first] = elem.second;
 
       if ((elem.first) == "sys.eos.btime") {
@@ -2251,6 +2259,11 @@ Server::OpSetFile(const std::string& id,
     default:
       s += "0";
       break;
+    }
+
+    if (fmd->getSize() != md.size()) {
+      // this is a size change
+      s += "±";
     }
 
     fmd->setAttribute("sys.fusex.state",

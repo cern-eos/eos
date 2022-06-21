@@ -450,6 +450,8 @@ public:
   std::atomic<uint64_t> mSimErrIoReadOff; ///< Simulate IO error offset on rd
   std::atomic<uint64_t> mSimErrIoWriteOff;///< Simulate IO error offset on wr
   std::atomic<uint64_t> mSimDiskWriting;///< Do not really write IO to disk
+  std::atomic<bool> mSimCloseErr; ///< simulate an error during close
+  std::atomic<bool> mSimUnresponsive; ///< simulate timeouts in the OFS layer
 
   //! A vector map pointing from tpc key => tpc information for reads, [0]
   //! are readers [1] are writers

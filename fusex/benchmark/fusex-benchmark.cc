@@ -31,7 +31,8 @@
 #define LOOP_17 1234
 #define LOOP_18 100
 #define LOOP_19 100
-#define LOOP_20 10
+#define LOOP_20 100
+#define LOOP_21 10000
 
 int main(int argc, char* argv[])
 {
@@ -338,7 +339,8 @@ int main(int argc, char* argv[])
       ssize_t nread = pread(fd, &v, 4, (i * 4) + (2 * 1024 * 1024));
 
       if (nread != 4) {
-        fprintf(stderr, "[test=%03d] failed linear read i=%d nread=%ld \n", testno, i, nread);
+        fprintf(stderr, "[test=%03d] failed linear read i=%d nread=%ld \n", testno, i,
+                nread);
         exit(testno);
       }
 
@@ -595,8 +597,9 @@ int main(int argc, char* argv[])
         exit(testno);
       }
 
-      if (symlink("../test",name)) {
-	fprintf(stderr, "[test=%03d] symlink failed i=%lu errno=%d\n", testno, i, errno);
+      if (symlink("../test", name)) {
+        fprintf(stderr, "[test=%03d] symlink failed i=%lu errno=%d\n", testno, i,
+                errno);
         exit(testno);
       }
 
@@ -628,8 +631,9 @@ int main(int argc, char* argv[])
         exit(testno);
       }
 
-      if (symlink("../test",name)) {
-	fprintf(stderr, "[test=%03d] symlink failed i=%lu errno=%d\n", testno, i, errno);
+      if (symlink("../test", name)) {
+        fprintf(stderr, "[test=%03d] symlink failed i=%lu errno=%d\n", testno, i,
+                errno);
         exit(testno);
       }
 
@@ -659,88 +663,109 @@ int main(int argc, char* argv[])
         fprintf(stderr, "[test=%03d] mkdir failed i=%lu errno=%d\n", testno, i, errno);
         exit(testno);
       }
+
       names.insert(name);
     }
 
     DIR* dir = opendir(".");
-    struct dirent* rdir=0;
-
-    size_t cnt=0;
+    struct dirent* rdir = 0;
+    size_t cnt = 0;
     std::vector<std::string> position;
-    position.resize(LOOP_17+2);
+    position.resize(LOOP_17 + 2);
 
     do {
       //      fprintf(stdout, "pos=%ld\n", telldir(dir));
       rdir = readdir(dir);
+
       if (rdir) {
-	//fprintf(stdout, "pos=%ld name=%s\n", telldir(dir), rdir->d_name);
+        //fprintf(stdout, "pos=%ld name=%s\n", telldir(dir), rdir->d_name);
       } else {
-	//fprintf(stdout, "EOF pos=%ld\n", telldir(dir));
+        //fprintf(stdout, "EOF pos=%ld\n", telldir(dir));
       }
+
       off_t offset = telldir(dir);
       seekdir(dir, offset);
+
       if (rdir) {
-	position[offset-1] = rdir->d_name;
-	if (found.count(rdir->d_name)) {
-	  fprintf(stderr,"[test=%03d] readdir failed duplicated item got=%s\n", testno, rdir->d_name);
-	  exit(testno);
-	}
-	if (!names.count(rdir->d_name)) {
-	  fprintf(stderr,"[test=%03d] readdir failed missing item got=%s\n", testno, rdir->d_name);
-	  exit(testno);
-	}
-	found.insert(rdir->d_name);
+        position[offset - 1] = rdir->d_name;
+
+        if (found.count(rdir->d_name)) {
+          fprintf(stderr, "[test=%03d] readdir failed duplicated item got=%s\n", testno,
+                  rdir->d_name);
+          exit(testno);
+        }
+
+        if (!names.count(rdir->d_name)) {
+          fprintf(stderr, "[test=%03d] readdir failed missing item got=%s\n", testno,
+                  rdir->d_name);
+          exit(testno);
+        }
+
+        found.insert(rdir->d_name);
       }
+
       cnt++;
     } while (rdir);
 
-    for (size_t i = 0; i< 10*LOOP_17; i++) {
+    for (size_t i = 0; i < 10 * LOOP_17; i++) {
       size_t idx = LOOP_17 * (1.0 * std::rand() / (RAND_MAX));
-      seekdir (dir, idx);
-      rdir = readdir (dir);
+      seekdir(dir, idx);
+      rdir = readdir(dir);
+
       if (rdir) {
-	if (position[idx] != std::string(rdir->d_name)) {
-	  fprintf(stderr,"[test=%03d] readdir failed inconsistent entry got=%s for index=%lu\n", testno, rdir->d_name, idx);
-	  exit(testno);
-	}
+        if (position[idx] != std::string(rdir->d_name)) {
+          fprintf(stderr,
+                  "[test=%03d] readdir failed inconsistent entry got=%s for index=%lu\n", testno,
+                  rdir->d_name, idx);
+          exit(testno);
+        }
       }
     }
 
     // create one more directory
-    mkdir ("onemore", S_IRWXU);
-    
+    mkdir("onemore", S_IRWXU);
+
     // check the original positions
-    for (size_t i = 0; i< LOOP_17; i++) {
+    for (size_t i = 0; i < LOOP_17; i++) {
       size_t idx = LOOP_17;
-      seekdir (dir, idx);
-      rdir = readdir (dir);
+      seekdir(dir, idx);
+      rdir = readdir(dir);
+
       if (rdir) {
-	if (position[idx] != std::string(rdir->d_name)) {
-	  fprintf(stderr,"[test=%03d] readdir failed inconsistent entry got=%s for index=%lu\n", testno, rdir->d_name, idx);
-	  exit(testno);
-	}
+        if (position[idx] != std::string(rdir->d_name)) {
+          fprintf(stderr,
+                  "[test=%03d] readdir failed inconsistent entry got=%s for index=%lu\n", testno,
+                  rdir->d_name, idx);
+          exit(testno);
+        }
       }
     }
 
-    seekdir (dir, LOOP_17+2);
-    rdir = readdir (dir);
+    seekdir(dir, LOOP_17 + 2);
+    rdir = readdir(dir);
+
     if (rdir) {
-      if ( std::string("onemore") != std::string(rdir->d_name) ) {
-	fprintf(stderr,"[test=%03d] readdir failed to get one new directory in correct position\n", testno);
-	exit(testno);
+      if (std::string("onemore") != std::string(rdir->d_name)) {
+        fprintf(stderr,
+                "[test=%03d] readdir failed to get one new directory in correct position\n",
+                testno);
+        exit(testno);
       }
+
       // fprintf(stdout, "got on new position %s\n", rdir->d_name);
     }
 
     // remove one directory
     rmdir(position[2].c_str());
-    
+
     for (size_t i = 0; i < LOOP_17; i++) {
-      seekdir (dir, i+3);
-      rdir = readdir (dir);
-      if ( position[2] == std::string(rdir->d_name) ) {
-	fprintf(stderr,"[test=%03d] readdir failed to have correct position after deletion\n", testno);
-	exit(testno);
+      seekdir(dir, i + 3);
+      rdir = readdir(dir);
+
+      if (position[2] == std::string(rdir->d_name)) {
+        fprintf(stderr,
+                "[test=%03d] readdir failed to have correct position after deletion\n", testno);
+        exit(testno);
       }
     }
 
@@ -748,9 +773,10 @@ int main(int argc, char* argv[])
       closedir(dir);
     }
 
-    for (size_t i = 0 ; i< position.size(); ++i) {
+    for (size_t i = 0 ; i < position.size(); ++i) {
       rmdir(position[i].c_str());
     }
+
     rmdir("onemore");
     COMMONTIMING("readdir-loop", &tm);
   }
@@ -760,19 +786,17 @@ int main(int argc, char* argv[])
 
   if ((testno >= test_start) && (testno <= test_stop)) {
     fprintf(stderr, ">>> test %04d\n", testno);
-
     int fd = creat("lockme", S_IRWXU);
+
     if (ftruncate(fd, 1000)) {
-      fprintf(stderr,"[test=%3d] errno=%d\n", testno, errno);
+      fprintf(stderr, "[test=%3d] errno=%d\n", testno, errno);
       exit(testno);
     }
 
     close(fd);
     fd = open("lockme", 0, 0);
-
     struct flock fl;
     memset(&fl, 0, sizeof(fl));
-
     fl.l_type = F_RDLCK;
     fl.l_whence = SEEK_SET;
     fl.l_start = 100;
@@ -780,10 +804,9 @@ int main(int argc, char* argv[])
     fl.l_pid = 0;
 
     for (size_t i = 0; i < LOOP_18; i++) {
-
       int do_shared_lock  = fcntl(fd, F_SETLKW, &fl);
-      
-      if ( do_shared_lock == -1) {
+
+      if (do_shared_lock == -1) {
         fprintf(stderr, "[test=%3d] shared lock failed errno=%d\n", testno, errno);
         exit(testno);
       }
@@ -791,7 +814,6 @@ int main(int argc, char* argv[])
 
     close(fd);
     unlink("lockme");
-    
     COMMONTIMING("shared-lock-loop", &tm);
   }
 
@@ -800,27 +822,31 @@ int main(int argc, char* argv[])
 
   if ((testno >= test_start) && (testno <= test_stop)) {
     fprintf(stderr, ">>> test %04d\n", testno);
-
     int fd = creat("lockme", S_IRWXU);
+
     if (ftruncate(fd, 1000)) {
-      fprintf(stderr,"[test=%3d] errno=%d\n", testno, errno);
+      fprintf(stderr, "[test=%3d] errno=%d\n", testno, errno);
       exit(testno);
     }
 
     struct flock fl;
+
     memset(&fl, 0, sizeof(fl));
 
     fl.l_type = F_WRLCK;
+
     fl.l_whence = SEEK_SET;
+
     fl.l_start = 100;
+
     fl.l_len = 100;
+
     fl.l_pid = 0;
 
     for (size_t i = 0; i < LOOP_19; i++) {
-
       int do_shared_lock  = fcntl(fd, F_SETLKW, &fl);
-      
-      if ( do_shared_lock == -1) {
+
+      if (do_shared_lock == -1) {
         fprintf(stderr, "[test=%3d] exclusive lock failed errno=%d\n", testno, errno);
         exit(testno);
       }
@@ -828,7 +854,6 @@ int main(int argc, char* argv[])
 
     close(fd);
     unlink("lockme");
-    
     COMMONTIMING("exclusive-lock-loop", &tm);
   }
 
@@ -837,53 +862,79 @@ int main(int argc, char* argv[])
 
   if ((testno >= test_start) && (testno <= test_stop)) {
     fprintf(stderr, ">>> test %04d\n", testno);
-
     char buffer[1024];
     char rbuffer[1024];
-    sprintf(buffer,"https://git.test.cern.ch");
+    sprintf(buffer, "https://git.test.cern.ch");
 
-    for (size_t i = 0; i < LOOP_19; i++) {
-
+    for (size_t i = 0; i < LOOP_20; i++) {
       int fd = creat("config.lock", S_IRWXU);
+
       if (fd < 0) {
-	fprintf(stderr, "[test=%3d] file creation failed errno=%d\n", testno, errno);
-	exit(testno);
+        fprintf(stderr, "[test=%3d] file creation failed errno=%d\n", testno, errno);
+        exit(testno);
       }
-      size_t nwrite = (size_t)write(fd, buffer, strlen(buffer)+1);
-      if (nwrite != (strlen(buffer)+1)) {
-	fprintf(stderr,"[test=%3d] file write failed - wrote %lu/%lu - errno=%d\n", testno, nwrite, strlen(buffer)+1, errno);
-	fprintf(stderr,"[test=%3d] iteration=%lu\n", testno, i);
-	exit(testno);
+
+      size_t nwrite = (size_t)write(fd, buffer, strlen(buffer) + 1);
+
+      if (nwrite != (strlen(buffer) + 1)) {
+        fprintf(stderr, "[test=%3d] file write failed - wrote %lu/%lu - errno=%d\n",
+                testno, nwrite, strlen(buffer) + 1, errno);
+        fprintf(stderr, "[test=%3d] iteration=%lu\n", testno, i);
+        exit(testno);
       }
 
       close(fd);
 
-      if (rename("config.lock","config")) {
-	fprintf(stderr,"[test=%3d] file rename failed - errno=%d\n", testno, errno);
-	fprintf(stderr,"[test=%3d] iteration=%lu\n", testno, i);
-	exit(testno);
+      if (rename("config.lock", "config")) {
+        fprintf(stderr, "[test=%3d] file rename failed - errno=%d\n", testno, errno);
+        fprintf(stderr, "[test=%3d] iteration=%lu\n", testno, i);
+        exit(testno);
       }
+
       fd = open("config", 0);
-      if (fd<0) {
-	fprintf(stderr,"[test=%3d] file open for read failed - errno=%d\n", testno, errno);
-	fprintf(stderr,"[test=%3d] iteration=%lu\n", testno, i);
-	exit(testno);
+
+      if (fd < 0) {
+        fprintf(stderr, "[test=%3d] file open for read failed - errno=%d\n", testno,
+                errno);
+        fprintf(stderr, "[test=%3d] iteration=%lu\n", testno, i);
+        exit(testno);
       }
+
       memset(rbuffer, 0, 1024);
-      size_t nread = (size_t) read(fd,rbuffer, 1024);
-      if (nread != (strlen(buffer)+1)) {
-	fprintf(stderr,"[test=%3d] file read failed - read %lu/%lu - errno=%d\n", testno, nread, strlen(buffer)+1, errno);
-	fprintf(stderr,"[test=%3d] iteration=%lu\n", testno, i);
-	exit(testno);
+      size_t nread = (size_t) read(fd, rbuffer, 1024);
+
+      if (nread != (strlen(buffer) + 1)) {
+        fprintf(stderr, "[test=%3d] file read failed - read %lu/%lu - errno=%d\n",
+                testno, nread, strlen(buffer) + 1, errno);
+        fprintf(stderr, "[test=%3d] iteration=%lu\n", testno, i);
+        exit(testno);
       }
-      if (strncmp(buffer, rbuffer, strlen(buffer)+1)) {
-	fprintf(stderr,"[test=%3d] file read wrong contents - read %lu/%lu", testno, nread, strlen(buffer)+1);
-	fprintf(stderr,"[test=%3d] iteration=%lu\n", testno, i);
-	exit(testno);
+
+      if (strncmp(buffer, rbuffer, strlen(buffer) + 1)) {
+        fprintf(stderr, "[test=%3d] file read wrong contents - read %lu/%lu", testno,
+                nread, strlen(buffer) + 1);
+        fprintf(stderr, "[test=%3d] iteration=%lu\n", testno, i);
+        exit(testno);
       }
+
       close(fd);
     }
+
     COMMONTIMING("version-rename-loop", &tm);
+  }
+
+  // ------------------------------------------------------------------------ //
+  testno = 21;
+
+  if ((testno >= test_start) && (testno <= test_stop)) {
+    fprintf(stderr, ">>> test %04d\n", testno);
+    struct stat buf;
+
+    for (size_t i = 0 ; i < LOOP_21; ++i) {
+      ::stat("_does_not_exist", &buf);
+    }
+
+    COMMONTIMING("repeat-enoent", &tm);
   }
 
   tm.Print();

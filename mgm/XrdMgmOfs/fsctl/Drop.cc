@@ -80,6 +80,12 @@ XrdMgmOfs::Drop(const char* path,
     }
 
     if (fmd) {
+      std::string locations;
+
+      try {
+        locations = fmd->getAttribute("sys.fs.tracking");
+      } catch (...) {}
+
       try {
         container =
           gOFS->eosDirectoryService->getContainerMD(fmd->getContainerId());
@@ -116,14 +122,20 @@ XrdMgmOfs::Drop(const char* path,
           if (fmd->hasLocation(id)) {
             fmd->unlinkLocation(id);
             updatestore = true;
+            locations += "-";
+            locations += std::to_string(id);
           }
 
           if (fmd->hasUnlinkedLocation(id)) {
             fmd->removeLocation(id);
             updatestore = true;
+            locations += "/";
+            locations += std::to_string(id);
           }
 
           if (updatestore) {
+            fmd->setAttribute("sys.fs.tracking",
+                              eos::common::StringConversion::ReduceString(locations).c_str());
             gOFS->eosView->updateFileStore(fmd.get());
             // After update we might have to get the new address
             fmd = eosFileService->getFileMD(eos::common::FileId::Hex2Fid(afid));

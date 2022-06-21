@@ -44,6 +44,73 @@ EOSMGMNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 // Fileinfo method
 //------------------------------------------------------------------------------
+
+
+std::string
+ProcCommand::FileMDToStatus(std::shared_ptr<eos::IFileMD> fmd)
+{
+  int tape_copy = 0;
+
+  if (fmd->hasLocation(EOS_TAPE_FSID)) {
+    tape_copy++;
+  }
+
+  if (fmd->getNumLocation() == 0) {
+    return "locations::uncommitted";
+  }
+
+  if (fmd->getNumLocation() < (eos::common::LayoutId::GetStripeNumber(
+                                 fmd->getLayoutId()) + 1 + tape_copy)) {
+    return "locations::incomplete";
+  }
+
+  if (fmd->getNumLocation() > (eos::common::LayoutId::GetStripeNumber(
+                                 fmd->getLayoutId()) + 1 + tape_copy)) {
+    return "locations::overreplicated";
+  }
+
+  eos::IFileMD::XAttrMap xattrs = fmd->getAttributes();
+  // check sys.fusex.state
+  std::string fs = xattrs["sys.fusex.state"];
+
+  if (fs.length()) {
+    std::string b2 = fs.substr(fs.length() - 2);
+
+    if (b2 == "±") {
+      return "fuse::needsflush";
+    }
+
+    if (fs.back() == 'Z') {
+      return "fuse::repairing";
+    }
+
+    // scan from the back
+    if (fs.back() == '|') {
+      size_t spos = fs.rfind("±", fs.length() - 1);
+      size_t ncommits = 0;
+
+      if (spos != std::string::npos) {
+        spos++; // multichar !
+
+        for (size_t i = spos; i < fs.length(); ++i) {
+          if (fs.at(i) == '+') {
+            ncommits++;
+          }
+        }
+      }
+
+      if (eos::common::LayoutId::GetLayoutType(fmd->getLayoutId()) ==
+          eos::common::LayoutId::kReplica) {
+        if (ncommits < fmd->getNumLocation()) {
+          return "fuse::missingcommmits";
+        }
+      }
+    }
+  }
+
+  return "healthy";
+}
+
 int
 ProcCommand::Fileinfo()
 {
@@ -318,6 +385,7 @@ ProcCommand::FileInfo(const char* path)
 
             out << std::endl;
             out << "  Size: " << fmd_copy->getSize() << std::endl
+                << "Status: " << FileMDToStatus(fmd_copy) << std::endl
                 << "Modify: " << eos::common::Timing::ltime(filemtime)
                 << " Timestamp: " << eos::common::Timing::TimespecToString(mtime)
                 << std::endl
@@ -373,6 +441,7 @@ ProcCommand::FileInfo(const char* path)
             out << "keylength.file=" << spath.length()
                 << " file=" << spath
                 << " size=" << fmd_copy->getSize()
+                << " status=" << FileMDToStatus(fmd_copy)
                 << " mtime=" << mtime.tv_sec << "." << mtime.tv_nsec
                 << " ctime=" << ctime.tv_sec << "." << ctime.tv_nsec
                 << " btime=" << btime.tv_sec << "." << btime.tv_nsec

@@ -720,6 +720,8 @@ int Inspector::stripediff()
       extended["expected-stripes"] = std::to_string(expected);
       extended["unlinked-stripes"] = std::to_string(unlinked);
       mOutputSink.printWithAdditionalFields(proto, filePrintingOpts, extended);
+    } else {
+      (void) fetchNameOrPath(proto, item);
     }
 
     fileScanner.next();

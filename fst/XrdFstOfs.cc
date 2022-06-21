@@ -321,7 +321,8 @@ XrdFstOfs::XrdFstOfs() :
   mCloseThreadPool(8, 64, 5, 6, 5, "async_close"),
   mMgmXrdPool(nullptr), mSimIoReadErr(false), mSimIoWriteErr(false),
   mSimXsReadErr(false), mSimXsWriteErr(false), mSimFmdOpenErr(false),
-  mSimErrIoReadOff(0ull), mSimErrIoWriteOff(0ull), mSimDiskWriting(false)
+  mSimErrIoReadOff(0ull), mSimErrIoWriteOff(0ull), mSimDiskWriting(false),
+  mSimCloseErr(false), mSimUnresponsive(false)
 {
   Eroute = 0;
   Messaging = 0;
@@ -884,22 +885,40 @@ XrdFstOfs::SetSimulationError(const std::string& input)
   mSimIoReadErr = mSimIoWriteErr = mSimXsReadErr =
                                      mSimXsWriteErr = mSimFmdOpenErr = false;
   mSimErrIoReadOff = mSimErrIoWriteOff = 0ull;
-  mSimDiskWriting = false;
+  mSimDiskWriting = mSimCloseErr = mSimUnresponsive = false;
 
   if (input.find("io_read") == 0) {
     mSimIoReadErr = true;
     mSimErrIoReadOff = GetSimulationErrorOffset(input);
-  } else if (input.find("io_write") == 0) {
+  }
+
+  if (input.find("io_write") == 0) {
     mSimIoWriteErr = true;
     mSimErrIoWriteOff = GetSimulationErrorOffset(input);
-  } else if (input.find("xs_read") == 0) {
+  }
+
+  if (input.find("xs_read") == 0) {
     mSimXsReadErr = true;
-  } else if (input.find("xs_write") == 0) {
+  }
+
+  if (input.find("xs_write") == 0) {
     mSimXsWriteErr = true;
-  } else if (input.find("fmd_open") == 0) {
+  }
+
+  if (input.find("fmd_open") == 0) {
     mSimFmdOpenErr = true;
-  } else if (input.find("fake_write") == 0) {
+  }
+
+  if (input.find("fake_write") == 0) {
     mSimDiskWriting = true;
+  }
+
+  if (input.find("close") == 0) {
+    mSimCloseErr = true;
+  }
+
+  if (input.find("unresponsive") == 0) {
+    mSimUnresponsive = true;
   }
 }
 

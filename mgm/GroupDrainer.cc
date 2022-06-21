@@ -283,8 +283,7 @@ GroupDrainer::prepareTransfer(uint64_t index)
   // Cross check that we do have a valid iterator anyway!
   if (fids != mCacheFileList.end()) {
     if (fids->second.size() > 0) {
-      scheduleTransfer(fids->second.back(), grp_drain_from, grp_drain_to);
-      mDrainProgressTracker.increment(fsid);
+      scheduleTransfer(fids->second.back(), grp_drain_from, grp_drain_to, fsid);
       fids->second.pop_back();
     } else {
       eos_debug("%s", "Got a valid iter but empty files!");
@@ -296,14 +295,29 @@ GroupDrainer::prepareTransfer(uint64_t index)
 
 void
 GroupDrainer::scheduleTransfer(eos::common::FileId::fileid_t fid,
-                               const string& src_grp, const string& tgt_grp)
+                               const string& src_grp, const string& tgt_grp,
+                               eos::common::FileSystem::fsid_t src_fsid)
 {
   if (src_grp.empty() || tgt_grp.empty()) {
     eos_err("%s", "msg=\"Got empty transfer groups!\"");
+    return;
+  }
+
+  // Cross-check that the file wasn't scheduled before we attempt to check FS
+  // and possibly redo a transfer
+  if (trackedTransferEntry(fid)) {
+    eos_info("msg=\"Skipping scheduling of Tracked Transfer\" fid=%08llx", fid);
+    return;
   }
 
   uint64_t filesz;
   auto conv_tag = getFileProcTransferNameAndSize(fid, tgt_grp, &filesz);
+
+  if (conv_tag.empty()) {
+    eos_err("msg=\"Possibly failed proc file found\" fid=%08llx", fid);
+    return;
+  }
+
   conv_tag += "^groupdrainer^";
   conv_tag.erase(0, gOFS->MgmProcConversionPath.length() + 1);
 
@@ -312,6 +326,7 @@ GroupDrainer::scheduleTransfer(eos::common::FileId::fileid_t fid,
              "src_grp=\"%s\" dst_grp=\"%s\"", conv_tag.c_str(),
              src_grp.c_str(), tgt_grp.c_str());
     addTransferEntry(fid);
+    mDrainProgressTracker.increment(src_fsid);
   } else {
     addFailedTransferEntry(fid, std::move(conv_tag));
   }
@@ -357,7 +372,7 @@ GroupDrainer::populateFids(eos::common::FileSystem::fsid_t fsid)
 
       if (mFailedTransfers.count(fid)) {
         failed_fids.emplace_back(fid);
-      } else if (!mTransfers.count(fid)) {
+      } else if (!mTransfers.count(fid) && !mTrackedTransfers.count(fid)) {
         local_fids.emplace_back(fid);
         ++ctr;
       }
@@ -557,7 +572,8 @@ GroupDrainer::getStatus(StatusFormat status_fmt) const
   {
     std::scoped_lock sl(mTransfersMtx);
     ss << "Max allowed Transfers  : " << mMaxTransfers << "\n"
-       << "Transfers in Queue     : " << mTransfers.size() << "\n";
+       << "Transfers in Queue     : " << mTransfers.size() << "\n"
+       << "Total Transfers        : " << mTrackedTransfers.size() << "\n";
   }
   auto failed_tx_sz = mFailedTransfers.size();
   ss << "Transfers Failed       : " << failed_tx_sz << "\n";
@@ -603,8 +619,9 @@ GroupDrainer::getStatus(StatusFormat status_fmt) const
 void
 GroupDrainer::resetFailedTransfers()
 {
-  std::scoped_lock sl(mFailedTransfersMtx);
+  std::scoped_lock sl(mFailedTransfersMtx, mTransfersMtx);
   mFailedTransfers.clear();
+  mTrackedTransfers.clear();
 }
 
 void
@@ -614,6 +631,7 @@ GroupDrainer::resetCaches()
     std::scoped_lock sl(mFailedTransfersMtx, mTransfersMtx);
     mFailedTransfers.clear();
     mTransfers.clear();
+    mTrackedTransfers.clear();
   }
   // force a refresh of the global groups map info
   mDoConfigUpdate.store(true, std::memory_order_relaxed);

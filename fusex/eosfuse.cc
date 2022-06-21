@@ -237,12 +237,10 @@ EosFuse::run(int argc, char* argv[], void* userdata)
 {
   eos::common::Logging::GetInstance().LB->suspend();      /* no log thread yet */
   eos_static_debug("");
-
   XrdCl::Env* env = XrdCl::DefaultEnv::GetEnv();
   env->PutInt("RunForkHandler", 1);
   env->PutInt("ParallelEvtLoop", 3);
   env->PutInt("WorkerThreads", 10);
-
   struct fuse_args args = FUSE_ARGS_INIT(argc, argv);
   fuse_opt_parse(&args, NULL, NULL, NULL);
   char* local_mount_dir = 0;
@@ -2785,6 +2783,7 @@ EosFuse::lookup(fuse_req_t req, fuse_ino_t parent, const char* name)
 
       if (e.entry_timeout) {
         rc = 0;
+        md->set_err(0);
       } else {
         rc = md->deleted() ? ENOENT : (*md)()->err();
       }
@@ -2806,8 +2805,8 @@ EosFuse::lookup(fuse_req_t req, fuse_ino_t parent, const char* name)
     eos_static_notice("t(ms)=%.03f %s", timing.RealTime(),
                       dump(id, parent, 0, rc, name).c_str());
   } else {
-    eos_static_notice("t(ms)=%.03f ENOENT pino=%#lx name=%s lifetime=%.02f",
-                      timing.RealTime(), parent, name, e.entry_timeout);
+    eos_static_notice("t(ms)=%.03f ENOENT pino=%#lx name=%s lifetime=%.02f rc=%d",
+                      timing.RealTime(), parent, name, e.entry_timeout, rc);
   }
 
   if (rc) {
@@ -2918,7 +2917,7 @@ EosFuse::opendir(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info* fi)
           metad::shared_md pmd = Instance().mds.getlocal(req, (*md)()->pid());
 
           if (pmd) {
-	    XrdSysMutexHelper pLock(pmd->Locker());
+            XrdSysMutexHelper pLock(pmd->Locker());
             pmd->local_children().erase(eos::common::StringConversion::EncodeInvalidUTF8(
                                           name));
             (*pmd)()->mutable_children()->erase(

@@ -897,7 +897,7 @@ runtest "### Attr Set  " unix 0 "" eos attr set user.attr.key='value' "fid:${fid
 runtest "### Attr Get  " unix 0 "" eos attr get user.attr.key "fid:${fid} | grep -w 'value'"
 runtest "### Attr Get  " unix 0 "" eosj attr get user.attr.key "fid:${fid} | jq -r '.attr.get[].user.attr.key' | grep -w 'value'"
 runtest "### Attr Rm   " unix 0 "" eos attr rm user.attr.key "fid:${fid}"
-runtest "### Attr Ls   " unix 0 "" eos attr ls "fid:${fid} | wc -l | grep -w 3"
+runtest "### Attr Ls   " unix 0 "" eos attr ls "fid:${fid} | wc -l | grep -w 4"
 runtest "### Attr Get  " unix 1 "" eos attr get user.attr.key "fid:invalid"
 runtest "### Attr Get  " unix 1 "" eos attr get user.attr.key "fxid:123456"
 runtest "### Attr Get  " unix 1 "" eos attr get user.attr.key "pxid:"
@@ -1700,6 +1700,7 @@ eosxd -ofsname=localhost.localdomain:/eos /eos/
 if [ -e "/eos/$EOS_TEST_INSTANCE" ]; then
 # simple sqash packages
 runtest "### Mkdir     " unix 0 "" eos mkdir "/eos/$EOS_TEST_INSTANCE/test/instancetest/squash"
+runtest "### Recycle   " unix 0 "" eos recycle config --add-bin /eos/$EOS_TEST_INSTANCE/test/instancetest/
 runtest "### Chmod     " unix 0 "" eos chmod 777 "/eos/$EOS_TEST_INSTANCE/test/instancetest/squash"
 runtest "### New SQFS  " unix 0 "" eos squash new "/eos/$EOS_TEST_INSTANCE/test/instancetest/squash/package1"
 runtest "### cp        " unix 0 "" shell cp /etc/passwd /eos/$EOS_TEST_INSTANCE/test/instancetest/squash/package1

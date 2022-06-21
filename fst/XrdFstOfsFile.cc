@@ -414,6 +414,16 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
       eos_info("msg=\"resync ok\" fsid=%lu fxid=%llx", mFsId, mFileId);
       mFmd = gFmdDbMapHandler.LocalGetFmd(mFileId, mFsId, isRepairRead, mIsRW,
                                           vid.uid, vid.gid, mLid);
+      std::string dummy_xs;
+      int rc = 0;
+
+      if ((rc = gFmdDbMapHandler.ResyncDisk(mFstPath.c_str(), mFsId, false, 0,
+                                            dummy_xs))) {
+        eos_err("msg=\"failed to resync from disk\" fsid=%lu fxid=%llx, path=%s rc=%d",
+                mFsId, mFileId, mFstPath.c_str(), rc);
+      } else {
+        eos_info("msg=\"resync from disk\" path=%s", mFstPath.c_str());
+      }
     } else {
       eos_err("msg=\"resync failed\" fsid=%lu fxid=%08llx", mFsId, mFileId);
     }
@@ -926,6 +936,11 @@ XrdSfsXferSize
 XrdFstOfsFile::write(XrdSfsFileOffset fileOffset, const char* buffer,
                      XrdSfsXferSize buffer_size)
 {
+  if (gOFS.mSimUnresponsive) {
+    eos_warning("simulating unresponsiveness in write delaying by 120s");
+    std::this_thread::sleep_for(std::chrono::seconds(120));
+  }
+
   if (mIsDevNull) {
     eos_debug("offset=%llu, length=%li discarded for sink file", fileOffset,
               buffer_size);
@@ -1322,6 +1337,11 @@ XrdFstOfsFile::truncate(XrdSfsFileOffset fsize)
 int
 XrdFstOfsFile::close()
 {
+  if (gOFS.mSimUnresponsive) {
+    eos_warning("simulating unresponsiveness in close delaying by 120s");
+    std::this_thread::sleep_for(std::chrono::seconds(120));
+  }
+
   // Reset the error.getErrInfo() value to 0 since this was hijacked by the
   // XrdXrootdFile object to store the actual file descriptor corresponding to
   // the current object. This was confusing when logging the error.getErrInfo()
@@ -1602,7 +1622,8 @@ XrdFstOfsFile::_close()
             // Update size
             closeSize = statinfo.st_size;
             mFmd->mProtoFmd.set_size(statinfo.st_size);
-            mFmd->mProtoFmd.set_disksize(statinfo.st_size);
+            mFmd->mProtoFmd.set_disksize
+            (eos::common::LayoutId::ExpectedStripeSize(mLid, statinfo.st_size));
             // Reset the diskchecksum after an update otherwise we might falsely report
             // a checksum error. The diskchecksum will be updated by the scanner.
             mFmd->mProtoFmd.set_diskchecksum("");
@@ -1817,6 +1838,12 @@ XrdFstOfsFile::_close()
     }
 
     closerc = mLayout->Close();
+
+    if (gOFS.mSimCloseErr) {
+      // simulate an error during the close call
+      closerc = 1;
+    }
+
     rc |= closerc;
     closed = true;
 

@@ -232,7 +232,7 @@ XrdMgmOfs::Commit(const char* path,
           fusexstate = fmd->getAttribute("sys.fusex.state");
         } catch (...) {}
 
-        if (option["update"]) {
+        if (option["update"] || option["replication"]) {
           fusexstate += "+";
           fusexstate += std::to_string(fsid);
         }
@@ -242,7 +242,15 @@ XrdMgmOfs::Commit(const char* path,
         }
 
         if (option["commitchecksum"]) {
-          fusexstate += "c";
+          fusexstate += "c|";
+        }
+
+        if (option["verifychecksum"]) {
+          fusexstate += "v|";
+        }
+
+        if (option["verifysize"]) {
+          fusexstate += "V|";
         }
 
         fmd->setAttribute("sys.fusex.state", fusexstate);
