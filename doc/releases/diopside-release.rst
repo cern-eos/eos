@@ -16,6 +16,31 @@ Introduction
 
 This release is based on XRootD V5.
 
+``v5.0.26 Diopside``
+===================
+
+2022-06-21
+
+
+Note
+----
+
+* XRootD: Based on eos-xrootd-5.4.5 which fixes a couple for important bugs
+  on the xrootd client side.
+
+Bug
+----
+
+* [EOS-5302] - Iostat domain accounting is broken
+* [EOS-5303] - Shared filesystem file registration feature
+
+Improvements
+------------
+
+* MGM: Make fsck start up and shutdown more responsive
+* MGM: Add fsck repair procedure for m_mem_sz_diff errors
+
+
 ``v5.0.25 Diopside``
 ===================
 
