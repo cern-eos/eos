@@ -1700,6 +1700,7 @@ eosxd -ofsname=localhost.localdomain:/eos /eos/
 if [ -e "/eos/$EOS_TEST_INSTANCE" ]; then
 # simple sqash packages
 runtest "### Mkdir     " unix 0 "" eos mkdir "/eos/$EOS_TEST_INSTANCE/test/instancetest/squash"
+runtest "### Recycle   " unix 0 "" eos recycle config --add-bin /eos/$EOS_TEST_INSTANCE/test/instancetest/
 runtest "### Chmod     " unix 0 "" eos chmod 777 "/eos/$EOS_TEST_INSTANCE/test/instancetest/squash"
 runtest "### New SQFS  " unix 0 "" eos squash new "/eos/$EOS_TEST_INSTANCE/test/instancetest/squash/package1"
 runtest "### cp        " unix 0 "" shell cp /etc/passwd /eos/$EOS_TEST_INSTANCE/test/instancetest/squash/package1
@@ -1715,7 +1716,6 @@ runtest "### stat SQFS " unix 1 "" eos stat /eos/$EOS_TEST_INSTANCE/test/instanc
 runtest "### stat SQFS " unix 1 "" eos stat /eos/$EOS_TEST_INSTANCE/test/instancetest/squash/.package1.sqsh
 
 # squash releases
-runtest "### Recycle   " unix 0 "" eos recycle config --add-bin /eos/$EOS_TEST_INSTANCE/test/instancetest/squash/
 runtest "### New SQFSR " unix 0 "" eos squash new-release "/eos/$EOS_TEST_INSTANCE/test/instancetest/squash/release1"
 runtest "### cp        " unix 0 "" shell cp /etc/passwd /eos/$EOS_TEST_INSTANCE/test/instancetest/squash/release1/next
 runtest "### Pack SQFSR" unix 0 "" eos squash pack-release "/eos/$EOS_TEST_INSTANCE/test/instancetest/squash/release1"
