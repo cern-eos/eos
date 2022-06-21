@@ -2783,7 +2783,7 @@ EosFuse::lookup(fuse_req_t req, fuse_ino_t parent, const char* name)
 
       if (e.entry_timeout) {
         rc = 0;
-        md->set_err(0);
+        (*md)()->set_err(0);
       } else {
         rc = md->deleted() ? ENOENT : (*md)()->err();
       }
