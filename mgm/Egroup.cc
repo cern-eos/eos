@@ -92,15 +92,13 @@ Egroup::Status Egroup::isMemberUncached(const std::string& username,
 
   // Run the LDAP query
   LDAP* ld = nullptr;
+  std::unique_ptr<LDAP, decltype(ldap_uninitialize)*>
+  ldOwnership(ld, ldap_uninitialize);
   {
     static std::mutex s_ldap_mutex;
     std::unique_lock<std::mutex> lock(s_ldap_mutex);
-    //--------------------------------------------------------------------------
     // Initialize the LDAP context in a thread safe manner
-    //--------------------------------------------------------------------------
     ldap_initialize(&ld, "ldap://xldap");
-    std::unique_ptr<LDAP, decltype(ldap_uninitialize)*>
-    ldOwnership(ld, ldap_uninitialize);
 
     if (ld == nullptr) {
       eos_static_crit("%s", "msg=\"could not initialize ldap context\"");
