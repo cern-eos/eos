@@ -342,7 +342,7 @@ XrdMgmOfs::XrdMgmOfs(XrdSysError* ep):
     // Run a dummy command so that the ShellExecutor is forked before any XrdCl
     // is initialized. Otherwise it might segv due to the following bug:
     // https://github.com/xrootd/xrootd/issues/1515
-    eos::common::ShellCmd dummy_cmd("uname -a");
+    // eos::common::ShellCmd dummy_cmd("uname -a");
   }
   eos::common::LogId::SetSingleShotLogId();
   mZmqContext = new zmq::context_t(1);
@@ -880,12 +880,13 @@ int
 XrdMgmOfs::Redirect(XrdOucErrInfo& error,
                     const char* host,
                     int& port,
-		    const char* path, 
-		    bool collapse)
+                    const char* path,
+                    bool collapse)
 {
   EPNAME("Redirect");
   const char* tident = error.getErrUser();
   ZTRACE(delay, "Redirect " << host << ":" << port);
+
   if (collapse && strlen(path)) {
     std::string url = "root://";
     url += host;
@@ -893,11 +894,12 @@ XrdMgmOfs::Redirect(XrdOucErrInfo& error,
     url += std::to_string(port);
     url += "/";
     url += path;
-    error.setErrInfo( ~( ~( -1 ) | kXR_collapseRedir ), url.c_str());
+    error.setErrInfo(~(~(-1) | kXR_collapseRedir), url.c_str());
   } else {
     // Place the error message in the error object and return
     error.setErrInfo(port, host);
   }
+
   return SFS_REDIRECT;
 }
 

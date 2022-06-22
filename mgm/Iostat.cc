@@ -1308,9 +1308,10 @@ Iostat::PrintOut(XrdOucString& out, bool summary, bool details,
 
           // getting tag stat sums for 1day (idx=0), 1h (idx=1), 5m (idx=2), 1min (idx=3)
           uidout_b.emplace_back(std::make_tuple(username, tuit->first.c_str(),
-                                                it->second.GetDataInPeriod(60, 0, now), it->second.GetDataInPeriod(300, 0, now),
-                                                it->second.GetDataInPeriod(3600, 0, now), it->second.GetDataInPeriod(86400, 0,
-                                                    now),
+                                                it->second.GetDataInPeriod(60, 0, now),
+                                                it->second.GetDataInPeriod(300, 0, now),
+                                                it->second.GetDataInPeriod(3600, 0, now),
+                                                it->second.GetDataInPeriod(86400, 0, now),
                                                 IostatUid[tuit->first][it->first]
                                                ));
 
