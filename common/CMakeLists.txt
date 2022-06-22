@@ -116,6 +116,7 @@ add_library(EosCommon-Objects OBJECT
   Locators.cc
   Logging.cc
   StringConversion.cc
+  StringPermutation.cc
   Statfs.cc
   Report.cc
   StringTokenizer.cc
