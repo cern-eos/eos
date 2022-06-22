@@ -83,7 +83,7 @@ IostatPeriods::Add(unsigned long long val, time_t start, time_t stop,
 {
   mTotal += val;
   double value = (double)val;
-  
+
   // Window start/end times are "|", bin start [ and end ] times
   // period window = |-----------[--]----------|
   if (stop > now) {
@@ -91,7 +91,7 @@ IostatPeriods::Add(unsigned long long val, time_t start, time_t stop,
                    "stop time in the future\"");
     return;
   }
-  
+
   time_t t_window_start = now - (sBins * sBinWidth);
 
   if (stop <= t_window_start) {
@@ -376,6 +376,7 @@ Iostat::Init(const std::string& instance_name, int port,
   mHashKeyBase = SSTR("eos-iostat:" << instance_name << ":");
   mFlusherPath = SSTR("/var/eos/ns-queue/" << instance_name << ":" << port
                       << "_iostat");
+
   if (gOFS) {
     // QDB namespace, initialize qclient
     if (!gOFS->namespaceGroup->isInMemory()) {
@@ -851,20 +852,17 @@ Iostat::Receive(ThreadAssistant& assistant) noexcept
           AddToPopularity(report->path, report->rb, report->ots, report->cts);
         }
 
-        size_t pos = 0;
+        std::string sdomain = report->sec_domain;
+        {
+          std::unique_lock<std::mutex> scope_lock(mDataMutex);
 
-	std::string sdomain = report->sec_domain;
+          if (report->rb) {
+            IostatPeriodsDomainIOrb[sdomain].Add(report->rb, report->ots, report->cts, now);
+          }
 
-	{
-	  std::unique_lock<std::mutex> scope_lock(mDataMutex);
-	  
-	  if (report->rb) {
-	    IostatPeriodsDomainIOrb[sdomain].Add(report->rb, report->ots, report->cts, now);
-	  }
-	  
-	  if (report->wb) {
-	    IostatPeriodsDomainIOwb[sdomain].Add(report->wb, report->ots, report->cts, now);
-	  }
+          if (report->wb) {
+            IostatPeriodsDomainIOwb[sdomain].Add(report->wb, report->ots, report->cts, now);
+          }
         }
       }
 
