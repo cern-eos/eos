@@ -134,10 +134,6 @@ ConversionJob::ConversionJob(const eos::IFileMD::id_t fid,
 //------------------------------------------------------------------------------
 ConversionJob::~ConversionJob()
 {
-  XrdOucErrInfo error;
-  eos::common::VirtualIdentity rootvid = eos::common::VirtualIdentity::Root();
-  (void) gOFS->_rem(mConversionPath.c_str(), error, rootvid, (const char*) 0);
-  gOFS->mFidTracker.RemoveEntry(mFid);
 }
 
 //------------------------------------------------------------------------------

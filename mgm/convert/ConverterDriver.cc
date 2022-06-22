@@ -57,7 +57,7 @@ void
 ConverterDriver::Convert(ThreadAssistant& assistant) noexcept
 {
   JobInfoT info;
-  eos_static_notice("%s", "msg=\"starting converter engine\"");;
+  eos_notice("%s", "msg=\"starting converter engine\"");;
   gOFS->WaitUntilNamespaceIsBooted(assistant);
 
   // Wait that current MGM becomes a master
@@ -69,6 +69,39 @@ ConverterDriver::Convert(ThreadAssistant& assistant) noexcept
   // load the config from the global store once we're the master
   initConfig();
   SubmitQdbPending(assistant);
+
+  eos::common::observer_tag_t deleter_tag(0);
+  do {
+    deleter_tag = mObserverMgr->addObserver([](ConverterDriver::JobStatusT status,
+                                               std::string tag) {
+      if (status != ConverterDriver::JobStatusT::DONE &&
+          status != ConverterDriver::JobStatusT::FAILED) {
+        eos_static_info("msg=\"Skipping Deletion of tag as Job is not completed!\" tag=%s",
+                        tag.c_str());
+        return;
+      }
+
+      auto info = ConversionInfo::parseConversionString(tag);
+      if (!info) {
+        // Using static logger as we don't need to pass in `this` argument!
+        eos_static_crit("msg=\"Unable to parse conversion info from tag=\"%s",
+                        tag.c_str());
+        return;
+      }
+      auto rootvid = eos::common::VirtualIdentity::Root();
+      auto converter_path = SSTR(gOFS->MgmProcConversionPath << "/"
+                                 << info->ToString());
+      XrdOucErrInfo error;
+      gOFS->_rem(converter_path.c_str(), error, rootvid, (const char*)0);
+      gOFS->mFidTracker.RemoveEntry(info->mFid);
+    });
+
+    if (!deleter_tag) {
+      eos_crit("%s", "msg=\"Unable to register deletion handlers, Retrying!\"");
+      assistant.wait_for(std::chrono::seconds(30));
+    }
+
+  } while (!deleter_tag && !assistant.terminationRequested());
 
   while (!assistant.terminationRequested()) {
     while (!mPendingJobs.try_pop(info) && !assistant.terminationRequested()) {
