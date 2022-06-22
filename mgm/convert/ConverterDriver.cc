@@ -23,6 +23,7 @@
 
 #include "mgm/convert/ConverterDriver.hh"
 #include "mgm/IMaster.hh"
+#include "common/Timing.hh"
 
 EOSMGMNAMESPACE_BEGIN
 
@@ -151,25 +152,38 @@ ConverterDriver::SubmitQdbPending(ThreadAssistant& assistant)
 void
 ConverterDriver::HandleRunningJobs()
 {
+  uint64_t count {0ull};
   eos::common::RWMutexWriteLock wlock(mJobsMutex);
 
   for (auto it = mJobsRunning.begin(); it != mJobsRunning.end(); /**/) {
     if (auto job_status = (*it)->GetStatus();
         (job_status == ConversionJob::Status::DONE) ||
         (job_status == ConversionJob::Status::FAILED)) {
+      eos::common::Timing tm("Job");
+      COMMONTIMING("Start", &tm);
       auto fid = (*it)->GetFid();
+      ++count;
 
       if (!mQdbHelper.RemovePendingJob(fid)) {
         eos_static_err("msg=\"Failed to remove conversion job from QuarkDB\" "
                        "fid=%llu", fid);
       }
 
+      COMMONTIMING("RemovePendingJob", &tm);
+
       if (job_status == ConversionJob::Status::FAILED) {
         mQdbHelper.AddFailedJob(*it);
       }
 
+      COMMONTIMING("AddFailedJob", &tm);
       mObserverMgr->notifyChange(job_status, (*it)->GetConversionString());
+      COMMONTIMING("ObsNotifyChange", &tm);
       it = mJobsRunning.erase(it);
+      COMMONTIMING("EraseJob", &tm);
+
+      if (count % 100) {
+        tm.Print();
+      }
     } else {
       ++it;
     }
@@ -218,7 +232,8 @@ ConverterDriver::ScheduleJob(const eos::IFileMD::id_t& id,
   }
 
   if (conversion_info.empty()) {
-    eos_static_err("msg=\"Invalid conversion_info string for file\" fid=%08llx", id);
+    eos_static_err("msg=\"Invalid conversion_info string for file\" fid=%08llx",
+                   id);
     return false;
   }
 
@@ -236,9 +251,9 @@ void
 ConverterDriver::initConfig()
 {
   unsigned int max_threads = mConfigStore->get(kConverterMaxThreads,
-                                               cDefaultMaxThreadPoolSize);
+                             cDefaultMaxThreadPoolSize);
   unsigned int max_queue_sz = mConfigStore->get(kConverterMaxQueueSize,
-                                                cDefaultMaxQueueSize);
+                              cDefaultMaxQueueSize);
   mMaxThreadPoolSize.store(max_threads, std::memory_order_relaxed);
   mMaxQueueSize.store(max_queue_sz, std::memory_order_relaxed);
 }
