@@ -90,38 +90,44 @@ Egroup::Status Egroup::isMemberUncached(const std::string& username,
     return it2->second;
   }
 
-  // run the LDAP query
+  // Run the LDAP query
   LDAP* ld = nullptr;
-  //----------------------------------------------------------------------------
-  // Initialize the LDAP context.
-  //----------------------------------------------------------------------------
-  ldap_initialize(&ld, "ldap://xldap");
-  std::unique_ptr<LDAP, decltype(ldap_uninitialize)*> ldOwnership(
-    ld, ldap_uninitialize);
+  {
+    static std::mutex s_ldap_mutex;
+    std::unique_lock<std::mutex> lock(s_ldap_mutex);
+    //--------------------------------------------------------------------------
+    // Initialize the LDAP context in a thread safe manner
+    //--------------------------------------------------------------------------
+    ldap_initialize(&ld, "ldap://xldap");
+    std::unique_ptr<LDAP, decltype(ldap_uninitialize)*>
+    ldOwnership(ld, ldap_uninitialize);
 
-  if (ld == nullptr) {
-    eos_static_crit("%s", "msg=\"could not initialize ldap context\"");
-    return Status::kError;
+    if (ld == nullptr) {
+      eos_static_crit("%s", "msg=\"could not initialize ldap context\"");
+      return Status::kError;
+    }
+
+    int version = LDAP_VERSION3;
+
+    if (ldap_set_option(ld, LDAP_OPT_PROTOCOL_VERSION, &version) !=
+        LDAP_OPT_SUCCESS) {
+      eos_static_crit("%s", "msg=\"failure when calling ldap_set_option "
+                      "(protocol version\"");
+      return Status::kError;
+    }
+
+    // we also need to set a connection timeout
+    struct timeval   tcp_timeout;
+    tcp_timeout.tv_sec = 10;
+    tcp_timeout.tv_usec = 0;
+
+    if (ldap_set_option(ld, LDAP_OPT_NETWORK_TIMEOUT,
+                        &tcp_timeout) != LDAP_OPT_SUCCESS) {
+      eos_static_crit("%s",
+                      "msg=\"failure when calling ldap_set_option (network timeout)\"");
+      return Status::kError;
+    }
   }
-
-  int version = LDAP_VERSION3;
-
-  if (ldap_set_option(ld, LDAP_OPT_PROTOCOL_VERSION, &version) !=
-      LDAP_OPT_SUCCESS) {
-    eos_static_crit("%s", "msg=\"failure when calling ldap_set_option (protocol version\"");
-    return Status::kError;
-  }
-
-  // we also need to set a connection timeout
-  struct timeval   tcp_timeout;
-  tcp_timeout.tv_sec = 10;
-  tcp_timeout.tv_usec = 0;
-
-  if (ldap_set_option(ld, LDAP_OPT_NETWORK_TIMEOUT, &tcp_timeout) != LDAP_OPT_SUCCESS) {
-    eos_static_crit("%s", "msg=\"failure when calling ldap_set_option (network timeout)\"");
-    return Status::kError;
-  }  
-
   //----------------------------------------------------------------------------
   // These hardcoded values are CERN specific... we should pass them through
   // the configuration, or something.
