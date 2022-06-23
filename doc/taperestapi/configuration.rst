@@ -31,14 +31,14 @@ Activation:
 
 .. code-block:: bash
 
-    eos space config default taperestapi=on
+    eos space config default taperestapi.status=on
     success: Tape REST API enabled
 
 Deactivation:
 
 .. code-block:: bash
 
-    eos space config default taperestapi=off
+    eos space config default taperestapi.status=off
     success: Tape REST API disabled
 
 Warning: the tape REST API can only be enabled/disabled on the default space. An error message will be displayed
@@ -46,5 +46,25 @@ in the case one tries to enable it on a different space:
 
 .. code-block:: bash
 
-    eos space config OtherSpace taperestapi=on
-    error: the tape REST API can only be enabled on the default space
+    eos space config OtherSpace taperestapi.status=on
+    error: the tape REST API STAGE resource can only be enabled or disabled on the default space
+
+REST API STAGE resource activation/deactivation
+--------------------------------
+
+By default, the STAGE resource of the tape REST API is not activated. If one deactivates the tape REST API and activates it again,
+the STAGE resource will be deactivated by default.
+
+Activation:
+
+.. code-block:: bash
+
+    eos space config default taperestapi.stage=on
+    success: Tape REST API STAGE resource enabled
+
+Deactivation:
+
+.. code-block:: bash
+
+    eos space config default taperestapi.stage=off
+    success: success: Tape REST API STAGE resource disabled

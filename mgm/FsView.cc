@@ -1049,6 +1049,11 @@ FsSpace::FsSpace(const char* name)
       SetConfigMember(rest::TAPE_REST_API_SWITCH_ON_OFF,
                       "off");
     }
+    //Switch off the tape REST API STAGE resource by default
+    if (GetConfigMember(rest::TAPE_REST_API_STAGE_SWITCH_ON_OFF).empty()) {
+      SetConfigMember(rest::TAPE_REST_API_STAGE_SWITCH_ON_OFF,
+                      "off");
+    }
   }
 
   if (mName == std::string("default")) {

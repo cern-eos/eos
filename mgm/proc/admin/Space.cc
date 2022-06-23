@@ -483,8 +483,6 @@ ProcCommand::Space()
       } else {
         eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
         FileSystem* fs = nullptr;
-        // by host:port name
-        std::string path = identifier;
 
         if (FsView::gFsView.mSpaceView.count(identifier)) {
           if(!strcmp(mgm::rest::TAPE_REST_API_SWITCH_ON_OFF, key.c_str())) {
@@ -496,7 +494,53 @@ ProcCommand::Space()
               const std::string & spaceName = identifier;
               if(spaceName != "default") {
                 retc = EIO;
-                stdErr = "error: the tape REST API can only be enabled on the default space";
+                stdErr = "error: the tape REST API can only be enabled or disabled on the default space";
+              } else {
+                if (!FsView::gFsView.mSpaceView[spaceName]->SetConfigMember(key, value)) {
+                  retc = EIO;
+                  stdErr = "error: cannot set space config value";
+                } else {
+                  auto config = gOFS->mRestApiManager->getTapeRestApiConfig();
+                  if(value == "on") {
+                    if(!config->isActivated()){
+                      //Stage should be deactivated by default
+                      if (!FsView::gFsView.mSpaceView[spaceName]->SetConfigMember(rest::TAPE_REST_API_STAGE_SWITCH_ON_OFF, "off")) {
+                        retc = EIO;
+                        stdErr = "error: cannot set space config value";
+                      } else {
+                        config->setActivated(true);
+                        config->setStageEnabled(false);
+                        stdOut += "success: Tape REST API enabled";
+                      }
+                    } else {
+                      stdOut += "The tape REST API is already enabled";
+                    }
+                  } else {
+                    //Switch off the tape REST API
+                    //Also switch off the STAGE resource
+                    if(!FsView::gFsView.mSpaceView[spaceName]->SetConfigMember(rest::TAPE_REST_API_STAGE_SWITCH_ON_OFF, "off")) {
+                      retc = EIO;
+                      stdErr = "error: cannot set space config value";
+                    } else {
+                      config->setActivated(false);
+                      config->setStageEnabled(false);
+                      stdOut += "success: Tape REST API disabled";
+                    }
+                  }
+                }
+              }
+            }
+          }
+          if(!strcmp(mgm::rest::TAPE_REST_API_STAGE_SWITCH_ON_OFF, key.c_str())) {
+            //REST API STAGE resource activation
+            if ((value != "on") && (value != "off")) {
+              retc = EINVAL;
+              stdErr = "error: value has to either on or off";
+            } else {
+              const std::string & spaceName = identifier;
+              if(spaceName != "default") {
+                retc = EIO;
+                stdErr = "error: the tape REST API STAGE resource can only be enabled or disabled on the default space";
               } else {
                 if (!FsView::gFsView.mSpaceView[identifier]
                          ->SetConfigMember(key, value)) {
@@ -504,11 +548,11 @@ ProcCommand::Space()
                   stdErr = "error: cannot set space config value";
                 } else {
                   if(value == "on") {
-                    gOFS->mRestApiManager->getTapeRestApiConfig()->setActivated(true);
-                    stdOut += "success: Tape REST API enabled";
+                    gOFS->mRestApiManager->getTapeRestApiConfig()->setStageEnabled(true);
+                    stdOut += "success: Tape REST API STAGE resource enabled";
                   } else {
-                    gOFS->mRestApiManager->getTapeRestApiConfig()->setActivated(false);
-                    stdOut += "success: Tape REST API disabled";
+                    gOFS->mRestApiManager->getTapeRestApiConfig()->setStageEnabled(false);
+                    stdOut += "success: Tape REST API STAGE resource disabled";
                   }
                 }
               }

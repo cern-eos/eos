@@ -25,6 +25,8 @@
 
 #include "mgm/Namespace.hh"
 #include "mgm/http/rest-api/controllers/Controller.hh"
+#include "mgm/http/rest-api/config/tape/TapeRestApiConfig.hh"
+#include "mgm/http/rest-api/response/tape/factories/TapeRestApiResponseFactory.hh"
 
 EOSMGMRESTNAMESPACE_BEGIN
 
@@ -34,8 +36,11 @@ EOSMGMRESTNAMESPACE_BEGIN
  */
 class StageController : public Controller {
 public:
-  StageController(const std::string & accessURL);
+  StageController(const std::string & accessURL, const TapeRestApiConfig * tapeRestApiConfig);
   virtual common::HttpResponse * handleRequest(common::HttpRequest * request,const common::VirtualIdentity * vid) override;
+private:
+  const TapeRestApiConfig * mTapeRestApiConfig;
+  TapeRestApiResponseFactory mResponseFactory;
 };
 
 EOSMGMRESTNAMESPACE_END

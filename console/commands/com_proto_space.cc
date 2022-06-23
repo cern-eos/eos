@@ -514,6 +514,7 @@ void com_space_help()
       << std::endl
       << "REST API specific parameters:\n"
       << "space config default " << eos::mgm::rest::TAPE_REST_API_SWITCH_ON_OFF << "=on|off                               : enable/disable the tape REST API handler [ default=off ]\n"
+      << "space config default " << eos::mgm::rest::TAPE_REST_API_STAGE_SWITCH_ON_OFF << "=on|off                         : enable/disable the tape REST API STAGE resource [ default=off ]\n"
       << std::endl
       << "Tape specific configuration parameters:\n"
       << "space config <space-name> space." << eos::mgm::tgc::TGC_NAME_QRY_PERIOD_SECS
