@@ -47,8 +47,7 @@ EOSMGMRESTNAMESPACE_BEGIN
 
 TapeRestHandler::TapeRestHandler(const TapeRestApiConfig * config): RestHandler(config->getAccessURL()),mTapeRestApiConfig(config) {
   initializeTapeWellKnownInfos();
-  initializeV0Dot1();
-  //initializeV1();
+  initializeV1();
 }
 
 void TapeRestHandler::initializeV1() {
@@ -84,7 +83,7 @@ void TapeRestHandler::initializeV0Dot1() {
 
 std::unique_ptr<Controller> TapeRestHandler::initializeStageController(const std::string & apiVersion, std::shared_ptr<ITapeRestApiBusiness> tapeRestApiBusiness) {
   std::unique_ptr<Controller> stageController(
-      TapeControllerFactory::getStageController(mEntryPointURL + apiVersion + "/stage/"));
+      TapeControllerFactory::getStageController(mEntryPointURL + apiVersion + "/stage/",mTapeRestApiConfig));
   const std::string & controllerAccessURL = stageController->getAccessURL();
   stageController->addAction(std::make_unique<CreateStageBulkRequest>(controllerAccessURL,common::HttpHandler::Methods::POST,tapeRestApiBusiness,std::make_shared<CreateStageRequestModelBuilder>(mTapeRestApiConfig->getSiteName()),std::make_shared<CreatedStageBulkRequestJsonifier>(),this));
   stageController->addAction(std::make_unique<CancelStageBulkRequest>(controllerAccessURL + "/" + URLParametersConstants::ID + "/cancel",common::HttpHandler::Methods::POST,tapeRestApiBusiness,std::make_shared<PathsModelBuilder>()));

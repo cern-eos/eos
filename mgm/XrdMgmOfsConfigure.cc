@@ -2210,12 +2210,17 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   }
 
   bool restApiActivated = false;
+  bool restApiStageEnabled = false;
   {
     eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
     if(FsView::gFsView.mSpaceView.find("default") != FsView::gFsView.mSpaceView.end()) {
       const std::string& restApiSwitchOnOff = FsView::gFsView.mSpaceView["default"]->GetConfigMember(eos::mgm::rest::TAPE_REST_API_SWITCH_ON_OFF);
       if (restApiSwitchOnOff == "on") {
         restApiActivated = true;
+      }
+      const std::string & restApiStageSwitchOnOff = FsView::gFsView.mSpaceView["default"]->GetConfigMember(eos::mgm::rest::TAPE_REST_API_STAGE_SWITCH_ON_OFF);
+      if(restApiStageSwitchOnOff == "on") {
+        restApiStageEnabled = true;
       }
     }
   }
@@ -2228,6 +2233,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
     tapeRestApiConfig->setSiteName(tapeRestApiSitename);
     tapeRestApiConfig->setHostAlias(MgmOfsAlias.c_str());
     tapeRestApiConfig->setXrdHttpPort(XrdHttpPort);
+    tapeRestApiConfig->setStageEnabled(restApiStageEnabled);
   }
 
   // start the LRU daemon
