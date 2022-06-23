@@ -37,7 +37,8 @@ public:
                FmdHandler * tgt_handler,
                size_t per_disk_pool);
 
-  folly::Future<bool> Convert(std::string_view path, uint64_t count);
+  folly::Future<bool> Convert(eos::common::FileSystem::fsid_t fsid,
+                              std::string_view path);
   void ConvertFS(std::string_view fspath);
 private:
   FmdHandler * mSrcFmdHandler;

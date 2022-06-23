@@ -19,35 +19,31 @@ FmdConverter::FmdConverter(FmdHandler* src_handler,
 
 
 folly::Future<bool>
-FmdConverter::Convert(std::string_view path, uint64_t count)
+FmdConverter::Convert(eos::common::FileSystem::fsid_t fsid,
+                      std::string_view path)
 {
-  auto fsid = FSPathHandler::GetFsid(path);
   auto fid = eos::common::FileId::PathToFid(path.data());
 
-  if (!fsid) {
+  if (!fsid || !fid) {
     return false;
   }
 
-  if (!mSrcFmdHandler->ConvertFrom(fsid, fid, mTgtFmdHandler, false)) {
-    return false;
-  }
-
-  return true;
+  return mTgtFmdHandler->ConvertFrom(fid, fsid, mSrcFmdHandler, true);
 }
 
 void
 FmdConverter::ConvertFS(std::string_view fspath)
 {
   std::error_code ec;
-  stdfs::WalkFSTree(fspath, [this](std::string path, uint64_t count) {
-    this->Convert(path, count)
+  auto fsid = FSPathHandler::GetFsid(fspath);
+  stdfs::WalkFSTree(fspath, [this, fsid](std::string path, uint64_t count) {
+    this->Convert(fsid, path)
     .via(mExecutor.get())
-    .thenValue([&path](bool status) {
-      eos_static_info("msg=\"Conversion status\" file=%s, status =%d",
+    .thenValue([path = std::move(path)](bool status) {
+      eos_static_info("msg=\"Conversion status\" file=%s, status=%d",
                       path.c_str(),
                       status);
-    }
-              );
+    });
   }, ec);
 }
 

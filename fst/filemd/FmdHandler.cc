@@ -794,20 +794,24 @@ FmdHandler::Convert(eos::common::FileId::fileid_t fid,
 
   return target_fmd_handler->Commit(&fmd, lock_it);
 }
+
 bool
 FmdHandler::ConvertFrom(eos::common::FileId::fileid_t fid,
                         eos::common::FileSystem::fsid_t fsid,
                         FmdHandler* const src_fmd_handler, bool lock_it)
 {
   auto [ok, _] = this->LocalRetrieveFmd(fid, fsid);
-
-  if (!ok) {
+  if (ok) {
+    eos_info("msg=\"Skipping Conversion as target already has filemd\" fid=%08llx fsid=%u",
+             fid, fsid);
     return true;
   }
 
   auto [status, fmd] = src_fmd_handler->LocalRetrieveFmd(fid, fsid);
-
   if (!status) {
+    eos_err("msg=\"Unable to retrieve filemd from Handler\" fid=%08llx fsid=%u",
+             fid, fsid);
+
     return false;
   }
 

@@ -21,12 +21,13 @@
 #include "fst/filemd/FmdConverter.hh"
 #include "fst/filemd/FmdDbMap.hh"
 #include "fst/utils/FSPathHandler.hh"
+#include "common/StringUtils.hh"
 #include <iostream>
 #include <memory>
 
 void usage()
 {
-  std::cerr << "eos-filemd-convert <fst-metadir> <fs-mount-path>\n"
+  std::cerr << "eos-filemd-convert <fst-metadir> <fs-mount-path> [num-threads]\n"
             << "eg: eos-filemd-convert /data23\n"
             << std::endl;
 
@@ -35,23 +36,28 @@ void usage()
 int
 main(int argc, char* argv[])
 {
-  if (argc != 3) {
+  if (argc < 3) {
     usage();
     return (-1);
   }
 
   std::string fst_metadir = argv[1];
   std::string fst_path = argv[2];
+  size_t num_threads {8};
 
+  if (argc == 4) {
+    eos::common::StringToNumeric(std::string_view(argv[3]), num_threads, num_threads);
+  }
 
   auto db_handler = std::make_unique<eos::fst::FmdDbMapHandler>();
   auto attr_handler = std::make_unique<eos::fst::FmdAttrHandler>(
       eos::fst::makeFSPathHandler(fst_path));
 
   auto fsid = eos::fst::FSPathHandler::GetFsid(fst_path);
+  std::cout << "Got FSID="<<fsid << std::endl;
   db_handler->SetDBFile(fst_metadir.c_str(), fsid);
 
-  eos::fst::FmdConverter converter(db_handler.get(), attr_handler.get(), 8);
+  eos::fst::FmdConverter converter(db_handler.get(), attr_handler.get(), num_threads);
   std::cout << "Converting...\n";
   converter.ConvertFS(fst_path);
   std::cout << "Done\n";

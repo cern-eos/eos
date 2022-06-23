@@ -36,7 +36,7 @@ FSPathHandler::GetFsid(std::string_view path, bool at_root)
   std::string sfsid;
   eos::common::StringConversion::LoadFileIntoString(fsidpath.c_str(), sfsid);
 
-  if (eos::common::StringToNumeric(sfsid, fsid, (uint32_t)0, &err_msg)) {
+  if (!eos::common::StringToNumeric(sfsid, fsid, (uint32_t)0, &err_msg)) {
     eos_static_crit("msg=\"Unable to obtain FSID from path=\"%s", path.data());
     // TODO: this is exceptional, throw an error!
   }
