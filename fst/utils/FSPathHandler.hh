@@ -30,7 +30,8 @@ struct FSPathHandler {
   virtual std::string GetFSPath(eos::common::FileSystem::fsid_t fsid) = 0;
   virtual std::string GetPath(eos::common::FileId::fileid_t fid,
                               eos::common::FileSystem::fsid_t fsid);
-  static eos::common::FileSystem::fsid_t GetFsid(std::string_view path);
+  static eos::common::FileSystem::fsid_t GetFsid(std::string_view path,
+                                                 bool at_root=false);
   virtual ~FSPathHandler() = default;
 };
 

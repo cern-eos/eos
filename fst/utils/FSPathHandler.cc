@@ -26,11 +26,12 @@
 namespace eos::fst {
 
 eos::common::FileSystem::fsid_t
-FSPathHandler::GetFsid(std::string_view path)
+FSPathHandler::GetFsid(std::string_view path, bool at_root)
 {
   eos::common::FileSystem::fsid_t fsid;
   std::string err_msg;
-  std::string fsidpath = eos::common::GetRootPath(path);
+
+  std::string fsidpath = at_root ? eos::common::GetRootPath(path): std::string(path);
   fsidpath += "/.eosfsid";
   std::string sfsid;
   eos::common::StringConversion::LoadFileIntoString(fsidpath.c_str(), sfsid);
