@@ -46,7 +46,7 @@ public:
   RestApiResponse<void> createOkEmptyResponse() const;
   RestApiResponse<ErrorModel> createForbiddenError(const std::string & detail) const;
 private:
-  RestApiResponse<ErrorModel> createError(const common::HttpResponse::ResponseCodes code,const std::string & title, const std::string & detail) const;
+  RestApiResponse<ErrorModel> createError(const common::HttpResponse::ResponseCodes code,const std::string & title, const std::optional<std::string> & detail) const;
 };
 
 
