@@ -1518,7 +1518,14 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
     XrdOucString dumperfile = MgmMetaLogDir;
     dumperfile += "/so.mgm.dump.";
     dumperfile += ManagerId;
-    ObjectManager.StartDumper(dumperfile.c_str());
+    char* ptr = getenv("EOS_MGM_DISABLE_FILE_DUMPER");
+
+    if ((ptr == nullptr) || (strncmp(ptr, "1", 1) != 0)) {
+      eos_info("%s", "msg=\"mgm file dumper enabled");
+      ObjectManager.StartDumper(dumperfile.c_str());
+    } else {
+      eos_info("%s", "msg=\"mgm file dumper disabled");
+    }
   }
 
   SetupGlobalConfig();

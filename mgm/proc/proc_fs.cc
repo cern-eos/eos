@@ -182,8 +182,7 @@ proc_fs_dumpmd(std::string& sfsid, XrdOucString& option, XrdOucString& dp,
         gOFS->eosView, gOFS->eosFsView, fsid);
     }
 
-    eos::common::RWMutexReadLock ns_rd_lock;
-    ns_rd_lock.Grab(gOFS->eosViewRWMutex);
+    eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
 
     for (auto it_fid = gOFS->eosFsView->getFileList(fsid);
          (it_fid && it_fid->valid()); it_fid->next()) {
@@ -589,7 +588,7 @@ proc_fs_add(mq::MessagingRealm* realm, std::string& sfsid, std::string& uuid,
     return EPERM;
   }
 
-  eos::common::RWMutexWriteLock lock(FsView::gFsView.ViewMutex);
+  eos::common::RWMutexWriteLock fs_wr_lock(FsView::gFsView.ViewMutex);
   // queuepath = /eos/<host:port><path>
   std::string queuepath = nodename;
   queuepath += mountpoint;
@@ -791,7 +790,7 @@ proc_fs_mv(std::string& src, std::string& dst, XrdOucString& stdOut,
 {
   int retc = 0;
   MvOpType operation = get_operation_type(src, dst, stdOut, stdErr);
-  eos::common::RWMutexWriteLock lock(FsView::gFsView.ViewMutex);
+  eos::common::RWMutexWriteLock fs_wr_lock(FsView::gFsView.ViewMutex);
 
   switch (operation) {
   case MvOpType::FS_2_GROUP:
