@@ -27,7 +27,7 @@ EOSMGMRESTNAMESPACE_BEGIN
 
 ErrorModel::ErrorModel(){}
 
-ErrorModel::ErrorModel(const std::string& title, const uint32_t status, const std::string& detail):mTitle(title),mStatus(status),mDetail(detail)
+ErrorModel::ErrorModel(const std::string& title, const uint32_t status, const std::optional<std::string> & detail):mTitle(title),mStatus(status),mDetail(detail)
 {}
 
 ErrorModel::ErrorModel(const std::string& title, const uint32_t status):mTitle(title),mStatus(status)

@@ -27,7 +27,7 @@
 
 EOSMGMRESTNAMESPACE_BEGIN
 
-RestApiResponse<ErrorModel> TapeRestApiResponseFactory::createError(const common::HttpResponse::ResponseCodes code, const std::string & title, const std::string& detail) const {
+RestApiResponse<ErrorModel> TapeRestApiResponseFactory::createError(const common::HttpResponse::ResponseCodes code, const std::string & title, const std::optional<std::string> & detail) const {
   std::shared_ptr<ErrorModel> errorModel = std::make_shared<ErrorModel>(title,static_cast<uint32_t>(code),detail);
   std::shared_ptr<ErrorModelJsonifier> jsonObject = std::make_shared<ErrorModelJsonifier>();
   errorModel->setJsonifier(jsonObject);
@@ -52,7 +52,7 @@ RestApiResponse<ErrorModel> TapeRestApiResponseFactory::createBadRequestError(co
 }
 
 RestApiResponse<ErrorModel> TapeRestApiResponseFactory::createNotFoundError() const {
-  return createError(common::HttpResponse::NOT_FOUND,"Not found","");
+  return createError(common::HttpResponse::NOT_FOUND,"Not found",std::nullopt);
 }
 
 RestApiResponse<ErrorModel> TapeRestApiResponseFactory::createMethodNotAllowedError(const std::string& detail) const {
@@ -64,7 +64,7 @@ RestApiResponse<ErrorModel> TapeRestApiResponseFactory::createInternalServerErro
 }
 
 RestApiResponse<ErrorModel> TapeRestApiResponseFactory::createNotImplementedError() const {
-  return createError(common::HttpResponse::NOT_IMPLEMENTED,"Not implemented","");
+  return createError(common::HttpResponse::NOT_IMPLEMENTED,"Not implemented",std::nullopt);
 }
 
 RestApiResponse<void> TapeRestApiResponseFactory::createOkEmptyResponse() const {
