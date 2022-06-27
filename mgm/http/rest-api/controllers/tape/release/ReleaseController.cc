@@ -25,7 +25,7 @@
 
 EOSMGMRESTNAMESPACE_BEGIN
 
-ReleaseController::ReleaseController(const std::string & accessURL):Controller(accessURL){}
+ReleaseController::ReleaseController(const std::string & accessURL):TapeController(accessURL){}
 
 common::HttpResponse * ReleaseController::handleRequest(common::HttpRequest * request,const common::VirtualIdentity * vid) {
   return mControllerActionDispatcher.getAction(request)->run(request,vid);
