@@ -200,29 +200,4 @@ private:
   //----------------------------------------------------------------------------
   void ParseXrdClHostId(const std::string& hostid, std::string& hostname,
                         int& port);
-
-  //----------------------------------------------------------------------------
-  //! Response handler class to clean-up asynchronous callbacks which are
-  //! ignored.
-  //----------------------------------------------------------------------------
-  class DiscardResponseHandler : public XrdCl::ResponseHandler
-  {
-  public:
-    //--------------------------------------------------------------------------
-    //! Handle response method. See XrdClFile.hh class for signature.
-    //--------------------------------------------------------------------------
-    virtual void HandleResponse(XrdCl::XRootDStatus* status,
-                                XrdCl::AnyObject* response) override
-    {
-      if (status) {
-        delete status;
-      }
-
-      if (response) {
-        delete response;
-      }
-    }
-  };
-
-  static DiscardResponseHandler gDiscardResponseHandler;
 };

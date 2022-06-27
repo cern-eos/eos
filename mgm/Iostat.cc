@@ -852,7 +852,6 @@ Iostat::Receive(ThreadAssistant& assistant) noexcept
           AddToPopularity(report->path, report->rb, report->ots, report->cts);
         }
 
-        size_t pos = 0;
         std::string sdomain = report->sec_domain;
         {
           std::unique_lock<std::mutex> scope_lock(mDataMutex);
