@@ -22,13 +22,14 @@
 #include "fst/filemd/FmdDbMap.hh"
 #include "fst/utils/FSPathHandler.hh"
 #include "common/StringUtils.hh"
+#include "common/Logging.hh"
 #include <iostream>
 #include <memory>
 
 void usage()
 {
-  std::cerr << "eos-filemd-convert <fst-metadir> <fs-mount-path> [num-threads]\n"
-            << "eg: eos-filemd-convert /data23\n"
+  std::cerr << "eos-filemd-convert <fst-metadir> <fs-mount-path> [log-file] [num-threads]\n"
+            << "eg: eos-filemd-convert /var/eos/md /data23 ConvertFileMD.log 8\n"
             << std::endl;
 
 }
@@ -41,12 +42,33 @@ main(int argc, char* argv[])
     return (-1);
   }
 
+  auto& g_logger = eos::common::Logging::GetInstance();
+  g_logger.SetLogPriority(LOG_INFO);
+  g_logger.SetUnit("ConvertFileMD");
+
+  std::string log_file = "ConvertFileMD.log";
+  if (argc > 2) {
+    log_file = argv[3];
+  }
+
+  std::unique_ptr<FILE, decltype(&fclose)> fptr {fopen(log_file.c_str(), "a+"),
+                                                 &fclose};
+
+  if (fptr) {
+    // Redirect stdout and stderr to the log file
+    dup2(fileno(fptr.get()), fileno(stdout));
+    dup2(fileno(fptr.get()), fileno(stderr));
+  } else {
+    std::cerr << "Failed to open logging file: "<< log_file << std::endl;
+  }
+
+
   std::string fst_metadir = argv[1];
   std::string fst_path = argv[2];
   size_t num_threads {8};
 
-  if (argc == 4) {
-    eos::common::StringToNumeric(std::string_view(argv[3]), num_threads, num_threads);
+  if (argc > 3) {
+    eos::common::StringToNumeric(std::string_view(argv[4]), num_threads, num_threads);
   }
 
   auto db_handler = std::make_unique<eos::fst::FmdDbMapHandler>();
@@ -54,15 +76,14 @@ main(int argc, char* argv[])
       eos::fst::makeFSPathHandler(fst_path));
 
   auto fsid = eos::fst::FSPathHandler::GetFsid(fst_path);
-  std::cout << "Got FSID="<<fsid << std::endl;
+  eos_static_info("msg=\"Got FSID from .eosfsid\"fsid=%u", fsid);
   db_handler->SetDBFile(fst_metadir.c_str(), fsid);
 
   eos::fst::FmdConverter converter(db_handler.get(), attr_handler.get(), num_threads);
-  std::cout << "Converting...\n";
+  eos_static_info("msg=\"Converting with total threads\"=%ul", num_threads);
   converter.ConvertFS(fst_path);
-  std::cout << "Done\n";
   db_handler->ShutdownDB(fsid, true);
-
+  eos_static_info("%s", "msg=\"Finished Conversion!\"");
   return 0;
 
 }
