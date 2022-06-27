@@ -23,14 +23,14 @@
 #ifndef EOS_RELEASECONTROLLER_HH
 #define EOS_RELEASECONTROLLER_HH
 #include "mgm/Namespace.hh"
-#include "mgm/http/rest-api/controllers/Controller.hh"
+#include "mgm/http/rest-api/controllers/tape/TapeController.hh"
 
 EOSMGMRESTNAMESPACE_BEGIN
 
 /**
  * Release controller
  */
-class ReleaseController : public Controller {
+class ReleaseController : public TapeController {
 public:
   ReleaseController(const std::string & accessURL);
   virtual common::HttpResponse * handleRequest(common::HttpRequest * request,const common::VirtualIdentity * vid) override;

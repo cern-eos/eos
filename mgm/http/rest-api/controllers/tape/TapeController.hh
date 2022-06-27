@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// File: StageController.cc
+// File: TapeController.hh
 // Author: Cedric Caffy - CERN
 // ----------------------------------------------------------------------
 
@@ -21,17 +21,30 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "StageController.hh"
+#ifndef EOS_TAPECONTROLLER_HH
+#define EOS_TAPECONTROLLER_HH
+
+#include "mgm/Namespace.hh"
+#include "mgm/http/rest-api/controllers/Controller.hh"
+#include "mgm/http/rest-api/response/tape/factories/TapeRestApiResponseFactory.hh"
 
 EOSMGMRESTNAMESPACE_BEGIN
 
-StageController::StageController(const std::string & accessURL, const TapeRestApiConfig * tapeRestApiConfig):TapeController(accessURL),mTapeRestApiConfig(tapeRestApiConfig){}
-
-common::HttpResponse * StageController::handleRequest(common::HttpRequest * request,const common::VirtualIdentity * vid) {
-  if(mTapeRestApiConfig->isStageEnabled()) {
-    return mControllerActionDispatcher.getAction(request)->run(request, vid);
-  }
-  return mResponseFactory.createNotImplementedError().getHttpResponse();
-}
+class TapeController : public Controller {
+public:
+  TapeController(const std::string & accessURL): Controller(accessURL){}
+  /**
+   * This method handles the request passed in parameter. It calls the controller
+   * method according to what the URL of the request is.
+   * @param request the client's request
+   * @param vid the virtual identity of the client
+   * @return the to be returned to the client
+   */
+  virtual common::HttpResponse * handleRequest(common::HttpRequest * request,const common::VirtualIdentity * vid) = 0;
+protected:
+  TapeRestApiResponseFactory mResponseFactory;
+};
 
 EOSMGMRESTNAMESPACE_END
+
+#endif // EOS_TAPECONTROLLER_HH

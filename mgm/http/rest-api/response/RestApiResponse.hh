@@ -54,8 +54,6 @@ public:
    */
   common::HttpResponse * getHttpResponse() const;
 
-  static RestApiResponse<Model> createResponse(std::shared_ptr<Model> model,const common::HttpResponse::ResponseCodes code);
-  static RestApiResponse<Model> createResponse(std::shared_ptr<Model> model,const common::HttpResponse::ResponseCodes code, const common::HttpResponse::HeaderMap & responseHeader);
 private:
   std::shared_ptr<Model> mModel;
   common::HttpResponse::ResponseCodes mRetCode;

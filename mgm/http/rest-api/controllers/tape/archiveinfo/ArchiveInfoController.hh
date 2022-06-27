@@ -25,11 +25,11 @@
 #define EOS_ARCHIVEINFOCONTROLLER_HH
 
 #include "mgm/Namespace.hh"
-#include "mgm/http/rest-api/controllers/Controller.hh"
+#include "mgm/http/rest-api/controllers/tape/TapeController.hh"
 
 EOSMGMRESTNAMESPACE_BEGIN
 
-class ArchiveInfoController : public Controller {
+class ArchiveInfoController : public TapeController {
 public:
   ArchiveInfoController(const std::string & accessURL);
   virtual common::HttpResponse * handleRequest(common::HttpRequest * request,const common::VirtualIdentity * vid) override;
