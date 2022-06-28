@@ -116,7 +116,7 @@ GroupDrainer::GroupDrain(ThreadAssistant& assistant) noexcept
       // We are currently full, wait for a few seconds before pruning & trying
       // again
       eos_info("msg=\"transfer queue full, pausing before trying again\"");
-      assistant.wait_for(std::chrono::seconds(30));
+      assistant.wait_for(std::chrono::seconds(2));
       continue;
     }
 
