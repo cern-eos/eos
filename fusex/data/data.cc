@@ -1739,6 +1739,8 @@ data::datax::recover_write(fuse_req_t req)
       {
         XrdCl::Proxy::ProxyStatHandle::Get()->Stats()["recover:write:fromcache:failed"]++;
       }
+
+      mRecoveryStack.push_back(eos_log(LOG_SILENT, "hint='read-open failed with rc=%d'", rc));
       return rc;
     }
   }
@@ -1766,6 +1768,7 @@ data::datax::recover_write(fuse_req_t req)
         {
           XrdCl::Proxy::ProxyStatHandle::Get()->Stats()["recover:write:fromremote:local:failed"]++;
         }
+	mRecoveryStack.push_back(eos_log(LOG_SILENT, "hint='failed to open local stagefile'"));
         return EREMOTEIO;
       }
     }
@@ -1799,6 +1802,7 @@ data::datax::recover_write(fuse_req_t req)
         {
           XrdCl::Proxy::ProxyStatHandle::Get()->Stats()["recover:write:fromcache:read:failed"]++;
         }
+	mRecoveryStack.push_back(eos_log(LOG_SILENT, "hint='unable to read file for recovery from local cache file'"));
         return EIO;
       }
     } else {
@@ -1849,6 +1853,7 @@ data::datax::recover_write(fuse_req_t req)
             {
               XrdCl::Proxy::ProxyStatHandle::Get()->Stats()["recover:write:fromremote:localwrite:failed"]++;
             }
+	    mRecoveryStack.push_back(eos_log(LOG_SILENT, "hint='failed to write to local stage file'"));
             return EREMOTEIO;
           }
         } while (bytesRead > 0);
@@ -1893,6 +1898,7 @@ data::datax::recover_write(fuse_req_t req)
       {
         XrdCl::Proxy::ProxyStatHandle::Get()->Stats()["recover:write:fromremote:beginflush:failed"]++;
       }
+      mRecoveryStack.push_back(eos_log(LOG_SILENT, "hint='failed to signal endflush rc=%d'", rc));
       return rc;
     }
 
@@ -1925,8 +1931,10 @@ data::datax::recover_write(fuse_req_t req)
           proxy->CleanWriteQueue();
           {
             XrdCl::Proxy::ProxyStatHandle::Get()->Stats()["recover:write:fromremote:endflush:failed"]++;
-          }
+	  }
+	  mRecoveryStack.push_back(eos_log(LOG_SILENT, "hint='failed to read from local stagefile errno=%d'", errno));
           return EREMOTEIO;
+	  
         }
 
         if (nr) {
@@ -1979,6 +1987,7 @@ data::datax::recover_write(fuse_req_t req)
         {
           XrdCl::Proxy::ProxyStatHandle::Get()->Stats()["recover:write:journalflush:failed"]++;
         }
+	mRecoveryStack.push_back(eos_log(LOG_SILENT, "hint='journal-flushing failed rc=%d'", rc));
         return rc;
       } else {
         mRecoveryStack.push_back(eos_log(LOG_SILENT, "hint='success journalflush'"));
@@ -1998,6 +2007,7 @@ data::datax::recover_write(fuse_req_t req)
     {
       XrdCl::Proxy::ProxyStatHandle::Get()->Stats()["recover:write:nocache:failed"]++;
     }
+    mRecoveryStack.push_back(eos_log(LOG_SILENT, "hint='no local cache data for recovery'"));
     return EREMOTEIO;
   }
 
