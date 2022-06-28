@@ -91,4 +91,14 @@ const std::string& TapeRestApiConfig::getAccessURL() const
   return mAccessURL;
 }
 
+const bool TapeRestApiConfig::isStageEnabled() const
+{
+  return mStageEnabled;
+}
+
+void TapeRestApiConfig::setStageEnabled(const bool isStageEnabled)
+{
+  mStageEnabled = isStageEnabled;
+}
+
 EOSMGMRESTNAMESPACE_END

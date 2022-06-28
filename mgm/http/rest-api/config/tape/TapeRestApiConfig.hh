@@ -101,6 +101,10 @@ public:
 
   const std::string getSiteName() const;
   const std::string& getAccessURL() const;
+
+  void setStageEnabled(const bool isStageEnabled);
+  const bool isStageEnabled() const;
+
 private:
   /**
    * This parameter represents the STAGE targeted
@@ -120,6 +124,8 @@ private:
   std::atomic<uint16_t> mXrdHttpPort;
   //Mutex protecting all variables of this configuration
   mutable common::RWMutex mConfigMutex;
+  //This flag allows to activate or deactivate the staging of the tape REST API
+  std::atomic<bool> mStageEnabled = false;
 };
 
 EOSMGMRESTNAMESPACE_END

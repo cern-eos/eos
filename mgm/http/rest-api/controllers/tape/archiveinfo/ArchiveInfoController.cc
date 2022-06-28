@@ -26,7 +26,7 @@
 EOSMGMRESTNAMESPACE_BEGIN
 
 ArchiveInfoController::ArchiveInfoController(const std::string& accessURL):
-  Controller(accessURL) {}
+  TapeController(accessURL) {}
 
 common::HttpResponse* ArchiveInfoController::handleRequest(
   common::HttpRequest* request, const common::VirtualIdentity* vid)

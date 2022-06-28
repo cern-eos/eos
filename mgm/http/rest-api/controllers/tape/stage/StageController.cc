@@ -25,13 +25,18 @@
 
 EOSMGMRESTNAMESPACE_BEGIN
 
-StageController::StageController(const std::string& accessURL): Controller(
-    accessURL) {}
+StageController::StageController(const std::string& accessURL,
+                                 const TapeRestApiConfig* tapeRestApiConfig): TapeController(accessURL),
+  mTapeRestApiConfig(tapeRestApiConfig) {}
 
 common::HttpResponse* StageController::handleRequest(common::HttpRequest*
     request, const common::VirtualIdentity* vid)
 {
-  return mControllerActionDispatcher.getAction(request)->run(request, vid);
+  if (mTapeRestApiConfig->isStageEnabled()) {
+    return mControllerActionDispatcher.getAction(request)->run(request, vid);
+  }
+
+  return mResponseFactory.createNotImplementedError().getHttpResponse();
 }
 
 EOSMGMRESTNAMESPACE_END

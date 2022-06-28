@@ -78,7 +78,7 @@ public:
   bool isTransfersFull() const
   {
     std::scoped_lock slock(mTransfersMtx);
-    return mTransfers.size() > mMaxTransfers;
+    return mTransfers.size() >= mMaxTransfers;
   }
 
   uint64_t getAllowedTransfers() const

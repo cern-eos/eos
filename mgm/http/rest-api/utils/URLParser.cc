@@ -23,6 +23,7 @@
 #include "URLParser.hh"
 #include "common/StringConversion.hh"
 #include <regex>
+#include <algorithm>
 
 EOSMGMRESTNAMESPACE_BEGIN
 
@@ -89,6 +90,11 @@ bool URLParser::matchesAndExtractParameters(const std::string& urlPattern,
   return true;
 }
 
-
+void URLParser::removeDuplicateSlashes(std::string& path)
+{
+  path.erase(std::unique(path.begin(), path.end(), [](char a, char b) {
+    return a == '/' && b == '/';
+  }), path.end());
+}
 
 EOSMGMRESTNAMESPACE_END

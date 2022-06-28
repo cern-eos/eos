@@ -49,8 +49,7 @@ TapeRestHandler::TapeRestHandler(const TapeRestApiConfig* config): RestHandler(
     config->getAccessURL()), mTapeRestApiConfig(config)
 {
   initializeTapeWellKnownInfos();
-  initializeV0Dot1();
-  //initializeV1();
+  initializeV1();
 }
 
 void TapeRestHandler::initializeV1()
@@ -95,7 +94,7 @@ std::unique_ptr<Controller> TapeRestHandler::initializeStageController(
 {
   std::unique_ptr<Controller> stageController(
     TapeControllerFactory::getStageController(mEntryPointURL + apiVersion +
-        "/stage/"));
+        "/stage/", mTapeRestApiConfig));
   const std::string& controllerAccessURL = stageController->getAccessURL();
   stageController->addAction(std::make_unique<CreateStageBulkRequest>
                              (controllerAccessURL, common::HttpHandler::Methods::POST, tapeRestApiBusiness,

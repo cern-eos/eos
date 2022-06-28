@@ -71,6 +71,14 @@ public:
    */
   bool matchesAndExtractParameters(const std::string& urlPattern,
                                    std::map<std::string, std::string>& params);
+
+  /**
+   * Removes the duplicate slashes from a path given in parameter
+   * example: /eos//test/////file.txt --> /eos/test/file.txt
+   * @param path the path to remove the duplicate slashes from
+   */
+  static void removeDuplicateSlashes(std::string& path);
+
 private:
   const std::string& mURL;
   std::vector<std::string> mURLTokens;

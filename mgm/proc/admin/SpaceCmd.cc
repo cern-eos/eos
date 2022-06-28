@@ -610,19 +610,72 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config,
 
         if (spaceName != "default") {
           ret_c = EIO;
-          std_err.str("error: the tape REST API can only be enabled on the default space");
+          std_err.str("error: the tape REST API can only be enabled or disabled on the default space");
         } else {
-          if (!FsView::gFsView.mSpaceView[config.mgmspace_name()]
+          if (!FsView::gFsView.mSpaceView[spaceName]->SetConfigMember(key, value)) {
+            ret_c = EIO;
+            std_err.str("error: cannot set space config value");
+          } else {
+            auto config = gOFS->mRestApiManager->getTapeRestApiConfig();
+
+            if (value == "on") {
+              if (!config->isActivated()) {
+                // Stage should be deactivated by default
+                if (!FsView::gFsView.mSpaceView[spaceName]->SetConfigMember(
+                      rest::TAPE_REST_API_STAGE_SWITCH_ON_OFF, "off")) {
+                  ret_c = EIO;
+                  std_err.str("error: cannot set space config value");
+                } else {
+                  config->setActivated(true);
+                  config->setStageEnabled(false);
+                  std_out << "success: Tape REST API enabled";
+                }
+              } else {
+                std_out << "The tape REST API is already enabled";
+              }
+            } else {
+              //Switch off the tape REST API
+              //Also switch off the STAGE resource
+              if (!FsView::gFsView.mSpaceView[spaceName]->SetConfigMember(
+                    rest::TAPE_REST_API_STAGE_SWITCH_ON_OFF, "off")) {
+                ret_c = EIO;
+                std_err.str("error: cannot set space config value");
+              } else {
+                config->setActivated(false);
+                config->setStageEnabled(false);
+                std_out << "success: Tape REST API disabled";
+              }
+            }
+          }
+        }
+      }
+    }
+
+    if (!strcmp(mgm::rest::TAPE_REST_API_STAGE_SWITCH_ON_OFF, key.c_str())) {
+      applied = true;
+
+      //REST API activation
+      if ((value != "on") && (value != "off")) {
+        ret_c = EINVAL;
+        std_err.str("error: value has to either on or off");
+      } else {
+        const std::string& spaceName = config.mgmspace_name();
+
+        if (spaceName != "default") {
+          ret_c = EIO;
+          std_err.str("error: the tape REST API STAGE resource can only be enabled or disabled on the default space");
+        } else {
+          if (!FsView::gFsView.mSpaceView[spaceName]
               ->SetConfigMember(key, value)) {
             ret_c = EIO;
             std_err.str("error: cannot set space config value");
           } else {
             if (value == "on") {
-              gOFS->mRestApiManager->getTapeRestApiConfig()->setActivated(true);
-              std_out << "success: Tape REST API enabled";
+              gOFS->mRestApiManager->getTapeRestApiConfig()->setStageEnabled(true);
+              std_out << "success: Tape REST API STAGE resource enabled";
             } else {
-              gOFS->mRestApiManager->getTapeRestApiConfig()->setActivated(false);
-              std_out << "success: Tape REST API disabled";
+              gOFS->mRestApiManager->getTapeRestApiConfig()->setStageEnabled(false);
+              std_out << "success: Tape REST API STAGE resource disabled";
             }
           }
         }

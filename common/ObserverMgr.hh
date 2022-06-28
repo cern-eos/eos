@@ -108,9 +108,8 @@ public:
    * in the ObserverMgr Threadpool and hence doesn't block the calling thread
    * @param args arguments to be provided for each callback
    */
-  template <typename... Args2>
   void
-  notifyChange(Args2&& ... args)
+  notifyChange(Args... args)
   {
     auto callbacks = mObservers.getCallbacks();
 
@@ -118,7 +117,7 @@ public:
       if (auto shared_fn = callback.lock()) {
         async_completions.emplace_back(mThreadPool.PushTask(std::make_shared <
                                        std::packaged_task<void(void) >> (bindArgs(*shared_fn,
-                                           std::forward<Args2>(args)...))));
+                                           args...))));
       }
     }
 

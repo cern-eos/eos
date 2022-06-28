@@ -41,7 +41,10 @@ void ErrorModelJsonifier::jsonify(const ErrorModel* model, Json::Value& root)
 
   root["title"] = model->getTitle();
   root["status"] = model->getStatus();
-  root["detail"] = model->getDetail() ? model->getDetail().value() : "";
+
+  if (model->getDetail()) {
+    root["detail"] = model->getDetail().value();
+  }
 }
 
 EOSMGMRESTNAMESPACE_END

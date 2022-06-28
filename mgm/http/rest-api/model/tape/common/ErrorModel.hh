@@ -43,7 +43,7 @@ class ErrorModel : public common::Jsonifiable<ErrorModel>
 public:
   ErrorModel();
   ErrorModel(const std::string& title, const uint32_t status,
-             const std::string& detail);
+             const std::optional<std::string>& detail);
   ErrorModel(const std::string& title, const uint32_t status);
   void setType(const std::string& type);
   void setTitle(const std::string& title);

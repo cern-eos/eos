@@ -286,13 +286,13 @@ int main(int argc, char* argv[])
   std::string dbpath, sfid;
   extern char* optarg;
   static struct option long_options[] = {
-    {"dbpath",           required_argument, 0,   0 },
-    {"fid",              required_argument, 0,   0 },
-    {"fxid",             required_argument, 0,   0 },
-    {"dump_ids",         no_argument,       0,   0 },
-    {"fsck",             no_argument,       0,   0 },
-    {"verbose_fsck",     no_argument,       0,   0 },
-    {0,                  0,                 0,   0 }
+    {"dbpath",           required_argument, 0,   0   },
+    {"fid",              required_argument, 0,   0   },
+    {"fxid",             required_argument, 0,   0   },
+    {"dump_ids",         no_argument,       0,   'e' },
+    {"fsck",             no_argument,       0,   'f' },
+    {"verbose_fsck",     no_argument,       0,   'v' },
+    {0,                  0,                 0,   0   }
   };
 
   while ((c = getopt_long(argc, argv, "", long_options, &long_index)) != -1) {

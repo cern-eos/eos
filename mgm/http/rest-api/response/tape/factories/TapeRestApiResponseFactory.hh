@@ -54,7 +54,7 @@ public:
 private:
   RestApiResponse<ErrorModel> createError(const
                                           common::HttpResponse::ResponseCodes code, const std::string& title,
-                                          const std::string& detail) const;
+                                          const std::optional<std::string>& detail) const;
 };
 
 EOSMGMRESTNAMESPACE_END

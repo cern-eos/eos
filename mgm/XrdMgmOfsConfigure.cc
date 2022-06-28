@@ -2014,6 +2014,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
     AdminSocketServer.reset(new eos::mgm::AdminSocket(admin_socket_path));
   }
   bool restApiActivated = false;
+  bool restApiStageEnabled = false;
   {
     eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
 
@@ -2026,6 +2027,14 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
       if (restApiSwitchOnOff == "on") {
         restApiActivated = true;
       }
+
+      const std::string& restApiStageSwitchOnOff =
+        FsView::gFsView.mSpaceView["default"]->GetConfigMember(
+          eos::mgm::rest::TAPE_REST_API_STAGE_SWITCH_ON_OFF);
+
+      if (restApiStageSwitchOnOff == "on") {
+        restApiStageEnabled = true;
+      }
     }
   }
   {
@@ -2036,6 +2045,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
     tapeRestApiConfig->setSiteName(tapeRestApiSitename);
     tapeRestApiConfig->setHostAlias(MgmOfsAlias.c_str());
     tapeRestApiConfig->setXrdHttpPort(XrdHttpPort);
+    tapeRestApiConfig->setStageEnabled(restApiStageEnabled);
   }
   // start the LRU daemon
   mLRUEngine->Start();

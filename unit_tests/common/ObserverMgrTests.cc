@@ -1,4 +1,5 @@
 #include "common/ObserverMgr.hh"
+#include "common/StringUtils.hh"
 #include "gtest/gtest.h"
 #include <iostream>
 #include <folly/executors/IOThreadPoolExecutor.h>
@@ -73,8 +74,85 @@ TEST(ObserverMgr, SimpleAsync)
   ASSERT_NO_THROW(mgr.notifyChange(101));
 }
 
-TEST(ObserverMgr, observert_tag_t)
+TEST(ObserverMgr, observer_tag_t)
 {
   observer_tag_t default_tag {};
   ASSERT_FALSE(default_tag);
+}
+
+TEST(ObserverMgr, moveArguments)
+{
+  ObserverMgr<std::string> mgr;
+  // A simple string observers that expect 9 character messages! "message 1,2... "
+  // We use std::string as we'll know in case of multiple observers that we'll
+  // end up passing the argument by value correctly as otherwise the string will be
+  // emptied in case of a move
+  auto obs_strlen = mgr.addObserver([](std::string s) {
+    EXPECT_EQ(s.size(), 9);
+    std::cout << "Observer 1 (value) received msg=" << s << std::endl;
+  });
+  auto obs_startswith = mgr.addObserver([](std::string s) {
+    EXPECT_TRUE(eos::common::startsWith(s, "message "));
+    std::cout << "Observer 2 (value) received msg=" << s << std::endl;
+  });
+  int ctr {0};
+  auto gen_string = [&ctr]() {
+    std::string s = "message " + std::to_string(ctr++);
+    return s;
+  };
+  // 2 Observers
+  std::cout << "Starting with 2 observers!" << std::endl;
+  ASSERT_NO_THROW(mgr.notifyChange(gen_string()));
+  auto tag3 = mgr.addObserver([](std::string && s) {
+    EXPECT_EQ(s.size(), 9);
+    std::cout << "Observer 3 (r-value ref) received msg=" << s << std::endl;
+  });
+  // This is likely std::function's magic? ideally conversions shouldn't be allowed
+  // however it looks like if the arg. is constructable from the arg_type
+  // it might just work
+  auto tag4 = mgr.addObserver([](std::string_view s) {
+    EXPECT_EQ(s.size(), 9);
+    std::cout << "Observer 4 (stringview) received msg=" << s << std::endl;
+  });
+  mgr.syncAllNotifications();
+  std::cout << "Adding 2 more observers! Total: 4" << std::endl;
+  // 4 Observers
+  ASSERT_NO_THROW(mgr.notifyChange(gen_string()));
+  auto tag5 = mgr.addObserver([](const std::string & s) {
+    EXPECT_EQ(s.size(), 9);
+    std::cout << "Observer 5 (c-ref) recieved msg=" << s << std::endl;
+  });
+  mgr.syncAllNotifications();
+  std::cout << "Adding 1 more observer! Total: 5" << std::endl;
+  // 5 Observers
+  ASSERT_NO_THROW(mgr.notifyChange(gen_string()));
+  mgr.rmObserver(obs_startswith);
+  mgr.syncAllNotifications();
+  std::cout << "Dropping startswith observer! Total: 4; sending testermsg twice"
+            << std::endl;
+  std::string msg = "testermsg";
+  ASSERT_NO_THROW(mgr.notifyChange(msg));
+  ASSERT_NO_THROW(mgr.notifyChange(std::move(msg)));
+  // msg is now moved! While impl defined, all implementations usually empty the string on move
+  EXPECT_TRUE(msg.empty());
+  mgr.rmObserver(obs_strlen);
+  mgr.syncAllNotifications();
+  std::cout << "Dropping 1 observer! Total: 3" << std::endl;
+  // 3 Observers
+  ASSERT_NO_THROW(mgr.notifyChange(gen_string()));
+  ASSERT_NO_THROW(mgr.notifyChange("randommsg"));
+  mgr.syncAllNotifications();
+  std::cout << "Dropping 1 observer! Total: 2" << std::endl;
+  // 2 Observers
+  mgr.rmObserver(tag4);
+  ASSERT_NO_THROW(mgr.notifyChange(gen_string()));
+  mgr.rmObserver(tag3);
+  // 1 Observer
+  mgr.syncAllNotifications();
+  std::cout << "Dropping 1 observer! Total: 1" << std::endl;
+  ASSERT_NO_THROW(mgr.notifyChange("some9char"));
+  mgr.rmObserver(tag5);
+  // Now there should be no one listening! Should hit the 9 char violation in
+  // case anyone listens
+  ASSERT_NO_THROW(mgr.notifyChange("A tree fell in a forest!!!"));
 }

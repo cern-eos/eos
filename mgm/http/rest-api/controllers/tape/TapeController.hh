@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// File: ReleaseController.hh
+// File: TapeController.hh
 // Author: Cedric Caffy - CERN
 // ----------------------------------------------------------------------
 
@@ -20,23 +20,33 @@
  * You should have received a copy of the GNU General Public License    *
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
-#ifndef EOS_RELEASECONTROLLER_HH
-#define EOS_RELEASECONTROLLER_HH
+
+#ifndef EOS_TAPECONTROLLER_HH
+#define EOS_TAPECONTROLLER_HH
+
 #include "mgm/Namespace.hh"
-#include "mgm/http/rest-api/controllers/tape/TapeController.hh"
+#include "mgm/http/rest-api/controllers/Controller.hh"
+#include "mgm/http/rest-api/response/tape/factories/TapeRestApiResponseFactory.hh"
 
 EOSMGMRESTNAMESPACE_BEGIN
 
-/**
- * Release controller
- */
-class ReleaseController : public TapeController
+class TapeController : public Controller
 {
 public:
-  ReleaseController(const std::string& accessURL);
+  TapeController(const std::string& accessURL): Controller(accessURL) {}
+  /**
+   * This method handles the request passed in parameter. It calls the controller
+   * method according to what the URL of the request is.
+   * @param request the client's request
+   * @param vid the virtual identity of the client
+   * @return the to be returned to the client
+   */
   virtual common::HttpResponse* handleRequest(common::HttpRequest* request,
-      const common::VirtualIdentity* vid) override;
+      const common::VirtualIdentity* vid) = 0;
+protected:
+  TapeRestApiResponseFactory mResponseFactory;
 };
 
 EOSMGMRESTNAMESPACE_END
-#endif // EOS_RELEASECONTROLLER_HH
+
+#endif // EOS_TAPECONTROLLER_HH

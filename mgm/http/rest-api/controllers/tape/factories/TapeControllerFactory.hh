@@ -28,6 +28,7 @@
 #include <string>
 #include "mgm/http/rest-api/controllers/Controller.hh"
 #include <memory>
+#include "mgm/http/rest-api/config/tape/TapeRestApiConfig.hh"
 
 EOSMGMRESTNAMESPACE_BEGIN
 
@@ -38,7 +39,7 @@ class TapeControllerFactory
 {
 public:
   static std::unique_ptr<Controller> getStageController(const std::string&
-      accessURL);
+      accessURL, const TapeRestApiConfig* tapeRestApiConfig);
   static std::unique_ptr<Controller> getArchiveInfoController(
     const std::string& accessURL);
   static std::unique_ptr<Controller> getReleaseController(

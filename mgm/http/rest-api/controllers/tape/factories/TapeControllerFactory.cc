@@ -29,9 +29,10 @@
 EOSMGMRESTNAMESPACE_BEGIN
 
 std::unique_ptr<Controller>
-TapeControllerFactory::getStageController(const std::string& accessURL)
+TapeControllerFactory::getStageController(const std::string& accessURL,
+    const TapeRestApiConfig* tapeRestApiConfig)
 {
-  return std::make_unique<StageController>(accessURL);
+  return std::make_unique<StageController>(accessURL, tapeRestApiConfig);
 }
 
 std::unique_ptr<Controller>

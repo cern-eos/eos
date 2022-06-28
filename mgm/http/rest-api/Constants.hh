@@ -29,7 +29,9 @@
 EOSMGMRESTNAMESPACE_BEGIN
 
 //The name of the tape REST API switch on/off
-static constexpr auto TAPE_REST_API_SWITCH_ON_OFF = "taperestapi";
+static constexpr auto TAPE_REST_API_SWITCH_ON_OFF = "taperestapi.status";
+//The name of the tape REST API STAGE resource switch on/off
+static constexpr auto TAPE_REST_API_STAGE_SWITCH_ON_OFF = "taperestapi.stage";
 
 EOSMGMRESTNAMESPACE_END
 
