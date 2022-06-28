@@ -31,6 +31,7 @@
 #include <openssl/crypto.h>
 #include "common/Namespace.hh"
 #include "common/SymKeys.hh"
+#include "common/StringPermutation.hh"
 #include "google/protobuf/io/zero_copy_stream_impl.h"
 #include "zlib.h"
 
@@ -195,6 +196,28 @@ SymKey::HmacSha1(std::string& data, const char* key)
   result.resize(result_size + 1);
   return result;
 }
+
+
+//------------------------------------------------------------------------------
+// set key and secret for hmac_t structures
+//------------------------------------------------------------------------------
+
+void 
+SymKey::hmac_t::set(const std::string& secret, const std::string& key)
+{
+  if (key.substr(0,4) == "xex:") {
+    this->xex=true;
+  }
+  if (secret.length()) {
+    this->xex_offset = 0;
+    this->hmac = HmacSha256(secret, key);
+    this->key = hmac;
+    this->perm.reset(new StringPermutation(key, &secret));
+  } else {
+    this->key = key;
+  }
+}
+
 
 //------------------------------------------------------------------------------
 // Base64 encoding function - base function
@@ -498,7 +521,14 @@ SymKey::ObfuscateBuffer(char* dst, const char* src, size_t size, off_t offset, S
   size_t len = hmac.key.length();
   size_t ilen = offset%len;
   bool overwrite = (dst == src);
-  if ((!ilen) && (!(len%8)) && (!(size%len)) && (!((unsigned long long)(dst)%8)) && (!((unsigned long long)(src)%8))) {
+
+  // if we have a key permutation happening from offset -> offset+size, we have to go for byte-wise processing
+  bool overlap = (hmac.permutation_index(offset) != hmac.permutation_index(offset+size));
+
+  fprintf(stderr,"offset=%llu size=%llu overlap=%d xex=%d\n", offset,size,overlap, hmac.xex);
+  if ((!overlap) && (!ilen) && (!(len%8)) && (!(size%len)) && (!((unsigned long long)(dst)%8)) && (!((unsigned long long)(src)%8))) {
+    fprintf(stderr,"fast\n");
+    cipher = hmac.permutation(offset);
     // fast case
     uint64_t* pbuf = (uint64_t*) dst;
     uint64_t* sbuf = (uint64_t*) src;
@@ -514,12 +544,15 @@ SymKey::ObfuscateBuffer(char* dst, const char* src, size_t size, off_t offset, S
     }
   } else {
     // slow case
+    fprintf(stderr,"slow\n");
     if ( dst == src ) {
       for (size_t i = 0; i< size; ++i) {
+	cipher = hmac.permutation(offset+i);
         *dst++ ^= cipher[(offset+i)%len];
       }
     } else {
       for (size_t i = 0; i< size; ++i) {
+	cipher = hmac.permutation(offset+i);
         *dst++ = *src++ ^ cipher[(offset+i)%len];
       }
     }

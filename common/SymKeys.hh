@@ -29,6 +29,7 @@
 
 #pragma once
 #include "common/Namespace.hh"
+#include "common/StringPermutation.hh"
 #include "XrdOuc/XrdOucHash.hh"
 #include "XrdOuc/XrdOucString.hh"
 #include "XrdSys/XrdSysPthread.hh"
@@ -245,24 +246,34 @@ public:
   static bool ZBase64(std::string& in, std::string& out);
 
   struct hmac_t {
-    void set(const std::string& secret, const std::string& key)
-    {
-      if (secret.length()) {
-        this->hmac = HmacSha256(secret, key);
-        this->key = hmac;
-      } else {
-        this->key = key;
-      }
-    }
-
-    hmac_t(const std::string& secret, const std::string& key)
+    void set(const std::string& secret, const std::string& key);
+    hmac_t(const std::string& secret, const std::string& key) : xex(false)
     {
       set(secret, key);
     }
-    hmac_t() {}
+
+    hmac_t() : xex(false)  {}
+
+    size_t permutation_index(size_t  offset) {
+      return offset/4096;
+    }
+
+    const char* permutation(size_t offset) {
+      // return a permutated key if the key is prefixed with xex:
+      if (xex) {
+	size_t permutation = offset/4096;
+	return this->perm->Hmacs()[permutation%this->perm->Hmacs().size()].c_str();
+      } else {
+	return this->key.c_str();
+      }
+    }
 
     std::string key;
     std::string hmac;
+    std::unique_ptr<eos::common::StringPermutation> perm;
+    bool xex;
+    ssize_t xex_offset;
+
   };
 
   //----------------------------------------------------------------------------
