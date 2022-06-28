@@ -4136,6 +4136,8 @@ EosFuse::open(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info* fi)
             struct fuse_entry_param e;
             memset(&e, 0, sizeof(e));
             md->convert(e, pcap->lifetime());
+	    std::string obfuscation_key = md->obfuscate_key();
+	    
             mLock.UnLock();
             data::data_fh* io = data::data_fh::Instance(Instance().datas.get(req,
                                 (*md)()->id(),
@@ -4143,8 +4145,7 @@ EosFuse::open(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info* fi)
             capLock.Lock(&pcap->Locker());
             io->set_authid((*pcap)()->authid());
 
-            if (!md->obfuscate_key().empty()) {
-              std::string obfuscation_key = md->obfuscate_key();
+            if (!obfuscation_key.empty()) {
               io->hmac.set(obfuscation_key, eoskey);
             }
 
