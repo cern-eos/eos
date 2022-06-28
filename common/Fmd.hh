@@ -123,7 +123,7 @@ bool EnvToFstFmd(XrdOucEnv& env, FmdHelper& fmd);
 //! @param map of errors to file identifiers
 //------------------------------------------------------------------------------
 void
-CollectInconcistencies(const FmdHelper& fmd,
+CollectInconsistencies(const FmdHelper& fmd,
                        std::map<std::string, size_t>& statistics,
                        std::map<std::string,
                        std::set<eos::common::FileId::fileid_t>>& fidset);

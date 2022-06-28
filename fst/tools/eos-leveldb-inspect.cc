@@ -193,7 +193,7 @@ void DumpFsckStats(eos::common::DbMap& db, bool verbose = false)
   for (db.beginIter(false); db.iterate(&k, &v, false);) {
     eos::common::FmdHelper f;
     f.mProtoFmd.ParseFromString(v->value);
-    CollectInconcistencies(f, statistics, fid_set);
+    CollectInconsistencies(f, statistics, fid_set);
   }
 
   // Display summary

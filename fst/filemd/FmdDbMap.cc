@@ -277,7 +277,7 @@ FmdDbMapHandler::LocalGetFmd(eos::common::FileId::fileid_t fid,
   }
 }
 
-std::pair<bool,eos::common::FmdHelper>
+std::pair<bool, eos::common::FmdHelper>
 FmdDbMapHandler::LocalRetrieveFmd(eos::common::FileId::fileid_t fid,
                                   eos::common::FileSystem::fsid_t fsid)
 {
@@ -287,6 +287,7 @@ FmdDbMapHandler::LocalRetrieveFmd(eos::common::FileId::fileid_t fid,
   if (auto it = mDbMap.find(fsid);
       it != mDbMap.end()) {
     eos::common::DbMap::Tval val;
+
     if (it->second->get(eos::common::Slice((const char*)&fid, sizeof(fid)), &val)) {
       fmd.mProtoFmd.ParseFromString(val.value);
       found = true;
@@ -299,8 +300,7 @@ FmdDbMapHandler::LocalRetrieveFmd(eos::common::FileId::fileid_t fid,
   // In this particular case we need the move construction only because this
   // will be directly passed on to the destructuring bind at call sites, if we
   // were only returning fmd for eg. the copy ellision would've been guaranteed
-  return {found,std::move(fmd)};
-
+  return {found, std::move(fmd)};
 }
 
 
@@ -385,9 +385,11 @@ FmdDbMapHandler::UpdateWithDiskInfo(eos::common::FileSystem::fsid_t fsid,
     eos_err("%s", "msg=\"skipping insert of file with fid=0\"");
     return false;
   }
+
   eos::common::RWMutexReadLock map_rd_lock(mMapMutex);
   FsWriteLock fs_wr_lock(this, fsid);
-  return FmdHandler::UpdateWithDiskInfo(fsid, fid, disk_size, disk_xs, check_ts_sec,
+  return FmdHandler::UpdateWithDiskInfo(fsid, fid, disk_size, disk_xs,
+                                        check_ts_sec,
                                         filexs_err, blockxs_err, layout_err);
 }
 
@@ -412,6 +414,7 @@ FmdDbMapHandler::UpdateWithMgmInfo(eos::common::FileSystem::fsid_t fsid,
     eos_err("%s", "msg=\"skipping insert of file with fid=0\"");
     return false;
   }
+
   eos::common::RWMutexReadLock map_rd_lock(mMapMutex);
   FsWriteLock fs_wr_lock(this, fsid);
   return FmdHandler::UpdateWithMgmInfo(fsid, fid, cid, lid, mgmsize,
@@ -623,9 +626,10 @@ FmdDbMapHandler::GetInconsistencyStatistics(eos::common::FileSystem::fsid_t
       eos::common::FmdHelper f;
       auto& proto_fmd = f.mProtoFmd;
       proto_fmd.ParseFromString(v->value);
-      CollectInconcistencies(f, statistics, fidset);
+      CollectInconsistencies(f, statistics, fidset);
     }
   }
+
   return true;
 }
 
@@ -749,12 +753,11 @@ FmdDbMapHandler::ConvertAllFmd(eos::common::FileSystem::fsid_t fsid,
 
   for (mDbMap[fsid]->beginIter(false);
        mDbMap[fsid]->iterate(&k, &v, false);) {
-
     eos::common::FmdHelper f;
     auto& proto_fmd = f.mProtoFmd;
     proto_fmd.ParseFromString(v->value);
-
     auto [status, _] = target_fmd_handler->LocalRetrieveFmd(fsid, proto_fmd.fid());
+
     if (status) {
       continue;
     }
