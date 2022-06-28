@@ -259,12 +259,6 @@ XrdMqClient::SendMessage(XrdMqMessage& msg, const char* receiverid, bool sign,
         // Don't wait for responses if not required
         auto discard_handler = XrdCl::ResponseHandler::Wrap
         ([ = ](XrdCl::XRootDStatus * s, XrdCl::AnyObject * r) mutable {
-          // Make sure we extend the lifetime of the XrdCl::FileSystem
-          // object until this handler is called, otherwise if we delete
-          // the FS object it could happen that an async response for it
-          // will trigger a crash. E.g. AssignLBHandler
-          (void) send_channel;
-
           if (s)
           {
             delete s;
@@ -274,10 +268,16 @@ XrdMqClient::SendMessage(XrdMqMessage& msg, const char* receiverid, bool sign,
           {
             delete r;
           }
+
+          // Make sure we extend the lifetime of the XrdCl::FileSystem
+          // object until this handler is called, otherwise if we delete
+          // the FS object it could happen that an async response for it
+          // will trigger a crash. E.g. AssignLBHandler
+          send_channel.reset();
         });
         status = send_channel->Query(XrdCl::QueryCode::OpaqueFile, arg,
                                      discard_handler, timeout);
-        
+
         if (!status.IsOK()) {
           delete discard_handler;
         }
