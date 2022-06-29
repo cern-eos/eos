@@ -689,6 +689,45 @@ int Inspector::oneReplicaLayout(bool showName, bool showPaths,
 //----------------------------------------------------------------------------
 // Find files with non-nominal number of stripes (replicas)
 //----------------------------------------------------------------------------
+int Inspector::stripediff(std::ostream& out, std::ostream& err)
+{
+  FileScanner fileScanner(mQcl);
+
+  while (fileScanner.valid()) {
+    eos::ns::FileMdProto proto;
+
+    if (!fileScanner.getItem(proto)) {
+      break;
+    }
+    int64_t actual = proto.locations().size();
+    int64_t expected = eos::common::LayoutId::GetStripeNumber(
+                         proto.layout_id()) + 1;
+    int64_t unlinked = proto.unlink_locations().size();
+    int64_t size = proto.size();
+
+
+    if (actual != expected && size != 0) {
+      out << "fid=" << proto.id() << " container=" << proto.cont_id() << " size=" << size << 
+          " actual_stripes=" << actual << " expected_stripes=" << expected <<
+          " unlinked_stripes=" << unlinked <<  " locations=" << serializeLocations(proto.locations()) <<
+          " unlinked_locations=" << serializeLocations(proto.unlink_locations()) << 
+          " mtime=" << Printing::timespecToTimestamp(Printing::parseTimespec(proto.mtime())) << 
+          " ctime=" << Printing::timespecToTimestamp(Printing::parseTimespec(proto.ctime())) << "\n";
+    }
+
+    fileScanner.next();
+  }
+  std::string errorString;
+
+  if (fileScanner.hasError(errorString)) {
+    err << errorString;
+    return 1;
+  }
+  return 0;
+}
+//----------------------------------------------------------------------------
+// Find files with non-nominal number of stripes (replicas)
+//----------------------------------------------------------------------------
 int Inspector::stripediff()
 {
   FilePrintingOptions filePrintingOpts;
@@ -716,9 +755,9 @@ int Inspector::stripediff()
       // Use output sink for complete report / json
       std::map<std::string, std::string> extended;
       extended["path"] =  fetchNameOrPath(proto, item);
-      extended["actual-stripes"] = std::to_string(actual);
-      extended["expected-stripes"] = std::to_string(expected);
-      extended["unlinked-stripes"] = std::to_string(unlinked);
+      extended["actual_stripes"] = std::to_string(actual);
+      extended["expected_stripes"] = std::to_string(expected);
+      extended["unlinked_stripes"] = std::to_string(unlinked);
       mOutputSink.printWithAdditionalFields(proto, filePrintingOpts, extended);
     } else {
       (void) fetchNameOrPath(proto, item);
