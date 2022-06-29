@@ -29,6 +29,7 @@
 #include <cstring>
 #include <sstream>
 #include "grpc/GrpcServer.hh"
+#include "mgm/convert/ConversionZMQ.hh"
 #include "mgm/AdminSocket.hh"
 #include "mgm/Stat.hh"
 #include "mgm/FsView.hh"
@@ -2340,6 +2341,16 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
     mConverterDriver->Start();
   }
   
+  if (getenv("EOS_CONVERTER_PROCESS_POOL")) {
+    int nConversionProcesses = atoi(getenv("EOS_CONVERTER_PROCESS_POOL"));
+    if (!nConversionProcesses) {
+      nConversionProcesses=64;
+    }
+    eos_info("%s", "msg=\"starting Converter Process Pool with %d processes\"", nConversionProcesses);
+    mConversionZMQ.reset(new ConversionZMQ(nConversionProcesses));
+    mConversionZMQ->RunServer();
+  }
+
   {
     eos_static_info("%s", "msg=\"test mutex extra info deduction");
     eos::common::RWMutexWriteLock wr_lock(eosViewRWMutex);

@@ -103,7 +103,11 @@ ConverterDriver::Convert(ThreadAssistant& assistant) noexcept
     HandleRunningJobs();
   }
 
-  JoinAllConversionJobs();
+  if (gOFS->mConversionZMQ) {
+    gOFS->mConversionZMQ->StopServer();
+  } else {
+    JoinAllConversionJobs();
+  }
   mIsRunning = false;
   eos_static_notice("%s", "msg=\"stopped converter engine\"");;
 }

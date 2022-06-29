@@ -207,6 +207,7 @@ add_library(
   convert/ConversionInfo.cc
   convert/ConversionJob.cc
   convert/ConverterDriver.cc
+  convert/ConversionZMQ.cc
   drain/DrainFs.cc
   drain/DrainTransferJob.cc
   drain/Drainer.cc

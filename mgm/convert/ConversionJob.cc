@@ -247,19 +247,39 @@ void ConversionJob::DoIt() noexcept
     return;
   }
 
-  // Trigger the TPC job
-  XrdCl::XRootDStatus tpc_status = copy.Run(&mProgressHandler);
 
-  if (!tpc_status.IsOK()) {
-    HandleError(tpc_status.ToStr(),
-                SSTR("tpc_src=" << url_src.GetLocation()
-                     << " tpc_dst=" << url_dst.GetLocation()));
-    return;
+  if (gOFS->mConversionZMQ) {
+    std::string transfer = "7200||";
+    transfer += url_src.GetURL();
+    transfer += "|";
+    transfer += url_dst.GetURL();
+
+    int rc = gOFS->mConversionZMQ->Send(transfer);
+    if (rc) {
+      HandleError(std::string("error:")+ std::to_string(rc), 
+		  SSTR("tpc timeout=7200" << "tpc_src=" << url_src.GetLocation()
+		       << " tpc_dst=" << url_dst.GetLocation()));
+      return ;
+    }
+    eos_static_info("[tpc]: %s => %s status=success tpc_retc=%d",
+		    url_src.GetLocation().c_str(), url_dst.GetLocation().c_str(),
+		    rc);
+  } else {
+    // Trigger the TPC job
+    XrdCl::XRootDStatus tpc_status = copy.Run(&mProgressHandler);
+    
+    if (!tpc_status.IsOK()) {
+      HandleError(tpc_status.ToStr(),
+		  SSTR("tpc_src=" << url_src.GetLocation()
+		       << " tpc_dst=" << url_dst.GetLocation()));
+      return;
+    }
+    eos_static_info("[tpc]: %s => %s status=success tpc_msg=%s",
+		    url_src.GetLocation().c_str(), url_dst.GetLocation().c_str(),
+		    tpc_status.ToStr().c_str());
+  
   }
 
-  eos_static_info("[tpc]: %s => %s status=success tpc_msg=%s",
-                  url_src.GetLocation().c_str(), url_dst.GetLocation().c_str(),
-                  tpc_status.ToStr().c_str());
 
   // TPC job succeeded:
   //  - Verify new file has all fragments according to layout

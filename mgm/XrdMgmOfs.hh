@@ -111,6 +111,7 @@
 #include "mgm/proc/admin/SpaceCmd.hh"
 #include "mgm/drain/Drainer.hh"
 #include "mgm/convert/ConverterDriver.hh"
+#include "mgm/convert/ConversionZMQ.hh"
 #include "mgm/IdTrackerWithValidity.hh"
 #include "mgm/qos/QoSConfig.hh"
 #include "mgm/qos/QoSClass.hh"
@@ -173,6 +174,7 @@ class ReplicationTracker;
 class FileInspector;
 class ConversionJob;
 class ConverterDriver;
+class ConversionZMQ;
 }
 
 namespace eos::mgm::tgc
@@ -1864,6 +1866,7 @@ public:
   std::unique_ptr<eos::mq::MessagingRealm> mMessagingRealm;
   Drainer mDrainEngine; ///< Centralized draining
   std::unique_ptr<ConverterDriver> mConverterDriver; ///< Converter driver
+  std::unique_ptr<ConversionZMQ> mConversionZMQ; ///< Converter ZMQ process pool
   std::unique_ptr<HttpServer> mHttpd; ///<  Http daemon if available
 
   std::unique_ptr<GrpcServer> GRPCd; ///< GRPC server
