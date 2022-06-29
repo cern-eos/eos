@@ -33,7 +33,7 @@ using eos::fst::stdfs::IsRegularFile;
 TEST_F(TmpDirTree, WalkFSTree)
 {
   std::unordered_set<std::string> files;
-  auto process_fn  = [&files](std::string p, uint64_t) {
+  auto process_fn  = [&files](std::string p) {
     std::cout << "Accessing path=" << p << std::endl;
     files.emplace(p);
   };
@@ -48,7 +48,7 @@ TEST_F(TmpDirTree, WalkFSTree)
 TEST_F(TmpDirTree, FTSWalkTree)
 {
   std::unordered_set<std::string> files;
-  auto process_fn  = [&files](std::string p, uint64_t) {
+  auto process_fn  = [&files](std::string p) {
     std::cout << "Accessing path=" << p << std::endl;
     files.emplace(p);
   };
@@ -63,7 +63,7 @@ TEST_F(TmpDirTree, FTSWalkTree)
 TEST_F(TmpDirTree, FTSWalkTreeInvalid)
 {
   std::unordered_set<std::string> files;
-  auto process_fn  = [&files](const char* p, uint64_t) {
+  auto process_fn  = [&files](const char* p) {
     files.emplace(p);
   };
   std::error_code ec;

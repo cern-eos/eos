@@ -36,7 +36,7 @@ FmdConverter::ConvertFS(std::string_view fspath)
 {
   std::error_code ec;
   auto fsid = FSPathHandler::GetFsid(fspath);
-  stdfs::WalkFSTree(fspath, [this, fsid](std::string path, uint64_t count) {
+  stdfs::WalkFSTree(fspath, [this, fsid](std::string path) {
     this->Convert(fsid, path)
     .via(mExecutor.get())
     .thenValue([path = std::move(path)](bool status) {

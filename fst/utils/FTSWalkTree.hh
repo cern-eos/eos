@@ -63,7 +63,7 @@ WalkDirTree(std::vector<char*>&& paths, ExcludeFn exclude_fn, PathOp path_op,
     } else {
       if (node->fts_info == FTS_F) {
         if (!exclude_fn(node->fts_accpath)) {
-          path_op(node->fts_path, ++cnt);
+          path_op(node->fts_path);
         }
       }
     }

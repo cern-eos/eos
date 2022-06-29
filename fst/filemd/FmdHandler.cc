@@ -310,7 +310,7 @@ FmdHandler::ResyncAllDisk(const char* path,
   std::string scan_xs_hex;
   std::error_code ec;
   WalkFSTree(path,
-  [&](const char* path, uint64_t) {
+  [&](const char* path) {
     this->ResyncDisk(path, fsid, flaglayouterror, scan_sz, scan_xs_hex);
   }, ec);
 

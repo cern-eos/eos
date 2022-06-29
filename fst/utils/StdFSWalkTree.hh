@@ -62,7 +62,8 @@ uint64_t WalkDirTree(std::string_view path, FilterFn&& filter, PathOp&& path_op)
       continue;
     }
     if (filter(p)) {
-      path_op(p->path(), ++count);
+      path_op(p->path());
+      ++count;
     }
   }
 
@@ -90,7 +91,8 @@ uint64_t WalkDirTree(std::string_view path, FilterFn&& filter, PathOp&& path_op,
       continue;
     }
     if (filter(p)) {
-      path_op(p->path(), ++count);
+      path_op(p->path());
+      ++count;
     }
   }
 

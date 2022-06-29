@@ -237,12 +237,12 @@ FmdAttrHandler::GetInconsistencyStatistics(
   std::map<std::string, std::set<eos::common::FileId::fileid_t>>& fidset)
 {
   std::error_code ec;
+  uint64_t count;
   auto ret = WalkFSTree(mFSPathHandler->GetFSPath(fsid),
-                        [this, &statistics, &fidset ](const char* path,
-  uint64_t count) {
+                        [this, &statistics, &fidset ](const char* path) {
     eos_debug("msg=\"Accessing file=\"%s", path);
 
-    if (count % 10000) {
+    if (++count % 10000) {
       eos_info("msg=\"synced files so far\" nfiles=%llu",
                count);
     }
