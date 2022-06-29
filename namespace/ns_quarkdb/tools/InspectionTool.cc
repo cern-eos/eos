@@ -128,6 +128,7 @@ int main(int argc, char* argv[])
   bool withParents = false;
   uint32_t maxDepth = UINT32_MAX;
   bool json = false;
+  bool minimal = false;
   dumpSubcommand->add_option("--path", dumpPath, "The target path to dump")
   ->required();
   dumpSubcommand->add_option("--attr-query", attrQuery,
@@ -190,6 +191,7 @@ int main(int argc, char* argv[])
   addClusterOptions(stripediffSubcommand, membersStr, memberValidator, password,
                     passwordFile, connectionRetries);
   stripediffSubcommand->add_flag("--json", json, "Use json output");
+  stripediffSubcommand->add_flag("-m", minimal, "Minimal format (faster)");
   //----------------------------------------------------------------------------
   // Set-up one-replica-layout subcommand..
   //----------------------------------------------------------------------------
@@ -537,7 +539,12 @@ int main(int argc, char* argv[])
   }
 
   if (stripediffSubcommand->parsed()) {
-    return inspector.stripediff();
+    if (minimal){
+      return inspector.stripediff(std::cout, std::cerr);
+    }
+    else{
+      return inspector.stripediff();
+    }
   }
 
   if (oneReplicaLayoutSubcommand->parsed()) {
