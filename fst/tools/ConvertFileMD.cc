@@ -46,23 +46,33 @@ int
 main(int argc, char* argv[])
 {
 
-  std::string log_file;
+  std::string log_file {"EOSFileMD.log"};
   CLI::App app("Tool to translate/inspect file fsck metadata");
 
   app.require_subcommand();
 
   auto convert_subcmd = app.add_subcommand("convert",
                                            "Convert from LevelDB -> Attrs");
-  std::string fst_path, fst_metadir;
+  std::string fst_path;
+  std::string fst_metadir {"/var/eos/md"};
   size_t num_threads{8};
   convert_subcmd->add_option("--fst-path", fst_path, "Mount point of FST")
     ->required();
   convert_subcmd->add_option("--fst-metadir", fst_metadir, "Metadir directory of FST ")
     ->default_str("/var/eos/md");
-  convert_subcmd->add_option("--num-threads", num_threads, "Num of threads for conversion")
+  convert_subcmd->add_option("--num-threads", num_threads,
+                             "Num of threads for conversion")
     ->default_str("8");
   convert_subcmd->add_option("--log-file", log_file, "Log file for operations")
     ->default_str("EOSFileMD.log");
+
+  std::string file_path;
+  auto inspect_subcmd = app.add_subcommand("inspect",
+                                            "inspect fsck filemd attributes");
+  inspect_subcmd->add_option("--path", file_path, "full path to file")
+      ->required();
+  inspect_subcmd->add_option("--log-file", log_file, "Log file for operations")
+      ->default_str("EOSFileMD.log");
 
   try {
     app.parse(argc, argv);
@@ -73,7 +83,6 @@ main(int argc, char* argv[])
   auto& g_logger = eos::common::Logging::GetInstance();
   g_logger.SetLogPriority(LOG_INFO);
   g_logger.SetUnit("EOSFileMD");
-
 
   std::unique_ptr<FILE, decltype(&fclose)> fptr {fopen(log_file.c_str(), "a+"),
                                                  &fclose};
@@ -89,12 +98,29 @@ main(int argc, char* argv[])
 
   auto fsid = eos::fst::FSPathHandler::GetFsid(fst_path);
   eos_static_info("msg=\"Got FSID from .eosfsid\"fsid=%u", fsid);
+
+  if (fst_metadir.empty()) {
+    std::cerr << "Empty meta dir given!" << std::endl;
+    return -1;
+  }
+
   db_handler->SetDBFile(fst_metadir.c_str(), fsid);
 
-  eos::fst::FmdConverter converter(db_handler.get(), attr_handler.get(), num_threads);
-  eos_static_info("msg=\"Converting with total threads\"=%ul", num_threads);
-  converter.ConvertFS(fst_path);
-  db_handler->ShutdownDB(fsid, true);
+  if (app.got_subcommand("convert")) {
+    eos::fst::FmdConverter converter(db_handler.get(), attr_handler.get(), num_threads);
+    eos_static_info("msg=\"Converting with total threads\"=%ul", num_threads);
+    converter.ConvertFS(fst_path);
+  }
+
+  if (app.got_subcommand("inspect")) {
+    auto [status, fmd] = attr_handler->LocalRetrieveFmd(file_path);
+    if (!status) {
+      std::cerr << "Failed to retreive FSCK file md at path=" << file_path
+                << std::endl;
+    }
+    std::cout << fmd.mProtoFmd.DebugString() << std::endl;
+  }
+
   eos_static_info("%s", "msg=\"Finished Conversion!\"");
   return 0;
 
