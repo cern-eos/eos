@@ -31,6 +31,18 @@ class Executor;
 
 namespace eos::fst {
 
+static constexpr std::string_view ATTR_CONVERSION_DONE_FILE = ".eosattrconverted";
+/*!
+ * A simple interface to track whether full conversions have been done for a given
+ * FST mount path. The implementation is supposed to track whether the FST is
+ * done converting or mark the FST as converted when we're done converting.
+ */
+struct FSConversionDoneHandler {
+  virtual bool isFSConverted(std::string_view fstpath) = 0;
+  virtual bool markFSConverted(std::string_view fstpath) = 0;
+  virtual ~FSConversionDoneHandler() = default;
+};
+
 class FmdConverter {
 public:
   FmdConverter(FmdHandler * src_handler,
@@ -40,12 +52,26 @@ public:
   folly::Future<bool> Convert(eos::common::FileSystem::fsid_t fsid,
                               std::string_view path);
   void ConvertFS(std::string_view fspath);
+  void ConvertFS(std::string_view fspath,
+                 eos::common::FileSystem::fsid_t fsid);
 private:
   FmdHandler * mSrcFmdHandler;
   FmdHandler * mTgtFmdHandler;
   std::unique_ptr<folly::Executor> mExecutor;
+  std::unique_ptr<FSConversionDoneHandler> mDoneHandler;
 };
 
+
+class FileFSConversionDoneHandler final: public FSConversionDoneHandler {
+public:
+  FileFSConversionDoneHandler(std::string_view fname) : mConversionDoneFile(fname)
+  {}
+  bool isFSConverted(std::string_view fstpath) override;
+  bool markFSConverted(std::string_view fstpath) override;
+  std::string getDoneFilePath(std::string_view fstpath);
+private:
+  std::string mConversionDoneFile;
+};
 
 } // namespace eos::fst
 
