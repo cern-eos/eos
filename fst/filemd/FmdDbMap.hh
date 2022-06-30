@@ -280,6 +280,21 @@ public:
 
   void ConvertAllFmd(eos::common::FileSystem::fsid_t fsid,
                      FmdHandler * const target_fmd_handler);
+
+  //----------------------------------------------------------------------------
+  //! Get Fmd struct from local database for a file we know for sure it exists
+  //!
+  //! @param fid file id
+  //! @param fsid filesystem id
+  //! @param fmd structure populated in case fid found
+  //!
+  //! @return true if object found and retrieved, otherwise false
+  //! @note this function must be called with the mMapMutex locked and also the
+  //! mutex corresponding to the filesystem locked
+  //----------------------------------------------------------------------------
+  std::pair<bool,eos::common::FmdHelper>
+  LocalRetrieveFmd(eos::common::FileId::fileid_t fid,
+                   eos::common::FileSystem::fsid_t fsid) override;
 private:
   std::map<eos::common::FileSystem::fsid_t, eos::common::DbMap*> mDbMap;
   mutable eos::common::RWMutex mMapMutex; ///< Mutex protecting the Fmd handler
@@ -366,20 +381,7 @@ private:
     }
   }
 
-  //----------------------------------------------------------------------------
-  //! Get Fmd struct from local database for a file we know for sure it exists
-  //!
-  //! @param fid file id
-  //! @param fsid filesystem id
-  //! @param fmd structure populated in case fid found
-  //!
-  //! @return true if object found and retrieved, otherwise false
-  //! @note this function must be called with the mMapMutex locked and also the
-  //! mutex corresponding to the filesystem locked
-  //----------------------------------------------------------------------------
-  std::pair<bool,eos::common::FmdHelper>
-  LocalRetrieveFmd(eos::common::FileId::fileid_t fid,
-                   eos::common::FileSystem::fsid_t fsid) override;
+
 
   //----------------------------------------------------------------------------
   //! Store Fmd structure in the local database

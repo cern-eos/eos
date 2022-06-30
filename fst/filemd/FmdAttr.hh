@@ -66,6 +66,13 @@ public:
                                std::map<std::string, size_t>& statistics,
                                std::map<std::string, std::set<eos::common::FileId::fileid_t>>& fidset);
 
+  std::pair<bool,eos::common::FmdHelper>
+  LocalRetrieveFmd(eos::common::FileId::fileid_t fid,
+                   eos::common::FileSystem::fsid_t fsid) override;
+
+  std::pair<bool,eos::common::FmdHelper>
+  LocalRetrieveFmd(const std::string& path);
+
 private:
   std::unique_ptr<FSPathHandler> mFSPathHandler;
 
@@ -75,15 +82,12 @@ private:
 
   int CreateFile(FileIo* fio);
 
-  std::pair<bool,eos::common::FmdHelper>
-  LocalRetrieveFmd(eos::common::FileId::fileid_t fid,
-                   eos::common::FileSystem::fsid_t fsid) override;
+
 
   bool LocalPutFmd(const std::string& path,
                    const eos::common::FmdHelper& fmd);
 
-  std::pair<bool,eos::common::FmdHelper>
-  LocalRetrieveFmd(const std::string& path);
+
 
   void LocalDeleteFmd(const std::string& path, bool drop_file);
 
