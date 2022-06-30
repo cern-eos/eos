@@ -15,7 +15,7 @@ FmdConverter::FmdConverter(FmdHandler* src_handler,
                            FmdHandler* tgt_handler,
                            size_t per_disk_pool) :
   mSrcFmdHandler(src_handler), mTgtFmdHandler(tgt_handler),
-  mExecutor(std::make_unique<folly::IOThreadPoolExecutor>(per_disk_pool)),
+  mExecutor(std::make_unique<folly::IOThreadPoolExecutor>(std::clamp(per_disk_pool, MIN_FMDCONVERTER_THREADS, MAX_FMDCONVERTER_THREADS))),
   mDoneHandler(std::make_unique<FileFSConversionDoneHandler>(ATTR_CONVERSION_DONE_FILE))
 {}
 

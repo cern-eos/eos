@@ -32,6 +32,8 @@ class Executor;
 namespace eos::fst {
 
 static constexpr std::string_view ATTR_CONVERSION_DONE_FILE = ".eosattrconverted";
+static constexpr size_t MIN_FMDCONVERTER_THREADS=2;
+static constexpr size_t MAX_FMDCONVERTER_THREADS=100;
 /*!
  * A simple interface to track whether full conversions have been done for a given
  * FST mount path. The implementation is supposed to track whether the FST is
@@ -60,7 +62,6 @@ private:
   std::unique_ptr<folly::Executor> mExecutor;
   std::unique_ptr<FSConversionDoneHandler> mDoneHandler;
 };
-
 
 class FileFSConversionDoneHandler final: public FSConversionDoneHandler {
 public:
