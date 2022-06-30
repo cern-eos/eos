@@ -465,7 +465,7 @@ install(PROGRAMS
 install(TARGETS
   eos-ioping eos-adler32 eos-checksum eos-leveldb-inspect eos-rain-hd-dump
   eos-check-blockxs eos-compute-blockxs eos-scan-fs
-  eos-create-file-pattern eos-readv-pattern
+  eos-create-file-pattern eos-readv-pattern eos-filemd-convert
   RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_SBINDIR})
 
 endif()

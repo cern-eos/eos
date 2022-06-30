@@ -23,53 +23,65 @@
 #include "fst/utils/FSPathHandler.hh"
 #include "common/StringUtils.hh"
 #include "common/Logging.hh"
+#include "common/CLI11.hpp"
 #include <iostream>
 #include <memory>
 
-void usage()
+bool configureLogger(FILE* fp)
 {
-  std::cerr << "eos-filemd-convert <fst-metadir> <fs-mount-path> [log-file] [num-threads]\n"
-            << "eg: eos-filemd-convert /var/eos/md /data23 ConvertFileMD.log 8\n"
-            << std::endl;
+  if (fp == nullptr) {
+    return false;
+  }
 
+  // Redirect stdout and stderr to the log file
+  int ret = dup2(fileno(fp), fileno(stdout));
+  if (ret != -1) {
+    ret = dup2(fileno(fp), fileno(stderr));
+  }
+
+  return ret != -1;
 }
 
 int
 main(int argc, char* argv[])
 {
-  if (argc < 3) {
-    usage();
-    return (-1);
+
+  std::string log_file;
+  CLI::App app("Tool to translate/inspect file fsck metadata");
+
+  app.require_subcommand();
+
+  auto convert_subcmd = app.add_subcommand("convert",
+                                           "Convert from LevelDB -> Attrs");
+  std::string fst_path, fst_metadir;
+  size_t num_threads{8};
+  convert_subcmd->add_option("--fst-path", fst_path, "Mount point of FST")
+    ->required();
+  convert_subcmd->add_option("--fst-metadir", fst_metadir, "Metadir directory of FST ")
+    ->default_str("/var/eos/md");
+  convert_subcmd->add_option("--num-threads", num_threads, "Num of threads for conversion")
+    ->default_str("8");
+  convert_subcmd->add_option("--log-file", log_file, "Log file for operations")
+    ->default_str("EOSFileMD.log");
+
+  try {
+    app.parse(argc, argv);
+  } catch (const CLI::ParseError& e) {
+    return app.exit(e);
   }
 
   auto& g_logger = eos::common::Logging::GetInstance();
   g_logger.SetLogPriority(LOG_INFO);
-  g_logger.SetUnit("ConvertFileMD");
+  g_logger.SetUnit("EOSFileMD");
 
-  std::string log_file = "ConvertFileMD.log";
-  if (argc > 2) {
-    log_file = argv[3];
-  }
 
   std::unique_ptr<FILE, decltype(&fclose)> fptr {fopen(log_file.c_str(), "a+"),
                                                  &fclose};
-
-  if (fptr) {
-    // Redirect stdout and stderr to the log file
-    dup2(fileno(fptr.get()), fileno(stdout));
-    dup2(fileno(fptr.get()), fileno(stderr));
-  } else {
-    std::cerr << "Failed to open logging file: "<< log_file << std::endl;
+  if (!configureLogger(fptr.get())) {
+    std::cerr << "FAILED to setup logging with log_file: " << log_file
+              << std::endl;
   }
 
-
-  std::string fst_metadir = argv[1];
-  std::string fst_path = argv[2];
-  size_t num_threads {8};
-
-  if (argc > 3) {
-    eos::common::StringToNumeric(std::string_view(argv[4]), num_threads, num_threads);
-  }
 
   auto db_handler = std::make_unique<eos::fst::FmdDbMapHandler>();
   auto attr_handler = std::make_unique<eos::fst::FmdAttrHandler>(
