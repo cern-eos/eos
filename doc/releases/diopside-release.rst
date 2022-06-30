@@ -16,6 +16,30 @@ Introduction
 
 This release is based on XRootD V5.
 
+
+``v5.0.27 Diopside``
+===================
+
+2022-06-30
+
+
+Bug
+---
+
+* [EOS-5296] - FST segfault around XrdXrootdProtocol::Process2
+* [EOS-5314] - segfault around "XrdCl::CopyProcess::CleanUpJobs"
+* [EOS-5302] - Iostat domain accounting is broken
+* [EOS-5303] - Shared filesystem file registration feature
+* [EOS-5308] - MGM: Potential double free in LDAP initialize
+
+Improvement
+------------
+
+* [EOS-5317] - Crash in AssignLBHandler with asan
+* [EOS-5321] - Allow to define which errors the fsck repair thread works on
+* [EOS-5305] - Tape REST API - V1 with an option to deactivate STAGE
+
+
 ``v5.0.26 Diopside``
 ===================
 
