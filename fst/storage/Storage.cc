@@ -25,6 +25,7 @@
 #include "fst/storage/Storage.hh"
 #include "fst/XrdFstOfs.hh"
 #include "fst/filemd/FmdDbMap.hh"
+#include "fst/filemd/FmdConverter.hh"
 #include "fst/Verify.hh"
 #include "fst/Deletion.hh"
 #include "fst/txqueue/TransferQueue.hh"
@@ -441,9 +442,21 @@ Storage::Boot(FileSystem* fs)
     if (!fmd_handler->SetDBFile(metadir.c_str(), fsid)) {
       fs->SetStatus(eos::common::BootStatus::kBootFailure);
       fs->SetError(EFAULT, "cannot set DB filename - see the fst logfile "
-                   "for details");
+                           "for details");
       return;
     }
+  } else {
+    auto db_handler = std::make_unique<FmdDbMapHandler>();
+    if (!db_handler->SetDBFile(metadir.c_str(), fsid)) {
+      fs->SetStatus(eos::common::BootStatus::kBootFailure);
+      fs->SetError(EFAULT, "cannot set DB filename - see the fst logfile "
+                           "for details");
+      return;
+    }
+
+    eos::fst::FmdConverter converter(db_handler.get(), gOFS.mFmdHandler.get(),
+                                     fs->GetLongLong("fmdconvertthreads"));
+    converter.ConvertFS(GetStoragePath(fsid), fsid);
   }
 
 
