@@ -15,6 +15,25 @@ Introduction
 ------------
 This release is based on XRootD V4 and IPV6 enabled.
 
+``v4.8.88 Citrine``
+===================
+
+2022-06-30
+
+Bug
+----
+
+* [EOS-5302] - Iostat domain accounting is broken
+* [EOS-5303] - Shared filesystem file registration feature
+* [EOS-5308] - MGM: Potential double free in LDAP initialize
+
+Improvement
+------------
+
+* [EOS-5321] - Allow to define which errors the fsck repair thread works on
+* [EOS-5305] - Tape REST API - V1 with an option to deactivate STAGE
+
+
 ``v4.8.87 Citrine``
 ===================
 
