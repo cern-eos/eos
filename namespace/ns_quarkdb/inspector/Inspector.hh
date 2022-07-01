@@ -139,13 +139,12 @@ public:
   // Find files with layout = 1 replica
   //----------------------------------------------------------------------------
   int oneReplicaLayout(bool showName, bool showPaths, bool filterInternal,
-                       std::ostream& out, std::ostream& err);
+                       std::ostream& out, std::ostream& err, bool json);
 
   //----------------------------------------------------------------------------
   //! Find files with non-nominal number of stripes (replicas)
   //----------------------------------------------------------------------------
-  int stripediff();
-  int stripediff(std::ostream& out, std::ostream& err);
+  int stripediff(bool json, bool minimal);
 
   //----------------------------------------------------------------------------
   //! Find orphan files and orphan directories

@@ -43,7 +43,7 @@
 #include <qclient/ResponseParsing.hh>
 #include <google/protobuf/util/json_util.h>
 #include <regex>
-
+#include <json/json.h>
 EOSNSNAMESPACE_BEGIN
 
 //------------------------------------------------------------------------------
@@ -625,14 +625,19 @@ bool shouldPrint(bool filterInternal, const std::string& fullPath)
 // Find files with layout = 1 replica
 //------------------------------------------------------------------------------
 int Inspector::oneReplicaLayout(bool showName, bool showPaths,
-                                bool filterInternal, std::ostream& out, std::ostream& err)
+                                bool filterInternal, std::ostream& out, std::ostream& err, bool json=false)
 {
   FileScanner fileScanner(mQcl, showPaths | filterInternal);
   common::IntervalStopwatch stopwatch(std::chrono::seconds(10));
 
+  Json::StreamWriterBuilder builder;
+  builder["indentation"] = "";  // or whatever you like
+  std::unique_ptr<Json::StreamWriter> writer(builder.newStreamWriter());
+
   while (fileScanner.valid()) {
     eos::ns::FileMdProto proto;
     FileScanner::Item item;
+    Json::Value jsonObj;
 
     if (!fileScanner.getItem(proto, &item)) {
       break;
@@ -650,22 +655,40 @@ int Inspector::oneReplicaLayout(bool showName, bool showPaths,
 
     if (expected == 1 && size != 0 &&
         shouldPrint(filterInternal, fetchNameOrPath(proto, item))) {
-      out << "id=" << proto.id();
+      
 
-      if (showName || showPaths) {
-        out << " name=" << fetchNameOrPath(proto, item);
+      
+      if (json){
+        jsonObj["fid"] = (Json::Value::UInt64) proto.id();
+        if (showName || showPaths) {
+          jsonObj["path"] = fetchNameOrPath(proto, item);
+        }
+        jsonObj["pid"] = (Json::Value::UInt64) proto.cont_id();
+        jsonObj["size"] = (Json::Value::UInt64) size;
+        jsonObj["actual_stripes"] = (Json::Value::UInt64) actual;
+        jsonObj["expected_stripes"] = (Json::Value::UInt64) expected;
+        jsonObj["unlinked_stripes"] = (Json::Value::UInt64) unlinked;
+        jsonObj["locations"] = serializeLocations(proto.locations());
+        jsonObj["unlinked_locations"] = serializeLocations(proto.unlink_locations());
+        jsonObj["mtime"] = std::stod(Printing::timespecToTimestamp(Printing::parseTimespec(proto.mtime())));
+        jsonObj["ctime"] = std::stod(Printing::timespecToTimestamp(Printing::parseTimespec(proto.ctime())));
+        writer->write(jsonObj,&out);
+        out << std::endl;
+      }else{
+        out << "id=" << proto.id();
+        if (showName || showPaths) {
+          out << " name=" << fetchNameOrPath(proto, item);
+        }
+        out << " pid=" << proto.cont_id() <<
+            " size=" << size <<
+            " actual_stripes=" << actual <<
+            " expected_stripes=" << expected <<
+            " unlinked_stripes=" << unlinked <<
+            " locations=" << serializeLocations(proto.locations()) <<
+            " unlinked_locations=" << serializeLocations(proto.unlink_locations()) <<
+            " mtime=" << Printing::timespecToTimestamp(Printing::parseTimespec(proto.mtime())) <<
+            " ctime=" << Printing::timespecToTimestamp(Printing::parseTimespec(proto.ctime())) << std::endl;
       }
-
-      out << " container=" << proto.cont_id() << " size=" << size <<
-          " actual-stripes=" << actual << " expected-stripes=" << expected <<
-          " unlinked-stripes=" << unlinked <<  " locations=" << serializeLocations(
-            proto.locations()) << " unlinked-locations=" << serializeLocations(
-            proto.unlink_locations());
-      out << " mtime=" << Printing::timespecToTimestamp(Printing::parseTimespec(
-            proto.mtime()));
-      out << " ctime=" << Printing::timespecToTimestamp(Printing::parseTimespec(
-            proto.ctime()));
-      out << std::endl;
     }
 
     fileScanner.next();
@@ -689,49 +712,11 @@ int Inspector::oneReplicaLayout(bool showName, bool showPaths,
 //----------------------------------------------------------------------------
 // Find files with non-nominal number of stripes (replicas)
 //----------------------------------------------------------------------------
-int Inspector::stripediff(std::ostream& out, std::ostream& err)
-{
-  FileScanner fileScanner(mQcl);
 
-  while (fileScanner.valid()) {
-    eos::ns::FileMdProto proto;
-
-    if (!fileScanner.getItem(proto)) {
-      break;
-    }
-    int64_t actual = proto.locations().size();
-    int64_t expected = eos::common::LayoutId::GetStripeNumber(
-                         proto.layout_id()) + 1;
-    int64_t unlinked = proto.unlink_locations().size();
-    int64_t size = proto.size();
-
-
-    if (actual != expected && size != 0) {
-      out << "fid=" << proto.id() << " container=" << proto.cont_id() << " size=" << size << 
-          " actual_stripes=" << actual << " expected_stripes=" << expected <<
-          " unlinked_stripes=" << unlinked <<  " locations=" << serializeLocations(proto.locations()) <<
-          " unlinked_locations=" << serializeLocations(proto.unlink_locations()) << 
-          " mtime=" << Printing::timespecToTimestamp(Printing::parseTimespec(proto.mtime())) << 
-          " ctime=" << Printing::timespecToTimestamp(Printing::parseTimespec(proto.ctime())) << "\n";
-    }
-
-    fileScanner.next();
-  }
-  std::string errorString;
-
-  if (fileScanner.hasError(errorString)) {
-    err << errorString;
-    return 1;
-  }
-  return 0;
-}
-//----------------------------------------------------------------------------
-// Find files with non-nominal number of stripes (replicas)
-//----------------------------------------------------------------------------
-int Inspector::stripediff()
+int Inspector::stripediff(bool json=false, bool minimal=false)
 {
   FilePrintingOptions filePrintingOpts;
-  FileScanner fileScanner(mQcl, true);
+  FileScanner fileScanner(mQcl,!minimal);
 
   while (fileScanner.valid()) {
     FileScanner::Item item;
@@ -746,21 +731,59 @@ int Inspector::stripediff()
                          proto.layout_id()) + 1;
     int64_t unlinked = proto.unlink_locations().size();
     int64_t size = proto.size();
+    Json::Value jsonObj;
 
+    if (minimal){
+      if (!fileScanner.getItem(proto)) {
+        break;
+      }
+    }else{
+      if (!fileScanner.getItem(proto, &item)) {
+        break;
+      }
+    }
+    
     if (!proto.link_name().empty()) {
       expected = 0;
     }
 
     if (actual != expected && size != 0) {
-      // Use output sink for complete report / json
-      std::map<std::string, std::string> extended;
-      extended["path"] =  fetchNameOrPath(proto, item);
-      extended["actual_stripes"] = std::to_string(actual);
-      extended["expected_stripes"] = std::to_string(expected);
-      extended["unlinked_stripes"] = std::to_string(unlinked);
-      mOutputSink.printWithAdditionalFields(proto, filePrintingOpts, extended);
-    } else {
-      (void) fetchNameOrPath(proto, item);
+      if (!minimal){
+        // Use output sink for complete report / json
+        std::map<std::string, std::string> extended;
+        extended["path"] =  fetchNameOrPath(proto, item);
+        extended["actual_stripes"] = std::to_string(actual);
+        extended["expected_stripes"] = std::to_string(expected);
+        extended["unlinked_stripes"] = std::to_string(unlinked);
+        mOutputSink.printWithAdditionalFields(proto, filePrintingOpts, extended);
+      }else{
+        if (json){
+          jsonObj["fid"] = (Json::Value::UInt64) proto.id();
+          jsonObj["pid"] = (Json::Value::UInt64) proto.cont_id();
+          jsonObj["size"] = (Json::Value::UInt64) size;
+          jsonObj["actual_stripes"] = (Json::Value::UInt64) actual;
+          jsonObj["expected_stripes"] = (Json::Value::UInt64) expected;
+          jsonObj["unlinked_stripes"] = (Json::Value::UInt64) unlinked;
+          jsonObj["locations"] = serializeLocations(proto.locations());
+          jsonObj["unlinked_locations"] = serializeLocations(proto.unlink_locations());
+          jsonObj["mtime"] = std::stod(Printing::timespecToTimestamp(Printing::parseTimespec(proto.mtime())));
+          jsonObj["ctime"] = std::stod(Printing::timespecToTimestamp(Printing::parseTimespec(proto.ctime())));
+          mOutputSink.print(jsonObj);
+          // writer->write(jsonObj,&out);
+          // out << std::endl;
+        }else{
+          std::stringstream out;
+          out << "fid=" << proto.id() << " container=" << proto.cont_id() << " size=" << size << 
+              " actual_stripes=" << actual << " expected_stripes=" << expected <<
+              " unlinked_stripes=" << unlinked <<  " locations=" << serializeLocations(proto.locations()) <<
+              " unlinked_locations=" << serializeLocations(proto.unlink_locations()) << 
+              " mtime=" << Printing::timespecToTimestamp(Printing::parseTimespec(proto.mtime())) << 
+              " ctime=" << Printing::timespecToTimestamp(Printing::parseTimespec(proto.ctime())) << "\n";
+          mOutputSink.print(out.str());
+        }
+      }
+    }else if(!minimal){
+      (void) fetchNameOrPath(proto, item); //Not to leak when path resolution was triggered
     }
 
     fileScanner.next();
@@ -772,9 +795,58 @@ int Inspector::stripediff()
     mOutputSink.err(errorString);
     return 1;
   }
-
   return 0;
 }
+//----------------------------------------------------------------------------
+// Find files with non-nominal number of stripes (replicas)
+//----------------------------------------------------------------------------
+// int Inspector::stripediff()
+// {
+//   FilePrintingOptions filePrintingOpts;
+//   FileScanner fileScanner(mQcl, true);
+
+//   while (fileScanner.valid()) {
+//     FileScanner::Item item;
+//     eos::ns::FileMdProto proto;
+
+//     if (!fileScanner.getItem(proto, &item)) {
+//       break;
+//     }
+
+//     int64_t actual = proto.locations().size();
+//     int64_t expected = eos::common::LayoutId::GetStripeNumber(
+//                          proto.layout_id()) + 1;
+//     int64_t unlinked = proto.unlink_locations().size();
+//     int64_t size = proto.size();
+
+//     if (!proto.link_name().empty()) {
+//       expected = 0;
+//     }
+
+//     if (actual != expected && size != 0) {
+//       // Use output sink for complete report / json
+//       std::map<std::string, std::string> extended;
+//       extended["path"] =  fetchNameOrPath(proto, item);
+//       extended["actual_stripes"] = std::to_string(actual);
+//       extended["expected_stripes"] = std::to_string(expected);
+//       extended["unlinked_stripes"] = std::to_string(unlinked);
+//       mOutputSink.printWithAdditionalFields(proto, filePrintingOpts, extended);
+//     } else {
+//       (void) fetchNameOrPath(proto, item);
+//     }
+
+//     fileScanner.next();
+//   }
+
+//   std::string errorString;
+
+//   if (fileScanner.hasError(errorString)) {
+//     mOutputSink.err(errorString);
+//     return 1;
+//   }
+
+//   return 0;
+// }
 
 class ConflictSet
 {

@@ -392,6 +392,55 @@ void StreamSink::err(const std::string& str)
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
+JsonLinedStreamSink::JsonLinedStreamSink(std::ostream& out, std::ostream& err)
+  : mOut(out), mErr(err)
+{
+  mBuilder["indentation"] = "";  // or whatever you like
+  mWriter.reset(mBuilder.newStreamWriter());
+}
+
+//------------------------------------------------------------------------------
+// Print implementation
+//------------------------------------------------------------------------------
+void JsonLinedStreamSink::print(const std::map<std::string, std::string>& line)
+{
+  Json::Value json;
+  for (auto it = line.begin(); it != line.end(); it++) {
+    json[it->first] = it->second;
+  }
+  mWriter->write(json, &mOut);
+  mOut << std::endl;
+}
+
+//------------------------------------------------------------------------------
+// Print JsonValue implementation
+//------------------------------------------------------------------------------
+void JsonLinedStreamSink::print(const Json::Value& jsonObj)
+{
+  mWriter->write(jsonObj, &mOut);
+  mOut << std::endl;
+}
+
+//------------------------------------------------------------------------------
+// Print interface, single string implementation
+//------------------------------------------------------------------------------
+void JsonLinedStreamSink::print(const std::string& out)
+{
+  mOut << out << std::endl;
+}
+
+//------------------------------------------------------------------------------
+// Debug output
+//------------------------------------------------------------------------------
+void JsonLinedStreamSink::err(const std::string& str)
+{
+  mErr << str << std::endl;
+}
+
+
+//------------------------------------------------------------------------------
+// Constructor
+//------------------------------------------------------------------------------
 JsonStreamSink::JsonStreamSink(std::ostream& out, std::ostream& err)
   : mOut(out), mErr(err), mFirst(true)
 {

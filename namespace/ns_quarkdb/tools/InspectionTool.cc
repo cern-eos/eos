@@ -191,7 +191,7 @@ int main(int argc, char* argv[])
   addClusterOptions(stripediffSubcommand, membersStr, memberValidator, password,
                     passwordFile, connectionRetries);
   stripediffSubcommand->add_flag("--json", json, "Use json output");
-  stripediffSubcommand->add_flag("-m", minimal, "Minimal format (faster)");
+  stripediffSubcommand->add_flag("-m", minimal, "Minimal format (faster) that can be combined with json switch");
   //----------------------------------------------------------------------------
   // Set-up one-replica-layout subcommand..
   //----------------------------------------------------------------------------
@@ -207,6 +207,7 @@ int main(int argc, char* argv[])
                                        "Show full paths, if possible");
   oneReplicaLayoutSubcommand->add_flag("--filter-internal", filterInternal,
                                        "Filter internal entries, such as versioning, aborted atomic uploads, etc");
+  oneReplicaLayoutSubcommand->add_flag("--json", json, "Use json output");
   //----------------------------------------------------------------------------
   // Set-up scan-dirs subcommand..
   //----------------------------------------------------------------------------
@@ -487,12 +488,7 @@ int main(int argc, char* argv[])
   // Set-up Inspector object, ensure sanity
   //----------------------------------------------------------------------------
   std::unique_ptr<OutputSink> outputSink;
-
-  if (json) {
-    outputSink.reset(new JsonStreamSink(std::cout, std::cerr));
-  } else {
-    outputSink.reset(new StreamSink(std::cout, std::cerr));
-  }
+  outputSink.reset((json)? new JsonLinedStreamSink(std::cout, std::cerr): new StreamSink(std::cout, std::cerr));
 
   Inspector inspector(qcl, *outputSink);
   std::string connectionErr;
@@ -539,17 +535,12 @@ int main(int argc, char* argv[])
   }
 
   if (stripediffSubcommand->parsed()) {
-    if (minimal){
-      return inspector.stripediff(std::cout, std::cerr);
-    }
-    else{
-      return inspector.stripediff();
-    }
+    return inspector.stripediff(json, minimal);
   }
 
   if (oneReplicaLayoutSubcommand->parsed()) {
     return inspector.oneReplicaLayout(showName, fullPaths, filterInternal,
-                                      std::cout, std::cerr);
+                                      std::cout, std::cerr, json);
   }
 
   if (scanFilesSubcommand->parsed()) {
