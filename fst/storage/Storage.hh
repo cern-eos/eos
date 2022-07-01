@@ -184,6 +184,13 @@ public:
   //----------------------------------------------------------------------------
   bool CleanupOrphansDb(eos::common::FileSystem::fsid_t fsid);
 
+  //----------------------------------------------------------------------------
+  //! Get Total FSes tracked in storage, ie. size of the FsMap
+  //!
+  //! @return total count of FSes
+  //----------------------------------------------------------------------------
+  size_t GetFSCount() const;
+
 protected:
   mutable eos::common::RWMutex mFsMutex; ///< Mutex protecting the fs map
   std::vector <fst::FileSystem*> mFsVect; ///< Vector of filesystems

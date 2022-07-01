@@ -195,7 +195,7 @@ XrdFstOfs::xrdfstofs_shutdown(int sig)
     eos::common::SyncAll::AllandClose();
     // Sleep for an amount of time proportional to the number of filesystems
     // on the current machine
-    std::chrono::seconds timeout(gOFS.Storage->mFsMap.size() * 5);
+    auto timeout = std::chrono::seconds(gOFS.Storage->GetFSCount() * 5);
     std::this_thread::sleep_for(timeout);
     fprintf(stderr, "@@@@@@ 00:00:00 op=shutdown msg=\"shutdown timedout after "
             "%li seconds, signal=%i\n", timeout.count(), sig);
@@ -219,11 +219,10 @@ XrdFstOfs::xrdfstofs_shutdown(int sig)
   gOFS.Storage->Shutdown();
   eos_static_warning("%s", "op=shutdown msg=\"stopped storage activities\"");
 
+  // This is unlikely to be null, but let's check anyway
   if (gOFS.mFmdHandler != nullptr) {
     gOFS.mFmdHandler->Shutdown();
     eos_static_warning("%s", "op=shutdown msg=\"stopped FmdHandler\"");
-  } else {
-    eos_static_err("%s", "op=shutdown msg=\"FmdHandler empty, lifetime issue!\"");
   }
 
   if (watchdog > 1) {

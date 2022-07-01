@@ -1240,4 +1240,11 @@ Storage::CleanupOrphansDb(eos::common::FileSystem::fsid_t fsid)
   return true;
 }
 
+size_t
+Storage::GetFSCount() const
+{
+  eos::common::RWMutexReadLock rd_lock(mFsMutex);
+  return mFsMap.size();
+}
+
 EOSFSTNAMESPACE_END
