@@ -28,6 +28,7 @@
 #include "proto/ContainerMd.pb.h"
 #include "proto/FileMd.pb.h"
 #include <map>
+#include <json/json.h>
 
 EOSNSNAMESPACE_BEGIN
 
@@ -176,6 +177,32 @@ private:
   std::ostream& mErr;
 
   bool mFirst;
+};
+
+
+class JsonLinedStreamSink : public OutputSink
+{
+public:
+  JsonLinedStreamSink(std::ostream& out, std::ostream& err);
+  //----------------------------------------------------------------------------
+  //! Print implementation
+  //----------------------------------------------------------------------------
+  virtual void print(const std::map<std::string, std::string>& line) override;
+
+  //----------------------------------------------------------------------------
+  //! Print interface, single string implementation
+  //----------------------------------------------------------------------------
+  virtual void print(const std::string& out) override;
+
+  //----------------------------------------------------------------------------
+  //! Debug output
+  //----------------------------------------------------------------------------
+  virtual void err(const std::string& str) override;
+private:
+  std::ostream& mOut;
+  std::ostream& mErr;
+  Json::StreamWriterBuilder mBuilder;
+  std::unique_ptr<Json::StreamWriter> mWriter;  
 };
 
 
