@@ -623,168 +623,6 @@ The EOS shell client.
 %doc %{_mandir}/man1/
 
 #-------------------------------------------------------------------------------
-# Package eos-fuse
-#-------------------------------------------------------------------------------
-%package -n eos-fuse
-Summary: The new EOS fuse client
-Group: Applications/File
-ExclusiveArch: x86_64 aarch64
-Requires: eos-fuse-core = @CPACK_PACKAGE_VERSION@
-Requires: eos-fuse-sysv = @CPACK_PACKAGE_VERSION@
-%if %{use_systemd}
-Requires: systemd
-%else
-Requires: chkconfig
-Requires: initscripts
-Requires: sysvinit-tools
-Requires: psmisc
-%endif
-
-%description -n eos-fuse
-The new EOS fuse client bundle.
-
-%files -n eos-fuse
-%defattr(-, root, root, -)
-
-#-------------------------------------------------------------------------------
-# Package eos-fuse-core
-#-------------------------------------------------------------------------------
-%package -n eos-fuse-core
-Summary: The EOS fuse client
-Group: Applications/File
-ExclusiveArch: x86_64 aarch64
-
-# Select xrootd package
-%if %{?_with_eos_xrootd_rh:1}%{!?_with_eos_xrootd_rh:0}
-# Install eos-xrootd
-%if 0%{?rhel} >= 7 && 0%{?rhel} <= 9
-Requires: eos-xrootd == %{eos_xrootd_version_min}
-%else
-Requires: xrootd-client >= %{xrootd_version_min}
-%endif
-%else
-Requires: xrootd-client >= %{xrootd_version_min}
-%endif
-
-Requires: eos-client = @CPACK_PACKAGE_VERSION@
-Requires: fuse
-Requires: jemalloc
-Requires: policycoreutils
-
-%description -n eos-fuse-core
-The EOS fuse core containing eosd and mount scripts.
-
-%files -n eos-fuse-core
-%defattr(-, root, root, -)
-%{_bindir}/eosd
-%{_bindir}/eosfusebind
-/sbin/mount.eos
-%{_datarootdir}/selinux/targeted/eosfuse.pp
-%{_datarootdir}/selinux/mls/eosfuse.pp
-%{_datarootdir}/selinux/strict/eosfuse.pp
-%config %{_sysconfdir}/logrotate.d/eos-fuse-logs
-%dir %attr(755,daemon,daemon) %{_localstatedir}/log/eos
-%dir %attr(755,daemon,daemon) %{_localstatedir}/log/eos/fuse
-%dir %attr(0755, root, root) %{_localstatedir}/run/eosd/
-%dir %attr(1777, root, root) %{_localstatedir}/run/eosd/credentials/
-%dir %attr(1777, root, root) %{_localstatedir}/run/eosd/credentials/store
-
-# Create the credential store
-%if %{?fedora:1}%{!?fedora:0} || 0%{?rhel} >= 7 || 0%{?el7} == 1
-%{_usr}/lib/tmpfiles.d/eosd.conf
-%endif
-
-%post -n eos-fuse-core
-if [ "$1" -le "1" ]; then # First install
-  # Note: don't push bash variables between {} since they will be empty!!!
-  for VARIANT in mls strict targeted
-  do
-    /usr/sbin/semodule -i %{_datarootdir}/selinux/$VARIANT/eosfuse.pp || :
-  done
-fi
-
-%preun -n eos-fuse-core
-if [ "$1" -eq  "0" ]; then # Final removal
-  /usr/sbin/semodule -r eosfuse || :
-fi
-
-%postun -n eos-fuse-core
-if [ "$1" -ge "1" ]; then # Upgrade
-  for VARIANT in mls strict targeted
-  do
-    /usr/sbin/semodule -i %{_datarootdir}/selinux/$VARIANT/eosfuse.pp || :
-  done
-fi
-
-#-------------------------------------------------------------------------------
-# Package eos-fuse-sysv
-#-------------------------------------------------------------------------------
-%package -n eos-fuse-sysv
-Summary: The EOS fuse client
-Group: Applications/File
-ExclusiveArch: x86_64 aarch64
-Requires: eos-fuse-core = @CPACK_PACKAGE_VERSION@
-
-%description -n eos-fuse-sysv
-The EOS fuse SYSV init scripts.
-
-%files -n eos-fuse-sysv
-%defattr(-, root, root, -)
-%{_sysconfdir}/rc.d/init.d/eosd
-
-%post -n eos-fuse-sysv
-%if %{?fedora:1}%{!?fedora:0} || 0%{?rhel} >= 7 || 0%{?el7} == 1
-  echo "Skipping chkconfig for eosd"
-%else
-  /sbin/chkconfig --add eosd
-%endif
-
-%preun -n eos-fuse-sysv
-%if %{?fedora:1}%{!?fedora:0} || 0%{?rhel} >= 7 || 0%{?el7} == 1
-  echo "Skipping chkconfig for eosd"
-%else
-  if [ $1 = 0 ]; then
-    echo "Stopping EOS FUSE services"
-    /sbin/service eosd stop > /dev/null 2>&1 || :
-    /sbin/chkconfig --del eosd
-  fi
-%endif
-
-# TODO (esindril): This should be enabled when we move to systemd for fuse
-# %if %{use_systemd}
-#   %config %{_sysconfdir}/sysconfig/eosd_env.example
-#   %{_prefix}/lib/systemd/system/eosd@.service
-#   %{_sbindir}/eos_start_pre.sh
-# %else
-#   %{_sysconfdir}/rc.d/init.d/eosd
-# %endif
-
-# %post -n eos-fuse-sys
-# %if %{use_systemd}
-#   systemctl daemon-reload > /dev/null 2>&1 || :
-# %endif
-# %if %{?fedora:1}%{!?fedora:0} || 0%{?rhel} >= 7 || 0%{?el7} == 1
-#   echo "Skipping chkconfig for eosd"
-# %else
-#   /sbin/chkconfig --add eosd
-# %endif
-
-# %preun -n eos-fuse-sys
-# %if %{?fedora:1}%{!?fedora:0} || 0%{?rhel} >= 7 || 0%{?el7} == 1
-#   echo "Skipping chkconfig for eosd"
-# %else
-#   if [ $1 = 0 ]; then
-#     echo "Stopping EOS FUSE services"
-#     %if %{use_systemd}
-#       systemctl stop eosd@* > /dev/null 2>&1 || :
-#     %else
-#       /sbin/service eosd stop > /dev/null 2>&1 || :
-#     %endif
-#     /sbin/chkconfig --del eosd
-#   fi
-# %endif
-
-#-------------------------------------------------------------------------------
 # Package eos-fusex
 #-------------------------------------------------------------------------------
 %package -n eos-fusex
@@ -835,12 +673,16 @@ The new EOS fuse core containing eosxd.
 %files -n eos-fusex-core
 %defattr(-, root, root, -)
 %{_bindir}/eosxd
+%{_bindir}/eosfusebind
 /sbin/mount.eosx
 %{_sysconfdir}/logrotate.d/eos-fusex-logs
 %dir %attr(755,daemon,daemon) %{_localstatedir}/log/eos/
 %dir %attr(755,daemon,daemon) %{_localstatedir}/log/eos/fusex/
 %dir %attr(755,daemon,daemon) %{_localstatedir}/cache/eos/
 %dir %attr(755,daemon,daemon) %{_localstatedir}/cache/eos/fusex/
+%dir %attr(0755, root, root) %{_localstatedir}/run/eosd/
+%dir %attr(1777, root, root) %{_localstatedir}/run/eosd/credentials/
+%dir %attr(1777, root, root) %{_localstatedir}/run/eosd/credentials/store
 
 #-------------------------------------------------------------------------------
 # Package eos-fusex-selinux
@@ -1111,7 +953,6 @@ Contains an instance and fuse test script and some test executables and test arc
 %{_sbindir}/eos-timestamp-test
 %{_sbindir}/eos-http-upload-test
 %{_sbindir}/eoscp-rain-test
-%{_sbindir}/eos-fuse-test
 %{_sbindir}/eos-fusex-tests
 %{_sbindir}/eos-oc-test
 %{_sbindir}/fusex-benchmark
