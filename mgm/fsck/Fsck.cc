@@ -47,7 +47,8 @@ const std::string Fsck::sCollectIntervalKey {"collect-interval-min"};
 const std::string Fsck::sRepairKey {"toggle-repair"};
 const std::string Fsck::sRepairCategory {"repair-category"};
 
-
+using eos::common::FsckErr;
+using eos::common::ConvertToFsckErr;
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------

@@ -160,32 +160,22 @@ bool DumpFileInfo(eos::common::DbMap& db, const std::string& sfid)
 //------------------------------------------------------------------------------
 void DumpFsckStats(eos::common::DbMap& db, bool verbose = false)
 {
-  using eos::common::LayoutId;
-  std::map<std::string, size_t> statistics;
+  using namespace eos::common;
   std::map<std::string, std::set < eos::common::FileId::fileid_t>> fid_set;
-  statistics["mem_n"] = 0; // number of files in DB
-  statistics["d_sync_n"] = 0; // number of synced files from disk
-  statistics["m_sync_n"] = 0; // number of synced files from MGM server
-  // number of files with disk and reference size mismatch
-  statistics["d_mem_sz_diff"] = 0;
-  // number of files with MGM and reference size mismatch
-  statistics["m_mem_sz_diff"] = 0;
-  // number of files with disk and reference checksum mismatch
-  statistics["d_cx_diff"] = 0;
-  // number of files with MGM and reference checksum mismatch
-  statistics["m_cx_diff"] = 0;
-  statistics["orphans_n"] = 0; // number of orphaned replicas
-  statistics["unreg_n"] = 0; // number of unregistered replicas
-  statistics["rep_diff_n"] = 0; // number of files with replica number mismatch
-  statistics["rep_missing_n"] = 0; // number of files which are missing on disk
-  fid_set["m_mem_sz_diff"].clear();
-  fid_set["d_mem_sz_diff"].clear();
-  fid_set["m_cx_diff"].clear();
-  fid_set["d_cx_diff"].clear();
-  fid_set["orphans_n"].clear();
-  fid_set["unreg_n"].clear();
-  fid_set["rep_diff_n"].clear();
-  fid_set["rep_missing_n"].clear();
+  std::map<std::string, size_t> statistics {
+    {"mem_n",            0}, // no. of files in db
+    {"d_sync_n",         0}, // no. of synced files from disk
+    {"m_sync_n",         0}, // no. of synced files from MGM
+    {FSCK_D_MEM_SZ_DIFF, 0}, // no. files with disk and reference size mismatch
+    {FSCK_M_MEM_SZ_DIFF, 0}, // no. files with MGM and reference size mismatch
+    {FSCK_D_CX_DIFF,     0}, // no. files with disk and reference checksum mismatch
+    {FSCK_M_CX_DIFF,     0}, // no. files with MGM and reference checksum mismatch
+    {FSCK_UNREG_N,       0}, // no. of unregistered replicas
+    {FSCK_REP_DIFF_N,    0}, // no. of files with replicas number mismatch
+    {FSCK_REP_MISSING_N, 0}, // no. of files with replicas missing on disk
+    {FSCK_BLOCKXS_ERR,   0}, // no. of replicas with blockxs error
+    {FSCK_ORPHANS_N,     0}  // no. of orphaned replicas
+  };
   const eos::common::DbMapTypes::Tkey* k;
   const eos::common::DbMapTypes::Tval* v;
   eos::common::DbMapTypes::Tval val;

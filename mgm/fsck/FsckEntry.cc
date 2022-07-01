@@ -46,9 +46,10 @@ FsckEntry::FsckEntry(eos::IFileMD::id_t fid,
                      const std::string& expected_err,
                      std::shared_ptr<qclient::QClient> qcl):
   mFid(fid), mFsidErr(fsid_err),
-  mReportedErr(ConvertToFsckErr(expected_err)), mRepairFactory(),
+  mReportedErr(eos::common::ConvertToFsckErr(expected_err)), mRepairFactory(),
   mQcl(qcl)
 {
+  using namespace eos::common;
   mMapRepairOps = {
     {FsckErr::MgmXsDiff,  &FsckEntry::RepairMgmXsSzDiff},
     {FsckErr::MgmSzDiff,  &FsckEntry::RepairMgmXsSzDiff},
@@ -419,11 +420,12 @@ FsckEntry::RepairFstXsSzDiff()
       } else {
         // It could be that the diskchecksum for the replica was not yet
         // computed - this does not mean the replica is bad
-        std::string hex_xs_val=StringConversion::BinData2HexString(finfo->mFstFmd.mProtoFmd.diskchecksum().c_str(),
-                                                                SHA256_DIGEST_LENGTH,
-                                                                LayoutId::GetChecksumLen(finfo->mFstFmd.mProtoFmd.lid()));
-
-        eos_debug("got xs_val=%s, finfo=%s hex_xs_val=%s", xs_val.c_str(), xs_val.c_str(), hex_xs_val.c_str());
+        std::string hex_xs_val = StringConversion::BinData2HexString(
+                                   finfo->mFstFmd.mProtoFmd.diskchecksum().c_str(),
+                                   SHA256_DIGEST_LENGTH,
+                                   LayoutId::GetChecksumLen(finfo->mFstFmd.mProtoFmd.lid()));
+        eos_debug("got xs_val=%s, finfo=%s hex_xs_val=%s", xs_val.c_str(),
+                  xs_val.c_str(), hex_xs_val.c_str());
 
         if (!hex_xs_val.empty()) {
           bad_fsids.insert(finfo->mFstFmd.mProtoFmd.fsid());
@@ -513,6 +515,8 @@ FsckEntry::RepairInconsistencies()
 bool
 FsckEntry::RepairRainInconsistencies()
 {
+  using namespace eos::common;
+
   if (mReportedErr == FsckErr::UnregRepl) {
     if (static_cast<unsigned long>(mMgmFmd.locations_size()) >=
         LayoutId::GetStripeNumber(mMgmFmd.layout_id()) + 1) {
@@ -856,6 +860,7 @@ FsckEntry::DropReplica(eos::common::FileSystem::fsid_t fsid) const
 bool
 FsckEntry::Repair()
 {
+  using namespace eos::common;
   bool success = false;
 
   // If no MGM object then we are in testing mode
@@ -983,57 +988,7 @@ FsckEntry::GetFstFmd(std::unique_ptr<FstFileInfoT>& finfo,
   return true;
 }
 
-//------------------------------------------------------------------------------
-// Convert string to FsckErr type
-//------------------------------------------------------------------------------
-FsckErr ConvertToFsckErr(const std::string& serr)
-{
-  if (serr == "m_cx_diff") {
-    return FsckErr::MgmXsDiff;
-  } else if (serr == "m_mem_sz_diff") {
-    return FsckErr::MgmSzDiff;
-  } else if (serr == "d_cx_diff") {
-    return FsckErr::FstXsDiff;
-  } else if (serr == "d_mem_sz_diff") {
-    return FsckErr::FstSzDiff;
-  } else if (serr == "unreg_n") {
-    return FsckErr::UnregRepl;
-  } else if (serr == "rep_diff_n") {
-    return FsckErr::DiffRepl;
-  } else if (serr == "rep_missing_n") {
-    return FsckErr::MissRepl;
-  } else if (serr == "blockxs_err") {
-    return FsckErr::BlockxsErr;
-  } else {
-    return FsckErr::None;
-  }
-}
 
-//------------------------------------------------------------------------------
-// Convert to FsckErr type to string
-//------------------------------------------------------------------------------
-std::string ConvertToString(const FsckErr& err)
-{
-  if (err == FsckErr::MgmXsDiff) {
-    return "m_cx_diff";
-  } else if (err == FsckErr::MgmSzDiff) {
-    return "m_mem_sz_diff";
-  } else if (err == FsckErr::FstXsDiff) {
-    return "d_cx_diff";
-  } else if (err == FsckErr::FstSzDiff) {
-    return "d_mem_sz_diff";
-  } else if (err == FsckErr::UnregRepl) {
-    return "unreg_n";
-  } else if (err == FsckErr::DiffRepl) {
-    return "rep_diff_n";
-  } else if (err == FsckErr::MissRepl) {
-    return "rep_missing_n";
-  } else if (err == FsckErr::BlockxsErr) {
-    return "blockxs_err";
-  } else {
-    return "none";
-  }
-}
 
 //------------------------------------------------------------------------------
 // Update MGM stats depending on the final outcome

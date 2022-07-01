@@ -582,37 +582,28 @@ FmdDbMapHandler::GetInconsistencyStatistics(eos::common::FileSystem::fsid_t
     std::map<std::string, size_t>& statistics,
     std::map<std::string, std::set < eos::common::FileId::fileid_t> >& fidset)
 {
-  using eos::common::LayoutId;
+  using namespace eos::common;
   eos::common::RWMutexReadLock map_rd_lock(mMapMutex);
 
   if (!mDbMap.count(fsid)) {
     return false;
   }
 
-  // query in-memory
+  fidset.clear();
   statistics  = {
-    {"mem_n",         0}, // no. of files in db
-    {"d_sync_n",      0}, // no. of synced files from disk
-    {"m_sync_n",      0}, // no. of synced files from MGM
-    {"d_mem_sz_diff", 0}, // no. files with disk and reference size mismatch
-    {"m_mem_sz_diff", 0}, // no. files with MGM and reference size mismatch
-    {"d_cx_diff",     0}, // no. files with disk and reference checksum mismatch
-    {"m_cx_diff",     0}, // no. files with MGM and reference checksum mismatch
-    {"orphans_n",     0}, // no. of orphaned replicas
-    {"unreg_n",       0}, // no. of unregistered replicas
-    {"rep_diff_n",    0}, // no. of files with replicas number mismatch
-    {"rep_missing_n", 0}, // no. of files missing on disk
-    {"blockxs_err",   0}  // no. of replicas with blockxs error
+    {"mem_n",            0}, // no. of files in db
+    {"d_sync_n",         0}, // no. of synced files from disk
+    {"m_sync_n",         0}, // no. of synced files from MGM
+    {FSCK_D_MEM_SZ_DIFF, 0}, // no. files with disk and reference size mismatch
+    {FSCK_M_MEM_SZ_DIFF, 0}, // no. files with MGM and reference size mismatch
+    {FSCK_D_CX_DIFF,     0}, // no. files with disk and reference checksum mismatch
+    {FSCK_M_CX_DIFF,     0}, // no. files with MGM and reference checksum mismatch
+    {FSCK_UNREG_N,       0}, // no. of unregistered replicas
+    {FSCK_REP_DIFF_N,    0}, // no. of files with replicas number mismatch
+    {FSCK_REP_MISSING_N, 0}, // no. of files with replicas missing on disk
+    {FSCK_BLOCKXS_ERR,   0}, // no. of replicas with blockxs error
+    {FSCK_ORPHANS_N,     0}  // no. of orphaned replicas
   };
-  fidset["d_mem_sz_diff"].clear();
-  fidset["m_mem_sz_diff"].clear();
-  fidset["d_cx_diff"].clear();
-  fidset["m_cx_diff"].clear();
-  fidset["orphans_n"].clear();
-  fidset["unreg_n"].clear();
-  fidset["rep_diff_n"].clear();
-  fidset["rep_missing_n"].clear();
-  fidset["blockxs_err"].clear();
 
   if (!IsSyncing(fsid)) {
     const eos::common::DbMapTypes::Tkey* k;

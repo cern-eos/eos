@@ -54,6 +54,7 @@ EOSMGMNAMESPACE_BEGIN
 class Fsck: public eos::common::LogId
 {
 public:
+
   //----------------------------------------------------------------------------
   //! Constructor
   //----------------------------------------------------------------------------
@@ -199,7 +200,7 @@ private:
   std::atomic<bool> mRepairEnabled; ///< Mark if the repair thread is enabled
   std::atomic<bool> mCollectRunning; ///< Mark if collector is running
   std::atomic<bool> mRepairRunning; ///< Mark if repair is running
-  std::atomic<FsckErr> mRepairCategory; ///< Mark which cat. should be repaired
+  std::atomic<eos::common::FsckErr> mRepairCategory; ///< Mark which cat. should be repaired
   mutable std::string mLog, mTmpLog; ///< In-memory fsck log
   mutable XrdSysMutex mLogMutex; ///< Mutex protecting the in-memory log
   ///< Interval between FSCK collection loops
