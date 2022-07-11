@@ -458,16 +458,25 @@ XrdMgmOfs::_rename(const char* old_name,
           file = dir->findFile(oPath.GetName());
 
           if (file) {
+            // Adjust the ns quota
+            eos::IQuotaNode* qnode = eosView->getQuotaNode(dir.get());
+
+            if (qnode) {
+              qnode->removeFile(file.get());
+            }
+	    
 	    if (sticky_owner) {
 	      file->setCUid(owner_auth_uid);
 	      file->setCGid(owner_auth_gid);
 	    }
-
+            if (qnode) {
+              qnode->addFile(file.get());
+            }
             eosView->renameFile(file.get(), nPath.GetName());
             dir->setMTimeNow();
             dir->notifyMTimeChange(gOFS->eosDirectoryService);
             eosView->updateContainerStore(dir.get());
-
+       
             if (fusexcast) {
               const eos::FileIdentifier fid = file->getIdentifier();
               fuse_batch.Register([&, did, pdid, fid]() {
@@ -477,7 +486,7 @@ XrdMgmOfs::_rename(const char* old_name,
               });
             }
           }
-        } else {
+      } else {
           file = dir->findFile(oPath.GetName());
 
           if (file) {
@@ -508,17 +517,6 @@ XrdMgmOfs::_rename(const char* old_name,
             file->setName(nPath.GetName());
             file->setContainerId(newdir->getId());
 
-	    if (sticky_owner) {
-	      file->setCUid(owner_auth_uid);
-	      file->setCGid(owner_auth_gid);
-	    }
-
-            if (updateCTime) {
-              file->setCTimeNow();
-            }
-
-            newdir->addFile(file.get());
-            eosView->updateFileStore(file.get());
             // Adjust the ns quota
             eos::IQuotaNode* old_qnode = eosView->getQuotaNode(dir.get());
             eos::IQuotaNode* new_qnode = eosView->getQuotaNode(newdir.get());
@@ -527,9 +525,21 @@ XrdMgmOfs::_rename(const char* old_name,
               old_qnode->removeFile(file.get());
             }
 
+	    if (sticky_owner) {
+	      file->setCUid(owner_auth_uid);
+	      file->setCGid(owner_auth_gid);
+	    }
+
             if (new_qnode) {
               new_qnode->addFile(file.get());
             }
+
+            if (updateCTime) {
+              file->setCTimeNow();
+            }
+
+            newdir->addFile(file.get());
+            eosView->updateFileStore(file.get());
           }
         }
       }

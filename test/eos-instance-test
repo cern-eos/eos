@@ -1176,6 +1176,41 @@ runtest "### Grep      " unix 0 "" eos space status "default | grep policy.block
 runtest "### Rm        " unix 0 "" eos rm -r /eos/$EOS_TEST_INSTANCE/test/instancetest/policies
 
 ################################################################################
+# Sticky Ownership
+###################################################A############################
+
+categorie="stickyowner"
+runtest "### Mkdir     " unix 0 "" eos mkdir -p /eos/$EOS_TEST_INSTANCE/test/instancetest/stickyowner/
+runtest "### Mkdir     " unix 0 "" eos mkdir -p /eos/$EOS_TEST_INSTANCE/test/instancetest/stickyowner/source
+runtest "### Mkdir     " unix 0 "" eos mkdir -p /eos/$EOS_TEST_INSTANCE/test/instancetest/stickyowner/target
+runtest "### Chown     " unix 0 "" eos chmod 700 /eos/$EOS_TEST_INSTANCE/test/instancetest/stickyowner/source
+runtest "### Chown     " unix 0 "" eos chmod 700 /eos/$EOS_TEST_INSTANCE/test/instancetest/stickyowner/target
+runtest "### Attr      " unix 0 "" eos attr set sys.acl=u:100:rwx "/eos/$EOS_TEST_INSTANCE/test/instancetest/stickyowner/source"
+runtest "### Attr      " unix 0 "" eos attr set sys.acl=u:100:rwx,u:2000:rwx "/eos/$EOS_TEST_INSTANCE/test/instancetest/stickyowner/target"
+runtest "### Attr      " unix 0 "" eos attr set sys.owner.auth=* /eos/$EOS_TEST_INSTANCE/test/instancetest/stickyowner/target
+runtest "### Chown     " unix 0 "" eos chown 2000:2000 /eos/$EOS_TEST_INSTANCE/test/instancetest/stickyowner/target
+runtest "### Attr      " unix 0 "" eos attr set sys.owner.auth=* /eos/$EOS_TEST_INSTANCE/test/instancetest/stickyowner/source
+runtest "### Chown     " unix 0 "" eos chown 100:100 /eos/$EOS_TEST_INSTANCE/test/instancetest/stickyowner/source
+runtest "### Upload    " unix 0 "" upload    "/etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/instancetest/stickyowner/source/f1" "-ODeos.ruid=100\&eos.rgid=100"
+runtest "### Upload    " unix 0 "" upload    "/etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/instancetest/stickyowner/source/f2" "-ODeos.ruid=100\&eos.rgid=100"
+runtest "### Upload    " unix 0 "" upload    "/etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/instancetest/stickyowner/source/d1/f3" "-ODeos.ruid=100\&eos.rgid=100"
+runtest "### Upload    " unix 0 "" upload    "/etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/instancetest/stickyowner/source/d1/d2/f4" "-ODeos.ruid=100\&eos.rgid=100"
+runtest "### Chown     " unix 0 "" eos chown 1002:1002 /eos/$EOS_TEST_INSTANCE/test/instancetest/stickyowner/source/f2
+runtest "### Chown     " unix 0 "" eos chown 1002:1002 /eos/$EOS_TEST_INSTANCE/test/instancetest/stickyowner/source/d1/d2/
+runtest "### Chown     " unix 0 "" eos chown 1003:1003 /eos/$EOS_TEST_INSTANCE/test/instancetest/stickyowner/source/d1/d2/f4
+runtest "### Rename    " unix 1 "EOSROLE='-r 1005 1005'" eos file rename /eos/$EOS_TEST_INSTANCE/test/instancetest/stickyowner/source/f1 /eos/$EOS_TEST_INSTANCE/test/instancetest/stickyowner/target/
+runtest "### Rename    " unix 1 "EOSROLE='-r 1005 1005'" eos file rename /eos/$EOS_TEST_INSTANCE/test/instancetest/stickyowner/source/d1 /eos/$EOS_TEST_INSTANCE/test/instancetest/stickyowner/target/
+runtest "### Rename    " unix 1 "EOSROLE='-r 1001 1001'" eos file rename /eos/$EOS_TEST_INSTANCE/test/instancetest/stickyowner/source/f1 /eos/$EOS_TEST_INSTANCE/test/instancetest/stickyowner/target/
+runtest "### Rename    " unix 1 "EOSROLE='-r 1001 1001'" eos file rename /eos/$EOS_TEST_INSTANCE/test/instancetest/stickyowner/source/d1 /eos/$EOS_TEST_INSTANCE/test/instancetest/stickyowner/target/
+runtest "### Rename    " unix 0 "EOSROLE='-r 100 100'" eos file rename /eos/$EOS_TEST_INSTANCE/test/instancetest/stickyowner/source/f1 /eos/$EOS_TEST_INSTANCE/test/instancetest/stickyowner/target/f1
+runtest "### Rename    " unix 0 "EOSROLE='-r 100 100'" eos file rename /eos/$EOS_TEST_INSTANCE/test/instancetest/stickyowner/source/f2 /eos/$EOS_TEST_INSTANCE/test/instancetest/stickyowner/target/f2
+runtest "### Rename    " unix 0 "EOSROLE='-r 100 100'" eos file rename /eos/$EOS_TEST_INSTANCE/test/instancetest/stickyowner/source/d1 /eos/$EOS_TEST_INSTANCE/test/instancetest/stickyowner/target/d1
+runtest "### Verify    " unix 0 "" eos ls -ln "/eos/$EOS_TEST_INSTANCE/test/instancetest/stickyowner/target/f1 | grep 2000 "
+runtest "### Verify    " unix 0 "" eos ls -ln "/eos/$EOS_TEST_INSTANCE/test/instancetest/stickyowner/target/f2 | grep 2000 "
+runtest "### Verify    " unix 0 "" eos ls -ln "/eos/$EOS_TEST_INSTANCE/test/instancetest/stickyowner/target/d1/f3 | grep 2000 "
+runtest "### Verify    " unix 0 "" eos ls -ln "/eos/$EOS_TEST_INSTANCE/test/instancetest/stickyowner/target/d1/d2/f4 | grep 2000 "
+
+################################################################################
 # NAMESPACE
 ################################################################################
 # ------------------------------------------------------------------------------
@@ -1214,6 +1249,7 @@ runtest "### Update    " unix 1 "" append    "$TESTSYSFILE1K" "/eos/$EOS_TEST_IN
 runtest "### Chmod     " unix 0 "" eos chmod 755 /eos/$EOS_TEST_INSTANCE/test/instancetest/
 runtest "### Attr      " unix 0 "" eos attr rm sys.acl /eos/$EOS_TEST_INSTANCE/test/instancetest/
 runtest "### Attr      " unix 0 "" eos attr set sys.eval.useracl=1 /eos/$EOS_TEST_INSTANCE/test/instancetest/
+runtest "### Rm        " unix 0 "" eos rm -r /eos/$EOS_TEST_INSTANCE/test/instancetest/stickyowner/
 
 # "runtest H" with sss-auth secures "not sudoer" and group list contains 99 where needed... without H the former fails, with unix-auth the latter (gids=[2] hence hasAcl=0)
 # ACL impact: no ACL or user neither granted nor denied -> dir mode bits
