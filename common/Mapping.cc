@@ -33,6 +33,7 @@
 #include "XrdOuc/XrdOucEnv.hh"
 #include <pwd.h>
 #include <grp.h>
+#include <sys/stat.h>
 
 EOSCOMMONNAMESPACE_BEGIN
 
@@ -840,6 +841,25 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
       // this is an eos token
       eos::common::SymKey* symkey = eos::common::gSymKeyStore.GetCurrentKey();
       std::string key = symkey ? symkey->GetKey64() : "0123457890defaultkey";
+      bool skip_key = false;
+
+      if (getenv("EOS_MGM_TOKEN_KEYFILE")) {
+	struct stat buf;
+	if (::stat(getenv("EOS_MGM_TOKEN_KEYFILE"), &buf)) {
+	  eos_static_err("token keyfile is not existing '%s'", getenv("EOS_MGM_TOKEN_KEYHFILE"));
+	  skip_key = true;
+	} else {
+	  if ( (buf.st_uid != DAEMONUID) ||
+	       (buf.st_mode != 0100400) ) {
+	    skip_key =true;
+	    eos_static_err("token keyfile mode bit is %o", buf.st_mode);
+	  }
+	}
+	if (!skip_key) {
+	  key = eos::common::StringConversion::LoadFileIntoString(getenv("EOS_MGM_TOKEN_KEYFILE"), key);
+	}
+      }
+
       int rc = 0;
       vid.token = std::make_shared<EosTok>();
 
