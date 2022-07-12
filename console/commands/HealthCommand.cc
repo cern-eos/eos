@@ -27,6 +27,7 @@
 #include "console/commands/helpers/FsHelper.hh"
 #include "common/StringTokenizer.hh"
 #include "common/StringUtils.hh"
+#include "common/Statistics.hh"
 #include <algorithm>
 
 std::string HealthCommand::GetValueWrapper::GetValue(const std::string& key)
@@ -118,15 +119,8 @@ HealthCommand::HealthCommand(const char* comm)
 {
 }
 
-void HealthCommand::DeadNodesCheck()
+void HealthCommand::DeadNodesCheck(NodeHelper& node_cmd)
 {
-  NodeHelper node_cmd(gGlobalOpts);
-  node_cmd.ParseCommand("ls -m");
-
-  if (node_cmd.ExecuteWithoutPrint()) {
-    throw std::string("MGMError: " + node_cmd.GetError());
-  }
-
   std::string ret = node_cmd.GetResult();
   std::string line;
   std::istringstream splitter(ret);
@@ -170,6 +164,131 @@ void HealthCommand::DeadNodesCheck()
 
   m_output << table.GenerateTable(HEADER).c_str();
 }
+
+
+void HealthCommand::BlackHoleCheck(NodeHelper& node_cmd)
+{
+  std::string ret = node_cmd.GetResult();
+  std::string line;
+  std::istringstream splitter(ret);
+  
+  std::map<std::string, float> files_ropen;
+  std::map<std::string, float> files_wopen;
+  std::multiset<float> ropen_set;
+  std::multiset<float> wopen_set;
+  
+  double ropen_avg;
+  double wopen_avg;
+
+  double ropen_sig;
+  double wopen_sig;
+    
+  while (std::getline(splitter, line, '\n')) {
+    GetValueWrapper extractor(line);
+    std::string hostport = extractor.GetValue("hostport");
+    std::string status = extractor.GetValue("status");
+    std::string str_temp;
+    str_temp = extractor.GetValue("nofs");
+    float norm = std::stoi(str_temp.empty() ? "0" : str_temp);
+    str_temp = extractor.GetValue("sum.stat.ropen");
+    float ropen = std::stoi(str_temp.empty() ? "0" : str_temp);
+    str_temp = extractor.GetValue("sum.stat.wopen");
+    float wopen = std::stoi(str_temp.empty() ? "0" : str_temp);
+
+    if (norm) {
+      // renormalize these values for a default 24 disk node
+      ropen = ropen / norm * 24;
+      wopen = wopen / norm * 24;
+    }
+
+    bool trigger = status == "online";
+    trigger = true;
+    if (trigger) {
+      fprintf(stderr,"inserting %s %.02f %.02f\n", hostport.c_str(), ropen, wopen);
+      files_ropen[hostport] = ropen;
+      files_wopen[hostport] = wopen;
+      ropen_set.insert((float) ropen);
+      wopen_set.insert((float) wopen);
+    }
+  }
+
+  ropen_avg = eos::common::Statistics::avg(ropen_set);
+  wopen_avg = eos::common::Statistics::avg(wopen_set);
+  ropen_sig   = eos::common::Statistics::sig(ropen_set);
+  wopen_sig   = eos::common::Statistics::sig(wopen_set);
+
+  double warning_sigmas = 2;
+  if (getenv("EOS_HEALTH_SIGMAS") ) {
+    warning_sigmas = std::stoi(getenv("EOS_HEALTH_SIGMAS"));
+  }
+
+  std::string format_s = !m_monitoring ? "s" : "os";
+  std::string format_ss = !m_monitoring ? "-s" : "os";
+  std::string format_f = !m_monitoring ? "f" : "of";
+
+  eos::mgm::TableFormatterBase table(!isatty(STDOUT_FILENO) ||
+                                     !isatty(STDERR_FILENO));
+
+  if (!m_monitoring) {
+    table.SetHeader({
+	std::make_tuple("hostport", 32, format_ss),
+	std::make_tuple("warning", 32, format_ss),
+	std::make_tuple("avg", 8, format_f),
+	std::make_tuple("sig", 8, format_f),
+	std::make_tuple("now", 8 ,format_f)
+    });
+  } else {
+    table.SetHeader({
+      std::make_tuple("type", 0, format_ss),
+      std::make_tuple("hostport", 32, format_ss),
+      std::make_tuple("warning", 32, format_ss),
+      std::make_tuple("avg", 8, format_f),
+      std::make_tuple("sig", 8, format_f),
+      std::make_tuple("now", 8 ,format_f)
+    });
+  }
+
+
+  for ( auto i:files_ropen ) {
+    if ( (i.second - ropen_avg ) > (warning_sigmas*ropen_sig) ) {
+      // warn about it
+      TableData table_data;
+      table_data.emplace_back();
+
+      if (m_monitoring) {
+        table_data.back().emplace_back("BlackHoleCheck", format_ss);
+      }
+
+      table_data.back().emplace_back(i.first, format_s);
+      table_data.back().emplace_back("many read streams", format_s);
+      table_data.back().emplace_back(ropen_avg, format_f);
+      table_data.back().emplace_back(ropen_sig, format_f);
+      table_data.back().emplace_back(i.second, format_f);
+      table.AddRows(table_data);
+    }
+  }
+
+  for ( auto i:files_wopen ) {
+    if ( (i.second -wopen_avg ) > (warning_sigmas*wopen_sig) ) {
+      // warn about it
+      TableData table_data;
+      table_data.emplace_back();
+
+      if (m_monitoring) {
+        table_data.back().emplace_back("BlackHoleCheck", format_ss);
+      }
+
+      table_data.back().emplace_back(i.first, format_s);
+      table_data.back().emplace_back("many write streams", format_s);
+      table_data.back().emplace_back(wopen_avg, format_f);
+      table_data.back().emplace_back(wopen_sig, format_f);
+      table_data.back().emplace_back(i.second, format_f);
+      table.AddRows(table_data);
+    }
+  }
+  m_output << table.GenerateTable(HEADER).c_str();
+}
+
 
 void HealthCommand::TooFullForDrainingCheck()
 {
@@ -428,9 +547,21 @@ void HealthCommand::GetGroupsInfo()
 
 void HealthCommand::AllCheck()
 {
-  DeadNodesCheck();
+  // ---------------------------------------------------
+  // run node ls -m once
+  // avoid to run commands several times
+  NodeHelper node_cmd(gGlobalOpts);
+  node_cmd.ParseCommand("ls -m");
+
+  if (node_cmd.ExecuteWithoutPrint()) {
+    throw std::string("MGMError: " + node_cmd.GetError());
+  }
+  // ---------------------------------------------------
+
+  DeadNodesCheck(node_cmd);
   TooFullForDrainingCheck();
   PlacementContentionCheck();
+  BlackHoleCheck(node_cmd);
 }
 
 
@@ -502,7 +633,19 @@ void HealthCommand::Execute()
   GetGroupsInfo();
 
   if (m_section == "nodes") {
-    DeadNodesCheck();
+    // ---------------------------------------------------
+    // run node ls -m once
+    // avoid to run commands several times
+    NodeHelper node_cmd(gGlobalOpts);
+    node_cmd.ParseCommand("ls -m");
+    
+    if (node_cmd.ExecuteWithoutPrint()) {
+      throw std::string("MGMError: " + node_cmd.GetError());
+    }
+    // ---------------------------------------------------
+
+    DeadNodesCheck(node_cmd);
+    BlackHoleCheck(node_cmd);
   }
 
   if (m_section == "drain") {

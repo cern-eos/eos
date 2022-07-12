@@ -25,6 +25,7 @@
 #define __HEALTHCOMMAND__HH__
 
 #include "common/table_formatter/TableFormatterBase.hh"
+#include "console/commands/helpers/NodeHelper.hh"
 #include "console/ICommand.hh"
 #include "console/RegexUtil.hh"
 #include <cstdlib>
@@ -108,7 +109,12 @@ class HealthCommand : public ICommand
   //----------------------------------------------------------------------------
   //! Performing dead node check. Results are kept inside class attributes.
   //----------------------------------------------------------------------------
-  void DeadNodesCheck();
+  void DeadNodesCheck(NodeHelper& node_cmd);
+
+  //----------------------------------------------------------------------------
+  //! Performing check if we have a back hole attracting many transfers
+  //----------------------------------------------------------------------------
+  void BlackHoleCheck(NodeHelper& node_cmd);
 
   //----------------------------------------------------------------------------
   //! Performing if drain is possible check. Results are kept inside
