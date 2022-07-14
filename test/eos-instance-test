@@ -1204,6 +1204,9 @@ runtest "### Rename    " unix 1 "EOSROLE='-r 1001 1001'" eos file rename /eos/$E
 runtest "### Rename    " unix 1 "EOSROLE='-r 1001 1001'" eos file rename /eos/$EOS_TEST_INSTANCE/test/instancetest/stickyowner/source/d1 /eos/$EOS_TEST_INSTANCE/test/instancetest/stickyowner/target/
 runtest "### Rename    " unix 0 "EOSROLE='-r 100 100'" eos file rename /eos/$EOS_TEST_INSTANCE/test/instancetest/stickyowner/source/f1 /eos/$EOS_TEST_INSTANCE/test/instancetest/stickyowner/target/f1
 runtest "### Rename    " unix 0 "EOSROLE='-r 100 100'" eos file rename /eos/$EOS_TEST_INSTANCE/test/instancetest/stickyowner/source/f2 /eos/$EOS_TEST_INSTANCE/test/instancetest/stickyowner/target/f2
+runtest "### Attr      " unix 0 "" eos attr set sys.acl=u:99:rwx "/eos/$EOS_TEST_INSTANCE/test/instancetest/stickyowner/source/d1/d2"
+runtest "### Rename    " unix 1 "EOSROLE='-r 100 100'" eos file rename /eos/$EOS_TEST_INSTANCE/test/instancetest/stickyowner/source/d1 /eos/$EOS_TEST_INSTANCE/test/instancetest/stickyowner/target/d1
+runtest "### Attr      " unix 0 "" eos attr set sys.acl=u:100:rwx "/eos/$EOS_TEST_INSTANCE/test/instancetest/stickyowner/source/d1/d2"
 runtest "### Rename    " unix 0 "EOSROLE='-r 100 100'" eos file rename /eos/$EOS_TEST_INSTANCE/test/instancetest/stickyowner/source/d1 /eos/$EOS_TEST_INSTANCE/test/instancetest/stickyowner/target/d1
 runtest "### Verify    " unix 0 "" eos ls -ln "/eos/$EOS_TEST_INSTANCE/test/instancetest/stickyowner/target/f1 | grep 2000 "
 runtest "### Verify    " unix 0 "" eos ls -ln "/eos/$EOS_TEST_INSTANCE/test/instancetest/stickyowner/target/f2 | grep 2000 "

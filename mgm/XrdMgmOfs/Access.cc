@@ -463,3 +463,38 @@ XrdMgmOfs::GetXrdAccPrivs(const std::string& path, const XrdSecEntity* client,
 
   return XrdAccPriv_All;
 }
+
+
+/*----------------------------------------------------------------------------*/
+int
+XrdMgmOfs::tree_access(const char* path,
+		       int mode,
+		       XrdOucErrInfo& error,
+		       eos::common::VirtualIdentity& vid,
+		       const char* info)
+/*----------------------------------------------------------------------------*/
+{
+  static const char* epname = "tree_access";
+  std::map<std::string, std::set<std::string>> found;
+  XrdOucString stdErr;
+
+  eos_static_info("path=\"%s\"\n", path);
+  
+  if (!vid.uid) {
+    // never check for root
+    return SFS_OK;
+  }
+  // verify we have write permissions in the full tree under path
+  if (gOFS->_find(path, error, stdErr, vid, found, 0, 0, true,0,true,0,0,false)) {
+    return Emsg(epname, error, errno,
+		"rename - cannot do 'find' inside the source tree");
+  }
+  
+  for ( auto d:found ) {
+    // check access in that directory
+    if (_access(d.first.c_str(), mode, error, vid, info, false)) {
+      return SFS_ERROR;
+    }
+  }
+  return SFS_OK;
+}

@@ -716,6 +716,12 @@ public:
   int _access(const char*, int mode, XrdOucErrInfo&,
               eos::common::VirtualIdentity& vid, const char*, bool lock = true);
 
+  // ---------------------------------------------------------------------------
+  // check access permissions by vid for a tree (only with external ns lock)
+  // ---------------------------------------------------------------------------
+  int tree_access(const char*, int mode, XrdOucErrInfo&,
+		  eos::common::VirtualIdentity& vid, const char*);
+
   //----------------------------------------------------------------------------
   //! @brief define access permissions for files/directories
   //!

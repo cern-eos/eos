@@ -552,6 +552,15 @@ XrdMgmOfs::_rename(const char* old_name,
           return Emsg(epname, error, EINVAL, "rename - old path is subpath of new path");
         }
 
+	if (sticky_owner) {
+	  // check that we have write permission in all children
+	  if (tree_access(oPath.GetPath(), W_OK, error, vid, infoO) != SFS_OK) {
+	    errno = EPERM;
+	    return Emsg(epname, error, EPERM, "rename - involves owner change on target but not all directories in the source tree are writable");
+	  }
+	}
+
+
         if (rdir) {
           // Remove all the quota from the source node and add to the target node
           std::map<std::string, std::set<std::string> >::const_reverse_iterator rfoundit;
