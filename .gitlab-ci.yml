@@ -232,6 +232,7 @@ build_cs9:
   only:
     - schedules
     - tags
+    - python2-cleanup
   allow_failure: true # @todo dont allow failure when/if we switch to Stream
 
 
