@@ -923,24 +923,6 @@ EOS Quarkdb package
 %{_bindir}/quarkdb-validate-checkpoint
 
 #-------------------------------------------------------------------------------
-# Package eos-srm
-#-------------------------------------------------------------------------------
-%package -n eos-srm
-Summary: The EOS srm script package for checksumming and space
-Group: Applications/File
-ExclusiveArch: x86_64 aarch64
-Requires: eos-client
-
-%description -n eos-srm
-The EOS srm package.
-
-%files -n eos-srm
-%defattr(-, root, root, -)
-%{_sbindir}/eos-srm-used-bytes
-%{_sbindir}/eos-srm-max-bytes
-%{_sbindir}/eos-srm-checksum
-
-#-------------------------------------------------------------------------------
 # Package eos-testkeytab
 #-------------------------------------------------------------------------------
 %package -n eos-testkeytab

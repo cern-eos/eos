@@ -1,4 +1,4 @@
-#!/usr/bin/python2
+#!/usr/bin/python
 #-------------------------------------------------------------------------------
 # @file eos-star-accounting.py
 # @author Elvin Sindrilaru - CERN 2022

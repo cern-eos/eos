@@ -220,6 +220,7 @@ build_cs9:
     - ccache -s
     - if [[ -n "$CI_COMMIT_TAG" ]]; then gpg2 --import $STCI_REPO_KEY; printf "" | setsid rpmsign --define='%_gpg_name stci@cern.ch' --define='%_signature gpg' --addsign build/RPMS/*.rpm; fi
     - mkdir cs9_artifacts; cp -R build/SRPMS/ build/RPMS cs9_artifacts
+    - if rpm -qpR build/RPMS/*rpm | grep -q 'python2'; then echo "Python2 is still present in some rpms..."; exit 2; else echo "No python2 dependencies"; fi
   cache:
     key: "$CI_JOB_NAME-$CI_COMMIT_REF_SLUG"
     paths:
@@ -231,8 +232,6 @@ build_cs9:
   only:
     - schedules
     - tags
-  allow_failure: true # @todo dont allow failure when/if we switch to Stream
-
 
 build_cs9_arm:
   stage: build:rpm
