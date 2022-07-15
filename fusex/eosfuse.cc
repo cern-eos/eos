@@ -3911,12 +3911,17 @@ EosFuse::rename(fuse_req_t req, fuse_ino_t parent, const char* name,
         md_ino = (*md)()->id();
       }
 
+      // check that this is not a move into a different owner directory with sys.owner.auth defined
+      if ( (*p2md)()->attr().count("sys.owner.auth") && (*md)()->uid() != (*p2md)()->uid() ) {
+	rc = EACCES;
+      }
+
       // If this is a move between directories of a directory then make sure
       // there is no destination directory with the same name that is not
       // empty.
       if (S_ISDIR((*md)()->mode()) && ((*p1md)()->id() != (*p2md)()->id())) {
         metad::shared_md dst_same_name = Instance().mds.lookup(req, newparent, name);
-
+	
         if (dst_same_name) {
           XrdSysMutexHelper dst_dir_lock(dst_same_name->Locker());
 
