@@ -3,6 +3,7 @@
 #include "fst/XrdFstOfs.hh"
 #include "fst/utils/FTSWalkTree.hh"
 #include "fst/utils/FSPathHandler.hh"
+#include "fst/utils/TransformAttr.hh"
 #include "FmdHandler.hh"
 #include <functional>
 
@@ -274,5 +275,38 @@ FmdAttrHandler::UpdateInconsistencyStat(
   return true;
 }
 
+bool
+FmdAttrHandler::ResetDiskInformation(eos::common::FileSystem::fsid_t fsid)
+{
+  std::error_code ec;
+  WalkFSTree(mFSPathHandler->GetFSPath(fsid),
+             [](std::string path){
+               TransformAttr(path, gFmdAttrName,
+                             &FmdHandler::ResetFmdDiskInfo);
+             }, ec);
+
+  if (ec) {
+    eos_err("msg=\"Failed to walk FST Tree\" error=%s", ec.message());
+  }
+
+  return !ec;
+}
+
+bool
+FmdAttrHandler::ResetMgmInformation(eos::common::FileSystem::fsid_t fsid)
+{
+  std::error_code ec;
+  WalkFSTree(mFSPathHandler->GetFSPath(fsid),
+             [](std::string path){
+               TransformAttr(path, gFmdAttrName,
+                             &FmdHandler::ResetFmdMgmInfo);
+             }, ec);
+
+  if (ec) {
+    eos_err("msg=\"Failed to walk FST Tree\" error=%s", ec.message());
+  }
+
+  return !ec;
+}
 
 } // namespace eos::fst

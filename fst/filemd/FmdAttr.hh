@@ -91,8 +91,8 @@ private:
 
   void LocalDeleteFmd(const std::string& path, bool drop_file);
 
-  bool ResetDiskInformation(eos::common::FileSystem::fsid_t fsid) override { return true; };
-  bool ResetMgmInformation(eos::common::FileSystem::fsid_t fsid) override { return true; };
+  bool ResetDiskInformation(eos::common::FileSystem::fsid_t fsid) override;
+  bool ResetMgmInformation(eos::common::FileSystem::fsid_t fsid) override;
 
   void SetSyncStatus(eos::common::FileSystem::fsid_t, bool) override {}
 
