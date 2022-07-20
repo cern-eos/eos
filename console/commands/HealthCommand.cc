@@ -541,9 +541,7 @@ void HealthCommand::GetGroupsInfo()
 
 void HealthCommand::AllCheck()
 {
-  // ---------------------------------------------------
-  // run node ls -m once
-  // avoid to run commands several times
+  // run node ls -m once - avoid to run commands several times
   NodeHelper node_cmd(gGlobalOpts);
   node_cmd.ParseCommand("ls -m");
 
@@ -551,7 +549,6 @@ void HealthCommand::AllCheck()
     throw std::string("MGMError: " + node_cmd.GetError());
   }
 
-  // ---------------------------------------------------
   DeadNodesCheck(node_cmd);
   TooFullForDrainingCheck();
   PlacementContentionCheck();
@@ -666,7 +663,15 @@ void HealthCommand::Execute(std::string& out)
   if (m_section.empty() || m_section == "all") {
     AllCheck();
   } else if (m_section == "nodes") {
-    DeadNodesCheck();
+    // run node ls -m once - avoid to run commands several times
+    NodeHelper node_cmd(gGlobalOpts);
+    node_cmd.ParseCommand("ls -m");
+
+    if (node_cmd.ExecuteWithoutPrint()) {
+      throw std::string("MGMError: " + node_cmd.GetError());
+    }
+
+    DeadNodesCheck(node_cmd);
   } else if (m_section == "drain") {
     TooFullForDrainingCheck();
   } else if (m_section == "placement") {
