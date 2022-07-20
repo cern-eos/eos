@@ -19,6 +19,8 @@ This release is based on XRootD V4 and IPV6 enabled.
 ``v4.8.89 Citrine``
 ===================
 
+2022-07-20
+
 Bug
 ----
 
