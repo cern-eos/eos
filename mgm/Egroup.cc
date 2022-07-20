@@ -92,8 +92,6 @@ Egroup::Status Egroup::isMemberUncached(const std::string& username,
 
   // Run the LDAP query
   LDAP* ld = nullptr;
-  std::unique_ptr<LDAP, decltype(ldap_uninitialize)*>
-  ldOwnership(ld, ldap_uninitialize);
   {
     static std::mutex s_ldap_mutex;
     std::unique_lock<std::mutex> lock(s_ldap_mutex);
@@ -111,6 +109,7 @@ Egroup::Status Egroup::isMemberUncached(const std::string& username,
         LDAP_OPT_SUCCESS) {
       eos_static_crit("%s", "msg=\"failure when calling ldap_set_option "
                       "(protocol version\"");
+      ldap_uninitialize(ld);
       return Status::kError;
     }
 
@@ -123,9 +122,12 @@ Egroup::Status Egroup::isMemberUncached(const std::string& username,
                         &tcp_timeout) != LDAP_OPT_SUCCESS) {
       eos_static_crit("%s",
                       "msg=\"failure when calling ldap_set_option (network timeout)\"");
+      ldap_uninitialize(ld);
       return Status::kError;
     }
   }
+  std::unique_ptr<LDAP, decltype(ldap_uninitialize)*>
+  ldOwnership(ld, ldap_uninitialize);
   //----------------------------------------------------------------------------
   // These hardcoded values are CERN specific... we should pass them through
   // the configuration, or something.

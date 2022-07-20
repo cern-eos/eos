@@ -418,6 +418,12 @@ XrdMgmOfs::_rename(const char* old_name,
     }
   }
 
+  bool sticky_owner = false;
+  bool chown_failed = false;
+  uid_t owner_auth_uid = 0;
+  gid_t owner_auth_gid = 0;
+  size_t owner_auth_user_size = 0;
+  size_t owner_auth_group_size = 0;
   {
     eos::mgm::FusexCastBatch fuse_batch;
     eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
@@ -435,12 +441,25 @@ XrdMgmOfs::_rename(const char* old_name,
       const eos::ContainerIdentifier pdid = dir->getParentIdentifier();
       const eos::ContainerIdentifier ndid = newdir->getIdentifier();
       const eos::ContainerIdentifier pndid = newdir->getParentIdentifier();
+      eos::IContainerMD::XAttrMap attrmap = newdir->getAttributes();
+
+      // check if we have to change the ownership
+      if (attrmap["sys.owner.auth"] == "*") {
+        sticky_owner = true;
+        owner_auth_uid = newdir->getCUid();
+        owner_auth_gid = newdir->getCGid();
+      }
 
       if (renameFile) {
         if (oP == nP) {
           file = dir->findFile(oPath.GetName());
 
           if (file) {
+            if (sticky_owner) {
+              file->setCUid(owner_auth_uid);
+              file->setCGid(owner_auth_gid);
+            }
+
             eosView->renameFile(file.get(), nPath.GetName());
             dir->setMTimeNow();
             dir->notifyMTimeChange(gOFS->eosDirectoryService);
@@ -485,6 +504,11 @@ XrdMgmOfs::_rename(const char* old_name,
 
             file->setName(nPath.GetName());
             file->setContainerId(newdir->getId());
+
+            if (sticky_owner) {
+              file->setCUid(owner_auth_uid);
+              file->setCGid(owner_auth_gid);
+            }
 
             if (updateCTime) {
               file->setCTimeNow();
@@ -568,8 +592,11 @@ XrdMgmOfs::_rename(const char* old_name,
                   }
 
                   if (!fmd->isLink()) {
-                    user_del_size[fmd->getCUid()] += (fmd->getSize() * fmd->getNumLocation());
-                    group_del_size[fmd->getCGid()] += (fmd->getSize() * fmd->getNumLocation());
+                    size_t size = fmd->getSize() * fmd->getNumLocation();
+                    user_del_size[fmd->getCUid()] += size;
+                    group_del_size[fmd->getCGid()] += size;
+                    owner_auth_user_size += size;
+                    owner_auth_group_size += size;
                   }
                 }
               }
@@ -578,19 +605,31 @@ XrdMgmOfs::_rename(const char* old_name,
               bool userok = true;
               bool groupok = true;
 
-              // Either all have user quota therefore userok is true
-              for (auto it = user_del_size.begin(); it != user_del_size.end(); ++it) {
-                if (!Quota::Check(nP, it->first, Quota::gProjectId, it->second, 1)) {
+              if (sticky_owner) {
+                if (!Quota::Check(nP, owner_auth_uid, Quota::gProjectId, owner_auth_user_size,
+                                  1)) {
                   userok = false;
-                  break;
                 }
-              }
 
-              // or all have group quota therefore groupok is true
-              for (auto it = group_del_size.begin(); it != group_del_size.end(); it++) {
-                if (!Quota::Check(nP, Quota::gProjectId, it->first, it->second, 1)) {
+                if (!Quota::Check(nP, owner_auth_gid, Quota::gProjectId, owner_auth_group_size,
+                                  1)) {
                   groupok = false;
-                  break;
+                }
+              } else {
+                // Either all have user quota therefore userok is true
+                for (auto it = user_del_size.begin(); it != user_del_size.end(); ++it) {
+                  if (!Quota::Check(nP, it->first, Quota::gProjectId, it->second, 1)) {
+                    userok = false;
+                    break;
+                  }
+                }
+
+                // or all have group quota therefore groupok is true
+                for (auto it = group_del_size.begin(); it != group_del_size.end(); it++) {
+                  if (!Quota::Check(nP, Quota::gProjectId, it->first, it->second, 1)) {
+                    groupok = false;
+                    break;
+                  }
                 }
               }
 
@@ -742,6 +781,30 @@ XrdMgmOfs::_rename(const char* old_name,
         }
 
         file.reset();
+
+        if (sticky_owner) {
+          lock.Release();
+          // run a chmod -R on the new tree
+          ProcCommand Cmd;
+          XrdOucString info;
+          info += "mgm.cmd=chown&mgm.chown.option=";
+          info += "r&";
+          info += "mgm.chown.owner=";
+          info += std::to_string(owner_auth_uid).c_str();
+          info += ":";
+          info += std::to_string(owner_auth_gid).c_str();
+          info += "&mgm.path=";
+          info += nPath.GetPath();
+          eos::common::VirtualIdentity root_vid = eos::common::VirtualIdentity::Root();
+          Cmd.open("/proc/user", info.c_str(), root_vid, &error);
+          Cmd.close();
+
+          if (Cmd.GetRetc()) {
+            chown_failed = true;
+          } else {
+            chown_failed = false;
+          }
+        }
       }
     } catch (eos::MDException& e) {
       dir.reset();
@@ -755,6 +818,11 @@ XrdMgmOfs::_rename(const char* old_name,
   if ((!dir) || ((!file) && (!rdir))) {
     errno = ENOENT;
     return Emsg(epname, error, ENOENT, "rename", old_name);
+  }
+
+  // check if a possible chown failed
+  if (chown_failed) {
+    return SFS_ERROR;
   }
 
   // check if this was a versioned file

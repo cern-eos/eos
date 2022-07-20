@@ -15,6 +15,19 @@ Introduction
 ------------
 This release is based on XRootD V4 and IPV6 enabled.
 
+
+``v4.8.89 Citrine``
+===================
+
+Bug
+----
+
+* [EOS-5308] - MGM: Potential double free in LDAP initialize
+* [EOS-5334] - LDAP connection socket leak
+* [EOS-5335] - MGM crash in Fileinfo.cc:97
+* [EOS-5171] - Ensure mv always adopts the target's ownership, regardless the instance
+
+
 ``v4.8.88 Citrine``
 ===================
 

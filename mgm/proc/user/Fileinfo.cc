@@ -74,10 +74,12 @@ ProcCommand::FileMDToStatus(std::shared_ptr<eos::IFileMD> fmd)
   std::string fs = xattrs["sys.fusex.state"];
 
   if (fs.length()) {
-    std::string b2 = fs.substr(fs.length() - 2);
+    if (fs.length() >= 1) {
+      std::string b2 = fs.substr(fs.length() - 2);
 
-    if (b2 == "±") {
-      return "fuse::needsflush";
+      if (b2 == "±") {
+        return "fuse::needsflush";
+      }
     }
 
     if (fs.back() == 'Z') {
