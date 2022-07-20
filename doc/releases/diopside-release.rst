@@ -17,6 +17,26 @@ Introduction
 This release is based on XRootD V5.
 
 
+``v5.0.28 Diopside``
+===================
+
+2022-07-20
+
+Note
+----
+
+* This version of EOS is based on an internal release of XRootD namely eos-xrootd-5.4.7
+
+Bug
+---
+
+* [EOS-5336] - Lot of EOS FST crash (SIGSEGV) in the EOSALICE instance
+* [EOS-5171] - Ensure mv always adopts the target's ownership, regardless the instance
+* [EOS-5308] - MGM: Potential double free in LDAP initialize
+* [EOS-5334] - LDAP connection socket leak
+* [EOS-5335] - MGM crash in Fileinfo.cc:97
+
+
 ``v5.0.27 Diopside``
 ===================
 
