@@ -258,17 +258,7 @@ XrdMqClient::SendMessage(XrdMqMessage& msg, const char* receiverid, bool sign,
       if (asynchronous) {
         // Don't wait for responses if not required
         auto discard_handler = XrdCl::ResponseHandler::Wrap
-        ([ = ](XrdCl::XRootDStatus * s, XrdCl::AnyObject * r) mutable {
-          if (s)
-          {
-            delete s;
-          }
-
-          if (r)
-          {
-            delete r;
-          }
-
+        ([ = ](XrdCl::XRootDStatus & s, XrdCl::AnyObject & r) mutable {
           // Make sure we extend the lifetime of the XrdCl::FileSystem
           // object until this handler is called, otherwise if we delete
           // the FS object it could happen that an async response for it
