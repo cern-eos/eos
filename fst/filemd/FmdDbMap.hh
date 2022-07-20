@@ -295,6 +295,7 @@ public:
   std::pair<bool,eos::common::FmdHelper>
   LocalRetrieveFmd(eos::common::FileId::fileid_t fid,
                    eos::common::FileSystem::fsid_t fsid) override;
+
 private:
   std::map<eos::common::FileSystem::fsid_t, eos::common::DbMap*> mDbMap;
   mutable eos::common::RWMutex mMapMutex; ///< Mutex protecting the Fmd handler
@@ -415,6 +416,18 @@ private:
   //! @return true if information has been reset successfully
   //----------------------------------------------------------------------------
   bool ResetDiskInformation(eos::common::FileSystem::fsid_t fsid);
+
+  //----------------------------------------------------------------------------
+  //! A helper function to walk the DB and reset all keys by applying a given
+  //! function
+  //! @tparam F function type
+  //! @param fsid fsid t
+  //! @param f a function that takes a string argument and returns a string
+  //! return bool status on applying function
+  //----------------------------------------------------------------------------
+  template <typename F>
+  bool ResetAllFmd(eos::common::FileSystem::fsid_t fsid,
+                   F f);
 };
 
 
@@ -463,5 +476,42 @@ public:
     mFmdDbMapHandler->FsUnlockWrite(mFsId);
   }
 };
+
+template <typename F>
+bool
+FmdDbMapHandler::ResetAllFmd(eos::common::FileSystem::fsid_t fsid, F f)
+{
+  eos::common::RWMutexReadLock lock(mMapMutex);
+  FsWriteLock wlock(this, fsid);
+
+  if (mDbMap.count(fsid)) {
+    const eos::common::DbMapTypes::Tkey* k;
+    const eos::common::DbMapTypes::Tval* v;
+    eos::common::DbMapTypes::Tval val;
+    mDbMap[fsid]->beginSetSequence();
+    unsigned long cpt = 0;
+
+    for (mDbMap[fsid]->beginIter(false); mDbMap[fsid]->iterate(&k, &v, false);) {
+      val.value = f(v->value);
+      // Only reset if the given info was valid!
+      if (!val.value.empty())
+        mDbMap[fsid]->set(*k, val);
+      cpt++;
+    }
+
+    // The endSetSequence makes it impossible to know which key is faulty
+    if (mDbMap[fsid]->endSetSequence() != cpt) {
+      eos_err("unable to update fsid=%lu", fsid);
+      return false;
+    }
+  } else {
+    eos_crit("no %s DB open for fsid=%llu", eos::common::DbMap::getDbType().c_str(),
+             (unsigned long) fsid);
+    return false;
+  }
+
+  return true;
+
+}
 
 EOSFSTNAMESPACE_END

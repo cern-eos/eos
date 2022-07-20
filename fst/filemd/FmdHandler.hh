@@ -298,6 +298,22 @@ public:
                            FmdHandler* const src_fmd_handler,
                            bool lock_it);
 
+  //----------------------------------------------------------------------------
+  //! Reset the disk checksums from a given string
+  //! \param input a string that can serialize to FmdProtobuf object
+  //! \return string value after resetting info or an empty string if serialization
+  //! fails
+  //----------------------------------------------------------------------------
+  static std::string ResetFmdDiskInfo(const std::string& input);
+
+  //----------------------------------------------------------------------------
+  //! Reset the mgm checksums from a given string
+  //! \param input a string that can serialize to FmdProtobuf object
+  //! \return string value after resetting info or an empty string if serialization
+  //! fails
+  //----------------------------------------------------------------------------
+  static std::string ResetFmdMgmInfo(const std::string& input);
+
 private:
 
   // Virtual private methods are overrideable at derived classes, this allows

@@ -429,42 +429,7 @@ FmdDbMapHandler::UpdateWithMgmInfo(eos::common::FileSystem::fsid_t fsid,
 bool
 FmdDbMapHandler::ResetDiskInformation(eos::common::FileSystem::fsid_t fsid)
 {
-  eos::common::RWMutexReadLock lock(mMapMutex);
-  FsWriteLock wlock(this, fsid);
-
-  if (mDbMap.count(fsid)) {
-    const eos::common::DbMapTypes::Tkey* k;
-    const eos::common::DbMapTypes::Tval* v;
-    eos::common::DbMapTypes::Tval val;
-    mDbMap[fsid]->beginSetSequence();
-    unsigned long cpt = 0;
-
-    for (mDbMap[fsid]->beginIter(false); mDbMap[fsid]->iterate(&k, &v, false);) {
-      eos::common::FmdHelper f;
-      f.mProtoFmd.ParseFromString(v->value);
-      f.mProtoFmd.set_disksize(eos::common::FmdHelper::UNDEF);
-      f.mProtoFmd.set_diskchecksum("");
-      f.mProtoFmd.set_checktime(0);
-      f.mProtoFmd.set_filecxerror(0);
-      f.mProtoFmd.set_blockcxerror(0);
-      val = *v;
-      f.mProtoFmd.SerializeToString(&val.value);
-      mDbMap[fsid]->set(*k, val);
-      cpt++;
-    }
-
-    // The endSetSequence makes it impossible to know which key is faulty
-    if (mDbMap[fsid]->endSetSequence() != cpt) {
-      eos_err("unable to update fsid=%lu", fsid);
-      return false;
-    }
-  } else {
-    eos_crit("no %s DB open for fsid=%llu", eos::common::DbMap::getDbType().c_str(),
-             (unsigned long) fsid);
-    return false;
-  }
-
-  return true;
+  return ResetAllFmd(fsid, &FmdHandler::ResetFmdDiskInfo);
 }
 
 //------------------------------------------------------------------------------
@@ -473,39 +438,7 @@ FmdDbMapHandler::ResetDiskInformation(eos::common::FileSystem::fsid_t fsid)
 bool
 FmdDbMapHandler::ResetMgmInformation(eos::common::FileSystem::fsid_t fsid)
 {
-  eos::common::RWMutexReadLock lock(mMapMutex);
-  FsWriteLock vlock(this, fsid);
-
-  if (mDbMap.count(fsid)) {
-    const eos::common::DbMapTypes::Tkey* k;
-    const eos::common::DbMapTypes::Tval* v;
-    eos::common::DbMapTypes::Tval val;
-    mDbMap[fsid]->beginSetSequence();
-    unsigned long cpt = 0;
-
-    for (mDbMap[fsid]->beginIter(false); mDbMap[fsid]->iterate(&k, &v, false);) {
-      eos::common::FmdHelper f;
-      f.mProtoFmd.ParseFromString(v->value);
-      f.mProtoFmd.set_mgmsize(eos::common::FmdHelper::UNDEF);
-      f.mProtoFmd.set_mgmchecksum("");
-      f.mProtoFmd.set_locations("");
-      val = *v;
-      f.mProtoFmd.SerializeToString(&val.value);
-      mDbMap[fsid]->set(*k, val);
-      cpt++;
-    }
-
-    // The endSetSequence makes it impossible to know which key is faulty
-    if (mDbMap[fsid]->endSetSequence() != cpt) {
-      eos_err("unable to update fsid=%lu", fsid);
-      return false;
-    }
-  } else {
-    eos_crit("no leveldb DB open for fsid=%llu", (unsigned long) fsid);
-    return false;
-  }
-
-  return true;
+  return ResetAllFmd(fsid, &FmdHandler::ResetFmdMgmInfo);
 }
 
 //------------------------------------------------------------------------------

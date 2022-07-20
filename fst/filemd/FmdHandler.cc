@@ -817,5 +817,39 @@ FmdHandler::ConvertFrom(eos::common::FileId::fileid_t fid,
 
   return Commit(&fmd, lock_it);
 }
+std::string
+FmdHandler::ResetFmdDiskInfo(const std::string& input)
+{
+  eos::common::FmdHelper f;
+  if (!f.mProtoFmd.ParseFromString(input))
+    return {};
+
+  f.mProtoFmd.set_disksize(eos::common::FmdHelper::UNDEF);
+  f.mProtoFmd.set_diskchecksum("");
+  f.mProtoFmd.set_checktime(0);
+  f.mProtoFmd.set_filecxerror(0);
+  f.mProtoFmd.set_blockcxerror(0);
+
+  std::string out;
+  f.mProtoFmd.SerializeToString(&out);
+  return out;
+}
+
+
+std::string
+FmdHandler::ResetFmdMgmInfo(const std::string& input)
+{
+  eos::common::FmdHelper f;
+  if (!f.mProtoFmd.ParseFromString(input))
+    return {};
+
+  f.mProtoFmd.set_mgmsize(eos::common::FmdHelper::UNDEF);
+  f.mProtoFmd.set_mgmchecksum("");
+  f.mProtoFmd.set_locations("");
+
+  std::string out;
+  f.mProtoFmd.SerializeToString(&out);
+  return out;
+}
 
 EOSFSTNAMESPACE_END
