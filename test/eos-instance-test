@@ -1581,7 +1581,9 @@ runtest "### Chown     " unix 0 "" eos chown 99:99 "/eos/$EOS_TEST_INSTANCE/test
 runtest "### Attr Set  " unix 0 "" eos attr set user.fusex.rename.version=1 /eos/$EOS_TEST_INSTANCE/test/instancetest/fusex/
 runtest "### Attr Set  " unix 0 "" eos attr set sys.versioning=3 /eos/$EOS_TEST_INSTANCE/test/instancetest/fusex/
 runtest "### Mkdir     " unix 0 "" eos mkdir "-p" "/eos/$EOS_TEST_INSTANCE/test/instancetest/fusex/dir1/"
+runtest "### Chown     " unix 0 "" eos chown 99:99 "/eos/$EOS_TEST_INSTANCE/test/instancetest/fusex/dir1/"
 runtest "### Mkdir     " unix 0 "" eos mkdir "-p" "/eos/$EOS_TEST_INSTANCE/test/instancetest/fusex/dir2/"
+runtest "### Chown     " unix 0 "" eos chown 99:99 "/eos/$EOS_TEST_INSTANCE/test/instancetest/fusex/dir2/"
 runtest "### Upload    " unix 0 "EOSROLE='-r 99 99'" eos cp "/etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/instancetest/fusex/f1"
 runtest "### Upload    " unix 0 "EOSROLE='-r 99 99'" eos cp "/etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/instancetest/fusex/f1"
 runtest "### Upload    " unix 0 "EOSROLE='-r 99 99'" eos cp "/etc/group" "/eos/$EOS_TEST_INSTANCE/test/instancetest/fusex/f2"
