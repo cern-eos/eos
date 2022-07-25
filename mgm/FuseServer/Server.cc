@@ -40,6 +40,7 @@
 #include "mgm/Stat.hh"
 #include "mgm/tracker/ReplicationTracker.hh"
 #include "mgm/GeoTreeEngine.hh"
+#include "mgm/Workflow.hh"
 #include "namespace/interface/IView.hh"
 #include "namespace/interface/IFileMD.hh"
 #include "namespace/interface/IContainerMD.hh"
@@ -1420,6 +1421,8 @@ Server::OpSetDirectory(const std::string& id,
   std::shared_ptr<eos::IContainerMD> cmd;
   std::shared_ptr<eos::IContainerMD> pcmd;
   std::shared_ptr<eos::IContainerMD> cpcmd;
+  eos::IContainerMD::XAttrMap attrmap;
+
   eos::fusex::md mv_md;
   mode_t sgid_mode = 0;
   eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
@@ -1526,7 +1529,7 @@ Server::OpSetDirectory(const std::string& id,
           (uid_t)md.uid() != vid.uid) {
         /* chown is under control of container sys.acl only, if a vanilla user chowns to other than themselves */
         Acl acl;
-        eos::IContainerMD::XAttrMap attrmap = cmd->getAttributes();
+        attrmap = cmd->getAttributes();
 
         if (EOS_LOGS_DEBUG) {
           eos_debug("sysacl '%s' useracl '%s' evaluseracl %d (ignored)",
@@ -1567,7 +1570,7 @@ Server::OpSetDirectory(const std::string& id,
         return EEXIST;
       }
 
-      eos::IContainerMD::XAttrMap xattrs = pcmd->getAttributes();
+      attrmap = pcmd->getAttributes();
       // test to verify this is the culprit of failing all eosxd system tests in the CI
       // if ( (md.attr().find("user.acl") != md.attr().end()) && (xattrs.find("sys.eval.useracl") == xattrs.end()) ) {
       // return EPERM;
@@ -1587,7 +1590,7 @@ Server::OpSetDirectory(const std::string& id,
 
       // parent attribute inheritance
 
-      for (const auto& elem : xattrs) {
+      for (const auto& elem : attrmap) {
         cmd->setAttribute(elem.first, elem.second);
       }
 
@@ -1746,6 +1749,8 @@ Server::OpSetFile(const std::string& id,
   };
   set_type op;
   uint64_t md_ino = 0;
+  uint64_t fileId = 0;
+  Workflow workflow;
   bool exclusive = false;
 
   if (md.type() == md.EXCL) {
@@ -1760,6 +1765,8 @@ Server::OpSetFile(const std::string& id,
   std::shared_ptr<eos::IFileMD> fmd;
   std::shared_ptr<eos::IFileMD> ofmd;
   std::shared_ptr<eos::IContainerMD> pcmd;
+  eos::IContainerMD::XAttrMap attrmap;
+
   std::shared_ptr<eos::IContainerMD> cpcmd;
   uint64_t fid = eos::common::FileId::InodeToFid(md.md_ino());
   md_ino = md.md_ino();
@@ -1826,7 +1833,7 @@ Server::OpSetFile(const std::string& id,
               eos_debug("removing previous file in move %s", md.name().c_str());
             }
 
-            eos::IContainerMD::XAttrMap attrmap = pcmd->getAttributes();
+            attrmap = pcmd->getAttributes();
             // check if there is versioning to be done
             int versioning = 0;
 
@@ -1947,7 +1954,7 @@ Server::OpSetFile(const std::string& id,
                 eos_debug("removing previous file in update %s", md.name().c_str());
               }
 
-              eos::IContainerMD::XAttrMap attrmap = pcmd->getAttributes();
+              attrmap = pcmd->getAttributes();
               // check if there is versioning to be done
               int versioning = 0;
 
@@ -2052,7 +2059,7 @@ Server::OpSetFile(const std::string& id,
           (uid_t)md.uid() != vid.uid) {
         /* chown is under control of container sys.acl only, if a vanilla user chowns to other than themselves */
         Acl acl;
-        eos::IContainerMD::XAttrMap attrmap = pcmd->getAttributes();
+        attrmap = pcmd->getAttributes();
 
         if (EOS_LOGS_DEBUG) {
           eos_debug("sysacl '%s' useracl '%s' (ignored) evaluseracl %d",
@@ -2147,7 +2154,6 @@ Server::OpSetFile(const std::string& id,
       unsigned long forcedFsId = 0;
       long forcedGroup = 0;
       XrdOucString space;
-      eos::IContainerMD::XAttrMap attrmap;
       eos::listAttributes(gOFS->eosView, &(*pcmd), attrmap, false);
       XrdOucEnv env;
       std::string bandwidth;
@@ -2212,6 +2218,7 @@ Server::OpSetFile(const std::string& id,
       fmd = gOFS->eosFileService->createFile(0);
       fmd->setName(md.name());
       fmd->setLayoutId(layoutId);
+      fileId = fmd->getId();
       md_ino = eos::common::FileId::FidToInode(fmd->getId());
       pcmd->addFile(fmd.get());
       eos_info("ino=%lx pino=%lx md-ino=%lx create-file", (long) md_ino,
@@ -2366,6 +2373,25 @@ Server::OpSetFile(const std::string& id,
     case MOVE:
       Cap().BroadcastMD(md, md_ino, md_pino, clock, pt_mtime);
       break;
+    }
+
+    if (op == CREATE) {
+      // trigger default workflow in FuseServer
+      errno = 0;
+      workflow.Init(&attrmap, std::string(""), fileId);
+      auto workflowType = "default";
+      std::string errorMsg;
+      auto ret_wfe = workflow.Trigger("sync::create", std::string{workflowType}, vid,
+				      "", errorMsg);
+
+      if (ret_wfe < 0 && errno == ENOKEY) {
+	eos_debug("msg=\"no workflow defined for sync::create\"");
+      } else {
+	eos_info("msg=\"workflow trigger returned\" retc=%d errno=%d", ret_wfe, errno);
+	if (ret_wfe == EINVAL) {
+	  throw_mdexception(errno, "Workflow failed : " << fileId);
+	}
+      }
     }
   } catch (eos::MDException& e) {
     eos_err("ino=%lx err-no=%d err-msg=%s", (long) md.md_ino(),
@@ -2856,7 +2882,6 @@ Server::OpDeleteFile(const std::string& id,
                         true,  // don't enforce quota
                         false // don't broadcast
                        );
-      lock.Grab(gOFS->eosViewRWMutex);
     } else {
       try {
         // handle quota
@@ -2945,10 +2970,33 @@ Server::OpDeleteFile(const std::string& id,
       gOFS->eosFileService->updateStore(fmd.get());
       gOFS->eosDirectoryService->updateStore(pcmd.get());
       pcmd->notifyMTimeChange(gOFS->eosDirectoryService);
+
+      lock.Release();
+      
+      if (doDelete) {
+	Workflow workflow;
+	std::string errMsg;
+	// eventually trigger a workflow                                                                                                                                                                                                                              
+	workflow.Init(&attrmap, std::string(""), fmd->getId());
+	errno = 0;
+	
+	auto ret_wfe = workflow.Trigger("sync::delete", "default", vid,"", errMsg);
+	
+	if (ret_wfe < 0 && errno == ENOKEY) {
+	  eos_info("msg=\"no workflow defined for delete\"");
+	} else {
+	  eos_info("msg=\"workflow trigger returned\" retc=%d errno=%d", ret_wfe, errno);
+	}
+	
+	if (ret_wfe && errno != ENOKEY) {
+	  eos::MDException e(errno);
+	  e.getMessage() << "Deletion workflow failed: " << errMsg;
+	  
+	  throw e;
+	}
+      }
     }
 
-    // release the namespace lock before serialization/broadcasting
-    lock.Release();
     resp.mutable_ack_()->set_code(resp.ack_().OK);
     resp.mutable_ack_()->set_transactionid(md.reqid());
     resp.SerializeToString(response);
