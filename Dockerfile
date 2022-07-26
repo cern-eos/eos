@@ -1,7 +1,7 @@
-ARG REPO_LOCATION=gitlab-registry.cern.ch/
+ARG REPO_LOCATION=gitlab-registry.cern.ch
 
-ARG IMAGE_BUILDER=linuxsupport/cs9-base
-ARG IMAGE_RUNNER=linuxsupport/cs9-base
+ARG IMAGE_BUILDER=${REPO_LOCATION}/linuxsupport/cs9-base
+ARG IMAGE_RUNNER=${REPO_LOCATION}/linuxsupport/cs9-base
 
 ########################################################
 # Build stage 1: EOS dependencies (eos-folly)
