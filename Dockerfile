@@ -19,7 +19,7 @@ RUN dnf builddep -y eos-folly-deps.spec
 RUN mkdir -p /root/rpmbuild/SOURCES &&\
     cp *.patch SConstruct.double-conversion /root/rpmbuild/SOURCES
 RUN rpmbuild -ba --undefine=_disable_source_fetch eos-folly-deps.spec
-RUN dnf install -y /root/rpmbuild/RPMS/$(uname -m)
+RUN dnf install -y /root/rpmbuild/RPMS/$(uname -m)/*
 
 # step 2: eos-folly
 RUN rm -rf /root/rpmbuild/SOURCES/* /root/rpmbuild/RPMS /root/rpmbuild/SRPMS &&\
@@ -40,7 +40,7 @@ COPY --from=folly-deps-builder /folly /eos-folly
 
 RUN dnf install -y epel-release &&\
     dnf install --nogpg -y dnf-plugins-core gcc-c++ git cmake make python3 python3-setuptools rpm-build rpm-sign tar which
-RUN dnf install -y /eos-folly/RPMS/$(uname -m)
+RUN dnf install -y /eos-folly/RPMS/$(uname -m)/*
 
 RUN git submodule update --init --recursive
 RUN mkdir build
@@ -76,4 +76,4 @@ COPY --from=eos-builder /eos /temp/eos
 RUN ls -l /temp/eos-folly/RPMS &&\
     echo "--------------------------" &&\
     ls -l /temp/eos/RPMS
-#RUN dnf install -y /temp/eos-folly/RPMS/$(uname -m) /temp/eos/RPMS/$(uname -m)
+#RUN dnf install -y /temp/eos-folly/RPMS/$(uname -m)/* /temp/eos/RPMS/$(uname -m)/*
