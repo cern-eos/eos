@@ -3,15 +3,6 @@ ARG REPO_LOCATION=gitlab-registry.cern.ch/
 ARG IMAGE_BUILDER=linuxsupport/cs9-base
 ARG IMAGE_RUNNER=linuxsupport/cs9-base
 
-# For the following sections, refer to https://github.com/opencontainers/image-spec/blob/main/annotations.md
-LABEL org.opencontainers.image.authors="https://eos-community.web.cern.ch/"
-LABEL org.opencontainers.image.url='https://eos-web.web.cern.ch/eos-web/'
-LABEL org.opencontainers.image.documentation='http://eos-docs.web.cern.ch/eos-docs/'
-LABEL org.opencontainers.image.source='https://github.com/cern-eos/eos'
-LABEL org.opencontainers.image.vendor='European Centre for Nuclear Research (CERN)'
-# For the license format, refer to the SPDX format: https://spdx.org/licenses/
-LABEL org.opencontainers.image.licenses='GPL-3.0-only'
-
 ########################################################
 # Build stage 1: EOS dependencies (eos-folly)
 ########################################################
@@ -71,6 +62,15 @@ RUN mkdir /eos &&\
 ########################################################
 
 FROM ${IMAGE_RUNNER}:latest AS eos-runner
+
+# For the following sections, refer to https://github.com/opencontainers/image-spec/blob/main/annotations.md
+LABEL org.opencontainers.image.authors="https://eos-community.web.cern.ch/"
+LABEL org.opencontainers.image.url='https://eos-web.web.cern.ch/eos-web/'
+LABEL org.opencontainers.image.documentation='http://eos-docs.web.cern.ch/eos-docs/'
+LABEL org.opencontainers.image.source='https://github.com/cern-eos/eos'
+LABEL org.opencontainers.image.vendor='European Centre for Nuclear Research (CERN)'
+# For the license format, refer to the SPDX format: https://spdx.org/licenses/
+LABEL org.opencontainers.image.licenses='GPL-3.0-only'
 
 COPY --from=eos-builder /eos-folly /temp/eos-folly
 COPY --from=eos-builder /eos /temp/eos
