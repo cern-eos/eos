@@ -20,10 +20,10 @@ RUN mkdir -p /root/rpmbuild/SOURCES &&\
     cp *.patch SConstruct.double-conversion /root/rpmbuild/SOURCES
 RUN rpmbuild -ba --undefine=_disable_source_fetch eos-folly-deps.spec
 RUN mkdir deps-folly &&\
-    cp -r /root/rpmbuild/RPMS/ /root/rpmbuild/SRPMS/ deps-folly
+    cp -r /root/rpmbuild/RPMS/ /root/rpmbuild/SRPMS/ deps-folly &&\
+    dnf install -y deps-folly/RPMS/$(uname -m)
 
 # step 2: eos-folly
-RUN dnf install -y deps-folly/RPMS/$(uname -m)
 RUN rm -rf /root/rpmbuild/SOURCES/* /root/rpmbuild/RPMS /root/rpmbuild/SRPMS &&\
     cp *.patch /root/rpmbuild/SOURCES
 RUN rpmbuild -ba --undefine=_disable_source_fetch eos-folly.spec
