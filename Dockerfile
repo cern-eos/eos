@@ -73,7 +73,7 @@ LABEL org.opencontainers.image.vendor='European Centre for Nuclear Research (CER
 # For the license format, refer to the SPDX format: https://spdx.org/licenses/
 LABEL org.opencontainers.image.licenses='GPL-3.0-only'
 
-COPY --from-eos-builder /eos-folly-deps /temp/eos-folly-deps
+COPY --from=eos-builder /eos-folly-deps /temp/eos-folly-deps
 COPY --from=eos-builder /eos-folly /temp/eos-folly
 COPY --from=eos-builder /eos /temp/eos
 
