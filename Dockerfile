@@ -1,6 +1,7 @@
 ARG REPO_LOCATION=gitlab-registry.cern.ch/
 
-ARG IMAGE_BASE=linuxsupport/cs9-base
+ARG IMAGE_BUILDER=linuxsupport/cs9-base
+ARG IMAGE_RUNNER=linuxsupport/cs9-base
 
 # For the following sections, refer to https://github.com/opencontainers/image-spec/blob/main/annotations.md
 LABEL org.opencontainers.image.authors="https://eos-community.web.cern.ch/"
@@ -15,7 +16,7 @@ LABEL org.opencontainers.image.licenses='GPL-3.0-only'
 # Build stage 1: EOS dependencies (eos-folly)
 ########################################################
 
-FROM ${IMAGE_BASE}:latest AS folly-deps-builder
+FROM ${IMAGE_BUILDER}:latest AS folly-deps-builder
 
 ADD eos-deps /eos-deps-ci
 WORKDIR /eos-deps-ci
@@ -42,7 +43,7 @@ RUN mkdir /folly &&\
 # Build stage 2: EOS
 ########################################################
 
-FROM ${IMAGE_BASE}:latest AS eos-builder
+FROM ${IMAGE_BUILDER}:latest AS eos-builder
 
 ADD . /eos-src
 WORKDIR /eos-src
@@ -69,9 +70,12 @@ RUN mkdir /eos &&\
 # Build stage 3: assemble EOS runner
 ########################################################
 
-FROM ${IMAGE_BASE}:latest AS eos-runner
+FROM ${IMAGE_RUNNER}:latest AS eos-runner
 
 COPY --from=eos-builder /eos-folly /temp/eos-folly
 COPY --from=eos-builder /eos /temp/eos
 
-RUN dnf install -y /temp/eos-folly/RPMS/$(uname -m) /temp/eos/RPMS/$(uname -m)
+RUN ls -l /temp/eos-folly/RPMS &&\
+    echo "--------------------------" &&\
+    ls -l /temp/eos/RPMS
+#RUN dnf install -y /temp/eos-folly/RPMS/$(uname -m) /temp/eos/RPMS/$(uname -m)
