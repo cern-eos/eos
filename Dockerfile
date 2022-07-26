@@ -19,7 +19,9 @@ RUN dnf builddep -y eos-folly-deps.spec
 RUN mkdir -p /root/rpmbuild/SOURCES &&\
     cp *.patch SConstruct.double-conversion /root/rpmbuild/SOURCES
 RUN rpmbuild -ba --undefine=_disable_source_fetch eos-folly-deps.spec
-RUN dnf install -y /root/rpmbuild/RPMS/$(uname -m)/*
+RUN mkdir /folly-deps &&\
+    cp -r /root/rpmbuild/RPMS/ /root/rpmbuild/SRPMS /folly-deps &&\
+    dnf install -y /folly-deps/RPMS/$(uname -m)/*
 
 # step 2: eos-folly
 RUN rm -rf /root/rpmbuild/SOURCES/* /root/rpmbuild/RPMS /root/rpmbuild/SRPMS &&\
@@ -36,11 +38,12 @@ FROM ${IMAGE_BUILDER}:latest AS eos-builder
 
 ADD . /eos-src
 WORKDIR /eos-src
+COPY --from=folly-deps-builder /folly-deps /eos-folly-deps
 COPY --from=folly-deps-builder /folly /eos-folly
 
 RUN dnf install -y epel-release &&\
     dnf install --nogpg -y dnf-plugins-core gcc-c++ git cmake make python3 python3-setuptools rpm-build rpm-sign tar which
-RUN dnf install -y /eos-folly/RPMS/$(uname -m)/*
+RUN dnf install -y /eos-folly-deps/RPMS/$(uname -m)/* /eos-folly/RPMS/$(uname -m)/*
 
 RUN git submodule update --init --recursive
 RUN mkdir build
@@ -70,10 +73,13 @@ LABEL org.opencontainers.image.vendor='European Centre for Nuclear Research (CER
 # For the license format, refer to the SPDX format: https://spdx.org/licenses/
 LABEL org.opencontainers.image.licenses='GPL-3.0-only'
 
+COPY --from-eos-builder /eos-folly-deps /temp/eos-folly-deps
 COPY --from=eos-builder /eos-folly /temp/eos-folly
 COPY --from=eos-builder /eos /temp/eos
 
-RUN ls -l /temp/eos-folly/RPMS &&\
+RUN ls -l /temp/eos-folly-deps/RPMS &&\
+    echo "--------------------------" &&\
+    ls -l /temp/eos-folly/RPMS &&\
     echo "--------------------------" &&\
     ls -l /temp/eos/RPMS
-#RUN dnf install -y /temp/eos-folly/RPMS/$(uname -m)/* /temp/eos/RPMS/$(uname -m)/*
+#RUN dnf install -y /temp/eos-folly-deps/RPMS/$(uname -m)/* /temp/eos-folly/RPMS/$(uname -m)/* /temp/eos/RPMS/$(uname -m)/*
