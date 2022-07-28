@@ -370,6 +370,8 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
   const char* tident = error.getErrUser();
   eos::IFileMD::XAttrMap attrmapF;
   errno = 0;
+  eos::common::Timing tm("Open");
+  COMMONTIMING("begin", &tm);
   EXEC_TIMING_BEGIN("Open");
   XrdOucString spath = inpath;
   XrdOucString sinfo = ininfo;
@@ -524,6 +526,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
   unsigned long long byfid = 0;
   unsigned long long bypid = 0;
 
+  COMMONTIMING("fid::fetch", &tm);
   /* check paths starting with fid: fxid: ino: ... */
   if (spath.beginswith("fid:") || spath.beginswith("fxid:") ||
       spath.beginswith("ino:")) {
@@ -548,6 +551,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
                   "open - you specified a not existing inode number", path);
     }
   }
+  COMMONTIMING("fid::fetched", &tm);
 
   openOpaque = new XrdOucEnv(ininfo);
 
@@ -813,6 +817,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
     }
   }
 
+  COMMONTIMING("authorize", &tm);
   if (open_flag & O_CREAT) {
     AUTHORIZE(client, openOpaque, AOP_Create, "create", inpath, error);
   } else {
@@ -820,6 +825,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
               inpath, error);
     isRewrite = true;
   }
+  COMMONTIMING("authorized", &tm);
 
   eos::common::Path cPath(path);
   // indicate the scope for a possible token
@@ -867,6 +873,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
     isSharedFile = true;
   }
 
+  COMMONTIMING("container::fetch", &tm);
   // Get the directory meta data if it exists
   std::shared_ptr<eos::IContainerMD> dmd = nullptr;
   eos::IContainerMD::XAttrMap attrmap;
@@ -973,6 +980,8 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
       eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
                 e.getErrno(), e.getMessage().str().c_str());
     };
+
+    COMMONTIMING("container::fetched", &tm);
 
     // Check permissions
     if (!dmd) {
@@ -1320,6 +1329,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
         return Emsg(epname, error, ENOENT, "open file without creation flag", path);
       } else {
         // creation of a new file or isOcUpload
+        COMMONTIMING("write::begin", &tm);
         {
           // -------------------------------------------------------------------
           std::shared_ptr<eos::IFileMD> ref_fmd;
@@ -1424,6 +1434,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
 
           // -------------------------------------------------------------------
         }
+        COMMONTIMING("write::end", &tm);
 
         if (!fmd) {
           // creation failed
@@ -1946,7 +1957,9 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
       return Emsg(epname, error, EINVAL, "open - invalid placement argument", path);
     }
 
+    COMMONTIMING("Scheduler::FilePlacement", &tm);
     retc = Quota::FilePlacement(&plctargs);
+    COMMONTIMING("Scheduler::FilePlaced", &tm);
 
     // reshuffle the selectedfs by returning as first entry the lowest if the
     // sum of the fsid is odd the highest if the sum is even
@@ -2035,7 +2048,9 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
       return Emsg(epname, error, EINVAL, "open - invalid access argument", path);
     }
 
+    COMMONTIMING("Scheduler::FileAccess", &tm);
     retc = Scheduler::FileAccess(&acsargs);
+    COMMONTIMING("Scheduler::FileAccessed", &tm);
 
     if (acsargs.isRW) {
       // If this is an update, we don't have to send the client to cgi
@@ -2090,7 +2105,10 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
           return Emsg(epname, error, EINVAL, "open - invalid placement argument", path);
         }
 
+        COMMONTIMING("Scheduler::FilePlacement", &tm);
         retc = Quota::FilePlacement(&plctargs);
+        COMMONTIMING("Scheduler::FilePlaced", &tm);
+
         eos_info("msg=\"file-recreation due to offline/full locations\" path=%s retc=%d",
                  path, retc);
         isRecreation = true;
@@ -2719,7 +2737,10 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
         return Emsg(epname, error, EIO, "open - invalid placement argument", path);
       }
 
+      COMMONTIMING("Scheduler::FilePlacement", &tm);
       retc = Quota::FilePlacement(&plctargs);
+      COMMONTIMING("Scheduler::FilePlaced", &tm);
+
       LogSchedulingInfo(selectedfs, proxys, firewalleps);
 
       if (retc) {
@@ -3168,6 +3189,8 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
   }
 
   EXEC_TIMING_END("Open");
+  COMMONTIMING("end", &tm);
+
   char clientinfo[1024];
   snprintf(clientinfo, sizeof(clientinfo),
            "open:rt=%.02f io:bw=%s io:sched=%d io:type=%s io:prio=%s io:redirect=%s:%d",
@@ -3185,7 +3208,8 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
     return SFS_ERROR;
   }
 
-  eos_info("path=%s %s", path, clientinfo);
+  eos_info("path=%s %s duration=%0.03fms timing=%s",
+           path, clientinfo, tm.RealTime(), tm.Dump().c_str());
   return rcode;
 }
 
