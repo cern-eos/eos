@@ -17,6 +17,18 @@ Introduction
 This release is based on XRootD V5.
 
 
+``v5.0.29 Diopside``
+===================
+
+2022-07-29
+
+Bug
+----
+
+* Fix /usr/bin/python dependency on EL8(S) which is no longer provided by any package,
+  therefore we need to explicitly use /usr/bin/python3
+
+
 ``v5.0.28 Diopside``
 ===================
 
