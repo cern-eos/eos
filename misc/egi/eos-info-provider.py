@@ -1,4 +1,4 @@
-#!/usr/bin/python2
+#!/usr/bin/python3
 #-------------------------------------------------------------------------------
 # @file eos-info-provider.py
 # @author: Elvin-Alin Sindrilaru - CERN 2022

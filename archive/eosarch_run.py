@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/python3
 # ------------------------------------------------------------------------------
 # File: eosarch_run.py
 # Author: Elvin-Alin Sindrilaru <esindril@cern.ch>
