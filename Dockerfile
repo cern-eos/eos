@@ -49,7 +49,7 @@ RUN git submodule update --init --recursive
 RUN mkdir build
 WORKDIR build
 
-RUN cmake ../ -DPACKAGEONLY=1 -DCLIENT=1
+RUN cmake ../ -DPACKAGEONLY=1
 RUN make srpm VERBOSE=1
 WORKDIR /eos
 
