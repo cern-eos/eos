@@ -50,6 +50,7 @@ RUN mkdir build
 WORKDIR build
 
 RUN cmake ../ -Wno-dev -DPACKAGEONLY=1
+RUN ls -l .
 RUN make srpm VERBOSE=1
 WORKDIR /eos
 
