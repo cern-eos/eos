@@ -50,7 +50,7 @@ RUN mkdir build
 WORKDIR build
 
 RUN cmake ../ -DPACKAGEONLY=1 -DCLIENT=1
-RUN make srpm
+RUN make srpm VERBOSE=1
 WORKDIR /eos
 
 RUN dnf builddep --nogpgcheck --allowerasing -y build/SRPMS/*
