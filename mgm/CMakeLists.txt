@@ -217,6 +217,7 @@ add_library(
   Iostat.cc
   fsck/Fsck.cc
   fsck/FsckEntry.cc
+  utils/AttrHelper.cc
   utils/FileSystemRegistry.cc                  utils/FileSystemRegistry.hh
   utils/FilesystemUuidMapper.cc                utils/FilesystemUuidMapper.hh
   utils/FileSystemStatusUtils.cc
