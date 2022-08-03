@@ -402,6 +402,9 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
     EXEC_TIMING_END("IdMap");
   }
   gOFS->MgmStats.Add("IdMap", vid.uid, vid.gid, 1);
+
+  COMMONTIMING("IdMap", &tm);
+
   SetLogId(logId, vid, tident);
   NAMESPACEMAP;
   BOUNCE_ILLEGAL_NAMES;
@@ -870,7 +873,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
     isSharedFile = true;
   }
 
-  COMMONTIMING("container::fetch", &tm);
+  COMMONTIMING("path-computed", &tm);
   // Get the directory meta data if it exists
   eos::IContainerMD::XAttrMap attrmap;
   Acl acl;
