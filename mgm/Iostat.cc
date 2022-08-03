@@ -2970,7 +2970,7 @@ Iostat::LoadFromQdb()
   } catch (const std::exception& e) {
     eos_static_err("msg=\"failed getting entries from Qdb\", emsg=\"%s\"",
                    e.what());
-    return false;
+    return true;
   }
 
   qclient::HgetallParser mQdbRespParser(reply);
@@ -2994,7 +2994,7 @@ Iostat::LoadFromQdb()
 
   for (const auto& pair : stored_iostat) {
     if (!DecodeKey(pair.first, id_type, id_val, tag)) {
-      return false;
+      continue;
     }
 
     // Convert entries from string to numeric
@@ -3004,7 +3004,7 @@ Iostat::LoadFromQdb()
     } catch (...) {
       eos_static_err("msg=\"failed converting to numeric format\" key=\"%s\" "
                      "val=\"%s\"", pair.first.c_str(), pair.second.c_str());
-      return false;
+      continue;
     }
 
     if (id_type == USER_ID_TYPE) {
