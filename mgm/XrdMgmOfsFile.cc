@@ -1578,7 +1578,6 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
   std::string ioprio;
   std::string iotype;
   bool schedule = false;
-  eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
   // select space and layout according to policies
   Policy::GetLayoutAndSpace(path, attrmap, vid, new_lid, space, *openOpaque,
                             forcedFsId, forced_group, bandwidth, schedule, ioprio, iotype, isRW);
