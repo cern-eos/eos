@@ -909,15 +909,15 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
 
       if (dmd) {
         try {
+          std::string filePath = cPath.GetPath();
+
           if (ocUploadUuid.length()) {
             eos::common::Path aPath(cPath.GetAtomicPath(attrmap.count("sys.versioning"),
-                                    ocUploadUuid));
-            fmd = gOFS->eosView->getFile(aPath.GetPath());
-          } else {
-            fmd = gOFS->eosView->getFile(cPath.GetPath());
+                                                        ocUploadUuid));
+            filePath = aPath.GetPath();
           }
 
-          if (fmd) {
+          if (fmd = gOFS->eosView->getFile(filePath)) {
             /* in case of a hard link, may need to switch to target */
             /* A hard link to another file */
             if (fmd->hasAttribute(XrdMgmOfsFile::k_mdino)) {
@@ -1239,12 +1239,9 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
 
       if (versioning) {
         if (isAtomicUpload) {
-          eos::common::Path cPath(path);
-          XrdOucString vdir;
-          vdir += cPath.GetVersionDirectory();
           // atomic uploads need just to purge version to max-1, the version is created on commit
           // purge might return an error if the file was not yet existing/versioned
-          gOFS->PurgeVersion(vdir.c_str(), error, versioning - 1);
+          gOFS->PurgeVersion(cPath.GetVersionDirectory(), error, versioning - 1);
           errno = 0;
         } else {
           // handle the versioning for a specific file ID
