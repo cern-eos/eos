@@ -688,9 +688,10 @@ Server::FillContainerCAP(uint64_t id,
                 dir.attr().count("sys.eval.useracl"));
     }
 
-    if (sysacl.length() || useracl.length()) {
+    if (sysacl.length() || useracl.length() || vid.token) {
       bool evaluseracl = (!S_ISDIR(dir.mode())) ||
                          dir.attr().count("sys.eval.useracl") > 0;
+      vid.scope = dir.fullpath();
       Acl acl(sysacl,
               useracl,
               vid,
@@ -1009,6 +1010,7 @@ Server::ValidatePERM(const eos::fusex::md& md, const std::string& mode,
       x_ok = true;
     }
 
+    vid.scope = path;
     // ACL and permission check
     Acl acl(attrmap, vid);
     eos_info("acl=%d r=%d w=%d wo=%d x=%d egroup=%d mutable=%d",
@@ -1527,6 +1529,7 @@ Server::OpSetDirectory(const std::string& id,
 
       if (cmd->getCUid() != (uid_t)md.uid() /* a chown */ && !vid.sudoer &&
           (uid_t)md.uid() != vid.uid) {
+	vid.scope = gOFS->eosView->getUri(cmd.get());
         /* chown is under control of container sys.acl only, if a vanilla user chowns to other than themselves */
         Acl acl;
         attrmap = cmd->getAttributes();
@@ -2057,6 +2060,7 @@ Server::OpSetFile(const std::string& id,
 
       if (fmd->getCUid() != (uid_t)md.uid() /* a chown */ && !vid.sudoer &&
           (uid_t)md.uid() != vid.uid) {
+	vid.scope = gOFS->eosView->getUri(pcmd.get());
         /* chown is under control of container sys.acl only, if a vanilla user chowns to other than themselves */
         Acl acl;
         attrmap = pcmd->getAttributes();
