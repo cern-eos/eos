@@ -352,6 +352,36 @@ public:
           eos::common::VirtualIdentity& vid,
           const char* opaque = 0, bool take_lock = true);
 
+  /*----------------------------------------------------------------------------*/
+  /*
+   * @brief check for the existence of a file or directory by vid whilst
+   *        populating the file or container metadata if non empty
+   *
+   * @param path path to check
+   * @param file_exists return the type of the checked path
+   * @param vid virtual identity of the client
+   * @param cmd Container MD (out param)
+   * @param fmd File MD (out param)
+   * @param ininfo CGI
+   * @param take_lock  hold the FSView lock
+   * @return SFS_OK if found otherwise SFS_ERROR
+   *
+   * The values of file_exists are:
+   * XrdSfsFileExistIsDirectory - this is a directory
+   * XrdSfsFileExistIsFile - this is a file
+   * XrdSfsFileExistNo - this is neither a file nor a directory
+   *
+   */
+  /*----------------------------------------------------------------------------*/
+  int
+  _exists(const char* fileName,
+          XrdSfsFileExistence& exists_flag,
+          XrdOucErrInfo& out_error,
+          eos::common::VirtualIdentity& vid,
+          std::shared_ptr<eos::IContainerMD>& container_md_ptr,
+          std::shared_ptr<eos::IFileMD>& file_md_ptr,
+          const char* opaque = 0, bool take_lock = true);
+
   // ---------------------------------------------------------------------------
   // EOS plugin call fan-out function
   // ---------------------------------------------------------------------------
