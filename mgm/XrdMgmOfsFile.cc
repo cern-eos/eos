@@ -830,11 +830,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
   eos::common::Path cPath(path);
   // indicate the scope for a possible token
   TOKEN_SCOPE;
-
-  if (cPath.isAtomicFile()) {
-    isAtomicName = true;
-  }
-
+  isAtomicName = cPath.isAtomicFile();
   // prevent any access to a recycling bin for writes
   if (isRW && cPath.GetFullPath().beginswith(Recycle::gRecyclingPrefix.c_str())) {
     return Emsg(epname, error, EPERM,
