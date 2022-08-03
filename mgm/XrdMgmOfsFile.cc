@@ -837,13 +837,15 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
                 "open file - nobody can write to a recycling bin",
                 cPath.GetParentPath());
   }
+  std::shared_ptr<eos::IContainerMD> dmd;
 
   // check if we have to create the full path
   if (Mode & SFS_O_MKPTH) {
     eos_debug("%s", "msg=\"SFS_O_MKPTH was requested\"");
     XrdSfsFileExistence file_exists;
-    int ec = gOFS->_exists(cPath.GetParentPath(), file_exists, error, vid, 0);
-
+    std::shared_ptr<eos::IFileMD> _fmd;
+    int ec = gOFS->_exists(cPath.GetParentPath(), file_exists,
+                           error, vid, dmd, _fmd, 0, true);
     // check if that is a file
     if ((!ec) && (file_exists != XrdSfsFileExistNo) &&
         (file_exists != XrdSfsFileExistIsDirectory)) {
@@ -871,7 +873,6 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
 
   COMMONTIMING("container::fetch", &tm);
   // Get the directory meta data if it exists
-  std::shared_ptr<eos::IContainerMD> dmd = nullptr;
   eos::IContainerMD::XAttrMap attrmap;
   Acl acl;
   Workflow workflow;
@@ -892,7 +893,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
     try {
       if (byfid) {
         dmd = gOFS->eosDirectoryService->getContainerMD(bypid);
-      } else {
+      } else if (!dmd) {
         dmd = gOFS->eosView->getContainer(cPath.GetParentPath());
       }
 
