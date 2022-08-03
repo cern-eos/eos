@@ -48,6 +48,7 @@
 #include "mgm/ZMQ.hh"
 #include "mgm/Master.hh"
 #include "mgm/tgc/MultiSpaceTapeGc.hh"
+#include "mgm/utils/AttrHelper.hh"
 #include "namespace/utils/Attributes.hh"
 #include "namespace/Prefetcher.hh"
 #include "namespace/Resolver.hh"
@@ -1042,36 +1043,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
       return Emsg(epname, error, errno, "open file", path);
     }
 
-    // -------------------------------------------------------------------------
-    // Check for sys.ownerauth entries, which let people operate as the owner of
-    // the directory
-    // -------------------------------------------------------------------------
-    bool sticky_owner = false;
-
-    if (attrmap.count("sys.owner.auth")) {
-      if (attrmap["sys.owner.auth"] == "*") {
-        sticky_owner = true;
-      } else {
-        attrmap["sys.owner.auth"] += ",";
-        std::string ownerkey = vid.prot.c_str();
-        ownerkey += ":";
-
-        if (vid.prot == "gsi") {
-          ownerkey += vid.dn;
-        } else {
-          ownerkey += vid.uid_string;
-        }
-
-        if ((attrmap["sys.owner.auth"].find(ownerkey)) != std::string::npos) {
-          eos_info("msg=\"client authenticated as directory owner\" path=\"%s\"uid=\"%u=>%u\" gid=\"%u=>%u\"",
-                   path, vid.uid, vid.gid, d_uid, d_gid);
-          // yes the client can operate as the owner, we rewrite the virtual
-          // identity to the directory uid/gid pair
-          vid.uid = d_uid;
-          vid.gid = d_gid;
-        }
-      }
-    }
+    bool sticky_owner = attr::checkStickyDirOwner(attrmap, d_uid, d_gid, vid, path);
 
     // -------------------------------------------------------------------------
     // ACL and permission check

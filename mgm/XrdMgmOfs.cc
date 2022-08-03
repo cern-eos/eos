@@ -119,6 +119,7 @@
 #include "mgm/bulk-request/utils/json/QueryPrepareResponseJson.hh"
 #include "mgm/http/rest-api/handler/tape/TapeRestHandler.hh"
 #include "mgm/http/rest-api/manager/RestApiManager.hh"
+#include "mgm/utils/AttrHelper.hh"
 
 #ifdef __APPLE__
 #define ECOMM 70
