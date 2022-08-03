@@ -205,6 +205,8 @@ XrdMgmOfs::_exists(const char* path,
                    XrdSfsFileExistence& file_exists,
                    XrdOucErrInfo& error,
                    eos::common::VirtualIdentity& vid,
+                   std::shared_ptr<eos::IContainerMD>& cmd,
+                   std::shared_ptr<eos::IFileMD>& fmd,
                    const char* ininfo, bool take_lock)
 /*----------------------------------------------------------------------------*/
 /*
@@ -213,7 +215,10 @@ XrdMgmOfs::_exists(const char* path,
  * @param path path to check
  * @param file_exists return the type of the checked path
  * @param vid virtual identity of the client
+ * @param cmd Container MD (out param)
+ * @param fmd File MD (out param)
  * @param ininfo CGI
+ * @param take_lock  hold the FSView lock
  * @return SFS_OK if found otherwise SFS_ERROR
  *
  * The values of file_exists are:
@@ -226,7 +231,6 @@ XrdMgmOfs::_exists(const char* path,
 {
   EXEC_TIMING_BEGIN("Exists");
   gOFS->MgmStats.Add("Exists", vid.uid, vid.gid, 1);
-  std::shared_ptr<eos::IContainerMD> cmd;
   // try if that is directory
   {
     // -------------------------------------------------------------------------
@@ -251,7 +255,6 @@ XrdMgmOfs::_exists(const char* path,
   if (!cmd) {
     // try if that is a file
     // -------------------------------------------------------------------------
-    std::shared_ptr<eos::IFileMD> fmd;
     eos::common::RWMutexReadLock ns_rd_lock;
     eos::Prefetcher::prefetchFileMDAndWait(gOFS->eosView, path, false);
 
@@ -279,4 +282,33 @@ XrdMgmOfs::_exists(const char* path,
 
   EXEC_TIMING_END("Exists");
   return SFS_OK;
+}
+
+/*----------------------------------------------------------------------------*/
+/*
+ * @brief check for the existence of a file or directory by vid
+ *
+ * @param path path to check
+ * @param file_exists return the type of the checked path
+ * @param vid virtual identity of the client
+ * @param ininfo CGI
+ * @return SFS_OK if found otherwise SFS_ERROR
+ *
+ * The values of file_exists are:
+ * XrdSfsFileExistIsDirectory - this is a directory
+ * XrdSfsFileExistIsFile - this is a file
+ * XrdSfsFileExistNo - this is neither a file nor a directory
+ *
+ */
+/*----------------------------------------------------------------------------*/
+int
+XrdMgmOfs::_exists(const char* fileName,
+                   XrdSfsFileExistence& exists_flag,
+                   XrdOucErrInfo& out_error,
+                   eos::common::VirtualIdentity& vid,
+                   const char* opaque, bool take_lock)
+{
+  std::shared_ptr<eos::IContainerMD> cmd;
+  std::shared_ptr<eos::IFileMD> fmd;
+  return _exists(fileName, exists_flag, out_error, vid, cmd, fmd, opaque, take_lock);
 }
