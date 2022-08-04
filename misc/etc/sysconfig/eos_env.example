@@ -174,7 +174,7 @@ EOS_NOTIFY="mail -s `date +%s`-`hostname`-eos-notify $EOS_MAIL_CC"
 # When asynchronous callback on close is enabled, one can use the following env
 # variable to control the minimum size of files for which this gets triggered.
 # If not specified then the values is 0 bytes.
-# EOS_FST_MIN_SIZE_BYTES_ASYNC_CLOSE=0
+# EOS_FST_ASYNC_CLOSE_MIN_SIZE_BYTES=0
 
 # Enable caching of leveldb info in memory to speed up scanning operations
 # for fsck inconsistencies

@@ -451,6 +451,7 @@ public:
   int mTpcRetc; ///< TPC job return code
   std::atomic<bool> mTpcCancel; ///< Mark TPC cancellation request
   uint16_t mTimeout; ///< timeout for layout operations
+  std::string mProtocol; ///< Access protocol xrd/http
 
   //----------------------------------------------------------------------------
   //! Get configured minimum file size for which the asynchronous close method
@@ -458,7 +459,14 @@ public:
   //!
   //! @return min file size
   //----------------------------------------------------------------------------
-  static uint64_t GetMinSizeAsyncClose();
+  static uint64_t GetAsyncCloseMinSize();
+
+  //----------------------------------------------------------------------------
+  //! Check if async close is enabled
+  //!
+  //! @return true if enabled, otherwise false
+  //----------------------------------------------------------------------------
+  static bool IsAsyncCloseEnabled();
 
   //----------------------------------------------------------------------------
   //! Get hostname from tident. This is used when checking the origin match for

@@ -1338,7 +1338,7 @@ int
 XrdFstOfsFile::close()
 {
   if (gOFS.mSimUnresponsive) {
-    eos_warning("simulating unresponsiveness in close delaying by 120s");
+    eos_warning("%s", "msg=\"simulating unresponsiveness unsing 120s delay\"");
     std::this_thread::sleep_for(std::chrono::seconds(120));
   }
 
@@ -1347,16 +1347,18 @@ XrdFstOfsFile::close()
   // the current object. This was confusing when logging the error.getErrInfo()
   // value at the end of the close.
   error.setErrCode(0);
-  const char* ptr = getenv("EOS_FST_ASYNC_CLOSE");
+  static bool enabled_async_close = IsAsyncCloseEnabled();
 
-  if (!ptr || (strncmp(ptr, "1", 1) != 0)) {
+  if (!enabled_async_close) {
     return _close();
   }
 
-  static uint64_t min_size_async_close = GetMinSizeAsyncClose();
+  static uint64_t min_size_async_close = GetAsyncCloseMinSize();
 
-  // Close happening the in the same XRootD thread
+  // Even if async close is enabled there are some cases when close happens in
+  // the same XRootD thread
   if (viaDelete || mWrDelete || mIsDevNull || (mIsRW == false) ||
+      (strncmp(mProtocol.c_str(), "http", 4) == 0) || // HTTP access
       (mIsRW && (mMaxOffsetWritten <= min_size_async_close))) {
     return _close();
   }
@@ -2875,6 +2877,7 @@ int
 XrdFstOfsFile::ProcessTpcOpaque(std::string& opaque, const XrdSecEntity* client)
 {
   EPNAME(__FUNCTION__);
+  mProtocol = client->prot ? client->prot : "";
   eos::common::StringConversion::ReplaceStringInPlace(opaque, "?", "&");
   eos::common::StringConversion::ReplaceStringInPlace(opaque, "&&", "&");
   XrdOucEnv env(opaque.c_str());
@@ -4050,21 +4053,36 @@ XrdFstOfsFile::GetHostFromTident(const std::string& tident,
   return true;
 }
 
-//----------------------------------------------------------------------------
-//! Get configured minimum file size for which the asynchronous close method
-//! is called.
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
+// Check if async close is enabled
+//------------------------------------------------------------------------------
+bool
+XrdFstOfsFile::IsAsyncCloseEnabled()
+{
+  const char* ptr = getenv("EOS_FST_ASYNC_CLOSE");
+
+  if (!ptr || (strncmp(ptr, "1", 1) != 0)) {
+    return false;
+  }
+
+  return true;
+}
+
+//------------------------------------------------------------------------------
+// Get configured minimum file size for which the asynchronous close method
+// is called.
+//------------------------------------------------------------------------------
 uint64_t
-XrdFstOfsFile::GetMinSizeAsyncClose()
+XrdFstOfsFile::GetAsyncCloseMinSize()
 {
   uint64_t min_size_async_close = 0ull;
-  const char* ptr = getenv("EOS_FST_MIN_SIZE_BYTES_ASYNC_CLOSE");
+  const char* ptr = getenv("EOS_FST_ASYNC_CLOSE_MIN_SIZE_BYTES");
 
   if (ptr) {
     if (!eos::common::StringToNumeric(std::string(ptr), min_size_async_close,
                                       0ul)) {
       eos_static_err("%s", "msg=\"failed to convert "
-                     "EOS_FST_MIN_SIZE_BYTES_ASYNC_CLOSE, using by default 0\"");
+                     "EOS_ASYNC_CLOSE_MIN_SIZE_BYTES, using by default 0\"");
     }
   }
 
