@@ -1156,35 +1156,14 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
     }
   }
 
-  // Set the versioning depth if it is defined
-  if (attrmap.count("sys.versioning")) {
-    versioning = atoi(attrmap["sys.versioning"].c_str());
-  } else {
-    if (attrmap.count("user.versioning")) {
-      versioning = atoi(attrmap["user.versioning"].c_str());
-    }
-  }
+  // check for versioning depth, cgi overrides sys & user attributes
+  versioning = attr::getVersioning(attrmap, versioning_cgi);
 
-  // get user desired versioning
-  if (versioning_cgi.length()) {
-    versioning = atoi(versioning_cgi.c_str());
-  }
+  // check for atomic uploads only in non fuse clients
+  isAtomicUpload = !isFuse && attr::checkAtomicUpload(attrmap, openOpaque->Get("eos.atomic"));
 
-  if (attrmap.count("sys.forced.atomic")) {
-    isAtomicUpload = atoi(attrmap["sys.forced.atomic"].c_str());
-  } else {
-    if (attrmap.count("user.forced.atomic")) {
-      isAtomicUpload = atoi(attrmap["user.forced.atomic"].c_str());
-    } else {
-      if (openOpaque->Get("eos.atomic")) {
-        isAtomicUpload = true;
-      }
-    }
-  }
-
-  if (openOpaque->Get("eos.injection")) {
-    isInjection = true;
-  }
+  // check for injection in non fuse clients with cgi
+  isInjection = !isFuse && openOpaque->Get("eos.injection");
 
   if (openOpaque->Get("eos.repair")) {
     isRepair = true;
@@ -1192,16 +1171,6 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
 
   if (openOpaque->Get("eos.repairread")) {
     isRepairRead = true;
-  }
-
-  // disable atomic uploads for FUSE clients
-  if (isFuse) {
-    isAtomicUpload = false;
-  }
-
-  // disable injection in fuse clients
-  if (isFuse) {
-    isInjection = false;
   }
 
   // Short-cut to block multi-source access to EC files
