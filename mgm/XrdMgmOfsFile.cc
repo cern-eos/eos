@@ -1276,7 +1276,6 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
           try {
             // we create files with the uid/gid of the parent directory
             if (isAtomicUpload) {
-              eos::common::Path cPath(path);
               creation_path = cPath.GetAtomicPath(versioning, ocUploadUuid);
               eos_info("atomic-path=%s", creation_path.c_str());
 
@@ -1395,34 +1394,33 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
       // check if there is a redirect or stall for missing entries
       MAYREDIRECT_ENOENT;
       MAYSTALL_ENOENT;
-    }
 
-    if ((!fmd) && (attrmap.count("sys.redirect.enoent"))) {
+      if (auto redirect_kv = attrmap.find("sys.redirect.enoent");
+          redirect_kv != attrmap.end()) {
       // there is a redirection setting here
-      redirectionhost = "";
-      redirectionhost = attrmap["sys.redirect.enoent"].c_str();
-      int portpos = 0;
+        redirectionhost = "";
+        redirectionhost = redirect_kv->second.c_str();
+        int portpos = 0;
 
-      if ((portpos = redirectionhost.find(":")) != STR_NPOS) {
-        XrdOucString port = redirectionhost;
-        port.erase(0, portpos + 1);
-        ecode = atoi(port.c_str());
-        redirectionhost.erase(portpos);
-      } else {
-        ecode = 1094;
+        if ((portpos = redirectionhost.find(":")) != STR_NPOS) {
+          XrdOucString port = redirectionhost;
+          port.erase(0, portpos + 1);
+          ecode = atoi(port.c_str());
+          redirectionhost.erase(portpos);
+        } else {
+          ecode = 1094;
+        }
+
+        if (!gOFS->SetRedirectionInfo(error, redirectionhost.c_str(), ecode)) {
+          eos_err("msg=\"failed setting redirection\" path=\"%s\"", path);
+          return SFS_ERROR;
+        }
+
+        rcode = SFS_REDIRECT;
+        gOFS->MgmStats.Add("RedirectENOENT", vid.uid, vid.gid, 1);
+        return rcode;
       }
 
-      if (!gOFS->SetRedirectionInfo(error, redirectionhost.c_str(), ecode)) {
-        eos_err("msg=\"failed setting redirection\" path=\"%s\"", path);
-        return SFS_ERROR;
-      }
-
-      rcode = SFS_REDIRECT;
-      gOFS->MgmStats.Add("RedirectENOENT", vid.uid, vid.gid, 1);
-      return rcode;
-    }
-
-    if (!fmd) {
       gOFS->MgmStats.Add("OpenFailedENOENT", vid.uid, vid.gid, 1);
       return Emsg(epname, error, errno, "open file", path);
     }
