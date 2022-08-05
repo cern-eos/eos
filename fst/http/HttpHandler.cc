@@ -102,12 +102,12 @@ HttpHandler::HandleRequest(eos::common::HttpRequest* request)
         }
       }
 
-      // avoid truncation of chunked uploads
+      // Avoid truncation of chunked uploads
       if (!request->GetHeaders().count("oc-chunked") &&
           !request->GetHeaders().count("x-upload-range")) {
         open_mode |= SFS_O_TRUNC;
       } else {
-        eos_static_info("removing truncation flag");
+        eos_static_info("%s", "msg=\"removing truncation flag\"");
       }
 
       open_mode |= SFS_O_RDWR;
