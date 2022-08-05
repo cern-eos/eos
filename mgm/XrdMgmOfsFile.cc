@@ -1517,9 +1517,12 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
   std::string ioprio;
   std::string iotype;
   bool schedule = false;
+
   // select space and layout according to policies
+  COMMONTIMING("Policy::begin", &tm);
   Policy::GetLayoutAndSpace(path, attrmap, vid, new_lid, space, *openOpaque,
-                            forcedFsId, forced_group, bandwidth, schedule, ioprio, iotype, isRW);
+                            forcedFsId, forced_group, bandwidth, schedule, ioprio, iotype, isRW, true);
+  COMMONTIMING("Policy::end", &tm);
 
   // do a local redirect here if there is only one replica attached
   if (!isRW && !isPio && (fmd->getNumLocation() == 1) &&
@@ -1536,8 +1539,13 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
     } else {
       eos::common::FileSystem::fs_snapshot_t local_snapshot;
       unsigned int local_id = fmd->getLocation(0);
-      eos::mgm::FileSystem* local_fs = FsView::gFsView.mIdView.lookupByID(local_id);
-      local_fs->SnapShotFileSystem(local_snapshot);
+
+      {
+        eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
+        eos::mgm::FileSystem* local_fs = FsView::gFsView.mIdView.lookupByID(local_id);
+        local_fs->SnapShotFileSystem(local_snapshot);
+      }
+
       // compute the local path
       std::string local_path = eos::common::FileId::FidPrefix2FullPath(
                                  eos::common::FileId::Fid2Hex(fmd->getId()).c_str(),
