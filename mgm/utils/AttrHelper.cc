@@ -1,6 +1,7 @@
 #include "mgm/utils/AttrHelper.hh"
 #include "mgm/Constants.hh"
 #include "common/Logging.hh"
+#include "common/StringUtils.hh"
 
 namespace eos::mgm::attr {
 
@@ -45,5 +46,39 @@ checkStickyDirOwner(const eos::IContainerMD::XAttrMap& attrmap,
 
 }
 
+bool checkAtomicUpload(const eos::IContainerMD::XAttrMap& attrmap, const char* atomic_cgi)
+{
+  int isAtomic(0);
+  if (const auto& kv = attrmap.find(SYS_FORCED_ATOMIC);
+      kv != attrmap.end()) {
+    // This should return true for values > 0
+    eos::common::StringToNumeric(kv->second, isAtomic);
+  } else if (const auto& kv = attrmap.find(USER_FORCED_ATOMIC);
+             kv != attrmap.end()) {
+    eos::common::StringToNumeric(kv->second, isAtomic);
+  } else if (atomic_cgi) {
+    return true;
+  }
+  return isAtomic;
+}
+
+int getVersioning(const eos::IContainerMD::XAttrMap& attrmap, std::string_view versioning_cgi)
+{
+  int versioning {0};
+  if (versioning_cgi.length()) {
+    eos::common::StringToNumeric(versioning_cgi, versioning);
+    return versioning;
+  }
+
+  if (const auto& kv = attrmap.find(SYS_VERSIONING);
+      kv != attrmap.end()) {
+    eos::common::StringToNumeric(kv->second, versioning, (int)0);
+  } else if (const auto& kv = attrmap.find(USER_VERSIONING);
+             kv != attrmap.end()) {
+    eos::common::StringToNumeric(kv->second, versioning, (int)0);
+  }
+  return versioning;
+
+}
 
 } // namespace eos::mgm::attr

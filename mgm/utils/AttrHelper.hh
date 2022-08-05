@@ -42,6 +42,25 @@ bool checkStickyDirOwner(const eos::IContainerMD::XAttrMap& attrmap,
                          gid_t d_gid,
                          eos::common::VirtualIdentity& vid,
                          const char* path);
+/*!
+ * Check for Atomic Uploads
+ * Atomic uploads follow the evaluation order sys.attribute > user.attribute > cgi
+ * The CGI is evaluated only if both sys and user attributes are not present
+ * @param attrmap map of xattrs
+ * @param atomic_cgi cgi from env
+ * @return bool status of atomic upload
+ */
+bool checkAtomicUpload(const eos::IContainerMD::XAttrMap& attrmap,
+                       const char* atomic_cgi = nullptr);
 
+/*!
+ * Check for versioing attribute
+ * Versioning follows the evaluation order cgi > sys.attribute > user.attribute
+ * @param attrmap map of xattrs
+ * @param versioning_cgi string_view of versioning cgi
+ * @return versioning int
+ */
+int getVersioning(const eos::IContainerMD::XAttrMap& attrmap,
+                  std::string_view versioning_cgi = {});
 
 } // eos::mgm::attr
