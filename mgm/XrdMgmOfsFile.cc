@@ -1644,10 +1644,9 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
     layoutId = new_lid;
     {
       std::shared_ptr<eos::IFileMD> fmdnew;
-      eos::common::RWMutexWriteLock ns_wr_lock(gOFS->eosViewRWMutex);
-
       if (!byfid) {
         try {
+          eos::common::RWMutexWriteLock ns_rd_lock(gOFS->eosViewRWMutex);
           fmdnew = gOFS->eosView->getFile(path);
         } catch (eos::MDException& e) {
           if ((!isAtomicUpload) && (fmdnew != fmd)) {
@@ -1712,6 +1711,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
       }
 
       try {
+        eos::common::RWMutexWriteLock ns_wr_lock(gOFS->eosViewRWMutex);
         eos::FileIdentifier fmd_id = fmd->getIdentifier();
         gOFS->eosView->updateFileStore(fmd.get());
         std::shared_ptr<eos::IContainerMD> cmd =
