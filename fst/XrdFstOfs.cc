@@ -1993,7 +1993,12 @@ XrdFstOfs::HandleFsck(XrdOucEnv& env, XrdOucErrInfo& err_obj)
 {
   if (!FmdOnDb()) {
     eos_notice("%s", "msg=\"fsck moved to QDB\"");
-    return SFS_OK;
+    // @todo(esindril) once xrootd bug regarding handling of SFS_OK response
+    // in XrdXrootdXeq is fixed we can just return SFS_OK (>= XRootD 5)
+    // return SFS_OK;
+    const char* done = "";
+    err_obj.setErrInfo(strlen(done) + 1, done);
+    return SFS_DATA;
   }
 
   std::string response;

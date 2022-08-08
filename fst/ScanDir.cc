@@ -1042,16 +1042,15 @@ ScanDir::PushToQdb(std::map<std::string,
   qclient::QSet fsck_set(*gOFS.mFsckQcl, "");
 
   for (const auto& elem : fidset) {
-    std::string sfid;
-    std::list<std::string> list_sfids;
+    std::list<std::string> values; // contains fid:fsid entries
 
     for (auto& fid : elem.second) {
-      list_sfids.push_back(std::to_string(fid));
+      values.push_back(SSTR(fid << ":" << mFsId));
     }
 
-    if (!list_sfids.empty()) {
-      fsck_set.setKey(SSTR("fsck:" << mFsId << ":" << elem.first).c_str());
-      fsck_set.sadd_async(list_sfids, &ah);
+    if (!values.empty()) {
+      fsck_set.setKey(SSTR("fsck:" << elem.first).c_str());
+      fsck_set.sadd_async(values, &ah);
     }
   }
 

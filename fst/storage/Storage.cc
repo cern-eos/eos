@@ -438,19 +438,21 @@ Storage::Boot(FileSystem* fs)
 
   // Attach to the local DB if we deal with DB
   if (gOFS.FmdOnDb()) {
-    auto *fmd_handler = static_cast<FmdDbMapHandler*>(gOFS.mFmdHandler.get());
+    auto* fmd_handler = static_cast<FmdDbMapHandler*>(gOFS.mFmdHandler.get());
+
     if (!fmd_handler->SetDBFile(metadir.c_str(), fsid)) {
       fs->SetStatus(eos::common::BootStatus::kBootFailure);
       fs->SetError(EFAULT, "cannot set DB filename - see the fst logfile "
-                           "for details");
+                   "for details");
       return;
     }
   } else {
     auto db_handler = std::make_unique<FmdDbMapHandler>();
+
     if (!db_handler->SetDBFile(metadir.c_str(), fsid)) {
       fs->SetStatus(eos::common::BootStatus::kBootFailure);
       fs->SetError(EFAULT, "cannot set DB filename - see the fst logfile "
-                           "for details");
+                   "for details");
       return;
     }
 
@@ -458,7 +460,6 @@ Storage::Boot(FileSystem* fs)
                                      fs->GetLongLong("fmdconvertthreads"));
     converter.ConvertFS(GetStoragePath(fsid), fsid);
   }
-
 
   bool resyncmgm = (fs->GetLongLong("bootcheck") ==
                     eos::common::FileSystem::kBootResync);
@@ -473,7 +474,8 @@ Storage::Boot(FileSystem* fs)
   if (resyncdisk && (fs->GetPath()[0] == '/')) {
     if (resyncmgm) {
       if (gOFS.FmdOnDb()) {
-        auto *fmd_handler = static_cast<FmdDbMapHandler*>(gOFS.mFmdHandler.get());
+        auto* fmd_handler = static_cast<FmdDbMapHandler*>(gOFS.mFmdHandler.get());
+
         if (!fmd_handler->ResetDB(fsid)) {
           fs->SetStatus(eos::common::BootStatus::kBootFailure);
           fs->SetError(EFAULT, "cannot clean DB on local disk");
@@ -862,6 +864,10 @@ Storage::GetFileSystemConfig(eos::common::FileSystem::fsid_t fsid,
 bool
 Storage::UpdateInconsistencyInfo(eos::common::FileSystem::fsid_t fsid)
 {
+  if (!gOFS.FmdOnDb()) {
+    return true;
+  }
+
   eos::common::RWMutexReadLock fs_rd_lock(mFsMutex);
   FileSystem* fs = GetFileSystemById(fsid);
 
