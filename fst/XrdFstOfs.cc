@@ -666,7 +666,6 @@ XrdFstOfs::Configure(XrdSysError& Eroute, XrdOucEnv* envP)
           Eroute.Say("=====> fstofs.mq_implementation : ", value.c_str());
         }
 
-
         if (!strcmp("filemd_handler", var)) {
           std::string value;
 
@@ -683,7 +682,6 @@ XrdFstOfs::Configure(XrdSysError& Eroute, XrdOucEnv* envP)
           }
 
           Eroute.Say("=====> fstofs.filemd_handler : ", value.c_str());
-
         }
       }
     }
@@ -905,7 +903,6 @@ XrdFstOfs::Configure(XrdSysError& Eroute, XrdOucEnv* envP)
   eos_notice("FST_HOST=%s FST_PORT=%ld FST_HTTP_PORT=%d VERSION=%s RELEASE=%s "
              "KEYTABADLER=%s", mHostName, myPort, mHttpdPort, VERSION, RELEASE,
              kt_cks.c_str());
-
   return 0;
 }
 
@@ -923,26 +920,33 @@ XrdFstOfs::SetSimulationError(const std::string& input)
   if (input.find("io_read") == 0) {
     mSimIoReadErr = true;
     mSimErrIoReadOff = GetSimulationErrorOffset(input);
-  } 
+  }
+
   if (input.find("io_write") == 0) {
     mSimIoWriteErr = true;
     mSimErrIoWriteOff = GetSimulationErrorOffset(input);
-  } 
+  }
+
   if (input.find("xs_read") == 0) {
     mSimXsReadErr = true;
-  } 
+  }
+
   if (input.find("xs_write") == 0) {
     mSimXsWriteErr = true;
-  } 
+  }
+
   if (input.find("fmd_open") == 0) {
     mSimFmdOpenErr = true;
-  } 
+  }
+
   if (input.find("fake_write") == 0) {
     mSimDiskWriting = true;
-  } 
+  }
+
   if (input.find("close") == 0) {
     mSimCloseErr = true;
-  } 
+  }
+
   if (input.find("unresponsive") == 0) {
     mSimUnresponsive = true;
   }
@@ -1987,6 +1991,11 @@ XrdFstOfs::HandleDebug(XrdOucEnv& env, XrdOucErrInfo& err_obj)
 int
 XrdFstOfs::HandleFsck(XrdOucEnv& env, XrdOucErrInfo& err_obj)
 {
+  if (!FmdOnDb()) {
+    eos_notice("%s", "msg=\"fsck moved to QDB\"");
+    return SFS_OK;
+  }
+
   std::string response;
   response.reserve(4 * eos::common::MB);
   size_t max_sz = mXrdBuffPool.MaxSize() - 2 * eos::common::MB;
@@ -2096,7 +2105,6 @@ XrdFstOfs::HandleResync(XrdOucEnv& env, XrdOucErrInfo& err_obj)
         if (mFmdHandler->ResyncDisk(fpath.c_str(), fsid, false) == 0) {
           if (mFmdHandler->ResyncMgm(fsid, fid, nullptr)) {
             eos_static_err("msg=\"resync mgm failed\" fid=%08llx fsid=%lu",
-
                            fid, fsid);
           }
         } else {
@@ -2581,7 +2589,7 @@ XrdFstOfs::DoResync(XrdOucEnv& env)
 
           if (mFmdHandler->ResyncDisk(fpath.c_str(), fsid, false) == 0) {
             if (mFmdHandler->ResyncFileFromQdb(fid, fsid, fpath,
-                                                   gOFS.mFsckQcl) == 0) {
+                                               gOFS.mFsckQcl) == 0) {
               return;
             } else {
               eos_static_err("msg=\"resync qdb failed\" fid=%08llx fsid=%lu",
@@ -2683,11 +2691,13 @@ XrdFstOfs::SetXrdClTimeouts()
   }
 }
 
-bool
-XrdFstOfs::FmdOnDb() const
+//------------------------------------------------------------------------------
+// Check if FMD entries are stored in the local leveldb
+//------------------------------------------------------------------------------
+bool XrdFstOfs::FmdOnDb() const
 {
-
-  return (mFmdHandler != nullptr) && (mFmdHandler->get_type() == fmd_handler_t::DB);
+  return ((mFmdHandler != nullptr) &&
+          (mFmdHandler->get_type() == fmd_handler_t::DB));
 }
 
 EOSFSTNAMESPACE_END

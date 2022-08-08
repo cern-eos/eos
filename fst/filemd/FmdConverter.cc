@@ -4,6 +4,7 @@
 #include "common/Logging.hh"
 #include "fst/utils/FSPathHandler.hh"
 #include "fst/utils/StdFSWalkTree.hh"
+#include "fst/utils/FTSWalkTree.hh"
 #include <folly/executors/IOThreadPoolExecutor.h>
 #include "common/StringUtils.hh"
 
@@ -15,8 +16,10 @@ FmdConverter::FmdConverter(FmdHandler* src_handler,
                            FmdHandler* tgt_handler,
                            size_t per_disk_pool) :
   mSrcFmdHandler(src_handler), mTgtFmdHandler(tgt_handler),
-  mExecutor(std::make_unique<folly::IOThreadPoolExecutor>(std::clamp(per_disk_pool, MIN_FMDCONVERTER_THREADS, MAX_FMDCONVERTER_THREADS))),
-  mDoneHandler(std::make_unique<FileFSConversionDoneHandler>(ATTR_CONVERSION_DONE_FILE))
+  mExecutor(std::make_unique<folly::IOThreadPoolExecutor>(std::clamp(
+              per_disk_pool, MIN_FMDCONVERTER_THREADS, MAX_FMDCONVERTER_THREADS))),
+  mDoneHandler(std::make_unique<FileFSConversionDoneHandler>
+               (ATTR_CONVERSION_DONE_FILE))
 {}
 
 
@@ -38,6 +41,7 @@ FmdConverter::ConvertFS(std::string_view fspath,
                         eos::common::FileSystem::fsid_t fsid)
 {
   std::error_code ec;
+
   if (mDoneHandler->isFSConverted(fspath)) {
     return;
   }
@@ -48,8 +52,9 @@ FmdConverter::ConvertFS(std::string_view fspath,
   }
 
   eos_static_info("msg=\"Starting Conversion for fsid=%u\"", fsid);
-
-  auto count = stdfs::WalkFSTree(fspath, [this, fsid](std::string path) {
+  auto count = stdfs::WalkFSTree(std::string(fspath), [this,
+  fsid](std::string path) {
+    eos_static_info("msg=\"calling WalkFSTree\" path=%s", path.c_str());
     this->Convert(fsid, path)
     .via(mExecutor.get())
     .thenValue([path = std::move(path)](bool status) {
@@ -93,9 +98,11 @@ std::string
 FileFSConversionDoneHandler::getDoneFilePath(std::string_view fstpath)
 {
   std::string path {fstpath};
-  if (!eos::common::endsWith(fstpath,"/")) {
+
+  if (!eos::common::endsWith(fstpath, "/")) {
     path += "/";
   }
+
   path += mConversionDoneFile;
   return path;
 }

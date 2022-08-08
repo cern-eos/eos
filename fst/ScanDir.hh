@@ -39,9 +39,9 @@ class Load;
 class FileIo;
 class CheckSum;
 
-constexpr uint64_t DEFAULT_DISK_INTERVAL = 4*3600;
-constexpr uint64_t DEFAULT_FSCK_INTERVAL = 2*3600;
-constexpr uint64_t DEFAULT_NS_INTERVAL = 3*24*3600;
+constexpr uint64_t DEFAULT_DISK_INTERVAL = 4 * 3600;
+constexpr uint64_t DEFAULT_FSCK_INTERVAL = 2 * 3600;
+constexpr uint64_t DEFAULT_NS_INTERVAL = 3 * 24 * 3600;
 //------------------------------------------------------------------------------
 //! Class ScanDir
 //! @brief Scan a directory tree and checks checksums (and blockchecksums if
@@ -108,8 +108,10 @@ public:
   //! scanner level and also by setting the proper xattrs on the file.
   //!
   //! @param fpath file path
+  //!
+  //! @return true if file check, otherwise false
   //----------------------------------------------------------------------------
-  void CheckFile(const std::string& fpath);
+  bool CheckFile(const std::string& fpath);
 
   //----------------------------------------------------------------------------
   //! Get block checksum object for the given file. First we need to check if
@@ -174,6 +176,16 @@ public:
                                 std::chrono::time_point
                                 <std::chrono::system_clock> open_ts,
                                 int& scan_rate);
+
+  //----------------------------------------------------------------------------
+  //! Push collected errors to quarkdb
+  //!
+  //! @param fidset map of error types to set of fids which are affected
+  //!
+  //! @return true if push was successful, othewise false
+  //----------------------------------------------------------------------------
+  bool PushToQdb(std::map<std::string,
+                 std::set<eos::common::FileId::fileid_t>> fidset);
 
 #ifndef _NOOFS
   //----------------------------------------------------------------------------

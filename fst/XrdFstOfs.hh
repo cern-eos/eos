@@ -275,8 +275,8 @@ public:
            const char* fstPath = 0,
            unsigned long long fid = 0,
            unsigned long fsid = 0,
-           bool ignoreifnotexist = false, 
-	   std::string* deletion_report = 0);
+           bool ignoreifnotexist = false,
+           std::string* deletion_report = 0);
 
   //----------------------------------------------------------------------------
   //! Get checksum - we publish checksums at the MGM
@@ -362,14 +362,21 @@ public:
   //----------------------------------------------------------------------------
   int Query2Delete();
 
+  //----------------------------------------------------------------------------
+  //! Check if FMD entries are stored in the local leveldb
+  //!
+  //! @return true if using leveldb, otherwise false
+  //----------------------------------------------------------------------------
+  bool FmdOnDb() const;
+
   int Stall(XrdOucErrInfo& error, int stime, const char* msg);
 
   int Redirect(XrdOucErrInfo& error, const char* host, int& port);
 
   std::string MakeDeletionReport(eos::common::FileSystem::fsid_t fsid,
-				 unsigned long long fid,
-				 struct stat& deletion_stat, 
-				 bool viamq=true);
+                                 unsigned long long fid,
+                                 struct stat& deletion_stat,
+                                 bool viamq = true);
 
   XrdSysError* Eroute;
   eos::fst::Messaging* Messaging; ///< messaging interface class
@@ -433,7 +440,6 @@ public:
 
   void DoVerify(XrdOucEnv& env);
 
-  bool FmdOnDb() const;
 private:
 #ifdef IN_TEST_HARNESS
 public:
