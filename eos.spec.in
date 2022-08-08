@@ -383,8 +383,8 @@ Requires: sysvinit-tools
 %endif
 BuildRequires: zeromq, zeromq-devel, cppzmq-devel
 Requires: zeromq
-BuildRequires: eos-folly = 2019.11.11.00
-Requires: eos-folly = 2019.11.11.00
+BuildRequires: eos-folly >= 2019.11.11.00
+Requires: eos-folly >= 2019.11.11.00
 BuildRequires: perl-generators
 
 %description -n eos-server
@@ -547,8 +547,8 @@ Requires: eos-protobuf3 >= 3.3
 Requires: protobuf >= 3.3
 %endif
 
-BuildRequires: eos-folly = 2019.11.11.00
-Requires: eos-folly = 2019.11.11.00
+BuildRequires: eos-folly >= 2019.11.11.00
+Requires: eos-folly >= 2019.11.11.00
 
 %description -n eos-ns-inspect
 EOS namespace inspection tool for instance administrators
