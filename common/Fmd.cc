@@ -23,6 +23,16 @@
 EOSCOMMONNAMESPACE_BEGIN
 
 //------------------------------------------------------------------------------
+// Get set of known fsck error strings
+//------------------------------------------------------------------------------
+std::set<std::string> GetKnownFsckErrs()
+{
+  return {FSCK_M_CX_DIFF, FSCK_M_MEM_SZ_DIFF, FSCK_D_CX_DIFF, FSCK_D_MEM_SZ_DIFF,
+          FSCK_UNREG_N, FSCK_REP_DIFF_N, FSCK_REP_MISSING_N, FSCK_BLOCKXS_ERR,
+          FSCK_ORPHANS_N};
+}
+
+//------------------------------------------------------------------------------
 // Convert string to FsckErr type
 //------------------------------------------------------------------------------
 FsckErr ConvertToFsckErr(const std::string& serr)
@@ -43,11 +53,12 @@ FsckErr ConvertToFsckErr(const std::string& serr)
     return FsckErr::MissRepl;
   } else if (serr == FSCK_BLOCKXS_ERR) {
     return FsckErr::BlockxsErr;
+  } else if (serr == FSCK_ORPHANS_N) {
+    return FsckErr::Orphans;
   } else {
     return FsckErr::None;
   }
 }
-
 
 //------------------------------------------------------------------------------
 // Convert to FsckErr type to string
@@ -55,21 +66,23 @@ FsckErr ConvertToFsckErr(const std::string& serr)
 std::string ConvertToString(const FsckErr& err)
 {
   if (err == FsckErr::MgmXsDiff) {
-    return "m_cx_diff";
+    return FSCK_M_CX_DIFF;
   } else if (err == FsckErr::MgmSzDiff) {
-    return "m_mem_sz_diff";
+    return FSCK_M_MEM_SZ_DIFF;
   } else if (err == FsckErr::FstXsDiff) {
-    return "d_cx_diff";
+    return FSCK_D_CX_DIFF;
   } else if (err == FsckErr::FstSzDiff) {
-    return "d_mem_sz_diff";
+    return FSCK_D_MEM_SZ_DIFF;
   } else if (err == FsckErr::UnregRepl) {
-    return "unreg_n";
+    return FSCK_UNREG_N;
   } else if (err == FsckErr::DiffRepl) {
-    return "rep_diff_n";
+    return FSCK_REP_DIFF_N;
   } else if (err == FsckErr::MissRepl) {
-    return "rep_missing_n";
+    return FSCK_REP_MISSING_N;
   } else if (err == FsckErr::BlockxsErr) {
-    return "blockxs_err";
+    return FSCK_BLOCKXS_ERR;
+  } else if (err == FsckErr::Orphans) {
+    return FSCK_ORPHANS_N;
   } else {
     return "none";
   }

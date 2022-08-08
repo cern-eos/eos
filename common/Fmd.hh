@@ -129,8 +129,14 @@ enum class FsckErr {
   UnregRepl  = 0x05,
   DiffRepl   = 0x06,
   MissRepl   = 0x07,
-  BlockxsErr = 0x08
+  BlockxsErr = 0x08,
+  Orphans    = 0x09
 };
+
+//------------------------------------------------------------------------------
+//! Get set of known fsck error strings
+//------------------------------------------------------------------------------
+std::set<std::string> GetKnownFsckErrs();
 
 //------------------------------------------------------------------------------
 //! Convert string to FsckErr type

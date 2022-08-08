@@ -35,6 +35,7 @@
 #include "namespace/interface/IView.hh"
 #include "namespace/interface/IFsView.hh"
 #include "namespace/Prefetcher.cc"
+#include "qclient/structures/QSet.hh"
 #include "json/json.h"
 
 EOSMGMNAMESPACE_BEGIN
@@ -298,32 +299,10 @@ Fsck::CollectErrs(ThreadAssistant& assistant) noexcept
     Log("Start error collection");
     Log("Filesystems to check: %lu", FsView::gFsView.GetNumFileSystems());
     // Broadcast fsck request and collect responses
-    std::string response = QueryFsck();
+    std::string response = QueryFsts();
     decltype(eFsMap) tmp_err_map;
-    std::vector<std::string> lines;
-    // Convert into a line-wise seperated array
-    eos::common::StringConversion::StringToLineVector((char*) response.c_str(),
-        lines);
-
-    for (size_t nlines = 0; nlines < lines.size(); ++nlines) {
-      std::set<unsigned long long> fids;
-      unsigned long fsid = 0;
-      std::string err_tag;
-
-      if (eos::common::StringConversion::ParseStringIdSet((char*)
-          lines[nlines].c_str(), err_tag, fsid, fids)) {
-        if (fsid) {
-          // Add the fids into the error maps
-          for (auto it = fids.cbegin(); it != fids.cend(); ++it) {
-            tmp_err_map[err_tag][fsid].insert(*it);
-          }
-        }
-      } else {
-        eos_err("msg=\"cannot parse fsck response\" msg=\"%s\"",
-                lines[nlines].c_str());
-      }
-    }
-
+    ParseFstResponses(response, tmp_err_map);
+    QueryQdb(tmp_err_map);
     {
       // Swap in the new list of errors and clear the rest
       eos::common::RWMutexWriteLock wr_lock(mErrMutex);
@@ -1123,9 +1102,9 @@ Fsck::AccountDarkFiles()
 //----------------------------------------------------------------------------
 // Query for fsck responses
 //----------------------------------------------------------------------------
-std::string Fsck::QueryFsck()
+std::string Fsck::QueryFsts()
 {
-  eos::common::Timing tm("FsckQuery");
+  eos::common::Timing tm("QueryFsts");
   COMMONTIMING("START", &tm);
   uint16_t timeout = 10;
   std::string response;
@@ -1179,5 +1158,53 @@ std::string Fsck::QueryFsck()
   return response;
 }
 
+//------------------------------------------------------------------------------
+// Parse fsck responses received from the FSTs
+//------------------------------------------------------------------------------
+void
+Fsck::ParseFstResponses(const std::string& response,
+                        ErrMapT& err_map)
+{
+  using eos::common::StringConversion;
+  std::vector<std::string> lines;
+  // Convert into a line-wise seperated array
+  eos::common::StringConversion::StringToLineVector((char*) response.c_str(),
+      lines);
+
+  for (size_t nlines = 0; nlines < lines.size(); ++nlines) {
+    std::set<unsigned long long> fids;
+    unsigned long fsid = 0;
+    std::string err_tag;
+
+    if (StringConversion::ParseStringIdSet((char*)lines[nlines].c_str(),
+                                           err_tag, fsid, fids)) {
+      if (fsid) {
+        // Add the fids into the error maps
+        for (auto it = fids.cbegin(); it != fids.cend(); ++it) {
+          err_map[err_tag][fsid].insert(*it);
+        }
+      }
+    } else {
+      eos_err("msg=\"cannot parse fsck response\" msg=\"%s\"",
+              lines[nlines].c_str());
+    }
+  }
+}
+
+//------------------------------------------------------------------------------
+// Query QDB for fsck errors
+//------------------------------------------------------------------------------
+void
+Fsck::QueryQdb(ErrMapT& err_map)
+{
+  static std::set<std::string> known_errs = eos::common::GetKnownFsckErrs();
+  qclient::QSet set_errs(*mQcl.get(), "");
+
+  for (const auto& err_type : known_errs) {
+    eos_static_info("msg=\"check for %s fsck errors\"", err_type.c_str());
+  }
+
+  return;
+}
 
 EOSMGMNAMESPACE_END
