@@ -36,21 +36,24 @@ RUN mkdir /folly &&\
 
 FROM ${IMAGE_BUILDER}:latest AS eos-builder
 
-ADD . /eos-src
-WORKDIR /eos-src
 COPY --from=folly-deps-builder /folly-deps /eos-folly-deps
 COPY --from=folly-deps-builder /folly /eos-folly
 
 RUN dnf install -y epel-release &&\
     dnf install --nogpg -y dnf-plugins-core gcc-c++ git cmake make python3 python3-setuptools rpm-build rpm-sign tar which
 RUN dnf install -y /eos-folly-deps/RPMS/$(uname -m)/* /eos-folly/RPMS/$(uname -m)/*
+RUN rm -rf /eos-folly /eos-folly-deps
+
+ADD . /eos-src
+WORKDIR /eos-src
 
 RUN git submodule update --init --recursive
 RUN mkdir build
 WORKDIR build
 
 RUN cmake ../ -Wno-dev -DPACKAGEONLY=1
-RUN make srpm VERBOSE=1; tar -ztvf $(ls | grep eos-5.0.27*.tar.gz); exit 2
+RUN make srpm VERBOSE=1
+#; tar -ztvf $(ls | grep eos-5.0.27*.tar.gz); exit 2
 WORKDIR /eos
 
 RUN dnf builddep --nogpgcheck --allowerasing -y build/SRPMS/*
@@ -73,13 +76,14 @@ LABEL org.opencontainers.image.vendor='European Centre for Nuclear Research (CER
 # For the license format, refer to the SPDX format: https://spdx.org/licenses/
 LABEL org.opencontainers.image.licenses='GPL-3.0-only'
 
-COPY --from=eos-builder /eos-folly-deps /temp/eos-folly-deps
-COPY --from=eos-builder /eos-folly /temp/eos-folly
-COPY --from=eos-builder /eos /temp/eos
+COPY --from=folly-deps-builder /folly-deps /_temp/eos-folly-deps
+COPY --from=folly-deps-builder /folly /_temp/eos-folly
+COPY --from=eos-builder /eos /_temp/eos
 
-RUN ls -l /temp/eos-folly-deps/RPMS &&\
+RUN ls -l /_temp/eos-folly-deps/RPMS &&\
     echo "--------------------------" &&\
-    ls -l /temp/eos-folly/RPMS &&\
+    ls -l /_temp/eos-folly/RPMS &&\
     echo "--------------------------" &&\
-    ls -l /temp/eos/RPMS
-#RUN dnf install -y /temp/eos-folly-deps/RPMS/$(uname -m)/* /temp/eos-folly/RPMS/$(uname -m)/* /temp/eos/RPMS/$(uname -m)/*
+    ls -l /_temp/eos/RPMS
+#RUN dnf install -y /_temp/eos-folly-deps/RPMS/$(uname -m)/* /_temp/eos-folly/RPMS/$(uname -m)/* /_temp/eos/RPMS/$(uname -m)/*
+#RUN rm -rf /_temp
