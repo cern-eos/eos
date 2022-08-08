@@ -55,7 +55,7 @@ WORKDIR build
 RUN cmake ../ -Wno-dev -DPACKAGEONLY=1
 RUN make srpm VERBOSE=1
 #; tar -ztvf $(ls | grep eos-5.0.27*.tar.gz); exit 2
-WORKDIR /eos
+WORKDIR /eos-src
 
 RUN dnf builddep --nogpgcheck --allowerasing -y build/SRPMS/*
 RUN rpmbuild --rebuild --define "_rpmdir build/RPMS/" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" build/SRPMS/*
