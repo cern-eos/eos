@@ -46,13 +46,15 @@ RUN rm -rf /eos-folly /eos-folly-deps
 
 ADD . /eos-src
 WORKDIR /eos-src
+RUN rm -rf ./eos-deps
 
 RUN git submodule update --init --recursive
 RUN mkdir build
 WORKDIR build
 
 RUN cmake ../ -Wno-dev -DPACKAGEONLY=1
-RUN make srpm VERBOSE=1; tar -ztvf $(ls | grep eos-5.0.27*.tar.gz); exit 2
+RUN make srpm VERBOSE=1
+#; tar -ztvf $(ls | grep eos-5.0.27*.tar.gz); exit 2
 WORKDIR /eos
 
 RUN dnf builddep --nogpgcheck --allowerasing -y build/SRPMS/*
