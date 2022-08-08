@@ -52,12 +52,12 @@ RUN mkdir build
 WORKDIR build
 
 RUN cmake ../ -Wno-dev -DPACKAGEONLY=1
-RUN make srpm VERBOSE=1
-#; tar -ztvf $(ls | grep eos-5.0.27*.tar.gz); exit 2
+RUN make srpm VERBOSE=1; tar -ztvf $(ls | grep eos-5.0.27*.tar.gz); exit 2
 WORKDIR /eos
 
 RUN dnf builddep --nogpgcheck --allowerasing -y build/SRPMS/*
-RUN rpmbuild --rebuild --define "_rpmdir build/RPMS/" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" build/SRPMS/*  #| ts disable timestamp on CentOS Stream 9, as moreutils is not available
+RUN rpmbuild --rebuild --define "_rpmdir build/RPMS/" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" build/SRPMS/*
+#| ts disable timestamp on CentOS Stream 9, as moreutils is not available
 RUN mkdir /eos &&\
     cp -r build/RPMS/ build/SRPMS/ /eos
 
