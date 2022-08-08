@@ -229,6 +229,7 @@ public:
     {
       int debug;
       int debuglevel;
+      bool jsonstats;
       int libfusethreads;
       int foreground;
       int automounted;

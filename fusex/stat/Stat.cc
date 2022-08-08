@@ -1189,6 +1189,72 @@ Stat::PrintOutTotal(XrdOucString& out, bool details, bool monitoring,
   }
 }
 
+void
+Stat::PrintOutTotalJson(Json::Value& out)
+{
+  XrdSysMutexHelper lLock(Mutex);
+  std::vector<std::string> tags, tags_ext;
+  std::vector<std::string>::iterator it;
+  google::sparse_hash_map<std::string, google::sparse_hash_map<uid_t, unsigned long long> >::iterator
+  tit;
+  google::sparse_hash_map<std::string, google::sparse_hash_map<uid_t, StatExt > >::iterator
+  tit_ext;
+
+  for (tit = StatsUid.begin(); tit != StatsUid.end(); tit++) {
+    tags.push_back(tit->first);
+  }
+
+  for (tit_ext = StatExtUid.begin(); tit_ext != StatExtUid.end(); tit_ext++) {
+    tags_ext.push_back(tit_ext->first);
+  }
+
+  std::sort(tags.begin(), tags.end());
+  std::sort(tags_ext.begin(), tags_ext.end());
+  char outline[8192];
+  double avg = 0;
+  double sig = 0;
+  size_t ops = 0;
+
+  avg = GetTotalExec(sig, ops);
+  sum_ops = ops;
+
+  out["activity"]=Json::Value(Json::arrayValue);  
+
+  for (it = tags.begin(); it != tags.end(); ++it) {
+    if ((*it == "rbytes") || (*it == "wbytes")) {
+      continue;
+    }
+    Json::Value entry{};
+    const char* tag = it->c_str();
+    char a5[1024];
+    char a60[1024];
+    char a300[1024];
+    char a3600[1024];
+    char aexec[1024];
+    char aexecsig[1024];
+    char atotal[1024];
+    double avg = 0;
+    double sig = 0;
+    double total = 0;
+
+    avg = GetExec(tag, sig);
+
+    total = avg * GetTotal(tag) / 1000.0;
+
+    entry["command"]    = tag;
+    entry["sum"]        = (Json::LargestUInt) GetTotal(tag);
+    entry["5s"]         = GetTotalAvg5(tag);
+    entry["1min"]       = GetTotalAvg60(tag);
+    entry["5min"]       = GetTotalAvg300(tag);
+    entry["1h"]         = GetTotalAvg3600(tag);
+    entry["exec(ms)"]   = avg;
+    entry["sigma(ms)"]  = sig;
+    entry["cumul(s)"]   = total;
+    out["activity"].append(entry);
+  }
+}
+
+
 /*----------------------------------------------------------------------------*/
 void
 Stat::Circulate(ThreadAssistant& assistant)

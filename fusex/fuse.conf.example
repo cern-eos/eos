@@ -12,6 +12,7 @@
   "options" : {
     "debug" : 1,
     "debuglevel" : 4,
+    "jsonstats":1,
     "backtrace" : 1,
     "libfusethreads" : 0,
     "hide-versions" : 1,

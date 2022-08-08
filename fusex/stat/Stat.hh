@@ -38,6 +38,8 @@
 #include <deque>
 #include <math.h>
 #include <thread>
+#include <json/json.h>
+
 
 class StatAvg
 {
@@ -587,6 +589,8 @@ public:
 
   void PrintOutTotal(XrdOucString& out, bool details = false,
                      bool monitoring = false, bool numerical = false);
+
+  void PrintOutTotalJson(Json::Value& out);
 
   void Circulate(ThreadAssistant& assistant);
 
