@@ -22,22 +22,25 @@
 #include "gtest/gtest.h"
 
 using namespace eos::mgm;
-using eos::mgm::attr::checkStickyDirOwner;
+using eos::mgm::attr::checkDirOwner;
 
-TEST(checkStickyDirOwner, EmptyMap)
+TEST(checkDirOwner, EmptyMap)
 {
   eos::common::VirtualIdentity vid;
-  ASSERT_FALSE(checkStickyDirOwner({}, {}, {}, vid, nullptr));
+  bool sticky_owner;
+  ASSERT_FALSE(checkDirOwner({}, {}, {}, vid, sticky_owner, nullptr));
 }
 
-TEST(checkStickyDirOwner, StickyOwner)
+TEST(checkDirOwner, StickyOwner)
 {
   eos::common::VirtualIdentity vid;
   eos::IContainerMD::XAttrMap xattrs {{SYS_OWNER_AUTH, "*"}};
-  ASSERT_TRUE(checkStickyDirOwner(xattrs, {}, {}, vid, nullptr));
+  bool sticky_owner;
+  ASSERT_TRUE(checkDirOwner(xattrs, {}, {}, vid, sticky_owner, nullptr));
+  ASSERT_TRUE(sticky_owner);
 }
 
-TEST(checkStickyDirOwner, dirOwner)
+TEST(checkDirOwner, dirOwner)
 {
   eos::common::VirtualIdentity vid;
   vid.uid = 23;
@@ -47,8 +50,11 @@ TEST(checkStickyDirOwner, dirOwner)
 
   vid.prot = "krb5";
   vid.uid_string = "testuser";
+  bool sticky_owner;
   eos::IContainerMD::XAttrMap  xattrs {{SYS_OWNER_AUTH, "sss:operator,krb5:testuser"}};
-  ASSERT_FALSE(checkStickyDirOwner(xattrs, dir_uid, dir_gid, vid, nullptr));
+  EXPECT_TRUE(
+      checkDirOwner(xattrs, dir_uid, dir_gid, vid, sticky_owner, nullptr));
+  ASSERT_FALSE(sticky_owner);
   ASSERT_EQ(vid.uid, dir_uid);
   ASSERT_EQ(vid.gid, dir_gid);
 }

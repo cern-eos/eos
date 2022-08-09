@@ -33,15 +33,18 @@ namespace eos::mgm::attr {
  * @param d_uid directory uid
  * @param d_gid directory gid
  * @param vid Vid of the user, may be modified
+ * @param sticky_owner true if directory has "sys.auth.owner=*"
  * @param path path of directory, only used for logging
- * @return true if sticky permissions, vid will be modified to directory uid/gid
+ * @return true if permissions, vid will be modified to directory uid/gid
+ *         only for the non sticky owner case
+ *
+ * The current usages of sticky_owner are special in comparision to
+ * sys.owner.auth, so we don't yet reset the vid in case of sticky_owner
  * if there is an auth.owner match
  */
-bool checkStickyDirOwner(const eos::IContainerMD::XAttrMap& attrmap,
-                         uid_t d_uid,
-                         gid_t d_gid,
-                         eos::common::VirtualIdentity& vid,
-                         const char* path);
+bool checkDirOwner(const eos::IContainerMD::XAttrMap& attrmap, uid_t d_uid,
+                   gid_t d_gid, eos::common::VirtualIdentity& vid,
+                   bool& sticky_owner, const char* path);
 /*!
  * Check for Atomic Uploads
  * Atomic uploads follow the evaluation order sys.attribute > user.attribute > cgi
