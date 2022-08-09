@@ -1199,9 +1199,42 @@ Fsck::QueryQdb(ErrMapT& err_map)
 {
   static std::set<std::string> known_errs = eos::common::GetKnownFsckErrs();
   qclient::QSet set_errs(*mQcl.get(), "");
+  // Helper function to parse fsck info stored in QDB
+  auto parse_fsck =
+    [](const std::string & data) -> std::pair<eos::IFileMD::id_t,
+  eos::common::FileSystem::fsid_t> {
+    const size_t pos = data.find(':');
+
+    if ((pos == std::string::npos) || (pos == data.length()))
+    {
+      eos_static_err("msg=\"failed to parse fsck element\" data=\"%s\"",
+      data.c_str());
+      return {0ull, 0ul};
+    }
+
+    eos::IFileMD::id_t fid;
+    eos::common::FileSystem::fsid_t fsid;
+
+    if (!eos::common::StringToNumeric(data.substr(0, pos), fid) ||
+        !eos::common::StringToNumeric(data.substr(pos + 1), fsid))
+    {
+      eos_static_err("msg=\"failed to convert fsck info\" data=\"%s\"",
+                     data.c_str());
+      return {0ull, 0ul};
+    }
+
+    return {fid, fsid};
+  };
 
   for (const auto& err_type : known_errs) {
     eos_static_info("msg=\"check for %s fsck errors\"", err_type.c_str());
+    set_errs.setKey(SSTR("fsck:" << err_type));
+
+    for (auto it = set_errs.getIterator(); it.valid(); it.next()) {
+      // Set elements are in the form: fid:fsid
+      auto pair_info = parse_fsck(it.getElement());
+      err_map[err_type][pair_info.second].insert(pair_info.first);
+    }
   }
 
   return;
