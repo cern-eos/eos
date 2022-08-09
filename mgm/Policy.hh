@@ -54,13 +54,14 @@ public:
                                  XrdOucString &space,
                                  XrdOucEnv &env,
                                  unsigned long &forcedfsid,
-                                 long &forcedgroup, 
-				 std::string& bandwidth,
-				 bool &schedul,
-				 std::string& iopriority,
-				 std::string& ioptype,
-				 bool isrw,
-				 bool lock_view = false);
+                                 long &forcedgroup,
+                                 std::string& bandwidth,
+                                 bool &schedul,
+                                 std::string& iopriority,
+                                 std::string& ioptype,
+                                 bool isrw,
+                                 bool lock_view = false,
+                                 bool is_local = true);
 
   static void GetPlctPolicy (const char* path,
                              eos::IContainerMD::XAttrMap &map,
@@ -91,7 +92,34 @@ public:
 
   static bool IsProcConversion(const char* path);
 
-  static const char* Get(const char* key);
+  static const char* Get (const char* key);
+
+  static std::vector<std::string> GetConfigKeys(bool local=false);
+
+  static std::vector<std::string> GetRWConfigKeys(const std::string& user_key,
+                                                  const std::string& group_key,
+                                                  const std::string& app_key,
+                                                  bool is_rw,
+                                                  bool local=false);
+
+  static std::vector<std::string> GetRWConfigKey(const std::string& key_name,
+                                                    const std::string& user_key,
+                                                    const std::string& group_key,
+                                                    const std::string& app_key);
+
+  static std::string GetRWValue(const std::map<std::string, std::string>& conf_map,
+                                const std::string& key_name,
+                                const std::string& user_key,
+                                const std::string& group_key,
+                                const std::string& app_key);
+
+  static std::string getRWkey(const std::string& key_name,
+                              bool is_rw,
+                              bool is_local=false);
+
+  static const std::vector<std::string> gBasePolicyKeys;
+  static const std::vector<std::string> gBaseLocalPolicyKeys;
+  static const std::vector<std::string> gBasePolicyRWKeys;
 };
 
 EOSMGMNAMESPACE_END
