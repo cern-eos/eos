@@ -7,6 +7,7 @@
 #include <unordered_set>
 #include <vector>
 #include <list>
+#include <algorithm>
 
 bool is_even(int i) { return i%2 == 0; }
 
@@ -151,12 +152,22 @@ TEST(pickIndexRR, UnorderedSet)
 }
 
 // TESTING for remove_if
-#include <algorithm>
 TEST(StdEraseIf, vector)
 {
   std::vector<int> v = {1,2,3,4};
   //eos::common::erase_if(v, is_even); will not compile
   v.erase(std::remove_if(v.begin(),v.end(), is_even));
   std::vector<int> expected = {1,3,4}; // remove_if only does [first, last);
+  ASSERT_EQ(expected, v);
+}
+
+
+TEST(splice, simple_vector_move_append)
+{
+  std::vector<int> v {1,2,3,4};
+  std::vector<int> v2 {5,6,7};
+
+  eos::common::splice(v, std::move(v2));
+  std::vector<int> expected {1,2,3,4,5,6,7};
   ASSERT_EQ(expected, v);
 }

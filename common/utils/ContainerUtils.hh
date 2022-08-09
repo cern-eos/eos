@@ -93,5 +93,36 @@ pickIndexRR(const C& c, uint64_t index)
   return *iter;
 }
 
+//----------------------------------------------------------------------------
+//! Transfer a container onto another, this variants destructively move values
+//! from other container onto source container at a given pos.
+//! \tparam C container type -  will be inferred
+//! \param c container where other container will be spliced onto
+//! \param other container whose elements will be consumed
+//! \param pos position where we need to splice
+//----------------------------------------------------------------------------
+template <typename C>
+void
+splice(C& c, C&& other,
+       typename C::const_iterator pos)
+{
+  c.insert(pos,
+           std::make_move_iterator(other.begin()),
+           std::make_move_iterator(other.end()));
+}
+
+//----------------------------------------------------------------------------
+//! Transfer a container onto another at the end, this variants destructively move values
+//! from other container onto source container at a given pos.
+//! \tparam C container type -  will be inferred
+//! \param c container where other container will be spliced onto
+//! \param other container whose elements will be consumed
+//----------------------------------------------------------------------------
+template <typename C>
+void splice(C& c, C&& other)
+{
+  splice(c, std::move(other), c.end());
+}
+
 } // eos::common
 
