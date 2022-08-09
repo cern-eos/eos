@@ -1076,19 +1076,18 @@ runtest "### dir ls  " unix 0 "EOSROLE='-r daemon daemon'" eos ls "/eos/$EOS_TES
 # Test the fact that both directory and file level sys.acl are taken into account
 runtest "### Rmdir   " unix 0 "" eos rmdir "/eos/$EOS_TEST_INSTANCE/test/acl"
 runtest "### Mkdir   " unix 0 "" eos mkdir "/eos/$EOS_TEST_INSTANCE/test/acl"
-runtest "### Chmod   " unix 0 "" eos chmod "700" "/eos/$EOS_TEST_INSTANCE/test/"
-runtest "### Chown   " unix 0 "" eos chown 2:2 "/eos/$EOS_TEST_INSTANCE/test/instancetest/acl"
-runtest "### Upload  " unix 0 "EOSROLE='-r 2 2'" eos cp "/etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/acl/file.dat"
-runtest "### Download" unix 0 "EOSROLE='-r 2 2'" eos cp "/eos/$EOS_TEST_INSTANCE/test/acl/file.dat" -
+runtest "### Chown   " unix 0 "" eos chown 2:2   "/eos/$EOS_TEST_INSTANCE/test/acl"
+runtest "### Chmod   " unix 0 "" eos chmod "700" "/eos/$EOS_TEST_INSTANCE/test/acl"
+runtest "### Upload  " unix 0 "EOSROLE='-r 2 2'"   eos cp "/etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/acl/file.dat"
+runtest "### Download" unix 0 "EOSROLE='-r 2 2'"   eos cp "/eos/$EOS_TEST_INSTANCE/test/acl/file.dat" -
 runtest "### Download" unix 1 "EOSROLE='-r 99 99'" eos cp "/eos/$EOS_TEST_INSTANCE/test/acl/file.dat" -
 runtest "### Acl set " unix 0 "" eos acl u:99=rw "/eos/$EOS_TEST_INSTANCE/test/acl"
-runtest "### Download" unix 0 "EOSROLE='-r 99 99'" eos cp "/eos/$EOS_TEST_INSTANCE/test/acl/file.dat" -
+runtest "### Download" unix 0 "EOSROLE='-r  99  99'" eos cp "/eos/$EOS_TEST_INSTANCE/test/acl/file.dat" -
 runtest "### Download" unix 1 "EOSROLE='-r 985 979'" eos cp "/eos/$EOS_TEST_INSTANCE/test/acl/file.dat" -
 runtest "### Acl set " unix 0 "" eos acl u:985=rw "/eos/$EOS_TEST_INSTANCE/test/acl/file.dat"
 runtest "### Download" unix 0 "EOSROLE='-r 985 970'" eos cp "/eos/$EOS_TEST_INSTANCE/test/acl/file.dat" -
 runtest "### Download" unix 0 "EOSROLE='-r  99  99'" eos cp "/eos/$EOS_TEST_INSTANCE/test/acl/file.dat" -
-runtest "### Rmdir   " unix 0 "" eos rmdir "/eos/$EOS_TEST_INSTANCE/test/acl"
-
+runtest "### Rmdir   " unix 0 "" eos rm -rf "/eos/$EOS_TEST_INSTANCE/test/acl"
 
 ################################################################################
 # CHECKSUMS
