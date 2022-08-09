@@ -92,5 +92,5 @@ RUN ls -l /_temp/eos-folly-deps/RPMS/$(uname -m) &&\
     ls -l /_temp/eos/RPMS
 
 RUN echo -e "[eos-depend]\nname=EOS dependencies\nbaseurl=http://storage-ci.web.cern.ch/storage-ci/eos/${CODENAME}-depend/el-9s/$(uname -m)/\ngpgcheck=0\nenabled=1\npriority=4\n" >> /etc/yum.repos.d/eos-depend.repo
-RUN dnf install -y /_temp/eos-folly-deps/RPMS/$(uname -m)/*.rpm /_temp/eos-folly/RPMS/$(uname -m)/*.rpm /_temp/eos/RPMS/$(uname -m)/*.rpm
+RUN dnf install -y /_temp/eos-folly-deps/RPMS/$(uname -m)/* /_temp/eos-folly/RPMS/$(uname -m)/* /_temp/eos/RPMS/*
 RUN rm -rf /_temp
