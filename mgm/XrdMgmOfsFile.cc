@@ -1517,11 +1517,14 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
   std::string ioprio;
   std::string iotype;
   bool schedule = false;
-
+  bool is_local = false;
+  if (openOpaque->Get("localconfig")) {
+    is_local=true;
+  }
   // select space and layout according to policies
   COMMONTIMING("Policy::begin", &tm);
   Policy::GetLayoutAndSpace(path, attrmap, vid, new_lid, space, *openOpaque,
-                            forcedFsId, forced_group, bandwidth, schedule, ioprio, iotype, isRW, true);
+                            forcedFsId, forced_group, bandwidth, schedule, ioprio, iotype, isRW, true, is_local);
   COMMONTIMING("Policy::end", &tm);
 
   // do a local redirect here if there is only one replica attached

@@ -711,7 +711,9 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config,
     if (!key.compare(0, 6, "space.")) {
       key.erase(0, 6);
 
-      if (key.substr(0, 7) == "policy.") {
+
+      if (eos::common::startsWith(key, "policy.") ||
+          eos::common::startsWith(key, "local.policy.")) {
         if (value == "remove") {
           applied = true;
 
