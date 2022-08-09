@@ -385,6 +385,19 @@ public:
   virtual std::string GetConfigMember(std::string key) const;
 
   //----------------------------------------------------------------------------
+  //! Return a map of configuration values given a vector of keys
+  //----------------------------------------------------------------------------
+  virtual bool GetConfigMembers(const std::vector<std::string>& keys,
+                                std::map<std::string, std::string>& out) const;
+
+
+  //----------------------------------------------------------------------------
+  //! Return a map of local configuration values given a vector of keys
+  //----------------------------------------------------------------------------
+  virtual bool GetLocalConfigMembers(const std::vector<std::string>& keys,
+                                     std::map<std::string, std::string>& out) const;
+
+  //----------------------------------------------------------------------------
   //! Delete a configuration member
   //----------------------------------------------------------------------------
   virtual bool DeleteConfigMember(std::string key) const;

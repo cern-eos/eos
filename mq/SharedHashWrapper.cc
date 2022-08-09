@@ -32,6 +32,8 @@
 
 EOSMQNAMESPACE_BEGIN
 
+static std::string LOCAL_PREFIX="local.";
+
 //------------------------------------------------------------------------------
 //! Constructor
 //------------------------------------------------------------------------------
@@ -108,7 +110,7 @@ void SharedHashWrapper::Batch::Set(const std::string& key,
 {
   if (common::startsWith(key, "stat.")) {
     SetTransient(key, value);
-  } else if (common::startsWith(key, "local.")) {
+  } else if (common::startsWith(key, LOCAL_PREFIX)) {
     SetLocal(key, value);
   } else {
     SetDurable(key, value);
@@ -250,6 +252,9 @@ double SharedHashWrapper::getDouble(const std::string& key)
 bool SharedHashWrapper::get(const std::string& key, std::string& value)
 {
   if (mSharedHash) {
+    if (eos::common::startsWith(key, LOCAL_PREFIX)) {
+      return mSharedHash->getLocal(key, value);
+    }
     return mSharedHash->get(key, value);
   }
 
@@ -261,6 +266,33 @@ bool SharedHashWrapper::get(const std::string& key, std::string& value)
   value = mHash->Get(key.c_str());
   return true;
 }
+
+
+//------------------------------------------------------------------------------
+// Query the given key, return if retrieval successful
+//------------------------------------------------------------------------------
+bool
+SharedHashWrapper::get(const std::vector<std::string>& keys,
+                       std::map<std::string, std::string>& values)
+{
+  if (mSharedHash) {
+    return mSharedHash->get(keys, values);
+  }
+
+  if (!mHash) {
+    return false;
+  }
+
+  std::unique_lock lock(mHash->mMutex);
+  std::transform(keys.begin(), keys.end(),
+                 std::inserter(values, values.end()),
+                 [this](const std::string& key) {
+                   return std::make_pair(key, mHash->Get(key.c_str()));
+                 });
+  return true;
+}
+
+
 
 //------------------------------------------------------------------------------
 // Delete the given key
@@ -335,6 +367,26 @@ bool SharedHashWrapper::deleteHash(mq::MessagingRealm* realm,
 bool SharedHashWrapper::deleteHash()
 {
   return mSom->DeleteSharedHash(mLocator.getConfigQueue().c_str(), true);
+}
+
+bool
+SharedHashWrapper::getLocal(const std::vector<std::string>& keys,
+                            std::map<std::string,std::string>& out)
+{
+  if (mSharedHash) {
+    mSharedHash->getLocal(keys, out);
+    return true;
+  }
+
+  if (!mHash) {
+    return false;
+  }
+
+  std::scoped_lock lock(mHash->mMutex);
+  for (const auto& key :keys) {
+    out.emplace(key, mHash->Get(key.c_str()));
+  }
+  return true;
 }
 
 EOSMQNAMESPACE_END

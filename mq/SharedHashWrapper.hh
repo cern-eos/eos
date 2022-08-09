@@ -129,6 +129,8 @@ public:
   //----------------------------------------------------------------------------
   std::string get(const std::string& key);
 
+  bool getLocal(const std::vector<std::string>& keys,
+                std::map<std::string, std::string>& out);
   //----------------------------------------------------------------------------
   //! Query the given key - convert to long long automatically
   //----------------------------------------------------------------------------
@@ -143,6 +145,12 @@ public:
   //! Query the given key, return if retrieval successful
   //----------------------------------------------------------------------------
   bool get(const std::string& key, std::string& value);
+
+  //----------------------------------------------------------------------------
+  //! Query the given key, return if retrieval successful
+  //----------------------------------------------------------------------------
+  bool get(const std::vector<std::string>& keys,
+           std::map<std::string, std::string>& value);
 
   //----------------------------------------------------------------------------
   //! Delete the given key
