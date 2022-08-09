@@ -36,6 +36,7 @@ RUN mkdir /folly &&\
 ########################################################
 
 FROM ${IMAGE_BUILDER}:latest AS eos-builder
+ARG CODENAME
 
 COPY --from=folly-deps-builder /folly-deps /eos-folly-deps
 COPY --from=folly-deps-builder /folly /eos-folly
@@ -69,6 +70,7 @@ RUN mkdir /eos &&\
 ########################################################
 
 FROM ${IMAGE_RUNNER}:latest AS eos-runner
+ARG CODENAME
 
 # For the following sections, refer to https://github.com/opencontainers/image-spec/blob/main/annotations.md
 LABEL org.opencontainers.image.authors="https://eos-community.web.cern.ch/"
