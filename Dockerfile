@@ -85,11 +85,12 @@ COPY --from=folly-deps-builder /folly-deps /_temp/eos-folly-deps
 COPY --from=folly-deps-builder /folly /_temp/eos-folly
 COPY --from=eos-builder /eos /_temp/eos
 
-RUN ls -l /_temp/eos-folly-deps/RPMS &&\
+RUN ls -l /_temp/eos-folly-deps/RPMS/$(uname -m) &&\
     echo "--------------------------" &&\
-    ls -l /_temp/eos-folly/RPMS &&\
+    ls -l /_temp/eos-folly/RPMS/$(uname -m) &&\
     echo "--------------------------" &&\
     ls -l /_temp/eos/RPMS
-#RUN echo -e "[eos-depend]\nname=EOS dependencies\nbaseurl=http://storage-ci.web.cern.ch/storage-ci/eos/${CODENAME}-depend/el-9s/$(uname -m)/\ngpgcheck=0\nenabled=1\npriority=4\n" >> /etc/yum.repos.d/eos-depend.repo
-#RUN dnf install -y /_temp/eos-folly-deps/RPMS/$(uname -m)/* /_temp/eos-folly/RPMS/$(uname -m)/* /_temp/eos/RPMS/$(uname -m)/*
-#RUN rm -rf /_temp
+
+RUN echo -e "[eos-depend]\nname=EOS dependencies\nbaseurl=http://storage-ci.web.cern.ch/storage-ci/eos/${CODENAME}-depend/el-9s/$(uname -m)/\ngpgcheck=0\nenabled=1\npriority=4\n" >> /etc/yum.repos.d/eos-depend.repo &&\
+    dnf install -y /_temp/eos-folly-deps/RPMS/$(uname -m)/* /_temp/eos-folly/RPMS/$(uname -m)/* /_temp/eos/RPMS/$(uname -m)/* &&\
+    rm -rf /_temp
