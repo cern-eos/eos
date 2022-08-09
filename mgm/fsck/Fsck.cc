@@ -466,6 +466,8 @@ Fsck::RepairErrs(ThreadAssistant& assistant) noexcept
     assistant.wait_for(std::chrono::seconds(1));
   }
 
+  // Force flush any collected notifications
+  NotifyFixedErr(0ull, 0ul, "");
   eos_info("%s", "msg=\"stopped fsck repair thread\"");
   mRepairRunning = false;
 }
@@ -476,7 +478,7 @@ Fsck::RepairErrs(ThreadAssistant& assistant) noexcept
 bool
 Fsck::RepairEntry(eos::IFileMD::id_t fid,
                   eos::common::FileSystem::fsid_t fsid_err,
-                  std::string err_type, bool async, std::string& out_msg)
+                  const std::string& err_type, bool async, std::string& out_msg)
 {
   if (fid == 0ull) {
     eos_err("%s", "msg=\"not such file id 0\"");
@@ -1238,6 +1240,60 @@ Fsck::QueryQdb(ErrMapT& err_map)
   }
 
   return;
+}
+
+//------------------------------------------------------------------------------
+// Update the backend given the successful outcome of the repair
+//------------------------------------------------------------------------------
+void
+Fsck::NotifyFixedErr(eos::IFileMD::id_t fid,
+                     eos::common::FileSystem::fsid_t fsid_err,
+                     const std::string& err_type,
+                     uint32_t count_flush)
+{
+  if ((fsid_err == 0ul) || err_type.empty() || (err_type == "none")) {
+    return;
+  }
+
+  static std::mutex mutex;
+  static uint64_t num_updates = 0ull;
+  static std::map<std::string, std::set<std::string>> updates;
+  std::unique_lock<std::mutex> scope_lock(mutex);
+
+  if (fid) {
+    auto it = updates.find(err_type);
+
+    if (it == updates.end()) {
+      auto resp = updates.emplace(err_type, std::set<std::string>());
+      it = resp.first;
+    }
+
+    const std::string value = SSTR(fid << ':' << fsid_err);
+    auto resp = it->second.insert(value);
+
+    if (resp.second == true) {
+      ++num_updates;
+    }
+  }
+
+  // Eventually flush the contents to the QDB backend if sentinel fid present
+  // or if enough updates accumulated
+  if ((fid == 0ull) || (num_updates >= count_flush)) {
+    qclient::QSet qset(*mQcl.get(), "");
+
+    for (const auto& elem : updates) {
+      qset.setKey(elem.first);
+      std::list<std::string> values(elem.second.begin(), elem.second.end());
+
+      if (qset.srem(values) != (long long int)values.size()) {
+        eos_static_err("msg=\"failed to delete some fsck errors\" err_type=%s",
+                       elem.first.c_str());
+      }
+    }
+
+    num_updates = 0ull;
+    updates.clear();
+  }
 }
 
 EOSMGMNAMESPACE_END

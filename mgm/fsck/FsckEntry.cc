@@ -22,6 +22,7 @@
  ************************************************************************/
 
 #include "mgm/fsck/FsckEntry.hh"
+#include "mgm/fsck/Fsck.hh"
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/FsView.hh"
 #include "mgm/Stat.hh"
@@ -491,7 +492,7 @@ FsckEntry::RepairFstXsSzDiff()
   }
 
   // Trigger an MGM resync on all the replicas so that the locations get
-  // updated properly in the local DB of the FST
+  // updated properly
   ResyncFstMd(true);
   return all_repaired;
 }
@@ -870,7 +871,7 @@ FsckEntry::Repair()
     if (CollectMgmInfo() == false) {
       eos_err("msg=\"no repair action, file is orphan\" fxid=%08llx fsid=%lu",
               mFid, mFsidErr);
-      UpdateMgmStats(success);
+      NotifyOutcome(success);
       (void) DropReplica(mFsidErr);
       // This could be a ghost fid entry still present in the file system map
       // and we need to also drop it from there
@@ -888,7 +889,7 @@ FsckEntry::Repair()
         eos_err("msg=\"operation failed due to: %s\"", err_msg.c_str());
       }
 
-      UpdateMgmStats(true);
+      NotifyOutcome(true);
       return true;
     }
 
@@ -901,7 +902,7 @@ FsckEntry::Repair()
 
     if (it == mMapRepairOps.end()) {
       eos_err("msg=\"unknown type of error\" errr=%i", mReportedErr);
-      UpdateMgmStats(success);
+      NotifyOutcome(success);
       return success;
     }
 
@@ -909,7 +910,7 @@ FsckEntry::Repair()
                     mFid, mReportedErr, mFsidErr);
     auto fn_with_obj = std::bind(it->second, this);
     success = fn_with_obj();
-    UpdateMgmStats(success);
+    NotifyOutcome(success);
     return success;
   }
 
@@ -924,13 +925,13 @@ FsckEntry::Repair()
     auto fn_with_obj = std::bind(op, this);
 
     if (!fn_with_obj()) {
-      UpdateMgmStats(success);
+      NotifyOutcome(success);
       return success;
     }
   }
 
   success = true;
-  UpdateMgmStats(success);
+  NotifyOutcome(success);
   return success;
 }
 
@@ -988,17 +989,18 @@ FsckEntry::GetFstFmd(std::unique_ptr<FstFileInfoT>& finfo,
   return true;
 }
 
-
-
 //------------------------------------------------------------------------------
-// Update MGM stats depending on the final outcome
+// Update MGM stats and backend depending on the final outcome
 //------------------------------------------------------------------------------
 void
-FsckEntry::UpdateMgmStats(bool success) const
+FsckEntry::NotifyOutcome(bool success) const
 {
   if (gOFS) {
+    // Update the MGM statistics and QDB backend in case of success
     if (success) {
       gOFS->MgmStats.Add("FsckRepairSuccessful", 0, 0, 1);
+      gOFS->mFsckEngine->NotifyFixedErr(mFid, mFsidErr,
+                                        eos::common::ConvertToString(mReportedErr));
     } else {
       gOFS->MgmStats.Add("FsckRepairFailed", 0, 0, 1);
     }

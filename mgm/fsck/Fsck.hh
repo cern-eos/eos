@@ -157,7 +157,23 @@ public:
   //----------------------------------------------------------------------------
   bool RepairEntry(eos::IFileMD::id_t fid,
                    eos::common::FileSystem::fsid_t fsid_err,
-                   std::string err_type, bool async, std::string& out_msg);
+                   const std::string& err_type, bool async,
+                   std::string& out_msg);
+
+  //----------------------------------------------------------------------------
+  //! Update the backend given the successful outcome of the repair
+  //!
+  //! @param fid file identifier or 0ull when flushing is forced no matter the
+  //!        then number of entries accumulated
+  //! @param fsid file system identifier
+  //! @param err_type error type
+  //! @param count_flush number of accumulated entries when flushing to QDB
+  //!        backend is triggered
+  //----------------------------------------------------------------------------
+  void NotifyFixedErr(eos::IFileMD::id_t fid,
+                      eos::common::FileSystem::fsid_t fsid_err,
+                      const std::string& err_type,
+                      uint32_t count_flush = 100);
 
   //----------------------------------------------------------------------------
   //! Set max size of thread pool used for fsck repair jobs

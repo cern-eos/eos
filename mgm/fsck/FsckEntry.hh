@@ -196,7 +196,7 @@ public:
   //!
   //! @param success true if repair successful, otherwise false
   //----------------------------------------------------------------------------
-  void UpdateMgmStats(bool success) const;
+  void NotifyOutcome(bool success) const;
 
   //----------------------------------------------------------------------------
   //! Resync local FST metadata with the MGM info.
