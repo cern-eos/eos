@@ -147,7 +147,8 @@ XrdMgmOfs::_mkdir(const char* path,
                     cPath.GetParentPath());
       }
 
-      bool sticky_owner = attr::checkStickyDirOwner(attrmap, d_uid, d_gid, vid, path);
+      bool sticky_owner;
+      attr::checkDirOwner(attrmap, d_uid, d_gid, vid, sticky_owner, path);
       bool stdpermcheck = false;
 
       if (acl.HasAcl()) {
@@ -250,7 +251,13 @@ XrdMgmOfs::_mkdir(const char* path,
                acl.HasEgroup(), acl.IsMutable());
 
       // Check for sys.owner.auth entries, which let people operate as the owner of the directory
-      if (attr::checkStickyDirOwner(attrmap, d_uid, d_gid, vid, path)) {
+      bool sticky_owner;
+      if (attr::checkDirOwner(attrmap, d_uid, d_gid, vid, sticky_owner,
+                              path)) {
+        if (sticky_owner) {
+          vid.uid = d_uid;
+          vid.gid = d_gid;
+        }
         eos_info("msg=\"client acting as directory owner\" path=\"%s\"uid=\"%u=>%u\" gid=\"%u=>%u\"",
                  existingdir.c_str(), vid.uid, vid.gid, d_uid, d_gid);
 

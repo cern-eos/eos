@@ -6,17 +6,15 @@
 namespace eos::mgm::attr {
 
 bool
-checkStickyDirOwner(const eos::IContainerMD::XAttrMap& attrmap,
-            uid_t d_uid,
-            gid_t d_gid,
-            eos::common::VirtualIdentity& vid,
-            const char* path)
+checkDirOwner(const eos::IContainerMD::XAttrMap& attrmap, uid_t d_uid,
+              gid_t d_gid, eos::common::VirtualIdentity& vid,
+              bool& sticky_owner, const char* path)
 {
   // -------------------------------------------------------------------------
   // Check for sys.ownerauth entries, which let people operate as the owner of
   // the directory
   // -------------------------------------------------------------------------
-  bool sticky_owner = false;
+  sticky_owner = false;
 
   if (auto kv = attrmap.find(SYS_OWNER_AUTH);
       kv != attrmap.end()) {
@@ -39,6 +37,7 @@ checkStickyDirOwner(const eos::IContainerMD::XAttrMap& attrmap,
         // identity to the directory uid/gid pair
         vid.uid = d_uid;
         vid.gid = d_gid;
+        return true;
       }
     }
   }

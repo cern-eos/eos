@@ -1042,8 +1042,8 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
       gOFS->MgmStats.Add("OpenFailedENOENT", vid.uid, vid.gid, 1);
       return Emsg(epname, error, errno, "open file", path);
     }
-
-    bool sticky_owner = attr::checkStickyDirOwner(attrmap, d_uid, d_gid, vid, path);
+    bool sticky_owner;
+    attr::checkDirOwner(attrmap, d_uid, d_gid, vid, sticky_owner, path);
 
     // -------------------------------------------------------------------------
     // ACL and permission check
