@@ -1,5 +1,6 @@
 ARG REPO_LOCATION=gitlab-registry.cern.ch
 
+ARG CODENAME=diopside
 ARG IMAGE_BUILDER=${REPO_LOCATION}/linuxsupport/cs9-base
 ARG IMAGE_RUNNER=${REPO_LOCATION}/linuxsupport/cs9-base
 
@@ -54,10 +55,9 @@ WORKDIR build
 
 RUN cmake ../ -Wno-dev -DPACKAGEONLY=1
 RUN make srpm VERBOSE=1
-#; tar -ztvf $(ls | grep eos-5.0.27*.tar.gz); exit 2
 WORKDIR /eos-src
 
-RUN dnf list --installed | grep eos
+RUN echo -e "[eos-depend]\nname=EOS dependencies\nbaseurl=http://storage-ci.web.cern.ch/storage-ci/eos/${CODENAME}-depend/el-9s/$(uname -m)/\ngpgcheck=0\nenabled=1\npriority=4\n" >> /etc/yum.repos.d/eos-depend.repo
 RUN dnf builddep --nogpgcheck --allowerasing -y build/SRPMS/*
 RUN rpmbuild --rebuild --define "_rpmdir build/RPMS/" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" build/SRPMS/*
 #| ts disable timestamp on CentOS Stream 9, as moreutils is not available
@@ -88,5 +88,6 @@ RUN ls -l /_temp/eos-folly-deps/RPMS &&\
     ls -l /_temp/eos-folly/RPMS &&\
     echo "--------------------------" &&\
     ls -l /_temp/eos/RPMS
+#RUN echo -e "[eos-depend]\nname=EOS dependencies\nbaseurl=http://storage-ci.web.cern.ch/storage-ci/eos/${CODENAME}-depend/el-9s/$(uname -m)/\ngpgcheck=0\nenabled=1\npriority=4\n" >> /etc/yum.repos.d/eos-depend.repo
 #RUN dnf install -y /_temp/eos-folly-deps/RPMS/$(uname -m)/* /_temp/eos-folly/RPMS/$(uname -m)/* /_temp/eos/RPMS/$(uname -m)/*
 #RUN rm -rf /_temp
