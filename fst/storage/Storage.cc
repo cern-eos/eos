@@ -30,12 +30,14 @@
 #include "fst/Deletion.hh"
 #include "fst/txqueue/TransferQueue.hh"
 #include "fst/XrdFstOss.hh"
+#include "common/Fmd.hh"
 #include "common/FileSystem.hh"
 #include "common/Path.hh"
 #include "common/StringConversion.hh"
 #include "common/LinuxStat.hh"
 #include "common/ShellCmd.hh"
 #include "MonitorVarPartition.hh"
+#include "qclient/structures/QSet.hh"
 #include <google/dense_hash_map>
 #include <math.h>
 // @note (esindril)use this when Clang (>= 6.0.0) supports it
@@ -1147,7 +1149,9 @@ Storage::CleanupOrphans(eos::common::FileSystem::fsid_t fsid,
 
   // Perform the actual cleanup for the selected file systems
   for (const auto& elem : map) {
-    if (!CleanupOrphansDisk(elem.second)) {
+    std::set<uint64_t> fids;
+
+    if (!CleanupOrphansDisk(elem.second, fids)) {
       err_msg << "error: failed orphans cleanup on disk fsid="
               << elem.first << std::endl;
       eos_static_err("msg=\"failed orphans cleanup on disk\" fsid=%lu",
@@ -1155,12 +1159,22 @@ Storage::CleanupOrphans(eos::common::FileSystem::fsid_t fsid,
       success = false;
     }
 
-    if (!CleanupOrphansDb(elem.first)) {
-      err_msg << "error: failed orphans cleanup in db fsid="
-              << elem.first << std::endl;
-      eos_static_err("msg=\"failed orphans cleanup in db\" fsid=%lu",
-                     elem.first);
-      success = false;
+    if (gOFS.FmdOnDb()) {
+      if (!CleanupOrphansDb(elem.first)) {
+        err_msg << "error: failed orphans cleanup in db fsid="
+                << elem.first << std::endl;
+        eos_static_err("msg=\"failed orphans cleanup in db\" fsid=%lu",
+                       elem.first);
+        success = false;
+      }
+    } else {
+      if (!CleanupOrphansQdb(elem.first, fids)) {
+        err_msg << "error: failed orphans cleanup in QDB fsid="
+                << elem.first << std::endl;
+        eos_static_err("msg=\"failed orphans cleanup in QDB\" fsid=%lu",
+                       elem.first);
+        success = false;
+      }
     }
   }
 
@@ -1171,7 +1185,8 @@ Storage::CleanupOrphans(eos::common::FileSystem::fsid_t fsid,
 // Cleanup orphans on disk
 //------------------------------------------------------------------------------
 bool
-Storage::CleanupOrphansDisk(const std::string& mount)
+Storage::CleanupOrphansDisk(const std::string& mount,
+                            std::set<uint64_t>& fids)
 {
   bool success = true;
   eos_static_info("msg=\"doing orphans cleanup on disk\" path=\"%s\"",
@@ -1191,6 +1206,14 @@ Storage::CleanupOrphansDisk(const std::string& mount)
     if (entry->d_type == DT_REG) {
       fn_path = path_orphans;
       fn_path += entry->d_name;
+
+      try {
+        fids.insert(std::stoull(entry->d_name, nullptr, 16));
+      } catch (...) {
+        eos_static_info("msg=\"failed to convert orphan entry\" "
+                        "path=\"%s\"", fn_path.c_str());
+      }
+
       eos_static_info("msg=\"delete orphan entry\" path=\"%s\"",
                       fn_path.c_str());
 
@@ -1246,6 +1269,33 @@ Storage::CleanupOrphansDb(eos::common::FileSystem::fsid_t fsid)
   return true;
 }
 
+//------------------------------------------------------------------------------
+// Cleanup orphans from QDB
+//------------------------------------------------------------------------------
+bool
+Storage::CleanupOrphansQdb(eos::common::FileSystem::fsid_t fsid,
+                           const std::set<uint64_t>& fids)
+{
+  eos_static_info("msg=\"doing orphans cleanup in QDB\" fsid=%lu", fsid);
+  std::list<std::string> to_delete;
+
+  for (const auto& fid : fids) {
+    to_delete.push_back(SSTR(fid << ":" << fsid));
+  }
+
+  qclient::QSet qset(*gOFS.mFsckQcl.get(),
+                     SSTR("fsck:" << eos::common::FSCK_ORPHANS_N));
+
+  if (qset.srem(to_delete) != (long long int)to_delete.size()) {
+    return false;
+  }
+
+  return true;
+}
+
+//------------------------------------------------------------------------------
+// Get number of file systems
+//------------------------------------------------------------------------------
 size_t
 Storage::GetFSCount() const
 {

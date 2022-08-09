@@ -170,10 +170,12 @@ public:
   //! Cleanup orphans on disk
   //!
   //! @param mount file system mount path
+  //! @param fids set of fids cleaned up
   //!
   //! @return true if successful, otherwise false
   //----------------------------------------------------------------------------
-  bool CleanupOrphansDisk(const std::string& mount);
+  bool CleanupOrphansDisk(const std::string& mount,
+                          std::set<uint64_t>& fids);
 
   //----------------------------------------------------------------------------
   //! Cleanup orphans from local DB
@@ -183,6 +185,17 @@ public:
   //! @return true if successful, otherwise false
   //----------------------------------------------------------------------------
   bool CleanupOrphansDb(eos::common::FileSystem::fsid_t fsid);
+
+  //----------------------------------------------------------------------------
+  //! Cleanup orphans from QDB
+  //!
+  //! @param fsid file system id
+  //! @param fids set of fids to clean up
+  //!
+  //! @return true if successful, otherwise false
+  //----------------------------------------------------------------------------
+  bool CleanupOrphansQdb(eos::common::FileSystem::fsid_t fsid,
+                         const std::set<uint64_t>& fids);
 
   //----------------------------------------------------------------------------
   //! Get Total FSes tracked in storage, ie. size of the FsMap
