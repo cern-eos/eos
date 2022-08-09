@@ -281,22 +281,37 @@ public:         // [+] prevents '+' interpreted as "one or more"
   //! Return attr for sysacl
   //----------------------------------------------------------------------------
 
-  inline const std::string SysAttr() { return sysattr; }
+  inline const std::string SysAttr()
+  {
+    return sysattr;
+  }
 
   //----------------------------------------------------------------------------
   //! Return attr for useracl
   //----------------------------------------------------------------------------
 
-  inline const std::string UserAttr() { return userattr; }
+  inline const std::string UserAttr()
+  {
+    return userattr;
+  }
 
-  inline const std::string UserAttrFile() { return userattrF; }
+  inline const std::string UserAttrFile()
+  {
+    return mFileUserAcl;
+  }
 
   //----------------------------------------------------------------------------
   //! Return if enabled to evaluate user acls
   //----------------------------------------------------------------------------
 
-  inline const bool EvalUserAttr() { return evaluserattr; }
-  inline const bool EvalUserAttrFile() { return evaluserattrF; }
+  inline const bool EvalUserAttr()
+  {
+    return mEvalDirUserAcl;
+  }
+  inline const bool EvalUserAttrFile()
+  {
+    return mEvalFileUserAcl;
+  }
 
 private:
   bool mCanRead; ///< acl allows read access
@@ -322,9 +337,9 @@ private:
 
   std::string sysattr;
   std::string userattr;
-  bool evaluserattr;
-  std::string userattrF;
-  bool evaluserattrF;
+  bool mEvalDirUserAcl;
+  std::string mFileUserAcl;
+  bool mEvalFileUserAcl;
 };
 
 EOSMGMNAMESPACE_END
