@@ -1309,7 +1309,7 @@ Storage::CleanupOrphansQdb(eos::common::FileSystem::fsid_t fsid,
     (void) qset.srem(to_delete);
   } catch (const std::runtime_error& e) {
     eos_static_err("msg=\"failed clean orphans in QDB\" msg=\"%s\"",
-                   e.what().c_str());
+                   e.what());
     return false;
   }
 

@@ -580,6 +580,11 @@ FsckEntry::RepairRainInconsistencies()
       eos_err("msg=\"RAIN file over-replicated, to be handled manually\" "
               "fxid=%08llu fsid_err=%lu", mFid, mFsidErr);
       return false;
+    } else if (static_cast<unsigned long>(mMgmFmd.locations_size()) ==
+               LayoutId::GetStripeNumber(mMgmFmd.layout_id()) + 1) {
+      eos_info("msg=\"stripe inconsistency repair successful\" fxid=%08llx "
+               "src_fsid=%lu", mFid, src_fsid);
+      return true;
     }
   }
 
@@ -869,8 +874,8 @@ FsckEntry::Repair()
     gOFS->MgmStats.Add("FsckRepairStarted", 0, 0, 1);
 
     if (CollectMgmInfo() == false) {
-      eos_err("msg=\"no repair action, file is orphan\" fxid=%08llx fsid=%lu",
-              mFid, mFsidErr);
+      eos_err("msg=\"no repair action, file is orphan\" fxid=%08llx fsid=%lu "
+              "err=%s", mFid, mFsidErr, ConvertToString(mReportedErr).c_str());
       success = true;
       NotifyOutcome(success);
       (void) DropReplica(mFsidErr);

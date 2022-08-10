@@ -25,7 +25,8 @@
 #include "common/StringUtils.hh"
 #include "common/Logging.hh"
 
-namespace eos::common {
+namespace eos::common
+{
 
 /*
  * A simple class to talk to various ways of talking to generic string key-value
@@ -34,7 +35,8 @@ namespace eos::common {
  * how to save and load the key value from config. A couple of convenience functions
  * are added to retrieve numeric keys and defaults in case no keys exist.
  */
-class ConfigStore: public eos::common::LogId {
+class ConfigStore: public eos::common::LogId
+{
 public:
   //! Save a key value to the underlying config store
   //! \param key the string key
@@ -50,10 +52,11 @@ public:
 
   std::string get(const std::string& key, const std::string& default_val)
   {
-    if(auto s = load(key);
+    if (auto s = load(key);
         !s.empty()) {
       return s;
     }
+
     return default_val;
   }
 
@@ -64,14 +67,16 @@ public:
   //! \return the value or default_val if no hits were found
   template <typename NumT>
   auto get(const std::string& key, NumT default_val) noexcept
-  -> typename std::enable_if_t<std::is_arithmetic_v<NumT>, NumT>
-  {
+  -> typename std::enable_if_t<std::is_arithmetic_v<NumT>, NumT> {
     NumT val;
     std::string log_msg;
-    if (!StringToNumeric(load(key), val, default_val, &log_msg)) {
-      eos_err("msg=\"Failed to load key from Configstore\" err=%s",
-              log_msg.c_str());
+
+    if (!StringToNumeric(load(key), val, default_val, &log_msg))
+    {
+      eos_err("msg=\"failed to load key from Configstore\" key=\"%s\" err=%s",
+      key.c_str(), log_msg.c_str());
     }
+
     return val;
   }
 };
