@@ -1199,13 +1199,30 @@ Storage::CleanupOrphansDisk(const std::string& mount,
   std::string fn_path;
 
   if (!(dir = opendir(path_orphans.c_str()))) {
+    eos_static_err("msg=\"failed to open dir\" errno=%d path=%s", errno,
+                   path_orphans.c_str());
     return success;
   }
 
   while ((entry = readdir(dir)) != nullptr) {
-    if (entry->d_type == DT_REG) {
-      fn_path = path_orphans;
-      fn_path += entry->d_name;
+    eos_info("msg=\"dir contents\" name=%s type=%i", entry->d_name, entry->d_type);
+
+    // Fallback to stat if readdir does not provide the d_type for the entries
+    if (entry && entry->d_type == DT_UNKNOWN) {
+      struct stat buf;
+      fn_path = path_orphans + entry->d_name;
+
+      if (stat(fn_path.c_str(), &buf)) {
+        entry = nullptr;
+      } else {
+        entry->d_type = S_ISDIR(buf.st_mode) ? DT_DIR : DT_REG;
+      }
+    }
+
+    if (entry && (entry->d_type == DT_REG)) {
+      fn_path = path_orphans + entry->d_name;
+      eos_static_info("msg=\"delete orphan entry\" path=\"%s\"",
+                      fn_path.c_str());
 
       try {
         fids.insert(std::stoull(entry->d_name, nullptr, 16));
@@ -1213,9 +1230,6 @@ Storage::CleanupOrphansDisk(const std::string& mount,
         eos_static_info("msg=\"failed to convert orphan entry\" "
                         "path=\"%s\"", fn_path.c_str());
       }
-
-      eos_static_info("msg=\"delete orphan entry\" path=\"%s\"",
-                      fn_path.c_str());
 
       if (unlink(fn_path.c_str())) {
         eos_static_err("msg=\"delete failed\" path=\"%s\"", fn_path.c_str());
@@ -1277,6 +1291,11 @@ Storage::CleanupOrphansQdb(eos::common::FileSystem::fsid_t fsid,
                            const std::set<uint64_t>& fids)
 {
   eos_static_info("msg=\"doing orphans cleanup in QDB\" fsid=%lu", fsid);
+
+  if (fids.empty()) {
+    return true;
+  }
+
   std::list<std::string> to_delete;
 
   for (const auto& fid : fids) {
@@ -1286,7 +1305,11 @@ Storage::CleanupOrphansQdb(eos::common::FileSystem::fsid_t fsid,
   qclient::QSet qset(*gOFS.mFsckQcl.get(),
                      SSTR("fsck:" << eos::common::FSCK_ORPHANS_N));
 
-  if (qset.srem(to_delete) != (long long int)to_delete.size()) {
+  try {
+    (void) qset.srem(to_delete);
+  } catch (const std::runtime_error& e) {
+    eos_static_err("msg=\"failed clean orphans in QDB\" msg=\"%s\"",
+                   e.what().c_str());
     return false;
   }
 
