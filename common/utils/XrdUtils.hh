@@ -25,6 +25,9 @@
 #define EOS_XRDUTILS_HH
 
 #include <XrdOuc/XrdOucTList.hh>
+#include <XrdOuc/XrdOucEnv.hh>
+#include <type_traits>
+#include "common/StringUtils.hh"
 #include "common/Namespace.hh"
 
 EOSCOMMONNAMESPACE_BEGIN
@@ -40,6 +43,27 @@ public:
    * @return The number of elements the list listPtr contains
    */
   static unsigned int countNbElementsInXrdOucTList(const XrdOucTList* listPtr);
+
+
+  // While we don't modify XrdOucEnv, since Get isn't const marked, we've to use
+  // a mutable ref
+  static std::string
+  GetEnv(XrdOucEnv& env, const char* key,
+         std::string_view default_str = {});
+
+  template <typename T>
+  static auto
+  GetEnv(XrdOucEnv& env, const char* key,
+         T default_val)
+    -> std::enable_if_t<std::is_arithmetic_v<T>,T>
+  {
+    char* val = 0;
+    T ret {default_val};
+    if ((val = env.Get(key))) {
+      eos::common::StringToNumeric(std::string_view(val), ret, default_val);
+    }
+    return ret;
+  }
 };
 
 EOSCOMMONNAMESPACE_END

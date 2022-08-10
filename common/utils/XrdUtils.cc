@@ -37,4 +37,15 @@ unsigned int XrdUtils::countNbElementsInXrdOucTList(const XrdOucTList* listPtr)
   return count;
 }
 
+std::string
+XrdUtils::GetEnv(XrdOucEnv& env, const char* key,
+                 std::string_view default_str)
+{
+  char* val = 0;
+  if ((val = env.Get(key))) {
+    return val;
+  }
+  return std::string(default_str);
+}
+
 EOSCOMMONNAMESPACE_END
