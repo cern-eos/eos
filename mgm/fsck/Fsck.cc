@@ -456,6 +456,8 @@ Fsck::RepairErrs(ThreadAssistant& assistant) noexcept
       }
     }
 
+    // Force flush any collected notifications
+    NotifyFixedErr(0ull, 0ul, "", true);
     gOFS->mFidTracker.Clear(TrackerType::Fsck);
     mStartProcessing = false;
     eos_info("%s", "msg=\"loop in fsck repair thread\"");
@@ -466,8 +468,6 @@ Fsck::RepairErrs(ThreadAssistant& assistant) noexcept
     assistant.wait_for(std::chrono::seconds(1));
   }
 
-  // Force flush any collected notifications
-  NotifyFixedErr(0ull, 0ul, "");
   eos_info("%s", "msg=\"stopped fsck repair thread\"");
   mRepairRunning = false;
 }
@@ -1249,18 +1249,16 @@ void
 Fsck::NotifyFixedErr(eos::IFileMD::id_t fid,
                      eos::common::FileSystem::fsid_t fsid_err,
                      const std::string& err_type,
-                     uint32_t count_flush)
+                     bool force, uint32_t count_flush)
 {
-  if ((fsid_err == 0ul) || err_type.empty() || (err_type == "none")) {
-    return;
-  }
-
+  eos_static_debug("msg=\"fsck notification\" fid=%08llx fsid=%lu "
+                   "err=%s", fid, fsid_err, err_type.c_str());
   static std::mutex mutex;
   static uint64_t num_updates = 0ull;
   static std::map<std::string, std::set<std::string>> updates;
   std::unique_lock<std::mutex> scope_lock(mutex);
 
-  if (fid) {
+  if (fid && fsid_err && !err_type.empty() && (err_type != "none")) {
     auto it = updates.find(err_type);
 
     if (it == updates.end()) {
@@ -1278,11 +1276,11 @@ Fsck::NotifyFixedErr(eos::IFileMD::id_t fid,
 
   // Eventually flush the contents to the QDB backend if sentinel fid present
   // or if enough updates accumulated
-  if ((fid == 0ull) || (num_updates >= count_flush)) {
+  if (force || (num_updates >= count_flush)) {
     qclient::QSet qset(*mQcl.get(), "");
 
     for (const auto& elem : updates) {
-      qset.setKey(elem.first);
+      qset.setKey(SSTR("fsck:" << elem.first));
       std::list<std::string> values(elem.second.begin(), elem.second.end());
 
       if (qset.srem(values) != (long long int)values.size()) {

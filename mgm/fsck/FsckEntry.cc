@@ -871,6 +871,7 @@ FsckEntry::Repair()
     if (CollectMgmInfo() == false) {
       eos_err("msg=\"no repair action, file is orphan\" fxid=%08llx fsid=%lu",
               mFid, mFsidErr);
+      success = true;
       NotifyOutcome(success);
       (void) DropReplica(mFsidErr);
       // This could be a ghost fid entry still present in the file system map

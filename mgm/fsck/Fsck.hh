@@ -167,12 +167,14 @@ public:
   //!        then number of entries accumulated
   //! @param fsid file system identifier
   //! @param err_type error type
+  //! @param force if try force flush all updates
   //! @param count_flush number of accumulated entries when flushing to QDB
   //!        backend is triggered
   //----------------------------------------------------------------------------
   void NotifyFixedErr(eos::IFileMD::id_t fid,
                       eos::common::FileSystem::fsid_t fsid_err,
                       const std::string& err_type,
+                      bool force = false,
                       uint32_t count_flush = 100);
 
   //----------------------------------------------------------------------------
