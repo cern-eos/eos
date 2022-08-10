@@ -26,6 +26,7 @@
 #include "common/LayoutId.hh"
 #include "common/Mapping.hh"
 #include "common/utils/ContainerUtils.hh"
+#include "common/utils/XrdUtils.hh"
 #include "mgm/Policy.hh"
 #include "mgm/XrdMgmOfs.hh"
 /*----------------------------------------------------------------------------*/
@@ -133,11 +134,8 @@ Policy::GetLayoutAndSpace(const char* path,
   std::map<std::string, std::string> spacepolicies;
   std::map<std::string, std::string> spacerwpolicies;
 
-  std::string app_key = "default";
-  if ((val = env.Get("eos.app"))) {
-    app_key = val;
-  }
-  app_key = ".app:" + app_key;
+  using namespace std::string_view_literals;
+  std::string app_key = ".app:" + eos::common::XrdUtils::GetEnv(env, "eos.app", "default"sv);
   std::string user_key = ".user:" + vid.uid_string;
   std::string group_key = ".group:" + vid.gid_string;
 
@@ -316,11 +314,7 @@ Policy::GetLayoutAndSpace(const char* path,
     }
   }
 
-  forcedgroup = -1;
-  if ((val = env.Get("eos.group"))) {
-    // we force an explicit group
-    eos::common::StringToNumeric(std::string_view(val), forcedgroup, long(-1));
-  }
+  forcedgroup = eos::common::XrdUtils::GetEnv(env, "eos.group", (long)-1);
 
   if ((xsum != eos::common::LayoutId::kNone) &&
       (val = env.Get("eos.checksum.noforce"))) {
@@ -494,11 +488,7 @@ Policy::GetLayoutAndSpace(const char* path,
       eos_static_debug("<sys|user>.forced.nofsselection in %s", path);
       forcedfsid = 0;
     } else {
-      if ((val = env.Get("eos.force.fsid"))) {
-        forcedfsid = strtol(val, 0, 10);
-      } else {
-        forcedfsid = 0;
-      }
+      forcedfsid = eos::common::XrdUtils::GetEnv(env, "eos.force.fsid", 0l);
     }
   }
 
