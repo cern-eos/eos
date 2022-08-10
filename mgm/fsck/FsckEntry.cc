@@ -1000,8 +1000,16 @@ FsckEntry::NotifyOutcome(bool success) const
     // Update the MGM statistics and QDB backend in case of success
     if (success) {
       gOFS->MgmStats.Add("FsckRepairSuccessful", 0, 0, 1);
-      gOFS->mFsckEngine->NotifyFixedErr(mFid, mFsidErr,
-                                        eos::common::ConvertToString(mReportedErr));
+      const std::string sfsck_err = eos::common::ConvertToString(mReportedErr);
+      gOFS->mFsckEngine->NotifyFixedErr(mFid, mFsidErr, sfsck_err);
+
+      // Such errors are reported by all the attached locations so when they
+      // are fixed we need to update the fsck info for all of them
+      if (mReportedErr == eos::common::FsckErr::DiffRepl) {
+        for (const auto& loc : mMgmFmd.locations()) {
+          gOFS->mFsckEngine->NotifyFixedErr(mFid, loc, sfsck_err);
+        }
+      }
     } else {
       gOFS->MgmStats.Add("FsckRepairFailed", 0, 0, 1);
     }
