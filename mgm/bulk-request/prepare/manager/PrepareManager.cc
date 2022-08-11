@@ -197,8 +197,8 @@ int PrepareManager::doPrepare(XrdSfsPrep& pargs, XrdOucErrInfo& error, const Xrd
       .addParam(EosCtaReportParam::TD, vid.tident.c_str())
       .addParam(EosCtaReportParam::HOST, mMgmFsInterface->get_host())
       .addParam(EosCtaReportParam::PREP_REQ_REQID, reqid.c_str())
-      .addParam(EosCtaReportParam::PREP_REQ_TS, ts_now.tv_sec)
-      .addParam(EosCtaReportParam::PREP_REQ_TNS, ts_now.tv_nsec);
+      .addParam(EosCtaReportParam::TS, ts_now.tv_sec)
+      .addParam(EosCtaReportParam::TNS, ts_now.tv_nsec);
 
     eos_info("msg=\"checking file exists\" path=\"%s\"", prep_path.c_str());
     {

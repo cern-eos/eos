@@ -52,8 +52,8 @@ eos::mgm::StagerRmCmd::ProcessRequest() noexcept
       .addParam(EosCtaReportParam::RUID, mVid.uid)
       .addParam(EosCtaReportParam::RGID, mVid.gid)
       .addParam(EosCtaReportParam::TD, mVid.tident.c_str())
-      .addParam(EosCtaReportParam::STAGERRM_TS, ts_now.tv_sec)
-      .addParam(EosCtaReportParam::STAGERRM_TNS, ts_now.tv_nsec);
+      .addParam(EosCtaReportParam::TS, ts_now.tv_sec)
+      .addParam(EosCtaReportParam::TNS, ts_now.tv_nsec);
 
     const auto& file = stagerRm.file(i);
     std::string path;

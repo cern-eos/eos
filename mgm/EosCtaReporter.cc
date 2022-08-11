@@ -31,25 +31,23 @@ EOSMGMNAMESPACE_BEGIN
 
 static const std::map<EosCtaReportParam, std::string> EosCtaParamMap{
         // Basic params
-        {EosCtaReportParam::LOG                  , "log"                  },
-        {EosCtaReportParam::PATH                 , "path"                 },
-        {EosCtaReportParam::RUID                 , "ruid"                 },
-        {EosCtaReportParam::RGID                 , "rgid"                 },
-        {EosCtaReportParam::TD                   , "td"                   },
-        {EosCtaReportParam::HOST                 , "host"                 },
+        {EosCtaReportParam::LOG , "log" },
+        {EosCtaReportParam::PATH, "path"},
+        {EosCtaReportParam::RUID, "ruid"},
+        {EosCtaReportParam::RGID, "rgid"},
+        {EosCtaReportParam::TD  , "td"  },
+        {EosCtaReportParam::HOST, "host"},
+        {EosCtaReportParam::TS  , "ts"  },
+        {EosCtaReportParam::TNS , "tns" },
 
         // Prepare request params
-        {EosCtaReportParam::PREP_REQ_TS          , "prep.req.ts"          },
-        {EosCtaReportParam::PREP_REQ_TNS         , "prep.req.tns"         },
-        {EosCtaReportParam::PREP_REQ_EVENT       , "prep.req.event"       },
-        {EosCtaReportParam::PREP_REQ_REQID       , "prep.req.reqid"       },
-        {EosCtaReportParam::PREP_REQ_SENTTOWFE   , "prep.req.senttowfe"   },
-        {EosCtaReportParam::PREP_REQ_SUCCESSFUL  , "prep.req.successful"  },
-        {EosCtaReportParam::PREP_REQ_ERROR       , "prep.req.error"       },
+        {EosCtaReportParam::PREP_REQ_EVENT     , "prep.req.event"     },
+        {EosCtaReportParam::PREP_REQ_REQID     , "prep.req.reqid"     },
+        {EosCtaReportParam::PREP_REQ_SENTTOWFE , "prep.req.senttowfe" },
+        {EosCtaReportParam::PREP_REQ_SUCCESSFUL, "prep.req.successful"},
+        {EosCtaReportParam::PREP_REQ_ERROR     , "prep.req.error"     },
 
         // WFE params
-        {EosCtaReportParam::PREP_WFE_TS          , "prep.wfe.ts"          },
-        {EosCtaReportParam::PREP_WFE_TNS         , "prep.wfe.tns"         },
         {EosCtaReportParam::PREP_WFE_EVENT       , "prep.wfe.event"       },
         {EosCtaReportParam::PREP_WFE_REQID       , "prep.wfe.reqid"       },
         {EosCtaReportParam::PREP_WFE_REQCOUNT    , "prep.wfe.reqcount"    },
@@ -63,11 +61,17 @@ static const std::map<EosCtaReportParam, std::string> EosCtaParamMap{
         {EosCtaReportParam::PREP_WFE_ERROR       , "prep.req.error"       },
 
         // StagerRm params
-        {EosCtaReportParam::STAGERRM_TS          , "stagerrm.ts"          },
-        {EosCtaReportParam::STAGERRM_TNS         , "stagerrm.tns"         },
         {EosCtaReportParam::STAGERRM_EVICTCOUNTER, "stagerrm.evictcounter"},
         {EosCtaReportParam::STAGERRM_FILEREMOVED , "stagerrm.fileremoved" },
         {EosCtaReportParam::STAGERRM_ERROR       , "stagerrm.error"       },
+
+        // File deletion params
+        {EosCtaReportParam::FILE_DEL_FID                  , "file_del.fid"                  },
+        {EosCtaReportParam::FILE_DEL_FXID                 , "file_del.fxid"                 },
+        {EosCtaReportParam::FILE_DEL_EOS_BTIME            , "file_del.eos.btime"            },
+        {EosCtaReportParam::FILE_DEL_ARCHIVE_FILE_ID      , "file_del.archive.file_id"      },
+        {EosCtaReportParam::FILE_DEL_ARCHIVE_STORAGE_CLASS, "file_del.archive.storage_class"},
+        {EosCtaReportParam::FILE_DEL_LOCATIONS            , "file_del.locations"            },
 };
 
 // Basic mParams
@@ -78,12 +82,12 @@ std::vector<EosCtaReportParam> EosCtaReporter::DEFAULT_PARAMS{
         EosCtaReportParam::RGID,
         EosCtaReportParam::TD,
         EosCtaReportParam::HOST,
+        EosCtaReportParam::TS,
+        EosCtaReportParam::TNS,
 };
 
 // Prepare request mParams
 std::vector<EosCtaReportParam> EosCtaReporterPrepareReq::DEFAULT_PARAMS_PREPARE_REQ{
-        EosCtaReportParam::PREP_REQ_TS,
-        EosCtaReportParam::PREP_REQ_TNS,
         EosCtaReportParam::PREP_REQ_EVENT,
         EosCtaReportParam::PREP_REQ_REQID,
         EosCtaReportParam::PREP_REQ_SENTTOWFE,
@@ -93,8 +97,6 @@ std::vector<EosCtaReportParam> EosCtaReporterPrepareReq::DEFAULT_PARAMS_PREPARE_
 
 // WFE mParams
 std::vector<EosCtaReportParam> EosCtaReporterPrepareWfe::DEFAULT_PARAMS_PREPARE_WFE{
-        EosCtaReportParam::PREP_WFE_TS,
-        EosCtaReportParam::PREP_WFE_TNS,
         EosCtaReportParam::PREP_WFE_EVENT,
         EosCtaReportParam::PREP_WFE_REQID,
         EosCtaReportParam::PREP_WFE_REQCOUNT,
@@ -110,11 +112,19 @@ std::vector<EosCtaReportParam> EosCtaReporterPrepareWfe::DEFAULT_PARAMS_PREPARE_
 
 // StagerRm mParams
 std::vector<EosCtaReportParam> EosCtaReporterStagerRm::DEFAULT_PARAMS_STAGERRM{
-        EosCtaReportParam::STAGERRM_TS,
-        EosCtaReportParam::STAGERRM_TNS,
         EosCtaReportParam::STAGERRM_EVICTCOUNTER,
         EosCtaReportParam::STAGERRM_FILEREMOVED,
         EosCtaReportParam::STAGERRM_ERROR,
+};
+
+// File deletion mParams
+std::vector<EosCtaReportParam> EosCtaReporterFileDeletion::DEFAULT_PARAMS_FILE_DELETION{
+        EosCtaReportParam::FILE_DEL_FID,
+        EosCtaReportParam::FILE_DEL_FXID,
+        EosCtaReportParam::FILE_DEL_EOS_BTIME,
+        EosCtaReportParam::FILE_DEL_ARCHIVE_FILE_ID,
+        EosCtaReportParam::FILE_DEL_ARCHIVE_STORAGE_CLASS,
+        EosCtaReportParam::FILE_DEL_LOCATIONS,
 };
 
 // Default function used to write the EOS-CTA reports
@@ -156,6 +166,12 @@ EosCtaReporterPrepareWfe::EosCtaReporterPrepareWfe() {
 
 EosCtaReporterStagerRm::EosCtaReporterStagerRm() {
   for (auto key : DEFAULT_PARAMS_STAGERRM) {
+    mParams[key] = "";
+  }
+}
+
+EosCtaReporterFileDeletion::EosCtaReporterFileDeletion() {
+  for (auto key : DEFAULT_PARAMS_FILE_DELETION) {
     mParams[key] = "";
   }
 }

@@ -41,10 +41,10 @@ enum class EosCtaReportParam {
   RGID,
   TD,
   HOST,
+  TS,
+  TNS,
 
   // Prepare request params
-  PREP_REQ_TS,
-  PREP_REQ_TNS,
   PREP_REQ_EVENT,
   PREP_REQ_REQID,
   PREP_REQ_SENTTOWFE,
@@ -52,8 +52,6 @@ enum class EosCtaReportParam {
   PREP_REQ_ERROR,
 
   // WFE params
-  PREP_WFE_TS,
-  PREP_WFE_TNS,
   PREP_WFE_EVENT,
   PREP_WFE_REQID,
   PREP_WFE_REQCOUNT,
@@ -67,11 +65,17 @@ enum class EosCtaReportParam {
   PREP_WFE_ERROR,
 
   // StagerRm params
-  STAGERRM_TS,
-  STAGERRM_TNS,
   STAGERRM_EVICTCOUNTER,
   STAGERRM_FILEREMOVED,
   STAGERRM_ERROR,
+
+  // File deletion params
+  FILE_DEL_FID,
+  FILE_DEL_FXID,
+  FILE_DEL_EOS_BTIME,
+  FILE_DEL_ARCHIVE_FILE_ID,
+  FILE_DEL_ARCHIVE_STORAGE_CLASS,
+  FILE_DEL_LOCATIONS,
 };
 
 // Base class for EOS-CTA Report
@@ -148,6 +152,14 @@ public:
   EosCtaReporterStagerRm();
 private:
   static std::vector<EosCtaReportParam> DEFAULT_PARAMS_STAGERRM;
+};
+
+// File deletion EOS-CTA Reporter
+class EosCtaReporterFileDeletion : public EosCtaReporter {
+public:
+  EosCtaReporterFileDeletion();
+private:
+  static std::vector<EosCtaReportParam> DEFAULT_PARAMS_FILE_DELETION;
 };
 
 EOSMGMNAMESPACE_END

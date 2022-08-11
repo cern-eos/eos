@@ -1720,8 +1720,8 @@ WFE::Job::IdempotentPrepare(const std::string& fullPath,
     .addParam(EosCtaReportParam::TD, mVid.tident.c_str())
     .addParam(EosCtaReportParam::PREP_WFE_EVENT, "stage")
     .addParam(EosCtaReportParam::PREP_WFE_ACTIVITY, prepareActivity)
-    .addParam(EosCtaReportParam::PREP_WFE_TS, ts_now.tv_sec)
-    .addParam(EosCtaReportParam::PREP_WFE_TNS, ts_now.tv_nsec);
+    .addParam(EosCtaReportParam::TS, ts_now.tv_sec)
+    .addParam(EosCtaReportParam::TNS, ts_now.tv_nsec);
 
   // Check if we have a disk replica and if not, whether it's on tape
   if (gOFS->_stat(fullPath.c_str(), &buf, errInfo, mVid, nullptr, nullptr,
@@ -2224,6 +2224,34 @@ WFE::Job::HandleProtoMethodDeleteEvent(const std::string& fullPath,
   // after successfully deleting the actual tape files.  This would give the end
   // user a false sense of security that their tape file still exists when they
   // list it. This would be considered as data loss by the end user.
+
+  // However, before deleting the file from the EOS namespace, we should log its contents.
+  // This provides a way to recover the namespace after an unintended deletion of a file on tape.
+
+  {
+    struct timespec ts_now;
+    eos::common::Timing::GetTimeSpec(ts_now);
+
+    EosCtaReporterFileDeletion eosLog;
+    auto fmd = gOFS->eosFileService->getFileMD(mFid);
+    auto locations = fmd->getLocations();
+    std::ostringstream locationsOStream;
+    std::copy(locations.begin(), locations.end(), std::ostream_iterator<decltype(locations)::value_type>(locationsOStream, ","));
+    eosLog.addParam(EosCtaReportParam::LOG, std::string(gOFS->logId))
+          .addParam(EosCtaReportParam::PATH, fullPath)
+          .addParam(EosCtaReportParam::RUID, mVid.uid)
+          .addParam(EosCtaReportParam::RGID, mVid.gid)
+          .addParam(EosCtaReportParam::TD, mVid.tident.c_str())
+          .addParam(EosCtaReportParam::TS, ts_now.tv_sec)
+          .addParam(EosCtaReportParam::TNS, ts_now.tv_nsec)
+          .addParam(EosCtaReportParam::FILE_DEL_FID, fmd->getId())
+          .addParam(EosCtaReportParam::FILE_DEL_FXID, eos::common::FileId::Fid2Hex(fmd->getId()).c_str())
+          .addParam(EosCtaReportParam::FILE_DEL_EOS_BTIME, fmd->getAttribute("sys.eos.btime"))
+          .addParam(EosCtaReportParam::FILE_DEL_ARCHIVE_FILE_ID, fmd->getAttribute("sys.archive.file_id"))
+          .addParam(EosCtaReportParam::FILE_DEL_ARCHIVE_STORAGE_CLASS, fmd->getAttribute("sys.archive.storage_class"))
+          .addParam(EosCtaReportParam::FILE_DEL_LOCATIONS, locationsOStream.str());
+  }
+
   bool tapeLocationWasRemoved = false;
 
   try {
