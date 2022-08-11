@@ -27,6 +27,7 @@
 #include "common/Mapping.hh"
 #include "common/utils/ContainerUtils.hh"
 #include "common/utils/XrdUtils.hh"
+#include "mgm/Constants.hh"
 #include "mgm/Policy.hh"
 #include "mgm/XrdMgmOfs.hh"
 /*----------------------------------------------------------------------------*/
@@ -54,17 +55,11 @@ const std::vector<std::string> Policy::gBaseLocalPolicyKeys = {
     "local.policy.localredirect"
 };
 
-static const std::string POLICY_BANDWIDTH="policy.bandwidth";
-static const std::string POLICY_IOPRIORITY="policy.iopriority";
-static const std::string POLICY_IOTYPE = "policy.iotype";
-static const std::string POLICY_SCHEDULE="policy.schedule";
-
-
 const std::vector<std::string> Policy::gBasePolicyRWKeys = {
-    "policy.bandwidth",
-    "policy.iopriority",
-    "policy.iotype",
-    "policy.schedule"
+  "policy.bandwidth",
+  "policy.iopriority",
+  "policy.iotype",
+  "policy.schedule"
 };
 
 /*----------------------------------------------------------------------------*/
@@ -134,11 +129,10 @@ Policy::GetLayoutAndSpace(const char* path,
   std::map<std::string, std::string> spacepolicies;
   std::map<std::string, std::string> spacerwpolicies;
 
-  using namespace std::string_view_literals;
-  std::string app_key = ".app:" + eos::common::XrdUtils::GetEnv(env, "eos.app", "default"sv);
-  std::string user_key = ".user:" + vid.uid_string;
-  std::string group_key = ".group:" + vid.gid_string;
-
+  RWParams rwparams {vid.uid_string, vid.gid_string,
+    eos::common::XrdUtils::GetEnv(env, "eos.app", "default"),
+    rw, is_local
+  };
 
   if (!conversion) {
     // don't apply space policies to conversion paths
@@ -153,14 +147,12 @@ Policy::GetLayoutAndSpace(const char* path,
       if (is_local) {
         it->second->GetLocalConfigMembers(GetConfigKeys(is_local),
                                           spacepolicies);
-        it->second->GetLocalConfigMembers(GetRWConfigKeys(user_key, group_key, app_key,
-                                                          rw, is_local),
+        it->second->GetLocalConfigMembers(GetRWConfigKeys(rwparams),
                                           spacerwpolicies);
       } else {
         it->second->GetConfigMembers(GetConfigKeys(is_local),
                                      spacepolicies);
-        it->second->GetConfigMembers(GetRWConfigKeys(user_key, group_key, app_key,
-                                                     rw, is_local),
+        it->second->GetConfigMembers(GetRWConfigKeys(rwparams),
                                      spacerwpolicies);
 
       }
@@ -170,18 +162,13 @@ Policy::GetLayoutAndSpace(const char* path,
     }
   } // if !conversion
 
-  eos::common::erase_if(spacerwpolicies, [](const auto &kv) {
-    return kv.second.empty();});
-  if (!spacerwpolicies.empty()) {
-    schedule = GetRWValue(spacerwpolicies, getRWkey(POLICY_SCHEDULE, rw, is_local),
-                          user_key, group_key, app_key) == "1";
-    iopriority = GetRWValue(spacerwpolicies, getRWkey(POLICY_IOPRIORITY, rw, is_local),
-                            user_key, group_key, app_key);
-    iotype = GetRWValue(spacerwpolicies, getRWkey(POLICY_IOTYPE, rw, is_local),
-                        user_key, group_key, app_key);
-    bandwidth = GetRWValue(spacerwpolicies, getRWkey(POLICY_BANDWIDTH, rw, is_local),
-                           user_key, group_key, app_key);
-  }
+  std::string schedule_str;
+  GetRWValue(spacerwpolicies, POLICY_SCHEDULE, rwparams, schedule_str);
+  GetRWValue(spacerwpolicies, POLICY_IOPRIORITY, rwparams, iopriority);
+  GetRWValue(spacerwpolicies, POLICY_IOTYPE, rwparams, iotype);
+  GetRWValue(spacerwpolicies, POLICY_BANDWIDTH, rwparams, bandwidth);
+
+  schedule = schedule_str.length() ? schedule_str == "1" : schedule;
 
   if ((val = env.Get("eos.space"))) {
     space = val;
@@ -198,95 +185,49 @@ Policy::GetLayoutAndSpace(const char* path,
     }
   }
 
-  // TODO: Use the same pattern as default space for the following! This is just
-  // kept here for reference and will be refactored. The settings from the
-  // default space have been already defined before
+  // Replace the non empty settings from the default space have been already
+  // defined before
   if (!conversion && space != "default") {
+    std::map <std::string, std::string> nondefault_policies;
+    spacerwpolicies.clear();
     if (lockview) {
       lock.Grab(FsView::gFsView.ViewMutex);
     }
     auto it = FsView::gFsView.mSpaceView.find(space.c_str());
 
     if (it != FsView::gFsView.mSpaceView.end()) {
-      // overwrite the defaults if they are defined in the target space
-      std::string space_layout   = it->second->GetConfigMember("policy.layout");
-      std::string space_nstripes = it->second->GetConfigMember("policy.nstripes");
-      std::string space_checksum = it->second->GetConfigMember("policy.checksum");
-      std::string space_blocksize = it->second->GetConfigMember("policy.blocksize");
-      std::string space_blockxs  =
-        it->second->GetConfigMember("policy.blockchecksum");
-      std::string space_localrdr =
-        it->second->GetConfigMember("policy.localredirect");
-
-      if (space_layout.length()) {
-        spacepolicies.emplace("layout", space_layout);
+      if (is_local) {
+        it->second->GetLocalConfigMembers(GetConfigKeys(is_local),
+                                          nondefault_policies);
+        it->second->GetLocalConfigMembers(GetRWConfigKeys(rwparams),
+                                            spacerwpolicies);
+      } else {
+        it->second->GetConfigMembers(GetConfigKeys(is_local),
+                                     nondefault_policies);
+        it->second->GetConfigMembers(GetRWConfigKeys(rwparams),
+                                     spacerwpolicies);
       }
-
-      if (space_nstripes.length()) {
-        spacepolicies.emplace("nstripes", space_nstripes);
-      }
-
-      if (space_checksum.length()) {
-        spacepolicies.emplace("checksum", space_checksum);
-      }
-
-      if (space_blocksize.length()) {
-        spacepolicies.emplace("blocksize", space_blocksize);
-      }
-
-      if (space_blockxs.length()) {
-        spacepolicies.emplace("blockchecksum", space_blockxs);
-      }
-
-      if (space_localrdr.length()) {
-        spacepolicies.emplace("localredirect", space_localrdr);
-      }
-
-      bandwidth = it->second->GetConfigMember("policy.bandwidth");
-      schedule = (it->second->GetConfigMember("policy.schedule") == "1");
-      iopriority = it->second->GetConfigMember("policy.iopriority");
-      iotype = it->second->GetConfigMember("policy.iotype");
-      {
-        std::vector<std::string> keylist;
-        std::string io=rw?":w":":r";
-        keylist.push_back("policy.bandwidth"+io);
-        keylist.push_back("policy.iopriority"+io);
-        keylist.push_back("policy.iotype"+io);
-        keylist.push_back("policy.schedule"+io);
-        for (auto const& k : keylist ) {
-          std::vector<std::string> configlist;
-          // try application specific setting
-          std::string key = k;
-          std::string app = (env.Get("eos.app"))? env.Get("eos.app") : "default";
-          configlist.push_back(key+".group:" + vid.gid_string);
-          configlist.push_back(key+".user:" + vid.uid_string);
-          configlist.push_back(key+".app:" + app);
-          for ( auto const& n : configlist ) {
-            std::string val = it->second->GetConfigMember(n);
-            if (val.length()) {
-              if ( k.substr(0,16) == "policy.bandwidth" ) {
-                bandwidth = val;
-              }
-              if ( k.substr(0,17) == "policy.iopriority" ) {
-                iopriority = val;
-              }
-
-              if ( k.substr(0,13) == "policy.iotype" ) {
-                iotype = val;
-              }
-              if ( k.substr(0,15) == "policy.schedule" ) {
-                schedule = (val == "1")? true:false;
-              }
-            }
-          }
-        }
-      }
-    }
-
+    } // FsView;
     if (lockview) {
       lock.Release();
     }
-  } // space != default
+    // Since this map only contains keys that are already populated, we can be
+    // sure that we'll be only replacing non empty keys
+    for (auto&& kv: nondefault_policies) {
+      if (!kv.second.empty()) {
+        spacepolicies.insert_or_assign(kv.first,
+                                       std::move(kv.second));
+      }
+    }
+
+    std::string schedule_str;
+    GetRWValue(spacerwpolicies, POLICY_SCHEDULE, rwparams, schedule_str);
+    GetRWValue(spacerwpolicies, POLICY_IOPRIORITY, rwparams, iopriority);
+    GetRWValue(spacerwpolicies, POLICY_IOTYPE, rwparams, iotype);
+    GetRWValue(spacerwpolicies, POLICY_BANDWIDTH, rwparams, bandwidth);
+
+    schedule = schedule_str.length() ? schedule_str == "1" : schedule;
+  } // !conversion && space != default
 
   // look if we have to inject the default space policies
   for (const auto& it : spacepolicies) {
@@ -676,61 +617,46 @@ Policy::GetConfigKeys(bool local)
 }
 
 
+void
+Policy::GetRWValue(const std::map<std::string, std::string>& conf_map,
+                   const std::string& key_name, const RWParams& params,
+                   std::string& value)
+{
+  for (auto&& k : params.getKeys(key_name)) {
+    if (const auto& kv = conf_map.find(k);
+        kv != conf_map.end() &&
+        !kv->second.empty()) {
+       value = kv->second;
+    }
+  }
+}
+
+std::vector<std::string>
+Policy::GetRWConfigKeys(const RWParams& params)
+{
+  std::vector<std::string> config_keys;
+  config_keys.reserve(16);
+
+
+  for (const auto& _key: gBasePolicyRWKeys) {
+    eos::common::splice(config_keys,
+                        params.getKeys(_key));
+  }
+  return config_keys;
+}
 
 
 std::vector<std::string>
-Policy::GetRWConfigKey(const std::string& key_name,
-                        const std::string& user_key,
-                        const std::string& group_key,
-                        const std::string& app_key)
+Policy::RWParams::getKeys(const string& key) const
 {
-
-  return {
+  auto key_name = getKey(key);
+  return
+  {
       key_name + app_key,
       key_name + user_key,
       key_name + group_key,
       key_name
   };
-}
-
-
-std::string
-Policy::GetRWValue(const std::map<std::string, std::string>& conf_map,
-                   const std::string& key_name,
-                   const std::string& user_key,
-                   const std::string& group_key,
-                   const std::string& app_key)
-{
-  for (auto&& k : GetRWConfigKey(key_name, user_key, group_key, app_key)) {
-    if (const auto& kv = conf_map.find(k);
-        kv != conf_map.end() &&
-        !kv->second.empty()) {
-      return kv->second;
-    }
-  }
-  return {};
-}
-
-std::string
-Policy::getRWkey(const std::string& key_name, bool is_rw, bool is_local)
-{
-  std::string base_prefix = is_local ? "local." : "";
-  std::string rw_marker = is_rw ? ":w" : ":r";
-  return base_prefix + key_name + rw_marker;
-}
-std::vector<std::string>
-Policy::GetRWConfigKeys(const std::string& user_key,
-                        const std::string& group_key,
-                        const std::string& app_key, bool is_rw, bool local)
-{
-  std::vector<std::string> config_keys;
-  config_keys.reserve(16);
-  for (const auto& _key: gBasePolicyRWKeys) {
-    eos::common::splice(config_keys,
-                        GetRWConfigKey(getRWkey(_key, is_rw, local), user_key,
-                                       group_key, app_key));
-  }
-  return config_keys;
 }
 
 EOSMGMNAMESPACE_END

@@ -94,32 +94,45 @@ public:
 
   static const char* Get (const char* key);
 
+  struct RWParams;
+
   static std::vector<std::string> GetConfigKeys(bool local=false);
 
-  static std::vector<std::string> GetRWConfigKeys(const std::string& user_key,
-                                                  const std::string& group_key,
-                                                  const std::string& app_key,
-                                                  bool is_rw,
-                                                  bool local=false);
+  static std::vector<std::string> GetRWConfigKeys(const RWParams& params);
 
-  static std::vector<std::string> GetRWConfigKey(const std::string& key_name,
-                                                    const std::string& user_key,
-                                                    const std::string& group_key,
-                                                    const std::string& app_key);
-
-  static std::string GetRWValue(const std::map<std::string, std::string>& conf_map,
-                                const std::string& key_name,
-                                const std::string& user_key,
-                                const std::string& group_key,
-                                const std::string& app_key);
-
-  static std::string getRWkey(const std::string& key_name,
-                              bool is_rw,
-                              bool is_local=false);
+  static void GetRWValue(const std::map<std::string, std::string>& conf_map,
+                         const std::string& key_name,
+                         const RWParams& params,
+                         std::string& value);
 
   static const std::vector<std::string> gBasePolicyKeys;
   static const std::vector<std::string> gBaseLocalPolicyKeys;
   static const std::vector<std::string> gBasePolicyRWKeys;
+
+  struct RWParams {
+    std::string user_key;
+    std::string group_key;
+    std::string app_key;
+    std::string rw_marker;
+    std::string local_prefix;
+
+    RWParams(const std::string& user_str,
+             const std::string& group_str,
+             const std::string& app_str,
+             bool is_rw,
+             bool is_local) :
+      user_key(".user:" + user_str),
+      group_key(".group:" + group_str),
+      app_key(".app:" + app_str),
+      rw_marker(is_rw ? ":w" : ":r"),
+      local_prefix(is_local ? "local." : "") {}
+
+    std::string getKey(const std::string& key) const {
+      return local_prefix + key + rw_marker;
+    }
+
+    std::vector<std::string> getKeys(const std::string& key) const;
+  };
 };
 
 EOSMGMNAMESPACE_END
