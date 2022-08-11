@@ -42,6 +42,7 @@ const std::vector<std::string> Policy::gBasePolicyKeys = {
     "policy.layout",
     "policy.nstripes",
     "policy.checksum",
+    "policy.blocksize",
     "policy.blockchecksum",
     "policy.localredirect"
 };
@@ -51,6 +52,7 @@ const std::vector<std::string> Policy::gBaseLocalPolicyKeys = {
     "local.policy.layout",
     "local.policy.nstripes",
     "local.policy.checksum",
+    "local.policy.blocksize",
     "local.policy.blockchecksum",
     "local.policy.localredirect"
 };
