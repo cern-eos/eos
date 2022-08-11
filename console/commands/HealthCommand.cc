@@ -672,6 +672,7 @@ void HealthCommand::Execute(std::string& out)
     }
 
     DeadNodesCheck(node_cmd);
+    BlackHoleCheck(node_cmd);
   } else if (m_section == "drain") {
     TooFullForDrainingCheck();
   } else if (m_section == "placement") {
