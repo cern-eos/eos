@@ -61,6 +61,7 @@ public:
   bool
   Dispatch(const std::string identity, eos::fusex::heartbeat& hb);
   void Print(std::string& out, std::string options = "");
+  // This method requires the lock to be held by the caller!
   std::string Info(const std::string& identity);
 
   void HandleStatistics(const std::string identity,
