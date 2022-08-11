@@ -80,51 +80,59 @@ Acl::Acl(const char* path, XrdOucErrInfo& error,
 //------------------------------------------------------------------------------
 void
 Acl::SetFromAttrMap(const eos::IContainerMD::XAttrMap& attrmap,
-                    const eos::common::VirtualIdentity& vid, eos::IFileMD::XAttrMap* attrmapF,
-                    bool sysaclOnly)
+                    const eos::common::VirtualIdentity& vid,
+                    eos::IFileMD::XAttrMap* attrmapF, bool sysaclOnly)
 {
-  bool evalUseracl = false;
-  evaluserattrF = false;
-  std::string useracl;
-  std::string tokenacl;
+  std::string usr_acl;
+  bool eval_usr_acl = false;
+  mEvalFileUserAcl = false;
 
   if (!sysaclOnly) {
-    if (attrmapF != NULL && attrmapF->count("user.acl") > 0) {
-      evalUseracl = attrmapF->count("sys.eval.useracl") > 0;
+    if (attrmapF && (attrmapF->count("user.acl") > 0)) {
+      eval_usr_acl = (attrmapF->count("sys.eval.useracl") > 0);
 
-      if (evalUseracl) {
-        useracl = (*attrmapF)["user.acl"];
-        userattrF = useracl;
-        evaluserattrF = true;
+      if (eval_usr_acl) {
+        usr_acl = (*attrmapF)["user.acl"];
+        mFileUserAcl = usr_acl;
+        mEvalFileUserAcl = true;
       }
     } else {
-      evalUseracl = attrmap.count("sys.eval.useracl") > 0;
-      auto it = attrmap.find("user.acl");
+      eval_usr_acl = (attrmap.count("sys.eval.useracl") > 0);
 
-      if (it != attrmap.end()) {
-        useracl = it->second;
+      if (eval_usr_acl) {
+        auto it = attrmap.find("user.acl");
+
+        if (it != attrmap.end()) {
+          usr_acl = it->second;
+        }
       }
     }
   }
 
-  tokenacl = TokenAcl(vid);
-  std::string sysAcl;
-  auto it = attrmap.find("sys.acl");
+  std::string sys_acl;
+  auto itc = attrmap.find("sys.acl");
 
-  if (it != attrmap.end()) {
-    sysAcl = it->second;
+  if (itc != attrmap.end()) {
+    sys_acl = itc->second;
   }
 
-  if (attrmapF && attrmapF->count("sys.acl")) {
-    sysAcl = (*attrmapF)["sys.acl"];
+  if (attrmapF) {
+    auto itf = attrmapF->find("sys.acl");
+
+    if (itf != attrmapF->end()) {
+      if (!sys_acl.empty()) {
+        sys_acl += ',';
+      }
+
+      sys_acl += itf->second;
+    }
   }
 
-  if (EOS_LOGS_DEBUG) {
-    eos_static_debug("sysacl='%s' useracl='%s' tokenacl='%s' evalUseracl=%d",
-                     sysAcl.c_str(), useracl.c_str(), tokenacl.c_str(), evalUseracl);
-  }
-
-  Set(sysAcl, useracl, tokenacl, vid, evalUseracl);
+  std::string token_acl = TokenAcl(vid);
+  eos_static_debug("sysacl=\"%s\" useracl=\"%s\" token_acl=\"%s\" "
+                   "eval_usr_acl=%d", sys_acl.c_str(), usr_acl.c_str(),
+                   token_acl.c_str(), eval_usr_acl);
+  Set(sys_acl, usr_acl, token_acl, vid, eval_usr_acl);
 }
 
 //------------------------------------------------------------------------------
@@ -137,7 +145,7 @@ Acl::Set(std::string sysacl, std::string useracl, std::string tokenacl,
   std::string acl = "";
   sysattr = "";
   userattr = "";
-  evaluserattr = false;
+  mEvalDirUserAcl = false;
 
   if (sysacl.length()) {
     acl += sysacl;
@@ -145,7 +153,7 @@ Acl::Set(std::string sysacl, std::string useracl, std::string tokenacl,
   }
 
   if (allowUserAcl) {
-    evaluserattr = true;
+    mEvalDirUserAcl = true;
 
     if (useracl.length()) {
       if (sysacl.length()) {
@@ -712,13 +720,13 @@ Acl::TokenAcl(const eos::common::VirtualIdentity& vid) const
         tokenacl += vid.token->Permission();
         return tokenacl;
       } else {
-        eos_static_err("invald path token");
+        eos_static_err("%s", "msg=\"invald path token\"");
       }
     } else {
-      eos_static_err("invalid token");
+      eos_static_err("%s", "msg=\"invalid token\"");
     }
   } else {
-    eos_static_debug("no token");
+    eos_static_debug("%s", "msg=\"no token\"");
   }
 
   return "";

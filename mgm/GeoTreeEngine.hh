@@ -209,6 +209,11 @@
 /*----------------------------------------------------------------------------*/
 EOSMGMNAMESPACE_BEGIN
 
+//------------------------------------------------------------------------------
+//! Get the maximum number of placement attempts
+//------------------------------------------------------------------------------
+unsigned int GetMaxPlacementAttempts();
+
 /*----------------------------------------------------------------------------*/
 /**
  * @brief Class responsible to handle GeoTree Operations
@@ -1337,17 +1342,16 @@ protected:
         nAdjustCollocatedReplicas = nNewReplicas;
       }
 
-      // if(!startFromNode), the value of nCollocatedReplicas does not make any difference and furthermore, it should be zero
-
-      // update the tree
-      // (could be made faster for a small number of existing replicas by using update branches)
+      // Update the tree - could be made faster for a small number of existing
+      // replicas by using update branches
       if (!existingReplicas->empty()) {
         updateNeeded = true;
       }
     }
 
     if (excludedNodes) {
-      // mark the excluded branches as unavailable and sort the branches (no deep, or we would lose the unavailable marks)
+      // Mark the excluded branches as unavailable and sort the branches
+      // (no deep, or we would lose the unavailable marks)
       for (auto it = excludedNodes->begin(); it != excludedNodes->end(); ++it) {
         tree->pNodes[*it].fsData.mStatus = tree->pNodes[*it].fsData.mStatus &
                                            ~SchedTreeBase::Available;
@@ -1361,7 +1365,8 @@ protected:
     if (bookingSize) {
       for (auto it = tree->pFs2Idx->begin(); it != tree->pFs2Idx->end(); it++) {
         // we prebook the space on all the possible nodes before the selection
-        // reminder : this is just a working copy of the tree and will affect only the current placement
+        // reminder : this is just a working copy of the tree and will affect
+        // only the current placement
         const SchedTreeBase::tFastTreeIdx& idx = (*it).second;
         float& freeSpace = tree->pNodes[idx].fsData.totalWritableSpace;
 
@@ -1401,17 +1406,51 @@ protected:
 
     for (size_t k = 0; k < nNewReplicas; k++) {
       SchedTreeBase::tFastTreeIdx idx;
-      SchedTreeBase::tFastTreeIdx startidx = (k < nNewReplicas -
-                                              nAdjustCollocatedReplicas) ? 0 : startFromNode;
+      SchedTreeBase::tFastTreeIdx startidx =
+        (k < nNewReplicas - nAdjustCollocatedReplicas) ? 0 : startFromNode;
 
-      if (!tree->findFreeSlot(idx, startidx, true /*allow uproot if necessary*/, true,
-                              false)) {
-        eos_debug("could not find a new slot for a replica in the fast tree");
-        stringstream ss;
-        ss << (*tree);
-        eos_debug("iteration number %lu fast tree used for placement is: \n %s", k,
-                  ss.str().c_str());
-        return false;
+      // Do several attempts to avoid collocating more replicas than required
+      if ((startidx == 0) && nFinalCollocatedReplicas) {
+        static unsigned int k_max_attempts = GetMaxPlacementAttempts();
+
+        for (unsigned int attempt = 1u; attempt <= k_max_attempts; ++attempt) {
+          if (!tree->findFreeSlot(idx, 0, true /*allow uproot*/,
+                                  true, false)) {
+            eos_debug("%s", "msg=\"could not find a new replica slot in the "
+                      "fast tree\"");
+            stringstream ss;
+            ss << (*tree);
+            eos_debug("msg=\"iteration number %lu fast tree used for placement "
+                      "is \n %s", k, ss.str().c_str());
+            return false;
+          } else {
+            // Make sure the selected location has a different geotag from the
+            // collocated location pointed to by startFromNode
+            const std::string current_geotag = (*tree->pTreeInfo)[idx].fullGeotag;
+            const std::string avoid_geotag = (*tree->pTreeInfo)[startFromNode].fullGeotag;
+            eos_debug("msg=\"compare geotag locations\" current_geotag=%s "
+                      " start_geotag=%s", current_geotag.c_str(),
+                      avoid_geotag.c_str());
+
+            if (current_geotag.find(avoid_geotag) == 0) {
+              continue;
+            } else {
+              eos_debug("msg=\"found location after %u attempts\"", attempt);
+              break;
+            }
+          }
+        }
+      } else {
+        if (!tree->findFreeSlot(idx, startidx, true /*allow uproot*/,
+                                true, false)) {
+          eos_debug("%s", "msg=\"could not find a new replica slot in the "
+                    "fast tree\"");
+          stringstream ss;
+          ss << (*tree);
+          eos_debug("msg=\"iteration number %lu fast tree used for placement is"
+                    " \n %s", k, ss.str().c_str());
+          return false;
+        }
       }
 
       newReplicas->push_back(idx);

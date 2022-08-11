@@ -111,6 +111,25 @@ const unsigned char GeoTreeEngine::sntFilesystem = 1,
 std::map<std::string, unsigned char> GeoTreeEngine::gQueue2NotifType;
 
 //------------------------------------------------------------------------------
+// Get the maximum number of placement attempts
+//------------------------------------------------------------------------------
+unsigned int GetMaxPlacementAttempts()
+{
+  unsigned int attempt = 1u;
+  const std::string env_name = "EOS_SCATTERED_PLACEMENT_MAX_ATTEMPTS";
+  const char* ptr = getenv(env_name.c_str());
+
+  if (ptr) {
+    try {
+      attempt = std::stoi(std::string(ptr));
+    } catch (...) {
+    }
+  }
+
+  return attempt;
+}
+
+//------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
 GeoTreeEngine::GeoTreeEngine(mq::MessagingRealm* realm) :
@@ -529,14 +548,20 @@ uint64_t GeoTreeEngine::placementSpace(const std::string& space,
 {
   RWMutexReadLock lock(pTreeMapMutex);
   uint64_t totalWritableSpace = 0;
+
   for (auto it = pGroup2SchedTME.begin(); it != pGroup2SchedTME.end(); it++) {
     std::string ispace;
     std::string index;
-    eos::common::StringConversion::SplitKeyValue(it->second->group->mName, ispace, index, ".");
-    if ( (ispace == space) && ( (schedgroup=="") || (schedgroup == it->second->group->mName)) ) {
-      totalWritableSpace += it->second->foregroundFastStruct->placementTree->getTotalWritableSpace();
+    eos::common::StringConversion::SplitKeyValue(it->second->group->mName, ispace,
+        index, ".");
+
+    if ((ispace == space) && ((schedgroup == "") ||
+                              (schedgroup == it->second->group->mName))) {
+      totalWritableSpace +=
+        it->second->foregroundFastStruct->placementTree->getTotalWritableSpace();
     }
   }
+
   return totalWritableSpace;
 }
 
@@ -792,8 +817,8 @@ void GeoTreeEngine::printInfo(std::string& info, bool dispTree, bool dispSnaps,
   //                   operation, operation_short, fsid, geotag/host,
   //                   free, repl, pidx, status, ulSc, dlSc, filR, totS, totW
   std::set<std::tuple<std::string, unsigned, unsigned, TableFormatterColor,
-		      unsigned, unsigned, std::string, std::string, unsigned, std::string,
-		      int, int, int, std::string, int, int, int, double, double>> data_snapshot;
+      unsigned, unsigned, std::string, std::string, unsigned, std::string,
+      int, int, int, std::string, int, int, int, double, double>> data_snapshot;
 
   for (auto it = pGroup2SchedTME.begin(); it != pGroup2SchedTME.end(); it++) {
     if (dispTree && (schedgroup.empty() || schedgroup == "*" ||
@@ -1164,12 +1189,14 @@ void GeoTreeEngine::printInfo(std::string& info, bool dispTree, bool dispSnaps,
     table_data.back().push_back(TableCell(std::get<15>(it), format_l));
     table_data.back().push_back(TableCell(std::get<16>(it), format_l));
     table_data.back().push_back(TableCell(std::get<17>(it), format_lll));
-    if ( (std::get<13>(it).find("RW")!= std::string::npos) ||
-	 (std::get<13>(it).find("OK")!= std::string::npos) ) {
+
+    if ((std::get<13>(it).find("RW") != std::string::npos) ||
+        (std::get<13>(it).find("OK") != std::string::npos)) {
       table_data.back().push_back(TableCell(std::get<18>(it), format_lll));
     } else {
       table_data.back().push_back(TableCell(0, format_lll));
     }
+
     table_snapshot.AddRows(table_data);
   }
 

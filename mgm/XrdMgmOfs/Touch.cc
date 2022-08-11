@@ -27,9 +27,9 @@
 // transparent without slowing down the compilation time.
 // -----------------------------------------------------------------------
 #include <sys/types.h>
-#include <attr/xattr.h>
 #include <sys/fsuid.h>
 #include "fst/checksum/ChecksumPlugins.hh"
+#include "common/XattrCompat.hh"
 /*----------------------------------------------------------------------------*/
 int
 XrdMgmOfs::_touch(const char* path,

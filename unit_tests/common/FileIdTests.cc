@@ -41,6 +41,6 @@ TEST(FileId, EstimateTpcTimeout)
 
 TEST(FileId, DefaultConstruction)
 {
-  eos::common::FileId::fileid_t fid;
+  eos::common::FileId::fileid_t fid{0};
   ASSERT_EQ(fid, 0);
 }

@@ -16,8 +16,33 @@ Introduction
 This release is based on XRootD V4 and IPV6 enabled.
 
 
+``v4.8.90 Citrine``
+===================
+
+2022-08-11
+
+Bug
+----
+
+* [EOS-5355] - System ACLs evaluation overruling logic is incorrect
+
+
+New Feature
+------------
+
+* [EOS-5342] - CREATE cta workflow not triggered when new file created using fusex - DELETE workflow is also missing
+
+
+Improvement
+------------
+
+* [EOS-5343] - Better enforcement of the scattered placement policy
+
+
 ``v4.8.89 Citrine``
 ===================
+
+2022-07-20
 
 Bug
 ----
