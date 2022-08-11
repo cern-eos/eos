@@ -239,7 +239,7 @@ Policy::GetLayoutAndSpace(const char* path,
       }
     }
 
-    std::string key_name = is_local ? it.first.substr(8) : it.first;
+    std::string key_name = is_local ? it.first.substr(13) : it.first.substr(7);
     if (key_name == "space") {
       continue;
     }
