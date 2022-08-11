@@ -72,6 +72,10 @@ static const std::map<EosCtaReportParam, std::string> EosCtaParamMap{
         {EosCtaReportParam::FILE_DEL_ARCHIVE_FILE_ID      , "file_del.archive.file_id"      },
         {EosCtaReportParam::FILE_DEL_ARCHIVE_STORAGE_CLASS, "file_del.archive.storage_class"},
         {EosCtaReportParam::FILE_DEL_LOCATIONS            , "file_del.locations"            },
+        {EosCtaReportParam::FILE_DEL_CHECKSUMTYPE         , "file_del.checksumtype"         },
+        {EosCtaReportParam::FILE_DEL_CHECKSUMVALUE        , "file_del.checksumvalue"        },
+        {EosCtaReportParam::FILE_DEL_SIZE                 , "file_del.size"                 },
+        {EosCtaReportParam::FILE_DEL_SEC_APP              , "file_del.sec.app"              },
 };
 
 // Basic mParams
@@ -125,6 +129,10 @@ std::vector<EosCtaReportParam> EosCtaReporterFileDeletion::DEFAULT_PARAMS_FILE_D
         EosCtaReportParam::FILE_DEL_ARCHIVE_FILE_ID,
         EosCtaReportParam::FILE_DEL_ARCHIVE_STORAGE_CLASS,
         EosCtaReportParam::FILE_DEL_LOCATIONS,
+        EosCtaReportParam::FILE_DEL_CHECKSUMTYPE,
+        EosCtaReportParam::FILE_DEL_CHECKSUMVALUE,
+        EosCtaReportParam::FILE_DEL_SIZE,
+        EosCtaReportParam::FILE_DEL_SEC_APP,
 };
 
 // Default function used to write the EOS-CTA reports

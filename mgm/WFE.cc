@@ -2236,7 +2236,13 @@ WFE::Job::HandleProtoMethodDeleteEvent(const std::string& fullPath,
     auto fmd = gOFS->eosFileService->getFileMD(mFid);
     auto locations = fmd->getLocations();
     std::ostringstream locationsOStream;
-    std::copy(locations.begin(), locations.end(), std::ostream_iterator<decltype(locations)::value_type>(locationsOStream, ","));
+    bool streamEmpty = true;
+    for (auto & location : fmd->getLocations()) {
+      locationsOStream << (streamEmpty ? "" : ",") << location;
+      streamEmpty = false;
+    }
+    std::string checksum;
+    eos::appendChecksumOnStringAsHex(fmd.get(), checksum);
     eosLog.addParam(EosCtaReportParam::LOG, std::string(gOFS->logId))
           .addParam(EosCtaReportParam::PATH, fullPath)
           .addParam(EosCtaReportParam::RUID, mVid.uid)
@@ -2249,7 +2255,11 @@ WFE::Job::HandleProtoMethodDeleteEvent(const std::string& fullPath,
           .addParam(EosCtaReportParam::FILE_DEL_EOS_BTIME, fmd->getAttribute("sys.eos.btime"))
           .addParam(EosCtaReportParam::FILE_DEL_ARCHIVE_FILE_ID, fmd->getAttribute("sys.archive.file_id"))
           .addParam(EosCtaReportParam::FILE_DEL_ARCHIVE_STORAGE_CLASS, fmd->getAttribute("sys.archive.storage_class"))
-          .addParam(EosCtaReportParam::FILE_DEL_LOCATIONS, locationsOStream.str());
+          .addParam(EosCtaReportParam::FILE_DEL_LOCATIONS, locationsOStream.str())
+          .addParam(EosCtaReportParam::FILE_DEL_CHECKSUMTYPE, eos::common::LayoutId::GetChecksumString(fmd->getLayoutId()))
+          .addParam(EosCtaReportParam::FILE_DEL_CHECKSUMVALUE, checksum)
+          .addParam(EosCtaReportParam::FILE_DEL_SIZE, fmd->getSize())
+          .addParam(EosCtaReportParam::FILE_DEL_SEC_APP, "deletion");
   }
 
   bool tapeLocationWasRemoved = false;
