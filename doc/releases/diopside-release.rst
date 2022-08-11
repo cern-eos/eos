@@ -17,6 +17,29 @@ Introduction
 This release is based on XRootD V5.
 
 
+``v5.0.30 Diopside``
+===================
+
+2022-08-11
+
+Bug
+---
+
+* [EOS-5355] - System ACLs evaluation overruling logic is incorrect
+
+
+New Feature
+------------
+
+* [EOS-5342] - CREATE cta workflow not triggered when new file created using fusex - DELETE workflow is also missing
+
+
+Improvement
+-----------
+
+* [EOS-5343] - Better enforcement of the scattered placement policy
+
+
 ``v5.0.29 Diopside``
 ===================
 
