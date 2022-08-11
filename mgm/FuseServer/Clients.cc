@@ -248,8 +248,11 @@ FuseServer::Clients::Dispatch(const std::string identity,
   }
 
   if (rc) {
-    eos_static_info("client='%s' mount [ %s ] ", identity.c_str(),
-                    Info(identity).c_str());
+    {
+      eos::common::RWMutexReadLock lLock(*this);
+      eos_static_info("client='%s' mount [ %s ] ", identity.c_str(),
+                      Info(identity).c_str());
+    }
     gOFS->MgmStats.Add("Eosxd::prot::mount", 0, 0, 1);
     // ask a client to drop all caps when we see him the first time because we might have lost our caps due to a restart/failover
     BroadcastDropAllCaps(identity, hb);
@@ -285,7 +288,7 @@ FuseServer::Clients::Dispatch(const std::string identity,
 
 
 //------------------------------------------------------------------------------
-//
+// Get Clients Info - the caller must hold a lock as we access the map!
 //------------------------------------------------------------------------------
 std::string
 FuseServer::Clients::Info(const std::string& identity)
