@@ -348,9 +348,6 @@ void GrpcWncInterface::RoleChanger()
       }
     }
   }
-
-  gGlobalOpts.mUserRole = std::to_string(mVid->uid);
-  gGlobalOpts.mGroupRole = std::to_string(mVid->gid);
 }
 
 
