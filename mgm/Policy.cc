@@ -136,6 +136,8 @@ Policy::GetLayoutAndSpace(const char* path,
     rw, is_local
   };
 
+  auto policy_keys = GetConfigKeys(is_local);
+  auto policy_rw_keys = GetRWConfigKeys(rwparams);
   if (!conversion) {
     // don't apply space policies to conversion paths
 
@@ -147,14 +149,14 @@ Policy::GetLayoutAndSpace(const char* path,
 
     if (it != FsView::gFsView.mSpaceView.end()) {
       if (is_local) {
-        it->second->GetLocalConfigMembers(GetConfigKeys(is_local),
+        it->second->GetLocalConfigMembers(policy_keys,
                                           spacepolicies);
-        it->second->GetLocalConfigMembers(GetRWConfigKeys(rwparams),
+        it->second->GetLocalConfigMembers(policy_rw_keys,
                                           spacerwpolicies);
       } else {
-        it->second->GetConfigMembers(GetConfigKeys(is_local),
+        it->second->GetConfigMembers(policy_keys,
                                      spacepolicies);
-        it->second->GetConfigMembers(GetRWConfigKeys(rwparams),
+        it->second->GetConfigMembers(policy_rw_keys,
                                      spacerwpolicies);
 
       }
@@ -199,14 +201,14 @@ Policy::GetLayoutAndSpace(const char* path,
 
     if (it != FsView::gFsView.mSpaceView.end()) {
       if (is_local) {
-        it->second->GetLocalConfigMembers(GetConfigKeys(is_local),
+        it->second->GetLocalConfigMembers(policy_keys,
                                           nondefault_policies);
-        it->second->GetLocalConfigMembers(GetRWConfigKeys(rwparams),
+        it->second->GetLocalConfigMembers(policy_rw_keys,
                                             spacerwpolicies);
       } else {
-        it->second->GetConfigMembers(GetConfigKeys(is_local),
+        it->second->GetConfigMembers(policy_keys,
                                      nondefault_policies);
-        it->second->GetConfigMembers(GetRWConfigKeys(rwparams),
+        it->second->GetConfigMembers(policy_rw_keys,
                                      spacerwpolicies);
       }
     } // FsView;
