@@ -15,7 +15,7 @@ WORKDIR /eos-deps-ci
 
 # step 1: dependencies for eos-folly
 RUN dnf install -y epel-release rpmdevtools python3-devel python3-setuptools sudo tar yum-utils
-RUN dnf update libarchive
+RUN dnf update -y libarchive
 RUN dnf builddep -y eos-folly-deps.spec
 RUN mkdir -p /root/rpmbuild/SOURCES &&\
     cp *.patch SConstruct.double-conversion /root/rpmbuild/SOURCES
@@ -92,5 +92,6 @@ RUN ls -l /_temp/eos-folly-deps/RPMS/$(uname -m) &&\
     ls -l /_temp/eos/RPMS
 
 RUN echo -e "[eos-depend]\nname=EOS dependencies\nbaseurl=http://storage-ci.web.cern.ch/storage-ci/eos/${CODENAME}-depend/el-9s/$(uname -m)/\ngpgcheck=0\nenabled=1\npriority=4\n" >> /etc/yum.repos.d/eos-depend.repo &&\
+    dnf install -y epel-release &&\
     dnf install -y /_temp/eos-folly-deps/RPMS/$(uname -m)/* /_temp/eos-folly/RPMS/$(uname -m)/* /_temp/eos/RPMS/* &&\
     rm -rf /_temp
