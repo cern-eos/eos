@@ -60,7 +60,7 @@ WORKDIR /eos-src
 
 RUN echo -e "[eos-depend]\nname=EOS dependencies\nbaseurl=http://storage-ci.web.cern.ch/storage-ci/eos/${CODENAME}-depend/el-9s/$(uname -m)/\ngpgcheck=0\nenabled=1\npriority=4\n" >> /etc/yum.repos.d/eos-depend.repo
 RUN dnf builddep --nogpgcheck --allowerasing -y build/SRPMS/*
-RUN rpmbuild --rebuild --define "_rpmdir build/RPMS/" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" build/SRPMS/*
+RUN rpmbuild --with server --rebuild --define "_rpmdir build/RPMS/" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" build/SRPMS/*
 #| ts disable timestamp on CentOS Stream 9, as moreutils is not available
 RUN mkdir /eos &&\
     cp -r build/RPMS/ build/SRPMS/ /eos
