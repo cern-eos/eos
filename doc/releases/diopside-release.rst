@@ -17,6 +17,20 @@ Introduction
 This release is based on XRootD V5.
 
 
+``v5.0.31 Diopside``
+===================
+
+2022-08-12
+
+Bug
+----
+
+* FST: Properly detect HTTP transfers and skip async close functionality in
+  such cases
+* [EOS-5359] - use after free in fusex::client::info
+* [EOS-5358] - WNC GRPC unserialized global options
+
+
 ``v5.0.30 Diopside``
 ===================
 
