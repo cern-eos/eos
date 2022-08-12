@@ -70,7 +70,7 @@ XrdFstOfsFile::XrdFstOfsFile(const char* user, int MonID) :
   mWritePosition(0ull), openSize(0),
   closeSize(0), mTpcThreadStatus(EINVAL), mTpcState(kTpcIdle),
   mTpcFlag(kTpcNone), mTpcKey(""), mIsTpcDst(false), mTpcRetc(0),
-  mTpcCancel(false)
+  mTpcCancel(false), mIsHttp(false)
 {
   rBytes = wBytes = sFwdBytes = sBwdBytes = sXlFwdBytes
                                 = sXlBwdBytes = rOffset = wOffset = 0;
@@ -1357,8 +1357,7 @@ XrdFstOfsFile::close()
 
   // Even if async close is enabled there are some cases when close happens in
   // the same XRootD thread
-  if (viaDelete || mWrDelete || mIsDevNull || (mIsRW == false) ||
-      (strncmp(mProtocol.c_str(), "http", 4) == 0) || // HTTP access
+  if (viaDelete || mWrDelete || mIsDevNull || (mIsRW == false) || mIsHttp ||
       (mIsRW && (mMaxOffsetWritten <= min_size_async_close))) {
     return _close();
   }
@@ -2877,7 +2876,7 @@ int
 XrdFstOfsFile::ProcessTpcOpaque(std::string& opaque, const XrdSecEntity* client)
 {
   EPNAME(__FUNCTION__);
-  mProtocol = client->prot ? client->prot : "";
+  mIsHttp = (client->tident ? (strncmp(client->tident, "http", 4) == 0) : false);
   eos::common::StringConversion::ReplaceStringInPlace(opaque, "?", "&");
   eos::common::StringConversion::ReplaceStringInPlace(opaque, "&&", "&");
   XrdOucEnv env(opaque.c_str());

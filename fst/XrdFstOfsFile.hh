@@ -451,7 +451,7 @@ public:
   int mTpcRetc; ///< TPC job return code
   std::atomic<bool> mTpcCancel; ///< Mark TPC cancellation request
   uint16_t mTimeout; ///< timeout for layout operations
-  std::string mProtocol; ///< Access protocol xrd/http
+  bool mIsHttp; ///< Mark if this is HTTP acceess
 
   //----------------------------------------------------------------------------
   //! Get configured minimum file size for which the asynchronous close method
