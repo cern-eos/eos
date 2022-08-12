@@ -48,6 +48,7 @@ eos::mgm::StagerRmCmd::ProcessRequest() noexcept
   for (auto i = 0; i < stagerRm.file_size(); i++) {
     EosCtaReporterStagerRm eosLog;
     eosLog
+      .addParam(EosCtaReportParam::SEC_APP, "tape_evict")
       .addParam(EosCtaReportParam::LOG, std::string(gOFS->logId))
       .addParam(EosCtaReportParam::RUID, mVid.uid)
       .addParam(EosCtaReportParam::RGID, mVid.gid)

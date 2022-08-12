@@ -190,6 +190,7 @@ int PrepareManager::doPrepare(XrdSfsPrep& pargs, XrdOucErrInfo& error, const Xrd
 
     EosCtaReporterPrepareReq eosLog([&](const std::string & in) {mMgmFsInterface->writeEosReportRecord(in);});
     eosLog
+      .addParam(EosCtaReportParam::SEC_APP, "tape_prepare")
       .addParam(EosCtaReportParam::LOG, std::string(mMgmFsInterface->get_logId()))
       .addParam(EosCtaReportParam::PATH, orig_path)
       .addParam(EosCtaReportParam::RUID, vid.uid)

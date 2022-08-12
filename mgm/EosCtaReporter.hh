@@ -33,6 +33,7 @@
 EOSMGMNAMESPACE_BEGIN
 
 // All EOS-CTA Report fields should be listed here
+// ** NOTE: *** Parameters will be ordered as they are presented here
 enum class EosCtaReportParam {
   // Basic params
   LOG,
@@ -79,7 +80,10 @@ enum class EosCtaReportParam {
   FILE_DEL_CHECKSUMTYPE,
   FILE_DEL_CHECKSUMVALUE,
   FILE_DEL_SIZE,
-  FILE_DEL_SEC_APP,
+
+  // sec.app - Used to classify EOS report log messages
+  // Should be last, by convention
+  SEC_APP,
 };
 
 // Base class for EOS-CTA Report

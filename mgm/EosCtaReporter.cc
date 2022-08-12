@@ -31,51 +31,51 @@ EOSMGMNAMESPACE_BEGIN
 
 static const std::map<EosCtaReportParam, std::string> EosCtaParamMap{
         // Basic params
-        {EosCtaReportParam::LOG , "log" },
-        {EosCtaReportParam::PATH, "path"},
-        {EosCtaReportParam::RUID, "ruid"},
-        {EosCtaReportParam::RGID, "rgid"},
-        {EosCtaReportParam::TD  , "td"  },
-        {EosCtaReportParam::HOST, "host"},
-        {EosCtaReportParam::TS  , "ts"  },
-        {EosCtaReportParam::TNS , "tns" },
+        {EosCtaReportParam::LOG    , "log"    },
+        {EosCtaReportParam::PATH   , "path"   },
+        {EosCtaReportParam::RUID   , "ruid"   },
+        {EosCtaReportParam::RGID   , "rgid"   },
+        {EosCtaReportParam::TD     , "td"     },
+        {EosCtaReportParam::HOST   , "host"   },
+        {EosCtaReportParam::TS     , "ts"     },
+        {EosCtaReportParam::TNS    , "tns"    },
+        {EosCtaReportParam::SEC_APP, "sec.app"}, // sec.app - Used to classify EOS report log messages
 
         // Prepare request params
-        {EosCtaReportParam::PREP_REQ_EVENT     , "prep.req.event"     },
-        {EosCtaReportParam::PREP_REQ_REQID     , "prep.req.reqid"     },
-        {EosCtaReportParam::PREP_REQ_SENTTOWFE , "prep.req.senttowfe" },
-        {EosCtaReportParam::PREP_REQ_SUCCESSFUL, "prep.req.successful"},
-        {EosCtaReportParam::PREP_REQ_ERROR     , "prep.req.error"     },
+        {EosCtaReportParam::PREP_REQ_EVENT     , "event"     },
+        {EosCtaReportParam::PREP_REQ_REQID     , "reqid"     },
+        {EosCtaReportParam::PREP_REQ_SENTTOWFE , "senttowfe" },
+        {EosCtaReportParam::PREP_REQ_SUCCESSFUL, "successful"},
+        {EosCtaReportParam::PREP_REQ_ERROR     , "error"     },
 
         // WFE params
-        {EosCtaReportParam::PREP_WFE_EVENT       , "prep.wfe.event"       },
-        {EosCtaReportParam::PREP_WFE_REQID       , "prep.wfe.reqid"       },
-        {EosCtaReportParam::PREP_WFE_REQCOUNT    , "prep.wfe.reqcount"    },
-        {EosCtaReportParam::PREP_WFE_REQLIST     , "prep.wfe.reqlist"     },
-        {EosCtaReportParam::PREP_WFE_EVICTCOUNTER, "prep.wfe.evictcounter"},
-        {EosCtaReportParam::PREP_WFE_ONDISK      , "prep.wfe.ondisk"      },
-        {EosCtaReportParam::PREP_WFE_ONTAPE      , "prep.wfe.ontape"      },
-        {EosCtaReportParam::PREP_WFE_FIRSTPREPARE, "prep.wfe.firstprepare"},
-        {EosCtaReportParam::PREP_WFE_SENTTOCTA   , "prep.wfe.senttocta"   },
-        {EosCtaReportParam::PREP_WFE_ACTIVITY    , "prep.wfe.activity"    },
-        {EosCtaReportParam::PREP_WFE_ERROR       , "prep.req.error"       },
+        {EosCtaReportParam::PREP_WFE_EVENT       , "event"       },
+        {EosCtaReportParam::PREP_WFE_REQID       , "reqid"       },
+        {EosCtaReportParam::PREP_WFE_REQCOUNT    , "reqcount"    },
+        {EosCtaReportParam::PREP_WFE_REQLIST     , "reqlist"     },
+        {EosCtaReportParam::PREP_WFE_EVICTCOUNTER, "evictcounter"},
+        {EosCtaReportParam::PREP_WFE_ONDISK      , "ondisk"      },
+        {EosCtaReportParam::PREP_WFE_ONTAPE      , "ontape"      },
+        {EosCtaReportParam::PREP_WFE_FIRSTPREPARE, "firstprepare"},
+        {EosCtaReportParam::PREP_WFE_SENTTOCTA   , "senttocta"   },
+        {EosCtaReportParam::PREP_WFE_ACTIVITY    , "activity"    },
+        {EosCtaReportParam::PREP_WFE_ERROR       , "error"       },
 
         // StagerRm params
-        {EosCtaReportParam::STAGERRM_EVICTCOUNTER, "stagerrm.evictcounter"},
-        {EosCtaReportParam::STAGERRM_FILEREMOVED , "stagerrm.fileremoved" },
-        {EosCtaReportParam::STAGERRM_ERROR       , "stagerrm.error"       },
+        {EosCtaReportParam::STAGERRM_EVICTCOUNTER, "evictcounter"},
+        {EosCtaReportParam::STAGERRM_FILEREMOVED , "fileremoved" },
+        {EosCtaReportParam::STAGERRM_ERROR       , "error"       },
 
         // File deletion params
-        {EosCtaReportParam::FILE_DEL_FID                  , "file_del.fid"                  },
-        {EosCtaReportParam::FILE_DEL_FXID                 , "file_del.fxid"                 },
-        {EosCtaReportParam::FILE_DEL_EOS_BTIME            , "file_del.eos.btime"            },
-        {EosCtaReportParam::FILE_DEL_ARCHIVE_FILE_ID      , "file_del.archive.file_id"      },
-        {EosCtaReportParam::FILE_DEL_ARCHIVE_STORAGE_CLASS, "file_del.archive.storage_class"},
-        {EosCtaReportParam::FILE_DEL_LOCATIONS            , "file_del.locations"            },
-        {EosCtaReportParam::FILE_DEL_CHECKSUMTYPE         , "file_del.checksumtype"         },
-        {EosCtaReportParam::FILE_DEL_CHECKSUMVALUE        , "file_del.checksumvalue"        },
-        {EosCtaReportParam::FILE_DEL_SIZE                 , "file_del.size"                 },
-        {EosCtaReportParam::FILE_DEL_SEC_APP              , "file_del.sec.app"              },
+        {EosCtaReportParam::FILE_DEL_FID                  , "fid"                  },
+        {EosCtaReportParam::FILE_DEL_FXID                 , "fxid"                 },
+        {EosCtaReportParam::FILE_DEL_EOS_BTIME            , "eos.btime"            },
+        {EosCtaReportParam::FILE_DEL_ARCHIVE_FILE_ID      , "archive.file_id"      },
+        {EosCtaReportParam::FILE_DEL_ARCHIVE_STORAGE_CLASS, "archive.storage_class"},
+        {EosCtaReportParam::FILE_DEL_LOCATIONS            , "locations"            },
+        {EosCtaReportParam::FILE_DEL_CHECKSUMTYPE         , "checksumtype"         },
+        {EosCtaReportParam::FILE_DEL_CHECKSUMVALUE        , "checksumvalue"        },
+        {EosCtaReportParam::FILE_DEL_SIZE                 , "size"                 },
 };
 
 // Basic mParams
@@ -88,6 +88,7 @@ std::vector<EosCtaReportParam> EosCtaReporter::DEFAULT_PARAMS{
         EosCtaReportParam::HOST,
         EosCtaReportParam::TS,
         EosCtaReportParam::TNS,
+        EosCtaReportParam::SEC_APP,
 };
 
 // Prepare request mParams
@@ -132,7 +133,6 @@ std::vector<EosCtaReportParam> EosCtaReporterFileDeletion::DEFAULT_PARAMS_FILE_D
         EosCtaReportParam::FILE_DEL_CHECKSUMTYPE,
         EosCtaReportParam::FILE_DEL_CHECKSUMVALUE,
         EosCtaReportParam::FILE_DEL_SIZE,
-        EosCtaReportParam::FILE_DEL_SEC_APP,
 };
 
 // Default function used to write the EOS-CTA reports

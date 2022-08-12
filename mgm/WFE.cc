@@ -1713,6 +1713,7 @@ WFE::Job::IdempotentPrepare(const std::string& fullPath,
 
   EosCtaReporterPrepareWfe eosLog;
   eosLog
+    .addParam(EosCtaReportParam::SEC_APP, "tape_wfe")
     .addParam(EosCtaReportParam::LOG, std::string(gOFS->logId))
     .addParam(EosCtaReportParam::PATH, fullPath)
     .addParam(EosCtaReportParam::RUID, mVid.uid)
@@ -1943,6 +1944,7 @@ WFE::Job::HandleProtoMethodAbortPrepareEvent(const std::string& fullPath,
   gOFS->MgmStats.Add("Proto::Prepare::Abort", 0, 0, 1);
   EosCtaReporterPrepareWfe eosLog;
   eosLog
+    .addParam(EosCtaReportParam::SEC_APP, "tape_wfe")
     .addParam(EosCtaReportParam::LOG, std::string(gOFS->logId))
     .addParam(EosCtaReportParam::PATH, fullPath)
     .addParam(EosCtaReportParam::RUID, mVid.uid)
@@ -2079,6 +2081,7 @@ WFE::Job::HandleProtoMethodEvictPrepareEvent(const std::string& fullPath,
   bool onTape;
   EosCtaReporterPrepareWfe eosLog;
   eosLog
+    .addParam(EosCtaReportParam::SEC_APP, "tape_wfe")
     .addParam(EosCtaReportParam::LOG, std::string(gOFS->logId))
     .addParam(EosCtaReportParam::PATH, fullPath)
     .addParam(EosCtaReportParam::RUID, mVid.uid)
@@ -2243,7 +2246,8 @@ WFE::Job::HandleProtoMethodDeleteEvent(const std::string& fullPath,
     }
     std::string checksum;
     eos::appendChecksumOnStringAsHex(fmd.get(), checksum);
-    eosLog.addParam(EosCtaReportParam::LOG, std::string(gOFS->logId))
+    eosLog.addParam(EosCtaReportParam::SEC_APP, "tape_delete")
+          .addParam(EosCtaReportParam::LOG, std::string(gOFS->logId))
           .addParam(EosCtaReportParam::PATH, fullPath)
           .addParam(EosCtaReportParam::RUID, mVid.uid)
           .addParam(EosCtaReportParam::RGID, mVid.gid)
@@ -2258,8 +2262,7 @@ WFE::Job::HandleProtoMethodDeleteEvent(const std::string& fullPath,
           .addParam(EosCtaReportParam::FILE_DEL_LOCATIONS, locationsOStream.str())
           .addParam(EosCtaReportParam::FILE_DEL_CHECKSUMTYPE, eos::common::LayoutId::GetChecksumString(fmd->getLayoutId()))
           .addParam(EosCtaReportParam::FILE_DEL_CHECKSUMVALUE, checksum)
-          .addParam(EosCtaReportParam::FILE_DEL_SIZE, fmd->getSize())
-          .addParam(EosCtaReportParam::FILE_DEL_SEC_APP, "deletion");
+          .addParam(EosCtaReportParam::FILE_DEL_SIZE, fmd->getSize());
   }
 
   bool tapeLocationWasRemoved = false;
