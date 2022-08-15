@@ -132,7 +132,7 @@ ScanDir::SetConfig(const std::string& key, long long value)
         std::memory_order_acq_rel)) {
       // Move the following line after join if you want to prevent a toggle until join
       mConfDiskIntervalSec = static_cast<uint64_t>(value);
-      //mDiskThread.join();
+      mDiskThread.join();
       mDiskThread.reset(&ScanDir::RunDiskScan, this);
     }
   } else if (key == eos::common::FSCK_REFRESH_INTERVAL_NAME) {
@@ -140,7 +140,7 @@ ScanDir::SetConfig(const std::string& key, long long value)
         static_cast<uint64_t>(value),
         std::memory_order_acq_rel)) {
       mConfFsckIntervalSec = static_cast<uint64_t>(value);
-      //mDiskThread.join();
+      mDiskThread.join();
       mDiskThread.reset(&ScanDir::RunDiskScan, this);
     }
   } else if (key == eos::common::SCAN_NS_INTERVAL_NAME) {
