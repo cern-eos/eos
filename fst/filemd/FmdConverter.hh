@@ -17,53 +17,87 @@
  ************************************************************************
  */
 
-
-#ifndef EOS_FMDCONVERTER_HH
-#define EOS_FMDCONVERTER_HH
-
+#pragma once
+#include "fst/Namespace.hh"
 #include "fst/filemd/FmdHandler.hh"
 #include <folly/futures/Future.h>
 #include <memory>
 
-namespace folly {
+namespace folly
+{
 class Executor;
 } // namespace folly
 
-namespace eos::fst {
+EOSFSTNAMESPACE_BEGIN
 
-static constexpr std::string_view ATTR_CONVERSION_DONE_FILE = ".eosattrconverted";
-static constexpr size_t MIN_FMDCONVERTER_THREADS=2;
-static constexpr size_t MAX_FMDCONVERTER_THREADS=100;
-/*!
- * A simple interface to track whether full conversions have been done for a given
- * FST mount path. The implementation is supposed to track whether the FST is
- * done converting or mark the FST as converted when we're done converting.
- */
+static constexpr std::string_view ATTR_CONVERSION_DONE_FILE =
+  ".eosattrconverted";
+static constexpr size_t MIN_FMDCONVERTER_THREADS = 2;
+static constexpr size_t MAX_FMDCONVERTER_THREADS = 100;
+
+//----------------------------------------------------------------------------
+//! A simple interface to track whether full conversions have been done for a given
+//! FST mount path. The implementation is supposed to track whether the FST is
+//! done converting or mark the FST as converted when we're done converting.
+//----------------------------------------------------------------------------
 struct FSConversionDoneHandler {
   virtual bool isFSConverted(std::string_view fstpath) = 0;
   virtual bool markFSConverted(std::string_view fstpath) = 0;
   virtual ~FSConversionDoneHandler() = default;
 };
 
-class FmdConverter {
+//------------------------------------------------------------------------------
+//! Class FmdConverter
+//------------------------------------------------------------------------------
+class FmdConverter
+{
 public:
-  FmdConverter(FmdHandler * src_handler,
-               FmdHandler * tgt_handler,
+  //----------------------------------------------------------------------------
+  //! Constructor
+  //----------------------------------------------------------------------------
+  FmdConverter(FmdHandler* src_handler,
+               FmdHandler* tgt_handler,
                size_t per_disk_pool);
 
+  //----------------------------------------------------------------------------
+  //! Destructor
+  //----------------------------------------------------------------------------
+  ~FmdConverter()
+  {
+    eos_static_info("%s", "msg=\"calling FmdConverter destructor\"");
+    mExecutor.reset();
+    eos_static_info("%s", "msg=\"calling FmdConverter destructor done\"");
+  }
+
+  //----------------------------------------------------------------------------
+  // Conversion method
+  //----------------------------------------------------------------------------
   folly::Future<bool> Convert(eos::common::FileSystem::fsid_t fsid,
                               std::string_view path);
-  void ConvertFS(std::string_view fspath);
+
+  //----------------------------------------------------------------------------
+  // Method converting files on a given file system
+  //----------------------------------------------------------------------------
   void ConvertFS(std::string_view fspath,
                  eos::common::FileSystem::fsid_t fsid);
+
+  //----------------------------------------------------------------------------
+  // Helper method for file system conversion
+  //----------------------------------------------------------------------------
+  void ConvertFS(std::string_view fspath);
+
 private:
-  FmdHandler * mSrcFmdHandler;
-  FmdHandler * mTgtFmdHandler;
+  FmdHandler* mSrcFmdHandler;
+  FmdHandler* mTgtFmdHandler;
   std::unique_ptr<folly::Executor> mExecutor;
   std::unique_ptr<FSConversionDoneHandler> mDoneHandler;
 };
 
-class FileFSConversionDoneHandler final: public FSConversionDoneHandler {
+//------------------------------------------------------------------------------
+//! Class FileFSConversionDoneHandler
+//------------------------------------------------------------------------------
+class FileFSConversionDoneHandler final: public FSConversionDoneHandler
+{
 public:
   FileFSConversionDoneHandler(std::string_view fname) : mConversionDoneFile(fname)
   {}
@@ -74,6 +108,4 @@ private:
   std::string mConversionDoneFile;
 };
 
-} // namespace eos::fst
-
-#endif // EOS_FMDCONVERTER_HH
+EOSFSTNAMESPACE_END
