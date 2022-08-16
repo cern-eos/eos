@@ -1227,9 +1227,9 @@ Fsck::QueryQdb(ErrMapT& err_map)
 
     return {fid, fsid};
   };
+  eos_static_info("%s", "msg=\"check for fsck errors\"");
 
   for (const auto& err_type : known_errs) {
-    eos_static_info("msg=\"check for %s fsck errors\"", err_type.c_str());
     set_errs.setKey(SSTR("fsck:" << err_type));
 
     for (auto it = set_errs.getIterator(); it.valid(); it.next()) {

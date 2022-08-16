@@ -2333,18 +2333,33 @@ XrdFstOfs::Query2Delete()
   request += gConfig.FstQueue.c_str();
   XrdCl::Buffer arg;
   XrdCl::Buffer* raw_resp {nullptr};
-  XrdCl::FileSystem fs {url};
-  arg.FromString(request);
-  XrdCl::XRootDStatus status = fs.Query(XrdCl::QueryCode::OpaqueFile, arg,
-                                        raw_resp);
-  std::unique_ptr<XrdCl::Buffer> resp(raw_resp);
-  raw_resp = nullptr;
+  std::unique_ptr<XrdCl::Buffer> resp;
+  int attempts = 5;
 
-  if (!status.IsOK()) {
-    eos_static_err("msg=\"failed query request\" request=\"%s\" status=\"%s\"",
-                   request.c_str(), status.ToStr().c_str());
-    return SFS_ERROR;
-  }
+  do {
+    XrdCl::FileSystem fs {url};
+    arg.FromString(request);
+    XrdCl::XRootDStatus status = fs.Query(XrdCl::QueryCode::OpaqueFile, arg,
+                                          raw_resp);
+    resp.reset(raw_resp);
+    raw_resp = nullptr;
+
+    if (!status.IsOK()) {
+      if (status.code == XrdCl::errSocketTimeout) {
+        eos_static_info("%s", "msg=\"retry query2delete in 2 seconds, "
+                        "MGM not ready\"");
+        std::this_thread::sleep_for(std::chrono::seconds(2));
+        --attempts;
+      } else {
+        eos_static_err("msg=\"failed query request\" request=\"%s\" "
+                       "status=\"%s\" errno=%u",
+                       request.c_str(), status.ToStr().c_str(), status.errNo);
+        return SFS_ERROR;
+      }
+    } else {
+      break;
+    }
+  } while (attempts);
 
   if (resp && resp->GetBuffer()) {
     eos::fst::DeletionsProto del_fst;
