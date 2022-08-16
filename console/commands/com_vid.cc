@@ -356,6 +356,13 @@ com_vid(char* arg1)
       hastype = true;
     }
 
+    if ((type == "grpc")) {
+      in += "&mgm.vid.auth=grpc";
+      disableu += "grpc:\"<pwd>\":uid";
+      disableg += "grpc:\"<pwd>\":gid";
+      hastype = true;
+    }
+
     if ((type == "oauth2")) {
       in += "&mgm.vid.auth=oauth2";
       disableu += "oauth2:\"<pwd>\":uid";
@@ -567,7 +574,7 @@ com_vid_usage:
   fprintf(stdout,
           "       vid rm <key>                         : remove configured vid with name key - hint: use config dump to see the key names of vid rules\n");
   fprintf(stdout, "\n");
-  fprintf(stdout, "       vid enable|disable krb5|gsi|sss|unix|https|oauth2\n");
+  fprintf(stdout, "       vid enable|disable krb5|gsi|sss|unix|https|grpc|oauth2\n");
   fprintf(stdout,
           "                                            : enable/disables the default mapping via password or external database\n");
   fprintf(stdout, "\n");

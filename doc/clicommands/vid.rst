@@ -26,7 +26,7 @@ vid
     vid set geotag <IP-prefix> <geotag>  : add to all IP's matching the prefix <prefix> the geo location tag <geotag>
     N.B. specify the default assumption via 'vid set geotag default <default-tag>'
     vid rm <key>                         : remove configured vid with name key - hint: use config dump to see the key names of vid rules
-    vid enable|disable krb5|gsi|sss|unix|https|oauth2
+    vid enable|disable krb5|gsi|sss|unix|https|grpc|oauth2
     : enable/disables the default mapping via password or external database
     vid add|remove gateway <hostname> [krb5|gsi|sss|unix|https|grpc]
     : adds/removes a host as a (fuse) gateway with 'su' priviledges
