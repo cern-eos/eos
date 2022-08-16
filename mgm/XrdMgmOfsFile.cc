@@ -54,6 +54,7 @@
 #include "XrdSec/XrdSecInterface.hh"
 #include "XrdSfs/XrdSfsAio.hh"
 #include "common/Constants.hh"
+#include "XrdOuc/XrdOucPgrwUtils.hh"
 
 #ifdef __APPLE__
 #define ECOMM 70
@@ -3227,8 +3228,15 @@ XrdSfsXferSize
 XrdMgmOfsFile::pgRead(XrdSfsFileOffset offset, char* buffer,
                       XrdSfsXferSize rdlen, uint32_t* csvec, uint64_t opts)
 {
-  // Not populating the checksum values
-  return read(offset, buffer, rdlen);
+  XrdSfsXferSize bytes;
+
+  if ((bytes = read(offset, buffer, rdlen)) <= 0) {
+    return bytes;
+  }
+
+  // Generate the crc's
+  XrdOucPgrwUtils::csCalc(buffer, offset, bytes, csvec);
+  return bytes;
 }
 
 /*----------------------------------------------------------------------------*/
