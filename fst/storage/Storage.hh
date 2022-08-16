@@ -49,6 +49,7 @@ EOSFSTNAMESPACE_BEGIN
 class Verify;
 class Deletion;
 class FileSystem;
+class FmdConverter;
 
 //------------------------------------------------------------------------------
 //! Class Storage
@@ -449,16 +450,16 @@ private:
   //----------------------------------------------------------------------------
   void ShutdownThreads();
 
-  AssistedThread mCommunicatorThread;
-  AssistedThread mQdbCommunicatorThread;
-  std::set<std::string> mLastRoundFilesystems;
-
   //----------------------------------------------------------------------------
   // Register which filesystems are in QDB config
   //----------------------------------------------------------------------------
   void updateFilesystemDefinitions();
 
+  AssistedThread mCommunicatorThread;
+  AssistedThread mQdbCommunicatorThread;
+  std::set<std::string> mLastRoundFilesystems;
   AssistedThread mPublisherThread;
+  std::unique_ptr<FmdConverter> mConverter;
 };
 
 EOSFSTNAMESPACE_END

@@ -458,9 +458,13 @@ Storage::Boot(FileSystem* fs)
       return;
     }
 
-    eos::fst::FmdConverter converter(db_handler.get(), gOFS.mFmdHandler.get(),
-                                     fs->GetLongLong("fmdconvertthreads"));
-    converter.ConvertFS(GetStoragePath(fsid), fsid);
+    mConverter.reset(new FmdConverter(db_handler.get(), gOFS.mFmdHandler.get(),
+                                      fs->GetLongLong("fmdconvertthreads")));
+    mConverter->ConvertFS(GetStoragePath(fsid), fsid);
+    // @note(esindril): if this is removed the current folly library will crash
+    // when trying to recycle one of the threads that was created by the
+    // IOThreadPoolExecutor inside the FmdConverter.
+    //mConverter.reset();
   }
 
   bool resyncmgm = (fs->GetLongLong("bootcheck") ==
