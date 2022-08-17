@@ -277,7 +277,7 @@ ScanDir::AccountMissing()
   }
 
   // Push collected errors to QDB
-  if (!PushToQdb(fidset)) {
+  if (!gOFS.Storage->PushToQdb(mFsId, fidset)) {
     eos_err("msg=\"failed to push fsck errors to QDB\" fsid=%lu", mFsId);
   }
 }
@@ -571,6 +571,11 @@ ScanDir::ScanSubtree(ThreadAssistant& assistant) noexcept
       fprintf(stderr, "[ScanDir] processing file %s\n", fpath.c_str());
     }
 
+    // Skip scanning orphan files
+    if (fpath.find(".eosorphans") != std::string::npos) {
+      continue;
+    }
+
     if (CheckFile(fpath)) {
 #ifndef _NOOFS
 
@@ -585,7 +590,10 @@ ScanDir::ScanSubtree(ThreadAssistant& assistant) noexcept
         }
 
         auto fmd = gOFS.mFmdHandler->LocalGetFmd(fid, mFsId, true, false);
-        CollectInconsistencies(*fmd.get(), statistics, fidset);
+
+        if (fmd) {
+          CollectInconsistencies(*fmd.get(), statistics, fidset);
+        }
       }
 
 #endif
@@ -600,10 +608,14 @@ ScanDir::ScanSubtree(ThreadAssistant& assistant) noexcept
     LogMsg(LOG_ERR, "msg=\"fts_close failed\" dir=%s", mDirPath.c_str());
   }
 
+#ifndef _NOOFS
+
   // Push collected errors to QDB
-  if (!PushToQdb(fidset)) {
+  if (!gOFS.Storage->PushToQdb(mFsId, fidset)) {
     eos_err("msg=\"failed to push fsck errors to QDB\" fsid=%lu", mFsId);
   }
+
+#endif
 }
 
 //------------------------------------------------------------------------------
@@ -1018,49 +1030,6 @@ ScanDir::GetTimestampSmearedSec() const
   }
 
   return std::to_string(ts_sec);
-}
-
-//------------------------------------------------------------------------------
-// Push collected errors to quarkdb
-//------------------------------------------------------------------------------
-bool
-ScanDir::PushToQdb(std::map<std::string,
-                   std::set<eos::common::FileId::fileid_t>> fidset)
-{
-#ifndef _NOOFS
-
-  if (gOFS.FmdOnDb() || fidset.empty()) {
-    return true;
-  }
-
-  if (gOFS.mFsckQcl == nullptr) {
-    eos_notice("%s", "msg=\"no qclient present, push to QDB failed\"");
-    return false;
-  }
-
-  qclient::AsyncHandler ah;
-  qclient::QSet fsck_set(*gOFS.mFsckQcl, "");
-
-  for (const auto& elem : fidset) {
-    std::list<std::string> values; // contains fid:fsid entries
-
-    for (auto& fid : elem.second) {
-      values.push_back(SSTR(fid << ":" << mFsId));
-    }
-
-    if (!values.empty()) {
-      fsck_set.setKey(SSTR("fsck:" << elem.first).c_str());
-      fsck_set.sadd_async(values, &ah);
-    }
-  }
-
-  if (!ah.Wait()) {
-    eos_err("msg=\"some qset async requests failed\" fsid=%lu", mFsId);
-    return false;
-  }
-
-#endif
-  return true;
 }
 
 EOSFSTNAMESPACE_END

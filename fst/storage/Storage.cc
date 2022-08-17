@@ -31,6 +31,7 @@
 #include "fst/txqueue/TransferQueue.hh"
 #include "fst/XrdFstOss.hh"
 #include "common/Fmd.hh"
+#include "common/FileId.hh"
 #include "common/FileSystem.hh"
 #include "common/Path.hh"
 #include "common/StringConversion.hh"
@@ -1209,7 +1210,7 @@ Storage::CleanupOrphansDisk(const std::string& mount,
   }
 
   while ((entry = readdir(dir)) != nullptr) {
-    eos_info("msg=\"dir contents\" name=%s type=%i", entry->d_name, entry->d_type);
+    eos_debug("msg=\"dir contents\" name=%s type=%i", entry->d_name, entry->d_type);
 
     // Fallback to stat if readdir does not provide the d_type for the entries
     if (entry && entry->d_type == DT_UNKNOWN) {
@@ -1328,6 +1329,69 @@ Storage::GetFSCount() const
 {
   eos::common::RWMutexReadLock rd_lock(mFsMutex);
   return mFsMap.size();
+}
+
+//------------------------------------------------------------------------------
+// Push collected errors to quarkdb
+//------------------------------------------------------------------------------
+bool
+Storage::PushToQdb(eos::common::FileSystem::fsid_t fsid,
+                   const std::map<std::string,
+                   std::set<eos::common::FileId::fileid_t>>& fidset)
+{
+#ifndef _NOOFS
+
+  if (gOFS.FmdOnDb() || fidset.empty()) {
+    return true;
+  }
+
+  if (gOFS.mFsckQcl == nullptr) {
+    eos_notice("%s", "msg=\"no qclient present, push to QDB failed\"");
+    return false;
+  }
+
+  qclient::AsyncHandler ah;
+  qclient::QSet fsck_set(*gOFS.mFsckQcl, "");
+
+  for (const auto& elem : fidset) {
+    std::list<std::string> values; // contains fid:fsid entries
+
+    for (auto& fid : elem.second) {
+      values.push_back(SSTR(fid << ":" << fsid));
+    }
+
+    if (!values.empty()) {
+      fsck_set.setKey(SSTR("fsck:" << elem.first).c_str());
+      fsck_set.sadd_async(values, &ah);
+    }
+  }
+
+  if (!ah.Wait()) {
+    eos_err("msg=\"some qset async requests failed\" fsid=%lu", fsid);
+    return false;
+  }
+
+#endif
+  return true;
+}
+
+//------------------------------------------------------------------------------
+// Publish a paricular fsck error to QDB
+//------------------------------------------------------------------------------
+void
+Storage::PublishFsckError(eos::common::FileId::fileid_t fid,
+                          eos::common::FileSystem::fsid_t fsid,
+                          eos::common::FsckErr err_type)
+{
+  std::map<std::string, std::set<eos::common::FileId::fileid_t>> fidset = {
+    {eos::common::FsckErrToString(err_type), {fid}}
+  };
+
+  if (!PushToQdb(fsid, fidset)) {
+    eos_static_err("msg=\"failed to push fsck error to QDB\" fid=%08llx "
+                   "fsid=%lu err=%s", fid, fsid,
+                   eos::common::FsckErrToString(err_type).c_str());
+  }
 }
 
 EOSFSTNAMESPACE_END

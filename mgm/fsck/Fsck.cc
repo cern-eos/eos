@@ -130,7 +130,7 @@ Fsck::StoreFsckConfig()
       << sCollectIntervalKey << "="
       << duration_cast<minutes>(mCollectInterval).count() << " "
       << sRepairKey << "=" << mRepairEnabled << " "
-      << sRepairCategory  << "=" << ConvertToString(mRepairCategory);
+      << sRepairCategory  << "=" << eos::common::FsckErrToString(mRepairCategory);
   return FsView::gFsView.SetGlobalConfig(sFsckKey, oss.str());
 }
 
@@ -518,7 +518,7 @@ Fsck::PrintOut(std::string& out) const
       << (mRepairEnabled ? "enabled" : "disabled") << std::endl
       << "Info: repair category          -> "
       << ((mRepairCategory == FsckErr::None) ?
-          "all" : ConvertToString(mRepairCategory)) << std::endl;
+          "all" : eos::common::FsckErrToString(mRepairCategory)) << std::endl;
   {
     XrdSysMutexHelper lock(mLogMutex);
     oss << mLog;
@@ -1203,8 +1203,8 @@ Fsck::QueryQdb(ErrMapT& err_map)
   qclient::QSet set_errs(*mQcl.get(), "");
   // Helper function to parse fsck info stored in QDB
   auto parse_fsck =
-    [](const std::string & data) -> std::pair<eos::IFileMD::id_t,
-  eos::common::FileSystem::fsid_t> {
+    [](const std::string & data) ->
+  std::pair<eos::IFileMD::id_t, eos::common::FileSystem::fsid_t> {
     const size_t pos = data.find(':');
 
     if ((pos == std::string::npos) || (pos == data.length()))

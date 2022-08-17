@@ -1,4 +1,3 @@
-
 #include "common/Path.hh"
 #include "namespace/ns_quarkdb/persistency/FileMDSvc.hh"
 #include "namespace/ns_quarkdb/persistency/MetadataFetcher.hh"
@@ -586,7 +585,6 @@ FmdHandler::ResyncFileFromQdb(eos::common::FileId::fileid_t fid,
 
   // Orphan files get moved to a special directory .eosorphans
   if (ns_fmd.mProtoFmd.layouterror() & eos::common::LayoutId::kOrphan) {
-    FmdHandler::MoveToOrphans(fpath);
     // Also mark it as orphan in leveldb
     local_fmd->mProtoFmd.set_layouterror(LayoutId::kOrphan);
 
@@ -595,6 +593,10 @@ FmdHandler::ResyncFileFromQdb(eos::common::FileId::fileid_t fid,
               fid, fsid);
     }
 
+    FmdHandler::MoveToOrphans(fpath);
+#ifndef _NOOFS
+    gOFS.Storage->PublishFsckError(fid, fsid, eos::common::FsckErr::Orphans);
+#endif
     return ENOENT;
   }
 
@@ -801,6 +803,7 @@ FmdHandler::ConvertFrom(eos::common::FileId::fileid_t fid,
                         FmdHandler* const src_fmd_handler, bool lock_it)
 {
   auto [ok, _] = this->LocalRetrieveFmd(fid, fsid);
+
   if (ok) {
     eos_info("msg=\"Skipping Conversion as target already has filemd\" fid=%08llx fsid=%u",
              fid, fsid);
@@ -808,10 +811,10 @@ FmdHandler::ConvertFrom(eos::common::FileId::fileid_t fid,
   }
 
   auto [status, fmd] = src_fmd_handler->LocalRetrieveFmd(fid, fsid);
+
   if (!status) {
     eos_err("msg=\"Unable to retrieve filemd from Handler\" fid=%08llx fsid=%u",
-             fid, fsid);
-
+            fid, fsid);
     return false;
   }
 
@@ -821,17 +824,24 @@ std::string
 FmdHandler::ResetFmdDiskInfo(const std::string& input)
 {
   eos::common::FmdHelper f;
+
   if (!f.mProtoFmd.ParseFromString(input))
     return {};
 
   f.mProtoFmd.set_disksize(eos::common::FmdHelper::UNDEF);
+
   f.mProtoFmd.set_diskchecksum("");
+
   f.mProtoFmd.set_checktime(0);
+
   f.mProtoFmd.set_filecxerror(0);
+
   f.mProtoFmd.set_blockcxerror(0);
 
   std::string out;
+
   f.mProtoFmd.SerializeToString(&out);
+
   return out;
 }
 
@@ -840,15 +850,20 @@ std::string
 FmdHandler::ResetFmdMgmInfo(const std::string& input)
 {
   eos::common::FmdHelper f;
+
   if (!f.mProtoFmd.ParseFromString(input))
     return {};
 
   f.mProtoFmd.set_mgmsize(eos::common::FmdHelper::UNDEF);
+
   f.mProtoFmd.set_mgmchecksum("");
+
   f.mProtoFmd.set_locations("");
 
   std::string out;
+
   f.mProtoFmd.SerializeToString(&out);
+
   return out;
 }
 

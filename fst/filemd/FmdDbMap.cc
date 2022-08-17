@@ -510,10 +510,10 @@ FmdDbMapHandler::RemoveGhostEntries(const char* fs_root,
 // Get inconsitency statistics
 //------------------------------------------------------------------------------
 bool
-FmdDbMapHandler::GetInconsistencyStatistics(eos::common::FileSystem::fsid_t
-    fsid,
-    std::map<std::string, size_t>& statistics,
-    std::map<std::string, std::set < eos::common::FileId::fileid_t> >& fidset)
+FmdDbMapHandler::GetInconsistencyStatistics(
+  eos::common::FileSystem::fsid_t fsid,
+  std::map<std::string, size_t>& statistics,
+  std::map<std::string, std::set<eos::common::FileId::fileid_t>>& fidset)
 {
   using namespace eos::common;
   eos::common::RWMutexReadLock map_rd_lock(mMapMutex);

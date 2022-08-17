@@ -177,16 +177,6 @@ public:
                                 <std::chrono::system_clock> open_ts,
                                 int& scan_rate);
 
-  //----------------------------------------------------------------------------
-  //! Push collected errors to quarkdb
-  //!
-  //! @param fidset map of error types to set of fids which are affected
-  //!
-  //! @return true if push was successful, othewise false
-  //----------------------------------------------------------------------------
-  bool PushToQdb(std::map<std::string,
-                 std::set<eos::common::FileId::fileid_t>> fidset);
-
 #ifndef _NOOFS
   //----------------------------------------------------------------------------
   //! Collect all file ids present on the current file system from the NS view

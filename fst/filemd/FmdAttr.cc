@@ -11,8 +11,9 @@ namespace eos::fst
 {
 
 
-FmdAttrHandler::FmdAttrHandler(std::unique_ptr<FSPathHandler>&& _FSPathHandler) :
-    mFSPathHandler(std::move(_FSPathHandler))
+FmdAttrHandler::FmdAttrHandler(std::unique_ptr<FSPathHandler>&& _FSPathHandler)
+  :
+  mFSPathHandler(std::move(_FSPathHandler))
 {
 }
 
@@ -64,12 +65,12 @@ FmdAttrHandler::LocalPutFmd(const std::string& path,
                             const eos::common::FmdHelper& fmd)
 {
   FsIo localio {path};
-  int rc;
-  rc = CreateFile(&localio);
+  int rc = CreateFile(&localio);
 
   if (rc != 0) {
     // TODO: do we need to set kMissing when create
-    eos_err("Failed to open file for fmd attr path:%s, rc=%d", path.c_str(), rc);
+    eos_err("msg=\"failed to create file\" path=\"%s\" rc=%d",
+            path.c_str(), rc);
     return rc != 0;
   }
 
@@ -78,8 +79,8 @@ FmdAttrHandler::LocalPutFmd(const std::string& path,
   rc = localio.attrSet(gFmdAttrName, attrval.c_str(), attrval.length());
 
   if (rc != 0) {
-    eos_err("Failed to Set Fmd Attribute at path:%s, errno=%d", path.c_str(),
-            errno);
+    eos_err("msg=\"failed to set xattr\" path=\"%s\" errno=%d",
+            path.c_str(), errno);
   }
 
   return rc == 0;
@@ -240,7 +241,7 @@ FmdAttrHandler::GetInconsistencyStatistics(
   std::error_code ec;
   uint64_t count {0};
   auto ret = WalkFSTree(mFSPathHandler->GetFSPath(fsid),
-                        [this, &statistics, &fidset, &count ](const char* path) {
+  [this, &statistics, &fidset, &count ](const char* path) {
     eos_debug("msg=\"Accessing file=\"%s", path);
 
     if (++count % 10000 == 0) {
@@ -280,10 +281,10 @@ FmdAttrHandler::ResetDiskInformation(eos::common::FileSystem::fsid_t fsid)
 {
   std::error_code ec;
   WalkFSTree(mFSPathHandler->GetFSPath(fsid),
-             [](std::string path){
-               TransformAttr(path, gFmdAttrName,
-                             &FmdHandler::ResetFmdDiskInfo);
-             }, ec);
+  [](std::string path) {
+    TransformAttr(path, gFmdAttrName,
+                  &FmdHandler::ResetFmdDiskInfo);
+  }, ec);
 
   if (ec) {
     eos_err("msg=\"Failed to walk FST Tree\" error=%s", ec.message());
@@ -297,10 +298,10 @@ FmdAttrHandler::ResetMgmInformation(eos::common::FileSystem::fsid_t fsid)
 {
   std::error_code ec;
   WalkFSTree(mFSPathHandler->GetFSPath(fsid),
-             [](std::string path){
-               TransformAttr(path, gFmdAttrName,
-                             &FmdHandler::ResetFmdMgmInfo);
-             }, ec);
+  [](std::string path) {
+    TransformAttr(path, gFmdAttrName,
+                  &FmdHandler::ResetFmdMgmInfo);
+  }, ec);
 
   if (ec) {
     eos_err("msg=\"Failed to walk FST Tree\" error=%s", ec.message());

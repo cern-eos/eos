@@ -154,7 +154,7 @@ FsckErr ConvertToFsckErr(const std::string& serr);
 //!
 //! @return string fsck error
 //------------------------------------------------------------------------------
-std::string ConvertToString(const FsckErr& err);
+std::string FsckErrToString(const FsckErr& err);
 
 //------------------------------------------------------------------------------
 //! Convert an FST env representation to an Fmd struct

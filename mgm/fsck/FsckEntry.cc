@@ -875,7 +875,7 @@ FsckEntry::Repair()
 
     if (CollectMgmInfo() == false) {
       eos_err("msg=\"no repair action, file is orphan\" fxid=%08llx fsid=%lu "
-              "err=%s", mFid, mFsidErr, ConvertToString(mReportedErr).c_str());
+              "err=%s", mFid, mFsidErr, FsckErrToString(mReportedErr).c_str());
       success = true;
       NotifyOutcome(success);
       (void) DropReplica(mFsidErr);
@@ -1005,7 +1005,7 @@ FsckEntry::NotifyOutcome(bool success) const
     // Update the MGM statistics and QDB backend in case of success
     if (success) {
       gOFS->MgmStats.Add("FsckRepairSuccessful", 0, 0, 1);
-      const std::string sfsck_err = eos::common::ConvertToString(mReportedErr);
+      const std::string sfsck_err = eos::common::FsckErrToString(mReportedErr);
       gOFS->mFsckEngine->NotifyFixedErr(mFid, mFsidErr, sfsck_err);
 
       // Such errors are reported by all the attached locations so when they

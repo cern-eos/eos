@@ -63,7 +63,7 @@ FsckErr ConvertToFsckErr(const std::string& serr)
 //------------------------------------------------------------------------------
 // Convert to FsckErr type to string
 //------------------------------------------------------------------------------
-std::string ConvertToString(const FsckErr& err)
+std::string FsckErrToString(const FsckErr& err)
 {
   if (err == FsckErr::MgmXsDiff) {
     return FSCK_M_CX_DIFF;

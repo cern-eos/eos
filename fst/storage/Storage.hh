@@ -27,6 +27,7 @@
 #include "common/FileSystem.hh"
 #include "common/RWMutex.hh"
 #include "common/AssistedThread.hh"
+#include "common/Fmd.hh"
 #include "namespace/ns_quarkdb/QdbContactDetails.hh"
 #include "fst/Load.hh"
 #include "fst/Health.hh"
@@ -204,6 +205,29 @@ public:
   //! @return total count of FSes
   //----------------------------------------------------------------------------
   size_t GetFSCount() const;
+
+  //----------------------------------------------------------------------------
+  //! Publish fsck error to QDB
+  //!
+  //! @param fid file identifier
+  //! @param fsid file system identifier
+  //! @param err_type fsck error type
+  //----------------------------------------------------------------------------
+  void PublishFsckError(eos::common::FileId::fileid_t fid,
+                        eos::common::FileSystem::fsid_t fsid,
+                        eos::common::FsckErr err_type);
+
+  //----------------------------------------------------------------------------
+  //! Push collected fsck errors to QDB
+  //!
+  //! @param fsid file system identifier
+  //! @param fidset map of error types to set of fids which are affected
+  //!
+  //! @return true if push was successful, othewise false
+  //----------------------------------------------------------------------------
+  bool PushToQdb(eos::common::FileSystem::fsid_t fsid,
+                 const std::map<std::string,
+                 std::set<eos::common::FileId::fileid_t>>& fidset);
 
 protected:
   mutable eos::common::RWMutex mFsMutex; ///< Mutex protecting the fs map
