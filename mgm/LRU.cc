@@ -32,6 +32,7 @@
 #include "mgm/LRU.hh"
 #include "mgm/Stat.hh"
 #include "mgm/XrdMgmOfs.hh"
+#include "mgm/convert/ConverterDriver.hh"
 #include "namespace/interface/IView.hh"
 #include "namespace/interface/ContainerIterators.hh"
 #include "namespace/Prefetcher.hh"

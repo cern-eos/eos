@@ -24,6 +24,7 @@
 #include "mgm/GeoBalancer.hh"
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/FsView.hh"
+#include "mgm/convert/ConverterDriver.hh"
 #include "namespace/interface/IFsView.hh"
 #include "namespace/interface/IView.hh"
 #include "namespace/Prefetcher.hh"

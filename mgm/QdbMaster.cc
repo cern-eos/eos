@@ -29,6 +29,7 @@
 #include "mgm/fsck/Fsck.hh"
 #include "mgm/LRU.hh"
 #include "mgm/Recycle.hh"
+#include "mgm/convert/ConverterDriver.hh"
 #include "mgm/config/IConfigEngine.hh"
 #include "mgm/tgc/MultiSpaceTapeGc.hh"
 #include "namespace/interface/IContainerMDSvc.hh"

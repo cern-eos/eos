@@ -24,6 +24,7 @@
 #include "mgm/GroupBalancer.hh"
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/FsView.hh"
+#include "mgm/convert/ConverterDriver.hh"
 #include "namespace/interface/IFsView.hh"
 #include "common/StringConversion.hh"
 #include "common/FileId.hh"

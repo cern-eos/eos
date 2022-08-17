@@ -218,11 +218,6 @@ public:
     return mObserverMgr.get();
   }
 
-  //----------------------------------------------------------------------------
-  //! Initialize the saved value of config vals like max threads/queue sz from
-  //! config store
-  //----------------------------------------------------------------------------
-  void initConfig();
 private:
   struct QdbHelper {
     //--------------------------------------------------------------------------
@@ -311,6 +306,12 @@ private:
   };
 
   //----------------------------------------------------------------------------
+  //! Initialize the saved value of config values like max threads/queue size
+  //! from the config store
+  //----------------------------------------------------------------------------
+  void InitConfig();
+
+  //----------------------------------------------------------------------------
   //! Converter engine thread monitoring
   //!
   //! @param assistant converter thread
@@ -331,6 +332,16 @@ private:
   //! Submit pending jobs from QDB
   //----------------------------------------------------------------------------
   void SubmitQdbPending(ThreadAssistant& assistant);
+
+  //----------------------------------------------------------------------------
+  //! Observer job called when a conversion is done taking care of deleting
+  //! the "proc" entry and updating the tracking information
+  //!
+  //! @param status conversion job status
+  //! @para tag conversion tag info
+  //----------------------------------------------------------------------------
+  static void CleanupObserver(ConverterDriver::JobStatusT status,
+                              std::string tag);
 
   //! Wait-time between jobs requests constant
   static constexpr unsigned int cDefaultRequestIntervalSec{60};

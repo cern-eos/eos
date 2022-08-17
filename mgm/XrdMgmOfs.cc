@@ -75,6 +75,7 @@
 #include "mgm/WFE.hh"
 #include "mgm/fsck/Fsck.hh"
 #include "mgm/IMaster.hh"
+#include "mgm/convert/ConverterDriver.hh"
 #include "mgm/FuseServer/FusexCastBatch.hh"
 #include "mgm/tgc/RealTapeGcMgm.hh"
 #include "mgm/tgc/MultiSpaceTapeGc.hh"

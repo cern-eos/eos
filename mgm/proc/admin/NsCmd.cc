@@ -41,6 +41,7 @@
 #include "mgm/Quota.hh"
 #include "mgm/Stat.hh"
 #include "mgm/ZMQ.hh"
+#include "mgm/convert/ConverterDriver.hh"
 #include "mgm/tgc/MultiSpaceTapeGc.hh"
 #include <sstream>
 

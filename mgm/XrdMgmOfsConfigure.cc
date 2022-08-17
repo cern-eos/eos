@@ -50,6 +50,7 @@
 #include "mgm/WFE.hh"
 #include "mgm/QdbMaster.hh"
 #include "mgm/Messaging.hh"
+#include "mgm/convert/ConverterDriver.hh"
 #include "mgm/tgc/MultiSpaceTapeGc.hh"
 #include "mgm/tracker/ReplicationTracker.hh"
 #include "mgm/inspector/FileInspector.hh"

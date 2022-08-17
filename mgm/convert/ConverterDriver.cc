@@ -66,41 +66,18 @@ ConverterDriver::Convert(ThreadAssistant& assistant) noexcept
     assistant.wait_for(std::chrono::seconds(10));
   } while (!assistant.terminationRequested() && !gOFS->mMaster->IsMaster());
 
-  // load the config from the global store once we're the master
-  initConfig();
+  InitConfig();
   SubmitQdbPending(assistant);
-
+  // Register a clean-up observer for finished conversion jobs
   eos::common::observer_tag_t deleter_tag(0);
-  do {
-    deleter_tag = mObserverMgr->addObserver([](ConverterDriver::JobStatusT status,
-                                               std::string tag) {
-      if (status != ConverterDriver::JobStatusT::DONE &&
-          status != ConverterDriver::JobStatusT::FAILED) {
-        eos_static_info("msg=\"Skipping Deletion of tag as Job is not completed!\" tag=%s",
-                        tag.c_str());
-        return;
-      }
 
-      auto info = ConversionInfo::parseConversionString(tag);
-      if (!info) {
-        // Using static logger as we don't need to pass in `this` argument!
-        eos_static_crit("msg=\"Unable to parse conversion info from tag=\"%s",
-                        tag.c_str());
-        return;
-      }
-      auto rootvid = eos::common::VirtualIdentity::Root();
-      auto converter_path = SSTR(gOFS->MgmProcConversionPath << "/"
-                                 << info->ToString());
-      XrdOucErrInfo error;
-      gOFS->_rem(converter_path.c_str(), error, rootvid, (const char*)0);
-      gOFS->mFidTracker.RemoveEntry(info->mFid);
-    });
+  do {
+    deleter_tag = mObserverMgr->addObserver(CleanupObserver);
 
     if (!deleter_tag) {
-      eos_crit("%s", "msg=\"Unable to register deletion handlers, Retrying!\"");
+      eos_crit("%s", "msg=\"failed cleanup observer registration, retry in 30s\"");
       assistant.wait_for(std::chrono::seconds(30));
     }
-
   } while (!deleter_tag && !assistant.terminationRequested());
 
   while (!assistant.terminationRequested()) {
@@ -112,7 +89,7 @@ ConverterDriver::Convert(ThreadAssistant& assistant) noexcept
     while ((mThreadPool.GetQueueSize() > mMaxQueueSize) &&
            !assistant.terminationRequested()) {
       eos_static_notice("%s", "msg=\"convert thread pool queue full, delay "
-                        "pending jobs");
+                        "pending jobs\"");
       assistant.wait_for(std::chrono::seconds(5));
     }
 
@@ -139,6 +116,36 @@ ConverterDriver::Convert(ThreadAssistant& assistant) noexcept
   JoinAllConversionJobs();
   mIsRunning = false;
   eos_static_notice("%s", "msg=\"stopped converter engine\"");;
+}
+
+//------------------------------------------------------------------------------
+// Observer job called when a conversion is done
+//------------------------------------------------------------------------------
+void
+ConverterDriver::CleanupObserver(ConverterDriver::JobStatusT status,
+                                 std::string tag)
+{
+  if (status != ConverterDriver::JobStatusT::DONE &&
+      status != ConverterDriver::JobStatusT::FAILED) {
+    eos_static_warning("msg=\"skip cleanup for job not completed\" tag=\"%s\"",
+                       tag.c_str());
+    return;
+  }
+
+  auto info = ConversionInfo::parseConversionString(tag);
+
+  if (!info) {
+    eos_static_crit("msg=\"failed conversion info parsing\" tag=\"%s\"",
+                    tag.c_str());
+    return;
+  }
+
+  auto rootvid = eos::common::VirtualIdentity::Root();
+  auto converter_path = SSTR(gOFS->MgmProcConversionPath << "/"
+                             << info->ToString());
+  XrdOucErrInfo error;
+  gOFS->_rem(converter_path.c_str(), error, rootvid, (const char*)0);
+  gOFS->mFidTracker.RemoveEntry(info->mFid);
 }
 
 //------------------------------------------------------------------------------
@@ -266,8 +273,11 @@ ConverterDriver::ScheduleJob(const eos::IFileMD::id_t& id,
   return mQdbHelper.AddPendingJob(info);
 }
 
+//------------------------------------------------------------------------------
+// Initialize converter configuration parameters
+//------------------------------------------------------------------------------
 void
-ConverterDriver::initConfig()
+ConverterDriver::InitConfig()
 {
   unsigned int max_threads = mConfigStore->get(kConverterMaxThreads,
                              cDefaultMaxThreadPoolSize);

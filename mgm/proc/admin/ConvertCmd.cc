@@ -25,6 +25,7 @@
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/Scheduler.hh"
 #include "mgm/FsView.hh"
+#include "mgm/convert/ConverterDriver.hh"
 #include "namespace/interface/IView.hh"
 #include "namespace/interface/IFileMD.hh"
 #include "namespace/interface/IContainerMD.hh"

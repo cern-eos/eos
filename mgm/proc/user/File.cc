@@ -29,6 +29,7 @@
 #include "mgm/Macros.hh"
 #include "mgm/Policy.hh"
 #include "mgm/Stat.hh"
+#include "mgm/convert/ConverterDriver.hh"
 #include "common/Path.hh"
 #include "common/LayoutId.hh"
 #include "common/SecEntity.hh"

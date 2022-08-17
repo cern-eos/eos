@@ -21,11 +21,12 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "common/Path.hh"
 #include "mgm/proc/ProcInterface.hh"
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/Access.hh"
 #include "mgm/Macros.hh"
+#include "common/Path.hh"
+#include "common/LayoutId.hh"
 #include "namespace/interface/IView.hh"
 #include "namespace/Resolver.hh"
 
