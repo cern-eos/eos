@@ -75,6 +75,11 @@ public:
   bool isAnyOpen() const;
 
   //----------------------------------------------------------------------------
+  //! Checks if there was ever more than one writer on that file
+  //----------------------------------------------------------------------------
+  bool hadMultiOpen(eos::common::FileSystem::fsid_t fsid, uint64_t fid) const;
+
+  //----------------------------------------------------------------------------
   //! Checks if the given file ID, on the given filesystem ID, is currently open
   //----------------------------------------------------------------------------
   int32_t getUseCount(eos::common::FileSystem::fsid_t fsid, uint64_t fid) const;
@@ -160,6 +165,9 @@ private:
   mutable eos::common::RWMutex mMutex;
   std::map<eos::common::FileSystem::fsid_t, std::map<uint64_t, int32_t>>
       mContents;
+
+  std::map<eos::common::FileSystem::fsid_t, std::map<uint64_t, bool>>
+      mMultiOpen;
 
   std::map<eos::common::FileSystem::fsid_t, std::map<std::string, std::mutex>> mApp;
 };

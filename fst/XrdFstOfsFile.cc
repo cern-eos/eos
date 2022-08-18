@@ -1363,6 +1363,9 @@ XrdFstOfsFile::_close()
   if (mEventWorkflow.length() == 0) {
     mEventWorkflow = "default";
   }
+ 
+  OpenFileTracker::CreationBarrier closeSerialization(gOFS.runningClose,
+      mFsId, mFileId);
 
   // We enter the close logic only once since there can be an explicit close or
   // a close via the destructor
@@ -3324,6 +3327,11 @@ XrdFstOfsFile::VerifyChecksum()
         (mCheckSum->GetMaxOffset() != (off_t)mMaxOffsetWritten)) {
       // If there was a write which was not extending the file the checksum
       // is dirty!
+      mCheckSum->SetDirty();
+    }
+    
+    if (gOFS.openedForWriting.hadMultiOpen(mFsId, mFileId)) {
+      // If there were several writers on the file, we should set the checksum dirty
       mCheckSum->SetDirty();
     }
 

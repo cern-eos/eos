@@ -1155,6 +1155,7 @@ Contains an instance and fuse test script and some test executables and test arc
 %{_sbindir}/xrdcpnonstreaming
 %{_sbindir}/xrdcpabort
 %{_sbindir}/xrdcpappend
+%{_sbindir}/xrdcpappendoverlap
 %{_sbindir}/xrdcpposixcache
 %{_sbindir}/xrdcpextend
 %{_sbindir}/xrdcpholes

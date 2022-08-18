@@ -35,6 +35,7 @@ add_executable(xrdcpabort XrdCpAbort.cc)
 add_executable(xrdcprandom XrdCpRandom.cc)
 add_executable(xrdcpextend XrdCpExtend.cc)
 add_executable(xrdcpappend XrdCpAppend.cc)
+add_executable(xrdcpappendoverlap XrdCpAppendOverlap.cc)
 add_executable(xrdcpposixcache XrdCpPosixCache.cc)
 add_executable(xrdcpholes XrdCpHoles.cc)
 add_executable(xrdcpbackward XrdCpBackward.cc)
@@ -65,6 +66,7 @@ target_link_libraries(xrdcpabort PRIVATE XROOTD::POSIX XROOTD::UTILS)
 target_link_libraries(xrdcprandom PRIVATE XROOTD::POSIX XROOTD::UTILS)
 target_link_libraries(xrdcpextend PRIVATE XROOTD::POSIX XROOTD::UTILS)
 target_link_libraries(xrdcpappend PRIVATE XROOTD::POSIX XROOTD::UTILS)
+target_link_libraries(xrdcpappendoverlap PRIVATE XROOTD::POSIX XROOTD::UTILS XROOTD::CL)
 target_link_libraries(xrdcpholes PRIVATE XROOTD::POSIX XROOTD::UTILS)
 target_link_libraries(xrdcpbackward PRIVATE XROOTD::POSIX XROOTD::UTILS)
 target_link_libraries(xrdcpdownloadrandom PRIVATE XROOTD::POSIX XROOTD::UTILS)
@@ -90,6 +92,7 @@ target_compile_definitions(xrdcpabort PUBLIC -D_FILE_OFFSET_BITS=64)
 target_compile_definitions(xrdcprandom PUBLIC -D_FILE_OFFSET_BITS=64)
 target_compile_definitions(xrdcpextend PUBLIC -D_FILE_OFFSET_BITS=64)
 target_compile_definitions(xrdcpappend PUBLIC -D_FILE_OFFSET_BITS=64)
+target_compile_definitions(xrdcpappendoverlap PUBLIC -D_FILE_OFFSET_BITS=64)
 target_compile_definitions(xrdcpholes PUBLIC -D_FILE_OFFSET_BITS=64)
 target_compile_definitions(xrdcpbackward PUBLIC -D_FILE_OFFSET_BITS=64)
 target_compile_definitions(xrdcpdownloadrandom PUBLIC -D_FILE_OFFSET_BITS=64)
@@ -108,7 +111,7 @@ add_executable(threadpooltest ThreadPoolTest.cc)
 target_link_libraries(threadpooltest PRIVATE EosCommon)
 
 install(TARGETS xrdstress.exe xrdcpabort xrdcprandom xrdcpextend xrdcpshrink
-  xrdcpappend xrdcptruncate xrdcpholes xrdcpbackward xrdcpdownloadrandom
+  xrdcpappend xrdcpappendoverlap xrdcptruncate xrdcpholes xrdcpbackward xrdcpdownloadrandom
   xrdcppartial xrdcpupdate xrdcpposixcache xrdcpslowwriter xrdcpnonstreaming
   eos-checksum-benchmark eos-udp-dumper eos-mmap eos-io-tool
   RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_SBINDIR})

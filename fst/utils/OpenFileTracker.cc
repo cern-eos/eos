@@ -42,6 +42,9 @@ void OpenFileTracker::up(eos::common::FileSystem::fsid_t fsid, uint64_t fid)
 {
   eos::common::RWMutexWriteLock wr_lock(mMutex);
   mContents[fsid][fid]++;
+  if (mContents[fsid][fid]>1) {
+    mMultiOpen[fsid][fid] = true;
+  }
 }
 
 //------------------------------------------------------------------------------
@@ -96,10 +99,15 @@ void OpenFileTracker::down(eos::common::FileSystem::fsid_t fsid, uint64_t fid)
   if (fidit->second == 1) {
     // Last use, remove from map
     fsit->second.erase(fidit);
-
+    // Last use, remove from map
+    mMultiOpen[fsid].erase(fid);
     // Also remove fs from top-level map?
     if (fsit->second.empty()) {
       mContents.erase(fsit);
+    }
+    // Also remove fs from top-level map?
+    if (mMultiOpen[fsid].empty()) {
+      mMultiOpen.erase(fsid);
     }
 
     return;
@@ -110,6 +118,7 @@ void OpenFileTracker::down(eos::common::FileSystem::fsid_t fsid, uint64_t fid)
                     "OpenFileTracker::down for fsid=%lu, fid=%08llx - dropping",
                     fsid, fid);
     fsit->second.erase(fidit);
+    mMultiOpen.erase(fid);
     return;
   }
 
@@ -124,6 +133,28 @@ bool OpenFileTracker::isOpen(eos::common::FileSystem::fsid_t fsid,
                              uint64_t fid) const
 {
   return getUseCount(fsid, fid) > 0;
+}
+
+//------------------------------------------------------------------------------
+// Checks if the given file ID, on the given filesystem ID, had multiple opens
+//------------------------------------------------------------------------------
+bool OpenFileTracker::hadMultiOpen(eos::common::FileSystem::fsid_t fsid,
+				   uint64_t fid) const
+{
+  eos::common::RWMutexReadLock rd_lock(mMutex);
+  auto fsit = mMultiOpen.find(fsid);
+
+  if (fsit == mMultiOpen.end()) {
+    return 0;
+  }
+
+  auto fidit = fsit->second.find(fid);
+
+  if (fidit == fsit->second.end()) {
+    return 0;
+  }
+
+  return fidit->second;
 }
 
 //------------------------------------------------------------------------------
