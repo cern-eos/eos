@@ -390,6 +390,7 @@ Iostat::Init(const std::string& instance_name, int port,
       }
 
       if (!LoadFromQdb()) {
+	eos_static_err("LoadFromQdb failed");
         return false;
       }
     } else {
@@ -2975,7 +2976,8 @@ Iostat::LoadFromQdb()
 
   qclient::HgetallParser mQdbRespParser(reply);
 
-  if (!mQdbRespParser.ok() || mQdbRespParser.value().empty()) {
+  if (!mQdbRespParser.ok()) {
+    eos_static_err("msg=\"failed parsing reply from Qdb\n");
     return false;
   }
 
