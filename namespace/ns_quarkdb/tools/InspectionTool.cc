@@ -474,13 +474,13 @@ int main(int argc, char* argv[])
   //----------------------------------------------------------------------------
   qclient::Members members = qclient::Members::fromString(membersStr);
   QdbContactDetails contactDetails(members, password);
-  qclient::Options opts = contactDeatils.constructOptions();
+  qclient::Options opts = contactDetails.constructOptions();
 
   if (connectionRetries) {
-    opst.retryStrategy = qclient::RetryStrategy::NRetries(connectionRetries);
+    opts.retryStrategy = qclient::RetryStrategy::NRetries(connectionRetries);
   }
 
-  qclient::QClient qcl(contactDetails.members, opts);
+  qclient::QClient qcl(contactDetails.members, std::move(opts));
   //----------------------------------------------------------------------------
   // Set-up Inspector object, ensure sanity
   //----------------------------------------------------------------------------
