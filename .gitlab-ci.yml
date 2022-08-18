@@ -220,6 +220,7 @@ build_cs9:
     - ccache -s
     - if [[ -n "$CI_COMMIT_TAG" ]]; then gpg2 --import $STCI_REPO_KEY; printf "" | setsid rpmsign --define='%_gpg_name stci@cern.ch' --define='%_signature gpg' --addsign build/RPMS/*.rpm; fi
     - mkdir cs9_artifacts; cp -R build/SRPMS/ build/RPMS cs9_artifacts
+    - if rpm -qpR build/RPMS/*rpm | grep -q 'python2'; then echo "Python2 is still present in some rpms..."; exit 2; else echo "No python2 dependencies"; fi
   cache:
     key: "$CI_JOB_NAME-$CI_COMMIT_REF_SLUG"
     paths:
@@ -231,8 +232,6 @@ build_cs9:
   only:
     - schedules
     - tags
-  allow_failure: true # @todo dont allow failure when/if we switch to Stream
-
 
 build_cs9_arm:
   stage: build:rpm
@@ -295,9 +294,14 @@ build_cs9_arm:
     - sed -e "s/_XRD_DEB_VER_/$XROOTD_VERSION/g" debian/control.template > debian/control
     - mk-build-deps --build-dep debian/control
     - gdebi -n eos-build-deps-depends*.deb
-    - dch --create -v `./genversion.sh` --package eos --urgency low --distribution ${EOS_DIST} -M "This package is built and released automatically. For important notices and releases subscribe to our mailing lists or visit our website."
+    - EOS_VERSION="$(./genversion.sh)"; echo "${EOS_VERSION}"
+    - dch --create -v "${EOS_VERSION}" --package eos --urgency low --distribution ${EOS_DIST} -M "This package is built and released automatically. For important notices and releases subscribe to our mailing lists or visit our website."
     - if [[ -n "$CI_COMMIT_TAG" ]]; then export CCACHE_DISABLE=1; else source gitlab-ci/setup_ccache_deb.sh; fi
-    - dpkg-buildpackage -b -us -uc -tc --buildinfo-option="-udeb_packages" --changes-option="-udeb_packages"
+    - if [[ "$EOS_DIST" == "jammy" ]]; then
+        dpkg-buildpackage -b -us -uc -tc --buildinfo-option="-udeb_packages" --changes-option="-udeb_packages" --buildinfo-file="deb_packages/eos_${EOS_VERSION}_$(dpkg-architecture -qDEB_BUILD_ARCH).buildinfo" --changes-file="deb_packages/eos_${EOS_VERSION}_$(dpkg-architecture -qDEB_BUILD_ARCH).changes";
+      else
+        dpkg-buildpackage -b -us -uc -tc --buildinfo-option="-udeb_packages" --changes-option="-udeb_packages";
+      fi
     - ccache -s
     - mkdir ${EOS_DIST}_artifacts/; cp deb_packages/*.deb ${EOS_DIST}_artifacts
   cache:

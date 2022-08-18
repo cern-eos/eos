@@ -22,7 +22,6 @@
  ************************************************************************/
 
 #include "mgm/fsck/Fsck.hh"
-#include "mgm/fsck/FsckEntry.hh"
 #include "common/Timing.hh"
 #include "common/LayoutId.hh"
 #include "common/Path.hh"
@@ -45,6 +44,8 @@ const std::string Fsck::sFsckKey
 const std::string Fsck::sCollectKey {"toggle-collect"};
 const std::string Fsck::sCollectIntervalKey {"collect-interval-min"};
 const std::string Fsck::sRepairKey {"toggle-repair"};
+const std::string Fsck::sRepairCategory {"repair-category"};
+
 
 //------------------------------------------------------------------------------
 // Constructor
@@ -52,7 +53,7 @@ const std::string Fsck::sRepairKey {"toggle-repair"};
 Fsck::Fsck():
   mShowOffline(false), mShowNoReplica(false), mShowDarkFiles(false),
   mStartProcessing(false), mCollectEnabled(false), mRepairEnabled(false),
-  mCollectRunning(false), mRepairRunning(false),
+  mCollectRunning(false), mRepairRunning(false), mRepairCategory(FsckErr::None),
   mCollectInterval(std::chrono::seconds(30 * 60)),
   eTimeStamp(0),
   mThreadPool(2, mMaxThreadPoolSize, 10, 6, 5, "fsck")
@@ -107,6 +108,10 @@ Fsck::ApplyFsckConfig()
       mRepairEnabled = (kv_map[sRepairKey] == "1");
       Config(sRepairKey, kv_map[sRepairKey], msg);
     }
+
+    if (kv_map.count(sRepairCategory)) {
+      Config(sRepairCategory, kv_map[sRepairCategory], msg);
+    }
   }
 }
 
@@ -121,7 +126,8 @@ Fsck::StoreFsckConfig()
   oss << sCollectKey << "=" << mCollectEnabled << " "
       << sCollectIntervalKey << "="
       << duration_cast<minutes>(mCollectInterval).count() << " "
-      << sRepairKey << "=" << mRepairEnabled;
+      << sRepairKey << "=" << mRepairEnabled << " "
+      << sRepairCategory  << "=" << ConvertToString(mRepairCategory);
   return FsView::gFsView.SetGlobalConfig(sFsckKey, oss.str());
 }
 
@@ -190,7 +196,7 @@ Fsck::Config(const std::string& key, const std::string& value, std::string& msg)
       msg = "error: failed to store fsck configuration changes";
       return false;
     }
-  } else if (key == "toggle-repair") {
+  } else if (key == sRepairKey) {
     if (value.empty()) {
       // User triggered repair toggle
       mRepairEnabled = !mRepairRunning;
@@ -210,6 +216,24 @@ Fsck::Config(const std::string& key, const std::string& value, std::string& msg)
       }
 
       mRepairThread.reset(&Fsck::RepairErrs, this);
+    }
+
+    if (!StoreFsckConfig()) {
+      msg = "error: failed to store fsck configuration changes";
+      return false;
+    }
+  } else if (key == sRepairCategory) {
+    if (value == "all") {
+      mRepairCategory = FsckErr::None;
+    } else {
+      const auto tmp_cat = ConvertToFsckErr(value);
+
+      if (tmp_cat == FsckErr::None) {
+        msg = "error: unknown repair category";
+        return false;
+      } else {
+        mRepairCategory = tmp_cat;
+      }
     }
 
     if (!StoreFsckConfig()) {
@@ -401,6 +425,12 @@ Fsck::RepairErrs(ThreadAssistant& assistant) noexcept
                                          "d_cx_diff"};
 
     for (const auto& err_type : err_priority) {
+      // Repair only targeted categories if this option is set
+      if ((mRepairCategory != FsckErr::None) &&
+          (mRepairCategory != ConvertToFsckErr(err_type))) {
+        continue;
+      }
+
       for (const auto& elem : local_emap[err_type]) {
         for (const auto& fid : elem.second) {
           if (!gOFS->mFidTracker.AddEntry(fid, TrackerType::Fsck)) {
@@ -502,7 +532,10 @@ Fsck::PrintOut(std::string& out) const
   oss << "Info: collection thread status -> "
       << (mCollectEnabled ? "enabled" : "disabled") << std::endl
       << "Info: repair thread status     -> "
-      << (mRepairEnabled ? "enabled" : "disabled") << std::endl;
+      << (mRepairEnabled ? "enabled" : "disabled") << std::endl
+      << "Info: repair category          -> "
+      << ((mRepairCategory == FsckErr::None) ?
+          "all" : ConvertToString(mRepairCategory)) << std::endl;
   {
     XrdSysMutexHelper lock(mLogMutex);
     oss << mLog;

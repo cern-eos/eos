@@ -70,6 +70,16 @@ enum class FstErr {
 FsckErr ConvertToFsckErr(const std::string& serr);
 
 //------------------------------------------------------------------------------
+//! Convert to FsckErr type to string
+//!
+//! @param fsck_err FsckErr type
+//!
+//! @return string fsck error
+//------------------------------------------------------------------------------
+std::string ConvertToString(const FsckErr& err);
+
+
+//------------------------------------------------------------------------------
 //! FstFileInfoT holds file metadata info retrieved from an FST
 //------------------------------------------------------------------------------
 struct FstFileInfoT {

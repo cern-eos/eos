@@ -23,6 +23,7 @@
 
 #pragma once
 #include "mgm/Namespace.hh"
+#include "mgm/fsck/FsckEntry.hh"
 #include "common/FileSystem.hh"
 #include "common/FileId.hh"
 #include "common/AssistedThread.hh"
@@ -187,6 +188,8 @@ private:
   static const std::string sCollectIntervalKey;
   //! Key used to store the status of the repair thread in the config
   static const std::string sRepairKey;
+  //! Key used to store the repair category in the config
+  static const std::string sRepairCategory;
 
   std::atomic<bool> mShowOffline; ///< Flag to display offline files/replicas
   std::atomic<bool> mShowNoReplica; ///< Flag to display no replica files
@@ -196,6 +199,7 @@ private:
   std::atomic<bool> mRepairEnabled; ///< Mark if the repair thread is enabled
   std::atomic<bool> mCollectRunning; ///< Mark if collector is running
   std::atomic<bool> mRepairRunning; ///< Mark if repair is running
+  std::atomic<FsckErr> mRepairCategory; ///< Mark which cat. should be repaired
   mutable std::string mLog, mTmpLog; ///< In-memory fsck log
   mutable XrdSysMutex mLogMutex; ///< Mutex protecting the in-memory log
   ///< Interval between FSCK collection loops
@@ -214,8 +218,8 @@ private:
   uint64_t mMaxQueuedJobs {(uint64_t)1e3}; ///< Max number of queued jobs (1k)
   uint32_t mMaxThreadPoolSize {20}; ///< Max number of threads in the pool
   eos::common::ThreadPool mThreadPool; ///< Thread pool for fsck repair jobs
-  AssistedThread
-  mRepairThread; ///< Thread repair submitting jobs to the thread pool
+  ///< Repair thread submitting jobs to the thread pool
+  AssistedThread mRepairThread;
   AssistedThread mCollectorThread; ///< Thread collecting errors
   std::shared_ptr<qclient::QClient> mQcl; ///< QClient object for metadata
 
