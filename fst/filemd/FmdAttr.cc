@@ -12,10 +12,8 @@ namespace eos::fst
 
 
 FmdAttrHandler::FmdAttrHandler(std::unique_ptr<FSPathHandler>&& _FSPathHandler)
-  :
-  mFSPathHandler(std::move(_FSPathHandler))
-{
-}
+  : mFSPathHandler(std::move(_FSPathHandler))
+{}
 
 
 std::pair<bool, eos::common::FmdHelper>

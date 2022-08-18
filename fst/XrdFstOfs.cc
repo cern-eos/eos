@@ -674,11 +674,11 @@ XrdFstOfs::Configure(XrdSysError& Eroute, XrdOucEnv* envP)
           }
 
           if (value == "leveldb") {
-            mFmdHandler.reset(new FmdDbMapHandler);
-            Eroute.Say("Config", "creating DB Handler");
+            mFmdHandler.reset(new FmdDbMapHandler());
+            Eroute.Say("Config", "creating leveldb handler");
           } else if (value == "attr") {
             mFmdHandler.reset(new FmdAttrHandler(makeFSPathHandler(this)));
-            Eroute.Say("Config", "creating Attr Handler");
+            Eroute.Say("Config", "creating attr handler");
           }
 
           Eroute.Say("=====> fstofs.filemd_handler : ", value.c_str());
@@ -719,12 +719,11 @@ XrdFstOfs::Configure(XrdSysError& Eroute, XrdOucEnv* envP)
   }
 
   if (!mFmdHandler) {
-    mFmdHandler.reset(new FmdAttrHandler(makeFSPathHandler(this)));
-    Eroute.Say("=====> fstofs.filemd_handler : attr");
+    mFmdHandler.reset(new FmdDbMapHandler());
+    Eroute.Say("=====> fstofs.filemd_handler : leveldb");
   }
 
-  gConfig.FstDefaultReceiverQueue =
-    gConfig.FstOfsBrokerUrl;
+  gConfig.FstDefaultReceiverQueue = gConfig.FstOfsBrokerUrl;
   gConfig.FstOfsBrokerUrl += mHostName;
   gConfig.FstOfsBrokerUrl += ":";
   gConfig.FstOfsBrokerUrl += myPort;
@@ -734,8 +733,7 @@ XrdFstOfs::Configure(XrdSysError& Eroute, XrdOucEnv* envP)
   gConfig.FstHostPort += myPort;
   gConfig.KernelVersion =
     eos::common::StringConversion::StringFromShellCmd("uname -r | tr -d \"\n\"").c_str();
-  Eroute.Say("=====> fstofs.broker : ",
-             gConfig.FstOfsBrokerUrl.c_str(), "");
+  Eroute.Say("=====> fstofs.broker : ", gConfig.FstOfsBrokerUrl.c_str(), "");
   // Extract our queue name
   gConfig.FstQueue = gConfig.FstOfsBrokerUrl;
   {
