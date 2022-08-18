@@ -16,6 +16,18 @@ Introduction
 This release is based on XRootD V4 and IPV6 enabled.
 
 
+``v4.8.91 Citrine``
+===================
+
+2022-08-18
+
+Bug
+---
+
+* [EOS-5366] MGM: Fix possible segv due to shorter than expected string
+* [EOS-5459] MGM: Fix crash due to unprotected access to a map in fusex::client::info
+
+
 ``v4.8.90 Citrine``
 ===================
 
