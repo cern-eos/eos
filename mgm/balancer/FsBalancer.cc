@@ -39,8 +39,7 @@ FsBalancer::ConfigUpdate()
 
   mDoConfigUpdate = false;
   // Collect all the relevant info from the parent space
-  eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex,
-                                          __FUNCTION__, __LINE__, __FILE__);
+  eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
   auto it_space = FsView::gFsView.mSpaceView.find(mSpaceName);
 
   // Space no longer exist, just disable the balancer
