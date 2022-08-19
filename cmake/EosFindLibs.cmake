@@ -29,6 +29,8 @@ option(CLIENT "Build only client packages" OFF)
 option(BUILD_XRDCL_RAIN_PLUGIN "Enable XrdCl RAIN plugin" OFF)
 
 if(NOT PACKAGEONLY)
+  set(THREADS_PREFER_PTHREAD_FLAG TRUE)
+  find_package(Threads REQUIRED)
   find_package(PythonSitePkg REQUIRED)
   find_package(CURL REQUIRED)
   find_package(XRootD REQUIRED)
