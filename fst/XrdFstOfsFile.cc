@@ -1364,9 +1364,6 @@ XrdFstOfsFile::_close()
     mEventWorkflow = "default";
   }
  
-  OpenFileTracker::CreationBarrier closeSerialization(gOFS.runningClose,
-      mFsId, mFileId);
-
   // We enter the close logic only once since there can be an explicit close or
   // a close via the destructor
   if (mOpened && (!closed) && mFmd) {
