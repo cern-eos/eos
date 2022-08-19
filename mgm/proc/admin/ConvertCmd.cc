@@ -58,7 +58,7 @@ ConvertCmd::ProcessRequest() noexcept
     (mReqProto.format() == eos::console::RequestProto::JSON);
 
   if (!gOFS->mConverterDriver) {
-    reply.set_std_err("error: ConverterEngine service is not enabled");
+    reply.set_std_err("error: converter engine is not enabled");
     reply.set_retc(ENOTSUP);
     return reply;
   }

@@ -220,7 +220,6 @@ add_library(
   utils/FileSystemStatusUtils.cc
   txengine/TransferEngine.cc
   txengine/TransferFsDB.cc
-  convert/old/Converter.cc
   GroupBalancer.cc
   GroupDrainer.cc
   groupbalancer/BalancerEngine.cc

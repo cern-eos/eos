@@ -540,7 +540,6 @@ public:
   static std::string gConfigQueuePrefix; ///<  Configuration queue prefix
 
   Balancer* mBalancer; ///< Threaded object supervising space balancing
-  Converter* mConverter; ///< Threaded object running layout conversion jobs
   GroupBalancer* mGroupBalancer; ///< Threaded object running group balancing
   GeoBalancer* mGeoBalancer; ///< Threaded object running geotag balancing
   std::unique_ptr<GroupDrainer>

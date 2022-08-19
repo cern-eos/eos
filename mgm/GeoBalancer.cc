@@ -345,28 +345,13 @@ void
 GeoBalancer::updateTransferList()
 {
   // Update tracker for scheduled jobs if using new converter
-  if (gOFS->mConverterDriver) {
-    gOFS->mFidTracker.DoCleanup(TrackerType::Convert);
-  }
+  gOFS->mFidTracker.DoCleanup(TrackerType::Convert);
 
   for (auto it = mTransfers.begin(); it != mTransfers.end();) {
-    if (gOFS->mConverterDriver) {
-      if (!gOFS->mFidTracker.HasEntry(it->first)) {
-        mTransfers.erase(it++);
-      } else {
-        ++it;
-      }
+    if (!gOFS->mFidTracker.HasEntry(it->first)) {
+      mTransfers.erase(it++);
     } else {
-      eos::common::VirtualIdentity rootvid = eos::common::VirtualIdentity::Root();
-      XrdOucErrInfo error;
-      const std::string& fileName = (*it).second;
-      struct stat buf;
-
-      if (gOFS->_stat(fileName.c_str(), &buf, error, rootvid, "")) {
-        mTransfers.erase(it++);
-      } else {
-        ++it;
-      }
+      ++it;
     }
   }
 
@@ -392,32 +377,19 @@ GeoBalancer::scheduleTransfer(eos::common::FileId::fileid_t fid,
     return false;
   }
 
-  if (gOFS->mConverterDriver) { // use new converter
-    std::string conv_tag = file_path;
-    conv_tag += "^geobalancer^";
-    conv_tag.erase(0, gOFS->MgmProcConversionPath.length() + 1);
+  std::string conv_tag = file_path;
+  conv_tag += "^geobalancer^";
+  conv_tag.erase(0, gOFS->MgmProcConversionPath.length() + 1);
 
-    if (gOFS->mConverterDriver->ScheduleJob(fid, conv_tag)) {
-      eos_static_info("msg=\"geo_balancer scheduled job\" file=\"%s\" "
-                      "from_geotag=\"%s\"", conv_tag.c_str(),
-                      fromGeotag.c_str());
-    } else {
-      eos_static_err("msg=\"geo_balancer failed to schedule job\" "
-                     "file=\"%s\" from_geotag=\"%s\"", conv_tag.c_str(),
-                     fromGeotag.c_str());
-      return false;
-    }
-  } else { // use old converter
-    XrdOucErrInfo error;
-    eos::common::VirtualIdentity rootvid = eos::common::VirtualIdentity::Root();
-
-    if (!gOFS->_touch(file_path.c_str(), error, rootvid, 0)) {
-      eos_static_info("msg=\"successfully scheduled transfer\" file=%s",
-                      file_path.c_str());
-    } else {
-      eos_static_err("msg=\"failed to schedule transfer\" file=\"%s\"",
-                     file_path.c_str());
-    }
+  if (gOFS->mConverterDriver->ScheduleJob(fid, conv_tag)) {
+    eos_static_info("msg=\"geo_balancer scheduled job\" file=\"%s\" "
+                    "from_geotag=\"%s\"", conv_tag.c_str(),
+                    fromGeotag.c_str());
+  } else {
+    eos_static_err("msg=\"geo_balancer failed to schedule job\" "
+                   "file=\"%s\" from_geotag=\"%s\"", conv_tag.c_str(),
+                   fromGeotag.c_str());
+    return false;
   }
 
   mTransfers[fid] = file_path.c_str();

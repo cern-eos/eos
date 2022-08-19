@@ -66,7 +66,7 @@ GroupDrainer::GroupDrain(ThreadAssistant& assistant) noexcept
       mRefreshGroups = config_status;
     }
 
-    if (!gOFS->mConverterDriver || !config_status) {
+    if (!config_status) {
       // wait for a few seconds before trying to see for reconfiguration in order
       // to not simply always check the atomic in an inf loop
       eos_info("msg=\"Invalid GroupDrainer Configuration or Converter "

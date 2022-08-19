@@ -30,7 +30,6 @@
 #include "mgm/Balancer.hh"
 #include "mgm/GroupBalancer.hh"
 #include "mgm/GroupDrainer.hh"
-#include "mgm/convert/old/Converter.hh"
 #include "mgm/GeoTreeEngine.hh"
 #include "mgm/config/IConfigEngine.hh"
 #include "mgm/tgc/Constants.hh"
@@ -819,8 +818,7 @@ LongLongAggregator::aggregateNodes(
 // Constructor
 //----------------------------------------------------------------------------
 FsSpace::FsSpace(const char* name)
-  : BaseView(common::SharedHashLocator::makeForSpace(name)),
-    mConverter(nullptr)
+  : BaseView(common::SharedHashLocator::makeForSpace(name))
 {
   mName = name;
   mType = "spaceview";
@@ -828,14 +826,6 @@ FsSpace::FsSpace(const char* name)
   mGroupBalancer = new GroupBalancer(name);
   mGeoBalancer = new GeoBalancer(name);
   mGroupDrainer.reset(new GroupDrainer(name));
-
-  // Start old converter if the new one is disabled on purpose
-  if (getenv("EOS_FORCE_DISABLE_NEW_CONVERTER")) {
-    eos_static_info("%s", "msg=\"start the old converter\"");
-    mConverter = new Converter(name);
-  } else {
-    eos_static_info("%s", "msg=\"skip starting the old converter\"");
-  }
 
   if (!gDisableDefaults) {
     // Disable balancing by default
@@ -1073,10 +1063,6 @@ FsSpace::~FsSpace()
     delete mBalancer;
   }
 
-  if (mConverter) {
-    delete mConverter;
-  }
-
   if (mGroupBalancer) {
     delete mGroupBalancer;
   }
@@ -1086,7 +1072,6 @@ FsSpace::~FsSpace()
   }
 
   mBalancer = nullptr;
-  mConverter = nullptr;
   mGroupBalancer = nullptr;
   mGeoBalancer = nullptr;
 }
@@ -1098,10 +1083,6 @@ void FsSpace::Stop()
 {
   if (mBalancer) {
     mBalancer->Stop();
-  }
-
-  if (mConverter) {
-    mConverter->Stop();
   }
 
   if (mGroupBalancer) {

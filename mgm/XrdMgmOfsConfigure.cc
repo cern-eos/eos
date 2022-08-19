@@ -2150,21 +2150,10 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   mGeoTreeEngine->StartUpdater();
   // Start the drain engine
   mDrainEngine.Start();
-
   // Start the Converter driver
-  if (!eosView->inMemory() && !getenv("EOS_FORCE_DISABLE_NEW_CONVERTER")) {
-    eos_info("%s", "msg=\"starting Converter Engine\"");
-    mConverterDriver.reset(new eos::mgm::ConverterDriver(mQdbContactDetails));
-    mConverterDriver->Start();
-  }
-
-  {
-    eos_static_info("%s", "msg=\"test mutex extra info deduction");
-    eos::common::RWMutexWriteLock wr_lock(eosViewRWMutex);
-    std::this_thread::sleep_for(std::chrono::seconds(15));
-  }
-
-  eos_static_info("%s", "msg=\"after mutex test");
+  eos_info("%s", "msg=\"starting Converter Engine\"");
+  mConverterDriver.reset(new eos::mgm::ConverterDriver(mQdbContactDetails));
+  mConverterDriver->Start();
   return NoGo;
 }
 /*----------------------------------------------------------------------------*/

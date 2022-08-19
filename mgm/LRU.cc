@@ -826,30 +826,18 @@ LRU::ConvertMatch(const char* dir,
              "%s/%016llx:%s#%s%s",
              gOFS->MgmProcConversionPath.c_str(), it->first, space.c_str(),
              conversion.c_str(), plctplcy.c_str());
+    std::string conv_tag = conversiontagfile;
+    conv_tag.erase(0, gOFS->MgmProcConversionPath.length() + 1);
+    // For the new converted we need to tell it explicitly that we want the
+    // ctime to be updated since this doesn't happen by default
+    conv_tag += eos::mgm::ConversionInfo::UPDATE_CTIME;
 
-    // Use new converter if available
-    if (gOFS->mConverterDriver) {
-      std::string conv_tag = conversiontagfile;
-      conv_tag.erase(0, gOFS->MgmProcConversionPath.length() + 1);
-      // For the new converted we need to tell it explicitly that we want the
-      // ctime to be updated since this doesn't happen by default
-      conv_tag += eos::mgm::ConversionInfo::UPDATE_CTIME;
-
-      if (gOFS->mConverterDriver->ScheduleJob(fid, conv_tag)) {
-        eos_static_info("msg=\"LRU scheduled conversion job\" tag=\"%s\"",
-                        conv_tag.c_str());
-      } else {
-        eos_static_err("msg=\"LRU failed to schedule conversion job\" "
-                       "tag=\"%s\"", conv_tag.c_str());
-      }
-    } else { // use old converter
-      if (gOFS->_touch(conversiontagfile, mError, mRootVid, 0)) {
-        eos_static_err("msg=\"LRU unable to create conversion job file\" "
-                       "tag=\"%s\"", conversiontagfile);
-      } else {
-        eos_static_notice("msg=\"LRU created conversion job file\" tag=\"%s\"",
-                          conversiontagfile);
-      }
+    if (gOFS->mConverterDriver->ScheduleJob(fid, conv_tag)) {
+      eos_static_info("msg=\"LRU scheduled conversion job\" tag=\"%s\"",
+                      conv_tag.c_str());
+    } else {
+      eos_static_err("msg=\"LRU failed to schedule conversion job\" "
+                     "tag=\"%s\"", conv_tag.c_str());
     }
   }
 }

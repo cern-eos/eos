@@ -1225,33 +1225,18 @@ ProcCommand::File()
                 }
 
                 eos::common::VirtualIdentity rootvid = eos::common::VirtualIdentity::Root();
+                // Push conversion job to QuarkDB
+                std::string conversiontag = conversiontagfile;
+                conversiontag.erase(0, gOFS->MgmProcConversionPath.length() + 1);
 
-                if (gOFS->mConverterDriver) {
-                  // Push conversion job to QuarkDB
-                  std::string conversiontag = conversiontagfile;
-                  conversiontag.erase(0, gOFS->MgmProcConversionPath.length() + 1);
-
-                  if (gOFS->mConverterDriver->ScheduleJob(fmd->getId(), conversiontag)) {
-                    stdOut += "success: pushed conversion job '";
-                    stdOut += conversiontag.c_str();
-                    stdOut += "' to QuarkDB";
-                  } else {
-                    stdErr += "error: unable to push conversion job '";
-                    stdErr += conversiontag.c_str();
-                    stdErr += "' to QuarkDB";
-                  }
+                if (gOFS->mConverterDriver->ScheduleJob(fmd->getId(), conversiontag)) {
+                  stdOut += "success: pushed conversion job '";
+                  stdOut += conversiontag.c_str();
+                  stdOut += "' to QuarkDB";
                 } else {
-                  // Use file-based conversion scheduling
-                  if (gOFS->_touch(conversiontagfile, *mError, rootvid, 0)) {
-                    stdErr += "error: unable to create conversion job '";
-                    stdErr += conversiontagfile;
-                    stdErr += "'";
-                    retc = errno;
-                  } else {
-                    stdOut += "success: created conversion job '";
-                    stdOut += conversiontagfile;
-                    stdOut += "'";
-                  }
+                  stdErr += "error: unable to push conversion job '";
+                  stdErr += conversiontag.c_str();
+                  stdErr += "' to QuarkDB";
                 }
               }
             }
