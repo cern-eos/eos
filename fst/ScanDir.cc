@@ -28,10 +28,10 @@
 #include "console/commands/helpers/FsHelper.hh"
 #include "fst/Config.hh"
 #include "fst/XrdFstOfs.hh"
-#include "fst/FmdDbMap.hh"
 #include "fst/Deletion.hh"
 #include "fst/storage/FileSystem.hh"
 #include "fst/checksum/ChecksumPlugins.hh"
+#include "fst/filemd/FmdDbMap.hh"
 #include "fst/io/FileIoPluginCommon.hh"
 #include "namespace/ns_quarkdb/Constants.hh"
 #include "qclient/structures/QSet.hh"
@@ -208,6 +208,8 @@ ScanDir::AccountMissing()
 {
   using eos::common::FileId;
   struct stat info;
+  std::map<std::string, size_t> statistics;
+  std::map<std::string, std::set<eos::common::FileId::fileid_t>> fidset;
   auto fids = CollectNsFids(eos::fsview::sFilesSuffix);
   eos_info("msg=\"scanning %llu attached namespace entries\"", fids.size());
 
@@ -234,18 +236,31 @@ ScanDir::AccountMissing()
           // File missing on disk - create fmd entry and mark it as missing but
           // then also check the MGM info since the file might be 0-size so we
           // need to remove the kMissing flag
-          auto fmd = gFmdDbMapHandler.LocalGetFmd(fid, mFsId, true, true);
+          auto fmd = gOFS.mFmdHandler->LocalGetFmd(fid, mFsId, true, true);
 
           if (fmd) {
             fmd->mProtoFmd.set_layouterror(fmd->mProtoFmd.layouterror() |
                                            LayoutId::kMissing);
-            gFmdDbMapHandler.Commit(fmd.get());
-            (void) gFmdDbMapHandler.ResyncFileFromQdb(fid, mFsId, fpath,
-                gOFS.mFsckQcl);
           } else {
-            eos_err("msg=\"faile to create local fmd entry for missing file\" "
+            // With Force Retrieve if we come up null, this means this file
+            // doesn't exist! This path will only execute for the FmdAttr layer
+            // as leveldb will still have an entry even if hte original file was
+            // dropped Create a dummy file so that we can set kMissing!
+            fmd.reset(new common::FmdHelper());
+            fmd->mProtoFmd.set_fid(fid);
+            fmd->mProtoFmd.set_fsid(mFsId);
+            fmd->mProtoFmd.set_layouterror(LayoutId::kMissing);
+          }
+
+          if (!gOFS.mFmdHandler->Commit(fmd.get())) {
+            eos_err("msg=\"failed to create local fmd entry for missing file\" "
                     "fxid=%08llx fsid=%lu", fid, mFsId);
           }
+
+          (void) gOFS.mFmdHandler->ResyncFileFromQdb(fid, mFsId, fpath,
+              gOFS.mFsckQcl);
+          fmd = gOFS.mFmdHandler->LocalGetFmd(fid, mFsId, true, false);
+          CollectInconsistencies(*fmd.get(), statistics, fidset);
         }
       } catch (eos::MDException& e) {
         // No file on disk, no ns file metadata object but we have a ghost entry
@@ -259,6 +274,11 @@ ScanDir::AccountMissing()
 
     // Rate limit enforced for the current disk
     mRateLimit->Allow();
+  }
+
+  // Push collected errors to QDB
+  if (!gOFS.Storage->PushToQdb(mFsId, fidset)) {
+    eos_err("msg=\"failed to push fsck errors to QDB\" fsid=%lu", mFsId);
   }
 }
 
@@ -512,13 +532,6 @@ ScanDir::RunDiskScan(ThreadAssistant& assistant) noexcept
           break;
         }
       } while (deadline > std::chrono::system_clock::now());
-
-      // @todo(esindril): this will not be needed anymore once we drop the
-      // local db. If needed we could add it as an individual command
-      // Call the ghost entry clean-up function
-      // eos_notice("msg=\"cleaning ghost entries\" dir=%s fsid=%d",
-      //            mDirPath.c_str(), mFsId);
-      // gFmdDbMapHandler.RemoveGhostEntries(mDirPath.c_str(), mFsId);
     } else {
       break;
     }
@@ -550,13 +563,41 @@ ScanDir::ScanSubtree(ThreadAssistant& assistant) noexcept
   }
 
   std::string fpath;
+  std::map<std::string, size_t> statistics;
+  std::map<std::string, std::set<eos::common::FileId::fileid_t>> fidset;
 
   while ((fpath = io->ftsRead(handle.get())) != "") {
     if (!mBgThread) {
       fprintf(stderr, "[ScanDir] processing file %s\n", fpath.c_str());
     }
 
-    CheckFile(fpath);
+    // Skip scanning orphan files
+    if (fpath.find(".eosorphans") != std::string::npos) {
+      continue;
+    }
+
+    if (CheckFile(fpath)) {
+#ifndef _NOOFS
+
+      // Collect fsck errors and save them to be sent later on to QDB
+      if (!gOFS.FmdOnDb()) {
+        auto fid = eos::common::FileId::PathToFid(fpath.c_str());
+
+        if (!fid) {
+          eos_static_info("msg=\"skip file which is not a eos data file\", "
+                          "path=\"%s\"", fpath.c_str());
+          continue;
+        }
+
+        auto fmd = gOFS.mFmdHandler->LocalGetFmd(fid, mFsId, true, false);
+
+        if (fmd) {
+          CollectInconsistencies(*fmd.get(), statistics, fidset);
+        }
+      }
+
+#endif
+    }
 
     if (assistant.terminationRequested()) {
       return;
@@ -566,17 +607,26 @@ ScanDir::ScanSubtree(ThreadAssistant& assistant) noexcept
   if (io->ftsClose(handle.get())) {
     LogMsg(LOG_ERR, "msg=\"fts_close failed\" dir=%s", mDirPath.c_str());
   }
+
+#ifndef _NOOFS
+
+  // Push collected errors to QDB
+  if (!gOFS.Storage->PushToQdb(mFsId, fidset)) {
+    eos_err("msg=\"failed to push fsck errors to QDB\" fsid=%lu", mFsId);
+  }
+
+#endif
 }
 
 //------------------------------------------------------------------------------
 // Check the given file for errors and properly account them both at the
 // scanner level and also by setting the proper xattrs on the file.
 //------------------------------------------------------------------------------
-void
+bool
 ScanDir::CheckFile(const std::string& fpath)
 {
   using eos::common::LayoutId;
-  eos_debug("msg=\"running check file\" path=\"%s\"", fpath.c_str());
+  eos_debug("msg=\"start file check\" path=\"%s\"", fpath.c_str());
   std::unique_ptr<FileIo> io(FileIoPluginHelper::GetIoObject(fpath.c_str()));
   ++mNumTotalFiles;
   // Get last modification time
@@ -585,7 +635,7 @@ ScanDir::CheckFile(const std::string& fpath)
 
   if ((io->fileOpen(0, 0)) || io->fileStat(&buf1)) {
     LogMsg(LOG_ERR, "msg=\"open/stat failed\" path=%s\"", fpath.c_str());
-    return;
+    return false;
   }
 
 #ifndef _NOOFS
@@ -594,7 +644,7 @@ ScanDir::CheckFile(const std::string& fpath)
   if (!fid) {
     eos_static_info("msg=\"skip file which is not a eos data file\", "
                     "path=\"%s\"", fpath.c_str());
-    return;
+    return false;
   }
 
   if (mBgThread) {
@@ -603,7 +653,7 @@ ScanDir::CheckFile(const std::string& fpath)
              fpath.c_str(), mFsId, fid);
       eos_warning("msg=\"skipping scan of w-open file\" localpath=%s fsid=%d "
                   "fxid=%08llx", fpath.c_str(), mFsId, fid);
-      return;
+      return false;
     }
   }
 
@@ -619,7 +669,7 @@ ScanDir::CheckFile(const std::string& fpath)
   // If rescan not necessary just return
   if (!DoRescan(xs_stamp_sec)) {
     ++mNumSkippedFiles;
-    return;
+    return false;
   }
 
   std::string lfn, previous_xs_err;
@@ -634,7 +684,7 @@ ScanDir::CheckFile(const std::string& fpath)
   std::string scan_xs_hex;
 
   if (!ScanFileLoadAware(io, scan_size, scan_xs_hex, filexs_err, blockxs_err)) {
-    return;
+    return false;
   }
 
   bool reopened = false;
@@ -655,7 +705,7 @@ ScanDir::CheckFile(const std::string& fpath)
   if (reopened || io->fileStat(&buf2) || (buf1.st_mtime != buf2.st_mtime)) {
     LogMsg(LOG_ERR, "msg=\"[ScanDir] skip file modified during scan path=%s",
            fpath.c_str());
-    return;
+    return false;
   }
 
   if (filexs_err) {
@@ -694,11 +744,12 @@ ScanDir::CheckFile(const std::string& fpath)
 #ifndef _NOOFS
 
   if (mBgThread) {
-    gFmdDbMapHandler.UpdateWithScanInfo(fid, mFsId, fpath, scan_size,
-                                        scan_xs_hex, gOFS.mFsckQcl);
+    gOFS.mFmdHandler->UpdateWithScanInfo(fid, mFsId, fpath, scan_size,
+                                         scan_xs_hex, gOFS.mFsckQcl);
   }
 
 #endif
+  return true;
 }
 
 //------------------------------------------------------------------------------

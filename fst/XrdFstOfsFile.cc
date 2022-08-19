@@ -32,7 +32,7 @@
 #include "common/IoPriority.hh"
 #include "common/Timing.hh"
 #include "common/xrootd-ssi-protobuf-interface/eos_cta/include/CtaFrontendApi.hpp"
-#include "fst/FmdDbMap.hh"
+#include "fst/filemd/FmdDbMap.hh"
 #include "fst/layout/Layout.hh"
 #include "fst/layout/LayoutPlugin.hh"
 #include "fst/checksum/ChecksumPlugins.hh"
@@ -405,21 +405,28 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
   }
 
   COMMONTIMING("get::localfmd", &tm);
-  mFmd = gFmdDbMapHandler.LocalGetFmd(mFileId, mFsId, isRepairRead, mIsRW,
-                                      vid.uid, vid.gid, mLid);
+
+  if (isCreation && !gOFS.FmdOnDb()) {
+    mFmd = FmdHandler::make_fmd_helper(mFileId, mFsId, vid.uid, vid.gid,
+                                       mLid);
+  } else {
+    mFmd = gOFS.mFmdHandler->LocalGetFmd(mFileId, mFsId, isRepairRead, mIsRW,
+                                         vid.uid, vid.gid, mLid);
+  }
+
   COMMONTIMING("resync::localfmd", &tm);
 
   if (mFmd == nullptr) {
-    if (gFmdDbMapHandler.ResyncMgm(mFsId, mFileId, mRedirectManager.c_str())) {
+    if (gOFS.mFmdHandler->ResyncMgm(mFsId, mFileId, mRedirectManager.c_str())) {
       eos_info("msg=\"resync ok\" fsid=%lu fxid=%llx", mFsId, mFileId);
-      mFmd = gFmdDbMapHandler.LocalGetFmd(mFileId, mFsId, isRepairRead, mIsRW,
-                                          vid.uid, vid.gid, mLid);
+      mFmd = gOFS.mFmdHandler->LocalGetFmd(mFileId, mFsId, isRepairRead,
+                                           mIsRW, vid.uid, vid.gid, mLid);
       std::string dummy_xs;
       int rc = 0;
 
-      if ((rc = gFmdDbMapHandler.ResyncDisk(mFstPath.c_str(), mFsId, false, 0,
-                                            dummy_xs))) {
-        eos_err("msg=\"failed to resync from disk\" fsid=%lu fxid=%llx, path=%s rc=%d",
+      if ((rc = gOFS.mFmdHandler->ResyncDisk(mFstPath.c_str(), mFsId, false, 0,
+                                             dummy_xs))) {
+        eos_err("msg=\"failed to resync from disk\" fsid=%lu fxid=%llx path=%s rc=%d",
                 mFsId, mFileId, mFstPath.c_str(), rc);
       } else {
         eos_info("msg=\"resync from disk\" path=%s", mFstPath.c_str());
@@ -478,13 +485,26 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
 
       /* Populate local DB (future reads need it) */
       unsigned long long clFid = eos::common::FileId::Hex2Fid(sCloneFST);
-      auto lfmd = gFmdDbMapHandler.LocalGetFmd(clFid, mFsId, false, mIsRW,
+      auto lfmd = gOFS.mFmdHandler->LocalGetFmd(clFid, mFsId, false, mIsRW,
                   vid.uid, vid.gid, mLid);
+
+      if (lfmd == nullptr) {
+        // We have an invalid FMD, drop and try again!
+        gOFS.mFmdHandler->LocalDeleteFmd(clFid, mFsId);
+        lfmd = gOFS.mFmdHandler->LocalGetFmd(clFid, mFsId, false, mIsRW,
+                                             vid.uid, vid.gid, mLid);
+
+        // FIXME: maybe we don't need to exit here?
+        if (!lfmd) {
+          return gOFS.Emsg(epname, error, ENOENT, "open unable to create FMD");
+        }
+      }
+
       lfmd->mProtoFmd.set_checksum(mFmd->mProtoFmd.checksum());
       lfmd->mProtoFmd.set_diskchecksum(mFmd->mProtoFmd.diskchecksum());
       lfmd->mProtoFmd.set_mgmchecksum(mFmd->mProtoFmd.mgmchecksum());
 
-      if (!gFmdDbMapHandler.Commit(lfmd.get())) {
+      if (!gOFS.mFmdHandler->Commit(lfmd.get())) {
         eos_err("copy-on-write unable to commit meta data to local database");
         (void) gOFS.Emsg(epname, this->error, EIO,
                          "copy-on-write - unable to commit meta data", mNsPath.c_str());
@@ -615,6 +635,10 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
     }
   }
 
+  if (isCreation && !gOFS.FmdOnDb()) {
+    gOFS.mFmdHandler->Commit(mFmd.get());
+  }
+
   if (!isCreation) {
     COMMONTIMING("layout::stat", &tm);
     // Get the real size of the file, not the local stripe size!
@@ -686,7 +710,7 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
   if (!mIsRW) {
     if ((eos::common::LayoutId::GetLayoutType(mLid) ==
          eos::common::LayoutId::kReplica) &&
-        gFmdDbMapHandler.FileHasXsError(mLayout->GetLocalReplicaPath(), mFsId)) {
+        gOFS.mFmdHandler->FileHasXsError(mLayout->GetLocalReplicaPath(), mFsId)) {
       eos_err("msg=\"open failed due to checksum mismatch\" path=%s",
               mNsPath.c_str());
       return gOFS.Emsg(epname, error, EIO, "open - replica checksum mismatch",
@@ -1675,7 +1699,7 @@ XrdFstOfsFile::_close()
 
             // Commit local
             try {
-              if (!gFmdDbMapHandler.Commit(mFmd.get())) {
+              if (!gOFS.mFmdHandler->Commit(mFmd.get())) {
                 eos_err("msg=\"unable to commit meta data to local database\" "
                         "fxid=%08llx", mFileId);
                 (void) gOFS.Emsg(epname, error, EIO, "close - unable to "
@@ -3406,6 +3430,11 @@ XrdFstOfsFile::VerifyChecksum()
         (mCheckSum->GetMaxOffset() != (off_t)mMaxOffsetWritten)) {
       // If there was a write which was not extending the file the checksum
       // is dirty!
+      mCheckSum->SetDirty();
+    }
+
+    if (gOFS.openedForWriting.hadMultiOpen(mFsId, mFileId)) {
+      // If there were several writers on the file, we should set the checksum dirty
       mCheckSum->SetDirty();
     }
 

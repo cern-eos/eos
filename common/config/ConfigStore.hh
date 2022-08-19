@@ -73,8 +73,8 @@ public:
 
     if (!StringToNumeric(load(key), val, default_val, &log_msg))
     {
-      eos_err("msg=\"Failed to load key from Configstore\" err=%s",
-      log_msg.c_str());
+      eos_err("msg=\"failed to load key from Configstore\" key=\"%s\" err=%s",
+      key.c_str(), log_msg.c_str());
     }
 
     return val;

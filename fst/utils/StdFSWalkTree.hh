@@ -45,10 +45,13 @@ namespace fs = std::filesystem;
 
 
 // A walk directory tree function using the recursive directory iterator.
+// We deliberately template PathOp fn, which takes a path and count,
+// while he first argument to be fs::path, however this is convertible to a std::string,
+// so we can reuse functionalities from FTS/C versions of the functions as well.
 // Hidden files or directories are not visited, and symlinks not followed
-// This version throws exceptions
+// This version throws exceptions.
 template <typename FilterFn, typename PathOp>
-uint64_t WalkFSTree(std::string_view path, FilterFn&& filter, PathOp&& path_op)
+uint64_t WalkDirTree(std::string_view path, FilterFn&& filter, PathOp&& path_op)
 {
   uint64_t count {0};
 
@@ -62,7 +65,8 @@ uint64_t WalkFSTree(std::string_view path, FilterFn&& filter, PathOp&& path_op)
     }
 
     if (filter(p)) {
-      path_op(p->path(), ++count);
+      path_op(p->path());
+      ++count;
     }
   }
 
@@ -72,8 +76,8 @@ uint64_t WalkFSTree(std::string_view path, FilterFn&& filter, PathOp&& path_op)
 // A non throwing version of WalkFSTree; if allocator throws this is of course raised,
 // but then that would anyway warrant a critical failure
 template <typename FilterFn, typename PathOp>
-uint64_t WalkFSTree(std::string_view path, FilterFn&& filter, PathOp&& path_op,
-                    std::error_code& ec) noexcept
+uint64_t WalkDirTree(std::string_view path, FilterFn&& filter, PathOp&& path_op,
+                     std::error_code& ec) noexcept
 {
   uint64_t count {0};
 
@@ -92,7 +96,8 @@ uint64_t WalkFSTree(std::string_view path, FilterFn&& filter, PathOp&& path_op,
     }
 
     if (filter(p)) {
-      path_op(p->path(), ++count);
+      path_op(p->path());
+      ++count;
     }
   }
 
@@ -110,5 +115,20 @@ bool IsRegularFile(It it)
 #endif
 }
 
-} // namespace eos::fst::fsutils
+
+
+template <typename UnaryOp>
+uint64_t
+WalkFSTree(std::string_view path, UnaryOp&& op, std::error_code& ec)
+{
+  auto exclude_xs_map = [](const auto & p)  {
+    return IsRegularFile(p) && p->path().extension() != ".xsmap";
+  };
+  return WalkDirTree(path,
+                     exclude_xs_map,
+                     std::forward<UnaryOp>(op),
+                     ec);
+}
+
+} // namespace eos::fst::stdfs
 

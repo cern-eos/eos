@@ -23,6 +23,72 @@
 EOSCOMMONNAMESPACE_BEGIN
 
 //------------------------------------------------------------------------------
+// Get set of known fsck error strings
+//------------------------------------------------------------------------------
+std::set<std::string> GetKnownFsckErrs()
+{
+  return {FSCK_M_CX_DIFF, FSCK_M_MEM_SZ_DIFF, FSCK_D_CX_DIFF, FSCK_D_MEM_SZ_DIFF,
+          FSCK_UNREG_N, FSCK_REP_DIFF_N, FSCK_REP_MISSING_N, FSCK_BLOCKXS_ERR,
+          FSCK_ORPHANS_N};
+}
+
+//------------------------------------------------------------------------------
+// Convert string to FsckErr type
+//------------------------------------------------------------------------------
+FsckErr ConvertToFsckErr(const std::string& serr)
+{
+  if (serr == FSCK_M_CX_DIFF) {
+    return FsckErr::MgmXsDiff;
+  } else if (serr == FSCK_M_MEM_SZ_DIFF) {
+    return FsckErr::MgmSzDiff;
+  } else if (serr == FSCK_D_CX_DIFF) {
+    return FsckErr::FstXsDiff;
+  } else if (serr == FSCK_D_MEM_SZ_DIFF) {
+    return FsckErr::FstSzDiff;
+  } else if (serr == FSCK_UNREG_N) {
+    return FsckErr::UnregRepl;
+  } else if (serr == FSCK_REP_DIFF_N) {
+    return FsckErr::DiffRepl;
+  } else if (serr == FSCK_REP_MISSING_N) {
+    return FsckErr::MissRepl;
+  } else if (serr == FSCK_BLOCKXS_ERR) {
+    return FsckErr::BlockxsErr;
+  } else if (serr == FSCK_ORPHANS_N) {
+    return FsckErr::Orphans;
+  } else {
+    return FsckErr::None;
+  }
+}
+
+//------------------------------------------------------------------------------
+// Convert to FsckErr type to string
+//------------------------------------------------------------------------------
+std::string FsckErrToString(const FsckErr& err)
+{
+  if (err == FsckErr::MgmXsDiff) {
+    return FSCK_M_CX_DIFF;
+  } else if (err == FsckErr::MgmSzDiff) {
+    return FSCK_M_MEM_SZ_DIFF;
+  } else if (err == FsckErr::FstXsDiff) {
+    return FSCK_D_CX_DIFF;
+  } else if (err == FsckErr::FstSzDiff) {
+    return FSCK_D_MEM_SZ_DIFF;
+  } else if (err == FsckErr::UnregRepl) {
+    return FSCK_UNREG_N;
+  } else if (err == FsckErr::DiffRepl) {
+    return FSCK_REP_DIFF_N;
+  } else if (err == FsckErr::MissRepl) {
+    return FSCK_REP_MISSING_N;
+  } else if (err == FsckErr::BlockxsErr) {
+    return FSCK_BLOCKXS_ERR;
+  } else if (err == FsckErr::Orphans) {
+    return FSCK_ORPHANS_N;
+  } else {
+    return "none";
+  }
+}
+
+//------------------------------------------------------------------------------
 // Convert an FST env representation to an Fmd struct
 //------------------------------------------------------------------------------
 bool EnvToFstFmd(XrdOucEnv& env, FmdHelper& fmd)
@@ -113,7 +179,7 @@ bool EnvToFstFmd(XrdOucEnv& env, FmdHelper& fmd)
 // the FmdHelper object
 //------------------------------------------------------------------------------
 void
-CollectInconcistencies(const FmdHelper& fmd,
+CollectInconsistencies(const FmdHelper& fmd,
                        std::map<std::string, size_t>& statistics,
                        std::map<std::string,
                        std::set<eos::common::FileId::fileid_t>>& fidset)

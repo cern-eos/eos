@@ -22,6 +22,7 @@
  ************************************************************************/
 
 #include "mgm/fsck/FsckEntry.hh"
+#include "mgm/fsck/Fsck.hh"
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/FsView.hh"
 #include "mgm/Stat.hh"
@@ -46,9 +47,10 @@ FsckEntry::FsckEntry(eos::IFileMD::id_t fid,
                      const std::string& expected_err,
                      std::shared_ptr<qclient::QClient> qcl):
   mFid(fid), mFsidErr(fsid_err),
-  mReportedErr(ConvertToFsckErr(expected_err)), mRepairFactory(),
+  mReportedErr(eos::common::ConvertToFsckErr(expected_err)), mRepairFactory(),
   mQcl(qcl)
 {
+  using namespace eos::common;
   mMapRepairOps = {
     {FsckErr::MgmXsDiff,  &FsckEntry::RepairMgmXsSzDiff},
     {FsckErr::MgmSzDiff,  &FsckEntry::RepairMgmXsSzDiff},
@@ -419,7 +421,14 @@ FsckEntry::RepairFstXsSzDiff()
       } else {
         // It could be that the diskchecksum for the replica was not yet
         // computed - this does not mean the replica is bad
-        if (!xs_val.empty()) {
+        std::string hex_xs_val = StringConversion::BinData2HexString(
+                                   finfo->mFstFmd.mProtoFmd.diskchecksum().c_str(),
+                                   SHA256_DIGEST_LENGTH,
+                                   LayoutId::GetChecksumLen(finfo->mFstFmd.mProtoFmd.lid()));
+        eos_debug("got xs_val=%s, finfo=%s hex_xs_val=%s", xs_val.c_str(),
+                  xs_val.c_str(), hex_xs_val.c_str());
+
+        if (!hex_xs_val.empty()) {
           bad_fsids.insert(finfo->mFstFmd.mProtoFmd.fsid());
         }
       }
@@ -483,7 +492,7 @@ FsckEntry::RepairFstXsSzDiff()
   }
 
   // Trigger an MGM resync on all the replicas so that the locations get
-  // updated properly in the local DB of the FST
+  // updated properly
   ResyncFstMd(true);
   return all_repaired;
 }
@@ -507,6 +516,8 @@ FsckEntry::RepairInconsistencies()
 bool
 FsckEntry::RepairRainInconsistencies()
 {
+  using namespace eos::common;
+
   if (mReportedErr == FsckErr::UnregRepl) {
     if (static_cast<unsigned long>(mMgmFmd.locations_size()) >=
         LayoutId::GetStripeNumber(mMgmFmd.layout_id()) + 1) {
@@ -569,6 +580,11 @@ FsckEntry::RepairRainInconsistencies()
       eos_err("msg=\"RAIN file over-replicated, to be handled manually\" "
               "fxid=%08llu fsid_err=%lu", mFid, mFsidErr);
       return false;
+    } else if (static_cast<unsigned long>(mMgmFmd.locations_size()) ==
+               LayoutId::GetStripeNumber(mMgmFmd.layout_id()) + 1) {
+      eos_info("msg=\"stripe inconsistency repair successful\" fxid=%08llx "
+               "src_fsid=%lu", mFid, src_fsid);
+      return true;
     }
   }
 
@@ -850,6 +866,7 @@ FsckEntry::DropReplica(eos::common::FileSystem::fsid_t fsid) const
 bool
 FsckEntry::Repair()
 {
+  using namespace eos::common;
   bool success = false;
 
   // If no MGM object then we are in testing mode
@@ -857,9 +874,10 @@ FsckEntry::Repair()
     gOFS->MgmStats.Add("FsckRepairStarted", 0, 0, 1);
 
     if (CollectMgmInfo() == false) {
-      eos_err("msg=\"no repair action, file is orphan\" fxid=%08llx fsid=%lu",
-              mFid, mFsidErr);
-      UpdateMgmStats(success);
+      eos_err("msg=\"no repair action, file is orphan\" fxid=%08llx fsid=%lu "
+              "err=%s", mFid, mFsidErr, FsckErrToString(mReportedErr).c_str());
+      success = true;
+      NotifyOutcome(success);
       (void) DropReplica(mFsidErr);
       // This could be a ghost fid entry still present in the file system map
       // and we need to also drop it from there
@@ -877,7 +895,7 @@ FsckEntry::Repair()
         eos_err("msg=\"operation failed due to: %s\"", err_msg.c_str());
       }
 
-      UpdateMgmStats(true);
+      NotifyOutcome(true);
       return true;
     }
 
@@ -890,7 +908,7 @@ FsckEntry::Repair()
 
     if (it == mMapRepairOps.end()) {
       eos_err("msg=\"unknown type of error\" errr=%i", mReportedErr);
-      UpdateMgmStats(success);
+      NotifyOutcome(success);
       return success;
     }
 
@@ -898,7 +916,7 @@ FsckEntry::Repair()
                     mFid, mReportedErr, mFsidErr);
     auto fn_with_obj = std::bind(it->second, this);
     success = fn_with_obj();
-    UpdateMgmStats(success);
+    NotifyOutcome(success);
     return success;
   }
 
@@ -913,13 +931,13 @@ FsckEntry::Repair()
     auto fn_with_obj = std::bind(op, this);
 
     if (!fn_with_obj()) {
-      UpdateMgmStats(success);
+      NotifyOutcome(success);
       return success;
     }
   }
 
   success = true;
-  UpdateMgmStats(success);
+  NotifyOutcome(success);
   return success;
 }
 
@@ -978,66 +996,25 @@ FsckEntry::GetFstFmd(std::unique_ptr<FstFileInfoT>& finfo,
 }
 
 //------------------------------------------------------------------------------
-// Convert string to FsckErr type
-//------------------------------------------------------------------------------
-FsckErr ConvertToFsckErr(const std::string& serr)
-{
-  if (serr == "m_cx_diff") {
-    return FsckErr::MgmXsDiff;
-  } else if (serr == "m_mem_sz_diff") {
-    return FsckErr::MgmSzDiff;
-  } else if (serr == "d_cx_diff") {
-    return FsckErr::FstXsDiff;
-  } else if (serr == "d_mem_sz_diff") {
-    return FsckErr::FstSzDiff;
-  } else if (serr == "unreg_n") {
-    return FsckErr::UnregRepl;
-  } else if (serr == "rep_diff_n") {
-    return FsckErr::DiffRepl;
-  } else if (serr == "rep_missing_n") {
-    return FsckErr::MissRepl;
-  } else if (serr == "blockxs_err") {
-    return FsckErr::BlockxsErr;
-  } else {
-    return FsckErr::None;
-  }
-}
-
-//------------------------------------------------------------------------------
-// Convert to FsckErr type to string
-//------------------------------------------------------------------------------
-std::string ConvertToString(const FsckErr& err)
-{
-  if (err == FsckErr::MgmXsDiff) {
-    return "m_cx_diff";
-  } else if (err == FsckErr::MgmSzDiff) {
-    return "m_mem_sz_diff";
-  } else if (err == FsckErr::FstXsDiff) {
-    return "d_cx_diff";
-  } else if (err == FsckErr::FstSzDiff) {
-    return "d_mem_sz_diff";
-  } else if (err == FsckErr::UnregRepl) {
-    return "unreg_n";
-  } else if (err == FsckErr::DiffRepl) {
-    return "rep_diff_n";
-  } else if (err == FsckErr::MissRepl) {
-    return "rep_missing_n";
-  } else if (err == FsckErr::BlockxsErr) {
-    return "blockxs_err";
-  } else {
-    return "none";
-  }
-}
-
-//------------------------------------------------------------------------------
-// Update MGM stats depending on the final outcome
+// Update MGM stats and backend depending on the final outcome
 //------------------------------------------------------------------------------
 void
-FsckEntry::UpdateMgmStats(bool success) const
+FsckEntry::NotifyOutcome(bool success) const
 {
   if (gOFS) {
+    // Update the MGM statistics and QDB backend in case of success
     if (success) {
       gOFS->MgmStats.Add("FsckRepairSuccessful", 0, 0, 1);
+      const std::string sfsck_err = eos::common::FsckErrToString(mReportedErr);
+      gOFS->mFsckEngine->NotifyFixedErr(mFid, mFsidErr, sfsck_err);
+
+      // Such errors are reported by all the attached locations so when they
+      // are fixed we need to update the fsck info for all of them
+      if (mReportedErr == eos::common::FsckErr::DiffRepl) {
+        for (const auto& loc : mMgmFmd.locations()) {
+          gOFS->mFsckEngine->NotifyFixedErr(mFid, loc, sfsck_err);
+        }
+      }
     } else {
       gOFS->MgmStats.Add("FsckRepairFailed", 0, 0, 1);
     }

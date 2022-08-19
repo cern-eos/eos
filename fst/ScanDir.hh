@@ -108,8 +108,10 @@ public:
   //! scanner level and also by setting the proper xattrs on the file.
   //!
   //! @param fpath file path
+  //!
+  //! @return true if file check, otherwise false
   //----------------------------------------------------------------------------
-  void CheckFile(const std::string& fpath);
+  bool CheckFile(const std::string& fpath);
 
   //----------------------------------------------------------------------------
   //! Get block checksum object for the given file. First we need to check if

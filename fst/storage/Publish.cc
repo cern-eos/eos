@@ -26,7 +26,7 @@
 #include "fst/Config.hh"
 #include "fst/txqueue/TransferQueue.hh"
 #include "fst/storage/FileSystem.hh"
-#include "fst/FmdDbMap.hh"
+#include "fst/filemd/FmdDbMap.hh"
 #include "qclient/Formatting.hh"
 #include "common/LinuxStat.hh"
 #include "common/ShellCmd.hh"
@@ -360,7 +360,17 @@ Storage::GetFsStatistics(FileSystem* fs)
   long long w_open = (long long) gOFS.openedForWriting.getOpenOnFilesystem(fsid);
   output["stat.ropen"] = std::to_string(r_open);
   output["stat.wopen"] = std::to_string(w_open);
-  output["stat.usedfiles"] = std::to_string(gFmdDbMapHandler.GetNumFiles(fsid));
+
+  if (gOFS.FmdOnDb()) {
+    auto* fmd_handler = static_cast<FmdDbMapHandler*>(gOFS.mFmdHandler.get());
+    output["stat.usedfiles"] = std::to_string(fmd_handler->GetNumFiles(fsid));
+  } else if (auto kv = output.find("stat.statfs.fused");
+             kv != output.end()) {
+    // FIXME: Actually subtract the statfs of the .eosorphans, also count
+    // checksums & scrub files!
+    output["stat.usedfiles"] = kv->second;
+  }
+
   output["stat.boot"] = fs->GetStatusAsString(fs->GetStatus());
   output["stat.geotag"] = gOFS.GetGeoTag();
   output["stat.publishtimestamp"] = std::to_string(

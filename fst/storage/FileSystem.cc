@@ -25,7 +25,7 @@
 #include "fst/XrdFstOfs.hh"
 #include "fst/ScanDir.hh"
 #include "fst/txqueue/TransferQueue.hh"
-#include "fst/FmdDbMap.hh"
+#include "fst/filemd/FmdDbMap.hh"
 
 #ifdef __APPLE__
 #define O_DIRECT 0
@@ -63,7 +63,11 @@ FileSystem::~FileSystem()
   mScanDir.release();
   mFileIO.release();
   mTxMultiplexer.reset();
-  gFmdDbMapHandler.ShutdownDB(mLocalId, true);
+
+  if (gOFS.FmdOnDb()) {
+    auto fmd_handler = static_cast<FmdDbMapHandler*>(gOFS.mFmdHandler.get());
+    fmd_handler->ShutdownDB(mLocalId, true);
+  }
 
   if (mTxBalanceQueue) {
     delete mTxBalanceQueue;
@@ -235,7 +239,7 @@ FileSystem::UpdateInconsistencyInfo()
   decltype(mInconsistencyStats) tmp_stats;
   decltype(mInconsistencySets) tmp_sets;
 
-  if (!gFmdDbMapHandler.GetInconsistencyStatistics(mLocalId, tmp_stats,
+  if (!gOFS.mFmdHandler->GetInconsistencyStatistics(mLocalId, tmp_stats,
       tmp_sets)) {
     eos_static_err("msg=\"failed to get inconsistency statistics\" fsid=%lu",
                    mLocalId);

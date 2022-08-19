@@ -157,7 +157,25 @@ public:
   //----------------------------------------------------------------------------
   bool RepairEntry(eos::IFileMD::id_t fid,
                    eos::common::FileSystem::fsid_t fsid_err,
-                   std::string err_type, bool async, std::string& out_msg);
+                   const std::string& err_type, bool async,
+                   std::string& out_msg);
+
+  //----------------------------------------------------------------------------
+  //! Update the backend given the successful outcome of the repair
+  //!
+  //! @param fid file identifier or 0ull when flushing is forced no matter the
+  //!        then number of entries accumulated
+  //! @param fsid file system identifier
+  //! @param err_type error type
+  //! @param force if try force flush all updates
+  //! @param count_flush number of accumulated entries when flushing to QDB
+  //!        backend is triggered
+  //----------------------------------------------------------------------------
+  void NotifyFixedErr(eos::IFileMD::id_t fid,
+                      eos::common::FileSystem::fsid_t fsid_err,
+                      const std::string& err_type,
+                      bool force = false,
+                      uint32_t count_flush = 100);
 
   //----------------------------------------------------------------------------
   //! Set max size of thread pool used for fsck repair jobs
@@ -199,16 +217,18 @@ private:
   std::atomic<bool> mRepairEnabled; ///< Mark if the repair thread is enabled
   std::atomic<bool> mCollectRunning; ///< Mark if collector is running
   std::atomic<bool> mRepairRunning; ///< Mark if repair is running
-  std::atomic<FsckErr> mRepairCategory; ///< Mark which cat. should be repaired
+  std::atomic<eos::common::FsckErr>
+  mRepairCategory; ///< Mark which cat. should be repaired
   mutable std::string mLog, mTmpLog; ///< In-memory fsck log
   mutable XrdSysMutex mLogMutex; ///< Mutex protecting the in-memory log
   ///< Interval between FSCK collection loops
   std::chrono::seconds mCollectInterval;
   mutable eos::common::RWMutex mErrMutex; ///< Mutex protecting all map obj
   //! Error detail map storing "<error-name>=><fsid>=>[fid1,fid2,fid3...]"
-  std::map<std::string,
-      std::map<eos::common::FileSystem::fsid_t,
-      std::set <eos::common::FileId::fileid_t> > > eFsMap;
+  using ErrMapT = std::map<std::string,
+        std::map<eos::common::FileSystem::fsid_t,
+        std::set <eos::common::FileId::fileid_t>>>;
+  ErrMapT eFsMap;
   //! Unavailable filesystems map
   std::map<eos::common::FileSystem::fsid_t, unsigned long long > eFsUnavail;
   //! Dark filesystem map - filesystems referenced by a file but not configured
@@ -223,13 +243,19 @@ private:
   AssistedThread mCollectorThread; ///< Thread collecting errors
   std::shared_ptr<qclient::QClient> mQcl; ///< QClient object for metadata
 
-
   //----------------------------------------------------------------------------
-  //! Query for fsck responses
+  //! Query FSTs for fsck errors
   //!
   //! @return string with the fsck replied from all the FSTs
   //----------------------------------------------------------------------------
-  std::string QueryFsck();
+  std::string QueryFsts();
+
+  //----------------------------------------------------------------------------
+  //! Query QDB for fsck errors
+  //!
+  //! @param err_map map of fsck errors collected
+  //----------------------------------------------------------------------------
+  void QueryQdb(ErrMapT& err_map);
 
   //----------------------------------------------------------------------------
   //! Create report in JSON format
@@ -313,6 +339,15 @@ private:
   //! FsView.
   //----------------------------------------------------------------------------
   void AccountDarkFiles();
+
+  //----------------------------------------------------------------------------
+  //! Parse fsck responses received from the FSTs
+  //!
+  //! @param response string representation of the responses
+  //! @param err_map map of fsck errors collected
+  //----------------------------------------------------------------------------
+  void ParseFstResponses(const std::string& response,
+                         ErrMapT& err_map);
 };
 
 EOSMGMNAMESPACE_END

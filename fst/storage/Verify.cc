@@ -29,7 +29,7 @@
 #include "fst/XrdFstOfs.hh"
 #include "fst/XrdFstOss.hh"
 #include "fst/io/FileIoPluginCommon.hh"
-#include "fst/FmdDbMap.hh"
+#include "fst/filemd/FmdDbMap.hh"
 #include "fst/Verify.hh"
 #include "fst/checksum/ChecksumPlugins.hh"
 #include "common/Path.hh"
@@ -94,8 +94,8 @@ Storage::Verify()
     std::string fstPath = FileId::FidPrefix2FullPath(hex_fid.c_str(),
                           verifyfile->localPrefix.c_str());
     {
-      auto fMd = gFmdDbMapHandler.LocalGetFmd(verifyfile->fId,
-                                              verifyfile->fsId, true);
+      auto fMd = gOFS.mFmdHandler->LocalGetFmd(verifyfile->fId,
+                 verifyfile->fsId, true);
 
       if (fMd) {
         // force a resync of meta data from the MGM
@@ -123,8 +123,8 @@ Storage::Verify()
     // even if the stat failed, we run this code to tag the file as is ...
     // attach meta data
     bool localUpdate = false;
-    auto fMd = gFmdDbMapHandler.LocalGetFmd(verifyfile->fId, verifyfile->fsId,
-                                            true, verifyfile->commitFmd);
+    auto fMd = gOFS.mFmdHandler->LocalGetFmd(verifyfile->fId, verifyfile->fsId,
+               true, verifyfile->commitFmd);
 
     if (!fMd) {
       eos_static_err("unable to verify id=%x on fs=%u path=%s - no local MD stored",
@@ -251,7 +251,7 @@ Storage::Verify()
         eos::common::Path cPath(verifyfile->path.c_str());
 
         // commit local
-        if (localUpdate && (!gFmdDbMapHandler.Commit(fMd.get()))) {
+        if (localUpdate && (!gOFS.mFmdHandler->Commit(fMd.get()))) {
           eos_static_err("unable to verify file id=%llu on fs=%u path=%s - commit "
                          "to local MD storage failed", verifyfile->fId,
                          verifyfile->fsId, fstPath.c_str());

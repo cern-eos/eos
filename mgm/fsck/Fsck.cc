@@ -28,12 +28,14 @@
 #include "common/Mapping.hh"
 #include "common/StringConversion.hh"
 #include "common/StringTokenizer.hh"
+#include "common/StringUtils.hh"
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/Messaging.hh"
 #include "mgm/FsView.hh"
 #include "namespace/interface/IView.hh"
 #include "namespace/interface/IFsView.hh"
 #include "namespace/Prefetcher.cc"
+#include "qclient/structures/QSet.hh"
 #include "json/json.h"
 
 EOSMGMNAMESPACE_BEGIN
@@ -46,7 +48,8 @@ const std::string Fsck::sCollectIntervalKey {"collect-interval-min"};
 const std::string Fsck::sRepairKey {"toggle-repair"};
 const std::string Fsck::sRepairCategory {"repair-category"};
 
-
+using eos::common::FsckErr;
+using eos::common::ConvertToFsckErr;
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
@@ -127,7 +130,7 @@ Fsck::StoreFsckConfig()
       << sCollectIntervalKey << "="
       << duration_cast<minutes>(mCollectInterval).count() << " "
       << sRepairKey << "=" << mRepairEnabled << " "
-      << sRepairCategory  << "=" << ConvertToString(mRepairCategory);
+      << sRepairCategory  << "=" << eos::common::FsckErrToString(mRepairCategory);
   return FsView::gFsView.SetGlobalConfig(sFsckKey, oss.str());
 }
 
@@ -296,32 +299,10 @@ Fsck::CollectErrs(ThreadAssistant& assistant) noexcept
     Log("Start error collection");
     Log("Filesystems to check: %lu", FsView::gFsView.GetNumFileSystems());
     // Broadcast fsck request and collect responses
-    std::string response = QueryFsck();
+    std::string response = QueryFsts();
     decltype(eFsMap) tmp_err_map;
-    std::vector<std::string> lines;
-    // Convert into a line-wise seperated array
-    eos::common::StringConversion::StringToLineVector((char*) response.c_str(),
-        lines);
-
-    for (size_t nlines = 0; nlines < lines.size(); ++nlines) {
-      std::set<unsigned long long> fids;
-      unsigned long fsid = 0;
-      std::string err_tag;
-
-      if (eos::common::StringConversion::ParseStringIdSet((char*)
-          lines[nlines].c_str(), err_tag, fsid, fids)) {
-        if (fsid) {
-          // Add the fids into the error maps
-          for (auto it = fids.cbegin(); it != fids.cend(); ++it) {
-            tmp_err_map[err_tag][fsid].insert(*it);
-          }
-        }
-      } else {
-        eos_err("msg=\"cannot parse fsck response\" msg=\"%s\"",
-                lines[nlines].c_str());
-      }
-    }
-
+    ParseFstResponses(response, tmp_err_map);
+    QueryQdb(tmp_err_map);
     {
       // Swap in the new list of errors and clear the rest
       eos::common::RWMutexWriteLock wr_lock(mErrMutex);
@@ -475,6 +456,8 @@ Fsck::RepairErrs(ThreadAssistant& assistant) noexcept
       }
     }
 
+    // Force flush any collected notifications
+    NotifyFixedErr(0ull, 0ul, "", true);
     gOFS->mFidTracker.Clear(TrackerType::Fsck);
     mStartProcessing = false;
     eos_info("%s", "msg=\"loop in fsck repair thread\"");
@@ -495,7 +478,7 @@ Fsck::RepairErrs(ThreadAssistant& assistant) noexcept
 bool
 Fsck::RepairEntry(eos::IFileMD::id_t fid,
                   eos::common::FileSystem::fsid_t fsid_err,
-                  std::string err_type, bool async, std::string& out_msg)
+                  const std::string& err_type, bool async, std::string& out_msg)
 {
   if (fid == 0ull) {
     eos_err("%s", "msg=\"not such file id 0\"");
@@ -535,7 +518,7 @@ Fsck::PrintOut(std::string& out) const
       << (mRepairEnabled ? "enabled" : "disabled") << std::endl
       << "Info: repair category          -> "
       << ((mRepairCategory == FsckErr::None) ?
-          "all" : ConvertToString(mRepairCategory)) << std::endl;
+          "all" : eos::common::FsckErrToString(mRepairCategory)) << std::endl;
   {
     XrdSysMutexHelper lock(mLogMutex);
     oss << mLog;
@@ -1111,9 +1094,9 @@ Fsck::AccountDarkFiles()
 //----------------------------------------------------------------------------
 // Query for fsck responses
 //----------------------------------------------------------------------------
-std::string Fsck::QueryFsck()
+std::string Fsck::QueryFsts()
 {
-  eos::common::Timing tm("FsckQuery");
+  eos::common::Timing tm("QueryFsts");
   COMMONTIMING("START", &tm);
   uint16_t timeout = 10;
   std::string response;
@@ -1167,5 +1150,138 @@ std::string Fsck::QueryFsck()
   return response;
 }
 
+//------------------------------------------------------------------------------
+// Parse fsck responses received from the FSTs
+//------------------------------------------------------------------------------
+void
+Fsck::ParseFstResponses(const std::string& response,
+                        ErrMapT& err_map)
+{
+  using eos::common::StringConversion;
+  std::vector<std::string> lines;
+  // Convert into a line-wise seperated array
+  eos::common::StringConversion::StringToLineVector((char*) response.c_str(),
+      lines);
+
+  for (size_t nlines = 0; nlines < lines.size(); ++nlines) {
+    std::set<unsigned long long> fids;
+    unsigned long fsid = 0;
+    std::string err_tag;
+
+    if (StringConversion::ParseStringIdSet((char*)lines[nlines].c_str(),
+                                           err_tag, fsid, fids)) {
+      if (fsid) {
+        // Add the fids into the error maps
+        for (auto it = fids.cbegin(); it != fids.cend(); ++it) {
+          err_map[err_tag][fsid].insert(*it);
+        }
+      }
+    } else {
+      eos_err("msg=\"cannot parse fsck response\" msg=\"%s\"",
+              lines[nlines].c_str());
+    }
+  }
+}
+
+//------------------------------------------------------------------------------
+// Query QDB for fsck errors
+//------------------------------------------------------------------------------
+void
+Fsck::QueryQdb(ErrMapT& err_map)
+{
+  static std::set<std::string> known_errs = eos::common::GetKnownFsckErrs();
+  qclient::QSet set_errs(*mQcl.get(), "");
+  // Helper function to parse fsck info stored in QDB
+  auto parse_fsck =
+    [](const std::string & data) ->
+  std::pair<eos::IFileMD::id_t, eos::common::FileSystem::fsid_t> {
+    const size_t pos = data.find(':');
+
+    if ((pos == std::string::npos) || (pos == data.length()))
+    {
+      eos_static_err("msg=\"failed to parse fsck element\" data=\"%s\"",
+      data.c_str());
+      return {0ull, 0ul};
+    }
+
+    eos::IFileMD::id_t fid;
+    eos::common::FileSystem::fsid_t fsid;
+
+    if (!eos::common::StringToNumeric(data.substr(0, pos), fid) ||
+        !eos::common::StringToNumeric(data.substr(pos + 1), fsid))
+    {
+      eos_static_err("msg=\"failed to convert fsck info\" data=\"%s\"",
+                     data.c_str());
+      return {0ull, 0ul};
+    }
+
+    return {fid, fsid};
+  };
+  eos_static_info("%s", "msg=\"check for fsck errors\"");
+
+  for (const auto& err_type : known_errs) {
+    set_errs.setKey(SSTR("fsck:" << err_type));
+
+    for (auto it = set_errs.getIterator(); it.valid(); it.next()) {
+      // Set elements are in the form: fid:fsid
+      auto pair_info = parse_fsck(it.getElement());
+      err_map[err_type][pair_info.second].insert(pair_info.first);
+    }
+  }
+
+  return;
+}
+
+//------------------------------------------------------------------------------
+// Update the backend given the successful outcome of the repair
+//------------------------------------------------------------------------------
+void
+Fsck::NotifyFixedErr(eos::IFileMD::id_t fid,
+                     eos::common::FileSystem::fsid_t fsid_err,
+                     const std::string& err_type,
+                     bool force, uint32_t count_flush)
+{
+  eos_static_debug("msg=\"fsck notification\" fid=%08llx fsid=%lu "
+                   "err=%s", fid, fsid_err, err_type.c_str());
+  static std::mutex mutex;
+  static uint64_t num_updates = 0ull;
+  static std::map<std::string, std::set<std::string>> updates;
+  std::unique_lock<std::mutex> scope_lock(mutex);
+
+  if (fid && fsid_err && !err_type.empty() && (err_type != "none")) {
+    auto it = updates.find(err_type);
+
+    if (it == updates.end()) {
+      auto resp = updates.emplace(err_type, std::set<std::string>());
+      it = resp.first;
+    }
+
+    const std::string value = SSTR(fid << ':' << fsid_err);
+    auto resp = it->second.insert(value);
+
+    if (resp.second == true) {
+      ++num_updates;
+    }
+  }
+
+  // Eventually flush the contents to the QDB backend if sentinel fid present
+  // or if enough updates accumulated
+  if (force || (num_updates >= count_flush)) {
+    qclient::QSet qset(*mQcl.get(), "");
+
+    for (const auto& elem : updates) {
+      qset.setKey(SSTR("fsck:" << elem.first));
+      std::list<std::string> values(elem.second.begin(), elem.second.end());
+
+      if (qset.srem(values) != (long long int)values.size()) {
+        eos_static_err("msg=\"failed to delete some fsck errors\" err_type=%s",
+                       elem.first.c_str());
+      }
+    }
+
+    num_updates = 0ull;
+    updates.clear();
+  }
+}
 
 EOSMGMNAMESPACE_END

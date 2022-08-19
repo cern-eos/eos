@@ -147,34 +147,8 @@ XrdMgmOfs::_mkdir(const char* path,
                     cPath.GetParentPath());
       }
 
-      bool sticky_owner = false;
-
-      // Check for sys.owner.auth entries, which let people operate as the owner of the directory
-      if (attrmap.count("sys.owner.auth")) {
-        if (attrmap["sys.owner.auth"] == "*") {
-          sticky_owner = true;
-        } else {
-          attrmap["sys.owner.auth"] += ",";
-          std::string ownerkey = vid.prot.c_str();
-          ownerkey += ":";
-
-          if (vid.prot == "gsi") {
-            ownerkey += vid.dn.c_str();
-          } else {
-            ownerkey += vid.uid_string.c_str();
-          }
-
-          if ((attrmap["sys.owner.auth"].find(ownerkey)) != std::string::npos) {
-            eos_info("msg=\"client authenticated as directory owner\" path=\"%s\"uid=\"%u=>%u\" gid=\"%u=>%u\"",
-                     path, vid.uid, vid.gid, d_uid, d_gid);
-            // The client can operate as the owner, we rewrite the virtual identity
-            // to the directory uid/gid pair
-            vid.uid = d_uid;
-            vid.gid = d_gid;
-          }
-        }
-      }
-
+      bool sticky_owner;
+      attr::checkDirOwner(attrmap, d_uid, d_gid, vid, sticky_owner, path);
       bool stdpermcheck = false;
 
       if (acl.HasAcl()) {
@@ -275,36 +249,18 @@ XrdMgmOfs::_mkdir(const char* path,
       eos_info("acl=%d r=%d w=%d wo=%d egroup=%d mutable=%d",
                acl.HasAcl(), acl.CanRead(), acl.CanWrite(), acl.CanWriteOnce(),
                acl.HasEgroup(), acl.IsMutable());
-
       // Check for sys.owner.auth entries, which let people operate as the owner of the directory
-      if (attrmap.count("sys.owner.auth")) {
-        if (attrmap["sys.owner.auth"] == "*") {
-          eos_info("msg=\"client acting as directory owner\" path=\"%s\"uid=\"%u=>%u\" gid=\"%u=>%u\"",
-                   existingdir.c_str(), vid.uid, vid.gid, d_uid, d_gid);
-          // The client can operate as the owner, we rewrite the virtual identity
-          // to the directory uid/gid pair
+      bool sticky_owner;
+
+      if (attr::checkDirOwner(attrmap, d_uid, d_gid, vid, sticky_owner,
+                              path)) {
+        if (sticky_owner) {
           vid.uid = d_uid;
           vid.gid = d_gid;
-        } else {
-          attrmap["sys.owner.auth"] += ",";
-          std::string ownerkey = vid.prot.c_str();
-          ownerkey += ":";
-
-          if (vid.prot == "gsi") {
-            ownerkey += vid.dn.c_str();
-          } else {
-            ownerkey += vid.uid_string.c_str();
-          }
-
-          if ((attrmap["sys.owner.auth"].find(ownerkey)) != std::string::npos) {
-            eos_info("msg=\"client authenticated as directory owner\" path=\"%s\"uid=\"%u=>%u\" gid=\"%u=>%u\"",
-                     path, vid.uid, vid.gid, d_uid, d_gid);
-            // The client can operate as the owner, we rewrite the virtual identity
-            // to the directory uid/gid pair
-            vid.uid = d_uid;
-            vid.gid = d_gid;
-          }
         }
+
+        eos_info("msg=\"client acting as directory owner\" path=\"%s\"uid=\"%u=>%u\" gid=\"%u=>%u\"",
+                 existingdir.c_str(), vid.uid, vid.gid, d_uid, d_gid);
       }
 
       if (vid.uid && !acl.IsMutable()) {

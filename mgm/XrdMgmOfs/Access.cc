@@ -365,9 +365,10 @@ XrdMgmOfs::is_squashfs_access(const char* path,
 {
   int errc = 0;
 
-  if ((eos::common::Mapping::UserNameToUid(std::string("eosnobody"),
-       errc) == vid.uid) &&
-      !errc && (vid.prot == "sss")) {
+  if ((vid.prot == "sss") &&
+      (eos::common::Mapping::UserNameToUid(std::string("eosnobody"),
+          errc) == vid.uid) &&
+      !errc) {
     // eosnobody can access all squash files
     eos::common::Path cPath(path);
 

@@ -105,6 +105,58 @@ public:
 };
 
 //------------------------------------------------------------------------------
+//! Fsck constants used throughout the code
+//------------------------------------------------------------------------------
+static constexpr auto FSCK_M_CX_DIFF     = "m_cx_diff";
+static constexpr auto FSCK_M_MEM_SZ_DIFF = "m_mem_sz_diff";
+static constexpr auto FSCK_D_CX_DIFF     = "d_cx_diff";
+static constexpr auto FSCK_D_MEM_SZ_DIFF = "d_mem_sz_diff";
+static constexpr auto FSCK_UNREG_N       = "unreg_n";
+static constexpr auto FSCK_REP_DIFF_N    = "rep_diff_n";
+static constexpr auto FSCK_REP_MISSING_N = "rep_missing_n";
+static constexpr auto FSCK_BLOCKXS_ERR   = "blockxs_err";
+static constexpr auto FSCK_ORPHANS_N     = "orphans_n";
+
+//------------------------------------------------------------------------------
+//! FsckErr types
+//------------------------------------------------------------------------------
+enum class FsckErr {
+  None = 0x00,
+  MgmXsDiff  = 0x01,
+  FstXsDiff  = 0x02,
+  MgmSzDiff  = 0x03,
+  FstSzDiff  = 0x04,
+  UnregRepl  = 0x05,
+  DiffRepl   = 0x06,
+  MissRepl   = 0x07,
+  BlockxsErr = 0x08,
+  Orphans    = 0x09
+};
+
+//------------------------------------------------------------------------------
+//! Get set of known fsck error strings
+//------------------------------------------------------------------------------
+std::set<std::string> GetKnownFsckErrs();
+
+//------------------------------------------------------------------------------
+//! Convert string to FsckErr type
+//!
+//! @param serr string error type
+//!
+//! @return FsckErr type
+//------------------------------------------------------------------------------
+FsckErr ConvertToFsckErr(const std::string& serr);
+
+//------------------------------------------------------------------------------
+//! Convert to FsckErr type to string
+//!
+//! @param fsck_err FsckErr type
+//!
+//! @return string fsck error
+//------------------------------------------------------------------------------
+std::string FsckErrToString(const FsckErr& err);
+
+//------------------------------------------------------------------------------
 //! Convert an FST env representation to an Fmd struct
 //!
 //! @param env env representation
@@ -123,7 +175,7 @@ bool EnvToFstFmd(XrdOucEnv& env, FmdHelper& fmd);
 //! @param map of errors to file identifiers
 //------------------------------------------------------------------------------
 void
-CollectInconcistencies(const FmdHelper& fmd,
+CollectInconsistencies(const FmdHelper& fmd,
                        std::map<std::string, size_t>& statistics,
                        std::map<std::string,
                        std::set<eos::common::FileId::fileid_t>>& fidset);

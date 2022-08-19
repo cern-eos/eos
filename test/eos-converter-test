@@ -22,8 +22,9 @@ SCRIPTPATH="$( cd "$(dirname "$0")" >/dev/null 2>&1 ; pwd -P )"
 source ${SCRIPTPATH}/eos-test-utils
 
 function usage() {
-  echo "usage: $(basename $0) [--max-delay <sec_delay>] --type docker/k8s <k8s_namespace>"
+  echo "usage: $(basename $0) [--max-delay <sec_delay>] [--root-dir <path>] --type docker/k8s <k8s_namespace>"
   echo "  --max-delay : optional max delay in seconds"
+  echo "  --root-dir  : eos root test directory "
   echo "       docker : script runs in a Docker based setup"
   echo "       k8s    : script runs in a Kubernetes setup and requires a namespace argument"
 }
@@ -34,52 +35,52 @@ function cleanup() {
   exec_cmd eos-cli1 "eos rmdir $(dirname $EOS_CONVERTER_DIR)"
 }
 
-# Max delay
-MAX_DELAY=120
-
-if [[ "$1" == "--max-delay" ]]; then
-  MAX_DELAY=$2
-  shift # past argument
-  shift # past value
-fi
-
 # Set up global variables
 IS_DOCKER=false
+IS_KUBERNETES=false
+IS_LOCAL=true
 K8S_NAMESPACE=""
+MAX_DELAY=120
+EOS_ROOT=/eos/dockertest/
 
-if [[ $# -lt 2 ]]; then
-  echo "error: invalid number of arguments"
-  usage
-  exit 1
-fi
+while [[ $# -gt 1 ]]; do
+  if [[ "$1" == "--help" || "$1" == "-h" ]]; then
+    usage
+    exit 0
+  elif [[ "$1" == "--max-delay" ]]; then
+    MAX_DELAY=$2
+    shift # past argument
+    shift # past value
+  elif [[ "$1" == "--root-dir" ]]; then
+    EOS_ROOT=$2
+    shift
+    shift
+  elif [[ "$1" == "--type" ]]; then
+    if [[ "$2" == "docker" ]]; then
+      IS_DOCKER=true
+      IS_LOCAL=false
+      shift
+    elif [[ "$2" == "k8s" ]]; then
+      IS_KUBERNETES=true
+      IS_LOCAL=false
+      # For the Kubernetes setup we also need a namespace argument
+      if [[ $# -lt 3 ]]; then
+        echo "error: missing Kubernetes namespace argument"
+        usage
+        exit 1
+      fi
 
-if [[ "$1" != "--type" ]]; then
-  echo "error: unknown argument \"$1\""
-  usage
-  exit 1
-fi
-
-if [[ "$2" == "docker" ]]; then
-  IS_DOCKER=true
-elif [[ "$2" == "k8s" ]]; then
-  IS_DOCKER=false
-else
-  echo "error: unknown type of executor \"$2\""
-  usage
-  exit 1
-fi
-
-if [[ "${IS_DOCKER}" == false ]]; then
-  # For the Kubernetes setup we also need a namespace argument
-  if [[ $# -lt 3 ]]; then
-    echo "error: missing Kubernetes namespace argument"
+      K8S_NAMESPACE="$3"
+      shift
+      shift
+    fi
+  else
+    echo "error: unknown argument \"$1\""
     usage
     exit 1
   fi
-  K8S_NAMESPACE="$3"
-fi
+done
 
-EOS_ROOT=/eos/dockertest/
 EOS_CONVERTER_DIR=${EOS_ROOT}/converter_dir/test_dir/
 exec_cmd eos-cli1 "dd if=/dev/urandom of=/tmp/conv_test_file.dat bs=1M count=30 &&
                    eos -r 0 0 space config default space.converter=on

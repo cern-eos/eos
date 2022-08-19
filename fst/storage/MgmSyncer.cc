@@ -23,7 +23,7 @@
 
 #include "fst/storage/Storage.hh"
 #include "fst/XrdFstOfs.hh"
-#include "fst/FmdDbMap.hh"
+#include "fst/filemd/FmdDbMap.hh"
 #include "fst/Config.hh"
 
 EOSFSTNAMESPACE_BEGIN
@@ -97,8 +97,8 @@ Storage::MgmSyncer()
 
       if (!isopenforwrite) {
         // now do the consistency check
-        if (gFmdDbMapHandler.ResyncMgm(fmd.mProtoFmd.fsid(),
-                                       fmd.mProtoFmd.fid(), nullptr)) {
+        if (gOFS.mFmdHandler->ResyncMgm(fmd.mProtoFmd.fsid(),
+                                        fmd.mProtoFmd.fid(), nullptr)) {
           eos_static_debug("msg=\"resync ok\" fsid=%lu fxid=%08llx",
                            (unsigned long) fmd.mProtoFmd.fsid(),
                            fmd.mProtoFmd.fid());

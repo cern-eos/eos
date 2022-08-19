@@ -27,6 +27,7 @@
 #include "common/FileSystem.hh"
 #include "common/RWMutex.hh"
 #include "common/AssistedThread.hh"
+#include "common/Fmd.hh"
 #include "namespace/ns_quarkdb/QdbContactDetails.hh"
 #include "fst/Load.hh"
 #include "fst/Health.hh"
@@ -49,6 +50,7 @@ EOSFSTNAMESPACE_BEGIN
 class Verify;
 class Deletion;
 class FileSystem;
+class FmdConverter;
 
 //------------------------------------------------------------------------------
 //! Class Storage
@@ -170,10 +172,12 @@ public:
   //! Cleanup orphans on disk
   //!
   //! @param mount file system mount path
+  //! @param fids set of fids cleaned up
   //!
   //! @return true if successful, otherwise false
   //----------------------------------------------------------------------------
-  bool CleanupOrphansDisk(const std::string& mount);
+  bool CleanupOrphansDisk(const std::string& mount,
+                          std::set<uint64_t>& fids);
 
   //----------------------------------------------------------------------------
   //! Cleanup orphans from local DB
@@ -183,6 +187,47 @@ public:
   //! @return true if successful, otherwise false
   //----------------------------------------------------------------------------
   bool CleanupOrphansDb(eos::common::FileSystem::fsid_t fsid);
+
+  //----------------------------------------------------------------------------
+  //! Cleanup orphans from QDB
+  //!
+  //! @param fsid file system id
+  //! @param fids set of fids to clean up
+  //!
+  //! @return true if successful, otherwise false
+  //----------------------------------------------------------------------------
+  bool CleanupOrphansQdb(eos::common::FileSystem::fsid_t fsid,
+                         const std::set<uint64_t>& fids);
+
+  //----------------------------------------------------------------------------
+  //! Get Total FSes tracked in storage, ie. size of the FsMap
+  //!
+  //! @return total count of FSes
+  //----------------------------------------------------------------------------
+  size_t GetFSCount() const;
+
+  //----------------------------------------------------------------------------
+  //! Publish fsck error to QDB
+  //!
+  //! @param fid file identifier
+  //! @param fsid file system identifier
+  //! @param err_type fsck error type
+  //----------------------------------------------------------------------------
+  void PublishFsckError(eos::common::FileId::fileid_t fid,
+                        eos::common::FileSystem::fsid_t fsid,
+                        eos::common::FsckErr err_type);
+
+  //----------------------------------------------------------------------------
+  //! Push collected fsck errors to QDB
+  //!
+  //! @param fsid file system identifier
+  //! @param fidset map of error types to set of fids which are affected
+  //!
+  //! @return true if push was successful, othewise false
+  //----------------------------------------------------------------------------
+  bool PushToQdb(eos::common::FileSystem::fsid_t fsid,
+                 const std::map<std::string,
+                 std::set<eos::common::FileId::fileid_t>>& fidset);
 
 protected:
   mutable eos::common::RWMutex mFsMutex; ///< Mutex protecting the fs map
@@ -429,16 +474,16 @@ private:
   //----------------------------------------------------------------------------
   void ShutdownThreads();
 
-  AssistedThread mCommunicatorThread;
-  AssistedThread mQdbCommunicatorThread;
-  std::set<std::string> mLastRoundFilesystems;
-
   //----------------------------------------------------------------------------
   // Register which filesystems are in QDB config
   //----------------------------------------------------------------------------
   void updateFilesystemDefinitions();
 
+  AssistedThread mCommunicatorThread;
+  AssistedThread mQdbCommunicatorThread;
+  std::set<std::string> mLastRoundFilesystems;
   AssistedThread mPublisherThread;
+  std::unique_ptr<FmdConverter> mConverter;
 };
 
 EOSFSTNAMESPACE_END

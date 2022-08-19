@@ -74,7 +74,7 @@ ProcCommand::FileMDToStatus(std::shared_ptr<eos::IFileMD> fmd)
   std::string fs = xattrs["sys.fusex.state"];
 
   if (fs.length()) {
-    if (fs.length() >= 1) {
+    if (fs.length() > 1) {
       std::string b2 = fs.substr(fs.length() - 2);
 
       if (b2 == "±") {

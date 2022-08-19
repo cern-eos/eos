@@ -33,13 +33,13 @@ using eos::fst::stdfs::IsRegularFile;
 TEST_F(TmpDirTree, WalkFSTree)
 {
   std::unordered_set<std::string> files;
-  auto filter_fn = [](const auto & p)  {
-    return IsRegularFile(p) && p->path().extension() != ".xsmap";
-  };
-  auto process_fn  = [&files](const fs::path & p, int) {
+  auto process_fn  = [&files](std::string p) {
+    std::cout << "Accessing path=" << p << std::endl;
     files.emplace(p);
   };
-  auto count = eos::fst::stdfs::WalkFSTree("/tmp/fstest", filter_fn, process_fn);
+  std::error_code ec;
+  auto count = eos::fst::stdfs::WalkFSTree("/tmp/fstest", process_fn, ec);
+  ASSERT_FALSE(ec);
   ASSERT_EQ(count, 12);
   EXPECT_EQ(files, expected_files);
 }
@@ -48,12 +48,27 @@ TEST_F(TmpDirTree, WalkFSTree)
 TEST_F(TmpDirTree, FTSWalkTree)
 {
   std::unordered_set<std::string> files;
-  auto process_fn  = [&files](const char* p) {
-    //std::cout << "working on " << p << std::endl;
+  auto process_fn  = [&files](std::string p) {
+    std::cout << "Accessing path=" << p << std::endl;
     files.emplace(p);
   };
-  auto ret = eos::fst::WalkFSTree("/tmp/fstest", process_fn);
-  ASSERT_TRUE(ret.status);
-  ASSERT_EQ(ret.count, 12);
+  std::error_code ec;
+  auto ret = eos::fst::WalkFSTree("/tmp/fstest", process_fn, ec);
+  ASSERT_FALSE(ec);
+  ASSERT_EQ(ret, 12);
   EXPECT_EQ(files, expected_files);
+}
+
+TEST_F(TmpDirTree, FTSWalkTreeInvalid)
+{
+  std::unordered_set<std::string> files;
+  auto process_fn  = [&files](const char* p) {
+    files.emplace(p);
+  };
+  std::error_code ec;
+  auto r = eos::fst::WalkFSTree("", process_fn, ec);
+  ASSERT_EQ(r, 0);
+  ASSERT_TRUE(ec);
+  ASSERT_EQ(ec.value(), ENOENT);
+  ASSERT_FALSE(ec.message().empty());
 }

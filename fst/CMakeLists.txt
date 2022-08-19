@@ -139,7 +139,8 @@ add_library(EosFstIo-Objects OBJECT
   layout/RainGroup.cc            layout/RainGroup.hh
   layout/RainMetaLayout.cc       layout/RainMetaLayout.hh
   layout/RaidDpLayout.cc         layout/RaidDpLayout.hh
-  layout/ReedSLayout.cc          layout/ReedSLayout.hh)
+  layout/ReedSLayout.cc          layout/ReedSLayout.hh
+  utils/FSPathHandler.cc)
 
 target_link_libraries(EosFstIo-Objects PUBLIC
   Jerasure-Objects
@@ -283,13 +284,18 @@ set(XRDEOSFST_SRCS
   # Utils
   utils/OpenFileTracker.cc
   # File metadata interface
-  FmdDbMap.cc          FmdDbMap.hh
+  filemd/FmdHandler.cc
+  filemd/FmdDbMap.cc          filemd/FmdDbMap.hh
+  filemd/FmdMgm.cc
+  filemd/FmdAttr.cc
+  filemd/FmdConverter.cc
   # HTTP interface
   http/HttpServer.cc    http/HttpServer.hh
   http/HttpHandler.cc   http/HttpHandler.hh
   http/s3/S3Handler.cc  http/s3/S3Handler.hh
   # EosFstIo interface
-  io/local/LocalIo.cc  io/local/LocalIo.hh)
+  io/local/LocalIo.cc  io/local/LocalIo.hh
+  utils/XrdOfsPathHandler.cc)
 
 add_library(XrdEosFst-Objects OBJECT ${XRDEOSFST_SRCS})
 
@@ -393,23 +399,14 @@ add_executable(eos-scan-fs
   tools/ScanXS.cc
   ScanDir.cc
   Load.cc
-  FmdDbMap.cc
+  filemd/FmdDbMap.cc
+  filemd/FmdHandler.cc
+  filemd/FmdMgm.cc
   Config.cc
   checksum/Adler.cc
   checksum/CheckSum.cc)
 
 target_compile_definitions(eos-scan-fs PUBLIC -D_NOOFS=1)
-
-add_executable(eos-fsck-fs
-  Fsck.cc
-  Load.cc
-  FmdDbMap.cc
-  Config.cc
-  tools/Fsck.cc
-  checksum/Adler.cc
-  checksum/CheckSum.cc)
-
-target_compile_definitions(eos-fsck-fs PUBLIC -D_NOOFS=1)
 
 add_executable(eos-adler32
   tools/Adler32.cc
@@ -421,7 +418,6 @@ add_executable(eos-checksum
   checksum/CheckSum.cc)
 
 set_target_properties(eos-scan-fs PROPERTIES COMPILE_FLAGS -D_NOOFS=1)
-set_target_properties(eos-fsck-fs PROPERTIES COMPILE_FLAGS -D_NOOFS=1)
 
 add_executable(eos-ioping tools/IoPing.c)
 target_compile_options(eos-ioping PRIVATE -std=gnu99)
@@ -431,8 +427,6 @@ target_link_libraries(eos-compute-blockxs PRIVATE EosFstIo XROOTD::SERVER)
 target_link_libraries(eos-adler32 PRIVATE EosFstIo XROOTD::SERVER)
 target_link_libraries(eos-checksum PRIVATE EosFstIo XROOTD::SERVER)
 target_link_libraries(eos-scan-fs PRIVATE
-  EosFstIo EosCommonServer EosNsCommon-Static XROOTD::SERVER stdc++fs)
-target_link_libraries(eos-fsck-fs PRIVATE
   EosFstIo EosCommonServer EosNsCommon-Static XROOTD::SERVER stdc++fs)
 
 add_executable(eos-create-file-pattern
@@ -444,6 +438,23 @@ add_executable(eos-readv-pattern
 target_link_libraries(eos-readv-pattern
   XROOTD::CL)
 
+
+add_executable(eos-filemd-convert
+  tools/ConvertFileMD.cc
+  # File metadata interface
+  filemd/FmdHandler.cc
+  filemd/FmdDbMap.cc
+  filemd/FmdAttr.cc
+  filemd/FmdConverter.cc
+  filemd/FmdMgm.cc
+  utils/FSPathHandler.cc
+  )
+
+target_link_libraries(eos-filemd-convert PRIVATE
+ EosFstIo EosCommonServer stdc++fs
+  XrdEosFst-Static
+ )
+
 install(PROGRAMS
   tools/eosfstregister
   tools/eosfstinfo
@@ -453,8 +464,8 @@ install(PROGRAMS
 
 install(TARGETS
   eos-ioping eos-adler32 eos-checksum eos-leveldb-inspect eos-rain-hd-dump
-  eos-check-blockxs eos-compute-blockxs eos-scan-fs eos-fsck-fs
-  eos-create-file-pattern eos-readv-pattern
+  eos-check-blockxs eos-compute-blockxs eos-scan-fs
+  eos-create-file-pattern eos-readv-pattern eos-filemd-convert
   RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_SBINDIR})
 
 endif()

@@ -24,7 +24,8 @@
 #include "fst/XrdFstOfs.hh"
 #include "fst/XrdFstOss.hh"
 #include "fst/Config.hh"
-#include "fst/FmdDbMap.hh"
+#include "fst/filemd/FmdDbMap.hh"
+#include "fst/filemd/FmdAttr.hh"
 #include "fst/checksum/ChecksumPlugins.hh"
 #include "fst/http/HttpServer.hh"
 #include "fst/storage/FileSystem.hh"
@@ -32,6 +33,7 @@
 #include "fst/Messaging.hh"
 #include "fst/Deletion.hh"
 #include "fst/Verify.hh"
+#include "fst/utils/XrdOfsPathHandler.hh"
 #include "common/PasswordHandler.hh"
 #include "common/FileId.hh"
 #include "common/FileSystem.hh"
@@ -192,7 +194,7 @@ XrdFstOfs::xrdfstofs_shutdown(int sig)
     eos::common::SyncAll::AllandClose();
     // Sleep for an amount of time proportional to the number of filesystems
     // on the current machine
-    std::chrono::seconds timeout(gFmdDbMapHandler.GetNumFileSystems() * 5);
+    auto timeout = std::chrono::seconds(gOFS.Storage->GetFSCount() * 5);
     std::this_thread::sleep_for(timeout);
     fprintf(stderr, "@@@@@@ 00:00:00 op=shutdown msg=\"shutdown timedout after "
             "%li seconds, signal=%i\n", timeout.count(), sig);
@@ -215,8 +217,12 @@ XrdFstOfs::xrdfstofs_shutdown(int sig)
   eos_static_warning("%s", "op=shutdown msg=\"stopped messaging\"");
   gOFS.Storage->Shutdown();
   eos_static_warning("%s", "op=shutdown msg=\"stopped storage activities\"");
-  gFmdDbMapHandler.Shutdown();
-  eos_static_warning("%s", "op=shutdown msg=\"stopped FmdDbMap handler\"");
+
+  // This is unlikely to be null, but let's check anyway
+  if (gOFS.mFmdHandler != nullptr) {
+    gOFS.mFmdHandler->Shutdown();
+    eos_static_warning("%s", "op=shutdown msg=\"stopped FmdHandler\"");
+  }
 
   if (watchdog > 1) {
     kill(watchdog, 9);
@@ -290,7 +296,7 @@ XrdFstOfs::xrdfstofs_graceful_shutdown(int sig)
 
   gOFS.Storage->Shutdown();
   eos_static_warning("op=shutdown msg=\"shutdown fmddbmap handler\"");
-  gFmdDbMapHandler.Shutdown();
+  gOFS.mFmdHandler->Shutdown();
   eos_static_warning("op=shutdown status=dbmapclosed");
 
   if (watchdog > 1) {
@@ -658,6 +664,24 @@ XrdFstOfs::Configure(XrdSysError& Eroute, XrdOucEnv* envP)
 
           Eroute.Say("=====> fstofs.mq_implementation : ", value.c_str());
         }
+
+        if (!strcmp("filemd_handler", var)) {
+          std::string value;
+
+          while ((val = Config.GetWord())) {
+            value += val;
+          }
+
+          if (value == "leveldb") {
+            mFmdHandler.reset(new FmdDbMapHandler());
+            Eroute.Say("Config", "creating leveldb handler");
+          } else if (value == "attr") {
+            mFmdHandler.reset(new FmdAttrHandler(makeFSPathHandler(this)));
+            Eroute.Say("Config", "creating attr handler");
+          }
+
+          Eroute.Say("=====> fstofs.filemd_handler : ", value.c_str());
+        }
       }
     }
 
@@ -693,8 +717,12 @@ XrdFstOfs::Configure(XrdSysError& Eroute, XrdOucEnv* envP)
     gConfig.FstOfsBrokerUrl += "/";
   }
 
-  gConfig.FstDefaultReceiverQueue =
-    gConfig.FstOfsBrokerUrl;
+  if (!mFmdHandler) {
+    mFmdHandler.reset(new FmdDbMapHandler());
+    Eroute.Say("=====> fstofs.filemd_handler : leveldb");
+  }
+
+  gConfig.FstDefaultReceiverQueue = gConfig.FstOfsBrokerUrl;
   gConfig.FstOfsBrokerUrl += mHostName;
   gConfig.FstOfsBrokerUrl += ":";
   gConfig.FstOfsBrokerUrl += myPort;
@@ -704,8 +732,7 @@ XrdFstOfs::Configure(XrdSysError& Eroute, XrdOucEnv* envP)
   gConfig.FstHostPort += myPort;
   gConfig.KernelVersion =
     eos::common::StringConversion::StringFromShellCmd("uname -r | tr -d \"\n\"").c_str();
-  Eroute.Say("=====> fstofs.broker : ",
-             gConfig.FstOfsBrokerUrl.c_str(), "");
+  Eroute.Say("=====> fstofs.broker : ", gConfig.FstOfsBrokerUrl.c_str(), "");
   // Extract our queue name
   gConfig.FstQueue = gConfig.FstOfsBrokerUrl;
   {
@@ -1304,7 +1331,7 @@ XrdFstOfs::_rem(const char* path, XrdOucErrInfo& error,
     }
   }
 
-  gFmdDbMapHandler.LocalDeleteFmd(fid, fsid);
+  mFmdHandler->LocalDeleteFmd(fid, fsid);
   return SFS_OK;
 }
 
@@ -1437,7 +1464,7 @@ XrdFstOfs::FSctl(const int cmd, XrdSfsFSctl& args, XrdOucErrInfo& error,
 
       unsigned long long fileid = eos::common::FileId::Hex2Fid(afid);
       unsigned long fsid = atoi(afsid);
-      auto fmd = gFmdDbMapHandler.LocalGetFmd(fileid, fsid, true);
+      auto fmd = mFmdHandler->LocalGetFmd(fileid, fsid, true);
 
       if (!fmd) {
         eos_static_err("msg=\"no FMD record found\" fxid=%08llx fsid=%lu", fileid,
@@ -1961,6 +1988,16 @@ XrdFstOfs::HandleDebug(XrdOucEnv& env, XrdOucErrInfo& err_obj)
 int
 XrdFstOfs::HandleFsck(XrdOucEnv& env, XrdOucErrInfo& err_obj)
 {
+  if (!FmdOnDb()) {
+    eos_notice("%s", "msg=\"fsck moved to QDB\"");
+    // @todo(esindril) once xrootd bug regarding handling of SFS_OK response
+    // in XrdXrootdXeq is fixed we can just return SFS_OK (>= XRootD 5)
+    // return SFS_OK;
+    const char* done = "";
+    err_obj.setErrInfo(strlen(done) + 1, done);
+    return SFS_DATA;
+  }
+
   std::string response;
   response.reserve(4 * eos::common::MB);
   size_t max_sz = mXrdBuffPool.MaxSize() - 2 * eos::common::MB;
@@ -2056,9 +2093,9 @@ XrdFstOfs::HandleResync(XrdOucEnv& env, XrdOucErrInfo& err_obj)
 
   if (!fid) {
     eos_static_warning("msg=\"deleting fmd\" fsid=%lu fxid=%08llx", fsid, fid);
-    gFmdDbMapHandler.LocalDeleteFmd(fid, fsid);
+    mFmdHandler->LocalDeleteFmd(fid, fsid);
   } else {
-    auto fmd = gFmdDbMapHandler.LocalGetFmd(fid, fsid, true, force);
+    auto fmd = mFmdHandler->LocalGetFmd(fid, fsid, true, force);
 
     if (fmd) {
       if (force) {
@@ -2067,8 +2104,8 @@ XrdFstOfs::HandleResync(XrdOucEnv& env, XrdOucErrInfo& err_obj)
                             (eos::common::FileId::Fid2Hex(fid).c_str(),
                              gOFS.Storage->GetStoragePath(fsid).c_str());
 
-        if (gFmdDbMapHandler.ResyncDisk(fpath.c_str(), fsid, false) == 0) {
-          if (gFmdDbMapHandler.ResyncMgm(fsid, fid, nullptr)) {
+        if (mFmdHandler->ResyncDisk(fpath.c_str(), fsid, false) == 0) {
+          if (mFmdHandler->ResyncMgm(fsid, fid, nullptr)) {
             eos_static_err("msg=\"resync mgm failed\" fid=%08llx fsid=%lu",
                            fid, fsid);
           }
@@ -2293,18 +2330,33 @@ XrdFstOfs::Query2Delete()
   request += gConfig.FstQueue.c_str();
   XrdCl::Buffer arg;
   XrdCl::Buffer* raw_resp {nullptr};
-  XrdCl::FileSystem fs {url};
-  arg.FromString(request);
-  XrdCl::XRootDStatus status = fs.Query(XrdCl::QueryCode::OpaqueFile, arg,
-                                        raw_resp);
-  std::unique_ptr<XrdCl::Buffer> resp(raw_resp);
-  raw_resp = nullptr;
+  std::unique_ptr<XrdCl::Buffer> resp;
+  int attempts = 5;
 
-  if (!status.IsOK()) {
-    eos_static_err("msg=\"failed query request\" request=\"%s\" status=\"%s\"",
-                   request.c_str(), status.ToStr().c_str());
-    return SFS_ERROR;
-  }
+  do {
+    XrdCl::FileSystem fs {url};
+    arg.FromString(request);
+    XrdCl::XRootDStatus status = fs.Query(XrdCl::QueryCode::OpaqueFile, arg,
+                                          raw_resp);
+    resp.reset(raw_resp);
+    raw_resp = nullptr;
+
+    if (!status.IsOK()) {
+      if (status.code == XrdCl::errSocketTimeout) {
+        eos_static_info("%s", "msg=\"retry query2delete in 2 seconds, "
+                        "MGM not ready\"");
+        std::this_thread::sleep_for(std::chrono::seconds(2));
+        --attempts;
+      } else {
+        eos_static_err("msg=\"failed query request\" request=\"%s\" "
+                       "status=\"%s\" errno=%u",
+                       request.c_str(), status.ToStr().c_str(), status.errNo);
+        return SFS_ERROR;
+      }
+    } else {
+      break;
+    }
+  } while (attempts);
 
   if (resp && resp->GetBuffer()) {
     eos::fst::DeletionsProto del_fst;
@@ -2540,9 +2592,9 @@ XrdFstOfs::DoResync(XrdOucEnv& env)
     if (!fid) {
       eos_warning("msg=\"deleting fmd\" fsid=%lu fxid=%08llx",
                   (unsigned long) fsid, fid);
-      gFmdDbMapHandler.LocalDeleteFmd(fid, fsid);
+      mFmdHandler->LocalDeleteFmd(fid, fsid);
     } else {
-      auto fMd = gFmdDbMapHandler.LocalGetFmd(fid, fsid, true, force);
+      auto fMd = mFmdHandler->LocalGetFmd(fid, fsid, true, force);
 
       if (fMd) {
         if (force) {
@@ -2552,9 +2604,9 @@ XrdFstOfs::DoResync(XrdOucEnv& env)
                               (eos::common::FileId::Fid2Hex(fid).c_str(),
                                gOFS.Storage->GetStoragePath(fsid).c_str());
 
-          if (gFmdDbMapHandler.ResyncDisk(fpath.c_str(), fsid, false) == 0) {
-            if (gFmdDbMapHandler.ResyncFileFromQdb(fid, fsid, fpath,
-                                                   gOFS.mFsckQcl) == 0) {
+          if (mFmdHandler->ResyncDisk(fpath.c_str(), fsid, false) == 0) {
+            if (mFmdHandler->ResyncFileFromQdb(fid, fsid, fpath,
+                                               gOFS.mFsckQcl) == 0) {
               return;
             } else {
               eos_static_err("msg=\"resync qdb failed\" fid=%08llx fsid=%lu",
@@ -2654,6 +2706,15 @@ XrdFstOfs::SetXrdClTimeouts()
     eos_static_info("msg=\"update xrootd client timeouts\" name=%s value=%i",
                     elem.first.c_str(), env_value);
   }
+}
+
+//------------------------------------------------------------------------------
+// Check if FMD entries are stored in the local leveldb
+//------------------------------------------------------------------------------
+bool XrdFstOfs::FmdOnDb() const
+{
+  return ((mFmdHandler != nullptr) &&
+          (mFmdHandler->get_type() == fmd_handler_t::DB));
 }
 
 EOSFSTNAMESPACE_END

@@ -47,6 +47,7 @@
 #include "mgm/Macros.hh"
 #include "mgm/ZMQ.hh"
 #include "mgm/tgc/MultiSpaceTapeGc.hh"
+#include "mgm/utils/AttrHelper.hh"
 #include "namespace/utils/Attributes.hh"
 #include "namespace/Prefetcher.hh"
 #include "namespace/Resolver.hh"
@@ -370,6 +371,8 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
   const char* tident = error.getErrUser();
   eos::IFileMD::XAttrMap attrmapF;
   errno = 0;
+  eos::common::Timing tm("Open");
+  COMMONTIMING("begin", &tm);
   EXEC_TIMING_BEGIN("Open");
   XrdOucString spath = inpath;
   XrdOucString sinfo = ininfo;
@@ -401,6 +404,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
     EXEC_TIMING_END("IdMap");
   }
   gOFS->MgmStats.Add("IdMap", vid.uid, vid.gid, 1);
+  COMMONTIMING("IdMap", &tm);
   SetLogId(logId, vid, tident);
   NAMESPACEMAP;
   BOUNCE_ILLEGAL_NAMES;
@@ -523,6 +527,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
   XrdOucString currentWorkflow = "default";
   unsigned long long byfid = 0;
   unsigned long long bypid = 0;
+  COMMONTIMING("fid::fetch", &tm);
 
   /* check paths starting with fid: fxid: ino: ... */
   if (spath.beginswith("fid:") || spath.beginswith("fxid:") ||
@@ -549,6 +554,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
     }
   }
 
+  COMMONTIMING("fid::fetched", &tm);
   openOpaque = new XrdOucEnv(ininfo);
 
   // Handle (delegated) tpc redirection for writes
@@ -813,6 +819,8 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
     }
   }
 
+  COMMONTIMING("authorize", &tm);
+
   if (open_flag & O_CREAT) {
     AUTHORIZE(client, openOpaque, AOP_Create, "create", inpath, error);
   } else {
@@ -821,13 +829,11 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
     isRewrite = true;
   }
 
+  COMMONTIMING("authorized", &tm);
   eos::common::Path cPath(path);
   // indicate the scope for a possible token
   TOKEN_SCOPE;
-
-  if (cPath.isAtomicFile()) {
-    isAtomicName = true;
-  }
+  isAtomicName = cPath.isAtomicFile();
 
   // prevent any access to a recycling bin for writes
   if (isRW && cPath.GetFullPath().beginswith(Recycle::gRecyclingPrefix.c_str())) {
@@ -836,11 +842,15 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
                 cPath.GetParentPath());
   }
 
+  std::shared_ptr<eos::IContainerMD> dmd;
+
   // check if we have to create the full path
   if (Mode & SFS_O_MKPTH) {
     eos_debug("%s", "msg=\"SFS_O_MKPTH was requested\"");
     XrdSfsFileExistence file_exists;
-    int ec = gOFS->_exists(cPath.GetParentPath(), file_exists, error, vid, 0);
+    std::shared_ptr<eos::IFileMD> _fmd;
+    int ec = gOFS->_exists(cPath.GetParentPath(), file_exists,
+                           error, vid, dmd, _fmd, 0, true);
 
     // check if that is a file
     if ((!ec) && (file_exists != XrdSfsFileExistNo) &&
@@ -867,8 +877,8 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
     isSharedFile = true;
   }
 
+  COMMONTIMING("path-computed", &tm);
   // Get the directory meta data if it exists
-  std::shared_ptr<eos::IContainerMD> dmd = nullptr;
   eos::IContainerMD::XAttrMap attrmap;
   Acl acl;
   Workflow workflow;
@@ -889,7 +899,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
     try {
       if (byfid) {
         dmd = gOFS->eosDirectoryService->getContainerMD(bypid);
-      } else {
+      } else if (!dmd) {
         dmd = gOFS->eosView->getContainer(cPath.GetParentPath());
       }
 
@@ -901,15 +911,15 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
 
       if (dmd) {
         try {
+          std::string filePath = cPath.GetPath();
+
           if (ocUploadUuid.length()) {
             eos::common::Path aPath(cPath.GetAtomicPath(attrmap.count("sys.versioning"),
                                     ocUploadUuid));
-            fmd = gOFS->eosView->getFile(aPath.GetPath());
-          } else {
-            fmd = gOFS->eosView->getFile(cPath.GetPath());
+            filePath = aPath.GetPath();
           }
 
-          if (fmd) {
+          if (fmd = gOFS->eosView->getFile(filePath)) {
             /* in case of a hard link, may need to switch to target */
             /* A hard link to another file */
             if (fmd->hasAttribute(XrdMgmOfsFile::k_mdino)) {
@@ -977,6 +987,8 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
                 e.getErrno(), e.getMessage().str().c_str());
     };
 
+    COMMONTIMING("container::fetched", &tm);
+
     // Check permissions
     if (!dmd) {
       int save_errno = errno;
@@ -1036,36 +1048,8 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
       return Emsg(epname, error, errno, "open file", path);
     }
 
-    // -------------------------------------------------------------------------
-    // Check for sys.ownerauth entries, which let people operate as the owner of
-    // the directory
-    // -------------------------------------------------------------------------
-    bool sticky_owner = false;
-
-    if (attrmap.count("sys.owner.auth")) {
-      if (attrmap["sys.owner.auth"] == "*") {
-        sticky_owner = true;
-      } else {
-        attrmap["sys.owner.auth"] += ",";
-        std::string ownerkey = vid.prot.c_str();
-        ownerkey += ":";
-
-        if (vid.prot == "gsi") {
-          ownerkey += vid.dn;
-        } else {
-          ownerkey += vid.uid_string;
-        }
-
-        if ((attrmap["sys.owner.auth"].find(ownerkey)) != std::string::npos) {
-          eos_info("msg=\"client authenticated as directory owner\" path=\"%s\"uid=\"%u=>%u\" gid=\"%u=>%u\"",
-                   path, vid.uid, vid.gid, d_uid, d_gid);
-          // yes the client can operate as the owner, we rewrite the virtual
-          // identity to the directory uid/gid pair
-          vid.uid = d_uid;
-          vid.gid = d_gid;
-        }
-      }
-    }
+    bool sticky_owner;
+    attr::checkDirOwner(attrmap, d_uid, d_gid, vid, sticky_owner, path);
 
     // -------------------------------------------------------------------------
     // ACL and permission check
@@ -1177,36 +1161,13 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
                   fmd->getAttribute("sys.proc").c_str());
     }
   }
-
-  // Set the versioning depth if it is defined
-  if (attrmap.count("sys.versioning")) {
-    versioning = atoi(attrmap["sys.versioning"].c_str());
-  } else {
-    if (attrmap.count("user.versioning")) {
-      versioning = atoi(attrmap["user.versioning"].c_str());
-    }
-  }
-
-  // get user desired versioning
-  if (versioning_cgi.length()) {
-    versioning = atoi(versioning_cgi.c_str());
-  }
-
-  if (attrmap.count("sys.forced.atomic")) {
-    isAtomicUpload = atoi(attrmap["sys.forced.atomic"].c_str());
-  } else {
-    if (attrmap.count("user.forced.atomic")) {
-      isAtomicUpload = atoi(attrmap["user.forced.atomic"].c_str());
-    } else {
-      if (openOpaque->Get("eos.atomic")) {
-        isAtomicUpload = true;
-      }
-    }
-  }
-
-  if (openOpaque->Get("eos.injection")) {
-    isInjection = true;
-  }
+  // check for versioning depth, cgi overrides sys & user attributes
+  versioning = attr::getVersioning(attrmap, versioning_cgi);
+  // check for atomic uploads only in non fuse clients
+  isAtomicUpload = !isFuse &&
+                   attr::checkAtomicUpload(attrmap, openOpaque->Get("eos.atomic"));
+  // check for injection in non fuse clients with cgi
+  isInjection = !isFuse && openOpaque->Get("eos.injection");
 
   if (openOpaque->Get("eos.repair")) {
     isRepair = true;
@@ -1214,16 +1175,6 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
 
   if (openOpaque->Get("eos.repairread")) {
     isRepairRead = true;
-  }
-
-  // disable atomic uploads for FUSE clients
-  if (isFuse) {
-    isAtomicUpload = false;
-  }
-
-  // disable injection in fuse clients
-  if (isFuse) {
-    isInjection = false;
   }
 
   // Short-cut to block multi-source access to EC files
@@ -1261,12 +1212,9 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
 
       if (versioning) {
         if (isAtomicUpload) {
-          eos::common::Path cPath(path);
-          XrdOucString vdir;
-          vdir += cPath.GetVersionDirectory();
           // atomic uploads need just to purge version to max-1, the version is created on commit
           // purge might return an error if the file was not yet existing/versioned
-          gOFS->PurgeVersion(vdir.c_str(), error, versioning - 1);
+          gOFS->PurgeVersion(cPath.GetVersionDirectory(), error, versioning - 1);
           errno = 0;
         } else {
           // handle the versioning for a specific file ID
@@ -1323,6 +1271,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
         return Emsg(epname, error, ENOENT, "open file without creation flag", path);
       } else {
         // creation of a new file or isOcUpload
+        COMMONTIMING("write::begin", &tm);
         {
           // -------------------------------------------------------------------
           std::shared_ptr<eos::IFileMD> ref_fmd;
@@ -1331,7 +1280,6 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
           try {
             // we create files with the uid/gid of the parent directory
             if (isAtomicUpload) {
-              eos::common::Path cPath(path);
               creation_path = cPath.GetAtomicPath(versioning, ocUploadUuid);
               eos_info("atomic-path=%s", creation_path.c_str());
 
@@ -1427,6 +1375,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
 
           // -------------------------------------------------------------------
         }
+        COMMONTIMING("write::end", &tm);
 
         if (!fmd) {
           // creation failed
@@ -1449,34 +1398,33 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
       // check if there is a redirect or stall for missing entries
       MAYREDIRECT_ENOENT;
       MAYSTALL_ENOENT;
-    }
 
-    if ((!fmd) && (attrmap.count("sys.redirect.enoent"))) {
-      // there is a redirection setting here
-      redirectionhost = "";
-      redirectionhost = attrmap["sys.redirect.enoent"].c_str();
-      int portpos = 0;
+      if (auto redirect_kv = attrmap.find("sys.redirect.enoent");
+          redirect_kv != attrmap.end()) {
+        // there is a redirection setting here
+        redirectionhost = "";
+        redirectionhost = redirect_kv->second.c_str();
+        int portpos = 0;
 
-      if ((portpos = redirectionhost.find(":")) != STR_NPOS) {
-        XrdOucString port = redirectionhost;
-        port.erase(0, portpos + 1);
-        ecode = atoi(port.c_str());
-        redirectionhost.erase(portpos);
-      } else {
-        ecode = 1094;
+        if ((portpos = redirectionhost.find(":")) != STR_NPOS) {
+          XrdOucString port = redirectionhost;
+          port.erase(0, portpos + 1);
+          ecode = atoi(port.c_str());
+          redirectionhost.erase(portpos);
+        } else {
+          ecode = 1094;
+        }
+
+        if (!gOFS->SetRedirectionInfo(error, redirectionhost.c_str(), ecode)) {
+          eos_err("msg=\"failed setting redirection\" path=\"%s\"", path);
+          return SFS_ERROR;
+        }
+
+        rcode = SFS_REDIRECT;
+        gOFS->MgmStats.Add("RedirectENOENT", vid.uid, vid.gid, 1);
+        return rcode;
       }
 
-      if (!gOFS->SetRedirectionInfo(error, redirectionhost.c_str(), ecode)) {
-        eos_err("msg=\"failed setting redirection\" path=\"%s\"", path);
-        return SFS_ERROR;
-      }
-
-      rcode = SFS_REDIRECT;
-      gOFS->MgmStats.Add("RedirectENOENT", vid.uid, vid.gid, 1);
-      return rcode;
-    }
-
-    if (!fmd) {
       gOFS->MgmStats.Add("OpenFailedENOENT", vid.uid, vid.gid, 1);
       return Emsg(epname, error, errno, "open file", path);
     }
@@ -1573,10 +1521,18 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
   std::string ioprio;
   std::string iotype;
   bool schedule = false;
-  eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
+  bool is_local = false;
+
+  if (openOpaque->Get("localconfig")) {
+    is_local = true;
+  }
+
   // select space and layout according to policies
+  COMMONTIMING("Policy::begin", &tm);
   Policy::GetLayoutAndSpace(path, attrmap, vid, new_lid, space, *openOpaque,
-                            forcedFsId, forced_group, bandwidth, schedule, ioprio, iotype, isRW);
+                            forcedFsId, forced_group, bandwidth, schedule, ioprio, iotype, isRW, true,
+                            is_local);
+  COMMONTIMING("Policy::end", &tm);
 
   // do a local redirect here if there is only one replica attached
   if (!isRW && !isPio && (fmd->getNumLocation() == 1) &&
@@ -1593,8 +1549,11 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
     } else {
       eos::common::FileSystem::fs_snapshot_t local_snapshot;
       unsigned int local_id = fmd->getLocation(0);
-      eos::mgm::FileSystem* local_fs = FsView::gFsView.mIdView.lookupByID(local_id);
-      local_fs->SnapShotFileSystem(local_snapshot);
+      {
+        eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
+        eos::mgm::FileSystem* local_fs = FsView::gFsView.mIdView.lookupByID(local_id);
+        local_fs->SnapShotFileSystem(local_snapshot);
+      }
       // compute the local path
       std::string local_path = eos::common::FileId::FidPrefix2FullPath(
                                  eos::common::FileId::Fid2Hex(fmd->getId()).c_str(),
@@ -1693,10 +1652,10 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
     layoutId = new_lid;
     {
       std::shared_ptr<eos::IFileMD> fmdnew;
-      eos::common::RWMutexWriteLock ns_wr_lock(gOFS->eosViewRWMutex);
 
       if (!byfid) {
         try {
+          eos::common::RWMutexWriteLock ns_rd_lock(gOFS->eosViewRWMutex);
           fmdnew = gOFS->eosView->getFile(path);
         } catch (eos::MDException& e) {
           if ((!isAtomicUpload) && (fmdnew != fmd)) {
@@ -1763,6 +1722,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
       }
 
       try {
+        eos::common::RWMutexWriteLock ns_wr_lock(gOFS->eosViewRWMutex);
         eos::FileIdentifier fmd_id = fmd->getIdentifier();
         gOFS->eosView->updateFileStore(fmd.get());
         std::shared_ptr<eos::IContainerMD> cmd =
@@ -1951,7 +1911,9 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
       return Emsg(epname, error, EINVAL, "open - invalid placement argument", path);
     }
 
+    COMMONTIMING("Scheduler::FilePlacement", &tm);
     retc = Quota::FilePlacement(&plctargs);
+    COMMONTIMING("Scheduler::FilePlaced", &tm);
 
     // reshuffle the selectedfs by returning as first entry the lowest if the
     // sum of the fsid is odd the highest if the sum is even
@@ -2040,7 +2002,9 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
       return Emsg(epname, error, EINVAL, "open - invalid access argument", path);
     }
 
+    COMMONTIMING("Scheduler::FileAccess", &tm);
     retc = Scheduler::FileAccess(&acsargs);
+    COMMONTIMING("Scheduler::FileAccessed", &tm);
 
     if (acsargs.isRW) {
       // If this is an update, we don't have to send the client to cgi
@@ -2095,7 +2059,9 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
           return Emsg(epname, error, EINVAL, "open - invalid placement argument", path);
         }
 
+        COMMONTIMING("Scheduler::FilePlacement", &tm);
         retc = Quota::FilePlacement(&plctargs);
+        COMMONTIMING("Scheduler::FilePlaced", &tm);
         eos_info("msg=\"file-recreation due to offline/full locations\" path=%s retc=%d",
                  path, retc);
         isRecreation = true;
@@ -2729,7 +2695,9 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
         return Emsg(epname, error, EIO, "open - invalid placement argument", path);
       }
 
+      COMMONTIMING("Scheduler::FilePlacement", &tm);
       retc = Quota::FilePlacement(&plctargs);
+      COMMONTIMING("Scheduler::FilePlaced", &tm);
       LogSchedulingInfo(selectedfs, proxys, firewalleps);
 
       if (retc) {
@@ -3178,6 +3146,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
   }
 
   EXEC_TIMING_END("Open");
+  COMMONTIMING("end", &tm);
   char clientinfo[1024];
   snprintf(clientinfo, sizeof(clientinfo),
            "open:rt=%.02f io:bw=%s io:sched=%d io:type=%s io:prio=%s io:redirect=%s:%d",
@@ -3195,7 +3164,8 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
     return SFS_ERROR;
   }
 
-  eos_info("path=%s %s", path, clientinfo);
+  eos_info("path=%s %s duration=%0.03fms timing=%s",
+           path, clientinfo, tm.RealTime(), tm.Dump().c_str());
   return rcode;
 }
 

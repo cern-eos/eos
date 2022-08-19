@@ -28,16 +28,18 @@
 #include <algorithm>
 #include <vector>
 
-namespace eos::common {
-namespace detail {
+namespace eos::common
+{
+namespace detail
+{
 // A simple type checker to decide between types having a (const) iterator
 template <typename T, typename = void>
 struct has_const_iter : std::false_type {};
 
 template <typename T>
 struct has_const_iter<T, std::void_t<decltype(std::declval<T>().cbegin(),
-                                              std::declval<T>().cend())>>
-  : std::true_type {};
+    std::declval<T>().cend())>>
+                             : std::true_type {};
 
 template <typename T>
 bool constexpr has_const_iter_v = has_const_iter<T>::value;
@@ -51,18 +53,16 @@ bool constexpr has_const_iter_v = has_const_iter<T>::value;
 // variants the less generic version is a bit more readable
 template <typename str_t, typename delim_t>
 auto get_delim_p(const str_t& str, const delim_t& delim,
-                 typename str_t::size_type start_pos) -> typename str_t::size_type
-{
+                 typename str_t::size_type start_pos) -> typename str_t::size_type {
   static_assert(has_const_iter_v<delim_t>, "delimiter must implement a const iterator!");
-  auto p = std::find_first_of(str.cbegin()+start_pos, str.cend(),
-                              delim.cbegin(), delim.cend());
+  auto p = std::find_first_of(str.cbegin() + start_pos, str.cend(),
+  delim.cbegin(), delim.cend());
   return std::distance(str.cbegin(), p);
 }
 
 template <typename str_t>
 auto get_delim_p(const str_t& str, char delim,
-                 typename str_t::size_type start_pos) -> typename str_t::size_type
-{
+                 typename str_t::size_type start_pos) -> typename str_t::size_type {
   return str.find(delim, start_pos);
 }
 
@@ -99,11 +99,13 @@ auto get_delim_p(const str_t& str, char delim,
 // compiler will try to default to const char* which is not desirable
 template <typename str_type = std::string_view,
           typename delim_type = std::string_view>
-class LazySplit {
+class LazySplit
+{
 public:
-    LazySplit(str_type s, delim_type d) : str(s), delim(d) {}
+  LazySplit(str_type s, delim_type d) : str(s), delim(d) {}
 
-  class iterator {
+  class iterator
+  {
 
   public:
     // A base declaration of the underlying string type so that we don't have to
@@ -114,7 +116,8 @@ public:
     // Basic iterator definition member types
     using iterator_category = std::forward_iterator_tag;
     using value_type = str_type;
-    using difference_type = std::string_view::difference_type; // basically std::ptrdiff_t
+    using difference_type =
+      std::string_view::difference_type; // basically std::ptrdiff_t
     using pointer = std::add_pointer_t<base_string_type>;
     using const_pointer = std::add_const_t<pointer>;
     using reference = std::add_lvalue_reference_t<base_string_type>;
@@ -124,26 +127,36 @@ public:
     iterator(str_type s, delim_type d): str(s), delim(d), segment(next(0)) {}
     iterator(size_type sz) : pos(sz) {}
 
-    iterator& operator++() {
+    iterator& operator++()
+    {
       segment = next(pos);
       return *this;
     }
 
-    iterator operator++(int) {
+    iterator operator++(int)
+    {
       iterator curr = *this;
       segment = next(pos);
       return curr;
     }
 
-    reference operator*() { return segment; }
-    pointer operator->()  { return &segment; }
+    reference operator*()
+    {
+      return segment;
+    }
+    pointer operator->()
+    {
+      return &segment;
+    }
 
-    friend bool operator==(const iterator& a, const iterator& b) {
+    friend bool operator==(const iterator& a, const iterator& b)
+    {
       return a.segment == b.segment;
     }
 
-    friend bool operator!=(const iterator& a, const iterator& b) {
-      return !(a==b);
+    friend bool operator!=(const iterator& a, const iterator& b)
+    {
+      return !(a == b);
     }
 
   private:
@@ -158,12 +171,15 @@ public:
       // this loop is needed to advance past empty delims
       while (start_pos < str.size()) {
         pos = detail::get_delim_p(str, delim, start_pos);
+
         // check if we are at the end or at a delim
         if (pos != start_pos) {
           return str.substr(start_pos, pos - start_pos);
         }
+
         start_pos = pos + 1;
       }
+
       return {};
     }
 
@@ -175,47 +191,69 @@ public:
   };
 
   using const_iterator = iterator;
-  iterator begin() const { return {str, delim}; }
-  const_iterator cbegin() const { return {str, delim}; }
+  iterator begin() const
+  {
+    return {str, delim};
+  }
+  const_iterator cbegin() const
+  {
+    return {str, delim};
+  }
 
-  iterator end() const { return { std::string::npos }; }
-  const_iterator cend() const { return { std::string::npos }; }
+  iterator end() const
+  {
+    return { std::string::npos };
+  }
+  const_iterator cend() const
+  {
+    return { std::string::npos };
+  }
 private:
   str_type str;
   delim_type delim;
 };
 
 template <typename C, typename K, typename V>
-bool operator==(const LazySplit<K,V>& split, const C& cont)
+bool operator==(const LazySplit<K, V>& split, const C& cont)
 {
-  return std::equal(split.begin(),split.end(),
-                    cont.begin(),cont.end());
+  return std::equal(split.begin(), split.end(),
+                    cont.begin(), cont.end());
 }
 template <typename C, typename K, typename V>
-bool operator==(const C& cont, const LazySplit<K,V>& split)
+bool operator==(const C& cont, const LazySplit<K, V>& split)
 {
-    return std::equal(split.begin(),split.end(),
-                      cont.begin(),cont.end());
+  return std::equal(split.begin(), split.end(),
+                    cont.begin(), cont.end());
 }
 
-using StringSplitIt = LazySplit<std::string_view,std::string_view>;
-using CharSplitIt = LazySplit<std::string_view,char>;
+using StringSplitIt = LazySplit<std::string_view, std::string_view>;
+using CharSplitIt = LazySplit<std::string_view, char>;
 
-template <typename C=std::vector<std::string_view>>
+template <typename C = std::vector<std::string_view>>
 C StringSplit(std::string_view input, std::string_view delim)
 {
   C c;
   auto split_iter = StringSplitIt(input, delim);
-  for(std::string_view part: split_iter) {
+
+  for (std::string_view part : split_iter) {
     c.emplace_back(part);
   }
+
   return c;
 }
 
-template <typename C=std::vector<std::string>>
+template <typename C = std::vector<std::string>>
 C SplitPath(std::string_view input)
 {
   return StringSplit<C>(input, "/");
+}
+
+inline std::string
+GetRootPath(std::string_view path)
+{
+  using namespace std::string_view_literals;
+  auto it = StringSplitIt(path, "/"sv).begin();
+  return std::string(*it);
 }
 
 } // namespace eos::common

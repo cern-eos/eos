@@ -179,7 +179,7 @@ protected:
 TEST_F(FsckEntryTest, MgmXsDiff)
 {
   using eos::common::StringConversion;
-  mFsckEntry->mReportedErr = eos::mgm::FsckErr::MgmXsDiff;
+  mFsckEntry->mReportedErr = eos::common::FsckErr::MgmXsDiff;
   size_t xs_sz;
   auto xs_buff = eos::common::StringConversion::Hex2BinDataChar("aabbccdd",
                  xs_sz);
@@ -206,7 +206,7 @@ TEST_F(FsckEntryTest, MgmXsDiff)
 TEST_F(FsckEntryTest, MgmXsDiffFstNoContact)
 {
   using eos::common::StringConversion;
-  mFsckEntry->mReportedErr = eos::mgm::FsckErr::MgmXsDiff;
+  mFsckEntry->mReportedErr = eos::common::FsckErr::MgmXsDiff;
   size_t xs_sz;
   auto xs_buff = eos::common::StringConversion::Hex2BinDataChar("aabbccdd",
                  xs_sz);
@@ -229,7 +229,7 @@ TEST_F(FsckEntryTest, MgmXsDiffFstNoContact)
 //------------------------------------------------------------------------------
 TEST_F(FsckEntryTest, MgmSzDiff)
 {
-  mFsckEntry->mReportedErr = eos::mgm::FsckErr::MgmSzDiff;
+  mFsckEntry->mReportedErr = eos::common::FsckErr::MgmSzDiff;
   auto& mgm_fmd = mFsckEntry->mMgmFmd;
   mgm_fmd.set_size(123456789);
   // The new MGM FMD size should be different from the initial one
@@ -245,7 +245,7 @@ TEST_F(FsckEntryTest, MgmSzDiff)
 TEST_F(FsckEntryTest, FstSzDiff)
 {
   // Set the desired type of error
-  mFsckEntry->mReportedErr = eos::mgm::FsckErr::FstSzDiff;
+  mFsckEntry->mReportedErr = eos::common::FsckErr::FstSzDiff;
   // All FST sizes match, repair succeeds - no bad replicas
   ASSERT_TRUE(mFsckEntry->Repair());
 
@@ -274,7 +274,7 @@ TEST_F(FsckEntryTest, FstSzDiff)
 TEST_F(FsckEntryTest, FstXsDiff)
 {
   // Set the desired type of error
-  mFsckEntry->mReportedErr = eos::mgm::FsckErr::FstXsDiff;
+  mFsckEntry->mReportedErr = eos::common::FsckErr::FstXsDiff;
   // All FST xs match, repair succeeds - no bad replicas
   ASSERT_TRUE(mFsckEntry->Repair());
 
@@ -309,7 +309,7 @@ TEST_F(FsckEntryTest, UnregReplicaDrop)
 {
   FileSystem::fsid_t unreg_fsid = 101;
   // Set the desired type of error
-  mFsckEntry->mReportedErr = eos::mgm::FsckErr::UnregRepl;
+  mFsckEntry->mReportedErr = eos::common::FsckErr::UnregRepl;
   // Add one more FST replica which is unregistered
   PopulateFstFmd(unreg_fsid);
   ASSERT_TRUE(mFsckEntry->Repair());
@@ -330,7 +330,7 @@ TEST_F(FsckEntryTest, UnregReplicaAdd)
 {
   FileSystem::fsid_t unreg_fsid = 101;
   // Set the desired type of error
-  mFsckEntry->mReportedErr = eos::mgm::FsckErr::UnregRepl;
+  mFsckEntry->mReportedErr = eos::common::FsckErr::UnregRepl;
   // Add one more FST replica which is unregistered
   PopulateFstFmd(unreg_fsid);
   // Drop the replica on fsid 3
@@ -363,7 +363,7 @@ TEST_F(FsckEntryTest, UnregReplicaAdd)
 TEST_F(FsckEntryTest, FileOverReplicated)
 {
   // Set the desired type of error
-  mFsckEntry->mReportedErr = eos::mgm::FsckErr::DiffRepl;
+  mFsckEntry->mReportedErr = eos::common::FsckErr::DiffRepl;
 
   for (const auto& elem : {
   6, 7
@@ -389,7 +389,7 @@ TEST_F(FsckEntryTest, FileOverReplicated)
 TEST_F(FsckEntryTest, FileUnderReplicated)
 {
   // Set the desired type of error
-  mFsckEntry->mReportedErr = eos::mgm::FsckErr::DiffRepl;
+  mFsckEntry->mReportedErr = eos::common::FsckErr::DiffRepl;
   // Drop the replica on fsid 5
   FileSystem::fsid_t drop_fsid = 5;
   ASSERT_EQ(1, mFsckEntry->mFstFileInfo.erase(drop_fsid));
@@ -427,7 +427,7 @@ TEST_F(FsckEntryTest, FileUnderReplicated)
 TEST_F(FsckEntryTest, FileMissingReplica)
 {
   // Set the desired type of error
-  mFsckEntry->mReportedErr = eos::mgm::FsckErr::MissRepl;
+  mFsckEntry->mReportedErr = eos::common::FsckErr::MissRepl;
   // Mark replica on file system 5 as not on disk
   FileSystem::fsid_t miss_fsid = 5;
   auto it = mFsckEntry->mFstFileInfo.find(miss_fsid);

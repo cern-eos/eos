@@ -25,6 +25,9 @@
 #include "common/Logging.hh"
 #include "common/LayoutId.hh"
 #include "common/Mapping.hh"
+#include "common/utils/ContainerUtils.hh"
+#include "common/utils/XrdUtils.hh"
+#include "mgm/Constants.hh"
 #include "mgm/Policy.hh"
 #include "mgm/XrdMgmOfs.hh"
 /*----------------------------------------------------------------------------*/
@@ -33,6 +36,33 @@
 
 
 EOSMGMNAMESPACE_BEGIN
+
+const std::vector<std::string> Policy::gBasePolicyKeys = {
+  "policy.space",
+  "policy.layout",
+  "policy.nstripes",
+  "policy.checksum",
+  "policy.blocksize",
+  "policy.blockchecksum",
+  "policy.localredirect"
+};
+
+const std::vector<std::string> Policy::gBaseLocalPolicyKeys = {
+  "local.policy.space",
+  "local.policy.layout",
+  "local.policy.nstripes",
+  "local.policy.checksum",
+  "local.policy.blocksize",
+  "local.policy.blockchecksum",
+  "local.policy.localredirect"
+};
+
+const std::vector<std::string> Policy::gBasePolicyRWKeys = {
+  "policy.bandwidth",
+  "policy.iopriority",
+  "policy.iotype",
+  "policy.schedule"
+};
 
 /*----------------------------------------------------------------------------*/
 unsigned long
@@ -83,7 +113,8 @@ Policy::GetLayoutAndSpace(const char* path,
                           std::string& iopriority,
                           std::string& iotype,
                           bool rw,
-                          bool lockview)
+                          bool lockview,
+                          bool is_local)
 {
   eos::common::RWMutexReadLock lock;
   // this is for the moment only defaulting or manual selection
@@ -98,80 +129,47 @@ Policy::GetLayoutAndSpace(const char* path,
   const char* val = 0;
   bool conversion = IsProcConversion(path);
   std::map<std::string, std::string> spacepolicies;
-
-  if (lockview) {
-    lock.Grab(FsView::gFsView.ViewMutex);
-  }
+  std::map<std::string, std::string> spacerwpolicies;
+  RWParams rwparams {vid.uid_string, vid.gid_string,
+                     eos::common::XrdUtils::GetEnv(env, "eos.app", "default"),
+                     rw, is_local
+                    };
+  auto policy_keys = GetConfigKeys(is_local);
+  auto policy_rw_keys = GetRWConfigKeys(rwparams);
 
   if (!conversion) {
     // don't apply space policies to conversion paths
+    if (lockview) {
+      lock.Grab(FsView::gFsView.ViewMutex);
+    }
+
     auto it = FsView::gFsView.mSpaceView.find("default");
 
     if (it != FsView::gFsView.mSpaceView.end()) {
-      spacepolicies["space"]     = it->second->GetConfigMember("policy.space");
-      spacepolicies["layout"]    = it->second->GetConfigMember("policy.layout");
-      spacepolicies["nstripes"]  = it->second->GetConfigMember("policy.nstripes");
-      spacepolicies["checksum"]  = it->second->GetConfigMember("policy.checksum");
-      spacepolicies["blocksize"] = it->second->GetConfigMember("policy.blocksize");
-      spacepolicies["blockchecksum"] =
-        it->second->GetConfigMember("policy.blockchecksum");
-      spacepolicies["localredirect"] =
-        it->second->GetConfigMember("policy.localredirect");
-
-      if (rw) {
-        schedule = (it->second->GetConfigMember("policy.schedule:w") == "1");
-        iopriority = it->second->GetConfigMember("policy.iopriority:w");
-        iotype = it->second->GetConfigMember("policy.iotype:w");
-        bandwidth = it->second->GetConfigMember("policy.bandwidth:w");
+      if (is_local) {
+        it->second->GetLocalConfigMembers(policy_keys,
+                                          spacepolicies);
+        it->second->GetLocalConfigMembers(policy_rw_keys,
+                                          spacerwpolicies);
       } else {
-        schedule = (it->second->GetConfigMember("policy.schedule:r") == "1");
-        iopriority = it->second->GetConfigMember("policy.iopriority:r");
-        iotype = it->second->GetConfigMember("policy.iotype:r");
-        bandwidth = it->second->GetConfigMember("policy.bandwidth:r");
+        it->second->GetConfigMembers(policy_keys,
+                                     spacepolicies);
+        it->second->GetConfigMembers(policy_rw_keys,
+                                     spacerwpolicies);
       }
+    } // FSView default
 
-      {
-        std::list<std::string> keylist;
-        std::string io = rw ? ":w" : ":r";
-        keylist.push_back("policy.bandwidth" + io);
-        keylist.push_back("policy.iopriority" + io);
-        keylist.push_back("policy.iotype" + io);
-        keylist.push_back("policy.schedule" + io);
-
-        for (auto const& k : keylist) {
-          std::list<std::string> configlist;
-          // try application specific setting
-          std::string key = k;
-          std::string app = (env.Get("eos.app")) ? env.Get("eos.app") : "default";
-          configlist.push_back(key + ".group:" + vid.gid_string);
-          configlist.push_back(key + ".user:" + vid.uid_string);
-          configlist.push_back(key + ".app:" + app);
-
-          for (auto const& n : configlist) {
-            std::string val = it->second->GetConfigMember(n);
-
-            if (val.length()) {
-              if (k.substr(0, 16) == "policy.bandwidth") {
-                bandwidth = val;
-              }
-
-              if (k.substr(0, 17) == "policy.iopriority") {
-                iopriority = val;
-              }
-
-              if (k.substr(0, 13) == "policy.iotype") {
-                iotype = val;
-              }
-
-              if (k.substr(0, 15) == "policy.schedule") {
-                schedule = (val == "1") ? true : false;
-              }
-            }
-          }
-        }
-      }
+    if (lockview) {
+      lock.Release();
     }
-  }
+  } // if !conversion
+
+  std::string schedule_str;
+  GetRWValue(spacerwpolicies, POLICY_SCHEDULE, rwparams, schedule_str);
+  GetRWValue(spacerwpolicies, POLICY_IOPRIORITY, rwparams, iopriority);
+  GetRWValue(spacerwpolicies, POLICY_IOTYPE, rwparams, iotype);
+  GetRWValue(spacerwpolicies, POLICY_BANDWIDTH, rwparams, bandwidth);
+  schedule = schedule_str.length() ? schedule_str == "1" : schedule;
 
   if ((val = env.Get("eos.space"))) {
     space = val;
@@ -179,124 +177,92 @@ Policy::GetLayoutAndSpace(const char* path,
     space = "default";
 
     if (!conversion) {
-      if (!spacepolicies["space"].empty()) {
+      std::string space_key = is_local ? "local.policy.space" : "policy.space";
+
+      if (auto kv = spacepolicies.find(space_key);
+          kv != spacepolicies.end() && (! kv->second.empty())) {
         // if there is no explicit space given, we preset with the policy one
-        space = spacepolicies["space"].c_str();
+        space = kv->second.c_str();
       }
     }
   }
 
-  // the settings from the default space have been already defined before
+  // Replace the non empty settings from the default space have been already
+  // defined before
   if (!conversion && space != "default") {
+    std::map <std::string, std::string> nondefault_policies;
+    spacerwpolicies.clear();
+
+    if (lockview) {
+      lock.Grab(FsView::gFsView.ViewMutex);
+    }
+
     auto it = FsView::gFsView.mSpaceView.find(space.c_str());
 
     if (it != FsView::gFsView.mSpaceView.end()) {
-      // overwrite the defaults if they are defined in the target space
-      std::string space_layout   = it->second->GetConfigMember("policy.layout");
-      std::string space_nstripes = it->second->GetConfigMember("policy.nstripes");
-      std::string space_checksum = it->second->GetConfigMember("policy.checksum");
-      std::string space_blocksize = it->second->GetConfigMember("policy.blocksize");
-      std::string space_blockxs  =
-        it->second->GetConfigMember("policy.blockchecksum");
-      std::string space_localrdr =
-        it->second->GetConfigMember("policy.localredirect");
-
-      if (space_layout.length()) {
-        spacepolicies["layout"] = space_layout;
+      if (is_local) {
+        it->second->GetLocalConfigMembers(policy_keys,
+                                          nondefault_policies);
+        it->second->GetLocalConfigMembers(policy_rw_keys,
+                                          spacerwpolicies);
+      } else {
+        it->second->GetConfigMembers(policy_keys,
+                                     nondefault_policies);
+        it->second->GetConfigMembers(policy_rw_keys,
+                                     spacerwpolicies);
       }
+    } // FsView;
 
-      if (space_nstripes.length()) {
-        spacepolicies["nstripes"] = space_nstripes;
-      }
+    if (lockview) {
+      lock.Release();
+    }
 
-      if (space_checksum.length()) {
-        spacepolicies["checksum"] = space_checksum;
-      }
-
-      if (space_blocksize.length()) {
-        spacepolicies["blocksize"] = space_blocksize;
-      }
-
-      if (space_blockxs.length()) {
-        spacepolicies["blockchecksum"] = space_blockxs;
-      }
-
-      if (space_localrdr.length()) {
-        spacepolicies["localredirect"] = space_localrdr;
-      }
-
-      bandwidth = it->second->GetConfigMember("policy.bandwidth");
-      schedule = (it->second->GetConfigMember("policy.schedule") == "1");
-      iopriority = it->second->GetConfigMember("policy.iopriority");
-      iotype = it->second->GetConfigMember("policy.iotype");
-      {
-        std::list<std::string> keylist;
-        std::string io = rw ? ":w" : ":r";
-        keylist.push_back("policy.bandwidth" + io);
-        keylist.push_back("policy.iopriority" + io);
-        keylist.push_back("policy.iotype" + io);
-        keylist.push_back("policy.schedule" + io);
-
-        for (auto const& k : keylist) {
-          std::list<std::string> configlist;
-          // try application specific setting
-          std::string key = k;
-          std::string app = (env.Get("eos.app")) ? env.Get("eos.app") : "default";
-          configlist.push_back(key + ".group:" + vid.gid_string);
-          configlist.push_back(key + ".user:" + vid.uid_string);
-          configlist.push_back(key + ".app:" + app);
-
-          for (auto const& n : configlist) {
-            std::string val = it->second->GetConfigMember(n);
-
-            if (val.length()) {
-              if (k.substr(0, 16) == "policy.bandwidth") {
-                bandwidth = val;
-              }
-
-              if (k.substr(0, 17) == "policy.iopriority") {
-                iopriority = val;
-              }
-
-              if (k.substr(0, 13) == "policy.iotype") {
-                iotype = val;
-              }
-
-              if (k.substr(0, 15) == "policy.schedule") {
-                schedule = (val == "1") ? true : false;
-              }
-            }
-          }
-        }
+    // Since this map only contains keys that are already populated, we can be
+    // sure that we'll be only replacing non empty keys
+    for (auto && kv : nondefault_policies) {
+      if (!kv.second.empty()) {
+        spacepolicies.insert_or_assign(kv.first,
+                                       std::move(kv.second));
       }
     }
-  }
+
+    std::string schedule_str;
+    GetRWValue(spacerwpolicies, POLICY_SCHEDULE, rwparams, schedule_str);
+    GetRWValue(spacerwpolicies, POLICY_IOPRIORITY, rwparams, iopriority);
+    GetRWValue(spacerwpolicies, POLICY_IOTYPE, rwparams, iotype);
+    GetRWValue(spacerwpolicies, POLICY_BANDWIDTH, rwparams, bandwidth);
+    schedule = schedule_str.length() ? schedule_str == "1" : schedule;
+  } // !conversion && space != default
 
   // look if we have to inject the default space policies
-  for (auto it = spacepolicies.begin(); it != spacepolicies.end(); ++it) {
-    if (it->first == "space") {
+  for (const auto& it : spacepolicies) {
+    if (is_local) {
+      if (!eos::common::startsWith(it.first, "local.")) {
+        eos_static_err("msg=\"key=%s doesn't start with local prefix\"",
+                       it.first.c_str());
+        continue;
+      }
+    }
+
+    std::string key_name = is_local ? it.first.substr(13) : it.first.substr(7);
+
+    if (key_name == "space") {
       continue;
     }
 
     std::string sys_key  = "sys.forced.";
     std::string user_key = "user.forced.";
-    sys_key  += it->first;
-    user_key += it->first;
+    sys_key  += key_name;
+    user_key += key_name;
 
     if ((!attrmap.count(sys_key)) &&
         (!attrmap.count(user_key)) &&
-        (!it->second.empty())) {
-      attrmap[sys_key] = it->second;
+        !it.second.empty()) {
+      attrmap[sys_key] = it.second;
     }
   }
 
-  if ((val = env.Get("eos.group"))) {
-    // we force an explicit group
-    forcedgroup = strtol(val, 0, 10);
-  } else {
-    // we don't force an explicit group
-    forcedgroup = -1;
-  }
+  forcedgroup = eos::common::XrdUtils::GetEnv(env, "eos.group", (long) - 1);
 
   if ((xsum != eos::common::LayoutId::kNone) &&
       (val = env.Get("eos.checksum.noforce"))) {
@@ -308,46 +274,43 @@ Policy::GetLayoutAndSpace(const char* path,
   if ((vid.uid == 0) && (val = env.Get("eos.layout.noforce"))) {
     // root can request not to apply any forced settings
   } else {
-    if (attrmap.count("sys.forced.space")) {
+    if (auto space_kv = attrmap.find(SYS_FORCED_SPACE);
+        space_kv != attrmap.end()) {
       // we force to use a certain space in this directory even if the user wants something else
-      space = attrmap["sys.forced.space"].c_str();
+      space = space_kv->second.c_str();
       eos_static_debug("sys.forced.space in %s", path);
     }
 
-    if (attrmap.count("sys.forced.group")) {
+    if (auto forcedgroup_kv = attrmap.find(SYS_FORCED_GROUP);
+        forcedgroup_kv != attrmap.end()) {
       // we force to use a certain group in this directory even if the user wants something else
-      forcedgroup = strtol(attrmap["sys.forced.group"].c_str(), 0, 10);
+      eos::common::StringToNumeric(forcedgroup_kv->second, forcedgroup);
       eos_static_debug("sys.forced.group in %s", path);
     }
 
-    if (attrmap.count("sys.forced.layout")) {
-      XrdOucString layoutstring = "eos.layout.type=";
-      layoutstring += attrmap["sys.forced.layout"].c_str();
-      XrdOucEnv layoutenv(layoutstring.c_str());
+    if (auto kv = attrmap.find(SYS_FORCED_LAYOUT);
+        kv != attrmap.end()) {
       // we force to use a specified layout in this directory even if the user wants something else
-      layout = eos::common::LayoutId::GetLayoutFromEnv(layoutenv);
+      layout = eos::common::LayoutId::GetLayoutFromString(kv->second);
       eos_static_debug("sys.forced.layout in %s", path);
     }
 
-    if (attrmap.count("sys.forced.checksum") && (!noforcedchecksum)) {
-      XrdOucString layoutstring = "eos.layout.checksum=";
-      layoutstring += attrmap["sys.forced.checksum"].c_str();
-      XrdOucEnv layoutenv(layoutstring.c_str());
-      // we force to use a specified checksumming in this directory even if the user wants something else
-      xsum = eos::common::LayoutId::GetChecksumFromEnv(layoutenv);
-      eos_static_debug("sys.forced.checksum in %s", path);
+    if (!noforcedchecksum) {
+      if (auto kv = attrmap.find(SYS_FORCED_CHECKSUM);
+          kv != attrmap.end()) {
+        // we force to use a specified checksumming in this directory even if the user wants something else
+        xsum = eos::common::LayoutId::GetChecksumFromString(kv->second);
+        eos_static_debug("sys.forced.checksum in %s", path);
+      }
     }
 
-    if (attrmap.count("sys.forced.blockchecksum")) {
-      XrdOucString layoutstring = "eos.layout.blockchecksum=";
-      layoutstring += attrmap["sys.forced.blockchecksum"].c_str();
-      XrdOucEnv layoutenv(layoutstring.c_str());
-      // we force to use a specified checksumming in this directory even if the user wants something else
-      bxsum = eos::common::LayoutId::GetBlockChecksumFromEnv(layoutenv);
+    if (auto kv = attrmap.find(SYS_FORCED_BLOCKCHECKSUM);
+        kv != attrmap.end()) {
+      bxsum = eos::common::LayoutId::GetBlockChecksumFromString(kv->second);
       eos_static_debug("sys.forced.blockchecksum in %s %x", path, bxsum);
     }
 
-    if (attrmap.count("sys.forced.nstripes")) {
+    if (attrmap.count(SYS_FORCED_NSTRIPES)) {
       XrdOucString layoutstring = "eos.layout.nstripes=";
       layoutstring += attrmap["sys.forced.nstripes"].c_str();
       XrdOucEnv layoutenv(layoutstring.c_str());
@@ -356,7 +319,7 @@ Policy::GetLayoutAndSpace(const char* path,
       eos_static_debug("sys.forced.nstripes in %s", path);
     }
 
-    if (attrmap.count("sys.forced.blocksize")) {
+    if (attrmap.count(SYS_FORCED_BLOCKSIZE)) {
       XrdOucString layoutstring = "eos.layout.blocksize=";
       layoutstring += attrmap["sys.forced.blocksize"].c_str();
       XrdOucEnv layoutenv(layoutstring.c_str());
@@ -406,34 +369,30 @@ Policy::GetLayoutAndSpace(const char* path,
         eos_static_debug("user.forced.space in %s", path);
       }
 
-      if (attrmap.count("user.forced.layout")) {
-        XrdOucString layoutstring = "eos.layout.type=";
-        layoutstring += attrmap["user.forced.layout"].c_str();
-        XrdOucEnv layoutenv(layoutstring.c_str());
+      if (auto kv = attrmap.find(USER_FORCED_LAYOUT);
+          kv != attrmap.end()) {
         // we force to use a specified layout in this directory even if the user wants something else
-        layout = eos::common::LayoutId::GetLayoutFromEnv(layoutenv);
+        layout = eos::common::LayoutId::GetLayoutFromString(kv->second);
         eos_static_debug("user.forced.layout in %s", path);
       }
 
-      if (attrmap.count("user.forced.checksum") && (!noforcedchecksum)) {
-        XrdOucString layoutstring = "eos.layout.checksum=";
-        layoutstring += attrmap["user.forced.checksum"].c_str();
-        XrdOucEnv layoutenv(layoutstring.c_str());
-        // we force to use a specified checksumming in this directory even if the user wants something else
-        xsum = eos::common::LayoutId::GetChecksumFromEnv(layoutenv);
-        eos_static_debug("user.forced.checksum in %s", path);
+      if (!noforcedchecksum) {
+        if (auto kv = attrmap.find(USER_FORCED_CHECKSUM);
+            kv != attrmap.end()) {
+          // we force to use a specified checksumming in this directory even if the user wants something else
+          xsum = eos::common::LayoutId::GetChecksumFromString(kv->second);
+          eos_static_debug("user.forced.checksum in %s", path);
+        }
       }
 
-      if (attrmap.count("user.forced.blockchecksum")) {
-        XrdOucString layoutstring = "eos.layout.blockchecksum=";
-        layoutstring += attrmap["user.forced.blockchecksum"].c_str();
-        XrdOucEnv layoutenv(layoutstring.c_str());
+      if (auto kv = attrmap.find(USER_FORCED_BLOCKCHECKSUM);
+          kv != attrmap.end()) {
         // we force to use a specified checksumming in this directory even if the user wants something else
-        bxsum = eos::common::LayoutId::GetBlockChecksumFromEnv(layoutenv);
+        bxsum = eos::common::LayoutId::GetBlockChecksumFromString(kv->second);
         eos_static_debug("user.forced.blockchecksum in %s", path);
       }
 
-      if (attrmap.count("user.forced.nstripes")) {
+      if (attrmap.count(USER_FORCED_NSTRIPES)) {
         XrdOucString layoutstring = "eos.layout.nstripes=";
         layoutstring += attrmap["user.forced.nstripes"].c_str();
         XrdOucEnv layoutenv(layoutstring.c_str());
@@ -442,7 +401,7 @@ Policy::GetLayoutAndSpace(const char* path,
         eos_static_debug("user.forced.nstripes in %s", path);
       }
 
-      if (attrmap.count("user.forced.blocksize")) {
+      if (attrmap.count(USER_FORCED_BLOCKSIZE)) {
         XrdOucString layoutstring = "eos.layout.blocksize=";
         layoutstring += attrmap["user.forced.blocksize"].c_str();
         XrdOucEnv layoutenv(layoutstring.c_str());
@@ -459,11 +418,7 @@ Policy::GetLayoutAndSpace(const char* path,
       eos_static_debug("<sys|user>.forced.nofsselection in %s", path);
       forcedfsid = 0;
     } else {
-      if ((val = env.Get("eos.force.fsid"))) {
-        forcedfsid = strtol(val, 0, 10);
-      } else {
-        forcedfsid = 0;
-      }
+      forcedfsid = eos::common::XrdUtils::GetEnv(env, "eos.force.fsid", 0l);
     }
   }
 
@@ -659,6 +614,54 @@ Policy::IsProcConversion(const char* path)
   } else {
     return false;
   }
+}
+
+std::vector<std::string>
+Policy::GetConfigKeys(bool local)
+{
+  return local ? gBaseLocalPolicyKeys : gBasePolicyKeys;
+}
+
+
+void
+Policy::GetRWValue(const std::map<std::string, std::string>& conf_map,
+                   const std::string& key_name, const RWParams& params,
+                   std::string& value)
+{
+  for (auto && k : params.getKeys(key_name)) {
+    if (const auto& kv = conf_map.find(k);
+        kv != conf_map.end() &&
+        !kv->second.empty()) {
+      value = kv->second;
+    }
+  }
+}
+
+std::vector<std::string>
+Policy::GetRWConfigKeys(const RWParams& params)
+{
+  std::vector<std::string> config_keys;
+  config_keys.reserve(16);
+
+  for (const auto& _key : gBasePolicyRWKeys) {
+    eos::common::splice(config_keys,
+                        params.getKeys(_key));
+  }
+
+  return config_keys;
+}
+
+
+std::vector<std::string>
+Policy::RWParams::getKeys(const string& key) const
+{
+  auto key_name = getKey(key);
+  return {
+    key_name + app_key,
+    key_name + user_key,
+    key_name + group_key,
+    key_name
+  };
 }
 
 EOSMGMNAMESPACE_END

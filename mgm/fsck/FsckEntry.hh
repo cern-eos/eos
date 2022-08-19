@@ -35,21 +35,6 @@
 EOSMGMNAMESPACE_BEGIN
 
 //------------------------------------------------------------------------------
-//! FsckErr types
-//------------------------------------------------------------------------------
-enum class FsckErr {
-  None = 0x00,
-  MgmXsDiff  = 0x01,
-  FstXsDiff  = 0x02,
-  MgmSzDiff  = 0x03,
-  FstSzDiff  = 0x04,
-  UnregRepl  = 0x05,
-  DiffRepl   = 0x06,
-  MissRepl   = 0x07,
-  BlockxsErr = 0x08
-};
-
-//------------------------------------------------------------------------------
 //! Types of errors that come up on the FST side
 //------------------------------------------------------------------------------
 enum class FstErr {
@@ -59,25 +44,6 @@ enum class FstErr {
   NoFmdInfo = 0x03,
   NotExist  = 0x04
 };
-
-//------------------------------------------------------------------------------
-//! Convert string to FsckErr type
-//!
-//! @param serr string error type
-//!
-//! @return FsckErr type
-//------------------------------------------------------------------------------
-FsckErr ConvertToFsckErr(const std::string& serr);
-
-//------------------------------------------------------------------------------
-//! Convert to FsckErr type to string
-//!
-//! @param fsck_err FsckErr type
-//!
-//! @return string fsck error
-//------------------------------------------------------------------------------
-std::string ConvertToString(const FsckErr& err);
-
 
 //------------------------------------------------------------------------------
 //! FstFileInfoT holds file metadata info retrieved from an FST
@@ -230,7 +196,7 @@ public:
   //!
   //! @param success true if repair successful, otherwise false
   //----------------------------------------------------------------------------
-  void UpdateMgmStats(bool success) const;
+  void NotifyOutcome(bool success) const;
 
   //----------------------------------------------------------------------------
   //! Resync local FST metadata with the MGM info.
@@ -244,13 +210,13 @@ public:
 
   eos::IFileMD::id_t mFid; ///< File id
   eos::common::FileSystem::fsid_t mFsidErr; ///< File system id with expected err
-  FsckErr mReportedErr; ///< Reported error type
+  eos::common::FsckErr mReportedErr; ///< Reported error type
   eos::ns::FileMdProto mMgmFmd; ///< MGM file metadata protobuf object
   //! Map of file system id to file metadata held at the corresponding fs
   std::map<eos::common::FileSystem::fsid_t,
       std::unique_ptr<FstFileInfoT>> mFstFileInfo;
   //! Map of fsck error to list of repair operations
-  std::map<FsckErr, RepairFnT> mMapRepairOps;
+  std::map<eos::common::FsckErr, RepairFnT> mMapRepairOps;
   //! Factory callable creating fsck repair jobs
   RepairFactoryFnT mRepairFactory;
   std::shared_ptr<qclient::QClient> mQcl; ///< QClient object for metadata
