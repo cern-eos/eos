@@ -44,7 +44,7 @@ if(APPLE)
   set(CLIENT TRUE )
   set(OSDEFINE "-D__APPLE__=1")
   # On MAC we don't link static objects at all
-  set(FUSE_LIBRARY /usr/local/lib/libosxfuse_i64.dylib)
+  set(FUSE_LIBRARY /usr/local/lib/libfuse.2.dylib) # osxfuse was replaced by macfuse ans closed source...
   set(CMAKE_MACOSX_RPATH ON)
   set(CMAKE_SKIP_BUILD_RPATH FALSE)
   set(CMAKE_BUILD_WITH_INSTALL_RPATH FALSE)
