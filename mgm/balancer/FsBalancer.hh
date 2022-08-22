@@ -26,6 +26,8 @@
 #include "common/AssistedThread.hh"
 #include "common/Logging.hh"
 #include "common/ThreadPool.hh"
+#include "mgm/balancer/FsBalancerStats.hh"
+#include "namespace/interface/IFileMD.hh"
 
 EOSMGMNAMESPACE_BEGIN
 
@@ -42,7 +44,8 @@ public:
   //! @param space_name space that balancer it attached to
   //----------------------------------------------------------------------------
   FsBalancer(const std::string& space_name):
-    mSpaceName(space_name), mThreshold(5), mTxNumPerNode(2), mTxRatePerNode(25)
+    mSpaceName(space_name), mThreshold(5), mTxNumPerNode(2), mTxRatePerNode(25),
+    mBalanceStats(space_name)
   {
     mThread.reset(&FsBalancer::Balance, this);
   }
@@ -96,13 +99,28 @@ private:
   double mThreshold;
   unsigned int mTxNumPerNode; ///< Number of concurrent transfers per node
   unsigned int mTxRatePerNode; ///< Max transfer rate per node MB/s
+  FsBalancerStats mBalanceStats; ///< Balancer stats
   eos::common::ThreadPool mThreadPool; ///< Thread pool for balancing jobs
+  unsigned int mMaxQueuedJobs {100}; ///< Max number of queued jobs
+  unsigned int mMaxThreadPoolSize; ///< Max number of threads
 
   //----------------------------------------------------------------------------
   //! Update balancer config based on the info registered at the space
   //----------------------------------------------------------------------------
   void ConfigUpdate();
 
+  //----------------------------------------------------------------------------
+  //! Get file identifier to balance from the given source file system
+  //!
+  //! @param src_fsid source file system id
+  //! @param set_dsts set of suitable destination file systems
+  //! @param dst_fsid selected destination file system
+  //!
+  //! @return file identifier or 0ull if no file found
+  //----------------------------------------------------------------------------
+  eos::IFileMD::id_t GetFileToBalance(eos::common::FileSystem::fsid_t src_fsid,
+                                      const std::set<FsBalanceInfo>& set_dsts,
+                                      eos::common::FileSystem::fsid_t& dst_fsid);
 };
 
 EOSMGMNAMESPACE_END

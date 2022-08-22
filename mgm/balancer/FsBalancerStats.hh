@@ -29,8 +29,7 @@ EOSMGMNAMESPACE_BEGIN
 //! Forward declaration
 class FsView;
 //! Helper alias
-using BalancePair = std::pair<eos::common::FileSystem::fsid_t,
-      eos::common::FileSystem::fsid_t>;
+using BalancePair = std::pair<FsBalanceInfo, FsBalanceInfo>;
 
 //------------------------------------------------------------------------------
 //! Class FsBalancerStats is responsible for collecting and computing
@@ -61,16 +60,53 @@ public:
   void Update(FsView* fs_view, double threshold);
 
   //----------------------------------------------------------------------------
+  //! Decide if an update of the data structures is needed
+  //!
+  //! @return true if update should be done, otherwise false
+  //----------------------------------------------------------------------------
+  bool NeedsUpdate();
+
+  //----------------------------------------------------------------------------
   //! Get list of balance source and destination file systems to be used for
   //! doing transfers.
+  //!
+  //! @return list of source and destination file systems
   //----------------------------------------------------------------------------
-  std::list<BalancePair> GetEndpoints();
+  std::pair<std::set<FsBalanceInfo>, std::set<FsBalanceInfo>>
+      GetTxEndpoints();
+
+  //----------------------------------------------------------------------------
+  //! Account for finished transfer by freeing up a slot
+  //!
+  //! @param src_node node identifier <host>:<port> for source
+  //! @param dst_node node identifier <host>:<port> for destination
+  //----------------------------------------------------------------------------
+  void FreeTxSlot(const std::string& src_node, const std::string& dst_node);
+
+  //----------------------------------------------------------------------------
+  //! Check if node still has avilable transfer slots
+  //!
+  //! @param node_id node identifier <host>:<port>
+  //! @param tx_per_node max number of transfers per node
+  //!
+  //! @return true if slot available, otherwise false
+  //----------------------------------------------------------------------------
+  bool HasTxSlot(const std::string& node_id, unsigned int tx_per_node) const;
 
 #ifdef IN_TEST_HARNESS
 public:
 #else
 private:
 #endif
+
+  //----------------------------------------------------------------------------
+  //! Account for new transfer by reserving a slot
+  //!
+  //! @param src_node node identifier <host>:<port> for source
+  //! @param dst_node node identifier <host>:<port> for destination
+  //----------------------------------------------------------------------------
+  void TakeTxSlot(const std::string& src_node, const std::string& dst_node);
+
   std::string mSpaceName;
   //! Map groups to balance (above threshold) to max deviation acting as a cache
   std::map<std::string, double> mGrpToMaxDev;
@@ -78,7 +114,9 @@ private:
   //! and destination filesystems
   std::map<std::string, FsPrioritySets> mGrpToPrioritySets;
   //! Map node FQDN to number of ongoing transfers
-  std::map<std::string, int> mNodeNumTx;
+  std::map<std::string, unsigned int> mNodeNumTx;
+  mutable std::mutex mMutex;
+  std::chrono::seconds mUpdateInterval {60};
 };
 
 EOSMGMNAMESPACE_END

@@ -844,6 +844,7 @@ FsSpace::FsSpace(const char* name)
   mGroupBalancer = new GroupBalancer(name);
   mGeoBalancer = new GeoBalancer(name);
   mGroupDrainer.reset(new GroupDrainer(name));
+
   // Start old converter if we're using the in-memory NS or if the new one
   // is disabled on purpose
   if (!gOFS->NsInQDB || getenv("EOS_FORCE_DISABLE_NEW_CONVERTER")) {
@@ -1064,6 +1065,7 @@ FsSpace::FsSpace(const char* name)
       SetConfigMember(rest::TAPE_REST_API_SWITCH_ON_OFF,
                       "off");
     }
+
     //Switch off the tape REST API STAGE resource by default
     if (GetConfigMember(rest::TAPE_REST_API_STAGE_SWITCH_ON_OFF).empty()) {
       SetConfigMember(rest::TAPE_REST_API_STAGE_SWITCH_ON_OFF,
@@ -2422,6 +2424,7 @@ FsView::HeartBeatCheck(ThreadAssistant& assistant) noexcept
 
           std::string group = fs->GetString("schedgroup");
           bool is_group_active = false;
+
           if (auto group_key = FsView::gFsView.mGroupView.find(group);
               group_key != FsView::gFsView.mGroupView.end()) {
             auto group_status = group_key->second->GetConfigMember("status");
@@ -2770,7 +2773,8 @@ bool
 BaseView::GetConfigMembers(const std::vector<std::string>& keys,
                            std::map<std::string, std::string>& out) const
 {
-  return mq::SharedHashWrapper(gOFS->mMessagingRealm.get(), mLocator).get(keys, out);
+  return mq::SharedHashWrapper(gOFS->mMessagingRealm.get(), mLocator).get(keys,
+         out);
 }
 
 //------------------------------------------------------------------------------
@@ -2780,8 +2784,8 @@ bool
 BaseView::GetLocalConfigMembers(const std::vector<std::string>& keys,
                                 std::map<std::string, std::string>& out) const
 {
-  return mq::SharedHashWrapper(gOFS->mMessagingRealm.get(), mLocator).getLocal(keys, out);
-
+  return mq::SharedHashWrapper(gOFS->mMessagingRealm.get(),
+                               mLocator).getLocal(keys, out);
 }
 
 //------------------------------------------------------------------------------
@@ -3241,7 +3245,7 @@ FsView::GetFsToBalance(const std::string& group_name, double threshold) const
   const auto it = mGroupView.find(group_name);
 
   if ((it == mGroupView.end()) || (mGroupView.size() == 1)) {
-    return std::make_tuple(prio_fs_below, fs_below, fs_above, prio_fs_above);;
+    return std::make_tuple(prio_fs_below, fs_below, fs_above, prio_fs_above);
   }
 
   auto* group = it->second;
@@ -3346,7 +3350,6 @@ BaseView::SumLongLong(const char* param, bool lock,
 
   std::set<std::string> used_nodes;
   fsid_iterator it(subset, this);
-
   std::set<std::string> unique_fs;
 
   for (; it.valid(); it.next()) {
@@ -3356,18 +3359,17 @@ BaseView::SumLongLong(const char* param, bool lock,
       continue;
     }
 
-
-    if (fs->getSharedFs() != "" && 
-	fs->getSharedFs() != "none" && 
-	(
-	 (sparam == "stat.statfs.usedbytes") ||
-	 (sparam == "stat.statfs.capacity") ||
-	 (sparam == "stat.usedfiles") ||
-	 (sparam == "stat.statfs.files") ||
-	 (sparam == "stat.statfs.ffiles") ||
-	 (sparam == "stat.statfs.freebytes") ||
-	 (sparam == "stat.totalspace") ) && 
-	unique_fs.count(fs->getSharedFs())) {
+    if (fs->getSharedFs() != "" &&
+        fs->getSharedFs() != "none" &&
+        (
+          (sparam == "stat.statfs.usedbytes") ||
+          (sparam == "stat.statfs.capacity") ||
+          (sparam == "stat.usedfiles") ||
+          (sparam == "stat.statfs.files") ||
+          (sparam == "stat.statfs.ffiles") ||
+          (sparam == "stat.statfs.freebytes") ||
+          (sparam == "stat.totalspace")) &&
+        unique_fs.count(fs->getSharedFs())) {
       // don't account shared fs more than once for these keys
       continue;
     }
@@ -3409,8 +3411,10 @@ BaseView::SumLongLong(const char* param, bool lock,
         sum += v;
       }
     }
+
     unique_fs.insert(fs->getSharedFs());
   }
+
   return sum;
 }
 
