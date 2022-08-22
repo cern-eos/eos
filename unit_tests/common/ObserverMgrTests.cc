@@ -185,3 +185,75 @@ TEST(ObserverMgr,moveArguments)
   // case anyone listens
   ASSERT_NO_THROW(mgr.notifyChange("A tree fell in a forest!!!"));
 }
+
+
+TEST(ObserverMgr,moveArgumentsSync)
+{
+  ObserverMgr<std::string> mgr;
+  // A simple string observers that expect 9 character messages! "message 1,2... "
+  // We use std::string as we'll know in case of multiple observers that we'll
+  // end up passing the argument by value correctly as otherwise the string will be
+  // emptied in case of a move
+  auto obs_strlen = mgr.addObserver([](std::string s) {
+    EXPECT_EQ(s.size(), 9);
+  });
+
+  auto obs_startswith = mgr.addObserver([](std::string s) {
+    EXPECT_TRUE(eos::common::startsWith(s,"message "));
+  });
+
+  int ctr {0};
+  auto gen_string = [&ctr]() { std::string s = "message " + std::to_string(ctr++); return s;};
+  // 2 Observers
+  ASSERT_NO_THROW(mgr.notifyChangeSync(gen_string()));
+
+  auto tag3 = mgr.addObserver([](std::string&& s) {
+    EXPECT_EQ(s.size(),9);
+  });
+
+  // This is likely std::function's magic? ideally conversions shouldn't be allowed
+  // however it looks like if the arg. is constructable from the arg_type
+  // it might just work
+  auto tag4 = mgr.addObserver([](std::string_view s) {
+    EXPECT_EQ(s.size(),9);
+  });
+
+  mgr.syncAllNotifications();
+  // 4 Observers
+  ASSERT_NO_THROW(mgr.notifyChangeSync(gen_string()));
+
+
+  auto tag5 = mgr.addObserver([](const std::string& s) {
+    EXPECT_EQ(s.size(),9);
+  });
+
+  // 5 Observers
+  ASSERT_NO_THROW(mgr.notifyChangeSync(gen_string()));
+
+  mgr.rmObserver(obs_startswith);
+
+  std::string msg = "testermsg";
+  ASSERT_NO_THROW(mgr.notifyChangeSync(msg));
+  ASSERT_NO_THROW(mgr.notifyChangeSync(std::move(msg)));
+  // msg is now moved! While impl defined, all implementations usually empty the string on move
+  EXPECT_TRUE(msg.empty());
+
+  mgr.rmObserver(obs_strlen);
+
+  // 3 Observers
+  ASSERT_NO_THROW(mgr.notifyChangeSync(gen_string()));
+  ASSERT_NO_THROW(mgr.notifyChangeSync("randommsg"));
+
+  // 2 Observers
+  mgr.rmObserver(tag4);
+  ASSERT_NO_THROW(mgr.notifyChangeSync(gen_string()));
+  mgr.rmObserver(tag3);
+  // 1 Observer
+  ASSERT_NO_THROW(mgr.notifyChangeSync("some9char"));
+
+  mgr.rmObserver(tag5);
+
+  // Now there should be no one listening! Should hit the 9 char violation in
+  // case anyone listens
+  ASSERT_NO_THROW(mgr.notifyChangeSync("A tree fell in a forest!!!"));
+}

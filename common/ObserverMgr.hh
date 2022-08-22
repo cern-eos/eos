@@ -87,14 +87,14 @@ public:
    * that the callbacks would be really small to affect the calling thread
    * @param args arguments to be provided for each callback
    */
-  template <typename... Args2>
+
   void
-  notifyChangeSync(Args2&&... args)
+  notifyChangeSync(Args... args)
   {
     auto callbacks = mObservers.getCallbacks();
     for (auto callback : callbacks) {
       if (auto shared_fn = callback.lock()) {
-        std::invoke(*shared_fn, std::forward<Args2>(args)...);
+        std::invoke(*shared_fn, args...);
       }
     }
   }
