@@ -57,6 +57,7 @@ FsBalancer::ConfigUpdate()
 
   // Check if balancer is enabled
   if (space->GetConfigMember("balancer") != "on") {
+    // @todo(esindril) handle enable/disable of the balancer
     mIsEnabled = false;
     return;
   }
@@ -179,7 +180,7 @@ FsBalancer::Balance(ThreadAssistant& assistant) noexcept
       tx_pairs = mBalanceStats.GetTxEndpoints();
     }
 
-    if (tx_pairs.first.empty()) {
+    if (tx_pairs.first.empty() || tx_pairs.second.empty()) {
       eos_static_info("msg=\"no balance trasfers to schedule\" wait=%is\"",
                       no_transfers_delay.count());
       assistant.wait_for(no_transfers_delay);
@@ -189,16 +190,20 @@ FsBalancer::Balance(ThreadAssistant& assistant) noexcept
     const auto& src_fses = tx_pairs.first;
 
     for (const auto& src : src_fses) {
-      if (!mBalanceStats.HasTxSlot(src.mNodeHost, mTxNumPerNode)) {
+      if (assistant.terminationRequested()) {
+        break;
+      }
+
+      if (!mBalanceStats.HasTxSlot(src.mNodeInfo, mTxNumPerNode)) {
         continue;
       }
 
-      eos::common::FileSystem::fsid_t src_fsid = src.mFsId;
-      eos::common::FileSystem::fsid_t dst_fsid {0ul};
-      eos::IFileMD::id_t fid = GetFileToBalance(src_fsid, tx_pairs.second,
-                               dst_fsid);
+      FsBalanceInfo dst;
+      const std::string src_node = src.mNodeInfo;
+      eos::IFileMD::id_t fid = GetFileToBalance(src, tx_pairs.second, dst);
+      const std::string dst_node = dst.mNodeInfo;
 
-      if ((fid == 0ull) || (dst_fsid == 0ull)) {
+      if (fid == 0ull) {
         continue;
       }
 
@@ -208,21 +213,15 @@ FsBalancer::Balance(ThreadAssistant& assistant) noexcept
         assistant.wait_for(std::chrono::seconds(1));
       }
 
-      if (assistant.terminationRequested()) {
-        gOFS->mFidTracker.RemoveEntry(fid);
-        break;
-      }
-
+      mBalanceStats.TakeTxSlot(src_node, dst_node);
       std::shared_ptr<DrainTransferJob> job {
-        new DrainTransferJob(fid, src_fsid, dst_fsid, {}, {},
+        new DrainTransferJob(fid, src.mFsId, dst.mFsId, {}, {},
         true, "balance", true)};
-      mThreadPool.PushTask<void>([job] {
+      mThreadPool.PushTask<void>([ = ]() {
         job->DoIt();
-        DrainTransferJob::Status status = job->GetStatus();
-        (void) status;
-        //@todo(esindril) take different actions based on the job status
-        // - free the id from the tracker
-        // - free the slots on the source and destination
+        // job->UpdateMgmStats();
+        gOFS->mFidTracker.RemoveEntry(job->GetFileId());
+        FreeTxSlot(src_node, dst_node);
       });
     }
   }
@@ -241,13 +240,14 @@ FsBalancer::Balance(ThreadAssistant& assistant) noexcept
 // Get file identifier to balance from the given source file system
 //------------------------------------------------------------------------------
 eos::IFileMD::id_t
-FsBalancer::GetFileToBalance(eos::common::FileSystem::fsid_t src_fsid,
+FsBalancer::GetFileToBalance(const FsBalanceInfo& src,
                              const std::set<FsBalanceInfo>& set_dsts,
-                             eos::common::FileSystem::fsid_t& dst_fsid)
+                             FsBalanceInfo& dst)
 {
   int attempts = 10;
+  const eos::common::FileSystem::fsid_t src_fsid = src.mFsId;
   eos::IFileMD::id_t random_fid {0ull};
-  dst_fsid = 0ul;
+  eos::common::FileSystem::fsid_t dst_fsid {0ul};
 
   while (attempts-- > 0) {
     if (gOFS->eosFsView->getApproximatelyRandomFileInFs(src_fsid, random_fid)) {
@@ -284,15 +284,19 @@ FsBalancer::GetFileToBalance(eos::common::FileSystem::fsid_t src_fsid,
       // Search for a suitable destination file system
       if (random_fid % 2 == 0) {
         for (auto it = set_dsts.cbegin(); it != set_dsts.cend(); ++it) {
-          if (avoid_fsids.find(it->mFsId) == avoid_fsids.end()) {
-            dst_fsid = it->mFsId;
+          if ((avoid_fsids.find(it->mFsId) == avoid_fsids.end()) &&
+              mBalanceStats.HasTxSlot(it->mNodeInfo, mTxNumPerNode)) {
+            dst = *it;
+            dst_fsid = dst.mFsId;
             break;
           }
         }
       } else {
         for (auto it = set_dsts.rbegin(); it != set_dsts.rend(); ++it) {
-          if (avoid_fsids.find(it->mFsId) == avoid_fsids.end()) {
-            dst_fsid = it->mFsId;
+          if ((avoid_fsids.find(it->mFsId) == avoid_fsids.end()) &&
+              mBalanceStats.HasTxSlot(it->mNodeInfo, mTxNumPerNode)) {
+            dst = *it;
+            dst_fsid = dst.mFsId;
             break;
           }
         }

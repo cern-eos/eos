@@ -76,6 +76,14 @@ public:
       GetTxEndpoints();
 
   //----------------------------------------------------------------------------
+  //! Account for new transfer by reserving a slot
+  //!
+  //! @param src_node node identifier <host>:<port> for source
+  //! @param dst_node node identifier <host>:<port> for destination
+  //----------------------------------------------------------------------------
+  void TakeTxSlot(const std::string& src_node, const std::string& dst_node);
+
+  //----------------------------------------------------------------------------
   //! Account for finished transfer by freeing up a slot
   //!
   //! @param src_node node identifier <host>:<port> for source
@@ -98,15 +106,6 @@ public:
 #else
 private:
 #endif
-
-  //----------------------------------------------------------------------------
-  //! Account for new transfer by reserving a slot
-  //!
-  //! @param src_node node identifier <host>:<port> for source
-  //! @param dst_node node identifier <host>:<port> for destination
-  //----------------------------------------------------------------------------
-  void TakeTxSlot(const std::string& src_node, const std::string& dst_node);
-
   std::string mSpaceName;
   //! Map groups to balance (above threshold) to max deviation acting as a cache
   std::map<std::string, double> mGrpToMaxDev;

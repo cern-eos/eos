@@ -89,6 +89,17 @@ public:
   //----------------------------------------------------------------------------
   void Balance(ThreadAssistant& assistant) noexcept;
 
+  //----------------------------------------------------------------------------
+  //! Account for finished transfer by freeing up a slot
+  //!
+  //! @param src_node node identifier <host>:<port> for source
+  //! @param dst_node node identifier <host>:<port> for destination
+  //----------------------------------------------------------------------------
+  void FreeTxSlot(const std::string& src_node, const std::string& dst_node)
+  {
+    mBalanceStats.FreeTxSlot(src_node, dst_node);
+  }
+
 private:
   AssistedThread mThread;
   std::string mSpaceName; ///< Name of the space balancer belongs to
@@ -112,15 +123,15 @@ private:
   //----------------------------------------------------------------------------
   //! Get file identifier to balance from the given source file system
   //!
-  //! @param src_fsid source file system id
+  //! @param src source file system obj
   //! @param set_dsts set of suitable destination file systems
-  //! @param dst_fsid selected destination file system
+  //! @param dst selected destination file system obj
   //!
   //! @return file identifier or 0ull if no file found
   //----------------------------------------------------------------------------
-  eos::IFileMD::id_t GetFileToBalance(eos::common::FileSystem::fsid_t src_fsid,
+  eos::IFileMD::id_t GetFileToBalance(const FsBalanceInfo& src,
                                       const std::set<FsBalanceInfo>& set_dsts,
-                                      eos::common::FileSystem::fsid_t& dst_fsid);
+                                      FsBalanceInfo& dst);
 };
 
 EOSMGMNAMESPACE_END
