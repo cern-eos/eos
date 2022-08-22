@@ -73,8 +73,112 @@ void FsBalancerStats::Update(eos::mgm::FsView* fs_view, double threshold)
 }
 
 //------------------------------------------------------------------------------
-//
+// Decide if an update of the data structures is needed
 //------------------------------------------------------------------------------
+bool
+FsBalancerStats::NeedsUpdate()
+{
+  using namespace std::chrono;
+  static time_point<system_clock> last_ts = system_clock::now();
 
+  // Trigger update if interval elapsed
+  if (duration_cast<seconds>(system_clock::now() - last_ts).count()
+      >= mUpdateInterval.count()) {
+    return true;
+  }
+
+  return false;
+}
+
+//----------------------------------------------------------------------------
+//! Get list of balance source and destination file systems to be used for
+//! doing transfers.
+//----------------------------------------------------------------------------
+std::pair<std::set<FsBalanceInfo>, std::set<FsBalanceInfo>>
+    FsBalancerStats::GetTxEndpoints()
+{
+  std::pair<std::set<FsBalanceInfo>, std::set<FsBalanceInfo>> ret;
+
+  for (auto& elem : mGrpToPrioritySets) {
+    std::set<FsBalanceInfo>& dst_fses = std::get<0>(elem.second);
+
+    if (dst_fses.empty()) {
+      dst_fses = std::get<1>(elem.second);
+
+      if (dst_fses.empty()) {
+        continue;
+      }
+    }
+
+    std::set<FsBalanceInfo>& src_fses = std::get<2>(elem.second);
+
+    if (src_fses.empty()) {
+      src_fses = std::get<2>(elem.second);
+
+      if (src_fses.empty()) {
+        continue;
+      }
+    }
+
+    return std::make_pair(src_fses, dst_fses);
+  }
+
+  return std::make_pair(std::set<FsBalanceInfo> {}, std::set<FsBalanceInfo> {});
+}
+
+//------------------------------------------------------------------------------
+// Check if node still has avilable transfer slots
+//------------------------------------------------------------------------------
+bool
+FsBalancerStats::HasTxSlot(const std::string& node_id,
+                           unsigned int tx_per_node) const
+{
+  std::unique_lock<std::mutex> scope_lock(mMutex);
+  auto it = mNodeNumTx.find(node_id);
+
+  if (it == mNodeNumTx.end()) {
+    return true;
+  }
+
+  if (it->second < tx_per_node) {
+    return true;
+  }
+
+  return false;
+}
+
+
+//------------------------------------------------------------------------------
+// Account for new transfer slot
+//----------------------------------------------------------------------------
+void
+FsBalancerStats::TakeTxSlot(const std::string& src_node,
+                            const std::string& dst_node)
+{
+  std::unique_lock<std::mutex> scope_lock(mMutex);
+  ++mNodeNumTx[src_node];
+  ++mNodeNumTx[dst_node];
+}
+
+//----------------------------------------------------------------------------
+//! Account for finished transfer by freeing up a slot
+//----------------------------------------------------------------------------
+void
+FsBalancerStats::FreeTxSlot(const std::string& src_node,
+                            const std::string& dst_node)
+{
+  std::unique_lock<std::mutex> scope_lock(mMutex);
+  auto it = mNodeNumTx.find(src_node);
+
+  if (it != mNodeNumTx.end() && it->second) {
+    --it->second;
+  }
+
+  it = mNodeNumTx.find(dst_node);
+
+  if (it != mNodeNumTx.end() && it->second) {
+    --it->second;
+  }
+}
 
 EOSMGMNAMESPACE_END

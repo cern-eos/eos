@@ -240,21 +240,23 @@ DrainTransferJob::BuildTpcSrc(const FileDrainInfo& fdrain,
       eos::common::LayoutId::kReplica) {
     bool found = false;
 
-    for (const auto id : fdrain.mProto.locations()) {
-      // First try copying from a location different from the current draining
-      // file system. Make sure we also skip any EOS_TAPE_FSID (65535) replicas.
-      if ((id != mFsIdSource) && (id != EOS_TAPE_FSID) &&
-          (mTriedSrcs.find(id) == mTriedSrcs.end())) {
-        mTriedSrcs.insert(id);
-        eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
-        FileSystem* fs = FsView::gFsView.mIdView.lookupByID(id);
+    if (!mForceFs) {
+      for (const auto id : fdrain.mProto.locations()) {
+        // First try copying from a location different from the current draining
+        // file system. Make sure we also skip any EOS_TAPE_FSID (65535) replicas.
+        if ((id != mFsIdSource) && (id != EOS_TAPE_FSID) &&
+            (mTriedSrcs.find(id) == mTriedSrcs.end())) {
+          mTriedSrcs.insert(id);
+          eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
+          FileSystem* fs = FsView::gFsView.mIdView.lookupByID(id);
 
-        if (fs) {
-          fs->SnapShotFileSystem(src_snapshot);
+          if (fs) {
+            fs->SnapShotFileSystem(src_snapshot);
 
-          if (src_snapshot.mConfigStatus >= eos::common::ConfigStatus::kDrain) {
-            found = true;
-            break;
+            if (src_snapshot.mConfigStatus >= eos::common::ConfigStatus::kDrain) {
+              found = true;
+              break;
+            }
           }
         }
       }
@@ -290,6 +292,8 @@ DrainTransferJob::BuildTpcSrc(const FileDrainInfo& fdrain,
     } else {
       mRainReconstruct = true;
     }
+
+    //@todo(esindril) handle point to point transfers for balancing mode
   }
 
   // Construct the source URL
