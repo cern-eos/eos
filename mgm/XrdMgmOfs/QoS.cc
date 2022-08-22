@@ -329,9 +329,9 @@ std::string QoSGetter<T>::Placement() const
   try {
     std::string path = gOFS->eosView->getUri(md.get());
 
-    // Ugly type check
+    // compute parent path only for filemd types
     // (avoids specialized template helper function for path deduction)
-    if (std::is_same<T, eos::IFileMDPtr>::value) {
+    if constexpr(std::is_same<T, eos::IFileMDPtr>::value) {
       path = eos::common::Path(path).GetParentPath();
     }
 
