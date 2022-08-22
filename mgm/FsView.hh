@@ -68,15 +68,19 @@ class IConfigEngine;
 //------------------------------------------------------------------------------
 struct FsBalanceInfo {
   eos::common::FileSystem::fsid_t mFsId;
-  std::string mNodeHost;
-  double mFillRatio;
+  std::string mNodeInfo; ///! FQDN:port
 
   //----------------------------------------------------------------------------
   //! Constructor
   //----------------------------------------------------------------------------
+  FsBalanceInfo() = default;
+
+  //----------------------------------------------------------------------------
+  //! Constructor with parameters
+  //----------------------------------------------------------------------------
   FsBalanceInfo(eos::common::FileSystem::fsid_t fsid,
-                const std::string& node_host, double fill_ratio):
-    mFsId(fsid), mNodeHost(node_host), mFillRatio(fill_ratio)
+                const std::string& node_host):
+    mFsId(fsid), mNodeInfo(node_host)
   {}
 
   //----------------------------------------------------------------------------
@@ -579,7 +583,8 @@ public:
   Converter* mConverter; ///< Threaded object running layout conversion jobs
   GroupBalancer* mGroupBalancer; ///< Threaded object running group balancing
   GeoBalancer* mGeoBalancer; ///< Threaded object running geotag balancing
-  std::unique_ptr<GroupDrainer> mGroupDrainer; ///< Threaded object running group drainer
+  std::unique_ptr<GroupDrainer>
+  mGroupDrainer; ///< Threaded object running group drainer
   //----------------------------------------------------------------------------
   //! Constructor
   //!

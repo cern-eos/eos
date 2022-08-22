@@ -669,6 +669,8 @@ DrainTransferJob::UpdateMgmStats()
 
   if (mAppTag == "drain") {
     tag_stats = "DrainCentral";
+  } else if (mAppTag == "balance") {
+    tag_stats = "Balance";
   } else {
     tag_stats = "Unknown";
   }

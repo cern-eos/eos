@@ -3255,20 +3255,20 @@ FsView::GetFsToBalance(const std::string& group_name, double threshold) const
     auto* fs = mIdView.lookupByID(*it_fs);
 
     if (fs && BaseView::ConsiderForStatistics(fs)) {
-      const std::string node_host = fs->getCoreParams().getHost();
+      const std::string node_port = fs->getCoreParams().getHostPort();
       double fs_filled = fs->GetDouble(metric.c_str());
 
       if (fs_filled < average) {
         if (average - fs_filled > threshold) {
-          prio_fs_below.emplace(*it_fs, node_host, fs_filled);
+          prio_fs_below.emplace(*it_fs, node_port);
         } else {
-          fs_below.emplace(*it_fs, node_host, fs_filled);
+          fs_below.emplace(*it_fs, node_port);
         }
       } else {
         if (fs_filled - average > threshold) {
-          prio_fs_above.emplace(*it_fs, node_host, fs_filled);
+          prio_fs_above.emplace(*it_fs, node_port);
         } else {
-          fs_above.emplace(*it_fs, node_host, fs_filled);
+          fs_above.emplace(*it_fs, node_port);
         }
       }
     }

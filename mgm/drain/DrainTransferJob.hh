@@ -205,6 +205,21 @@ public:
   std::list<std::string>
   GetInfo(const std::list<std::string>& tags) const;
 
+  //----------------------------------------------------------------------------
+  //! Get file system identifier
+  //----------------------------------------------------------------------------
+  inline uint64_t GetFileId() const
+  {
+    return mFileId;
+  }
+
+  //----------------------------------------------------------------------------
+  //! Update MGM stats depending on the type of transfer. The generic
+  //! DrainTransferJob can be used in different components eg. fsck. For the
+  //! time being this will update the MGM statistics only for the drainer.
+  //----------------------------------------------------------------------------
+  void UpdateMgmStats();
+
 #ifdef IN_TEST_HARNESS
 public:
 #else
@@ -267,13 +282,6 @@ private:
   //! @return drain status
   //----------------------------------------------------------------------------
   Status DrainZeroSizeFile(const FileDrainInfo& fdrain);
-
-  //----------------------------------------------------------------------------
-  //! Update MGM stats depending on the type of transfer. The generic
-  //! DrainTransferJob can be used in different components eg. fsck. For the
-  //! time being this will update the MGM statistics only for the drainer.
-  //----------------------------------------------------------------------------
-  void UpdateMgmStats();
 
   std::string mAppTag; ///< Application tag for the transfer
   const eos::common::FileId::fileid_t mFileId; ///< File id to transfer
