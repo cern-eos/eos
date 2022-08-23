@@ -53,14 +53,12 @@ void
 DrainTransferJob::DoIt() noexcept
 {
   using eos::common::LayoutId;
-  UpdateMgmStats();
   eos_static_debug("msg=\"running job\" fsid_src=%i fsid_dst=%i fxid=%08llx",
                    mFsIdSource.load(), mFsIdTarget.load(), mFileId);
 
   if (mProgressHandler.ShouldCancel(0)) {
     ReportError(SSTR("msg=\"job cancelled before starting\" fxid="
                      << eos::common::FileId::Fid2Hex(mFileId)));
-    UpdateMgmStats();
     return;
   }
 
@@ -78,7 +76,6 @@ DrainTransferJob::DoIt() noexcept
     eos_info("msg=\"drain ghost entry successful\" fxid=%s",
              eos::common::FileId::Fid2Hex(mFileId).c_str());
     mStatus = Status::OK;
-    UpdateMgmStats();
     return;
   }
 
@@ -86,7 +83,6 @@ DrainTransferJob::DoIt() noexcept
     if (!SelectDstFs(fdrain)) {
       ReportError(SSTR("msg=\"failed to select destination file system\" fxid="
                        << eos::common::FileId::Fid2Hex(mFileId)));
-      UpdateMgmStats();
       return;
     }
 
@@ -95,7 +91,6 @@ DrainTransferJob::DoIt() noexcept
         (LayoutId::GetLayoutType(fdrain.mProto.layout_id()) ==
          LayoutId::kReplica)) {
       mStatus = DrainZeroSizeFile(fdrain);
-      UpdateMgmStats();
       return;
     }
 
@@ -104,10 +99,9 @@ DrainTransferJob::DoIt() noexcept
     XrdCl::URL url_src = BuildTpcSrc(fdrain, log_id);
     XrdCl::URL url_dst = BuildTpcDst(fdrain, log_id);
 
-    // When no more sources are available the url_src is empty and mStatus is
-    // properly set
+    // When no more sources are available the url_src/dst is empty and
+    // mStatus is properly set already during the build step
     if (!url_src.IsValid() || !url_dst.IsValid()) {
-      UpdateMgmStats();
       return;
     }
 
@@ -167,7 +161,6 @@ DrainTransferJob::DoIt() noexcept
         eos_info("msg=\"%s successful\" logid=%s fxid=%s", mAppTag.c_str(),
                  log_id.c_str(), eos::common::FileId::Fid2Hex(mFileId).c_str());
         mStatus = Status::OK;
-        UpdateMgmStats();
         return;
       }
     } else {
@@ -177,7 +170,6 @@ DrainTransferJob::DoIt() noexcept
   }
 
   mStatus = Status::Failed;
-  UpdateMgmStats();
   return;
 }
 
