@@ -33,6 +33,7 @@
 #include "mgm/GroupDrainer.hh"
 #include "mgm/convert/old/Converter.hh"
 #include "mgm/GeoTreeEngine.hh"
+#include "mgm/balancer/FsBalancer.hh"
 #include "mgm/config/IConfigEngine.hh"
 #include "mgm/tgc/Constants.hh"
 #include "mgm/http/rest-api/Constants.hh"
@@ -836,11 +837,19 @@ LongLongAggregator::aggregateNodes(
 //----------------------------------------------------------------------------
 FsSpace::FsSpace(const char* name)
   : BaseView(common::SharedHashLocator::makeForSpace(name)),
-    mConverter(nullptr)
+    mFsBalancer(nullptr), mConverter(nullptr)
 {
   mName = name;
   mType = "spaceview";
-  mBalancer = new Balancer(name);
+
+  // Use central balancer if requested
+  if (getenv("EOS_USE_CENTRAL_BALANCER")) {
+    mFsBalancer.reset(new FsBalancer(name));
+    mBalancer = nullptr;
+  } else {
+    mBalancer = new Balancer(name);
+  }
+
   mGroupBalancer = new GroupBalancer(name);
   mGeoBalancer = new GeoBalancer(name);
   mGroupDrainer.reset(new GroupDrainer(name));
