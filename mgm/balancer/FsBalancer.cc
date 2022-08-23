@@ -218,8 +218,9 @@ FsBalancer::Balance(ThreadAssistant& assistant) noexcept
         new DrainTransferJob(fid, src.mFsId, dst.mFsId, {}, {},
         true, "balance", true)};
       mThreadPool.PushTask<void>([ = ]() {
+        job->UpdateMgmStats();
         job->DoIt();
-        // job->UpdateMgmStats();
+        job->UpdateMgmStats();
         gOFS->mFidTracker.RemoveEntry(job->GetFileId());
         FreeTxSlot(src_node, dst_node);
       });
