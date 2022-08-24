@@ -298,6 +298,7 @@ FsBalancer::GetFileToBalance(const FsBalanceInfo& src,
           if (eos::common::LayoutId::IsRain(fmd->getLayoutId())) {
             eos_static_info("msg=\"skip rain file\" fxid=%08llx", random_fid);
             gOFS->mFidTracker.RemoveEntry(random_fid);
+            random_fid = 0ull;
             continue;
           }
         }
