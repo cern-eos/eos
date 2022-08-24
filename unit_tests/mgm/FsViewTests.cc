@@ -208,7 +208,6 @@ TEST(FsBalancerStats, Update)
   using ::testing::Return;
   int num_groups = 9;
   const std::string space = "default";
-  eos::common::InstanceName::set("unitest");
   eos::mgm::FsView fs_view;
   auto& set_grps = fs_view.mSpaceGroupView[space];
   std::map<int, eos::mgm::FsGroup*> map_groups;

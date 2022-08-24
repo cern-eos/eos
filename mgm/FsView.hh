@@ -70,6 +70,7 @@ class FsBalancer;
 struct FsBalanceInfo {
   eos::common::FileSystem::fsid_t mFsId;
   std::string mNodeInfo; ///! FQDN:port
+  //@todo(esindril) add group info for accounting transfers per group
 
   //----------------------------------------------------------------------------
   //! Constructor

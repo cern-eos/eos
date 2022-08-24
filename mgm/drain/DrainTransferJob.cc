@@ -80,7 +80,7 @@ DrainTransferJob::DoIt() noexcept
   }
 
   while (true) {
-    if (!SelectDstFs(fdrain)) {
+    if ((mFsIdTarget == 0ul) && !SelectDstFs(fdrain)) {
       ReportError(SSTR("msg=\"failed to select destination file system\" fxid="
                        << eos::common::FileId::Fid2Hex(mFileId)));
       return;
