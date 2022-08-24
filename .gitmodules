@@ -29,3 +29,6 @@
 [submodule "common/jwt-cpp"]
 	path = common/jwt-cpp
 	url = https://github.com/Thalhammer/jwt-cpp.git
+[submodule "test/microbenchmarks/benchmark"]
+	path = test/microbenchmarks/benchmark
+	url = https://github.com/google/benchmark
