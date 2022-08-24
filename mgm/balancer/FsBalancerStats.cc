@@ -66,7 +66,8 @@ void FsBalancerStats::Update(eos::mgm::FsView* fs_view, double threshold)
 
   for (const auto& grp : grp_to_update) {
     mGrpToMaxDev.emplace(grp, grp_dev[grp]);
-    mGrpToPrioritySets.emplace(grp, fs_view->GetFsToBalance(grp, threshold));
+    //@todo(esindril) decide on a good threshold value
+    mGrpToPrioritySets.emplace(grp, fs_view->GetFsToBalance(grp, 5));
   }
 
   return;
@@ -84,6 +85,7 @@ FsBalancerStats::NeedsUpdate()
   // Trigger update if interval elapsed
   if (duration_cast<seconds>(system_clock::now() - last_ts).count()
       >= mUpdateInterval.count()) {
+    last_ts = system_clock::now();
     return true;
   }
 
@@ -91,13 +93,13 @@ FsBalancerStats::NeedsUpdate()
 }
 
 //----------------------------------------------------------------------------
-//! Get list of balance source and destination file systems to be used for
-//! doing transfers.
+// Get vector of balance source and destination file systems to be used for
+// doing transfers, one entry per group to be balanced
 //----------------------------------------------------------------------------
-std::pair<std::set<FsBalanceInfo>, std::set<FsBalanceInfo>>
-    FsBalancerStats::GetTxEndpoints()
+VectBalanceFs
+FsBalancerStats::GetTxEndpoints()
 {
-  std::pair<std::set<FsBalanceInfo>, std::set<FsBalanceInfo>> ret;
+  VectBalanceFs ret;
 
   for (auto& elem : mGrpToPrioritySets) {
     std::set<FsBalanceInfo>& dst_fses = std::get<0>(elem.second);
@@ -120,10 +122,10 @@ std::pair<std::set<FsBalanceInfo>, std::set<FsBalanceInfo>>
       }
     }
 
-    return std::make_pair(src_fses, dst_fses);
+    ret.emplace_back(std::make_pair(src_fses, dst_fses));
   }
 
-  return std::make_pair(std::set<FsBalanceInfo> {}, std::set<FsBalanceInfo> {});
+  return ret;
 }
 
 //------------------------------------------------------------------------------

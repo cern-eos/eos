@@ -40,7 +40,7 @@ FsBalancer::ConfigUpdate()
     return;
   }
 
-  eos_static_info("msg=\"file system balancer configuration update\" space=%s",
+  eos_static_info("msg=\"fs balancer configuration update\" space=%s",
                   mSpaceName.c_str());
   mDoConfigUpdate = false;
   // Collect all the relevant info from the parent space
@@ -57,7 +57,6 @@ FsBalancer::ConfigUpdate()
 
   // Check if balancer is enabled
   if (space->GetConfigMember("balancer") != "on") {
-    // @todo(esindril) handle enable/disable of the balancer
     mIsEnabled = false;
     return;
   }
@@ -78,7 +77,7 @@ FsBalancer::ConfigUpdate()
     }
   }
 
-  svalue = space->GetConfigMember("balancer.node.tx");
+  svalue = space->GetConfigMember("balancer.node.ntx");
 
   if (svalue.empty()) {
     eos_static_err("msg=\"balancer node tx missing, use default value\" value=%f",
@@ -156,6 +155,7 @@ FsBalancer::Balance(ThreadAssistant& assistant) noexcept
 {
   static constexpr std::chrono::seconds enable_refresh_delay {10};
   static constexpr std::chrono::seconds no_transfers_delay {30};
+  static constexpr std::chrono::seconds no_slots_delay {10};
 
   if (gOFS) {
     gOFS->WaitUntilNamespaceIsBooted(assistant);
@@ -163,9 +163,10 @@ FsBalancer::Balance(ThreadAssistant& assistant) noexcept
 
   eos_static_info("msg=\"started file system balancer thread\" space=%s",
                   mSpaceName.c_str());
-  std::pair<std::set<FsBalanceInfo>, std::set<FsBalanceInfo>> tx_pairs;
+  VectBalanceFs vect_tx;
 
   while (!assistant.terminationRequested()) {
+    eos_static_info("%s", "msg=\"loop\"");
     ConfigUpdate();
 
     if (!mIsEnabled) {
@@ -176,58 +177,80 @@ FsBalancer::Balance(ThreadAssistant& assistant) noexcept
     }
 
     if (mBalanceStats.NeedsUpdate()) {
+      eos_static_info("msg=\"update balancer stats\" threshold=%0.2f",
+                      mThreshold);
       mBalanceStats.Update(&FsView::gFsView, mThreshold);
-      tx_pairs = mBalanceStats.GetTxEndpoints();
+      vect_tx = mBalanceStats.GetTxEndpoints();
     }
 
-    if (tx_pairs.first.empty() || tx_pairs.second.empty()) {
-      eos_static_info("msg=\"no balance trasfers to schedule\" wait=%is\"",
+    if (vect_tx.empty()) {
+      eos_static_info("msg=\"no groups to balance\" wait=%is\"",
                       no_transfers_delay.count());
       assistant.wait_for(no_transfers_delay);
       continue;
     }
 
-    const auto& src_fses = tx_pairs.first;
+    bool no_slots = true;
+    // Circular iterator over all the groups that need to be balanced with a
+    // random starting point inside the vector
+    auto it_start = GetRandomIter(vect_tx);
+    auto it_current = it_start;
 
-    for (const auto& src : src_fses) {
-      if (assistant.terminationRequested()) {
-        break;
+    do {
+      const auto& src_fses = it_current->first;
+
+      for (const auto& src : src_fses) {
+        if (assistant.terminationRequested()) {
+          break;
+        }
+
+        if (!mBalanceStats.HasTxSlot(src.mNodeInfo, mTxNumPerNode)) {
+          eos_static_info("msg=\"exhaused transfers slots\" node=%s tx=%lu",
+                          src.mNodeInfo.c_str(), mTxNumPerNode);
+          continue;
+        }
+
+        while ((mThreadPool.GetQueueSize() > mMaxQueuedJobs) &&
+               !assistant.terminationRequested()) {
+          assistant.wait_for(std::chrono::seconds(1));
+        }
+
+        no_slots = false;
+        FsBalanceInfo dst;
+        const std::string src_node = src.mNodeInfo;
+        const auto fid = GetFileToBalance(src, it_current->second, dst);
+        const std::string dst_node = dst.mNodeInfo;
+
+        if (fid == 0ull) {
+          continue;
+        }
+
+        // Found file and destination file system where to balance it
+        eos_static_info("msg=\"balance job\" fxid=%08llx src_fsid=%lu "
+                        "dst_fsid=%lu", fid, src.mFsId, dst.mFsId);
+        std::shared_ptr<DrainTransferJob> job {
+          new DrainTransferJob(fid, src.mFsId, dst.mFsId, {}, {},
+          true, "balance", true)};
+        mThreadPool.PushTask<void>([ = ]() {
+          job->UpdateMgmStats();
+          job->DoIt();
+          job->UpdateMgmStats();
+          FreeTxSlot(fid, src_node, dst_node);
+        });
+        ++it_current;
+
+        if (it_current == vect_tx.end()) {
+          it_current = vect_tx.begin();
+        }
       }
+    } while ((it_current != it_start) && !assistant.terminationRequested());
 
-      if (!mBalanceStats.HasTxSlot(src.mNodeInfo, mTxNumPerNode)) {
-        continue;
-      }
-
-      FsBalanceInfo dst;
-      const std::string src_node = src.mNodeInfo;
-      eos::IFileMD::id_t fid = GetFileToBalance(src, tx_pairs.second, dst);
-      const std::string dst_node = dst.mNodeInfo;
-
-      if (fid == 0ull) {
-        continue;
-      }
-
-      // Found file and destination file system where to balance it
-      while ((mThreadPool.GetQueueSize() > mMaxQueuedJobs) &&
-             !assistant.terminationRequested()) {
-        assistant.wait_for(std::chrono::seconds(1));
-      }
-
-      mBalanceStats.TakeTxSlot(src_node, dst_node);
-      std::shared_ptr<DrainTransferJob> job {
-        new DrainTransferJob(fid, src.mFsId, dst.mFsId, {}, {},
-        true, "balance", true)};
-      mThreadPool.PushTask<void>([ = ]() {
-        job->UpdateMgmStats();
-        job->DoIt();
-        job->UpdateMgmStats();
-        gOFS->mFidTracker.RemoveEntry(job->GetFileId());
-        FreeTxSlot(src_node, dst_node);
-      });
+    if (no_slots) {
+      assistant.wait_for(std::chrono::seconds(no_slots_delay));
     }
   }
 
-  while (mThreadPool.GetQueueSize()) {
+  while (mThreadPool.GetQueueSize() && mRunningJobs) {
     eos_static_info("msg=\"wait for balance jobs to finish\" queue_size=%lu",
                     mThreadPool.GetQueueSize());
     std::this_thread::sleep_for(std::chrono::seconds(5));
@@ -240,7 +263,7 @@ FsBalancer::Balance(ThreadAssistant& assistant) noexcept
 //------------------------------------------------------------------------------
 // Get file identifier to balance from the given source file system
 //------------------------------------------------------------------------------
-eos::IFileMD::id_t
+const eos::IFileMD::id_t
 FsBalancer::GetFileToBalance(const FsBalanceInfo& src,
                              const std::set<FsBalanceInfo>& set_dsts,
                              FsBalanceInfo& dst)
@@ -270,6 +293,13 @@ FsBalancer::GetFileToBalance(const FsBalanceInfo& src,
           avoid_fsids.insert(loc.cbegin(), loc.cend());
           loc = fmd->getUnlinkedLocations();
           avoid_fsids.insert(loc.cbegin(), loc.cend());
+
+          //@todo(esindril) skip for the time being RAIN files
+          if (eos::common::LayoutId::IsRain(fmd->getLayoutId())) {
+            eos_static_info("msg=\"skip rain file\" fxid=%08llx", random_fid);
+            gOFS->mFidTracker.RemoveEntry(random_fid);
+            continue;
+          }
         }
       } catch (eos::MDException& e) {
         eos_static_err("msg=\"failed to find file\" fxid=%08llx", random_fid);
@@ -312,7 +342,26 @@ FsBalancer::GetFileToBalance(const FsBalanceInfo& src,
     }
   }
 
+  if (random_fid) {
+    mBalanceStats.TakeTxSlot(src.mNodeInfo, dst.mNodeInfo);
+    ++mRunningJobs;
+  }
+
   return random_fid;
+}
+
+//----------------------------------------------------------------------------
+// Account for finished transfer by freeing up the slot and un-tracking the
+// file identifier
+//----------------------------------------------------------------------------
+void
+FsBalancer::FreeTxSlot(const eos::IFileMD::id_t& fid,
+                       const std::string& src_node,
+                       const std::string& dst_node)
+{
+  mBalanceStats.FreeTxSlot(src_node, dst_node);
+  gOFS->mFidTracker.RemoveEntry(fid);
+  --mRunningJobs;
 }
 
 EOSMGMNAMESPACE_END

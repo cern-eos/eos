@@ -44,8 +44,8 @@ public:
   //! @param space_name space that balancer it attached to
   //----------------------------------------------------------------------------
   FsBalancer(const std::string& space_name):
-    mSpaceName(space_name), mThreshold(5), mTxNumPerNode(2), mTxRatePerNode(25),
-    mBalanceStats(space_name)
+    mSpaceName(space_name), mThreshold(10), mTxNumPerNode(2),
+    mTxRatePerNode(25), mBalanceStats(space_name)
   {
     mThread.reset(&FsBalancer::Balance, this);
   }
@@ -81,7 +81,7 @@ public:
   //----------------------------------------------------------------------------
   inline void SignalConfigUpdate()
   {
-    mDoConfigUpdate = true;
+    mDoConfigUpdate.store(true, std::memory_order_release);
   }
 
   //----------------------------------------------------------------------------
@@ -90,18 +90,23 @@ public:
   void Balance(ThreadAssistant& assistant) noexcept;
 
   //----------------------------------------------------------------------------
-  //! Account for finished transfer by freeing up a slot
+  //! Account finished transfer by freeing up slot and un-tracking the file
+  //! identifier
   //!
+  //! @param fid file identifier
   //! @param src_node node identifier <host>:<port> for source
   //! @param dst_node node identifier <host>:<port> for destination
   //----------------------------------------------------------------------------
-  void FreeTxSlot(const std::string& src_node, const std::string& dst_node)
-  {
-    mBalanceStats.FreeTxSlot(src_node, dst_node);
-  }
+  void FreeTxSlot(const eos::IFileMD::id_t& fid,
+                  const std::string& src_node,
+                  const std::string& dst_node);
 
+#ifdef IN_TEST_HARNESS
+public:
+#else
 private:
-  AssistedThread mThread;
+#endif
+  AssistedThread mThread; ///< Main balancer thread
   std::string mSpaceName; ///< Name of the space balancer belongs to
   std::atomic<bool> mDoConfigUpdate {true}; ///< Signal a config update
   bool mIsEnabled {true};
@@ -114,11 +119,20 @@ private:
   eos::common::ThreadPool mThreadPool; ///< Thread pool for balancing jobs
   unsigned int mMaxQueuedJobs {100}; ///< Max number of queued jobs
   unsigned int mMaxThreadPoolSize; ///< Max number of threads
+  std::atomic<uint64_t> mRunningJobs {0};
 
   //----------------------------------------------------------------------------
   //! Update balancer config based on the info registered at the space
   //----------------------------------------------------------------------------
   void ConfigUpdate();
+
+  //----------------------------------------------------------------------------
+  //! Get iterator to a random start element in the vector
+  //!
+  //! @param vect vector object
+  //----------------------------------------------------------------------------
+  template<typename Vect>
+  static typename Vect::iterator GetRandomIter(Vect& vect);
 
   //----------------------------------------------------------------------------
   //! Get file identifier to balance from the given source file system
@@ -129,9 +143,36 @@ private:
   //!
   //! @return file identifier or 0ull if no file found
   //----------------------------------------------------------------------------
-  eos::IFileMD::id_t GetFileToBalance(const FsBalanceInfo& src,
-                                      const std::set<FsBalanceInfo>& set_dsts,
-                                      FsBalanceInfo& dst);
+  const eos::IFileMD::id_t
+  GetFileToBalance(const FsBalanceInfo& src,
+                   const std::set<FsBalanceInfo>& set_dsts, FsBalanceInfo& dst);
 };
+
+//------------------------------------------------------------------------------
+//! Get iterator to a random start element in the vector
+//----------------------------------------------------------------------------
+template<typename Vect>
+typename Vect::iterator
+FsBalancer::GetRandomIter(Vect& vect)
+{
+  typename Vect::iterator iter = vect.begin();
+  const size_t size = vect.size();
+
+  if (!size) {
+    return iter;
+  }
+
+  std::random_device rd;
+  std::mt19937 gen(rd());
+  std::uniform_int_distribution<> dist(1, size);
+  size_t index = dist(gen);
+
+  while (index > 1) {
+    --index;
+    ++iter;
+  }
+
+  return iter;
+}
 
 EOSMGMNAMESPACE_END

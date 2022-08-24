@@ -21,6 +21,7 @@ o *                                                                      *
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
+#pragma once
 #include "mgm/Namespace.hh"
 #include "mgm/FsView.hh"
 
@@ -30,6 +31,8 @@ EOSMGMNAMESPACE_BEGIN
 class FsView;
 //! Helper alias
 using BalancePair = std::pair<FsBalanceInfo, FsBalanceInfo>;
+using VectBalanceFs = std::vector<std::pair<std::set<FsBalanceInfo>,
+      std::set<FsBalanceInfo>>>;
 
 //------------------------------------------------------------------------------
 //! Class FsBalancerStats is responsible for collecting and computing
@@ -70,10 +73,10 @@ public:
   //! Get list of balance source and destination file systems to be used for
   //! doing transfers.
   //!
-  //! @return list of source and destination file systems
+  //! @return vector of source and destination file systems for each group that
+  //!         needs balancing
   //----------------------------------------------------------------------------
-  std::pair<std::set<FsBalanceInfo>, std::set<FsBalanceInfo>>
-      GetTxEndpoints();
+  VectBalanceFs GetTxEndpoints();
 
   //----------------------------------------------------------------------------
   //! Account for new transfer by reserving a slot
