@@ -26,6 +26,7 @@
 #include "mgm/FsView.hh"
 #define IN_TEST_HARNESS
 #include "mgm/balancer/FsBalancerStats.hh"
+#include "mgm/balancer/FsBalancer.hh"
 #undef IN_TEST_HARNESS
 #include "mgm/utils/FilesystemUuidMapper.hh"
 #include "common/config/ConfigParsing.hh"
@@ -242,4 +243,23 @@ TEST(FsBalancerStats, Update)
   for (auto& elem : set_grps) {
     delete elem;
   }
+}
+
+//------------------------------------------------------------------------------
+// Test GetRandomIter
+//------------------------------------------------------------------------------
+TEST(FsBalancer, GetRandomIter)
+{
+  std::vector<int> vect {11, 21, 35, 43, 59};
+  std::set<int> set_expected(vect.begin(), vect.end());
+  std::set<int> set_obtained;
+  int attempts = vect.size() * 2;
+
+  for (int i = 0; i < attempts; ++i) {
+    auto it = eos::mgm::FsBalancer::GetRandomIter(vect);
+    ASSERT_FALSE(it == vect.end());
+    set_obtained.insert(*it);
+  }
+
+  ASSERT_EQ(set_expected.size(), set_obtained.size());
 }
