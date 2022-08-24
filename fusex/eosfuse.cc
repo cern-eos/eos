@@ -278,10 +278,11 @@ EosFuse::run(int argc, char* argv[], void* userdata)
       std::string tag = argv[i + 1];
 #ifndef __APPLE__
       std::string path = ((i + 2) >= argc) ? get_current_dir_name() : argv[i + 2];
+      std::string systemline = "getfattr --absolute-names --only-values -n ";
 #else
       std::string path = ((i + 2) >= argc) ? getenv("PWD") : argv[i + 2];
+      std::string systemline = "xattr -p ";
 #endif
-      std::string systemline = "getfattr --absolute-names --only-values -n ";
       systemline += tag;
       systemline += " ";
       systemline += path;
@@ -299,12 +300,14 @@ EosFuse::run(int argc, char* argv[], void* userdata)
       std::string value = argv[i + 2];
 #ifndef __APPLE__
       std::string path = ((i + 3) >= argc) ? get_current_dir_name() : argv[i + 3];
-#else
-      std::string path = ((i + 3) >= argc) ? getenv("PWD") : argv[i + 3];
-#endif
+      systemline += tag;
       std::string systemline = "setfattr -n ";
       systemline += tag;
       systemline += " -v ";
+#else
+      std::string path = ((i + 3) >= argc) ? getenv("PWD") : argv[i + 3];
+      std::string systemline = "xattr -w butename ";
+#endif
       systemline += value;
       systemline += " ";
       systemline += path;
@@ -1369,8 +1372,12 @@ EosFuse::run(int argc, char* argv[], void* userdata)
         if (!(d = ::opendir(mountpoint.c_str()))) {
           // check for a broken mount
           if ((errno == ENOTCONN) || (errno == ENOENT)) {
+            #ifdef __APPLE__
+            std::string systemline = "umount -f ";
+            #else
             // force an 'umount -l '
             std::string systemline = "umount -l ";
+            #endif
             systemline += mountpoint;
             fprintf(stderr, "# dead mount detected - forcing '%s'\n", systemline.c_str());
             system(systemline.c_str());
@@ -1393,7 +1400,11 @@ EosFuse::run(int argc, char* argv[], void* userdata)
     }
 
     std::string nodelay = getenv("XRD_NODELAY") ? getenv("XRD_NODELAY") : "";
+  #ifndef __APPLE__
     umount_system_line = "fusermount -u -z ";
+  #else
+    umount_system_line = "diskcutil umount force ";
+  #endif
     umount_system_line += EosFuse::Instance().Config().localmountdir;
 
     if (nodelay == "1") {

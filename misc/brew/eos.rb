@@ -16,7 +16,17 @@ class Eos < Formula
   depends_on "readline" => :build
   depends_on "ncurses" => :build
   depends_on "zlib" => :build
+  depends_on "ossp-uuid" => :build
+  depends_on "google-sparsehash" => :build
+  depends_on "leveldb" => :build
   
+  depends_on "jsoncpp" => :build
+  depends_on "lz4" => :build
+  depends_on "openssl@3" => :build
+  depends_on "protobuf@3" => :build
+  depends_on "zeromq" => :build
+  depends_on "zlib" => :build
+  depends_on "zstd" => :build
 	
   def install
     # ENV.deparallelize  # if your formula fails when building in parallel
