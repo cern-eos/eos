@@ -3232,6 +3232,8 @@ FsView::GetUnbalancedGroups(const std::string& space_name,
 
   for (auto* group : set_groups) {
     double dev = group->MaxAbsDeviation(metric.c_str(), false);
+    eos_static_info("msg=\"collect group info\" group=%s max_dev=%.02f "
+                    "threshold=%.02f", group->mName.c_str(), dev, threshold);
 
     if (dev > threshold) {
       unbalanced.emplace(group->mName, dev);
@@ -3253,7 +3255,7 @@ FsView::GetFsToBalance(const std::string& group_name, double threshold) const
   eos::common::RWMutexReadLock fs_rd_lock(ViewMutex);
   const auto it = mGroupView.find(group_name);
 
-  if ((it == mGroupView.end()) || (mGroupView.size() == 1)) {
+  if (it == mGroupView.end()) {
     return std::make_tuple(prio_fs_below, fs_below, fs_above, prio_fs_above);
   }
 
