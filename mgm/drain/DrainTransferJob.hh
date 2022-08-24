@@ -206,14 +206,6 @@ public:
   GetInfo(const std::list<std::string>& tags) const;
 
   //----------------------------------------------------------------------------
-  //! Get file system identifier
-  //----------------------------------------------------------------------------
-  inline uint64_t GetFileId() const
-  {
-    return mFileId;
-  }
-
-  //----------------------------------------------------------------------------
   //! Update MGM stats depending on the type of transfer. The generic
   //! DrainTransferJob can be used in different components eg. fsck. For the
   //! time being this will update the MGM statistics only for the drainer.
