@@ -538,7 +538,7 @@ class ArchiveFile(object):
                     ref_dict = dict(zip(tags, entry[2:]))
                     new_dict = dict(zip(tags, meta_info[2:]))
 
-                    for key, val in ref_dict.iteritems():
+                    for key, val in ref_dict.items():
                         if not isinstance(val, dict):
                             if new_dict[key] != val:
                                 err_msg = ("Verify failed for entry={0} expect={1} got={2}"
@@ -546,7 +546,7 @@ class ArchiveFile(object):
                                 self.logger.error(err_msg)
                                 raise CheckEntryException("failed metainfo match")
                         else:
-                            for kxattr, vxattr in val.iteritems():
+                            for kxattr, vxattr in val.items():
                                 if kxattr not in excl_xattr:
                                     if vxattr != new_dict[key][kxattr]:
                                         err_msg = ("Verify failed for entry={0} expect={1} got={2}"

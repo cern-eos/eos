@@ -40,7 +40,7 @@ def seal_path(path, seal_dict={'&': "#AND#"}):
     Returns:
         The path transformed using the dictionary mapping.
     """
-    for key, val in seal_dict.iteritems():
+    for key, val in seal_dict.items():
         path = path.replace(key, val)
 
     return path
@@ -57,7 +57,7 @@ def unseal_path(path, seal_dict={"#AND#": '&'}):
     Returns:
         The path transformed using the dictionary mapping.
     """
-    for key, val in seal_dict.iteritems():
+    for key, val in seal_dict.items():
         path = path.replace(key, val)
 
     return path
@@ -311,7 +311,7 @@ def set_dir_info(surl, dict_dinfo, excl_xattr):
     # Set the expected extended attributes
     dict_dattr = dict_dinfo['attr']
 
-    for key, val in dict_dattr.iteritems():
+    for key, val in dict_dattr.items():
         # Don't set the excluded xattrs
         if key in excl_xattr:
             continue

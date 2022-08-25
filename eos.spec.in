@@ -954,9 +954,9 @@ ExclusiveArch: x86_64 aarch64
 BuildRequires:  python-rpm-macros
 %endif
 %if 0%{?rhel} == 7
-Requires: python-daemon python-zmq python3-fusepy
+Requires: python-daemon python-zmq python3-fusepy python3.6-zmq
 %else
-Requires: python3-daemon python3-zmq python3-fusepy
+Requires: python3-daemon python3.6-zmq python3-fusepy
 %endif
 
 # Select xrootd package
@@ -990,8 +990,12 @@ The EOS archive daemon.
 %{_sysconfdir}/rc.d/init.d/eosarchived
 %config(noreplace) %{_sysconfdir}/sysconfig/eosarchived
 %endif
-%dir %attr(770,daemon,c3) %{_localstatedir}/eos/archive/
+%dir %attr(770,eosarchi,c3) %{_localstatedir}/eos/archive/
 %dir %attr(770,eosarchi,c3) %{_localstatedir}/log/eos/archive/
+# To make sure python3 also uses /opt/ to search for modules
+%if %{?_with_eos_xrootd_rh:1}%{!?_with_eos_xrootd_rh:0}
+%config(noreplace) /usr/lib/python3.6/site-packages/opt-eos-xrootd.pth
+%endif
 
 %pre -n eos-archive
 echo "Make sure eosarchi user and c3 group exist"
@@ -1018,7 +1022,7 @@ case "$1" in
       systemctl daemon-reload > /dev/null 2>&1 || :
       systemctl restart eosarchived > /dev/null 2>&1 || :
     %else
-      echo "Stopping EOS archive services"
+      echo "Stopping EOS archive services"  
       /sbin/service eosarchived stop > /dev/null 2>&1 || :
       # In case runlevels changed
       /sbin/chkconfig --del eosarchived
