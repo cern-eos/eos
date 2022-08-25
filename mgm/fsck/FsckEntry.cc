@@ -448,7 +448,7 @@ FsckEntry::RepairFstXsSzDiff()
   }
 
   // Have more good stripes then layout requirements
-  size_t num_nominal_rep = LayoutId::GetStripeNumber(mMgmFmd.layout_id() + 1);
+  size_t num_nominal_rep = LayoutId::GetStripeNumber(mMgmFmd.layout_id()) + 1;
 
   if (!good_fsids.empty() && (good_fsids.size() > num_nominal_rep)) {
     if (LayoutId::IsRain(mMgmFmd.layout_id())) {
