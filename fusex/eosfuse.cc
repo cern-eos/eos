@@ -334,6 +334,10 @@ EosFuse::run(int argc, char* argv[], void* userdata)
 
   fprintf(stderr, "# -o big_writes enabled\n");
   fuse_opt_add_arg(&args, "-obig_writes");
+  #ifdef __APPLE__
+  fprintf(stderr, "# -o novncache (apple only)\n");
+  fuse_opt_add_arg(&args, "-onovncache");
+  #endif
   std::string jsonconfig = "/etc/eos/fuse";
   std::string default_ssskeytab = "/etc/eos/fuse.sss.keytab";
   std::string jsonconfiglocal;
@@ -1403,7 +1407,7 @@ EosFuse::run(int argc, char* argv[], void* userdata)
   #ifndef __APPLE__
     umount_system_line = "fusermount -u -z ";
   #else
-    umount_system_line = "diskcutil umount force ";
+    umount_system_line mount= "diskcutil umount force ";
   #endif
     umount_system_line += EosFuse::Instance().Config().localmountdir;
 
@@ -1446,6 +1450,13 @@ EosFuse::run(int argc, char* argv[], void* userdata)
 
       config.options.automounted = fuse_opts.autofs;
     }
+
+    std::cerr <<"Fuse mount args: ";
+    for (size_t i = 0; i < args.argc; i++)
+    {
+      std::cerr << args.argv[i] <<" ";
+    }
+    std::cerr <<"\n";
 
     if ((fusechan = fuse_mount(local_mount_dir, &args)) == NULL) {
       fprintf(stderr, "error: fuse_mount failed\n");
