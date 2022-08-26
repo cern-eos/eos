@@ -53,8 +53,8 @@ void
 DrainTransferJob::DoIt() noexcept
 {
   using eos::common::LayoutId;
-  eos_static_debug("msg=\"running job\" fsid_src=%i fsid_dst=%i fxid=%08llx",
-                   mFsIdSource.load(), mFsIdTarget.load(), mFileId);
+  eos_static_info("msg=\"running job\" fsid_src=%i fsid_dst=%i fxid=%08llx",
+                  mFsIdSource.load(), mFsIdTarget.load(), mFileId);
 
   if (mProgressHandler.ShouldCancel(0)) {
     ReportError(SSTR("msg=\"job cancelled before starting\" fxid="
@@ -102,6 +102,8 @@ DrainTransferJob::DoIt() noexcept
     // When no more sources are available the url_src/dst is empty and
     // mStatus is properly set already during the build step
     if (!url_src.IsValid() || !url_dst.IsValid()) {
+      eos_static_err("msg=\"url invalid\" src=\"%s\" dst=\"%s\"",
+                     url_src.GetURL().c_str(), url_dst.GetURL().c_str());
       return;
     }
 
@@ -285,7 +287,32 @@ DrainTransferJob::BuildTpcSrc(const FileDrainInfo& fdrain,
       mRainReconstruct = true;
     }
 
-    //@todo(esindril) handle point to point transfers for balancing mode
+    // If source/dest fses are forced we want to trigger a balance rather than
+    // a drain reconstruct operation
+    if (mForceFs) {
+      // For RAIN layout we also need to disable checksum enforcements as the
+      // stripe checksum and logical file checksum will not match
+      target_lid = LayoutId::SetChecksum(target_lid, LayoutId::kNone);
+      mRainReconstruct = false;
+      bool found = false;
+      eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
+      FileSystem* fs = FsView::gFsView.mIdView.lookupByID(mFsIdSource);
+
+      if (fs) {
+        fs->SnapShotFileSystem(src_snapshot);
+
+        if (src_snapshot.mConfigStatus >= eos::common::ConfigStatus::kDrain) {
+          found = true;
+        }
+      }
+
+      if (!found) {
+        ReportError(SSTR("msg=\"source replica not available\" " << "fxid="
+                         << eos::common::FileId::Fid2Hex(fdrain.mProto.id())
+                         << " fsid=" << mFsIdSource));
+        return url_src;
+      }
+    }
   }
 
   // Construct the source URL
@@ -312,7 +339,6 @@ DrainTransferJob::BuildTpcSrc(const FileDrainInfo& fdrain,
                << eos::common::SecEntity::ToKey(0, SSTR("eos/" << mAppTag).c_str())
                << "&mgm.localprefix=" << src_snapshot.mPath.c_str()
                << "&mgm.fsid=" << src_snapshot.mId
-               << "&mgm.sourcehostport=" << src_snapshot.mHostPort.c_str()
                << "&eos.app=" << mAppTag
                << "&eos.ruid=0&eos.rgid=0";
   }
@@ -356,6 +382,7 @@ DrainTransferJob::BuildTpcSrc(const FileDrainInfo& fdrain,
 
   url_src.SetParams(src_cap.str());
   url_src.SetProtocol("root");
+  // @todo(esindril) this should use different physical connections
   url_src.SetUserName("daemon");
   delete output_cap;
   return url_src;
@@ -377,6 +404,10 @@ DrainTransferJob::BuildTpcDst(const FileDrainInfo& fdrain,
   // Mask block checksums (set to kNone) for replica layouts
   if (LayoutId::GetLayoutType(lid) == LayoutId::kReplica) {
     target_lid = LayoutId::SetBlockChecksum(target_lid, LayoutId::kNone);
+  }
+
+  if (LayoutId::IsRain(lid) && mForceFs) {
+    target_lid = LayoutId::SetChecksum(target_lid, LayoutId::kNone);
   }
 
   {
@@ -420,10 +451,11 @@ DrainTransferJob::BuildTpcDst(const FileDrainInfo& fdrain,
                << eos::common::SecEntity::ToKey(0, SSTR("eos/" << mAppTag).c_str())
                << "&mgm.localprefix=" << dst_snapshot.mPath.c_str()
                << "&mgm.fsid=" << dst_snapshot.mId
-               << "&mgm.sourcehostport=" << dst_snapshot.mHostPort.c_str()
-               << "&mgm.bookingsize=" << fdrain.mProto.size()
+               << "&mgm.bookingsize="
+               << LayoutId::ExpectedStripeSize(lid, fdrain.mProto.size())
                << "&eos.app=" << mAppTag
-               << "&mgm.targetsize=" << fdrain.mProto.size();
+               << "&mgm.targetsize="
+               << LayoutId::ExpectedStripeSize(lid, fdrain.mProto.size());
 
     // This is true by default for drain, but when this is set to false, we get
     // a replication like behaviour similar to the adjustreplica command which
@@ -432,7 +464,8 @@ DrainTransferJob::BuildTpcDst(const FileDrainInfo& fdrain,
       dst_params << "&mgm.drainfsid=" << mFsIdSource;
     }
 
-    if (!fdrain.mProto.checksum().empty()) {
+    // Checksum enforcement done only for non-rain layouts
+    if (!LayoutId::IsRain(lid) && !fdrain.mProto.checksum().empty()) {
       xs_info << "&mgm.checksum=";
       uint32_t xs_len = LayoutId::GetChecksumLen(lid);
       uint32_t data_len = fdrain.mProto.checksum().size();
@@ -477,6 +510,7 @@ DrainTransferJob::BuildTpcDst(const FileDrainInfo& fdrain,
   url_dst.SetHostName(dst_snapshot.mHost.c_str());
   url_dst.SetPort(dst_snapshot.mPort);
   url_dst.SetUserName("daemon");
+  // @todo(esindril) this should use different physical connections
   url_dst.SetParams(oss_cap.str());
   std::ostringstream oss_path;
   oss_path << "/replicate:"

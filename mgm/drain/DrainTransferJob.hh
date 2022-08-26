@@ -289,6 +289,7 @@ private:
   std::vector<eos::common::FileSystem::fsid_t> mExcludeDsts; ///< Excluded dest.
   bool mRainReconstruct; ///< Mark rain reconstruction
   bool mDropSrc; ///< Mark if source replicas should be dropped
+  //@todo(esindril) rename this to be more clear; mBalanceBehaviour ?!
   bool mForceFs; ///< Mark if tx is forced between src/dst file systems
   DrainProgressHandler mProgressHandler; ///< TPC progress handler
 };
