@@ -2224,7 +2224,8 @@ XrdFstOfsFile::readvofs(XrdOucIOVec* readV, uint32_t readCount)
   XrdSfsXferSize sz = XrdOfsFile::readv(readV, readCount);
   gettimeofday(&lrvTime, &tz);
   AddReadVTime();
-  // Collect monitoring info
+  // Collect monitoring info only if sz is > 0
+  if(sz > 0)
   {
     XrdSysMutexHelper scope_lock(vecMutex);
 

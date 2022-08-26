@@ -150,7 +150,8 @@ LocalIo::fileReadV(XrdCl::ChunkList& chunkList, uint16_t timeout)
     readV[i].data = (char*)chunkList[i].buffer;
   }
 
-  int64_t nread = mLogicalFile->readvofs(readV, chunkList.size());
+  XrdSfsXferSize szReadV = mLogicalFile->readvofs(readV, chunkList.size());
+  int64_t nread = szReadV > 0 ? szReadV : 0;
   delete[] readV;
   return nread;
 }
