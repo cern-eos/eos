@@ -450,8 +450,9 @@ FsckEntry::RepairFstXsSzDiff()
   // Have more good stripes then layout requirements
   size_t num_nominal_rep = LayoutId::GetStripeNumber(mMgmFmd.layout_id() + 1);
 
-  if (!good_fsids.empty() && (good_fsids.size() > num_nominal_rep)) {
-    if (LayoutId::IsRain(mMgmFmd.layout_id())) {
+  if (good_fsids.size() >= num_nominal_rep) {
+    if (LayoutId::IsRain(mMgmFmd.layout_id()) &&
+        (good_fsids.size() > num_nominal_rep)) {
       eos_crit("msg=\"more stripes than RAIN layout\" fxid=%08llx", mFid);
       return false;
     }
