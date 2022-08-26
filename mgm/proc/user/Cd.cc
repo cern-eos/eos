@@ -39,12 +39,11 @@ ProcCommand::Cd()
   NAMESPACEMAP;
   spath = path;
 
-  PROC_TOKEN_SCOPE;
-
   if (!spath.length()) {
     stdErr = "error: you have to give a path name to call 'cd'";
     retc = EINVAL;
   } else {
+    PROC_TOKEN_SCOPE;
     struct stat buf;
 
     if (gOFS->_stat(spath.c_str(), &buf, *mError, *pVid, (const char*) 0)) {
