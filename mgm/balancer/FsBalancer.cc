@@ -293,14 +293,6 @@ FsBalancer::GetFileToBalance(const FsBalanceInfo& src,
           avoid_fsids.insert(loc.cbegin(), loc.cend());
           loc = fmd->getUnlinkedLocations();
           avoid_fsids.insert(loc.cbegin(), loc.cend());
-
-          //@todo(esindril) skip for the time being RAIN files
-          if (eos::common::LayoutId::IsRain(fmd->getLayoutId())) {
-            eos_static_info("msg=\"skip rain file\" fxid=%08llx", random_fid);
-            gOFS->mFidTracker.RemoveEntry(random_fid);
-            random_fid = 0ull;
-            continue;
-          }
         }
       } catch (eos::MDException& e) {
         eos_static_err("msg=\"failed to find file\" fxid=%08llx", random_fid);
