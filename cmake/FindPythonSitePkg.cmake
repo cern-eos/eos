@@ -4,19 +4,20 @@
 # PYTHONSITEPKG_FOUND - found python site packages directory
 # PYTHONSITEPKG_PATH  - location where python modules are installed
 
-if(PYTHONSITEPKG_FIND_REQUIRED)
-  find_package(PythonInterp REQUIRED)
-else()
-  find_package(PythonInterp)
-endif()
+find_package (Python3 COMPONENTS Interpreter Development)
 
-if(NOT PYTHONINTERP_FOUND)
+if(NOT Python3_Interpreter_FOUND)
   set(PYTHONSITEPKG_FOUND FALSE)
   return()
+else()
+  set(PYTHONSITEPKG_FOUND TRUE)
 endif()
 
-if(PYTHONSITEPKG_PATH)
+if(Python3_SITELIB)
   set(PYTHONSITEPKG_FIND_QUIETLY TRUE)
+  set(PYTHONSITEPKG_PATH "${Python3_SITELIB}")
+  message(STATUS "Python Site Path: ${PYTHONSITEPKG_PATH} (site lib found)")
+
 else()
   if((PYTHON_VERSION_MAJOR VERSION_EQUAL "3") OR (PYTHON_VERSION_MAJOR VERSION_GREATER "3"))
     set(PY_CMD "from distutils import sysconfig; print(sysconfig.get_python_lib());")
@@ -43,10 +44,11 @@ else()
   endif()
 
   string(REGEX REPLACE "\n" "" PYTHONSITEPKG_PATH ${PYTHONSITEPKG_PATH})
+  message(STATUS "Python Site Path: ${PYTHONSITEPKG_PATH}")
 
   include (FindPackageHandleStandardArgs)
   find_package_handle_standard_args(
-    PythonSitePkg
+    Python3SitePkg
     DEFAULT_MSG PYTHONSITEPKG_PATH)
 
   mark_as_advanced(PythonSitePkg PYTHONSITEPKG_PATH)

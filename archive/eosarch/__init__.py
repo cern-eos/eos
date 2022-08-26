@@ -1,3 +1,4 @@
+#!/usr/bin/python3
 # ------------------------------------------------------------------------------
 # File: __init__.py
 # Author: Elvin-Alin Sindrilaru <esindril@cern.ch>

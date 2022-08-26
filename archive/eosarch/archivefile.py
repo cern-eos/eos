@@ -1,3 +1,4 @@
+#!/usr/bin/python3
 # ------------------------------------------------------------------------------
 # File: archivefile.py
 # Author: Elvin-Alin Sindrilaru <esindril@cern.ch>

@@ -59,11 +59,7 @@
 %define _with_eos_xrootd_rh 1
 %endif
 
-# Explicit python macro for CentOS > 8
-# Note: RHEL8 does not provide a default python anymore
-%if 0%{?rhel} >= 8
 %define __python /usr/bin/python3
-%endif
 
 #-------------------------------------------------------------------------------
 # Compute additional macros based on environment or existing definitions
@@ -295,6 +291,7 @@ cd build
 %if "%{?compiler}" == "gcc"
 
   %if 0%{?rhel} == 7
+    sed -i 's/2\.7/3\.6/g' /opt/rh/%{devtoolset}/enable
     source /opt/rh/%{devtoolset}/enable
   %endif
 
@@ -322,6 +319,7 @@ cd build
 
 %if "%{?compiler}" == "gcc"
 %if 0%{?rhel} == 7
+  sed -i 's/2\.7/3\.6/g' /opt/rh/%{devtoolset}/enable
   source /opt/rh/%{devtoolset}/enable
 %endif
 %endif
@@ -950,14 +948,18 @@ Summary: The EOS archive daemon
 Group: Applications/File
 ExclusiveArch: x86_64 aarch64
 
+BuildRequires: python%{python3_pkgversion}-devel
+
+%if 0%{?rhel} == 7
+Requires: python36-zmq
+%else
+Requires: python3-zmq
 %if 0%{?rhel} == 9
 BuildRequires:  python-rpm-macros
 %endif
-%if 0%{?rhel} == 7
-Requires: python-daemon python-zmq python3-fusepy python3.6-zmq
-%else
-Requires: python3-daemon python3.6-zmq python3-fusepy
 %endif
+Requires: python3 python3-fusepy
+
 
 # Select xrootd package
 %if %{?_with_eos_xrootd_rh:1}%{!?_with_eos_xrootd_rh:0}
@@ -981,7 +983,7 @@ The EOS archive daemon.
 %{_bindir}/eosarchived.py
 %{_bindir}/eosarch_run.py
 %{_bindir}/eosarch_reconstruct.py
-%{python_sitelib}/eosarch*
+%{python3_sitelib}/eosarch*
 %config(noreplace) %{_sysconfdir}/eosarchived.conf
 %if %{use_systemd}
 %{_prefix}/lib/systemd/system/eosarchived.service
@@ -994,14 +996,14 @@ The EOS archive daemon.
 %dir %attr(770,eosarchi,c3) %{_localstatedir}/log/eos/archive/
 # To make sure python3 also uses /opt/ to search for modules
 %if %{?_with_eos_xrootd_rh:1}%{!?_with_eos_xrootd_rh:0}
-%config(noreplace) /usr/lib/python3.6/site-packages/opt-eos-xrootd.pth
+%config(noreplace) %{python3_sitelib}/opt-eos-xrootd.pth
 %endif
 
 %pre -n eos-archive
 echo "Make sure eosarchi user and c3 group exist"
 getent group c3 >/dev/null 2>&1 || groupadd -r -g 1028 c3
 getent passwd eosarchi >/dev/null 2>&1 || useradd -r -u 72811 eosarchi
-
+  
 %post -n eos-archive
 case "$1" in
   1)
