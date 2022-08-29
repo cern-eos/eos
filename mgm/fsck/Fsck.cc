@@ -432,7 +432,7 @@ Fsck::RepairErrs(ThreadAssistant& assistant) noexcept
               // Wait that there are not more jobs in the queue - this can
               // take a while depending on the queue size
               while (mThreadPool.GetQueueSize()) {
-                assistant.wait_for(std::chrono::seconds(1));
+                std::this_thread::sleep_for(std::chrono::seconds(1));
 
                 if (++msg_delay % 5 == 0) {
                   eos_info("%s", "msg=\"stopping fsck repair waiting for thread "
