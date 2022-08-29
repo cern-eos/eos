@@ -30,6 +30,7 @@
 
 /*----------------------------------------------------------------------------*/
 #include "mgm/FsView.hh"
+#include "mgm/Scheduler.hh"
 #include "mgm/geotree/SchedulingSlowTree.hh"
 #include "common/table_formatter/TableFormatterBase.hh"
 #include "common/Timing.hh"
@@ -1836,6 +1837,20 @@ public:
                                 const size_t& nCollocatedReplicas = 0,
                                 std::vector<eos::common::FileSystem::fsid_t>* excludeFs = NULL,
                                 std::vector<std::string>* excludeGeoTags = NULL);
+
+  bool placeNewReplicasOneGroup(FsGroup *group,
+                                SchedType type,
+                                Scheduler::PlacementArguments* args)
+  {
+    return placeNewReplicasOneGroup(group, args->nNewReplicas, args->selected_filesystems, args->inode,
+                                    args->dataproxys, args->firewallentpts, type,
+                                    args->alreadyused_filesystems, args->fsidgeotags,
+                                    args->bookingsize,
+                                    args->plctTrgGeotag ? *args->plctTrgGeotag : "",
+                                    args->vid->geolocation, args->nCollocatedReplicas,
+                                    args->exclude_filesystems,
+                                    args->excludegeotags);
+  }
 
   // this function to access replica spread across multiple scheduling group is a BACKCOMPATIBILITY artifact
   // the new scheduler doesn't try to place files across multiple scheduling groups.

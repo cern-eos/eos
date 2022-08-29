@@ -99,6 +99,11 @@ public:
     std::vector<std::string>* dataproxys;
     //! if non NULL, schedule a firewall entry point for each fs
     std::vector<std::string>* firewallentpts;
+    std::vector<std::string>* fsidgeotags;
+    std::vector<std::string>* excludegeotags;
+
+    size_t nNewReplicas;
+    size_t nCollocatedReplicas;
 
     PlacementArguments() :
       spacename(0),
@@ -117,7 +122,9 @@ public:
       selected_filesystems(0),
       exclude_filesystems(0),
       dataproxys(0),
-      firewallentpts(0)
+      firewallentpts(0),
+      nNewReplicas(0),
+      nCollocatedReplicas(0)
     {}
 
     bool isValid() const
