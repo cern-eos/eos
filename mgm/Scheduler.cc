@@ -93,10 +93,12 @@ Scheduler::FilePlacement(PlacementArguments* args)
   case kGathered:
     ncollocatedfs = nfilesystems;
   }
+  args->nCollocatedReplicas = ncollocatedfs;
+  args->nNewReplicas = nfilesystems;
 
   eos_static_debug("checking placement policy : policy is %d, nfilesystems is"
                    " %d and ncollocated is %d", (int)args->plctpolicy, (int)nfilesystems,
-                   (int)ncollocatedfs);
+                   args->nCollocatedReplicas);
   uid_t uid = args->vid->uid;
   gid_t gid = args->vid->gid;
   XrdOucString lindextag = "";
@@ -111,13 +113,12 @@ Scheduler::FilePlacement(PlacementArguments* args)
 
   std::string indextag = lindextag.c_str();
   std::set<FsGroup*>::const_iterator git;
-  std::vector<std::string> fsidsgeotags;
   std::vector<FsGroup*> groupsToTry;
 
   // place the group iterator
   if (!args->alreadyused_filesystems->empty()) {
     if (!gOFS->mGeoTreeEngine->getInfosFromFsIds(*args->alreadyused_filesystems,
-        &fsidsgeotags,
+        args->fsidgeotags,
         0, &groupsToTry)) {
       eos_static_debug("could not retrieve scheduling group for all avoid fsids");
     } else {
@@ -185,22 +186,10 @@ Scheduler::FilePlacement(PlacementArguments* args)
     eos_static_debug("Trying GeoTree Placement on group: %s, total groups: %d, groupsToTry: %d ",
                      group->mName.c_str(), FsView::gFsView.mSpaceGroupView[*args->spacename].size(),
                      groupsToTry.size());
-    bool placeRes = gOFS->mGeoTreeEngine->placeNewReplicasOneGroup(
-                      group, nfilesystems,
-                      args->selected_filesystems,
-                      args->inode,
-                      args->dataproxys,
-                      args->firewallentpts,
-                      GeoTreeEngine::regularRW,
-                      // file systems to avoid are assumed to already host a replica
-                      args->alreadyused_filesystems,
-                      &fsidsgeotags,
-                      args->bookingsize,
-                      args->plctTrgGeotag ? *args->plctTrgGeotag : "",
-                      args->vid->geolocation,
-                      ncollocatedfs,
-                      args->exclude_filesystems,
-                      NULL);
+
+    bool placeRes = gOFS->mGeoTreeEngine->placeNewReplicasOneGroup(group,
+                                                                   GeoTreeEngine::regularRW,
+                                                                   args);
     eos::common::Logging& g_logging = eos::common::Logging::GetInstance();
 
     if (g_logging.gLogMask & LOG_MASK(LOG_DEBUG)) {
