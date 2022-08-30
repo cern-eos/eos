@@ -1312,14 +1312,14 @@ XrdFstOfs::_rem(const char* path, XrdOucErrInfo& error,
       if (ignoreifnotexist) {
         rc = 0;
       } else {
-        eos_notice("unable to delete file - file does not exist (anymore): %s "
-                   "fstpath=%s fsid=%lu id=%llu", path, fstPath.c_str(), fsid, fid);
+        eos_notice("msg=\"file already deleted\" path=\%s\" fst_path=\"%s\" "
+                   "fsid=%lu fid=%", path, fstPath.c_str(), fsid, fid);
       }
     }
+  }
 
-    if (rc) {
-      return gOFS.Emsg(epname, error, errno, "delete file", fstPath.c_str());
-    }
+  if (rc) {
+    return gOFS.Emsg(epname, error, errno, "delete file", fstPath.c_str());
   } else {
     // make a deletion report entry
     if (deletion_report) {
