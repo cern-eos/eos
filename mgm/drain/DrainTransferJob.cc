@@ -496,8 +496,8 @@ DrainTransferJob::BuildTpcDst(const FileDrainInfo& fdrain,
 bool
 DrainTransferJob::SelectDstFs(const FileDrainInfo& fdrain)
 {
-  unsigned int nfilesystems = 1;
-  unsigned int ncollocatedfs = 0;
+  Scheduler::PlacementArguments args;
+  Scheduler::PopulateFsCount(&args);
   std::vector<FileSystem::fsid_t> new_repl;
   eos::common::FileSystem::fs_snapshot_t source_snapshot;
   eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
@@ -536,21 +536,19 @@ DrainTransferJob::SelectDstFs(const FileDrainInfo& fdrain)
     return false;
   }
 
-  bool res = gOFS->mGeoTreeEngine->placeNewReplicasOneGroup(
-               group, nfilesystems,
-               &new_repl,
-               (ino64_t) fdrain.mProto.id(),
-               NULL, // entrypoints
-               NULL, // firewall
-               GeoTreeEngine::draining,
-               &existing_repl,
-               &fsid_geotags,
-               fdrain.mProto.size(),
-               "",// start from geotag
-               "",// client geo tag
-               ncollocatedfs,
-               &mExcludeDsts,
-               &fsid_geotags); // excludeGeoTags
+
+  args.selected_filesystems = &new_repl;
+  args.lid = fdrain.mProto.id();
+  args.alreadyused_filesystems = &existing_repl;
+  args.fsidgeotags = &fsid_geotags;
+  args.bookingsize = fdrain.mProto.size();
+  args.exclude_filesystems = &mExcludeDsts;
+  args.excludegeotags = &fsid_geotags;
+  args.schedtype = Scheduler::tSchedType::draining;
+
+  bool res = gOFS->mGeoTreeEngine->placeNewReplicasOneGroup(group,
+                                                            GeoTreeEngine::draining,
+                                                            &args);
 
   if (!res || new_repl.empty())  {
     eos_err("msg=\"fxid=%08llx could not place new replica\"", mFileId);
