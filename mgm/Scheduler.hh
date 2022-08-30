@@ -58,7 +58,7 @@ public:
   { kScattered, kHybrid, kGathered };
 
   //! Types of scheduling
-  enum tSchedType
+  enum class tSchedType
   { regular, draining };
 
   //! Arguments to place a file placement
@@ -116,7 +116,7 @@ public:
       truncate(false),
       forced_scheduling_group_index(-1),
       bookingsize(1024 * 1024 * 1024ll),
-      schedtype(regular),
+      schedtype(tSchedType::regular),
       vid(0),
       alreadyused_filesystems(0),
       selected_filesystems(0),
@@ -151,6 +151,17 @@ public:
   //! NOTE: Has to be called with a lock on the FsView::gFsView::ViewMutex
   //----------------------------------------------------------------------------
   static int FilePlacement(PlacementArguments* args);
+
+  //----------------------------------------------------------------------------
+  /*! Populate the nfilesystems & ncollocatedfs Placement args based on the layout ID
+   * and the placement policy.
+   *
+   * @param args - inout-
+   * the nfilesystem & ncollocatedfs Placement args will be populated
+   *
+   */
+   //---------------------------------------------------------------------------
+  static void PopulateFsCount(PlacementArguments *args);
 
   struct AccessArguments {
     /// INPUT
@@ -192,7 +203,7 @@ public:
       inode(0),
       isRW(false),
       bookingsize(0),
-      schedtype(regular),
+      schedtype(tSchedType::regular),
       vid(NULL),
       locationsfs(NULL),
       dataproxys(NULL),

@@ -53,52 +53,13 @@ Scheduler::FilePlacement(PlacementArguments* args)
                    args->vid->geolocation.c_str());
   // The caller routine has to lock via =>
   //  eos::common::RWMutexReadLock(FsView::gFsView.ViewMutex)
-  std::map<eos::common::FileSystem::fsid_t, float> availablefs;
-  std::map<eos::common::FileSystem::fsid_t, std::string> availablefsgeolocation;
-  std::list<eos::common::FileSystem::fsid_t> availablevector;
   // fill the avoid list from the selected_filesystems input vector
-  unsigned int nfilesystems = eos::common::LayoutId::GetStripeNumber(
-                                args->lid) + 1;
-  unsigned int ncollocatedfs = 0;
-
-  switch (args->plctpolicy) {
-  case kScattered:
-    if (!(args->vid->geolocation.empty())) {
-      ncollocatedfs = 1;
-    } else {
-      ncollocatedfs = 0;
-    }
-
-    break;
-
-  case kHybrid:
-    switch (eos::common::LayoutId::GetLayoutType(args->lid)) {
-    case eos::common::LayoutId::kPlain:
-      ncollocatedfs = 1;
-      break;
-
-    case eos::common::LayoutId::kReplica:
-      ncollocatedfs = nfilesystems - 1;
-      break;
-
-    default:
-      ncollocatedfs = nfilesystems - eos::common::LayoutId::GetRedundancyStripeNumber(
-                        args->lid);
-      break;
-    }
-
-    break;
-
-  // we only do geolocations for replica layouts
-  case kGathered:
-    ncollocatedfs = nfilesystems;
-  }
-  args->nCollocatedReplicas = ncollocatedfs;
-  args->nNewReplicas = nfilesystems;
+  // fill up New & collocated replicas
+  PopulateFsCount(args);
 
   eos_static_debug("checking placement policy : policy is %d, nfilesystems is"
-                   " %d and ncollocated is %d", (int)args->plctpolicy, (int)nfilesystems,
-                   args->nCollocatedReplicas);
+                   " %d and ncollocated is %d", (int)args->plctpolicy,
+                   args->nNewReplicas, args->nCollocatedReplicas);
   uid_t uid = args->vid->uid;
   gid_t gid = args->vid->gid;
   XrdOucString lindextag = "";
@@ -258,7 +219,7 @@ int Scheduler::FileAccess(AccessArguments* args)
   GeoTreeEngine::SchedType st = GeoTreeEngine::regularRO;
 
   // we set a low weight for drain filesystems if there is more than one replica
-  if (args->schedtype == regular) {
+  if (args->schedtype == tSchedType::regular) {
     if (args->isRW) {
       st = GeoTreeEngine::regularRW;
     } else {
@@ -266,7 +227,7 @@ int Scheduler::FileAccess(AccessArguments* args)
     }
   }
 
-  if (args->schedtype == draining) {
+  if (args->schedtype == tSchedType::draining) {
     st = GeoTreeEngine::draining;
   }
 
@@ -302,6 +263,56 @@ int Scheduler::FileAccess(AccessArguments* args)
          st,
          args->vid->geolocation,
          args->forcedfsid, args->unavailfs);
+}
+
+void
+Scheduler::PopulateFsCount(Scheduler::PlacementArguments* args)
+{
+  if (args->schedtype == tSchedType::draining) {
+    args->nCollocatedReplicas = 0;
+    args->nNewReplicas = 1;
+    return;
+  }
+
+  // fill the avoid list from the selected_filesystems input vector
+  unsigned int nfilesystems = eos::common::LayoutId::GetStripeNumber(
+                                  args->lid) + 1;
+  unsigned int ncollocatedfs = 0;
+
+  switch (args->plctpolicy) {
+  case kScattered:
+    if (!(args->vid->geolocation.empty())) {
+      ncollocatedfs = 1;
+    } else {
+      ncollocatedfs = 0;
+    }
+
+    break;
+
+  case kHybrid:
+    switch (eos::common::LayoutId::GetLayoutType(args->lid)) {
+    case eos::common::LayoutId::kPlain:
+      ncollocatedfs = 1;
+      break;
+
+    case eos::common::LayoutId::kReplica:
+      ncollocatedfs = nfilesystems - 1;
+      break;
+
+    default:
+      ncollocatedfs = nfilesystems - eos::common::LayoutId::GetRedundancyStripeNumber(
+                                         args->lid);
+      break;
+    }
+
+    break;
+
+  // we only do geolocations for replica layouts
+  case kGathered:
+    ncollocatedfs = nfilesystems;
+  }
+  args->nCollocatedReplicas = ncollocatedfs;
+  args->nNewReplicas = nfilesystems;
 }
 
 EOSMGMNAMESPACE_END
