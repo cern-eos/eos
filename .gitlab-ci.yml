@@ -366,6 +366,7 @@ build_cc7_no_sse:
     RPMBUILD_OPTIONS: "--with no_sse"
   only:
     - tags
+    - triggers
   when: manual
 
 build_cc7_coverage:
