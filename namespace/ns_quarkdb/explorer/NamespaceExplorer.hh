@@ -58,6 +58,9 @@ public:
     const eos::ns::ContainerMdProto &containerMd,
     const eos::IContainerMD::XAttrMap &linkedAttrs,
     const std::string& fullPath) = 0;
+
+  virtual ~ExpansionDecider() = default;
+
 };
 
 struct ExplorationOptions {
