@@ -283,9 +283,9 @@ GeoBalancer::getFileProcTransferNameAndSize(eos::common::FileId::fileid_t fid,
     uint64_t* size)
 {
   char fileName[1024];
+  std::string file_uri;
   std::shared_ptr<eos::IFileMD> fmd;
   eos::common::LayoutId::layoutid_t layoutid = 0;
-  eos::common::FileId::fileid_t fileid = 0;
   {
     eos::Prefetcher::prefetchFileMDWithParentsAndWait(gOFS->eosView, fid);
     eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
@@ -293,47 +293,39 @@ GeoBalancer::getFileProcTransferNameAndSize(eos::common::FileId::fileid_t fid,
     try {
       fmd = gOFS->eosFileService->getFileMD(fid);
       layoutid = fmd->getLayoutId();
-      fileid = fmd->getId();
 
-      if (fmd->getContainerId() == 0) {
-        return std::string("");
-      }
-
-      if (fmd->getSize() == 0) {
-        return std::string("");
-      }
-
-      if (fmd->getNumLocation() == 0) {
+      if ((fmd->getContainerId() == 0) ||
+          (fmd->getNumLocation() == 0) ||
+          (fmd->getSize() == 0)) {
         return std::string("");
       }
 
       if (fileIsInDifferentLocations(fmd.get())) {
         eos_static_debug("msg=\"file is already in more than one location\" "
-                         "name=%s fxid=%08llx", fmd->getName().c_str(), fileid);
+                         "name=%s fxid=%08llx", fmd->getName().c_str(), fid);
         return std::string("");
       }
 
       if (size) {
         *size = fmd->getSize();
       }
+
+      file_uri = gOFS->eosView->getUri(fmd.get()).c_str();
+
+      // Don't touch files in any ../proc/ directory
+      if (file_uri.rfind(gOFS->MgmProcPath.c_str(), 0) == 0) {
+        return std::string("");
+      }
     } catch (eos::MDException& e) {
       eos_static_debug("msg=\"exception\" ec=%d emsg=\"%s\"", e.getErrno(),
                        e.getMessage().str().c_str());
       return std::string("");
     }
-
-    XrdOucString fileURI = gOFS->eosView->getUri(fmd.get()).c_str();
-
-    if (fileURI.beginswith(gOFS->MgmProcPath.c_str())) {
-      // don't touch files in any ../proc/ directory
-      return std::string("");
-    }
-
-    eos_static_debug("msg=\"found file for transfering\" file=%s",
-                     fileURI.c_str());
   }
+  eos_static_debug("msg=\"found file to geobalance\" path=%s",
+                   file_uri.c_str());
   snprintf(fileName, 1024, "%s/%016llx:%s#%08lx",
-           gOFS->MgmProcConversionPath.c_str(), fileid, mSpaceName.c_str(),
+           gOFS->MgmProcConversionPath.c_str(), fid, mSpaceName.c_str(),
            (unsigned long) layoutid);
   return std::string(fileName);
 }
