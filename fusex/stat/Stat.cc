@@ -643,7 +643,7 @@ Stat::Clear()
 
 /*----------------------------------------------------------------------------*/
 void
-Stat::PrintOutTotal(XrdOucString& out, bool details, bool monitoring,
+Stat::PrintOutTotal(std::string& out, bool details, bool monitoring,
                     bool numerical)
 {
   Mutex.Lock();
@@ -664,7 +664,7 @@ Stat::PrintOutTotal(XrdOucString& out, bool details, bool monitoring,
 
   std::sort(tags.begin(), tags.end());
   std::sort(tags_ext.begin(), tags_ext.end());
-  char outline[1024];
+  char outline[4096];
   double avg = 0;
   double sig = 0;
   size_t ops = 0;

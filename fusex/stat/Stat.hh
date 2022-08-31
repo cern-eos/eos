@@ -585,7 +585,7 @@ public:
 
   void Clear();
 
-  void PrintOutTotal(XrdOucString& out, bool details = false,
+  void PrintOutTotal(std::string& out, bool details = false,
                      bool monitoring = false, bool numerical = false);
 
   void Circulate(ThreadAssistant& assistant);

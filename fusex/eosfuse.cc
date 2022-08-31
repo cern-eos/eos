@@ -1949,9 +1949,9 @@ EosFuse::DumpStatistic(ThreadAssistant& assistant)
 
 #endif
     eos_static_debug("dumping statistics");
-    XrdOucString out;
-    fusestat.PrintOutTotal(out);
-    std::string sout = out.c_str();
+    std::string sout;
+    fusestat.PrintOutTotal(sout);
+
     time_t now = time(NULL);
     snprintf(ino_stat, sizeof(ino_stat),
              "# -----------------------------------------------------------------------------------------------------------\n"
