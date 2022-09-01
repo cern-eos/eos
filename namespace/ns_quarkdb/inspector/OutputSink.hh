@@ -68,6 +68,9 @@ public:
                            const ContainerPrintingOptions& opts,
                            const std::string& customPath);
 
+  void printWithAdditionalFields(const eos::ns::ContainerMdProto& proto,
+      const ContainerPrintingOptions& opts,
+      std::map<std::string, std::string>& extension);
   //----------------------------------------------------------------------------
   //! Print everything known about a ContainerMD, including
   //! full path if available

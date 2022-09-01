@@ -96,6 +96,11 @@ public:
   //! Scan all deathrow entries
   //----------------------------------------------------------------------------
   int scanDeathrow(std::ostream& out, std::ostream& err);
+  
+  //----------------------------------------------------------------------------
+  //! Scan all shadow entries
+  //----------------------------------------------------------------------------
+  int scanShadows(bool noDirs, bool noFiles);
 
   //----------------------------------------------------------------------------
   //! Forcefully overwrite the given ContainerMD - USE WITH CAUTION

@@ -453,6 +453,112 @@ static bool checkLocations(const eos::ns::FileMdProto& proto,
 }
 
 //------------------------------------------------------------------------------
+// Scan all items in the namespace, and print out the ones that are in a shadow
+// state, not referenced from their existing parent container.
+//------------------------------------------------------------------------------
+int Inspector::scanShadows(bool noDirs, bool noFiles)
+{
+  int ret = 0;
+  if (!loadConfiguration()) {
+    mOutputSink.err("could not load MGM configuration -- necessary to search in unknown fsids");
+    return -1;
+  }
+  std::map<ContainerIdentifier,IContainerMD::FileMap> fileMapCache{};
+  std::map<ContainerIdentifier,IContainerMD::ContainerMap> containerMapCache{};
+  if(!noFiles){
+
+    FileScanner fileScanner(mQcl);
+    FilePrintingOptions opts;
+
+    while (fileScanner.valid()) {
+      FileScanner::Item item;
+      eos::ns::FileMdProto proto;
+
+      if (!fileScanner.getItem(proto)) {
+        break;
+      }
+      //----------------------------------------------------------------------------
+      // Ensure the given fid is indeed shadowed
+      //----------------------------------------------------------------------------
+
+
+      //bool cidExists = MetadataFetcher::doesContainerMdExist(mQcl, ContainerIdentifier(proto.cont_id())).get();
+      auto cont = ContainerIdentifier(proto.cont_id());
+      auto iter = fileMapCache.find(cont);
+      IContainerMD::FileMap cidFilemap = (iter != fileMapCache.end())? iter->second : MetadataFetcher::getFileMap(mQcl, cont).get();
+      bool filemapEntryExists = cidFilemap.find(proto.name()) != cidFilemap.end();
+      bool filemapEntryValid = (cidFilemap[proto.name()] == proto.id());
+
+      iter = containerMapCache.find(cont);
+      IContainerMD::ContainerMap cidContainermap = (iter != containerMapCache.end())? iter->second : MetadataFetcher::getContainerMap( mQcl, cont).get();
+      bool containerMapConflict = cidContainermap.find(proto.name()) != cidContainermap.end();
+
+      if (!filemapEntryExists || !filemapEntryValid || containerMapConflict){
+        std::map<std::string, std::string> extended;
+        extended["reference"] = std::to_string(filemapEntryExists);
+        extended["conflict"] = std::to_string(containerMapConflict);
+        mOutputSink.printWithAdditionalFields(proto, opts, extended);        
+      }
+
+      fileScanner.next();
+    }
+
+    std::string errorString;
+
+    if (fileScanner.hasError(errorString)) {
+      mOutputSink.err(errorString);
+      ret=1;
+    }
+  }
+
+  if(!noDirs){
+    ContainerScanner containerScanner(mQcl);
+    ContainerPrintingOptions opts;
+
+    while (containerScanner.valid()) {
+      ContainerScanner::Item item;
+      eos::ns::ContainerMdProto proto;
+
+      if (!containerScanner.getItem(proto)) {
+        break;
+      }
+      //----------------------------------------------------------------------------
+      // Ensure the given fid is indeed shadowed
+      //----------------------------------------------------------------------------
+
+      auto cont = ContainerIdentifier(proto.parent_id());
+      //bool cidExists = MetadataFetcher::doesContainerMdExist(mQcl, ContainerIdentifier(proto.parent_id())).get();
+      auto iter = containerMapCache.find(cont);
+      IContainerMD::ContainerMap cidContainermap = (iter != containerMapCache.end())? iter->second : MetadataFetcher::getContainerMap( mQcl, cont).get();
+      bool containermapEntryExists = cidContainermap.find(proto.name()) != cidContainermap.end();
+      bool containermapEntryValid = (cidContainermap[proto.name()] == proto.id());
+      iter = fileMapCache.find(cont);
+      IContainerMD::FileMap cidFilemap = (iter != fileMapCache.end())? iter->second : MetadataFetcher::getFileMap(mQcl, cont).get();
+      bool fileMapConflict = cidFilemap.find(proto.name()) != cidFilemap.end();
+
+      if (!containermapEntryExists || !containermapEntryValid || fileMapConflict){
+        std::map<std::string, std::string> extended;
+        extended["reference"] = std::to_string(containermapEntryExists);
+        extended["conflict"] = std::to_string(fileMapConflict);
+        mOutputSink.printWithAdditionalFields(proto, opts, extended);
+        mOutputSink.print(proto, opts);
+        
+      }
+
+      containerScanner.next();
+    }
+
+    std::string errorString;
+
+    if (containerScanner.hasError(errorString)) {
+      mOutputSink.err(errorString);
+      ret=1;
+    }
+  }
+
+  return ret;
+}
+//------------------------------------------------------------------------------
 // Scan all file metadata in the namespace, and print out some information
 // about each one. (even potentially unreachable ones)
 //------------------------------------------------------------------------------

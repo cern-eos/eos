@@ -205,6 +205,19 @@ int main(int argc, char* argv[])
                                        "Show full paths, if possible");
   oneReplicaLayoutSubcommand->add_flag("--filter-internal", filterInternal,
                                        "Filter internal entries, such as versioning, aborted atomic uploads, etc");
+  
+  //----------------------------------------------------------------------------
+  // Set-up scan-shadows subcommand..
+  //----------------------------------------------------------------------------
+  auto scanShadowsSubcommand = app.add_subcommand("scan-shadows",
+                            "Print items that are not referenced by their container");
+  addClusterOptions(scanShadowsSubcommand, membersStr, memberValidator,
+                    password, passwordFile, connectionRetries);
+  scanShadowsSubcommand->add_flag("--no-dirs", noDirs,
+                           "Don't print directories, only files");
+  scanShadowsSubcommand->add_flag("--no-files", noFiles,
+                           "Don't print files, only directories");
+  scanShadowsSubcommand->add_flag("--json", json, "Use json output");
   //----------------------------------------------------------------------------
   // Set-up scan-dirs subcommand..
   //----------------------------------------------------------------------------
@@ -547,6 +560,10 @@ int main(int argc, char* argv[])
 
   if (scanFilesSubcommand->parsed()) {
     return inspector.scanFileMetadata(onlySizes, fullPaths, findUnknownFsids);
+  }
+
+  if (scanShadowsSubcommand->parsed()) {
+    return inspector.scanShadows(noDirs,noFiles);
   }
 
   if (scanDeathrowSubcommand->parsed()) {

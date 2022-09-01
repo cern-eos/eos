@@ -181,6 +181,16 @@ void OutputSink::printWithCustomPath(const eos::ns::ContainerMdProto& proto,
   print(out);
 }
 
+//----------------------------------------------------------------------------
+//! Print everything known about a ContainerMD -- Additional fields to add
+//------------------------------------------------------------------------
+void OutputSink::printWithAdditionalFields(const eos::ns::ContainerMdProto& proto,
+    const ContainerPrintingOptions& opts,
+    std::map<std::string, std::string>& extension)
+{
+  populateMetadata(proto, opts, extension);
+  print(extension);
+}
 //------------------------------------------------------------------------------
 // Get count as string
 //------------------------------------------------------------------------------
