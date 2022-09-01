@@ -64,8 +64,8 @@ com_find(char* arg1)
     valid = false;
 
     if (s1 == "-j") {
-        option += "j";
-        continue;
+      option += "j";
+      continue;
     }
 
     if (s1 == "-s") {
@@ -620,7 +620,6 @@ com_find(char* arg1)
     std::vector<std::string> files_found;
     files_found.clear();
     command_result_stdout_to_vector(files_found);
-    std::vector<std::string>::const_iterator it;
     unsigned long long cnt = 0;
     unsigned long long goodentries = 0;
     unsigned long long badentries = 0;
@@ -664,7 +663,6 @@ com_find(char* arg1)
     std::vector<std::string> files_found;
     files_found.clear();
     command_result_stdout_to_vector(files_found);
-    std::vector<std::string>::const_iterator it;
     unsigned long long cnt = 0;
     unsigned long long goodentries = 0;
     unsigned long long badentries = 0;

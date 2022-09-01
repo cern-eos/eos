@@ -149,8 +149,8 @@ int main(int argc, char* argv[])
                     passwordFile);
   scanSubcommand->add_option("--path", dumpPath, "The target path to scan")
   ->required();
-  scanSubcommand->add_option("--trim", trimPaths, "REGEX for paths to be excluded");
-
+  scanSubcommand->add_option("--trim", trimPaths,
+                             "REGEX for paths to be excluded");
   scanSubcommand->add_flag("--relative-paths", relativePaths,
                            "Print paths relative to --path");
   scanSubcommand->add_flag("--raw-paths", rawPaths,
@@ -160,7 +160,7 @@ int main(int argc, char* argv[])
   scanSubcommand->add_flag("--no-files", noFiles,
                            "Don't print files, only directories");
   scanSubcommand->add_option("--maxdepth", maxDepth,
-                           "Descend only <maxdepth> levels.");
+                             "Descend only <maxdepth> levels.");
   scanSubcommand->add_flag("--json", json, "Use json output");
   //----------------------------------------------------------------------------
   // Set-up print subcommand..
@@ -502,7 +502,8 @@ int main(int argc, char* argv[])
   }
 
   if (scanSubcommand->parsed()) {
-    return inspector.scan(dumpPath, relativePaths, rawPaths, noDirs, noFiles, maxDepth, trimPaths=trimPaths);
+    return inspector.scan(dumpPath, relativePaths, rawPaths, noDirs, noFiles,
+                          maxDepth, trimPaths);
   }
 
   if (namingConflictsSubcommand->parsed()) {
