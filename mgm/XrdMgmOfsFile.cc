@@ -404,9 +404,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
     EXEC_TIMING_END("IdMap");
   }
   gOFS->MgmStats.Add("IdMap", vid.uid, vid.gid, 1);
-
   COMMONTIMING("IdMap", &tm);
-
   SetLogId(logId, vid, tident);
   NAMESPACEMAP;
   BOUNCE_ILLEGAL_NAMES;
@@ -529,8 +527,8 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
   XrdOucString currentWorkflow = "default";
   unsigned long long byfid = 0;
   unsigned long long bypid = 0;
-
   COMMONTIMING("fid::fetch", &tm);
+
   /* check paths starting with fid: fxid: ino: ... */
   if (spath.beginswith("fid:") || spath.beginswith("fxid:") ||
       spath.beginswith("ino:")) {
@@ -555,8 +553,8 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
                   "open - you specified a not existing inode number", path);
     }
   }
-  COMMONTIMING("fid::fetched", &tm);
 
+  COMMONTIMING("fid::fetched", &tm);
   openOpaque = new XrdOucEnv(ininfo);
 
   // Handle (delegated) tpc redirection for writes
@@ -753,8 +751,8 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
   if (ProcInterface::IsProcAccess(path)) {
     if (gOFS->mExtAuthz &&
         (vid.prot != "sss") &&
-	(vid.prot != "gsi") &&
-	(vid.prot != "krb5") &&
+        (vid.prot != "gsi") &&
+        (vid.prot != "krb5") &&
         (vid.host != "localhost") &&
         (vid.host != "localhost.localdomain")) {
       return Emsg(epname, error, EPERM, "execute proc command - you don't have"
@@ -822,6 +820,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
   }
 
   COMMONTIMING("authorize", &tm);
+
   if (open_flag & O_CREAT) {
     AUTHORIZE(client, openOpaque, AOP_Create, "create", inpath, error);
   } else {
@@ -829,18 +828,20 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
               inpath, error);
     isRewrite = true;
   }
-  COMMONTIMING("authorized", &tm);
 
+  COMMONTIMING("authorized", &tm);
   eos::common::Path cPath(path);
   // indicate the scope for a possible token
   TOKEN_SCOPE;
   isAtomicName = cPath.isAtomicFile();
+
   // prevent any access to a recycling bin for writes
   if (isRW && cPath.GetFullPath().beginswith(Recycle::gRecyclingPrefix.c_str())) {
     return Emsg(epname, error, EPERM,
                 "open file - nobody can write to a recycling bin",
                 cPath.GetParentPath());
   }
+
   std::shared_ptr<eos::IContainerMD> dmd;
 
   // check if we have to create the full path
@@ -850,6 +851,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
     std::shared_ptr<eos::IFileMD> _fmd;
     int ec = gOFS->_exists(cPath.GetParentPath(), file_exists,
                            error, vid, dmd, _fmd, 0, true);
+
     // check if that is a file
     if ((!ec) && (file_exists != XrdSfsFileExistNo) &&
         (file_exists != XrdSfsFileExistIsDirectory)) {
@@ -913,26 +915,29 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
 
           if (ocUploadUuid.length()) {
             eos::common::Path aPath(cPath.GetAtomicPath(attrmap.count("sys.versioning"),
-                                                        ocUploadUuid));
+                                    ocUploadUuid));
             filePath = aPath.GetPath();
           }
 
-          if (fmd = gOFS->eosView->getFile(filePath)) {
+          if ((fmd = gOFS->eosView->getFile(filePath))) {
             /* in case of a hard link, may need to switch to target */
             /* A hard link to another file */
             if (fmd->hasAttribute(XrdMgmOfsFile::k_mdino)) {
               std::shared_ptr<eos::IFileMD> gmd;
               uint64_t mdino;
-              if(eos::common::StringToNumeric(fmd->getAttribute(XrdMgmOfsFile::k_mdino),mdino)) {
+
+              if (eos::common::StringToNumeric(fmd->getAttribute(XrdMgmOfsFile::k_mdino),
+                                               mdino)) {
                 gmd = gOFS->eosFileService->getFileMD(
-                    eos::common::FileId::InodeToFid(mdino));
+                        eos::common::FileId::InodeToFid(mdino));
                 eos_info("hlnk switched from %s (%#lx) to file %s (%#lx)",
                          fmd->getName().c_str(), fmd->getId(),
                          gmd->getName().c_str(), gmd->getId());
                 fmd = gmd;
               } else {
                 //Conversion from string to inode number failed, log the error and return an error to the client
-                return Emsg(epname,error,ENOENT,"convert the inode extended attribute to a number",path);
+                return Emsg(epname, error, ENOENT,
+                            "convert the inode extended attribute to a number", path);
               }
             }
 
@@ -1042,6 +1047,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
       gOFS->MgmStats.Add("OpenFailedENOENT", vid.uid, vid.gid, 1);
       return Emsg(epname, error, errno, "open file", path);
     }
+
     bool sticky_owner;
     attr::checkDirOwner(attrmap, d_uid, d_gid, vid, sticky_owner, path);
 
@@ -1155,13 +1161,11 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
                   fmd->getAttribute("sys.proc").c_str());
     }
   }
-
   // check for versioning depth, cgi overrides sys & user attributes
   versioning = attr::getVersioning(attrmap, versioning_cgi);
-
   // check for atomic uploads only in non fuse clients
-  isAtomicUpload = !isFuse && attr::checkAtomicUpload(attrmap, openOpaque->Get("eos.atomic"));
-
+  isAtomicUpload = !isFuse &&
+                   attr::checkAtomicUpload(attrmap, openOpaque->Get("eos.atomic"));
   // check for injection in non fuse clients with cgi
   isInjection = !isFuse && openOpaque->Get("eos.injection");
 
@@ -1397,7 +1401,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
 
       if (auto redirect_kv = attrmap.find("sys.redirect.enoent");
           redirect_kv != attrmap.end()) {
-      // there is a redirection setting here
+        // there is a redirection setting here
         redirectionhost = "";
         redirectionhost = redirect_kv->second.c_str();
         int portpos = 0;
@@ -1518,13 +1522,16 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
   std::string iotype;
   bool schedule = false;
   bool is_local = false;
+
   if (openOpaque->Get("localconfig")) {
-    is_local=true;
+    is_local = true;
   }
+
   // select space and layout according to policies
   COMMONTIMING("Policy::begin", &tm);
   Policy::GetLayoutAndSpace(path, attrmap, vid, new_lid, space, *openOpaque,
-                            forcedFsId, forced_group, bandwidth, schedule, ioprio, iotype, isRW, true, is_local);
+                            forcedFsId, forced_group, bandwidth, schedule, ioprio, iotype, isRW, true,
+                            is_local);
   COMMONTIMING("Policy::end", &tm);
 
   // do a local redirect here if there is only one replica attached
@@ -1542,13 +1549,11 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
     } else {
       eos::common::FileSystem::fs_snapshot_t local_snapshot;
       unsigned int local_id = fmd->getLocation(0);
-
       {
         eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
         eos::mgm::FileSystem* local_fs = FsView::gFsView.mIdView.lookupByID(local_id);
         local_fs->SnapShotFileSystem(local_snapshot);
       }
-
       // compute the local path
       std::string local_path = eos::common::FileId::FidPrefix2FullPath(
                                  eos::common::FileId::Fid2Hex(fmd->getId()).c_str(),
@@ -1647,6 +1652,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
     layoutId = new_lid;
     {
       std::shared_ptr<eos::IFileMD> fmdnew;
+
       if (!byfid) {
         try {
           eos::common::RWMutexWriteLock ns_rd_lock(gOFS->eosViewRWMutex);
@@ -1663,13 +1669,15 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
       fmd->setLayoutId(layoutId);
 
       if (isFuse && (open_mode == SFS_O_TRUNC)) {
-	std::string s;
-	try {
-	  s = fmd->getAttribute("sys.fusex.state");
-	} catch (...) {}
+        std::string s;
 
-	s += "T";
-	fmd->setAttribute("sys.fusex.state",eos::common::StringConversion::ReduceString(s).c_str());
+        try {
+          s = fmd->getAttribute("sys.fusex.state");
+        } catch (...) {}
+
+        s += "T";
+        fmd->setAttribute("sys.fusex.state",
+                          eos::common::StringConversion::ReduceString(s).c_str());
       }
 
       // if specified set an external modification/creation time
@@ -2057,7 +2065,6 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
         COMMONTIMING("Scheduler::FilePlacement", &tm);
         retc = Quota::FilePlacement(&plctargs);
         COMMONTIMING("Scheduler::FilePlaced", &tm);
-
         eos_info("msg=\"file-recreation due to offline/full locations\" path=%s retc=%d",
                  path, retc);
         isRecreation = true;
@@ -2259,40 +2266,44 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
             } else {
               fmd = gOFS->eosView->getFile(creation_path);
             }
-	   
+
             if (!fmd) {
               errno = ENOENT;
               gOFS->MgmStats.Add("OpenFailedENOENT", vid.uid, vid.gid, 1);
               return Emsg(epname, error, errno, "open file - file is not existing");
             }
 
-	    std::string locations;
-	    try {
-	      locations = fmd->getAttribute("sys.fs.tracking");
-	    } catch (...) {}
-	    
+            std::string locations;
+
+            try {
+              locations = fmd->getAttribute("sys.fs.tracking");
+            } catch (...) {}
+
             if (isRecreation) {
               fmd->unlinkAllLocations();
-	      locations += "=";
+              locations += "=";
             }
 
-	    if (isRecreation) {
-	      std::string s;
-	      try {
-		s = fmd->getAttribute("sys.fusex.state");
-	      } catch (...) {}
+            if (isRecreation) {
+              std::string s;
 
-	      s += "Z";
-	      fmd->setAttribute("sys.fusex.state,", eos::common::StringConversion::ReduceString(s).c_str());
-	    }
+              try {
+                s = fmd->getAttribute("sys.fusex.state");
+              } catch (...) {}
 
+              s += "Z";
+              fmd->setAttribute("sys.fusex.state,",
+                                eos::common::StringConversion::ReduceString(s).c_str());
+            }
 
             for (auto& fsid : selectedfs) {
               fmd->addLocation(fsid);
-	      locations += "+";
-	      locations += std::to_string(fsid);
+              locations += "+";
+              locations += std::to_string(fsid);
             }
-	    fmd->setAttribute("sys.fs.tracking", eos::common::StringConversion::ReduceString(locations).c_str());
+
+            fmd->setAttribute("sys.fs.tracking",
+                              eos::common::StringConversion::ReduceString(locations).c_str());
             fmd->setChecksum(cx);
             gOFS->eosView->updateFileStore(fmd.get());
           } catch (eos::MDException& e) {
@@ -2320,18 +2331,19 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
           // first open call
           eos::Prefetcher::prefetchFileMDAndWait(gOFS->eosView, byfid);
           eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
-	  std::string locations;
+          std::string locations;
+
           try {
             fmd = gOFS->eosFileService->getFileMD(byfid);
 
-	    try {
-	      locations = fmd->getAttribute("sys.fs.tracking");
-	    } catch (...) {}
-	    
+            try {
+              locations = fmd->getAttribute("sys.fs.tracking");
+            } catch (...) {}
+
             for (auto& fsid : selectedfs) {
               fmd->addLocation(fsid);
-	      locations += "+";
-	      locations += std::to_string(fsid);
+              locations += "+";
+              locations += std::to_string(fsid);
             }
 
             gOFS->eosView->updateFileStore(fmd.get());
@@ -2689,7 +2701,6 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
       COMMONTIMING("Scheduler::FilePlacement", &tm);
       retc = Quota::FilePlacement(&plctargs);
       COMMONTIMING("Scheduler::FilePlaced", &tm);
-
       LogSchedulingInfo(selectedfs, proxys, firewalleps);
 
       if (retc) {
@@ -3139,7 +3150,6 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
 
   EXEC_TIMING_END("Open");
   COMMONTIMING("end", &tm);
-
   char clientinfo[1024];
   snprintf(clientinfo, sizeof(clientinfo),
            "open:rt=%.02f io:bw=%s io:sched=%d io:type=%s io:prio=%s io:redirect=%s:%d",
