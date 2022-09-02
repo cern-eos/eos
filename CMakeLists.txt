@@ -97,7 +97,7 @@ include(EosFindLibs)
 #-------------------------------------------------------------------------------
 # Generate documentation
 #-------------------------------------------------------------------------------
-if (PYTHONINTERP_FOUND AND SPHINX_FOUND)
+if (Python3_Interpreter_FOUND AND SPHINX_FOUND)
   add_custom_target(doc
     COMMAND python3 generate_docs.py
     WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}/doc"

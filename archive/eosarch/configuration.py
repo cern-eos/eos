@@ -160,13 +160,13 @@ class Configuration(object):
         try:
             self.logger.info("Configuration parameters:")
 
-            for key, val in self.__dict__.iteritems():
+            for key, val in self.__dict__.items():
                 if key.isupper():
                     self.logger.info("conf.{0} = {1}".format(key, val))
         except AttributeError as __:
             print("Configuration parameters:", file=sys.stderr)
 
-            for key, val in self.__dict__.iteritems():
+            for key, val in self.__dict__.items():
                 if key.isupper():
                     print("conf.{0} = {1}".format(key, val), file=sys.stderr)
 

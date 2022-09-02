@@ -1,3 +1,4 @@
+#!/usr/bin/python3
 # ------------------------------------------------------------------------------
 # File: __init__.py
 # Author: Elvin-Alin Sindrilaru <esindril@cern.ch>
@@ -23,7 +24,7 @@
 """This module provides access to EOS archives. It also facilitates the operations
    that are done using such objects.
 """
-from configuration import Configuration
-from transfer import Transfer
-from processinfo import ProcessInfo
-from exceptions import NoErrorException, CheckEntryException
+from eosarch.configuration import Configuration
+from eosarch.transfer import Transfer
+from eosarch.processinfo import ProcessInfo
+from eosarch.exceptions import NoErrorException, CheckEntryException

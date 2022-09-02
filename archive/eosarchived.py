@@ -1,5 +1,4 @@
 #!/usr/bin/python3
-
 # ------------------------------------------------------------------------------
 # File: eosarchived.py
 # Author: Elvin-Alin Sindrilaru <esindril@cern.ch>
@@ -33,7 +32,6 @@ import sys
 import zmq
 import stat
 import subprocess
-import daemon
 import ast
 import logging
 import time
@@ -224,7 +222,7 @@ class Dispatcher(object):
                 break
 
         # Check if processes that didn't respond are still alive
-        unresp = [proc for (uuid, proc) in self.procs.iteritems()
+        unresp = [proc for (uuid, proc) in self.procs.items()
                   if uuid not in recv_uuid]
 
         for pinfo in unresp:
@@ -379,58 +377,57 @@ class Dispatcher(object):
 
 def main():
     """ Main function """
-    with daemon.DaemonContext():
+    try:
+        config = Configuration()
+    except Exception as err:
+        print("Configuration failed, error:{0}".format(err), file=sys.stderr)
+        raise
+
+    config.start_logging("dispatcher", config.LOG_FILE, True)
+    logger = logging.getLogger("dispatcher")
+    config.display()
+    config.DIR = {}
+
+    # Create the local directory structure in /var/eos/archive/
+    # i.e /var/eos/archive/get/, /var/eos/archive/put/ etc.
+    for oper in [config.GET_OP,
+                    config.PUT_OP,
+                    config.PURGE_OP,
+                    config.DELETE_OP,
+                    config.BACKUP_OP]:
+        path = config.EOS_ARCHIVE_DIR + oper + '/'
+        config.DIR[oper] = path
+
         try:
-            config = Configuration()
-        except Exception as err:
-            print("Configuration failed, error:{0}".format(err), file=sys.stderr)
-            raise
+            os.mkdir(path)
+        except OSError as __:
+            pass  # directory exists
 
-        config.start_logging("dispatcher", config.LOG_FILE, True)
-        logger = logging.getLogger("dispatcher")
-        config.display()
-        config.DIR = {}
-
-        # Create the local directory structure in /var/eos/archive/
-        # i.e /var/eos/archive/get/, /var/eos/archive/put/ etc.
-        for oper in [config.GET_OP,
-                     config.PUT_OP,
-                     config.PURGE_OP,
-                     config.DELETE_OP,
-                     config.BACKUP_OP]:
-            path = config.EOS_ARCHIVE_DIR + oper + '/'
-            config.DIR[oper] = path
-
+    # Prepare ZMQ IPC files
+    for ipc_file in [config.FRONTEND_IPC,
+                        config.BACKEND_REQ_IPC,
+                        config.BACKEND_PUB_IPC]:
+        if not os.path.exists(ipc_file):
             try:
-                os.mkdir(path)
-            except OSError as __:
-                pass  # directory exists
+                open(ipc_file, 'w').close()
+                os.chmod(ipc_file, stat.S_IRWXU | stat.S_IRWXG | stat.S_IRWXO)
+            except OSError as err:
+                err_msg = ("Failed setting permissioins on the IPC socket"
+                            " file={0}").format(ipc_file)
+                logger.error(err_msg)
+                raise
+            except IOError as err:
+                err_msg = ("Failed creating IPC socket file={0}").format(ipc_file)
+                logger.error(err_msg)
+                raise
 
-        # Prepare ZMQ IPC files
-        for ipc_file in [config.FRONTEND_IPC,
-                         config.BACKEND_REQ_IPC,
-                         config.BACKEND_PUB_IPC]:
-            if not os.path.exists(ipc_file):
-                try:
-                    open(ipc_file, 'w').close()
-                    os.chmod(ipc_file, stat.S_IRWXU | stat.S_IRWXG | stat.S_IRWXO)
-                except OSError as err:
-                    err_msg = ("Failed setting permissioins on the IPC socket"
-                               " file={0}").format(ipc_file)
-                    logger.error(err_msg)
-                    raise
-                except IOError as err:
-                    err_msg = ("Failed creating IPC socket file={0}").format(ipc_file)
-                    logger.error(err_msg)
-                    raise
+    # Create dispatcher object
+    dispatcher = Dispatcher(config)
 
-        # Create dispatcher object
-        dispatcher = Dispatcher(config)
-
-        try:
-            dispatcher.run()
-        except Exception as err:
-            logger.exception(err)
+    try:
+        dispatcher.run()
+    except Exception as err:
+        logger.exception(err)
 
 if __name__ == '__main__':
     try:
