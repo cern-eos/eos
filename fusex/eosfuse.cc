@@ -1952,9 +1952,6 @@ EosFuse::DumpStatistic(ThreadAssistant& assistant)
   time_t start_time = time(NULL);
 
   while (!assistant.terminationRequested()) {
-    time_t now = time(NULL);
-    std::string sout;
-    std::ostringstream ssout;
     Json::StyledWriter jsonwriter;
     Json::Value jsonstats{};
     meminfo.update();

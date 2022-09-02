@@ -1160,7 +1160,6 @@ Stat::PrintOutTotalJson(Json::Value& out)
 
   std::sort(tags.begin(), tags.end());
   std::sort(tags_ext.begin(), tags_ext.end());
-  char outline[8192];
   double avg = 0;
   double sig = 0;
   size_t ops = 0;
@@ -1175,15 +1174,8 @@ Stat::PrintOutTotalJson(Json::Value& out)
 
     Json::Value entry{};
     const char* tag = it->c_str();
-    char a5[1024];
-    char a60[1024];
-    char a300[1024];
-    char a3600[1024];
-    char aexec[1024];
-    char aexecsig[1024];
-    char atotal[1024];
-    double avg = 0;
-    double sig = 0;
+    avg = 0;
+    sig = 0;
     double total = 0;
     avg = GetExec(tag, sig);
     total = avg * GetTotal(tag) / 1000.0;
