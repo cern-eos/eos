@@ -284,6 +284,11 @@ public:
   static void Print(XrdOucString& stdOut, XrdOucString option = "");
 
   // ---------------------------------------------------------------------------
+  //! Add physical ids for name
+  // ---------------------------------------------------------------------------
+  static void getPhysicalIds(const char* name, uid_t& uid, gid_t& gid);
+  
+  // ---------------------------------------------------------------------------
   //! Add physical ids for name to vid
   // ---------------------------------------------------------------------------
   static void getPhysicalIds(const char* name, VirtualIdentity& vid);

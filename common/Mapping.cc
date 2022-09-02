@@ -1412,6 +1412,24 @@ Mapping::Print(XrdOucString& stdOut, XrdOucString option)
 
 /*----------------------------------------------------------------------------*/
 /**
+ * Store the physical Ids for name 
+ *
+ * @param name user name
+ * @param uid/gid pair
+ */
+
+/*----------------------------------------------------------------------------*/
+void
+Mapping::getPhysicalIds(const char* name, uid_t& uid, gid_t& gid)
+{
+  VirtualIdentity vid;
+  getPhysicalIds(name, vid);
+  uid = vid.uid;
+  gid = vid.gid;
+}
+
+/*----------------------------------------------------------------------------*/
+/**
  * Store the physical Ids for name in the virtual identity
  *
  * @param name user name
