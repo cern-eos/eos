@@ -17,6 +17,38 @@ Introduction
 This release is based on XRootD V5.
 
 
+``v5.1.0 Diopside``
+====================
+
+Note
+----
+
+* This release comes with XRootD/eos-xrootd 5.5.0 as dependency
+
+Bug
+----
+
+* [EOS-5377] - Unhandled exception in the GeoBalancer code
+* [EOS-5367] - Fix IoStat intialization when there is no prior data in QuarkDB
+* MGM: Fsck: correct the calculation of expected number of stripes in RepairFstXsSzDiff
+
+
+Improvement
+-----------
+
+* [EOS-5380] - Qclient: handle folly warnings
+* [EOS-5381] - Fix potential format overflows
+* [EOS-5378] - Fix compilation warnings
+* FUSEX: Add support for json statistics output
+
+New features
+-------------
+
+* FST: Add support for storing file metadata info as extended attributes
+  of the raw files on disk rather than using the LevelDB on disk.
+  Disabled by default for the moment.
+
+
 ``v5.0.31 Diopside``
 ===================
 
