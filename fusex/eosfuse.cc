@@ -857,7 +857,9 @@ EosFuse::run(int argc, char* argv[], void* userdata)
 
     config.options.debug = root["options"]["debug"].asInt();
     config.options.debuglevel = root["options"]["debuglevel"].asInt();
-    config.options.jsonstats = !root["options"]["jsonstats"].isNull() && root["options"]["jsonstats"] != 0; // any value will make jsonstats to true but 0
+    config.options.jsonstats = !root["options"]["jsonstats"].isNull() &&
+                               root["options"]["jsonstats"] !=
+                               0; // any value will make jsonstats to true but 0
     config.options.enable_backtrace = root["options"]["backtrace"].asInt();
     config.options.libfusethreads = root["options"]["libfusethreads"].asInt();
     config.options.md_kernelcache = root["options"]["md-kernelcache"].asInt();
@@ -1815,8 +1817,9 @@ EosFuse::run(int argc, char* argv[], void* userdata)
         std::string laststat = config.statfilepath;
         laststat += ".last";
         ::rename(config.statfilepath.c_str(), laststat.c_str());
-        if(EosFuse::Instance().config.options.jsonstats){
-          ::rename((config.statfilepath+".json").c_str(), (laststat+".json").c_str());
+
+        if (EosFuse::Instance().config.options.jsonstats) {
+          ::rename((config.statfilepath + ".json").c_str(), (laststat + ".json").c_str());
         }
       }
 
@@ -1947,6 +1950,7 @@ EosFuse::DumpStatistic(ThreadAssistant& assistant)
   eos_static_debug("started statistic dump thread");
   char ino_stat[16384];
   time_t start_time = time(NULL);
+
   while (!assistant.terminationRequested()) {
     time_t now = time(NULL);
     std::string sout;
@@ -1968,7 +1972,8 @@ EosFuse::DumpStatistic(ThreadAssistant& assistant)
 
 #endif
     eos_static_debug("dumping statistics");
-    if(EosFuse::Instance().config.options.jsonstats){
+
+    if (EosFuse::Instance().config.options.jsonstats) {
       fusestat.PrintOutTotalJson(jsonstats); //creates activity object...
       Json::Value inodes{};
       inodes["number"]      = (Json::UInt64) this->getMdStat().inodes();
@@ -1981,41 +1986,42 @@ EosFuse::DumpStatistic(ThreadAssistant& assistant)
       inodes["vmap"]        = (Json::UInt64) this->mds.vmaps().size();
       inodes["caps"]        = (Json::UInt64) this->caps.size();
       inodes["tracker"]     = (Json::UInt64) this->Tracker().size();
-      inodes["rhexpired"]   = (Json::UInt64) XrdCl::Proxy::ReadAsyncHandler::nexpired();
+      inodes["rhexpired"]   = (Json::UInt64)
+                              XrdCl::Proxy::ReadAsyncHandler::nexpired();
       inodes["proxies"]     = (Json::UInt64) XrdCl::Proxy::Proxies();
-      jsonstats["inodes"]=inodes;
+      jsonstats["inodes"] = inodes;
     }
-    XrdOucString out;
-    fusestat.PrintOutTotal(out);
-    sout = out.c_str();
-    now = time(NULL);
+
+    std::string sout;
+    fusestat.PrintOutTotal(sout);
+    time_t now = time(NULL);
     snprintf(ino_stat, sizeof(ino_stat),
-            "# -----------------------------------------------------------------------------------------------------------\n"
-            "ALL        inodes              := %lu\n"
-            "ALL        inodes stack        := %lu\n"
-            "ALL        inodes-todelete     := %lu\n"
-            "ALL        inodes-backlog      := %lu\n"
-            "ALL        inodes-ever         := %lu\n"
-            "ALL        inodes-ever-deleted := %lu\n"
-            "ALL        inodes-open         := %lu\n"
-            "ALL        inodes-vmap         := %lu\n"
-            "ALL        inodes-caps         := %lu\n"
-            "ALL        inodes-tracker      := %lu\n"
-            "ALL        rh-expired          := %lu\n"
-            "ALL        proxies             := %d\n"
-            "# -----------------------------------------------------------------------------------------------------------\n",
-            this->getMdStat().inodes(),
-            this->getMdStat().inodes_stacked(),
-            this->getMdStat().inodes_deleted(),
-            this->getMdStat().inodes_backlog(),
-            this->getMdStat().inodes_ever(),
-            this->getMdStat().inodes_deleted_ever(),
-            this->datas.size(),
-            this->mds.vmaps().size(),
-            this->caps.size(),
-            this->Tracker().size(),
-            XrdCl::Proxy::ReadAsyncHandler::nexpired(),
-            XrdCl::Proxy::Proxies()
+             "# -----------------------------------------------------------------------------------------------------------\n"
+             "ALL        inodes              := %lu\n"
+             "ALL        inodes stack        := %lu\n"
+             "ALL        inodes-todelete     := %lu\n"
+             "ALL        inodes-backlog      := %lu\n"
+             "ALL        inodes-ever         := %lu\n"
+             "ALL        inodes-ever-deleted := %lu\n"
+             "ALL        inodes-open         := %lu\n"
+             "ALL        inodes-vmap         := %lu\n"
+             "ALL        inodes-caps         := %lu\n"
+             "ALL        inodes-tracker      := %lu\n"
+             "ALL        rh-expired          := %lu\n"
+             "ALL        proxies             := %d\n"
+             "# -----------------------------------------------------------------------------------------------------------\n",
+             this->getMdStat().inodes(),
+             this->getMdStat().inodes_stacked(),
+             this->getMdStat().inodes_deleted(),
+             this->getMdStat().inodes_backlog(),
+             this->getMdStat().inodes_ever(),
+             this->getMdStat().inodes_deleted_ever(),
+             this->datas.size(),
+             this->mds.vmaps().size(),
+             this->caps.size(),
+             this->Tracker().size(),
+             XrdCl::Proxy::ReadAsyncHandler::nexpired(),
+             XrdCl::Proxy::Proxies()
             );
     sout += ino_stat;
     {
@@ -2032,18 +2038,21 @@ EosFuse::DumpStatistic(ThreadAssistant& assistant)
         if (it.first.find("failed") != std::string::npos) {
           recovery_fail++;
         }
-    
-        if(EosFuse::Instance().config.options.jsonstats){
+
+        if (EosFuse::Instance().config.options.jsonstats) {
           recoveries[it.first] = (Json::UInt64) it.second;
           jsonstats["recoveries"] = recoveries;
         }
+
         snprintf(ino_stat, sizeof(ino_stat),
-                "ALL        %-45s := %lu\n", it.first.c_str(), it.second);
+                 "ALL        %-45s := %lu\n", it.first.c_str(), it.second);
         sout += ino_stat;
       }
-      if(!EosFuse::Instance().config.options.jsonstats){
+
+      if (!EosFuse::Instance().config.options.jsonstats) {
         sout += "# -----------------------------------------------------------------------------------------------------------\n";
       }
+
       Instance().aRecoveryOk = recovery_ok;
       Instance().aRecoveryFail = recovery_ok;
     }
@@ -2085,22 +2094,40 @@ EosFuse::DumpStatistic(ThreadAssistant& assistant)
       }
       double blocked_ms = this->Tracker().blocked_ms(blocker, blocker_inode);
       int heartbeat_age = time(NULL) - EosFuse::Instance().mds.last_heartbeat;
-      if(EosFuse::Instance().config.options.jsonstats){
+
+      if (EosFuse::Instance().config.options.jsonstats) {
         Json::Value stats {};
         stats["threads"]             = (Json::LargestUInt) osstat.threads;
-        stats["visze"]               = eos::common::StringConversion::GetReadableSizeString(s1, osstat.vsize, "b");
-        stats["rss"]                 = eos::common::StringConversion::GetReadableSizeString(s2, osstat.rss, "b");
+        stats["visze"]               =
+          eos::common::StringConversion::GetReadableSizeString(s1, osstat.vsize, "b");
+        stats["rss"]                 =
+          eos::common::StringConversion::GetReadableSizeString(s2, osstat.rss, "b");
         stats["pid"]                 = (Json::UInt) getpid();
         stats["log-size"]            = (Json::LargestUInt) this->sizeLogFile();
-        stats["wr-buf-inflight"]     = eos::common::StringConversion::GetReadableSizeString(s3,XrdCl::Proxy::sWrBufferManager.inflight(), "b");
-        stats["wr-buf-queued"]       = eos::common::StringConversion::GetReadableSizeString(s4,XrdCl::Proxy::sWrBufferManager.queued(), "b");
-        stats["wr-nobuff"]           = (Json::LargestUInt) XrdCl::Proxy::sWrBufferManager.nobuf();
-        stats["ra-buf-inflight"]     = eos::common::StringConversion::GetReadableSizeString(s5,XrdCl::Proxy::sRaBufferManager.inflight(), "b");
-        stats["ra-buf-queued"]       = eos::common::StringConversion::GetReadableSizeString(s6,XrdCl::Proxy::sRaBufferManager.queued(), "b");
-        stats["ra-xoff"]             = (Json::LargestUInt) XrdCl::Proxy::sRaBufferManager.xoff();
-        stats["ra-nobuff"]           = (Json::LargestUInt) XrdCl::Proxy::sRaBufferManager.nobuf();
-        stats["rd-buf-inflight"]     = eos::common::StringConversion::GetReadableSizeString(s7,data::datax::sBufferManager.inflight(), "b");
-        stats["rd-buf-queued"]       = eos::common::StringConversion::GetReadableSizeString(s8,data::datax::sBufferManager.queued(), "b");
+        stats["wr-buf-inflight"]     =
+          eos::common::StringConversion::GetReadableSizeString(s3,
+              XrdCl::Proxy::sWrBufferManager.inflight(), "b");
+        stats["wr-buf-queued"]       =
+          eos::common::StringConversion::GetReadableSizeString(s4,
+              XrdCl::Proxy::sWrBufferManager.queued(), "b");
+        stats["wr-nobuff"]           = (Json::LargestUInt)
+                                       XrdCl::Proxy::sWrBufferManager.nobuf();
+        stats["ra-buf-inflight"]     =
+          eos::common::StringConversion::GetReadableSizeString(s5,
+              XrdCl::Proxy::sRaBufferManager.inflight(), "b");
+        stats["ra-buf-queued"]       =
+          eos::common::StringConversion::GetReadableSizeString(s6,
+              XrdCl::Proxy::sRaBufferManager.queued(), "b");
+        stats["ra-xoff"]             = (Json::LargestUInt)
+                                       XrdCl::Proxy::sRaBufferManager.xoff();
+        stats["ra-nobuff"]           = (Json::LargestUInt)
+                                       XrdCl::Proxy::sRaBufferManager.nobuf();
+        stats["rd-buf-inflight"]     =
+          eos::common::StringConversion::GetReadableSizeString(s7,
+              data::datax::sBufferManager.inflight(), "b");
+        stats["rd-buf-queued"]       =
+          eos::common::StringConversion::GetReadableSizeString(s8,
+              data::datax::sBufferManager.queued(), "b");
         stats["version"]             = VERSION;
         stats["fuseversion"]         = FUSE_USE_VERSION;
         stats["starttime"]           = (Json::LargestUInt) start_time;
@@ -2119,91 +2146,93 @@ EosFuse::DumpStatistic(ThreadAssistant& assistant)
         stats["endpoint-url"]        = lastMgmHostPort.get().c_str();
         stats["client-uuid"]         = EosFuse::Instance().config.clientuuid.c_str();
         stats["server-version"]      = EosFuse::Instance().mds.server_version().c_str();
-        stats["automounted"]         = (Json::UInt) EosFuse::Instance().Config().options.automounted;
+        stats["automounted"]         = (Json::UInt)
+                                       EosFuse::Instance().Config().options.automounted;
         stats["max-inode-lock-ms"]   = blocked_ms;
         stats["blocker"]             = blocker.c_str();
         stats["last-heartbeat-secs"] = (Json::UInt) heartbeat_age;
         jsonstats["stats"] = stats;
       }
+
       snprintf(ino_stat, sizeof(ino_stat),
-              "ALL        threads             := %llu\n"
-              "ALL        visze               := %s\n"
-              "ALL        rss                 := %s\n"
-              "ALL        pid                 := %d\n"
-              "ALL        log-size            := %lu\n"
-              "ALL        wr-buf-inflight     := %s\n"
-              "ALL        wr-buf-queued       := %s\n"
-              "ALL        wr-nobuff           := %lu\n"
-              "ALL        ra-buf-inflight     := %s\n"
-              "ALL        ra-buf-queued       := %s\n"
-              "ALL        ra-xoff             := %lu\n"
-              "ALL        ra-nobuff           := %lu\n"
-              "ALL        rd-buf-inflight     := %s\n"
-              "ALL        rd-buf-queued       := %s\n"
-              "ALL        version             := %s\n"
-              "ALL        fuseversion         := %d\n"
-              "ALL        starttime           := %lu\n"
-              "ALL        uptime              := %lu\n"
-              "ALL        total-mem           := %lu\n"
-              "ALL        free-mem            := %lu\n"
-              "ALL        load                := %lu\n"
-              "ALL        total-rbytes        := %llu\n"
-              "ALL        total-wbytes        := %llu\n"
-              "ALL        total-io-ops        := %lu\n"
-              "ALL        read--mb/s          := %.02f\n"
-              "ALL        write-mb/s          := %.02f\n"
-              "ALL        iops                := %d\n"
-              "ALL        xoffs               := %lu\n"
-              "ALL        instance-url        := %s\n"
-              "ALL        endpoint-url        := %s\n"
-              "ALL        client-uuid         := %s\n"
-              "ALL        server-version      := %s\n"
-              "ALL        automounted         := %d\n"
-              "ALL        max-inode-lock-ms   := %.02f [%s]\n"
-              "ALL        last-heartbeat-secs := %d\n"
-              "# -----------------------------------------------------------------------------------------------------------\n",
-              osstat.threads,
-              eos::common::StringConversion::GetReadableSizeString(s1, osstat.vsize, "b"),
-              eos::common::StringConversion::GetReadableSizeString(s2, osstat.rss, "b"),
-              getpid(),
-              this->sizeLogFile(),
-              eos::common::StringConversion::GetReadableSizeString(s3,
-                  XrdCl::Proxy::sWrBufferManager.inflight(), "b"),
-              eos::common::StringConversion::GetReadableSizeString(s4,
-                  XrdCl::Proxy::sWrBufferManager.queued(), "b"),
-              XrdCl::Proxy::sWrBufferManager.nobuf(),
-              eos::common::StringConversion::GetReadableSizeString(s5,
-                  XrdCl::Proxy::sRaBufferManager.inflight(), "b"),
-              eos::common::StringConversion::GetReadableSizeString(s6,
-                  XrdCl::Proxy::sRaBufferManager.queued(), "b"),
-              XrdCl::Proxy::sRaBufferManager.xoff(),
-              XrdCl::Proxy::sRaBufferManager.nobuf(),
-              eos::common::StringConversion::GetReadableSizeString(s7,
-                  data::datax::sBufferManager.inflight(), "b"),
-              eos::common::StringConversion::GetReadableSizeString(s8,
-                  data::datax::sBufferManager.queued(), "b"),
-              VERSION,
-              FUSE_USE_VERSION,
-              start_time,
-              now - start_time,
-              totalram,
-              freeram,
-              loads0,
-              rbytes,
-              wbytes,
-              nops,
-              total_rbytes,
-              total_wbytes,
-              sum,
-              Instance().datas.get_xoff(),
-              EosFuse::Instance().config.hostport.c_str(),
-              lastMgmHostPort.get().c_str(),
-              EosFuse::Instance().config.clientuuid.c_str(),
-              EosFuse::Instance().mds.server_version().c_str(),
-              EosFuse::Instance().Config().options.automounted,
-              blocked_ms,
-              blocker.c_str(),
-              heartbeat_age
+               "ALL        threads             := %llu\n"
+               "ALL        visze               := %s\n"
+               "ALL        rss                 := %s\n"
+               "ALL        pid                 := %d\n"
+               "ALL        log-size            := %lu\n"
+               "ALL        wr-buf-inflight     := %s\n"
+               "ALL        wr-buf-queued       := %s\n"
+               "ALL        wr-nobuff           := %lu\n"
+               "ALL        ra-buf-inflight     := %s\n"
+               "ALL        ra-buf-queued       := %s\n"
+               "ALL        ra-xoff             := %lu\n"
+               "ALL        ra-nobuff           := %lu\n"
+               "ALL        rd-buf-inflight     := %s\n"
+               "ALL        rd-buf-queued       := %s\n"
+               "ALL        version             := %s\n"
+               "ALL        fuseversion         := %d\n"
+               "ALL        starttime           := %lu\n"
+               "ALL        uptime              := %lu\n"
+               "ALL        total-mem           := %lu\n"
+               "ALL        free-mem            := %lu\n"
+               "ALL        load                := %lu\n"
+               "ALL        total-rbytes        := %llu\n"
+               "ALL        total-wbytes        := %llu\n"
+               "ALL        total-io-ops        := %lu\n"
+               "ALL        read--mb/s          := %.02f\n"
+               "ALL        write-mb/s          := %.02f\n"
+               "ALL        iops                := %d\n"
+               "ALL        xoffs               := %lu\n"
+               "ALL        instance-url        := %s\n"
+               "ALL        endpoint-url        := %s\n"
+               "ALL        client-uuid         := %s\n"
+               "ALL        server-version      := %s\n"
+               "ALL        automounted         := %d\n"
+               "ALL        max-inode-lock-ms   := %.02f [%s]\n"
+               "ALL        last-heartbeat-secs := %d\n"
+               "# -----------------------------------------------------------------------------------------------------------\n",
+               osstat.threads,
+               eos::common::StringConversion::GetReadableSizeString(s1, osstat.vsize, "b"),
+               eos::common::StringConversion::GetReadableSizeString(s2, osstat.rss, "b"),
+               getpid(),
+               this->sizeLogFile(),
+               eos::common::StringConversion::GetReadableSizeString(s3,
+                   XrdCl::Proxy::sWrBufferManager.inflight(), "b"),
+               eos::common::StringConversion::GetReadableSizeString(s4,
+                   XrdCl::Proxy::sWrBufferManager.queued(), "b"),
+               XrdCl::Proxy::sWrBufferManager.nobuf(),
+               eos::common::StringConversion::GetReadableSizeString(s5,
+                   XrdCl::Proxy::sRaBufferManager.inflight(), "b"),
+               eos::common::StringConversion::GetReadableSizeString(s6,
+                   XrdCl::Proxy::sRaBufferManager.queued(), "b"),
+               XrdCl::Proxy::sRaBufferManager.xoff(),
+               XrdCl::Proxy::sRaBufferManager.nobuf(),
+               eos::common::StringConversion::GetReadableSizeString(s7,
+                   data::datax::sBufferManager.inflight(), "b"),
+               eos::common::StringConversion::GetReadableSizeString(s8,
+                   data::datax::sBufferManager.queued(), "b"),
+               VERSION,
+               FUSE_USE_VERSION,
+               start_time,
+               now - start_time,
+               totalram,
+               freeram,
+               loads0,
+               rbytes,
+               wbytes,
+               nops,
+               total_rbytes,
+               total_wbytes,
+               sum,
+               Instance().datas.get_xoff(),
+               EosFuse::Instance().config.hostport.c_str(),
+               lastMgmHostPort.get().c_str(),
+               EosFuse::Instance().config.clientuuid.c_str(),
+               EosFuse::Instance().mds.server_version().c_str(),
+               EosFuse::Instance().Config().options.automounted,
+               blocked_ms,
+               blocker.c_str(),
+               heartbeat_age
               );
 
       if (blocker_inode != 1) {
@@ -2258,11 +2287,12 @@ EosFuse::DumpStatistic(ThreadAssistant& assistant)
       last_blocker = blocker;
       last_blocked_ms = blocked_ms;
     }
-    if(EosFuse::Instance().config.options.jsonstats){
 
-      std::ofstream dumpjsonfile(EosFuse::Instance().config.statfilepath+".json");
+    if (EosFuse::Instance().config.options.jsonstats) {
+      std::ofstream dumpjsonfile(EosFuse::Instance().config.statfilepath + ".json");
       dumpjsonfile << jsonwriter.write(jsonstats);
     }
+
     sout += ino_stat;
     std::ofstream dumpfile(EosFuse::Instance().config.statfilepath);
     dumpfile << sout;
@@ -4213,8 +4243,7 @@ EosFuse::open(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info* fi)
             struct fuse_entry_param e;
             memset(&e, 0, sizeof(e));
             md->convert(e, pcap->lifetime());
-	    std::string obfuscation_key = md->obfuscate_key();
-	    
+            std::string obfuscation_key = md->obfuscate_key();
             mLock.UnLock();
             data::data_fh* io = data::data_fh::Instance(Instance().datas.get(req,
                                 (*md)()->id(),

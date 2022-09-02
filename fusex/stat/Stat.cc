@@ -24,11 +24,14 @@
 /*----------------------------------------------------------------------------*/
 #include "common/Mapping.hh"
 #include "common/StringConversion.hh"
-#include "stat/Stat.hh"
+#include "fusex/stat/Stat.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdOuc/XrdOucString.hh"
-
+#include "fmt/printf.h"
 /*----------------------------------------------------------------------------*/
+
+static constexpr std::string_view na = "NA";
+
 void
 Stat::Add(const char* tag, uid_t uid, gid_t gid, unsigned long val)
 {
@@ -55,9 +58,9 @@ Stat::AddExec(const char* tag, float exectime)
 {
   XrdSysMutexHelper lLock(Mutex);
   StatExec[tag].push_back(exectime);
-  
+
   // skip asynchronous calls release / releasedir
-  if (std::string(tag).substr(0,7) != "release") {
+  if (std::string(tag).substr(0, 7) != "release") {
     TotalExec += exectime;
   }
 
@@ -615,14 +618,17 @@ Stat::Clear()
     StatsUid[ittag->first].clear();
     StatsUid[ittag->first].resize(1000);
   }
+
   for (auto ittag = StatsGid.begin(); ittag != StatsGid.end(); ittag++) {
     StatsGid[ittag->first].clear();
     StatsGid[ittag->first].resize(1000);
   }
+
   for (auto ittag = StatsUid.begin(); ittag != StatsUid.end(); ittag++) {
     StatAvgUid[ittag->first].clear();
     StatAvgUid[ittag->first].resize(1000);
   }
+
   for (auto ittag = StatsGid.begin(); ittag != StatsGid.end(); ittag++) {
     StatAvgGid[ittag->first].clear();
     StatAvgGid[ittag->first].resize(1000);
@@ -638,7 +644,7 @@ Stat::Clear()
 
 /*----------------------------------------------------------------------------*/
 void
-Stat::PrintOutTotal(XrdOucString& out, bool details, bool monitoring,
+Stat::PrintOutTotal(std::string& out, bool details, bool monitoring,
                     bool numerical)
 {
   XrdSysMutexHelper lLock(Mutex);
@@ -663,25 +669,27 @@ Stat::PrintOutTotal(XrdOucString& out, bool details, bool monitoring,
   double avg = 0;
   double sig = 0;
   size_t ops = 0;
-
   avg = GetTotalExec(sig, ops);
   sum_ops = ops;
 
   if (!monitoring) {
-    snprintf(outline, sizeof(outline), "%-7s %-32s %3.02f +- %3.02f = %.02fs (%lu ops)\n", "ALL",
-            "Execution Time", avg,
-            sig, TotalExec/1000.0, ops);
+    snprintf(outline, sizeof(outline),
+             "%-7s %-32s %3.02f +- %3.02f = %.02fs (%lu ops)\n", "ALL",
+             "Execution Time", avg,
+             sig, TotalExec / 1000.0, ops);
     out += outline;
     out += "# -----------------------------------------------------------------------------------------------------------------------\n";
-    snprintf(outline, sizeof(outline), "%-7s %-32s %-9s %8s %8s %8s %8s %-8s +- %-10s = %-10s", "who",
-            "command", "sum", "5s", "1min", "5min", "1h", "exec(ms)", "sigma(ms)",
-            "cumul(s)");
+    snprintf(outline, sizeof(outline),
+             "%-7s %-32s %-9s %8s %8s %8s %8s %-8s +- %-10s = %-10s", "who",
+             "command", "sum", "5s", "1min", "5min", "1h", "exec(ms)", "sigma(ms)",
+             "cumul(s)");
     out += outline;
     out += "\n";
     out += "# -----------------------------------------------------------------------------------------------------------------------\n";
   } else {
     snprintf(outline, sizeof(outline),
-            "uid=all gid=all total.exec.avg=%.02f total.exec.sigma=%.02f total.exec.sum=%.02f\n", avg, sig, TotalExec);
+             "uid=all gid=all total.exec.avg=%.02f total.exec.sigma=%.02f total.exec.sum=%.02f\n",
+             avg, sig, TotalExec);
     out += outline;
   }
 
@@ -691,134 +699,101 @@ Stat::PrintOutTotal(XrdOucString& out, bool details, bool monitoring,
     }
 
     const char* tag = it->c_str();
-    char a5[1024];
-    char a60[1024];
-    char a300[1024];
-    char a3600[1024];
-    char aexec[1024];
-    char aexecsig[1024];
-    char atotal[1024];
+    std::string aexec = "-NA-";
+    std::string aexecsig = "-NA-";
     double avg = 0;
     double sig = 0;
     double total = 0;
     avg = GetExec(tag, sig);
-    sprintf(a5, "%3.02f", GetTotalAvg5(tag));
-    sprintf(a60, "%3.02f", GetTotalAvg60(tag));
-    sprintf(a300, "%3.02f", GetTotalAvg300(tag));
-    sprintf(a3600, "%3.02f", GetTotalAvg3600(tag));
+    std::string a5 = fmt::sprintf("%3.02f", GetTotalAvg5(tag));
+    std::string a60 = fmt::sprintf("%3.02f", GetTotalAvg60(tag));
+    std::string a300 = fmt::sprintf("%3.02f", GetTotalAvg300(tag));
+    std::string a3600 = fmt::sprintf("%3.02f", GetTotalAvg3600(tag));
 
     if (avg) {
-      sprintf(aexec, "%3.05f", avg);
-    } else {
-      sprintf(aexec, "-NA-");
+      aexec = fmt::sprintf("%3.05f", avg);
     }
 
     if (sig) {
-      sprintf(aexecsig, "%3.05f", sig);
-    } else {
-      sprintf(aexecsig, "-NA-");
+      aexecsig = fmt::sprintf("%3.05f", sig);
     }
 
     total = avg * GetTotal(tag) / 1000.0;
-    sprintf(atotal, "%04.02f", total);
+    std::string atotal = fmt::sprintf("%04.02f", total);
 
+    // TODO: make the template a constexpr sv so that it is easier to validate
     if (!monitoring) {
-      snprintf(outline, sizeof(outline), "ALL     %-32s %12llu %8s %8s %8s %8s %8s +- %-10s = %-10s\n",
-              tag,
-              GetTotal(tag), a5, a60, a300, a3600, aexec, aexecsig, atotal);
+      out += fmt::sprintf("ALL     %-32s %12llu %8s %8s %8s %8s %8s +- %-10s = %-10s\n",
+                          tag, GetTotal(tag), a5, a60, a300, a3600, aexec, aexecsig, atotal);
     } else {
-      snprintf(outline, sizeof(outline),
-              "uid=all gid=all cmd=%s total=%llu 5s=%s 60s=%s 300s=%s 3600s=%s exec=%f execsig=%f cumulated=%f\n",
-              tag, GetTotal(tag), a5, a60, a300, a3600, avg, sig, total);
+      out += fmt::sprintf("uid=all gid=all cmd=%s total=%llu 5s=%s 60s=%s 300s=%s 3600s=%s exec=%f execsig=%f cumulated=%f\n",
+                          tag, GetTotal(tag), a5, a60, a300, a3600, avg, sig, total);
     }
-
-    out += outline;
   }
 
   for (it = tags_ext.begin(); it != tags_ext.end(); ++it) {
     const char* tag = it->c_str();
     double nsample;
-    const char na[9] = "NA";
-    char n5[1024], a5[1024], m5[1024], M5[1024];
-    char n60[1024], a60[1024], m60[1024], M60[1024];
-    char n300[1024], a300[1024], m300[1024], M300[1024];
-    char n3600[1024], a3600[1024], m3600[1024], M3600[1024];
+    std::string n5, a5{na}, m5{na}, M5{na};
+    std::string n60, a60{na}, m60{na}, M60{na};
+    std::string n300, a300{na}, m300{na}, M300{na};
+    std::string n3600, a3600{na}, m3600{na}, M3600{na};
 
     if ((nsample = GetTotalNExt5(tag)) < 1) {
-      strcpy(a5, na);
-      strcpy(m5, na);
-      strcpy(M5, na);
-      sprintf(n5, "%6.01e", nsample);
+      n5 = fmt::sprintf("%6.01e", nsample);
     } else {
-      sprintf(n5, "%6.01e", nsample);
-      sprintf(a5, "%6.01e", GetTotalAvgExt5(tag));
-      sprintf(m5, "%6.01e", GetTotalMinExt5(tag));
-      sprintf(M5, "%6.01e", GetTotalMaxExt5(tag));
+      n5 = fmt::sprintf("%6.01e", nsample);
+      a5 = fmt::sprintf("%6.01e", GetTotalAvgExt5(tag));
+      m5 = fmt::sprintf("%6.01e", GetTotalMinExt5(tag));
+      M5 = fmt::sprintf("%6.01e", GetTotalMaxExt5(tag));
     }
 
     if ((nsample = GetTotalNExt60(tag)) < 1) {
-      strcpy(a60, na);
-      strcpy(m60, na);
-      strcpy(M60, na);
-      sprintf(n60, "%6.01e", nsample);
+      n60 = fmt::sprintf("%6.01e", nsample);
     } else {
-      sprintf(n60, "%6.01e", nsample);
-      sprintf(a60, "%6.01e", GetTotalAvgExt60(tag));
-      sprintf(m60, "%6.01e", GetTotalMinExt60(tag));
-      sprintf(M60, "%6.01e", GetTotalMaxExt60(tag));
+      n60 = fmt::sprintf("%6.01e", nsample);
+      a60 = fmt::sprintf("%6.01e", GetTotalAvgExt60(tag));
+      m60 = fmt::sprintf("%6.01e", GetTotalMinExt60(tag));
+      M60 = fmt::sprintf("%6.01e", GetTotalMaxExt60(tag));
     }
 
     if ((nsample = GetTotalNExt300(tag)) < 1) {
-      strcpy(a300, na);
-      strcpy(m300, na);
-      strcpy(M300, na);
-      sprintf(n300, "%6.01e", nsample);
+      n300 = fmt::sprintf("%6.01e", nsample);
     } else {
-      sprintf(n300, "%6.01e", nsample);
-      sprintf(a300, "%6.01e", GetTotalAvgExt300(tag));
-      sprintf(m300, "%6.01e", GetTotalMinExt300(tag));
-      sprintf(M300, "%6.01e", GetTotalMaxExt300(tag));
+      n300 = fmt::sprintf("%6.01e", nsample);
+      a300 = fmt::sprintf("%6.01e", GetTotalAvgExt300(tag));
+      m300 = fmt::sprintf("%6.01e", GetTotalMinExt300(tag));
+      M300 = fmt::sprintf("%6.01e", GetTotalMaxExt300(tag));
     }
 
     if ((nsample = GetTotalNExt3600(tag)) < 1) {
-      strcpy(a3600, na);
-      strcpy(m3600, na);
-      strcpy(M3600, na);
-      sprintf(n3600, "%6.01e", nsample);
+      n3600 = fmt::sprintf("%6.01e", nsample);
     } else {
-      sprintf(n3600, "%6.01e", GetTotalNExt3600(tag));
-      sprintf(a3600, "%6.01e", GetTotalAvgExt3600(tag));
-      sprintf(m3600, "%6.01e", GetTotalMinExt3600(tag));
-      sprintf(M3600, "%6.01e", GetTotalMaxExt3600(tag));
+      n3600 = fmt::sprintf("%6.01e", GetTotalNExt3600(tag));
+      a3600 = fmt::sprintf("%6.01e", GetTotalAvgExt3600(tag));
+      m3600 = fmt::sprintf("%6.01e", GetTotalMinExt3600(tag));
+      M3600 = fmt::sprintf("%6.01e", GetTotalMaxExt3600(tag));
     }
 
     if (details) {
       if (!monitoring) {
-        snprintf(outline, sizeof(outline), "ALL     %-32s %12s %8s %8s %8s %8s\n", tag, "spl", n5, n60,
-                n300, n3600);
-        out += outline;
-        snprintf(outline, sizeof(outline), "ALL     %-32s %12s %8s %8s %8s %8s\n", tag, "min", m5, m60,
-                m300, m3600);
-        out += outline;
-        snprintf(outline, sizeof(outline), "ALL     %-32s %12s %8s %8s %8s %8s\n", tag, "avg", a5, a60,
-                a300, a3600);
-        out += outline;
-        snprintf(outline, sizeof(outline), "ALL     %-32s %12s %8s %8s %8s %8s\n", tag, "max", M5, M60,
-                M300, M3600);
-        out += outline;
+        out += fmt::sprintf("ALL     %-32s %12s %8s %8s %8s %8s\n", tag, "spl", n5, n60,
+                            n300, n3600);
+        out += fmt::sprintf("ALL     %-32s %12s %8s %8s %8s %8s\n", tag, "min", m5, m60,
+                            m300, m3600);
+        out += fmt::sprintf("ALL     %-32s %12s %8s %8s %8s %8s\n", tag, "avg", a5, a60,
+                            a300, a3600);
+        out += fmt::sprintf("ALL     %-32s %12s %8s %8s %8s %8s\n", tag, "max", M5, M60,
+                            M300, M3600);
       } else {
-        snprintf(outline, sizeof(outline), "uid=all gid=all cmd=%s:spl 5s=%s 60s=%s 300s=%s 3600s=%s\n",
-                tag, n5, n60, n300, n3600);
-        out += outline;
-        snprintf(outline, sizeof(outline), "uid=all gid=all cmd=%s:min 5s=%s 60s=%s 300s=%s 3600s=%s\n",
-                tag, m5, m60, m300, m3600);
-        out += outline;
-        snprintf(outline, sizeof(outline), "uid=all gid=all cmd=%s:avg 5s=%s 60s=%s 300s=%s 3600s=%s\n",
-                tag, a5, a60, a300, a3600);
-        out += outline;
-        snprintf(outline, sizeof(outline), "uid=all gid=all cmd=%s:max 5s=%s 60s=%s 300s=%s 3600s=%s\n",
-                tag, M5, M60, M300, M3600);
-        out += outline;
+        out += fmt::sprintf("uid=all gid=all cmd=%s:spl 5s=%s 60s=%s 300s=%s 3600s=%s\n",
+                            tag, n5, n60, n300, n3600);
+        out += fmt::sprintf("uid=all gid=all cmd=%s:min 5s=%s 60s=%s 300s=%s 3600s=%s\n",
+                            tag, m5, m60, m300, m3600);
+        out += fmt::sprintf("uid=all gid=all cmd=%s:avg 5s=%s 60s=%s 300s=%s 3600s=%s\n",
+                            tag, a5, a60, a300, a3600);
+        out += fmt::sprintf("uid=all gid=all cmd=%s:max 5s=%s 60s=%s 300s=%s 3600s=%s\n",
+                            tag, M5, M60, M300, M3600);
       }
     }
   }
@@ -832,7 +807,6 @@ Stat::PrintOutTotal(XrdOucString& out, bool details, bool monitoring,
     tuit_ext;
     google::sparse_hash_map<std::string, google::sparse_hash_map<gid_t, StatExt > >::iterator
     tgit_ext;
-   
     std::map<uid_t, std::string> umap;
     std::map<gid_t, std::string> gmap;
 
@@ -882,46 +856,43 @@ Stat::PrintOutTotal(XrdOucString& out, bool details, bool monitoring,
 
     std::vector <std::string> uidout;
     std::vector <std::string> gidout;
+    std::string _outline;
 
     for (tuit = StatAvgUid.begin(); tuit != StatAvgUid.end(); tuit++) {
       google::sparse_hash_map<uid_t, StatAvg>::iterator it;
 
       for (it = tuit->second.begin(); it != tuit->second.end(); ++it) {
-        char a5[1024];
-        char a60[1024];
-        char a300[1024];
-        char a3600[1024];
-        sprintf(a5, "%3.02f", it->second.GetAvg5());
-        sprintf(a60, "%3.02f", it->second.GetAvg60());
-        sprintf(a300, "%3.02f", it->second.GetAvg300());
-        sprintf(a3600, "%3.02f", it->second.GetAvg3600());
-        char identifier[1024];
+        std::string a5 = fmt::sprintf("%3.02f", it->second.GetAvg5());
+        std::string a60 = fmt::sprintf("%3.02f", it->second.GetAvg60());;
+        std::string a300 = fmt::sprintf("%3.02f", it->second.GetAvg300());;
+        std::string a3600 = fmt::sprintf("%3.02f", it->second.GetAvg3600());
+        std::string identifier;
 
         if (numerical) {
-          snprintf(identifier, 1023, "uid=%d", it->first);
+          identifier = fmt::sprintf("uid=%d", it->first);
         } else {
           std::string username = umap.count(it->first) ? umap[it->first] :
                                  eos::common::StringConversion::GetSizeString(username,
                                      (unsigned long long) it->first);
 
           if (monitoring) {
-            snprintf(identifier, 1023, "uid=%s", username.c_str());
+            identifier = fmt::sprintf("uid=%s", username);
           } else {
-            snprintf(identifier, 1023, "%s", username.c_str());
+            identifier = fmt::sprintf("%s", username);
           }
         }
 
         if (!monitoring) {
-          snprintf(outline, sizeof(outline), "%-10s %-32s %12llu %8s %8s %8s %8s\n", identifier,
-                  tuit->first.c_str(), StatsUid[tuit->first.c_str()][it->first], a5, a60, a300,
-                  a3600);
+          _outline = fmt::sprintf("%-10s %-32s %12llu %8s %8s %8s %8s\n", identifier,
+                                  tuit->first, StatsUid[tuit->first.c_str()][it->first], a5, a60, a300,
+                                  a3600);
         } else {
-          snprintf(outline, sizeof(outline), "%s cmd=%s total=%llu 5s=%s 60s=%s 300s=%s 3600s=%s\n",
-                  identifier, tuit->first.c_str(), StatsUid[tuit->first.c_str()][it->first], a5,
-                  a60, a300, a3600);
+          _outline = fmt::sprintf("%s cmd=%s total=%llu 5s=%s 60s=%s 300s=%s 3600s=%s\n",
+                                  identifier, tuit->first, StatsUid[tuit->first.c_str()][it->first], a5,
+                                  a60, a300, a3600);
         }
 
-        uidout.push_back(outline);
+        uidout.emplace_back(std::move(_outline));
       }
     }
 
@@ -940,58 +911,45 @@ Stat::PrintOutTotal(XrdOucString& out, bool details, bool monitoring,
       for (it = tuit_ext->second.begin(); it != tuit_ext->second.end(); ++it) {
         const char* tag = tuit_ext->first.c_str();
         double nsample;
-        const char na[9] = "NA";
-        char n5[1024], a5[1024], m5[1024], M5[1024];
-        char n60[1024], a60[1024], m60[1024], M60[1024];
-        char n300[1024], a300[1024], m300[1024], M300[1024];
-        char n3600[1024], a3600[1024], m3600[1024], M3600[1024];
+        std::string n5, a5{na}, m5{na}, M5{na};
+        std::string n60, a60{na}, m60{na}, M60{na};
+        std::string n300, a300{na}, m300{na}, M300{na};
+        std::string n3600, a3600{na}, m3600{na}, M3600{na};
 
         if ((nsample = it->second.GetN5()) < 1) {
-          strcpy(a5, na);
-          strcpy(m5, na);
-          strcpy(M5, na);
-          sprintf(n5, "%6.01e", nsample);
+          n5 = fmt::sprintf("%6.01e", nsample);
         } else {
-          sprintf(n5, "%6.01e", nsample);
-          sprintf(a5, "%6.01e", it->second.GetAvg5());
-          sprintf(m5, "%6.01e", it->second.GetMin5());
-          sprintf(M5, "%6.01e", it->second.GetMax5());
+          n5 = fmt::sprintf("%6.01e", nsample);
+          a5 = fmt::sprintf("%6.01e", it->second.GetAvg5());
+          m5 = fmt::sprintf("%6.01e", it->second.GetMin5());
+          M5 = fmt::sprintf("%6.01e", it->second.GetMax5());
         }
 
         if ((nsample = it->second.GetN60()) < 1) {
-          strcpy(a60, na);
-          strcpy(m60, na);
-          strcpy(M60, na);
-          sprintf(n60, "%6.01e", nsample);
+          n60 = fmt::sprintf("%6.01e", nsample);
         } else {
-          sprintf(n60, "%6.01e", nsample);
-          sprintf(a60, "%6.01e", it->second.GetAvg60());
-          sprintf(m60, "%6.01e", it->second.GetMin60());
-          sprintf(M60, "%6.01e", it->second.GetMax60());
+          n60 = fmt::sprintf("%6.01e", nsample);
+          a60 = fmt::sprintf("%6.01e", it->second.GetAvg60());
+          m60 = fmt::sprintf("%6.01e", it->second.GetMin60());
+          M60 = fmt::sprintf("%6.01e", it->second.GetMax60());
         }
 
         if ((nsample = it->second.GetN300()) < 1) {
-          strcpy(a300, na);
-          strcpy(m300, na);
-          strcpy(M300, na);
-          sprintf(n300, "%6.01e", nsample);
+          n300 = fmt::sprintf("%6.01e", nsample);
         } else {
-          sprintf(n300, "%6.01e", nsample);
-          sprintf(a300, "%6.01e", it->second.GetAvg300());
-          sprintf(m300, "%6.01e", it->second.GetMin300());
-          sprintf(M300, "%6.01e", it->second.GetMax300());
+          n300 = fmt::sprintf("%6.01e", nsample);
+          a300 = fmt::sprintf("%6.01e", it->second.GetAvg300());
+          m300 = fmt::sprintf("%6.01e", it->second.GetMin300());
+          M300 = fmt::sprintf("%6.01e", it->second.GetMax300());
         }
 
         if ((nsample = it->second.GetN3600()) < 1) {
-          strcpy(a3600, na);
-          strcpy(m3600, na);
-          strcpy(M3600, na);
-          sprintf(n3600, "%6.01e", nsample);
+          n3600 = fmt::sprintf("%6.01e", nsample);
         } else {
-          sprintf(n3600, "%6.01e", nsample);
-          sprintf(a3600, "%6.01e", it->second.GetAvg3600());
-          sprintf(m3600, "%6.01e", it->second.GetMin3600());
-          sprintf(M3600, "%6.01e", it->second.GetMax3600());
+          n3600 = fmt::sprintf("%6.01e", nsample);
+          a3600 = fmt::sprintf("%6.01e", it->second.GetAvg3600());
+          m3600 = fmt::sprintf("%6.01e", it->second.GetMin3600());
+          M3600 = fmt::sprintf("%6.01e", it->second.GetMax3600());
         }
 
         char identifier[1024];
@@ -1011,31 +969,27 @@ Stat::PrintOutTotal(XrdOucString& out, bool details, bool monitoring,
         }
 
         if (!monitoring) {
-          snprintf(outline, sizeof(outline), "%-10s %-32s %12s %8s %8s %8s %8s\n", identifier, tag, "spl",
-                  n5, n60, n300, n3600);
-          out += outline;
-          snprintf(outline, sizeof(outline), "%-10s %-32s %12s %8s %8s %8s %8s\n", identifier, tag, "min",
-                  m5, m60, m300, m3600);
-          out += outline;
-          snprintf(outline, sizeof(outline), "%-10s %-32s %12s %8s %8s %8s %8s\n", identifier, tag, "avg",
-                  a5, a60, a300, a3600);
-          out += outline;
-          snprintf(outline, sizeof(outline), "%-10s %-32s %12s %8s %8s %8s %8s\n", identifier, tag, "max",
-                  M5, M60, M300, M3600);
-          out += outline;
+          out += fmt::sprintf("%-10s %-32s %12s %8s %8s %8s %8s\n", identifier, tag,
+                              "spl",
+                              n5, n60, n300, n3600);
+          out += fmt::sprintf("%-10s %-32s %12s %8s %8s %8s %8s\n", identifier, tag,
+                              "min",
+                              m5, m60, m300, m3600);
+          out += fmt::sprintf("%-10s %-32s %12s %8s %8s %8s %8s\n", identifier, tag,
+                              "avg",
+                              a5, a60, a300, a3600);
+          out += fmt::sprintf("%-10s %-32s %12s %8s %8s %8s %8s\n", identifier, tag,
+                              "max",
+                              M5, M60, M300, M3600);
         } else {
-          snprintf(outline, sizeof(outline), "%s cmd=%s:spl 5s=%s 60s=%s 300s=%s 3600s=%s\n", identifier,
-                  tag, n5, n60, n300, n3600);
-          out += outline;
-          snprintf(outline, sizeof(outline), "%s cmd=%s:min 5s=%s 60s=%s 300s=%s 3600s=%s\n", identifier,
-                  tag, m5, m60, m300, m3600);
-          out += outline;
-          snprintf(outline, sizeof(outline), "%s cmd=%s:avg 5s=%s 60s=%s 300s=%s 3600s=%s\n", identifier,
-                  tag, a5, a60, a300, a3600);
-          out += outline;
-          snprintf(outline, sizeof(outline), "%s cmd=%s:max 5s=%s 60s=%s 300s=%s 3600s=%s\n", identifier,
-                  tag, M5, M60, M300, M3600);
-          out += outline;
+          out += fmt::sprintf("%s cmd=%s:spl 5s=%s 60s=%s 300s=%s 3600s=%s\n", identifier,
+                              tag, n5, n60, n300, n3600);
+          out += fmt::sprintf("%s cmd=%s:min 5s=%s 60s=%s 300s=%s 3600s=%s\n", identifier,
+                              tag, m5, m60, m300, m3600);
+          out += fmt::sprintf("%s cmd=%s:avg 5s=%s 60s=%s 300s=%s 3600s=%s\n", identifier,
+                              tag, a5, a60, a300, a3600);
+          out += fmt::sprintf("%s cmd=%s:max 5s=%s 60s=%s 300s=%s 3600s=%s\n", identifier,
+                              tag, M5, M60, M300, M3600);
         }
       }
     }
@@ -1054,14 +1008,10 @@ Stat::PrintOutTotal(XrdOucString& out, bool details, bool monitoring,
       google::sparse_hash_map<gid_t, StatAvg>::iterator it;
 
       for (it = tgit->second.begin(); it != tgit->second.end(); ++it) {
-        char a5[1024];
-        char a60[1024];
-        char a300[1024];
-        char a3600[1024];
-        sprintf(a5, "%3.02f", it->second.GetAvg5());
-        sprintf(a60, "%3.02f", it->second.GetAvg60());
-        sprintf(a300, "%3.02f", it->second.GetAvg300());
-        sprintf(a3600, "%3.02f", it->second.GetAvg3600());
+        std::string a5 = fmt::sprintf("%3.02f", it->second.GetAvg5());
+        std::string a60 = fmt::sprintf("%3.02f", it->second.GetAvg60());;
+        std::string a300 = fmt::sprintf("%3.02f", it->second.GetAvg300());;
+        std::string a3600 = fmt::sprintf("%3.02f", it->second.GetAvg3600());
         char identifier[1024];
 
         if (numerical) {
@@ -1079,16 +1029,16 @@ Stat::PrintOutTotal(XrdOucString& out, bool details, bool monitoring,
         }
 
         if (!monitoring) {
-          snprintf(outline, sizeof(outline), "%-10s %-32s %12llu %8s %8s %8s %8s\n", identifier,
-                  tgit->first.c_str(), StatsGid[tgit->first.c_str()][it->first], a5, a60, a300,
-                  a3600);
+          _outline = fmt::sprintf("%-10s %-32s %12llu %8s %8s %8s %8s\n", identifier,
+                                  tgit->first, StatsGid[tgit->first.c_str()][it->first], a5, a60, a300,
+                                  a3600);
         } else {
-          snprintf(outline, sizeof(outline), "%s cmd=%s total=%llu 5s=%s 60s=%s 300s=%s 3600s=%s\n",
-                  identifier, tgit->first.c_str(), StatsUid[tgit->first.c_str()][it->first], a5,
-                  a60, a300, a3600);
+          _outline = fmt::sprintf("%s cmd=%s total=%llu 5s=%s 60s=%s 300s=%s 3600s=%s\n",
+                                  identifier, tgit->first, StatsUid[tgit->first.c_str()][it->first], a5,
+                                  a60, a300, a3600);
         }
 
-        gidout.push_back(outline);
+        gidout.emplace_back(std::move(_outline));
       }
     }
 
@@ -1214,16 +1164,15 @@ Stat::PrintOutTotalJson(Json::Value& out)
   double avg = 0;
   double sig = 0;
   size_t ops = 0;
-
   avg = GetTotalExec(sig, ops);
   sum_ops = ops;
-
-  out["activity"]=Json::Value(Json::arrayValue);  
+  out["activity"] = Json::Value(Json::arrayValue);
 
   for (it = tags.begin(); it != tags.end(); ++it) {
     if ((*it == "rbytes") || (*it == "wbytes")) {
       continue;
     }
+
     Json::Value entry{};
     const char* tag = it->c_str();
     char a5[1024];
@@ -1236,11 +1185,8 @@ Stat::PrintOutTotalJson(Json::Value& out)
     double avg = 0;
     double sig = 0;
     double total = 0;
-
     avg = GetExec(tag, sig);
-
     total = avg * GetTotal(tag) / 1000.0;
-
     entry["command"]    = tag;
     entry["sum"]        = (Json::LargestUInt) GetTotal(tag);
     entry["5s"]         = GetTotalAvg5(tag);

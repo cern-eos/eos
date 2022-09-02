@@ -191,7 +191,7 @@ TransferFsDB::Ls(XrdOucString& sid, XrdOucString& option, XrdOucString& group,
 
     for (size_t i = 0; i < Qr.size(); i++) {
       long long etime = strtoul(Qr[i]["expires"].c_str(), 0, 10) - time(NULL);
-      char setime[16];
+      char setime[32];
       char progress[16];
       snprintf(progress, sizeof(progress), "%.02f", strtof(Qr[i]["progress"].c_str(),
                0));

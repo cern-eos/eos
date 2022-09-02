@@ -36,6 +36,13 @@ else ()
 endif ()
 endif ()
 
+set(FUSE_FLOCK_STATUS "FUSE_NO_FLOCK_SUPPORT")
+# We pass -DFUSE_MOUNT_VERSION0 hence the pragma for 290 in llfusexx
+if (FUSE3_FOUND OR
+    ("${FUSE_MOUNT_VERSION}" STREQUAL "29"))
+  set(FUSE_FLOCK_STATUS "FUSE_SUPPORTS_FLOCK")
+endif()
+
 message(STATUS "................................................." )
 message(STATUS "prefix        : " ${CMAKE_INSTALL_PREFIX} )
 message(STATUS "bin dir       : " ${CMAKE_INSTALL_FULL_BINDIR} )
@@ -45,6 +52,8 @@ message(STATUS "sysconfig dir : " ${CMAKE_INSTALL_SYSCONFDIR} )
 message(STATUS "................................................." )
 message(STATUS "fuse2-build   : ${FUSE_FOUND}")
 message(STATUS "fuse3-build   : ${FUSE3_FOUND}")
+message(STATUS "fuse-mount-ver: ${FUSE_MOUNT_VERSION}")
+message(STATUS "fuse-flock    : ${FUSE_FLOCK_STATUS}")
 message(STATUS "grpc-build    : ${GRPC_FOUND}")
 message(STATUS "isa-l_crypto  : ${ISAL_CRYPTO_FOUND}")
 message(STATUS "isa-l         : ${ISAL_FOUND}")
@@ -57,3 +66,5 @@ message( STATUS "Protobuf      : EXE " ${PROTOBUF3_PROTOC_EXECUTABLE} " INC " ${
 message( STATUS "Build type    : " ${CMAKE_BUILD_TYPE} )
 message( STATUS "Code coverage : ${COVERAGE}")
 message( STATUS "_________________________________________________" )
+
+unset(FUSE_FLOCK_STATUS)

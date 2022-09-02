@@ -30,6 +30,7 @@
  */
 
 #include "common/DbMap.hh"
+#include "fmt/printf.h"
 #include <sstream>
 #include <cstdio>
 #include <sys/resource.h>
@@ -86,9 +87,7 @@ void*
 TestWriteOnTheFly(void* threadid)
 {
   unsigned long int nthr = ((unsigned long int) threadid);
-  char ks[] = "key_xxxxxxx";
-  char vs[] = "value_xxxxxxx";
-  char cs[] = "comment_xxxxxxx";
+  std::string ks = "key_xxxxxxx";
   DbMap m;
 
   if (outofcore) {
@@ -113,13 +112,13 @@ TestWriteOnTheFly(void* threadid)
     }
 
     if (!overwrite) {
-      char* ptr = ks + 4;
-      sprintf(ptr, "%07d", k);
+      // char* ptr = ks + 4;
+      ks = fmt::sprintf("key_%07d", k);
     }
 
-    sprintf(vs + 6, "%07d", k);
-    sprintf(cs + 8, "%07d", k);
-    m.set(ks, vs, cs);
+    m.set(ks,
+          fmt::sprintf("value_%07d", k),
+          fmt::sprintf("comment_%07d", k));
   }
 
   m.endSetSequence();

@@ -117,6 +117,11 @@ set(COMMON_UT_SRCS
   common/ObserverMgrTests.cc
   common/ConfigStoreTests.cc)
 
+set(FUSEX_UT_SRCS
+  fusex/StatTests.cc
+  ${CMAKE_SOURCE_DIR}/fusex/stat/Stat.cc # We'll consider linking directly to fusex later
+)
+
 set(FST_UT_SRCS
   fst/XrdFstOfsTests.cc
   fst/XrdFstOssFileTest.cc
@@ -137,7 +142,8 @@ set(UT_SRCS
   ${MQ_UT_SRCS}
   ${CONSOLE_UT_SRCS}
   ${MGM_UT_SRCS}
-  ${COMMON_UT_SRCS})
+  ${COMMON_UT_SRCS}
+  ${FUSEX_UT_SRCS})
 
 set(UT_FST_SRCS
   ${FST_UT_SRCS})

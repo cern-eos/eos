@@ -314,7 +314,7 @@ FmdHandler::ResyncAllDisk(const char* path,
   }, ec);
 
   if (ec) {
-    eos_err("msg=\"Walk FST tree failed\" error=%s", ec.message());
+    eos_err("msg=\"Walk FST tree failed\" error=%s", ec.message().c_str());
     return false;
   }
 

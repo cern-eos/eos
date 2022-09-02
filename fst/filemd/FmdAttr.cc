@@ -253,7 +253,7 @@ FmdAttrHandler::GetInconsistencyStatistics(
   statistics["mem_n"] += ret;
 
   if (ec) {
-    eos_err("msg=\"Failed to walk FST Tree\" error=%s", ec.message());
+    eos_err("msg=\"Failed to walk FST Tree\" error=%s", ec.message().c_str());
   }
 
   return true;
@@ -285,7 +285,7 @@ FmdAttrHandler::ResetDiskInformation(eos::common::FileSystem::fsid_t fsid)
   }, ec);
 
   if (ec) {
-    eos_err("msg=\"Failed to walk FST Tree\" error=%s", ec.message());
+    eos_err("msg=\"Failed to walk FST Tree\" error=%s", ec.message().c_str());
   }
 
   return !ec;
@@ -302,7 +302,7 @@ FmdAttrHandler::ResetMgmInformation(eos::common::FileSystem::fsid_t fsid)
   }, ec);
 
   if (ec) {
-    eos_err("msg=\"Failed to walk FST Tree\" error=%s", ec.message());
+    eos_err("msg=\"Failed to walk FST Tree\" error=%s", ec.message().c_str());
   }
 
   return !ec;

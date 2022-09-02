@@ -919,7 +919,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
             filePath = aPath.GetPath();
           }
 
-          if (fmd = gOFS->eosView->getFile(filePath)) {
+          if ((fmd = gOFS->eosView->getFile(filePath))) {
             /* in case of a hard link, may need to switch to target */
             /* A hard link to another file */
             if (fmd->hasAttribute(XrdMgmOfsFile::k_mdino)) {
@@ -1911,9 +1911,12 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
       return Emsg(epname, error, EINVAL, "open - invalid placement argument", path);
     }
 
-    COMMONTIMING("Scheduler::FilePlacement", &tm);
-    retc = Quota::FilePlacement(&plctargs);
-    COMMONTIMING("Scheduler::FilePlaced", &tm);
+    {
+      COMMONTIMING("Scheduler::FilePlacement", &tm);
+      eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
+      retc = Quota::FilePlacement(&plctargs);
+      COMMONTIMING("Scheduler::FilePlaced", &tm);
+    }
 
     // reshuffle the selectedfs by returning as first entry the lowest if the
     // sum of the fsid is odd the highest if the sum is even

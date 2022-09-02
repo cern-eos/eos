@@ -512,7 +512,7 @@ int main(int argc, char* argv[])
 
   if (scanSubcommand->parsed()) {
     return inspector.scan(dumpPath, relativePaths, rawPaths, noDirs, noFiles,
-                          maxDepth, trimPaths = trimPaths);
+                          maxDepth, trimPaths);
   }
 
   if (namingConflictsSubcommand->parsed()) {

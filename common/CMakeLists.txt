@@ -85,6 +85,11 @@ add_library(EosBlake3-Objects OBJECT
 set_target_properties(EosBlake3-Objects PROPERTIES
   POSITION_INDEPENDENT_CODE TRUE)
 
+if (NO_SSE)
+  target_compile_definitions(EosBlake3-Objects PUBLIC
+    BLAKE3_NO_SSE2 BLAKE3_NO_SSE41 BLAKE3_NO_AVX2 BLAKE3_NO_AVX512)
+endif()
+
 if (ARM64_BUILD)
   target_compile_definitions(EosBlake3-Objects PUBLIC BLAKE3_USE_NEON)
 endif()

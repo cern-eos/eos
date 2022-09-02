@@ -26,3 +26,6 @@
 [submodule "quarkdb"]
 	path = quarkdb
 	url = https://gitlab.cern.ch/eos/quarkdb.git
+[submodule "test/microbenchmarks/benchmark"]
+	path = test/microbenchmarks/benchmark
+	url = https://github.com/google/benchmark

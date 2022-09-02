@@ -539,7 +539,7 @@ public:
   size_t GetOpsTS()
   {
     XrdSysMutexHelper sLock(Mutex);
-     return GetOps();
+    return GetOps();
   }
 
   void Add(const char* tag, uid_t uid, gid_t gid, unsigned long val);
@@ -587,7 +587,7 @@ public:
 
   void Clear();
 
-  void PrintOutTotal(XrdOucString& out, bool details = false,
+  void PrintOutTotal(std::string& out, bool details = false,
                      bool monitoring = false, bool numerical = false);
 
   void PrintOutTotalJson(Json::Value& out);
