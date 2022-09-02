@@ -24,6 +24,10 @@
 #include <sstream>
 #include <iomanip>
 #include <openssl/evp.h>
+#include <openssl/opensslv.h>
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+#include <openssl/provider.h>
+#endif
 #include <openssl/rsa.h>
 #include <openssl/x509.h>
 #include <openssl/engine.h>
@@ -70,6 +74,21 @@ static void HMAC_CTX_free(HMAC_CTX* ctx)
   }
 }
 #endif
+
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+static void openssl3provider()
+{
+  static XrdSysMutex initMtx;
+  XrdSysMutexHelper iMtx(initMtx);
+  static bool init=0;
+  if (!init) {
+    EVP_MD *mdp = EVP_MD_fetch(NULL, "SHA2-256", NULL);
+    if (mdp) EVP_MD_free(mdp);
+    (void) OSSL_PROVIDER_load(NULL, "legacy");
+  }
+}
+#endif
+
 
 //----------------------------------------------------------------------------
 // Constructor for a symmetric key
@@ -799,10 +818,11 @@ SymKey::CipherEncrypt(const char* data, ssize_t data_length,
   sprintf((char*)iv, "$KJh#(}q");
   const EVP_CIPHER* cipher = EVP_des_cbc();
 
-  if (!cipher) {
-    return false;
-  }
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+  openssl3provider();
+#endif
 
+  
   // This is slow, but we really don't care here for small messages
   int buff_capacity = data_length + EVP_CIPHER_block_size(cipher);
   char* encrypt_buff = (char*) malloc(buff_capacity);
@@ -846,7 +866,6 @@ SymKey::CipherEncrypt(const char* data, ssize_t data_length,
     free(encrypt_buff);
     return false;
   }
-
   encrypted_data = encrypt_buff;
   EVP_CIPHER_CTX_free(ctx);
   return true;
@@ -867,6 +886,10 @@ SymKey::CipherDecrypt(char* encrypted_data, ssize_t encrypted_length,
   if (!cipher) {
     return false;
   }
+
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+  openssl3provider();
+#endif
 
   // This is slow, but we really don't care here for small messages. We're
   // going to null terminate the text under the assumption it's non-null
