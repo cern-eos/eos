@@ -31,6 +31,7 @@
 #include "proto/ContainerMd.pb.h"
 #include "common/FutureWrapper.hh"
 #include <sys/time.h>
+#include <cstdint>
 
 #define FRIEND_TEST(test_case_name, test_name)\
 friend class test_case_name##_##test_name##_Test
@@ -536,7 +537,9 @@ private:
   //----------------------------------------------------------------------------
   virtual uint64_t getContainerMapGeneration() override
   {
-    return mSubcontainers->bucket_count();
+    const uint64_t bc = mSubcontainers->bucket_count();
+    return reinterpret_cast<std::uintptr_t>(&*mSubcontainers->end()) ^
+           ((bc << 48) | (bc >> 16));
   }
 
   //----------------------------------------------------------------------------
@@ -564,7 +567,9 @@ private:
   //----------------------------------------------------------------------------
   virtual uint64_t getFileMapGeneration() override
   {
-    return mFiles->bucket_count();
+    const uint64_t bc = mFiles->bucket_count();
+    return reinterpret_cast<std::uintptr_t>(&*mFiles->end()) ^
+           ((bc << 48) | (bc >> 16));
   }
 
   eos::ns::ContainerMdProto mCont;      ///< Protobuf container representation

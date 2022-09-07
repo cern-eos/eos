@@ -23,6 +23,7 @@
 
 #include <memory>
 #include <gtest/gtest.h>
+#include <cstring>
 
 #include "namespace/interface/ContainerIterators.hh"
 #include "namespace/ns_quarkdb/explorer/NamespaceExplorer.hh"
@@ -1443,8 +1444,6 @@ TEST_F(VariousTests, ContainerIterator)
 
   eos::ContainerMapIterator cit(cont1);
   eos::FileMapIterator fit(cont1);
-  ASSERT_EQ(cit.generation(), 32);
-  ASSERT_EQ(fit.generation(), 32);
 
   // file iterator test
   {
@@ -1535,6 +1534,60 @@ TEST_F(VariousTests, ContainerIterator)
   }
 }
 
+TEST_F(VariousTests, FileIteratorInvalidation)
+{
+  // exercises the FileMapIterator when underlying file map's densehashtable
+  // is likely to have been reallocated at a different location but still have
+  // the same size.
+
+  eos::IContainerMDPtr cont1 = view()->createContainer("/dir-1/");
+
+  for (size_t i = 1; i <= 17; ++i) {
+    std::string s = "/dir-1/file-" + std::to_string(i);
+    view()->createFile(s);
+  }
+  // expect 64 buckets now allocated in densehashtable
+
+  eos::FileMapIterator fit(cont1);
+  for (size_t i = 0; i < 8; ++i) {
+    ASSERT_TRUE(fit.valid());
+    fit.next();
+  }
+  ASSERT_TRUE(fit.valid());
+
+  // remove some files, but erasing does not cause reallocation
+  for (size_t i = 12; i <= 17; ++i) {
+    std::string s = "/dir-1/file-" + std::to_string(i);
+    view()->unlinkFile(s);
+  }
+
+  // expect number of buckets to be shrunk to 32 on next insert
+  view()->createFile("/dir-1/file-12");
+
+  // allocate a few regions, each equal to the size of 64 buckets
+  const size_t sz = 64*sizeof(std::pair<const std::string, IContainerMD::id_t>);
+  const size_t nalloc = 32;
+  void *p[nalloc];
+  for (size_t i = 0; i < nalloc; ++i) {
+    p[i] = malloc(sz);
+    memset(p[i],0xcc,sz);
+  }
+
+  // add files, expect number of buckets to expand to 64 after last insert
+  for (size_t i = 13; i <= 17; ++i) {
+    std::string s = "/dir-1/file-" + std::to_string(i);
+    view()->createFile(s);
+  }
+
+  for (size_t i = 0; i < nalloc; ++i) {
+    free(p[i]);
+    p[i] = nullptr;
+  }
+
+  while(fit.valid()) {
+    fit.next();
+  }
+}
 
 
 TEST_F(NamespaceExplorerF, MissingFile)
