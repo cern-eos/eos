@@ -28,6 +28,7 @@
 #include "namespace/utils/DataHelper.hh"
 #include "google/protobuf/io/zero_copy_stream_impl.h"
 #include "google/protobuf/io/zero_copy_stream_impl_lite.h"
+#include <optional>
 
 #define DBG(message) std::cerr << __FILE__ << ":" << __LINE__ << " -- " << #message << " = " << message << std::endl
 
@@ -57,8 +58,7 @@ QuarkFileMD::QuarkFileMD(IFileMD::id_t id, IFileMDSvc* fileMDSvc):
 QuarkFileMD*
 QuarkFileMD::clone() const
 {
-  std::unique_lock<std::shared_timed_mutex> lock(mMutex);
-  return new QuarkFileMD(*this);
+  return runWriteOp([this]() { return new QuarkFileMD(*this); });
 }
 
 //------------------------------------------------------------------------------
@@ -75,11 +75,13 @@ QuarkFileMD::QuarkFileMD(const QuarkFileMD& other)
 QuarkFileMD&
 QuarkFileMD::operator = (const QuarkFileMD& other)
 {
-  std::unique_lock<std::shared_timed_mutex> lock(mMutex);
-  mFile = other.mFile;
-  mClock = other.mClock;
-  pFileMDSvc   = 0;
-  return *this;
+
+  return runWriteOp([this, &other]() -> QuarkFileMD& {
+    mFile = other.mFile;
+    mClock = other.mClock;
+    pFileMDSvc = 0;
+    return *this;
+  });
 }
 
 //------------------------------------------------------------------------------
@@ -93,8 +95,7 @@ void QuarkFileMD::setName(const std::string& name)
     throw_mdexception(EINVAL, "Bug, detected slashes in file name: " << name);
   }
 
-  std::unique_lock<std::shared_timed_mutex> lock(mMutex);
-  mFile.set_name(name);
+  runWriteOp([this, &name]() { mFile.set_name(name); });
 }
 
 //------------------------------------------------------------------------------
@@ -103,14 +104,13 @@ void QuarkFileMD::setName(const std::string& name)
 void
 QuarkFileMD::addLocation(location_t location)
 {
-  std::unique_lock<std::shared_timed_mutex> lock(mMutex);
+  this->runWriteOp([this, location]() {
+    if (hasLocationNoLock(location)) {
+      return;
+    }
+    mFile.add_locations(location);
+  });
 
-  if (hasLocationNoLock(location)) {
-    return;
-  }
-
-  mFile.add_locations(location);
-  lock.unlock();
   IFileMDChangeListener::Event e(this, IFileMDChangeListener::LocationAdded,
                                  location);
   pFileMDSvc->notifyListeners(&e);
@@ -122,18 +122,25 @@ QuarkFileMD::addLocation(location_t location)
 void
 QuarkFileMD::removeLocation(location_t location)
 {
-  std::unique_lock<std::shared_timed_mutex> lock(mMutex);
 
-  for (auto it = mFile.mutable_unlink_locations()->cbegin();
-       it != mFile.mutable_unlink_locations()->cend(); ++it) {
-    if (*it == location) {
-      it = mFile.mutable_unlink_locations()->erase(it);
-      lock.unlock();
-      IFileMDChangeListener::Event
-      e(this, IFileMDChangeListener::LocationRemoved, location);
-      pFileMDSvc->notifyListeners(&e);
-      return;
-    }
+  bool locationRemoved = false;
+  {
+    this->runWriteOp([this, &locationRemoved, location]() {
+      for (auto it = mFile.mutable_unlink_locations()->cbegin();
+           it != mFile.mutable_unlink_locations()->cend(); ++it) {
+        if (*it == location) {
+          it = mFile.mutable_unlink_locations()->erase(it);
+          locationRemoved = true;
+          break;
+        }
+      }
+    });
+  }
+
+  if(locationRemoved){
+    IFileMDChangeListener::Event
+        e(this, IFileMDChangeListener::LocationRemoved, location);
+    pFileMDSvc->notifyListeners(&e);
   }
 }
 
@@ -143,17 +150,24 @@ QuarkFileMD::removeLocation(location_t location)
 void
 QuarkFileMD::removeAllLocations()
 {
-  while (true) {
-    std::unique_lock<std::shared_timed_mutex> lock(mMutex);
-    auto it = mFile.unlink_locations().cbegin();
+  bool stop = false;
+  while (!stop) {
+    std::optional<location_t> location;
+    {
+      stop = runReadOp([this, &location]() {
+        auto it = mFile.unlink_locations().cbegin();
 
-    if (it == mFile.unlink_locations().cend()) {
-      return;
+        if (it == mFile.unlink_locations().cend()) {
+          return true;
+        }
+
+        location = *it;
+        return false;
+      });
     }
-
-    location_t location = *it;
-    lock.unlock();
-    removeLocation(location);
+    if(location) {
+      removeLocation(*location);
+    }
   }
 }
 
@@ -163,24 +177,25 @@ QuarkFileMD::removeAllLocations()
 void
 QuarkFileMD::unlinkLocation(location_t location)
 {
-  std::unique_lock<std::shared_timed_mutex> lock(mMutex);
+  {
+    this->runReadOp([this, location]() {
+      for (auto it = mFile.mutable_locations()->cbegin();
+           it != mFile.mutable_locations()->cend(); ++it) {
+        if (*it == location) {
+          // If location is already unlink, skip adding it
+          if (!hasUnlinkedLocationNoLock(location)) {
+            mFile.add_unlink_locations(*it);
+          }
 
-  for (auto it = mFile.mutable_locations()->cbegin();
-       it != mFile.mutable_locations()->cend(); ++it) {
-    if (*it == location) {
-      // If location is already unlink, skip adding it
-      if (!hasUnlinkedLocationNoLock(location)) {
-        mFile.add_unlink_locations(*it);
+          it = mFile.mutable_locations()->erase(it);
+          break;
+        }
       }
-
-      it = mFile.mutable_locations()->erase(it);
-      lock.unlock();
-      IFileMDChangeListener::Event
-      e(this, IFileMDChangeListener::LocationUnlinked, location);
-      pFileMDSvc->notifyListeners(&e);
-      return;
-    }
+    });
   }
+  IFileMDChangeListener::Event
+      e(this, IFileMDChangeListener::LocationUnlinked, location);
+  pFileMDSvc->notifyListeners(&e);
 }
 
 //------------------------------------------------------------------------------
@@ -189,16 +204,19 @@ QuarkFileMD::unlinkLocation(location_t location)
 void
 QuarkFileMD::unlinkAllLocations()
 {
-  while (true) {
-    std::unique_lock<std::shared_timed_mutex> lock(mMutex);
-    auto it = mFile.locations().cbegin();
+  bool stop = false;
+  while (!stop) {
+    location_t location;
+    stop = this->runWriteOp([this, &stop, &location]() {
+      auto it = mFile.locations().cbegin();
 
-    if (it == mFile.locations().cend()) {
-      return;
-    }
+      if (it == mFile.locations().cend()) {
+        return true;
+      }
 
-    location_t location = *it;
-    lock.unlock();
+      location = *it;
+      return false;
+    });
     unlinkLocation(location);
   }
 }
@@ -209,54 +227,55 @@ QuarkFileMD::unlinkAllLocations()
 void
 QuarkFileMD::getEnv(std::string& env, bool escapeAnd)
 {
-  std::shared_lock<std::shared_timed_mutex> lock(mMutex);
-  env = "";
-  std::ostringstream oss;
-  std::string saveName = mFile.name();
+  runReadOp([this, &env, escapeAnd] {
+    env = "";
+    std::ostringstream oss;
+    std::string saveName = mFile.name();
 
-  if (escapeAnd) {
-    if (!saveName.empty()) {
-      saveName = eos::common::StringConversion::SealXrdPath(saveName);
+    if (escapeAnd) {
+      if (!saveName.empty()) {
+        saveName = eos::common::StringConversion::SealXrdPath(saveName);
+      }
     }
-  }
 
-  ctime_t ctime;
-  ctime_t mtime;
-  (void) getCTimeNoLock(ctime);
-  (void) getMTimeNoLock(mtime);
-  oss << "name=" << saveName << "&id=" << mFile.id()
-      << "&ctime=" << ctime.tv_sec << "&ctime_ns=" << ctime.tv_nsec
-      << "&mtime=" << mtime.tv_sec << "&mtime_ns=" << mtime.tv_nsec
-      << "&size=" << mFile.size() << "&cid=" << mFile.cont_id()
-      << "&uid=" << mFile.uid() << "&gid=" << mFile.gid()
-      << "&lid=" << mFile.layout_id() << "&flags=" << mFile.flags()
-      << "&link=" << mFile.link_name();
-  env += oss.str();
-  env += "&location=";
-  char locs[16];
+    ctime_t ctime;
+    ctime_t mtime;
+    (void)getCTimeNoLock(ctime);
+    (void)getMTimeNoLock(mtime);
+    oss << "name=" << saveName << "&id=" << mFile.id()
+        << "&ctime=" << ctime.tv_sec << "&ctime_ns=" << ctime.tv_nsec
+        << "&mtime=" << mtime.tv_sec << "&mtime_ns=" << mtime.tv_nsec
+        << "&size=" << mFile.size() << "&cid=" << mFile.cont_id()
+        << "&uid=" << mFile.uid() << "&gid=" << mFile.gid()
+        << "&lid=" << mFile.layout_id() << "&flags=" << mFile.flags()
+        << "&link=" << mFile.link_name();
+    env += oss.str();
+    env += "&location=";
+    char locs[16];
 
-  for (const auto& elem : mFile.locations()) {
-    snprintf(static_cast<char*>(locs), sizeof(locs), "%u", elem);
-    env += static_cast<char*>(locs);
-    env += ",";
-  }
+    for (const auto& elem : mFile.locations()) {
+      snprintf(static_cast<char*>(locs), sizeof(locs), "%u", elem);
+      env += static_cast<char*>(locs);
+      env += ",";
+    }
 
-  for (const auto& elem : mFile.unlink_locations()) {
-    snprintf(static_cast<char*>(locs), sizeof(locs), "!%u", elem);
-    env += static_cast<char*>(locs);
-    env += ",";
-  }
+    for (const auto& elem : mFile.unlink_locations()) {
+      snprintf(static_cast<char*>(locs), sizeof(locs), "!%u", elem);
+      env += static_cast<char*>(locs);
+      env += ",";
+    }
 
-  env += "&checksum=";
-  uint8_t size = mFile.checksum().size();
+    env += "&checksum=";
+    uint8_t size = mFile.checksum().size();
 
-  for (uint8_t i = 0; i < size; i++) {
-    char hx[3];
-    hx[0] = 0;
-    snprintf(static_cast<char*>(hx), sizeof(hx), "%02x",
-             *(unsigned char*)(mFile.checksum().data() + i));
-    env += static_cast<char*>(hx);
-  }
+    for (uint8_t i = 0; i < size; i++) {
+      char hx[3];
+      hx[0] = 0;
+      snprintf(static_cast<char*>(hx), sizeof(hx), "%02x",
+               *(unsigned char*)(mFile.checksum().data() + i));
+      env += static_cast<char*>(hx);
+    }
+  });
 }
 
 //------------------------------------------------------------------------------
@@ -265,38 +284,40 @@ QuarkFileMD::getEnv(std::string& env, bool escapeAnd)
 void
 QuarkFileMD::serialize(eos::Buffer& buffer)
 {
-  std::shared_lock<std::shared_timed_mutex> lock(mMutex);
-  // Increase clock to mark that metadata file has suffered updates
-  mClock = std::chrono::high_resolution_clock::now().time_since_epoch().count();
-  // Align the buffer to 4 bytes to efficiently compute the checksum
+  runReadOp([this, &buffer]() {
+    // Increase clock to mark that metadata file has suffered updates
+    mClock =
+        std::chrono::high_resolution_clock::now().time_since_epoch().count();
+    // Align the buffer to 4 bytes to efficiently compute the checksum
 #if GOOGLE_PROTOBUF_VERSION < 3004000
-  size_t obj_size = mFile.ByteSize();
+    size_t obj_size = mFile.ByteSize();
 #else
-  size_t obj_size = mFile.ByteSizeLong();
+    size_t obj_size = mFile.ByteSizeLong();
 #endif
-  uint32_t align_size = (obj_size + 3) >> 2 << 2;
-  size_t sz = sizeof(align_size);
-  size_t msg_size = align_size + 2 * sz;
-  buffer.setSize(msg_size);
-  // Write the checksum value, size of the raw protobuf object and then the
-  // actual protobuf object serialized
-  const char* ptr = buffer.getDataPtr() + 2 * sz;
-  google::protobuf::io::ArrayOutputStream aos((void*)ptr, align_size);
+    uint32_t align_size = (obj_size + 3) >> 2 << 2;
+    size_t sz = sizeof(align_size);
+    size_t msg_size = align_size + 2 * sz;
+    buffer.setSize(msg_size);
+    // Write the checksum value, size of the raw protobuf object and then the
+    // actual protobuf object serialized
+    const char* ptr = buffer.getDataPtr() + 2 * sz;
+    google::protobuf::io::ArrayOutputStream aos((void*)ptr, align_size);
 
-  if (!mFile.SerializeToZeroCopyStream(&aos)) {
-    MDException ex(EIO);
-    ex.getMessage() << "Failed while serializing buffer";
-    throw ex;
-  }
+    if (!mFile.SerializeToZeroCopyStream(&aos)) {
+      MDException ex(EIO);
+      ex.getMessage() << "Failed while serializing buffer";
+      throw ex;
+    }
 
-  // Compute the CRC32C checksum
-  uint32_t cksum = DataHelper::computeCRC32C((void*)ptr, align_size);
-  cksum = DataHelper::finalizeCRC32C(cksum);
-  // Point to the beginning to fill in the checksum and size of useful data
-  ptr = buffer.getDataPtr();
-  (void) memcpy((void*)ptr, &cksum, sz);
-  ptr += sz;
-  (void) memcpy((void*)ptr, &obj_size, sz);
+    // Compute the CRC32C checksum
+    uint32_t cksum = DataHelper::computeCRC32C((void*)ptr, align_size);
+    cksum = DataHelper::finalizeCRC32C(cksum);
+    // Point to the beginning to fill in the checksum and size of useful data
+    ptr = buffer.getDataPtr();
+    (void)memcpy((void*)ptr, &cksum, sz);
+    ptr += sz;
+    (void)memcpy((void*)ptr, &obj_size, sz);
+  });
 }
 
 //------------------------------------------------------------------------------
@@ -305,8 +326,8 @@ QuarkFileMD::serialize(eos::Buffer& buffer)
 void
 QuarkFileMD::initialize(eos::ns::FileMdProto&& proto)
 {
-  std::unique_lock<std::shared_timed_mutex> lock(mMutex);
-  mFile = std::move(proto);
+  runWriteOp(
+      [this, prot = std::move(proto)]() mutable { mFile = std::move(prot); });
 }
 
 //------------------------------------------------------------------------------
@@ -315,8 +336,8 @@ QuarkFileMD::initialize(eos::ns::FileMdProto&& proto)
 void
 QuarkFileMD::deserialize(const eos::Buffer& buffer)
 {
-  std::unique_lock<std::shared_timed_mutex> lock(mMutex);
-  Serialization::deserializeFile(buffer, mFile);
+  runWriteOp(
+      [this, &buffer]() { Serialization::deserializeFile(buffer, mFile); });
 }
 
 //----------------------------------------------------------------------------
@@ -334,10 +355,11 @@ QuarkFileMD::getProto() const
 void
 QuarkFileMD::setSize(uint64_t size)
 {
-  std::unique_lock<std::shared_timed_mutex> lock(mMutex);
-  int64_t sizeChange = (size & 0x0000ffffffffffff) - mFile.size();
-  mFile.set_size(size & 0x0000ffffffffffff);
-  lock.unlock();
+  int64_t sizeChange = 0;
+  this->runWriteOp([this, size, &sizeChange]() {
+    sizeChange = (size & 0x0000ffffffffffff) - mFile.size();
+    mFile.set_size(size & 0x0000ffffffffffff);
+  });
   IFileMDChangeListener::Event e(this, IFileMDChangeListener::SizeChange, 0,
                                  sizeChange);
   pFileMDSvc->notifyListeners(&e);
@@ -362,8 +384,7 @@ QuarkFileMD::getCTimeNoLock(ctime_t& ctime) const
 void
 QuarkFileMD::getCTime(ctime_t& ctime) const
 {
-  std::shared_lock<std::shared_timed_mutex> lock(mMutex);
-  getCTimeNoLock(ctime);
+  return runReadOp([this, &ctime]() { return getCTimeNoLock(ctime); });
 }
 
 //------------------------------------------------------------------------------
@@ -372,8 +393,7 @@ QuarkFileMD::getCTime(ctime_t& ctime) const
 void
 QuarkFileMD::setCTime(ctime_t ctime)
 {
-  std::unique_lock<std::shared_timed_mutex> lock(mMutex);
-  mFile.set_ctime(&ctime, sizeof(ctime));
+  runWriteOp([this, ctime]() { mFile.set_ctime(&ctime, sizeof(ctime)); });
 }
 
 //----------------------------------------------------------------------------
@@ -413,8 +433,7 @@ QuarkFileMD::getMTimeNoLock(ctime_t& mtime) const
 void
 QuarkFileMD::getMTime(ctime_t& mtime) const
 {
-  std::shared_lock<std::shared_timed_mutex> lock(mMutex);
-  getMTimeNoLock(mtime);
+  return runReadOp([this, &mtime]() { return getMTimeNoLock(mtime); });
 }
 
 //------------------------------------------------------------------------------
@@ -423,8 +442,7 @@ QuarkFileMD::getMTime(ctime_t& mtime) const
 void
 QuarkFileMD::setMTime(ctime_t mtime)
 {
-  std::unique_lock<std::shared_timed_mutex> lock(mMutex);
-  mFile.set_mtime(&mtime, sizeof(mtime));
+  runWriteOp([this, mtime]() { mFile.set_mtime(&mtime, sizeof(mtime)); });
 }
 
 //------------------------------------------------------------------------------
@@ -533,8 +551,8 @@ QuarkFileMD::getSyncTimeNoLock(ctime_t& stime) const
 void
 QuarkFileMD::getSyncTime(ctime_t& stime) const
 {
-  std::shared_lock<std::shared_timed_mutex> lock(mMutex);
-  getSyncTimeNoLock(stime);
+  runReadOp([this, &stime]() { getSyncTimeNoLock(stime); });
+
 }
 
 //------------------------------------------------------------------------------
@@ -543,8 +561,8 @@ QuarkFileMD::getSyncTime(ctime_t& stime) const
 void
 QuarkFileMD::setSyncTime(ctime_t stime)
 {
-  std::unique_lock<std::shared_timed_mutex> lock(mMutex);
-  mFile.set_stime(&stime, sizeof(stime));
+  runWriteOp([this, stime]() { mFile.set_stime(&stime, sizeof(stime)); });
+
 }
 
 //------------------------------------------------------------------------------
@@ -564,14 +582,15 @@ QuarkFileMD::setSyncTimeNow()
 eos::IFileMD::XAttrMap
 QuarkFileMD::getAttributes() const
 {
-  std::shared_lock<std::shared_timed_mutex> lock(mMutex);
-  std::map<std::string, std::string> xattrs;
+  return runReadOp([this]() {
+    std::map<std::string, std::string> xattrs;
 
-  for (const auto& elem : mFile.xattrs()) {
-    xattrs.insert(elem);
-  }
+    for (const auto& elem : mFile.xattrs()) {
+      xattrs.insert(elem);
+    }
 
-  return xattrs;
+    return xattrs;
+  });
 }
 
 //------------------------------------------------------------------------------
@@ -579,8 +598,8 @@ QuarkFileMD::getAttributes() const
 //------------------------------------------------------------------------------
 bool QuarkFileMD::hasUnlinkedLocation(IFileMD::location_t location)
 {
-  std::shared_lock<std::shared_timed_mutex> lock(mMutex);
-  return hasUnlinkedLocationNoLock(location);
+  return this->runReadOp(
+      [this, location]() { return hasUnlinkedLocationNoLock(location); });
 }
 
 //------------------------------------------------------------------------------
