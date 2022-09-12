@@ -1844,7 +1844,8 @@ WFE::Job::IdempotentPrepare(const std::string& fullPath,
   notification->mutable_cli()->mutable_user()->set_groupname(GetGroupName(
         mVid.gid));
 
-  for (const auto& attribute : CollectAttributes(fullPath)) {
+  auto xAttrs = CollectAttributes(fullPath);
+  for (const auto& attribute : xAttrs) {
     google::protobuf::MapPair<std::string, std::string> attr(attribute.first,
         attribute.second);
     notification->mutable_file()->mutable_xattr()->insert(attr);
@@ -1863,6 +1864,19 @@ WFE::Job::IdempotentPrepare(const std::string& fullPath,
   notification->mutable_file()->set_fid(mFid);
   notification->mutable_file()->mutable_owner()->set_uid(cuid);
   notification->mutable_file()->mutable_owner()->set_gid(cgid);
+  notification->mutable_file()->set_disk_file_id("0x" + eos::common::StringConversion::integral_to_hex(mFid));
+  if (xAttrs.count("sys.archive.file_id")) {
+    notification->mutable_file()->set_archive_file_id(std::stoi(xAttrs["sys.archive.file_id"]));
+  }
+  if (xAttrs.count("sys.archive.storage_class")) {
+    notification->mutable_file()->set_storage_class(xAttrs["sys.archive.storage_class"]);
+  }
+  if (xAttrs.count("sys.eos.btime")) {
+    eos::IFileMD::ctime_t btime {0, 0};
+    Timing::Timespec_from_TimespecStr(xAttrs["sys.eos.btime"], btime);
+    notification->mutable_file()->mutable_btime()->set_sec(btime.tv_sec);
+    notification->mutable_file()->mutable_btime()->set_nsec(btime.tv_nsec);
+  }
   auto fxidString = StringConversion::FastUnsignedToAsciiHex(mFid);
   std::ostringstream destStream;
   std::string mgmHostName;
@@ -2028,7 +2042,8 @@ WFE::Job::HandleProtoMethodAbortPrepareEvent(const std::string& fullPath,
   notification->mutable_cli()->mutable_user()->set_groupname(GetGroupName(
         mVid.gid));
 
-  for (const auto& attribute : CollectAttributes(fullPath)) {
+  auto xAttrs = CollectAttributes(fullPath);
+  for (const auto& attribute : xAttrs) {
     google::protobuf::MapPair<std::string, std::string> attr(attribute.first,
         attribute.second);
     notification->mutable_file()->mutable_xattr()->insert(attr);
@@ -2049,6 +2064,19 @@ WFE::Job::HandleProtoMethodAbortPrepareEvent(const std::string& fullPath,
   notification->mutable_wf()->mutable_instance()->set_name(
     gOFS->MgmOfsInstanceName.c_str());
   notification->mutable_file()->set_fid(mFid);
+  notification->mutable_file()->set_disk_file_id("0x" + eos::common::StringConversion::integral_to_hex(mFid));
+  if (xAttrs.count("sys.archive.file_id")) {
+    notification->mutable_file()->set_archive_file_id(std::stoi(xAttrs["sys.archive.file_id"]));
+  }
+  if (xAttrs.count("sys.archive.storage_class")) {
+    notification->mutable_file()->set_storage_class(xAttrs["sys.archive.storage_class"]);
+  }
+  if (xAttrs.count("sys.eos.btime")) {
+    eos::IFileMD::ctime_t btime {0, 0};
+    Timing::Timespec_from_TimespecStr(xAttrs["sys.eos.btime"], btime);
+    notification->mutable_file()->mutable_btime()->set_sec(btime.tv_sec);
+    notification->mutable_file()->mutable_btime()->set_nsec(btime.tv_nsec);
+  }
   auto s_ret = SendProtoWFRequest(this, fullPath, request, errorMsg);
 
   if (s_ret == 0) {
@@ -2170,7 +2198,8 @@ WFE::Job::HandleProtoMethodCreateEvent(const std::string& fullPath,
   notification->mutable_cli()->mutable_user()->set_groupname(GetGroupName(
         mVid.gid));
 
-  for (const auto& attribute : CollectAttributes(fullPath)) {
+  auto xAttrs = CollectAttributes(fullPath);
+  for (const auto& attribute : xAttrs) {
     google::protobuf::MapPair<std::string, std::string> attr(attribute.first,
         attribute.second);
     notification->mutable_file()->mutable_xattr()->insert(attr);
@@ -2191,6 +2220,19 @@ WFE::Job::HandleProtoMethodCreateEvent(const std::string& fullPath,
     gOFS->MgmOfsInstanceName.c_str());
   notification->mutable_file()->set_lpath(fullPath);
   notification->mutable_file()->set_fid(mFid);
+  notification->mutable_file()->set_disk_file_id("0x" + eos::common::StringConversion::integral_to_hex(mFid));
+  if (xAttrs.count("sys.archive.file_id")) {
+    notification->mutable_file()->set_archive_file_id(std::stoi(xAttrs["sys.archive.file_id"]));
+  }
+  if (xAttrs.count("sys.archive.storage_class")) {
+    notification->mutable_file()->set_storage_class(xAttrs["sys.archive.storage_class"]);
+  }
+  if (xAttrs.count("sys.eos.btime")) {
+    eos::IFileMD::ctime_t btime {0, 0};
+    Timing::Timespec_from_TimespecStr(xAttrs["sys.eos.btime"], btime);
+    notification->mutable_file()->mutable_btime()->set_sec(btime.tv_sec);
+    notification->mutable_file()->mutable_btime()->set_nsec(btime.tv_nsec);
+  }
   auto s_ret = SendProtoWFRequest(this, fullPath, request, errorMsg);
   EXEC_TIMING_END("Proto::Create");
   return s_ret;
@@ -2209,7 +2251,8 @@ WFE::Job::HandleProtoMethodDeleteEvent(const std::string& fullPath,
   notification->mutable_cli()->mutable_user()->set_groupname(GetGroupName(
         mVid.gid));
 
-  for (const auto& attribute : CollectAttributes(fullPath)) {
+  auto xAttrs = CollectAttributes(fullPath);
+  for (const auto& attribute : xAttrs) {
     google::protobuf::MapPair<std::string, std::string> attr(attribute.first,
         attribute.second);
     notification->mutable_file()->mutable_xattr()->insert(attr);
@@ -2220,6 +2263,19 @@ WFE::Job::HandleProtoMethodDeleteEvent(const std::string& fullPath,
     gOFS->MgmOfsInstanceName.c_str());
   notification->mutable_file()->set_lpath(fullPath);
   notification->mutable_file()->set_fid(mFid);
+  notification->mutable_file()->set_disk_file_id("0x" + eos::common::StringConversion::integral_to_hex(mFid));
+  if (xAttrs.count("sys.archive.file_id")) {
+    notification->mutable_file()->set_archive_file_id(std::stoi(xAttrs["sys.archive.file_id"]));
+  }
+  if (xAttrs.count("sys.archive.storage_class")) {
+    notification->mutable_file()->set_storage_class(xAttrs["sys.archive.storage_class"]);
+  }
+  if (xAttrs.count("sys.eos.btime")) {
+    eos::IFileMD::ctime_t btime {0, 0};
+    Timing::Timespec_from_TimespecStr(xAttrs["sys.eos.btime"], btime);
+    notification->mutable_file()->mutable_btime()->set_sec(btime.tv_sec);
+    notification->mutable_file()->mutable_btime()->set_nsec(btime.tv_nsec);
+  }
   // IMPORTANT
   // Remove the tape location from the EOS namespace before actually deleting
   // the tape file(s). Doing these operations the other way around could result
@@ -2590,7 +2646,8 @@ WFE::Job::HandleProtoMethodUpdateFidEvent(const std::string& fullPath,
   notification->mutable_cli()->mutable_user()->set_groupname(GetGroupName(
         mVid.gid));
 
-  for (const auto& attribute : CollectAttributes(fullPath)) {
+  auto xAttrs = CollectAttributes(fullPath);
+  for (const auto& attribute : xAttrs) {
     google::protobuf::MapPair<std::string, std::string> attr(attribute.first,
         attribute.second);
     notification->mutable_file()->mutable_xattr()->insert(attr);
@@ -2601,6 +2658,19 @@ WFE::Job::HandleProtoMethodUpdateFidEvent(const std::string& fullPath,
     gOFS->MgmOfsInstanceName.c_str());
   notification->mutable_file()->set_lpath(fullPath);
   notification->mutable_file()->set_fid(mFid);
+  notification->mutable_file()->set_disk_file_id("0x" + eos::common::StringConversion::integral_to_hex(mFid));
+  if (xAttrs.count("sys.archive.file_id")) {
+    notification->mutable_file()->set_archive_file_id(std::stoi(xAttrs["sys.archive.file_id"]));
+  }
+  if (xAttrs.count("sys.archive.storage_class")) {
+    notification->mutable_file()->set_storage_class(xAttrs["sys.archive.storage_class"]);
+  }
+  if (xAttrs.count("sys.eos.btime")) {
+    eos::IFileMD::ctime_t btime {0, 0};
+    Timing::Timespec_from_TimespecStr(xAttrs["sys.eos.btime"], btime);
+    notification->mutable_file()->mutable_btime()->set_sec(btime.tv_sec);
+    notification->mutable_file()->mutable_btime()->set_nsec(btime.tv_nsec);
+  }
   const int sendRc = SendProtoWFRequest(this, fullPath, request, errorMsg);
 
   if (SFS_OK != sendRc) {
@@ -2862,7 +2932,8 @@ WFE::CollectAttributes(const std::string& fullPath)
       // communicated to the CTA Frontend.
       // sys.cta.* is set by the CTA Frontend for internal use, e.g. tracking requests in the
       // objectstore.
-      if (fileAttrPair.first.find("sys.archive.") == 0 ||
+      if (fileAttrPair.first.find("sys.eos.btime") == 0 ||
+          fileAttrPair.first.find("sys.archive.") == 0 ||
           fileAttrPair.first.find("sys.cta.") == 0 ||
           fileAttrPair.first.find("CTA_") == 0) {
         result.insert(fileAttrPair);
