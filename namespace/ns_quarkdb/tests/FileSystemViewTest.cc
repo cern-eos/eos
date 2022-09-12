@@ -498,6 +498,186 @@ TEST_F(FileSystemViewF, FileSystemHandler)
   }
 }
 
+TEST_F(FileSystemViewF, fileMDLockedSetSize)
+{
+  auto container = view()->createContainer("/test/", true);
+  eos::IFileMDPtr f1 = view()->createFile("/test/f1");
+  std::vector<std::thread> workers;
+  std::atomic<uint64_t> size = 1;
+  {
+    //10 threads, each of them running a loop of 10 size increase
+    for (int i = 0; i < 10; ++i) {
+      workers.push_back(std::thread([i, &f1,&size]() {
+        eos::IFileMD::IFileMDLocker lock(f1);
+        for (int j = 0; j < 10; ++j) {
+          f1->setSize(size++);
+        }
+      }));
+    }
+  }
+  std::for_each(workers.begin(),workers.end(),[](std::thread &t){
+    t.join();
+  });
+  //We sleep 6 seconds the time for the ContainerAccountingThread to take into account the size change of the file
+  ::sleep(6);
+  ASSERT_EQ(100,f1->getSize());
+  ASSERT_EQ(100,container->getTreeSize());
+}
+
+TEST_F(FileSystemViewF, fileMDLockedClone)
+{
+  view()->createContainer("/test/", true);
+  eos::IFileMDPtr f1 = view()->createFile("/test/f1");
+  ASSERT_EQ(f1->getIdentifier(), eos::FileIdentifier(1));
+  eos::IFileMDPtr f2;
+  {
+    eos::IFileMD::IFileMDLocker fileMDLocked(f1);
+    f2.reset(fileMDLocked->clone());
+    eos::IFileMD::IFileMDLocker file2MDLocked(f2);
+    ASSERT_EQ(f1->getIdentifier(), f2->getIdentifier());
+  }
+  ASSERT_EQ(eos::FileIdentifier(1),f1->getIdentifier());
+  ASSERT_EQ(f1->getIdentifier(), f2->getIdentifier());
+}
+
+TEST_F(FileSystemViewF, fileMDLockedLocation)
+{
+  view()->createContainer("/test/", true);
+  eos::IFileMDPtr f1 = view()->createFile("/test/f1");
+  {
+    eos::IFileMD::IFileMDLocker lock(f1);
+    f1->addLocation(1);
+    ASSERT_EQ(1, f1->getLocation(0));
+  }
+  std::vector<std::thread> addLocationWorkers;
+  {
+    //10 threads, each one adds a location
+    for (int i = 0; i < 10; ++i) {
+      addLocationWorkers.push_back(std::thread([i, &f1]() {
+        eos::IFileMD::IFileMDLocker lock(f1);
+        for (int j = 0; j < 10; ++j) {
+          f1->addLocation((i * 10) + j);
+        }
+      }));
+    }
+  }
+  std::for_each(addLocationWorkers.begin(), addLocationWorkers.end(),[](std::thread &t){
+    t.join();
+  });
+  std::vector<std::thread> hasLocationWorkers;
+  {
+    for (int i = 0; i < 10; ++i) {
+      hasLocationWorkers.push_back(std::thread([i, &f1]() {
+        eos::IFileMD::IFileMDLocker lock(f1);
+        for (int j = 0; j < 10; ++j) {
+          ASSERT_TRUE(f1->hasLocation((i * 10) + j));
+        }
+      }));
+    }
+  }
+  std::for_each(hasLocationWorkers.begin(), hasLocationWorkers.end(),[](std::thread &t){
+    t.join();
+  });
+  {
+    eos::IFileMD::IFileMDLocker lock(f1);
+    ASSERT_EQ(100, f1->getNumLocation());
+    auto locations = f1->getLocations();
+    ASSERT_EQ(100, locations.size());
+  }
+
+  std::vector<std::thread> removeLocationWorkers;
+  {
+    //10 threads, each one adds a location
+    for (int i = 0; i < 10; ++i) {
+      removeLocationWorkers.push_back(std::thread([i, &f1]() {
+        eos::IFileMD::IFileMDLocker lock(f1);
+        for (int j = 0; j < 10; ++j) {
+          f1->unlinkLocation((i * 10) + j);
+          f1->removeLocation((i * 10) + j);
+        }
+      }));
+    }
+  }
+  std::for_each(removeLocationWorkers.begin(), removeLocationWorkers.end(),[](std::thread &t){
+    t.join();
+  });
+  ASSERT_EQ(0,f1->getNumLocation());
+  //Add again 100 locations
+  addLocationWorkers.clear();
+  for (int i = 0; i < 10; ++i) {
+    addLocationWorkers.push_back(std::thread([i, &f1]() {
+      for (int j = 0; j < 10; ++j) {
+        f1->addLocation((i * 10) + j);
+      }
+    }));
+  }
+  std::for_each(addLocationWorkers.begin(), addLocationWorkers.end(),[](std::thread &t){
+    t.join();
+  });
+  //Try the removeAllLocation
+  {
+    eos::IFileMD::IFileMDLocker lock(f1);
+    f1->unlinkAllLocations();
+    f1->removeAllLocations();
+  }
+  ASSERT_EQ(0,f1->getNumLocation());
+  addLocationWorkers.clear();
+  for (int i = 0; i < 10; ++i) {
+    addLocationWorkers.push_back(std::thread([i, &f1]() {
+      for (int j = 0; j < 10; ++j) {
+        f1->addLocation((i * 10) + j);
+      }
+    }));
+  }
+  std::for_each(addLocationWorkers.begin(), addLocationWorkers.end(),[](std::thread &t){
+    t.join();
+  });
+  f1->unlinkLocation(0);
+  ASSERT_EQ(1,f1->getUnlinkedLocations().size());
+  ASSERT_EQ(1,f1->getNumUnlinkedLocation());
+  f1->clearUnlinkedLocations();
+  ASSERT_EQ(0,f1->getNumUnlinkedLocation());
+
+}
+
+TEST_F(FileSystemViewF, fileMDLockedRemoveLocation)
+{
+  view()->createContainer("/test/", true);
+  eos::IFileMDPtr f1 = view()->createFile("/test/f1");
+
+    std::vector<std::thread> addLocationWorkers;
+    std::vector<std::thread> removeLocationWorkers;
+
+    for (int i = 0; i < 10; ++i) {
+      addLocationWorkers.push_back(std::thread([i, &f1]() {
+        eos::IFileMD::IFileMDLocker lock(f1);
+        for (int j = 0; j < 10; ++j) {
+          f1->addLocation((i * 10) + j);
+        }
+      }));
+    }
+
+    std::for_each(addLocationWorkers.begin(), addLocationWorkers.end(),[](std::thread& t) {
+      t.join();
+    });
+
+    for (int i = 0; i < 10; ++i) {
+      removeLocationWorkers.push_back(std::thread([i, &f1]() {
+        eos::IFileMD::IFileMDLocker lock(f1);
+        for (int j = 0; j < 10; ++j) {
+          f1->unlinkLocation((i * 10) + j);
+          f1->removeLocation((i * 10) + j);
+        }
+      }));
+    }
+
+    std::for_each(removeLocationWorkers.begin(), removeLocationWorkers.end(),[](std::thread& t) {
+      t.join();
+    });
+
+  ASSERT_EQ(0,f1->getNumLocation());
+}
+
 TEST(SetChangeList, BasicSanity)
 {
   eos::IFsView::FileList contents;
