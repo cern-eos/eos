@@ -144,8 +144,7 @@ public:
   inline IFileMD::id_t
   getId() const override
   {
-    std::shared_lock<std::shared_timed_mutex> lock(mMutex);
-    return mFile.id();
+    return runReadOp([this]() { return mFile.id(); });
   }
 
   //----------------------------------------------------------------------------
@@ -153,8 +152,7 @@ public:
   //----------------------------------------------------------------------------
   inline FileIdentifier getIdentifier() const override
   {
-    std::shared_lock<std::shared_timed_mutex> lock(mMutex);
-    return FileIdentifier(mFile.id());
+    return this->runReadOp([this]() { return FileIdentifier(mFile.id()); });
   }
 
   //----------------------------------------------------------------------------
@@ -163,8 +161,7 @@ public:
   inline uint64_t
   getSize() const override
   {
-    std::shared_lock<std::shared_timed_mutex> lock(mMutex);
-    return mFile.size();
+    return this->runReadOp([this]() { return mFile.size(); });
   }
 
   //----------------------------------------------------------------------------
@@ -178,8 +175,7 @@ public:
   inline uint64_t
   getCloneId() const override
   {
-    std::shared_lock<std::shared_timed_mutex> lock(mMutex);
-    return mFile.cloneid();
+    return runReadOp([this]() { return mFile.cloneid(); });
   }
 
   //----------------------------------------------------------------------------
@@ -187,8 +183,7 @@ public:
   //----------------------------------------------------------------------------
   void setCloneId(uint64_t id) override
   {
-    std::shared_lock<std::shared_timed_mutex> lock(mMutex);
-    mFile.set_cloneid(id);
+    return runWriteOp([this, id]() { mFile.set_cloneid(id); });
   }
 
   //----------------------------------------------------------------------------
@@ -197,8 +192,7 @@ public:
   const std::string
   getCloneFST() const override
   {
-    std::shared_lock<std::shared_timed_mutex> lock(mMutex);
-    return mFile.clonefst();
+    return runReadOp([this]() { return mFile.clonefst(); });
   }
 
   //----------------------------------------------------------------------------
@@ -216,8 +210,7 @@ public:
   inline IContainerMD::id_t
   getContainerId() const override
   {
-    std::shared_lock<std::shared_timed_mutex> lock(mMutex);
-    return mFile.cont_id();
+    return this->runReadOp([this]() { return mFile.cont_id(); });
   }
 
   //----------------------------------------------------------------------------
@@ -226,8 +219,7 @@ public:
   void
   setContainerId(IContainerMD::id_t containerId) override
   {
-    std::unique_lock<std::shared_timed_mutex> lock(mMutex);
-    mFile.set_cont_id(containerId);
+    runWriteOp([this, containerId]() { mFile.set_cont_id(containerId); });
   }
 
   //----------------------------------------------------------------------------
@@ -236,10 +228,11 @@ public:
   inline const Buffer
   getChecksum() const override
   {
-    std::shared_lock<std::shared_timed_mutex> lock(mMutex);
-    Buffer buff(mFile.checksum().size());
-    buff.putData((void*)mFile.checksum().data(), mFile.checksum().size());
-    return buff;
+    return runReadOp([this]() {
+      Buffer buff(mFile.checksum().size());
+      buff.putData((void*)mFile.checksum().data(), mFile.checksum().size());
+      return buff;
+    });
   }
 
   //----------------------------------------------------------------------------
@@ -248,8 +241,9 @@ public:
   void
   setChecksum(const Buffer& checksum) override
   {
-    std::unique_lock<std::shared_timed_mutex> lock(mMutex);
-    mFile.set_checksum(checksum.getDataPtr(), checksum.getSize());
+    runWriteOp([this, &checksum]() {
+      mFile.set_checksum(checksum.getDataPtr(), checksum.getSize());
+    });
   }
 
   //----------------------------------------------------------------------------
@@ -258,8 +252,7 @@ public:
   void
   clearChecksum(uint8_t size = 20) override
   {
-    std::unique_lock<std::shared_timed_mutex> lock(mMutex);
-    mFile.clear_checksum();
+    runWriteOp([this]() { mFile.clear_checksum(); });
   }
 
   //----------------------------------------------------------------------------
@@ -271,8 +264,8 @@ public:
   void
   setChecksum(const void* checksum, uint8_t size) override
   {
-    std::unique_lock<std::shared_timed_mutex> lock(mMutex);
-    mFile.set_checksum(checksum, size);
+    runWriteOp(
+        [this, checksum, size]() { mFile.set_checksum(checksum, size); });
   }
 
   //----------------------------------------------------------------------------
@@ -281,8 +274,7 @@ public:
   inline const std::string
   getName() const override
   {
-    std::shared_lock<std::shared_timed_mutex> lock(mMutex);
-    return mFile.name();
+    return runReadOp([this]() { return mFile.name(); });
   }
 
   //----------------------------------------------------------------------------
@@ -300,9 +292,11 @@ public:
   //----------------------------------------------------------------------------
   inline LocationVector getLocations() const override
   {
-    std::shared_lock<std::shared_timed_mutex> lock(mMutex);
-    LocationVector locations(mFile.locations().begin(), mFile.locations().end());
-    return locations;
+    return this->runReadOp([this]() {
+      LocationVector locations(mFile.locations().begin(),
+                               mFile.locations().end());
+      return locations;
+    });
   }
 
   //----------------------------------------------------------------------------
@@ -311,13 +305,12 @@ public:
   location_t
   getLocation(unsigned int index) override
   {
-    std::shared_lock<std::shared_timed_mutex> lock(mMutex);
-
-    if (index < (unsigned int)mFile.locations_size()) {
-      return mFile.locations(index);
-    }
-
-    return 0;
+    return this->runReadOp([this, index]() {
+      if (index < (unsigned int)mFile.locations_size()) {
+        return mFile.locations(index);
+      }
+      return (location_t)0;
+    });
   }
 
   //----------------------------------------------------------------------------
@@ -336,8 +329,7 @@ public:
   void
   clearLocations() override
   {
-    std::unique_lock<std::shared_timed_mutex> lock(mMutex);
-    mFile.clear_locations();
+    this->runWriteOp([this]() { mFile.clear_locations(); });
   }
 
   //----------------------------------------------------------------------------
@@ -361,8 +353,8 @@ public:
   bool
   hasLocation(location_t location) override
   {
-    std::shared_lock<std::shared_timed_mutex> lock(mMutex);
-    return hasLocationNoLock(location);
+    return this->runReadOp(
+        [this, location]() { return hasLocationNoLock(location); });
   }
 
   //----------------------------------------------------------------------------
@@ -371,8 +363,7 @@ public:
   inline size_t
   getNumLocation() const override
   {
-    std::shared_lock<std::shared_timed_mutex> lock(mMutex);
-    return mFile.locations_size();
+    return runReadOp([this]() { return mFile.locations_size(); });
   }
 
   //----------------------------------------------------------------------------
@@ -380,10 +371,12 @@ public:
   //----------------------------------------------------------------------------
   inline LocationVector getUnlinkedLocations() const override
   {
-    std::shared_lock<std::shared_timed_mutex> lock(mMutex);
-    LocationVector unlinked_locations(mFile.unlink_locations().begin(),
-                                      mFile.unlink_locations().end());
-    return unlinked_locations;
+    return this->runReadOp([this]() {
+      LocationVector unlinked_locations(mFile.unlink_locations().begin(),
+                                        mFile.unlink_locations().end());
+      return unlinked_locations;
+    });
+
   }
 
   //----------------------------------------------------------------------------
@@ -402,8 +395,7 @@ public:
   inline void
   clearUnlinkedLocations() override
   {
-    std::unique_lock<std::shared_timed_mutex> lock(mMutex);
-    mFile.clear_unlink_locations();
+    this->runWriteOp([this]() { mFile.clear_unlink_locations(); });
   }
 
   //----------------------------------------------------------------------------
@@ -418,8 +410,7 @@ public:
   inline size_t
   getNumUnlinkedLocation() const override
   {
-    std::shared_lock<std::shared_timed_mutex> lock(mMutex);
-    return mFile.unlink_locations_size();
+    return runReadOp([this]() { return mFile.unlink_locations_size(); });
   }
 
   //----------------------------------------------------------------------------
@@ -428,8 +419,8 @@ public:
   inline uid_t
   getCUid() const override
   {
-    std::shared_lock<std::shared_timed_mutex> lock(mMutex);
-    return mFile.uid();
+    return runReadOp([this]() { return mFile.uid(); });
+
   }
 
   //----------------------------------------------------------------------------
@@ -438,8 +429,7 @@ public:
   inline void
   setCUid(uid_t uid) override
   {
-    std::unique_lock<std::shared_timed_mutex> lock(mMutex);
-    mFile.set_uid(uid);
+    runWriteOp([this, uid]() { mFile.set_uid(uid); });
   }
 
   //----------------------------------------------------------------------------
@@ -448,8 +438,7 @@ public:
   inline gid_t
   getCGid() const override
   {
-    std::shared_lock<std::shared_timed_mutex> lock(mMutex);
-    return mFile.gid();
+    return runReadOp([this]() { return mFile.gid(); });
   }
 
   //----------------------------------------------------------------------------
@@ -458,8 +447,7 @@ public:
   inline void
   setCGid(gid_t gid) override
   {
-    std::unique_lock<std::shared_timed_mutex> lock(mMutex);
-    mFile.set_gid(gid);
+    runWriteOp([this, gid]() { mFile.set_gid(gid); });
   }
 
   //----------------------------------------------------------------------------
@@ -468,8 +456,7 @@ public:
   inline layoutId_t
   getLayoutId() const override
   {
-    std::shared_lock<std::shared_timed_mutex> lock(mMutex);
-    return mFile.layout_id();
+    return runReadOp([this]() { return mFile.layout_id(); });
   }
 
   //----------------------------------------------------------------------------
@@ -478,8 +465,7 @@ public:
   inline void
   setLayoutId(layoutId_t layoutId) override
   {
-    std::unique_lock<std::shared_timed_mutex> lock(mMutex);
-    mFile.set_layout_id(layoutId);
+    runWriteOp([this, layoutId]() { mFile.set_layout_id(layoutId); });
   }
 
   //----------------------------------------------------------------------------
@@ -488,8 +474,7 @@ public:
   inline uint16_t
   getFlags() const override
   {
-    std::shared_lock<std::shared_timed_mutex> lock(mMutex);
-    return mFile.flags();
+    return runReadOp([this]() { return mFile.flags(); });
   }
 
   //----------------------------------------------------------------------------
@@ -498,8 +483,8 @@ public:
   inline bool
   getFlag(uint8_t n) override
   {
-    std::shared_lock<std::shared_timed_mutex> lock(mMutex);
-    return (bool)(mFile.flags() & (0x0001 << n));
+    return runReadOp(
+        [this, n]() { return (bool)(mFile.flags() & (0x0001 << n)); });
   }
 
   //----------------------------------------------------------------------------
@@ -508,8 +493,7 @@ public:
   inline void
   setFlags(uint16_t flags) override
   {
-    std::unique_lock<std::shared_timed_mutex> lock(mMutex);
-    mFile.set_flags(flags);
+    return runWriteOp([this, flags]() { mFile.set_flags(flags); });
   }
 
   //----------------------------------------------------------------------------
@@ -518,13 +502,13 @@ public:
   void
   setFlag(uint8_t n, bool flag) override
   {
-    std::unique_lock<std::shared_timed_mutex> lock(mMutex);
-
-    if (flag) {
-      mFile.set_flags(mFile.flags() | (1 << n));
-    } else {
-      mFile.set_flags(mFile.flags() & (~(1 << n)));
-    }
+    return runWriteOp([this, n, flag]() {
+      if (flag) {
+        mFile.set_flags(mFile.flags() | (1 << n));
+      } else {
+        mFile.set_flags(mFile.flags() & (~(1 << n)));
+      }
+    });
   }
 
   //----------------------------------------------------------------------------
@@ -538,8 +522,9 @@ public:
   inline void
   setFileMDSvc(IFileMDSvc* fileMDSvc) override
   {
-    std::unique_lock<std::shared_timed_mutex> lock(mMutex);
-    pFileMDSvc = static_cast<QuarkFileMDSvc*>(fileMDSvc);
+    runWriteOp([this, fileMDSvc]() {
+      pFileMDSvc = static_cast<QuarkFileMDSvc*>(fileMDSvc);
+    });
   }
 
   //----------------------------------------------------------------------------
@@ -548,8 +533,7 @@ public:
   inline virtual IFileMDSvc*
   getFileMDSvc() override
   {
-    std::shared_lock<std::shared_timed_mutex> lock(mMutex);
-    return pFileMDSvc;
+    return runReadOp([this]() { return pFileMDSvc; });
   }
 
   //----------------------------------------------------------------------------
@@ -558,8 +542,7 @@ public:
   inline std::string
   getLink() const override
   {
-    std::shared_lock<std::shared_timed_mutex> lock(mMutex);
-    return mFile.link_name();
+    return runReadOp([this]() { return mFile.link_name(); });
   }
 
   //----------------------------------------------------------------------------
@@ -568,8 +551,7 @@ public:
   inline void
   setLink(std::string link_name) override
   {
-    std::unique_lock<std::shared_timed_mutex> lock(mMutex);
-    mFile.set_link_name(link_name);
+    runWriteOp([this, link_name]() { mFile.set_link_name(link_name); });
   }
 
   //----------------------------------------------------------------------------
@@ -578,8 +560,7 @@ public:
   bool
   isLink() const override
   {
-    std::shared_lock<std::shared_timed_mutex> lock(mMutex);
-    return !mFile.link_name().empty();
+    return runReadOp([this]() { return !mFile.link_name().empty(); });
   }
 
   //----------------------------------------------------------------------------
@@ -588,8 +569,8 @@ public:
   void
   setAttribute(const std::string& name, const std::string& value) override
   {
-    std::unique_lock<std::shared_timed_mutex> lock(mMutex);
-    (*mFile.mutable_xattrs())[name] = value;
+    runWriteOp(
+        [this, name, value]() { (*mFile.mutable_xattrs())[name] = value; });
   }
 
   //----------------------------------------------------------------------------
@@ -598,12 +579,13 @@ public:
   void
   removeAttribute(const std::string& name) override
   {
-    std::unique_lock<std::shared_timed_mutex> lock(mMutex);
-    auto it = mFile.xattrs().find(name);
+    runWriteOp([this, name]() {
+      auto it = mFile.xattrs().find(name);
 
-    if (it != mFile.xattrs().end()) {
-      mFile.mutable_xattrs()->erase(it->first);
-    }
+      if (it != mFile.xattrs().end()) {
+        mFile.mutable_xattrs()->erase(it->first);
+      }
+    });
   }
 
   //----------------------------------------------------------------------------
@@ -611,8 +593,7 @@ public:
   //----------------------------------------------------------------------------
   void clearAttributes() override
   {
-    std::unique_lock<std::shared_timed_mutex> lock(mMutex);
-    mFile.clear_xattrs();
+    runWriteOp([this]() { mFile.clear_xattrs(); });
   }
 
   //----------------------------------------------------------------------------
@@ -621,8 +602,9 @@ public:
   bool
   hasAttribute(const std::string& name) const override
   {
-    std::shared_lock<std::shared_timed_mutex> lock(mMutex);
-    return (mFile.xattrs().find(name) != mFile.xattrs().end());
+    return runReadOp([this, name]() {
+      return (mFile.xattrs().find(name) != mFile.xattrs().end());
+    });
   }
 
   //----------------------------------------------------------------------------
@@ -631,8 +613,7 @@ public:
   inline size_t
   numAttributes() const override
   {
-    std::shared_lock<std::shared_timed_mutex> lock(mMutex);
-    return mFile.xattrs().size();
+    return runReadOp([this]() { return mFile.xattrs().size(); });
   }
 
   //----------------------------------------------------------------------------
@@ -641,16 +622,17 @@ public:
   std::string
   getAttribute(const std::string& name) const override
   {
-    std::shared_lock<std::shared_timed_mutex> lock(mMutex);
-    auto it = mFile.xattrs().find(name);
+    return runReadOp([this, &name] {
+      auto it = mFile.xattrs().find(name);
 
-    if (it == mFile.xattrs().end()) {
-      MDException e(ENOENT);
-      e.getMessage() << "Attribute: " << name << " not found";
-      throw e;
-    }
+      if (it == mFile.xattrs().end()) {
+        MDException e(ENOENT);
+        e.getMessage() << "Attribute: " << name << " not found";
+        throw e;
+      }
 
-    return it->second;
+      return it->second;
+    });
   }
 
   //----------------------------------------------------------------------------

@@ -114,6 +114,7 @@ void NsTestsFixture::initServices()
 
   namespaceGroupPtr->getFileService()->configure(testconfig);
   namespaceGroupPtr->getContainerService()->configure(testconfig);
+  namespaceGroupPtr->getContainerAccountingView();
   namespaceGroupPtr->getFilesystemView()->configure(testconfig);
   namespaceGroupPtr->getHierarchicalView()->configure(testconfig);
 
