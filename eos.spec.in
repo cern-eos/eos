@@ -291,7 +291,6 @@ cd build
 %if "%{?compiler}" == "gcc"
 
   %if 0%{?rhel} == 7
-    sed -i 's/2\.7/3\.6/g' /opt/rh/%{devtoolset}/enable
     source /opt/rh/%{devtoolset}/enable
   %endif
 
@@ -319,7 +318,6 @@ cd build
 
 %if "%{?compiler}" == "gcc"
 %if 0%{?rhel} == 7
-  sed -i 's/2\.7/3\.6/g' /opt/rh/%{devtoolset}/enable
   source /opt/rh/%{devtoolset}/enable
 %endif
 %endif
