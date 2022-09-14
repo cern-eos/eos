@@ -23,6 +23,7 @@
 
 #include <memory>
 #include <gtest/gtest.h>
+#include <cstring>
 
 #include "namespace/interface/ContainerIterators.hh"
 #include "namespace/ns_quarkdb/explorer/NamespaceExplorer.hh"
@@ -1069,7 +1070,7 @@ class ContainerFilter : public eos::ExpansionDecider
 public:
 
   virtual bool shouldExpandContainer(const eos::ns::ContainerMdProto& proto,
-                                     const eos::IContainerMD::XAttrMap& attrs, 
+                                     const eos::IContainerMD::XAttrMap& attrs,
                                      const std::string& fullPath) override
   {
     if (proto.name() == "d4") {
@@ -1428,7 +1429,6 @@ TEST_F(VariousTests, ContainerIterator)
 {
   eos::IContainerMDPtr cont1 = view()->createContainer("/dir-1/");
   ASSERT_EQ(cont1->getId(), 2);
-
   eos::IFileMDPtr file1 = view()->createFile("/dir-1/file-1");
   eos::IFileMDPtr file2 = view()->createFile("/dir-1/file-2");
   eos::IFileMDPtr file3 = view()->createFile("/dir-1/file-3");
@@ -1437,104 +1437,157 @@ TEST_F(VariousTests, ContainerIterator)
   eos::IContainerMDPtr subcont2 = view()->createContainer("/dir-1/dir-2/");
   eos::IContainerMDPtr subcont3 = view()->createContainer("/dir-1/dir-3/");
   eos::IContainerMDPtr subcont4 = view()->createContainer("/dir-1/dir-4/");
-
   ASSERT_EQ(cont1->getNumFiles(), 4);
   ASSERT_EQ(cont1->getNumContainers(), 4);
-
   eos::ContainerMapIterator cit(cont1);
   eos::FileMapIterator fit(cont1);
-  ASSERT_EQ(cit.generation(), 32);
-  ASSERT_EQ(fit.generation(), 32);
-
   // file iterator test
   {
     std::vector<eos::IFileMDPtr> fv;
 
-    for (auto i = 5 ; i<= 1024; ++i) {
+    for (auto i = 5 ; i <= 1024; ++i) {
       std::string f = "/dir-1/file-" + std::to_string(i);
       fv.push_back(view()->createFile(f));
     }
-    
-    size_t iterations=1;
-    
+
+    size_t iterations = 1;
+
     do {
       fit.next();
+
       if (fit.valid()) {
-	iterations++;
+        iterations++;
       }
     } while (fit.valid());
-    
+
     ASSERT_EQ(iterations, 1024);
-    
     eos::FileMapIterator fit1(cont1);
     std::string f = "/dir-1/" + fit1.key();
     view()->unlinkFile(f);
-    
+
     // delete one more file during iteration, diffrent from the 1st one
     if (f != "/dir-1/file-1024") {
       std::string f = "/dir-1/file-1024";
       view()->unlinkFile(f);
     } else {
-    std::string f = "/dir-1/file-512";
-    view()->unlinkFile(f);
+      std::string f = "/dir-1/file-512";
+      view()->unlinkFile(f);
     }
-    
-    iterations=1;
+
+    iterations = 1;
+
     do {
       fit1.next();
+
       if (fit1.valid()) {
-	iterations++;
+        iterations++;
       }
     } while (fit1.valid());
-    
+
     ASSERT_EQ(iterations, 1023);
   }
-
-    // container iterator test
+  // container iterator test
   {
-    std::vector<eos::IContainerMDPtr> cv;   
+    std::vector<eos::IContainerMDPtr> cv;
 
-    for (auto i = 5 ; i<= 1024; ++i) {
+    for (auto i = 5 ; i <= 1024; ++i) {
       std::string f = "/dir-1/dir-" + std::to_string(i);
       cv.push_back(view()->createContainer(f));
     }
-    
-    size_t iterations=1;
-    
+
+    size_t iterations = 1;
+
     do {
       cit.next();
+
       if (cit.valid()) {
-	iterations++;
+        iterations++;
       }
     } while (cit.valid());
-    
+
     ASSERT_EQ(iterations, 1024);
-    
     eos::ContainerMapIterator cit1(cont1);
     std::string f = "/dir-1/" + cit1.key();
     view()->removeContainer(f);
-    
+
     // delete one more file during iteration, diffrent from the 1st one
     if (f != "/dir-1/dir-1024") {
       std::string f = "/dir-1/dir-1024";
       view()->removeContainer(f);
     } else {
-    std::string f = "/dir-1/dir-512";
-    view()->removeContainer(f);
+      std::string f = "/dir-1/dir-512";
+      view()->removeContainer(f);
     }
-    
-    iterations=1;
+
+    iterations = 1;
+
     do {
       cit1.next();
+
       if (cit1.valid()) {
-	iterations++;
+        iterations++;
       }
     } while (cit1.valid());
-    
+
     ASSERT_EQ(iterations, 1023);
   }
 }
 
+TEST_F(VariousTests, FileIteratorInvalidation)
+{
+  // exercises the FileMapIterator when underlying file map's densehashtable
+  // is likely to have been reallocated at a different location but still have
+  // the same size.
+  eos::IContainerMDPtr cont1 = view()->createContainer("/dir-1/");
+
+  for (size_t i = 1; i <= 17; ++i) {
+    std::string s = "/dir-1/file-" + std::to_string(i);
+    view()->createFile(s);
+  }
+
+  // expect 64 buckets now allocated in densehashtable
+  eos::FileMapIterator fit(cont1);
+
+  for (size_t i = 0; i < 8; ++i) {
+    ASSERT_TRUE(fit.valid());
+    fit.next();
+  }
+
+  ASSERT_TRUE(fit.valid());
+
+  // remove some files, but erasing does not cause reallocation
+  for (size_t i = 12; i <= 17; ++i) {
+    std::string s = "/dir-1/file-" + std::to_string(i);
+    view()->unlinkFile(s);
+  }
+
+  // expect number of buckets to be shrunk to 32 on next insert
+  view()->createFile("/dir-1/file-12");
+  // allocate a few regions, each equal to the size of 64 buckets
+  const size_t sz = 64 * sizeof(std::pair<const std::string, IContainerMD::id_t>);
+  const size_t nalloc = 32;
+  void* p[nalloc];
+
+  for (size_t i = 0; i < nalloc; ++i) {
+    p[i] = malloc(sz);
+    memset(p[i], 0xcc, sz);
+  }
+
+  // add files, expect number of buckets to expand to 64 after last insert
+  for (size_t i = 13; i <= 17; ++i) {
+    std::string s = "/dir-1/file-" + std::to_string(i);
+    view()->createFile(s);
+  }
+
+  for (size_t i = 0; i < nalloc; ++i) {
+    free(p[i]);
+    p[i] = nullptr;
+  }
+
+  while (fit.valid()) {
+    fit.next();
+  }
+}
 
 
 TEST_F(NamespaceExplorerF, MissingFile)

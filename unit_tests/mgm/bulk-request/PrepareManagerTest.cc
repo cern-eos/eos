@@ -29,6 +29,7 @@ using ::testing::Return;
 using ::testing::_;
 using ::testing::Invoke;
 using ::testing::NiceMock;
+using ::testing::MatchesRegex;
 
 USE_EOSBULKNAMESPACE
 
@@ -149,6 +150,10 @@ TEST_F(PrepareManagerTest, stagePrepareFilesWorkflow)
   EXPECT_CALL(mgmOfs, Emsg).Times(0);
   EXPECT_CALL(mgmOfs, _access).Times(nbFiles);
   EXPECT_CALL(mgmOfs, FSctl).Times(nbFiles);
+  EXPECT_CALL(mgmOfs, get_logId()).Times(nbFiles);
+  EXPECT_CALL(mgmOfs, get_host()).Times(nbFiles);
+  EXPECT_CALL(mgmOfs, writeEosReportRecord(MatchesRegex(
+                MockPrepareMgmFSInterface::EOS_REPORT_STR_FORMAT))).Times(nbFiles);
   ClientWrapper client = PrepareManagerTest::getDefaultClient();
   PrepareArgumentsWrapper pargs("testReqId", Prep_STAGE, paths, oinfos);
   ErrorWrapper errorWrapper = PrepareManagerTest::getDefaultError();
@@ -248,6 +253,10 @@ TEST_F(PrepareManagerTest, stagePrepareOneFileDoNotExistReturnsSfsData)
                   ));
   EXPECT_CALL(mgmOfs, _access).Times(nbFiles - 1);
   EXPECT_CALL(mgmOfs, FSctl).Times(nbFiles - 1);
+  EXPECT_CALL(mgmOfs, get_logId()).Times(nbFiles);
+  EXPECT_CALL(mgmOfs, get_host()).Times(nbFiles);
+  EXPECT_CALL(mgmOfs, writeEosReportRecord(MatchesRegex(
+                MockPrepareMgmFSInterface::EOS_REPORT_STR_FORMAT))).Times(nbFiles);
   ClientWrapper client = PrepareManagerTest::getDefaultClient();
   PrepareArgumentsWrapper pargs("testReqId", Prep_STAGE, paths, oinfos);
   ErrorWrapper errorWrapper = PrepareManagerTest::getDefaultError();
@@ -288,6 +297,10 @@ TEST_F(PrepareManagerTest, abortPrepareFilesWorkflow)
   EXPECT_CALL(mgmOfs, Emsg).Times(0);
   EXPECT_CALL(mgmOfs, _access).Times(nbFiles);
   EXPECT_CALL(mgmOfs, FSctl).Times(nbFiles);
+  EXPECT_CALL(mgmOfs, get_logId()).Times(nbFiles);
+  EXPECT_CALL(mgmOfs, get_host()).Times(nbFiles);
+  EXPECT_CALL(mgmOfs, writeEosReportRecord(MatchesRegex(
+                MockPrepareMgmFSInterface::EOS_REPORT_STR_FORMAT))).Times(nbFiles);
   ClientWrapper client = PrepareManagerTest::getDefaultClient();
   PrepareArgumentsWrapper pargs("testReqId", Prep_CANCEL, paths, oinfos);
   ErrorWrapper errorWrapper = PrepareManagerTest::getDefaultError();
@@ -327,6 +340,10 @@ TEST_F(PrepareManagerTest, abortPrepareOneFileExistsOthersDoNotExist)
                   ));
   EXPECT_CALL(mgmOfs, _access).Times(1);
   EXPECT_CALL(mgmOfs, FSctl).Times(1);
+  EXPECT_CALL(mgmOfs, get_logId()).Times(nbFiles);
+  EXPECT_CALL(mgmOfs, get_host()).Times(nbFiles);
+  EXPECT_CALL(mgmOfs, writeEosReportRecord(MatchesRegex(
+                MockPrepareMgmFSInterface::EOS_REPORT_STR_FORMAT))).Times(nbFiles);
   ClientWrapper client = PrepareManagerTest::getDefaultClient();
   PrepareArgumentsWrapper pargs("testReqId", Prep_CANCEL, paths, oinfos);
   ErrorWrapper errorWrapper = PrepareManagerTest::getDefaultError();
@@ -366,6 +383,10 @@ TEST_F(PrepareManagerTest, evictPrepareFilesWorkflow)
   EXPECT_CALL(mgmOfs, Emsg).Times(0);
   EXPECT_CALL(mgmOfs, _access).Times(nbFiles);
   EXPECT_CALL(mgmOfs, FSctl).Times(nbFiles);
+  EXPECT_CALL(mgmOfs, get_logId()).Times(nbFiles);
+  EXPECT_CALL(mgmOfs, get_host()).Times(nbFiles);
+  EXPECT_CALL(mgmOfs, writeEosReportRecord(MatchesRegex(
+                MockPrepareMgmFSInterface::EOS_REPORT_STR_FORMAT))).Times(nbFiles);
   ClientWrapper client = PrepareManagerTest::getDefaultClient();
   PrepareArgumentsWrapper pargs("testReqId", Prep_EVICT, paths, oinfos);
   ErrorWrapper errorWrapper = PrepareManagerTest::getDefaultError();
@@ -406,6 +427,10 @@ TEST_F(PrepareManagerTest, evictPrepareOneFileExistsOthersDoNotExist)
                   ));
   EXPECT_CALL(mgmOfs, _access).Times(1);
   EXPECT_CALL(mgmOfs, FSctl).Times(1);
+  EXPECT_CALL(mgmOfs, get_logId()).Times(nbFiles);
+  EXPECT_CALL(mgmOfs, get_host()).Times(nbFiles);
+  EXPECT_CALL(mgmOfs, writeEosReportRecord(MatchesRegex(
+                MockPrepareMgmFSInterface::EOS_REPORT_STR_FORMAT))).Times(nbFiles);
   ClientWrapper client = PrepareManagerTest::getDefaultClient();
   PrepareArgumentsWrapper pargs("testReqId", Prep_EVICT, paths, oinfos);
   ErrorWrapper errorWrapper = PrepareManagerTest::getDefaultError();

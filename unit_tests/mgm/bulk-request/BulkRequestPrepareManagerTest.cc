@@ -47,6 +47,8 @@ TEST_F(BulkRequestPrepareManagerTest, bulkRequestTest)
   ASSERT_EQ(nbFiles, request->getFiles()->size());
 }
 
+using ::testing::MatchesRegex;
+
 TEST_F(BulkRequestPrepareManagerTest, stagePrepareFilesWorkflow)
 {
   int nbFiles = 3;
@@ -76,6 +78,11 @@ TEST_F(BulkRequestPrepareManagerTest, stagePrepareFilesWorkflow)
   EXPECT_CALL(mgmOfs, Emsg).Times(0);
   EXPECT_CALL(mgmOfs, _access).Times(nbFiles);
   EXPECT_CALL(mgmOfs, FSctl).Times(nbFiles);
+  // EOS-CTA reporter
+  EXPECT_CALL(mgmOfs, get_logId()).Times(nbFiles);
+  EXPECT_CALL(mgmOfs, get_host()).Times(nbFiles);
+  EXPECT_CALL(mgmOfs, writeEosReportRecord(MatchesRegex(
+                MockPrepareMgmFSInterface::EOS_REPORT_STR_FORMAT))).Times(nbFiles);
   ClientWrapper client = PrepareManagerTest::getDefaultClient();
   PrepareArgumentsWrapper pargs("testReqId", Prep_STAGE, paths, oinfos);
   ErrorWrapper errorWrapper = PrepareManagerTest::getDefaultError();
@@ -263,6 +270,11 @@ TEST_F(BulkRequestPrepareManagerTest, stagePrepareNoPreparePermission)
   //Access should
   EXPECT_CALL(mgmOfs, _access).Times(nbFiles).WillRepeatedly(Return(SFS_ERROR));
   EXPECT_CALL(mgmOfs, FSctl).Times(0);
+  // EOS-CTA reporter
+  EXPECT_CALL(mgmOfs, get_logId()).Times(nbFiles);
+  EXPECT_CALL(mgmOfs, get_host()).Times(nbFiles);
+  EXPECT_CALL(mgmOfs, writeEosReportRecord(MatchesRegex(
+                MockPrepareMgmFSInterface::EOS_REPORT_STR_FORMAT))).Times(nbFiles);
   ClientWrapper client = PrepareManagerTest::getDefaultClient();
   PrepareArgumentsWrapper pargs("testReqId", Prep_STAGE, paths, oinfos);
   ErrorWrapper errorWrapper = PrepareManagerTest::getDefaultError();
@@ -303,6 +315,11 @@ TEST_F(BulkRequestPrepareManagerTest, abortPrepareFilesWorkflow)
   EXPECT_CALL(mgmOfs, Emsg).Times(0);
   EXPECT_CALL(mgmOfs, _access).Times(nbFiles);
   EXPECT_CALL(mgmOfs, FSctl).Times(nbFiles);
+  // EOS-CTA reporter
+  EXPECT_CALL(mgmOfs, get_logId()).Times(nbFiles);
+  EXPECT_CALL(mgmOfs, get_host()).Times(nbFiles);
+  EXPECT_CALL(mgmOfs, writeEosReportRecord(MatchesRegex(
+                MockPrepareMgmFSInterface::EOS_REPORT_STR_FORMAT))).Times(nbFiles);
   ClientWrapper client = PrepareManagerTest::getDefaultClient();
   PrepareArgumentsWrapper pargs("testReqId", Prep_CANCEL, paths, oinfos);
   ErrorWrapper errorWrapper = PrepareManagerTest::getDefaultError();
@@ -381,6 +398,11 @@ TEST_F(BulkRequestPrepareManagerTest, evictPrepareFilesWorkflow)
   EXPECT_CALL(mgmOfs, Emsg).Times(0);
   EXPECT_CALL(mgmOfs, _access).Times(nbFiles);
   EXPECT_CALL(mgmOfs, FSctl).Times(nbFiles);
+  // EOS-CTA reporter
+  EXPECT_CALL(mgmOfs, get_logId()).Times(nbFiles);
+  EXPECT_CALL(mgmOfs, get_host()).Times(nbFiles);
+  EXPECT_CALL(mgmOfs, writeEosReportRecord(MatchesRegex(
+                MockPrepareMgmFSInterface::EOS_REPORT_STR_FORMAT))).Times(nbFiles);
   ClientWrapper client = PrepareManagerTest::getDefaultClient();
   PrepareArgumentsWrapper pargs("testReqId", Prep_EVICT, paths, oinfos);
   ErrorWrapper errorWrapper = PrepareManagerTest::getDefaultError();

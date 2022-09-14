@@ -129,6 +129,13 @@ FmdHandler::UpdateWithMgmInfo(eos::common::FileSystem::fsid_t fsid,
   eos_debug("fxid=%08llx fsid=%lu cid=%llu lid=%lx mgmsize=%llu mgmchecksum=%s",
             fid, fsid, cid, lid, mgmsize, mgmchecksum.c_str());
   auto [status, valfmd] = LocalRetrieveFmd(fid, fsid);
+
+  if (!status) {
+    eos_err("msg=\"failed to retrieve filemd to update mgm info\" fxid=%08llx fsid=%lu",
+            fid, fsid);
+    return false;
+  }
+
   valfmd.mProtoFmd.set_mgmsize(mgmsize);
   valfmd.mProtoFmd.set_mgmchecksum(mgmchecksum);
   valfmd.mProtoFmd.set_cid(cid);

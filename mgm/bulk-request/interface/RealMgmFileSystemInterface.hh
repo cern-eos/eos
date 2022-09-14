@@ -58,6 +58,10 @@ public:
             eos::common::VirtualIdentity& vid, const char* opaque = 0,
             std::string* etag = 0, bool follow = true, std::string* uri = 0) override;
   void _stat_set_flags(struct stat* buf) override;
+  std::string get_logId() override;
+  std::string get_host() override;
+  void writeEosReportRecord(const std::string& record) override;
+
 private:
   XrdMgmOfs* mMgmOfs;
 };

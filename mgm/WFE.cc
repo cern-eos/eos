@@ -35,6 +35,7 @@
 #include "mgm/Stat.hh"
 #include "mgm/XrdMgmOfsDirectory.hh"
 #include "mgm/XrdMgmOfs.hh"
+#include "mgm/EosCtaReporter.hh"
 #include "mgm/proc/admin/StagerRmCmd.hh"
 #include "namespace/interface/IView.hh"
 #include "namespace/Prefetcher.hh"
@@ -1706,6 +1707,20 @@ WFE::Job::IdempotentPrepare(const std::string& fullPath,
   XrdOucErrInfo errInfo;
   bool onDisk;
   bool onTape;
+  struct timespec ts_now;
+  eos::common::Timing::GetTimeSpec(ts_now);
+  EosCtaReporterPrepareWfe eosLog;
+  eosLog
+  .addParam(EosCtaReportParam::SEC_APP, "tape_wfe")
+  .addParam(EosCtaReportParam::LOG, std::string(gOFS->logId))
+  .addParam(EosCtaReportParam::PATH, fullPath)
+  .addParam(EosCtaReportParam::RUID, mVid.uid)
+  .addParam(EosCtaReportParam::RGID, mVid.gid)
+  .addParam(EosCtaReportParam::TD, mVid.tident.c_str())
+  .addParam(EosCtaReportParam::PREP_WFE_EVENT, "stage")
+  .addParam(EosCtaReportParam::PREP_WFE_ACTIVITY, prepareActivity)
+  .addParam(EosCtaReportParam::TS, ts_now.tv_sec)
+  .addParam(EosCtaReportParam::TNS, ts_now.tv_nsec);
 
   // Check if we have a disk replica and if not, whether it's on tape
   if (gOFS->_stat(fullPath.c_str(), &buf, errInfo, mVid, nullptr, nullptr,
@@ -1713,9 +1728,18 @@ WFE::Job::IdempotentPrepare(const std::string& fullPath,
     // Note that buf.st_mode is an unsigned integer
     onDisk = (buf.st_mode & EOS_TAPE_MODE_T) ? buf.st_nlink > 1 : buf.st_nlink > 0;
     onTape = (buf.st_mode & EOS_TAPE_MODE_T) != 0;
+    eosLog
+    .addParam(EosCtaReportParam::PREP_WFE_ONDISK, onDisk)
+    .addParam(EosCtaReportParam::PREP_WFE_ONTAPE, onTape);
   } else {
-    eos_static_err("Cannot determine file and disk replicas, not doing the prepare. Reason: %s",
-                   errInfo.getErrText());
+    std::stringstream err_message;
+    err_message <<
+                "Cannot determine file and disk replicas, not doing the prepare. Reason: " <<
+                errInfo.getErrText();
+    eos_static_err(err_message.str().c_str());
+    eosLog
+    .addParam(EosCtaReportParam::PREP_WFE_SENTTOCTA, false)
+    .addParam(EosCtaReportParam::PREP_WFE_ERROR, err_message.str());
     MoveWithResults(EAGAIN);
     return EAGAIN;
   }
@@ -1739,16 +1763,25 @@ WFE::Job::IdempotentPrepare(const std::string& fullPath,
       fmd->setAttribute(RETRIEVE_EVICT_COUNTER_NAME,
                         std::to_string(++evictionCounter));
       gOFS->eosView->updateFileStore(fmd.get());
+      eosLog.addParam(EosCtaReportParam::PREP_WFE_EVICTCOUNTER, evictionCounter);
     } catch (eos::MDException& ex) {
-      eos_static_err("msg=\"could not update eviction counter for file %s\"",
-                     fullPath.c_str());
+      std::stringstream err_message;
+      err_message << "msg=\"could not update eviction counter for file " << fullPath;
+      eos_static_err(err_message.str().c_str());
+      eosLog.addParam(EosCtaReportParam::PREP_WFE_ERROR, err_message.str());
     }
 
+    eosLog.addParam(EosCtaReportParam::PREP_WFE_SENTTOCTA, false);
     MoveWithResults(SFS_OK);
     return SFS_OK;
   } else if (!onTape) {
-    eos_static_err("File %s is not on disk nor on tape, cannot prepare it.",
-                   fullPath.c_str());
+    std::stringstream err_message;
+    err_message << "File " << fullPath <<
+                "  is not on disk nor on tape, cannot prepare it.";
+    eos_static_err(err_message.str().c_str());
+    eosLog
+    .addParam(EosCtaReportParam::PREP_WFE_SENTTOCTA, false)
+    .addParam(EosCtaReportParam::PREP_WFE_ERROR, err_message.str());
     MoveWithResults(ENODATA);
     return ENODATA;
   } else {
@@ -1763,9 +1796,14 @@ WFE::Job::IdempotentPrepare(const std::string& fullPath,
     }
 
     bool isFirstPrepare = prepareReqIds.values.empty();
+    prepareReqIds.values.insert(prepareRequestId.c_str());
+    eosLog
+    .addParam(EosCtaReportParam::PREP_WFE_FIRSTPREPARE, isFirstPrepare)
+    .addParam(EosCtaReportParam::PREP_WFE_REQID, prepareRequestId)
+    .addParam(EosCtaReportParam::PREP_WFE_REQCOUNT, prepareReqIds.values.size())
+    .addParam(EosCtaReportParam::PREP_WFE_REQLIST, prepareReqIds.serialize());
 
     try {
-      prepareReqIds.values.insert(prepareRequestId.c_str());
       fmd->setAttribute(RETRIEVE_REQID_ATTR_NAME, prepareReqIds.serialize());
 
       // if we are the first to retrieve the file
@@ -1778,13 +1816,20 @@ WFE::Job::IdempotentPrepare(const std::string& fullPath,
       } else {
         eos_static_info("File %s is already being retrieved by %u clients.",
                         fullPath.c_str(), prepareReqIds.values.size() - 1);
+        eosLog.addParam(EosCtaReportParam::PREP_WFE_SENTTOCTA, false);
         MoveWithResults(SFS_OK);
         return SFS_OK;
       }
     } catch (eos::MDException& ex) {
       lock.Release();
-      eos_static_err("Could not write attributes %s and %s for file %s. Not doing the retrieve.",
-                     RETRIEVE_REQID_ATTR_NAME, RETRIEVE_ERROR_ATTR_NAME, fullPath.c_str());
+      std::stringstream err_message;
+      err_message << "Could not write attributes " << RETRIEVE_REQID_ATTR_NAME <<
+                  " and " << RETRIEVE_ERROR_ATTR_NAME
+                  << " for file " << fullPath.c_str() << ". Not doing the retrieve.";
+      eos_static_err(err_message.str().c_str());
+      eosLog
+      .addParam(EosCtaReportParam::PREP_WFE_SENTTOCTA, false)
+      .addParam(EosCtaReportParam::PREP_WFE_ERROR, err_message.str());
       MoveWithResults(EAGAIN);
       return EAGAIN;
     }
@@ -1827,11 +1872,18 @@ WFE::Job::IdempotentPrepare(const std::string& fullPath,
   } else if (gOFS->HostName != nullptr) {
     mgmHostName = gOFS->HostName;
   } else {
-    eos_static_err("IdempotentPrepare() failed: Could not determine the value of mgmHostName");
+    std::stringstream err_message;
+    err_message <<
+                "IdempotentPrepare() failed: Could not determine the value of mgmHostName";
+    eos_static_err(err_message.str().c_str());
+    eosLog
+    .addParam(EosCtaReportParam::PREP_WFE_SENTTOCTA, false)
+    .addParam(EosCtaReportParam::PREP_WFE_ERROR, err_message.str());
     MoveWithResults(ENODATA);
     return ENODATA;
   }
 
+  eosLog.addParam(EosCtaReportParam::HOST, mgmHostName);
   destStream << "root://" << mgmHostName << "/" << fullPath << "?eos.lfn=fxid:"
              << fxidString;
   destStream << "&eos.ruid=0&eos.rgid=0&eos.injection=1&eos.workflow=" <<
@@ -1879,6 +1931,7 @@ WFE::Job::IdempotentPrepare(const std::string& fullPath,
     } catch (eos::MDException& ex) {}
   }
 
+  eosLog.addParam(EosCtaReportParam::PREP_WFE_SENTTOCTA, true);
   return sendResult;
 }
 
@@ -1890,6 +1943,15 @@ WFE::Job::HandleProtoMethodAbortPrepareEvent(const std::string& fullPath,
 {
   EXEC_TIMING_BEGIN("Proto::Prepare::Abort");
   gOFS->MgmStats.Add("Proto::Prepare::Abort", 0, 0, 1);
+  EosCtaReporterPrepareWfe eosLog;
+  eosLog
+  .addParam(EosCtaReportParam::SEC_APP, "tape_wfe")
+  .addParam(EosCtaReportParam::LOG, std::string(gOFS->logId))
+  .addParam(EosCtaReportParam::PATH, fullPath)
+  .addParam(EosCtaReportParam::RUID, mVid.uid)
+  .addParam(EosCtaReportParam::RGID, mVid.gid)
+  .addParam(EosCtaReportParam::TD, mVid.tident.c_str())
+  .addParam(EosCtaReportParam::PREP_WFE_EVENT, "abort");
   XattrSet prepareReqIds;
   {
     eos::common::RWMutexWriteLock lock;
@@ -1900,10 +1962,18 @@ WFE::Job::HandleProtoMethodAbortPrepareEvent(const std::string& fullPath,
       if (fmd->hasAttribute(RETRIEVE_REQID_ATTR_NAME)) {
         prepareReqIds.deserialize(fmd->getAttribute(RETRIEVE_REQID_ATTR_NAME));
       }
+
+      eosLog
+      .addParam(EosCtaReportParam::PREP_WFE_REQCOUNT, prepareReqIds.values.size())
+      .addParam(EosCtaReportParam::PREP_WFE_REQLIST, prepareReqIds.serialize());
     } catch (...) {
       lock.Release();
-      eos_static_err("Could not determine ongoing retrieves for file %s. Check the %s extended attribute",
-                     fullPath.c_str(), RETRIEVE_REQID_ATTR_NAME);
+      std::stringstream err_message;
+      err_message << "Could not determine ongoing retrieves for file " <<
+                  fullPath.c_str() << ". Check the "
+                  << RETRIEVE_REQID_ATTR_NAME << " extended attribute";
+      eos_static_err(err_message.str().c_str());
+      eosLog.addParam(EosCtaReportParam::PREP_WFE_ERROR, err_message.str());
       MoveWithResults(EAGAIN);
       return EAGAIN;
     }
@@ -1925,6 +1995,8 @@ WFE::Job::HandleProtoMethodAbortPrepareEvent(const std::string& fullPath,
         throw_mdexception(EINVAL, "mgm.reqid has no value set in opaque data.");
       }
 
+      eosLog.addParam(EosCtaReportParam::PREP_WFE_REQID, opaqueRequestId);
+
       if (prepareReqIds.values.erase(opaqueRequestId) != 1) {
         throw_mdexception(EINVAL, "Request ID not found in extended attributes");
       }
@@ -1933,8 +2005,12 @@ WFE::Job::HandleProtoMethodAbortPrepareEvent(const std::string& fullPath,
       gOFS->eosView->updateFileStore(fmd.get());
     } catch (eos::MDException& ex) {
       lock.Release();
-      eos_static_err("Error accessing attribute %s for file %s: %s. Not doing the abort retrieve.",
-                     RETRIEVE_REQID_ATTR_NAME, fullPath.c_str(), ex.what());
+      std::stringstream err_message;
+      err_message << "Error accessing attribute " << RETRIEVE_REQID_ATTR_NAME <<
+                  " for file " << fullPath.c_str() << ". "
+                  << "Not doing the abort retrieve.";
+      eos_static_err(err_message.str().c_str());
+      eosLog.addParam(EosCtaReportParam::PREP_WFE_ERROR, err_message.str());
       MoveWithResults(EAGAIN);
       return EAGAIN;
     }
@@ -1942,6 +2018,7 @@ WFE::Job::HandleProtoMethodAbortPrepareEvent(const std::string& fullPath,
 
   if (!prepareReqIds.values.empty()) {
     // There are other pending Prepare requests on this file, just return OK
+    eosLog.addParam(EosCtaReportParam::PREP_WFE_SENTTOCTA, false);
     MoveWithResults(SFS_OK);
     return SFS_OK;
   }
@@ -1990,6 +2067,7 @@ WFE::Job::HandleProtoMethodAbortPrepareEvent(const std::string& fullPath,
     } catch (eos::MDException& ex) {}
   }
 
+  eosLog.addParam(EosCtaReportParam::PREP_WFE_SENTTOCTA, true);
   EXEC_TIMING_END("Proto::Prepare::Abort");
   return s_ret;
 }
@@ -2004,6 +2082,15 @@ WFE::Job::HandleProtoMethodEvictPrepareEvent(const std::string& fullPath,
   XrdOucErrInfo errInfo;
   bool onDisk;
   bool onTape;
+  EosCtaReporterPrepareWfe eosLog;
+  eosLog
+  .addParam(EosCtaReportParam::SEC_APP, "tape_wfe")
+  .addParam(EosCtaReportParam::LOG, std::string(gOFS->logId))
+  .addParam(EosCtaReportParam::PATH, fullPath)
+  .addParam(EosCtaReportParam::RUID, mVid.uid)
+  .addParam(EosCtaReportParam::RGID, mVid.gid)
+  .addParam(EosCtaReportParam::TD, mVid.tident.c_str())
+  .addParam(EosCtaReportParam::PREP_WFE_EVENT, "evict");
   EXEC_TIMING_BEGIN("Proto::EvictPrepare");
   gOFS->MgmStats.Add("Proto::EvictPrepare", 0, 0, 1);
   std::ostringstream preamble;
@@ -2015,12 +2102,18 @@ WFE::Job::HandleProtoMethodEvictPrepareEvent(const std::string& fullPath,
     onDisk = ((buf.st_mode & EOS_TAPE_MODE_T) ? buf.st_nlink - 1 : buf.st_nlink) >
              0;
     onTape = (buf.st_mode & EOS_TAPE_MODE_T) != 0;
+    eosLog
+    .addParam(EosCtaReportParam::PREP_WFE_ONDISK, onDisk)
+    .addParam(EosCtaReportParam::PREP_WFE_ONTAPE, onTape);
   } else {
     std::ostringstream msg;
     msg << preamble.str() <<
         " msg=\"Cannot determine file and disk replicas, not doing the evict. Reason: "
         << errInfo.getErrText() << "\"";
     eos_static_err(msg.str().c_str());
+    eosLog
+    .addParam(EosCtaReportParam::PREP_WFE_SENTTOCTA, false)
+    .addParam(EosCtaReportParam::PREP_WFE_ERROR, msg.str());
     MoveWithResults(EAGAIN);
     return EAGAIN;
   }
@@ -2029,10 +2122,14 @@ WFE::Job::HandleProtoMethodEvictPrepareEvent(const std::string& fullPath,
     std::ostringstream msg;
     msg << preamble.str() << " msg=\"File is not on disk, nothing to evict.\"";
     eos_static_info(msg.str().c_str());
+    eosLog.addParam(EosCtaReportParam::PREP_WFE_SENTTOCTA, false);
   } else if (!onTape) {
     std::ostringstream msg;
     msg << preamble.str() << " msg=\"File is not on tape, cannot evict it.\"";
     eos_static_err(msg.str().c_str());
+    eosLog
+    .addParam(EosCtaReportParam::PREP_WFE_SENTTOCTA, false)
+    .addParam(EosCtaReportParam::PREP_WFE_ERROR, msg.str());
     MoveWithResults(ENODATA);
     return ENODATA;
   } else {
@@ -2048,11 +2145,15 @@ WFE::Job::HandleProtoMethodEvictPrepareEvent(const std::string& fullPath,
       msg << preamble.str() <<
           " msg=\"Failed to issue stagerrm for evict_prepare event\"";
       eos_static_info(msg.str().c_str());
+      eosLog
+      .addParam(EosCtaReportParam::PREP_WFE_SENTTOCTA, false)
+      .addParam(EosCtaReportParam::PREP_WFE_ERROR, msg.str());
       MoveWithResults(EAGAIN);
       return EAGAIN;
     }
   }
 
+  eosLog.addParam(EosCtaReportParam::PREP_WFE_SENTTOCTA, true);
   MoveWithResults(SFS_OK);
   EXEC_TIMING_END("Proto::EvictPrepare");
   return SFS_OK;
@@ -2128,6 +2229,47 @@ WFE::Job::HandleProtoMethodDeleteEvent(const std::string& fullPath,
   // after successfully deleting the actual tape files.  This would give the end
   // user a false sense of security that their tape file still exists when they
   // list it. This would be considered as data loss by the end user.
+  // However, before deleting the file from the EOS namespace, we should log its contents.
+  // This provides a way to recover the namespace after an unintended deletion of a file on tape.
+  {
+    struct timespec ts_now;
+    eos::common::Timing::GetTimeSpec(ts_now);
+    EosCtaReporterFileDeletion eosLog;
+    auto fmd = gOFS->eosFileService->getFileMD(mFid);
+    auto locations = fmd->getLocations();
+    std::ostringstream locationsOStream;
+    bool streamEmpty = true;
+
+    for (auto& location : fmd->getLocations()) {
+      locationsOStream << (streamEmpty ? "" : ",") << location;
+      streamEmpty = false;
+    }
+
+    std::string checksum;
+    eos::appendChecksumOnStringAsHex(fmd.get(), checksum);
+    eosLog.addParam(EosCtaReportParam::SEC_APP, "tape_delete")
+    .addParam(EosCtaReportParam::LOG, std::string(gOFS->logId))
+    .addParam(EosCtaReportParam::PATH, fullPath)
+    .addParam(EosCtaReportParam::RUID, mVid.uid)
+    .addParam(EosCtaReportParam::RGID, mVid.gid)
+    .addParam(EosCtaReportParam::TD, mVid.tident.c_str())
+    .addParam(EosCtaReportParam::TS, ts_now.tv_sec)
+    .addParam(EosCtaReportParam::TNS, ts_now.tv_nsec)
+    .addParam(EosCtaReportParam::FILE_DEL_FID, fmd->getId())
+    .addParam(EosCtaReportParam::FILE_DEL_FXID,
+              eos::common::FileId::Fid2Hex(fmd->getId()).c_str())
+    .addParam(EosCtaReportParam::FILE_DEL_EOS_BTIME,
+              fmd->getAttribute("sys.eos.btime"))
+    .addParam(EosCtaReportParam::FILE_DEL_ARCHIVE_FILE_ID,
+              fmd->getAttribute("sys.archive.file_id"))
+    .addParam(EosCtaReportParam::FILE_DEL_ARCHIVE_STORAGE_CLASS,
+              fmd->getAttribute("sys.archive.storage_class"))
+    .addParam(EosCtaReportParam::FILE_DEL_LOCATIONS, locationsOStream.str())
+    .addParam(EosCtaReportParam::FILE_DEL_CHECKSUMTYPE,
+              eos::common::LayoutId::GetChecksumString(fmd->getLayoutId()))
+    .addParam(EosCtaReportParam::FILE_DEL_CHECKSUMVALUE, checksum)
+    .addParam(EosCtaReportParam::FILE_DEL_SIZE, fmd->getSize());
+  }
   bool tapeLocationWasRemoved = false;
 
   try {

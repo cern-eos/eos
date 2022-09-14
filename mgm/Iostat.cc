@@ -390,7 +390,7 @@ Iostat::Init(const std::string& instance_name, int port,
       }
 
       if (!LoadFromQdb()) {
-	eos_static_err("LoadFromQdb failed");
+        eos_static_err("LoadFromQdb failed");
         return false;
       }
     } else {
@@ -3083,7 +3083,7 @@ Iostat::LegacyRestoreFromFile()
   FILE* fin = fopen(mLegacyFilePath.c_str(), "r");
 
   if (!fin) {
-    return false;
+    return true;
   }
 
   int item = 0;

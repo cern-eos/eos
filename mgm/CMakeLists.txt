@@ -246,6 +246,7 @@ add_library(
   RouteEndpoint.cc
   LRU.cc
   WFE.cc
+  EosCtaReporter.cc
   Workflow.cc
   InFlightTracker.cc
   grpc/GrpcServer.cc   grpc/GrpcServer.hh
