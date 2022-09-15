@@ -46,7 +46,7 @@
       # allow backward compatibility with our legacy k8s utilities functions
       for i in $(seq 1 8); do kubectl label pod eos-fst-$((i -1)) app=eos-fst${i}; done
       kubectl label pod eos-mgm-0 app=eos-mgm1
-      kubectl label pod eos-mq-0 app=eos-mq
+      # kubectl label pod eos-mq-0 app=eos-mq - shared pod for MGM/MQ in newer releases
       kubectl label pod eos-qdb-0 app=eos-qdb
       client1_pod="$(kubectl get pods --no-headers -o custom-columns=':metadata.name' | grep 'eos-client1')"
       kubectl label pod $client1_pod app=eos-cli1
@@ -74,7 +74,7 @@
       # allow backward compatibility with our legacy k8s utilities functions
       for i in $(seq 1 15); do kubectl label pod eos-fst-$((i -1)) app=eos-fst${i}; done
       kubectl label pod eos-mgm-0 app=eos-mgm1
-      #kubectl label pod eos-mq-0 app=eos-mq Shared Pod for mgm/mq in newer releases
+      #kubectl label pod eos-mq-0 app=eos-mq - shared pod for MGM/MQ in newer releases
       kubectl label pod eos-qdb-0 app=eos-qdb
 
 
