@@ -13,7 +13,7 @@
     - |
       git clone https://gitlab.cern.ch/eos/kuberos
       helm repo add eos https://registry.cern.ch/chartrepo/eos
-      HELM_EOS_SERVER_VERSION=0.1.4
+      HELM_EOS_SERVER_VERSION=0.1.5
       HELM_EOS_FUSEX_VERSION=0.1.0
     - |
       echo "Clone eos-on-k8s repository for helper scripts"
@@ -62,7 +62,7 @@
       CLI_IMAGE_TAG="${BASETAG}${CLI_BASETAG}${CI_COMMIT_TAG:-$CI_COMMIT_SHORT_SHA}" # may be different from the server image (eg ubuntu)
     - |
       helm repo add eos https://registry.cern.ch/chartrepo/eos
-      HELM_EOS_SERVER_VERSION=0.1.4
+      HELM_EOS_SERVER_VERSION=0.1.5
     - |
       ######## EOS-CHARTS/SERVER ########
       helm install --wait --timeout 20m0s \
