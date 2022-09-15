@@ -1604,8 +1604,11 @@ export KRB5CCNAME=/tmp/invalid
 test -d /test-fusex/ && umount -fl /test-fusex/
 test -d /test-fusex/ || mkdir /test-fusex/
 
-eosxd -ofsname=localhost.localdomain:/eos /test-fusex/
+test -e /etc/eos/fuse.sss.keytab && mv -f /etc/eos/fuse.sss.keytab /etc/eos/fuse.sss.keytab.save
+grep eosnobody $SERVERKEY > /etc/eos/fuse.sss.keytab
+chmod 444 /etc/eos/fuse.sss.keytab
 
+eosxd -ofsname=localhost.localdomain:/eos /test-fusex/
 ls -la /test-fusex/
 
 if [ -e "/test-fusex/$EOS_TEST_INSTANCE" ];
@@ -1697,9 +1700,10 @@ runtest "### Id        " unix 0 "" shell env EOS_FUSE_SECRET=bla eosxd get eos.r
 runtest "### Upload    " unix 0 "EOS_FUSE_SECRET=12e629ee-e68a-4a5b-9743-33ba8f794e07" eos_bash cp /etc/group "/test-fusex/$EOS_TEST_INSTANCE/test/instancetest/fusex/obfuscate/encrypted"
 runtest "### Download  " unix 0 "EOS_FUSE_SECRET=12e629ee-e68a-4a5b-9743-33ba8f794e07" eos cp /etc/group "/eos/$EOS_TEST_INSTANCE/test/instancetest/fusex/obfuscate/encrypted.cp"
 runtest "### Dowload   " unix 0 "EOS_FUSE_SECRET=12e629ee-e68a-4a5b-9743-33ba8f794e07" eos cp "/eos/$EOS_TEST_INSTANCE/test/instancetest/fusex/obfuscate/encrypted /var/tmp/encrypted.ok"
+runtest "### Dowload   " unix 0 "EOS_FUSE_SECRET=false" eos cp "/eos/$EOS_TEST_INSTANCE/test/instancetest/fusex/obfuscate/encrypted /var/tmp/encrypted.false"
 runtest "### Diff      " unix 0 "" eos_bash diff /etc/group  /var/tmp/encrypted.ok
 runtest "### Diff      " unix 1 "" eos_bash diff /etc/group  /var/tmp/encrypted.false
-runtest "### Dowload   " unix 0 "EOS_FUSE_SECRET=false" eos cp "/eos/$EOS_TEST_INSTANCE/test/instancetest/fusex/obfuscate/encrypted /var/tmp/encrypted.false"
+
 # drop from buffer cache
 dd of="/test-fusex/$EOS_TEST_INSTANCE/test/instancetest/fusex/obfuscate/encrypted" oflag=nocache conv=notrunc,fdatasync count=0
 runtest "### Diff      " unix 0 "EOS_FUSE_SECRET=12e629ee-e68a-4a5b-9743-33ba8f794e07" eos_bash diff /etc/group  "/test-fusex/$EOS_TEST_INSTANCE/test/instancetest/fusex/obfuscate/encrypted"
@@ -1712,6 +1716,26 @@ dd of="/test-fusex/$EOS_TEST_INSTANCE/test/instancetest/fusex/obfuscate/encrypte
 runtest "### Diff      " unix 1 "" eos_bash diff /etc/group  "/test-fusex/$EOS_TEST_INSTANCE/test/instancetest/fusex/obfuscate/encrypted"
 runtest "### defaultcc " unix 0 "" eos_defaultcc "/test-fusex/"
 runtest "### sycntime  " unix 0 "" eos_synctime "/test-fusex/" "$EOS_TEST_INSTANCE/test/instancetest/fusex/"
+
+# enable sss now
+chmod 400 /etc/eos/fuse.sss.keytab
+export EXPIRE=`date +%s`; let LATER=$EXPIRE+9000
+export EOSTOKENR=`/usr/bin/eos token --path /eos/ --permission rx --tree --owner nobody --group nobody --expires $LATER`
+export EOSTOKENW=`/usr/bin/eos token --path /eos/ --permission rwx --tree --owner nobody --group nobody --expires $LATER`
+runtest "### Id        " unix 0 "" shell eosxd get eos.reconnect "/test-fusex/$EOS_TEST_INSTANCE/test/instancetest/fusex/"
+# token via fusex tests 
+runtest "### Mkdir     " unix 0 "" eos mkdir "/eos/$EOS_TEST_INSTANCE/test/instancetest/fusex/token"
+runtest "### Chown     " unix 0 "" eos chown root:root "/eos/$EOS_TEST_INSTANCE/test/instancetest/fusex/token"
+runtest "### Chmod     " unix 0 "" eos chmod 700 "/eos/$EOS_TEST_INSTANCE/test/instancetest/fusex/token"
+runtest "### LsFuse    " unix 1 "" shell ls -la "/eos/$EOS_TEST_INSTANCE/test/instancetest/fusex/token/"
+runtest "### LsRoot    " unix 0 "" eos ls -la "/eos/$EOS_TEST_INSTANCE/test/instancetest/fusex/token/"
+runtest "### LsNobody  " unix 1 "EOSROLE='-r 99 99'" eos ls -la "/eos/$EOS_TEST_INSTANCE/test/instancetest/fusex/token/"
+runtest "### EonToken  " unix 0 "XrdSecsssENDORSEMENT=$EOSTOKENR" shell eosxd get eos.reconnect "/test-fusex/$EOS_TEST_INSTANCE/test/instancetest/fusex/token"
+runtest "### LsToken   " unix 0 "XrdSecsssENDORSEMENT=$EOSTOKENR" shell ls -la "/test-fusex/$EOS_TEST_INSTANCE/test/instancetest/fusex/token/"
+runtest "### LsToken   " unix 1 "XrdSecsssENDORSEMENT=$EOSTOKENR" shell mkdir "/test-fusex/$EOS_TEST_INSTANCE/test/instancetest/fusex/token/forbidden"
+runtest "### ConToken  " unix 0 "XrdSecsssENDORSEMENT=$EOSTOKENW" shell eosxd get eos.reconnect "/test-fusex/$EOS_TEST_INSTANCE/test/instancetest/fusex/token"
+runtest "### LsToken   " unix 0 "XrdSecsssENDORSEMENT=$EOSTOKENW" shell mkdir "/test-fusex/$EOS_TEST_INSTANCE/test/instancetest/fusex/token/allowed"
+
 test -d /test-fusex/ && umount -fl /test-fusex/
 test -d /test-fusex/ && rmdir /test-fusex/
 fi
@@ -1770,6 +1794,7 @@ fi
 test -d /eos/ && umount -fl /eos/
 test -d /eos/ && rmdir /eos/
 
+test -e /etc/eos/fuse.sss.keytab.save && mv -f /etc/eos/fuse.sss.keytab.save /etc/eos/fuse.sss.keytab
 
 ################################################################################
 # Third party copy tests

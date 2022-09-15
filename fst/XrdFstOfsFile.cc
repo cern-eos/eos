@@ -1782,7 +1782,7 @@ XrdFstOfsFile::_close()
                   capOpaqueFile += "&mgm.replication=1&mgm.verify.checksum=1";
                 } else {
                   if (issinglewriter) {
-                    // if we didn't compute a checksum, we disable checksum verification and we only indicate replication if therei is only one active writer
+                    // if we didn't compute a checksum, we disable checksum verification and we only indicate replication if there is only one active writer
                     capOpaqueFile += "&mgm.replication=1&mgm.verify.checksum=0";
                   }
                 }

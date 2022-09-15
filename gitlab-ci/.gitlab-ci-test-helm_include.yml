@@ -13,7 +13,7 @@
     - |
       git clone https://gitlab.cern.ch/eos/kuberos
       helm repo add eos https://registry.cern.ch/chartrepo/eos
-      HELM_EOS_SERVER_VERSION=0.1.0
+      HELM_EOS_SERVER_VERSION=0.1.5
       HELM_EOS_FUSEX_VERSION=0.1.0
     - |
       echo "Clone eos-on-k8s repository for helper scripts"
@@ -46,7 +46,7 @@
       # allow backward compatibility with our legacy k8s utilities functions
       for i in $(seq 1 8); do kubectl label pod eos-fst-$((i -1)) app=eos-fst${i}; done
       kubectl label pod eos-mgm-0 app=eos-mgm1
-      kubectl label pod eos-mq-0 app=eos-mq
+      # kubectl label pod eos-mq-0 app=eos-mq - shared pod for MGM/MQ in newer releases
       kubectl label pod eos-qdb-0 app=eos-qdb
       client1_pod="$(kubectl get pods --no-headers -o custom-columns=':metadata.name' | grep 'eos-client1')"
       kubectl label pod $client1_pod app=eos-cli1
@@ -63,7 +63,7 @@
       CLI_IMAGE_TAG="${BASETAG}${CLI_BASETAG}${CI_COMMIT_TAG:-$CI_COMMIT_SHORT_SHA}" # may be different from the server image (eg ubuntu)
     - |
       helm repo add eos https://registry.cern.ch/chartrepo/eos
-      HELM_EOS_SERVER_VERSION=0.1.3
+      HELM_EOS_SERVER_VERSION=0.1.5
     - |
       ######## EOS-CHARTS/SERVER ########
       helm install --wait --timeout 20m0s \
@@ -75,7 +75,7 @@
       # allow backward compatibility with our legacy k8s utilities functions
       for i in $(seq 1 15); do kubectl label pod eos-fst-$((i -1)) app=eos-fst${i}; done
       kubectl label pod eos-mgm-0 app=eos-mgm1
-      #kubectl label pod eos-mq-0 app=eos-mq Shared Pod for mgm/mq in newer releases
+      #kubectl label pod eos-mq-0 app=eos-mq - shared pod for MGM/MQ in newer releases
       kubectl label pod eos-qdb-0 app=eos-qdb
 
 
@@ -290,7 +290,7 @@ helm_stress:
   image: gitlab-registry.cern.ch/dss/alpine-enhanced:3.13.5
   <<: *helm_before_script_template
   script:
-    - kubectl exec eos-mgm-0 -- eos-instance-test-ci eos-mq
+    - kubectl exec eos-mgm-0 -- eos-instance-test-ci localhost
     - kubectl exec eos-mgm-0 -- eos chmod 2777 /eos/dockertest
     - kubectl exec eos-mgm-0 -- eos-unit-tests-with-instance -n root://localhost//eos/dockertest/
   <<: *helm_after_script_template
