@@ -1719,6 +1719,7 @@ runtest "### sycntime  " unix 0 "" eos_synctime "/test-fusex/" "$EOS_TEST_INSTAN
 
 # enable sss now
 chmod 400 /etc/eos/fuse.sss.keytab
+runtest "### EnableTok " unix 0 "" eos space config default space.token.generation=1
 export EXPIRE=`date +%s`; let LATER=$EXPIRE+9000
 export EOSTOKENR=`/usr/bin/eos token --path /eos/ --permission rx --tree --owner nobody --group nobody --expires $LATER`
 export EOSTOKENW=`/usr/bin/eos token --path /eos/ --permission rwx --tree --owner nobody --group nobody --expires $LATER`
@@ -1730,11 +1731,13 @@ runtest "### Chmod     " unix 0 "" eos chmod 700 "/eos/$EOS_TEST_INSTANCE/test/i
 runtest "### LsFuse    " unix 1 "" shell ls -la "/eos/$EOS_TEST_INSTANCE/test/instancetest/fusex/token/"
 runtest "### LsRoot    " unix 0 "" eos ls -la "/eos/$EOS_TEST_INSTANCE/test/instancetest/fusex/token/"
 runtest "### LsNobody  " unix 1 "EOSROLE='-r 99 99'" eos ls -la "/eos/$EOS_TEST_INSTANCE/test/instancetest/fusex/token/"
-runtest "### EonToken  " unix 0 "XrdSecsssENDORSEMENT=$EOSTOKENR" shell eosxd get eos.reconnect "/test-fusex/$EOS_TEST_INSTANCE/test/instancetest/fusex/token"
+runtest "### EosToken  " unix 0 "XrdSecsssENDORSEMENT=$EOSTOKENR" shell eosxd get eos.reconnect "/test-fusex/$EOS_TEST_INSTANCE/test/instancetest/fusex/token"
+runtest "### WhoToken  " unix 0 "XrdSecsssENDORSEMENT=$EOSTOKENR" shell cat "/test-fusex/$EOS_TEST_INSTANCE/proc/whoami"
 runtest "### LsToken   " unix 0 "XrdSecsssENDORSEMENT=$EOSTOKENR" shell ls -la "/test-fusex/$EOS_TEST_INSTANCE/test/instancetest/fusex/token/"
-runtest "### LsToken   " unix 1 "XrdSecsssENDORSEMENT=$EOSTOKENR" shell mkdir "/test-fusex/$EOS_TEST_INSTANCE/test/instancetest/fusex/token/forbidden"
+runtest "### MkToken   " unix 1 "XrdSecsssENDORSEMENT=$EOSTOKENR" shell mkdir "/test-fusex/$EOS_TEST_INSTANCE/test/instancetest/fusex/token/forbidden"
 runtest "### ConToken  " unix 0 "XrdSecsssENDORSEMENT=$EOSTOKENW" shell eosxd get eos.reconnect "/test-fusex/$EOS_TEST_INSTANCE/test/instancetest/fusex/token"
-runtest "### LsToken   " unix 0 "XrdSecsssENDORSEMENT=$EOSTOKENW" shell mkdir "/test-fusex/$EOS_TEST_INSTANCE/test/instancetest/fusex/token/allowed"
+runtest "### WhoToken  " unix 0 "XrdSecsssENDORSEMENT=$EOSTOKENR" shell cat "/test-fusex/$EOS_TEST_INSTANCE/proc/whoami"
+runtest "### MkToken   " unix 0 "XrdSecsssENDORSEMENT=$EOSTOKENW" shell mkdir "/test-fusex/$EOS_TEST_INSTANCE/test/instancetest/fusex/token/allowed"
 
 test -d /test-fusex/ && umount -fl /test-fusex/
 test -d /test-fusex/ && rmdir /test-fusex/
@@ -1755,6 +1758,7 @@ test -d /eos/ && umount -fl /eos/
 test -d /eos/ || mkdir /eos/
 
 eosxd -ofsname=localhost.localdomain:/eos /eos/
+ls -la /eos/
 
 if [ -e "/eos/$EOS_TEST_INSTANCE" ]; then
 # simple sqash packages
