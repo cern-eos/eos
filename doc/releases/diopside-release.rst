@@ -36,6 +36,11 @@ Bug
   where the FST would crash if it received another requests for a file which was in
   the process of being closed.
 
+New features
+------------
+
+* CTA: Enhance/extend EOS report messages for CTA prepare workflow
+
 
 ``v5.1.0 Diopside``
 ====================
