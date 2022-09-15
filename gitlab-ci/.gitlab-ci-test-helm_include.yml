@@ -286,7 +286,7 @@ helm_stress:
   image: gitlab-registry.cern.ch/dss/alpine-enhanced:3.13.5
   <<: *helm_before_script_template
   script:
-    - kubectl exec eos-mgm-0 -- eos-instance-test-ci eos-mq
+    - kubectl exec eos-mgm-0 -- eos-instance-test-ci localhost
     - kubectl exec eos-mgm-0 -- eos chmod 2777 /eos/dockertest
     - kubectl exec eos-mgm-0 -- eos-unit-tests-with-instance -n root://localhost//eos/dockertest/
   <<: *helm_after_script_template
