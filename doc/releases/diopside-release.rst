@@ -16,6 +16,26 @@ Introduction
 
 This release is based on XRootD V5.
 
+``v5.1.1 Diopside``
+====================
+
+Note
+-----
+
+* This release comes with eos-xrootd-5.5.1 as dependency
+* eosd is now deprecated and there are no more RPM packages provided for it
+
+Bug
+----
+
+* [EOS-5347] - EOS token not usable via eosxd
+* [EOS-5369] - Occasional error during eoscta test "mismatch between requested fid/fsid and retrieved ones"
+* [EOS-5371] - Fix crash of the MGM when listing container entries due to invalidated
+               iterators to the ContainerMap/FileMap objects.
+* FST: eos-xrootd-5.5.1 fixes a bug in XRootD related to async close functionality
+  where the FST would crash if it received another requests for a file which was in
+  the process of being closed.
+
 
 ``v5.1.0 Diopside``
 ====================
