@@ -16,13 +16,14 @@ Introduction
 
 This release is based on XRootD V5.
 
+
 ``v5.1.1 Diopside``
 ====================
 
 Note
 -----
 
-* This release comes with eos-xrootd-5.5.1 as dependency
+* Update dependency to eos-xrootd-5.5.1
 * eosd is now deprecated and there are no more RPM packages provided for it
 
 Bug
