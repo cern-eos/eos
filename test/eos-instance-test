@@ -1741,6 +1741,7 @@ runtest "### MkToken   " unix 0 "XrdSecsssENDORSEMENT=$EOSTOKENW" shell mkdir "/
 
 test -d /test-fusex/ && umount -fl /test-fusex/
 test -d /test-fusex/ && rmdir /test-fusex/
+test -e /etc/eos/fuse.sss.keytab && unlink /etc/eos/fuse.sss.keytab
 fi
 
 ################################################################################
