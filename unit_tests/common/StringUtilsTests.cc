@@ -3,6 +3,9 @@
 #include "gtest/gtest.h"
 
 using eos::common::StringToNumeric;
+using eos::common::startsWith;
+using eos::common::endsWith;
+
 using std::string_literals::operator ""s;
 using std::string_view_literals::operator ""sv;
 
@@ -147,4 +150,56 @@ TEST(StringUtils, StringToNumericErrorMessage)
   EXPECT_EQ(err_msg,
             "\"msg=Failed Numeric conversion\" key=128 error_msg=Numerical result out of range");
 
+}
+
+TEST(StringUtils, startsWith)
+{
+  std::string full_name = "myfoo.bar.com";
+  std::string prefix = "myfoo";
+  EXPECT_TRUE(startsWith(full_name, prefix));
+  EXPECT_TRUE(startsWith(full_name, "myfoo.bar.com"));
+  EXPECT_FALSE(startsWith(full_name, ".com"));
+  EXPECT_FALSE(startsWith(full_name, "myfoo_"));
+  EXPECT_FALSE(startsWith(full_name, "myfoo.bar.com_"));
+
+  std::string full_path = "/eos/folder1/folder2";
+  EXPECT_TRUE(startsWith(full_path, "/eos"));
+  EXPECT_TRUE(startsWith(full_path, "/eos/"));
+  EXPECT_TRUE(startsWith(full_path, "/eos/folder1"));
+  EXPECT_FALSE(startsWith(full_path, "/eos/folder1/folder2/"));
+}
+
+TEST(StringUtils, endsWith)
+{
+  std::string full_name = "myfoo.bar.com";
+  std::string suffix = "com";
+  EXPECT_TRUE(endsWith(full_name, suffix));
+  EXPECT_TRUE(endsWith(full_name, "myfoo.bar.com"));
+  EXPECT_FALSE(endsWith(full_name, "myfoo"));
+  EXPECT_FALSE(startsWith(full_name, "myfoo.bar.com_"));
+  EXPECT_FALSE(endsWith(full_name, "com_"));
+
+  std::string full_path = "/eos/folder1/folder2";
+  EXPECT_TRUE(endsWith(full_path, "/folder2"));
+  EXPECT_TRUE(endsWith(full_path, "folder2"));
+  EXPECT_TRUE(endsWith(full_path, "/eos/folder1/folder2"));
+  EXPECT_FALSE(endsWith(full_path, "/eos/folder1/folder2/"));
+}
+
+TEST(StringUtils, startsWith2)
+{
+  using eos::common::sview::startsWith;
+  std::string full_name = "myfoo.bar.com";
+  std::string prefix = "myfoo";
+  EXPECT_TRUE(startsWith(full_name, prefix));
+  EXPECT_TRUE(startsWith(full_name, "myfoo.bar.com"));
+  EXPECT_FALSE(startsWith(full_name, ".com"));
+  EXPECT_FALSE(startsWith(full_name, "myfoo_"));
+  EXPECT_FALSE(startsWith(full_name, "myfoo.bar.com_"));
+
+  std::string full_path = "/eos/folder1/folder2";
+  EXPECT_TRUE(startsWith(full_path, "/eos"));
+  EXPECT_TRUE(startsWith(full_path, "/eos/"));
+  EXPECT_TRUE(startsWith(full_path, "/eos/folder1"));
+  EXPECT_FALSE(startsWith(full_path, "/eos/folder1/folder2/"));
 }

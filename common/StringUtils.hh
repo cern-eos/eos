@@ -51,6 +51,18 @@ inline bool startsWith(const std::string& str, const std::string& prefix)
   return true;
 }
 
+// TODO: This variant will be moved to the common namespace should tests pass
+namespace sview {
+
+inline bool
+startsWith(std::string_view str, std::string_view prefix)
+{
+  return (str.size() >= prefix.size() &&
+          str.compare(0, prefix.size(), prefix) == 0);
+}
+
+} // eos::common::sview
+
 inline bool endsWith(std::string_view str, std::string_view suffix)
 {
   return (str.size() >= suffix.size()) &&
