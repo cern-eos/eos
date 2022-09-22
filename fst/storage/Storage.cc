@@ -40,7 +40,9 @@
 #include "MonitorVarPartition.hh"
 #include "qclient/structures/QSet.hh"
 #include <google/dense_hash_map>
+#include <folly/executors/IOThreadPoolExecutor.h>
 #include <math.h>
+
 // @note (esindril)use this when Clang (>= 6.0.0) supports it
 //#include <filesystem>
 
@@ -247,6 +249,8 @@ Storage::Storage(const char* meta_dir)
   } else {
     eos_err("unable to create transfer queue");
   }
+
+  mConverterExecutor = std::make_shared<folly::IOThreadPoolExecutor>(gOFS.mFmdConverterThreads);
 }
 
 //------------------------------------------------------------------------------

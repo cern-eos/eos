@@ -45,6 +45,11 @@ class TransferQueue;
 }
 }
 
+namespace folly
+{
+class Executor;
+}
+
 EOSFSTNAMESPACE_BEGIN
 
 class Verify;
@@ -484,6 +489,7 @@ private:
   std::set<std::string> mLastRoundFilesystems;
   AssistedThread mPublisherThread;
   std::unique_ptr<FmdConverter> mConverter;
+  std::shared_ptr<folly::Executor> mConverterExecutor;
 };
 
 EOSFSTNAMESPACE_END
