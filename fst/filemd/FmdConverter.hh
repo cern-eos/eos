@@ -32,8 +32,8 @@ EOSFSTNAMESPACE_BEGIN
 
 static constexpr std::string_view ATTR_CONVERSION_DONE_FILE =
   ".eosattrconverted";
-static constexpr size_t MIN_FMDCONVERTER_THREADS = 2;
-static constexpr size_t MAX_FMDCONVERTER_THREADS = 100;
+static constexpr uint16_t MIN_FMDCONVERTER_THREADS = 2;
+static constexpr uint16_t MAX_FMDCONVERTER_THREADS = 128;
 
 //----------------------------------------------------------------------------
 //! A simple interface to track whether full conversions have been done for a given
@@ -57,8 +57,11 @@ public:
   //----------------------------------------------------------------------------
   FmdConverter(FmdHandler* src_handler,
                FmdHandler* tgt_handler,
-               size_t per_disk_pool);
+               uint16_t per_disk_pool);
 
+  FmdConverter(FmdHandler* src_handler,
+               FmdHandler* tgt_handler,
+               std::shared_ptr<folly::Executor> _executor);
   //----------------------------------------------------------------------------
   //! Destructor
   //----------------------------------------------------------------------------
@@ -89,7 +92,7 @@ public:
 private:
   FmdHandler* mSrcFmdHandler;
   FmdHandler* mTgtFmdHandler;
-  std::unique_ptr<folly::Executor> mExecutor;
+  std::shared_ptr<folly::Executor> mExecutor;
   std::unique_ptr<FSConversionDoneHandler> mDoneHandler;
 };
 

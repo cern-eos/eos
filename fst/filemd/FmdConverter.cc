@@ -55,14 +55,24 @@ FileFSConversionDoneHandler::getDoneFilePath(std::string_view fstpath)
 //------------------------------------------------------------------------------
 FmdConverter::FmdConverter(FmdHandler* src_handler,
                            FmdHandler* tgt_handler,
-                           size_t per_disk_pool) :
+                           uint16_t per_disk_pool) :
   mSrcFmdHandler(src_handler), mTgtFmdHandler(tgt_handler),
-  mExecutor(std::make_unique<folly::IOThreadPoolExecutor>
+  mExecutor(std::make_shared<folly::IOThreadPoolExecutor>
             (std::clamp(per_disk_pool, MIN_FMDCONVERTER_THREADS,
                         MAX_FMDCONVERTER_THREADS))),
   mDoneHandler(std::make_unique<FileFSConversionDoneHandler>
                (ATTR_CONVERSION_DONE_FILE))
 {}
+
+FmdConverter::FmdConverter(FmdHandler* src_handler,
+                           FmdHandler* tgt_handler,
+                           std::shared_ptr<folly::Executor> _executor) :
+  mSrcFmdHandler(src_handler), mTgtFmdHandler(tgt_handler),
+  mExecutor(_executor),
+  mDoneHandler(std::make_unique<FileFSConversionDoneHandler>
+               (ATTR_CONVERSION_DONE_FILE))
+{}
+
 
 //------------------------------------------------------------------------------
 // Conversion method
