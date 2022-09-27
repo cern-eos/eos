@@ -296,6 +296,8 @@ std::string QoSCmd::PathFromIdentifierProto(
     path = identifier.path().c_str();
   } else if (type == QoSProto::IdentifierProto::kFileId) {
     GetPathFromFid(path, identifier.fileid(), err_msg);
+  } else if (type == QoSProto::IdentifierProto::kContainerId) {
+    GetPathFromCid(path, identifier.containerid(), err_msg);
   } else {
     err_msg = "error: received empty string path";
   }

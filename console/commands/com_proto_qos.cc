@@ -73,6 +73,8 @@ QoSHelper::ParseCommand(const char* arg)
 
     if (Path2FileDenominator(path, id)) {
       identifier->set_fileid(id);
+    } else if (Path2ContainerDenominator(path, id)) {
+      identifier->set_containerid(id);
     } else {
       path = abspath(path.c_str());
       identifier->set_path(path.c_str());
