@@ -5,7 +5,8 @@ message QoSProto {
   message IdentifierProto {
     oneof Identifier {
       uint64 FileId = 1;
-      string Path = 2;
+      uint64 ContainerId = 2;
+      string Path = 3;
     }
   }
 
