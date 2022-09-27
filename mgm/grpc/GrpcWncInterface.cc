@@ -30,6 +30,7 @@
 #include "mgm/proc/admin/StagerRmCmd.hh"
 #include "mgm/proc/user/AclCmd.hh"
 #include "mgm/proc/user/NewfindCmd.hh"
+#include "mgm/proc/user/QoSCmd.hh"
 #include "mgm/proc/user/RecycleCmd.hh"
 #include "mgm/proc/user/RmCmd.hh"
 #include "mgm/proc/user/RouteCmd.hh"
@@ -161,6 +162,10 @@ GrpcWncInterface::ExecCmd(eos::common::VirtualIdentity& vid,
 
   case eos::console::RequestProto::kNs:
     return Ns();
+    break;
+
+  case eos::console::RequestProto::kQos:
+    return Qos();
     break;
 
   case eos::console::RequestProto::kQuota:
@@ -2306,6 +2311,14 @@ grpc::Status GrpcWncInterface::Ns()
   eos::console::RequestProto req = *mRequest;
   eos::mgm::NsCmd nscmd(std::move(req), *mVid);
   *mReply = nscmd.ProcessRequest();
+  return grpc::Status::OK;
+}
+
+grpc::Status GrpcWncInterface::Qos()
+{
+  eos::console::RequestProto req = *mRequest;
+  eos::mgm::QoSCmd qoscmd(std::move(req), *mVid);
+  *mReply = qoscmd.ProcessRequest();
   return grpc::Status::OK;
 }
 

@@ -113,6 +113,8 @@ private:
 
   grpc::Status Ns();
 
+  grpc::Status Qos();
+
   grpc::Status Quota();
 
   grpc::Status Recycle();
