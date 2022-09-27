@@ -2106,19 +2106,41 @@ grpc::Status GrpcWncInterface::Ls()
         else
           full_path = path + entry;
 
-        // Get the parameters
+        // Get the parameters if entry is a file
         if (entry[entry.size() - 1] != '/') {
           std::shared_ptr<eos::IFileMD> fmd;
-          fmd = gOFS->eosView->getFile(full_path.c_str());
-          fmd->getMTime(mtime);
-          xattrs = fmd->getAttributes();
-          size = fmd->getSize();
+          try {
+            fmd = gOFS->eosView->getFile(full_path.c_str());
+          } catch (eos::MDException& e) {
+            // Maybe this is a symlink pointing outside the EOS namespace
+            try {
+              fmd = gOFS->eosView->getFile(full_path.c_str(), false);
+            } catch (eos::MDException& e) {
+              out += entry + "\t\t\n";
+              continue;
+            }
+          }
+
+          if (fmd) {
+            fmd->getMTime(mtime);
+            xattrs = fmd->getAttributes();
+            size = fmd->getSize();
+          }
         }
+        // Get the parameters if entry is a directory
         else {
           std::shared_ptr<eos::IContainerMD> cmd;
-          cmd = gOFS->eosView->getContainer(full_path.c_str());
-          cmd->getMTime(mtime);
-          xattrs = cmd->getAttributes();
+          try {
+            cmd = gOFS->eosView->getContainer(full_path.c_str());
+          } catch (eos::MDException& e) {
+            out += entry + "\t\t\n";
+            continue;
+          }
+
+          if (cmd) {
+            cmd->getMTime(mtime);
+            xattrs = cmd->getAttributes();
+          }
         }
 
         // Print the parameters
