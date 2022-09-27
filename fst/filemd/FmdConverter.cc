@@ -64,10 +64,22 @@ FmdConverter::FmdConverter(FmdHandler* src_handler,
                (ATTR_CONVERSION_DONE_FILE))
 {}
 
+FmdConverter::~FmdConverter()
+{
+  eos_static_info("%s", "msg=\"calling FmdConverter destructor\"");
+
+  // drain all pending tasks
+  if (auto executor = dynamic_cast<folly::IOThreadPoolExecutor*>(mExecutor.get())) {
+    executor->join();
+  }
+  mExecutor.reset();
+  eos_static_info("%s", "msg=\"calling FmdConverter destructor done\"");
+}
+
 //------------------------------------------------------------------------------
 // Conversion method
 //------------------------------------------------------------------------------
-folly::Future<bool>
+bool
 FmdConverter::Convert(eos::common::FileSystem::fsid_t fsid,
                       std::string_view path)
 {
@@ -79,6 +91,7 @@ FmdConverter::Convert(eos::common::FileSystem::fsid_t fsid,
 
   return mTgtFmdHandler->ConvertFrom(fid, fsid, mSrcFmdHandler, true);
 }
+
 
 //------------------------------------------------------------------------------
 // Method converting files on a given file system
@@ -96,26 +109,45 @@ FmdConverter::ConvertFS(std::string_view fspath,
     return;
   }
 
+  /*using convert_ret_type = std::result_of_t<decltype(&FmdConverter::Convert)
+                           (FmdConverter, eos::common::FileSystem::fsid_t,
+                            std::string_view)>;*/
+  using future_vector = std::vector<folly::Future<bool>>;
+  future_vector futures;
   eos_static_info("msg=\"starting file system conversion\" fsid=%u", fsid);
   std::error_code ec;
   auto count = stdfs::WalkFSTree(std::string(fspath), [this,
-  fsid](std::string path) {
-    this->Convert(fsid, path)
-    .via(mExecutor.get())
-    .thenValue([path = std::move(path)](bool status) {
-      eos_static_info("msg=\"conversion status\" file=%s, status=%d",
-                      path.c_str(),
-                      status);
-    });
+  fsid, &futures](std::string path) {
+        auto fut = folly::makeFuture().via(mExecutor.get()).
+            thenValue([this, fsid, path](auto&&){
+          return folly::Future<bool>(this->Convert(fsid, path)); }).
+            thenValue([path = std::move(path)](bool status) {
+          eos_static_info("msg=\"conversion status\" file=%s, status=%d",
+                          path.c_str(), status); return status; });
+
+
+        static_assert(std::is_same_v<folly::Future<bool>, decltype(fut)>);
+        futures.emplace_back(std::move(fut));
   }, ec);
+
+  size_t success_count = 0;
+  for (auto&& fut : futures) {
+    try {
+      success_count += std::move(fut).get();
+    } catch (const std::exception& e) {
+      eos_static_crit("msg=\"exception during conversion\" err=\"%s\"",
+                      e.what());
+    }
+  }
 
   if (ec) {
     eos_static_err("msg=\"walking fs tree ran into errors!\" err=%s",
                    ec.message().c_str());
+    return;
   }
 
-  eos_static_info("msg=\"conversion successful, set done marker\" count=%llu",
-                  count);
+  eos_static_info("msg=\"conversion successful, set done marker\" count=%llu success_count=%llu",
+                  count, success_count);
   mDoneHandler->markFSConverted(fspath);
 }
 
@@ -127,5 +159,6 @@ FmdConverter::ConvertFS(std::string_view fspath)
 {
   ConvertFS(fspath, FSPathHandler::GetFsid(fspath));
 }
+
 
 EOSFSTNAMESPACE_END

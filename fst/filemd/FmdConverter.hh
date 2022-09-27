@@ -62,18 +62,13 @@ public:
   //----------------------------------------------------------------------------
   //! Destructor
   //----------------------------------------------------------------------------
-  ~FmdConverter()
-  {
-    eos_static_info("%s", "msg=\"calling FmdConverter destructor\"");
-    mExecutor.reset();
-    eos_static_info("%s", "msg=\"calling FmdConverter destructor done\"");
-  }
+  ~FmdConverter();
 
   //----------------------------------------------------------------------------
   // Conversion method
   //----------------------------------------------------------------------------
-  folly::Future<bool> Convert(eos::common::FileSystem::fsid_t fsid,
-                              std::string_view path);
+  bool Convert(eos::common::FileSystem::fsid_t fsid,
+               std::string_view path);
 
   //----------------------------------------------------------------------------
   // Method converting files on a given file system
