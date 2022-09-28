@@ -1,0 +1,190 @@
+#!/bin/bash
+
+# ----------------------------------------------------------------------
+# File: eos-http-functional-test
+# Author: Manuel Reis - CERN
+# ----------------------------------------------------------------------
+
+# ************************************************************************
+# * EOS - the CERN Disk Storage System                                   *
+# * Copyright (C) 2018 CERN/Switzerland                                  *
+# *                                                                      *
+# * This program is free software: you can redistribute it and/or modify *
+# * it under the terms of the GNU General Public License as published by *
+# * the Free Software Foundation, either version 3 of the License, or    *
+# * (at your option) any later version.                                  *
+# *                                                                      *
+# * This program is distributed in the hope that it will be useful,      *
+# * but WITHOUT ANY WARRANTY; without even the implied warranty of       *
+# * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the        *
+# * GNU General Public License for more details.                         *
+# *                                                                      *
+# * You should have received a copy of the GNU General Public License    *
+# * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
+# ************************************************************************
+
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+# This is a simple script that aims to check HTTP transfers with different authentication methods #
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+# usage: eos-http-upload-test rangeupload testfile /eos/dev/upload-directory/ #
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+
+usage() { echo '''Usage: eos-http-func-tests [-h|--host <host>[:<port>| (-p|--port) <port>]] - b
+                           [-c|--cert <x509 certificate>]
+                           [-k|--key <x509 key>]
+                           [-C|--cacert <CA certificate>]
+                           [-P|--capath <CA certificate path - derived from the certificate as well>]
+                           [-t|--dir <directory on which to run tests>]
+                           [-v|--verbose]                           
+'''; }
+
+# Parse from: https://stackoverflow.com/questions/192249/how-do-i-parse-command-line-arguments-in-bash
+usage_error () { echo >&2 "$(basename "$0"):  $1"; exit 2; }
+assert_argument () { test "$1" != "$EOL" || usage_error "$2 requires an argument"; }
+
+port=443
+host=localhost
+cacert="/etc/grid-security/certificates/CERN Grid Certification Authority.crt"
+capath="$(dirname "${cacert}")"
+cert="/home/mbatalha/.globus/mycert.pem"
+key="/home/mbatalha/.globus/mykey-unprotected.pem"
+
+# One loop, nothing more.
+if [ "$#" != 0 ]; then
+  EOL=$(printf '\1\3\3\7')
+  set -- "$@" "$EOL"
+  while [ "$1" != "$EOL" ]; do
+    opt="$1"; shift
+    case "$opt" in
+
+      # Your options go here.
+      --macaroons)  macaroons=1;;
+      --tpc)        tpc=1;;
+      -v|--verbose) verbose="-v";;
+      -h|--host)    assert_argument "$1" "$opt"; host="${1%:*}" && port="${1#*:}"; shift;;
+      -p|--port)    assert_argument "$1" "$opt"; port="$1"; shift;;
+      -c|--cert)    assert_argument "$1" "$opt"; cert="$1"; shift;;
+      -k|--key)     assert_argument "$1" "$opt"; key="$1"; shift;;
+      -C|--cacert)  assert_argument "$1" "$opt"; cacert="${1}" && capath="$(dirname "${cacert}")"; shift;;
+      -P|--capath)  assert_argument "$1" "$opt"; capath="${1}"; shift;;
+      -t|--dir) assert_argument "$1" "$opt"; testdir="${1}"; shift;;
+
+      # Arguments processing. You may remove any unneeded line after the 1st.
+      -|''|[!-]*) set -- "$@" "$opt";;                                          # positional argument, rotate to the end
+      --*=*)      set -- "${opt%%=*}" "${opt#*=}" "$@";;                        # convert '--name=arg' to '--name' 'arg'
+      -[!-]?*)    set -- "$(echo "${opt#-}" | sed 's    /g')" "$@";;     # convert '-abc' to '-a' '-b' '-c'
+      --)         while [ "$1" != "$EOL" ]; do set -- "$@" "$1"; shift; done;;  # process remaining arguments as positional
+      -*)         usage_error "unknown option: '$opt'";;                        # catch misspelled options
+      *)          usage_error "this should NEVER happen ($opt)";;               # sanity test for previous patterns
+
+    esac
+  done
+  shift  # $EOL
+fi
+
+echo "Results:"
+### X509 
+# Returns 0 if successful, 1 if upload failed, 2 if download failed, 3 if both failed
+x509() {
+  respUpload="$(curl -sS ${verbose} -I -L --capath "${capath}" --cert "${cert}" --cacert "${cacert}" --key "${key}" "https://${host}:${port}/${testdir}/helloworld.txt" --upload-file <(echo ola) | grep HTTP | tr -d '\r' | paste -sd'+')"
+  echo -e "\tx509 upload -> ${respUpload}"
+  respDownload="$(curl -sS ${verbose} -I -L --capath "${capath}" --cert "${cert}" --cacert "${cacert}" --key "${key}" "https://${host}:${port}/${testdir}/helloworld.txt" |grep HTTP | tr -d '\r' | paste -sd'+')"
+  echo -e "\tx509 download -> ${respDownload}" # should be 0
+
+  [[ $respUpload == "HTTP/1.1 307 TEMPORARY_REDIRECT+HTTP/1.1 201 CREATED" ]]
+  upcode=$?
+	[[ $respDownload == "HTTP/1.1 200 OK" ]]
+  downcode=$?
+
+  return  $((2#$downcode$upcode))
+}
+
+
+### Macaroon
+# Returns 0 if successful, 1 if upload failed, 2 if download failed, 3 if both failed
+macaroon() {
+
+    # certificate and private key
+    export X509_USER_CERT=${cert}
+    export X509_USER_KEY=${key}
+    # Use the macaroon-init tool to request a macaroon: yum install x509-scitokens-issuer-client --enablerepo="osg-development"
+
+    export MACAROON="$(macaroon-init https://${host}:${port}/${testdir}/ 60 UPLOAD,DOWNLOAD)"
+    respMacaroonUpload="$(curl -I -sS ${verbose} -L -H "Authorization: Bearer ${MACAROON}" https://${host}:${port}${testdir}/helloworld-macaroon.txt --upload-file <(echo ola) | grep HTTP | tr -d '\r' | paste -sd'+')"
+    echo -e "\tmacaroon upload -> ${respMacaroonUpload}"
+    respMacaroonDownload="$(curl -I -sS ${verbose} -L -H "Authorization: Bearer ${MACAROON}" https://${host}:${port}${testdir}/helloworld-macaroon.txt|grep HTTP | tr -d '\r' | paste -sd'+')"
+    echo -e "\tmacaroon download -> ${respMacaroonDownload}"
+
+
+    [[ $respMacaroonUpload == "HTTP/1.1 307 TEMPORARY_REDIRECT+HTTP/1.1 201 CREATED" ]]
+    macaroonupcode=$?
+    [[ $respMacaroonDownload == "HTTP/1.1 200 OK" ]]
+    macaroondowncode=$?
+    return $(( 2#$macaroondowncode$macaroonupcode ))
+
+}
+
+### TPC
+# Returns 0 if successful, 1 if tcp pull failed, 2 if tcp push failed, 3 if both failed
+tcp() {
+    export SRC=https://${host}:${port}/${testdir}/helloworld.txt
+    export DST=https://${host}:${port}/${testdir}/helloworld-tcp.txt
+    export TSRC=$(curl -sS -4 --capath "${capath}" --cert "${cert}" --cacert "${cacert}" --key "${key}" -X POST -H 'Content-Type: application/macaroon-request' -d '{"caveats": ["activity:DOWNLOAD"], "validity": "PT3000M"}' "$SRC" | jq -r '.macaroon')
+    export TDST=$(curl -sS -4 --capath "${capath}" --cert "${cert}" --cacert "${cacert}" --key "${key}" -X POST -H 'Content-Type: application/macaroon-request' -d '{"caveats": ["activity:UPLOAD,DELETE,LIST"], "validity": "PT3000M"}' "$DST" | jq -r '.macaroon')
+    if [[ ${verbose} == "-v" ]]; then
+      echo -n "Transfer Source Token: "
+      echo "${TSRC}" | base64 -d
+
+      echo -n "Transfer Destination Token: "
+      echo "${TDST}" | base64 -d
+    fi
+
+    respTpcPull="$(curl -I -sS -4 ${verbose} --capath "${capath}" -L \
+      -X COPY \
+      -H 'Secure-Redirection: 1' \
+      -H 'X-No-Delegate: 1' \
+      -H 'Credentials: none' \
+      -H "Authorization: Bearer $TDST" \
+      -H "TransferHeaderAuthorization: Bearer $TSRC" \
+      -H "TransferHeaderTest: Test" \
+      -H "Source: $SRC" \
+      "$DST" |grep HTTP | tr -d '\r' | paste -sd'+')"
+    echo -e "\ttpc pull -> ${respTpcPull}"
+
+
+    [[ ${respTpcPull} == "HTTP/1.1 307 Temporary Redirect+HTTP/1.1 201 Created" ]]
+    tpcpullcode=$?
+
+    respTpcPush="$(curl -I -sS -4 ${verbose} --capath "${capath}" -L \
+        -X COPY \
+        -H 'Secure-Redirection: 1' \
+        -H 'X-No-Delegate: 1' \
+        -H 'Credentials: none' \
+        -H "Authorization: Bearer $TSRC" \
+        -H "TransferHeaderAuthorization: Bearer $TDST" \
+        -H "TransferHeaderTest: Test" \
+        -H "Destination: $DST" \
+        "$SRC" |grep HTTP | tr -d '\r' | paste -sd'+')"
+    echo -e "\ttpc push -> ${respTpcPush}"
+
+
+    [[ ${respTpcPush} == "HTTP/1.1 307 Temporary Redirect+HTTP/1.1 201 Created" ]]
+    tpcpushcode=$?
+
+    return $(( 2#$tpcpushcode$tpcpullcode))
+}
+
+
+x509
+x509code=$?
+echo "x509:"$x509code
+
+macaroon
+macarooncode=$?
+echo "macaroon:"$macarooncode
+
+tcp
+tcpcode=$?
+echo "tpc:"$tcpcode
+
+exit $x509code$macarooncode$tcpcode
