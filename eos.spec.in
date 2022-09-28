@@ -908,6 +908,7 @@ Contains an instance and fuse test script and some test executables and test arc
 %{_sbindir}/eos-synctime-test
 %{_sbindir}/eos-timestamp-test
 %{_sbindir}/eos-http-upload-test
+%{_sbindir}/eos-http-functional-test
 %{_sbindir}/eoscp-rain-test
 %{_sbindir}/eos-fusex-tests
 %{_sbindir}/eos-oc-test
