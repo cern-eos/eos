@@ -23,10 +23,9 @@
 #include <folly/futures/Future.h>
 #include <memory>
 
-namespace folly
-{
-class Executor;
-} // namespace folly
+namespace eos::common {
+class ExecutorMgr;
+}
 
 EOSFSTNAMESPACE_BEGIN
 
@@ -59,6 +58,10 @@ public:
                FmdHandler* tgt_handler,
                size_t per_disk_pool);
 
+  FmdConverter(FmdHandler* src_handler,
+               FmdHandler* tgt_handler,
+               size_t per_disk_pool,
+               std::string_view executor_type);
   //----------------------------------------------------------------------------
   //! Destructor
   //----------------------------------------------------------------------------
@@ -84,7 +87,7 @@ public:
 private:
   FmdHandler* mSrcFmdHandler;
   FmdHandler* mTgtFmdHandler;
-  std::unique_ptr<folly::Executor> mExecutor;
+  std::shared_ptr<eos::common::ExecutorMgr> mExecutorMgr;
   std::unique_ptr<FSConversionDoneHandler> mDoneHandler;
 };
 

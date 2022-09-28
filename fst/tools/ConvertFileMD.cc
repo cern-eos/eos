@@ -55,6 +55,7 @@ main(int argc, char* argv[])
                                            "Convert from LevelDB -> Attrs");
   std::string fst_path;
   std::string fst_metadir {"/var/eos/md"};
+  std::string executor_type {"folly"};
   size_t num_threads{8};
   convert_subcmd->add_option("--fst-path", fst_path, "Mount point of FST")
     ->required();
@@ -65,6 +66,9 @@ main(int argc, char* argv[])
     ->default_str("8");
   convert_subcmd->add_option("--log-file", log_file, "Log file for operations")
     ->default_str("EOSFileMD.log");
+
+  convert_subcmd->add_option("--executor", executor_type, "Executor Type: folly or std")
+    ->default_str("folly");
 
   std::string file_path;
   auto inspect_subcmd = app.add_subcommand("inspect",
@@ -107,8 +111,10 @@ main(int argc, char* argv[])
   db_handler->SetDBFile(fst_metadir.c_str(), fsid);
 
   if (app.got_subcommand("convert")) {
-    eos::fst::FmdConverter converter(db_handler.get(), attr_handler.get(), num_threads);
-    eos_static_info("msg=\"Converting with total threads\"=%ul", num_threads);
+    eos::fst::FmdConverter converter(db_handler.get(), attr_handler.get(),
+                                     num_threads, executor_type);
+    eos_static_info("msg=\"Converting with total threads\"=%ul, executor=%s",
+                    num_threads, executor_type.c_str());
     converter.ConvertFS(fst_path);
   }
 
