@@ -62,6 +62,10 @@ public:
                FmdHandler* tgt_handler,
                size_t per_disk_pool,
                std::string_view executor_type);
+
+  FmdConverter(FmdHandler* src_handler,
+               FmdHandler* tgt_handler,
+               std::shared_ptr<eos::common::ExecutorMgr> executor_mgr);
   //----------------------------------------------------------------------------
   //! Destructor
   //----------------------------------------------------------------------------
@@ -70,8 +74,7 @@ public:
   //----------------------------------------------------------------------------
   // Conversion method
   //----------------------------------------------------------------------------
-  bool Convert(eos::common::FileSystem::fsid_t fsid,
-               std::string_view path);
+  bool Convert(eos::common::FileSystem::fsid_t fsid, std::string path);
 
   //----------------------------------------------------------------------------
   // Method converting files on a given file system

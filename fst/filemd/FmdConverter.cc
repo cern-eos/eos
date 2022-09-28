@@ -73,6 +73,14 @@ FmdConverter::FmdConverter(FmdHandler* src_handler, FmdHandler* tgt_handler,
 {
 }
 
+FmdConverter::FmdConverter(FmdHandler* src_handler, FmdHandler* tgt_handler,
+                           std::shared_ptr<common::ExecutorMgr> executor_mgr):
+    mSrcFmdHandler(src_handler), mTgtFmdHandler(tgt_handler),
+    mExecutorMgr(executor_mgr),
+    mDoneHandler(std::make_unique<FileFSConversionDoneHandler>
+                     (ATTR_CONVERSION_DONE_FILE))
+{
+}
 
 FmdConverter::~FmdConverter()
 {
@@ -87,14 +95,13 @@ FmdConverter::~FmdConverter()
 // Conversion method
 //------------------------------------------------------------------------------
 bool
-FmdConverter::Convert(eos::common::FileSystem::fsid_t fsid,
-                      std::string_view path)
+FmdConverter::Convert(eos::common::FileSystem::fsid_t fsid, std::string path)
 {
-  auto fid = eos::common::FileId::PathToFid(path.data());
+  auto fid = eos::common::FileId::PathToFid(path.c_str());
 
   if (!fsid || !fid) {
       eos_static_info("msg=\"conversion failed invalid fid\" file=%s, fid=%lu",
-                      path.data(),fid);
+                      path.c_str(),fid);
     return false;
   }
 
@@ -128,7 +135,7 @@ FmdConverter::ConvertFS(std::string_view fspath,
   auto count = stdfs::WalkFSTree(std::string(fspath), [this,
   fsid, &futures](std::string path) {
         try {
-          auto fut = mExecutorMgr->PushTask([this, fsid, path]() {
+          auto fut = mExecutorMgr->PushTask([this, fsid, path=std::move(path)]() {
             return this->Convert(fsid, path);
           });
 
