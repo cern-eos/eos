@@ -697,6 +697,15 @@ XrdFstOfs::Configure(XrdSysError& Eroute, XrdOucEnv* envP)
             Eroute.Say("=====> fstofs.filemd_converter_threads : ", val);
           }
         }
+
+        if (!strcmp("filemd_converter_executor", var)) {
+          if ((val = Config.GetWord())) {
+            mFmdConverterExecutorType = val;
+            Eroute.Say("=====> fstofs.filemd_converter_executor : ",
+                       mFmdConverterExecutorType.c_str());
+          }
+        }
+
       }
     }
 

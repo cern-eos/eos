@@ -425,6 +425,7 @@ public:
   std::string mMgmAlias; ///< MGM alias
   std::shared_ptr<FmdHandler> mFmdHandler; // <File Metadata Handler
   uint16_t mFmdConverterThreads{64};
+  std::string mFmdConverterExecutorType;
   // @note
   // All of the commands below are going to be deprecated and replaced by XRootD
   // query commands which are handled in the FSctl method
