@@ -19,7 +19,7 @@
 
 #include "common/async/OpaqueFuture.hh"
 #include <gtest/gtest.h>
-#include <folly/executors/GlobalExecutor.h>
+#include <folly/executors/CPUThreadPoolExecutor.h>
 using eos::common::OpaqueFuture;
 
 TEST(OpaqueFuture, BasicStdFuture) {
@@ -127,7 +127,8 @@ TEST(OpaqueFuture, StdFutureWait)
 
 TEST(OpaqueFuture, follyFutureWait)
 {
-  auto f = folly::makeFuture().via(folly::getCPUExecutor().get()).then([](auto&&) {
+  auto executor = folly::CPUThreadPoolExecutor(1);
+  auto f = folly::makeFuture().via(&executor).then([](auto&&) {
     return fib(40);
   });
 

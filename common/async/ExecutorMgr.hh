@@ -72,7 +72,7 @@ enum class ExecutorType
   kFollyExecutor
 };
 
-inline ExecutorType
+inline constexpr ExecutorType
 GetExecutorType(std::string_view exec_type)
 {
   if (exec_type == "folly") {
@@ -120,6 +120,23 @@ public:
     }, mExecutor);*/
   }
 
+
+  template <typename T>
+  constexpr bool holdsType() const
+  {
+    return std::holds_alternative<T>(mExecutor);
+  }
+
+  constexpr bool IsFollyExecutor() const
+  {
+    return holdsType<std::shared_ptr<folly::Executor>>();
+  }
+
+  constexpr bool IsThreadPool() const
+  {
+    return holdsType<std::shared_ptr<eos::common::ThreadPool>>();
+  }
+
   ExecutorMgr(ExecutorType type, size_t num_threads) {
     switch (type) {
     case ExecutorType::kThreadPool:
@@ -136,10 +153,10 @@ public:
   {
     switch (type) {
     case ExecutorType::kThreadPool:
-      mExecutor = std::make_shared<eos::common::ThreadPool>(min_threads);
+      mExecutor = std::make_shared<eos::common::ThreadPool>(min_threads, args...);
       break;
     case ExecutorType::kFollyExecutor:
-      mExecutor = std::make_shared<folly::IOThreadPoolExecutor>(min_threads, args...);
+      mExecutor = std::make_shared<folly::IOThreadPoolExecutor>(min_threads);
       break;
     }
   }
