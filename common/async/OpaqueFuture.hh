@@ -25,8 +25,28 @@
 #pragma once
 #include <folly/futures/Future.h>
 #include <future>
+#include <type_traits>
 
 namespace eos::common {
+
+namespace detail
+{
+template <typename, typename = void>
+struct has_isReady : std::false_type {};
+
+template <typename Fut>
+struct has_isReady<Fut, std::void_t<decltype(std::declval<Fut>().isReady())>> :
+    std::true_type {};
+
+// some tests to assert this works as expected; these will fail compilation in
+// case our assertions are wrong but are thrown out from the actual object code
+static_assert(has_isReady<folly::Future<int>>::value,
+              "folly::Future implements isReady");
+static_assert(has_isReady<folly::SemiFuture<int>>::value,
+              "folly::SemiFuture implements isReady");
+static_assert(!has_isReady<std::future<int>>::value,
+              "std::future doesn't implement isReady");
+}
 
 /* A type erased future holder to help interop std::future
  * and folly::Future types. This mainly allows for holding a vector
@@ -47,6 +67,16 @@ public:
     return fut_holder->ready();
   }
 
+  bool valid()
+  {
+    return fut_holder->valid();
+  }
+
+  void wait()
+  {
+    return fut_holder->wait();
+  }
+
   template <typename F>
   OpaqueFuture(F&& fut) : fut_holder(std::make_unique<future_holder<F>>(std::move(fut))) {}
 
@@ -54,7 +84,9 @@ private:
   struct base_future_holder {
     virtual ~base_future_holder() = default;
     virtual T getValue() = 0;
+    virtual bool valid() = 0;
     virtual bool ready() = 0;
+    virtual void wait() = 0;
   };
 
   template <typename F>
@@ -65,14 +97,26 @@ private:
       return std::move(fut_).get();
     }
 
+    bool valid() override
+    {
+      return fut_.valid();
+    }
+
+    void wait() override
+    {
+      fut_.wait();
+    }
+
+
     bool ready() override
     {
-      if constexpr (std::is_same_v<F, folly::Future<T>>) {
+      if constexpr (detail::has_isReady<F>::value) {
         return fut_.isReady();
       } else if constexpr (std::is_same_v<F, std::future<T>>) {
-        return fut_.valid();
+        return fut_.wait_for(std::chrono::seconds(0)) == std::future_status::ready;
       }
     }
+
     F fut_;
   };
 
