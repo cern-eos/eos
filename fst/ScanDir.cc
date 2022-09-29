@@ -242,14 +242,20 @@ ScanDir::AccountMissing()
             fmd->mProtoFmd.set_layouterror(fmd->mProtoFmd.layouterror() |
                                            LayoutId::kMissing);
           } else {
-            // With Force Retrieve if we come up null, this means this file
-            // doesn't exist! This path will only execute for the FmdAttr layer
-            // as leveldb will still have an entry even if hte original file was
-            // dropped Create a dummy file so that we can set kMissing!
-            fmd.reset(new common::FmdHelper());
-            fmd->mProtoFmd.set_fid(fid);
-            fmd->mProtoFmd.set_fsid(mFsId);
-            fmd->mProtoFmd.set_layouterror(LayoutId::kMissing);
+            if (gOFS.FmdOnDb()) {
+              eos_err("msg=\"failed to create local fmd for missing entry\" "
+                      "fxid=%08llx fsid=%lu", fid, mFsId);
+              continue;
+            } else {
+              // With Force Retrieve if we come up null, this means this file
+              // doesn't exist! This path will only execute for the FmdAttr layer
+              // as leveldb will still have an entry even if the original file was
+              // dropped. Create a dummy file so that we can set kMissing!
+              fmd.reset(new common::FmdHelper());
+              fmd->mProtoFmd.set_fid(fid);
+              fmd->mProtoFmd.set_fsid(mFsId);
+              fmd->mProtoFmd.set_layouterror(LayoutId::kMissing);
+            }
           }
 
           if (!gOFS.mFmdHandler->Commit(fmd.get())) {
