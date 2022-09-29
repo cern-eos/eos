@@ -29,13 +29,15 @@
 # usage: eos-http-upload-test rangeupload testfile /eos/dev/upload-directory/ #
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
-usage() { echo '''Usage: eos-http-func-tests [-h|--host <host>[:<port>| (-p|--port) <port>]] - b
+usage() { echo '''Usage: eos-http-func-tests [-h|--host <host>[:<port>| (-p|--port) <port>]]
                            [-c|--cert <x509 certificate>]
                            [-k|--key <x509 key>]
                            [-C|--cacert <CA certificate>]
                            [-P|--capath <CA certificate path - derived from the certificate as well>]
                            [-t|--dir <directory on which to run tests>]
-                           [-v|--verbose]                           
+                           [-v|--verbose]
+
+                           [-h|--help] - usage & exit
 '''; }
 
 # Parse from: https://stackoverflow.com/questions/192249/how-do-i-parse-command-line-arguments-in-bash
@@ -44,10 +46,10 @@ assert_argument () { test "$1" != "$EOL" || usage_error "$2 requires an argument
 
 port=443
 host=localhost
-cacert="/etc/grid-security/certificates/CERN Grid Certification Authority.crt"
+cacert="/etc/grid-security/certificates/rootCA.pem"
 capath="$(dirname "${cacert}")"
-cert="/home/mbatalha/.globus/mycert.pem"
-key="/home/mbatalha/.globus/mykey-unprotected.pem"
+cert="/root/.globus/usercert.pem"
+key="/root/.globus/userkey.pem"
 
 # One loop, nothing more.
 if [ "$#" != 0 ]; then
@@ -68,6 +70,8 @@ if [ "$#" != 0 ]; then
       -C|--cacert)  assert_argument "$1" "$opt"; cacert="${1}" && capath="$(dirname "${cacert}")"; shift;;
       -P|--capath)  assert_argument "$1" "$opt"; capath="${1}"; shift;;
       -t|--dir) assert_argument "$1" "$opt"; testdir="${1}"; shift;;
+       
+      -h|--help) usage; exit 0;;
 
       # Arguments processing. You may remove any unneeded line after the 1st.
       -|''|[!-]*) set -- "$@" "$opt";;                                          # positional argument, rotate to the end
