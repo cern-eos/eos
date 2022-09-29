@@ -749,6 +749,7 @@ Contains an example keytab file and create the eosnobody user
 %files -n eos-testkeytab
 %config(noreplace) %attr(-, daemon, daemon) %{_sysconfdir}/eos.keytab
 %config(noreplace) %attr(-, daemon, daemon) %{_sysconfdir}/eos.client.keytab
+%config(noreplace) %attr(-, daemon, daemon) %{_sysconfdir}/eos.macaroon.secret
 
 %post -n eos-testkeytab
 
@@ -874,8 +875,8 @@ Summary: The EOS test package
 Group: Applications/File
 ExclusiveArch: x86_64 aarch64
 Requires: cadaver bc davix jq dmidecode
-# Required for eos-http-functional-test:
-Requires: osg-release x509-scitokens-issuer-client 
+# Required for eos-http-functional-test, coming from osg-development 
+Requires: x509-scitokens-issuer-client 
 
 %description -n eos-test
 Contains an instance and fuse test script and some test executables and test archives.
