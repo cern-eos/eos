@@ -749,7 +749,6 @@ Contains an example keytab file and create the eosnobody user
 %files -n eos-testkeytab
 %config(noreplace) %attr(-, daemon, daemon) %{_sysconfdir}/eos.keytab
 %config(noreplace) %attr(-, daemon, daemon) %{_sysconfdir}/eos.client.keytab
-%config(noreplace) %attr(-, daemon, daemon) %{_sysconfdir}/eos.macaroon.secret
 
 %post -n eos-testkeytab
 
