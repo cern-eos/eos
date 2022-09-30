@@ -46,6 +46,7 @@
 #include "common/Constants.hh"
 #include "common/StringConversion.hh"
 #include "common/StringTokenizer.hh"
+#include "common/StringUtils.hh"
 #include "common/SymKeys.hh"
 #include "common/XattrCompat.hh"
 #include "common/ParseUtils.hh"
@@ -135,6 +136,8 @@ extern "C"
 
 EOSFSTNAMESPACE_BEGIN
 
+static constexpr uint16_t MIN_FMDCONVERTER_THREADS = 2;
+static constexpr uint16_t MAX_FMDCONVERTER_THREADS = 128;
 //------------------------------------------------------------------------------
 // Get stacktrace from crashing process
 //------------------------------------------------------------------------------
@@ -681,6 +684,25 @@ XrdFstOfs::Configure(XrdSysError& Eroute, XrdOucEnv* envP)
           }
 
           Eroute.Say("=====> fstofs.filemd_handler : ", value.c_str());
+        }
+
+        if (!strcmp("filemd_converter_threads", var)) {
+          if ((val = Config.GetWord())) {
+            uint16_t num_threads(0);
+            common::StringToNumeric(std::string_view(val), num_threads);
+            mFmdConverterThreads = std::clamp(num_threads,
+                                              MIN_FMDCONVERTER_THREADS,
+                                              MAX_FMDCONVERTER_THREADS);
+            Eroute.Say("=====> fstofs.filemd_converter_threads : ", val);
+          }
+        }
+
+        if (!strcmp("filemd_converter_executor", var)) {
+          if ((val = Config.GetWord())) {
+            mFmdConverterExecutorType = val;
+            Eroute.Say("=====> fstofs.filemd_converter_executor : ",
+                       mFmdConverterExecutorType.c_str());
+          }
         }
       }
     }

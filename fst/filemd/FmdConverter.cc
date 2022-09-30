@@ -1,15 +1,17 @@
 #include "fst/filemd/FmdConverter.hh"
 #include "fst/utils/StdFSWalkTree.hh"
 
+#include "common/async/OpaqueFuture.hh"
+#include "common/async/ExecutorMgr.hh"
 #include "common/Logging.hh"
-#include "fst/utils/FSPathHandler.hh"
-#include "fst/utils/StdFSWalkTree.hh"
-#include "fst/utils/FTSWalkTree.hh"
-#include <folly/executors/IOThreadPoolExecutor.h>
 #include "common/StringUtils.hh"
+#include "fst/utils/FSPathHandler.hh"
+#include "fst/utils/FTSWalkTree.hh"
+#include "fst/utils/StdFSWalkTree.hh"
 
 EOSFSTNAMESPACE_BEGIN
 
+using eos::common::ExecutorType;
 //------------------------------------------------------------------------------
 // Check if file system was already converted
 //------------------------------------------------------------------------------
@@ -57,28 +59,59 @@ FmdConverter::FmdConverter(FmdHandler* src_handler,
                            FmdHandler* tgt_handler,
                            size_t per_disk_pool) :
   mSrcFmdHandler(src_handler), mTgtFmdHandler(tgt_handler),
-  mExecutor(std::make_unique<folly::IOThreadPoolExecutor>
-            (std::clamp(per_disk_pool, MIN_FMDCONVERTER_THREADS,
-                        MAX_FMDCONVERTER_THREADS))),
+  mExecutorMgr(std::make_shared<common::ExecutorMgr>(ExecutorType::kThreadPool,
+               per_disk_pool)),
   mDoneHandler(std::make_unique<FileFSConversionDoneHandler>
                (ATTR_CONVERSION_DONE_FILE))
 {}
 
+FmdConverter::FmdConverter(FmdHandler* src_handler, FmdHandler* tgt_handler,
+                           size_t per_disk_pool, std::string_view executor_type):
+  mSrcFmdHandler(src_handler), mTgtFmdHandler(tgt_handler),
+  mExecutorMgr(std::make_shared<common::ExecutorMgr>(executor_type,
+               per_disk_pool)),
+  mDoneHandler(std::make_unique<FileFSConversionDoneHandler>
+               (ATTR_CONVERSION_DONE_FILE))
+{
+}
+
+FmdConverter::FmdConverter(FmdHandler* src_handler, FmdHandler* tgt_handler,
+                           std::shared_ptr<common::ExecutorMgr> executor_mgr):
+  mSrcFmdHandler(src_handler), mTgtFmdHandler(tgt_handler),
+  mExecutorMgr(executor_mgr),
+  mDoneHandler(std::make_unique<FileFSConversionDoneHandler>
+               (ATTR_CONVERSION_DONE_FILE))
+{
+}
+
+FmdConverter::~FmdConverter()
+{
+  eos_static_info("%s", "msg=\"calling FmdConverter destructor\"");
+  // drain all pending tasks
+  //mExecutor.reset();
+  eos_static_info("%s", "msg=\"calling FmdConverter destructor done\"");
+}
+
 //------------------------------------------------------------------------------
 // Conversion method
 //------------------------------------------------------------------------------
-folly::Future<bool>
-FmdConverter::Convert(eos::common::FileSystem::fsid_t fsid,
-                      std::string_view path)
+bool
+FmdConverter::Convert(eos::common::FileSystem::fsid_t fsid, std::string path)
 {
-  auto fid = eos::common::FileId::PathToFid(path.data());
+  auto fid = eos::common::FileId::PathToFid(path.c_str());
 
   if (!fsid || !fid) {
+    eos_static_info("msg=\"conversion failed invalid fid\" file=%s, fid=%lu",
+                    path.c_str(), fid);
     return false;
   }
 
-  return mTgtFmdHandler->ConvertFrom(fid, fsid, mSrcFmdHandler, true);
+  bool status = mTgtFmdHandler->ConvertFrom(fid, fsid, mSrcFmdHandler, true);
+  eos_static_info("msg=\"conversion done\" file=%s, fid=%lu, status=%d",
+                  path.data(), fid, status);
+  return status;
 }
+
 
 //------------------------------------------------------------------------------
 // Method converting files on a given file system
@@ -96,26 +129,42 @@ FmdConverter::ConvertFS(std::string_view fspath,
     return;
   }
 
+  using future_vector = std::vector<eos::common::OpaqueFuture<bool>>;
+  future_vector futures;
   eos_static_info("msg=\"starting file system conversion\" fsid=%u", fsid);
   std::error_code ec;
   auto count = stdfs::WalkFSTree(std::string(fspath), [this,
-  fsid](std::string path) {
-    this->Convert(fsid, path)
-    .via(mExecutor.get())
-    .thenValue([path = std::move(path)](bool status) {
-      eos_static_info("msg=\"conversion status\" file=%s, status=%d",
-                      path.c_str(),
-                      status);
-    });
+  fsid, &futures](std::string path) {
+    try {
+      auto fut = mExecutorMgr->PushTask([this, fsid, path = std::move(path)]() {
+        return this->Convert(fsid, path);
+      });
+      static_assert(std::is_same_v<eos::common::OpaqueFuture<bool>, decltype(fut)>);
+      futures.emplace_back(std::move(fut));
+    } catch (const std::exception& e) {
+      eos_static_crit("msg=\"failed to push task\" path=%s err=%s", path.c_str(),
+                      e.what());
+    }
   }, ec);
+  size_t success_count = 0;
+
+  try {
+    for (auto && fut : futures) {
+      success_count += fut.getValue();
+    }
+  } catch (const std::exception& e) {
+    eos_static_crit("msg=\"failed to convert file system\" fsid=%u, err=%s",
+                    fsid, e.what());
+  }
 
   if (ec) {
     eos_static_err("msg=\"walking fs tree ran into errors!\" err=%s",
                    ec.message().c_str());
+    return;
   }
 
-  eos_static_info("msg=\"conversion successful, set done marker\" count=%llu",
-                  count);
+  eos_static_info("msg=\"conversion successful, set done marker\" count=%llu success_count=%llu",
+                  count, success_count);
   mDoneHandler->markFSConverted(fspath);
 }
 

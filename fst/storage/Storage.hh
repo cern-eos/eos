@@ -42,6 +42,7 @@ namespace eos
 namespace common
 {
 class TransferQueue;
+class ExecutorMgr;
 }
 }
 
@@ -50,7 +51,7 @@ EOSFSTNAMESPACE_BEGIN
 class Verify;
 class Deletion;
 class FileSystem;
-class FmdConverter;
+
 
 //------------------------------------------------------------------------------
 //! Class Storage
@@ -483,7 +484,7 @@ private:
   AssistedThread mQdbCommunicatorThread;
   std::set<std::string> mLastRoundFilesystems;
   AssistedThread mPublisherThread;
-  std::unique_ptr<FmdConverter> mConverter;
+  std::shared_ptr<eos::common::ExecutorMgr> mConverterExecutor;
 };
 
 EOSFSTNAMESPACE_END

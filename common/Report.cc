@@ -36,6 +36,12 @@ EOSCOMMONNAMESPACE_BEGIN
 //!  @param report
 //!
 //------------------------------------------------------------------------------
+
+static const std::regex lxplus("(lxplus)(.*)(.cern.ch)");
+static const std::regex lxbatch("(b7)(.*)(.cern.ch)");
+static const std::regex
+ipv4("(([0-9]|[1-9][0-9]|1[0-9][0-9]|2[0-4][0-9]|25[0-5])\\.){3}([0-9]|[1-9][0-9]|1[0-9][0-9]|2[0-4][0-9]|25[0-5])");
+
 Report::Report(XrdOucEnv& report)
 {
   ots = report.Get("ots") ? strtoull(report.Get("ots"), 0, 10) : 0;
@@ -106,10 +112,6 @@ Report::Report(XrdOucEnv& report)
   sec_name = report.Get("sec.name") ? report.Get("sec.name") : "";
   sec_host = report.Get("sec.host") ? report.Get("sec.host") : "";
   sec_domain = report.Get("sec.host") ? report.Get("sec.host") : "";
-  std::regex lxplus("(lxplus)(.*)(.cern.ch)");
-  std::regex lxbatch("(b7)(.*)(.cern.ch)");
-  std::regex
-  ipv4("(([0-9]|[1-9][0-9]|1[0-9][0-9]|2[0-4][0-9]|25[0-5])\\.){3}([0-9]|[1-9][0-9]|1[0-9][0-9]|2[0-4][0-9]|25[0-5])");
   dpos = sec_host.find(".");
 
   if (sec_host.front() == '[' &&

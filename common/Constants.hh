@@ -39,6 +39,13 @@ static constexpr auto RETRIEVE_EVICT_COUNTER_NAME =
 static constexpr auto RETRIEVE_ERROR_ATTR_NAME = "sys.retrieve.error";
 //! Archive request failure reason
 static constexpr auto ARCHIVE_ERROR_ATTR_NAME = "sys.archive.error";
+//! Archive file ID
+static constexpr auto ARCHIVE_FILE_ID_ATTR_NAME = "sys.archive.file_id";
+//! Archive storage class
+static constexpr auto ARCHIVE_STORAGE_CLASS_ATTR_NAME =
+  "sys.archive.storage_class";
+//! EOS file btime
+static constexpr auto EOS_BTIME = "sys.eos.btime";
 //! CTA internal objectsore id for archive requests
 static constexpr auto CTA_OBJECTSTORE_ARCHIVE_REQ_ID_NAME =
   "sys.cta.archive.objectstore.id";

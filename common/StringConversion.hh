@@ -108,6 +108,23 @@ public:
   static std::string string_to_hex(const std::string& input);
   static std::string char_to_hex(const char input);
 
+  // ---------------------------------------------------------------------------
+  /**
+   * Convert an integer value to a hex dump string
+   *
+   * @param integer value to dump
+   *
+   * @return hex dumped integer
+   */
+  // ---------------------------------------------------------------------------
+  template<typename T, typename = std::enable_if_t<std::is_integral<T>::value>>
+  static std::string integral_to_hex(const T input)
+  {
+    std::ostringstream hex_oss;
+    hex_oss << std::hex << input;
+    return hex_oss.str();
+  }
+
   //----------------------------------------------------------------------------
   //! Convert binary string given as a char* and length to hex string
   //! representation

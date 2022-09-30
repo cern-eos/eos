@@ -267,7 +267,7 @@ QdbMaster::Supervisor(ThreadAssistant& assistant) noexcept
     old_master_id = GetMasterId();
     new_is_master = AcquireLeaseWithDelay();
     UpdateMasterId(GetLeaseHolder());
-    MasterLog(eos_log(LOG_INFO, "old_is_master=%s, is_master=%s, old_master_id=%s,"
+    MasterLog(eos_log(LOG_DEBUG, "old_is_master=%s, is_master=%s, old_master_id=%s,"
                       " master_id=%s", mIsMaster.load() ? "true" : "false",
                       new_is_master ? "true" : "false",
                       old_master_id.c_str(), GetMasterId().c_str()));

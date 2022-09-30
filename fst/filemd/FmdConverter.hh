@@ -23,10 +23,10 @@
 #include <folly/futures/Future.h>
 #include <memory>
 
-namespace folly
+namespace eos::common
 {
-class Executor;
-} // namespace folly
+class ExecutorMgr;
+}
 
 EOSFSTNAMESPACE_BEGIN
 
@@ -59,21 +59,23 @@ public:
                FmdHandler* tgt_handler,
                size_t per_disk_pool);
 
+  FmdConverter(FmdHandler* src_handler,
+               FmdHandler* tgt_handler,
+               size_t per_disk_pool,
+               std::string_view executor_type);
+
+  FmdConverter(FmdHandler* src_handler,
+               FmdHandler* tgt_handler,
+               std::shared_ptr<eos::common::ExecutorMgr> executor_mgr);
   //----------------------------------------------------------------------------
   //! Destructor
   //----------------------------------------------------------------------------
-  ~FmdConverter()
-  {
-    eos_static_info("%s", "msg=\"calling FmdConverter destructor\"");
-    mExecutor.reset();
-    eos_static_info("%s", "msg=\"calling FmdConverter destructor done\"");
-  }
+  ~FmdConverter();
 
   //----------------------------------------------------------------------------
   // Conversion method
   //----------------------------------------------------------------------------
-  folly::Future<bool> Convert(eos::common::FileSystem::fsid_t fsid,
-                              std::string_view path);
+  bool Convert(eos::common::FileSystem::fsid_t fsid, std::string path);
 
   //----------------------------------------------------------------------------
   // Method converting files on a given file system
@@ -89,7 +91,7 @@ public:
 private:
   FmdHandler* mSrcFmdHandler;
   FmdHandler* mTgtFmdHandler;
-  std::unique_ptr<folly::Executor> mExecutor;
+  std::shared_ptr<eos::common::ExecutorMgr> mExecutorMgr;
   std::unique_ptr<FSConversionDoneHandler> mDoneHandler;
 };
 
