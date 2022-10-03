@@ -29,6 +29,7 @@ This
   "options" : {
     "debug" : 1,
     "debuglevel" : 4,
+    "jsonstats" : 1,
     "backtrace" : 1,
     "libfusethreads" : 0,
     "hide-versions" : 1,
@@ -176,8 +177,18 @@ Please note, that root mounts are by default shared mounts with kerberos configu
 Statistics File
 ---------------
 
-The *stat* file contains rate and execution average time counting.
-
+The *stat* file contains rate and execution average time counting, and other metrics regarding the execution of the eos mount.
+By enabling 'options.jsonstats 'in the mount configuration file one can find `/var/log/eos/fusex/fuse.<name>.stats.json` with the metric in a JSON format, useful to serve as a monitoring input. Checkout the JSON output [here](fusex/fuse.example.stats.json)
+```JSON
+{
+  "name" : "",
+  "hostport" : "localhost:1094",
+  "remotemountdir" : "/eos/",
+  "localmountdir" : "/eos/",
+  "options" : {
+    "jsonstats" : 1
+  }
+}
 ```
 bash> cat /var/log/eos/fusex/fuse.stats
 ALL      Execution Time                   0.00 +- 0.00
