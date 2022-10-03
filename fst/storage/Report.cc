@@ -46,7 +46,6 @@ Storage::Report()
       // send all reports away and dump them into the log
       XrdOucString report = gOFS.ReportQueue.front();
       gOFS.ReportQueueMutex.UnLock();
-      eos_static_info("%s", report.c_str());
       // this type of messages can have no receiver
       mq::MessagingRealm::Response response =
         gOFS.mMessagingRealm->sendMessage("report", report.c_str(),

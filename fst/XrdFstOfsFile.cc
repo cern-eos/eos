@@ -1953,9 +1953,16 @@ XrdFstOfsFile::_close()
       // why we also generate a report at this stage.
       XrdOucString reportString = "";
       MakeReportEnv(reportString);
-      gOFS.ReportQueueMutex.Lock();
-      gOFS.ReportQueue.push(reportString);
-      gOFS.ReportQueueMutex.UnLock();
+      eos_static_info("msg=\"%s\"", reportString.c_str());
+
+      if (eos::common::LayoutId::IsRain(mLid) &&
+          mLayout && !mLayout->IsEntryServer()) {
+        // RAIN non-entry stripes do not report any statistics
+      } else {
+        gOFS.ReportQueueMutex.Lock();
+        gOFS.ReportQueue.push(reportString);
+        gOFS.ReportQueueMutex.UnLock();
+      }
     }
 
     if (deleteOnClose && (!mFusex) &&
