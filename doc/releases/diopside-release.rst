@@ -16,6 +16,25 @@ Introduction
 
 This release is based on XRootD V5.
 
+``v5.1.2 Diopside``
+====================
+
+Bug
+----
+
+* [EOS-5399] - FST: Segfaults in FmdConverter
+* [EOS-5400] - FST crash in AccountMissing due to null Fmd object
+
+Improvement
+------------
+
+* [EOS-3297] - Print the deviation used for the group balancer
+
+New features
+------------
+
+* MGM: Add implementation for central group balancer using TPC
+
 
 ``v5.1.1 Diopside``
 ====================
