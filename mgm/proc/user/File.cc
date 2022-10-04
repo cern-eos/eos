@@ -29,6 +29,7 @@
 #include "mgm/Macros.hh"
 #include "mgm/Policy.hh"
 #include "mgm/Stat.hh"
+#include "mgm/XattrLock.hh"
 #include "common/Path.hh"
 #include "common/LayoutId.hh"
 #include "common/SecEntity.hh"
@@ -1269,32 +1270,52 @@ ProcCommand::File()
       bool useLayout = true;
       bool truncate = false;
       bool absorb = false;
+      bool lock = false;
+      bool unlock = false;
 
       size_t size = 0;
 
       const char* hardlinkpath=0;
       const char* checksuminfo=0;
       std::string errmsg;
-
+      
       if (pOpaque->Get("mgm.file.touch.nolayout")) {
         useLayout = false;
       }
-
+      
       if (pOpaque->Get("mgm.file.touch.truncate")) {
         truncate = true;
       }
-
+      
       if (pOpaque->Get("mgm.file.touch.size")) {
         size = strtoull(pOpaque->Get("mgm.file.touch.size"), 0, 10);
       }
-
+      
       if (pOpaque->Get("mgm.file.touch.absorb")) {
 	absorb = true;
       }
-
+      
+      char* lockop=0;
+      if ( (lockop = pOpaque->Get("mgm.file.touch.lockop")) ) {
+	if (std::string(lockop) == "lock") {
+	  lock = true;
+	  unlock = false;
+	} else if (std::string(lockop) == "unlock") {
+	  unlock = true;
+	  lock = false;
+	} else {
+	  stdErr = "error: invalid lock operation specified - can be either 'lock' or 'unlock' '";
+	  stdErr += lockop;
+	  stdErr += "'";
+	  retc = EINVAL;
+	  return SFS_OK;
+	}
+      }
+      
+      
       hardlinkpath = pOpaque->Get("mgm.file.touch.hardlinkpath");
       checksuminfo = pOpaque->Get("mgm.file.touch.checksuminfo");
-
+      
       if (!spath.length()) {
         stdErr = "error: There is no file with given id! '";
         stdErr += spathid;
@@ -1312,6 +1333,44 @@ ProcCommand::File()
 	  
           retc = errno;
         } else {
+	  if (lock) {
+	    // try to set a xattr lock
+	    XattrLock applock;
+	    if (applock.Lock(spath.c_str(), false , 86400, *pVid)) {
+	      stdOut += "success: created exclusive lock for '";
+	      stdOut += spath.c_str();
+	      stdOut += "'"; 
+	      stdOut += applock.Dump().c_str();
+	    } else {
+	      stdOut += "error: cannot get exclusive lock for '";
+	      stdOut += spath.c_str();
+	      stdOut += "'"; 
+	      stdOut += applock.Dump().c_str();
+	    }
+	  }
+	  if (unlock) {
+	    // try to unlock an xattr lock
+	    XattrLock applock;
+	    if (applock.Unlock(spath.c_str(), *pVid)) {
+	      stdOut += "success: removed exclusive lock for '";
+	      stdOut += spath.c_str();
+	      stdOut += "'"; 
+	      stdOut += applock.Dump().c_str();
+	    } else {
+	      if (errno == ENODATA) {
+		stdOut += "info: there was no exclusive lock for '";
+		stdOut += spath.c_str();
+		stdOut += "'\n";
+	      } else {
+		stdErr += "error: failed to remove exclusive lock for '";
+		stdErr += spath.c_str();
+		stdErr += "'"; 
+		stdErr += applock.Dump().c_str();
+		retc = errno;
+		return SFS_OK;
+	      }
+	    }
+	  }
           stdOut += "success: touched '";
           stdOut += spath.c_str();
           stdOut += "'";
@@ -1322,7 +1381,7 @@ ProcCommand::File()
         }
       }
     }
-
+    
     // -------------------------------------------------------------------------
     // fix the current state of the file layout by removing/repairing or adding
     // replica/stripes

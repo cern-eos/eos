@@ -49,6 +49,7 @@
 #include "mgm/Master.hh"
 #include "mgm/tgc/MultiSpaceTapeGc.hh"
 #include "mgm/utils/AttrHelper.hh"
+#include "mgm/XattrLock.hh"
 #include "namespace/utils/Attributes.hh"
 #include "namespace/Prefetcher.hh"
 #include "namespace/Resolver.hh"
@@ -1443,6 +1444,15 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
         fileId))) {
     // the first 255ms are covered inside hasFlush, otherwise we stall clients for a sec
     return gOFS->Stall(error, 1, "file is currently being flushed");
+  }
+
+  // ---------------------------------------------------------------------------                                     
+  // attribute lock logic, don't allow file opens which have an attr lock                                            
+  // ---------------------------------------------------------------------------                                     
+  XattrLock alock(attrmapF);
+
+  if (alock.foreignLock(vid, isRW)) {
+    return Emsg(epname, error, EWOULDBLOCK, "open file - file has a valid extended attribute lock ", path);
   }
 
   // ---------------------------------------------------------------------------

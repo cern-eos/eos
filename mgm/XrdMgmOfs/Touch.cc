@@ -370,32 +370,41 @@ XrdMgmOfs::_touch(const char* path,
           *errmsg += "'\n";
         }
       } else {
-        if (lsetxattr(linkpath, "user.eos.checksumtype",
-                      checksum_name.c_str(), checksum_name.length(), 0) ||
-            lsetxattr(linkpath, "user.eos.checksum",
-                      xs_binary.get(), out_sz, 0)) {
-          if (errmsg) {
-            *errmsg += "error: failed to store checksum extended attributes on '";
-            *errmsg += linkpath;
-            *errmsg += "'\n";
-          }
-        } else {
-          if (errmsg) {
-            *errmsg += "info: stored checksum '";
-            *errmsg += checksum_name.c_str();
-            *errmsg += ":";
-            *errmsg += xs_hex;
-            *errmsg += "'\n";
-          }
-
+	if (linkpath) {
+	  if (lsetxattr(linkpath, "user.eos.checksumtype",
+			checksum_name.c_str(), checksum_name.length(), 0) ||
+	      lsetxattr(linkpath, "user.eos.checksum",
+			xs_binary.get(), out_sz, 0)) {
+	    if (errmsg) {
+	      *errmsg += "error: failed to store checksum extended attributes on '";
+	      *errmsg += linkpath;
+	      *errmsg += "'\n";
+	    }
+	  } else {
+	    if (errmsg) {
+	      *errmsg += "info: stored checksum '";
+	      *errmsg += checksum_name.c_str();
+	      *errmsg += ":";
+	      *errmsg += xs_hex;
+	      *errmsg += "' for linked path '";
+	      *errmsg += linkpath;
+	      *errmsg += "'\n";
+	    }
+	  }
           // Store this checksum
           eos::Buffer xs_buff;
           xs_buff.putData(xs_binary.get(), SHA256_DIGEST_LENGTH);
           fmd->setChecksum(xs_buff);
+	  
+	  *errmsg += "info: stored checksum '";
+	  *errmsg += checksum_name.c_str();
+	  *errmsg += ":";
+	  *errmsg += xs_hex;
+	  *errmsg += "'\n";
         }
       }
     }
-
+    
     fmd->setMTimeNow();
     eos::IFileMD::ctime_t mtime;
     fmd->getMTime(mtime);

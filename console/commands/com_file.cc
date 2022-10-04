@@ -352,6 +352,14 @@ com_file(char* arg1)
       in += "&mgm.file.touch.absorb=true";
     }
 
+    if (option.find("l") != STR_NPOS) {
+      in += "&mgm.file.touch.lockop=lock";
+    }
+
+    if (option.find("u") != STR_NPOS) {
+      in += "&mgm.file.touch.lockop=unlock";
+    }
+
     if (fsid1.length()) {
       if (fsid1.beginswith("/")) {
 	in += "&mgm.file.touch.hardlinkpath=";
@@ -1098,7 +1106,7 @@ com_file_usage:
   fprintf(stdout,
           "                                                  unlink keeps the location in the list of deleted files e.g. the location get's a deletion request\n");
   fprintf(stdout,
-          "file touch [-a] [-n] [-0] [<path>|fid:<fid-dec>|fxid:<fid-hex>] [linkpath|size] [checksumtype:checksum] :\n");
+          "file touch [-a] [-n] [-0] <path>|fid:<fid-dec>|fxid:<fid-hex> [linkpath|size [hexchecksum]] :\n");
   fprintf(stdout,
           "                                                  create/touch a 0-size/0-replica file if <path> does not exist or update modification time of an existing file to the present time\n");
   fprintf(stdout,
