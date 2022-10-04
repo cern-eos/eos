@@ -236,8 +236,9 @@ DrainTransferJob::BuildTpcSrc(const FileDrainInfo& fdrain,
 
     if (!mForceFs) {
       for (const auto id : fdrain.mProto.locations()) {
-        // First try copying from a location different from the current draining
-        // file system. Make sure we also skip any EOS_TAPE_FSID (65535) replicas.
+        // First try copying from a location different from the current source
+        // file system. Make sure we also skip any EOS_TAPE_FSID (65535)
+        // replicas.
         if ((id != mFsIdSource) && (id != EOS_TAPE_FSID) &&
             (mTriedSrcs.find(id) == mTriedSrcs.end())) {
           mTriedSrcs.insert(id);
@@ -307,7 +308,7 @@ DrainTransferJob::BuildTpcSrc(const FileDrainInfo& fdrain,
       }
 
       if (!found) {
-        ReportError(SSTR("msg=\"source replica not available\" " << "fxid="
+        ReportError(SSTR("msg=\"source stripe not available\" " << "fxid="
                          << eos::common::FileId::Fid2Hex(fdrain.mProto.id())
                          << " fsid=" << mFsIdSource));
         return url_src;
@@ -572,7 +573,8 @@ DrainTransferJob::SelectDstFs(const FileDrainInfo& fdrain)
                (ino64_t) fdrain.mProto.id(),
                NULL, // entrypoints
                NULL, // firewall
-               //@todo(esindril) adjust based on the type of operation
+               // This methods is only called for drain functionality, for
+               // balance we already provide the destination file system
                GeoTreeEngine::draining,
                &existing_repl,
                &fsid_geotags,

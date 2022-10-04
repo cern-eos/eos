@@ -132,7 +132,7 @@ public:
   //! @param drop_src mark if source replica should be dropped if operation
   //!        is successful (default true)
   //! @param app_tag application tag for easy classification of job types
-  //! @param force_fs if tru eforce transfer between given source and
+  //! @param force_fs if true force transfer between given source and
   //!        destination file systems
   //----------------------------------------------------------------------------
   DrainTransferJob(eos::common::FileId::fileid_t fid,
@@ -289,8 +289,9 @@ private:
   std::vector<eos::common::FileSystem::fsid_t> mExcludeDsts; ///< Excluded dest.
   bool mRainReconstruct; ///< Mark rain reconstruction
   bool mDropSrc; ///< Mark if source replicas should be dropped
-  //@todo(esindril) rename this to be more clear; mBalanceBehaviour ?!
-  bool mForceFs; ///< Mark if tx is forced between src/dst file systems
+  //! Mark if tx is forced between src/dst file systems, this happends for
+  //! balancer transfers
+  bool mForceFs;
   DrainProgressHandler mProgressHandler; ///< TPC progress handler
 };
 
