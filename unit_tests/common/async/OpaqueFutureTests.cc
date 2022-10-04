@@ -18,6 +18,7 @@
 
 
 #include "common/async/OpaqueFuture.hh"
+#include "unit_tests/common/async/FollyExecutorFixture.hh"
 #include <gtest/gtest.h>
 #include <folly/executors/CPUThreadPoolExecutor.h>
 using eos::common::OpaqueFuture;
@@ -124,10 +125,9 @@ TEST(OpaqueFuture, StdFutureWait)
   EXPECT_EQ(f.getValue(), 102334155);
 }
 
-TEST(OpaqueFuture, follyFutureWait)
+TEST_F(FollyExecutor_F, follyOpaqueFutureWait)
 {
-  auto executor = folly::CPUThreadPoolExecutor(1);
-  auto f = folly::makeFuture().via(&executor).then([](auto&&) {
+  auto f = folly::makeFuture().via(folly_executor.get()).then([](auto&&) {
     return fib(40);
   });
   OpaqueFuture<int> of(std::move(f));

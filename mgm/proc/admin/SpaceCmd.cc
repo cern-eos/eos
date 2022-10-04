@@ -35,6 +35,9 @@
 #include "mgm/config/IConfigEngine.hh"
 #include "mgm/GroupBalancer.hh"
 #include "mgm/GroupDrainer.hh"
+#include "mgm/balancer/FsBalancer.hh"
+#include "namespace/interface/IChLogFileMDSvc.hh"
+#include "namespace/interface/IChLogContainerMDSvc.hh"
 #include "namespace/interface/IFsView.hh"
 #include "namespace/interface/IContainerMDSvc.hh"
 #include "namespace/interface/IView.hh"
@@ -44,6 +47,7 @@
 #include "common/token/EosTok.hh"
 
 EOSMGMNAMESPACE_BEGIN
+static const std::string BALANCER_KEY_PREFIX = "balancer";
 static const std::string GROUPBALANCER_KEY_PREFIX = "groupbalancer";
 static const std::string GROUPDRAINER_KEY_PREFIX = "groupdrainer";
 
@@ -574,651 +578,641 @@ void SpaceCmd::DefineSubcmd(const eos::console::SpaceProto_DefineProto& define,
 void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config,
                             eos::console::ReplyProto& reply)
 {
-  std::ostringstream std_out, std_err;
-  int ret_c = 0;
-  std::string key = config.mgmspace_key();
-  std::string value = config.mgmspace_value();
-
   if (mVid.uid != 0) {
     reply.set_std_err("error: you have to take role 'root' to execute this command");
     reply.set_retc(EPERM);
     return;
   }
 
-  if (config.mgmspace_name().empty() || config.mgmspace_key().empty() ||
-      config.mgmspace_value().empty()) {
+  int ret_c = 0;
+  std::ostringstream std_out, std_err;
+  const std::string space_name = config.mgmspace_name();
+  std::string key = config.mgmspace_key();
+  std::string value = config.mgmspace_value();
+
+  if (space_name.empty() || key.empty() || value.empty()) {
     reply.set_std_err("error: illegal parameters");
     reply.set_retc(EINVAL);
     return;
   }
 
-  eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
-  FileSystem* fs = nullptr;
-  // by host:port name
   bool applied = false;
+  FileSystem* fs = nullptr;
+  eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
+  auto it_space = FsView::gFsView.mSpaceView.find(space_name);
 
-  if (FsView::gFsView.mSpaceView.count(config.mgmspace_name())) {
-    if (!strcmp(mgm::rest::TAPE_REST_API_SWITCH_ON_OFF, key.c_str())) {
-      applied = true;
+  if ((it_space == FsView::gFsView.mSpaceView.end()) ||
+      (it_space->second == nullptr)) {
+    ret_c = EINVAL;
+    std_err.str("error: cannot find space <" + space_name + ">");
+    reply.set_std_err(std_err.str());
+    reply.set_retc(ret_c);
+    return;
+  }
 
-      //REST API activation
-      if ((value != "on") && (value != "off")) {
-        ret_c = EINVAL;
-        std_err.str("error: value has to either on or off");
+  FsSpace* space = it_space->second;
+
+  if (!strcmp(mgm::rest::TAPE_REST_API_SWITCH_ON_OFF, key.c_str())) {
+    applied = true;
+
+    //REST API activation
+    if ((value != "on") && (value != "off")) {
+      ret_c = EINVAL;
+      std_err.str("error: value has to either on or off");
+    } else {
+      if (space_name != "default") {
+        ret_c = EIO;
+        std_err.str("error: the tape REST API can only be enabled or disabled on the default space");
       } else {
-        const std::string& spaceName = config.mgmspace_name();
-
-        if (spaceName != "default") {
+        if (!space->SetConfigMember(key, value)) {
           ret_c = EIO;
-          std_err.str("error: the tape REST API can only be enabled or disabled on the default space");
+          std_err.str("error: cannot set space config value");
         } else {
-          if (!FsView::gFsView.mSpaceView[spaceName]->SetConfigMember(key, value)) {
-            ret_c = EIO;
-            std_err.str("error: cannot set space config value");
-          } else {
-            auto config = gOFS->mRestApiManager->getTapeRestApiConfig();
+          auto config = gOFS->mRestApiManager->getTapeRestApiConfig();
 
-            if (value == "on") {
-              if (!config->isActivated()) {
-                // Stage should be deactivated by default
-                if (!FsView::gFsView.mSpaceView[spaceName]->SetConfigMember(
-                      rest::TAPE_REST_API_STAGE_SWITCH_ON_OFF, "off")) {
-                  ret_c = EIO;
-                  std_err.str("error: cannot set space config value");
-                } else {
-                  config->setActivated(true);
-                  config->setStageEnabled(false);
-                  std_out << "success: Tape REST API enabled";
-                }
-              } else {
-                std_out << "The tape REST API is already enabled";
-              }
-            } else {
-              //Switch off the tape REST API
-              //Also switch off the STAGE resource
-              if (!FsView::gFsView.mSpaceView[spaceName]->SetConfigMember(
-                    rest::TAPE_REST_API_STAGE_SWITCH_ON_OFF, "off")) {
+          if (value == "on") {
+            if (!config->isActivated()) {
+              // Stage should be deactivated by default
+              if (!space->SetConfigMember(rest::TAPE_REST_API_STAGE_SWITCH_ON_OFF, "off")) {
                 ret_c = EIO;
                 std_err.str("error: cannot set space config value");
               } else {
-                config->setActivated(false);
+                config->setActivated(true);
                 config->setStageEnabled(false);
-                std_out << "success: Tape REST API disabled";
+                std_out << "success: Tape REST API enabled";
               }
+            } else {
+              std_out << "The tape REST API is already enabled";
+            }
+          } else {
+            //Switch off the tape REST API
+            //Also switch off the STAGE resource
+            if (!space->SetConfigMember(
+                  rest::TAPE_REST_API_STAGE_SWITCH_ON_OFF, "off")) {
+              ret_c = EIO;
+              std_err.str("error: cannot set space config value");
+            } else {
+              config->setActivated(false);
+              config->setStageEnabled(false);
+              std_out << "success: Tape REST API disabled";
             }
           }
         }
       }
     }
+  }
 
-    if (!strcmp(mgm::rest::TAPE_REST_API_STAGE_SWITCH_ON_OFF, key.c_str())) {
-      applied = true;
+  if (!strcmp(mgm::rest::TAPE_REST_API_STAGE_SWITCH_ON_OFF, key.c_str())) {
+    applied = true;
 
-      //REST API activation
-      if ((value != "on") && (value != "off")) {
-        ret_c = EINVAL;
-        std_err.str("error: value has to either on or off");
+    //REST API activation
+    if ((value != "on") && (value != "off")) {
+      ret_c = EINVAL;
+      std_err.str("error: value has to either on or off");
+    } else {
+      if (space_name != "default") {
+        ret_c = EIO;
+        std_err.str("error: the tape REST API STAGE resource can only be enabled or disabled on the default space");
       } else {
-        const std::string& spaceName = config.mgmspace_name();
-
-        if (spaceName != "default") {
+        if (!space
+            ->SetConfigMember(key, value)) {
           ret_c = EIO;
-          std_err.str("error: the tape REST API STAGE resource can only be enabled or disabled on the default space");
+          std_err.str("error: cannot set space config value");
         } else {
-          if (!FsView::gFsView.mSpaceView[spaceName]
-              ->SetConfigMember(key, value)) {
-            ret_c = EIO;
-            std_err.str("error: cannot set space config value");
+          if (value == "on") {
+            gOFS->mRestApiManager->getTapeRestApiConfig()->setStageEnabled(true);
+            std_out << "success: Tape REST API STAGE resource enabled";
           } else {
-            if (value == "on") {
-              gOFS->mRestApiManager->getTapeRestApiConfig()->setStageEnabled(true);
-              std_out << "success: Tape REST API STAGE resource enabled";
-            } else {
-              gOFS->mRestApiManager->getTapeRestApiConfig()->setStageEnabled(false);
-              std_out << "success: Tape REST API STAGE resource disabled";
-            }
+            gOFS->mRestApiManager->getTapeRestApiConfig()->setStageEnabled(false);
+            std_out << "success: Tape REST API STAGE resource disabled";
           }
         }
       }
     }
+  }
 
-    // set a space related parameter
-    if (!key.compare(0, 6, "space.")) {
-      key.erase(0, 6);
+  // set a space related parameter
+  if (!key.compare(0, 6, "space.")) {
+    key.erase(0, 6);
 
-      if (eos::common::startsWith(key, "policy.") ||
-          eos::common::startsWith(key, "local.policy.")) {
-        if (value == "remove") {
-          applied = true;
-
-          if ((key == "policy.recycle")) {
-            gOFS->enforceRecycleBin = false;
-          }
-
-          if (!FsView::gFsView.mSpaceView[config.mgmspace_name()]->DeleteConfigMember(
-                key)) {
-            ret_c = ENOENT;
-            std_err.str("error: key has not been deleted");
-          } else {
-            std_out.str("success: removed space policy '" + key + "'\n");
-          }
-        } else {
-          applied = true;
-
-          // set a space policy parameters e.g. default placement attributes
-          if (!FsView::gFsView.mSpaceView[config.mgmspace_name()]->SetConfigMember(key,
-              value)) {
-            std_err.str("error: cannot set space config value");
-            ret_c = EIO;
-          } else {
-            std_out.str("success: configured policy in space='" + config.mgmspace_name() +
-                        "' as " + key + "='" + value + "'\n");
-            ret_c = 0;
-          }
-
-          if ((key == "policy.recycle")) {
-            if (value == "on") {
-              gOFS->enforceRecycleBin = true;
-            } else {
-              gOFS->enforceRecycleBin = false;
-            }
-          }
-        }
-      } else if (key == eos::mgm::tgc::TGC_NAME_FREE_BYTES_SCRIPT) {
+    if (eos::common::startsWith(key, "policy.") ||
+        eos::common::startsWith(key, "local.policy.")) {
+      if (value == "remove") {
         applied = true;
 
-        if (!FsView::gFsView.mSpaceView[config.mgmspace_name()]->SetConfigMember(key,
-            value)) {
+        if ((key == "policy.recycle")) {
+          gOFS->enforceRecycleBin = false;
+        }
+
+        if (!space->DeleteConfigMember(key)) {
+          ret_c = ENOENT;
+          std_err.str("error: key has not been deleted");
+        } else {
+          std_out.str("success: removed space policy '" + key + "'\n");
+        }
+      } else {
+        applied = true;
+
+        // set a space policy parameters e.g. default placement attributes
+        if (!space->SetConfigMember(key, value)) {
           std_err.str("error: cannot set space config value");
           ret_c = EIO;
         } else {
-          std_out.str("success: configured policy in space='" + config.mgmspace_name() +
+          std_out.str("success: configured policy in space='" + space_name +
                       "' as " + key + "='" + value + "'\n");
           ret_c = 0;
         }
-      } else if (key == "groupbalancer.engine") {
-        applied = true;
 
-        if (GroupBalancer::is_valid_engine(value)) {
-          if (!FsView::gFsView.mSpaceView[config.mgmspace_name()]->SetConfigMember(key,
-              value)) {
-            std_err.str("error: cannot set space config value");
-            ret_c = EIO;
+        if ((key == "policy.recycle")) {
+          if (value == "on") {
+            gOFS->enforceRecycleBin = true;
           } else {
-            std_out.str("success: configured groupbalancer.engine in space='" +
-                        config.mgmspace_name() + "' as " + key + "='" + value + "'\n");
-            ret_c = 0;
-          }
-        } else {
-          std_err.str("error: invalid groupbalancer engine name");
-          ret_c = EINVAL;
-        }
-      } else {
-        if ((key == "nominalsize") ||
-            (key == "headroom") ||
-            (key == "graceperiod") ||
-            (key == "drainperiod") ||
-            (key == "balancer") ||
-            (key == "balancer.node.rate") ||
-            (key == "balancer.node.ntx") ||
-            (key == "drainer.node.rate") ||
-            (key == "drainer.node.ntx") ||
-            (key == "drainer.node.nfs") ||
-            (key == "drainer.retries") ||
-            (key == "drainer.fs.ntx") ||
-            (key == "converter") ||
-            (key == "tracker") ||
-            (key == "inspector") ||
-            (key == "inspector.interval") ||
-            (key == "lru") ||
-            (key == "lru.interval") ||
-            (key == "wfe") ||
-            (key == "wfe.interval") ||
-            (key == "wfe.ntx") ||
-            (key == "converter.ntx") ||
-            (key == "groupbalancer") ||
-            (key == "groupbalancer.ntx") ||
-            (key == "groupbalancer.threshold") ||
-            (key == "groupbalancer.min_threshold") ||
-            (key == "groupbalancer.max_threshold") ||
-            (key == "groupbalancer.min_file_size") ||
-            (key == "groupbalancer.max_file_size") ||
-            (key == "groupbalancer.file_attempts") ||
-            (key == "geobalancer") ||
-            (key == "geobalancer.ntx") ||
-            (key == "geobalancer.threshold") ||
-            (key == "groupdrainer") ||
-            (key == "groupdrainer.threshold") ||
-            (key == "groupdrainer.group_refresh_interval") ||
-            (key == "groupdrainer.retry_interval") ||
-            (key == "groupdrainer.retry_count") ||
-            (key == "groupdrainer.ntx") ||
-            (key == "geo.access.policy.read.exact") ||
-            (key == "geo.access.policy.write.exact") ||
-            (key == "filearchivedgc") ||
-            (key == "max.ropen") ||
-            (key == "max.wopen") ||
-            (key == eos::mgm::tgc::TGC_NAME_QRY_PERIOD_SECS) ||
-            (key == eos::mgm::tgc::TGC_NAME_AVAIL_BYTES) ||
-            (key == eos::mgm::tgc::TGC_NAME_TOTAL_BYTES) ||
-            (key == "token.generation") ||
-            (key == "balancer.threshold") ||
-            (key == eos::common::SCAN_IO_RATE_NAME) ||
-            (key == eos::common::SCAN_ENTRY_INTERVAL_NAME) ||
-            (key == eos::common::SCAN_DISK_INTERVAL_NAME) ||
-            (key == eos::common::SCAN_NS_INTERVAL_NAME) ||
-            (key == eos::common::SCAN_NS_RATE_NAME) ||
-            (key == eos::common::FSCK_REFRESH_INTERVAL_NAME)) {
-          // Fix for the rare case someone sends this command at startup wherein
-          // the various subcomponents aren't initialized yet. In case of these
-          // we call the reconfigure() method, so we need to make sure that the component
-          // exists beforehand
-          if ((eos::common::startsWith(key, "groupdrainer") &&
-               !FsView::gFsView.mSpaceView[config.mgmspace_name()]->mGroupDrainer) ||
-              (eos::common::startsWith(key, "groupbalancer") &&
-               !FsView::gFsView.mSpaceView[config.mgmspace_name()]->mGroupBalancer)) {
-            reply.set_std_err("Component not initialized, please wait!");
-            reply.set_retc(EIO);
-            return;
-          }
-
-          if ((key == "balancer") || (key == "converter") || (key == "tracker") ||
-              (key == "inspector") || (key == "lru") ||
-              (key == "groupbalancer") || (key == "geobalancer") ||
-              (key == "geo.access.policy.read.exact") ||
-              (key == "geo.access.policy.write.exact") ||
-              (key == "filearchivedgc") ||
-              (key == "groupdrainer")) {
-            applied = true;
-
-            if ((value != "on") && (value != "off")) {
-              ret_c = EINVAL;
-              std_err.str("error: value has to either on or off");
-            } else {
-              if (!FsView::gFsView.mSpaceView[config.mgmspace_name()]->SetConfigMember(key,
-                  value)) {
-                ret_c = EIO;
-                std_err.str("error: cannot set space config value");
-              } else {
-                if (key == "balancer") {
-                  if (value == "on") {
-                    std_out << "success: balancer is enabled!";
-                  } else {
-                    std_out << "success: balancer is disabled!";
-                  }
-                }
-
-                if (key == "converter") {
-                  if (value == "on") {
-                    std_out << "success: converter is enabled!";
-                  } else {
-                    std_out << "success: converter is disabled!";
-                  }
-                }
-
-                if (key == "tracker") {
-                  if (value == "on") {
-                    gOFS->mReplicationTracker->enable();
-                    std_out << "success: tracker is enabled!";
-                  } else {
-                    gOFS->mReplicationTracker->disable();
-                    std_out << "success: tracker is disabled!";
-                  }
-                }
-
-                if (key == "inspector") {
-                  if (value == "on") {
-                    gOFS->mFileInspector->enable();
-                    std_out << "success: file inspector is enabled!";
-                  } else {
-                    gOFS->mFileInspector->disable();
-                    std_out << "success: file inspector is disabled!";
-                  }
-                }
-
-                if (key == "groupbalancer") {
-                  if (value == "on") {
-                    std_out << "success: groupbalancer is enabled!";
-                  } else {
-                    std_out << "success: groupbalancer is disabled!";
-                  }
-
-                  FsView::gFsView.mSpaceView[config.mgmspace_name()]->mGroupBalancer->reconfigure();
-                }
-
-                if (key == "geobalancer") {
-                  if (value == "on") {
-                    std_out << "success: geobalancer is enabled!";
-                  } else {
-                    std_out << "success: geobalancer is disabled!";
-                  }
-                }
-
-                if (key == "groupdrainer") {
-                  if (value == "on") {
-                    std_out << "success: groupdrainer is enabled!";
-                  } else {
-                    std_out << "success: groupdrainer is disabled!";
-                  }
-
-                  FsView::gFsView.mSpaceView[config.mgmspace_name()]->mGroupDrainer->reconfigure();
-                }
-
-                if (key == "geo.access.policy.read.exact") {
-                  if (value == "on") {
-                    std_out <<
-                            "success: geo access policy prefers the exact geo matching replica for reading!";
-                  } else {
-                    std_out <<
-                            "success: geo access policy prefers with a weight the geo matching replica for reading!";
-                  }
-                }
-
-                if (key == "geo.access.policy.write.exact") {
-                  if (value == "on") {
-                    std_out <<
-                            "success: geo access policy prefers the exact geo matching replica for placements!";
-                  } else {
-                    std_out <<
-                            "success: geo access policy prefers with a weight the geo matching replica for placements!";
-                  }
-                }
-
-                if (key == "scheduler.skip.overloaded") {
-                  if (value == "on") {
-                    std_out << "success: scheduler skips overloaded eth-out nodes!";
-                  } else {
-                    std_out << "success: scheduler does not skip overloaded eth-out nodes!";
-                  }
-                }
-
-                if (key == "filearchivedgc") {
-                  if (value == "on") {
-                    std_out << "success: 'file archived' garbage collector is enabled";
-                  } else {
-                    std_out << "success: 'file archived' garbage collector is disabled";
-                  }
-                }
-
-                if (key == "lru") {
-                  std_out << ((value == "on") ? "success: LRU is enabled" :
-                              "success: LRU is disabled");
-                  gOFS->mLRUEngine->RefreshOptions();
-                }
-              }
-            }
-          } else if (key == "wfe") {
-            applied = true;
-
-            if ((value != "on") && (value != "off") && (value != "paused")) {
-              ret_c = EINVAL;
-              std_err.str("error: value has to either on, paused or off");
-            } else {
-              if (!FsView::gFsView.mSpaceView[config.mgmspace_name()]->SetConfigMember(key,
-                  value)) {
-                ret_c = EIO;
-                std_err.str("error: cannot set space config value");
-              } else {
-                std::string status = (value == "on") ? "enabled" :
-                                     (value == "off" ? "disabled" : "paused");
-                std_out << "success: wfe is " << status << "!";
-              }
-            }
-          } else {
-            if (value == "remove") {
-              applied = true;
-
-              if (!FsView::gFsView.mSpaceView[config.mgmspace_name()]->DeleteConfigMember(
-                    key)) {
-                ret_c = ENOENT;
-                std_err.str("error: key has not been deleted");
-              } else {
-                std_out.str("success: deleted space config : " + key);
-              }
-            } else {
-              errno = 0;
-              unsigned long long size = eos::common::StringConversion::GetSizeFromString(
-                                          value.c_str());
-              applied = true;
-
-              if (!errno) {
-                if ((key != "balancer.threshold") &&
-                    (key != "geobalancer.threshold") &&
-                    (key != "groupbalancer.threshold") &&
-                    (key != "groupbalancer.min_threshold") &&
-                    (key != "groupbalancer.max_threshold") &&
-                    (key != "groupdrainer.threshold")) {
-                  // the threshold is allowed to be decimal!
-                  char ssize[1024];
-                  snprintf(ssize, sizeof(ssize) - 1, "%llu", size);
-                  value = ssize;
-                }
-
-                if (!FsView::gFsView.mSpaceView[config.mgmspace_name()]->SetConfigMember(key,
-                    value)) {
-                  ret_c = EIO;
-                  std_err.str("error: cannot set space config value");
-                } else {
-                  std_out.str("success: setting " + key + "=" + value);
-
-                  if ((key == "token.generation")) {
-                    eos::common::EosTok::sTokenGeneration = strtoull(value.c_str(), 0, 0);
-                  }
-
-                  if (key == "lru.interval") {
-                    gOFS->mLRUEngine->RefreshOptions();
-                  }
-
-                  if (eos::common::startsWith(key, GROUPBALANCER_KEY_PREFIX)) {
-                    FsView::gFsView.mSpaceView[config.mgmspace_name()]->mGroupBalancer->reconfigure();
-                  } else if (eos::common::startsWith(key, GROUPDRAINER_KEY_PREFIX)) {
-                    FsView::gFsView.mSpaceView[config.mgmspace_name()]->mGroupDrainer->reconfigure();
-                  }
-                }
-              } else {
-                ret_c = EINVAL;
-                std_err.str("error: value has to be a positive number");
-              }
-            }
+            gOFS->enforceRecycleBin = false;
           }
         }
       }
-    }
-
-    // Set a bandwidth limitation parameter
-    if (!key.compare(0, 3, "bw.")) {
+    } else if (key == eos::mgm::tgc::TGC_NAME_FREE_BYTES_SCRIPT) {
       applied = true;
 
-      if (value == "remove") {
-        if (!FsView::gFsView.mSpaceView[config.mgmspace_name()]->DeleteConfigMember(
-              key)) {
-          ret_c = ENOENT;
-          std_err.str("error: key has not been deleted");
+      if (!space->SetConfigMember(key, value)) {
+        std_err.str("error: cannot set space config value");
+        ret_c = EIO;
+      } else {
+        std_out.str("success: configured policy in space='" + space_name +
+                    "' as " + key + "='" + value + "'\n");
+        ret_c = 0;
+      }
+    } else if (key == "groupbalancer.engine") {
+      applied = true;
+
+      if (GroupBalancer::is_valid_engine(value)) {
+        if (!space->SetConfigMember(key, value)) {
+          std_err.str("error: cannot set space config value");
+          ret_c = EIO;
         } else {
-          std_out.str("success: deleted stream  bandwidth setting: " + key);
+          std_out.str("success: configured groupbalancer.engine in space='" +
+                      space_name + "' as " + key + "='" + value + "'\n");
+          ret_c = 0;
         }
       } else {
-        if (!FsView::gFsView.mSpaceView[config.mgmspace_name()]->SetConfigMember(key,
-            value)) {
-          ret_c = EIO;
-          std_err.str("error: cannot set space config value");
-        } else {
-          std_out.str("success: defining stream bandwidth limitation: " + key + "=" +
-                      value);
-        }
+        std_err.str("error: invalid groupbalancer engine name");
+        ret_c = EINVAL;
       }
-    }
-
-    // Set iopriority parameter
-    if (!key.compare(0, 11, "iopriority.")) {
-      applied = true;
-
-      if (value == "remove") {
-        if (!FsView::gFsView.mSpaceView[config.mgmspace_name()]->DeleteConfigMember(
-              key)) {
-          ret_c = ENOENT;
-          std_err.str("error: key has not been deleted");
-        } else {
-          std_out.str("success: deleted iopriority setting: " + key);
-        }
-      } else {
-        if (!FsView::gFsView.mSpaceView[config.mgmspace_name()]->SetConfigMember(key,
-            value)) {
-          ret_c = EIO;
-          std_err.str("error: cannot set space config value");
-        } else {
-          std_out.str("success: defining space iopriority: " + key + "=" + value);
-        }
-      }
-    }
-
-    // Set iotype parameter
-    if (!key.compare(0, 7, "iotype.")) {
-      applied = true;
-
-      if (value == "remove") {
-        if (!FsView::gFsView.mSpaceView[config.mgmspace_name()]->DeleteConfigMember(
-              key)) {
-          ret_c = ENOENT;
-          std_err.str("error: key has not been deleted");
-        } else {
-          std_out.str("success: deleted iotype setting: " + key);
-        }
-      } else {
-        if (!FsView::gFsView.mSpaceView[config.mgmspace_name()]->SetConfigMember(key,
-            value)) {
-          ret_c = EIO;
-          std_err.str("error: cannot set space config value");
-        } else {
-          std_out.str("success: defining space iotype: " + key + "=" + value);
-        }
-      }
-    }
-
-    // Set schedule parameter
-    if (!key.compare(0, 9, "schedule.")) {
-      applied = true;
-
-      if (value == "remove") {
-        if (!FsView::gFsView.mSpaceView[config.mgmspace_name()]->DeleteConfigMember(
-              key)) {
-          ret_c = ENOENT;
-          std_err.str("error: key has not been deleted");
-        } else {
-          std_out.str("success: deleted application scheduling setting: " + key);
-        }
-      } else {
-        if (!FsView::gFsView.mSpaceView[config.mgmspace_name()]->SetConfigMember(key,
-            value)) {
-          ret_c = EIO;
-          std_err.str("error: cannot set space config value");
-        } else {
-          std_out.str("success: defining space scheduling: " + key + "=" + value);
-        }
-      }
-    }
-
-    // Set a filesystem related parameter
-    if (!key.compare(0, 3, "fs.")) {
-      applied = true;
-      key.erase(0, 3);
-      // we disable the autosave, do all the updates and then switch back
-      // to autosave and evt. save all changes
-      gOFS->ConfEngine->SetAutoSave(false);
-
-      // Store these as a global parameters of the space
-      if ((key == "headroom") || (key == "graceperiod") || (key == "drainperiod") ||
-          (key == "max.ropen") || (key == "max.wopen") ||
+    } else {
+      if ((key == "nominalsize") ||
+          (key == "headroom") ||
+          (key == "graceperiod") ||
+          (key == "drainperiod") ||
+          (key == "balancer") ||
+          (key == "balancer.threshold") ||
+          (key == "balancer.node.rate") ||
+          (key == "balancer.node.ntx") ||
+          (key == "drainer.node.rate") ||
+          (key == "drainer.node.ntx") ||
+          (key == "drainer.node.nfs") ||
+          (key == "drainer.retries") ||
+          (key == "drainer.fs.ntx") ||
+          (key == "converter") ||
+          (key == "tracker") ||
+          (key == "inspector") ||
+          (key == "inspector.interval") ||
+          (key == "lru") ||
+          (key == "lru.interval") ||
+          (key == "wfe") ||
+          (key == "wfe.interval") ||
+          (key == "wfe.ntx") ||
+          (key == "converter.ntx") ||
+          (key == "groupbalancer") ||
+          (key == "groupbalancer.ntx") ||
+          (key == "groupbalancer.threshold") ||
+          (key == "groupbalancer.min_threshold") ||
+          (key == "groupbalancer.max_threshold") ||
+          (key == "groupbalancer.min_file_size") ||
+          (key == "groupbalancer.max_file_size") ||
+          (key == "groupbalancer.file_attempts") ||
+          (key == "geobalancer") ||
+          (key == "geobalancer.ntx") ||
+          (key == "geobalancer.threshold") ||
+          (key == "groupdrainer") ||
+          (key == "groupdrainer.threshold") ||
+          (key == "groupdrainer.group_refresh_interval") ||
+          (key == "groupdrainer.retry_interval") ||
+          (key == "groupdrainer.retry_count") ||
+          (key == "groupdrainer.ntx") ||
+          (key == "geo.access.policy.read.exact") ||
+          (key == "geo.access.policy.write.exact") ||
+          (key == "filearchivedgc") ||
+          (key == "max.ropen") ||
+          (key == "max.wopen") ||
+          (key == eos::mgm::tgc::TGC_NAME_QRY_PERIOD_SECS) ||
+          (key == eos::mgm::tgc::TGC_NAME_AVAIL_BYTES) ||
+          (key == eos::mgm::tgc::TGC_NAME_TOTAL_BYTES) ||
+          (key == "token.generation") ||
           (key == eos::common::SCAN_IO_RATE_NAME) ||
           (key == eos::common::SCAN_ENTRY_INTERVAL_NAME) ||
           (key == eos::common::SCAN_DISK_INTERVAL_NAME) ||
           (key == eos::common::SCAN_NS_INTERVAL_NAME) ||
           (key == eos::common::SCAN_NS_RATE_NAME) ||
           (key == eos::common::FSCK_REFRESH_INTERVAL_NAME)) {
-        unsigned long long size = eos::common::StringConversion::GetSizeFromString(
-                                    value.c_str());
-        char ssize[1024];
-        snprintf(ssize, sizeof(ssize) - 1, "%llu", size);
+        // Fix for the rare case someone sends this command at startup wherein
+        // the various subcomponents aren't initialized yet. In case of these
+        // we call the reconfigure() method, so we need to make sure that the component
+        // exists beforehand
+        if ((eos::common::startsWith(key, "groupdrainer") &&
+             !space->mGroupDrainer) ||
+            (eos::common::startsWith(key, "groupbalancer") &&
+             !space->mGroupBalancer)) {
+          reply.set_std_err("error: component not initialized yet");
+          reply.set_retc(EIO);
+          return;
+        }
 
-        if (value == "remove") {
-          if (!FsView::gFsView.mSpaceView[config.mgmspace_name()]->DeleteConfigMember(
-                key)) {
-            ret_c = ENOENT;
-          } else {
-            std_out.str("success: deleting " + key);
-          }
-        } else {
-          if ((!FsView::gFsView.mSpaceView[config.mgmspace_name()]->SetConfigMember(key,
-               ssize))) {
-            std_err << "error: failed to set space parameter <" + key + ">\n";
+        if ((key == "balancer") ||
+            (key == "converter") ||
+            (key == "tracker") ||
+            (key == "inspector") ||
+            (key == "lru") ||
+            (key == "groupbalancer") ||
+            (key == "geobalancer") ||
+            (key == "geo.access.policy.read.exact") ||
+            (key == "geo.access.policy.write.exact") ||
+            (key == "filearchivedgc") ||
+            (key == "groupdrainer")) {
+          applied = true;
+
+          if ((value != "on") && (value != "off")) {
             ret_c = EINVAL;
+            std_err.str("error: value has to either on or off");
           } else {
-            std_out.str("success: setting " + key + "=" + value);
-          }
-        }
-      } else {
-        if (key != "configstatus") {
-          std_err << "error: not an allowed parameter <" + key + ">\n";
-          ret_c = EINVAL;
-        }
-      }
+            if (!space->SetConfigMember(key, value)) {
+              ret_c = EIO;
+              std_err.str("error: cannot set space config value");
+            } else {
+              if (key == "balancer") {
+                if (value == "on") {
+                  std_out << "success: balancer is enabled!";
+                } else {
+                  std_out << "success: balancer is disabled!";
+                }
 
-      for (auto it = FsView::gFsView.mSpaceView[config.mgmspace_name()]->begin();
-           it != FsView::gFsView.mSpaceView[config.mgmspace_name()]->end(); ++it) {
-        fs = FsView::gFsView.mIdView.lookupByID(*it);
-
-        if (fs) {
-          // check the allowed strings
-          if (((key == "configstatus") &&
-               (eos::common::FileSystem::GetConfigStatusFromString(value.c_str()) !=
-                eos::common::ConfigStatus::kUnknown))) {
-            fs->SetString(key.c_str(), value.c_str());
-            FsView::gFsView.StoreFsConfig(fs, false);
-          } else {
-            errno = 0;
-            eos::common::StringConversion::GetSizeFromString(value.c_str());
-
-            if (((key == "headroom") || (key == "graceperiod") || (key == "drainperiod") ||
-                 (key == "max.ropen") || (key == "max.wopen") ||
-                 (key == eos::common::SCAN_IO_RATE_NAME) ||
-                 (key == eos::common::SCAN_ENTRY_INTERVAL_NAME) ||
-                 (key == eos::common::SCAN_DISK_INTERVAL_NAME) ||
-                 (key == eos::common::SCAN_NS_INTERVAL_NAME) ||
-                 (key == eos::common::SCAN_NS_RATE_NAME) ||
-                 (key == eos::common::FSCK_REFRESH_INTERVAL_NAME)) && (!errno)) {
-              if (value == "remove") {
-                fs->RemoveKey(key.c_str());
-              } else {
-                fs->SetLongLong(key.c_str(),
-                                eos::common::StringConversion::GetSizeFromString(value.c_str()));
+                space->mFsBalancer->SignalConfigUpdate();
               }
 
-              FsView::gFsView.StoreFsConfig(fs, false);
+              if (key == "converter") {
+                if (value == "on") {
+                  std_out << "success: converter is enabled!";
+                } else {
+                  std_out << "success: converter is disabled!";
+                }
+              }
+
+              if (key == "tracker") {
+                if (value == "on") {
+                  gOFS->mReplicationTracker->enable();
+                  std_out << "success: tracker is enabled!";
+                } else {
+                  gOFS->mReplicationTracker->disable();
+                  std_out << "success: tracker is disabled!";
+                }
+              }
+
+              if (key == "inspector") {
+                if (value == "on") {
+                  gOFS->mFileInspector->enable();
+                  std_out << "success: file inspector is enabled!";
+                } else {
+                  gOFS->mFileInspector->disable();
+                  std_out << "success: file inspector is disabled!";
+                }
+              }
+
+              if (key == "groupbalancer") {
+                if (value == "on") {
+                  std_out << "success: groupbalancer is enabled!";
+                } else {
+                  std_out << "success: groupbalancer is disabled!";
+                }
+
+                space->mGroupBalancer->reconfigure();
+              }
+
+              if (key == "geobalancer") {
+                if (value == "on") {
+                  std_out << "success: geobalancer is enabled!";
+                } else {
+                  std_out << "success: geobalancer is disabled!";
+                }
+              }
+
+              if (key == "groupdrainer") {
+                if (value == "on") {
+                  std_out << "success: groupdrainer is enabled!";
+                } else {
+                  std_out << "success: groupdrainer is disabled!";
+                }
+
+                space->mGroupDrainer->reconfigure();
+              }
+
+              if (key == "geo.access.policy.read.exact") {
+                if (value == "on") {
+                  std_out <<
+                          "success: geo access policy prefers the exact geo matching replica for reading!";
+                } else {
+                  std_out <<
+                          "success: geo access policy prefers with a weight the geo matching replica for reading!";
+                }
+              }
+
+              if (key == "geo.access.policy.write.exact") {
+                if (value == "on") {
+                  std_out <<
+                          "success: geo access policy prefers the exact geo matching replica for placements!";
+                } else {
+                  std_out <<
+                          "success: geo access policy prefers with a weight the geo matching replica for placements!";
+                }
+              }
+
+              if (key == "scheduler.skip.overloaded") {
+                if (value == "on") {
+                  std_out << "success: scheduler skips overloaded eth-out nodes!";
+                } else {
+                  std_out << "success: scheduler does not skip overloaded eth-out nodes!";
+                }
+              }
+
+              if (key == "filearchivedgc") {
+                if (value == "on") {
+                  std_out << "success: 'file archived' garbage collector is enabled";
+                } else {
+                  std_out << "success: 'file archived' garbage collector is disabled";
+                }
+              }
+
+              if (key == "lru") {
+                std_out << ((value == "on") ? "success: LRU is enabled" :
+                            "success: LRU is disabled");
+                gOFS->mLRUEngine->RefreshOptions();
+              }
+            }
+          }
+        } else if (key == "wfe") {
+          applied = true;
+
+          if ((value != "on") && (value != "off") && (value != "paused")) {
+            ret_c = EINVAL;
+            std_err.str("error: value has to either on, paused or off");
+          } else {
+            if (!space->SetConfigMember(key, value)) {
+              ret_c = EIO;
+              std_err.str("error: cannot set space config value");
             } else {
-              std_err << "error: not an allowed parameter <" + key + ">\n";
-              ret_c = EINVAL;
-              break;
+              std::string status = (value == "on") ? "enabled" :
+                                   (value == "off" ? "disabled" : "paused");
+              std_out << "success: wfe is " << status << "!";
             }
           }
         } else {
-          std_err << "error: cannot identify the filesystem by <" + config.mgmspace_name()
-                  + ">\n";
-          ret_c = EINVAL;
+          if (value == "remove") {
+            applied = true;
+
+            if (!space->DeleteConfigMember(key)) {
+              ret_c = ENOENT;
+              std_err.str("error: key has not been deleted");
+            } else {
+              std_out.str("success: deleted space config : " + key);
+            }
+          } else {
+            errno = 0;
+            applied = true;
+            unsigned long long size = eos::common::StringConversion::GetSizeFromString(
+                                        value.c_str());
+
+            if (!errno) {
+              if ((key != "balancer.threshold") &&
+                  (key != "geobalancer.threshold") &&
+                  (key != "groupbalancer.threshold") &&
+                  (key != "groupbalancer.min_threshold") &&
+                  (key != "groupbalancer.max_threshold") &&
+                  (key != "groupdrainer.threshold")) {
+                // Threshold is allowed to be decimal!
+                char ssize[1024];
+                snprintf(ssize, sizeof(ssize) - 1, "%llu", size);
+                value = ssize;
+              }
+
+              if (!space->SetConfigMember(key, value)) {
+                ret_c = EIO;
+                std_err.str("error: cannot set space config value");
+              } else {
+                std_out.str("success: setting " + key + "=" + value);
+
+                if ((key == "token.generation")) {
+                  eos::common::EosTok::sTokenGeneration = strtoull(value.c_str(), 0, 0);
+                }
+
+                if (key == "lru.interval") {
+                  gOFS->mLRUEngine->RefreshOptions();
+                }
+
+                if (eos::common::startsWith(key, GROUPBALANCER_KEY_PREFIX)) {
+                  space->mGroupBalancer->reconfigure();
+                } else if (eos::common::startsWith(key, GROUPDRAINER_KEY_PREFIX)) {
+                  space->mGroupDrainer->reconfigure();
+                } else if (eos::common::startsWith(key, BALANCER_KEY_PREFIX)) {
+                  space->mFsBalancer->SignalConfigUpdate();
+                }
+              }
+            } else {
+              ret_c = EINVAL;
+              std_err.str("error: value has to be a positive number");
+            }
+          }
         }
       }
+    }
+  }
 
-      gOFS->ConfEngine->SetAutoSave(true);
-      gOFS->ConfEngine->AutoSave();
+  // Set a bandwidth limitation parameter
+  if (!key.compare(0, 3, "bw.")) {
+    applied = true;
+
+    if (value == "remove") {
+      if (!space->DeleteConfigMember(key)) {
+        ret_c = ENOENT;
+        std_err.str("error: key has not been deleted");
+      } else {
+        std_out.str("success: deleted stream  bandwidth setting: " + key);
+      }
+    } else {
+      if (!space->SetConfigMember(key, value)) {
+        ret_c = EIO;
+        std_err.str("error: cannot set space config value");
+      } else {
+        std_out.str("success: defining stream bandwidth limitation: " + key + "=" +
+                    value);
+      }
+    }
+  }
+
+  // Set iopriority parameter
+  if (!key.compare(0, 11, "iopriority.")) {
+    applied = true;
+
+    if (value == "remove") {
+      if (!space->DeleteConfigMember(key)) {
+        ret_c = ENOENT;
+        std_err.str("error: key has not been deleted");
+      } else {
+        std_out.str("success: deleted iopriority setting: " + key);
+      }
+    } else {
+      if (!space->SetConfigMember(key, value)) {
+        ret_c = EIO;
+        std_err.str("error: cannot set space config value");
+      } else {
+        std_out.str("success: defining space iopriority: " + key + "=" + value);
+      }
+    }
+  }
+
+  // Set iotype parameter
+  if (!key.compare(0, 7, "iotype.")) {
+    applied = true;
+
+    if (value == "remove") {
+      if (!space->DeleteConfigMember(key)) {
+        ret_c = ENOENT;
+        std_err.str("error: key has not been deleted");
+      } else {
+        std_out.str("success: deleted iotype setting: " + key);
+      }
+    } else {
+      if (!space->SetConfigMember(key, value)) {
+        ret_c = EIO;
+        std_err.str("error: cannot set space config value");
+      } else {
+        std_out.str("success: defining space iotype: " + key + "=" + value);
+      }
+    }
+  }
+
+  // Set schedule parameter
+  if (!key.compare(0, 9, "schedule.")) {
+    applied = true;
+
+    if (value == "remove") {
+      if (!space->DeleteConfigMember(key)) {
+        ret_c = ENOENT;
+        std_err.str("error: key has not been deleted");
+      } else {
+        std_out.str("success: deleted application scheduling setting: " + key);
+      }
+    } else {
+      if (!space->SetConfigMember(key, value)) {
+        ret_c = EIO;
+        std_err.str("error: cannot set space config value");
+      } else {
+        std_out.str("success: defining space scheduling: " + key + "=" + value);
+      }
+    }
+  }
+
+  // Set a filesystem related parameter
+  if (!key.compare(0, 3, "fs.")) {
+    applied = true;
+    key.erase(0, 3);
+    // we disable the autosave, do all the updates and then switch back
+    // to autosave and evt. save all changes
+    gOFS->ConfEngine->SetAutoSave(false);
+
+    // Store these as a global parameters of the space
+    if ((key == "headroom") || (key == "graceperiod") || (key == "drainperiod") ||
+        (key == "max.ropen") || (key == "max.wopen") ||
+        (key == eos::common::SCAN_IO_RATE_NAME) ||
+        (key == eos::common::SCAN_ENTRY_INTERVAL_NAME) ||
+        (key == eos::common::SCAN_DISK_INTERVAL_NAME) ||
+        (key == eos::common::SCAN_NS_INTERVAL_NAME) ||
+        (key == eos::common::SCAN_NS_RATE_NAME) ||
+        (key == eos::common::FSCK_REFRESH_INTERVAL_NAME)) {
+      unsigned long long size = eos::common::StringConversion::GetSizeFromString(
+                                  value.c_str());
+      char ssize[1024];
+      snprintf(ssize, sizeof(ssize) - 1, "%llu", size);
+
+      if (value == "remove") {
+        if (!space->DeleteConfigMember(key)) {
+          ret_c = ENOENT;
+        } else {
+          std_out.str("success: deleting " + key);
+        }
+      } else {
+        if ((!space->SetConfigMember(key, ssize))) {
+          std_err << "error: failed to set space parameter <" + key + ">\n";
+          ret_c = EINVAL;
+        } else {
+          std_out.str("success: setting " + key + "=" + value);
+        }
+      }
+    } else {
+      if (key != "configstatus") {
+        std_err << "error: not an allowed parameter <" + key + ">\n";
+        ret_c = EINVAL;
+      }
     }
 
-    if (!applied) {
-      ret_c = EINVAL;
-      std_err.str("error: unknown parameter <" + key +
-                  "> - probably need to prefix with 'space.' or 'fs.'\n");
+    for (auto it = space->begin(); it != space->end(); ++it) {
+      fs = FsView::gFsView.mIdView.lookupByID(*it);
+
+      if (fs) {
+        // check the allowed strings
+        if (((key == "configstatus") &&
+             (eos::common::FileSystem::GetConfigStatusFromString(value.c_str()) !=
+              eos::common::ConfigStatus::kUnknown))) {
+          fs->SetString(key.c_str(), value.c_str());
+          FsView::gFsView.StoreFsConfig(fs, false);
+        } else {
+          errno = 0;
+          eos::common::StringConversion::GetSizeFromString(value.c_str());
+
+          if (((key == "headroom") || (key == "graceperiod") || (key == "drainperiod") ||
+               (key == "max.ropen") || (key == "max.wopen") ||
+               (key == eos::common::SCAN_IO_RATE_NAME) ||
+               (key == eos::common::SCAN_ENTRY_INTERVAL_NAME) ||
+               (key == eos::common::SCAN_DISK_INTERVAL_NAME) ||
+               (key == eos::common::SCAN_NS_INTERVAL_NAME) ||
+               (key == eos::common::SCAN_NS_RATE_NAME) ||
+               (key == eos::common::FSCK_REFRESH_INTERVAL_NAME)) && (!errno)) {
+            if (value == "remove") {
+              fs->RemoveKey(key.c_str());
+            } else {
+              fs->SetLongLong(key.c_str(),
+                              eos::common::StringConversion::GetSizeFromString(value.c_str()));
+            }
+
+            FsView::gFsView.StoreFsConfig(fs, false);
+          } else {
+            std_err << "error: not an allowed parameter <" + key + ">\n";
+            ret_c = EINVAL;
+            break;
+          }
+        }
+      } else {
+        std_err << "error: cannot identify the filesystem by <" + space_name
+                + ">\n";
+        ret_c = EINVAL;
+      }
     }
-  } else {
+
+    gOFS->ConfEngine->SetAutoSave(true);
+    gOFS->ConfEngine->AutoSave();
+  }
+
+  if (!applied) {
     ret_c = EINVAL;
-    std_err.str("error: cannot find space <" + config.mgmspace_name() + ">");
+    std_err.str("error: unknown parameter <" + key +
+                "> - probably need to prefix with 'space.' or 'fs.'\n");
   }
 
   reply.set_std_out(std_out.str());

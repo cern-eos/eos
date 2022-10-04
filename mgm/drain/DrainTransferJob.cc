@@ -53,14 +53,12 @@ void
 DrainTransferJob::DoIt() noexcept
 {
   using eos::common::LayoutId;
-  UpdateMgmStats();
-  eos_static_debug("msg=\"running job\" fsid_src=%i fsid_dst=%i fxid=%08llx",
-                   mFsIdSource.load(), mFsIdTarget.load(), mFileId);
+  eos_static_info("msg=\"running job\" fsid_src=%i fsid_dst=%i fxid=%08llx",
+                  mFsIdSource.load(), mFsIdTarget.load(), mFileId);
 
   if (mProgressHandler.ShouldCancel(0)) {
     ReportError(SSTR("msg=\"job cancelled before starting\" fxid="
                      << eos::common::FileId::Fid2Hex(mFileId)));
-    UpdateMgmStats();
     return;
   }
 
@@ -78,15 +76,13 @@ DrainTransferJob::DoIt() noexcept
     eos_info("msg=\"drain ghost entry successful\" fxid=%s",
              eos::common::FileId::Fid2Hex(mFileId).c_str());
     mStatus = Status::OK;
-    UpdateMgmStats();
     return;
   }
 
   while (true) {
-    if (!SelectDstFs(fdrain)) {
+    if ((mFsIdTarget == 0ul) && !SelectDstFs(fdrain)) {
       ReportError(SSTR("msg=\"failed to select destination file system\" fxid="
                        << eos::common::FileId::Fid2Hex(mFileId)));
-      UpdateMgmStats();
       return;
     }
 
@@ -95,7 +91,6 @@ DrainTransferJob::DoIt() noexcept
         (LayoutId::GetLayoutType(fdrain.mProto.layout_id()) ==
          LayoutId::kReplica)) {
       mStatus = DrainZeroSizeFile(fdrain);
-      UpdateMgmStats();
       return;
     }
 
@@ -104,10 +99,11 @@ DrainTransferJob::DoIt() noexcept
     XrdCl::URL url_src = BuildTpcSrc(fdrain, log_id);
     XrdCl::URL url_dst = BuildTpcDst(fdrain, log_id);
 
-    // When no more sources are available the url_src is empty and mStatus is
-    // properly set
+    // When no more sources are available the url_src/dst is empty and
+    // mStatus is properly set already during the build step
     if (!url_src.IsValid() || !url_dst.IsValid()) {
-      UpdateMgmStats();
+      eos_static_err("msg=\"url invalid\" src=\"%s\" dst=\"%s\"",
+                     url_src.GetURL().c_str(), url_dst.GetURL().c_str());
       return;
     }
 
@@ -167,7 +163,6 @@ DrainTransferJob::DoIt() noexcept
         eos_info("msg=\"%s successful\" logid=%s fxid=%s", mAppTag.c_str(),
                  log_id.c_str(), eos::common::FileId::Fid2Hex(mFileId).c_str());
         mStatus = Status::OK;
-        UpdateMgmStats();
         return;
       }
     } else {
@@ -177,7 +172,6 @@ DrainTransferJob::DoIt() noexcept
   }
 
   mStatus = Status::Failed;
-  UpdateMgmStats();
   return;
 }
 
@@ -240,21 +234,24 @@ DrainTransferJob::BuildTpcSrc(const FileDrainInfo& fdrain,
       eos::common::LayoutId::kReplica) {
     bool found = false;
 
-    for (const auto id : fdrain.mProto.locations()) {
-      // First try copying from a location different from the current draining
-      // file system. Make sure we also skip any EOS_TAPE_FSID (65535) replicas.
-      if ((id != mFsIdSource) && (id != EOS_TAPE_FSID) &&
-          (mTriedSrcs.find(id) == mTriedSrcs.end())) {
-        mTriedSrcs.insert(id);
-        eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
-        FileSystem* fs = FsView::gFsView.mIdView.lookupByID(id);
+    if (!mForceFs) {
+      for (const auto id : fdrain.mProto.locations()) {
+        // First try copying from a location different from the current source
+        // file system. Make sure we also skip any EOS_TAPE_FSID (65535)
+        // replicas.
+        if ((id != mFsIdSource) && (id != EOS_TAPE_FSID) &&
+            (mTriedSrcs.find(id) == mTriedSrcs.end())) {
+          mTriedSrcs.insert(id);
+          eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
+          FileSystem* fs = FsView::gFsView.mIdView.lookupByID(id);
 
-        if (fs) {
-          fs->SnapShotFileSystem(src_snapshot);
+          if (fs) {
+            fs->SnapShotFileSystem(src_snapshot);
 
-          if (src_snapshot.mConfigStatus >= eos::common::ConfigStatus::kDrain) {
-            found = true;
-            break;
+            if (src_snapshot.mConfigStatus >= eos::common::ConfigStatus::kDrain) {
+              found = true;
+              break;
+            }
           }
         }
       }
@@ -290,6 +287,33 @@ DrainTransferJob::BuildTpcSrc(const FileDrainInfo& fdrain,
     } else {
       mRainReconstruct = true;
     }
+
+    // If source/dest fses are forced we want to trigger a balance rather than
+    // a drain reconstruct operation
+    if (mForceFs) {
+      // For RAIN layout we also need to disable checksum enforcements as the
+      // stripe checksum and logical file checksum will not match
+      target_lid = LayoutId::SetChecksum(target_lid, LayoutId::kNone);
+      mRainReconstruct = false;
+      bool found = false;
+      eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
+      FileSystem* fs = FsView::gFsView.mIdView.lookupByID(mFsIdSource);
+
+      if (fs) {
+        fs->SnapShotFileSystem(src_snapshot);
+
+        if (src_snapshot.mConfigStatus >= eos::common::ConfigStatus::kDrain) {
+          found = true;
+        }
+      }
+
+      if (!found) {
+        ReportError(SSTR("msg=\"source stripe not available\" " << "fxid="
+                         << eos::common::FileId::Fid2Hex(fdrain.mProto.id())
+                         << " fsid=" << mFsIdSource));
+        return url_src;
+      }
+    }
   }
 
   // Construct the source URL
@@ -316,7 +340,6 @@ DrainTransferJob::BuildTpcSrc(const FileDrainInfo& fdrain,
                << eos::common::SecEntity::ToKey(0, SSTR("eos/" << mAppTag).c_str())
                << "&mgm.localprefix=" << src_snapshot.mPath.c_str()
                << "&mgm.fsid=" << src_snapshot.mId
-               << "&mgm.sourcehostport=" << src_snapshot.mHostPort.c_str()
                << "&eos.app=" << mAppTag
                << "&eos.ruid=0&eos.rgid=0";
   }
@@ -360,6 +383,7 @@ DrainTransferJob::BuildTpcSrc(const FileDrainInfo& fdrain,
 
   url_src.SetParams(src_cap.str());
   url_src.SetProtocol("root");
+  // @todo(esindril) this should use different physical connections
   url_src.SetUserName("daemon");
   delete output_cap;
   return url_src;
@@ -381,6 +405,10 @@ DrainTransferJob::BuildTpcDst(const FileDrainInfo& fdrain,
   // Mask block checksums (set to kNone) for replica layouts
   if (LayoutId::GetLayoutType(lid) == LayoutId::kReplica) {
     target_lid = LayoutId::SetBlockChecksum(target_lid, LayoutId::kNone);
+  }
+
+  if (LayoutId::IsRain(lid) && mForceFs) {
+    target_lid = LayoutId::SetChecksum(target_lid, LayoutId::kNone);
   }
 
   {
@@ -424,10 +452,11 @@ DrainTransferJob::BuildTpcDst(const FileDrainInfo& fdrain,
                << eos::common::SecEntity::ToKey(0, SSTR("eos/" << mAppTag).c_str())
                << "&mgm.localprefix=" << dst_snapshot.mPath.c_str()
                << "&mgm.fsid=" << dst_snapshot.mId
-               << "&mgm.sourcehostport=" << dst_snapshot.mHostPort.c_str()
-               << "&mgm.bookingsize=" << fdrain.mProto.size()
+               << "&mgm.bookingsize="
+               << LayoutId::ExpectedStripeSize(lid, fdrain.mProto.size())
                << "&eos.app=" << mAppTag
-               << "&mgm.targetsize=" << fdrain.mProto.size();
+               << "&mgm.targetsize="
+               << LayoutId::ExpectedStripeSize(lid, fdrain.mProto.size());
 
     // This is true by default for drain, but when this is set to false, we get
     // a replication like behaviour similar to the adjustreplica command which
@@ -436,7 +465,8 @@ DrainTransferJob::BuildTpcDst(const FileDrainInfo& fdrain,
       dst_params << "&mgm.drainfsid=" << mFsIdSource;
     }
 
-    if (!fdrain.mProto.checksum().empty()) {
+    // Checksum enforcement done only for non-rain layouts
+    if (!LayoutId::IsRain(lid) && !fdrain.mProto.checksum().empty()) {
       xs_info << "&mgm.checksum=";
       uint32_t xs_len = LayoutId::GetChecksumLen(lid);
       uint32_t data_len = fdrain.mProto.checksum().size();
@@ -481,6 +511,7 @@ DrainTransferJob::BuildTpcDst(const FileDrainInfo& fdrain,
   url_dst.SetHostName(dst_snapshot.mHost.c_str());
   url_dst.SetPort(dst_snapshot.mPort);
   url_dst.SetUserName("daemon");
+  // @todo(esindril) this should use different physical connections
   url_dst.SetParams(oss_cap.str());
   std::ostringstream oss_path;
   oss_path << "/replicate:"
@@ -542,6 +573,8 @@ DrainTransferJob::SelectDstFs(const FileDrainInfo& fdrain)
                (ino64_t) fdrain.mProto.id(),
                NULL, // entrypoints
                NULL, // firewall
+               // This methods is only called for drain functionality, for
+               // balance we already provide the destination file system
                GeoTreeEngine::draining,
                &existing_repl,
                &fsid_geotags,
@@ -664,6 +697,8 @@ DrainTransferJob::UpdateMgmStats()
 
   if (mAppTag == "drain") {
     tag_stats = "DrainCentral";
+  } else if (mAppTag == "balance") {
+    tag_stats = "Balance";
   } else {
     tag_stats = "Unknown";
   }

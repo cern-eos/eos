@@ -132,6 +132,8 @@ public:
   //! @param drop_src mark if source replica should be dropped if operation
   //!        is successful (default true)
   //! @param app_tag application tag for easy classification of job types
+  //! @param force_fs if true force transfer between given source and
+  //!        destination file systems
   //----------------------------------------------------------------------------
   DrainTransferJob(eos::common::FileId::fileid_t fid,
                    eos::common::FileSystem::fsid_t fsid_src,
@@ -139,10 +141,11 @@ public:
                    std::set<eos::common::FileSystem::fsid_t> exclude_srcs = {},
                    std::set<eos::common::FileSystem::fsid_t> exclude_dsts = {},
                    bool drop_src = true,
-                   const std::string& app_tag = "drain"):
+                   const std::string& app_tag = "drain",
+                   bool force_fs = false):
     mAppTag(app_tag), mFileId(fid), mFsIdSource(fsid_src), mFsIdTarget(fsid_trg),
     mTxFsIdSource(fsid_src), mStatus(Status::Ready), mRainReconstruct(false),
-    mDropSrc(drop_src)
+    mDropSrc(drop_src), mForceFs(force_fs)
   {
     mTriedSrcs.insert(exclude_srcs.begin(), exclude_srcs.end());
     mExcludeDsts.insert(mExcludeDsts.begin(), exclude_dsts.begin(),
@@ -201,6 +204,13 @@ public:
   //----------------------------------------------------------------------------
   std::list<std::string>
   GetInfo(const std::list<std::string>& tags) const;
+
+  //----------------------------------------------------------------------------
+  //! Update MGM stats depending on the type of transfer. The generic
+  //! DrainTransferJob can be used in different components eg. fsck. For the
+  //! time being this will update the MGM statistics only for the drainer.
+  //----------------------------------------------------------------------------
+  void UpdateMgmStats();
 
 #ifdef IN_TEST_HARNESS
 public:
@@ -265,13 +275,6 @@ private:
   //----------------------------------------------------------------------------
   Status DrainZeroSizeFile(const FileDrainInfo& fdrain);
 
-  //----------------------------------------------------------------------------
-  //! Update MGM stats depending on the type of transfer. The generic
-  //! DrainTransferJob can be used in different components eg. fsck. For the
-  //! time being this will update the MGM statistics only for the drainer.
-  //----------------------------------------------------------------------------
-  void UpdateMgmStats();
-
   std::string mAppTag; ///< Application tag for the transfer
   const eos::common::FileId::fileid_t mFileId; ///< File id to transfer
   //! Source and destination file system
@@ -286,6 +289,9 @@ private:
   std::vector<eos::common::FileSystem::fsid_t> mExcludeDsts; ///< Excluded dest.
   bool mRainReconstruct; ///< Mark rain reconstruction
   bool mDropSrc; ///< Mark if source replicas should be dropped
+  //! Mark if tx is forced between src/dst file systems, this happends for
+  //! balancer transfers
+  bool mForceFs;
   DrainProgressHandler mProgressHandler; ///< TPC progress handler
 };
 

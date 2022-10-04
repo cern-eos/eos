@@ -126,7 +126,11 @@ DrainFs::DoIt()
           eos::common::RWMutexWriteLock wr_lock(mJobsMutex);
           mJobsFailed.insert(job);
         } else {
-          mThreadPool.PushTask<void>([job] {return job->DoIt();});
+          mThreadPool.PushTask<void>([job] {
+            job->UpdateMgmStats();
+            job->DoIt();
+            job->UpdateMgmStats();
+          });
           eos::common::RWMutexWriteLock wr_lock(mJobsMutex);
           mJobsRunning.push_back(job);
         }

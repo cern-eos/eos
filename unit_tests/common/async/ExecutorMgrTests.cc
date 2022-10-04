@@ -21,6 +21,7 @@
 // Created by Abhishek Lekshmanan on 29/09/2022.
 //
 #include "common/async/ExecutorMgr.hh"
+#include "unit_tests/common/async/FollyExecutorFixture.hh"
 #include <gtest/gtest.h>
 #include <folly/executors/CPUThreadPoolExecutor.h>
 
@@ -60,4 +61,30 @@ TEST(ExecutorMgr, ThreadPool)
 
   // Check if we have exactly 3 different thread ids
   ASSERT_EQ(3, threadIds.size());
+}
+
+TEST_F(FollyExecutor_F, IOThreadPoolExecutorTests)
+{
+  eos::common::ExecutorMgr mgr(folly_executor);
+  ASSERT_TRUE(mgr.IsFollyExecutor());
+  std::vector<eos::common::OpaqueFuture<std::thread::id>> futures;
+
+  for (int i = 0; i < 10; i++) {
+    auto future = mgr.PushTask(
+    [] {
+      std::this_thread::sleep_for(std::chrono::milliseconds(20));
+      return std::this_thread::get_id();
+    }
+                  );
+    futures.emplace_back(std::move(future));
+  }
+
+  std::set<std::thread::id> threadIds;
+
+  for (auto && future : futures) {
+    threadIds.insert(future.getValue());
+  }
+
+  // Check if we have exactly 4 different thread ids
+  ASSERT_EQ(kNumThreads, threadIds.size());
 }
