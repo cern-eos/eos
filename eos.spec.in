@@ -176,7 +176,7 @@ BuildRequires: lz4
 Requires: zstd, lz4
 BuildRequires: libcap-devel
 
-%if (%{?fedora:1}%{!?fedora:0} == 1 && %{fedora} <= 35) || 0%{?rhel} <= 7
+%if %{?rhel:1}%{!?rhel:0} && 0%{?rhel} <= 7
 BuildRequires: openssl-static, ncurses-static
 %endif
 
