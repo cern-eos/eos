@@ -173,7 +173,7 @@ BuildRequires: cppunit-devel
 BuildRequires: help2man
 BuildRequires: libzstd, libzstd-devel
 BuildRequires: lz4
-Requires: zstd, libzstd, lz4
+Requires: zstd, lz4
 BuildRequires: libcap-devel
 
 %if 0%{?rhel} < 8
