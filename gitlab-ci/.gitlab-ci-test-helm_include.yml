@@ -17,7 +17,7 @@
       HELM_EOS_FUSEX_VERSION=0.1.0
     - |
       echo "Clone eos-on-k8s repository for helper scripts"
-      git clone https://gitlab.cern.ch/eos/eos-on-k8s.git
+      git clone -b eos-k8s-https --single-branch https://gitlab.cern.ch/eos/eos-on-k8s.git
     - |
       ######## KUBEROS ########
       helm install -f ./gitlab-ci/.gitlab-ci-test-helm_kuberos_values.yml kuberos ./kuberos/kuberos/ --atomic --create-namespace --namespace $K8S_NAMESPACE
