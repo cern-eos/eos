@@ -65,12 +65,34 @@ eos::mgm::TokenCmd::ProcessRequest() noexcept
 
   eos_static_info("root=%d sudoer=%d uid=%u gid=%u", mVid.hasUid(0), mVid.sudoer, mVid.uid, mVid.gid);
 
+  int mode=R_OK;
+  if (token.permission().find("x") != std::string::npos) {
+    mode |= X_OK;
+  }
+  if (token.permission().find("w") != std::string::npos) {
+    mode |= W_OK;
+  } 
+
   if (token.vtoken().empty()) {
     eos_static_info("%s\n", token.vtoken().c_str());
     // check who asks for a token
     if ( (mVid.hasUid(0) ) ) {
       // we issue all the token in the world for them
     } else {
+      // for user token, we only allow rwxd, nothing else;
+      for (char const &c: token.permission()) {
+	if ( (c != 'r') &&
+	     (c != 'x') &&
+	     (c != 'w') &&
+	     (c != 'd') &&
+	     (c != '!') &&
+	     (c != '+') ) {
+	  reply.set_retc(EINVAL);
+	  reply.set_std_err("error: you can only use rwx[+1]d in your permission set!");
+	  return reply;
+	}
+      }
+
       struct stat buf;
       XrdOucErrInfo error;
       
@@ -79,44 +101,51 @@ eos::mgm::TokenCmd::ProcessRequest() noexcept
       token.set_group(mVid.gid_string);
       // we verify that mVid owns the path in the token
       if (token.path().back() == '/') {
-	// tree/directory path
-	if (gOFS->_stat( token.path().c_str(), &buf, error, mVid, "", 0, false, 0) ||
-	    (buf.st_uid != mVid.uid)) {
-	  if (error.getErrInfo()) {
-	    // stat error
-	    reply.set_retc(error.getErrInfo());
-	    reply.set_std_err(error.getErrText());
-	    return reply;
-	  } else {
-	    // owner error
-	    reply.set_retc(EACCES);
-	    reply.set_std_err("error: you are not the owner of the path given in your request and you are not a sudoer or root!");
-	    return reply;
-	  }
-	}
-      } else {
-	// file path
-	eos::common::Path cPath(token.path().c_str());
-	if (gOFS->_stat( token.path().c_str(), &buf, error, mVid, "", 0, false, 0)) {
-	  // file does not exist
-	  if (gOFS->_stat( cPath.GetParentPath(), &buf, error, mVid, "", 0, false, 0)) {
-	    // parent does not exist
-	    reply.set_retc(ENOENT);
-	    reply.set_std_err("error: neither the given path nor the parent path exists!");
-	    return reply;
-	  } else {
-	    if (buf.st_uid != mVid.uid) {
+	if (token.allowtree()) {
+	  // tree token only allowed if owner or empty tree
+	  if (gOFS->_stat( token.path().c_str(), &buf, error, mVid, "", 0, false, 0) ||
+	      ( (buf.st_uid != mVid.uid) && (buf.st_blksize))) {
+	    if (error.getErrInfo()) {
+	      // stat error
+	      reply.set_retc(error.getErrInfo());
+	      reply.set_std_err(error.getErrText());
+	      return reply;
+	    } else {
 	      // owner error
 	      reply.set_retc(EACCES);
-	      reply.set_std_err("error: you are not the owner of the parent path given in your request and you are not a sudoer or root!");
+	      reply.set_std_err("error: you are not the owner of the path given in your request and you are not a sudoer or root!");
 	      return reply;
 	    }
 	  }
 	} else {
-	  if (buf.st_uid != mVid.uid) {
-	    // owner error
-	    reply.set_retc(EACCES);
-	    reply.set_std_err("error: you are not the owner of the path given in your request and you are not a sudoer or root!");
+	  // directory token
+	  if (gOFS->_access( token.path().c_str(), mode, error, mVid, "", true)) {
+	    if (errno) {
+	      // return errno
+	      reply.set_retc(errno);
+	      if (errno == ENOENT) {
+		reply.set_std_err("error: path does not exist!");
+	      } else {
+		reply.set_std_err("error: no permission!");
+	      }
+	    }
+	  }
+	}
+      } else {
+	// file path
+        mode |= F_OK;
+	eos::common::Path cPath(token.path().c_str());
+	errno = 0;
+	
+	if (gOFS->_access( token.path().c_str(), R_OK, error, mVid, "", true)) {
+	  if (errno) {
+	    // return errno
+	    reply.set_retc(errno);
+	    if (errno == ENOENT) {
+	      reply.set_std_err("error: path does not exist!");
+	    } else {
+	      reply.set_std_err("error: no permission!");
+	    }
 	    return reply;
 	  }
 	}
