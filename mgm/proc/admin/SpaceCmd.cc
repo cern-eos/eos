@@ -36,8 +36,6 @@
 #include "mgm/GroupBalancer.hh"
 #include "mgm/GroupDrainer.hh"
 #include "mgm/balancer/FsBalancer.hh"
-#include "namespace/interface/IChLogFileMDSvc.hh"
-#include "namespace/interface/IChLogContainerMDSvc.hh"
 #include "namespace/interface/IFsView.hh"
 #include "namespace/interface/IContainerMDSvc.hh"
 #include "namespace/interface/IView.hh"

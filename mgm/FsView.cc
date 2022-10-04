@@ -852,15 +852,6 @@ FsSpace::FsSpace(const char* name)
   mGeoBalancer = new GeoBalancer(name);
   mGroupDrainer.reset(new GroupDrainer(name));
 
-  // Start old converter if we're using the in-memory NS or if the new one
-  // is disabled on purpose
-  if (!gOFS->NsInQDB || getenv("EOS_FORCE_DISABLE_NEW_CONVERTER")) {
-    eos_static_info("%s", "msg=\"start the old converter\"");
-    mConverter = new Converter(name);
-  } else {
-    eos_static_info("%s", "msg=\"skip starting the old converter\"");
-  }
-
   if (!gDisableDefaults) {
     // Disable balancing by default
     if (GetConfigMember("balancer").empty()) {
