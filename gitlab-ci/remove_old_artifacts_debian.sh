@@ -1,14 +1,11 @@
 #!/bin/bash
-
 #-------------------------------------------------------------------------------
 # Publish debian artifacts on CERN Gitlab CI
 # Author: Jozsef Makai <jmakai@cern.ch> (11.08.2017)
 #-------------------------------------------------------------------------------
-
 set -e
 
 script_loc=$(dirname "$0")
-
 eos_base=/eos/project/s/storage-ci/www/debian/eos
 versions=$(find $eos_base -mindepth 1 -maxdepth 1 -type d -exec basename {} \;)
 

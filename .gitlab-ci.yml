@@ -362,20 +362,20 @@ build_ubuntu_focal:
   dependencies: []
   allow_failure: true
 
-build_fedora_34:
-  image: fedora:34
+build_fedora_36:
+  image: fedora:36
   <<: *build_fedora-template_definition
   variables:
-    EOS_DIST: fc-34
+    EOS_DIST: fc-36
   only:
     - schedules
     - tags
 
-build_fedora_35:
-  image: fedora:35
+build_fedora_37:
+  image: fedora:37
   <<: *build_fedora-template_definition
   variables:
-    EOS_DIST: fc-35
+    EOS_DIST: fc-37
   only:
     - schedules
     - tags

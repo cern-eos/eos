@@ -1,8 +1,8 @@
 #!/bin/bash
 
 AGE_DAYS=10
-COMMIT_DIRS=/eos/project/s/storage-ci/www/eos/citrine/commit
-TARBALL_DIR=/eos/project/s/storage-ci/www/eos/citrine/tarball
+COMMIT_DIRS=/eos/project/s/storage-ci/www/eos/*/commit
+TARBALL_DIR=/eos/project/s/storage-ci/www/eos/*/tarball
 
 for commit_dir in ${COMMIT_DIRS}/*; do
   count=$(find ${commit_dir} -regex '.*\(rpm\|dmg\)$' -type f -mtime +${AGE_DAYS} -print -delete | wc -l)

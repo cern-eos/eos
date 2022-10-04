@@ -1,10 +1,8 @@
 #!/bin/bash
-
 #-------------------------------------------------------------------------------
 # Publish debian artifacts on CERN Gitlab CI
 # Author: Jozsef Makai <jmakai@cern.ch> (11.08.2017)
 #-------------------------------------------------------------------------------
-
 set -e
 
 script_loc=$(dirname "$0")
