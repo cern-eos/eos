@@ -243,7 +243,7 @@ TEST(FsBalancerStats, Update)
   for (auto& elem : set_grps) {
     delete elem;
   }
-  
+
   eos::common::InstanceName::clear();
 }
 
@@ -263,5 +263,7 @@ TEST(FsBalancer, GetRandomIter)
     set_obtained.insert(*it);
   }
 
-  ASSERT_EQ(set_expected.size(), set_obtained.size());
+  for (const auto& elem : set_obtained) {
+    ASSERT_TRUE(set_expected.find(elem) != set_expected.end());
+  }
 }
