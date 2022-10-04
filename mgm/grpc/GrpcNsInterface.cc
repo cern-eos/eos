@@ -647,6 +647,12 @@ GrpcNsInterface::GetMD(eos::common::VirtualIdentity& vid,
       }
     }
 
+
+    if (request->type() == eos::rpc::STAT) {
+      // if a client sends a eos::rpc::STAT request, we check permissions on a folder itself and never on the parent (to enabe stat'ing CERNBOX shares)
+      access_self = true;
+    }
+
     if (access_self) {
       if (!Access(vid, X_OK, cmd)) {
         return grpc::Status(grpc::StatusCode::PERMISSION_DENIED,
