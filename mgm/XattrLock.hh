@@ -154,7 +154,10 @@ public:
   std::string Value() {
     std::ostringstream ss;
     ss << "expires:" << expires;
-    ss << ",type:" << isshared? "shared":"exclusive";
+    if (isshared)
+      ss << ",type:" << "shared";
+    else
+      ss << ",type:" << "exclusive";
     ss << ",owner:" << owner;
     return ss.str();
   }
