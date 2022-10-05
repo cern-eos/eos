@@ -1272,6 +1272,7 @@ ProcCommand::File()
       bool absorb = false;
       bool lock = false;
       bool unlock = false;
+      time_t lifetime=86400;
 
       size_t size = 0;
 
@@ -1311,7 +1312,11 @@ ProcCommand::File()
 	  return SFS_OK;
 	}
       }
-      
+      char* lock_lifetime=0;
+      if ( (lock_lifetime = pOpaque->Get("mgm.file.touch.lockop.lifetime")) ) {
+	lifetime = atoi(lock_lifetime);
+      }
+
       
       hardlinkpath = pOpaque->Get("mgm.file.touch.hardlinkpath");
       checksuminfo = pOpaque->Get("mgm.file.touch.checksuminfo");
@@ -1336,16 +1341,19 @@ ProcCommand::File()
 	  if (lock) {
 	    // try to set a xattr lock
 	    XattrLock applock;
-	    if (applock.Lock(spath.c_str(), false , 86400, *pVid)) {
+	    errno = 0;
+	    if (applock.Lock(spath.c_str(), false , lifetime, *pVid)) {
 	      stdOut += "success: created exclusive lock for '";
 	      stdOut += spath.c_str();
-	      stdOut += "'"; 
+	      stdOut += "'\n"; 
 	      stdOut += applock.Dump().c_str();
 	    } else {
-	      stdOut += "error: cannot get exclusive lock for '";
-	      stdOut += spath.c_str();
-	      stdOut += "'"; 
-	      stdOut += applock.Dump().c_str();
+	      stdErr += "error: cannot get exclusive lock for '";
+	      stdErr += spath.c_str();
+	      stdErr += "'\n"; 
+	      stdErr += applock.Dump().c_str();
+	      retc = errno;
+	      return SFS_OK;
 	    }
 	  }
 	  if (unlock) {
@@ -1354,7 +1362,7 @@ ProcCommand::File()
 	    if (applock.Unlock(spath.c_str(), *pVid)) {
 	      stdOut += "success: removed exclusive lock for '";
 	      stdOut += spath.c_str();
-	      stdOut += "'"; 
+	      stdOut += "'\n"; 
 	      stdOut += applock.Dump().c_str();
 	    } else {
 	      if (errno == ENODATA) {
@@ -1364,7 +1372,7 @@ ProcCommand::File()
 	      } else {
 		stdErr += "error: failed to remove exclusive lock for '";
 		stdErr += spath.c_str();
-		stdErr += "'"; 
+		stdErr += "'\n"; 
 		stdErr += applock.Dump().c_str();
 		retc = errno;
 		return SFS_OK;
