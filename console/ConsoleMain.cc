@@ -907,7 +907,10 @@ Run(int argc, char* argv[])
       app = argv[argindex + 1];
       in1 = argv[argindex + 2];
       argindex += 2;
+      setenv("EOSAPP", app.c_str(), 1);
     }
+
+    app = getenv("EOSAPP");
 
     if ((in1 == "--batch") || (in1 == "-b")) {
       interactive = false;

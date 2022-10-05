@@ -855,9 +855,10 @@ com_cp(char* argin)
         char opaque[1024];
         const char* roles = eos_roles_opaque();
         snprintf(opaque, sizeof(opaque) - 1,
-                 "%ceos.targetsize=%llu&eos.bookingsize=%llu&eos.app=eoscp%s%s%s",
+                 "%ceos.targetsize=%llu&eos.bookingsize=%llu&eos.app=%s%s%s%s",
                  (target.opaque.length()) ? '&' : '?',
-                 source.size, source.size, atomic.c_str(),
+                 source.size, source.size, getenv("EOSAPP")?getenv("EOSAPP"):"eoscp",
+		 atomic.c_str(),
                  (roles) ? "&" : "",
                  (roles) ? roles : "");
         dest.append(opaque);
@@ -924,7 +925,9 @@ com_cp(char* argin)
         (source.protocol == Protocol::XROOT)) {
       const char* roles = eos_roles_opaque();
       source.name += (source.opaque.length())  ?  "&"  :  "?";
-      source.name += "eos.app=eoscp";
+
+      source.name += "eos.app=";
+      source.name += getenv("EOSAPP")? getenv("EOSAPP"):"eoscp";
       source.name += (roles)  ?  "&"  :  "";
       source.name += (roles)  ?  roles  : "";
     } else if ((source.protocol != Protocol::LOCAL) &&
@@ -1131,10 +1134,11 @@ com_cp(char* argin)
             } else {
               char update[1024];
               const char* roles = eos_roles_opaque();
-              sprintf(update, "%ceos.app=eoscp%s%s&mgm.pcmd=utimes"
+              sprintf(update, "%ceos.app=%s%s%s&mgm.pcmd=utimes"
                       "&tv1_sec=%llu&tv1_nsec=%llu"
                       "&tv2_sec=%llu&tv2_nsec=%llu",
                       (target.opaque.length()) ? '&' : '?',
+		      getenv("EOSAPP")? getenv("EOSAPP"):"eoscp",
                       (roles) ? "&" : "",
                       (roles) ? roles : "",
                       (unsigned long long) source.atime.tv_sec,
