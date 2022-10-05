@@ -266,11 +266,11 @@ meta() {
 }
 
 eos() {
-    echo eos -b $EOSAPP $EOSROLE root://$EOS_TEST_REDIRECTOR $* >& $EOSLASTLOG; eval command eos -b $EOSAPP $EOSROLE root://$EOS_TEST_REDIRECTOR $* >> $EOSCERTLOG 2>&1
+    echo eos -b $EOSROLE $EOSAPP root://$EOS_TEST_REDIRECTOR $* >& $EOSLASTLOG; eval command eos -b $EOSROLE $EOSAPP root://$EOS_TEST_REDIRECTOR $* >> $EOSCERTLOG 2>&1
 }
 
 eosj() {
-    echo eos -j -b $EOSAPP $EOSROLE root://$EOS_TEST_REDIRECTOR $* >& $EOSLASTLOG; eval command eos -j -b $EOSAPP $EOSROLE root://$EOS_TEST_REDIRECTOR $* >> $EOSCERTLOG 2>&1
+    echo eos -j -b $EOSROLE $EOSAPP root://$EOS_TEST_REDIRECTOR $* >& $EOSLASTLOG; eval command eos -j -b $EOSROLE $EOSAPP root://$EOS_TEST_REDIRECTOR $* >> $EOSCERTLOG 2>&1
 }
 
 tpc1() {
@@ -914,6 +914,9 @@ runtest "### Chmod     " unix 0 "" eos chmod "777" "/eos/$EOS_TEST_INSTANCE/test
 runtest "### File Lck  " unix 0 "EOSAPP='-a app1'" eos file touch -l "/eos/$EOS_TEST_INSTANCE/test/instancetest/xattr-lock/lock1"
 runtest "### File Lck  " unix 0 "EOSAPP='-a app1'" eos file touch -l "/eos/$EOS_TEST_INSTANCE/test/instancetest/xattr-lock/lock1"
 runtest "### File Lck  " unix 1 "EOSAPP='-a app2'" eos file touch -l "/eos/$EOS_TEST_INSTANCE/test/instancetest/xattr-lock/lock1"
+runtest "### eoscp     " unix 1  "EOSROLE='-r 2 2'" eos cp /eos/$EOS_TEST_INSTANCE/test/instancetest/xattr-lock/lock1 /dev/null
+runtest "### eoscp     " unix 0  "EOSAPP='-a app1' EOSROLE='-r 2 2'" eos cp "/eos/$EOS_TEST_INSTANCE/test/instancetest/xattr-lock/lock1" /dev/null
+runtest "### eoscp     " unix 1  "EOSAPP='-a app2' EOSROLE='-r 2 2'" eos cp "/eos/$EOS_TEST_INSTANCE/test/instancetest/xattr-lock/lock1" /dev/null
 runtest "### File ULck " unix 1 "EOSAPP='-a app2'" eos file touch -u "/eos/$EOS_TEST_INSTANCE/test/instancetest/xattr-lock/lock1"
 runtest "### File ULck " unix 0 "EOSAPP='-a app1'" eos file touch -u "/eos/$EOS_TEST_INSTANCE/test/instancetest/xattr-lock/lock1"
 runtest "### File Lck  " unix 0 "EOSAPP='-a app1'" eos file touch -l "/eos/$EOS_TEST_INSTANCE/test/instancetest/xattr-lock/lock1" 0
