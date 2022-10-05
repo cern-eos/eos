@@ -7,25 +7,6 @@
 %define debug_package %{nil}
 %global __os_install_post %{nil}
 
-# #-------------------------------------------------------------------------------
-# # Custom strip command for CC7
-# #-------------------------------------------------------------------------------
-# %if "%{compiler}" == "gcc"
-#     %if 0%{?rhel} == 7
-#         %global __strip /bin/true
-#     %endif
-# %endif
-
-# #-------------------------------------------------------------------------------
-# # Custom strip command for CC7
-# #-------------------------------------------------------------------------------
-# %if "%{compiler}" == "gcc"
-#     %if 0%{?rhel} == 7
-#         %global __strip /opt/rh/%{devtoolset}/root/usr/bin/strip
-#         %global __objdump /opt/rh/%{devtoolset}/root/usr/bin/objdump
-#     %endif
-# %endif
-
 # By default we build the eos client SRPMS, if the entire build is required
 # then pass the "--with server" flag to the rpmbuild command
 %bcond_without server
