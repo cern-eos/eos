@@ -548,6 +548,7 @@ GrpcNsInterface::GetMD(eos::common::VirtualIdentity& vid,
       eos::rpc::FileMdProto gRPCFmd;
       gRPCResponse.mutable_fmd()->set_name(fmd->getName());
       gRPCResponse.mutable_fmd()->set_id(fmd->getId());
+      gRPCResponse.mutable_fmd()->set_inode(eos::common::FileId::FidToInode(fmd->getId()));
       gRPCResponse.mutable_fmd()->set_cont_id(fmd->getContainerId());
       gRPCResponse.mutable_fmd()->set_uid(fmd->getCUid());
       gRPCResponse.mutable_fmd()->set_gid(fmd->getCGid());
@@ -676,6 +677,7 @@ GrpcNsInterface::GetMD(eos::common::VirtualIdentity& vid,
     eos::rpc::ContainerMdProto gRPCFmd;
     gRPCResponse.mutable_cmd()->set_name(cmd->getName());
     gRPCResponse.mutable_cmd()->set_id(cmd->getId());
+    gRPCResponse.mutable_fmd()->set_inode(cmd->getId());
     gRPCResponse.mutable_cmd()->set_parent_id(cmd->getParentId());
     gRPCResponse.mutable_cmd()->set_uid(cmd->getCUid());
     gRPCResponse.mutable_cmd()->set_gid(cmd->getCGid());
