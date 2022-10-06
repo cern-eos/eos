@@ -1924,7 +1924,7 @@ runtest "### Chmod        " unix 0 "" eos chmod 777 $HTTPDIR
 # -----------------------------------------------------------
 # Functional tests upload/download x509/macaroons/tpc
 # -----------------------------------------------------------
-runtest "### Http x509/macaroons/tpc " unix 0 "" bash eos-http-functional-test --dir /$HTTPDIR
+runtest "### Http x509/macaroons/tpc " unix 0 "" bash eos-http-functional-test -h localhost:8443 --dir /$HTTPDIR
 
 # --------------------------
 # Range requests
