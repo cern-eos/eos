@@ -874,7 +874,7 @@ Summary: The EOS test package
 Group: Applications/File
 ExclusiveArch: x86_64 aarch64
 Requires: cadaver bc davix jq dmidecode
-# Required for eos-http-functional-test, coming from osg-development 
+# Required for eos-https-functional-test, coming from osg-development 
 Requires: x509-scitokens-issuer-client 
 
 %description -n eos-test
@@ -910,7 +910,7 @@ Contains an instance and fuse test script and some test executables and test arc
 %{_sbindir}/eos-synctime-test
 %{_sbindir}/eos-timestamp-test
 %{_sbindir}/eos-http-upload-test
-%{_sbindir}/eos-http-functional-test
+%{_sbindir}/eos-https-functional-test
 %{_sbindir}/eoscp-rain-test
 %{_sbindir}/eos-fusex-tests
 %{_sbindir}/eos-oc-test

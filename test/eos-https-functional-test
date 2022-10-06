@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # ----------------------------------------------------------------------
-# File: eos-http-functional-test
+# File: eos-https-functional-test
 # Author: Manuel Reis - CERN
 # ----------------------------------------------------------------------
 
@@ -29,7 +29,7 @@
 # usage: eos-http-upload-test rangeupload testfile /eos/dev/upload-directory/ #
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
-usage() { echo '''Usage: eos-http-func-tests [-h|--host <host>[:<port>| (-p|--port) <port>]]
+usage() { echo '''Usage: eos-https-func-tests [-h|--host <host>[:<port>| (-p|--port) <port>]]
                            [-c|--cert <x509 certificate>]
                            [-k|--key <x509 key>]
                            [-C|--cacert <CA certificate>]
@@ -45,7 +45,7 @@ usage_error () { echo >&2 "$(basename "$0"):  $1"; exit 2; }
 assert_argument () { test "$1" != "$EOL" || usage_error "$2 requires an argument"; }
 
 port=443
-host=localhost
+host=$(hostname)
 cacert="/etc/grid-security/certificates/rootCA.pem"
 capath="$(dirname "${cacert}")"
 cert="/root/.globus/usercert.pem"

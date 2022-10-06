@@ -154,7 +154,7 @@ install(TARGETS xrdstress.exe xrdcpabort xrdcprandom xrdcppgread
 
 install(PROGRAMS xrdstress eos-instance-test eos-instance-test-ci
   fuse/eos-fuse-test eos-rain-test eoscp-rain-test eos-io-test
-  eos-oc-test eos-drain-test eos-groupdrain-test eos-http-upload-test eos-http-functional-test
+  eos-oc-test eos-drain-test eos-groupdrain-test eos-http-upload-test eos-https-functional-test
   eos-mq-tests eos-rename-test eos-grpc-test eos-fsck-test eos-token-test
   eos-squash-test eos-backup eos-backup-browser eos-test-utils
   eos-converter-test eos-qos-test eos-timestamp-test
