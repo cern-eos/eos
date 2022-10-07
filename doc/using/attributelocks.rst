@@ -31,7 +31,13 @@ To create an exclusive extended attribute lock you do:
    # create a lock with a given liftime e.g. 1000s 
    eos -r 100 100 -a myapp file touch -l /eos/dev/lockedfile 1000
 
-By default locks are taken for 24h. The lifetime can be specified as seen before if needed.
+   # create a lock which only requires the same user to be used
+   eos -r 100 100 -a myapp file touch -l /eos/dev/lockedfile 1000 user
+
+   # create a lock which only requires the same app to be used
+   eos -r 100 100 -a myapp file touch -l /eos/dev/lockedfile 1000 app
+
+By default locks are taken for 24h. The lifetime can be specified as seen before if needed. The audience can be relaxed to allow same app access or same user.
 
 You can remove a lock if you are the owner by doing:
 
@@ -46,6 +52,11 @@ The internal representation of an attribute lock is given here:
 .. code-block:: bash
 
    attr ls /eos/dev/lockedfile | grep sys.app.locks
-   sys.app.lock="expires:1665042101,type:exclusive,owner:daemon:"
+   # requiring a strict audience
+   sys.app.lock="expires:1665042101,type:exclusive,owner:daemon:myapp"
+   # requiring same user
+   sys.app.lock="expires:1665042101,type:exclusive,owner:daemon:*"
+   # requiring same app
+   sys.app.lock="expires:1665042101,type:exclusive,owner:*:myapp"
 
 The high-level functionality for creating/deletion of attribute locks can be circumvented by creating/deleting the *sys.app.locks* attribute using extended attribute interfaces.

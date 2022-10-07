@@ -78,8 +78,13 @@ public:
 	// if this is read access on a shared lock, we let it pass
 	return false;
       }
-      std::string lockowner = std::string(vid.name.c_str()) + std::string(":") + std::string(vid.app.c_str());
-      if (lockowner != owner) {
+      // we can have full match or a wildcard ownership for the user or app name, both with wildcard does not make sense
+      std::string lockowner   = std::string(vid.uid_string.c_str()) + std::string(":") + std::string(vid.app.c_str());
+      std::string lockownerwn = std::string("*") + std::string(":") + std::string(vid.app.c_str());
+      std::string lockownerwa = std::string(vid.uid_string.c_str()) + std::string(":") + std::string("*");
+      if ( (lockowner != owner) && 
+	   (lockownerwn != owner) &&
+	   (lockownerwa != owner) ) {
 	// this is not us - this is the only case we prevent access
 	return true;
       }
@@ -87,7 +92,7 @@ public:
     return false;
   }
 
-  bool Lock(const char* path, bool shrd, time_t lifetime, eos::common::VirtualIdentity& vid) {
+  bool Lock(const char* path, bool shrd, time_t lifetime, eos::common::VirtualIdentity& vid, bool userwildcard, bool appwildcard) {
     errno = 0;
     eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
     XrdOucErrInfo error;
@@ -107,11 +112,17 @@ public:
       return false;
     }
 
+    if (userwildcard && appwildcard) {
+      // cannot have both with wildcard
+      errno = EINVAL;
+      return false;
+    }
+
     // define expires
     expires = time(NULL) + lifetime;
 
     // define the owner
-    owner = std::string(vid.name.c_str()) + std::string(":") + std::string(vid.app.c_str());
+    owner = (userwildcard?std::string("*"):std::string(vid.uid_string.c_str())) + std::string(":") + (appwildcard?std::string("*"):std::string(vid.app.c_str()));
 
     // define shared
     isshared = shrd;

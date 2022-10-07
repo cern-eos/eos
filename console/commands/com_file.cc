@@ -358,6 +358,19 @@ com_file(char* arg1)
 	in += "&mgm.file.touch.lockop.lifetime=";
 	in += fsid1.c_str();
 	fsid1="";
+      }
+      if (fsid2.length()) {
+	if ( (fsid2 != "app") &&
+	     (fsid2 != "user") ) {
+	  goto com_file_usage;
+	}
+	if (fsid2 == "app") {
+	  // this is inverted logic because we set the wildcard
+	  in += "&mgm.file.touch.wildcard=user";
+	} else {
+	  // this is inverted logic because we set the wildcard
+	  in += "&mgm.file.touch.wildcard=app";
+	}
 	fsid2="";
       }
     }
@@ -1130,9 +1143,11 @@ com_file_usage:
   fprintf(stdout, 
 	  "                                          - provide the optional checksum information for a new touched file\n");
   fprintf(stdout,
-          "file touch -l <path>|fid:<fid-dec>|fxid:<fid-hex> [lifetime] :\n");
+          "file touch -l <path>|fid:<fid-dec>|fxid:<fid-hex> [<lifetime> [<audience>=user|app]] :\n");
   fprintf(stdout,
 	  "                                          - touch a file and create an extended attribute lock with <lifetime> (default 24h)\n");
+  fprintf(stdout, 
+	  "                                          - with <audience> one can relax the lock owner requirements to be either same user or same app - default is both have to match\n");
     
   fprintf(stdout,
 	  "                                          - if the lock is already held by another caller EBUSY is returned\n");

@@ -1297,6 +1297,22 @@ ProcCommand::File()
       }
       
       char* lockop=0;
+      char* wildcard = pOpaque->Get("mgm.file.touch.wildcard");
+      bool userwildcard=false;
+      bool appwildcard=false;
+      if (wildcard && ( std::string(wildcard) != "user" ) && ( std::string(wildcard) != "app" ) ) {
+	stdErr = "error: invalid wildcard type specified, can be only 'user' or 'app'\n";
+	retc = EINVAL;
+	return SFS_OK;
+      } else {
+	if (wildcard) {
+	  if (std::string(wildcard) == "user") {
+	    userwildcard=true;
+	  } else {
+	    appwildcard=true;
+	  }
+	}
+      }
       if ( (lockop = pOpaque->Get("mgm.file.touch.lockop")) ) {
 	if (std::string(lockop) == "lock") {
 	  lock = true;
@@ -1342,7 +1358,7 @@ ProcCommand::File()
 	    // try to set a xattr lock
 	    XattrLock applock;
 	    errno = 0;
-	    if (applock.Lock(spath.c_str(), false , lifetime, *pVid)) {
+	    if (applock.Lock(spath.c_str(), false , lifetime, *pVid, userwildcard, appwildcard)) {
 	      stdOut += "success: created exclusive lock for '";
 	      stdOut += spath.c_str();
 	      stdOut += "'\n"; 

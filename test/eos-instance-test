@@ -911,18 +911,28 @@ runtest "### Rm        " unix 0 "" eos rm "/eos/$EOS_TEST_INSTANCE/test/file"
 # -------------------------------
 runtest "### Mkdir     " unix 0 "" eos "mkdir /eos/$EOS_TEST_INSTANCE/test/instancetest/xattr-lock/"
 runtest "### Chmod     " unix 0 "" eos chmod "777" "/eos/$EOS_TEST_INSTANCE/test/instancetest/xattr-lock"
-runtest "### File Lck  " unix 0 "EOSAPP='-a app1'" eos file touch -l "/eos/$EOS_TEST_INSTANCE/test/instancetest/xattr-lock/lock1"
-runtest "### File Lck  " unix 0 "EOSAPP='-a app1'" eos file touch -l "/eos/$EOS_TEST_INSTANCE/test/instancetest/xattr-lock/lock1"
-runtest "### File Lck  " unix 1 "EOSAPP='-a app2'" eos file touch -l "/eos/$EOS_TEST_INSTANCE/test/instancetest/xattr-lock/lock1"
+runtest "### File Lck  " unix 0 "EOSAPP='-a app1' EOSROLE='-r 2 2'" eos file touch -l "/eos/$EOS_TEST_INSTANCE/test/instancetest/xattr-lock/lock1"
+runtest "### File Lck  " unix 0 "EOSAPP='-a app1' EOSROLE='-r 2 2'" eos file touch -l "/eos/$EOS_TEST_INSTANCE/test/instancetest/xattr-lock/lock1"
+runtest "### File Lck  " unix 1 "EOSAPP='-a app2' EOSROLE='-r 2 2'" eos file touch -l "/eos/$EOS_TEST_INSTANCE/test/instancetest/xattr-lock/lock1"
 runtest "### eoscp     " unix 1  "EOSROLE='-r 2 2'" eos cp /eos/$EOS_TEST_INSTANCE/test/instancetest/xattr-lock/lock1 /dev/null
 runtest "### eoscp     " unix 0  "EOSAPP='-a app1' EOSROLE='-r 2 2'" eos cp "/eos/$EOS_TEST_INSTANCE/test/instancetest/xattr-lock/lock1" /dev/null
 runtest "### eoscp     " unix 1  "EOSAPP='-a app2' EOSROLE='-r 2 2'" eos cp "/eos/$EOS_TEST_INSTANCE/test/instancetest/xattr-lock/lock1" /dev/null
-runtest "### File ULck " unix 1 "EOSAPP='-a app2'" eos file touch -u "/eos/$EOS_TEST_INSTANCE/test/instancetest/xattr-lock/lock1"
-runtest "### File ULck " unix 0 "EOSAPP='-a app1'" eos file touch -u "/eos/$EOS_TEST_INSTANCE/test/instancetest/xattr-lock/lock1"
-runtest "### File Lck  " unix 0 "EOSAPP='-a app1'" eos file touch -l "/eos/$EOS_TEST_INSTANCE/test/instancetest/xattr-lock/lock1" 0
+runtest "### File ULck " unix 1 "EOSAPP='-a app2' EOSROLE='-r 2 2'" eos file touch -u "/eos/$EOS_TEST_INSTANCE/test/instancetest/xattr-lock/lock1"
+runtest "### File ULck " unix 0 "EOSAPP='-a app1' EOSROLE='-r 2 2'" eos file touch -u "/eos/$EOS_TEST_INSTANCE/test/instancetest/xattr-lock/lock1"
+runtest "### File Lck  " unix 0 "EOSAPP='-a app1' EOSROLE='-r 2 2'" eos file touch -l "/eos/$EOS_TEST_INSTANCE/test/instancetest/xattr-lock/lock1" 0
 runtest "### Delay     " unix 0 "" delay 1
-runtest "### File Lck  " unix 0 "EOSAPP='-a app2'" eos file touch -l "/eos/$EOS_TEST_INSTANCE/test/instancetest/xattr-lock/lock1"
-runtest "### File Lck  " unix 1 "EOSAPP='-a app1'" eos file touch -l "/eos/$EOS_TEST_INSTANCE/test/instancetest/xattr-lock/lock1" 
+runtest "### File Lck  " unix 0 "EOSAPP='-a app2' EOSROLE='-r 2 2'" eos file touch -l "/eos/$EOS_TEST_INSTANCE/test/instancetest/xattr-lock/lock1"
+runtest "### File Lck  " unix 1 "EOSAPP='-a app1' EOSROLE='-r 2 2'" eos file touch -l "/eos/$EOS_TEST_INSTANCE/test/instancetest/xattr-lock/lock1"
+runtest "### File Lck  " unix 0 "EOSAPP='-a app2' EOSROLE='-r 2 2'" eos file touch -u "/eos/$EOS_TEST_INSTANCE/test/instancetest/xattr-lock/lock1"
+# user audience
+runtest "### File Lck  " unix 0 "EOSAPP='-a app1' EOSROLE='-r 2 2'" eos file touch -l "/eos/$EOS_TEST_INSTANCE/test/instancetest/xattr-lock/lock1 1000 user"
+runtest "### eoscp     " unix 0  "EOSAPP='-a app2' EOSROLE='-r 2 2'" eos cp "/eos/$EOS_TEST_INSTANCE/test/instancetest/xattr-lock/lock1" /dev/null
+runtest "### eoscp     " unix 1  "EOSAPP='-a app2' EOSROLE='-r 3 3'" eos cp "/eos/$EOS_TEST_INSTANCE/test/instancetest/xattr-lock/lock1" /dev/null
+# app audience
+runtest "### File Lck  " unix 0 "EOSAPP='-a app1' EOSROLE='-r 2 2'" eos file touch -l "/eos/$EOS_TEST_INSTANCE/test/instancetest/xattr-lock/lock1 1000 app"
+runtest "### eoscp     " unix 1  "EOSAPP='-a app2' EOSROLE='-r 2 2'" eos cp "/eos/$EOS_TEST_INSTANCE/test/instancetest/xattr-lock/lock1" /dev/null
+runtest "### eoscp     " unix 0  "EOSAPP='-a app1' EOSROLE='-r 2 2'" eos cp "/eos/$EOS_TEST_INSTANCE/test/instancetest/xattr-lock/lock1" /dev/null
+runtest "### eoscp     " unix 0  "EOSAPP='-a app1' EOSROLE='-r 3 3'" eos cp "/eos/$EOS_TEST_INSTANCE/test/instancetest/xattr-lock/lock1" /dev/null
 runtest "### Rm        " unix 0 "" eos rm "/eos/$EOS_TEST_INSTANCE/test/instancetest/xattr-lock/lock1"
 runtest "### Rmdir     " unix 0 "" eos rmdir "/eos/$EOS_TEST_INSTANCE/test/instancetest/xattr-lock"
 
