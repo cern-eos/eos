@@ -66,8 +66,7 @@ XrdStress::XrdStress(unsigned int nChilds,
     childType = "thread";
 
     for (unsigned int i = 0; i < numChilds; i++) {
-      pthread_t thread;
-      vectChilds.push_back(thread);
+      vectChilds.emplace_back();
     }
   }
 
@@ -498,7 +497,7 @@ XrdStress::RdProc(void* arg)
     sizeReadFile = buf.st_size;
     count_open++;
     int fdRead = XrdPosixXrootd::Open(urlFile.c_str(), O_RDONLY,
-                                       kXR_ur | kXR_uw | kXR_gw | kXR_gr | kXR_or);
+                                      kXR_ur | kXR_uw | kXR_gw | kXR_gr | kXR_or);
 
     if (fdRead < 0) {
       fprintf(stderr, "error=error while opening for read file=%s errno=%d\n",
@@ -896,6 +895,5 @@ int main(int argc, char* argv[])
                                   process_mode, concurrent_mode);
   test->RunTest();
   delete test;
-
   return 0;
 }
