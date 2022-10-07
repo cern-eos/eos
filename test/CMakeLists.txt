@@ -31,7 +31,9 @@ include_directories(
 add_subdirectory(benchmark)
 add_subdirectory(microbenchmarks)
 
-add_executable(xrdstress.exe XrdStress.cc XrdStress.hh)
+add_executable(xrdstress.exe XrdStress.cc)
+set_target_properties(xrdstress.exe PROPERTIES
+  POSTION_INDEPENDENT_CODE TRUE)
 add_executable(xrdcpabort XrdCpAbort.cc)
 add_executable(xrdcprandom XrdCpRandom.cc)
 add_executable(xrdcppgread XrdCpPgRead.cc)
