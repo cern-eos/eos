@@ -66,10 +66,9 @@ FmdAttrHandler::LocalPutFmd(const std::string& path,
   int rc = CreateFile(&localio);
 
   if (rc != 0) {
-    // TODO: do we need to set kMissing when create
-    eos_err("msg=\"failed to create file\" path=\"%s\" rc=%d",
-            path.c_str(), rc);
-    return rc == 0;
+    eos_err("msg=\"failed to create file\" path=\"%s\" rc=%d", path.c_str()
+            , rc);
+    return false;
   }
 
   std::string attrval;
@@ -77,8 +76,8 @@ FmdAttrHandler::LocalPutFmd(const std::string& path,
   rc = localio.attrSet(gFmdAttrName, attrval.c_str(), attrval.length());
 
   if (rc != 0) {
-    eos_err("msg=\"failed to set xattr\" path=\"%s\" errno=%d",
-            path.c_str(), errno);
+    eos_err("msg=\"failed to set xattr\" path=\"%s\" errno=%d", path.c_str(),
+            errno);
   }
 
   return rc == 0;
