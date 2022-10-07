@@ -69,7 +69,7 @@ FmdAttrHandler::LocalPutFmd(const std::string& path,
     // TODO: do we need to set kMissing when create
     eos_err("msg=\"failed to create file\" path=\"%s\" rc=%d",
             path.c_str(), rc);
-    return rc != 0;
+    return rc == 0;
   }
 
   std::string attrval;
