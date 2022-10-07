@@ -261,12 +261,18 @@ ScanDir::AccountMissing()
           if (!gOFS.mFmdHandler->Commit(fmd.get())) {
             eos_err("msg=\"failed to create local fmd entry for missing file\" "
                     "fxid=%08llx fsid=%lu", fid, mFsId);
+            continue;
           }
 
           (void) gOFS.mFmdHandler->ResyncFileFromQdb(fid, mFsId, fpath,
               gOFS.mFsckQcl);
           fmd = gOFS.mFmdHandler->LocalGetFmd(fid, mFsId, true, false);
-          CollectInconsistencies(*fmd.get(), statistics, fidset);
+
+          if (fmd) {
+            CollectInconsistencies(*fmd.get(), statistics, fidset);
+          } else {
+            continue;
+          }
         }
       } catch (eos::MDException& e) {
         // No file on disk, no ns file metadata object but we have a ghost entry
