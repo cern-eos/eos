@@ -23,15 +23,7 @@
 
 include(BuildBenchmark)
 build_gbench(${CMAKE_SOURCE_DIR}/test/microbenchmarks/benchmark)
-set(BM_COMMON_SRCS
-  common/BM_StringUtils.cc
-  common/BM_XrdString.cc
-  main.cc)
-
-set(EOS_BM_SRCS
-  ${BM_COMMON_SRCS})
-
-add_executable(eos-microbenchmarks ${EOS_BM_SRCS})
+add_executable(eos-microbenchmarks main.cc)
 add_dependencies(eos-microbenchmarks ${BENCHMARK_LIBRARY})
 target_link_libraries(eos-microbenchmarks PRIVATE
   benchmark::benchmark
