@@ -16,6 +16,34 @@ Introduction
 This release is based on XRootD V4 and IPV6 enabled.
 
 
+``v4.8.92 Citrine``
+===================
+
+2022-10-10
+
+Bug
+----
+
+* [EOS-5347] - EOS token not usable via eosxd
+* [EOS-5369] - occasional error during eoscta test "mismatch between requested fid/fsid and retrieved ones"
+* [EOS-5371] - Home-i00 crash 25/8/22 13:15
+
+
+New Feature
+------------
+
+* [EOS-5145] - Extending lock support
+
+
+Improvement
+------------
+
+* [EOS-3297] - Print the deviation used for the group balancer
+* [EOS-5360] - Add EOS log messages for CTA workflow events
+* [EOS-5394] - Modify EOS to fill new fields passed to CTA
+* [EOS-5401] - Return the inode number in FMD responses for GRPC
+
+
 ``v4.8.91 Citrine``
 ===================
 
