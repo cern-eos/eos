@@ -511,13 +511,6 @@ public:
   virtual std::string getAttachedDbName() const = 0;
 
   //----------------------------------------------------------------------------
-  //! Copy the content of the content db to an in memory map
-  //!
-  //! @return true if the operation succeeded, false otherwise
-  //----------------------------------------------------------------------------
-  virtual bool syncFromDb(::google::dense_hash_map<Tkey, Tval>* map) = 0;
-
-  //----------------------------------------------------------------------------
   //! Detach the content db
   //!
   //! @return true if the operation succeeded, false otherwise

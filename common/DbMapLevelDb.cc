@@ -1046,60 +1046,6 @@ std::string LvDbDbMapInterface::getAttachedDbName() const
   return pAttachedDbname;
 }
 
-bool LvDbDbMapInterface::syncFromDb(::google::dense_hash_map<Tkey, Tval>* map)
-{
-  if (!pAttachedDbname.empty()) {
-    leveldb::Iterator* it = AttachedDb->NewIterator(leveldb::ReadOptions());
-
-    for (it->SeekToFirst(); it->Valid(); it->Next()) {
-      Tkey key;
-      key.assign(it->key().data(), it->key().size());
-      Tval val;
-      Tlogentry entry;
-      size_t pos = 0;
-      Slice slice;
-
-      if (!ExtractSliceFromSlice(it->value(), &pos, &slice)) {
-        return false;
-      } else {
-        entry.value.assign(slice.data(), slice.size());
-      }
-
-      if (!ExtractSliceFromSlice(it->value(), &pos, &slice)) {
-        return false;
-      } else {
-        entry.comment.assign(slice.data(), slice.size());
-      }
-
-      if (!ExtractSliceFromSlice(it->value(), &pos, &slice)) {
-        return false;
-      } else {
-        entry.seqid.assign(slice.data(), slice.size());
-      }
-
-      if (!ExtractSliceFromSlice(it->value(), &pos, &slice)) {
-        return false;
-      } else {
-        entry.timestampstr.assign(slice.data(), slice.size());
-      }
-
-      if (!ExtractSliceFromSlice(it->value(), &pos, &slice)) {
-        return false;
-      } else {
-        entry.writer.assign(slice.data(), slice.size());
-      }
-
-      Tlogentry2Tval(entry, &val);
-      (*map)[key] = val;
-    }
-
-    delete it;
-    return true;
-  }
-
-  return false;
-}
-
 bool LvDbDbMapInterface::detachDb()
 {
   if (!pAttachedDbname.empty()) {

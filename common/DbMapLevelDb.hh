@@ -296,7 +296,6 @@ public:
                         int createperm = 0, void* option = NULL);
   virtual bool trimDb();
   virtual std::string getAttachedDbName() const;
-  virtual bool syncFromDb(::google::dense_hash_map<Tkey, Tval>* map);
   virtual bool detachDb();
   // Requestors
   virtual size_t getAll(TlogentryVec* retvec, size_t nmax,

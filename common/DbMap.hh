@@ -497,8 +497,7 @@ public:
                 int createperm = 0, Toption* option = NULL)
   {
     RWMutexWriteLock lock(pMutex);
-    return pDb->attachDb(dbname, repair, createperm, option) &&
-           pDb->syncFromDb(&pMap);
+    return pDb->attachDb(dbname, repair, createperm, option);
   }
 
   // ------------------------------------------------------------------------
