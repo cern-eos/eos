@@ -98,9 +98,14 @@ metad::connect(std::string zmqtarget, std::string zmqidentity,
 {
   set_zmq_wants_to_connect(1);
   std::lock_guard<std::mutex> connectionMutex(zmq_socket_mutex);
+#if ZMQ_VERSION >= ZMQ_MAKE_VERSION(4, 7, 1)
+
+  if (z_socket && z_socket->handle() && (zmqtarget != zmq_target)) {
+#else
 
   if (z_socket && z_socket->connected() && (zmqtarget != zmq_target)) {
-    // delete the existing ZMQ connection
+#endif
+    // delete the exinsting ZMQ connection
     delete z_socket;
     delete z_ctx;
   }
@@ -129,10 +134,17 @@ metad::connect(std::string zmqtarget, std::string zmqidentity,
                   zmq_target.c_str(), zmq_identity.c_str(), zmq_identity.length());
   z_ctx = new zmq::context_t(1);
   z_socket = new zmq::socket_t(*z_ctx, ZMQ_DEALER);
+#if ZMQ_VERSION >= ZMQ_MAKE_VERSION(4, 7, 1)
+  z_socket->set(zmq::sockopt::ZMQ_ROUTING_ID, zmq_identity);
+  z_socket->set(zmq::sockopt::ZMQ_TCP_KEEPALIVE, 1);
+  z_socket->set(zmq::sockopt::ZMQ_TCP_KEEPALIVE_IDLE, 90);
+  z_socket->set(zmq::sockopt::ZMQ_TCP_KEEPALIVE_INTVL, 90);
+#else
   z_socket->setsockopt(ZMQ_IDENTITY, zmq_identity.c_str(), zmq_identity.length());
   z_socket->setsockopt(ZMQ_TCP_KEEPALIVE, 1);
   z_socket->setsockopt(ZMQ_TCP_KEEPALIVE_IDLE, 90);
   z_socket->setsockopt(ZMQ_TCP_KEEPALIVE_INTVL, 90);
+#endif
 
   while (1) {
     try {
@@ -2683,8 +2695,7 @@ metad::mdcommunicate(ThreadAssistant& assistant)
             zmq_getsockopt(static_cast<void*>(*z_socket), ZMQ_RCVMORE, &more, &more_size);
           } while (more);
 
-	  std::string s((const char*) zmq_msg_data(&message), zmq_msg_size(&message));
-	  
+          std::string s((const char*) zmq_msg_data(&message), zmq_msg_size(&message));
           rsp.Clear();
 
           if (rsp.ParseFromString(s)) {
@@ -2899,9 +2910,10 @@ metad::mdcommunicate(ThreadAssistant& assistant)
                 eos_static_debug("");
                 fuse_ino_t ino = EosFuse::Instance().getCap().forget(capid);
                 shared_md md;
-		bool is_locked=false;
+                bool is_locked = false;
+
                 if (mdmap.retrieveTS(ino, md)) {
-		  is_locked=true;
+                  is_locked = true;
                   md->Locker().Lock();
                 }
 
@@ -2916,10 +2928,10 @@ metad::mdcommunicate(ThreadAssistant& assistant)
                       eos_static_debug("%s", dump_md(md).c_str());
                     }
                   } else {
-		    if(is_locked) {
-		      // in case this should somehow happen
-		      md->Locker().UnLock();
-		    }
+                    if (is_locked) {
+                      // in case this should somehow happen
+                      md->Locker().UnLock();
+                    }
                   }
                 }
               } else {
@@ -3159,8 +3171,13 @@ metad::mdcommunicate(ThreadAssistant& assistant)
       zmq::message_t hb_msg;
       hb.SerializeToString(&hbstream);
       hb_msg.rebuild(hbstream.c_str(), hbstream.length());
+#if ZMQ_VERSION >= ZMQ_MAKE_VERSION(4, 3, 1)
+
+      if (!z_socket->send(hb_msg, zmq::send_flags::none)) {
+#else
 
       if (!z_socket->send(hb_msg)) {
+#endif
         eos_static_err("err sending heartbeat: hbstream.c_str()=%s, hbstream.length()=%d, hbstream:hex=%s",
                        hbstream.c_str(), hbstream.length(),
                        eos::common::stringToHex(hbstream).c_str());
@@ -3177,7 +3194,8 @@ metad::mdcommunicate(ThreadAssistant& assistant)
 
       hb.mutable_heartbeat_()->clear_log();
       hb.mutable_heartbeat_()->clear_trace();
-    } catch (std::exception& e) {
+    }
+    catch (std::exception& e) {
       eos_static_err("catched exception %s", e.what());
     }
 

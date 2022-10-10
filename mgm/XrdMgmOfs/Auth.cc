@@ -71,10 +71,6 @@ XrdMgmOfs::AuthMasterThread(ThreadAssistant& assistant) noexcept
   }
 
   // Start the proxy
-#if ZMQ_VERSION_MAJOR == 2
-  zmq_device(ZMQ_QUEUE, &frontend, &backend);
-#else
-
   try {
     zmq::proxy(static_cast<void*>(frontend), static_cast<void*>(backend),
                static_cast<void*>(0));
@@ -85,8 +81,6 @@ XrdMgmOfs::AuthMasterThread(ThreadAssistant& assistant) noexcept
       return;
     }
   }
-
-#endif
 }
 
 //------------------------------------------------------------------------------
