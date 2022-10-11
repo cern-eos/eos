@@ -44,11 +44,10 @@ XrdMgmOfs::AuthMasterThread(ThreadAssistant& assistant) noexcept
   // Socket facing clients
   zmq::socket_t frontend(*mZmqContext, ZMQ_ROUTER);
   int enable_ipv6 = 1;
-#if ZMQ_VERSION >= ZMQ_MAKE_VERSION(4, 1, 0)
-  frontend.setsockopt(ZMQ_IPV6, &enable_ipv6, sizeof(enable_ipv6));
+#if CPPZMQ_VERSION >= ZMQ_MAKE_VERSION(4, 7, 1)
+  frontend.set(ZMQ_IPV6, enable_ipv6);
 #else
-  enable_ipv6 = 0;
-  frontend.setsockopt(ZMQ_IPV4ONLY, &enable_ipv6, sizeof(enable_ipv6));
+  frontend.setsockopt(ZMQ_IPV6, &enable_ipv6, sizeof(enable_ipv6));
 #endif
   std::ostringstream sstr;
   sstr << "tcp://*:" << mFrontendPort;
