@@ -17,7 +17,7 @@
  ************************************************************************/
 
 /************************************************************************
- * @file  XattrSet.hh                                                   *
+ * @file  XattrMultiSet.hh                                                   *
  * @brief Serialize/deserialize a set to allow it to be stored as an    *
  *        extended attribute value (string) but manipulated as a set    *
  ************************************************************************/
@@ -32,10 +32,10 @@
 
 EOSMGMNAMESPACE_BEGIN
 
-struct XattrSet {
-  XattrSet() {}
+struct XattrMultiSet {
+  XattrMultiSet() {}
 
-  XattrSet(const char *str) { deserialize(str); }
+  XattrMultiSet(const char *str) { deserialize(str); }
 
   // Convert a string of space-separated values into a set
   void deserialize(const char *str) {
@@ -65,7 +65,7 @@ struct XattrSet {
     return xattr_str;
   }
 
-  std::set<std::string> values;
+  std::multiset<std::string> values;
 };
 
 EOSMGMNAMESPACE_END

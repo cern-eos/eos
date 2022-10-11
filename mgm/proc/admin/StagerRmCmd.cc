@@ -157,15 +157,13 @@ eos::mgm::StagerRmCmd::ProcessRequest() noexcept
       auto fmd = gOFS->eosView->getFile(path.c_str());
 
       if (fmd->hasAttribute(eos::common::RETRIEVE_EVICT_COUNTER_NAME)) {
-        evictionCounter = std::stoi(fmd->getAttribute(
-                                      eos::common::RETRIEVE_EVICT_COUNTER_NAME));
+        evictionCounter = std::stoi(fmd->getAttribute(eos::common::RETRIEVE_EVICT_COUNTER_NAME));
       }
 
       eosLog.addParam(EosCtaReportParam::STAGERRM_EVICTCOUNTER, evictionCounter);
 
       evictionCounter = std::max(0, evictionCounter - 1);
-      fmd->setAttribute(eos::common::RETRIEVE_EVICT_COUNTER_NAME,
-                        std::to_string(evictionCounter));
+      fmd->setAttribute(eos::common::RETRIEVE_EVICT_COUNTER_NAME, std::to_string(evictionCounter));
       gOFS->eosView->updateFileStore(fmd.get());
     } catch (eos::MDException& ex) {
       eos_static_err("msg=\"could not update eviction counter for file %s\"",

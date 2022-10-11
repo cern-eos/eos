@@ -30,7 +30,7 @@
 #include "mgm/Quota.hh"
 #include "common/CtaCommon.hh"
 #include "common/eos_cta_pb/EosCtaAlertHandler.hh"
-#include "mgm/XattrSet.hh"
+#include "mgm/XattrMultiSet.hh"
 #include "mgm/WFE.hh"
 #include "mgm/Stat.hh"
 #include "mgm/XrdMgmOfsDirectory.hh"
@@ -1789,7 +1789,7 @@ WFE::Job::IdempotentPrepare(const std::string& fullPath,
     lock.Grab(gOFS->eosViewRWMutex);
     auto fmd = gOFS->eosFileService->getFileMD(mFid);
     // Get the list of in-flight Prepare requests for this file (if any)
-    XattrSet prepareReqIds;
+    XattrMultiSet prepareReqIds;
 
     if (fmd->hasAttribute(RETRIEVE_REQID_ATTR_NAME)) {
       prepareReqIds.deserialize(fmd->getAttribute(RETRIEVE_REQID_ATTR_NAME));
@@ -1814,7 +1814,7 @@ WFE::Job::IdempotentPrepare(const std::string& fullPath,
         cgid = fmd->getCGid();
         gOFS->eosView->updateFileStore(fmd.get());
       } else {
-        eos_static_info("File %s is already being retrieved by %u clients.",
+        eos_static_info("File %s is already being retrieved by %u requests.",
                         fullPath.c_str(), prepareReqIds.values.size() - 1);
         eosLog.addParam(EosCtaReportParam::PREP_WFE_SENTTOCTA, false);
         MoveWithResults(SFS_OK);
@@ -1966,7 +1966,7 @@ WFE::Job::HandleProtoMethodAbortPrepareEvent(const std::string& fullPath,
     .addParam(EosCtaReportParam::TD, mVid.tident.c_str())
     .addParam(EosCtaReportParam::PREP_WFE_EVENT, "abort");
 
-  XattrSet prepareReqIds;
+  XattrMultiSet prepareReqIds;
   {
     eos::common::RWMutexWriteLock lock;
     lock.Grab(gOFS->eosViewRWMutex);
@@ -2009,9 +2009,11 @@ WFE::Job::HandleProtoMethodAbortPrepareEvent(const std::string& fullPath,
 
       eosLog.addParam(EosCtaReportParam::PREP_WFE_REQID, opaqueRequestId);
 
-      if (prepareReqIds.values.erase(opaqueRequestId) != 1) {
+      auto requestIdIter = prepareReqIds.values.find(opaqueRequestId);
+      if (requestIdIter == prepareReqIds.values.end()) {
         throw_mdexception(EINVAL, "Request ID not found in extended attributes");
       }
+      prepareReqIds.values.erase(requestIdIter);
 
       fmd->setAttribute(RETRIEVE_REQID_ATTR_NAME, prepareReqIds.serialize());
       gOFS->eosView->updateFileStore(fmd.get());
@@ -2397,7 +2399,7 @@ WFE::Job::resetRetrieveIdListAndErrorMsg(const std::string& fullPath)
 
   try {
     eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
-    XattrSet prepareReqIds;
+    XattrMultiSet prepareReqIds;
     auto fmd = gOFS->eosFileService->getFileMD(mFid);
 
     if (fmd->hasAttribute(RETRIEVE_REQID_ATTR_NAME)) {
