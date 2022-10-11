@@ -97,7 +97,14 @@ private:
     future_holder(F&& f) : fut_(std::move(f)) {}
     T getValue() override
     {
-      return std::move(fut_).get();
+      // This is a hack for the fact that folly::Future<Unit> is
+      // not a void type but we're behaving as though it is!
+      // So we need to realize the future but throw away the unit future return
+      if constexpr(std::is_same_v<T, void>) {
+        std::move(fut_).get();
+      } else {
+        return std::move(fut_).get();
+      }
     }
 
     bool valid() override

@@ -35,6 +35,33 @@ TEST(OpaqueFuture, BasicStdFuture)
   EXPECT_EQ(of.getValue(), 42);
 }
 
+TEST(OpaqueFuture, VoidStdFuture)
+{
+  std::promise<void> p;
+  auto f = p.get_future();
+  eos::common::OpaqueFuture<void> of(std::move(f));
+  ASSERT_TRUE(of.valid());
+  EXPECT_FALSE(of.ready());
+  p.set_value();
+  EXPECT_TRUE(of.ready());
+  of.getValue();
+}
+
+// We sneak in a folly::Unit as a void future!
+TEST(OpaqueFuture, VoidFollyFuture)
+{
+  folly::Promise<folly::Unit> p;
+  auto f = p.getFuture();
+  static_assert(std::is_same_v<decltype(f),
+                               folly::Future<folly::Unit>>);
+  eos::common::OpaqueFuture<void> of(std::move(f));
+  ASSERT_TRUE(of.valid());
+  EXPECT_FALSE(of.ready());
+  p.setValue();
+  EXPECT_TRUE(of.ready());
+  of.getValue();
+}
+
 TEST(OpaqueFuture, BasicfollyFuture)
 {
   folly::Promise<int> p;
