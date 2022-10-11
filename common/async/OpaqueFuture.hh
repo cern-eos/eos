@@ -39,6 +39,13 @@ template <typename Fut>
 struct has_isReady<Fut, std::void_t<decltype(std::declval<Fut>().isReady())>> :
     std::true_type {};
 
+template <typename, typename = void>
+struct has_cancel : std::false_type {};
+
+template <typename Fut>
+struct has_cancel<Fut, std::void_t<decltype(std::declval<Fut>().cancel())>> :
+    std::true_type {};
+
 // some tests to assert this works as expected; these will fail compilation in
 // case our assertions are wrong but are thrown out from the actual object code
 static_assert(has_isReady<folly::Future<int>>::value,
@@ -79,6 +86,11 @@ public:
     return fut_holder->wait();
   }
 
+  void cancel()
+  {
+    return fut_holder->cancel();
+  }
+
   template <typename F>
   OpaqueFuture(F&& fut) : fut_holder(std::make_unique<future_holder<F>>(std::move(
                                          fut))) {}
@@ -90,6 +102,7 @@ private:
     virtual bool valid() = 0;
     virtual bool ready() = 0;
     virtual void wait() = 0;
+    virtual void cancel() = 0;
   };
 
   template <typename F>
@@ -124,6 +137,13 @@ private:
         return fut_.isReady();
       } else if constexpr(std::is_same_v<F, std::future<T>>) {
         return fut_.wait_for(std::chrono::seconds(0)) == std::future_status::ready;
+      }
+    }
+
+    void cancel() override
+    {
+      if constexpr(detail::has_cancel<F>::value) {
+        fut_.cancel();
       }
     }
 
