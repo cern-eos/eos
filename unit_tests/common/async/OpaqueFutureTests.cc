@@ -154,7 +154,7 @@ TEST(OpaqueFuture, StdFutureWait)
 
 TEST_F(FollyExecutor_F, follyOpaqueFutureWait)
 {
-  auto f = folly::makeFuture().via(folly_executor.get()).then([](auto&&) {
+  auto f = folly::makeFuture().via(folly_io_executor.get()).then([](auto&&) {
     return fib(40);
   });
   OpaqueFuture<int> of(std::move(f));

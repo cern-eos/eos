@@ -25,6 +25,7 @@
 #pragma once
 
 #include <folly/executors/IOThreadPoolExecutor.h>
+#include <folly/executors/CPUThreadPoolExecutor.h>
 #include <gtest/gtest.h>
 
 class FollyExecutor_F : public ::testing::Test
@@ -32,14 +33,17 @@ class FollyExecutor_F : public ::testing::Test
 protected:
   void SetUp() override
   {
-    folly_executor = std::make_shared<folly::IOThreadPoolExecutor>(kNumThreads);
+    folly_io_executor = std::make_shared<folly::IOThreadPoolExecutor>(kNumThreads);
+    folly_cpu_executor = std::make_shared<folly::CPUThreadPoolExecutor>(kNumThreads);
   }
 
   void TearDown() override
   {
-    folly_executor.reset();
+    folly_io_executor.reset();
+    folly_cpu_executor.reset();
   }
 
-  std::shared_ptr<folly::IOThreadPoolExecutor> folly_executor;
+  std::shared_ptr<folly::IOThreadPoolExecutor> folly_io_executor;
+  std::shared_ptr<folly::CPUThreadPoolExecutor> folly_cpu_executor;
   constexpr static size_t kNumThreads = 4;
 };

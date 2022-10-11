@@ -28,27 +28,39 @@
 #include "common/async/OpaqueFuture.hh"
 #include "common/ThreadPool.hh"
 #include <folly/executors/IOThreadPoolExecutor.h>
+#include <folly/executors/CPUThreadPoolExecutor.h>
 
 namespace eos::common
 {
 
+namespace detail {
+
 // A function that runs a given function via a given folly executor. We wrap the
 // the result type in a type erased OpaqueFuture to allow for interop with std::future
-// and folly::Future.
+// and folly::Future, we also transform the type tag folly::Unit to a void to interop
+// with std::future
 template <typename F>
 auto
-execVia(folly::Executor* executor, F f)
--> OpaqueFuture<std::invoke_result_t<F>> {
-
+execVia(folly::Executor* executor, F&& f)
+  -> std::enable_if_t<!folly::isFuture<invoke_result_t<F>>::value,
+                      OpaqueFuture<std::invoke_result_t<F>>>
+{
+  // Folly's void futures are mapped to a folly::Unit empty type
+  // since this is not void, do this mapping where in we return
+  // an OpaqueFuture of <void> in case the function returns a
+  // void instead of a folly::Unit which we cannot work with.
   using ResultType = std::invoke_result_t<F>;
-  auto fut = folly::makeFuture().via(executor)
-  .thenValue([f = std::move(f)](auto&&)
-  {
-    return std::invoke(f);
+  // a type holding either result of F or folly::Unit if void
+  using follyType = folly::lift_unit_t<ResultType>;
+
+  folly::Promise<follyType> promise;
+  auto fut = promise.getFuture();
+  executor->add([promise = std::move(promise),
+                 f = std::move(f)]() mutable {
+    promise.setWith(std::move(f));
   });
   return OpaqueFuture<ResultType>(std::move(fut));
 }
-
 
 // A function that runs a given function via eos::common::Threadpool and returns an opaque future
 // The task is wrapped as packeged_task over the std::function<void> variant as
@@ -58,23 +70,40 @@ execVia(folly::Executor* executor, F f)
 template <typename F>
 auto
 execVia(eos::common::ThreadPool* threadpool, F f)
--> OpaqueFuture<std::invoke_result_t<F>> {
+  -> OpaqueFuture<std::invoke_result_t<F>>
+{
   using ResultType = std::invoke_result_t<F>;
   auto task = std::make_shared<std::packaged_task<ResultType()>>(std::move(f));
   auto fut = threadpool->PushTask(std::move(task));
   return OpaqueFuture<ResultType>(std::move(fut));
 }
 
+inline void ShutdownExecutor(folly::Executor* executor) {
+  if (auto* tp = dynamic_cast<folly::ThreadPoolExecutor*>(executor)) {
+    tp->stop();
+  }
+}
+
+inline void ShutdownExecutor(eos::common::ThreadPool* threadpool)
+{
+  threadpool->Stop();
+}
+
+} // detail
+
 enum class ExecutorType {
   kThreadPool,
-  kFollyExecutor
+  kFollyExecutor,
+  kFollyIOExecutor,
 };
 
 inline constexpr ExecutorType
 GetExecutorType(std::string_view exec_type)
 {
-  if (exec_type == "folly") {
+  if (exec_type == "folly" || exec_type == "follyCPU") {
     return ExecutorType::kFollyExecutor;
+  } else if (exec_type == "follyIO") {
+    return ExecutorType::kFollyIOExecutor;
   }
 
   // std is the default
@@ -92,6 +121,7 @@ GetExecutorType(std::string_view exec_type)
  * templating on the function type, so that the various executors can be their
  * own variant of a callable/function/packaged_task etc.
 */
+static constexpr unsigned int MIN_THREADPOOL_SIZE=2;
 
 class ExecutorMgr
 {
@@ -106,21 +136,26 @@ public:
 
     if (auto executor = std::get_if<std::shared_ptr<folly::Executor>>(&mExecutor))
     {
-      return execVia(executor->get(), std::move(f));
+      return detail::execVia(executor->get(), std::forward<F>(f));
     } else if (auto threadpool = std::get_if<std::shared_ptr<eos::common::ThreadPool>>(&mExecutor))
     {
-      return execVia(threadpool->get(), f);
+      return detail::execVia(threadpool->get(), f);
     } else {
       throw std::runtime_error("Invalid executor type");
     }
 
     /*
-    // TODO: get this working with std::visit
+    // This is the visit variant
     std::visit([f = std::move(f)](auto&& executor) -> future_result_t<F> {
       return execVia(executor.get(), f);
     }, mExecutor);*/
   }
 
+  void Shutdown() {
+    std::visit([](auto&& executor) {
+      detail::ShutdownExecutor(executor.get());
+    }, mExecutor);
+  }
 
   template <typename T>
   constexpr bool holdsType() const
@@ -142,12 +177,16 @@ public:
   {
     switch (type) {
     case ExecutorType::kThreadPool:
-      mExecutor = std::make_shared<eos::common::ThreadPool>(num_threads);
+      mExecutor = std::make_shared<eos::common::ThreadPool>(MIN_THREADPOOL_SIZE,
+                                                            num_threads);
       break;
 
     case ExecutorType::kFollyExecutor:
-      mExecutor = std::make_shared<folly::IOThreadPoolExecutor>(num_threads);
+      mExecutor = std::make_shared<folly::CPUThreadPoolExecutor>(num_threads);
       break;
+
+    case ExecutorType::kFollyIOExecutor:
+      mExecutor = std::make_shared<folly::IOThreadPoolExecutor>(num_threads);
     }
   }
 
@@ -159,9 +198,8 @@ public:
       mExecutor = std::make_shared<eos::common::ThreadPool>(min_threads, args...);
       break;
 
-    case ExecutorType::kFollyExecutor:
-      mExecutor = std::make_shared<folly::IOThreadPoolExecutor>(min_threads);
-      break;
+    default:
+      ExecutorMgr(type, min_threads);
     }
   }
 
