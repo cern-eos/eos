@@ -458,11 +458,11 @@ The EOS server installation containing MGM, FST & MQ service.
 %dir %attr(700,daemon,daemon) %{_localstatedir}/eos/ns-queue/default
 %dir %attr(755,daemon,daemon) %{_localstatedir}/log/eos
 %dir %attr(755,daemon,daemon) %{_localstatedir}/log/eos/tx
+%dir %attr(770,daemon,c3) %{_localstatedir}/eos/archive/
+%dir %attr(770,daemon,c3) %{_localstatedir}/log/eos/archive/
 %attr(644,daemon,daemon) %{_localstatedir}/eos/html/error.html
 %attr(644,daemon,daemon) %{_localstatedir}/eos/qos/qos.conf
 %attr(555,daemon,daemon) %{_localstatedir}/eos/wfe/bash/shell
-%exclude %dir %{_localstatedir}/eos/archive/
-%exclude %dir %{_localstatedir}/log/eos/archive/
 
 %post -n eos-server
 if [ ! -f /etc/sysconfig/eos-yum-noscripts ]; then
@@ -816,8 +816,8 @@ The EOS archive daemon.
 %{_sysconfdir}/rc.d/init.d/eosarchived
 %config(noreplace) %{_sysconfdir}/sysconfig/eosarchived
 %endif
-%dir %attr(770,eosarchi,c3) %{_localstatedir}/eos/archive/
-%dir %attr(770,eosarchi,c3) %{_localstatedir}/log/eos/archive/
+%dir %attr(770,daemon,c3) %{_localstatedir}/eos/archive/
+%dir %attr(770,daemon,c3) %{_localstatedir}/log/eos/archive/
 # To make sure python3 also uses /opt/ to search for modules
 %if %{?_with_eos_xrootd_rh:1}%{!?_with_eos_xrootd_rh:0}
 %config(noreplace) %{python3_sitelib}/opt-eos-xrootd.pth
