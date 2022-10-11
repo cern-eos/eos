@@ -135,10 +135,10 @@ metad::connect(std::string zmqtarget, std::string zmqidentity,
   z_ctx = new zmq::context_t(1);
   z_socket = new zmq::socket_t(*z_ctx, ZMQ_DEALER);
 #if CPPZMQ_VERSION >= ZMQ_MAKE_VERSION(4, 7, 1)
-  z_socket->set(ZMQ_ROUTING_ID, zmq_identity);
-  z_socket->set(ZMQ_TCP_KEEPALIVE, 1);
-  z_socket->set(ZMQ_TCP_KEEPALIVE_IDLE, 90);
-  z_socket->set(ZMQ_TCP_KEEPALIVE_INTVL, 90);
+  z_socket->set(zmq::sockopt::routing_id, zmq_identity);
+  z_socket->set(zmq::sockopt::tcp_keepalive, 1);
+  z_socket->set(zmq::sockopt::tcp_keepalive_idle, 90);
+  z_socket->set(zmq::sockopt::tcp_keepalive_intvl, 90);
 #else
   z_socket->setsockopt(ZMQ_IDENTITY, zmq_identity.c_str(), zmq_identity.length());
   z_socket->setsockopt(ZMQ_TCP_KEEPALIVE, 1);
@@ -150,7 +150,11 @@ metad::connect(std::string zmqtarget, std::string zmqidentity,
     try {
       z_socket->connect(zmq_target);
       int linger = 0;
+#if CPPZMQ_VERSION >= ZMQ_MAKE_VERSION(4, 7, 1)
+      z_socket->set(zmq::sockopt::linger, linger);
+#else
       z_socket->setsockopt(ZMQ_LINGER, &linger, sizeof(linger));
+#endif
       eos_static_notice("connected to %s", zmq_target.c_str());
       break;
     } catch (zmq::error_t& e) {

@@ -583,11 +583,25 @@ client_command(XrdOucString& in, bool is_admin, std::string* reply)
     socket.connect(serveruri.c_str());
     zmq::message_t request(path.length());
     memcpy(request.data(), path.c_str(), path.length());
+#if CPPZMQ_VERSION >= ZMQ_MAKE_VERSION(4, 3, 1)
+    socket.send(request, zmq::send_flags::none);
+#else
     socket.send(request);
+#endif
+#if CPPZMQ_VERSION >= ZMQ_MAKE_VERSION(4, 3, 1)
+    zmq::mutable_buffer response;
+    zmq::recv_buffer_result_t ret_recv = socket.recv(response,
+                                         zmq::recv_flags::none);
+#else
     zmq::message_t response;
-    socket.recv(&response);
+    size_t ret_recv = socket.recv(&response);
+#endif
     std::string sout;
-    sout.assign((char*)response.data(), response.size());
+
+    if (ret_recv) {
+      sout.assign((char*)response.data(), response.size());
+    }
+
     CommandEnv = new XrdOucEnv(sout.c_str());
 
     if (reply) {
