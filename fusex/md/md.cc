@@ -135,10 +135,10 @@ metad::connect(std::string zmqtarget, std::string zmqidentity,
   z_ctx = new zmq::context_t(1);
   z_socket = new zmq::socket_t(*z_ctx, ZMQ_DEALER);
 #if CPPZMQ_VERSION >= ZMQ_MAKE_VERSION(4, 7, 1)
-  z_socket->set(zmq::sockopt::ZMQ_ROUTING_ID, zmq_identity);
-  z_socket->set(zmq::sockopt::ZMQ_TCP_KEEPALIVE, 1);
-  z_socket->set(zmq::sockopt::ZMQ_TCP_KEEPALIVE_IDLE, 90);
-  z_socket->set(zmq::sockopt::ZMQ_TCP_KEEPALIVE_INTVL, 90);
+  z_socket->set(ZMQ_ROUTING_ID, zmq_identity);
+  z_socket->set(ZMQ_TCP_KEEPALIVE, 1);
+  z_socket->set(ZMQ_TCP_KEEPALIVE_IDLE, 90);
+  z_socket->set(ZMQ_TCP_KEEPALIVE_INTVL, 90);
 #else
   z_socket->setsockopt(ZMQ_IDENTITY, zmq_identity.c_str(), zmq_identity.length());
   z_socket->setsockopt(ZMQ_TCP_KEEPALIVE, 1);
