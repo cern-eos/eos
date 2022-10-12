@@ -52,6 +52,7 @@
 #include "common/ParseUtils.hh"
 #include "common/ShellCmd.hh"
 #include "common/BufferManager.hh"
+#include "common/async/ExecutorMgr.hh"
 #include "mq/SharedHashWrapper.hh"
 #include "XrdNet/XrdNetOpts.hh"
 #include "XrdNet/XrdNetUtils.hh"
@@ -918,6 +919,10 @@ XrdFstOfs::Configure(XrdSysError& Eroute, XrdOucEnv* envP)
   if (mHttpdPort && mHttpd) {
     mHttpd->Start();
   }
+
+
+  mThreadPoolExecutor.reset(new eos::common::ExecutorMgr(mFmdConverterExecutorType,
+                                                         mFmdConverterThreads));
 
   eos_notice("FST_HOST=%s FST_PORT=%ld FST_HTTP_PORT=%d VERSION=%s RELEASE=%s "
              "KEYTABADLER=%s", mHostName, myPort, mHttpdPort, VERSION, RELEASE,
