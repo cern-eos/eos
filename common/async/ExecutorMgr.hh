@@ -41,7 +41,7 @@ namespace detail {
 // with std::future
 template <typename F>
 auto
-execVia(folly::Executor* executor, F&& f)
+execVia(folly::ThreadPoolExecutor* executor, F&& f)
   -> std::enable_if_t<!folly::isFuture<invoke_result_t<F>>::value,
                       OpaqueFuture<std::invoke_result_t<F>>>
 {
@@ -69,7 +69,7 @@ execVia(folly::Executor* executor, F&& f)
 // We wrap the the result type in a type erased OpaqueFuture to allow for interop with folly::future
 template <typename F>
 auto
-execVia(eos::common::ThreadPool* threadpool, F f)
+execVia(eos::common::ThreadPool* threadpool, F&& f)
   -> OpaqueFuture<std::invoke_result_t<F>>
 {
   using ResultType = std::invoke_result_t<F>;
@@ -78,15 +78,22 @@ execVia(eos::common::ThreadPool* threadpool, F f)
   return OpaqueFuture<ResultType>(std::move(fut));
 }
 
-inline void ShutdownExecutor(folly::Executor* executor) {
-  if (auto* tp = dynamic_cast<folly::ThreadPoolExecutor*>(executor)) {
-    tp->stop();
-  }
+inline void ShutdownExecutor(folly::ThreadPoolExecutor* executor) {
+  executor->stop();
 }
 
 inline void ShutdownExecutor(eos::common::ThreadPool* threadpool)
 {
   threadpool->Stop();
+}
+
+inline size_t GetQueueSize(folly::ThreadPoolExecutor* executor) {
+  return executor->getPendingTaskCount();
+}
+
+inline size_t GetQueueSize(eos::common::ThreadPool* threadpool)
+{
+  return threadpool->GetQueueSize();
 }
 
 } // detail
@@ -112,7 +119,7 @@ GetExecutorType(std::string_view exec_type)
 
 /*
  * A class to hold folly or eos::common::threadpool executors
- * while it would have been easy to inherit from folly::Executor and make our
+ * while it would have been easy to inherit from folly::ThreadPoolExecutor and make our
  * threadpool use this, we are exposed to potential folly impl bugs. This is to
  * get around that fact. Also we have two disjoint executor like implementations, which
  * doesn't make that much sense to combine under a single one.
@@ -134,7 +141,7 @@ public:
   auto
   PushTask(F&& f) -> future_result_t<F> {
 
-    if (auto executor = std::get_if<std::shared_ptr<folly::Executor>>(&mExecutor))
+    if (auto executor = std::get_if<std::shared_ptr<folly::ThreadPoolExecutor>>(&mExecutor))
     {
       return detail::execVia(executor->get(), std::forward<F>(f));
     } else if (auto threadpool = std::get_if<std::shared_ptr<eos::common::ThreadPool>>(&mExecutor))
@@ -144,16 +151,17 @@ public:
       throw std::runtime_error("Invalid executor type");
     }
 
-    /*
-    // This is the visit variant
-    std::visit([f = std::move(f)](auto&& executor) -> future_result_t<F> {
-      return execVia(executor.get(), f);
-    }, mExecutor);*/
   }
 
   void Shutdown() {
     std::visit([](auto&& executor) {
       detail::ShutdownExecutor(executor.get());
+    }, mExecutor);
+  }
+
+  size_t GetQueueSize() const {
+    std::visit([](auto&& executor) {
+      detail::GetQueueSize(executor.get());
     }, mExecutor);
   }
 
@@ -165,7 +173,7 @@ public:
 
   constexpr bool IsFollyExecutor() const
   {
-    return holdsType<std::shared_ptr<folly::Executor>>();
+    return holdsType<std::shared_ptr<folly::ThreadPoolExecutor>>();
   }
 
   constexpr bool IsThreadPool() const
@@ -207,7 +215,7 @@ public:
   ExecutorMgr(std::string_view executor_type, size_t num_threads, Args... args) :
     ExecutorMgr(GetExecutorType(executor_type), num_threads, args...) {}
 
-  ExecutorMgr(std::shared_ptr<folly::Executor> executor) :
+  ExecutorMgr(std::shared_ptr<folly::ThreadPoolExecutor> executor) :
     mExecutor(executor) {}
 
   ExecutorMgr(std::shared_ptr<eos::common::ThreadPool> threadpool) :
@@ -217,7 +225,7 @@ public:
 
 private:
 
-  std::variant<std::shared_ptr<folly::Executor>,
+  std::variant<std::shared_ptr<folly::ThreadPoolExecutor>,
       std::shared_ptr<eos::common::ThreadPool>> mExecutor;
 };
 
