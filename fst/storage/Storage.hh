@@ -484,7 +484,6 @@ private:
   AssistedThread mQdbCommunicatorThread;
   std::set<std::string> mLastRoundFilesystems;
   AssistedThread mPublisherThread;
-  std::shared_ptr<eos::common::ExecutorMgr> mConverterExecutor;
 };
 
 EOSFSTNAMESPACE_END

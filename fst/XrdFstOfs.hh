@@ -61,6 +61,11 @@ namespace qclient
 class QClient;
 }
 
+namespace eos::common
+{
+class ExecutorMgr;
+}
+
 class XrdOucEnv;
 class XrdScheduler;
 
@@ -426,6 +431,7 @@ public:
   std::shared_ptr<FmdHandler> mFmdHandler; // <File Metadata Handler
   uint16_t mFmdConverterThreads{64};
   std::string mFmdConverterExecutorType;
+  std::shared_ptr<eos::common::ExecutorMgr> mThreadPoolExecutor; //< A global threadpool executor
   // @note
   // All of the commands below are going to be deprecated and replaced by XRootD
   // query commands which are handled in the FSctl method

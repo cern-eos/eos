@@ -37,7 +37,6 @@
 #include "common/StringConversion.hh"
 #include "common/LinuxStat.hh"
 #include "common/ShellCmd.hh"
-#include "common/async/ExecutorMgr.hh"
 #include "MonitorVarPartition.hh"
 #include "qclient/structures/QSet.hh"
 #include <google/dense_hash_map>
@@ -249,9 +248,6 @@ Storage::Storage(const char* meta_dir)
     eos_err("unable to create transfer queue");
   }
 
-  mConverterExecutor = std::make_shared<eos::common::ExecutorMgr>
-                       (gOFS.mFmdConverterExecutorType,
-                        gOFS.mFmdConverterThreads);
 }
 
 //------------------------------------------------------------------------------
@@ -465,7 +461,7 @@ Storage::Boot(FileSystem* fs)
     }
 
     FmdConverter fmd_converter(db_handler.get(), gOFS.mFmdHandler.get(),
-                               mConverterExecutor);
+                               gOFS.mThreadPoolExecutor);
     fmd_converter.ConvertFS(GetStoragePath(fsid), fsid);
     // @note(esindril): if this is removed the current folly library will crash
     // when trying to recycle one of the threads that was created by the
