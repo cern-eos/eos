@@ -20,7 +20,7 @@
 #pragma once
 #include "fst/Namespace.hh"
 #include "fst/filemd/FmdHandler.hh"
-#include <folly/futures/Future.h>
+#include "common/async/OpaqueFuture.hh"
 #include <memory>
 
 namespace eos::common
@@ -34,7 +34,8 @@ static constexpr std::string_view ATTR_CONVERSION_DONE_FILE =
   ".eosattrconverted";
 static constexpr size_t MIN_FMDCONVERTER_THREADS = 2;
 static constexpr size_t MAX_FMDCONVERTER_THREADS = 100;
-
+static constexpr size_t PER_FS_FMD_QUEUE_SIZE = 5000;
+static constexpr size_t GLOBAL_FMD_QUEUE_SIZE = 50000;
 //----------------------------------------------------------------------------
 //! A simple interface to track whether full conversions have been done for a given
 //! FST mount path. The implementation is supposed to track whether the FST is
@@ -88,6 +89,10 @@ public:
   //----------------------------------------------------------------------------
   void ConvertFS(std::string_view fspath);
 
+
+  uint64_t DrainFutures(std::vector<common::OpaqueFuture<bool>>& futures,
+                        eos::common::FileSystem::fsid_t fsid,
+                        bool force = false);
 private:
   FmdHandler* mSrcFmdHandler;
   FmdHandler* mTgtFmdHandler;
