@@ -590,8 +590,12 @@ client_command(XrdOucString& in, bool is_admin, std::string* reply)
 #endif
 #if CPPZMQ_VERSION >= ZMQ_MAKE_VERSION(4, 3, 1)
     zmq::mutable_buffer response;
-    zmq::recv_buffer_result_t ret_recv = socket.recv(response,
-                                         zmq::recv_flags::none);
+#ifdef ZMQ_CPP17
+    zmq::recv_buffer_result_t ret_recv;
+#else
+    zmq::detail::recv_buffer_result_t ret_recv;
+#endif
+    ret_recv = socket.recv(response, zmq::recv_flags::none);
 #else
     zmq::message_t response;
     size_t ret_recv = socket.recv(&response);
