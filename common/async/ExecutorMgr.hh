@@ -160,8 +160,8 @@ public:
   }
 
   size_t GetQueueSize() const {
-    std::visit([](auto&& executor) {
-      detail::GetQueueSize(executor.get());
+    return std::visit([](auto&& executor) {
+      return detail::GetQueueSize(executor.get());
     }, mExecutor);
   }
 

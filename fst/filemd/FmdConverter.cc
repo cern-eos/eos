@@ -133,30 +133,22 @@ FmdConverter::ConvertFS(std::string_view fspath,
   future_vector futures;
   eos_static_info("msg=\"starting file system conversion\" fsid=%u", fsid);
   std::error_code ec;
+  size_t success_count = 0;
   auto count = stdfs::WalkFSTree(std::string(fspath), [this,
-  fsid, &futures](std::string path) {
+  fsid, &futures, &success_count](std::string path) {
     try {
       auto fut = mExecutorMgr->PushTask([this, fsid, path = std::move(path)]() {
         return this->Convert(fsid, path);
       });
-      static_assert(std::is_same_v<eos::common::OpaqueFuture<bool>, decltype(fut)>);
       futures.emplace_back(std::move(fut));
+      success_count += DrainFutures(futures, fsid);
     } catch (const std::exception& e) {
       eos_static_crit("msg=\"failed to push task\" path=%s err=%s", path.c_str(),
                       e.what());
     }
   }, ec);
-  size_t success_count = 0;
 
-  try {
-    for (auto && fut : futures) {
-      success_count += fut.getValue();
-    }
-  } catch (const std::exception& e) {
-    eos_static_crit("msg=\"failed to convert file system\" fsid=%u, err=%s",
-                    fsid, e.what());
-  }
-
+  success_count += DrainFutures(futures, fsid, true);
   if (ec) {
     eos_static_err("msg=\"walking fs tree ran into errors!\" err=%s",
                    ec.message().c_str());
@@ -175,6 +167,31 @@ void
 FmdConverter::ConvertFS(std::string_view fspath)
 {
   ConvertFS(fspath, FSPathHandler::GetFsid(fspath));
+}
+
+uint64_t
+FmdConverter::DrainFutures(std::vector<common::OpaqueFuture<bool>>& futures,
+                           eos::common::FileSystem::fsid_t fsid,
+                           bool force)
+{
+  uint64_t success_count = 0;
+  if (force ||
+      futures.size() > PER_FS_FMD_QUEUE_SIZE) {
+      for (auto && fut : futures) {
+        try {
+          success_count += fut.getValue();
+        } catch (const std::exception& e) {
+           eos_static_crit("msg=\"failed to get value\" err=%s, fsid=%u", e.what(), fsid);
+        }
+      }
+     futures.clear();
+
+     while (mExecutorMgr->GetQueueSize() > GLOBAL_FMD_QUEUE_SIZE) {
+       eos_static_info("msg=\"waiting for FmdConverter queue to drain\" fsid=%u", fsid);
+       std::this_thread::sleep_for(std::chrono::milliseconds(500));
+     }
+   }
+  return success_count;
 }
 
 EOSFSTNAMESPACE_END
