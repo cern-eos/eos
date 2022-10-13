@@ -590,10 +590,10 @@ client_command(XrdOucString& in, bool is_admin, std::string* reply)
 #endif
 #if CPPZMQ_VERSION >= ZMQ_MAKE_VERSION(4, 3, 1)
     zmq::mutable_buffer response;
-#ifdef ZMQ_CPP17
-    zmq::recv_buffer_result_t ret_recv;
-#else
+#ifdef CPPZMQ_VERSION < ZMQ_MAKE_VERSION(4, 6, 0)
     zmq::detail::recv_buffer_result_t ret_recv;
+#else
+    zmq::recv_buffer_result_t ret_recv;
 #endif
     ret_recv = socket.recv(response, zmq::recv_flags::none);
 #else
