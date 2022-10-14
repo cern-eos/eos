@@ -503,7 +503,7 @@ build_cc7_no_sse:
   variables:
     BUILD_NAME: cc7_no_sse
     CMAKE_OPTIONS: "-DNO_SSE=1"
-    RPMBUILD_OPTIONS: "--with no_sse"
+    RPMBUILD_OPTIONS: "--with server --with no_sse"
   only:
     - tags
     - triggers
