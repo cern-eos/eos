@@ -67,6 +67,18 @@ public:
 
     return ret;
   }
+
+  template <typename T>
+  static auto
+  GetEnv(const char* key, T default_val)
+      -> std::enable_if_t<std::is_arithmetic_v<T>, T> {
+    char* val = 0;
+    T ret {default_val};
+    if ((val = getenv(key))) {
+      eos::common::StringToNumeric(std::string_view(val), ret, default_val);
+    }
+    return ret;
+  }
 };
 
 EOSCOMMONNAMESPACE_END
