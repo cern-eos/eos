@@ -1184,6 +1184,15 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
                 "multi-source reading on EC file blocked for ", path);
   }
 
+  // ---------------------------------------------------------------------------                                     
+  // attribute lock logic, don't allow file opens which have an attr lock                                            
+  // ---------------------------------------------------------------------------                                     
+  XattrLock alock(attrmapF);
+
+  if (alock.foreignLock(vid, isRW)) {
+    return Emsg(epname, error, EPERM, "open file - file has a valid extended attribute lock ", path);
+  }
+
   if (isRW) {
     // Allow updates of 0-size RAIN files so that we are able to write from the
     // FUSE mount with lazy-open mode enabled.
@@ -1444,15 +1453,6 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
         fileId))) {
     // the first 255ms are covered inside hasFlush, otherwise we stall clients for a sec
     return gOFS->Stall(error, 1, "file is currently being flushed");
-  }
-
-  // ---------------------------------------------------------------------------                                     
-  // attribute lock logic, don't allow file opens which have an attr lock                                            
-  // ---------------------------------------------------------------------------                                     
-  XattrLock alock(attrmapF);
-
-  if (alock.foreignLock(vid, isRW)) {
-    return Emsg(epname, error, EWOULDBLOCK, "open file - file has a valid extended attribute lock ", path);
   }
 
   // ---------------------------------------------------------------------------
