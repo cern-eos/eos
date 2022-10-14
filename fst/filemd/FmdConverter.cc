@@ -5,6 +5,7 @@
 #include "common/async/ExecutorMgr.hh"
 #include "common/Logging.hh"
 #include "common/StringUtils.hh"
+#include "common/utils/XrdUtils.hh"
 #include "fst/utils/FSPathHandler.hh"
 #include "fst/utils/FTSWalkTree.hh"
 #include "fst/utils/StdFSWalkTree.hh"
@@ -129,6 +130,8 @@ FmdConverter::ConvertFS(std::string_view fspath,
     return;
   }
 
+  LoadConfigFromEnv(fsid);
+
   using future_vector = std::vector<eos::common::OpaqueFuture<bool>>;
   future_vector futures;
   eos_static_info("msg=\"starting file system conversion\" fsid=%u", fsid);
@@ -175,8 +178,9 @@ FmdConverter::DrainFutures(std::vector<common::OpaqueFuture<bool>>& futures,
                            bool force)
 {
   uint64_t success_count = 0;
+
   if (force ||
-      futures.size() > PER_FS_FMD_QUEUE_SIZE) {
+      futures.size() > mPerDiskQueueSize) {
       for (auto && fut : futures) {
         try {
           success_count += fut.getValue();
@@ -185,13 +189,26 @@ FmdConverter::DrainFutures(std::vector<common::OpaqueFuture<bool>>& futures,
         }
       }
      futures.clear();
-
-     while (mExecutorMgr->GetQueueSize() > GLOBAL_FMD_QUEUE_SIZE) {
-       eos_static_info("msg=\"waiting for FmdConverter queue to drain\" fsid=%u", fsid);
+     unsigned int wait_ctr {0};
+     while (mExecutorMgr->GetQueueSize() > mGlobalQueueSize) {
+       eos_static_info("msg=\"waiting for FmdConverter queue to drain\" "
+                       "fsid=%u wait_ctr=%u", fsid, ++wait_ctr);
        std::this_thread::sleep_for(std::chrono::milliseconds(500));
      }
    }
   return success_count;
+}
+
+void
+FmdConverter::LoadConfigFromEnv(eos::common::FileSystem::fsid_t fsid)
+{
+  mPerDiskQueueSize = common::XrdUtils::GetEnv("EOS_FMD_PER_FS_QUEUE_SIZE",
+                                       FMD_PER_FS_QUEUE_SIZE);
+  mGlobalQueueSize = common::XrdUtils::GetEnv("EOS_FMD_GLOBAL_QUEUE_SIZE",
+                                      FMD_GLOBAL_QUEUE_SIZE);
+  eos_static_info("msg=\"loading FmdConverter config:\" "
+                  "fsid=%u per_disk_queue_size=%lu global_queue_size=%lu",
+                  fsid, mPerDiskQueueSize, mGlobalQueueSize);
 }
 
 EOSFSTNAMESPACE_END
