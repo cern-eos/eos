@@ -146,7 +146,7 @@ FmdConverter::ConvertFS(std::string_view fspath,
       futures.emplace_back(std::move(fut));
       success_count += DrainFutures(futures, fsid);
     } catch (const std::exception& e) {
-      eos_static_crit("msg=\"failed to push task\" path=%s err=%s", path.c_str(),
+      eos_static_crit("msg=\"failed to push task\" fsid=%u err=%s", fsid,
                       e.what());
     }
   }, ec);
