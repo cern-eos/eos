@@ -100,19 +100,24 @@ bool
 FmdConverter::Convert(eos::common::FileSystem::fsid_t fsid, std::string path)
 {
   auto fid = eos::common::FileId::PathToFid(path.c_str());
+  return Convert(fsid, fid);
+}
 
+bool
+FmdConverter::Convert(eos::common::FileSystem::fsid_t fsid,
+                      eos::common::FileId::fileid_t fid)
+{
   if (!fsid || !fid) {
-    eos_static_info("msg=\"conversion failed invalid fid\" file=%s, fid=%lu",
-                    path.c_str(), fid);
+    eos_static_info("msg=\"conversion failed invalid fid\" fid=%lu fsid=%u",
+                    fid, fsid);
     return false;
   }
 
   bool status = mTgtFmdHandler->ConvertFrom(fid, fsid, mSrcFmdHandler, true);
-  eos_static_info("msg=\"conversion done\" file=%s, fid=%lu, status=%d",
-                  path.data(), fid, status);
+  eos_static_info("msg=\"conversion done\" fsid=%u, fid=%lu, status=%d",
+                  fsid, fid, status);
   return status;
 }
-
 
 //------------------------------------------------------------------------------
 // Method converting files on a given file system
@@ -134,20 +139,25 @@ FmdConverter::ConvertFS(std::string_view fspath,
 
   using future_vector = std::vector<eos::common::OpaqueFuture<bool>>;
   future_vector futures;
+  futures.reserve(mPerDiskQueueSize);
+
   eos_static_info("msg=\"starting file system conversion\" fsid=%u", fsid);
   std::error_code ec;
   size_t success_count = 0;
   auto count = stdfs::WalkFSTree(std::string(fspath), [this,
-  fsid, &futures, &success_count](std::string path) {
+  fsid, &futures, &success_count](const std::string& path) {
+    auto fid = eos::common::FileId::PathToFid(path.c_str());
     try {
-      auto fut = mExecutorMgr->PushTask([this, fsid, path = std::move(path)]() {
-        return this->Convert(fsid, path);
+      // Anything inside the PushTask must be captured by value as this executes
+      // much later in a different thread
+      auto fut = mExecutorMgr->PushTask([this, fsid, fid]() {
+        return this->Convert(fsid, fid);
       });
       futures.emplace_back(std::move(fut));
       success_count += DrainFutures(futures, fsid);
     } catch (const std::exception& e) {
-      eos_static_crit("msg=\"failed to push task\" fsid=%u err=%s", fsid,
-                      e.what());
+      eos_static_crit("msg=\"failed to push task\" fsid=%u, fid=%lu err=%s",
+                      fsid, fid, e.what());
     }
   }, ec);
 

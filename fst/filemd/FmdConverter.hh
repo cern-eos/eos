@@ -78,6 +78,8 @@ public:
   //----------------------------------------------------------------------------
   bool Convert(eos::common::FileSystem::fsid_t fsid, std::string path);
 
+  bool Convert(eos::common::FileSystem::fsid_t fsid,
+               eos::common::FileId::fileid_t fid);
   //----------------------------------------------------------------------------
   // Method converting files on a given file system
   //----------------------------------------------------------------------------
