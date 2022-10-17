@@ -2095,7 +2095,7 @@ EosFuse::DumpStatistic(ThreadAssistant& assistant)
       if (EosFuse::Instance().config.options.jsonstats) {
         Json::Value stats {};
         stats["threads"]             = (Json::LargestUInt) osstat.threads;
-        stats["visze"]               =
+        stats["vsize"]               =
           eos::common::StringConversion::GetReadableSizeString(s1, osstat.vsize, "b");
         stats["rss"]                 =
           eos::common::StringConversion::GetReadableSizeString(s2, osstat.rss, "b");
