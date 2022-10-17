@@ -144,7 +144,7 @@ ICmdHelper::RawExecute(const std::string& full_url)
 #endif
 #if CPPZMQ_VERSION >= ZMQ_MAKE_VERSION(4, 3, 1)
     zmq::mutable_buffer response;
-#ifdef CPPZMQ_VERSION < ZMQ_MAKE_VERSION(4, 6, 0)
+#if CPPZMQ_VERSION < ZMQ_MAKE_VERSION(4, 6, 0)
     zmq::detail::recv_buffer_result_t ret_recv;
 #else
     zmq::recv_buffer_result_t ret_recv;
