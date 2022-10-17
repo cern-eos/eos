@@ -2135,7 +2135,7 @@ EosFuse::DumpStatistic(ThreadAssistant& assistant)
         stats["total-rbytes"]        = (Json::LargestUInt) rbytes;
         stats["total-wbytes"]        = (Json::LargestUInt) wbytes;
         stats["total-io-ops"]        = (Json::LargestUInt) nops;
-        stats["read--mb/s"]          = (double) total_rbytes;
+        stats["read-mb/s"]          = (double) total_rbytes;
         stats["write-mb/s"]          = (double) total_wbytes;
         stats["iops"]                = sum;
         stats["xoffs"]               = (Json::LargestUInt) Instance().datas.get_xoff();
