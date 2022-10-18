@@ -279,7 +279,8 @@ FmdDbMapHandler::LocalGetFmd(eos::common::FileId::fileid_t fid,
 
 std::pair<bool, eos::common::FmdHelper>
 FmdDbMapHandler::LocalRetrieveFmd(eos::common::FileId::fileid_t fid,
-                                  eos::common::FileSystem::fsid_t fsid)
+                                  eos::common::FileSystem::fsid_t fsid,
+                                  std::string*)
 {
   eos::common::FmdHelper fmd;
   bool found {false};
@@ -325,7 +326,8 @@ FmdDbMapHandler::LocalDeleteFmd(eos::common::FileId::fileid_t fid,
 // Commit modified Fmd record to the DB file
 //------------------------------------------------------------------------------
 bool
-FmdDbMapHandler::Commit(eos::common::FmdHelper* fmd, bool lockit)
+FmdDbMapHandler::Commit(eos::common::FmdHelper* fmd,
+                        bool lockit, std::string* /*path*/)
 {
   if (!fmd) {
     return false;

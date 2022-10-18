@@ -102,7 +102,9 @@ public:
   //!
   //! @return true if record was committed, otherwise false
   //----------------------------------------------------------------------------
-  virtual bool Commit(eos::common::FmdHelper* fmd, bool lockit = true) = 0;
+  virtual bool Commit(eos::common::FmdHelper* fmd,
+                      bool lockit = true,
+                      std::string* path = nullptr) = 0;
 
   //----------------------------------------------------------------------------
   //! Update local fmd with info from the disk i.e. physical file extended
@@ -291,12 +293,14 @@ public:
 
   virtual std::pair<bool, eos::common::FmdHelper>
   LocalRetrieveFmd(eos::common::FileId::fileid_t fid,
-                   eos::common::FileSystem::fsid_t fsid) = 0;
+                   eos::common::FileSystem::fsid_t fsid,
+                   std::string* path=nullptr) = 0;
 
   virtual bool ConvertFrom(eos::common::FileId::fileid_t fid,
                            eos::common::FileSystem::fsid_t fsid,
                            FmdHandler* const src_fmd_handler,
-                           bool lock_it);
+                           bool lock_it,
+                           std::string* path);
 
   //----------------------------------------------------------------------------
   //! Reset the disk checksums from a given string

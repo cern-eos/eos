@@ -807,9 +807,11 @@ FmdHandler::Convert(eos::common::FileId::fileid_t fid,
 bool
 FmdHandler::ConvertFrom(eos::common::FileId::fileid_t fid,
                         eos::common::FileSystem::fsid_t fsid,
-                        FmdHandler* const src_fmd_handler, bool lock_it)
+                        FmdHandler* const src_fmd_handler,
+                        bool lock_it,
+                        std::string* path)
 {
-  auto [ok, _] = this->LocalRetrieveFmd(fid, fsid);
+  auto [ok, _] = this->LocalRetrieveFmd(fid, fsid, path);
 
   if (ok) {
     eos_info("msg=\"Skipping Conversion as target already has filemd\" fid=%08llx fsid=%u",
@@ -817,7 +819,7 @@ FmdHandler::ConvertFrom(eos::common::FileId::fileid_t fid,
     return true;
   }
 
-  auto [status, fmd] = src_fmd_handler->LocalRetrieveFmd(fid, fsid);
+  auto [status, fmd] = src_fmd_handler->LocalRetrieveFmd(fid, fsid, path);
 
   if (!status) {
     eos_err("msg=\"Unable to retrieve filemd from Handler\" fid=%08llx fsid=%u",
@@ -827,6 +829,7 @@ FmdHandler::ConvertFrom(eos::common::FileId::fileid_t fid,
 
   return Commit(&fmd, lock_it);
 }
+
 std::string
 FmdHandler::ResetFmdDiskInfo(const std::string& input)
 {

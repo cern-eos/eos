@@ -128,7 +128,9 @@ public:
   //!
   //! @return true if record was committed, otherwise false
   //----------------------------------------------------------------------------
-  bool Commit(eos::common::FmdHelper* fmd, bool lockit = true) override;
+  bool Commit(eos::common::FmdHelper* fmd,
+              bool lockit = true,
+              std::string* path = nullptr) override;
 
   //----------------------------------------------------------------------------
   //! Update local fmd with info from the disk i.e. physical file extended
@@ -295,7 +297,8 @@ public:
   //----------------------------------------------------------------------------
   std::pair<bool, eos::common::FmdHelper>
   LocalRetrieveFmd(eos::common::FileId::fileid_t fid,
-                   eos::common::FileSystem::fsid_t fsid) override;
+                   eos::common::FileSystem::fsid_t fsid,
+                   std::string* path=nullptr) override;
 
 private:
   std::map<eos::common::FileSystem::fsid_t, eos::common::DbMap*> mDbMap;

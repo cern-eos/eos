@@ -48,7 +48,8 @@ public:
                       eos::common::FileSystem::fsid_t fsid,
                       bool drop_file = false) override;
 
-  bool Commit(eos::common::FmdHelper* fmd, bool lockit = true) override;
+  bool Commit(eos::common::FmdHelper* fmd, bool lockit = false,
+              std::string* path = nullptr) override;
 
   std::unique_ptr<eos::common::FmdHelper>
   LocalGetFmd(eos::common::FileId::fileid_t fid,
@@ -70,10 +71,12 @@ public:
 
   std::pair<bool, eos::common::FmdHelper>
   LocalRetrieveFmd(eos::common::FileId::fileid_t fid,
-                   eos::common::FileSystem::fsid_t fsid) override;
+                   eos::common::FileSystem::fsid_t fsid,
+                   std::string* path=nullptr) override;
 
   std::pair<bool, eos::common::FmdHelper>
   LocalRetrieveFmd(const std::string& path);
+
 
 private:
   std::unique_ptr<FSPathHandler> mFSPathHandler;

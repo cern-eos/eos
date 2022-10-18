@@ -107,7 +107,8 @@ FmdConverter::Convert(eos::common::FileSystem::fsid_t fsid, std::string path)
     return false;
   }
 
-  bool status = mTgtFmdHandler->ConvertFrom(fid, fsid, mSrcFmdHandler, true);
+  bool status = mTgtFmdHandler->ConvertFrom(fid, fsid, mSrcFmdHandler,
+                                            true, &path);
   eos_static_info("msg=\"conversion done\" file=%s, fid=%lu, status=%d",
                   path.data(), fid, status);
   return status;

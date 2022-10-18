@@ -111,8 +111,12 @@ FmdAttrHandler::LocalDeleteFmd(const std::string& path, bool drop_file)
 
 std::pair<bool, eos::common::FmdHelper>
 FmdAttrHandler::LocalRetrieveFmd(eos::common::FileId::fileid_t fid,
-                                 eos::common::FileSystem::fsid_t fsid)
+                                 eos::common::FileSystem::fsid_t fsid,
+                                 std::string* path)
 {
+  if (path != nullptr) {
+    return LocalRetrieveFmd(*path);
+  }
   return LocalRetrieveFmd(mFSPathHandler->GetPath(fid, fsid));
 }
 
@@ -133,7 +137,8 @@ FmdAttrHandler::LocalDeleteFmd(eos::common::FileId::fileid_t fid,
 }
 
 bool
-FmdAttrHandler::Commit(eos::common::FmdHelper* fmd, bool)
+FmdAttrHandler::Commit(eos::common::FmdHelper* fmd, bool lockit,
+                       std::string* path)
 {
   struct timeval tv;
   struct timezone tz;
@@ -142,6 +147,9 @@ FmdAttrHandler::Commit(eos::common::FmdHelper* fmd, bool)
   fmd->mProtoFmd.set_atime(tv.tv_sec);
   fmd->mProtoFmd.set_mtime_ns(tv.tv_usec * 1000);
   fmd->mProtoFmd.set_atime_ns(tv.tv_usec * 1000);
+  if (path != nullptr) {
+    return LocalPutFmd(*path, *fmd);
+  }
   return LocalPutFmd(fmd->mProtoFmd.fid(), fmd->mProtoFmd.fsid(),
                      *fmd);
 }
