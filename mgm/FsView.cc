@@ -3268,6 +3268,21 @@ FsView::GetFsToBalance(const std::string& group_name, double threshold) const
   return std::make_tuple(prio_fs_below, fs_below, fs_above, prio_fs_above);
 }
 
+//----------------------------------------------------------------------------
+// Dump balancer thread pool info for each of the existing spaces
+//----------------------------------------------------------------------------
+void
+FsView::DumpBalancerPoolInfo(std::ostringstream& oss,
+                             std::string_view prefix) const
+{
+  eos::common::RWMutexReadLock space_rd_lock(ViewMutex);
+
+  for (const auto& elem : mSpaceView) {
+    oss << prefix << elem.second->GetBalancerPoolInfo()
+        << " space=" << elem.first << std::endl;
+  }
+}
+
 //------------------------------------------------------------------------------
 // Should the provided fsid participate in statistics calculations?
 // Yes, if:
@@ -4247,6 +4262,19 @@ FsSpace::ResetDraining()
       }
     }
   }
+}
+
+//------------------------------------------------------------------------------
+// Get status of the balancer thread pool
+//------------------------------------------------------------------------------
+std::string
+FsSpace::GetBalancerPoolInfo() const
+{
+  if (mFsBalancer) {
+    return mFsBalancer->GetThreadPoolInfo();
+  }
+
+  return std::string();
 }
 
 EOSMGMNAMESPACE_END

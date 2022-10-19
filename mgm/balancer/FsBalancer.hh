@@ -45,7 +45,8 @@ public:
   //----------------------------------------------------------------------------
   FsBalancer(const std::string& space_name):
     mSpaceName(space_name), mThreshold(10), mTxNumPerNode(2),
-    mTxRatePerNode(25), mBalanceStats(space_name)
+    mTxRatePerNode(25), mBalanceStats(space_name),
+    mThreadPool(10, 100, 10 , 6, 5, "balance")
   {
     mThread.reset(&FsBalancer::Balance, this);
   }

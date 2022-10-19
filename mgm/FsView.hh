@@ -34,6 +34,7 @@
 #include "common/Locators.hh"
 #include "common/InstanceName.hh"
 #include "common/AssistedThread.hh"
+#include <string_view>
 #ifndef __APPLE__
 #include <sys/vfs.h>
 #else
@@ -610,9 +611,14 @@ public:
   bool ApplySpaceDefaultParameters(eos::mgm::FileSystem* fs, bool force = false);
 
   //----------------------------------------------------------------------------
-  // Reset the Drain state
+  //! Reset the Drain state - to be removed?!
   //----------------------------------------------------------------------------
   void ResetDraining();
+
+  //----------------------------------------------------------------------------
+  //! Get status of the balancer thread pool
+  //----------------------------------------------------------------------------
+  std::string GetBalancerPoolInfo() const;
 };
 
 //------------------------------------------------------------------------------
@@ -1045,6 +1051,15 @@ public:
   //----------------------------------------------------------------------------
   FsPrioritySets
   GetFsToBalance(const std::string& group_name, double threshold) const;
+
+  //----------------------------------------------------------------------------
+  //! Dump balancer thread pool info for each of the existing spaces
+  //!
+  //! @param oss output string stream where info is appended
+  //! @param prefix prefix string for each entry to be displayed
+  //----------------------------------------------------------------------------
+  void DumpBalancerPoolInfo(std::ostringstream& oss,
+                            std::string_view prefix) const;
 
   //! Mutex protecting all ...View variables
   mutable eos::common::RWMutexR ViewMutex;

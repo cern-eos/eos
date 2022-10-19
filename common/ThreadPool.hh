@@ -26,6 +26,7 @@
 #include "common/ConcurrentQueue.hh"
 #include <future>
 #include <sstream>
+#include <iomanip>
 
 #ifdef __APPLE__
 #include <cmath>
@@ -256,11 +257,11 @@ public:
   std::string GetInfo() const
   {
     std::ostringstream oss;
-    oss <<  "thread_pool=" << mId
-        << " min=" << mThreadsMin
-        << " max=" << mThreadsMax
-        << " size=" << mPoolSize
-        << " queue_size=" << mTasks.size();
+    oss <<  "pool=" << std::setw(14) << std::left << mId
+        << " min=" << std::setw(3) << std::left << mThreadsMin
+        << " max=" << std::setw(4) << std::left << mThreadsMax
+        << " size=" << std::setw(4) << std::left << mPoolSize
+        << " queue_sz=" << mTasks.size();
     return oss.str();
   }
 

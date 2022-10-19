@@ -215,6 +215,10 @@ FsBalancer::Balance(ThreadAssistant& assistant) noexcept
           assistant.wait_for(std::chrono::seconds(1));
         }
 
+        if (assistant.terminationRequested()) {
+          break;
+        }
+
         no_slots = false;
         FsBalanceInfo dst;
         const std::string src_node = src.mNodeInfo;

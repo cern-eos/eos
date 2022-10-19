@@ -388,6 +388,7 @@ NsCmd::StatSubcmd(const eos::console::NsProto_StatProto& stat,
         << gOFS->mFsckEngine->GetThreadPoolInfo() << std::endl
         << "uid=all gid=all "
         << gOFS->mConverterDriver->GetThreadPoolInfo() << std::endl;
+    FsView::gFsView.DumpBalancerPoolInfo(oss, "uid=all gid=all ");
 
     // Only display the tape enabled state if it is set to true in order to
     // simplify the disk-only use of EOS
@@ -580,6 +581,8 @@ NsCmd::StatSubcmd(const eos::console::NsProto_StatProto& stat,
         << gOFS->mFsckEngine->GetThreadPoolInfo() << std::endl
         << "ALL      converter info                   "
         << gOFS->mConverterDriver->GetThreadPoolInfo() << std::endl;
+    std::string_view prefix {"ALL      balancer info                         "};
+    FsView::gFsView.DumpBalancerPoolInfo(oss, prefix);
     oss << line << std::endl
         << gOFS->mFidTracker.PrintStats()
         << line << std::endl;
