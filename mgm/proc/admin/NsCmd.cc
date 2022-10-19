@@ -395,6 +395,29 @@ NsCmd::StatSubcmd(const eos::console::NsProto_StatProto& stat,
         << "uid=all gid=all ns.latencypeak.eosviewmutex.5min=" <<
         viewLatency.last5Minutes.count() << std::endl;
 
+    if (!gOFS->namespaceGroup->isInMemory()) {
+      auto* qdb_group = dynamic_cast<eos::QuarkNamespaceGroup*>
+                        (gOFS->namespaceGroup.get());
+      auto* perf_monitor = dynamic_cast<eos::QClPerfMonitor*>
+                           (qdb_group->getPerformanceMonitor().get());
+      std::map<std::string, unsigned long long> info = perf_monitor->GetPerfMarkers();
+
+      if (info.find("rtt_min") != info.end()) {
+        oss << "uid=all gid=all ns.qclient.rtt_ms.min="
+            << info["rtt_min"] / 1000 << std::endl
+            << "uid=all gid=all ns.qclient.rtt_ms.avg="
+            << info["rtt_avg"] / 1000 << std::endl
+            << "uid=all gid=all ns.qclient.rtt_ms.max="
+            << info["rtt_max"] / 1000 << std::endl
+            << "uid=all gid=all ns.qclient.rtt_ms_peak.1min="
+            << info["rtt_peak_1m"] / 1000 << std::endl
+            << "uid=all gid=all ns.qclient.rtt_ms_peak.2min="
+            << info["rtt_peak_2m"] / 1000 << std::endl
+            << "uid=all gid=all ns.qclient.rtt_ms_peak.5min="
+            << info["rtt_peak_5m"] / 1000 << std::endl;
+      }
+    }
+
     if (pstat.vsize > gOFS->LinuxStatsStartup.vsize) {
       oss << "uid=all gid=all ns.memory.growth=" << (unsigned long long)
           (pstat.vsize - gOFS->LinuxStatsStartup.vsize) << std::endl;
@@ -565,11 +588,16 @@ NsCmd::StatSubcmd(const eos::console::NsProto_StatProto& stat,
       std::map<std::string, unsigned long long> info = perf_monitor->GetPerfMarkers();
 
       if (info.find("rtt_min") != info.end()) {
-        oss << "ALL      QClient performance (RTT)        "
+        oss << "ALL      QClient overall RTT              "
             << info["rtt_min"] / 1000 << "ms (min)  "
             << info["rtt_avg"] / 1000 << "ms (avg)  "
             << info["rtt_max"] / 1000 << "ms (max)  "
-            << std::endl << line << std::endl;
+            << std::endl
+            << "ALL      QClient recent peak RTT          "
+            << info["rtt_peak_1m"] / 1000 << "ms (1 min) "
+            << info["rtt_peak_2m"] / 1000 << "ms (2 min) "
+            << info["rtt_peak_5m"] / 1000 << "ms (5 min)"
+            << std::endl  << line << std::endl;
       }
     }
 
