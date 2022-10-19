@@ -814,7 +814,7 @@ FmdHandler::ConvertFrom(eos::common::FileId::fileid_t fid,
   auto [ok, _] = this->LocalRetrieveFmd(fid, fsid, path);
 
   if (ok) {
-    eos_info("msg=\"Skipping Conversion as target already has filemd\" fid=%08llx fsid=%u",
+    eos_debug("msg=\"Skipping Conversion as target already has filemd\" fid=%08llx fsid=%u",
              fid, fsid);
     return true;
   }

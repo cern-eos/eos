@@ -294,7 +294,8 @@ public:
   virtual std::pair<bool, eos::common::FmdHelper>
   LocalRetrieveFmd(eos::common::FileId::fileid_t fid,
                    eos::common::FileSystem::fsid_t fsid,
-                   std::string* path=nullptr) = 0;
+                   std::string* path = nullptr) = 0;
+
 
   virtual bool ConvertFrom(eos::common::FileId::fileid_t fid,
                            eos::common::FileSystem::fsid_t fsid,

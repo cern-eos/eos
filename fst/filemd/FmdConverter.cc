@@ -102,14 +102,14 @@ FmdConverter::Convert(eos::common::FileSystem::fsid_t fsid, std::string path)
   auto fid = eos::common::FileId::PathToFid(path.c_str());
 
   if (!fsid || !fid) {
-    eos_static_info("msg=\"conversion failed invalid fid\" file=%s, fid=%lu",
+    eos_static_info("msg=\"conversion failed invalid fid\" file=%s, fid=%08llx",
                     path.c_str(), fid);
     return false;
   }
 
   bool status = mTgtFmdHandler->ConvertFrom(fid, fsid, mSrcFmdHandler,
                                             true, &path);
-  eos_static_info("msg=\"conversion done\" file=%s, fid=%lu, status=%d",
+  eos_static_info("msg=\"conversion done\" file=%s, fid=%08llx, status=%d",
                   path.data(), fid, status);
   return status;
 }
@@ -142,7 +142,7 @@ FmdConverter::ConvertFS(std::string_view fspath,
   fsid, &futures, &success_count](std::string path) {
     try {
       auto fut = mExecutorMgr->PushTask([this, fsid, path = std::move(path)]() {
-        return this->Convert(fsid, path);
+        return this->Convert(fsid, std::move(path));
       });
       futures.emplace_back(std::move(fut));
       success_count += DrainFutures(futures, fsid);
