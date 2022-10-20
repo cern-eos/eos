@@ -138,8 +138,9 @@ FmdConverter::ConvertFS(std::string_view fspath,
   eos_static_info("msg=\"starting file system conversion\" fsid=%u", fsid);
   std::error_code ec;
   size_t success_count = 0;
-  auto count = stdfs::WalkFSTree(std::string(fspath), [this,
-  fsid, &futures, &success_count](std::string path) {
+  mConversionCounter.Init();
+  stdfs::WalkFSTree(std::string(fspath),
+      [this, fsid, &futures, &success_count](std::string path) {
     try {
       auto fut = mExecutorMgr->PushTask([this, fsid, path = std::move(path)]() {
         return this->Convert(fsid, std::move(path));
@@ -159,8 +160,10 @@ FmdConverter::ConvertFS(std::string_view fspath,
     return;
   }
 
-  eos_static_info("msg=\"conversion successful, set done marker\" count=%llu success_count=%llu",
-                  count, success_count);
+  eos_static_info("msg=\"conversion successful, set done marker\" count=%llu "
+                  "success_count=%llu frequency=%0.02f kHz",
+                  mTotalFiles, success_count,
+                  mConversionCounter.GetFrequency()/1000.0);
   mDoneHandler->markFSConverted(fspath);
 }
 
@@ -185,18 +188,26 @@ FmdConverter::DrainFutures(std::vector<common::OpaqueFuture<bool>>& futures,
       for (auto && fut : futures) {
         try {
           success_count += fut.getValue();
+          ++mTotalFiles;
         } catch (const std::exception& e) {
            eos_static_crit("msg=\"failed to get value\" err=%s, fsid=%u", e.what(), fsid);
         }
       }
-     futures.clear();
-     unsigned int wait_ctr {0};
-     while (mExecutorMgr->GetQueueSize() > mGlobalQueueSize) {
-       eos_static_info("msg=\"waiting for FmdConverter queue to drain\" "
-                       "fsid=%u wait_ctr=%u", fsid, ++wait_ctr);
-       std::this_thread::sleep_for(std::chrono::milliseconds(500));
-     }
+
+    mConversionCounter.Increment(mTotalFiles);
+    futures.clear();
+    unsigned int wait_ctr {0};
+    while (mExecutorMgr->GetQueueSize() > mGlobalQueueSize) {
+      eos_static_info("msg=\"waiting for FmdConverter queue to drain\" "
+                      "fsid=%u wait_ctr=%u", fsid, ++wait_ctr);
+      std::this_thread::sleep_for(std::chrono::milliseconds(500));
+    }
+
+    if (wait_ctr || mTotalFiles % (5*mPerDiskQueueSize) == 0) {
+      LogConversionProgress(fsid);
+    }
    }
+
   return success_count;
 }
 
@@ -210,6 +221,13 @@ FmdConverter::LoadConfigFromEnv(eos::common::FileSystem::fsid_t fsid)
   eos_static_info("msg=\"loading FmdConverter config:\" "
                   "fsid=%u per_disk_queue_size=%lu global_queue_size=%lu",
                   fsid, mPerDiskQueueSize, mGlobalQueueSize);
+}
+
+void FmdConverter::LogConversionProgress(eos::common::FileSystem::fsid_t fsid)
+{
+  eos_static_info("msg=\"conversion frequency\" fsid=%u frequency=%0.02f kHz last_frequency=%0.02f kHz",
+                  fsid, mConversionCounter.GetFrequency()/1000.0,
+                  mConversionCounter.GetLastFrequency()/1000.0);
 }
 
 EOSFSTNAMESPACE_END
