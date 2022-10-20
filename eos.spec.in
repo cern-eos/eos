@@ -646,7 +646,7 @@ Requires: xrootd-client >= %{xrootd_version_min}
 %if ! %{without eos_protobuf3_rh}
 # Install eos-protobuf3
 %if 0%{?rhel} == 7
-Requires: eos-protobuf3
+Requires: eos-protobuf3 = 3.5.1-5.el7.cern.eos
 %else
 %if %{?fedora}%{!?fedora:0} >= 27 || 0%{?rhel} == 8
 Requires: protobuf >= 3.3
