@@ -749,10 +749,9 @@ S3Store::GetObject(eos::common::HttpRequest* request,
       int rc = file->open(objectpath.c_str(), 0, 0, &client, query.c_str());
 
       if (rc == SFS_REDIRECT) {
-        // the embedded server on FSTs is hardcoded to run on port 8001
         response = HttpServer::HttpRedirect(objectpath,
                                             file->error.getErrText(),
-                                            8001, false);
+                                            file->error.getErrInfo(), false);
         response->AddHeader("x-amz-website-redirect-location",
                             response->GetHeaders()["Location"]);
         std::string body = XML_V1_UTF8;
@@ -853,10 +852,9 @@ S3Store::PutObject(eos::common::HttpRequest* request,
                         newquery.c_str());
 
     if (rc == SFS_REDIRECT) {
-      // the embedded server on FSTs is hardcoded to run on port 8001
       response = HttpServer::HttpRedirect(objectpath,
                                           file->error.getErrText(),
-                                          8001, false);
+                                          file->error.getErrInfo(), false);
       response->AddHeader("x-amz-website-redirect-location",
                           response->GetHeaders()["Location"]);
       std::string body = XML_V1_UTF8;
