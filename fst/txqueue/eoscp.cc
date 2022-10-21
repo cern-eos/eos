@@ -1742,8 +1742,9 @@ main(int argc, char* argv[])
 
       if (retc) {
         eos::common::error_retc_map(file->GetLastErrNo());
-        fprintf(stderr, "error: source file open failed - errno=%d : %s\n", errno,
-                strerror(errno));
+        fprintf(stderr, "error: source file open failed - errno=%d : %s [%s]\n", errno,
+                strerror(errno), 
+		file->GetLastErrMsg().c_str());
         exit(-errno);
       } else {
 	src_lasturl = file->GetLastUrl();
@@ -1955,8 +1956,9 @@ main(int argc, char* argv[])
 
       if (retc) {
         eos::common::error_retc_map(file->GetLastErrNo());
-        fprintf(stderr, "error: target file open failed - errno=%d : %s\n",
-                errno, strerror(errno));
+        fprintf(stderr, "error: target file open failed - errno=%d : %s [%s]\n",
+                errno, strerror(errno),
+		file->GetLastErrMsg().c_str());
         exit(-errno);
       } else {
 	dst_lasturl = file->GetLastUrl();

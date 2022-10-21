@@ -315,6 +315,8 @@ public:
   unsigned long long totalBytes; //! total bytes IO
   unsigned long long msSleep; //! total ms sleeping during io
   struct timeval closeTime; //! time when a file was closed
+  struct timeval closeStart; //! time when a file close started
+  struct timeval closeStop; //! time when a file close stopped
   struct timezone tz; //! timezone
   int mBandwidth; //! bandwidth limitation setting
   XrdSysMutex vecMutex; //! mutex protecting the rvec/wvec variables
@@ -346,6 +348,9 @@ public:
   std::vector<unsigned long> monReadvCount;
 
   struct timeval cTime; ///< current time
+  struct timeval rStart; ///< start of last read (layout)
+  struct timeval rvStart; ///< start of last readv (layout)
+  struct timeval wStart; ///< start of last read (layout)
   struct timeval lrTime; ///< last read time
   struct timeval lrvTime; ///< last readv time
   struct timeval lwTime; ///< last write time
@@ -356,7 +361,10 @@ public:
   struct stat updateStat;
 
   double timeToOpen; ///< time the open call took
-
+  double timeToClose; ///< time the close call took
+  double timeToRead; ///< time of all layout reads
+  double timeToReadV; ///< time of all layout readvs
+  double timeToWrite; ///< time of all layout writes
   //! TPC related types and variables
   enum TpcType_t {
     kTpcNone = 0, ///< No TPC access
@@ -574,19 +582,27 @@ public:
   int ProcessMixedOpaque();
 
   //----------------------------------------------------------------------------
+  //! Compute time to close a file
+  //----------------------------------------------------------------------------
+  void CloseTime();
+
+  //----------------------------------------------------------------------------
   //! Compute total time to serve read requests
   //----------------------------------------------------------------------------
   void AddReadTime();
+  void AddLayoutReadTime();
 
   //----------------------------------------------------------------------------
   //! Compute total time to serve vector read requests
   //----------------------------------------------------------------------------
   void AddReadVTime();
+  void AddLayoutReadVTime();
 
   //----------------------------------------------------------------------------
   //! Compute total time to serve write requests
   //----------------------------------------------------------------------------
   void AddWriteTime();
+  void AddLayoutWriteTime();
 
   //----------------------------------------------------------------------------
   //! Compute general statistics on a set of input values
