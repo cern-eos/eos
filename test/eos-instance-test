@@ -1921,11 +1921,6 @@ runtest "### Http PUT     " unix 1 "" curl --location --fail --silent --upload-f
 runtest "### Http GET     " unix 1 "" curl --location --fail --silent http://$EOS_TEST_REDIRECTOR:8000/$HTTPDIR/file.50m --output $EOS_TEST_TESTSYS/dumpit
 runtest "### Chmod        " unix 0 "" eos chmod 777 $HTTPDIR
 
-# -----------------------------------------------------------
-# Functional tests upload/download x509/macaroons/tpc
-# -----------------------------------------------------------
-runtest "### Http x509/macaroons/tpc " unix 0 "" bash eos-https-functional-test -p 8443 --dir /$HTTPDIR
-
 # --------------------------
 # Range requests
 # --------------------------
