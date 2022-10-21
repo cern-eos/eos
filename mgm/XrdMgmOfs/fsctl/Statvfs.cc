@@ -72,7 +72,8 @@ XrdMgmOfs::Statvfs(const char* path,
       spos++;
     }
 
-    if (!getenv("EOS_MGM_STATVFS_ONLY_QUOTA") && (deepness < 4)) {
+    if ((!getenv("EOS_MGM_STATVFS_ONLY_QUOTA") && (deepness < 4)) ||
+	(getenv("EOS_MGM_STATVFS_ONLY_SPACE"))) {
       statvfsmutex.Lock();
       time_t now = time(NULL);
 
