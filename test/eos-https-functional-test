@@ -26,8 +26,7 @@
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 # This is a simple script that aims to check HTTP transfers with different authentication methods #
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
-# usage: eos-http-upload-test rangeupload testfile /eos/dev/upload-directory/ #
-# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+
 
 usage() { echo '''Usage: eos-https-func-tests [-h|--host <host>[:<port>| (-p|--port) <port>]]
                            [-c|--cert <x509 certificate>]
@@ -40,7 +39,7 @@ usage() { echo '''Usage: eos-https-func-tests [-h|--host <host>[:<port>| (-p|--p
                            [-h|--help] - usage & exit
 '''; }
 
-# Parse from: https://stackoverflow.com/questions/192249/how-do-i-parse-command-line-arguments-in-bash
+# Parser from: https://stackoverflow.com/questions/192249/how-do-i-parse-command-line-arguments-in-bash
 usage_error () { echo >&2 "$(basename "$0"):  $1"; exit 2; }
 assert_argument () { test "$1" != "$EOL" || usage_error "$2 requires an argument"; }
 

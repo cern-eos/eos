@@ -63,5 +63,10 @@ if [[ $? -ne 0 ]]; then
   exit 1
 fi
 
+# -----------------------------------------------------------
+# Functional tests upload/download x509/macaroons/tpc
+# -----------------------------------------------------------
+runtest_script eos-https-functional-test -p 8443 --dir /eos/$EOS_TEST_INSTANCE/test/instancetest/http.dir
+
 eos space quota default off
 exit 0
