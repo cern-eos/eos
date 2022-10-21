@@ -581,7 +581,7 @@ NsCmd::StatSubcmd(const eos::console::NsProto_StatProto& stat,
         << gOFS->mFsckEngine->GetThreadPoolInfo() << std::endl
         << "ALL      converter info                   "
         << gOFS->mConverterDriver->GetThreadPoolInfo() << std::endl;
-    std::string_view prefix {"ALL      balancer info                         "};
+    std::string_view prefix {"ALL      balancer info                    "};
     FsView::gFsView.DumpBalancerPoolInfo(oss, prefix);
     oss << line << std::endl
         << gOFS->mFidTracker.PrintStats()

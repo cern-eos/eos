@@ -118,8 +118,8 @@ private:
   unsigned int mTxRatePerNode; ///< Max transfer rate per node MB/s
   FsBalancerStats mBalanceStats; ///< Balancer stats
   eos::common::ThreadPool mThreadPool; ///< Thread pool for balancing jobs
-  unsigned int mMaxQueuedJobs {100}; ///< Max number of queued jobs
-  unsigned int mMaxThreadPoolSize; ///< Max number of threads
+  unsigned int mMaxQueuedJobs {1000}; ///< Max number of queued jobs
+  unsigned int mMaxThreadPoolSize {100}; ///< Max number of threads
   std::atomic<uint64_t> mRunningJobs {0};
 
   //----------------------------------------------------------------------------

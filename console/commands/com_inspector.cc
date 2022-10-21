@@ -23,17 +23,19 @@
 
 /*----------------------------------------------------------------------------*/
 #include "console/ConsoleMain.hh"
-extern int com_protospace (char*);
+extern int com_proto_space(char*);
 /*----------------------------------------------------------------------------*/
 
 int
-com_inspector (char *arg1)
+com_inspector(char* arg1)
 {
   XrdOucString cmd = "inspector";
+
   if (arg1 && strlen(arg1)) {
     cmd += " ";
     cmd += arg1;
   }
-  fprintf(stderr,"cmd='%s'\n", cmd.c_str());
-  return com_protospace((char*)cmd.c_str());
+
+  fprintf(stderr, "cmd='%s'\n", cmd.c_str());
+  return com_proto_space((char*)cmd.c_str());
 }

@@ -33,7 +33,6 @@
 #include "mgm/tgc/Constants.hh"
 #include "mgm/http/rest-api/Constants.hh"
 
-extern int com_space(char*);
 void com_space_help();
 
 //------------------------------------------------------------------------------
@@ -427,7 +426,7 @@ bool SpaceHelper::ParseCommand(const char* arg)
 //------------------------------------------------------------------------------
 // Space command entry point
 //------------------------------------------------------------------------------
-int com_protospace(char* arg)
+int com_proto_space(char* arg)
 {
   if (wants_help(arg)) {
     com_space_help();
@@ -468,6 +467,8 @@ void com_space_help()
       << "space config <space-name> space.balancer.threshold=<percent>          : configure the used bytes deviation which triggers balancing             [ default=20 (%%)     ] \n"
       << "space config <space-name> space.balancer.node.rate=<MB/s>             : configure the nominal transfer bandwidth per running transfer on a node [ default=25 (MB/s)   ]\n"
       << "space config <space-name> space.balancer.node.ntx=<#>                 : configure the number of parallel balancing transfers per node           [ default=2 (streams) ]\n"
+      << "space config <space-name> space.balancer.max-queue-jobs=<#>           : configure the maximum number of queued jobs allowed in the balancer thread pool [ default=1000 (jobs) ]\n"
+      << "space config <space-name> space.balancer.max-thread-pool-size=<#>     : configure the maximum number of threads to be used in the balancer thread pool [ default=100 (threads) ]\n"
       << "space config <space-name> space.converter=on|off                      : enable/disable the space converter [ default=off ]\n"
       << "space config <space-name> space.converter.ntx=<#>                     : configure the number of parallel conversions per space                  [ default=2 (streams) ]\n"
       << "space config <space-name> space.drainer.node.rate=<MB/s >             : configure the nominal transfer bandwidth per running transfer on a node [ default=25 (MB/s)   ]\n"

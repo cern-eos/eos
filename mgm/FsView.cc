@@ -3279,7 +3279,7 @@ FsView::DumpBalancerPoolInfo(std::ostringstream& oss,
 
   for (const auto& elem : mSpaceView) {
     oss << prefix << elem.second->GetBalancerPoolInfo()
-        << " space=" << elem.first << std::endl;
+        << "space=" << elem.first << std::endl;
   }
 }
 
@@ -4271,7 +4271,7 @@ std::string
 FsSpace::GetBalancerPoolInfo() const
 {
   if (mFsBalancer) {
-    return mFsBalancer->GetThreadPoolInfo();
+    return mFsBalancer->GetThreadPoolInfo() + " ";
   }
 
   return std::string();
