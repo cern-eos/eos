@@ -66,7 +66,7 @@ XrdFstOfsFile::XrdFstOfsFile(const char* user, int MonID) :
   repairOnClose(false), mIsOCchunk(false), writeErrorFlag(false),
   mEventOnClose(false), mSyncOnClose(false), mEventWorkflow(""),
   mSyncEventOnClose(false), mFmd(nullptr), mCheckSum(nullptr),
-  mLayout(nullptr), mCloseCb(nullptr), mMaxOffsetWritten(0ull),
+  mLayout(nullptr), mMaxOffsetWritten(0ull),
   mWritePosition(0ull), openSize(0),
   closeSize(0), mTpcThreadStatus(EINVAL), mTpcState(kTpcIdle),
   mTpcFlag(kTpcNone), mTpcKey(""), mIsTpcDst(false), mTpcRetc(0),
@@ -1393,18 +1393,21 @@ XrdFstOfsFile::close()
            "ns_path=\"%s\" fs_path=\"%s\"", mFileId, mNsPath.c_str(),
            mFstPath.c_str());
   // Create a close callback and put the client in waiting mode
-  mCloseCb.reset(new XrdOucCallBack());
-  mCloseCb->Init(&error);
+  auto closeCb = std::make_shared<XrdOucCallBack>();
+  closeCb->Init(&error);
   error.setErrInfo(1800, "delay client up to 30 minutes");
-  gOFS.mCloseThreadPool.PushTask<void>([&]() -> void {
+  gOFS.mCloseThreadPool.PushTask<void>([&,closeCb]() -> void {
     eos_info("msg=\"doing close in the async thread\" fxid=%08llx", mFileId);
     int rc = _close();
-    int reply_rc = mCloseCb->Reply(rc, (rc ? error.getErrInfo() : 0),
+    auto fileId = mFileId;
+    // During Reply() we expect the enclosing XrdFstOfsFile to be destroyed,
+    // so we don't refer to anything captured by reference once done
+    int reply_rc = closeCb->Reply(rc, (rc ? error.getErrInfo() : 0),
     (rc ? error.getErrText() : ""));
 
     if (reply_rc == 0)
     {
-      eos_err("%s", "msg=\"callback reply failed\" fid=%llu", mFileId);
+      eos_err("%s", "msg=\"callback reply failed\" fid=%llu", fileId);
     }
   });
   return SFS_STARTED;

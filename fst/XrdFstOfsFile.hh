@@ -369,7 +369,6 @@ public:
   // @todo(esindril) this is not properly enforced everywhere ...
   XrdSysMutex mChecksumMutex; ///< Mutex protecting the checksum class
   std::unique_ptr<Layout> mLayout; ///< Layout object
-  std::unique_ptr<XrdOucCallBack> mCloseCb; ///< Close call-back
   std::string mTident; ///< Client identity using the file object
   // File statistics for monitoring purposes
   //! Largest byte position written of a newly created file
