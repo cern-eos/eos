@@ -286,9 +286,17 @@ EosMgmHttpHandler::ProcessReq(XrdHttpExtReq& req)
 
   std::string query;
   const XrdSecEntity& client = req.GetSecEntity();
+  bool s3_access = false;
 
-  // Native XrdHttp access
-  if (normalized_headers.find("x-forwarded-for") == normalized_headers.end()) {
+  if (normalized_headers.count("authorization")) {
+    if (normalized_headers["authorization"].substr(0, 3) == "AWS") {
+      s3_access = true;
+    }
+  }
+
+  // Native XrdHttp access - not nginx and not S3
+  if ((normalized_headers.find("x-forwarded-for") == normalized_headers.end()) &&
+      !s3_access) {
     std::string path;
     std::unique_ptr<XrdOucEnv> env_opaque;
     Access_Operation oper = MapHttpVerbToAOP(req.verb);
@@ -300,8 +308,6 @@ EosMgmHttpHandler::ProcessReq(XrdHttpExtReq& req)
                                 errmsg.length());
     }
 
-    // Make a copy of the original XrdSecEntity so that the authorization plugin
-    // can update the name of the client from the macaroon info
     if (mTokenAuthzHandler &&
         mTokenAuthzHandler->Access(&client, path.c_str(), oper,
                                    env_opaque.get()) == XrdAccPriv_None) {
