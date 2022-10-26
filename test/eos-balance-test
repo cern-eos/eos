@@ -1,4 +1,6 @@
 #!/bin/bash
+set -x
+
 
 # ******************************************************************************
 # EOS - the CERN Disk Storage System
@@ -92,6 +94,7 @@ xrdcp -f --nopbar ${TEST_FN2} root://${EOS_MGM_HOSTNAME}/${EOS_BALANCE_TEST}/rai
 
 eos fs config 1 configstatus=rw
 eos fs ls --io
+eos fs ls
 
 # Enable the balancing at the space level
 eos space config default space.balancer.threshold=${EOS_BALANCER_THRESHOLD}
