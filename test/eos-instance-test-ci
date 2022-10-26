@@ -47,6 +47,8 @@ fi
 
 run_test_script "MQ" eos-mq-tests "${1:-'eos-mq.eoscluster.cern.ch'}"
 run_test_script "drain" eos-drain-test localhost
+#@todo(esindril) disabled for the testing phase
+run_test_script "balance" eos-balance-test localhost || true
 
 if [[ $(eos qos list) ]]; then
   run_test_script "qos" eos-qos-test dockertest

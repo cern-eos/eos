@@ -26,9 +26,22 @@
 # eos-drain-test <eos_mgm_hostname>
 #------------------------------------------------------------------------------
 
+# Helper cleanup method
+cleanup() {
+  eos rm -rF "${EOS_DRAIN_DIR}/replica/*"
+  eos rm -rF "${EOS_DRAIN_DIR}/raiddp/*"
+  eos rm -rF "${EOS_DRAIN_DIR}/rain/*"
+  eos rmdir "${EOS_DRAIN_DIR}/replica/"
+  eos rmdir "${EOS_DRAIN_DIR}/raiddp/"
+  eos rmdir "${EOS_DRAIN_DIR}/rain/"
+  eos rmdir "${EOS_DRAIN_DIR}/"
+  rm -rf ${TEST_FN0} ${TEST_FN1} ${TEST_FN2}
+}
+
+
 if [[ $# -eq 0 || $# -gt 2 ]]; then
-      echo "Usage: $0 <eos_mgm_hostname>"
-      exit 1
+  echo "Usage: $0 <eos_mgm_hostname>"
+  exit 1
 fi
 
 EOS_MGM_HOSTNAME=$1
@@ -37,94 +50,96 @@ EOS_MGM_HOSTNAME=$1
 FST_ONLINE=$(eos fs ls | grep "online" | wc -l)
 
 if [[ ${FST_ONLINE} -lt 7 ]]; then
-      echo "error: not enough FSTs configured"
-      exit 1
+  echo "error: not enough FSTs configured"
+  exit 1
 fi
 
 eos space config default space.drainer.node.nfs=1
 eos space config default space.drainer.node.ntx=5
 
 # Create dummy test files
-TEST_FN0=/tmp/zero.dat
-TEST_FN1=/tmp/32kb.dat
-TEST_FN2=/tmp/5mb.dat
+TEST_FN0=/var/tmp/zero.dat
+TEST_FN1=/var/tmp/32kb.dat
+TEST_FN2=/var/tmp/5mb.dat
 
 touch ${TEST_FN0}
 dd if=/dev/urandom of=${TEST_FN1} bs=1k count=32 &> /dev/null
 dd if=/dev/urandom of=${TEST_FN2} bs=1M count=5  &> /dev/null
 
 # Create eos directory for tests and copy some files in
-eos mkdir -p /eos/dockertest/drain_test/replica/
-eos mkdir -p /eos/dockertest/drain_test/raiddp/
-eos mkdir -p /eos/dockertest/drain_test/rain/
+EOS_DRAIN_DIR=/eos/dockertest/drain_test/
+eos mkdir -p ${EOS_DRAIN_DIR}/replica/
+eos mkdir -p ${EOS_DRAIN_DIR}/raiddp/
+eos mkdir -p ${EOS_DRAIN_DIR}/rain/
 eos chmod 2777 /eos/dockertest/
-eos chmod 2777 /eos/dockertest/drain_test/replica/
-eos chmod 2777 /eos/dockertest/drain_test/raiddp/
-eos chmod 2777 /eos/dockertest/drain_test/rain/
-eos attr set default=replica /eos/dockertest/drain_test/replica/
-eos attr set default=raiddp /eos/dockertest/drain_test/raiddp/
-eos attr set default=raid6 /eos/dockertest/drain_test/rain/
+eos chmod 2777 ${EOS_DRAIN_DIR}/replica/
+eos chmod 2777 ${EOS_DRAIN_DIR}/raiddp/
+eos chmod 2777 ${EOS_DRAIN_DIR}/rain/
+eos attr set default=replica ${EOS_DRAIN_DIR}/replica/
+eos attr set default=raiddp ${EOS_DRAIN_DIR}/raiddp/
+eos attr set default=raid6 ${EOS_DRAIN_DIR}/rain/
 eos fs ls
 
 for i in {1..4}; do
-      xrdcp -f --nopbar ${TEST_FN0} root://${EOS_MGM_HOSTNAME}//eos/dockertest/drain_test/replica/0kb_file${i}.dat
-      xrdcp -f --nopbar ${TEST_FN0} root://${EOS_MGM_HOSTNAME}//eos/dockertest/drain_test/raiddp/0kb_file${i}.dat
-      xrdcp -f --nopbar ${TEST_FN0} root://${EOS_MGM_HOSTNAME}//eos/dockertest/drain_test/rain/0kb_file${i}.dat
-      xrdcp -f --nopbar ${TEST_FN1} root://${EOS_MGM_HOSTNAME}//eos/dockertest/drain_test/replica/32kb_file${i}.dat
-      xrdcp -f --nopbar ${TEST_FN1} root://${EOS_MGM_HOSTNAME}//eos/dockertest/drain_test/raiddp/32kb_file${i}.dat
-      xrdcp -f --nopbar ${TEST_FN1} root://${EOS_MGM_HOSTNAME}//eos/dockertest/drain_test/rain/32kb_file${i}.dat
-      xrdcp -f --nopbar ${TEST_FN2} root://${EOS_MGM_HOSTNAME}//eos/dockertest/drain_test/replica/5mb_file${i}.dat
-      xrdcp -f --nopbar ${TEST_FN2} root://${EOS_MGM_HOSTNAME}//eos/dockertest/drain_test/raiddp/5mb_file${i}.dat
-      xrdcp -f --nopbar ${TEST_FN2} root://${EOS_MGM_HOSTNAME}//eos/dockertest/drain_test/rain/5mb_file${i}.dat
+  xrdcp -f --nopbar ${TEST_FN0} root://${EOS_MGM_HOSTNAME}/${EOS_DRAIN_DIR}/replica/0kb_file${i}.dat
+  xrdcp -f --nopbar ${TEST_FN0} root://${EOS_MGM_HOSTNAME}/${EOS_DRAIN_DIR}/raiddp/0kb_file${i}.dat
+  xrdcp -f --nopbar ${TEST_FN0} root://${EOS_MGM_HOSTNAME}/${EOS_DRAIN_DIR}/rain/0kb_file${i}.dat
+  xrdcp -f --nopbar ${TEST_FN1} root://${EOS_MGM_HOSTNAME}/${EOS_DRAIN_DIR}/replica/32kb_file${i}.dat
+  xrdcp -f --nopbar ${TEST_FN1} root://${EOS_MGM_HOSTNAME}/${EOS_DRAIN_DIR}/raiddp/32kb_file${i}.dat
+  xrdcp -f --nopbar ${TEST_FN1} root://${EOS_MGM_HOSTNAME}/${EOS_DRAIN_DIR}/rain/32kb_file${i}.dat
+  xrdcp -f --nopbar ${TEST_FN2} root://${EOS_MGM_HOSTNAME}/${EOS_DRAIN_DIR}/replica/5mb_file${i}.dat
+  xrdcp -f --nopbar ${TEST_FN2} root://${EOS_MGM_HOSTNAME}/${EOS_DRAIN_DIR}/raiddp/5mb_file${i}.dat
+  xrdcp -f --nopbar ${TEST_FN2} root://${EOS_MGM_HOSTNAME}/${EOS_DRAIN_DIR}/rain/5mb_file${i}.dat
 done
 
 # Check that the file system is ready
 eos fs ls | grep " 1 " | grep "rw" | grep "nodrain" | grep "online"
 
 if [[ $? -ne 0 ]]; then
-      echo "error: file system 1 is not online  ..."
-      eos fs ls
-      exit 1
+  echo "error: file system 1 is not online  ..."
+  eos fs ls
+  cleanup
+  exit 1
 fi
 
 # Set all file systems in RO mode except for fsid 1 and 2 - then start a long
 # running process which writes a file. The purpose is to test the draining of
 # files being written when the draining is started.
 for (( i=3; i<=${FST_ONLINE}; i++ )); do
-    eos fs config $i configstatus=ro
+  eos fs config $i configstatus=ro
 done
 
 # Start long running write operation which should select fsts 1 and 2 as destination
-xrdcpslowwriter root://${EOS_MGM_HOSTNAME}//eos/dockertest/drain_test/replica/slow_writer.dat &
+xrdcpslowwriter root://${EOS_MGM_HOSTNAME}/${EOS_DRAIN_DIR}/replica/slow_writer.dat &
 xrdcpslowwriter_pid=$!
 sleep 2
 
 # Put back the rest of the file systems in rw mode so that the draining can
 # select them as destination.
 for (( i=3; i<=${FST_ONLINE}; i++ )); do
-    eos fs config $i configstatus=rw
+  eos fs config $i configstatus=rw
 done
 
-eos file info /eos/dockertest/drain_test/replica/slow_writer.dat
+eos file info ${EOS_DRAIN_DIR}/replica/slow_writer.dat
 
 # Start draining and wait for it to finish
 eos fs config 1 configstatus=drain
 eos fs ls | grep " 1 " | grep "drain" | grep "prepare\|draining"
 
 while [[ $? -eq 0 ]]; do
-      sleep 2
-      eos fs ls | grep " 1 " | grep "drain" | grep "prepare\|draining"
+  sleep 2
+  eos fs ls | grep " 1 " | grep "drain" | grep "prepare\|draining"
 done
 
 eos fs ls # debug print on what the status is right now;
-
 eos fs ls | grep " 1 " | grep "empty" | grep "drained"
 
 if [[ $? -ne 0 ]]; then
-    echo "error: file system 1 is not drained"
-    echo "Current metadata content"
-    eos fs dumpmd 1
-    exit 1
+  echo "error: file system 1 is not drained"
+  echo "Current metadata content"
+  eos fs dumpmd 1
+  cleanup
+  exit 1
 else
     echo "File system 1 successfully drained"
 fi
@@ -133,19 +148,13 @@ fi
 eos fs config 1 configstatus=rw
 
 if [[ $? -ne 0 ]]; then
-      echo "error: failed to put file system in rw mode"
-      exit 1
+  echo "error: failed to put file system in rw mode"
+  cleanup
+  exit 1
 fi
 
 # Wait for the slow writer to finish before clean-up
 wait ${xrdcpslowwriter_pid}
 
-# Remove all the files and directories
-eos rm -rF "/eos/dockertest/drain_test/replica/*"
-eos rm -rF "/eos/dockertest/drain_test/raiddp/*"
-eos rm -rF "/eos/dockertest/drain_test/rain/*"
-eos rmdir "/eos/dockertest/drain_test/replica/"
-eos rmdir "/eos/dockertest/drain_test/raiddp/"
-eos rmdir "/eos/dockertest/drain_test/rain/"
-eos rmdir "/eos/dockertest/drain_test/"
+cleanup
 exit 0
