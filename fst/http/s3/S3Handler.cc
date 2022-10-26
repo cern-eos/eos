@@ -66,7 +66,8 @@ S3Handler::HandleRequest(eos::common::HttpRequest* request)
     XrdSfsFileOpenMode open_mode = 0;
     mode_t create_mode = 0;
 
-    if (request->GetMethod() == "PUT") {
+    if ((request->GetMethod() == "PUT") ||
+        (request->GetMethod() == "CREATE")) {
       // use the proper creation/open flags for PUT's
       open_mode |= SFS_O_CREAT;
       open_mode |= SFS_O_TRUNC;
@@ -107,6 +108,13 @@ S3Handler::HandleRequest(eos::common::HttpRequest* request)
   if (request->GetMethod() == "GET") {
     // call the HttpHandler::Get method
     mHttpResponse = Get(request);
+  }
+
+  if (request->GetMethod() == "CREATE") {
+    // fake method for XrdHttp bridge
+    mHttpResponse = new eos::common::PlainHttpResponse();
+    mHttpResponse->SetResponseCode(0);
+    return;
   }
 
   if (request->GetMethod() == "PUT") {
@@ -251,6 +259,7 @@ S3Handler::Put(eos::common::HttpRequest* request)
         mUploadLeftSize -= *bodySize;
         mCurrentCallbackOffset += *bodySize;
         response = new eos::common::PlainHttpResponse();
+        response->SetResponseCode(eos::common::HttpResponse::CREATED);
         return response;
       }
     } else {
@@ -263,6 +272,7 @@ S3Handler::Put(eos::common::HttpRequest* request)
         mCloseCode = 0; // we don't want to create a second response down
       } else {
         response = new eos::common::PlainHttpResponse();
+        response->SetResponseCode(eos::common::HttpResponse::CREATED);
         return response;
       }
     }
