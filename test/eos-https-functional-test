@@ -43,7 +43,7 @@ usage() { echo '''Usage: eos-https-func-tests [-h|--host <host>[:<port>| (-p|--p
 usage_error () { echo >&2 "$(basename "$0"):  $1"; exit 2; }
 assert_argument () { test "$1" != "$EOL" || usage_error "$2 requires an argument"; }
 
-port=443
+port="${EOS_HTTPS_PORT:-443}" 
 host=$(hostname -f)
 cacert="/etc/grid-security/certificates/rootCA.pem"
 capath="$(dirname "${cacert}")"

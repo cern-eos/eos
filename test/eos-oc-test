@@ -23,6 +23,60 @@
 # * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
 # ************************************************************************
 
+
+
+usage() { echo '''Usage: # File: eos-oc-test <method> <name> <dir> [-h|--host <host>[:<port>| (-p|--port) <port>]]
+                           <methodd>  : only chunkedupload for the time being
+                           <name>     : name of the file
+                           <dir>      : name of the destination directory
+                           
+                           [-h|--help] - usage & exit
+'''; }
+
+# Parser from: https://stackoverflow.com/questions/192249/how-do-i-parse-command-line-arguments-in-bash
+usage_error () { echo >&2 "$(basename "$0"):  $1"; exit 2; }
+assert_argument () { test "$1" != "$EOL" || usage_error "$2 requires an argument"; }
+
+port="${EOS_HTTPS_PORT:-443}" 
+host=$(hostname -f)
+cacert="/etc/grid-security/certificates/rootCA.pem"
+capath="$(dirname "${cacert}")"
+cert="/root/.globus/usercert.pem"
+key="/root/.globus/userkey.pem"
+
+# One loop, nothing more.
+POSITIONAL_ARGS=()
+if [ "$#" != 0 ]; then
+  EOL=$(printf '\1\3\3\7')
+  set -- "$@" "$EOL"
+  while [ "$1" != "$EOL" ]; do
+    opt="$1"; shift
+    case "$opt" in
+
+      -h|--host)    assert_argument "$1" "$opt"; host="${1%:*}" && port="${1#*:}"; shift;;
+      -p|--port)    assert_argument "$1" "$opt"; port="$1"; shift;;
+      -c|--cert)    assert_argument "$1" "$opt"; cert="$1"; shift;;
+      -k|--key)     assert_argument "$1" "$opt"; key="$1"; shift;;
+      -C|--cacert)  assert_argument "$1" "$opt"; cacert="${1}" && capath="$(dirname "${cacert}")"; shift;;
+      -P|--capath)  assert_argument "$1" "$opt"; capath="${1}"; shift;;
+       
+      -h|--help) usage; exit 0;;
+
+      # Arguments processing. You may remove any unneeded line after the 1st.
+      -|''|[!-]*) set -- "$@" "$opt";;                                          # positional argument, rotate to the end
+      --*=*)      set -- "${opt%%=*}" "${opt#*=}" "$@";;                        # convert '--name=arg' to '--name' 'arg'
+      -[!-]?*)    set -- "$(echo "${opt#-}" | sed 's    /g')" "$@";;     # convert '-abc' to '-a' '-b' '-c'
+      --)         while [ "$1" != "$EOL" ]; do set -- "$@" "$1"; shift; done;;  # process remaining arguments as positional
+      -*)         usage_error "unknown option: '$opt'";;                        # catch misspelled options
+      *)          usage_error "this should NEVER happen ($opt)";;               # sanity test for previous patterns
+
+    esac
+  done
+  shift  # $EOL
+fi
+
+echo 
+
 chunkedupload () {
   echo "# Testing Chunked upload"
   NAME=$1
@@ -33,7 +87,7 @@ chunkedupload () {
   dd if=/dev/zero of=$DIR/$NAME bs=1M count=32
   split -b 10485760 -a 1 -d $DIR/$NAME $DIR/$NAME-chunking-`uuidgen | sed s/-//g`-$CHUNK_NUMBER-
   echo "# about to upload $DIR/$NAME"
-  DEST_URL=http://localhost:8000$2
+  DEST_URL=http://${host}:${port}$2
   echo "# to $DEST_URL"
   let LAST_CHUNK_NUMBER=$CHUNK_NUMBER-1
   let i=0
@@ -64,7 +118,7 @@ chunkedupload () {
   return $ok;
 }
 
-if [ "$1" = "chunkedupload" ]; then
+if [ "$#" -eq 3 ] && [ "$1" = "chunkedupload" ]; then
   chunkedupload $2 $3;
   exit $?
 fi
