@@ -836,6 +836,7 @@ void
 Fsck::AccountOfflineReplicas()
 {
   // Grab all files which are damaged because filesystems are down
+  eos::common::RWMutexWriteLock wr_lock(mErrMutex);
   eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
 
   for (auto it = FsView::gFsView.mIdView.cbegin();
@@ -862,7 +863,6 @@ Fsck::AccountOfflineReplicas()
       try {
         eos::Prefetcher::prefetchFilesystemFileListAndWait(gOFS->eosView,
             gOFS->eosFsView, fsid);
-        eos::common::RWMutexWriteLock wr_lock(mErrMutex);
         // Only need the view lock if we're in-memory
         eos::common::RWMutexReadLock nslock;
 
