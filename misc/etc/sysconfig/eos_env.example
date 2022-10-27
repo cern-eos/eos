@@ -96,9 +96,6 @@ EOS_NOTIFY="mail -s `date +%s`-`hostname`-eos-notify $EOS_MAIL_CC"
 # Enable QoS support
 #EOS_ENABLE_QOS=""
 
-# Enable Converter Engine
-#EOS_CONVERTER_DRIVER=1
-
 # Allow UTF-8 path names excluding only CR,LF
 #EOS_UTF8=""
 
@@ -130,6 +127,9 @@ EOS_NOTIFY="mail -s `date +%s`-`hostname`-eos-notify $EOS_MAIL_CC"
 # of physical connection that can be established with the destination server.
 # The min value is 1 and the max 1024. By default this 1024.
 # EOS_XRD_CONNECTION_POOL_SIZE=1024
+
+# Enable the central balancer - by default disabled
+# EOS_USE_CENTRAL_BALANCER=1
 
 #-------------------------------------------------------------------------------
 # FST Configuration
