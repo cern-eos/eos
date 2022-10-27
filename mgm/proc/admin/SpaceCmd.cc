@@ -1019,7 +1019,9 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config,
                 } else if (eos::common::startsWith(key, GROUPDRAINER_KEY_PREFIX)) {
                   space->mGroupDrainer->reconfigure();
                 } else if (eos::common::startsWith(key, BALANCER_KEY_PREFIX)) {
-                  space->mFsBalancer->SignalConfigUpdate();
+                  if (space->mFsBalancer) {
+                    space->mFsBalancer->SignalConfigUpdate();
+                  }
                 }
               }
             } else {
