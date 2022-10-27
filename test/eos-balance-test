@@ -28,15 +28,18 @@ set -x
 # eos-balancer-test <eos_mgm_hostname>
 #------------------------------------------------------------------------------
 
+SCRIPTPATH="$( cd "$(dirname "$0")" >/dev/null 2>&1 ; pwd -P )"
+source ${SCRIPTPATH}/eos-test-utils
+
 # Helper cleanup method
 cleanup() {
-  eos rm -rF "${EOS_BALANCE_TEST}/replica/*"
-  eos rm -rF "${EOS_BALANCE_TEST}/raiddp/*"
-  eos rm -rF "${EOS_BALANCE_TEST}/rain/*"
-  eos rmdir "${EOS_BALANCE_TEST}/replica/"
-  eos rmdir "${EOS_BALANCE_TEST}/raiddp/"
-  eos rmdir "${EOS_BALANCE_TEST}/rain/"
-  eos rmdir "${EOS_BALANCE_TEST}/"
+  eos rm -rF "${EOS_BALANCE_DIR}/replica/*"
+  eos rm -rF "${EOS_BALANCE_DIR}/raiddp/*"
+  eos rm -rF "${EOS_BALANCE_DIR}/rain/*"
+  eos rmdir "${EOS_BALANCE_DIR}/replica/"
+  eos rmdir "${EOS_BALANCE_DIR}/raiddp/"
+  eos rmdir "${EOS_BALANCE_DIR}/rain/"
+  eos rmdir "${EOS_BALANCE_DIR}/"
   rm -rf ${TEST_FN1} ${TEST_FN2}
 }
 
@@ -85,16 +88,18 @@ eos attr set default=raid6 ${EOS_BALANCE_DIR}/rain/
 # with an unbalanced group
 eos fs config 1 configstatus=ro
 
-xrdcp -f --nopbar ${TEST_FN1} root://${EOS_MGM_HOSTNAME}/${EOS_BALANCE_DIR}/replica/1GB_file${i}.dat
-xrdcp -f --nopbar ${TEST_FN1} root://${EOS_MGM_HOSTNAME}/${EOS_BALANCE_DIR}/raiddp/1GB_file${i}.dat
-xrdcp -f --nopbar ${TEST_FN1} root://${EOS_MGM_HOSTNAME}/${EOS_BALANCE_DIR}/rain/1GB_file${i}.dat
-xrdcp -f --nopbar ${TEST_FN2} root://${EOS_MGM_HOSTNAME}/${EOS_BALANCE_DIR}/replica/2GB_file${i}.dat
-xrdcp -f --nopbar ${TEST_FN2} root://${EOS_MGM_HOSTNAME}/${EOS_BALANCE_DIR}/raiddp/2GB_file${i}.dat
-xrdcp -f --nopbar ${TEST_FN2} root://${EOS_MGM_HOSTNAME}/${EOS_BALANCE_DIR}/rain/2GB_file${i}.dat
+xrdcp -f --nopbar ${TEST_FN1} root://${EOS_MGM_HOSTNAME}/${EOS_BALANCE_DIR}/replica/1GB_file1.dat
+xrdcp -f --nopbar ${TEST_FN1} root://${EOS_MGM_HOSTNAME}/${EOS_BALANCE_DIR}/replica/1GB_file2.dat
+xrdcp -f --nopbar ${TEST_FN1} root://${EOS_MGM_HOSTNAME}/${EOS_BALANCE_DIR}/replica/1GB_file3.dat
+xrdcp -f --nopbar ${TEST_FN1} root://${EOS_MGM_HOSTNAME}/${EOS_BALANCE_DIR}/raiddp/1GB_file1.dat
+xrdcp -f --nopbar ${TEST_FN1} root://${EOS_MGM_HOSTNAME}/${EOS_BALANCE_DIR}/rain/1GB_file1.dat
+xrdcp -f --nopbar ${TEST_FN2} root://${EOS_MGM_HOSTNAME}/${EOS_BALANCE_DIR}/replica/2GB_file1.dat
+xrdcp -f --nopbar ${TEST_FN2} root://${EOS_MGM_HOSTNAME}/${EOS_BALANCE_DIR}/raiddp/2GB_file1.dat
+xrdcp -f --nopbar ${TEST_FN2} root://${EOS_MGM_HOSTNAME}/${EOS_BALANCE_DIR}/rain/2GB_file1.dat
 
 eos fs config 1 configstatus=rw
 eos fs ls --io
-eos group ls --io
+eos group ls
 
 # Enable the balancing at the space level
 eos space config default space.balancer.threshold=${EOS_BALANCER_THRESHOLD}
@@ -103,20 +108,20 @@ eos space config default space.balancer=on
 # Get current dev of the group
 START_DEV=$(sudo eos group ls -m | grep "default.0" | awk '{print $20;}' | cut -d '=' -f2)
 
-if [[ ${START_DEV} -lt ${EOS_BALANCER_THRESHOLD} ]]; then
+if [[ $(echo "${START_DEV} < ${EOS_BALANCER_THRESHOLD}" | bc) -eq 1 ]]; then
    echo "error: start deviation is already less then threshold"
    cleanup
    exit 1
 fi
 
-local MAX_DELAY=300 # seconds
-local START_TIME=$(date +%s)
+MAX_DELAY=300 # seconds
+START_TIME=$(date +%s)
 
 while
-  local CURRENT_TIME=${date +%s)
-  local NEW_DEV=$(sudo eos group ls -m | grep "default.0" | awk '{print $20;}' | cut -d '=' -f2)
+  CURRENT_TIME=$(date +%s)
+  NEW_DEV=$(sudo eos group ls -m | grep "default.0" | awk '{print $20;}' | cut -d '=' -f2)
 
-  if [[ ${NEW_DEV} -lt ${EOS_BALANCER_THRESHOLD} ]]; then
+  if [[ $(echo "${NEW_DEV} < ${EOS_BALANCER_THRESHOLD}" | bc) -eq 1 ]]; then
     echo "info: new deviation value is ${NEW_DEV}"
     false # exit the whlie loop
   else
@@ -125,14 +130,16 @@ while
       cleanup
       exit 1
     else
-      echo "info: sleep for 5 seconds, `secs_to_human $((${CURRENT_TIME} - ${START_TIME}))` passed"
+      echo "info: new dev is ${NEW_DEV}, sleep for 5 seconds, `secs_to_human $((${CURRENT_TIME} - ${START_TIME}))` passed"
       sleep 5
       eos fs ls --io
+      eos ns 
+      eos group ls
+    fi
   fi
 do
-:
+ :
 done
-
 
 cleanup
 exit 0
