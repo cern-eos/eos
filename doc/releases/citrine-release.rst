@@ -15,6 +15,23 @@ Introduction
 ------------
 This release is based on XRootD V4 and IPV6 enabled.
 
+``v4.8.93 Citrine``
+===================
+
+2022-10-28
+
+Bug
+----
+
+* [EOS-5424] - EOS grpc: inode from folder is 0
+
+Improvement
+------------
+
+* [EOS-5412] - add qclient performance metrics on monitoring format.
+* [EOS-5413] -  QClient performance: have last 5m, last 1m, etc metrics
+* [EOS-5426] - MGM: force show only physical space via 'spaceinfo'/statvfs
+
 
 ``v4.8.92 Citrine``
 ===================
