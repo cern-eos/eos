@@ -95,9 +95,6 @@ EOS_NOTIFY="mail -s `date +%s`-`hostname`-eos-notify $EOS_MAIL_CC"
 # Enable QoS support
 #EOS_ENABLE_QOS=""
 
-# Enable Converter Engine
-#EOS_CONVERTER_DRIVER=1
-
 # Allow UTF-8 path names excluding only CR,LF
 #EOS_UTF8=""
 
