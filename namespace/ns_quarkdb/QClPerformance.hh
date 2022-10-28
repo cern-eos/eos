@@ -26,6 +26,7 @@
 #include "qclient/QCallback.hh"
 #include <atomic>
 #include <limits>
+#include <mutex>
 #include <map>
 #include <string>
 
@@ -67,6 +68,9 @@ private:
   std::atomic<unsigned long long> mMinRtt;
   std::atomic<unsigned long long> mMaxRtt;
   std::atomic<unsigned long long> mAvgRtt;
+  //! Map of timestamps in minutes to peak value in microseconds
+  std::map<unsigned long long, unsigned long long> mMapTsToRtt;
+  mutable std::mutex mMutex;
 };
 
 EOSNSNAMESPACE_END

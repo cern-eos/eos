@@ -302,9 +302,10 @@ XrdMgmOfs::_readlink(const char* name,
   errno = 0;
   eos_info("name=%s", name);
   std::string linktarget;
+  std::string sname = name;
   gOFS->MgmStats.Add("Symlink", vid.uid, vid.gid, 1);
   EXEC_TIMING_BEGIN("ReadLink");
-  eos::Prefetcher::prefetchFileMDAndWait(gOFS->eosView, name, false);
+  eos::Prefetcher::prefetchFileMDAndWait(gOFS->eosView, sname, false);
   eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
 
   try {

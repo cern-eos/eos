@@ -352,6 +352,39 @@ com_file(char* arg1)
       in += "&mgm.file.touch.absorb=true";
     }
 
+    if (option.find("l") != STR_NPOS) {
+      in += "&mgm.file.touch.lockop=lock";
+
+      if (fsid1.length()) {
+        in += "&mgm.file.touch.lockop.lifetime=";
+        in += fsid1.c_str();
+        fsid1 = "";
+      }
+
+      if (fsid2.length()) {
+        if ((fsid2 != "app") &&
+            (fsid2 != "user")) {
+          goto com_file_usage;
+        }
+
+        if (fsid2 == "app") {
+          // this is inverted logic because we set the wildcard
+          in += "&mgm.file.touch.wildcard=user";
+        } else {
+          // this is inverted logic because we set the wildcard
+          in += "&mgm.file.touch.wildcard=app";
+        }
+
+        fsid2 = "";
+      }
+    }
+
+    if (option.find("u") != STR_NPOS) {
+      in += "&mgm.file.touch.lockop=unlock";
+      fsid1 = "";
+      fsid2 = "";
+    }
+
     if (fsid1.length()) {
       if (fsid1.beginswith("/")) {
         in += "&mgm.file.touch.hardlinkpath=";
@@ -1099,7 +1132,7 @@ com_file_usage:
   fprintf(stdout,
           "                                                  unlink keeps the location in the list of deleted files e.g. the location get's a deletion request\n");
   fprintf(stdout,
-          "file touch [-a] [-n] [-0] [<path>|fid:<fid-dec>|fxid:<fid-hex>] [linkpath|size] [checksumtype:checksum] :\n");
+          "file touch [-a] [-n] [-0] <path>|fid:<fid-dec>|fxid:<fid-hex> [linkpath|size [hexchecksum]] :\n");
   fprintf(stdout,
           "                                                  create/touch a 0-size/0-replica file if <path> does not exist or update modification time of an existing file to the present time\n");
   fprintf(stdout,
@@ -1114,6 +1147,28 @@ com_file_usage:
           "                                          - provide the optional linkpath argument to hard- or softlink the touched file to a shared filesystem\n");
   fprintf(stdout,
           "                                          - provide the optional checksum information for a new touched file\n");
+  fprintf(stdout,
+          "file touch -l <path>|fid:<fid-dec>|fxid:<fid-hex> [<lifetime> [<audience>=user|app]] :\n");
+  fprintf(stdout,
+          "                                          - touch a file and create an extended attribute lock with <lifetime> (default 24h)\n");
+  fprintf(stdout,
+          "                                          - with <audience> one can relax the lock owner requirements to be either same user or same app - default is both have to match\n");
+  fprintf(stdout,
+          "                                          - if the lock is already held by another caller EBUSY is returned\n");
+  fprintf(stdout,
+          "                                          - if a lock is already held by the caller a second call will extend the liftime as provided\n");
+  fprintf(stdout,
+          "                                          - use in combination with 'eos -a application' to tag a client with a given application for the lock\n");
+  fprintf(stdout,
+          "file touch -u <path|fid:<fid-dec>|fxid:<fid-hex> :\n");
+  fprintf(stdout,
+          "                                          - remove an extended attribute lock\n");
+  fprintf(stdout,
+          "                                          - if no lock was not present no error is returned - only an message\n");
+  fprintf(stdout,
+          "                                          - if the lock is held by someone else EBUSY is returned\n");
+  fprintf(stdout,
+          "                                          - use in combination with 'eos -a application' to tag a client with a given application for the lock\n");
   fprintf(stdout,
           "file verify <path>|fid:<fid-dec>|fxid:<fid-hex> [<fsid>] [-checksum] [-commitchecksum] [-commitsize] [-rate <rate>] : \n");
   fprintf(stdout,

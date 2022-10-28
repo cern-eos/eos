@@ -74,8 +74,10 @@ XrdFstOfsFile::XrdFstOfsFile(const char* user, int MonID) :
 {
   rBytes = wBytes = sFwdBytes = sBwdBytes = sXlFwdBytes
                                 = sXlBwdBytes = rOffset = wOffset = 0;
-  rTime.tv_sec = lrTime.tv_sec = rvTime.tv_sec = lrvTime.tv_sec = 0;
-  rTime.tv_usec = lrTime.tv_usec = rvTime.tv_usec = lrvTime.tv_usec = 0;
+  rStart.tv_sec = wStart.tv_sec = rvStart.tv_sec = rTime.tv_sec = lrTime.tv_sec =
+                                    rvTime.tv_sec = lrvTime.tv_sec = 0;
+  rStart.tv_usec = wStart.tv_usec = rvStart.tv_usec = rTime.tv_usec =
+                                      lrTime.tv_usec = rvTime.tv_usec = lrvTime.tv_usec = 0;
   wTime.tv_sec = lwTime.tv_sec = cTime.tv_sec = 0;
   wTime.tv_usec = lwTime.tv_usec = cTime.tv_usec = 0;
   rCalls = wCalls = nFwdSeeks = nBwdSeeks = nXlFwdSeeks = nXlBwdSeeks = 0;
@@ -86,6 +88,10 @@ XrdFstOfsFile::XrdFstOfsFile(const char* user, int MonID) :
   msSleep = 0;
   mBandwidth = 0;
   timeToOpen = 0;
+  timeToClose = 0;
+  timeToRead = 0;
+  timeToReadV = 0;
+  timeToWrite = 0;
   tz.tz_dsttime = tz.tz_minuteswest = 0;
   mIoPriorityValue = 0;
   mIoPriorityClass = IOPRIO_CLASS_NONE;
@@ -763,6 +769,7 @@ XrdSfsXferSize
 XrdFstOfsFile::read(XrdSfsFileOffset fileOffset, char* buffer,
                     XrdSfsXferSize buffer_size)
 {
+  gettimeofday(&rStart, &tz);
   // use RR scheduling if there is a round-robin app name
   std::mutex* mutex = 0;
 
@@ -865,6 +872,7 @@ XrdFstOfsFile::read(XrdSfsFileOffset fileOffset, char* buffer,
     }
   }
 
+  AddLayoutReadTime();
   return rc;
 }
 
@@ -905,6 +913,7 @@ XrdSfsXferSize
 XrdFstOfsFile::readv(XrdOucIOVec* readV, int readCount)
 {
   eos_debug("msg=\"readv request\" count=%i", readCount);
+  gettimeofday(&rvStart, &tz);
   std::string output_init, output_final;
   auto print_readv_request = [](XrdOucIOVec * readv, int num_chunks) {
     std::ostringstream oss;
@@ -950,6 +959,7 @@ XrdFstOfsFile::readv(XrdOucIOVec* readV, int readCount)
     }
   }
 
+  AddLayoutReadVTime();
   return rv;
 }
 
@@ -960,6 +970,8 @@ XrdSfsXferSize
 XrdFstOfsFile::write(XrdSfsFileOffset fileOffset, const char* buffer,
                      XrdSfsXferSize buffer_size)
 {
+  gettimeofday(&wStart, &tz);
+
   if (gOFS.mSimUnresponsive) {
     eos_warning("simulating unresponsiveness in write delaying by 120s");
     std::this_thread::sleep_for(std::chrono::seconds(120));
@@ -969,6 +981,7 @@ XrdFstOfsFile::write(XrdSfsFileOffset fileOffset, const char* buffer,
     eos_debug("offset=%llu, length=%li discarded for sink file", fileOffset,
               buffer_size);
     mMaxOffsetWritten = fileOffset + buffer_size;
+    AddLayoutWriteTime();
     return buffer_size;
   }
 
@@ -1142,6 +1155,7 @@ XrdFstOfsFile::write(XrdSfsFileOffset fileOffset, const char* buffer,
             errdetail.c_str());
   }
 
+  AddLayoutWriteTime();
   return rc;
 }
 
@@ -1361,6 +1375,8 @@ XrdFstOfsFile::truncate(XrdSfsFileOffset fsize)
 int
 XrdFstOfsFile::close()
 {
+  gettimeofday(&closeStart, &tz);
+
   if (gOFS.mSimUnresponsive) {
     eos_warning("%s", "msg=\"simulating unresponsiveness unsing 120s delay\"");
     std::this_thread::sleep_for(std::chrono::seconds(120));
@@ -1396,7 +1412,7 @@ XrdFstOfsFile::close()
   auto closeCb = std::make_shared<XrdOucCallBack>();
   closeCb->Init(&error);
   error.setErrInfo(1800, "delay client up to 30 minutes");
-  gOFS.mCloseThreadPool.PushTask<void>([&,closeCb]() -> void {
+  gOFS.mCloseThreadPool.PushTask<void>([&, closeCb]() -> void {
     eos_info("msg=\"doing close in the async thread\" fxid=%08llx", mFileId);
     int rc = _close();
     auto fileId = mFileId;
@@ -1955,6 +1971,8 @@ XrdFstOfsFile::_close()
       // stage actually uses the opaque info from kTpcSrcSetup and that's
       // why we also generate a report at this stage.
       XrdOucString reportString = "";
+      gettimeofday(&closeStop, &tz);
+      CloseTime();
       MakeReportEnv(reportString);
       eos_static_info("msg=\"%s\"", reportString.c_str());
 
@@ -3151,6 +3169,17 @@ XrdFstOfsFile::ProcessTpcOpaque(std::string& opaque, const XrdSecEntity* client)
   return SFS_OK;
 }
 
+
+//------------------------------------------------------------------------------
+// Compute close time
+//------------------------------------------------------------------------------
+void
+XrdFstOfsFile::CloseTime()
+{
+  unsigned long mus = (closeStop.tv_sec - closeStart.tv_sec) * 1000000 +
+                      (closeStop.tv_usec - closeStart.tv_usec);
+  timeToClose = mus / 1000.0;
+}
 //------------------------------------------------------------------------------
 // Account for total read time
 //------------------------------------------------------------------------------
@@ -3161,6 +3190,15 @@ XrdFstOfsFile::AddReadTime()
                       (lrTime.tv_usec - cTime.tv_usec);
   rTime.tv_sec += (mus / 1000000);
   rTime.tv_usec += (mus % 1000000);
+}
+
+void
+XrdFstOfsFile::AddLayoutReadTime()
+{
+  struct timeval nowtime;
+  gettimeofday(&nowtime, &tz);
+  timeToRead += ((nowtime.tv_sec - rStart.tv_sec) * 1000) + ((
+                  nowtime.tv_usec - rStart.tv_usec) / 1000.0);
 }
 
 //------------------------------------------------------------------------------
@@ -3175,6 +3213,15 @@ XrdFstOfsFile::AddReadVTime()
   rvTime.tv_usec += (mus % 1000000);
 }
 
+void
+XrdFstOfsFile::AddLayoutReadVTime()
+{
+  struct timeval nowtime;
+  gettimeofday(&nowtime, &tz);
+  timeToReadV += ((nowtime.tv_sec - rvStart.tv_sec) * 1000) + ((
+                   nowtime.tv_usec - rvStart.tv_usec) / 1000.0);
+}
+
 //------------------------------------------------------------------------------
 // Account for total write time
 //------------------------------------------------------------------------------
@@ -3185,6 +3232,15 @@ XrdFstOfsFile::AddWriteTime()
                       lwTime.tv_usec - cTime.tv_usec;
   wTime.tv_sec += (mus / 1000000);
   wTime.tv_usec += (mus % 1000000);
+}
+
+void
+XrdFstOfsFile::AddLayoutWriteTime()
+{
+  struct timeval nowtime;
+  gettimeofday(&nowtime, &tz);
+  timeToWrite += ((nowtime.tv_sec - wStart.tv_sec) * 1000) + ((
+                   nowtime.tv_usec - wStart.tv_usec) / 1000.0);
 }
 
 //------------------------------------------------------------------------------
@@ -3210,6 +3266,14 @@ XrdFstOfsFile::MakeReportEnv(XrdOucString& reportString)
     ComputeStatistics(monReadvCount, rcmin, rcmax, rcsum, rcsigma);
     bool sec_tpc = ((mTpcFlag == kTpcDstSetup) || (mTpcFlag == kTpcSrcRead));
     char report[16384];
+    float iot = (float)(((closeTime.tv_sec - openTime.tv_sec) * 1000.0) + ((
+                          closeTime.tv_usec - openTime.tv_usec) / 1000.0));
+    float rt = ((rTime.tv_sec * 1000.0) + (rTime.tv_usec / 1000.0));
+    float rvt = ((rvTime.tv_sec * 1000.0) + (rvTime.tv_usec / 1000.0));
+    float wt = ((wTime.tv_sec * 1000.0) + (wTime.tv_usec / 1000.0));
+    float idt = iot - timeToOpen - timeToClose - timeToRead - timeToReadV -
+                timeToWrite;
+    float usage = 100.0 - (100.0 * idt / iot);
 
     if (rmin == 0xffffffff) {
       rmin = 0;
@@ -3241,7 +3305,7 @@ XrdFstOfsFile::MakeReportEnv(XrdOucString& reportString)
              "wb=%llu&wb_min=%llu&wb_max=%llu&wb_sigma=%.02f&"
              "sfwdb=%llu&sbwdb=%llu&sxlfwdb=%llu&sxlbwdb=%llu&"
              "nfwds=%lu&nbwds=%lu&nxlfwds=%lu&nxlbwds=%lu&"
-             "ot=%.03f&rt=%.02f&rvt=%.02f&wt=%.02f&osize=%llu&csize=%llu&"
+             "usage=%.02f&iot=%.03f&idt=%.03f&lrt=%.03f&lrvt=%.03f&lwt=%.03f&ot=%.03f&ct=%.03f&rt=%.02f&rvt=%.02f&wt=%.02f&osize=%llu&csize=%llu&"
              "delete_on_close=%d&prio_c=%d&prio_l=%d&prio_d=%d&forced_bw=%d&ms_sleep=%llu&%s"
              , this->logId
              , sanitized_path.c_str()
@@ -3267,10 +3331,17 @@ XrdFstOfsFile::MakeReportEnv(XrdOucString& reportString)
              , nBwdSeeks
              , nXlFwdSeeks
              , nXlBwdSeeks
+             , usage
+             , iot
+             , idt
+             , timeToRead
+             , timeToReadV
+             , timeToWrite
              , timeToOpen
-             , ((rTime.tv_sec * 1000.0) + (rTime.tv_usec / 1000.0))
-             , ((rvTime.tv_sec * 1000.0) + (rvTime.tv_usec / 1000.0))
-             , ((wTime.tv_sec * 1000.0) + (wTime.tv_usec / 1000.0))
+             , timeToClose
+             , rt
+             , rvt
+             , wt
              , (unsigned long long) openSize
              , (unsigned long long) closeSize
              , (deleteOnClose) ? 1 : 0

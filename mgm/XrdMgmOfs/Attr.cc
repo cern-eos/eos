@@ -479,7 +479,8 @@ XrdMgmOfs::_attr_get(eos::IFileMD& fmd, std::string key, std::string& rvalue)
 int
 XrdMgmOfs::attr_rem(const char* inpath, XrdOucErrInfo& error,
                     const XrdSecEntity* client, const char* ininfo,
-                    const char* key)
+                    const char* key,
+                    bool take_lock)
 {
   static const char* epname = "attr_rm";
   const char* tident = error.getErrUser();
@@ -494,7 +495,7 @@ XrdMgmOfs::attr_rem(const char* inpath, XrdOucErrInfo& error,
   AUTHORIZE(client, &access_Env, AOP_Delete, "delete", inpath, error);
   gOFS->MgmStats.Add("IdMap", vid.uid, vid.gid, 1);
   BOUNCE_NOT_ALLOWED;
-  return _attr_rem(path, error, vid, ininfo, key);
+  return _attr_rem(path, error, vid, ininfo, key, take_lock);
 }
 
 //------------------------------------------------------------------------------
@@ -503,7 +504,8 @@ XrdMgmOfs::attr_rem(const char* inpath, XrdOucErrInfo& error,
 int
 XrdMgmOfs::_attr_rem(const char* path, XrdOucErrInfo& error,
                      eos::common::VirtualIdentity& vid,
-                     const char* info, const char* key)
+                     const char* info, const char* key,
+                     bool take_lock)
 
 {
   static const char* epname = "attr_rm";
@@ -518,7 +520,11 @@ XrdMgmOfs::_attr_rem(const char* path, XrdOucErrInfo& error,
   }
 
   eos::Prefetcher::prefetchContainerMDAndWait(gOFS->eosView, path);
-  eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
+  eos::common::RWMutexWriteLock lock;
+
+  if (take_lock) {
+    lock.Grab(gOFS->eosViewRWMutex);
+  }
 
   try {
     dh = gOFS->eosView->getContainer(path);

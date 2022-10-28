@@ -51,10 +51,17 @@ com_fuse(char* arg1)
   XrdOucString cmd = subtokenizer.GetToken();
   XrdOucString option = "";
   XrdOucString logfile = "";
-  XrdOucString fsname = serveruri;
-  fsname.replace("root://", "");
-  XrdOucString params = "max_readahead=131072,max_write=4194304,fsname=";
-  params += fsname;
+  XrdCl::URL url(serveruri.c_str());
+  XrdOucString params = "fsname=";
+
+  if (url.GetHostName() == "localhost") {
+    params += "localhost.localdomain";
+  } else {
+    params += url.GetHostName().c_str();
+  }
+
+  params += ":";
+  params += url.GetPath().c_str();
 
   if (wants_help(arg1)) {
     goto com_fuse_usage;
@@ -78,15 +85,7 @@ com_fuse(char* arg1)
         goto com_fuse_usage;
       }
     } else {
-      if (option.beginswith("-l")) {
-        logfile = subtokenizer.GetToken();
-
-        if (!logfile.length()) {
-          goto com_fuse_usage;
-        }
-      } else {
-        break;
-      }
+      break;
     }
   } while (1);
 
@@ -140,159 +139,20 @@ com_fuse(char* arg1)
     }
 
 #ifdef __APPLE__
-    params += ",noappledouble,allow_root,defer_permissions,volname=EOS,iosize=65536,fsname=eos@cern.ch";
+    params += " -onoappledouble,allow_root,defer_permissions,volname=EOS,iosize=65536,fsname=eos@cern.ch";
 #endif
-    params += ",url=";
-    params += serveruri.c_str();
-
-    if ((params.find("//eos/") == STR_NPOS)) {
-      params += "//eos/";
-    }
-
     fprintf(stderr, "===> Mountpoint   : %s\n", mountpoint.c_str());
     fprintf(stderr, "===> Fuse-Options : %s\n", params.c_str());
-
-    if (logfile.length()) {
-      fprintf(stderr, "===> Log File     : %s\n", logfile.c_str());
-      setenv("EOS_FUSE_LOGFILE", logfile.c_str(), 1);
-    }
-
-    XrdOucString env = "env";
-
-    if (getenv("EOS_FUSE_RDAHEAD")) {
-      env += " EOS_FUSE_RDAHEAD=";
-      env += getenv("EOS_FUSE_RDAHEAD");
-    } else {
-      setenv("EOS_FUSE_RDAHEAD", "1", 1);
-      env += " EOS_FUSE_RDAHEAD=1";
-    }
-
-    if (getenv("EOS_FUSE_RDAHEAD_WINDOW")) {
-      env += " EOS_FUSE_RDAHEAD_WINDOW=";
-      env += getenv("EOS_FUSE_RDAHEAD_WINDOW");
-    } else {
-      setenv("EOS_FUSE_RDAHEAD_WINDOW", "1048576", 1);
-      env += " EOS_FUSE_RDAHEAD_WINDOW=1048576";
-    }
-
-    if (getenv("EOS_FUSE_CACHE_SIZE")) {
-      env += " EOS_FUSE_CACHE_SIZE=";
-      env += getenv("EOS_FUSE_CACHE_SIZE");
-    } else {
-      setenv("EOS_FUSE_CACHE_SIZE", "67108864", 1);
-      env += " EOS_FUSE_CACHE_SIZE=67108864";
-    }
-
-    if (getenv("EOS_FUSE_CACHE")) {
-      env += " EOS_FUSE_CACHE=";
-      env += getenv("EOS_FUSE_CACHE");
-    } else {
-      setenv("EOS_FUSE_CACHE", "1", 1);
-      env += " EOS_FUSE_CACHE=1";
-    }
-
-    if (getenv("EOS_FUSE_DEBUG")) {
-      env += " EOS_FUSE_DEBUG=";
-      env += getenv("EOS_FUSE_DEBUG");
-    } else {
-      setenv("EOS_FUSE_DEBUG", "0", 1);
-      env += " EOS_FUSE_DEBUG=0";
-    }
-
-    if (getenv("EOS_FUSE_LOWLEVEL_DEBUG")) {
-      env += " EOS_FUSE_LOWLEVEL_DEBUG=";
-      env += getenv("EOS_FUSE_LOWLEVEL_DEBUG");
-    } else {
-      setenv("EOS_FUSE_LOWLEVEL_DEBUG", "0", 1);
-      env += " EOS_FUSE_LOWLEVEL_DEBUG=0";
-    }
-
-    if (getenv("EOS_FUSE_RMLVL_PROTECT")) {
-      env += " EOS_FUSE_RMLVL_PROTECT=";
-      env += getenv("EOS_FUSE_RMLVL_PROTECT");
-    } else {
-      setenv("EOS_FUSE_RMLVL_PROTECT", "1", 1);
-      env += " EOS_FUSE_RMLVL_PROTECT=0";
-    }
-
-    if (getenv("EOS_FUSE_LAZYOPENRO")) {
-      env += " EOS_FUSE_LAZYOPENRO=";
-      env += getenv("EOS_FUSE_LAZYOPENRO");
-    } else {
-      setenv("EOS_FUSE_LAZYOPENRO", "0", 1);
-      env += " EOS_FUSE_LAZYOPENRO=0";
-    }
-
-    if (getenv("EOS_FUSE_LAZYOPENRW")) {
-      env += " EOS_FUSE_LAZYOPENRW=";
-      env += getenv("EOS_FUSE_LAZYOPENRW");
-    } else {
-      setenv("EOS_FUSE_LAZYOPENRW", "1", 1);
-      env += " EOS_FUSE_LAZYOPENRW=1";
-    }
-
-    bool mt = true;
-
-    if (getenv("EOS_FUSE_NO_MT")) {
-      env += " EOS_FUSE_NO_MT=";
-      env += getenv("EOS_FUSE_NO_MT");
-
-      if (!strcmp("1", getenv("EOS_FUSE_NO_MT"))) {
-        mt = false;
-      }
-    } else {
-      setenv("EOS_FUSE_NO_MT", "0", 1);
-      env += " EOS_FUSE_NO_MT=0";
-    }
-
-    if (getenv("EOS_FUSE_LOGLEVEL")) {
-      env += " EOS_FUSE_LOGLEVEL=";
-      env += getenv("EOS_FUSE_LOGLEVEL");
-    } else {
-      setenv("EOS_FUSE_LOGLEVEL", "5", 1);
-      env += " EOS_FUSE_LOGLEVEL=5";
-    }
-
-    env += " XRD_RUNFORKHANDLER=1";
-    env += " EOS_FUSE_NOPIO=1";
-    env += " EOS_FUSE_KERNELCACHE=1";
-    env += " EOS_FUSE_BIGWRITES=1";
-    fprintf(stderr, "===> fuse readahead        : %s\n",
-            getenv("EOS_FUSE_RDAHEAD"));
-    fprintf(stderr, "===> fuse readahead-window : %s\n",
-            getenv("EOS_FUSE_RDAHEAD_WINDOW"));
-    fprintf(stderr, "===> fuse debug            : %s\n", getenv("EOS_FUSE_DEBUG"));
-    fprintf(stderr, "===> fuse low-level debug  : %s\n",
-            getenv("EOS_FUSE_LOWLEVEL_DEBUG"));
-    fprintf(stderr, "===> fuse log-level        : %s\n",
-            getenv("EOS_FUSE_LOGLEVEL"));
-    fprintf(stderr, "===> fuse write-cache      : %s\n", getenv("EOS_FUSE_CACHE"));
-    fprintf(stderr, "===> fuse write-cache-size : %s\n",
-            getenv("EOS_FUSE_CACHE_SIZE"));
-    fprintf(stderr, "===> fuse rm level protect : %s\n",
-            getenv("EOS_FUSE_RMLVL_PROTECT"));
-    fprintf(stderr, "===> fuse lazy-open-ro     : %s\n",
-            getenv("EOS_FUSE_LAZYOPENRO"));
-    fprintf(stderr, "===> fuse lazy-open-rw     : %s\n",
-            getenv("EOS_FUSE_LAZYOPENRW"));
-    fprintf(stderr, "==== fuse multi-threading  : %s\n", mt ? "true" : "false");
-
-    if (!getenv("EOS_MGM_URL")) {
-      fprintf(stderr, "error: please define the variable EOS_MGM_URL like "
-              "root://eosuser.cern.ch before mounting!\n");
-      exit(-1);
-    }
-
-    XrdOucString mount = env;
-    mount += " eosd ";
+    XrdOucString mount;
+    mount = "eosxd ";
     mount += mountpoint.c_str();
-    mount += " -f";
     mount += " -o";
     mount += params;
+    fprintf(stderr, "running %s\n", mount.c_str());
 #ifdef __APPLE__
-    mount += " >& /dev/null &";
+    mount += " >& /dev/null";
 #else
-    mount += " >& /dev/null ";
+    mount += " >& /dev/null";
 #endif
     int rc = system(mount.c_str());
 
@@ -393,7 +253,7 @@ com_fuse(char* arg1)
   exit(0);
 com_fuse_usage:
   fprintf(stdout,
-          "usage: fuse mount  [-o <fuseparameterlist>] [-l <logfile>] <mount-point> : mount connected eos pool on <mount-point>\n");
+          "usage: fuse mount  <mount-point>                                         : mount connected eos instance on <mount-point>\n");
   fprintf(stdout,
           "       fuse umount <mount-point>                                         : unmount eos pool from <mount-point>\n");
   exit(-1);

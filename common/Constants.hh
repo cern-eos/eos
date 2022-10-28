@@ -73,5 +73,7 @@ static constexpr auto SCAN_NS_INTERVAL_NAME = "scan_ns_interval";
 static constexpr auto FSCK_REFRESH_INTERVAL_NAME = "fsck_refresh_interval";
 //! Special EOS scheduling group space
 static constexpr auto EOS_SPARE_GROUP = "spare";
+//! Appliation lock attribute
+static constexpr auto EOS_APP_LOCK_ATTR = "sys.app.lock";
 
 EOSCOMMONNAMESPACE_END

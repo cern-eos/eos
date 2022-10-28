@@ -116,6 +116,9 @@ EOS_NOTIFY="mail -s `date +%s`-`hostname`-eos-notify $EOS_MAIL_CC"
 # If you want to report only quota accouting you can define
 # EOS_MGM_STATVFS_ONLY_QUOTA=1
 
+# If you only want to report the space acacounting you can define
+# EOS_MGM_STATVFS_ONLY_SPACE=1
+
 # If variable defined then enable the use of xrootd connection pool i.e.
 # create/share different physical connections for transfers to the same
 # destination xrootd server. By default this is disabled.

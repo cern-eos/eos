@@ -144,6 +144,10 @@ EosFuse::UsageGet()
   usage +=
     "                     eos.dsize <path>                   : show total size of files inside a directory \n";
   usage +=
+    "                     eos.dcount <path>                  : show total number of directories inside a directory \n";
+  usage +=
+    "                     eos.fcount <path>                  : show total number of files inside a directory\n";
+  usage +=
     "                     eos.name <path>                    : show EOS instance name for given path\n";
   usage +=
     "                     eos.md_ino <path>                  : show inode number valid on MGM \n";
@@ -157,6 +161,8 @@ EosFuse::UsageGet()
     "                     eos.stacktrace <path>              : test thread stack trace functionality\n";
   usage +=
     "                     eos.quota <path>                   : show user quota information for a given path\n";
+  usage +=
+    "                     eos.url.xroot                      : show the root:// protocol transport url for the given file";
   usage +=
     "                     eos.reconnect <mount>              : reconnect and dump the connection credentials\n";
   usage +=
@@ -5264,6 +5270,56 @@ EosFuse::getxattr(fuse_req_t req, fuse_ino_t ino, const char* xattr_name,
               char tsize[256];
               snprintf(tsize, sizeof(tsize), "%lu", (*md)()->size());
               value = tsize;
+            }
+
+            if (key == "eos.fcount") {
+              uint64_t nfiles = 0;
+              mLock.UnLock();
+              rc = listdir(req, ino, md);
+
+              if (!rc) {
+                for (auto it = md->local_children().begin(); it != md->local_children().end();
+                     ++it) {
+                  fuse_ino_t cino = it->second;
+                  metad::shared_md cmd = Instance().mds.get(req, cino, "", 0, 0, 0, true);
+                  XrdSysMutexHelper mLock(cmd->Locker());
+
+                  if ((*cmd)()->id()) {
+                    if (S_ISREG((*cmd)()->mode())) {
+                      nfiles++;
+                    }
+                  }
+                }
+              }
+
+              char fsize[256];
+              snprintf(fsize, sizeof(fsize), "%lu", nfiles);
+              value = fsize;
+            }
+
+            if (key == "eos.dcount") {
+              uint64_t ndirs = 0;
+              mLock.UnLock();
+              rc = listdir(req, ino, md);
+
+              if (!rc) {
+                for (auto it = md->local_children().begin(); it != md->local_children().end();
+                     ++it) {
+                  fuse_ino_t cino = it->second;
+                  metad::shared_md cmd = Instance().mds.get(req, cino, "", 0, 0, 0, true);
+                  XrdSysMutexHelper mLock(cmd->Locker());
+
+                  if ((*cmd)()->id()) {
+                    if (S_ISDIR((*cmd)()->mode())) {
+                      ndirs++;
+                    }
+                  }
+                }
+              }
+
+              char dsize[256];
+              snprintf(dsize, sizeof(dsize), "%lu", ndirs);
+              value = dsize;
             }
 
             if (key == "eos.dsize") {

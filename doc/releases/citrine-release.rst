@@ -15,6 +15,51 @@ Introduction
 ------------
 This release is based on XRootD V4 and IPV6 enabled.
 
+``v4.8.93 Citrine``
+===================
+
+2022-10-28
+
+Bug
+----
+
+* [EOS-5424] - EOS grpc: inode from folder is 0
+
+Improvement
+------------
+
+* [EOS-5412] - add qclient performance metrics on monitoring format.
+* [EOS-5413] -  QClient performance: have last 5m, last 1m, etc metrics
+* [EOS-5426] - MGM: force show only physical space via 'spaceinfo'/statvfs
+
+
+``v4.8.92 Citrine``
+===================
+
+2022-10-10
+
+Bug
+----
+
+* [EOS-5347] - EOS token not usable via eosxd
+* [EOS-5369] - occasional error during eoscta test "mismatch between requested fid/fsid and retrieved ones"
+* [EOS-5371] - Home-i00 crash 25/8/22 13:15
+
+
+New Feature
+------------
+
+* [EOS-5145] - Extending lock support
+
+
+Improvement
+------------
+
+* [EOS-3297] - Print the deviation used for the group balancer
+* [EOS-5360] - Add EOS log messages for CTA workflow events
+* [EOS-5394] - Modify EOS to fill new fields passed to CTA
+* [EOS-5401] - Return the inode number in FMD responses for GRPC
+
 
 ``v4.8.91 Citrine``
 ===================

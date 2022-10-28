@@ -1292,6 +1292,7 @@ Server::OpGetLs(const std::string& id,
     cont.set_ref_inode_(md.md_ino());
     (*cont.mutable_md_()).set_clientuuid(md.clientuuid());
     (*cont.mutable_md_()).set_clientid(md.clientid());
+    Prefetcher::prefetchInodeAndWait(gOFS->eosView, md.md_ino());
     FillFileMD(md.md_ino(), (*cont.mutable_md_()), vid);
 
     if (md.attr().count("user.acl") > 0) { /* File has its own ACL */
@@ -1529,7 +1530,7 @@ Server::OpSetDirectory(const std::string& id,
 
       if (cmd->getCUid() != (uid_t)md.uid() /* a chown */ && !vid.sudoer &&
           (uid_t)md.uid() != vid.uid) {
-	vid.scope = gOFS->eosView->getUri(cmd.get());
+        vid.scope = gOFS->eosView->getUri(cmd.get());
         /* chown is under control of container sys.acl only, if a vanilla user chowns to other than themselves */
         Acl acl;
         attrmap = cmd->getAttributes();
@@ -1763,6 +1764,9 @@ Server::OpSetFile(const std::string& id,
   eos_info("ino=%lx pin=%lx authid=%s file", (long) md.md_ino(),
            (long) md.md_pino(),
            md.authid().c_str());
+  // prefetch parent and file
+  Prefetcher::prefetchInodeAndWait(gOFS->eosView, md.md_pino());
+  Prefetcher::prefetchInodeAndWait(gOFS->eosView, md.md_ino());
   eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
   eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
   std::shared_ptr<eos::IFileMD> fmd;
@@ -2059,7 +2063,7 @@ Server::OpSetFile(const std::string& id,
 
       if (fmd->getCUid() != (uid_t)md.uid() /* a chown */ && !vid.sudoer &&
           (uid_t)md.uid() != vid.uid) {
-	vid.scope = gOFS->eosView->getUri(pcmd.get());
+        vid.scope = gOFS->eosView->getUri(pcmd.get());
         /* chown is under control of container sys.acl only, if a vanilla user chowns to other than themselves */
         Acl acl;
         attrmap = pcmd->getAttributes();

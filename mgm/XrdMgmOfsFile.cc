@@ -48,6 +48,7 @@
 #include "mgm/ZMQ.hh"
 #include "mgm/tgc/MultiSpaceTapeGc.hh"
 #include "mgm/utils/AttrHelper.hh"
+#include "mgm/XattrLock.hh"
 #include "namespace/utils/Attributes.hh"
 #include "namespace/Prefetcher.hh"
 #include "namespace/Resolver.hh"
@@ -1181,6 +1182,16 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
   if (IsRainRetryWithExclusion(isRW, fmdlid)) {
     return Emsg(epname, error, ENETUNREACH,  "open file - "
                 "multi-source reading on EC file blocked for ", path);
+  }
+
+  // ---------------------------------------------------------------------------
+  // attribute lock logic, don't allow file opens which have an attr lock
+  // ---------------------------------------------------------------------------
+  XattrLock alock(attrmapF);
+
+  if (alock.foreignLock(vid, isRW)) {
+    return Emsg(epname, error, EPERM,
+                "open file - file has a valid extended attribute lock ", path);
   }
 
   if (isRW) {

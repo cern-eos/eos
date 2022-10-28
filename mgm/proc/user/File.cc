@@ -30,6 +30,7 @@
 #include "mgm/Policy.hh"
 #include "mgm/Stat.hh"
 #include "mgm/convert/ConverterDriver.hh"
+#include "mgm/XattrLock.hh"
 #include "common/Path.hh"
 #include "common/LayoutId.hh"
 #include "common/SecEntity.hh"
@@ -1255,6 +1256,9 @@ ProcCommand::File()
       bool useLayout = true;
       bool truncate = false;
       bool absorb = false;
+      bool lock = false;
+      bool unlock = false;
+      time_t lifetime = 86400;
       size_t size = 0;
       const char* hardlinkpath = 0;
       const char* checksuminfo = 0;
@@ -1274,6 +1278,48 @@ ProcCommand::File()
 
       if (pOpaque->Get("mgm.file.touch.absorb")) {
         absorb = true;
+      }
+
+      char* lockop = 0;
+      char* wildcard = pOpaque->Get("mgm.file.touch.wildcard");
+      bool userwildcard = false;
+      bool appwildcard = false;
+
+      if (wildcard && (std::string(wildcard) != "user") &&
+          (std::string(wildcard) != "app")) {
+        stdErr = "error: invalid wildcard type specified, can be only 'user' or 'app'\n";
+        retc = EINVAL;
+        return SFS_OK;
+      } else {
+        if (wildcard) {
+          if (std::string(wildcard) == "user") {
+            userwildcard = true;
+          } else {
+            appwildcard = true;
+          }
+        }
+      }
+
+      if ((lockop = pOpaque->Get("mgm.file.touch.lockop"))) {
+        if (std::string(lockop) == "lock") {
+          lock = true;
+          unlock = false;
+        } else if (std::string(lockop) == "unlock") {
+          unlock = true;
+          lock = false;
+        } else {
+          stdErr = "error: invalid lock operation specified - can be either 'lock' or 'unlock' '";
+          stdErr += lockop;
+          stdErr += "'";
+          retc = EINVAL;
+          return SFS_OK;
+        }
+      }
+
+      char* lock_lifetime = 0;
+
+      if ((lock_lifetime = pOpaque->Get("mgm.file.touch.lockop.lifetime"))) {
+        lifetime = atoi(lock_lifetime);
       }
 
       hardlinkpath = pOpaque->Get("mgm.file.touch.hardlinkpath");
@@ -1298,6 +1344,52 @@ ProcCommand::File()
 
           retc = errno;
         } else {
+          if (lock) {
+            // try to set a xattr lock
+            XattrLock applock;
+            errno = 0;
+
+            if (applock.Lock(spath.c_str(), false , lifetime, *pVid, userwildcard,
+                             appwildcard)) {
+              stdOut += "success: created exclusive lock for '";
+              stdOut += spath.c_str();
+              stdOut += "'\n";
+              stdOut += applock.Dump().c_str();
+            } else {
+              stdErr += "error: cannot get exclusive lock for '";
+              stdErr += spath.c_str();
+              stdErr += "'\n";
+              stdErr += applock.Dump().c_str();
+              retc = errno;
+              return SFS_OK;
+            }
+          }
+
+          if (unlock) {
+            // try to unlock an xattr lock
+            XattrLock applock;
+
+            if (applock.Unlock(spath.c_str(), *pVid)) {
+              stdOut += "success: removed exclusive lock for '";
+              stdOut += spath.c_str();
+              stdOut += "'\n";
+              stdOut += applock.Dump().c_str();
+            } else {
+              if (errno == ENODATA) {
+                stdOut += "info: there was no exclusive lock for '";
+                stdOut += spath.c_str();
+                stdOut += "'\n";
+              } else {
+                stdErr += "error: failed to remove exclusive lock for '";
+                stdErr += spath.c_str();
+                stdErr += "'\n";
+                stdErr += applock.Dump().c_str();
+                retc = errno;
+                return SFS_OK;
+              }
+            }
+          }
+
           stdOut += "success: touched '";
           stdOut += spath.c_str();
           stdOut += "'";

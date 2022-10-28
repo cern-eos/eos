@@ -222,6 +222,7 @@ XrdOucString rstdjson;
 XrdOucString user_role = "";
 XrdOucString group_role = "";
 XrdOucString global_comment = "";
+XrdOucString app = "";
 
 int global_retc = 0;
 bool global_highlighting = true;
@@ -530,6 +531,11 @@ output_result(XrdOucEnv* result, bool highlighting)
 XrdOucEnv*
 client_command(XrdOucString& in, bool is_admin, std::string* reply)
 {
+  if (app.length()) {
+    in += "&eos.app=";
+    in += app;
+  }
+
   if (user_role.length()) {
     in += "&eos.ruid=";
   }
@@ -709,9 +715,11 @@ usage()
   fprintf(stderr,
           "`eos' is the command line interface (CLI) of the EOS storage system.\n");
   fprintf(stderr,
-          "Usage: eos [-r|--role <uid> <gid>] [-s] [-b|--batch] [-v|--version] [-p|--pipe] [-j|--json] [<mgm-url>] [<cmd> {<argN>}|<filename>.eosh]\n");
+          "Usage: eos [-r|--role <uid> <gid>] [-s] [-a|--app <app>] [-b|--batch] [-v|--version] [-p|--pipe] [-j|--json] [<mgm-url>] [<cmd> {<argN>}|<filename>.eosh]\n");
   fprintf(stderr,
           "            -r, --role <uid> <gid>              : select user role <uid> and group role <gid>\n");
+  fprintf(stderr,
+          "            -a, --app <application>             : set the application name for the CLI\n");
   fprintf(stderr,
           "            -b, --batch                         : run in batch mode without colour and syntax highlighting and without pipe\n");
   fprintf(stderr,
@@ -826,12 +834,14 @@ Run(int argc, char* argv[])
           (in1 != "--pipe") &&
           (in1 != "--role") &&
           (in1 != "--json") &&
+          (in1 != "--app") &&
           (in1 != "-h") &&
           (in1 != "-b") &&
           (in1 != "-p") &&
           (in1 != "-v") &&
           (in1 != "-s") &&
           (in1 != "-j") &&
+          (in1 != "-a") &&
           (in1 != "-r")) {
         usage();
         exit(-1);
@@ -913,6 +923,15 @@ Run(int argc, char* argv[])
 
       selectedrole = true;
     }
+
+    if ((in1 == "--app") || (in1 == "-a")) {
+      app = argv[argindex + 1];
+      in1 = argv[argindex + 2];
+      argindex += 2;
+      setenv("EOSAPP", app.c_str(), 1);
+    }
+
+    app = getenv("EOSAPP");
 
     if ((in1 == "--batch") || (in1 == "-b")) {
       interactive = false;

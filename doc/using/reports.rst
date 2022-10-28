@@ -80,9 +80,15 @@ Each FST sends for each file replica or piece it writes a record which looks lik
    nxlfwds              number of large forward seeks (>=128kb)
    nxlbwds              number of large backward seeks (>=128kb)
    ot                   time spent in ms to open the file
+   ct                   time spent in ms to close a file (includes waiting for async writes and checksumming)
    rt                   time spent in ms waiting for disk reads
    rvt                  time spent in ms waiting for disk reads for vector reads
    wt                   time spent in ms waiting for disk writes
+   lrt                  time spent in ms waiting for layout reads
+   lrvt                 time spent in ms waiting for layout vector reads
+   lwt                  time spent in ms waiting for layout writes
+   iot                  time spent in total from open to close
+   idt                  idle time from open to close (where no open, close, read,readv or write happens)
    osize                size of the file when opening
    csize                size of the file when closing
    delete_on_close      flag indicating delete on close status

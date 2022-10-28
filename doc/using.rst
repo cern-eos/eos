@@ -13,7 +13,6 @@ Using EOS
    using/eos_services
    using/rain
    using/reports
-   using/manila
    using/policies
    using/priorities
    using/systemd
@@ -23,3 +22,4 @@ Using EOS
    using/tokens
    using/squashfs
    using/sharedfs
+   using/attributelocks
