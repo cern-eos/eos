@@ -94,6 +94,7 @@ add_executable(eos-checksum-benchmark
 set_target_properties(eos-checksum-benchmark PROPERTIES POSITION_INDEPENDENT_CODE TRUE)
 add_executable(threadpooltest ThreadPoolTest.cc)
 set_target_properties(threadpooltest PROPERTIES POSITION_INDEPENDENT_CODE TRUE)
+add_executable(eos-idmap-benchmark EosIdMapBenchmark.cc)
 
 target_link_libraries(xrdcpabort PRIVATE XROOTD::POSIX XROOTD::UTILS)
 target_link_libraries(xrdcprandom PRIVATE XROOTD::POSIX XROOTD::UTILS)
@@ -121,6 +122,7 @@ target_link_libraries(xrdstress.exe PRIVATE
   UUID::UUID XROOTD::CL XROOTD::UTILS XROOTD::POSIX
   ${CMAKE_THREAD_LIBS_INIT})
 target_link_libraries(eos-checksum-benchmark PRIVATE EosFstIo XROOTD::SERVER XROOTD::POSIX)
+target_link_libraries(eos-idmap-benchmark PRIVATE EosCommon)
 target_compile_definitions(xrdstress.exe PUBLIC -D_FILE_OFFSET_BITS=64)
 target_compile_definitions(xrdcpabort PUBLIC -D_FILE_OFFSET_BITS=64)
 target_compile_definitions(xrdcprandom PUBLIC -D_FILE_OFFSET_BITS=64)
