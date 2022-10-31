@@ -48,6 +48,11 @@ XrdMgmOfs::ShouldStall(const char* function,
     stall = false;
   }
 
+  // Avoid stalling HTTP requests as these translate into errors on the client
+  if (vid.prot == "https") {
+    stall = false;
+  }
+
   eos::common::RWMutexReadLock lock(Access::gAccessMutex);
   std::string stallid = "Stall";
 
