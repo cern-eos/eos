@@ -33,53 +33,6 @@ class XrdAccAuthorize;
 class XrdSfsFileSystem;
 
 //------------------------------------------------------------------------------
-//! Class OwningXrdSecEntity - this class is used to copy the contents of an
-//! XrdSecEntity object which is not owned by us and provide an RAII mechanism
-//! to manage the lifetime of the underlying object.
-//------------------------------------------------------------------------------
-class OwningXrdSecEntity
-{
-public:
-  //----------------------------------------------------------------------------
-  //! Constructor
-  //!
-  //! @param obj reference to XrdSecEntity object that we copy the info from
-  //----------------------------------------------------------------------------
-  explicit OwningXrdSecEntity(const XrdSecEntity& obj):
-    mSecEntity(nullptr)
-  {
-    CreateFrom(obj);
-  }
-
-  //----------------------------------------------------------------------------
-  //! Destructor
-  //----------------------------------------------------------------------------
-  ~OwningXrdSecEntity();
-
-  //----------------------------------------------------------------------------
-  //! Get underlying XrdSecEntity object
-  //!
-  //! @return pointer to owned XrdSecEntity object
-  //----------------------------------------------------------------------------
-  XrdSecEntity* GetObj()
-  {
-    return mSecEntity.get();
-  }
-
-private:
-  std::unique_ptr<XrdSecEntity> mSecEntity;
-
-  //----------------------------------------------------------------------------
-  //! Populate internal XrdSecEntity with info from another object doing the
-  //! necessary memory allocations
-  //!
-  //! @param other XrdSecEntity object used to copy info from
-  //----------------------------------------------------------------------------
-  void CreateFrom(const XrdSecEntity& other);
-};
-
-
-//------------------------------------------------------------------------------
 //! Class EosMgmHttpHandler
 //------------------------------------------------------------------------------
 class EosMgmHttpHandler: public XrdHttpExtHandler,
