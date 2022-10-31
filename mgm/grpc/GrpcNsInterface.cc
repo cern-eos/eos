@@ -719,19 +719,15 @@ GrpcNsInterface::Stat(eos::common::VirtualIdentity& ivid,
 {
   eos::common::VirtualIdentity vid = ivid;
 
-  if (request->role().uid() || request->role().gid()) {
-    if ((ivid.uid != request->role().uid()) ||
-        (ivid.gid != request->role().gid())) {
-      if (!ivid.sudoer) {
-        return grpc::Status(grpc::StatusCode::PERMISSION_DENIED,
-                            std::string("Ask an admin to map your auth key to a sudo'er account - permission denied"));
-      } else {
-        vid = eos::common::Mapping::Someone(request->role().uid(),
-                                            request->role().gid());
-      }
+  if ((ivid.uid != request->role().uid()) ||
+      (ivid.gid != request->role().gid())) {
+    if (!ivid.sudoer) {
+      return grpc::Status(grpc::StatusCode::PERMISSION_DENIED,
+			  std::string("Ask an admin to map your auth key to a sudo'er account - permission denied"));
+    } else {
+      vid = eos::common::Mapping::Someone(request->role().uid(),
+					  request->role().gid());
     }
-  } else {
-    // we don't implement sudo to root
   }
 
   return GetMD(vid, writer, request);
