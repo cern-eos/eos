@@ -645,14 +645,11 @@ The new EOS fuse core containing eosxd.
 %{_bindir}/eosxd
 %{_bindir}/eosfusebind
 /sbin/mount.eosx
-%{_sysconfdir}/logrotate.d/eos-fusex-logs
+%config %{_sysconfdir}/tmpfiles.d/eos-fusex-core.conf
 %dir %attr(755,daemon,daemon) %{_localstatedir}/log/eos/
 %dir %attr(755,daemon,daemon) %{_localstatedir}/log/eos/fusex/
 %dir %attr(755,daemon,daemon) %{_localstatedir}/cache/eos/
 %dir %attr(755,daemon,daemon) %{_localstatedir}/cache/eos/fusex/
-%dir %attr(0755, root, root) %{_localstatedir}/run/eosd/
-%dir %attr(1777, root, root) %{_localstatedir}/run/eosd/credentials/
-%dir %attr(1777, root, root) %{_localstatedir}/run/eosd/credentials/store
 
 #-------------------------------------------------------------------------------
 # Package eos-fusex-selinux
