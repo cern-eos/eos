@@ -82,6 +82,7 @@
 #include "mgm/tracker/ReplicationTracker.hh"
 #include "mgm/inspector/FileInspector.hh"
 #include "mgm/XrdMgmOfs/fsctl/CommitHelper.hh"
+#include "mgm/XattrLock.hh"
 #include "mgm/auth/AccessChecker.hh"
 #include "mgm/config/IConfigEngine.hh"
 #include "mgm/bulk-request/prepare/manager/PrepareManager.hh"

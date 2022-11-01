@@ -238,6 +238,19 @@ XrdMgmOfs::_attr_set(const char* path, XrdOucErrInfo& error,
                       "set attribute (exclusive set for existing attribute)", path);
         }
 
+	// screen for attribute locks
+	if (Key == eos::common::EOS_APP_LOCK_ATTR) {
+	  errno = 0;
+	  eos::IContainerMD::XAttrMap map = fmd->getAttributes();
+	  XattrLock applock(map);
+	  
+	  if (applock.foreignLock(vid, true)) {
+	    errno = EBUSY;
+	    return Emsg(epname, error, errno,
+			"set attribute (foreign attribute lock existing)", path);
+	  }
+	}
+
         XrdOucString val64 = value;
         XrdOucString val;
         eos::common::SymKey::DeBase64(val64, val);
