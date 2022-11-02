@@ -41,6 +41,7 @@ cleanup() {
   eos rmdir "${EOS_BALANCE_DIR}/rain/"
   eos rmdir "${EOS_BALANCE_DIR}/"
   rm -rf ${TEST_FN1} ${TEST_FN2}
+  eos space config default space.balancer=on
 }
 
 if [[ $# -eq 0 || $# -gt 2 ]]; then
