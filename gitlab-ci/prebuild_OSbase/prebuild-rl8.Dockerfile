@@ -1,4 +1,4 @@
-FROM  docker.io/library/rockylinux
+FROM  docker.io/library/rockylinux:8
 
 LABEL maintainer="Manuel Reis, manuel.b.reis@cern.ch, CERN 2022"
 
