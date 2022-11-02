@@ -16,7 +16,6 @@ RUN dnf install -y dnf-plugins-core epel-release\
     && echo -e "[eos-depend]\nname=EOS dependencies\nbaseurl=http://storage-ci.web.cern.ch/storage-ci/eos/${EOS_CODENAME}-depend/el-8/x86_64/\ngpgcheck=0\nenabled=1\npriority=4" >> /etc/yum.repos.d/eos-depend.repo
 
 RUN dnf install --nogpg -y ccache gcc-c++ git cmake make python3 python3-setuptools rpm-build rpm-sign tar which \
-    && git checkout --track origin/eos5 \
     && git submodule update --init --recursive \
     && ./misc/cmake/cmake-3.15.5-Linux-x86_64.sh --prefix=/usr/ --skip-license \
     && mkdir build \
