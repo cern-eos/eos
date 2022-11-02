@@ -1967,22 +1967,21 @@ runtest "### WebDAV Ls    " unix 0 "" tgrep "sub.dir"   "cadaver --rcfile=$EOS_T
 runtest "### WebDAV Mkdir " unix 0 "" tgrep "409"       "cadaver --rcfile=$EOS_TEST_TESTSYS/.cadaverrc       <<< \"mkdir foo/bar/sub.dir\""
 
 # Disable overwrite
-echo "set client-cert ${bundle}"                                             > $EOS_TEST_TESTSYS/.cadaverrc
 echo "unset overwrite" >> $EOS_TEST_TESTSYS/.cadaverrc
-runtest "### WebDAV Copy  " unix 0 "" tgrep "succeeded" "cadaver https://$EOS_TEST_REDIRECTOR:${EOS_HTTPS_PORT}/$DAVDIR <<< \"copy file.50m file.50m.copy\""
-runtest "### WebDAV Copy  " unix 0 "" tgrep "succeeded" "cadaver https://$EOS_TEST_REDIRECTOR:${EOS_HTTPS_PORT}/$DAVDIR <<< \"copy file.50m file.50m.copy\""
-runtest "### WebDAV Copy  " unix 0 "" tgrep "403"       "cadaver https://$EOS_TEST_REDIRECTOR:${EOS_HTTPS_PORT}/$DAVDIR <<< \"copy file.50m file.50m\""
-runtest "### WebDAV Copy  " unix 0 "" tgrep "409"       "cadaver https://$EOS_TEST_REDIRECTOR:${EOS_HTTPS_PORT}/$DAVDIR <<< \"copy file.50m foo/bar/file.50m\""
-runtest "### WebDAV Copy  " unix 0 "" tgrep "412"       "cadaver https://$EOS_TEST_REDIRECTOR:${EOS_HTTPS_PORT}/$DAVDIR --rcfile=$EOS_TEST_TESTSYS/.cadaverrc <<< \"copy file.50m file.50m.copy\""
-runtest "### WebDAV Move  " unix 0 "" tgrep "succeeded" "cadaver https://$EOS_TEST_REDIRECTOR:${EOS_HTTPS_PORT}/$DAVDIR <<< \"move file.50m file.50m.copy\""
-runtest "### WebDAV Copy  " unix 0 "" tgrep "succeeded" "cadaver https://$EOS_TEST_REDIRECTOR:${EOS_HTTPS_PORT}/$DAVDIR <<< \"copy file.50m.copy file.50m\""
-runtest "### WebDAV Move  " unix 0 "" tgrep "succeeded" "cadaver https://$EOS_TEST_REDIRECTOR:${EOS_HTTPS_PORT}/$DAVDIR <<< \"move file.50m file.50m.copy\""
-runtest "### WebDAV Move  " unix 0 "" tgrep "403"       "cadaver https://$EOS_TEST_REDIRECTOR:${EOS_HTTPS_PORT}/$DAVDIR <<< \"move file.50m file.50m\""
-runtest "### WebDAV Move  " unix 0 "" tgrep "409"       "cadaver https://$EOS_TEST_REDIRECTOR:${EOS_HTTPS_PORT}/$DAVDIR <<< \"move file.50m foo/bar/file.50m\""
-runtest "### WebDAV Copy  " unix 0 "" tgrep "succeeded" "cadaver https://$EOS_TEST_REDIRECTOR:${EOS_HTTPS_PORT}/$DAVDIR <<< \"copy file.50m.copy file.50m\""
-runtest "### WebDAV Move  " unix 0 "" tgrep "412"       "cadaver https://$EOS_TEST_REDIRECTOR:${EOS_HTTPS_PORT}/$DAVDIR --rcfile=$EOS_TEST_TESTSYS/.cadaverrc <<< \"move file.50m.copy file.50m\""
-runtest "### WebDAV Rm    " unix 0 "" tgrep "succeeded" "cadaver https://$EOS_TEST_REDIRECTOR:${EOS_HTTPS_PORT}/$DAVDIR <<< \"rm file.50m\""
-runtest "### WebDAV Rm    " unix 0 "" tgrep "succeeded" "cadaver https://$EOS_TEST_REDIRECTOR:${EOS_HTTPS_PORT}/$DAVDIR <<< \"rmcol sub.dir\""
+runtest "### WebDAV Copy  " unix 0 "" tgrep "succeeded" "cadaver --rcfile=$EOS_TEST_TESTSYS/.cadaverrc <<< \"copy file.50m file.50m.copy\""
+runtest "### WebDAV Copy  " unix 0 "" tgrep "succeeded" "cadaver --rcfile=$EOS_TEST_TESTSYS/.cadaverrc <<< \"copy file.50m file.50m.copy\""
+runtest "### WebDAV Copy  " unix 0 "" tgrep "403"       "cadaver --rcfile=$EOS_TEST_TESTSYS/.cadaverrc <<< \"copy file.50m file.50m\""
+runtest "### WebDAV Copy  " unix 0 "" tgrep "409"       "cadaver --rcfile=$EOS_TEST_TESTSYS/.cadaverrc <<< \"copy file.50m foo/bar/file.50m\""
+runtest "### WebDAV Copy  " unix 0 "" tgrep "412"       "cadaver --rcfile=<(sed '$aunset overwrite' $EOS_TEST_TESTSYS/.cadaverrc) <<< \"copy file.50m file.50m.copy\""
+runtest "### WebDAV Move  " unix 0 "" tgrep "succeeded" "cadaver --rcfile=$EOS_TEST_TESTSYS/.cadaverrc <<< \"move file.50m file.50m.copy\""
+runtest "### WebDAV Copy  " unix 0 "" tgrep "succeeded" "cadaver --rcfile=$EOS_TEST_TESTSYS/.cadaverrc <<< \"copy file.50m.copy file.50m\""
+runtest "### WebDAV Move  " unix 0 "" tgrep "succeeded" "cadaver --rcfile=$EOS_TEST_TESTSYS/.cadaverrc <<< \"move file.50m file.50m.copy\""
+runtest "### WebDAV Move  " unix 0 "" tgrep "403"       "cadaver --rcfile=$EOS_TEST_TESTSYS/.cadaverrc <<< \"move file.50m file.50m\""
+runtest "### WebDAV Move  " unix 0 "" tgrep "409"       "cadaver --rcfile=$EOS_TEST_TESTSYS/.cadaverrc <<< \"move file.50m foo/bar/file.50m\""
+runtest "### WebDAV Copy  " unix 0 "" tgrep "succeeded" "cadaver --rcfile=$EOS_TEST_TESTSYS/.cadaverrc <<< \"copy file.50m.copy file.50m\""
+runtest "### WebDAV Move  " unix 0 "" tgrep "412"       "cadaver --rcfile=<(sed '$aunset overwrite' $EOS_TEST_TESTSYS/.cadaverrc) <<< \"move file.50m.copy file.50m\""
+runtest "### WebDAV Rm    " unix 0 "" tgrep "succeeded" "cadaver --rcfile=$EOS_TEST_TESTSYS/.cadaverrc <<< \"rm file.50m\""
+runtest "### WebDAV Rm    " unix 0 "" tgrep "succeeded" "cadaver --rcfile=$EOS_TEST_TESTSYS/.cadaverrc <<< \"rmcol sub.dir\""
 runtest "### Cleanup      " unix 0 "" eos rm "-r" "/$DAVDIR"
 ################################################################################
 # Amazon S3 tests
@@ -1992,7 +1991,7 @@ categorie="s3"
 # ------------------------------------------------------------------------------
 export S3_ACCESS_KEY_ID="s3user"
 export S3_SECRET_ACCESS_KEY="0123456789"
-export S3_HOSTNAME=$EOS_TEST_REDIRECTOR
+export S3_HOSTNAME="$(hostname -f)"
 
 #----------------------------------------------------------------------------
 # Prepare the setup for S3 tests
@@ -2004,16 +2003,15 @@ runtest "### Prepare mod  " unix 0 "" eos chmod 777 "/eos/$EOS_TEST_INSTANCE/tes
 runtest "### S3 Attr      " unix 0 "" eos attr set sys.s3.bucket.s3user="test" /eos/$EOS_TEST_INSTANCE/proc
 runtest "### S3 Attr      " unix 0 "" eos attr set sys.s3.id.s3user="0123456789" /eos/$EOS_TEST_INSTANCE/proc
 runtest "### S3 Attr      " unix 0 "" eos attr set sys.s3.path.test="/eos/$EOS_TEST_INSTANCE/test/instancetest/s3.dir" /eos/$EOS_TEST_INSTANCE/proc
-
 # ------------------------------------------------------------------------------
-runtest "### S3 List      " unix 0 "" shell davix-ls  --s3accesskey s3user --s3secretkey 0123456789 --s3alternate s3://$EOS_TEST_REDIRECTOR:${EOS_HTTPS_PORT}/test/
-runtest "### S3 Upload    " unix 0 "" shell davix-put --s3accesskey s3user --s3secretkey 0123456789 --s3alternate $TESTSYSFILE50M s3://$EOS_TEST_REDIRECTOR:${EOS_HTTPS_PORT}/test/file.50m
-runtest "### S3 List      " unix 0 "" shell davix-ls  --s3accesskey s3user --s3secretkey 0123456789 --s3alternate s3://$EOS_TEST_REDIRECTOR:${EOS_HTTPS_PORT}/test
-runtest "### S3 Download  " unix 0 "" shell davix-get --s3accesskey s3user --s3secretkey 0123456789 --s3alternate s3://$EOS_TEST_REDIRECTOR:${EOS_HTTPS_PORT}/test/file.50m file.50m
-runtest "### S3 Rm        " unix 0 "" shell davix-rm  --s3accesskey s3user --s3secretkey 0123456789 --s3alternate s3://$EOS_TEST_REDIRECTOR:${EOS_HTTPS_PORT}/test/file.50m
-runtest "### S3 List      " unix 0 "" shell davix-ls  --s3accesskey s3user --s3secretkey 0123456789 --s3alternate s3://$EOS_TEST_REDIRECTOR:${EOS_HTTPS_PORT}/test/
-runtest "### S3 Download  " unix 1 "" shell davix-get --s3accesskey s3user --s3secretkey 0123456789 --s3alternate s3://$EOS_TEST_REDIRECTOR:${EOS_HTTPS_PORT}/test/file.50m
-runtest "### S3 List      " unix 1 "" shell davix-ls  --s3accesskey s3user --s3secretkey 0123456789 --s3alternate s3://$EOS_TEST_REDIRECTOR:${EOS_HTTPS_PORT}/otherdir/
+runtest "### S3 List      " unix 0 "" shell davix-ls  --s3accesskey s3user --s3secretkey 0123456789 --s3alternate s3://$(S3_HOSTNAME):${EOS_HTTPS_PORT}/test/
+runtest "### S3 Upload    " unix 0 "" shell davix-put --s3accesskey s3user --s3secretkey 0123456789 --s3alternate $TESTSYSFILE50M s3://$(S3_HOSTNAME):${EOS_HTTPS_PORT}/test/file.50m
+runtest "### S3 List      " unix 0 "" shell davix-ls  --s3accesskey s3user --s3secretkey 0123456789 --s3alternate s3://$(S3_HOSTNAME):${EOS_HTTPS_PORT}/test
+runtest "### S3 Download  " unix 0 "" shell davix-get --s3accesskey s3user --s3secretkey 0123456789 --s3alternate s3://$(S3_HOSTNAME):${EOS_HTTPS_PORT}/test/file.50m file.50m
+runtest "### S3 Rm        " unix 0 "" shell davix-rm  --s3accesskey s3user --s3secretkey 0123456789 --s3alternate s3://$(S3_HOSTNAME):${EOS_HTTPS_PORT}/test/file.50m
+runtest "### S3 List      " unix 0 "" shell davix-ls  --s3accesskey s3user --s3secretkey 0123456789 --s3alternate s3://$(S3_HOSTNAME):${EOS_HTTPS_PORT}/test/
+runtest "### S3 Download  " unix 1 "" shell davix-get --s3accesskey s3user --s3secretkey 0123456789 --s3alternate s3://$(S3_HOSTNAME):${EOS_HTTPS_PORT}/test/file.50m
+runtest "### S3 List      " unix 1 "" shell davix-ls  --s3accesskey s3user --s3secretkey 0123456789 --s3alternate s3://$(S3_HOSTNAME):${EOS_HTTPS_PORT}/otherdir/
 
 #----------------------------------------------------------------------------
 # Clean up the files created in S3 tests

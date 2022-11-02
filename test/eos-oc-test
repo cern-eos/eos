@@ -87,7 +87,7 @@ chunkedupload () {
   dd if=/dev/zero of=$DIR/$NAME bs=1M count=32
   split -b 10485760 -a 1 -d $DIR/$NAME $DIR/$NAME-chunking-`uuidgen | sed s/-//g`-$CHUNK_NUMBER-
   echo "# about to upload $DIR/$NAME"
-  DEST_URL=http://${host}:${port}$2
+  DEST_URL=https://${host}:${port}$2
   echo "# to $DEST_URL"
   let LAST_CHUNK_NUMBER=$CHUNK_NUMBER-1
   let i=0
@@ -96,7 +96,7 @@ chunkedupload () {
   for f in `ls $DIR/$NAME-chunking*`; do
     echo $f
     EOS_FN=`basename $f`
-    curl -L --verbose -k --header "Oc-Chunk-Uuid:$UUID" --header "Oc-Chunk-n:$i" --header "Oc-Chunk-Max:4" --header "OC-Chunked:1" --header "X-OC-Mtime:1402061782" --header "OC-Total-Length:33554432" -T $f $DEST_URL$EOS_FN 2> $f.log
+    curl  --capath "${capath}" --cert "${cert}" --cacert "${cacert}" --key "${key}" -L --verbose -k --header "Oc-Chunk-Uuid:$UUID" --header "Oc-Chunk-n:$i" --header "Oc-Chunk-Max:4" --header "OC-Chunked:1" --header "X-OC-Mtime:1402061782" --header "OC-Total-Length:33554432" -T $f $DEST_URL$EOS_FN 2> $f.log
   
     if (( i < $LAST_CHUNK_NUMBER )); then
       grep -q 'X-OC-Mtime: accepted' $f.log && echo "redundant reply header: 'X-OC-Mtime: accepted" 
@@ -121,6 +121,8 @@ chunkedupload () {
 if [ "$#" -eq 3 ] && [ "$1" = "chunkedupload" ]; then
   chunkedupload $2 $3;
   exit $?
+else 
+  usage
 fi
 
 exit -1

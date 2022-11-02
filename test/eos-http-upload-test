@@ -112,7 +112,7 @@ rangeupload () {
     fi 
     echo $checksum start=$start stop=$stop
 
-    curl  -v --capath "${capath}" --cert "${cert}" --cacert "${cacert}" --key "${key}" --header "x-upload-checksum: $checksum" --header "x-upload-totalsize: 33554432" --header "x-upload-mtime: 1533100000" --header "x-upload-range: bytes=$start-$stop" -L -X PUT -T $f $DEST_URL$EOS_FN  >> $DIR/$NAME.log 2>&1
+    curl --capath "${capath}" --cert "${cert}" --cacert "${cacert}" --key "${key}" --header "x-upload-checksum: $checksum" --header "x-upload-totalsize: 33554432" --header "x-upload-mtime: 1533100000" --header "x-upload-range: bytes=$start-$stop" -L -X PUT -T $f $DEST_URL$EOS_FN  >> $DIR/$NAME.log 2>&1
 
   
     let i=$i+1
@@ -121,7 +121,7 @@ rangeupload () {
 
   sleep 1  
   if [ $ok -eq 0 ]; then
-    curl -v --capath "${capath}" --cert "${cert}" --cacert "${cacert}" --key "${key}"  -i $DEST_URL$EOS_FN >> $DIR/$NAME.log 2>&1
+    curl --capath "${capath}" --cert "${cert}" --cacert "${cacert}" --key "${key}"  -i $DEST_URL$EOS_FN >> $DIR/$NAME.log 2>&1
     ok=$?
     echo HEAD request on $DIR/$NAME gave error=$ok
   fi
