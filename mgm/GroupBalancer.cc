@@ -449,7 +449,7 @@ GroupBalancer::GroupBalance(ThreadAssistant& assistant) noexcept
     // Update tracker for scheduled jobs
     gOFS->mFidTracker.DoCleanup(TrackerType::Convert);
 
-    if (!config_status) {
+    if (!gOFS->mConverterDriver || !config_status) {
       continue;
     }
 
