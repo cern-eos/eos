@@ -1948,29 +1948,41 @@ DAVDIR=eos/$EOS_TEST_INSTANCE/test/instancetest/dav.dir
 runtest "### Mkdir        " unix 0 "" eos mkdir /$DAVDIR
 runtest "### Chmod        " unix 0 "" eos chmod 777 /$DAVDIR
 runtest "### Upload       " unix 0 "" upload "$TESTSYSFILE50M" "/$DAVDIR/file.50m"
-runtest "### WebDAV Ls    " unix 0 "" tgrep "succeeded" "cadaver http://$EOS_TEST_REDIRECTOR:${EOS_HTTPS_PORT}/$DAVDIR      <<< ls"
-runtest "### WebDAV Ls    " unix 0 "" tgrep "404"       "cadaver http://$EOS_TEST_REDIRECTOR:${EOS_HTTPS_PORT}/$DAVDIR      <<< \"ls foo\""
-runtest "### WebDAV Ls    " unix 0 "" tgrep "404"       "cadaver http://$EOS_TEST_REDIRECTOR:${EOS_HTTPS_PORT}/$DAVDIR/foo  <<< ls"
-runtest "### WebDAV Mkdir " unix 0 "" tgrep "succeeded" "cadaver http://$EOS_TEST_REDIRECTOR:${EOS_HTTPS_PORT}/$DAVDIR      <<< \"mkdir sub.dir\""
-runtest "### WebDAV Ls    " unix 0 "" tgrep "sub.dir"   "cadaver http://$EOS_TEST_REDIRECTOR:${EOS_HTTPS_PORT}/$DAVDIR      <<< ls"
-runtest "### WebDAV Mkdir " unix 0 "" tgrep "409"       "cadaver http://$EOS_TEST_REDIRECTOR:${EOS_HTTPS_PORT}/$DAVDIR      <<< \"mkdir foo/bar/sub.dir\""
+
+bundle="$(dirname ${cert})/userbundle.p12"
+# generate user bundle as cadaver seems to have replacee cert and key options in favor of client-cert
+openssl pkcs12 -export -out "${bundle}" -inkey "${key}" -in "${cert}" -passout pass:
+
+# dirty hack to get cadaver https to work:
+# - passing the hostname -f to the command fails
+# - interactively opening a connection to the same address works?!?!
+echo "set client-cert ${bundle}"                                             > $EOS_TEST_TESTSYS/.cadaverrc
+echo "open https://$(hostname -f):${EOS_HTTPS_PORT}/${DAVDIR}"              >> $EOS_TEST_TESTSYS/.cadaverrc
+runtest "### WebDAV Ls    " unix 0 "" tgrep "succeeded" "cadaver --rcfile=$EOS_TEST_TESTSYS/.cadaverrc       <<< ls"
+runtest "### WebDAV Ls    " unix 0 "" tgrep "404"       "cadaver --rcfile=$EOS_TEST_TESTSYS/.cadaverrc       <<< \"ls foo\""
+# open the connection to $DAVDIR/foo
+runtest "### WebDAV Ls    " unix 0 "" tgrep "404"       "cadaver --rcfile=<(sed '$ s/$/\/foo/' $EOS_TEST_TESTSYS/.cadaverrc)  <<< ls"
+runtest "### WebDAV Mkdir " unix 0 "" tgrep "succeeded" "cadaver --rcfile=$EOS_TEST_TESTSYS/.cadaverrc       <<< \"mkdir sub.dir\""
+runtest "### WebDAV Ls    " unix 0 "" tgrep "sub.dir"   "cadaver --rcfile=$EOS_TEST_TESTSYS/.cadaverrc       <<< ls"
+runtest "### WebDAV Mkdir " unix 0 "" tgrep "409"       "cadaver --rcfile=$EOS_TEST_TESTSYS/.cadaverrc       <<< \"mkdir foo/bar/sub.dir\""
 
 # Disable overwrite
-echo "unset overwrite" > $EOS_TEST_TESTSYS/.cadaverrc
-runtest "### WebDAV Copy  " unix 0 "" tgrep "succeeded" "cadaver http://$EOS_TEST_REDIRECTOR:${EOS_HTTPS_PORT}/$DAVDIR <<< \"copy file.50m file.50m.copy\""
-runtest "### WebDAV Copy  " unix 0 "" tgrep "succeeded" "cadaver http://$EOS_TEST_REDIRECTOR:${EOS_HTTPS_PORT}/$DAVDIR <<< \"copy file.50m file.50m.copy\""
-runtest "### WebDAV Copy  " unix 0 "" tgrep "403"       "cadaver http://$EOS_TEST_REDIRECTOR:${EOS_HTTPS_PORT}/$DAVDIR <<< \"copy file.50m file.50m\""
-runtest "### WebDAV Copy  " unix 0 "" tgrep "409"       "cadaver http://$EOS_TEST_REDIRECTOR:${EOS_HTTPS_PORT}/$DAVDIR <<< \"copy file.50m foo/bar/file.50m\""
-runtest "### WebDAV Copy  " unix 0 "" tgrep "412"       "cadaver http://$EOS_TEST_REDIRECTOR:${EOS_HTTPS_PORT}/$DAVDIR --rcfile=$EOS_TEST_TESTSYS/.cadaverrc <<< \"copy file.50m file.50m.copy\""
-runtest "### WebDAV Move  " unix 0 "" tgrep "succeeded" "cadaver http://$EOS_TEST_REDIRECTOR:${EOS_HTTPS_PORT}/$DAVDIR <<< \"move file.50m file.50m.copy\""
-runtest "### WebDAV Copy  " unix 0 "" tgrep "succeeded" "cadaver http://$EOS_TEST_REDIRECTOR:${EOS_HTTPS_PORT}/$DAVDIR <<< \"copy file.50m.copy file.50m\""
-runtest "### WebDAV Move  " unix 0 "" tgrep "succeeded" "cadaver http://$EOS_TEST_REDIRECTOR:${EOS_HTTPS_PORT}/$DAVDIR <<< \"move file.50m file.50m.copy\""
-runtest "### WebDAV Move  " unix 0 "" tgrep "403"       "cadaver http://$EOS_TEST_REDIRECTOR:${EOS_HTTPS_PORT}/$DAVDIR <<< \"move file.50m file.50m\""
-runtest "### WebDAV Move  " unix 0 "" tgrep "409"       "cadaver http://$EOS_TEST_REDIRECTOR:${EOS_HTTPS_PORT}/$DAVDIR <<< \"move file.50m foo/bar/file.50m\""
-runtest "### WebDAV Copy  " unix 0 "" tgrep "succeeded" "cadaver http://$EOS_TEST_REDIRECTOR:${EOS_HTTPS_PORT}/$DAVDIR <<< \"copy file.50m.copy file.50m\""
-runtest "### WebDAV Move  " unix 0 "" tgrep "412"       "cadaver http://$EOS_TEST_REDIRECTOR:${EOS_HTTPS_PORT}/$DAVDIR --rcfile=$EOS_TEST_TESTSYS/.cadaverrc <<< \"move file.50m.copy file.50m\""
-runtest "### WebDAV Rm    " unix 0 "" tgrep "succeeded" "cadaver http://$EOS_TEST_REDIRECTOR:${EOS_HTTPS_PORT}/$DAVDIR <<< \"rm file.50m\""
-runtest "### WebDAV Rm    " unix 0 "" tgrep "succeeded" "cadaver http://$EOS_TEST_REDIRECTOR:${EOS_HTTPS_PORT}/$DAVDIR <<< \"rmcol sub.dir\""
+echo "set client-cert ${bundle}"                                             > $EOS_TEST_TESTSYS/.cadaverrc
+echo "unset overwrite" >> $EOS_TEST_TESTSYS/.cadaverrc
+runtest "### WebDAV Copy  " unix 0 "" tgrep "succeeded" "cadaver https://$EOS_TEST_REDIRECTOR:${EOS_HTTPS_PORT}/$DAVDIR <<< \"copy file.50m file.50m.copy\""
+runtest "### WebDAV Copy  " unix 0 "" tgrep "succeeded" "cadaver https://$EOS_TEST_REDIRECTOR:${EOS_HTTPS_PORT}/$DAVDIR <<< \"copy file.50m file.50m.copy\""
+runtest "### WebDAV Copy  " unix 0 "" tgrep "403"       "cadaver https://$EOS_TEST_REDIRECTOR:${EOS_HTTPS_PORT}/$DAVDIR <<< \"copy file.50m file.50m\""
+runtest "### WebDAV Copy  " unix 0 "" tgrep "409"       "cadaver https://$EOS_TEST_REDIRECTOR:${EOS_HTTPS_PORT}/$DAVDIR <<< \"copy file.50m foo/bar/file.50m\""
+runtest "### WebDAV Copy  " unix 0 "" tgrep "412"       "cadaver https://$EOS_TEST_REDIRECTOR:${EOS_HTTPS_PORT}/$DAVDIR --rcfile=$EOS_TEST_TESTSYS/.cadaverrc <<< \"copy file.50m file.50m.copy\""
+runtest "### WebDAV Move  " unix 0 "" tgrep "succeeded" "cadaver https://$EOS_TEST_REDIRECTOR:${EOS_HTTPS_PORT}/$DAVDIR <<< \"move file.50m file.50m.copy\""
+runtest "### WebDAV Copy  " unix 0 "" tgrep "succeeded" "cadaver https://$EOS_TEST_REDIRECTOR:${EOS_HTTPS_PORT}/$DAVDIR <<< \"copy file.50m.copy file.50m\""
+runtest "### WebDAV Move  " unix 0 "" tgrep "succeeded" "cadaver https://$EOS_TEST_REDIRECTOR:${EOS_HTTPS_PORT}/$DAVDIR <<< \"move file.50m file.50m.copy\""
+runtest "### WebDAV Move  " unix 0 "" tgrep "403"       "cadaver https://$EOS_TEST_REDIRECTOR:${EOS_HTTPS_PORT}/$DAVDIR <<< \"move file.50m file.50m\""
+runtest "### WebDAV Move  " unix 0 "" tgrep "409"       "cadaver https://$EOS_TEST_REDIRECTOR:${EOS_HTTPS_PORT}/$DAVDIR <<< \"move file.50m foo/bar/file.50m\""
+runtest "### WebDAV Copy  " unix 0 "" tgrep "succeeded" "cadaver https://$EOS_TEST_REDIRECTOR:${EOS_HTTPS_PORT}/$DAVDIR <<< \"copy file.50m.copy file.50m\""
+runtest "### WebDAV Move  " unix 0 "" tgrep "412"       "cadaver https://$EOS_TEST_REDIRECTOR:${EOS_HTTPS_PORT}/$DAVDIR --rcfile=$EOS_TEST_TESTSYS/.cadaverrc <<< \"move file.50m.copy file.50m\""
+runtest "### WebDAV Rm    " unix 0 "" tgrep "succeeded" "cadaver https://$EOS_TEST_REDIRECTOR:${EOS_HTTPS_PORT}/$DAVDIR <<< \"rm file.50m\""
+runtest "### WebDAV Rm    " unix 0 "" tgrep "succeeded" "cadaver https://$EOS_TEST_REDIRECTOR:${EOS_HTTPS_PORT}/$DAVDIR <<< \"rmcol sub.dir\""
 runtest "### Cleanup      " unix 0 "" eos rm "-r" "/$DAVDIR"
 ################################################################################
 # Amazon S3 tests
