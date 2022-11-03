@@ -1743,6 +1743,10 @@ data::datax::recover_write(fuse_req_t req)
 
     // add the repair flag to drop existing locations and select new ones
     mRemoteUrlRW += "&eos.repair=1";
+    // request enough space for this recovery upload
+    mRemoteUrlRW += "&eos.bookingsize=";
+    mRemoteUrlRW += off;
+
     eos_warning("re-opening with repair flag for recovery %s",
                 mRemoteUrlRW.c_str());
     int rc = try_wopen(req, uploadproxy, mRemoteUrlRW);
