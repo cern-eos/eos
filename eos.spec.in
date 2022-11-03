@@ -993,5 +993,3 @@ Contains an clean-up scripts to remove 'left-overs' of an EOS instance for FST/M
 %{_sbindir}/eos-log-clean
 %{_sbindir}/eos-fst-clean
 %{_sbindir}/eos-mgm-clean
-
-%if %{?yumrpm:1}%{!?yumrpm:0} == 1
