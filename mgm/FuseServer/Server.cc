@@ -689,6 +689,14 @@ Server::FillContainerCAP(uint64_t id,
                 dir.attr().count("sys.eval.useracl"));
     }
 
+    if (EOS_LOGS_DEBUG) {
+      std::string tokenDump;
+      if (vid.token) {
+	vid.token->Dump(tokenDump, true, false);
+      }
+      eos_debug("token='%s' scope='%s'", tokenDump.c_str(), dir.fullpath().c_str());
+    }
+
     if (sysacl.length() || useracl.length() || vid.token) {
       bool evaluseracl = (!S_ISDIR(dir.mode())) ||
                          dir.attr().count("sys.eval.useracl") > 0;
@@ -761,6 +769,7 @@ Server::FillContainerCAP(uint64_t id,
     }
 
     if (!gOFS->allow_public_access(dir.fullpath().c_str(), vid)) {
+      eos_debug("no public access");
       mode = dir.mode() & S_IFDIR;
       mode |= X_OK;
     }
