@@ -1900,7 +1900,11 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
     // if any of the two fails, the scheduling operation fails
     Scheduler::PlacementArguments plctargs;
     plctargs.alreadyused_filesystems = &selectedfs;
-    plctargs.bookingsize = isFuse ? gOFS->getFuseBookingSize() : bookingsize;
+    if (isRepair) {
+      plctargs.bookingsize = bookingsize ? bookingsize : gOFS->getFuseBookingSize();
+    } else {
+      plctargs.bookingsize = isFuse ? gOFS->getFuseBookingSize() : bookingsize;
+    }
     plctargs.dataproxys = &proxys;
     plctargs.firewallentpts = &firewalleps;
     plctargs.forced_scheduling_group_index = forced_group;
