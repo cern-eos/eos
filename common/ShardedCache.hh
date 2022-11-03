@@ -65,7 +65,15 @@ struct IdentityHash {
   }
 };
 
-template<typename Key, typename Value, typename Hash>
+template <typename Key>
+struct DefaultHash {
+  static uint64_t hash(const Key& key)
+  {
+    return std::hash<Key>()(key);
+  }
+};
+
+template<typename Key, typename Value, typename Hash=DefaultHash<Key>>
 class ShardedCache
 {
 private:
