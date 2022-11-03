@@ -590,9 +590,6 @@ The EOS shell client.
 %{_libdir}/libEosCommon.so.%{major_version}
 %{_libdir}/libEosCommon.so
 %{_sysconfdir}/bash_completion.d/eos
-
-# This file is required by both the eos-fuse and eos-fusex package, therefore
-# to avoid any conflicts we distribute it with eos-client.
 %{_sysconfdir}/fuse.conf.eos
 
 # Documentation
