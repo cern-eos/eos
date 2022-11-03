@@ -475,28 +475,16 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
       kv != gVirtualUidMap.end()) {
     //    eos_static_debug("tident mapping");
     vid.uid = kv->second;
-
-    if (!vid.hasUid(vid.uid)) {
-      vid.allowed_uids.insert(vid.uid);
-    }
-
-    if (!vid.hasUid(99)) {
-      vid.allowed_uids.insert(99);
-    }
+    vid.allowed_uids.insert(vid.uid);
+    vid.allowed_uids.insert(99);
   }
 
   if (auto kv = gVirtualGidMap.find(sgidtident.c_str());
       kv != gVirtualGidMap.end()) {
     //    eos_static_debug("tident mapping");
     vid.gid = kv->second;
-
-    if (!vid.hasGid(vid.gid)) {
-      vid.allowed_gids.insert(vid.gid);
-    }
-
-    if (!vid.hasGid(99)) {
-      vid.allowed_gids.insert(99);
-    }
+    vid.allowed_gids.insert(vid.gid);
+    vid.allowed_gids.insert(99);
   }
 
   // Wildcard tidents/protocol tidents - one can define mapping entries like
@@ -649,14 +637,8 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
     vid.sudoer = true;
     vid.uid = 3;
     vid.gid = 4;
-
-    if (!vid.hasUid(3)) {
-      vid.allowed_uids.insert(vid.uid);
-    }
-
-    if (!vid.hasGid(4)) {
-      vid.allowed_gids.insert(vid.gid);
-    }
+    vid.allowed_uids.insert(vid.uid);
+    vid.allowed_gids.insert(vid.gid);
   }
 
   // GRPC key mapping
@@ -820,36 +802,26 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
   {
     auto userkey = gVirtualUidMap.find(useralias.c_str());
     vid.uid = userkey != gVirtualUidMap.end() ? userkey->second : vid.uid;
-
-    if (!vid.hasUid(vid.uid)) {
-      vid.allowed_uids.insert(vid.uid);
-    }
+    vid.allowed_uids.insert(vid.uid);
   }
   {
     auto groupkey = gVirtualGidMap.find(groupalias.c_str());
     vid.gid = groupkey != gVirtualGidMap.end() ? groupkey->second : vid.gid;
-
-    if (!vid.hasGid(vid.gid)) {
-      vid.allowed_gids.insert(vid.gid);
-    }
+    vid.allowed_gids.insert(vid.gid);
   }
 
   // Add virtual user and group roles - if any
   if (gUserRoleVector.count(vid.uid)) {
     for (auto it = gUserRoleVector[vid.uid].cbegin();
          it != gUserRoleVector[vid.uid].cend(); ++it) {
-      if (!vid.hasUid(*it)) {
-        vid.allowed_uids.insert(*it);
-      }
+      vid.allowed_uids.insert(*it);
     }
   }
 
   if (gGroupRoleVector.count(vid.uid)) {
     for (auto it = gGroupRoleVector[vid.uid].cbegin();
          it != gGroupRoleVector[vid.uid].cend(); ++it) {
-      if (!vid.hasGid(*it)) {
-        vid.allowed_gids.insert(*it);
-      }
+      vid.allowed_gids.insert(*it);
     }
   }
 
@@ -976,13 +948,8 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
     vid.gid = sel_gid;
 
     if (ruid.length() || rgid.length()) {
-      if (!vid.hasGid(sel_gid)) {
-        vid.allowed_gids.insert(sel_gid);
-      }
-
-      if (!vid.hasUid(sel_uid)) {
-        vid.allowed_uids.insert(sel_uid);
-      }
+      vid.allowed_gids.insert(sel_gid);
+      vid.allowed_uids.insert(sel_uid);
     }
   }
 
