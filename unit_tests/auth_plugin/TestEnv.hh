@@ -21,12 +21,9 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-/*----------------------------------------------------------------------------*/
 #include <map>
 #include <string>
-/*----------------------------------------------------------------------------*/
 #include "Namespace.hh"
-/*----------------------------------------------------------------------------*/
 
 EOSAUTHTEST_NAMESPACE_BEGIN
 
@@ -35,19 +32,17 @@ EOSAUTHTEST_NAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 class TestEnv
 {
- public:
-
+public:
   //----------------------------------------------------------------------------
   //! Constructor
   //----------------------------------------------------------------------------
   TestEnv();
 
-
   //----------------------------------------------------------------------------
   //! Destructor
   //----------------------------------------------------------------------------
-  virtual ~TestEnv();
-  
+  virtual ~TestEnv() = default;
+
 
   //----------------------------------------------------------------------------
   //! Add new entry to the map of parameters
@@ -58,21 +53,18 @@ class TestEnv
   //----------------------------------------------------------------------------
   void SetMapping(const std::string& key, const std::string& value);
 
-  
   //----------------------------------------------------------------------------
   //! Get value corresponding to the key from the map
   //!
   //! @param key key to be searched in the map
   //!
   //! @return value stored in the map
-  //! 
+  //!
   //----------------------------------------------------------------------------
   std::string GetMapping(const std::string& key) const;
-  
 
- private:
-
-  std::map<std::string, std::string> mMapParam; ///< map testing parameters  
+private:
+  std::map<std::string, std::string> mMapParam; ///< map testing parameters
 };
 
 EOSAUTHTEST_NAMESPACE_END
