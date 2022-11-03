@@ -1,0 +1,9 @@
+[eos-diopside]
+name=EOS 5.0 Version
+baseurl=https://storage-ci.web.cern.ch/storage-ci/eos/diopside/tag/el-9s/$basearch/
+gpgcheck=0
+
+[eos-diopside-dep]
+name=EOS Diopside Dependencies
+baseurl=http://storage-ci.web.cern.ch/storage-ci/eos/diopside-depend/el-9s/$basearch/
+gpgcheck=0
