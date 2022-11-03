@@ -21,10 +21,6 @@
 # * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
 # ************************************************************************
 
-if (CPPUNIT_FOUND)
-  add_subdirectory(tests)
-endif(CPPUNIT_FOUND)
-
 #-------------------------------------------------------------------------------
 # Generate all protocol buffer files
 #-------------------------------------------------------------------------------

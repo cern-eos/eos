@@ -102,8 +102,6 @@ if(NOT PACKAGEONLY)
   if (NOT CLIENT)
     find_package(eosfolly REQUIRED)
     find_package(ldap REQUIRED)
-    # @TODO (esindril): Completely drop cppunit once everything is moved to gtest
-    find_package(CPPUnit REQUIRED)
     find_package(GRPC)
 
     if (GRPC_FOUND)

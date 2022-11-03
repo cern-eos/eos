@@ -150,7 +150,6 @@ BuildRequires: jsoncpp, jsoncpp-devel
 BuildRequires: jemalloc, jemalloc-devel
 BuildRequires: glibc-headers
 BuildRequires: binutils-devel
-BuildRequires: cppunit-devel
 BuildRequires: help2man
 BuildRequires: libzstd, libzstd-devel
 BuildRequires: lz4
