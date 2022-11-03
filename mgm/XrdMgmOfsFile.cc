@@ -2303,7 +2303,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
               } catch (...) {}
 
               s += "Z";
-              fmd->setAttribute("sys.fusex.state,",
+              fmd->setAttribute("sys.fusex.state",
                                 eos::common::StringConversion::ReduceString(s).c_str());
             }
 
