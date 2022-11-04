@@ -118,16 +118,15 @@ S3Handler::HandleRequest(eos::common::HttpRequest* request)
   }
 
   if (request->GetMethod() == "PUT") {
-    if (((mUploadLeftSize > (10 * 1024 * 1024)) &&
-         ((*request->GetBodySize()) < (10 * 1024 * 1024)))) {
-      // we want more bytes, we don't process this
-      eos_static_info("msg=\"wait for more bytes\" leftsize=%llu uploadsize=%llu",
-                      mUploadLeftSize, *request->GetBodySize());
-      mHttpResponse = new eos::common::PlainHttpResponse();
-      mHttpResponse->SetResponseCode(0);
-      return;
-    }
-
+    // if (((mUploadLeftSize > (10 * 1024 * 1024)) &&
+    //      ((*request->GetBodySize()) < (10 * 1024 * 1024)))) {
+    //   // we want more bytes, we don't process this
+    //   eos_static_info("msg=\"wait for more bytes\" leftsize=%llu uploadsize=%llu",
+    //                   mUploadLeftSize, *request->GetBodySize());
+    //   mHttpResponse = new eos::common::PlainHttpResponse();
+    //   mHttpResponse->SetResponseCode(eos::common::HttpResponse::CREATED);
+    //   return;
+    // }
     // call the HttpHandler::Put method
     mHttpResponse = Put(request);
 

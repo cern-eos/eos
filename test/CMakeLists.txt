@@ -157,7 +157,7 @@ install(PROGRAMS xrdstress eos-instance-test eos-instance-test-ci
   eos-oc-test eos-drain-test eos-groupdrain-test eos-http-upload-test eos-https-functional-test
   eos-mq-tests eos-rename-test eos-grpc-test eos-fsck-test eos-token-test
   eos-squash-test eos-backup eos-backup-browser eos-test-utils
-  eos-converter-test eos-qos-test eos-timestamp-test
+  eos-convert-test eos-qos-test eos-timestamp-test
   eos-squash-test eos-defaultcc-test eos-quota-test
   eos-synctime-test eos-bash test-eos-iam-mapfile.py
   DESTINATION ${CMAKE_INSTALL_FULL_SBINDIR}
