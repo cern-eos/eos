@@ -21,10 +21,7 @@
 # * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
 # ************************************************************************
 
-include(BuildBenchmark)
-build_gbench(${CMAKE_SOURCE_DIR}/test/microbenchmarks/benchmark)
 add_executable(eos-microbenchmarks main.cc)
-add_dependencies(eos-microbenchmarks ${BENCHMARK_LIBRARY})
 target_link_libraries(eos-microbenchmarks PRIVATE
-  benchmark::benchmark
+  GOOGLEBENCHMARK::GOOGLEBENCHMARK
   XROOTD::UTILS)
