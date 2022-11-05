@@ -26,7 +26,7 @@
 #include "XrdSec/XrdSecEntity.hh"
 #include <chrono>
 
-void IdMapClient(int n){
+void IdMapClient(int n, int cache_factor=1){
   auto vid = eos::common::VirtualIdentity::Nobody();
   XrdSecEntity client("sss");
   char name[24] = "foobar";
@@ -35,33 +35,41 @@ void IdMapClient(int n){
   std::stringstream base_ss;
   base_ss << "foo.bar:baz@bar" << std::this_thread::get_id();
   std::string tident_base = base_ss.str();
-  for (int i=0; i< n; ++i) {
-    std::string client_name = "client" + std::to_string(i);
-    client.name = client_name.data();
-    std::string tident = tident_base + std::to_string(i);
-    eos::common::Mapping::IdMap(&client, nullptr, tident.c_str(), vid);
+  for (int j=0; j < cache_factor; ++j) {
+    for (int i=0; i < n/cache_factor; ++i) {
+      std::string client_name = "testuser" + std::to_string(i);
+      client.name = client_name.data();
+      std::string tident = tident_base + std::to_string(i);
+      eos::common::Mapping::IdMap(&client, nullptr, tident.c_str(), vid);
+    }
   }
 }
 
 int main(int argc, const char* argv[]) {
   if (argc < 2) {
-    std::cerr << "Usage: " << argv[0] << " <num-entries> [num-threads]" << std::endl;
+    std::cerr << "Usage: " << argv[0] << " <num-entries> [num-threads] [cache_factor]" << std::endl;
     return 1;
   }
   std::chrono::steady_clock::time_point init = std::chrono::steady_clock::now();
 
   eos::common::Mapping::Init();
-
+  eos::common::Mapping::gVirtualUidMap["sss:\"<pwd>\":uid"]=0;
+  eos::common::Mapping::gVirtualGidMap["sss:\"<pwd>\":gid"]=0;
   int n_clients = 1;
   int num_threads = 50;
-  if (argc == 2) {
-    n_clients = atoi(argv[1]);
-  } else {
-    n_clients = atoi(argv[1]);
+  int cache_factor = 1;
+
+  switch (argc) {
+  case 4:
+    cache_factor = atoi(argv[3]);
+  case 3:
     num_threads = atoi(argv[2]);
+  case 2:
+    n_clients = atoi(argv[1]);
   }
 
-  /*auto& g_logger = eos::common::Logging::GetInstance();
+  /*
+  auto& g_logger = eos::common::Logging::GetInstance();
   g_logger.SetLogPriority(LOG_INFO);
   g_logger.SetUnit("EOSFileMD");
 */
@@ -70,7 +78,7 @@ int main(int argc, const char* argv[]) {
   std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
 
   for (int i = 0; i < num_threads; ++i) {
-    threads.emplace_back(IdMapClient, n_clients);
+    threads.emplace_back(IdMapClient, n_clients, cache_factor);
   }
 
   for (auto& t : threads) {

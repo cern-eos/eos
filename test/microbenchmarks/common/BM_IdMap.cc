@@ -30,6 +30,7 @@
 class MappingFixture: public benchmark::Fixture {
 public:
   void SetUp(const ::benchmark::State& state) {
+
     eos::common::Mapping::Init();
   }
 
@@ -40,25 +41,42 @@ public:
 };
 
 static void BM_IdMap(benchmark::State& state) {
-  XrdSecEntity client("test");
-  eos::common::Mapping::Init();
-  auto vid = eos::common::VirtualIdentity::Nobody();
-  vid.prot="sss";
-  client.tident = "root";
-  std::string client_name = "foobar";
-  std::stringstream base_ss;
-  base_ss << "foo.bar:baz@bar" << std::this_thread::get_id();
-  std::string tident_base = base_ss.str();
+  using namespace eos::common;
+  std::atomic<uint64_t> ctr = 0;
+  if (state.thread_index() == 0) {
+    eos::common::Mapping::Reset();
+    eos::common::Mapping::Init();
+    eos::common::Mapping::gVirtualUidMap["sss:\"<pwd>\":uid"]=0;
+    eos::common::Mapping::gVirtualGidMap["sss:\"<pwd>\":gid"]=0;
+  }
+
+
   for (auto _ : state) {
-    for (int j=0; j < state.range(0); ++j) {
-      std::string client_name = "client" + std::to_string(j);
-      client.name = client_name.data();
-      std::string tident = tident_base + std::to_string(j);
-      eos::common::Mapping::IdMap(&client, nullptr, tident.c_str(), vid);
-    }
+    state.PauseTiming();
+    XrdSecEntity client("test");
+    eos::common::VirtualIdentity vid;
+    vid.prot="sss";
+    client.tident = "root";
+    std::stringstream base_ss;
+    base_ss << "foo.bar:baz@bar" << std::this_thread::get_id();
+    std::string tident_base = base_ss.str();
+    std::string client_name = "client" + std::to_string(ctr);
+    vid.uid = ctr % 2147483646;
+    vid.gid = ctr % 2147483646;
+    client.name = client_name.data();
+    std::string tident = tident_base + std::to_string(ctr);
+    state.ResumeTiming();
+    eos::common::Mapping::IdMap(&client, nullptr, tident.c_str(), vid);
+    state.PauseTiming();
+    ctr++;
+  }
+
+  if (state.thread_index() == 0) {
+    eos::common::Mapping::Reset();
   }
 }
 
-//BENCHMARK_REGISTER_F(MappingFixture, IdMap);
-BENCHMARK(BM_IdMap)->Range(1<<10,1<<20)->ThreadRange(1, 128)->UseRealTime()->Unit(benchmark::kMillisecond);
+BENCHMARK(BM_IdMap)
+    ->Range(1<<10,1<<20)->ThreadRange(1, 128)->UseRealTime()
+    ->Unit(benchmark::kMicrosecond);
 BENCHMARK_MAIN();
