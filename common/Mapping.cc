@@ -27,6 +27,7 @@
 #include "common/Logging.hh"
 #include "common/SecEntity.hh"
 #include "common/SymKeys.hh"
+#include "common/StringUtils.hh"
 #include "common/token/EosTok.hh"
 #include "XrdNet/XrdNetUtils.hh"
 #include "XrdNet/XrdNetAddr.hh"
@@ -50,6 +51,7 @@ Mapping::VirtualUserMap_t Mapping::gVirtualUidMap;
 Mapping::VirtualGroupMap_t Mapping::gVirtualGidMap;
 Mapping::SudoerMap_t Mapping::gSudoerMap;
 bool Mapping::gRootSquash = true;
+bool Mapping::gSecondaryGroups = false;
 
 Mapping::GeoLocationMap_t Mapping::gGeoMap;
 int Mapping::gNobodyAccessTreeDeepness(1024);
@@ -62,6 +64,8 @@ google::dense_hash_map<std::string, time_t> Mapping::ActiveTidents;
 google::dense_hash_map<uid_t, size_t> Mapping::ActiveUids;
 
 XrdOucHash<Mapping::id_pair> Mapping::gPhysicalUidCache;
+ShardedCache<std::string, Mapping::id_pair> Mapping::gShardedPhysicalUidCache (8, 3600*1000);
+ShardedCache<std::string, Mapping::gid_set> Mapping::gShardedPhysicalGidCache (8, 3600*1000);
 XrdOucHash<Mapping::gid_set> Mapping::gPhysicalGidCache;
 
 XrdSysMutex Mapping::gPhysicalNameCacheMutex;
@@ -108,6 +112,11 @@ Mapping::Init()
   if (getenv("EOS_FUSE_NO_ROOT_SQUASH") &&
       !strcmp("1", getenv("EOS_FUSE_NO_ROOT_SQUASH"))) {
     gRootSquash = false;
+  }
+
+  if (getenv("EOS_SECONDARY_GROUPS") &&
+      !strcmp("1", getenv("EOS_SECONDARY_GROUPS"))) {
+    gSecondaryGroups = true;
   }
 
   gOAuth.Init();
@@ -354,7 +363,7 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
         kv != gVirtualUidMap.end()) {
       if (kv->second == 0) {
         eos_static_debug("%s", "msg=\"sss uid mapping\"");
-        Mapping::getPhysicalIds(client->name, vid);
+        Mapping::getPhysicalIdShards(std::string(client->name), vid);
         vid.gid = 99;
         vid.allowed_gids.clear();
         vid.allowed_gids.insert(vid.gid);
@@ -375,7 +384,7 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
       if (kv->second == 0) {
         eos_static_debug("%s", "msg=\"sss gid mapping\"");
         uid_t uid = vid.uid;
-        Mapping::getPhysicalIds(client->name, vid);
+        Mapping::getPhysicalIdShards(std::string(client->name), vid);
         vid.uid = uid;
         vid.allowed_uids.clear();
         vid.allowed_uids.insert(vid.uid);
@@ -2201,6 +2210,167 @@ Mapping::ActiveSessions()
 {
   XrdSysMutexHelper mLock(ActiveLock);
   return ActiveTidents.size();
+}
+
+void
+Mapping::getPhysicalIdShards(const std::string& name, VirtualIdentity& vid)
+{
+  if (name.empty()) {
+    return;
+  }
+
+  struct passwd passwdinfo;
+  char buffer[131072];
+
+  memset(&passwdinfo, 0, sizeof(passwdinfo));
+  eos_static_debug("find in uid cache %s cache shard=%d", name.c_str(),
+                   gShardedPhysicalUidCache.calculateShard(name));
+  std::unique_ptr<id_pair> idp {nullptr};
+
+  if (auto id_ptr = gShardedPhysicalUidCache.retrieve(name)) {
+    vid.uid = id_ptr->uid;
+    vid.gid = id_ptr->gid;
+    // FIXME use a value type!
+    idp.reset(new id_pair(vid.uid, vid.gid));
+  } else {
+    eos_static_debug("not found in uid cache");
+    bool use_pw = true;
+
+    if (name.length() == 8) {
+      bool known_tident = false;
+      if (startsWith(name, "*") || startsWith(name, "~") || startsWith(name, "_")){
+        known_tident = true;
+        // that is a new base-64 encoded id following the format '*1234567'
+        // where 1234567 is the base64 encoded 42-bit value of 20-bit uid |
+        // 16-bit gid | 6-bit session id.
+        std::string b64name = name;
+        b64name.erase(0, 1);
+        // Decoden '_' -> '/', '-' -> '+' that was done to ensure the validity
+        // of the XRootD URL.
+        std::replace(b64name.begin(), b64name.end(), '_', '/');
+        std::replace(b64name.begin(), b64name.end(), '-', '+');
+        b64name += "=";
+        unsigned long long bituser = 0;
+        char* out = 0;
+        ssize_t outlen;
+
+        if (eos::common::SymKey::Base64Decode(b64name.c_str(), out, outlen)) {
+          if (outlen <= 8) {
+            memcpy((((char*) &bituser)) + 8 - outlen, out, outlen);
+            eos_static_debug("msg=\"decoded base-64 uid/gid/sid\" val=%llx val=%llx",
+                             bituser, n_tohll(bituser));
+          } else {
+            eos_static_err("msg=\"decoded base-64 uid/gid/sid too long\" len=%d", outlen);
+            return;
+          }
+
+          bituser = n_tohll(bituser);
+
+          if (out) {
+            free(out);
+          }
+          if (startsWith(name, "*") || startsWith(name, "_")) {
+            idp.reset(new id_pair((bituser >> 22) & 0xfffff, (bituser >> 6) & 0xffff));
+          } else {
+            // only user id got forwarded, we retrieve the corresponding group
+            uid_t ruid = (bituser >> 6) & 0xfffffffff;
+            struct passwd* pwbufp = 0;
+
+            if (getpwuid_r(ruid, &passwdinfo, buffer, 16384, &pwbufp) || (!pwbufp)) {
+              return;
+            }
+
+            idp.reset(new id_pair(passwdinfo.pw_uid, passwdinfo.pw_gid));
+          }
+
+          eos_static_debug("using base64 mapping %s %d %d", name.c_str(), idp->uid,
+                           idp->gid);
+        } else {
+          eos_static_err("msg=\"failed to decoded base-64 uid/gid/sid\" id=%s",
+                         name.c_str());
+          return;
+        }
+      }
+
+      if (known_tident) {
+        if (gRootSquash && idp && (!idp->uid || !idp->gid)) {
+          return;
+        }
+
+        vid.uid = idp->uid;
+        vid.gid = idp->gid;
+        vid.allowed_uids.clear();
+        vid.allowed_uids.insert(vid.uid);
+        vid.allowed_gids.clear();
+        vid.allowed_gids.insert(vid.gid);
+        auto gs = std::make_unique<gid_set>(vid.allowed_gids);
+        eos_static_debug("adding to cache uid=%u gid=%u", idp->uid, idp->gid);
+        gShardedPhysicalUidCache.store(name, std::move(idp));
+        gShardedPhysicalGidCache.store(name, std::move(gs));
+        return;
+      }
+    }
+
+    if (use_pw) {
+      struct passwd* pwbufp = 0;
+      {
+        if (getpwnam_r(name.c_str(), &passwdinfo, buffer, 16384, &pwbufp) || (!pwbufp)) {
+          return;
+        }
+      }
+      idp.reset(new id_pair(passwdinfo.pw_uid, passwdinfo.pw_gid));
+      vid.uid = idp->uid;
+      vid.gid = idp->gid;
+    }
+
+  }
+
+  if (auto gv = gShardedPhysicalGidCache.retrieve(name)) {
+    vid.allowed_uids.insert(idp->uid);
+    vid.allowed_gids = *gv;
+    vid.uid = idp->uid;
+    vid.gid = idp->gid;
+    eos_static_debug("returning uid=%u gid=%u", idp->uid, idp->gid);
+    eos_static_debug("adding to cache uid=%u gid=%u", idp->uid, idp->gid);
+    gShardedPhysicalUidCache.store(name, std::move(idp));
+    return;
+  }
+
+
+  if (gSecondaryGroups) {
+    struct group* gr;
+    eos_static_debug("group lookup");
+    gid_t gid = idp->gid;
+    setgrent();
+
+    while ((gr = getgrent())) {
+      int cnt;
+      cnt = 0;
+
+      if (gr->gr_gid == gid) {
+        if (!vid.allowed_gids.size()) {
+          vid.allowed_gids.insert(gid);
+          vid.gid = gid;
+        }
+      }
+
+      while (gr->gr_mem[cnt]) {
+        if (!strcmp(gr->gr_mem[cnt], name.c_str())) {
+          vid.allowed_gids.insert(gr->gr_gid);
+        }
+
+        cnt++;
+      }
+    }
+
+    endgrent();
+  }
+
+  // add to the cache
+  eos_static_debug("adding to cache uid=%u gid=%u", idp->uid, idp->gid);
+  gShardedPhysicalUidCache.store(name, std::move(idp));
+  gShardedPhysicalGidCache.store(name, std::make_unique<gid_set>(vid.allowed_gids));
+  return;
 }
 
 EOSCOMMONNAMESPACE_END

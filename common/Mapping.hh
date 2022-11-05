@@ -25,6 +25,7 @@
 #pragma once
 #include "common/Namespace.hh"
 #include "common/RWMutex.hh"
+#include "common/ShardedCache.hh"
 #include "common/OAuth.hh"
 #include "common/VirtualIdentity.hh"
 #include "XrdOuc/XrdOucString.hh"
@@ -164,6 +165,7 @@ public:
   // ---------------------------------------------------------------------------
   static AllowedTidentMatches_t gAllowedTidentMatches;
 
+  static ShardedCache<std::string, id_pair> gShardedPhysicalUidCache;
   // ---------------------------------------------------------------------------
   //! A cache for physical user id caching (e.g. from user name to uid)
   static XrdOucHash<id_pair> gPhysicalUidCache;
@@ -171,6 +173,7 @@ public:
   // ---------------------------------------------------------------------------
   //! A cache for physical group id caching (e.g. from group name to gid)
   // ---------------------------------------------------------------------------
+  static ShardedCache<std::string, gid_set> gShardedPhysicalGidCache;
   static XrdOucHash<gid_set> gPhysicalGidCache;
 
   // ---------------------------------------------------------------------------
@@ -249,6 +252,7 @@ public:
   // ---------------------------------------------------------------------------
   static bool gRootSquash;
 
+  static bool gSecondaryGroups;
   // ---------------------------------------------------------------------------
   //! Reset clears all cached information
   // ---------------------------------------------------------------------------
@@ -293,6 +297,7 @@ public:
   // ---------------------------------------------------------------------------
   static void getPhysicalIds(const char* name, VirtualIdentity& vid);
 
+  static void getPhysicalIdShards(const std::string& name, VirtualIdentity& vid);
   // ---------------------------------------------------------------------------
   //! Compare a uid with the string representation
   // ---------------------------------------------------------------------------
