@@ -34,6 +34,8 @@
 #include <vector>
 #include <mutex>
 #include <map>
+#include <numeric>
+#include <cmath> // for pow, will be moved to bit shift
 
 using Milliseconds = int64_t;
 
@@ -100,11 +102,12 @@ private:
     int64_t shardId;
   };
 
-  int64_t calculateShard(const Key &key) {
-    return Hash::hash(key) >> shardBits;
-  }
+
 
 public:
+  int64_t calculateShard(const Key &key) const {
+    return Hash::hash(key) % shards;
+  }
   // TTL is approximate. An element can stay while unused from [ttl, 2*ttl]
   ShardedCache(size_t shardBits_, Milliseconds ttl_)
   : shardBits(shardBits_), shards(pow(2, shardBits)), ttl(ttl_), mutexes(shards), contents(shards) {
@@ -175,6 +178,25 @@ public:
     typename std::map<Key, CacheEntry>::iterator it = contents[guard.getShard()].find(key);
     contents[guard.getShard()].erase(it);
     return true;
+  }
+
+  // Some observer functions for validation, not expected to be used in data
+  // path, more for stats and tests.
+  size_t num_shards() const {
+    return shards;
+  }
+
+  size_t num_entries() const {
+    size_t count = 0;
+    std::accumulate(contents.begin(), contents.end(), count,
+                    [](size_t count, const std::map<Key, CacheEntry> &map) {
+                      return count + map.size();
+                    });
+    return count;
+  }
+
+  size_t num_content_shards() const {
+    return contents.size();
   }
 
 private:
