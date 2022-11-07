@@ -31,13 +31,10 @@
 #ifndef __EOSCOMMON_HTTP_RESPONSE__HH__
 #define __EOSCOMMON_HTTP_RESPONSE__HH__
 
-/*----------------------------------------------------------------------------*/
 #include "common/Namespace.hh"
-/*----------------------------------------------------------------------------*/
-/*----------------------------------------------------------------------------*/
 #include <map>
+#include <set>
 #include <string>
-/*----------------------------------------------------------------------------*/
 
 EOSCOMMONNAMESPACE_BEGIN
 
@@ -130,6 +127,17 @@ public:
   {
     return mResponseHeaders;
   }
+
+  /**
+   * @return server response headers as string
+   */
+  std::string GetSerializedHeaders() const;
+
+  /**
+   * @return server response headers as string and filter out the given headers
+   */
+  std::string
+  GetSerializedHeadersWithFilter(const std::set<std::string>& filter_out) const;
 
   /**
    * Set all server response headers at once

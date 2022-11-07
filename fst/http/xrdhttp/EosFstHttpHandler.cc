@@ -145,61 +145,47 @@ EosFstHttpHandler::ProcessReq(XrdHttpExtReq& req)
                               errmsg.length());
   }
 
-  std::string header;
   response->AddHeader("Date",  eos::common::Timing::utctime(time(NULL)));
-  long long content_length = 0ll;
-  auto headers = response->GetHeaders();
-
-  for (auto it = headers.begin(); it != headers.end(); ++it) {
-    if (it->first == "Content-Length") {
-      continue;
-    }
-
-    header += it->first;
-    header += ": ";
-    header += it->second;
-    header += "\r\n";
-  }
-
-  if (headers.size()) {
-    header.erase(header.length() - 2);
-  }
-
-  eos_static_debug("response-header: %s", header.c_str());
+  eos_static_debug("response-header: %s",
+                   response->GetSerializedHeaders().c_str());
 
   if (req.verb == "HEAD") {
     return req.SendSimpleResp(response->GetResponseCode(),
                               response->GetResponseCodeDescription().c_str(),
-                              header.c_str(), response->GetBody().c_str(),
+                              response->GetSerializedHeadersWithFilter({"Content-Lenght"}).c_str(),
+                              response->GetBody().c_str(),
                               response->GetBody().length());
   }
 
   if (req.verb == "GET") {
-    // Need to update the content length determined while opening the file
-    auto it_hd = headers.find("Content-Length");
-
-    if (it_hd != headers.end()) {
-      try {
-        content_length = std::stoll(it_hd->second);
-      } catch (...) {}
-    }
-
     if ((response->GetResponseCode() != response->OK) &&
         (response->GetResponseCode() != response->PARTIAL_CONTENT)) {
       return req.SendSimpleResp(response->GetResponseCode(),
                                 response->GetResponseCodeDescription().c_str(),
-                                header.c_str(), response->GetBody().c_str(),
+                                response->GetSerializedHeadersWithFilter({"Content-Lenght"}).c_str(),
+                                response->GetBody().c_str(),
                                 response->GetBody().length());
     } else {
       int retc = 0;
+      // Need to update the content length determined while opening the file
+      long long content_length = 0ll;
+      auto it_hd = response->GetHeaders().find("Content-Length");
+
+      if (it_hd != response->GetHeaders().end()) {
+        try {
+          content_length = std::stoll(it_hd->second);
+        } catch (...) {}
+      }
 
       if (response->GetResponseCode() == response->PARTIAL_CONTENT) {
         retc = req.SendSimpleResp(response->GetResponseCode(),
                                   response->GetResponseCodeDescription().c_str(),
-                                  header.c_str(), 0 , content_length);
+                                  response->GetSerializedHeadersWithFilter({"Content-Lenght"}).c_str(),
+                                  nullptr, content_length);
       } else {
         retc = req.SendSimpleResp(0, response->GetResponseCodeDescription().c_str(),
-                                  header.c_str(), 0 , content_length);
+                                  response->GetSerializedHeadersWithFilter({"Content-Lenght"}).c_str(),
+                                  nullptr , content_length);
       }
 
       if (retc) {
@@ -246,7 +232,8 @@ EosFstHttpHandler::ProcessReq(XrdHttpExtReq& req)
         (response->GetResponseCode() != 200)) {
       return req.SendSimpleResp(response->GetResponseCode(),
                                 response->GetResponseCodeDescription().c_str(),
-                                header.c_str(), response->GetBody().c_str(),
+                                response->GetSerializedHeadersWithFilter({"Content-Lenght"}).c_str(),
+                                response->GetBody().c_str(),
                                 response->GetBody().length());
     }
 
@@ -257,6 +244,8 @@ EosFstHttpHandler::ProcessReq(XrdHttpExtReq& req)
                                   "", 0);
       }
     } else {
+      long long content_length = 0ll;
+
       try {
         content_length = std::stoll(normalized_headers["content-length"]);
       } catch (...) {}
@@ -266,7 +255,9 @@ EosFstHttpHandler::ProcessReq(XrdHttpExtReq& req)
            (normalized_headers["expect"] == "100-continue"))) {
         // reply to 100-CONTINUE request
         eos_static_debug("%s", "msg=\"sending 100-continue\"");
-        req.SendSimpleResp(100, nullptr, header.c_str(), "", 0);
+        req.SendSimpleResp(100, nullptr,
+                           response->GetSerializedHeadersWithFilter({"Content-Lenght"}).c_str(),
+                           "", 0);
       }
 
       int retc = 0;
@@ -325,7 +316,9 @@ EosFstHttpHandler::ProcessReq(XrdHttpExtReq& req)
     if (response && response->GetResponseCode()) {
       return req.SendSimpleResp(response->GetResponseCode(),
                                 response->GetResponseCodeDescription().c_str(),
-                                header.c_str(), response->GetBody().c_str(), response->GetBody().length());
+                                response->GetSerializedHeadersWithFilter({"Content-Lenght"}).c_str(),
+                                response->GetBody().c_str(),
+                                response->GetBody().length());
     } else {
       return req.SendSimpleResp(500, "fatal internal error", "", "", 0);
     }
