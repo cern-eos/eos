@@ -21,7 +21,6 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-/*----------------------------------------------------------------------------*/
 #include "common/http/HttpResponse.hh"
 #include "common/Logging.hh"
 /*----------------------------------------------------------------------------*/
@@ -96,7 +95,9 @@ HttpResponse::ContentType(const std::string& path)
   return "text/plain";
 }
 
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Serialize response to string
+//------------------------------------------------------------------------------
 std::string
 HttpResponse::ToString()
 {
@@ -111,7 +112,9 @@ HttpResponse::ToString()
   return ss.str();
 }
 
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Get response code string description
+//------------------------------------------------------------------------------
 std::string
 HttpResponse::GetResponseCodeDescription()
 {
@@ -190,5 +193,53 @@ HttpResponse::GetResponseCodeDescription()
   }
 }
 
+//------------------------------------------------------------------------------
+// Get serialized headers to string
+//------------------------------------------------------------------------------
+std::string
+HttpResponse::GetSerializedHeaders() const
+{
+  std::ostringstream oss;
+
+  for (const auto& hdr : mResponseHeaders) {
+    oss << hdr.first << ": " << hdr.second << "\r\n";
+  }
+
+  // Trim the last two characters, if any
+  std::string out = oss.str();
+
+  if (!out.empty()) {
+    out.erase(out.length() - 2);
+  }
+
+  return out;
+}
+
+//------------------------------------------------------------------------------
+// Get serialized headers to string applying filter to the header keys
+//------------------------------------------------------------------------------
+std::string
+HttpResponse::GetSerializedHeadersWithFilter(const std::set<std::string>&
+    filter_out) const
+{
+  std::ostringstream oss;
+
+  for (const auto& hdr : mResponseHeaders) {
+    if (filter_out.find(hdr.first) != filter_out.end()) {
+      continue;
+    }
+
+    oss << hdr.first << ": " << hdr.second << "\r\n";
+  }
+
+  // Trim the last two characters, if any
+  std::string out = oss.str();
+
+  if (!out.empty()) {
+    out.erase(out.length() - 2);
+  }
+
+  return out;
+}
 
 EOSCOMMONNAMESPACE_END
