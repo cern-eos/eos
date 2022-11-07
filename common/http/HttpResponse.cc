@@ -194,33 +194,11 @@ HttpResponse::GetResponseCodeDescription()
 }
 
 //------------------------------------------------------------------------------
-// Get serialized headers to string
-//------------------------------------------------------------------------------
-std::string
-HttpResponse::GetSerializedHeaders() const
-{
-  std::ostringstream oss;
-
-  for (const auto& hdr : mResponseHeaders) {
-    oss << hdr.first << ": " << hdr.second << "\r\n";
-  }
-
-  // Trim the last two characters, if any
-  std::string out = oss.str();
-
-  if (!out.empty()) {
-    out.erase(out.length() - 2);
-  }
-
-  return out;
-}
-
-//------------------------------------------------------------------------------
 // Get serialized headers to string applying filter to the header keys
 //------------------------------------------------------------------------------
 std::string
-HttpResponse::GetSerializedHeadersWithFilter(const std::set<std::string>&
-    filter_out) const
+HttpResponse::GetHdrsWithFilter(const std::set<std::string_view>& filter_out)
+const
 {
   std::ostringstream oss;
 

@@ -35,6 +35,7 @@
 #include <map>
 #include <set>
 #include <string>
+#include <string_view>
 
 EOSCOMMONNAMESPACE_BEGIN
 
@@ -44,6 +45,8 @@ class HttpResponse
 {
 
 public:
+  constexpr static std::string_view kContentLength {"Content-Length"};
+
   /**
    * Standard HTTP response codes which we use
    */
@@ -129,15 +132,10 @@ public:
   }
 
   /**
-   * @return server response headers as string
-   */
-  std::string GetSerializedHeaders() const;
-
-  /**
    * @return server response headers as string and filter out the given headers
    */
   std::string
-  GetSerializedHeadersWithFilter(const std::set<std::string>& filter_out) const;
+  GetHdrsWithFilter(const std::set<std::string_view>& filter_out) const;
 
   /**
    * Set all server response headers at once

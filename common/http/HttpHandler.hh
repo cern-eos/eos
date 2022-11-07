@@ -30,14 +30,10 @@
 #ifndef __EOSCOMMON_HTTP_HANDLER__HH__
 #define __EOSCOMMON_HTTP_HANDLER__HH__
 
-/*----------------------------------------------------------------------------*/
 #include "common/http/ProtocolHandler.hh"
 #include "common/Namespace.hh"
-/*----------------------------------------------------------------------------*/
-/*----------------------------------------------------------------------------*/
 #include <map>
 #include <string>
-/*----------------------------------------------------------------------------*/
 
 EOSCOMMONNAMESPACE_BEGIN
 
@@ -148,7 +144,6 @@ public:
   }
 };
 
-/*----------------------------------------------------------------------------*/
 EOSCOMMONNAMESPACE_END
 
 #endif /* __EOSCOMMON_HTTP_HANDLER__HH__ */
