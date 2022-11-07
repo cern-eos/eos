@@ -117,9 +117,7 @@ private:
 //! @return Success: A pointer to an instance of the XrdHttpSecXtractor object.
 //!         Failure: A null pointer which causes initialization to fail.
 //!
-
 //------------------------------------------------------------------------------
-
 class XrdSysError;
 class XrdOucEnv;
 
@@ -134,11 +132,3 @@ extern "C" XrdHttpExtHandler* XrdHttpGetExtHandler(XrdHttpExtHandlerArgs)
   handler->Init(confg);
   return handler;
 }
-
-//------------------------------------------------------------------------------
-//! Declare compilation version.
-//!
-//! Additionally, you *should* declare the xrootd version you used to compile
-//! your plug-in. While not currently required, it is highly recommended to
-//! avoid execution issues should the class definition change. Declare it as:
-//------------------------------------------------------------------------------

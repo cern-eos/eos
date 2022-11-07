@@ -31,28 +31,27 @@
 #ifndef __EOSCOMMON_PROTOCOLHANDLER__HH__
 #define __EOSCOMMON_PROTOCOLHANDLER__HH__
 
-/*----------------------------------------------------------------------------*/
 #include "common/http/HttpRequest.hh"
 #include "common/http/HttpResponse.hh"
 #include "common/Mapping.hh"
 #include "common/Namespace.hh"
-/*----------------------------------------------------------------------------*/
-/*----------------------------------------------------------------------------*/
 #include <string>
 #include <map>
-/*----------------------------------------------------------------------------*/
 
 EOSCOMMONNAMESPACE_BEGIN
 
+//------------------------------------------------------------------------------
+//! Class ProtocolHandler
+//------------------------------------------------------------------------------
 class ProtocolHandler
 {
-
 public:
   typedef std::map<std::string, std::string> HeaderMap;
 
 protected:
-  HttpResponse                          *mHttpResponse;    //!< the HTTP response
-  eos::common::VirtualIdentity          *mVirtualIdentity; //!< the virtual identity
+  HttpResponse*                          mHttpResponse;    //!< the HTTP response
+  eos::common::VirtualIdentity*
+  mVirtualIdentity; //!< the virtual identity
 
   std::string mRequestBody; //!< store small request bodies like PROPFIND
 public:
@@ -60,19 +59,19 @@ public:
   /**
    * Constructor
    */
-  ProtocolHandler () :
+  ProtocolHandler() :
     mHttpResponse(0), mVirtualIdentity(0) {};
 
   /**
    * Constructor
    */
-  ProtocolHandler (eos::common::VirtualIdentity *vid) :
+  ProtocolHandler(eos::common::VirtualIdentity* vid) :
     mHttpResponse(0), mVirtualIdentity(vid) {};
 
   /**
    * Destructor
    */
-  virtual ~ProtocolHandler ()
+  virtual ~ProtocolHandler()
   {
     delete mHttpResponse;
     delete mVirtualIdentity;
@@ -88,7 +87,7 @@ public:
    * @return true if the protocol matches, false otherwise
    */
   static bool
-  Matches (const std::string &method, HeaderMap &headers);
+  Matches(const std::string& method, HeaderMap& headers);
 
   /**
    * Concrete implementations must use this function to build a response to the
@@ -97,37 +96,47 @@ public:
    * @param request the client request object
    */
   virtual void
-  HandleRequest (HttpRequest *request) = 0;
+  HandleRequest(HttpRequest* request) = 0;
 
   /**
    * @return the HttpResponse object
    */
   inline HttpResponse*
-  GetResponse() { return mHttpResponse; }
+  GetResponse()
+  {
+    return mHttpResponse;
+  }
 
   /**
    * Delete the HttpResponse object
    */
   inline void
-  DeleteResponse() { delete mHttpResponse; mHttpResponse = 0; }
-
+  DeleteResponse()
+  {
+    delete mHttpResponse;
+    mHttpResponse = 0;
+  }
 
   /**
    * Add a piece to the body
    */
   void
-  AddToBody(const char* body, size_t size) { mRequestBody.append(body,size); }
+  AddToBody(const char* body, size_t size)
+  {
+    mRequestBody.append(body, size);
+  }
 
   /**
    * @return the client request body
    */
-
   inline const std::string&
-  GetBody () { return mRequestBody; }
-
+  GetBody()
+  {
+    return mRequestBody;
+  }
 };
 
-/*----------------------------------------------------------------------------*/
+
 EOSCOMMONNAMESPACE_END
 
 #endif /* __EOSCOMMON_PROTOCOLHANDLER__HH__ */
