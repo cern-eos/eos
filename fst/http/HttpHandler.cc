@@ -580,7 +580,6 @@ HttpHandler::Put(eos::common::HttpRequest* request)
         const char* etag = 0;
 
         if ((etag = queryenv.Get("mgm.etag"))) {
-          //
           response->AddHeader("ETag", etag);
         }
 
