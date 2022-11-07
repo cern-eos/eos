@@ -2226,14 +2226,16 @@ Mapping::getPhysicalIdShards(const std::string& name, VirtualIdentity& vid)
   eos_static_debug("find in uid cache %s cache shard=%d", name.c_str(),
                    gShardedPhysicalUidCache.calculateShard(name));
   std::unique_ptr<id_pair> idp {nullptr};
-
+  bool in_uid_cache {false};
   if (auto id_ptr = gShardedPhysicalUidCache.retrieve(name)) {
     vid.uid = id_ptr->uid;
     vid.gid = id_ptr->gid;
     // FIXME use a value type!
     idp.reset(new id_pair(vid.uid, vid.gid));
+    in_uid_cache = true;
+    eos_static_debug("msg=\"found in uid cache\" name=%s", name.c_str());
   } else {
-    eos_static_debug("not found in uid cache");
+    eos_static_debug("msg=\"not found in uid cache\" name=%s", name.c_str());
     bool use_pw = true;
 
     if (name.length() == 8) {
@@ -2330,9 +2332,11 @@ Mapping::getPhysicalIdShards(const std::string& name, VirtualIdentity& vid)
     vid.allowed_gids = *gv;
     vid.uid = idp->uid;
     vid.gid = idp->gid;
-    eos_static_debug("returning uid=%u gid=%u", idp->uid, idp->gid);
-    eos_static_debug("adding to cache uid=%u gid=%u", idp->uid, idp->gid);
-    gShardedPhysicalUidCache.store(name, std::move(idp));
+    eos_static_debug("msg=\"returning\" uid=%u gid=%u", idp->uid, idp->gid);
+    if (!in_uid_cache) {
+      eos_static_debug("msg=\"adding to cache\" uid=%u gid=%u", idp->uid, idp->gid);
+      gShardedPhysicalUidCache.store(name, std::move(idp));
+    }
     return;
   }
 
@@ -2367,8 +2371,10 @@ Mapping::getPhysicalIdShards(const std::string& name, VirtualIdentity& vid)
   }
 
   // add to the cache
-  eos_static_debug("adding to cache uid=%u gid=%u", idp->uid, idp->gid);
-  gShardedPhysicalUidCache.store(name, std::move(idp));
+  if (!in_uid_cache) {
+    eos_static_debug("msg=\"adding to cache\" uid=%u gid=%u", idp->uid, idp->gid);
+    gShardedPhysicalUidCache.store(name, std::move(idp));
+  }
   gShardedPhysicalGidCache.store(name, std::make_unique<gid_set>(vid.allowed_gids));
   return;
 }
