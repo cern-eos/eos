@@ -27,6 +27,8 @@
 #include <sstream>
 #include <thread>
 
+using benchmark::Counter;
+
 class MappingFixture: public benchmark::Fixture {
 public:
   void SetUp(const ::benchmark::State& state) {
@@ -76,7 +78,41 @@ static void BM_IdMap(benchmark::State& state) {
   }
 }
 
+static void BM_ReduceTident(benchmark::State& state)
+{
+  for (auto _: state) {
+    //state.PauseTiming();
+    for (int j=0; j < state.range(0); ++j) {
+      std::string tident = "foo.bar:baz@bar" + std::to_string(j);
+      std::string wildcardtident, mytident, myhost;
+      // state.ResumeTiming();
+      mytident = eos::common::Mapping::ReduceTident(tident, wildcardtident, myhost);
+    }
+  }
+  state.counters["frequency"] = Counter(state.iterations(),
+                                        benchmark::Counter::kIsRate);
+}
+
+static void BM_ReduceTidentXrd(benchmark::State& state)
+{
+  for (auto _: state) {
+    //state.PauseTiming();
+    for (int j=0; j < state.range(0); ++j) {
+      std::string tident = "foo.bar:baz@bar" + std::to_string(j);
+      XrdOucString tident_xrd(tident.c_str());
+      XrdOucString wildcardtident, mytident, myhost;
+      // state.ResumeTiming();
+      eos::common::Mapping::ReduceTident(tident_xrd, wildcardtident, mytident,
+                                         myhost);
+    }
+  }
+  state.counters["frequency"] = Counter(state.iterations(),
+                                        benchmark::Counter::kIsRate);
+}
 BENCHMARK(BM_IdMap)
     ->Range(1<<10,1<<20)->ThreadRange(1, 128)->UseRealTime()
     ->Unit(benchmark::kMicrosecond);
+
+BENCHMARK(BM_ReduceTident)->Range(1,1<<20);
+BENCHMARK(BM_ReduceTidentXrd)->Range(1,1<<20);
 BENCHMARK_MAIN();

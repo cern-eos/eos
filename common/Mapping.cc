@@ -2038,10 +2038,21 @@ const char* Mapping::ReduceTident(XrdOucString& tident,
   return mytident.c_str();
 }
 
+std::string Mapping::ReduceTident(std::string_view tident,
+                                  std::string& wildcardtident, std::string& myhost)
+{
+  auto dotpos = tident.find(".");
+  auto addpos = tident.find("@");
+  std::string mytident{tident};
+  mytident.erase(dotpos, addpos - dotpos);
+  myhost = tident.substr(addpos + 1);
+  wildcardtident = "*@"+myhost;
+  return mytident;
+}
+
 // -----------------------------------------------------------------------------
 //! Convert a uid into a string
 // -----------------------------------------------------------------------------
-
 std::string Mapping::UidAsString(uid_t uid)
 {
   std::string uidstring = "";

@@ -315,6 +315,8 @@ public:
                                   XrdOucString& wildcardtident,
                                   XrdOucString& mytident, XrdOucString& myhost);
 
+  static std::string ReduceTident(std::string_view tident,
+                                  std::string& wildcardtident, std::string& myhost);
   // ---------------------------------------------------------------------------
   //! Convert a uid to a user name
   // ---------------------------------------------------------------------------
