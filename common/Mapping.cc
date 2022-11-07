@@ -358,10 +358,22 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
   // sss mapping
   if ((vid.prot == "sss")) {
     eos_static_debug("sss mapping");
+    auto kv_uid = gVirtualUidMap.find(g_sss_uid_key);
+    auto kv_gid = gVirtualGidMap.find(g_sss_gid_key);
+    bool uid_mapped = kv_uid != gVirtualUidMap.end();
+    bool gid_mapped = kv_gid != gVirtualGidMap.end();
 
-    if (auto kv = gVirtualUidMap.find(g_sss_uid_key);
-        kv != gVirtualUidMap.end()) {
-      if (kv->second == 0) {
+    if (uid_mapped && gid_mapped &&
+        kv_uid->second == 0 && kv_gid->second == 0) {
+      Mapping::getPhysicalIdShards(std::string(client->name), vid);
+      vid.allowed_uids.clear();
+      vid.allowed_gids.clear();
+      vid.allowed_uids.insert(vid.uid);
+      vid.allowed_gids.insert(vid.gid);
+      vid.allowed_uids.insert(99);
+      vid.allowed_gids.insert(99);
+    } else if (uid_mapped) {
+      if (kv_uid->second == 0) {
         eos_static_debug("%s", "msg=\"sss uid mapping\"");
         Mapping::getPhysicalIdShards(std::string(client->name), vid);
         vid.gid = 99;
@@ -369,7 +381,7 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
         vid.allowed_gids.insert(vid.gid);
       } else {
         eos_static_debug("%s", "sss uid forced mapping");
-        vid.uid = kv->second;
+        vid.uid = kv_uid->second;
         vid.allowed_uids.clear();
         vid.allowed_uids.insert(vid.uid);
         vid.allowed_uids.insert(99);
@@ -377,11 +389,8 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
         vid.allowed_gids.clear();
         vid.allowed_gids.insert(vid.gid);
       }
-    }
-
-    if (auto kv = gVirtualGidMap.find(g_sss_gid_key);
-        kv != gVirtualGidMap.end()) {
-      if (kv->second == 0) {
+    } else if (gid_mapped) {
+      if (kv_gid->second == 0) {
         eos_static_debug("%s", "msg=\"sss gid mapping\"");
         uid_t uid = vid.uid;
         Mapping::getPhysicalIdShards(std::string(client->name), vid);
@@ -392,7 +401,7 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
       } else {
         eos_static_debug("%s", "msg=\"sss forced gid mapping\"");
         vid.allowed_gids.clear();
-        vid.gid = kv->second;
+        vid.gid = kv_gid->second;
         vid.allowed_gids.insert(vid.gid);
       }
     }
