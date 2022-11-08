@@ -1747,9 +1747,7 @@ Mapping::UserNameToUid(const std::string& username, int& errc)
   }
 
   if (!errc) {
-    XrdSysMutexHelper cMutex(gPhysicalNameCacheMutex);
-    gPhysicalUserIdCache[username] = uid;
-    gPhysicalUserNameCache[uid] = username;
+    cacheUserIds(uid, username);
   }
 
   return uid;
@@ -2385,6 +2383,14 @@ Mapping::getPhysicalGids(const char* name, VirtualIdentity& vid)
   vid.allowed_uids.clear();
   vid.allowed_uids.insert(uid);
   vid.allowed_uids.insert(99);
+}
+
+void
+Mapping::cacheUserIds(uid_t uid, const std::string& username)
+{
+  XrdSysMutexHelper cMutex(gPhysicalNameCacheMutex);
+  gPhysicalUserIdCache[username] = uid;
+  gPhysicalUserNameCache[uid] = username;
 }
 
 EOSCOMMONNAMESPACE_END

@@ -370,6 +370,8 @@ public:
 
   static void getPhysicalUids(const char* name, VirtualIdentity& vid);
   static void getPhysicalGids(const char* name, VirtualIdentity& vid);
+
+  static void cacheUserIds(uid_t uid, const std::string& username);
 private:
 
   //----------------------------------------------------------------------------
