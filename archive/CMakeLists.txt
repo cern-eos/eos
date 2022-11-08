@@ -39,24 +39,13 @@ if(PYTHONSITEPKG_FOUND)
 	  DESTINATION ${PYTHONSITEPKG_PATH}
 	  PERMISSIONS OWNER_READ OWNER_WRITE GROUP_READ WORLD_READ)
 
-  install(FILES eosarchived.init
-	  DESTINATION ${CMAKE_INSTALL_SYSCONFDIR}/rc.d/init.d/
-	  PERMISSIONS OWNER_READ OWNER_EXECUTE
-		      GROUP_READ GROUP_EXECUTE
-		      WORLD_READ WORLD_EXECUTE
-	  RENAME eosarchived)
-
-  install(FILES eosarchived.sysconfig
-	  DESTINATION ${CMAKE_INSTALL_SYSCONFDIR}/sysconfig/
-	  RENAME eosarchived)
-
   install(FILES eosarchived.conf
 	  DESTINATION ${CMAKE_INSTALL_SYSCONFDIR}
 	  PERMISSIONS OWNER_READ OWNER_WRITE
 		      GROUP_READ
 		      WORLD_READ)
 
-# Installing files depending on service manager (systemd or sysVinit)
+# Installing files depending on service manager (systemd)
 set(SYSTEMD_DIR /usr/lib/systemd/)
 
 if(EXISTS ${SYSTEMD_DIR})
