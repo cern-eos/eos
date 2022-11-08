@@ -132,7 +132,7 @@ clone_docker:
   image: gitlab-registry.cern.ch/linuxsupport/cc7-base
   script:
     - yum install --nogpg -y git
-    - git clone -b eos-docker-https --single-branch https://gitlab.cern.ch/eos/eos-docker.git # REVERT!!!
+    - git clone https://gitlab.cern.ch/eos/eos-docker.git
   artifacts:
     expire_in: 1 day
     paths:

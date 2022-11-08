@@ -1,7 +1,7 @@
 #!/bin/bash -ve
 
 export KUBECONFIG=$K8S_CONFIG # get access configs for the cluster
-git clone -b eos-k8s-https --single-branch https://gitlab.cern.ch/eos/eos-on-k8s.git # REVERT!!!
+git clone https://gitlab.cern.ch/eos/eos-on-k8s.git
 export K8S_NAMESPACE=$(echo ${CI_JOB_NAME}-${CI_JOB_ID}-${CI_PIPELINE_ID} | tr '_' '-' | tr '[:upper:]' '[:lower:]')
 
 export IMAGE_REPO="gitlab-registry.cern.ch/dss/eos/eos-ci"
