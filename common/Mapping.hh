@@ -179,7 +179,8 @@ public:
   // ---------------------------------------------------------------------------
   //! A mutex protecting the physical id->name caches
   // ---------------------------------------------------------------------------
-  static XrdSysMutex gPhysicalNameCacheMutex;
+  static std::mutex gPhysicalUserNameCacheMutex; //< Mutex protecting UserId& UserName cache
+  static std::mutex gPhysicalGroupNameCacheMutex; //< Mutex protecting GroupId& GroupName cache
 
   // ---------------------------------------------------------------------------
   //! A cache for physical user name caching (e.g. from uid to name)
@@ -372,6 +373,7 @@ public:
   static void getPhysicalGids(const char* name, VirtualIdentity& vid);
 
   static void cacheUserIds(uid_t uid, const std::string& username);
+  static void cacheGroupIds(gid_t gid, const std::string& groupname);
 private:
 
   //----------------------------------------------------------------------------
