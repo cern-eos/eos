@@ -2207,6 +2207,7 @@ Mapping::getPhysicalIdShards(const std::string& name, VirtualIdentity& vid)
 
   struct passwd passwdinfo;
   char buffer[131072];
+  size_t buflen = sizeof(buffer);
 
   memset(&passwdinfo, 0, sizeof(passwdinfo));
   eos_static_debug("find in uid cache %s cache shard=%d", name.c_str(),
@@ -2264,11 +2265,12 @@ Mapping::getPhysicalIdShards(const std::string& name, VirtualIdentity& vid)
             uid_t ruid = (bituser >> 6) & 0xfffffffff;
             struct passwd* pwbufp = 0;
 
-            if (getpwuid_r(ruid, &passwdinfo, buffer, 16384, &pwbufp) || (!pwbufp)) {
+            if (getpwuid_r(ruid, &passwdinfo, buffer, buflen, &pwbufp) || (!pwbufp)) {
               return;
             }
 
             idp.reset(new id_pair(passwdinfo.pw_uid, passwdinfo.pw_gid));
+            cacheUserIds(passwdinfo.pw_uid, passwdinfo.pw_name);
           }
 
           eos_static_debug("using base64 mapping %s %d %d", name.c_str(), idp->uid,
@@ -2281,6 +2283,14 @@ Mapping::getPhysicalIdShards(const std::string& name, VirtualIdentity& vid)
       }
 
       if (known_tident) {
+        // unlikely as all the code paths here should have populated idp, but
+        // just defensive programming
+        if (!idp) {
+          eos_static_err("msg=\"failed to retrieve id for\" name=%s",
+                         name.c_str());
+          return;
+        }
+
         if (gRootSquash && idp && (!idp->uid || !idp->gid)) {
           return;
         }
@@ -2302,13 +2312,15 @@ Mapping::getPhysicalIdShards(const std::string& name, VirtualIdentity& vid)
     if (use_pw) {
       struct passwd* pwbufp = 0;
       {
-        if (getpwnam_r(name.c_str(), &passwdinfo, buffer, 16384, &pwbufp) || (!pwbufp)) {
+        if (getpwnam_r(name.c_str(), &passwdinfo, buffer, buflen, &pwbufp) || (!pwbufp)) {
           return;
         }
       }
       idp.reset(new id_pair(passwdinfo.pw_uid, passwdinfo.pw_gid));
       vid.uid = idp->uid;
       vid.gid = idp->gid;
+      vid.uid_string = passwdinfo.pw_name;
+      cacheUserIds(passwdinfo.pw_uid, passwdinfo.pw_name);
     }
 
   }
