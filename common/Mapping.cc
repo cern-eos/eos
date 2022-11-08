@@ -251,20 +251,12 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
 
     if (gVirtualUidMap.count(g_krb_uid_key)) {
       // use physical mapping for kerberos names
-      Mapping::getPhysicalIds(client->name, vid);
-      vid.gid = 99;
-      vid.allowed_gids.clear();
-      vid.allowed_gids.insert(vid.gid);
+      Mapping::getPhysicalUids(client->name, vid);
     }
 
     if (gVirtualGidMap.count(g_krb_gid_key)) {
       // use physical mapping for kerberos names
-      uid_t uid = vid.uid;
-      Mapping::getPhysicalIds(client->name, vid);
-      vid.uid = uid;
-      vid.allowed_uids.clear();
-      vid.allowed_uids.insert(uid);
-      vid.allowed_uids.insert(99);
+      Mapping::getPhysicalGids(client->name, vid);
     }
   }
 
@@ -274,20 +266,12 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
 
     if (gVirtualUidMap.count(g_gsi_uid_key)) {
       // use physical mapping for gsi names
-      Mapping::getPhysicalIds(client->name, vid);
-      vid.gid = 99;
-      vid.allowed_gids.clear();
-      vid.allowed_gids.insert(vid.gid);
+      Mapping::getPhysicalUids(client->name, vid);
     }
 
     if (gVirtualGidMap.count(g_gsi_gid_key)) {
       // use physical mapping for gsi names
-      uid_t uid = vid.uid;
-      Mapping::getPhysicalIds(client->name, vid);
-      vid.uid = uid;
-      vid.allowed_uids.clear();
-      vid.allowed_uids.insert(uid);
-      vid.allowed_uids.insert(99);
+      Mapping::getPhysicalGids(client->name, vid);
     }
 
     HandleVOMS(client, vid);
@@ -375,10 +359,7 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
     } else if (uid_mapped) {
       if (kv_uid->second == 0) {
         eos_static_debug("%s", "msg=\"sss uid mapping\"");
-        Mapping::getPhysicalIdShards(std::string(client->name), vid);
-        vid.gid = 99;
-        vid.allowed_gids.clear();
-        vid.allowed_gids.insert(vid.gid);
+        Mapping::getPhysicalUids(client->name, vid);
       } else {
         eos_static_debug("%s", "sss uid forced mapping");
         vid.uid = kv_uid->second;
@@ -392,12 +373,7 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
     } else if (gid_mapped) {
       if (kv_gid->second == 0) {
         eos_static_debug("%s", "msg=\"sss gid mapping\"");
-        uid_t uid = vid.uid;
-        Mapping::getPhysicalIdShards(std::string(client->name), vid);
-        vid.uid = uid;
-        vid.allowed_uids.clear();
-        vid.allowed_uids.insert(vid.uid);
-        vid.allowed_uids.insert(99);
+        Mapping::getPhysicalGids(client->name, vid);
       } else {
         eos_static_debug("%s", "msg=\"sss forced gid mapping\"");
         vid.allowed_gids.clear();
@@ -415,10 +391,7 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
         kv != gVirtualUidMap.end()) {
       if (kv->second == 0) {
         // Use physical mapping for unix names
-        Mapping::getPhysicalIds(client->name, vid);
-        vid.gid = 99;
-        vid.allowed_gids.clear();
-        vid.allowed_gids.insert(vid.gid);
+        Mapping::getPhysicalUids(client->name, vid);
       } else {
         eos_static_debug("%s", "msg=\"unix forced uid mapping\"");
         vid.allowed_uids.clear();
@@ -436,12 +409,7 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
       if (kv->second == 0) {
         eos_static_debug("%s", "msg=\"unix gid mapping\"");
         // Use physical mapping for unix names
-        uid_t uid = vid.uid;
-        Mapping::getPhysicalIds(client->name, vid);
-        vid.uid = uid;
-        vid.allowed_uids.clear();
-        vid.allowed_uids.insert(uid);
-        vid.allowed_uids.insert(99);
+        Mapping::getPhysicalGids(client->name, vid);
       } else {
         eos_static_debug("%s", "msg=\"unix forced gid mapping\"");
         vid.allowed_gids.clear();
@@ -2397,6 +2365,26 @@ Mapping::getPhysicalIdShards(const std::string& name, VirtualIdentity& vid)
   }
   gShardedPhysicalGidCache.store(name, std::make_unique<gid_set>(vid.allowed_gids));
   return;
+}
+
+void
+Mapping::getPhysicalUids(const char* name, VirtualIdentity& vid)
+{
+  Mapping::getPhysicalIds(name, vid);
+  vid.gid = 99;
+  vid.allowed_gids.clear();
+  vid.allowed_gids.insert(vid.gid);
+}
+
+void
+Mapping::getPhysicalGids(const char* name, VirtualIdentity& vid)
+{
+  uid_t uid = vid.uid;
+  Mapping::getPhysicalIds(name, vid);
+  vid.uid = uid;
+  vid.allowed_uids.clear();
+  vid.allowed_uids.insert(uid);
+  vid.allowed_uids.insert(99);
 }
 
 EOSCOMMONNAMESPACE_END

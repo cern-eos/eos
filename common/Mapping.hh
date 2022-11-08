@@ -368,6 +368,8 @@ public:
   // ---------------------------------------------------------------------------
   static bool IsOAuth2Resource(const std::string& resource);
 
+  static void getPhysicalUids(const char* name, VirtualIdentity& vid);
+  static void getPhysicalGids(const char* name, VirtualIdentity& vid);
 private:
 
   //----------------------------------------------------------------------------
