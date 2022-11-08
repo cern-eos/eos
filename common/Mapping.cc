@@ -66,6 +66,8 @@ google::dense_hash_map<uid_t, size_t> Mapping::ActiveUids;
 XrdOucHash<Mapping::id_pair> Mapping::gPhysicalUidCache;
 ShardedCache<std::string, Mapping::id_pair> Mapping::gShardedPhysicalUidCache (8, 3600*1000);
 ShardedCache<std::string, Mapping::gid_set> Mapping::gShardedPhysicalGidCache (8, 3600*1000);
+ShardedCache<uid_t, std::string> Mapping::gShardedNegativeUserNameCache (16, 3600*1000);
+ShardedCache<gid_t, std::string> Mapping::gShardedNegativeGroupNameCache (16, 3600*1000);
 XrdOucHash<Mapping::gid_set> Mapping::gPhysicalGidCache;
 
 std::mutex Mapping::gPhysicalUserNameCacheMutex;
@@ -1598,6 +1600,11 @@ Mapping::UidToUserName(uid_t uid, int& errc)
       return kv->second;
     }
   }
+
+  if (auto user_ptr = gShardedNegativeUserNameCache.retrieve(uid)) {
+    return *user_ptr;
+  }
+
   char buffer[131072];
   int buflen = sizeof(buffer);
   std::string uid_string = "";
@@ -1617,7 +1624,8 @@ Mapping::UidToUserName(uid_t uid, int& errc)
         snprintf(suid, sizeof(suid) - 1, "%u", uid);
         uid_string = suid;
         errc = EINVAL;
-        return uid_string; // don't cache this one
+        gShardedNegativeUserNameCache.store(uid, std::make_unique<std::string>(uid_string));
+        return uid_string;
       } else {
         uid_string = pwbuf.pw_name;
         errc = 0;
@@ -1657,6 +1665,11 @@ Mapping::GidToGroupName(gid_t gid, int& errc, size_t buffersize)
       return kv->second;
     }
   }
+
+  if (auto group_ptr = gShardedNegativeGroupNameCache.retrieve(gid)) {
+    return *group_ptr;
+  }
+
   {
     char buffer[buffersize];
     int buflen = sizeof(buffer);
@@ -1679,7 +1692,8 @@ Mapping::GidToGroupName(gid_t gid, int& errc, size_t buffersize)
       snprintf(sgid, sizeof(sgid) - 1, "%u", gid);
       gid_string = sgid;
       errc = EINVAL;
-      return gid_string; // don't cache this one
+      gShardedNegativeGroupNameCache.store(gid, std::make_unique<std::string>(gid_string));
+      return gid_string;
     } else {
       gid_string = grbuf.gr_name;
       errc = 0;

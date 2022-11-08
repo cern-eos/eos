@@ -186,13 +186,13 @@ public:
   //! A cache for physical user name caching (e.g. from uid to name)
   static std::map<uid_t, std::string> gPhysicalUserNameCache;
   static std::map<std::string, uid_t> gPhysicalUserIdCache;
-
+  static ShardedCache<uid_t, std::string> gShardedNegativeUserNameCache;
   // ---------------------------------------------------------------------------
   //! A cache for physical group id caching (e.g. from gid name to name)
   // ---------------------------------------------------------------------------
   static std::map<gid_t, std::string> gPhysicalGroupNameCache;
   static std::map<std::string, gid_t> gPhysicalGroupIdCache;
-
+  static ShardedCache<gid_t, std::string> gShardedNegativeGroupNameCache;
   // ---------------------------------------------------------------------------
   //! Mutex to protect the physical ID caches
   // ---------------------------------------------------------------------------
