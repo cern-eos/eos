@@ -998,6 +998,8 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
         }
 
         vid.token->Reset();
+	// reset the vid to nobody if the origin does not match
+	vid.toNobody();
       }
     }
   }

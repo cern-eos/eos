@@ -113,4 +113,17 @@ VirtualIdentity::getTrace() const
   return ss.str();
 }
 
+//----------------------------------------------------------------------------
+// Set user/group to nobody
+//----------------------------------------------------------------------------
+void VirtualIdentity::toNobody()
+{
+  uid = 99;
+  gid = 99;
+  allowed_uids = {99};
+  allowed_gids = {99};
+  name = "nobody";
+  sudoer = false;
+}
+
 EOSCOMMONNAMESPACE_END
