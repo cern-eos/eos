@@ -735,9 +735,16 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
   mOpened = true;
   COMMONTIMING("end", &tm);
   timeToOpen = tm.RealTime();
-  // slow open reports
+
+  // report slow open as errors if longer than 1000ms
+  if (timeToOpen > 1000) {
+    eos_err("slow open operation: open-duration=%.03fms path='%s' fxid=%08llx %s", timeToOpen,
+	    mNsPath.c_str(), mFileId, tm.Dump().c_str());
+  } 
+
   eos_info("open-duration=%.03fms path='%s' fxid=%08llx %s", timeToOpen,
-           mNsPath.c_str(), mFileId, tm.Dump().c_str());
+	   mNsPath.c_str(), mFileId, tm.Dump().c_str());
+
   return SFS_OK;
 }
 
