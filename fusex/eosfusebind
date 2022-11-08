@@ -28,8 +28,8 @@
 
 function CheckCredDir
 {
-  if [[ `stat -c "%a" /var/run/eosd/credentials` != "1777" ]]; then logger -s -t eosfusebind -p authpriv.err -- "credential directory is not ready"; exit 1; fi
-  if [[ `stat -c "%a" /var/run/eosd/credentials/store` != "1777" ]]; then logger -s -t eosfusebind -p authpriv.err -- "credential store directory is not ready"; exit 2; fi
+  if [[ `stat -c "%a" /var/run/eos/credentials` != "1777" ]]; then logger -s -t eosfusebind -p authpriv.err -- "credential directory is not ready"; exit 1; fi
+  if [[ `stat -c "%a" /var/run/eos/credentials/store` != "1777" ]]; then logger -s -t eosfusebind -p authpriv.err -- "credential store directory is not ready"; exit 2; fi
 }
 
 function ExitUsage
@@ -175,7 +175,7 @@ function GetAutoX509CredFile
 function GetSymlinkBaseNameUser
 {
   if test ! -n SymlinkBaseNameUser ; then return; fi
-  SymlinkBaseNameUser="/var/run/eosd/credentials/uid${UID}"
+  SymlinkBaseNameUser="/var/run/eos/credentials/uid${UID}"
 }
 
 function GetSymlinkBaseNameSession
@@ -349,10 +349,10 @@ function LinkUserGlob
   SymlinkName=$(basename $SymlinkPathName)
   if [[ "${CREDISFILE}" = "0" ]]; then
     # Create a temporary file
-    TEMP_FILE=$(mktemp /var/run/eosd/credentials/store/temp-XXXXXXXXXXX)
+    TEMP_FILE=$(mktemp /var/run/eos/credentials/store/temp-XXXXXXXXXXX)
 
     if [ $? -ne 0 ]; then
-      logger -s -t eosfusebind -p authpriv.err -- "Could not create temporary file inside /var/run/eosd/credentials/store, something is wrong with the credential store."
+      logger -s -t eosfusebind -p authpriv.err -- "Could not create temporary file inside /var/run/eos/credentials/store, something is wrong with the credential store."
       exit 13
     fi
 
@@ -375,7 +375,7 @@ function LinkUserGlob
     fi
 
     # Atomically replace CFILE with TEMP_FILE
-    CFILE="/var/run/eosd/credentials/store/$SymlinkName"
+    CFILE="/var/run/eos/credentials/store/$SymlinkName"
     mv -f --no-target-directory "${TEMP_FILE}" "${CFILE}"
 
     if [ $? -ne 0 ]; then
@@ -398,7 +398,7 @@ function LinkUserGlob
     logger -s -t eosfusebind -p authpriv.err -- "Error renaming temporary credentials symlink."
   fi
   # cleanup the other credentials in the store as only one global credential is required at a time
-  find /var/run/eosd/credentials/store -uid ${UID} -not -name $( basename ${CFILE} ) -exec rm -f \{\} \; >/dev/null 2>&1
+  find /var/run/eos/credentials/store -uid ${UID} -not -name $( basename ${CFILE} ) -exec rm -f \{\} \; >/dev/null 2>&1
 }
 
 function UnlinkUserGlob
@@ -414,7 +414,7 @@ function UnlinkUserGlob
   #echo rm -f ${SymlinkBaseNameUser}.*
   rm -f ${SymlinkBaseNameUser}.*
   # cleanup the other credentials in the store as no credentials is needed if there is no user global
-  find /var/run/eosd/credentials/store -uid ${UID} -exec rm -f \{\} \; >/dev/null 2>&1
+  find /var/run/eos/credentials/store -uid ${UID} -exec rm -f \{\} \; >/dev/null 2>&1
 }
 
 function UnlinkUserSessions

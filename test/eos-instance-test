@@ -1634,12 +1634,12 @@ test -e /etc/eos/fuse.sss.keytab && mv -f /etc/eos/fuse.sss.keytab /etc/eos/fuse
 grep eosnobody $SERVERKEY > /etc/eos/fuse.sss.keytab
 chmod 444 /etc/eos/fuse.sss.keytab
 
-# make sure /var/run/eosd is ensured everytime a daemon is running... at least
-rm -rfv /var/run/eosd
+# make sure /var/run/eod is ensured everytime a daemon is running... at least
+rm -rfv /var/run/eos
 eosxd -ofsname=localhost.localdomain:/eos /test-fusex/
 ls -la /test-fusex/
 
-runtest "### Stat /run/eosd " unix 0 "" test "$(stat -c '%a' /var/run/eosd/credentials)" = 1777 -a "$(stat -c '%a' /var/run/eosd/credentials/store)" = 1777
+runtest "### Stat /run/eosd " unix 0 "" test "$(stat -c '%a' /var/run/eos/credentials)" = 1777 -a "$(stat -c '%a' /var/run/eos/credentials/store)" = 1777
 
 if [ -e "/test-fusex/$EOS_TEST_INSTANCE" ];
 then

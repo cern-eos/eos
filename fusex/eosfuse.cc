@@ -1297,8 +1297,8 @@ EosFuse::run(int argc, char* argv[], void* userdata)
     std::string mk_locationdir = "mkdir -p " + cconfig.location;
     std::string mk_credentialdir = "mkdir -p " + config.auth.credentialStore;
     // These directories might still be used by execve spawned processes that don't have binded credentials
-    if( system("mkdir -m 1777 -p /var/run/eosd/credentials/") || system("mkdir -m 1777 -p /var/run/eosd/credentials/store") ){
-      fprintf(stderr, "# Unable to create /var/run/eosd/credentials/ with mode 1777 \n");
+    if( system("mkdir -m 1777 -p /var/run/eos/credentials/") || system("mkdir -m 1777 -p /var/run/eos/credentials/store") ){
+      fprintf(stderr, "# Unable to create /var/run/eos/credentials/ with mode 1777 \n");
     }
     
     if (config.mdcachedir.length()) {

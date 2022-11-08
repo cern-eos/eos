@@ -462,9 +462,9 @@ BoundIdentityProvider::globalBindingToBoundIdentity(const JailInformation& jail,
   // Pretend as if the environment of the process simply contained the eosfusebind
   // global bindings, and follow the usual code path.
   Environment defaultEnv;
-  defaultEnv.push_back(SSTR("KRB5CCNAME=FILE:/var/run/eosd/credentials/uid" << uid
+  defaultEnv.push_back(SSTR("KRB5CCNAME=FILE:/var/run/eos/credentials/uid" << uid
                             << ".krb5"));
-  defaultEnv.push_back(SSTR("X509_USER_PROXY=/var/run/eosd/credentials/uid" << uid
+  defaultEnv.push_back(SSTR("X509_USER_PROXY=/var/run/eos/credentials/uid" << uid
                             << ".x509"));
 
   LogbookScope subscope(scope.makeScope(

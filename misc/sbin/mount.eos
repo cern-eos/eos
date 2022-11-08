@@ -121,7 +121,7 @@ if [ ${EOSD} == "eosd3" ]; then
     FUSE_OPT=${FUSE_OPT}"writeback_cache,"
 fi
 
-cd /var/run/eosd/
+cd /var/run/eos/
 chmod 700 ${EOS_FUSE_MOUNTDIR}
 
 unset KRB5CCNAME

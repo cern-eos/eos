@@ -261,7 +261,7 @@ export EOS_FUSE_MGM_ALIAS=eosdev.cern.ch
 # EOS_FUSE_LOCALTIMECONSISTENT=0
 
 # If KRB5 or X509 are enabled, specify the mapping from pid to strong authentication
-#    should be kept as symlinks under /var/run/eosd/credentials/pidXXXX
+#    should be kept as symlinks under /var/run/eos/credentials/pidXXXX
 #    (default 0)
 # EOS_FUSE_PIDMAP=0
 
@@ -419,7 +419,7 @@ export EOS_FUSE_MGM_ALIAS=eosdev.cern.ch
 # EOS_FUSE_STREAMERRORWINDOW=1
 # ---------------------------------------------------------------------------------
 # If KRB5 or X509 are enabled, specify the mapping from pid to strong authentication
-#    should be kept as symlinks under /var/run/eosd/credentials/pidXXXX
+#    should be kept as symlinks under /var/run/eos/credentials/pidXXXX
 #    (default 0)
 # EOS_FUSE_PIDMAP=
 # ---------------------------------------------------------------------------------
