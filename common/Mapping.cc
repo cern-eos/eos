@@ -958,8 +958,12 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
   {
     int errc = 0;
     // add the uid/gid as strings
-    vid.uid_string = UidToUserName(vid.uid, errc);
-    vid.gid_string = GidToGroupName(vid.gid, errc);
+    if (vid.uid_string.empty()) {
+      vid.uid_string = UidToUserName(vid.uid, errc);
+    }
+    if (vid.gid_string.empty()) {
+      vid.gid_string = GidToGroupName(vid.gid, errc);
+    }
   }
 
   // verify origin
