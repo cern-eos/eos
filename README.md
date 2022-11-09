@@ -111,7 +111,7 @@ git submodule update --init --recursive
 # Create build workdir
 mkdir build-with-ninja
 cd build
-# Run CMake
+# Run CMake (pass -DCLIENT=1 if you only need the client binaries)
 cmake3 -GNinja ..
 # Build
 ninja -j 4
@@ -124,7 +124,7 @@ git submodule update --init --recursive
 # Create build workdir
 mkdir build
 cd build
-# Run CMake
+# # Run CMake (pass -DCLIENT=1 if you only need the client binaries)
 cmake3 ..
 # Build
 make -j 4
