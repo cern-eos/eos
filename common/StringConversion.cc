@@ -482,44 +482,6 @@ StringConversion::GetDataSizeFromString(const char* instring)
 }
 
 //------------------------------------------------------------------------------
-// Convert a long long number into a std::string
-//------------------------------------------------------------------------------
-const char*
-StringConversion::GetSizeString(std::string& sizestring,
-                                unsigned long long insize)
-{
-  char buffer[1024];
-  sprintf(buffer, "%llu", insize);
-  sizestring = buffer;
-  return sizestring.c_str();
-}
-
-//------------------------------------------------------------------------------
-// Convert a number into a XrdOuc string
-//------------------------------------------------------------------------------
-const char*
-StringConversion::GetSizeString(XrdOucString& sizestring,
-                                unsigned long long insize)
-{
-  char buffer[1024];
-  sprintf(buffer, "%llu", insize);
-  sizestring = buffer;
-  return sizestring.c_str();
-}
-
-//------------------------------------------------------------------------------
-// Convert a floating point number into a string
-//------------------------------------------------------------------------------
-const char*
-StringConversion::GetSizeString(XrdOucString& sizestring, double insize)
-{
-  char buffer[1024];
-  sprintf(buffer, "%.02f", insize);
-  sizestring = buffer;
-  return sizestring.c_str();
-}
-
-//------------------------------------------------------------------------------
 // Split a 'key:value' definition into key + value
 //------------------------------------------------------------------------------
 bool

@@ -277,57 +277,62 @@ public:
     return GetDataSizeFromString(sizestring.c_str());
   }
 
-  // ---------------------------------------------------------------------------
-  /**
-   * Convert a long long number into a std::string
-   *
-   * @param sizestring returned string
-   * @param insize number
-   *
-   * @return sizestring.c_str()
-   */
-  // ---------------------------------------------------------------------------
-  static const char*
-  GetSizeString(XrdOucString& sizestring, unsigned long long insize);
+  //----------------------------------------------------------------------------
+  //! Convert a numeric input to the string representation
+  //!
+  //! @param insize numeric input size
+  //!
+  //! @return string representation of numerical value
+  //----------------------------------------------------------------------------
+  template<typename T>
+  static std::string GetSizeString(T insize)
+  {
+    std::string format;
 
-  // ----------------------------------------------------------------------------
-  /**
-   * Convert a long long number into a XrdOucString
-   *
-   * @param sizestring returned string
-   * @param insize number
-   *
-   * @return sizestring.c_str()
-   */
-  // ---------------------------------------------------------------------------
-  static const char*
-  GetSizeString(std::string& sizestring, unsigned long long insize);
+    if (std::is_floating_point<T>::value) {
+      format = "%.02f";
+    } else if (std::is_integral<T>::value) {
+      format = "%llu";
+    } else {
+      return std::string();
+    }
 
-  // ---------------------------------------------------------------------------
-  /**
-   * Convert a floating point number into a string
-   *
-   * @param sizestring returned string
-   * @param insize floating point number
-   *
-   * @return sizestring.c_str()
-   */
-  // ---------------------------------------------------------------------------
-  static const char*
-  GetSizeString(XrdOucString& sizestring, double insize);
+    char buffer[1024];
+    snprintf(buffer, sizeof(buffer) - 1, format.c_str(), insize);
+    return std::string(buffer);
+  }
 
+  //----------------------------------------------------------------------------
+  //! Convert a numeric input into a XrdOucString
+  //!
+  //! @param sizestring returned string
+  //! @param insize numeric input
+  //!
+  //! @return point to output string
+  //----------------------------------------------------------------------------
+  template<typename T>
+  static inline const char*
+  GetSizeString(XrdOucString& sizestring, T insize)
+  {
+    sizestring = GetSizeString(insize).c_str();
+    return sizestring.c_str();
+  }
+
+  //----------------------------------------------------------------------------
+  //! Convert a numeric input to a std::string
+  //!
+  //! @param sizestring returned string
+  //! @param insize numeric input
+  //!
+  //! @return sizestring.c_str()
   // ---------------------------------------------------------------------------
-  /**
-   * Convert a floating point number into a std::string
-   *
-   * @param sizestring returned string
-   * @param insize number
-   *
-   * @return sizestring.c_str()
-   */
-  // ---------------------------------------------------------------------------Ï
-  static const char*
-  GetSizeString(std::string& sizestring, double insize);
+  template <typename T>
+  static inline const char*
+  GetSizeString(std::string& sizestring, T insize)
+  {
+    sizestring = GetSizeString(insize);
+    return sizestring.c_str();
+  }
 
   // ---------------------------------------------------------------------------
   /**

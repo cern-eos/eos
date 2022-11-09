@@ -107,6 +107,25 @@ TEST(StringConversion, GetSizeFromString)
   ASSERT_EQ(out, 0);
 }
 
+TEST(StringConversion, GetSizeString)
+{
+  unsigned long long size_int = 999;
+  ASSERT_STREQ("999", StringConversion::GetSizeString(size_int).c_str());
+  size_int = 1234568910;
+  ASSERT_STREQ("1234568910", StringConversion::GetSizeString(size_int).c_str());
+  double size_double = 123.456;
+  ASSERT_STREQ("123.46", StringConversion::GetSizeString(size_double).c_str());
+  size_double = 98765.432;
+  ASSERT_STREQ("98765.43", StringConversion::GetSizeString(size_double).c_str());
+  size_double = 11.010;
+  ASSERT_STREQ("11.01", StringConversion::GetSizeString(size_double).c_str());
+  size_double = 12.990;
+  ASSERT_STREQ("12.99", StringConversion::GetSizeString(size_double).c_str());
+  size_double = 56.789;
+  ASSERT_STREQ("56.79", StringConversion::GetSizeString(size_double).c_str());
+  ASSERT_STREQ("", StringConversion::GetSizeString("random_stuff").c_str());
+}
+
 TEST(StringConversion, GetReadableSizeString)
 {
   unsigned long long size = 999;

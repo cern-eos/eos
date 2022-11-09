@@ -801,10 +801,8 @@ Recycle::Print(std::string& std_out, std::string& std_err,
       unsigned long long used_bytes = map_quotas[SpaceQuota::kGroupBytesIs];
       unsigned long long max_bytes = map_quotas[SpaceQuota::kGroupBytesTarget];
       unsigned long long used_inodes = map_quotas[SpaceQuota::kGroupFilesIs];
-      unsigned long long max_inodes = map_quotas[SpaceQuota::kGroupFilesTarget];
-      char sline[1024];
-      XrdOucString sizestring1;
-      XrdOucString sizestring2;
+      unsigned long long max_inodes = map_quotsa[SpaceQuota::kGroupFilesTarget];
+      char sline[4096];
       eos::IContainerMD::XAttrMap attrmap;
       XrdOucErrInfo error;
 
@@ -821,10 +819,8 @@ Recycle::Print(std::string& std_out, std::string& std_err,
                 << "_______" << std::endl;
         snprintf(sline, sizeof(sline) - 1, "# used %s out of %s (%.02f%% volume "
                  "/ %.02f%% inodes used) Object-Lifetime %s [s] Keep-Ratio %s",
-                 eos::common::StringConversion::GetReadableSizeString(sizestring1, used_bytes,
-                     "B"),
-                 eos::common::StringConversion::GetReadableSizeString(sizestring2, max_bytes,
-                     "B"),
+                 eos::common::StringConversion::GetReadableSizeString(used_bytes, "B").c_str(),
+                 eos::common::StringConversion::GetReadableSizeString(max_bytes, "B").c_str(),
                  used_bytes * 100.0 / max_bytes,
                  used_inodes * 100.0 / max_inodes,
                  attrmap.count(Recycle::gRecyclingTimeAttribute) ?
