@@ -340,9 +340,6 @@ ProcCommand::open(const char* inpath, const char* info,
       mDoSort = false;
     } else if (mCmd == "chmod") {
       Chmod();
-    } else if (mCmd == "recycle") {
-      Recycle();
-      mDoSort = false;
     } else if (mCmd == "quota") { // @todo (faluchet) drop when move to 5.0.0
       UserQuota();
       mDoSort = false;
