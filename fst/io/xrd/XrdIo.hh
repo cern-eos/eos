@@ -198,23 +198,6 @@ public:
                const std::string& opaque = "", uint16_t timeout = 0) override;
 
   //----------------------------------------------------------------------------
-  //! Open file - asynchronously. This call is to be used from one of the file
-  //! layout classes and not on its own, as there is not mechanims buit into
-  //! this class to wait for the response.
-  //!
-  //! @param handler handler called asynchronously
-  //! @param flags open flags
-  //! @param mode open mode
-  //! @param opaque opaque information
-  //! @param timeout timeout value
-  //!
-  //! @return 0 on success, -1 otherwise and error code is set
-  //----------------------------------------------------------------------------
-  int fileOpenAsync(void* io_handler, XrdSfsFileOpenMode flags,
-                    mode_t mode = 0, const std::string& opaque = "",
-                    uint16_t timeout = 0) override;
-
-  //----------------------------------------------------------------------------
   //! Open file asynchronously
   //!
   //! @param flags open flags
@@ -453,11 +436,6 @@ public:
   //! @return 0 on success, -1 otherwise and error code is set
   //----------------------------------------------------------------------------
   int fileFctl(const std::string& cmd, uint16_t timeout = 0);
-
-  //----------------------------------------------------------------------------
-  //! Clean read cache
-  //----------------------------------------------------------------------------
-  virtual void CleanReadCache();
 
   //----------------------------------------------------------------------------
   //! Set a binary attribute (name has to start with 'user.' !!!)

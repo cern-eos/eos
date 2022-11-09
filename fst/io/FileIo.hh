@@ -80,18 +80,6 @@ public:
                        const std::string& opaque = "",
                        uint16_t timeout = 0) = 0;
 
-  //--------------------------------------------------------------------------
-  //! Open file asynchronously
-  //!
-  //! @return 0 if successful, -1 otherwise and error code is set
-  //--------------------------------------------------------------------------
-  virtual int fileOpenAsync(void* io_handler, XrdSfsFileOpenMode flags,
-                            mode_t mode = 0, const std::string& opaque = "",
-                            uint16_t timeout = 0)
-  {
-    return -1;
-  }
-
   //----------------------------------------------------------------------------
   //! Open file asynchronously
   //!
@@ -209,16 +197,6 @@ public:
   virtual std::future<XrdCl::XRootDStatus>
   fileWriteAsync(const char* buffer, XrdSfsFileOffset offset,
                  XrdSfsXferSize length) = 0;
-
-  //--------------------------------------------------------------------------
-  //! Clean all read caches
-  //!
-  //! @return
-  //--------------------------------------------------------------------------
-  virtual void CleanReadCache()
-  {
-    return;
-  }
 
   //--------------------------------------------------------------------------
   //! Wait for all async IO

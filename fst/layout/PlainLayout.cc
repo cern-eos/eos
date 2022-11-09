@@ -21,55 +21,13 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-/*----------------------------------------------------------------------------*/
 #include "fst/layout/PlainLayout.hh"
 #include "fst/io/FileIoPlugin.hh"
 #include "fst/io/AsyncMetaHandler.hh"
 #include "fst/XrdFstOfsFile.hh"
 #include "fst/io/xrd/XrdIo.hh"
 
-/*----------------------------------------------------------------------------*/
-
 EOSFSTNAMESPACE_BEGIN
-
-//------------------------------------------------------------------------------
-// Handle asynchronous open responses
-//------------------------------------------------------------------------------
-void
-AsyncLayoutOpenHandler::HandleResponseWithHosts(XrdCl::XRootDStatus* status,
-    XrdCl::AnyObject* response,
-    XrdCl::HostList* hostList)
-{
-  eos_info("handling response in AsyncLayoutOpenHandler");
-  // response and hostList are nullptr
-  bool is_ok = false;
-  mPlainLayout->mLastTriedUrl = mPlainLayout->mFileIO->GetLastTriedUrl();
-
-  if (status->IsOK()) {
-    // Store the last URL we are connected after open
-    mPlainLayout->mLastUrl = mPlainLayout->mFileIO->GetLastUrl();
-    is_ok = true;
-  }
-
-  // Notify any blocked threads
-  pthread_mutex_lock(&mPlainLayout->mMutex);
-  mPlainLayout->mAsyncResponse = is_ok;
-  mPlainLayout->mHasAsyncResponse = true;
-  pthread_cond_signal(&mPlainLayout->mCondVar);
-  mPlainLayout->mIoOpenHandler = NULL;
-  pthread_mutex_unlock(&mPlainLayout->mMutex);
-  delete status;
-
-  if (response) {
-    delete response;
-  }
-
-  if (hostList) {
-    delete hostList;
-  }
-
-  delete this;
-}
 
 //------------------------------------------------------------------------------
 // Constructor
@@ -81,26 +39,9 @@ PlainLayout::PlainLayout(XrdFstOfsFile* file,
                          const char* path,
                          uint16_t timeout) :
   Layout(file, lid, client, outError, path, timeout),
-  mFileSize(0), mDisableRdAhead(false), mHasAsyncResponse(false),
-  mAsyncResponse(false), mIoOpenHandler(NULL), mFlags(0)
+  mFileSize(0), mDisableRdAhead(false), mFlags(0)
 {
-  pthread_mutex_init(&mMutex, NULL);
-  pthread_cond_init(&mCondVar, NULL);
   mIsEntryServer = true;
-}
-
-//------------------------------------------------------------------------------
-// Destructor
-//------------------------------------------------------------------------------
-PlainLayout::~PlainLayout()
-{
-  // mFileIO is deleted via mFileIO in the base class
-  pthread_mutex_destroy(&mMutex);
-  pthread_cond_destroy(&mCondVar);
-
-  if (mIoOpenHandler) {
-    delete mIoOpenHandler;
-  }
 }
 
 //------------------------------------------------------------------------------
@@ -139,84 +80,6 @@ PlainLayout::Open(XrdSfsFileOpenMode flags, mode_t mode, const char* opaque)
   }
 
   return retc;
-}
-
-//------------------------------------------------------------------------------
-// Open asynchronously
-//------------------------------------------------------------------------------
-int
-PlainLayout::OpenAsync(XrdSfsFileOpenMode flags,
-                       mode_t mode, XrdCl::ResponseHandler* layout_handler,
-                       const char* opaque)
-{
-  mFlags = flags;
-  eos::fst::XrdIo* io_file = dynamic_cast<eos::fst::XrdIo*>(mFileIO.get());
-
-  if (!io_file) {
-    eos_err("failed dynamic cast to XrdIo object");
-    return SFS_ERROR;
-  }
-
-  mIoOpenHandler = new eos::fst::AsyncIoOpenHandler(io_file, layout_handler);
-
-  if (io_file->fileOpenAsync(mIoOpenHandler, flags, mode, opaque, mTimeout)) {
-    // Error
-    delete mIoOpenHandler;
-    mIoOpenHandler = NULL;
-    return SFS_ERROR;
-  }
-
-  return SFS_OK;
-}
-
-//------------------------------------------------------------------------------
-// Wait for asynchronous open reponse
-//------------------------------------------------------------------------------
-bool
-PlainLayout::WaitOpenAsync()
-{
-  pthread_mutex_lock(&mMutex);
-
-  while (!mHasAsyncResponse) {
-    pthread_cond_wait(&mCondVar, &mMutex);
-  }
-
-  bool open_resp = mAsyncResponse;
-  pthread_mutex_unlock(&mMutex);
-
-  if (open_resp) {
-    // Get initial file size if not new file or truncated
-    if (!(mFlags & (SFS_O_CREAT | SFS_O_TRUNC))) {
-      struct stat st_info;
-      int retc_stat = mFileIO->fileStat(&st_info);
-
-      if (retc_stat) {
-        eos_err("failed stat");
-        open_resp = false;
-      } else {
-        mFileSize = st_info.st_size;
-      }
-    }
-  }
-
-  return open_resp;
-}
-
-//------------------------------------------------------------------------------
-// Clean read-ahead caches and update filesize
-//------------------------------------------------------------------------------
-void
-PlainLayout::CleanReadCache()
-{
-  if (!mDisableRdAhead) {
-    mFileIO->CleanReadCache();
-    struct stat st_info;
-    int retc_stat = mFileIO->fileStat(&st_info);
-
-    if (!retc_stat) {
-      mFileSize = st_info.st_size;
-    }
-  }
 }
 
 //------------------------------------------------------------------------------
@@ -278,7 +141,6 @@ PlainLayout::ReadV(XrdCl::ChunkList& chunkList, uint32_t len)
 //------------------------------------------------------------------------------
 // Write to file
 //------------------------------------------------------------------------------
-
 int64_t
 PlainLayout::Write(XrdSfsFileOffset offset, const char* buffer,
                    XrdSfsXferSize length)
@@ -295,7 +157,6 @@ PlainLayout::Write(XrdSfsFileOffset offset, const char* buffer,
 //------------------------------------------------------------------------------
 // Truncate file
 //------------------------------------------------------------------------------
-
 int
 PlainLayout::Truncate(XrdSfsFileOffset offset)
 {
@@ -306,7 +167,6 @@ PlainLayout::Truncate(XrdSfsFileOffset offset)
 //------------------------------------------------------------------------------
 // Reserve space for file
 //------------------------------------------------------------------------------
-
 int
 PlainLayout::Fallocate(XrdSfsFileOffset length)
 {
@@ -316,7 +176,6 @@ PlainLayout::Fallocate(XrdSfsFileOffset length)
 //------------------------------------------------------------------------------
 // Deallocate reserved space
 //------------------------------------------------------------------------------
-
 int
 PlainLayout::Fdeallocate(XrdSfsFileOffset fromOffset, XrdSfsFileOffset toOffset)
 {
@@ -346,7 +205,6 @@ PlainLayout::Stat(struct stat* buf)
 //------------------------------------------------------------------------------
 // Close file
 //------------------------------------------------------------------------------
-
 int
 PlainLayout::Close()
 {
@@ -356,7 +214,6 @@ PlainLayout::Close()
 //------------------------------------------------------------------------------
 // Remove file
 //------------------------------------------------------------------------------
-
 int
 PlainLayout::Remove()
 {

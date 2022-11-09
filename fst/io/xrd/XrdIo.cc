@@ -304,77 +304,6 @@ XrdIo::fileOpen(XrdSfsFileOpenMode flags,
 //------------------------------------------------------------------------------
 // Open file asynchronously
 //------------------------------------------------------------------------------
-int
-XrdIo::fileOpenAsync(void* io_handler,
-                     XrdSfsFileOpenMode flags, mode_t mode,
-                     const std::string& opaque, uint16_t timeout)
-{
-  const char* val = 0;
-
-  if (!opaque.empty()) {
-    if (mOpaque.empty()) {
-      mOpaque = opaque;
-    } else {
-      mOpaque = mOpaque + "&" + opaque;
-    }
-  }
-
-  XrdOucEnv env_opaque(mOpaque.c_str());
-
-  // Decide if readahead is used and the block size
-  if ((val = env_opaque.Get("fst.readahead")) &&
-      (strncmp(val, "true", 4) == 0)) {
-    eos_debug("msg=\"enabling the readahead\"");
-    mDoReadahead = true;
-    val = 0;
-
-    if ((val = env_opaque.Get("fst.blocksize"))) {
-      mBlocksize = static_cast<uint64_t>(atoll(val));
-    }
-  }
-
-  if (mXrdFile) {
-    delete mXrdFile;
-    mXrdFile = NULL;
-  }
-
-  mXrdFile = new XrdCl::File();
-  mTargetUrl.FromString(BuildRequestUrl());
-  mXrdIdHelper.reset(new eos::common::XrdConnIdHelper(mXrdConnPool, mTargetUrl));
-
-  if (mXrdIdHelper->HasNewConnection()) {
-    eos_info("xrd_connection_id=%s", mTargetUrl.GetHostId().c_str());
-  }
-
-  // Disable recovery on read and write
-  if (!mXrdFile->SetProperty("ReadRecovery", "false") ||
-      !mXrdFile->SetProperty("WriteRecovery", "false")) {
-    eos_warning("%s", "msg=\"failed to set XrdCl::File properties read recovery"
-                " and write recovery to false\"");
-  }
-
-  XrdCl::OpenFlags::Flags flags_xrdcl =
-    eos::common::LayoutId::MapFlagsSfs2XrdCl(flags);
-  XrdCl::Access::Mode mode_xrdcl = eos::common::LayoutId::MapModeSfs2XrdCl(mode);
-  XrdCl::XRootDStatus status =
-    mXrdFile->Open(mTargetUrl.GetURL().c_str(), flags_xrdcl, mode_xrdcl,
-                   (XrdCl::ResponseHandler*)(io_handler), timeout);
-
-  if (!status.IsOK()) {
-    eos_err("%s", "msg=\"error opening remote XrdClFile\"");
-    errno = status.errNo;
-    mLastErrMsg = status.ToString().c_str();
-    mLastErrCode  = status.code;
-    mLastErrNo  = status.errNo;
-    return SFS_ERROR;
-  }
-
-  return SFS_OK;
-}
-
-//------------------------------------------------------------------------------
-// Open file asynchronously
-//------------------------------------------------------------------------------
 std::future<XrdCl::XRootDStatus>
 XrdIo::fileOpenAsync(XrdSfsFileOpenMode flags, mode_t mode,
                      const std::string& opaque, uint16_t timeout)
@@ -1049,21 +978,6 @@ XrdIo::fileDelete(const char* url)
   }
 
   return true;
-}
-
-//------------------------------------------------------------------------------
-// Clean read cache
-//------------------------------------------------------------------------------
-void
-XrdIo::CleanReadCache()
-{
-  fileWaitAsyncIO();
-
-  if (mQueueBlocks.empty()) {
-    for (unsigned int i = 0; i < mNumRdAheadBlocks; i++) {
-      mQueueBlocks.push(new ReadaheadBlock(mBlocksize, &gBuffMgr));
-    }
-  }
 }
 
 //------------------------------------------------------------------------------
