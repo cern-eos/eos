@@ -149,11 +149,10 @@ AclHelper::ParseCommand(const char* arg)
 
   // Get opts
   while ((temp = tokenizer.GetToken(false)) != 0) {
-    // Trimming
     token = std::string(temp);
-    eos::common::trim(token);
 
-    if (token == "") {
+    // Skip if token is empty or it contains only spaces
+    if ((token == "") || (token.find_first_not_of(' ') == std::string::npos)) {
       continue;
     }
 
@@ -245,7 +244,6 @@ AclHelper::ParseCommand(const char* arg)
 
         if ((temp = tokenizer.GetToken(false)) != 0) {
           token = std::string(temp);
-          eos::common::trim(token);
 
           if (!SetPath(token)) {
             std::cerr << "error: failed to the the absolute path" << std::endl;
