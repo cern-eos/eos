@@ -158,12 +158,11 @@ StringConversion::GetFixedDouble(double value, size_t width, size_t precision)
 }
 
 
-//------------------------------------------------------------------------------
-// Convert a long long value into K,M,G,T,P,E byte scale
-//------------------------------------------------------------------------------
-const char*
-StringConversion::GetReadableSizeString(XrdOucString& sizestring,
-                                        unsigned long long insize,
+//----------------------------------------------------------------------------
+//! Convert a long long value into K,M,G,T,P,E byte scale
+//----------------------------------------------------------------------------
+std::string
+StringConversion::GetReadableSizeString(unsigned long long insize,
                                         const char* unit)
 {
   char formsize[1024];
@@ -206,7 +205,30 @@ StringConversion::GetReadableSizeString(XrdOucString& sizestring,
     }
   }
 
-  sizestring = formsize;
+  return std::string(formsize);
+}
+
+//------------------------------------------------------------------------------
+// Convert a long long value into K,M,G,T,P,E byte scale
+//------------------------------------------------------------------------------
+const char*
+StringConversion::GetReadableSizeString(XrdOucString& sizestring,
+                                        unsigned long long insize,
+                                        const char* unit)
+{
+  sizestring = GetReadableSizeString(insize, unit).c_str();
+  return sizestring.c_str();
+}
+
+//------------------------------------------------------------------------------
+// Convert a long long value into K,M,G,T,P,E byte scale
+//------------------------------------------------------------------------------
+const char*
+StringConversion::GetReadableSizeString(std::string& sizestring,
+                                        unsigned long long insize,
+                                        const char* unit)
+{
+  sizestring = GetReadableSizeString(insize, unit);
   return sizestring.c_str();
 }
 
@@ -457,20 +479,6 @@ StringConversion::GetDataSizeFromString(const char* instring)
   } else {
     return (strtoll(sizestring.c_str(), 0, 10) * convfactor);
   }
-}
-
-//------------------------------------------------------------------------------
-// Convert a long long value into K,M,G,T,P,E byte scale
-//------------------------------------------------------------------------------
-const char*
-StringConversion::GetReadableSizeString(std::string& sizestring,
-                                        unsigned long long insize,
-                                        const char* unit)
-{
-  XrdOucString oucsizestring = "";
-  GetReadableSizeString(oucsizestring, insize, unit);
-  sizestring = oucsizestring.c_str();
-  return sizestring.c_str();
 }
 
 //------------------------------------------------------------------------------

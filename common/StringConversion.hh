@@ -184,32 +184,39 @@ public:
   static std::string
   GetFixedDouble(double value, size_t width, size_t precision);
 
-  // ---------------------------------------------------------------------------
-  /**
-   * Convert a long long value into K,M,G,T,P,E byte scale
-   *
-   * @param sizestring returned XrdOuc string representation
-   * @param insize number to convert
-   * @param unit unit to display e.g. B for bytes
-   *
-   * @return sizestring.c_str()
-   */
-  // ---------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
+  //! Convert a long long value into K,M,G,T,P,E byte scale
+  //!
+  //! @param insize number to convert
+  //! @param unit unit to display e.g. B for bytes
+  //!
+  //! @return string representation
+  //----------------------------------------------------------------------------
+  static std::string
+  GetReadableSizeString(unsigned long long insize, const char* unit = "");
+
+  //----------------------------------------------------------------------------
+  //! Convert a long long value into K,M,G,T,P,E byte scale
+  //!
+  //! @param sizestring returned XrdOucString representation
+  //! @param insize number to convert
+  //! @param unit unit to display e.g. B for bytes
+  //!
+  //! @return sizestring.c_str()
+  //----------------------------------------------------------------------------
   static const char*
   GetReadableSizeString(XrdOucString& sizestring,
                         unsigned long long insize,
                         const char* unit);
 
   // ---------------------------------------------------------------------------
-  /**
-   * Convert a long long value into K,M,G,T,P,E byte scale
-   *
-   * @param sizestring returned standard string representation
-   * @param insize number to convert
-   * @param unit unit to display e.g. B for bytes
-   *
-   * @return sizestring.c_str()
-   */
+  //! Convert a long long value into K,M,G,T,P,E byte scale
+  //!
+  //! @param sizestring returned std::string representation
+  //! @param insize number to convert
+  //! @param unit unit to display e.g. B for bytes
+  //!
+  //! @return sizestring.c_str()
   // ---------------------------------------------------------------------------
   static const char*
   GetReadableSizeString(std::string& sizestring,

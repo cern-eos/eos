@@ -798,10 +798,10 @@ Recycle::Print(std::string& std_out, std::string& std_err,
                       Quota::gProjectId);
 
     if (!map_quotas.empty()) {
-      unsigned long long usedbytes = map_quotas[SpaceQuota::kGroupBytesIs];
-      unsigned long long maxbytes = map_quotas[SpaceQuota::kGroupBytesTarget];
-      unsigned long long usedfiles = map_quotas[SpaceQuota::kGroupFilesIs];
-      unsigned long long maxfiles = map_quotas[SpaceQuota::kGroupFilesTarget];
+      unsigned long long used_bytes = map_quotas[SpaceQuota::kGroupBytesIs];
+      unsigned long long max_bytes = map_quotas[SpaceQuota::kGroupBytesTarget];
+      unsigned long long used_inodes = map_quotas[SpaceQuota::kGroupFilesIs];
+      unsigned long long max_inodes = map_quotas[SpaceQuota::kGroupFilesTarget];
       char sline[1024];
       XrdOucString sizestring1;
       XrdOucString sizestring2;
@@ -821,12 +821,12 @@ Recycle::Print(std::string& std_out, std::string& std_err,
                 << "_______" << std::endl;
         snprintf(sline, sizeof(sline) - 1, "# used %s out of %s (%.02f%% volume "
                  "/ %.02f%% inodes used) Object-Lifetime %s [s] Keep-Ratio %s",
-                 eos::common::StringConversion::GetReadableSizeString(sizestring1, usedbytes,
+                 eos::common::StringConversion::GetReadableSizeString(sizestring1, used_bytes,
                      "B"),
-                 eos::common::StringConversion::GetReadableSizeString(sizestring2, maxbytes,
+                 eos::common::StringConversion::GetReadableSizeString(sizestring2, max_bytes,
                      "B"),
-                 usedbytes * 100.0 / maxbytes,
-                 usedfiles * 100.0 / maxfiles,
+                 used_bytes * 100.0 / max_bytes,
+                 used_inodes * 100.0 / max_inodes,
                  attrmap.count(Recycle::gRecyclingTimeAttribute) ?
                  attrmap[Recycle::gRecyclingTimeAttribute].c_str() : "not configured",
                  attrmap.count(Recycle::gRecyclingKeepRatio) ?
@@ -836,13 +836,13 @@ Recycle::Print(std::string& std_out, std::string& std_err,
                 << "___________________________________________________________"
                 << "_______" << std::endl;
       } else {
-        snprintf(sline, sizeof(sline) - 1, "recycle-bin=%s usedbytes=%s "
-                 "maxbytes=%s volumeusage=%.02f%% inodeusage=%.02f%% lifetime=%s ratio=%s",
+        snprintf(sline, sizeof(sline) - 1, "recycle-bin=%s used_bytes=%s "
+                 "max_bytes=%s volumeusage=%.02f%% inodeusage=%.02f%% lifetime=%s ratio=%s",
                  Recycle::gRecyclingPrefix.c_str(),
-                 eos::common::StringConversion::GetSizeString(sizestring1, usedbytes),
-                 eos::common::StringConversion::GetSizeString(sizestring2, maxbytes),
-                 usedbytes * 100.0 / maxbytes,
-                 usedfiles * 100.0 / maxfiles,
+                 eos::common::StringConversion::GetSizeString(sizestring1, used_bytes),
+                 eos::common::StringConversion::GetSizeString(sizestring2, max_bytes),
+                 used_bytes * 100.0 / max_bytes,
+                 used_inodes * 100.0 / max_inodes,
                  attrmap.count(Recycle::gRecyclingTimeAttribute) ?
                  attrmap[Recycle::gRecyclingTimeAttribute].c_str() : "-1",
                  attrmap.count(Recycle::gRecyclingKeepRatio) ?

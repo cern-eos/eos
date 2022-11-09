@@ -93,7 +93,7 @@ TEST(StringConversion, timebased_uuidstring)
   ASSERT_TRUE(std::regex_match(uuid, regexUuid));
 }
 
-TEST(GetSizeFromString, BasicSanity)
+TEST(StringConversion, GetSizeFromString)
 {
   uint64_t out;
   ASSERT_TRUE(StringConversion::GetSizeFromString("5", out));
@@ -105,6 +105,38 @@ TEST(GetSizeFromString, BasicSanity)
   // Bug, this should be false :(
   ASSERT_TRUE(StringConversion::GetSizeFromString("pickles", out));
   ASSERT_EQ(out, 0);
+}
+
+TEST(StringConversion, GetReadableSizeString)
+{
+  unsigned long long size = 999;
+  ASSERT_STREQ("999", StringConversion::GetReadableSizeString(size).c_str());
+  ASSERT_STREQ("999 B", StringConversion::GetReadableSizeString(size,
+               "B").c_str());
+  size = 10000;
+  ASSERT_STREQ("10.00 k", StringConversion::GetReadableSizeString(size).c_str());
+  ASSERT_STREQ("10.00 kB", StringConversion::GetReadableSizeString(size,
+               "B").c_str());
+  size = 10200000;
+  ASSERT_STREQ("10.20 M", StringConversion::GetReadableSizeString(size).c_str());
+  ASSERT_STREQ("10.20 MB", StringConversion::GetReadableSizeString(size,
+               "B").c_str());
+  size = 1500000000;
+  ASSERT_STREQ("1.50 G", StringConversion::GetReadableSizeString(size).c_str());
+  ASSERT_STREQ("1.50 GB", StringConversion::GetReadableSizeString(size,
+               "B").c_str());
+  size = 1090000000000;
+  ASSERT_STREQ("1.09 T", StringConversion::GetReadableSizeString(size).c_str());
+  ASSERT_STREQ("1.09 TB", StringConversion::GetReadableSizeString(size,
+               "B").c_str());
+  size = 1340000000000000;
+  ASSERT_STREQ("1.34 P", StringConversion::GetReadableSizeString(size).c_str());
+  ASSERT_STREQ("1.34 PB", StringConversion::GetReadableSizeString(size,
+               "B").c_str());
+  size = 2310000000000000000;
+  ASSERT_STREQ("2.31 E", StringConversion::GetReadableSizeString(size).c_str());
+  ASSERT_STREQ("2.31 EB", StringConversion::GetReadableSizeString(size,
+               "B").c_str());
 }
 
 EOSCOMMONTESTING_END
