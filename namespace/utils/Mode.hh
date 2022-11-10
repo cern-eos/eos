@@ -26,6 +26,8 @@
 
 #include "common/Logging.hh"
 
+#define S_XATTR 0xa0000000
+
 namespace eos
 {
 
@@ -108,9 +110,17 @@ namespace eos
     }
 
     if(mode & S_ISVTX) {
-      modestr[9] = '+';
+      if (mode & S_XATTR) {
+	modestr[9] = 'T';
+      } else {
+	modestr[9] = 't';
+      }
+    } else {
+      if (mode & S_XATTR) {
+	modestr[9] = '+';
+      }
     }
-
+    
   }
 }
 

@@ -299,7 +299,7 @@ XrdMgmOfs::_mkdir(const char* path,
           newdir = eosView->createContainer(cPath.GetSubPath(j), recurse);
           newdir->setCUid(vid.uid);
           newdir->setCGid(vid.gid);
-          newdir->setMode(dir->getMode());
+          newdir->setMode(dir->getMode()&~(1UL << 9));
           // Inherit the attributes
           eos::IFileMD::XAttrMap xattrs = dir->getAttributes();
 
@@ -362,9 +362,9 @@ XrdMgmOfs::_mkdir(const char* path,
     newdir->setCUid(vid.uid);
     newdir->setCGid(vid.gid);
     // @note: we always inherit the mode of the parent directory. So far nobody
-    // complained so we'll keep it as it is until someone does.
+    // complained so we'll keep it as it is until someone does. The VTX bit is removed.
     //newdir->setMode(acc_mode);
-    newdir->setMode(dir->getMode());
+    newdir->setMode(dir->getMode()&~(1UL << 9));
     // Store the in-memory modification time
     eos::IContainerMD::ctime_t ctime;
     newdir->getCTime(ctime);

@@ -2749,7 +2749,6 @@ Server::OpDeleteDirectory(const std::string& id,
   resp.set_type(resp.ACK);
   std::shared_ptr<eos::IContainerMD> cmd;
   std::shared_ptr<eos::IContainerMD> pcmd;
-  std::shared_ptr<eos::IFileMD> fmd;
   eos::IFileMD::ctime_t mtime;
   mtime.tv_sec = md.mtime();
   mtime.tv_nsec = md.mtime_ns();
@@ -2757,12 +2756,14 @@ Server::OpDeleteDirectory(const std::string& id,
 
   try {
     pcmd = gOFS->eosDirectoryService->getContainerMD(md.md_pino());
+    cmd = gOFS->eosDirectoryService->getContainerMD(md.md_ino());
 
-    if (S_ISDIR(md.mode())) {
-      cmd = gOFS->eosDirectoryService->getContainerMD(md.md_ino());
-    } else {
-      fmd = gOFS->eosFileService->getFileMD(eos::common::FileId::InodeToFid(
-                                              md.md_ino()));
+    if (pcmd->getMode() & S_ISVTX) {
+      // check that we are the owner of that file if the vertex bit is set
+      if (cmd->getCUid() != vid.uid) {
+	throw_mdexception(EPERM,
+			  "Vertex bit set on parent directory and you are not the owner: " << md.name());
+      }
     }
 
     if (!cmd) {
@@ -2850,7 +2851,6 @@ Server::OpDeleteFile(const std::string& id,
 
   eos::fusex::response resp;
   resp.set_type(resp.ACK);
-  std::shared_ptr<eos::IContainerMD> cmd;
   std::shared_ptr<eos::IContainerMD> pcmd;
   std::shared_ptr<eos::IFileMD> fmd;
   eos::IFileMD::ctime_t mtime;
@@ -2860,12 +2860,14 @@ Server::OpDeleteFile(const std::string& id,
 
   try {
     pcmd = gOFS->eosDirectoryService->getContainerMD(md.md_pino());
-
-    if (S_ISDIR(md.mode())) {
-      cmd = gOFS->eosDirectoryService->getContainerMD(md.md_ino());
-    } else {
-      fmd = gOFS->eosFileService->getFileMD(eos::common::FileId::InodeToFid(
-                                              md.md_ino()));
+    fmd = gOFS->eosFileService->getFileMD(eos::common::FileId::InodeToFid(
+									  md.md_ino()));
+    if (pcmd->getMode() & S_ISVTX) {
+      // check that we are the owner of that file if the vertex bit is set
+      if (fmd->getCUid() != vid.uid) {
+	throw_mdexception(EPERM,
+			  "Vertex bit set on parent directory and you are not the owner: " << md.name());
+      }
     }
 
     if (!fmd) {
@@ -3082,6 +3084,14 @@ Server::OpDeleteLink(const std::string& id,
     pcmd = gOFS->eosDirectoryService->getContainerMD(md.md_pino());
     fmd = gOFS->eosFileService->getFileMD(eos::common::FileId::InodeToFid(
                                             md.md_ino()));
+
+    if (pcmd->getMode() & S_ISVTX) {
+      // check that we are the owner of that file if the vertex bit is set
+      if (fmd->getCUid() != vid.uid) {
+	throw_mdexception(EPERM,
+			  "Vertex bit set on parent directory and you are not the owner: " << md.name());
+      }
+    }
 
     if (!fmd) {
       // no link

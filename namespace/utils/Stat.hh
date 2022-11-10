@@ -25,6 +25,7 @@
 #define EOS_NS_STAT_HH
 
 #include "namespace/interface/IContainerMD.hh"
+#include "namespace/utils/Mode.hh"
 
 namespace eos
 {
@@ -36,8 +37,8 @@ namespace eos
   {
     mode_t retval = cmd->getMode();
 
-    if (cmd->numAttributes()) {
-      retval |= S_ISVTX;
+    if (cmd->hasAttribute("sys.acl") || cmd->hasAttribute("user.acl")) {
+      retval |= S_XATTR;
     }
 
     return retval;

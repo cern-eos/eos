@@ -3511,50 +3511,59 @@ EROFS  pathname refers to a file on a read-only filesystem.
           auto attrMap = md->attr();
           pmd = Instance().mds.get(req, parent, pcap->authid());
 
-          if (attrMap.count(k_mdino)) { /* This is a hard link */
-            uint64_t mdino = std::stoull(attrMap[k_mdino]);
-            uint64_t local_ino = Instance().mds.vmaps().forward(mdino);
-            tmd = Instance().mds.get(req, local_ino,
-                                     pcap->authid()); /* the target of the link */
-            hardlink_target_ino = tmd->id();
-            {
-              // if a hardlink is deleted, we should remove the local shadow entry
-              char nameBuf[256];
-              snprintf(nameBuf, sizeof(nameBuf), "...eos.ino...%lx", hardlink_target_ino);
-              std::string newname = nameBuf;
-              XrdSysMutexHelper pLock(pmd->Locker());
+	  if ((pmd->mode() & S_ISVTX)) {
+	    if (pcap->uid() != md->uid()) {
+	      // vertex directory can only be deleted by owner
+	      rc = EPERM;
+	    }
+	  }
 
-              if (pmd->local_children().count(
-                    eos::common::StringConversion::EncodeInvalidUTF8(newname))) {
-                pmd->local_children().erase(eos::common::StringConversion::EncodeInvalidUTF8(
-                                              newname));
-                pmd->set_nchildren(pmd->nchildren() - 1);
-              }
-            }
-          }
-
-          freesize = md->size();
-
-          if (EOS_LOGS_DEBUG) {
-            eos_static_debug("hlnk unlink %s new nlink %d %s", name, nlink,
-                             Instance().mds.dump_md(md, false).c_str());
-          }
-
-          // we have to signal the unlink always to 'the' target inode of a hardlink
-          if (hardlink_target_ino) {
-            Instance().datas.unlink(req, hardlink_target_ino);
-          } else {
-            Instance().datas.unlink(req, md->id());
-          }
-
-          Instance().mds.remove(req, pmd, md, pcap->authid());
-
-          if (attrMap.count(k_nlink)) {
-            // this is a target for hardlinks and we want to invalidate in the kernel cache
-            hardlink_target_ino = md->id();
-            md->force_refresh();
-          }
-        }
+	  if (!rc) {
+	    if (attrMap.count(k_mdino)) { /* This is a hard link */
+	      uint64_t mdino = std::stoull(attrMap[k_mdino]);
+	      uint64_t local_ino = Instance().mds.vmaps().forward(mdino);
+	      tmd = Instance().mds.get(req, local_ino,
+				       pcap->authid()); /* the target of the link */
+	      hardlink_target_ino = tmd->id();
+	      {
+		// if a hardlink is deleted, we should remove the local shadow entry
+		char nameBuf[256];
+		snprintf(nameBuf, sizeof(nameBuf), "...eos.ino...%lx", hardlink_target_ino);
+		std::string newname = nameBuf;
+		XrdSysMutexHelper pLock(pmd->Locker());
+		
+		if (pmd->local_children().count(
+						eos::common::StringConversion::EncodeInvalidUTF8(newname))) {
+		  pmd->local_children().erase(eos::common::StringConversion::EncodeInvalidUTF8(
+											       newname));
+		  pmd->set_nchildren(pmd->nchildren() - 1);
+		}
+	      }
+	    }
+	    
+	    freesize = md->size();
+	    
+	    if (EOS_LOGS_DEBUG) {
+	      eos_static_debug("hlnk unlink %s new nlink %d %s", name, nlink,
+			       Instance().mds.dump_md(md, false).c_str());
+	    }
+	    
+	    // we have to signal the unlink always to 'the' target inode of a hardlink
+	    if (hardlink_target_ino) {
+	      Instance().datas.unlink(req, hardlink_target_ino);
+	    } else {
+	      Instance().datas.unlink(req, md->id());
+	    }
+	    
+	    Instance().mds.remove(req, pmd, md, pcap->authid());
+	    
+	    if (attrMap.count(k_nlink)) {
+	      // this is a target for hardlinks and we want to invalidate in the kernel cache
+	      hardlink_target_ino = md->id();
+	      md->force_refresh();
+	    }
+	  }
+	}
       }
     }
 
@@ -3654,6 +3663,7 @@ EROFS  pathname refers to a directory on a read-only filesystem.
   Track::Monitor mon("rmdir", Instance().Tracker(), parent, true);
   int rc = 0;
   fuse_id id(req);
+
   // retrieve cap
   cap::shared_cap pcap = Instance().caps.acquire(req, parent,
                          S_IFDIR | X_OK | D_OK, true);
@@ -3712,8 +3722,16 @@ EROFS  pathname refers to a directory on a read-only filesystem.
 
       if (!rc) {
         pmd = Instance().mds.get(req, parent, pcap->authid());
-        Instance().mds.remove(req, pmd, md, pcap->authid());
-        del_ino = md->id();
+	if ((pmd->mode() & S_ISVTX)) {
+	  if (pcap->uid() != md->uid()) {
+	    // vertex directory can only be deleted by owner
+	    rc = EPERM;
+	  }
+	}
+	if (!rc) {
+	  Instance().mds.remove(req, pmd, md, pcap->authid());
+	  del_ino = md->id();
+	}
       }
     }
 

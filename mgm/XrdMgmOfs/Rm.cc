@@ -153,6 +153,8 @@ XrdMgmOfs::_rem(const char* path,
               e.getMessage().str().c_str());
   }
 
+  uid_t container_owner_uid=0;
+  bool container_vtx=false;
   if (fmd) {
     owner_uid = fmd->getCUid();
     owner_gid = fmd->getCGid();
@@ -160,6 +162,8 @@ XrdMgmOfs::_rem(const char* path,
 
     try {
       container = gOFS->eosDirectoryService->getContainerMD(fmd->getContainerId());
+      container_owner_uid=container->getCUid();
+      container_vtx = container->getMode() & S_ISVTX;
       aclpath = gOFS->eosView->getUri(container.get());
     } catch (eos::MDException& e) {
       container.reset();
@@ -183,11 +187,11 @@ XrdMgmOfs::_rem(const char* path,
 
     bool stdpermcheck = false;
 
-    if (acl.HasAcl()) {
+    if (acl.HasAcl() && (!container_vtx)) {
       eos_info("acl=%d r=%d w=%d wo=%d egroup=%d delete=%d not-delete=%d mutable=%d",
                acl.HasAcl(), acl.CanRead(), acl.CanWrite(), acl.CanWriteOnce(),
                acl.HasEgroup(), acl.CanDelete(), acl.CanNotDelete(), acl.IsMutable());
-
+      
       if ((!acl.CanWrite()) && (!acl.CanWriteOnce())) {
         // we have to check the standard permissions
         stdpermcheck = true;
@@ -195,37 +199,52 @@ XrdMgmOfs::_rem(const char* path,
     } else {
       stdpermcheck = true;
     }
-
-    if (container) {
-      if (stdpermcheck && (!container->access(vid.uid, vid.gid, W_OK | X_OK))) {
-        errno = EPERM;
-        std::ostringstream oss;
-        oss << path << " by tident=" << vid.tident;
-        return Emsg(epname, error, errno, "remove file", oss.str().c_str());
+    
+    if (container_vtx) { 
+      if (
+	  (container_owner_uid == vid.uid) ||
+	  (owner_uid == vid.uid) ) {
+	// great VTX allows the owner to delete, this is not overruled by a !delete acl
+      } else {
+	// forbidden because of VTX bit
+	errno = EPERM;
+	std::ostringstream oss;
+	oss << path << " by tident=" << vid.tident;
+	return Emsg(epname, error, errno, "remove file", oss.str().c_str());
       }
-
-      // check if this directory is write-once for the mapped user
-      if (acl.CanWriteOnce() && (fmd->getSize())) {
-        errno = EPERM;
-        // this is a write once user
-        return Emsg(epname, error, EPERM,
-                    "remove existing file - you are write-once user");
-      }
-
-      // if there is a !d policy we cannot delete files which we don't own
-      if (((vid.uid) && (vid.uid != 3) && (vid.gid != 4) && (acl.CanNotDelete())) &&
-          ((fmd->getCUid() != vid.uid))) {
-        errno = EPERM;
-        // deletion is forbidden for not-owner
-        return Emsg(epname, error, EPERM,
-                    "remove existing file - ACL forbids file deletion");
-      }
-
-      if ((!stdpermcheck) && (!acl.CanWrite())) {
-        errno = EPERM;
-        // this user is not allowed to write
-        return Emsg(epname, error, EPERM,
-                    "remove existing file - you don't have write permissions");
+    } else {
+      // try other permissions
+      if (container) {
+	if (stdpermcheck && (!container->access(vid.uid, vid.gid, W_OK | X_OK))) {
+	  errno = EPERM;
+	  std::ostringstream oss;
+	  oss << path << " by tident=" << vid.tident;
+	  return Emsg(epname, error, errno, "remove file", oss.str().c_str());
+	}
+	
+	// check if this directory is write-once for the mapped user
+	if (acl.CanWriteOnce() && (fmd->getSize())) {
+	  errno = EPERM;
+	  // this is a write once user
+	  return Emsg(epname, error, EPERM,
+		      "remove existing file - you are write-once user");
+	}
+	
+	// if there is a !d policy we cannot delete files which we don't own
+	if (((vid.uid) && (vid.uid != 3) && (vid.gid != 4) && (acl.CanNotDelete())) &&
+	    ((fmd->getCUid() != vid.uid))) {
+	  errno = EPERM;
+	  // deletion is forbidden for not-owner
+	  return Emsg(epname, error, EPERM,
+		      "remove existing file - ACL forbids file deletion");
+	}
+	
+	if ((!stdpermcheck) && (!acl.CanWrite())) {
+	  errno = EPERM;
+	  // this user is not allowed to write
+	  return Emsg(epname, error, EPERM,
+		      "remove existing file - you don't have write permissions");
+	}
       }
 
       // -----------------------------------------------------------------------
