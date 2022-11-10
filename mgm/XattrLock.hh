@@ -34,12 +34,18 @@ EOSMGMNAMESPACE_BEGIN
 
 struct XattrLock {
 public:
-  XattrLock() : valid(false), expires(0) {}
+  XattrLock() : valid(false), expires(0), isshared(false), isfuseopen(false) {}
 
-  XattrLock(eos::IFileMD::XAttrMap& attr) : xattr(attr), valid(false), expires(0) {
+  XattrLock(eos::IFileMD::XAttrMap& attr) : xattr(attr), valid(false), expires(0), isshared(false), isfuseopen(false) {
     auto l = xattr.find(eos::common::EOS_APP_LOCK_ATTR);
     if (l!=xattr.end()) {
       Parse(l->second.c_str());
+    }
+    
+    // check fuse commit state
+    std::string fs = attr["sys.fusex.state"];
+    if (!fs.empty()) {
+      isfuseopen = fs.back() != '|';
     }
   }
   virtual ~XattrLock() {}
@@ -68,6 +74,10 @@ public:
       return false;
     ssize_t lifetime = expires - now;
 
+    if (isfuseopen) {
+      // file is in open state
+      return false;
+    }
     if (lifetime > 0) {
       // check the lock is still within its lifetime
       if (lifetime > 604800) {
@@ -176,6 +186,7 @@ public:
 private:
   eos::IFileMD::XAttrMap xattr;
   bool valid;
+  bool isfuseopen;
   bool isshared;
   time_t expires;
   std::string owner;

@@ -235,8 +235,15 @@ XrdMgmOfs::Commit(const char* path,
 	  fusexstate += "+";
 	  fusexstate += std::to_string(fsid);
 	}
-	if (option["commitsize"]) {
-	  fusexstate += "s";
+
+	if ( eos::common::LayoutId::GetChecksum(lid) != eos::common::LayoutId::kNone ) {
+	  if (option["commitsize"]) {
+	    fusexstate += "s|";
+	  }
+	} else {
+	  if (option["commitsize"]) {
+	    fusexstate += "s";
+	  }
 	}
 	if (option["commitchecksum"]) {
 	  fusexstate += "c|";
