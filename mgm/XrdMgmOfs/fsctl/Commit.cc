@@ -226,34 +226,35 @@ XrdMgmOfs::Commit(const char* path,
       }
 
       if (option["fusex"]) {
-        std::string fusexstate;
+	std::string fusexstate;
+	try {
+	  fusexstate = fmd->getAttribute("sys.fusex.state");
+	} catch (...) {}
 
-        try {
-          fusexstate = fmd->getAttribute("sys.fusex.state");
-        } catch (...) {}
+	if (option["update"] || option["replication"]) {
+	  fusexstate += "+";
+	  fusexstate += std::to_string(fsid);
+	}
 
-        if (option["update"] || option["replication"]) {
-          fusexstate += "+";
-          fusexstate += std::to_string(fsid);
-        }
-
-        if (option["commitsize"]) {
-          fusexstate += "s";
-        }
-
-        if (option["commitchecksum"]) {
-          fusexstate += "c|";
-        }
-
-        if (option["verifychecksum"]) {
-          fusexstate += "v|";
-        }
-
-        if (option["verifysize"]) {
-          fusexstate += "V|";
-        }
-
-        fmd->setAttribute("sys.fusex.state", fusexstate);
+	if ( eos::common::LayoutId::GetChecksum(lid) != eos::common::LayoutId::kNone ) {
+	  if (option["commitsize"]) {
+	    fusexstate += "s|";
+	  }
+	} else {
+	  if (option["commitsize"]) {
+	    fusexstate += "s";
+	  }
+	}
+	if (option["commitchecksum"]) {
+	  fusexstate += "c|";
+	}
+	if (option["verifychecksum"]) {
+	  fusexstate += "v|";
+	}
+	if (option["verifysize"]) {
+	  fusexstate += "V|";
+	}
+	fmd->setAttribute("sys.fusex.state",fusexstate);
       }
 
       // Advance oc upload parameters if concerned
