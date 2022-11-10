@@ -160,6 +160,7 @@ install(PROGRAMS xrdstress eos-instance-test eos-instance-test-ci
   eos-convert-test eos-balance-test eos-qos-test eos-timestamp-test
   eos-squash-test eos-defaultcc-test eos-quota-test
   eos-synctime-test eos-bash test-eos-iam-mapfile.py
+  fusex/eos-test-credential-bindings
   DESTINATION ${CMAKE_INSTALL_FULL_SBINDIR}
   PERMISSIONS OWNER_READ OWNER_EXECUTE
   GROUP_READ GROUP_EXECUTE

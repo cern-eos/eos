@@ -755,6 +755,11 @@ code_quality_html:
     # prepare mountpoints
     - exec_cmd eos-cli1 'atd; at now <<< "mkdir -p /eos1/ && mount -t fuse eosxd -ofsname=mount-1 /eos1/; mkdir -p /eos2/ && mount -t fuse eosxd -ofsname=mount-2 /eos2/;"'
     - exec_cmd eos-cli1 'count=0; while [[ $count -le 10 ]] && ( [[ ! -d /eos1/dockertest/ ]] || [[ ! -d /eos2/dockertest/ ]] ); do echo "Wait for mount... $count"; (( count++ )); sleep 1; done;'
+    # fusex functional bindings
+    - exec_cmd eos-cli1 'atd; at now <<< "mkdir -p /eosfunctionaltest/ && mount -t fuse eosxd -ofsname=eosdockertest /eosfunctionaltest/;"'
+    - exec_cmd eos-cli1 'count=0; while [[ $count -le 10 ]] && [[ ! -d /eosfunctionaltest/dockertest/ ]] ; do echo "Wait for mount... $count"; (( count++ )); sleep 1; done;'
+    - exec_cmd eos-cli1 'su eos-user -c "mkdir -m 700 -p /eosfunctionaltest/dockertest/credentialtest/ && cd /eosfunctionaltest/dockertest/credentialtest/"'
+    - exec_cmd eos-cli1 'su eos-user -c "eos-test-credential-bindings /eosfunctionaltest/dockertest/credentialtest/"'
     # fusex benchmark
     - exec_cmd eos-mgm1 'eos ns mutex --toggleorder'
     - exec_cmd eos-cli1 'su eos-user -c "mkdir -p /eos1/dockertest/fusex_tests/ && cd /eos1/dockertest/fusex_tests/ && fusex-benchmark"'

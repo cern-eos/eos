@@ -915,6 +915,7 @@ Contains an instance and fuse test script and some test executables and test arc
 %{_sbindir}/eos-fusex-certify
 %{_sbindir}/eos-fusex-ioverify
 %{_sbindir}/eos-fusex-recovery
+%{_sbindir}/eos-test-credential-bindings
 %{_sbindir}/eos-checksum-benchmark
 %{_sbindir}/test-eos-iam-mapfile.py
 %{_sbindir}/xrdcpnonstreaming
