@@ -68,6 +68,8 @@ ShardedCache<std::string, Mapping::id_pair> Mapping::gShardedPhysicalUidCache (8
 ShardedCache<std::string, Mapping::gid_set> Mapping::gShardedPhysicalGidCache (8, 3600*1000);
 ShardedCache<uid_t, std::string> Mapping::gShardedNegativeUserNameCache (16, 3600*1000);
 ShardedCache<gid_t, std::string> Mapping::gShardedNegativeGroupNameCache (16, 3600*1000);
+ShardedCache<std::string, bool> Mapping::gShardedNegativePhysicalUidCache
+    (16, 3600*1000);
 XrdOucHash<Mapping::gid_set> Mapping::gPhysicalGidCache;
 
 std::mutex Mapping::gPhysicalUserNameCacheMutex;
@@ -2321,9 +2323,16 @@ Mapping::getPhysicalIdShards(const std::string& name, VirtualIdentity& vid)
     }
 
     if (use_pw) {
+      if (auto ptr = gShardedNegativePhysicalUidCache.retrieve(name)) {
+        eos_static_debug("msg=\"found in negative user name cache\" name=%s",
+                         name.c_str());
+        return;
+      }
+
       struct passwd* pwbufp = 0;
       {
         if (getpwnam_r(name.c_str(), &passwdinfo, buffer, buflen, &pwbufp) || (!pwbufp)) {
+          gShardedNegativePhysicalUidCache.store(name, std::make_unique<bool>(true));
           return;
         }
       }

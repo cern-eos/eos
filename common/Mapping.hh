@@ -166,6 +166,7 @@ public:
   static AllowedTidentMatches_t gAllowedTidentMatches;
 
   static ShardedCache<std::string, id_pair> gShardedPhysicalUidCache;
+  static ShardedCache<std::string, bool> gShardedNegativePhysicalUidCache;
   // ---------------------------------------------------------------------------
   //! A cache for physical user id caching (e.g. from user name to uid)
   static XrdOucHash<id_pair> gPhysicalUidCache;
