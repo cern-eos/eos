@@ -24,6 +24,8 @@
 #pragma once
 #include "common/Logging.hh"
 
+#define S_XATTR 0xa0000000
+
 namespace eos
 {
 //------------------------------------------------------------------------------
@@ -81,6 +83,10 @@ inline void modeToBuffer(mode_t mode, char* modestr)
     modestr[2] = 'w';
   }
 
+  if (mode & S_IXOTH) {
+    modestr[9] = 'x';
+  }
+
   if (mode & S_IXUSR) {
     modestr[3] = 'x';
   }
@@ -97,30 +103,30 @@ inline void modeToBuffer(mode_t mode, char* modestr)
     modestr[6] = 'x';
   }
 
-  if (mode & S_IROTH) {
-    modestr[7] = 'r';
+  if(mode & S_ISVTX) {
+    if (mode & S_XATTR) {
+      modestr[9] = 'T';
+    } else {
+      modestr[9] = 't';
+    }
+  } else {
+    if (mode & S_XATTR) {
+      modestr[9] = '+';
+    }
   }
-
-  if (mode & S_IWOTH) {
-    modestr[8] = 'w';
-  }
-
-  if (mode & S_IXOTH) {
-    modestr[9] = 'x';
-  }
-
-  // ------------------------
 
   if (mode & S_ISUID) {
     modestr[3] = 's';
   }
-
+  
   if (mode & S_ISGID) {
     modestr[6] = 's';
   }
-
+  
   if (mode & S_ISVTX) {
     modestr[9] = '+';
   }
 }
 }
+
+#endif

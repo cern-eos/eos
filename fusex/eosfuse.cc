@@ -3711,6 +3711,13 @@ EROFS  pathname refers to a file on a read-only filesystem.
           auto attrMap = (*md)()->attr();
           pmd = Instance().mds.get(req, parent, (*pcap)()->authid());
 
+	  if (((*pmd)()->mode() & S_ISVTX)) {
+	    if ((*pcap)()->uid() != (*md)()->uid()) {
+	      // vertex directory can only be deleted by owner
+	      rc = EPERM;
+	    }
+	  }
+
           if (attrMap.count(k_mdino)) { /* This is a hard link */
             uint64_t mdino = std::stoull(attrMap[k_mdino]);
             uint64_t local_ino = Instance().mds.vmaps().forward(mdino);
@@ -3854,6 +3861,7 @@ EROFS  pathname refers to a directory on a read-only filesystem.
   Track::Monitor mon("rmdir", Instance().Tracker(), parent, true);
   int rc = 0;
   fuse_id id(req);
+
   // retrieve cap
   cap::shared_cap pcap = Instance().caps.acquire(req, parent,
                          S_IFDIR | X_OK | D_OK, true);
@@ -3911,9 +3919,23 @@ EROFS  pathname refers to a directory on a read-only filesystem.
       }
 
       if (!rc) {
+<<<<<<< HEAD
         pmd = Instance().mds.get(req, parent, (*pcap)()->authid());
         Instance().mds.remove(req, pmd, md, (*pcap)()->authid());
         del_ino = (*md)()->id();
+=======
+        pmd = Instance().mds.get(req, parent, pcap->authid());
+	if ((pmd->mode() & S_ISVTX)) {
+	  if (pcap->uid() != md->uid()) {
+	    // vertex directory can only be deleted by owner
+	    rc = EPERM;
+	  }
+	}
+	if (!rc) {
+	  Instance().mds.remove(req, pmd, md, pcap->authid());
+	  del_ino = md->id();
+	}
+>>>>>>> 469273e03 (ALL: add VTX bit support, correct 'ls -la' output to show t,T,+ to indicate VTX, VTX+ACL, ACL)
       }
     }
 

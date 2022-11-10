@@ -23,21 +23,22 @@
 
 #pragma once
 #include "namespace/interface/IContainerMD.hh"
+#include "namespace/utils/Mode.hh"
 
 namespace eos
 {
+
 //----------------------------------------------------------------------------
 //! Helper function for deriving the mode_t from a ContainerMD.
 //----------------------------------------------------------------------------
-inline mode_t modeFromMetadataEntry(const std::shared_ptr<eos::IContainerMD>&
-                                    cmd)
+inline mode_t modeFromMetadataEntry(const std::shared_ptr<eos::IContainerMD> &cmd)
 {
   mode_t retval = cmd->getMode();
-
-  if (cmd->numAttributes()) {
-    retval |= S_ISVTX;
+  
+  if (cmd->hasAttribute("sys.acl") || cmd->hasAttribute("user.acl")) {
+    retval |= S_XATTR;
   }
-
+  
   return retval;
 }
 
