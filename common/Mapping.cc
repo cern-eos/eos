@@ -463,9 +463,9 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
         // otherwise it maps to the unix ID on the client host
         if (((vid.prot == "unix") && (vid.name == "root")) ||
             ((vid.prot == "sss") && (vid.name == "daemon"))) {
-          Mapping::getPhysicalIds(myrole.c_str(), vid);
+          Mapping::getPhysicalIdShards(myrole.c_str(), vid);
         } else {
-          Mapping::getPhysicalIds(client->name, vid);
+          Mapping::getPhysicalIdShards(client->name, vid);
         }
       }
     } else {
@@ -495,9 +495,9 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
 
         if (((vid.prot == "unix") && (vid.name == "root")) ||
             ((vid.prot == "sss") && (vid.name == "daemon"))) {
-          Mapping::getPhysicalIds(myrole.c_str(), vid);
+          Mapping::getPhysicalIdShards(myrole.c_str(), vid);
         } else {
-          Mapping::getPhysicalIds(client->name, vid);
+          Mapping::getPhysicalIdShards(client->name, vid);
         }
 
         vid.uid = uid;
@@ -672,10 +672,10 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
 
         if (errc) {
           // we have no mapping for this uid
-          Mapping::getPhysicalIds("nobody", vid);
+          Mapping::getPhysicalIdShards("nobody", vid);
         } else {
           // map oauthname
-          Mapping::getPhysicalIds(oauthname.c_str(), vid);
+          Mapping::getPhysicalIdShards(oauthname.c_str(), vid);
         }
 
         vid.prot = "oauth2";
@@ -1009,7 +1009,7 @@ Mapping::HandleVOMS(const XrdSecEntity* client, VirtualIdentity& vid)
     std::string cname = Mapping::UidToUserName(gVirtualUidMap[vomsuidstring], errc);
 
     if (!errc) {
-      Mapping::getPhysicalIds(cname.c_str(), vid);
+      Mapping::getPhysicalIdShards(cname.c_str(), vid);
     } else {
       vid = VirtualIdentity::Nobody();
       eos_static_err("voms-mapping: cannot translate uid=%d to user name with "
