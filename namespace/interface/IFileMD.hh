@@ -29,6 +29,7 @@
 #include "namespace/utils/LocalityHint.hh"
 #include "namespace/interface/IContainerMD.hh"
 #include "namespace/interface/Identifiers.hh"
+#include "namespace/interface/NSObjectLocker.hh"
 #include <stdint.h>
 #include <string>
 #include <sys/time.h>
@@ -41,7 +42,7 @@ class IFileMDSvc;
 //------------------------------------------------------------------------------
 //! Interface to file metadata
 //------------------------------------------------------------------------------
-class IFileMD
+class IFileMD : public NSObjectMDLockHelper<IFileMD>
 {
 public:
   //----------------------------------------------------------------------------
@@ -58,7 +59,7 @@ public:
   //----------------------------------------------------------------------------
   //! Constructor
   //----------------------------------------------------------------------------
-  IFileMD(): mIsDeleted(false) {};
+  IFileMD(): NSObjectMDLockHelper(),mIsDeleted(false) {};
 
   //----------------------------------------------------------------------------
   //! Destructor
@@ -452,104 +453,12 @@ public:
 
   IFileMD& operator=(const IFileMD& other) = delete;
 
-  /**
-   * This class locks the IFileMD shared_ptr passed in the constructor
-   */
-  class IFileMDLocker {
-  public:
-    IFileMDLocker(std::shared_ptr<IFileMD> fileMD):mLock{fileMD->mMutex},mFileMD(fileMD){
-      mFileMD->registerLock();
-    }
-    std::shared_ptr<IFileMD> operator->() {
-      return mFileMD;
-    }
-    ~IFileMDLocker(){
-      mFileMD->unregisterLock();
-    }
-  private:
-    std::unique_lock<std::shared_timed_mutex> mLock;
-    std::shared_ptr<IFileMD> mFileMD;
-  };
-
+  template<typename ObjectMDPtr, typename LockType> friend class NSObjectMDLocker;
+  friend class NSObjectMDLockHelper<IFileMD>;
+  using IFileMDReadLocker = NSObjectMDLocker<IFileMDPtr,MDReadLock>;
+  using IFileMDWriteLocker = NSObjectMDLocker<IFileMDPtr,MDWriteLock>;
 protected:
   mutable std::shared_timed_mutex mMutex;
-  //Mutex to protect the map that keeps track of the threads that are locking this IFileMD object
-  mutable std::shared_timed_mutex mThreadIdLockMapMutex;
-  //Map that keeps track of the threads that already have a lock
-  //on this IFileMD object. This map is only filled when the FileMDLocker object
-  //is used.
-  mutable std::map<std::thread::id,bool> mThreadIdLockMap;
-
-  void registerLock() {
-    std::unique_lock<std::shared_timed_mutex> lock(mThreadIdLockMapMutex);
-    mThreadIdLockMap[std::this_thread::get_id()] = true;
-  }
-
-  void unregisterLock() {
-    std::unique_lock<std::shared_timed_mutex> lock(mThreadIdLockMapMutex);
-    auto threadId = std::this_thread::get_id();
-    auto currentThreadIsLock = mThreadIdLockMap.find(threadId);
-    if(currentThreadIsLock != mThreadIdLockMap.end()){
-      mThreadIdLockMap.erase(threadId);
-    }
-  }
-
-  bool isLockRegisteredByThisThread() const {
-    std::shared_lock<std::shared_timed_mutex> lock(mThreadIdLockMapMutex);
-    auto currentThreadIsLock = mThreadIdLockMap.find(std::this_thread::get_id());
-    if(currentThreadIsLock == mThreadIdLockMap.end()){
-      return false;
-    }
-    return true;
-  }
-
-  template<typename Functor>
-  auto runWriteOp(Functor && functor) -> decltype(functor()){
-    if(!isLockRegisteredByThisThread()){
-      //Object mutex is not locked, lock it and run the functor
-      std::unique_lock<std::shared_timed_mutex> lock(mMutex);
-      return functor();
-    } else {
-      //Object mutex is locked by this thread, run the functor
-      return functor();
-    }
-  }
-
-  template<typename Functor>
-  auto runWriteOp(Functor && functor) const -> decltype(functor()) {
-    if(!isLockRegisteredByThisThread()){
-      //Object mutex is not locked, lock it and run the functor
-      std::unique_lock<std::shared_timed_mutex> lock(mMutex);
-      return functor();
-    } else {
-      //Object mutex is locked by this thread, run the functor
-      return functor();
-    }
-  }
-
-  template<typename Functor>
-  auto runReadOp(Functor && functor) -> decltype(functor()){
-    if(!isLockRegisteredByThisThread()){
-      //Object mutex is not locked, lock it and run the functor
-      std::shared_lock<std::shared_timed_mutex> lock(mMutex);
-      return functor();
-    } else {
-      //Object mutex is locked by this thread, run the functor
-      return functor();
-    }
-  }
-
-  template<typename Functor>
-  auto runReadOp(Functor && functor) const -> decltype(functor()) {
-    if(!isLockRegisteredByThisThread()){
-      //Object mutex is not locked, lock it and run the functor
-      std::shared_lock<std::shared_timed_mutex> lock(mMutex);
-      return functor();
-    } else {
-      //Object mutex is locked by this thread, run the functor
-      return functor();
-    }
-  }
 
 private:
   std::atomic<bool> mIsDeleted; ///< Mark if object is still in cache but it was deleted
