@@ -370,8 +370,17 @@ public:
   // ---------------------------------------------------------------------------
   static bool IsOAuth2Resource(const std::string& resource);
 
+  // ---------------------------------------------------------------------------
+  //! Helper functions to populate vid.uid/gid from the Phyiscal Cache/passwd
+  // ---------------------------------------------------------------------------
   static void getPhysicalUids(const char* name, VirtualIdentity& vid);
   static void getPhysicalGids(const char* name, VirtualIdentity& vid);
+
+  static void getPhysicalUidGids(const char* name, VirtualIdentity& vid);
+
+  static void HandleUidGidMapping(const char* name, VirtualIdentity& vid,
+                                  const std::string& uid_key_name,
+                                  const std::string& gid_key_name);
 
   static void cacheUserIds(uid_t uid, const std::string& username);
   static void cacheGroupIds(gid_t gid, const std::string& groupname);

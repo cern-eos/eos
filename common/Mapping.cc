@@ -97,6 +97,9 @@ static std::string g_gsi_gid_key = "gsi:" + g_pwd_gid_key;
 static std::string g_krb_uid_key = "krb5:" + g_pwd_uid_key;
 static std::string g_krb_gid_key = "krb5:" + g_pwd_gid_key;
 
+//Static vars for nobody ids which may change in the future
+static uid_t g_nobody_uid = 99;
+static gid_t g_nobody_gid = 99;
 /*----------------------------------------------------------------------------*/
 /**
  * Initialize Google maps
@@ -301,127 +304,19 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
     } else {
       client_username = client->name;
     }
-
-    if (auto kv = gVirtualUidMap.find(g_https_uid_key);
-        kv != gVirtualUidMap.end()) {
-      if (kv->second == 0) {
-        eos_static_debug("%s", "msg=\"https uid mapping\"");
-        Mapping::getPhysicalIds(client_username.c_str(), vid);
-        vid.gid = 99;
-        vid.allowed_gids.clear();
-        vid.allowed_gids.insert(vid.gid);
-      } else {
-        eos_static_debug("%s", "msg=\"https forced uid mapping\"");
-        // Map to the requested id
-        vid.uid = kv->second;
-        vid.allowed_uids.clear();
-        vid.allowed_uids.insert(vid.uid);
-        vid.allowed_uids.insert(99);
-        vid.gid = 99;
-        vid.allowed_gids.clear();
-        vid.allowed_gids.insert(vid.gid);
-      }
-    }
-
-    if (auto kv = gVirtualGidMap.find(g_https_gid_key);
-        kv != gVirtualGidMap.end()) {
-      if (kv->second == 0) {
-        eos_static_debug("%s", "msg=\"https gid mapping\"");
-        uid_t uid = vid.uid;
-        Mapping::getPhysicalIds(client_username.c_str(), vid);
-        vid.uid = uid;
-        vid.allowed_uids.clear();
-        vid.allowed_uids.insert(vid.uid);
-        vid.allowed_uids.insert(99);
-      } else {
-        eos_static_debug("%s", "msg=\"https forced gid mapping\"");
-        vid.gid = kv->second;
-        vid.allowed_gids.clear();
-        vid.allowed_gids.insert(vid.gid);
-      }
-    }
-
+    HandleUidGidMapping(client_username.c_str(), vid,
+                        g_https_uid_key, g_https_gid_key);
     HandleVOMS(client, vid);
   }
 
   // sss mapping
   if ((vid.prot == "sss")) {
-    eos_static_debug("sss mapping");
-    auto kv_uid = gVirtualUidMap.find(g_sss_uid_key);
-    auto kv_gid = gVirtualGidMap.find(g_sss_gid_key);
-    bool uid_mapped = kv_uid != gVirtualUidMap.end();
-    bool gid_mapped = kv_gid != gVirtualGidMap.end();
-
-    if (uid_mapped && gid_mapped &&
-        kv_uid->second == 0 && kv_gid->second == 0) {
-      Mapping::getPhysicalIdShards(std::string(client->name), vid);
-      vid.allowed_uids.clear();
-      vid.allowed_gids.clear();
-      vid.allowed_uids.insert(vid.uid);
-      vid.allowed_gids.insert(vid.gid);
-      vid.allowed_uids.insert(99);
-      vid.allowed_gids.insert(99);
-    } else if (uid_mapped) {
-      if (kv_uid->second == 0) {
-        eos_static_debug("%s", "msg=\"sss uid mapping\"");
-        Mapping::getPhysicalUids(client->name, vid);
-      } else {
-        eos_static_debug("%s", "sss uid forced mapping");
-        vid.uid = kv_uid->second;
-        vid.allowed_uids.clear();
-        vid.allowed_uids.insert(vid.uid);
-        vid.allowed_uids.insert(99);
-        vid.gid = 99;
-        vid.allowed_gids.clear();
-        vid.allowed_gids.insert(vid.gid);
-      }
-    } else if (gid_mapped) {
-      if (kv_gid->second == 0) {
-        eos_static_debug("%s", "msg=\"sss gid mapping\"");
-        Mapping::getPhysicalGids(client->name, vid);
-      } else {
-        eos_static_debug("%s", "msg=\"sss forced gid mapping\"");
-        vid.allowed_gids.clear();
-        vid.gid = kv_gid->second;
-        vid.allowed_gids.insert(vid.gid);
-      }
-    }
+    HandleUidGidMapping(client->name, vid, g_sss_uid_key, g_sss_gid_key);
   }
 
   // unix mapping
   if ((vid.prot == "unix")) {
-    eos_static_debug("%s", "msg=\"unix mapping\"");
-
-    if (auto kv = gVirtualUidMap.find(g_unix_uid_key);
-        kv != gVirtualUidMap.end()) {
-      if (kv->second == 0) {
-        // Use physical mapping for unix names
-        Mapping::getPhysicalUids(client->name, vid);
-      } else {
-        eos_static_debug("%s", "msg=\"unix forced uid mapping\"");
-        vid.allowed_uids.clear();
-        vid.uid = kv->second;
-        vid.allowed_uids.insert(vid.uid);
-        vid.allowed_uids.insert(99);
-        vid.gid = 99;
-        vid.allowed_gids.clear();
-        vid.allowed_gids.insert(vid.gid);
-      }
-    }
-
-    if (auto kv = gVirtualGidMap.find(g_unix_gid_key);
-        kv != gVirtualGidMap.end()) {
-      if (kv->second == 0) {
-        eos_static_debug("%s", "msg=\"unix gid mapping\"");
-        // Use physical mapping for unix names
-        Mapping::getPhysicalGids(client->name, vid);
-      } else {
-        eos_static_debug("%s", "msg=\"unix forced gid mapping\"");
-        vid.allowed_gids.clear();
-        vid.gid = kv->second;
-        vid.allowed_gids.insert(vid.gid);
-      }
-    }
+    HandleUidGidMapping(client->name, vid, g_unix_uid_key, g_unix_gid_key);
   }
 
   // tident mapping
@@ -2399,8 +2294,8 @@ Mapping::getPhysicalIdShards(const std::string& name, VirtualIdentity& vid)
 void
 Mapping::getPhysicalUids(const char* name, VirtualIdentity& vid)
 {
-  Mapping::getPhysicalIds(name, vid);
-  vid.gid = 99;
+  Mapping::getPhysicalIdShards(name, vid);
+  vid.gid = g_nobody_uid;
   vid.allowed_gids.clear();
   vid.allowed_gids.insert(vid.gid);
 }
@@ -2409,11 +2304,23 @@ void
 Mapping::getPhysicalGids(const char* name, VirtualIdentity& vid)
 {
   uid_t uid = vid.uid;
-  Mapping::getPhysicalIds(name, vid);
+  Mapping::getPhysicalIdShards(name, vid);
   vid.uid = uid;
   vid.allowed_uids.clear();
   vid.allowed_uids.insert(uid);
-  vid.allowed_uids.insert(99);
+  vid.allowed_uids.insert(g_nobody_uid);
+}
+
+void
+Mapping::getPhysicalUidGids(const char* name, VirtualIdentity& vid)
+{
+  Mapping::getPhysicalIdShards(name, vid);
+  vid.allowed_uids.clear();
+  vid.allowed_gids.clear();
+  vid.allowed_uids.insert(vid.uid);
+  vid.allowed_gids.insert(vid.gid);
+  vid.allowed_uids.insert(g_nobody_uid);
+  vid.allowed_gids.insert(g_nobody_gid);
 }
 
 void
@@ -2430,6 +2337,53 @@ Mapping::cacheGroupIds(gid_t gid, const std::string& groupname)
   std::scoped_lock lock(gPhysicalGroupNameCacheMutex);
   gPhysicalGroupIdCache[groupname] = gid;
   gPhysicalGroupNameCache[gid] = groupname;
+}
+
+void
+Mapping::HandleUidGidMapping(const char* name, VirtualIdentity& vid,
+                             const std::string& uid_key_name,
+                             const std::string& gid_key_name)
+{
+  eos_static_debug("msg=\"handle uid gid mapping\" name=%s prot=%s",
+                   name, vid.prot.c_str());
+  auto kv_uid = gVirtualUidMap.find(uid_key_name);
+  auto kv_gid = gVirtualGidMap.find(gid_key_name);
+  bool uid_mapped = kv_uid != gVirtualUidMap.end();
+  bool gid_mapped = kv_gid != gVirtualGidMap.end();
+
+  if (uid_mapped && gid_mapped &&
+      kv_uid->second == 0 && kv_gid->second == 0) {
+    eos_static_debug("msg=\"%s uid/gid mapping\"", vid.prot.c_str());
+    Mapping::getPhysicalUidGids(name, vid);
+    return;
+  }
+  if (uid_mapped) {
+    if (kv_uid->second == 0) {
+      eos_static_debug("msg=\"%s uid mapping\"", vid.prot.c_str());
+      Mapping::getPhysicalUids(name, vid);
+    } else {
+      eos_static_debug("msg=\"%s uid forced mapping\"", vid.prot.c_str());
+      vid.uid = kv_uid->second;
+      vid.allowed_uids.clear();
+      vid.allowed_uids.insert(vid.uid);
+      vid.allowed_uids.insert(99);
+      vid.gid = 99;
+      vid.allowed_gids.clear();
+      vid.allowed_gids.insert(vid.gid);
+    }
+  }
+  if (gid_mapped) {
+    if (kv_gid->second == 0) {
+      eos_static_debug("msg=\"%s gid mapping\"", vid.prot.c_str());
+      Mapping::getPhysicalGids(name, vid);
+    } else {
+      eos_static_debug("msg=\"%s forced gid mapping\"", vid.prot.c_str());
+      vid.allowed_gids.clear();
+      vid.gid = kv_gid->second;
+      vid.allowed_gids.insert(vid.gid);
+    }
+  }
+
 }
 
 EOSCOMMONNAMESPACE_END
