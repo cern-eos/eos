@@ -144,8 +144,9 @@ public:
   //----------------------------------------------------------------------------
   inline IContainerMD::id_t getId() const override
   {
-    std::shared_lock<std::shared_timed_mutex> lock(mMutex);
-    return mCont.id();
+    return runReadOp([this](){
+      return mCont.id();
+    });
   }
 
   //----------------------------------------------------------------------------
@@ -153,8 +154,7 @@ public:
   //----------------------------------------------------------------------------
   inline ContainerIdentifier getIdentifier() const override
   {
-    std::shared_lock<std::shared_timed_mutex> lock(mMutex);
-    return ContainerIdentifier(mCont.id());
+    return ContainerIdentifier(getId());
   }
 
 
@@ -164,8 +164,10 @@ public:
   inline IContainerMD::id_t
   getParentId() const override
   {
-    std::shared_lock<std::shared_timed_mutex> lock(mMutex);
-    return mCont.parent_id();
+    return runReadOp([this](){
+      return mCont.parent_id();
+    });
+
   }
 
   //----------------------------------------------------------------------------
@@ -174,8 +176,10 @@ public:
   void
   setParentId(IContainerMD::id_t parentId) override
   {
-    std::unique_lock<std::shared_timed_mutex> lock(mMutex);
-    mCont.set_parent_id(parentId);
+    runWriteOp([this,parentId](){
+      mCont.set_parent_id(parentId);
+    });
+
   }
 
   //----------------------------------------------------------------------------
@@ -184,8 +188,9 @@ public:
   inline uint16_t
   getFlags() const override
   {
-    std::shared_lock<std::shared_timed_mutex> lock(mMutex);
-    return mCont.flags();
+    return runReadOp([this](){
+      return mCont.flags();
+    });
   }
 
   //----------------------------------------------------------------------------
@@ -193,8 +198,9 @@ public:
   //----------------------------------------------------------------------------
   virtual void setFlags(uint16_t flags) override
   {
-    std::unique_lock<std::shared_timed_mutex> lock(mMutex);
-    mCont.set_flags(0x00ff & flags);
+    runWriteOp([this,flags](){
+      mCont.set_flags(0x00ff & flags);
+    });
   }
 
   //----------------------------------------------------------------------------
@@ -253,8 +259,10 @@ public:
   inline uint64_t
   getTreeSize() const override
   {
-    std::shared_lock<std::shared_timed_mutex> lock(mMutex);
-    return mCont.tree_size();
+    return runReadOp([this](){
+      return mCont.tree_size();
+    });
+
   }
 
   //----------------------------------------------------------------------------
@@ -263,8 +271,9 @@ public:
   inline void
   setTreeSize(uint64_t treesize) override
   {
-    std::unique_lock<std::shared_timed_mutex> lock(mMutex);
-    mCont.set_tree_size(treesize);
+    runWriteOp([this,treesize](){
+      mCont.set_tree_size(treesize);
+    });
   }
 
   //----------------------------------------------------------------------------
@@ -278,8 +287,11 @@ public:
   inline const std::string&
   getName() const override
   {
-    std::shared_lock<std::shared_timed_mutex> lock(mMutex);
-    return mCont.name();
+    //Specify the return type of the lambda to be a const string ref otherwise
+    //we will return a reference to the copy of the string returned by the lambda... (dangling reference when used)
+    return runReadOp([this]() -> const std::string & {
+      return mCont.name();
+    });
   }
 
   //----------------------------------------------------------------------------
@@ -293,8 +305,9 @@ public:
   inline uid_t
   getCUid() const override
   {
-    std::shared_lock<std::shared_timed_mutex> lock(mMutex);
-    return mCont.uid();
+    return runReadOp([this](){
+      return mCont.uid();
+    });
   }
 
   //----------------------------------------------------------------------------
@@ -303,8 +316,9 @@ public:
   inline void
   setCUid(uid_t uid) override
   {
-    std::unique_lock<std::shared_timed_mutex> lock(mMutex);
-    mCont.set_uid(uid);
+    runWriteOp([this,uid](){
+      mCont.set_uid(uid);
+    });
   }
 
   //----------------------------------------------------------------------------
@@ -313,8 +327,9 @@ public:
   inline gid_t
   getCGid() const override
   {
-    std::shared_lock<std::shared_timed_mutex> lock(mMutex);
-    return mCont.gid();
+    return runReadOp([this](){
+      return mCont.gid();
+    });
   }
 
   //----------------------------------------------------------------------------
@@ -323,8 +338,9 @@ public:
   inline void
   setCGid(gid_t gid) override
   {
-    std::unique_lock<std::shared_timed_mutex> lock(mMutex);
-    mCont.set_gid(gid);
+    runWriteOp([this,gid](){
+      mCont.set_gid(gid);
+    });
   }
 
   //----------------------------------------------------------------------------
@@ -333,8 +349,9 @@ public:
   inline time_t
   getCloneId() const override
   {
-    std::shared_lock<std::shared_timed_mutex> lock(mMutex);
-    return mCont.cloneid();
+    return runReadOp([this](){
+      return mCont.cloneid();
+    });
   }
 
   //----------------------------------------------------------------------------
@@ -343,8 +360,9 @@ public:
   inline void
   setCloneId(time_t id) override
   {
-    std::unique_lock<std::shared_timed_mutex> lock(mMutex);
-    mCont.set_cloneid(id);
+    runWriteOp([this,id](){
+      mCont.set_cloneid(id);
+    });
   }
 
   //----------------------------------------------------------------------------
@@ -353,8 +371,9 @@ public:
   inline const std::string
   getCloneFST() const override
   {
-    std::shared_lock<std::shared_timed_mutex> lock(mMutex);
-    return mCont.clonefst();
+    return runReadOp([this](){
+      return mCont.clonefst();
+    });
   }
 
   //----------------------------------------------------------------------------
@@ -362,8 +381,9 @@ public:
   //----------------------------------------------------------------------------
   void setCloneFST(const std::string& data) override
   {
-    std::unique_lock<std::shared_timed_mutex> lock(mMutex);
-    mCont.set_clonefst(data);
+    runWriteOp([this,data](){
+      mCont.set_clonefst(data);
+    });
   }
 
   //----------------------------------------------------------------------------
@@ -372,8 +392,10 @@ public:
   inline mode_t
   getMode() const override
   {
-    std::shared_lock<std::shared_timed_mutex> lock(mMutex);
-    return mCont.mode();
+    return runReadOp([this](){
+      return mCont.mode();
+    });
+
   }
 
   //----------------------------------------------------------------------------
@@ -382,8 +404,9 @@ public:
   inline void
   setMode(mode_t mode) override
   {
-    std::unique_lock<std::shared_timed_mutex> lock(mMutex);
-    mCont.set_mode(mode);
+    runWriteOp([this,mode](){
+      mCont.set_mode(mode);
+    });
   }
 
   //----------------------------------------------------------------------------
@@ -392,8 +415,9 @@ public:
   void
   setAttribute(const std::string& name, const std::string& value) override
   {
-    std::unique_lock<std::shared_timed_mutex> lock(mMutex);
-    (*mCont.mutable_xattrs())[name] = value;
+    runWriteOp([this,name,value](){
+      (*mCont.mutable_xattrs())[name] = value;
+    });
   }
 
   //----------------------------------------------------------------------------
@@ -407,8 +431,9 @@ public:
   bool
   hasAttribute(const std::string& name) const override
   {
-    std::shared_lock<std::shared_timed_mutex> lock(mMutex);
-    return (mCont.xattrs().find(name) != mCont.xattrs().end());
+    return runReadOp([this,name](){
+      return (mCont.xattrs().find(name) != mCont.xattrs().end());
+    });
   }
 
   //----------------------------------------------------------------------------
@@ -417,8 +442,9 @@ public:
   size_t
   numAttributes() const override
   {
-    std::shared_lock<std::shared_timed_mutex> lock(mMutex);
-    return mCont.xattrs().size();
+    return runReadOp([this](){
+      return mCont.xattrs().size();
+    });
   }
 
   //----------------------------------------------------------------------------
@@ -471,8 +497,9 @@ public:
   //----------------------------------------------------------------------------
   virtual uint64_t getClock() const override
   {
-    std::shared_lock<std::shared_timed_mutex> lock(mMutex);
-    return mClock;
+    return runReadOp([this](){
+      return mClock;
+    });
   }
 
   //----------------------------------------------------------------------------
