@@ -121,7 +121,14 @@ EosTok::Read(const std::string& zb64is, const std::string& key,
     return -EINVAL;
   }
 
-  nzb64is.replace(0, 5, "zbase");
+  if ( (nzb64is.substr(0, 8) == "zteos%3A") ||
+       (nzb64is.substr(0, 8) == "zteos%3a") ) {
+    // support URL encoding
+    nzb64is.replace(0, 6, "zbase:");
+  } else {
+    nzb64is.replace(0, 5, "zbase");
+  }
+
   eos::common::StringConversion::Replace(nzb64is, '_', '/');
   eos::common::StringConversion::Replace(nzb64is, '-', '+');
   // deocde the padding
@@ -131,13 +138,15 @@ EosTok::Read(const std::string& zb64is, const std::string& key,
   ssize_t pad = 0;
 
   if (l1 >= 0)  {
-    if (nzb64is.substr(l1, 3) == "%3d") {
+    if ( (nzb64is.substr(l1, 3) == "%3d") ||
+	 (nzb64is.substr(l1, 3) == "%3D") ) {
       pad++;
     }
   }
 
   if (l2 >= 0) {
-    if (nzb64is.substr(l2, 3) == "%3d") {
+    if ( (nzb64is.substr(l2, 3) == "%3d") ||
+	 (nzb64is.substr(l2, 3) == "%3D") ) {
       pad++;
     }
   }
