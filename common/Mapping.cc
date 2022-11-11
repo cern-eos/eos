@@ -2193,7 +2193,6 @@ size_t
 Mapping::ActiveSessions(uid_t uid)
 {
   XrdSysMutexHelper mLock(ActiveLock);
-  size_t ActiveSession(uid_t uid);
   auto n = ActiveUids.find(uid);
 
   if (n != ActiveUids.end()) {
