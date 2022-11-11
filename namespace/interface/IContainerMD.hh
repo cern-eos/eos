@@ -40,6 +40,8 @@
 #include <sys/time.h>
 #include <google/dense_hash_map>
 #include <folly/futures/Future.h>
+#include "namespace/interface/NSObjectLocker.hh"
+
 //#include <folly/concurrency/ConcurrentHashMap.h>
 
 EOSNSNAMESPACE_BEGIN
@@ -68,7 +70,7 @@ struct FileOrContainerMD {
 //! Class holding the interface to the metadata information concerning a
 //! single container
 //------------------------------------------------------------------------------
-class IContainerMD
+class IContainerMD : public NSObjectMDLockHelper<IContainerMD>
 {
 public:
   //----------------------------------------------------------------------------
@@ -88,7 +90,7 @@ public:
   //----------------------------------------------------------------------------
   //! Constructor
   //----------------------------------------------------------------------------
-  IContainerMD(): mIsDeleted(false) {}
+  IContainerMD(): NSObjectMDLockHelper(), mIsDeleted(false) {}
 
   //----------------------------------------------------------------------------
   //! Destructor
@@ -396,8 +398,9 @@ public:
   //----------------------------------------------------------------------------
   virtual bool isDeleted() const
   {
-    std::shared_lock<std::shared_timed_mutex> lock(mMutex);
-    return mIsDeleted;
+    return runReadOp([this](){
+      return mIsDeleted;
+    });
   }
 
   //----------------------------------------------------------------------------
@@ -405,8 +408,9 @@ public:
   //----------------------------------------------------------------------------
   virtual void setDeleted()
   {
-    std::unique_lock<std::shared_timed_mutex> lock(mMutex);
-    mIsDeleted = true;
+    runWriteOp([this](){
+      mIsDeleted = true;
+    });
   }
 
   //----------------------------------------------------------------------------
@@ -428,6 +432,10 @@ public:
     std::unique_lock lock(mLastPrefetchMtx);
     mLastPrefetch = tp;
   }
+  template<typename ObjectMDPtr, typename LockType> friend class NSObjectMDLocker;
+  friend class NSObjectMDLockHelper<IContainerMD>;
+  using IContainerReadMDLocker = NSObjectMDLocker<IContainerMDPtr,MDReadLock>;
+  using IContainerWriteMDLocker = NSObjectMDLocker<IContainerMDPtr,MDWriteLock>;
 
 private:
   friend class FileMapIterator;
