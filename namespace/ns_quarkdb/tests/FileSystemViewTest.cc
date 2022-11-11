@@ -508,7 +508,7 @@ TEST_F(FileSystemViewF, fileMDLockedSetSize)
     //10 threads, each of them running a loop of 10 size increase
     for (int i = 0; i < 10; ++i) {
       workers.push_back(std::thread([i, &f1,&size]() {
-        eos::IFileMD::IFileMDLocker lock(f1);
+        eos::IFileMD::IFileMDWriteLocker lock(f1);
         for (int j = 0; j < 10; ++j) {
           f1->setSize(size++);
         }
@@ -531,9 +531,9 @@ TEST_F(FileSystemViewF, fileMDLockedClone)
   ASSERT_EQ(f1->getIdentifier(), eos::FileIdentifier(1));
   eos::IFileMDPtr f2;
   {
-    eos::IFileMD::IFileMDLocker fileMDLocked(f1);
+    eos::IFileMD::IFileMDWriteLocker fileMDLocked(f1);
     f2.reset(fileMDLocked->clone());
-    eos::IFileMD::IFileMDLocker file2MDLocked(f2);
+    eos::IFileMD::IFileMDReadLocker file2MDLocked(f2);
     ASSERT_EQ(f1->getIdentifier(), f2->getIdentifier());
   }
   ASSERT_EQ(eos::FileIdentifier(1),f1->getIdentifier());
@@ -545,7 +545,7 @@ TEST_F(FileSystemViewF, fileMDLockedLocation)
   view()->createContainer("/test/", true);
   eos::IFileMDPtr f1 = view()->createFile("/test/f1");
   {
-    eos::IFileMD::IFileMDLocker lock(f1);
+    eos::IFileMD::IFileMDWriteLocker lock(f1);
     f1->addLocation(1);
     ASSERT_EQ(1, f1->getLocation(0));
   }
@@ -554,7 +554,7 @@ TEST_F(FileSystemViewF, fileMDLockedLocation)
     //10 threads, each one adds a location
     for (int i = 0; i < 10; ++i) {
       addLocationWorkers.push_back(std::thread([i, &f1]() {
-        eos::IFileMD::IFileMDLocker lock(f1);
+        eos::IFileMD::IFileMDWriteLocker lock(f1);
         for (int j = 0; j < 10; ++j) {
           f1->addLocation((i * 10) + j);
         }
@@ -568,7 +568,7 @@ TEST_F(FileSystemViewF, fileMDLockedLocation)
   {
     for (int i = 0; i < 10; ++i) {
       hasLocationWorkers.push_back(std::thread([i, &f1]() {
-        eos::IFileMD::IFileMDLocker lock(f1);
+        eos::IFileMD::IFileMDWriteLocker lock(f1);
         for (int j = 0; j < 10; ++j) {
           ASSERT_TRUE(f1->hasLocation((i * 10) + j));
         }
@@ -579,7 +579,7 @@ TEST_F(FileSystemViewF, fileMDLockedLocation)
     t.join();
   });
   {
-    eos::IFileMD::IFileMDLocker lock(f1);
+    eos::IFileMD::IFileMDWriteLocker lock(f1);
     ASSERT_EQ(100, f1->getNumLocation());
     auto locations = f1->getLocations();
     ASSERT_EQ(100, locations.size());
@@ -590,7 +590,7 @@ TEST_F(FileSystemViewF, fileMDLockedLocation)
     //10 threads, each one adds a location
     for (int i = 0; i < 10; ++i) {
       removeLocationWorkers.push_back(std::thread([i, &f1]() {
-        eos::IFileMD::IFileMDLocker lock(f1);
+        eos::IFileMD::IFileMDWriteLocker lock(f1);
         for (int j = 0; j < 10; ++j) {
           f1->unlinkLocation((i * 10) + j);
           f1->removeLocation((i * 10) + j);
@@ -616,7 +616,7 @@ TEST_F(FileSystemViewF, fileMDLockedLocation)
   });
   //Try the removeAllLocation
   {
-    eos::IFileMD::IFileMDLocker lock(f1);
+    eos::IFileMD::IFileMDWriteLocker lock(f1);
     f1->unlinkAllLocations();
     f1->removeAllLocations();
   }
@@ -650,7 +650,7 @@ TEST_F(FileSystemViewF, fileMDLockedRemoveLocation)
 
     for (int i = 0; i < 10; ++i) {
       addLocationWorkers.push_back(std::thread([i, &f1]() {
-        eos::IFileMD::IFileMDLocker lock(f1);
+        eos::IFileMD::IFileMDWriteLocker lock(f1);
         for (int j = 0; j < 10; ++j) {
           f1->addLocation((i * 10) + j);
         }
@@ -663,7 +663,7 @@ TEST_F(FileSystemViewF, fileMDLockedRemoveLocation)
 
     for (int i = 0; i < 10; ++i) {
       removeLocationWorkers.push_back(std::thread([i, &f1]() {
-        eos::IFileMD::IFileMDLocker lock(f1);
+        eos::IFileMD::IFileMDWriteLocker lock(f1);
         for (int j = 0; j < 10; ++j) {
           f1->unlinkLocation((i * 10) + j);
           f1->removeLocation((i * 10) + j);
@@ -676,6 +676,166 @@ TEST_F(FileSystemViewF, fileMDLockedRemoveLocation)
     });
 
   ASSERT_EQ(0,f1->getNumLocation());
+}
+
+TEST_F(FileSystemViewF, containerMDFindItem)
+{
+  const int nbLoops = 10;
+  eos::IContainerMDPtr testCont = view()->createContainer("/test/", true);
+  for(int i = 0; i < nbLoops; ++i){
+    std::stringstream fileName;
+    std::stringstream contName;
+    fileName << "/test/f" << i;
+    contName << "/test/c" << i;
+    view()->createFile(fileName.str());
+    view()->createContainer(contName.str());
+  }
+
+  std::vector<std::thread> workers;
+  for(int i = 1; i < nbLoops; ++i) {
+    workers.push_back(std::thread([i,testCont](){
+      {
+        std::stringstream fileName;
+        std::stringstream contName;
+        fileName << "f" << i;
+        contName << "c" << i;
+        eos::IContainerMD::IContainerReadMDLocker containerMDLocker(testCont);
+        {
+          auto contOrFile = testCont->findItem(fileName.str()).get();
+          ASSERT_TRUE(contOrFile.file != nullptr);
+        }
+        {
+          auto contOrFile = testCont->findItem(contName.str()).get();
+          ASSERT_TRUE(contOrFile.container != nullptr);
+        }
+      }
+    }));
+  }
+  {
+    eos::IContainerMD::IContainerReadMDLocker containerMDLocker(testCont);
+    {
+      auto contOrFile = testCont->findItem("f0").get();
+      ASSERT_TRUE(contOrFile.file != nullptr);
+    }
+    {
+      auto contOrFile = testCont->findItem("c0").get();
+      ASSERT_TRUE(contOrFile.container != nullptr);
+    }
+  }
+  for(auto & t: workers) {
+    t.join();
+  }
+}
+
+TEST_F(FileSystemViewF, containerMDAddContainerThenRemove)
+{
+  auto rootContainer = view()->createContainer("/root/", true);
+  auto rootContainerID = rootContainer->getId();
+  eos::IContainerMD::IContainerWriteMDLocker rootLocker(rootContainer);
+  auto testContainer = view()->createContainer("/test/", true);
+  auto testContainerID = testContainer->getId();
+  rootContainer->addContainer(testContainer.get());
+  ASSERT_EQ(1,rootContainer->getNumContainers());
+  ASSERT_EQ(rootContainerID,testContainer->getParentId());
+  ASSERT_EQ(testContainerID,testContainer->getIdentifier().getUnderlyingUInt64());
+  rootContainer->removeContainer("test");
+  ASSERT_EQ(0,rootContainer->getNumContainers());
+}
+
+TEST_F(FileSystemViewF, containerMDaddFileThenRemove)
+{
+  auto rootContainer = view()->createContainer("/root/", true);
+  eos::IContainerMD::IContainerWriteMDLocker rootLocker(rootContainer);
+  auto testFile = view()->createFile("/root/test");
+  rootContainer->addFile(testFile.get());
+  ASSERT_EQ(1,rootContainer->getNumFiles());
+  rootContainer->removeFile("test");
+  ASSERT_EQ(0,rootContainer->getNumFiles());
+}
+
+TEST_F(FileSystemViewF, containerMDGetSetName)
+{
+  auto rootContainer = view()->createContainer("/root/", true);
+  ASSERT_EQ("root",rootContainer->getName());
+  eos::IContainerMD::IContainerWriteMDLocker rootLocker(rootContainer);
+  rootContainer->setName("newname");
+  ASSERT_EQ("newname",rootContainer->getName());
+}
+
+TEST_F(FileSystemViewF, containerMDBasicGettersSetters) {
+  auto rootContainer = view()->createContainer("/root/", true);
+  eos::IContainerMD::IContainerWriteMDLocker rootLocker(rootContainer);
+  rootContainer->setCUid(2);
+  ASSERT_EQ(2,rootContainer->getCUid());
+  rootContainer->setCGid(23);
+  ASSERT_EQ(23,rootContainer->getCGid());
+  rootContainer->setCloneId(42);
+  ASSERT_EQ(42,rootContainer->getCloneId());
+  rootContainer->setCloneFST("clone_fst");
+  ASSERT_EQ("clone_fst",rootContainer->getCloneFST());
+  rootContainer->setMode(S_IRWXU);
+  ASSERT_EQ(S_IRWXU,rootContainer->getMode());
+  rootContainer->setTreeSize(64);
+  ASSERT_EQ(64,rootContainer->getTreeSize());
+
+  eos::IContainerMD::ctime_t tnow;
+  clock_gettime(CLOCK_REALTIME, &tnow);
+  rootContainer->setCTime(tnow);
+  eos::IContainerMD::ctime_t containerTime;
+  rootContainer->getCTime(containerTime);
+  ASSERT_EQ(tnow.tv_sec,containerTime.tv_sec);
+
+  rootContainer->setMTime(tnow);
+  rootContainer->getMTime(containerTime);
+  ASSERT_EQ(tnow.tv_sec,containerTime.tv_sec);
+
+  eos::IContainerMD::tmtime_t containerTMTime;
+  rootContainer->setTMTimeNow();
+  rootContainer->getTMTime(containerTMTime);
+  rootContainer->setTMTimeNow();
+  eos::IContainerMD::tmtime_t newContainerTMTime;
+  rootContainer->getTMTime(newContainerTMTime);
+  ASSERT_NE(containerTMTime.tv_nsec,newContainerTMTime.tv_nsec);
+}
+
+TEST_F(FileSystemViewF, containerMDSyncTimeAccounting) {
+  auto containerSyncTimeAccounting = view()->createContainer("/root/test/containersynctimeaccounting/",true);
+  eos::IContainerMDPtr rootContainer;
+  eos::IContainerMD::ctime_t rootContainerTimeBeforeNotify,
+      rootContainerMTimeAfterNotify;
+  {
+    eos::IContainerMD::IContainerWriteMDLocker
+        containerSyncTimeAccountingLocker(containerSyncTimeAccounting);
+    containerSyncTimeAccounting->setAttribute("sys.mtime.propagation", "true");
+    auto testContainer = view()->getContainer("/root/test/");
+    testContainer->setAttribute("sys.mtime.propagation", "true");
+    rootContainer = view()->getContainer("/root/");
+    rootContainer->setAttribute("sys.mtime.propagation", "true");
+    rootContainer->setMTimeNow();
+    rootContainer->getTMTime(rootContainerTimeBeforeNotify);
+    ::sleep(1);
+    containerSyncTimeAccounting->setMTimeNow();
+    containerSyncTimeAccounting->notifyMTimeChange(containerSvc());
+
+  }
+  //Sleep 6 seconds the time the Container Accounting Thread does its job...
+  ::sleep(6);
+  rootContainer->getTMTime(rootContainerMTimeAfterNotify);
+  ASSERT_EQ(rootContainerTimeBeforeNotify.tv_sec + 1,rootContainerMTimeAfterNotify.tv_sec);
+}
+
+TEST_F(FileSystemViewF,containerMDAttributesOps) {
+  auto rootContainer = view()->createContainer("/root/", true);
+  eos::IContainerMD::IContainerWriteMDLocker rootLocker(rootContainer);
+  rootContainer->setAttribute("attribute1","value1");
+  rootContainer->setAttribute("attribute2","value2");
+  ASSERT_TRUE(rootContainer->hasAttribute("attribute1"));
+  ASSERT_EQ("value1",rootContainer->getAttribute("attribute1"));
+  ASSERT_THROW(rootContainer->getAttribute("DOES_NOT_EXIST"),eos::MDException);
+  ASSERT_EQ(2,rootContainer->numAttributes());
+  ASSERT_EQ(2,rootContainer->getAttributes().size());
+  rootContainer->removeAttribute("attribute1");
+  ASSERT_EQ(1,rootContainer->numAttributes());
 }
 
 TEST(SetChangeList, BasicSanity)
