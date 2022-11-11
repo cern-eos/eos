@@ -21,11 +21,9 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-/*----------------------------------------------------------------------------*/
 #include "common/StringTokenizer.hh"
 #include "common/SymKeys.hh"
 #include "console/ConsoleMain.hh"
-/*----------------------------------------------------------------------------*/
 
 /* Attribute ls, get, set rm */
 int
@@ -102,7 +100,7 @@ com_attr(char* arg1)
       goto com_attr_usage;
     }
 
-    path = path_identifier(path.c_str(), true);
+    path = PathIdentifier(path.c_str(), true).c_str();
     in += "&mgm.subcmd=ls";
     in += "&mgm.path=";
     in += path;
@@ -163,7 +161,7 @@ com_attr(char* arg1)
       goto com_attr_usage;
     }
 
-    path = path_identifier(path.c_str(), true);
+    path = PathIdentifier(path.c_str(), true).c_str();
     in += "&mgm.subcmd=set&mgm.attr.key=";
     in += key;
     in += "&mgm.attr.value=";
@@ -366,7 +364,7 @@ com_attr(char* arg1)
       goto com_attr_usage;
     }
 
-    path = path_identifier(path.c_str(), true);
+    path = PathIdentifier(path.c_str(), true).c_str();
     in += "&mgm.subcmd=get&mgm.attr.key=";
     in += key;
     in += "&mgm.path=";
@@ -380,7 +378,7 @@ com_attr(char* arg1)
       goto com_attr_usage;
     }
 
-    path = path_identifier(path.c_str(), true);
+    path = PathIdentifier(path.c_str(), true).c_str();
     in += "&mgm.subcmd=fold";
     in += "&mgm.path=";
     in += path;
@@ -399,7 +397,7 @@ com_attr(char* arg1)
       goto com_attr_usage;
     }
 
-    path = path_identifier(path.c_str(), true);
+    path = PathIdentifier(path.c_str(), true).c_str();
     in += "&mgm.subcmd=rm&mgm.attr.key=";
     in += key;
     in += "&mgm.path=";
@@ -451,9 +449,10 @@ com_attr_usage:
   fprintf(stdout, " -r : apply recursive on all directory children\n\n");
   fprintf(stdout, "Remarks:\n");
   fprintf(stdout,
-          "         <identifier> = <path>|fid:<fid-dec>|fxid:<fid-hex>|pid:<pid-dec>|pxid:<pid-hex>\n");
+          "         <identifier> = <path>|fid:<fid-dec>|fxid:<fid-hex>|cid:<cid-dec>|cxid:<cid-hex>\n"
+          "                        deprecated pid:<pid-dec>|pxid:<pid-hex>\n");
   fprintf(stdout,
-          "         If <key> starts with 'sys.' you have to be member of the sudoers group to see this attributes or modify.\n\n");
+          "         If <key> starts with 'sys.' you have to be member of the sudoers group to see these attributes or modify.\n\n");
   fprintf(stdout, "Administrator Variables:\n");
   // ---------------------------------------------------------------------------
   fprintf(stdout,

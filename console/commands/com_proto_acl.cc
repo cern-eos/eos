@@ -49,7 +49,6 @@ int com_acl(char* arg)
   }
 
   global_retc = acl.Execute(true, true);
-
   return global_retc;
 }
 
@@ -61,19 +60,19 @@ void com_acl_help()
   std::ostringstream oss;
   oss
       << "Usage: eos acl [-l|--list] [-R|--recursive]"
-      << " [-p | --position <pos>] [-f | --front] "
-      << "[--sys|--user] [<rule>] <path>" << std::endl
-      << "  atomically set and modify ACLs for the given directory path" << std::endl
+      << " [-p|--position <pos>] [-f|--front] "
+      << "[--sys|--user] [<rule>] <identifier>" << std::endl
+      << "  atomically set and modify ACLs for the given directory path/sub-tree\n"
       << std::endl
       << "  -h, --help      : print help message" << std::endl
       << "  -R, --recursive : apply to directories recursively" << std::endl
       << "  -l, --list      : list ACL rules" << std::endl
       << "  -p, --position  : add the acl rule at specified position" << std::endl
       << "  -f, --front     : add the acl rule at the front position" << std::endl
-      << "      --user      : handle/list user.acl rules on directory. " << std::endl
-      << "                    Regular users can modify these." << std::endl
-      << "      --sys       : handle/list sys.acl rules on directory." << std::endl
-      << "                    Only admin can modify these." << std::endl
+      << "      --user      : handle user.acl rules on directory" << std::endl
+      << "      --sys       : handle sys.acl rules on directory - admin only\n"
+      << std::endl
+      << "  <identifier> can be one of <path>|cid:<cid-dec>|cxid:<cid-hex>\n"
       << std::endl
       << "  <rule> is created similarly to chmod rules. Every rule begins with"
       << std::endl
@@ -86,7 +85,8 @@ void com_acl_help()
       << "    \"+\" or removed with \"-\"." << std::endl
       << "    By default rules are appended at the end of acls" << std::endl
       << "    This ordering can be changed via --position flag" << std::endl
-      << "    which will add the new rule at a given position starting at 1 or" << std::endl
+      << "    which will add the new rule at a given position starting at 1 or" <<
+      std::endl
       << "    the --front flag which adds the rule at the front instead" << std::endl
       << std::endl
       << "Examples:" << std::endl

@@ -60,18 +60,21 @@ ProcCommand::Attr()
   NAMESPACEMAP;
   PROC_BOUNCE_ILLEGAL_NAMES;
   PROC_BOUNCE_NOT_ALLOWED;
+  WAIT_BOOT;
 
   if ((spath.beginswith("fid:") || spath.beginswith("fxid:"))) {
-    WAIT_BOOT;
-    identifier = Resolver::retrieveFileIdentifier(spath)
-                 .getUnderlyingUInt64();
+    identifier = Resolver::retrieveFileIdentifier(spath).getUnderlyingUInt64();
     spath = "";
     GetPathFromFid(spath, identifier, "error: ");
-  } else if ((spath.beginswith("pid:") || spath.beginswith("pxid:"))) {
-    WAIT_BOOT;
-    spath.replace('p', 'f', 0, 1);
-    identifier = Resolver::retrieveFileIdentifier(spath)
-                 .getUnderlyingUInt64();
+  } else if (spath.beginswith("pid:") || spath.beginswith("pxid:") ||
+             spath.beginswith("cid:") || spath.beginswith("cxid:")) {
+    if (spath.beginswith("pid:") || spath.beginswith("pxid:")) {
+      spath.replace('p', 'f', 0, 1);
+    } else {
+      spath.replace('c', 'f', 0, 1);
+    }
+
+    identifier = Resolver::retrieveFileIdentifier(spath).getUnderlyingUInt64();
     spath = "";
     GetPathFromCid(spath, identifier, "error: ");
   } else {
@@ -84,7 +87,8 @@ ProcCommand::Attr()
 
   if ((!spath.length()) && (!identifier)) {
     // Empty path or invalid numeric identifier
-    stdErr = "error: you have to give a valid identifier (<path>|fid:<fid-dec>|fxid:<fid-hex>|pid:<pid-dec>|pxid:<pid-hex>)";
+    stdErr = "error: please give a valid identifier (<path>|fid:<fid-dec>"
+             "|fxid:<fid-hex>|cid:<cid-dec>|cxid:<cid-hex>)";
     retc = EINVAL;
   } else if ((!spath.length())) {
     // Retrieval of path from numeric identifier failed

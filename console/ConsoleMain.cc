@@ -1383,23 +1383,29 @@ parse_comment(const char* line, std::string& comment)
 //------------------------------------------------------------------------------
 // Given an input string, return the appropriate path identifier.
 //------------------------------------------------------------------------------
-const char* path_identifier(const char* in, bool escapeand)
+std::string PathIdentifier(const char* in, bool escapeand)
 {
-  static XrdOucString input;
+  std::string input;
+
+  if (in == nullptr) {
+    return input;
+  }
+
   input = in;
 
-  if ((input.beginswith("fid:")) || (input.beginswith("fxid:")) ||
-      (input.beginswith("pid:")) || (input.beginswith("pxid:"))) {
+  if ((input.find("fid:") == 0) || (input.find("fxid:") == 0) ||
+      (input.find("cid:") == 0) || (input.find("cxid:") == 0) ||
+      (input.find("pid:") == 0) || (input.find("pxid:") == 0)) {
     return in;
   }
 
   input = abspath(in);
 
   if (escapeand) {
-    eos::common::StringConversion::SealXrdPath(input);
+    input = eos::common::StringConversion::SealXrdPath(input);
   }
 
-  return input.c_str();
+  return input;
 }
 
 //------------------------------------------------------------------------------

@@ -111,7 +111,7 @@ int Run(int argc, char* argv[]);
 
 //------------------------------------------------------------------------------
 //! Given an input string, return the appropriate path identifier:
-//!   - string begins with fid: | fxid: | pid: | pxid: -- leave untouched
+//!   - string begins with fid:|fxid:|cid:|cxid:|pid:|pxid: then leave untouched
 //!   - otherwise -- return abspath of the given string
 //!
 //! @param in the string to process
@@ -119,7 +119,7 @@ int Run(int argc, char* argv[]);
 //!
 //! @return processed path identifier
 //------------------------------------------------------------------------------
-const char* path_identifier(const char* in, bool escapeand = false);
+std::string PathIdentifier(const char* in, bool escapeand = false);
 
 //------------------------------------------------------------------------------
 //! Check if input matches pattern and extract the file id if possible

@@ -30,17 +30,17 @@
 TEST(PathIdentifier, KeyWords)
 {
   // Check the keywords
-  ASSERT_STREQ(path_identifier("fid:100"), "fid:100");
-  ASSERT_STREQ(path_identifier("fxid:100a"), "fxid:100a");
-  ASSERT_STREQ(path_identifier("pid:100"), "pid:100");
-  ASSERT_STREQ(path_identifier("pxid:bc1"), "pxid:bc1");
-
+  ASSERT_STREQ(PathIdentifier("fid:100").c_str(), "fid:100");
+  ASSERT_STREQ(PathIdentifier("fxid:100a").c_str(), "fxid:100a");
+  ASSERT_STREQ(PathIdentifier("pid:100").c_str(), "pid:100");
+  ASSERT_STREQ(PathIdentifier("cid:100").c_str(), "cid:100");
+  ASSERT_STREQ(PathIdentifier("pxid:bc1").c_str(), "pxid:bc1");
+  ASSERT_STREQ(PathIdentifier("cxid:abba").c_str(), "cxid:abba");
   // Check the encode flag doesn't affect keywords
-  ASSERT_STREQ(path_identifier("fid:100", true), "fid:100");
-
+  ASSERT_STREQ(PathIdentifier("fid:100", true).c_str(), "fid:100");
   // Check keyword-similar relative path
-  ASSERT_STREQ(path_identifier("fid100"), "/fid100");
-  ASSERT_STREQ(path_identifier("pxidbc1"), "/pxidbc1");
+  ASSERT_STREQ(PathIdentifier("fid100").c_str(), "/fid100");
+  ASSERT_STREQ(PathIdentifier("pxidbc1").c_str(), "/pxidbc1");
 }
 
 //------------------------------------------------------------------------------
@@ -49,15 +49,14 @@ TEST(PathIdentifier, KeyWords)
 TEST(PathIdentifier, AbsolutePath)
 {
   // Absolute path
-  ASSERT_STREQ(path_identifier("/eos/instance/user/file"),
+  ASSERT_STREQ(PathIdentifier("/eos/instance/user/file").c_str(),
                "/eos/instance/user/file");
-
   // Absolute path with &
-  ASSERT_STREQ(path_identifier("/eos/instance/user/file&with&symbols"),
+  ASSERT_STREQ(PathIdentifier("/eos/instance/user/file&with&symbols").c_str(),
                "/eos/instance/user/file&with&symbols");
-
   // Absolute path with &, encoded
-  ASSERT_STREQ(path_identifier("/eos/instance/user/file&with&symbols", true),
+  ASSERT_STREQ(PathIdentifier("/eos/instance/user/file&with&symbols",
+                              true).c_str(),
                "/eos/instance/user/file#AND#with#AND#symbols");
 }
 
@@ -67,25 +66,19 @@ TEST(PathIdentifier, AbsolutePath)
 TEST(PathIdentifier, RelativePath)
 {
   gPwd = "/";
-
   // Relative path
-  ASSERT_STREQ(path_identifier("file"), "/file");
-
+  ASSERT_STREQ(PathIdentifier("file").c_str(), "/file");
   // Relative path with &
-  ASSERT_STREQ(path_identifier("file&with&symbols"),
+  ASSERT_STREQ(PathIdentifier("file&with&symbols").c_str(),
                "/file&with&symbols");
-
   // Relative path with &, encoded
-  ASSERT_STREQ(path_identifier("file&with&symbols", true),
+  ASSERT_STREQ(PathIdentifier("file&with&symbols", true).c_str(),
                "/file#AND#with#AND#symbols");
-
   gPwd = "/eos/dir&with&symbols/";
-
   // Relative path with &
-  ASSERT_STREQ(path_identifier("file&with&symbols"),
+  ASSERT_STREQ(PathIdentifier("file&with&symbols").c_str(),
                "/eos/dir&with&symbols/file&with&symbols");
-
   // Relative path with &, encoded
-  ASSERT_STREQ(path_identifier("file&with&symbols", true),
+  ASSERT_STREQ(PathIdentifier("file&with&symbols", true).c_str(),
                "/eos/dir#AND#with#AND#symbols/file#AND#with#AND#symbols");
 }
