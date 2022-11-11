@@ -141,6 +141,7 @@ BuildRequires: openssl, openssl-devel
 BuildRequires: ncurses, ncurses-devel
 BuildRequires: zlib, zlib-devel
 BuildRequires: fuse-devel, fuse >= 2.5
+BuildRequires: fuse3-devel, fuse3 >= 3.0
 BuildRequires: krb5-devel
 BuildRequires: redhat-rpm-config
 BuildRequires: leveldb-devel
@@ -638,14 +639,17 @@ Requires: eos-librichacl, eos-richacl >= 1.12
 Requires: zeromq
 
 %description -n eos-fusex-core
-The new EOS fuse core containing eosxd.
+The EOS fuse core containing eosxd/eosxd3.
 
 %files -n eos-fusex-core
 %defattr(-, root, root, -)
 %{_bindir}/eosxd
 %{_bindir}/eosfusebind
+%{_bindir}/eosxd3
 /sbin/mount.eosx
+/sbin/mount.eosx3
 %config %{_sysconfdir}/tmpfiles.d/eos-fusex-core.conf
+%{_sysconfdir}/logrotate.d/eos-fusex-logs
 %dir %attr(755,daemon,daemon) %{_localstatedir}/log/eos/
 %dir %attr(755,daemon,daemon) %{_localstatedir}/log/eos/fusex/
 %dir %attr(755,daemon,daemon) %{_localstatedir}/cache/eos/

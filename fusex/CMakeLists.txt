@@ -35,6 +35,9 @@ endif (Linux)
 set(EOSXD_COMPILE_FLAGS
   "-DDAEMONUID=${DAEMONUID} -DDAEMONGID=${DAEMONGID} -DFUSE_MOUNT_VERSION=${FUSE_MOUNT_VERSION}0 -D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64 -DVERSION=\\\"${VERSION}\\\""
 )
+set(EOSXD3_COMPILE_FLAGS
+  "-DUSE_FUSE3=1 -DDAEMONUID=${DAEMONUID} -DDAEMONGID=${DAEMONGID} -DFUSE_MOUNT_VERSION=${FUSE_MOUNT_VERSION}0 -D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64 -DVERSION=\\\"${VERSION}\\\""
+)
 
 #-------------------------------------------------------------------------------
 # Add tests directory
@@ -111,13 +114,61 @@ target_link_libraries(eosxd-objects PUBLIC
   ZMQ::ZMQ)
 
 if (FUSE3_FOUND)
-  target_link_libraries(eosxd-objects PUBLIC FUSE3::FUSE3)
-else()
-  target_link_libraries(eosxd-objects PUBLIC FUSE::FUSE)
+#-------------------------------------------------------------------------------
+# eosxd common objects, shared between tests and main code.
+# An object library prevents having to compile them twice.
+#-------------------------------------------------------------------------------
+add_library(eosxd3-objects OBJECT
+  eosfuse.cc eosfuse.hh
+  stat/Stat.cc stat/Stat.hh
+  md/md.cc md/md.hh
+  cap/cap.cc cap/cap.hh
+  data/data.cc data/data.hh
+  kv/RocksKV.cc kv/RocksKV.hh
+  kv/NoKV.cc    kv/NoKV.hh
+  kv/kv.hh
+  misc/longstring.cc misc/longstring.hh
+  misc/fusexrdlogin.cc misc/fusexrdlogin.hh
+  misc/RunningPidScanner.cc misc/RunningPidScanner.hh
+  data/cache.cc data/cache.hh data/bufferll.hh
+  data/diskcache.cc data/diskcache.hh
+  data/memorycache.cc data/memorycache.hh
+  data/journalcache.cc data/journalcache.hh
+  data/cachesyncer.cc data/cachesyncer.hh
+  data/xrdclproxy.cc data/xrdclproxy.hh
+  data/dircleaner.cc data/dircleaner.hh
+  backend/backend.cc backend/backend.hh
+  ${CMAKE_SOURCE_DIR}/common/ShellCmd.cc
+  ${CMAKE_SOURCE_DIR}/common/ShellExecutor.cc
+  submount/SubMount.cc submount/SubMount.hh
+  ${PROTO_SRC} ${PROTO_HEADER})
+
+target_link_libraries(eosxd3-objects PUBLIC
+  ROCKSDB::ROCKSDB
+  LIBEVENT::LIBEVENT
+  OPENSSL::OPENSSL
+  PROTOBUF::PROTOBUF
+  JSONCPP::JSONCPP
+  XROOTD::PRIVATE
+  XROOTD::UTILS
+  RICHACL::RICHACL
+  GOOGLE::SPARSEHASH
+  ZMQ::ZMQ)
 endif()
+
+if (FUSE3_FOUND)
+  target_link_libraries(eosxd3-objects PUBLIC FUSE3::FUSE3)
+endif()
+
+target_link_libraries(eosxd-objects PUBLIC FUSE::FUSE)
 
 set_target_properties(eosxd-objects
   PROPERTIES COMPILE_FLAGS ${EOSXD_COMPILE_FLAGS})
+
+if (FUSE3_FOUND)
+set_target_properties(eosxd3-objects
+  PROPERTIES COMPILE_FLAGS ${EOSXD3_COMPILE_FLAGS})
+endif()
 
 #-------------------------------------------------------------------------------
 # eosxd executables
@@ -146,12 +197,13 @@ if (FUSE3_FOUND)
   add_executable(eosxd3 main.cc)
 
   target_link_libraries(eosxd3 PUBLIC
-    eosxd-objects
+    eosxd3-objects
     JEMALLOC::JEMALLOC
+    jemalloc
     ${EOSXD_COMMON_LINK_LIBRARIES})
 
   set_target_properties(eosxd3
-    PROPERTIES COMPILE_FLAGS ${EOSXD_COMPILE_FLAGS})
+    PROPERTIES COMPILE_FLAGS ${EOSXD3_COMPILE_FLAGS})
 
   install(TARGETS eosxd3
     RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_BINDIR})

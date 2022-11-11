@@ -41,11 +41,11 @@
 #define EL2NSYNC    45  /* Level 2 not synchronized */
 #else
 
-#ifdef _FUSE3
-#define FUSE_USE_VERSION 30
+#ifdef USE_FUSE3
+#define FUSE_USE_VERSION 31
 #define FUSE_SUPPORTS_FLOCK
 // Moved to cmake - #pragma message("FUSE_SUPPORTS_FLOCK")
-// Moved to cmake - #pragma message("FUSE 30")
+// Moved to cmake - #pragma message("FUSE 31")
 #else
 #define FUSE_USE_VERSION 28
 // Moved to cmake - #pragma message("FUSE 28")
@@ -56,7 +56,7 @@
 #endif
 
 extern "C" {
-#ifdef _FUSE3
+#ifdef USE_FUSE3
 #include <fuse3/fuse_lowlevel.h>
 #else
 #include <fuse/fuse_lowlevel.h>
@@ -129,6 +129,9 @@ protected:
     operations.opendir = &T::opendir;
     operations.access = &T::access;
     operations.readdir = &T::readdir;
+#ifdef USE_FUSE3
+    operations.readdirplus = &T::readdirplus;
+#endif
     operations.mkdir = &T::mkdir;
     operations.unlink = &T::unlink;
     operations.rmdir = &T::rmdir;
@@ -143,6 +146,9 @@ protected:
     operations.releasedir = &T::releasedir;
     operations.fsync = &T::fsync;
     operations.forget = &T::forget;
+#ifdef USE_FUSE3
+    operations.forget_multi = &T::forget_multi;
+#endif
     operations.flush = &T::flush;
     operations.setxattr = &T::setxattr;
     operations.getxattr = &T::getxattr;

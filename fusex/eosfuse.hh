@@ -90,13 +90,18 @@ public:
   static void
   lookup(fuse_req_t req, fuse_ino_t parent, const char* name);
 
-  static int listdir(fuse_req_t req, fuse_ino_t ino, metad::shared_md& md);
+  static int listdir(fuse_req_t req, fuse_ino_t ino, metad::shared_md& md, double& lifetime);
 
   static void opendir(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info* fi);
 
   static void readdir(fuse_req_t req, fuse_ino_t ino, size_t size, off_t off,
                       struct fuse_file_info* fi);
 
+  static void readdir(fuse_req_t req, fuse_ino_t ino, size_t size, off_t off,
+                      struct fuse_file_info* fi, bool plus);
+
+  static void readdirplus(fuse_req_t req, fuse_ino_t ino, size_t size, off_t off,
+			  struct fuse_file_info* fi);
   static void releasedir(fuse_req_t req, fuse_ino_t ino,
                          struct fuse_file_info* fi);
 
@@ -114,7 +119,7 @@ public:
 
   static void rmdir(fuse_req_t req, fuse_ino_t parent, const char* name);
 
-#ifdef _FUSE3
+#ifdef USE_FUSE3
   static void rename(fuse_req_t req, fuse_ino_t parent, const char* name,
                      fuse_ino_t newparent, const char* newname, unsigned int flags);
 #else
@@ -142,6 +147,11 @@ public:
 
   static void forget(fuse_req_t req, fuse_ino_t ino, unsigned long nlookup);
 
+#ifdef USE_FUSE3
+  static void forget_multi(fuse_req_t req, size_t count, 
+			   struct fuse_forget_data *forgets);
+#endif
+  
   static void flush(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info* fi);
 
 #ifdef __APPLE__
@@ -199,10 +209,12 @@ public:
     return fusesession;
   }
 
+#ifndef USE_FUSE3
   fuse_chan* Channel()
   {
     return fusechan;
   }
+#endif
 
   std::string Prefix(std::string path);
 
@@ -251,9 +263,10 @@ public:
         kWAIT_FLUSH_ON_UPDATE = 1, // if a file is updated - flush will wait to open it
         kWAIT_FLUSH_ON_CREATE = 2 // if a file is created - flush will wait to open it
       };
-
+      
       size_t flush_wait_open_size;
 
+      bool writebackcache;
       int global_locking;
       uint64_t fdlimit;
       int rm_rf_protect_levels;
@@ -399,6 +412,9 @@ public:
     struct timespec pmd_mtime;
     struct reply_buf b;
 
+    double lifetime;
+    struct timespec opendir_time;
+
     XrdSysMutex items_lock;
   } opendir_t;
 
@@ -519,11 +535,14 @@ private:
   static EosFuse* sEosFuse;
 
   struct fuse_session* fusesession;
+  
+#ifndef USE_FUSE3
   struct fuse_chan* fusechan;
+#endif  
 
   std::atomic<int32_t> aRecoveryOk;
   std::atomic<int32_t> aRecoveryFail;
-  
+
   AssistedThread tDumpStatistic;
   AssistedThread tStatCirculate;
   AssistedThread tMetaCacheFlush;
