@@ -15,6 +15,25 @@ Introduction
 ------------
 This release is based on XRootD V4 and IPV6 enabled.
 
+
+``v4.8.94 Citrine``
+===================
+
+2022-11-14
+
+Bug
+----
+
+* [EOS-5436] - Origin Restriction does not work as expected
+
+Improvements
+------------
+
+* MGM: don't stall clients if thread limits are not exhausted
+* COMMON: support tokens, which have been URI encoded
+* ALL: add VTX bit support, correct 'ls -la' output to show t,T,+ to indicate VTX, VTX+ACL, ACL
+
+
 ``v4.8.93 Citrine``
 ===================
 
