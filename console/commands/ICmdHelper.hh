@@ -135,7 +135,7 @@ public:
   //!
   //! @return true if operation confirmed, otherwise false
   //------------------------------------------------------------------------------
-  bool ConfirmOperation();
+  static bool ConfirmOperation();
 
   //------------------------------------------------------------------------------
   //! Add eos.route opaque info depending on the type of request and on the

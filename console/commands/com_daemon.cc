@@ -23,6 +23,7 @@
 
 /*----------------------------------------------------------------------------*/
 #include "console/ConsoleMain.hh"
+#include "console/commands/ICmdHelper.hh"
 #include "common/StringTokenizer.hh"
 #include "common/Config.hh"
 #include "common/Path.hh"
@@ -32,6 +33,9 @@
 #include <sched.h>
 #include <sys/mount.h>
 #include <sys/ptrace.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 /*----------------------------------------------------------------------------*/
 
 #ifdef __APPLE__
@@ -58,6 +62,7 @@ com_daemon(char* arg)
   XrdOucString option = "";
   XrdOucString name = "";
   XrdOucString service = "";
+  XrdOucString subcmd;
   std::string chapter;
   std::string executable;
   std::string pidfile;
@@ -79,6 +84,49 @@ com_daemon(char* arg)
     goto com_daemon_usage;
   }
 
+  if (option == "sss") {
+    subcmd = subtokenizer.GetToken();
+    if (!subcmd.length()) {
+      goto com_daemon_usage;
+    }
+    if (subcmd == "recreate") {
+      if (geteuid()) {
+	std::cerr << "error: you have to run this command as root!" << std::endl;
+	global_retc = EPERM;
+	return (0);
+      }
+      struct stat buf;
+      std::cout << "info: you are going to (re-)create the instance sss key. A previous key will be moved to /etc/eos.keytab.<unixtimestamp>" << std::endl;
+      if (!::stat("/etc/eos.keytab",&buf)) {
+	std::string oldkeytab = "/etc/eos.keytab.";
+	oldkeytab += std::to_string(time(NULL));
+	if (::rename("/etc/eos.keytab", oldkeytab.c_str())) {
+	  std::cerr << "error: renaming of existing old keytab file /etc/eos.keytab failed!" << std::endl;
+	  global_retc = errno;
+	  return (0);
+	}
+      }
+      bool interactive = false;
+      if (isatty(STDOUT_FILENO)) {
+	interactive = true;
+      }
+      if (!interactive || ICmdHelper::ConfirmOperation()) {
+	if (!::stat("/opt/eos/xrootd/bin/xrdsssadmin",&buf)) {
+	  system("yes | /opt/eos/xrootd/bin/xrdsssadmin -u daemon -g daemon -k eosmaster add /etc/eos.keytab");
+	  system("yes | /opt/eos/xrootd/bin/xrdsssadmin -u eosnobody -g eosnobody -k eosnobody add /etc/eos.keytab");
+	} else {
+	  system("yes | xrdsssadmin -u daemon -g daemon -k eosmaster add /etc/eos.keytab");
+	  system("yes | xrdsssadmin -u eosnobody -g eosnobody -k eosnobody add /etc/eos.keytab");
+	}
+	system("mkdir -p /etc/eos/; cat /etc/eos.keytab | grep eosnobody > /etc/eos/fuse.sss.keytab; chmod 400 /etc/eos/fuse.sss.keytab");
+	std::cout << "info: recreated /etc/eos.keytab /etc/eos/fuse.sss.keytab" << std::endl;
+      } else {
+	global_retc = EINVAL;
+	return (0);
+      }
+      return (0);
+    }
+  }
   if (option == "seal") {
     XrdOucString toseal = subtokenizer.GetToken();
     XrdOucString sealed;
@@ -333,7 +381,7 @@ com_daemon(char* arg)
   return (0);
 com_daemon_usage:
   fprintf(stdout,
-          "usage: daemon config|kill|run|stack|stop <service> [name] [subcmd]                                     :  \n");
+          "usage: daemon config|sss|kill|run|stack|stop <service> [name] [subcmd]                                     :  \n");
 
   fprintf(stdout,
 	  "                <service> := mq | mgm | fst | qdb\n");
@@ -343,6 +391,8 @@ com_daemon_usage:
 	  "                kill                                                  -  kill -9 a given service\n");
   fprintf(stdout,
           "                run                                                   -  run the given service daemon optionally identified by name\n");
+  fprintf(stdout,
+	  "                sss recreate                                          -  re-create an instance sss key and the eosnobody keys (/etc/eos.keytab,/etc/eos/fuse.sss.keytab)'\n");
   fprintf(stdout,
 	  "                stack                                                 -  print an 'eu-stack'\n");
   fprintf(stdout,
