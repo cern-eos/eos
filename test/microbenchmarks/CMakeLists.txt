@@ -23,7 +23,6 @@
 
 add_executable(eos-microbenchmarks main.cc)
 add_executable(eos-idmap-microbenchmark common/BM_IdMap.cc)
-add_dependencies(eos-microbenchmarks ${BENCHMARK_LIBRARY})
 target_link_libraries(eos-microbenchmarks PRIVATE
   GOOGLEBENCHMARK::GOOGLEBENCHMARK
   XROOTD::UTILS)

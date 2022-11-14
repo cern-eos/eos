@@ -29,35 +29,38 @@
 
 using benchmark::Counter;
 
-class MappingFixture: public benchmark::Fixture {
+class MappingFixture: public benchmark::Fixture
+{
 public:
-  void SetUp(const ::benchmark::State& state) {
-
+  void SetUp(const ::benchmark::State& state)
+  {
     eos::common::Mapping::Init();
   }
 
-  void TearDown(const ::benchmark::State& state) {
+  void TearDown(const ::benchmark::State& state)
+  {
     eos::common::Mapping::Reset();
   }
 
 };
 
-static void BM_IdMap(benchmark::State& state) {
+static void BM_IdMap(benchmark::State& state)
+{
   using namespace eos::common;
   std::atomic<uint64_t> ctr = 0;
-  if (state.thread_index() == 0) {
+
+  if (state.thread_index == 0) {
     eos::common::Mapping::Reset();
     eos::common::Mapping::Init();
-    eos::common::Mapping::gVirtualUidMap["sss:\"<pwd>\":uid"]=0;
-    eos::common::Mapping::gVirtualGidMap["sss:\"<pwd>\":gid"]=0;
+    eos::common::Mapping::gVirtualUidMap["sss:\"<pwd>\":uid"] = 0;
+    eos::common::Mapping::gVirtualGidMap["sss:\"<pwd>\":gid"] = 0;
   }
-
 
   for (auto _ : state) {
     state.PauseTiming();
     XrdSecEntity client("test");
     eos::common::VirtualIdentity vid;
-    vid.prot="sss";
+    vid.prot = "sss";
     client.tident = "root";
     std::stringstream base_ss;
     base_ss << "foo.bar:baz@bar" << std::this_thread::get_id();
@@ -73,31 +76,32 @@ static void BM_IdMap(benchmark::State& state) {
     ctr++;
   }
 
-  if (state.thread_index() == 0) {
+  if (state.thread_index == 0) {
     eos::common::Mapping::Reset();
   }
 }
 
 static void BM_ReduceTident(benchmark::State& state)
 {
-  for (auto _: state) {
+  for (auto _ : state) {
     //state.PauseTiming();
-    for (int j=0; j < state.range(0); ++j) {
+    for (int j = 0; j < state.range(0); ++j) {
       std::string tident = "foo.bar:baz@bar" + std::to_string(j);
       std::string wildcardtident, mytident, myhost;
       // state.ResumeTiming();
       mytident = eos::common::Mapping::ReduceTident(tident, wildcardtident, myhost);
     }
   }
+
   state.counters["frequency"] = Counter(state.iterations(),
                                         benchmark::Counter::kIsRate);
 }
 
 static void BM_ReduceTidentXrd(benchmark::State& state)
 {
-  for (auto _: state) {
+  for (auto _ : state) {
     //state.PauseTiming();
-    for (int j=0; j < state.range(0); ++j) {
+    for (int j = 0; j < state.range(0); ++j) {
       std::string tident = "foo.bar:baz@bar" + std::to_string(j);
       XrdOucString tident_xrd(tident.c_str());
       XrdOucString wildcardtident, mytident, myhost;
@@ -106,13 +110,14 @@ static void BM_ReduceTidentXrd(benchmark::State& state)
                                          myhost);
     }
   }
+
   state.counters["frequency"] = Counter(state.iterations(),
                                         benchmark::Counter::kIsRate);
 }
 BENCHMARK(BM_IdMap)
-    ->Range(1<<10,1<<20)->ThreadRange(1, 128)->UseRealTime()
-    ->Unit(benchmark::kMicrosecond);
+->Range(1 << 10, 1 << 20)->ThreadRange(1, 128)->UseRealTime()
+->Unit(benchmark::kMicrosecond);
 
-BENCHMARK(BM_ReduceTident)->Range(1,1<<20);
-BENCHMARK(BM_ReduceTidentXrd)->Range(1,1<<20);
+BENCHMARK(BM_ReduceTident)->Range(1, 1 << 20);
+BENCHMARK(BM_ReduceTidentXrd)->Range(1, 1 << 20);
 BENCHMARK_MAIN();
