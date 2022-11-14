@@ -88,6 +88,12 @@ com_daemon(char* arg)
       return (0);
     }
 
+    if (toseal.beginswith("/")) {
+      // treat it as a file
+      std::string contents;
+      eos::common::StringConversion::LoadFileIntoString(toseal.c_str(),contents);
+      toseal = contents.c_str();
+    }
     const char* pkey = subtokenizer.GetToken();
 
 
