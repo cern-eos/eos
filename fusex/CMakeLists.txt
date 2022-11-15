@@ -36,7 +36,7 @@ set(EOSXD_COMPILE_FLAGS
   "-DDAEMONUID=${DAEMONUID} -DDAEMONGID=${DAEMONGID} -DFUSE_MOUNT_VERSION=${FUSE_MOUNT_VERSION}0 -D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64 -DVERSION=\\\"${VERSION}\\\""
 )
 set(EOSXD3_COMPILE_FLAGS
-  "-DUSE_FUSE3=1 -DDAEMONUID=${DAEMONUID} -DDAEMONGID=${DAEMONGID} -DFUSE_MOUNT_VERSION=${FUSE_MOUNT_VERSION}0 -D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64 -DVERSION=\\\"${VERSION}\\\""
+  "-DDAEMONUID=${DAEMONUID} -DDAEMONGID=${DAEMONGID} -DFUSE_MOUNT_VERSION=${FUSE_MOUNT_VERSION}0 -D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64 -DVERSION=\\\"${VERSION}\\\""
 )
 
 #-------------------------------------------------------------------------------
@@ -158,17 +158,14 @@ endif()
 
 if (FUSE3_FOUND)
   target_link_libraries(eosxd3-objects PUBLIC FUSE3::FUSE3)
+  set_target_properties(eosxd3-objects
+    PROPERTIES COMPILE_FLAGS ${EOSXD3_COMPILE_FLAGS})
 endif()
 
 target_link_libraries(eosxd-objects PUBLIC FUSE::FUSE)
 
 set_target_properties(eosxd-objects
   PROPERTIES COMPILE_FLAGS ${EOSXD_COMPILE_FLAGS})
-
-if (FUSE3_FOUND)
-set_target_properties(eosxd3-objects
-  PROPERTIES COMPILE_FLAGS ${EOSXD3_COMPILE_FLAGS})
-endif()
 
 #-------------------------------------------------------------------------------
 # eosxd executables
@@ -199,7 +196,6 @@ if (FUSE3_FOUND)
   target_link_libraries(eosxd3 PUBLIC
     eosxd3-objects
     JEMALLOC::JEMALLOC
-    jemalloc
     ${EOSXD_COMMON_LINK_LIBRARIES})
 
   set_target_properties(eosxd3

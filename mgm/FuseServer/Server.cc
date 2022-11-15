@@ -691,9 +691,11 @@ Server::FillContainerCAP(uint64_t id,
 
     if (EOS_LOGS_DEBUG) {
       std::string tokenDump;
+
       if (vid.token) {
-	vid.token->Dump(tokenDump, true, false);
+        vid.token->Dump(tokenDump, true, false);
       }
+
       eos_debug("token='%s' scope='%s'", tokenDump.c_str(), dir.fullpath().c_str());
     }
 
@@ -769,7 +771,7 @@ Server::FillContainerCAP(uint64_t id,
     }
 
     if (!gOFS->allow_public_access(dir.fullpath().c_str(), vid)) {
-      eos_debug("no public access");
+      eos_debug("msg=\"no public access\" paht=%s", dir.fullpath().c_str());
       mode = dir.mode() & S_IFDIR;
       mode |= X_OK;
     }
@@ -2762,8 +2764,8 @@ Server::OpDeleteDirectory(const std::string& id,
     if (pcmd->getMode() & S_ISVTX) {
       // check that we are the owner of that file if the vertex bit is set
       if (cmd->getCUid() != vid.uid) {
-	throw_mdexception(EPERM,
-			  "Vertex bit set on parent directory and you are not the owner: " << md.name());
+        throw_mdexception(EPERM,
+                          "Vertex bit set on parent directory and you are not the owner: " << md.name());
       }
     }
 
@@ -2862,12 +2864,13 @@ Server::OpDeleteFile(const std::string& id,
   try {
     pcmd = gOFS->eosDirectoryService->getContainerMD(md.md_pino());
     fmd = gOFS->eosFileService->getFileMD(eos::common::FileId::InodeToFid(
-									  md.md_ino()));
+                                            md.md_ino()));
+
     if (pcmd->getMode() & S_ISVTX) {
       // check that we are the owner of that file if the vertex bit is set
       if (fmd->getCUid() != vid.uid) {
-	throw_mdexception(EPERM,
-			  "Vertex bit set on parent directory and you are not the owner: " << md.name());
+        throw_mdexception(EPERM,
+                          "Vertex bit set on parent directory and you are not the owner: " << md.name());
       }
     }
 
@@ -3086,8 +3089,8 @@ Server::OpDeleteLink(const std::string& id,
     if (pcmd->getMode() & S_ISVTX) {
       // check that we are the owner of that file if the vertex bit is set
       if (fmd->getCUid() != vid.uid) {
-	throw_mdexception(EPERM,
-			  "Vertex bit set on parent directory and you are not the owner: " << md.name());
+        throw_mdexception(EPERM,
+                          "Vertex bit set on parent directory and you are not the owner: " << md.name());
       }
     }
 
