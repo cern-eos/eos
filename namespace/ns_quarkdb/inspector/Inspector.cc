@@ -722,17 +722,6 @@ int Inspector::stripediff(bool json=false, bool minimal=false)
     FileScanner::Item item;
     eos::ns::FileMdProto proto;
 
-    if (!fileScanner.getItem(proto, &item)) {
-      break;
-    }
-
-    int64_t actual = proto.locations().size();
-    int64_t expected = eos::common::LayoutId::GetStripeNumber(
-                         proto.layout_id()) + 1;
-    int64_t unlinked = proto.unlink_locations().size();
-    int64_t size = proto.size();
-    Json::Value jsonObj;
-
     if (minimal){
       if (!fileScanner.getItem(proto)) {
         break;
@@ -742,6 +731,13 @@ int Inspector::stripediff(bool json=false, bool minimal=false)
         break;
       }
     }
+
+    int64_t actual = proto.locations().size();
+    int64_t expected = eos::common::LayoutId::GetStripeNumber(
+                         proto.layout_id()) + 1;
+    int64_t unlinked = proto.unlink_locations().size();
+    int64_t size = proto.size();
+    Json::Value jsonObj;
     
     if (!proto.link_name().empty()) {
       expected = 0;
@@ -778,7 +774,7 @@ int Inspector::stripediff(bool json=false, bool minimal=false)
               " unlinked_stripes=" << unlinked <<  " locations=" << serializeLocations(proto.locations()) <<
               " unlinked_locations=" << serializeLocations(proto.unlink_locations()) << 
               " mtime=" << Printing::timespecToTimestamp(Printing::parseTimespec(proto.mtime())) << 
-              " ctime=" << Printing::timespecToTimestamp(Printing::parseTimespec(proto.ctime())) << "\n";
+              " ctime=" << Printing::timespecToTimestamp(Printing::parseTimespec(proto.ctime()));
           mOutputSink.print(out.str());
         }
       }

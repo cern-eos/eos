@@ -488,7 +488,15 @@ int main(int argc, char* argv[])
   // Set-up Inspector object, ensure sanity
   //----------------------------------------------------------------------------
   std::unique_ptr<OutputSink> outputSink;
-  outputSink.reset((json)? new JsonLinedStreamSink(std::cout, std::cerr): new StreamSink(std::cout, std::cerr));
+  if (json){
+    if (!minimal) {
+      outputSink.reset(new JsonStreamSink(std::cout, std::cerr));
+    }else{
+      outputSink.reset(new JsonLinedStreamSink(std::cout, std::cerr));
+    }
+  }else{
+    outputSink.reset(new StreamSink(std::cout, std::cerr));
+  }
 
   Inspector inspector(qcl, *outputSink);
   std::string connectionErr;

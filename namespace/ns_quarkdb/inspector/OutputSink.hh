@@ -55,12 +55,8 @@ public:
   //! Print interface, single string
   //----------------------------------------------------------------------------
   virtual void print(const std::string& out) = 0;
-  
-//----------------------------------------------------------------------------
-  //! Print interface, single JsonValue
-  //----------------------------------------------------------------------------
-  virtual void print(const Json::Value& out) = 0;
-  
+
+  virtual void print(const Json::Value & out) = 0; 
   //----------------------------------------------------------------------------
   //! Print everything known about a ContainerMD
   //----------------------------------------------------------------------------
@@ -134,12 +130,9 @@ public:
   //----------------------------------------------------------------------------
   //! Print interface, single string implementation
   //----------------------------------------------------------------------------
-  virtual void print(const std::string& out) override;
+  void print(const std::string& out) override;
 
-  //----------------------------------------------------------------------------
-  //! Print interface, single string implementation
-  //----------------------------------------------------------------------------
-  virtual void print(const Json::Value& oujsonObjt) override;
+  void print(const Json::Value& jsonObj) override;
 
   //----------------------------------------------------------------------------
   //! Debug output
@@ -175,8 +168,9 @@ public:
   //----------------------------------------------------------------------------
   //! Print interface, single string implementation
   //----------------------------------------------------------------------------
-  virtual void print(const std::string& out) override;
-
+  void print(const std::string& out) override;
+  
+  void print(const Json::Value& jsonObj) override;
   //----------------------------------------------------------------------------
   //! Debug output
   //----------------------------------------------------------------------------
@@ -204,11 +198,7 @@ public:
   //----------------------------------------------------------------------------
   virtual void print(const std::string& out) override;
 
-  //----------------------------------------------------------------------------
-  //! Print interface, single string implementation
-  //----------------------------------------------------------------------------
-  virtual void print(const Json::Value& oujsonObjt) override;
-
+  virtual void print(const Json::Value& jsonObj) override;
 
   //----------------------------------------------------------------------------
   //! Debug output

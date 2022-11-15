@@ -373,6 +373,11 @@ void StreamSink::print(const std::map<std::string, std::string>& line)
   mOut << std::endl;
 }
 
+
+void StreamSink::print(const Json::Value & jsonObj)
+{
+  mOut << jsonObj << std::endl;
+}
 //------------------------------------------------------------------------------
 // Print interface, single string implementation
 //------------------------------------------------------------------------------
@@ -408,8 +413,7 @@ void JsonLinedStreamSink::print(const std::map<std::string, std::string>& line)
   for (auto it = line.begin(); it != line.end(); it++) {
     json[it->first] = it->second;
   }
-  mWriter->write(json, &mOut);
-  mOut << std::endl;
+  print(json);
 }
 
 //------------------------------------------------------------------------------
@@ -472,6 +476,13 @@ void JsonStreamSink::print(const std::map<std::string, std::string>& line)
   }
 
   mOut << json;
+}
+
+
+
+void JsonStreamSink::print(const Json::Value & jsonObj)
+{
+  mOut << jsonObj << std::endl;
 }
 
 //------------------------------------------------------------------------------
