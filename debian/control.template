@@ -33,7 +33,7 @@ Description: The new EOS fuse client bundle
 
 Package: eos-test
 Architecture: any
-Depends: ${shlibs:Depends}, cadaver, bc, davix, jq
+Depends: ${shlibs:Depends}, bc, davix, jq
 Description: The EOS test package
 
 Package: eos-testkeytab

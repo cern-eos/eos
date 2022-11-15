@@ -874,7 +874,7 @@ esac
 Summary: The EOS test package
 Group: Applications/File
 ExclusiveArch: x86_64 aarch64
-Requires: cadaver bc davix jq dmidecode
+Requires: bc davix jq dmidecode
 # Required for eos-https-functional-test, coming from osg-development 
 Requires: x509-scitokens-issuer-client 
 
