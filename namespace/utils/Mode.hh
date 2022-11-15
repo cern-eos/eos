@@ -103,7 +103,7 @@ inline void modeToBuffer(mode_t mode, char* modestr)
     modestr[6] = 'x';
   }
 
-  if(mode & S_ISVTX) {
+  if (mode & S_ISVTX) {
     if (mode & S_XATTR) {
       modestr[9] = 'T';
     } else {
@@ -118,13 +118,9 @@ inline void modeToBuffer(mode_t mode, char* modestr)
   if (mode & S_ISUID) {
     modestr[3] = 's';
   }
-  
+
   if (mode & S_ISGID) {
     modestr[6] = 's';
-  }
-  
-  if (mode & S_ISVTX) {
-    modestr[9] = '+';
   }
 }
 }
