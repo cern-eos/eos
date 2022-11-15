@@ -108,7 +108,7 @@ def exec_cmd(cmd):
             cmd += "&eos.ruid=0&eos.rgid=0"
 
     with client.File() as f:
-        st, __ = f.open(cmd.encode("utf-8"), OpenFlags.READ)
+        st, __ = f.open(cmd, OpenFlags.READ)
 
         if st.ok:
             # Read the whole response
@@ -119,7 +119,10 @@ def exec_cmd(cmd):
             if st.ok:
                 while st.ok and len(chunk):
                     off += len(chunk)
-                    data += chunk.decode("utf-8")
+                    try:
+                        data += chunk.decode("utf-8")
+                    except:
+                        print("EHEHEHEH not able to decode str... only bytes")
                     st, chunk = f.read(off, sz)
 
                 lpairs = data.split('&')
@@ -132,7 +135,7 @@ def exec_cmd(cmd):
                         stdout = unseal_path(stdout)
                     elif "mgm.proc.stderr=" in elem:
                         stderr = elem[(elem.index('=') + 1):].strip()
-                        stderr = unseal_path(stdout)
+                        stderr = unseal_path(stderr)
             else:
                 stderr = "error reading response for command: {0}".format(cmd)
         else:
@@ -249,7 +252,7 @@ def set_dir_info(surl, dict_dinfo, excl_xattr):
     Raises:
         IOError: Metadata operation failed.
     """
-    url = client.URL(surl.encode("utf-8"))
+    url = client.URL(surl)
 
     # Change ownership of the directory
     fsetowner = ''.join([url.protocol, "://", url.hostid, "//proc/user/?",

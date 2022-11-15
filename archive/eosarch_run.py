@@ -58,7 +58,7 @@ req_dict = ast.literal_eval(sys.argv[1])
 src = req_dict['src']
 pos = src.find("//", src.find("//") + 1) + 1
 root_dir = src[pos : src.rfind('/') + 1]
-uuid = sha256(root_dir).hexdigest()
+uuid = sha256(root_dir.encode()).hexdigest()
 log_file = config.DIR[req_dict['cmd']] + uuid + ".log"
 config.start_logging("transfer", log_file, False)
 

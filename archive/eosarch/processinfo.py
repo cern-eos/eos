@@ -68,7 +68,7 @@ class ProcessInfo(object):
             src = req_json['src']
             pos = src.find("//", src.find("//") + 1) + 1
             self.root_dir = src[pos : src.rfind('/') + 1]
-            self.uuid = sha256(self.root_dir).hexdigest()
+            self.uuid = sha256(self.root_dir.encode()).hexdigest()
             self.timestamp = time.time()
 
     def update(self, dict_info):

@@ -79,7 +79,7 @@ class ThreadJob(threading.Thread):
                 tpc_flag = "only"
 
             # TODO: use the parallel mode starting with XRootD 4.1
-            proc.add_job(job[0].encode("utf-8"), job[1].encode("utf-8"),
+            proc.add_job(job[0], job[1],
                          force=True, thirdparty=tpc_flag, tpctimeout=3600)
 
         self.xrd_status = proc.prepare()
@@ -113,9 +113,9 @@ class ThreadStatus(threading.Thread):
         socket_rr = ctx.socket(zmq.DEALER)
         socket_rr.connect("ipc://" + self.transfer.config.BACKEND_REQ_IPC)
         socket_ps = ctx.socket(zmq.SUB)
-        mgr_filter = "[MASTER]".encode("utf-8")
+        mgr_filter = b"[MASTER]"
         addr = "ipc://" + self.transfer.config.BACKEND_PUB_IPC
-        socket_ps.connect(addr.encode("utf-8"))
+        socket_ps.connect(addr)
         socket_ps.setsockopt(zmq.SUBSCRIBE, mgr_filter)
 
         while self.keep_running():
@@ -133,7 +133,7 @@ class ThreadStatus(threading.Thread):
                     self.logger.exception(err)
 
                 self.logger.debug("RECV_MSG: {0}".format(msg))
-                dict_cmd = ast.literal_eval(msg)
+                dict_cmd = ast.literal_eval(msg.decode())
 
                 if dict_cmd['cmd'] == 'orphan_status':
                     self.logger.info("Reconnect to master ... ")
@@ -163,7 +163,7 @@ class ThreadStatus(threading.Thread):
                     continue
 
                 self.logger.info("Sending response: {0}".format(resp))
-                socket_rr.send_multipart([resp.encode("utf-8")], zmq.NOBLOCK)
+                socket_rr.send_multipart([resp.encode()], zmq.NOBLOCK)
 
     def do_finish(self):
         """ Set the flag for the status thread to finish execution
@@ -201,7 +201,7 @@ class Transfer(object):
         self.efile_full = req_json['src']
         self.efile_root = self.efile_full[:-(len(self.efile_full) - self.efile_full.rfind('/') - 1)]
         self.root_dir = self.efile_root[self.efile_root.rfind('//') + 1:]
-        self.uuid = sha256(self.root_dir).hexdigest()
+        self.uuid = sha256(self.root_dir.encode()).hexdigest()
         local_file = join(self.config.DIR[self.oper], self.uuid)
         self.tx_file = local_file + ".tx"
         self.list_jobs, self.threads = [], []
@@ -265,9 +265,9 @@ class Transfer(object):
             IOError: Failed to rename or transfer archive file.
         """
         # Rename archive file in EOS
-        efile_url = client.URL(self.efile_full.encode("utf-8"))
+        efile_url = client.URL(self.efile_full)
         eosf_rename = ''.join([self.efile_root, self.config.ARCH_FN, ".", self.oper, ".err"])
-        rename_url = client.URL(eosf_rename.encode("utf-8"))
+        rename_url = client.URL(eosf_rename)
         frename = ''.join([rename_url.protocol, "://", rename_url.hostid,
                            "//proc/user/?mgm.cmd=file&mgm.subcmd=rename"
                            "&mgm.path=", efile_url.path,
@@ -283,7 +283,7 @@ class Transfer(object):
 
         # Copy archive file from EOS to the local disk
         self.efile_full = eosf_rename
-        eos_fs = client.FileSystem(self.efile_full.encode("utf-8"))
+        eos_fs = client.FileSystem(self.efile_full)
         st, _ = eos_fs.copy(self.efile_full + "?eos.ruid=0&eos.rgid=0",
                             self.tx_file, True)
 
@@ -469,7 +469,7 @@ class Transfer(object):
         eos_log = ''.join([self.efile_root, ".sys.b#.backup.log?eos.ruid=0&eos.rgid=0"])
         self.logger.debug("Copy log:{0} to {1}".format(self.config.LOG_FILE, eos_log))
         self.config.handler.flush()
-        cp_client = client.FileSystem(self.efile_full.encode("utf-8"))
+        cp_client = client.FileSystem(self.efile_full)
         st, __ = cp_client.copy(self.config.LOG_FILE, eos_log, force=True)
 
         if not st.ok:
@@ -509,8 +509,8 @@ class Transfer(object):
         else:
             eosf_rename = ''.join([self.efile_root, self.config.ARCH_FN, ".", self.oper, ".done"])
 
-        old_url = client.URL(self.efile_full.encode("utf-8"))
-        new_url = client.URL(eosf_rename.encode("utf-8"))
+        old_url = client.URL(self.efile_full)
+        new_url = client.URL(eosf_rename)
         frename = ''.join([old_url.protocol, "://", old_url.hostid, "//proc/user/?",
                            "mgm.cmd=file&mgm.subcmd=rename&mgm.path=", old_url.path,
                            "&mgm.file.source=", old_url.path,
@@ -525,7 +525,7 @@ class Transfer(object):
         else:
             # For successful delete operations remove also the archive file
             if self.oper == self.config.DELETE_OP and check_ok:
-                fs = client.FileSystem(self.efile_full.encode("utf-8"))
+                fs = client.FileSystem(self.efile_full)
                 st_rm, __ = fs.rm(new_url.path + "?eos.ruid=0&eos.rgid=0")
 
                 if not st_rm.ok:
@@ -540,7 +540,7 @@ class Transfer(object):
 
         self.logger.debug("Copy log:{0} to {1}".format(self.config.LOG_FILE, eos_log))
         self.config.handler.flush()
-        cp_client = client.FileSystem(self.efile_full.encode("utf-8"))
+        cp_client = client.FileSystem(self.efile_full)
         st, __ = cp_client.copy(self.config.LOG_FILE, eos_log, force=True)
 
         if not st.ok:
@@ -549,10 +549,10 @@ class Transfer(object):
         else:
             # User triggering archive operation owns the log file
             eos_log_url = client.URL(eos_log)
-            fs = client.FileSystem(eos_log.encode("utf-8"))
+            fs = client.FileSystem(eos_log)
             arg = ''.join([eos_log_url.path, "?eos.ruid=0&eos.rgid=0&mgm.pcmd=chown&uid=",
                            self.uid, "&gid=", self.gid])
-            xrd_st, __ = fs.query(QueryCode.OPAQUEFILE, arg.encode("utf-8"))
+            xrd_st, __ = fs.query(QueryCode.OPAQUEFILE, arg)
 
             if not xrd_st.ok:
                 err_msg = ("Failed setting ownership of the log file in"
@@ -596,9 +596,9 @@ class Transfer(object):
         if self.init_put:
             # The archive init is already renamed to archive.put.err at this
             # and we need to take this into consideration when trasferring it
-            url = client.URL(self.efile_full.encode("utf-8"))
-            eos_fs = client.FileSystem(self.efile_full.encode("utf-8"))
-            st_stat, resp = eos_fs.stat(url.path.encode("utf-8"))
+            url = client.URL(self.efile_full)
+            eos_fs = client.FileSystem(self.efile_full)
+            st_stat, resp = eos_fs.stat(url.path)
 
             if st_stat.ok:
                 __, dst = self.archive.get_endpoints(self.config.ARCH_INIT)
@@ -725,7 +725,7 @@ class Transfer(object):
                     log_level = logging.INFO if thread.xrd_status.ok else logging.ERROR
                     self.logger.log(log_level,("Thread={0} status={1} msg={2}").format
                                     (thread.ident, thread.xrd_status.ok,
-                                     thread.xrd_status.message.decode("utf-8")))
+                                     thread.xrd_status.message))
                     remove_indx.append(indx)
                     break
 
@@ -776,7 +776,7 @@ class Transfer(object):
                     log_level = logging.INFO if thread.xrd_status.ok else logging.ERROR
                     self.logger.log(log_level, ("Thread={0} status={1} msg={2}").format
                                     (thread.ident, thread.xrd_status.ok,
-                                     thread.xrd_status.message.decode("utf-8")))
+                                     thread.xrd_status.message))
                     remove_indx.append(indx)
 
                 # Remove old/finished threads and add retry ones. For removal we
@@ -834,13 +834,13 @@ class Transfer(object):
                     found_checkpoint = True
 
             __, surl = self.archive.get_endpoints(fentry[1])
-            url = client.URL(surl.encode("utf-8"))
+            url = client.URL(surl)
             dict_meta = dict(zip(self.archive.header['file_meta'], fentry[2:]))
 
             # Send the chown async request
             arg = ''.join([url.path, "?eos.ruid=0&eos.rgid=0&mgm.pcmd=chown&uid=",
                            dict_meta['uid'], "&gid=", dict_meta['gid']])
-            xrd_st = fs.query(QueryCode.OPAQUEFILE, arg.encode("utf-8"),
+            xrd_st = fs.query(QueryCode.OPAQUEFILE, arg,
                               callback=metahandler.register(oper, surl))
 
             if not xrd_st.ok:
@@ -853,7 +853,7 @@ class Transfer(object):
             mode = int(dict_meta['mode'], 8) # mode is saved in octal format
             arg = ''.join([url.path, "?eos.ruid=0&eos.rgid=0&mgm.pcmd=chmod&mode=",
                            str(mode)])
-            xrd_st = fs.query(QueryCode.OPAQUEFILE, arg.encode("utf-8"),
+            xrd_st = fs.query(QueryCode.OPAQUEFILE, arg,
                               callback=metahandler.register(oper, surl))
 
             if not xrd_st.ok:
@@ -870,7 +870,7 @@ class Transfer(object):
             arg = ''.join([url.path, "?eos.ruid=0&eos.rgid=0&mgm.pcmd=utimes",
                            "&tv1_sec=", ctime_sec, "&tv1_nsec=", ctime_nsec,
                            "&tv2_sec=", mtime_sec, "&tv2_nsec=", mtime_nsec])
-            xrd_st = fs.query(QueryCode.OPAQUEFILE, arg.encode("utf-8"),
+            xrd_st = fs.query(QueryCode.OPAQUEFILE, arg,
                               callback=metahandler.register(oper, surl))
 
             if not xrd_st.ok:
@@ -964,7 +964,7 @@ class Transfer(object):
 
             count += 1
             surl, __ = self.archive.get_endpoints(fentry[1])
-            lpaths.append(surl[surl.rfind('//') + 1:])
+            lpaths.append(surl[surl.rfind('//') + 1:].encode())
 
             if len(lpaths) == limit:
                 xrd_st = self.archive.fs_dst.prepare(lpaths, PrepareFlags.STAGE,
@@ -1011,10 +1011,10 @@ class Transfer(object):
         # Wait for all the files to be on disk
         for fentry in self.archive.files():
             surl, __ = self.archive.get_endpoints(fentry[1])
-            url = client.URL(surl.encode("utf-8"))
+            url = client.URL(surl)
 
             while True:
-                st_stat, resp_stat = self.archive.fs_dst.stat(url.path.encode("utf-8"))
+                st_stat, resp_stat = self.archive.fs_dst.stat(url.path)
 
                 if not st_stat.ok:
                     err_msg = "Error stat entry={0}".format(surl)
@@ -1044,8 +1044,8 @@ class Transfer(object):
 
         for fentry in self.archive.files():
             __, dst = self.archive.get_endpoints(fentry[1])
-            url = client.URL(dst.encode("utf-8"))
-            batch.append(url.path.encode("utf-8"))
+            url = client.URL(dst)
+            batch.append(url.path)
 
             if len(batch) == batch_size:
                 fs = self.archive.get_fs(dst)
@@ -1081,8 +1081,8 @@ class Transfer(object):
             for fentry in self.archive.files():
                 indx += 1
                 __, dst = self.archive.get_endpoints(fentry[1])
-                url = client.URL(dst.encode("utf-8"))
-                st_stat, resp_stat = self.archive.fs_dst.stat(url.path.encode("utf-8"))
+                url = client.URL(dst)
+                st_stat, resp_stat = self.archive.fs_dst.stat(url.path)
 
                 if not st_stat.ok:
                     err_msg = "Error stat entry={0}".format(dst)
@@ -1117,9 +1117,9 @@ class Transfer(object):
         # Copy backup file from EOS to the local disk
         self.logger.info(("Prepare backup copy from {0} to {1}"
                           "").format(self.efile_full, self.tx_file))
-        eos_fs = client.FileSystem(self.efile_full.encode("utf-8"))
-        st, _ = eos_fs.copy((self.efile_full + "?eos.ruid=0&eos.rgid=0").encode("utf-8"),
-                            self.tx_file.encode("utf-8"), True)
+        eos_fs = client.FileSystem(self.efile_full)
+        st, _ = eos_fs.copy((self.efile_full + "?eos.ruid=0&eos.rgid=0"),
+                            self.tx_file, True)
 
         if not st.ok:
             err_msg = ("Failed to copy backup file={0} to local disk at={1} err_msg={2}"
@@ -1135,9 +1135,9 @@ class Transfer(object):
         # forced then skip checks
         if not self.force:
             surl = self.archive.header['dst']
-            url = client.URL(surl.encode("utf-8"))
+            url = client.URL(surl)
             fs = self.archive.get_fs(surl)
-            st_stat, resp_stat = fs.stat((url.path, + "?eos.ruid=0&eos.rgid=0").encode("utf-8"))
+            st_stat, resp_stat = fs.stat((url.path, + "?eos.ruid=0&eos.rgid=0"))
 
             if st_stat.ok:
                 err_msg = ("Failed to stat backup destination url={0}"
@@ -1159,10 +1159,10 @@ class Transfer(object):
         indx_dir = 0
 
         # Root owns the .sys.b#.backup.file
-        fs = client.FileSystem(self.efile_full.encode("utf-8"))
-        efile_url = client.URL(self.efile_full.encode("utf-8"))
+        fs = client.FileSystem(self.efile_full)
+        efile_url = client.URL(self.efile_full)
         arg = ''.join([efile_url.path, "?eos.ruid=0&eos.rgid=0&mgm.pcmd=chown&uid=0&gid=0"])
-        xrd_st, __ = fs.query(QueryCode.OPAQUEFILE, arg.encode("utf-8"))
+        xrd_st, __ = fs.query(QueryCode.OPAQUEFILE, arg)
 
         if not xrd_st.ok:
             err_msg = "Failed setting ownership of the backup file: {0}".format(self.efile_full)
@@ -1210,10 +1210,10 @@ class Transfer(object):
             fn_status = ''.join([self.efile_root, ".sys.b#.backup.done?eos.ruid=0&eos.rgid=0"])
 
         with client.File() as f:
-            f.open(fn_status.encode("utf-8"), OpenFlags.UPDATE | OpenFlags.DELETE)
+            f.open(fn_status, OpenFlags.UPDATE | OpenFlags.DELETE)
             offset = 0
 
             for entry in lst_failed:
-                buff = "Failed entry={0}\n".format(entry).encode("utf-8")
+                buff = "Failed entry={0}\n".format(entry)
                 f.write(buff, offset, len(buff))
                 offset += len(buff)

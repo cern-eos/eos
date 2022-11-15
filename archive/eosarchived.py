@@ -71,14 +71,14 @@ class Dispatcher(object):
         # Socket used for communication with EOS MGM
         frontend = ctx.socket(zmq.REP)
         addr = "ipc://" + self.config.FRONTEND_IPC
-        frontend.bind(addr.encode("utf-8"))
+        frontend.bind(addr)
         # Socket used for communication with worker processes
         self.backend_req = ctx.socket(zmq.ROUTER)
         addr = "ipc://" + self.config.BACKEND_REQ_IPC
-        self.backend_req.bind(addr.encode("utf-8"))
+        self.backend_req.bind(addr)
         self.backend_pub = ctx.socket(zmq.PUB)
         addr = "ipc://" + self.config.BACKEND_PUB_IPC
-        self.backend_pub.bind(addr.encode("utf-8"))
+        self.backend_pub.bind(addr)
         self.backend_poller = zmq.Poller()
         self.backend_poller.register(self.backend_req, zmq.POLLIN)
         mgm_poller = zmq.Poller()
@@ -114,7 +114,7 @@ class Dispatcher(object):
                     reply = "ERROR error: operation not supported"
                     raise
 
-                frontend.send_string(reply.encode("utf-8"))
+                frontend.send_string(reply)
 
     def get_orphans(self):
         """ Get orphan transfer processes from previous runs of the daemon
@@ -137,7 +137,7 @@ class Dispatcher(object):
                     [__, resp] = self.backend_req.recv_multipart()
                     self.logger.info("Received response: {0}".format(resp))
                     # Convert response to python dictionary
-                    dict_resp = ast.literal_eval(resp)
+                    dict_resp = ast.literal_eval(resp.decode())
 
                     if not isinstance(dict_resp, dict):
                         err_msg = "Response={0} is not a dictionary".format(resp)
@@ -203,7 +203,7 @@ class Dispatcher(object):
                 [__, resp] = self.backend_req.recv_multipart()
                 self.logger.debug("Received response: {0}".format(resp))
                 # Convert response to python dictionary
-                dict_resp = ast.literal_eval(resp)
+                dict_resp = ast.literal_eval(resp.decode())
 
                 if not isinstance(dict_resp, dict):
                     self.logger.error("Response is not a dictionary")
@@ -299,14 +299,13 @@ class Dispatcher(object):
         self.logger.debug("Show transfers type={0}".format(ls_type))
 
         if ls_type == "all":
-            proc_list = self.procs.values()
-            proc_list.extend(self.pending.values())
+            proc_list = [*self.procs.values(),*self.pending.values()]
         elif ls_type in self.procs:
             # ls_type is a transfer uuid
             proc_list.append(self.procs[ls_type])
         else:
-            proc_list = [elem for elem in self.procs.itervalues() if elem.op == ls_type]
-            proc_list.extend([elem for elem in self.pending.itervalues() if elem.op == ls_type])
+            proc_list = [elem for elem in self.procs.values() if elem.op == ls_type]
+            proc_list.extend([elem for elem in self.pending.values() if elem.op == ls_type])
 
         for proc in proc_list:
             line = ("date={0},uuid={1},path={2},op={3},status={4}".format(
@@ -404,6 +403,7 @@ def main():
             pass  # directory exists
 
     # Prepare ZMQ IPC files
+    os.umask(0o002) # set files with 775 by default
     for ipc_file in [config.FRONTEND_IPC,
                         config.BACKEND_REQ_IPC,
                         config.BACKEND_PUB_IPC]:
@@ -412,7 +412,7 @@ def main():
                 open(ipc_file, 'w').close()
                 os.chmod(ipc_file, stat.S_IRWXU | stat.S_IRWXG | stat.S_IRWXO)
             except OSError as err:
-                err_msg = ("Failed setting permissioins on the IPC socket"
+                err_msg = ("Failed setting permissions on the IPC socket"
                             " file={0}").format(ipc_file)
                 logger.error(err_msg)
                 raise
