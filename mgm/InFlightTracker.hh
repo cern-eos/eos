@@ -87,8 +87,8 @@ public:
       mInFlightUid[myself] = myuid;
       mInFlightVids[myuid]++;
     }
-    mInFlightPids[myself]++;
 
+    mInFlightPids[myself]++;
     return true;
   }
 
@@ -99,7 +99,7 @@ public:
   {
     --mInFlight;
     assert(mInFlight >= 0);
-    pthread_t mythread= pthread_self();
+    pthread_t mythread = pthread_self();
     std::unique_lock<std::mutex> scope_lock(mInFlightPidMutex);
     uid_t myuid = mInFlightUid[mythread];
 
@@ -108,10 +108,10 @@ public:
       mInFlightUid.erase(mythread);
 
       if (mInFlightVids[myuid]) {
-	if (!--mInFlightVids[myuid]) {
-	  mInFlightVids.erase(myuid);
-	  mInFlightStalls.erase(myuid);
-	}
+        if (!--mInFlightVids[myuid]) {
+          mInFlightVids.erase(myuid);
+          mInFlightStalls.erase(myuid);
+        }
       }
     }
   }
@@ -165,23 +165,29 @@ public:
     return mInFlight;
   }
 
-  std::set<pthread_t> getInFlightThreads() {
+  std::set<pthread_t> getInFlightThreads()
+  {
     std::unique_lock<std::mutex> scope_lock(mInFlightPidMutex);
     std::set<pthread_t> inflight_threads;
-    for ( auto it : mInFlightPids ) {
+
+    for (auto it : mInFlightPids) {
       inflight_threads.insert(it.first);
     }
+
     return inflight_threads;
   }
 
-  std::map<uid_t, size_t> getInFlightUids() {
+  std::map<uid_t, size_t> getInFlightUids()
+  {
     std::unique_lock<std::mutex> scope_lock(mInFlightPidMutex);
     return mInFlightVids;
   }
 
-  size_t getInFlight(uid_t uid) {
+  size_t getInFlight(uid_t uid)
+  {
     std::unique_lock<std::mutex> scope_lock(mInFlightPidMutex);
     auto it = mInFlightVids.find(uid);
+
     if (it != mInFlightVids.end()) {
       return it->second;
     } else {
@@ -189,14 +195,17 @@ public:
     }
   }
 
-  void incStalls(uid_t uid) {
+  void incStalls(uid_t uid)
+  {
     std::unique_lock<std::mutex> scope_lock(mInFlightPidMutex);
     mInFlightStalls[uid]++;
   }
 
-  size_t getStalls(uid_t uid) {
+  size_t getStalls(uid_t uid)
+  {
     std::unique_lock<std::mutex> scope_lock(mInFlightPidMutex);
     auto it = mInFlightStalls.find(uid);
+
     if (it != mInFlightStalls.end()) {
       return it->second;
     } else {
@@ -210,7 +219,7 @@ public:
   //! Dump user tracking
   //----------------------------------------------------------------------------
   std::string PrintOut(bool monitoring) ;
-  size_t ShouldStall(uid_t uid);
+  size_t ShouldStall(uid_t uid, bool& saturated);
 
 private:
   std::atomic<bool> mAcceptingRequests {true};
@@ -235,7 +244,8 @@ public:
   //!
   //! @param tracke tracker object
   //----------------------------------------------------------------------------
-  InFlightRegistration(InFlightTracker& tracker, const eos::common::VirtualIdentity& vid) :
+  InFlightRegistration(InFlightTracker& tracker,
+                       const eos::common::VirtualIdentity& vid) :
     mInFlightTracker(tracker)
   {
     mSucceeded = mInFlightTracker.Up(vid);
@@ -262,7 +272,8 @@ public:
     return mSucceeded;
   }
 
-  std::set<pthread_t> getThreads() {
+  std::set<pthread_t> getThreads()
+  {
     return mInFlightTracker.getInFlightThreads();
   }
 

@@ -124,4 +124,3 @@ inline void modeToBuffer(mode_t mode, char* modestr)
   }
 }
 }
-
