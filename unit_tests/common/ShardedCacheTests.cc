@@ -135,3 +135,27 @@ TEST(ShardedCache, LateGCRun)
   auto result2 = cache.retrieve("hello");
   EXPECT_EQ(result2, nullptr);
 }
+
+TEST(ShardedCache, get_shard_except)
+{
+  ShardedCache<std::string, int> cache(8, 10);
+  std::unordered_map<std::string, int> empty_map;
+  for (int i=0; i < cache.num_shards(); i++) {
+    ASSERT_EQ(cache.get_shard(i), empty_map);
+  }
+  ASSERT_THROW(cache.get_shard(cache.num_shards()), std::out_of_range);
+  ASSERT_THROW(cache.get_shard(cache.num_shards()+1), std::out_of_range);
+  ASSERT_THROW(cache.get_shard(-1), std::out_of_range);
+}
+
+TEST(ShardedCache, get_shard)
+{
+  ShardedCache<std::string, int> cache(8, 10);
+  ASSERT_TRUE(cache.store("hello", std::make_unique<int>(5)));
+  ASSERT_EQ(cache.num_entries(), 1);
+  auto shard_copy = cache.get_shard(cache.calculateShard("hello"));
+  ASSERT_EQ(shard_copy.size(), 1);
+  ASSERT_EQ(shard_copy["hello"], 5);
+  std::this_thread::sleep_for(std::chrono::milliseconds(30));
+  ASSERT_EQ(cache.num_entries(), 0);
+}
