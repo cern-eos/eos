@@ -269,6 +269,7 @@ build_cs9_arm:
   allow_failure: true # @todo dont allow failure when/if we switch to Stream
   tags:
     - docker-arm
+  when: manual
 
 .build_ubuntu-template: &build_ubuntu-template_definition
   stage: build:rpm
