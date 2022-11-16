@@ -25,10 +25,11 @@
 #include "namespace/Namespace.hh"
 #include "namespace/ns_quarkdb/inspector/FileScanner.hh"
 #include "namespace/ns_quarkdb/inspector/ContainerScanner.hh"
+#include "namespace/ns_quarkdb/inspector/Printing.hh"
 #include "proto/ContainerMd.pb.h"
 #include "proto/FileMd.pb.h"
-#include <map>
 #include <json/json.h>
+#include <map>
 
 EOSNSNAMESPACE_BEGIN
 
@@ -42,9 +43,16 @@ class OutputSink
 {
 public:
   //----------------------------------------------------------------------------
+  //! Constructor
+  //----------------------------------------------------------------------------
+  OutputSink(std::ostream& out, std::ostream& err):
+    mOut(out), mErr(err)
+  {}
+
+  //----------------------------------------------------------------------------
   //! Virtual destructor
   //----------------------------------------------------------------------------
-  virtual ~OutputSink() {}
+  virtual ~OutputSink() = default;
 
   //----------------------------------------------------------------------------
   //! Print interface
@@ -52,11 +60,29 @@ public:
   virtual void print(const std::map<std::string, std::string>& out) = 0;
 
   //----------------------------------------------------------------------------
-  //! Print interface, single string
+  //! Print interface for string
   //----------------------------------------------------------------------------
-  virtual void print(const std::string& out) = 0;
+  virtual void print(const std::string& out)
+  {
+    mOut << Printing::escapeNonPrintable(out) << std::endl;
+  }
 
-  virtual void print(const Json::Value & out) = 0; 
+  //----------------------------------------------------------------------------
+  //! Print interface for json object
+  //----------------------------------------------------------------------------
+  virtual void print(const Json::Value& json_obj)
+  {
+    mOut << json_obj << std::endl;
+  }
+
+  //----------------------------------------------------------------------------
+  //! Debug output
+  //----------------------------------------------------------------------------
+  virtual void err(const std::string& str)
+  {
+    mErr << Printing::escapeNonPrintable(str) << std::endl;
+  }
+
   //----------------------------------------------------------------------------
   //! Print everything known about a ContainerMD
   //----------------------------------------------------------------------------
@@ -102,13 +128,9 @@ public:
   void print(const eos::ns::FileMdProto& proto, const FilePrintingOptions& opts,
              FileScanner::Item& item);
 
-  //----------------------------------------------------------------------------
-  //! Debug output
-  //----------------------------------------------------------------------------
-  virtual void err(const std::string& str) = 0;
-
-private:
-
+protected:
+  std::ostream& mOut;
+  std::ostream& mErr;
 };
 
 //------------------------------------------------------------------------------
@@ -126,22 +148,6 @@ public:
   //! Print implementation
   //----------------------------------------------------------------------------
   virtual void print(const std::map<std::string, std::string>& line) override;
-
-  //----------------------------------------------------------------------------
-  //! Print interface, single string implementation
-  //----------------------------------------------------------------------------
-  void print(const std::string& out) override;
-
-  void print(const Json::Value& jsonObj) override;
-
-  //----------------------------------------------------------------------------
-  //! Debug output
-  //----------------------------------------------------------------------------
-  virtual void err(const std::string& str) override;
-
-private:
-  std::ostream& mOut;
-  std::ostream& mErr;
 };
 
 //------------------------------------------------------------------------------
@@ -158,28 +164,14 @@ public:
   //----------------------------------------------------------------------------
   //! Destructor
   //----------------------------------------------------------------------------
-  virtual ~JsonStreamSink();
+  ~JsonStreamSink();
 
   //----------------------------------------------------------------------------
   //! Print implementation
   //----------------------------------------------------------------------------
   virtual void print(const std::map<std::string, std::string>& line) override;
 
-  //----------------------------------------------------------------------------
-  //! Print interface, single string implementation
-  //----------------------------------------------------------------------------
-  void print(const std::string& out) override;
-  
-  void print(const Json::Value& jsonObj) override;
-  //----------------------------------------------------------------------------
-  //! Debug output
-  //----------------------------------------------------------------------------
-  virtual void err(const std::string& str) override;
-
 private:
-  std::ostream& mOut;
-  std::ostream& mErr;
-
   bool mFirst;
 };
 
@@ -187,7 +179,11 @@ private:
 class JsonLinedStreamSink : public OutputSink
 {
 public:
+  //----------------------------------------------------------------------------
+  //! Constructor
+  //----------------------------------------------------------------------------
   JsonLinedStreamSink(std::ostream& out, std::ostream& err);
+
   //----------------------------------------------------------------------------
   //! Print implementation
   //----------------------------------------------------------------------------
@@ -196,19 +192,11 @@ public:
   //----------------------------------------------------------------------------
   //! Print interface, single string implementation
   //----------------------------------------------------------------------------
-  virtual void print(const std::string& out) override;
-
   virtual void print(const Json::Value& jsonObj) override;
 
-  //----------------------------------------------------------------------------
-  //! Debug output
-  //----------------------------------------------------------------------------
-  virtual void err(const std::string& str) override;
 private:
-  std::ostream& mOut;
-  std::ostream& mErr;
   Json::StreamWriterBuilder mBuilder;
-  std::unique_ptr<Json::StreamWriter> mWriter;  
+  std::unique_ptr<Json::StreamWriter> mWriter;
 };
 
 

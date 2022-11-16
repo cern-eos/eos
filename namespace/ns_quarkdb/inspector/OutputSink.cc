@@ -17,7 +17,6 @@
  ************************************************************************/
 
 #include "namespace/ns_quarkdb/inspector/OutputSink.hh"
-#include "namespace/ns_quarkdb/inspector/Printing.hh"
 #include "namespace/utils/Checksum.hh"
 #include <sstream>
 #include <json/json.h>
@@ -351,13 +350,18 @@ void OutputSink::print(const eos::ns::FileMdProto& proto,
 }
 
 //------------------------------------------------------------------------------
+// Class StreamSink
+//------------------------------------------------------------------------------
+
+//------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
 StreamSink::StreamSink(std::ostream& out, std::ostream& err)
-  : mOut(out), mErr(err) {}
+  : OutputSink(out, err)
+{}
 
 //------------------------------------------------------------------------------
-// Print implementation
+// Print implementation for map
 //------------------------------------------------------------------------------
 void StreamSink::print(const std::map<std::string, std::string>& line)
 {
@@ -374,79 +378,15 @@ void StreamSink::print(const std::map<std::string, std::string>& line)
 }
 
 
-void StreamSink::print(const Json::Value & jsonObj)
-{
-  mOut << jsonObj << std::endl;
-}
 //------------------------------------------------------------------------------
-// Print interface, single string implementation
+// Class JsonStreamSink
 //------------------------------------------------------------------------------
-void StreamSink::print(const std::string& out)
-{
-  mOut << Printing::escapeNonPrintable(out) << std::endl;
-}
-
-//------------------------------------------------------------------------------
-// Debug output
-//------------------------------------------------------------------------------
-void StreamSink::err(const std::string& str)
-{
-  mErr << Printing::escapeNonPrintable(str) << std::endl;
-}
-
-//------------------------------------------------------------------------------
-// Constructor
-//------------------------------------------------------------------------------
-JsonLinedStreamSink::JsonLinedStreamSink(std::ostream& out, std::ostream& err)
-  : mOut(out), mErr(err)
-{
-  mBuilder["indentation"] = "";  // or whatever you like
-  mWriter.reset(mBuilder.newStreamWriter());
-}
-
-//------------------------------------------------------------------------------
-// Print implementation
-//------------------------------------------------------------------------------
-void JsonLinedStreamSink::print(const std::map<std::string, std::string>& line)
-{
-  Json::Value json;
-  for (auto it = line.begin(); it != line.end(); it++) {
-    json[it->first] = it->second;
-  }
-  print(json);
-}
-
-//------------------------------------------------------------------------------
-// Print JsonValue implementation
-//------------------------------------------------------------------------------
-void JsonLinedStreamSink::print(const Json::Value& jsonObj)
-{
-  mWriter->write(jsonObj, &mOut);
-  mOut << std::endl;
-}
-
-//------------------------------------------------------------------------------
-// Print interface, single string implementation
-//------------------------------------------------------------------------------
-void JsonLinedStreamSink::print(const std::string& out)
-{
-  mOut << out << std::endl;
-}
-
-//------------------------------------------------------------------------------
-// Debug output
-//------------------------------------------------------------------------------
-void JsonLinedStreamSink::err(const std::string& str)
-{
-  mErr << str << std::endl;
-}
-
 
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
 JsonStreamSink::JsonStreamSink(std::ostream& out, std::ostream& err)
-  : mOut(out), mErr(err), mFirst(true)
+  : OutputSink(out, err), mFirst(true)
 {
   mOut << "[" << std::endl;
 }
@@ -479,26 +419,41 @@ void JsonStreamSink::print(const std::map<std::string, std::string>& line)
 }
 
 
+//------------------------------------------------------------------------------
+// Class JsonLinedStreamSink
+//------------------------------------------------------------------------------
 
-void JsonStreamSink::print(const Json::Value & jsonObj)
+//------------------------------------------------------------------------------
+// Constructor
+//------------------------------------------------------------------------------
+JsonLinedStreamSink::JsonLinedStreamSink(std::ostream& out, std::ostream& err)
+  : OutputSink(out, err)
 {
-  mOut << jsonObj << std::endl;
+  mBuilder["indentation"] = "";  // or whatever you like
+  mWriter.reset(mBuilder.newStreamWriter());
 }
 
 //------------------------------------------------------------------------------
-// Print interface, single string implementation
+// Print implementation
 //------------------------------------------------------------------------------
-void JsonStreamSink::print(const std::string& out)
+void JsonLinedStreamSink::print(const std::map<std::string, std::string>& line)
 {
-  mOut << out << std::endl;
+  Json::Value json;
+
+  for (auto it = line.begin(); it != line.end(); it++) {
+    json[it->first] = it->second;
+  }
+
+  print(json);
 }
 
 //------------------------------------------------------------------------------
-// Debug output
+// Print JsonValue implementation
 //------------------------------------------------------------------------------
-void JsonStreamSink::err(const std::string& str)
+void JsonLinedStreamSink::print(const Json::Value& jsonObj)
 {
-  mErr << str << std::endl;
+  mWriter->write(jsonObj, &mOut);
+  mOut << std::endl;
 }
 
 EOSNSNAMESPACE_END
