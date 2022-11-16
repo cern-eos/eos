@@ -16,8 +16,40 @@ Introduction
 
 This release is based on XRootD V5.
 
+``v5.1.3 Diopside``
+====================
+
+2022-11-16
+
+Bug
+----
+
+* [EOS-5162] - Setting ACL does not work when dir ends with whitespace
+* [EOS-5433] - GroupBalancer: crash when conversions are scheduled before Converter
+* [EOS-5436] - Origin Restriction does not work as expected
+* [EOS-5437] - Fix potential leaks in Mapping::getPhysicalIds
+
+New Feature
+------------
+
+* [EOS-5145] - Extending lock support
+* [EOS-5438] - Don't stall clients when thread pool is exhausted and a rate limit is reached
+
+Improvement
+------------
+
+* [EOS-5231] - Allow eos attr set to operate on CIDs
+* [EOS-5344] - eos recycle -m: show inode used / max numbers
+* [EOS-5401] - Return the inode number in FMD responses for GRPC
+* [EOS-5412] - add qclient performance metrics on monitoring format.
+* [EOS-5413] -  QClient performance: have last 5m, last 1m, etc metrics
+* [EOS-5439] - Add eosxd3 to all builds when fuse3 is available and ship in the RPM
+
+
 ``v5.1.2 Diopside``
 ====================
+
+2022-10-04
 
 Bug
 ----
@@ -38,6 +70,8 @@ New features
 
 ``v5.1.1 Diopside``
 ====================
+
+2022-09-15
 
 Note
 -----
@@ -64,6 +98,8 @@ New features
 
 ``v5.1.0 Diopside``
 ====================
+
+2022-09-02
 
 Note
 ----
