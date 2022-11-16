@@ -34,6 +34,7 @@
 #include <vector>
 #include <mutex>
 #include <map>
+#include <unordered_map>
 #include <numeric>
 #include <cmath> // for pow, will be moved to bit shift
 
@@ -48,7 +49,7 @@ using Milliseconds = int64_t;
 // 2. Copy-on-write: Clients always get an immutable snapshot of the data in the
 //    form of a shared pointer. No need to worry about locks or races after
 //    acquiring such a snapshot.
-// 3. Hashing: You can specify a custom hasing function to map from Key -> shard id.
+// 3. Hashing: You can specify a custom hashing function to map from Key -> shard id.
 // 4. Garbage collection: Thanks to shared pointers, we can keep track of how many
 //    references currently exist for each element in the cache by calling use_count.
 //
@@ -58,6 +59,11 @@ using Milliseconds = int64_t;
 //    - If this element is retrieved after that, we unset the mark.
 //    - If during the next pass the mark is still there, it means it hasn't been
 //      used for at least N seconds, so we evict it.
+//     In case a ttl is not supplied at start, the GC thread is not started. This
+//     way this can just function as regular non expiring concurrent map
+//
+//     By default, we choose the underlying map to be unordered_map, but you can
+//     force std::map by passing the 4th template parameter to true.
 
 template<typename Key>
 struct IdentityHash {
@@ -115,9 +121,9 @@ public:
       std::unordered_map<Args...>,
       std::map<Args...>>;
 
+  using shard_map_t = MapT<Key, CacheEntry>;
   using key_type = Key;
-  //using value_type = MapT::value_type;
-
+  using value_type = CacheEntry;
 
   int64_t calculateShard(const Key &key) const {
     return Hash::hash(key) % shards;
@@ -236,6 +242,27 @@ public:
 
   size_t num_content_shards() const {
     return contents.size();
+  }
+
+  /**
+   * @brief      Get a copy of contents of a given shard
+   * @param[in]  shard number
+   * @return     A map with the values copied out of their shared_ptr, so lifetimes
+   * will not be affected! The map type is the same as the underlying map type,
+   * which could be unordered or std::map depending on the template parameter.
+   */
+  MapT<Key,Value> get_shard(size_t shard) const {
+    if (shard >= contents.size()) {
+      throw std::out_of_range("trying to access non-existent shard");
+    }
+    MapT<Key,Value> ret;
+    std::lock_guard guard(mutexes[shard]);
+    std::transform(contents[shard].begin(), contents[shard].end(),
+                   std::inserter(ret, ret.end()),
+                   [](const auto& pair) {
+                     return std::make_pair(pair.first, *pair.second.value);
+                   });
+    return ret;
   }
 
 private:
