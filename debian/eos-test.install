@@ -21,5 +21,6 @@ usr/sbin/xrdcpshrink
 usr/sbin/xrdcptruncate
 usr/sbin/xrdstress
 usr/sbin/xrdstress.exe
+usr/sbin/eos-test-credential-bindings
 var/eos/test/fuse/untar/untar.tgz
 var/eos/test/fuse/untar/xrootd.tgz
