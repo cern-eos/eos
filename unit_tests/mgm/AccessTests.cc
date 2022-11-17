@@ -27,13 +27,13 @@
 #include "mgm/auth/AccessChecker.hh"
 #include "namespace/ns_quarkdb/ContainerMD.hh"
 #include "namespace/ns_quarkdb/FileMD.hh"
-
+#include "unit_tests/common/MappingTestFixture.hh"
 using namespace eos;
 
 //------------------------------------------------------------------------------
 // Test basic access functionality
 //------------------------------------------------------------------------------
-TEST(Access, SetRule)
+TEST_F(MappingTestF, Access_SetRule)
 {
   using namespace eos::mgm;
   Access::StallInfo old_stall;
@@ -76,7 +76,7 @@ eos::common::VirtualIdentity makeIdentity(uid_t uid, gid_t gid)
   return vid;
 }
 
-TEST(AccessChecker, UserRWX)
+TEST_F(MappingTestF, AccessChecker_UserRWX)
 {
   IContainerMDPtr cont = makeContainer(1234, 9999,
                                        S_IFDIR | S_IRWXU);
@@ -109,7 +109,7 @@ TEST(AccessChecker, UserRWX)
                 cont.get(), mgm::Acl(), R_OK | W_OK | X_OK, makeIdentity(1234, 8888)));
 }
 
-TEST(AccessChecker, rwxrwxrx)
+TEST_F(MappingTestF, AccessChecker_rwxrwxrx)
 {
   IContainerMDPtr cont = makeContainer(1234, 9999,
                                        S_IFDIR | S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
@@ -148,7 +148,7 @@ TEST(AccessChecker, rwxrwxrx)
                 cont.get(), mgm::Acl(), R_OK | X_OK, makeIdentity(3333, 3333)));
 }
 
-TEST(AccessChecker, WithAclUserRWX)
+TEST(MappingTestF, AccessChecker_WithAclUserRWX)
 {
   IContainerMDPtr cont = makeContainer(5555, 9999,
                                        S_IFDIR | S_IRWXU);
@@ -199,7 +199,7 @@ TEST(AccessChecker, WithAclUserRWX)
                 cont.get(), acl, R_OK | W_OK | X_OK, makeIdentity(1234, 8888)));
 }
 
-TEST(AccessChecker, WithPrepare)
+TEST_F(MappingTestF, AccessChecker_WithPrepare)
 {
   IContainerMDPtr cont = makeContainer(19229, 9999,
                                        S_IFDIR | S_IRWXU);
@@ -227,7 +227,7 @@ IFileMDPtr makeFile(uid_t uid, gid_t gid, int mode)
   return file;
 }
 
-TEST(AccessChecker, FileUserRWX)
+TEST_F(MappingTestF, AccessChecker_FileUserRWX)
 {
   IFileMDPtr file = makeFile(5555, 9999, S_IRWXU);
   ASSERT_TRUE(mgm::AccessChecker::checkFile(file.get(), X_OK,
@@ -258,7 +258,7 @@ TEST(AccessChecker, FileUserRWX)
                makeIdentity(9999, 9999)));
 }
 
-TEST(AccessChecker, FileGroupRWX)
+TEST_F(MappingTestF, AccessChecker_FileGroupRWX)
 {
   // file only allows group access
   IFileMDPtr file = makeFile(5555, 9999, S_IRWXG);
@@ -273,7 +273,7 @@ TEST(AccessChecker, FileGroupRWX)
                makeIdentity(1111, 2222)));
 }
 
-TEST(AccessChecker, FileOtherRWX)
+TEST_F(MappingTestF ,AccessChecker_FileOtherRWX)
 {
   // file only allows group access - weird, but possible
   IFileMDPtr file = makeFile(5555, 9999, S_IRWXO);
