@@ -875,8 +875,6 @@ Summary: The EOS test package
 Group: Applications/File
 ExclusiveArch: x86_64 aarch64
 Requires: bc davix jq dmidecode
-# Required for eos-https-functional-test, coming from osg-development 
-Requires: x509-scitokens-issuer-client 
 
 %description -n eos-test
 Contains an instance and fuse test script and some test executables and test archives.

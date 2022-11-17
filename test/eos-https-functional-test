@@ -110,8 +110,14 @@ macaroon() {
     # certificate and private key
     export X509_USER_CERT=${cert}
     export X509_USER_KEY=${key}
+    
     # Use the macaroon-init tool to request a macaroon: yum install x509-scitokens-issuer-client --enablerepo="osg-development"
-
+    macaroon-init -v foo >/dev/null 2>&1 || { echo -e >&2 "I require macaroon-init but it's not installed.  Aborting.\n"
+    "yum install https://repo.opensciencegrid.org/osg/3.4/osg-3.4-el$(uname -r | awk -F '.' '$0=$(NF-1)')-release-latest.rpm\n"
+    "yum install --enablerepo=osg-development -y x509-scitokens-issuer-client";
+    exit 256;
+    }
+    
     export MACAROON="$(macaroon-init https://${host}:${port}/${testdir}/ 60 UPLOAD,DOWNLOAD)"
     respMacaroonUpload="$(curl -I -sS ${verbose} -L -H "Authorization: Bearer ${MACAROON}" https://${host}:${port}${testdir}/helloworld-macaroon.txt --upload-file <(echo ola) | grep HTTP | tr -d '\r' | paste -sd'+')"
     echo -e "\tmacaroon upload -> ${respMacaroonUpload}"
