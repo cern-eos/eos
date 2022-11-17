@@ -64,12 +64,11 @@ google::dense_hash_map<std::string, time_t> Mapping::ActiveTidents;
 google::dense_hash_map<uid_t, size_t> Mapping::ActiveUids;
 
 XrdOucHash<Mapping::id_pair> Mapping::gPhysicalUidCache;
-ShardedCache<std::string, Mapping::id_pair> Mapping::gShardedPhysicalUidCache (8, 3600*1000);
-ShardedCache<std::string, Mapping::gid_set> Mapping::gShardedPhysicalGidCache (8, 3600*1000);
-ShardedCache<uid_t, std::string> Mapping::gShardedNegativeUserNameCache (16, 3600*1000);
-ShardedCache<gid_t, std::string> Mapping::gShardedNegativeGroupNameCache (16, 3600*1000);
-ShardedCache<std::string, bool> Mapping::gShardedNegativePhysicalUidCache
-    (16, 3600*1000);
+ShardedCache<std::string, Mapping::id_pair> Mapping::gShardedPhysicalUidCache;
+ShardedCache<std::string, Mapping::gid_set> Mapping::gShardedPhysicalGidCache;
+ShardedCache<uid_t, std::string> Mapping::gShardedNegativeUserNameCache;
+ShardedCache<gid_t, std::string> Mapping::gShardedNegativeGroupNameCache;
+ShardedCache<std::string, bool> Mapping::gShardedNegativePhysicalUidCache;
 XrdOucHash<Mapping::gid_set> Mapping::gPhysicalGidCache;
 
 std::mutex Mapping::gPhysicalUserNameCacheMutex;
@@ -128,6 +127,12 @@ Mapping::Init()
   }
 
   gOAuth.Init();
+  gShardedPhysicalUidCache.init(8, 3600*1000);
+  gShardedPhysicalGidCache.init(8, 3600*1000);
+  gShardedNegativeUserNameCache.init(16, 3600*1000);
+  gShardedNegativeGroupNameCache.init(16, 3600*1000);
+  gShardedNegativePhysicalUidCache.init(16, 3600*1000);
+
 }
 
 //------------------------------------------------------------------------------

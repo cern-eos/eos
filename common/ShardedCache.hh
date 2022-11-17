@@ -108,9 +108,22 @@ public:
   int64_t calculateShard(const Key &key) const {
     return Hash::hash(key) % shards;
   }
+
+  ShardedCache() = default;
+
   // TTL is approximate. An element can stay while unused from [ttl, 2*ttl]
   ShardedCache(size_t shardBits_, Milliseconds ttl_)
   : shardBits(shardBits_), shards(pow(2, shardBits)), ttl(ttl_), mutexes(shards), contents(shards) {
+    cleanupThread.reset(&ShardedCache<Key, Value, Hash>::garbageCollector, this);
+  }
+
+  void init(size_t shardBits_, Milliseconds ttl_) {
+    shardBits = shardBits_;
+    shards = pow(2, shardBits);
+    ttl = ttl_;
+    std::vector<std::mutex> mutexes_(shards);
+    mutexes.swap(mutexes_);
+    contents.resize(shards);
     cleanupThread.reset(&ShardedCache<Key, Value, Hash>::garbageCollector, this);
   }
 
