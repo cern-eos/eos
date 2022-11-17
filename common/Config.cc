@@ -169,7 +169,7 @@ Config::AsMap(const char* chapter)
     for ( auto it : conf[chapter] ) {
       if ( eos::common::StringConversion::GetKeyValueMap( it.c_str(),
 							  map,
-							  "=" ) ) {
+							  "="," " ) ) {
       }
     }
   }

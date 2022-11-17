@@ -202,14 +202,14 @@ com_daemon(char* arg)
       XrdOucString subcmd = subtokenizer.GetToken();
       if (subcmd == "coup") {
 	std::string kline;
-	kline = "redis-cli -p `cat "; kline += cfile; kline += "|grep xrd.port | cut -d ' ' -f 2` <<< raft-attempt-coup";
+	kline = "env REDISCLI_AUTH=`cat /etc/eos.keytab` redis-cli -p `cat "; kline += cfile; kline += "|grep xrd.port | cut -d ' ' -f 2` <<< raft-attempt-coup";
 	int rc = system(kline.c_str());
 	fprintf(stderr,"info: run '%s' retc=%d\n", kline.c_str(), WEXITSTATUS(rc));
 	global_retc = WEXITSTATUS(rc);
 	return (0);
       } else if (subcmd == "info") {
 	std::string kline;
-	kline = "redis-cli -p `cat "; kline += cfile; kline += "|grep xrd.port | cut -d ' ' -f 2` <<< raft-info";
+	kline = "env REDISCLI_AUTH=`cat /etc/eos.keytab` redis-cli -p `cat "; kline += cfile; kline += "|grep xrd.port | cut -d ' ' -f 2` <<< raft-info";
 	int rc = system(kline.c_str());
 	fprintf(stderr,"info: run '%s' retc=%d\n", kline.c_str(), WEXITSTATUS(rc));
 	global_retc = WEXITSTATUS(rc);

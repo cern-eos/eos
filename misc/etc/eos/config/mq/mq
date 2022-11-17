@@ -31,3 +31,5 @@ mq.rejectqueuebacklog 100000
 mq.trace low
 #############################################################
 mq.queue /eos/
+mq.qdbcluster localhost:7777
+mq.qdbpassword_file  /etc/eos.keytab

@@ -145,7 +145,7 @@ public:
   }
 
   //----------------------------------------------------------------------------
-  // Replae variables from a chapter until they are resolved
+  // Replace variables from a chapter until they are resolved
   //----------------------------------------------------------------------------
   void ReplaceFromChapter(std::string& s, const char* substitute_chapter) {
     if (Has(substitute_chapter)) {
