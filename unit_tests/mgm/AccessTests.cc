@@ -148,7 +148,7 @@ TEST_F(MappingTestF, AccessChecker_rwxrwxrx)
                 cont.get(), mgm::Acl(), R_OK | X_OK, makeIdentity(3333, 3333)));
 }
 
-TEST(MappingTestF, AccessChecker_WithAclUserRWX)
+TEST_F(MappingTestF, AccessChecker_WithAclUserRWX)
 {
   IContainerMDPtr cont = makeContainer(5555, 9999,
                                        S_IFDIR | S_IRWXU);

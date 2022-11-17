@@ -99,6 +99,9 @@ static std::string g_krb_gid_key = "krb5:" + g_pwd_gid_key;
 //Static vars for nobody ids which may change in the future
 static uid_t g_nobody_uid = 99;
 static gid_t g_nobody_gid = 99;
+
+// flag to indicate whether the mapping is initialized
+std::once_flag g_cache_map_init;
 /*----------------------------------------------------------------------------*/
 /**
  * Initialize Google maps
@@ -127,12 +130,17 @@ Mapping::Init()
   }
 
   gOAuth.Init();
-  gShardedPhysicalUidCache.init(8, 3600*1000);
-  gShardedPhysicalGidCache.init(8, 3600*1000);
-  gShardedNegativeUserNameCache.init(16, 3600*1000);
-  gShardedNegativeGroupNameCache.init(16, 3600*1000);
-  gShardedNegativePhysicalUidCache.init(16, 3600*1000);
-
+  try {
+    std::call_once(g_cache_map_init, []() {
+      gShardedPhysicalUidCache.init(8, 3600 * 1000);
+      gShardedPhysicalGidCache.init(8, 3600 * 1000);
+      gShardedNegativeUserNameCache.init(16, 3600 * 1000);
+      gShardedNegativeGroupNameCache.init(16, 3600 * 1000);
+      gShardedNegativePhysicalUidCache.init(16, 3600 * 1000);
+    });
+  } catch (...) {
+    // we can't log here as the logging system is not initialized yet
+  }
 }
 
 //------------------------------------------------------------------------------
