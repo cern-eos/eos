@@ -116,8 +116,8 @@
     - exec_cmd eos-cli1 'su eos-user -c "kinit eos-user -k -t /tmp/eos-user.keytab && klist"'
     # download and launch the tests
     - exec_cmd eos-cli1 'su eos-user -c "git clone https://gitlab.cern.ch/dss/eosclient-tests.git /eos/user/e/eos-user/eosclient-tests"'
-    - exec_cmd eos-cli1 'su eos-user -c "cd /eos/user/e/eos-user && python2 ./eosclient-tests/run.py --workdir=/eos/user/e/eos-user regression"'
-    - exec_cmd eos-cli1 'su eos-user -c "cd /eos/user/e/eos-user && python2 ./eosclient-tests/run.py --workdir=/eos/user/e/eos-user ci-eosfuse_release"'
+    - exec_cmd eos-cli1 'su eos-user -c "cd /eos/user/e/eos-user && python3 ./eosclient-tests/run.py --workdir=/eos/user/e/eos-user regression"'
+    - exec_cmd eos-cli1 'su eos-user -c "cd /eos/user/e/eos-user && python3 ./eosclient-tests/run.py --workdir=/eos/user/e/eos-user ci-eosfuse_release"'
   <<: *helm_after_script_template
   artifacts:
     when: on_failure
@@ -203,7 +203,7 @@ helm_cnvrt_fsck:
     # fi
     # until then just run the "ci" tests
     - exec_cmd eos-cli1 'cd eosclient-tests; for n in prepare/*.sh; do /bin/bash $n prepare; done'
-    - exec_cmd eos-cli1 'su eos-user -c "python2 /eosclient-tests/run.py --workdir=\"/eos1/dockertest /eos2/dockertest\" ci"'
+    - exec_cmd eos-cli1 'su eos-user -c "python3 /eosclient-tests/run.py --workdir=\"/eos1/dockertest /eos2/dockertest\" ci"'
     - exec_cmd eos-cli1 'cd eosclient-tests; for n in prepare/*.sh; do /bin/bash $n cleanup; done'
   <<: *helm_after_script_template
   artifacts:
@@ -230,6 +230,23 @@ helm_fusex_ub_focal:
     - job: ubuntu_focal_docker_image
       artifacts: false
   only:
+    - schedules
+    - tags
+  allow_failure: true
+  retry: 1
+  when: manual
+
+helm_fusex_ub_jammy:
+  extends: .helm_fusex_test_template
+  variables:
+    CLI_BASETAG: "ubuntu_jammy_client_"
+  needs:
+    - job: cc7_docker_image
+      artifacts: false
+    - job: ubuntu_jammy_docker_image
+      artifacts: false
+  only:
+    - eosclient-tests-python3
     - schedules
     - tags
   allow_failure: true

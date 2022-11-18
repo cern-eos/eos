@@ -767,6 +767,7 @@ code_quality_html:
     - exec_cmd eos-mgm1 'grep "RWMutex. Order Checking Error in thread" /var/log/eos/mgm/xrdlog.mgm && exit 1 || exit 0'
     # download tests repo
     - exec_cmd eos-cli1 'git clone https://gitlab.cern.ch/dss/eosclient-tests.git'
+
     # @todo(esindril): run "all" tests in schedule mode once these are properly supported
     # if [[ "$CI_PIPELINE_SOURCE" == "schedule" ]];
     # then
@@ -775,7 +776,7 @@ code_quality_html:
     # fi
     # until then just run the "ci" tests
     - exec_cmd eos-cli1 'cd eosclient-tests; for n in prepare/*.sh; do /bin/bash $n prepare; done'
-    - exec_cmd eos-cli1 'su eos-user -c "python2 /eosclient-tests/run.py --workdir=\"/eos1/dockertest /eos2/dockertest\" ci"'
+    - exec_cmd eos-cli1 'su eos-user -c "python3 /eosclient-tests/run.py --workdir=\"/eos1/dockertest /eos2/dockertest\" ci"'
     - exec_cmd eos-cli1 'cd eosclient-tests; for n in prepare/*.sh; do /bin/bash $n cleanup; done'
   <<: *dock8s_after_script_template
   artifacts:
