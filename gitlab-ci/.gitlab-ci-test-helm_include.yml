@@ -115,9 +115,9 @@
     - exec_cmd eos-cli1 'echo -e "export KRB5CCNAME=FILE:/tmp/krb5cc_$(id -u eos-user)" >> ~/.bashrc'
     - exec_cmd eos-cli1 'su eos-user -c "kinit eos-user -k -t /tmp/eos-user.keytab && klist"'
     # download and launch the tests
-    - exec_cmd eos-cli1 'su eos-user -c "git clone https://gitlab.cern.ch/dss/eosclient-tests.git /eos/user/e/eos-user/eosclient-tests"'
-    - exec_cmd eos-cli1 'su eos-user -c "cd /eos/user/e/eos-user && python2 ./eosclient-tests/run.py --workdir=/eos/user/e/eos-user regression"'
-    - exec_cmd eos-cli1 'su eos-user -c "cd /eos/user/e/eos-user && python2 ./eosclient-tests/run.py --workdir=/eos/user/e/eos-user ci-eosfuse_release"'
+    - exec_cmd eos-cli1 'su eos-user -c "git clone https://gitlab.cern.ch/dss/eosclient-tests.git --branch python3 --single-branch /eos/user/e/eos-user/eosclient-tests"'
+    - exec_cmd eos-cli1 'su eos-user -c "cd /eos/user/e/eos-user && python3 ./eosclient-tests/run.py --workdir=/eos/user/e/eos-user regression"'
+    - exec_cmd eos-cli1 'su eos-user -c "cd /eos/user/e/eos-user && python3 ./eosclient-tests/run.py --workdir=/eos/user/e/eos-user ci-eosfuse_release"'
   <<: *helm_after_script_template
   artifacts:
     when: on_failure
@@ -194,7 +194,7 @@ helm_cnvrt_fsck:
     - kubectl exec eos-mgm-0 -- eos chmod 2777 /eos/dockertest
     - exec_cmd eos-cli1  'su eos-user -c "mkdir -p /eos1/dockertest/fusex_tests/ && cd /eos1/dockertest/fusex_tests/ && fusex-benchmark"'
     # download and launch the ci tests
-    - exec_cmd eos-cli1 'git clone https://gitlab.cern.ch/dss/eosclient-tests.git'
+    - exec_cmd eos-cli1 'git clone https://gitlab.cern.ch/dss/eosclient-tests.git --branch python3 --single-branch '
     # @todo(esindril): run "all" tests in schedule mode once these are properly supported
     # if [[ "$CI_PIPELINE_SOURCE" == "schedule" ]];
     # then
@@ -203,7 +203,7 @@ helm_cnvrt_fsck:
     # fi
     # until then just run the "ci" tests
     - exec_cmd eos-cli1 'cd eosclient-tests; for n in prepare/*.sh; do /bin/bash $n prepare; done'
-    - exec_cmd eos-cli1 'su eos-user -c "python2 /eosclient-tests/run.py --workdir=\"/eos1/dockertest /eos2/dockertest\" ci"'
+    - exec_cmd eos-cli1 'su eos-user -c "python3 /eosclient-tests/run.py --workdir=\"/eos1/dockertest /eos2/dockertest\" ci"'
     - exec_cmd eos-cli1 'cd eosclient-tests; for n in prepare/*.sh; do /bin/bash $n cleanup; done'
   <<: *helm_after_script_template
   artifacts:
@@ -236,6 +236,23 @@ helm_fusex_ub_focal:
   retry: 1
   when: manual
 
+helm_fusex_ub_jammy:
+  extends: .helm_fusex_test_template
+  variables:
+    CLI_BASETAG: "ubuntu_jammy_client_"
+  needs:
+    - job: cc7_docker_image
+      artifacts: false
+    - job: ubuntu_jammy_docker_image
+      artifacts: false
+  only:
+    - eosclient-tests-python3
+    - schedules
+    - tags
+  allow_failure: true
+  retry: 1
+  when: manual
+
 helm_rtb_clone:
   stage: test
   image: gitlab-registry.cern.ch/dss/alpine-enhanced:3.13.5
@@ -248,7 +265,7 @@ helm_rtb_clone:
     - exec_cmd eos-cli1 'atd; at now <<< "mkdir -p /eos1/ && mount -t fuse eosxd -ofsname=mount-1 /eos1/; mkdir -p /eos2/ && mount -t fuse eosxd -ofsname=mount-2 /eos2/;"'
     - exec_cmd eos-cli1 'count=0; while [[ $count -le 10 ]] && ( [[ ! -d /eos1/dockertest/ ]] || [[ ! -d /eos2/dockertest/ ]] ); do echo "Wait for mount... $count"; (( count++ )); sleep 1; done;'
     # download tests repo
-    - exec_cmd eos-cli1 'git clone https://gitlab.cern.ch/dss/eosclient-tests.git'
+    - exec_cmd eos-cli1 'git clone https://gitlab.cern.ch/dss/eosclient-tests.git --branch python3 --single-branch '
     # run the clone test (please remember that ubuntu releases do not support 'clone' yet)
     - kubectl exec eos-mgm-0 -- eos chmod 2777 /eos/dockertest
     - exec_cmd eos-cli1 'cd /eosclient-tests; clone_tests/clone_test.sh prepare; rc=$?; exit $rc'

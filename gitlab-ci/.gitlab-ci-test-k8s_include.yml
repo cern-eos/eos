@@ -146,6 +146,7 @@ k8s_fusex_ub_jammy:
   only:
     - schedules
     - tags
+    - eosclient-tests-python3
   tags:
     - docker_node
     - k8s
