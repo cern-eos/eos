@@ -64,11 +64,12 @@ google::dense_hash_map<std::string, time_t> Mapping::ActiveTidents;
 google::dense_hash_map<uid_t, size_t> Mapping::ActiveUids;
 
 XrdOucHash<Mapping::id_pair> Mapping::gPhysicalUidCache;
-ShardedCache<std::string, Mapping::id_pair> Mapping::gShardedPhysicalUidCache;
-ShardedCache<std::string, Mapping::gid_set> Mapping::gShardedPhysicalGidCache;
-ShardedCache<uid_t, std::string> Mapping::gShardedNegativeUserNameCache;
-ShardedCache<gid_t, std::string> Mapping::gShardedNegativeGroupNameCache;
-ShardedCache<std::string, bool> Mapping::gShardedNegativePhysicalUidCache;
+
+ShardedCache<std::string, Mapping::id_pair> Mapping::gShardedPhysicalUidCache(8);
+ShardedCache<std::string, Mapping::gid_set> Mapping::gShardedPhysicalGidCache(8);
+ShardedCache<uid_t, std::string> Mapping::gShardedNegativeUserNameCache(8);
+ShardedCache<gid_t, std::string> Mapping::gShardedNegativeGroupNameCache(8);
+ShardedCache<std::string, bool> Mapping::gShardedNegativePhysicalUidCache(8);
 XrdOucHash<Mapping::gid_set> Mapping::gPhysicalGidCache;
 
 std::mutex Mapping::gPhysicalUserNameCacheMutex;
@@ -132,11 +133,11 @@ Mapping::Init()
   gOAuth.Init();
   try {
     std::call_once(g_cache_map_init, []() {
-      gShardedPhysicalUidCache.init(8, 3600 * 1000);
-      gShardedPhysicalGidCache.init(8, 3600 * 1000);
-      gShardedNegativeUserNameCache.init(16, 3600 * 1000);
-      gShardedNegativeGroupNameCache.init(16, 3600 * 1000);
-      gShardedNegativePhysicalUidCache.init(16, 3600 * 1000);
+      gShardedPhysicalUidCache.reset_cleanup_thread(3600 * 1000);
+      gShardedPhysicalGidCache.reset_cleanup_thread(3600 * 1000);
+      gShardedNegativeUserNameCache.reset_cleanup_thread(3600 * 1000);
+      gShardedNegativeGroupNameCache.reset_cleanup_thread(3600 * 1000);
+      gShardedNegativePhysicalUidCache.reset_cleanup_thread(3600 * 1000);
     });
   } catch (...) {
     // we can't log here as the logging system is not initialized yet

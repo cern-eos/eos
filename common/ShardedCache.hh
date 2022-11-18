@@ -109,7 +109,12 @@ public:
     return Hash::hash(key) % shards;
   }
 
-  ShardedCache() = default;
+  // ShardedCache without a GC thread!
+  explicit ShardedCache(size_t shardBits_) : shardBits(shardBits_),
+                                             shards(1UL << shardBits),
+                                             mutexes(shards),
+                                             contents(shards) {
+  }
 
   // TTL is approximate. An element can stay while unused from [ttl, 2*ttl]
   ShardedCache(size_t shardBits_, Milliseconds ttl_)
@@ -117,14 +122,9 @@ public:
     cleanupThread.reset(&ShardedCache<Key, Value, Hash>::garbageCollector, this);
   }
 
-  void init(size_t shardBits_, Milliseconds ttl_) {
-    shardBits = shardBits_;
-    shards = pow(2, shardBits);
+  void reset_cleanup_thread(Milliseconds ttl_) {
     ttl = ttl_;
-    std::vector<std::mutex> mutexes_(shards);
-    mutexes.swap(mutexes_);
-    contents.resize(shards);
-    cleanupThread.reset(&ShardedCache<Key, Value, Hash>::garbageCollector, this);
+    cleanupThread.reset(&ShardedCache::garbageCollector, this);
   }
 
   ~ShardedCache() { }

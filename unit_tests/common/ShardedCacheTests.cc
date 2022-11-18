@@ -42,6 +42,19 @@ TEST(ShardedCache, CalculateShard)
             hasher("hello") % 256);
 }
 
+TEST(ShardedCache, NoGC)
+{
+  ShardedCache<std::string, int> cache(8);
+  ASSERT_EQ(cache.num_shards(), 256);
+  ASSERT_EQ(cache.num_content_shards(), 256);
+  EXPECT_EQ(cache.num_entries(), 0);
+  std::hash<std::string> hasher{};
+  ASSERT_GE(cache.calculateShard("hello"), 0);
+  ASSERT_LT(cache.calculateShard("hello"),256);
+  EXPECT_EQ(cache.calculateShard("hello"),
+            hasher("hello") % 256);
+}
+
 TEST(ShardedCache, EmptyRetrieve)
 {
   ShardedCache<std::string, int> cache(8,100);
@@ -95,6 +108,30 @@ TEST(ShardedCache, ValueExpiry)
   // as the first round just marks the entry as expired and the second round
   // actually deletes it.
   std::this_thread::sleep_for(std::chrono::milliseconds(30));
+  auto result2 = cache.retrieve("hello");
+  EXPECT_EQ(result2, nullptr);
+}
+
+TEST(ShardedCache, NoGCRetrieve)
+{
+  ShardedCache<std::string, int> cache(8);
+  ASSERT_TRUE(cache.store("hello", std::make_unique<int>(5)));
+  auto result = cache.retrieve("hello");
+  ASSERT_NE(result, nullptr);
+  EXPECT_EQ(*result, 5);
+}
+
+TEST(ShardedCache, LateGCRun)
+{
+  ShardedCache<std::string, int> cache(8);
+  ASSERT_TRUE(cache.store("hello", std::make_unique<int>(5)));
+  auto result = cache.retrieve("hello");
+  ASSERT_NE(result, nullptr);
+  EXPECT_EQ(*result, 5);
+  result.reset();
+  cache.reset_cleanup_thread(10);
+  std::this_thread::sleep_for(std::chrono::milliseconds(30));
+  ASSERT_EQ(cache.num_entries(), 0);
   auto result2 = cache.retrieve("hello");
   EXPECT_EQ(result2, nullptr);
 }
