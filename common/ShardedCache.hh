@@ -117,14 +117,18 @@ public:
   }
 
   // TTL is approximate. An element can stay while unused from [ttl, 2*ttl]
-  ShardedCache(size_t shardBits_, Milliseconds ttl_)
+  ShardedCache(size_t shardBits_, Milliseconds ttl_,
+               std::string name_= "ShardedCacheGC")
   : shardBits(shardBits_), shards(pow(2, shardBits)), ttl(ttl_), mutexes(shards), contents(shards) {
     cleanupThread.reset(&ShardedCache<Key, Value, Hash>::garbageCollector, this);
+    cleanupThread.setName(name_);
   }
 
-  void reset_cleanup_thread(Milliseconds ttl_) {
+  void reset_cleanup_thread(Milliseconds ttl_,
+                            std::string name_ = "ShardedCacheGC") {
     ttl = ttl_;
     cleanupThread.reset(&ShardedCache::garbageCollector, this);
+    cleanupThread.setName(name_);
   }
 
   ~ShardedCache() { }

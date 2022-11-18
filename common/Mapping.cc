@@ -133,11 +133,16 @@ Mapping::Init()
   gOAuth.Init();
   try {
     std::call_once(g_cache_map_init, []() {
-      gShardedPhysicalUidCache.reset_cleanup_thread(3600 * 1000);
-      gShardedPhysicalGidCache.reset_cleanup_thread(3600 * 1000);
-      gShardedNegativeUserNameCache.reset_cleanup_thread(3600 * 1000);
-      gShardedNegativeGroupNameCache.reset_cleanup_thread(3600 * 1000);
-      gShardedNegativePhysicalUidCache.reset_cleanup_thread(3600 * 1000);
+      gShardedPhysicalUidCache.reset_cleanup_thread(3600 * 1000,
+                                                    "PhysicalUidCache");
+      gShardedPhysicalGidCache.reset_cleanup_thread(3600 * 1000,
+                                                    "PhysicalGidCache");
+      gShardedNegativeUserNameCache.reset_cleanup_thread(3600 * 1000,
+                                                         "NegativeUserNameCache");
+      gShardedNegativeGroupNameCache.reset_cleanup_thread(3600 * 1000,
+                                                          "NegativeGroupNameCache");
+      gShardedNegativePhysicalUidCache.reset_cleanup_thread(3600 * 1000,
+                                                            "NegativePhysicalUidCache");
     });
   } catch (...) {
     // we can't log here as the logging system is not initialized yet
