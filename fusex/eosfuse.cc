@@ -1698,7 +1698,7 @@ EosFuse::run(int argc, char* argv[], void* userdata)
       mds.init(&mdbackend);
       caps.init(&mdbackend, &mds);
       datas.init();
-
+      eos::common::Mapping::Init();
       if (config.mqtargethost.length()) {
         if (mds.connect(config.mqtargethost, config.mqidentity, config.mqname,
                         config.clienthost, config.clientuuid)) {
