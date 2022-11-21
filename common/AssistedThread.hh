@@ -29,6 +29,9 @@
 #include <vector>
 #include <atomic>
 
+// Thread name size limit from pthread_setname_np manual, while OSX allows for
+// 64 characters, it makes sense to keep it at 16 for portability
+constexpr auto THREAD_NAME_LIMIT = 15;
 //------------------------------------------------------------------------------
 // C++ threads offer no easy way to stop a thread once it's started. Signalling
 // "stop" to a (potentially sleeping) background thread involves a subtle dance
@@ -164,6 +167,12 @@ public:
   // NOTE: assistant object must belong to a different thread!
   //----------------------------------------------------------------------------
   void propagateTerminationSignal(AssistedThread& thread);
+
+  void setSelfThreadName(const std::string &name) {
+#ifndef __APPLE__
+    pthread_setname_np(pthread_self(), name.substr(0, 15).c_str());
+#endif
+  }
 
 private:
   friend class AssistedThread;
