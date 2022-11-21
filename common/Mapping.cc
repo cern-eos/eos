@@ -70,6 +70,9 @@ ShardedCache<std::string, Mapping::gid_set> Mapping::gShardedPhysicalGidCache(8)
 ShardedCache<uid_t, std::string> Mapping::gShardedNegativeUserNameCache(8);
 ShardedCache<gid_t, std::string> Mapping::gShardedNegativeGroupNameCache(8);
 ShardedCache<std::string, bool> Mapping::gShardedNegativePhysicalUidCache(8);
+ShardedCache<std::string, time_t> Mapping::ActiveTidentsSharded (16);
+ShardedCache<uid_t, size_t> Mapping::ActiveUidsSharded (16);
+
 XrdOucHash<Mapping::gid_set> Mapping::gPhysicalGidCache;
 
 std::mutex Mapping::gPhysicalUserNameCacheMutex;
@@ -143,6 +146,10 @@ Mapping::Init()
                                                           "NegGroupNameGC");
       gShardedNegativePhysicalUidCache.reset_cleanup_thread(3600 * 1000,
                                                             "NegUidGC");
+      ActiveUidsSharded.reset_cleanup_thread(300 * 1000,
+                                                     "ActiveUidsSharded");
+      ActiveTidentsSharded.reset_cleanup_thread(300 * 1000,
+                                                        "ActiveTidentsGC");
     });
   } catch (...) {
     // we can't log here as the logging system is not initialized yet
@@ -908,8 +915,6 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
     vid.app = rapp.c_str();
   }
 
-  time_t now = time(NULL);
-
   // Check the Geo Location
   if ((!vid.geolocation.length()) && (gGeoMap.size())) {
     // if the geo location was not set externally and we have some recipe we try
@@ -945,28 +950,20 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
     }
   }
 
-  // Maintain the active client map and expire old entries
-  ActiveLock.Lock();
+  char actident[1024];
+  snprintf(actident, sizeof(actident) - 1, "%d^%s^%s^%s^%s", vid.uid,
+           mytident.c_str(), vid.prot.c_str(), vid.host.c_str(), vid.app.c_str());
+  std::string intident = actident;
 
-  // Safety measures not to exceed memory by 'nasty' clients
-  if (ActiveTidents.size() > 25000) {
-    ActiveExpire();
-  }
-
-  if (ActiveTidents.size() < 60000) {
-    char actident[1024];
-    snprintf(actident, sizeof(actident) - 1, "%d^%s^%s^%s^%s", vid.uid,
-             mytident.c_str(), vid.prot.c_str(), vid.host.c_str(), vid.app.c_str());
-    std::string intident = actident;
-
-    if (!ActiveTidents.count(intident)) {
-      ActiveUids[vid.uid]++;
+  if (!ActiveTidentsSharded.contains(intident)) {
+    if (auto value = ActiveUidsSharded.retrieve(vid.uid)) {
+      *value += 1;
+    } else {
+      ActiveUidsSharded.store(vid.uid, std::make_unique<size_t>(1));
     }
-
-    ActiveTidents[intident] = now;
   }
 
-  ActiveLock.UnLock();
+  ActiveTidentsSharded.store(intident, std::make_unique<time_t>(time(NULL)));
   eos_static_debug("selected %d %d [%s %s]", vid.uid, vid.gid, ruid.c_str(),
                    rgid.c_str());
 
@@ -2108,22 +2105,21 @@ Mapping::UidFromTident(const std::string& tident)
 size_t
 Mapping::ActiveSessions(uid_t uid)
 {
-  XrdSysMutexHelper mLock(ActiveLock);
-  auto n = ActiveUids.find(uid);
+  //XrdSysMutexHelper mLock(ActiveLock);
 
-  if (n != ActiveUids.end()) {
-    return n->second;
-  } else {
-    return 0;
+  if (auto n = ActiveUidsSharded.retrieve(uid)) {
+    return *n;
   }
+
+  return 0;
+
 }
 
 
 size_t
 Mapping::ActiveSessions()
 {
-  XrdSysMutexHelper mLock(ActiveLock);
-  return ActiveTidents.size();
+  return ActiveTidentsSharded.num_entries();
 }
 
 void

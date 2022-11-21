@@ -233,12 +233,13 @@ public:
   //! Map storing the client identifiers and last usage time
   // ---------------------------------------------------------------------------
   static google::dense_hash_map<std::string, time_t> ActiveTidents;
+  static ShardedCache<std::string, time_t> ActiveTidentsSharded;
 
   // ---------------------------------------------------------------------------
   //! Map storing the active client uids
   // ---------------------------------------------------------------------------
   static google::dense_hash_map<uid_t, size_t> ActiveUids;
-
+  static ShardedCache<uid_t, size_t> ActiveUidsSharded;
   // ---------------------------------------------------------------------------
   //! Retrieve the user ID from a trace identifier
   // ---------------------------------------------------------------------------

@@ -25,6 +25,7 @@
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/Stat.hh"
 #include <json/json.h>
+#include "common/Mapping.hh"
 
 EOSMGMNAMESPACE_BEGIN
 
@@ -35,6 +36,7 @@ ProcCommand::Who()
   std::map<std::string, int> usernamecount;
   std::map<std::string, int> authcount;
   std::vector<std::string> tokens;
+  std::unordered_map<std::string, time_t> active_tidents;
   std::string delimiter = "^";
   std::string option;
   bool json_format = false;
@@ -53,11 +55,6 @@ ProcCommand::Who()
     std::string format = pOpaque->Get("mgm.format");
     json_format = (format == "json");
   }
-
-  // Call the expiration functions
-  eos::common::Mapping::ActiveLock.Lock();
-  eos::common::Mapping::ActiveExpire(300, true);
-  google::dense_hash_map<std::string, time_t>::const_iterator it;
 
   if ((option.find("m")) != std::string::npos) {
     monitoring = true;
@@ -79,20 +76,21 @@ ProcCommand::Who()
     showsummary = true;
   }
 
-  for (it = eos::common::Mapping::ActiveTidents.begin();
-       it != eos::common::Mapping::ActiveTidents.end(); it++) {
-    std::string username = "";
-    tokens.clear();
-    std::string intoken = it->first.c_str();
-    eos::common::StringConversion::Tokenize(intoken, tokens, delimiter);
-    uid_t uid = atoi(tokens[0].c_str());
-    int terrc = 0;
-    username = eos::common::Mapping::UidToUserName(uid, terrc);
-    usernamecount[username]++;
-    authcount[tokens[2]]++;
+  for (size_t i = 0; i < eos::common::Mapping::ActiveTidentsSharded.num_shards();
+       ++i) {
+    for (auto&& it:  eos::common::Mapping::ActiveTidentsSharded.get_shard(i)) {
+      std::string username = "";
+      tokens.clear();
+      eos::common::StringConversion::Tokenize(it.first, tokens, delimiter);
+      uid_t uid = atoi(tokens[0].c_str());
+      int terrc = 0;
+      username = eos::common::Mapping::UidToUserName(uid, terrc);
+      usernamecount[username]++;
+      authcount[tokens[2]]++;
+      active_tidents.emplace(std::move(it.first), std::move(it.second));
+    }
   }
 
-  eos::common::Mapping::ActiveLock.UnLock();
 
   if (showauth || showall) {
     std::map<std::string, int>::const_iterator it;
@@ -142,17 +140,16 @@ ProcCommand::Who()
     }
   }
 
-  eos::common::Mapping::ActiveLock.Lock();
   unsigned long long cnt = 0;
 
   if (showclients || showall || showsummary) {
-    for (it = eos::common::Mapping::ActiveTidents.begin();
-         it != eos::common::Mapping::ActiveTidents.end(); it++) {
+    for (const auto& it : active_tidents) {
+
       cnt++;
       std::string username = "";
       tokens.clear();
-      std::string intoken = it->first.c_str();
-      eos::common::StringConversion::Tokenize(intoken, tokens, delimiter);
+      // std::string intoken = it->first.c_str();
+      eos::common::StringConversion::Tokenize(it.first, tokens, delimiter);
       uid_t uid = atoi(tokens[0].c_str());
       int terrc = 0;
       username = eos::common::Mapping::UidToUserName(uid, terrc);
@@ -161,8 +158,9 @@ ProcCommand::Who()
 
       if (monitoring) {
         snprintf(formatline, sizeof(formatline) - 1,
-                 "client=%s uid=%s auth=%s idle=%ld gateway=\"%s\" app=%s\n", tokens[1].c_str(),
-                 username.c_str(), tokens[2].c_str(), now - it->second, tokens[3].c_str(),
+                 "client=%s uid=%s auth=%s idle=%ld gateway=\"%s\" app=%s\n",
+                 tokens[1].c_str(), username.c_str(), tokens[2].c_str(),
+                 now - it.second, tokens[3].c_str(),
                  (tokens.size() > 4) ? tokens[4].c_str() : "XRoot");
         stdOut += formatline;
       } else if (json_format) {
@@ -171,17 +169,21 @@ ProcCommand::Who()
           json_client["client"] = tokens[1];
           json_client["uid"] = username;
           json_client["auth"] = tokens[2];
-          json_client["idle"] = (Json::UInt64)(now - it->second);
+          json_client["idle"] = (Json::UInt64)(now - it.second);
           json_client["gateway"] = tokens[3];
-          json_client["app"] = (tokens.size() > 4) ? tokens[4].c_str() : "XRoot";
+          json_client["app"] =
+            (tokens.size() > 4) ? tokens[4].c_str() : "XRoot";
           json.append(json_client);
         }
       } else {
         snprintf(formatline, sizeof(formatline) - 1,
                  "client : %-10s               := %-40s (%5s) [ %-40s ] { %-8s } %lds idle time \n",
-                 username.c_str(), tokens[1].c_str(), tokens[2].c_str(), tokens[3].c_str(),
-                 ((tokens.size() > 4) &&
-                  tokens[4].length()) ? tokens[4].c_str() : "XRoot", now - it->second);
+                 username.c_str(), tokens[1].c_str(), tokens[2].c_str(),
+                 tokens[3].c_str(),
+                 ((tokens.size() > 4) && tokens[4].length())
+                 ? tokens[4].c_str()
+                 : "XRoot",
+                 now - it.second);
 
         if (!showsummary) {
           stdOut += formatline;
@@ -189,8 +191,6 @@ ProcCommand::Who()
       }
     }
   }
-
-  eos::common::Mapping::ActiveLock.UnLock();
 
   if (showsummary) {
     char formatline[1024];
