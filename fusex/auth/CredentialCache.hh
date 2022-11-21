@@ -79,7 +79,7 @@ public:
 
 private:
   // shards: 2^16 = 65536
-  ShardedCache<UserCredentials, BoundIdentity, UserCredentialsHasher> cache;
+  ShardedCache<UserCredentials, BoundIdentity, UserCredentialsHasher, false> cache;
 };
 
 #endif
