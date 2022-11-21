@@ -160,7 +160,7 @@ private:
     }
   };
 
-  ShardedCache<ProcessCacheKey, ProcessCacheEntry, KeyHasher> cache;
+  ShardedCache<ProcessCacheKey, ProcessCacheEntry, KeyHasher, false> cache;
   BoundIdentityProvider& boundIdentityProvider;
   ProcessInfoProvider& processInfoProvider;
   JailResolver& jailResolver;

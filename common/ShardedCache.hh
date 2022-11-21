@@ -75,7 +75,8 @@ struct DefaultHash {
   }
 };
 
-template<typename Key, typename Value, typename Hash=DefaultHash<Key>>
+template<typename Key, typename Value, typename Hash=DefaultHash<Key>,
+         bool isUnordered=true>
 class ShardedCache
 {
 private:
@@ -102,9 +103,22 @@ private:
     int64_t shardId;
   };
 
-
+  struct CacheEntry {
+    std::shared_ptr<Value> value;
+    bool marked;
+  };
 
 public:
+
+  template <typename... Args>
+  using MapT = typename std::conditional_t<isUnordered,
+      std::unordered_map<Args...>,
+      std::map<Args...>>;
+
+  using key_type = Key;
+  //using value_type = MapT::value_type;
+
+
   int64_t calculateShard(const Key &key) const {
     return Hash::hash(key) % shards;
   }
@@ -122,7 +136,7 @@ public:
   : shardBits(shardBits_), shards(pow(2, shardBits)), ttl(ttl_),
         mutexes(shards), contents(shards),
         threadName(std::move(name_)) {
-    cleanupThread.reset(&ShardedCache<Key, Value, Hash>::garbageCollector, this);
+    cleanupThread.reset(&ShardedCache::garbageCollector, this);
   }
 
   void reset_cleanup_thread(Milliseconds ttl_,
@@ -137,7 +151,7 @@ public:
   // Retrieves an item from the cache. If there isn't any, return a null shared_ptr.
   std::shared_ptr<Value> retrieve(const Key& key) {
     ShardGuard guard(this, key);
-    typename std::map<Key, CacheEntry>::iterator it = contents[guard.getShard()].find(key);
+    auto it = contents[guard.getShard()].find(key);
 
     if (it == contents[guard.getShard()].end()) {
       return std::shared_ptr<Value>();
@@ -146,6 +160,12 @@ public:
     // if(it->first == 4) std::cerr << "erasing " << it->first << std::endl;
     it->second.marked = false;
     return it->second.value;
+  }
+
+  bool contains(const Key& key) {
+    ShardGuard guard(this, key);
+    auto it = contents[guard.getShard()].find(key);
+    return it != contents[guard.getShard()].end();
   }
 
   // Calling this function means giving up ownership of the pointer.
@@ -165,8 +185,8 @@ public:
       return true;
     }
 
-    std::pair<typename std::map<Key, CacheEntry>::iterator, bool> status;
-    status = contents[guard.getShard()].insert(std::pair<Key, CacheEntry>(key,
+
+    auto status = contents[guard.getShard()].insert(std::pair<Key, CacheEntry>(key,
              entry));
     retval = status.first->second.value;
     return status.second;
@@ -193,7 +213,7 @@ public:
   // If you want to replace an entry, just call store with replace set to false.
   bool invalidate(const Key& key) {
     ShardGuard guard(this, key);
-    typename std::map<Key, CacheEntry>::iterator it = contents[guard.getShard()].find(key);
+    auto it = contents[guard.getShard()].find(key);
     contents[guard.getShard()].erase(it);
     return true;
   }
@@ -206,10 +226,11 @@ public:
 
   size_t num_entries() const {
     size_t count = 0;
-    std::accumulate(contents.begin(), contents.end(), count,
-                    [](size_t count, const std::map<Key, CacheEntry> &map) {
-                      return count + map.size();
-                    });
+    for (size_t i = 0; i < contents.size(); ++i) {
+      std::lock_guard guard(mutexes[i]);
+      count += contents[i].size();
+    }
+
     return count;
   }
 
@@ -222,13 +243,8 @@ private:
   size_t shards;
   Milliseconds ttl;
 
-  struct CacheEntry {
-    std::shared_ptr<Value> value;
-    bool marked;
-  };
-
-  std::vector<std::mutex> mutexes;
-  std::vector<std::map<Key, CacheEntry>> contents;
+  mutable std::vector<std::mutex> mutexes;
+  std::vector<MapT<Key, CacheEntry>> contents;
 
   AssistedThread cleanupThread;
   std::string threadName;
@@ -238,9 +254,7 @@ private:
     for(size_t i = 0; i < shards; i++) {
       std::lock_guard<std::mutex> lock(mutexes[i]);
 
-      typename std::map<Key, CacheEntry>::iterator iterator;
-
-      for (iterator = contents[i].begin();
+      for (auto iterator = contents[i].begin();
            iterator != contents[i].end(); /* no increment */) {
         if (iterator->second.marked) {
           iterator = contents[i].erase(iterator);
