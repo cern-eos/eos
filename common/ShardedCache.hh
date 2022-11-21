@@ -119,16 +119,17 @@ public:
   // TTL is approximate. An element can stay while unused from [ttl, 2*ttl]
   ShardedCache(size_t shardBits_, Milliseconds ttl_,
                std::string name_= "ShardedCacheGC")
-  : shardBits(shardBits_), shards(pow(2, shardBits)), ttl(ttl_), mutexes(shards), contents(shards) {
+  : shardBits(shardBits_), shards(pow(2, shardBits)), ttl(ttl_),
+        mutexes(shards), contents(shards),
+        threadName(std::move(name_)) {
     cleanupThread.reset(&ShardedCache<Key, Value, Hash>::garbageCollector, this);
-    cleanupThread.setName(name_);
   }
 
   void reset_cleanup_thread(Milliseconds ttl_,
                             std::string name_ = "ShardedCacheGC") {
     ttl = ttl_;
+    threadName = std::move(name_);
     cleanupThread.reset(&ShardedCache::garbageCollector, this);
-    cleanupThread.setName(name_);
   }
 
   ~ShardedCache() { }
@@ -230,7 +231,7 @@ private:
   std::vector<std::map<Key, CacheEntry>> contents;
 
   AssistedThread cleanupThread;
-
+  std::string threadName;
   // Sweep through all entries in all shards to either mark them as unused or
   // remove them
   void collectorPass() {
@@ -256,6 +257,7 @@ private:
   }
 
   void garbageCollector(ThreadAssistant &assistant) {
+    assistant.setSelfThreadName(threadName);
     while(!assistant.terminationRequested()) {
       assistant.wait_for(std::chrono::milliseconds(ttl));
       if(assistant.terminationRequested()) return;

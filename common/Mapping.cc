@@ -134,15 +134,15 @@ Mapping::Init()
   try {
     std::call_once(g_cache_map_init, []() {
       gShardedPhysicalUidCache.reset_cleanup_thread(3600 * 1000,
-                                                    "PhysicalUidCache");
+                                                    "UidCacheGC");
       gShardedPhysicalGidCache.reset_cleanup_thread(3600 * 1000,
-                                                    "PhysicalGidCache");
+                                                    "GidCacheGC");
       gShardedNegativeUserNameCache.reset_cleanup_thread(3600 * 1000,
-                                                         "NegativeUserNameCache");
+                                                         "NegUserNameGC");
       gShardedNegativeGroupNameCache.reset_cleanup_thread(3600 * 1000,
-                                                          "NegativeGroupNameCache");
+                                                          "NegGroupNameGC");
       gShardedNegativePhysicalUidCache.reset_cleanup_thread(3600 * 1000,
-                                                            "NegativePhysicalUidCache");
+                                                            "NegUidGC");
     });
   } catch (...) {
     // we can't log here as the logging system is not initialized yet
