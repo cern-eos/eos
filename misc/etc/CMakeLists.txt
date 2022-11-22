@@ -72,18 +72,6 @@ install(
   DESTINATION ${CMAKE_INSTALL_SYSCONFDIR}/eos/config/modules/)
 
 install(
-  FILES eos/config/modules/krb5
-  DESTINATION ${CMAKE_INSTALL_SYSCONFDIR}/eos/config/modules/)
-
-install(
-  FILES eos/config/modules/gsi
-  DESTINATION ${CMAKE_INSTALL_SYSCONFDIR}/eos/config/modules/)
-
-install(
-  FILES eos/config/modules/http
-  DESTINATION ${CMAKE_INSTALL_SYSCONFDIR}/eos/config/modules/)
-
-install(
   FILES eos/config/qdb/qdb
   DESTINATION ${CMAKE_INSTALL_SYSCONFDIR}/eos/config/qdb/)
 
