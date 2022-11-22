@@ -117,6 +117,9 @@ LD_PRELOAD=/usr/lib64/libjemalloc.so
 # Disable the KRB5 replay cache
 KRB5RCACHETYPE=none
 
+# These two authentication methods are initialized by modules
+KRB5=
+GSI=
 #-------------------------------------------------------------------------------
 # EOS MGM Configuration
 #-------------------------------------------------------------------------------
