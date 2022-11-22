@@ -40,13 +40,13 @@ fi
 
 eos vid set map \<pwd\> -unix vuid:${ALICE_UID}
 eos vid set map \<pwd\> -unix vgid:${ALICE_GID}
-eos mkdir -p /eos/${INSTANCE_NAME}/grid/
-eos chown ${ALICE_UID}:${ALICE_GID} /eos/${INSTANCE_NAME}/grid/
-eos chmod 700 /eos/${INSTANCE_NAME}/grid/
+eos mkdir -p /eos/${INSTANCE_NAME:3}/grid/
+eos chown ${ALICE_UID}:${ALICE_GID} /eos/${INSTANCE_NAME:3}/grid/
+eos chmod 700 /eos/${INSTANCE_NAME:3}/grid/
 
 for name in 01 01 02 03 04 05 06 07 08 09 10 11 12 13 14 15 ; do
-  eos map link /$name/ /eos/${INSTANCE_NAME}/grid/$name/
-  eos mkdir -p /eos/${INSTANCE_NAME}/grid/$name/
+  eos map link /$name/ /eos/${INSTANCE_NAME:3}/grid/$name/
+  eos mkdir -p /eos/${INSTANCE_NAME:3}/grid/$name/
 done
 
 # ------------------------------------------------------------ #
