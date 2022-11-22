@@ -423,6 +423,8 @@ The EOS server installation containing MGM, FST & MQ service.
 %config(noreplace) %{_sysconfdir}/eos/config/fst/fst
 %config(noreplace) %{_sysconfdir}/eos/config/generic/all
 %config(noreplace) %{_sysconfdir}/eos/config/qdb/qdb
+%config(noreplace) %{_sysconfdir}/eos/config/modules/alice
+%config(noreplace) %{_sysconfdir}/eos/config/modules/http
 
 %if %{use_systemd}
     %config %{_sysconfdir}/sysconfig/eos_env.example

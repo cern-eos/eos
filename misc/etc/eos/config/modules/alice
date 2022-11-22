@@ -1,0 +1,59 @@
+# ------------------------------------------------------------ #
+[mgm:xrootd:mgm]
+# ------------------------------------------------------------ #
+
+mgmofs.authlib  /usr/lib64/libXrdAliceTokenAcc.so
+mgmofs.authorize  1
+alicetokenacc.multiprocess  8
+alicetokenacc.noauthzhost  eosmon01
+alicetokenacc.noauthzhost  eosmon01.cern.ch
+alicetokenacc.noauthzhost  eosmon02
+alicetokenacc.noauthzhost  eosmon02.cern.ch
+alicetokenacc.noauthzhost  localhost
+alicetokenacc.noauthzhost  localhost.localdomain
+alicetokenacc.truncateprefix  /eos/${INSTANCE_NAME}/grid
+
+# ------------------------------------------------------------ #
+[fst:xrootd:fst]
+# ------------------------------------------------------------ #
+
+xrootd.monitor  all flush 60s window 30s dest files info user aliendb2.cern.ch:9930
+
+# ------------------------------------------------------------ #
+[mgm:init]
+# ------------------------------------------------------------ #
+set -x
+yum install alicetokenacc -y --nogpgcheck
+
+ALICE_UID=${ALICEUID-16437}
+ALICE_GID=${ALICEGID-1395}
+
+id -G z2 >& /dev/null
+if [ $? -ne 0 ]; then
+  groupadd --gid ${ALICE_GID} z2
+fi
+
+id alice >& /dev/null
+if [ $? -ne 0 ]; then
+  adduser --uid ${ALICE_UID}  alice
+fi
+
+eos vid set map -unix vuid:${ALICE_UID}
+eos vid set map -unix vgid:${ALICE_GID}
+eos mkdir -p /eos/${INSTANCE_NAME}/grid/
+eos chown ${ALICE_UID}:${ALICE_GID} /eos/${INSTANCE_NAME}/grid/
+eos chmod 700 /eos/${INSTANCE_NAME}/grid/
+
+for name in 01 01 02 03 04 05 06 07 08 09 10 11 12 13 14 15 ; do
+  eos map link /$name/ /eos/${INSTANCE_NAME}/grid/$name/
+  eos mkdir -p /eos/${INSTANCE_NAME}/grid/$name/
+done
+
+# ------------------------------------------------------------ #
+[fst:init]
+# ------------------------------------------------------------ #
+yum install eos-apmon -y --nogpgcheck
+
+[fst:sysconfig]
+APMON_INSTANCE_NAME=${ALICE_SE_NAME}
+APMON_STORAGEPATH="data"

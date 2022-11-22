@@ -33,6 +33,7 @@ install(DIRECTORY DESTINATION /etc/eos/config/mq)
 install(DIRECTORY DESTINATION /etc/eos/config/fst)
 install(DIRECTORY DESTINATION /etc/eos/config/qdb)
 install(DIRECTORY DESTINATION /etc/eos/config/generic)
+install(DIRECTORY DESTINATION /etc/eos/config/modules)
 
 install(
   FILES eos.keytab eos.client.keytab
@@ -61,6 +62,14 @@ install(
 install(
   FILES eos/config/generic/all
   DESTINATION ${CMAKE_INSTALL_SYSCONFDIR}/eos/config/generic/)
+
+install(
+  FILES eos/config/modules/alice
+  DESTINATION ${CMAKE_INSTALL_SYSCONFDIR}/eos/config/modules/)
+
+install(
+  FILES eos/config/modules/http
+  DESTINATION ${CMAKE_INSTALL_SYSCONFDIR}/eos/config/modules/)
 
 install(
   FILES eos/config/qdb/qdb

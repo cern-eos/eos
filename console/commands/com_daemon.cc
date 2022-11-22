@@ -63,6 +63,8 @@ com_daemon(char* arg)
   XrdOucString name = "";
   XrdOucString service = "";
   XrdOucString subcmd;
+  XrdOucString modules;
+  std::vector<std::string> mods;
   std::string chapter;
   std::string executable;
   std::string pidfile;
@@ -161,7 +163,8 @@ com_daemon(char* arg)
        (option != "config" ) &&
        (option != "stack" ) &&
        (option != "stop" ) &&
-       (option != "kill") ) {
+       (option != "kill") &&
+       (option != "module-init")) {
     goto com_daemon_usage;
   }
 
@@ -181,6 +184,8 @@ com_daemon(char* arg)
     name = service.c_str();
   }
 
+  modules = name;
+  modules += ".modules";
   executable = "eos-"; executable += service.c_str();
   envfile = "/var/run/eos/"; envfile += executable.c_str() ; envfile += "."; envfile += name.c_str(); envfile += ".env";
   pidfile = "/var/run/eos/xrd."; pidfile += service.c_str(); pidfile += ".";
@@ -191,7 +196,34 @@ com_daemon(char* arg)
   ok |= cfg.ok();
   cfg.Load(service.c_str(), name.c_str(), false);
   ok |= cfg.ok();
+  // this might fail if there are no modules
+  cfg.Load(service.c_str(), modules.c_str(), false);
 
+  {
+    // load all the modules:
+    eos::common::StringConversion::Tokenize(cfg.Dump("modules", true), mods, "\n");
+    
+    for ( size_t i=0; i<mods.size(); ++i) {
+      if (mods[i].front() == '#') {
+	// ignore comments
+	continue;
+      }
+      if (mods[i].find(" ") != std::string::npos) {
+	fprintf(stderr,"warning: ignoring module line '%s' (contains space)\n", mods[i].c_str());
+	continue;
+      }
+      if(mods[i].empty()) {
+	// ignore empty lines
+	continue;
+      }
+      if (!cfg.Load("modules", mods[i].c_str(),false)) {
+	fprintf(stderr,"error: failed to load module '%s'\n", mods[i].c_str());
+	global_retc = EINVAL;
+	return 0;
+      }
+    }
+  }
+  
   chapter = service.c_str(); chapter += ":xrootd:"; chapter += name.c_str();
 
   cfile = "/var/run/eos/xrd.cf.";
@@ -226,12 +258,35 @@ com_daemon(char* arg)
     fprintf(stderr,"# ---------------------------------------\n");
     fprintf(stderr,"%s\n", cfg.Dump("sysconfig", true).c_str());
     fprintf(stderr,"# ---------------------------------------\n");
+    fprintf(stderr,"# ------------- m o d u l e s -----------\n");
+    fprintf(stderr,"# ---------------------------------------\n");
+    fprintf(stderr,"%s\n", cfg.Dump("modules", true).c_str());
+    fprintf(stderr,"# ---------------------------------------\n");
     fprintf(stderr,"# ------------- x r o o t d  ------------\n");
     fprintf(stderr,"# ---------------------------------------\n");
     fprintf(stderr,"# running config file: %s\n", cfile.c_str());
-
     fprintf(stderr,"%s\n", cfg.Dump(chapter.c_str(),true).c_str());
     fprintf(stderr,"#########################################\n");
+  } else if (option == "module-init") {
+    std::string initfile = "/tmp/.eos.daemon.init";
+    std::string initsection = name.c_str();
+    initsection += ":init";
+
+
+    if (!eos::common::StringConversion::SaveStringIntoFile(initfile.c_str(), cfg.Dump(initsection.c_str(),true))) {
+      fprintf(stderr,"error: unable to create startup config file '%s'\n",initfile.c_str());
+      global_retc = errno;
+      return (0);
+    } else {
+      chmod(initfile.c_str(), S_IRWXU);
+      // run the init file
+      int rc = system(initfile.c_str());
+      if (WEXITSTATUS(rc)) {
+	fprintf(stderr,"error: init script '%s' failed with errc=%d\n", initsection.c_str(), WEXITSTATUS(rc));
+	global_retc = WEXITSTATUS(rc);
+	return (0);
+      }
+    }
   } else if (option == "stack") {
     std::string kline;
     kline = "test -e "; kline += envfile.c_str(); kline += " && eu-stack -p `cat "; kline += envfile.c_str(); kline += "| cut -d '&' -f 1 | cut -d '=' -f 2`";
@@ -381,7 +436,7 @@ com_daemon(char* arg)
   return (0);
 com_daemon_usage:
   fprintf(stdout,
-          "usage: daemon config|sss|kill|run|stack|stop <service> [name] [subcmd]                                     :  \n");
+          "usage: daemon config|sss|kill|run|stack|stop|module-init <service> [name] [subcmd]                                     :  \n");
 
   fprintf(stdout,
 	  "                <service> := mq | mgm | fst | qdb\n");
@@ -397,6 +452,8 @@ com_daemon_usage:
 	  "                stack                                                 -  print an 'eu-stack'\n");
   fprintf(stdout,
 	  "                stop                                                  -  kill -15 a given service\n");
+  fprintf(stdout,
+	  "                module-init                                           -  run the init procedure for a module\n");
   fprintf(stdout,"\n");
   fprintf(stdout,
 	  "      examples: eos daemon config qdb qdb coup                        -  try to make instance [qdb] a leader of QDB\n");
