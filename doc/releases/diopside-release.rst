@@ -16,6 +16,19 @@ Introduction
 
 This release is based on XRootD V5.
 
+
+``v5.1.4 Diopside``
+====================
+
+2022-11-22
+
+Bug
+----
+    
+* [EOS-5442] - eosxd crash (on shutdown) under ShardedCache destructor
+* [EOS-5446] - Failures in setting thread names 
+
+
 ``v5.1.3 Diopside``
 ====================
 
