@@ -259,10 +259,9 @@ com_daemon(char* arg)
 	std::string qdblocation=qdbpath;
 	qdblocation += "/backup/";
 	qdblocation += std::to_string(time(NULL));
-	kline = "mkdir -p ";
+	kline += "export REDISCLI_AUTH=`cat /etc/eos.keytab`; redis-cli -p `cat "; kline += cfile; kline += "|grep xrd.port | cut -d ' ' -f 2` <<< \"quarkdb-checkpoint ";
 	kline += qdblocation;
-	kline += "; export REDISCLI_AUTH=`cat /etc/eos.keytab`; redis-cli -p `cat "; kline += cfile; kline += "|grep xrd.port | cut -d ' ' -f 2` <<< quarkdb-checkpoint ";
-	kline += qdblocation;
+	kline += "\"";
 	int rc = system(kline.c_str());
 	fprintf(stderr,"info: run '%s' retc=%d\n", kline.c_str(), WEXITSTATUS(rc));
 	global_retc = WEXITSTATUS(rc);
