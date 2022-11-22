@@ -1,5 +1,0 @@
-[sysconfig]
-KRB5=krb5
-
-[mgm:xrootd:mgm]
-sec.protocol krb5 host/<host>@CERN.CH

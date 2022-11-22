@@ -1,4 +1,0 @@
-[sysconfig]
-GSI=gsi
-[mgm:xrootd:mgm]
-sec.protocol gsi -crl:1 -cert:/etc/grid-security/daemon/hostcert.pem -key:/etc/grid-security/daemon/hostkey.pem -gridmap:/etc/grid-security/grid-mapfile -d:0 -gmapopt:2 -vomsat:1 -moninfo:1
