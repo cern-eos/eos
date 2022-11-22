@@ -152,9 +152,9 @@ BuildRequires: jemalloc, jemalloc-devel
 BuildRequires: glibc-headers
 BuildRequires: binutils-devel
 BuildRequires: help2man
-BuildRequires: libzstd, libzstd-devel
-BuildRequires: lz4
-Requires: zstd, lz4
+BuildRequires: libzstd-devel
+BuildRequires: lz4-devel
+Requires: libzstd, zstd, lz4
 BuildRequires: libcap-devel
 
 %if %{?rhel:1}%{!?rhel:0} && 0%{?rhel} <= 7
@@ -195,8 +195,8 @@ Requires: scitokens-cpp
 BuildRequires: xxhash-devel
 Requires: xxhash-libs
 %if 0%{?rhel} == 7
-BuildRequires: libisa-l-devel libisa-l_crypto-devel
-Requires: libisa-l libisa-l_crypto
+BuildRequires: libisa-l-devel, libisa-l_crypto-devel
+Requires: libisa-l, libisa-l_crypto
 %endif
 %endif
 %endif
