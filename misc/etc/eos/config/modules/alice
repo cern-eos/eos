@@ -38,8 +38,8 @@ if [ $? -ne 0 ]; then
   adduser --uid ${ALICE_UID}  alice
 fi
 
-eos vid set map -unix vuid:${ALICE_UID}
-eos vid set map -unix vgid:${ALICE_GID}
+eos vid set map \<pwd\> -unix vuid:${ALICE_UID}
+eos vid set map \<pwd\> -unix vgid:${ALICE_GID}
 eos mkdir -p /eos/${INSTANCE_NAME}/grid/
 eos chown ${ALICE_UID}:${ALICE_GID} /eos/${INSTANCE_NAME}/grid/
 eos chmod 700 /eos/${INSTANCE_NAME}/grid/

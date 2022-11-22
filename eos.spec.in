@@ -419,6 +419,7 @@ The EOS server installation containing MGM, FST & MQ service.
 %config(noreplace) %{_sysconfdir}/xrd.cf.prefix
 %config(noreplace) %{_sysconfdir}/xrd.cf.quarkdb
 %config(noreplace) %{_sysconfdir}/eos/config/mgm/mgm
+%config(noreplace) %{_sysconfdir}/eos/config/mgm/mgm.modules
 %config(noreplace) %{_sysconfdir}/eos/config/mq/mq
 %config(noreplace) %{_sysconfdir}/eos/config/fst/fst
 %config(noreplace) %{_sysconfdir}/eos/config/generic/all

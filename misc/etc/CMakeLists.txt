@@ -50,6 +50,10 @@ install(
   FILES eos/config/mgm/mgm
   DESTINATION ${CMAKE_INSTALL_SYSCONFDIR}/eos/config/mgm/)
 
+install(
+  FILES eos/config/mgm/mgm.modules
+  DESTINATION ${CMAKE_INSTALL_SYSCONFDIR}/eos/config/mgm/)
+
 
 install(
   FILES eos/config/fst/fst
