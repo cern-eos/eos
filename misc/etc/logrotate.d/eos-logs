@@ -1,6 +1,6 @@
 # aequivalent to the original config, without duplicating for every file
 # rotation of MGM logs
-/var/log/eos/mgm/xrdlog.mgm /var/log/eos/mgm/*.log /var/log/eos/tx/transfer-archive.log {
+/var/log/eos/mgm/xrdlog.mgm /var/log/eos/mgm/*.log /var/log/eos/mq/xrdlog.mq /var/log/eos/tx/transfer-archive.log {
   missingok
   daily
   copytruncate
