@@ -23,7 +23,7 @@
 
 #include "mgm/tgc/AsyncUint64ShellCmd.hh"
 #include "mgm/tgc/SmartSpaceStats.hh"
-#include "mgm/tgc/Utils.hh"
+#include "mgm/CtaUtils.hh"
 
 #include <chrono>
 #include <thread>
@@ -94,7 +94,7 @@ std::uint64_t
 AsyncUint64ShellCmd::runShellCmdAndParseStdOut(const std::string cmdStr) {
   const ssize_t outputMaxLen = 256;
   const std::string cmdOut = m_mgm.getStdoutFromShellCmd(cmdStr, outputMaxLen);
-  return Utils::toUint64(cmdOut);
+  return CtaUtils::toUint64(cmdOut);
 }
 
 EOSTGCNAMESPACE_END

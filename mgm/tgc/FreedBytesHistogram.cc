@@ -23,7 +23,7 @@
 
 #include "mgm/tgc/Constants.hh"
 #include "mgm/tgc/FreedBytesHistogram.hh"
-#include "mgm/tgc/Utils.hh"
+#include "mgm/CtaUtils.hh"
 
 #include <algorithm>
 #include <sstream>
@@ -90,7 +90,7 @@ FreedBytesHistogram::getNbBytesFreedInLastNbSecs(const std::uint32_t lastNbSecs)
      ": requested=" << lastNbSecs << ": Try reducing " << TGC_NAME_QRY_PERIOD_SECS;
     throw TooFarBackInTime(msg.str());
   }
-  const size_t nbBinsToTotal = Utils::divideAndRoundUp(lastNbSecs, m_binWidthSecs);
+  const size_t nbBinsToTotal = CtaUtils::divideAndRoundUp(lastNbSecs, m_binWidthSecs);
   
   alignHistogramWithNow();
 
@@ -150,7 +150,7 @@ FreedBytesHistogram::alignHistogramWithNow()
   const time_t now = m_clock.getTime();
 
   const time_t ageSecs = now - m_lastUpdateTimestamp;
-  const size_t rawNbBinsToMove = Utils::divideAndRoundToNearest(ageSecs, m_binWidthSecs);
+  const size_t rawNbBinsToMove = CtaUtils::divideAndRoundToNearest(ageSecs, m_binWidthSecs);
   const size_t nbBinsToMove = std::min(m_histogram.size(), rawNbBinsToMove);
 
   // Move start index backwards in order to slide histigram to the the right
@@ -242,7 +242,7 @@ FreedBytesHistogram::getFreedBytesPerSec(const std::uint32_t secsAgo) const
   const size_t binIndexOffset = (secsAgo - 1) / m_binWidthSecs;
   const size_t binIndex = (m_startIndex + binIndexOffset) % m_histogram.size();
   const uint64_t freedBytes = m_histogram.at(binIndex);
-  const uint64_t bytesPerSec = Utils::divideAndRoundToNearest(freedBytes, m_binWidthSecs);
+  const uint64_t bytesPerSec = CtaUtils::divideAndRoundToNearest(freedBytes, m_binWidthSecs);
 
   return bytesPerSec;
 }

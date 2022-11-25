@@ -48,12 +48,12 @@
  *
  */
 /*----------------------------------------------------------------------------*/
-EOSTGCNAMESPACE_BEGIN
+EOSMGMNAMESPACE_BEGIN
 
 //------------------------------------------------------------------------------
 //! Class of utility functions for the tape aware garbage collector
 //------------------------------------------------------------------------------
-class Utils
+class CtaUtils
 {
 public:
   struct EmptyString : public std::runtime_error {using std::runtime_error::runtime_error;};
@@ -113,6 +113,6 @@ public:
   static std::string readFdIntoStr(const int fd, const ssize_t maxStrLen);
 };
 
-EOSTGCNAMESPACE_END
+EOSMGMNAMESPACE_END
 
 #endif
