@@ -28,7 +28,7 @@
 #include "mgm/tgc/Constants.hh"
 #include "mgm/tgc/RealTapeGcMgm.hh"
 #include "mgm/tgc/SpaceNotFound.hh"
-#include "mgm/tgc/Utils.hh"
+#include "mgm/CtaUtils.hh"
 #include "namespace/interface/IFileMDSvc.hh"
 #include "namespace/ns_quarkdb/inspector/FileScanner.hh"
 #include "namespace/ns_quarkdb/qclient/include/qclient/QClient.hh"
@@ -111,7 +111,7 @@ RealTapeGcMgm::getSpaceConfigMemberUint64(
     if(valueStr.empty()) {
       throw std::exception();
     } else {
-      return Utils::toUint64(valueStr);
+      return CtaUtils::toUint64(valueStr);
     }
   } catch(...) {
     return defaultValue;
@@ -359,7 +359,7 @@ RealTapeGcMgm::getSpaceToDiskReplicasMap(const std::set<std::string> &spacesToMa
       break;
     }
 
-    const auto ctime = Utils::bufToTimespec(file.ctime());
+    const auto ctime = CtaUtils::bufToTimespec(file.ctime());
     const int locationsSize = file.locations_size();
     for (int locationIndex = 0; locationIndex < locationsSize; locationIndex++) {
       const int fsId = file.locations(locationIndex);
@@ -419,7 +419,7 @@ RealTapeGcMgm::getStdoutFromShellCmd(const std::string &cmdStr, const ssize_t ma
     throw std::runtime_error(msg.str());
   } else if (cmdRc.exited && 0 == cmdRc.exit_code){
     try {
-      return Utils::readFdIntoStr(cmd.outfd, maxLen);
+      return CtaUtils::readFdIntoStr(cmd.outfd, maxLen);
     } catch(std::exception &ex) {
       std::ostringstream msg;
       msg << "Failed to read stdout from shell command: " << ex.what();

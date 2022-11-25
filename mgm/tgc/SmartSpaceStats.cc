@@ -25,7 +25,7 @@
 #include "common/ShellCmd.hh"
 #include "common/StringUtils.hh"
 #include "mgm/tgc/SmartSpaceStats.hh"
-#include "mgm/tgc/Utils.hh"
+#include "mgm/CtaUtils.hh"
 
 #include <sstream>
 
@@ -130,7 +130,7 @@ SmartSpaceStats::get()
   } else {
     const std::uint32_t oldBinWidthSecs = m_freedBytesHistogram.getBinWidthSecs();
     const std::uint32_t newBinWidthSecs =
-      Utils::divideAndRoundUp(spaceConfig.queryPeriodSecs, m_freedBytesHistogram.getNbBins());
+      CtaUtils::divideAndRoundUp(spaceConfig.queryPeriodSecs, m_freedBytesHistogram.getNbBins());
     if (0 == newBinWidthSecs) {
       std::ostringstream msg;
       msg << "spaceName=\"" << m_spaceName << "\" msg=\"The newBinWidthSecs value of 0 will be ignored."

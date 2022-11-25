@@ -22,17 +22,17 @@
  ************************************************************************/
 
 #include "common/StringUtils.hh"
-#include "mgm/tgc/Utils.hh"
+#include "mgm/CtaUtils.hh"
 
 #include <cstring>
 
-EOSTGCNAMESPACE_BEGIN
+EOSMGMNAMESPACE_BEGIN
 
 //------------------------------------------------------------------------------
 // Return the uint64 representation of the specified string
 //------------------------------------------------------------------------------
 std::uint64_t
-Utils::toUint64(std::string str) {
+CtaUtils::toUint64(std::string str) {
   common::trim(str);
   if (str.empty()) {
     throw EmptyString("String is empty (spaces are ignored)");
@@ -57,7 +57,7 @@ Utils::toUint64(std::string str) {
 // Return a copy of the specified buffer in the form of a timespec structure
 //------------------------------------------------------------------------------
 timespec
-Utils::bufToTimespec(const std::string &buf) {
+CtaUtils::bufToTimespec(const std::string &buf) {
   if (sizeof(timespec) != buf.size()) {
     std::ostringstream msg;
     msg << __FUNCTION__ << " failed: Buffer size does match sizeof(timespec): buf.size()=" << buf.size() <<
@@ -75,7 +75,7 @@ Utils::bufToTimespec(const std::string &buf) {
 // Read from the specified file descriptor into a string.
 //----------------------------------------------------------------------------
 std::string
-Utils::readFdIntoStr(const int fd, const ssize_t maxStrLen) {
+CtaUtils::readFdIntoStr(const int fd, const ssize_t maxStrLen) {
   auto stdoutBuffer = std::make_unique<char[]>(maxStrLen + 1);
   const auto readRc = ::read(fd, stdoutBuffer.get(), maxStrLen);
   if (readRc < 0) {
@@ -90,4 +90,4 @@ Utils::readFdIntoStr(const int fd, const ssize_t maxStrLen) {
   return stdoutBuffer.get();
 }
 
-EOSTGCNAMESPACE_END
+EOSMGMNAMESPACE_END
