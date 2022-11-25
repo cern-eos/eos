@@ -417,6 +417,17 @@ private:
   std::vector<unsigned int>
   GetExcludedFsids() const;
 
+  //----------------------------------------------------------------------------
+  //! Get the application name if specified
+  //!
+  //! @param open_opaque open opaque information
+  //! @param client XrdSecEntity identifying the request
+  //!
+  //! @return application name or empty string if nothing specified
+  //----------------------------------------------------------------------------
+  static const std::string
+  GetApplicationName(XrdOucEnv* open_opaque, const XrdSecEntity* client);
+
   int oh; //< file handle
   std::string fileName; //< file name
   XrdOucEnv* openOpaque; //< opaque info given with 'open'

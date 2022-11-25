@@ -54,6 +54,7 @@
 #include "namespace/Resolver.hh"
 #include "XrdOss/XrdOss.hh"
 #include "XrdSec/XrdSecInterface.hh"
+#include "XrdSec/XrdSecEntityAttr.hh"
 #include "XrdSfs/XrdSfsAio.hh"
 #include "common/Constants.hh"
 #include "XrdOuc/XrdOucPgrwUtils.hh"
@@ -342,6 +343,35 @@ XrdMgmOfsFile::handleHardlinkDelete(std::shared_ptr<eos::IContainerMD> cmd,
   return 0;
 }
 
+//------------------------------------------------------------------------------
+// Get the application name if specified
+//------------------------------------------------------------------------------
+const std::string
+XrdMgmOfsFile::GetApplicationName(XrdOucEnv* open_opaque,
+                                  const XrdSecEntity* client)
+{
+  // Application name derived from the following in order of priority:
+  // 1. eos.app=<tag>
+  // 2. XRD_APPNAME=<tag> env variable or -DSAppName for xrdcp commands
+  const std::string eos_tag = "eos.app";
+  const std::string xrd_tag = "xrd.appname";
+  std::string app_name;
+  const char* val = nullptr;
+
+  if (open_opaque && (val = open_opaque->Get(eos_tag.c_str()))) {
+    app_name = val;
+  } else {
+    if (client) {
+      if (!client->eaAPI->Get(xrd_tag, app_name)) {
+        app_name.clear();
+      }
+    }
+  }
+
+  return app_name;
+}
+
+
 /*----------------------------------------------------------------------------*/
 int
 XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
@@ -563,29 +593,13 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
     return SFS_REDIRECT;
   }
 
-  {
-    // figure out if this is FUSE access
-    const char* val = 0;
+  const std::string app_name = GetApplicationName(openOpaque, client);
 
-    if ((val = openOpaque->Get("eos.app"))) {
-      XrdOucString application = val;
-
-      if (application == "fuse") {
-        isFuse = true;
-      }
-
-      if (application.beginswith("fuse::")) {
-        isFuse = true;
-      }
-    }
-
-    if ((val = openOpaque->Get("xrd.appname"))) {
-      XrdOucString application = val;
-
-      if (application == "xrootdfs") {
-        isFuse = true;
-      }
-    }
+  // Decide if this is a FUSE access
+  if (!app_name.empty() &&
+      ((app_name == "fuse") || (app_name == "xrootdfs") ||
+       (app_name.find("fuse::") == 0))) {
+    isFuse = true;
   }
 
   {
@@ -1821,8 +1835,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
   capability += eos::common::StringConversion::GetSizeString(sizestring, cid);
   // add the mgm.sec information to the capability
   capability += "&mgm.sec=";
-  capability += eos::common::SecEntity::ToKey(client,
-                openOpaque->Get("eos.app")).c_str();
+  capability += eos::common::SecEntity::ToKey(client, app_name.c_str()).c_str();
 
   if (attrmap.count("user.tag")) {
     capability += "&mgm.container=";
@@ -1900,11 +1913,13 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
     // if any of the two fails, the scheduling operation fails
     Scheduler::PlacementArguments plctargs;
     plctargs.alreadyused_filesystems = &selectedfs;
+
     if (isRepair) {
       plctargs.bookingsize = bookingsize ? bookingsize : gOFS->getFuseBookingSize();
     } else {
       plctargs.bookingsize = isFuse ? gOFS->getFuseBookingSize() : bookingsize;
     }
+
     plctargs.dataproxys = &proxys;
     plctargs.firewallentpts = &firewalleps;
     plctargs.forced_scheduling_group_index = forced_group;
@@ -3123,15 +3138,9 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
     // we only update the atime if the current atime is older than the age
     // value given by the attribute
     // -------------------------------------------------------------------------
-    const char* app = nullptr;
+    static std::set<std::string> skip_tag {"balancer", "drainer", "converter" "fsck"};
 
-    if (!(app = openOpaque->Get("eos.app")) ||
-        (
-          (strcmp(app, "balancer")) &&
-          (strcmp(app, "drainer")) &&
-          (strcmp(app, "converter"))
-        )
-       ) {
+    if (app_name.empty() || (skip_tag.find(app_name) == skip_tag.end())) {
       // we are supposed to update the change time with the access since this
       // is any kind of external access
       time_t now = time(nullptr);

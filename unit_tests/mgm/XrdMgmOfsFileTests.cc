@@ -22,6 +22,8 @@
  ************************************************************************/
 
 #include "namespace/interface/IFileMD.hh"
+#include "XrdSec/XrdSecEntity.hh"
+#include "XrdSec/XrdSecEntityAttr.hh"
 #define IN_TEST_HARNESS
 #include "mgm/XrdMgmOfsFile.hh"
 #undef IN_TEST_HARNESS
@@ -42,4 +44,22 @@ TEST(XrdMgmOfsFile, ParsingExcludFsids)
   for (const auto& elem : expect_result) {
     ASSERT_TRUE(std::find(result.begin(), result.end(), elem) != result.end());
   }
+}
+
+TEST(XrdMgmOfsFile, GetApplicationName)
+{
+  ASSERT_STREQ("", XrdMgmOfsFile::GetApplicationName(nullptr, nullptr).c_str());
+  std::string opaque_str = "&key1=val1&key2=val2&key3=val3";
+  XrdOucEnv env(opaque_str.c_str());
+  XrdSecEntity client("test");
+  ASSERT_STREQ("", XrdMgmOfsFile::GetApplicationName(&env, &client).c_str());
+  client.eaAPI->Add("xrd.appname", "xrd_tag");
+  ASSERT_STREQ("xrd_tag", XrdMgmOfsFile::GetApplicationName(&env,
+               &client).c_str());
+  opaque_str = "&key1=val1&key2=val2&key3=val3&eos.app=eos_tag";
+  XrdOucEnv env1(opaque_str.c_str());
+  ASSERT_STREQ("eos_tag", XrdMgmOfsFile::GetApplicationName(&env1,
+               &client).c_str());
+  ASSERT_STREQ("eos_tag", XrdMgmOfsFile::GetApplicationName(&env1,
+               nullptr).c_str());
 }
