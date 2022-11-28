@@ -2181,7 +2181,7 @@ EosFuse::DumpStatistic(ThreadAssistant& assistant)
       }
 
       Instance().aRecoveryOk = recovery_ok;
-      Instance().aRecoveryFail = recovery_ok;
+      Instance().aRecoveryFail = recovery_fail;
     }
     std::string s1;
     std::string s2;
@@ -4790,7 +4790,8 @@ The O_NONBLOCK flag was specified, and an incompatible lease was held on the fil
             md->set_obfuscate_key(obfuscation_key, eoskey.length(), fingerprint);
           }
 
-          rc = Instance().mds.add_sync(req, pmd, md, (*pcap)()->authid());
+          Instance().mds.add(req, pmd, md, (*pcap)()->authid());
+	  rc=0;
           (*md)()->set_type((*md)()->MD);
 
           if (!rc) {
