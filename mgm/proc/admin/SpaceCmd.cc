@@ -852,8 +852,10 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config,
                 } else {
                   std_out << "success: balancer is disabled!";
                 }
-
-                space->mFsBalancer->SignalConfigUpdate();
+                
+                if (space->mFsBalancer) {
+                  space->mFsBalancer->SignalConfigUpdate();
+                }
               }
 
               if (key == "converter") {
