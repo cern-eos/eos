@@ -120,7 +120,7 @@ XrdMgmOfs::Commit(const char* path,
     {
       eos::Prefetcher::prefetchFileMDAndWait(gOFS->eosView, fid);
       // Keep the lock order View => Namespace => Quota
-      eos::common::RWMutexWriteLock nslock(gOFS->eosViewRWMutex);
+      eos::common::RWMutexWriteLock ns_wr_lock(gOFS->eosViewRWMutex);
       errno = 0;
 
       try {
@@ -226,35 +226,40 @@ XrdMgmOfs::Commit(const char* path,
       }
 
       if (option["fusex"]) {
-	std::string fusexstate;
-	try {
-	  fusexstate = fmd->getAttribute("sys.fusex.state");
-	} catch (...) {}
+        std::string fusexstate;
 
-	if (option["update"] || option["replication"]) {
-	  fusexstate += "+";
-	  fusexstate += std::to_string(fsid);
-	}
+        try {
+          fusexstate = fmd->getAttribute("sys.fusex.state");
+        } catch (...) {}
 
-	if ( eos::common::LayoutId::GetChecksum(lid) != eos::common::LayoutId::kNone ) {
-	  if (option["commitsize"]) {
-	    fusexstate += "s|";
-	  }
-	} else {
-	  if (option["commitsize"]) {
-	    fusexstate += "s";
-	  }
-	}
-	if (option["commitchecksum"]) {
-	  fusexstate += "c|";
-	}
-	if (option["verifychecksum"]) {
-	  fusexstate += "v|";
-	}
-	if (option["verifysize"]) {
-	  fusexstate += "V|";
-	}
-	fmd->setAttribute("sys.fusex.state",fusexstate);
+        if (option["update"] || option["replication"]) {
+          fusexstate += "+";
+          fusexstate += std::to_string(fsid);
+        }
+
+        if (eos::common::LayoutId::GetChecksum(lid) != eos::common::LayoutId::kNone) {
+          if (option["commitsize"]) {
+            fusexstate += "s|";
+          }
+        } else {
+          if (option["commitsize"]) {
+            fusexstate += "s";
+          }
+        }
+
+        if (option["commitchecksum"]) {
+          fusexstate += "c|";
+        }
+
+        if (option["verifychecksum"]) {
+          fusexstate += "v|";
+        }
+
+        if (option["verifysize"]) {
+          fusexstate += "V|";
+        }
+
+        fmd->setAttribute("sys.fusex.state", fusexstate);
       }
 
       // Advance oc upload parameters if concerned
@@ -295,7 +300,7 @@ XrdMgmOfs::Commit(const char* path,
       eos::FileIdentifier f_ident = fmd->getIdentifier();
       eos::ContainerIdentifier c_ident = eos::ContainerIdentifier(
                                            fmd->getContainerId());
-      nslock.Release();
+      ns_wr_lock.Release();
 
       if (option["update"]) {
         // broadcast file md
