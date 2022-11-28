@@ -146,6 +146,7 @@ public:
                     struct fuse_file_info* fi);
 
   static void forget(fuse_req_t req, fuse_ino_t ino, unsigned long nlookup);
+  static int _forget(fuse_req_t req, fuse_ino_t ino, unsigned long nlookup);
 
 #ifdef USE_FUSE3
   static void forget_multi(fuse_req_t req, size_t count, 

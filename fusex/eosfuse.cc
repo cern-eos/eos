@@ -736,7 +736,7 @@ EosFuse::run(int argc, char* argv[], void* userdata)
     }
 
     if (!root["options"].isMember("cpu-core-affinity")) {
-      root["options"]["cpu-core-affinity"] = 1;
+      root["options"]["cpu-core-affinity"] = 0;
     }
 
     if (!root["options"].isMember("no-xattr")) {
@@ -5160,6 +5160,21 @@ EosFuse::fsync(fuse_req_t req, fuse_ino_t ino, int datasync,
 }
 
 /* -------------------------------------------------------------------------- */
+int
+/* -------------------------------------------------------------------------- */
+EosFuse::_forget(fuse_req_t req, fuse_ino_t ino, unsigned long nlookup)
+/* -------------------------------------------------------------------------- */
+{
+  int rc = 0;
+  rc = Instance().mds.forget(req, ino, nlookup);
+
+  if (!rc) {
+    Instance().Tracker().forget(ino);
+  }
+  return rc;
+}
+
+/* -------------------------------------------------------------------------- */
 void
 /* -------------------------------------------------------------------------- */
 EosFuse::forget(fuse_req_t req, fuse_ino_t ino, unsigned long nlookup)
@@ -5168,20 +5183,14 @@ EosFuse::forget(fuse_req_t req, fuse_ino_t ino, unsigned long nlookup)
   eos::common::Timing timing(__func__);
   COMMONTIMING("_start_", &timing);
   eos_static_debug("ino=%#lx nlookup=%d", ino, nlookup);
+  fuse_id id(req);
   ADD_FUSE_STAT(__func__, req);
   EXEC_TIMING_BEGIN(__func__);
-  int rc = 0;
-  fuse_id id(req);
-  rc = Instance().mds.forget(req, ino, nlookup);
+  int rc = _forget(req, ino, nlookup);
   EXEC_TIMING_END(__func__);
   COMMONTIMING("_stop_", &timing);
   eos_static_notice("t(ms)=%.03f %s nlookup=%d", timing.RealTime(),
                     dump(id, ino, 0, rc).c_str(), nlookup);
-
-  if (!rc) {
-    Instance().Tracker().forget(ino);
-  }
-
   fuse_reply_none(req);
 }
 
@@ -5199,7 +5208,7 @@ EosFuse::forget_multi(fuse_req_t req, size_t count,
   EXEC_TIMING_BEGIN(__func__);
 
   for (size_t i = 0; i < count; ++i) {
-    EosFuse::forget(req, forgets[i].ino, forgets[i].nlookup);
+    int rc = EosFuse::_forget(req, forgets[i].ino, forgets[i].nlookup);
   }
 
   EXEC_TIMING_END(__func__);
