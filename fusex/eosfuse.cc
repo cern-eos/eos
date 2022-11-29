@@ -2054,8 +2054,9 @@ EosFuse::init(void* userdata, struct fuse_conn_info* conn)
   }
 
 #ifdef USE_FUSE3
-  conn->want |= FUSE_CAP_EXPORT_SUPPORT | FUSE_CAP_POSIX_LOCKS |
-                FUSE_CAP_WRITEBACK_CACHE; // | FUSE_CAP_CACHE_SYMLINKS;
+  conn->want |= FUSE_CAP_EXPORT_SUPPORT | FUSE_CAP_POSIX_LOCKS;
+  // disable the writeback cache, since it results in truncated object files
+  //                FUSE_CAP_WRITEBACK_CACHE; // | FUSE_CAP_CACHE_SYMLINKS;
   Instance().Config().options.writebackcache = true;
   //  conn->want |= FUSE_CAP_EXPORT_SUPPORT | FUSE_CAP_POSIX_LOCKS ; // | FUSE_CAP_CACHE_SYMLINKS;
 #else
