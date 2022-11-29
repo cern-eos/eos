@@ -5208,7 +5208,7 @@ EosFuse::forget_multi(fuse_req_t req, size_t count,
   EXEC_TIMING_BEGIN(__func__);
 
   for (size_t i = 0; i < count; ++i) {
-    int rc = EosFuse::_forget(req, forgets[i].ino, forgets[i].nlookup);
+    EosFuse::_forget(req, forgets[i].ino, forgets[i].nlookup);
   }
 
   EXEC_TIMING_END(__func__);
