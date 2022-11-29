@@ -516,7 +516,7 @@ public:
   //----------------------------------------------------------------------------
   //! Exit check for deadlocks
   //!
-  //! @param rd_lock true if this is about to take a read lock, otherwise false
+  //! @param rd_lock true if this is was read lock, otherwise false
   //----------------------------------------------------------------------------
   void ExitCheckDeadlock(bool rd_lock);
 

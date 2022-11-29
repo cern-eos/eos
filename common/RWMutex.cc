@@ -300,7 +300,7 @@ RWMutex::UnLockRead()
 #ifdef EOS_INSTRUMENTED_RWMUTEX
 
   if (mEnableDeadlockCheck || mTransientDeadlockCheck) {
-    ExitCheckDeadlock(false);
+    ExitCheckDeadlock(true);
   }
 
 #endif
