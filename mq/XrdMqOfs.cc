@@ -36,6 +36,7 @@
 #include "mq/XrdMqOfsTrace.hh"
 #include "common/PasswordHandler.hh"
 #include "common/Strerror_r_wrapper.hh"
+#include "common/StringUtils.hh"
 #include "namespace/ns_quarkdb/qclient/include/qclient/QClient.hh"
 #include <pwd.h>
 #include <grp.h>
@@ -414,8 +415,14 @@ int XrdMqOfs::Configure(XrdSysError& Eroute)
     ManagerId += ":";
     ManagerId += (int)myPort;
     Eroute.Say("=====> mq.managerid: ", ManagerId.c_str(), "");
-    // @todo(esindril): maybe the MGM id should be taken from an env variable
-    mMgmId = SSTR(HostName << ":1094").c_str();
+    int mgm_port = 1094;
+    char* ptr = getenv("EOS_MGM_DAEMON_PORT_FOR_MQ");
+
+    if (ptr) {
+      (void) eos::common::StringToNumeric(std::string(ptr), mgm_port);
+    }
+
+    mMgmId = SSTR(HostName << mgm_port).c_str();
   }
   gMqOfsTrace.What = TRACE_getstats | TRACE_close | TRACE_open;
 
