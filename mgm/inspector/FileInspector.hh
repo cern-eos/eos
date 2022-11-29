@@ -116,9 +116,9 @@ private:
   // the counters for the last and current scan by layout id
   std::map<uint64_t, std::map<std::string, uint64_t>> lastScanStats;
   std::map<uint64_t, std::map<std::string, uint64_t>> currentScanStats;
-  //! Map from types of failures to paris of fid and layoutid
+  //! Map from types of failures to pairs of fid and layoutid
   std::map<std::string, std::set<std::pair<uint64_t, uint64_t>>> lastFaultyFiles;
-  //! Map from types of failures to paris of fid and layoutid
+  //! Map from types of failures to pairs of fid and layoutid
   std::map<std::string, std::set<std::pair<uint64_t, uint64_t>>>
   currentFaultyFiles;
 
