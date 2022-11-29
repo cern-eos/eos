@@ -33,8 +33,9 @@
 #include <memory>
 #include <mutex>
 
-namespace qclient {
-  class QClient;
+namespace qclient
+{
+class QClient;
 }
 
 
@@ -44,12 +45,14 @@ EOSMGMNAMESPACE_BEGIN
 //! Class tracking the sanity of created files
 //------------------------------------------------------------------------------
 
-class FileInspector {
+class FileInspector
+{
 public:
 
   struct Options {
     bool enabled;                  //< Is FileInspector even enabled?
-    std::chrono::seconds interval; //< Run FileInsepctor cleanup every this many seconds
+    std::chrono::seconds
+    interval; //< Run FileInsepctor cleanup every this many seconds
   };
 
   FileInspector();
@@ -65,15 +68,35 @@ public:
   //----------------------------------------------------------------------------
   void performCycleQDB(ThreadAssistant& assistant) noexcept;
 
-  static FileInspector* Create() {
+  static FileInspector* Create()
+  {
     return new FileInspector();
   }
 
   void Dump(std::string& out, std::string& options);
 
-  bool enabled() { return (mEnabled.load())?true:false; }
-  bool disable() { if (!enabled()) {return false;} else {mEnabled.store(0, std::memory_order_seq_cst); return true;}}
-  bool enable()  { if  (enabled()) {return false;} else {mEnabled.store(1, std::memory_order_seq_cst); return true;}}
+  bool enabled()
+  {
+    return (mEnabled.load()) ? true : false;
+  }
+  bool disable()
+  {
+    if (!enabled()) {
+      return false;
+    } else {
+      mEnabled.store(0, std::memory_order_seq_cst);
+      return true;
+    }
+  }
+  bool enable()
+  {
+    if (enabled()) {
+      return false;
+    } else {
+      mEnabled.store(1, std::memory_order_seq_cst);
+      return true;
+    }
+  }
 
   Options getOptions();
 
@@ -93,8 +116,11 @@ private:
   // the counters for the last and current scan by layout id
   std::map<uint64_t, std::map<std::string, uint64_t>> lastScanStats;
   std::map<uint64_t, std::map<std::string, uint64_t>> currentScanStats;
-  std::map<std::string, std::set<uint64_t>> lastFaultyFiles;
-  std::map<std::string, std::set<uint64_t>> currentFaultyFiles;
+  //! Map from types of failures to paris of fid and layoutid
+  std::map<std::string, std::set<std::pair<uint64_t, uint64_t>>> lastFaultyFiles;
+  //! Map from types of failures to paris of fid and layoutid
+  std::map<std::string, std::set<std::pair<uint64_t, uint64_t>>>
+  currentFaultyFiles;
 
   time_t timeCurrentScan;
   time_t timeLastScan;

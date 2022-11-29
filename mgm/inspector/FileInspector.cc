@@ -384,7 +384,8 @@ FileInspector::Process(std::shared_ptr<eos::IFileMD> fmd)
   // no location files
   if (!fmd->getNumLocation()) {
     currentScanStats[lid]["nolocation"]++;
-    currentFaultyFiles["nolocation"].insert(fmd->getId());
+    currentFaultyFiles["nolocation"].insert
+    (std::make_pair(fmd->getId(), fmd->getLayoutId()));
   }
 
   eos::IFileMD::LocationVector l = fmd->getLocations();
@@ -394,7 +395,8 @@ FileInspector::Process(std::shared_ptr<eos::IFileMD> fmd)
     if (!FsView::gFsView.HasMapping(fs)) {
       // shadow filesystem
       currentScanStats[lid]["shadowlocation"]++;
-      currentFaultyFiles["shadowlocation"].insert(fmd->getId());
+      currentFaultyFiles["shadowlocation"].insert
+      (std::make_pair(fmd->getId(), fmd->getLayoutId()));
     }
   }
 
@@ -402,7 +404,8 @@ FileInspector::Process(std::shared_ptr<eos::IFileMD> fmd)
     if (!FsView::gFsView.HasMapping(fs)) {
       // shadow filesystem
       currentScanStats[lid]["shadowdeletion"]++;
-      currentFaultyFiles["shadowdeletion"].insert(fmd->getId());
+      currentFaultyFiles["shadowdeletion"].insert
+      (std::make_pair(fmd->getId(), fmd->getLayoutId()));
     }
   }
 
@@ -419,11 +422,13 @@ FileInspector::Process(std::shared_ptr<eos::IFileMD> fmd)
     tag += "0";
   } else if (sdiff < 0) {
     tag += std::to_string(sdiff);
-    currentFaultyFiles[tag].insert(fmd->getId());
+    currentFaultyFiles[tag].insert(std::make_pair(fmd->getId(),
+                                   fmd->getLayoutId()));
   } else {
     tag += "+";
     tag += std::to_string(sdiff);
-    currentFaultyFiles[tag].insert(fmd->getId());
+    currentFaultyFiles[tag].insert(std::make_pair(fmd->getId(),
+                                   fmd->getLayoutId()));
   }
 
   currentScanStats[lid][tag]++;
@@ -506,9 +511,11 @@ FileInspector::Dump(std::string& out, std::string& options)
   if ((options.find("c") != std::string::npos)) {
     if (options.find("p") != std::string::npos) {
       for (auto& i : currentFaultyFiles) {
-        for (auto& s : i.second) {
+        for (auto& pair : i.second) {
           out += "fxid:";
-          out += eos::common::FileId::Fid2Hex(s);
+          out += eos::common::FileId::Fid2Hex(pair.first);
+          out += " layoutid:";
+          out += eos::common::StringConversion::integral_to_hex(pair.second).c_str();
           out += " ";
           out += i.first;
           out += "\n";
@@ -522,9 +529,11 @@ FileInspector::Dump(std::string& out, std::string& options)
 
       if (exportfile.is_open()) {
         for (auto& i : currentFaultyFiles) {
-          for (auto& s : i.second) {
-            exportfile << "fxid:" << eos::common::FileId::Fid2Hex(s) << " " << i.first <<
-                       "\n";
+          for (auto& pair : i.second) {
+            exportfile << "fxid:" << eos::common::FileId::Fid2Hex(pair.first)
+                       << " layoutid:"
+                       << eos::common::StringConversion::integral_to_hex(pair.second)
+                       << " " << i.first << "\n";
           }
         }
 
@@ -576,9 +585,11 @@ FileInspector::Dump(std::string& out, std::string& options)
   if ((options.find("l") != std::string::npos)) {
     if (options.find("p") != std::string::npos) {
       for (auto& i : lastFaultyFiles) {
-        for (auto& s : i.second) {
+        for (auto& pair : i.second) {
           out += "fxid:";
-          out += eos::common::FileId::Fid2Hex(s);
+          out += eos::common::FileId::Fid2Hex(pair.first);
+          out += " layoutid:";
+          out += eos::common::StringConversion::integral_to_hex(pair.second).c_str();
           out += " ";
           out += i.first;
           out += "\n";
@@ -592,9 +603,11 @@ FileInspector::Dump(std::string& out, std::string& options)
 
       if (exportfile.is_open()) {
         for (auto& i : lastFaultyFiles) {
-          for (auto& s : i.second) {
-            exportfile << "fxid:" << eos::common::FileId::Fid2Hex(s) << " " << i.first <<
-                       "\n";
+          for (auto& pair : i.second) {
+            exportfile << "fxid:" << eos::common::FileId::Fid2Hex(pair.first)
+                       << " layoutid:"
+                       << eos::common::StringConversion::integral_to_hex(pair.second)
+                       << " " << i.first << "\n";
           }
         }
 
@@ -647,4 +660,3 @@ FileInspector::Dump(std::string& out, std::string& options)
 }
 
 EOSMGMNAMESPACE_END
-
