@@ -183,7 +183,7 @@ void IoCmd::EnableSubcmd(const eos::console::IoProto_EnableProto& enable,
         if (gOFS->IoStats->StopReport()) {
           out << "success: disabled IO report store";
         } else {
-          err << "error: IO report store already enabled";
+          err << "error: IO report store already disabled";
           ret_c = EINVAL;
         }
       }
