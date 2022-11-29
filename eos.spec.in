@@ -603,6 +603,7 @@ Group: Applications/File
 ExclusiveArch: x86_64 aarch64
 Requires: eos-fusex-core = @CPACK_PACKAGE_VERSION@
 Requires: eos-fusex-selinux = @CPACK_PACKAGE_VERSION@
+Requires: fuse3
 Obsoletes: eos-fuse
 Obsoletes: eos-fuse-core
 Obsoletes: eos-fuse-sysv
