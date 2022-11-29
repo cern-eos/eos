@@ -422,7 +422,7 @@ int XrdMqOfs::Configure(XrdSysError& Eroute)
       (void) eos::common::StringToNumeric(std::string(ptr), mgm_port);
     }
 
-    mMgmId = SSTR(HostName << mgm_port).c_str();
+    mMgmId = SSTR(HostName << ':' << mgm_port).c_str();
   }
   gMqOfsTrace.What = TRACE_getstats | TRACE_close | TRACE_open;
 
