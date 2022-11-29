@@ -82,7 +82,6 @@ XrdMgmOfs::fsctl(const int cmd,
     XrdOucString space = "default";
     unsigned long long freebytes = 0;
     unsigned long long maxbytes = 0;
-    eos::common::RWMutexReadLock vlock(FsView::gFsView.ViewMutex);
     // Take the sum's from all file systems in 'default'
     std::string path = args;
     std::string opaque = args;
@@ -112,14 +111,17 @@ XrdMgmOfs::fsctl(const int cmd,
 
     if (query_space ||
         (!getenv("EOS_MGM_STATVFS_ONLY_QUOTA") && ((path == "/") || (path == "")))) {
-      if (FsView::gFsView.mSpaceView.count(space.c_str())) {
-        freebytes =
-          FsView::gFsView.mSpaceView[space.c_str()]->SumLongLong("stat.statfs.freebytes",
-              false);
-        maxbytes =
-          FsView::gFsView.mSpaceView[space.c_str()]->SumLongLong("stat.statfs.capacity",
-              false);
-      }
+      {
+        eos::common::RWMutexReadLock vlock(FsView::gFsView.ViewMutex);
+        if (FsView::gFsView.mSpaceView.count(space.c_str())) {
+          freebytes =
+            FsView::gFsView.mSpaceView[space.c_str()]->SumLongLong("stat.statfs.freebytes",
+                                                                   false);
+          maxbytes =
+            FsView::gFsView.mSpaceView[space.c_str()]->SumLongLong("stat.statfs.capacity",
+                                                                 false);
+        }
+      } //vlock
 
       unsigned long layoutid = Policy::GetSpacePolicyLayout(space.c_str());
 
