@@ -4790,8 +4790,7 @@ The O_NONBLOCK flag was specified, and an incompatible lease was held on the fil
             md->set_obfuscate_key(obfuscation_key, eoskey.length(), fingerprint);
           }
 
-          Instance().mds.add(req, pmd, md, (*pcap)()->authid());
-	  rc=0;
+          rc = Instance().mds.add_sync(req, pmd, md, (*pcap)()->authid());
           (*md)()->set_type((*md)()->MD);
 
           if (!rc) {
