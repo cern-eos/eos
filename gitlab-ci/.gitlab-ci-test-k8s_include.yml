@@ -9,6 +9,7 @@ k8s_system:
   tags:
     - docker_node
     - k8s
+  allow_failure: true
 
 k8s_cnvrt_fsck:
   extends: .dock8s_cnvrt_fsck_template
