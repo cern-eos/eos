@@ -465,9 +465,11 @@ FileInspector::Dump(std::string& out, std::string& options)
   if (options.find("m") != std::string::npos) {
     for (auto it = lastScanStats.begin(); it != lastScanStats.end(); ++it) {
       snprintf(line, sizeof(line),
-               "key=last layout=%08lx type=%s checksum=%s blockchecksum=%s blocksize=%s",
+               "key=last layout=%08lx type=%s nominal_stripes=%s checksum=%s "
+               "blockchecksum=%s blocksize=%s",
                it->first,
                eos::common::LayoutId::GetLayoutTypeString(it->first),
+               eos::common::LayoutId::GetStripeNumberString(it->first).c_str(),
                eos::common::LayoutId::GetChecksumStringReal(it->first),
                eos::common::LayoutId::GetBlockChecksumString(it->first),
                eos::common::LayoutId::GetBlockSizeString(it->first));
@@ -549,9 +551,11 @@ FileInspector::Dump(std::string& out, std::string& options)
         }
 
         snprintf(line, sizeof(line),
-                 " layout=%08lx type=%-13s checksum=%-8s blockchecksum=%-8s blocksize=%-4s\n\n",
+                 " layout=%08lx type=%-13s nominal_stripes=%s checksum=%-8s "
+                 "blockchecksum=%-8s blocksize=%-4s\n\n",
                  it->first,
                  eos::common::LayoutId::GetLayoutTypeString(it->first),
+                 eos::common::LayoutId::GetStripeNumberString(it->first).c_str(),
                  eos::common::LayoutId::GetChecksumStringReal(it->first),
                  eos::common::LayoutId::GetBlockChecksumString(it->first),
                  eos::common::LayoutId::GetBlockSizeString(it->first));
@@ -617,9 +621,11 @@ FileInspector::Dump(std::string& out, std::string& options)
         }
 
         snprintf(line, sizeof(line),
-                 " layout=%08lx type=%-13s checksum=%-8s blockchecksum=%-8s blocksize=%-4s\n\n",
+                 " layout=%08lx type=%-13s nominal_stripes=%schecksum=%-8s "
+                 "blockchecksum=%-8s blocksize=%-4s\n\n",
                  it->first,
                  eos::common::LayoutId::GetLayoutTypeString(it->first),
+                 eos::common::LayoutId::GetStripeNumberString(it->first).c_str(),
                  eos::common::LayoutId::GetChecksumStringReal(it->first),
                  eos::common::LayoutId::GetBlockChecksumString(it->first),
                  eos::common::LayoutId::GetBlockSizeString(it->first));
