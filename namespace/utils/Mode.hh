@@ -83,10 +83,6 @@ inline void modeToBuffer(mode_t mode, char* modestr)
     modestr[2] = 'w';
   }
 
-  if (mode & S_IXOTH) {
-    modestr[9] = 'x';
-  }
-
   if (mode & S_IXUSR) {
     modestr[3] = 'x';
   }
@@ -101,6 +97,18 @@ inline void modeToBuffer(mode_t mode, char* modestr)
 
   if (mode & S_IXGRP) {
     modestr[6] = 'x';
+  }
+  
+  if (mode & S_IROTH) {
+    modestr[7] = 'r';
+  }
+  
+  if (mode & S_IWOTH) {
+    modestr[8] = 'w';
+  }
+
+  if (mode & S_IXOTH) {
+    modestr[9] = 'x';
   }
 
   if (mode & S_ISVTX) {
