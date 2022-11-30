@@ -131,17 +131,17 @@ public:
 
   // TTL is approximate. An element can stay while unused from [ttl, 2*ttl]
   ShardedCache(uint8_t shardBits_, Milliseconds ttl_,
-               std::string name_= "ShardedCacheGC")
+               std::string_view name_= "ShardedCacheGC")
   :  shards(1UL << shardBits_), ttl(ttl_),
      mutexes(shards), contents(shards),
-     threadName(std::move(name_)) {
+     threadName(name_.substr(0,15)) {
     cleanupThread.reset(&ShardedCache::garbageCollector, this);
   }
 
   void reset_cleanup_thread(Milliseconds ttl_,
-                            std::string name_ = "ShardedCacheGC") {
+                            std::string_view name_ = "ShardedCacheGC") {
     ttl = ttl_;
-    threadName = std::move(name_);
+    threadName = name_.substr(0,15);
     cleanupThread.reset(&ShardedCache::garbageCollector, this);
   }
 
@@ -297,7 +297,11 @@ private:
   }
 
   void garbageCollector(ThreadAssistant &assistant) {
-    ThreadAssistant::setSelfThreadName(threadName);
+    // For very short lived objects we'd not be setup before the destructor is
+    // invoked
+    if (!assistant.terminationRequested()) {
+      ThreadAssistant::setSelfThreadName(threadName);
+    }
     while(!assistant.terminationRequested()) {
       assistant.wait_for(std::chrono::milliseconds(ttl));
       if(assistant.terminationRequested()) return;
