@@ -168,7 +168,7 @@ public:
   //----------------------------------------------------------------------------
   void propagateTerminationSignal(AssistedThread& thread);
 
-  void setSelfThreadName(const std::string &name) {
+  static void setSelfThreadName(std::string name) {
 #ifndef __APPLE__
     pthread_setname_np(pthread_self(), name.substr(0, 15).c_str());
 #endif

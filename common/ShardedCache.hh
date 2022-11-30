@@ -290,7 +290,7 @@ private:
   }
 
   void garbageCollector(ThreadAssistant &assistant) {
-    assistant.setSelfThreadName(threadName);
+    ThreadAssistant::setSelfThreadName(threadName);
     while(!assistant.terminationRequested()) {
       assistant.wait_for(std::chrono::milliseconds(ttl));
       if(assistant.terminationRequested()) return;
