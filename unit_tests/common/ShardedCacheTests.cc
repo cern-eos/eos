@@ -159,3 +159,48 @@ TEST(ShardedCache, get_shard)
   std::this_thread::sleep_for(std::chrono::milliseconds(30));
   ASSERT_EQ(cache.num_entries(), 0);
 }
+
+TEST(ShardedCache, clear)
+{
+  ShardedCache<std::string, int> cache(8, 10);
+  ASSERT_TRUE(cache.store("hello", std::make_unique<int>(5)));
+  ASSERT_EQ(cache.num_entries(), 1);
+  cache.clear();
+  ASSERT_EQ(cache.num_entries(), 0);
+  auto result = cache.retrieve("hello");
+  EXPECT_EQ(result, nullptr);
+}
+
+TEST(ShardedCache, reuse_after_clear)
+{
+  ShardedCache<std::string, int> cache(8, 10);
+  ASSERT_TRUE(cache.store("hello", std::make_unique<int>(5)));
+  ASSERT_EQ(cache.num_entries(), 1);
+  cache.clear();
+  ASSERT_EQ(cache.num_entries(), 0);
+  auto result = cache.retrieve("hello");
+  EXPECT_EQ(result, nullptr);
+  ASSERT_TRUE(cache.store("hello", std::make_unique<int>(5)));
+  ASSERT_EQ(cache.num_entries(), 1);
+  result = cache.retrieve("hello");
+  ASSERT_NE(result, nullptr);
+  EXPECT_EQ(*result, 5);
+}
+
+TEST(ShardedCache, value_after_clear)
+{
+  ShardedCache<std::string, int> cache(8, 10);
+  ASSERT_TRUE(cache.store("hello", std::make_unique<int>(5)));
+  ASSERT_EQ(cache.num_entries(), 1);
+  auto result = cache.retrieve("hello");
+  ASSERT_NE(result, nullptr);
+  EXPECT_EQ(*result, 5);
+  ASSERT_EQ(result.use_count(), 2);
+  cache.clear();
+  // result is a shared_ptr, so regardless it is still valid
+  // however no longer present in the cache map
+  ASSERT_EQ(cache.num_entries(), 0);
+  ASSERT_EQ(result.use_count(), 1);
+  ASSERT_NE(result, nullptr);
+  EXPECT_EQ(*result, 5);
+}

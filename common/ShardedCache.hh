@@ -217,6 +217,13 @@ public:
     return true;
   }
 
+  void clear() {
+    for (size_t i = 0; i < contents.size(); ++i) {
+      std::lock_guard guard(mutexes[i]);
+      contents[i].clear();
+    }
+  }
+
   // Some observer functions for validation, and in cases where we need to know
   // cache sizes
   size_t num_shards() const {

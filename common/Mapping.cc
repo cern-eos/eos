@@ -175,6 +175,10 @@ Mapping::Reset()
     gPhysicalGroupIdCache.clear();
     gPhysicalUserIdCache.clear();
   }
+
+  ActiveTidentsSharded.clear();
+  ActiveUidsSharded.clear();
+
   {
     XrdSysMutexHelper mLock(ActiveLock);
     ActiveTidents.clear();
