@@ -25,18 +25,12 @@
 #define SHARDED_CACHE__HH__
 
 #include "common/AssistedThread.hh"
-
-#ifdef __APPLE__
-#include <cmath>
-#endif
-
 #include <memory>
 #include <vector>
 #include <mutex>
 #include <map>
 #include <unordered_map>
 #include <numeric>
-#include <cmath> // for pow, will be moved to bit shift
 
 using Milliseconds = int64_t;
 
@@ -130,18 +124,17 @@ public:
   }
 
   // ShardedCache without a GC thread!
-  explicit ShardedCache(size_t shardBits_) : shardBits(shardBits_),
-                                             shards(1UL << shardBits),
-                                             mutexes(shards),
-                                             contents(shards) {
+  explicit ShardedCache(uint8_t shardBits_) : shards(1UL << shardBits_),
+                                              mutexes(shards),
+                                              contents(shards) {
   }
 
   // TTL is approximate. An element can stay while unused from [ttl, 2*ttl]
-  ShardedCache(size_t shardBits_, Milliseconds ttl_,
+  ShardedCache(uint8_t shardBits_, Milliseconds ttl_,
                std::string name_= "ShardedCacheGC")
-  : shardBits(shardBits_), shards(pow(2, shardBits)), ttl(ttl_),
-        mutexes(shards), contents(shards),
-        threadName(std::move(name_)) {
+  :  shards(1UL << shardBits_), ttl(ttl_),
+     mutexes(shards), contents(shards),
+     threadName(std::move(name_)) {
     cleanupThread.reset(&ShardedCache::garbageCollector, this);
   }
 
@@ -224,8 +217,8 @@ public:
     return true;
   }
 
-  // Some observer functions for validation, not expected to be used in data
-  // path, more for stats and tests.
+  // Some observer functions for validation, and in cases where we need to know
+  // cache sizes
   size_t num_shards() const {
     return shards;
   }
@@ -266,7 +259,6 @@ public:
   }
 
 private:
-  size_t shardBits;
   size_t shards;
   Milliseconds ttl;
 
