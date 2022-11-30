@@ -433,7 +433,8 @@ XrdMgmOfs::OrderlyShutdown()
 
   if (mZmqContext) {
     eos_warning("%s", "msg=\"closing the ZMQ context\"");
-    mZmqContext->close();
+    // TODO: for now removing this since it breaks Centos8/9 shutdown
+    //    mZmqContext->close();
     eos_warning("%s", "msg=\"joining the master and worker auth threads\"");
     mAuthMasterTid.join();
 
@@ -461,11 +462,13 @@ XrdMgmOfs::OrderlyShutdown()
   eos_warning("%s", "msg=\"stopping fusex server\"");
   zMQ->gFuseServer.shutdown();
 
-  if (zMQ) {
+  // TODO: for now removing this since it breaks Centos8/9 shutdown
+  /*  if (zMQ) {
     delete zMQ;
     zMQ = nullptr;
   }
-
+  */
+  
   eos_warning("%s", "msg=\"stopping FSCK service\"");
   mFsckEngine->Stop();
   eos_warning("%s", "msg=\"stopping messaging\"");
