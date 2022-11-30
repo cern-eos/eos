@@ -3313,7 +3313,7 @@ XrdFstOfsFile::MakeReportEnv(XrdOucString& reportString)
              "sfwdb=%llu&sbwdb=%llu&sxlfwdb=%llu&sxlbwdb=%llu&"
              "nfwds=%lu&nbwds=%lu&nxlfwds=%lu&nxlbwds=%lu&"
              "usage=%.02f&iot=%.03f&idt=%.03f&lrt=%.03f&lrvt=%.03f&lwt=%.03f&ot=%.03f&ct=%.03f&rt=%.02f&rvt=%.02f&wt=%.02f&osize=%llu&csize=%llu&"
-             "delete_on_close=%d&prio_c=%d&prio_l=%d&prio_d=%d&forced_bw=%d&ms_sleep=%llu&%s"
+             "delete_on_close=%d&prio_c=%d&prio_l=%d&prio_d=%d&forced_bw=%d&ms_sleep=%llu&ior_err=%d&iow_err=%d&%s"
              , this->logId
              , sanitized_path.c_str()
              , mFstPath.c_str()
@@ -3357,6 +3357,8 @@ XrdFstOfsFile::MakeReportEnv(XrdOucString& reportString)
              , ioprio_default
              , mBandwidth
              , msSleep
+	     , hasReadError
+	     , hasWriteError
              , eos::common::SecEntity::ToEnv(mSecString.c_str(),
                  (sec_tpc ? "tpc" : 0)).c_str());
     reportString = report;

@@ -106,6 +106,8 @@ Each FST sends for each file replica or piece it writes a record which looks lik
    tpc.src              TPC source hostname (only on TPC transfers)
    tpc.dst              TPC destination hostname (only on TPC transfers)
    tpc.src_lfn          TPC file path at source (only on TPC transfers)
+   ior_err              1 (io error during read) otherwise 0
+   iow_err              1 (io error during write) otherwise 0
    ==================== ==================================================================================================
 
 Note: In case of TPC transfers, only one of `tpc.src` or `tpc.dst` is available,
