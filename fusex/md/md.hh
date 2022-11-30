@@ -97,6 +97,8 @@ public:
 
     virtual ~mdx() { }
 
+    typedef std::shared_ptr<mdx> shared_md;
+    
     XrdSysMutex& Locker()
     {
       return mLock;
@@ -280,6 +282,16 @@ public:
       return _local_enoent;
     }
 
+    void store_fullpath(shared_md pmd, std::string name)
+    {
+      std::string fullpath = (*pmd)()->fullpath();
+      if (fullpath.back() != '/') {
+        fullpath += "/";
+      }
+      fullpath += name;
+      (*this)()->set_fullpath(fullpath.c_str());
+    }
+    
     const uint64_t inlinesize()
     {
       return inline_size;

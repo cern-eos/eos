@@ -257,14 +257,7 @@ metad::lookup(fuse_req_t req, fuse_ino_t parent, const char* name)
 
     if (md) {
       md->Locker().Lock();
-      std::string fullpath = (*pmd)()->fullpath();
-
-      if (fullpath.back() != '/') {
-        fullpath += "/";
-      }
-
-      fullpath += name;
-      (*md)()->set_fullpath(fullpath.c_str());
+      md->store_fullpath(pmd, name);
       md->Locker().UnLock();
       pmd->Locker().Lock();
     } else {
@@ -1854,7 +1847,9 @@ metad::apply(fuse_req_t req, eos::fusex::container& cont, bool listing)
 
     {
       if (!has_flush(ino)) {
+	std::string fullpath=(*md)()->fullpath();
         (*md)()->CopyFrom(cont.md_());
+	(*md)()->set_fullpath(fullpath);
         shared_md d_md = EosFuse::Instance().datas.retrieve_wr_md(ino);
 
         if (d_md) {
@@ -3001,9 +2996,11 @@ metad::mdcommunicate(ThreadAssistant& assistant)
                 if (rsp.md_().clock() >= (*md)()->clock()) {
                   eos_static_info("overwriting clock MD %#lx => %#lx", (*md)()->clock(),
                                   rsp.md_().clock());
+		  std::string fullpath=(*md)()->fullpath(); // keep the fullpath information
                   *md = rsp.md_();
                   (*md)()->set_creator(false);
                   (*md)()->set_bc_time(time(NULL));
+		  (*md)()->set_fullpath(fullpath);
                 } else {
                   eos_static_warning("keeping clock MD %#lx => %#lx", (*md)()->clock(),
                                      rsp.md_().clock());
