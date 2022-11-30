@@ -27,6 +27,7 @@
 #include "XrdPosix/XrdPosixXrootd.hh"
 #include "XrdOuc/XrdOucEnv.hh"
 #include "namespace/utils/Mode.hh"
+#include "stdio.h"
 
 /* List a directory */
 int
@@ -262,6 +263,13 @@ com_ls(char* arg1)
   }
 
   path = abspath(path.c_str());
+
+  if (strlen(path.c_str()) >= FILENAME_MAX) {
+    fprintf(stderr, "error: path length longer than %i bytes", FILENAME_MAX);
+    global_retc = EINVAL;
+    return (0);
+  }
+
   in += "&mgm.path=";
   in += path;
   in += "&mgm.option=";
