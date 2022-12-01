@@ -659,6 +659,10 @@ The EOS fuse core containing eosxd/eosxd3.
 %dir %attr(755,daemon,daemon) %{_localstatedir}/cache/eos/
 %dir %attr(755,daemon,daemon) %{_localstatedir}/cache/eos/fusex/
 
+%post -n eos-fusex-core
+# Ensure /var/run/eos creation
+systemd-tmpfiles --create
+
 #-------------------------------------------------------------------------------
 # Package eos-fusex-selinux
 #-------------------------------------------------------------------------------
