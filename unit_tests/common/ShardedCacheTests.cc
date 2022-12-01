@@ -136,7 +136,7 @@ TEST(ShardedCache, get_shard_except)
   ShardedCache<std::string, int> cache(8, 10);
   std::unordered_map<std::string, int> empty_map;
 
-  for (int i = 0; i < cache.num_shards(); i++) {
+  for (unsigned int i = 0; i < cache.num_shards(); i++) {
     ASSERT_EQ(cache.get_shard(i), empty_map);
   }
 

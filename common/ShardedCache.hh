@@ -75,18 +75,18 @@ struct DefaultHash {
   }
 };
 
-template<typename Key, typename Value, typename Hash=DefaultHash<Key>,
-         bool isUnordered=true>
+template<typename Key, typename Value, typename Hash = DefaultHash<Key>,
+         bool isUnordered = true>
 class ShardedCache
 {
 private:
   class ShardGuard
   {
   public:
-    ShardGuard(ShardedCache *cache, const Key &key) {
+    ShardGuard(ShardedCache* cache, const Key& key)
+    {
       shardId = cache->calculateShard(key);
-      mtx = &cache->mutexes[shardId];
-
+      mtx = &cache->mMutexes[shardId];
       mtx->lock();
     }
 
@@ -95,11 +95,12 @@ private:
       return shardId;
     }
 
-    ~ShardGuard() {
+    ~ShardGuard()
+    {
       mtx->unlock();
     }
   private:
-    std::mutex *mtx;
+    std::mutex* mtx;
     int64_t shardId;
   };
 
@@ -112,47 +113,55 @@ public:
 
   template <typename... Args>
   using MapT = typename std::conditional_t<isUnordered,
-      std::unordered_map<Args...>,
-      std::map<Args...>>;
+        std::unordered_map<Args...>,
+        std::map<Args...>>;
 
   using shard_map_t = MapT<Key, CacheEntry>;
   using key_type = Key;
   using value_type = CacheEntry;
 
-  int64_t calculateShard(const Key &key) const {
-    return Hash::hash(key) % shards;
+  int64_t calculateShard(const Key& key) const
+  {
+    return Hash::hash(key) % mNumShards;
   }
 
   // ShardedCache without a GC thread!
-  explicit ShardedCache(uint8_t shardBits_) : shards(1UL << shardBits_),
-                                              mutexes(shards),
-                                              contents(shards) {
+  explicit ShardedCache(uint8_t shardBits_) : mNumShards(1UL << shardBits_),
+    mMutexes(mNumShards),
+    mContents(mNumShards)
+  {
   }
 
   // TTL is approximate. An element can stay while unused from [ttl, 2*ttl]
   ShardedCache(uint8_t shardBits_, Milliseconds ttl_,
-               std::string_view name_= "ShardedCacheGC")
-  :  shards(1UL << shardBits_), ttl(ttl_),
-     mutexes(shards), contents(shards),
-     threadName(name_.substr(0,15)) {
-    cleanupThread.reset(&ShardedCache::garbageCollector, this);
+               std::string_view name_ = "ShardedCacheGC")
+    :  mNumShards(1UL << shardBits_), mTTL(ttl_),
+       mMutexes(mNumShards), mContents(mNumShards),
+       mThreadName(name_.substr(0, 15))
+  {
+    mCleanupThread.reset(&ShardedCache::garbageCollector, this);
   }
 
   void reset_cleanup_thread(Milliseconds ttl_,
-                            std::string_view name_ = "ShardedCacheGC") {
-    ttl = ttl_;
-    threadName = name_.substr(0,15);
-    cleanupThread.reset(&ShardedCache::garbageCollector, this);
+                            std::string_view name_ = "ShardedCacheGC")
+  {
+    mTTL = ttl_;
+    mThreadName = name_.substr(0, 15);
+    mCleanupThread.reset(&ShardedCache::garbageCollector, this);
   }
 
-  ~ShardedCache() { }
+  ~ShardedCache()
+  {
+    mCleanupThread.join();
+  }
 
   // Retrieves an item from the cache. If there isn't any, return a null shared_ptr.
-  std::shared_ptr<Value> retrieve(const Key& key) {
+  std::shared_ptr<Value> retrieve(const Key& key)
+  {
     ShardGuard guard(this, key);
-    auto it = contents[guard.getShard()].find(key);
+    auto it = mContents[guard.getShard()].find(key);
 
-    if (it == contents[guard.getShard()].end()) {
+    if (it == mContents[guard.getShard()].end()) {
       return std::shared_ptr<Value>();
     }
 
@@ -161,17 +170,18 @@ public:
     return it->second.value;
   }
 
-  bool contains(const Key& key) {
+  bool contains(const Key& key)
+  {
     ShardGuard guard(this, key);
-    auto it = contents[guard.getShard()].find(key);
-    return it != contents[guard.getShard()].end();
+    auto it = mContents[guard.getShard()].find(key);
+    return it != mContents[guard.getShard()].end();
   }
 
   // Calling this function means giving up ownership of the pointer.
   // Don't use it anymore and don't call delete on it!
   // Return value: whether insertion was successful.
   bool store(const Key& key, std::unique_ptr<Value> value, std::shared_ptr<Value>
-    &retval, bool replace = true)
+             & retval, bool replace = true)
   {
     CacheEntry entry;
     entry.marked = false;
@@ -179,14 +189,13 @@ public:
     ShardGuard guard(this, key);
 
     if (replace) {
-      contents[guard.getShard()][key] = entry;
+      mContents[guard.getShard()][key] = entry;
       retval = entry.value;
       return true;
     }
 
-
-    auto status = contents[guard.getShard()].insert(std::pair<Key, CacheEntry>(key,
-             entry));
+    auto status = mContents[guard.getShard()].insert(std::pair<Key, CacheEntry>(key,
+                  entry));
     retval = status.first->second.value;
     return status.second;
   }
@@ -200,7 +209,7 @@ public:
 
   // store overload with const retval.
   bool store(const Key& key, std::unique_ptr<Value> value,
-    std::shared_ptr<const Value> &retval, bool replace = true)
+             std::shared_ptr<const Value>& retval, bool replace = true)
   {
     std::shared_ptr<Value> val;
     bool status = store(key, std::move(value), val, replace);
@@ -210,38 +219,44 @@ public:
 
   // Removes an element from the cache. Return value is whether the key existed.
   // If you want to replace an entry, just call store with replace set to false.
-  bool invalidate(const Key& key) {
+  bool invalidate(const Key& key)
+  {
     ShardGuard guard(this, key);
-    auto it = contents[guard.getShard()].find(key);
-    contents[guard.getShard()].erase(it);
+    auto it = mContents[guard.getShard()].find(key);
+    mContents[guard.getShard()].erase(it);
     return true;
   }
 
-  void clear() {
-    for (size_t i = 0; i < contents.size(); ++i) {
-      std::lock_guard guard(mutexes[i]);
-      contents[i].clear();
+  void clear()
+  {
+    for (size_t i = 0; i < mContents.size(); ++i) {
+      std::lock_guard guard(mMutexes[i]);
+      mContents[i].clear();
     }
   }
 
   // Some observer functions for validation, and in cases where we need to know
   // cache sizes
-  size_t num_shards() const {
-    return shards;
+  size_t num_shards() const
+  {
+    return mNumShards;
   }
 
-  size_t num_entries() const {
+  size_t num_entries() const
+  {
     size_t count = 0;
-    for (size_t i = 0; i < contents.size(); ++i) {
-      std::lock_guard guard(mutexes[i]);
-      count += contents[i].size();
+
+    for (size_t i = 0; i < mContents.size(); ++i) {
+      std::lock_guard guard(mMutexes[i]);
+      count += mContents[i].size();
     }
 
     return count;
   }
 
-  size_t num_content_shards() const {
-    return contents.size();
+  size_t num_content_shards() const
+  {
+    return mContents.size();
   }
 
   /**
@@ -251,39 +266,41 @@ public:
    * will not be affected! The map type is the same as the underlying map type,
    * which could be unordered or std::map depending on the template parameter.
    */
-  MapT<Key,Value> get_shard(size_t shard) const {
-    if (shard >= contents.size()) {
+  MapT<Key, Value> get_shard(size_t shard) const
+  {
+    if (shard >= mContents.size()) {
       throw std::out_of_range("trying to access non-existent shard");
     }
-    MapT<Key,Value> ret;
-    std::lock_guard guard(mutexes[shard]);
-    std::transform(contents[shard].begin(), contents[shard].end(),
+
+    MapT<Key, Value> ret;
+    std::lock_guard guard(mMutexes[shard]);
+    std::transform(mContents[shard].begin(), mContents[shard].end(),
                    std::inserter(ret, ret.end()),
-                   [](const auto& pair) {
-                     return std::make_pair(pair.first, *pair.second.value);
-                   });
+    [](const auto & pair) {
+      return std::make_pair(pair.first, *pair.second.value);
+    });
     return ret;
   }
 
 private:
-  size_t shards;
-  Milliseconds ttl;
+  size_t mNumShards;
+  Milliseconds mTTL;
+  mutable std::vector<std::mutex> mMutexes;
+  std::vector<MapT<Key, CacheEntry>> mContents;
+  std::string mThreadName;
+  AssistedThread mCleanupThread;
 
-  mutable std::vector<std::mutex> mutexes;
-  std::vector<MapT<Key, CacheEntry>> contents;
-
-  AssistedThread cleanupThread;
-  std::string threadName;
   // Sweep through all entries in all shards to either mark them as unused or
   // remove them
-  void collectorPass() {
-    for(size_t i = 0; i < shards; i++) {
-      std::lock_guard<std::mutex> lock(mutexes[i]);
+  void collectorPass()
+  {
+    for (size_t i = 0; i < mNumShards; i++) {
+      std::lock_guard<std::mutex> lock(mMutexes[i]);
 
-      for (auto iterator = contents[i].begin();
-           iterator != contents[i].end(); /* no increment */) {
+      for (auto iterator = mContents[i].begin();
+           iterator != mContents[i].end(); /* no increment */) {
         if (iterator->second.marked) {
-          iterator = contents[i].erase(iterator);
+          iterator = mContents[i].erase(iterator);
           continue;
         }
 
@@ -296,15 +313,16 @@ private:
     }
   }
 
-  void garbageCollector(ThreadAssistant &assistant) {
-    // For very short lived objects we'd not be setup before the destructor is
-    // invoked
-    if (!assistant.terminationRequested()) {
-      ThreadAssistant::setSelfThreadName(threadName);
-    }
-    while(!assistant.terminationRequested()) {
-      assistant.wait_for(std::chrono::milliseconds(ttl));
-      if(assistant.terminationRequested()) return;
+  void garbageCollector(ThreadAssistant& assistant)
+  {
+    ThreadAssistant::setSelfThreadName(mThreadName);
+
+    while (!assistant.terminationRequested()) {
+      assistant.wait_for(std::chrono::milliseconds(mTTL));
+
+      if (assistant.terminationRequested()) {
+        return;
+      }
 
       collectorPass();
     }
