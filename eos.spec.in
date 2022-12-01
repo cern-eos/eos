@@ -661,7 +661,7 @@ The EOS fuse core containing eosxd/eosxd3.
 
 %post -n eos-fusex-core
 # Ensure /var/run/eos creation
-systemd-tmpfiles --create
+systemd-tmpfiles --create /etc/tmpfiles.d/eos-fusex-core.conf || true
 
 #-------------------------------------------------------------------------------
 # Package eos-fusex-selinux
