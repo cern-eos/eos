@@ -1190,9 +1190,13 @@ Stat::Circulate(ThreadAssistant& assistant) noexcept
                      view2tmp = 0ull, qu1tmp = 0ull, qu2tmp = 0ull;
 #endif
 
+  auto chrononow = std::chrono::system_clock::now();
+  auto chronolast = chrononow;
+  
   // Empty the circular buffer and extract some Mq statistic values
   while (!assistant.terminationRequested()) {
     assistant.wait_for(std::chrono::milliseconds(512));
+    chrononow = std::chrono::system_clock::now();
     // --------------------------------------------
     // mq statistics extraction
     l1tmp = XrdMqSharedHash::sSetCounter.load();
@@ -1246,7 +1250,15 @@ Stat::Circulate(ThreadAssistant& assistant) noexcept
     ns2 = ns2tmp;
     qu1 = qu1tmp;
     qu2 = qu2tmp;
+
 #endif
+    std::chrono::milliseconds elapsed =
+      std::chrono::duration_cast<std::chrono::milliseconds> (chrononow-chronolast);
+    Add("NsUsedR", 0, 0, ns_mtx->GetReadLockTime() / elapsed.count());
+    Add("NsUsedW", 0, 0, ns_mtx->GetWriteLockTime() / elapsed.count());
+    Add("NsLeadR", 0, 0, ns_mtx->GetReadLockLeadTime() / elapsed.count());
+    Add("NsLeadW", 0, 0, ns_mtx->GetWriteLockLeadTime() / elapsed.count());
+
     l1 = l1tmp;
     l2 = l2tmp;
     l3 = l3tmp;
@@ -1283,6 +1295,7 @@ Stat::Circulate(ThreadAssistant& assistant) noexcept
         it->second.StampZero(now);
       }
     }
+    chronolast = chrononow;
   }
 }
 

@@ -315,6 +315,11 @@ NsCmd::StatSubcmd(const eos::console::NsProto_StatProto& stat,
   common::MutexLatencyWatcher::LatencySpikes viewLatency =
     gOFS->mViewMutexWatcher.getLatencySpikes();
 
+  double rnorm = gOFS->MgmStats.GetTotalAvg5("NsUsedR");
+  double readcontention = (rnorm)?100.0*gOFS->MgmStats.GetTotalAvg5("NsLeadR")/rnorm:0.0;
+  double wnorm = gOFS->MgmStats.GetTotalAvg5("NsUsedW");
+  double writecontention = (wnorm)?100.0*gOFS->MgmStats.GetTotalAvg5("NsLeadW")/wnorm:0.0;
+
   if (monitoring) {
     oss << "uid=all gid=all ns.total.files=" << f << std::endl
         << "uid=all gid=all ns.total.directories=" << d << std::endl
@@ -323,6 +328,8 @@ NsCmd::StatSubcmd(const eos::console::NsProto_StatProto& stat,
         << "uid=all gid=all ns.generated.fid=" << (int)(fid_now - gOFS->mBootFileId)
         << "uid=all gid=all ns.generated.cid=" << (int)(cid_now -
             gOFS->mBootContainerId) << std::endl
+        << "uid=all gid=all ns.contention.read=" << readcontention << std::endl
+	<< "uid=all gid=all ns.contention.write=" << writecontention << std::endl
         << "uid=all gid=all ns.cache.files.maxsize=" << fileCacheStats.maxNum <<
         std::endl
         << "uid=all gid=all ns.cache.files.occupancy=" << fileCacheStats.occupancy <<
@@ -484,6 +491,8 @@ NsCmd::StatSubcmd(const eos::console::NsProto_StatProto& stat,
         << d <<  std::endl
         << "ALL      Total boot time                  "
         << boot_time << " s" << std::endl
+	<< "ALL      Contention                       write: "
+	<< std::fixed << std::setprecision(2) << writecontention << " % read:" << std::fixed << std::setprecision(2) << readcontention << " %" << std::endl
         << line << std::endl;
 
     if (compact_status.length()) {

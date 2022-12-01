@@ -41,6 +41,7 @@ fstofs.broker root://localhost:1097//eos/
 fstofs.autoboot true
 fstofs.quotainterval 10
 fstofs.metalog /var/eos/md/
+fstofs.filemd_handler attr
 ###########################################################
 
 #-------------------------------------------------------------------------------

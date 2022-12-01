@@ -72,6 +72,7 @@ const char* RWMutex::LOCK_STATE[] = {"N", "wLR", "wULR", "LR", "wLW", "wULW", "L
 #define EOS_RWMUTEX_CHECKORDER_UNLOCK if(sEnableGlobalOrderCheck) CheckAndUnlockOrder();
 
 #define EOS_RWMUTEX_TIMER_START                                             \
+  uint64_t l1stamp = Timing::GetNowInNs();                                  \
   bool issampled = false; uint64_t tstamp = 0;                              \
   if (mEnableTiming || sEnableGlobalTiming) {                               \
     issampled = mEnableSampling ? (!((++mCounter)%mSamplingModulo)) : true; \
@@ -113,7 +114,10 @@ const char* RWMutex::LOCK_STATE[] = {"N", "wLR", "wULR", "LR", "wLW", "wULW", "L
         else needloop = false;                                                 \
       } while(needloop);                                                       \
     }                                                                          \
-  }
+  }									       \
+  uint64_t l2stamp = Timing::GetNowInNs();				       \
+  (what##LockLeadTime) += (l2stamp-l1stamp);				       
+
 #else
 #define EOS_RWMUTEX_CHECKORDER_LOCK
 #define EOS_RWMUTEX_CHECKORDER_UNLOCK
@@ -1368,6 +1372,7 @@ RWMutexWriteLock::Release()
     mWrMutex->UnLockWrite();
     RWMutex::RecordMutexOp((uint64_t)mWrMutex->GetRawPtr(), RWMutex::LOCK_T::eNone);
     int64_t blockedinterval = mWrMutex->BlockedForMsInterval();
+    mWrMutex->AddWriteLockTime(blockedinterval);
     bool blockedtracing = mWrMutex->BlockedStackTracing();
     std::chrono::milliseconds blockedFor =
       std::chrono::duration_cast<std::chrono::milliseconds>
@@ -1442,6 +1447,7 @@ RWMutexReadLock::Release()
     mRdMutex->UnLockRead();
     RWMutex::RecordMutexOp((uint64_t)mRdMutex->GetRawPtr(), RWMutex::LOCK_T::eNone);
     int64_t blockedinterval = mRdMutex->BlockedForMsInterval();
+    mRdMutex->AddReadLockTime(blockedinterval);
     bool blockedtracing = mRdMutex->BlockedStackTracing();
     std::chrono::milliseconds blockedFor =
       std::chrono::duration_cast<std::chrono::milliseconds>

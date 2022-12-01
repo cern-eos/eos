@@ -218,6 +218,62 @@ public:
     return mWrLockCounter.load();
   }
 
+  //----------------------------------------------------------------------------
+  //! Get Readlock Time
+  //----------------------------------------------------------------------------
+  inline uint64_t GetReadLockTime()
+  {
+    uint64_t rlt = mRdLockTime.load();
+    mRdLockTime=0;
+    return rlt;
+  }
+
+  //----------------------------------------------------------------------------
+  //! Get Writelock Time
+  //----------------------------------------------------------------------------
+  inline uint64_t GetWriteLockTime()
+  {
+    uint64_t wlt = mWrLockTime.load();
+    mWrLockTime=0;
+    return wlt;
+  }
+
+    //----------------------------------------------------------------------------
+  //! Get Readlock Time
+  //----------------------------------------------------------------------------
+  inline uint64_t GetReadLockLeadTime()
+  {
+    uint64_t rlt = mRdLockLeadTime.load();
+    mRdLockLeadTime=0;
+    return rlt;
+  }
+
+  //----------------------------------------------------------------------------
+  //! Get Writelock Time
+  //----------------------------------------------------------------------------
+  inline uint64_t GetWriteLockLeadTime()
+  {
+    uint64_t wlt = mWrLockLeadTime.load();
+    mWrLockLeadTime=0;
+    return wlt;
+  }
+
+  //----------------------------------------------------------------------------
+  //! Add Readlock Time
+  //----------------------------------------------------------------------------
+  inline void AddReadLockTime(uint64_t t)
+  {
+    mRdLockTime+=t;
+  }
+
+  //----------------------------------------------------------------------------
+  //! Add Writelock Time
+  //----------------------------------------------------------------------------
+  inline void AddWriteLockTime(uint64_t t)
+  {
+    mWrLockTime+=t;
+  }
+
   enum class LOCK_T { eNone, eWantLockRead, eWantUnLockRead, eLockRead, eWantLockWrite, eWantUnLockWrite, eLockWrite };
 
   //----------------------------------------------------------------------------
@@ -540,6 +596,10 @@ private:
   struct timespec wlocktime;
   std::atomic<uint64_t> mRdLockCounter;
   std::atomic<uint64_t> mWrLockCounter;
+  std::atomic<uint64_t> mRdLockTime;
+  std::atomic<uint64_t> mWrLockTime;
+  std::atomic<uint64_t> mRdLockLeadTime;
+  std::atomic<uint64_t> mWrLockLeadTime;
   bool mPreferRd; ///< If true reads go ahead of wr and are reentrant
   int64_t mBlockedForInterval; // interval in ms after which we might stacktrace a long-lasted mutex
   bool mBlockedStackTracing; // en-disable stacktracing long-lasted mutexes
