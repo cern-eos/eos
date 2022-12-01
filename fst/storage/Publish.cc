@@ -31,6 +31,8 @@
 #include "common/LinuxStat.hh"
 #include "common/ShellCmd.hh"
 #include "common/Timing.hh"
+#include "common/StringTokenizer.hh"
+#include "common/StringUtils.hh"
 #include "common/IntervalStopwatch.hh"
 #include "XrdVersion.hh"
 
@@ -108,7 +110,8 @@ static uint64_t GetNetSpeed(const std::string& tmpname)
 //------------------------------------------------------------------------------
 static std::string GetUptime(const std::string& tmpname)
 {
-  eos::common::ShellCmd cmd(SSTR("uptime | tr -d \"\n\" > " << tmpname));
+  eos::common::ShellCmd cmd(SSTR("uptime | tr -d \"\n\"| tr -s " " > " <<
+                                 tmpname));
   eos::common::cmd_status rc = cmd.wait(5);
 
   if (rc.exit_code) {
@@ -119,6 +122,59 @@ static std::string GetUptime(const std::string& tmpname)
   std::string retval;
   eos::common::StringConversion::LoadFileIntoString(tmpname.c_str(), retval);
   return retval;
+}
+
+
+//------------------------------------------------------------------------------
+// Get uptime information in a more pretty format
+//------------------------------------------------------------------------------
+static
+std::map<std::string, std::string>
+GetUptimePrettyFormat(const std::string tmpname)
+{
+  using eos::common::StringTokenizer;
+  std::map<std::string, std::string> map_info;
+  {
+    // Get uptime information in seconds
+    eos::common::ShellCmd cmd(SSTR("cat /proc/uptime | sed 's/\\..*//' > " <<
+                                   tmpname));
+    eos::common::cmd_status rc = cmd.wait(5);
+
+    if (rc.exit_code) {
+      eos_static_err("%s", "msg=\"failed to retrieve uptime\"");
+      return map_info;
+    }
+
+    std::string uptime_sec;
+    eos::common::StringConversion::LoadFileIntoString(tmpname.c_str(), uptime_sec);
+    eos::common::trim(uptime_sec);
+    map_info["sys.stat.uptime_sec"] = uptime_sec;
+  }
+  {
+    // Get load information
+    eos::common::ShellCmd cmd(SSTR("cat /proc/loadavg > " << tmpname));
+    eos::common::cmd_status rc = cmd.wait(2);
+
+    if (rc.exit_code) {
+      eos_static_err("%s", "msg=\"failed to retrieve loadavg\"");
+      return map_info;
+    }
+
+    std::string load_info;
+    eos::common::StringConversion::LoadFileIntoString(tmpname.c_str(), load_info);
+    std::list<std::string_view> load_tokens =
+      StringTokenizer::split<std::list<std::string_view>>(load_info, ' ');
+
+    if (load_tokens.size() >= 3) {
+      map_info["sys.stat.load_avg_1m"] = load_tokens.front();
+      load_tokens.pop_front();
+      map_info["sys.stat.load_avg_5m"] = load_tokens.front();
+      load_tokens.pop_front();
+      map_info["sys.stat.load_avg_15m"] = load_tokens.front();
+      load_tokens.pop_front();
+    }
+  }
+  return map_info;
 }
 
 //------------------------------------------------------------------------------
@@ -206,6 +262,8 @@ Storage::GetFstStatistics(const std::string& tmpfile,
   output["stat.sys.keytab"] = gConfig.KeyTabAdler.c_str();
   // machine uptime
   output["stat.sys.uptime"] = GetUptime(tmpfile);
+  auto uptime_info = GetUptimePrettyFormat(tmpfile);
+  output.insert(uptime_info.begin(), uptime_info.end());
   // active TCP sockets
   output["stat.sys.sockets"] = GetNumOfTcpSockets(tmpfile);
   // startup time of the FST daemon
