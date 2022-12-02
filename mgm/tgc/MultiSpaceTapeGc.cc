@@ -24,7 +24,7 @@
 #include "common/Logging.hh"
 #include "mgm/tgc/MaxLenExceeded.hh"
 #include "mgm/tgc/MultiSpaceTapeGc.hh"
-#include "mgm/tgc/Utils.hh"
+#include "mgm/CtaUtils.hh"
 
 #include <iomanip>
 #include <sstream>
@@ -45,8 +45,8 @@ EOSTGCNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
-MultiSpaceTapeGc::MultiSpaceTapeGc(ITapeGcMgm &mgm):
-m_tapeEnabled(false), m_gcIsActive(false), m_mgm(mgm), m_gcs(mgm)
+MultiSpaceTapeGc::MultiSpaceTapeGc(ITapeGcMgm& mgm):
+  m_tapeEnabled(false), m_gcIsActive(false), m_mgm(mgm), m_gcs(mgm)
 {
 }
 
@@ -57,9 +57,9 @@ MultiSpaceTapeGc::~MultiSpaceTapeGc()
 {
   try {
     stop();
-  } catch(std::exception &ex) {
+  } catch (std::exception& ex) {
     eos_static_err("msg=\"%s\"", ex.what());
-  } catch(...) {
+  } catch (...) {
     eos_static_err("msg=\"Caught an unknown exception\"");
   }
 }
@@ -68,15 +68,18 @@ MultiSpaceTapeGc::~MultiSpaceTapeGc()
 // Notify GC the specified file has been opened for write
 //------------------------------------------------------------------------------
 void
-MultiSpaceTapeGc::fileOpenedForWrite(const std::string &space, const eos::IFileMD::id_t fid)
+MultiSpaceTapeGc::fileOpenedForWrite(const std::string& space,
+                                     const eos::IFileMD::id_t fid)
 {
-  if (!m_tapeEnabled || !m_gcsPopulatedUsingQdb) return;
+  if (!m_tapeEnabled || !m_gcsPopulatedUsingQdb) {
+    return;
+  }
 
   try {
     dispatchFileAccessedToGc("file opened for write", space, fid);
   } catch (SpaceToTapeGcMap::UnknownEOSSpace&) {
     // Ignore events for EOS spaces that do not have a tape-aware GC
-  } catch (std::exception &ex) {
+  } catch (std::exception& ex) {
     eos_static_err("%s failed: %s", __FUNCTION__, ex.what());
   } catch (...) {
     eos_static_err("%s failed: Caught an unknown exception", __FUNCTION__);
@@ -87,13 +90,16 @@ MultiSpaceTapeGc::fileOpenedForWrite(const std::string &space, const eos::IFileM
 // Notify GC the specified file has been opened for read
 //------------------------------------------------------------------------------
 void
-MultiSpaceTapeGc::fileOpenedForRead(const std::string &space, const eos::IFileMD::id_t fid)
+MultiSpaceTapeGc::fileOpenedForRead(const std::string& space,
+                                    const eos::IFileMD::id_t fid)
 {
-  if (!m_tapeEnabled && !m_gcsPopulatedUsingQdb) return;
+  if (!m_tapeEnabled && !m_gcsPopulatedUsingQdb) {
+    return;
+  }
 
   try {
     dispatchFileAccessedToGc("file opened for read", space, fid);
-  } catch (std::exception &ex) {
+  } catch (std::exception& ex) {
     eos_static_err("%s failed: %s", __FUNCTION__, ex.what());
   } catch (...) {
     eos_static_err("%s failed: Caught an unknown exception", __FUNCTION__);
@@ -104,13 +110,16 @@ MultiSpaceTapeGc::fileOpenedForRead(const std::string &space, const eos::IFileMD
 // Notify GC the specified file has been converted
 //------------------------------------------------------------------------------
 void
-MultiSpaceTapeGc::fileConverted(const std::string &space, const eos::IFileMD::id_t fid)
+MultiSpaceTapeGc::fileConverted(const std::string& space,
+                                const eos::IFileMD::id_t fid)
 {
-  if (!m_tapeEnabled && !m_gcsPopulatedUsingQdb) return;
+  if (!m_tapeEnabled && !m_gcsPopulatedUsingQdb) {
+    return;
+  }
 
   try {
     dispatchFileAccessedToGc("file converted", space, fid);
-  } catch (std::exception &ex) {
+  } catch (std::exception& ex) {
     eos_static_err("%s failed: %s", __FUNCTION__, ex.what());
   } catch (...) {
     eos_static_err("%s failed: Caught an unknown exception", __FUNCTION__);
@@ -121,18 +130,24 @@ MultiSpaceTapeGc::fileConverted(const std::string &space, const eos::IFileMD::id
 // Dispatch file accessed event to the space specific tape garbage collector
 //------------------------------------------------------------------------------
 void
-MultiSpaceTapeGc::dispatchFileAccessedToGc(const std::string &event, const std::string &space,
-  const IFileMD::id_t fileId) {
-  const char *const msgFormat = "event=\"%s\" space=\"%s\" fxid=%08llx msg=\"%s failed: %s\"";
+MultiSpaceTapeGc::dispatchFileAccessedToGc(const std::string& event,
+    const std::string& space,
+    const IFileMD::id_t fileId)
+{
+  const char* const msgFormat =
+    "event=\"%s\" space=\"%s\" fxid=%08llx msg=\"%s failed: %s\"";
+
   try {
-    auto &gc = m_gcs.getGc(space);
+    auto& gc = m_gcs.getGc(space);
     gc.fileAccessed(fileId);
   } catch (SpaceToTapeGcMap::UnknownEOSSpace&) {
     // Ignore events for EOS spaces that do not have a tape-aware GC
-  } catch (std::exception &ex) {
-    eos_static_err(msgFormat, event.c_str(), space.c_str(), fileId, __FUNCTION__, ex.what());
+  } catch (std::exception& ex) {
+    eos_static_err(msgFormat, event.c_str(), space.c_str(), fileId, __FUNCTION__,
+                   ex.what());
   } catch (...) {
-    eos_static_err(msgFormat, event.c_str(), space.c_str(), fileId, __FUNCTION__, "Caught an unknown exception");
+    eos_static_err(msgFormat, event.c_str(), space.c_str(), fileId, __FUNCTION__,
+                   "Caught an unknown exception");
   }
 }
 
@@ -142,7 +157,7 @@ MultiSpaceTapeGc::dispatchFileAccessedToGc(const std::string &event, const std::
 std::map<std::string, TapeGcStats>
 MultiSpaceTapeGc::getStats() const
 {
-  const char *const msgFormat =
+  const char* const msgFormat =
     "msg=\"Unable to get statistics about tape-aware garbage collectors: %s\"";
 
   try {
@@ -151,7 +166,7 @@ MultiSpaceTapeGc::getStats() const
     }
 
     return m_gcs.getStats();
-  } catch (std::exception &ex) {
+  } catch (std::exception& ex) {
     eos_static_err(msgFormat, ex.what());
   } catch (...) {
     eos_static_err(msgFormat, "Caught an unknown exception");
@@ -165,13 +180,14 @@ MultiSpaceTapeGc::getStats() const
 //----------------------------------------------------------------------------
 int
 MultiSpaceTapeGc::handleFSCTL_PLUGIO_tgc(XrdOucErrInfo& error,
-                                         eos::common::VirtualIdentity& vid,
-                                         const XrdSecEntity* client)
+    eos::common::VirtualIdentity& vid,
+    const XrdSecEntity* client)
 {
   try {
     if (vid.host != "localhost" && vid.host != "localhost.localdomain") {
       std::ostringstream replyMsg, logMsg;
-      replyMsg << __FUNCTION__ << ": System access restricted - unauthorized identity used";
+      replyMsg << __FUNCTION__ <<
+               ": System access restricted - unauthorized identity used";
       logMsg << "msg=\"" << replyMsg.str() << "\"";
       eos_static_err(logMsg.str().c_str());
       error.setErrInfo(EACCES, replyMsg.str().c_str());
@@ -188,10 +204,12 @@ MultiSpaceTapeGc::handleFSCTL_PLUGIO_tgc(XrdOucErrInfo& error,
     }
 
     const uint64_t replySize = 1048576; // 1 MiB
-    char * const reply = static_cast<char*>(malloc(replySize));
+    char* const reply = static_cast<char*>(malloc(replySize));
+
     if (!reply) {
       std::ostringstream replyMsg, logMsg;
-      replyMsg << __FUNCTION__ << ": Failed to allocate memory for reply: replySize=" << replySize;
+      replyMsg << __FUNCTION__ << ": Failed to allocate memory for reply: replySize="
+               << replySize;
       logMsg << "msg=\"" << replyMsg.str() << "\"";
       eos_static_err(logMsg.str().c_str());
       error.setErrInfo(ENOMEM, replyMsg.str().c_str());
@@ -199,25 +217,26 @@ MultiSpaceTapeGc::handleFSCTL_PLUGIO_tgc(XrdOucErrInfo& error,
     }
 
     std::ostringstream json;
+
     try {
       m_gcs.toJson(json, replySize - 1);
-    } catch(MaxLenExceeded &ml) {
+    } catch (MaxLenExceeded& ml) {
       std::ostringstream msg;
       msg << "msg=\"" << ml.what() << "\"";
       eos_static_err(msg.str().c_str());
       error.setErrInfo(ERANGE, ml.what());
       return SFS_ERROR;
     }
-    std::strncpy(reply, json.str().c_str(), replySize-1);
-    reply[replySize - 1] = '\0';
 
+    std::strncpy(reply, json.str().c_str(), replySize - 1);
+    reply[replySize - 1] = '\0';
     // Ownership of reply is taken by the xrd_buff object.
     // Error then takes ownership of the xrd_buff object
-    XrdOucBuffer * const xrd_buff = new XrdOucBuffer(reply, replySize);
+    XrdOucBuffer* const xrd_buff = new XrdOucBuffer(reply, replySize);
     xrd_buff->SetLen(strlen(reply + 1));
     error.setErrInfo(xrd_buff->BuffSize(), xrd_buff);
     return SFS_DATA;
-  } catch (std::exception &ex) {
+  } catch (std::exception& ex) {
     eos_static_err("msg=\"handleFSCTL_PLUGIO_tgc failed: %s\"", ex.what());
   } catch (...) {
     eos_static_err("msg=\"handleFSCTL_PLUGIO_tgc failed: Caught an unknown exception\"");
@@ -231,7 +250,8 @@ MultiSpaceTapeGc::handleFSCTL_PLUGIO_tgc(XrdOucErrInfo& error,
 // Enable garbage collection
 //------------------------------------------------------------------------------
 void
-MultiSpaceTapeGc::setTapeEnabled(const std::set<std::string>& spaces) {
+MultiSpaceTapeGc::setTapeEnabled(const std::set<std::string>& spaces)
+{
   std::lock_guard<std::mutex> workerLock(m_gcStartupMutex);
   m_tapeEnabled = true;
   m_spaces.insert(spaces.begin(), spaces.end());
@@ -241,14 +261,15 @@ MultiSpaceTapeGc::setTapeEnabled(const std::set<std::string>& spaces) {
 // Start garbage collection for the specified EOS spaces
 //------------------------------------------------------------------------------
 void
-MultiSpaceTapeGc::start() {
-
+MultiSpaceTapeGc::start()
+{
   std::lock_guard<std::mutex> workerLock(m_gcStartupMutex);
 
   // Starting garbage collecton requires it to have been enabled
   if (!m_tapeEnabled) {
     std::ostringstream msg;
-    msg << __FUNCTION__ << " failed: Trying to start garbage collection without enabling first";
+    msg << __FUNCTION__ <<
+        " failed: Trying to start garbage collection without enabling first";
     throw GcIsNotEnabled(msg.str());
   }
 
@@ -258,11 +279,12 @@ MultiSpaceTapeGc::start() {
     throw GcAlreadyStarted(msg.str());
   }
 
-  for (const auto &space: m_spaces) {
+  for (const auto& space : m_spaces) {
     m_gcs.createGc(space);
   }
 
-  std::function<void()> entryPoint = std::bind(&MultiSpaceTapeGc::workerThreadEntryPoint, this);
+  std::function<void()> entryPoint = std::bind(
+                                       &MultiSpaceTapeGc::workerThreadEntryPoint, this);
   m_worker = std::make_unique<std::thread>(entryPoint);
   m_gcIsActive = true;
 }
@@ -271,19 +293,19 @@ MultiSpaceTapeGc::start() {
 // Stop garbage collection for all previously specified EOS spaces
 //------------------------------------------------------------------------------
 void
-MultiSpaceTapeGc::stop() {
-
+MultiSpaceTapeGc::stop()
+{
   std::lock_guard<std::mutex> workerLock(m_gcStartupMutex);
 
   try {
-    if(m_worker) {
+    if (m_worker) {
       m_stop = true;
       m_worker->join();
       m_worker.reset();
     }
-  } catch(std::exception &ex) {
+  } catch (std::exception& ex) {
     eos_static_err("msg=\"%s\"", ex.what());
-  } catch(...) {
+  } catch (...) {
     eos_static_err("msg=\"Caught an unknown exception\"");
   }
 
@@ -297,7 +319,8 @@ MultiSpaceTapeGc::stop() {
 //----------------------------------------------------------------------------
 
 bool
-MultiSpaceTapeGc::isGcActive() {
+MultiSpaceTapeGc::isGcActive()
+{
   return m_gcIsActive;
 }
 
@@ -311,11 +334,12 @@ MultiSpaceTapeGc::workerThreadEntryPoint() noexcept
     populateGcsUsingQdb();
     m_gcsPopulatedUsingQdb = true;
     m_gcs.startGcWorkerThreads();
-  } catch (std::exception &ex) {
-    eos_static_crit("msg=\"Worker thread of the multi-space tape-aware garbage collector failed: %s\"", ex.what());
+  } catch (std::exception& ex) {
+    eos_static_crit("msg=\"Worker thread of the multi-space tape-aware garbage collector failed: %s\"",
+                    ex.what());
   } catch (...) {
     eos_static_crit("msg=\"Worker thread of the multi-space tape-aware garbage collector failed:"
-      " Caught an unknown exception\"");
+                    " Caught an unknown exception\"");
   }
 }
 
@@ -323,25 +347,28 @@ MultiSpaceTapeGc::workerThreadEntryPoint() noexcept
 // Populate the in-memory LRUs of the tape garbage collectors using Quark DB
 //----------------------------------------------------------------------------
 void
-MultiSpaceTapeGc::populateGcsUsingQdb() {
+MultiSpaceTapeGc::populateGcsUsingQdb()
+{
   eos_static_info("msg=\"Starting to populate the meta-data of the tape-aware garbage collectors\"");
   const auto startTgcPopulation = time(nullptr);
-
   const auto gcSpaces = m_gcs.getSpaces();
   uint64_t nbFilesScanned = 0;
-  auto gcSpaceToFiles = m_mgm.getSpaceToDiskReplicasMap(gcSpaces, m_stop, nbFilesScanned);
+  auto gcSpaceToFiles = m_mgm.getSpaceToDiskReplicasMap(gcSpaces, m_stop,
+                        nbFilesScanned);
 
   // Build up space GC LRU structures whilst reducing space file lists
-  for (auto &spaceAndFiles : gcSpaceToFiles) {
-    const auto &space = spaceAndFiles.first;
-    auto &files = spaceAndFiles.second;
-    auto &gc = m_gcs.getGc(space);
+  for (auto& spaceAndFiles : gcSpaceToFiles) {
+    const auto& space = spaceAndFiles.first;
+    auto& files = spaceAndFiles.second;
+    auto& gc = m_gcs.getGc(space);
     {
       std::ostringstream msg;
-      msg << "msg=\"About to populate the tape-aware GC meta-data for an EOS space\" space=\"" << space << "\" nbFiles="
-        << files.size();
+      msg << "msg=\"About to populate the tape-aware GC meta-data for an EOS space\" space=\""
+          << space << "\" nbFiles="
+          << files.size();
       eos_static_info(msg.str().c_str());
     }
+
     for (auto fileItor = files.begin(); fileItor != files.end();) {
       if (m_stop) {
         eos_static_info("msg=\"Requested to stop populating the meta-data of the tape-aware garbage collectors\"");
@@ -356,8 +383,9 @@ MultiSpaceTapeGc::populateGcsUsingQdb() {
   {
     const auto populationDurationSecs = time(nullptr) - startTgcPopulation;
     std::ostringstream msg;
-    msg << "msg=\"Finished populating the meta-data of the tape-aware garbage collectors\" nbFilesScanned=" << nbFilesScanned << " durationSecs=" <<
-    populationDurationSecs;
+    msg << "msg=\"Finished populating the meta-data of the tape-aware garbage collectors\" nbFilesScanned="
+        << nbFilesScanned << " durationSecs=" <<
+        populationDurationSecs;
     eos_static_info(msg.str().c_str());
   }
 }

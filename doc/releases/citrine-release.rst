@@ -15,6 +15,16 @@ Introduction
 ------------
 This release is based on XRootD V4 and IPV6 enabled.
 
+``v4.8.95 Citrine``
+===================
+
+2022-11-29
+
+Bug
+----
+
+* MGM: Fix string to integer conversion in tape WFE code
+
 
 ``v4.8.94 Citrine``
 ===================

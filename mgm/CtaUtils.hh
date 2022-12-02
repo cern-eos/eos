@@ -48,18 +48,26 @@
  *
  */
 /*----------------------------------------------------------------------------*/
-EOSTGCNAMESPACE_BEGIN
+EOSMGMNAMESPACE_BEGIN
 
 //------------------------------------------------------------------------------
 //! Class of utility functions for the tape aware garbage collector
 //------------------------------------------------------------------------------
-class Utils
+class CtaUtils
 {
 public:
-  struct EmptyString : public std::runtime_error {using std::runtime_error::runtime_error;};
-  struct NonNumericChar : public std::runtime_error {using std::runtime_error::runtime_error;};
-  struct ParseError: public std::runtime_error {using std::runtime_error::runtime_error;};
-  struct ParsedValueOutOfRange : public std::runtime_error {using std::runtime_error::runtime_error;};
+  struct EmptyString : public std::runtime_error {
+    using std::runtime_error::runtime_error;
+  };
+  struct NonNumericChar : public std::runtime_error {
+    using std::runtime_error::runtime_error;
+  };
+  struct ParseError: public std::runtime_error {
+    using std::runtime_error::runtime_error;
+  };
+  struct ParsedValueOutOfRange : public std::runtime_error {
+    using std::runtime_error::runtime_error;
+  };
 
   //----------------------------------------------------------------------------
   //! @return the result of parsing the specified string as a uint64_t
@@ -78,7 +86,9 @@ public:
   //! @param x dividend
   //! @param y dividor
   //----------------------------------------------------------------------------
-  static std::uint64_t divideAndRoundToNearest(const std::uint64_t x, const std::uint64_t y) {
+  static std::uint64_t divideAndRoundToNearest(const std::uint64_t x,
+      const std::uint64_t y)
+  {
     return (x + y / 2) / y;
   }
 
@@ -87,13 +97,15 @@ public:
   //! @param x dividend
   //! @param y dividor
   //----------------------------------------------------------------------------
-  static std::uint64_t divideAndRoundUp(const std::uint64_t x, const std::uint64_t y) {
+  static std::uint64_t divideAndRoundUp(const std::uint64_t x,
+                                        const std::uint64_t y)
+  {
     return (x + y - 1) / y;
   }
 
   /// Thrown when there has been a buffer size mismatch
   struct BufSizeMismatch: public std::runtime_error {
-    BufSizeMismatch(const std::string &msg): std::runtime_error(msg) {}
+    BufSizeMismatch(const std::string& msg): std::runtime_error(msg) {}
   };
 
   //----------------------------------------------------------------------------
@@ -101,7 +113,7 @@ public:
   //! @throw BufSizeMismatch if the size of the specified buffer does not
   //! exactly match the size of a timespec structure
   //----------------------------------------------------------------------------
-  static timespec bufToTimespec(const std::string &buf);
+  static timespec bufToTimespec(const std::string& buf);
 
   //----------------------------------------------------------------------------
   //! @return the result of reading from the specified file descriptor into a
@@ -113,6 +125,6 @@ public:
   static std::string readFdIntoStr(const int fd, const ssize_t maxStrLen);
 };
 
-EOSTGCNAMESPACE_END
+EOSMGMNAMESPACE_END
 
 #endif

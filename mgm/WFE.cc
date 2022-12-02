@@ -36,6 +36,7 @@
 #include "mgm/XrdMgmOfsDirectory.hh"
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/EosCtaReporter.hh"
+#include "mgm/CtaUtils.hh"
 #include "mgm/proc/admin/StagerRmCmd.hh"
 #include "namespace/interface/IView.hh"
 #include "namespace/Prefetcher.hh"
@@ -1868,8 +1869,8 @@ WFE::Job::IdempotentPrepare(const std::string& fullPath,
       eos::common::StringConversion::integral_to_hex(mFid));
 
   if (xAttrs.count(ARCHIVE_FILE_ID_ATTR_NAME)) {
-    notification->mutable_file()->set_archive_file_id(std::stoi(
-          xAttrs[ARCHIVE_FILE_ID_ATTR_NAME]));
+    notification->mutable_file()->set_archive_file_id
+    (CtaUtils::toUint64(xAttrs[ARCHIVE_FILE_ID_ATTR_NAME]));
   }
 
   if (xAttrs.count(ARCHIVE_STORAGE_CLASS_ATTR_NAME)) {
@@ -2078,8 +2079,8 @@ WFE::Job::HandleProtoMethodAbortPrepareEvent(const std::string& fullPath,
       eos::common::StringConversion::integral_to_hex(mFid));
 
   if (xAttrs.count(ARCHIVE_FILE_ID_ATTR_NAME)) {
-    notification->mutable_file()->set_archive_file_id(std::stoi(
-          xAttrs[ARCHIVE_FILE_ID_ATTR_NAME]));
+    notification->mutable_file()->set_archive_file_id
+    (CtaUtils::toUint64(xAttrs[ARCHIVE_FILE_ID_ATTR_NAME]));
   }
 
   if (xAttrs.count(ARCHIVE_STORAGE_CLASS_ATTR_NAME)) {
@@ -2240,8 +2241,8 @@ WFE::Job::HandleProtoMethodCreateEvent(const std::string& fullPath,
       eos::common::StringConversion::integral_to_hex(mFid));
 
   if (xAttrs.count(ARCHIVE_FILE_ID_ATTR_NAME)) {
-    notification->mutable_file()->set_archive_file_id(std::stoi(
-          xAttrs[ARCHIVE_FILE_ID_ATTR_NAME]));
+    notification->mutable_file()->set_archive_file_id
+    (CtaUtils::toUint64(xAttrs[ARCHIVE_FILE_ID_ATTR_NAME]));
   }
 
   if (xAttrs.count(ARCHIVE_STORAGE_CLASS_ATTR_NAME)) {
@@ -2290,8 +2291,8 @@ WFE::Job::HandleProtoMethodDeleteEvent(const std::string& fullPath,
       eos::common::StringConversion::integral_to_hex(mFid));
 
   if (xAttrs.count(ARCHIVE_FILE_ID_ATTR_NAME)) {
-    notification->mutable_file()->set_archive_file_id(std::stoi(
-          xAttrs[ARCHIVE_FILE_ID_ATTR_NAME]));
+    notification->mutable_file()->set_archive_file_id
+    (CtaUtils::toUint64(xAttrs[ARCHIVE_FILE_ID_ATTR_NAME]));
   }
 
   if (xAttrs.count(ARCHIVE_STORAGE_CLASS_ATTR_NAME)) {
@@ -2695,8 +2696,8 @@ WFE::Job::HandleProtoMethodUpdateFidEvent(const std::string& fullPath,
       eos::common::StringConversion::integral_to_hex(mFid));
 
   if (xAttrs.count(ARCHIVE_FILE_ID_ATTR_NAME)) {
-    notification->mutable_file()->set_archive_file_id(std::stoi(
-          xAttrs[ARCHIVE_FILE_ID_ATTR_NAME]));
+    notification->mutable_file()->set_archive_file_id
+    (CtaUtils::toUint64(xAttrs[ARCHIVE_FILE_ID_ATTR_NAME]));
   }
 
   if (xAttrs.count(ARCHIVE_STORAGE_CLASS_ATTR_NAME)) {

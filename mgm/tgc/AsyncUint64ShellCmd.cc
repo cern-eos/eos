@@ -23,7 +23,7 @@
 
 #include "mgm/tgc/AsyncUint64ShellCmd.hh"
 #include "mgm/tgc/SmartSpaceStats.hh"
-#include "mgm/tgc/Utils.hh"
+#include "mgm/CtaUtils.hh"
 
 #include <chrono>
 #include <thread>
@@ -32,8 +32,8 @@ EOSTGCNAMESPACE_BEGIN
 
 //----------------------------------------------------------------------------
 // Constructor
-AsyncUint64ShellCmd::AsyncUint64ShellCmd(ITapeGcMgm &mgm):
-m_mgm(mgm)
+AsyncUint64ShellCmd::AsyncUint64ShellCmd(ITapeGcMgm& mgm):
+  m_mgm(mgm)
 {
 }
 
@@ -41,7 +41,7 @@ m_mgm(mgm)
 //! Return the current result of the shell command
 //----------------------------------------------------------------------------
 AsyncUint64ShellCmd::Uint64AsyncResult
-AsyncUint64ShellCmd::getUint64FromShellCmdStdOut(const std::string &cmdStr)
+AsyncUint64ShellCmd::getUint64FromShellCmdStdOut(const std::string& cmdStr)
 {
   try {
     std::lock_guard<std::mutex> lock(m_mutex);
@@ -49,7 +49,8 @@ AsyncUint64ShellCmd::getUint64FromShellCmdStdOut(const std::string &cmdStr)
     // Invalid means this is either the very first call to get() or it is
     // after the successful reading of a previous async result
     if (!m_future.valid()) {
-      m_future = std::async(std::launch::async, &AsyncUint64ShellCmd::runShellCmdAndParseStdOut, this, cmdStr);
+      m_future = std::async(std::launch::async,
+                            &AsyncUint64ShellCmd::runShellCmdAndParseStdOut, this, cmdStr);
     }
 
     if (!m_future.valid()) {
@@ -57,10 +58,12 @@ AsyncUint64ShellCmd::getUint64FromShellCmdStdOut(const std::string &cmdStr)
     }
 
     const auto futureStatus = m_future.wait_for(std::chrono::seconds(0));
+
     switch (futureStatus) {
     case std::future_status::deferred: { // Should never happen
       throw std::runtime_error("futureStatus is deferred");
     }
+
     case std::future_status::ready: {
       const std::uint64_t uint64Result = m_future.get();
       const auto result = Uint64AsyncResult::createValue(uint64Result);
@@ -68,19 +71,21 @@ AsyncUint64ShellCmd::getUint64FromShellCmdStdOut(const std::string &cmdStr)
       m_future = {};
       return result;
     }
+
     case std::future_status::timeout: {
       const auto result = m_previousResult ?
                           Uint64AsyncResult::createPendingAndPreviousValue(m_previousResult.value()) :
                           Uint64AsyncResult::createPendingAndNoPreviousValue();
       return result;
     }
+
     default: // Should never happen
       throw std::runtime_error("Unknown std::future_status value");
     }
-  } catch(std::exception &ex) {
+  } catch (std::exception& ex) {
     m_previousResult = std::nullopt;
     return Uint64AsyncResult::createError(ex.what());
-  } catch(...) {
+  } catch (...) {
     m_previousResult = std::nullopt;
     return Uint64AsyncResult::createError("Caught an unknown exception");
   }
@@ -91,10 +96,11 @@ AsyncUint64ShellCmd::getUint64FromShellCmdStdOut(const std::string &cmdStr)
 //! @param cmdStr The shell command string to be executed
 //------------------------------------------------------------------------------
 std::uint64_t
-AsyncUint64ShellCmd::runShellCmdAndParseStdOut(const std::string cmdStr) {
+AsyncUint64ShellCmd::runShellCmdAndParseStdOut(const std::string cmdStr)
+{
   const ssize_t outputMaxLen = 256;
   const std::string cmdOut = m_mgm.getStdoutFromShellCmd(cmdStr, outputMaxLen);
-  return Utils::toUint64(cmdOut);
+  return CtaUtils::toUint64(cmdOut);
 }
 
 EOSTGCNAMESPACE_END

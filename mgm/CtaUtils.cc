@@ -22,31 +22,35 @@
  ************************************************************************/
 
 #include "common/StringUtils.hh"
-#include "mgm/tgc/Utils.hh"
+#include "mgm/CtaUtils.hh"
 
 #include <cstring>
 
-EOSTGCNAMESPACE_BEGIN
+EOSMGMNAMESPACE_BEGIN
 
 //------------------------------------------------------------------------------
 // Return the uint64 representation of the specified string
 //------------------------------------------------------------------------------
 std::uint64_t
-Utils::toUint64(std::string str) {
+CtaUtils::toUint64(std::string str)
+{
   common::trim(str);
+
   if (str.empty()) {
     throw EmptyString("String is empty (spaces are ignored)");
   }
-  for (const auto ch: str) {
+
+  for (const auto ch : str) {
     if ('0' > ch || '9' < ch) {
       throw NonNumericChar("String contains one or more non-numeric characters");
     }
   }
+
   try {
     return std::stoull(str);
-  } catch (std::invalid_argument &) {
+  } catch (std::invalid_argument&) {
     throw ParseError("Parse error");
-  } catch (std::out_of_range &) {
+  } catch (std::out_of_range&) {
     throw ParsedValueOutOfRange("Parsed value of string is out of range");
   } catch (...) {
     throw;
@@ -57,17 +61,18 @@ Utils::toUint64(std::string str) {
 // Return a copy of the specified buffer in the form of a timespec structure
 //------------------------------------------------------------------------------
 timespec
-Utils::bufToTimespec(const std::string &buf) {
+CtaUtils::bufToTimespec(const std::string& buf)
+{
   if (sizeof(timespec) != buf.size()) {
     std::ostringstream msg;
-    msg << __FUNCTION__ << " failed: Buffer size does match sizeof(timespec): buf.size()=" << buf.size() <<
-      " sizeof(timespec)" << sizeof(timespec);
+    msg << __FUNCTION__ <<
+        " failed: Buffer size does match sizeof(timespec): buf.size()=" << buf.size() <<
+        " sizeof(timespec)" << sizeof(timespec);
     throw BufSizeMismatch(msg.str());
   }
 
   timespec result;
   std::memcpy(&result, buf.data(), sizeof(timespec));
-
   return result;
 }
 
@@ -75,9 +80,11 @@ Utils::bufToTimespec(const std::string &buf) {
 // Read from the specified file descriptor into a string.
 //----------------------------------------------------------------------------
 std::string
-Utils::readFdIntoStr(const int fd, const ssize_t maxStrLen) {
+CtaUtils::readFdIntoStr(const int fd, const ssize_t maxStrLen)
+{
   auto stdoutBuffer = std::make_unique<char[]>(maxStrLen + 1);
   const auto readRc = ::read(fd, stdoutBuffer.get(), maxStrLen);
+
   if (readRc < 0) {
     std::ostringstream msg;
     msg << "Failed to read from file descriptor " << fd;
@@ -87,7 +94,8 @@ Utils::readFdIntoStr(const int fd, const ssize_t maxStrLen) {
   } else {
     stdoutBuffer[readRc] = '\0';
   }
+
   return stdoutBuffer.get();
 }
 
-EOSTGCNAMESPACE_END
+EOSMGMNAMESPACE_END

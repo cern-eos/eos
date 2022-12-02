@@ -78,7 +78,7 @@ set(MGM_UT_SRCS
   mgm/tgc/SmartSpaceStatsTests.cc
   mgm/tgc/SpaceToTapeGcMapTests.cc
   mgm/tgc/TapeGcTests.cc
-  mgm/tgc/UtilsTests.cc
+  mgm/CtaUtilsTests.cc
   mgm/XrdMgmOfsTests.cc
   mgm/XrdMgmOfsFileTests.cc
   mgm/bulk-request/PrepareManagerTest.cc
