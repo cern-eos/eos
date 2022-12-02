@@ -371,7 +371,6 @@ XrdMgmOfsFile::GetApplicationName(XrdOucEnv* open_opaque,
   return app_name;
 }
 
-
 /*----------------------------------------------------------------------------*/
 int
 XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
@@ -2036,12 +2035,12 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
     }
 
     {
-
       COMMONTIMING("Scheduler::FileAccess", &tm);
       eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
       retc = Scheduler::FileAccess(&acsargs);
       COMMONTIMING("Scheduler::FileAccessed", &tm);
     }
+
     if (acsargs.isRW) {
       // If this is an update, we don't have to send the client to cgi
       // excluded locations, we tell that the file is unreachable
@@ -2397,6 +2396,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
         std::string fsgeotag;
         {
           eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
+
           for (size_t k = 0; k < selectedfs.size(); k++) {
             auto filesystem = FsView::gFsView.mIdView.lookupByID(selectedfs[k]);
             fsgeotag = "";
@@ -2418,6 +2418,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
             }
           }
         } // fs_rd_lock scope
+
         // if the client has a geotag which does not match any of the fs's
         if (!fsIndex) {
           fsid = 0;
@@ -2483,6 +2484,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
       return Emsg(epname, error, ENETUNREACH,
                   "received non-existent filesystem", path);
     }
+
     fs_hostport = filesystem->GetString("hostport");
     fs_host = filesystem->GetString("host");
     fs_port = filesystem->GetString("port");
@@ -2505,7 +2507,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
       if (idx != std::string::npos) {
         targethost = firewalleps[fsIndex].substr(0, idx).c_str();
         targetport = atoi(firewalleps[fsIndex].substr(idx + 1,
-                                                      std::string::npos).c_str());
+                          std::string::npos).c_str());
         targethttpport = 8001;
       } else {
         targethost = firewalleps[fsIndex].c_str();
@@ -2558,8 +2560,6 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
     }
 
     if (!proxys[fsIndex].empty()) {
-
-
       if (!(fs_prefix.empty())) {
         XrdOucString s = "mgm.fsprefix";
         s += "=";
@@ -2589,14 +2589,14 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
   // If file system 0 sentinel is present then it must be removed
   ufs.erase(0u);
   new_lid = LayoutId::GetId(
-                            isPio ? LayoutId::kPlain :
-                            LayoutId::GetLayoutType(layoutId),
-                            (isPio ? LayoutId::kNone :
-                             LayoutId::GetChecksum(layoutId)),
-                            isPioReconstruct ? static_cast<int>(ufs.size()) : static_cast<int>
-                            (selectedfs.size()),
-                            LayoutId::GetBlocksizeType(layoutId),
-                            LayoutId::GetBlockChecksum(layoutId));
+              isPio ? LayoutId::kPlain :
+              LayoutId::GetLayoutType(layoutId),
+              (isPio ? LayoutId::kNone :
+               LayoutId::GetChecksum(layoutId)),
+              isPioReconstruct ? static_cast<int>(ufs.size()) : static_cast<int>
+              (selectedfs.size()),
+              LayoutId::GetBlocksizeType(layoutId),
+              LayoutId::GetBlockChecksum(layoutId));
 
   // For RAIN layouts we need to keep the original number of stripes since this
   // is used to compute the different groups and block sizes in the FSTs
@@ -2610,25 +2610,25 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
   // space to be prebooked/allocated
   capability += "&mgm.bookingsize=";
   capability += eos::common::StringConversion::GetSizeString(sizestring,
-                                                             bookingsize);
+                bookingsize);
 
   if (minimumsize) {
     capability += "&mgm.minsize=";
     capability += eos::common::StringConversion::GetSizeString(sizestring,
-                                                               minimumsize);
+                  minimumsize);
   }
 
   if (maximumsize) {
     capability += "&mgm.maxsize=";
     capability += eos::common::StringConversion::GetSizeString(sizestring,
-                                                               maximumsize);
+                  maximumsize);
   }
 
   // Expected size of the target file on close
   if (targetsize) {
     capability += "&mgm.targetsize=";
     capability += eos::common::StringConversion::GetSizeString(sizestring,
-                                                               targetsize);
+                  targetsize);
   }
 
   if (LayoutId::GetLayoutType(layoutId) == LayoutId::kPlain) {
@@ -2682,21 +2682,21 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
 
       eos::common::FileSystem::fs_snapshot_t orig_snapshot;
       unsigned int orig_id = fmd->getLocation(0);
-
       {
         eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
         // Note this is a eos::common::filesystem not a mgm one
         auto orig_fs = FsView::gFsView.mIdView.lookupByID(orig_id);
+
         if (!orig_fs) {
           return Emsg(epname, error, EINVAL, "reconstruct filesystem", path);
         }
+
         orig_fs->SnapShotFileSystem(orig_snapshot);
       } // fs_rd_lock
-
       forced_group = orig_snapshot.mGroupIndex;
       // Add new stripes if file doesn't have the nomial number
       auto stripe_diff = (LayoutId::GetStripeNumber(fmd->getLayoutId()) + 1) -
-        selectedfs.size();
+                         selectedfs.size();
       // Create a plain layout with the number of replacement stripes to be
       // scheduled in the file placement routine
       unsigned long plain_lid = new_lid;
@@ -2714,12 +2714,12 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
                forced_group);
       // Compute the size of the stripes to be placed
       unsigned long num_data_stripes = LayoutId::GetStripeNumber(layoutId) + 1 -
-        LayoutId::GetRedundancyStripeNumber(layoutId);
+                                       LayoutId::GetRedundancyStripeNumber(layoutId);
       uint64_t plain_book_sz = (uint64_t)std::ceil((float)fmd->getSize() /
-                                                   LayoutId::GetBlocksize(layoutId));
+                               LayoutId::GetBlocksize(layoutId));
       plain_book_sz = std::ceil((float) plain_book_sz / std::pow(num_data_stripes,
-                                                                 2)) *
-        num_data_stripes * LayoutId::GetBlocksize(layoutId) + LayoutId::OssXsBlockSize;
+                                2)) *
+                      num_data_stripes * LayoutId::GetBlocksize(layoutId) + LayoutId::OssXsBlockSize;
       eos_info("msg=\"plain booking size is %llu", plain_book_sz);
       eos::common::VirtualIdentity rootvid = eos::common::VirtualIdentity::Root();
       // Attempt to use a firewall entrypoint or a dataproxy if required, if any
@@ -2746,13 +2746,13 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
       if (!plctargs.isValid()) {
         return Emsg(epname, error, EIO, "open - invalid placement argument", path);
       }
+
       COMMONTIMING("Scheduler::FilePlacement", &tm);
       {
         eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
         retc = Quota::FilePlacement(&plctargs);
       }
       COMMONTIMING("Scheduler::FilePlaced", &tm);
-
       LogSchedulingInfo(selectedfs, proxys, firewalleps);
 
       if (retc) {
@@ -2766,7 +2766,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
       }
 
       auto selection_diff = (LayoutId::GetStripeNumber(fmd->getLayoutId()) + 1)
-        - selectedfs.size();
+                            - selectedfs.size();
       eos_info("msg=\"fs selection summary\" nominal=%d actual=%d diff=%d",
                (LayoutId::GetStripeNumber(fmd->getLayoutId()) + 1),
                selectedfs.size(), selection_diff);
@@ -2845,7 +2845,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
             if (idx != std::string::npos) {
               targethost = firewalleps[fsIndex].substr(0, idx).c_str();
               targetport = atoi(firewalleps[fsIndex].substr(idx + 1,
-                                                            std::string::npos).c_str());
+                                std::string::npos).c_str());
               targethttpport = 8001;
             } else {
               targethost = firewalleps[fsIndex].c_str();
@@ -2919,7 +2919,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
           if (idx != std::string::npos) {
             replicahost = proxys[i].substr(0, idx).c_str();
             replicaport =
-                atoi(proxys[i].substr(idx + 1, std::string::npos).c_str());
+              atoi(proxys[i].substr(idx + 1, std::string::npos).c_str());
           } else {
             replicahost = proxys[i].c_str();
             replicaport = 0;
@@ -2982,7 +2982,6 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
       }
     } // fs_rd_lock
   }
-
 
   // ---------------------------------------------------------------------------
   // Encrypt capability

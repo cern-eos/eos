@@ -426,12 +426,14 @@ public:
   int mHttpdPort; ///< listening port of the http server
   //! Embedded http server if available
   std::unique_ptr<eos::fst::HttpServer> mHttpd;
-  std::chrono::seconds mTpcKeyValidity {120}; ///< TPC key validity
+  std::chrono::seconds mTpcKeyMinValidity {2 * 60}; ///< TPC key minimum validity
+  std::chrono::seconds mTpcKeyMaxValidity {15 * 60}; ///< TPC key maximum validity
   std::string mMgmAlias; ///< MGM alias
   std::shared_ptr<FmdHandler> mFmdHandler; // <File Metadata Handler
   uint16_t mFmdConverterThreads{64};
   std::string mFmdConverterExecutorType;
-  std::shared_ptr<eos::common::ExecutorMgr> mThreadPoolExecutor; //< A global threadpool executor
+  std::shared_ptr<eos::common::ExecutorMgr>
+  mThreadPoolExecutor; //< A global threadpool executor
   // @note
   // All of the commands below are going to be deprecated and replaced by XRootD
   // query commands which are handled in the FSctl method
@@ -496,7 +498,8 @@ public:
   uint64_t GetSimulationErrorOffset(const std::string& input) const;
 
   //----------------------------------------------------------------------------
-  //! Update the TPC key validity value (default 120)
+  //! Update the TPC key min/max validity values. By default these are 2 and 15
+  //! minutes by can be overwritten by the environment variables.
   //----------------------------------------------------------------------------
   void UpdateTpcKeyValidity();
 

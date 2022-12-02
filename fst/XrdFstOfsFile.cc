@@ -49,6 +49,37 @@ constexpr uint16_t XrdFstOfsFile::msDefaultTimeout;
 thread_local int t_iopriority = 0;
 
 //------------------------------------------------------------------------------
+// Get TPC key expiration timestamp
+//------------------------------------------------------------------------------
+time_t
+XrdFstOfsFile::GetTpcKeyExpireTS(std::string_view tpc_ttl)
+{
+  using namespace std::chrono;
+  time_t now = time(nullptr);
+  time_t expire_ts = now + gOFS.mTpcKeyMinValidity.count();
+
+  if (!tpc_ttl.empty()) {
+    unsigned int ttl_val = 0ul;
+
+    if (eos::common::StringToNumeric(tpc_ttl, ttl_val)) {
+      if ((ttl_val >= gOFS.mTpcKeyMinValidity.count()) &&
+          (ttl_val <= gOFS.mTpcKeyMaxValidity.count())) {
+        expire_ts = now + ttl_val;
+      } else {
+        if (ttl_val < gOFS.mTpcKeyMinValidity.count()) {
+          expire_ts = now + gOFS.mTpcKeyMinValidity.count();
+        } else {
+          expire_ts = now + gOFS.mTpcKeyMaxValidity.count();
+        }
+      }
+    }
+  }
+
+  eos_static_debug("msg=\"tpc key validity\" seconds=%u", expire_ts - now);
+  return expire_ts;
+}
+
+//------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
 XrdFstOfsFile::XrdFstOfsFile(const char* user, int MonID) :
@@ -738,13 +769,13 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
 
   // report slow open as errors if longer than 1000ms
   if (timeToOpen > 1000) {
-    eos_err("slow open operation: open-duration=%.03fms path='%s' fxid=%08llx %s", timeToOpen,
-	    mNsPath.c_str(), mFileId, tm.Dump().c_str());
-  } 
+    eos_err("slow open operation: open-duration=%.03fms path='%s' fxid=%08llx %s",
+            timeToOpen,
+            mNsPath.c_str(), mFileId, tm.Dump().c_str());
+  }
 
   eos_info("open-duration=%.03fms path='%s' fxid=%08llx %s", timeToOpen,
-	   mNsPath.c_str(), mFileId, tm.Dump().c_str());
-
+           mNsPath.c_str(), mFileId, tm.Dump().c_str());
   return SFS_OK;
 }
 
@@ -2963,9 +2994,8 @@ XrdFstOfsFile::ProcessTpcOpaque(std::string& opaque, const XrdSecEntity* client)
     mTpcFlag = kTpcDstSetup;
     mIsTpcDst = true;
   } else if (tpc_key.length() && tpc_org.length()) {
-    // Notice:
-    // XRootD does not full follow the TPC specification and it doesn't set the
-    // tpc.stage=copy in the TpcSrcRead step. The above condition should be:
+    // @note(esindril) The above condition should be as follows but for backwards
+    // compatibility we keep it as it is. Consider changing it after 1st Jan 2024.
     // else if ((tpc_stage == "copy") && tpc_key.length() && tpc_org.length()) {
     mTpcFlag = kTpcSrcRead;
     mIsTpcDst = false;
@@ -2996,9 +3026,15 @@ XrdFstOfsFile::ProcessTpcOpaque(std::string& opaque, const XrdSecEntity* client)
     gOFS.TpcMap[mIsTpcDst][tpc_key].dst = tpc_dst;
     gOFS.TpcMap[mIsTpcDst][tpc_key].path = mNsPath.c_str();
     gOFS.TpcMap[mIsTpcDst][tpc_key].lfn = tpc_lfn;
-    // Set tpc key expiration time to 1 minute
-    gOFS.TpcMap[mIsTpcDst][tpc_key].expires = time(NULL) +
-        gOFS.mTpcKeyValidity.count();
+
+    // Set tpc key expiration time, only relevant for the TPC source
+    if (!mIsTpcDst) {
+      std::string_view tpc_ttl = env.Get("tpc.ttl") ? env.Get("tpc.ttl") : "";
+      gOFS.TpcMap[mIsTpcDst][tpc_key].expires = GetTpcKeyExpireTS(tpc_ttl);
+    } else {
+      gOFS.TpcMap[mIsTpcDst][tpc_key].expires = time(nullptr) + 3600 - 60;
+    }
+
     mFstTpcInfo = gOFS.TpcMap[mIsTpcDst][tpc_key];
     mTpcKey = tpc_key;
 
@@ -3070,13 +3106,13 @@ XrdFstOfsFile::ProcessTpcOpaque(std::string& opaque, const XrdSecEntity* client)
     time_t now = time(NULL);
 
     if (!gOFS.TpcMap[mIsTpcDst].count(tpc_key)) {
-      eos_err("tpc key=%s not valid", tpc_key.c_str());
+      eos_err("msg=\"tpc key not valid\" key=%s", tpc_key.c_str());
       return gOFS.Emsg(epname, error, EPERM, "open - tpc key not valid",
                        mNsPath.c_str());
     }
 
     if (gOFS.TpcMap[mIsTpcDst][tpc_key].expires < now) {
-      eos_err("tpc key=%s expired", tpc_key.c_str());
+      eos_err("msg=\"tpc key expired\" key=%s", tpc_key.c_str());
       return gOFS.Emsg(epname, error, EPERM, "open - tpc key expired",
                        mNsPath.c_str());
     }
@@ -3110,11 +3146,10 @@ XrdFstOfsFile::ProcessTpcOpaque(std::string& opaque, const XrdSecEntity* client)
              gOFS.TpcMap[mIsTpcDst][tpc_key].dst.c_str(),
              gOFS.TpcMap[mIsTpcDst][tpc_key].path.c_str(),
              gOFS.TpcMap[mIsTpcDst][tpc_key].expires);
-    // Grab the open information and expire entry
+    // Grab the open information
     mNsPath = gOFS.TpcMap[mIsTpcDst][tpc_key].path.c_str();
     opaque = gOFS.TpcMap[mIsTpcDst][tpc_key].opaque.c_str();
     SetLogId(ExtractLogId(opaque.c_str()).c_str());
-    gOFS.TpcMap[mIsTpcDst][tpc_key].expires = (now - 10);
     // Store the provided origin to compare with our local connection
     // gOFS.TpcMap[mIsTpcDst][tpc_key].org = tpc_org;
     mFstTpcInfo = gOFS.TpcMap[mIsTpcDst][tpc_key];
@@ -3131,7 +3166,7 @@ XrdFstOfsFile::ProcessTpcOpaque(std::string& opaque, const XrdSecEntity* client)
     }
   }
 
-  // Expire keys which are more than one 4 hours expired
+  // Expire keys which are more than one 1 hours expired
   if (mTpcFlag > kTpcNone) {
     time_t now = time(NULL);
     XrdSysMutexHelper tpcLock(gOFS.TpcMapMutex);
@@ -3142,7 +3177,7 @@ XrdFstOfsFile::ProcessTpcOpaque(std::string& opaque, const XrdSecEntity* client)
       del = it;
       it++;
 
-      if (now > (del->second.expires + (4 * 3600))) {
+      if (now > (del->second.expires + 3600)) {
         eos_info("msg=\"expire tpc key\" key=%s", del->second.key.c_str());
         gOFS.TpcMap[mIsTpcDst].erase(del);
       }
@@ -3357,8 +3392,8 @@ XrdFstOfsFile::MakeReportEnv(XrdOucString& reportString)
              , ioprio_default
              , mBandwidth
              , msSleep
-	     , hasReadError
-	     , hasWriteError
+             , hasReadError
+             , hasWriteError
              , eos::common::SecEntity::ToEnv(mSecString.c_str(),
                  (sec_tpc ? "tpc" : 0)).c_str());
     reportString = report;
@@ -3754,6 +3789,7 @@ XrdFstOfsFile::DoTpcTransfer()
     src_cgi += mTpcKey;
     src_cgi += "&tpc.org=";
     src_cgi += gOFS.TpcMap[mIsTpcDst][mTpcKey].org;
+    src_cgi += "&tpc.stage=copy";
   }
 
   XrdIo tpcIO(src_url);

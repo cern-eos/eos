@@ -501,6 +501,19 @@ public:
                                 const std::set<std::string> tags);
 
   //----------------------------------------------------------------------------
+  //! Get TPC key expiration timestamp by combinding the client specified
+  //! tpc.ttl value with the system TPC key minimum validity. The resulting
+  //! value should always be between the system TPC key minimum validity and
+  //! 15 minutes, unless the former the biggern than 15 min and then this will
+  //! apply.
+  //!
+  //! @param tpc_tll client specified key ttl
+  //!
+  //! @return expiration timestamp for the current key
+  //----------------------------------------------------------------------------
+  static time_t GetTpcKeyExpireTS(std::string_view tpc_ttl);
+
+  //----------------------------------------------------------------------------
   //! Close internal method that can be called synchronously (from XRootD) or
   //! asynchronously from the thread pool for long running close operations.
   //!

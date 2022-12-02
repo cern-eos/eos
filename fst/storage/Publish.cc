@@ -110,12 +110,12 @@ static uint64_t GetNetSpeed(const std::string& tmpname)
 //------------------------------------------------------------------------------
 static std::string GetUptime(const std::string& tmpname)
 {
-  eos::common::ShellCmd cmd(SSTR("uptime | tr -d \"\n\"| tr -s " " > " <<
+  eos::common::ShellCmd cmd(SSTR("uptime | tr -d \"\n\"| tr -s \" \" > " <<
                                  tmpname));
   eos::common::cmd_status rc = cmd.wait(5);
 
   if (rc.exit_code) {
-    eos_static_err("retrieve uptime call failed");
+    eos_static_err("%s", "msg=\"retrieve uptime call failed\"");
     return "N/A";
   }
 

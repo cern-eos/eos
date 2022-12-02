@@ -920,10 +920,9 @@ XrdFstOfs::Configure(XrdSysError& Eroute, XrdOucEnv* envP)
     mHttpd->Start();
   }
 
-
-  mThreadPoolExecutor.reset(new eos::common::ExecutorMgr(mFmdConverterExecutorType,
-                                                         mFmdConverterThreads));
-
+  mThreadPoolExecutor.reset(new eos::common::ExecutorMgr(
+                              mFmdConverterExecutorType,
+                              mFmdConverterThreads));
   eos_notice("FST_HOST=%s FST_PORT=%ld FST_HTTP_PORT=%d VERSION=%s RELEASE=%s "
              "KEYTABADLER=%s", mHostName, myPort, mHttpdPort, VERSION, RELEASE,
              kt_cks.c_str());
@@ -1912,29 +1911,55 @@ XrdFstOfs::RequestBroadcasts()
 }
 
 //----------------------------------------------------------------------------
-//! Update the TPC key validity value (default 120)
+// Update the TPC key min/max validity values, default [2, 15] min
 //----------------------------------------------------------------------------
 void
 XrdFstOfs::UpdateTpcKeyValidity()
 {
-  const char* ptr = getenv("EOS_FST_TPC_KEY_VALIDITY_SEC");
+  const char* ptr = getenv("EOS_FST_TPC_KEY_MIN_VALIDITY_SEC");
 
   if (ptr && strlen(ptr)) {
-    std::string str(ptr);
+    std::string_view str(ptr);
+    unsigned int min_validity = 0ul;
 
-    try {
-      int validity_sec = std::stoi(str);
-
-      if (validity_sec < 60) {
-        validity_sec = 60;
+    if (eos::common::StringToNumeric(str, min_validity)) {
+      if (min_validity < 60) {
+        min_validity = 60;
       }
 
-      mTpcKeyValidity = std::chrono::seconds(validity_sec);
-      fprintf(stderr, "=====> Update TPC key validity to %li seconds\n",
-              mTpcKeyValidity.count());
-    } catch (...) {
-      // no change
+      if (min_validity > 3600) {
+        min_validity = 3600;
+      }
+
+      mTpcKeyMinValidity = std::chrono::seconds(min_validity);
+      fprintf(stderr, "=====> Update TPC key min validity to %li seconds\n",
+              mTpcKeyMinValidity.count());
     }
+  }
+
+  ptr = getenv("EOS_FST_TPC_KEY_MAX_VALIDITY_SEC");
+
+  if (ptr && strlen(ptr)) {
+    std::string_view str(ptr);
+    unsigned int max_validity = 0ul;
+
+    if (eos::common::StringToNumeric(str, max_validity)) {
+      if (max_validity < mTpcKeyMinValidity.count()) {
+        max_validity = mTpcKeyMinValidity.count();
+      }
+
+      if (max_validity > std::chrono::seconds(3600).count()) {
+        max_validity = 3600;
+      }
+
+      mTpcKeyMaxValidity = std::chrono::seconds(max_validity);
+      fprintf(stderr, "=====> Update TPC key max validity to %li seconds\n",
+              mTpcKeyMinValidity.count());
+    }
+  }
+
+  if (mTpcKeyMaxValidity.count() < mTpcKeyMinValidity.count()) {
+    mTpcKeyMaxValidity = mTpcKeyMinValidity;
   }
 }
 
