@@ -1954,7 +1954,7 @@ XrdFstOfs::UpdateTpcKeyValidity()
 
       mTpcKeyMaxValidity = std::chrono::seconds(max_validity);
       fprintf(stderr, "=====> Update TPC key max validity to %li seconds\n",
-              mTpcKeyMinValidity.count());
+              mTpcKeyMaxValidity.count());
     }
   }
 

@@ -508,10 +508,12 @@ public:
   //! apply.
   //!
   //! @param tpc_tll client specified key ttl
+  //! @param now_ts used for testing
   //!
   //! @return expiration timestamp for the current key
   //----------------------------------------------------------------------------
-  static time_t GetTpcKeyExpireTS(std::string_view tpc_ttl);
+  static time_t GetTpcKeyExpireTS(std::string_view tpc_ttl,
+                                  time_t now_ts = 0);
 
   //----------------------------------------------------------------------------
   //! Close internal method that can be called synchronously (from XRootD) or

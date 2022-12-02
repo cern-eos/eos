@@ -74,3 +74,36 @@ TEST(XrdFstOfsFileTest, GetHostFromTident)
   ASSERT_FALSE(XrdFstOfsFile::GetHostFromTident(tident, hostname));
   ASSERT_STREQ(hostname.c_str(), "");
 }
+
+//------------------------------------------------------------------------------
+// Test tpc.ttl value enforcement
+//------------------------------------------------------------------------------
+TEST(XrdFstOfsFileTest, GetTpcKeyExpireTS)
+{
+  time_t now_test = time(nullptr);
+  ASSERT_EQ(now_test + 120,
+            eos::fst::XrdFstOfsFile::GetTpcKeyExpireTS("", now_test));
+  ASSERT_EQ(now_test + 120,
+            eos::fst::XrdFstOfsFile::GetTpcKeyExpireTS("61",  now_test));
+  ASSERT_EQ(now_test + 200,
+            eos::fst::XrdFstOfsFile::GetTpcKeyExpireTS("200", now_test));
+  ASSERT_EQ(now_test + 900,
+            eos::fst::XrdFstOfsFile::GetTpcKeyExpireTS("1000", now_test));
+  setenv("EOS_FST_TPC_KEY_MIN_VALIDITY_SEC", "30", true);
+  setenv("EOS_FST_TPC_KEY_MAX_VALIDITY_SEC", "4000", true);
+  gOFS.UpdateTpcKeyValidity();
+  ASSERT_STREQ("30", getenv("EOS_FST_TPC_KEY_MIN_VALIDITY_SEC"));
+  ASSERT_STREQ("4000", getenv("EOS_FST_TPC_KEY_MAX_VALIDITY_SEC"));
+  ASSERT_EQ(60, gOFS.mTpcKeyMinValidity.count());
+  ASSERT_EQ(3600, gOFS.mTpcKeyMaxValidity.count());
+  ASSERT_EQ(now_test + 60,
+            eos::fst::XrdFstOfsFile::GetTpcKeyExpireTS("", now_test));
+  ASSERT_EQ(now_test + 61,
+            eos::fst::XrdFstOfsFile::GetTpcKeyExpireTS("61", now_test));
+  ASSERT_EQ(now_test + 200,
+            eos::fst::XrdFstOfsFile::GetTpcKeyExpireTS("200", now_test));
+  ASSERT_EQ(now_test + 1000,
+            eos::fst::XrdFstOfsFile::GetTpcKeyExpireTS("1000", now_test));
+  ASSERT_EQ(now_test + 3600,
+            eos::fst::XrdFstOfsFile::GetTpcKeyExpireTS("4000", now_test));
+}

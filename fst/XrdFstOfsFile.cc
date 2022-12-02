@@ -52,10 +52,15 @@ thread_local int t_iopriority = 0;
 // Get TPC key expiration timestamp
 //------------------------------------------------------------------------------
 time_t
-XrdFstOfsFile::GetTpcKeyExpireTS(std::string_view tpc_ttl)
+XrdFstOfsFile::GetTpcKeyExpireTS(std::string_view tpc_ttl, time_t now_ts)
 {
   using namespace std::chrono;
   time_t now = time(nullptr);
+
+  if (now_ts) {
+    now = now_ts;
+  }
+
   time_t expire_ts = now + gOFS.mTpcKeyMinValidity.count();
 
   if (!tpc_ttl.empty()) {
