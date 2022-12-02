@@ -17,6 +17,29 @@ Introduction
 This release is based on XRootD V5.
 
 
+``v5.1.5 Diopside``
+====================
+
+2022-12-02
+
+Bug
+----
+
+* MGM: Fix MGM crash when the balancer is configured
+
+Improvement
+-----------
+
+* [EOS-5452] - New metric: Provide I/O errors per transfer in report logs
+* [EOS-5453] - New metric: Namespace contention calculation in ns stat command
+* [EOS-5131] - RFE: honour XRD_APPNAME for xrdcp
+* [EOS-5444] - Provide number of stripes in the inspector command
+* [EOS-5454] - EOS inspector: Provide layout_id in the list output per fxid
+* [EOS-5455] - eos node ls monitoring - Improve sys.uptime value format
+* [EOS-5459] - MGM: avoid blocking cleanup ops while user mapping
+* [EOS-5464] - Have TPC transfers respect the client tpc.ttl value
+
+
 ``v5.1.4 Diopside``
 ====================
 
@@ -24,9 +47,9 @@ This release is based on XRootD V5.
 
 Bug
 ----
-    
+
 * [EOS-5442] - eosxd crash (on shutdown) under ShardedCache destructor
-* [EOS-5446] - Failures in setting thread names 
+* [EOS-5446] - Failures in setting thread names
 
 
 ``v5.1.3 Diopside``
