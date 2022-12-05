@@ -134,6 +134,7 @@ message heartbeat {
   bool automounted = 16; //< indicate if autofs mount or not  
   string log = 17; //< client logs
   string trace = 18; //< client stacktrace
+  string appname = 19; // < client app name
 }    
 
 message statistics {

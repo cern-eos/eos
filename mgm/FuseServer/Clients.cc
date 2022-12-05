@@ -301,7 +301,7 @@ FuseServer::Clients::Info(const std::string& identity)
 
   if (it != this->map().end()) {
     snprintf(formatline, sizeof(formatline),
-             "name=%s host=%s version=%s state=%s start=%s dt=[%.02f:%.02f] uuid=%s pid=%u fds=%u type=%s mount=%s",
+             "name=%s host=%s version=%s state=%s start=%s dt=[%.02f:%.02f] uuid=%s pid=%u fds=%u type=%s mount=%s app=%s",
              it->second.heartbeat().name().c_str(),
              it->second.heartbeat().host().c_str(),
              it->second.heartbeat().version().c_str(),
@@ -315,7 +315,8 @@ FuseServer::Clients::Info(const std::string& identity)
              it->second.heartbeat().pid(),
              it->second.statistics().open_files(),
              it->second.heartbeat().automounted() ? "autofs" : "static",
-             it->second.heartbeat().mount().c_str()
+             it->second.heartbeat().mount().c_str(),
+	     it->second.heartbeat().appname().c_str()
             );
     out += formatline;
   }
@@ -398,7 +399,7 @@ FuseServer::Clients::Print(std::string& out, std::string options)
 
     if (options.find("m") == std::string::npos) {
       snprintf(formatline, sizeof(formatline),
-               "client : %-8s %32s %-8s %-8s %s %.02f %.02f %36s p=%u caps=%lu fds=%u %s [%s] %s mount=%s \n",
+               "client : %-8s %32s %-8s %-8s %s %.02f %.02f %36s p=%u caps=%lu fds=%u %s [%s] %s mount=%s app=%s\n",
                it->second.heartbeat().name().c_str(),
                it->second.heartbeat().host().c_str(),
                it->second.heartbeat().version().c_str(),
@@ -415,7 +416,8 @@ FuseServer::Clients::Print(std::string& out, std::string options)
                it->second.heartbeat().automounted() ? "autofs" : "static",
                lockup.c_str(),
                idle.c_str(),
-               it->second.heartbeat().mount().c_str()
+               it->second.heartbeat().mount().c_str(),
+	       it->second.heartbeat().appname().c_str()
               );
       out += formatline;
     }
@@ -489,7 +491,7 @@ FuseServer::Clients::Print(std::string& out, std::string options)
 
     if (options.find("m") != std::string::npos) {
       snprintf(formatline, sizeof(formatline),
-               "client=%s host=%s version=%s state=%s time=\"%s\" tof=%.02f delta=%.02f uuid=%s pid=%u caps=%lu fds=%u type=%s mount=\"%s\" "
+               "client=%s host=%s version=%s state=%s time=\"%s\" tof=%.02f delta=%.02f uuid=%s pid=%u caps=%lu fds=%u type=%s mount=\"%s\" app=%s "
                "ino=%ld "
                "ino-to-del=%ld "
                "ino-backlog=%ld "
@@ -536,6 +538,7 @@ FuseServer::Clients::Print(std::string& out, std::string options)
                it->second.statistics().open_files(),
                it->second.heartbeat().automounted() ? "autofs" : "static",
                it->second.heartbeat().mount().c_str(),
+	       it->second.heartbeat().appname().c_str(),
                it->second.statistics().inodes(),
                it->second.statistics().inodes_todelete(),
                it->second.statistics().inodes_backlog(),

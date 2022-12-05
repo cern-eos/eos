@@ -4704,6 +4704,7 @@ The O_NONBLOCK flag was specified, and an incompatible lease was held on the fil
       if (!rc) {
         metad::shared_md md;
         metad::shared_md pmd;
+
         bool obfuscate = false;
         md = Instance().mds.lookup(req, parent, name);
         pmd = Instance().mds.get(req, parent, (*pcap)()->authid());
