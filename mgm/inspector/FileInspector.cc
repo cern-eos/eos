@@ -262,6 +262,8 @@ void FileInspector::performCycleInMem(ThreadAssistant& assistant) noexcept
   std::lock_guard<std::mutex> sMutex(mutexScanStats);
   lastScanStats = currentScanStats;
   lastFaultyFiles = currentFaultyFiles;
+  currentScanStats.clear();
+  currentFaultyFiles.clear();
   timeLastScan = timeCurrentScan;
 }
 
