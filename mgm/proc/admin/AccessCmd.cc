@@ -78,6 +78,11 @@ AccessCmd::ProcessRequest() noexcept
     UnallowSubcmd(access.unallow(), reply);
     break;
 
+
+  case eos::console::AccessProto::kStallhosts :
+    StallhostsSubcmd(access.stallhosts(), reply);
+    break;
+    
   default :
     reply.set_retc(EINVAL);
     reply.set_std_err("error: not supported");
@@ -408,6 +413,60 @@ void AccessCmd::LsSubcmd(const eos::console::AccessProto_LsProto& ls,
     }
   }
 
+  if (!Access::gStallHosts.empty()) {
+    if (!ls.monitoring()) {
+      std_out <<
+              "# ....................................................................................\n";
+      std_out << "# Hosts in the stall white list ...\n";
+      std_out <<
+              "# ....................................................................................\n";
+    }
+
+    cnt = 0;
+
+    for (auto ithost = Access::gStallHosts.begin();
+         ithost != Access::gStallHosts.end(); ithost++) {
+      cnt++;
+
+      if (!ls.monitoring()) {
+        char counter[16];
+        snprintf(counter, sizeof(counter) - 1, "%02d", cnt);
+        std_out << "[ " << counter << " ] ";
+      } else {
+        std_out << "host.stallhosts=";
+      }
+
+      std_out << ithost->c_str() << '\n';
+    }
+  }
+
+  if (!Access::gNoStallHosts.empty()) {
+    if (!ls.monitoring()) {
+      std_out <<
+              "# ....................................................................................\n";
+      std_out << "# Hosts in the no-stall black list ...\n";
+      std_out <<
+              "# ....................................................................................\n";
+    }
+
+    cnt = 0;
+
+    for (auto ithost = Access::gNoStallHosts.begin();
+         ithost != Access::gNoStallHosts.end(); ithost++) {
+      cnt++;
+
+      if (!ls.monitoring()) {
+        char counter[16];
+        snprintf(counter, sizeof(counter) - 1, "%02d", cnt);
+        std_out << "[ " << counter << " ] ";
+      } else {
+        std_out << "host.nostallhosts=";
+      }
+
+      std_out << ithost->c_str() << '\n';
+    }
+  }
+
   reply.set_std_out(std_out.str());
   reply.set_std_err(std_err.str());
   reply.set_retc(ret_c);
@@ -673,6 +732,9 @@ void AccessCmd::aux(const string& sid, std::ostringstream& std_out,
     saction = "unallow";
     break;
 
+  case eos::console::AccessProto::kStallhosts:
+    saction = "(un-)stallhosts";
+    break;
   default :
     ;
   }
@@ -1007,4 +1069,100 @@ AccessCmd::UnallowSubcmd(const eos::console::AccessProto_UnallowProto& unallow,
   reply.set_retc(ret_c);
 }
 
+//----------------------------------------------------------------------------
+// Execute stallhostssubcommand
+//----------------------------------------------------------------------------
+void AccessCmd::StallhostsSubcmd(const eos::console::AccessProto_StallHostsProto& stall,
+				 eos::console::ReplyProto& reply)
+{
+  std::ostringstream std_out{""};
+  std::ostringstream std_err{""};
+  int ret_c = 0;
+  gOFS->MgmStats.Add("AccessControl", mVid.uid, mVid.gid, 1);
+  eos::common::RWMutexWriteLock lock(Access::gAccessMutex);
+
+  switch (stall.type()) {
+  case eos::console::AccessProto_StallHostsProto::STALL : 
+    switch(stall.op()) {
+    case eos::console::AccessProto_StallHostsProto::ADD: {
+      if (Access::gStallHosts.count(stall.hostpattern())) {
+	ret_c = EEXIST;
+	std_err << "error: entry exists already in the stall list\n";
+      } else {       
+	if (Access::gNoStallHosts.count(stall.hostpattern())) {
+	  ret_c = EEXIST;
+	  std_err << "error: this pattern is in the no-stall list!\n";
+	} else {
+	  Access::gStallHosts.insert(stall.hostpattern());
+	}
+      }
+      lock.Release();
+      if (!ret_c) {
+	aux(stall.hostpattern(), std_out, std_err, ret_c);
+      }
+      break;
+    }
+    case eos::console::AccessProto_StallHostsProto::REMOVE: {
+      if (!Access::gStallHosts.count(stall.hostpattern())) {
+	ret_c = ENOENT;
+	std_err << "error: this pattern is not in the stall list\n";
+      } else {
+	Access::gStallHosts.erase(stall.hostpattern());
+      }
+      lock.Release();
+      if (!ret_c) {
+	aux(stall.hostpattern(), std_out, std_err, ret_c);
+      }
+      break;
+    }
+    default:
+      lock.Release();
+      ret_c = EINVAL;
+    }
+  
+    break;
+    
+  case eos::console::AccessProto_StallHostsProto::NOSTALL : 
+    switch(stall.op()) {
+    case eos::console::AccessProto_StallHostsProto::ADD: {
+      if (Access::gNoStallHosts.count(stall.hostpattern())) {
+	ret_c = EEXIST;
+	std_err << "error: entry exists already in the no-stall list\n";
+      } else {
+	if (Access::gStallHosts.count(stall.hostpattern())) {
+	  ret_c = EEXIST;
+	  std_err << "error: this pattern is in the stall list!\n";
+	} else {
+	  Access::gNoStallHosts.insert(stall.hostpattern());
+	}
+      }
+      lock.Release();
+      aux(stall.hostpattern(), std_out, std_err, ret_c);
+      break;
+    }
+    case eos::console::AccessProto_StallHostsProto::REMOVE: {
+      if (!Access::gNoStallHosts.count(stall.hostpattern())) {
+	ret_c = ENOENT;
+	std_err << "error: this pattern is not in the nostall list\n";
+      } else {
+	Access::gNoStallHosts.erase(stall.hostpattern());
+      }
+      lock.Release();
+      aux(stall.hostpattern(), std_out, std_err, ret_c);
+      break;
+    }
+    default:
+      lock.Release();
+      ret_c = EINVAL;
+      aux(stall.hostpattern(), std_out, std_err, ret_c);
+    }
+  default:
+    break;
+  }
+  reply.set_std_out(std_out.str());
+  reply.set_std_err(std_err.str());
+  reply.set_retc(ret_c);
+}
+  
+    
 EOSMGMNAMESPACE_END

@@ -59,9 +59,10 @@ XrdMgmOfs::ShouldStall(const char* function,
   eos::common::RWMutexReadLock lock(Access::gAccessMutex);
   std::string stallid = "Stall";
 
+  bool canstall = Access::CanStall(vid.host.c_str());
   if (stall) {
     if ((vid.uid > 3) && (functionname != "stat")  && (vid.app != "fuse::restic")) {
-      if ((stalltime = gOFS->mTracker.ShouldStall(vid.uid, saturated))) {
+      if ( canstall && (stalltime = gOFS->mTracker.ShouldStall(vid.uid, saturated))) {
         smsg = "operate - your are exceeding your thread pool limit";
         stallid += "::threads::";
         stallid += std::to_string(vid.uid);;
@@ -107,7 +108,7 @@ XrdMgmOfs::ShouldStall(const char* function,
       } else if (IS_ACCESSMODE_W && (Access::gStallWrite)) {
         stalltime = atoi(Access::gStallRules[std::string("w:*")].c_str());
         smsg = Access::gStallComment[std::string("w:*")];
-      } else if (Access::gStallUserGroup) {
+      } else if (Access::gStallUserGroup && canstall) {
         std::string usermatch = "rate:user:";
         usermatch += vid.uid_string;
         std::string groupmatch = "rate:group:";
@@ -117,7 +118,7 @@ XrdMgmOfs::ShouldStall(const char* function,
         std::map<std::string, std::string>::const_iterator it;
 
         if ((functionname != "stat") &&  // never stall stats
-            (vid.app != "fuse::restic")) {
+            (vid.app != "fuse::restic") && canstall) {
           for (it = Access::gStallRules.begin();
                it != Access::gStallRules.end();
                it++) {

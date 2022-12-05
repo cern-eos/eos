@@ -291,6 +291,38 @@ bool AccessHelper::ParseCommand(const char* arg)
     }
 
     unallow->set_id(token);
+  } else if (token == "stallhosts") {
+    eos::console::AccessProto_StallHostsProto* stall = access->mutable_stallhosts();
+
+    if (!tokenizer.NextToken(token)) {
+      return false;
+    }
+
+    if (token == "add") {
+      stall->set_op(eos::console::AccessProto_StallHostsProto::ADD);
+    } else if (token == "remove") {
+      stall->set_op(eos::console::AccessProto_StallHostsProto::REMOVE);
+    } else {
+      return false;
+    }
+    
+    if (!tokenizer.NextToken(token)) {
+      return false;
+    }
+    
+    if (token == "stall") {
+      stall->set_type(eos::console::AccessProto_StallHostsProto::STALL);
+    } else if (token == "nostall") {
+      stall->set_type(eos::console::AccessProto_StallHostsProto::NOSTALL);
+    } else {
+      return false;
+    }
+
+    if (!tokenizer.NextToken(token)) {
+      return false;
+    }
+
+    stall->set_hostpattern(token);
   } else { // no proper subcommand
     return false;
   }
@@ -329,7 +361,7 @@ void com_access_help()
   std::ostringstream oss;
   oss
       << " usage:\n"
-      << "access ban|unban|allow|unallow|set|rm|ls [OPTIONS]\n"
+      << "access ban|unban|allow|unallow|set|rm|stallhosts|ls [OPTIONS]\n"
       << "'[eos] access ..' provides the access interface of EOS to allow/disallow hosts/domains and/or users\n"
       << std::endl
       << "Subcommands:\n"
@@ -396,6 +428,8 @@ void com_access_help()
       << std::endl
       << "access rm limit threads:{max,*,<uid} : remove thread pool limit\n"
       << std::endl
+      << "access stallhosts add|remove stall|nostall <patterm\n"
+      << std::endl
       << "access ls [-m] [-n] : print banned,unbanned user,group, hosts\n"
       << "\t -m : output in monitoring format with <key>=<value>\n"
       << "\t -n : don't translate uid/gids to names\n"
@@ -416,6 +450,10 @@ void com_access_help()
       << " access set limit 2000 rate:group:zp:Stat       : Limit the stat rate for the zp group to 2kHz\n"
       << " access set limit 500 threads:*                 : Limit the thread pool usage to 500 threads per user\n"
       << " access rm limit rate:user:*:OpenRead           : Removes the defined limit\n"
-      << " access rm limit threads:*                      : Removes the default per user thread pool limit\n";
+      << " access rm limit threads:*                      : Removes the default per user thread pool limit\n"
+      << " access stallhosts add stall foo*.bar           : Add foo*.bar to the list of hosts which are stalled by limit rules (white list)\n"
+      << " access stallhosts remove stall foo*.bar        : Remove foo*.bar from the list of hosts which are stalled by limit rules (white list)\n"
+      << " access stallhosts add nostall foo*.bar         : Add foo*.bar to the list of hosts whcih are never stalled by limit rules (black list)\n"
+      << " access stallhosts remove nostall foo*.bar      : Remove foo*.bar from the list of hosts which are never stalled by limit rules (black list)\n";
   std::cerr << oss.str() << std::endl;
 }

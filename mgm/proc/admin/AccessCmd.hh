@@ -120,6 +120,15 @@ private:
   void UnallowSubcmd(const eos::console::AccessProto_UnallowProto& unallow,
                      eos::console::ReplyProto& reply);
 
+  //----------------------------------------------------------------------------
+  //! Execute stallhost subcommand
+  //!
+  //! @param stallhosts subcommand proto object
+  //! @param reply reply proto object
+  //----------------------------------------------------------------------------
+  void StallhostsSubcmd(const eos::console::AccessProto_StallHostsProto& stall,
+                     eos::console::ReplyProto& reply);
+
   void aux(const string& sid,
            std::ostringstream& std_out, std::ostringstream& std_err,
            int& ret_c);

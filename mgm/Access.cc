@@ -25,6 +25,7 @@
 #include "mgm/Access.hh"
 #include "mgm/FsView.hh"
 #include "common/StringConversion.hh"
+#include <regex.h>
 
 EOSMGMNAMESPACE_BEGIN
 
@@ -60,6 +61,12 @@ std::map<std::string, std::string> Access::gStallRules;
 
 //! singleton map for stall comments
 std::map<std::string, std::string> Access::gStallComment;
+
+//! indicates a list of hostname matching                                                                                                                                                          
+std::set<std::string> Access::gStallHosts;
+
+//! indicates a list of hostname matching                                                                                                                                                          a
+std::set<std::string> Access::gNoStallHosts;
 
 //! indicates global stall rule
 std::atomic<bool> Access::gStallGlobal {false};
@@ -113,6 +120,12 @@ const char* Access::gStallKey = "Stall";
 //! constant used in the configuration store
 const char* Access::gRedirectionKey = "Redirection";
 
+//! constant used in the configuration store
+const char* Access::gStallHostsKey = "StallHosts";
+
+//! constant used in the configuration store
+const char* Access::gNoStallHostsKey = "NoStallHosts";
+
 //------------------------------------------------------------------------------
 // Static function to reset all singleton objects defining access rules.
 //------------------------------------------------------------------------------
@@ -129,7 +142,9 @@ Access::Reset(bool skip_stall_redirect)
   Access::gAllowedGroups.clear();
   Access::gAllowedHosts.clear();
   Access::gAllowedDomains.clear();
-
+  Access::gStallHosts.clear();
+  Access::gNoStallHosts.clear();
+  
   if (skip_stall_redirect == false) {
     Access::gRedirectionRules.clear();
     Access::gStallRules.clear();
@@ -162,6 +177,8 @@ Access::ApplyAccessConfig(bool applyredirectandstall)
   std::string domainaval = FsView::gFsView.GetGlobalConfig(gAllowedDomainKey);
   std::string stall = FsView::gFsView.GetGlobalConfig(gStallKey);
   std::string redirect = FsView::gFsView.GetGlobalConfig(gRedirectionKey);
+  std::string stallhosts = FsView::gFsView.GetGlobalConfig(gStallHostsKey);
+  std::string nostallhosts = FsView::gFsView.GetGlobalConfig(gNoStallHostsKey);
   // parse the list's and fill the hash
   std::vector<std::string> tokens;
   std::string delimiter = ":";
@@ -244,6 +261,24 @@ Access::ApplyAccessConfig(bool applyredirectandstall)
   }
 
   tokens.clear();
+  eos::common::StringConversion::Tokenize(stallhosts, tokens, delimiter);
+
+  for (size_t i = 0; i < tokens.size(); i++) {
+    if (tokens[i].length()) {
+      Access::gStallHosts.insert(tokens[i]);
+    }
+  }
+
+  tokens.clear();
+  eos::common::StringConversion::Tokenize(nostallhosts, tokens, delimiter);
+
+  for (size_t i = 0; i < tokens.size(); i++) {
+    if (tokens[i].length()) {
+      Access::gNoStallHosts.insert(tokens[i]);
+    }
+  }
+  
+  tokens.clear();
   delimiter = ",";
   eos::common::StringConversion::Tokenize(stall, tokens, delimiter);
 
@@ -325,6 +360,8 @@ Access::StoreAccessConfig()
   std::set<gid_t>::const_iterator itgid;
   std::set<std::string>::const_iterator ithost;
   std::set<std::string>::const_iterator itdomain;
+  std::set<std::string>::const_iterator itstallhosts;
+  std::set<std::string>::const_iterator itnostallhosts;
   std::map<std::string, std::string>::const_iterator itstall;
   std::map<std::string, std::string>::const_iterator itredirect;
   std::string userval = "";
@@ -337,6 +374,8 @@ Access::StoreAccessConfig()
   std::string domainaval = "";
   std::string stall = "";
   std::string redirect = "";
+  std::string stallhosts = "";
+  std::string nostallhosts = "";
 
   for (ituid = Access::gBannedUsers.begin();
        ituid != Access::gBannedUsers.end(); ituid++) {
@@ -384,6 +423,18 @@ Access::StoreAccessConfig()
        itdomain != Access::gAllowedDomains.end(); itdomain++) {
     domainaval += itdomain->c_str();
     domainaval += ":";
+  }
+
+  for (itstallhosts = Access::gStallHosts.begin();
+       itstallhosts != Access::gStallHosts.end(); itstallhosts++) {
+    stallhosts += itstallhosts->c_str();
+    stallhosts += ":";
+  }
+  
+  for (itnostallhosts = Access::gNoStallHosts.begin();
+       itnostallhosts != Access::gNoStallHosts.end(); itnostallhosts++) {
+    nostallhosts += itnostallhosts->c_str();
+    nostallhosts += ":";
   }
 
   gStallRead = gStallWrite = gStallGlobal = gStallUserGroup = false;
@@ -438,6 +489,9 @@ Access::StoreAccessConfig()
   std::string gakey = gAllowedGroupKey;
   std::string hakey = gAllowedHostKey;
   std::string dakey = gAllowedDomainKey;
+  std::string shkey = gStallHostsKey;
+  std::string nshkey = gNoStallHostsKey;
+  
   bool ok = 1;
   ok &= FsView::gFsView.SetGlobalConfig(ukey, userval);
   ok &= FsView::gFsView.SetGlobalConfig(gkey, groupval);
@@ -449,6 +503,8 @@ Access::StoreAccessConfig()
   ok &= FsView::gFsView.SetGlobalConfig(dakey, domainaval);
   ok &= FsView::gFsView.SetGlobalConfig(gStallKey, stall);
   ok &= FsView::gFsView.SetGlobalConfig(gRedirectionKey, redirect);
+  ok &= FsView::gFsView.SetGlobalConfig(shkey, stallhosts);
+  ok &= FsView::gFsView.SetGlobalConfig(nshkey, nostallhosts);
 
   if (!ok) {
     eos_static_err("unable to store <access> configuration");
@@ -649,5 +705,39 @@ Access::ThreadLimit(bool lock_ns)
   return 1000000;
 }
 
+//------------------------------------------------------------------------------
+// Check if host matches white or black list for stalling
+//------------------------------------------------------------------------------
+bool
+Access::CanStall(const char* host)
+{
+  // you should have this lock   eos::common::RWMutexReadLock access_rd_lock(gAccessMutex);
+  if (gStallHosts.size()) {
+    // white list behaviour
+    for ( auto rules:gStallHosts ) {
+      regex_t regex;
+      if (!regcomp(&regex, rules.c_str(), REG_ICASE | REG_EXTENDED | REG_NOSUB)) {
+	if (!regexec(&regex, host, 0, NULL, 0)) {
+	  return true;
+	}
+      }
+    }
+    return false;
+  }
+  
+  if (gNoStallHosts.size()) {
+    // black list haviour
+    for ( auto rules:gNoStallHosts ) {
+      regex_t regex;
+      if (!regcomp(&regex, rules.c_str(), REG_ICASE | REG_EXTENDED | REG_NOSUB)) {
+	if (!regexec(&regex, host, 0, NULL, 0)) {
+	  return false;
+	}
+      }
+    }
+    return true;
+  }
+  return true;
+}
 
 EOSMGMNAMESPACE_END

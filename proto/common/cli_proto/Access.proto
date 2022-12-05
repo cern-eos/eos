@@ -84,6 +84,19 @@ message AccessProto {
     string id = 2;
   }
 
+  message StallHostsProto {
+    enum Operation {
+      ADD        = 0;
+      REMOVE     = 1;		
+    }
+    enum Type {
+      STALL      = 0;
+      NOSTALL    = 1;
+    }
+    Operation op       = 1;
+    Type type          = 2;
+    string hostpattern = 3;
+  }
 
   oneof subcmd {
     LsProto ls = 1;
@@ -93,6 +106,7 @@ message AccessProto {
     UnbanProto unban = 5;
     AllowProto allow = 6;
     UnallowProto unallow = 7;
+    StallHostsProto stallhosts = 8;
   }
 
 }

@@ -98,7 +98,15 @@ public:
   // static key defining the redirection rules in the global configuration
   // key-value map
   static const char* gRedirectionKey;
+ 
+  // static key defining the hosts which are eligible for stalling (whitelist)
+  // set
+  static const char* gStallHostsKey;
 
+  // static key defining the hosts which are not eligible for stalling (blacklist)
+  // set
+  static const char* gNoStallHostsKey;
+  
   // set containing the banned user ID
   static std::set<uid_t> gBannedUsers;
 
@@ -144,6 +152,12 @@ public:
 
   //! indicates a user or group rate stall entry
   static std::atomic<bool> gStallUserGroup;
+
+  //! indicates a list of hostname matching
+  static std::set<std::string> gNoStallHosts;
+
+  //! indicates a list of hostname matching
+  static std::set<std::string> gStallHosts;
 
   //! map containing user based redirection
   static std::map<uid_t, std::string> gUserRedirection;
@@ -237,6 +251,10 @@ public:
   static size_t ThreadLimit(uid_t uid, bool lock_ns = true);
   static size_t ThreadLimit(bool lock_ns = true);
 
+  //----------------------------------------------------------------------------
+  //! Check if the given host can be stalled according to white and blacklist settings
+  //----------------------------------------------------------------------------
+  static bool CanStall(const char* host);
 };
 
 EOSMGMNAMESPACE_END
