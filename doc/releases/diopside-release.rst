@@ -17,6 +17,23 @@ Introduction
 This release is based on XRootD V5.
 
 
+``v5.1.6 Diopside``
+====================
+
+2022-12-05
+
+Bug
+----
+
+* [EOS-5467] - Inspector aggregates results instead of reseting the current scan
+
+Improvement
+------------
+
+* [EOS-5465] - Shoe FUSE application name in 'fusex ls'
+* [EOS-5466] - Add Stall / NoStall host lists to access interface
+
+
 ``v5.1.5 Diopside``
 ====================
 
