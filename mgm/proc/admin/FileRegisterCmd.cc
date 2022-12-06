@@ -99,7 +99,6 @@ FileRegisterCmd::ProcessRequest() noexcept
 	  fmd->setCGid(gid);
 	}
       }
-      fmd->setSize(reg.size());
       if (reg.mode()) {
 	//store mode
 	fmd->setFlags(reg.mode());
@@ -187,16 +186,23 @@ FileRegisterCmd::ProcessRequest() noexcept
 				  true);
 	fmd->setLayoutId(layoutId);
       }
-      if (!reg.update()) {
-	try {
-	  eos::IQuotaNode* ns_quota = gOFS->eosView->getQuotaNode(dir.get());
-	  if (ns_quota) {
+      try {
+	eos::IQuotaNode* ns_quota = gOFS->eosView->getQuotaNode(dir.get());
+	if (ns_quota) {
+	  if (!reg.update()) {
+	    fmd->setSize(reg.size());
 	    ns_quota->addFile(fmd.get());
+	  } else {
+	    ns_quota->removeFile(fmd.get());
+	    fmd->setSize(reg.size());
 	  }
-	} catch (const eos::MDException& eq) {
-	  // no quota node
+	} else {
+	  fmd->setSize(reg.size());
 	}
+      } catch (const eos::MDException& eq) {
+	  // no quota node
       }
+     
       gOFS->eosView->updateFileStore(fmd.get());
       dir->setMTimeNow();
       gOFS->eosView->updateContainerStore(dir.get());
