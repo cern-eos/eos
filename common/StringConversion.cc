@@ -1002,6 +1002,15 @@ StringConversion::IsHexNumber(const char* hexstring, const char* format)
 }
 
 //------------------------------------------------------------------------------
+// Check if string is a decimal number
+//------------------------------------------------------------------------------
+bool
+StringConversion::IsDecimalNumber(const std::string & str) {
+  return !str.empty() && std::all_of(str.begin(), str.end(), ::isdigit);
+}
+
+
+//------------------------------------------------------------------------------
 // Convert numeric value to string in a pretty way using KB, MB etc. symbols
 //------------------------------------------------------------------------------
 std::string

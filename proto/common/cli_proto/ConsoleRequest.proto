@@ -109,6 +109,7 @@ message RequestProto {
     MapProto map           = 47;
     MemberProto member     = 48;
     StatusProto status     = 49;
+    FileRegisterProto record = 50;
   }
 
   string Comment = 30;

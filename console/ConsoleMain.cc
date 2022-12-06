@@ -104,6 +104,7 @@ extern int com_rm(char*);
 extern int com_route(char*);
 extern int com_qos(char*);
 extern int com_protorm(char*);
+extern int com_protoregister(char*);
 extern int com_rmdir(char*);
 extern int com_role(char*);
 extern int com_rtlog(char*);
@@ -183,6 +184,7 @@ COMMAND commands[] = {
   { (char*) "report", com_report, (char*) "Analyze report log files on the local machine"},
   { (char*) "reconnect", com_reconnect, (char*) "Forces a re-authentication of the shell"},
   { (char*) "recycle", com_protorecycle, (char*) "Recycle Bin Functionality"},
+  { (char*) "register", com_protoregister, (char*) "Register a file"},
   { (char*) "rmdir", com_rmdir, (char*) "Remove a directory"},
   { (char*) "rm", com_protorm, (char*) "Remove a file"},
   { (char*) "role", com_role, (char*) "Set the client role"},
@@ -538,15 +540,19 @@ client_command(XrdOucString& in, bool is_admin, std::string* reply)
 
   if (user_role.length()) {
     in += "&eos.ruid=";
+    in += user_role;
   }
-
-  in += user_role;
 
   if (group_role.length()) {
     in += "&eos.rgid=";
+    in += group_role;
+  } else {
+    if (getegid()) {
+      // add the current effective group ID as a wish to the request, but not root!
+      in += "&eos.rgid=";
+      in += std::to_string(getegid()).c_str();
+    }
   }
-
-  in += group_role;
 
   if (json) {
     in += "&mgm.format=json";

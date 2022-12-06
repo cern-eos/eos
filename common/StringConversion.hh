@@ -592,6 +592,37 @@ public:
 
   // ---------------------------------------------------------------------------
   /**
+   * Check if a string is a decimal number
+   *
+   * @param s
+   * @return true if it is a decimal number
+   */
+  // ---------------------------------------------------------------------------
+  
+  static bool
+  IsDecimalNumber(const std::string& s);
+
+  // ---------------------------------------------------------------------------
+  /**
+   * UnQuote a string if it starts with a " only ...
+   *
+   * @param string
+   * @return string without external quotes
+   */
+  // ---------------------------------------------------------------------------
+  static std::string
+  UnQuote(std::string s) {
+    if (s.front() == '\"') {
+      s.erase(0,1);
+      if (s.back() =='\"') {
+	s.pop_back();
+      }
+    }
+    return s;
+  }
+
+  // ---------------------------------------------------------------------------
+  /**
    * Return a lower case string
    *
    * @param input - input string

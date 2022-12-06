@@ -36,6 +36,7 @@
 #include "mgm/proc/admin/QuotaCmd.hh"
 #include "mgm/proc/admin/SpaceCmd.hh"
 #include "mgm/proc/admin/StagerRmCmd.hh"
+#include "mgm/proc/admin/FileRegisterCmd.hh"
 #include "mgm/proc/user/AclCmd.hh"
 #include "mgm/proc/user/NewfindCmd.hh"
 #include "mgm/proc/user/QoSCmd.hh"
@@ -282,6 +283,10 @@ ProcInterface::HandleProtobufRequest(eos::console::RequestProto& req,
     cmd.reset(new ConvertCmd(std::move(req), vid));
     break;
 
+  case RequestProto::kRecord:
+    cmd.reset(new FileRegisterCmd(std::move(req), vid));
+    break;
+      
   default:
     eos_static_err("error: unknown request type");
     break;

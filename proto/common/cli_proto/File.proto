@@ -7,6 +7,7 @@ syntax="proto3";
 package eos.console;
 
 import "Metadata.proto";
+import "Authentication.proto";
 
 message FileProto {
   Metadata md            = 1;
@@ -28,6 +29,7 @@ message FileProto {
     FileVersionsProto versions           = 16;
     FileShareProto share                 = 17;
     FileWorkflowProto workflow           = 18;
+    FileRegisterProto register           = 19;
   }
 }
 
@@ -120,4 +122,25 @@ message FileShareProto {
 message FileWorkflowProto {
   string workflow = 1;
   string event    = 2;
+}
+
+message FileRegisterProto {
+  message Timestamp {
+    int64 sec = 1;
+    int64 nsec = 2;
+  }
+
+  string   path = 1;
+  RoleId   owner = 2;
+  int64    mode = 3;
+  uint64   size = 4;
+  map<string, bytes> attr = 5;
+  Timestamp btime = 6;
+  Timestamp ctime = 7;
+  Timestamp mtime = 8;
+  Timestamp atime = 9;
+  string checksum = 10;
+  int32    layoutid = 11;
+  bool     update = 12;
+  repeated uint32 locations = 13;
 }
