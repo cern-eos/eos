@@ -26,6 +26,52 @@
 #include "XrdSec/XrdSecEntity.hh"
 #include <chrono>
 
+thread_local std::vector<uint64_t> time_records;
+std::vector<uint64_t> g_time_records;
+std::mutex g_time_record_mtx;
+
+struct SampleStats
+{
+  double mean;
+  double stddev;
+
+  SampleStats(double mean_, double stddev_ ) : mean(mean_), stddev(stddev_) {};
+
+};
+
+template <typename C>
+SampleStats calculate_stats(const C& c)
+{
+  size_t count = g_time_records.size();
+  double sum = std::accumulate(c.begin(), c.end(), 0.0);
+  double mean = sum/count;
+  double accum = std::accumulate(c.begin(), c.end(), 0.0,
+                             [mean](double accum, double val) {
+    return accum + (val - mean)*(val - mean);
+  });
+  double stddev = std::sqrt(accum/count);
+  return {mean, stddev};
+}
+
+template <typename It>
+void print_range(const It& begin, const It& end) {
+  for (auto it = begin;
+       it != end; ++it) {
+    std::cout << *it << ", ";
+  }
+  std::cout << "\n";
+}
+
+template <typename C>
+void write_to_file(const std::string& filename,
+                   const C& data) {
+  std::ofstream out(filename);
+
+  using value_t = typename C::value_type;
+  std::ostream_iterator<value_t> output_iterator(out, "\n");
+  std::copy(data.begin(), data.end(), output_iterator);
+}
+
 void IdMapClient(int n, int cache_factor=1){
   auto vid = eos::common::VirtualIdentity::Nobody();
   XrdSecEntity client("sss");
@@ -40,14 +86,22 @@ void IdMapClient(int n, int cache_factor=1){
       std::string client_name = "testuser" + std::to_string(i);
       client.name = client_name.data();
       std::string tident = tident_base + std::to_string(i);
+      std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
       eos::common::Mapping::IdMap(&client, nullptr, tident.c_str(), vid);
+      std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
+      time_records.emplace_back(std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count());
     }
   }
+  std::scoped_lock lk(g_time_record_mtx);
+  g_time_records.insert(g_time_records.end(),
+                        std::make_move_iterator(time_records.begin()),
+                        std::make_move_iterator(time_records.end()));
 }
 
 int main(int argc, const char* argv[]) {
   if (argc < 2) {
-    std::cerr << "Usage: " << argv[0] << " <num-entries> [num-threads] [cache_factor]" << std::endl;
+    std::cerr << "Usage: " << argv[0]
+              << " <num-entries> [num-threads] [cache_factor] [filename]" << std::endl;
     return 1;
   }
   std::chrono::steady_clock::time_point init = std::chrono::steady_clock::now();
@@ -58,8 +112,10 @@ int main(int argc, const char* argv[]) {
   int n_clients = 1;
   int num_threads = 50;
   int cache_factor = 1;
-
+  std::string filename = "benchmark.csv";
   switch (argc) {
+  case 5:
+    filename = argv[4];
   case 4:
     cache_factor = atoi(argv[3]);
   case 3:
@@ -92,6 +148,15 @@ int main(int argc, const char* argv[]) {
             << " Time difference = " << ms_elapsed << " [ms] frequency = "
             << (n_clients*num_threads)/ms_elapsed << " [kHz]"
             << "\n";
+
+  std::sort(g_time_records.begin(), g_time_records.end());
+  auto stats = calculate_stats(g_time_records);
+  std::cout << "Average idmap times=" << stats.mean << "us stddev=" << stats.stddev << " us\n"
+            << "Top 10 times Min, Max\n";
+  print_range(g_time_records.begin(), g_time_records.begin()+10);
+  print_range(g_time_records.end()-10, g_time_records.end());
+  std::cout << "Writing per idmap time to file " << filename << "\n";
+  write_to_file(filename, g_time_records);
 
   eos::common::Mapping::Reset();
   std::chrono::steady_clock::time_point reset = std::chrono::steady_clock::now();
