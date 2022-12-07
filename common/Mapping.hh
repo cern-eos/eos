@@ -395,6 +395,16 @@ private:
   //! @note needs to be called with the gMapMutex locked
   //----------------------------------------------------------------------------
   static void HandleVOMS(const XrdSecEntity* client, VirtualIdentity& vid);
+
+  //----------------------------------------------------------------------------
+  //! Add secondary groups if configured
+  //!
+  //! @param vid where to append groups
+  //! @param idp containing uid to resolved gropus
+  //! @note appends secondary groups to vid.allowed_gids
+
+  static void addSecondaryGroups(VirtualIdentity& vid, const std::string& name, gid_t gid );
+
 };
 
 EOSCOMMONNAMESPACE_END
