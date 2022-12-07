@@ -718,7 +718,10 @@ Access::CanStall(const char* host)
       regex_t regex;
       if (!regcomp(&regex, rules.c_str(), REG_ICASE | REG_EXTENDED | REG_NOSUB)) {
 	if (!regexec(&regex, host, 0, NULL, 0)) {
+	  regfree(&regex);
 	  return true;
+	} else {
+	  regfree(&regex);
 	}
       }
     }
@@ -731,7 +734,10 @@ Access::CanStall(const char* host)
       regex_t regex;
       if (!regcomp(&regex, rules.c_str(), REG_ICASE | REG_EXTENDED | REG_NOSUB)) {
 	if (!regexec(&regex, host, 0, NULL, 0)) {
+	  regfree(&regex);
 	  return false;
+	} else {
+	  regfree(&regex);
 	}
       }
     }
