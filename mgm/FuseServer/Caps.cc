@@ -228,6 +228,7 @@ std::vector<std::shared_ptr<eos::mgm::FuseServer::Caps::capx>>
     gOFS->MgmStats.Add(suppress_stat_tag.c_str(), 0, 0, n_suppressed);
   }
 
+  regfree(&regex);
   return bccaps;
 }
 
@@ -439,6 +440,8 @@ FuseServer::Caps::BroadcastRefresh(uint64_t inode,
     gOFS->MgmStats.Add("Eosxd::int::BcRefreshSup", 0, 0, n_suppressed);
   }
 
+  regfree(&regex);
+  
   EXEC_TIMING_END("Eosxd::int::BcRefresh");
   return 0;
 }
@@ -568,6 +571,8 @@ FuseServer::Caps::BroadcastMD(const eos::fusex::md& md,
     gOFS->MgmStats.Add("Eosxd::int::BcMDSup", 0, 0, n_suppressed);
   }
 
+  regfree(&regex);
+  
   EXEC_TIMING_END("Eosxd::int::BcMD");
   return 0;
 }
@@ -596,6 +601,7 @@ FuseServer::Caps::Print(const std::string& option,
     out = "error: illegal regular expression ;";
     out += filter.c_str();
     out += "'\n";
+    regfree(&regex);
     return out;
   }
 
@@ -751,6 +757,7 @@ FuseServer::Caps::Print(const std::string& option,
     }
   }
 
+  regfree(&regex);
   return out;
 }
 
