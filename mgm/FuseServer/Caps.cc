@@ -213,11 +213,8 @@ std::vector<std::shared_ptr<eos::mgm::FuseServer::Caps::capx>>
 
     if (suppress) {
       if (regexec(&regex, (*cap)()->clientid().c_str(), 0, NULL, 0) != REG_NOMATCH) {
-	regfree(&regex);
         n_suppressed++;
         continue;
-      } else {
-	regfree(&regex);
       }
     }
 
@@ -228,7 +225,9 @@ std::vector<std::shared_ptr<eos::mgm::FuseServer::Caps::capx>>
     gOFS->MgmStats.Add(suppress_stat_tag.c_str(), 0, 0, n_suppressed);
   }
 
-  regfree(&regex);
+  if (suppress) {
+    regfree(&regex);
+  }
   return bccaps;
 }
 
@@ -422,11 +421,8 @@ FuseServer::Caps::BroadcastRefresh(uint64_t inode,
 
     if (suppress_audience) {
       if (regexec(&regex, (*cap)()->clientid().c_str(), 0, NULL, 0) != REG_NOMATCH) {
-	regfree(&regex);
         n_suppressed++;
         continue;
-      } else {
-	regfree(&regex);
       }
     }
 
@@ -440,7 +436,9 @@ FuseServer::Caps::BroadcastRefresh(uint64_t inode,
     gOFS->MgmStats.Add("Eosxd::int::BcRefreshSup", 0, 0, n_suppressed);
   }
 
-  regfree(&regex);
+  if (suppress_audience) {
+    regfree(&regex);
+  }
   
   EXEC_TIMING_END("Eosxd::int::BcRefresh");
   return 0;
@@ -541,11 +539,8 @@ FuseServer::Caps::BroadcastMD(const eos::fusex::md& md,
 
     if (suppress_audience) {
       if (regexec(&regex, (*cap)()->clientid().c_str(), 0, NULL, 0) != REG_NOMATCH) {
-	regfree(&regex);
         n_suppressed++;
         continue;
-      } else {
-	regfree(&regex);
       }
     }
 
@@ -571,7 +566,9 @@ FuseServer::Caps::BroadcastMD(const eos::fusex::md& md,
     gOFS->MgmStats.Add("Eosxd::int::BcMDSup", 0, 0, n_suppressed);
   }
 
-  regfree(&regex);
+  if (suppress_audience) {
+    regfree(&regex);
+  }
   
   EXEC_TIMING_END("Eosxd::int::BcMD");
   return 0;
@@ -644,12 +641,9 @@ FuseServer::Caps::Print(const std::string& option,
 
       if (filter.size() &&
           (regexec(&regex, match.c_str(), 0, NULL, 0) == REG_NOMATCH)) {
-	regfree(&regex);
         it++;
         continue;
-      } else {
-	regfree(&regex);
-      }
+      } 
 
       out += match.c_str();
       ++it;
@@ -663,10 +657,7 @@ FuseServer::Caps::Print(const std::string& option,
       snprintf(ahex, sizeof(ahex), "%016lx", (unsigned long) it->first);
 
       if (filter.size() && (regexec(&regex, ahex, 0, NULL, 0) == REG_NOMATCH)) {
-	regfree(&regex);
         continue;
-      } else {
-	regfree(&regex);
       }
 
       out += "# i:";
@@ -720,12 +711,9 @@ FuseServer::Caps::Print(const std::string& option,
 
       if (filter.size() &&
           (regexec(&regex, spath.c_str(), 0, NULL, 0) == REG_NOMATCH)) {
-	regfree(&regex);
         continue;
-      } else {
-	regfree(&regex);
       }
-
+      
       char apath[1024];
       out += "# ";
       snprintf(apath, sizeof(apath), "%-80s", spath.c_str());
@@ -757,7 +745,9 @@ FuseServer::Caps::Print(const std::string& option,
     }
   }
 
-  regfree(&regex);
+  if (filter.size()) {
+    regfree(&regex);
+  }
   return out;
 }
 
