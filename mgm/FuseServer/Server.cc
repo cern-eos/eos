@@ -651,18 +651,29 @@ Server::FillContainerCAP(uint64_t id,
       }
     }
 
+    bool same_group=false;
     if (vid.gid == (gid_t) dir.gid()) {
+      same_group=true;
+    } else {
+      if (eos::common::Mapping::gSecondaryGroups) {
+	if (vid.allowed_gids.count(dir.gid())) {
+	  same_group = true;
+	}
+      }
+    }
+    
+    if (same_group) {
       // we apply a mask if we are in the same group
       if (dir.mode() & mask & S_IRGRP) {
-        mode |= R_OK;
+	mode |= R_OK;
       }
-
+      
       if (dir.mode() & mask & S_IWGRP) {
-        mode |= U_OK | W_OK | D_OK | SA_OK | M_OK | SU_OK;
+	mode |= U_OK | W_OK | D_OK | SA_OK | M_OK | SU_OK;
       }
-
+      
       if (dir.mode() & mask & S_IXGRP) {
-        mode |= X_OK;
+	mode |= X_OK;
       }
     }
 
@@ -1009,19 +1020,31 @@ Server::ValidatePERM(const eos::fusex::md& md, const std::string& mode,
     // we want to avoid another id=path translation and unlock lock of the namespace
     eos::IContainerMD::XAttrMap attrmap = cmd->getAttributes();
 
-    if (cmd->access(vid.uid, vid.gid, R_OK)) {
-      r_ok = true;
+    std::set<gid_t> gids;
+    if (eos::common::Mapping::gSecondaryGroups) {
+      gids=vid.allowed_gids;
+    } else {
+      gids.insert(vid.gid);
     }
 
-    if (cmd->access(vid.uid, vid.gid, W_OK)) {
-      w_ok = true;
-      d_ok = true;
+    for (auto g:gids) {
+      if (g < 3) {
+        continue;
+      }
+      if (cmd->access(vid.uid, g, R_OK)) {
+	r_ok = true;
+      }
+      
+      if (cmd->access(vid.uid, g, W_OK)) {
+	w_ok = true;
+	d_ok = true;
+      }
+      
+      if (cmd->access(vid.uid, g, X_OK)) {
+	x_ok = true;
+      }
     }
-
-    if (cmd->access(vid.uid, vid.gid, X_OK)) {
-      x_ok = true;
-    }
-
+    
     vid.scope = path;
     // ACL and permission check
     Acl acl(attrmap, vid);

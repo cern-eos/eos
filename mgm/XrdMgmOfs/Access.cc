@@ -275,17 +275,29 @@ XrdMgmOfs::acc_access(const char* path,
       attr_path = pPath.GetParentPath();
     }
 
-    if (dh->access(vid.uid, vid.gid, R_OK)) {
-      r_ok = true;
+    std::set<gid_t> gids;
+    if (eos::common::Mapping::gSecondaryGroups) {
+      gids=vid.allowed_gids;
+    } else {
+      gids.insert(vid.gid);
     }
 
-    if (dh->access(vid.uid, vid.gid, W_OK)) {
-      w_ok = true;
-      d_ok = true;
-    }
-
-    if (dh->access(vid.uid, vid.gid, X_OK)) {
-      x_ok = true;
+    for (auto g:gids) {
+      if (g < 3) {
+	continue;
+      }
+      if (dh->access(vid.uid, g, R_OK)) {
+	r_ok = true;
+      }
+      
+      if (dh->access(vid.uid, g, W_OK)) {
+	w_ok = true;
+	d_ok = true;
+      }
+      
+      if (dh->access(vid.uid, g, X_OK)) {
+	x_ok = true;
+      }
     }
 
     lock.Release();

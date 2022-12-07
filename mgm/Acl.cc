@@ -223,7 +223,14 @@ Acl::Set(std::string sysacl, std::string useracl, std::string tokenacl,
   memset(denials, 0, sizeof(denials));        /* start with no denials */
   memset(reallows, 0, sizeof(reallows));      /* nor reallows */
 
-  for (const auto& chk_gid : vid.allowed_gids) {
+  std::set<gid_t> gids;
+  if (eos::common::Mapping::gSecondaryGroups) {
+    gids=vid.allowed_gids;
+  } else {
+    gids.insert(vid.gid);
+  }
+    
+  for (const auto& chk_gid : gids) {
     // Only check non-system groups
     if (chk_gid < 3) {
       continue;
