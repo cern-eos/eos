@@ -154,7 +154,6 @@ public:
   // ---------------------------------------------------------------------------
   static GeoLocationMap_t gGeoMap;
 
-
   // ---------------------------------------------------------------------------
   //! Max. subdirectory deepness where anonymous access is allowed
   // ---------------------------------------------------------------------------
@@ -167,15 +166,11 @@ public:
 
   static ShardedCache<std::string, id_pair> gShardedPhysicalUidCache;
   static ShardedCache<std::string, bool> gShardedNegativePhysicalUidCache;
-  // ---------------------------------------------------------------------------
-  //! A cache for physical user id caching (e.g. from user name to uid)
-  static XrdOucHash<id_pair> gPhysicalUidCache;
 
   // ---------------------------------------------------------------------------
   //! A cache for physical group id caching (e.g. from group name to gid)
   // ---------------------------------------------------------------------------
   static ShardedCache<std::string, gid_set> gShardedPhysicalGidCache;
-  static XrdOucHash<gid_set> gPhysicalGidCache;
 
   // ---------------------------------------------------------------------------
   //! A mutex protecting the physical id->name caches
@@ -205,11 +200,6 @@ public:
   static RWMutex gMapMutex;
 
   // ---------------------------------------------------------------------------
-  //! Mutex protecting the active tident map
-  // ---------------------------------------------------------------------------
-  static XrdSysMutex ActiveLock;
-
-  // ---------------------------------------------------------------------------
   //! Cache for host to ip translation used by geo mapping
   // ---------------------------------------------------------------------------
   static ip_cache gIpCache;
@@ -220,11 +210,6 @@ public:
   static OAuth gOAuth;
 
   // ---------------------------------------------------------------------------
-  //! Function to expire unused ActiveTident entries by default after 1 day
-  // ---------------------------------------------------------------------------
-  static void ActiveExpire(int interval = 300, bool force = false);
-
-  // ---------------------------------------------------------------------------
   //! Function initializing static maps
   // ---------------------------------------------------------------------------
   static void Init();
@@ -232,18 +217,12 @@ public:
   // ---------------------------------------------------------------------------
   //! Map storing the client identifiers and last usage time
   // ---------------------------------------------------------------------------
-  static google::dense_hash_map<std::string, time_t> ActiveTidents;
   static ShardedCache<std::string, time_t> ActiveTidentsSharded;
 
   // ---------------------------------------------------------------------------
   //! Map storing the active client uids
   // ---------------------------------------------------------------------------
-  static google::dense_hash_map<uid_t, size_t> ActiveUids;
   static ShardedCache<uid_t, size_t> ActiveUidsSharded;
-  // ---------------------------------------------------------------------------
-  //! Retrieve the user ID from a trace identifier
-  // ---------------------------------------------------------------------------
-  static uid_t UidFromTident(const std::string& tident);
 
   // ---------------------------------------------------------------------------
   //! Get the number of active sessions (for a given uid)
@@ -289,16 +268,6 @@ public:
   //!         'n' for the anonymous access deepness of user nobody
   //----------------------------------------------------------------------------
   static void Print(XrdOucString& stdOut, XrdOucString option = "");
-
-  // ---------------------------------------------------------------------------
-  //! Add physical ids for name
-  // ---------------------------------------------------------------------------
-  static void getPhysicalIds(const char* name, uid_t& uid, gid_t& gid);
-  
-  // ---------------------------------------------------------------------------
-  //! Add physical ids for name to vid
-  // ---------------------------------------------------------------------------
-  static void getPhysicalIds(const char* name, VirtualIdentity& vid);
 
   static void getPhysicalIdShards(const std::string& name, VirtualIdentity& vid);
   // ---------------------------------------------------------------------------

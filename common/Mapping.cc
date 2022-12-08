@@ -58,13 +58,6 @@ int Mapping::gNobodyAccessTreeDeepness(1024);
 
 Mapping::AllowedTidentMatches_t Mapping::gAllowedTidentMatches;
 
-XrdSysMutex Mapping::ActiveLock;
-
-google::dense_hash_map<std::string, time_t> Mapping::ActiveTidents;
-google::dense_hash_map<uid_t, size_t> Mapping::ActiveUids;
-
-XrdOucHash<Mapping::id_pair> Mapping::gPhysicalUidCache;
-
 ShardedCache<std::string, Mapping::id_pair> Mapping::gShardedPhysicalUidCache(8);
 ShardedCache<std::string, Mapping::gid_set> Mapping::gShardedPhysicalGidCache(8);
 ShardedCache<uid_t, std::string> Mapping::gShardedNegativeUserNameCache(8);
@@ -72,8 +65,6 @@ ShardedCache<gid_t, std::string> Mapping::gShardedNegativeGroupNameCache(8);
 ShardedCache<std::string, bool> Mapping::gShardedNegativePhysicalUidCache(8);
 ShardedCache<std::string, time_t> Mapping::ActiveTidentsSharded (16);
 ShardedCache<uid_t, size_t> Mapping::ActiveUidsSharded (16);
-
-XrdOucHash<Mapping::gid_set> Mapping::gPhysicalGidCache;
 
 std::mutex Mapping::gPhysicalUserNameCacheMutex;
 std::mutex Mapping::gPhysicalGroupNameCacheMutex;
@@ -117,11 +108,6 @@ std::once_flag g_cache_map_init;
 void
 Mapping::Init()
 {
-  ActiveTidents.set_empty_key("#__EMPTY__#");
-  ActiveTidents.set_deleted_key("#__DELETED__#");
-  ActiveUids.set_empty_key(2147483646);
-  ActiveUids.set_deleted_key(2147483647);
-
   // allow FUSE client access as root via env variable
   if (getenv("EOS_FUSE_NO_ROOT_SQUASH") &&
       !strcmp("1", getenv("EOS_FUSE_NO_ROOT_SQUASH"))) {
@@ -164,11 +150,6 @@ void
 Mapping::Reset()
 {
   {
-    XrdSysMutexHelper mLock(gPhysicalIdMutex);
-    gPhysicalUidCache.Purge();
-    gPhysicalGidCache.Purge();
-  }
-  {
     std::scoped_lock lock{gPhysicalUserNameCacheMutex, gPhysicalGroupNameCacheMutex};
     gPhysicalGroupNameCache.clear();
     gPhysicalUserNameCache.clear();
@@ -178,54 +159,9 @@ Mapping::Reset()
 
   ActiveTidentsSharded.clear();
   ActiveUidsSharded.clear();
-
-  {
-    XrdSysMutexHelper mLock(ActiveLock);
-    ActiveTidents.clear();
-    ActiveUids.clear();
-  }
 }
 
 
-/*----------------------------------------------------------------------------*/
-/**
- * Expire Active client entries which have not been used since interval
- *
- * @param interval seconds of idle time for expiration
- */
-
-/*----------------------------------------------------------------------------*/
-void
-Mapping::ActiveExpire(int interval, bool force)
-{
-  static time_t expire = 0;
-  // needs to have Active Lock locked
-  time_t now = time(NULL);
-
-  if (force || (now > expire)) {
-    // expire tidents older than interval
-    google::dense_hash_map<std::string, time_t>::iterator it1;
-    google::dense_hash_map<std::string, time_t>::iterator it2;
-
-    for (it1 = Mapping::ActiveTidents.begin();
-         it1 != Mapping::ActiveTidents.end();) {
-      if ((now - it1->second) > interval) {
-        it2 = it1;
-        ++it1;
-        Mapping::ActiveUids.erase(Mapping::UidFromTident(it2->first));
-        Mapping::ActiveTidents.erase(it2);
-      } else {
-        ++it1;
-      }
-    }
-
-    Mapping::ActiveTidents.resize(0);
-    Mapping::ActiveUids.resize(0);
-    expire = now + 1800;
-  }
-}
-
-/*----------------------------------------------------------------------------*/
 /**
  * Map a client to its virtual identity
  *
@@ -1289,188 +1225,6 @@ Mapping::Print(XrdOucString& stdOut, XrdOucString option)
   }
 }
 
-/*----------------------------------------------------------------------------*/
-/**
- * Store the physical Ids for name 
- *
- * @param name user name
- * @param uid/gid pair
- */
-
-/*----------------------------------------------------------------------------*/
-void
-Mapping::getPhysicalIds(const char* name, uid_t& uid, gid_t& gid)
-{
-  VirtualIdentity vid;
-  getPhysicalIds(name, vid);
-  uid = vid.uid;
-  gid = vid.gid;
-}
-
-/*----------------------------------------------------------------------------*/
-/**
- * Store the physical Ids for name in the virtual identity
- *
- * @param name user name
- * @param vid virtual identity to store
- */
-
-/*----------------------------------------------------------------------------*/
-void
-Mapping::getPhysicalIds(const char* name, VirtualIdentity& vid)
-{
-  struct passwd passwdinfo;
-  char buffer[131072];
-
-  if (!name || (strlen(name) == 0)) {
-    return;
-  }
-
-  gid_set* gv;
-  id_pair* id = 0;
-  memset(&passwdinfo, 0, sizeof(passwdinfo));
-  eos_static_debug("find in uid cache %s", name);
-  XrdSysMutexHelper gLock(gPhysicalIdMutex);
-
-  // cache short cut's
-  if (!(id = gPhysicalUidCache.Find(name))) {
-    eos_static_debug("not found in uid cache");
-    XrdOucString sname = name;
-    bool use_pw = true;
-
-    if (sname.length() == 8) {
-      bool known_tident = false;
-
-      if (sname.beginswith("*") || sname.beginswith("~") || sname.beginswith("_")) {
-        known_tident = true;
-        // that is a new base-64 encoded id following the format '*1234567'
-        // where 1234567 is the base64 encoded 42-bit value of 20-bit uid |
-        // 16-bit gid | 6-bit session id.
-        XrdOucString b64name = sname;
-        b64name.erase(0, 1);
-        // Decoden '_' -> '/', '-' -> '+' that was done to ensure the validity
-        // of the XRootD URL.
-        b64name.replace('_', '/');
-        b64name.replace('-', '+');
-        b64name += "=";
-        unsigned long long bituser = 0;
-        char* out = 0;
-        ssize_t outlen;
-
-        if (eos::common::SymKey::Base64Decode(b64name, out, outlen)) {
-          if (outlen <= 8) {
-            memcpy((((char*) &bituser)) + 8 - outlen, out, outlen);
-            eos_static_debug("msg=\"decoded base-64 uid/gid/sid\" val=%llx val=%llx",
-                             bituser, n_tohll(bituser));
-          } else {
-            eos_static_err("msg=\"decoded base-64 uid/gid/sid too long\" len=%d", outlen);
-            delete id;
-            return;
-          }
-
-          bituser = n_tohll(bituser);
-
-          if (out) {
-            free(out);
-          }
-
-          if (id) {
-            delete id;
-          }
-
-          if (sname.beginswith("*") || sname.beginswith("_")) {
-            id = new id_pair((bituser >> 22) & 0xfffff, (bituser >> 6) & 0xffff);
-	    int errc=0;
-	    vid.uid_string = UidToUserName(id->uid, errc);
-          } else {
-            // only user id got forwarded, we retrieve the corresponding group
-            uid_t ruid = (bituser >> 6) & 0xfffffffff;
-            gPhysicalIdMutex.UnLock();
-            struct passwd* pwbufp = 0;
-
-            if (getpwuid_r(ruid, &passwdinfo, buffer, 16384, &pwbufp) || (!pwbufp)) {
-              gPhysicalIdMutex.Lock();
-              return;
-            }
-
-            id = new id_pair(passwdinfo.pw_uid, passwdinfo.pw_gid);
-	    vid.uid_string =passwdinfo.pw_name;
-          }
-
-          eos_static_debug("using base64 mapping %s %d %d", sname.c_str(), id->uid,
-                           id->gid);
-        } else {
-          eos_static_err("msg=\"failed to decoded base-64 uid/gid/sid\" id=%s",
-                         sname.c_str());
-          gPhysicalIdMutex.UnLock();
-          delete id;
-          return;
-        }
-      }
-
-      if (known_tident) {
-        if (gRootSquash && (!id->uid || !id->gid)) {
-          return;
-        }
-
-        vid.uid = id->uid;
-        vid.gid = id->gid;
-        vid.allowed_uids.clear();
-        vid.allowed_uids.insert(vid.uid);
-        vid.allowed_gids.clear();
-        vid.allowed_gids.insert(vid.gid);
-	addSecondaryGroups(vid, vid.uid_string, id->gid);
-        gid_set* gs = new gid_set;
-        *gs = vid.allowed_gids;
-        gPhysicalUidCache.Add(name, id, 3600);
-        eos_static_debug("adding to cache uid=%u gid=%u", id->uid, id->gid);
-        gPhysicalGidCache.Add(name, gs, 3600);
-        use_pw = false;
-      }
-    }
-
-    if (use_pw) {
-      gPhysicalIdMutex.UnLock();
-      struct passwd* pwbufp = 0;
-      {
-        if (getpwnam_r(name, &passwdinfo, buffer, 16384, &pwbufp) || (!pwbufp)) {
-          gPhysicalIdMutex.Lock();
-          return;
-        }
-      }
-      gPhysicalIdMutex.Lock();
-      id = new id_pair(passwdinfo.pw_uid, passwdinfo.pw_gid);
-      gPhysicalUidCache.Add(name, id, 3600);
-      eos_static_debug("adding to cache uid=%u gid=%u", id->uid, id->gid);
-    }
-
-    if (!id) {
-      return;
-    }
-  }
-
-  vid.uid = id->uid;
-  vid.gid = id->gid;
-
-  if ((gv = gPhysicalGidCache.Find(name))) {
-    vid.allowed_uids.insert(id->uid);
-    vid.allowed_gids = *gv;
-    vid.uid = id->uid;
-    vid.gid = id->gid;
-    eos_static_debug("returning uid=%u gid=%u", id->uid, id->gid);
-    return;
-  }
-
-  addSecondaryGroups(vid, vid.uid_string, id->gid);
-
-  // add to the cache
-  gid_set* vec = new uid_set;
-  *vec = vid.allowed_gids;
-  gPhysicalGidCache.Add(name, vec, 3600);
-  return;
-}
-
-/*----------------------------------------------------------------------------*/
 /**
  * Convert uid to user name
  *
@@ -2061,29 +1815,11 @@ Mapping::IsOAuth2Resource(const std::string& resource)
 }
 
 //------------------------------------------------------------------------------
-//! Decode the uid from a trace ID string
-//------------------------------------------------------------------------------
-uid_t
-Mapping::UidFromTident(const std::string& tident)
-{
-  std::vector<std::string> tokens;
-  std::string delimiter = "^";
-  eos::common::StringConversion::Tokenize(tident, tokens, delimiter);
-
-  if (tokens.size()) {
-    return atoi(tokens[0].c_str());
-  }
-
-  return 0;
-}
-
-//------------------------------------------------------------------------------
 //! Return number of active sessions for a given uid
 //------------------------------------------------------------------------------
 size_t
 Mapping::ActiveSessions(uid_t uid)
 {
-  //XrdSysMutexHelper mLock(ActiveLock);
 
   if (auto n = ActiveUidsSharded.retrieve(uid)) {
     return *n;
