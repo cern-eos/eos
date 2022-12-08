@@ -300,7 +300,7 @@ ProcCommand::FuseX()
 
   if (EOS_LOGS_DEBUG)
     eos_debug("result-dump=%s",
-              eos::common::StringConversion::string_to_hex(result).c_str());
+              eos::common::StringConversion::string_to_hex(result.c_str()));
 
   EXEC_TIMING_END("Eosxd::prot::LS");
   return SFS_OK;

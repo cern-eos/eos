@@ -232,7 +232,7 @@ Acl::Set(std::string sysacl, std::string useracl, std::string tokenacl,
     
   for (const auto& chk_gid : gids) {
     // Only check non-system groups
-    if (chk_gid < 3) {
+    if (chk_gid == 0) {
       continue;
     }
 

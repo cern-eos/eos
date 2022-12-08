@@ -283,9 +283,6 @@ XrdMgmOfs::acc_access(const char* path,
     }
 
     for (auto g:gids) {
-      if (g < 3) {
-	continue;
-      }
       if (dh->access(vid.uid, g, R_OK)) {
 	r_ok = true;
       }

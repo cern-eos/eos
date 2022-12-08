@@ -1028,9 +1028,6 @@ Server::ValidatePERM(const eos::fusex::md& md, const std::string& mode,
     }
 
     for (auto g:gids) {
-      if (g < 3) {
-        continue;
-      }
       if (cmd->access(vid.uid, g, R_OK)) {
 	r_ok = true;
       }
