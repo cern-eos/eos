@@ -439,6 +439,63 @@ QuarkFileMD::setMTimeNow()
   setSyncTime(default_ts);
 }
 
+//------------------------------------------------------------------------------
+// Get access time, no locks
+//------------------------------------------------------------------------------
+void
+QuarkFileMD::getATimeNoLock(ctime_t& atime) const
+{
+  (void) memcpy(&atime, mFile.atime().data(), sizeof(ctime_t));
+}
+
+//------------------------------------------------------------------------------
+// Get access time
+//------------------------------------------------------------------------------
+void
+QuarkFileMD::getATime(ctime_t& atime) const
+{
+  std::shared_lock<std::shared_timed_mutex> lock(mMutex);
+  getATimeNoLock(atime);
+}
+
+//------------------------------------------------------------------------------
+// Set access time
+//------------------------------------------------------------------------------
+void
+QuarkFileMD::setATime(ctime_t atime)
+{
+  std::unique_lock<std::shared_timed_mutex> lock(mMutex);
+  mFile.set_atime(&atime, sizeof(atime));
+}
+
+//------------------------------------------------------------------------------
+// Set access time to now
+//------------------------------------------------------------------------------
+
+bool
+QuarkFileMD::setATimeNow(uint64_t olderthan)
+{
+  struct timespec tnow;
+  struct timespec atime;
+#ifdef __APPLE__
+  struct timeval tv;
+  gettimeofday(&tv, 0);
+  tnow.tv_sec = tv.tv_sec;
+  tnow.tv_nsec = tv.tv_usec * 1000;
+#else
+  clock_gettime(CLOCK_REALTIME, &tnow);
+#endif
+  getATime(atime);
+  // only set the atime if it is older than olderthan
+  if ((olderthan) && ((tnow.tv_sec - atime.tv_sec) >= (time_t) olderthan)) {
+    setATime(tnow);
+    return true;
+  } else {
+    return false;
+  }
+}
+
+
 /* SyncTime: whenever the file is changed, SyncTime becomes MTime. It is only
  * when mtime is set explicitely that the two diverge. Hence. the logic
  * here is that if SyncTime is 0, use MTime. And reset SyncTime to

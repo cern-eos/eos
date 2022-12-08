@@ -406,6 +406,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
   EXEC_TIMING_BEGIN("Open");
   XrdOucString spath = inpath;
   XrdOucString sinfo = ininfo;
+
   SetLogId(logId, tident);
   {
     EXEC_TIMING_BEGIN("IdMap");
@@ -1546,7 +1547,8 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
   std::string iotype;
   bool schedule = false;
   bool is_local = false;
-
+  uint64_t atimeage=0;
+  
   if (openOpaque->Get("localconfig")) {
     is_local = true;
   }
@@ -1555,7 +1557,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
   COMMONTIMING("Policy::begin", &tm);
   Policy::GetLayoutAndSpace(path, attrmap, vid, new_lid, space, *openOpaque,
                             forcedFsId, forced_group, bandwidth, schedule, ioprio, iotype, isRW, true,
-                            is_local);
+                            is_local, &atimeage);
   COMMONTIMING("Policy::end", &tm);
 
   // do a local redirect here if there is only one replica attached
@@ -1620,6 +1622,27 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
     capability += iotype.c_str();
   }
 
+  if (fmd && atimeage) {
+    static std::set<std::string> skip_tag {"balancer", "groupdrainer", "groupbalancer", "geobalancer", "drainer", "converter" "fsck"};
+    if (app_name.empty() || (skip_tag.find(app_name) == skip_tag.end())) {
+      // do a potential atime update, we don't need a name
+      try {
+	if (fmd->setATimeNow(atimeage)) {
+	  gOFS->eosView->updateFileStore(fmd.get());
+	}
+      } catch (eos::MDException& e) {
+	errno = e.getErrno();
+	std::string errmsg = e.getMessage().str();
+	eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
+		  e.getErrno(), e.getMessage().str().c_str());
+	gOFS->MgmStats.Add("OpenFailedQuota", vid.uid, vid.gid, 1);
+	return Emsg(epname, error, errno, "open file and update atime for reading", errmsg.c_str());
+      }
+    }
+  }
+
+
+  
   // get placement policy
   Policy::GetPlctPolicy(path, attrmap, vid, *openOpaque, plctplcy, targetgeotag);
   unsigned long long ext_mtime_sec = 0;
@@ -1728,6 +1751,8 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
         char btime[256];
         snprintf(btime, sizeof(btime), "%lu.%lu", ctime.tv_sec, ctime.tv_nsec);
         fmd->setAttribute("sys.eos.btime", btime);
+      } else {
+	fmd->setATimeNow(0);
       }
 
       // if specified set an external temporary ETAG
@@ -3157,47 +3182,6 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
     eos_info("op=read path=%s info=%s %s redirection=%s xrd_port=%d "
              "http_port=%d", path, pinfo.c_str(), infolog.c_str(),
              predirectionhost.c_str(), targetport, targethttpport);
-  }
-
-  if (attrmap.count("sys.force.atime")) {
-    // -------------------------------------------------------------------------
-    // we are supposed to track the access time of a file.
-    // since we don't have an atime field we use the change time of the file
-    // we only update the atime if the current atime is older than the age
-    // value given by the attribute
-    // -------------------------------------------------------------------------
-    static std::set<std::string> skip_tag {"balancer", "drainer", "converter" "fsck"};
-
-    if (app_name.empty() || (skip_tag.find(app_name) == skip_tag.end())) {
-      // we are supposed to update the change time with the access since this
-      // is any kind of external access
-      time_t now = time(nullptr);
-      XrdOucString sage = attrmap["sys.force.atime"].c_str();
-      time_t age = eos::common::StringConversion::GetSizeFromString(sage);
-      eos::Prefetcher::prefetchFileMDAndWait(gOFS->eosView, path);
-      eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
-
-      try {
-        fmd = gOFS->eosView->getFile(path);
-        eos::IFileMD::ctime_t ctime;
-        fmd->getCTime(ctime);
-
-        if ((ctime.tv_sec + age) < now) {
-          // only update within the resolution of the access tracking
-          fmd->setCTimeNow();
-          gOFS->eosView->updateFileStore(fmd.get());
-          eos::FileIdentifier fmd_id = fmd->getIdentifier();
-          lock.Release();
-          gOFS->FuseXCastFile(fmd_id);
-        }
-
-        errno = 0;
-      } catch (eos::MDException& e) {
-        errno = e.getErrno();
-        eos_warning("msg=\"failed to update access time\" path=\"%s\" ec=%d emsg=\"%s\"\n",
-                    path, e.getErrno(), e.getMessage().str().c_str());
-      }
-    }
   }
 
   EXEC_TIMING_END("Open");

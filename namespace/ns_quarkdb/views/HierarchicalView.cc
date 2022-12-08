@@ -452,6 +452,7 @@ QuarkHierarchicalView::createFile(const std::string& uri, uid_t uid, gid_t gid, 
   file->setCUid(uid);
   file->setCGid(gid);
   file->setCTimeNow();
+  file->setATimeNow(0);
   file->setMTimeNow();
   file->clearChecksum(0);
   parent->addFile(file.get());

@@ -437,6 +437,7 @@ Server::FillFileMD(uint64_t inode, eos::fusex::md& file,
   std::shared_ptr<eos::IFileMD> fmd, gmd;
   eos::IFileMD::ctime_t ctime;
   eos::IFileMD::ctime_t mtime;
+  eos::IFileMD::ctime_t atime;
   uint64_t clock = 0;
 
   if (EOS_LOGS_DEBUG) eos_debug("file-inode=%llx file-id=%llx", inode,
@@ -465,6 +466,7 @@ Server::FillFileMD(uint64_t inode, eos::fusex::md& file,
     /* fmd = link target file, gmd = link file */
     fmd->getCTime(ctime);
     fmd->getMTime(mtime);
+    fmd->getATime(atime);
     file.set_md_ino(eos::common::FileId::FidToInode(gmd->getId()));
     file.set_md_pino(fmd->getContainerId());
     file.set_ctime(ctime.tv_sec);
@@ -473,8 +475,8 @@ Server::FillFileMD(uint64_t inode, eos::fusex::md& file,
     file.set_mtime_ns(mtime.tv_nsec);
     file.set_btime(ctime.tv_sec);
     file.set_btime_ns(ctime.tv_nsec);
-    file.set_atime(mtime.tv_sec);
-    file.set_atime_ns(mtime.tv_nsec);
+    file.set_atime(atime.tv_sec);
+    file.set_atime_ns(atime.tv_nsec);
     file.set_size(fmd->getSize());
     file.set_uid(fmd->getCUid());
     file.set_gid(fmd->getCGid());

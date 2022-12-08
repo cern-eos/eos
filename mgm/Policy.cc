@@ -80,6 +80,7 @@ Policy::GetSpacePolicyLayout(const char* space)
   std::string iopriority;
   std::string iotype;
   bool isrw = false; // does not matter
+  uint64_t atimeage = 0; // does not matter
   eos::IContainerMD::XAttrMap attrmap;
   eos::common::VirtualIdentity rootvid = eos::common::VirtualIdentity::Root();
   GetLayoutAndSpace("/",
@@ -95,7 +96,8 @@ Policy::GetSpacePolicyLayout(const char* space)
                     iopriority,
                     iotype,
                     isrw,
-                    true);
+                    true,
+		    &atimeage);
   return layoutid;
 }
 
@@ -114,7 +116,8 @@ Policy::GetLayoutAndSpace(const char* path,
                           std::string& iotype,
                           bool rw,
                           bool lockview,
-                          bool is_local)
+                          bool is_local,
+			  uint64_t* atimeage)
 {
   eos::common::RWMutexReadLock lock;
   // this is for the moment only defaulting or manual selection
@@ -130,6 +133,8 @@ Policy::GetLayoutAndSpace(const char* path,
   bool conversion = IsProcConversion(path);
   std::map<std::string, std::string> spacepolicies;
   std::map<std::string, std::string> spacerwpolicies;
+  std::string satime;
+  
   RWParams rwparams {vid.uid_string, vid.gid_string,
                      eos::common::XrdUtils::GetEnv(env, "eos.app", "default"),
                      rw, is_local
@@ -157,6 +162,7 @@ Policy::GetLayoutAndSpace(const char* path,
         it->second->GetConfigMembers(policy_rw_keys,
                                      spacerwpolicies);
       }
+      satime = it->second->GetConfigMember("atime");
     } // FSView default
 
     if (lockview) {
@@ -211,6 +217,7 @@ Policy::GetLayoutAndSpace(const char* path,
         it->second->GetConfigMembers(policy_rw_keys,
                                      spacerwpolicies);
       }
+      satime = it->second->GetConfigMember("atime");
     } // FsView;
 
     if (lockview) {
@@ -420,6 +427,10 @@ Policy::GetLayoutAndSpace(const char* path,
     } else {
       forcedfsid = eos::common::XrdUtils::GetEnv(env, "eos.force.fsid", 0l);
     }
+  }
+
+  if (satime.length() && atimeage) {
+    *atimeage = std::stoull(satime.c_str(),0,10);
   }
 
   layoutId = eos::common::LayoutId::GetId(layout, xsum, stripes, blocksize,

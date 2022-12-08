@@ -359,8 +359,10 @@ ProcCommand::FileInfo(const char* path)
           eos::IFileMD::ctime_t mtime;
           eos::IFileMD::ctime_t ctime;
           eos::IFileMD::ctime_t btime {0, 0};
+          eos::IFileMD::ctime_t atime {0, 0};
           fmd_copy->getCTime(ctime);
           fmd_copy->getMTime(mtime);
+	  fmd_copy->getATime(atime);
 
           if (xattrs.count("sys.eos.btime")) {
             Timing::Timespec_from_TimespecStr(xattrs["sys.eos.btime"], btime);
@@ -369,6 +371,7 @@ ProcCommand::FileInfo(const char* path)
           time_t filectime = (time_t) ctime.tv_sec;
           time_t filemtime = (time_t) mtime.tv_sec;
           time_t filebtime = (time_t) btime.tv_sec;
+	  time_t fileatime = (time_t) atime.tv_sec;
           std::string etag, xs_spaces;
           eos::calculateEtag(fmd_copy.get(), etag);
           eos::appendChecksumOnStringAsHex(fmd_copy.get(), xs_spaces, ' ');
@@ -394,6 +397,10 @@ ProcCommand::FileInfo(const char* path)
                 << "Change: " << eos::common::Timing::ltime(filectime)
                 << " Timestamp: " << eos::common::Timing::TimespecToString(ctime)
                 << std::endl
+		<< "Access: " << eos::common::Timing::ltime(fileatime)
+                << " Timestamp: " << eos::common::Timing::TimespecToString(atime)
+                << std::endl
+
                 << " Birth: " << eos::common::Timing::ltime(filebtime)
                 << " Timestamp: " << eos::common::Timing::TimespecToString(btime)
                 << std::endl
@@ -447,6 +454,7 @@ ProcCommand::FileInfo(const char* path)
                 << " mtime=" << mtime.tv_sec << "." << mtime.tv_nsec
                 << " ctime=" << ctime.tv_sec << "." << ctime.tv_nsec
                 << " btime=" << btime.tv_sec << "." << btime.tv_nsec
+		<< " atime=" << atime.tv_sec << "." << atime.tv_nsec
                 << " clock=" << clock
                 << " mode=" << StringConversion::IntToOctal((int) fmd_copy->getFlags(), 4)
                 << " uid=" << fmd_copy->getCUid()
@@ -871,6 +879,7 @@ ProcCommand::FileJSON(uint64_t fid, Json::Value* ret_json, bool dolock)
 {
   eos::IFileMD::ctime_t ctime;
   eos::IFileMD::ctime_t mtime;
+  eos::IFileMD::ctime_t atime {0, 0};
   eos::IFileMD::ctime_t btime {0, 0};
   eos_static_debug("msg=\"JSON fileinfo\" fxid=%08llx", fid);
   Json::Value json;
@@ -916,6 +925,7 @@ ProcCommand::FileJSON(uint64_t fid, Json::Value* ret_json, bool dolock)
     //--------------------------------------------------------------------------
     fmd_copy->getCTime(ctime);
     fmd_copy->getMTime(mtime);
+    fmd_copy->getATime(atime);
     unsigned long long nlink = (fmd_copy->isLink()) ? 1 :
                                fmd_copy->getNumLocation();
     eos::IFileMD::XAttrMap xattrs = fmd_copy->getAttributes();
@@ -933,8 +943,8 @@ ProcCommand::FileJSON(uint64_t fid, Json::Value* ret_json, bool dolock)
     json["inode"] = (Json::Value::UInt64) eos::common::FileId::FidToInode(fid);
     json["ctime"] = (Json::Value::UInt64) ctime.tv_sec;
     json["ctime_ns"] = (Json::Value::UInt64) ctime.tv_nsec;
-    json["atime"] = (Json::Value::UInt64) ctime.tv_sec;
-    json["atime_ns"] = (Json::Value::UInt64) ctime.tv_nsec;
+    json["atime"] = (Json::Value::UInt64) atime.tv_sec;
+    json["atime_ns"] = (Json::Value::UInt64) atime.tv_nsec;
     json["mtime"] = (Json::Value::UInt64) mtime.tv_sec;
     json["mtime_ns"] = (Json::Value::UInt64) mtime.tv_nsec;
     json["btime"] = (Json::Value::UInt64) btime.tv_sec;

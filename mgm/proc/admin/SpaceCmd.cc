@@ -1036,6 +1036,17 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config,
     }
   }
 
+  if (!key.compare(0, 5, "atime")) {
+    applied = true;
+    if (!space->SetConfigMember(key, value)) {
+      ret_c = EIO;
+      std_err.str("error: cannot set space config value");
+      } else {
+      std_out.str("success: defining space acces time tracking: " + key + "=" +
+		  value);
+    }
+  }
+  
   // Set a bandwidth limitation parameter
   if (!key.compare(0, 3, "bw.")) {
     applied = true;

@@ -61,7 +61,8 @@ public:
                                 std::string& ioptype,
                                 bool isrw,
                                 bool lock_view = false,
-                                bool is_local = true);
+                                bool is_local = true,
+				uint64_t* atimeage = 0);
 
   static void GetPlctPolicy(const char* path,
                             eos::IContainerMD::XAttrMap& map,
