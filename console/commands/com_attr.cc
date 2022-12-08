@@ -499,8 +499,6 @@ com_attr_usage:
   fprintf(stdout,
           "         sys.allow.oc.sync=1                   : if present, OwnCloud clients can sync pointing to this subtree\n");
   // ---------------------------------------------------------------------------
-  fprintf(stdout,
-          "         sys.force.atime=<age>                 : enables atime tagging under that directory. <age> is the minimum age before the access time is stored as change time.\n");
   fprintf(stdout, "\n");
   fprintf(stdout,
           "         sys.lru.expire.empty=<age>            : delete empty directories older than <age>\n");
@@ -675,8 +673,6 @@ com_attr_usage:
           "     |eos> quota set -g 99 -v 1T /eos/instance/cache/                           # define project quota on the cache\n");
   fprintf(stdout,
           "     |eos> attr set sys.lru.watermark=90:95  /eos/instance/cache/               # define 90 as low and 95 as high watermark\n");
-  fprintf(stdout,
-          "     |eos> attr set sys.force.atime=300 /eos/dev/instance/cache/                # track atime with a time resolution of 5 minutes\n");
   fprintf(stdout, "\n");
   fprintf(stdout,
           "--------------------------------------------------------------------------------\n");
@@ -709,8 +705,6 @@ com_attr_usage:
           "--------------------------------------------------------------------------------\n");
   fprintf(stdout,
           "- configure automatic layout conversion if a file has not been used during the last 6 month ...\n");
-  fprintf(stdout,
-          "     |eos> attr set sys.force.atime=1w /eos/dev/instance/cache/                   # track atime with a time resolution of one week\n");
   fprintf(stdout,
           "     |eos> attr set sys.lru.convert.match=\"*:6mo\" /eos/dev/instance/convert/    # convert all files older than a month to the layout defined next\n");
   fprintf(stdout,
