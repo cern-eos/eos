@@ -203,7 +203,10 @@ FmdAttrHandler::LocalGetFmd(eos::common::FileId::fileid_t fid,
       eos_crit("msg=\"mismatch between requested fid/fsid and retrieved ones\" "
                "fxid=%08llx retrieved_fxid=%08llx fsid=%lu retrieved_fsid=%lu",
                fid, fmd->mProtoFmd.fid(), fsid, fmd->mProtoFmd.fsid());
-      return nullptr;
+
+      if (!force_retrieve) {
+        return nullptr;
+      }
     }
 
     if (force_retrieve) {
