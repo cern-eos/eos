@@ -695,6 +695,8 @@ CommitHelper::handle_versioning(eos::common::VirtualIdentity& vid,
     std::shared_ptr<eos::IContainerMD> dir;
     std::shared_ptr<eos::IContainerMD> versiondir;
     std::shared_ptr<eos::IFileMD> versionfmd;
+    eos::IFileMD::XAttrMap attrmapF;
+
     dir = gOFS->eosView->getContainer(paths["versiondir"].GetParentPath());
     fmd = gOFS->eosFileService->getFileMD(fid);
 
@@ -713,6 +715,8 @@ CommitHelper::handle_versioning(eos::common::VirtualIdentity& vid,
         dir->removeFile(paths["atomic"].GetName());
         versionfmd->setName(paths["version"].GetName());
         versionfmd->setContainerId(versiondir->getId());
+	attrmapF = versionfmd->getAttributes();
+
         versiondir->addFile(versionfmd.get());
         versiondir->setMTimeNow();
         gOFS->eosView->updateFileStore(versionfmd.get());
@@ -729,6 +733,13 @@ CommitHelper::handle_versioning(eos::common::VirtualIdentity& vid,
         fmd->setCUid(versionfmd->getCUid());
         fmd->setCGid(versionfmd->getCGid());
         fmd->setFlags(versionfmd->getFlags());
+
+	static std::set<std::string> skip_tag {"sys.eos.btime", "sys.fs.tracking", "sys.utrace", "sys.vtrace", "sys.tmp.atomic"};
+	for (const auto& xattr : attrmapF) {
+	  if (skip_tag.find(xattr.first) == skip_tag.end()) {
+	    fmd->setAttribute(xattr.first, xattr.second);
+	  }
+	}
         gOFS->eosView->updateFileStore(fmd.get());
       } catch (eos::MDException& e) {
         errno = e.getErrno();
