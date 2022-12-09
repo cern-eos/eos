@@ -47,10 +47,51 @@ enum class fmd_handler_t {
 class FmdHandler: public eos::common::LogId
 {
 public:
+
+  //----------------------------------------------------------------------------
+  //! Reset the disk checksums from a given string
+  //!
+  //! @param input a string that can serialize to FmdProtobuf object
+  //!
+  //! @return string value after resetting info or an empty string if
+  //!         serialization fails
+  //----------------------------------------------------------------------------
+  static std::string ResetFmdDiskInfo(const std::string& input);
+
+  //----------------------------------------------------------------------------
+  //! Reset the mgm checksums from a given string
+  //!
+  //! @param input a string that can serialize to FmdProtobuf object
+  //!
+  //! @return string value after resetting info or an empty string if
+  //!         serialization fails
+  //----------------------------------------------------------------------------
+  static std::string ResetFmdMgmInfo(const std::string& input);
+
+  //----------------------------------------------------------------------------
+  //! Move given file to orphans directory and also set its extended attribute
+  //! to reflect the original path to the file.
+  //!
+  //! @param fpath file to move
+  //----------------------------------------------------------------------------
+  static void MoveToOrphans(const std::string& fpath);
+
+
+  //----------------------------------------------------------------------------
+  //! Constructor
+  //----------------------------------------------------------------------------
   FmdHandler() = default;
+
+  //----------------------------------------------------------------------------
+  //! Destructor
+  //----------------------------------------------------------------------------
   virtual ~FmdHandler() = default;
 
-  virtual fmd_handler_t get_type() = 0;
+  //----------------------------------------------------------------------------
+  //! Get type of Fmd handler
+  //----------------------------------------------------------------------------
+  virtual fmd_handler_t GetType() = 0;
+
   //----------------------------------------------------------------------------
   //! Check if entry has a file checksum error
   //!
@@ -253,12 +294,18 @@ public:
                                 eos::common::FileSystem::fsid_t fsid);
 
   //----------------------------------------------------------------------------
-  //! Move given file to orphans directory and also set its extended attribute
-  //! to reflect the original path to the file.
+  //! Update file metadata object with new fid information
   //!
-  //! @param fpath file to move
+  //! @param path full path to file
+  //! @param fid new file identifier
+  //!
+  //! @return true if succesful, otherwise false
   //----------------------------------------------------------------------------
-  static void MoveToOrphans(const std::string& fpath);
+  virtual bool UpdateFmd(const std::string& path,
+                         eos::common::FileId::fileid_t fid)
+  {
+    return true;
+  }
 
   // A shutdown/cleanup routine for the specific handler, meant to be overriden
   // if the class handles some objects needing cleanup
@@ -302,22 +349,6 @@ public:
                            FmdHandler* const src_fmd_handler,
                            bool lock_it,
                            std::string* path);
-
-  //----------------------------------------------------------------------------
-  //! Reset the disk checksums from a given string
-  //! \param input a string that can serialize to FmdProtobuf object
-  //! \return string value after resetting info or an empty string if serialization
-  //! fails
-  //----------------------------------------------------------------------------
-  static std::string ResetFmdDiskInfo(const std::string& input);
-
-  //----------------------------------------------------------------------------
-  //! Reset the mgm checksums from a given string
-  //! \param input a string that can serialize to FmdProtobuf object
-  //! \return string value after resetting info or an empty string if serialization
-  //! fails
-  //----------------------------------------------------------------------------
-  static std::string ResetFmdMgmInfo(const std::string& input);
 
 private:
 

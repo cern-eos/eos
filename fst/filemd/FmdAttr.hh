@@ -22,24 +22,35 @@
  ************************************************************************/
 
 #pragma once
+#include "fst/Namespace.hh"
 #include "fst/filemd/FmdHandler.hh"
 
-namespace eos::fst
-{
+EOSFSTNAMESPACE_BEGIN
 
+//! Forward declarations
 class FSPathHandler;
-
 class FileIo;
 
+//------------------------------------------------------------------------------
+//! Class FmdAttrHandler
+//----------------------------------------------------------------------------
 class FmdAttrHandler final: public FmdHandler
 {
 public:
-  // We don't maintain any local other than the mutexes held by the parent class
-  ~FmdAttrHandler() = default;
-
+  //----------------------------------------------------------------------------
+  //! Constructor
+  //----------------------------------------------------------------------------
   FmdAttrHandler(std::unique_ptr<FSPathHandler>&& _FSPathHandler);
 
-  fmd_handler_t get_type() override
+  //----------------------------------------------------------------------------
+  //! Destructor
+  //----------------------------------------------------------------------------
+  ~FmdAttrHandler() = default;
+
+  //----------------------------------------------------------------------------
+  //! Get type of Fmd handler
+  //----------------------------------------------------------------------------
+  fmd_handler_t GetType() override
   {
     return fmd_handler_t::ATTR;
   }
@@ -72,11 +83,21 @@ public:
   std::pair<bool, eos::common::FmdHelper>
   LocalRetrieveFmd(eos::common::FileId::fileid_t fid,
                    eos::common::FileSystem::fsid_t fsid,
-                   std::string* path=nullptr) override;
+                   std::string* path = nullptr) override;
 
   std::pair<bool, eos::common::FmdHelper>
   LocalRetrieveFmd(const std::string& path);
 
+  //----------------------------------------------------------------------------
+  //! Update file metadata object with new fid information
+  //!
+  //! @param path full path to file
+  //! @param fid new file identifier
+  //!
+  //! @return true if succesful, otherwise false
+  //----------------------------------------------------------------------------
+  bool UpdateFmd(const std::string& path,
+                 eos::common::FileId::fileid_t fid) override;
 
 private:
   std::unique_ptr<FSPathHandler> mFSPathHandler;
@@ -106,4 +127,4 @@ private:
 
 static constexpr auto gFmdAttrName = "user.eos.fmd";
 
-} // namespace eos::fst
+EOSFSTNAMESPACE_END
