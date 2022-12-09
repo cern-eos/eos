@@ -63,11 +63,13 @@ public:
     mFsMtxMap.clear();
   }
 
-  fmd_handler_t get_type() override
+  //----------------------------------------------------------------------------
+  //! Get type of Fmd handler
+  //----------------------------------------------------------------------------
+  fmd_handler_t GetType() override
   {
     return fmd_handler_t::DB;
   }
-
 
   //----------------------------------------------------------------------------
   //! Set a new DB file for a filesystem id
@@ -298,7 +300,7 @@ public:
   std::pair<bool, eos::common::FmdHelper>
   LocalRetrieveFmd(eos::common::FileId::fileid_t fid,
                    eos::common::FileSystem::fsid_t fsid,
-                   std::string* path=nullptr) override;
+                   std::string* path = nullptr) override;
 
 private:
   std::map<eos::common::FileSystem::fsid_t, eos::common::DbMap*> mDbMap;

@@ -1,16 +1,40 @@
+//------------------------------------------------------------------------------
+//! @file FmdAttr.hh
+//! @author Abhishek Lekshmanan - CERN
+//------------------------------------------------------------------------------
+
+/************************************************************************
+ * EOS - the CERN Disk Storage System                                   *
+ * Copyright (C) 2022 CERN/Switzerland                                  *
+ *                                                                      *
+ * This program is free software: you can redistribute it and/or modify *
+ * it under the terms of the GNU General Public License as published by *
+ * the Free Software Foundation, either version 3 of the License, or    *
+ * (at your option) any later version.                                  *
+ *                                                                      *
+ * This program is distributed in the hope that it will be useful,      *
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of       *
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the        *
+ * GNU General Public License for more details.                         *
+ *                                                                      *
+ * You should have received a copy of the GNU General Public License    *
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
+ ************************************************************************/
+
 #include "FmdAttr.hh"
+#include "FmdHandler.hh"
 #include "fst/io/local/FsIo.hh"
 #include "fst/XrdFstOfs.hh"
 #include "fst/utils/FTSWalkTree.hh"
 #include "fst/utils/FSPathHandler.hh"
 #include "fst/utils/TransformAttr.hh"
-#include "FmdHandler.hh"
 #include <functional>
 
-namespace eos::fst
-{
+EOSFSTNAMESPACE_BEGIN
 
-
+//------------------------------------------------------------------------------
+// Constructor
+//------------------------------------------------------------------------------
 FmdAttrHandler::FmdAttrHandler(std::unique_ptr<FSPathHandler>&& _FSPathHandler)
   : mFSPathHandler(std::move(_FSPathHandler))
 {}
@@ -24,8 +48,8 @@ FmdAttrHandler::LocalRetrieveFmd(const std::string& path)
   int result = localIo.attrGet(gFmdAttrName, attrval);
 
   if (result != 0) {
-    eos_err("Failed to Retrieve Fmd Attribute at path:%s, errno=%d", path.c_str(),
-            errno);
+    eos_err("msg=\"failed to retrieve fmd attribute\" path=\"%s\" errno=%d",
+            path.c_str(), errno);
     return {false, eos::common::FmdHelper{}};
   }
 
@@ -33,7 +57,7 @@ FmdAttrHandler::LocalRetrieveFmd(const std::string& path)
   bool status = fmd.mProtoFmd.ParsePartialFromString(attrval);
 
   if (!status) {
-    eos_err("msg=\"Failed Parsing attrval\" attrval_sz=%lu", attrval.size());
+    eos_err("msg=\"failed parsing fmd attribute\" attr_sz=%lu", attrval.size());
   }
 
   return {status, std::move(fmd)};
@@ -66,8 +90,8 @@ FmdAttrHandler::LocalPutFmd(const std::string& path,
   int rc = CreateFile(&localio);
 
   if (rc != 0) {
-    eos_err("msg=\"failed to create file\" path=\"%s\" rc=%d", path.c_str()
-            , rc);
+    eos_err("msg=\"failed to create file\" path=\"%s\" rc=%d",
+            path.c_str(), rc);
     return false;
   }
 
@@ -76,8 +100,8 @@ FmdAttrHandler::LocalPutFmd(const std::string& path,
   rc = localio.attrSet(gFmdAttrName, attrval.c_str(), attrval.length());
 
   if (rc != 0) {
-    eos_err("msg=\"failed to set xattr\" path=\"%s\" errno=%d", path.c_str(),
-            errno);
+    eos_err("msg=\"failed to set xattr\" path=\"%s\" errno=%d",
+            path.c_str(), errno);
   }
 
   return rc == 0;
@@ -117,6 +141,7 @@ FmdAttrHandler::LocalRetrieveFmd(eos::common::FileId::fileid_t fid,
   if (path != nullptr) {
     return LocalRetrieveFmd(*path);
   }
+
   return LocalRetrieveFmd(mFSPathHandler->GetPath(fid, fsid));
 }
 
@@ -147,9 +172,11 @@ FmdAttrHandler::Commit(eos::common::FmdHelper* fmd, bool lockit,
   fmd->mProtoFmd.set_atime(tv.tv_sec);
   fmd->mProtoFmd.set_mtime_ns(tv.tv_usec * 1000);
   fmd->mProtoFmd.set_atime_ns(tv.tv_usec * 1000);
+
   if (path != nullptr) {
     return LocalPutFmd(*path, *fmd);
   }
+
   return LocalPutFmd(fmd->mProtoFmd.fid(), fmd->mProtoFmd.fsid(),
                      *fmd);
 }
@@ -174,7 +201,7 @@ FmdAttrHandler::LocalGetFmd(eos::common::FileId::fileid_t fid,
 
     if ((fmd->mProtoFmd.fid() != fid) || (fmd->mProtoFmd.fsid() != fsid)) {
       eos_crit("msg=\"mismatch between requested fid/fsid and retrieved ones\" "
-               "fid=%08llx retrieved_fid=%08llx fsid=%lu retrieved_fsid=%lu",
+               "fxid=%08llx retrieved_fxid=%08llx fsid=%lu retrieved_fsid=%lu",
                fid, fmd->mProtoFmd.fid(), fsid, fmd->mProtoFmd.fsid());
       return nullptr;
     }
@@ -315,4 +342,21 @@ FmdAttrHandler::ResetMgmInformation(eos::common::FileSystem::fsid_t fsid)
   return !ec;
 }
 
-} // namespace eos::fst
+//------------------------------------------------------------------------------
+// Update file metadata object with new fid information
+//------------------------------------------------------------------------------
+bool
+FmdAttrHandler::UpdateFmd(const std::string& path,
+                          eos::common::FileId::fileid_t fid)
+{
+  auto [status, fmd] = LocalRetrieveFmd(path);
+
+  if (!status) {
+    return false;
+  }
+
+  fmd.mProtoFmd.set_fid(fid);
+  return LocalPutFmd(path, fmd);
+}
+
+EOSFSTNAMESPACE_END

@@ -447,13 +447,13 @@ add_executable(eos-filemd-convert
   filemd/FmdAttr.cc
   filemd/FmdConverter.cc
   filemd/FmdMgm.cc
-  utils/FSPathHandler.cc
-  )
+  utils/FSPathHandler.cc)
 
 target_link_libraries(eos-filemd-convert PRIVATE
- EosFstIo EosCommonServer stdc++fs
-  XrdEosFst-Static
- )
+  EosFstIo
+  EosCommonServer
+  stdc++fs
+  XrdEosFst-Static)
 
 install(PROGRAMS
   tools/eosfstregister

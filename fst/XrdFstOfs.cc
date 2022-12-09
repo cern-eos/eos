@@ -1652,6 +1652,15 @@ XrdFstOfs::FSctl(const int cmd, XrdSfsFSctl& args, XrdOucErrInfo& error,
                        old_path.c_str(), new_path.c_str(), errno);
         return gOFS.Emsg(epname, error, EEXIST, "do local rename", "");
       } else {
+        // Update the filemd info to point to the origianl file identifier
+        if (!mFmdHandler->UpdateFmd(new_path, new_fid)) {
+          eos_static_err("msg=\"failed to update fid for the fmd object\" "
+                         "path=%s new_fid=%08llx", new_path.c_str(), new_fid);
+          // Clean up the file on disk
+          (void) unlink(new_path.c_str());
+          return gOFS.Emsg(epname, error, EEXIST, "do local rename", "");
+        }
+
         if (!ns_path.empty()) {
           // Update the user.eos.lfn attribute to point to the original
           // namespace file name
@@ -2766,7 +2775,7 @@ XrdFstOfs::SetXrdClTimeouts()
 bool XrdFstOfs::FmdOnDb() const
 {
   return ((mFmdHandler != nullptr) &&
-          (mFmdHandler->get_type() == fmd_handler_t::DB));
+          (mFmdHandler->GetType() == fmd_handler_t::DB));
 }
 
 EOSFSTNAMESPACE_END
