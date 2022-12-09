@@ -2166,7 +2166,7 @@ XrdFstOfs::HandleResync(XrdOucEnv& env, XrdOucErrInfo& err_obj)
                              gOFS.Storage->GetStoragePath(fsid).c_str());
 
         if (mFmdHandler->ResyncDisk(fpath.c_str(), fsid, false) == 0) {
-          if (mFmdHandler->ResyncMgm(fsid, fid, nullptr)) {
+          if (!mFmdHandler->ResyncMgm(fsid, fid, nullptr)) {
             eos_static_err("msg=\"resync mgm failed\" fid=%08llx fsid=%lu",
                            fid, fsid);
           }
