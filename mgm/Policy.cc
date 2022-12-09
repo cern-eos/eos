@@ -97,7 +97,8 @@ Policy::GetSpacePolicyLayout(const char* space)
                     iotype,
                     isrw,
                     true,
-		    &atimeage);
+                    true,
+                    &atimeage);
   return layoutid;
 }
 
@@ -117,7 +118,7 @@ Policy::GetLayoutAndSpace(const char* path,
                           bool rw,
                           bool lockview,
                           bool is_local,
-			  uint64_t* atimeage)
+                          uint64_t* atimeage)
 {
   eos::common::RWMutexReadLock lock;
   // this is for the moment only defaulting or manual selection
@@ -134,7 +135,6 @@ Policy::GetLayoutAndSpace(const char* path,
   std::map<std::string, std::string> spacepolicies;
   std::map<std::string, std::string> spacerwpolicies;
   std::string satime;
-  
   RWParams rwparams {vid.uid_string, vid.gid_string,
                      eos::common::XrdUtils::GetEnv(env, "eos.app", "default"),
                      rw, is_local
@@ -162,6 +162,7 @@ Policy::GetLayoutAndSpace(const char* path,
         it->second->GetConfigMembers(policy_rw_keys,
                                      spacerwpolicies);
       }
+
       satime = it->second->GetConfigMember("atime");
     } // FSView default
 
@@ -217,6 +218,7 @@ Policy::GetLayoutAndSpace(const char* path,
         it->second->GetConfigMembers(policy_rw_keys,
                                      spacerwpolicies);
       }
+
       satime = it->second->GetConfigMember("atime");
     } // FsView;
 
@@ -430,7 +432,7 @@ Policy::GetLayoutAndSpace(const char* path,
   }
 
   if (satime.length() && atimeage) {
-    *atimeage = std::stoull(satime.c_str(),0,10);
+    *atimeage = std::stoull(satime.c_str(), 0, 10);
   }
 
   layoutId = eos::common::LayoutId::GetId(layout, xsum, stripes, blocksize,
