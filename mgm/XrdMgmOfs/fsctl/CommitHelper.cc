@@ -719,7 +719,7 @@ CommitHelper::handle_versioning(eos::common::VirtualIdentity& vid,
         const eos::FileIdentifier vfid = versionfmd->getIdentifier();
         const eos::ContainerIdentifier did = dir->getIdentifier();
         const eos::ContainerIdentifier vdid = versiondir->getIdentifier();
-        const std::string atomic_name = paths["atomi"].GetName();
+        const std::string atomic_name = paths["atomic"].GetName();
         fuse_batch.Register([&, vfid, did, vdid, atomic_name]() {
           gOFS->FuseXCastDeletion(did, atomic_name);
           gOFS->FuseXCastRefresh(vfid, vdid);
