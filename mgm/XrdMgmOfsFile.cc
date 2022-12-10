@@ -406,7 +406,6 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
   EXEC_TIMING_BEGIN("Open");
   XrdOucString spath = inpath;
   XrdOucString sinfo = ininfo;
-
   SetLogId(logId, tident);
   {
     EXEC_TIMING_BEGIN("IdMap");
@@ -1353,12 +1352,13 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
 
             // For versions copy xattrs over from the original file
             if (versioning) {
-	      static std::set<std::string> skip_tag {"sys.eos.btime", "sys.fs.tracking", "sys.utrace", "sys.vtrace", "sys.tmp.atomic"};
+              static std::set<std::string> skip_tag {"sys.eos.btime", "sys.fs.tracking", "sys.utrace", "sys.vtrace", "sys.tmp.atomic"};
+
               for (const auto& xattr : attrmapF) {
-		if (skip_tag.find(xattr.first) == skip_tag.end()) {
-		  fmd->setAttribute(xattr.first, xattr.second);
-		}
-	      }
+                if (skip_tag.find(xattr.first) == skip_tag.end()) {
+                  fmd->setAttribute(xattr.first, xattr.second);
+                }
+              }
             }
 
             fmd->setAttribute("sys.utrace", logId);
@@ -1550,8 +1550,8 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
   std::string iotype;
   bool schedule = false;
   bool is_local = false;
-  uint64_t atimeage=0;
-  
+  uint64_t atimeage = 0;
+
   if (openOpaque->Get("localconfig")) {
     is_local = true;
   }
@@ -1626,26 +1626,26 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
   }
 
   if (fmd && atimeage) {
-    static std::set<std::string> skip_tag {"balancer", "groupdrainer", "groupbalancer", "geobalancer", "drainer", "converter" "fsck"};
+    static std::set<std::string> skip_tag {"balancer", "groupdrainer", "groupbalancer", "geobalancer", "drainer", "converter", "fsck"};
+
     if (app_name.empty() || (skip_tag.find(app_name) == skip_tag.end())) {
       // do a potential atime update, we don't need a name
       try {
-	if (fmd->setATimeNow(atimeage)) {
-	  gOFS->eosView->updateFileStore(fmd.get());
-	}
+        if (fmd->setATimeNow(atimeage)) {
+          gOFS->eosView->updateFileStore(fmd.get());
+        }
       } catch (eos::MDException& e) {
-	errno = e.getErrno();
-	std::string errmsg = e.getMessage().str();
-	eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
-		  e.getErrno(), e.getMessage().str().c_str());
-	gOFS->MgmStats.Add("OpenFailedQuota", vid.uid, vid.gid, 1);
-	return Emsg(epname, error, errno, "open file and update atime for reading", errmsg.c_str());
+        errno = e.getErrno();
+        std::string errmsg = e.getMessage().str();
+        eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
+                  e.getErrno(), e.getMessage().str().c_str());
+        gOFS->MgmStats.Add("OpenFailedQuota", vid.uid, vid.gid, 1);
+        return Emsg(epname, error, errno, "open file and update atime for reading",
+                    errmsg.c_str());
       }
     }
   }
 
-
-  
   // get placement policy
   Policy::GetPlctPolicy(path, attrmap, vid, *openOpaque, plctplcy, targetgeotag);
   unsigned long long ext_mtime_sec = 0;
@@ -1755,7 +1755,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
         snprintf(btime, sizeof(btime), "%lu.%lu", ctime.tv_sec, ctime.tv_nsec);
         fmd->setAttribute("sys.eos.btime", btime);
       } else {
-	fmd->setATimeNow(0);
+        fmd->setATimeNow(0);
       }
 
       // if specified set an external temporary ETAG
