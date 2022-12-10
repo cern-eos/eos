@@ -17,6 +17,24 @@ Introduction
 This release is based on XRootD V5.
 
 
+``v5.1.7 Diopside``
+====================
+
+2022-12-12
+
+Bug
+----
+
+* [EOS-5474] - Conversion breaks files with FMD info in xattrs
+
+Improvement
+------------
+
+* [EOS-5469] - Allow to select secondary groups with kerberos authentication and implement AC checks for secondorary groups
+* [EOS-5471] - Add atime to EOS
+* [EOS-5458] - Setting a namespace xattr might fail for wopi
+
+
 ``v5.1.6 Diopside``
 ====================
 
