@@ -438,8 +438,7 @@ add_executable(eos-readv-pattern
 target_link_libraries(eos-readv-pattern
   XROOTD::CL)
 
-
-add_executable(eos-filemd-convert
+add_executable(eos-fmd-tool
   tools/ConvertFileMD.cc
   # File metadata interface
   filemd/FmdHandler.cc
@@ -449,7 +448,7 @@ add_executable(eos-filemd-convert
   filemd/FmdMgm.cc
   utils/FSPathHandler.cc)
 
-target_link_libraries(eos-filemd-convert PRIVATE
+target_link_libraries(eos-fmd-tool PRIVATE
   EosFstIo
   EosCommonServer
   stdc++fs
@@ -465,7 +464,7 @@ install(PROGRAMS
 install(TARGETS
   eos-ioping eos-adler32 eos-checksum eos-leveldb-inspect eos-rain-hd-dump
   eos-check-blockxs eos-compute-blockxs eos-scan-fs
-  eos-create-file-pattern eos-readv-pattern eos-filemd-convert
+  eos-create-file-pattern eos-readv-pattern eos-fmd-tool
   RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_SBINDIR})
 
 endif()
