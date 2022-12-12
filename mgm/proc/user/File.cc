@@ -31,6 +31,7 @@
 #include "mgm/Stat.hh"
 #include "mgm/convert/ConverterDriver.hh"
 #include "mgm/XattrLock.hh"
+#include "common/ParseUtils.hh"
 #include "common/Path.hh"
 #include "common/LayoutId.hh"
 #include "common/SecEntity.hh"
@@ -1032,16 +1033,27 @@ ProcCommand::File()
           if (plctplcy.length()) {
             // -------------------------------------------------------------------
             // check that the placement policy is valid
-            // "scattered" or "hybrid
             // i.e. scattered, hybrid:<geotag> or gathered:<geotag>
             // -------------------------------------------------------------------
-            if (plctplcy == "scattered") {
-            } else if (plctplcy.beginswith("hybrid:")) {
-            } else if (plctplcy.beginswith("gathered:")) {
-            } else {
+            if (plctplcy != "scattered" &&
+                !plctplcy.beginswith("hybrid:") &&
+                !plctplcy.beginswith("gathered:"))
+            {
               stdErr += "error: placement policy is invalid";
               retc = EINVAL;
               return SFS_OK;
+            }
+
+            // Check geotag in case of hybrid or gathered policy
+            if (plctplcy != "scattered") {
+              std::string policy = plctplcy.c_str();
+              std::string targetgeotag = policy.substr(policy.find(':') + 1);
+              std::string tmp_geotag = eos::common::SanitizeGeoTag(targetgeotag);
+              if (tmp_geotag != targetgeotag) {
+                stdErr += tmp_geotag.c_str();
+                retc = EINVAL;
+                return SFS_OK;
+              }
             }
 
             plctplcy = "~" + plctplcy;

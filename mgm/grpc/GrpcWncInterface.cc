@@ -10,6 +10,7 @@
 #include "GrpcWncInterface.hh"
 //-----------------------------------------------------------------------------
 #include "common/Fmd.hh"
+#include "common/ParseUtils.hh"
 #include "console/commands/HealthCommand.hh"
 #include "console/ConsoleMain.hh"
 #include "mgm/Acl.hh"
@@ -515,6 +516,34 @@ grpc::Status GrpcWncInterface::Attr()
       if (value != "replica") {
         set_def = cmd_in + "&mgm.attr.key=sys.forced.blockchecksum&mgm.attr.value=" + val[5];
         cmd.open("/proc/user", set_def.c_str(), *mVid, &error);
+      }
+    }
+
+    if (key == "sys.forced.placementpolicy" ||
+        key == "user.forced.placementpolicy")
+    {
+      std::string policy;
+      eos::common::SymKey::DeBase64(value, policy);
+
+      // Check placement policy
+      if (policy != "scattered" &&
+          policy.rfind("hybrid:", 0) != 0 &&
+          policy.rfind("gathered:", 0) != 0)
+      {
+        mReply->set_std_err("Error: placement policy '" + policy + "' is invalid\n");
+        mReply->set_retc(EINVAL);
+        return grpc::Status::OK;
+      }
+
+      // Check geotag in case of hybrid or gathered policy
+      if (policy != "scattered") {
+        std::string targetgeotag = policy.substr(policy.find(':') + 1);
+        std::string tmp_geotag = eos::common::SanitizeGeoTag(targetgeotag);
+        if (tmp_geotag != targetgeotag) {
+          mReply->set_std_err(tmp_geotag);
+          mReply->set_retc(EINVAL);
+          return grpc::Status::OK;
+        }
       }
     }
 
@@ -1807,6 +1836,15 @@ grpc::Status GrpcWncInterface::Geosched()
       std::string proxy_group = mRequest->geosched().access().proxy_group();
       bool monitoring = mRequest->geosched().access().monitoring();
 
+      if (!geotag.empty()) {
+        std::string tmp_geotag = eos::common::SanitizeGeoTag(geotag);
+        if (tmp_geotag != geotag) {
+          mReply->set_std_err(tmp_geotag);
+          mReply->set_retc(EINVAL);
+          return grpc::Status::OK;
+        }
+      }
+
       if (subcmd == "cleardirect") {
         if (gOFS->mGeoTreeEngine->clearAccessGeotagMapping(&output,
             geotag == "all" ? "" : geotag)) {
@@ -1822,6 +1860,18 @@ grpc::Status GrpcWncInterface::Geosched()
       }
 
       if (subcmd == "setdirect") {
+        auto geotags = eos::common::StringTokenizer::split<std::vector
+                       <std::string>>(geotag_list, ',');
+
+        for (const auto& tag : geotags) {
+          std::string tmp_tag = eos::common::SanitizeGeoTag(tag);
+          if (tmp_tag != tag) {
+            mReply->set_std_err(tmp_tag);
+            mReply->set_retc(EINVAL);
+            return grpc::Status::OK;
+          }
+        }
+
         if (gOFS->mGeoTreeEngine->setAccessGeotagMapping(&output, geotag,
             geotag_list)) {
           mReply->set_retc(SFS_OK);
@@ -1857,6 +1907,15 @@ grpc::Status GrpcWncInterface::Geosched()
       std::string geotag = mRequest->geosched().disabled().geotag();
       XrdOucString output = "";
       bool save_config = true; // save it to the config
+
+      if (!(geotag == "*" && subcmd != "add")) {
+        std::string tmp_geotag = eos::common::SanitizeGeoTag(geotag);
+        if (tmp_geotag != geotag) {
+          mReply->set_std_err(tmp_geotag);
+          mReply->set_retc(EINVAL);
+          return grpc::Status::OK;
+        }
+      }
 
       if (subcmd == "add") {
         if (gOFS->mGeoTreeEngine->addDisabledBranch(sched_group, op_type, geotag,
@@ -3062,10 +3121,19 @@ grpc::Status GrpcWncInterface::Vid()
   }
 
   case eos::console::VidProto::kSetgeotag: {
+    // Check if geotag is valid
+    std::string targetgeotag = mRequest->vid().setgeotag().geotag();
+    std::string geotag = eos::common::SanitizeGeoTag(targetgeotag);
+    if (geotag != targetgeotag) {
+      mReply->set_std_err(geotag);
+      mReply->set_retc(EINVAL);
+      return grpc::Status::OK;
+    }
+
     cmd_in1 += "&mgm.subcmd=set";
     cmd_in1 += "&mgm.vid.cmd=geotag";
     cmd_in1 += "&mgm.vid.key=geotag:" + mRequest->vid().setgeotag().prefix();
-    cmd_in1 += "&mgm.vid.geotag=" + mRequest->vid().setgeotag().geotag();
+    cmd_in1 += "&mgm.vid.geotag=" + targetgeotag;
     break;
   }
 

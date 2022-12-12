@@ -151,25 +151,36 @@ TEST(ParseUtils, ValidHostnameOrIP)
 
 TEST(SanitizeGeoTag, BasicSanity)
 {
-  std::string geotag;
-  std::string sanitized;
+  std::string geotag, sanitized;
   sanitized = eos::common::SanitizeGeoTag(geotag);
-  ASSERT_TRUE(sanitized.empty());
+  ASSERT_TRUE(sanitized != geotag);
   geotag = "a:b";
   sanitized = eos::common::SanitizeGeoTag(geotag);
-  ASSERT_TRUE(sanitized.empty());
+  ASSERT_TRUE(sanitized != geotag);
   geotag = "a::b";
   sanitized = eos::common::SanitizeGeoTag(geotag);
-  ASSERT_TRUE("a::b" == sanitized);
+  ASSERT_TRUE(geotag == sanitized);
   geotag = "a::b::c::d::e::f::";
   sanitized = eos::common::SanitizeGeoTag(geotag);
-  ASSERT_TRUE(sanitized.empty());
+  ASSERT_TRUE(sanitized != geotag);
   geotag = "abcd::efgh::ijkl";
   sanitized = eos::common::SanitizeGeoTag(geotag);
-  ASSERT_TRUE("abcd::efgh::ijkl" == sanitized);
+  ASSERT_TRUE(geotag == sanitized);
   geotag = "abcd::ef::::gh::ijk";
   sanitized = eos::common::SanitizeGeoTag(geotag);
-  ASSERT_TRUE(sanitized.empty());
+  ASSERT_TRUE(sanitized != geotag);
+  geotag = "abcd::ef::spa ce::gh::ijk";
+  sanitized = eos::common::SanitizeGeoTag(geotag);
+  ASSERT_TRUE(sanitized != geotag);
+  geotag = "abcd::ef_gh::ijk";
+  sanitized = eos::common::SanitizeGeoTag(geotag);
+  ASSERT_TRUE(sanitized != geotag);
+  geotag = "abcd::ef::123456789::gh";
+  sanitized = eos::common::SanitizeGeoTag(geotag);
+  ASSERT_TRUE(sanitized != geotag);
+  geotag = "::";
+  sanitized = eos::common::SanitizeGeoTag(geotag);
+  ASSERT_TRUE(sanitized != geotag);
 }
 
 EOSCOMMONNAMESPACE_END
