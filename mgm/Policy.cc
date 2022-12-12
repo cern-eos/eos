@@ -25,6 +25,7 @@
 #include "common/Logging.hh"
 #include "common/LayoutId.hh"
 #include "common/Mapping.hh"
+#include "common/ParseUtils.hh"
 #include "common/utils/ContainerUtils.hh"
 #include "common/utils/XrdUtils.hh"
 #include "mgm/Constants.hh"
@@ -494,6 +495,13 @@ Policy::GetPlctPolicy(const char* path,
   }
 
   targetgeotag = policyString.substr(seppos + 1);
+
+  // Check if geotag is valid
+  std::string tmp_geotag = eos::common::SanitizeGeoTag(targetgeotag);
+  if (tmp_geotag != targetgeotag) {
+    eos_static_warning("%s", tmp_geotag.c_str());
+    return;
+  }
 
   if (!policyString.compare(0, seppos, "hybrid")) {
     plctpol = eos::mgm::Scheduler::kHybrid;

@@ -24,6 +24,7 @@
 /*----------------------------------------------------------------------------*/
 #include "console/ConsoleMain.hh"
 #include "common/StringTokenizer.hh"
+#include "common/ParseUtils.hh"
 /*----------------------------------------------------------------------------*/
 
 /* VID System listing, configuration, manipulation */
@@ -95,6 +96,13 @@ com_vid(char* arg1)
 
       if (!target.length()) {
         goto com_vid_usage;
+      }
+
+      // Check if geotag is valid
+      std::string geotag = eos::common::SanitizeGeoTag(target.c_str());
+      if (geotag != target.c_str()) {
+        fprintf(stderr, "%s\n", geotag.c_str());
+        return 0;
       }
 
       vidkey = "geotag:";

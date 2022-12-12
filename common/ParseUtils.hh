@@ -154,49 +154,54 @@ inline bool ValidHostnameOrIP(const std::string& input)
 }
 
 
-//----------------------------------------------------------------------------
-//! Sanitize input geotag
+//-----------------------------------------------------------------------------
+//! Make sure that geotag contains only alphanumeric segments which
+//! are no longer than 8 characters, in <tag1>::<tag2>::...::<tagN> format.
 //!
 //! @param geotag input value
 //!
-//! @return empty string if geotag not valid, otherwise sanitized geotag
-//----------------------------------------------------------------------------
+//! @return error message if geotag is not valid, otherwise geotag
+//-----------------------------------------------------------------------------
 inline std::string SanitizeGeoTag(const std::string& geotag)
 {
   if (geotag.empty()) {
-    return std::string();
+    return std::string("Error: empty geotag");
   }
 
   std::string tmp_tag(geotag);
-  // Make sure the new geotag is properly formatted and respects the contraints
-  auto tokens = eos::common::StringTokenizer::split<std::vector<std::string>>
-                (tmp_tag, ':');
+  auto segments = eos::common::StringTokenizer::split<std::vector<std::string>>
+                  (tmp_tag, ':');
   tmp_tag.clear();
 
-  for (const auto& token : tokens) {
-    if (token.empty()) {
+  for (const auto& segment : segments) {
+    if (segment.empty()) {
       continue;
     }
 
-    if (token.length() > 8) {
-      eos_static_err("msg=\"token in geotag longer than 8 chars\" geotag=\"%s\"",
-                     geotag.c_str());
-      return std::string();
+    if (segment.length() > 8) {
+      return std::string("Error: geotag segment '" + segment +
+                         "' is longer than 8 chars");
     }
 
-    tmp_tag += token;
+    for (const auto& c : segment) {
+      if (!std::isalnum(c)) {
+        return std::string("Error: geotag segment '" + segment + "' "
+                           "contains non-alphanumeric char '" + c + "'");
+      }
+    }
+
+    tmp_tag += segment;
     tmp_tag += "::";
   }
 
   if (tmp_tag.length() <= 2) {
-    eos_static_err("%s", "msg=\"empty geotag\"");
-    return std::string();
+    return std::string("Error: empty geotag");
   }
 
   tmp_tag.erase(tmp_tag.length() - 2);
 
   if (tmp_tag != geotag) {
-    return std::string();
+    return std::string("Error: invalid geotag format '" + geotag + "'");
   }
 
   return tmp_tag;

@@ -486,9 +486,8 @@ XrdFstOfs::Configure(XrdSysError& Eroute, XrdOucEnv* envP)
   if (ptr_geotag) {
     mGeoTag = eos::common::SanitizeGeoTag(ptr_geotag);
 
-    if (mGeoTag.empty()) {
-      eos_static_err("%s", "msg=\"failed to update geotag, wrongly formatted\" "
-                     "geotag=\"%s\"", ptr_geotag);
+    if (mGeoTag != ptr_geotag) {
+      Eroute.Emsg("Config", mGeoTag.c_str());
       return 1;
     }
   }

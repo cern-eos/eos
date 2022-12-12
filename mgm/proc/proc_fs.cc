@@ -504,8 +504,8 @@ proc_fs_config(std::string& identifier, std::string& key, std::string& value,
         } else if (key == "forcegeotag") {
           std::string geotag = eos::common::SanitizeGeoTag(value);
 
-          if (geotag.empty()) {
-            stdErr += "error: forcegeotag is not properly formatted";
+          if (geotag != value) {
+            stdErr += geotag.c_str();
             retc = EINVAL;
             return retc;
           }

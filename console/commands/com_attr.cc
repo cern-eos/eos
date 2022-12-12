@@ -21,6 +21,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
+#include "common/ParseUtils.hh"
 #include "common/StringTokenizer.hh"
 #include "common/SymKeys.hh"
 #include "console/ConsoleMain.hh"
@@ -162,12 +163,6 @@ com_attr(char* arg1)
     }
 
     path = PathIdentifier(path.c_str(), true).c_str();
-    in += "&mgm.subcmd=set&mgm.attr.key=";
-    in += key;
-    in += "&mgm.attr.value=";
-    in += value;
-    in += "&mgm.path=";
-    in += path;
 
     if (key == "default") {
       if (value == "replica") {
@@ -354,6 +349,40 @@ com_attr(char* arg1)
 
       goto com_attr_usage;
     }
+
+    if (subcommand == "set" && key.endswith(".forced.placementpolicy")) {
+      XrdOucString ouc_policy;
+      eos::common::SymKey::DeBase64(value, ouc_policy);
+      std::string policy = ouc_policy.c_str();
+
+      // Check placement policy
+      if (policy != "scattered" &&
+          policy.rfind("hybrid:", 0) != 0 &&
+          policy.rfind("gathered:", 0) != 0)
+      {
+        fprintf(stderr, "Error: placement policy '%s' is invalid\n", policy.c_str());
+        global_retc = EINVAL;
+        return (0);
+      }
+
+      // Check geotag in case of hybrid or gathered policy
+      if (policy != "scattered") {
+        std::string targetgeotag = policy.substr(policy.find(':') + 1);
+        std::string tmp_geotag = eos::common::SanitizeGeoTag(targetgeotag);
+        if (tmp_geotag != targetgeotag) {
+          fprintf(stderr, "%s\n", tmp_geotag.c_str());
+          global_retc = EINVAL;
+          return (0);
+        }
+      }
+    }
+
+    in += "&mgm.subcmd=set&mgm.attr.key=";
+    in += key;
+    in += "&mgm.attr.value=";
+    in += value;
+    in += "&mgm.path=";
+    in += path;
   }
 
   if (subcommand == "get") {
