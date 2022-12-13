@@ -287,7 +287,9 @@ metad::forget(fuse_req_t req, fuse_ino_t ino, int nlookup)
   }
 
   {
-    XrdSysMutexHelper mLock(md->Locker());
+    // we should lock this, but since we are in a kernel call-back function, we skip it and
+    // accept an unsafe access on pid() later
+    //    XrdSysMutexHelper mLock(md->Locker());
 
     if (!(*md)()->id()) {
       return EAGAIN;
