@@ -280,12 +280,14 @@ XrdMgmOfs::_stat(const char* path,
 #ifdef __APPLE__
     buf->st_mtimespec.tv_sec = atime.tv_sec;
     buf->st_mtimespec.tv_nsec = atime.tv_nsec;
+    fmd->getATime(atime);
     buf->st_atimespec.tv_sec = atime.tv_sec;
     buf->st_atimespec.tv_nsec = atime.tv_nsec;
 #else
     buf->st_mtime = atime.tv_sec;
     buf->st_mtim.tv_sec = atime.tv_sec;
     buf->st_mtim.tv_nsec = atime.tv_nsec;
+    fmd->getATime(atime);
     buf->st_atime = atime.tv_sec;
     buf->st_atim.tv_sec = atime.tv_sec;
     buf->st_atim.tv_nsec = atime.tv_nsec;

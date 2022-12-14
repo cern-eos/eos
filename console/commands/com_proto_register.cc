@@ -223,7 +223,7 @@ void com_register_help()
   oss << "             location=1 location=2 ..." << std::endl;
   oss << "             mode=777" << std::endl;
   oss << "             btime=1670334863.101232" << std::endl;
-  oss << "             atime=1670334863.101232 # currently ignored" << std::endl;
+  oss << "             atime=1670334863.101232" << std::endl;
   oss << "             ctime=1670334863.110123" << std::endl;
   oss << "             mtime=1670334863.11234d" << std::endl;
   oss << "             attr=\"sys.acl=u:100:rwx\"" << std::endl;

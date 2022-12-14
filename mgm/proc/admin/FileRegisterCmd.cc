@@ -129,10 +129,10 @@ FileRegisterCmd::ProcessRequest() noexcept
       }
       if (reg.atime().sec()) {
 	// add atime
-	//	struct timespec tvp;
-	//	tvp.tv_sec = reg.atime().sec();
-	//	tvp.tv_nsec = reg.atime().nsec();
-	// fmd->setATime(tvp); # not yet implemented
+	struct timespec tvp;
+	tvp.tv_sec = reg.atime().sec();
+	tvp.tv_nsec = reg.atime().nsec();
+	fmd->setATime(tvp); 
       }
       if (reg.btime().sec()) {
 	// add btime
