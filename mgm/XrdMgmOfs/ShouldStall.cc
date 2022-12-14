@@ -243,6 +243,7 @@ XrdMgmOfs::ShouldStall(const char* function,
           stallid += "::threads::";
           stallid += std::to_string(vid.uid);;
           size_t ms_to_delay = 1000.0 / limit;
+	  lock.Release();
           std::this_thread::sleep_for(std::chrono::milliseconds(ms_to_delay));
           gOFS->MgmStats.Add(stallid.c_str(), vid.uid, vid.gid, 1);
           return false;
