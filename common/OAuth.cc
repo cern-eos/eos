@@ -81,7 +81,7 @@ OAuth::PurgeCache(time_t& now)
 
 int
 OAuth::Validate(OAuth::AuthInfo& info, const std::string& accesstoken,
-                const std::string& resource, const std::string& refreshtoken, time_t& expires)
+                std::string resource, const std::string& refreshtoken, time_t& expires)
 {
   time_t now = time(NULL);
 
@@ -93,6 +93,15 @@ OAuth::Validate(OAuth::AuthInfo& info, const std::string& accesstoken,
   auto decoded = jwt::decode(accesstoken);
   auto audiences = decoded.get_audience();
   auto exp = decoded.get_expires_at();
+  auto iss = decoded.get_issuer();
+
+  std::string iss_resource = iss + "/protocol/openid-connect/userinfo";
+  
+  if (resource.empty()) {
+    // if we have a plain token without oauth2:token:resource wrapping, we build the resource from iss
+    resource = iss_resource;
+  }
+  
   expires = std::chrono::system_clock::to_time_t(exp);
   bool audience_match = false;
   std::stringstream s;
@@ -238,6 +247,7 @@ OAuth::Handle(const std::string& info, eos::common::VirtualIdentity& vid)
   std::vector<std::string> tokens;
   eos::common::StringConversion::Tokenize(info, tokens, ":");
 
+  // this function handles now tokens of the form oauth2:<token>:[...] or just <token>
   if (tokens.size() > 1) {
     if (tokens[0] == "oauth2") {
       if (tokens.size() < 3) {
@@ -251,24 +261,31 @@ OAuth::Handle(const std::string& info, eos::common::VirtualIdentity& vid)
       if (tokens.size() < 5) {
         tokens.push_back("");
       }
-
-      OAuth::AuthInfo oinfo;
-      time_t expires = strtoull(tokens[3].c_str(), 0, 10);
-
-      if (!Validate(oinfo, tokens[1], tokens[2], tokens[4], expires)) {
-        // valid token, now map the user name
-        eos_static_info("username='%s' name='%s' federation='%s' email='%s' expires=%llu",
-                        oinfo["username"].c_str(),
-                        oinfo["name"].c_str(),
-                        oinfo["federation"].c_str(),
-                        oinfo["email"].c_str(),
-                        expires);
-        vid.federation = oinfo["federation"];
-        vid.email = oinfo["email"];
-        vid.fullname = oinfo["name"];
-        return oinfo["username"];
-      }
     }
+  } else {
+    tokens.resize(5);
+    tokens[0] = "oauth2";
+    tokens[1] = info;
+    tokens[2] = "";
+    tokens[3] = "0";
+    tokens[4] = "";
+  }
+
+  OAuth::AuthInfo oinfo;
+  time_t expires = strtoull(tokens[3].c_str(), 0, 10);
+  
+  if (!Validate(oinfo, tokens[1], tokens[2], tokens[4], expires)) {
+    // valid token, now map the user name
+    eos_static_info("username='%s' name='%s' federation='%s' email='%s' expires=%llu",
+		    oinfo["username"].c_str(),
+		    oinfo["name"].c_str(),
+		    oinfo["federation"].c_str(),
+		    oinfo["email"].c_str(),
+		    expires);
+    vid.federation = oinfo["federation"];
+    vid.email = oinfo["email"];
+    vid.fullname = oinfo["name"];
+    return oinfo["username"];
   }
 
   return "";
