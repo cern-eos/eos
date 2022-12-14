@@ -143,57 +143,21 @@ XrdMgmOfs::ShouldStall(const char* function,
 
             double cutoff = strtod(it->second.c_str(), 0) * 1.33;
 
-            if ((it->first.find(userwildcardmatch) == 0)) {
-              // catch all rule = global user rate cut
-              XrdSysMutexHelper statLock(gOFS->MgmStats.mMutex);
-
-              if ((cutoff == 0) ||
-                  (
-                    gOFS->MgmStats.StatAvgUid.count(cmd) &&
-                    gOFS->MgmStats.StatAvgUid[cmd].count(vid.uid) &&
-                    (gOFS->MgmStats.StatAvgUid[cmd][vid.uid].GetAvg5() > cutoff)
-                  )) {
-                if (!stalltime) {
-                  stalltime = 5;
-                }
-
-                limit = cutoff;
-                smsg = Access::gStallComment[it->first];
-                break;
-              }
-            } else if ((it->first.find(groupwildcardmatch) == 0)) {
-              // catch all rule = global user rate cut
-              XrdSysMutexHelper statLock(gOFS->MgmStats.mMutex);
-
-              if ((cutoff == 0) ||
-                  (
-                    gOFS->MgmStats.StatAvgGid.count(cmd) &&
-                    gOFS->MgmStats.StatAvgGid[cmd].count(vid.gid) &&
-                    (gOFS->MgmStats.StatAvgGid[cmd][vid.gid].GetAvg5() > cutoff)
-                  )) {
-                if (!stalltime) {
-                  stalltime = 5;
-                }
-
-                limit = cutoff;
-                smsg = Access::gStallComment[it->first];
-                break;
-              }
-            } else if ((it->first.find(usermatch) == 0)) {
+	    if ((it->first.find(usermatch) == 0)) {
               // check user rule
               XrdSysMutexHelper statLock(gOFS->MgmStats.mMutex);
-
+	      
               if ((cutoff == 0) ||
                   (
-                    gOFS->MgmStats.StatAvgUid.count(cmd) &&
-                    gOFS->MgmStats.StatAvgUid[cmd].count(vid.uid) &&
-                    (gOFS->MgmStats.StatAvgUid[cmd][vid.uid].GetAvg5() > cutoff)
-                  )) {
+		   gOFS->MgmStats.StatAvgUid.count(cmd) &&
+		   gOFS->MgmStats.StatAvgUid[cmd].count(vid.uid) &&
+		   (gOFS->MgmStats.StatAvgUid[cmd][vid.uid].GetAvg5() > cutoff)
+		   )) {
                 // rate exceeded
                 if (!stalltime) {
                   stalltime = 5;
                 }
-
+		
                 limit = cutoff;
                 smsg = Access::gStallComment[it->first];
                 break;
@@ -201,27 +165,65 @@ XrdMgmOfs::ShouldStall(const char* function,
             } else if ((it->first.find(groupmatch) == 0)) {
               // check group rule
               XrdSysMutexHelper statLock(gOFS->MgmStats.mMutex);
-
+	      
               if ((cutoff == 0) ||
                   (
-                    gOFS->MgmStats.StatAvgGid.count(cmd) &&
-                    gOFS->MgmStats.StatAvgGid[cmd].count(vid.gid) &&
-                    (gOFS->MgmStats.StatAvgGid[cmd][vid.gid].GetAvg5() > cutoff)
-                  )) {
+		   gOFS->MgmStats.StatAvgGid.count(cmd) &&
+		   gOFS->MgmStats.StatAvgGid[cmd].count(vid.gid) &&
+		   (gOFS->MgmStats.StatAvgGid[cmd][vid.gid].GetAvg5() > cutoff)
+		   )) {
                 // rate exceeded
                 if (!stalltime) {
                   stalltime = 5;
                 }
-
+		
                 limit = cutoff;
                 smsg = Access::gStallComment[it->first];
                 break;
               }
             }
+
+	    if ((it->first.find(userwildcardmatch) == 0)) {
+              // catch all rule = global user rate cut
+              XrdSysMutexHelper statLock(gOFS->MgmStats.mMutex);
+	      
+              if ((cutoff == 0) ||
+                  (
+		   gOFS->MgmStats.StatAvgUid.count(cmd) &&
+		   gOFS->MgmStats.StatAvgUid[cmd].count(vid.uid) &&
+		   (gOFS->MgmStats.StatAvgUid[cmd][vid.uid].GetAvg5() > cutoff)
+		   )) {
+                if (!stalltime) {
+                  stalltime = 5;
+                }
+		
+                limit = cutoff;
+                smsg = Access::gStallComment[it->first];
+                break;
+              }
+            } else if ((it->first.find(groupwildcardmatch) == 0)) {
+              // catch all rule = global user rate cut
+              XrdSysMutexHelper statLock(gOFS->MgmStats.mMutex);
+	      
+              if ((cutoff == 0) ||
+                  (
+		   gOFS->MgmStats.StatAvgGid.count(cmd) &&
+                    gOFS->MgmStats.StatAvgGid[cmd].count(vid.gid) &&
+		   (gOFS->MgmStats.StatAvgGid[cmd][vid.gid].GetAvg5() > cutoff)
+		   )) {
+                if (!stalltime) {
+                  stalltime = 5;
+                }
+		
+                limit = cutoff;
+                smsg = Access::gStallComment[it->first];
+                break;
+              }
+	    }
           }
         }
       }
-
+      
       if (stalltime && (saturated || ! limit)) {
         // add random offset between 0 and 5 to stalltime
         int random_stall = rand() % 6;
