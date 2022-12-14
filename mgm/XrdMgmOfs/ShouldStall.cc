@@ -56,10 +56,10 @@ XrdMgmOfs::ShouldStall(const char* function,
 
   if (stall) {
     if ((vid.uid > 3) && (functionname != "stat")  && (vid.app != "fuse::restic")) {
-      if ( (stalltime = gOFS->mTracker.ShouldStall(vid.uid, saturated)) ) {
-	      smsg = "operate - your are exceeding your thread pool limit";
-	      stallid += "::threads::";
-	      stallid += std::to_string(vid.uid);;
+      if ((stalltime = gOFS->mTracker.ShouldStall(vid.uid, saturated))) {
+        smsg = "operate - your are exceeding your thread pool limit";
+        stallid += "::threads::";
+        stallid += std::to_string(vid.uid);;
       } else if (Access::gBannedUsers.count(vid.uid)) {
         smsg = "operate - you are banned in this instance - contact an administrator";
 
@@ -137,76 +137,79 @@ XrdMgmOfs::ShouldStall(const char* function,
 
             double cutoff = strtod(it->second.c_str(), 0) * 1.33;
 
-	    if ((it->first.find(usermatch) == 0)) {
+            if ((it->first.find(usermatch) == 0)) {
               // check first user rule
               XrdSysMutexHelper statLock(gOFS->MgmStats.mMutex);
-	      
+
               if ((cutoff == 0) ||
                   (
-		   gOFS->MgmStats.StatAvgUid.count(cmd) &&
-		   gOFS->MgmStats.StatAvgUid[cmd].count(vid.uid) &&
-		   (gOFS->MgmStats.StatAvgUid[cmd][vid.uid].GetAvg5() > cutoff)
-		   )) {
+                    gOFS->MgmStats.StatAvgUid.count(cmd) &&
+                    gOFS->MgmStats.StatAvgUid[cmd].count(vid.uid) &&
+                    (gOFS->MgmStats.StatAvgUid[cmd][vid.uid].GetAvg5() > cutoff)
+                  )) {
                 // rate exceeded
                 if (!stalltime) {
                   stalltime = 5;
                 }
-		
-		limit = cutoff;	
+
+                limit = cutoff;
                 smsg = Access::gStallComment[it->first];
                 break;
               }
             } else if ((it->first.find(groupmatch) == 0)) {
               // check group rule
               XrdSysMutexHelper statLock(gOFS->MgmStats.mMutex);
-	      
+
               if ((cutoff == 0) ||
                   (
-		   gOFS->MgmStats.StatAvgGid.count(cmd) &&
-		   gOFS->MgmStats.StatAvgGid[cmd].count(vid.gid) &&
-		   (gOFS->MgmStats.StatAvgGid[cmd][vid.gid].GetAvg5() > cutoff)
-		   )) {
+                    gOFS->MgmStats.StatAvgGid.count(cmd) &&
+                    gOFS->MgmStats.StatAvgGid[cmd].count(vid.gid) &&
+                    (gOFS->MgmStats.StatAvgGid[cmd][vid.gid].GetAvg5() > cutoff)
+                  )) {
                 // rate exceeded
                 if (!stalltime) {
                   stalltime = 5;
                 }
-		
-		limit = cutoff;	
+
+                limit = cutoff;
                 smsg = Access::gStallComment[it->first];
                 break;
               }
             }
+
             if ((it->first.find(userwildcardmatch) == 0)) {
               // catch all rule = global user rate cut
               XrdSysMutexHelper statLock(gOFS->MgmStats.mMutex);
-	      
+
               if ((cutoff == 0) ||
                   (
-		   gOFS->MgmStats.StatAvgUid.count(cmd) &&
-		   gOFS->MgmStats.StatAvgUid[cmd].count(vid.uid) &&
-		   (gOFS->MgmStats.StatAvgUid[cmd][vid.uid].GetAvg5() > cutoff)
-		   )) {
+                    gOFS->MgmStats.StatAvgUid.count(cmd) &&
+                    gOFS->MgmStats.StatAvgUid[cmd].count(vid.uid) &&
+                    (gOFS->MgmStats.StatAvgUid[cmd][vid.uid].GetAvg5() > cutoff)
+                  )) {
                 if (!stalltime) {
                   stalltime = 5;
                 }
-		limit = cutoff;
+
+                limit = cutoff;
                 smsg = Access::gStallComment[it->first];
                 break;
               }
             } else if ((it->first.find(groupwildcardmatch) == 0)) {
               // catch all rule = global user rate cut
               XrdSysMutexHelper statLock(gOFS->MgmStats.mMutex);
-	      
+
               if ((cutoff == 0) ||
                   (
-		   gOFS->MgmStats.StatAvgGid.count(cmd) &&
-		   gOFS->MgmStats.StatAvgGid[cmd].count(vid.gid) &&
+                    gOFS->MgmStats.StatAvgGid.count(cmd) &&
+                    gOFS->MgmStats.StatAvgGid[cmd].count(vid.gid) &&
                     (gOFS->MgmStats.StatAvgGid[cmd][vid.gid].GetAvg5() > cutoff)
-		   )) {
+                  )) {
                 if (!stalltime) {
                   stalltime = 5;
                 }
-		limit = cutoff;	
+
+                limit = cutoff;
                 smsg = Access::gStallComment[it->first];
                 break;
               }
@@ -214,7 +217,7 @@ XrdMgmOfs::ShouldStall(const char* function,
           }
         }
       }
-      
+
       if (stalltime && (saturated || ! limit)) {
         // add random offset between 0 and 5 to stalltime
         int random_stall = rand() % 6;
@@ -229,16 +232,16 @@ XrdMgmOfs::ShouldStall(const char* function,
         gOFS->MgmStats.Add(stallid.c_str(), vid.uid, vid.gid, 1);
         return true;
       } else {
-	if (limit) {
-	  stallid = "Delay";
-	  stallid += "::threads::";
-	  stallid += std::to_string(vid.uid);;
-	  size_t ms_to_delay = 1000.0 / limit;
-	  std::this_thread::sleep_for(std::chrono::milliseconds(ms_to_delay));
-	  lock.Release();
-	  gOFS->MgmStats.Add(stallid.c_str(), vid.uid, vid.gid, 1);
-	  return false;
-	}
+        if (limit) {
+          stallid = "Delay";
+          stallid += "::threads::";
+          stallid += std::to_string(vid.uid);;
+          size_t ms_to_delay = 1000.0 / limit;
+          lock.Release();
+          std::this_thread::sleep_for(std::chrono::milliseconds(ms_to_delay));
+          gOFS->MgmStats.Add(stallid.c_str(), vid.uid, vid.gid, 1);
+          return false;
+        }
       }
     } else {
       if (Access::gStallRules.size() &&
