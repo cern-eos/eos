@@ -15,6 +15,25 @@ Introduction
 ------------
 This release is based on XRootD V4 and IPV6 enabled.
 
+
+``v4.8.96 Citrine``
+===================
+
+2022-12-14
+
+Bug
+---
+
+* MGM: add regfree in FuseServer regex usage to avoid memory leak
+* MGM: unlock the Access mutex when delaying a client to not get problems to get a write lock
+* MGM: reset file statistics after each inspector run for QDB backen
+
+Improvements
+------------
+
+* Invert stall logic to check first user limits and then catch-all rules
+
+
 ``v4.8.95 Citrine``
 ===================
 

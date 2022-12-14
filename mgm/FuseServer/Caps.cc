@@ -228,6 +228,7 @@ std::vector<std::shared_ptr<eos::mgm::FuseServer::Caps::capx>>
   if (suppress) {
     regfree(&regex);
   }
+
   return bccaps;
 }
 
@@ -439,7 +440,7 @@ FuseServer::Caps::BroadcastRefresh(uint64_t inode,
   if (suppress_audience) {
     regfree(&regex);
   }
-  
+
   EXEC_TIMING_END("Eosxd::int::BcRefresh");
   return 0;
 }
@@ -569,7 +570,7 @@ FuseServer::Caps::BroadcastMD(const eos::fusex::md& md,
   if (suppress_audience) {
     regfree(&regex);
   }
-  
+
   EXEC_TIMING_END("Eosxd::int::BcMD");
   return 0;
 }
@@ -643,7 +644,7 @@ FuseServer::Caps::Print(const std::string& option,
           (regexec(&regex, match.c_str(), 0, NULL, 0) == REG_NOMATCH)) {
         it++;
         continue;
-      } 
+      }
 
       out += match.c_str();
       ++it;
@@ -713,7 +714,7 @@ FuseServer::Caps::Print(const std::string& option,
           (regexec(&regex, spath.c_str(), 0, NULL, 0) == REG_NOMATCH)) {
         continue;
       }
-      
+
       char apath[1024];
       out += "# ";
       snprintf(apath, sizeof(apath), "%-80s", spath.c_str());
@@ -748,6 +749,7 @@ FuseServer::Caps::Print(const std::string& option,
   if (filter.size()) {
     regfree(&regex);
   }
+
   return out;
 }
 
