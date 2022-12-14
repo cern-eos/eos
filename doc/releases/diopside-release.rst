@@ -17,6 +17,31 @@ Introduction
 This release is based on XRootD V5.
 
 
+``v5.1.8 Diopside``
+====================
+
+2022-12-14
+
+Note
+----
+
+* Update dependency eos-xrootd-5.5.5
+* Includes an important fix for HTTP TPC PULL transfers.
+
+Bug
+----
+
+* [EOS-5467] - Inspector aggregates results instead of reseting the current scan
+* MGM: Add regfree in FuseServer regex usage to avoid memory leak
+* MGM: Unlock the Access mutex when delaying a client to not get problems to get a write lock
+
+
+Improvement
+-----------
+
+* [EOS-5478] - Invert Stall logic to check first user limits and then catch-all rules
+
+
 ``v5.1.7 Diopside``
 ====================
 
