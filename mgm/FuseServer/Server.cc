@@ -2339,12 +2339,16 @@ Server::OpSetFile(const std::string& id,
     fmd->setFlags(md.mode() & (S_IRWXU | S_IRWXG | S_IRWXO));
     eos::IFileMD::ctime_t ctime;
     eos::IFileMD::ctime_t mtime;
+    eos::IFileMD::ctime_t atime;
     ctime.tv_sec = md.ctime();
     ctime.tv_nsec = md.ctime_ns();
     mtime.tv_sec = md.mtime();
     mtime.tv_nsec = md.mtime_ns();
+    atime.tv_sec = md.atime();
+    atime.tv_nsec = md.atime_ns();
     fmd->setCTime(ctime);
     fmd->setMTime(mtime);
+    fmd->setATime(atime);
     replaceNonSysAttributes(fmd, md);
     struct timespec pt_mtime;
 
