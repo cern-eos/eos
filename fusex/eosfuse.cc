@@ -2973,7 +2973,7 @@ EosFuse::setattr(fuse_req_t req, fuse_ino_t ino, struct stat* attr, int op,
 
   EXEC_TIMING_END(__func__);
   COMMONTIMING("_stop_", &timing);
-  eos_static_notice("t(ms)=%.03f %s", timing.RealTime(),
+  eos_static_notice("t(ms)=%.03f op=%x %s", timing.RealTime(), op, 
                     dump(id, ino, fi, rc).c_str());
 }
 
@@ -4883,7 +4883,7 @@ The O_NONBLOCK flag was specified, and an incompatible lease was held on the fil
 
     EXEC_TIMING_END(__func__);
     COMMONTIMING("_stop_", &timing);
-    eos_static_notice("t(ms)=%.03f %s", timing.RealTime(),
+    eos_static_notice("t(ms)=%.03f mode=%#lx umask=%x %s", timing.RealTime(), mode, fuse_req_ctx(req)->umask,
                       dump(id, parent, 0, rc).c_str());
   }
 
@@ -6005,9 +6005,9 @@ EosFuse::setxattr(fuse_req_t req, fuse_ino_t ino, const char* xattr_name,
             rc = 0;
           } else
 
-            // ignore silently any posix acl attribute
+            // return operation not supported
             if (key == s_acl) {
-              rc = 0;
+              rc = EOPNOTSUPP;
             }
 
 #ifdef __APPLE__
