@@ -38,7 +38,13 @@ for artifacts_dir in *_artifacts; do
   # Handle only builds registered in the build map
   [ -z ${repo} ] && continue
 
-  path=${PATH_PREFIX}/${CODENAME}/${BUILD_TYPE}/${repo}
+  if [ ${build} == "cc7_no_sse" ]; then
+    path="${PATH_PREFIX}/${CODENAME}-no_sse/${BUILD_TYPE}/${repo}"
+    tar_path="${PATH_PREFIX}/${CODENAME}-no_sse/tarball/"
+  else
+    path="${PATH_PREFIX}/${CODENAME}/${BUILD_TYPE}/${repo}"
+    tar_path="${PATH_PREFIX}/${CODENAME}/tarball/"
+  fi
 
   # Treat OSX artifacts separately
   if [ ${build} == "osx" ]; then
@@ -72,7 +78,6 @@ for artifacts_dir in *_artifacts; do
   # Upload the tarball if present
   for tar_file in ${build_artifacts}/eos-*.tar.gz; do
    if [ -e ${tar_file} ]; then
-     tar_path="${PATH_PREFIX}/${CODENAME}/tarball/"
      mkdir -p ${tar_path}
      cp ${tar_file} ${tar_path}
    fi
