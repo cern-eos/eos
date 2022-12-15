@@ -108,7 +108,7 @@ StringConversion::EmptyTokenize(const std::string& str,
 }
 
 //------------------------------------------------------------------------------
-// Convert a long long value into time s,m,h,d  scale
+// Convert a long long value into time s,m,h,d,y  scale
 //------------------------------------------------------------------------------
 const char*
 StringConversion::GetReadableAgeString(XrdOucString& sizestring,
@@ -116,7 +116,9 @@ StringConversion::GetReadableAgeString(XrdOucString& sizestring,
 {
   char formsize[1024];
 
-  if (age > 86400) {
+  if (age > 31536000) {
+    sprintf(formsize, "%lluy", age/ 31536000);
+  } else if (age > 86400) {
     sprintf(formsize, "%llud", age / 86400);
   } else if (age > 3600) {
     sprintf(formsize, "%lluh", age / 3600);

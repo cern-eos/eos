@@ -119,8 +119,18 @@ private:
   //! Map from types of failures to pairs of fid and layoutid
   std::map<std::string, std::set<std::pair<uint64_t, uint64_t>>> lastFaultyFiles;
   //! Map from types of failures to pairs of fid and layoutid
-  std::map<std::string, std::set<std::pair<uint64_t, uint64_t>>>
-  currentFaultyFiles;
+  std::map<std::string, std::set<std::pair<uint64_t, uint64_t>>> currentFaultyFiles;
+  //! Access Time Bins
+  std::map<time_t, uint64_t> lastAccessTimeFiles;
+  std::map<time_t, uint64_t> lastAccessTimeVolume;
+  std::map<time_t, uint64_t> currentAccessTimeFiles;
+  std::map<time_t, uint64_t> currentAccessTimeVolume;
+
+  //! Birth Time Bins
+  std::map<time_t, uint64_t> lastBirthTimeFiles;
+  std::map<time_t, uint64_t> lastBirthTimeVolume;
+  std::map<time_t, uint64_t> currentBirthTimeFiles;
+  std::map<time_t, uint64_t> currentBirthTimeVolume;
 
   time_t timeCurrentScan;
   time_t timeLastScan;

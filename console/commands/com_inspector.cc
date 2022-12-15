@@ -36,6 +36,5 @@ com_inspector(char* arg1)
     cmd += arg1;
   }
 
-  fprintf(stderr, "cmd='%s'\n", cmd.c_str());
   return com_proto_space((char*)cmd.c_str());
 }
