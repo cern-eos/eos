@@ -113,7 +113,7 @@ XrdMgmOfs::Version(eos::common::FileId::fileid_t fid,
     eos_info("msg=\"creating version directory\" version-directory=\"%s\"",
              vpath.c_str());
 
-    if (gOFS->_mkdir(vpath.c_str(), 0, error, fidvid, (const char*) 0)) {
+    if (gOFS->_mkdir(vpath.c_str(), 0, error, fidvid, (const char*) 0, nullptr, true)) {
       return Emsg(epname, error, errno, "create version directory", vpath.c_str());
     }
 

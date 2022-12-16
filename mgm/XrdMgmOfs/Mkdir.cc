@@ -79,6 +79,7 @@ XrdMgmOfs::mkdir(const char* inpath,
  * @param client XRootD authentication object
  * @param ininfo CGI
  * @param outino return inode number
+ * @param nopermissioncheck - true: skip it false; do it
  * @return SFS_OK on success otherwise SFS_ERROR
  *
  * If mode contains SFS_O_MKPTH the full path is (possibly) created.
@@ -91,7 +92,8 @@ XrdMgmOfs::_mkdir(const char* path,
                   XrdOucErrInfo& error,
                   eos::common::VirtualIdentity& vid,
                   const char* ininfo,
-                  ino_t* outino)
+                  ino_t* outino,
+		  bool nopermissioncheck)
 {
   static const char* epname = "_mkdir";
   //mode_t acc_mode = (Mode & S_IAMB) | S_IFDIR;
@@ -133,24 +135,27 @@ XrdMgmOfs::_mkdir(const char* path,
     if (dir) {
       uid_t d_uid = dir->getCUid();
       gid_t d_gid = dir->getCGid();
+
       // ACL and permission check
       Acl acl(cPath.GetParentPath(), error, vid, attrmap, false);
       eos_info("path=%s acl=%d r=%d w=%d wo=%d egroup=%d mutable=%d",
-               cPath.GetParentPath(),
-               acl.HasAcl(), acl.CanRead(), acl.CanWrite(), acl.CanWriteOnce(),
-               acl.HasEgroup(), acl.IsMutable());
+	       cPath.GetParentPath(),
+	       acl.HasAcl(), acl.CanRead(), acl.CanWrite(), acl.CanWriteOnce(),
+	       acl.HasEgroup(), acl.IsMutable());
 
-      // Immutable directory
-      if (vid.uid && !acl.IsMutable()) {
-        errno = EPERM;
-        return Emsg(epname, error, EPERM, "create directory - immutable",
-                    cPath.GetParentPath());
+      if (!nopermissioncheck) {
+	// Immutable directory
+	if (vid.uid && !acl.IsMutable()) {
+	  errno = EPERM;
+	  return Emsg(epname, error, EPERM, "create directory - immutable",
+		      cPath.GetParentPath());
+	}
       }
-
+      
       bool sticky_owner;
       attr::checkDirOwner(attrmap, d_uid, d_gid, vid, sticky_owner, path);
       bool stdpermcheck = false;
-
+      
       if (acl.HasAcl()) {
         if ((!acl.CanWrite()) && (!acl.CanWriteOnce())) {
           // we have to check the standard permissions
@@ -161,12 +166,12 @@ XrdMgmOfs::_mkdir(const char* path,
       }
 
       // Admin can always create a directory
-      if (stdpermcheck && (!dir->access(vid.uid, vid.gid, X_OK | W_OK))) {
+      if (!nopermissioncheck && stdpermcheck && (!dir->access(vid.uid, vid.gid, X_OK | W_OK))) {
         errno = EPERM;
         return Emsg(epname, error, EPERM, "access(XW) parent directory",
                     cPath.GetParentPath());
       }
-
+      
       if (sticky_owner) {
         eos_info("msg=\"client acting as directory owner\" path=\"%s\"uid=\"%u=>%u\" gid=\"%u=>%u\"",
                  path, vid.uid, vid.gid, d_uid, d_gid);

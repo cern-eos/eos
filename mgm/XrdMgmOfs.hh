@@ -447,7 +447,8 @@ public:
              XrdOucErrInfo& out_error,
              eos::common::VirtualIdentity& vid,
              const char* opaque = 0,
-             ino_t* outino = 0);
+             ino_t* outino = 0,
+	     bool nopermissioncheck = false);
 
   //----------------------------------------------------------------------------
   //! Prepare a file or query the status of a previous prepare request
