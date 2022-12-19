@@ -24,6 +24,7 @@ workflow:
 
 variables:
   CODENAME: "diopside"
+  KOJI_SCRATCH: ''
 
 default:
   before_script:
@@ -191,6 +192,7 @@ clone_docker:
     - centos
   allow_failure: true # @todo dont allow failure when/if we drop Centos8 and switch to Stream
 
+# build for alma linux
 build_al8:
   image: gitlab-registry.cern.ch/dss/eos/prebuild-al8-${CODENAME}
   <<: *build-template_definition
@@ -933,7 +935,6 @@ unit_test_asan:
 #-------------------------------------------------------------------------------
 # RPM publishing
 #-------------------------------------------------------------------------------
-
 .publish_koji_template: &publish_koji_template_definition
   stage: publish
   image: gitlab-registry.cern.ch/linuxsupport/rpmci/kojicli
