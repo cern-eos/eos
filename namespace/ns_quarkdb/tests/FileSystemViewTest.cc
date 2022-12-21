@@ -838,6 +838,22 @@ TEST_F(FileSystemViewF,containerMDAttributesOps) {
   ASSERT_EQ(1,rootContainer->numAttributes());
 }
 
+TEST_F(FileSystemViewF,getFileOrContainerMDLocked) {
+  view()->createContainer("/root/", true);
+  auto file = view()->createFile("/root/file1");
+  {
+    auto containerWriteLocked = view()->getContainerWriteLocked("/root/");
+    containerWriteLocked->get()->setAttribute("testKey","testValue");
+    auto file1ReadLocked = view()->getFileReadLocked("/root/file1");
+    containerWriteLocked->get()->addFile(file1ReadLocked->get().get());
+  }
+  {
+    auto containerReadLock = view()->getContainerReadLocked("/root/");
+    ASSERT_EQ("testValue",containerReadLock->get()->getAttribute("testKey"));
+    ASSERT_EQ(file->getContainerId(),containerReadLock->get()->getId());
+  }
+}
+
 TEST(SetChangeList, BasicSanity)
 {
   eos::IFsView::FileList contents;
