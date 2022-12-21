@@ -121,6 +121,21 @@ public:
   virtual std::shared_ptr<IFileMD>
   getFile(const std::string& uri, bool follow = true, size_t* link_depths = 0) override;
 
+
+  //----------------------------------------------------------------------------
+  //! Retrieve a file for given uri and read-lock it
+  //----------------------------------------------------------------------------
+  virtual std::unique_ptr<IFileMD::IFileMDReadLocker> getFileReadLocked(const std::string & uri,
+                                                                        bool follow = true,
+                                                                        size_t * link_depths = 0) override;
+
+  //----------------------------------------------------------------------------
+  //! Retrieve a file for given uri and read-lock it
+  //----------------------------------------------------------------------------
+  virtual std::unique_ptr<IFileMD::IFileMDWriteLocker> getFileWriteLocked(const std::string & uri,
+                                                                        bool follow = true,
+                                                                        size_t * link_depths = 0) override;
+
   //----------------------------------------------------------------------------
   //! Retrieve an item for given path. Could be either file or container, we
   //! don't know.
@@ -185,6 +200,20 @@ public:
   virtual std::shared_ptr<IContainerMD> getContainer(const std::string& uri,
       bool follow = true,
       size_t* link_depth = 0) override;
+
+  //----------------------------------------------------------------------------
+  //! Get a container (directory) and read lock it
+  //----------------------------------------------------------------------------
+  virtual std::unique_ptr<IContainerMD::IContainerReadMDLocker> getContainerReadLocked(const std::string & uri,
+                                                                        bool follow = true,
+                                                                        size_t * link_depths = 0) override;
+
+  //----------------------------------------------------------------------------
+  //! Get a container (directory) and write lock it
+  //----------------------------------------------------------------------------
+  virtual std::unique_ptr<IContainerMD::IContainerWriteMDLocker> getContainerWriteLocked(const std::string & uri,
+                                                                                       bool follow = true,
+                                                                                       size_t * link_depths = 0) override;
 
   //----------------------------------------------------------------------------
   //! Create a container (directory)
@@ -357,6 +386,35 @@ private:
   //! @param cont container object
   //----------------------------------------------------------------------------
   void cleanUpContainer(IContainerMD* cont);
+
+
+  //----------------------------------------------------------------------------
+  //! Convenient method to get a file, lock it and return the unique_ptr of the locker object
+  //----------------------------------------------------------------------------
+  template<typename Locker>
+  std::unique_ptr<Locker> getFileLocked(const std::string & uri,
+                                        bool follow = true,
+                                        size_t * link_depths = 0){
+    auto fileMD = getFile(uri,follow,link_depths);
+    if(fileMD) {
+      return std::make_unique<Locker>(fileMD);
+    }
+    return nullptr;
+  }
+
+  //----------------------------------------------------------------------------
+  //! Convenient method to get a container, lock it and return the unique_ptr of the locker object
+  //----------------------------------------------------------------------------
+  template<typename Locker>
+  std::unique_ptr<Locker> getContainerLocked(const std::string & uri,
+                bool follow = true,
+                size_t * link_depths = 0){
+    auto containerMD = getContainer(uri,follow,link_depths);
+    if(containerMD) {
+      return std::make_unique<Locker>(containerMD);
+    }
+    return nullptr;
+  }
 
   //----------------------------------------------------------------------------
   // Data members
