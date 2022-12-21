@@ -38,6 +38,9 @@ public:
   ObjectMDPtr operator->() {
     return mObjectMDPtr;
   }
+  ObjectMDPtr get() {
+    return operator->();
+  }
   ~NSObjectMDLocker(){ mObjectMDPtr->unregisterLock();
   }
 private:
