@@ -708,8 +708,11 @@ Iostat::AddToQdb(const std::string& tag, uid_t uid, gid_t gid,
     std::string new_hash_key = mHashKeyBase + Timing::GetCurrentYear();
 
     if (!mFlusherPath.empty()) {
-      if ((mFlusher == nullptr) || (new_hash_key != hash_key)) {
+      if (new_hash_key != hash_key) {
         hash_key = new_hash_key;
+      }
+
+      if (mFlusher == nullptr) {
         mFlusher.reset(new eos::MetadataFlusher(mFlusherPath,
                                                 gOFS->mQdbContactDetails));
       }
