@@ -142,18 +142,12 @@ PropFindResponse::BuildResponse(eos::common::HttpRequest* request)
   std::string etag;
   memset(&statInfo, 0, sizeof(struct stat));
   // TODO: the status should be chcked ?!
-  (void) gOFS->_stat(request->GetUrl().c_str(), &statInfo, error,
-                     *mVirtualIdentity,
-                     (const char*) 0, &etag);
+  std::string raw_path = request->GetUrl().c_str();
+  eos::mgm::NamespaceMap(raw_path, nullptr, *mVirtualIdentity);
+  (void) gOFS->_stat(raw_path.c_str(), &statInfo, error,
+                     *mVirtualIdentity, (const char*) 0, &etag);
   // Figure out what we actually need to do
   std::string depth = request->GetHeaders()["depth"];
-  // -----------------------------------------------------------------------------
-  // Owncloud patch
-  // -----------------------------------------------------------------------------
-  //  if ( (depth == "1") && (request->GetHeaders()["user-agent"].find("csyncoC") != std::string::npos) )
-  //  {
-  //    depth = "1,noroot";
-  //  }
   eos_static_debug("depth=%s, isdir=%d", depth.c_str(),
                    S_ISDIR(statInfo.st_mode));
   xml_node<>* responseNode = 0;
@@ -189,7 +183,7 @@ PropFindResponse::BuildResponse(eos::common::HttpRequest* request)
         if (entryname.beginswith(EOS_COMMON_PATH_VERSION_FILE_PREFIX) ||
             entryname.beginswith(EOS_COMMON_PATH_ATOMIC_FILE_PREFIX) ||
             entryname.beginswith(EOS_WEBDAV_HIDE_IN_PROPFIND_PREFIX) ||
-	    entryname.beginswith("...eos.ino...") ||
+            entryname.beginswith("...eos.ino...") ||
             (entryname == ".") ||
             (entryname == "..")) {
           // skip over . .., and hidden files
@@ -325,22 +319,26 @@ PropFindResponse::BuildResponseNode(const std::string& url,
   }
 
   // Is the requested resource a file or directory?
-  eos_static_debug("url=%s", urlp.c_str());
+  std::string raw_path = urlp.c_str();
+  eos::mgm::NamespaceMap(raw_path, nullptr, *mVirtualIdentity);
+  eos_static_debug("url_path=%s raw_path=%s", urlp.c_str(), raw_path.c_str());
 
-  if (gOFS->_stat(urlp.c_str(), &statInfo, error, *mVirtualIdentity,
+  if (gOFS->_stat(raw_path.c_str(), &statInfo, error, *mVirtualIdentity,
                   (const char*) 0, &etag)) {
     eos_static_err("msg=\"error stating %s: %s\"", urlp.c_str(),
                    error.getErrText());
+
     if (error.getErrInfo() == EACCES) {
       SetResponseCode(ResponseCodes::FORBIDDEN);
     } else {
       SetResponseCode(ResponseCodes::NOT_FOUND);
     }
+
     return NULL;
   }
 
   // hide hardlinks
-  if ( etag == "hardlink" ) {
+  if (etag == "hardlink") {
     // this is the 'best' guess to identify a hardlink entry (for now)
     eos_static_err("msg=\"hiding hardlinkg %s: %s\"", urlp.c_str(),
                    error.getErrText());
