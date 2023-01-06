@@ -428,11 +428,10 @@ ProcInterface::ProtoIsWriteAccess(const char* opaque)
 
   case RequestProto::kAccess:
     switch (req.access().subcmd_case()) {
-    case eos::console::AccessProto::kLs:
-      return false;
-
+      // we have always to allow to modify the access settings, otherwise we cannot remove write or global stalls
     default:
-      return true;
+      
+      return false;
     }
 
   // always true
