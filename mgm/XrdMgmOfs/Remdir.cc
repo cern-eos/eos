@@ -200,10 +200,12 @@ XrdMgmOfs::_remdir(const char* path,
 						       X_OK | W_OK)) : false) : aclok;
   
   if (container_vtx) {
-    if (container_owner_uid != vid.uid) {
-      // only the owner can delete
-      errno = EPERM;
-      return Emsg(epname, error, errno, "rmdir", path);
+    if (vid.uid) {
+      if (container_owner_uid != vid.uid) {
+	// only the owner can delete
+	errno = EPERM;
+	return Emsg(epname, error, errno, "rmdir", path);
+      }
     }
   } else {
     // need for standard perm check

@@ -206,11 +206,13 @@ XrdMgmOfs::_rem(const char* path,
 	  (owner_uid == vid.uid) ) {
 	// great VTX allows the owner to delete, this is not overruled by a !delete acl
       } else {
-	// forbidden because of VTX bit
-	errno = EPERM;
-	std::ostringstream oss;
-	oss << path << " by tident=" << vid.tident;
-	return Emsg(epname, error, errno, "remove file", oss.str().c_str());
+	if (vid.uid) {
+	  // forbidden because of VTX bit
+	  errno = EPERM;
+	  std::ostringstream oss;
+	  oss << path << " by tident=" << vid.tident;
+	  return Emsg(epname, error, errno, "remove file", oss.str().c_str());
+	}
       }
     } else {
       // try other permissions
