@@ -66,9 +66,10 @@ enum class MvOpType {
 //!
 //! @param sfsid id of the filesystem
 //! @param option output format option (can be default or monitor)
-//! @param dp display path flag
-//! @param df display fid flag
-//! @param ds display size flag
+//! @param show_path display path flag
+//! @param show_fid display fid flag
+//! @param show_fxid display fxid flag
+//! @param show_size display size flag
 //! @param stdOut normal output string
 //! @param stdErr error output string
 //! @param vid_in virtual identity of the client
@@ -76,10 +77,10 @@ enum class MvOpType {
 //!
 //! @return 0 if successful, otherwise error code value
 //------------------------------------------------------------------------------
-int proc_fs_dumpmd(std::string& sfsid, XrdOucString& option, XrdOucString& dp,
-                   XrdOucString& df, XrdOucString& ds, XrdOucString& stdOut,
-                   XrdOucString& stdErr, eos::common::VirtualIdentity& vid_in,
-                   size_t& entries);
+int proc_fs_dumpmd(std::string& sfsid, XrdOucString& option, bool show_path,
+                   bool show_fid, bool show_fxid, bool show_size,
+                   XrdOucString& stdOut, XrdOucString& stdErr,
+                   eos::common::VirtualIdentity& vid_in, size_t& entries);
 
 //------------------------------------------------------------------------------
 //! Set filesystem configuration parameter

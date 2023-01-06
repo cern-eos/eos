@@ -377,6 +377,8 @@ FsHelper::ParseCommand(const char* arg)
 
           if (soption == "--fid") {
             dumpmd->set_showfid(true);
+          } else if (soption == "--fxid") {
+            dumpmd->set_showfxid(true);
           } else if (soption == "--path") {
             dumpmd->set_showpath(true);
           } else if (soption == "--size") {

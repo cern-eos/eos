@@ -194,9 +194,10 @@ void com_fs_help()
       << std::endl
       << "         the files from disk)" << std::endl
       << std::endl
-      << "  fs dumpmd <fsid> [--fid] [--path] [--size] [-m|-s]" << std::endl
+      << "  fs dumpmd <fsid> [--fid] [--fxid] [--path] [--size] [-m|-s]" << std::endl
       << "    dump all file metadata on this filesystem in query format" << std::endl
-      << "    --fid  : dump only the file ids" << std::endl
+      << "    --fid  : dump only the file ids in decimal" << std::endl
+      << "    --fxid : dump only the file ids in hex" << std::endl
       << "    --path : dump only the file paths" << std::endl
       << "    --size : dump only the file sizes" << std::endl
       << "    -m     : print full metadata record in env format" << std::endl
@@ -273,7 +274,7 @@ void com_fs_help()
       << "  Examples: " << std::endl
       << "  fs ls --io -> list all filesystems with IO statistics" << std::endl
       << "  fs boot *  -> send boot request to all filesystems" << std::endl
-      << "  fs dumpmd 100 -path -> dump all logical path names on filesystem"
+      << "  fs dumpmd 100 --path -> dump all logical path names on filesystem"
       << " 100" << std::endl
       << "  fs mv 100 default.0 -> move filesystem 100 to scheduling group"
       << " default.0" << std::endl;

@@ -327,8 +327,11 @@ FsCmd::DumpMd(const eos::console::FsProto::DumpMdProto& dumpmdProto)
     XrdOucString df = dumpmdProto.showfid() ? "1" : "0";
     XrdOucString ds = dumpmdProto.showsize() ? "1" : "0";
     size_t entries = 0;
-    mRetc = SemaphoreProtectedProcDumpmd(sfsid, option, dp, df, ds, out,
-                                         err, entries);
+    mRetc = SemaphoreProtectedProcDumpmd(sfsid, option, dumpmdProto.showpath(),
+                                         dumpmdProto.showfid(),
+                                         dumpmdProto.showfxid(),
+                                         dumpmdProto.showsize(),
+                                         out, err, entries);
 
     if (!mRetc) {
       gOFS->MgmStats.Add("DumpMd", mVid.uid, mVid.gid, entries);
@@ -854,9 +857,10 @@ eos::mgm::FsCmd::DisplayModeToString(eos::console::FsProto::LsProto::DisplayMode
 
 int
 FsCmd::SemaphoreProtectedProcDumpmd(std::string& fsid, XrdOucString& option,
-                                    XrdOucString& dp, XrdOucString& df,
-                                    XrdOucString& ds, XrdOucString& out,
-                                    XrdOucString& err, size_t& entries)
+                                    bool show_path, bool show_fid,
+                                    bool show_fxid, bool show_size,
+                                    XrdOucString& out, XrdOucString& err,
+                                    size_t& entries)
 {
   try {
     mSemaphore.Wait();
@@ -865,8 +869,8 @@ FsCmd::SemaphoreProtectedProcDumpmd(std::string& fsid, XrdOucString& option,
     return EAGAIN;
   }
 
-  int lretc = proc_fs_dumpmd(fsid, option, dp, df, ds, out, err,
-                             mVid, entries);
+  int lretc = proc_fs_dumpmd(fsid, option, show_path, show_fid, show_fxid,
+                             show_size, out, err, mVid, entries);
 
   try {
     mSemaphore.Post();

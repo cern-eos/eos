@@ -133,17 +133,14 @@ MvOpType get_operation_type(const std::string& in1, const std::string& in2,
 // Dump metadata information
 //------------------------------------------------------------------------------
 int
-proc_fs_dumpmd(std::string& sfsid, XrdOucString& option, XrdOucString& dp,
-               XrdOucString& df, XrdOucString& ds, XrdOucString& stdOut,
-               XrdOucString& stdErr,
+proc_fs_dumpmd(std::string& sfsid, XrdOucString& option, bool show_path,
+               bool show_fid, bool show_fxid, bool show_size,
+               XrdOucString& stdOut, XrdOucString& stdErr,
                eos::common::VirtualIdentity& vid_in, size_t& entries)
 {
   entries = 0;
   int retc = 0;
   bool monitor = false;
-  bool dumppath = false;
-  bool dumpfid = false;
-  bool dumpsize = false;
   bool processPath = false;
   std::ostringstream out;
   std::ostringstream err;
@@ -153,21 +150,13 @@ proc_fs_dumpmd(std::string& sfsid, XrdOucString& option, XrdOucString& dp,
 
   if (option == "m") {
     monitor = true;
-  } else {
-    if (dp == "1") {
-      dumppath = true;
-    }
-
-    if (df == "1") {
-      dumpfid = true;
-    }
-
-    if (ds == "1") {
-      dumpsize = true;
-    }
+    show_path = false;
+    show_fid = false;
+    show_fxid = false;
+    show_size = false;
   }
 
-  processPath = monitor || dumppath;
+  processPath = monitor || show_path;
 
   if (!sfsid.length()) {
     err << "error: no <fsid> provided";
@@ -213,7 +202,7 @@ proc_fs_dumpmd(std::string& sfsid, XrdOucString& option, XrdOucString& dp,
             }
           }
 
-          if ((!dumppath) && (!dumpfid) && (!dumpsize)) {
+          if ((!show_path) && (!show_fid) && (!show_fxid)  && (!show_size)) {
             std::string env;
             fmd->getEnv(env, true);
             XrdOucString senv = env.c_str();
@@ -229,21 +218,27 @@ proc_fs_dumpmd(std::string& sfsid, XrdOucString& option, XrdOucString& dp,
                   << (containerpath.size() ? containerpath.c_str() : "(null)");
             }
           } else {
-            if (dumppath) {
+            bool has_info = false;
+
+            if (show_path) {
               out << "path="
                   << (fullpath.size() ? fullpath.c_str() : "(null)");
+              has_info = true;
             }
 
-            if (dumpfid) {
-              // @todo(esindril) this should use the fxid tag but for the
-              // moment we don't change it to avoid breaking scripts.
-              out << (dumppath ? " " : "") << "fid=" << std::setw(8)
+            if (show_fid) {
+              out << (has_info ? " " : "") << "fid=" << fmd->getId();
+              has_info = true;
+            }
+
+            if (show_fxid) {
+              out << (has_info ? " " : "") << "fxid=" << std::setw(8)
                   << std::hex << fmd->getId() << std::dec;
+              has_info = true;
             }
 
-            if (dumpsize) {
-              out << ((dumppath || dumpfid) ? " " : "")
-                  << "size=" << fmd->getSize();
+            if (show_size) {
+              out << (has_info ? " " : "") << "size=" << fmd->getSize();
             }
           }
 
@@ -440,7 +435,7 @@ proc_fs_config(std::string& identifier, std::string& key, std::string& value,
               oss << "error: the filesystem is not empty, therefore it can't be removed\n"
                   << "# -------------------------------------------------------------------\n"
                   << "# You can inspect the registered files via the command:\n"
-                  << "# [eos] fs dumpmd " << fs->GetId() << " -path\n"
+                  << "# [eos] fs dumpmd " << fs->GetId() << " --path\n"
                   << "# -------------------------------------------------------------------\n"
                   << "# You can drain the filesystem if it is still operational via the command:\n"
                   << "# [eos] fs config " << fs->GetId() << " configstatus=drain\n"

@@ -87,9 +87,10 @@ private:
                                   mode);
 
   int SemaphoreProtectedProcDumpmd(std::string& fsid, XrdOucString& option,
-                                   XrdOucString& dp,
-                                   XrdOucString& df, XrdOucString& ds, XrdOucString& out,
-                                   XrdOucString& err, size_t& entries);
+                                   bool show_path, bool show_fid,
+                                   bool show_fxid, bool show_size,
+                                   XrdOucString& out, XrdOucString& err,
+                                   size_t& entries);
 
   template <class T, std::size_t N>
   static constexpr std::size_t SizeOfArray(const T(&array)[N]) noexcept
