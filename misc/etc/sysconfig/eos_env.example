@@ -191,6 +191,11 @@ EOS_NOTIFY="mail -s `date +%s`-`hostname`-eos-notify $EOS_MAIL_CC"
 # FSTs with long latency.
 # EOS_FST_REPLICA_ASYNC_WRITE=1
 
+# If this variable is present then deletion requests coming from the Fsck
+# engine are actually performed as a move on the file system mount in a special
+# directory called .eosdeletions. By default disabled.
+# EOS_FST_FSCK_DELETE_BY_MOVE=1
+
 #-------------------------------------------------------------------------------
 # HTTPD Configuration
 #-------------------------------------------------------------------------------

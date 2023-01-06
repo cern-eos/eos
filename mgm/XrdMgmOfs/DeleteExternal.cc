@@ -27,8 +27,7 @@
 // -----------------------------------------------------------------------
 bool
 XrdMgmOfs::DeleteExternal(eos::common::FileSystem::fsid_t fsid,
-                          unsigned long long fid)
-
+                          unsigned long long fid, bool is_fsck)
 {
   using namespace eos::common;
   std::string fst_queue;
@@ -72,6 +71,11 @@ XrdMgmOfs::DeleteExternal(eos::common::FileSystem::fsid_t fsid,
   int caplen = 0;
   bool ok = true;
   std::string qreq = "/?fst.pcmd=drop";
+
+  if (is_fsck) {
+    qreq += "&fst.drop.type=fsck";
+  }
+
   qreq += capabilityenv->Env(caplen);
   std::string qresp;
 

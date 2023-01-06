@@ -843,7 +843,7 @@ FsckEntry::DropReplica(eos::common::FileSystem::fsid_t fsid) const
            mFid, fsid);
 
   // Send external deletion to the FST
-  if (gOFS && !gOFS->DeleteExternal(fsid, mFid)) {
+  if (gOFS && !gOFS->DeleteExternal(fsid, mFid, true)) {
     eos_err("msg=\"failed to send unlink to FST\" fxid=%08llx fsid=%lu",
             mFid, fsid);
     retc = false;

@@ -94,6 +94,14 @@ public:
   void AddDeletion(std::unique_ptr<Deletion> del);
 
   //----------------------------------------------------------------------------
+  //! Delete file by moving it to a special directory on the file system root
+  //! mount location in the .eosdeletions directory
+  //!
+  //! @param del deletion object
+  //----------------------------------------------------------------------------
+  void DeleteByMove(std::unique_ptr<Deletion> del);
+
+  //----------------------------------------------------------------------------
   //! Get deletion object removing it from the list
   //!
   //! @return get deletion object

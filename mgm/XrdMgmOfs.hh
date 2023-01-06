@@ -448,7 +448,7 @@ public:
              eos::common::VirtualIdentity& vid,
              const char* opaque = 0,
              ino_t* outino = 0,
-	     bool nopermissioncheck = false);
+             bool nopermissioncheck = false);
 
   //----------------------------------------------------------------------------
   //! Prepare a file or query the status of a previous prepare request
@@ -1419,11 +1419,12 @@ public:
   //!
   //! @param fsid file system id where to run a deletion
   //! @param fid file id to be deleted
+  //! @param is_fsck true if deletion comes from fsck, otherwise false
   //!
   //! @result true if successfully sent otherwise false
   //-----------------------------------------------------------------------------
   bool DeleteExternal(eos::common::FileSystem::fsid_t fsid,
-                      unsigned long long fid);
+                      unsigned long long fid, bool is_fsck = false);
 
   //----------------------------------------------------------------------------
   //! Authentication master thread function - accepts requests from EOS AUTH

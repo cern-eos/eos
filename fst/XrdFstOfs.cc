@@ -399,6 +399,10 @@ XrdFstOfs::XrdFstOfs() :
             "size=%i\n", max_size);
   }
 
+  if (getenv("EOS_FST_FSCK_DELETE_BY_MOVE")) {
+    mEnvFsckDeleteByMove = true;
+  }
+
   UpdateTpcKeyValidity();
 }
 
@@ -2294,6 +2298,13 @@ XrdFstOfs::HandleDropFile(XrdOucEnv& env, XrdOucErrInfo& err_obj)
 {
   int caprc = 0;
   XrdOucEnv* capOpaque {nullptr};
+  bool is_fsck = false;
+  char* ptr = env.Get("fst.drop.type");
+
+  // Check if drop request comes from an fsck operation
+  if (ptr && (strncmp(ptr, "fsck", 4) == 0)) {
+    is_fsck = true;
+  }
 
   if ((caprc = eos::common::SymKey::ExtractCapability(&env, capOpaque))) {
     eos_static_err("msg=\"extract capability failed for deletion\" errno=%d",
@@ -2305,7 +2316,11 @@ XrdFstOfs::HandleDropFile(XrdOucEnv& env, XrdOucErrInfo& err_obj)
     std::unique_ptr<Deletion> new_del = Deletion::Create(capOpaque);
 
     if (new_del) {
-      gOFS.Storage->AddDeletion(std::move(new_del));
+      if (mEnvFsckDeleteByMove && is_fsck) {
+        gOFS.Storage->DeleteByMove(std::move(new_del));
+      } else {
+        gOFS.Storage->AddDeletion(std::move(new_del));
+      }
     } else {
       eos_static_err("%s", "msg=\"illegal drop opaque information\"");
       return SFS_ERROR;

@@ -29,6 +29,7 @@
 #include "fst/Verify.hh"
 #include "fst/Deletion.hh"
 #include "fst/txqueue/TransferQueue.hh"
+#include "fst/io/FileIoPluginCommon.hh"
 #include "fst/XrdFstOss.hh"
 #include "common/Fmd.hh"
 #include "common/FileId.hh"
@@ -247,7 +248,6 @@ Storage::Storage(const char* meta_dir)
   } else {
     eos_err("unable to create transfer queue");
   }
-
 }
 
 //------------------------------------------------------------------------------
@@ -583,34 +583,44 @@ Storage::Boot(FileSystem* fs)
   fs->IoPing();
   fs->SetStatus(eos::common::BootStatus::kBooted);
   fs->SetError(0, "");
-  // Create FS orphan directory
-  std::string orphanDirectory = fs->GetPath();
+  // Create FS orphans and deletions directories
+  std::string orphans_dir = fs->GetPath();
+  std::string deletions_dir = fs->GetPath();
 
   if (fs->GetPath()[0] != '/') {
-    orphanDirectory = mMetaDir.c_str();
-    orphanDirectory += "/.eosorphans";
-    orphanDirectory += "-";
-    orphanDirectory += (int) fs->GetLocalId();
+    orphans_dir = mMetaDir.c_str();
+    orphans_dir += "/.eosorphans";
+    orphans_dir += "-";
+    orphans_dir += (int) fs->GetLocalId();
+    deletions_dir = mMetaDir.c_str();
+    deletions_dir += "/.eosdeletions";
+    deletions_dir += "-";
+    deletions_dir += (int) fs->GetLocalId();
   } else {
-    orphanDirectory += "/.eosorphans";
+    orphans_dir += "/.eosorphans";
+    deletions_dir += "/.eosdeletions";
   }
 
-  if (mkdir(orphanDirectory.c_str(),
-            S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH)) {
-    if (errno != EEXIST) {
+  for (const auto& dir : {
+  orphans_dir, deletions_dir
+}) {
+    if (mkdir(dir.c_str(),
+              S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH)) {
+      if (errno != EEXIST) {
+        fs->SetStatus(eos::common::BootStatus::kBootFailure);
+        fs->SetError(errno ? errno : EIO, "cannot create orphans/deletions "
+                     " directories");
+        return;
+      }
+    }
+
+    if (chown(dir.c_str(), 2, 2)) {
       fs->SetStatus(eos::common::BootStatus::kBootFailure);
-      fs->SetError(errno ? errno : EIO, "cannot create orphan directory");
+      fs->SetError(errno ? errno : EIO, "cannot change ownership of "
+                   " orphans/deletions directories");
       return;
     }
   }
-
-  if (chown(orphanDirectory.c_str(), 2, 2)) {
-    fs->SetStatus(eos::common::BootStatus::kBootFailure);
-    fs->SetError(errno ? errno : EIO, "cannot change ownership of orphan "
-                 "directory");
-    return;
-  }
-
   eos_info("msg=\"finished boot procedure\" fsid=%lu", (unsigned long) fsid);
   return;
 }
@@ -798,6 +808,44 @@ Storage::AddDeletion(std::unique_ptr<Deletion> del)
 {
   XrdSysMutexHelper scope_lock(mDeletionsMutex);
   mListDeletions.push_front(std::move(del));
+}
+
+//----------------------------------------------------------------------------
+// Delete file by moving it to a special directory on the file system root
+// mount location in the .eosdeletions directory
+//----------------------------------------------------------------------------
+void
+Storage::DeleteByMove(std::unique_ptr<Deletion> del)
+{
+  using eos::common::FileId;
+  static const std::string del_dir = ".eosdeletions";
+  const std::string sfxid = FileId::Fid2Hex(del->mFidVect[0]);
+  const std::string fpath = FileId::FidPrefix2FullPath(sfxid.c_str(),
+                            del->mLocalPrefix.c_str());
+  eos::common::Path cpath(fpath.c_str());
+  size_t cpath_sz = cpath.GetSubPathSize();
+
+  if (cpath_sz <= 2) {
+    eos_static_err("msg=\"failed to extract FST mount/fid hex\" path=%s",
+                   fpath.c_str());
+    return;
+  }
+
+  std::ostringstream oss;
+  oss << cpath.GetSubPath(cpath_sz - 2) << ".eosdeletions/" << sfxid;
+  std::string fdeletion = oss.str();
+  // Store the original path name as an extended attribute in case ...
+  std::unique_ptr<FileIo> io(FileIoPluginHelper::GetIoObject(fpath));
+  io->attrSet("user.eos.deletion", fpath.c_str());
+
+  // Move it into the deletions directory
+  if (!rename(fpath.c_str(), fdeletion.c_str())) {
+    eos_static_warning("msg=\"deletion quarantined\" path=%s del-path=%s",
+                       fpath.c_str(), fdeletion.c_str());
+  } else {
+    eos_static_err("msg=\"failed to quarantine deletion\" path=%s del-path=%s",
+                   fpath.c_str(), fdeletion.c_str());
+  }
 }
 
 //------------------------------------------------------------------------------
