@@ -24,14 +24,17 @@
 #ifndef EOS_CLUSTERDATATYPES_HH
 #define EOS_CLUSTERDATATYPES_HH
 
+#include "common/FileSystem.hh"
+
 namespace eos::mgm::placement {
 
-using eos::common::FileSystem::fsid_t;
+using fsid_t = eos::common::FileSystem::fsid_t;
 
 // We use a item_id to represent a storage element, negative numbers represent
 // storage elements in the hierarchy, ie. groups/racks/room/site etc.
 using item_id_t = int32_t;
 using epoch_id_t = uint64_t;
+using DiskStatus = eos::common::ConfigStatus;
 // A struct representing a disk, this is the lowest level of the hierarchy,
 // disk ids map 1:1 to fsids, however it is necessary that the last bit of fsid_t
 // is not used, as we use a int32_t for the rest of the placement hierarchy.
@@ -39,10 +42,12 @@ using epoch_id_t = uint64_t;
 // can fit in a single 64kB cache, it is recommended to keep this struct aligned
 struct Disk {
   fsid_t id;
-  mutable std::atomic<common::ConfigStatus> status {common::ConfigStatus::kUnknown};
+  mutable std::atomic<DiskStatus> status {common::ConfigStatus::kUnknown};
   mutable std::atomic<uint8_t> weight{0}; // we really don't need floating point precision
   mutable std::atomic<uint8_t> percent_used{0};
   /* We've one byte left for future use - remove this line when that happens */
+
+  Disk () : id(0) {}
 
   explicit Disk(fsid_t _id) : id(_id) {}
 
@@ -58,6 +63,17 @@ struct Disk {
              other.weight.load(std::memory_order_relaxed),
              other.percent_used.load(std::memory_order_relaxed))
   {
+  }
+
+  Disk& operator=(const Disk& other) {
+    id = other.id;
+    status.store(other.status.load(std::memory_order_relaxed),
+                 std::memory_order_relaxed);
+    weight.store(other.weight.load(std::memory_order_relaxed),
+                 std::memory_order_relaxed);
+    percent_used.store(other.percent_used.load(std::memory_order_relaxed),
+                       std::memory_order_relaxed);
+    return *this;
   }
 
   friend bool
@@ -88,6 +104,8 @@ struct Bucket {
   uint32_t total_weight;
   uint8_t bucket_type;
   std::vector<item_id_t> items;
+
+  Bucket() = default;
 
   Bucket(item_id_t _id, uint8_t type)
       : id(_id), total_weight(0), bucket_type(type)
