@@ -30,7 +30,7 @@
 #include <filesystem>
 #endif
 
-
+#include "common/Logging.hh"
 
 // A std::filesystem version of Filesystem like functions for eos
 // Clang support is in experimental namespace until clang 6
@@ -85,8 +85,10 @@ uint64_t WalkDirTree(std::string_view path, FilterFn&& filter, PathOp&& path_op,
                 fs::directory_options::skip_permission_denied,
                 ec);
        p != fs::recursive_directory_iterator();
-       ++p) {
+       p.increment(ec)) {
     if (ec) {
+      eos_static_crit("msg=\"error while walking directory tree\" ec=\"%s\"",
+                      ec.message().c_str());
       return count;
     }
 
