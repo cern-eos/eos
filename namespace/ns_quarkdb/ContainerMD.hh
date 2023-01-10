@@ -105,6 +105,11 @@ public:
   std::shared_ptr<IContainerMD> findContainer(const std::string& name) override;
 
   //----------------------------------------------------------------------------
+  //! Find sub container and write lock it
+  //----------------------------------------------------------------------------
+  std::unique_ptr<IContainerMD::IContainerMDWriteLocker> findContainerAndWriteLock(const std::string & name) override;
+
+  //----------------------------------------------------------------------------
   //! Find item
   //----------------------------------------------------------------------------
   folly::Future<FileOrContainerMD> findItem(const std::string& name) override;

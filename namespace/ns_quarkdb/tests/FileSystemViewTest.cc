@@ -699,7 +699,7 @@ TEST_F(FileSystemViewF, containerMDFindItem)
         std::stringstream contName;
         fileName << "f" << i;
         contName << "c" << i;
-        eos::IContainerMD::IContainerReadMDLocker containerMDLocker(testCont);
+        eos::IContainerMD::IContainerMDReadLocker containerMDLocker(testCont);
         {
           auto contOrFile = testCont->findItem(fileName.str()).get();
           ASSERT_TRUE(contOrFile.file != nullptr);
@@ -712,7 +712,7 @@ TEST_F(FileSystemViewF, containerMDFindItem)
     }));
   }
   {
-    eos::IContainerMD::IContainerReadMDLocker containerMDLocker(testCont);
+    eos::IContainerMD::IContainerMDReadLocker containerMDLocker(testCont);
     {
       auto contOrFile = testCont->findItem("f0").get();
       ASSERT_TRUE(contOrFile.file != nullptr);
@@ -731,7 +731,7 @@ TEST_F(FileSystemViewF, containerMDAddContainerThenRemove)
 {
   auto rootContainer = view()->createContainer("/root/", true);
   auto rootContainerID = rootContainer->getId();
-  eos::IContainerMD::IContainerWriteMDLocker rootLocker(rootContainer);
+  eos::IContainerMD::IContainerMDWriteLocker rootLocker(rootContainer);
   auto testContainer = view()->createContainer("/test/", true);
   auto testContainerID = testContainer->getId();
   rootContainer->addContainer(testContainer.get());
@@ -745,7 +745,7 @@ TEST_F(FileSystemViewF, containerMDAddContainerThenRemove)
 TEST_F(FileSystemViewF, containerMDaddFileThenRemove)
 {
   auto rootContainer = view()->createContainer("/root/", true);
-  eos::IContainerMD::IContainerWriteMDLocker rootLocker(rootContainer);
+  eos::IContainerMD::IContainerMDWriteLocker rootLocker(rootContainer);
   auto testFile = view()->createFile("/root/test");
   rootContainer->addFile(testFile.get());
   ASSERT_EQ(1,rootContainer->getNumFiles());
@@ -757,14 +757,14 @@ TEST_F(FileSystemViewF, containerMDGetSetName)
 {
   auto rootContainer = view()->createContainer("/root/", true);
   ASSERT_EQ("root",rootContainer->getName());
-  eos::IContainerMD::IContainerWriteMDLocker rootLocker(rootContainer);
+  eos::IContainerMD::IContainerMDWriteLocker rootLocker(rootContainer);
   rootContainer->setName("newname");
   ASSERT_EQ("newname",rootContainer->getName());
 }
 
 TEST_F(FileSystemViewF, containerMDBasicGettersSetters) {
   auto rootContainer = view()->createContainer("/root/", true);
-  eos::IContainerMD::IContainerWriteMDLocker rootLocker(rootContainer);
+  eos::IContainerMD::IContainerMDWriteLocker rootLocker(rootContainer);
   rootContainer->setCUid(2);
   ASSERT_EQ(2,rootContainer->getCUid());
   rootContainer->setCGid(23);
@@ -804,7 +804,7 @@ TEST_F(FileSystemViewF, containerMDSyncTimeAccounting) {
   eos::IContainerMD::ctime_t rootContainerTimeBeforeNotify,
       rootContainerMTimeAfterNotify;
   {
-    eos::IContainerMD::IContainerWriteMDLocker
+    eos::IContainerMD::IContainerMDWriteLocker
         containerSyncTimeAccountingLocker(containerSyncTimeAccounting);
     containerSyncTimeAccounting->setAttribute("sys.mtime.propagation", "true");
     auto testContainer = view()->getContainer("/root/test/");
@@ -826,7 +826,7 @@ TEST_F(FileSystemViewF, containerMDSyncTimeAccounting) {
 
 TEST_F(FileSystemViewF,containerMDAttributesOps) {
   auto rootContainer = view()->createContainer("/root/", true);
-  eos::IContainerMD::IContainerWriteMDLocker rootLocker(rootContainer);
+  eos::IContainerMD::IContainerMDWriteLocker rootLocker(rootContainer);
   rootContainer->setAttribute("attribute1","value1");
   rootContainer->setAttribute("attribute2","value2");
   ASSERT_TRUE(rootContainer->hasAttribute("attribute1"));
@@ -843,14 +843,14 @@ TEST_F(FileSystemViewF,getFileOrContainerMDLocked) {
   auto file = view()->createFile("/root/file1");
   {
     auto containerWriteLocked = view()->getContainerWriteLocked("/root/");
-    containerWriteLocked->get()->setAttribute("testKey","testValue");
+    containerWriteLocked->getUnderlyingPtr()->setAttribute("testKey","testValue");
     auto file1ReadLocked = view()->getFileReadLocked("/root/file1");
-    containerWriteLocked->get()->addFile(file1ReadLocked->get().get());
+    containerWriteLocked->getUnderlyingPtr()->addFile(file1ReadLocked->getUnderlyingPtr().get());
   }
   {
     auto containerReadLock = view()->getContainerReadLocked("/root/");
-    ASSERT_EQ("testValue",containerReadLock->get()->getAttribute("testKey"));
-    ASSERT_EQ(file->getContainerId(),containerReadLock->get()->getId());
+    ASSERT_EQ("testValue",containerReadLock->getUnderlyingPtr()->getAttribute("testKey"));
+    ASSERT_EQ(file->getContainerId(),containerReadLock->getUnderlyingPtr()->getId());
   }
 }
 
