@@ -557,12 +557,14 @@ XrdCl::Proxy::OpenAsyncHandler::HandleResponseWithHosts(
     } else {
       eos_static_err("state=failed async open returned errmsg=%s",
                      status->ToString().c_str());
-      proxy()->set_state(FAILED, status);
-    }
+      XrdSysCondVarHelper writeLock(proxy()->WriteCondVar());
+      if (proxy()->WriteQueue().size()) {
+	// if an open failes we clean the write queue
+	proxy()->CleanWriteQueue();
+      }
+      writeLock.UnLock();
 
-    if (proxy()->WriteQueue().size()) {
-      // if an open failes we clean the write queue
-      proxy()->CleanWriteQueue();
+      proxy()->set_state(FAILED, status);
     }
 
     proxy()->OpenCondVar().Signal();
