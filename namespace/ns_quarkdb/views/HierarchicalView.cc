@@ -589,19 +589,19 @@ QuarkHierarchicalView::getContainer(const std::string& uri, bool follow,
 //----------------------------------------------------------------------------
 //! Get a container (directory) and read lock it
 //----------------------------------------------------------------------------
-std::unique_ptr<IContainerMD::IContainerReadMDLocker> QuarkHierarchicalView::getContainerReadLocked(const std::string & uri,
+std::unique_ptr<IContainerMD::IContainerMDReadLocker> QuarkHierarchicalView::getContainerReadLocked(const std::string & uri,
                                                                                      bool follow,
                                                                                      size_t * link_depths) {
-  return getContainerLocked<IContainerMD::IContainerReadMDLocker>(uri,follow,link_depths);
+  return getContainerLocked<IContainerMD::IContainerMDReadLocker>(uri,follow,link_depths);
 }
 
 //----------------------------------------------------------------------------
 //! Get a container (directory) and write lock it
 //----------------------------------------------------------------------------
-std::unique_ptr<IContainerMD::IContainerWriteMDLocker> QuarkHierarchicalView::getContainerWriteLocked(const std::string & uri,
+std::unique_ptr<IContainerMD::IContainerMDWriteLocker> QuarkHierarchicalView::getContainerWriteLocked(const std::string & uri,
                                                                                        bool follow,
                                                                                        size_t * link_depths) {
-  return getContainerLocked<IContainerMD::IContainerWriteMDLocker>(uri,follow,link_depths);
+  return getContainerLocked<IContainerMD::IContainerMDWriteLocker>(uri,follow,link_depths);
 }
 
 //------------------------------------------------------------------------------

@@ -317,6 +317,19 @@ QuarkContainerMD::findContainer(const std::string& name)
   return this->findItem(name).get().container;
 }
 
+//----------------------------------------------------------------------------
+//! Find sub container and write lock it
+//----------------------------------------------------------------------------
+std::unique_ptr<IContainerMD::IContainerMDWriteLocker>
+QuarkContainerMD::findContainerAndWriteLock(const std::string & name)
+{
+  auto container = this->findItem(name).get().container;
+  if(container) {
+    return std::make_unique<IContainerMD::IContainerMDWriteLocker>(container);
+  }
+  return nullptr;
+}
+
 //------------------------------------------------------------------------------
 // Add file
 //------------------------------------------------------------------------------
