@@ -87,6 +87,11 @@ public:
   using FileMap = google::dense_hash_map<std::string, IContainerMD::id_t,
         Murmur3::MurmurHasher<std::string> >;
 
+  template<typename ObjectMDPtr, typename LockType> friend class NSObjectMDLocker;
+  friend class NSObjectMDLockHelper<IContainerMD>;
+  using IContainerMDReadLocker = NSObjectMDLocker<IContainerMDPtr,MDReadLock>;
+  using IContainerMDWriteLocker = NSObjectMDLocker<IContainerMDPtr,MDWriteLock>;
+
   //----------------------------------------------------------------------------
   //! Constructor
   //----------------------------------------------------------------------------
@@ -128,6 +133,11 @@ public:
   //----------------------------------------------------------------------------
   virtual std::shared_ptr<IContainerMD>
   findContainer(const std::string& name) = 0;
+
+  //----------------------------------------------------------------------------
+  //! Find sub container and write lock it
+  //----------------------------------------------------------------------------
+  virtual std::unique_ptr<IContainerMD::IContainerMDWriteLocker> findContainerAndWriteLock(const std::string & name) = 0;
 
   //----------------------------------------------------------------------------
   //! Get number of containers
@@ -432,10 +442,6 @@ public:
     std::unique_lock lock(mLastPrefetchMtx);
     mLastPrefetch = tp;
   }
-  template<typename ObjectMDPtr, typename LockType> friend class NSObjectMDLocker;
-  friend class NSObjectMDLockHelper<IContainerMD>;
-  using IContainerReadMDLocker = NSObjectMDLocker<IContainerMDPtr,MDReadLock>;
-  using IContainerWriteMDLocker = NSObjectMDLocker<IContainerMDPtr,MDWriteLock>;
 
 private:
   friend class FileMapIterator;
