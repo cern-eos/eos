@@ -337,6 +337,7 @@ add_library(
   bulk-request/prepare/query-prepare/QueryPrepareResult.cc
   bulk-request/dao/proc/cleaner/BulkRequestProcCleaner.cc
   bulk-request/dao/proc/cleaner/BulkRequestProcCleanerConfig.cc
+  placement/ClusterMap.cc
   ${FUSEX_SRCS})
 
 target_link_libraries(XrdEosMgm-Objects PUBLIC
