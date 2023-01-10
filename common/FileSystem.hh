@@ -57,7 +57,7 @@ class SharedManager;
 EOSCOMMONNAMESPACE_BEGIN;
 
 //! Values for a boot status
-enum class BootStatus {
+enum class BootStatus : int8_t {
   kOpsError = -2,
   kBootFailure = -1,
   kDown = 0,
@@ -67,7 +67,7 @@ enum class BootStatus {
 };
 
 //! Values for a drain status
-enum class DrainStatus {
+enum class DrainStatus : int8_t {
   kNoDrain = 0,
   kDrainPrepare = 1,
   kDrainWait = 2,
@@ -80,7 +80,7 @@ enum class DrainStatus {
 
 //! Values describing if a filesystem is online or offline
 //! (combination of multiple conditions)
-enum class ActiveStatus {
+enum class ActiveStatus : int8_t {
   kUndefined = -1,
   kOffline = 0,
   kOnline = 1,
@@ -89,7 +89,8 @@ enum class ActiveStatus {
 
 //! Values for a configuration status - stored persistently in the
 //! filesystem configuration
-enum class ConfigStatus {
+//! forcing an int8_t as we wouldn't need a larger range of integers for these statuses
+enum class ConfigStatus : int8_t {
   kUnknown = -1,
   kOff = 0,
   kEmpty,
