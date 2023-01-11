@@ -520,16 +520,6 @@ SpaceQuota::PrintOut(XrdOucString& output, long long int uid_sel,
 
         // Translate IDs
         std::string name = std::to_string(uid).c_str();
-
-        if (translate_ids) {
-          if (gid_sel == Quota::gProjectId) {
-            name = "project";
-          } else {
-            int errc = 0;
-            name = eos::common::Mapping::UidToUserName(uid, errc);
-          }
-        }
-
         uids.push_back(std::make_pair(name, uid));
       }
 
@@ -549,20 +539,38 @@ SpaceQuota::PrintOut(XrdOucString& output, long long int uid_sel,
 
         // Translate IDs
         std::string name = std::to_string(gid).c_str();
-
-        if (translate_ids) {
-          if (gid_sel == Quota::gProjectId) {
-            name = "project";
-          } else {
-            int errc = 0;
-            name = eos::common::Mapping::GidToGroupName(gid, errc);
-          }
-        }
-
         gids.push_back(std::make_pair(name, gid));
       }
     }
   }
+
+  // translate ids without mutex held
+  if (translate_ids) {
+    std::string name;
+    std::vector<std::pair<std::string, unsigned>> tuids, tgids;
+    for (auto u:uids) {
+      if (gid_sel == Quota::gProjectId) {
+	name = "project";
+      } else {
+	int errc = 0;
+	name = eos::common::Mapping::UidToUserName(u.second, errc);
+      }
+      tuids.push_back(std::make_pair(name,u.second));
+    }
+    
+    for (auto g:gids) {
+      if (gid_sel == Quota::gProjectId) {
+	name = "project";
+      } else {
+	int errc = 0;
+	name = eos::common::Mapping::GidToGroupName(g.second, errc);
+      }
+      tgids.push_back(std::make_pair(name,g.second));
+    }
+    uids=tuids;
+    gids=tgids;
+  }	
+
   // Sort and erase duplicated uids and gids
   eos_info("uids_size=%i, gids_size=%i", uids.size(), gids.size());
   std::sort(uids.begin(), uids.end());
