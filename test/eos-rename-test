@@ -7,11 +7,14 @@ url=root://$host
 
 test -z "$1" && exit -1
 
+eos quota rm -g 99 $prefix/t_source/
+eos quota rm -g 99 $prefix/t_target/
 eos rm -r $prefix/t_source/
 eos rm -r $prefix/t_target/
 eos mkdir -p $prefix/
 eos chown adm:adm $prefix/
 xrdfs $url mkdir $prefix/t_source/ || exit -2
+eos quota set -g 99 -v 1TB -i 1M $prefix/t_source/ || exit -2
 xrdfs $url mkdir $prefix/t_source/d1 || exit -2
 xrdfs $url mkdir $prefix/t_source/d1/c1 || exit -2
 xrdfs $url mkdir $prefix/t_source/d1c1 || exit -2
@@ -20,6 +23,7 @@ xrdfs $url mkdir $prefix/t_source/d3 || exit -2
 xrdfs $url mkdir $prefix/t_source/d4 || exit -2
 xrdfs $url mkdir $prefix/t_source/d5 || exit -2
 xrdfs $url mkdir $prefix/t_target/ || exit -2
+eos quota set -g 99 -v 1TB -i 1M $prefix/t_target/ || exit -2
 xrdfs $url mkdir $prefix/t_target/d1 || exit -2
 xrdfs $url mkdir $prefix/t_target/d1c1 || exit -2
 xrdfs $url mkdir $prefix/t_target/d1c1/c1 || exit -2
