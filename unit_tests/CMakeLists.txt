@@ -88,7 +88,8 @@ set(MGM_UT_SRCS
   mgm/utils/AttrHelperTests.cc
   mgm/PolicyTests.cc
   mgm/placement/ClusterMapTests.cc
-  mgm/placement/RRSeedTests.cc)
+  mgm/placement/RRSeedTests.cc
+  mgm/placement/SchedulerTests.cc)
 
 set(COMMON_UT_SRCS
   common/FileIdTests.cc
