@@ -13,9 +13,17 @@ include:
   - local: /gitlab-ci/.gitlab-ci-test-k8s_include.yml
   - local: /gitlab-ci/.gitlab-ci-test-helm_include.yml
 
+workflow:
+  rules:
+    - if: $CI_COMMIT_BRANCH
+      variables:
+        KOJI_SCRATCH: "--scratch"
+    - if: $CI_COMMIT_TAG
+      variables:
+        KOJI_SCRATCH: ""
+
 variables:
   CODENAME: "diopside"
-  KOJI_SCRATCH: ''
 
 default:
   before_script:
@@ -66,6 +74,11 @@ prebuild-al8:
   <<: *prebuild-template_definition
   variables:
     PREBUILD_NAME: al8
+
+prebuild-al9:
+  <<: *prebuild-template_definition
+  variables:
+    PREBUILD_NAME: al9
 
 .prebuild-cc7_clang:
   <<: *prebuild-template_definition
@@ -178,14 +191,17 @@ clone_docker:
     - centos
   allow_failure: true # @todo dont allow failure when/if we drop Centos8 and switch to Stream
 
-# build for alma linux
 build_al8:
   image: gitlab-registry.cern.ch/dss/eos/prebuild-al8-${CODENAME}
   <<: *build-template_definition
   variables:
     BUILD_NAME: al8
 
-  # build for rocky linux
+build_al9:
+  image: gitlab-registry.cern.ch/dss/eos/prebuild-al9-${CODENAME}
+  <<: *build-template_definition
+  variables:
+    BUILD_NAME: al9
 
 build_rl8:
   stage: build:rpm
@@ -917,6 +933,7 @@ unit_test_asan:
 #-------------------------------------------------------------------------------
 # RPM publishing
 #-------------------------------------------------------------------------------
+
 .publish_koji_template: &publish_koji_template_definition
   stage: publish
   image: gitlab-registry.cern.ch/linuxsupport/rpmci/kojicli
@@ -924,23 +941,12 @@ unit_test_asan:
     - yum install --nogpg -y sssd-client
     - kinit stci@CERN.CH -k -t /stci.krb5/stci.keytab
     - koji build --wait ${KOJI_SCRATCH} ${TARGET} ${BUILD_NAME}_artifacts/SRPMS/*.src.rpm
-  only:
-    - tags
+# KOJI_SCRATCH will be set for branches and empty for tags
+# #  only:
+#    - tags
   tags:
     - docker_node
     - publish
-
-scratch_publish_koji_al8:
-  <<: *publish_koji_template_definition
-  variables:
-    TARGET: "eos8al"
-    BUILD_NAME: "al8"
-    KOJI_SCRATCH: "--scratch"
-  dependencies:
-    - build_al8
-  only:
-    - tags
-    - alma
 
 publish_koji_al8:
   <<: *publish_koji_template_definition
@@ -949,6 +955,14 @@ publish_koji_al8:
     BUILD_NAME: "al8"
   dependencies:
     - build_al8
+
+publish_koji_al9:
+  <<: *publish_koji_template_definition
+  variables:
+    TARGET: "eos9al"
+    BUILD_NAME: "al9"
+  dependencies:
+    - build_al9
 
 publish_koji_cs9:
   <<: *publish_koji_template_definition
