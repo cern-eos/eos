@@ -220,6 +220,8 @@ XrdMgmOfs::_rename(const char* old_name,
   eos_info("source=%s target=%s overwrite=%d", old_name, new_name, overwrite);
   errno = 0;
   EXEC_TIMING_BEGIN("Rename");
+  eos::common::Timing tm("_rename");
+  COMMONTIMING("begin", &tm);
   eos::common::Path nPath(new_name);
   eos::common::Path oPath(old_name);
   std::string oP = oPath.GetParentPath();
@@ -254,6 +256,7 @@ XrdMgmOfs::_rename(const char* old_name,
   eos::Prefetcher::prefetchItemAndWait(gOFS->eosView, oPath.GetPath());
   eos::Prefetcher::prefetchItemAndWait(gOFS->eosView, nPath.GetPath());
 
+  COMMONTIMING("prefetchItems", &tm);
   if (_exists(old_name, file_exists, error, vid, infoN)) {
     errno = ENOENT;
     return Emsg(epname, error, ENOENT, "rename - source does not exist");
@@ -382,6 +385,8 @@ XrdMgmOfs::_rename(const char* old_name,
     }
   }
 
+  COMMONTIMING("exists", &tm);
+
   // List of source files if a directory is renamed
   std::map<std::string, std::set<std::string> > found;
 
@@ -417,6 +422,7 @@ XrdMgmOfs::_rename(const char* old_name,
       }
     }
   }
+  COMMONTIMING("dir_find_files_for_quota_move",&tm);
 
   {
     eos::mgm::FusexCastBatch fuse_batch;
@@ -435,7 +441,7 @@ XrdMgmOfs::_rename(const char* old_name,
       const eos::ContainerIdentifier pdid = dir->getParentIdentifier();
       const eos::ContainerIdentifier ndid = newdir->getIdentifier();
       const eos::ContainerIdentifier pndid = newdir->getParentIdentifier();
-
+      COMMONTIMING("get_old_and_new_containers",&tm);
       if (renameFile) {
         if (oP == nP) {
           file = dir->findFile(oPath.GetName());
@@ -502,6 +508,7 @@ XrdMgmOfs::_rename(const char* old_name,
             }
           }
         }
+        COMMONTIMING("rename_file",&tm);
       }
 
       if (renameDir) {
@@ -511,6 +518,8 @@ XrdMgmOfs::_rename(const char* old_name,
           errno = EINVAL;
           return Emsg(epname, error, EINVAL, "rename - old path is subpath of new path");
         }
+
+        COMMONTIMING("rename_dir_is_safe_to_rename",&tm);
 
         if (rdir) {
           // Remove all the quota from the source node and add to the target node
@@ -596,6 +605,7 @@ XrdMgmOfs::_rename(const char* old_name,
                 return Emsg(epname, error, ENOSPC, "rename - cannot get all "
                             "the needed quota for the target directory");
               }
+              COMMONTIMING("rename_dir_check_quotas",&tm);
             } // if (checkQuota)
 
             for (rfoundit = found.rbegin(); rfoundit != found.rend(); rfoundit++) {
@@ -651,6 +661,7 @@ XrdMgmOfs::_rename(const char* old_name,
                 }
               }
             }
+            COMMONTIMING("rename_dir_apply_quotas",&tm);
           }
 
           if (nP == oP) {
@@ -670,6 +681,7 @@ XrdMgmOfs::_rename(const char* old_name,
               gOFS->FuseXCastRefresh(rdid, did);
               gOFS->FuseXCastRefresh(did, pdid);
             });
+            COMMONTIMING("rename_within_container",&tm);
           } else {
             // Do the check once again, because we're paranoid
             if (!eos::isSafeToRename(gOFS->eosView, rdir.get(), newdir.get())) {
@@ -681,6 +693,7 @@ XrdMgmOfs::_rename(const char* old_name,
                           "of new path - caught by last resort check, quotanodes "
                           "may have become inconsistent");
             }
+            COMMONTIMING("rename_second_is_safe_to_rename",&tm);
 
             // Remove from one container to another one
             unsigned long long tree_size = rdir->getTreeSize();
@@ -731,6 +744,7 @@ XrdMgmOfs::_rename(const char* old_name,
                 gOFS->FuseXCastRefresh(ndid, pndid);
               });
             }
+            COMMONTIMING("rename_remove_from_container_and_add_to_new_one",&tm);
           }
         }
 
@@ -745,6 +759,11 @@ XrdMgmOfs::_rename(const char* old_name,
     }
   }
 
+  std::ostringstream oss;
+  oss << "renamed " << oPath.GetFullPath() << " to " << nPath.GetFullPath() << " timing=" << tm.Dump();
+
+  eos_static_debug(oss.str().c_str());
+
   if ((!dir) || ((!file) && (!rdir))) {
     errno = ENOENT;
     return Emsg(epname, error, ENOENT, "rename", old_name);
@@ -758,7 +777,7 @@ XrdMgmOfs::_rename(const char* old_name,
       return SFS_ERROR;
     }
   }
-
+  COMMONTIMING("end",&tm);
   EXEC_TIMING_END("Rename");
   return SFS_OK;
 }
