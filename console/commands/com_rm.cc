@@ -40,12 +40,9 @@ com_rm(char* arg1)
   XrdOucString option;
   eos::common::Path* cPath = 0;
   XrdOucString in = "mgm.cmd=rm&";
-
+  bool noconfirmation = false;
+  
   if (wants_help(arg1)) {
-    goto com_rm_usage;
-  }
-
-  if ((s1 == "--help") || (s1 == "-h")) {
     goto com_rm_usage;
   }
 
@@ -68,9 +65,13 @@ com_rm(char* arg1)
     path = s1;
   }
 
+  if (path=="--no-confirmation") {
+    fprintf(stderr,"disabling configmration\n");
+    noconfirmation=true;
+  }
+  
   do {
     XrdOucString param = subtokenizer.GetToken();
-
     if (param.length()) {
       path += " ";
       path += param;
@@ -112,7 +113,7 @@ com_rm(char* arg1)
     in += option;
     cPath = new eos::common::Path(path.c_str());
 
-    if ((option == "r") && (cPath->GetSubPathSize() < 4)) {
+    if ((option == "r") && (cPath->GetSubPathSize() < 4) && !noconfirmation) {
       string s;
       fprintf(stdout, "Do you really want to delete ALL files starting at %s ?\n",
               path.c_str());
@@ -146,7 +147,7 @@ com_rm(char* arg1)
 
 com_rm_usage:
   fprintf(stdout,
-          "usage: rm [-rf] [-F|--no-recycle-bin] [<path>|fid:<fid-dec>|fxid:<fid-hex>]                    :  remove file <path>\n");
+          "usage: rm [-rf] [-F|--no-recycle-bin] [--no-confirmation] [<path>|fid:<fid-dec>|fxid:<fid-hex>]                    :  remove file <path>\n");
   fprintf(stdout,
           "                                                                    -r :  remove recursivly\n");
   fprintf(stdout,
@@ -154,6 +155,9 @@ com_rm_usage:
   fprintf(stdout,
           "                                                      --no-recycle-bin :\n"
           "                                                                    -F :  remove bypassing recycling policies (you have to take the root role to use this flag!)\n");
+  fprintf(stdout,
+	  "                                                      --no-confirmation:  will not ask an interactive confirmation code if a recursive deletion is running in directory level < 4!\n");
+	                                                                         
   global_retc = EINVAL;
   return (0);
 }
