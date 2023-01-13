@@ -43,6 +43,7 @@ message AccessProto {
       GROUP      = 2;
       HOST       = 3;
       DOMAINNAME = 4;
+      TOKEN      = 5;
     }
     IdType idtype = 1;
     string id = 2;
@@ -55,6 +56,7 @@ message AccessProto {
       GROUP      = 2;
       HOST       = 3;
       DOMAINNAME = 4;
+      TOKEN      = 5;
     }
     IdType idtype = 1;
     string id = 2;
@@ -67,6 +69,7 @@ message AccessProto {
       GROUP      = 2;
       HOST       = 3;
       DOMAINNAME = 4;
+      TOKEN      = 5;
     }
     IdType idtype = 1;
     string id = 2;
@@ -79,6 +82,7 @@ message AccessProto {
       GROUP      = 2;
       HOST       = 3;
       DOMAINNAME = 4;
+      TOKEN      = 5;
     }
     IdType idtype = 1;
     string id = 2;

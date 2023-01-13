@@ -440,6 +440,12 @@ EosTok::Voucher() const
   return share->token().voucher();
 }
 
+time_t
+EosTok::Expires() const
+{
+  return share->token().expires();
+}
+
 std::string
 EosTok::Requester() const
 {

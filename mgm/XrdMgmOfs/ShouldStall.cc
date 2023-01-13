@@ -94,8 +94,12 @@ XrdMgmOfs::ShouldStall(const char* function,
         stalltime = 300;
       } else if (Access::gBannedDomains.count(vid.domain)) {
         smsg = "operate - your client domain is banned in this instance - contact an administrator";
-        // BANNED DOMAINS
+        // BANNED DOMAINS     
         stalltime = 300;
+      } else if (vid.token && Access::gBannedTokens.count(vid.token->Voucher())) {
+	smsg = "operate - your token is banned in this instance - contact an administrator";
+	// BANNED TOKEN
+	stalltime = 300;
       } else if (Access::gStallRules.size() && (Access::gStallGlobal)) {
         // GLOBAL STALL
         stalltime = atoi(Access::gStallRules[std::string("*")].c_str());

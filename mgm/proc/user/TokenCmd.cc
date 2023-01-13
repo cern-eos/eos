@@ -211,7 +211,19 @@ eos::mgm::TokenCmd::ProcessRequest() noexcept
       errStream << "error: one or several origin regexp's are invalid" << std::endl;
       ret_c = -EBADE;
     } else {
-      outStream << eostoken.Write(key) ;
+      std::string token = eostoken.Write(key) ;
+      outStream << token;
+      std::string dump;
+      eostoken.Dump(dump,true, true);
+      eos_warning("creating voucher=%s path=%s owner=%u group=%lu perm=%s expires=%lu token:'%s'\n" ,
+		  eostoken.Voucher().c_str(),
+		  eostoken.Path().c_str(),
+		  eostoken.Owner(),
+		  eostoken.Group(),
+		  eostoken.Permission().c_str(),
+		  eostoken.Expires(),
+		  dump.c_str());
+
     }
   } else {
     if (!(ret_c = eostoken.Read(token.vtoken(), key,

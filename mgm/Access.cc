@@ -41,6 +41,9 @@ std::set<std::string> Access::gBannedHosts;
 //! singleton set for banned host names
 std::set<std::string> Access::gBannedDomains;
 
+//! singleton set for banned host names
+std::set<std::string> Access::gBannedTokens;
+
 //! singleton set for allowed user IDs
 std::set<uid_t> Access::gAllowedUsers;
 
@@ -52,6 +55,9 @@ std::set<std::string> Access::gAllowedHosts;
 
 //! singleton set for allowed host domains
 std::set<std::string> Access::gAllowedDomains;
+
+//! singleton set for allowed host domains
+std::set<std::string> Access::gAllowedTokens;
 
 //! singleton map for redirection rules
 std::map<std::string, std::string> Access::gRedirectionRules;
@@ -103,6 +109,9 @@ const char* Access::gHostKey = "BanHosts";
 const char* Access::gDomainKey = "BanDomains";
 
 //! constant used in the configuration store
+const char* Access::gTokenKey = "BanTokens";
+
+//! constant used in the configuration store
 const char* Access::gAllowedUserKey = "AllowedUsers";
 
 //! constant used in the configuration store
@@ -113,6 +122,9 @@ const char* Access::gAllowedHostKey = "AllowedHosts";
 
 //! constant used in the configuration store
 const char* Access::gAllowedDomainKey = "AllowedDomains";
+
+//! constant used in the configuration store
+const char* Access::gAllowedTokenKey = "AllowedTokens";
 
 //! constant used in the configuration store
 const char* Access::gStallKey = "Stall";
@@ -138,10 +150,12 @@ Access::Reset(bool skip_stall_redirect)
   Access::gBannedGroups.clear();
   Access::gBannedHosts.clear();
   Access::gBannedDomains.clear();
+  Access::gBannedTokens.clear();
   Access::gAllowedUsers.clear();
   Access::gAllowedGroups.clear();
   Access::gAllowedHosts.clear();
   Access::gAllowedDomains.clear();
+  Access::gAllowedTokens.clear();
   Access::gStallHosts.clear();
   Access::gNoStallHosts.clear();
   
@@ -171,10 +185,12 @@ Access::ApplyAccessConfig(bool applyredirectandstall)
   std::string groupval = FsView::gFsView.GetGlobalConfig(gGroupKey);
   std::string hostval = FsView::gFsView.GetGlobalConfig(gHostKey);
   std::string domainval = FsView::gFsView.GetGlobalConfig(gDomainKey);
+  std::string tokenval = FsView::gFsView.GetGlobalConfig(gTokenKey);
   std::string useraval = FsView::gFsView.GetGlobalConfig(gAllowedUserKey);
   std::string groupaval = FsView::gFsView.GetGlobalConfig(gAllowedGroupKey);
   std::string hostaval = FsView::gFsView.GetGlobalConfig(gAllowedHostKey);
   std::string domainaval = FsView::gFsView.GetGlobalConfig(gAllowedDomainKey);
+  std::string tokenaval = FsView::gFsView.GetGlobalConfig(gAllowedTokenKey);
   std::string stall = FsView::gFsView.GetGlobalConfig(gStallKey);
   std::string redirect = FsView::gFsView.GetGlobalConfig(gRedirectionKey);
   std::string stallhosts = FsView::gFsView.GetGlobalConfig(gStallHostsKey);
@@ -223,6 +239,15 @@ Access::ApplyAccessConfig(bool applyredirectandstall)
   }
 
   tokens.clear();
+  eos::common::StringConversion::Tokenize(tokenval, tokens, delimiter);
+
+  for (size_t i = 0; i < tokens.size(); i++) {
+    if (tokens[i].length()) {
+      Access::gBannedTokens.insert(tokens[i]);
+    }
+  }
+
+  tokens.clear();
   eos::common::StringConversion::Tokenize(useraval, tokens, delimiter);
 
   for (size_t i = 0; i < tokens.size(); i++) {
@@ -257,6 +282,15 @@ Access::ApplyAccessConfig(bool applyredirectandstall)
   for (size_t i = 0; i < tokens.size(); i++) {
     if (tokens[i].length()) {
       Access::gAllowedDomains.insert(tokens[i]);
+    }
+  }
+
+  tokens.clear();
+  eos::common::StringConversion::Tokenize(tokenaval, tokens, delimiter);
+
+  for (size_t i = 0; i < tokens.size(); i++) {
+    if (tokens[i].length()) {
+      Access::gAllowedTokens.insert(tokens[i]);
     }
   }
 
@@ -360,6 +394,7 @@ Access::StoreAccessConfig()
   std::set<gid_t>::const_iterator itgid;
   std::set<std::string>::const_iterator ithost;
   std::set<std::string>::const_iterator itdomain;
+  std::set<std::string>::const_iterator ittoken;
   std::set<std::string>::const_iterator itstallhosts;
   std::set<std::string>::const_iterator itnostallhosts;
   std::map<std::string, std::string>::const_iterator itstall;
@@ -368,10 +403,12 @@ Access::StoreAccessConfig()
   std::string groupval = "";
   std::string hostval = "";
   std::string domainval = "";
+  std::string tokenval = "";
   std::string useraval = "";
   std::string groupaval = "";
   std::string hostaval = "";
   std::string domainaval = "";
+  std::string tokenaval = "";
   std::string stall = "";
   std::string redirect = "";
   std::string stallhosts = "";
@@ -423,6 +460,12 @@ Access::StoreAccessConfig()
        itdomain != Access::gAllowedDomains.end(); itdomain++) {
     domainaval += itdomain->c_str();
     domainaval += ":";
+  }
+
+  for (ittoken = Access::gAllowedTokens.begin();
+       ittoken != Access::gAllowedTokens.end(); ittoken++) {
+    tokenaval += ittoken->c_str();
+    tokenaval += ":";
   }
 
   for (itstallhosts = Access::gStallHosts.begin();
@@ -485,10 +528,12 @@ Access::StoreAccessConfig()
   std::string gkey = gGroupKey;
   std::string hkey = gHostKey;
   std::string dkey = gDomainKey;
+  std::string tkey = gTokenKey;
   std::string uakey = gAllowedUserKey;
   std::string gakey = gAllowedGroupKey;
   std::string hakey = gAllowedHostKey;
   std::string dakey = gAllowedDomainKey;
+  std::string takey = gAllowedTokenKey;
   std::string shkey = gStallHostsKey;
   std::string nshkey = gNoStallHostsKey;
   
@@ -497,10 +542,12 @@ Access::StoreAccessConfig()
   ok &= FsView::gFsView.SetGlobalConfig(gkey, groupval);
   ok &= FsView::gFsView.SetGlobalConfig(hkey, hostval);
   ok &= FsView::gFsView.SetGlobalConfig(dkey, domainval);
+  ok &= FsView::gFsView.SetGlobalConfig(tkey, tokenval);
   ok &= FsView::gFsView.SetGlobalConfig(uakey, useraval);
   ok &= FsView::gFsView.SetGlobalConfig(gakey, groupaval);
   ok &= FsView::gFsView.SetGlobalConfig(hakey, hostaval);
   ok &= FsView::gFsView.SetGlobalConfig(dakey, domainaval);
+  ok &= FsView::gFsView.SetGlobalConfig(takey, tokenaval);
   ok &= FsView::gFsView.SetGlobalConfig(gStallKey, stall);
   ok &= FsView::gFsView.SetGlobalConfig(gRedirectionKey, redirect);
   ok &= FsView::gFsView.SetGlobalConfig(shkey, stallhosts);

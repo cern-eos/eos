@@ -75,6 +75,10 @@ public:
   // key-value map
   static const char* gDomainKey;
 
+  // static key defining the ban token key in the global configuration
+  // key-value map
+  static const char* gTokenKey;
+
   // static key defining the allowed users key in the global configuration
   // key-value map
   static const char* gAllowedUserKey;
@@ -90,6 +94,10 @@ public:
   // static key defining the allowed domain key in the global configuration
   // key-value map
   static const char* gAllowedDomainKey;
+
+  // static key defining the allowed tokens key in the global configuration
+  // key-value map
+  static const char* gAllowedTokenKey;
 
   // static key defining the stall rules in the global configuration
   // key-value map
@@ -125,12 +133,17 @@ public:
   //! set containing the banned domain names
   static std::set<std::string> gBannedDomains;
 
+  //! set containing the banned token names
+  static std::set<std::string> gBannedTokens;
+
   //! set containing the allowed host names
   static std::set<std::string> gAllowedHosts;
 
   //! set containing the allowed domain IDs
   static std::set<std::string> gAllowedDomains;
 
+  //! set containing the allowed token IDs
+  static std::set<std::string> gAllowedTokens;
 
   //! map containing redirection rules
   static std::map<std::string, std::string> gRedirectionRules;

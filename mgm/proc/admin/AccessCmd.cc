@@ -226,6 +226,33 @@ void AccessCmd::LsSubcmd(const eos::console::AccessProto_LsProto& ls,
     }
   }
 
+  if (!Access::gBannedTokens.empty()) {
+    if (!ls.monitoring()) {
+      std_out <<
+              "# ....................................................................................\n";
+      std_out << "# Banned Tokens ...\n";
+      std_out <<
+              "# ....................................................................................\n";
+    }
+
+    cnt = 0;
+
+    for (auto ittoken = Access::gBannedTokens.begin();
+         ittoken != Access::gBannedTokens.end(); ++ittoken) {
+      ++cnt;
+
+      if (!ls.monitoring()) {
+        char counter[16];
+        snprintf(counter, sizeof(counter) - 1, "%02d", cnt);
+        std_out << "[ " << counter << " ] ";
+      } else {
+        std_out << "tokens.banned=";
+      }
+
+      std_out << ittoken->c_str() << '\n';
+    }
+  }
+
   if (!Access::gAllowedUsers.empty()) {
     if (!ls.monitoring()) {
       std_out <<
@@ -345,6 +372,33 @@ void AccessCmd::LsSubcmd(const eos::console::AccessProto_LsProto& ls,
       }
 
       std_out << itdomain->c_str() << '\n';
+    }
+  }
+  
+  if (!Access::gAllowedTokens.empty()) {
+    if (!ls.monitoring()) {
+      std_out <<
+              "# ....................................................................................\n";
+      std_out << "# Allowed Tokens ...\n";
+      std_out <<
+              "# ....................................................................................\n";
+    }
+
+    cnt = 0;
+
+    for (auto ittoken = Access::gAllowedTokens.begin();
+         ittoken != Access::gAllowedTokens.end(); ++ittoken) {
+      ++cnt;
+
+      if (!ls.monitoring()) {
+        char counter[16];
+        snprintf(counter, sizeof(counter) - 1, "%02d", cnt);
+        std_out << "[ " << counter << " ] ";
+      } else {
+        std_out << "tokens.allowed=";
+      }
+
+      std_out << ittoken->c_str() << '\n';
     }
   }
 
@@ -810,6 +864,15 @@ void AccessCmd::BanSubcmd(const eos::console::AccessProto_BanProto& ban,
     }
     break;
 
+  case eos::console::AccessProto_BanProto::TOKEN
+      : {
+      Access::gBannedTokens.insert(ban.id());
+      lock.Release();
+      aux(ban.id(), std_out, std_err, ret_c);
+    }
+    break;
+
+    
   default:
     ;
   }
@@ -901,6 +964,20 @@ void AccessCmd::UnbanSubcmd(const eos::console::AccessProto_UnbanProto& unban,
     }
     break;
 
+  case eos::console::AccessProto_UnbanProto::TOKEN
+      : {
+      if (Access::gBannedTokens.count(unban.id())) {
+        Access::gBannedTokens.erase(unban.id());
+        lock.Release();
+        aux(unban.id(), std_out, std_err, ret_c);
+        lock.Grab(Access::gAccessMutex);
+      } else {
+        std_err << "error: token '" << unban.id() << "' is not banned anyway";
+        ret_c = ENOENT;
+      }
+    }
+    break;
+
   default:
     ;
   }
@@ -965,6 +1042,14 @@ void AccessCmd::AllowSubcmd(const eos::console::AccessProto_AllowProto& allow,
   case eos::console::AccessProto_AllowProto::DOMAINNAME
       : {
       Access::gAllowedDomains.insert(allow.id());
+      lock.Release();
+      aux(allow.id(), std_out, std_err, ret_c);
+    }
+    break;
+
+  case eos::console::AccessProto_AllowProto::TOKEN
+      : {
+      Access::gAllowedTokens.insert(allow.id());
       lock.Release();
       aux(allow.id(), std_out, std_err, ret_c);
     }
@@ -1051,6 +1136,19 @@ AccessCmd::UnallowSubcmd(const eos::console::AccessProto_UnallowProto& unallow,
       : {
       if (Access::gAllowedDomains.count(unallow.id())) {
         Access::gAllowedDomains.erase(unallow.id());
+        lock.Release();
+        aux(unallow.id(), std_out, std_err, ret_c);
+      } else {
+        std_err << "error: domain '" << unallow.id() << "' is not allowed anyway";
+        ret_c = ENOENT;
+      }
+    }
+    break;
+
+  case eos::console::AccessProto_UnallowProto::TOKEN
+      : {
+      if (Access::gAllowedTokens.count(unallow.id())) {
+        Access::gAllowedTokens.erase(unallow.id());
         lock.Release();
         aux(unallow.id(), std_out, std_err, ret_c);
       } else {

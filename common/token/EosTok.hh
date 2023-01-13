@@ -87,6 +87,7 @@ public:
   virtual std::string Path() const;
   virtual std::string Voucher() const;
   virtual std::string Requester() const;
+  virtual time_t Expires() const;
   virtual int Generation() const;
 
   static std::atomic<uint64_t>

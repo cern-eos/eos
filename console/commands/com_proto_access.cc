@@ -210,6 +210,8 @@ bool AccessHelper::ParseCommand(const char* arg)
       ban->set_idtype(eos::console::AccessProto_BanProto::HOST);
     } else if (token == "domain") {
       ban->set_idtype(eos::console::AccessProto_BanProto::DOMAINNAME);
+    } else if (token == "token") {
+      ban->set_idtype(eos::console::AccessProto_BanProto::TOKEN);
     } else {
       return false;
     }
@@ -234,6 +236,8 @@ bool AccessHelper::ParseCommand(const char* arg)
       unban->set_idtype(eos::console::AccessProto_UnbanProto::HOST);
     } else if (token == "domain") {
       unban->set_idtype(eos::console::AccessProto_UnbanProto::DOMAINNAME);
+    } else if (token == "token") {
+      unban->set_idtype(eos::console::AccessProto_UnbanProto::TOKEN);
     } else {
       return false;
     }
@@ -258,6 +262,8 @@ bool AccessHelper::ParseCommand(const char* arg)
       allow->set_idtype(eos::console::AccessProto_AllowProto::HOST);
     } else if (token == "domain") {
       allow->set_idtype(eos::console::AccessProto_AllowProto::DOMAINNAME);
+    } else if (token == "token") {
+      allow->set_idtype(eos::console::AccessProto_AllowProto::TOKEN);
     } else {
       return false;
     }
@@ -365,19 +371,19 @@ void com_access_help()
       << "'[eos] access ..' provides the access interface of EOS to allow/disallow hosts/domains and/or users\n"
       << std::endl
       << "Subcommands:\n"
-      << "access ban user|group|host|domain <identifier> : ban user,group or host,DOMAIN with identifier <identifier>\n"
-      << "\t <identifier> : can be a user name, user id, group name, group id, hostname or IP or domainname\n"
+      << "access ban user|group|host|domain|token <identifier> : ban user, group, host, domain or token with identifier <identifier>\n"
+      << "\t <identifier> : can be a user name, user id, group name, group id, hostname or IP or domainname or token voucher id\n"
       << std::endl
-      << "access unban user|group|host|domain <identifier> : unban user,group or host,DOMAIN with identifier <identifier>\n"
-      << "\t <identifier> : can be a user name, user id, group name, group id, hostname or IP or domainname\n"
+      << "access unban user|group|host|domain|token <identifier> : unban user, group, host, domain or token with identifier <identifier>\n"
+      << "\t <identifier> : can be a user name, user id, group name, group id, hostname or IP or domainname or token voucher id\n"
       << std::endl
-      << "access allow user|group|host|domain <identifier> : allows this user,group or host,domain access\n"
-      << "\t <identifier> : can be a user name, user id, group name, group id, hostname or IP or domainname\n"
+      << "access allow user|group|host|domain|token <identifier> : allows this user, group, host, domain or token access\n"
+      << "\t <identifier> : can be a user name, user id, group name, group id, hostname or IP or domainname or token voucher id\n"
       << std::endl
-      << "access unallow user|group|host|domain <identifier> : allows this user,group or host,domain access\n"
-      << "\t <identifier> : can be a user name, user id, group name, group id, hostname or IP or domainname\n"
+      << "access unallow user|group|host|domain|token <identifier> : unallows this user,group, host, domain or token access\n"
+      << "\t <identifier> : can be a user name, user id, group name, group id, hostname or IP or domainname or token voucher id\n"
       << std::endl
-      << "\t HINT: if you add any 'allow' the instance allows only the listed users. A banned identifier will still overrule an allowed identifier!\n"
+      << "\t HINT: if you add any 'allow' the instance allows only the listed identity. A banned identifier will still overrule an allowed identifier!\n"
       << std::endl
       << "access set redirect <target-host> [r|w|ENOENT|ENONET|ENETUNREACH] : allows to set a global redirection to <target-host>\n"
       << "\t <target-host>      : hostname to which all requests get redirected\n"
