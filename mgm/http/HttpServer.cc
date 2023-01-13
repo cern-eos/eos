@@ -190,8 +190,6 @@ HttpServer::Handler(void* cls,
   }
 }
 
-#endif
-
 /*----------------------------------------------------------------------------*/
 void
 HttpServer::CompleteHandler(void*                              cls,
@@ -224,6 +222,8 @@ HttpServer::CompleteHandler(void*                              cls,
   eos_static_info("msg=\"http connection disconnect\" reason=\"Request %s\" ",
                   scode.c_str());
 }
+
+#endif
 
 std::unique_ptr<eos::common::ProtocolHandler>
 HttpServer::XrdHttpHandler(std::string& method,

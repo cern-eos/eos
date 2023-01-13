@@ -74,20 +74,6 @@ public:
           void**                 ptr);
 
   /**
-   * HTTP object handler function on FST called by XrdHttp
-   *
-   * @return see implementation
-   */
-  virtual std::unique_ptr<eos::common::ProtocolHandler>
-  XrdHttpHandler(std::string& method,
-                 std::string& uri,
-                 std::map<std::string, std::string>& headers,
-                 std::string& query,
-                 std::map<std::string, std::string>& cookies,
-                 std::string& body,
-                 const XrdSecEntity& client);
-
-  /**
    * HTTP complete handler function
    *
    * @return nothing
@@ -97,6 +83,8 @@ public:
                   struct MHD_Connection* connection,
                   void**                 con_cls,
                   enum MHD_RequestTerminationCode toe);
+
+#endif
 
   /**
    * File Read Callback function
@@ -127,7 +115,20 @@ public:
   virtual ssize_t
   FileClose(eos::common::ProtocolHandler* handler, int rc);
 
-#endif
+
+  /**
+   * HTTP object handler function on FST called by XrdHttp
+   *
+   * @return see implementation
+   */
+  virtual std::unique_ptr<eos::common::ProtocolHandler>
+  XrdHttpHandler(std::string& method,
+                 std::string& uri,
+                 std::map<std::string, std::string>& headers,
+                 std::string& query,
+                 std::map<std::string, std::string>& cookies,
+                 std::string& body,
+                 const XrdSecEntity& client);
 };
 
 EOSFSTNAMESPACE_END
