@@ -51,14 +51,6 @@
   %define compiler clang
 %endif
 
-# CentOS 9 comes with cmake > 3.17, no need for eos-cmake
-%if %{?fedora:1}%{!?fedora:0} || 0%{?rhel} == 8
-  %define cmake cmake
-%if 0%{?rhel} == 8
-  %define cmake /opt/eos/cmake/bin/cmake
-%endif
-%endif
-
 %if %{?rhel:1}%{!?rhel:0}
   %if %{?rhel} >= 7
     %define use_systemd 1
@@ -97,11 +89,7 @@ BuildRequires: epel-release
 Requires: epel-release
 %endif
 
-%if 0%{?rhel} == 8
-BuildRequires: eos-cmake
-%else
-BuildRequires: %{cmake} >= 3.14
-%endif
+BuildRequires: %{cmake} >= 3.17
 
 # Select xrootd package
 %if %{?_with_eos_xrootd_rh:1}%{!?_with_eos_xrootd_rh:0}
