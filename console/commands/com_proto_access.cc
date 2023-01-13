@@ -288,6 +288,8 @@ bool AccessHelper::ParseCommand(const char* arg)
       unallow->set_idtype(eos::console::AccessProto_UnallowProto::HOST);
     } else if (token == "domain") {
       unallow->set_idtype(eos::console::AccessProto_UnallowProto::DOMAINNAME);
+    } else if (token == "token") {
+      unallow->set_idtype(eos::console::AccessProto_UnallowProto::TOKEN);
     } else {
       return false;
     }

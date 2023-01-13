@@ -1754,6 +1754,14 @@ export EXPIRE=`date +%s`; let LATER=$EXPIRE+9000
 export EOSTOKENR=`/usr/bin/eos token --path /eos/ --permission rx --tree --owner nobody --group nobody --expires $LATER`
 export EOSTOKENW=`/usr/bin/eos token --path /eos/ --permission rwx --tree --owner nobody --group nobody --expires $LATER`
 runtest "### Id        " unix 0 "" shell eosxd get eos.reconnect "/test-fusex/$EOS_TEST_INSTANCE/test/instancetest/fusex/"
+# tokensudo arg tests
+runtest "### tokensudo " unix 0 "" eos vid tokensudo always
+runtest "### tokensudo " unix 0 "" eos vid tokensudo encrypted
+runtest "### tokensudo " unix 0 "" eos vid tokensudo strong
+runtest "### tokensudo " unix 0 "" eos vid tokensudo never
+runtest "### tokensudo " unix 1 "" eos vid tokensudo bla
+runtest "### tokensudo " unix 0 "" eos vid tokensudo always
+
 # token via fusex tests 
 runtest "### Mkdir     " unix 0 "" eos mkdir "/eos/$EOS_TEST_INSTANCE/test/instancetest/fusex/token"
 runtest "### Chown     " unix 0 "" eos chown root:root "/eos/$EOS_TEST_INSTANCE/test/instancetest/fusex/token"

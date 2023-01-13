@@ -437,6 +437,29 @@ com_vid(char* arg1)
     return (0);
   }
 
+    if (subcommand == "tokensudo") {
+    XrdOucString in = "mgm.cmd=vid&mgm.subcmd=set";
+    XrdOucString vidkey = "";
+    XrdOucString level = subtokenizer.GetTokenUnquoted();
+
+    if (!level.length()) {
+      goto com_vid_usage;
+    }
+
+    if (level.beginswith("-h") || level.beginswith("=-h")) {
+      goto com_vid_usage;
+    }
+
+    vidkey = "tokensudo";
+    in += "&mgm.vid.cmd=tokensudo";
+    in += "&mgm.vid.key=";
+    in += vidkey.c_str();
+    in += "&mgm.vid.tokensudo=";
+    in += level.c_str();
+    global_retc = output_result(client_command(in, true));
+    return (0);
+  }
+
   if ((subcommand == "add") || (subcommand == "remove")) {
     XrdOucString gw = subtokenizer.GetTokenUnquoted();
 
@@ -596,6 +619,19 @@ com_vid_usage:
           "       vid publicaccesslevel <level>\n");
   fprintf(stdout,
           "                                           : sets the deepest directory level where anonymous access (nobody) is possible\n");
+  fprintf(stdout,
+          "       vid tokensudo 0|1|2|3\n");
+  fprintf(stdout,
+          "                                           : configure sudo policy when tokens are used\n");
+  fprintf(stdout,
+	  "                                             0 : always allow token sudo (setting uid/gid from token) [default if not set]\n");
+  fprintf(stdout,
+	  "                                             1 : allow token sudo if transport is encrypted\n");
+  fprintf(stdout,
+	  "                                             2 : allow token sudo for strong authentication (not unix!)\n");
+  fprintf(stdout,
+	  "                                             3 : never allow token sudo\n");
+ 
   global_retc = EINVAL;
   return (0);
 }

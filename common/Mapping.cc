@@ -50,8 +50,9 @@ Mapping::GroupRoleMap_t Mapping::gGroupRoleVector;
 Mapping::VirtualUserMap_t Mapping::gVirtualUidMap;
 Mapping::VirtualGroupMap_t Mapping::gVirtualGidMap;
 Mapping::SudoerMap_t Mapping::gSudoerMap;
-bool Mapping::gRootSquash = true;
-bool Mapping::gSecondaryGroups = false;
+std::atomic<bool> Mapping::gRootSquash = true;
+std::atomic<bool> Mapping::gSecondaryGroups = false;
+std::atomic<int> Mapping::gTokenSudo = Mapping::kAlways;
 
 Mapping::GeoLocationMap_t Mapping::gGeoMap;
 int Mapping::gNobodyAccessTreeDeepness(1024);
@@ -1202,6 +1203,20 @@ Mapping::Print(XrdOucString& stdOut, XrdOucString option)
     }
 
     stdOut += ")\n";
+
+    stdOut += "tokensudo              => ";
+    if (gTokenSudo == Mapping::kAlways) {
+      stdOut += "always";
+    } else if (gTokenSudo == Mapping::kEncrypted) {
+      stdOut += "encrypted";
+    } else if (gTokenSudo == Mapping::kStrong) {
+      stdOut += "strong";
+    } else if (gTokenSudo == Mapping::kNever) {
+      stdOut += "never";
+    } else {
+      stdOut += "inval";
+    }
+    stdOut += "\n";
   }
 
   if ((!option.length()) || ((option.find("U")) != STR_NPOS)) {

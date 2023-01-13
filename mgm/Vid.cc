@@ -64,6 +64,37 @@ Vid::Set(const char* value, bool storeConfig)
     }
   }
 
+  if (vidcmd == "tokensudo") {
+    if (storeConfig) {
+      gOFS->ConfEngine->SetConfigValue("vid", skey.c_str(), value);
+    }
+
+    if ((val = env.Get("mgm.vid.tokensudo"))) {
+      if (std::string(val) == "always") {
+	val = "0";
+	set = true;
+      } else if (std::string(val) == "never") {
+	val = "3";
+	set = true;
+      } else if (std::string(val) == "strong") {
+	val = "2";
+	set = true;
+      } else if (std::string(val) == "encrypted") {
+	val = "1";
+	set = true;
+      } else if ( (std::string(val) == "0") ||
+		  (std::string(val) == "1") ||
+		  (std::string(val) == "2") ||
+		  (std::string(val) == "3") ) {
+	set = true;
+      }
+      if (set) {
+	eos::common::Mapping::gTokenSudo = (int) strtol(val, 0, 10);
+      }
+    }
+  }
+
+    
   if (vidcmd == "geotag") {
     if ((val = env.Get("mgm.vid.geotag"))) {
       XrdOucString gkey = skey;

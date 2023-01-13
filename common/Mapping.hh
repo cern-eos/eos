@@ -154,7 +154,12 @@ public:
   // ---------------------------------------------------------------------------
   static GeoLocationMap_t gGeoMap;
 
-
+  // ---------------------------------------------------------------------------
+  //! 0: don't allow 1: allow with encryption 2: allow always
+  // ---------------------------------------------------------------------------
+  enum TOKEN_SUDO { kAlways=0, kStrong, kEncrypted, kNever };
+  static atomic<int> gTokenSudo;
+  
   // ---------------------------------------------------------------------------
   //! Max. subdirectory deepness where anonymous access is allowed
   // ---------------------------------------------------------------------------
@@ -253,9 +258,9 @@ public:
   // ---------------------------------------------------------------------------
   //! Variable to forbid remote root mounts - by default true
   // ---------------------------------------------------------------------------
-  static bool gRootSquash;
+  static std::atomic<bool> gRootSquash;
 
-  static bool gSecondaryGroups;
+  static std::atomic<bool> gSecondaryGroups;
   // ---------------------------------------------------------------------------
   //! Reset clears all cached information
   // ---------------------------------------------------------------------------
