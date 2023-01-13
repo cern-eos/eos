@@ -801,6 +801,28 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
     }
   }
 
+  // apply policy if a token can change the identity (authenticate)
+  if (gTokenSudo != Mapping::kAlways) {
+    if (gTokenSudo == kNever) {
+      token_sudo = false;
+    } else {
+      if (gTokenSudo == Mapping::kEncrypted) {
+	if ((vid.prot!="sss") &&
+	    (vid.prot!="https") &&
+	    (vid.prot!="ztn") &&
+	    (vid.prot!="grpc")) {
+	  token_sudo = false;
+	}
+      } else {
+	if (gTokenSudo == Mapping::kStrong) {
+	  if ( vid.prot== "unix" ) {
+	    token_sudo = false;
+	  }
+	}
+      }
+    }
+  }
+  
   uid_t sel_uid = vid.uid;
   uid_t sel_gid = vid.gid;
 
