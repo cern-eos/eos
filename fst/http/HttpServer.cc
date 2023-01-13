@@ -176,6 +176,72 @@ HttpServer::Handler(void* cls,
   }
 }
 
+void
+HttpServer::CompleteHandler(void*                              cls,
+                            struct MHD_Connection*             connection,
+                            void**                             con_cls,
+                            enum MHD_RequestTerminationCode    toe)
+{
+  std::string scode = "";
+
+  if (toe == MHD_REQUEST_TERMINATED_COMPLETED_OK) {
+    scode = "OK";
+  }
+
+  if (toe == MHD_REQUEST_TERMINATED_WITH_ERROR) {
+    scode = "Error";
+  }
+
+  if (toe == MHD_REQUEST_TERMINATED_TIMEOUT_REACHED) {
+    scode = "Timeout";
+  }
+
+  if (toe == MHD_REQUEST_TERMINATED_DAEMON_SHUTDOWN) {
+    scode = "Shutdown";
+  }
+
+  if (toe == MHD_REQUEST_TERMINATED_READ_ERROR) {
+    scode = "ReadError";
+  }
+
+  eos_static_info("msg=\"http connection disconnect\" reason=\"Request %s\" ",
+                  scode.c_str());
+  eos::fst::HttpHandler* httpHandle = 0;
+
+  if ((con_cls && (*con_cls))) {
+    eos::common::ProtocolHandler* handler =
+      static_cast<eos::common::ProtocolHandler*>(*con_cls);
+    httpHandle = dynamic_cast<eos::fst::HttpHandler*>(handler);
+  }
+
+  if (httpHandle) {
+    // deal with delete-on-close logic
+    if ((toe != MHD_REQUEST_TERMINATED_COMPLETED_OK)) {
+      eos_static_info("msg=\"http connection disconnect\" action=\"Cleanup\" ");
+
+      if (httpHandle && httpHandle->mFile) {
+        eos_static_err("msg=\"clean-up interrupted PUT/GET request\" path=\"%s\"",
+                       httpHandle->mFile->GetPath().c_str());
+
+        // we have to disable delete-on-close for chunked uploads since files are stateful
+        if (httpHandle->mFile->IsChunkedUpload()) {
+          httpHandle->mFile->close();
+        }
+      }
+    }
+
+    // clean-up file objects
+    if (httpHandle->mFile) {
+      delete(httpHandle->mFile);
+      httpHandle->mFile = 0;
+    }
+
+    delete httpHandle;
+    *con_cls = 0;
+  }
+}
+
+#endif
 
 /*----------------------------------------------------------------------------*/
 ssize_t
@@ -426,72 +492,5 @@ HttpServer::XrdHttpHandler(std::string& method,
 
   return handler;
 }
-
-void
-HttpServer::CompleteHandler(void*                              cls,
-                            struct MHD_Connection*             connection,
-                            void**                             con_cls,
-                            enum MHD_RequestTerminationCode    toe)
-{
-  std::string scode = "";
-
-  if (toe == MHD_REQUEST_TERMINATED_COMPLETED_OK) {
-    scode = "OK";
-  }
-
-  if (toe == MHD_REQUEST_TERMINATED_WITH_ERROR) {
-    scode = "Error";
-  }
-
-  if (toe == MHD_REQUEST_TERMINATED_TIMEOUT_REACHED) {
-    scode = "Timeout";
-  }
-
-  if (toe == MHD_REQUEST_TERMINATED_DAEMON_SHUTDOWN) {
-    scode = "Shutdown";
-  }
-
-  if (toe == MHD_REQUEST_TERMINATED_READ_ERROR) {
-    scode = "ReadError";
-  }
-
-  eos_static_info("msg=\"http connection disconnect\" reason=\"Request %s\" ",
-                  scode.c_str());
-  eos::fst::HttpHandler* httpHandle = 0;
-
-  if ((con_cls && (*con_cls))) {
-    eos::common::ProtocolHandler* handler =
-      static_cast<eos::common::ProtocolHandler*>(*con_cls);
-    httpHandle = dynamic_cast<eos::fst::HttpHandler*>(handler);
-  }
-
-  if (httpHandle) {
-    // deal with delete-on-close logic
-    if ((toe != MHD_REQUEST_TERMINATED_COMPLETED_OK)) {
-      eos_static_info("msg=\"http connection disconnect\" action=\"Cleanup\" ");
-
-      if (httpHandle && httpHandle->mFile) {
-        eos_static_err("msg=\"clean-up interrupted PUT/GET request\" path=\"%s\"",
-                       httpHandle->mFile->GetPath().c_str());
-
-        // we have to disable delete-on-close for chunked uploads since files are stateful
-        if (httpHandle->mFile->IsChunkedUpload()) {
-          httpHandle->mFile->close();
-        }
-      }
-    }
-
-    // clean-up file objects
-    if (httpHandle->mFile) {
-      delete(httpHandle->mFile);
-      httpHandle->mFile = 0;
-    }
-
-    delete httpHandle;
-    *con_cls = 0;
-  }
-}
-
-#endif
 
 EOSFSTNAMESPACE_END
