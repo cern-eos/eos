@@ -215,11 +215,11 @@ eos::mgm::TokenCmd::ProcessRequest() noexcept
       outStream << token;
       std::string dump;
       eostoken.Dump(dump,true, true);
-      eos_warning("creating voucher=%s path=%s owner=%u group=%lu perm=%s expires=%lu token:'%s'\n" ,
+      eos_warning("creating voucher=%s path=%s owner=%s group=%s perm=%s expires=%lu token:'%s'\n" ,
 		  eostoken.Voucher().c_str(),
 		  eostoken.Path().c_str(),
-		  eostoken.Owner(),
-		  eostoken.Group(),
+		  eostoken.Owner().c_str(),
+		  eostoken.Group().c_str(),
 		  eostoken.Permission().c_str(),
 		  eostoken.Expires(),
 		  dump.c_str());
