@@ -1152,6 +1152,7 @@ QuarkHierarchicalView::removeQuotaNode(IContainerMD* container)
 
 //------------------------------------------------------------------------------
 // Rename container
+// The container and its parent must be write-locked
 //------------------------------------------------------------------------------
 void
 QuarkHierarchicalView::renameContainer(IContainerMD* container,
