@@ -35,7 +35,8 @@ EOSNSNAMESPACE_BEGIN
 
 //------------------------------------------------------------------------------
 // Is it safe to make "source" directory a subdirectory of "target"?
-// Assumes eosViewRWMutex is at-least read-locked when calling this function.
+// Assumes source and target are at-least read-locked when calling this function OR
+// assumes that the eosViewRWMutex is at-least read-locked when calling this function.
 //------------------------------------------------------------------------------
 bool isSafeToRename(IView *view, IContainerMD *source, IContainerMD *target) {
   if(source == target) return false;

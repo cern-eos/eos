@@ -239,8 +239,11 @@ XrdMgmOfs::_rename(const char* old_name,
 
   gOFS->MgmStats.Add("Rename", vid.uid, vid.gid, 1);
   std::shared_ptr<eos::IContainerMD> dir;
+  std::unique_ptr<eos::IContainerMD::IContainerMDWriteLocker> dirWriteLocker;
   std::shared_ptr<eos::IContainerMD> newdir;
+  std::unique_ptr<eos::IContainerMD::IContainerMDWriteLocker> newdirWriteLocker;
   std::shared_ptr<eos::IContainerMD> rdir;
+  std::unique_ptr<eos::IContainerMD::IContainerMDWriteLocker> rdirWriteLocker;
   std::shared_ptr<eos::IFileMD> file;
   bool renameFile = false;
   bool renameDir = false;
@@ -303,10 +306,9 @@ XrdMgmOfs::_rename(const char* old_name,
 
       // Check if old path is a quota node - this is forbidden
       try {
-        eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
-        rdir = eosView->getContainer(oPath.GetPath());
+        auto rdirLocked = eosView->getContainerReadLocked(oPath.GetPath());
 
-        if (rdir->getFlags() & eos::QUOTA_NODE_FLAG) {
+        if (rdirLocked && (rdirLocked->getUnderlyingPtr()->getFlags() & eos::QUOTA_NODE_FLAG)) {
           errno = EACCES;
           return Emsg(epname, error, EACCES, "rename - source is a quota node");
         }
@@ -392,7 +394,6 @@ XrdMgmOfs::_rename(const char* old_name,
 
   if (renameDir) {
     {
-      eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
       // figure out if this is a move within the same quota node
       eos::IContainerMD::id_t q1 {0ull};
       eos::IContainerMD::id_t q2 {0ull};
@@ -426,17 +427,34 @@ XrdMgmOfs::_rename(const char* old_name,
 
   {
     eos::mgm::FusexCastBatch fuse_batch;
-    eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
 
     try {
       dir = eosView->getContainer(oPath.GetParentPath());
       newdir = eosView->getContainer(nPath.GetParentPath());
+      dirWriteLocker = eosView->getContainerWriteLocked(oP);
+      dir = dirWriteLocker->getUnderlyingPtr();
+      if(oP != nP) {
+        newdirWriteLocker = eosView->getContainerWriteLocked(nP);
+        newdir = newdirWriteLocker->getUnderlyingPtr();
+      } else {
+        newdir = dir;
+      }
       // Translate to paths without symlinks
       std::string duri = eosView->getUri(dir.get());
       std::string newduri = eosView->getUri(newdir.get());
       // Get symlink-free dir's
-      dir = eosView->getContainer(duri);
-      newdir = eosView->getContainer(newduri);
+      if(duri != oP) {
+        //Release write lock previously taken
+        dirWriteLocker.reset(nullptr);
+        dirWriteLocker = eosView->getContainerWriteLocked(duri);
+        dir = dirWriteLocker->getUnderlyingPtr();
+      }
+      if(newduri != nP) {
+        //Release write lock previously taken
+        newdirWriteLocker.reset(nullptr);
+        newdirWriteLocker = eosView->getContainerWriteLocked(newduri);
+        newdir = newdirWriteLocker->getUnderlyingPtr();
+      }
       const eos::ContainerIdentifier did = dir->getIdentifier();
       const eos::ContainerIdentifier pdid = dir->getParentIdentifier();
       const eos::ContainerIdentifier ndid = newdir->getIdentifier();
@@ -447,6 +465,7 @@ XrdMgmOfs::_rename(const char* old_name,
           file = dir->findFile(oPath.GetName());
 
           if (file) {
+            eos::IFileMD::IFileMDWriteLocker fileWriteLocker(file);
             eosView->renameFile(file.get(), nPath.GetName());
             dir->setMTimeNow();
             dir->notifyMTimeChange(gOFS->eosDirectoryService);
@@ -465,6 +484,7 @@ XrdMgmOfs::_rename(const char* old_name,
           file = dir->findFile(oPath.GetName());
 
           if (file) {
+            eos::IFileMD::IFileMDWriteLocker fileWriteLocker(file);
             // Move to a new directory
             // TODO: deal with conflicts and proper roll-back in case a file
             // with the same name already exists in the destination directory
@@ -517,14 +537,14 @@ XrdMgmOfs::_rename(const char* old_name,
       if (renameDir) {
         rdir = dir->findContainer(oPath.GetName());
 
-        if (rdir && !eos::isSafeToRename(gOFS->eosView, rdir.get(), newdir.get())) {
-          errno = EINVAL;
-          return Emsg(epname, error, EINVAL, "rename - old path is subpath of new path");
-        }
+        if (rdir){
+          rdirWriteLocker = std::make_unique<eos::IContainerMD::IContainerMDWriteLocker>(rdir);
+          if(!eos::isSafeToRename(gOFS->eosView, rdir.get(), newdir.get())) {
+            errno = EINVAL;
+            return Emsg(epname, error, EINVAL, "rename - old path is subpath of new path");
+          }
+          COMMONTIMING("rename_dir_is_safe_to_rename",&tm);
 
-        COMMONTIMING("rename_dir_is_safe_to_rename",&tm);
-
-        if (rdir) {
           // Remove all the quota from the source node and add to the target node
           std::map<std::string, std::set<std::string> >::const_reverse_iterator rfoundit;
           std::set<std::string>::const_iterator fileit;
@@ -534,19 +554,145 @@ XrdMgmOfs::_rename(const char* old_name,
             if (checkQuota) {
               std::map<uid_t, unsigned long long> user_del_size;
               std::map<gid_t, unsigned long long> group_del_size;
+              {
+                // Compute the total quota we need to rename by uid/gid
+                std::vector<std::unique_ptr<eos::IContainerMD::IContainerMDReadLocker>> containersLock;
+                std::vector<std::unique_ptr<eos::IFileMD::IFileMDReadLocker>> filesLock;
+                bool hasSourceContainerBeenFound = false;
+                for (rfoundit = found.rbegin(); rfoundit != found.rend();
+                     rfoundit++) {
+                  // read-lock every container except the source one
+                  if (!hasSourceContainerBeenFound) {
+                    // optimization to avoid string comparison once the source container has been found
+                    if (rfoundit->first == oP) {
+                      hasSourceContainerBeenFound = true;
+                    }
+                  } else {
+                    containersLock.push_back(
+                        gOFS->eosView->getContainerReadLocked(rfoundit->first));
+                  }
+                  // To compute the quota, we need to read lock all the directories and all the files belonging to the current directory
+                  for (fileit = rfoundit->second.begin();
+                       fileit != rfoundit->second.end(); fileit++) {
+                    std::string fspath = rfoundit->first;
+                    fspath += *fileit;
+                    std::shared_ptr<eos::IFileMD> fmd =
+                        std::shared_ptr<eos::IFileMD>((eos::IFileMD*)0);
 
-              // Compute the total quota we need to rename by uid/gid
-              for (rfoundit = found.rbegin(); rfoundit != found.rend(); rfoundit++) {
-                for (fileit = rfoundit->second.begin(); fileit != rfoundit->second.end();
-                     fileit++) {
+                    // Stat this file and add to the deletion maps
+                    try {
+                      fmd = gOFS->eosView->getFile(fspath.c_str(), false);
+                      filesLock.push_back(
+                          std::make_unique<eos::IFileMD::IFileMDReadLocker>(
+                              fmd));
+                    } catch (eos::MDException& e) {
+                      // Check if this is a symbolic link
+                      std::string fname = *fileit;
+                      size_t link_pos = fname.find(" -> ");
+
+                      if (link_pos != std::string::npos) {
+                        fname.erase(link_pos);
+                        fspath = rfoundit->first;
+                        fspath += fname;
+
+                        try {
+                          fmd = gOFS->eosView->getFile(fspath.c_str(), false);
+                          filesLock.push_back(
+                              std::make_unique<eos::IFileMD::IFileMDReadLocker>(
+                                  fmd));
+                        } catch (eos::MDException& e) {
+                          errno = e.getErrno();
+                          eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"",
+                                    e.getErrno(), e.getMessage().str().c_str());
+                        }
+                      } else {
+                        errno = e.getErrno();
+                        eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"",
+                                  e.getErrno(), e.getMessage().str().c_str());
+                      }
+                    }
+
+                    if (!fmd) {
+                      return Emsg(epname, error, errno,
+                                  "rename - cannot stat file in subtree",
+                                  fspath.c_str());
+                    }
+
+                    if (!fmd->isLink()) {
+                      // compute quotas to check
+                      user_del_size[fmd->getCUid()] +=
+                          (fmd->getSize() * fmd->getNumLocation());
+                      group_del_size[fmd->getCGid()] +=
+                          (fmd->getSize() * fmd->getNumLocation());
+                    }
+                  }
+                }
+              } //Vectors of locks destructor
+
+              // Verify for each uid/gid that there is enough quota to rename
+              bool userok = true;
+              bool groupok = true;
+
+              // Either all have user quota therefore userok is true
+              for (auto it = user_del_size.begin(); it != user_del_size.end();
+                   ++it) {
+                if (!Quota::Check(nP, it->first, Quota::gProjectId, it->second,
+                                  1)) {
+                  userok = false;
+                  break;
+                }
+              }
+
+              // or all have group quota therefore groupok is true
+              for (auto it = group_del_size.begin(); it != group_del_size.end();
+                   it++) {
+                if (!Quota::Check(nP, Quota::gProjectId, it->first, it->second,
+                                  1)) {
+                  groupok = false;
+                  break;
+                }
+              }
+
+              if ((!userok) || (!groupok)) {
+                // Deletion will fail as there is not enough quota on the target
+                return Emsg(epname, error, ENOSPC,
+                            "rename - cannot get all "
+                            "the needed quota for the target directory");
+              }
+              COMMONTIMING("rename_dir_check_quota", &tm);
+            } // if (checkQuota)
+            {
+              std::vector<std::unique_ptr<eos::IContainerMD::IContainerMDReadLocker>> containersLock;
+              std::vector<std::unique_ptr<eos::IFileMD::IFileMDReadLocker>> filesLock;
+              bool hasSourceContainerBeenFound = false;
+              for (rfoundit = found.rbegin(); rfoundit != found.rend();
+                   rfoundit++) {
+                // read-lock every container except the source one
+                if (!hasSourceContainerBeenFound) {
+                  // optimization to avoid string comparison once the source container has been found
+                  if (rfoundit->first == oP) {
+                    hasSourceContainerBeenFound = true;
+                  }
+                } else {
+                  containersLock.push_back(
+                      gOFS->eosView->getContainerReadLocked(rfoundit->first));
+                }
+                for (fileit = rfoundit->second.begin();
+                     fileit != rfoundit->second.end(); fileit++) {
                   std::string fspath = rfoundit->first;
                   fspath += *fileit;
-                  std::shared_ptr<eos::IFileMD> fmd = std::shared_ptr<eos::IFileMD>((
-                                                        eos::IFileMD*)0);
+                  std::string fname = *fileit;
 
-                  // Stat this file and add to the deletion maps
+                  if (fname.find(" -> ") != std::string::npos) {
+                    // Skip symlinks
+                    continue;
+                  }
+
                   try {
-                    fmd = gOFS->eosView->getFile(fspath.c_str(), false);
+                    file = gOFS->eosView->getFile(fspath.c_str());
+                    filesLock.push_back(
+                        std::make_unique<eos::IFileMD::IFileMDReadLocker>(
+                            file));
                   } catch (eos::MDException& e) {
                     // Check if this is a symbolic link
                     std::string fname = *fileit;
@@ -558,7 +704,10 @@ XrdMgmOfs::_rename(const char* old_name,
                       fspath += fname;
 
                       try {
-                        fmd = gOFS->eosView->getFile(fspath.c_str(), false);
+                        file = gOFS->eosView->getFile(fspath.c_str(), false);
+                        filesLock.push_back(
+                            std::make_unique<eos::IFileMD::IFileMDReadLocker>(
+                                file));
                       } catch (eos::MDException& e) {
                         errno = e.getErrno();
                         eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"",
@@ -571,95 +720,18 @@ XrdMgmOfs::_rename(const char* old_name,
                     }
                   }
 
-                  if (!fmd) {
-                    return Emsg(epname, error, errno, "rename - cannot stat file in subtree",
-                                fspath.c_str());
-                  }
+                  if (file && !file->isLink()) {
+                    // Get quota nodes from file path and target directory
+                    eos::IQuotaNode* old_qnode = eosView->getQuotaNode(rdir.get());
+                    eos::IQuotaNode* new_qnode = eosView->getQuotaNode(newdir.get());
 
-                  if (!fmd->isLink()) {
-                    user_del_size[fmd->getCUid()] += (fmd->getSize() * fmd->getNumLocation());
-                    group_del_size[fmd->getCGid()] += (fmd->getSize() * fmd->getNumLocation());
-                  }
-                }
-              }
-
-              // Verify for each uid/gid that there is enough quota to rename
-              bool userok = true;
-              bool groupok = true;
-
-              // Either all have user quota therefore userok is true
-              for (auto it = user_del_size.begin(); it != user_del_size.end(); ++it) {
-                if (!Quota::Check(nP, it->first, Quota::gProjectId, it->second, 1)) {
-                  userok = false;
-                  break;
-                }
-              }
-
-              // or all have group quota therefore groupok is true
-              for (auto it = group_del_size.begin(); it != group_del_size.end(); it++) {
-                if (!Quota::Check(nP, Quota::gProjectId, it->first, it->second, 1)) {
-                  groupok = false;
-                  break;
-                }
-              }
-
-              if ((!userok) || (!groupok)) {
-                // Deletion will fail as there is not enough quota on the target
-                return Emsg(epname, error, ENOSPC, "rename - cannot get all "
-                            "the needed quota for the target directory");
-              }
-              COMMONTIMING("rename_dir_check_quotas",&tm);
-            } // if (checkQuota)
-
-            for (rfoundit = found.rbegin(); rfoundit != found.rend(); rfoundit++) {
-              for (fileit = rfoundit->second.begin(); fileit != rfoundit->second.end();
-                   fileit++) {
-                std::string fspath = rfoundit->first;
-                fspath += *fileit;
-                std::string fname = *fileit;
-
-                if (fname.find(" -> ") != std::string::npos) {
-                  // Skip symlinks
-                  continue;
-                }
-
-                try {
-                  file = gOFS->eosView->getFile(fspath.c_str());
-                } catch (eos::MDException& e) {
-                  // Check if this is a symbolic link
-                  std::string fname = *fileit;
-                  size_t link_pos = fname.find(" -> ");
-
-                  if (link_pos != std::string::npos) {
-                    fname.erase(link_pos);
-                    fspath = rfoundit->first;
-                    fspath += fname;
-
-                    try {
-                      file = gOFS->eosView->getFile(fspath.c_str(), false);
-                    } catch (eos::MDException& e) {
-                      errno = e.getErrno();
-                      eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"",
-                                e.getErrno(), e.getMessage().str().c_str());
+                    if (old_qnode) {
+                      old_qnode->removeFile(file.get());
                     }
-                  } else {
-                    errno = e.getErrno();
-                    eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"",
-                              e.getErrno(), e.getMessage().str().c_str());
-                  }
-                }
 
-                if (file && !file->isLink()) {
-                  // Get quota nodes from file path and target directory
-                  eos::IQuotaNode* old_qnode = eosView->getQuotaNode(rdir.get());
-                  eos::IQuotaNode* new_qnode = eosView->getQuotaNode(newdir.get());
-
-                  if (old_qnode) {
-                    old_qnode->removeFile(file.get());
-                  }
-
-                  if (new_qnode) {
-                    new_qnode->addFile(file.get());
+                    if (new_qnode) {
+                      new_qnode->addFile(file.get());
+                    }
                   }
                 }
               }
@@ -695,8 +767,8 @@ XrdMgmOfs::_rename(const char* old_name,
                                          " was prevented at the last resort check").c_str());
               errno = EINVAL;
               return Emsg(epname, error, EINVAL, "rename - old path is subpath "
-                          "of new path - caught by last resort check, quotanodes "
-                          "may have become inconsistent");
+                                                 "of new path - caught by last resort check, quotanodes "
+                                                 "may have become inconsistent");
             }
             COMMONTIMING("rename_second_is_safe_to_rename",&tm);
 
@@ -764,6 +836,9 @@ XrdMgmOfs::_rename(const char* old_name,
       eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
                 e.getErrno(), e.getMessage().str().c_str());
     }
+    dirWriteLocker.reset();
+    newdirWriteLocker.reset();
+    rdirWriteLocker.reset();
   }
 
   std::ostringstream oss;
