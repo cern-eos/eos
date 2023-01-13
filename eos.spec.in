@@ -165,7 +165,9 @@ BuildRequires: openssl-static, ncurses-static
 BuildRequires: eos-rocksdb = 6.2.4
 BuildRequires: openldap-devel
 BuildRequires: e2fsprogs-devel
+%if ! 0%{?almalinux}
 BuildRequires: eos-libmicrohttpd, eos-libmicrohttpd-devel >= 0.9.38
+%endif
 BuildRequires: eos-grpc, eos-grpc-devel, eos-grpc-plugins
 %endif
 
@@ -337,7 +339,9 @@ Requires: xrootd-client >= %{xrootd_version_min}
 %endif
 
 Requires: eos-client == @CPACK_PACKAGE_VERSION@
+%if ! 0%{?almalinux}
 Requires: eos-libmicrohttpd >= 0.9.38
+%endif
 Requires: acl
 Requires: gdb
 Requires: jemalloc, jemalloc-devel
