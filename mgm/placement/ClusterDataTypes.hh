@@ -124,6 +124,10 @@ struct ClusterData {
   std::vector<Bucket> buckets;
 };
 
+inline bool isValidBucketId(item_id_t id, const ClusterData& data) {
+  return id < 0 && (-id < data.buckets.size());
+}
+
 } // eos::mgm::placement
 
 #endif // EOS_CLUSTERDATATYPES_HH
