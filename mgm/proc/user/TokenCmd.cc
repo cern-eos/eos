@@ -215,6 +215,15 @@ eos::mgm::TokenCmd::ProcessRequest() noexcept
       outStream << token;
       std::string dump;
       eostoken.Dump(dump,true, true);
+
+      {
+	eos::common::RWMutexReadLock lock(Access::gAccessMutex);
+	if (Access::gAllowedTokens.size()) {
+	  outStream << std::endl;
+	  outStream << "warning: the token will not be usuable without approval of an administrator!" << std::endl;
+	  outStream << "         ask for token approval of voucher:id=" << eostoken.Voucher() << std::endl;
+	}
+      }
       eos_warning("creating voucher=%s path=%s owner=%s group=%s perm=%s expires=%lu token:'%s'\n" ,
 		  eostoken.Voucher().c_str(),
 		  eostoken.Path().c_str(),
