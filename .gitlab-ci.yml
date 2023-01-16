@@ -991,6 +991,29 @@ publish_koji_cc7:
   dependencies:
     - build_cc7
 
+.rhel_srpm_from_alma_builds: &rhel_srpm_from_alma_builds
+  before_script:
+      - cp -rfv {al,rhel}${BUILD_NAME##rhel}_artifacts/
+      - find ${BUILD_NAME}_artifacts/ -name '*al[0-9]*' -type f -exec  echo rename -v '.al' '.rh' {} \;
+
+publish_koji_rhel8:
+  <<: *publish_koji_template_definition
+  <<: *rhel_srpm_from_alma_builds
+  variables:
+    TARGET: "eos8el"
+    BUILD_NAME: "rh8"
+  dependencies:
+    - build_al8 # use alma linux as base for source
+  
+publish_koji_rhel9:
+  <<: *publish_koji_template_definition
+  <<: *rhel_srpm_from_alma_builds 
+  variables:
+    TARGET: "eos9el"
+    BUILD_NAME: "rh9"
+  dependencies:
+    - build_al9 # use alma linux as base for source
+
 rpm_commit_artifacts:
   stage: publish
   image: gitlab-registry.cern.ch/linuxsupport/cc7-base
