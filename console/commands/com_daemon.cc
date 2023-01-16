@@ -230,6 +230,17 @@ com_daemon(char* arg)
   cfile += name.c_str();
 
   if (option == "config") {
+    char **const envv = cfg.Env("sysconfig");
+    for (size_t i =0; i< 1024; ++i) {
+      if (envv[i]) {
+	putenv(envv[i]);
+	fprintf(stderr,"[putenv] %s\n", envv[i]);
+      } else {
+	break;
+      }
+    }
+
+    
     if ( service == "qdb" ) {
       XrdOucString subcmd = subtokenizer.GetToken();
       if (subcmd == "coup") {
@@ -292,6 +303,60 @@ com_daemon(char* arg)
 	  int rc = system(kline.c_str());
 	  fprintf(stderr,"info: run '%s' retc=%d\n", kline.c_str(), WEXITSTATUS(rc));
 	  global_retc = WEXITSTATUS(rc);
+	  return (0);
+	}
+      } else if (subcmd == "new") {
+	XrdOucString member = subtokenizer.GetToken();
+	if (member != "observer") {
+	  fprintf(stderr,"error: new misses 'observer' arguement : 'eos daemon config qdb qdb new observer'\n");
+	  global_retc = EINVAL;
+	  return 0;
+	} else {
+	  std::string stopqdb = "systemctl stop qdb ";
+	  stopqdb += name.c_str();
+	  system(stopqdb.c_str());
+	  
+	  std::string qdbpath=getenv("QDB_PATH")?getenv("QDB_PATH"):"";
+	  std::string qdbcluster=getenv("QDB_CLUSTER_ID")?getenv("QDB_CLUSTER_ID"):"";
+	  std::string qdbnode=getenv("QDB_NODE")?getenv("QDB_NODE"):"";
+	  if (qdbpath.empty())    {
+	    fprintf(stderr,"error: QDB_PATH is undefined in your configuration\n");
+	    global_retc = EINVAL;
+	    return 0;
+	  }
+	  if (qdbcluster.empty()) {
+	    fprintf(stderr,"error: QDB_CLUSTER_ID is undefined in your configuration\n");
+	    global_retc = EINVAL;
+	    return 0;
+	  }
+	  if (qdbnode.empty()) {
+	    fprintf(stderr,"error: QDB_NODE is undefined in your configuration\n");
+	    global_retc = EINVAL;
+	    return 0;
+	  }
+	  struct stat buf;
+	  if (!::stat(qdbpath.c_str(), &buf)) {
+	    fprintf(stderr,"error: path '%s' exists - to create a new observer this path has to be changed or removed\n",qdbpath.c_str());
+	    global_retc = EINVAL;
+	    return 0;
+	  } else {
+	    fprintf(stderr,"info: creating QDB under %s ...\n", qdbpath.c_str());
+	  }
+	  
+	  std::string kline;
+	  kline = "quarkdb-create --path ";
+	  kline += qdbpath;
+	  kline += " --clusterID ";
+	  kline += qdbcluster;
+	  int rc = system(kline.c_str());
+	  fprintf(stderr,"info: run '%s' retc=%d\n", kline.c_str(), WEXITSTATUS(rc));
+	  global_retc = WEXITSTATUS(rc);
+	  if(!global_retc) {
+	    fprintf(stderr,"info: to get this node joining the cluster you do:\n");
+	    fprintf(stderr,"1 [ this node ] : systemctl start eos5-@qdb@%s\n",name.c_str());
+	    fprintf(stderr,"2 [ leader    ] : eos daemon config qdb %s add %s\n",name.c_str(),qdbnode.c_str());
+	    fprintf(stderr,"3 [ leader    ] : eos daemon config qdb %s promote %s\n",name.c_str(),qdbnode.c_str());
+	  }
 	  return (0);
 	}
       } else if (subcmd == "backup") {
@@ -526,13 +591,15 @@ com_daemon_usage:
   fprintf(stdout,
 	  "      examples: eos daemon config qdb qdb coup                        -  try to make instance [qdb] a leader of QDB\n");
   fprintf(stdout,
-	  "                eos daemon config qdb qdb info                       -  show raft-info for the [qdb] QDB instance\n");
+	  "                eos daemon config qdb qdb info                        -  show raft-info for the [qdb] QDB instance\n");
   fprintf(stdout,
-	  "                eos daemon config qdb qdb remove host:port           -  remove a member of the qdb cluster\n");
+	  "                eos daemon config qdb qdb remove host:port            -  remove a member of the qdb cluster\n");
   fprintf(stdout,
-	  "                eos daemon config qdb qdb add host:port              -  add an observer to the qdb cluster\n");
+	  "                eos daemon config qdb qdb add host:port               -  add an observer to the qdb cluster\n");
   fprintf(stdout,
-	  "                eos daemon config qdb qdb promote host:port          -  promote an observer to a full member of the qdb cluster\n");
+	  "                eos daemon config qdb qdb promote host:port           -  promote an observer to a full member of the qdb cluster\n");
+  fprintf(stdout,
+	  "                eos daemon config qdb qdb new observer                -  create a new observer\n");
   fprintf(stdout,
 	  "                eos daemon config fst fst.1                           -  show the init,sysconfig and xrootd config for the [fst.1] FST service\n");
   fprintf(stdout,
