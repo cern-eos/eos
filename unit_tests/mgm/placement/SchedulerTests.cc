@@ -24,6 +24,7 @@
 #include "mgm/placement/Scheduler.hh"
 #include "unit_tests/mgm/placement/ClusterMapFixture.hh"
 #include "gtest/gtest.h"
+using eos::mgm::placement::item_id_t;
 
 TEST_F(SimpleClusterF, RoundRobinBasic)
 {
@@ -135,3 +136,68 @@ TEST_F(SimpleClusterF, RoundRobinBasicLoop)
   }
 }
 
+TEST_F(SimpleClusterF, FlatSchedulerBasic)
+{
+  using eos::mgm::placement::PlacementStrategyT;
+
+  eos::mgm::placement::FlatScheduler flat_scheduler(PlacementStrategyT::kRoundRobin,
+                                                    256);
+
+  auto cluster_data_ptr = mgr.getClusterData();
+
+  auto result = flat_scheduler.schedule(*cluster_data_ptr,
+                                        {2});
+  eos::mgm::placement::PlacementResult expected_result;
+  expected_result.ids = {1,2};
+  expected_result.ret_code = 0;
+  ASSERT_TRUE(result);
+
+  ASSERT_TRUE(result.is_valid_placement(2));
+  EXPECT_EQ(result, expected_result);
+
+  auto result2 = flat_scheduler.schedule(*cluster_data_ptr,
+                                         {2});
+  ASSERT_TRUE(result.is_valid_placement(2));
+}
+
+
+TEST_F(SimpleClusterF, FlatSchedulerBasicLoop)
+{
+  using eos::mgm::placement::PlacementStrategyT;
+
+  eos::mgm::placement::FlatScheduler flat_scheduler(PlacementStrategyT::kRoundRobin,
+                                                    256);
+
+  auto cluster_data_ptr = mgr.getClusterData();
+
+  std::map<int32_t,uint32_t> disk_id_ctr;
+  std::vector<int32_t> disk_ids_vec;
+
+  for (int i=0; i <30; ++i) {
+    auto result = flat_scheduler.schedule(*cluster_data_ptr,
+                                          {2});
+    ASSERT_TRUE(result);
+    ASSERT_TRUE(result.is_valid_placement(2));
+    disk_id_ctr[result.ids[0]]++;
+    disk_id_ctr[result.ids[1]]++;
+    disk_ids_vec.push_back(result.ids[0]);
+    disk_ids_vec.push_back(result.ids[1]);
+  }
+  // All the disks are chosen at least once, due to the non uniform nature here,
+  // site 2 would have its disks chosen twice as often as site 1
+  ASSERT_EQ(disk_ids_vec.size(), 60);
+  ASSERT_EQ(disk_id_ctr.size(), 30);
+
+  // Check SITE1 ctr, atleast 1; initial disks would be twice as filled as latter
+  for (int i=1; i <=20; i++) {
+    ASSERT_GE(disk_id_ctr[i], 1);
+  }
+
+  // Check SITE2 ctr, all disks would've been scheduled twice,
+  // initial disks twice often as the others
+
+  for (int i=21; i <=30; i++) {
+    ASSERT_GE(disk_id_ctr[i],2);
+  }
+
+}
