@@ -38,7 +38,7 @@ public:
     mEpochClusterData.reserve(50);
   }
 
-  StorageHandler getStorageHandler();
+  StorageHandler getStorageHandler(size_t max_buckets=256);
   epoch_id_t getCurrentEpoch() const { return mCurrentEpoch; }
   void trimOldEpochs(uint64_t epochs_to_keep = 10);
 

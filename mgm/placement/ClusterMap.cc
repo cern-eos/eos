@@ -27,9 +27,9 @@
 namespace eos::mgm::placement {
 
 StorageHandler
-ClusterMgr::getStorageHandler()
+ClusterMgr::getStorageHandler(size_t max_buckets)
 {
-  return StorageHandler(*this);
+  return StorageHandler(*this, max_buckets);
 }
 
 void
