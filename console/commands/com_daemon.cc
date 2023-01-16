@@ -246,6 +246,54 @@ com_daemon(char* arg)
 	fprintf(stderr,"info: run '%s' retc=%d\n", kline.c_str(), WEXITSTATUS(rc));
 	global_retc = WEXITSTATUS(rc);
 	return (0);
+      } else if (subcmd == "remove") {
+	XrdOucString member = subtokenizer.GetToken();
+	if (!member.length()) {
+	  fprintf(stderr,"error: remove misses member argument host:port : 'eos daemon config qdb qdb remove host:port'\n");
+	  global_retc = EINVAL;
+	  return 0;
+	} else {
+	  std::string kline;
+	  kline = "export REDISCLI_AUTH=`cat /etc/eos.keytab`; redis-cli -p `cat "; kline += cfile; kline += "|grep xrd.port | cut -d ' ' -f 2` <<< \"raft-remove-member ";
+	  kline += member.c_str();
+	  kline += "\"";
+	  int rc = system(kline.c_str());
+	  fprintf(stderr,"info: run '%s' retc=%d\n", kline.c_str(), WEXITSTATUS(rc));
+	  global_retc = WEXITSTATUS(rc);
+	  return (0);
+	}
+      } else if (subcmd == "add") {
+	XrdOucString member = subtokenizer.GetToken();
+	if (!member.length()) {
+	  fprintf(stderr,"error: add misses member argument host:port : 'eos daemon config qdb qdb add host:port'\n");
+	  global_retc = EINVAL;
+	  return 0;
+	} else {
+	  std::string kline;
+	  kline = "export REDISCLI_AUTH=`cat /etc/eos.keytab`; redis-cli -p `cat "; kline += cfile; kline += "|grep xrd.port | cut -d ' ' -f 2` \"<<< raft-add-observer ";
+	  kline += member.c_str();
+	  kline += "\"";
+	  int rc = system(kline.c_str());
+	  fprintf(stderr,"info: run '%s' retc=%d\n", kline.c_str(), WEXITSTATUS(rc));
+	  global_retc = WEXITSTATUS(rc);
+	  return (0);
+	}
+      } else if (subcmd == "promote") {
+	XrdOucString member = subtokenizer.GetToken();
+	if (!member.length()) {
+	  fprintf(stderr,"error: promote misses member argument host:port : 'eos daemon config qdb qdb promote host:port'\n");
+	  global_retc = EINVAL;
+	  return 0;
+	} else {
+	  std::string kline;
+	  kline = "export REDISCLI_AUTH=`cat /etc/eos.keytab`; redis-cli -p `cat "; kline += cfile; kline += "|grep xrd.port | cut -d ' ' -f 2` <<< \"raft-promote-observer ";
+	  kline += member.c_str();
+	  kline += "\"";
+	  int rc = system(kline.c_str());
+	  fprintf(stderr,"info: run '%s' retc=%d\n", kline.c_str(), WEXITSTATUS(rc));
+	  global_retc = WEXITSTATUS(rc);
+	  return (0);
+	}
       } else if (subcmd == "backup") {
 	std::string qdbpath = "/var/lib/qdb1";
 	for ( auto it : cfg[chapter.c_str()] ) {
@@ -478,7 +526,13 @@ com_daemon_usage:
   fprintf(stdout,
 	  "      examples: eos daemon config qdb qdb coup                        -  try to make instance [qdb] a leader of QDB\n");
   fprintf(stdout,
-	  "                eos daemon config qdb qdb1 info                       -  show raft-info for the [qdb1] QDB instance\n");
+	  "                eos daemon config qdb qdb info                       -  show raft-info for the [qdb] QDB instance\n");
+  fprintf(stdout,
+	  "                eos daemon config qdb qdb remove host:port           -  remove a member of the qdb cluster\n");
+  fprintf(stdout,
+	  "                eos daemon config qdb qdb add host:port              -  add an observer to the qdb cluster\n");
+  fprintf(stdout,
+	  "                eos daemon config qdb qdb promote host:port          -  promote an observer to a full member of the qdb cluster\n");
   fprintf(stdout,
 	  "                eos daemon config fst fst.1                           -  show the init,sysconfig and xrootd config for the [fst.1] FST service\n");
   fprintf(stdout,
