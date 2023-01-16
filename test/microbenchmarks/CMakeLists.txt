@@ -23,10 +23,17 @@
 
 add_executable(eos-microbenchmarks main.cc)
 add_executable(eos-idmap-microbenchmark common/BM_IdMap.cc)
+add_executable(eos-flatscheduler-microbenchmark mgm/BM_FlatScheduler.cc
+        ${CMAKE_SOURCE_DIR}/mgm/placement/ClusterMap.cc
+        ${CMAKE_SOURCE_DIR}/mgm/placement/Scheduler.cc)
 target_link_libraries(eos-microbenchmarks PRIVATE
   GOOGLEBENCHMARK::GOOGLEBENCHMARK
   XROOTD::UTILS)
 
 target_link_libraries(eos-idmap-microbenchmark PRIVATE
+  GOOGLEBENCHMARK::GOOGLEBENCHMARK
+  EosCommon-Static)
+
+target_link_libraries(eos-flatscheduler-microbenchmark PRIVATE
   GOOGLEBENCHMARK::GOOGLEBENCHMARK
   EosCommon-Static)
