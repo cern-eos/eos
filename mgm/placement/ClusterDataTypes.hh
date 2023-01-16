@@ -87,17 +87,32 @@ static_assert(sizeof(Disk) == 8, "Disk data type not aligned to 8 bytes!");
 
 // some common storage elements, these could be user defined in the future
 enum class StdBucketType : uint8_t {
-  GROUP,
+  GROUP=0,
   RACK,
   ROOM,
   SITE,
-  ROOT };
+  ROOT,
+  COUNT};
 
 constexpr uint8_t
 get_bucket_type(StdBucketType t)
 {
   return static_cast<uint8_t>(t);
 }
+
+
+// Determining placement of replicas for a file
+// We need to understand how many storage elements we select at each level
+// of the hierarchy, for example for a 2 replica file, with 2 sites,
+// we'd select 1 per site, and then going further down the hierarchy, we'd have
+// to select 1 per room etc. until we reach our last abstraction at the group
+// where we'd need to select as many replicas as we have left, in this case 2.
+// we really don't want a tree that's more than 16 levels deep?
+constexpr uint8_t MAX_PLACEMENT_HEIGHT = 16;
+using selection_rules_t = std::array<uint8_t, MAX_PLACEMENT_HEIGHT>;
+constexpr selection_rules_t kDefault2Replica =
+    {-1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1};
+
 
 struct Bucket {
   item_id_t id;
