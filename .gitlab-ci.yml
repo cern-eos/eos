@@ -334,6 +334,41 @@ build_cs9_arm:
     - docker-arm
   when: manual
 
+
+####################### Build SRPM for RHEL #######################
+.build-client-srpm-template: &build-client-srpm-template_definition
+  stage: build:rpm
+  before_script:
+    - dnf config-manager --add-repo https://linuxsoft.cern.ch/cern/rhel/$(rpm --eval '%{rhel}')/CERN/$(uname -i)/ --set-enabled
+    - dnf install cern-gpg-keys --nogpgcheck -y
+    - rpm --import /etc/pki/rpm-gpg/*
+    - dnf install rpm-build cmake gcc-c++ git -y
+  script:
+    - git submodule update --init --recursive
+    - EOS_VERSION="$(./genversion.sh)"; echo "${EOS_VERSION}"
+    - mkdir -pv build/
+    - cd build/
+    - cmake ../ -DPACKAGEONLY=1 -DCLIENT=1
+    - make srpm
+    - cd ../
+    - mkdir -p ${CI_JOB_NAME}_artifacts
+    - cp -rv build/SRPMS/ ${CI_JOB_NAME}_artifacts
+  artifacts:
+    expire_in: 1 day
+    paths:
+      - ${CI_JOB_NAME}_artifacts
+  tags:
+    - docker_node
+
+rh-8:
+ image: gitlab-registry.cern.ch/linuxsupport/ubi8/ubi
+ extends: .build-client-srpm-template
+ 
+rh-9:
+ image: gitlab-registry.cern.ch/linuxsupport/ubi9/ubi
+ extends: .build-client-srpm-template
+
+###################### Build Ubuntu ######################
 .build_ubuntu-template: &build_ubuntu-template_definition
   stage: build:rpm
   before_script:
@@ -380,6 +415,7 @@ build_cs9_arm:
     CODENAME: ${CODENAME}
   dependencies: []
   allow_failure: true # @todo false for tags
+
 
 build_ubuntu_jammy:
   image: ubuntu:jammy
@@ -579,7 +615,6 @@ build_cc7_coverage:
   only:
     variables:
       - $COVERAGE_SCHEDULE
-
 
 #-------------------------------------------------------------------------------
 # Build docker images
@@ -991,28 +1026,22 @@ publish_koji_cc7:
   dependencies:
     - build_cc7
 
-.rhel_srpm_from_alma_builds: &rhel_srpm_from_alma_builds
-  before_script:
-      - cp -rfv {al,rhel}${BUILD_NAME##rhel}_artifacts/
-      - find ${BUILD_NAME}_artifacts/ -name '*al[0-9]*' -type f -exec  echo rename -v '.al' '.rh' {} \;
-
-publish_koji_rhel8:
+####### Publish RHEL from SRPMs #######
+publish_koji_rh-8:
   <<: *publish_koji_template_definition
-  <<: *rhel_srpm_from_alma_builds
   variables:
     TARGET: "eos8el"
-    BUILD_NAME: "rh8"
-  dependencies:
-    - build_al8 # use alma linux as base for source
-  
-publish_koji_rhel9:
+    BUILD_NAME: "rh-8"
+  needs:
+    - job: rh-8
+
+publish_koji_rh-9:
   <<: *publish_koji_template_definition
-  <<: *rhel_srpm_from_alma_builds 
   variables:
     TARGET: "eos9el"
-    BUILD_NAME: "rh9"
-  dependencies:
-    - build_al9 # use alma linux as base for source
+    BUILD_NAME: "rh-9"
+  needs:
+    - job: rh-9
 
 rpm_commit_artifacts:
   stage: publish
