@@ -150,9 +150,10 @@ public:
   //----------------------------------------------------------------------------
   //! Get file identifier
   //----------------------------------------------------------------------------
-  inline FileIdentifier getIdentifier() const override
+  inline identifier_t
+  getIdentifier() const override
   {
-    return this->runReadOp([this]() { return FileIdentifier(mFile.id()); });
+    return this->runReadOp([this]() { return identifier_t(mFile.id()); });
   }
 
   //----------------------------------------------------------------------------
