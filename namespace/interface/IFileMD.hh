@@ -55,6 +55,7 @@ public:
   typedef std::vector<location_t> LocationVector;
   typedef std::map<std::string, std::string> XAttrMap;
   typedef std::map<std::string, std::string> QoSAttrMap;
+  using identifier_t = FileIdentifier;
 
   //----------------------------------------------------------------------------
   //! Constructor
@@ -79,7 +80,7 @@ public:
   //----------------------------------------------------------------------------
   //! Get file identifier
   //----------------------------------------------------------------------------
-  virtual FileIdentifier getIdentifier() const = 0;
+  virtual identifier_t getIdentifier() const = 0;
 
   //----------------------------------------------------------------------------
   //! Get creation time
