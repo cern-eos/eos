@@ -92,6 +92,8 @@ public:
   using IContainerMDReadLocker = NSObjectMDLocker<IContainerMDPtr,MDReadLock>;
   using IContainerMDWriteLocker = NSObjectMDLocker<IContainerMDPtr,MDWriteLock>;
 
+  using identifier_t = ContainerIdentifier;
+
   //----------------------------------------------------------------------------
   //! Constructor
   //----------------------------------------------------------------------------
@@ -192,7 +194,7 @@ public:
   //----------------------------------------------------------------------------
   //! Get container identifier
   //----------------------------------------------------------------------------
-  virtual ContainerIdentifier getIdentifier() const = 0;
+  virtual identifier_t getIdentifier() const = 0;
 
   //----------------------------------------------------------------------------
   //! Get parent id
@@ -202,9 +204,10 @@ public:
   //----------------------------------------------------------------------------
   //! Get parent identifier
   //----------------------------------------------------------------------------
-  virtual ContainerIdentifier getParentIdentifier() const
+  virtual identifier_t
+  getParentIdentifier() const
   {
-    return ContainerIdentifier(getParentId());
+    return identifier_t(getParentId());
   }
 
   //----------------------------------------------------------------------------
@@ -428,7 +431,7 @@ public:
   //----------------------------------------------------------------------------
   virtual std::string getLocalityHint() const
   {
-    return LocalityHint::build(ContainerIdentifier(getParentId()), getName());
+    return LocalityHint::build(identifier_t(getParentId()), getName());
   }
 
   std::chrono::steady_clock::time_point getLastPrefetch() const

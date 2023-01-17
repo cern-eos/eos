@@ -157,9 +157,10 @@ public:
   //----------------------------------------------------------------------------
   //! Get container identifier
   //----------------------------------------------------------------------------
-  inline ContainerIdentifier getIdentifier() const override
+  inline identifier_t
+  getIdentifier() const override
   {
-    return ContainerIdentifier(getId());
+    return identifier_t(getId());
   }
 
 
