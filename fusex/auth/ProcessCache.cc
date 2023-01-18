@@ -67,10 +67,10 @@ ProcessCache::discoverBoundIdentity(const JailInformation& jail,
   //----------------------------------------------------------------------------
   if ((!credConfig.use_user_krb5cc && !credConfig.use_user_gsiproxy &&
        !credConfig.use_user_sss && !credConfig.use_user_oauth2) ||
-      (credConfig.use_user_unix)) {
+      (credConfig.use_user_unix && (uid || credConfig.use_root_unix))) {
     LogbookScope scope;
 
-    if (credConfig.use_user_unix) {
+    if (credConfig.use_user_unix && (uid || credConfig.use_root_unix)) {
       scope = logbook.makeScope("unix enabled - "
                                 "using UNIX");
     } else {

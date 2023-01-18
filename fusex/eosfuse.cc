@@ -665,6 +665,10 @@ EosFuse::run(int argc, char* argv[], void* userdata)
         root["auth"]["unix"] = 0;
       }
 
+      if (!root["auth"].isMember("unix-root")) {
+        root["auth"]["unix-root"] = 0;
+      }
+
       if (!root["auth"].isMember("ignore-containerization")) {
         root["auth"]["ignore-containerization"] = 0;
       }
@@ -972,6 +976,7 @@ EosFuse::run(int argc, char* argv[], void* userdata)
     config.auth.use_user_krb5cc = root["auth"]["krb5"].asInt();
     config.auth.use_user_oauth2 = root["auth"]["oauth2"].asInt();
     config.auth.use_user_unix = root["auth"]["unix"].asInt();
+    config.auth.use_root_unix = root["auth"]["unix-root"].asInt();
     config.auth.ignore_containerization =
       root["auth"]["ignore-containerization"].asInt();
     config.auth.use_user_gsiproxy = root["auth"]["gsi"].asInt();

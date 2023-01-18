@@ -71,6 +71,7 @@ This
     "ssskeytab" : "/etc/eos/fuse.sss.keytab",
     "oauth2" : 1,
     "unix" : 0,
+    "unix-root" : 0,    	  
     "environ-deadlock-timeout" : 100,
     "forknoexec-heuristic" : 1
   },
@@ -310,10 +311,14 @@ Use these authentication directives in the config files:
   "auth" : {
     "shared-mount" : 1,
     "unix" : 1,
+    "unix-root" : 0,
     "sss" : 1
   }
 ```
 If you enable UNIX, it will be used for everbody but root (uid=0). In this example root will fall back to sss authentication. If you don't specify any other, root will also use UNIX and will be mapped to nobody server side.
+
+If you define "unix-root":1 it will also be used for the root user!
+
 
 
 AUTOFS Configuration
