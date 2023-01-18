@@ -309,7 +309,6 @@ helm_system:
   needs:
     - job: cc7_docker_image
       artifacts: false
-  when: manual
 
 helm_groupdrainer:
   stage: test

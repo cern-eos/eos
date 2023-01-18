@@ -141,7 +141,7 @@ if [[ $? -ne 0 ]]; then
   cleanup
   exit 1
 else
-    echo "File system 1 successfully drained"
+  echo "File system 1 successfully drained"
 fi
 
 # Put back the file system in rw mode

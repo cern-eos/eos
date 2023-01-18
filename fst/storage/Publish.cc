@@ -285,7 +285,7 @@ static void OverwriteTestingStatfs(const std::string& path,
     return;
   }
 
-  uint64_t subtree_max_size = 10 * 1024 * 1024 * 1024; // 10GB
+  uint64_t subtree_max_size = 10ull * 1024 * 1024 * 1024; // 10GB
   ptr = getenv("EOS_FST_SUBTREE_MAX_SIZE");
 
   if (ptr) {
@@ -300,11 +300,12 @@ static void OverwriteTestingStatfs(const std::string& path,
   uint64_t used_bytes {0ull};
   const std::string sused_bytes = GetSubtreeSize(path);
   (void) eos::common::StringToNumeric(sused_bytes, used_bytes);
-  double filled = (double) 100.0 * used_bytes / subtree_max_size;
+  double filled = (double) 100.0 * (subtree_max_size - used_bytes) /
+                  subtree_max_size;
   output["stat.statfs.filled"] = std::to_string(filled);
   output["stat.statfs.usedbytes"] = std::to_string(used_bytes);
   output["stat.statfs.freebytes"] = std::to_string(subtree_max_size - used_bytes);
-  output["stat.stafs.capacity"] = std::to_string(subtree_max_size);
+  output["stat.statfs.capacity"] = std::to_string(subtree_max_size);
 }
 
 //------------------------------------------------------------------------------

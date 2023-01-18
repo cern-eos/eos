@@ -73,7 +73,7 @@ TEST_FN1=/var/tmp/1GB.dat
 TEST_FN2=/var/tmp/2GB.dat
 
 dd if=/dev/urandom of=${TEST_FN1} bs=1M count=1024 &> /dev/null
-dd if=/dev/urandom of=${TEST_FN2} bs=1M count=2048  &> /dev/null
+dd if=/dev/urandom of=${TEST_FN2} bs=1M count=2048 &> /dev/null
 
 # Create eos directory for tests
 EOS_BALANCE_DIR=/eos/dockertest/balance_test

@@ -4231,7 +4231,6 @@ BaseView::Print(TableFormatterBase& table, std::string table_format,
     if (table_format.length() && table_mq_format.length()) {
       table.SetHeader(table_header);
       table.AddRows(table_data);
-//      TableFormatterBase table_mq;
       TableFormatterBase table_mq(dont_color);
       table_mq.SetHeader(table_mq_header);
       table_mq.AddRows(table_mq_data);
