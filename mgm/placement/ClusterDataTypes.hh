@@ -137,6 +137,10 @@ struct Bucket {
 struct ClusterData {
   std::vector<Disk> disks;
   std::vector<Bucket> buckets;
+
+  void setDiskStatus(fsid_t id, DiskStatus status) {
+    disks[id].status.store(status, std::memory_order_relaxed);
+  }
 };
 
 inline bool isValidBucketId(item_id_t id, const ClusterData& data) {

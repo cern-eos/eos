@@ -34,24 +34,29 @@ class StorageHandler;
 
 class ClusterMgr {
 public:
-  ClusterMgr() : mStartEpoch(0), mCurrentEpoch(0) {
-    mEpochClusterData.reserve(50);
+  ClusterMgr() : mCurrentIndex(0), mCurrentEpoch(0), mEpochSize(50) {
+    mEpochClusterData.reserve(mEpochSize);
   }
 
   StorageHandler getStorageHandler(size_t max_buckets=256);
+  StorageHandler getStorageHandlerWithData();
   epoch_id_t getCurrentEpoch() const { return mCurrentEpoch; }
   void trimOldEpochs(uint64_t epochs_to_keep = 10);
 
   std::shared_ptr<ClusterData> getClusterData(epoch_id_t epoch);
   std::shared_ptr<ClusterData> getClusterData();
 
+  bool setDiskStatus(fsid_t disk_id, DiskStatus status);
   // Not meant to be called directly! use storage handler, we might consider
   // making this private and friending if this is abused
   void addClusterData(ClusterData&& data);
 
 private:
-  std::atomic<epoch_id_t> mStartEpoch{0};
+  bool mWrapAround{false};
+  std::mutex mClusterDataWMtx;
+  std::atomic<uint32_t> mCurrentIndex{0};
   std::atomic<epoch_id_t> mCurrentEpoch{0};
+  size_t mEpochSize;
   std::vector<std::shared_ptr<ClusterData>> mEpochClusterData;
 };
 
@@ -60,6 +65,10 @@ public:
   StorageHandler(ClusterMgr& mgr, size_t max_buckets=256) :
       mClusterMgr(mgr)
   { mData.buckets.resize(max_buckets); }
+
+  StorageHandler(ClusterMgr& mgr, ClusterData&& data) :
+      mClusterMgr(mgr), mData(std::move(data))
+  {}
 
   bool addBucket(uint8_t bucket_type, item_id_t bucket_id,
                  item_id_t parent_bucket_id=0);

@@ -40,42 +40,88 @@ ClusterMgr::trimOldEpochs(uint64_t epochs_to_keep)
   }
   mEpochClusterData.erase(mEpochClusterData.begin(),
                           mEpochClusterData.end() - epochs_to_keep);
-  mStartEpoch += epochs_to_keep;
+  mCurrentIndex += epochs_to_keep;
 }
 
 
 std::shared_ptr<ClusterData>
 ClusterMgr::getClusterData(epoch_id_t epoch)
 {
-  auto start_epoch = mStartEpoch.load(std::memory_order_acquire);
-  if (epoch < start_epoch) {
+  if (mCurrentEpoch == 0) {
     return nullptr;
   }
-  return mEpochClusterData[epoch - mStartEpoch - 1];
+
+  auto current_index = mCurrentIndex.load(std::memory_order_acquire);
+  if (epoch > (uint32_t)current_index) {
+    return mEpochClusterData[epoch%mEpochSize];
+  }
+  return mEpochClusterData[epoch];
 }
 
 std::shared_ptr<ClusterData>
 ClusterMgr::getClusterData()
 {
   auto current_epoch = mCurrentEpoch.load(std::memory_order_acquire);
-  auto start_epoch = mStartEpoch.load(std::memory_order_acquire);
   if (current_epoch == 0) {
     return nullptr;
   }
 
-  return mEpochClusterData.at(current_epoch - start_epoch - 1);
+  auto current_index = mCurrentIndex.load(std::memory_order_acquire);
+
+  if (current_index == 0) {
+    // Unlikely to happen, we commit the transaction only after vector is
+    // updated, so this can only happen in the rare first epoch case where
+    // the data is requested after we update current_epoch but before we update the counter
+    return mEpochClusterData[0];
+  }
+  return mEpochClusterData.at(current_index - 1);
 }
 
 void
 ClusterMgr::addClusterData(ClusterData&& data)
 {
-  if (mEpochClusterData.size() == mEpochClusterData.capacity()) {
-    trimOldEpochs();
+  std::scoped_lock wlock(mClusterDataWMtx);
+  auto current_index = mCurrentIndex.load(std::memory_order_acquire);
+  if (!mWrapAround &&
+      (mEpochClusterData.size() == mEpochClusterData.capacity())) {
+    mWrapAround = true;
+    current_index = 0;
   }
 
-  mEpochClusterData.emplace_back(std::make_shared<ClusterData>
-      (std::move(data)));
+  if (mWrapAround) {
+    if (current_index == mEpochClusterData.size()) {
+      current_index = 0;
+    }
+    mEpochClusterData[current_index] = std::make_shared<ClusterData>(std::move(data));
+  } else {
+    mEpochClusterData.emplace_back(std::make_shared<ClusterData>
+                                   (std::move(data)));
+  }
+
   mCurrentEpoch++;
+  mCurrentIndex.store(current_index + 1, std::memory_order_release);
+
+}
+
+
+bool
+ClusterMgr::setDiskStatus(fsid_t disk_id, DiskStatus status)
+{
+
+  auto cluster_data = getClusterData();
+  cluster_data->setDiskStatus(disk_id, status);
+  return true;
+}
+
+StorageHandler
+ClusterMgr::getStorageHandlerWithData()
+{
+  if (mCurrentEpoch == 0) {
+    return getStorageHandler();
+  }
+  auto cluster_data = getClusterData();
+  ClusterData cluster_data_copy(*cluster_data);
+  return StorageHandler(*this, std::move(cluster_data_copy));
 }
 
 bool
