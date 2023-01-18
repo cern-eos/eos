@@ -16,6 +16,19 @@ Introduction
 This release is based on XRootD V4 and IPV6 enabled.
 
 
+``v4.8.97 Citrine``
+===================
+
+2023-01-18
+
+Bug
+---
+
+* MGM: avoid to have the low-level quota lock when we call a uid/gid translate function
+* MGM: Avoid race condition when there are two metadata flusher objects - 1st of Jan bug
+* EOS-5487 MGM: let root delete files/dires in VTX directories
+
+
 ``v4.8.96 Citrine``
 ===================
 
