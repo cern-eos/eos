@@ -25,6 +25,7 @@
 #define EOS_CLUSTERDATATYPES_HH
 
 #include "common/FileSystem.hh"
+#include <array>
 
 namespace eos::mgm::placement {
 
@@ -109,9 +110,9 @@ get_bucket_type(StdBucketType t)
 // where we'd need to select as many replicas as we have left, in this case 2.
 // we really don't want a tree that's more than 16 levels deep?
 constexpr uint8_t MAX_PLACEMENT_HEIGHT = 16;
-using selection_rules_t = std::array<uint8_t, MAX_PLACEMENT_HEIGHT>;
-constexpr selection_rules_t kDefault2Replica =
-    {-1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1};
+using selection_rules_t = std::array<int8_t, MAX_PLACEMENT_HEIGHT>;
+static selection_rules_t kDefault2Replica =
+   {-1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1};
 
 
 struct Bucket {
@@ -137,6 +138,10 @@ struct Bucket {
 struct ClusterData {
   std::vector<Disk> disks;
   std::vector<Bucket> buckets;
+
+  void setDiskStatus(fsid_t id, DiskStatus status) {
+    disks[id].status.store(status, std::memory_order_relaxed);
+  }
 };
 
 inline bool isValidBucketId(item_id_t id, const ClusterData& data) {
