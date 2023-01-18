@@ -745,7 +745,7 @@ ExclusiveArch: x86_64 aarch64
 Requires: shadow-utils
 
 %description -n eos-testkeytab
-Contains an example keytab file and create the eosnobody user
+Contains an example keytab file and create the eosnobody ans eosdev users
 
 %files -n eos-testkeytab
 %config(noreplace) %attr(-, daemon, daemon) %{_sysconfdir}/eos.keytab
@@ -754,6 +754,7 @@ Contains an example keytab file and create the eosnobody user
 %post -n eos-testkeytab
 
 getent passwd eosnobody || useradd eosnobody
+getent passwd eosdev || useradd eosdev
 
 #-------------------------------------------------------------------------------
 # Package eos-archive only for >= CC7
@@ -912,6 +913,7 @@ Contains an instance and fuse test script and some test executables and test arc
 %{_sbindir}/eos-https-functional-test
 %{_sbindir}/eoscp-rain-test
 %{_sbindir}/eos-fusex-tests
+%{_sbindir}/eos-fusex-functional-test
 %{_sbindir}/eos-oc-test
 %{_sbindir}/fusex-benchmark
 %{_sbindir}/eos-fusex-certify
