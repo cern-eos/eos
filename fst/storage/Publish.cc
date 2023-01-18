@@ -42,6 +42,26 @@ EOSFSTNAMESPACE_BEGIN
 
 constexpr std::chrono::minutes Storage::sConsistencyTimeout;
 
+
+//------------------------------------------------------------------------------
+// Open random temporary file in /tmp/
+//
+// @return string temporary file path, if open failed return empty string
+//------------------------------------------------------------------------------
+std::string MakeTemporaryFile()
+{
+  char tmp_name[] = "/tmp/fst.publish.XXXXXX";
+  int tmp_fd = mkstemp(tmp_name);
+
+  if (tmp_fd == -1) {
+    eos_static_crit("%s", "msg=\"failed to create temporary file!\"");
+    return "";
+  }
+
+  (void) close(tmp_fd);
+  return tmp_name;
+}
+
 //------------------------------------------------------------------------------
 // Serialize hot files vector into std::string
 // Return " " if given an empty vector, instead of "".
@@ -214,7 +234,6 @@ static std::string GetNetworkInterface()
 
 //------------------------------------------------------------------------------
 // Retrieve number of TCP sockets in the system
-// TODO: Change return value to integer..
 //------------------------------------------------------------------------------
 static std::string GetNumOfTcpSockets(const std::string& tmpname)
 {
@@ -230,6 +249,62 @@ static std::string GetNumOfTcpSockets(const std::string& tmpname)
   std::string retval;
   eos::common::StringConversion::LoadFileIntoString(tmpname.c_str(), retval);
   return retval;
+}
+
+//------------------------------------------------------------------------------
+// Get size of subtree by using the system "du -sb" command
+//------------------------------------------------------------------------------
+static std::string GetSubtreeSize(const std::string& path)
+{
+  const std::string tmp_name = MakeTemporaryFile();
+  const std::string command = SSTR("du -sb " << path << " | cut -f1 > "
+                                   << tmp_name);
+  eos::common::ShellCmd cmd(command.c_str());
+  eos::common::cmd_status rc = cmd.wait(5);
+
+  if (rc.exit_code) {
+    eos_static_err("msg=\"failed to compute subtree size\" path=%s",
+                   path.c_str());
+  }
+
+  std::string retval;
+  eos::common::StringConversion::LoadFileIntoString(tmp_name.c_str(), retval);
+  return retval;
+}
+
+//------------------------------------------------------------------------------
+// Overwrite statfs statistics for testing environment
+//------------------------------------------------------------------------------
+static void OverwriteTestingStatfs(const std::string& path,
+                                   std::map<std::string, std::string>& output)
+{
+  eos_static_info("msg=\"overwrite statfs values\" path=%s", path.c_str());
+  const char* ptr = getenv("EOS_FST_TESTING");
+
+  if (ptr == nullptr) {
+    return;
+  }
+
+  uint64_t subtree_max_size = 10 * 1024 * 1024 * 1024; // 10GB
+  ptr = getenv("EOS_FST_SUBTREE_MAX_SIZE");
+
+  if (ptr) {
+    if (!eos::common::StringToNumeric(std::string(ptr), subtree_max_size,
+                                      subtree_max_size)) {
+      eos_static_err("msg=\"failed convertion\" data=\"%s\"", ptr);
+    }
+  }
+
+  uint64_t bsize = 4096;
+  (void) eos::common::StringToNumeric(output["stat.statfs.bsize"], bsize, bsize);
+  uint64_t used_bytes {0ull};
+  const std::string sused_bytes = GetSubtreeSize(path);
+  (void) eos::common::StringToNumeric(sused_bytes, used_bytes);
+  double filled = (double) 100.0 * used_bytes / subtree_max_size;
+  output["stat.statfs.filled"] = std::to_string(filled);
+  output["stat.statfs.usedbytes"] = std::to_string(used_bytes);
+  output["stat.statfs.freebytes"] = std::to_string(subtree_max_size - used_bytes);
+  output["stat.stafs.capacity"] = std::to_string(subtree_max_size);
 }
 
 //------------------------------------------------------------------------------
@@ -292,28 +367,9 @@ Storage::GetFstStatistics(const std::string& tmpfile,
 }
 
 //------------------------------------------------------------------------------
-// open random temporary file in /tmp/
-// Return value: string containing the temporary file. If opening it was
-// not possible, return empty string.
-//------------------------------------------------------------------------------
-std::string makeTemporaryFile()
-{
-  char tmp_name[] = "/tmp/fst.publish.XXXXXX";
-  int tmp_fd = mkstemp(tmp_name);
-
-  if (tmp_fd == -1) {
-    eos_static_crit("%s", "msg=\"failed to create temporary file!\"");
-    return "";
-  }
-
-  (void) close(tmp_fd);
-  return tmp_name;
-}
-
-//------------------------------------------------------------------------------
 // Insert statfs info into the map
 //------------------------------------------------------------------------------
-static void insertStatfs(struct statfs* statfs,
+static void InsertStatfs(struct statfs* statfs,
                          std::map<std::string, std::string>& output)
 {
   output["stat.statfs.type"] = std::to_string(statfs->f_type);
@@ -370,7 +426,8 @@ Storage::GetFsStatistics(FileSystem* fs)
   std::unique_ptr<eos::common::Statfs> statfs = fs->GetStatfs();
 
   if (statfs) {
-    insertStatfs(statfs->GetStatfs(), output);
+    InsertStatfs(statfs->GetStatfs(), output);
+    OverwriteTestingStatfs(fs->GetPath(), output);
   }
 
   // Publish stat.disk.*
@@ -481,8 +538,7 @@ void
 Storage::Publish(ThreadAssistant& assistant)
 {
   eos_static_info("%s", "msg=\"publisher activated\"");
-  // Get our network speed
-  std::string tmp_name = makeTemporaryFile();
+  std::string tmp_name = MakeTemporaryFile();
 
   if (tmp_name.empty()) {
     return;
