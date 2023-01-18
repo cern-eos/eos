@@ -14,7 +14,6 @@ RoundRobinPlacement::chooseItems(const ClusterData& cluster_data, Args args)
     result.err_msg = "Zero replicas requested";
     return result;
   }
-
   int32_t bucket_index = -args.bucket_id;
   auto bucket_sz = cluster_data.buckets.size();
 
@@ -34,12 +33,19 @@ RoundRobinPlacement::chooseItems(const ClusterData& cluster_data, Args args)
 
   auto bucket = cluster_data.buckets.at(bucket_index);
 
+  if (bucket.items.empty()) {
+    result.err_msg = "Bucket " + std::to_string(bucket.id) + "is empty!";
+    result.ret_code = ENOENT;
+    return result;
+  }
+
+
   result.ids.reserve(args.n_replicas);
 
   auto rr_seed = mSeed.get(bucket_index, args.n_replicas);
 
   for (uint8_t items_added = 0, i = 0;
-       items_added < args.n_replicas || i > MAX_PLACEMENT_ATTEMPTS; i++) {
+       (items_added < args.n_replicas) && (i < MAX_PLACEMENT_ATTEMPTS); i++) {
 
     auto id = eos::common::pickIndexRR(bucket.items, rr_seed + i);
 
