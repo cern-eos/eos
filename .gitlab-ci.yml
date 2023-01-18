@@ -755,6 +755,15 @@ code_quality_html:
     - exec_cmd eos-cli1 'cd eosclient-tests; for n in prepare/*.sh; do /bin/bash $n prepare; done'
     - exec_cmd eos-cli1 'su eos-user -c "python3 /eosclient-tests/run.py --workdir=\"/eos1/dockertest /eos2/dockertest\" ci"'
     - exec_cmd eos-cli1 'cd eosclient-tests; for n in prepare/*.sh; do /bin/bash $n cleanup; done'
+
+    # fusex test SAMBA gateways authentication settings
+    # this will run on the client pod
+    - exec_cmd eos-mgm1 'eos vid enable sss'
+    - exec_cmd eos-mgm1 'eos vid enable unix'
+    - CLI_POD_HOSTNAME="$(exec_cmd eos-cli1 'hostname -f')"
+    - echo ${CLI_POD_HOSTNAME}
+    - exec_cmd eos-mgm1 "eos vid add gateway ${CLI_POD_HOSTNAME} unix"
+    - exec_cmd eos-cli1 'eos-fusex-functional-test --samba'
   <<: *dock8s_after_script_template
   artifacts:
     when: on_failure
