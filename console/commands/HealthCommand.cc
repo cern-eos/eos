@@ -202,7 +202,6 @@ void HealthCommand::BlackHoleCheck(NodeHelper& node_cmd)
     trigger = true;
 
     if (trigger) {
-      fprintf(stderr, "inserting %s %.02f %.02f\n", hostport.c_str(), ropen, wopen);
       files_ropen[hostport] = ropen;
       files_wopen[hostport] = wopen;
       ropen_set.insert((float) ropen);
