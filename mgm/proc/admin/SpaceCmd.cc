@@ -765,6 +765,8 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config,
           (key == "balancer.threshold") ||
           (key == "balancer.node.rate") ||
           (key == "balancer.node.ntx") ||
+          (key == "balancer.max-queue-jobs") ||
+          (key == "balancer.max-thread-pool-size") ||
           (key == "drainer.node.rate") ||
           (key == "drainer.node.ntx") ||
           (key == "drainer.node.nfs") ||
@@ -852,7 +854,7 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config,
                 } else {
                   std_out << "success: balancer is disabled!";
                 }
-                
+
                 if (space->mFsBalancer) {
                   space->mFsBalancer->SignalConfigUpdate();
                 }
@@ -1038,15 +1040,16 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config,
 
   if (!key.compare(0, 5, "atime")) {
     applied = true;
+
     if (!space->SetConfigMember(key, value)) {
       ret_c = EIO;
       std_err.str("error: cannot set space config value");
-      } else {
+    } else {
       std_out.str("success: defining space acces time tracking: " + key + "=" +
-		  value);
+                  value);
     }
   }
-  
+
   // Set a bandwidth limitation parameter
   if (!key.compare(0, 3, "bw.")) {
     applied = true;
