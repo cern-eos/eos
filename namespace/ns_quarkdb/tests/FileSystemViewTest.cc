@@ -29,6 +29,7 @@
 #include "namespace/ns_quarkdb/views/HierarchicalView.hh"
 #include "namespace/ns_quarkdb/tests/TestUtils.hh"
 #include "namespace/interface/ContainerIterators.hh"
+#include "namespace/utils/BulkNsObjectLocker.hh"
 #include "namespace/utils/RmrfHelper.hh"
 #include <gtest/gtest.h>
 #include <cstdlib>
@@ -495,6 +496,33 @@ TEST_F(FileSystemViewF, FileSystemHandler)
     qclient::QSet qset2(qcl(), eos::RequestBuilder::keyFilesystemFiles(1));
     auto it = qset2.getIterator();
     ASSERT_TRUE(eos::ns::testing::verifyContents(&it, std::set<std::string> { }));
+  }
+}
+
+TEST_F(FileSystemViewF, BulkNsObjectLocker) {
+  {
+    auto container = view()->createContainer("/test/", true);
+    auto container2 = view()->createContainer("/test/d1", true);
+    eos::BulkNsObjectLocker<eos::IContainerMDPtr, eos::IContainerMD::IContainerMDReadLocker> locker;
+    locker.add(container2);
+    locker.add(container);
+    auto locks = locker.lockAll();
+    // The order of the locks should be by ascending order of the container identifier
+    ASSERT_EQ(2, locks.size());
+    ASSERT_EQ("test", locks[0]->getUnderlyingPtr()->getName());
+    ASSERT_EQ("d1", locks[1]->getUnderlyingPtr()->getName());
+  }
+  {
+    auto file1 = view()->createFile("/test/f1");
+    auto file2 = view()->createFile("/test/d1/f2");
+    eos::BulkNsObjectLocker<eos::IFileMDPtr,eos::IFileMD::IFileMDWriteLocker> locker;
+    locker.add(file2);
+    locker.add(file1);
+    auto locks = locker.lockAll();
+
+    ASSERT_EQ(2, locks.size());
+    ASSERT_EQ("f1", locks[0]->getUnderlyingPtr()->getName());
+    ASSERT_EQ("f2", locks[1]->getUnderlyingPtr()->getName());
   }
 }
 
