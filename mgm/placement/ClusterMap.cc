@@ -32,50 +32,39 @@ ClusterMgr::getStorageHandler(size_t max_buckets)
   return StorageHandler(*this, max_buckets);
 }
 
-void
-ClusterMgr::trimOldEpochs(uint64_t epochs_to_keep)
-{
-  if (epochs_to_keep > mEpochClusterData.size()) {
-    return;
-  }
-  mEpochClusterData.erase(mEpochClusterData.begin(),
-                          mEpochClusterData.end() - epochs_to_keep);
-  mStartEpoch += epochs_to_keep;
-}
-
-
-std::shared_ptr<ClusterData>
-ClusterMgr::getClusterData(epoch_id_t epoch)
-{
-  auto start_epoch = mStartEpoch.load(std::memory_order_acquire);
-  if (epoch < start_epoch) {
-    return nullptr;
-  }
-  return mEpochClusterData[epoch - mStartEpoch - 1];
-}
-
-std::shared_ptr<ClusterData>
+ClusterMgr::ClusterDataPtr
 ClusterMgr::getClusterData()
 {
-  auto current_epoch = mCurrentEpoch.load(std::memory_order_acquire);
-  auto start_epoch = mStartEpoch.load(std::memory_order_acquire);
-  if (current_epoch == 0) {
-    return nullptr;
-  }
-
-  return mEpochClusterData.at(current_epoch - start_epoch - 1);
+  return {mClusterData.get(), cluster_mgr_rcu};
 }
 
 void
 ClusterMgr::addClusterData(ClusterData&& data)
 {
-  if (mEpochClusterData.size() == mEpochClusterData.capacity()) {
-    trimOldEpochs();
-  }
+  cluster_mgr_rcu.rcu_write_lock();
+  auto old_data = mClusterData.reset(new ClusterData(std::move(data)));
+  cluster_mgr_rcu.rcu_synchronize();
+  delete old_data;
+}
 
-  mEpochClusterData.emplace_back(std::make_shared<ClusterData>
-      (std::move(data)));
-  mCurrentEpoch++;
+
+bool
+ClusterMgr::setDiskStatus(fsid_t disk_id, DiskStatus status)
+{
+
+  mClusterData->setDiskStatus(disk_id, status);
+  return true;
+}
+
+StorageHandler
+ClusterMgr::getStorageHandlerWithData()
+{
+  if (!mClusterData) {
+    return getStorageHandler();
+  }
+  auto cluster_data = getClusterData();
+  ClusterData cluster_data_copy(cluster_data());
+  return StorageHandler(*this, std::move(cluster_data_copy));
 }
 
 bool
