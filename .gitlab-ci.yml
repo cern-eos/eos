@@ -942,8 +942,11 @@ unit_test_asan:
     - kinit stci@CERN.CH -k -t /stci.krb5/stci.keytab
     - koji build --wait ${KOJI_SCRATCH} ${TARGET} ${BUILD_NAME}_artifacts/SRPMS/*.src.rpm
 # KOJI_SCRATCH will be set for branches and empty for tags
-# #  only:
-#    - tags
+  only:
+    - tags
+    - rhel
+    - alma
+    - centos
   tags:
     - docker_node
     - publish
