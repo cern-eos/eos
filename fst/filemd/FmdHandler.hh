@@ -311,12 +311,6 @@ public:
   // if the class handles some objects needing cleanup
   virtual void Shutdown() {}
 
-  static std::unique_ptr<eos::common::FmdHelper>
-  make_fmd_helper(common::FileId::fileid_t fid,
-                  common::FileSystem::fsid_t fsid,
-                  uid_t uid,
-                  gid_t gid,
-                  common::LayoutId::layoutid_t layoutid);
 
   //----------------------------------------------------------------------------
   //! Get inconsistency statistics

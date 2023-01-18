@@ -767,28 +767,6 @@ FmdHandler::ResyncAllFromQdb(const QdbContactDetails& contact_details,
   return true;
 }
 
-std::unique_ptr<eos::common::FmdHelper>
-eos::fst::FmdHandler::make_fmd_helper(common::FileId::fileid_t fid,
-                                      common::FileSystem::fsid_t fsid,
-                                      uid_t uid,
-                                      gid_t gid,
-                                      unsigned long layoutid)
-{
-  // creating an fmd
-  auto fmd = make_unique<common::FmdHelper>();
-  fmd->mProtoFmd.set_uid(uid);
-  fmd->mProtoFmd.set_gid(gid);
-  fmd->mProtoFmd.set_lid(layoutid);
-  fmd->mProtoFmd.set_fsid(fsid);
-  fmd->mProtoFmd.set_fid(fid);
-  struct timeval tv;
-  struct timezone tz;
-  gettimeofday(&tv, &tz);
-  fmd->mProtoFmd.set_ctime(tv.tv_sec);
-  fmd->mProtoFmd.set_ctime_ns(tv.tv_usec * 1000);
-  return fmd;
-}
-
 bool
 FmdHandler::Convert(eos::common::FileId::fileid_t fid,
                     eos::common::FileSystem::fsid_t fsid,
@@ -815,7 +793,7 @@ FmdHandler::ConvertFrom(eos::common::FileId::fileid_t fid,
 
   if (ok) {
     eos_debug("msg=\"Skipping Conversion as target already has filemd\" fid=%08llx fsid=%u",
-             fid, fsid);
+              fid, fsid);
     return true;
   }
 

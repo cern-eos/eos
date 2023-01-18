@@ -27,6 +27,8 @@
 
 EOSFSTNAMESPACE_BEGIN
 
+static constexpr auto gFmdAttrName = "user.eos.fmd";
+
 //! Forward declarations
 class FSPathHandler;
 class FileIo;
@@ -106,25 +108,17 @@ private:
                    eos::common::FileSystem::fsid_t fsid,
                    const eos::common::FmdHelper& fmd) override;
 
-  int CreateFile(FileIo* fio);
-
-
-
   bool LocalPutFmd(const std::string& path,
                    const eos::common::FmdHelper& fmd);
-
-
 
   void LocalDeleteFmd(const std::string& path, bool drop_file);
 
   bool ResetDiskInformation(eos::common::FileSystem::fsid_t fsid) override;
+
   bool ResetMgmInformation(eos::common::FileSystem::fsid_t fsid) override;
 
   void SetSyncStatus(eos::common::FileSystem::fsid_t, bool) override {}
-
-
 };
 
-static constexpr auto gFmdAttrName = "user.eos.fmd";
 
 EOSFSTNAMESPACE_END

@@ -63,41 +63,22 @@ FmdAttrHandler::LocalRetrieveFmd(const std::string& path)
   return {status, std::move(fmd)};
 }
 
-int
-FmdAttrHandler::CreateFile(FileIo* fio)
-{
-  if (fio->fileExists() == 0) {
-    return 0;
-  }
-
-  FsIo fsio {fio->GetPath()};
-  int rc = fsio.fileOpen(O_CREAT | O_RDWR | O_APPEND,
-                         S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
-
-  if (rc != 0) {
-    eos_err("Failed to open file rc=%d", errno);
-  }
-
-  fsio.fileClose();
-  return rc;
-}
 
 bool
 FmdAttrHandler::LocalPutFmd(const std::string& path,
                             const eos::common::FmdHelper& fmd)
 {
   FsIo localio {path};
-  int rc = CreateFile(&localio);
+  struct stat info;
 
-  if (rc != 0) {
-    eos_err("msg=\"failed to create file\" path=\"%s\" rc=%d",
-            path.c_str(), rc);
+  if (localio.fileStat(&info)) {
+    eos_err("msg=\"file not existing\" path=\"%s\"", path.c_str());
     return false;
   }
 
   std::string attrval;
   fmd.mProtoFmd.SerializePartialToString(&attrval);
-  rc = localio.attrSet(gFmdAttrName, attrval.c_str(), attrval.length());
+  int rc = localio.attrSet(gFmdAttrName, attrval.c_str(), attrval.length());
 
   if (rc != 0) {
     eos_err("msg=\"failed to set xattr\" path=\"%s\" errno=%d",
@@ -106,6 +87,7 @@ FmdAttrHandler::LocalPutFmd(const std::string& path,
 
   return rc == 0;
 }
+
 
 void
 FmdAttrHandler::LocalDeleteFmd(const std::string& path, bool drop_file)
@@ -252,8 +234,18 @@ FmdAttrHandler::LocalGetFmd(eos::common::FileId::fileid_t fid,
     return fmd;
   } // status || force_retrieve
 
-  auto fmd = eos::fst::FmdHandler::make_fmd_helper(fid, fsid, uid, gid,
-             layoutid);
+  // Creating an fmd
+  auto fmd = make_unique<common::FmdHelper>();
+  fmd->mProtoFmd.set_uid(uid);
+  fmd->mProtoFmd.set_gid(gid);
+  fmd->mProtoFmd.set_lid(layoutid);
+  fmd->mProtoFmd.set_fsid(fsid);
+  fmd->mProtoFmd.set_fid(fid);
+  struct timeval tv;
+  struct timezone tz;
+  gettimeofday(&tv, &tz);
+  fmd->mProtoFmd.set_ctime(tv.tv_sec);
+  fmd->mProtoFmd.set_ctime_ns(tv.tv_usec * 1000);
 
   if (Commit(fmd.get(), false)) {
     eos_debug("msg=\"return fmd object\" fid=%08llx fsid=%lu", fid, fsid);
@@ -264,8 +256,6 @@ FmdAttrHandler::LocalGetFmd(eos::common::FileId::fileid_t fid,
            fid, fsid);
   return nullptr;
 }
-
-
 
 bool
 FmdAttrHandler::GetInconsistencyStatistics(

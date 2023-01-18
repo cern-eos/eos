@@ -446,56 +446,9 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
                      "simulated error");
   }
 
-  COMMONTIMING("get::localfmd", &tm);
-
-  if (isCreation && !gOFS.FmdOnDb()) {
-    mFmd = FmdHandler::make_fmd_helper(mFileId, mFsId, vid.uid, vid.gid,
-                                       mLid);
-  } else {
-    mFmd = gOFS.mFmdHandler->LocalGetFmd(mFileId, mFsId, isRepairRead, mIsRW,
-                                         vid.uid, vid.gid, mLid);
-  }
-
-  COMMONTIMING("resync::localfmd", &tm);
-
-  if (mFmd == nullptr) {
-    if (gOFS.mFmdHandler->ResyncMgm(mFsId, mFileId, mRedirectManager.c_str())) {
-      eos_info("msg=\"resync ok\" fsid=%lu fxid=%llx", mFsId, mFileId);
-      mFmd = gOFS.mFmdHandler->LocalGetFmd(mFileId, mFsId, isRepairRead,
-                                           mIsRW, vid.uid, vid.gid, mLid);
-      std::string dummy_xs;
-      int rc = 0;
-
-      if ((rc = gOFS.mFmdHandler->ResyncDisk(mFstPath.c_str(), mFsId, false, 0,
-                                             dummy_xs))) {
-        eos_err("msg=\"failed to resync from disk\" fsid=%lu fxid=%llx path=%s rc=%d",
-                mFsId, mFileId, mFstPath.c_str(), rc);
-      } else {
-        eos_info("msg=\"resync from disk\" path=%s", mFstPath.c_str());
-      }
-    } else {
-      eos_err("msg=\"resync failed\" fsid=%lu fxid=%08llx", mFsId, mFileId);
-    }
-  }
-
-  if (mFmd == nullptr) {
-    eos_err("msg=\"no FMD record found\" fsid=%lu fxid=%08llx", mFsId, mFileId);
-
-    if ((!mIsRW) || (mLayout->IsEntryServer() && (!isReplication))) {
-      eos_warning("failed to get FMD record return recoverable error ENOENT(kXR_NotFound)");
-
-      if (hasCreationMode && !mRainReconstruct && !mIsInjection) {
-        // clean-up before re-bouncing
-        DropAllFromMgm(mFileId, path, mRedirectManager.c_str());
-      }
-    }
-
-    // Return an error that can be recovered at the MGM
-    return gOFS.Emsg(epname, error, ENOENT, "open - no FMD record found");
-  }
-
   COMMONTIMING("clone::fst", &tm);
   char* sCloneFST = mCapOpaque->Get("mgm.cloneFST");
+  int clone_create_rc = 1;
 
   if (sCloneFST) {
     std::string mc_fst_path = eos::common::FileId::FidPrefix2FullPath(sCloneFST,
@@ -507,58 +460,24 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
 
     /* clone handling:
      * if read-write and clone does not exist, create it
-     * if read-only switch to clone if it exists    (note: if several clones were allowed, we'd might have to search!)
+     * if read-only switch to clone if it exists
+     * (note: if several clones were allowed, we'd might have to search!)
      */
     if (mIsRW && clonerc != 0) { /* for RW, only if clone not yet created */
       if (open_mode & SFS_O_TRUNC) {
         /* rename data file to clone, it will be re-created */
-        int rc = ::rename(mFstPath.c_str(), mc_fst_path.c_str()) ? errno : 0;
+        clone_create_rc = ::rename(mFstPath.c_str(), mc_fst_path.c_str()) ? errno : 0;
         eos_info("copy-on-write: rename %s %s rc=%d", mFstPath.c_str(),
-                 mc_fst_path.c_str(), rc);
+                 mc_fst_path.c_str(), clone_create_rc);
       } else {
         /* copy data file to clone before modyfying */
         char sbuff[1024];
         snprintf(sbuff, sizeof(sbuff),
                  "cp --preserve=xattr,ownership,mode --reflink=auto %s %s",
                  mFstPath.c_str(), mc_fst_path.c_str());
-        int rc = system(sbuff);
-        eos_info("copy-on-write: %s rc=%d", sbuff, rc);
+        clone_create_rc = system(sbuff);
+        eos_info("copy-on-write: %s rc=%d", sbuff, clone_create_rc);
       }
-
-      /* Populate local DB (future reads need it) */
-      unsigned long long clFid = eos::common::FileId::Hex2Fid(sCloneFST);
-      auto lfmd = gOFS.mFmdHandler->LocalGetFmd(clFid, mFsId, false, mIsRW,
-                  vid.uid, vid.gid, mLid);
-
-      if (lfmd == nullptr) {
-        // We have an invalid FMD, drop and try again!
-        gOFS.mFmdHandler->LocalDeleteFmd(clFid, mFsId);
-        lfmd = gOFS.mFmdHandler->LocalGetFmd(clFid, mFsId, false, mIsRW,
-                                             vid.uid, vid.gid, mLid);
-
-        // FIXME: maybe we don't need to exit here?
-        if (!lfmd) {
-          return gOFS.Emsg(epname, error, ENOENT, "open unable to create FMD");
-        }
-      }
-
-      lfmd->mProtoFmd.set_checksum(mFmd->mProtoFmd.checksum());
-      lfmd->mProtoFmd.set_diskchecksum(mFmd->mProtoFmd.diskchecksum());
-      lfmd->mProtoFmd.set_mgmchecksum(mFmd->mProtoFmd.mgmchecksum());
-
-      if (!gOFS.mFmdHandler->Commit(lfmd.get())) {
-        eos_err("copy-on-write unable to commit meta data to local database");
-        (void) gOFS.Emsg(epname, this->error, EIO,
-                         "copy-on-write - unable to commit meta data", mNsPath.c_str());
-      }
-
-      eos_debug("fid %lld cs %s diskcs %s mgmcs %s", lfmd->mProtoFmd.fid(),
-                lfmd->mProtoFmd.checksum().c_str(), lfmd->mProtoFmd.diskchecksum().c_str(),
-                lfmd->mProtoFmd.mgmchecksum().c_str());
-    } else {
-      eos_debug("fid %lld cs %s diskcs %s mgmcs %s", mFmd->mProtoFmd.fid(),
-                mFmd->mProtoFmd.checksum().c_str(), mFmd->mProtoFmd.diskchecksum().c_str(),
-                mFmd->mProtoFmd.mgmchecksum().c_str());
     }
   }
 
@@ -612,6 +531,87 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
     }
 
     return gOFS.Emsg(epname, error, EIO, "open - failed open");
+  }
+
+  COMMONTIMING("get::localfmd", &tm);
+  mFmd = gOFS.mFmdHandler->LocalGetFmd(mFileId, mFsId, isRepairRead, mIsRW,
+                                       vid.uid, vid.gid, mLid);
+  COMMONTIMING("resync::localfmd", &tm);
+
+  if (mFmd == nullptr) {
+    if (gOFS.mFmdHandler->ResyncMgm(mFsId, mFileId, mRedirectManager.c_str())) {
+      eos_info("msg=\"resync ok\" fsid=%lu fxid=%llx", mFsId, mFileId);
+      mFmd = gOFS.mFmdHandler->LocalGetFmd(mFileId, mFsId, isRepairRead,
+                                           mIsRW, vid.uid, vid.gid, mLid);
+      std::string dummy_xs;
+      int rc = 0;
+
+      if ((rc = gOFS.mFmdHandler->ResyncDisk(mFstPath.c_str(), mFsId, false, 0,
+                                             dummy_xs))) {
+        eos_err("msg=\"failed to resync from disk\" fsid=%lu fxid=%llx path=%s rc=%d",
+                mFsId, mFileId, mFstPath.c_str(), rc);
+      } else {
+        eos_info("msg=\"resync from disk\" path=%s", mFstPath.c_str());
+      }
+    } else {
+      eos_err("msg=\"resync failed\" fsid=%lu fxid=%08llx", mFsId, mFileId);
+    }
+  }
+
+  if (mFmd == nullptr) {
+    eos_err("msg=\"no FMD record found\" fsid=%lu fxid=%08llx", mFsId, mFileId);
+
+    if ((!mIsRW) || (mLayout->IsEntryServer() && (!isReplication))) {
+      eos_warning("failed to get FMD record return recoverable error ENOENT(kXR_NotFound)");
+
+      if (hasCreationMode && !mRainReconstruct && !mIsInjection) {
+        // clean-up before re-bouncing
+        DropAllFromMgm(mFileId, path, mRedirectManager.c_str());
+      }
+    }
+
+    // Return an error that can be recovered at the MGM
+    return gOFS.Emsg(epname, error, ENOENT, "open - no FMD record found");
+  }
+
+  // Update the fmd information for any clone objects
+  if (sCloneFST) {
+    if (mIsRW && (clone_create_rc == 0)) {
+      // Populate local DB (future reads need it)
+      unsigned long long clFid = eos::common::FileId::Hex2Fid(sCloneFST);
+      auto lfmd = gOFS.mFmdHandler->LocalGetFmd(clFid, mFsId, false, mIsRW,
+                  vid.uid, vid.gid, mLid);
+
+      if (lfmd == nullptr) {
+        // We have an invalid FMD, drop and try again!
+        gOFS.mFmdHandler->LocalDeleteFmd(clFid, mFsId);
+        lfmd = gOFS.mFmdHandler->LocalGetFmd(clFid, mFsId, false, mIsRW,
+                                             vid.uid, vid.gid, mLid);
+
+        // FIXME: maybe we don't need to exit here?
+        if (!lfmd) {
+          return gOFS.Emsg(epname, error, ENOENT, "open unable to create FMD");
+        }
+      }
+
+      lfmd->mProtoFmd.set_checksum(mFmd->mProtoFmd.checksum());
+      lfmd->mProtoFmd.set_diskchecksum(mFmd->mProtoFmd.diskchecksum());
+      lfmd->mProtoFmd.set_mgmchecksum(mFmd->mProtoFmd.mgmchecksum());
+
+      if (!gOFS.mFmdHandler->Commit(lfmd.get())) {
+        eos_err("copy-on-write unable to commit meta data to local database");
+        (void) gOFS.Emsg(epname, this->error, EIO,
+                         "copy-on-write - unable to commit meta data", mNsPath.c_str());
+      }
+
+      eos_debug("fid %lld cs %s diskcs %s mgmcs %s", lfmd->mProtoFmd.fid(),
+                lfmd->mProtoFmd.checksum().c_str(), lfmd->mProtoFmd.diskchecksum().c_str(),
+                lfmd->mProtoFmd.mgmchecksum().c_str());
+    } else {
+      eos_debug("fid %lld cs %s diskcs %s mgmcs %s", mFmd->mProtoFmd.fid(),
+                mFmd->mProtoFmd.checksum().c_str(), mFmd->mProtoFmd.diskchecksum().c_str(),
+                mFmd->mProtoFmd.mgmchecksum().c_str());
+    }
   }
 
   if (isCreation) {
