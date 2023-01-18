@@ -34,20 +34,20 @@ TEST_F(SimpleClusterF, RoundRobinBasic)
 
   // TODO: write a higher level function to do recursive descent
   // Choose 1 site - from ROOT
-  auto res = rr_placement.chooseItems(*cluster_data_ptr,{0,1});
+  auto res = rr_placement.chooseItems(cluster_data_ptr(),{0,1});
   ASSERT_TRUE(res);
   EXPECT_EQ(res.ids.size(), 1);
   EXPECT_EQ(res.ids[0], -1);
 
   // Choose 1 group from SITE
   auto site_id = res.ids[0];
-  auto group_res = rr_placement.chooseItems(*cluster_data_ptr,{site_id,1});
+  auto group_res = rr_placement.chooseItems(cluster_data_ptr(),{site_id,1});
   ASSERT_TRUE(group_res);
   EXPECT_EQ(group_res.ids.size(), 1);
 
 
   // choose 2 disks from group!
-  auto disks_res = rr_placement.chooseItems(*cluster_data_ptr,{group_res.ids[0],2});
+  auto disks_res = rr_placement.chooseItems(cluster_data_ptr(),{group_res.ids[0],2});
   ASSERT_TRUE(disks_res);
   EXPECT_EQ(disks_res.ids.size(), 2);
 
@@ -69,7 +69,7 @@ TEST_F(SimpleClusterF, RoundRobinBasicLoop)
   // elements are chosen
   for (int i = 0; i < 30; i++)
   {
-    auto res = rr_placement.chooseItems(*cluster_data_ptr, {0, 1});
+    auto res = rr_placement.chooseItems(cluster_data_ptr(), {0, 1});
 
     ASSERT_TRUE(res);
     ASSERT_EQ(res.ids.size(), 1);
@@ -78,7 +78,7 @@ TEST_F(SimpleClusterF, RoundRobinBasicLoop)
 
     // Choose 1 group from SITE
     auto site_id = res.ids[0];
-    auto group_res = rr_placement.chooseItems(*cluster_data_ptr, {site_id, 1});
+    auto group_res = rr_placement.chooseItems(cluster_data_ptr(), {site_id, 1});
 
     ASSERT_TRUE(group_res);
     ASSERT_EQ(group_res.ids.size(), 1);
@@ -87,7 +87,7 @@ TEST_F(SimpleClusterF, RoundRobinBasicLoop)
 
     // choose 2 disks from group!
     auto disks_res =
-        rr_placement.chooseItems(*cluster_data_ptr, {group_res.ids[0], 2});
+        rr_placement.chooseItems(cluster_data_ptr(), {group_res.ids[0], 2});
 
     ASSERT_TRUE(disks_res);
     ASSERT_EQ(disks_res.ids.size(), 2);
@@ -145,7 +145,7 @@ TEST_F(SimpleClusterF, FlatSchedulerBasic)
 
   auto cluster_data_ptr = mgr.getClusterData();
 
-  auto result = flat_scheduler.schedule(*cluster_data_ptr,
+  auto result = flat_scheduler.schedule(cluster_data_ptr(),
                                         {2});
   eos::mgm::placement::PlacementResult expected_result;
   expected_result.ids = {1,2};
@@ -155,7 +155,7 @@ TEST_F(SimpleClusterF, FlatSchedulerBasic)
   ASSERT_TRUE(result.is_valid_placement(2));
   EXPECT_EQ(result, expected_result);
 
-  auto result2 = flat_scheduler.schedule(*cluster_data_ptr,
+  auto result2 = flat_scheduler.schedule(cluster_data_ptr(),
                                          {2});
   ASSERT_TRUE(result.is_valid_placement(2));
 }
@@ -174,7 +174,7 @@ TEST_F(SimpleClusterF, FlatSchedulerBasicLoop)
   std::vector<int32_t> disk_ids_vec;
 
   for (int i=0; i <30; ++i) {
-    auto result = flat_scheduler.schedule(*cluster_data_ptr,
+    auto result = flat_scheduler.schedule(cluster_data_ptr(),
                                           {2});
     ASSERT_TRUE(result);
     ASSERT_TRUE(result.is_valid_placement(2));
@@ -198,6 +198,123 @@ TEST_F(SimpleClusterF, FlatSchedulerBasicLoop)
 
   for (int i=21; i <=30; i++) {
     ASSERT_GE(disk_id_ctr[i],2);
+  }
+
+}
+
+TEST(FlatScheduler, SingleSite)
+{
+  using namespace eos::mgm::placement;
+  ClusterMgr mgr;
+  using eos::mgm::placement::PlacementStrategyT;
+
+  eos::mgm::placement::FlatScheduler flat_scheduler(PlacementStrategyT::kRoundRobin,
+                                                    2048);
+
+  {
+    auto sh = mgr.getStorageHandler(1024);
+    ASSERT_TRUE(sh.addBucket(get_bucket_type(StdBucketType::ROOT), 0));
+    ASSERT_TRUE(sh.addBucket(get_bucket_type(StdBucketType::SITE), -1, 0));
+    ASSERT_TRUE(sh.addBucket(get_bucket_type(StdBucketType::GROUP), -100, -1));
+
+    ASSERT_TRUE(sh.addDisk(Disk(1, DiskStatus::kRW, 1), -100));
+    ASSERT_TRUE(sh.addDisk(Disk(2, DiskStatus::kRW, 1), -100));
+    ASSERT_TRUE(sh.addDisk(Disk(3, DiskStatus::kRW, 1), -100));
+    ASSERT_TRUE(sh.addDisk(Disk(4, DiskStatus::kRW, 1), -100));
+    ASSERT_TRUE(sh.addDisk(Disk(5, DiskStatus::kRW, 1), -100));
+  }
+
+  auto data = mgr.getClusterData();
+  std::vector<int32_t> disk_ids_vec {-1};
+  std::vector<int32_t> site_ids_vec {-100};
+  std::vector<int32_t> group_ids_vec {1,2,3,4,5};
+  ASSERT_EQ(data->buckets[0].items, disk_ids_vec);
+  ASSERT_EQ(data->buckets[1].items, site_ids_vec);
+  ASSERT_EQ(data->buckets[100].items, group_ids_vec);
+
+  auto cluster_data_ptr = mgr.getClusterData();
+  auto result = flat_scheduler.schedule(cluster_data_ptr(),
+                                        {2});
+  std::cout << result.err_msg << std::endl;
+  ASSERT_TRUE(result);
+  ASSERT_TRUE(result.is_valid_placement(2));
+}
+
+TEST(ClusterMap, Concurrency)
+{
+  using namespace eos::mgm::placement;
+  ClusterMgr mgr;
+  using eos::mgm::placement::PlacementStrategyT;
+
+  eos::mgm::placement::FlatScheduler flat_scheduler(PlacementStrategyT::kRoundRobin,
+                                                    2048);
+
+  {
+    auto sh = mgr.getStorageHandler(1024);
+    ASSERT_TRUE(sh.addBucket(get_bucket_type(StdBucketType::ROOT), 0));
+    ASSERT_TRUE(sh.addBucket(get_bucket_type(StdBucketType::SITE), -1, 0));
+    ASSERT_TRUE(sh.addBucket(get_bucket_type(StdBucketType::GROUP), -100, -1));
+
+    ASSERT_TRUE(sh.addDisk(Disk(1, DiskStatus::kRW, 1), -100));
+    ASSERT_TRUE(sh.addDisk(Disk(2, DiskStatus::kRW, 1), -100));
+    ASSERT_TRUE(sh.addDisk(Disk(3, DiskStatus::kRW, 1), -100));
+    ASSERT_TRUE(sh.addDisk(Disk(4, DiskStatus::kRW, 1), -100));
+    ASSERT_TRUE(sh.addDisk(Disk(5, DiskStatus::kRW, 1), -100));
+  }
+
+  auto mgr_ptr = &mgr;
+
+  auto add_fn = [mgr_ptr]() {
+    for (int i=0; i < 10; i++) {
+      std::cout << "Writer thread: " << std::this_thread::get_id() << " ctr"
+                << i << std::endl;
+      {
+        auto sh = mgr_ptr->getStorageHandlerWithData();
+        auto group_id = -101 - i;
+        std::cout << "Adding group with id=" << group_id << std::endl;
+        ASSERT_TRUE(sh.addBucket(get_bucket_type(StdBucketType::GROUP),
+                                 group_id, -1));
+        for (int k = 0; k < 10; k++) {
+          ASSERT_TRUE(sh.addDisk(Disk((i+1)*10 + k + 1, DiskStatus::kRW, 1), group_id));
+        }
+      }
+    }
+    std::cout << "Done with writer at " << std::this_thread::get_id() << std::endl;
+
+  };
+
+
+
+  auto read_fn = [&flat_scheduler, mgr_ptr]() {
+    for (int i=0; i < 1000; i++) {
+      auto data = mgr_ptr->getClusterData();
+
+      ASSERT_TRUE(data->buckets.size());
+      ASSERT_TRUE(data->disks.size());
+      auto result = flat_scheduler.schedule(data(), {2});
+
+      ASSERT_TRUE(result);
+      ASSERT_TRUE(result.is_valid_placement(2));
+    }
+    std::cout << "Done with reader at " << std::this_thread::get_id() << std::endl;
+  };
+
+  std::vector<std::thread> reader_threads;
+  for (int i=0; i<100;i++) {
+    reader_threads.emplace_back(read_fn);
+  }
+
+  std::vector<std::thread> writer_threads;
+  for (int i=0; i < 5; i++) {
+    writer_threads.emplace_back(add_fn);
+  }
+
+  for (auto& t: writer_threads) {
+    t.join();
+  }
+
+  for (auto& t: reader_threads) {
+    t.join();
   }
 
 }

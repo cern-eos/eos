@@ -50,8 +50,10 @@ static void BM_Scheduler(benchmark::State& state) {
   }
   FlatScheduler flat_scheduler(PlacementStrategyT::kRoundRobin, n_elements);
 
+
   for (auto _: state) {
-    benchmark::DoNotOptimize(flat_scheduler.schedule(*mgr.getClusterData(),{2}));
+    auto cluster_data_ptr = mgr.getClusterData();
+    benchmark::DoNotOptimize(flat_scheduler.schedule(cluster_data_ptr(),{2}));
   }
   state.counters["frequency"] = benchmark::Counter(state.iterations(),
                                                    benchmark::Counter::kIsRate);
