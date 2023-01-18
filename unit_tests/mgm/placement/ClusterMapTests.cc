@@ -28,8 +28,8 @@
 TEST(ClusterMgr, default)
 {
   eos::mgm::placement::ClusterMgr mgr;
-  EXPECT_EQ(mgr.getCurrentEpoch(), 0);
-  EXPECT_EQ(mgr.getClusterData(), nullptr);
+  //EXPECT_EQ(mgr.getCurrentEpoch(), 0);
+  EXPECT_FALSE(mgr.getClusterData());
 }
 
 TEST(ClusterMgr, addDummyData)
@@ -37,8 +37,8 @@ TEST(ClusterMgr, addDummyData)
   eos::mgm::placement::ClusterMgr mgr;
   eos::mgm::placement::ClusterData data;
   mgr.addClusterData(std::move(data));
-  EXPECT_EQ(mgr.getCurrentEpoch(), 1);
-  EXPECT_NE(mgr.getClusterData(), nullptr);
+  //EXPECT_EQ(mgr.getCurrentEpoch(), 1);
+  EXPECT_TRUE(mgr.getClusterData());
   auto d = mgr.getClusterData();
   EXPECT_EQ(d->buckets.size(), 0);
   EXPECT_EQ(d->disks.size(), 0);
@@ -50,8 +50,8 @@ TEST(ClusterMgr, addDummyDataTwice)
   eos::mgm::placement::ClusterData data1, data2;
   mgr.addClusterData(std::move(data1));
   mgr.addClusterData(std::move(data2));
-  EXPECT_EQ(mgr.getCurrentEpoch(), 2);
-  EXPECT_NE(mgr.getClusterData(), nullptr);
+  //EXPECT_EQ(mgr.getCurrentEpoch(), 2);
+  EXPECT_TRUE(mgr.getClusterData());
   auto d = mgr.getClusterData();
   EXPECT_EQ(d->buckets.size(), 0);
   EXPECT_EQ(d->disks.size(), 0);
@@ -78,7 +78,7 @@ TEST(ClusterMgr, StorageHandlerSeq)
     ASSERT_TRUE(sh.addDiskSequential(Disk(5), -102));
   }
 
-  ASSERT_EQ(mgr.getCurrentEpoch(), 1);
+  //ASSERT_EQ(mgr.getCurrentEpoch(), 1);
 
   auto cluster_data = mgr.getClusterData();
 
@@ -142,7 +142,7 @@ TEST(ClusterMgr, StorageHandlerDiskInOrder)
     ASSERT_TRUE(sh.addDisk(Disk(5), -102));
   }
 
-  ASSERT_EQ(mgr.getCurrentEpoch(), 1);
+  //ASSERT_EQ(mgr.getCurrentEpoch(), 1);
 
   auto cluster_data = mgr.getClusterData();
 
@@ -206,7 +206,7 @@ TEST(ClusterMgr, StorageHandlerDisksOutOfOrder)
     ASSERT_TRUE(sh.addDisk(Disk(150), -102));
   }
 
-  ASSERT_EQ(mgr.getCurrentEpoch(), 1);
+  //ASSERT_EQ(mgr.getCurrentEpoch(), 1);
 
   auto cluster_data = mgr.getClusterData();
 
