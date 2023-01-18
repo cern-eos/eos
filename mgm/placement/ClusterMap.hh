@@ -26,33 +26,68 @@
 #include <vector>
 #include <memory>
 #include "mgm/placement/ClusterDataTypes.hh"
+#include "common/concurrency/RCULite.hh"
+#include "common/concurrency/AtomicUniquePtr.h"
 
 namespace eos::mgm::placement {
 
 
 class StorageHandler;
 
+
 class ClusterMgr {
 public:
-  ClusterMgr() : mStartEpoch(0), mCurrentEpoch(0) {
-    mEpochClusterData.reserve(50);
+  struct ClusterDataPtr {
+    ClusterDataPtr(ClusterData* data_,
+                   eos::common::VersionedRCUDomain& rcu_domain_):
+      data(data_), rlock(rcu_domain_)
+    {
+    }
+
+    ~ClusterDataPtr() {
+    }
+
+    const ClusterData& operator()() const {
+      return *data;
+    }
+
+    ClusterData* operator->() const {
+      return data;
+    }
+
+    operator bool() const {
+      return data != nullptr;
+    }
+
+  private:
+    ClusterData* data;
+    eos::common::RCUReadLock<eos::common::VersionedRCUDomain> rlock;
+  };
+
+  ClusterMgr() {
   }
 
   StorageHandler getStorageHandler(size_t max_buckets=256);
-  epoch_id_t getCurrentEpoch() const { return mCurrentEpoch; }
-  void trimOldEpochs(uint64_t epochs_to_keep = 10);
+  StorageHandler getStorageHandlerWithData();
+  //epoch_id_t getCurrentEpoch() const { return mCurrentEpoch; }
 
-  std::shared_ptr<ClusterData> getClusterData(epoch_id_t epoch);
-  std::shared_ptr<ClusterData> getClusterData();
+  ClusterDataPtr getClusterData();
 
+  bool setDiskStatus(fsid_t disk_id, DiskStatus status);
   // Not meant to be called directly! use storage handler, we might consider
   // making this private and friending if this is abused
   void addClusterData(ClusterData&& data);
 
 private:
-  std::atomic<epoch_id_t> mStartEpoch{0};
+  /*
+  bool mWrapAround{false};
+  std::atomic<uint32_t> mCurrentIndex{0};
   std::atomic<epoch_id_t> mCurrentEpoch{0};
-  std::vector<std::shared_ptr<ClusterData>> mEpochClusterData;
+  size_t mEpochSize;
+  std::vector<std::shared_ptr<ClusterData>> mEpochClusterData;*/
+  std::mutex mClusterDataWMtx;
+  eos::common::atomic_unique_ptr<ClusterData> mClusterData;
+  eos::common::VersionedRCUDomain cluster_mgr_rcu;
 };
 
 class StorageHandler {
@@ -60,6 +95,10 @@ public:
   StorageHandler(ClusterMgr& mgr, size_t max_buckets=256) :
       mClusterMgr(mgr)
   { mData.buckets.resize(max_buckets); }
+
+  StorageHandler(ClusterMgr& mgr, ClusterData&& data) :
+      mClusterMgr(mgr), mData(std::move(data))
+  {}
 
   bool addBucket(uint8_t bucket_type, item_id_t bucket_id,
                  item_id_t parent_bucket_id=0);
