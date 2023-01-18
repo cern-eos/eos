@@ -21,7 +21,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-
+#include "namespace/utils/BulkNsObjectLocker.hh"
 // -----------------------------------------------------------------------
 // This file is included source code in XrdMgmOfs.cc to make the code more
 // transparent without slowing down the compilation time.
@@ -239,11 +239,8 @@ XrdMgmOfs::_rename(const char* old_name,
 
   gOFS->MgmStats.Add("Rename", vid.uid, vid.gid, 1);
   std::shared_ptr<eos::IContainerMD> dir;
-  std::unique_ptr<eos::IContainerMD::IContainerMDWriteLocker> dirWriteLocker;
   std::shared_ptr<eos::IContainerMD> newdir;
-  std::unique_ptr<eos::IContainerMD::IContainerMDWriteLocker> newdirWriteLocker;
   std::shared_ptr<eos::IContainerMD> rdir;
-  std::unique_ptr<eos::IContainerMD::IContainerMDWriteLocker> rdirWriteLocker;
   std::shared_ptr<eos::IFileMD> file;
   bool renameFile = false;
   bool renameDir = false;
@@ -431,30 +428,13 @@ XrdMgmOfs::_rename(const char* old_name,
     try {
       dir = eosView->getContainer(oPath.GetParentPath());
       newdir = eosView->getContainer(nPath.GetParentPath());
-      dirWriteLocker = eosView->getContainerWriteLocked(oP);
-      dir = dirWriteLocker->getUnderlyingPtr();
-      if(oP != nP) {
-        newdirWriteLocker = eosView->getContainerWriteLocked(nP);
-        newdir = newdirWriteLocker->getUnderlyingPtr();
-      } else {
-        newdir = dir;
-      }
       // Translate to paths without symlinks
       std::string duri = eosView->getUri(dir.get());
       std::string newduri = eosView->getUri(newdir.get());
       // Get symlink-free dir's
-      if(duri != oP) {
-        //Release write lock previously taken
-        dirWriteLocker.reset(nullptr);
-        dirWriteLocker = eosView->getContainerWriteLocked(duri);
-        dir = dirWriteLocker->getUnderlyingPtr();
-      }
-      if(newduri != nP) {
-        //Release write lock previously taken
-        newdirWriteLocker.reset(nullptr);
-        newdirWriteLocker = eosView->getContainerWriteLocked(newduri);
-        newdir = newdirWriteLocker->getUnderlyingPtr();
-      }
+      dir = eosView->getContainer(duri);
+      newdir = eosView->getContainer(newduri);
+
       const eos::ContainerIdentifier did = dir->getIdentifier();
       const eos::ContainerIdentifier pdid = dir->getParentIdentifier();
       const eos::ContainerIdentifier ndid = newdir->getIdentifier();
@@ -465,6 +445,7 @@ XrdMgmOfs::_rename(const char* old_name,
           file = dir->findFile(oPath.GetName());
 
           if (file) {
+            eos::IContainerMD::IContainerMDWriteLocker dirWriteLocker(dir);
             eos::IFileMD::IFileMDWriteLocker fileWriteLocker(file);
             eosView->renameFile(file.get(), nPath.GetName());
             dir->setMTimeNow();
@@ -483,10 +464,15 @@ XrdMgmOfs::_rename(const char* old_name,
           file = dir->findFile(oPath.GetName());
 
           if (file) {
-            eos::IFileMD::IFileMDWriteLocker fileWriteLocker(file);
             // Move to a new directory
             // TODO: deal with conflicts and proper roll-back in case a file
             // with the same name already exists in the destination directory
+            eos::IFileMD::IFileMDWriteLocker fileWriteLocker(file);
+            eos::BulkNsObjectLocker<eos::IContainerMDPtr,eos::IContainerMD::IContainerMDWriteLocker> helper;
+            helper.add(dir);
+            helper.add(newdir);
+            auto dirsLock = helper.lockAll();
+
             dir->removeFile(oPath.GetName());
             dir->setMTimeNow();
             dir->notifyMTimeChange(gOFS->eosDirectoryService);
@@ -534,14 +520,17 @@ XrdMgmOfs::_rename(const char* old_name,
       if (renameDir) {
         rdir = dir->findContainer(oPath.GetName());
 
-        if (rdir){
-          rdirWriteLocker = std::make_unique<eos::IContainerMD::IContainerMDWriteLocker>(rdir);
-          if(!eos::isSafeToRename(gOFS->eosView, rdir.get(), newdir.get())) {
-            errno = EINVAL;
-            return Emsg(epname, error, EINVAL, "rename - old path is subpath of new path");
+        if (rdir) {
+          {
+            eos::IContainerMD::IContainerMDReadLocker rdirLock(rdir);
+            eos::IContainerMD::IContainerMDReadLocker newdirLock(newdir);
+            if (!eos::isSafeToRename(gOFS->eosView, rdir.get(), newdir.get())) {
+              errno = EINVAL;
+              return Emsg(epname, error, EINVAL,
+                          "rename - old path is subpath of new path");
+            }
+            COMMONTIMING("rename_dir_is_safe_to_rename", &tm);
           }
-          COMMONTIMING("rename_dir_is_safe_to_rename",&tm);
-
           // Remove all the quota from the source node and add to the target node
           std::map<std::string, std::set<std::string> >::const_reverse_iterator rfoundit;
           std::set<std::string>::const_iterator fileit;
@@ -551,80 +540,72 @@ XrdMgmOfs::_rename(const char* old_name,
             if (checkQuota) {
               std::map<uid_t, unsigned long long> user_del_size;
               std::map<gid_t, unsigned long long> group_del_size;
-              {
-                // Compute the total quota we need to rename by uid/gid
-                std::vector<std::unique_ptr<eos::IContainerMD::IContainerMDReadLocker>> containersLock;
-                std::vector<std::unique_ptr<eos::IFileMD::IFileMDReadLocker>> filesLock;
-                bool hasSourceContainerBeenFound = false;
-                for (rfoundit = found.rbegin(); rfoundit != found.rend();
-                     rfoundit++) {
-                  // read-lock every container except the source one
-                  if (!hasSourceContainerBeenFound) {
-                    // optimization to avoid string comparison once the source container has been found
-                    if (rfoundit->first == oP) {
-                      hasSourceContainerBeenFound = true;
-                    }
-                  } else {
-                    containersLock.push_back(
-                        gOFS->eosView->getContainerReadLocked(rfoundit->first));
-                  }
-                  // To compute the quota, we need to read lock all the directories and all the files belonging to the current directory
-                  for (fileit = rfoundit->second.begin();
-                       fileit != rfoundit->second.end(); fileit++) {
-                    std::string fspath = rfoundit->first;
-                    fspath += *fileit;
-                    std::shared_ptr<eos::IFileMD> fmd =
-                        std::shared_ptr<eos::IFileMD>((eos::IFileMD*)0);
 
-                    // Stat this file and add to the deletion maps
-                    try {
-                      fmd = gOFS->eosView->getFile(fspath.c_str(), false);
-                      filesLock.push_back(
-                          std::make_unique<eos::IFileMD::IFileMDReadLocker>(
-                              fmd));
-                    } catch (eos::MDException& e) {
-                      // Check if this is a symbolic link
-                      std::string fname = *fileit;
-                      size_t link_pos = fname.find(" -> ");
+              // Compute the total quota we need to rename by uid/gid
+              eos::BulkNsObjectLocker<eos::IFileMDPtr,eos::IFileMD::IFileMDReadLocker> fileBulkLocker;
+              eos::BulkNsObjectLocker<eos::IContainerMDPtr,eos::IContainerMD::IContainerMDReadLocker> containerBulkLocker;
 
-                      if (link_pos != std::string::npos) {
-                        fname.erase(link_pos);
-                        fspath = rfoundit->first;
-                        fspath += fname;
+              for (rfoundit = found.rbegin(); rfoundit != found.rend();
+                   rfoundit++) {
+                // Insert every directory for future read lock
+                containerBulkLocker.add(gOFS->eosView->getContainer(rfoundit->first));
+                // To compute the quota, we need to read lock all the directories and all the files belonging to the current directory
+                for (fileit = rfoundit->second.begin();
+                     fileit != rfoundit->second.end(); fileit++) {
+                  std::string fspath = rfoundit->first;
+                  fspath += *fileit;
+                  std::shared_ptr<eos::IFileMD> fmd =
+                      std::shared_ptr<eos::IFileMD>((eos::IFileMD*)0);
 
-                        try {
-                          fmd = gOFS->eosView->getFile(fspath.c_str(), false);
-                          filesLock.push_back(
-                              std::make_unique<eos::IFileMD::IFileMDReadLocker>(
-                                  fmd));
-                        } catch (eos::MDException& e) {
-                          errno = e.getErrno();
-                          eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"",
-                                    e.getErrno(), e.getMessage().str().c_str());
-                        }
-                      } else {
+                  // Stat this file and add to the deletion maps
+                  try {
+                    fmd = gOFS->eosView->getFile(fspath.c_str(), false);
+                    fileBulkLocker.add(fmd);
+                  } catch (eos::MDException& e) {
+                    // Check if this is a symbolic link
+                    std::string fname = *fileit;
+                    size_t link_pos = fname.find(" -> ");
+
+                    if (link_pos != std::string::npos) {
+                      fname.erase(link_pos);
+                      fspath = rfoundit->first;
+                      fspath += fname;
+
+                      try {
+                        fmd = gOFS->eosView->getFile(fspath.c_str(), false);
+                        fileBulkLocker.add(fmd);
+                      } catch (eos::MDException& e) {
                         errno = e.getErrno();
                         eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"",
                                   e.getErrno(), e.getMessage().str().c_str());
                       }
-                    }
-
-                    if (!fmd) {
-                      return Emsg(epname, error, errno,
-                                  "rename - cannot stat file in subtree",
-                                  fspath.c_str());
-                    }
-
-                    if (!fmd->isLink()) {
-                      // compute quotas to check
-                      user_del_size[fmd->getCUid()] +=
-                          (fmd->getSize() * fmd->getNumLocation());
-                      group_del_size[fmd->getCGid()] +=
-                          (fmd->getSize() * fmd->getNumLocation());
+                    } else {
+                      errno = e.getErrno();
+                      eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"",
+                                e.getErrno(), e.getMessage().str().c_str());
                     }
                   }
+
+                  if (!fmd) {
+                    return Emsg(epname, error, errno,
+                                "rename - cannot stat file in subtree",
+                                fspath.c_str());
+                  }
                 }
-              } //Vectors of locks destructor
+              }
+              {
+                auto containerLocks = containerBulkLocker.lockAll();
+                auto fileLocks = fileBulkLocker.lockAll();
+                for (auto& fileLock : fileLocks) {
+                  auto currentFile = fileLock->getUnderlyingPtr();
+                  if (!currentFile->isLink()) {
+                    // compute quotas to check
+                    user_del_size[currentFile->getCUid()] += (currentFile->getSize() * currentFile->getNumLocation());
+                    group_del_size[currentFile->getCGid()] += (currentFile->getSize() * currentFile->getNumLocation());
+                  }
+                }
+              }
+
 
               // Verify for each uid/gid that there is enough quota to rename
               bool userok = true;
@@ -658,86 +639,85 @@ XrdMgmOfs::_rename(const char* old_name,
               }
               COMMONTIMING("rename_dir_check_quota", &tm);
             } // if (checkQuota)
-            {
-              std::vector<std::unique_ptr<eos::IContainerMD::IContainerMDReadLocker>> containersLock;
-              std::vector<std::unique_ptr<eos::IFileMD::IFileMDReadLocker>> filesLock;
-              bool hasSourceContainerBeenFound = false;
-              for (rfoundit = found.rbegin(); rfoundit != found.rend();
-                   rfoundit++) {
-                // read-lock every container except the source one
-                if (!hasSourceContainerBeenFound) {
-                  // optimization to avoid string comparison once the source container has been found
-                  if (rfoundit->first == oP) {
-                    hasSourceContainerBeenFound = true;
-                  }
-                } else {
-                  containersLock.push_back(
-                      gOFS->eosView->getContainerReadLocked(rfoundit->first));
+
+            eos::BulkNsObjectLocker<eos::IFileMDPtr,eos::IFileMD::IFileMDReadLocker> fileBulkLocker;
+            eos::BulkNsObjectLocker<eos::IContainerMDPtr,eos::IContainerMD::IContainerMDReadLocker> containerBulkLocker;
+
+            for (rfoundit = found.rbegin(); rfoundit != found.rend();
+                 rfoundit++) {
+              // read-lock every directory
+              containerBulkLocker.add(gOFS->eosView->getContainer(rfoundit->first));
+              // read-lock every files
+              for (fileit = rfoundit->second.begin();
+                   fileit != rfoundit->second.end(); fileit++) {
+                std::string fspath = rfoundit->first;
+                fspath += *fileit;
+                std::string fname = *fileit;
+
+                if (fname.find(" -> ") != std::string::npos) {
+                  // Skip symlinks
+                  continue;
                 }
-                for (fileit = rfoundit->second.begin();
-                     fileit != rfoundit->second.end(); fileit++) {
-                  std::string fspath = rfoundit->first;
-                  fspath += *fileit;
+
+                try {
+                  file = gOFS->eosView->getFile(fspath.c_str());
+                  fileBulkLocker.add(file);
+                } catch (eos::MDException& e) {
+                  // Check if this is a symbolic link
                   std::string fname = *fileit;
+                  size_t link_pos = fname.find(" -> ");
 
-                  if (fname.find(" -> ") != std::string::npos) {
-                    // Skip symlinks
-                    continue;
-                  }
+                  if (link_pos != std::string::npos) {
+                    fname.erase(link_pos);
+                    fspath = rfoundit->first;
+                    fspath += fname;
 
-                  try {
-                    file = gOFS->eosView->getFile(fspath.c_str());
-                    filesLock.push_back(
-                        std::make_unique<eos::IFileMD::IFileMDReadLocker>(
-                            file));
-                  } catch (eos::MDException& e) {
-                    // Check if this is a symbolic link
-                    std::string fname = *fileit;
-                    size_t link_pos = fname.find(" -> ");
-
-                    if (link_pos != std::string::npos) {
-                      fname.erase(link_pos);
-                      fspath = rfoundit->first;
-                      fspath += fname;
-
-                      try {
-                        file = gOFS->eosView->getFile(fspath.c_str(), false);
-                        filesLock.push_back(
-                            std::make_unique<eos::IFileMD::IFileMDReadLocker>(
-                                file));
-                      } catch (eos::MDException& e) {
-                        errno = e.getErrno();
-                        eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"",
-                                  e.getErrno(), e.getMessage().str().c_str());
-                      }
-                    } else {
+                    try {
+                      file = gOFS->eosView->getFile(fspath.c_str(), false);
+                      fileBulkLocker.add(file);
+                    } catch (eos::MDException& e) {
                       errno = e.getErrno();
                       eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"",
                                 e.getErrno(), e.getMessage().str().c_str());
                     }
-                  }
-
-                  if (file && !file->isLink()) {
-                    // Get quota nodes from file path and target directory
-                    eos::IQuotaNode* old_qnode = eosView->getQuotaNode(rdir.get());
-                    eos::IQuotaNode* new_qnode = eosView->getQuotaNode(newdir.get());
-
-                    if (old_qnode) {
-                      old_qnode->removeFile(file.get());
-                    }
-
-                    if (new_qnode) {
-                      new_qnode->addFile(file.get());
-                    }
+                  } else {
+                    errno = e.getErrno();
+                    eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"",
+                              e.getErrno(), e.getMessage().str().c_str());
                   }
                 }
               }
             }
+            {
+              auto containerLocks = containerBulkLocker.lockAll();
+              auto fileLocks = fileBulkLocker.lockAll();
+              for (auto& fileLock : fileLocks) {
+                auto currentFile = fileLock->getUnderlyingPtr();
+                if (!currentFile->isLink()) {
+                  // Get quota nodes from file path and target directory
+                  eos::IQuotaNode* old_qnode = eosView->getQuotaNode(rdir.get());
+                  eos::IQuotaNode* new_qnode = eosView->getQuotaNode(newdir.get());
+
+                  if (old_qnode) {
+                    old_qnode->removeFile(currentFile.get());
+                  }
+
+                  if (new_qnode) {
+                    new_qnode->addFile(currentFile.get());
+                  }
+                }
+              }
+            } // All locks are released
             COMMONTIMING("rename_dir_apply_quotas",&tm);
           }
 
           if (nP == oP) {
             // Rename within a container
+            // Lock the containers
+            eos::BulkNsObjectLocker<eos::IContainerMDPtr,eos::IContainerMD::IContainerMDWriteLocker> bulkContainerLocker;
+            bulkContainerLocker.add(rdir);
+            bulkContainerLocker.add(dir);
+            auto containerLocks = bulkContainerLocker.lockAll();
             eosView->renameContainer(rdir.get(), nPath.GetName());
 
             if (updateCTime) {
@@ -755,19 +735,33 @@ XrdMgmOfs::_rename(const char* old_name,
             });
             COMMONTIMING("rename_within_container",&tm);
           } else {
-            // Do the check once again, because we're paranoid
-            if (!eos::isSafeToRename(gOFS->eosView, rdir.get(), newdir.get())) {
-              eos_static_crit("%s", SSTR("Unsafe rename of container " << rdir->getId() <<
-                                         " -> " << newdir->getId() <<
-                                         " was prevented at the last resort check").c_str());
-              errno = EINVAL;
-              return Emsg(epname, error, EINVAL, "rename - old path is subpath "
-                                                 "of new path - caught by last resort check, quotanodes "
-                                                 "may have become inconsistent");
+            {
+              eos::IContainerMD::IContainerMDReadLocker rdirLock(rdir);
+              eos::IContainerMD::IContainerMDReadLocker newdirLock(newdir);
+              // Do the check once again, because we're paranoid
+              if (!eos::isSafeToRename(gOFS->eosView, rdir.get(),
+                                       newdir.get())) {
+                eos_static_crit(
+                    "%s", SSTR("Unsafe rename of container "
+                               << rdir->getId() << " -> " << newdir->getId()
+                               << " was prevented at the last resort check")
+                              .c_str());
+                errno = EINVAL;
+                return Emsg(
+                    epname, error, EINVAL,
+                    "rename - old path is subpath "
+                    "of new path - caught by last resort check, quotanodes "
+                    "may have become inconsistent");
+              }
+              COMMONTIMING("rename_second_is_safe_to_rename", &tm);
             }
-            COMMONTIMING("rename_second_is_safe_to_rename",&tm);
 
             // Remove from one container to another one
+            eos::BulkNsObjectLocker<eos::IContainerMDPtr,eos::IContainerMD::IContainerMDWriteLocker> bulkContainerLocker;
+            bulkContainerLocker.add(dir);
+            bulkContainerLocker.add(rdir);
+            bulkContainerLocker.add(newdir);
+            auto containerLocks = bulkContainerLocker.lockAll();
             unsigned long long tree_size = rdir->getTreeSize();
             {
               // update the source directory - remove the directory
@@ -829,9 +823,6 @@ XrdMgmOfs::_rename(const char* old_name,
       eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
                 e.getErrno(), e.getMessage().str().c_str());
     }
-    dirWriteLocker.reset();
-    newdirWriteLocker.reset();
-    rdirWriteLocker.reset();
   }
 
   std::ostringstream oss;
