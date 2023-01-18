@@ -32,18 +32,6 @@ ClusterMgr::getStorageHandler(size_t max_buckets)
   return StorageHandler(*this, max_buckets);
 }
 
-void
-ClusterMgr::trimOldEpochs(uint64_t epochs_to_keep)
-{
-  if (epochs_to_keep > mEpochClusterData.size()) {
-    return;
-  }
-  mEpochClusterData.erase(mEpochClusterData.begin(),
-                          mEpochClusterData.end() - epochs_to_keep);
-  mCurrentIndex += epochs_to_keep;
-}
-
-
 std::shared_ptr<ClusterData>
 ClusterMgr::getClusterData(epoch_id_t epoch)
 {
@@ -52,10 +40,18 @@ ClusterMgr::getClusterData(epoch_id_t epoch)
   }
 
   auto current_index = mCurrentIndex.load(std::memory_order_acquire);
-  if (epoch > (uint32_t)current_index) {
-    return mEpochClusterData[epoch%mEpochSize];
+  auto current_epoch = mCurrentEpoch.load(std::memory_order_acquire);
+
+  if (epoch > current_epoch || epoch < (current_epoch - mEpochSize)) {
+    return nullptr;
   }
-  return mEpochClusterData[epoch];
+
+  auto epoch_diff = (current_epoch - epoch);
+  auto circular_index = current_index - epoch_diff;
+  if (circular_index < 0) {
+    circular_index += mEpochSize;
+  }
+  return mEpochClusterData[circular_index];
 }
 
 std::shared_ptr<ClusterData>

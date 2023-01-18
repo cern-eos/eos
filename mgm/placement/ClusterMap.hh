@@ -41,7 +41,6 @@ public:
   StorageHandler getStorageHandler(size_t max_buckets=256);
   StorageHandler getStorageHandlerWithData();
   epoch_id_t getCurrentEpoch() const { return mCurrentEpoch; }
-  void trimOldEpochs(uint64_t epochs_to_keep = 10);
 
   std::shared_ptr<ClusterData> getClusterData(epoch_id_t epoch);
   std::shared_ptr<ClusterData> getClusterData();
