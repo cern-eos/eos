@@ -364,7 +364,7 @@ backend::fetchResponse(std::string& requestURL,
       ) {
         // if there is a timeout, we might retry according to the backend timeout setting
         if (timeout &&
-            (total_exec_time_sec >
+            ((total_exec_time_sec+5) >
              timeout)) {
           // it took longer than our backend timeout allows
           eos_static_err("giving up fetch after sum-fetch-exec-s=%.02f backend-timeout-s=%.02f",
@@ -372,6 +372,7 @@ backend::fetchResponse(std::string& requestURL,
         } else {
           // retry
           std::this_thread::sleep_for(std::chrono::seconds(5));
+	  total_exec_time_sec += 5;
           file.reset(new XrdCl::File());
           continue;
         }
@@ -1162,7 +1163,7 @@ backend::Query(XrdCl::URL& url, XrdCl::QueryCode::Code query_code,
                    status.IsError(), status.IsFatal(), status.code, status.errNo);
 
     if ((noretry) || (timeout &&
-                      (total_exec_time_sec >
+                      ((total_exec_time_sec+5) >
                        timeout))) {
       std::string sarg = url.GetPathWithParams();
       eos_static_err("giving up query after sum-query-exec-s=%.02f backend-timeout-s=%.02f no-retry=%d url=%s",
@@ -1171,6 +1172,7 @@ backend::Query(XrdCl::URL& url, XrdCl::QueryCode::Code query_code,
     }
 
     std::this_thread::sleep_for(std::chrono::seconds(5));
+    total_exec_time_sec+=5;
     fs.reset(new XrdCl::FileSystem(url));
   } while (1);
 }
