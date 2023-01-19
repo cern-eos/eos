@@ -44,7 +44,9 @@ XrdMgmOfs::AuthMasterThread(ThreadAssistant& assistant) noexcept
   // Socket facing clients
   zmq::socket_t frontend(*mZmqContext, ZMQ_ROUTER);
   int enable_ipv6 = 1;
-#if CPPZMQ_VERSION >= ZMQ_MAKE_VERSION(4, 7, 1)
+#if CPPZMQ_VERSION >= ZMQ_MAKE_VERSION(4, 8, 1)
+  frontend.set(zmq::sockopt::ipv6, enable_ipv6);
+#elif CPPZMQ_VERSION >= ZMQ_MAKE_VERSION(4, 7, 1)
   frontend.set(ZMQ_IPV6, enable_ipv6);
 #else
   frontend.setsockopt(ZMQ_IPV6, &enable_ipv6, sizeof(enable_ipv6));

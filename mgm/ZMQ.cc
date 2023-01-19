@@ -68,7 +68,9 @@ void
 ZMQ::Task::run() noexcept
 {
   int enable_ipv6 = 1;
-#if CPPZMQ_VERSION >= ZMQ_MAKE_VERSION(4, 7, 1)
+#if CPPZMQ_VERSION >= ZMQ_MAKE_VERSION(4, 8, 1)
+  mFrontend.set(zmq::sockopt::ipv6, enable_ipv6);
+#elif CPPZMQ_VERSION >= ZMQ_MAKE_VERSION(4, 7, 1)
   mFrontend.set(ZMQ_IPV6, enable_ipv6);
 #else
   mFrontend.setsockopt(ZMQ_IPV6, &enable_ipv6, sizeof(enable_ipv6));

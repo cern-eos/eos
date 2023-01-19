@@ -17,6 +17,8 @@ declare -A BUILDMAP
 
 BUILDMAP[cc7]=el-7
 BUILDMAP[rl8]=el-8
+BUILDMAP[al8]=al-8
+BUILDMAP[al9]=al-9
 BUILDMAP[cs8]=el-8s
 BUILDMAP[cs9]=el-9s
 BUILDMAP[fc-36]=fc-36

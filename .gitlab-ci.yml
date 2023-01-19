@@ -13,6 +13,15 @@ include:
   - local: /gitlab-ci/.gitlab-ci-test-k8s_include.yml
   - local: /gitlab-ci/.gitlab-ci-test-helm_include.yml
 
+workflow:
+  rules:
+    - if: $CI_COMMIT_BRANCH
+      variables:
+        KOJI_SCRATCH: "--scratch"
+    - if: $CI_COMMIT_TAG
+      variables:
+        KOJI_SCRATCH: ""
+
 variables:
   CODENAME: "diopside"
 
@@ -46,7 +55,7 @@ prebuild-cc7:
   variables:
     PREBUILD_NAME: cc7
 
-prebuild-el8  :
+prebuild-el8:
   <<: *prebuild-template_definition
   variables:
     PREBUILD_NAME: rl8
@@ -56,10 +65,20 @@ prebuild-cs8:
   variables:
     PREBUILD_NAME: cs8
 
-prebuild-cs9  :
+prebuild-cs9:
   <<: *prebuild-template_definition
   variables:
     PREBUILD_NAME: cs9
+
+prebuild-al8:
+  <<: *prebuild-template_definition
+  variables:
+    PREBUILD_NAME: al8
+
+prebuild-al9:
+  <<: *prebuild-template_definition
+  variables:
+    PREBUILD_NAME: al9
 
 .prebuild-cc7_clang:
   <<: *prebuild-template_definition
@@ -139,7 +158,51 @@ clone_docker:
       - eos-docker/
 
 # schedules ------------------------------
-# build for rocky linux
+
+.build-template: &build-template_definition
+  stage: build:rpm
+  script:
+    - git submodule update --init --recursive
+    - ./misc/cmake/cmake-3.19.7-Linux-x86_64.sh --prefix=/usr/ --skip-license \
+    - mkdir build
+    - cd build/
+    - cmake ../ -DPACKAGEONLY=1
+    - make srpm
+    - cd ../
+    - dnf builddep --nogpgcheck --allowerasing -y build/SRPMS/*
+    - if [[ -n "$CI_COMMIT_TAG" ]]; then export CCACHE_DISABLE=1; else source gitlab-ci/setup_ccache.sh; fi
+    - rpmbuild --rebuild --with server --define "_rpmdir build/RPMS/" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" build/SRPMS/* | ts
+    - ccache -s
+    - if [[ -n "$CI_COMMIT_TAG" ]]; then gpg2 --import $STCI_REPO_KEY; printf "" | setsid rpmsign --define='%_gpg_name stci@cern.ch' --define='%_signature gpg' --addsign build/RPMS/*.rpm; fi
+    - mkdir ${BUILD_NAME}_artifacts; cp -R build/SRPMS/ build/RPMS ${BUILD_NAME}_artifacts
+  cache:
+    key: "$CI_JOB_NAME-$CI_COMMIT_REF_SLUG"
+    paths:
+      - ccache/
+  artifacts:
+    expire_in: 1 day
+    paths:
+      - ${BUILD_NAME}_artifacts/
+  only:
+    - schedules
+    - tags
+    - alma
+    - rocky
+    - centos
+  allow_failure: true # @todo dont allow failure when/if we drop Centos8 and switch to Stream
+
+build_al8:
+  image: gitlab-registry.cern.ch/dss/eos/prebuild-al8-${CODENAME}
+  <<: *build-template_definition
+  variables:
+    BUILD_NAME: al8
+
+build_al9:
+  image: gitlab-registry.cern.ch/dss/eos/prebuild-al9-${CODENAME}
+  <<: *build-template_definition
+  variables:
+    BUILD_NAME: al9
+
 build_rl8:
   stage: build:rpm
   image: gitlab-registry.cern.ch/dss/eos/prebuild-rl8-${CODENAME}
@@ -877,12 +940,32 @@ unit_test_asan:
   script:
     - yum install --nogpg -y sssd-client
     - kinit stci@CERN.CH -k -t /stci.krb5/stci.keytab
-    - koji build ${TARGET} ${BUILD_NAME}_artifacts/SRPMS/*.src.rpm --wait 
+    - koji build --wait ${KOJI_SCRATCH} ${TARGET} ${BUILD_NAME}_artifacts/SRPMS/*.src.rpm
+# KOJI_SCRATCH will be set for branches and empty for tags
   only:
     - tags
+    - rhel
+    - alma
+    - centos
   tags:
     - docker_node
     - publish
+
+publish_koji_al8:
+  <<: *publish_koji_template_definition
+  variables:
+    TARGET: "eos8al"
+    BUILD_NAME: "al8"
+  dependencies:
+    - build_al8
+
+publish_koji_al9:
+  <<: *publish_koji_template_definition
+  variables:
+    TARGET: "eos9al"
+    BUILD_NAME: "al9"
+  dependencies:
+    - build_al9
 
 publish_koji_cs9:
   <<: *publish_koji_template_definition
