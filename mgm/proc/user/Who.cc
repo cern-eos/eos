@@ -45,6 +45,8 @@ ProcCommand::Who()
   bool showall = false;
   bool showauth = false;
   bool showsummary = false;
+  bool numericids = false;
+  
   Json::Value json;
 
   if (pOpaque->Get("mgm.option")) {
@@ -76,6 +78,10 @@ ProcCommand::Who()
     showsummary = true;
   }
 
+  if ((option.find("n")) != std::string::npos) {
+    numericids = true;
+  }
+
   for (size_t i = 0; i < eos::common::Mapping::ActiveTidentsSharded.num_shards();
        ++i) {
     for (auto&& it:  eos::common::Mapping::ActiveTidentsSharded.get_shard(i)) {
@@ -84,7 +90,11 @@ ProcCommand::Who()
       eos::common::StringConversion::Tokenize(it.first, tokens, delimiter);
       uid_t uid = atoi(tokens[0].c_str());
       int terrc = 0;
-      username = eos::common::Mapping::UidToUserName(uid, terrc);
+      if (numericids) {
+	username = std::to_string(uid);
+      } else {
+	username = eos::common::Mapping::UidToUserName(uid, terrc);
+      }
       usernamecount[username]++;
       authcount[tokens[2]]++;
       active_tidents.emplace(std::move(it.first), std::move(it.second));
@@ -152,7 +162,11 @@ ProcCommand::Who()
       eos::common::StringConversion::Tokenize(it.first, tokens, delimiter);
       uid_t uid = atoi(tokens[0].c_str());
       int terrc = 0;
-      username = eos::common::Mapping::UidToUserName(uid, terrc);
+      if (numericids) {
+	username = std::to_string(uid);
+      } else {
+	username = eos::common::Mapping::UidToUserName(uid, terrc);
+      }
       char formatline[1024];
       time_t now = time(NULL);
 
