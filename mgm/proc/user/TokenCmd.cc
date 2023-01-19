@@ -30,9 +30,96 @@
 #include "mgm/Access.hh"
 #include "common/Path.hh"
 #include "common/token/EosTok.hh"
-
+#include "namespace/interface/IView.hh"
+#include "namespace/interface/IFileMD.hh"
 
 EOSMGMNAMESPACE_BEGIN
+
+int
+eos::mgm::TokenCmd::StoreToken(const std::string& token,  const std::string& voucherid, std::string& tokenpath, uid_t uid, gid_t gid)
+{
+  XrdOucErrInfo info;
+  std::shared_ptr<eos::IFileMD> fmd;
+  
+  if (!GetTokenPrefix(info, uid, gid, tokenpath)) {
+    tokenpath += voucherid;
+    // create file with voucherid name
+    try {
+      fmd.reset();
+      fmd = gOFS->eosView->getFile(tokenpath.c_str(),0,0);
+      return EEXIST;
+    } catch (eos::MDException& e) {
+      fmd = gOFS->eosView->createFile(tokenpath, 0, 0);
+      fmd->setSize(0);
+      fmd->setCUid(uid);
+      fmd->setCGid(gid);
+      // store token as extended attribute
+      fmd->setAttribute("sys.token",token);
+      gOFS->eosView->updateFileStore(fmd.get());
+    }
+    return 0;
+  }
+  return EIO;
+}
+
+/*----------------------------------------------------------------------------*/
+int
+eos::mgm::TokenCmd::GetTokenPrefix(XrdOucErrInfo& error, uid_t uid, gid_t gid, std::string& tokenpath)
+/*----------------------------------------------------------------------------*/
+{
+  const char* epname = "GetTokenPrefix";
+  eos::common::VirtualIdentity rootvid = eos::common::VirtualIdentity::Root();
+  char stokenuser[4096];
+  time_t now = time(NULL);
+  struct tm nowtm;
+  localtime_r(&now, &nowtm);
+
+  do {
+    snprintf(stokenuser, sizeof(stokenuser) - 1, "%s/uid:%u/%04u/%02u/%02u/",
+             gOFS->MgmProcTokenPath.c_str(),
+             uid,
+             1900 + nowtm.tm_year,
+             nowtm.tm_mon + 1,
+             nowtm.tm_mday);
+    struct stat buf;
+
+    if (!gOFS->_stat(stokenuser, &buf, error, rootvid, "")) {
+      tokenpath = stokenuser;
+      return SFS_OK;
+    }
+
+    // Verify/create group/user directory
+    if (gOFS->_mkdir(stokenuser, S_IRUSR | S_IXUSR | SFS_O_MKPTH, error, rootvid,
+                     "")) {
+      return gOFS->Emsg(epname, error, EIO, "remove existing file - the "
+                        "token user directory couldn't be created");
+    }
+
+    // Check the user token directory
+
+    if (gOFS->_stat(stokenuser, &buf, error, rootvid, "")) {
+      return gOFS->Emsg(epname, error, EIO, "remove existing file - could not "
+                        "determine ownership of the token user directory",
+                        stokenuser);
+    }
+
+    // Check the ownership of the user directory
+    if ((buf.st_uid != uid) || (buf.st_gid != gid)) {
+      // Set the correct ownership
+      if (gOFS->_chown(stokenuser, uid, gid , error, rootvid, "")) {
+        return gOFS->Emsg(epname, error, EIO, "remove existing file - could not "
+                          "change ownership of the token user directory",
+                          stokenuser);
+      }
+    }
+
+    tokenpath = stokenuser;
+    return SFS_OK;
+  } while (1);
+}
+
+
+
 
 eos::console::ReplyProto
 eos::mgm::TokenCmd::ProcessRequest() noexcept
@@ -93,6 +180,11 @@ eos::mgm::TokenCmd::ProcessRequest() noexcept
         }
       }
 
+      if (token.expires() > ((uint64_t)time(NULL) + (365*86400))) {
+	reply.set_retc(EINVAL);
+	reply.set_std_err("error: the maximum lifetime for a user token is one year!");
+	return reply;
+      }
       struct stat buf;
 
       XrdOucErrInfo error;
@@ -215,24 +307,31 @@ eos::mgm::TokenCmd::ProcessRequest() noexcept
       outStream << token;
       std::string dump;
       eostoken.Dump(dump,true, true);
+      std::string voucherid=eostoken.Voucher();
 
       {
 	eos::common::RWMutexReadLock lock(Access::gAccessMutex);
 	if (Access::gAllowedTokens.size()) {
 	  outStream << std::endl;
 	  outStream << "warning: the token will not be usuable without approval of an administrator!" << std::endl;
-	  outStream << "         ask for token approval of voucher:id=" << eostoken.Voucher() << std::endl;
+	  outStream << "         ask for token approval of voucher:id=" << voucherid << std::endl;
 	}
       }
-      eos_warning("creating voucher=%s path=%s owner=%s group=%s perm=%s expires=%lu token:'%s'\n" ,
-		  eostoken.Voucher().c_str(),
-		  eostoken.Path().c_str(),
-		  eostoken.Owner().c_str(),
-		  eostoken.Group().c_str(),
-		  eostoken.Permission().c_str(),
-		  eostoken.Expires(),
-		  dump.c_str());
 
+      std::string token_path;
+      if ( (ret_c = StoreToken(dump,voucherid, token_path, vid.uid, vid.gid)) ) {
+	errStream << "error: could not store the token: " << ret_c << std::endl;
+      } else {
+	eos_warning("creating voucher=%s path=%s owner=%s group=%s perm=%s expires=%lu store=%s token:'%s'\n" ,
+		    eostoken.Voucher().c_str(),
+		    eostoken.Path().c_str(),
+		    eostoken.Owner().c_str(),
+		    eostoken.Group().c_str(),
+		    eostoken.Permission().c_str(),
+		    eostoken.Expires(),
+		    token_path.c_str(),
+		    dump.c_str());
+      }
     }
   } else {
     if (!(ret_c = eostoken.Read(token.vtoken(), key,
