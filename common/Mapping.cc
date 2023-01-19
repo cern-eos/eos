@@ -1463,13 +1463,15 @@ Mapping::getPhysicalIds(const char* name, VirtualIdentity& vid)
           } else {
             // only user id got forwarded, we retrieve the corresponding group
             uid_t ruid = (bituser >> 6) & 0xfffffffff;
-            gPhysicalIdMutex.UnLock();
+	    //---> unlock
+            gLock.UnLock();
             struct passwd* pwbufp = 0;
 
             if (getpwuid_r(ruid, &passwdinfo, buffer, 16384, &pwbufp) || (!pwbufp)) {
-              gPhysicalIdMutex.Lock();
               return;
             }
+	    gLock.Lock(&gPhysicalIdMutex);
+	    //<--- lock
 
             id = new id_pair(passwdinfo.pw_uid, passwdinfo.pw_gid);
           }
@@ -1479,7 +1481,6 @@ Mapping::getPhysicalIds(const char* name, VirtualIdentity& vid)
         } else {
           eos_static_err("msg=\"failed to decoded base-64 uid/gid/sid\" id=%s",
                          sname.c_str());
-          gPhysicalIdMutex.UnLock();
           delete id;
           return;
         }
@@ -1506,15 +1507,16 @@ Mapping::getPhysicalIds(const char* name, VirtualIdentity& vid)
     }
 
     if (use_pw) {
-      gPhysicalIdMutex.UnLock();
+      //---> unlock
+      gLock.UnLock();
       struct passwd* pwbufp = 0;
       {
         if (getpwnam_r(name, &passwdinfo, buffer, 16384, &pwbufp) || (!pwbufp)) {
-          gPhysicalIdMutex.Lock();
           return;
         }
       }
-      gPhysicalIdMutex.Lock();
+      //<--- lock
+      gLock.Lock(&gPhysicalIdMutex);
       id = new id_pair(passwdinfo.pw_uid, passwdinfo.pw_gid);
       gPhysicalUidCache.Add(name, id, 3600);
       eos_static_debug("adding to cache uid=%u gid=%u", id->uid, id->gid);
@@ -1541,6 +1543,7 @@ Mapping::getPhysicalIds(const char* name, VirtualIdentity& vid)
                                  getenv("EOS_SECONDARY_GROUPS") : "";
 
   if (secondary_groups.length() && (secondary_groups == "1")) {
+    gLock.UnLock();
     struct group* gr;
     eos_static_debug("group lookup");
     gid_t gid = id->gid;
@@ -1567,6 +1570,7 @@ Mapping::getPhysicalIds(const char* name, VirtualIdentity& vid)
     }
 
     endgrent();
+    gLock.Lock(&gPhysicalIdMutex);
   }
 
   // add to the cache
