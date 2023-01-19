@@ -416,7 +416,6 @@ rh-9:
   dependencies: []
   allow_failure: true # @todo false for tags
 
-
 build_ubuntu_jammy:
   image: ubuntu:jammy
   <<: *build_ubuntu-template_definition
