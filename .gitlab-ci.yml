@@ -334,6 +334,41 @@ build_cs9_arm:
     - docker-arm
   when: manual
 
+
+####################### Build SRPM for RHEL #######################
+.build-client-srpm-template: &build-client-srpm-template_definition
+  stage: build:rpm
+  before_script:
+    - dnf config-manager --add-repo https://linuxsoft.cern.ch/cern/rhel/$(rpm --eval '%{rhel}')/CERN/$(uname -i)/ --set-enabled
+    - dnf install cern-gpg-keys --nogpgcheck -y
+    - rpm --import /etc/pki/rpm-gpg/*
+    - dnf install rpm-build cmake gcc-c++ git -y
+  script:
+    - git submodule update --init --recursive
+    - EOS_VERSION="$(./genversion.sh)"; echo "${EOS_VERSION}"
+    - mkdir -pv build/
+    - cd build/
+    - cmake ../ -DPACKAGEONLY=1 -DCLIENT=1
+    - make srpm
+    - cd ../
+    - mkdir -p ${CI_JOB_NAME}_artifacts
+    - cp -rv build/SRPMS/ ${CI_JOB_NAME}_artifacts
+  artifacts:
+    expire_in: 1 day
+    paths:
+      - ${CI_JOB_NAME}_artifacts
+  tags:
+    - docker_node
+
+rh-8:
+ image: gitlab-registry.cern.ch/linuxsupport/ubi8/ubi
+ extends: .build-client-srpm-template
+ 
+rh-9:
+ image: gitlab-registry.cern.ch/linuxsupport/ubi9/ubi
+ extends: .build-client-srpm-template
+
+###################### Build Ubuntu ######################
 .build_ubuntu-template: &build_ubuntu-template_definition
   stage: build:rpm
   before_script:
@@ -579,7 +614,6 @@ build_cc7_coverage:
   only:
     variables:
       - $COVERAGE_SCHEDULE
-
 
 #-------------------------------------------------------------------------------
 # Build docker images
@@ -990,6 +1024,23 @@ publish_koji_cc7:
     BUILD_NAME: "cc7"
   dependencies:
     - build_cc7
+
+####### Publish RHEL from SRPMs #######
+publish_koji_rh-8:
+  <<: *publish_koji_template_definition
+  variables:
+    TARGET: "eos8el"
+    BUILD_NAME: "rh-8"
+  needs:
+    - job: rh-8
+
+publish_koji_rh-9:
+  <<: *publish_koji_template_definition
+  variables:
+    TARGET: "eos9el"
+    BUILD_NAME: "rh-9"
+  needs:
+    - job: rh-9
 
 rpm_commit_artifacts:
   stage: publish
