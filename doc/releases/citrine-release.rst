@@ -16,6 +16,17 @@ Introduction
 This release is based on XRootD V4 and IPV6 enabled.
 
 
+``v4.8.98 Citrine``
+===================
+
+2023-01-19
+
+Bug
+---
+
+* COMMON: fix locking in getPhysicalIds which was entering an entry into a hash without lock if uid>1M
+
+
 ``v4.8.97 Citrine``
 ===================
 
