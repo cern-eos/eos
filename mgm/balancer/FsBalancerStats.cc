@@ -112,7 +112,7 @@ FsBalancerStats::GetTxEndpoints()
       }
     }
 
-    std::set<FsBalanceInfo>& src_fses = std::get<2>(elem.second);
+    std::set<FsBalanceInfo>& src_fses = std::get<3>(elem.second);
 
     if (src_fses.empty()) {
       src_fses = std::get<2>(elem.second);
