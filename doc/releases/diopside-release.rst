@@ -17,6 +17,35 @@ Introduction
 This release is based on XRootD V5.
 
 
+``v5.1.9 Diopside``
+====================
+
+2023-01-24
+
+
+Bug
+----
+
+* [EOS-5487] - sticky bit on version folders makes Recycler not able to clean the files on the recycle bin.
+* [EOS-5488] - New Year's crashes on all projects and homes
+* [EOS-5489] - PropFind fails when namespace mappings should apply
+* [EOS-5494] - eosxd looping when cleaning write queue
+* [EOS-5495] - FST crashing while doing LevelDB->ext_attr conversion on a (not) broken (enough) disk
+* [EOS-5498] - All 0 size files are marked as missing when using xattr fmd
+
+
+New Feature
+------------
+
+* [EOS-5209] - Fsck removal should just move stripes to a quarantine directory
+
+
+Improvement
+------------
+
+* [EOS-5501] - Allow black and whitelisting of token vouchers (ids)
+
+
 ``v5.1.8 Diopside``
 ====================
 
