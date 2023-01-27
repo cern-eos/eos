@@ -28,6 +28,8 @@
 
 EOSCOMMONNAMESPACE_BEGIN
 
+gid_t VirtualIdentity::g_nobody_gid = 99;
+uid_t VirtualIdentity::g_nobody_uid = 99;
 //------------------------------------------------------------------------------
 // "Constructor" - return Root identity
 //------------------------------------------------------------------------------
@@ -52,10 +54,10 @@ VirtualIdentity VirtualIdentity::Root()
 VirtualIdentity VirtualIdentity::Nobody()
 {
   VirtualIdentity vid;
-  vid.uid = 99;
-  vid.gid = 99;
-  vid.allowed_uids = {99};
-  vid.allowed_gids = {99};
+  vid.uid = g_nobody_uid;
+  vid.gid = g_nobody_gid;
+  vid.allowed_uids = {g_nobody_uid};
+  vid.allowed_gids = {g_nobody_gid};
   vid.name = "nobody";
   vid.sudoer = false;
   vid.tident = "nobody@unknown";

@@ -101,10 +101,6 @@ static std::string g_gsi_gid_key = "gsi:" + g_pwd_gid_key;
 static std::string g_krb_uid_key = "krb5:" + g_pwd_uid_key;
 static std::string g_krb_gid_key = "krb5:" + g_pwd_gid_key;
 
-//Static vars for nobody ids which may change in the future
-static uid_t g_nobody_uid = 99;
-static gid_t g_nobody_gid = 99;
-
 // flag to indicate whether the mapping is initialized
 std::once_flag g_cache_map_init;
 /*----------------------------------------------------------------------------*/
@@ -154,6 +150,17 @@ Mapping::Init()
     });
   } catch (...) {
     // we can't log here as the logging system is not initialized yet
+  }
+
+  // Populate nobody ids
+  {
+    int errc1, errc2;
+    uid_t nobody_uid = UserNameToUid("nobody", errc1);
+    gid_t nobody_gid = GroupNameToGid("nobody", errc2);
+    if (!errc1 && !errc2) {
+      VirtualIdentity::g_nobody_uid = nobody_uid;
+      VirtualIdentity::g_nobody_gid = nobody_gid;
+    }
   }
 }
 
@@ -2352,7 +2359,7 @@ void
 Mapping::getPhysicalUids(const char* name, VirtualIdentity& vid)
 {
   Mapping::getPhysicalIdShards(name, vid);
-  vid.gid = g_nobody_uid;
+  vid.gid = VirtualIdentity::g_nobody_uid;
   vid.allowed_gids.clear();
   vid.allowed_gids.insert(vid.gid);
 }
@@ -2365,7 +2372,7 @@ Mapping::getPhysicalGids(const char* name, VirtualIdentity& vid)
   vid.uid = uid;
   vid.allowed_uids.clear();
   vid.allowed_uids.insert(uid);
-  vid.allowed_uids.insert(g_nobody_uid);
+  vid.allowed_uids.insert(VirtualIdentity::g_nobody_uid);
 }
 
 void
@@ -2376,8 +2383,8 @@ Mapping::getPhysicalUidGids(const char* name, VirtualIdentity& vid)
   vid.allowed_gids.clear();
   vid.allowed_uids.insert(vid.uid);
   vid.allowed_gids.insert(vid.gid);
-  vid.allowed_uids.insert(g_nobody_uid);
-  vid.allowed_gids.insert(g_nobody_gid);
+  vid.allowed_uids.insert(VirtualIdentity::g_nobody_uid);
+  vid.allowed_gids.insert(VirtualIdentity::g_nobody_gid);
 }
 
 void

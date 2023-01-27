@@ -61,10 +61,12 @@ struct VirtualIdentity {
   bool sudoer;
   std::shared_ptr<Token> token;
 
+  static uid_t g_nobody_uid;
+  static gid_t g_nobody_gid;
   //----------------------------------------------------------------------------
   //! Constructor - assign to "nobody" by default
   //----------------------------------------------------------------------------
-  VirtualIdentity() : uid(99), gid(99), sudoer(false) {}
+  VirtualIdentity() : uid(g_nobody_uid), gid(g_nobody_gid), sudoer(false) {}
 
   //----------------------------------------------------------------------------
   //! "Constructor" - return Root identity
