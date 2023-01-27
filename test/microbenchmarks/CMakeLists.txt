@@ -42,6 +42,7 @@ endif()
 
 add_executable(eos-microbenchmarks main.cc)
 add_executable(eos-idmap-microbenchmark common/BM_IdMap.cc)
+add_executable(eos-atomic-ptr-microbenchmark common/BM_AtomicPtr.cc)
 target_link_libraries(eos-microbenchmarks PRIVATE
   benchmark::benchmark
   XROOTD::UTILS)
@@ -49,3 +50,8 @@ target_link_libraries(eos-microbenchmarks PRIVATE
 target_link_libraries(eos-idmap-microbenchmark PRIVATE
   benchmark::benchmark
   EosCommon-Static)
+
+target_link_libraries(eos-atomic-ptr-microbenchmark PRIVATE
+  benchmark::benchmark
+  EosCommon-Static
+  ${CMAKE_THREAD_LIBS_INIT})
