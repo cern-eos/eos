@@ -34,6 +34,7 @@
 /*----------------------------------------------------------------------------*/
 
 #include <atomic>
+#include <google/dense_hash_map>
 #include "common/DbMapCommon.hh"
 #include "common/DbMapLevelDb.hh"
 

@@ -27,6 +27,7 @@
 #include "common/VirtualIdentity.hh"
 #include "common/table_formatter/TableFormatterBase.hh"
 #include <atomic>
+#include <cassert>
 
 EOSMGMNAMESPACE_BEGIN
 
