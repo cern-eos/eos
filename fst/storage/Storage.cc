@@ -1389,6 +1389,7 @@ Storage::PushToQdb(eos::common::FileSystem::fsid_t fsid,
                    std::set<eos::common::FileId::fileid_t>>& fidset)
 {
 #ifndef _NOOFS
+  static const uint32_t s_max_batch_size = 50000;
 
   if (gOFS.FmdOnDb() || fidset.empty()) {
     return true;
@@ -1406,7 +1407,13 @@ Storage::PushToQdb(eos::common::FileSystem::fsid_t fsid,
     std::list<std::string> values; // contains fid:fsid entries
 
     for (auto& fid : elem.second) {
-      values.push_back(SSTR(fid << ":" << fsid));
+      if (values.size() <= s_max_batch_size) {
+        values.push_back(SSTR(fid << ":" << fsid));
+      } else {
+        fsck_set.setKey(SSTR("fsck:" << elem.first).c_str());
+        fsck_set.sadd_async(values, &ah);
+        values.clear();
+      }
     }
 
     if (!values.empty()) {
