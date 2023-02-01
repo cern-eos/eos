@@ -461,7 +461,7 @@ void com_access_help()
       << " access rm limit threads:*                      : Removes the default per user thread pool limit\n"
       << " access stallhosts add stall foo*.bar           : Add foo*.bar to the list of hosts which are stalled by limit rules (white list)\n"
       << " access stallhosts remove stall foo*.bar        : Remove foo*.bar from the list of hosts which are stalled by limit rules (white list)\n"
-      << " access stallhosts add nostall foo*.bar         : Add foo*.bar to the list of hosts whcih are never stalled by limit rules (black list)\n"
+      << " access stallhosts add nostall foo*.bar         : Add foo*.bar to the list of hosts which are never stalled by limit rules (black list)\n"
       << " access stallhosts remove nostall foo*.bar      : Remove foo*.bar from the list of hosts which are never stalled by limit rules (black list)\n";
   std::cerr << oss.str() << std::endl;
 }
