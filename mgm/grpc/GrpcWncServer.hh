@@ -6,6 +6,7 @@
 #pragma once
 
 //-----------------------------------------------------------------------------
+#include "mgm/Namespace.hh"
 #include "common/AssistedThread.hh"
 #include "common/Logging.hh"
 #include "GrpcWncInterface.hh"
