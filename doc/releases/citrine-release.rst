@@ -16,6 +16,22 @@ Introduction
 This release is based on XRootD V4 and IPV6 enabled.
 
 
+``v4.8.99 Citrine``
+===================
+
+2023-02-06
+
+Bug
+---
+
+* EOS-5509: Fix crash of the MGM when enabling the balancer
+
+Improvements
+------------
+
+* MGM: enable hide-version also when heartbrate has been changed
+
+
 ``v4.8.98 Citrine``
 ===================
 
