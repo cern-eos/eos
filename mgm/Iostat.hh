@@ -422,6 +422,11 @@ public:
 #endif
   inline static const std::string USER_ID_TYPE = "u";
   inline static const std::string GROUP_ID_TYPE = "g";
+  ///< Max delay for cache in front of QDB
+  static constexpr std::chrono::seconds mCacheFlushDelay {30};
+  //! Max cache size before flush - 30 entries per uid/gid pair times 100 users
+  static constexpr unsigned int mMapMaxSize {3000};
+
   google::sparse_hash_map<std::string, unsigned long long> IostatTag;
   google::sparse_hash_map<std::string, IostatPeriods> IostatPeriodsTag;
 
@@ -458,6 +463,8 @@ public:
   std::atomic<bool> mReportPopularity;
   //! QuarkDB hash map key name where info is saved
   std::string mHashKeyBase;
+  //! Map of cached IoStat updates
+  std::map<std::string, unsigned long long> mMapCacheUpdates;
   std::mutex mThreadSyncMutex; ///< Mutex serializing thread(s) start/stop
   AssistedThread mReceivingThread; ///< Looping thread receiving reports
   AssistedThread mCirculateThread; ///< Looping thread circulating report
@@ -613,6 +620,28 @@ public:
   //! @return true if successful, otherwise false
   //----------------------------------------------------------------------------
   bool LegacyRestoreFromFile();
+
+  //----------------------------------------------------------------------------
+  //! Save given update in the in-memory cache
+  //!
+  //! @param uid_key uid encoded key
+  //! @param gid_key gid encoded key
+  //! @param val value update
+  //----------------------------------------------------------------------------
+  void CacheUpdate(const std::string& uid_key, const std::string& gid_key,
+                   unsigned long long val);
+
+  //----------------------------------------------------------------------------
+  //! Check if the cache needs to be flushed
+  //!
+  //! @return true if cache must be flushed, otherwise false
+  //----------------------------------------------------------------------------
+  bool ShouldFlushCache();
+
+  //----------------------------------------------------------------------------
+  //! Flush all cached entries to the QDB backed
+  //----------------------------------------------------------------------------
+  void FlushCache();
 };
 
 EOSMGMNAMESPACE_END

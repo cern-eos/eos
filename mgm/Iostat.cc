@@ -390,8 +390,13 @@ Iostat::Init(const std::string& instance_name, int port,
       }
 
       if (!LoadFromQdb()) {
-        eos_static_err("LoadFromQdb failed");
+        eos_static_err("%s", "msg=\"LoadFromQdb failed\"");
         return false;
+      }
+
+      if (mFlusher == nullptr) {
+        mFlusher.reset(new eos::MetadataFlusher(mFlusherPath,
+                                                gOFS->mQdbContactDetails));
       }
     } else {
       // In-memory namespace forces the stats to be saved in the file
@@ -675,7 +680,9 @@ Iostat::Add(const std::string& tag, uid_t uid, gid_t gid,
             unsigned long long val,
             time_t start, time_t stop, time_t now)
 {
-  // Flush to QDB if not in testing mode
+  // Flush to QDB if not in testing mode - this can be called without a lock
+  // as this is only called from the thread digesting the report messages one
+  // by one
   if (gOFS && !mLegacyMode) {
     AddToQdb(tag, uid, gid, val);
   }
@@ -696,37 +703,81 @@ void
 Iostat::AddToQdb(const std::string& tag, uid_t uid, gid_t gid,
                  unsigned long long val)
 {
+  if (mFlusher) {
+    CacheUpdate(EncodeKey(USER_ID_TYPE, std::to_string(uid), tag),
+                EncodeKey(GROUP_ID_TYPE, std::to_string(gid), tag), val);
+
+    if (ShouldFlushCache()) {
+      FlushCache();
+    }
+  }
+}
+
+//------------------------------------------------------------------------------
+// Save given update in the in-memory cache
+//------------------------------------------------------------------------------
+void
+Iostat::CacheUpdate(const std::string& uid_key, const std::string& gid_key,
+                    unsigned long long val)
+{
+  mMapCacheUpdates[uid_key] += val;
+  mMapCacheUpdates[gid_key] += val;
+}
+
+//------------------------------------------------------------------------------
+// Check if the cache needs to be flushed
+//------------------------------------------------------------------------------
+bool
+Iostat::ShouldFlushCache()
+{
+  using namespace std::chrono;
+  static auto timestamp = steady_clock::now();
+
+  if ((mMapCacheUpdates.size() >= mMapMaxSize) ||
+      (duration_cast<seconds>(steady_clock::now() - timestamp) > mCacheFlushDelay)) {
+    timestamp = steady_clock::now();
+    return true;
+  }
+
+  return false;
+}
+
+//------------------------------------------------------------------------------
+// Flush all cached entries to the QDB backed
+//------------------------------------------------------------------------------
+void
+Iostat::FlushCache()
+{
   using namespace std::chrono;
   using eos::common::Timing;
   static const hours timeout {1};
   static auto timestamp = steady_clock::now();
   static std::string hash_key = mHashKeyBase + Timing::GetCurrentYear();
 
-  if ((mFlusher == nullptr) ||
-      (duration_cast<minutes>(steady_clock::now() - timestamp) > timeout)) {
+  // Check for change of hash key when a new year starts
+  if (duration_cast<minutes>(steady_clock::now() - timestamp) > timeout) {
     timestamp = steady_clock::now();
     std::string new_hash_key = mHashKeyBase + Timing::GetCurrentYear();
 
-    if (!mFlusherPath.empty()) {
-      if (new_hash_key != hash_key) {
-        hash_key = new_hash_key;
-      }
-
-      if (mFlusher == nullptr) {
-        mFlusher.reset(new eos::MetadataFlusher(mFlusherPath,
-                                                gOFS->mQdbContactDetails));
-      }
+    if (new_hash_key != hash_key) {
+      hash_key = new_hash_key;
     }
   }
 
-  if (mFlusher) {
-    const std::string svalue = std::to_string(val);
-    mFlusher->exec("HINCRBYMULTI",
-                   hash_key, EncodeKey(USER_ID_TYPE, std::to_string(uid), tag),
-                   svalue,
-                   hash_key, EncodeKey(GROUP_ID_TYPE, std::to_string(gid), tag),
-                   svalue);
+  static std::vector<std::string> request;
+  request.reserve(3 * mMapMaxSize + 1);
+  request.push_back("HINCRBYMULTI");
+
+  for (const auto& elem : mMapCacheUpdates) {
+    const std::string svalue = std::to_string(elem.second);
+    request.push_back(hash_key);
+    request.push_back(elem.first);
+    request.push_back(svalue);
   }
+
+  mMapCacheUpdates.clear();
+  mFlusher->exec(request);
+  request.clear();
 }
 
 //------------------------------------------------------------------------------
