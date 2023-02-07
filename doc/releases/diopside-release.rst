@@ -17,6 +17,29 @@ Introduction
 This release is based on XRootD V5.
 
 
+``v5.1.10 Diopside``
+====================
+
+2023-02-07
+
+Note
+----
+
+* Update dependency to eos-xrootd-5.5.7 which also matches XRootD-5.5.2
+
+Bug
+----
+
+* [EOS-5386] - iostat reports are not processed fast enough
+
+Improvements
+------------
+
+* MGM: Make central balancer configurable at runtime
+* FST: Chunk fsck requests to at most 50k entries per request
+* MGM: enable hide-version also when heartbrate has been changed
+
+
 ``v5.1.9 Diopside``
 ====================
 
