@@ -815,19 +815,6 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config,
           (key == eos::common::SCAN_NS_INTERVAL_NAME) ||
           (key == eos::common::SCAN_NS_RATE_NAME) ||
           (key == eos::common::FSCK_REFRESH_INTERVAL_NAME)) {
-        // Fix for the rare case someone sends this command at startup wherein
-        // the various subcomponents aren't initialized yet. In case of these
-        // we call the reconfigure() method, so we need to make sure that the component
-        // exists beforehand
-        if ((eos::common::startsWith(key, "groupdrainer") &&
-             !space->mGroupDrainer) ||
-            (eos::common::startsWith(key, "groupbalancer") &&
-             !space->mGroupBalancer)) {
-          reply.set_std_err("error: component not initialized yet");
-          reply.set_retc(EIO);
-          return;
-        }
-
         if ((key == "balancer") ||
             (key == "new_balancer") ||
             (key == "converter") ||
@@ -851,32 +838,42 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config,
               std_err.str("error: cannot set space config value");
             } else {
               if (key == "balancer") {
-                if (value == "on") {
-                  std_out << "success: balancer is enabled!";
+                if (space->mBalancer) {
+                  if (value == "on") {
+                    std_out << "success: balancer is enabled!";
+                  } else {
+                    std_out << "success: balancer is disabled!";
+                  }
+
+                  // Make sure the new balancer is disabled
+                  space->SetConfigMember("new_balancer", "off");
+
+                  if (space->mFsBalancer) {
+                    space->mFsBalancer->SignalConfigUpdate();
+                  }
                 } else {
-                  std_out << "success: balancer is disabled!";
-                }
-
-                // Make sure the new balancer is disabled
-                space->SetConfigMember("new_balancer", "off");
-
-                if (space->mFsBalancer) {
-                  space->mFsBalancer->SignalConfigUpdate();
+                  std_err.str("error: balancer not initialized for space");
+                  ret_c = EIO;
                 }
               }
 
               if (key == "new_balancer") {
-                if (value == "on") {
-                  std_out << "success: new_balancer is enabled!";
-                } else {
-                  std_out << "success: new_balancer is disabled!";
-                }
-
-                // Make sure the old balancer is disabled
-                space->SetConfigMember("balancer", "off");
-
                 if (space->mFsBalancer) {
-                  space->mFsBalancer->SignalConfigUpdate();
+                  if (value == "on") {
+                    std_out << "success: new_balancer is enabled!";
+                  } else {
+                    std_out << "success: new_balancer is disabled!";
+                  }
+
+                  // Make sure the old balancer is disabled
+                  space->SetConfigMember("balancer", "off");
+
+                  if (space->mFsBalancer) {
+                    space->mFsBalancer->SignalConfigUpdate();
+                  }
+                } else {
+                  std_err.str("error: balancer not initialized for space");
+                  ret_c = EIO;
                 }
               }
 
@@ -909,31 +906,46 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config,
               }
 
               if (key == "groupbalancer") {
-                if (value == "on") {
-                  std_out << "success: groupbalancer is enabled!";
-                } else {
-                  std_out << "success: groupbalancer is disabled!";
-                }
+                if (space->mGroupBalancer) {
+                  if (value == "on") {
+                    std_out << "success: groupbalancer is enabled!";
+                  } else {
+                    std_out << "success: groupbalancer is disabled!";
+                  }
 
-                space->mGroupBalancer->reconfigure();
+                  space->mGroupBalancer->reconfigure();
+                } else {
+                  std_err.str("error: group balancer not initialized for space");
+                  ret_c = EIO;
+                }
               }
 
               if (key == "geobalancer") {
-                if (value == "on") {
-                  std_out << "success: geobalancer is enabled!";
+                if (space->mGeoBalancer) {
+                  if (value == "on") {
+                    std_out << "success: geobalancer is enabled!";
+                  } else {
+                    std_out << "success: geobalancer is disabled!";
+                  }
                 } else {
-                  std_out << "success: geobalancer is disabled!";
+                  std_err.str("error: geo balancer not initialized for space");
+                  ret_c = EIO;
                 }
               }
 
               if (key == "groupdrainer") {
-                if (value == "on") {
-                  std_out << "success: groupdrainer is enabled!";
-                } else {
-                  std_out << "success: groupdrainer is disabled!";
-                }
+                if (space->mGroupDrainer) {
+                  if (value == "on") {
+                    std_out << "success: groupdrainer is enabled!";
+                  } else {
+                    std_out << "success: groupdrainer is disabled!";
+                  }
 
-                space->mGroupDrainer->reconfigure();
+                  space->mGroupDrainer->reconfigure();
+                } else {
+                  std_err.str("error: group drainer not initialized for space");
+                  ret_c = EIO;
+                }
               }
 
               if (key == "geo.access.policy.read.exact") {

@@ -835,12 +835,12 @@ LongLongAggregator::aggregateNodes(
 //----------------------------------------------------------------------------
 FsSpace::FsSpace(const char* name)
   : BaseView(common::SharedHashLocator::makeForSpace(name)),
-    mFsBalancer(nullptr), mConverter(nullptr)
+    mBalancer(nullptr), mFsBalancer(nullptr), mConverter(nullptr),
+    mGroupBalancer(nullptr), mGeoBalancer(nullptr), mGroupDrainer(nullptr)
 {
   mName = name;
   mType = "spaceview";
 
-  // Use central balancer if requested
   if (mName != eos::common::EOS_SPARE_GROUP) {
     mFsBalancer.reset(new FsBalancer(name));
     mBalancer = new Balancer(name);
