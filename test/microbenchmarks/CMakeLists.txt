@@ -43,6 +43,10 @@ endif()
 add_executable(eos-microbenchmarks main.cc)
 add_executable(eos-idmap-microbenchmark common/BM_IdMap.cc)
 add_executable(eos-atomic-ptr-microbenchmark common/BM_AtomicPtr.cc)
+add_executable(eos-flatscheduler-microbenchmark mgm/BM_FlatScheduler.cc
+        ${CMAKE_SOURCE_DIR}/mgm/placement/ClusterMap.cc
+        ${CMAKE_SOURCE_DIR}/mgm/placement/Scheduler.cc)
+
 target_link_libraries(eos-microbenchmarks PRIVATE
   benchmark::benchmark
   XROOTD::UTILS)
@@ -55,3 +59,7 @@ target_link_libraries(eos-atomic-ptr-microbenchmark PRIVATE
   benchmark::benchmark
   EosCommon-Static
   ${CMAKE_THREAD_LIBS_INIT})
+
+target_link_libraries(eos-flatscheduler-microbenchmark PRIVATE
+  GOOGLEBENCHMARK::GOOGLEBENCHMARK
+  EosCommon-Static)
