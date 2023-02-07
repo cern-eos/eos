@@ -16,6 +16,46 @@ Introduction
 This release is based on XRootD V4 and IPV6 enabled.
 
 
+``v4.8.99 Citrine``
+===================
+
+2023-02-06
+
+Bug
+---
+
+* EOS-5509: Fix crash of the MGM when enabling the balancer
+
+Improvements
+------------
+
+* MGM: enable hide-version also when heartbrate has been changed
+
+
+``v4.8.98 Citrine``
+===================
+
+2023-01-19
+
+Bug
+---
+
+* COMMON: fix locking in getPhysicalIds which was entering an entry into a hash without lock if uid>1M
+
+
+``v4.8.97 Citrine``
+===================
+
+2023-01-18
+
+Bug
+---
+
+* MGM: avoid to have the low-level quota lock when we call a uid/gid translate function
+* MGM: Avoid race condition when there are two metadata flusher objects - 1st of Jan bug
+* EOS-5487 MGM: let root delete files/dires in VTX directories
+
+
 ``v4.8.96 Citrine``
 ===================
 

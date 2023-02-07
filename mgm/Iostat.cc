@@ -3031,7 +3031,7 @@ Iostat::LoadFromQdb()
   qclient::HgetallParser mQdbRespParser(reply);
 
   if (!mQdbRespParser.ok()) {
-    eos_static_err("msg=\"failed parsing reply from Qdb\n");
+    eos_static_err("%s", "msg=\"failed parsing reply from Qdb\n");
     return false;
   }
 

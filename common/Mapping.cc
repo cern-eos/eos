@@ -58,13 +58,15 @@ int Mapping::gNobodyAccessTreeDeepness(1024);
 
 Mapping::AllowedTidentMatches_t Mapping::gAllowedTidentMatches;
 
-ShardedCache<std::string, Mapping::id_pair> Mapping::gShardedPhysicalUidCache(8);
-ShardedCache<std::string, Mapping::gid_set> Mapping::gShardedPhysicalGidCache(8);
+ShardedCache<std::string, Mapping::id_pair> Mapping::gShardedPhysicalUidCache(
+  8);
+ShardedCache<std::string, Mapping::gid_set> Mapping::gShardedPhysicalGidCache(
+  8);
 ShardedCache<uid_t, std::string> Mapping::gShardedNegativeUserNameCache(8);
 ShardedCache<gid_t, std::string> Mapping::gShardedNegativeGroupNameCache(8);
 ShardedCache<std::string, bool> Mapping::gShardedNegativePhysicalUidCache(8);
-ShardedCache<std::string, time_t> Mapping::ActiveTidentsSharded (16);
-ShardedCache<uid_t, size_t> Mapping::ActiveUidsSharded (16);
+ShardedCache<std::string, time_t> Mapping::ActiveTidentsSharded(16);
+ShardedCache<uid_t, size_t> Mapping::ActiveUidsSharded(16);
 
 std::mutex Mapping::gPhysicalUserNameCacheMutex;
 std::mutex Mapping::gPhysicalGroupNameCacheMutex;
@@ -108,7 +110,6 @@ std::once_flag g_cache_map_init;
 void
 Mapping::Init()
 {
-
   // allow FUSE client access as root via env variable
   if (getenv("EOS_FUSE_NO_ROOT_SQUASH") &&
       !strcmp("1", getenv("EOS_FUSE_NO_ROOT_SQUASH"))) {
@@ -121,22 +122,23 @@ Mapping::Init()
   }
 
   gOAuth.Init();
+
   try {
     std::call_once(g_cache_map_init, []() {
       gShardedPhysicalUidCache.reset_cleanup_thread(3600 * 1000,
-                                                    "UidCacheGC");
+          "UidCacheGC");
       gShardedPhysicalGidCache.reset_cleanup_thread(3600 * 1000,
-                                                    "GidCacheGC");
+          "GidCacheGC");
       gShardedNegativeUserNameCache.reset_cleanup_thread(3600 * 1000,
-                                                         "NegUserNameGC");
+          "NegUserNameGC");
       gShardedNegativeGroupNameCache.reset_cleanup_thread(3600 * 1000,
-                                                          "NegGroupNameGC");
+          "NegGroupNameGC");
       gShardedNegativePhysicalUidCache.reset_cleanup_thread(3600 * 1000,
-                                                            "NegUidGC");
+          "NegUidGC");
       ActiveUidsSharded.reset_cleanup_thread(300 * 1000,
-                                                     "ActiveUidsSharded");
+                                             "ActiveUidsSharded");
       ActiveTidentsSharded.reset_cleanup_thread(300 * 1000,
-                                                        "ActiveTidentsGC");
+          "ActiveTidentsGC");
     });
   } catch (...) {
     // we can't log here as the logging system is not initialized yet
@@ -157,10 +159,8 @@ Mapping::Reset()
     gPhysicalGroupIdCache.clear();
     gPhysicalUserIdCache.clear();
   }
-
   ActiveTidentsSharded.clear();
   ActiveUidsSharded.clear();
-
 }
 
 
@@ -280,6 +280,7 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
     } else {
       client_username = client->name;
     }
+
     HandleUidGidMapping(client_username.c_str(), vid,
                         g_https_uid_key, g_https_gid_key);
     HandleVOMS(client, vid);
@@ -753,22 +754,22 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
       token_sudo = false;
     } else {
       if (gTokenSudo == Mapping::kEncrypted) {
-	if ((vid.prot!="sss") &&
-	    (vid.prot!="https") &&
-	    (vid.prot!="ztn") &&
-	    (vid.prot!="grpc")) {
-	  token_sudo = false;
-	}
+        if ((vid.prot != "sss") &&
+            (vid.prot != "https") &&
+            (vid.prot != "ztn") &&
+            (vid.prot != "grpc")) {
+          token_sudo = false;
+        }
       } else {
-	if (gTokenSudo == Mapping::kStrong) {
-	  if ( vid.prot== "unix" ) {
-	    token_sudo = false;
-	  }
-	}
+        if (gTokenSudo == Mapping::kStrong) {
+          if (vid.prot == "unix") {
+            token_sudo = false;
+          }
+        }
       }
     }
   }
-  
+
   uid_t sel_uid = vid.uid;
   uid_t sel_gid = vid.gid;
 
@@ -854,10 +855,12 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
 
   {
     int errc = 0;
+
     // add the uid/gid as strings
     if (vid.uid_string.empty()) {
       vid.uid_string = UidToUserName(vid.uid, errc);
     }
+
     if (vid.gid_string.empty()) {
       vid.gid_string = GidToGroupName(vid.gid, errc);
     }
@@ -877,8 +880,8 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
         }
 
         vid.token->Reset();
-	// reset the vid to nobody if the origin does not match
-	vid.toNobody();
+        // reset the vid to nobody if the origin does not match
+        vid.toNobody();
       }
     }
   }
@@ -1148,8 +1151,8 @@ Mapping::Print(XrdOucString& stdOut, XrdOucString option)
     }
 
     stdOut += ")\n";
-
     stdOut += "tokensudo              => ";
+
     if (gTokenSudo == Mapping::kAlways) {
       stdOut += "always";
     } else if (gTokenSudo == Mapping::kEncrypted) {
@@ -1161,6 +1164,7 @@ Mapping::Print(XrdOucString& stdOut, XrdOucString option)
     } else {
       stdOut += "inval";
     }
+
     stdOut += "\n";
   }
 
@@ -1271,21 +1275,6 @@ Mapping::Print(XrdOucString& stdOut, XrdOucString option)
   }
 }
 
-/*----------------------------------------------------------------------------*/
-/**
- * Store the physical Ids for name 
- *
- * @param name user name
- * @param uid/gid pair
- */
-
-/*----------------------------------------------------------------------------*/
-/**
- * Store the physical Ids for name in the virtual identity
- *
- * @param name user name
- * @param vid virtual identity to store
- */
 
 /*----------------------------------------------------------------------------*/
 /**
@@ -1334,7 +1323,8 @@ Mapping::UidToUserName(uid_t uid, int& errc)
         snprintf(suid, sizeof(suid) - 1, "%u", uid);
         uid_string = suid;
         errc = EINVAL;
-        gShardedNegativeUserNameCache.store(uid, std::make_unique<std::string>(uid_string));
+        gShardedNegativeUserNameCache.store(uid,
+                                            std::make_unique<std::string>(uid_string));
         return uid_string;
       } else {
         uid_string = pwbuf.pw_name;
@@ -1402,7 +1392,8 @@ Mapping::GidToGroupName(gid_t gid, int& errc, size_t buffersize)
       snprintf(sgid, sizeof(sgid) - 1, "%u", gid);
       gid_string = sgid;
       errc = EINVAL;
-      gShardedNegativeGroupNameCache.store(gid, std::make_unique<std::string>(gid_string));
+      gShardedNegativeGroupNameCache.store(gid,
+                                           std::make_unique<std::string>(gid_string));
       return gid_string;
     } else {
       gid_string = grbuf.gr_name;
@@ -1742,7 +1733,7 @@ std::string Mapping::ReduceTident(std::string_view tident,
   std::string mytident{tident};
   mytident.erase(dotpos, addpos - dotpos);
   myhost = tident.substr(addpos + 1);
-  wildcardtident = "*@"+myhost;
+  wildcardtident = "*@" + myhost;
   return mytident;
 }
 
@@ -1901,13 +1892,11 @@ size_t
 Mapping::ActiveSessions(uid_t uid)
 {
   //XrdSysMutexHelper mLock(ActiveLock);
-
   if (auto n = ActiveUidsSharded.retrieve(uid)) {
     return *n;
   }
 
   return 0;
-
 }
 
 
@@ -1918,35 +1907,36 @@ Mapping::ActiveSessions()
 }
 
 void
-Mapping::addSecondaryGroups(VirtualIdentity& vid, const std::string& name, gid_t gid)
+Mapping::addSecondaryGroups(VirtualIdentity& vid, const std::string& name,
+                            gid_t gid)
 {
   if (gSecondaryGroups) {
     struct group* gr;
     eos_static_debug("group lookup %s %d", name.c_str(), gid);
     setgrent();
-    
+
     while ((gr = getgrent())) {
       int cnt;
       cnt = 0;
-      
+
       if (gr->gr_gid == gid) {
         if (!vid.allowed_gids.size()) {
           vid.allowed_gids.insert(gid);
           vid.gid = gid;
-	  eos_static_debug("adding %d\n", gid);
+          eos_static_debug("adding %d\n", gid);
         }
       }
-      
+
       while (gr->gr_mem[cnt]) {
         if (!strcmp(gr->gr_mem[cnt], name.c_str())) {
           vid.allowed_gids.insert(gr->gr_gid);
-	  eos_static_debug("adding %d\n", gr->gr_gid);
+          eos_static_debug("adding %d\n", gr->gr_gid);
         }
-	
+
         cnt++;
       }
     }
-    
+
     endgrent();
   }
 }
@@ -1960,14 +1950,20 @@ Mapping::getPhysicalIdShards(const std::string& name, VirtualIdentity& vid)
   }
 
   struct passwd passwdinfo;
+
   char buffer[131072];
+
   size_t buflen = sizeof(buffer);
 
   memset(&passwdinfo, 0, sizeof(passwdinfo));
+
   eos_static_debug("find in uid cache %s cache shard=%d", name.c_str(),
                    gShardedPhysicalUidCache.calculateShard(name));
+
   std::unique_ptr<id_pair> idp {nullptr};
+
   bool in_uid_cache {false};
+
   if (auto id_ptr = gShardedPhysicalUidCache.retrieve(name)) {
     vid.uid = id_ptr->uid;
     vid.gid = id_ptr->gid;
@@ -1981,10 +1977,11 @@ Mapping::getPhysicalIdShards(const std::string& name, VirtualIdentity& vid)
 
     if (name.length() == 8) {
       bool known_tident = false;
-      if (startsWith(name, "*") || startsWith(name, "~") || startsWith(name, "_")){
+
+      if (startsWith(name, "*") || startsWith(name, "~") || startsWith(name, "_")) {
         known_tident = true;
-	vid.allowed_uids.clear();
-	vid.allowed_gids.clear();
+        vid.allowed_uids.clear();
+        vid.allowed_gids.clear();
         // that is a new base-64 encoded id following the format '*1234567'
         // where 1234567 is the base64 encoded 42-bit value of 20-bit uid |
         // 16-bit gid | 6-bit session id.
@@ -2014,22 +2011,22 @@ Mapping::getPhysicalIdShards(const std::string& name, VirtualIdentity& vid)
           if (out) {
             free(out);
           }
+
           if (startsWith(name, "*") || startsWith(name, "_")) {
             idp.reset(new id_pair((bituser >> 22) & 0xfffff, (bituser >> 6) & 0xffff));
-	    struct passwd* pwbufp = 0;
-	    
+            struct passwd* pwbufp = 0;
+
             if (getpwuid_r(idp->uid, &passwdinfo, buffer, buflen, &pwbufp) || (!pwbufp)) {
               return;
             }
 
             cacheUserIds(passwdinfo.pw_uid, passwdinfo.pw_name);
-	    
-	    vid.uid_string = passwdinfo.pw_name;
-	    
-	    if (idp->gid != passwdinfo.pw_gid) {
-	      // add the primary group if it is not the desired one
-	      vid.allowed_gids.insert(passwdinfo.pw_gid);
-	    }
+            vid.uid_string = passwdinfo.pw_name;
+
+            if (idp->gid != passwdinfo.pw_gid) {
+              // add the primary group if it is not the desired one
+              vid.allowed_gids.insert(passwdinfo.pw_gid);
+            }
           } else {
             // only user id got forwarded, we retrieve the corresponding group
             uid_t ruid = (bituser >> 6) & 0xfffffffff;
@@ -2040,7 +2037,7 @@ Mapping::getPhysicalIdShards(const std::string& name, VirtualIdentity& vid)
             }
 
             idp.reset(new id_pair(passwdinfo.pw_uid, passwdinfo.pw_gid));
-	    vid.uid_string = passwdinfo.pw_name;
+            vid.uid_string = passwdinfo.pw_name;
             cacheUserIds(passwdinfo.pw_uid, passwdinfo.pw_name);
           }
 
@@ -2070,9 +2067,9 @@ Mapping::getPhysicalIdShards(const std::string& name, VirtualIdentity& vid)
         vid.gid = idp->gid;
         vid.allowed_uids.insert(vid.uid);
         vid.allowed_gids.insert(vid.gid);
-	vid.allowed_uids.insert(99);
-	vid.allowed_gids.insert(99);
-	addSecondaryGroups(vid, vid.uid_string, idp->gid);
+        vid.allowed_uids.insert(99);
+        vid.allowed_gids.insert(99);
+        addSecondaryGroups(vid, vid.uid_string, idp->gid);
         auto gs = std::make_unique<gid_set>(vid.allowed_gids);
         eos_static_debug("adding to cache uid=%u gid=%u", idp->uid, idp->gid);
         gShardedPhysicalUidCache.store(name, std::move(idp));
@@ -2089,19 +2086,21 @@ Mapping::getPhysicalIdShards(const std::string& name, VirtualIdentity& vid)
       }
 
       struct passwd* pwbufp = 0;
+
       {
-        if (getpwnam_r(name.c_str(), &passwdinfo, buffer, buflen, &pwbufp) || (!pwbufp)) {
+        if (getpwnam_r(name.c_str(), &passwdinfo, buffer, buflen, &pwbufp) ||
+            (!pwbufp)) {
           gShardedNegativePhysicalUidCache.store(name, std::make_unique<bool>(true));
           return;
         }
       }
+
       idp.reset(new id_pair(passwdinfo.pw_uid, passwdinfo.pw_gid));
       vid.uid = idp->uid;
       vid.gid = idp->gid;
       vid.uid_string = passwdinfo.pw_name;
       cacheUserIds(passwdinfo.pw_uid, passwdinfo.pw_name);
     }
-
   }
 
   if (auto gv = gShardedPhysicalGidCache.retrieve(name)) {
@@ -2110,10 +2109,12 @@ Mapping::getPhysicalIdShards(const std::string& name, VirtualIdentity& vid)
     vid.uid = idp->uid;
     vid.gid = idp->gid;
     eos_static_debug("msg=\"returning\" uid=%u gid=%u", idp->uid, idp->gid);
+
     if (!in_uid_cache) {
       eos_static_debug("msg=\"adding to cache\" uid=%u gid=%u", idp->uid, idp->gid);
       gShardedPhysicalUidCache.store(name, std::move(idp));
     }
+
     return;
   }
 
@@ -2124,7 +2125,9 @@ Mapping::getPhysicalIdShards(const std::string& name, VirtualIdentity& vid)
     eos_static_debug("msg=\"adding to cache\" uid=%u gid=%u", idp->uid, idp->gid);
     gShardedPhysicalUidCache.store(name, std::move(idp));
   }
-  gShardedPhysicalGidCache.store(name, std::make_unique<gid_set>(vid.allowed_gids));
+
+  gShardedPhysicalGidCache.store(name,
+                                 std::make_unique<gid_set>(vid.allowed_gids));
   return;
 }
 
@@ -2194,6 +2197,7 @@ Mapping::HandleUidGidMapping(const char* name, VirtualIdentity& vid,
     Mapping::getPhysicalUidGids(name, vid);
     return;
   }
+
   if (uid_mapped) {
     if (kv_uid->second == 0) {
       eos_static_debug("msg=\"%s uid mapping\"", vid.prot.c_str());
@@ -2209,6 +2213,7 @@ Mapping::HandleUidGidMapping(const char* name, VirtualIdentity& vid,
       vid.allowed_gids.insert(vid.gid);
     }
   }
+
   if (gid_mapped) {
     if (kv_gid->second == 0) {
       eos_static_debug("msg=\"%s gid mapping\"", vid.prot.c_str());
@@ -2220,7 +2225,6 @@ Mapping::HandleUidGidMapping(const char* name, VirtualIdentity& vid,
       vid.allowed_gids.insert(vid.gid);
     }
   }
-
 }
 
 EOSCOMMONNAMESPACE_END
