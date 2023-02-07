@@ -226,6 +226,10 @@ QuarkContainerMDSvc::updateStore(IContainerMD* obj)
                     "name; id=%llu, parent=%llu, trace=%s", obj->getId(),
                     obj->getParentId(), common::getStacktrace().c_str());
     // eventually throw, once we understand how this happens
+    // TODO: @ccaffy - this should throw an exception, but
+    // all the code calling this method should handle it properly
+    // by surrounding the calls with try/catch blocks
+    return;
   }
 
   pFlusher->execute(RequestBuilder::writeContainerProto(obj));
