@@ -762,6 +762,7 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config,
           (key == "graceperiod") ||
           (key == "drainperiod") ||
           (key == "balancer") ||
+          (key == "new_balancer") ||
           (key == "balancer.threshold") ||
           (key == "balancer.node.rate") ||
           (key == "balancer.node.ntx") ||
@@ -828,6 +829,7 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config,
         }
 
         if ((key == "balancer") ||
+            (key == "new_balancer") ||
             (key == "converter") ||
             (key == "tracker") ||
             (key == "inspector") ||
@@ -854,6 +856,24 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config,
                 } else {
                   std_out << "success: balancer is disabled!";
                 }
+
+                // Make sure the new balancer is disabled
+                space->SetConfigMember("new_balancer", "off");
+
+                if (space->mFsBalancer) {
+                  space->mFsBalancer->SignalConfigUpdate();
+                }
+              }
+
+              if (key == "new_balancer") {
+                if (value == "on") {
+                  std_out << "success: new_balancer is enabled!";
+                } else {
+                  std_out << "success: new_balancer is disabled!";
+                }
+
+                // Make sure the old balancer is disabled
+                space->SetConfigMember("balancer", "off");
 
                 if (space->mFsBalancer) {
                   space->mFsBalancer->SignalConfigUpdate();

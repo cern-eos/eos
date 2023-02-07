@@ -841,21 +841,22 @@ FsSpace::FsSpace(const char* name)
   mType = "spaceview";
 
   // Use central balancer if requested
-  if (getenv("EOS_USE_CENTRAL_BALANCER")) {
+  if (mName != eos::common::EOS_SPARE_GROUP) {
     mFsBalancer.reset(new FsBalancer(name));
-    mBalancer = nullptr;
-  } else {
     mBalancer = new Balancer(name);
+    mGroupBalancer = new GroupBalancer(name);
+    mGeoBalancer = new GeoBalancer(name);
+    mGroupDrainer.reset(new GroupDrainer(name));
   }
-
-  mGroupBalancer = new GroupBalancer(name);
-  mGeoBalancer = new GeoBalancer(name);
-  mGroupDrainer.reset(new GroupDrainer(name));
 
   if (!gDisableDefaults) {
     // Disable balancing by default
     if (GetConfigMember("balancer").empty()) {
       SetConfigMember("balancer", "off");
+    }
+
+    if (GetConfigMember("new_balancer").empty()) {
+      SetConfigMember("new_balancer", "off");
     }
 
     // Set deviation treshold

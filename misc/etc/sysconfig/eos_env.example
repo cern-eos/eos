@@ -131,9 +131,6 @@ EOS_NOTIFY="mail -s `date +%s`-`hostname`-eos-notify $EOS_MAIL_CC"
 # The min value is 1 and the max 1024. By default this 1024.
 # EOS_XRD_CONNECTION_POOL_SIZE=1024
 
-# Enable the central balancer - by default disabled
-# EOS_USE_CENTRAL_BALANCER=1
-
 #-------------------------------------------------------------------------------
 # FST Configuration
 #-------------------------------------------------------------------------------

@@ -56,7 +56,7 @@ FsBalancer::ConfigUpdate()
   auto* space = it_space->second;
 
   // Check if balancer is enabled
-  if (space->GetConfigMember("balancer") != "on") {
+  if (space->GetConfigMember("new_balancer") != "on") {
     mIsEnabled = false;
     return;
   }
@@ -166,7 +166,6 @@ FsBalancer::Balance(ThreadAssistant& assistant) noexcept
   VectBalanceFs vect_tx;
 
   while (!assistant.terminationRequested()) {
-    eos_static_info("%s", "msg=\"loop\"");
     ConfigUpdate();
 
     if (!mIsEnabled) {
