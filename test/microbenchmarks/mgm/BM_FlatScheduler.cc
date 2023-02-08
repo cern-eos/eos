@@ -53,13 +53,13 @@ static void BM_Scheduler(benchmark::State& state) {
 
   for (auto _: state) {
     auto cluster_data_ptr = mgr.getClusterData();
-    benchmark::DoNotOptimize(flat_scheduler.schedule(cluster_data_ptr(),{2}));
+    benchmark::DoNotOptimize(flat_scheduler.schedule(cluster_data_ptr(),state.range(1)));
   }
   state.counters["frequency"] = benchmark::Counter(state.iterations(),
                                                    benchmark::Counter::kIsRate);
 }
 
-BENCHMARK(BM_Scheduler)->Threads(1)->Threads(8)->Threads(64)->Threads(128)
+BENCHMARK(BM_Scheduler)->Threads(1)->Threads(8)->Threads(64)->Threads(128)->Threads(256)
     ->ArgsProduct({{32, 64, 128, 256, 512},
                    {2,3,6}})->UseRealTime();
 BENCHMARK_MAIN();
