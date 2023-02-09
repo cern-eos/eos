@@ -46,6 +46,8 @@ add_executable(eos-atomic-ptr-microbenchmark common/BM_AtomicPtr.cc)
 add_executable(eos-flatscheduler-microbenchmark mgm/BM_FlatScheduler.cc
         ${CMAKE_SOURCE_DIR}/mgm/placement/ClusterMap.cc
         ${CMAKE_SOURCE_DIR}/mgm/placement/Scheduler.cc)
+add_executable(eos-rrseed-microbenchmark mgm/BM_RRSeed.cc
+        ${CMAKE_SOURCE_DIR}/mgm/placement/ThreadLocalRRSeed.cc)
 
 target_link_libraries(eos-microbenchmarks PRIVATE
   benchmark::benchmark
@@ -59,6 +61,11 @@ target_link_libraries(eos-atomic-ptr-microbenchmark PRIVATE
   benchmark::benchmark
   EosCommon-Static
   ${CMAKE_THREAD_LIBS_INIT})
+
+target_link_libraries(eos-rrseed-microbenchmark PRIVATE
+  GOOGLEBENCHMARK::GOOGLEBENCHMARK
+        ${CMAKE_THREAD_LIBS_INIT}
+        EosCommon-Static)
 
 target_link_libraries(eos-flatscheduler-microbenchmark PRIVATE
   GOOGLEBENCHMARK::GOOGLEBENCHMARK
