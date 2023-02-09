@@ -222,8 +222,8 @@ void
 QuarkContainerMDSvc::updateStore(IContainerMD* obj)
 {
   if (obj->getName() == "") {
-    eos_static_crit("updateContainerStore called on container with empty "
-                    "name; id=%llu, parent=%llu, trace=%s", obj->getId(),
+    eos_static_crit("msg=\"call on container with empty name\" id=%llu "
+                    "parent=%llu, trace=\"%s\"", obj->getId(),
                     obj->getParentId(), common::getStacktrace().c_str());
     // eventually throw, once we understand how this happens
     // TODO: @ccaffy - this should throw an exception, but
