@@ -25,6 +25,7 @@
 
 #include "mgm/placement/ClusterDataTypes.hh"
 #include "mgm/placement/RRSeed.hh"
+#include "mgm/placement/ThreadLocalRRSeed.hh"
 #include <algorithm>
 
 namespace eos::mgm::placement {
@@ -59,10 +60,9 @@ struct PlacementResult {
 };
 
 enum class PlacementStrategyT {
-  kRoundRobin
+  kRoundRobin,
+  kThreadLocalRoundRobin,
 };
-
-
 
 struct PlacementStrategy {
   struct Args {
@@ -83,23 +83,63 @@ struct PlacementStrategy {
   virtual ~PlacementStrategy() = default;
 };
 
+struct RRSeeder {
+  virtual ~RRSeeder() = default;
+  virtual size_t get(size_t index, size_t num_items) = 0;
+  virtual size_t getNumSeeds() = 0;
+};
+
+struct GlobalRRSeeder : public RRSeeder {
+  explicit GlobalRRSeeder(size_t max_buckets) : mSeed(max_buckets) {}
+
+  size_t get(size_t index, size_t num_items) override {
+    return mSeed.get(index, num_items);
+  }
+
+  size_t getNumSeeds() override {
+    return mSeed.getNumSeeds();
+  }
+private:
+  RRSeed<size_t> mSeed;
+};
+
+struct ThreadLocalRRSeeder : public RRSeeder {
+  explicit ThreadLocalRRSeeder(size_t max_buckets) {
+    ThreadLocalRRSeed::init(max_buckets);
+  }
+
+  size_t get(size_t index, size_t num_items) override {
+    return ThreadLocalRRSeed::get(index, num_items);
+  }
+
+  size_t getNumSeeds() override {
+    return ThreadLocalRRSeed::getNumSeeds();
+  }
+};
+
+
+std::unique_ptr<RRSeeder> makeRRSeeder(PlacementStrategyT strategy,
+                                       size_t max_buckets);
+
 class RoundRobinPlacement : public PlacementStrategy {
 public:
   explicit
-  RoundRobinPlacement(size_t max_buckets) : mSeed(max_buckets) {}
+  RoundRobinPlacement(PlacementStrategyT strategy,
+                      size_t max_buckets) : mSeed(makeRRSeeder(strategy, max_buckets)) {}
 
   PlacementResult chooseItems(const ClusterData& cluster_data,
                               Args args) override;
 private:
-  RRSeed<size_t> mSeed;
+  std::unique_ptr<RRSeeder> mSeed;
 };
 
 template <typename... Args>
 std::unique_ptr<PlacementStrategy> makePlacementStrategy(PlacementStrategyT type,
                                                          Args&&... args) {
   switch (type) {
-  case PlacementStrategyT::kRoundRobin:
-    return std::make_unique<RoundRobinPlacement>(std::forward<Args>(args)...);
+  case PlacementStrategyT::kRoundRobin: [[fallthrough]];
+  case PlacementStrategyT::kThreadLocalRoundRobin:
+    return std::make_unique<RoundRobinPlacement>(type, std::forward<Args>(args)...);
   default:
     return nullptr;
   }
