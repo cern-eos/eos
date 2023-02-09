@@ -63,7 +63,7 @@ public:
   // Get a seed at an index, also reserve n_items, so that the next seed is n_items
   // away. Please ensure the index is within range!
   T get(size_t index, size_t n_items) {
-    return mSeeds[index].value.fetch_add(n_items, std::memory_order_relaxed);
+    return mSeeds.at(index).value.fetch_add(n_items, std::memory_order_relaxed);
   }
 
   size_t getNumSeeds() const { return mSeeds.size(); }
