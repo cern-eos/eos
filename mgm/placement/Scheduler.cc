@@ -6,6 +6,16 @@ namespace eos::mgm::placement {
 
 constexpr uint8_t MAX_PLACEMENT_ATTEMPTS = 20;
 
+std::unique_ptr<RRSeeder>
+makeRRSeeder(PlacementStrategyT strategy, size_t max_buckets)
+{
+  if (strategy == PlacementStrategyT::kThreadLocalRoundRobin) {
+    return std::make_unique<ThreadLocalRRSeeder>(max_buckets);
+  }
+  return std::make_unique<GlobalRRSeeder>(max_buckets);
+
+}
+
 PlacementResult
 RoundRobinPlacement::chooseItems(const ClusterData& cluster_data, Args args)
 {
@@ -19,10 +29,10 @@ RoundRobinPlacement::chooseItems(const ClusterData& cluster_data, Args args)
 
   if (bucket_sz < args.n_replicas ||
       (bucket_index > 0 && (size_t)bucket_index > bucket_sz) ||
-      bucket_sz > mSeed.getNumSeeds()) {
+      bucket_sz > mSeed->getNumSeeds()) {
     if (bucket_sz < args.n_replicas) {
       result.err_msg = "More replicas than bucket size!";
-    } else if (bucket_sz > mSeed.getNumSeeds()) {
+    } else if (bucket_sz > mSeed->getNumSeeds()) {
       result.err_msg = "More buckets than random seeds!";
     } else {
       result.err_msg = "Bucket index out of range!";
@@ -42,7 +52,7 @@ RoundRobinPlacement::chooseItems(const ClusterData& cluster_data, Args args)
 
   result.ids.reserve(args.n_replicas);
 
-  auto rr_seed = mSeed.get(bucket_index, args.n_replicas);
+  auto rr_seed = mSeed->get(bucket_index, args.n_replicas);
 
   for (uint8_t items_added = 0, i = 0;
        (items_added < args.n_replicas) && (i < MAX_PLACEMENT_ATTEMPTS); i++) {
