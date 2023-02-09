@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// File: BM_RRSeed.cc
+// File: ThreadLocalRRSeedTests.cc
 // Author: Abhishek Lekshmanan - CERN
 // ----------------------------------------------------------------------
 
@@ -21,33 +21,26 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "benchmark/benchmark.h"
-#include "mgm/placement/RRSeed.hh"
 #include "mgm/placement/ThreadLocalRRSeed.hh"
+#include "gtest/gtest.h"
 
-using benchmark::Counter;
+using eos::mgm::placement::ThreadLocalRRSeed;
 
-static void BM_RRSeed(benchmark::State& state) {
-  eos::mgm::placement::RRSeed seed(10);
-  for (auto _ : state) {
-    for (int i=0;i<10; ++i)
-    benchmark::DoNotOptimize(seed.get(1,0));
+TEST(ThreadLocalRRSeed, random)
+{
+  if (ThreadLocalRRSeed::getNumSeeds() < 10) {
+    ThreadLocalRRSeed::init(10, true);
   }
-  state.counters["frequency"] = Counter(state.iterations()*10,
-                                        benchmark::Counter::kIsRate);
-}
 
-static void BM_ThreadLocalRRSeed(benchmark::State& state) {
-  using namespace eos::mgm::placement;
-  ThreadLocalRRSeed::init(10);
-  for (auto _ : state) {
-    for (int i=0;i<10; ++i)
-    benchmark::DoNotOptimize(ThreadLocalRRSeed::get(1,0));
+  EXPECT_EQ(ThreadLocalRRSeed::gRRSeeds.size(), 10);
+  std::vector<uint64_t> seeds;
+  for (auto i = 0; i < 10; i++) {
+    std::cout << ThreadLocalRRSeed::gRRSeeds[i] << " ";
+    seeds.push_back(ThreadLocalRRSeed::gRRSeeds[i]);
   }
-  state.counters["frequency"] = Counter(state.iterations()*10,
-                                        benchmark::Counter::kIsRate);
-}
+  std::cout << "\n";
 
-BENCHMARK(BM_RRSeed)->ThreadRange(1,64)->UseRealTime();
-BENCHMARK(BM_ThreadLocalRRSeed)->ThreadRange(1,64)->UseRealTime();
-BENCHMARK_MAIN();
+  EXPECT_EQ(ThreadLocalRRSeed::get(0, 0), seeds[0]);
+  EXPECT_EQ(ThreadLocalRRSeed::get(0, 1), seeds[0]);
+  EXPECT_EQ(ThreadLocalRRSeed::get(0, 0), seeds[0] + 1);
+}
