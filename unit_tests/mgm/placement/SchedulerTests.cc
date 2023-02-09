@@ -28,7 +28,8 @@ using eos::mgm::placement::item_id_t;
 
 TEST_F(SimpleClusterF, RoundRobinBasic)
 {
-  eos::mgm::placement::RoundRobinPlacement rr_placement(256);
+  eos::mgm::placement::RoundRobinPlacement rr_placement(eos::mgm::placement::PlacementStrategyT::kRoundRobin,
+                                                        256);
 
   auto cluster_data_ptr = mgr.getClusterData();
 
@@ -53,9 +54,40 @@ TEST_F(SimpleClusterF, RoundRobinBasic)
 
 }
 
+TEST_F(SimpleClusterF, TLRoundRobinBasic)
+{
+  eos::mgm::placement::RoundRobinPlacement rr_placement(eos::mgm::placement::PlacementStrategyT::kThreadLocalRoundRobin,
+                                                        256);
+
+  auto cluster_data_ptr = mgr.getClusterData();
+
+  // TODO: write a higher level function to do recursive descent
+  // Choose 1 site - from ROOT
+  auto res = rr_placement.chooseItems(cluster_data_ptr(),{0,1});
+  ASSERT_TRUE(res);
+  EXPECT_EQ(res.ids.size(), 1);
+  // We cannot assert on the id here because the thread local round robin would
+  // have a random starting point, only the looping behaviour is easier to reason
+
+
+  // Choose 1 group from SITE
+  auto site_id = res.ids[0];
+  auto group_res = rr_placement.chooseItems(cluster_data_ptr(),{site_id,1});
+  ASSERT_TRUE(group_res);
+  EXPECT_EQ(group_res.ids.size(), 1);
+
+
+  // choose 2 disks from group!
+  auto disks_res = rr_placement.chooseItems(cluster_data_ptr(),{group_res.ids[0],2});
+  ASSERT_TRUE(disks_res);
+  EXPECT_EQ(disks_res.ids.size(), 2);
+
+}
+
 TEST_F(SimpleClusterF, RoundRobinBasicLoop)
 {
-  eos::mgm::placement::RoundRobinPlacement rr_placement(256);
+  eos::mgm::placement::RoundRobinPlacement rr_placement(eos::mgm::placement::PlacementStrategyT::kRoundRobin,
+                                                        256);
 
   auto cluster_data_ptr = mgr.getClusterData();
 
@@ -136,6 +168,79 @@ TEST_F(SimpleClusterF, RoundRobinBasicLoop)
   }
 }
 
+TEST_F(SimpleClusterF, TLRoundRobinBasicLoop)
+{
+  eos::mgm::placement::RoundRobinPlacement rr_placement(eos::mgm::placement::PlacementStrategyT::kThreadLocalRoundRobin,
+                                                        256);
+
+  auto cluster_data_ptr = mgr.getClusterData();
+
+  std::map<int32_t,uint32_t> site_id_ctr;
+  std::map<int32_t,uint32_t> group_id_ctr;
+  std::map<int32_t,uint32_t> disk_id_ctr;
+  std::vector<int32_t> disk_ids_vec;
+  // TODO: write a higher level function to do recursive descent
+  // Choose 1 site - from ROOT
+  // Loop over 30 times, which is the total size of the disks to ensure that all
+  // elements are chosen
+  for (int i = 0; i < 30; i++)
+  {
+    auto res = rr_placement.chooseItems(cluster_data_ptr(), {0, 1});
+
+    ASSERT_TRUE(res);
+    ASSERT_EQ(res.ids.size(), 1);
+
+    site_id_ctr[res.ids[0]]++;
+
+    // Choose 1 group from SITE
+    auto site_id = res.ids[0];
+    auto group_res = rr_placement.chooseItems(cluster_data_ptr(), {site_id, 1});
+
+    ASSERT_TRUE(group_res);
+    ASSERT_EQ(group_res.ids.size(), 1);
+    group_id_ctr[group_res.ids[0]]++;
+
+
+    // choose 2 disks from group!
+    auto disks_res =
+        rr_placement.chooseItems(cluster_data_ptr(), {group_res.ids[0], 2});
+
+    ASSERT_TRUE(disks_res);
+    ASSERT_EQ(disks_res.ids.size(), 2);
+    disk_id_ctr[disks_res.ids[0]]++;
+    disk_id_ctr[disks_res.ids[1]]++;
+
+
+    disk_ids_vec.push_back(disks_res.ids[0]);
+    disk_ids_vec.push_back(disks_res.ids[1]);
+
+  }
+
+  // SITE1 gets 15 requests, SITE2 gets 15 requests;
+  ASSERT_EQ(site_id_ctr[-1], 15);
+  ASSERT_EQ(site_id_ctr[-2], 15);
+
+
+  // 30 items chosen in site1 among 20 disks
+  // 30 items chosen in site2 among 10 disks
+  ASSERT_EQ(group_id_ctr[-102], 15);
+  // All the disks are chosen at least once, due to the non uniform nature here,
+  // site 2 would have its disks chosen twice as often as site 1
+  ASSERT_EQ(disk_ids_vec.size(), 60);
+  ASSERT_EQ(disk_id_ctr.size(), 30);
+
+  // Check SITE1 ctr, atleast 1; initial disks would be twice as filled as latter
+  for (int i=1; i <=20; i++) {
+    ASSERT_GE(disk_id_ctr[i], 1);
+  }
+
+  // Check SITE2 ctr, all disks would've been scheduled twice, initial disks twice often as the others
+  for (int i=21; i <=30; i++) {
+    ASSERT_GE(disk_id_ctr[i],2);
+  }
+}
+
+
 TEST_F(SimpleClusterF, FlatSchedulerBasic)
 {
   using eos::mgm::placement::PlacementStrategyT;
@@ -159,6 +264,7 @@ TEST_F(SimpleClusterF, FlatSchedulerBasic)
                                          {2});
   ASSERT_TRUE(result.is_valid_placement(2));
 }
+
 
 
 TEST_F(SimpleClusterF, FlatSchedulerBasicLoop)
@@ -202,6 +308,48 @@ TEST_F(SimpleClusterF, FlatSchedulerBasicLoop)
 
 }
 
+TEST_F(SimpleClusterF, TLFlatSchedulerBasicLoop)
+{
+  using eos::mgm::placement::PlacementStrategyT;
+
+  eos::mgm::placement::FlatScheduler flat_scheduler(PlacementStrategyT::kThreadLocalRoundRobin,
+                                                    256);
+
+  auto cluster_data_ptr = mgr.getClusterData();
+
+  std::map<int32_t,uint32_t> disk_id_ctr;
+  std::vector<int32_t> disk_ids_vec;
+
+  for (int i=0; i <30; ++i) {
+    auto result = flat_scheduler.schedule(cluster_data_ptr(),
+                                          {2});
+    ASSERT_TRUE(result);
+    ASSERT_TRUE(result.is_valid_placement(2));
+    disk_id_ctr[result.ids[0]]++;
+    disk_id_ctr[result.ids[1]]++;
+    disk_ids_vec.push_back(result.ids[0]);
+    disk_ids_vec.push_back(result.ids[1]);
+  }
+  // All the disks are chosen at least once, due to the non uniform nature here,
+  // site 2 would have its disks chosen twice as often as site 1
+  ASSERT_EQ(disk_ids_vec.size(), 60);
+  ASSERT_EQ(disk_id_ctr.size(), 30);
+
+  // Check SITE1 ctr, atleast 1; initial disks would be twice as filled as latter
+  for (int i=1; i <=20; i++) {
+    ASSERT_GE(disk_id_ctr[i], 1);
+  }
+
+  // Check SITE2 ctr, all disks would've been scheduled twice,
+  // initial disks twice often as the others
+
+  for (int i=21; i <=30; i++) {
+    ASSERT_GE(disk_id_ctr[i],2);
+  }
+
+}
+
+
 TEST(FlatScheduler, SingleSite)
 {
   using namespace eos::mgm::placement;
@@ -209,6 +357,44 @@ TEST(FlatScheduler, SingleSite)
   using eos::mgm::placement::PlacementStrategyT;
 
   eos::mgm::placement::FlatScheduler flat_scheduler(PlacementStrategyT::kRoundRobin,
+                                                    2048);
+
+  {
+    auto sh = mgr.getStorageHandler(1024);
+    ASSERT_TRUE(sh.addBucket(get_bucket_type(StdBucketType::ROOT), 0));
+    ASSERT_TRUE(sh.addBucket(get_bucket_type(StdBucketType::SITE), -1, 0));
+    ASSERT_TRUE(sh.addBucket(get_bucket_type(StdBucketType::GROUP), -100, -1));
+
+    ASSERT_TRUE(sh.addDisk(Disk(1, DiskStatus::kRW, 1), -100));
+    ASSERT_TRUE(sh.addDisk(Disk(2, DiskStatus::kRW, 1), -100));
+    ASSERT_TRUE(sh.addDisk(Disk(3, DiskStatus::kRW, 1), -100));
+    ASSERT_TRUE(sh.addDisk(Disk(4, DiskStatus::kRW, 1), -100));
+    ASSERT_TRUE(sh.addDisk(Disk(5, DiskStatus::kRW, 1), -100));
+  }
+
+  auto data = mgr.getClusterData();
+  std::vector<int32_t> disk_ids_vec {-1};
+  std::vector<int32_t> site_ids_vec {-100};
+  std::vector<int32_t> group_ids_vec {1,2,3,4,5};
+  ASSERT_EQ(data->buckets[0].items, disk_ids_vec);
+  ASSERT_EQ(data->buckets[1].items, site_ids_vec);
+  ASSERT_EQ(data->buckets[100].items, group_ids_vec);
+
+  auto cluster_data_ptr = mgr.getClusterData();
+  auto result = flat_scheduler.schedule(cluster_data_ptr(),
+                                        {2});
+  std::cout << result.err_msg << std::endl;
+  ASSERT_TRUE(result);
+  ASSERT_TRUE(result.is_valid_placement(2));
+}
+
+TEST(FlatScheduler, TLSingleSite)
+{
+  using namespace eos::mgm::placement;
+  ClusterMgr mgr;
+  using eos::mgm::placement::PlacementStrategyT;
+
+  eos::mgm::placement::FlatScheduler flat_scheduler(PlacementStrategyT::kThreadLocalRoundRobin,
                                                     2048);
 
   {
