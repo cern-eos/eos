@@ -129,7 +129,7 @@ EOS_NOTIFY="mail -s `date +%s`-`hostname`-eos-notify $EOS_MAIL_CC"
 # When xrootd connection pool is enabled, one can control the maximum number
 # of physical connection that can be established with the destination server.
 # The min value is 1 and the max 1024. By default this 1024.
-# EOS_XRD_CONNECTION_POOL_SIZE=1024
+# EOS_XRD_CONNECTION_POOL_SIZE=128
 
 #-------------------------------------------------------------------------------
 # FST Configuration
