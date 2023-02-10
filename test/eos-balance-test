@@ -60,14 +60,6 @@ if [[ ${FST_ONLINE} -lt 7 ]]; then
   exit 1
 fi
 
-HAS_CENTRAL_BALANCER=$(ps aux | grep [x]rootd | grep mgm | awk '{print "sudo grep EOS_USE_CENTRAL_BALANCER /proc/"$2"/environ > /dev/null";}' | sh -x)
-
-
-if [[ "$HAS_CENTRAL_BALANCER" -ne 0 ]]; then
-  echo "error: central balancer is not enabled"
-  exit 1
-fi
-
 # Create dummy test files
 TEST_FN1=/var/tmp/1GB.dat
 TEST_FN2=/var/tmp/2GB.dat
@@ -110,7 +102,7 @@ done
 
 # Enable the balancing at the space level
 eos space config default space.balancer.threshold=${EOS_BALANCER_THRESHOLD}
-eos space config default space.balancer=on
+eos space config default space.new_balancer=on
 
 # Get current dev of the group
 START_DEV=$(sudo eos group ls -m | grep "default.0" | awk '{print $20;}' | cut -d '=' -f2)
