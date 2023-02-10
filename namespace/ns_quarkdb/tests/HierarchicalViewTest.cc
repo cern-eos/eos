@@ -232,8 +232,7 @@ TEST_F(HierarchicalViewF, ZeroSizedFilenames)
   eos::IFileMDPtr file1 = view()->createFile("/file1", true);
   file1->setName("");
   ASSERT_THROW(cont1->addFile(file1.get()), eos::MDException);
-  cont2->setName("");
-  ASSERT_THROW(cont1->addContainer(cont2.get()), eos::MDException);
+  ASSERT_THROW(cont2->setName(""); , eos::MDException);
 }
 
 //------------------------------------------------------------------------------
