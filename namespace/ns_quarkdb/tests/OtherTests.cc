@@ -28,6 +28,8 @@
 #include "namespace/utils/PathProcessor.hh"
 #include <gtest/gtest.h>
 #include <sstream>
+#include "namespace/ns_quarkdb/tests/MockContainerMD.hh"
+#include "namespace/utils/BulkNsObjectLocker.hh"
 
 //------------------------------------------------------------------------------
 // Check the path
@@ -218,4 +220,26 @@ TEST(QdbContactDetails, BasicSanity)
   ASSERT_EQ(cd.members.toString(),
             "example1.cern.ch:1234,example2.cern.ch:2345,example3.cern.ch:3456");
   ASSERT_EQ(cd.password, "turtles_turtles_etc");
+}
+
+TEST(BulkNSObjectLocker, testBulkNSObjectLocker) {
+  auto mockContainerMD1 = std::make_shared<eos::MockContainerMD>(1);
+  auto mockContainerMD2 = std::make_shared<eos::MockContainerMD>(2);
+  auto mockContainerMD3 = std::make_shared<eos::MockContainerMD>(3);
+  eos::BulkNsObjectLocker<eos::IContainerMDPtr,eos::IContainerMD::IContainerMDReadLocker> bulkObjectLocker;
+  bulkObjectLocker.add(mockContainerMD1);
+  bulkObjectLocker.add(mockContainerMD2);
+  bulkObjectLocker.add(mockContainerMD3);
+  {
+    auto locks = bulkObjectLocker.lockAll();
+    ASSERT_EQ(3,locks.size());
+  }
+  auto lockedContainers = eos::MockContainerMD::getLockedContainers();
+  auto unlockedContainers = eos::MockContainerMD::getUnlockedContainers();
+  for(uint64_t i = 1; i <= 3; i++) {
+    ASSERT_EQ(i,lockedContainers[i-1]->getIdentifier().getUnderlyingUInt64());
+  }
+  for(uint64_t i = 3; i > 0; i--) {
+    ASSERT_EQ(i,lockedContainers[i-1]->getIdentifier().getUnderlyingUInt64());
+  }
 }
