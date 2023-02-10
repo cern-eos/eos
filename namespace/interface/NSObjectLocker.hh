@@ -57,12 +57,12 @@ public:
 
   virtual ~NSObjectMDLockHelper() = default;
 
-  void registerLock() {
+  virtual void registerLock() {
     std::unique_lock<std::shared_timed_mutex> lock(mThreadIdLockMapMutex);
     mThreadIdLockMap[std::this_thread::get_id()] = true;
   }
 
-  void unregisterLock() {
+  virtual void unregisterLock() {
     std::unique_lock<std::shared_timed_mutex> lock(mThreadIdLockMapMutex);
     auto threadId = std::this_thread::get_id();
     auto currentThreadIsLock = mThreadIdLockMap.find(threadId);
