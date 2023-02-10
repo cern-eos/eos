@@ -41,7 +41,7 @@ cleanup() {
   eos rmdir "${EOS_BALANCE_DIR}/rain/"
   eos rmdir "${EOS_BALANCE_DIR}/"
   rm -rf ${TEST_FN1} ${TEST_FN2}
-  eos space config default space.balancer=off
+  eos space config default space.new_balancer=off
 }
 
 if [[ $# -eq 0 || $# -gt 2 ]]; then
@@ -61,11 +61,11 @@ if [[ ${FST_ONLINE} -lt 7 ]]; then
 fi
 
 # Create dummy test files
-TEST_FN1=/var/tmp/1GB.dat
-TEST_FN2=/var/tmp/2GB.dat
+TEST_FN1=/var/tmp/200MB.dat
+TEST_FN2=/var/tmp/400MB.dat
 
-dd if=/dev/urandom of=${TEST_FN1} bs=1M count=1024 &> /dev/null
-dd if=/dev/urandom of=${TEST_FN2} bs=1M count=2048 &> /dev/null
+dd if=/dev/urandom of=${TEST_FN1} bs=1M count=200 &> /dev/null
+dd if=/dev/urandom of=${TEST_FN2} bs=1M count=400 &> /dev/null
 
 # Create eos directory for tests
 EOS_BALANCE_DIR=/eos/dockertest/balance_test
@@ -81,14 +81,14 @@ eos attr set default=raid6 ${EOS_BALANCE_DIR}/rain/
 # with an unbalanced group
 eos fs config 1 configstatus=ro
 
-xrdcp -f --nopbar ${TEST_FN1} root://${EOS_MGM_HOSTNAME}/${EOS_BALANCE_DIR}/replica/1GB_file1.dat
-xrdcp -f --nopbar ${TEST_FN1} root://${EOS_MGM_HOSTNAME}/${EOS_BALANCE_DIR}/replica/1GB_file2.dat
-xrdcp -f --nopbar ${TEST_FN1} root://${EOS_MGM_HOSTNAME}/${EOS_BALANCE_DIR}/replica/1GB_file3.dat
-xrdcp -f --nopbar ${TEST_FN1} root://${EOS_MGM_HOSTNAME}/${EOS_BALANCE_DIR}/raiddp/1GB_file1.dat
-xrdcp -f --nopbar ${TEST_FN1} root://${EOS_MGM_HOSTNAME}/${EOS_BALANCE_DIR}/rain/1GB_file1.dat
-xrdcp -f --nopbar ${TEST_FN2} root://${EOS_MGM_HOSTNAME}/${EOS_BALANCE_DIR}/replica/2GB_file1.dat
-xrdcp -f --nopbar ${TEST_FN2} root://${EOS_MGM_HOSTNAME}/${EOS_BALANCE_DIR}/raiddp/2GB_file1.dat
-xrdcp -f --nopbar ${TEST_FN2} root://${EOS_MGM_HOSTNAME}/${EOS_BALANCE_DIR}/rain/2GB_file1.dat
+xrdcp -f --nopbar ${TEST_FN1} root://${EOS_MGM_HOSTNAME}/${EOS_BALANCE_DIR}/replica/200MB_file1.dat
+xrdcp -f --nopbar ${TEST_FN1} root://${EOS_MGM_HOSTNAME}/${EOS_BALANCE_DIR}/replica/200MB_file2.dat
+xrdcp -f --nopbar ${TEST_FN1} root://${EOS_MGM_HOSTNAME}/${EOS_BALANCE_DIR}/replica/200MB_file3.dat
+xrdcp -f --nopbar ${TEST_FN1} root://${EOS_MGM_HOSTNAME}/${EOS_BALANCE_DIR}/raiddp/200MB_file1.dat
+xrdcp -f --nopbar ${TEST_FN1} root://${EOS_MGM_HOSTNAME}/${EOS_BALANCE_DIR}/rain/200MB_file1.dat
+xrdcp -f --nopbar ${TEST_FN2} root://${EOS_MGM_HOSTNAME}/${EOS_BALANCE_DIR}/replica/400MB_file1.dat
+xrdcp -f --nopbar ${TEST_FN2} root://${EOS_MGM_HOSTNAME}/${EOS_BALANCE_DIR}/raiddp/400MB_file1.dat
+xrdcp -f --nopbar ${TEST_FN2} root://${EOS_MGM_HOSTNAME}/${EOS_BALANCE_DIR}/rain/400MB_file1.dat
 
 eos fs config 1 configstatus=rw
 eos node ls
@@ -102,6 +102,7 @@ done
 
 # Enable the balancing at the space level
 eos space config default space.balancer.threshold=${EOS_BALANCER_THRESHOLD}
+eos space config default space.balancer.update.interval=5
 eos space config default space.new_balancer=on
 
 # Get current dev of the group
