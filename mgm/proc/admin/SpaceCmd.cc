@@ -768,6 +768,7 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config,
           (key == "balancer.node.ntx") ||
           (key == "balancer.max-queue-jobs") ||
           (key == "balancer.max-thread-pool-size") ||
+          (key == "balancer.update.interval") ||
           (key == "drainer.node.rate") ||
           (key == "drainer.node.ntx") ||
           (key == "drainer.node.nfs") ||

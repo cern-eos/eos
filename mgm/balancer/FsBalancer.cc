@@ -144,6 +144,24 @@ FsBalancer::ConfigUpdate()
     }
   }
 
+  svalue = space->GetConfigMember("balancer.update.interval");
+
+  if (!svalue.empty()) {
+    try {
+      unsigned int upd_interval_sec = std::stoul(svalue);
+
+      if ((upd_interval_sec >= 1) && (upd_interval_sec <= 300)) {
+        mUpdInterval = std::chrono::seconds(upd_interval_sec);
+      } else {
+        eos_static_err("msg=\"balancer update interval invalid value\" "
+                       "input=\"%s\"", svalue.c_str());
+      }
+    } catch (...) {
+      eos_static_err("msg=\"balancer update interval invalid format\" "
+                     "input=\"%s\"", svalue.c_str());
+    }
+  }
+
   return;
 }
 
@@ -175,7 +193,7 @@ FsBalancer::Balance(ThreadAssistant& assistant) noexcept
       continue;
     }
 
-    if (mBalanceStats.NeedsUpdate()) {
+    if (mBalanceStats.NeedsUpdate(mUpdInterval)) {
       eos_static_info("msg=\"update balancer stats\" threshold=%0.2f",
                       mThreshold);
       mBalanceStats.Update(&FsView::gFsView, mThreshold);

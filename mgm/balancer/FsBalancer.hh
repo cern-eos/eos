@@ -120,7 +120,8 @@ private:
   eos::common::ThreadPool mThreadPool; ///< Thread pool for balancing jobs
   unsigned int mMaxQueuedJobs {1000}; ///< Max number of queued jobs
   unsigned int mMaxThreadPoolSize {100}; ///< Max number of threads
-  std::atomic<uint64_t> mRunningJobs {0};
+  std::atomic<uint64_t> mRunningJobs {0}; ///< Number of running jobs
+  std::chrono::seconds mUpdInterval {60}; ///< Balance stats update interval
 
   //----------------------------------------------------------------------------
   //! Update balancer config based on the info registered at the space

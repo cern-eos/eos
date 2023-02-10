@@ -65,9 +65,10 @@ public:
   //----------------------------------------------------------------------------
   //! Decide if an update of the data structures is needed
   //!
+  //! @param upd_interval update interval
   //! @return true if update should be done, otherwise false
   //----------------------------------------------------------------------------
-  bool NeedsUpdate();
+  bool NeedsUpdate(std::chrono::seconds upd_interval);
 
   //----------------------------------------------------------------------------
   //! Get list of balance source and destination file systems to be used for
@@ -118,7 +119,6 @@ private:
   //! Map node FQDN to number of ongoing transfers
   std::map<std::string, unsigned int> mNodeNumTx;
   mutable std::mutex mMutex;
-  std::chrono::seconds mUpdateInterval {60};
 };
 
 EOSMGMNAMESPACE_END

@@ -77,14 +77,14 @@ void FsBalancerStats::Update(eos::mgm::FsView* fs_view, double threshold)
 // Decide if an update of the data structures is needed
 //------------------------------------------------------------------------------
 bool
-FsBalancerStats::NeedsUpdate()
+FsBalancerStats::NeedsUpdate(std::chrono::seconds upd_interval)
 {
   using namespace std::chrono;
   static time_point<system_clock> last_ts = system_clock::now();
 
   // Trigger update if interval elapsed
   if (duration_cast<seconds>(system_clock::now() - last_ts).count()
-      >= mUpdateInterval.count()) {
+      >= upd_interval.count()) {
     last_ts = system_clock::now();
     return true;
   }
