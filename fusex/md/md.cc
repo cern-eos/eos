@@ -250,16 +250,16 @@ metad::lookup(fuse_req_t req, fuse_ino_t parent, const char* name)
     }
 
     // --------------------------------------------------
-    // try to get the meta data record
+    // unlock parent and try to get the meta data record
     // --------------------------------------------------
-    pmd->Locker().UnLock();
+    const std::string pfullpath = (*pmd)()->fullpath();
+    mLock.UnLock();
     md = get(req, inode, "", false, pmd, name);
 
     if (md) {
       md->Locker().Lock();
-      md->store_fullpath(pmd, name);
+      md->store_fullpath(pfullpath, name);
       md->Locker().UnLock();
-      pmd->Locker().Lock();
     } else {
       md = std::make_shared<mdx>();
       (*md)()->set_err(ENOENT);
@@ -637,7 +637,7 @@ metad::getpath(fuse_ino_t ino)
     return "";
   }
 
-  return (*md)()->fullpath();
+  return (*md)()->fullpath().c_str();
 }
 
 /* -------------------------------------------------------------------------- */
@@ -877,7 +877,8 @@ metad::get(fuse_req_t req,
     // a not yet published child entry at the parent.
 
     if (md) {
-      mdmap.retrieveWithParentTS(ino, md, pmd);
+      std::string md_name;
+      mdmap.retrieveWithParentTS(ino, md, pmd, md_name);
       eos_static_info("ino=%08llx pino=%08llx name=%s listing=%d", ino,
                       pmd ? (*pmd)()->id() : 0, name, listing);
 
@@ -889,8 +890,8 @@ metad::get(fuse_req_t req,
       case 2: {
         // we make sure, that the meta data record is attached to the local parent
         if (pmd && (*pmd)()->id()) {
-          std::string encname = eos::common::StringConversion::EncodeInvalidUTF8
-                                ((*md)()->name());
+          std::string encname = eos::common::StringConversion::EncodeInvalidUTF8(
+                                  md_name);
           XrdSysMutexHelper mLock(pmd->Locker());
 
           if (!pmd->local_children().count(encname) &&
@@ -900,8 +901,7 @@ metad::get(fuse_req_t req,
                             encname.c_str(), (*md)()->id(),
                             (*pmd)()->name().c_str(), (*pmd)()->id());
             // persist this hierarchical dependency
-            pmd->local_children()[eos::common::StringConversion::EncodeInvalidUTF8
-                                  ((*md)()->name())] = (*md)()->id();
+            pmd->local_children()[encname] = (*md)()->id();
             update(req, pmd, "", true);
           }
         }
@@ -3764,7 +3764,8 @@ metad::pmap::eraseTS(fuse_ino_t ino)
 
 /* -------------------------------------------------------------------------- */
 void
-metad::pmap::retrieveWithParentTS(fuse_ino_t ino, shared_md& md, shared_md& pmd)
+metad::pmap::retrieveWithParentTS(fuse_ino_t ino, shared_md& md, shared_md& pmd,
+                                  std::string &md_name)
 {
   // Atomically retrieve md objects for an inode, and its parent.
   while (true) {
@@ -3773,6 +3774,7 @@ metad::pmap::retrieveWithParentTS(fuse_ino_t ino, shared_md& md, shared_md& pmd)
     // which locks md first, and then mdmap.
     md.reset();
     pmd.reset();
+    md_name.clear();
     XrdSysMutexHelper mLock(this);
 
     if (!retrieve(ino, md)) {
@@ -3783,6 +3785,7 @@ metad::pmap::retrieveWithParentTS(fuse_ino_t ino, shared_md& md, shared_md& pmd)
     if (md->Locker().CondLock()) {
       // Success!
       retrieve((*md)()->pid(), pmd);
+      md_name = (*md)()->name();
       md->Locker().UnLock();
       return;
     }

@@ -3512,9 +3512,8 @@ EBADF  Invalid directory stream descriptor fi->fh
         if (cmd->deleted()) {
           continue;
         }
-      }
-      stbuf.st_ino = cino;
-      {
+
+        stbuf.st_ino = cino;
         auto attrMap = (*cmd)()->mutable_attr();
 
         if (attrMap->count(k_mdino)) {
@@ -3528,6 +3527,7 @@ EBADF  Invalid directory stream descriptor fi->fh
           }
 
           stbuf.st_ino = local_ino;
+          cLock.UnLock();
           metad::shared_md target = Instance().mds.get(req, local_ino, "", 0, 0, 0,
                                     true);
           mode = (*target)()->mode();
@@ -4509,7 +4509,6 @@ EosFuse::open(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info* fi)
             memset(&e, 0, sizeof(e));
             md->convert(e, pcap->lifetime());
             std::string obfuscation_key = md->obfuscate_key();
-            mLock.UnLock();
             data::data_fh* io = data::data_fh::Instance(Instance().datas.get(req,
                                 (*md)()->id(),
                                 md), md, (mode == U_OK));
@@ -4843,7 +4842,6 @@ The O_NONBLOCK flag was specified, and an incompatible lease was held on the fil
               uint64_t md_ino = (*md)()->md_ino();
               uint64_t md_pino = (*md)()->md_pino();
               std::string cookie = md->Cookie();
-              mLock.UnLock();
               data::data_fh* io = data::data_fh::Instance(Instance().datas.get(req,
                                   (*md)()->id(),
                                   md), md, true);
@@ -4861,6 +4859,8 @@ The O_NONBLOCK flag was specified, and an incompatible lease was held on the fil
               io->hmac.set(obfuscation_key, eoskey);
               io->ioctx()->attach(req, cookie, fi->flags);
             }
+
+            mLock.UnLock();
 
             XrdSysMutexHelper pLock(pmd->Locker());
             pmd->local_enoent().erase(name);
