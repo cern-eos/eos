@@ -37,7 +37,73 @@ EOSNSNAMESPACE_BEGIN
 template<typename ObjectMDPtr,typename LockerType>
 class BulkNsObjectLocker {
 public:
-  BulkNsObjectLocker() {}
+  /**
+   * Inner class that represent the object returned by the BulkNsObjectLocker::lockAll() method
+   * It is just a wrapper around the std::vector. The particularity of this
+   * object is that it guarantees that the elements contained in the vector
+   * will be destructed in the reverse order of their insertion
+   */
+  class LocksVector {
+    using LockPtr = std::unique_ptr<LockerType>;
+    using Vector = std::vector<LockPtr>;
+  public:
+    LocksVector() = default;
+    LocksVector(const LocksVector & other) = delete;
+    LocksVector & operator = (const LocksVector & other) = delete;
+
+    LocksVector(LocksVector && other) {
+      mLocks.reserve(other.size());
+      mLocks = std::move(other.mLocks);
+    }
+    LocksVector & operator=(LocksVector && other) {
+      if(this != &other) {
+        mLocks.reserve(other.size());
+        mLocks = std::move(other.mLocks);
+      }
+      return *this;
+    }
+
+    void push_back(LockPtr && element){
+      mLocks.push_back(std::move(element));
+    }
+    typename Vector::const_iterator begin() const {
+      return mLocks.begin();
+    }
+    typename Vector::iterator begin() {
+      return mLocks.begin();
+    }
+    typename Vector::const_iterator end() const {
+      return mLocks.end();
+    }
+    typename Vector::iterator end() {
+      return mLocks.end();
+    }
+    size_t size() const {
+      return mLocks.size();
+    }
+    LockPtr & operator[](const size_t address) {
+      return mLocks[address];
+    }
+    const LockPtr & operator[](const size_t address) const {
+      return mLocks[address];
+    }
+    ~LocksVector() {
+      deleteVector();
+    }
+
+  private:
+    void deleteVector() {
+      //Reset every unique_ptr in the reverse order of insertion
+      for(auto lockPtr = mLocks.rbegin(); lockPtr != mLocks.rend(); lockPtr++) {
+        lockPtr->reset(nullptr);
+      }
+    }
+
+    Vector mLocks;
+  };
+
+  BulkNsObjectLocker() = default;
+  ~BulkNsObjectLocker() = default;
   /**
    * Adds an object to be locked after lockAll() is called
    * @param object the object to lock
@@ -51,9 +117,9 @@ public:
    * Locks every objects previously added via the add() method
    * @return the vector of locks
    */
-  std::vector<std::unique_ptr<LockerType>> lockAll() {
-    //copy-ellision here
-    std::vector<std::unique_ptr<LockerType>> locks;
+  LocksVector lockAll() {
+    // copy-ellision here
+    LocksVector locks;
     for(auto idNsObject: mMapIdNSObject) {
       locks.push_back(std::make_unique<LockerType>(idNsObject.second));
     }
@@ -61,6 +127,9 @@ public:
   }
 private:
   using Identifier = typename ObjectMDPtr::element_type::identifier_t;
+  // This will be used to ensure that the locking of the
+  // ObjectMDPtr will be done in the ascending order of their Identifier
+  // By the lockAll() method
   std::map<Identifier,ObjectMDPtr> mMapIdNSObject;
 };
 
