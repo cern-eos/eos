@@ -6749,7 +6749,6 @@ EosFuse::setlk(fuse_req_t req, fuse_ino_t ino,
   eos_static_debug("");
   ADD_FUSE_STAT(__func__, req);
   EXEC_TIMING_BEGIN(__func__);
-  Track::Monitor mon("setlk", Instance().Tracker(), ino, true);
   fuse_id id(req);
   int rc = 0;
 
@@ -6766,7 +6765,12 @@ EosFuse::setlk(fuse_req_t req, fuse_ino_t ino,
       do {
         // we currently implement the polling lock on client side due to the
         // thread-per-link model of XRootD
-        rc = Instance().mds.setlk(req, io->mdctx(), lock, sleep);
+
+	{
+	  // take the exlusive lock only during the setlk call, then release
+	  Track::Monitor mon("setlk", Instance().Tracker(), ino, true);
+	  rc = Instance().mds.setlk(req, io->mdctx(), lock, sleep);
+	}
 
         if (rc && sleep) {
           std::this_thread::sleep_for(std::chrono::milliseconds(w_ms));
