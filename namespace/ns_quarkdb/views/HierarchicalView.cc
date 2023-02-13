@@ -1204,7 +1204,7 @@ QuarkHierarchicalView::renameContainer(IContainerMD* container,
 }
 
 //------------------------------------------------------------------------------
-// Rename file
+// Rename file (the file's parent directory and the file should be write locked)
 //------------------------------------------------------------------------------
 void
 QuarkHierarchicalView::renameFile(IFileMD* file, const std::string& newName)
