@@ -47,10 +47,9 @@ public:
   //! Constructor
   //!
   //! @param svc container meta-data service
-  //! @param ns_mutex global namespace view mutex
   //! @param update_interval interval in seconds when updates are propagated
   //----------------------------------------------------------------------------
-  QuarkSyncTimeAccounting(IContainerMDSvc* svc, eos::common::RWMutex* ns_mutex,
+  QuarkSyncTimeAccounting(IContainerMDSvc* svc,
                           uint32_t update_interval = 5);
 
   //----------------------------------------------------------------------------
@@ -136,7 +135,6 @@ private:
   std::atomic<bool> mShutdown; ///< Flag to shutdown async thread
   uint32_t mUpdateIntervalSec; ///< Interval in seconds when updates are pushed
   IContainerMDSvc* mContainerMDSvc; ///< Container meta-data service
-  eos::common::RWMutex* gNsRwMutex; ///< Global(MGM) namespace RW mutex
   INamespaceStats * mNamespaceStats;
 };
 
