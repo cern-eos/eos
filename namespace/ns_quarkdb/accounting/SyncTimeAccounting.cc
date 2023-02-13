@@ -26,11 +26,10 @@ EOSNSNAMESPACE_BEGIN
 // Constructor
 //------------------------------------------------------------------------------
 QuarkSyncTimeAccounting::QuarkSyncTimeAccounting(IContainerMDSvc* svc,
-    eos::common::RWMutex* ns_mutex,
     uint32_t update_interval):
   mAccumulateIndx(0), mCommitIndx(1), mShutdown(false),
   mUpdateIntervalSec(update_interval), mContainerMDSvc(svc),
-  gNsRwMutex(ns_mutex),mNamespaceStats(nullptr)
+  mNamespaceStats(nullptr)
 {
   mBatch.resize(2);
 
