@@ -1,33 +1,40 @@
 #!/bin/bash
 if [ "$1" = "1" ] ; then 
-hasspare=`eos space ls spare`;
-test -z $hasspare || (echo " you have a spare space already defined - stopping this test" && exit -1)
+hasrecover=`eos space ls recover`;
+test -z $hasrecover || (echo " you have a recover space already defined - stopping this test" && exit -1)
 
-eos space define spare 4 4 
+eos space define recover 4 4 
 for name in `seq -w 1 4`; do 
-  mkdir -p /spare/0$name/
-  rm -rf /spare/0$name/.eos*
-  chown daemon:daemon /spare/0$name/
-  eosfstregister -r localhost:1094 /spare/0$name spare:1
+  mkdir -p /_recover/0$name/
+  rm -rf /_recover/0$name/.eos*
+  chown daemon:daemon /_recover/0$name/
+  eosfstregister -r localhost:1094 /_recover/0$name recover:1
 done
-eos space set spare on 
+eos space set recover on 
 
 nbooted=0
 
 while [ $nbooted -ne 4 ] ; do
-    nbooted=`eos fs ls | grep -w spare | grep -w booted | wc -l`
+    nbooted=`eos fs ls | grep -w recover | grep -w booted | wc -l`
     echo "... waiting for 4 booted filesystems - currently $nbooted";
     sleep 1;
 done
 
 eos fs ls -l 
 
-fsarray=(`eos fs ls -m | grep spare | awk '{print $3}' | sed s/id=//g`)
+fsarray=(`eos fs ls -m | grep recover | awk '{print $3}' | sed s/id=//g`)
+
+#eos fs mv --force ${fsarray[0]} recover.0
+eos fs mv --force ${fsarray[1]} recover.0
+eos fs mv --force ${fsarray[2]} recover.0
+eos fs mv --force ${fsarray[3]} recover.0
+
 
 eos mkdir /eos/_recovery_/
 eos attr set default=replica /eos/_recovery_/
-eos attr set sys.forced.space=spare /eos/_recovery_/
+eos attr set sys.forced.space=recover /eos/_recovery_/
 eos attr set sys.forced.nstripes=2 /eos/_recovery_/
+eos recycle config --remove-bin /eos/_recovery_/
 eos chmod 777 /eos/_recovery_/
 eos quota set -p /eos/_recovery_/ -g 99 -i 1M -v 1T
 
@@ -73,14 +80,14 @@ eos fs config ${fsarray[0]} configstatus=rw
 eos fs config ${fsarray[1]} configstatus=rw
 eos fs config ${fsarray[2]} configstatus=ro
 eos fs config ${fsarray[3]} configstatus=ro
-eos fs ls -l spare
+eos fs ls -l recover
 sleep 5
-eos fs ls -l spare
+eos fs ls -l recover
 sleep 5
 echo "[2] uploading half of the file"
 dd if=/var/tmp/recovery.1G of=/recover/recovery.1G bs=1M count=500
 eos file info /eos/_recovery_/recovery.1G
-echo "[3] making one filesystem RO, add a new one as RW"
+echo "[3] making one filesystem RO, add two new one as RW"
 eos fs config ${fsarray[1]} configstatus=ro
 eos fs config ${fsarray[2]} configstatus=rw
 eos fs config ${fsarray[3]} configstatus=rw
@@ -96,11 +103,14 @@ sleep 5
 
 unlink /recover/recovery.1G
 
+sleep 5
+
 fi
 
-fsarray=(`eos fs ls -m | grep spare | awk '{print $3}' | sed s/id=//g`)
+fsarray=(`eos fs ls -m | grep recover | awk '{print $3}' | sed s/id=//g`)
 
-for id in ${fsarray[*]}; do 
+
+for id in ${fsarray[*]}; do
   eos fs dropdeletion $id
   eos fs config $id configstatus=empty
   eos fs rm $id
@@ -110,7 +120,7 @@ done
 
 test -e /recover && umount -fl /recover/
 test -e /recover/ && rmdir /recover/
-rm -rf /spare/*
+rm -rf /_recover/*
 test $rc -eq 0 && echo "info: test succeeded" 
 test $rc -eq 0 || echo "error: test failed" 
 exit $rc
