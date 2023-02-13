@@ -1860,9 +1860,12 @@ Server::OpSetFile(const std::string& id,
             hasVersion = true;
           }
 
-          cpcmd->removeFile(fmd->getName());
-          cpcmd = gOFS->eosDirectoryService->getContainerMD(fmd->getContainerId());
-          gOFS->eosView->updateContainerStore(cpcmd.get());
+	  // store the current filename
+	  std::string removed_name = fmd->getName();
+
+	  // before moving a file in the hierarchy, we first create necessary version on the target in case this
+	  // overwrites an existing file and then we do the hierarchy change
+	  
           fmd->setName(md.name());
           ofmd = pcmd->findFile(md.name());
 
@@ -1946,7 +1949,13 @@ Server::OpSetFile(const std::string& id,
             }
           }
 
+	  // add file to new directory
           pcmd->addFile(fmd.get());
+	  // remove file from previous directory
+	  cpcmd->removeFile(removed_name);
+          cpcmd = gOFS->eosDirectoryService->getContainerMD(fmd->getContainerId());
+	  // persist updates
+          gOFS->eosView->updateContainerStore(cpcmd.get());
           gOFS->eosView->updateFileStore(fmd.get());
           gOFS->eosView->updateContainerStore(pcmd.get());
 
