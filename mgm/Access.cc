@@ -715,14 +715,17 @@ size_t
 Access::ThreadLimit(uid_t uid, bool lock_ns)
 {
   std::string id = "threads:";
+  std::string userid = "threads:";
   id += std::to_string(uid);
+  int errc = 0;
+  userid += eos::common::Mapping::UidToUserName(uid, errc);
   eos::common::RWMutexReadLock access_rd_lock;
 
   if (lock_ns) {
     access_rd_lock.Grab(gAccessMutex);
   }
 
-  if (gStallRules.count(id.c_str())) {
+  if ((gStallRules.count(id.c_str())) || (gStallRules.count(userid.c_str()))) {
     return strtoul(gStallRules[id.c_str()].c_str(), 0, 10);
   } else {
     if (gStallRules.count("threads:*")) {
