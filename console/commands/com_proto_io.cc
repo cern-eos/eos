@@ -197,41 +197,6 @@ bool IoHelper::ParseCommand(const char* arg)
         return false;
       }
     }
-  } else if (token == "limit") {
-    eos::console::IoProto_LimitProto* limit = io->mutable_limit();
-    bool policy=false;
-    while (tokenizer.NextToken(token)) {
-      if (token == "--uid") {
-	policy=true;
-        if (!(tokenizer.NextToken(token))) {
-	  return false;
-        } else {	
-	  limit->set_uid(token);
-	}
-      }
-      if (token == "--gid") {
-	policy=true;
-	if (!(tokenizer.NextToken(token))) {
-	  return false;
-        } else {	
-	  limit->set_gid(token);
-	}
-      }
-      if (token == "--app") {
-	policy=true;
-	if (!(tokenizer.NextToken(token))) {
-	  return false;
-	} else {	
-	  limit->set_app(token);
-	}
-      }
-
-      if (policy) {
-	limit->set_limit(std::strtof(token.c_str(),0));
-      } else {
-	return false;
-      }
-    }	    
   } else { // no proper subcommand
     return false;
   }
