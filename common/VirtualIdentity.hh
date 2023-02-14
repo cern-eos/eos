@@ -59,12 +59,13 @@ struct VirtualIdentity {
   std::string federation;
   std::string scope;
   bool sudoer;
+  bool gateway;
   std::shared_ptr<Token> token;
 
   //----------------------------------------------------------------------------
   //! Constructor - assign to "nobody" by default
   //----------------------------------------------------------------------------
-  VirtualIdentity() : uid(99), gid(99), sudoer(false) {}
+  VirtualIdentity() : uid(99), gid(99), sudoer(false), gateway(false) {}
 
   //----------------------------------------------------------------------------
   //! "Constructor" - return Root identity
@@ -96,6 +97,12 @@ struct VirtualIdentity {
   //! Check if this client is coming from localhost
   //----------------------------------------------------------------------------
   bool isLocalhost() const;
+
+
+  //----------------------------------------------------------------------------
+  //! Check if this client is coming from localhost
+  //----------------------------------------------------------------------------
+  bool isGateway() { return gateway; }
 
   //----------------------------------------------------------------------------
   //! Return user@domain string

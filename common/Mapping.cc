@@ -199,6 +199,7 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
   vid.name = client->name;
   vid.tident = tident;
   vid.sudoer = false;
+  vid.gateway = false;
   // first map by alias
   XrdOucString useralias = client->prot;
   useralias += ":";
@@ -444,6 +445,7 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
         } else {
           Mapping::getPhysicalIdShards(client->name, vid);
         }
+	vid.gateway = true;
       }
     } else {
       eos_static_debug("tident uid forced mapping");
@@ -481,6 +483,7 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
         vid.allowed_uids.clear();
         vid.allowed_uids.insert(uid);
         vid.allowed_uids.insert(99);
+	vid.gateway = true;
       }
     } else {
       eos_static_debug("tident gid forced mapping");
@@ -536,7 +539,8 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
         vid.uid = 99;
         vid.allowed_uids.clear();
         vid.allowed_uids.insert(99);
-
+	vid.gateway = true;
+	
         if (gVirtualUidMap.count(uidkey.c_str())) {
           vid.uid = gVirtualUidMap[uidkey.c_str()];
           vid.allowed_uids.insert(vid.uid);
@@ -601,6 +605,7 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
 
         if (gVirtualUidMap.count(maptident) ||
             gVirtualUidMap.count(wildcardmaptident)) {
+	  vid.gateway = true;
           // if this is an allowed gateway, map according to client name or authkey
           std::string uidkey = "sss:\"";
           uidkey += "key:";
@@ -1841,6 +1846,7 @@ VirtualIdentity Mapping::Someone(uid_t uid, gid_t gid)
   vid.allowed_uids = {uid, 99};
   vid.allowed_gids = {uid, 99};
   vid.sudoer = false;
+  vid.gateway = false;
   vid.uid_string = UidToUserName(uid, errc);
 
   if (!errc) {

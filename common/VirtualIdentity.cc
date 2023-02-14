@@ -43,6 +43,7 @@ VirtualIdentity VirtualIdentity::Root()
   vid.tident = "service@localhost";
   vid.sudoer = false;
   vid.host = "localhost";
+  vid.gateway = false;
   return vid;
 }
 
@@ -58,6 +59,7 @@ VirtualIdentity VirtualIdentity::Nobody()
   vid.allowed_gids = {99};
   vid.name = "nobody";
   vid.sudoer = false;
+  vid.gateway = false;
   vid.tident = "nobody@unknown";
   return vid;
 }

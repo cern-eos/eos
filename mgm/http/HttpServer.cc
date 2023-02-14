@@ -239,9 +239,19 @@ HttpServer::XrdHttpHandler(std::string& method,
 
   // Security enhancement:
   // by default don't allow proxy access because it makes xrdhttp unsafe unless you firewall the port for
-  // non proxy clients
+  // non proxy clients - machines which are gateways can pass x-forwarded-for
   if (!getenv("EOS_XRDHTTP_NGINX_PROXY")) {
-    headers.erase("x-forwarded-for");
+    // check if we are a gateway for https by calling the mapping function for this client
+    vid = new eos::common::VirtualIdentity();
+    if (vid) {
+      eos::common::Mapping::IdMap(&client, "", client.tident, *vid, true);
+      if (!vid->isGateway() || ((vid->prot != "https") && (vid->prot != "http")) ) {
+	headers.erase("x-forwarded-for");
+      }
+      delete vid;
+    } else {
+      headers.erase("x-forwarded-for");
+    }
   }
 
   // Native XrdHttp access
