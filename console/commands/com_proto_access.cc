@@ -409,10 +409,10 @@ void com_access_help()
       << "\t              rate:group:*:<counter>: apply to all groups based on group counter\n"
       << "\t                                      set <frequency> to 0 (zero) to continuously stall the user or group\n"
       << std::endl
-      << "access set limit <frequency> threads:{*,max,<uid>}\n"
-      << "\t                        threads:max : set the maximum number of threads running in parallel for <uid> > 3\n"
-      << "\t                        threads:*   : set the default thread pool limit for all users with <uid> > 3\n"
-      << "\t                      threads:<uid> : set a specific thread pool limit for user <uid>\n"
+      << "access set limit <frequency> threads:{*,max,<uid/username>}\n"
+      << "\t             threads:max            : set the maximum number of threads running in parallel\n"
+      << "\t             threads:*              : set the default thread pool limit for each user\n"
+      << "\t             threads:<uid/username> : set a specific thread pool limit for user <username/uid>\n"
       << std::endl
       << "access set limit <nfiles> rate:user:{name}:FindFiles :\n\tset find query limit to <nfiles> for user {name}\n"
       << std::endl
@@ -434,9 +434,9 @@ void com_access_help()
       << std::endl
       << "access rm limit rate:{user,group}:{name}:<counter> : remove rate limitation\n"
       << std::endl
-      << "access rm limit threads:{max,*,<uid} : remove thread pool limit\n"
+      << "access rm limit threads:{max,*,<uid/username>} : remove thread pool limit\n"
       << std::endl
-      << "access stallhosts add|remove stall|nostall <patterm\n"
+      << "access stallhosts add|remove stall|nostall <pattern>\n"
       << std::endl
       << "access ls [-m] [-n] : print banned,unbanned user,group, hosts\n"
       << "\t -m : output in monitoring format with <key>=<value>\n"
