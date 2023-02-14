@@ -477,7 +477,7 @@ void com_space_help()
       << "space config <space-name> space.drainer.retries=<#>                   : configure the number of retry for the draining process (Valid only for central drain)     [ default=1 ]\n"
       << "space config <space-name> space.drainer.fs.ntx=<#>                    : configure the number of parallel draining transfers per fs (Valid only for central drain) [ default=5 ]\n"
       << "space config <space-name> space.groupbalancer=on|off                  : enable/disable the group balancer [ default=off ]\n"
-      << "space config <space-name> space.groupbalancer.ntx=<ntx>               : configure the number of parallel group balancer jobs [ default=0 ]\n"
+      << "space config <space-name> space.groupbalancer.ntx=<ntx>               : configure the number of parallel group balancer jobs per 10s [ default=10 ]\n"
       << "space config <space-name> space.groupbalancer.engine=<std|minmax>     : configure the groupbalancer engine [ default=std ]\n"
       << "space config <space-name> space.groupbalancer.min_threshold=<v>       : configure the groupbalancer min threshold(%), groups below this will be picked as targets [default=60]\n"
       << "space config <space-name> space.groupbalancer.max_threshold=<v>       : configure the groupbalancer max threshold(%), groups above this will be picked as sources [default=95]\n"

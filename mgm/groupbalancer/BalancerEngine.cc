@@ -133,9 +133,9 @@ std::string BalancerEngine::get_status_str(bool detail, bool monitoring) const
       "\n";
 
   if (detail) {
-    oss << "Groups Over Threshold\n";
+    oss << "Groups Over Threshold (Source Groups)\n";
     oss << generate_table(data.mGroupsOverThreshold) << "\n";
-    oss << "Groups Under Threshold\n";
+    oss << "Groups Under Threshold (Target Groups)\n";
     oss << generate_table(data.mGroupsUnderThreshold) << "\n";
   }
 
