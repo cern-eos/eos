@@ -24,6 +24,7 @@
 #include "gtest/gtest.h"
 #include "mgm/Access.hh"
 #include "mgm/Acl.hh"
+#include "mgm/proc/admin/AccessCmd.hh"
 #include "mgm/auth/AccessChecker.hh"
 #include "namespace/ns_quarkdb/ContainerMD.hh"
 #include "namespace/ns_quarkdb/FileMD.hh"
@@ -273,7 +274,7 @@ TEST_F(MappingTestF, AccessChecker_FileGroupRWX)
                makeIdentity(1111, 2222)));
 }
 
-TEST_F(MappingTestF ,AccessChecker_FileOtherRWX)
+TEST_F(MappingTestF , AccessChecker_FileOtherRWX)
 {
   // file only allows group access - weird, but possible
   IFileMDPtr file = makeFile(5555, 9999, S_IRWXO);
@@ -291,3 +292,16 @@ TEST_F(MappingTestF ,AccessChecker_FileOtherRWX)
               makeIdentity(2222, 3333)));
 }
 
+TEST(Access, ProcessRuleKey)
+{
+  ASSERT_STREQ("", eos::mgm::ProcessRuleKey("threads:").c_str());
+  ASSERT_STREQ("threads:max", eos::mgm::ProcessRuleKey("threads:max").c_str());
+  ASSERT_STREQ("threads:*", eos::mgm::ProcessRuleKey("threads:*").c_str());
+  ASSERT_STREQ("threads:99", eos::mgm::ProcessRuleKey("threads:99").c_str());
+  ASSERT_STREQ("threads:0", eos::mgm::ProcessRuleKey("threads:root").c_str());
+  ASSERT_STREQ("", eos::mgm::ProcessRuleKey("threads:some_random").c_str());
+  ASSERT_STREQ("rate:user:daemon",
+               eos::mgm::ProcessRuleKey("rate:user:daemon").c_str());
+  ASSERT_STREQ("rate:group:daemon",
+               eos::mgm::ProcessRuleKey("rate:group:daemon").c_str());
+}

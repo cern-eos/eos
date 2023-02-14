@@ -68,7 +68,7 @@ std::map<std::string, std::string> Access::gStallRules;
 //! singleton map for stall comments
 std::map<std::string, std::string> Access::gStallComment;
 
-//! indicates a list of hostname matching                                                                                                                                                          
+//! indicates a list of hostname matching
 std::set<std::string> Access::gStallHosts;
 
 //! indicates a list of hostname matching                                                                                                                                                          a
@@ -158,7 +158,7 @@ Access::Reset(bool skip_stall_redirect)
   Access::gAllowedTokens.clear();
   Access::gStallHosts.clear();
   Access::gNoStallHosts.clear();
-  
+
   if (skip_stall_redirect == false) {
     Access::gRedirectionRules.clear();
     Access::gStallRules.clear();
@@ -311,7 +311,7 @@ Access::ApplyAccessConfig(bool applyredirectandstall)
       Access::gNoStallHosts.insert(tokens[i]);
     }
   }
-  
+
   tokens.clear();
   delimiter = ",";
   eos::common::StringConversion::Tokenize(stall, tokens, delimiter);
@@ -473,7 +473,7 @@ Access::StoreAccessConfig()
     stallhosts += itstallhosts->c_str();
     stallhosts += ":";
   }
-  
+
   for (itnostallhosts = Access::gNoStallHosts.begin();
        itnostallhosts != Access::gNoStallHosts.end(); itnostallhosts++) {
     nostallhosts += itnostallhosts->c_str();
@@ -536,7 +536,6 @@ Access::StoreAccessConfig()
   std::string takey = gAllowedTokenKey;
   std::string shkey = gStallHostsKey;
   std::string nshkey = gNoStallHostsKey;
-  
   bool ok = 1;
   ok &= FsView::gFsView.SetGlobalConfig(ukey, userval);
   ok &= FsView::gFsView.SetGlobalConfig(gkey, groupval);
@@ -714,18 +713,14 @@ Access::RemoveStallRule(const std::string& key)
 size_t
 Access::ThreadLimit(uid_t uid, bool lock_ns)
 {
-  std::string id = "threads:";
-  std::string userid = "threads:";
-  id += std::to_string(uid);
-  int errc = 0;
-  userid += eos::common::Mapping::UidToUserName(uid, errc);
+  std::string id = "threads:" + std::to_string(uid);
   eos::common::RWMutexReadLock access_rd_lock;
 
   if (lock_ns) {
     access_rd_lock.Grab(gAccessMutex);
   }
 
-  if ((gStallRules.count(id.c_str())) || (gStallRules.count(userid.c_str()))) {
+  if (gStallRules.count(id.c_str())) {
     return strtoul(gStallRules[id.c_str()].c_str(), 0, 10);
   } else {
     if (gStallRules.count("threads:*")) {
@@ -764,35 +759,40 @@ Access::CanStall(const char* host)
   // you should have this lock   eos::common::RWMutexReadLock access_rd_lock(gAccessMutex);
   if (gStallHosts.size()) {
     // white list behaviour
-    for ( auto rules:gStallHosts ) {
+    for (auto rules : gStallHosts) {
       regex_t regex;
+
       if (!regcomp(&regex, rules.c_str(), REG_ICASE | REG_EXTENDED | REG_NOSUB)) {
-	if (!regexec(&regex, host, 0, NULL, 0)) {
-	  regfree(&regex);
-	  return true;
-	} else {
-	  regfree(&regex);
-	}
+        if (!regexec(&regex, host, 0, NULL, 0)) {
+          regfree(&regex);
+          return true;
+        } else {
+          regfree(&regex);
+        }
       }
     }
+
     return false;
   }
-  
+
   if (gNoStallHosts.size()) {
     // black list haviour
-    for ( auto rules:gNoStallHosts ) {
+    for (auto rules : gNoStallHosts) {
       regex_t regex;
+
       if (!regcomp(&regex, rules.c_str(), REG_ICASE | REG_EXTENDED | REG_NOSUB)) {
-	if (!regexec(&regex, host, 0, NULL, 0)) {
-	  regfree(&regex);
-	  return false;
-	} else {
-	  regfree(&regex);
-	}
+        if (!regexec(&regex, host, 0, NULL, 0)) {
+          regfree(&regex);
+          return false;
+        } else {
+          regfree(&regex);
+        }
       }
     }
+
     return true;
   }
+
   return true;
 }
 

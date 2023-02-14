@@ -28,10 +28,22 @@
 
 EOSMGMNAMESPACE_BEGIN
 
+
+//------------------------------------------------------------------------------
+//! Process a rule key by converting the given username to a uid if necessary
+//!
+//! @param key input key
+//!
+//! @return processed key to be used internally by the MGM
+//------------------------------------------------------------------------------
+std::string ProcessRuleKey(const std::string& key);
+
+
 //------------------------------------------------------------------------------
 //! Class AccessCmd - class handling config commands
 //------------------------------------------------------------------------------
-class AccessCmd: public IProcCommand {
+class AccessCmd: public IProcCommand
+{
 public:
   //----------------------------------------------------------------------------
   //! Constructor
@@ -41,7 +53,7 @@ public:
   //----------------------------------------------------------------------------
   explicit AccessCmd(eos::console::RequestProto&& req,
                      eos::common::VirtualIdentity& vid)
-      : IProcCommand(std::move(req), vid, false)
+    : IProcCommand(std::move(req), vid, false)
   {
   }
 
@@ -127,7 +139,7 @@ private:
   //! @param reply reply proto object
   //----------------------------------------------------------------------------
   void StallhostsSubcmd(const eos::console::AccessProto_StallHostsProto& stall,
-                     eos::console::ReplyProto& reply);
+                        eos::console::ReplyProto& reply);
 
   void aux(const string& sid,
            std::ostringstream& std_out, std::ostringstream& std_err,
