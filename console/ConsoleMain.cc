@@ -547,10 +547,12 @@ client_command(XrdOucString& in, bool is_admin, std::string* reply)
     in += "&eos.rgid=";
     in += group_role;
   } else {
-    if (getegid()) {
-      // add the current effective group ID as a wish to the request, but not root!
-      in += "&eos.rgid=";
-      in += std::to_string(getegid()).c_str();
+    if (getenv("EOS_NEWGRP")) {
+      if (getegid()) {
+	// add the current effective group ID as a wish to the request, but not root!
+	in += "&eos.rgid=";
+	in += std::to_string(getegid()).c_str();
+      }
     }
   }
 
@@ -751,6 +753,9 @@ usage()
           "            EOS_MGM_URL                         : sets the redirector URL - if ipc://[ipc-path] is used, it will talk via ZMQ messaging to a single dedicated thread in the MGM\n");
   fprintf(stderr,
           "            EOS_HISTORY_FILE                    : sets the command history file - by default '$HOME/.eos_history' is used\n\n");
+
+  fprintf(stderr,
+	  "            EOS_NEWGRP                          : requests for each command the group ID of the current shell\n");
   fprintf(stderr,
           "            EOS_PWD_FILE                        : sets the file where the last working directory is stored- by default '$HOME/.eos_pwd\n\n");
   fprintf(stderr,
