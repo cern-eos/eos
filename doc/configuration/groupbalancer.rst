@@ -87,14 +87,17 @@ The ``max_file_size`` and ``min_file_size`` parameter decides the size of files
 to be picked for transfer. The ``file_attempts`` is the number of attempts the
 random picker will use to try to find a file within those sizes. For really
 sparse file systems, where the probability of finding a file within the size
-might be lower, it is possible to tweak this number. The number of
-concurrent transfers to schedule is defined via the **groupbalancer.ntx** space
-variable:
+might be lower, it is possible to tweak this number. The number of concurrent
+transfers to schedule is defined via the **groupbalancer.ntx** space variable,
+this is the number of transfers in every cycle of groupbalancer scheduling,
+which is every 10s. Hence it is recommended to set a min value in the hundreds
+or around 1000 (and watch the progress occasionally with eos io stat) if the
+groups are really unbalanced:
 
 .. code-block:: bash
 
    # schedule 10 transfers in parallel
-   eos space config default space.groupbalancer.ntx=10
+   eos space config default space.groupbalancer.ntx=1000
 
 Configure the groupbalancer engine:
 
