@@ -28,7 +28,8 @@ EOSMGMNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 // Update statistics with information from the group and file systems stats
 //------------------------------------------------------------------------------
-void FsBalancerStats::Update(eos::mgm::FsView* fs_view, double threshold)
+void
+FsBalancerStats::UpdateInfo(eos::mgm::FsView* fs_view, double threshold)
 {
   std::set<std::string> grp_to_remove;
   std::set<std::string> grp_to_update;
@@ -40,7 +41,10 @@ void FsBalancerStats::Update(eos::mgm::FsView* fs_view, double threshold)
 
     if (it != mGrpToMaxDev.end()) {
       // Check against the cached value
-      if (std::floor(mGrpToMaxDev[elem.first]) != std::floor(elem.second)) {
+      eos_static_info("msg=\"compare group usage\" group=%s current=%0.2f new=%0.2f",
+                      elem.first.c_str(), it->second, elem.second);
+
+      if (std::floor(it->second) != std::floor(elem.second)) {
         grp_to_update.insert(elem.first);
       }
     } else {
@@ -65,9 +69,9 @@ void FsBalancerStats::Update(eos::mgm::FsView* fs_view, double threshold)
   }
 
   for (const auto& grp : grp_to_update) {
-    mGrpToMaxDev.emplace(grp, grp_dev[grp]);
+    mGrpToMaxDev[grp] = grp_dev[grp];
     //@todo(esindril) decide on a good threshold value
-    mGrpToPrioritySets.emplace(grp, fs_view->GetFsToBalance(grp, 5));
+    mGrpToPrioritySets[grp] = fs_view->GetFsToBalance(grp, 5);
   }
 
   return;

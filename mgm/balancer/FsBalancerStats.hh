@@ -38,13 +38,14 @@ using VectBalanceFs = std::vector<std::pair<std::set<FsBalanceInfo>,
 //! Class FsBalancerStats is responsible for collecting and computing
 //! statistics based on which the FsBalancer will decide what actions to take.
 //------------------------------------------------------------------------------
-class FsBalancerStats
+class FsBalancerStats: public eos::common::LogId
 {
 public:
   //----------------------------------------------------------------------------
   //! Constructor
   //----------------------------------------------------------------------------
   FsBalancerStats(const std::string& space_name):
+    eos::common::LogId(),
     mSpaceName(space_name)
   {}
 
@@ -60,7 +61,7 @@ public:
   //! @param threshold value for selecting file systems that deviate more than
   //!        this from the average values.
   //----------------------------------------------------------------------------
-  void Update(FsView* fs_view, double threshold);
+  void UpdateInfo(FsView* fs_view, double threshold);
 
   //----------------------------------------------------------------------------
   //! Decide if an update of the data structures is needed

@@ -196,13 +196,11 @@ FsBalancer::Balance(ThreadAssistant& assistant) noexcept
     if (mBalanceStats.NeedsUpdate(mUpdInterval)) {
       eos_static_info("msg=\"update balancer stats\" threshold=%0.2f",
                       mThreshold);
-      mBalanceStats.Update(&FsView::gFsView, mThreshold);
+      mBalanceStats.UpdateInfo(&FsView::gFsView, mThreshold);
       vect_tx = mBalanceStats.GetTxEndpoints();
     }
 
     if (vect_tx.empty()) {
-      eos_static_info("msg=\"no groups to balance\" wait=%is\"",
-                      no_transfers_delay.count());
       assistant.wait_for(no_transfers_delay);
       continue;
     }
@@ -222,7 +220,7 @@ FsBalancer::Balance(ThreadAssistant& assistant) noexcept
         }
 
         if (!mBalanceStats.HasTxSlot(src.mNodeInfo, mTxNumPerNode)) {
-          eos_static_info("msg=\"exhaused transfers slots\" node=%s tx=%lu",
+          eos_static_info("msg=\"exhausted transfers slots\" node=%s tx=%lu",
                           src.mNodeInfo.c_str(), mTxNumPerNode);
           continue;
         }
@@ -236,7 +234,6 @@ FsBalancer::Balance(ThreadAssistant& assistant) noexcept
           break;
         }
 
-        no_slots = false;
         FsBalanceInfo dst;
         const std::string src_node = src.mNodeInfo;
         const auto fid = GetFileToBalance(src, it_current->second, dst);
@@ -246,6 +243,7 @@ FsBalancer::Balance(ThreadAssistant& assistant) noexcept
           continue;
         }
 
+        no_slots = false;
         // Found file and destination file system where to balance it
         eos_static_info("msg=\"balance job\" fxid=%08llx src_fsid=%lu "
                         "dst_fsid=%lu", fid, src.mFsId, dst.mFsId);
@@ -258,15 +256,17 @@ FsBalancer::Balance(ThreadAssistant& assistant) noexcept
           job->UpdateMgmStats();
           FreeTxSlot(fid, src_node, dst_node);
         });
-        ++it_current;
+      }
 
-        if (it_current == vect_tx.end()) {
-          it_current = vect_tx.begin();
-        }
+      ++it_current;
+
+      if (it_current == vect_tx.end()) {
+        it_current = vect_tx.begin();
       }
     } while ((it_current != it_start) && !assistant.terminationRequested());
 
     if (no_slots) {
+      eos_static_info("%s", "msg=\"sleep no slots\"");
       assistant.wait_for(std::chrono::seconds(no_slots_delay));
     }
   }

@@ -233,11 +233,11 @@ TEST(FsBalancerStats, Update)
   // Now test the FsBalancerSTats::Update
   double threshold = 50;
   eos::mgm::FsBalancerStats fsb_stats(space);
-  fsb_stats.Update(&fs_view, threshold);
+  fsb_stats.UpdateInfo(&fs_view, threshold);
   ASSERT_EQ(4, fsb_stats.mGrpToMaxDev.size());
-  fsb_stats.Update(&fs_view, threshold + 10);
+  fsb_stats.UpdateInfo(&fs_view, threshold + 10);
   ASSERT_EQ(3, fsb_stats.mGrpToMaxDev.size());
-  fsb_stats.Update(&fs_view, threshold - 10);
+  fsb_stats.UpdateInfo(&fs_view, threshold - 10);
   ASSERT_EQ(5, fsb_stats.mGrpToMaxDev.size());
 
   for (auto& elem : set_grps) {
