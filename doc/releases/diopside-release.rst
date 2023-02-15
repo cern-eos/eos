@@ -17,6 +17,25 @@ Introduction
 This release is based on XRootD V5.
 
 
+``v5.1.11 Diopside``
+====================
+
+2023-02-15
+
+
+Bug
+----
+
+* [EOS-5516] - Dangling files (possibly) after container is removed
+* [EOS-5520] - eos CLI group resolution changed - INC3372876
+* [EOS-5523] - eosxd recovery failing
+
+Improvement
+------------
+
+* [EOS-5524] - Allow https gateway nodes to provide x-forwarded-for headers
+
+
 ``v5.1.10 Diopside``
 ====================
 
