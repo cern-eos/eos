@@ -163,7 +163,7 @@ eos::mgm::StagerRmCmd::ProcessRequest() noexcept
 
     errInfo.clear();
 
-    if (gOFS->_dropallstripes(path.c_str(), errInfo, root_vid, false) != 0) {
+    if (gOFS->_dropallstripes(path.c_str(), errInfo, root_vid, true) != 0) {
       eos_static_err("msg=\"could not delete all replicas of %s\" reason=\"%s\"",
                      path.c_str(), errInfo.getErrText());
       errStream << "error: could not delete all replicas of '" << path << "'" <<
