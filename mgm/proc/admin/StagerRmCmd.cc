@@ -150,31 +150,15 @@ eos::mgm::StagerRmCmd::ProcessRequest() noexcept
       continue;
     }
 
-    // check eviction counter must reach zero for file to be deleted
-    int evictionCounter = 0;
-
+    // Clear the eviction counter
     try {
       eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
       auto fmd = gOFS->eosView->getFile(path.c_str());
-
-      if (fmd->hasAttribute(eos::common::RETRIEVE_EVICT_COUNTER_NAME)) {
-        evictionCounter = std::stoi(fmd->getAttribute(
-                                      eos::common::RETRIEVE_EVICT_COUNTER_NAME));
-      }
-
-      eosLog.addParam(EosCtaReportParam::STAGERRM_EVICTCOUNTER, evictionCounter);
-      evictionCounter = std::max(0, evictionCounter - 1);
-      fmd->setAttribute(eos::common::RETRIEVE_EVICT_COUNTER_NAME,
-                        std::to_string(evictionCounter));
       gOFS->eosView->updateFileStore(fmd.get());
+      fmd->removeAttribute(eos::common::RETRIEVE_EVICT_COUNTER_NAME);
     } catch (eos::MDException& ex) {
-      eos_static_err("msg=\"could not update eviction counter for file %s\"",
+      eos_static_err("msg=\"could not remove eviction counter for evicted file %s\"",
                      path.c_str());
-    }
-
-    if (evictionCounter > 0) {
-      eosLog.addParam(EosCtaReportParam::STAGERRM_FILEREMOVED, false);
-      continue;
     }
 
     errInfo.clear();
