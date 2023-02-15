@@ -30,7 +30,7 @@ static void BM_Scheduler(benchmark::State& state) {
   using namespace eos::mgm::placement;
   auto n_groups = state.range(0);
   auto n_elements = n_groups + 101;
-  const int n_disks_per_group = 12;
+  const int n_disks_per_group = 16;
   ClusterMgr mgr;
   {
 
@@ -62,17 +62,17 @@ static void BM_Scheduler(benchmark::State& state) {
 static void BM_ThreadLocalRRScheduler(benchmark::State& state) {
   using namespace eos::mgm::placement;
   auto n_groups = state.range(0);
-  auto n_elements = n_groups + 101;
-  const int n_disks_per_group = 12;
+  auto n_elements = 1024;
+  const int n_disks_per_group = 16;
   ClusterMgr mgr;
   {
 
     auto sh = mgr.getStorageHandler(n_elements);
     sh.addBucket(get_bucket_type(StdBucketType::ROOT), 0);
-    sh.addBucket(get_bucket_type(StdBucketType::SITE), -1, 0);
+    //sh.addBucket(get_bucket_type(StdBucketType::SITE), -1, 0);
 
     for (int i=0; i< n_groups; ++i) {
-      sh.addBucket(get_bucket_type(StdBucketType::GROUP), -100-i, -1);
+      sh.addBucket(get_bucket_type(StdBucketType::GROUP), -100-i, 0);
     }
 
     for (int i=0; i < n_groups*n_disks_per_group; i++) {
