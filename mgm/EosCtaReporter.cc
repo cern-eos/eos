@@ -61,10 +61,11 @@ static const std::map<EosCtaReportParam, std::string> EosCtaParamMap{
   {EosCtaReportParam::PREP_WFE_ACTIVITY    , "activity"    },
   {EosCtaReportParam::PREP_WFE_ERROR       , "error"       },
 
-  // StagerRm params
-  {EosCtaReportParam::STAGERRM_EVICTCOUNTER, "evictcounter"},
-  {EosCtaReportParam::STAGERRM_FILEREMOVED , "fileremoved" },
-  {EosCtaReportParam::STAGERRM_ERROR       , "error"       },
+  // Evict cmd params
+  {EosCtaReportParam::EVICTCMD_EVICTCOUNTER, "evictcounter"},
+  {EosCtaReportParam::EVICTCMD_FILEREMOVED, "fileremoved" },
+  {EosCtaReportParam::EVICTCMD_ERROR, "error"       },
+  {EosCtaReportParam::EVICTCMD_FSID, "fsid"        },
 
   // File deletion params
   {EosCtaReportParam::FILE_DEL_FID                  , "fid"                  },
@@ -117,11 +118,11 @@ EosCtaReporterPrepareWfe::DEFAULT_PARAMS_PREPARE_WFE{
   EosCtaReportParam::PREP_WFE_ERROR,
 };
 
-// StagerRm mParams
-std::vector<EosCtaReportParam> EosCtaReporterStagerRm::DEFAULT_PARAMS_STAGERRM{
-  EosCtaReportParam::STAGERRM_EVICTCOUNTER,
-  EosCtaReportParam::STAGERRM_FILEREMOVED,
-  EosCtaReportParam::STAGERRM_ERROR,
+// Evict cmd mParams
+std::vector<EosCtaReportParam> EosCtaReporterEvict::DEFAULT_PARAMS_EVICTCMD{
+  EosCtaReportParam::EVICTCMD_EVICTCOUNTER,
+  EosCtaReportParam::EVICTCMD_FILEREMOVED,
+  EosCtaReportParam::EVICTCMD_ERROR,
 };
 
 // File deletion mParams
@@ -186,9 +187,9 @@ EosCtaReporterPrepareWfe::EosCtaReporterPrepareWfe()
   }
 }
 
-EosCtaReporterStagerRm::EosCtaReporterStagerRm()
+EosCtaReporterEvict::EosCtaReporterEvict()
 {
-  for (auto key : DEFAULT_PARAMS_STAGERRM) {
+  for (auto key : DEFAULT_PARAMS_EVICTCMD) {
     mParams[key] = "";
   }
 }

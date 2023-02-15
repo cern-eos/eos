@@ -113,6 +113,7 @@ extern int com_status(char*);
 extern int com_silent(char*);
 extern int com_proto_space(char*);
 extern int com_stagerrm(char*);
+extern int com_evict(char*);
 extern int com_stat(char*);
 extern int com_squash(char*);
 extern int com_test(char*);
@@ -196,6 +197,7 @@ COMMAND commands[] = {
   { (char*) "status", com_status, (char*) "Display status information on an MGM"},
   { (char*) "space", com_proto_space, (char*) "Space configuration"},
   { (char*) "stagerrm", com_stagerrm, (char*) "Remove disk replicas of a file if it has tape replicas"},
+  { (char*) "evict", com_evict, (char*) "Evict disk replicas of a file if it has tape replicas"},
   { (char*) "stat", com_stat, (char*) "Run 'stat' on a file or directory"},
   { (char*) "squash", com_squash, (char*) "Run 'squashfs' utility function"},
   { (char*) "test", com_test, (char*) "Run performance test"},

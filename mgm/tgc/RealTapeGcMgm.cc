@@ -22,7 +22,7 @@
  ************************************************************************/
 
 #include "common/ShellCmd.hh"
-#include "mgm/proc/admin/StagerRmCmd.hh"
+#include "mgm/proc/admin/EvictCmd.hh"
 #include "mgm/FsView.hh"
 #include "mgm/Policy.hh"
 #include "mgm/tgc/Constants.hh"
@@ -272,17 +272,18 @@ std::uint64_t RealTapeGcMgm::getFileSizeBytes(const IFileMD::id_t fid)
 }
 
 //----------------------------------------------------------------------------
-// Execute stagerrm as user root
+// Execute evict as user root
 //----------------------------------------------------------------------------
 void
-RealTapeGcMgm::stagerrmAsRoot(const IFileMD::id_t fid)
+RealTapeGcMgm::evictAsRoot(const IFileMD::id_t fid)
 {
   eos::common::VirtualIdentity rootVid = eos::common::VirtualIdentity::Root();
   eos::console::RequestProto req;
-  eos::console::StagerRmProto* stagerRm = req.mutable_stagerrm();
-  auto file = stagerRm->add_file();
+  eos::console::EvictProto* evict = req.mutable_evict();
+  evict->set_force(true);
+  auto file = evict->add_file();
   file->set_fid(fid);
-  StagerRmCmd cmd(std::move(req), rootVid);
+  EvictCmd cmd(std::move(req), rootVid);
   auto const result = cmd.ProcessRequest();
 
   if (result.retc()) {

@@ -110,6 +110,7 @@ add_library(EosConsoleCommands-Objects OBJECT
   commands/com_proto_qos.cc
   commands/com_proto_route.cc
   commands/com_stagerrm.cc
+  commands/com_evict.cc
   commands/com_proto_ns.cc
   commands/com_proto_debug.cc
   commands/com_proto_df.cc

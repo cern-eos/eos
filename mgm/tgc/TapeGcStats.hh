@@ -46,17 +46,16 @@ struct TapeGcStats {
   //----------------------------------------------------------------------------
   //! Constructor.
   //----------------------------------------------------------------------------
-  TapeGcStats():
-    nbStagerrms(0),
+  TapeGcStats(): nbEvicts(0),
     lruQueueSize(0),
     queryTimestamp(0) {
   }
 
   //----------------------------------------------------------------------------
-  //! Number of files successfully stagerrm'ed since TapeGc started.
+  //! Number of files successfully evicted since TapeGc started.
   //! This value is Zero in the case of an error.
   //----------------------------------------------------------------------------
-  std::uint64_t nbStagerrms;
+  std::uint64_t nbEvicts;
 
   //----------------------------------------------------------------------------
   //! Size of the LRU queue.  This value is Zero in the case of an error.

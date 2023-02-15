@@ -35,7 +35,7 @@
 #include "mgm/proc/admin/NsCmd.hh"
 #include "mgm/proc/admin/QuotaCmd.hh"
 #include "mgm/proc/admin/SpaceCmd.hh"
-#include "mgm/proc/admin/StagerRmCmd.hh"
+#include "mgm/proc/admin/EvictCmd.hh"
 #include "mgm/proc/admin/FileRegisterCmd.hh"
 #include "mgm/proc/user/AclCmd.hh"
 #include "mgm/proc/user/DfCmd.hh"
@@ -233,7 +233,11 @@ ProcInterface::HandleProtobufRequest(eos::console::RequestProto& req,
     break;
 
   case RequestProto::kStagerRm:
-    cmd.reset(new StagerRmCmd(std::move(req), vid));
+    cmd.reset(new EvictCmd(std::move(req), vid));
+    break;
+
+  case RequestProto::kEvict:
+    cmd.reset(new EvictCmd(std::move(req), vid));
     break;
 
   case RequestProto::kRoute:
@@ -442,6 +446,7 @@ ProcInterface::ProtoIsWriteAccess(const char* opaque)
   // always true
   case RequestProto::kRm:
   case RequestProto::kStagerRm:
+  case RequestProto::kEvict:
   default:
     return true;
   }

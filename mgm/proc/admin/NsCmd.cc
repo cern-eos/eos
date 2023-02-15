@@ -434,12 +434,12 @@ NsCmd::StatSubcmd(const eos::console::NsProto_StatProto& stat,
       const auto tgcStats = gOFS->mTapeGc->getStats();
 
       if (!tgcStats.empty()) {
-        oss << "uid=all gid=all tgc.stats=stagerrms";
+        oss << "uid=all gid=all tgc.stats=evicts";
 
         for (auto itor = tgcStats.begin(); itor != tgcStats.end(); itor++) {
           const std::string& tgcSpace = itor->first;
           const tgc::TapeGcStats& tgcSpaceStats = itor->second;
-          oss << " " << tgcSpace << "=" << tgcSpaceStats.nbStagerrms;
+          oss << " " << tgcSpace << "=" << tgcSpaceStats.nbEvicts;
         }
 
         oss << std::endl;
@@ -641,12 +641,12 @@ NsCmd::StatSubcmd(const eos::console::NsProto_StatProto& stat,
       const auto tgcStats = gOFS->mTapeGc->getStats();
 
       if (!tgcStats.empty()) {
-        oss << "ALL      tgc.stats=stagerrms             ";
+        oss << "ALL      tgc.stats=evicts             ";
 
         for (auto itor = tgcStats.begin(); itor != tgcStats.end(); itor++) {
           const std::string& tgcSpace = itor->first;
           const tgc::TapeGcStats& tgcSpaceStats = itor->second;
-          oss << " " << tgcSpace << "=" << tgcSpaceStats.nbStagerrms;
+          oss << " " << tgcSpace << "=" << tgcSpaceStats.nbEvicts;
         }
 
         oss << std::endl;

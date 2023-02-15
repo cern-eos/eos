@@ -1,0 +1,19 @@
+syntax="proto3";
+package eos.console;
+
+message EvictProto {
+  message FileProto {
+    oneof File {
+      string Path = 1;
+      uint64 Fid = 2;
+    }
+  }
+
+  message EvictSingleReplicaProto {
+    uint64 fsid = 1;
+  }
+
+  repeated FileProto File = 1;
+  EvictSingleReplicaProto evictSingleReplica = 2;
+  bool force = 3;
+}

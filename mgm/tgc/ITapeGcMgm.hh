@@ -102,11 +102,11 @@ public:
   virtual bool fileInNamespaceAndNotScheduledForDeletion(IFileMD::id_t fid) = 0;
 
   //----------------------------------------------------------------------------
-  //! Execute stagerrm as user root
+  //! Execute evict as user root
   //!
   //! @param fid The file identifier
   //----------------------------------------------------------------------------
-  virtual void stagerrmAsRoot(const IFileMD::id_t fid) = 0;
+  virtual void evictAsRoot(const IFileMD::id_t fid) = 0;
 
   //----------------------------------------------------------------------------
   //! @return Map from file system ID to EOS space name

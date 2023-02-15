@@ -37,7 +37,7 @@
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/EosCtaReporter.hh"
 #include "mgm/CtaUtils.hh"
-#include "mgm/proc/admin/StagerRmCmd.hh"
+#include "mgm/proc/admin/EvictCmd.hh"
 #include "namespace/interface/IView.hh"
 #include "namespace/Prefetcher.hh"
 #include "namespace/utils/Checksum.hh"
@@ -2152,9 +2152,7 @@ WFE::Job::HandleProtoMethodEvictPrepareEvent(const std::string& fullPath,
         " msg=\"Cannot determine file and disk replicas, not doing the evict. Reason: "
         << errInfo.getErrText() << "\"";
     eos_static_err(msg.str().c_str());
-    eosLog
-    .addParam(EosCtaReportParam::PREP_WFE_SENTTOCTA, false)
-    .addParam(EosCtaReportParam::PREP_WFE_ERROR, msg.str());
+    eosLog.addParam(EosCtaReportParam::PREP_WFE_ERROR, msg.str());
     MoveWithResults(EAGAIN);
     return EAGAIN;
   }
@@ -2163,38 +2161,31 @@ WFE::Job::HandleProtoMethodEvictPrepareEvent(const std::string& fullPath,
     std::ostringstream msg;
     msg << preamble.str() << " msg=\"File is not on disk, nothing to evict.\"";
     eos_static_info(msg.str().c_str());
-    eosLog.addParam(EosCtaReportParam::PREP_WFE_SENTTOCTA, false);
   } else if (!onTape) {
     std::ostringstream msg;
     msg << preamble.str() << " msg=\"File is not on tape, cannot evict it.\"";
     eos_static_err(msg.str().c_str());
-    eosLog
-    .addParam(EosCtaReportParam::PREP_WFE_SENTTOCTA, false)
-    .addParam(EosCtaReportParam::PREP_WFE_ERROR, msg.str());
+    eosLog.addParam(EosCtaReportParam::PREP_WFE_ERROR, msg.str());
     MoveWithResults(ENODATA);
     return ENODATA;
   } else {
-    const auto result = StagerrmAsRoot(mFid);
-
+    const auto result = EvictAsRoot(mFid);
     if (0 == result.retc()) {
       std::ostringstream msg;
       msg << preamble.str() <<
-          " msg=\"Successfully issued stagerrm for evict_prepare event\"";
+          " msg=\"Successfully issued evict for evict_prepare event\"";
       eos_static_info(msg.str().c_str());
     } else {
       std::ostringstream msg;
       msg << preamble.str() <<
-          " msg=\"Failed to issue stagerrm for evict_prepare event\"";
+          " msg=\"Failed to issue evict for evict_prepare event\"";
       eos_static_info(msg.str().c_str());
-      eosLog
-      .addParam(EosCtaReportParam::PREP_WFE_SENTTOCTA, false)
-      .addParam(EosCtaReportParam::PREP_WFE_ERROR, msg.str());
+      eosLog.addParam(EosCtaReportParam::PREP_WFE_ERROR, msg.str());
       MoveWithResults(EAGAIN);
       return EAGAIN;
     }
   }
 
-  eosLog.addParam(EosCtaReportParam::PREP_WFE_SENTTOCTA, true);
   MoveWithResults(SFS_OK);
   EXEC_TIMING_END("Proto::EvictPrepare");
   return SFS_OK;
@@ -2567,7 +2558,7 @@ WFE::Job::HandleProtoMethodArchivedEvent(const std::string& event,
       errInfo.clear();
 
       if (dropAllStripes &&
-          gOFS->_dropallstripes(fullPath.c_str(), errInfo, root_vid, false) != 0) {
+          gOFS->_dropallstripes(fullPath.c_str(), errInfo, root_vid, true) != 0) {
         eos_static_err("Could not delete all file replicas of %s. Reason: %s",
                        fullPath.c_str(), errInfo.getErrText());
         MoveToRetry(fullPath);
@@ -2852,14 +2843,14 @@ WFE::Job::SendProtoWFRequest(Job* jobPtr, const std::string& fullPath,
 }
 
 console::ReplyProto
-WFE::Job::StagerrmAsRoot(const eos::IFileMD::id_t fid)
+WFE::Job::EvictAsRoot(const eos::IFileMD::id_t fid)
 {
   eos::common::VirtualIdentity rootVid = eos::common::VirtualIdentity::Root();
   eos::console::RequestProto req;
-  eos::console::StagerRmProto* stagerRm = req.mutable_stagerrm();
-  auto file = stagerRm->add_file();
+  eos::console::EvictProto* evict = req.mutable_evict();
+  auto file = evict->add_file();
   file->set_fid(fid);
-  StagerRmCmd cmd(std::move(req), rootVid);
+  EvictCmd cmd(std::move(req), rootVid);
   return cmd.ProcessRequest();
 }
 

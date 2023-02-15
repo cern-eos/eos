@@ -99,11 +99,11 @@ public:
   bool fileInNamespaceAndNotScheduledForDeletion(IFileMD::id_t fid) override;
 
   //----------------------------------------------------------------------------
-  //! Execute stagerrm as user root
+  //! Execute evict as user root
   //!
   //! @param fid The file identifier
   //----------------------------------------------------------------------------
-  void stagerrmAsRoot(IFileMD::id_t fid) override;
+  void evictAsRoot(const IFileMD::id_t fid) override;
 
   //----------------------------------------------------------------------------
   //! @return Map from file system ID to EOS space name

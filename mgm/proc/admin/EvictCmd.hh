@@ -1,5 +1,5 @@
 //------------------------------------------------------------------------------
-// File: StagerRmCmd.hh
+// File: EvictCmd.hh
 // Author: Jozsef Makai - CERN
 //------------------------------------------------------------------------------
 
@@ -30,7 +30,7 @@
 
 EOSMGMNAMESPACE_BEGIN
 
-class StagerRmCmd : public IProcCommand
+class EvictCmd : public IProcCommand
 {
 public:
 //----------------------------------------------------------------------------
@@ -39,20 +39,24 @@ public:
   //! @param req client ProtocolBuffer request
   //! @param vid client virtual identity
   //----------------------------------------------------------------------------
-  StagerRmCmd(eos::console::RequestProto&& req,
+  EvictCmd(eos::console::RequestProto&& req,
               eos::common::VirtualIdentity& vid):
     IProcCommand(std::move(req), vid, true) {}
 
   //----------------------------------------------------------------------------
   //! Destructor
   //----------------------------------------------------------------------------
-  ~StagerRmCmd() override = default;
+  ~EvictCmd() override = default;
 
   //----------------------------------------------------------------------------
   //! Method implementing the specific behaviour of the command executed by the
   //! asynchronous thread
   //----------------------------------------------------------------------------
   eos::console::ReplyProto ProcessRequest() noexcept override;
+
+private:
+  // TODO: Remove this function once StagerRm command is deprecated
+  eos::console::RequestProto convertStagerRmToEvict(const eos::console::RequestProto & req, std::ostringstream & errStream, int & ret_c);
 };
 
 EOSMGMNAMESPACE_END
