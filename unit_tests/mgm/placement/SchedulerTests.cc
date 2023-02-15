@@ -426,6 +426,47 @@ TEST(FlatScheduler, TLSingleSite)
   ASSERT_TRUE(result.is_valid_placement(2));
 }
 
+TEST(FlatScheduler, TLNoSite)
+{
+   using namespace eos::mgm::placement;
+  eos::mgm::placement::ClusterMgr mgr;
+  int n_elements = 1024;
+  int n_disks_per_group = 16;
+  int n_groups = 32;
+  eos::mgm::placement::FlatScheduler flat_scheduler(PlacementStrategyT::kThreadLocalRoundRobin,
+                                                    2048);
+
+  {
+
+    auto sh = mgr.getStorageHandler(n_elements);
+    ASSERT_TRUE(sh.addBucket(get_bucket_type(StdBucketType::ROOT), 0));
+    for (int i=0; i< n_groups; ++i) {
+      ASSERT_TRUE(sh.addBucket(get_bucket_type(StdBucketType::GROUP), -100-i, 0));
+    }
+
+    for (int i=0; i < n_groups*n_disks_per_group; i++) {
+      ASSERT_TRUE(sh.addDisk(Disk(i+1, DiskStatus::kRW, 1),
+                             -100 - i/n_disks_per_group));
+    }
+
+  }
+  auto cluster_data = mgr.getClusterData();
+  EXPECT_EQ(cluster_data->disks.size(), 32*16);
+  EXPECT_EQ(cluster_data->buckets.size(), n_elements);
+  auto root_bucket = cluster_data->buckets[0];
+  EXPECT_EQ(root_bucket.items.size(), n_groups);
+  for (auto it: root_bucket.items) {
+    EXPECT_EQ(cluster_data->buckets.at(-it).items.size(), n_disks_per_group);
+  }
+
+  for (int i = 0; i < 1000; i++) {
+    auto result = flat_scheduler.schedule(cluster_data(), {2});
+    ASSERT_TRUE(result);
+    ASSERT_TRUE(result.is_valid_placement(2));
+  }
+}
+
+
 TEST(ClusterMap, Concurrency)
 {
   using namespace eos::mgm::placement;
