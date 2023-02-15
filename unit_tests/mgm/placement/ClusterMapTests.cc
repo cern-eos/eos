@@ -249,3 +249,36 @@ TEST(ClusterMgr, StorageHandlerDisksOutOfOrder)
   EXPECT_EQ(group_bucket3.bucket_type, get_bucket_type(StdBucketType::GROUP));
   EXPECT_EQ(group_bucket3.items, group_items3);
 }
+
+TEST(ClusterMgr, BM_Layout)
+{
+  using namespace eos::mgm::placement;
+  eos::mgm::placement::ClusterMgr mgr;
+  int n_elements = 1024;
+  int n_disks_per_group = 16;
+  int n_groups = 32;
+  {
+
+    auto sh = mgr.getStorageHandler(n_elements);
+    ASSERT_TRUE(sh.addBucket(get_bucket_type(StdBucketType::ROOT), 0));
+    //ASSERT_TRUE(sh.addBucket(get_bucket_type(StdBucketType::SITE), -1, 0));
+
+    for (int i=0; i< n_groups; ++i) {
+      ASSERT_TRUE(sh.addBucket(get_bucket_type(StdBucketType::GROUP), -100-i, 0));
+    }
+
+    for (int i=0; i < n_groups*n_disks_per_group; i++) {
+      ASSERT_TRUE(sh.addDisk(Disk(i+1, DiskStatus::kRW, 1),
+                             -100 - i/n_disks_per_group));
+    }
+
+  }
+  auto cluster_data = mgr.getClusterData();
+  EXPECT_EQ(cluster_data->disks.size(), 32*16);
+  EXPECT_EQ(cluster_data->buckets.size(), n_elements);
+  auto root_bucket = cluster_data->buckets[0];
+  EXPECT_EQ(root_bucket.items.size(), n_groups);
+  for (auto it: root_bucket.items) {
+    EXPECT_EQ(cluster_data->buckets.at(-it).items.size(), n_disks_per_group);
+  }
+}
