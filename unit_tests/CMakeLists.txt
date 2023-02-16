@@ -24,9 +24,7 @@ include_directories(
   ${CMAKE_BINARY_DIR}
   ${CMAKE_SOURCE_DIR}/namespace/ns_quarkdb/
   ${CMAKE_SOURCE_DIR}/namespace/ns_quarkdb/qclient/include
-  ${CMAKE_BINARY_DIR}/namespace/ns_quarkdb
-  "${gtest_SOURCE_DIR}/include"
-  "${gmock_SOURCE_DIR}/include")
+  ${CMAKE_BINARY_DIR}/namespace/ns_quarkdb)
 
 set(EOS_UT_RPATH
   "${CMAKE_BINARY_DIR}/fst/;${CMAKE_BINARY_DIR}/mgm/;"
@@ -161,8 +159,8 @@ target_link_libraries(eos-unit-tests PRIVATE
   EosConsoleHelpers-Objects
   EosConsoleCommands-Objects
   EosMgmHttp-Objects
-  gtest_main
-  gmock
+  GTest::Main
+  GTest::gmock
   qclient
   XROOTD::POSIX
   XROOTD::SERVER
@@ -178,8 +176,8 @@ target_include_directories(eos-unit-tests-fst PUBLIC
   ${CMAKE_SOURCE_DIR}/common)
 
 target_link_libraries(eos-unit-tests-fst PRIVATE
-  gtest_main
-  gmock
+  GTest::Main
+  GTest::gmock
   EosFstOss-Static
   XrdEosFst-Static
   XXHASH::XXHASH)
@@ -194,7 +192,7 @@ add_executable(eos-unit-tests-with-instance
   fst/XrdIoTests.cc)
 
 target_link_libraries(eos-unit-tests-with-instance PRIVATE
-  gtest
+  GTest::GTest
   XrdEosFst-Static)
 
 #-------------------------------------------------------------------------------
@@ -208,8 +206,8 @@ add_executable(eos-unit-tests-with-qdb
 
 target_link_libraries(
   eos-unit-tests-with-qdb
-  gtest_main
-  gmock
+  GTest::Main
+  GTest::gmock
   qclient
   XrdEosMgm-Static
   READLINE::READLINE

@@ -24,7 +24,8 @@
 include_directories(${CMAKE_BINARY_DIR})
 
 set(LIBRARIES_TO_LINK_TEST_EXECUTABLES_WITH
-  gtest_main
+  GTest::GTest
+  GTest::Main
   EosCommon
   FUSE::FUSE
   RICHACL::RICHACL
@@ -52,7 +53,6 @@ add_executable(eos-fusex-tests
 target_link_libraries(eos-fusex-tests PRIVATE
   eosxd-objects
   EosFuseAuth
-  gtest
   ${LIBRARIES_TO_LINK_TEST_EXECUTABLES_WITH}
   )
 
