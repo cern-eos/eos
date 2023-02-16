@@ -28,10 +28,12 @@ cmake_minimum_required (VERSION 3.14)
 
 # Set the default CMAKE_BUILD_TYPE to RelWithDebInfo before the project command
 # as it can set CMAKE_BUILD_TYPE itself.
-if (NOT CMAKE_BUILD_TYPE)
-  set(CMAKE_BUILD_TYPE RelWithDebInfo CACHE STRING
-    "Build options: None(CMAKE_CXX_FLAGS or CMAKE_C_FLAGS used) Debug Release \
-     RelWithDebInfo MinSizeRel.")
+if (NOT GENERATOR_IS_MULTI_CONFIG AND NOT CMAKE_BUILD_TYPE)
+  if(NOT CMAKE_C_FLAGS AND NOT CMAKE_CXX_FLAGS)
+    set(CMAKE_BUILD_TYPE RelWithDebInfo CACHE STRING
+      "Build options: None(CMAKE_CXX_FLAGS or CMAKE_C_FLAGS used) Debug Release \
+       RelWithDebInfo MinSizeRel.")
+  endif()
 endif ()
 
 find_program(CCACHE_PROGRAM ccache)
