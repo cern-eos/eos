@@ -30,7 +30,7 @@ include_directories(
 
 add_subdirectory(benchmark)
 
-if (GOOGLEBENCHMARK_FOUND)
+if (BENCHMARK_FOUND)
 add_subdirectory(microbenchmarks)
 endif()
 
