@@ -37,15 +37,14 @@ class StorageHandler;
 
 class ClusterMgr {
 public:
+  using cluster_rcu_mutex_t = eos::common::EpochRCUDomain;
   struct ClusterDataPtr {
     ClusterDataPtr(ClusterData* data_,
-                   eos::common::VersionedRCUDomain& rcu_domain_):
+                   cluster_rcu_mutex_t& rcu_domain_):
       data(data_), rlock(rcu_domain_)
-    {
-    }
+    {}
 
-    ~ClusterDataPtr() {
-    }
+    ~ClusterDataPtr() = default;
 
     const ClusterData& operator()() const {
       return *data;
@@ -61,11 +60,10 @@ public:
 
   private:
     ClusterData* data;
-    eos::common::RCUReadLock<eos::common::VersionedRCUDomain> rlock;
+    eos::common::RCUReadLock<cluster_rcu_mutex_t> rlock;
   };
 
-  ClusterMgr() {
-  }
+  ClusterMgr() = default;
 
   StorageHandler getStorageHandler(size_t max_buckets=256);
   StorageHandler getStorageHandlerWithData();
@@ -79,15 +77,8 @@ public:
   void addClusterData(ClusterData&& data);
 
 private:
-  /*
-  bool mWrapAround{false};
-  std::atomic<uint32_t> mCurrentIndex{0};
-  std::atomic<epoch_id_t> mCurrentEpoch{0};
-  size_t mEpochSize;
-  std::vector<std::shared_ptr<ClusterData>> mEpochClusterData;*/
-  std::mutex mClusterDataWMtx;
   eos::common::atomic_unique_ptr<ClusterData> mClusterData;
-  eos::common::VersionedRCUDomain cluster_mgr_rcu;
+  cluster_rcu_mutex_t cluster_mgr_rcu;
 };
 
 class StorageHandler {
