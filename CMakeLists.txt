@@ -48,9 +48,19 @@ set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 #-------------------------------------------------------------------------------
 # Make gtest / gmock available for all downstream CMakeLists.txt that need it
 #-------------------------------------------------------------------------------
-set(GTEST "${CMAKE_SOURCE_DIR}/unit_tests/googletest/")
-set(GTEST_BINARY_DIR "${CMAKE_BINARY_DIR}/unit_tests/googletest/")
-add_subdirectory("${GTEST}" "${GTEST_BINARY_DIR}" EXCLUDE_FROM_ALL)
+option(USE_SYSTEM_GTEST "Use GoogleTest installed in the system if found" OFF)
+
+if(USE_SYSTEM_GTEST)
+  find_package(GTest REQUIRED)
+else()
+  add_subdirectory(unit_tests/googletest EXCLUDE_FROM_ALL)
+
+  # Add alias libraries to emulate same behavior as external GoogleTest
+  add_library(GTest::GTest ALIAS gtest)
+  add_library(GTest::Main ALIAS gtest_main)
+  add_library(GTest::gmock ALIAS gmock)
+  add_library(GTest::gmock_main ALIAS gmock_main)
+endif()
 
 #-------------------------------------------------------------------------------
 # Activate include-what-you-use

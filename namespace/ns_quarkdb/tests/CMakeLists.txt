@@ -21,9 +21,7 @@
 # * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
 # ************************************************************************
 include_directories(
-  ${CMAKE_SOURCE_DIR}
-  "${gtest_SOURCE_DIR}/include"
-  "${gmock_SOURCE_DIR}/include")
+  ${CMAKE_SOURCE_DIR})
 
 #-------------------------------------------------------------------------------
 # QuarkDB namespace unit tests
@@ -46,8 +44,8 @@ add_executable(
 
 target_link_libraries(
   eos-ns-quarkdb-tests
-  gtest
-  gmock_main
+  GTest::GTest
+  GTest::gmock_main
   EosNsCommon-Static
   FOLLY::FOLLY)
 
