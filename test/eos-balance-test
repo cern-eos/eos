@@ -81,14 +81,16 @@ eos attr set default=raid6 ${EOS_BALANCE_DIR}/rain/
 # with an unbalanced group
 eos fs config 1 configstatus=ro
 
-xrdcp -f --nopbar ${TEST_FN1} root://${EOS_MGM_HOSTNAME}/${EOS_BALANCE_DIR}/replica/200MB_file1.dat
-xrdcp -f --nopbar ${TEST_FN1} root://${EOS_MGM_HOSTNAME}/${EOS_BALANCE_DIR}/replica/200MB_file2.dat
-xrdcp -f --nopbar ${TEST_FN1} root://${EOS_MGM_HOSTNAME}/${EOS_BALANCE_DIR}/replica/200MB_file3.dat
-xrdcp -f --nopbar ${TEST_FN1} root://${EOS_MGM_HOSTNAME}/${EOS_BALANCE_DIR}/raiddp/200MB_file1.dat
-xrdcp -f --nopbar ${TEST_FN1} root://${EOS_MGM_HOSTNAME}/${EOS_BALANCE_DIR}/rain/200MB_file1.dat
-xrdcp -f --nopbar ${TEST_FN2} root://${EOS_MGM_HOSTNAME}/${EOS_BALANCE_DIR}/replica/400MB_file1.dat
-xrdcp -f --nopbar ${TEST_FN2} root://${EOS_MGM_HOSTNAME}/${EOS_BALANCE_DIR}/raiddp/400MB_file1.dat
-xrdcp -f --nopbar ${TEST_FN2} root://${EOS_MGM_HOSTNAME}/${EOS_BALANCE_DIR}/rain/400MB_file1.dat
+for i in {1..3}; do
+  xrdcp -f --nopbar ${TEST_FN1} root://${EOS_MGM_HOSTNAME}/${EOS_BALANCE_DIR}/replica/200MB_file$i.dat
+  xrdcp -f --nopbar ${TEST_FN1} root://${EOS_MGM_HOSTNAME}/${EOS_BALANCE_DIR}/raiddp/200MB_file$i.dat
+  xrdcp -f --nopbar ${TEST_FN1} root://${EOS_MGM_HOSTNAME}/${EOS_BALANCE_DIR}/rain/200MB_file$i.dat
+  xrdcp -f --nopbar ${TEST_FN2} root://${EOS_MGM_HOSTNAME}/${EOS_BALANCE_DIR}/replica/400MB_file$i.dat
+  xrdcp -f --nopbar ${TEST_FN2} root://${EOS_MGM_HOSTNAME}/${EOS_BALANCE_DIR}/raiddp/400MB_file$i.dat
+  xrdcp -f --nopbar ${TEST_FN2} root://${EOS_MGM_HOSTNAME}/${EOS_BALANCE_DIR}/rain/400MB_file$i.dat
+done
+# Allow for the publishing thread on the FSTs to report updated values
+sleep 10
 
 eos fs config 1 configstatus=rw
 eos node ls
@@ -123,7 +125,8 @@ while
 
   if [[ $(echo "${NEW_DEV} < ${EOS_BALANCER_THRESHOLD}" | bc) -eq 1 ]]; then
     echo "info: new deviation value is ${NEW_DEV}"
-    false # exit the whlie loop
+    eos fs ls --io
+    false # exit the while loop
   else
     if (( $((${CURRENT_TIME} - ${START_TIME})) >= ${MAX_DELAY} )); then
       echo "error: balancing was not done within ${MAX_DELAY} seconds"
@@ -133,7 +136,7 @@ while
       echo "info: new dev is ${NEW_DEV}, sleep for 5 seconds, `secs_to_human $((${CURRENT_TIME} - ${START_TIME}))` passed"
       sleep 5
       eos fs ls --io
-      eos ns 
+      eos ns
       eos group ls
     fi
   fi

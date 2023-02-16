@@ -17,6 +17,8 @@ fst:
   selfRegister:
     groupsize: 8
     groupmod: 1
+  env:
+    EOS_FST_TESTING: 1
 
 mgm:
   kerberos:
