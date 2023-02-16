@@ -104,7 +104,7 @@ add_library(eosxd-objects OBJECT
 target_link_libraries(eosxd-objects PUBLIC
   ROCKSDB::ROCKSDB
   LIBEVENT::LIBEVENT
-  OPENSSL::OPENSSL
+  OpenSSL::SSL
   PROTOBUF::PROTOBUF
   JSONCPP::JSONCPP
   XROOTD::PRIVATE
@@ -146,7 +146,7 @@ add_library(eosxd3-objects OBJECT
 target_link_libraries(eosxd3-objects PUBLIC
   ROCKSDB::ROCKSDB
   LIBEVENT::LIBEVENT
-  OPENSSL::OPENSSL
+  OpenSSL::SSL
   PROTOBUF::PROTOBUF
   JSONCPP::JSONCPP
   XROOTD::PRIVATE
