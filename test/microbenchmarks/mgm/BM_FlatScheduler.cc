@@ -43,7 +43,7 @@ static void BM_Scheduler(benchmark::State& state) {
     }
 
     for (int i=0; i < n_groups*n_disks_per_group; i++) {
-      sh.addDisk(Disk(i+1, DiskStatus::kRW, 1),
+      sh.addDisk(Disk(i+1, ConfigStatus::kRW, ActiveStatus::kOnline, 1),
                  -100 - i/n_disks_per_group);
     }
 
@@ -76,7 +76,7 @@ static void BM_ThreadLocalRRScheduler(benchmark::State& state) {
     }
 
     for (int i=0; i < n_groups*n_disks_per_group; i++) {
-      sh.addDisk(Disk(i+1, DiskStatus::kRW, 1),
+      sh.addDisk(Disk(i+1, ConfigStatus::kRW, ActiveStatus::kOnline, 1),
                  -100 - i/n_disks_per_group);
     }
 
