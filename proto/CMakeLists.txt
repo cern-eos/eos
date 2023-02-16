@@ -184,6 +184,7 @@ if (GRPC_FOUND)
   add_dependencies(EosGrpcProto-Objects RpcFileGeneration)
 
   target_link_libraries(EosGrpcProto-Objects PUBLIC
+    GRPC::grpc
     GRPC::grpc++
     PROTOBUF::PROTOBUF)
 
