@@ -936,11 +936,7 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
   std::string intident = actident;
 
   if (!ActiveTidentsSharded.contains(intident)) {
-    if (auto value = ActiveUidsSharded.retrieve(vid.uid)) {
-      *value += 1;
-    } else {
-      ActiveUidsSharded.store(vid.uid, std::make_unique<size_t>(1));
-    }
+    ActiveUidsSharded.fetch_add(vid.uid, 1);
   }
 
   ActiveTidentsSharded.store(intident, std::make_unique<time_t>(time(NULL)));
