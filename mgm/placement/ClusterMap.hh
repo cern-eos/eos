@@ -71,7 +71,7 @@ public:
 
   ClusterDataPtr getClusterData();
 
-  bool setDiskStatus(fsid_t disk_id, DiskStatus status);
+  bool setDiskStatus(fsid_t disk_id, ConfigStatus status);
   // Not meant to be called directly! use storage handler, we might consider
   // making this private and friending if this is abused
   void addClusterData(ClusterData&& data);

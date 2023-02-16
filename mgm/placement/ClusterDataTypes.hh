@@ -35,7 +35,8 @@ using fsid_t = eos::common::FileSystem::fsid_t;
 // storage elements in the hierarchy, ie. groups/racks/room/site etc.
 using item_id_t = int32_t;
 using epoch_id_t = uint64_t;
-using DiskStatus = eos::common::ConfigStatus;
+using ConfigStatus = eos::common::ConfigStatus;
+using ActiveStatus = eos::common::ActiveStatus;
 // A struct representing a disk, this is the lowest level of the hierarchy,
 // disk ids map 1:1 to fsids, however it is necessary that the last bit of fsid_t
 // is not used, as we use a int32_t for the rest of the placement hierarchy.
@@ -43,24 +44,26 @@ using DiskStatus = eos::common::ConfigStatus;
 // can fit in a single 64kB cache, it is recommended to keep this struct aligned
 struct Disk {
   fsid_t id;
-  mutable std::atomic<DiskStatus> status {common::ConfigStatus::kUnknown};
+  mutable std::atomic<ConfigStatus> config_status {ConfigStatus::kUnknown};
+  mutable std::atomic<ActiveStatus> active_status {ActiveStatus::kUndefined};
+
   mutable std::atomic<uint8_t> weight{0}; // we really don't need floating point precision
   mutable std::atomic<uint8_t> percent_used{0};
-  /* We've one byte left for future use - remove this line when that happens */
 
   Disk () : id(0) {}
 
   explicit Disk(fsid_t _id) : id(_id) {}
 
-  Disk(fsid_t _id, common::ConfigStatus _status, uint8_t _weight,
-       uint8_t _percent_used = 0)
-      : id(_id), status(_status), weight(_weight), percent_used(_percent_used)
-  {
-  }
+  Disk(fsid_t _id, ConfigStatus _config_status,
+       ActiveStatus _active_status, uint8_t _weight, uint8_t _percent_used = 0)
+      : id(_id), config_status(_config_status), active_status(_active_status),
+        weight(_weight), percent_used(_percent_used)
+  {}
 
   // explicit copy constructor as atomic types are not copyable
   Disk(const Disk& other)
-      : Disk(other.id, other.status.load(std::memory_order_relaxed),
+      : Disk(other.id, other.config_status.load(std::memory_order_relaxed),
+             other.active_status.load(std::memory_order_relaxed),
              other.weight.load(std::memory_order_relaxed),
              other.percent_used.load(std::memory_order_relaxed))
   {
@@ -68,7 +71,7 @@ struct Disk {
 
   Disk& operator=(const Disk& other) {
     id = other.id;
-    status.store(other.status.load(std::memory_order_relaxed),
+    config_status.store(other.config_status.load(std::memory_order_relaxed),
                  std::memory_order_relaxed);
     weight.store(other.weight.load(std::memory_order_relaxed),
                  std::memory_order_relaxed);
@@ -139,8 +142,8 @@ struct ClusterData {
   std::vector<Disk> disks;
   std::vector<Bucket> buckets;
 
-  void setDiskStatus(fsid_t id, DiskStatus status) {
-    disks[id].status.store(status, std::memory_order_relaxed);
+  void setDiskStatus(fsid_t id, ConfigStatus status) {
+    disks[id].config_status.store(status, std::memory_order_relaxed);
   }
 };
 

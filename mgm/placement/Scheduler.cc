@@ -65,7 +65,7 @@ RoundRobinPlacement::chooseItems(const ClusterData& cluster_data, Args args)
       }
 
       const auto& disk = cluster_data.disks.at(id - 1);
-      auto disk_status = disk.status.load(std::memory_order_relaxed);
+      auto disk_status = disk.config_status.load(std::memory_order_relaxed);
       if (disk_status < args.status) {
         continue;
         // TODO: We could potentially reseed the RR index in case of failure, should be fairly simple to do here! Uncommenting should work? rr_seed = GetRRSeed(n_replicas - items_added);
