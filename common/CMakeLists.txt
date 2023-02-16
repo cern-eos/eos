@@ -200,7 +200,7 @@ set(EosCommonLinkLibs
   EosNsQuarkdbProto-Objects
   XROOTD::CL
   UUID::UUID
-  ZLIB::ZLIB_STATIC
+  ZLIB::ZLIB
   NCURSES::NCURSES)
 
 if (CHARCONV_FOUND)
