@@ -87,10 +87,6 @@ install(
   FILES logrotate.d/eos-logs logrotate.d/eos-fuse-logs logrotate.d/eos-fusex-logs
   DESTINATION ${CMAKE_INSTALL_SYSCONFDIR}/logrotate.d/)
 
-install(
-  FILES tmpfiles.d/eos-fusex-core.conf
-  DESTINATION ${CMAKE_INSTALL_SYSCONFDIR}/tmpfiles.d/)
-
 
 # Installing files depending on service manager (systemd or sysVinit)
 set(SYSTEMD_DIR /usr/lib/systemd/)

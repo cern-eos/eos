@@ -27,3 +27,5 @@ add_subdirectory(selinux)
 add_subdirectory(var)
 add_subdirectory(egi)
 endif()
+
+add_subdirectory(usr)

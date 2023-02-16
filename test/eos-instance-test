@@ -1639,7 +1639,7 @@ rm -rfv /var/run/eos
 eosxd -ofsname=localhost.localdomain:/eos /test-fusex/
 ls -la /test-fusex/
 
-runtest "### Stat /run/eosd " unix 0 "" test "$(stat -c '%a' /var/run/eos/credentials)" = 1777 -a "$(stat -c '%a' /var/run/eos/credentials/store)" = 1777
+runtest "### Stat /run/eos " unix 0 "" test "$(stat -c '%a' /var/run/eos/credentials)" = 1777 -a "$(stat -c '%a' /var/run/eos/credentials/store)" = 1777
 
 if [ -e "/test-fusex/$EOS_TEST_INSTANCE" ];
 then

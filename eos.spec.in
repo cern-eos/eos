@@ -644,7 +644,7 @@ The EOS fuse core containing eosxd/eosxd3.
 %{_bindir}/eosxd3
 /sbin/mount.eosx
 /sbin/mount.eosx3
-%config %{_sysconfdir}/tmpfiles.d/eos-fusex-core.conf
+%config %{_tmpfilesdir}/eos-fusex-core.conf
 %{_sysconfdir}/logrotate.d/eos-fusex-logs
 %dir %attr(755,daemon,daemon) %{_localstatedir}/log/eos/
 %dir %attr(755,daemon,daemon) %{_localstatedir}/log/eos/fusex/
@@ -653,7 +653,7 @@ The EOS fuse core containing eosxd/eosxd3.
 
 %post -n eos-fusex-core
 # Ensure /var/run/eos creation
-systemd-tmpfiles --create /etc/tmpfiles.d/eos-fusex-core.conf || true
+systemd-tmpfiles --create %{_tmpfilesdir}/eos-fusex-core.conf || true
 
 #-------------------------------------------------------------------------------
 # Package eos-fusex-selinux
