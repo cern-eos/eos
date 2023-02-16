@@ -365,11 +365,11 @@ TEST(FlatScheduler, SingleSite)
     ASSERT_TRUE(sh.addBucket(get_bucket_type(StdBucketType::SITE), -1, 0));
     ASSERT_TRUE(sh.addBucket(get_bucket_type(StdBucketType::GROUP), -100, -1));
 
-    ASSERT_TRUE(sh.addDisk(Disk(1, DiskStatus::kRW, 1), -100));
-    ASSERT_TRUE(sh.addDisk(Disk(2, DiskStatus::kRW, 1), -100));
-    ASSERT_TRUE(sh.addDisk(Disk(3, DiskStatus::kRW, 1), -100));
-    ASSERT_TRUE(sh.addDisk(Disk(4, DiskStatus::kRW, 1), -100));
-    ASSERT_TRUE(sh.addDisk(Disk(5, DiskStatus::kRW, 1), -100));
+    ASSERT_TRUE(sh.addDisk(Disk(1, ConfigStatus::kRW, ActiveStatus::kOnline, 1), -100));
+    ASSERT_TRUE(sh.addDisk(Disk(2, ConfigStatus::kRW, ActiveStatus::kOnline, 1), -100));
+    ASSERT_TRUE(sh.addDisk(Disk(3, ConfigStatus::kRW, ActiveStatus::kOnline, 1), -100));
+    ASSERT_TRUE(sh.addDisk(Disk(4, ConfigStatus::kRW, ActiveStatus::kOnline, 1), -100));
+    ASSERT_TRUE(sh.addDisk(Disk(5, ConfigStatus::kRW, ActiveStatus::kOnline, 1), -100));
   }
 
   auto data = mgr.getClusterData();
@@ -403,11 +403,11 @@ TEST(FlatScheduler, TLSingleSite)
     ASSERT_TRUE(sh.addBucket(get_bucket_type(StdBucketType::SITE), -1, 0));
     ASSERT_TRUE(sh.addBucket(get_bucket_type(StdBucketType::GROUP), -100, -1));
 
-    ASSERT_TRUE(sh.addDisk(Disk(1, DiskStatus::kRW, 1), -100));
-    ASSERT_TRUE(sh.addDisk(Disk(2, DiskStatus::kRW, 1), -100));
-    ASSERT_TRUE(sh.addDisk(Disk(3, DiskStatus::kRW, 1), -100));
-    ASSERT_TRUE(sh.addDisk(Disk(4, DiskStatus::kRW, 1), -100));
-    ASSERT_TRUE(sh.addDisk(Disk(5, DiskStatus::kRW, 1), -100));
+    ASSERT_TRUE(sh.addDisk(Disk(1, ConfigStatus::kRW, ActiveStatus::kOnline, 1), -100));
+    ASSERT_TRUE(sh.addDisk(Disk(2, ConfigStatus::kRW, ActiveStatus::kOnline, 1), -100));
+    ASSERT_TRUE(sh.addDisk(Disk(3, ConfigStatus::kRW, ActiveStatus::kOnline, 1), -100));
+    ASSERT_TRUE(sh.addDisk(Disk(4, ConfigStatus::kRW, ActiveStatus::kOnline, 1), -100));
+    ASSERT_TRUE(sh.addDisk(Disk(5, ConfigStatus::kRW, ActiveStatus::kOnline, 1), -100));
   }
 
   auto data = mgr.getClusterData();
@@ -445,7 +445,7 @@ TEST(FlatScheduler, TLNoSite)
     }
 
     for (int i=0; i < n_groups*n_disks_per_group; i++) {
-      ASSERT_TRUE(sh.addDisk(Disk(i+1, DiskStatus::kRW, 1),
+      ASSERT_TRUE(sh.addDisk(Disk(i+1, ConfigStatus::kRW, ActiveStatus::kOnline, 1),
                              -100 - i/n_disks_per_group));
     }
 
@@ -482,11 +482,11 @@ TEST(ClusterMap, Concurrency)
     ASSERT_TRUE(sh.addBucket(get_bucket_type(StdBucketType::SITE), -1, 0));
     ASSERT_TRUE(sh.addBucket(get_bucket_type(StdBucketType::GROUP), -100, -1));
 
-    ASSERT_TRUE(sh.addDisk(Disk(1, DiskStatus::kRW, 1), -100));
-    ASSERT_TRUE(sh.addDisk(Disk(2, DiskStatus::kRW, 1), -100));
-    ASSERT_TRUE(sh.addDisk(Disk(3, DiskStatus::kRW, 1), -100));
-    ASSERT_TRUE(sh.addDisk(Disk(4, DiskStatus::kRW, 1), -100));
-    ASSERT_TRUE(sh.addDisk(Disk(5, DiskStatus::kRW, 1), -100));
+    ASSERT_TRUE(sh.addDisk(Disk(1, ConfigStatus::kRW, ActiveStatus::kOnline, 1), -100));
+    ASSERT_TRUE(sh.addDisk(Disk(2, ConfigStatus::kRW, ActiveStatus::kOnline, 1), -100));
+    ASSERT_TRUE(sh.addDisk(Disk(3, ConfigStatus::kRW, ActiveStatus::kOnline, 1), -100));
+    ASSERT_TRUE(sh.addDisk(Disk(4, ConfigStatus::kRW, ActiveStatus::kOnline, 1), -100));
+    ASSERT_TRUE(sh.addDisk(Disk(5, ConfigStatus::kRW, ActiveStatus::kOnline, 1), -100));
   }
 
   auto mgr_ptr = &mgr;
@@ -502,7 +502,7 @@ TEST(ClusterMap, Concurrency)
         ASSERT_TRUE(sh.addBucket(get_bucket_type(StdBucketType::GROUP),
                                  group_id, -1));
         for (int k = 0; k < 10; k++) {
-          ASSERT_TRUE(sh.addDisk(Disk((i+1)*10 + k + 1, DiskStatus::kRW, 1), group_id));
+          ASSERT_TRUE(sh.addDisk(Disk((i+1)*10 + k + 1, ConfigStatus::kRW, ActiveStatus::kOnline, 1), group_id));
         }
       }
     }
