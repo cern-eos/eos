@@ -37,20 +37,20 @@ TEST_F(SimpleClusterF, RoundRobinBasic)
   // Choose 1 site - from ROOT
   auto res = rr_placement.chooseItems(cluster_data_ptr(),{0,1});
   ASSERT_TRUE(res);
-  EXPECT_EQ(res.ids.size(), 1);
+  EXPECT_EQ(res.n_replicas, 1);
   EXPECT_EQ(res.ids[0], -1);
 
   // Choose 1 group from SITE
   auto site_id = res.ids[0];
   auto group_res = rr_placement.chooseItems(cluster_data_ptr(),{site_id,1});
   ASSERT_TRUE(group_res);
-  EXPECT_EQ(group_res.ids.size(), 1);
+  EXPECT_EQ(group_res.n_replicas, 1);
 
 
   // choose 2 disks from group!
   auto disks_res = rr_placement.chooseItems(cluster_data_ptr(),{group_res.ids[0],2});
   ASSERT_TRUE(disks_res);
-  EXPECT_EQ(disks_res.ids.size(), 2);
+  EXPECT_EQ(disks_res.n_replicas, 2);
 
 }
 
@@ -65,7 +65,7 @@ TEST_F(SimpleClusterF, TLRoundRobinBasic)
   // Choose 1 site - from ROOT
   auto res = rr_placement.chooseItems(cluster_data_ptr(),{0,1});
   ASSERT_TRUE(res);
-  EXPECT_EQ(res.ids.size(), 1);
+  EXPECT_EQ(res.n_replicas, 1);
   // We cannot assert on the id here because the thread local round robin would
   // have a random starting point, only the looping behaviour is easier to reason
 
@@ -74,13 +74,13 @@ TEST_F(SimpleClusterF, TLRoundRobinBasic)
   auto site_id = res.ids[0];
   auto group_res = rr_placement.chooseItems(cluster_data_ptr(),{site_id,1});
   ASSERT_TRUE(group_res);
-  EXPECT_EQ(group_res.ids.size(), 1);
+  EXPECT_EQ(group_res.n_replicas, 1);
 
 
   // choose 2 disks from group!
   auto disks_res = rr_placement.chooseItems(cluster_data_ptr(),{group_res.ids[0],2});
   ASSERT_TRUE(disks_res);
-  EXPECT_EQ(disks_res.ids.size(), 2);
+  EXPECT_EQ(disks_res.n_replicas, 2);
 
 }
 
@@ -104,7 +104,7 @@ TEST_F(SimpleClusterF, RoundRobinBasicLoop)
     auto res = rr_placement.chooseItems(cluster_data_ptr(), {0, 1});
 
     ASSERT_TRUE(res);
-    ASSERT_EQ(res.ids.size(), 1);
+    ASSERT_EQ(res.n_replicas, 1);
 
     site_id_ctr[res.ids[0]]++;
 
@@ -113,7 +113,7 @@ TEST_F(SimpleClusterF, RoundRobinBasicLoop)
     auto group_res = rr_placement.chooseItems(cluster_data_ptr(), {site_id, 1});
 
     ASSERT_TRUE(group_res);
-    ASSERT_EQ(group_res.ids.size(), 1);
+    ASSERT_EQ(group_res.n_replicas, 1);
     group_id_ctr[group_res.ids[0]]++;
 
 
@@ -122,7 +122,7 @@ TEST_F(SimpleClusterF, RoundRobinBasicLoop)
         rr_placement.chooseItems(cluster_data_ptr(), {group_res.ids[0], 2});
 
     ASSERT_TRUE(disks_res);
-    ASSERT_EQ(disks_res.ids.size(), 2);
+    ASSERT_EQ(disks_res.n_replicas, 2);
     disk_id_ctr[disks_res.ids[0]]++;
     disk_id_ctr[disks_res.ids[1]]++;
 
@@ -188,7 +188,7 @@ TEST_F(SimpleClusterF, TLRoundRobinBasicLoop)
     auto res = rr_placement.chooseItems(cluster_data_ptr(), {0, 1});
 
     ASSERT_TRUE(res);
-    ASSERT_EQ(res.ids.size(), 1);
+    ASSERT_EQ(res.n_replicas, 1);
 
     site_id_ctr[res.ids[0]]++;
 
@@ -197,7 +197,7 @@ TEST_F(SimpleClusterF, TLRoundRobinBasicLoop)
     auto group_res = rr_placement.chooseItems(cluster_data_ptr(), {site_id, 1});
 
     ASSERT_TRUE(group_res);
-    ASSERT_EQ(group_res.ids.size(), 1);
+    ASSERT_EQ(group_res.n_replicas, 1);
     group_id_ctr[group_res.ids[0]]++;
 
 
@@ -206,7 +206,7 @@ TEST_F(SimpleClusterF, TLRoundRobinBasicLoop)
         rr_placement.chooseItems(cluster_data_ptr(), {group_res.ids[0], 2});
 
     ASSERT_TRUE(disks_res);
-    ASSERT_EQ(disks_res.ids.size(), 2);
+    ASSERT_EQ(disks_res.n_replicas, 2);
     disk_id_ctr[disks_res.ids[0]]++;
     disk_id_ctr[disks_res.ids[1]]++;
 
@@ -383,7 +383,7 @@ TEST(FlatScheduler, SingleSite)
   auto cluster_data_ptr = mgr.getClusterData();
   auto result = flat_scheduler.schedule(cluster_data_ptr(),
                                         {2});
-  std::cout << result.err_msg << std::endl;
+  std::cout << result.err_msg << ", " << result << std::endl;
   ASSERT_TRUE(result);
   ASSERT_TRUE(result.is_valid_placement(2));
 }
