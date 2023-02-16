@@ -201,3 +201,46 @@ TEST(ShardedCache, value_after_clear)
   ASSERT_NE(result, nullptr);
   EXPECT_EQ(*result, 5);
 }
+
+TEST(ShardedCache, fetch_add)
+{
+  ShardedCache<std::string, int> cache(8, 10);
+  ASSERT_TRUE(cache.store("hello", std::make_unique<int>(5)));
+  auto result = cache.retrieve("hello");
+  ASSERT_NE(result, nullptr);
+  EXPECT_EQ(*result, 5);
+  auto old_val = cache.fetch_add("hello", 1);
+  EXPECT_EQ(old_val, 5);
+  auto result2 = cache.retrieve("hello");
+  ASSERT_NE(result2, nullptr);
+  EXPECT_EQ(*result2, 6);
+
+}
+
+TEST(ShardedCache, fetch_add_empty_key)
+{
+  ShardedCache<std::string, int> cache(8, 10);
+  auto null_result = cache.retrieve("hello");
+  ASSERT_EQ(null_result, nullptr);
+  cache.fetch_add("hello", 1);
+  auto result3 = cache.retrieve("hello");
+  ASSERT_NE(result3, nullptr);
+  EXPECT_EQ(*result3, 1);
+}
+
+TEST(ShardedCache, fetch_add_multithreaded)
+{
+  ShardedCache<std::string, int> cache(8, 10);
+  std::vector<std::thread> threads;
+  for (int i=0; i<200; i++) {
+    threads.emplace_back([&cache]() {
+      cache.fetch_add("mykey",1);
+    });
+  }
+  for (auto& t : threads) {
+    t.join();
+  }
+  ASSERT_EQ(cache.num_entries(), 1);
+  auto result = cache.retrieve("mykey");
+  ASSERT_EQ(*result, 200);
+}

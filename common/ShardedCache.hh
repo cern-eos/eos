@@ -107,6 +107,11 @@ private:
   struct CacheEntry {
     std::shared_ptr<Value> value;
     bool marked;
+
+    CacheEntry() = default;
+
+    explicit CacheEntry(Value value_) : value(std::make_shared<Value>(value_)),
+                                        marked(false) {}
   };
 
 public:
@@ -215,6 +220,33 @@ public:
     bool status = store(key, std::move(value), val, replace);
     retval = val;
     return status;
+  }
+
+  /**
+   * @brief      Increment the value by a given argument safely. In case
+   * the key exists, we increment by the given argument, otherwise
+   * we create a key with supplied value.
+   * @param[in]  key: key to retrieve value from.
+   * @param[in]  inc_val: incremental value to add to the existing value or
+   *             the value in case key doesn't exist. We assume the value type
+   *             supporting + would be a simple type to copy, so only the value
+   *             overload is provided atm instead of the reference overloads.
+   * @return     The old value before increment
+   */
+  Value fetch_add(const Key& key, Value inc_val)
+  {
+    ShardGuard guard(this, key);
+    auto shard = guard.getShard();
+    Value old_val{};
+    auto it = mContents[shard].find(key);
+    if (it != mContents[shard].end()) {
+      Value* value = it->second.value.get();
+      old_val = *value;
+      *value += inc_val;
+    } else {
+      mContents[shard].emplace(key, CacheEntry(inc_val));
+    }
+    return old_val;
   }
 
   // Removes an element from the cache. Return value is whether the key existed.
