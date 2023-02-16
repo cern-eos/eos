@@ -49,7 +49,7 @@ ClusterMgr::addClusterData(ClusterData&& data)
 
 
 bool
-ClusterMgr::setDiskStatus(fsid_t disk_id, DiskStatus status)
+ClusterMgr::setDiskStatus(fsid_t disk_id, ConfigStatus status)
 {
 
   mClusterData->setDiskStatus(disk_id, status);

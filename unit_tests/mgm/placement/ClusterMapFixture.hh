@@ -42,7 +42,7 @@ protected:
 
     // Every group has 10 disks!
     for (int i=0; i < 30; i++) {
-      ASSERT_TRUE(sh.addDisk(Disk(i+1, DiskStatus::kRW, 1), -100 - i/10));
+      ASSERT_TRUE(sh.addDisk(Disk(i+1, ConfigStatus::kRW, ActiveStatus::kOnline, 1), -100 - i/10));
     }
 
   }
