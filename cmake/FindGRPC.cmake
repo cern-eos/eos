@@ -85,7 +85,7 @@ endif()
 find_path(GRPC_INCLUDE_DIR
   NAMES grpc/grpc.h
   HINTS ${GRPC_ROOT}
-  PATHS /opt/eos/grpc/
+  PATHS /opt/eos/grpc /usr/local /usr
   PATH_SUFFIXES include
   NO_DEFAULT_PATH)
 
@@ -95,7 +95,7 @@ mark_as_advanced(GRPC_INCLUDE_DIR)
 find_library(GRPC_LIBRARY
   NAMES grpc
   HINTS ${GRPC_ROOT}
-  PATHS /opt/eos/grpc/
+  PATHS /opt/eos/grpc /usr/local /usr
   PATH_SUFFIXES ${CMAKE_INSTALL_LIBDIR}
   NO_DEFAULT_PATH)
 
@@ -103,7 +103,7 @@ find_library(GRPC_LIBRARY
 find_library(GRPC_GRPC++_LIBRARY
   NAMES grpc++
   HINTS ${GRPC_ROOT}
-  PATHS /opt/eos/grpc/
+  PATHS /opt/eos/grpc /usr/local /usr
   PATH_SUFFIXES ${CMAKE_INSTALL_LIBDIR}
   NO_DEFAULT_PATH)
 
@@ -111,7 +111,7 @@ find_library(GRPC_GRPC++_LIBRARY
 find_library(GRPC_LIBGPR_LIBRARY
   NAMES gpr
   HINTS ${GRPC_ROOT}
-  PATHS /opt/eos/grpc/
+  PATHS /opt/eos/grpc /usr/local /usr
   PATH_SUFFIXES ${CMAKE_INSTALL_LIBDIR}
   NO_DEFAULT_PATH)
 
@@ -119,7 +119,7 @@ find_library(GRPC_LIBGPR_LIBRARY
 find_library(GRPC_GRPC++_REFLECTION_LIBRARY
   NAMES grpc++_reflection
   HINTS ${GRPC_ROOT}
-  PATHS /opt/eos/grpc/
+  PATHS /opt/eos/grpc /usr/local /usr
   PATH_SUFFIXES ${CMAKE_INSTALL_LIBDIR}
   NO_DEFAULT_PATH)
 
@@ -127,7 +127,7 @@ find_library(GRPC_GRPC++_REFLECTION_LIBRARY
 find_program(GRPC_CPP_PLUGIN
   NAMES grpc_cpp_plugin
   HINTS ${GRPC_ROOT}
-  PATHS /opt/eos/grpc/
+  PATHS /opt/eos/grpc /usr/local /usr
   PATH_SUFFIXES bin
   NO_DEFAULT_PATH)
 
@@ -135,7 +135,7 @@ find_program(GRPC_CPP_PLUGIN
 find_library(ABSL_SYNCHRONIZATION_LIBRARY
   NAMES absl_synchronization
   HINTS ${GRPC_ROOT}
-  PATHS /opt/eos/grpc/
+  PATHS /opt/eos/grpc /usr/local /usr
   PATH_SUFFIXES ${CMAKE_INSTALL_LIBDIR}
   NO_DEFAULT_PATH)
 
@@ -143,10 +143,9 @@ find_library(ABSL_SYNCHRONIZATION_LIBRARY
 find_library(ABSL_BASE_LIBRARY
   NAMES absl_base
   HINTS ${GRPC_ROOT}
-  PATHS /opt/eos/grpc/
+  PATHS /opt/eos/grpc /usr/local /usr
   PATH_SUFFIXES ${CMAKE_INSTALL_LIBDIR}
   NO_DEFAULT_PATH)
-
 
 include(FindPackageHandleStandardArgs)
 find_package_handle_standard_args(GRPC
