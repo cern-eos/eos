@@ -157,7 +157,7 @@ target_link_libraries(EosCommon-Objects PUBLIC
   CURL::libcurl
   ZLIB::ZLIB
   JSONCPP::JSONCPP
-  OPENSSL::OPENSSL
+  OpenSSL::SSL
   XROOTD::UTILS
   GLIBC::DL
   GLIBC::RT
