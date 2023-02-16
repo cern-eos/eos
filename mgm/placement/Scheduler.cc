@@ -19,7 +19,7 @@ makeRRSeeder(PlacementStrategyT strategy, size_t max_buckets)
 PlacementResult
 RoundRobinPlacement::chooseItems(const ClusterData& cluster_data, Args args)
 {
-  PlacementResult result;
+  PlacementResult result(args.n_replicas);
   if (args.n_replicas == 0) {
     result.err_msg = "Zero replicas requested";
     return result;
@@ -49,19 +49,17 @@ RoundRobinPlacement::chooseItems(const ClusterData& cluster_data, Args args)
     return result;
   }
 
-
-  result.ids.reserve(args.n_replicas);
-
   auto rr_seed = mSeed->get(bucket_index, args.n_replicas);
-
-  for (uint8_t items_added = 0, i = 0;
+  int items_added = 0;
+  for (int i = 0;
        (items_added < args.n_replicas) && (i < MAX_PLACEMENT_ATTEMPTS); i++) {
 
     auto id = eos::common::pickIndexRR(bucket.items, rr_seed + i);
-
+    item_id_t item_id = id;
     if (id > 0) {
       // we are dealing with a disk! check if it is usable
       if ((size_t)id > cluster_data.disks.size()) {
+        result.err_msg = "Disk ID unknown!";
         result.ret_code = ERANGE;
         return result;
       }
@@ -72,15 +70,12 @@ RoundRobinPlacement::chooseItems(const ClusterData& cluster_data, Args args)
         continue;
         // TODO: We could potentially reseed the RR index in case of failure, should be fairly simple to do here! Uncommenting should work? rr_seed = GetRRSeed(n_replicas - items_added);
       }
-      result.ids.push_back(disk.id);
-      ++items_added;
-    } else {
-      result.ids.push_back(id);
-      ++items_added;
+      item_id = disk.id;
     }
+    result.ids[items_added++] = item_id;
   }
 
-  if (result.ids.size() != args.n_replicas) {
+  if (items_added != args.n_replicas) {
     result.err_msg = "Could not find enough items to place replicas";
     result.ret_code = ENOSPC;
     return result;
@@ -111,6 +106,8 @@ FlatScheduler::schedule(const ClusterData& cluster_data,
   // classical BFS
   std::queue<item_id_t> item_queue;
   item_queue.push(args.bucket_id);
+  int result_index = 0;
+
   while (!item_queue.empty()) {
     item_id_t bucket_id = item_queue.front();
     item_queue.pop();
@@ -127,20 +124,21 @@ FlatScheduler::schedule(const ClusterData& cluster_data,
     PlacementStrategy::Args plct_args{bucket_id, items_to_place,
           args.status};
 
+
     auto result = mPlacementStrategy->chooseItems(cluster_data, plct_args);
     if (!result) {
       return result;
     } else {
-      for (auto _id: result.ids) {
+      for (int i=0; i < result.n_replicas; ++i) {
+        auto _id = result.ids[i];
         if (_id < 0) {
           item_queue.push(_id);
         } else {
-          result.ids.push_back(_id);
+          result.ids[result_index++] = _id;
         }
       }
     }
   }
-
   return result;
 }
 
@@ -148,7 +146,6 @@ PlacementResult
 FlatScheduler::scheduleDefault(const ClusterData& cluster_data,
                                FlatScheduler::PlacementArguments args)
 {
-  PlacementResult result;
   do {
     const auto& bucket = cluster_data.buckets.at(-args.bucket_id);
     uint8_t n_replicas = 1;
@@ -163,14 +160,14 @@ FlatScheduler::scheduleDefault(const ClusterData& cluster_data,
       return result;
     }
 
-    if (result.ids.size()== args.n_replicas) {
+    if (result.n_replicas == args.n_replicas) {
       return result;
     }
 
     args.bucket_id = result.ids.front();
   } while(args.bucket_id < 0);
 
-  return result;
+  return {};
 }
 
 

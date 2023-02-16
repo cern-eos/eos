@@ -31,22 +31,25 @@
 namespace eos::mgm::placement {
 
 struct PlacementResult {
-  std::vector<item_id_t> ids;
+  std::array<item_id_t, 32> ids {0};
   int ret_code;
+  int n_replicas;
   std::string err_msg;
 
-  PlacementResult() : ret_code(-1) {}
+  PlacementResult() :  ret_code(-1), n_replicas(0) {}
+  PlacementResult(int n_rep):  ret_code(-1), n_replicas(n_rep) {}
 
   operator bool() const {
     return ret_code == 0;
   }
 
 
-  bool is_valid_placement(uint8_t n_replicas) const {
-    return ids.size() == n_replicas &&
-    (std::all_of(ids.cbegin(), ids.cend(),[](item_id_t id) {
-      return id > 0;
-    }));
+  bool is_valid_placement(uint8_t _n_replicas) const {
+    return _n_replicas == n_replicas &&
+      (std::all_of(ids.cbegin(), ids.cbegin() + n_replicas,
+                   [](item_id_t id) {
+                     return id > 0;
+                   }));
   }
 
   friend std::ostream& operator<< (std::ostream& os, const PlacementResult r) {
