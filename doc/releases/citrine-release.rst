@@ -16,6 +16,23 @@ Introduction
 This release is based on XRootD V4 and IPV6 enabled.
 
 
+``v4.8.100 Citrine``
+===================
+
+2023-02-17
+
+Bug
+----
+
+* FST: Ensure the necessary OC client http headers are passed back to the client and
+  add a couple of helper function for building the header string for the HTTP response.
+
+Improvement
+-----------
+
+* EOS-5524 MGM: Allow https gateway nodes to provide x-forwarded-for headers
+
+
 ``v4.8.99 Citrine``
 ===================
 
