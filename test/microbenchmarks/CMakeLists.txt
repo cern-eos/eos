@@ -21,6 +21,22 @@
 # * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
 # ************************************************************************
 
+option(USE_SYSTEM_GBENCH "Use Google benchmark installed in the system if found" ON)
+
+if(USE_SYSTEM_GBENCH)
+  find_package(benchmark 1.6.0)
+else()
+  if(IS_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/benchmark)
+    set(BENCHMARK_FOUND TRUE)
+    set(BENCHMARK_ENABLE_GTEST_TESTS OFF)
+    add_subdirectory(benchmark EXCLUDE_FROM_ALL)
+  endif()
+endif()
+
+if(NOT BENCHMARK_FOUND)
+  return()
+endif()
+
 add_executable(eos-microbenchmarks main.cc)
 add_executable(eos-idmap-microbenchmark common/BM_IdMap.cc)
 target_link_libraries(eos-microbenchmarks PRIVATE
