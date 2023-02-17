@@ -29,10 +29,7 @@ include_directories(
   ${CMAKE_BINARY_DIR}/namespace/ns_quarkdb)  # for the generated protobuf
 
 add_subdirectory(benchmark)
-
-if (BENCHMARK_FOUND)
 add_subdirectory(microbenchmarks)
-endif()
 
 add_executable(xrdstress.exe XrdStress.cc)
 set_target_properties(xrdstress.exe PROPERTIES POSITION_INDEPENDENT_CODE TRUE)
