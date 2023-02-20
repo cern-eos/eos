@@ -230,7 +230,11 @@ TEST(ShardedCache, fetch_add_empty_key)
 
 TEST(ShardedCache, fetch_add_multithreaded)
 {
-  ShardedCache<std::string, int> cache(8, 10);
+  // Give a minute of GC instead of 10ms, so that we'd not expire any caches
+  // before the function completes! Otherwise with 10ms it can so happen that
+  // in small env by the time all the threads are run, GC would just run before we
+  // retrieve the cache.
+  ShardedCache<std::string, int> cache(8, 60*1000);
   std::vector<std::thread> threads;
   for (int i=0; i<200; i++) {
     threads.emplace_back([&cache]() {
