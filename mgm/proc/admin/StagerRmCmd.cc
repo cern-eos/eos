@@ -38,12 +38,16 @@ eos::mgm::StagerRmCmd::ProcessRequest() noexcept
 {
   eos::console::ReplyProto reply;
   std::ostringstream errStream;
+  std::ostringstream outStream;
+  bool allReplicasRemoved = false;
   int ret_c = 0;
   const auto& stagerRm = mReqProto.stagerrm();
   XrdOucErrInfo errInfo;
   eos::common::VirtualIdentity root_vid = eos::common::VirtualIdentity::Root();
   struct timespec ts_now;
   eos::common::Timing::GetTimeSpec(ts_now);
+  std::optional<uint64_t> fsid = 0;
+  fsid = stagerRm.has_stagerrmsinglereplica() ? std::optional(stagerRm.stagerrmsinglereplica().fsid()) : std::nullopt;
 
   for (auto i = 0; i < stagerRm.file_size(); i++) {
     EosCtaReporterStagerRm eosLog;
@@ -150,27 +154,62 @@ eos::mgm::StagerRmCmd::ProcessRequest() noexcept
       continue;
     }
 
-    // Clear the eviction counter
-    try {
-      eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
+    int diskReplicaCount = 0;
+    XrdOucString options;
+
+    if (fsid.has_value()) {
       auto fmd = gOFS->eosView->getFile(path.c_str());
-      gOFS->eosView->updateFileStore(fmd.get());
-      fmd->removeAttribute(eos::common::RETRIEVE_EVICT_COUNTER_NAME);
-    } catch (eos::MDException& ex) {
-      eos_static_err("msg=\"could not remove eviction counter for evicted file %s\"",
-                     path.c_str());
+      bool diskReplicaFound = false;
+      for (auto location : fmd->getLocations()) {
+        // Ignore tape replica
+        if (location == eos::common::TAPE_FS_ID) continue;
+        if (location == fsid.value()) diskReplicaFound = true;
+        ++diskReplicaCount;
+      }
+      if (!diskReplicaFound) {
+        eos_static_err("msg=\"unable to find replica of %s\" fsid=\"%u\" reason=\"%s\"",
+                       path.c_str(), fsid.value(), errInfo.getErrText());
+        errStream << "error: unable to find replica of '" << path << "'" <<
+                  std::endl;
+        eosLog.addParam(EosCtaReportParam::STAGERRM_FSID,  fsid.value());
+        eosLog.addParam(EosCtaReportParam::STAGERRM_ERROR, errStream.str());
+        ret_c = SFS_ERROR;
+        continue;
+      }
     }
 
     errInfo.clear();
 
-    if (gOFS->_dropallstripes(path.c_str(), errInfo, root_vid, true) != 0) {
-      eos_static_err("msg=\"could not delete all replicas of %s\" reason=\"%s\"",
-                     path.c_str(), errInfo.getErrText());
-      errStream << "error: could not delete all replicas of '" << path << "'" <<
-                std::endl;
-      eosLog.addParam(EosCtaReportParam::STAGERRM_ERROR, errStream.str());
-      ret_c = SFS_ERROR;
+    if (fsid.has_value()) {
+      // Drop single stripe
+      if (gOFS->_dropstripe(path.c_str(), 0, errInfo, root_vid, fsid.value(), true) != 0) {
+        eos_static_err("msg=\"could not delete replica of %s\" fsid=\"%u\" reason=\"%s\"",
+                       path.c_str(), fsid.value(), errInfo.getErrText());
+        errStream << "error: could not delete replica of '" << path << "'" <<
+                  std::endl;
+        eosLog.addParam(EosCtaReportParam::STAGERRM_FSID, fsid.value());
+        eosLog.addParam(EosCtaReportParam::STAGERRM_ERROR, errStream.str());
+        ret_c = SFS_ERROR;
+      } else {
+        if (diskReplicaCount <= 1) {
+          allReplicasRemoved = true;
+        }
+      }
     } else {
+      // Drop all stripes
+      if (gOFS->_dropallstripes(path.c_str(), errInfo, root_vid, true) != 0) {
+        eos_static_err("msg=\"could not delete all replicas of %s\" reason=\"%s\"",
+                       path.c_str(), errInfo.getErrText());
+        errStream << "error: could not delete all replicas of '" << path << "'" <<
+                  std::endl;
+        eosLog.addParam(EosCtaReportParam::STAGERRM_ERROR, errStream.str());
+        ret_c = SFS_ERROR;
+      } else {
+        allReplicasRemoved = true;
+      }
+    }
+
+    if (allReplicasRemoved) {
       // reset the retrieves counter in case of success
       eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
 
@@ -178,12 +217,14 @@ eos::mgm::StagerRmCmd::ProcessRequest() noexcept
         auto fmd = gOFS->eosView->getFile(path.c_str());
         fmd->setAttribute(eos::common::RETRIEVE_REQID_ATTR_NAME, "");
         fmd->setAttribute(eos::common::RETRIEVE_REQTIME_ATTR_NAME, "");
+        fmd->removeAttribute(eos::common::RETRIEVE_EVICT_COUNTER_NAME);
         gOFS->eosView->updateFileStore(fmd.get());
       } catch (eos::MDException& ex) {
-        eos_static_err("msg=\"could not reset Prepare request ID list for "
-                       "file %s. Try removing the %s and %s attributes\"",
+        eos_static_err("msg=\"could not reset Prepare request ID list or eviction counter for "
+                       "file %s. Try removing the %s, %s or %s attributes\"",
                        path.c_str(), eos::common::RETRIEVE_REQID_ATTR_NAME,
-                       eos::common::RETRIEVE_REQTIME_ATTR_NAME);
+                       eos::common::RETRIEVE_REQTIME_ATTR_NAME,
+                       eos::common::RETRIEVE_EVICT_COUNTER_NAME);
       }
 
       eosLog.addParam(EosCtaReportParam::STAGERRM_FILEREMOVED, true);
@@ -192,8 +233,15 @@ eos::mgm::StagerRmCmd::ProcessRequest() noexcept
 
   reply.set_retc(ret_c);
   reply.set_std_err(errStream.str());
-  reply.set_std_out(ret_c == 0 ?
-                    "success: removed all replicas for all given files" : "");
+  std::string stdout_reply_s;
+  if (ret_c == 0) {
+    if (fsid.has_value()) {
+      outStream << "success: removed fsid "<< fsid.value() << " replica for all given files";
+    } else {
+      outStream << "success: removed all replicas for all given files";
+    }
+  }
+  reply.set_std_out(outStream.str());
   return reply;
 }
 
