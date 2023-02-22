@@ -65,6 +65,7 @@ static const std::map<EosCtaReportParam, std::string> EosCtaParamMap{
   {EosCtaReportParam::STAGERRM_EVICTCOUNTER, "evictcounter"},
   {EosCtaReportParam::STAGERRM_FILEREMOVED , "fileremoved" },
   {EosCtaReportParam::STAGERRM_ERROR       , "error"       },
+  {EosCtaReportParam::STAGERRM_FSID        , "fsid"        },
 
   // File deletion params
   {EosCtaReportParam::FILE_DEL_FID                  , "fid"                  },
