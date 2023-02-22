@@ -507,6 +507,11 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
     vid.allowed_gids.insert(vid.gid);
   }
 
+  // ZTN mapping
+  if ((vid.prot == "ztn") && client->creds) {
+    authz = client->creds;
+  }
+
   // GRPC key mapping
   if ((vid.prot == "grpc") && vid.key.length()) {
     std::string keyname = vid.key.c_str();
@@ -582,7 +587,7 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
     if (keyname.substr(0, 8) == "zteos64:") {
       // this is an eos token
       authz = vid.key;
-    }  else {
+    } else {
       // try oauth2
       std::string oauthname;
       // release the map mutex to avoid any inteference with a queued up write lock and an oauth callout being slow
