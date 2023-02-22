@@ -69,6 +69,7 @@ enum class EosCtaReportParam {
   STAGERRM_EVICTCOUNTER,
   STAGERRM_FILEREMOVED,
   STAGERRM_ERROR,
+  STAGERRM_FSID,
 
   // File deletion params
   FILE_DEL_FID,
