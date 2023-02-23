@@ -165,13 +165,8 @@ private:
   //----------------------------------------------------------------------------
   // Process the given directory, apply all policies
   //----------------------------------------------------------------------------
-  void processDirectory(const std::string& dir, size_t contentSize,
+  void processDirectory(const std::string& dir,
                         eos::IContainerMD::XAttrMap& map);
-
-  //----------------------------------------------------------------------------
-  // Perform a single LRU cycle, in-memory namespace
-  //----------------------------------------------------------------------------
-  void performCycleInMem(ThreadAssistant& assistant) noexcept;
 
   //----------------------------------------------------------------------------
   // Perform a single LRU cycle, QDB namespace

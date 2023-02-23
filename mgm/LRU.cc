@@ -166,54 +166,6 @@ bool LRU::parseExpireMatchPolicy(const std::string& policy,
 }
 
 //------------------------------------------------------------------------------
-// Perform a single LRU cycle, in-memory namespace
-//------------------------------------------------------------------------------
-void LRU::performCycleInMem(ThreadAssistant& assistant) noexcept
-{
-  // Do a slow find
-  unsigned long long ndirs = 0;
-  {
-    RWMutexReadLock lock(gOFS->eosViewRWMutex);
-    ndirs = gOFS->eosDirectoryService->getNumContainers();
-  }
-  time_t ms = 1;
-
-  if (ndirs > 10000000) {
-    ms = 0;
-  }
-
-  eos_static_info("msg=\"start LRU scan\" ndir=%llu ms=%u", ndirs, ms);
-  std::map<std::string, std::set<std::string> > lrudirs;
-  XrdOucString stdErr;
-  // Find all directories defining an LRU policy
-  gOFS->MgmStats.Add("LRUFind", 0, 0, 1);
-  EXEC_TIMING_BEGIN("LRUFind");
-
-  if (!gOFS->_find("/", mError, stdErr, mRootVid, lrudirs, gLRUPolicyPrefix,
-                   "*", true, ms, false)) {
-    eos_static_info("msg=\"finished LRU find\" LRU-dirs=%llu", lrudirs.size());
-
-    // scan backwards ... in this way we get rid of empty directories in one go ...
-    for (auto it = lrudirs.rbegin(); it != lrudirs.rend(); it++) {
-      // Get the attributes
-      eos_static_info("lru-dir=\"%s\"", it->first.c_str());
-      eos::IContainerMD::XAttrMap map;
-
-      if (!gOFS->_attr_ls(it->first.c_str(), mError, mRootVid,
-                          (const char*) 0, map)) {
-        processDirectory(it->first, it->second.size(), map);
-      }
-    }
-
-    if (assistant.terminationRequested()) {
-      return;
-    }
-  }
-
-  EXEC_TIMING_END("LRUFind");
-}
-
-//------------------------------------------------------------------------------
 // Perform a single LRU cycle, QDB namespace
 //------------------------------------------------------------------------------
 void LRU::performCycleQDB(ThreadAssistant& assistant) noexcept
@@ -242,7 +194,7 @@ void LRU::performCycleQDB(ThreadAssistant& assistant) noexcept
   while (explorer.fetch(item)) {
     eos_static_debug("lru-dir-qdb=\"%s\" attrs=%d", item.fullPath.c_str(),
                      item.attrs.size());
-    processDirectory(item.fullPath, 0, item.attrs);
+    processDirectory(item.fullPath,item.attrs);
     processed++;
 
     if (processed % 1000 == 0) {
@@ -284,11 +236,7 @@ void LRU::backgroundThread(ThreadAssistant& assistant) noexcept
 
     // Only a master needs to run LRU
     if (opts.enabled && gOFS->mMaster->IsMaster()) {
-      if (gOFS->eosView->inMemory()) {
-        performCycleInMem(assistant);
-      } else {
-        performCycleQDB(assistant);
-      }
+      performCycleQDB(assistant);
     }
 
     while (stopwatch.timeRemainingInCycle() >= std::chrono::seconds(5)) {
@@ -307,7 +255,7 @@ void LRU::backgroundThread(ThreadAssistant& assistant) noexcept
 //------------------------------------------------------------------------------
 // Process the given directory, apply all policies
 //------------------------------------------------------------------------------
-void LRU::processDirectory(const std::string& dir, size_t contentSize,
+void LRU::processDirectory(const std::string& dir,
                            eos::IContainerMD::XAttrMap& map)
 {
   // No LRU on "/"
@@ -315,8 +263,13 @@ void LRU::processDirectory(const std::string& dir, size_t contentSize,
     return;
   }
 
+  // Don't walk into the proc directory
+  if (dir.substr(0,gOFS->MgmProcPath.length()) == gOFS->MgmProcPath.c_str()) {
+    eos_static_debug("skipping proc tree %s\n", dir.c_str());
+    return;
+  }
   // Sort out the individual LRU policies
-  if (map.count("sys.lru.expire.empty") && contentSize == 0) {
+  if (map.count("sys.lru.expire.empty")) {
     // Remove empty directories older than <age>
     AgeExpireEmpty(dir.c_str(), map["sys.lru.expire.empty"]);
   }
@@ -351,8 +304,8 @@ LRU::AgeExpireEmpty(const char* dir, const std::string& policy)
 
   if (!gOFS->_stat(dir, &buf, mError, mRootVid, "")) {
     // check if there is any child in that directory
-    if (buf.st_nlink > 1) {
-      eos_static_debug("dir=%s children=%d", dir, buf.st_nlink);
+    if (buf.st_blksize) {
+      eos_static_debug("dir=%s children=%d", dir, buf.st_blksize);
       return;
     } else {
       time_t now = time(NULL);
