@@ -207,7 +207,10 @@ ProcCommand::Ls()
           }
 
           if ((filter.length()) && (!entryname.matches(filter.c_str()))) {
-            // apply filter
+            // apply filter & skip single file/directories
+            if (ls_file.length()) {
+              break;
+            }
             continue;
           }
 
