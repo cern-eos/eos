@@ -152,7 +152,7 @@ int com_stagerrm(char* arg)
 void com_stagerrm_help()
 {
   std::ostringstream oss;
-  oss << "Usage: stagerrm <path>|fid:<fid-dec>]|fxid:<fid-hex> [<path>|fid:<fid-dec>]|fxid:<fid-hex>] ..."
+  oss << "Usage: stagerrm [--fsid <fsid>] <path>|fid:<fid-dec>]|fxid:<fid-hex> [<path>|fid:<fid-dec>]|fxid:<fid-hex>] ..."
       << std::endl
       << "       Removes all disk replicas of the given files separated by space"
       << std::endl
