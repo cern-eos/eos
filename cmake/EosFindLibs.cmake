@@ -67,7 +67,7 @@ if(NOT PACKAGEONLY)
   find_package(richacl)
   find_package(davix)
   find_package(Scitokens)
-  find_package(GoogleBenchmark 1.60)
+  find_package(GoogleBenchmark 1.6.0)
 
   if (Linux)
     # Clang Linux build requires libatomic & special flags for charconv
