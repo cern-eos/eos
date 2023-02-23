@@ -1022,6 +1022,12 @@ main(int argc, char* argv[])
           }
 
           if (doPIO && status.IsOK()) {
+	    if (!getenv("EOS_FST_XRDIO_READAHEAD")) {
+	      setenv("EOS_FST_XRDIO_READAHEAD","1",1);
+	    }
+	    if (!getenv("EOS_FST_XRDIO_BLOCK_SIZE")) {
+	      setenv("EOS_FST_XRDIO_BLOCK_SIZE","4194304 ", 1);
+	    }
             XrdCl::StatInfo* statresponse = 0;
             status = fs.Stat(file_path.c_str(), statresponse);
 
