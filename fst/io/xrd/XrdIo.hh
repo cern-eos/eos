@@ -151,6 +151,17 @@ public:
   }
 
   //----------------------------------------------------------------------------
+  //! InitReadahead
+  //!
+  //! @return : true if readahead is enabled, otherwise false
+  //----------------------------------------------------------------------------
+  static bool InitReadahead()
+  {
+    char* ptr = getenv("EOS_FST_XRDIO_READAHEAD");
+    return (ptr ? strtol(ptr, 0, 10)?true:false:false);
+  }
+
+  //----------------------------------------------------------------------------
   //! InitInitNumRdAheadBlocks
   //!
   //! @return : number of blocks that should be read ahead

@@ -142,7 +142,7 @@ AsyncIoOpenHandler::HandleResponseWithHosts(XrdCl::XRootDStatus* status,
 //------------------------------------------------------------------------------
 XrdIo::XrdIo(std::string path) :
   FileIo(path, "XrdIo"),
-  mDoReadahead(false),
+  mDoReadahead(InitReadahead()),
   mNumRdAheadBlocks(InitNumRdAheadBlocks()),
   mBlocksize(InitBlocksize()),
   mXrdFile(NULL),
