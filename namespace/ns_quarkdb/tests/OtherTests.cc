@@ -234,12 +234,30 @@ TEST(BulkNSObjectLocker, testBulkNSObjectLocker) {
     auto locks = bulkObjectLocker.lockAll();
     ASSERT_EQ(3,locks.size());
   }
-  auto lockedContainers = eos::MockContainerMD::getLockedContainers();
-  auto unlockedContainers = eos::MockContainerMD::getUnlockedContainers();
+  auto lockedContainers = eos::MockContainerMD::getReadLockedContainers();
+  auto unlockedContainers = eos::MockContainerMD::getReadUnlockedContainers();
+  ASSERT_EQ(3,lockedContainers.size());
+  ASSERT_EQ(3,unlockedContainers.size());
   for(uint64_t i = 1; i <= 3; i++) {
     ASSERT_EQ(i,lockedContainers[i-1]->getIdentifier().getUnderlyingUInt64());
   }
   for(uint64_t i = 3; i > 0; i--) {
     ASSERT_EQ(i,lockedContainers[i-1]->getIdentifier().getUnderlyingUInt64());
   }
+  eos::MockContainerMD::clearVectors();
+}
+
+TEST(NSObjectLocker, testNoDeadlockNSObjectLocker) {
+  auto mockContainerMD1 = std::make_shared<eos::MockContainerMD>(1);
+  {
+    eos::IContainerMD::IContainerMDWriteLocker writeLock(mockContainerMD1);
+    eos::IContainerMD::IContainerMDReadLocker readLock(mockContainerMD1);
+    eos::IContainerMD::IContainerMDReadLocker readLock2(mockContainerMD1);
+    eos::IContainerMD::IContainerMDWriteLocker writeLock2(mockContainerMD1);
+    ASSERT_EQ(2,eos::MockContainerMD::getReadLockedContainers().size());
+    ASSERT_EQ(2,eos::MockContainerMD::getWriteLockedContainers().size());
+  }
+  ASSERT_EQ(2,eos::MockContainerMD::getReadUnlockedContainers().size());
+  ASSERT_EQ(2,eos::MockContainerMD::getWriteUnlockedContainers().size());
+  eos::MockContainerMD::clearVectors();
 }
