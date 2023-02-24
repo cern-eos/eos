@@ -32,8 +32,9 @@ typedef std::shared_lock<std::shared_timed_mutex> MDReadLock;
 template<typename ObjectMDPtr, typename LockType>
 class NSObjectMDLocker {
 public:
-  NSObjectMDLocker(ObjectMDPtr objectMDPtr):mLock{objectMDPtr->mMutex}, mObjectMDPtr(objectMDPtr){
-    mObjectMDPtr->registerLock();
+  //Constructor that defers the locking of the mutex and will delegate the locking logic to the objectMD
+  NSObjectMDLocker(ObjectMDPtr objectMDPtr): mLock(objectMDPtr->mMutex,std::defer_lock),mObjectMDPtr(objectMDPtr) {
+    mObjectMDPtr->lock(mLock);
   }
   ObjectMDPtr operator->() {
     return mObjectMDPtr;
@@ -41,7 +42,9 @@ public:
   ObjectMDPtr getUnderlyingPtr() {
     return operator->();
   }
-  ~NSObjectMDLocker(){ mObjectMDPtr->unregisterLock();
+  virtual ~NSObjectMDLocker(){
+    mObjectMDPtr->unregisterLock(mLock);
+    //The unlocking of the lock will be done by this destructor
   }
 private:
   LockType mLock;
@@ -57,32 +60,102 @@ public:
 
   virtual ~NSObjectMDLockHelper() = default;
 
-  virtual void registerLock() {
-    std::unique_lock<std::shared_timed_mutex> lock(mThreadIdLockMapMutex);
-    mThreadIdLockMap[std::this_thread::get_id()] = true;
-  }
-
-  virtual void unregisterLock() {
-    std::unique_lock<std::shared_timed_mutex> lock(mThreadIdLockMapMutex);
-    auto threadId = std::this_thread::get_id();
-    auto currentThreadIsLock = mThreadIdLockMap.find(threadId);
-    if(currentThreadIsLock != mThreadIdLockMap.end()){
-      mThreadIdLockMap.erase(threadId);
+  template<typename LockType>
+  void lock(LockType & lock) {
+    //Lock the object only if it is not already read-locked or write-locked
+    if(!isLockRegisteredByThisThread(lock)) {
+      lock.lock();
     }
+    registerLock(lock);
   }
 
-  bool isLockRegisteredByThisThread() const {
+  /**
+   * This method contains the logic that will check
+   * wether a lock is already taken by this thread before acquiring
+   * a read-lock
+   * @param mdLock the lock allowing the overloading to work, it is actually not used
+   * @return true if this thread already has the lock allowing the read operation to
+   * be performed, false otherwise
+   */
+  bool isLockRegisteredByThisThread(MDReadLock & mdLock) const {
     std::shared_lock<std::shared_timed_mutex> lock(mThreadIdLockMapMutex);
-    auto currentThreadIsLock = mThreadIdLockMap.find(std::this_thread::get_id());
-    if(currentThreadIsLock == mThreadIdLockMap.end()){
-      return false;
-    }
-    return true;
+    // In case of a read, if this object is already locked by a write lock we consider it to be read-locked as well
+    // otherwise a deadlock will happen if the object is write locked and a getter method that will try to
+    // read lock the object is called...
+    return (isThisThreadInLockMap(mThreadIdWriteLockMap) ||
+            isThisThreadInLockMap(mThreadIdReadLockMap));
   }
 
+  /**
+   * This method contains the logic that will check
+   * wether a lock is already taken by this thread before acquiring
+   * a write-lock
+   * @param mdLock the lock allowing the overloading to work, it is actually not used
+   * @return true if this thread already has the lock allowing the write operation to
+   * be performed, false otherwise
+   */
+  bool isLockRegisteredByThisThread(MDWriteLock & mdLock) const {
+    std::shared_lock<std::shared_timed_mutex> lock(mThreadIdLockMapMutex);
+    return isThisThreadInLockMap(mThreadIdWriteLockMap);
+  }
+
+  /**
+   * Registers the read lock
+   * @param mdLock the lock allowing the overloading of this member function to work. It
+   * is actually not used
+   */
+  virtual void registerLock(MDReadLock & mdLock) {
+    std::unique_lock<std::shared_timed_mutex> lock(mThreadIdLockMapMutex);
+    registerLock(mThreadIdReadLockMap);
+  }
+
+  /**
+   * Registers the write lock
+   * @param mdLock the lock allowing the overloading of this member function to work. It
+   * is actually not used
+   */
+  virtual void registerLock(MDWriteLock & mdLock) {
+    std::unique_lock<std::shared_timed_mutex> lock(mThreadIdLockMapMutex);
+    registerLock(mThreadIdWriteLockMap);
+    //A Write lock is also a readlock. If one tries to read
+    //lock after a write lock on the same thread, a deadlock will happen
+    registerLock(mThreadIdReadLockMap);
+  }
+
+  /**
+   * Unregisters the read lock
+   * @param mdLock the lock allowing the overloading of this member function to work. It
+   * is actually not used
+   */
+  virtual void unregisterLock(MDReadLock & mdLock) {
+    std::unique_lock<std::shared_timed_mutex> lock(mThreadIdLockMapMutex);
+    unregisterLock(mThreadIdReadLockMap);
+  }
+
+  /**
+   * Unregisters the write lock
+   * @param mdLock the lock allowing the overloading of this member function to work. It
+   * is actually not used
+   */
+  virtual void unregisterLock(MDWriteLock & mdLock) {
+    std::unique_lock<std::shared_timed_mutex> lock(mThreadIdLockMapMutex);
+    unregisterLock(mThreadIdWriteLockMap);
+    unregisterLock(mThreadIdReadLockMap);
+  }
+
+  /**
+   * Runs a write operation where the logic is located on the functor passed in parameter.
+   *
+   * If this instance already has a write-lock registered, no lock will be taken before running the functor,
+   * if not, a write-lock will be taken before running the functor
+   * @tparam Functor the function type to pass
+   * @param functor the function to run
+   * @return the return value of the functor
+   */
   template<typename Functor>
   auto runWriteOp(Functor && functor) const -> decltype(functor()){
-    if(!isLockRegisteredByThisThread()){
+    MDWriteLock lock;
+    if(!isLockRegisteredByThisThread(lock)){
       //Object mutex is not locked, lock it and run the functor
       std::unique_lock<std::shared_timed_mutex> lock(static_cast<const ObjectMD *>(this)->mMutex);
       return functor();
@@ -97,9 +170,19 @@ public:
     return const_cast<const NSObjectMDLockHelper<ObjectMD> *>(this)->template runWriteOp(functor);
   }
 
+  /**
+   * Runs a read operation where the logic is located on the functor passed in parameter.
+   *
+   * If this instance already has a read-lock (or write-lock) registered, no lock will be taken before running the functor,
+   * if not, a read-lock will be taken before running the functor
+   * @tparam Functor the function type to pass
+   * @param functor the function to run
+   * @return the return value of the functor
+   */
   template<typename Functor>
   auto runReadOp(Functor && functor) const -> decltype(functor()) {
-    if(!isLockRegisteredByThisThread()){
+    MDReadLock lock;
+    if(!isLockRegisteredByThisThread(lock)){
       //Object mutex is not locked, lock it and run the functor
       std::shared_lock<std::shared_timed_mutex> lock(static_cast<const ObjectMD *>(this)->mMutex);
       return functor();
@@ -120,7 +203,35 @@ private:
   //Map that keeps track of the threads that already have a lock
   //on this MD object. This map is only filled when the MDLocker object
   //is used.
-  mutable std::map<std::thread::id,bool> mThreadIdLockMap;
+  mutable std::map<std::thread::id,uint64_t> mThreadIdWriteLockMap;
+  mutable std::map<std::thread::id,uint64_t> mThreadIdReadLockMap;
+
+  //Assumes read lock is taken for the map
+  bool isThisThreadInLockMap(const std::map<std::thread::id,uint64_t> & threadIdLockMap) const {
+    return (threadIdLockMap.find(std::this_thread::get_id()) != threadIdLockMap.end());
+  }
+
+  //Assumes lock is taken for the map
+  void registerLock(std::map<std::thread::id,uint64_t> & threadIdLockMap) {
+    auto threadId = std::this_thread::get_id();
+    auto threadIdLockMapItor = threadIdLockMap.find(threadId);
+    if(threadIdLockMapItor == threadIdLockMap.end()) {
+      threadIdLockMap[threadId] = 0;
+    }
+    threadIdLockMap[threadId] += 1;
+  }
+
+  //Assumes lock is taken for the map
+  void unregisterLock(std::map<std::thread::id,uint64_t> & threadIdLockMap) {
+    auto threadId = std::this_thread::get_id();
+    auto threadIdLockMapItor = threadIdLockMap.find(threadId);
+    if(threadIdLockMapItor != threadIdLockMap.end()) {
+      threadIdLockMap[threadId] -= 1;
+      if(threadIdLockMapItor->second == 0) {
+        threadIdLockMap.erase(threadId);
+      }
+    }
+  }
 };
 
 EOSNSNAMESPACE_END
