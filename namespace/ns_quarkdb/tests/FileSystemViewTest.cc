@@ -872,8 +872,8 @@ TEST_F(FileSystemViewF,getFileOrContainerMDLocked) {
   {
     auto containerWriteLocked = view()->getContainerWriteLocked("/root/");
     containerWriteLocked->getUnderlyingPtr()->setAttribute("testKey","testValue");
-    auto file1ReadLocked = view()->getFileReadLocked("/root/file1");
-    containerWriteLocked->getUnderlyingPtr()->addFile(file1ReadLocked->getUnderlyingPtr().get());
+    auto file1WriteLocked = view()->getFileWriteLocked("/root/file1");
+    containerWriteLocked->getUnderlyingPtr()->addFile(file1WriteLocked->getUnderlyingPtr().get());
   }
   {
     auto containerReadLock = view()->getContainerReadLocked("/root/");
