@@ -34,10 +34,21 @@ EOSNSNAMESPACE_BEGIN
  */
 class MockContainerMD : public QuarkContainerMD, public std::enable_shared_from_this<MockContainerMD> {
 public:
-  //Vector to keep track of the order of locking of the containers
-  static std::vector<eos::IContainerMDPtr> lockedContainers;
-  //Vector to keep track of the order of unlocking of the containers
-  static std::vector<eos::IContainerMDPtr> unlockedContainers;
+  //Vector to keep track of the order of write locking of the containers
+  static std::vector<eos::IContainerMDPtr> writeLockedContainers;
+  //Vector to keep track of the order of write unlocking of the containers
+  static std::vector<eos::IContainerMDPtr> writeUnlockedContainers;
+  //Vector to keep track of the order of read locking of the containers
+  static std::vector<eos::IContainerMDPtr> readLockedContainers;
+  //Vector to keep track of the order of read unlocking of the containers
+  static std::vector<eos::IContainerMDPtr> readUnlockedContainers;
+
+  static void clearVectors() {
+    writeLockedContainers.clear();
+    writeUnlockedContainers.clear();
+    readLockedContainers.clear();
+    readUnlockedContainers.clear();
+  }
 
   MockContainerMD(uint64_t id){
     mId = ContainerIdentifier(id);
@@ -47,27 +58,50 @@ public:
     return mId;
   }
 
-  void registerLock() override {
-    lockedContainers.push_back(shared_from_this());
+  void registerLock(MDWriteLock & lock) override {
+    QuarkContainerMD::registerLock(lock);
+    writeLockedContainers.push_back(shared_from_this());
   }
 
-  void unregisterLock() override {
-    unlockedContainers.push_back(shared_from_this());
+  void registerLock(MDReadLock & lock) override {
+    QuarkContainerMD::registerLock(lock);
+    readLockedContainers.push_back(shared_from_this());
   }
 
-  static std::vector<eos::IContainerMDPtr> getLockedContainers() {
-    return lockedContainers;
+  void unregisterLock(MDWriteLock & lock) override {
+    QuarkContainerMD::unregisterLock(lock);
+    writeUnlockedContainers.push_back(shared_from_this());
   }
 
-  static std::vector<eos::IContainerMDPtr> getUnlockedContainers() {
-    return unlockedContainers;
+  void unregisterLock(MDReadLock & lock) override {
+    QuarkContainerMD::unregisterLock(lock);
+    readUnlockedContainers.push_back(shared_from_this());
   }
+
+  static std::vector<eos::IContainerMDPtr> getWriteLockedContainers() {
+    return writeLockedContainers;
+  }
+
+  static std::vector<eos::IContainerMDPtr> getWriteUnlockedContainers() {
+    return writeUnlockedContainers;
+  }
+
+  static std::vector<eos::IContainerMDPtr> getReadLockedContainers() {
+    return readLockedContainers;
+  }
+
+  static std::vector<eos::IContainerMDPtr> getReadUnlockedContainers() {
+    return readUnlockedContainers;
+  }
+
 private:
   identifier_t mId;
 };
 
-std::vector<eos::IContainerMDPtr> MockContainerMD::lockedContainers = std::vector<eos::IContainerMDPtr>();
-std::vector<eos::IContainerMDPtr> MockContainerMD::unlockedContainers = std::vector<eos::IContainerMDPtr>();
+std::vector<eos::IContainerMDPtr> MockContainerMD::writeLockedContainers = std::vector<eos::IContainerMDPtr>();
+std::vector<eos::IContainerMDPtr> MockContainerMD::writeUnlockedContainers = std::vector<eos::IContainerMDPtr>();
+std::vector<eos::IContainerMDPtr> MockContainerMD::readLockedContainers = std::vector<eos::IContainerMDPtr>();
+std::vector<eos::IContainerMDPtr> MockContainerMD::readUnlockedContainers = std::vector<eos::IContainerMDPtr>();
 
 EOSNSNAMESPACE_END
 
