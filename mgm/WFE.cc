@@ -2152,9 +2152,7 @@ WFE::Job::HandleProtoMethodEvictPrepareEvent(const std::string& fullPath,
         " msg=\"Cannot determine file and disk replicas, not doing the evict. Reason: "
         << errInfo.getErrText() << "\"";
     eos_static_err(msg.str().c_str());
-    eosLog
-    .addParam(EosCtaReportParam::PREP_WFE_SENTTOCTA, false)
-    .addParam(EosCtaReportParam::PREP_WFE_ERROR, msg.str());
+    eosLog.addParam(EosCtaReportParam::PREP_WFE_ERROR, msg.str());
     MoveWithResults(EAGAIN);
     return EAGAIN;
   }
@@ -2163,14 +2161,11 @@ WFE::Job::HandleProtoMethodEvictPrepareEvent(const std::string& fullPath,
     std::ostringstream msg;
     msg << preamble.str() << " msg=\"File is not on disk, nothing to evict.\"";
     eos_static_info(msg.str().c_str());
-    eosLog.addParam(EosCtaReportParam::PREP_WFE_SENTTOCTA, false);
   } else if (!onTape) {
     std::ostringstream msg;
     msg << preamble.str() << " msg=\"File is not on tape, cannot evict it.\"";
     eos_static_err(msg.str().c_str());
-    eosLog
-    .addParam(EosCtaReportParam::PREP_WFE_SENTTOCTA, false)
-    .addParam(EosCtaReportParam::PREP_WFE_ERROR, msg.str());
+    eosLog.addParam(EosCtaReportParam::PREP_WFE_ERROR, msg.str());
     MoveWithResults(ENODATA);
     return ENODATA;
   } else {
@@ -2215,15 +2210,13 @@ WFE::Job::HandleProtoMethodEvictPrepareEvent(const std::string& fullPath,
         msg << preamble.str() <<
             " msg=\"Failed to issue stagerrm for evict_prepare event\"";
         eos_static_info(msg.str().c_str());
-        eosLog.addParam(EosCtaReportParam::PREP_WFE_SENTTOCTA, false)
-              .addParam(EosCtaReportParam::PREP_WFE_ERROR, msg.str());
+        eosLog.addParam(EosCtaReportParam::PREP_WFE_ERROR, msg.str());
         MoveWithResults(EAGAIN);
         return EAGAIN;
       }
     }
   }
 
-  eosLog.addParam(EosCtaReportParam::PREP_WFE_SENTTOCTA, true);
   MoveWithResults(SFS_OK);
   EXEC_TIMING_END("Proto::EvictPrepare");
   return SFS_OK;

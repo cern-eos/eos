@@ -226,7 +226,9 @@ eos::mgm::StagerRmCmd::ProcessRequest() noexcept
                        eos::common::RETRIEVE_REQTIME_ATTR_NAME,
                        eos::common::RETRIEVE_EVICT_COUNTER_NAME);
       }
-
+      if (fsid.has_value()) {
+        eosLog.addParam(EosCtaReportParam::STAGERRM_FSID, fsid.value());
+      }
       eosLog.addParam(EosCtaReportParam::STAGERRM_FILEREMOVED, true);
     }
   }
