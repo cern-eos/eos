@@ -942,50 +942,7 @@ Iostat::Receive(ThreadAssistant& assistant) noexcept
       }
 
       if (mReport && gOFS->mMaster->IsMaster()) {
-        // add the record to a daily report log file
-        static XrdOucString openreportfile = "";
-        time_t now = time(NULL);
-        struct tm nowtm;
-        XrdOucString reportfile = "";
-
-        if (localtime_r(&now, &nowtm)) {
-          static char logfile[4096];
-          snprintf(logfile, sizeof(logfile) - 1, "%s/%04u/%02u/%04u%02u%02u.eosreport",
-                   gOFS->IoReportStorePath.c_str(),
-                   1900 + nowtm.tm_year,
-                   nowtm.tm_mon + 1,
-                   1900 + nowtm.tm_year,
-                   nowtm.tm_mon + 1,
-                   nowtm.tm_mday);
-          reportfile = logfile;
-
-          if (reportfile == openreportfile) {
-            // just add it here;
-            if (gOpenReportFD) {
-              fprintf(gOpenReportFD, "%s\n", body.c_str());
-              fflush(gOpenReportFD);
-            }
-          } else {
-            std::unique_lock<std::mutex> scope_lock(mDataMutex);
-
-            if (gOpenReportFD) {
-              fclose(gOpenReportFD);
-            }
-
-            eos::common::Path cPath(reportfile.c_str());
-
-            if (cPath.MakeParentPath(S_IRWXU | S_IRGRP | S_IXGRP)) {
-              gOpenReportFD = fopen(reportfile.c_str(), "a+");
-
-              if (gOpenReportFD) {
-                fprintf(gOpenReportFD, "%s\n", body.c_str());
-                fflush(gOpenReportFD);
-              }
-
-              openreportfile = reportfile;
-            }
-          }
-        }
+        WriteRecord(body.c_str());
       }
 
       if (mReportNamespace) {
@@ -1019,8 +976,54 @@ Iostat::Receive(ThreadAssistant& assistant) noexcept
 void
 Iostat::WriteRecord(const std::string& record)
 {
-  static std::mutex mutex;
-  std::unique_lock<std::mutex> scope_lock(mutex);
+  static uint32_t sec_per_day = 24 * 3600;
+  static std::mutex s_mutex;
+  static std::string s_report_fn = "";
+  static time_t s_last_ts = 0ull;
+  time_t now_ts = time(NULL);
+  std::unique_lock<std::mutex> scope_lock(s_mutex);
+
+  if (now_ts / sec_per_day != s_last_ts / sec_per_day) {
+    struct tm nowtm;
+
+    if (localtime_r(&now_ts, &nowtm)) {
+      static char logfile[4096];
+      snprintf(logfile, sizeof(logfile) - 1, "%s/%04u/%02u/%04u%02u%02u.eosreport",
+               gOFS->IoReportStorePath.c_str(),
+               1900 + nowtm.tm_year,
+               nowtm.tm_mon + 1,
+               1900 + nowtm.tm_year,
+               nowtm.tm_mon + 1,
+               nowtm.tm_mday);
+      std::string report_fn = logfile;
+
+      if (report_fn != s_report_fn) {
+        if (gOpenReportFD) {
+          fclose(gOpenReportFD);
+          gOpenReportFD = nullptr;
+        }
+
+        eos::common::Path cPath(report_fn.c_str());
+
+        if (cPath.MakeParentPath(S_IRWXU | S_IRGRP | S_IXGRP)) {
+          gOpenReportFD = fopen(report_fn.c_str(), "a+");
+
+          if (!gOpenReportFD) {
+            eos_static_err("msg=\"failed to open report file\" path=%s",
+                           report_fn.c_str());
+            return;
+          }
+        } else {
+          eos_static_err("msg=\"failed to create report parent path\" path=%s",
+                         report_fn.c_str());
+          return;
+        }
+
+        s_report_fn = report_fn;
+        s_last_ts = now_ts;
+      }
+    }
+  }
 
   if (gOpenReportFD) {
     fprintf(gOpenReportFD, "%s\n", record.c_str());
