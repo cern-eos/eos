@@ -107,9 +107,15 @@ AclCmd::ModifyAcls(const eos::console::AclProto& acl)
     return EINVAL;
   }
 
+  bool fine_grained_write = !acl.sync_write();
+
   std::list<std::string> paths;
   eos::Prefetcher::prefetchContainerMDAndWait(gOFS->eosView, acl.path(), false);
-  eos::common::RWMutexWriteLock ns_wr_lock(gOFS->eosViewRWMutex);
+  eos::common::RWMutexWriteLock ns_wr_lock;
+
+  if (!fine_grained_write) {
+    ns_wr_lock.Grab(gOFS->eosViewRWMutex);
+  }
 
   if (acl.recursive()) {
     // @todo (esindril): get list of all directories recursively
@@ -117,7 +123,7 @@ AclCmd::ModifyAcls(const eos::console::AclProto& acl)
     std::map<std::string, std::set<std::string>> dirs;
     m_err.erase();
     (void) gOFS->_find(acl.path().c_str(), error, m_err, mVid, dirs, nullptr,
-                       nullptr, true, 0, false, 0, nullptr, false);
+                       nullptr, true, 0, false, 0, nullptr, fine_grained_write);
 
     if (m_err.length()) {
       mErr = m_err.c_str();
@@ -151,9 +157,9 @@ AclCmd::ModifyAcls(const eos::console::AclProto& acl)
     ApplyRule(rule_map, acl_pos);
     new_acl_val = GenerateAclString(rule_map);
 
-    // Set xattr without taking the namespace lock
+    // Set xattr taking the namespace lock
     if (gOFS->_attr_set(elem.c_str(), error, mVid, 0, acl_key.c_str(),
-                        new_acl_val.c_str(), false)) {
+                        new_acl_val.c_str(), fine_grained_write)) {
       mErr = "error: failed to set new acl for path=";
       mErr += elem.c_str();
       eos_err("%s", mErr.c_str());

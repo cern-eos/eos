@@ -221,6 +221,10 @@ AclHelper::ParseCommand(const char* arg)
       continue;
     }
 
+    if (token == "--with-synchronous-write-lock") {
+      acl->set_sync_write(true);
+      continue;
+    }
     // If there is unsupported flag
     if (token.at(0) == '-') {
       std::cerr << "error: unrecognized flag " << token << std::endl;
