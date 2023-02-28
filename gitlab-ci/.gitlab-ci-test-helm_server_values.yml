@@ -20,6 +20,8 @@ fst:
   extraEnv:
     - name: EOS_FST_TESTING
       value: "1"
+  securityContext:
+     privileged: true
 
 mgm:
   kerberos:
@@ -30,3 +32,5 @@ mgm:
     adminPrinc:
       name: "--set $TEST_ADMINPRINC_NAME"
       password: "--set $TEST_ADMINPRINC_PASSWORD"
+  securityContext:
+      privileged: true
