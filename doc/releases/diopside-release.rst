@@ -17,6 +17,25 @@ Introduction
 This release is based on XRootD V5.
 
 
+``v5.1.12 Diopside``
+====================
+
+2023-02-28
+
+Bug
+----
+
+* [EOS-5526] - User Sessions count seems to be wrong
+* [EOS-5534] - LRU should not walk down the recycle bin and apply policies
+* [EOS-5535] - LRU tries to delete all directories having an empty deletion policy
+* [EOS-5542] - Error when accessing directories with wildcards
+
+Improvement
+------------
+
+* [EOS-5536] - LRU code has still in-memory namespace code
+
+
 ``v5.1.11 Diopside``
 ====================
 
