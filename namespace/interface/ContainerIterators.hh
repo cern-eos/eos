@@ -37,8 +37,8 @@ class FileMapIterator
 {
 public:
   FileMapIterator(IContainerMDPtr cont)
-    : container(cont), mLock(cont->mMutex), iResized(false), iValid(false) {
-    std::shared_lock<std::shared_timed_mutex> lock (mLock);
+    : container(cont), iResized(false), iValid(false) {
+    IContainerMD::IContainerMDReadLocker locker(container);
     iter = cont->filesBegin();
     iGeneration = generation();
     if (!iterEnd()) {
@@ -58,7 +58,7 @@ public:
   }
 
   void next() {
-    std::shared_lock<std::shared_timed_mutex> lock (mLock);
+    IContainerMD::IContainerMDReadLocker readLocker(container);
 
     // check for a re-sized map
     if (generation() != iGeneration) {
@@ -134,7 +134,6 @@ private:
 
 
   IContainerMDPtr container;
-  std::shared_timed_mutex &mLock;
   eos::IContainerMD::FileMap::const_iterator iter;
   std::set<std::string> iShown;
   std::string iKey;
@@ -151,7 +150,7 @@ class ContainerMapIterator
 {
 public:
   ContainerMapIterator(IContainerMDPtr cont)
-    : container(cont), mLock(cont->mMutex), iResized(false), iValid(false) {
+    : container(cont), iResized(false), iValid(false) {
     iter = cont->subcontainersBegin();
     iGeneration = generation();
     if (!iterEnd()) {
@@ -171,7 +170,7 @@ public:
   }
 
   void next() {
-    std::shared_lock<std::shared_timed_mutex> lock (mLock);
+    eos::IContainerMD::IContainerMDReadLocker readLocker(container);
 
     // check for a re-sized map
     if (generation() != iGeneration) {
@@ -246,7 +245,6 @@ public:
 private:
 
   IContainerMDPtr container;
-  std::shared_timed_mutex &mLock;
   eos::IContainerMD::ContainerMap::const_iterator iter;
   std::set<std::string> iShown;
   std::string iKey;
