@@ -30,6 +30,9 @@ else()
     set(BENCHMARK_FOUND TRUE)
     set(BENCHMARK_ENABLE_GTEST_TESTS OFF)
     add_subdirectory(benchmark EXCLUDE_FROM_ALL)
+    # benchmark redefines VERSION and fails with -Werror which is set internally
+    # override this, we don't care about warnings in the benchmark build itself
+    target_compile_options(benchmark PRIVATE -w)
   endif()
 endif()
 
