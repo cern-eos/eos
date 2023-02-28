@@ -472,8 +472,9 @@ QuarkFileMD::getATimeNoLock(ctime_t& atime) const
 void
 QuarkFileMD::getATime(ctime_t& atime) const
 {
-  std::shared_lock<std::shared_timed_mutex> lock(mMutex);
-  getATimeNoLock(atime);
+  runReadOp([this,&atime] {
+    getATimeNoLock(atime);
+  });
 }
 
 //------------------------------------------------------------------------------
@@ -482,8 +483,10 @@ QuarkFileMD::getATime(ctime_t& atime) const
 void
 QuarkFileMD::setATime(ctime_t atime)
 {
-  std::unique_lock<std::shared_timed_mutex> lock(mMutex);
-  mFile.set_atime(&atime, sizeof(atime));
+  runWriteOp([this,atime](){
+    mFile.set_atime(&atime, sizeof(atime));
+  });
+
 }
 
 //------------------------------------------------------------------------------
