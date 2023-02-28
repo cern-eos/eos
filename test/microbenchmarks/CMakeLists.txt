@@ -64,10 +64,10 @@ target_link_libraries(eos-atomic-ptr-microbenchmark PRIVATE
   ${CMAKE_THREAD_LIBS_INIT})
 
 target_link_libraries(eos-rrseed-microbenchmark PRIVATE
-  GOOGLEBENCHMARK::GOOGLEBENCHMARK
-        ${CMAKE_THREAD_LIBS_INIT}
-        EosCommon-Static)
+  benchmark::benchmark
+  ${CMAKE_THREAD_LIBS_INIT}
+  EosCommon-Static)
 
 target_link_libraries(eos-flatscheduler-microbenchmark PRIVATE
-  GOOGLEBENCHMARK::GOOGLEBENCHMARK
+  benchmark::benchmark
   EosCommon-Static)
