@@ -357,6 +357,9 @@ build_cs9_arm:
     expire_in: 1 day
     paths:
       - ${CI_JOB_NAME}_artifacts
+  only:
+    - schedules
+    - tags
   tags:
     - docker_node
 
@@ -467,7 +470,6 @@ build_fedora_36:
   only:
     - schedules
     - tags
-    - master
 
 build_fedora_37:
   image: fedora:37
@@ -477,7 +479,6 @@ build_fedora_37:
   only:
     - schedules
     - tags
-    - master
 
 build_fedora_rawhide:
   image: registry.fedoraproject.org/fedora:rawhide
