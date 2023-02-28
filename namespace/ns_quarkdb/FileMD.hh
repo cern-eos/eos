@@ -201,8 +201,9 @@ public:
   //----------------------------------------------------------------------------
   void setCloneFST(const std::string& data) override
   {
-    std::shared_lock<std::shared_timed_mutex> lock(mMutex);
-    mFile.set_clonefst(data);
+    runWriteOp([this,data](){
+      mFile.set_clonefst(data);
+    });
   }
 
   //----------------------------------------------------------------------------
@@ -668,8 +669,9 @@ public:
   //----------------------------------------------------------------------------
   virtual uint64_t getClock() const override
   {
-    std::shared_lock<std::shared_timed_mutex> lock(mMutex);
-    return mClock;
+    return runReadOp([this](){
+      return mClock;
+    });
   };
 
 protected:
