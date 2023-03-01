@@ -383,7 +383,7 @@ TEST(FlatScheduler, SingleSite)
   auto cluster_data_ptr = mgr.getClusterData();
   auto result = flat_scheduler.schedule(cluster_data_ptr(),
                                         {2});
-  std::cout << result.err_msg << ", " << result << std::endl;
+  std::cout << result.err_msg.value_or("") << ", " << result << std::endl;
   ASSERT_TRUE(result);
   ASSERT_TRUE(result.is_valid_placement(2));
 }
@@ -421,7 +421,7 @@ TEST(FlatScheduler, TLSingleSite)
   auto cluster_data_ptr = mgr.getClusterData();
   auto result = flat_scheduler.schedule(cluster_data_ptr(),
                                         {2});
-  std::cout << result.err_msg << std::endl;
+  std::cout << result.err_msg.value_or("") << std::endl;
   ASSERT_TRUE(result);
   ASSERT_TRUE(result.is_valid_placement(2));
 }
