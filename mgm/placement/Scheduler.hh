@@ -27,6 +27,7 @@
 #include "mgm/placement/RRSeed.hh"
 #include "mgm/placement/ThreadLocalRRSeed.hh"
 #include <algorithm>
+#include <optional>
 
 namespace eos::mgm::placement {
 
@@ -34,7 +35,7 @@ struct PlacementResult {
   std::array<item_id_t, 32> ids {0};
   int ret_code;
   int n_replicas;
-  std::string err_msg;
+  std::optional<std::string> err_msg;
 
   PlacementResult() :  ret_code(-1), n_replicas(0) {}
   PlacementResult(int n_rep):  ret_code(-1), n_replicas(n_rep) {}
