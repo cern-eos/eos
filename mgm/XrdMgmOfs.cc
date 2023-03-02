@@ -85,6 +85,7 @@
 #include "mgm/auth/AccessChecker.hh"
 #include "mgm/config/IConfigEngine.hh"
 #include "mgm/bulk-request/prepare/manager/PrepareManager.hh"
+#include "mgm/placement/FsScheduler.hh"
 #include "mq/SharedHashWrapper.hh"
 #include "mq/FsChangeListener.hh"
 #include "mq/GlobalConfigChangeListener.hh"
@@ -367,6 +368,7 @@ XrdMgmOfs::XrdMgmOfs(XrdSysError* ep):
   Recycler.reset(new eos::mgm::Recycle());
   mTapeGcMgm.reset(new tgc::RealTapeGcMgm(*this));
   mTapeGc.reset(new tgc::MultiSpaceTapeGc(*mTapeGcMgm));
+  mFsScheduler.reset(new eos::mgm::placement::FSScheduler());
 }
 
 //------------------------------------------------------------------------------
