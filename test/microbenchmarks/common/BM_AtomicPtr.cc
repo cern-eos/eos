@@ -284,6 +284,126 @@ static void BM_EOSReadWriteLock(benchmark::State& state)
                                         benchmark::Counter::kIsRate);
 }
 
+// Adapted from Abseil's Mutex benchmarks, which is under an Apache License
+// While the benchmarks above benchmarked the pure cost of a lock/unlock operation
+// unless the critical section is exceedingly small, this won't benchmark the
+// contention caused which usually happens when you have multiple threads trying to
+// get a lock and when the activity inside the lock is more or less realistic.
+static void DelayNs(int64_t _ns, int* data) {
+  using namespace std::chrono_literals;
+  auto end = std::chrono::system_clock::now() + std::chrono::nanoseconds(_ns);
+  int l;
+  while (std::chrono::system_clock::now() < end) {
+    l = (*data)+1;
+    benchmark::DoNotOptimize(*data);
+  }
+}
+
+template <typename MutexType>
+class RaiiLocker {
+public:
+  explicit RaiiLocker(MutexType* mu) : mu_(mu) { mu_->lock(); }
+  ~RaiiLocker() { mu_->unlock(); }
+private:
+  MutexType* mu_;
+};
+
+template <>
+class RaiiLocker<std::shared_mutex> {
+public:
+  explicit RaiiLocker(std::shared_mutex* mu) : mu_(mu) { mu_->lock_shared(); }
+  ~RaiiLocker() { mu_->unlock_shared(); }
+private:
+  std::shared_mutex* mu_;
+};
+
+template <>
+class RaiiLocker<eos::common::EpochRCUDomain>
+{
+public:
+  explicit RaiiLocker(eos::common::EpochRCUDomain* domain): domain_(domain) {
+    epoch = domain_->get_current_epoch();
+    tag = domain_->rcu_read_lock(epoch);
+  }
+
+  ~RaiiLocker() {
+    domain_->rcu_read_unlock(epoch, tag);
+  }
+ private:
+  eos::common::EpochRCUDomain* domain_;
+  uint64_t epoch;
+  uint64_t tag;
+};
+
+template <>
+class RaiiLocker<eos::common::RWMutex>
+{
+public:
+  explicit RaiiLocker(eos::common::RWMutex* mutex): mutex_(mutex) {
+    mutex_->LockRead();
+  }
+
+  ~RaiiLocker() {
+    mutex_->UnLockRead();
+  }
+private:
+  eos::common::RWMutex* mutex_;
+};
+
+template <typename MutexType>
+void BM_Contended(benchmark::State& state) {
+
+  struct Shared {
+    MutexType mu;
+    int data = 0;
+  };
+  static auto* shared = new Shared;
+  int local = 0;
+  for (auto _ : state) {
+    // Here we model both local work outside of the critical section as well as
+    // some work inside of the critical section. The idea is to capture some
+    // more or less realisitic contention levels.
+    // If contention is too low, the benchmark won't measure anything useful.
+    // If contention is unrealistically high, the benchmark will favor
+    // bad mutex implementations that block and otherwise distract threads
+    // from the mutex and shared state for as much as possible.
+    // To achieve this amount of local work is multiplied by number of threads
+    // to keep ratio between local work and critical section approximately
+    // equal regardless of number of threads.
+    DelayNs(100 * state.threads(), &local);
+    RaiiLocker<MutexType> locker(&shared->mu);
+    DelayNs(state.range(0), &shared->data);
+  }
+  state.counters["frequency"] = Counter(state.iterations(),
+                                        benchmark::Counter::kIsRate);
+
+}
+
+void SetupBenchmarkArgs(benchmark::internal::Benchmark* bm) {
+  bm->UseRealTime()
+      // ThreadPerCpu poorly handles non-power-of-two CPU counts.
+      ->Threads(1)
+      ->Threads(2)
+      ->Threads(4)
+      ->Threads(6)
+      ->Threads(8)
+      ->Threads(12)
+      ->Threads(16)
+      ->Threads(24)
+      ->Threads(32)
+      ->Threads(48)
+      ->Threads(64)
+      ->Threads(96)
+      ->Threads(128)
+      ->Threads(192)
+      ->Threads(256)
+    ->ArgNames({"cs_ns"});
+  // Some empirically chosen amounts of work in critical section.
+  // 1 is low contention, 2000 is high contention and few values in between.
+  for (int critical_section_ns : {1, 20, 50, 200, 2000}) {
+      bm->Arg(critical_section_ns);
+  }
+}
 
 BENCHMARK(BM_AtomicUniquePtrGet)->ThreadRange(1, 256)->UseRealTime();
 BENCHMARK(BM_UniquePtrGet)->ThreadRange(1, 256)->UseRealTime();
@@ -300,4 +420,22 @@ BENCHMARK(BM_SharedMutexRWLock)->ThreadRange(1, 256)->UseRealTime();
 BENCHMARK(BM_RCUVersionedReadWriteLock)->ThreadRange(1,256)->UseRealTime();
 BENCHMARK(BM_RCUEpochReadWriteLock)->ThreadRange(1,256)->UseRealTime();
 BENCHMARK(BM_EOSReadWriteLock)->ThreadRange(1, 256)->UseRealTime();
+
+BENCHMARK_TEMPLATE(BM_Contended, std::mutex)
+->Apply([](benchmark::internal::Benchmark* bm) {
+  SetupBenchmarkArgs(bm);
+ });
+BENCHMARK_TEMPLATE(BM_Contended, std::shared_mutex)
+->Apply([](benchmark::internal::Benchmark* bm) {
+  SetupBenchmarkArgs(bm);
+ });
+BENCHMARK_TEMPLATE(BM_Contended, eos::common::RWMutex)
+->Apply([](benchmark::internal::Benchmark* bm) {
+  SetupBenchmarkArgs(bm);
+ });
+BENCHMARK_TEMPLATE(BM_Contended, eos::common::EpochRCUDomain)
+->Apply([](benchmark::internal::Benchmark* bm) {
+  SetupBenchmarkArgs(bm);
+ });
+
 BENCHMARK_MAIN();
