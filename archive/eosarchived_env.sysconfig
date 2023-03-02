@@ -20,3 +20,6 @@ EOS_ARCHIVE_CONF=/etc/eosarchived.conf
 # entry need to be present in the eos.keytab file so that the eosarchived can
 # have full access to the EOS.
 XrdSecSSSKT=/etc/archive.keytab
+
+# Make eos-xrootd python bindings higher priority
+PYTHONPATH=/opt/eos/xrootd/lib64/python3.6/site-packages/
