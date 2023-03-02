@@ -34,7 +34,7 @@ XrdVERSIONINFO(XrdClGetPlugIn, XrdClGetPlugIn)
 
 extern "C"
 {
-  void *XrdClGetPlugIn( const void *arg )
+  void* XrdClGetPlugIn(const void* arg)
   {
     return static_cast<void*>(new eos::fst::RainFactory());
   }
@@ -53,7 +53,7 @@ RainFactory::RainFactory()
 
 
 //------------------------------------------------------------------------------
-// Destructor 
+// Destructor
 //------------------------------------------------------------------------------
 RainFactory::~RainFactory()
 {
@@ -64,10 +64,10 @@ RainFactory::~RainFactory()
 // Create a file plug-in for the given URL
 //------------------------------------------------------------------------------
 XrdCl::FilePlugIn*
-RainFactory::CreateFile(const std::string &url)
+RainFactory::CreateFile(const std::string& url)
 {
   eos_debug("url=%s", url.c_str());
-  return static_cast<XrdCl::FilePlugIn*>( new RainFile() );
+  return static_cast<XrdCl::FilePlugIn*>(new RainFile());
 }
 
 
@@ -75,7 +75,7 @@ RainFactory::CreateFile(const std::string &url)
 // Create a file system plug-in for the given URL
 //------------------------------------------------------------------------------
 XrdCl::FileSystemPlugIn*
-RainFactory::CreateFileSystem(const std::string &url)
+RainFactory::CreateFileSystem(const std::string& url)
 {
   eos_debug("url=%s", url.c_str());
   return static_cast<XrdCl::FileSystemPlugIn*>(0);
@@ -87,98 +87,92 @@ RainFactory::CreateFileSystem(const std::string &url)
 //------------------------------------------------------------------------------
 namespace
 {
-  static struct EnvInitializer
+static struct EnvInitializer {
+  //--------------------------------------------------------------------------
+  // Initializer
+  //--------------------------------------------------------------------------
+  EnvInitializer()
   {
-    //--------------------------------------------------------------------------
-    // Initializer
-    //--------------------------------------------------------------------------
-    EnvInitializer()
-    {
-      char* myhost = XrdNetUtils::MyHostName();
-      std::string host_name = myhost;
-      free( myhost );
-      std::string unit = "rain@";
-      unit += host_name;
-      
-      // Get log level from env variable XRD_LOGLEVEL
-      int log_level = 6; // by default use LOG_INFO
-      char* c = '\0';
-      
-      if ((c = getenv("XRD_LOGLEVEL")))
-      {
-        if ((*c >= '0') && (*c <= '7'))
-          log_level = atoi(c);
-        else 
-          log_level = eos::common::Logging::GetPriorityByString(c);
+    char* myhost = XrdNetUtils::MyHostName();
+    std::string host_name = myhost;
+    free(myhost);
+    std::string unit = "rain@";
+    unit += host_name;
+    // Get log level from env variable XRD_LOGLEVEL
+    int log_level = 6; // by default use LOG_INFO
+    char* c = nullptr;
+    eos::common::Logging& g_logging = eos::common::Logging::GetInstance();
+
+    if ((c = getenv("XRD_LOGLEVEL"))) {
+      if ((*c >= '0') && (*c <= '7')) {
+        log_level = atoi(c);
+      } else {
+        log_level = g_logging.GetPriorityByString(c);
       }
-
-      eos::common::Logging::Init();
-      eos::common::Logging::SetLogPriority(log_level);
-      eos::common::Logging::SetUnit(unit.c_str());
-
-      // Create log file for RAIN transfers
-      std::string log_file = "/tmp/rain/xrdcp_rain.log";
-      std::string log_dir = "/tmp/rain";
-      std::ostringstream oss;
-      oss << "mkdir -p " << log_dir;
-
-      if (system(oss.str().c_str()))
-      {
-        eos_static_err("failed to create log directory:%s", log_dir.c_str());
-        exit(1);
-      }
-
-      if (::access(log_dir.c_str(), R_OK | W_OK | X_OK))
-      {
-        eos_static_err("can not access log directory:%s", log_dir.c_str());
-        exit(1);
-      }
-
-      // Create/Open the log file
-      mFp = fopen(log_file.c_str(), "a+");
-
-      if (!mFp)
-      {
-        eos_static_err("error opening log file:%s", log_file.c_str());
-        exit(1);                
-      }
-      else
-      {
-        eos_static_debug("set up log file:%s", log_file.c_str());
-        // Redirect stdout and stderr to log file
-        fflush(stdout);
-        fflush(stderr);
-        mOldStdout = dup(fileno(stdout));
-        mOldStderr = dup(fileno(stderr));
-        dup2(fileno(mFp), fileno(stdout));
-        dup2(fileno(mFp), fileno(stderr));
-      }      
     }
-    
-    //--------------------------------------------------------------------------
-    // Finalizer
-    //--------------------------------------------------------------------------
-    ~EnvInitializer()
-    {
-      // Restore stdout and stderr
+
+    g_logging.SetLogPriority(log_level);
+    g_logging.SetUnit(unit.c_str());
+    // Create log file for RAIN transfers
+    std::string log_file = "/tmp/rain/xrdcp_rain.log";
+    std::string log_dir = "/tmp/rain";
+    std::ostringstream oss;
+    oss << "mkdir -p " << log_dir;
+
+    if (system(oss.str().c_str())) {
+      eos_static_err("failed to create log directory:%s", log_dir.c_str());
+      exit(1);
+    }
+
+    if (::access(log_dir.c_str(), R_OK | W_OK | X_OK)) {
+      eos_static_err("can not access log directory:%s", log_dir.c_str());
+      exit(1);
+    }
+
+    // Create/Open the log file
+    mFp = fopen(log_file.c_str(), "a+");
+
+    if (!mFp) {
+      eos_static_err("error opening log file:%s", log_file.c_str());
+      exit(1);
+    } else {
+      eos_static_debug("set up log file:%s", log_file.c_str());
+      // Redirect stdout and stderr to log file
       fflush(stdout);
       fflush(stderr);
-      dup2(mOldStdout, fileno(stdout));
-      dup2(mOldStderr, fileno(stderr));
-      close(mOldStdout);
-      close(mOldStderr);
+      mOldStdout = dup(fileno(stdout));
+      mOldStderr = dup(fileno(stderr));
+      dup2(fileno(mFp), fileno(stdout));
+      dup2(fileno(mFp), fileno(stderr));
+    }
+  }
 
-      if(fclose(mFp))
-        fprintf(stderr, "[Error] failed to close log file\n");
-      //else
-        //fprintf(stderr, "[Info] log file closed successfully\n");
+  //--------------------------------------------------------------------------
+  // Finalizer
+  //--------------------------------------------------------------------------
+  ~EnvInitializer()
+  {
+    // Restore stdout and stderr
+    fflush(stdout);
+    fflush(stderr);
+    dup2(mOldStdout, fileno(stdout));
+    dup2(mOldStderr, fileno(stderr));
+    close(mOldStdout);
+    close(mOldStderr);
+
+    if (fclose(mFp)) {
+      fprintf(stderr, "[Error] failed to close log file\n");
     }
 
-    FILE* mFp;
-    int mOldStdout;
-    int mOldStderr;
-    
-  } initializer;
+    //else
+    //fprintf(stderr, "[Info] log file closed successfully\n");
+  }
+
+  FILE* mFp;
+  int mOldStdout;
+  int mOldStderr;
+
+} initializer;
 }
 
 EOSFSTNAMESPACE_END

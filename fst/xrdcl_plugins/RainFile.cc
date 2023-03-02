@@ -82,8 +82,8 @@ RainFile::Open(const std::string& url,
 
   // For reading try PIO mode
   if ((flags & OpenFlags::Flags::Read) == OpenFlags::Flags::Read) {
-    Buffer arg;
-    Buffer* response = 0;
+    XrdCl::Buffer arg;
+    XrdCl::Buffer* response = 0;
     std::string fpath = url;
     size_t spos = fpath.rfind("//");
 
@@ -134,7 +134,7 @@ RainFile::Open(const std::string& url,
 
         if (LayoutId::GetLayoutType(layout) == LayoutId::kRaidDP) {
           pRainFile = new RaidDpLayout(NULL, layout, NULL, NULL, "");
-        } else if ((LayoutId::IsRainLayout(layout))) {
+        } else if ((LayoutId::IsRain(layout))) {
           pRainFile = new ReedSLayout(NULL, layout, NULL, NULL, "");
         } else {
           eos_warning("unsupported PIO layout");
@@ -410,7 +410,7 @@ RainFile::VectorRead(const ChunkList& chunks,
 // Fcntl
 //------------------------------------------------------------------------------
 XRootDStatus
-RainFile::Fcntl(const Buffer& arg,
+RainFile::Fcntl(const XrdCl::Buffer& arg,
                 ResponseHandler* handler,
                 uint16_t timeout)
 {
