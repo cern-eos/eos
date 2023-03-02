@@ -210,6 +210,11 @@ namespace eos::mq
 class MessagingRealm;
 }
 
+namespace eos::mgm::placement
+{
+  class FSScheduler;
+}
+
 enum class NamespaceState {
   kDown = 0,
   kBooting = 1,
@@ -1952,6 +1957,7 @@ public:
   std::unique_ptr<bulk::BulkRequestProcCleaner>
   mHttpTapeRestApiBulkReqProcCleaner;
 
+  std::unique_ptr<eos::mgm::placement::FSScheduler> mFsScheduler;
   //----------------------------------------------------------------------------
   //! Return string representation of prepare options
   //----------------------------------------------------------------------------
