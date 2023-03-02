@@ -1344,6 +1344,7 @@ bool
 Storage::CleanupOrphansQdb(eos::common::FileSystem::fsid_t fsid,
                            const std::set<uint64_t>& fids)
 {
+  static const uint32_t s_max_batch_size = 10000;
   eos_static_info("msg=\"doing orphans cleanup in QDB\" fsid=%lu", fsid);
 
   if (fids.empty()) {
@@ -1351,20 +1352,33 @@ Storage::CleanupOrphansQdb(eos::common::FileSystem::fsid_t fsid,
   }
 
   std::list<std::string> to_delete;
-
-  for (const auto& fid : fids) {
-    to_delete.push_back(SSTR(fid << ":" << fsid));
-  }
-
   qclient::QSet qset(*gOFS.mFsckQcl.get(),
                      SSTR("fsck:" << eos::common::FSCK_ORPHANS_N));
 
-  try {
-    (void) qset.srem(to_delete);
-  } catch (const std::runtime_error& e) {
-    eos_static_err("msg=\"failed clean orphans in QDB\" msg=\"%s\"",
-                   e.what());
-    return false;
+  for (const auto& fid : fids) {
+    to_delete.push_back(SSTR(fid << ":" << fsid));
+
+    if (to_delete.size() >= s_max_batch_size) {
+      try {
+        (void) qset.srem(to_delete);
+      } catch (const std::runtime_error& e) {
+        eos_static_err("msg=\"failed clean orphans in QDB\" msg=\"%s\"",
+                       e.what());
+        return false;
+      }
+
+      to_delete.clear();
+    }
+  }
+
+  if (!to_delete.empty()) {
+    try {
+      (void) qset.srem(to_delete);
+    } catch (const std::runtime_error& e) {
+      eos_static_err("msg=\"failed clean orphans in QDB\" msg=\"%s\"",
+                     e.what());
+      return false;
+    }
   }
 
   return true;
@@ -1389,7 +1403,7 @@ Storage::PushToQdb(eos::common::FileSystem::fsid_t fsid,
                    std::set<eos::common::FileId::fileid_t>>& fidset)
 {
 #ifndef _NOOFS
-  static const uint32_t s_max_batch_size = 50000;
+  static const uint32_t s_max_batch_size = 10000;
 
   if (gOFS.FmdOnDb() || fidset.empty()) {
     return true;
