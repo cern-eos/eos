@@ -168,7 +168,7 @@ ProcCommand::open(const char* inpath, const char* info,
       XrdOucString follow = sinfo.c_str() + i + 1;
 
       if (!follow.beginswith("mgm.") && (!follow.beginswith("eos.")) &&
-          (!follow.beginswith("xrd.")) && (!follow.beginswith("callback"))) {
+          (!follow.beginswith("xrd.")) && (!follow.beginswith("callback")) && (!follow.beginswith("authz"))) {
         sinfo.erase(i, 1);
         sinfo.insert("#AND#", i);
       }
