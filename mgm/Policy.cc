@@ -65,6 +65,45 @@ const std::vector<std::string> Policy::gBasePolicyRWKeys = {
   "policy.schedule"
 };
 
+
+/*----------------------------------------------------------------------------*/
+double
+Policy::GetDefaultSizeFactor(std::shared_ptr<eos::IContainerMD> cmd)
+{
+  XrdOucEnv env("");
+  unsigned long forcedfsid;
+  long forcedgroup;
+  unsigned long layoutid = 0;
+  XrdOucString ret_space;
+  std::string bandwidth;
+  bool schedule = 0;
+  std::string iopriority;
+  std::string iotype;
+  bool isrw = false; // does not matter
+  uint64_t atimeage = 0; // does not matter
+  eos::IContainerMD::XAttrMap attrmap = cmd->getAttributes();
+  eos::common::VirtualIdentity rootvid = eos::common::VirtualIdentity::Root();
+  GetLayoutAndSpace("/",
+                    attrmap,
+                    rootvid,
+                    layoutid,
+                    ret_space,
+                    env,
+                    forcedfsid,
+                    forcedgroup,
+                    bandwidth,
+                    schedule,
+                    iopriority,
+                    iotype,
+                    isrw,
+                    true,
+                    true,
+                    &atimeage);
+
+  double f = eos::common::LayoutId::GetSizeFactor(layoutid);
+  return f?f:1.0;
+}
+
 /*----------------------------------------------------------------------------*/
 unsigned long
 Policy::GetSpacePolicyLayout(const char* space)

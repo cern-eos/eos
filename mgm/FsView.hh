@@ -1010,6 +1010,12 @@ public:
   }
 
   //----------------------------------------------------------------------------
+  //! Df Command output
+  //----------------------------------------------------------------------------
+
+  std::string Df(bool monitoring=false, bool si=false, bool readable=true, std::string path="");
+  
+  //----------------------------------------------------------------------------
   //! Physical bytes available
   //----------------------------------------------------------------------------
   bool UnderNominalQuota(const std::string& space, bool isroot = false);

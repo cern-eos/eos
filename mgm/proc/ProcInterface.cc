@@ -38,6 +38,7 @@
 #include "mgm/proc/admin/StagerRmCmd.hh"
 #include "mgm/proc/admin/FileRegisterCmd.hh"
 #include "mgm/proc/user/AclCmd.hh"
+#include "mgm/proc/user/DfCmd.hh"
 #include "mgm/proc/user/NewfindCmd.hh"
 #include "mgm/proc/user/QoSCmd.hh"
 #include "mgm/proc/user/RecycleCmd.hh"
@@ -221,6 +222,10 @@ ProcInterface::HandleProtobufRequest(eos::console::RequestProto& req,
 
   case RequestProto::kRm:
     cmd.reset(new RmCmd(std::move(req), vid));
+    break;
+
+  case RequestProto::kDf:
+    cmd.reset(new DfCmd(std::move(req), vid));
     break;
 
   case RequestProto::kToken:

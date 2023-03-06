@@ -110,6 +110,8 @@ public:
   static const std::vector<std::string> gBaseLocalPolicyKeys;
   static const std::vector<std::string> gBasePolicyRWKeys;
 
+  static double GetDefaultSizeFactor(std::shared_ptr<eos::IContainerMD> cmd);
+
   struct RWParams {
     std::string user_key;
     std::string group_key;

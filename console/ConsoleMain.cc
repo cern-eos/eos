@@ -68,6 +68,7 @@ extern int com_console(char*);
 extern int com_convert(char*);
 extern int com_cp(char*);
 extern int com_protodebug(char*);
+extern int com_protodf(char*);
 extern int com_file(char*);
 extern int com_fileinfo(char*);
 extern int com_find(char*);
@@ -150,6 +151,7 @@ COMMAND commands[] = {
   { (char*) "cp", com_cp, (char*) "Cp command"},
   { (char*) "daemon", com_daemon, (char*) "Handle service daemon"},
   { (char*) "debug", com_protodebug, (char*) "Set debug level"},
+  { (char*) "df", com_protodf, (char*) "Get df output"},
   { (char*) "exit", com_quit, (char*) "Exit from EOS console"},
   { (char*) "file", com_file, (char*) "File Handling"},
   { (char*) "fileinfo", com_fileinfo, (char*) "File Information"},
