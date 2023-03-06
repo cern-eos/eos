@@ -193,7 +193,7 @@ public:
   //! @return string representation
   //----------------------------------------------------------------------------
   static std::string
-  GetReadableSizeString(unsigned long long insize, const char* unit = "");
+  GetReadableSizeString(unsigned long long insize, const char* unit = "", size_t si=1000);
 
   //----------------------------------------------------------------------------
   //! Convert a long long value into K,M,G,T,P,E byte scale

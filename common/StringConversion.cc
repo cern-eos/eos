@@ -165,39 +165,39 @@ StringConversion::GetFixedDouble(double value, size_t width, size_t precision)
 //----------------------------------------------------------------------------
 std::string
 StringConversion::GetReadableSizeString(unsigned long long insize,
-                                        const char* unit)
+                                        const char* unit, size_t si)
 {
   char formsize[1024];
 
-  if (insize >= 10000) {
-    if (insize >= (1000 * 1000)) {
-      if (insize >= (1000ll * 1000ll * 1000ll)) {
-        if (insize >= (1000ll * 1000ll * 1000ll * 1000ll)) {
-          if (insize >= (1000ll * 1000ll * 1000ll * 1000ll * 1000ll)) {
-            if (insize >= (1000ll * 1000ll * 1000ll * 1000ll * 1000ll * 1000ll)) {
+  if (insize >= 10*si) {
+    if (insize >= (si * si)) {
+      if (insize >= (si * si * si)) {
+        if (insize >= (si * si * si * si)) {
+          if (insize >= (si * si * si * si * si)) {
+            if (insize >= (si * si * si * si * si * si)) {
               // EB
               sprintf(formsize, "%.02f E%s",
-                      insize * 1.0 / (1000ll * 1000ll * 1000ll * 1000ll * 1000ll * 1000ll), unit);
+                      insize * 1.0 / (si * si * si * si * si * si), unit);
             } else {
               // PB
               sprintf(formsize, "%.02f P%s",
-                      insize * 1.0 / (1000ll * 1000ll * 1000ll * 1000ll * 1000ll), unit);
+                      insize * 1.0 / (si * si * si * si * si), unit);
             }
           } else {
             // TB
             sprintf(formsize, "%.02f T%s",
-                    insize * 1.0 / (1000ll * 1000ll * 1000ll * 1000ll), unit);
+                    insize * 1.0 / (si * si * si * si), unit);
           }
         } else {
           // GB
-          sprintf(formsize, "%.02f G%s", insize * 1.0 / (1000ll * 1000ll * 1000ll), unit);
+          sprintf(formsize, "%.02f G%s", insize * 1.0 / (si * si * si), unit);
         }
       } else {
         // MB
-        sprintf(formsize, "%.02f M%s", insize * 1.0 / (1000 * 1000), unit);
+        sprintf(formsize, "%.02f M%s", insize * 1.0 / (si * si), unit);
       }
     } else {
-      sprintf(formsize, "%.02f k%s", insize * 1.0 / (1000), unit);
+      sprintf(formsize, "%.02f k%s", insize * 1.0 / (si), unit);
     }
   } else {
     if (strlen(unit)) {
