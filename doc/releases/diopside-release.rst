@@ -17,6 +17,23 @@ Introduction
 This release is based on XRootD V5.
 
 
+``v5.1.13 Diopside``
+====================
+
+2023-06-03
+
+Bug
+----
+
+* [EOS-5546] - MGM: IoStat fprintf() stuck
+* [EOS-5555] - FST segfaults around qclient::QSet::srem
+* [EOS-5559] - EOS HTTP REST API - no JSON output if authentication is done with Bearer token
+
+New features
+------------
+* [EOS-5561] - Create "eos df" command
+
+
 ``v5.1.12 Diopside``
 ====================
 
