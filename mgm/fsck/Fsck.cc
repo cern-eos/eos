@@ -1264,9 +1264,23 @@ Fsck::NotifyFixedErr(eos::IFileMD::id_t fid,
     }
   }
 
+  // Decide if time based flushing is needed
+  using namespace std::chrono;
+  static uint32_t s_flush_timeout_sec {60};
+  static std::atomic<uint64_t> s_timestamp = duration_cast<seconds>
+      (system_clock::now().time_since_epoch()).count();
+  bool do_flush = false;
+  uint64_t current_timestamp = duration_cast<seconds>
+                               (system_clock::now().time_since_epoch()).count();
+
+  if (current_timestamp - s_timestamp > s_flush_timeout_sec) {
+    s_timestamp = current_timestamp;
+    do_flush = true;
+  }
+
   // Eventually flush the contents to the QDB backend if sentinel fid present
   // or if enough updates accumulated
-  if (force || (num_updates >= count_flush)) {
+  if (force || do_flush || (num_updates >= count_flush)) {
     qclient::QSet qset(*mQcl.get(), "");
 
     for (const auto& elem : updates) {
