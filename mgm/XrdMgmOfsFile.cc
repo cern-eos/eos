@@ -49,6 +49,7 @@
 #include "mgm/tgc/MultiSpaceTapeGc.hh"
 #include "mgm/utils/AttrHelper.hh"
 #include "mgm/XattrLock.hh"
+#include "mgm/placement/FsScheduler.hh"
 #include "namespace/utils/Attributes.hh"
 #include "namespace/Prefetcher.hh"
 #include "namespace/Resolver.hh"
@@ -1970,10 +1971,22 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
     }
 
     {
-      COMMONTIMING("Scheduler::FilePlacement", &tm);
-      eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
-      retc = Quota::FilePlacement(&plctargs);
-      COMMONTIMING("Scheduler::FilePlaced", &tm);
+      COMMONTIMING("PlctScheduler::FilePlacement", &tm);
+      uint8_t n_replicas = eos::common::LayoutId::GetStripeNumber(layoutId) + 1;
+      auto ret = gOFS->mFsScheduler->schedule(spacename,
+                                              n_replicas);
+      COMMONTIMING("PlctScheduler::FilePlaced", &tm);
+
+      if (ret.is_valid_placement(n_replicas)) {
+        for (int i=0;i<n_replicas;i++) {
+          selectedfs.push_back(ret.ids[i]);
+        }
+      } else {
+        COMMONTIMING("Scheduler::FilePlacement", &tm);
+        eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
+        retc = Quota::FilePlacement(&plctargs);
+        COMMONTIMING("Scheduler::FilePlaced", &tm);
+      }
     }
 
     // reshuffle the selectedfs by returning as first entry the lowest if the
