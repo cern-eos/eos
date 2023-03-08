@@ -84,6 +84,7 @@
 #include "mgm/bulk-request/dao/proc/cleaner/BulkRequestProcCleanerConfig.hh"
 #include "mgm/http/rest-api/manager/RestApiManager.hh"
 #include "mgm/http/rest-api/Constants.hh"
+#include "mgm/placement/FsScheduler.hh"
 
 extern XrdOucTrace gMgmOfsTrace;
 extern void xrdmgmofs_shutdown(int sig);
@@ -2189,6 +2190,8 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   eos_static_info("%s", "msg=\"starting Converter Engine\"");
   mConverterDriver.reset(new eos::mgm::ConverterDriver(mQdbContactDetails));
   mConverterDriver->Start();
+
+  mFsScheduler->updateClusterData();
   return NoGo;
 }
 /*----------------------------------------------------------------------------*/
