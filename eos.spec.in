@@ -267,8 +267,8 @@ cd build
     source /opt/rh/%{devtoolset}/enable
   %endif
 
-%if 0%{?rhel} >= 7 && 0%{?rhel} <= 9
-    %{cmake} ../ -DRELEASE=@CPACK_PACKAGE_RELEASE@ -DCMAKE_BUILD_TYPE=%{build_type} -DXROOTD_ROOT=/opt/eos/xrootd/ %{build_flags}
+  %if 0%{?rhel} >= 7 && 0%{?rhel} <= 9
+    %{cmake} ../ -DRELEASE=@CPACK_PACKAGE_RELEASE@ -DCMAKE_BUILD_TYPE=%{build_type} -DXROOTD_ROOT=/opt/eos/xrootd/ %{build_flags} -DCMAKE_BUILD_WITH_INSTALL_RPATH=true
   %else
     %{cmake} ../ -DRELEASE=@CPACK_PACKAGE_RELEASE@ -DCMAKE_BUILD_TYPE=%{build_type} %{build_flags}
   %endif
