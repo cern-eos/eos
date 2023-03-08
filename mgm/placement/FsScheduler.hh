@@ -27,23 +27,49 @@
 
 namespace eos::mgm::placement {
 
+using ClusterMapT = std::map<std::string, std::unique_ptr<ClusterMgr>>;
+
+struct ClusterMgrHandler {
+  virtual ClusterMapT make_cluster_mgr()=0;
+  virtual std::unique_ptr<ClusterMgr> make_cluster_mgr(const std::string& spaceName)=0;
+  virtual ~ClusterMgrHandler() = default;
+};
+
+struct EosClusterMgrHandler : public ClusterMgrHandler
+{
+  ClusterMapT make_cluster_mgr() override;
+  std::unique_ptr<ClusterMgr> make_cluster_mgr(const std::string& spaceName) override;
+};
+
+
 class FSScheduler {
 public:
-  FSScheduler(PlacementStrategyT strategy, size_t max_buckets) :
-    cluster_mgr(std::make_unique<ClusterMgr>()),
-    scheduler(std::make_unique<FlatScheduler>(strategy, max_buckets))
+  using RCUMutexT = eos::common::VersionedRCUDomain;
+  using ClusterMapPtrT = eos::common::atomic_unique_ptr<ClusterMapT>;
+
+  FSScheduler(PlacementStrategyT strategy, size_t max_buckets,
+              std::unique_ptr<ClusterMgrHandler>&& _handler) :
+    scheduler(std::make_unique<FlatScheduler>(strategy, max_buckets)),
+    cluster_handler(std::move(_handler))
   {}
 
   FSScheduler() : FSScheduler(PlacementStrategyT::kThreadLocalRoundRobin,
-                              1024) {}
+                              1024,
+                              std::make_unique<EosClusterMgrHandler>()) {}
 
 
-  PlacementResult schedule(uint8_t n_replicas);
-  void updateClusterData(const std::string& spaceName);
+  PlacementResult schedule(const std::string& spaceName, uint8_t n_replicas);
+  void updateClusterData();
+
 private:
-  std::unique_ptr<ClusterMgr> cluster_mgr;
+
+  ClusterMgr* get_cluster_mgr(const std::string& spaceName);
+
   std::unique_ptr<FlatScheduler> scheduler;
-  std::atomic<bool> initialized;
+  std::unique_ptr<ClusterMgrHandler> cluster_handler;
+  ClusterMapPtrT cluster_mgr_map;
+
+  RCUMutexT cluster_rcu_mutex;
 };
 
 
