@@ -84,6 +84,9 @@ if(NOT PACKAGEONLY)
     # built since it's not installed in the usual system location
     set(CMAKE_SKIP_RPATH FALSE)
     set(CMAKE_SKIP_BUILD_RPATH FALSE)
+    # TODO: To be removed in the future when CMAKE properly handles RPATH.
+    # Currently without this option the koji builds fail with error:
+    # file RPATH_CHANGE could not write new RPATH
     set(CMAKE_BUILD_WITH_INSTALL_RPATH TRUE)
     set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
     get_filename_component(EOS_PROTOBUF_RPATH ${PROTOBUF_LIBRARY} DIRECTORY)
