@@ -18,11 +18,13 @@ EosClusterMgrHandler::make_cluster_mgr()
                                          std::make_unique<ClusterMgr>());
 
       auto total_groups = space_group_kv.second.size();
+      eos_static_info("msg=\"Creating FSScheduler with \" total_groups=%llu", total_groups);
       auto storage_handler = space_cluster_map[space_group_kv.first]->getStorageHandler(common::next_power2(total_groups + 1));
       storage_handler.addBucket(get_bucket_type(StdBucketType::ROOT), 0);
 
       for (auto group_iter : space_group_kv.second) {
         item_id_t group_id = kBaseGroupOffset - group_iter->GetIndex();
+        eos_static_info("msg=\"Adding group at \" ID=%d", group_id);
         storage_handler.addBucket(get_bucket_type(StdBucketType::GROUP),
                                   group_id);
         for (auto it_fs = group_iter->begin(); it_fs != group_iter->end(); ++it_fs) {
