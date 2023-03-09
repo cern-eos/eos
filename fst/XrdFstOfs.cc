@@ -234,8 +234,8 @@ XrdFstOfs::xrdfstofs_shutdown(int sig)
 
   int wstatus = 0;
   wait(&wstatus);
-  // Sync & close all file descriptors
-  eos::common::SyncAll::AllandClose();
+  // Close all file descriptors we can sync or are sockets
+  eos::common::SyncAll::AllandCloseFileSocks();
   eos_static_warning("%s", "op=shutdown status=completed");
   // harakiri - yes!
   (void) signal(SIGABRT, SIG_IGN);
@@ -309,8 +309,8 @@ XrdFstOfs::xrdfstofs_graceful_shutdown(int sig)
 
   int wstatus = 0;
   ::wait(&wstatus);
-  // Sync & close all file descriptors
-  SyncAll::AllandClose();
+  // Close all file descriptors we can sync or are sockets
+  SyncAll::AllandCloseFileSocks();
   eos_static_warning("op=shutdown status=completed");
   // harakiri - yes!
   (void) signal(SIGABRT, SIG_IGN);

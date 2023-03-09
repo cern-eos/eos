@@ -29,6 +29,8 @@
 #include "common/Namespace.hh"
 #include <fcntl.h>
 #include <sys/time.h>
+#include <sys/types.h>
+#include <sys/socket.h>
 
 EOSCOMMONNAMESPACE_BEGIN
 
@@ -53,6 +55,16 @@ public:
     for (size_t i = getdtablesize(); i-- > 3;) {
       fsync(i);
       close(i);
+    }
+  }
+
+  static void AllandCloseFileSocks()
+  {
+    for (size_t i = getdtablesize(); i-- > 3;) {
+      int v;
+      socklen_t vs = sizeof(v);
+      if(!fsync(i) || !getsockopt(i, SOL_SOCKET, SO_RCVBUF, &v, &vs))
+        close(i);
     }
   }
 };
