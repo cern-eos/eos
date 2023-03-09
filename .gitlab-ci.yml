@@ -184,25 +184,30 @@ clone_docker:
     paths:
       - ${BUILD_NAME}_artifacts/
   only:
-    - schedules
     - tags
   allow_failure: true # @todo dont allow failure when/if we drop Centos8 and switch to Stream
 
 build_al8:
   image: gitlab-registry.cern.ch/dss/eos/prebuild-al8-${CODENAME}
   <<: *build-template_definition
+  only:
+    - schedules
   variables:
     BUILD_NAME: al8
 
 build_al9:
   image: gitlab-registry.cern.ch/dss/eos/prebuild-al9-${CODENAME}
   <<: *build-template_definition
+  only:
+    - schedules
   variables:
     BUILD_NAME: al9
 
 build_rl8:
   image: gitlab-registry.cern.ch/dss/eos/prebuild-rl8-${CODENAME}
   <<: *build-template_definition
+  only:
+    - schedules
   variables:
     BUILD_NAME: rl8
 
@@ -453,7 +458,7 @@ build_cc7_clang:
     - schedules
     - triggers
 
-build_cc7_xrd_testing: # @todo Re-enable xrd_testing jobs once project ugprades to XRootD 5
+.build_cc7_xrd_testing: # @todo Re-enable xrd_testing jobs once project ugprades to XRootD 5
   before_script:
     - source gitlab-ci/export_commit-type.sh
     - echo "Exporting COMMIT_TYPE=${COMMIT_TYPE}"
@@ -565,7 +570,7 @@ ubuntu_jammy_docker_image:
 
 # schedules ------------------------------
 
-cs8_docker_image:
+.cs8_docker_image:
   extends: .build_dockerimage-template
   variables:
     DOCKERFILE: eos-docker/Dockerfile_cs8

@@ -132,19 +132,6 @@ helm_cbox:
       artifacts: false
   when: manual
 
-helm_cbox_cs8:
-  extends: .helm_cbox_test_template
-  variables:
-    BASETAG: "cs8_"
-  needs:
-    - job: cs8_docker_image
-      artifacts: false
-  only:
-    - schedules
-    - tags
-  allow_failure: true
-  when: manual
-
 helm_cnvrt_fsck:
   stage: test
   image: gitlab-registry.cern.ch/dss/alpine-enhanced:3.13.5
@@ -343,19 +330,6 @@ helm_groupdrainer:
       artifacts: false
   # @todo(esindril) remove in eos5 once we have grid-hammer built with XRootD5
   allow_failure: true
-
-helm_system_cs8:
-  extends: .helm_system_test_template
-  variables:
-    BASETAG: "cs8_"
-  needs:
-    - job: cs8_docker_image
-      artifacts: false
-  only:
-    - schedules
-    - tags
-  allow_failure: true
-  when: manual
 
 # @todo Re-enable xrd_testing jobs once project ugprades to XRootD 5
 # xt stands for xrd_testing. Must shorten to not hit HOST_NAME_MAX
