@@ -22,6 +22,7 @@ fst:
       value: "1"
   securityContext:
      privileged: true
+     allowPrivilegeEscalation: true
 
 mgm:
   kerberos:
@@ -34,3 +35,4 @@ mgm:
       password: "--set $TEST_ADMINPRINC_PASSWORD"
   securityContext:
       privileged: true
+      allowPrivilegeEscalation: true
