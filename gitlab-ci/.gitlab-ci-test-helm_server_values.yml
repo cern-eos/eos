@@ -26,11 +26,8 @@ fst:
   extraEnv:
     - name: EOS_FST_TESTING
       value: "1"
-    # Note: this port has to match the xrd.protocol XrdHttp:<port> from the
-    # /etc/xrd.cf.fst otherwise limicrohttpd is the one which is serving
-    # requests on the FST. This should be removed once we drop libmicrohttpd.
     - name: EOS_FST_HTTP_PORT
-      value: 8443
+      value: "8443"
 
 mgm:
   kerberos:
