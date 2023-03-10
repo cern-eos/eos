@@ -33,7 +33,9 @@ RoundRobinPlacement::chooseItems(const ClusterData& cluster_data, Args args)
     if (bucket_sz < args.n_replicas) {
       result.err_msg = "More replicas than bucket size!";
     } else if (bucket_sz > mSeed->getNumSeeds()) {
-      result.err_msg = "More buckets than random seeds!";
+      result.err_msg = "More buckets than random seeds! seeds=" +
+                       std::to_string(mSeed->getNumSeeds()) +
+                       " buckets=" + std::to_string(bucket_sz);
     } else {
       result.err_msg = "Bucket index out of range!";
     }
@@ -160,7 +162,7 @@ FlatScheduler::scheduleDefault(const ClusterData& cluster_data,
       return result;
     }
 
-    if (result.n_replicas == args.n_replicas) {
+    if (result.is_valid_placement(n_replicas)) {
       return result;
     }
 
