@@ -876,6 +876,11 @@ XrdFstOfsFile::read(XrdSfsFileOffset fileOffset, char* buffer,
                                              fileOffset, mHmac);
     }
 
+    if (mLayout->IsEntryServer() || eos::common::LayoutId::IsRain(mLid)) {
+      XrdSysMutexHelper vecLock(vecMutex);
+      rvec.push_back(rc);
+    }
+
     rOffset = fileOffset + rc;
     totalBytes += rc;
   }
@@ -2373,15 +2378,6 @@ XrdFstOfsFile::readofs(XrdSfsFileOffset fileOffset, char* buffer,
       sXlBwdBytes += (rOffset - fileOffset);
       nXlBwdSeeks++;
     }
-  }
-
-  if (rc > 0) {
-    if (mLayout->IsEntryServer() || eos::common::LayoutId::IsRain(mLid)) {
-      XrdSysMutexHelper vecLock(vecMutex);
-      rvec.push_back(rc);
-    }
-
-    rOffset = fileOffset + rc;
   }
 
   gettimeofday(&lrTime, &tz);
