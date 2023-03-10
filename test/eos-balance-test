@@ -125,7 +125,6 @@ while
 
   if [[ $(echo "${NEW_DEV} < ${EOS_BALANCER_THRESHOLD}" | bc) -eq 1 ]]; then
     echo "info: new deviation value is ${NEW_DEV}"
-    eos fs ls --io
     false # exit the while loop
   else
     if (( $((${CURRENT_TIME} - ${START_TIME})) >= ${MAX_DELAY} )); then
@@ -135,8 +134,6 @@ while
     else
       echo "info: new dev is ${NEW_DEV}, sleep for 5 seconds, `secs_to_human $((${CURRENT_TIME} - ${START_TIME}))` passed"
       sleep 5
-      eos fs ls --io
-      eos ns
       eos group ls
     fi
   fi

@@ -309,6 +309,9 @@ helm_system:
   needs:
     - job: cc7_docker_image
       artifacts: false
+  # @todo(esindril) to enable once the helm setup has http enabled
+  when: manual
+
 
 helm_groupdrainer:
   stage: test
