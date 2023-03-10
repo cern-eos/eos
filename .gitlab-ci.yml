@@ -55,11 +55,6 @@ prebuild-cc7:
   variables:
     PREBUILD_NAME: cc7
 
-prebuild-el8:
-  <<: *prebuild-template_definition
-  variables:
-    PREBUILD_NAME: rl8
-
 prebuild-cs8:
   <<: *prebuild-template_definition
   variables:
@@ -202,14 +197,6 @@ build_al9:
     - schedules
   variables:
     BUILD_NAME: al9
-
-build_rl8:
-  image: gitlab-registry.cern.ch/dss/eos/prebuild-rl8-${CODENAME}
-  <<: *build-template_definition
-  only:
-    - schedules
-  variables:
-    BUILD_NAME: rl8
 
 # Client Only builds:
 build_cs8:
@@ -359,7 +346,6 @@ build_fedora_36:
   variables:
     EOS_DIST: fc-36
   only:
-    - schedules
     - tags
 
 build_fedora_37:
