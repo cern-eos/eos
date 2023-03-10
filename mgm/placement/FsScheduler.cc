@@ -19,14 +19,20 @@ EosClusterMgrHandler::make_cluster_mgr()
 
       auto total_groups = space_group_kv.second.size();
       eos_static_info("msg=\"Creating FSScheduler with \" total_groups=%llu", total_groups);
-      auto storage_handler = space_cluster_map[space_group_kv.first]->getStorageHandler(common::next_power2(total_groups + 1));
-      storage_handler.addBucket(get_bucket_type(StdBucketType::ROOT), 0);
+      auto storage_handler = space_cluster_map[space_group_kv.first]->getStorageHandler(common::next_power2(total_groups + 10));
+      bool status = storage_handler.addBucket(get_bucket_type(StdBucketType::ROOT), 0);
+      if (!status) {
+        eos_static_crit("msg=\"Failed to add root bucket!\"");
+      }
 
       for (auto group_iter : space_group_kv.second) {
         item_id_t group_id = kBaseGroupOffset - group_iter->GetIndex();
         eos_static_info("msg=\"Adding group at \" ID=%d", group_id);
-        storage_handler.addBucket(get_bucket_type(StdBucketType::GROUP),
-                                  group_id);
+        bool status = storage_handler.addBucket(get_bucket_type(StdBucketType::GROUP),
+                                  group_id, 0);
+        if (!status) {
+          eos_static_crit("msg=\"Failed to add group bucket!\" group_id=%d", group_id);
+        }
         for (auto it_fs = group_iter->begin(); it_fs != group_iter->end(); ++it_fs) {
           auto fs = FsView::gFsView.mIdView.lookupByID(*it_fs);
           auto capacity = fs->GetLongLong("stat.statfs.capacity");
@@ -37,6 +43,7 @@ EosClusterMgrHandler::make_cluster_mgr()
           }
           storage_handler.addDisk(Disk(fs->GetId(), fs->GetConfigStatus(), fs->GetActiveStatus(), weight, used),
                                   group_id);
+          eos_static_info("msg=\"Adding disk at \" ID=%d group_id=%d", fs->GetId(), group_id);
         }
       }
     }
