@@ -140,6 +140,7 @@ void Printing::printMultiline(const eos::ns::FileMdProto &proto, std::ostream &s
   stream << "Size: " << proto.size() << std::endl;
   stream << "Modify: " << serializeTime(proto.mtime()) << std::endl;
   stream << "Change: " << serializeTime(proto.ctime()) << std::endl;
+  stream << "Access: " << serializeTime(proto.atime()) << std::endl;
   stream << "Flags: " << common::StringConversion::IntToOctal( (int) proto.flags(), 4) << std::endl;
 
   std::string checksum;

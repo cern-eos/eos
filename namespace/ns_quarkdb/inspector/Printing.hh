@@ -49,6 +49,7 @@ struct FilePrintingOptions {
   bool showUnlinkLocations = true;
   bool showXAttr = true;
   bool showSTime = true;
+  bool showATime = true;
 };
 
 //------------------------------------------------------------------------------

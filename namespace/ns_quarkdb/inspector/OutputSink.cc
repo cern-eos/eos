@@ -295,6 +295,11 @@ static void populateMetadata(const eos::ns::FileMdProto& proto,
     out["stime"] = Printing::timespecToTimestamp(Printing::parseTimespec(
                      proto.stime()));
   }
+
+  if(opts.showATime) {
+    out["atime"] = Printing::timespecToTimestamp(Printing::parseTimespec(
+        proto.atime()));
+  }
 }
 
 //------------------------------------------------------------------------------
