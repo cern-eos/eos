@@ -2020,6 +2020,8 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
           selectedfs.push_back(ret.ids[i]);
         }
       } else {
+        eos_info("msg =\"no valid placement found with FSScheduler\" ret=%d, err_msg=%s",
+                 ret.ret_code, ret.error_string().c_str());
         COMMONTIMING("Scheduler::FilePlacement", &tm);
         eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
         retc = Quota::FilePlacement(&plctargs);
