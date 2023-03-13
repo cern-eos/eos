@@ -66,10 +66,42 @@ struct PlacementResult {
   }
 };
 
-enum class PlacementStrategyT {
-  kRoundRobin,
+enum class PlacementStrategyT : uint8_t {
+  kRoundRobin=0,
   kThreadLocalRoundRobin,
+  Count
 };
+
+inline constexpr bool is_valid_placement_strategy(PlacementStrategyT strategy) {
+  return strategy != PlacementStrategyT::Count;
+}
+
+inline size_t strategy_index(PlacementStrategyT strategy) {
+  return static_cast<size_t>(strategy);
+}
+
+constexpr PlacementStrategyT strategy_from_str(std::string_view strategy_sv) {
+  using namespace std::string_view_literals;
+  if (strategy_sv == "threadlocalroundrobin"sv ||
+      strategy_sv == "threadlocalrr"sv ||
+      strategy_sv == "tlrr"sv) {
+    return PlacementStrategyT::kThreadLocalRoundRobin;
+  }
+  return PlacementStrategyT::kRoundRobin;
+}
+
+inline std::string strategy_to_str(PlacementStrategyT strategy) {
+  switch (strategy) {
+  case PlacementStrategyT::kRoundRobin:
+    return "roundrobin";
+  case PlacementStrategyT::kThreadLocalRoundRobin:
+    return "threadlocalroundrobin";
+  default:
+    return "unknown";
+  }
+}
+
+constexpr size_t TOTAL_PLACEMENT_STRATEGIES=static_cast<size_t>(PlacementStrategyT::Count);
 
 struct PlacementStrategy {
   struct Args {
@@ -157,32 +189,57 @@ std::unique_ptr<PlacementStrategy> makePlacementStrategy(PlacementStrategyT type
 // We really need a more creative name?
 class FlatScheduler {
 public:
-
   struct PlacementArguments {
     item_id_t bucket_id = 0;
     uint8_t n_replicas;
     ConfigStatus status = ConfigStatus::kRW;
     uint64_t fid;
     bool default_placement = true;
-    selection_rules_t rules=kDefault2Replica;
+    selection_rules_t rules = kDefault2Replica;
+    PlacementStrategyT strategy = PlacementStrategyT::kRoundRobin;
+
+    PlacementArguments(uint8_t n_replicas, ConfigStatus _status)
+        : bucket_id(0), n_replicas(n_replicas), status(_status), fid(0),
+          rules(kDefault2Replica), default_placement(true)
+    {
+    }
+
+    PlacementArguments(uint8_t n_replicas, ConfigStatus _status, PlacementStrategyT _strategy)
+      : bucket_id(0), n_replicas(n_replicas), status(_status), fid(0),
+        rules(kDefault2Replica), default_placement(true), strategy(_strategy)
+    {
+    }
 
 
-    PlacementArguments(uint8_t n_replicas, ConfigStatus _status): bucket_id(0), n_replicas(n_replicas),
-        status(_status), fid(0), rules(kDefault2Replica), default_placement(true) {}
-
-    PlacementArguments(uint8_t n_replicas) :
-        PlacementArguments(n_replicas, ConfigStatus::kRW)
-    {}
+    PlacementArguments(uint8_t n_replicas)
+        : PlacementArguments(n_replicas, ConfigStatus::kRW)
+    {
+    }
 
     PlacementArguments(item_id_t bucket_id, uint8_t n_replicas,
-                       ConfigStatus status, uint64_t fid, selection_rules_t rules):
-      bucket_id(bucket_id), n_replicas(n_replicas), status(status), fid(fid),
-      rules(rules), default_placement(false) {}
+                       ConfigStatus status, uint64_t fid,
+                       selection_rules_t rules)
+        : bucket_id(bucket_id), n_replicas(n_replicas), status(status),
+          fid(fid), rules(rules), default_placement(false)
+    {
+    }
   };
 
+  FlatScheduler(size_t max_buckets)
+  {
+    for (size_t i = 0; i < TOTAL_PLACEMENT_STRATEGIES; i++) {
+      mPlacementStrategy[i] = makePlacementStrategy(
+          static_cast<PlacementStrategyT>(i), max_buckets);
+    }
+  }
+
   template <typename... Args>
-  FlatScheduler(PlacementStrategyT strategy, Args&&... args) :
-      mPlacementStrategy(makePlacementStrategy(strategy, std::forward<Args>(args)...)) {}
+  FlatScheduler(PlacementStrategyT strategy, Args&&... args)
+      : mDefaultStrategy(strategy)
+  {
+    mPlacementStrategy[static_cast<int>(strategy)] =
+        makePlacementStrategy(strategy, std::forward<Args>(args)...);
+  }
 
   PlacementResult schedule(const ClusterData& cluster_data,
                            PlacementArguments args);
@@ -191,13 +248,10 @@ private:
   PlacementResult scheduleDefault(const ClusterData& cluster_data,
                                   PlacementArguments args);
 
-
-  std::unique_ptr<PlacementStrategy> mPlacementStrategy;
-
+  std::array<std::unique_ptr<PlacementStrategy>, TOTAL_PLACEMENT_STRATEGIES>
+      mPlacementStrategy;
+  PlacementStrategyT mDefaultStrategy{PlacementStrategyT::Count};
 };
-
-static_assert(sizeof(FlatScheduler) == 8);
-
 } // namespace eos::mgm::placement
 
 
