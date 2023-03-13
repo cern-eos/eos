@@ -61,6 +61,9 @@ struct PlacementResult {
     return os;
   }
 
+  std::string error_string() const {
+    return err_msg.value_or("");
+  }
 };
 
 enum class PlacementStrategyT {
