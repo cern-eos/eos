@@ -2462,8 +2462,7 @@ EosFuse::getattr(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info* fi)
   metad::shared_md md = Instance().mds.getlocal(req, ino);
 
   if (ino != 1) {
-    XrdSysMutexHelper mLock(md->Locker());
-
+    md->Locker().Lock();
     if (!(*md)()->id() || (md->deleted() && !md->lookup_is())) {
       rc = md->deleted() ? ENOENT : (*md)()->err();
     } else {
@@ -2499,6 +2498,7 @@ EosFuse::getattr(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info* fi)
         }
       }
     }
+    md->Locker().UnLock();
   } else {
     // mountpoint stat does not require a cap
     md->convert(e);
@@ -4125,8 +4125,8 @@ EROFS  pathname refers to a directory on a read-only filesystem.
       metad::shared_md pmd;
       md = Instance().mds.lookup(req, parent, name);
       Track::Monitor mon("rmdir", Instance().Tracker(), (*md)()->id(), true);
-      XrdSysMutexHelper mLock(md->Locker());
-
+      md->Locker().Lock();
+      
       if (!(*md)()->id() || md->deleted()) {
         rc = ENOENT;
       }
@@ -4172,6 +4172,7 @@ EROFS  pathname refers to a directory on a read-only filesystem.
           del_ino = (*md)()->id();
         }
       }
+      md->Locker().UnLock();
     }
 
     if (!rc) {
