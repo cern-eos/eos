@@ -108,7 +108,10 @@ void FSScheduler::updateClusterData()
                               new ClusterMapT(std::move(cluster_map)));
 }
 
-PlacementResult FSScheduler::schedule(const std::string& spaceName, uint8_t n_replicas)
+
+PlacementResult
+FSScheduler::schedule(const string& spaceName,
+                      FlatScheduler::PlacementArguments args)
 {
   auto cluster_mgr = get_cluster_mgr(spaceName);
   if (!cluster_mgr) {
@@ -118,7 +121,12 @@ PlacementResult FSScheduler::schedule(const std::string& spaceName, uint8_t n_re
 
   auto cluster_data_ptr = cluster_mgr->getClusterData();
   return scheduler->schedule(cluster_data_ptr(),
-                             {n_replicas});
+                             args);
 }
 
+PlacementResult
+FSScheduler::schedule(const std::string& spaceName, uint8_t n_replicas)
+{
+  return schedule(spaceName, FlatScheduler::PlacementArguments(n_replicas));
+}
 } // eos::mgm::placement
