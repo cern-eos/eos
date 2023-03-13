@@ -28,7 +28,7 @@ EOSCOMMONNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 // Empty constructor
 //------------------------------------------------------------------------------
-MutexLatencyWatcher::MutexLatencyWatcher() {}
+MutexLatencyWatcher::MutexLatencyWatcher() { aStart = 0; }
 
 //------------------------------------------------------------------------------
 // Constructor
@@ -52,8 +52,10 @@ void MutexLatencyWatcher::activate(RWMutex& mutex, const std::string &friendlyNa
 void MutexLatencyWatcher::main(ThreadAssistant &assistant) {
   while(!assistant.terminationRequested()) {
     Datapoint point;
+    aStart = time(NULL);
     point.start = std::chrono::system_clock::now();
     mMutex->LockWrite();
+    aStart = 0;
     mMutex->UnLockWrite();
     point.end = std::chrono::system_clock::now();
 

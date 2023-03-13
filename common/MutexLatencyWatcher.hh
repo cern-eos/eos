@@ -25,6 +25,7 @@
 #include "common/AssistedThread.hh"
 #include <list>
 #include <chrono>
+#include <atomic>
 
 EOSCOMMONNAMESPACE_BEGIN
 
@@ -45,6 +46,23 @@ public:
       return std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
     }
   };
+
+  std::atomic<time_t> aStart;
+
+  bool isLockedUp() const {
+    if (!aStart) {
+      return false;
+    } else {
+      return ((time(NULL) - aStart) >= 5);
+    }
+  }
+
+  int hangingSince() const {
+    if (!aStart) {
+      return 0;
+    }
+    return ((time(NULL) - aStart));
+  }
 
   //----------------------------------------------------------------------------
   //! LatencySpikes struct

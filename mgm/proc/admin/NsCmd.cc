@@ -370,6 +370,8 @@ NsCmd::StatSubcmd(const eos::console::NsProto_StatProto& stat,
         eosxd_active_clients << std::endl
         << "uid=all gid=all ns.fusex.lockedclients=" <<
         eosxd_locked_clients << std::endl
+        << "uid=all gid=all ns.hanging=" << gOFS->mViewMutexWatcher.isLockedUp() << std::endl
+        << "uid=all gid=all ns.hanging.since=" << gOFS->mViewMutexWatcher.hangingSince() << std::endl
         << "uid=all gid=all ns.latencypeak.eosviewmutex.last=" <<
         viewLatency.last.count() << std::endl
         << "uid=all gid=all ns.latencypeak.eosviewmutex.1min=" <<
@@ -550,6 +552,9 @@ NsCmd::StatSubcmd(const eos::console::NsProto_StatProto& stat,
           << line << std::endl;
     }
 
+    oss << "ALL      eosViewRWMutex status            " << (gOFS->mViewMutexWatcher.isLockedUp()?"locked-up":"available")
+	<< " (" << gOFS->mViewMutexWatcher.hangingSince() << "s) " << std::endl;
+								 
     oss << "ALL      eosViewRWMutex peak-latency      " << viewLatency.last.count()
         << "ms (last) "
         << viewLatency.lastMinute.count() << "ms (1 min) " <<
