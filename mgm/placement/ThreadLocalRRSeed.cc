@@ -7,7 +7,7 @@ namespace eos::mgm::placement {
 std::random_device ThreadLocalRRSeed::rd;
 std::mt19937 ThreadLocalRRSeed::random_gen(rd());
 
-thread_local std::vector<uint64_t> ThreadLocalRRSeed::gRRSeeds;
+thread_local std::vector<uint64_t> ThreadLocalRRSeed::gRRSeeds(kDefaultMaxRRSeeds,0);
 
 void
 ThreadLocalRRSeed::init(size_t max_items, bool randomize)
