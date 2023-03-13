@@ -47,18 +47,18 @@ public:
   using RCUMutexT = eos::common::VersionedRCUDomain;
   using ClusterMapPtrT = eos::common::atomic_unique_ptr<ClusterMapT>;
 
-  FSScheduler(PlacementStrategyT strategy, size_t max_buckets,
+  FSScheduler(size_t max_buckets,
               std::unique_ptr<ClusterMgrHandler>&& _handler) :
-    scheduler(std::make_unique<FlatScheduler>(strategy, max_buckets)),
+    scheduler(std::make_unique<FlatScheduler>(max_buckets)),
     cluster_handler(std::move(_handler))
   {}
 
-  FSScheduler() : FSScheduler(PlacementStrategyT::kThreadLocalRoundRobin,
-                              1024,
+  FSScheduler() : FSScheduler(1024,
                               std::make_unique<EosClusterMgrHandler>()) {}
 
 
   PlacementResult schedule(const std::string& spaceName, uint8_t n_replicas);
+  PlacementResult schedule(const std::string& spaceName, FlatScheduler::PlacementArguments args);
   void updateClusterData();
 
 private:
