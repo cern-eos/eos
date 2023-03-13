@@ -267,6 +267,10 @@ TEST_F(VariousTests, BasicSanity)
   mtime.tv_sec = 2000;
   mtime.tv_nsec = 999;
   file1->setMTime(mtime);
+  struct timespec atime;
+  mtime.tv_sec = 2000;
+  mtime.tv_nsec = 999;
+  file1->setATime(atime);
   ASSERT_EQ(eos::Printing::printMultiline(static_cast<eos::QuarkFileMD*>
                                           (file1.get())->getProto()),
             SSTR("ID: 1\n"
@@ -277,6 +281,7 @@ TEST_F(VariousTests, BasicSanity)
                  "Size: 555\n"
                  "Modify: " << Printing::timespecToFileinfo(mtime) << "\n"
                  "Change: " << Printing::timespecToFileinfo(ctime) << "\n"
+                 "Access: " << Printing::timespecToFileinfo(atime) << "\n"
                  "Flags: 0777\n"
                  "Checksum type: md5, checksum bytes: 12235599aadd00550000000000000000\n"
                  "Expected number of replicas / stripes: 2\n"
