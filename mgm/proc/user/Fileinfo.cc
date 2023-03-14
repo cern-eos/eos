@@ -1023,6 +1023,7 @@ ProcCommand::FileJSON(uint64_t fid, Json::Value* ret_json, bool dolock)
     std::string etag;
     eos::calculateEtag(fmd_copy.get(), etag);
     json["etag"] = etag;
+    json["status"] = FileMDToStatus(fmd_copy);
   } catch (eos::MDException& e) {
     errno = e.getErrno();
     eos_static_debug("msg=\"exception during JSON fileinfo\" ec=%d "
