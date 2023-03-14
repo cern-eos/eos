@@ -4,7 +4,6 @@
 #include "mgm/groupbalancer/StdDrainerEngine.hh"
 #include "mgm/groupbalancer/ConverterUtils.hh"
 #include "mgm/XrdMgmOfs.hh"
-#include "mgm/IMaster.hh"
 #include "mgm/groupbalancer/GroupsInfoFetcher.hh"
 #include "common/utils/ContainerUtils.hh"
 #include "common/StringUtils.hh"
