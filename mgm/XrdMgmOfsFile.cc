@@ -1964,17 +1964,24 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
     plctargs.spacename = &spacename;
     plctargs.truncate = open_flags & O_TRUNC;
     plctargs.vid = &vid;
-
     if (!plctargs.isValid()) {
       // there is something wrong in the arguments of file placement
       return Emsg(epname, error, EINVAL, "open - invalid placement argument", path);
     }
 
+    placement::PlacementStrategyT strategy (placement::PlacementStrategyT::kRoundRobin);
+    const char* strategy_cstr;
+    if ((strategy_cstr = openOpaque->Get("eos.schedulingstrategy"))) {
+      strategy = placement::strategy_from_str(strategy_cstr);
+      eos_debug("msg=\"using scheduling strategy\" strategy=%s", strategy_to_str(strategy).c_str());
+    }
+
     {
       COMMONTIMING("PlctScheduler::FilePlacement", &tm);
       uint8_t n_replicas = eos::common::LayoutId::GetStripeNumber(layoutId) + 1;
+      placement::FlatScheduler::PlacementArguments args{n_replicas, placement::ConfigStatus::kRW, strategy};
       auto ret = gOFS->mFsScheduler->schedule(spacename,
-                                              n_replicas);
+                                              args);
       COMMONTIMING("PlctScheduler::FilePlaced", &tm);
 
       if (ret.is_valid_placement(n_replicas)) {
