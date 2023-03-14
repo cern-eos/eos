@@ -17,10 +17,29 @@ Introduction
 This release is based on XRootD V5.
 
 
+``v5.1.14 Diopside``
+====================
+
+2023-03-14
+
+Bug
+----
+
+* [EOS-2520] - FST abort (coredump) on shutdown, "EPoll: Bad file descriptor polling for events"
+* [EOS-5554] - Deadlock while setting acls recursive
+
+New Feature
+------------
+
+* [EOS-5571] - Add atime to eos-ns-inspect tool
+* [EOS-5573] - Show if namespace is locked-up
+* [EOS-5576] - MGM: fileinfo -j does not output the file' status
+
+
 ``v5.1.13 Diopside``
 ====================
 
-2023-06-03
+2023-03-06
 
 Bug
 ----
