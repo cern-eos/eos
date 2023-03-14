@@ -147,6 +147,10 @@ i.e., the group “admins” is granted the 'd' right although it is denied to e
 
 Finally the ACL can be set via either of the following 2 commands, see `eos acl --help` or `eos attr set --help`. From the operational perspective one may prefer the former command as it acts specifically on the element we change (egroup, user ... etc.) instead of re-specifying the whole permission set of rules (`eos attr set` case). `eos acl` set of commands also allow for specific position to place the rule in when creating or modifying a rule. By default rules are appended at the end of the acl, `--front` flag allows to place a rule at the front, and an integer position starting from 1 (which is equivalent to `--front`) can also be used to explicitly move a rule to a specific position via the `--position` argument.
 
+.. note::
+
+From EOS version 5.1.14 and later the behavior of recursive ACL set has changed, keeping in view of very large directory trees. Previously any recursive ACL set command ensures that no directory creation happens during the ACL set, while this is synchronous for very large trees with millions of directories, one can end up blocking everything else. This is moved to fine-grained locks, with the downside that a directory created during the time ACLs are applied may not see the ACLs being applied, in case their parent hasn't inherited yet. The old synchronous behavior can be restored with a `--with-synchronous-write-lock` flag, though it is really not recommended for very large tree hierarchies.
+
 .. code-block:: bash
    
    eos attr set sys.acl=<rule_a>,<rule_b>.. /eos/mypath
