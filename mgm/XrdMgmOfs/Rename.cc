@@ -555,15 +555,11 @@ XrdMgmOfs::_rename(const char* old_name,
                 std::map<gid_t, unsigned long long> group_del_size;
 
                 // Compute the total quota we need to rename by uid/gid
-                eos::BulkNsObjectLocker<eos::IFileMDPtr,  eos::IFileMD::IFileMDReadLocker>  fileBulkLocker;
-                eos::BulkNsObjectLocker<eos::IContainerMDPtr, eos::IContainerMD::IContainerMDReadLocker> containerBulkLocker;
 
                 for (rfoundit = found.rbegin(); rfoundit != found.rend();
                      rfoundit++) {
-                  // Insert every directory for future read lock
-                  containerBulkLocker.add(
-                      gOFS->eosView->getContainer(rfoundit->first));
-                  // To compute the quota, we need to read lock all the directories and all the files belonging to the current directory
+                  // To compute the quota, we don't need to read-lock the entire tree as
+                  // it will anyway not be an atomic operation without the big namespace lock taken.
                   for (fileit = rfoundit->second.begin();
                        fileit != rfoundit->second.end(); fileit++) {
                     std::string fspath = rfoundit->first;
@@ -574,7 +570,6 @@ XrdMgmOfs::_rename(const char* old_name,
                     // Stat this file and add to the deletion maps
                     try {
                       fmd = gOFS->eosView->getFile(fspath.c_str(), false);
-                      fileBulkLocker.add(fmd);
                     } catch (eos::MDException& e) {
                       // Check if this is a symbolic link
                       std::string fname = *fileit;
@@ -587,7 +582,6 @@ XrdMgmOfs::_rename(const char* old_name,
 
                         try {
                           fmd = gOFS->eosView->getFile(fspath.c_str(), false);
-                          fileBulkLocker.add(fmd);
                         } catch (eos::MDException& e) {
                           errno = e.getErrno();
                           eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"",
@@ -600,30 +594,22 @@ XrdMgmOfs::_rename(const char* old_name,
                       }
                     }
 
-                    if (!fmd) {
+                    if (fmd) {
+                      eos::IFileMD::IFileMDReadLocker locker(fmd);
+                      if (!fmd->isLink()) {
+                        // compute quotas to check
+                        user_del_size[fmd->getCUid()] += (fmd->getSize() * fmd->getNumLocation());
+                        group_del_size[fmd->getCGid()] += (fmd->getSize() * fmd->getNumLocation());
+                      }
+                    } else {
                       return Emsg(epname, error, errno,
                                   "rename - cannot stat file in subtree",
                                   fspath.c_str());
                     }
                   }
                 }
-                COMMONTIMING("rename::rename_dir_check_quota_get_all_dirs_all_files",
+                COMMONTIMING("rename::rename_dir_compute_quotas_to_check",
                              &tm);
-                {
-                  auto containerLocks = containerBulkLocker.lockAll();
-                  COMMONTIMING("rename::rename_dir_check_quota_lock_all_dirs_read_lock", &tm);
-                  auto fileLocks = fileBulkLocker.lockAll();
-                  COMMONTIMING("rename::rename_dir_check_quota_lock_all_files_read_lock", &tm);
-                  for (auto& fileLock : fileLocks) {
-                    auto currentFile = fileLock->getUnderlyingPtr();
-                    if (!currentFile->isLink()) {
-                      // compute quotas to check
-                      user_del_size[currentFile->getCUid()] += (currentFile->getSize() * currentFile->getNumLocation());
-                      group_del_size[currentFile->getCGid()] += (currentFile->getSize() * currentFile->getNumLocation());
-                    }
-                  }
-                  COMMONTIMING("rename::rename_dir_compute_quotas_to_check", &tm);
-                }
 
                 // Verify for each uid/gid that there is enough quota to rename
                 bool userok = true;
@@ -659,14 +645,11 @@ XrdMgmOfs::_rename(const char* old_name,
               COMMONTIMING("rename::rename_dir_check_quotas", &tm);
             } // if (checkQuota)
 
-            eos::BulkNsObjectLocker<eos::IFileMDPtr,eos::IFileMD::IFileMDReadLocker> fileBulkLocker;
-            eos::BulkNsObjectLocker<eos::IContainerMDPtr,eos::IContainerMD::IContainerMDReadLocker> containerBulkLocker;
-
             for (rfoundit = found.rbegin(); rfoundit != found.rend();
                  rfoundit++) {
-              // read-lock every directory
-              containerBulkLocker.add(gOFS->eosView->getContainer(rfoundit->first));
-              // read-lock every files
+              // Loop through every files
+              // To compute the quota, we don't need to read-lock the entire tree as
+              // it will anyway not be an atomic operation without the big namespace lock taken.
               for (fileit = rfoundit->second.begin();
                    fileit != rfoundit->second.end(); fileit++) {
                 std::string fspath = rfoundit->first;
@@ -680,7 +663,6 @@ XrdMgmOfs::_rename(const char* old_name,
 
                 try {
                   file = gOFS->eosView->getFile(fspath.c_str());
-                  fileBulkLocker.add(file);
                 } catch (eos::MDException& e) {
                   // Check if this is a symbolic link
                   std::string fname = *fileit;
@@ -693,7 +675,6 @@ XrdMgmOfs::_rename(const char* old_name,
 
                     try {
                       file = gOFS->eosView->getFile(fspath.c_str(), false);
-                      fileBulkLocker.add(file);
                     } catch (eos::MDException& e) {
                       errno = e.getErrno();
                       eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"",
@@ -705,32 +686,25 @@ XrdMgmOfs::_rename(const char* old_name,
                               e.getErrno(), e.getMessage().str().c_str());
                   }
                 }
-              }
-            }
-            COMMONTIMING("rename::rename_dir_apply_quota_get_all_dirs_all_files", &tm);
-            {
-              auto containerLocks = containerBulkLocker.lockAll();
-              COMMONTIMING("rename::rename_dir_apply_quota_all_dirs_read_lock", &tm);
-              auto fileLocks = fileBulkLocker.lockAll();
-              COMMONTIMING("rename::rename_dir_apply_quota_all_files_read_lock", &tm);
-              for (auto& fileLock : fileLocks) {
-                auto currentFile = fileLock->getUnderlyingPtr();
-                if (!currentFile->isLink()) {
-                  // Get quota nodes from file path and target directory
-                  eos::IQuotaNode* old_qnode = eosView->getQuotaNode(rdir.get());
-                  eos::IQuotaNode* new_qnode = eosView->getQuotaNode(newdir.get());
+                if(file) {
+                  eos::IFileMD::IFileMDReadLocker locker(file);
+                  if(!file->isLink()){
+                    // Get quota nodes from file path and target directory
+                    eos::IQuotaNode* old_qnode = eosView->getQuotaNode(rdir.get());
+                    eos::IQuotaNode* new_qnode = eosView->getQuotaNode(newdir.get());
 
-                  if (old_qnode) {
-                    old_qnode->removeFile(currentFile.get());
-                  }
+                    if (old_qnode) {
+                      old_qnode->removeFile(file.get());
+                    }
 
-                  if (new_qnode) {
-                    new_qnode->addFile(currentFile.get());
+                    if (new_qnode) {
+                      new_qnode->addFile(file.get());
+                    }
                   }
                 }
               }
-            } // All locks are released
-            COMMONTIMING("rename::rename_dir_apply_quotas",&tm);
+            }
+            COMMONTIMING("rename::rename_dir_apply_quotas", &tm);
           }
 
           if (nP == oP) {
