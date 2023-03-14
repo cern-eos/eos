@@ -13,7 +13,7 @@
 #include "mgm/FsView.hh"
 #include "common/FileSystem.hh"
 #include "mgm/utils/FileSystemStatusUtils.hh"
-
+#include "common/utils/BackOffInvoker.hh"
 
 namespace eos::mgm
 {
@@ -50,6 +50,7 @@ GroupDrainer::GroupDrain(ThreadAssistant& assistant) noexcept
   bool config_status = false;
   eos::common::observer_tag_t observer_tag {};
   eos_info("%s", "msg=\"starting group drainer thread\"");
+  eos::common::BackOffInvoker backoff_logger;
 
   while (!assistant.terminationRequested()) {
     if (!gOFS->mMaster->IsMaster()) {
@@ -67,11 +68,15 @@ GroupDrainer::GroupDrain(ThreadAssistant& assistant) noexcept
     }
 
     if (!gOFS->mConverterDriver || !config_status) {
+
       // wait for a few seconds before trying to see for reconfiguration in order
       // to not simply always check the atomic in an inf loop
-      eos_info("msg=\"Invalid GroupDrainer Configuration or Converter "
-               "not enabled, sleeping 30s!\" config_status=%d, space=%s",
-               config_status, mSpaceName.c_str());
+      backoff_logger.invoke([this, &config_status]() {
+        eos_info("msg=\"Invalid GroupDrainer Configuration or Converter "
+                 "not enabled, sleeping!\" config_status=%d, space=%s",
+                 config_status, mSpaceName.c_str());
+      });
+
       assistant.wait_for(std::chrono::seconds(30));
       continue;
     }

@@ -24,6 +24,7 @@
 #include "common/Logging.hh"
 #include "common/LayoutId.hh"
 #include "common/Mapping.hh"
+#include "common/utils/BackOffInvoker.hh"
 #include "common/RWMutex.hh"
 #include "common/Path.hh"
 #include "mgm/Recycle.hh"
@@ -94,9 +95,13 @@ Recycle::Recycler(ThreadAssistant& assistant) noexcept
 
   assistant.wait_for(std::chrono::seconds(10));
 
+  eos::common::BackOffInvoker backoff_logger;
   while (!assistant.terminationRequested()) {
     // Every now and then we wake up
-    eos_static_info("snooze-time=%llu", snoozetime);
+    backoff_logger.invoke([&snoozetime](){
+      eos_static_info("msg=\"recycler thread\" snooze-time=%llu",
+                      snoozetime);
+    });
 
     for (int i = 0; i < snoozetime / 10; i++) {
       if (assistant.terminationRequested()) {
