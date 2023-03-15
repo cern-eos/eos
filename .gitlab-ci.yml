@@ -187,6 +187,7 @@ build_al8:
   <<: *build-template_definition
   only:
     - schedules
+    - tags
   variables:
     BUILD_NAME: al8
 
@@ -195,6 +196,7 @@ build_al9:
   <<: *build-template_definition
   only:
     - schedules
+    - tags
   variables:
     BUILD_NAME: al9
 
