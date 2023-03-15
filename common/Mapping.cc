@@ -435,7 +435,6 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
         eos_static_debug("tident uid mapping prot=%s name=%s",
                          vid.prot.c_str(), vid.name.c_str());
         vid.allowed_uids.clear();
-
         // use physical mapping
         // unix protocol maps to the role if the client is the root account
         // otherwise it maps to the unix ID on the client host
@@ -443,7 +442,9 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
             ((vid.prot == "sss") && (vid.name == "daemon"))) {
           Mapping::getPhysicalIdShards(myrole.c_str(), vid);
         } else {
-          Mapping::getPhysicalIdShards(client->name, vid);
+	  if (client->name != nullptr) {
+	    Mapping::getPhysicalIdShards(client->name, vid);
+	  }
         }
 	vid.gateway = true;
       }
@@ -476,7 +477,9 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
             ((vid.prot == "sss") && (vid.name == "daemon"))) {
           Mapping::getPhysicalIdShards(myrole.c_str(), vid);
         } else {
-          Mapping::getPhysicalIdShards(client->name, vid);
+	  if (client->name != nullptr) {
+	    Mapping::getPhysicalIdShards(client->name, vid);
+	  }
         }
 
         vid.uid = uid;
