@@ -36,6 +36,12 @@ if [ $UID -eq 0 ] && [ $UID -eq $EUID ]; then
   restricted=0
 fi
 
+EOSXD="/usr/bin/eosxd"
+
+if [ -e "/etc/sysconfig/eosxd" ]; then
+    . /etc/sysconfig/eosxd
+fi
+
 # mount(8) in restricted mode (for non-root users) does not allow to use any
 # mount options,
 # we fail for users
@@ -79,4 +85,4 @@ done
 
 echo ${options[@]}
 
-/usr/bin/eosxd ${options[@]} -oautofs >& /dev/null < /dev/zero
+$EOSXD ${options[@]} -oautofs >& /dev/null < /dev/zero
