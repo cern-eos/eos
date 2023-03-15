@@ -244,7 +244,8 @@ HttpServer::XrdHttpHandler(std::string& method,
     // check if we are a gateway for https by calling the mapping function for this client
     vid = new eos::common::VirtualIdentity();
     if (vid) {
-      eos::common::Mapping::IdMap(&client, "", client.tident, *vid, true);
+      std::string stident = "https.0:0@"; stident += std::string(client.host);
+      eos::common::Mapping::IdMap(&client, "", stident.c_str(), *vid, true);
       if (!vid->isGateway() || ((vid->prot != "https") && (vid->prot != "http")) ) {
 	headers.erase("x-forwarded-for");
       }
