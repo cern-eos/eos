@@ -26,6 +26,7 @@
 #include "NewfindCmd.hh"
 #include "common/LayoutId.hh"
 #include "common/Path.hh"
+#include "common/Timing.hh"
 #include "mgm/Acl.hh"
 #include "mgm/FsView.hh"
 #include "mgm/Stat.hh"
@@ -39,6 +40,7 @@
 #include "namespace/utils/BalanceCalculator.hh"
 #include "namespace/utils/Checksum.hh"
 #include "namespace/utils/Stat.hh"
+#include "namespace/utils/Etag.hh"
 #include <mgm/Access.hh>
 #include <namespace/Prefetcher.hh>
 
@@ -269,13 +271,20 @@ static bool hasStripeDiff(std::shared_ptr<eos::IFileMD>& fmd)
 // Print path.
 //------------------------------------------------------------------------------
 template<typename S>   // std::ofstream or std::stringstream
-static void printPath(S& ss, const std::string& path, bool url)
+static void printPath(S& ss, const eos::console::FindProto& req, const std::string& path)
 {
-  if (url) {
+  if (req.format().length() || req.treecount()) {
+    ss << "path=\"";
+  }
+
+  if (req.xurl()) {
     ss << "root://" << gOFS->MgmOfsAlias << "/";
   }
 
   ss << path;
+  if (req.format().length() || req.treecount()) {
+    ss << "\"";
+  }
 }
 
 
@@ -285,8 +294,9 @@ static void printPath(S& ss, const std::string& path, bool url)
 template<typename S, typename T>
 static void printUidGid(S& ss, const eos::console::FindProto& req, const T& md)
 {
-  ss << "\t";
-
+  if (req.format().length()) {
+    return;
+  }
   if (req.printuid()) {
     ss << " uid=" << md->getCUid();
   }
@@ -301,6 +311,10 @@ template<typename S, typename T>
 static void printAttributes(S& ss,
                             const eos::console::FindProto& req, const T& md)
 {
+  if (req.format().length()) {
+    return;
+  }
+
   if (!req.printkey().empty()) {
     std::string attr;
 
@@ -308,23 +322,205 @@ static void printAttributes(S& ss,
       attr = "undef";
     }
 
-    ss << "\t" << req.printkey() << "=" << attr;
+    ss << " " << req.printkey() << "=" << attr;
   }
 }
 
 //------------------------------------------------------------------------------
 // Print directories and files count of a ContainerMD, if requested by req.
 //------------------------------------------------------------------------------
-//static void printChildCount(std::ofstream& ss, const eos::console::FindProto& req,
-//                            const std::shared_ptr<eos::IContainerMD>& cmd)
-//{
-//  if (req.childcount()) {
-//    ss << "\t"
-//       <<" ndirs=" << cmd->getNumContainers()
-//       << " nfiles=" << cmd->getNumFiles();
-//  }
-//
-//}
+static void printChildCount(std::ofstream& ss, const eos::console::FindProto& req,
+                            const std::shared_ptr<eos::IContainerMD>& cmd)
+{
+  if (req.format().length()) {
+    return;
+  }
+
+  if (req.childcount()) {
+    ss <<" ndirs=" << cmd->getNumContainers()
+       << " nfiles=" << cmd->getNumFiles();
+  }
+
+}
+
+//------------------------------------------------------------------------------
+// Print user defined format
+//------------------------------------------------------------------------------
+static void printFormat(std::ofstream& ss, const eos::console::FindProto& req,
+			const std::shared_ptr<eos::IContainerMD>& cmd)
+{
+  if (req.format().length()) {
+    std::vector<std::string> tokens;
+    eos::common::StringConversion::Tokenize(req.format(),
+					    tokens, ",");
+
+    for (auto i:tokens) {
+      if (i == "type") {
+	ss << " type=directory ";
+      }
+      if (i == "size") {
+	ss << " size=" << std::to_string(cmd->getTreeSize());
+      }
+      if (i == "cxid") {
+	ss << " cxid="  << std::hex << cmd->getId() << std::dec;
+      }
+      if (i == "pxid") {
+	ss << " pxid="  << std::hex << cmd->getParentId() << std::dec;
+      }
+      if (i == "cid") {
+	ss << " cid="  << cmd->getId();
+      }
+      if (i == "pid") {
+	ss << " pid="  << cmd->getParentId();
+      }
+      if (i == "uid") {
+	ss << " uid=" << cmd->getCUid();
+      }
+      if (i == "gid") {
+	ss << " gid=" << cmd->getCGid();
+      }
+      if (i == "mode") {
+	ss << " mode=" << std::oct << cmd->getMode() << std::dec;
+      }
+      if (i == "files") {
+	ss << " files=" << cmd->getNumFiles();
+      }
+      if (i == "directories") {
+	ss << " directories=" << cmd->getNumContainers();
+      }
+      if (i == "mtime") {
+	eos::IFileMD::ctime_t mtime {0, 0};
+	cmd->getCTime(mtime);
+	ss << " mtime=" << eos::common::Timing::TimespecToString(mtime);
+      }
+      if (i == "btime") {
+	eos::IFileMD::ctime_t btime {0, 0};
+	if (cmd->getAttributes().count("sys.eos.btime")) {
+	  eos::common::Timing::Timespec_from_TimespecStr(cmd->getAttributes()["sys.eos.btime"], btime);
+	}
+	ss << " btime=" << eos::common::Timing::TimespecToString(btime);
+      }
+      if (i == "ctime") {
+	eos::IFileMD::ctime_t ctime {0, 0};
+	cmd->getCTime(ctime);
+	ss << " ctime=" << eos::common::Timing::TimespecToString(ctime);
+      }
+      if (i == "etag") {
+	std::string etag;
+	eos::calculateEtag(cmd.get(), etag);
+	ss << " etag=" << etag;
+      }
+      if ( i.substr(0,5) == "attr.") {
+	std::string attr=i.substr(5);
+	if (attr == "*") {
+	  
+	  for (const auto& elem : cmd->getAttributes()) {
+	    ss << " attr." << elem.first << "=" << "\"" << elem.second << "\"";
+	  }
+	} else {
+	  if (cmd->getAttributes().count(attr)) {
+	    ss << " " << i << "=\"" << cmd->getAttributes()[attr] << "\"";
+	  }
+	}
+      }
+    }
+  }
+}
+
+//------------------------------------------------------------------------------
+// Print user defined format
+//------------------------------------------------------------------------------
+static void printFormat(std::ofstream& ss, const eos::console::FindProto& req,
+			const std::shared_ptr<eos::IFileMD>& fmd)
+{
+  if (req.format().length()) {
+    std::vector<std::string> tokens;
+    eos::common::StringConversion::Tokenize(req.format(),
+					    tokens, ",");
+
+    for (auto i:tokens) {
+      if (i == "type") {
+	if (fmd->isLink()) {
+	  ss << " type=link ";
+	} else {
+	  ss << " type=file ";
+	}
+      }
+      if (i == "size") {
+	ss << " size=" << std::to_string(fmd->getSize());
+      }
+      if (i == "fxid") {
+	ss << " fxid="  << std::hex << fmd->getId() << std::dec;
+      }
+      if (i == "cxid") {
+	ss << " cxid="  << std::hex << fmd->getContainerId() << std::dec;
+      }
+      if (i == "fid") {
+	ss << " fid="  << fmd->getId();
+      }
+      if (i == "cid") {
+	ss << " cid="  << fmd->getContainerId();
+      }
+      if (i == "uid") {
+	ss << " uid=" << fmd->getCUid();
+      }
+      if (i == "gid") {
+	ss << " gid=" << fmd->getCGid();
+      }
+      if (i == "flags") {
+	ss << " flags=" << std::oct << fmd->getFlags() << std::dec;
+      }
+      if (i == "atime") {
+	eos::IFileMD::ctime_t atime {0, 0};
+	fmd->getCTime(atime);
+	ss << " atime=" << eos::common::Timing::TimespecToString(atime);
+      }
+      if (i == "mtime") {
+	eos::IFileMD::ctime_t mtime {0, 0};
+	fmd->getCTime(mtime);
+	ss << " mtime=" << eos::common::Timing::TimespecToString(mtime);
+      }
+      if (i == "btime") {
+	eos::IFileMD::ctime_t btime {0, 0};
+	if (fmd->getAttributes().count("sys.eos.btime")) {
+	  eos::common::Timing::Timespec_from_TimespecStr(fmd->getAttributes()["sys.eos.btime"], btime);
+	}
+	ss << " btime=" << eos::common::Timing::TimespecToString(btime);
+      }
+      if (i == "ctime") {
+	eos::IFileMD::ctime_t ctime {0, 0};
+	fmd->getCTime(ctime);
+	ss << " ctime=" << eos::common::Timing::TimespecToString(ctime);
+      }
+      if (i == "etag") {
+	std::string etag;
+	eos::calculateEtag(fmd.get(), etag);
+	ss << " etag=" << etag;
+      }
+      if (i == "checksum") {
+	std::string xs;
+	eos::appendChecksumOnStringAsHex(fmd.get(), xs);
+	ss << " checksum=" << xs;
+      }
+      if (i == "checksumtype") {
+	ss << " checksumtype=" << eos::common::LayoutId::GetChecksumString(fmd->getLayoutId());
+      }
+      if ( i.substr(0,5) == "attr.") {
+	std::string attr=i.substr(5);
+	if (attr == "*") {
+	  
+	  for (const auto& elem : fmd->getAttributes()) {
+	    ss << " attr." << elem.first << "=" << "\"" << elem.second << "\"";
+	  }
+	} else {
+	  if (fmd->getAttributes().count(attr)) {
+	    ss << " " << i << "=\"" << fmd->getAttributes()[attr] << "\"";
+	  }
+	}
+      }
+    }
+  }
+}
 
 
 //------------------------------------------------------------------------------
@@ -334,6 +530,10 @@ template<typename S>   // std::ofstream or std::stringstream
 static void printChecksum(S& ss, const eos::console::FindProto& req,
                           const std::shared_ptr<eos::IFileMD>& fmd)
 {
+  if (req.format().length()) {
+    return;
+  }
+
   if (req.checksum()) {
     ss << " checksum=";
     std::string checksum;
@@ -424,6 +624,10 @@ template<typename S>   // std::ofstream or std::stringstream
 static void printFMD(S& ss, const eos::console::FindProto& req,
                      const std::shared_ptr<eos::IFileMD>& fmd)
 {
+  if (req.format().length()) {
+    return;
+  }
+
   if (req.size()) {
     ss << " size=" << fmd->getSize();
   }
@@ -884,8 +1088,6 @@ NewfindCmd::ProcessRequest() noexcept
     std::make_unique<qclient::QClient>(gOFS->mQdbContactDetails.members,
                                        gOFS->mQdbContactDetails.constructOptions());
   std::unique_ptr<FindResultProvider> findResultProvider;
-  // @note when findRequest.childcount() is true, the namespace explorer will skip the files during the namespace traversal.
-  // This way we can have a fast aggregate sum of the file/container count for each directory
   int depthlimit = findRequest.Maxdepth__case() ==
                    eos::console::FindProto::MAXDEPTH__NOT_SET ?
                    eos::common::Path::MAX_LEVELS : cPath.GetSubPathSize() + findRequest.maxdepth();
@@ -915,11 +1117,13 @@ NewfindCmd::ProcessRequest() noexcept
     }
   }
 
+  bool onlydirs = (findRequest.directories() && !findRequest.files()) | findRequest.count() || findRequest.treecount();
+  
   findResultProvider.reset(new FindResultProvider(qcl.get(),
                            findRequest.path(), depthlimit,
-                           findRequest.childcount(), mVid));
-  uint64_t childcount_aggregate_dircounter = 0;
-  uint64_t childcount_aggregate_filecounter = 0;
+                           onlydirs, mVid));
+  uint64_t treecount_aggregate_dircounter = 0;
+  uint64_t treecount_aggregate_filecounter = 0;
   uint64_t dircounter = 0;
   uint64_t filecounter = 0;
   // For general users, cannot return more than 50k dirs and 100k files with one find,
@@ -952,11 +1156,7 @@ NewfindCmd::ProcessRequest() noexcept
     }
 
     if (findResult.isdir) {
-      eos::Prefetcher::prefetchContainerMDWithChildrenAndWait(gOFS->eosView,
-          findResult.path, false, findRequest.childcount(), limit_result, dir_limit,
-          file_limit);
-
-      if (!findRequest.directories() && findRequest.files()) {
+      if (!findRequest.directories() && findRequest.files() && !findRequest.count() && !findRequest.treecount()) {
         continue;
       }
 
@@ -989,20 +1189,21 @@ NewfindCmd::ProcessRequest() noexcept
         continue;  // Process next item if we don't have a cMD
       }
 
-      // --childcount nullify the filters, we don't want to bias the count because of intermediate filtered-out result
+      // --treecount nullify the filters, we don't want to bias the count because of intermediate filtered-out result
       // Alse, take the chance to update the total counter while traversing
-      if (!findRequest.childcount()) {
+      if (!findRequest.treecount()) {
         if (FilterOut(findRequest, cMD)) {
           continue;
         }
       } else {
-        childcount_aggregate_dircounter += cMD->getNumContainers();
-        childcount_aggregate_filecounter += cMD->getNumFiles();
+        treecount_aggregate_dircounter += cMD->getNumContainers();
+        treecount_aggregate_filecounter += cMD->getNumFiles();
       }
 
       dircounter++;
-
-      if (findRequest.count() || findRequest.childcount()) {
+      filecounter += cMD->getNumFiles();
+      
+      if (findRequest.count() || findRequest.treecount()) {
         continue;
       }
 
@@ -1020,11 +1221,13 @@ NewfindCmd::ProcessRequest() noexcept
         continue;
       }
 
-      printPath(ofstdoutStream, findResult.path, findRequest.xurl());
+      printPath(ofstdoutStream, findRequest, findResult.path);
+      printChildCount(ofstdoutStream, findRequest, cMD);
+      printFormat(ofstdoutStream, findRequest, cMD);
       printUidGid(ofstdoutStream, findRequest, cMD);
       printAttributes(ofstdoutStream, findRequest, cMD);
       ofstdoutStream << std::endl;
-    } else if (!findResult.isdir) { // redundant, no problem
+    } else {
       if (!findRequest.files() && findRequest.directories()) {
         continue;
       }
@@ -1062,7 +1265,7 @@ NewfindCmd::ProcessRequest() noexcept
 
       filecounter++;
 
-      if (findRequest.count() || findRequest.childcount()) {
+      if (findRequest.count() || findRequest.treecount()) {
         continue;
       }
 
@@ -1086,9 +1289,9 @@ NewfindCmd::ProcessRequest() noexcept
         continue;
       }
 
-      printPath(ofstdoutStream,
-                fMD->isLink() ? findResult.path + " -> " + fMD->getLink() : findResult.path,
-                findRequest.xurl());
+      printPath(ofstdoutStream, findRequest,
+                fMD->isLink() ? findResult.path + " -> " + fMD->getLink() : findResult.path);
+      printFormat(ofstdoutStream, findRequest, fMD);
       printUidGid(ofstdoutStream, findRequest, fMD);
       printAttributes(ofstdoutStream, findRequest, fMD);
       printFMD(ofstdoutStream, findRequest, fMD);
@@ -1103,11 +1306,10 @@ NewfindCmd::ProcessRequest() noexcept
   gOFS->MgmStats.Add("Newfind", mVid.uid, mVid.gid, 1);
   gOFS->MgmStats.Add("NewfindEntries", mVid.uid, mVid.gid, filecounter);
 
-  if (findRequest.childcount()) {
-    ofstdoutStream << "Aggregate results for the path " << findRequest.path() <<
-                   ": "
-                   << " Files=" << childcount_aggregate_filecounter
-                   << " Directories=" << childcount_aggregate_dircounter <<
+  if (findRequest.treecount()) {
+    printPath(ofstdoutStream, findRequest, findResult.path);
+    ofstdoutStream << " sum.nfiles=" << treecount_aggregate_filecounter
+                   << " sum.ndirectories=" << treecount_aggregate_dircounter <<
                    std::endl;
   }
 
@@ -1210,8 +1412,6 @@ NewfindCmd::ProcessRequest(grpc::ServerWriter<eos::console::ReplyProto>* writer)
     std::make_unique<qclient::QClient>(gOFS->mQdbContactDetails.members,
                                        gOFS->mQdbContactDetails.constructOptions());
   std::unique_ptr<FindResultProvider> findResultProvider;
-  // @note when findRequest.childcount() is true, the namespace explorer will skip the files during the namespace traversal.
-  // This way we can have a fast aggregate sum of the file/container count for each directory
   int depthlimit = findRequest.Maxdepth__case() ==
                    eos::console::FindProto::MAXDEPTH__NOT_SET ?
                    eos::common::Path::MAX_LEVELS : cPath.GetSubPathSize() + findRequest.maxdepth();
@@ -1238,11 +1438,13 @@ NewfindCmd::ProcessRequest(grpc::ServerWriter<eos::console::ReplyProto>* writer)
     }
   }
 
+  bool onlydirs = (findRequest.directories() && !findRequest.files()) || findRequest.treecount();
+
   findResultProvider.reset(new FindResultProvider(qcl.get(),
                            findRequest.path(), depthlimit,
-                           findRequest.childcount(), mVid));
-  uint64_t childcount_aggregate_dircounter = 0;
-  uint64_t childcount_aggregate_filecounter = 0;
+                           onlydirs, mVid));
+  uint64_t treecount_aggregate_dircounter = 0;
+  uint64_t treecount_aggregate_filecounter = 0;
   uint64_t dircounter = 0;
   uint64_t filecounter = 0;
   // For general users, cannot return more than 50k dirs and 100k files with one find,
@@ -1278,11 +1480,7 @@ NewfindCmd::ProcessRequest(grpc::ServerWriter<eos::console::ReplyProto>* writer)
     std::stringstream output;
 
     if (findResult.isdir) {
-      eos::Prefetcher::prefetchContainerMDWithChildrenAndWait(gOFS->eosView,
-          findResult.path, false, findRequest.childcount(), limit_result, dir_limit,
-          file_limit);
-
-      if (!findRequest.directories() && findRequest.files()) {
+      if (!findRequest.directories() && findRequest.files() && !findRequest.count()) {
         continue;
       }
 
@@ -1312,20 +1510,21 @@ NewfindCmd::ProcessRequest(grpc::ServerWriter<eos::console::ReplyProto>* writer)
         continue;  // Process next item if we don't have a cMD
       }
 
-      // --childcount nullify the filters, we don't want to bias the count because of intermediate filtered-out result
+      // --treecount nullify the filters, we don't want to bias the count because of intermediate filtered-out result
       // Alse, take the chance to update the total counter while traversing
-      if (!findRequest.childcount()) {
+      if (!findRequest.treecount()) {
         if (FilterOut(findRequest, cMD)) {
           continue;
         }
       } else {
-        childcount_aggregate_dircounter += cMD->getNumContainers();
-        childcount_aggregate_filecounter += cMD->getNumFiles();
+        treecount_aggregate_dircounter += cMD->getNumContainers();
+        treecount_aggregate_filecounter += cMD->getNumFiles();
       }
 
       dircounter++;
-
-      if (findRequest.count() || findRequest.childcount()) {
+      filecounter += cMD->getNumFiles();
+	
+      if (findRequest.count() || findRequest.treecount()) {
         continue;
       }
 
@@ -1338,7 +1537,9 @@ NewfindCmd::ProcessRequest(grpc::ServerWriter<eos::console::ReplyProto>* writer)
       else if (findRequest.fileinfo()) {
         this->PrintFileInfoMinusM(output, findResult.path, errInfo);
       } else {
-        printPath(output, findResult.path, findRequest.xurl());
+        printPath(output, findRequest, findResult.path);
+	printChildCount(ofstdoutStream, findRequest, cMD);
+	printFormat(ofstdoutStream, findRequest, cMD);
         printUidGid(output, findRequest, cMD);
         printAttributes(output, findRequest, cMD);
 
@@ -1393,9 +1594,7 @@ NewfindCmd::ProcessRequest(grpc::ServerWriter<eos::console::ReplyProto>* writer)
         continue;  // @note or the opposite?
       }
 
-      filecounter++;
-
-      if (findRequest.count() || findRequest.childcount()) {
+      if (findRequest.count() || findRequest.treecount()) {
         continue;
       }
 
@@ -1412,9 +1611,9 @@ NewfindCmd::ProcessRequest(grpc::ServerWriter<eos::console::ReplyProto>* writer)
       else if (findRequest.fileinfo()) {
         this->PrintFileInfoMinusM(output, findResult.path, errInfo);
       } else {
-        printPath(output,
-                  fMD->isLink() ? findResult.path + " -> " + fMD->getLink() : findResult.path,
-                  findRequest.xurl());
+        printPath(output, findRequest,
+                  fMD->isLink() ? findResult.path + " -> " + fMD->getLink() : findResult.path);
+	printFormat(ofstdoutStream, findRequest, fMD);
         printUidGid(output, findRequest, fMD);
         printAttributes(output, findRequest, fMD);
         printFMD(output, findRequest, fMD);
@@ -1460,11 +1659,11 @@ NewfindCmd::ProcessRequest(grpc::ServerWriter<eos::console::ReplyProto>* writer)
   gOFS->MgmStats.Add("Newfind", mVid.uid, mVid.gid, 1);
   gOFS->MgmStats.Add("NewfindEntries", mVid.uid, mVid.gid, filecounter);
 
-  if (findRequest.childcount()) {
+  if (findRequest.treecount()) {
     StreamReply.set_std_out(
-      "Aggregate results for the path " + findRequest.path() +
-      ": Files=" + std::to_string(childcount_aggregate_filecounter) +
-      " Directories=" + std::to_string(childcount_aggregate_dircounter) + "\n");
+			    "path=\"" + findRequest.path() + 
+			    "\" sum.nfiles=" + std::to_string(treecount_aggregate_filecounter) +
+			    " sum.ndirectories=" + std::to_string(treecount_aggregate_dircounter) + "\n");
     StreamReply.set_std_err("");
     StreamReply.set_retc(0);
     writer->Write(StreamReply);

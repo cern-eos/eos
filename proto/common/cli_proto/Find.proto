@@ -53,4 +53,7 @@ message FindProto {
     string Printkey = 47;
     string Permission = 48;
     string NotPermission = 49;
+
+    bool Treecount = 50;
+    string Format = 51;
 }
