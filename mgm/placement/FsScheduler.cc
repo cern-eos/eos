@@ -91,7 +91,6 @@ EosClusterMgrHandler::make_cluster_mgr(const std::string& spaceName)
 
 ClusterMgr* FSScheduler::get_cluster_mgr(const std::string& spaceName)
 {
-  eos::common::RCUReadLock rlock(cluster_rcu_mutex);
   if (auto kv = cluster_mgr_map->find(spaceName);
       kv != cluster_mgr_map->end()) {
     return kv->second.get();
@@ -113,6 +112,7 @@ PlacementResult
 FSScheduler::schedule(const string& spaceName,
                       FlatScheduler::PlacementArguments args)
 {
+  eos::common::RCUReadLock rlock(cluster_rcu_mutex);
   auto cluster_mgr = get_cluster_mgr(spaceName);
   if (!cluster_mgr) {
     eos_static_crit("msg=\"Scheduler is not yet initialized for space=%s\"", spaceName.c_str());
