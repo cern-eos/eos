@@ -129,4 +129,20 @@ FSScheduler::schedule(const std::string& spaceName, uint8_t n_replicas)
 {
   return schedule(spaceName, FlatScheduler::PlacementArguments(n_replicas));
 }
-} // eos::mgm::placement
+
+bool
+FSScheduler::setDiskStatus(const string& spaceName, fsid_t disk_id,
+                           ConfigStatus status)
+{
+  eos::common::RCUReadLock rlock(cluster_rcu_mutex);
+  auto* cluster_mgr = get_cluster_mgr(spaceName);
+  if (!cluster_mgr) {
+    eos_static_crit("msg=\"Scheduler is not yet initialized for space=%s\"",
+                    spaceName.c_str());
+    return false;
+  }
+
+  return cluster_mgr->setDiskStatus(disk_id, status);
+}
+
+}// eos::mgm::placement
