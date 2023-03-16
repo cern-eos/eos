@@ -60,6 +60,8 @@ public:
   PlacementResult schedule(const std::string& spaceName, uint8_t n_replicas);
   PlacementResult schedule(const std::string& spaceName, FlatScheduler::PlacementArguments args);
   void updateClusterData();
+  bool setDiskStatus(const std::string& spaceName, fsid_t disk_id,
+                     ConfigStatus status);
 
 private:
 
