@@ -36,6 +36,7 @@
 #include "mgm/tgc/Constants.hh"
 #include "mgm/http/rest-api/Constants.hh"
 #include "mgm/Policy.hh"
+#include "mgm/placement/FsScheduler.hh"
 #include "mgm/ZMQ.hh"
 #include "common/table_formatter/TableFormatterBase.hh"
 #include "common/StringConversion.hh"
@@ -2615,6 +2616,8 @@ FsView::ReapplyDrainStatus()
         (cs == eos::common::ConfigStatus::kDrainDead) ||
         (cs == eos::common::ConfigStatus::kGroupDrain)) {
       it->second->SetConfigStatus(cs);
+      gOFS->mFsScheduler->setDiskStatus(mIdView.lookupSpaceByID(it->first),
+                                        it->first, cs);
     }
   }
 }
