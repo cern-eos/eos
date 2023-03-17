@@ -32,6 +32,9 @@ xrdfs $url mkdir $prefix/t_target/d3 || exit -2
 xrdfs $url mkdir $prefix/t_target/e1 || exit -2
 
 xrdcp /etc/passwd $url/$prefix/t_source/f1 || exit -3
+# Create two other versions of f1
+eos file version $prefix/t_source/f1 3|| exit -3
+eos file version $prefix/t_source/f1 3 || exit -3
 xrdcp /etc/passwd $url/$prefix/t_source/f2 || exit -3
 xrdcp /etc/passwd $url/$prefix/t_source/f3 || exit -3
 xrdcp /etc/passwd $url/$prefix/t_source/f4 || exit -3
