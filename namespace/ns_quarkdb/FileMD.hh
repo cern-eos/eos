@@ -281,6 +281,8 @@ public:
 
   //----------------------------------------------------------------------------
   //! Set name
+  //! Warning: Only calling this method to rename a file will not work as the
+  //! container containing it needs also to update its files cache
   //----------------------------------------------------------------------------
   void setName(const std::string& name) override;
 
