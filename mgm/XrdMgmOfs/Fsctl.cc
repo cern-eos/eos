@@ -113,16 +113,16 @@ XrdMgmOfs::fsctl(const int cmd,
         (!getenv("EOS_MGM_STATVFS_ONLY_QUOTA") && ((path == "/") || (path == "")))) {
       {
         eos::common::RWMutexReadLock vlock(FsView::gFsView.ViewMutex);
+
         if (FsView::gFsView.mSpaceView.count(space.c_str())) {
           freebytes =
             FsView::gFsView.mSpaceView[space.c_str()]->SumLongLong("stat.statfs.freebytes",
-                                                                   false);
+                false);
           maxbytes =
             FsView::gFsView.mSpaceView[space.c_str()]->SumLongLong("stat.statfs.capacity",
-                                                                 false);
+                false);
         }
       } //vlock
-
       unsigned long layoutid = Policy::GetSpacePolicyLayout(space.c_str());
 
       if (layoutid) {
@@ -226,7 +226,8 @@ XrdMgmOfs::FSctl(const int cmd,
   // Do the id mapping with the opaque information
   eos::common::VirtualIdentity vid;
   EXEC_TIMING_BEGIN("IdMap");
-  eos::common::Mapping::IdMap(client, ininfo, tident, vid, false);
+  eos::common::Mapping::IdMap(client, ininfo, tident, vid, gOFS->mTokenAuthz,
+                              inpath, false);
   EXEC_TIMING_END("IdMap");
   gOFS->MgmStats.Add("IdMap", vid.uid, vid.gid, 1);
   tlLogId.SetSingleShotLogId(tident);

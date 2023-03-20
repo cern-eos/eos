@@ -396,20 +396,6 @@ private:
                          const std::vector<std::string>& fwall_eps) const;
 
   //----------------------------------------------------------------------------
-  //! Handle (HTTP TPC) token authorization and extract from the token the
-  //! username of the client executing the current operation. This will populate
-  //! the XrdSecEntity.name field used later on to establish the virtual identity
-  //!
-  //! @param client XrdSecEntity object
-  //! @param path path of the request
-  //! @param opaque opaque information that should contain "&authz=<...>"
-  //!
-  //! @return true if successful, otherwise false
-  //----------------------------------------------------------------------------
-  bool HandleTokenAuthz(XrdSecEntity* client , const std::string& path,
-                        const std::string& opaque);
-
-  //----------------------------------------------------------------------------
   //! Get file system ids excluded from scheduling
   //!
   //! return list of file system ids to exclude

@@ -301,7 +301,7 @@ HttpServer::XrdHttpHandler(std::string& method,
       }
     }
 
-    eos::common::Mapping::IdMap(&client, env.c_str(), client.tident, *vid, true);
+    eos::common::Mapping::IdMap(&client, env.c_str(), client.tident, *vid);
     EXEC_TIMING_END("IdMap");
   } else {   // HTTP access through Nginx
     headers["client-real-ip"] = "NOIPLOOKUP";
@@ -555,7 +555,7 @@ HttpServer::Authenticate(std::map<std::string, std::string>& headers)
     // Make a virtual identity object
     vid = new eos::common::VirtualIdentity();
     EXEC_TIMING_BEGIN("IdMap");
-    eos::common::Mapping::IdMap(&client, "eos.app=http", client.tident, *vid, true);
+    eos::common::Mapping::IdMap(&client, "eos.app=http", client.tident, *vid);
     EXEC_TIMING_END("IdMap");
     std::string header_host = headers["host"];
     size_t pos = header_host.find(':');

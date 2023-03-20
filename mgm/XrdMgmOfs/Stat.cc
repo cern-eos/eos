@@ -80,7 +80,9 @@ XrdMgmOfs::stat(const char* inpath,
   XrdOucEnv Open_Env(ininfo);
   AUTHORIZE(client, &Open_Env, AOP_Stat, "stat", inpath, error);
   EXEC_TIMING_BEGIN("IdMap");
-  eos::common::Mapping::IdMap(client, ininfo, tident, vid, false);
+  eos_static_info("%s", "msg=\"doing IdMap for stat operation\"");
+  eos::common::Mapping::IdMap(client, ininfo, tident, vid, gOFS->mTokenAuthz,
+                              path, true);
   EXEC_TIMING_END("IdMap");
   gOFS->MgmStats.Add("IdMap", vid.uid, vid.gid, 1);
   BOUNCE_NOT_ALLOWED;

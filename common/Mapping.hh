@@ -35,6 +35,7 @@
 
 //! Forward declaration
 class XrdSecEntity;
+class XrdAccAuthorize;
 
 EOSCOMMONNAMESPACE_BEGIN
 
@@ -120,7 +121,9 @@ public:
   //! Main mapping function to create a virtual identity from authentication information
   // ---------------------------------------------------------------------------
   static void IdMap(const XrdSecEntity* client, const char* env,
-                    const char* tident, VirtualIdentity& vid, bool log = true);
+                    const char* tident, VirtualIdentity& vid,
+                    XrdAccAuthorize* authz_lib = nullptr,
+                    std::string path = "", bool log = true);
 
   // ---------------------------------------------------------------------------
   //! Map describing which virtual user roles a user with a given uid has
@@ -383,6 +386,7 @@ private:
   //----------------------------------------------------------------------------
   static void addSecondaryGroups(VirtualIdentity& vid, const std::string& name,
                                  gid_t gid);
+
 
   //----------------------------------------------------------------------------
   //! Handle HTTPS authz key mapping
