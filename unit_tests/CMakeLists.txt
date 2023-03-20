@@ -82,7 +82,7 @@ set(MGM_UT_SRCS
   mgm/bulk-request/PrepareManagerTest.cc
   mgm/bulk-request/BulkRequestPrepareManagerTest.cc
   mgm/bulk-request/MockPrepareMgmFSInterface.cc
-  mgm/http/EosMgmHttpHandlerTests.cc
+  mgm/http/HttpServerTests.cc
   mgm/http/rest-api/tape/RestApiTest.cc
   mgm/http/rest-api/tape/JsonCPPTapeModelBuilderTest.cc
   mgm/utils/AttrHelperTests.cc mgm/PolicyTests.cc)

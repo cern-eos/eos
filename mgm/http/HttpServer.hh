@@ -34,10 +34,13 @@
 #include "common/http/HttpServer.hh"
 #include "common/http/ProtocolHandler.hh"
 #include "common/Mapping.hh"
+#include "mgm/http/rest-api/handler/tape/TapeRestHandler.hh"
+#include "XrdHttp/XrdHttpExtHandler.hh"
 #include <map>
 #include <string>
-#include "mgm/http/rest-api/handler/tape/TapeRestHandler.hh"
-#include <XrdHttp/XrdHttpExtHandler.hh>
+
+//! Forward declaration
+class XrdAccAuthorize;
 
 EOSMGMNAMESPACE_BEGIN
 
@@ -106,21 +109,29 @@ public:
   eos::common::VirtualIdentity*
   Authenticate(std::map<std::string, std::string>& headers);
 
-  /**
-   * HTTP object handler function on MGM called by XrdHttp
-   *
-   * @return see implementation
-   */
-
+  //----------------------------------------------------------------------------
+  //! HTTP object handler function on MGM called by XrdHttp
+  //!
+  //! @param method HTTP verb
+  //! @param uri HTTP URI
+  //! @param headers map fo the headers
+  //! @param cookie cookies
+  //! @param body HTTP body
+  //! @param client XrdSecEntity for current request
+  //! @param authz_obj authorization library
+  //! @param err_msg error message in case of failure
+  //!
+  //! @return protocol handler or null in case of failure
+  //----------------------------------------------------------------------------
   virtual std::unique_ptr<eos::common::ProtocolHandler>
   XrdHttpHandler(std::string& method,
                  std::string& uri,
                  std::map<std::string, std::string>& headers,
-                 std::string& query,
                  std::map<std::string, std::string>& cookies,
                  std::string& body,
-                 const XrdSecEntity& client
-                );
+                 const XrdSecEntity& client,
+                 XrdAccAuthorize* authz_obj,
+                 std::string& err_msg);
 
 private:
 #ifdef IN_TEST_HARNESS
@@ -140,6 +151,20 @@ public:
   //! @return clientDN formatted according to the legacy standard
   //----------------------------------------------------------------------------
   std::string ProcessClientDN(const std::string& cnd) const;
+
+  //----------------------------------------------------------------------------
+  //! Build path and opaque information based on the HTTP headers
+  //!
+  //! @param normalized_headers HTTP headers
+  //! @param path canonical path of the HTTP request
+  //! @param env_opaque opaque information stored in XrdOucEnv object
+  //!
+  //! @return true if successful, otherwise false
+  //----------------------------------------------------------------------------
+  static bool
+  BuildPathAndEnvOpaque(const std::map<std::string, std::string>&
+                        normalized_headers, std::string& path,
+                        std::unique_ptr<XrdOucEnv>& env_opaque);
 };
 
 EOSMGMNAMESPACE_END
