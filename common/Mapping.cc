@@ -95,6 +95,8 @@ static std::string g_krb_uid_key = "krb5:" + g_pwd_uid_key;
 static std::string g_krb_gid_key = "krb5:" + g_pwd_gid_key;
 static std::string g_oauth2_uid_key = "oauth2:" + g_pwd_uid_key;
 static std::string g_oauth2_gid_key = "oauth2:" + g_pwd_gid_key; // not used yet
+static std::string g_ztn_uid_key = "ztn:" + g_pwd_uid_key;
+static std::string g_ztn_gid_key = "ztn:" + g_pwd_gid_key;
 
 //Static vars for nobody ids which may change in the future
 static uid_t g_nobody_uid = 99;
@@ -332,11 +334,8 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
         }
       }
 
-      // @todo(esindril) maybe also add a ztn mapping like the rest
-      // e.g eos vid enable/disable ztn
-      // then we would also have g_ztn_uid_key/g_ztn_gid_key
       HandleUidGidMapping(client_username.c_str(), vid,
-                          g_https_uid_key, g_https_gid_key);
+                          g_ztn_uid_key, g_ztn_gid_key);
     }
   }
 
@@ -2293,7 +2292,7 @@ Mapping::HandleUidGidMapping(const char* name, VirtualIdentity& vid,
   bool gid_mapped = kv_gid != gVirtualGidMap.end();
 
   if (uid_mapped && gid_mapped &&
-      kv_uid->second == 0 && kv_gid->second == 0) {
+      (kv_uid->second == 0) && (kv_gid->second == 0)) {
     eos_static_debug("msg=\"%s uid/gid mapping\"", vid.prot.c_str());
     Mapping::getPhysicalUidGids(name, vid);
     return;

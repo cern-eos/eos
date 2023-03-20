@@ -71,30 +71,30 @@ Vid::Set(const char* value, bool storeConfig)
 
     if ((val = env.Get("mgm.vid.tokensudo"))) {
       if (std::string(val) == "always") {
-	val = "0";
-	set = true;
+        val = "0";
+        set = true;
       } else if (std::string(val) == "never") {
-	val = "3";
-	set = true;
+        val = "3";
+        set = true;
       } else if (std::string(val) == "strong") {
-	val = "2";
-	set = true;
+        val = "2";
+        set = true;
       } else if (std::string(val) == "encrypted") {
-	val = "1";
-	set = true;
-      } else if ( (std::string(val) == "0") ||
-		  (std::string(val) == "1") ||
-		  (std::string(val) == "2") ||
-		  (std::string(val) == "3") ) {
-	set = true;
+        val = "1";
+        set = true;
+      } else if ((std::string(val) == "0") ||
+                 (std::string(val) == "1") ||
+                 (std::string(val) == "2") ||
+                 (std::string(val) == "3")) {
+        set = true;
       }
+
       if (set) {
-	eos::common::Mapping::gTokenSudo = (int) strtol(val, 0, 10);
+        eos::common::Mapping::gTokenSudo = (int) strtol(val, 0, 10);
       }
     }
   }
 
-    
   if (vidcmd == "geotag") {
     if ((val = env.Get("mgm.vid.geotag"))) {
       XrdOucString gkey = skey;
@@ -200,14 +200,14 @@ Vid::Set(const char* value, bool storeConfig)
     if ((auth != "voms") && (auth != "krb5") && (auth != "sss") &&
         (auth != "unix") && (auth != "tident") && (auth != "gsi") &&
         (auth != "https") && (auth != "grpc") && (auth != "oauth2")) {
-      eos_static_err("invalid auth mode");
+      eos_static_err("%s", "msg=\"invalid auth mode\"");
       return false;
     }
 
     XrdOucString pattern = env.Get("mgm.vid.pattern");
 
     if (!pattern.length()) {
-      eos_static_err("missing pattern");
+      eos_static_err("%s", "msg=\"missing pattern\"");
       return false;
     }
 
@@ -224,7 +224,7 @@ Vid::Set(const char* value, bool storeConfig)
     skey += pattern;
 
     if ((!env.Get("mgm.vid.uid")) && (!env.Get("mgm.vid.gid"))) {
-      eos_static_err("missing uid|gid");
+      eos_static_err("%s", "msg=\"missing uid|gid\"");
       return false;
     }
 
@@ -238,7 +238,8 @@ Vid::Set(const char* value, bool storeConfig)
       cx += (int) muid;
 
       if (cx != newuid) {
-        eos_static_err("strings differ %s %s", cx.c_str(), newuid.c_str());
+        eos_static_err("msg=\"strings differ\" old=\"%s\" new=\"%s\"",
+                       cx.c_str(), newuid.c_str());
         return false;
       }
     }
@@ -515,14 +516,14 @@ Vid::Rm(XrdOucEnv& env,
       if ((auth != "voms") && (auth != "krb5") && (auth != "sss") &&
           (auth != "unix") && (auth != "tident") && (auth != "gsi") &&
           (auth != "https") && (auth != "grpc") && (auth != "oauth2")) {
-        eos_static_err("invalid auth mode");
+        eos_static_err("%s", "msg=\"invalid auth mode\"");
         break;
       }
 
       XrdOucString pattern = env.Get("mgm.vid.pattern");
 
       if (!pattern.length()) {
-        eos_static_err("missing pattern");
+        eos_static_err("%s", "msg=\"missing pattern\"");
         break;
       }
 
@@ -539,7 +540,7 @@ Vid::Rm(XrdOucEnv& env,
       skey += pattern;
 
       if ((!env.Get("mgm.vid.uid")) && (!env.Get("mgm.vid.gid"))) {
-        eos_static_err("missing uid|gid");
+        eos_static_err("msg=\"missing uid|gid\"");
         break;
       }
 
@@ -552,7 +553,8 @@ Vid::Rm(XrdOucEnv& env,
         cx += (int) muid;
 
         if (cx != newuid) {
-          eos_static_err("strings differ %s %s", cx.c_str(), newuid.c_str());
+          eos_static_err("msg=\"strings differ\" old=\"%s\" new=\"%s\"",
+                         cx.c_str(), newuid.c_str());
           break;
         }
 
@@ -577,7 +579,8 @@ Vid::Rm(XrdOucEnv& env,
         cx += (int) mgid;
 
         if (cx != newgid) {
-          eos_static_err("strings differ %s %s", cx.c_str(), newgid.c_str());
+          eos_static_err("msg=\"strings differ\" old=\"%s\" new=\"%s\"",
+                         cx.c_str(), newgid.c_str());
           break;
         }
 
