@@ -216,17 +216,4 @@ public:
   //! @return true if the request is a macaroon token request, false otherwise
   //----------------------------------------------------------------------------
   bool IsMacaroonRequest(const XrdHttpExtReq& req);
-
-  //----------------------------------------------------------------------------
-  //! Build path and opaque information based on the HTTP headers
-  //!
-  //! @param normalized_headers HTTP headers
-  //! @param path canonical path of the HTTP request
-  //! @param env_opaque opaque information stored in XrdOucEnv object
-  //!
-  //! @return true if successful, otherwise false
-  //----------------------------------------------------------------------------
-  bool BuildPathAndEnvOpaque(const std::map<std::string, std::string>&
-                             normalized_headers, std::string& path,
-                             std::unique_ptr<XrdOucEnv>& env_opaque);
 };

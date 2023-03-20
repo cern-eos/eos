@@ -122,7 +122,7 @@ public:
   // ---------------------------------------------------------------------------
   static void IdMap(const XrdSecEntity* client, const char* env,
                     const char* tident, VirtualIdentity& vid,
-                    XrdAccAuthorize* authz_lib = nullptr,
+                    XrdAccAuthorize* authz_obj = nullptr,
                     std::string path = "", bool log = true);
 
   // ---------------------------------------------------------------------------

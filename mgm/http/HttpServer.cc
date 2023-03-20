@@ -26,10 +26,12 @@
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/Stat.hh"
 #include "mgm/Macros.hh"
+#include "common/Path.hh"
 #include "common/SecEntity.hh"
 #include "common/StringTokenizer.hh"
 #include "common/ErrnoToString.hh"
 #include "XrdNet/XrdNetAddr.hh"
+#include "XrdAcc/XrdAccAuthorize.hh"
 #include <netdb.h>
 
 EOSMGMNAMESPACE_BEGIN
@@ -225,24 +227,28 @@ HttpServer::CompleteHandler(void*                              cls,
 
 #endif
 
+//------------------------------------------------------------------------------
+// HTTP object handler function called by XrdHttp
+//------------------------------------------------------------------------------
 std::unique_ptr<eos::common::ProtocolHandler>
 HttpServer::XrdHttpHandler(std::string& method,
                            std::string& uri,
                            std::map<std::string, std::string>& headers,
-                           std::string& query,
                            std::map<std::string, std::string>& cookies,
                            std::string& body,
-                           const XrdSecEntity& client)
+                           const XrdSecEntity& client,
+                           XrdAccAuthorize* authz_obj,
+                           std::string& err_msg)
 {
+  using namespace eos::common;
   WAIT_BOOT;
-  eos::common::VirtualIdentity* vid {nullptr};
 
-  // clients which are gateways/sudoer can pass x-forwarded-for and remote-user
+  // Clients which are gateways/sudoer can pass x-forwarded-for and remote-user
   if (headers.count("x-forwarded-for")) {
-    // check if we are a gateway for https and sudoer by calling the mapping function for this client
-    vid = new eos::common::VirtualIdentity();
+    // Check if this is a http gateway and sudoer by calling the mapping function
+    std::unique_ptr<VirtualIdentity> vid_tmp  {new VirtualIdentity()};
 
-    if (vid) {
+    if (vid_tmp) {
       XrdSecEntity eclient(client.prot);
       // Save initial eaAPI pointer and reset after the copy to avoid
       // double free of the same pointer.
@@ -256,54 +262,62 @@ HttpServer::XrdHttpHandler(std::string& method,
 
       std::string stident = "https.0:0@";
       stident += std::string(client.host);
-      eos::common::Mapping::IdMap(&eclient, "", stident.c_str(), *vid, true);
+      eos::common::Mapping::IdMap(&eclient, "", stident.c_str(), *vid_tmp);
 
-      if (!vid->isGateway() || ((vid->prot != "https") && (vid->prot != "http"))) {
+      if (!vid_tmp->isGateway() ||
+          ((vid_tmp->prot != "https") && (vid_tmp->prot != "http"))) {
         headers.erase("x-forwarded-for");
       }
 
-      if (!vid->sudoer) {
+      if (!vid_tmp->sudoer) {
         headers.erase("remote-user");
       }
-
-      delete vid;
     } else {
-      headers.erase("x-forwarded-for");
+      err_msg = "failed to allocate memory";
+      eos_static_err("msg=\"failed to allocate VirtualIdentity object\" "
+                     "method=%s uri=\"%s\"", method.c_str(), uri.c_str());
+      return nullptr;
     }
   }
 
+  bool s3_access = false;
+  auto it_authz = headers.find("authorization");
+
+  if (it_authz != headers.end()) {
+    if (it_authz->second.substr(0, 3) == "AWS") {
+      s3_access = true;
+    }
+  }
+
+  std::string query; //@todo(esindril) decide if this is needed
+  VirtualIdentity* vid = new VirtualIdentity();
+
   // Native XrdHttp access
-  if (headers.find("x-forwarded-for") == headers.end()) {
-    // Security enhancement:
-    // block manually injection a proxy x-real-ip header
-    headers.erase("x-real-ip");
-    vid = new eos::common::VirtualIdentity();
-    EXEC_TIMING_BEGIN("IdMap");
-    std::string env = "eos.app=http";
-    // For the eos token we need to append it to the opaque info that is then
-    // used in subsequent calls to the OFS layer.
-    auto it_authz = headers.find("authorization");
+  if (headers.find("x-forwarded-for") == headers.end() && !s3_access) {
+    std::string path;
+    std::unique_ptr<XrdOucEnv> env_opaque;
 
-    if (it_authz != headers.end()) {
-      const std::string bearer_tag = "Bearer ";
-      const std::string eos_token_tag = "zteos64";
-      std::string authz = it_authz->second;
-
-      if (authz.find(bearer_tag) == 0) {
-        authz.erase(0, bearer_tag.length());
-
-        if (authz.find(eos_token_tag) == 0) {
-          env += "&authz=";
-          env += authz;
-          query += "&authz=";
-          query += authz;
-        }
-      }
+    if (!BuildPathAndEnvOpaque(headers, path, env_opaque)) {
+      err_msg = "conflicting authorization info present";
+      eos_static_err("msg=\"%s\" path=\"%s\"", err_msg.c_str(), path.c_str());
+      return nullptr;
     }
 
-    eos::common::Mapping::IdMap(&client, env.c_str(), client.tident, *vid);
+    int envlen;
+    char* ptr = env_opaque->Env(envlen);
+
+    if (ptr == nullptr) {
+      err_msg = "empty opaque info for request";
+      eos_static_err("msg=\"%s\" path=\"%s\"", err_msg.c_str(), path.c_str());
+      return nullptr;
+    }
+
+    const std::string env = ptr;
+    query = env;
+    EXEC_TIMING_BEGIN("IdMap");
+    Mapping::IdMap(&client, env.c_str(), client.tident, *vid, authz_obj, path);
     EXEC_TIMING_END("IdMap");
-  } else {   // HTTP access through Nginx
+  } else { // HTTP access through Nginx
     headers["client-real-ip"] = "NOIPLOOKUP";
     headers["client-real-host"] = client.host;
     headers["x-real-ip"] = client.host;
@@ -328,8 +342,8 @@ HttpServer::XrdHttpHandler(std::string& method,
                   vid->uid_string.c_str(), vid->gid_string.c_str(),
                   vid->host.c_str(), vid->dn.c_str(), vid->tident.c_str());
   ProtocolHandlerFactory factory = ProtocolHandlerFactory();
-  std::unique_ptr<eos::common::ProtocolHandler> handler(
-    factory.CreateProtocolHandler(method, headers, vid));
+  std::unique_ptr<eos::common::ProtocolHandler> handler
+  {factory.CreateProtocolHandler(method, headers, vid)};
 
   if (!handler) {
     eos_static_err("msg=\"no matching protocol for request method %s\"",
@@ -339,26 +353,99 @@ HttpServer::XrdHttpHandler(std::string& method,
 
   size_t bodySize = body.length();
   // Retrieve the protocol handler stored in *ptr
-  std::unique_ptr<eos::common::HttpRequest> request(new eos::common::HttpRequest(
-        headers, method, uri,
-        query.c_str() ? query : "",
-        body, &bodySize, cookies));
-
-  if (EOS_LOGS_DEBUG) {
-    eos_static_debug("\n\n%s\n%s\n", request->ToString().c_str(),
-                     request->GetBody().c_str());
-  }
-
+  std::unique_ptr<eos::common::HttpRequest> request {
+    new eos::common::HttpRequest(headers, method, uri,
+    (query.c_str() ? query : ""),
+    body, &bodySize, cookies)};
+  eos_static_debug("\n\n%s\n%s\n", request->ToString().c_str(),
+                   request->GetBody().c_str());
   handler->HandleRequest(request.get());
-
-  if (EOS_LOGS_DEBUG) {
-    eos_static_debug("method=%s uri='%s' %s (warning this is not the mapped identity)",
-                     method.c_str(), uri.c_str(), eos::common::SecEntity::ToString(&client,
-                         "xrdhttp").c_str());
-  }
-
+  eos_static_debug("method=%s uri=\"%s\"client=\"%s\" msg=\"warning this is "
+                   "not the mapped identity\"", method.c_str(), uri.c_str(),
+                   eos::common::SecEntity::ToString(&client, "xrdhttp").c_str());
   return handler;
 }
+
+
+//------------------------------------------------------------------------------
+// Build path and opaque information based on the HTTP headers
+//------------------------------------------------------------------------------
+bool
+HttpServer::BuildPathAndEnvOpaque
+(const std::map<std::string, std::string>& normalized_headers,
+ std::string& path, std::unique_ptr<XrdOucEnv>& env_opaque)
+{
+  using eos::common::StringConversion;
+  // Extract path and any opaque info that might be present in the headers
+  // /path/to/file?and=some&opaque=info
+  path.clear();
+  auto it = normalized_headers.find("xrd-http-fullresource");
+
+  if (it == normalized_headers.end()) {
+    eos_static_err("%s", "msg=\"no xrd-http-fullresource header\"");
+    return false;
+  }
+
+  path = it->second;
+  std::string opaque;
+  size_t pos = path.find('?');
+
+  if ((pos != std::string::npos) && (pos != path.length())) {
+    opaque = path.substr(pos + 1);
+    path = path.substr(0, pos);
+    eos::common::Path canonical_path(path);
+    path = canonical_path.GetFullPath().c_str();
+  }
+
+  // Check if there is an explicit authorization header
+  std::string http_authz;
+  it = normalized_headers.find("authorization");
+
+  if (it != normalized_headers.end()) {
+    http_authz = it->second;
+  }
+
+  // If opaque data aleady contains authorization info i.e. "&authz=..." and we also
+  // have a HTTP authorization header then we fail
+  bool has_opaque_authz = (opaque.find("authz=") != std::string::npos);
+
+  if (has_opaque_authz && !http_authz.empty()) {
+    eos_static_err("msg=\"request has both opaque and http authorization\" "
+                   "opaque=\"%s\" http_authz=\"%s\"", opaque.c_str(),
+                   http_authz.c_str());
+    return false;
+  }
+
+  if (!http_authz.empty()) {
+    std::string enc_authz = StringConversion::curl_default_escaped(http_authz);
+    opaque += "&authz=";
+    opaque += enc_authz;
+  }
+
+  it = normalized_headers.find("xrd-http-query");
+
+  if (it != normalized_headers.end()) {
+    std::string query = it->second;
+
+    if (!query.empty()) {
+      if (*query.begin() != '&') {
+        opaque += "&";
+      }
+
+      opaque += query;
+    }
+  }
+
+  // Append eos.app tag if none is already present
+  if (opaque.find("eos.app=") == std::string::npos) {
+    opaque += "&eos.app=http";
+  }
+
+  env_opaque = std::make_unique<XrdOucEnv>(opaque.c_str(), opaque.length());
+  return true;
+}
+
+
 
 //------------------------------------------------------------------------------
 // Handle clientDN specified using RFC2253 (and RFC4514) where the
@@ -464,7 +551,7 @@ HttpServer::Authenticate(std::map<std::string, std::string>& headers)
 
           if (pos == string::npos) {
             eos_static_err("msg=malformed gridmap file");
-            return NULL;
+            return nullptr;
           }
 
           dn = (*it).substr(1, pos - 2); // Remove quotes around DN
@@ -515,7 +602,7 @@ HttpServer::Authenticate(std::map<std::string, std::string>& headers)
 
     if (real_ip.empty()) {
       eos_static_err("msg=\"x-real-ip header is empty\"");
-      return NULL;
+      return nullptr;
     }
 
     // XrdNetAddr deals properly with IPv6 addresses only if they use the
@@ -581,5 +668,4 @@ HttpServer::Authenticate(std::map<std::string, std::string>& headers)
   return vid;
 }
 
-/*----------------------------------------------------------------------------*/
 EOSMGMNAMESPACE_END

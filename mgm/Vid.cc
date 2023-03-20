@@ -199,7 +199,8 @@ Vid::Set(const char* value, bool storeConfig)
 
     if ((auth != "voms") && (auth != "krb5") && (auth != "sss") &&
         (auth != "unix") && (auth != "tident") && (auth != "gsi") &&
-        (auth != "https") && (auth != "grpc") && (auth != "oauth2")) {
+        (auth != "https") && (auth != "grpc") && (auth != "oauth2") &&
+        (auth != "ztn")) {
       eos_static_err("%s", "msg=\"invalid auth mode\"");
       return false;
     }
