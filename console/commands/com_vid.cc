@@ -386,6 +386,13 @@ com_vid(char* arg1)
       hastype = true;
     }
 
+    if ((type == "ztn")) {
+      in += "&mgm.vid.auth=ztn";
+      disableu += "ztn:\"<pwd>\":uid";
+      disableg += "ztn:\"<pwd>\":gid";
+      hastype = true;
+    }
+
     if (!hastype) {
       goto com_vid_usage;
     }
@@ -476,9 +483,10 @@ com_vid(char* arg1)
 
     XrdOucString protocol = subtokenizer.GetTokenUnquoted();
 
-    if (protocol.length() && ((protocol != "sss") && (protocol != "gsi") &&
-                              (protocol != "krb5") && (protocol != "unix") && (protocol != "https") &&
-                              (protocol != "grpc") && (protocol != "outh2"))) {
+    if (protocol.length() &&
+        ((protocol != "sss") && (protocol != "gsi") &&
+         (protocol != "krb5") && (protocol != "unix") && (protocol != "https") &&
+         (protocol != "grpc") && (protocol != "outh2"))) {
       goto com_vid_usage;
     }
 
@@ -609,7 +617,7 @@ com_vid_usage:
           "       vid rm <key>                         : remove configured vid with name key - hint: use config dump to see the key names of vid rules\n");
   fprintf(stdout, "\n");
   fprintf(stdout,
-          "       vid enable|disable krb5|gsi|sss|unix|https|grpc|oauth2\n");
+          "       vid enable|disable krb5|gsi|sss|unix|https|grpc|oauth2|ztn\n");
   fprintf(stdout,
           "                                            : enable/disables the default mapping via password or external database\n");
   fprintf(stdout, "\n");
