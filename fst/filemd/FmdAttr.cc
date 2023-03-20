@@ -48,8 +48,8 @@ FmdAttrHandler::LocalRetrieveFmd(const std::string& path)
   int result = localIo.attrGet(gFmdAttrName, attrval);
 
   if (result != 0) {
-    eos_err("msg=\"failed to retrieve fmd attribute\" path=\"%s\" errno=%d",
-            path.c_str(), errno);
+    eos_debug("msg=\"failed to retrieve fmd attribute\" path=\"%s\" errno=%d",
+              path.c_str(), errno);
     return {false, eos::common::FmdHelper{}};
   }
 
