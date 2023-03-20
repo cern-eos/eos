@@ -33,6 +33,7 @@
 #include "XrdNet/XrdNetAddr.hh"
 #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdSec/XrdSecEntityAttr.hh"
+#include "XrdAcc/XrdAccAuthorize.hh"
 #include <pwd.h>
 #include <grp.h>
 #include <sys/stat.h>
@@ -186,19 +187,22 @@ Mapping::Reset()
 /*----------------------------------------------------------------------------*/
 void
 Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
-               VirtualIdentity& vid, bool log)
+               VirtualIdentity& vid, XrdAccAuthorize* authz_lib, std::string path,
+               bool log)
 {
   if (!client) {
     return;
   }
 
-  eos_static_debug("name:%s role:%s group:%s tident:%s", client->name,
-                   client->role, client->grps, client->tident);
-  // you first are 'nobody'
+  eos_static_debug("msg=\"XrdSecEntity client\" name=\"%s\" role=\"%s\" "
+                   "group=\"%s\" tident=\"%s\" cred=\"%s\"",
+                   client->name, client->role, client->grps, client->tident,
+                   (client->creds ? client->creds : "none"));
+  // We start as 'nobody'
   vid = VirtualIdentity::Nobody();
   XrdOucEnv Env(env);
   std::string authz = (Env.Get("authz") ? Env.Get("authz") : "");
-  vid.name = client->name;
+  vid.name = (client->name ? client->name : "");
   vid.tident = tident;
   vid.sudoer = false;
   vid.gateway = false;
@@ -206,7 +210,7 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
   XrdOucString useralias = client->prot;
   useralias += ":";
   useralias += "\"";
-  useralias += client->name;
+  useralias += (client->name ? client->name : "");
   useralias += "\"";
   useralias += ":";
   XrdOucString groupalias = useralias;
@@ -226,15 +230,12 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
   // SSS and GRPC might contain a key embedded in the endorsements field
   if ((vid.prot == "sss") || (vid.prot == "grpc") || (vid.prot == "https")) {
     vid.key = (client->endorsements ? client->endorsements : "");
-  }
-
-  if (EOS_LOGS_DEBUG) {
     eos_static_debug("key %s", vid.key.c_str());
   }
 
   // KRB5 mapping
   if ((vid.prot == "krb5")) {
-    eos_static_debug("krb5 mapping");
+    eos_static_debug("%s", "msg=\"krb5 mapping\"");
 
     if (gVirtualUidMap.count(g_krb_uid_key)) {
       // use physical mapping for kerberos names
@@ -249,7 +250,7 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
 
   // GSI mapping
   if ((vid.prot == "gsi")) {
-    eos_static_debug("gsi mapping");
+    eos_static_debug("%s", "msg=\"gsi mapping\"");
 
     if (gVirtualUidMap.count(g_gsi_uid_key)) {
       // use physical mapping for gsi names
@@ -264,30 +265,79 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
     HandleVOMS(client, vid);
   }
 
-  // https mapping
-  if ((vid.prot == "https")) {
-    eos_static_debug("%s:", "msg=\"https mapping\"");
-    // Use physical mapping for https names
-    std::string client_username;
+  // HTTPS mapping
+  if (vid.prot == "https") {
+    eos_static_debug("%s", "msg=\"https mapping\"");
 
-    if (client->name == nullptr) {
-      // Check if we have the request.name in the attributes of the
-      // XrdSecEntity object which should contain the client username
-      // that the request belongs to.
-      const std::string user_key = "request.name";
-      std::string user_value;
+    // Handle bearer token authorization
+    if (authz_lib && !authz.empty() && (authz.find("Bearer%20") == 0)) {
+      // The operation does not matter here we just want to extract the
+      // client identity.
+      Access_Operation oper = AOP_Stat;
 
-      if (client->eaAPI->Get(user_key, user_value)) {
-        client_username = user_value;
+      if (authz_lib->Access(client, path.c_str(), oper, &Env) == XrdAccPriv_None) {
+        eos_static_err("msg=\"failed token authz\" path=\"%s\" opaque=\"%s\"",
+                       path.c_str(), env);
+        return;
       }
+    }
+
+    // Check if we have the request.name in the attributes of the XrdSecEntity
+    // object which is the client username according to the authz mapping.
+    std::string client_username;
+    std::string user_value;
+    static const std::string user_key = "request.name";
+
+    if (client->eaAPI->Get(user_key, user_value)) {
+      client_username = user_value;
     } else {
-      client_username = client->name;
+      if (client->name) {
+        client_username = client->name;
+      }
     }
 
     HandleUidGidMapping(client_username.c_str(), vid,
                         g_https_uid_key, g_https_gid_key);
     HandleVOMS(client, vid);
     HandleKEYS(client, vid);
+  }
+
+  // ZTN mapping
+  if ((vid.prot == "ztn") && client->creds) {
+    // Handle bearer token authorization - operation doesn't matter we're
+    // interested in the client identity.
+    if (authz_lib) {
+      authz = "&authz=";
+      authz += client->creds;
+      Access_Operation oper = AOP_Stat;
+      XrdOucEnv op_env(authz.c_str());
+
+      if (authz_lib->Access(client, path.c_str(), oper, &op_env) == XrdAccPriv_None) {
+        eos_static_err("msg=\"failed token authz\" path=\"%s\" opaque=\"%s\" "
+                       "authz=\"%s\"",  path.c_str(), env, authz.c_str());
+        return;
+      }
+
+      // Check if we have the request.name in the attributes of the XrdSecEntity
+      // object which is the client username according to the authz mapping.
+      std::string client_username;
+      std::string user_value;
+      static const std::string user_key = "request.name";
+
+      if (client->eaAPI->Get(user_key, user_value)) {
+        client_username = user_value;
+      } else {
+        if (client->name) {
+          client_username = client->name;
+        }
+      }
+
+      // @todo(esindril) maybe also add a ztn mapping like the rest
+      // e.g eos vid enable/disable ztn
+      // then we would also have g_ztn_uid_key/g_ztn_gid_key
+      HandleUidGidMapping(client_username.c_str(), vid,
+                          g_https_uid_key, g_https_gid_key);
+    }
   }
 
   // sss mapping
@@ -454,7 +504,7 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
         vid.gateway = true;
       }
     } else {
-      eos_static_debug("tident uid forced mapping");
+      eos_static_debug("%s", "msg=\"tident uid forced mapping\"");
       // map to the requested id
       vid.allowed_uids.clear();
       vid.uid = gVirtualUidMap[tuid.c_str()];
@@ -470,12 +520,12 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
     if (!gVirtualGidMap[tgid.c_str()]) {
       if (gRootSquash && (host != "localhost") && (host != "localhost.localdomain") &&
           (vid.name == "root") && (myrole == "root")) {
-        eos_static_debug("tident root gid squash");
+        eos_static_debug("%s", "msg=\"tident root gid squash\"");
         vid.allowed_gids.clear();
         vid.allowed_gids.insert(DAEMONGID);
         vid.gid = DAEMONGID;
       } else {
-        eos_static_debug("tident gid mapping");
+        eos_static_debug("%s", "msg=\"tident gid mapping\"");
         uid_t uid = vid.uid;
 
         if (((vid.prot == "unix") && (vid.name == "root")) ||
@@ -494,7 +544,7 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
         vid.gateway = true;
       }
     } else {
-      eos_static_debug("tident gid forced mapping");
+      eos_static_debug("%s", "msg=\"tident gid forced mapping\"");
       // map to the requested id
       vid.allowed_gids.clear();
       vid.gid = gVirtualGidMap[tgid.c_str()];
@@ -513,11 +563,6 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
     vid.gid = 4;
     vid.allowed_uids.insert(vid.uid);
     vid.allowed_gids.insert(vid.gid);
-  }
-
-  // ZTN mapping
-  if ((vid.prot == "ztn") && client->creds) {
-    authz = client->creds;
   }
 
   // GRPC key mapping
@@ -894,13 +939,9 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
       if (vid.token->VerifyOrigin(vid.host, vid.uid_string,
                                   std::string(vid.prot.c_str()))) {
         // invalidate this token
-        if (EOS_LOGS_DEBUG) {
-          eos_static_debug("invalidating token - origin mismatch %s:%s:%s",
-                           vid.host.c_str(),
-                           vid.uid_string.c_str(),
-                           vid.prot.c_str());
-        }
-
+        eos_static_debug("invalidating token - origin mismatch %s:%s:%s",
+                         vid.host.c_str(), vid.uid_string.c_str(),
+                         vid.prot.c_str());
         vid.token->Reset();
         // reset the vid to nobody if the origin does not match
         vid.toNobody();

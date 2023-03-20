@@ -280,7 +280,7 @@ GrpcServer::Vid(grpc::ServerContext* context,
     client.endorsements = const_cast<char*>(authkey.c_str());
   }
 
-  eos::common::Mapping::IdMap(&client, "eos.app=grpc", client.tident, vid, true);
+  eos::common::Mapping::IdMap(&client, "eos.app=grpc", client.tident, vid);
 }
 
 #endif

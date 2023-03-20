@@ -416,17 +416,9 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
       ininfo = sinfo.c_str();
     }
 
-    // Handle token authz for XrdMacaroons or XrdSciTokens
-    if (!HandleTokenAuthz(const_cast<XrdSecEntity*>(client), inpath,
-                          ininfo ? ininfo : "")) {
-      eos_err("msg=\"failed token authz\" path=\"%s\" opaque=\"%s\"",
-              inpath, (ininfo ? ininfo : ""));
-      return Emsg(epname, error, EPERM, "open - token authorization for path",
-                  inpath);
-    }
-
     if (!invid) {
-      eos::common::Mapping::IdMap(client, ininfo, tident, vid);
+      eos::common::Mapping::IdMap(client, ininfo, tident, vid,
+                                  gOFS->mTokenAuthz, spath.c_str());
     } else {
       vid = *invid;
     }
@@ -3537,41 +3529,6 @@ XrdMgmOfsFile::LogSchedulingInfo(const std::vector<unsigned int>& selected_fs,
 
     eos_debug("msg=\"scheduling info %s\"", oss.str().c_str());
   }
-}
-
-//------------------------------------------------------------------------------
-// Handle (HTTP TPC) token authorization and extract from the token the username
-// of the client executing the current operation. This will populate the
-// XrdSecEntity.name field used later on to establish the virtual identity.
-//------------------------------------------------------------------------------
-bool
-XrdMgmOfsFile::HandleTokenAuthz(XrdSecEntity* client, const std::string& path,
-                                const std::string& opaque)
-{
-  // @todo (esindril) this is just a workaround for the fact that XrdHttp
-  // does not properly populate the prot field in the XrdSecEntity object.
-  // See https://github.com/xrootd/xrootd/issues/1122
-  if (client &&
-      (strlen(client->tident) == 4) &&
-      (strcmp(client->tident, "http") == 0)) {
-    XrdOucEnv op_env(opaque.c_str());
-    std::string authz = (op_env.Get("authz") ? op_env.Get("authz") : "");
-
-    // If opaque info contains bearer authorization info then call the token
-    // authorization library to get the username for the client
-    if (!authz.empty() && (authz.find("Bearer%20") == 0)) {
-      // @todo (esindril) this should be mapped to the correct operation type
-      Access_Operation oper = AOP_Stat;
-
-      if (gOFS->mTokenAuthz &&
-          (gOFS->mTokenAuthz->Access(client, path.c_str(), oper, &op_env)
-           == XrdAccPriv_None)) {
-        return false;
-      }
-    }
-  }
-
-  return true;
 }
 
 //------------------------------------------------------------------------------
