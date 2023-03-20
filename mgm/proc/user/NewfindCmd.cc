@@ -330,15 +330,15 @@ static void printAttributes(S& ss,
 // Print directories and files count of a ContainerMD, if requested by req.
 //------------------------------------------------------------------------------
 static void printChildCount(std::ofstream& ss, const eos::console::FindProto& req,
-                            const std::shared_ptr<eos::IContainerMD>& cmd)
+                            const std::shared_ptr<eos::IContainerMD>& cmd, size_t ndirs, size_t nfiles)
 {
   if (req.format().length()) {
     return;
   }
 
   if (req.childcount()) {
-    ss <<" ndirs=" << cmd->getNumContainers()
-       << " nfiles=" << cmd->getNumFiles();
+    ss <<" ndirs=" << ndirs
+       << " nfiles=" << nfiles;
   }
 
 }
@@ -347,7 +347,7 @@ static void printChildCount(std::ofstream& ss, const eos::console::FindProto& re
 // Print user defined format
 //------------------------------------------------------------------------------
 static void printFormat(std::ofstream& ss, const eos::console::FindProto& req,
-			const std::shared_ptr<eos::IContainerMD>& cmd)
+			const std::shared_ptr<eos::IContainerMD>& cmd, size_t ndirs, size_t nfiles)
 {
   if (req.format().length()) {
     std::vector<std::string> tokens;
@@ -383,10 +383,10 @@ static void printFormat(std::ofstream& ss, const eos::console::FindProto& req,
 	ss << " mode=" << std::oct << cmd->getMode() << std::dec;
       }
       if (i == "files") {
-	ss << " files=" << cmd->getNumFiles();
+	ss << " files=" << ndirs;
       }
       if (i == "directories") {
-	ss << " directories=" << cmd->getNumContainers();
+	ss << " directories=" << nfiles;
       }
       if (i == "mtime") {
 	eos::IFileMD::ctime_t mtime {0, 0};
@@ -804,35 +804,60 @@ NewfindCmd::ModifyLayoutStripes(std::ofstream& ss,
 struct FindResult {
   std::string path;
   bool isdir;
+  bool iscache;
   bool expansionFilteredOut;
   eos::IContainerMD::XAttrMap
   attrs; // Filled out as long as populateLinkedAttributes set
   uint64_t numFiles = 0;
   uint64_t numContainers = 0;
-
+  NamespaceItem item;
+  
   std::shared_ptr<eos::IContainerMD> toContainerMD()
   {
-    eos::common::RWMutexReadLock eosViewMutexGuard(gOFS->eosViewRWMutex);
-
-    try {
-      return gOFS->eosView->getContainer(path);
-    } catch (eos::MDException& e) {
-      eos_static_err("caught exception %d %s\n", e.getErrno(),
-                     e.getMessage().str().c_str());
+    if (iscache) {
+      try {
+	auto cmd = gOFS->eosView->getContainer(path);
+	numFiles = cmd->getNumFiles();
+	numContainers = cmd->getNumContainers();
+	return cmd;
+      } catch (eos::MDException& e) {
+      }
       return {};
+    } else {
+      if (item.isFile) {
+	return {};
+      } else {
+	auto p = std::make_shared<eos::QuarkContainerMD>(eos::QuarkContainerMD());
+	p->initializeWithoutChildren(eos::ns::ContainerMdProto(item.containerMd));
+	// copy xattributes
+	for ( auto i:item.attrs ) {
+	  p->setAttribute(i.first, i.second);
+	}
+	return p;
+      }
     }
   }
 
   std::shared_ptr<eos::IFileMD> toFileMD()
   {
-    eos::common::RWMutexReadLock eosViewMutexGuard(gOFS->eosViewRWMutex);
-
-    try {
-      return gOFS->eosView->getFile(path, false);
-    } catch (eos::MDException& e) {
-      eos_static_err("caught exception %d %s\n", e.getErrno(),
-                     e.getMessage().str().c_str());
+    if (iscache) {
+      try {
+	return gOFS->eosView->getFile(path);
+      } catch (eos::MDException& e) {
+      }
       return {};
+    } else {
+      if (item.isFile) {
+	auto p = std::make_shared<eos::QuarkFileMD>(eos::QuarkFileMD());
+	p->initialize(eos::ns::FileMdProto(item.fileMd));
+	// copy xattributes
+	for ( auto i:item.attrs ) {
+	  p->setAttribute(i.first, i.second);
+	}
+	return p;
+      } else {
+	return {};
+      }
     }
   }
 };
@@ -897,23 +922,10 @@ public:
   //----------------------------------------------------------------------------
   // In-memory: Check whether we need to take deep query mutex lock
   //----------------------------------------------------------------------------
-  FindResultProvider(bool deepQuery)
+  FindResultProvider()
   {
-    if (deepQuery) {
-      static eos::common::RWMutex deepQueryMutex;
-      static std::unique_ptr<std::map<std::string, std::set<std::string>>>
-      globalfound;
-      deepQueryMutexGuard.Grab(deepQueryMutex);
-
-      if (!globalfound) {
-        globalfound.reset(new std::map<std::string, std::set<std::string>>());
-      }
-
-      found = globalfound.get();
-    } else {
-      localfound.reset(new std::map<std::string, std::set<std::string>>());
-      found = localfound.get();
-    }
+    localfound.reset(new std::map<std::string, std::set<std::string>>());
+    found = localfound.get();
   }
 
   ~FindResultProvider()
@@ -934,7 +946,7 @@ public:
   bool nextInMemory(FindResult& res)
   {
     res.expansionFilteredOut = false;
-
+    res.iscache = true;
     // Search not started yet?
     if (!inMemStarted) {
       dirIterator = found->begin();
@@ -971,24 +983,23 @@ public:
 
   bool nextInQDB(FindResult& res)
   {
+    res.iscache = false;
     // Just copy the result given by namespace explorer
-    NamespaceItem item;
-
-    if (!explorer->fetch(item)) {
+    if (!explorer->fetch(res.item)) {
       return false;
     }
 
-    res.path = item.fullPath;
-    res.isdir = !item.isFile;
-    res.expansionFilteredOut = item.expansionFilteredOut;
-    res.attrs = item.attrs;
+    res.path = res.item.fullPath;
+    res.isdir = !res.item.isFile;
+    res.expansionFilteredOut = res.item.expansionFilteredOut;
+    res.attrs = res.item.attrs;
 
-    if (item.isFile) {
+    if (res.item.isFile) {
       res.numFiles = 0;
       res.numContainers = 0;
     } else {
-      res.numFiles = item.numFiles;
-      res.numContainers = item.numContainers;
+      res.numFiles = res.item.numFiles;
+      res.numContainers = res.item.numContainers;
     }
 
     return true;
@@ -1009,7 +1020,6 @@ private:
   //----------------------------------------------------------------------------
   // In-memory: Map holding results
   //----------------------------------------------------------------------------
-  eos::common::RWMutexWriteLock deepQueryMutexGuard;
   std::unique_ptr<std::map<std::string, std::set<std::string>>> localfound;
   std::map<std::string, std::set<std::string>>* found = nullptr;
   bool inMemStarted = false;
@@ -1117,11 +1127,38 @@ NewfindCmd::ProcessRequest() noexcept
     }
   }
 
-  bool onlydirs = (findRequest.directories() && !findRequest.files()) | findRequest.count() || findRequest.treecount();
-  
-  findResultProvider.reset(new FindResultProvider(qcl.get(),
-                           findRequest.path(), depthlimit,
-                           onlydirs, mVid));
+  bool onlydirs = (findRequest.directories() && !findRequest.files()) | findRequest.count() | findRequest.treecount() | findRequest.childcount();
+
+  if (findRequest.cache()) {
+    // read via our in-memory cache using _find
+    findResultProvider.reset(new FindResultProvider());
+    std::map<std::string, std::set<std::string>>* found =
+      findResultProvider->getFoundMap();
+    
+    if (gOFS->_find(findRequest.path().c_str(), errInfo, m_err, mVid, (*found),
+                    findRequest.attributekey().length() ? findRequest.attributekey().c_str() :
+                    nullptr,
+                    findRequest.attributevalue().length() ? findRequest.attributevalue().c_str() :
+                    nullptr,
+                    onlydirs, 0, true, findRequest.maxdepth(),
+                    findRequest.name().empty() ? nullptr : findRequest.name().c_str())) {
+      ofstderrStream << "error: unable to run find in directory" << std::endl;
+      reply.set_retc(errno);
+      return reply;
+    } else {
+      if (m_err.length()) {
+        ofstderrStream << m_err;
+        reply.set_retc(E2BIG);
+	return reply;
+      }
+    }
+  } else {
+    // read from the QDB backend
+    findResultProvider.reset(new FindResultProvider(qcl.get(),
+						    findRequest.path(), depthlimit,
+						    onlydirs, mVid));
+  }
+
   uint64_t treecount_aggregate_dircounter = 0;
   uint64_t treecount_aggregate_filecounter = 0;
   uint64_t dircounter = 0;
@@ -1196,12 +1233,12 @@ NewfindCmd::ProcessRequest() noexcept
           continue;
         }
       } else {
-        treecount_aggregate_dircounter += cMD->getNumContainers();
-        treecount_aggregate_filecounter += cMD->getNumFiles();
+        treecount_aggregate_dircounter += findResult.numContainers;
+        treecount_aggregate_filecounter += findResult.numFiles;
       }
 
       dircounter++;
-      filecounter += cMD->getNumFiles();
+      filecounter += findResult.numFiles;
       
       if (findRequest.count() || findRequest.treecount()) {
         continue;
@@ -1222,8 +1259,8 @@ NewfindCmd::ProcessRequest() noexcept
       }
 
       printPath(ofstdoutStream, findRequest, findResult.path);
-      printChildCount(ofstdoutStream, findRequest, cMD);
-      printFormat(ofstdoutStream, findRequest, cMD);
+      printChildCount(ofstdoutStream, findRequest, cMD, findResult.numContainers, findResult.numFiles);
+      printFormat(ofstdoutStream, findRequest, cMD, findResult.numContainers, findResult.numFiles);
       printUidGid(ofstdoutStream, findRequest, cMD);
       printAttributes(ofstdoutStream, findRequest, cMD);
       ofstdoutStream << std::endl;
@@ -1440,9 +1477,35 @@ NewfindCmd::ProcessRequest(grpc::ServerWriter<eos::console::ReplyProto>* writer)
 
   bool onlydirs = (findRequest.directories() && !findRequest.files()) || findRequest.treecount();
 
-  findResultProvider.reset(new FindResultProvider(qcl.get(),
-                           findRequest.path(), depthlimit,
-                           onlydirs, mVid));
+  if (findRequest.cache()) {
+    // read via our in-memory cache using _find
+    std::map<std::string, std::set<std::string>>* found =
+          findResultProvider->getFoundMap();
+
+    if (gOFS->_find(findRequest.path().c_str(), errInfo, m_err, mVid, (*found),
+                    findRequest.attributekey().length() ? findRequest.attributekey().c_str() :
+                    nullptr,
+                    findRequest.attributevalue().length() ? findRequest.attributevalue().c_str() :
+                    nullptr,
+                    findRequest.directories(), 0, true, findRequest.maxdepth(),
+                    findRequest.name().empty() ? nullptr : findRequest.name().c_str())) {
+      ofstderrStream << "error: unable to run find in directory" << std::endl;
+      StreamReply.set_retc(errno);
+      return;
+    } else {
+      if (m_err.length()) {
+        ofstderrStream << m_err;
+        StreamReply.set_retc(E2BIG);
+	return;
+      }
+    }
+  } else {
+    // read from the back-end
+    findResultProvider.reset(new FindResultProvider(qcl.get(),
+						    findRequest.path(), depthlimit,
+						    onlydirs, mVid));
+  }
+  
   uint64_t treecount_aggregate_dircounter = 0;
   uint64_t treecount_aggregate_filecounter = 0;
   uint64_t dircounter = 0;
@@ -1517,12 +1580,12 @@ NewfindCmd::ProcessRequest(grpc::ServerWriter<eos::console::ReplyProto>* writer)
           continue;
         }
       } else {
-        treecount_aggregate_dircounter += cMD->getNumContainers();
-        treecount_aggregate_filecounter += cMD->getNumFiles();
+        treecount_aggregate_dircounter += findResult.numContainers;
+        treecount_aggregate_filecounter += findResult.numFiles;
       }
 
       dircounter++;
-      filecounter += cMD->getNumFiles();
+      filecounter += findResult.numFiles;
 	
       if (findRequest.count() || findRequest.treecount()) {
         continue;
@@ -1538,8 +1601,8 @@ NewfindCmd::ProcessRequest(grpc::ServerWriter<eos::console::ReplyProto>* writer)
         this->PrintFileInfoMinusM(output, findResult.path, errInfo);
       } else {
         printPath(output, findRequest, findResult.path);
-	printChildCount(ofstdoutStream, findRequest, cMD);
-	printFormat(ofstdoutStream, findRequest, cMD);
+	printChildCount(ofstdoutStream, findRequest, cMD, findResult.numContainers, findResult.numFiles);
+	printFormat(ofstdoutStream, findRequest, cMD, findResult.numContainers, findResult.numFiles);
         printUidGid(output, findRequest, cMD);
         printAttributes(output, findRequest, cMD);
 

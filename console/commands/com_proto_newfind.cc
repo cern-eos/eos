@@ -122,6 +122,8 @@ NewfindHelper::ParseCommand(const char* arg)
       find->set_faultyacl(true);
     } else if (s1 == "--count") {
       find->set_count(true);
+    } else if (s1 == "--cache") {
+      find->set_cache(true);
     } else if (s1 == "--hosts") {
       find->set_hosts(true);
     } else if (s1 == "--partition") {
@@ -648,7 +650,7 @@ void com_newfind_help()
       << " usage\n"
       << "newfind [OPTIONS] <path> : find files and directories\n"
       << "OPTIONS can be filters, actions to perform, or output integrations/modifiers for the found items\n"
-      << "Filters: [--maxdepth <n>] [--name <pattern>] [-d] [-f] [-0] [-g] [-uid <n>] [-nuid <n>] [-gid <n>] [-ngid <n>] [-flag <n>] [-nflag <n>] [-ctime +<n>|-<n>] [-x <key>=<val>] [--format formatlist] \n"
+      << "Filters: [--maxdepth <n>] [--name <pattern>] [-d] [-f] [-0] [-g] [-uid <n>] [-nuid <n>] [-gid <n>] [-ngid <n>] [-flag <n>] [-nflag <n>] [-ctime +<n>|-<n>] [-x <key>=<val>] [--format formatlist] [--cache]\n"
 //      << "\t                   -1 : \n"
       << "\t       --maxdepth <n> : descend only <n> levels\n"
       << "\t     --name <pattern> : find by name, filtering by 'egrep' style regex match\n"
@@ -669,10 +671,11 @@ void com_newfind_help()
       << "\t                        To apply the settings of the extended attribute definition use --purge -1\n"
       << "\t                        To remove all atomic upload left-overs older than a day use --purge atomic\n"
       << "\t         [--fileinfo] : invoke `eos fileinfo` on the entry\n"
-      << "\t              --count : just print global counters for files/dirs found\n"
+      << "\t              --count : print aggregated number of file and directory including the search path\n"
       << "\t         --childcount : print the number of children in each directory\n"
-      << "\t          --treecount : print the aggregated number of files and direcories for a directory tree\n"
+      << "\t          --treecount : print the aggregated number of filesand directory children excluding the search path\n"
       << "\t             --format : print with the given komma separated format list, redundant switches like --uid --checksum, which can be specified via the format are automatically disabled. Possible values for format tags are: uid,gid,size,checksum,checksumtype,etag,fxid,pxid,cxid,fid,pid,cid,atime,btime,ctime,mtime,type,mode,files,directories,attr.*,attr.<name> e.g. attr.sys.acl !\n"
+      << "\t              --cache : store all found entries in the in-memory namespace cache\n"
       << "Output Mod: [--xurl] [-p <key>] [--nrep] [--nunlink] [--size] [--online] [--hosts] [--partition] [--fid] [--fs] [--checksum] [--ctime] [--mtime] [--uid] [--gid]\n"
 //      << "                   -s :  run in silent mode"
       << "\t                      : print out the requested meta data as key value pairs\n"

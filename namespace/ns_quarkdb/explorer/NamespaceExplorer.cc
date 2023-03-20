@@ -37,11 +37,14 @@ SearchNode::SearchNode(NamespaceExplorer& expl, ContainerIdentifier expectedP,
                        ContainerIdentifier d, eos::SearchNode* prnt, folly::Executor* exec,
                        bool ignoreF)
   : explorer(expl), expectedParent(expectedP), id(d), qcl(explorer.qcl),
-    parent(prnt), executor(exec), ignoreFiles(ignoreF),
+    parent(prnt), executor(exec), ignoreFiles(ignoreF), fileCount(0),
     containerMd(MetadataFetcher::getContainerFromId(qcl, id))
 {
   if (!ignoreFiles) {
     pendingFileMds = MetadataFetcher::getFileMDsInContainer(qcl, id, exec);
+  } else {
+    auto counts = MetadataFetcher::countContents(qcl, id);
+    fileCount = std::move(counts.first);
   }
 
   containerMap = MetadataFetcher::getContainerMap(qcl, id);
@@ -190,7 +193,11 @@ eos::ns::ContainerMdProto& SearchNode::getContainerInfo()
 //------------------------------------------------------------------------------
 uint64_t SearchNode::getNumFiles()
 {
-  return pendingFileMds.size();
+  if (ignoreFiles) {
+    return fileCount.value();
+  } else {
+    return pendingFileMds.size();
+  }
 }
 
 uint64_t SearchNode::getNumContainers()

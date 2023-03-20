@@ -56,4 +56,5 @@ message FindProto {
 
     bool Treecount = 50;
     string Format = 51;
+    bool Cache = 52;
 }

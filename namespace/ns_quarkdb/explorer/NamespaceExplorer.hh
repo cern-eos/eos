@@ -162,7 +162,7 @@ private:
   SearchNode* parent = nullptr;
   folly::Executor* executor = nullptr;
   bool ignoreFiles;
-
+  folly::Future<uint64_t> fileCount;
   bool visited = false;
 
   common::FutureWrapper<eos::ns::ContainerMdProto> containerMd;
