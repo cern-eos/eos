@@ -11,14 +11,14 @@ The archive interface currently has the following signature:
 .. code-block:: bash
 
    archive <subcmd>
-	   create <path>                      : create archive file
-	   put [--retry] <path>               : copy files from EOS to archive location
-	   get [--retry] <path>               : recall archive back to EOS
-	   purge[--retry] <path>              : purge files on disk
-	   transfers [all|put|get|purge|uuid] : show status of running jobs
-	   list [<path>]                      : show status of archived directories in the subtree
-	   kill <job_uuid>                    : kill transfer
-	   help [--help|-h]                   : display help message
+           create <path>                      : create archive file
+           put [--retry] <path>               : copy files from EOS to archive location
+           get [--retry] <path>               : recall archive back to EOS
+           purge[--retry] <path>              : purge files on disk
+           transfers [all|put|get|purge|uuid] : show status of running jobs
+           list [<path>]                      : show status of archived directories in the subtree
+           kill <job_uuid>                    : kill transfer
+           help [--help|-h]                   : display help message
 
 In order to safely archive an EOS subtree to tape (CTA) the following steps detailed in this document must
 be performed. Assume we want to archive the EOS subtree rooted at /eos/dir/archive/test. First of all,
@@ -51,8 +51,16 @@ At any point during a transfer the user can retrieve the current status of the t
 the root of the archived subtree: the **.archive.log** file with contains the logs of the last transfer
 (note the 'dot' in the begining of the filename - so to list it use **ls -la** in the *EOS Console*)
 and another file called **.archive.<operation>.<outcome>** where operation is one of the following:
-get/put/purge and the outcome can either be **done** or **err**. If an error occurs the user has the
-possibility to resubmit the transfer by using the **--retry** option.
+get/put/purge and the outcome can either be **done** or **err**.
+
+While an archive operation is ongoing the file stored in EOS is marked with the **err** tag. For
+example, an ongoig **put** operation, which can take serveral hours depending on the size of the
+sub-tree being archived to tape, will appear in the **eos ls -la** output as **.archive.put.err**.
+Once the put operation is successful, this file will be renamed to **.archive.put.done**. Therefore,
+it's important to check the output of the **eos archive transfers** command which is listing the
+status of the ongoing archive operations and not rely only on the status file in EOS.
+
+If an error occurs the user has the possibility to resubmit the transfer by using the **--retry** option.
 
 When the put operation is successful one should find a file called **.archive.put.done** at the root
 of the subtree and the user can now issue the purge command which will delete all the data from EOS
