@@ -89,48 +89,53 @@ OAuth::Validate(OAuth::AuthInfo& info, const std::string& accesstoken,
     return ETIME;
   }
 
-  // screen the audience
-  auto decoded = jwt::decode(accesstoken);
-  auto audiences = decoded.get_audience();
-  auto exp = decoded.get_expires_at();
-  auto iss = decoded.get_issuer();
-
-  std::string iss_resource = iss + "/protocol/openid-connect/userinfo";
-  
-  if (resource.empty()) {
-    // if we have a plain token without oauth2:token:resource wrapping, we build the resource from iss
-    resource = iss_resource;
-  }
-  
-  expires = std::chrono::system_clock::to_time_t(exp);
-  bool audience_match = false;
-  std::stringstream s;
-
-  for (auto& e : decoded.get_payload_claims()) {
-    s << e.first << "=" << e.second << " ";
-  }
-
-  eos_static_info("token='%s...' claims=[ %s ]",
-                  accesstoken.substr(0, 20).c_str(),
-                  s.str().c_str());
-
-  if (Mapping::IsOAuth2Resource(resource)) {
-    // no audience require
-    audience_match = true;
-  } else {
-    for (auto it = audiences.begin(); it != audiences.end(); ++it) {
-      std::string audience_resource = resource + "@";
-      audience_resource += *it;
-
-      if (Mapping::IsOAuth2Resource(audience_resource)) {
-        audience_match = true;
-        break;
+  try {
+    // screen the audience
+    auto decoded = jwt::decode(accesstoken);
+    auto audiences = decoded.get_audience();
+    auto exp = decoded.get_expires_at();
+    auto iss = decoded.get_issuer();
+    
+    std::string iss_resource = iss + "/protocol/openid-connect/userinfo";
+    
+    if (resource.empty()) {
+      // if we have a plain token without oauth2:token:resource wrapping, we build the resource from iss
+      resource = iss_resource;
+    }
+    
+    expires = std::chrono::system_clock::to_time_t(exp);
+    bool audience_match = false;
+    std::stringstream s;
+    
+    for (auto& e : decoded.get_payload_claims()) {
+      s << e.first << "=" << e.second << " ";
+    }
+    
+    eos_static_info("token='%s...' claims=[ %s ]",
+		    accesstoken.substr(0, 20).c_str(),
+		    s.str().c_str());
+    
+    if (Mapping::IsOAuth2Resource(resource)) {
+      // no audience require
+      audience_match = true;
+    } else {
+      for (auto it = audiences.begin(); it != audiences.end(); ++it) {
+	std::string audience_resource = resource + "@";
+	audience_resource += *it;
+	
+	if (Mapping::IsOAuth2Resource(audience_resource)) {
+	  audience_match = true;
+	  break;
+	}
       }
     }
-  }
-
-  if (!audience_match) {
-    eos_static_err("msg=\"rejecing - no audience matches\"");
+    
+    if (!audience_match) {
+      eos_static_err("msg=\"rejecing - no audience matches\"");
+      return EPERM;
+    }
+  } catch (...) {
+    eos_static_err("msg=\"rejecting - token decoding failed");
     return EPERM;
   }
 
