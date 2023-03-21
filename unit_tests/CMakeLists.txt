@@ -118,7 +118,8 @@ set(COMMON_UT_SRCS
   common/async/ExecutorMgrTests.cc
   common/CounterTests.cc
   common/ShardedCacheTests.cc
-  common/BackOffInvokerTests.cc)
+  common/BackOffInvokerTests.cc
+  common/concurrency/AtomicUniquePtrTests.cc)
 
 set(FUSEX_UT_SRCS
   fusex/StatTests.cc
