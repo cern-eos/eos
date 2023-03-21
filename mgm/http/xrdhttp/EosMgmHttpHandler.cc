@@ -240,7 +240,7 @@ EosMgmHttpHandler::ProcessReq(XrdHttpExtReq& req)
   // Stop accepting requests if the MGM started the shutdown procedure
   if (mMgmOfsHandler->Shutdown) {
     std::string errmsg = "MGM daemon is shutting down";
-    return req.SendSimpleResp(500, errmsg.c_str(), "", errmsg.c_str(),
+    return req.SendSimpleResp(500, errmsg.c_str(), nullptr, errmsg.c_str(),
                               errmsg.length());
   }
 
@@ -251,7 +251,7 @@ EosMgmHttpHandler::ProcessReq(XrdHttpExtReq& req)
       return mTokenHttpHandler->ProcessReq(req);
     } else {
       std::string errmsg = "POST request not supported";
-      return req.SendSimpleResp(404, errmsg.c_str(), "", errmsg.c_str(),
+      return req.SendSimpleResp(404, errmsg.c_str(), nullptr, errmsg.c_str(),
                                 errmsg.length());
     }
   }
@@ -304,7 +304,7 @@ EosMgmHttpHandler::ProcessReq(XrdHttpExtReq& req)
     if (!BuildPathAndEnvOpaque(normalized_headers, path, env_opaque)) {
       const std::string errmsg = "conflicting authorization info present";
       eos_static_err("msg=\"%s\" path=\"%s\"", errmsg.c_str(), path.c_str());
-      return req.SendSimpleResp(400, errmsg.c_str(), "", errmsg.c_str(),
+      return req.SendSimpleResp(400, errmsg.c_str(), nullptr, errmsg.c_str(),
                                 errmsg.length());
     }
 
@@ -314,7 +314,7 @@ EosMgmHttpHandler::ProcessReq(XrdHttpExtReq& req)
       eos_static_err("msg=\"(token) authorization failed\" path=\"%s\"",
                      path.c_str());
       std::string errmsg = "token authorization failed";
-      return req.SendSimpleResp(403, errmsg.c_str(), "", errmsg.c_str(),
+      return req.SendSimpleResp(403, errmsg.c_str(), nullptr, errmsg.c_str(),
                                 errmsg.length());
     }
 
@@ -350,7 +350,7 @@ EosMgmHttpHandler::ProcessReq(XrdHttpExtReq& req)
 
   if (handler == nullptr) {
     std::string errmsg = "failed to create handler";
-    return req.SendSimpleResp(500, errmsg.c_str(), "", errmsg.c_str(),
+    return req.SendSimpleResp(500, errmsg.c_str(), nullptr, errmsg.c_str(),
                               errmsg.length());
   }
 
@@ -358,7 +358,7 @@ EosMgmHttpHandler::ProcessReq(XrdHttpExtReq& req)
 
   if (response == nullptr) {
     std::string errmsg = "failed to create response object";
-    return req.SendSimpleResp(500, errmsg.c_str(), "", errmsg.c_str(),
+    return req.SendSimpleResp(500, errmsg.c_str(), nullptr, errmsg.c_str(),
                               errmsg.length());
   }
 
@@ -671,7 +671,7 @@ std::optional<int> EosMgmHttpHandler::readBody(XrdHttpExtReq& req,
             << " request buffer error\"";
         eos_static_err(oss.str().c_str());
         std::string errorMsg = "Http server error: unable to read the request received";
-        return req.SendSimpleResp(500, errorMsg.c_str(), "", errorMsg.c_str(),
+        return req.SendSimpleResp(500, errorMsg.c_str(), nullptr, errorMsg.c_str(),
                                   errorMsg.length());
       } else {
         break;

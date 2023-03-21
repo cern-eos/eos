@@ -134,7 +134,7 @@ EosFstHttpHandler::ProcessReq(XrdHttpExtReq& req)
 
   if (handler == nullptr) {
     std::string errmsg = "failed to create handler";
-    return req.SendSimpleResp(500, errmsg.c_str(), "", errmsg.c_str(),
+    return req.SendSimpleResp(500, errmsg.c_str(), nullptr, errmsg.c_str(),
                               errmsg.length());
   }
 
@@ -142,7 +142,7 @@ EosFstHttpHandler::ProcessReq(XrdHttpExtReq& req)
 
   if (!response) {
     std::string errmsg = "failed to create response object";
-    return req.SendSimpleResp(500, errmsg.c_str(), "", errmsg.c_str(),
+    return req.SendSimpleResp(500, errmsg.c_str(), nullptr, errmsg.c_str(),
                               errmsg.length());
   }
 
@@ -206,7 +206,7 @@ EosFstHttpHandler::ProcessReq(XrdHttpExtReq& req)
 
         if (nread >= 0) {
           pos += nread;
-          retc |= req.SendSimpleResp(1, 0, 0, &buffer[0], nread);
+          retc |= req.SendSimpleResp(1, nullptr, nullptr, &buffer[0], nread);
           eos_static_debug("retc=%d", retc);
         } else {
           retc = -1;
@@ -242,7 +242,7 @@ EosFstHttpHandler::ProcessReq(XrdHttpExtReq& req)
       if (!HandleChunkUpload(req, handler.get(), normalized_headers, cookies,
                              query)) {
         return req.SendSimpleResp(500, "fatal internal error", "during chunk upload",
-                                  "", 0);
+                                  nullptr, 0);
       }
     } else {
       long long content_length = 0ll;
@@ -258,7 +258,7 @@ EosFstHttpHandler::ProcessReq(XrdHttpExtReq& req)
         eos_static_debug("%s", "msg=\"sending 100-continue\"");
         req.SendSimpleResp(100, nullptr,
                            response->GetHdrsWithFilter({HttpResponse::kContentLength}).c_str(),
-                           "", 0);
+                           nullptr, 0);
       }
 
       int retc = 0;
@@ -321,7 +321,7 @@ EosFstHttpHandler::ProcessReq(XrdHttpExtReq& req)
                                 response->GetBody().c_str(),
                                 response->GetBody().length());
     } else {
-      return req.SendSimpleResp(500, "fatal internal error", "", "", 0);
+      return req.SendSimpleResp(500, "fatal internal error", nullptr, nullptr, 0);
     }
   }
 
