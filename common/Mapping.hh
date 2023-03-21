@@ -380,6 +380,13 @@ private:
 
   static void addSecondaryGroups(VirtualIdentity& vid, const std::string& name, gid_t gid );
 
+  //! Handle HTTPS authz key mapping
+  //!
+  //! @param client XrdSecEntity object
+  //! @parma vid virtual identity
+  //! @note needs to be called with the gMapMutex locked
+  //----------------------------------------------------------------------------
+  static void HandleKEYS(const XrdSecEntity* client, VirtualIdentity& vid);
 };
 
 EOSCOMMONNAMESPACE_END
