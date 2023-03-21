@@ -244,10 +244,19 @@ HttpServer::XrdHttpHandler(std::string& method,
     // check if we are a gateway for https by calling the mapping function for this client
     vid = new eos::common::VirtualIdentity();
     if (vid) {
+      XrdSecEntity eclient(client.prot);
+      eclient.Reset();
+      eclient = client;
+      if (headers.count("x-gateway-authorization")) {
+        eclient.endorsements = (char*)headers["x-gateway-authorization"].c_str();
+      }
       std::string stident = "https.0:0@"; stident += std::string(client.host);
-      eos::common::Mapping::IdMap(&client, "", stident.c_str(), *vid, true);
+      eos::common::Mapping::IdMap(&eclient, "", stident.c_str(), *vid, true);
       if (!vid->isGateway() || ((vid->prot != "https") && (vid->prot != "http")) ) {
-	headers.erase("x-forwarded-for");
+        headers.erase("x-forwarded-for");
+      }
+      if (!vid->sudoer) {
+        headers.erase("remote-user");
       }
       delete vid;
     } else {

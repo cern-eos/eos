@@ -555,9 +555,11 @@ com_vid_usage:
   fprintf(stdout,
           "           -voms <pattern>  : <pattern> is <group>:<role> e.g. to map VOMS attribute /dteam/cern/Role=NULL/Capability=NULL one should define <pattern>=/dteam/cern: \n");
   fprintf(stdout,
-          "           -sss key:<key>  : <key> has to be defined on client side via 'export XrdSecsssENDORSEMENT=<key>'\n");
+          "           -sss key:<key>   : <key> has to be defined on client side via 'export XrdSecsssENDORSEMENT=<key>'\n");
   fprintf(stdout,
-          "           -grpc key:<key> : <key> has to be added to the relevant GRPC request in the field 'authkey'\n\n");
+          "           -grpc key:<key>  : <key> has to be added to the relevant GRPC request in the field 'authkey'\n\n");
+  fprintf(stdout,
+          "           -https key:<key> : <key> has to be added to the relevant HTTP(S) request as a header 'x-gateway-authorization'\n\n");
   fprintf(stdout,
           "           -oauth2 key:<oauth-resource> : <oauth-resource> describes the OAUTH resource endpoint to translate OAUTH tokens to user identities\n\n");
   fprintf(stdout,

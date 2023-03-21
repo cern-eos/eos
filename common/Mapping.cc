@@ -228,7 +228,7 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
   }
 
   // SSS and GRPC might contain a key embedded in the endorsements field
-  if ((vid.prot == "sss") || (vid.prot == "grpc")) {
+  if ((vid.prot == "sss") || (vid.prot == "grpc") || (vid.prot == "https")) {
     vid.key = (client->endorsements ? client->endorsements : "");
   }
 
@@ -329,6 +329,7 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
     }
 
     HandleVOMS(client, vid);
+    HandleKEYS(client, vid);
   }
 
   // sss mapping
@@ -1151,6 +1152,49 @@ Mapping::HandleVOMS(const XrdSecEntity* client, VirtualIdentity& vid)
     vid.allowed_gids.clear();
     vid.gid = gVirtualGidMap[vomsgidstring];
     vid.allowed_gids.insert(vid.gid);
+  }
+}
+
+
+//------------------------------------------------------------------------------
+// Handle HTTPS authz keys mapping
+//------------------------------------------------------------------------------
+void
+Mapping::HandleKEYS(const XrdSecEntity* client, VirtualIdentity& vid)
+{
+  // No VOMS info available
+  if (vid.key.empty()) {
+    return;
+  }
+  std::string uidkey = "https:\"";
+  uidkey += "key:";
+  uidkey += vid.key;
+  uidkey += "\":uid";
+  vid.uid = 99;
+  vid.allowed_uids.clear();
+  vid.allowed_uids.insert(99);
+  if (gVirtualUidMap.count(uidkey.c_str())) {
+    vid.uid = gVirtualUidMap[uidkey.c_str()];
+    vid.allowed_uids.insert(vid.uid);
+    vid.gateway = true;
+  } else {
+    vid.gateway = false;
+  }
+  
+  std::string gidkey = "https:\"";
+  gidkey += "key:";
+  gidkey += vid.key;
+  gidkey += "\":gid";
+  vid.gid = 99;
+  vid.allowed_gids.clear();
+  vid.allowed_gids.insert(99);
+  
+  if (gVirtualGidMap.count(gidkey.c_str())) {
+    vid.gid = gVirtualGidMap[gidkey.c_str()];
+    vid.allowed_gids.insert(vid.gid);
+    vid.gateway = true;
+  } else {
+    vid.gateway =false;
   }
 }
 
