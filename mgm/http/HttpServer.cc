@@ -236,35 +236,40 @@ HttpServer::XrdHttpHandler(std::string& method,
 {
   WAIT_BOOT;
   eos::common::VirtualIdentity* vid {nullptr};
+
   // clients which are gateways/sudoer can pass x-forwarded-for and remote-user
   if (headers.count("x-forwarded-for")) {
     // check if we are a gateway for https and sudoer by calling the mapping function for this client
     vid = new eos::common::VirtualIdentity();
+
     if (vid) {
       XrdSecEntity eclient(client.prot);
       auto ea = eclient.eaAPI;
       eclient.Reset();
       eclient.eaAPI = ea;
-	
+
       if (headers.count("x-gateway-authorization")) {
-	eclient.endorsements = (char*)headers["x-gateway-authorization"].c_str();
+        eclient.endorsements = (char*)headers["x-gateway-authorization"].c_str();
       }
-      std::string stident = "https.0:0@"; stident += std::string(client.host);
+
+      std::string stident = "https.0:0@";
+      stident += std::string(client.host);
       eos::common::Mapping::IdMap(&eclient, "", stident.c_str(), *vid, true);
 
+      if (!vid->isGateway() || ((vid->prot != "https") && (vid->prot != "http"))) {
+        headers.erase("x-forwarded-for");
+      }
 
-      if (!vid->isGateway() || ((vid->prot != "https") && (vid->prot != "http")) ) {
-	headers.erase("x-forwarded-for");
-      }
       if (!vid->sudoer) {
-	headers.erase("remote-user");
+        headers.erase("remote-user");
       }
+
       delete vid;
     } else {
       headers.erase("x-forwarded-for");
     }
   }
-  
+
   // Native XrdHttp access
   if (headers.find("x-forwarded-for") == headers.end()) {
     // Security enhancement:

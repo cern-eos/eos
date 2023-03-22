@@ -155,9 +155,9 @@ public:
   // ---------------------------------------------------------------------------
   //! 0: don't allow 1: allow with encryption 2: allow always
   // ---------------------------------------------------------------------------
-  enum TOKEN_SUDO { kAlways=0, kStrong, kEncrypted, kNever };
+  enum TOKEN_SUDO { kAlways = 0, kStrong, kEncrypted, kNever };
   static atomic<int> gTokenSudo;
-  
+
   // ---------------------------------------------------------------------------
   //! Max. subdirectory deepness where anonymous access is allowed
   // ---------------------------------------------------------------------------
@@ -181,8 +181,10 @@ public:
   // ---------------------------------------------------------------------------
   //! A mutex protecting the physical id->name caches
   // ---------------------------------------------------------------------------
-  static std::mutex gPhysicalUserNameCacheMutex; //< Mutex protecting UserId& UserName cache
-  static std::mutex gPhysicalGroupNameCacheMutex; //< Mutex protecting GroupId& GroupName cache
+  static std::mutex
+  gPhysicalUserNameCacheMutex; //< Mutex protecting UserId& UserName cache
+  static std::mutex
+  gPhysicalGroupNameCacheMutex; //< Mutex protecting GroupId& GroupName cache
 
   // ---------------------------------------------------------------------------
   //! A cache for physical user name caching (e.g. from uid to name)
@@ -303,7 +305,8 @@ public:
   // ---------------------------------------------------------------------------
   //! Convert a gid to a group name
   // ---------------------------------------------------------------------------
-  static std::string GidToGroupName(uid_t gid, int& errc, size_t buffersize=128*1024);
+  static std::string GidToGroupName(uid_t gid, int& errc,
+                                    size_t buffersize = 128 * 1024);
 
   // ---------------------------------------------------------------------------
   //! Convert a user name to a uid
@@ -377,9 +380,11 @@ private:
   //! @param vid where to append groups
   //! @param idp containing uid to resolved gropus
   //! @note appends secondary groups to vid.allowed_gids
+  //----------------------------------------------------------------------------
+  static void addSecondaryGroups(VirtualIdentity& vid, const std::string& name,
+                                 gid_t gid);
 
-  static void addSecondaryGroups(VirtualIdentity& vid, const std::string& name, gid_t gid );
-
+  //----------------------------------------------------------------------------
   //! Handle HTTPS authz key mapping
   //!
   //! @param client XrdSecEntity object

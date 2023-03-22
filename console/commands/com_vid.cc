@@ -100,6 +100,7 @@ com_vid(char* arg1)
 
       // Check if geotag is valid
       std::string geotag = eos::common::SanitizeGeoTag(target.c_str());
+
       if (geotag != target.c_str()) {
         fprintf(stderr, "%s\n", geotag.c_str());
         return 0;
@@ -437,7 +438,7 @@ com_vid(char* arg1)
     return (0);
   }
 
-    if (subcommand == "tokensudo") {
+  if (subcommand == "tokensudo") {
     XrdOucString in = "mgm.cmd=vid&mgm.subcmd=set";
     XrdOucString vidkey = "";
     XrdOucString level = subtokenizer.GetTokenUnquoted();
@@ -593,9 +594,11 @@ com_vid_usage:
   fprintf(stdout,
           "           -voms <pattern>  : <pattern> is <group>:<role> e.g. to map VOMS attribute /dteam/cern/Role=NULL/Capability=NULL one should define <pattern>=/dteam/cern: \n");
   fprintf(stdout,
-          "           -sss key:<key>  : <key> has to be defined on client side via 'export XrdSecsssENDORSEMENT=<key>'\n");
+          "           -sss key:<key>   : <key> has to be defined on client side via 'export XrdSecsssENDORSEMENT=<key>'\n");
   fprintf(stdout,
-          "           -grpc key:<key> : <key> has to be added to the relevant GRPC request in the field 'authkey'\n\n");
+          "           -grpc key:<key>  : <key> has to be added to the relevant GRPC request in the field 'authkey'\n\n");
+  fprintf(stdout,
+          "           -https key:<key> : <key> has to be added to the relevant HTTP(S) request as a header 'x-gateway-authorization'\n\n");
   fprintf(stdout,
           "           -oauth2 key:<oauth-resource> : <oauth-resource> describes the OAUTH resource endpoint to translate OAUTH tokens to user identities\n\n");
   fprintf(stdout,
@@ -605,7 +608,8 @@ com_vid_usage:
   fprintf(stdout,
           "       vid rm <key>                         : remove configured vid with name key - hint: use config dump to see the key names of vid rules\n");
   fprintf(stdout, "\n");
-  fprintf(stdout, "       vid enable|disable krb5|gsi|sss|unix|https|grpc|oauth2\n");
+  fprintf(stdout,
+          "       vid enable|disable krb5|gsi|sss|unix|https|grpc|oauth2\n");
   fprintf(stdout,
           "                                            : enable/disables the default mapping via password or external database\n");
   fprintf(stdout, "\n");
@@ -624,14 +628,13 @@ com_vid_usage:
   fprintf(stdout,
           "                                           : configure sudo policy when tokens are used\n");
   fprintf(stdout,
-	  "                                             0 : always allow token sudo (setting uid/gid from token) [default if not set]\n");
+          "                                             0 : always allow token sudo (setting uid/gid from token) [default if not set]\n");
   fprintf(stdout,
-	  "                                             1 : allow token sudo if transport is encrypted\n");
+          "                                             1 : allow token sudo if transport is encrypted\n");
   fprintf(stdout,
-	  "                                             2 : allow token sudo for strong authentication (not unix!)\n");
+          "                                             2 : allow token sudo for strong authentication (not unix!)\n");
   fprintf(stdout,
-	  "                                             3 : never allow token sudo\n");
- 
+          "                                             3 : never allow token sudo\n");
   global_retc = EINVAL;
   return (0);
 }

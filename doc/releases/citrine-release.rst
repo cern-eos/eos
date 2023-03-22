@@ -16,6 +16,46 @@ Introduction
 This release is based on XRootD V4 and IPV6 enabled.
 
 
+``v4.8.101 Citrine``
+===================
+
+2023-03-22
+
+Bug
+----
+
+* [EOS-5559] - EOS HTTP REST API - no JSON output if authentication is done with Bearer token
+* [EOS-5587] - jwt::decode might throw an exception
+
+Improvement
+-----------
+
+* MGM: Call proxy gateway mapping only if this has an x-forwarded-for header and drop EOS_XRDHTTP_NGINX_PROXY
+* WFE: Set a decimal string instead of an hex string in disk_file_id
+
+New features
+-------------
+
+* [EOS-5588] - Allow HTTPS gateway functionality using key entries
+
+
+``v4.8.100 Citrine``
+===================
+
+2023-02-17
+
+Bug
+----
+
+* FST: Ensure the necessary OC client http headers are passed back to the client and
+  add a couple of helper function for building the header string for the HTTP response.
+
+Improvement
+-----------
+
+* EOS-5524 MGM: Allow https gateway nodes to provide x-forwarded-for headers
+
+
 ``v4.8.99 Citrine``
 ===================
 
