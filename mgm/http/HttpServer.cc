@@ -252,6 +252,8 @@ HttpServer::XrdHttpHandler(std::string& method,
       }
       std::string stident = "https.0:0@"; stident += std::string(client.host);
       eos::common::Mapping::IdMap(&eclient, "", stident.c_str(), *vid, true);
+      eclient.eaAPI = 0; // eclient/client share the same pointer, clean it before destruction
+
       if (!vid->isGateway() || ((vid->prot != "https") && (vid->prot != "http")) ) {
 	headers.erase("x-forwarded-for");
       }
