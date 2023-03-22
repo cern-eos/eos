@@ -596,9 +596,9 @@ com_vid_usage:
   fprintf(stdout,
           "           -sss key:<key>   : <key> has to be defined on client side via 'export XrdSecsssENDORSEMENT=<key>'\n");
   fprintf(stdout,
-          "           -grpc key:<key>  : <key> has to be added to the relevant GRPC request in the field 'authkey'\n\n");
+          "           -grpc key:<key>  : <key> has to be added to the relevant GRPC request in the field 'authkey'\n");
   fprintf(stdout,
-          "           -https key:<key> : <key> has to be added to the relevant HTTP(S) request as a header 'x-gateway-authorization'\n\n");
+          "           -https key:<key> : <key> has to be added to the relevant HTTP(S) request as a header 'x-gateway-authorization'\n");
   fprintf(stdout,
           "           -oauth2 key:<oauth-resource> : <oauth-resource> describes the OAUTH resource endpoint to translate OAUTH tokens to user identities\n\n");
   fprintf(stdout,
