@@ -237,11 +237,8 @@ HttpServer::XrdHttpHandler(std::string& method,
   WAIT_BOOT;
   eos::common::VirtualIdentity* vid {nullptr};
 
-  // Security enhancement:
-  // by default don't allow proxy access because it makes xrdhttp unsafe unless you firewall the port for
-  // non proxy clients - machines which are gateways can pass x-forwarded-for
-  if (!getenv("EOS_XRDHTTP_NGINX_PROXY")) {
-    // check if we are a gateway for https by calling the mapping function for this client
+  if (headers.count("x-forwarded-for")) {
+    // check if we are a gateway for https by calling the mapping function for this client and check sudo capabilities to be able to user remote-user
     vid = new eos::common::VirtualIdentity();
     if (vid) {
       XrdSecEntity eclient(client.prot);
