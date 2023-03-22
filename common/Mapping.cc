@@ -92,6 +92,8 @@ static std::string g_gsi_uid_key = "gsi:" + g_pwd_uid_key;
 static std::string g_gsi_gid_key = "gsi:" + g_pwd_gid_key;
 static std::string g_krb_uid_key = "krb5:" + g_pwd_uid_key;
 static std::string g_krb_gid_key = "krb5:" + g_pwd_gid_key;
+static std::string g_oauth2_uid_key = "oauth2:" + g_pwd_uid_key;
+static std::string g_oauth2_gid_key = "oauth2:" + g_pwd_gid_key; // not used yet
 
 //Static vars for nobody ids which may change in the future
 static uid_t g_nobody_uid = 99;
@@ -436,6 +438,7 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
         eos_static_debug("tident uid mapping prot=%s name=%s",
                          vid.prot.c_str(), vid.name.c_str());
         vid.allowed_uids.clear();
+
         // use physical mapping
         // unix protocol maps to the role if the client is the root account
         // otherwise it maps to the unix ID on the client host
@@ -443,11 +446,12 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
             ((vid.prot == "sss") && (vid.name == "daemon"))) {
           Mapping::getPhysicalIdShards(myrole.c_str(), vid);
         } else {
-	  if (client->name != nullptr) {
-	    Mapping::getPhysicalIdShards(client->name, vid);
-	  }
+          if (client->name != nullptr) {
+            Mapping::getPhysicalIdShards(client->name, vid);
+          }
         }
-	vid.gateway = true;
+
+        vid.gateway = true;
       }
     } else {
       eos_static_debug("tident uid forced mapping");
@@ -478,16 +482,16 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
             ((vid.prot == "sss") && (vid.name == "daemon"))) {
           Mapping::getPhysicalIdShards(myrole.c_str(), vid);
         } else {
-	  if (client->name != nullptr) {
-	    Mapping::getPhysicalIdShards(client->name, vid);
-	  }
+          if (client->name != nullptr) {
+            Mapping::getPhysicalIdShards(client->name, vid);
+          }
         }
 
         vid.uid = uid;
         vid.allowed_uids.clear();
         vid.allowed_uids.insert(uid);
         vid.allowed_uids.insert(99);
-	vid.gateway = true;
+        vid.gateway = true;
       }
     } else {
       eos_static_debug("tident gid forced mapping");
@@ -548,8 +552,8 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
         vid.uid = 99;
         vid.allowed_uids.clear();
         vid.allowed_uids.insert(99);
-	vid.gateway = true;
-	
+        vid.gateway = true;
+
         if (gVirtualUidMap.count(uidkey.c_str())) {
           vid.uid = gVirtualUidMap[uidkey.c_str()];
           vid.allowed_uids.insert(vid.uid);
@@ -594,16 +598,20 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
     } else {
       // try oauth2
       std::string oauthname;
-      // release the map mutex to avoid any inteference with a queued up write lock and an oauth callout being slow
-      lock.Release();
-      oauthname = gOAuth.Handle(keyname, vid);
-      lock.Grab(gMapMutex);
+      bool oauth2_enabled = (gVirtualUidMap.find(g_oauth2_uid_key) !=
+                             gVirtualUidMap.end());
 
-      // check for OAuth contents
-      if (oauthname.empty() ||
-          // enable/disable oauth2 mapping
-          !gVirtualUidMap.count("oauth2:\"<pwd>\":uid")) {
-        // treat as mapping key
+      if (oauth2_enabled) {
+        // Release the map mutex to avoid any inteference with a queued up
+        // write lock and an oauth callout being slow
+        lock.Release();
+        oauthname = gOAuth.Handle(keyname, vid);
+        lock.Grab(gMapMutex);
+      }
+
+      // Check for OAuth contents
+      if (oauthname.empty() || !oauth2_enabled) {
+        // Treat as mapping key
         if (vtident.size() == 2) {
           maptident += vtident[1];
         }
@@ -614,7 +622,7 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
 
         if (gVirtualUidMap.count(maptident) ||
             gVirtualUidMap.count(wildcardmaptident)) {
-	  vid.gateway = true;
+          vid.gateway = true;
           // if this is an allowed gateway, map according to client name or authkey
           std::string uidkey = "sss:\"";
           uidkey += "key:";
@@ -1040,6 +1048,7 @@ Mapping::HandleKEYS(const XrdSecEntity* client, VirtualIdentity& vid)
   if (vid.key.empty()) {
     return;
   }
+
   std::string uidkey = "https:\"";
   uidkey += "key:";
   uidkey += vid.key;
@@ -1047,6 +1056,7 @@ Mapping::HandleKEYS(const XrdSecEntity* client, VirtualIdentity& vid)
   vid.uid = 99;
   vid.allowed_uids.clear();
   vid.allowed_uids.insert(99);
+
   if (gVirtualUidMap.count(uidkey.c_str())) {
     vid.uid = gVirtualUidMap[uidkey.c_str()];
     vid.allowed_uids.insert(vid.uid);
@@ -1054,7 +1064,7 @@ Mapping::HandleKEYS(const XrdSecEntity* client, VirtualIdentity& vid)
   } else {
     vid.gateway = false;
   }
-  
+
   std::string gidkey = "https:\"";
   gidkey += "key:";
   gidkey += vid.key;
@@ -1062,13 +1072,13 @@ Mapping::HandleKEYS(const XrdSecEntity* client, VirtualIdentity& vid)
   vid.gid = 99;
   vid.allowed_gids.clear();
   vid.allowed_gids.insert(99);
-  
+
   if (gVirtualGidMap.count(gidkey.c_str())) {
     vid.gid = gVirtualGidMap[gidkey.c_str()];
     vid.allowed_gids.insert(vid.gid);
     vid.gateway = true;
   } else {
-    vid.gateway =false;
+    vid.gateway = false;
   }
 }
 
