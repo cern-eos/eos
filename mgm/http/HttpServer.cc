@@ -244,8 +244,10 @@ HttpServer::XrdHttpHandler(std::string& method,
 
     if (vid) {
       XrdSecEntity eclient(client.prot);
+      // Save initial eaAPI pointer and reset after the copy to avoid
+      // double free of the same pointer.
       auto ea = eclient.eaAPI;
-      eclient.Reset();
+      eclient = client;
       eclient.eaAPI = ea;
 
       if (headers.count("x-gateway-authorization")) {
