@@ -245,14 +245,16 @@ HttpServer::XrdHttpHandler(std::string& method,
     vid = new eos::common::VirtualIdentity();
     if (vid) {
       XrdSecEntity eclient(client.prot);
+      auto ea = eclient.eaAPI;
       eclient.Reset();
-      eclient = client;
+      eclient.eaAPI = ea;
+	
       if (headers.count("x-gateway-authorization")) {
 	eclient.endorsements = (char*)headers["x-gateway-authorization"].c_str();
       }
       std::string stident = "https.0:0@"; stident += std::string(client.host);
       eos::common::Mapping::IdMap(&eclient, "", stident.c_str(), *vid, true);
-      eclient.eaAPI = 0; // eclient/client share the same pointer, clean it before destruction
+
 
       if (!vid->isGateway() || ((vid->prot != "https") && (vid->prot != "http")) ) {
 	headers.erase("x-forwarded-for");
