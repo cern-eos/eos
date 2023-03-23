@@ -327,10 +327,14 @@ GrpcWncServer::RunWnc(ThreadAssistant& assistant) noexcept
   WncService wncService;
   wncBuilder.RegisterService(&wncService);
   mWncServer = wncBuilder.BuildAndStart();
-  eos_static_info("gRPC server for EOS-wnc is running on port %i.", mWncPort);
-  /*WARNING: The server must be either shutting down or
-   *some other thread must call a Shutdown for Wait function to ever return.*/
-  mWncServer->Wait();
+  if(mWncServer){
+    eos_static_info("gRPC server for EOS-wnc is running on port %i.", mWncPort);
+    /*WARNING: The server must be either shutting down or
+    *some other thread must call a Shutdown for Wait function to ever return.*/
+    mWncServer->Wait();
+  }else{
+    eos_static_err("gRPC server for EOS-wnc failed to start!");
+  }
 #else
   (void) mWncPort;
   (void) mSSL;
