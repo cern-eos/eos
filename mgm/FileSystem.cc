@@ -56,7 +56,8 @@ FileSystem::SetConfigStatus(eos::common::ConfigStatus new_status)
         DrainStatus st = GetDrainStatus();
 
         if ((st == DrainStatus::kDrained) ||
-            (st == DrainStatus::kDrainFailed)) {
+            (st == DrainStatus::kDrainFailed) ||
+            (st == DrainStatus::kDrainExpired)) {
           SetDrainStatus(eos::common::DrainStatus::kNoDrain);
         }
       }
