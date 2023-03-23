@@ -46,6 +46,71 @@
 
 EOSMGMNAMESPACE_BEGIN
 
+
+int ProcCommand::FileCheckJSON(const std::string ns_path, const std::shared_ptr<eos::IFileMD> & fmd, Json::Value* ret_json){
+  Json::Value json;
+  int retc=SFS_OK;
+  // Fetch metadata
+  eos::IFileMD::LocationVector loc_vect = fmd->getLocations();
+  std::string checksumvalue;
+  try{
+    std::string sizestring;
+    json["nrep"] = (int) fmd->getNumLocation();
+    json["checksumtype"] = eos::common::LayoutId::GetChecksumString(fmd->getLayoutId());
+    json["size"] = (unsigned long long) fmd->getSize();
+    eos::appendChecksumOnStringAsHex(fmd.get(), checksumvalue, 0x00, SHA256_DIGEST_LENGTH);
+    json["checksum"] = checksumvalue;
+    json["stripes"] = (int)(eos::common::LayoutId::GetStripeNumber(fmd->getLayoutId()) + 1);
+    json["path"] = ns_path.c_str();
+
+    Json::Value jsonlocations;
+
+    for (auto lociter = loc_vect.begin(); lociter != loc_vect.end(); ++lociter) {
+      // ignore filesystem id 0
+      if (!(*lociter)) {
+        eos_err("fsid 0 found fid=%08llx", fmd->getId());
+        continue;
+      }
+
+      eos::common::FileSystem* filesystem = FsView::gFsView.mIdView.lookupByID(*lociter);
+      Json::Value jsonstripe;
+      if (filesystem) {
+        eos::common::FileSystem::fs_snapshot_t fs;
+
+        if (filesystem->SnapShotFileSystem(fs, true)) {
+          jsonstripe["replicaurl"] = fs.mHostPort;
+          const std::string hex_fid = eos::common::FileId::Fid2Hex(fmd->getId());
+          jsonstripe["fxid"] = hex_fid;
+          jsonstripe["fsid"] = (int) * lociter;
+          jsonstripe["bootstat"] = filesystem->GetString("stat.boot").c_str();
+          jsonstripe["fstpath"] = eos::common::FileId::FidPrefix2FullPath(hex_fid.c_str(),
+                filesystem->GetPath().c_str()).c_str();
+        }
+      }else{
+        jsonstripe["fid"] = (int) *lociter;
+      }
+      jsonlocations.append(jsonstripe);
+    }
+    json["locations"] = jsonlocations;
+  } catch (eos::MDException& e) {
+    errno = e.getErrno();
+    eos_static_debug("msg=\"exception during JSON file check\" ec=%d "
+                     "emsg=\"%s\"\n", e.getErrno(),
+                     e.getMessage().str().c_str());
+    json["errc"] = errno;
+    json["errmsg"] = e.getMessage().str().c_str();
+    retc=errno;
+  }
+  if (!ret_json) {
+    std::stringstream r;
+    r << json;
+    stdJson += r.str().c_str();
+  } else {
+    *ret_json = json;
+  }
+  return retc;
+}
+
 int
 ProcCommand::File()
 {
@@ -1923,78 +1988,82 @@ ProcCommand::File()
             }
           }
 
-          XrdOucString sizestring;
-          eos::IFileMD::LocationVector::const_iterator lociter;
-          int i = 0;
-          stdOut += "&";
-          stdOut += "mgm.nrep=";
-          stdOut += (int) fmd->getNumLocation();
-          stdOut += "&";
-          stdOut += "mgm.checksumtype=";
-          stdOut += eos::common::LayoutId::GetChecksumString(fmd->getLayoutId());
-          stdOut += "&";
-          stdOut += "mgm.size=";
-          stdOut +=
-            eos::common::StringConversion::GetSizeString(sizestring,
-                (unsigned long long) fmd->getSize());
-          stdOut += "&";
-          stdOut += "mgm.checksum=";
-          eos::appendChecksumOnStringAsHex(fmd.get(), stdOut, 0x00, SHA256_DIGEST_LENGTH);
-          stdOut += "&";
-          stdOut += "mgm.stripes=";
-          stdOut += (int)(eos::common::LayoutId::GetStripeNumber(fmd->getLayoutId()) + 1);
-          stdOut += "&";
-          eos::IFileMD::LocationVector loc_vect = fmd->getLocations();
+          if (mJsonFormat){
+              return FileCheckJSON(ns_path,fmd, 0);
+          } else {
+            XrdOucString sizestring;
+            eos::IFileMD::LocationVector::const_iterator lociter;
+            int i = 0;
+            stdOut += "&";
+            stdOut += "mgm.nrep=";
+            stdOut += (int) fmd->getNumLocation();
+            stdOut += "&";
+            stdOut += "mgm.checksumtype=";
+            stdOut += eos::common::LayoutId::GetChecksumString(fmd->getLayoutId());
+            stdOut += "&";
+            stdOut += "mgm.size=";
+            stdOut +=
+              eos::common::StringConversion::GetSizeString(sizestring,
+                  (unsigned long long) fmd->getSize());
+            stdOut += "&";
+            stdOut += "mgm.checksum=";
+            eos::appendChecksumOnStringAsHex(fmd.get(), stdOut, 0x00, SHA256_DIGEST_LENGTH);
+            stdOut += "&";
+            stdOut += "mgm.stripes=";
+            stdOut += (int)(eos::common::LayoutId::GetStripeNumber(fmd->getLayoutId()) + 1);
+            stdOut += "&";
+            eos::IFileMD::LocationVector loc_vect = fmd->getLocations();
 
-          for (lociter = loc_vect.begin(); lociter != loc_vect.end(); ++lociter) {
-            // ignore filesystem id 0
-            if (!(*lociter)) {
-              eos_err("fsid 0 found fid=%08llx", fmd->getId());
-              continue;
+            for (lociter = loc_vect.begin(); lociter != loc_vect.end(); ++lociter) {
+              // ignore filesystem id 0
+              if (!(*lociter)) {
+                eos_err("fsid 0 found fid=%08llx", fmd->getId());
+                continue;
+              }
+
+              eos::common::FileSystem* filesystem = FsView::gFsView.mIdView.lookupByID(
+                                                      *lociter);
+
+              if (filesystem) {
+                XrdOucString host;
+                std::string hostport = filesystem->GetString("hostport");
+                stdOut += "mgm.replica.url";
+                stdOut += i;
+                stdOut += "=";
+                stdOut += hostport.c_str();
+                stdOut += "&";
+                const std::string hex_fid = eos::common::FileId::Fid2Hex(fmd->getId());
+                stdOut += "mgm.fid";
+                stdOut += i;
+                stdOut += "=";
+                stdOut += hex_fid.c_str();
+                stdOut += "&";
+                stdOut += "mgm.fsid";
+                stdOut += i;
+                stdOut += "=";
+                stdOut += (int) * lociter;
+                stdOut += "&";
+                stdOut += "mgm.fsbootstat";
+                stdOut += i;
+                stdOut += "=";
+                stdOut += filesystem->GetString("stat.boot").c_str();
+                stdOut += "&";
+                stdOut += "mgm.fstpath";
+                stdOut += i;
+                stdOut += "=";
+                stdOut +=
+                  eos::common::FileId::FidPrefix2FullPath(hex_fid.c_str(),
+                      filesystem->GetPath().c_str()).c_str();
+                stdOut += "&";
+                stdOut += "mgm.nspath=";
+                stdOut += ns_path.c_str();
+                stdOut += "&";
+              } else {
+                stdOut += "NA&";
+              }
+
+              i++;
             }
-
-            eos::common::FileSystem* filesystem = FsView::gFsView.mIdView.lookupByID(
-                                                    *lociter);
-
-            if (filesystem) {
-              XrdOucString host;
-              std::string hostport = filesystem->GetString("hostport");
-              stdOut += "mgm.replica.url";
-              stdOut += i;
-              stdOut += "=";
-              stdOut += hostport.c_str();
-              stdOut += "&";
-              const std::string hex_fid = eos::common::FileId::Fid2Hex(fmd->getId());
-              stdOut += "mgm.fid";
-              stdOut += i;
-              stdOut += "=";
-              stdOut += hex_fid.c_str();
-              stdOut += "&";
-              stdOut += "mgm.fsid";
-              stdOut += i;
-              stdOut += "=";
-              stdOut += (int) * lociter;
-              stdOut += "&";
-              stdOut += "mgm.fsbootstat";
-              stdOut += i;
-              stdOut += "=";
-              stdOut += filesystem->GetString("stat.boot").c_str();
-              stdOut += "&";
-              stdOut += "mgm.fstpath";
-              stdOut += i;
-              stdOut += "=";
-              stdOut +=
-                eos::common::FileId::FidPrefix2FullPath(hex_fid.c_str(),
-                    filesystem->GetPath().c_str()).c_str();
-              stdOut += "&";
-              stdOut += "mgm.nspath=";
-              stdOut += ns_path.c_str();
-              stdOut += "&";
-            } else {
-              stdOut += "NA&";
-            }
-
-            i++;
           }
         }
       }
@@ -2236,4 +2305,5 @@ ProcCommand::File()
 
   return SFS_OK;
 }
+
 EOSMGMNAMESPACE_END

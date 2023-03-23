@@ -233,6 +233,7 @@ public:
   int DirJSON(uint64_t id, Json::Value* json, bool dolock = true);
   int Find();
   int File();
+  int FileCheckJSON(const std::string ns_path, const std::shared_ptr<eos::IFileMD> & fmd, Json::Value* ret_json);
   int Fileinfo();
   int FileInfo(const char* path);
   int FileJSON(uint64_t id, Json::Value* json, bool dolock = true);
