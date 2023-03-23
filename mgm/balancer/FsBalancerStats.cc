@@ -70,8 +70,8 @@ FsBalancerStats::UpdateInfo(eos::mgm::FsView* fs_view, double threshold)
 
   for (const auto& grp : grp_to_update) {
     mGrpToMaxDev[grp] = grp_dev[grp];
-    //@todo(esindril) decide on a good threshold value
-    mGrpToPrioritySets[grp] = fs_view->GetFsToBalance(grp, 5);
+    mGrpToPrioritySets[grp] =
+      fs_view->GetFsToBalance(grp, FsPrioritySets::sThreshold);
   }
 
   return;
@@ -106,20 +106,20 @@ FsBalancerStats::GetTxEndpoints()
   VectBalanceFs ret;
 
   for (auto& elem : mGrpToPrioritySets) {
-    std::set<FsBalanceInfo>& dst_fses = std::get<0>(elem.second);
+    std::set<FsBalanceInfo>& dst_fses = elem.second.mPrioLow;
 
     if (dst_fses.empty()) {
-      dst_fses = std::get<1>(elem.second);
+      dst_fses = elem.second.mLow;
 
       if (dst_fses.empty()) {
         continue;
       }
     }
 
-    std::set<FsBalanceInfo>& src_fses = std::get<3>(elem.second);
+    std::set<FsBalanceInfo>& src_fses = elem.second.mPrioHigh;
 
     if (src_fses.empty()) {
-      src_fses = std::get<2>(elem.second);
+      src_fses = elem.second.mHigh;
 
       if (src_fses.empty()) {
         continue;

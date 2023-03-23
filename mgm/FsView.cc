@@ -3375,11 +3375,12 @@ FsView::GetFsToBalance(const std::string& group_name, double threshold) const
 {
   static const std::string metric = "stat.statfs.filled";
   std::set<FsBalanceInfo> prio_fs_above, fs_above, fs_below, prio_fs_below;
+  FsPrioritySets fs_prio;
   eos::common::RWMutexReadLock fs_rd_lock(ViewMutex);
   const auto it = mGroupView.find(group_name);
 
   if (it == mGroupView.end()) {
-    return std::make_tuple(prio_fs_below, fs_below, fs_above, prio_fs_above);
+    return fs_prio;
   }
 
   auto* group = it->second;
@@ -3394,21 +3395,21 @@ FsView::GetFsToBalance(const std::string& group_name, double threshold) const
 
       if (fs_filled < average) {
         if (average - fs_filled > threshold) {
-          prio_fs_below.emplace(*it_fs, node_port);
+          fs_prio.mPrioLow.emplace(*it_fs, node_port);
         } else {
-          fs_below.emplace(*it_fs, node_port);
+          fs_prio.mLow.emplace(*it_fs, node_port);
         }
       } else {
         if (fs_filled - average > threshold) {
-          prio_fs_above.emplace(*it_fs, node_port);
+          fs_prio.mPrioHigh.emplace(*it_fs, node_port);
         } else {
-          fs_above.emplace(*it_fs, node_port);
+          fs_prio.mHigh.emplace(*it_fs, node_port);
         }
       }
     }
   }
 
-  return std::make_tuple(prio_fs_below, fs_below, fs_above, prio_fs_above);
+  return fs_prio;
 }
 
 //----------------------------------------------------------------------------

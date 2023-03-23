@@ -184,6 +184,7 @@ FsBalancer::Balance(ThreadAssistant& assistant) noexcept
                   mSpaceName.c_str());
   VectBalanceFs vect_tx;
   common::BackOffInvoker backoff_logger;
+
   while (!assistant.terminationRequested()) {
     ConfigUpdate();
 
@@ -204,6 +205,8 @@ FsBalancer::Balance(ThreadAssistant& assistant) noexcept
     }
 
     if (vect_tx.empty()) {
+      eos_static_debug("msg=\"no groups to balance\" wait=%is\"",
+                       no_transfers_delay.count());
       assistant.wait_for(no_transfers_delay);
       continue;
     }

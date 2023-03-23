@@ -98,15 +98,18 @@ struct FsBalanceInfo {
 //------------------------------------------------------------------------------
 //! Priority sets of file systems to be used for balancing operations,
 //! containing 4 sets for fs'es with fill ratio in the following intervals:
-// [0, mean - threshold)
-// [mean - threshold, mean)
-// [mean, mean + threshold )
-// [mean + threshold, 100]
+//! [0, mean - threshold) - low prio
+//! [mean - threshold, mean) - low
+//! [mean, mean + threshold ) - high
+//! [mean + threshold, 100] - high prio
 //------------------------------------------------------------------------------
-using FsPrioritySets = std::tuple<std::set<FsBalanceInfo>,
-      std::set<FsBalanceInfo>,
-      std::set<FsBalanceInfo>,
-      std::set<FsBalanceInfo>>;
+struct FsPrioritySets {
+  static constexpr double sThreshold = 5.0;
+  std::set<FsBalanceInfo> mPrioLow;
+  std::set<FsBalanceInfo> mLow;
+  std::set<FsBalanceInfo> mHigh;
+  std::set<FsBalanceInfo> mPrioHigh;
+};
 
 //------------------------------------------------------------------------------
 //! Base class representing any element in a GeoTree
@@ -1013,8 +1016,9 @@ public:
   //! Df Command output
   //----------------------------------------------------------------------------
 
-  std::string Df(bool monitoring=false, bool si=false, bool readable=true, std::string path="");
-  
+  std::string Df(bool monitoring = false, bool si = false, bool readable = true,
+                 std::string path = "");
+
   //----------------------------------------------------------------------------
   //! Physical bytes available
   //----------------------------------------------------------------------------
