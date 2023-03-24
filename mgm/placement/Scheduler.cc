@@ -17,7 +17,7 @@ makeRRSeeder(PlacementStrategyT strategy, size_t max_buckets)
 }
 
 PlacementResult
-RoundRobinPlacement::chooseItems(const ClusterData& cluster_data, Args args)
+RoundRobinPlacement::placeFiles(const ClusterData& cluster_data, Args args)
 {
   PlacementResult result(args.n_replicas);
   if (args.n_replicas == 0) {
@@ -131,7 +131,7 @@ FlatScheduler::schedule(const ClusterData& cluster_data,
           args.status};
 
 
-    auto result = mPlacementStrategy[strategy_index(args.strategy)]->chooseItems(cluster_data, plct_args);
+    auto result = mPlacementStrategy[strategy_index(args.strategy)]->placeFiles(cluster_data, plct_args);
     if (!result) {
       return result;
     } else {
@@ -160,7 +160,7 @@ FlatScheduler::scheduleDefault(const ClusterData& cluster_data,
     }
 
     PlacementStrategy::Args plct_args{args.bucket_id, n_replicas, args.status};
-    auto result = mPlacementStrategy[strategy_index(args.strategy)]->chooseItems(cluster_data, plct_args);
+    auto result = mPlacementStrategy[strategy_index(args.strategy)]->placeFiles(cluster_data, plct_args);
 
     if (!result || result.ids.empty()) {
       return result;
