@@ -1,4 +1,4 @@
-#include "mgm/placement/Scheduler.hh"
+#include "mgm/placement/FlatScheduler.hh"
 #include "common/utils/ContainerUtils.hh"
 #include <queue>
 
