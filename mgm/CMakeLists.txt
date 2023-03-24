@@ -335,7 +335,7 @@ add_library(
   bulk-request/dao/proc/cleaner/BulkRequestProcCleanerConfig.cc
   placement/ClusterMap.cc
   placement/FsScheduler.cc
-  placement/Scheduler.cc
+  placement/FlatScheduler.cc
   placement/ThreadLocalRRSeed.cc
   ${FUSEX_SRCS})
 
