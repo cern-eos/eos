@@ -116,7 +116,7 @@ struct PlacementStrategy {
       status(status), fid(fid) {}
   };
 
-  virtual PlacementResult chooseItems(const ClusterData& cluster_data,
+  virtual PlacementResult placeFiles(const ClusterData& cluster_data,
                                       Args args) = 0;
 
   virtual ~PlacementStrategy() = default;
@@ -166,7 +166,7 @@ public:
   RoundRobinPlacement(PlacementStrategyT strategy,
                       size_t max_buckets) : mSeed(makeRRSeeder(strategy, max_buckets)) {}
 
-  PlacementResult chooseItems(const ClusterData& cluster_data,
+  PlacementResult placeFiles(const ClusterData& cluster_data,
                               Args args) override;
 private:
   std::unique_ptr<RRSeeder> mSeed;
