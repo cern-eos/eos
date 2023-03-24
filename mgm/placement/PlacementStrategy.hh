@@ -28,6 +28,7 @@
 #include "mgm/placement/ThreadLocalRRSeed.hh"
 #include <algorithm>
 #include <optional>
+#include <errno.h>
 
 namespace eos::mgm::placement {
 
@@ -119,6 +120,40 @@ struct PlacementStrategy {
 
   virtual PlacementResult placeFiles(const ClusterData& cluster_data,
                                       Args args) = 0;
+
+  bool validateArgs(const ClusterData& cluster_data, const Args& args,
+                    PlacementResult& result) const
+  {
+    if (args.n_replicas == 0) {
+      result.ret_code = EINVAL;
+      result.err_msg = "Zero replicas requested";
+      return false;
+    }
+
+    int32_t bucket_index = -args.bucket_id;
+    auto bucket_sz = cluster_data.buckets.size();
+
+    if (bucket_sz < args.n_replicas) {
+      result.err_msg = "More replicas than bucket size!";
+      result.ret_code = ERANGE;
+      return false;
+    }
+
+    try {
+        const auto& bucket = cluster_data.buckets.at(bucket_index);
+        if (bucket.items.empty()) {
+          result.err_msg = "Bucket " + std::to_string(bucket.id) + "is empty!";
+          result.ret_code = ENOENT;
+          return false;
+        }
+    } catch (std::out_of_range& e) {
+      result.err_msg = "Bucket ID" + std::to_string(bucket_index) + "is invalid!";
+      result.ret_code = ERANGE;
+      return false;
+    }
+
+    return true;
+  }
 
   virtual ~PlacementStrategy() = default;
 };
