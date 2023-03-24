@@ -35,7 +35,8 @@ std::unique_ptr<PlacementStrategy> makePlacementStrategy(PlacementStrategyT type
                       Args&&... args) {
   switch (type) {
   case PlacementStrategyT::kRoundRobin: [[fallthrough]];
-  case PlacementStrategyT::kThreadLocalRoundRobin:
+  case PlacementStrategyT::kThreadLocalRoundRobin: [[fallthrough]];
+  case PlacementStrategyT::kRandom:
     return std::make_unique<RoundRobinPlacement>(type, std::forward<Args>(args)...);
   default:
     return nullptr;
