@@ -8,6 +8,8 @@ makeRRSeeder(PlacementStrategyT strategy, size_t max_buckets)
 {
   if (strategy == PlacementStrategyT::kThreadLocalRoundRobin) {
     return std::make_unique<ThreadLocalRRSeeder>(max_buckets);
+  } else if (strategy == PlacementStrategyT::kRandom) {
+    return std::make_unique<RandomSeeder>(max_buckets);
   }
   return std::make_unique<GlobalRRSeeder>(max_buckets);
 }
