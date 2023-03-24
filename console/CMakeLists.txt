@@ -87,6 +87,7 @@ add_library(EosConsoleCommands-Objects OBJECT
   commands/com_report.cc
   commands/com_reconnect.cc
   commands/com_rmdir.cc
+  commands/com_rclone.cc
   commands/com_role.cc
   commands/com_rtlog.cc
   commands/com_silent.cc
