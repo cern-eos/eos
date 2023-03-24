@@ -23,7 +23,7 @@
 
 #pragma once
 #include "mgm/placement/ClusterMap.hh"
-#include "mgm/placement/Scheduler.hh"
+#include "mgm/placement/FlatScheduler.hh"
 
 namespace eos::mgm::placement {
 
