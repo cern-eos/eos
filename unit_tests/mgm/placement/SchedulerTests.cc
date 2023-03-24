@@ -57,6 +57,29 @@ TEST_F(SimpleClusterF, RoundRobinBasic)
 
 }
 
+TEST_F(SimpleClusterF, RandomBasic)
+{
+  eos::mgm::placement::RoundRobinPlacement rand_placement(eos::mgm::placement::PlacementStrategyT::kRandom,
+                                                          256);
+
+  auto cluster_data_ptr = mgr.getClusterData();
+
+  auto res = rand_placement.placeFiles(cluster_data_ptr(), {0, 1});
+  ASSERT_TRUE(res);
+  EXPECT_EQ(res.n_replicas, 1);
+
+  auto site_id = res.ids[0];
+  auto group_res = rand_placement.placeFiles(cluster_data_ptr(), {site_id, 1});
+  ASSERT_TRUE(group_res);
+  EXPECT_EQ(group_res.n_replicas, 1);
+
+  auto disks_res =
+      rand_placement.placeFiles(cluster_data_ptr(), {group_res.ids[0], 2});
+  ASSERT_TRUE(disks_res);
+  std::cout << disks_res << "\n";
+  EXPECT_EQ(disks_res.n_replicas, 2);
+}
+
 TEST_F(SimpleClusterF, TLRoundRobinBasic)
 {
   eos::mgm::placement::RoundRobinPlacement rr_placement(eos::mgm::placement::PlacementStrategyT::kThreadLocalRoundRobin,
