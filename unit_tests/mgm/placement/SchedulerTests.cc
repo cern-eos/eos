@@ -21,7 +21,9 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
+#include "mgm/placement/RoundRobinPlacementStrategy.hh"
 #include "mgm/placement/FlatScheduler.hh"
+#include "mgm/placement/PlacementStrategy.hh"
 #include "unit_tests/mgm/placement/ClusterMapFixture.hh"
 #include "gtest/gtest.h"
 using eos::mgm::placement::item_id_t;
@@ -247,7 +249,8 @@ TEST_F(SimpleClusterF, FlatSchedulerBasic)
 {
   using eos::mgm::placement::PlacementStrategyT;
 
-  eos::mgm::placement::FlatScheduler flat_scheduler(PlacementStrategyT::kRoundRobin,
+  eos::mgm::placement::FlatScheduler flat_scheduler(
+      eos::mgm::placement::PlacementStrategyT::kRoundRobin,
                                                     256);
 
   auto cluster_data_ptr = mgr.getClusterData();
@@ -273,7 +276,8 @@ TEST_F(SimpleClusterF, FlatSchedulerBasicLoop)
 {
   using eos::mgm::placement::PlacementStrategyT;
 
-  eos::mgm::placement::FlatScheduler flat_scheduler(PlacementStrategyT::kRoundRobin,
+  eos::mgm::placement::FlatScheduler flat_scheduler(
+      eos::mgm::placement::PlacementStrategyT::kRoundRobin,
                                                     256);
 
   auto cluster_data_ptr = mgr.getClusterData();
@@ -314,7 +318,8 @@ TEST_F(SimpleClusterF, TLFlatSchedulerBasicLoop)
 {
   using eos::mgm::placement::PlacementStrategyT;
 
-  eos::mgm::placement::FlatScheduler flat_scheduler(PlacementStrategyT::kThreadLocalRoundRobin,
+  eos::mgm::placement::FlatScheduler flat_scheduler(
+      eos::mgm::placement::PlacementStrategyT::kThreadLocalRoundRobin,
                                                     256);
 
   auto cluster_data_ptr = mgr.getClusterData();
