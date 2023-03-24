@@ -16,38 +16,24 @@ makeRRSeeder(PlacementStrategyT strategy, size_t max_buckets)
 PlacementResult
 RoundRobinPlacement::placeFiles(const ClusterData& cluster_data, Args args)
 {
+
   PlacementResult result(args.n_replicas);
-  if (args.n_replicas == 0) {
-    result.err_msg = "Zero replicas requested";
+  if (!validateArgs(cluster_data, args, result)) {
     return result;
   }
+
   int32_t bucket_index = -args.bucket_id;
   auto bucket_sz = cluster_data.buckets.size();
 
-  if (bucket_sz < args.n_replicas ||
-      (bucket_index > 0 && (size_t)bucket_index > bucket_sz) ||
-      bucket_sz > mSeed->getNumSeeds()) {
-    if (bucket_sz < args.n_replicas) {
-      result.err_msg = "More replicas than bucket size!";
-    } else if (bucket_sz > mSeed->getNumSeeds()) {
+  if (bucket_sz > mSeed->getNumSeeds()) {
       result.err_msg = "More buckets than random seeds! seeds=" +
                        std::to_string(mSeed->getNumSeeds()) +
                        " buckets=" + std::to_string(bucket_sz);
-    } else {
-      result.err_msg = "Bucket index out of range!";
-    }
     result.ret_code = ERANGE;
     return result;
   }
 
   const auto& bucket = cluster_data.buckets.at(bucket_index);
-
-  if (bucket.items.empty()) {
-    result.err_msg = "Bucket " + std::to_string(bucket.id) + "is empty!";
-    result.ret_code = ENOENT;
-    return result;
-  }
-
   auto rr_seed = mSeed->get(bucket_index, args.n_replicas);
   int items_added = 0;
   for (int i = 0;
