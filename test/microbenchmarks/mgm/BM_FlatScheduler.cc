@@ -21,10 +21,9 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "mgm/placement/Scheduler.hh"
-#include "mgm/placement/ClusterMap.hh"
 #include "benchmark/benchmark.h"
-
+#include "mgm/placement/ClusterMap.hh"
+#include "mgm/placement/FlatScheduler.hh"
 
 static void BM_Scheduler(benchmark::State& state) {
   using namespace eos::mgm::placement;
