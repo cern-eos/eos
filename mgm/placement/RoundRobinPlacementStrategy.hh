@@ -23,11 +23,11 @@
 
 #pragma once
 
+#include "common/Logging.hh"
 #include "mgm/placement/ClusterDataTypes.hh"
 #include "mgm/placement/PlacementStrategy.hh"
 #include "mgm/placement/RRSeed.hh"
 #include "mgm/placement/ThreadLocalRRSeed.hh"
-#include <optional>
 
 namespace eos::mgm::placement {
 
@@ -73,6 +73,38 @@ struct ThreadLocalRRSeeder : public RRSeeder {
   {
     return ThreadLocalRRSeed::getNumSeeds();
   }
+};
+
+struct RandomSeeder: public RRSeeder {
+  explicit RandomSeeder(size_t max_buckets) : rd(),
+                                              random_gen(rd()),
+                                              dist(0, max_buckets - 1),
+                                              mMaxBuckets(max_buckets)
+  {}
+
+  size_t
+  get(size_t index, size_t) override
+  {
+    if (index > mMaxBuckets) {
+      eos_static_err("msg=\"RandomSeeder index > MaxBuckets\" index=%lu mMaxBuckets=%lu",
+                     index, mMaxBuckets);
+      // This is a really bad random number, but this code should be unreachable
+      return dist(random_gen) + index - mMaxBuckets;
+    }
+    return dist(random_gen);
+  }
+
+  size_t
+  getNumSeeds() override
+  {
+    return mMaxBuckets;
+  }
+
+  private:
+  std::mt19937 random_gen;
+  std::random_device rd;
+  std::uniform_int_distribution<size_t> dist;
+  size_t mMaxBuckets;
 };
 
 std::unique_ptr<RRSeeder>
