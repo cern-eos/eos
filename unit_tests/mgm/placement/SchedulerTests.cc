@@ -21,7 +21,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "mgm/placement/Scheduler.hh"
+#include "mgm/placement/FlatScheduler.hh"
 #include "unit_tests/mgm/placement/ClusterMapFixture.hh"
 #include "gtest/gtest.h"
 using eos::mgm::placement::item_id_t;
