@@ -5,7 +5,7 @@
 
 # ************************************************************************
 # * EOS - the CERN Disk Storage System                                   *
-# * Copyright (C) 2011 CERN/Switzerland                                  *
+# * Copyright (C) 2023 CERN/Switzerland                                  *
 # *                                                                      *
 # * This program is free software: you can redistribute it and/or modify *
 # * it under the terms of the GNU General Public License as published by *
@@ -29,6 +29,7 @@ add_library(EosConsoleHelpers-Objects OBJECT
   commands/helpers/FsHelper.cc      commands/helpers/FsHelper.hh
   commands/helpers/RecycleHelper.cc commands/helpers/RecycleHelper.hh
   commands/helpers/FsckHelper.cc    commands/helpers/FsckHelper.hh
+  commands/helpers/NewfindHelper.cc commands/helpers/NewfindHelper.hh
   commands/helpers/NodeHelper.cc    commands/helpers/NodeHelper.hh
   commands/helpers/TokenHelper.cc   commands/helpers/TokenHelper.hh)
 
