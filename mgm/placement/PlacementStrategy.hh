@@ -70,6 +70,7 @@ struct PlacementResult {
 enum class PlacementStrategyT : uint8_t {
   kRoundRobin=0,
   kThreadLocalRoundRobin,
+  kRandom,
   Count
 };
 
@@ -90,6 +91,8 @@ constexpr PlacementStrategyT strategy_from_str(std::string_view strategy_sv) {
       strategy_sv == "threadlocalrr"sv ||
       strategy_sv == "tlrr"sv) {
     return PlacementStrategyT::kThreadLocalRoundRobin;
+  } else if (strategy_sv == "random"sv) {
+    return PlacementStrategyT::kRandom;
   }
   return PlacementStrategyT::kRoundRobin;
 }
@@ -100,6 +103,8 @@ inline std::string strategy_to_str(PlacementStrategyT strategy) {
     return "roundrobin";
   case PlacementStrategyT::kThreadLocalRoundRobin:
     return "threadlocalroundrobin";
+  case PlacementStrategyT::kRandom:
+    return "random";
   default:
     return "unknown";
   }
