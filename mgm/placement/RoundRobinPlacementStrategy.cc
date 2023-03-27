@@ -10,6 +10,8 @@ makeRRSeeder(PlacementStrategyT strategy, size_t max_buckets)
     return std::make_unique<ThreadLocalRRSeeder>(max_buckets);
   } else if (strategy == PlacementStrategyT::kRandom) {
     return std::make_unique<RandomSeeder>(max_buckets);
+  } else if (strategy == PlacementStrategyT::kFidRandom) {
+    return std::make_unique<FidSeeder>(max_buckets);
   }
   return std::make_unique<GlobalRRSeeder>(max_buckets);
 }
@@ -35,8 +37,8 @@ RoundRobinPlacement::placeFiles(const ClusterData& cluster_data, Args args)
     return result;
   }
 
-  const auto& bucket = cluster_data.buckets.at(bucket_index);
-  auto rr_seed = mSeed->get(bucket_index, args.n_replicas);
+  const auto& bucket = cluster_data.buckets[bucket_index];
+  auto rr_seed = mSeed->get(bucket_index, args.n_replicas, args.fid);
   int items_added = 0;
   for (int i = 0;
        (items_added < args.n_replicas) && (i < MAX_PLACEMENT_ATTEMPTS); i++) {
@@ -51,7 +53,7 @@ RoundRobinPlacement::placeFiles(const ClusterData& cluster_data, Args args)
         return result;
       }
 
-      const auto& disk = cluster_data.disks.at(id - 1);
+      const auto& disk = cluster_data.disks[id - 1];
       auto disk_status = disk.config_status.load(std::memory_order_relaxed);
       if (disk_status < args.status) {
         continue;
