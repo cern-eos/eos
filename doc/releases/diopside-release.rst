@@ -17,6 +17,43 @@ Introduction
 This release is based on XRootD V5.
 
 
+``v5.1.15 Diopside``
+====================
+
+2023-03-27
+
+
+Note
+----
+
+* Update dependency to eos-xrootd-5.5.8 which also matches XRootD-5.5.4
+
+Bug
+----
+
+* [EOS-5577] - MGM crash in eos::mgm::GrpcWncServer::RunWnc()
+* [EOS-5587] - jwt::decode might throw an exception
+* [EOS-5600] - eos group ls outputs wrong filled stats
+
+
+New Feature
+------------
+
+* [EOS-5588] - Allow HTTPS gateway functionality to use key entries
+
+Task
+----
+
+* [EOS-5522] - Drain status stays in `expired`after setting fs in rw.
+* [EOS-5530] - Send fid as string to CTA
+
+Improvement
+-----------
+
+* [EOS-5578] - Balancer/Drainer/Recycler: reduce sleep info logging
+* [EOS-5592] - Disabling oauth did not actually disabled it
+
+
 ``v5.1.14 Diopside``
 ====================
 
