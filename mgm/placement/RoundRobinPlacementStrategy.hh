@@ -33,7 +33,7 @@ namespace eos::mgm::placement {
 
 struct RRSeeder {
   virtual ~RRSeeder() = default;
-  virtual size_t get(size_t index, size_t num_items) = 0;
+  virtual size_t get(size_t index, size_t num_items, size_t fid) = 0;
   virtual size_t getNumSeeds() = 0;
 };
 
@@ -41,7 +41,7 @@ struct GlobalRRSeeder : public RRSeeder {
   explicit GlobalRRSeeder(size_t max_buckets) : mSeed(max_buckets) {}
 
   size_t
-  get(size_t index, size_t num_items) override
+  get(size_t index, size_t num_items, size_t) override
   {
     return mSeed.get(index, num_items);
   }
@@ -63,7 +63,7 @@ struct ThreadLocalRRSeeder : public RRSeeder {
   }
 
   size_t
-  get(size_t index, size_t num_items) override
+  get(size_t index, size_t num_items, size_t) override
   {
     return ThreadLocalRRSeed::get(index, num_items);
   }
@@ -83,7 +83,7 @@ struct RandomSeeder: public RRSeeder {
   {}
 
   size_t
-  get(size_t index, size_t) override
+  get(size_t index, size_t, size_t) override
   {
     if (index > mMaxBuckets) {
       eos_static_err("msg=\"RandomSeeder index > MaxBuckets\" index=%lu mMaxBuckets=%lu",
@@ -101,10 +101,24 @@ struct RandomSeeder: public RRSeeder {
   }
 
   private:
-  std::mt19937 random_gen;
   std::random_device rd;
+  std::mt19937 random_gen;
   std::uniform_int_distribution<size_t> dist;
   size_t mMaxBuckets;
+};
+
+struct FidSeeder: public RRSeeder {
+  explicit FidSeeder(size_t _max_buckets) : max_buckets(_max_buckets) {}
+
+  size_t get(size_t index, size_t replicas, size_t fid) {
+    return index ^ replicas ^ fid;
+  }
+
+  size_t getNumSeeds() override {
+    return max_buckets;
+  }
+private:
+  size_t max_buckets;
 };
 
 std::unique_ptr<RRSeeder>
