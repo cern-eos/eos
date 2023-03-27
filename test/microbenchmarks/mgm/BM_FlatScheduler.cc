@@ -125,6 +125,42 @@ static void BM_RandomScheduler(benchmark::State& state) {
                                                    benchmark::Counter::kIsRate);
 }
 
+static void BM_FidScheduler(benchmark::State& state) {
+  using namespace eos::mgm::placement;
+  auto n_groups = state.range(0);
+  auto n_elements = 1024;
+  const int n_disks_per_group = 16;
+  ClusterMgr mgr;
+  {
+
+    auto sh = mgr.getStorageHandler(n_elements);
+    sh.addBucket(get_bucket_type(StdBucketType::ROOT), 0);
+    //sh.addBucket(get_bucket_type(StdBucketType::SITE), -1, 0);
+
+    for (int i=0; i< n_groups; ++i) {
+      sh.addBucket(get_bucket_type(StdBucketType::GROUP), -100-i, 0);
+    }
+
+    for (int i=0; i < n_groups*n_disks_per_group; i++) {
+      sh.addDisk(Disk(i+1, ConfigStatus::kRW, ActiveStatus::kOnline, 1),
+                 -100 - i/n_disks_per_group);
+    }
+
+  }
+  FlatScheduler flat_scheduler(PlacementStrategyT::kFidRandom, n_elements);
+
+
+  FlatScheduler::PlacementArguments args(state.range(1));
+  args.fid=1;
+  for (auto _: state) {
+    auto cluster_data_ptr = mgr.getClusterData();
+    benchmark::DoNotOptimize(flat_scheduler.schedule(cluster_data_ptr(), args));
+    args.fid++;
+  }
+  state.counters["frequency"] = benchmark::Counter(state.iterations(),
+                                                   benchmark::Counter::kIsRate);
+}
+
 BENCHMARK(BM_Scheduler)->Threads(1)->Threads(8)->Threads(64)->Threads(128)->Threads(256)
     ->ArgsProduct({{32, 64, 128, 256, 512},
                    {2,3,6}})->UseRealTime();
@@ -136,6 +172,10 @@ BENCHMARK(BM_ThreadLocalRRScheduler)->Threads(1)->Threads(8)->Threads(64)->Threa
 BENCHMARK(BM_RandomScheduler)->Threads(1)->Threads(8)->Threads(64)->Threads(128)->Threads(256)
     ->ArgsProduct({{32, 64, 128, 256, 512},
                    {2,3,6}})->UseRealTime();
+
+BENCHMARK(BM_FidScheduler)->Threads(1)->Threads(8)->Threads(64)->Threads(128)->Threads(256)
+->ArgsProduct({{32, 64, 128, 256, 512},
+               {2,3,6}})->UseRealTime();
 
 
 BENCHMARK_MAIN();
