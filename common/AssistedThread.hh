@@ -28,6 +28,7 @@
 #include <functional>
 #include <vector>
 #include <atomic>
+#include <string>
 
 // Thread name size limit from pthread_setname_np manual, while OSX allows for
 // 64 characters, it makes sense to keep it at 16 for portability

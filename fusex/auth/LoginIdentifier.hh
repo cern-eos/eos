@@ -24,6 +24,7 @@
 #ifndef __LOGIN_IDENTIFIER__HH__
 #define __LOGIN_IDENTIFIER__HH__
 
+#include <cstdint>
 #include <string>
 #include <sys/types.h>
 

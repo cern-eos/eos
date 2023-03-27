@@ -34,6 +34,7 @@
 #include <errno.h>
 #include <uuid/uuid.h>
 #include <string.h>
+#include <cstdint>
 
 #define EOS_COMMON_PATH_VERSION_PREFIX "/.sys.v#."
 #define EOS_COMMON_PATH_VERSION_FILE_PREFIX ".sys.v#."
