@@ -4,6 +4,5 @@ etc/logrotate.d/eos-fusex-logs
 var/log/eos/
 var/log/eos/fusex/
 usr/bin/eosfusebind
-var/run/eos/
-var/run/eos/credentials/
-var/run/eos/credentials/store/
+usr/lib/tmpfiles.d/eos-fusex-core.conf
+etc/eos/
