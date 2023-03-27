@@ -3823,7 +3823,9 @@ XrdFstOfsFile::DoTpcTransfer()
   int64_t rbytes = 0;
   int64_t wbytes = 0;
   off_t offset = 0;
-  constexpr uint64_t eight_gb = 8 * (2 ^ 30);
+  constexpr uint64_t eight_gb = 8 * (1ULL << 30);
+  static_assert(eight_gb == 8589934592,
+                "eight gb is not computed correctly!");
   std::unique_ptr< std::vector<char> > buffer
   (new std::vector<char>(tpcIO.GetBlockSize()));
   eos_info("msg=\"tpc pull\" ");
