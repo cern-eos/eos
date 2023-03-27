@@ -23,6 +23,7 @@
 
 #pragma once
 #include "common/utils/TypeTraits.hh"
+#include <cstdint>
 #include <iterator>
 
 namespace eos::common

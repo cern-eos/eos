@@ -28,6 +28,7 @@
 #include <memory>
 #include <string>
 #include <set>
+#include <cstdint>
 
 EOSCOMMONNAMESPACE_BEGIN
 

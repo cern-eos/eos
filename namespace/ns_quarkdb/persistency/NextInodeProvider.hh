@@ -24,6 +24,7 @@
 #pragma once
 #include "namespace/Namespace.hh"
 #include <mutex>
+#include <string>
 
 namespace qclient {
   class QHash;

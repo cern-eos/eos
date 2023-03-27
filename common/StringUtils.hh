@@ -29,6 +29,7 @@
 #include <sstream>
 #include <string>
 #include <charconv>
+#include <cstdint>
 #include <string_view>
 
 #include "common/Namespace.hh"
