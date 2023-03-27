@@ -71,6 +71,7 @@ enum class PlacementStrategyT : uint8_t {
   kRoundRobin=0,
   kThreadLocalRoundRobin,
   kRandom,
+  kFidRandom,
   Count
 };
 
@@ -93,6 +94,9 @@ constexpr PlacementStrategyT strategy_from_str(std::string_view strategy_sv) {
     return PlacementStrategyT::kThreadLocalRoundRobin;
   } else if (strategy_sv == "random"sv) {
     return PlacementStrategyT::kRandom;
+  } else if (strategy_sv == "fid"sv ||
+             strategy_sv == "fidrandom"sv) {
+    return PlacementStrategyT::kFidRandom;
   }
   return PlacementStrategyT::kRoundRobin;
 }
@@ -105,6 +109,8 @@ inline std::string strategy_to_str(PlacementStrategyT strategy) {
     return "threadlocalroundrobin";
   case PlacementStrategyT::kRandom:
     return "random";
+  case PlacementStrategyT::kFidRandom:
+    return "fidrandom";
   default:
     return "unknown";
   }
