@@ -4101,6 +4101,37 @@ BaseView::Print(TableFormatterBase& table, std::string table_format,
                 header += pkey.c_str();
               }
             }
+          } else if (formattags["avg"] == "stat.statfs.filled") {
+            // Handle filled avg seperately!
+            if (!outdepth) {
+              auto used_bytes = SumLongLong("stat.statfs.usedbytes", false);
+              auto capacity = SumLongLong("stat.statfs.capacity", false);
+              double filled = capacity == 0 ? 0 : (double)used_bytes/capacity * 100;
+              table_data.back().push_back(TableCell(filled, format, unit));
+            } else {
+              auto used_bytes = (*longStats["stat.statfs.usedbytes"]->getSums())[l];
+              auto capacity = (*longStats["stat.statfs.capacity"]->getSums())[l];
+              double filled = capacity == 0 ? 0 : (double)used_bytes/capacity * 100;
+              table_data.back().push_back(TableCell(filled, format, unit));
+            }
+
+            XrdOucString pkey = formattags["avg"].c_str();
+
+            if ((format.find("o") == std::string::npos)) {
+              pkey.replace("stat.statfs.", "");
+              pkey.replace("stat.", "");
+              pkey.replace("cfg.", "");
+              if (!formattags.count("tag")) {
+                header = "avg(";
+                header += pkey.c_str();
+                header += ")";
+              } else {
+                header = formattags["tag"].c_str();
+              }
+            } else { //for monitoring output
+              header = "avg.";
+              header += pkey.c_str();
+            }
           } else { // If not geotag special case
             if (!outdepth) {
               table_data.back().push_back(
