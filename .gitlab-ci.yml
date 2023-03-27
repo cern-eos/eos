@@ -307,6 +307,7 @@ build_ubuntu_jammy:
   only:
     - schedules
     - tags
+    - ubuntu
 
 build_ubuntu_focal:
   image: ubuntu:focal
@@ -316,6 +317,7 @@ build_ubuntu_focal:
   only:
     - schedules
     - tags
+    - ubuntu
 
 .build_fedora-template: &build_fedora-template_definition
   stage: build:rpm
