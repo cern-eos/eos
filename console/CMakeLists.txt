@@ -29,7 +29,6 @@ add_library(EosConsoleHelpers-Objects OBJECT
   commands/helpers/FsHelper.cc      commands/helpers/FsHelper.hh
   commands/helpers/RecycleHelper.cc commands/helpers/RecycleHelper.hh
   commands/helpers/FsckHelper.cc    commands/helpers/FsckHelper.hh
-  commands/helpers/NewfindHelper.cc commands/helpers/NewfindHelper.hh
   commands/helpers/NodeHelper.cc    commands/helpers/NodeHelper.hh
   commands/helpers/TokenHelper.cc   commands/helpers/TokenHelper.hh)
 
@@ -39,7 +38,8 @@ target_link_libraries(EosConsoleHelpers-Objects PUBLIC
   ZMQ::ZMQ
   OpenSSL::SSL
   GOOGLE::SPARSEHASH
-  XROOTD::UTILS)
+  XROOTD::UTILS
+  XROOTD::POSIX)
 
 set_target_properties(EosConsoleHelpers-Objects PROPERTIES
   POSITION_INDEPENDENT_CODE TRUE)
@@ -49,6 +49,7 @@ add_library(EosConsoleCommands-Objects OBJECT
   ConsolePipe.cc  ConsolePipe.hh
   ConsoleCompletion.cc ConsoleCompletion.hh
   RegexUtil.cc RegexUtil.hh
+  commands/helpers/NewfindHelper.cc commands/helpers/NewfindHelper.hh
   commands/helpers/AclHelper.cc     commands/helpers/AclHelper.hh
   commands/HealthCommand.cc         commands/HealthCommand.hh
   commands/com_accounting.cc

@@ -52,17 +52,20 @@ com_protonewfind(char* arg)
     auto path = argStr.substr(xrootAt);
     // remove " from the path
     path.erase(std::remove(path.begin(), path.end(), '"'), path.end());
-    return find.FindXroot(path);
+    global_retc = find.FindXroot(path);
+    return global_retc;
   } else if (fileAt != std::string::npos) {
     auto path = argStr.substr(fileAt);
     // remove " from the path
     path.erase(std::remove(path.begin(), path.end(), '"'), path.end());
-    return find.FindXroot(path);
+    global_retc = find.FindXroot(path);
+    return global_retc;
   } else if (as3At != std::string::npos) {
     auto path = argStr.substr(as3At);
     // remove " from the path
     path.erase(std::remove(path.begin(), path.end(), '"'), path.end());
-    return find.FindAs3(path);
+    global_retc = find.FindAs3(path);
+    return global_retc;
   }
 
   if (!find.ParseCommand(arg)) {
@@ -73,7 +76,6 @@ com_protonewfind(char* arg)
 
   global_retc = find.Execute();
   return global_retc;
-
 }
 
 void com_newfind_help()

@@ -21,14 +21,12 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-/*----------------------------------------------------------------------------*/
 #include "console/ConsoleMain.hh"
 #include "console/commands/helpers/NewfindHelper.hh"
 #include "common/StringTokenizer.hh"
 #include "common/StringConversion.hh"
 #include "XrdPosix/XrdPosixXrootd.hh"
 #include "XrdOuc/XrdOucEnv.hh"
-/*----------------------------------------------------------------------------*/
 
 //------------------------------------------------------------------------------
 // Parse command line input
@@ -96,6 +94,7 @@ NewfindHelper::ParseCommand(const char* arg)
       if (!subtokenizer.NextToken(token)) {
         return false;
       }
+
       find->set_format(token);
     } else if (s1 == "--xurl") {
       find->set_xurl(true);
@@ -107,9 +106,11 @@ NewfindHelper::ParseCommand(const char* arg)
       find->set_mixedgroups(true);
     } else if (s1 == "-uid") {
       find->set_searchuid(true);
+
       if (!subtokenizer.NextToken(token)) {
         return false;
       }
+
       try {
         find->set_uid(std::stoul(token));
       } catch (std::invalid_argument& error) {
@@ -117,9 +118,11 @@ NewfindHelper::ParseCommand(const char* arg)
       }
     } else if (s1 == "-nuid") {
       find->set_searchnotuid(true);
+
       if (!subtokenizer.NextToken(token)) {
         return false;
       }
+
       try {
         find->set_notuid(std::stoul(token));
       } catch (std::invalid_argument& error) {
@@ -127,9 +130,11 @@ NewfindHelper::ParseCommand(const char* arg)
       }
     } else if (s1 == "-gid") {
       find->set_searchgid(true);
+
       if (!subtokenizer.NextToken(token)) {
         return false;
       }
+
       try {
         find->set_gid(std::stoul(token));
       } catch (std::invalid_argument& error) {
@@ -137,9 +142,11 @@ NewfindHelper::ParseCommand(const char* arg)
       }
     } else if (s1 == "-ngid") {
       find->set_searchnotgid(true);
+
       if (!subtokenizer.NextToken(token)) {
         return false;
       }
+
       try {
         find->set_notgid(std::stoul(token));
       } catch (std::invalid_argument& error) {
@@ -147,26 +154,35 @@ NewfindHelper::ParseCommand(const char* arg)
       }
     } else if (s1 == "-flag") {
       find->set_searchpermission(true);
+
       if (!subtokenizer.NextToken(token)) {
         return false;
       }
-      if (token.length() != 3 || token.find_first_not_of("01234567") != std::string::npos) {
+
+      if (token.length() != 3 ||
+          token.find_first_not_of("01234567") != std::string::npos) {
         return false;
       }
+
       find->set_permission(token);
     } else if (s1 == "-nflag") {
       find->set_searchnotpermission(true);
+
       if (!subtokenizer.NextToken(token)) {
         return false;
       }
-      if (token.length() != 3 || token.find_first_not_of("01234567") != std::string::npos) {
+
+      if (token.length() != 3 ||
+          token.find_first_not_of("01234567") != std::string::npos) {
         return false;
       }
+
       find->set_notpermission(token);
     } else if (s1 == "-x") {
       if (!subtokenizer.NextToken(token)) {
         return false;
       }
+
       if (token.length() > 0 && token.find('=') != std::string::npos &&
           token.find('&') == std::string::npos) {
         auto key = token;
@@ -182,6 +198,7 @@ NewfindHelper::ParseCommand(const char* arg)
       if (!subtokenizer.NextToken(token)) {
         return false;
       }
+
       if (token.length() > 0) {
         try {
           find->set_maxdepth(std::stoul(token));
@@ -207,7 +224,8 @@ NewfindHelper::ParseCommand(const char* arg)
       } else {
         return false;
       }
-    // @todo drop "-name" sometime later
+
+      // @todo drop "-name" sometime later
     } else if (s1 == "--name" || s1 == "-name") {
       std::string filematch = subtokenizer.GetToken();
 
@@ -324,16 +342,14 @@ NewfindHelper::FindXroot(std::string path)
 
   if (path == "/") {
     std::cerr << "error: I won't do a find on '/'" << std::endl;
-    global_retc = EINVAL;
-    return (0);
+    return EINVAL;
   }
 
   const char* v = nullptr;
 
   if (!(v = eos::common::StringConversion::ParseUrl(path.c_str(), protocol,
             hostport))) {
-    global_retc = EINVAL;
-    return (0);
+    return EINVAL;
   }
 
   sPath = v;
@@ -485,8 +501,7 @@ NewfindHelper::FindAs3(std::string path)
     std::cerr <<
               "error: you have to set the S3 environment variables S3_ACCESS_KEY_ID | S3_ACCESS_ID, S3_HOSTNAME (or use a URI), S3_SECRET_ACCESS_KEY | S3_ACCESS_KEY"
               << std::endl;
-    global_retc = EINVAL;
-    return (0);
+    return EINVAL;
   }
 
   XrdOucString s3env;
@@ -520,8 +535,7 @@ NewfindHelper::FindAs3(std::string path)
   if ((!bucket.length()) || (bucket.find("*") != STR_NPOS)) {
     std::cerr << "error: no bucket specified or wildcard in bucket name!" <<
               std::endl;
-    global_retc = EINVAL;
-    return (0);
+    return EINVAL;
   }
 
   cmd += bucket.c_str();
