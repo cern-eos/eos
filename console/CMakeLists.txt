@@ -136,7 +136,9 @@ add_library(EosConsoleCommands-Objects OBJECT
 target_link_libraries(EosConsoleCommands-Objects PUBLIC
   EosConsoleHelpers-Objects
   READLINE::READLINE
-  XROOTD::UTILS)
+  XROOTD::UTILS
+  stdc++fs
+  )
 
 set_target_properties(EosConsoleCommands-Objects PROPERTIES
   POSITION_INDEPENDENT_CODE TRUE)
