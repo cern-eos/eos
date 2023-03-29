@@ -371,6 +371,73 @@ XrdMgmOfsFile::GetApplicationName(XrdOucEnv* open_opaque,
   return app_name;
 }
 
+//------------------------------------------------------------------------------
+// Get POSIX open flags from the given XRootD open mode
+//------------------------------------------------------------------------------
+int
+XrdMgmOfsFile::GetPosixOpenFlags(XrdSfsFileOpenMode open_mode)
+{
+  int open_flags = 0;
+
+  if (open_mode & SFS_O_CREAT) {
+    open_mode = SFS_O_CREAT;
+  } else if (open_mode & SFS_O_TRUNC) {
+    open_mode = SFS_O_TRUNC;
+  }
+
+  switch (open_mode & (SFS_O_RDONLY | SFS_O_WRONLY | SFS_O_RDWR |
+                       SFS_O_CREAT | SFS_O_TRUNC)) {
+  case SFS_O_CREAT:
+    open_flags = O_CREAT | O_EXCL | O_RDWR;
+    break;
+
+  case SFS_O_TRUNC:
+    open_flags = O_CREAT | O_TRUNC | O_RDWR;
+    break;
+
+  case SFS_O_RDONLY:
+    open_flags = O_RDONLY;
+    break;
+
+  case SFS_O_WRONLY:
+    open_flags = O_WRONLY;
+    break;
+
+  case SFS_O_RDWR:
+    open_flags = O_RDWR;
+    break;
+
+  default:
+    open_flags = O_RDONLY;
+    break;
+  }
+
+  return open_flags;
+}
+
+//------------------------------------------------------------------------------
+// Get XRootD acceess operation bases on the given open flags
+//------------------------------------------------------------------------------
+Access_Operation
+XrdMgmOfsFile::GetXrdAccessOpeation(int open_flags)
+{
+  Access_Operation acc_op;
+
+  if (open_flags & O_CREAT) {
+    acc_op = AOP_Create;
+  } else {
+    if (open_flags == O_RDONLY) {
+      acc_op = AOP_Read;
+    } else {
+      acc_op = AOP_Update;
+    }
+  }
+
+  return acc_op;
+}
+
+
+
 /*----------------------------------------------------------------------------*/
 /*
  * @brief open a given file with the indicated mode
@@ -406,6 +473,10 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
   XrdOucString spath = inpath;
   XrdOucString sinfo = ininfo;
   SetLogId(logId, tident);
+  int open_flags = GetPosixOpenFlags(open_mode);
+  bool isRW = ((open_flags == O_RDONLY) ? false : true);
+  bool isRewrite = ((open_flags & O_CREAT) ? false : true);
+  Access_Operation acc_op = GetXrdAccessOpeation(open_flags);
   {
     EXEC_TIMING_BEGIN("IdMap");
 
@@ -437,9 +508,6 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
                 "open - you specified a directory as target file name", path);
   }
 
-  int open_flags = 0;
-  bool isRW = false;
-  bool isRewrite = false;
   bool isCreation = false;
   // flag indicating parallel IO access
   bool isPio = false;
@@ -471,47 +539,6 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
   uint64_t fmdsize = 0;
   // io priority string
   std::string ioPriority;
-
-  // Set the actual open mode and find mode
-  if (open_mode & SFS_O_CREAT) {
-    open_mode = SFS_O_CREAT;
-  } else if (open_mode & SFS_O_TRUNC) {
-    open_mode = SFS_O_TRUNC;
-  }
-
-  switch (open_mode & (SFS_O_RDONLY | SFS_O_WRONLY | SFS_O_RDWR |
-                       SFS_O_CREAT | SFS_O_TRUNC)) {
-  case SFS_O_CREAT:
-    open_flags = O_CREAT | O_EXCL | O_RDWR;
-    isRW = true;
-    break;
-
-  case SFS_O_TRUNC:
-    open_flags = O_CREAT | O_TRUNC | O_RDWR;
-    isRW = true;
-    break;
-
-  case SFS_O_RDONLY:
-    open_flags = O_RDONLY;
-    isRW = false;
-    break;
-
-  case SFS_O_WRONLY:
-    open_flags = O_WRONLY;
-    isRW = true;
-    break;
-
-  case SFS_O_RDWR:
-    open_flags = O_RDWR;
-    isRW = true;
-    break;
-
-  default:
-    open_flags = O_RDONLY;
-    isRW = false;
-    break;
-  }
-
   XrdOucString pinfo = (ininfo ? ininfo : "");
   eos::common::StringConversion::MaskTag(pinfo, "cap.msg");
   eos::common::StringConversion::MaskTag(pinfo, "cap.sym");
@@ -821,15 +848,8 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
   }
 
   COMMONTIMING("authorize", &tm);
-
-  if (open_flags & O_CREAT) {
-    AUTHORIZE(client, openOpaque, AOP_Create, "create", inpath, error);
-  } else {
-    AUTHORIZE(client, openOpaque, (isRW ? AOP_Update : AOP_Read), "open",
-              inpath, error);
-    isRewrite = true;
-  }
-
+  AUTHORIZE(client, openOpaque, acc_op,
+            ((acc_op == AOP_Create) ? "create" : "open"), inpath, error);
   COMMONTIMING("authorized", &tm);
   eos::common::Path cPath(path);
   // indicate the scope for a possible token
@@ -968,7 +988,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
             errno = ENOENT;
           }
         } else {
-          fileId = fmd->getId();
+          mFid = fmd->getId();
           fmdlid = fmd->getLayoutId();
           cid = fmd->getContainerId();
           fmdsize = fmd->getSize();
@@ -1229,7 +1249,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
           errno = 0;
         } else {
           // handle the versioning for a specific file ID
-          if (gOFS->Version(fileId, error, vid, versioning)) {
+          if (gOFS->Version(mFid, error, vid, versioning)) {
             return Emsg(epname, error, errno, "version file", path);
           }
         }
@@ -1365,7 +1385,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
               gOFS->eosView->updateFileStore(ref_fmd.get());
             }
 
-            fileId = fmd->getId();
+            mFid = fmd->getId();
             fmdlid = fmd->getLayoutId();
             // oc chunks start with flags=0
             cid = fmd->getContainerId();
@@ -1455,7 +1475,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
   // flush synchronization logic, don't open a file which is currently flushing
   // ---------------------------------------------------------------------------
   if (gOFS->zMQ->gFuseServer.Flushs().hasFlush(eos::common::FileId::FidToInode(
-        fileId))) {
+        mFid))) {
     // the first 255ms are covered inside hasFlush, otherwise we stall clients for a sec
     return gOFS->Stall(error, 1, "file is currently being flushed");
   }
@@ -1801,7 +1821,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
   if (!isRW && !fmd->getSize() && (!isFuse || isAtomicName)) {
     if (isAtomicName || (!LayoutId::IsRain(layoutId))) {
       eos_info("msg=\"0-size file read from the MGM\" path=%s", path);
-      isZeroSizeFile = true;
+      mIsZeroSize = true;
       return SFS_OK;
     }
   }
@@ -1840,7 +1860,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
   }
 
   if (hex_fid.empty()) {
-    hex_fid = eos::common::FileId::Fid2Hex(fileId);
+    hex_fid = eos::common::FileId::Fid2Hex(mFid);
   }
 
   capability += hex_fid.c_str();
@@ -2005,7 +2025,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
       gOFS->MgmStats.Add("OpenFileOffline", vid.uid, vid.gid, 1);
       // Fire and forget a sync::offline workflow event
       errno = 0;
-      workflow.SetFile(path, fileId);
+      workflow.SetFile(path, mFid);
       const auto workflowType = openOpaque->Get("eos.workflow") != nullptr ?
                                 openOpaque->Get("eos.workflow") : "default";
       std::string workflowErrorMsg;
@@ -2366,7 +2386,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
 
           // -------------------------------------------------------------------
         }
-        isZeroSizeFile = true;
+        mIsZeroSize = true;
       }
 
       if (isFuse && !isCreation) {
@@ -2466,7 +2486,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
         // 0-size files can be read from the MGM if this is not FUSE access and
         // also if this is not a rain file
         if (!isFuse && !LayoutId::IsRain(layoutId)) {
-          isZeroSizeFile = true;
+          mIsZeroSize = true;
           return SFS_OK;
         }
       }
@@ -2476,9 +2496,9 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
   // If this is a RAIN layout, we want a nice round-robin for the entry
   // server since it  has the burden of encoding and traffic fan-out
   if (isRW && LayoutId::IsRain(layoutId)) {
-    fsIndex = fileId % selectedfs.size();
+    fsIndex = mFid % selectedfs.size();
     eos_static_info("selecting entry-server fsIndex=%lu fsid=%lu fxid=%lx mod=%lu",
-                    fsIndex, selectedfs[fsIndex], fileId, selectedfs.size());
+                    fsIndex, selectedfs[fsIndex], mFid, selectedfs.size());
   }
 
   // Get the redirection host from the selected entry in the vector
@@ -2655,7 +2675,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
     capability += "&mgm.repairread=1";
   }
 
-  if (isZeroSizeFile) {
+  if (mIsZeroSize) {
     capability += "&mgm.zerosize=1";
   }
 
@@ -3092,7 +3112,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
   // Also trigger synchronous create workflow event if it's defined
   if (isCreation) {
     errno = 0;
-    workflow.SetFile(path, fileId);
+    workflow.SetFile(path, mFid);
     auto workflowType = openOpaque->Get("eos.workflow") != nullptr ?
                         openOpaque->Get("eos.workflow") : "default";
     std::string errorMsg;
@@ -3121,7 +3141,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
   }
 
   // add workflow cgis, has to come after create workflow
-  workflow.SetFile(path, fileId);
+  workflow.SetFile(path, mFid);
 
   if (isRW) {
     redirectionhost += workflow.getCGICloseW(currentWorkflow.c_str(), vid).c_str();
@@ -3133,18 +3153,18 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
   if (gOFS->mTapeEnabled) {
     try {
       eos::common::RWMutexReadLock tgc_ns_rd_lock(gOFS->eosViewRWMutex);
-      const auto tgcFmd = gOFS->eosFileService->getFileMD(fileId);
+      const auto tgcFmd = gOFS->eosFileService->getFileMD(mFid);
       const bool isATapeFile = tgcFmd->hasAttribute("sys.archive.file_id");
       tgc_ns_rd_lock.Release();
 
       if (isATapeFile) {
         if (isRW) {
           const std::string tgcSpace = nullptr != space.c_str() ? space.c_str() : "";
-          gOFS->mTapeGc->fileOpenedForWrite(tgcSpace, fileId);
+          gOFS->mTapeGc->fileOpenedForWrite(tgcSpace, mFid);
         } else {
           const auto fsId = getFirstDiskLocation(selectedfs);
           const std::string tgcSpace = FsView::gFsView.mIdView.lookupSpaceByID(fsId);
-          gOFS->mTapeGc->fileOpenedForRead(tgcSpace, fileId);
+          gOFS->mTapeGc->fileOpenedForRead(tgcSpace, mFid);
         }
       }
     } catch (...) {
@@ -3209,7 +3229,7 @@ XrdMgmOfsFile::read(XrdSfsFileOffset offset,
 {
   static const char* epname = "read";
 
-  if (isZeroSizeFile) {
+  if (mIsZeroSize) {
     return 0;
   }
 
@@ -3279,7 +3299,7 @@ XrdMgmOfsFile::stat(struct stat* buf)
 {
   static const char* epname = "stat";
 
-  if (isZeroSizeFile) {
+  if (mIsZeroSize) {
     memset(buf, 0, sizeof(struct stat));
     return 0;
   }

@@ -54,6 +54,7 @@
 #include "mgm/proc/IProcCommand.hh"
 #include "XrdOuc/XrdOucErrInfo.hh"
 #include "XrdSfs/XrdSfsInterface.hh"
+#include "XrdAcc/XrdAccAuthorize.hh"
 
 USE_EOSMGMNAMESPACE
 
@@ -71,15 +72,9 @@ public:
   //! Constructor
   //----------------------------------------------------------------------------
   XrdMgmOfsFile(char* user = 0, int MonID = 0):
-    XrdSfsFile(user, MonID), eos::common::LogId(), mProcCmd(nullptr),
-    mEosObfuscate(-1)
+    XrdSfsFile(user, MonID), eos::common::LogId()
   {
-    oh = 0;
-    openOpaque = 0;
     vid = eos::common::VirtualIdentity::Nobody();
-    fileId = 0;
-    fmd.reset();
-    isZeroSizeFile = false;
   }
 
   //----------------------------------------------------------------------------
@@ -345,7 +340,6 @@ public:
   int Emsg(const char*, XrdOucErrInfo&, int, const char* x,
            const char* y = "");
 
-  bool isZeroSizeFile; //< true if the file has 0 size
 
 #ifdef IN_TEST_HARNESS
 public:
@@ -414,16 +408,37 @@ private:
   static const std::string
   GetApplicationName(XrdOucEnv* open_opaque, const XrdSecEntity* client);
 
-  int oh; //< file handle
+  //----------------------------------------------------------------------------
+  //! Get POSIX open flags from the given XRootD open mode
+  //!
+  //! @param open_mode XRootD open mode see XrdSfsInterface.hh
+  //!
+  //! @return POSIX open flags see man 2 open
+  //----------------------------------------------------------------------------
+  static int
+  GetPosixOpenFlags(XrdSfsFileOpenMode open_mode);
+
+  //----------------------------------------------------------------------------
+  //! Get XRootD acceess operation bases on the given open flags
+  //!
+  //! @param open_flags POSIX open flags
+  //!
+  //! @return access opeation type see XrdAccAuthorization.hh
+  //----------------------------------------------------------------------------
+  static Access_Operation
+  GetXrdAccessOpeation(int open_flags);
+
+  int oh {0}; //< file handle
   std::string fileName; //< file name
-  XrdOucEnv* openOpaque; //< opaque info given with 'open'
-  unsigned long fileId; //< file id
-  std::unique_ptr<IProcCommand> mProcCmd; // proc command object
-  std::shared_ptr<eos::IFileMD> fmd; //< file meta data object
+  XrdOucEnv* openOpaque {nullptr}; //< opaque info given with 'open'
+  unsigned long mFid {0ull}; //< Namespace file identifier
+  std::unique_ptr<IProcCommand> mProcCmd {nullptr}; // Proc command object
+  std::shared_ptr<eos::IFileMD> fmd {nullptr}; //< File meta data object
   eos::common::VirtualIdentity vid; //< virtual ID of the client
   std::string mEosKey; ///< File specific encryption key
   //! Flag to toggle obfuscation (-1 take directory default, 0 disable, 1 enable)
-  int mEosObfuscate;
+  int mEosObfuscate { -1};
+  bool mIsZeroSize {false}; //< Mark if file is zero size
 };
 
 #endif
