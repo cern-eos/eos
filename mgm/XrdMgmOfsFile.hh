@@ -54,7 +54,6 @@
 #include "mgm/proc/IProcCommand.hh"
 #include "XrdOuc/XrdOucErrInfo.hh"
 #include "XrdSfs/XrdSfsInterface.hh"
-#include "XrdAcc/XrdAccAuthorize.hh"
 
 USE_EOSMGMNAMESPACE
 

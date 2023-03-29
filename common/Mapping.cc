@@ -164,34 +164,12 @@ Mapping::Reset()
 }
 
 //------------------------------------------------------------------------------
-// Do a "rough" mapping between HTTP verbs and access operation types
-// @todo(esindril): this should be improved and used when deciding what type
-// of operation the current access requires
-//------------------------------------------------------------------------------
-Access_Operation MapHttpVerbToAOP(const std::string& http_verb)
-{
-  Access_Operation op = AOP_Any;
-
-  if (http_verb == "GET") {
-    op = AOP_Read;
-  } else if (http_verb == "PUT") {
-    op = AOP_Create;
-  } else if (http_verb == "DELETE") {
-    op = AOP_Delete;
-  } else {
-    op  = AOP_Stat;
-  }
-
-  return op;
-}
-
-//------------------------------------------------------------------------------
 // Map a client to its virtual identity
 //------------------------------------------------------------------------------
 void
 Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
-               VirtualIdentity& vid, XrdAccAuthorize* authz_obj, std::string path,
-               bool log)
+               VirtualIdentity& vid, XrdAccAuthorize* authz_obj,
+               Access_Operation acc_op, std::string path, bool log)
 {
   if (!client) {
     return;
@@ -272,11 +250,8 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
 
     // Handle bearer token authorization
     if (authz_obj && !authz.empty() && (authz.find("Bearer%20") == 0)) {
-      // @todo(esindril) this needs to be re-enabled!
-      // Access_Operation oper = MapHttpVerbToAOP(req.verb);
-      Access_Operation oper = AOP_Stat;
-
-      if (authz_obj->Access(client, path.c_str(), oper, &Env) == XrdAccPriv_None) {
+      if (authz_obj->Access(client, path.c_str(), acc_op, &Env) ==
+          XrdAccPriv_None) {
         eos_static_err("msg=\"failed token authz\" path=\"%s\" opaque=\"%s\"",
                        path.c_str(), env);
         return;
