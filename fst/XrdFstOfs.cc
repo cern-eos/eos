@@ -823,23 +823,8 @@ XrdFstOfs::Configure(XrdSysError& Eroute, XrdOucEnv* envP)
              gConfig.FstDefaultReceiverQueue.c_str(), "");
   // Set our Eroute for XrdMqMessage
   XrdMqMessage::Eroute = OfsEroute;
-  // Enable the shared object notification queue
-  ObjectManager.mEnableQueue = true;
-  ObjectManager.SetAutoReplyQueue("/eos/*/mgm");
-  ObjectManager.SetDebug(false);
-
-  // Enable experimental MQ on QDB? Note that any functionality not supported
-  // will fallback to regular MQ, which is still required.
-  if (getenv("EOS_USE_MQ_ON_QDB")) {
-    eos_static_info("MQ on QDB - setting up SharedManager..");
-    mQSOM.reset(new qclient::SharedManager(mQdbContactDetails.members,
-                                           mQdbContactDetails.constructSubscriptionOptions()));
-  }
-
-  mMessagingRealm.reset(new mq::MessagingRealm(&ObjectManager, &ObjectNotifier,
-                        &XrdMqMessaging::gMessageClient, mQSOM.get()));
-  // Setup auth dir
   {
+    // Setup auth dir
     XrdOucString scmd = "mkdir -p ";
     scmd += gConfig.FstAuthDir;
     scmd += " ; chown -R daemon ";
@@ -862,6 +847,51 @@ XrdFstOfs::Configure(XrdSysError& Eroute, XrdOucEnv* envP)
     Eroute.Say("=====> fstofs.authdir : ",
                gConfig.FstAuthDir.c_str());
   }
+  // Enable the shared object notification queue
+  ObjectManager.mEnableQueue = true;
+  ObjectManager.SetAutoReplyQueue("/eos/*/mgm");
+  ObjectManager.SetDebug(false);
+
+  // Enable experimental MQ on QDB? Note that any functionality not supported
+  // will fallback to regular MQ, which is still required.
+  if (getenv("EOS_USE_MQ_ON_QDB")) {
+    eos_static_info("MQ on QDB - setting up SharedManager..");
+    mQSOM.reset(new qclient::SharedManager(mQdbContactDetails.members,
+                                           mQdbContactDetails.constructSubscriptionOptions()));
+  }
+
+  mMessagingRealm.reset(new mq::MessagingRealm(&ObjectManager, &ObjectNotifier,
+                        &XrdMqMessaging::gMessageClient, mQSOM.get()));
+  ObjectNotifier.SetShareObjectManager(&ObjectManager);
+
+  if (!ObjectNotifier.Start()) {
+    eos_crit("%s", "msg=\"error starting the shared object change notifier\"");
+    return 1;
+  }
+
+  if (!mMessagingRealm->haveQDB()) {
+    // Create the specific listener class
+    Messaging = new eos::fst::Messaging(gConfig.FstOfsBrokerUrl.c_str(),
+                                        gConfig.FstDefaultReceiverQueue.c_str(),
+                                        false, false, &ObjectManager);
+
+    if (!Messaging) {
+      Eroute.Emsg("Config", "cannot allocate messaging object");
+      NoGo = 1;
+      return NoGo;
+    }
+
+    Messaging->SetLogId("FstOfsMessaging", "<service>");
+
+    if (!Messaging->StartListenerThread() || Messaging->IsZombie()) {
+      Eroute.Emsg("Config", "cannot create messaging object(thread)");
+      NoGo = 1;
+      return NoGo;
+    }
+
+    RequestBroadcasts();
+  }
+
   // Attach Storage to the meta log dir
   Storage = eos::fst::Storage::Create(
               gConfig.FstMetaLogDir.c_str());
@@ -874,33 +904,6 @@ XrdFstOfs::Configure(XrdSysError& Eroute, XrdOucEnv* envP)
     return 1;
   }
 
-  ObjectNotifier.SetShareObjectManager(&ObjectManager);
-
-  if (!ObjectNotifier.Start()) {
-    eos_crit("error starting the shared object change notifier");
-  }
-
-  // Create the specific listener class
-  Messaging = new eos::fst::Messaging(
-    gConfig.FstOfsBrokerUrl.c_str(),
-    gConfig.FstDefaultReceiverQueue.c_str(),
-    false, false, &ObjectManager);
-
-  if (!Messaging) {
-    Eroute.Emsg("Config", "cannot allocate messaging object");
-    NoGo = 1;
-    return NoGo;
-  }
-
-  Messaging->SetLogId("FstOfsMessaging", "<service>");
-
-  if (!Messaging->StartListenerThread() || Messaging->IsZombie()) {
-    Eroute.Emsg("Config", "cannot create messaging object(thread)");
-    NoGo = 1;
-    return NoGo;
-  }
-
-  RequestBroadcasts();
   // Start dumper thread
   XrdOucString dumperfile = gConfig.FstMetaLogDir;
   dumperfile += "so.fst.dump.";
