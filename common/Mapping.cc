@@ -104,14 +104,9 @@ static gid_t g_nobody_gid = 99;
 
 // flag to indicate whether the mapping is initialized
 std::once_flag g_cache_map_init;
-/*----------------------------------------------------------------------------*/
-/**
- * Initialize Google maps
- *
- */
-
-/*----------------------------------------------------------------------------*/
-
+//------------------------------------------------------------------------------
+// Initialize static maps
+//------------------------------------------------------------------------------
 void
 Mapping::Init()
 {
@@ -190,24 +185,9 @@ Access_Operation MapHttpVerbToAOP(const std::string& http_verb)
   return op;
 }
 
-/*----------------------------------------------------------------------------*/
-/**
- * Expire Active client entries which have not been used since interval
- *
- * @param interval seconds of idle time for expiration
- */
-
-/*----------------------------------------------------------------------------*/
-/**
- * Map a client to its virtual identity
- *
- * @param client xrootd client authenticatino object
- * @param env opaque information containing role selection like 'eos.ruid' and 'eos.rgid'
- * @param tident trace identifier of the client
- * @param vid returned virtual identity
- */
-
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Map a client to its virtual identity
+//------------------------------------------------------------------------------
 void
 Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
                VirtualIdentity& vid, XrdAccAuthorize* authz_obj, std::string path,
@@ -253,20 +233,19 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
   // SSS and GRPC might contain a key embedded in the endorsements field
   if ((vid.prot == "sss") || (vid.prot == "grpc") || (vid.prot == "https")) {
     vid.key = (client->endorsements ? client->endorsements : "");
-    eos_static_debug("key %s", vid.key.c_str());
+    eos_static_debug("msg=\"client endorsement\" key=\"%s\"", vid.key.c_str());
   }
 
   // KRB5 mapping
   if ((vid.prot == "krb5")) {
     eos_static_debug("%s", "msg=\"krb5 mapping\"");
 
+    // Use physical mapping for kerberos names
     if (gVirtualUidMap.count(g_krb_uid_key)) {
-      // use physical mapping for kerberos names
       Mapping::getPhysicalUids(client->name, vid);
     }
 
     if (gVirtualGidMap.count(g_krb_gid_key)) {
-      // use physical mapping for kerberos names
       Mapping::getPhysicalGids(client->name, vid);
     }
   }
@@ -275,13 +254,12 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
   if ((vid.prot == "gsi")) {
     eos_static_debug("%s", "msg=\"gsi mapping\"");
 
+    // Use physical mapping for gsi names
     if (gVirtualUidMap.count(g_gsi_uid_key)) {
-      // use physical mapping for gsi names
       Mapping::getPhysicalUids(client->name, vid);
     }
 
     if (gVirtualGidMap.count(g_gsi_gid_key)) {
-      // use physical mapping for gsi names
       Mapping::getPhysicalGids(client->name, vid);
     }
 
