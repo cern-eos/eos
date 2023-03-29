@@ -372,14 +372,6 @@ XrdMgmOfsFile::GetApplicationName(XrdOucEnv* open_opaque,
 }
 
 /*----------------------------------------------------------------------------*/
-int
-XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
-                    const char* inpath,
-                    XrdSfsFileOpenMode open_mode,
-                    mode_t Mode,
-                    const XrdSecEntity* client,
-                    const char* ininfo)
-/*----------------------------------------------------------------------------*/
 /*
  * @brief open a given file with the indicated mode
  *
@@ -395,6 +387,13 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
  *
  */
 /*----------------------------------------------------------------------------*/
+int
+XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
+                    const char* inpath,
+                    XrdSfsFileOpenMode open_mode,
+                    mode_t Mode,
+                    const XrdSecEntity* client,
+                    const char* ininfo)
 {
   using eos::common::LayoutId;
   static const char* epname = "open";
@@ -438,9 +437,9 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
                 "open - you specified a directory as target file name", path);
   }
 
-  int open_flag = 0;
-  int isRW = 0;
-  int isRewrite = 0;
+  int open_flags = 0;
+  bool isRW = false;
+  bool isRewrite = false;
   bool isCreation = false;
   // flag indicating parallel IO access
   bool isPio = false;
@@ -472,10 +471,8 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
   uint64_t fmdsize = 0;
   // io priority string
   std::string ioPriority;
-  int crOpts = (Mode & SFS_O_MKPTH) ? XRDOSS_mkpath : 0;
 
   // Set the actual open mode and find mode
-  //
   if (open_mode & SFS_O_CREAT) {
     open_mode = SFS_O_CREAT;
   } else if (open_mode & SFS_O_TRUNC) {
@@ -485,34 +482,33 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
   switch (open_mode & (SFS_O_RDONLY | SFS_O_WRONLY | SFS_O_RDWR |
                        SFS_O_CREAT | SFS_O_TRUNC)) {
   case SFS_O_CREAT:
-    open_flag = O_RDWR | O_CREAT | O_EXCL;
-    crOpts |= XRDOSS_new;
-    isRW = 1;
+    open_flags = O_CREAT | O_EXCL | O_RDWR;
+    isRW = true;
     break;
 
   case SFS_O_TRUNC:
-    open_flag |= O_RDWR | O_CREAT | O_TRUNC;
-    isRW = 1;
+    open_flags = O_CREAT | O_TRUNC | O_RDWR;
+    isRW = true;
     break;
 
   case SFS_O_RDONLY:
-    open_flag = O_RDONLY;
-    isRW = 0;
+    open_flags = O_RDONLY;
+    isRW = false;
     break;
 
   case SFS_O_WRONLY:
-    open_flag = O_WRONLY;
-    isRW = 1;
+    open_flags = O_WRONLY;
+    isRW = true;
     break;
 
   case SFS_O_RDWR:
-    open_flag = O_RDWR;
-    isRW = 1;
+    open_flags = O_RDWR;
+    isRW = true;
     break;
 
   default:
-    open_flag = O_RDONLY;
-    isRW = 0;
+    open_flags = O_RDONLY;
+    isRW = false;
     break;
   }
 
@@ -751,9 +747,8 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
   int ecode = 0;
   unsigned long fmdlid = 0;
   unsigned long long cid = 0;
-  eos_debug("mode=%x create=%x truncate=%x", open_mode, SFS_O_CREAT, SFS_O_TRUNC);
 
-  // proc filter
+  // Proc filter
   if (ProcInterface::IsProcAccess(path)) {
     if (gOFS->mExtAuthz &&
         (vid.prot != "sss") &&
@@ -827,7 +822,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
 
   COMMONTIMING("authorize", &tm);
 
-  if (open_flag & O_CREAT) {
+  if (open_flags & O_CREAT) {
     AUTHORIZE(client, openOpaque, AOP_Create, "create", inpath, error);
   } else {
     AUTHORIZE(client, openOpaque, (isRW ? AOP_Update : AOP_Read), "open",
@@ -1092,7 +1087,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
 
       if (isRW) {
         // Update case - unless SFS_O_TRUNC is specified then this is a normal write
-        if (fmd && ((open_mode & SFS_O_TRUNC) == 0)) {
+        if (fmd && ((open_flags & O_TRUNC) == 0)) {
           eos_debug("CanUpdate %d CanNotUpdate %d stdpermcheck %d file uid/gid = %d/%d",
                     acl.CanUpdate(), acl.CanNotUpdate(), stdpermcheck, fmd->getCUid(),
                     fmd->getCGid());
@@ -1210,7 +1205,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
                   "you have to be a priviledged user for updates");
     }
 
-    if (!isInjection && (open_mode & SFS_O_TRUNC) && fmd) {
+    if (!isInjection && (open_flags & O_TRUNC) && fmd) {
       // check if this directory is write-once for the mapped user
       if (acl.HasAcl()) {
         if (acl.CanWriteOnce()) {
@@ -1258,7 +1253,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
         return Emsg(epname, error, errno, "inject into a non-existing file", path);
       }
 
-      if (!(fmd) && ((open_flag & O_CREAT))) {
+      if (!(fmd) && ((open_flags & O_CREAT))) {
         gOFS->MgmStats.Add("OpenWriteCreate", vid.uid, vid.gid, 1);
       } else {
         if (acl.HasAcl()) {
@@ -1282,7 +1277,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
     // write case
     // -------------------------------------------------------------------------
     if (!fmd) {
-      if (!(open_flag & O_CREAT)) {
+      if (!(open_flags & O_CREAT)) {
         // Open for write for non existing file without creation flag
         return Emsg(epname, error, ENOENT, "open file without creation flag", path);
       } else {
@@ -1307,7 +1302,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
             }
 
             // Avoid any race condition when opening for creation O_EXCL
-            if (open_flag & O_EXCL) {
+            if (open_flags & O_EXCL) {
               try {
                 fmd = gOFS->eosView->getFile(creation_path);
               } catch (eos::MDException& e1) {
@@ -1408,7 +1403,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
       }
     } else {
       // we attached to an existing file
-      if (open_flag & O_EXCL) {
+      if (open_flags & O_EXCL) {
         gOFS->MgmStats.Add("OpenFailedExists", vid.uid, vid.gid, 1);
         return Emsg(epname, error, EEXIST, "create file (O_EXCL)", path);
       }
@@ -1497,7 +1492,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
         }
 
         eos_debug("file %s cloneid %ld cloneFST %s trunc %d", path, fmd->getCloneId(),
-                  fmd->getCloneFST().c_str(), open_mode & SFS_O_TRUNC);
+                  fmd->getCloneFST().c_str(), open_flags & O_TRUNC);
         snprintf(sbuff, sizeof(sbuff), "&mgm.cloneid=%ld&mgm.cloneFST=%s", cloneId,
                  fmd->getCloneFST().c_str());
         capability += sbuff;
@@ -1689,7 +1684,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
     }
   }
 
-  if ((!isInjection) && (isCreation || (open_mode == SFS_O_TRUNC))) {
+  if ((!isInjection) && (isCreation || (open_flags & O_TRUNC))) {
     eos_info("blocksize=%llu lid=%x", LayoutId::GetBlocksize(new_lid), new_lid);
     layoutId = new_lid;
     {
@@ -1710,7 +1705,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
       // Set the layout and commit new meta data
       fmd->setLayoutId(layoutId);
 
-      if (isFuse && (open_mode == SFS_O_TRUNC)) {
+      if (isFuse && (open_flags & O_TRUNC)) {
         std::string s;
 
         try {
@@ -1952,7 +1947,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
     plctargs.selected_filesystems = &selectedfs;
     std::string spacename = space.c_str();
     plctargs.spacename = &spacename;
-    plctargs.truncate = open_mode & SFS_O_TRUNC;
+    plctargs.truncate = open_flags & O_TRUNC;
     plctargs.vid = &vid;
 
     if (!plctargs.isValid()) {
@@ -2106,7 +2101,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
         plctargs.selected_filesystems = &selectedfs;
         std::string spacename = space.c_str();
         plctargs.spacename = &spacename;
-        plctargs.truncate = open_mode & SFS_O_TRUNC;
+        plctargs.truncate = open_flags & O_TRUNC;
         plctargs.vid = &vid;
 
         if (!plctargs.isValid()) {
