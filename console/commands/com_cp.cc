@@ -134,7 +134,7 @@ const char* absolute_path(const char* path);
 bool is_dir(const char* path, Protocol protocol, struct stat* buf = NULL);
 XrdOucString process_symlink(XrdOucString path);
 const char* setup_s3_environment(XrdOucString path, XrdOucString opaque);
-const char* eos_roles_opaque();
+std::string eos_roles_opaque();
 int do_stat(const char* path, Protocol protocol, struct stat& buf);
 int check_protocol_tool(const char* path);
 Protocol get_protocol(XrdOucString path);
@@ -853,14 +853,14 @@ com_cp(char* argin)
       if ((target.protocol == Protocol::EOS) ||
           (target.protocol == Protocol::XROOT)) {
         char opaque[1024];
-        const char* roles = eos_roles_opaque();
+        std::string roles = eos_roles_opaque();
         snprintf(opaque, sizeof(opaque) - 1,
                  "%ceos.targetsize=%llu&eos.bookingsize=%llu&eos.app=%s%s%s%s",
                  (target.opaque.length()) ? '&' : '?',
                  source.size, source.size, getenv("EOSAPP") ? getenv("EOSAPP") : "eoscp",
                  atomic.c_str(),
-                 (roles) ? "&" : "",
-                 (roles) ? roles : "");
+                 roles.size() ? "&" : "",
+                 roles.size() ? roles.c_str() : "");
         dest.append(opaque);
       }
 
@@ -923,12 +923,12 @@ com_cp(char* argin)
 
     if ((source.protocol == Protocol::EOS) ||
         (source.protocol == Protocol::XROOT)) {
-      const char* roles = eos_roles_opaque();
+      std::string roles = eos_roles_opaque();
       source.name += (source.opaque.length())  ?  "&"  :  "?";
       source.name += "eos.app=";
       source.name += getenv("EOSAPP") ? getenv("EOSAPP") : "eoscp";
-      source.name += (roles)  ?  "&"  :  "";
-      source.name += (roles)  ?  roles  : "";
+      source.name += roles.size()  ?  "&"  :  "";
+      source.name += roles.size()  ?  roles.c_str()  : "";
     } else if ((source.protocol != Protocol::LOCAL) &&
                (source.protocol != Protocol::UNKNOWN)) {
       bool old_noprogress = noprogress;
@@ -1132,14 +1132,14 @@ com_cp(char* argin)
               updateok = (utimes(target_path.c_str(), times) == 0);
             } else {
               char update[1024];
-              const char* roles = eos_roles_opaque();
+              auto roles = eos_roles_opaque();
               sprintf(update, "%ceos.app=%s%s%s&mgm.pcmd=utimes"
                       "&tv1_sec=%llu&tv1_nsec=%llu"
                       "&tv2_sec=%llu&tv2_nsec=%llu",
                       (target.opaque.length()) ? '&' : '?',
                       getenv("EOSAPP") ? getenv("EOSAPP") : "eoscp",
-                      (roles) ? "&" : "",
-                      (roles) ? roles : "",
+                      roles.size() ? "&" : "",
+                      roles.size() ? roles.c_str() : "",
                       (unsigned long long) source.atime.tv_sec,
                       (unsigned long long) source.atime.tv_nsec,
                       (unsigned long long) source.mtime.tv_sec,
@@ -1470,17 +1470,19 @@ bool is_dir(const char* path, Protocol protocol, struct stat* buf)
  * Returns eos roles opaque info from the global user variables.
  * @return roles opaque info containing eos roles
  */
-const char* eos_roles_opaque()
+std::string
+eos_roles_opaque()
 {
+  std::string roles;
   if (user_role.length() && group_role.length()) {
-    XrdOucString roles = "eos.ruid=";
-    roles += user_role;
+    roles = "eos.ruid=";
+    roles += user_role.c_str();
     roles += "&eos.rgid=";
-    roles += group_role;
-    return strdup(roles.c_str());
+    roles += group_role.c_str();
+    return roles;
   }
 
-  return NULL;
+  return roles;
 }
 
 /**
@@ -1499,7 +1501,7 @@ int do_stat(const char* path, Protocol protocol, struct stat& buf)
   if (protocol == Protocol::EOS || protocol == Protocol::XROOT) {
     // Stat EOS file
     XrdOucString url = abs_path;
-    const char* roles = eos_roles_opaque();
+    std::string roles = eos_roles_opaque();
 
     // Expand '/eos/' shortcut for EOS protocol
     if (url.beginswith("/eos/")) {
@@ -1508,9 +1510,9 @@ int do_stat(const char* path, Protocol protocol, struct stat& buf)
       url += abs_path;
     }
 
-    if (roles) {
+    if (!roles.empty()) {
       url += (url.find("?") == STR_NPOS)  ?  "?"  :  "&";
-      url += eos_roles_opaque();
+      url += roles.c_str();
     }
 
     rc = XrdPosixXrootd::Stat(url.c_str(), &buf);
