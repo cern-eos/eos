@@ -152,5 +152,23 @@ void splice(C& c, C&& other)
   splice(c, std::move(other), c.end());
 }
 
+uint64_t inline next_power2(uint64_t x) {
+#if defined(__GNUC__) || defined(__clang__)
+    x = x ? x : 1;
+    return x == 1 ? 1 : 1ULL<<(64 - __builtin_clzll(x-1));
+#else
+    // https://graphics.stanford.edu/~seander/bithacks.html#RoundUpPowerOf2
+    --x;
+    x |= x >> 1;
+    x |= x >> 2;
+    x |= x >> 4;
+    x |= x >> 8;
+    x |= x >> 16;
+    ++x;
+    x += (x == 0);
+    return x;
+#endif
+}
+
 } // eos::common
 

@@ -207,3 +207,16 @@ TEST(splice, simple_vector_move_append)
   std::vector<int> expected {1, 2, 3, 4, 5, 6, 7};
   ASSERT_EQ(expected, v);
 }
+
+TEST(ContainerUtils, next_power2)
+{
+  ASSERT_EQ(eos::common::next_power2(0), 1);
+  ASSERT_EQ(eos::common::next_power2(1), 1);
+  ASSERT_EQ(eos::common::next_power2(2), 2);
+  ASSERT_EQ(eos::common::next_power2(3), 4);
+  ASSERT_EQ(eos::common::next_power2(4), 4);
+  ASSERT_EQ(eos::common::next_power2(5), 8);
+  ASSERT_EQ(eos::common::next_power2(9), 16);
+  ASSERT_EQ(eos::common::next_power2(1025), 2048);
+  ASSERT_EQ(eos::common::next_power2(0xFFFFFFFF), 0x100000000);
+}
