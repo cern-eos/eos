@@ -29,13 +29,13 @@
 #include "common/OAuth.hh"
 #include "common/VirtualIdentity.hh"
 #include "XrdOuc/XrdOucString.hh"
+#include "XrdAcc/XrdAccAuthorize.hh"
 #include <map>
 #include <set>
 #include <string>
 
 //! Forward declaration
 class XrdSecEntity;
-class XrdAccAuthorize;
 
 EOSCOMMONNAMESPACE_BEGIN
 
@@ -126,12 +126,16 @@ public:
   //! @param tident trace identifier of the client
   //! @param vid returned virtual identity
   //! @param authz_obj authorization library (or chain of authz libs)
+  //! @param acc_op access operation type, the default should always be
+  //!        overwritten by the caller when it matters. Otherwise it's put
+  //!        to the default value AOP_Stat for convenience.
   //! @param path path of the request
   //! @param log if true map final mapping info, otherwise false
   //---------------------------------------------------------------------------
   static void IdMap(const XrdSecEntity* client, const char* env,
                     const char* tident, VirtualIdentity& vid,
                     XrdAccAuthorize* authz_obj = nullptr,
+                    Access_Operation acc_op = AOP_Stat,
                     std::string path = "", bool log = true);
 
   // ---------------------------------------------------------------------------

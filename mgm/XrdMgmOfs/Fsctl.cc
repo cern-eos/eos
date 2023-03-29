@@ -226,8 +226,10 @@ XrdMgmOfs::FSctl(const int cmd,
   // Do the id mapping with the opaque information
   eos::common::VirtualIdentity vid;
   EXEC_TIMING_BEGIN("IdMap");
+  // @todo(esindril) the access operation type should be reviewed depending
+  // on the type of incoming request and adjust accordingly.
   eos::common::Mapping::IdMap(client, ininfo, tident, vid, gOFS->mTokenAuthz,
-                              inpath, false);
+                              AOP_Stat, inpath, false);
   EXEC_TIMING_END("IdMap");
   gOFS->MgmStats.Add("IdMap", vid.uid, vid.gid, 1);
   tlLogId.SetSingleShotLogId(tident);

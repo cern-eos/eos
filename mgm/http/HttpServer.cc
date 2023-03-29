@@ -228,6 +228,28 @@ HttpServer::CompleteHandler(void*                              cls,
 #endif
 
 //------------------------------------------------------------------------------
+// Do a "rough" mapping between HTTP verbs and access operation types
+//
+// @param http_verb type of HTTP request
+//
+// @return XRootD access operation type
+//------------------------------------------------------------------------------
+Access_Operation MapHttpVerbToAOP(const std::string& http_verb)
+{
+  Access_Operation op = AOP_Stat;
+
+  if (http_verb == "GET") {
+    op = AOP_Read;
+  } else if (http_verb == "PUT") {
+    op = AOP_Create;
+  } else if (http_verb == "DELETE") {
+    op = AOP_Delete;
+  }
+
+  return op;
+}
+
+//------------------------------------------------------------------------------
 // HTTP object handler function called by XrdHttp
 //------------------------------------------------------------------------------
 std::unique_ptr<eos::common::ProtocolHandler>
@@ -312,10 +334,13 @@ HttpServer::XrdHttpHandler(std::string& method,
       return nullptr;
     }
 
+    // Get access operation type for the authz library
+    Access_Operation acc_op = MapHttpVerbToAOP(method);
     const std::string env = ptr;
     query = env;
     EXEC_TIMING_BEGIN("IdMap");
-    Mapping::IdMap(&client, env.c_str(), client.tident, *vid, authz_obj, path);
+    Mapping::IdMap(&client, env.c_str(), client.tident, *vid,
+                   authz_obj, acc_op, path);
     EXEC_TIMING_END("IdMap");
   } else { // HTTP access through Nginx
     headers["client-real-ip"] = "NOIPLOOKUP";

@@ -421,19 +421,19 @@ XrdMgmOfsFile::GetPosixOpenFlags(XrdSfsFileOpenMode open_mode)
 Access_Operation
 XrdMgmOfsFile::GetXrdAccessOpeation(int open_flags)
 {
-  Access_Operation acc_op;
+  Access_Operation op;
 
   if (open_flags & O_CREAT) {
-    acc_op = AOP_Create;
+    op = AOP_Create;
   } else {
     if (open_flags == O_RDONLY) {
-      acc_op = AOP_Read;
+      op = AOP_Read;
     } else {
-      acc_op = AOP_Update;
+      op = AOP_Update;
     }
   }
 
-  return acc_op;
+  return op;
 }
 
 
@@ -488,7 +488,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
 
     if (!invid) {
       eos::common::Mapping::IdMap(client, ininfo, tident, vid,
-                                  gOFS->mTokenAuthz, spath.c_str());
+                                  gOFS->mTokenAuthz, acc_op, spath.c_str());
     } else {
       vid = *invid;
     }
