@@ -117,9 +117,18 @@ public:
   //----------------------------------------------------------------------------
   static bool VidFromString(VirtualIdentity& vid, const char* vidstring);
 
-  // ---------------------------------------------------------------------------
-  //! Main mapping function to create a virtual identity from authentication information
-  // ---------------------------------------------------------------------------
+  //---------------------------------------------------------------------------
+  //! Map a client to its virtual identity
+  //!
+  //! @param client xrootd client authenticatino object
+  //! @param env opaque information containing role selection like
+  //!            'eos.ruid' and 'eos.rgid'
+  //! @param tident trace identifier of the client
+  //! @param vid returned virtual identity
+  //! @param authz_obj authorization library (or chain of authz libs)
+  //! @param path path of the request
+  //! @param log if true map final mapping info, otherwise false
+  //---------------------------------------------------------------------------
   static void IdMap(const XrdSecEntity* client, const char* env,
                     const char* tident, VirtualIdentity& vid,
                     XrdAccAuthorize* authz_obj = nullptr,
