@@ -431,7 +431,7 @@ private:
   int oh {0}; //< file handle
   std::string fileName; //< file name
   XrdOucEnv* openOpaque {nullptr}; //< opaque info given with 'open'
-  unsigned long mFid {0ull}; //< Namespace file identifier
+  unsigned long long mFid {0ull}; //< Namespace file identifier
   std::unique_ptr<IProcCommand> mProcCmd {nullptr}; // Proc command object
   std::shared_ptr<eos::IFileMD> fmd {nullptr}; //< File meta data object
   eos::common::VirtualIdentity vid; //< virtual ID of the client
