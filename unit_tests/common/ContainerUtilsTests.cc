@@ -72,6 +72,30 @@ TEST(EraseIf, UnorderedSet)
   ASSERT_EQ(expected, s);
 }
 
+TEST(ContainerUtils, get_msb)
+{
+  ASSERT_EQ(eos::common::get_msb(1),0);
+  ASSERT_EQ(eos::common::get_msb(2),1);
+  ASSERT_EQ(eos::common::get_msb(3),1);
+  ASSERT_EQ(eos::common::get_msb(4),2);
+  ASSERT_EQ(eos::common::get_msb(1023),9);
+  ASSERT_EQ(eos::common::get_msb(1024),10);
+  ASSERT_EQ(eos::common::get_msb(0xFFFFFFFFFFFFFFFF),63);
+  ASSERT_EQ(eos::common::get_msb(1UL<<32),32);
+}
+
+TEST(ContainerUtils, clamp_index)
+{
+  ASSERT_EQ(eos::common::clamp_index(4,10), 4);
+  ASSERT_EQ(eos::common::clamp_index(10,10), 0);
+  ASSERT_EQ(eos::common::clamp_index(24,8), 0);
+  ASSERT_EQ(eos::common::clamp_index(24,16), 8);
+  ASSERT_EQ(eos::common::clamp_index(25,8), 1);
+  ASSERT_EQ(eos::common::clamp_index(1ULL<<32, 0xFFFFFFFF), 1);
+  ASSERT_EQ(eos::common::clamp_index(1ULL<<48, 1ULL<<32), 0);
+  ASSERT_EQ(eos::common::clamp_index((1ULL<<32) + (1UL<<16), 1ULL<<32), 1UL<<16);
+}
+
 using eos::common::pickIndexRR;
 
 TEST(pickIndexRR, list)

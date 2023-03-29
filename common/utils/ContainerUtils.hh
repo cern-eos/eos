@@ -65,9 +65,34 @@ erase_if(C& c, Pred pred)
   return init_sz - c.size();
 }
 
-inline constexpr uint64_t clamp_index(uint64_t index, uint64_t size)
+
+// Both the functions below assume 0 is not supplied as an argument!
+inline uint8_t get_msb(uint64_t val)
 {
-  return index >= size ? (index % size) : index;
+#if defined(__GNUC__) || defined(__clang__)
+  return 63 - __builtin_clzll(val);
+#else
+  uint8_t msb = 0;
+  while (val >>= 1) {
+    msb++;
+  }
+  return msb;
+#endif
+}
+
+inline uint64_t
+clamp_index(uint64_t index, uint64_t size)
+{
+  if (index < size) {
+    return index;
+  }
+  // For powers of 2 sizes, you just need to find the number within
+  // the power of 2 range which is cheaper than a modulo.
+  if ((size & (size - 1)) == 0) {
+    auto bit = get_msb(size);
+    return index & ((1ULL << bit) - 1);
+  }
+  return index % size;
 }
 
 //----------------------------------------------------------------------------
