@@ -173,43 +173,43 @@ bool SharedHashWrapper::set(const Batch& batch)
 
     std::future<qclient::redisReplyPtr> reply = mSharedHash->set(updateBatch);
     reply.wait();
-  }
+  } else {
+    // @note this is a hack to avoid boot failures on the FST side when a new fs
+    // is registered. The problem is that the FST expects all config parameters
+    // to be available in the shared hash onec it receives an update for the fs id
+    // This can only be achieved if we make sure the "id" is the last update the
+    // FST receives after applying all the rest from the current batch.
+    std::unique_lock lock(mHash->mMutex);
+    std::map<std::string, std::string>::const_iterator it_id;
+    bool has_id_update = false;
+    mHash->OpenTransaction();
 
-  // @note this is a hack to avoid boot failures on the FST side when a new fs
-  // is registered. The problem is that the FST expects all config parameters
-  // to be available in the shared hash onec it receives an update for the fs id
-  // This can only be achieved if we make sure the "id" is the last update the
-  // FST receives after applying all the rest from the current batch.
-  std::unique_lock lock(mHash->mMutex);
-  std::map<std::string, std::string>::const_iterator it_id;
-  bool has_id_update = false;
-  mHash->OpenTransaction();
-
-  for (auto it = batch.mDurableUpdates.begin(); it != batch.mDurableUpdates.end();
-       it++) {
-    if (it->first != "id") {
-      mHash->Set(it->first.c_str(), it->second.c_str(), true);
-    } else {
-      has_id_update = true;
-      it_id = it;
+    for (auto it = batch.mDurableUpdates.begin(); it != batch.mDurableUpdates.end();
+         it++) {
+      if (it->first != "id") {
+        mHash->Set(it->first.c_str(), it->second.c_str(), true);
+      } else {
+        has_id_update = true;
+        it_id = it;
+      }
     }
-  }
 
-  for (auto it = batch.mTransientUpdates.begin();
-       it != batch.mTransientUpdates.end(); it++) {
-    mHash->Set(it->first.c_str(), it->second.c_str(), true);
-  }
+    for (auto it = batch.mTransientUpdates.begin();
+         it != batch.mTransientUpdates.end(); it++) {
+      mHash->Set(it->first.c_str(), it->second.c_str(), true);
+    }
 
-  for (auto it = batch.mLocalUpdates.begin(); it != batch.mLocalUpdates.end();
-       it++) {
-    mHash->Set(it->first.c_str(), it->second.c_str(), false);
-  }
+    for (auto it = batch.mLocalUpdates.begin(); it != batch.mLocalUpdates.end();
+         it++) {
+      mHash->Set(it->first.c_str(), it->second.c_str(), false);
+    }
 
-  mHash->CloseTransaction();
+    mHash->CloseTransaction();
 
-  // If there is an id update make sure this is the last one sent
-  if (has_id_update) {
-    mHash->Set(it_id->first.c_str(), it_id->second.c_str(), true);
+    // If there is an id update make sure this is the last one sent
+    if (has_id_update) {
+      mHash->Set(it_id->first.c_str(), it_id->second.c_str(), true);
+    }
   }
 
   return true;
@@ -313,6 +313,7 @@ bool SharedHashWrapper::del(const std::string& key, bool broadcast)
 
     std::future<qclient::redisReplyPtr> reply = mSharedHash->set(updateBatch);
     reply.wait();
+    return true;
   }
 
   if (!mHash) {
@@ -370,6 +371,9 @@ bool SharedHashWrapper::deleteHash()
   return mSom->DeleteSharedHash(mLocator.getConfigQueue().c_str(), true);
 }
 
+//------------------------------------------------------------------------------
+// Get the values for a given set of keys that are local
+//------------------------------------------------------------------------------
 bool
 SharedHashWrapper::getLocal(const std::vector<std::string>& keys,
                             std::map<std::string, std::string>& out)
@@ -383,7 +387,7 @@ SharedHashWrapper::getLocal(const std::vector<std::string>& keys,
     return false;
   }
 
-  std::scoped_lock lock(mHash->mMutex);
+  std::unique_lock lock(mHash->mMutex);
 
   for (const auto& key : keys) {
     out.emplace(key, mHash->Get(key.c_str()));
