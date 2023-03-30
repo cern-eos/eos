@@ -940,7 +940,7 @@ FileSystem::GetUsedbytes()
 }
 
 //--------------------------------------------------------------------------
-//! Get used bytes space name
+//! Get space name
 //--------------------------------------------------------------------------
 std::string
 FileSystem::GetSpace()

@@ -241,21 +241,23 @@ FsBalancer::Balance(ThreadAssistant& assistant) noexcept
         }
 
         FsBalanceInfo dst;
-        const std::string src_node = src.mNodeInfo;
         const auto fid = GetFileToBalance(src, it_current->second, dst);
-        const std::string dst_node = dst.mNodeInfo;
 
         if (fid == 0ull) {
           continue;
         }
 
-        no_slots = false;
         // Found file and destination file system where to balance it
+        no_slots = false;
+        TakeTxSlot(src, dst);
         eos_static_info("msg=\"balance job\" fxid=%08llx src_fsid=%lu "
                         "dst_fsid=%lu", fid, src.mFsId, dst.mFsId);
         std::shared_ptr<DrainTransferJob> job {
           new DrainTransferJob(fid, src.mFsId, dst.mFsId, {}, {},
           true, "balance", true)};
+        // To simplify the capture of the lambda function
+        const std::string src_node = src.mNodeInfo;
+        const std::string dst_node = dst.mNodeInfo;
         mThreadPool.PushTask<void>([ = ]() {
           job->UpdateMgmStats();
           job->DoIt();
@@ -362,12 +364,23 @@ FsBalancer::GetFileToBalance(const FsBalanceInfo& src,
     }
   }
 
-  if (random_fid) {
-    mBalanceStats.TakeTxSlot(src.mNodeInfo, dst.mNodeInfo);
-    ++mRunningJobs;
-  }
-
   return random_fid;
+}
+
+//----------------------------------------------------------------------------
+// Account for new balancer transfer
+//----------------------------------------------------------------------------
+void
+FsBalancer::TakeTxSlot(const FsBalanceInfo& src, const FsBalanceInfo& dst)
+{
+  ++mRunningJobs;
+  mBalanceStats.TakeTxSlot(src.mNodeInfo, dst.mNodeInfo);
+  // @todo(esindril) decide how to account per fs/node/group
+  // eos::common::FileSystem::fsid dst_fsid = dst.mFsId;
+  // eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView::ViewMutex);
+  // auto* fs = FsView::gFsview.mIdView.lookupByID(dst_fsid);
+  // if (fs) {
+  // }
 }
 
 //----------------------------------------------------------------------------

@@ -91,7 +91,16 @@ public:
   void Balance(ThreadAssistant& assistant) noexcept;
 
   //----------------------------------------------------------------------------
-  //! Account finished transfer by freeing up slot and un-tracking the file
+  //! Account started (queued) transfers by reserving the slot on the
+  //! corresponding endpoints
+  //!
+  //! @param src source balancer info
+  //! @param dst destination balancer info
+  //----------------------------------------------------------------------------
+  void TakeTxSlot(const FsBalanceInfo& src, const FsBalanceInfo& dst);
+
+  //----------------------------------------------------------------------------
+  //! Account finished transfers by freeing up slot and un-tracking the file
   //! identifier
   //!
   //! @param fid file identifier
@@ -120,7 +129,7 @@ private:
   eos::common::ThreadPool mThreadPool; ///< Thread pool for balancing jobs
   unsigned int mMaxQueuedJobs {1000}; ///< Max number of queued jobs
   unsigned int mMaxThreadPoolSize {100}; ///< Max number of threads
-  std::atomic<uint64_t> mRunningJobs {0}; ///< Number of running jobs
+  std::atomic<uint64_t> mRunningJobs {0}; ///< Number of running/queued jobs
   std::chrono::seconds mUpdInterval {60}; ///< Balance stats update interval
 
   //----------------------------------------------------------------------------
