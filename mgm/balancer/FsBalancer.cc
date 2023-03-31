@@ -283,6 +283,7 @@ FsBalancer::Balance(ThreadAssistant& assistant) noexcept
     std::this_thread::sleep_for(std::chrono::seconds(5));
   }
 
+  mFidTracker.DoCleanup(TrackerType::Balance);
   eos_static_info("msg=\"stopped file system balancer thread\" space=%s",
                   mSpaceName.c_str());
 }
@@ -304,9 +305,9 @@ FsBalancer::GetFileToBalance(const FsBalanceInfo& src,
     if (gOFS->eosFsView->getApproximatelyRandomFileInFs(src_fsid, random_fid)) {
       if (!gOFS->mFidTracker.AddEntry(random_fid, TrackerType::Balance)) {
         // Reset fid otherwise this will be considered valid after 10 attemtps
-        random_fid = 0ull;
         eos_static_debug("msg=\"skip busy file identifier\" fxid=%08llx",
                          random_fid);
+        random_fid = 0ull;
         continue;
       }
 
@@ -326,11 +327,13 @@ FsBalancer::GetFileToBalance(const FsBalanceInfo& src,
       } catch (eos::MDException& e) {
         eos_static_err("msg=\"failed to find file\" fxid=%08llx", random_fid);
         gOFS->mFidTracker.RemoveEntry(random_fid);
+        random_fid = 0ull;
         continue;
       }
 
       if (avoid_fsids.empty()) {
         gOFS->mFidTracker.RemoveEntry(random_fid);
+        random_fid = 0ull;
         continue;
       }
 
@@ -356,8 +359,8 @@ FsBalancer::GetFileToBalance(const FsBalanceInfo& src,
       }
 
       if (dst_fsid == 0ul) {
-        random_fid = 0ull;
         gOFS->mFidTracker.RemoveEntry(random_fid);
+        random_fid = 0ull;
       } else {
         break;
       }
