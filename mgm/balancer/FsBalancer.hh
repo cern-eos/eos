@@ -104,12 +104,10 @@ public:
   //! identifier
   //!
   //! @param fid file identifier
-  //! @param src_node node identifier <host>:<port> for source
-  //! @param dst_node node identifier <host>:<port> for destination
+  //! @param src source balancer info object
+  //! @param dst destnation balancer info object
   //----------------------------------------------------------------------------
-  void FreeTxSlot(const eos::IFileMD::id_t& fid,
-                  const std::string& src_node,
-                  const std::string& dst_node);
+  void FreeTxSlot(eos::IFileMD::id_t fid, FsBalanceInfo src, FsBalanceInfo dst);
 
 #ifdef IN_TEST_HARNESS
 public:

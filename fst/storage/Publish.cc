@@ -278,13 +278,13 @@ static std::string GetSubtreeSize(const std::string& path)
 static void OverwriteTestingStatfs(const std::string& path,
                                    std::map<std::string, std::string>& output)
 {
-  eos_static_info("msg=\"overwrite statfs values\" path=%s", path.c_str());
   const char* ptr = getenv("EOS_FST_TESTING");
 
   if (ptr == nullptr) {
     return;
   }
 
+  eos_static_info("msg=\"overwrite statfs values\" path=%s", path.c_str());
   uint64_t subtree_max_size = 10ull * 1024 * 1024 * 1024; // 10GB
   ptr = getenv("EOS_FST_SUBTREE_MAX_SIZE");
 

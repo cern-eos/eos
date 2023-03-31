@@ -334,7 +334,7 @@ DrainFs::PrepareFs()
         return false;
       }
 
-      entry->setLongLongLocal("local.drain.timeleft", kLoop - 1 - k);
+      entry->SetLongLongLocal("local.drain.timeleft", kLoop - 1 - k);
     }
 
     if (mDrainStop) {

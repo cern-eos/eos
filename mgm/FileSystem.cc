@@ -27,9 +27,10 @@
 
 EOSMGMNAMESPACE_BEGIN
 
+const std::string FileSystem::sNumBalanceTxTag = "local.balancer.running";
+
 //----------------------------------------------------------------------------
-// Set the configuration status of a file system. This can be used to trigger
-// the draining.
+// Set the configuration status of a file system
 //----------------------------------------------------------------------------
 bool
 FileSystem::SetConfigStatus(eos::common::ConfigStatus new_status)
@@ -116,9 +117,7 @@ FileSystem::IsDrainTransition(const eos::common::ConfigStatus old,
 }
 
 //------------------------------------------------------------------------------
-// @brief Return the current broadcasting setting
-//
-// @return true if broadcasting otherwise false
+// Get the current broadcasting setting
 //------------------------------------------------------------------------------
 bool
 FileSystem::ShouldBroadCast()
@@ -128,6 +127,26 @@ FileSystem::ShouldBroadCast()
   } else {
     return false;
   }
+}
+
+//------------------------------------------------------------------------------
+// Increment number of running balancing transfers
+//------------------------------------------------------------------------------
+void
+FileSystem::IncrementBalanceTx()
+{
+  ++mNumBalanceTx;
+  SetLongLongLocal(sNumBalanceTxTag, (int64_t)mNumBalanceTx);
+}
+
+//------------------------------------------------------------------------------
+// Decrement number of running balancing transfers
+//------------------------------------------------------------------------------
+void
+FileSystem::DecrementBalanceTx()
+{
+  --mNumBalanceTx;
+  SetLongLongLocal(sNumBalanceTxTag, (int64_t)mNumBalanceTx);
 }
 
 EOSMGMNAMESPACE_END

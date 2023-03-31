@@ -248,21 +248,19 @@ FsBalancer::Balance(ThreadAssistant& assistant) noexcept
         }
 
         // Found file and destination file system where to balance it
-        no_slots = false;
-        TakeTxSlot(src, dst);
         eos_static_info("msg=\"balance job\" fxid=%08llx src_fsid=%lu "
                         "dst_fsid=%lu", fid, src.mFsId, dst.mFsId);
+        no_slots = false;
+        TakeTxSlot(src, dst);
+        // Create and submit job
         std::shared_ptr<DrainTransferJob> job {
           new DrainTransferJob(fid, src.mFsId, dst.mFsId, {}, {},
           true, "balance", true)};
-        // To simplify the capture of the lambda function
-        const std::string src_node = src.mNodeInfo;
-        const std::string dst_node = dst.mNodeInfo;
         mThreadPool.PushTask<void>([ = ]() {
           job->UpdateMgmStats();
           job->DoIt();
           job->UpdateMgmStats();
-          FreeTxSlot(fid, src_node, dst_node);
+          FreeTxSlot(fid, src, dst);
         });
       }
 
@@ -305,6 +303,8 @@ FsBalancer::GetFileToBalance(const FsBalanceInfo& src,
   while (attempts-- > 0) {
     if (gOFS->eosFsView->getApproximatelyRandomFileInFs(src_fsid, random_fid)) {
       if (!gOFS->mFidTracker.AddEntry(random_fid, TrackerType::Balance)) {
+        // Reset fid otherwise this will be considered valid after 10 attemtps
+        random_fid = 0ull;
         eos_static_debug("msg=\"skip busy file identifier\" fxid=%08llx",
                          random_fid);
         continue;
@@ -375,12 +375,13 @@ FsBalancer::TakeTxSlot(const FsBalanceInfo& src, const FsBalanceInfo& dst)
 {
   ++mRunningJobs;
   mBalanceStats.TakeTxSlot(src.mNodeInfo, dst.mNodeInfo);
-  // @todo(esindril) decide how to account per fs/node/group
-  // eos::common::FileSystem::fsid dst_fsid = dst.mFsId;
-  // eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView::ViewMutex);
-  // auto* fs = FsView::gFsview.mIdView.lookupByID(dst_fsid);
-  // if (fs) {
-  // }
+  // Account for running balancing transfers per file system
+  eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
+  auto* fs = FsView::gFsView.mIdView.lookupByID(dst.mFsId);
+
+  if (fs) {
+    fs->IncrementBalanceTx();
+  }
 }
 
 //----------------------------------------------------------------------------
@@ -388,13 +389,18 @@ FsBalancer::TakeTxSlot(const FsBalanceInfo& src, const FsBalanceInfo& dst)
 // file identifier
 //----------------------------------------------------------------------------
 void
-FsBalancer::FreeTxSlot(const eos::IFileMD::id_t& fid,
-                       const std::string& src_node,
-                       const std::string& dst_node)
+FsBalancer::FreeTxSlot(eos::IFileMD::id_t fid,
+                       FsBalanceInfo src, FsBalanceInfo dst)
 {
-  mBalanceStats.FreeTxSlot(src_node, dst_node);
-  gOFS->mFidTracker.RemoveEntry(fid);
   --mRunningJobs;
+  mBalanceStats.FreeTxSlot(src.mNodeInfo, dst.mNodeInfo);
+  gOFS->mFidTracker.RemoveEntry(fid);
+  eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
+  auto* fs = FsView::gFsView.mIdView.lookupByID(dst.mFsId);
+
+  if (fs) {
+    fs->DecrementBalanceTx();
+  }
 }
 
 EOSMGMNAMESPACE_END

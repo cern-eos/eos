@@ -69,9 +69,8 @@ class FsBalancer;
 //! Struct holding file system info for balancing operations
 //------------------------------------------------------------------------------
 struct FsBalanceInfo {
-  eos::common::FileSystem::fsid_t mFsId;
-  std::string mNodeInfo; ///! FQDN:port
-  //@todo(esindril) add group info for accounting transfers per group
+  eos::common::FileSystem::fsid_t mFsId; ///< File ssytem id
+  std::string mNodeInfo; ///< FQDN:port
 
   //----------------------------------------------------------------------------
   //! Constructor

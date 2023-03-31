@@ -628,7 +628,7 @@ public:
   //----------------------------------------------------------------------------
   //! Set a single local long long
   //----------------------------------------------------------------------------
-  bool setLongLongLocal(const std::string& key, int64_t value);
+  bool SetLongLongLocal(const std::string& key, int64_t value);
 
   //----------------------------------------------------------------------------
   //! Set a filesystem ID.

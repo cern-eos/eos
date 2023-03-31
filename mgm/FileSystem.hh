@@ -21,13 +21,12 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifndef __EOSMGM_FILESYSTEM_HH__
-#define __EOSMGM_FILESYSTEM_HH__
-
+#pragma once
 #include "common/FileSystem.hh"
 #include "mq/MessagingRealm.hh"
 #include "mgm/Namespace.hh"
 
+//! Forward declarations
 namespace eos
 {
 namespace mq
@@ -36,14 +35,6 @@ class MessagingRealm;
 }
 }
 
-/*----------------------------------------------------------------------------*/
-/**
- * @file FileSystem.hh
- *
- * @brief Class implementing egroup support via LDAP queries
- *
- */
-/*----------------------------------------------------------------------------*/
 EOSMGMNAMESPACE_BEGIN
 
 //------------------------------------------------------------------------------
@@ -52,6 +43,9 @@ EOSMGMNAMESPACE_BEGIN
 class FileSystem : public eos::common::FileSystem
 {
 public:
+  //! Tag for saving number of running balance transfers in hash
+  static const std::string sNumBalanceTxTag;
+
   //----------------------------------------------------------------------------
   //! Check if this is a drain transition i.e. enables or disabled draining
   //!
@@ -83,7 +77,7 @@ public:
   virtual ~FileSystem() = default;
 
   //----------------------------------------------------------------------------
-  //! @brief Return the current broadcasting setting
+  //! @brief Get the current broadcasting setting
   //!
   //! @return true if broadcasting otherwise false
   //----------------------------------------------------------------------------
@@ -111,8 +105,20 @@ public:
   //! @return true if successful otherwise false
   //----------------------------------------------------------------------------
   bool SetString(const char* key, const char* str, bool broadcast = true);
+
+  //----------------------------------------------------------------------------
+  //! Increment number of running balancing transfers
+  //----------------------------------------------------------------------------
+  void IncrementBalanceTx();
+
+  //----------------------------------------------------------------------------
+  //! Decrement number of running balancing transfers
+  //----------------------------------------------------------------------------
+  void DecrementBalanceTx();
+
+private:
+  //! Number of running balance transfers
+  std::atomic<uint64_t> mNumBalanceTx {0};
 };
 
 EOSMGMNAMESPACE_END
-
-#endif

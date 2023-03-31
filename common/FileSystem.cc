@@ -869,7 +869,7 @@ bool FileSystem::applyCoreParams(const FileSystemCoreParams& params)
 //------------------------------------------------------------------------------
 // Set a local long long
 //------------------------------------------------------------------------------
-bool FileSystem::setLongLongLocal(const std::string& key, int64_t value)
+bool FileSystem::SetLongLongLocal(const std::string& key, int64_t value)
 {
   common::FileSystemUpdateBatch batch;
   batch.setLongLongLocal(key, value);
