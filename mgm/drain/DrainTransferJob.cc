@@ -234,7 +234,7 @@ DrainTransferJob::BuildTpcSrc(const FileDrainInfo& fdrain,
       eos::common::LayoutId::kReplica) {
     bool found = false;
 
-    if (!mForceFs) {
+    if (!mBalanceMode) {
       for (const auto id : fdrain.mProto.locations()) {
         // First try copying from a location different from the current source
         // file system. Make sure we also skip any EOS_TAPE_FSID (65535)
@@ -278,23 +278,25 @@ DrainTransferJob::BuildTpcSrc(const FileDrainInfo& fdrain,
       return url_src;
     }
   } else {
-    // For RAIN layouts we trigger a reconstruction only once
-    if (mRainReconstruct) {
+    // For RAIN layouts we trigger an attempt only once
+    if (mRainAttempt) {
       ReportError(SSTR("msg=\"fxid=" << eos::common::FileId::Fid2Hex(
                          fdrain.mProto.id())
                        << " rain reconstruct already failed\""));
       return url_src;
     } else {
-      mRainReconstruct = true;
+      mRainAttempt = true;
     }
+
+    mRainReconstruct = true;
 
     // If source/dest fses are forced we want to trigger a balance rather than
     // a drain reconstruct operation
-    if (mForceFs) {
+    if (mBalanceMode) {
       // For RAIN layout we also need to disable checksum enforcements as the
       // stripe checksum and logical file checksum will not match
-      target_lid = LayoutId::SetChecksum(target_lid, LayoutId::kNone);
       mRainReconstruct = false;
+      target_lid = LayoutId::SetChecksum(target_lid, LayoutId::kNone);
       bool found = false;
       eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
       FileSystem* fs = FsView::gFsView.mIdView.lookupByID(mFsIdSource);
@@ -407,7 +409,7 @@ DrainTransferJob::BuildTpcDst(const FileDrainInfo& fdrain,
     target_lid = LayoutId::SetBlockChecksum(target_lid, LayoutId::kNone);
   }
 
-  if (LayoutId::IsRain(lid) && mForceFs) {
+  if (LayoutId::IsRain(lid) && mBalanceMode) {
     target_lid = LayoutId::SetChecksum(target_lid, LayoutId::kNone);
   }
 

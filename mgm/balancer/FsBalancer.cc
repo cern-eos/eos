@@ -283,7 +283,7 @@ FsBalancer::Balance(ThreadAssistant& assistant) noexcept
     std::this_thread::sleep_for(std::chrono::seconds(5));
   }
 
-  mFidTracker.DoCleanup(TrackerType::Balance);
+  gOFS->mFidTracker.DoCleanup(TrackerType::Balance);
   eos_static_info("msg=\"stopped file system balancer thread\" space=%s",
                   mSpaceName.c_str());
 }

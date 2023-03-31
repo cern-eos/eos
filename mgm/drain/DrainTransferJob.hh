@@ -132,7 +132,7 @@ public:
   //! @param drop_src mark if source replica should be dropped if operation
   //!        is successful (default true)
   //! @param app_tag application tag for easy classification of job types
-  //! @param force_fs if true force transfer between given source and
+  //! @param balance_mode if true force transfer between given source and
   //!        destination file systems
   //----------------------------------------------------------------------------
   DrainTransferJob(eos::common::FileId::fileid_t fid,
@@ -142,10 +142,10 @@ public:
                    std::set<eos::common::FileSystem::fsid_t> exclude_dsts = {},
                    bool drop_src = true,
                    const std::string& app_tag = "drain",
-                   bool force_fs = false):
+                   bool balance_mode = false):
     mAppTag(app_tag), mFileId(fid), mFsIdSource(fsid_src), mFsIdTarget(fsid_trg),
-    mTxFsIdSource(fsid_src), mStatus(Status::Ready), mRainReconstruct(false),
-    mDropSrc(drop_src), mForceFs(force_fs)
+    mTxFsIdSource(fsid_src), mStatus(Status::Ready), mRainAttempt(false),
+    mRainReconstruct(false), mDropSrc(drop_src), mBalanceMode(balance_mode)
   {
     mTriedSrcs.insert(exclude_srcs.begin(), exclude_srcs.end());
     mExcludeDsts.insert(mExcludeDsts.begin(), exclude_dsts.begin(),
@@ -286,12 +286,12 @@ private:
   std::string mErrorString; ///< Error message
   std::atomic<Status> mStatus; ///< Status of the drain job
   std::set<eos::common::FileSystem::fsid_t> mTriedSrcs; ///< Tried src
-  std::vector<eos::common::FileSystem::fsid_t> mExcludeDsts; ///< Excluded dest.
+  std::vector<eos::common::FileSystem::fsid_t> mExcludeDsts; ///< Excluded dest
+  bool mRainAttempt; ///< Rain transfers are attempted only once
   bool mRainReconstruct; ///< Mark rain reconstruction
   bool mDropSrc; ///< Mark if source replicas should be dropped
-  //! Mark if tx is forced between src/dst file systems, this happends for
-  //! balancer transfers
-  bool mForceFs;
+  //! In balance mode the source and destination file systems are enforced
+  bool mBalanceMode;
   DrainProgressHandler mProgressHandler; ///< TPC progress handler
 };
 
