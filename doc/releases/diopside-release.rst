@@ -17,6 +17,20 @@ Introduction
 This release is based on XRootD V5.
 
 
+``v5.1.16 Diopside``
+====================
+
+2023-04-04
+
+Bug
+----
+
+* COMMON: Don't reset the current vid identity when handling KEYS mapping
+  unless we actually have a hit in the map. This was breaking the vid mapping
+  for gsi/http with voms extensions that have the endorsements field in the
+  XrdSecEntity populated and this was interpreted as a key.
+
+
 ``v5.1.15 Diopside``
 ====================
 
