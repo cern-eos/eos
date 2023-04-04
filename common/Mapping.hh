@@ -379,8 +379,12 @@ public:
 
   static void cacheUserIds(uid_t uid, const std::string& username);
   static void cacheGroupIds(gid_t gid, const std::string& groupname);
-private:
 
+
+private:
+#ifdef IN_TEST_HARNESS
+public:
+#endif
   //----------------------------------------------------------------------------
   //! Handle VOMS mapping
   //!

@@ -23,9 +23,27 @@
 
 #include "gtest/gtest.h"
 #include "Namespace.hh"
+#define IN_TEST_HARNESS
 #include "common/Mapping.hh"
+#undef IN_TEST_HARNESS
+#include "XrdSec/XrdSecEntity.hh"
+#include <memory>
 
 EOSCOMMONTESTING_BEGIN
+
+void FreeXrdSecEntity(XrdSecEntity* client)
+{
+  free(client->name);
+  free(client->host);
+  free(client->vorg);
+  free(client->role);
+  free(client->grps);
+  free(client->caps);
+  free(client->endorsements);
+  free(client->moninfo);
+  free(client->creds);
+  free((char*)client->tident);
+}
 
 TEST(Mapping, VidAssignOperator)
 {
@@ -93,6 +111,73 @@ TEST(VirtualIdentity, IsLocalhost)
   ASSERT_FALSE(vid.isLocalhost());
   vid.host = "asdf";
   ASSERT_FALSE(vid.isLocalhost());
+}
+
+
+TEST(VirtualIdentity, HandleKEYS)
+{
+  using namespace eos::common;
+  const std::string secret_key = "xyz_my_secret_key_xyz";
+  VirtualIdentity vid;
+  auto EntityDeleter = [](XrdSecEntity * client) {
+    FreeXrdSecEntity(client);
+    delete client;
+  };
+  std::unique_ptr<XrdSecEntity, decltype(EntityDeleter)>
+  client(new XrdSecEntity("gsi"), EntityDeleter);
+  client->name = strdup("random");
+  client->host = strdup("[::ffff:172.24.76.44]");
+  client->vorg = strdup("cms cms cms");
+  client->role = strdup("production NULL NULL NULL");
+  client->grps = strdup("/cms /cms /cms/country /cms/country/us /cms/uscms");
+  client->caps = nullptr;
+  client->endorsements = strdup(secret_key.c_str());
+  client->moninfo = nullptr;
+  client->creds = nullptr;
+  client->credslen = 0;
+  client->ueid = 0xdead;
+  client->addrInfo = nullptr;
+  client->tident = strdup("http");
+  client->pident = nullptr;
+  client->sessvar = nullptr;
+  client->uid = 0;
+  client->gid = 0;
+  // This is happenndin in the IdMap for sss/grpc/https
+  vid.key = client->endorsements;
+  // Add VOMS mapping
+  const std::string_view uid_voms = "voms:\"/cms:production\":uid";
+  const std::string_view gid_voms = "voms:\"/cms:production\":gid";
+  uid_t mapped_uid = 81;
+  gid_t mapped_gid = 81;
+  Mapping::gVirtualUidMap.emplace(uid_voms, mapped_uid);
+  Mapping::gVirtualGidMap.emplace(gid_voms, mapped_gid);
+  // Add specific EOS KEY mapping
+  std::string uid_key = "https:\"key:abbabeefdeadabba\":uid";
+  std::string gid_key = "https:\"key:abbabeefdeadabba\":gid";
+  mapped_uid = 32;
+  mapped_gid = 32;
+  Mapping::gVirtualUidMap.emplace(uid_key, mapped_uid);
+  Mapping::gVirtualGidMap.emplace(gid_key, mapped_gid);
+  Mapping::HandleVOMS(client.get(), vid);
+  ASSERT_EQ(81, vid.uid);
+  ASSERT_EQ(81, vid.gid);
+  // The key should not match so there should be no change
+  Mapping::HandleKEYS(client.get(), vid);
+  ASSERT_EQ(81, vid.uid);
+  ASSERT_EQ(81, vid.gid);
+  // Add a new key mapping to match the given endorsements
+  uid_key = "https:\"key:";
+  uid_key += secret_key;
+  uid_key += "\":uid";
+  gid_key = "https:\"key:";
+  gid_key += secret_key;
+  gid_key += "\":gid";
+  Mapping::gVirtualUidMap.emplace(uid_key, mapped_uid);
+  Mapping::gVirtualGidMap.emplace(gid_key, mapped_gid);
+  // The key matches so the mapped identity should also match
+  Mapping::HandleKEYS(client.get(), vid);
+  ASSERT_EQ(32, vid.uid);
+  ASSERT_EQ(32, vid.gid);
 }
 
 EOSCOMMONTESTING_END
