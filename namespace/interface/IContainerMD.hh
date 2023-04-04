@@ -70,8 +70,7 @@ struct FileOrContainerMD {
 //! Class holding the interface to the metadata information concerning a
 //! single container
 //------------------------------------------------------------------------------
-class IContainerMD : public NSObjectMDLockHelper<IContainerMD>
-{
+class IContainerMD : public LockableNSObjMD {
 public:
   //----------------------------------------------------------------------------
   //! Type definitions
@@ -88,7 +87,7 @@ public:
         Murmur3::MurmurHasher<std::string> >;
 
   template<typename ObjectMDPtr, typename LockType> friend class NSObjectMDLocker;
-  friend class NSObjectMDLockHelper<IContainerMD>;
+  friend class LockableNSObjMD;
   using IContainerMDReadLocker = NSObjectMDLocker<IContainerMDPtr,MDReadLock>;
   using IContainerMDWriteLocker = NSObjectMDLocker<IContainerMDPtr,MDWriteLock>;
 
@@ -97,7 +96,7 @@ public:
   //----------------------------------------------------------------------------
   //! Constructor
   //----------------------------------------------------------------------------
-  IContainerMD(): NSObjectMDLockHelper(), mIsDeleted(false) {}
+  IContainerMD(): LockableNSObjMD(), mIsDeleted(false) {}
 
   //----------------------------------------------------------------------------
   //! Destructor
@@ -457,6 +456,11 @@ private:
 
   std::chrono::steady_clock::time_point mLastPrefetch;
   mutable std::shared_mutex mLastPrefetchMtx;
+
+  //----------------------------------------------------------------------------
+  //! getMutex()
+  //----------------------------------------------------------------------------
+  std::shared_timed_mutex & getMutex() const override { return mMutex; }
 
 protected:
   //----------------------------------------------------------------------------

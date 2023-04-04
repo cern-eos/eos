@@ -42,8 +42,7 @@ class IFileMDSvc;
 //------------------------------------------------------------------------------
 //! Interface to file metadata
 //------------------------------------------------------------------------------
-class IFileMD : public NSObjectMDLockHelper<IFileMD>
-{
+class IFileMD : public LockableNSObjMD {
 public:
   //----------------------------------------------------------------------------
   //! Type definitions
@@ -60,7 +59,7 @@ public:
   //----------------------------------------------------------------------------
   //! Constructor
   //----------------------------------------------------------------------------
-  IFileMD(): NSObjectMDLockHelper(),mIsDeleted(false) {};
+  IFileMD(): LockableNSObjMD(),mIsDeleted(false) {};
 
   //----------------------------------------------------------------------------
   //! Destructor
@@ -455,7 +454,7 @@ public:
   IFileMD& operator=(const IFileMD& other) = delete;
 
   template<typename ObjectMDPtr, typename LockType> friend class NSObjectMDLocker;
-  friend class NSObjectMDLockHelper<IFileMD>;
+  friend class LockableNSObjMD;
   using IFileMDReadLocker = NSObjectMDLocker<IFileMDPtr,MDReadLock>;
   using IFileMDWriteLocker = NSObjectMDLocker<IFileMDPtr,MDWriteLock>;
 protected:
@@ -463,6 +462,11 @@ protected:
 
 private:
   std::atomic<bool> mIsDeleted; ///< Mark if object is still in cache but it was deleted
+
+  //----------------------------------------------------------------------------
+  //! getMutex()
+  //----------------------------------------------------------------------------
+  std::shared_timed_mutex & getMutex() const override { return mMutex; }
 };
 
 using IFileMDPtr = std::shared_ptr<IFileMD>;
