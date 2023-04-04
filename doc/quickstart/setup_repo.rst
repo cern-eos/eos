@@ -59,3 +59,22 @@ EOS Repo (eventually change el-7 to your platform: el-8 fc-34). Create file /etc
    name=EOS 4.0 Dependencies
    baseurl=https://storage-ci.web.cern.ch/storage-ci/eos/citrine-depend/el-7/x86_64/
    gpgcheck=0
+
+EOS Diopside
+-------------------------------------------
+
+.. code-block:: text
+
+   [eos-diopside]
+   name=EOS 5 Version
+   baseurl=https://storage-ci.web.cern.ch/storage-ci/eos/diopside/tag/el-7/x86_64/
+   gpgcheck=0
+
+Create file /etc/yum.repos.d/eos-dep.repo with following content
+
+.. code-block:: text
+
+   [eos-dep]
+   name=EOS 5 Dependencies
+   baseurl=https://storage-ci.web.cern.ch/storage-ci/eos/diopside-depend/el-7/x86_64/
+   gpgcheck=0
