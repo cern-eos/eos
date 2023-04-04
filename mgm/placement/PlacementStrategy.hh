@@ -130,7 +130,7 @@ struct PlacementStrategy {
   };
 
   virtual PlacementResult placeFiles(const ClusterData& cluster_data,
-                                      Args args) = 0;
+                                     Args args) = 0;
 
   bool validateArgs(const ClusterData& cluster_data, const Args& args,
                     PlacementResult& result) const
