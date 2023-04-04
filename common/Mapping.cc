@@ -1170,31 +1170,28 @@ Mapping::HandleKEYS(const XrdSecEntity* client, VirtualIdentity& vid)
   uidkey += "key:";
   uidkey += vid.key;
   uidkey += "\":uid";
-  vid.uid = 99;
-  vid.allowed_uids.clear();
-  vid.allowed_uids.insert(99);
+
   if (gVirtualUidMap.count(uidkey.c_str())) {
+    vid.uid = 99;
+    vid.allowed_uids.clear();
+    vid.allowed_uids.insert(99);
     vid.uid = gVirtualUidMap[uidkey.c_str()];
     vid.allowed_uids.insert(vid.uid);
     vid.gateway = true;
-  } else {
-    vid.gateway = false;
   }
   
   std::string gidkey = "https:\"";
   gidkey += "key:";
   gidkey += vid.key;
   gidkey += "\":gid";
-  vid.gid = 99;
-  vid.allowed_gids.clear();
-  vid.allowed_gids.insert(99);
-  
+
   if (gVirtualGidMap.count(gidkey.c_str())) {
+    vid.gid = 99;
+    vid.allowed_gids.clear();
+    vid.allowed_gids.insert(99);
     vid.gid = gVirtualGidMap[gidkey.c_str()];
     vid.allowed_gids.insert(vid.gid);
     vid.gateway = true;
-  } else {
-    vid.gateway =false;
   }
 }
 
