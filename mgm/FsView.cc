@@ -2718,6 +2718,13 @@ FsNode::FsNode(const char* name) : BaseView(
     gOFS->mMessagingRealm.get(), false);
   eos_static_info("msg=\"FsNode constructor\" name=\"%s\" ptr=%p",
                   mName.c_str(), this);
+  mSubscription = mq::SharedHashWrapper(gOFS->mMessagingRealm.get(),
+                                        mLocator).subscribe();
+
+  if (mSubscription) {
+    using namespace std::placeholders;
+    mSubscription->attachCallback(std::bind(&FsNode::ProcessUpdate, this, _1));
+  }
 }
 
 //------------------------------------------------------------------------------
@@ -2725,6 +2732,10 @@ FsNode::FsNode(const char* name) : BaseView(
 //------------------------------------------------------------------------------
 FsNode::~FsNode()
 {
+  if (mSubscription) {
+    mSubscription->detachCallback();
+  }
+
   if (mGwQueue) {
     delete mGwQueue;
   }
@@ -2732,6 +2743,25 @@ FsNode::~FsNode()
   FsView::gFsView.mGwNodes.erase(mName); // unregister evt. gateway node
   eos_static_info("msg=\"FsNode destructor\" name=\"%s\" ptr=%p",
                   mName.c_str(), this);
+}
+
+//------------------------------------------------------------------------------
+// Process update from the shared hash object
+//------------------------------------------------------------------------------
+void
+FsNode::ProcessUpdate(qclient::SharedHashUpdate&& upd)
+{
+  if (eos::common::FST_HEARTBEAT_KEY == upd.key) {
+    try {
+      SetHeartBeat(std::stoull(upd.value));
+    } catch (...) {
+      eos_static_err("msg=\"skip heartbeat update due to conversion failure\" "
+                     "value=\"%s\"", upd.value.c_str());
+    }
+  } else {
+    eos_static_debug("msg=\"ignore node shared hash update\" key=\"%s\" "
+                     "value=\"%s\"", upd.key.c_str(), upd.value.c_str());
+  }
 }
 
 //------------------------------------------------------------------------------

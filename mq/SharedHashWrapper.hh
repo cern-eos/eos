@@ -36,6 +36,7 @@ namespace qclient
 {
 class UpdateBatch;
 class SharedHash;
+class SharedHashSubscription;
 }
 
 class XrdMqSharedHash;
@@ -183,6 +184,11 @@ public:
   bool deleteHash();
 
   //----------------------------------------------------------------------------
+  //! Subscribe for updates from the underlying hash
+  //----------------------------------------------------------------------------
+  std::unique_ptr<qclient::SharedHashSubscription> subscribe();
+
+  //----------------------------------------------------------------------------
   //! Delete a shared hash, without creating an object first
   //----------------------------------------------------------------------------
   static bool deleteHash(mq::MessagingRealm* realm,
@@ -192,7 +198,7 @@ private:
   XrdMqSharedObjectManager* mSom;
   common::SharedHashLocator mLocator;
   common::RWMutexReadLock mReadLock;
-  XrdMqSharedHash* mHash;
+  XrdMqSharedHash* mHash {nullptr};
   std::shared_ptr<qclient::SharedHash> mSharedHash;
 };
 

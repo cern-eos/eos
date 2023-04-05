@@ -561,6 +561,7 @@ void Storage::updateFilesystemDefinitions()
 void
 Storage::QdbCommunicator(ThreadAssistant& assistant)
 {
+  eos_static_info("%s", "msg=\"starting QDB communicator thread\"");
   // Stupid delay to have legacy MQ up and running before we start
   std::this_thread::sleep_for(std::chrono::seconds(5));
 
@@ -588,13 +589,13 @@ Storage::QdbCommunicator(ThreadAssistant& assistant)
   gConfig.setFstNodeConfigQueue(configQueue);
   // Discover node-specific configuration
   common::SharedHashLocator nodeLocator = gConfig.getNodeHashLocator();
-  mq::SharedHashWrapper hash(gOFS.mMessagingRealm.get(), nodeLocator, true,
-                             false);
+  mq::SharedHashWrapper node_hash(gOFS.mMessagingRealm.get(), nodeLocator,
+                                  true, false);
   // Discover MGM name
   std::string mgmHost;
 
   for (size_t i = 0; i < 10; i++) {
-    if (hash.get("manager", mgmHost)) {
+    if (node_hash.get("manager", mgmHost)) {
       break;
     }
 
@@ -614,7 +615,7 @@ Storage::QdbCommunicator(ThreadAssistant& assistant)
   for (size_t i = 0; i < keys.size(); i++) {
     std::string value;
 
-    if (hash.get(keys[i], value)) {
+    if (node_hash.get(keys[i], value)) {
       ProcessFstConfigChange(keys[i], value);
     }
   }
@@ -623,7 +624,9 @@ Storage::QdbCommunicator(ThreadAssistant& assistant)
   // TODO: Find a way to do this without polling?
   while (!assistant.terminationRequested()) {
     updateFilesystemDefinitions();
-    assistant.wait_for(std::chrono::seconds(30));
+    node_hash.set(eos::common::FST_HEARTBEAT_KEY,
+                  std::to_string(time(nullptr)));
+    assistant.wait_for(std::chrono::seconds(1));
   }
 }
 

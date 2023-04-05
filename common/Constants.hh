@@ -75,5 +75,7 @@ static constexpr auto FSCK_REFRESH_INTERVAL_NAME = "fsck_refresh_interval";
 static constexpr auto EOS_SPARE_GROUP = "spare";
 //! Appliation lock attribute
 static constexpr auto EOS_APP_LOCK_ATTR = "sys.app.lock";
+//! FST heartbeat key marker, the "stat." prefix makes it transient
+static constexpr auto FST_HEARTBEAT_KEY = "stat.heartbeat";
 
 EOSCOMMONNAMESPACE_END

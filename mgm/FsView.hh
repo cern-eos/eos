@@ -34,6 +34,7 @@
 #include "common/Locators.hh"
 #include "common/InstanceName.hh"
 #include "common/AssistedThread.hh"
+#include "qclient/shared/SharedHashSubscription.hh"
 #include <string_view>
 #ifndef __APPLE__
 #include <sys/vfs.h>
@@ -703,6 +704,16 @@ public:
   //! Check if node has a recent enough heartbeat
   //----------------------------------------------------------------------------
   bool HasHeartbeat() const;
+
+  //----------------------------------------------------------------------------
+  //! Process update from the shared hash object
+  //!
+  //! @param upd SharedHashUpdate object
+  //----------------------------------------------------------------------------
+  void ProcessUpdate(qclient::SharedHashUpdate&& upd);
+
+private:
+  std::unique_ptr<qclient::SharedHashSubscription> mSubscription {nullptr};
 };
 
 

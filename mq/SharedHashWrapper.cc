@@ -29,77 +29,11 @@
 
 #include <qclient/shared/SharedHash.hh>
 #include <qclient/shared/UpdateBatch.hh>
+#include <qclient/shared/SharedHashSubscription.hh>
 
 EOSMQNAMESPACE_BEGIN
 
 static std::string LOCAL_PREFIX = "local.";
-
-//------------------------------------------------------------------------------
-//! Constructor
-//------------------------------------------------------------------------------
-SharedHashWrapper::SharedHashWrapper(mq::MessagingRealm* realm,
-                                     const common::SharedHashLocator& locator,
-                                     bool takeLock, bool create)
-  : mSom(realm->getSom()), mLocator(locator)
-{
-  if (realm->haveQDB()) {
-    mSharedHash = realm->getHashProvider()->get(locator.getQDBKey());
-  }
-
-  if (takeLock) {
-    mReadLock.Grab(mSom->HashMutex);
-  }
-
-  mHash = mSom->GetObject(mLocator.getConfigQueue().c_str(), "hash");
-
-  if (!mHash && create) {
-    //--------------------------------------------------------------------------
-    // Shared hash does not exist, create
-    //--------------------------------------------------------------------------
-    mReadLock.Release();
-    mSom->CreateSharedHash(mLocator.getConfigQueue().c_str(),
-                           mLocator.getBroadcastQueue().c_str(), mSom);
-    mReadLock.Grab(mSom->HashMutex);
-    mHash = mSom->GetObject(mLocator.getConfigQueue().c_str(), "hash");
-  } else if (mHash) {
-    std::unique_lock lock(mHash->mMutex);
-    mHash->SetBroadCastQueue(mLocator.getBroadcastQueue().c_str());
-  }
-}
-
-SharedHashWrapper SharedHashWrapper::makeGlobalMgmHash(mq::MessagingRealm*
-    realm)
-{
-  return SharedHashWrapper(realm, common::SharedHashLocator::makeForGlobalHash());
-}
-
-//------------------------------------------------------------------------------
-// Destructor
-//------------------------------------------------------------------------------
-SharedHashWrapper::~SharedHashWrapper()
-{
-  releaseLocks();
-}
-
-//------------------------------------------------------------------------------
-// Release any interal locks - DO NOT use this object any further
-//------------------------------------------------------------------------------
-void SharedHashWrapper::releaseLocks()
-{
-  mHash = nullptr;
-  mReadLock.Release();
-}
-
-//------------------------------------------------------------------------------
-// Set key-value pair
-//------------------------------------------------------------------------------
-bool SharedHashWrapper::set(const std::string& key, const std::string& value,
-                            bool broadcast)
-{
-  Batch batch;
-  batch.Set(key, value);
-  return set(batch);
-}
 
 //------------------------------------------------------------------------------
 // Set value, detect based on prefix whether it should be durable,
@@ -108,10 +42,10 @@ bool SharedHashWrapper::set(const std::string& key, const std::string& value,
 void SharedHashWrapper::Batch::Set(const std::string& key,
                                    const std::string& value)
 {
-  if (common::startsWith(key, "stat.")) {
-    SetTransient(key, value);
-  } else if (common::startsWith(key, LOCAL_PREFIX)) {
+  if (common::startsWith(key, LOCAL_PREFIX)) {
     SetLocal(key, value);
+  } else if (common::startsWith(key, "stat.")) {
+    SetTransient(key, value);
   } else {
     SetDurable(key, value);
   }
@@ -142,6 +76,89 @@ void SharedHashWrapper::Batch::SetLocal(const std::string& key,
                                         const std::string& value)
 {
   mLocalUpdates[key] = value;
+}
+
+//------------------------------------------------------------------------------
+// Constructor SharedHashWrapper
+//------------------------------------------------------------------------------
+SharedHashWrapper::SharedHashWrapper(mq::MessagingRealm* realm,
+                                     const common::SharedHashLocator& locator,
+                                     bool takeLock, bool create)
+  : mSom(realm->getSom()), mLocator(locator)
+{
+  if (realm->haveQDB()) {
+    mSharedHash = realm->getHashProvider()->get(locator.getQDBKey());
+  } else {
+    if (takeLock) {
+      mReadLock.Grab(mSom->HashMutex);
+    }
+
+    mHash = mSom->GetObject(mLocator.getConfigQueue().c_str(), "hash");
+
+    if (!mHash && create) {
+      //--------------------------------------------------------------------------
+      // Shared hash does not exist, create
+      //--------------------------------------------------------------------------
+      mReadLock.Release();
+      mSom->CreateSharedHash(mLocator.getConfigQueue().c_str(),
+                             mLocator.getBroadcastQueue().c_str(), mSom);
+      mReadLock.Grab(mSom->HashMutex);
+      mHash = mSom->GetObject(mLocator.getConfigQueue().c_str(), "hash");
+    } else if (mHash) {
+      std::unique_lock lock(mHash->mMutex);
+      mHash->SetBroadCastQueue(mLocator.getBroadcastQueue().c_str());
+    }
+  }
+}
+
+//------------------------------------------------------------------------------
+// Destructor
+//------------------------------------------------------------------------------
+SharedHashWrapper::~SharedHashWrapper()
+{
+  releaseLocks();
+}
+
+//------------------------------------------------------------------------------
+// Subscribe for updates from the underlying hash
+//------------------------------------------------------------------------------
+std::unique_ptr<qclient::SharedHashSubscription>
+SharedHashWrapper::subscribe()
+{
+  if (mSharedHash) {
+    return mSharedHash->subscribe();
+  }
+
+  return nullptr;
+}
+
+//------------------------------------------------------------------------------
+// Make global MGM hash
+//------------------------------------------------------------------------------
+SharedHashWrapper
+SharedHashWrapper::makeGlobalMgmHash(mq::MessagingRealm* realm)
+{
+  return SharedHashWrapper(realm, common::SharedHashLocator::makeForGlobalHash());
+}
+
+//------------------------------------------------------------------------------
+// Release any interal locks - DO NOT use this object any further
+//------------------------------------------------------------------------------
+void SharedHashWrapper::releaseLocks()
+{
+  mHash = nullptr;
+  mReadLock.Release();
+}
+
+//------------------------------------------------------------------------------
+// Set key-value pair
+//------------------------------------------------------------------------------
+bool SharedHashWrapper::set(const std::string& key, const std::string& value,
+                            bool broadcast)
+{
+  Batch batch;
+  batch.Set(key, value);
+  return set(batch);
 }
 
 //------------------------------------------------------------------------------
@@ -216,6 +233,24 @@ bool SharedHashWrapper::set(const Batch& batch)
 }
 
 //------------------------------------------------------------------------------
+// Query the given key, return if retrieval successful
+//------------------------------------------------------------------------------
+bool SharedHashWrapper::get(const std::string& key, std::string& value)
+{
+  if (mSharedHash) {
+    return mSharedHash->get(key, value);
+  } else {
+    if (!mHash) {
+      return false;
+    }
+
+    std::unique_lock lock(mHash->mMutex);
+    value = mHash->Get(key.c_str());
+    return true;
+  }
+}
+
+//------------------------------------------------------------------------------
 // Query the given key
 //------------------------------------------------------------------------------
 std::string SharedHashWrapper::get(const std::string& key)
@@ -249,51 +284,26 @@ double SharedHashWrapper::getDouble(const std::string& key)
 //------------------------------------------------------------------------------
 // Query the given key, return if retrieval successful
 //------------------------------------------------------------------------------
-bool SharedHashWrapper::get(const std::string& key, std::string& value)
-{
-  if (mSharedHash) {
-    if (eos::common::startsWith(key, LOCAL_PREFIX)) {
-      return mSharedHash->getLocal(key, value);
-    }
-
-    return mSharedHash->get(key, value);
-  }
-
-  if (!mHash) {
-    return false;
-  }
-
-  std::unique_lock lock(mHash->mMutex);
-  value = mHash->Get(key.c_str());
-  return true;
-}
-
-
-//------------------------------------------------------------------------------
-// Query the given key, return if retrieval successful
-//------------------------------------------------------------------------------
 bool
 SharedHashWrapper::get(const std::vector<std::string>& keys,
                        std::map<std::string, std::string>& values)
 {
   if (mSharedHash) {
     return mSharedHash->get(keys, values);
-  }
+  } else {
+    if (!mHash) {
+      return false;
+    }
 
-  if (!mHash) {
-    return false;
+    std::unique_lock lock(mHash->mMutex);
+    std::transform(keys.begin(), keys.end(),
+                   std::inserter(values, values.end()),
+    [this](const std::string & key) {
+      return std::make_pair(key, mHash->Get(key.c_str()));
+    });
+    return true;
   }
-
-  std::unique_lock lock(mHash->mMutex);
-  std::transform(keys.begin(), keys.end(),
-                 std::inserter(values, values.end()),
-  [this](const std::string & key) {
-    return std::make_pair(key, mHash->Get(key.c_str()));
-  });
-  return true;
 }
-
-
 
 //------------------------------------------------------------------------------
 // Delete the given key
@@ -314,14 +324,14 @@ bool SharedHashWrapper::del(const std::string& key, bool broadcast)
     std::future<qclient::redisReplyPtr> reply = mSharedHash->set(updateBatch);
     reply.wait();
     return true;
-  }
+  } else {
+    if (!mHash) {
+      return false;
+    }
 
-  if (!mHash) {
-    return false;
+    std::unique_lock lock(mHash->mMutex);
+    return mHash->Delete(key.c_str(), broadcast);
   }
-
-  std::unique_lock lock(mHash->mMutex);
-  return mHash->Delete(key.c_str(), broadcast);
 }
 
 //------------------------------------------------------------------------------
@@ -329,6 +339,7 @@ bool SharedHashWrapper::del(const std::string& key, bool broadcast)
 //------------------------------------------------------------------------------
 bool SharedHashWrapper::getKeys(std::vector<std::string>& out)
 {
+  // @todo(esindril) add implementation for qclient SharedHash
   if (!mHash) {
     return false;
   }
@@ -343,6 +354,7 @@ bool SharedHashWrapper::getKeys(std::vector<std::string>& out)
 //------------------------------------------------------------------------------
 bool SharedHashWrapper::getContents(std::map<std::string, std::string>& out)
 {
+  // @todo(esindril) add implementation for qclient SharedHash
   if (!mHash) {
     return false;
   }
@@ -372,6 +384,9 @@ bool SharedHashWrapper::deleteHash()
 }
 
 //------------------------------------------------------------------------------
+// @todo(esindril) this needs to be removed as there is not added benefit
+//                 in comparision to simple get that already gives precedence
+//                 to local entries
 // Get the values for a given set of keys that are local
 //------------------------------------------------------------------------------
 bool
@@ -381,19 +396,19 @@ SharedHashWrapper::getLocal(const std::vector<std::string>& keys,
   if (mSharedHash) {
     mSharedHash->getLocal(keys, out);
     return true;
+  } else {
+    if (!mHash) {
+      return false;
+    }
+
+    std::unique_lock lock(mHash->mMutex);
+
+    for (const auto& key : keys) {
+      out.emplace(key, mHash->Get(key.c_str()));
+    }
+
+    return true;
   }
-
-  if (!mHash) {
-    return false;
-  }
-
-  std::unique_lock lock(mHash->mMutex);
-
-  for (const auto& key : keys) {
-    out.emplace(key, mHash->Get(key.c_str()));
-  }
-
-  return true;
 }
 
 EOSMQNAMESPACE_END
