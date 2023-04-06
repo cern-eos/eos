@@ -160,7 +160,7 @@ EosFuse::UsageGet()
   usage +=
     "                     eos.quota <path>                   : show user quota information for a given path\n";
   usage +=
-    "                     eos.url.xroot                      : show the root:// protocol transport url for the given file";
+    "                     eos.url.xroot                      : show the root:// protocol transport url for the given file\n";
   usage +=
     "                     eos.reconnect <mount>              : reconnect and dump the connection credentials\n";
   usage +=
@@ -2773,15 +2773,16 @@ EosFuse::setattr(fuse_req_t req, fuse_ino_t ino, struct stat* attr, int op,
         if (op & FUSE_SET_ATTR_MTIME) {
           (*md)()->set_mtime(attr->MTIMESPEC.tv_sec);
           (*md)()->set_mtime_ns(attr->MTIMESPEC.tv_nsec);
+#ifndef USE_FUSE3
           (*md)()->set_ctime(tsnow.tv_sec);
           (*md)()->set_ctime_ns(tsnow.tv_nsec);
+#endif
         }
 
 #ifdef USE_FUSE3
-
         if (op & FUSE_SET_ATTR_CTIME) {
-          (*md)()->set_mtime(attr->CTIMESPEC.tv_sec);
-          (*md)()->set_mtime_ns(attr->CTIMESPEC.tv_nsec);
+          (*md)()->set_ctime(attr->CTIMESPEC.tv_sec);
+          (*md)()->set_ctime_ns(attr->CTIMESPEC.tv_nsec);
         }
 
 #endif
