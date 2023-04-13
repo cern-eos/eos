@@ -72,6 +72,7 @@ enum class PlacementStrategyT : uint8_t {
   kThreadLocalRoundRobin,
   kRandom,
   kFidRandom,
+  kWeightedRandom,
   Count
 };
 
@@ -97,6 +98,8 @@ constexpr PlacementStrategyT strategy_from_str(std::string_view strategy_sv) {
   } else if (strategy_sv == "fid"sv ||
              strategy_sv == "fidrandom"sv) {
     return PlacementStrategyT::kFidRandom;
+  } else if (strategy_sv == "weightedrandom"sv) {
+    return PlacementStrategyT::kWeightedRandom;
   }
   return PlacementStrategyT::kRoundRobin;
 }
@@ -111,6 +114,8 @@ inline std::string strategy_to_str(PlacementStrategyT strategy) {
     return "random";
   case PlacementStrategyT::kFidRandom:
     return "fidrandom";
+  case PlacementStrategyT::kWeightedRandom:
+    return "weightedrandom";
   default:
     return "unknown";
   }
@@ -152,8 +157,8 @@ struct PlacementStrategy {
 
     try {
         const auto& bucket = cluster_data.buckets.at(bucket_index);
-        if (bucket.items.empty()) {
-          result.err_msg = "Bucket " + std::to_string(bucket.id) + "is empty!";
+        if (bucket.items.size() < args.n_replicas) {
+          result.err_msg = "Bucket " + std::to_string(bucket.id) + "does not contain enough elements!";
           result.ret_code = ENOENT;
           return false;
         }
