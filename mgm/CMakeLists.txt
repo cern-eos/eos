@@ -337,6 +337,7 @@ add_library(
   placement/FsScheduler.cc
   placement/FlatScheduler.cc
   placement/RoundRobinPlacementStrategy.cc
+  placement/WeightedPlacementStrategy.cc
   placement/ThreadLocalRRSeed.cc
   ${FUSEX_SRCS})
 
