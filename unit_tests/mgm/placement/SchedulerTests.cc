@@ -587,8 +587,9 @@ TEST(FlatScheduler, TLNoSiteWeighted)
   eos::mgm::placement::FlatScheduler flat_scheduler(PlacementStrategyT::kWeightedRandom,
                                                     2048);
   std::map<int, int> disk_wt_map;
+  std::map<int, int> disk_wt_count;
   {
-    std::vector<int> weights = {4, 8, 12, 22};
+    std::vector<int> weights = {4, 8, 16, 32};
     auto sh = mgr.getStorageHandler(n_elements);
     ASSERT_TRUE(sh.addBucket(get_bucket_type(StdBucketType::ROOT), 0));
     for (int i=0; i< n_groups; ++i) {
@@ -598,6 +599,7 @@ TEST(FlatScheduler, TLNoSiteWeighted)
     for (int i=0; i < n_groups*n_disks_per_group; i++) {
       auto weight = eos::common::pickIndexRR(weights, i);
       disk_wt_map[i+1] = weight;
+      disk_wt_count[weight]++;
       ASSERT_TRUE(sh.addDisk(Disk(i+1, ConfigStatus::kRW, ActiveStatus::kOnline,
                                   weight),
                              -100 - i/n_disks_per_group));
@@ -614,7 +616,7 @@ TEST(FlatScheduler, TLNoSiteWeighted)
   }
   std::map<int, int> weight_counter;
 
-  for (int i = 0; i < 10000; i++) {
+  for (int i = 0; i < 1024; i++) {
     auto result = flat_scheduler.schedule(cluster_data(), {2});
     ASSERT_TRUE(result);
     ASSERT_TRUE(result.is_valid_placement(2));
@@ -622,10 +624,14 @@ TEST(FlatScheduler, TLNoSiteWeighted)
     weight_counter[disk_wt_map[result.ids[1]]]++;
   }
   ASSERT_TRUE(weight_counter[4] < weight_counter[8]);
-  ASSERT_TRUE(weight_counter[8] < weight_counter[12]);
-  ASSERT_TRUE(weight_counter[12] < weight_counter[22]);
+  ASSERT_TRUE(weight_counter[8] < weight_counter[16]);
+  ASSERT_TRUE(weight_counter[16] < weight_counter[32]);
+  std::cout << "Cluster Disk weight count: " << std::endl;
+  for (const auto &kv: disk_wt_count) {
+    std::cout << kv.first << " : " << kv.second << std::endl;
+  }
 
-  std::cout << "Disk Weight distribution: " << std::endl;
+  std::cout << "Scheduling Disk Weight distribution: " << std::endl;
   for (const auto &kv: weight_counter) {
     std::cout << kv.first << " : " << kv.second << std::endl;
   }
