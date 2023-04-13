@@ -1,5 +1,6 @@
 #include "mgm/placement/FlatScheduler.hh"
 #include "mgm/placement/RoundRobinPlacementStrategy.hh"
+#include "mgm/placement/WeightedPlacementStrategy.hh"
 #include <queue>
 
 namespace eos::mgm::placement {
@@ -13,6 +14,8 @@ makePlacementStrategy(PlacementStrategyT type, size_t max_buckets)
   case PlacementStrategyT::kRandom: [[fallthrough]];
   case PlacementStrategyT::kFidRandom:
     return std::make_unique<RoundRobinPlacement>(type, max_buckets);
+  case PlacementStrategyT::kWeightedRandom:
+    return std::make_unique<WeightedRandomPlacement>(type, max_buckets);
   default:
     return nullptr;
   }
