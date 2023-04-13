@@ -21,7 +21,9 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
+#include "common/utils/ContainerUtils.hh"
 #include "mgm/placement/RoundRobinPlacementStrategy.hh"
+#include "mgm/placement/WeightedPlacementStrategy.hh"
 #include "mgm/placement/FlatScheduler.hh"
 #include "mgm/placement/PlacementStrategy.hh"
 #include "unit_tests/mgm/placement/ClusterMapFixture.hh"
@@ -456,9 +458,47 @@ TEST(FlatScheduler, TLSingleSite)
   ASSERT_TRUE(result.is_valid_placement(2));
 }
 
+TEST(FlatScheduler, TLSingleSiteWeighted)
+{
+  using namespace eos::mgm::placement;
+  ClusterMgr mgr;
+  using eos::mgm::placement::PlacementStrategyT;
+
+  eos::mgm::placement::FlatScheduler flat_scheduler(PlacementStrategyT::kWeightedRandom,
+                                                    2048);
+
+  {
+    auto sh = mgr.getStorageHandler(1024);
+    ASSERT_TRUE(sh.addBucket(get_bucket_type(StdBucketType::ROOT), 0));
+    ASSERT_TRUE(sh.addBucket(get_bucket_type(StdBucketType::SITE), -1, 0));
+    ASSERT_TRUE(sh.addBucket(get_bucket_type(StdBucketType::GROUP), -100, -1));
+
+    ASSERT_TRUE(sh.addDisk(Disk(1, ConfigStatus::kRW, ActiveStatus::kOnline, 1), -100));
+    ASSERT_TRUE(sh.addDisk(Disk(2, ConfigStatus::kRW, ActiveStatus::kOnline, 1), -100));
+    ASSERT_TRUE(sh.addDisk(Disk(3, ConfigStatus::kRW, ActiveStatus::kOnline, 1), -100));
+    ASSERT_TRUE(sh.addDisk(Disk(4, ConfigStatus::kRW, ActiveStatus::kOnline, 1), -100));
+    ASSERT_TRUE(sh.addDisk(Disk(5, ConfigStatus::kRW, ActiveStatus::kOnline, 1), -100));
+  }
+
+  auto data = mgr.getClusterData();
+  std::vector<int32_t> disk_ids_vec {-1};
+  std::vector<int32_t> site_ids_vec {-100};
+  std::vector<int32_t> group_ids_vec {1,2,3,4,5};
+  ASSERT_EQ(data->buckets[0].items, disk_ids_vec);
+  ASSERT_EQ(data->buckets[1].items, site_ids_vec);
+  ASSERT_EQ(data->buckets[100].items, group_ids_vec);
+
+  auto cluster_data_ptr = mgr.getClusterData();
+  auto result = flat_scheduler.schedule(cluster_data_ptr(),
+                                        {2});
+  std::cout << result.err_msg.value_or("") << std::endl;
+  ASSERT_TRUE(result);
+  ASSERT_TRUE(result.is_valid_placement(2));
+}
+
 TEST(FlatScheduler, TLNoSite)
 {
-   using namespace eos::mgm::placement;
+  using namespace eos::mgm::placement;
   eos::mgm::placement::ClusterMgr mgr;
   int n_elements = 1024;
   int n_disks_per_group = 16;
@@ -495,6 +535,102 @@ TEST(FlatScheduler, TLNoSite)
     ASSERT_TRUE(result.is_valid_placement(2));
   }
 }
+
+TEST(FlatScheduler, TLNoSiteUniformWeighted)
+{
+  using namespace eos::mgm::placement;
+  eos::mgm::placement::ClusterMgr mgr;
+  int n_elements = 1024;
+  int n_disks_per_group = 16;
+  int n_groups = 32;
+  eos::mgm::placement::FlatScheduler flat_scheduler(PlacementStrategyT::kWeightedRandom,
+                                                    2048);
+
+  {
+
+    auto sh = mgr.getStorageHandler(n_elements);
+    ASSERT_TRUE(sh.addBucket(get_bucket_type(StdBucketType::ROOT), 0));
+    for (int i=0; i< n_groups; ++i) {
+      ASSERT_TRUE(sh.addBucket(get_bucket_type(StdBucketType::GROUP), -100-i, 0));
+    }
+
+    for (int i=0; i < n_groups*n_disks_per_group; i++) {
+      ASSERT_TRUE(sh.addDisk(Disk(i+1, ConfigStatus::kRW, ActiveStatus::kOnline, 1),
+                             -100 - i/n_disks_per_group));
+    }
+
+  }
+  auto cluster_data = mgr.getClusterData();
+  EXPECT_EQ(cluster_data->disks.size(), 32*16);
+  EXPECT_EQ(cluster_data->buckets.size(), n_elements);
+  auto root_bucket = cluster_data->buckets[0];
+  EXPECT_EQ(root_bucket.items.size(), n_groups);
+  for (auto it: root_bucket.items) {
+    EXPECT_EQ(cluster_data->buckets.at(-it).items.size(), n_disks_per_group);
+  }
+
+  for (int i = 0; i < 1000; i++) {
+    auto result = flat_scheduler.schedule(cluster_data(), {2});
+    ASSERT_TRUE(result);
+    ASSERT_TRUE(result.is_valid_placement(2));
+  }
+}
+
+
+TEST(FlatScheduler, TLNoSiteWeighted)
+{
+  using namespace eos::mgm::placement;
+  eos::mgm::placement::ClusterMgr mgr;
+  int n_elements = 1024;
+  int n_disks_per_group = 32;
+  int n_groups = 32;
+  eos::mgm::placement::FlatScheduler flat_scheduler(PlacementStrategyT::kWeightedRandom,
+                                                    2048);
+  std::map<int, int> disk_wt_map;
+  {
+    std::vector<int> weights = {4, 8, 12, 22};
+    auto sh = mgr.getStorageHandler(n_elements);
+    ASSERT_TRUE(sh.addBucket(get_bucket_type(StdBucketType::ROOT), 0));
+    for (int i=0; i< n_groups; ++i) {
+      ASSERT_TRUE(sh.addBucket(get_bucket_type(StdBucketType::GROUP), -100-i, 0));
+    }
+
+    for (int i=0; i < n_groups*n_disks_per_group; i++) {
+      auto weight = eos::common::pickIndexRR(weights, i);
+      disk_wt_map[i+1] = weight;
+      ASSERT_TRUE(sh.addDisk(Disk(i+1, ConfigStatus::kRW, ActiveStatus::kOnline,
+                                  weight),
+                             -100 - i/n_disks_per_group));
+    }
+
+  }
+  auto cluster_data = mgr.getClusterData();
+  EXPECT_EQ(cluster_data->disks.size(), 32*32);
+  EXPECT_EQ(cluster_data->buckets.size(), n_elements);
+  auto root_bucket = cluster_data->buckets[0];
+  EXPECT_EQ(root_bucket.items.size(), n_groups);
+  for (auto it: root_bucket.items) {
+    EXPECT_EQ(cluster_data->buckets.at(-it).items.size(), n_disks_per_group);
+  }
+  std::map<int, int> weight_counter;
+
+  for (int i = 0; i < 10000; i++) {
+    auto result = flat_scheduler.schedule(cluster_data(), {2});
+    ASSERT_TRUE(result);
+    ASSERT_TRUE(result.is_valid_placement(2));
+    weight_counter[disk_wt_map[result.ids[0]]]++;
+    weight_counter[disk_wt_map[result.ids[1]]]++;
+  }
+  ASSERT_TRUE(weight_counter[4] < weight_counter[8]);
+  ASSERT_TRUE(weight_counter[8] < weight_counter[12]);
+  ASSERT_TRUE(weight_counter[12] < weight_counter[22]);
+
+  std::cout << "Disk Weight distribution: " << std::endl;
+  for (const auto &kv: weight_counter) {
+    std::cout << kv.first << " : " << kv.second << std::endl;
+  }
+}
+
 
 
 TEST(ClusterMap, Concurrency)
