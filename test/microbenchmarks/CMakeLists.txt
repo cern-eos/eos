@@ -47,6 +47,7 @@ add_executable(eos-flatscheduler-microbenchmark mgm/BM_FlatScheduler.cc
         ${CMAKE_SOURCE_DIR}/mgm/placement/ClusterMap.cc
         ${CMAKE_SOURCE_DIR}/mgm/placement/FlatScheduler.cc
         ${CMAKE_SOURCE_DIR}/mgm/placement/RoundRobinPlacementStrategy.cc
+        ${CMAKE_SOURCE_DIR}/mgm/placement/WeightedPlacementStrategy.cc
         ${CMAKE_SOURCE_DIR}/mgm/placement/ThreadLocalRRSeed.cc)
 add_executable(eos-rrseed-microbenchmark mgm/BM_RRSeed.cc
         ${CMAKE_SOURCE_DIR}/mgm/placement/ThreadLocalRRSeed.cc)
