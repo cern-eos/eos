@@ -1,9 +1,38 @@
 #include "mgm/placement/FlatScheduler.hh"
-
+#include "mgm/placement/RoundRobinPlacementStrategy.hh"
 #include <queue>
 
 namespace eos::mgm::placement {
 
+std::unique_ptr<PlacementStrategy>
+makePlacementStrategy(PlacementStrategyT type, size_t max_buckets)
+{
+  switch (type) {
+  case PlacementStrategyT::kRoundRobin: [[fallthrough]];
+  case PlacementStrategyT::kThreadLocalRoundRobin: [[fallthrough]];
+  case PlacementStrategyT::kRandom: [[fallthrough]];
+  case PlacementStrategyT::kFidRandom:
+    return std::make_unique<RoundRobinPlacement>(type, max_buckets);
+  default:
+    return nullptr;
+  }
+
+}
+
+FlatScheduler::FlatScheduler(size_t max_buckets)
+{
+  for (size_t i = 0; i < TOTAL_PLACEMENT_STRATEGIES; i++) {
+    mPlacementStrategy[i] = makePlacementStrategy(
+        static_cast<PlacementStrategyT>(i), max_buckets);
+  }
+}
+
+FlatScheduler::FlatScheduler(PlacementStrategyT strategy, size_t max_buckets)
+: mDefaultStrategy(strategy)
+{
+  mPlacementStrategy[static_cast<int>(strategy)] =
+      makePlacementStrategy(strategy, max_buckets);
+}
 
 PlacementResult
 FlatScheduler::schedule(const ClusterData& cluster_data,
@@ -79,7 +108,6 @@ FlatScheduler::scheduleDefault(const ClusterData& cluster_data,
 
     PlacementStrategy::Args plct_args{args.bucket_id, n_replicas, args.status};
     auto result = mPlacementStrategy[strategy_index(args.strategy)]->placeFiles(cluster_data, plct_args);
-
     if (!result || result.ids.empty()) {
       return result;
     }
@@ -93,5 +121,6 @@ FlatScheduler::scheduleDefault(const ClusterData& cluster_data,
 
   return {};
 }
+
 
 } // namespace eos::mgm::placement

@@ -24,25 +24,14 @@
 #pragma once
 
 #include "mgm/placement/ClusterDataTypes.hh"
-#include "mgm/placement/RoundRobinPlacementStrategy.hh"
+#include "mgm/placement/PlacementStrategy.hh"
 #include <algorithm>
 #include <optional>
 
 namespace eos::mgm::placement {
 
-template <typename... Args>
 std::unique_ptr<PlacementStrategy> makePlacementStrategy(PlacementStrategyT type,
-                      Args&&... args) {
-  switch (type) {
-  case PlacementStrategyT::kRoundRobin: [[fallthrough]];
-  case PlacementStrategyT::kThreadLocalRoundRobin: [[fallthrough]];
-  case PlacementStrategyT::kRandom:
-  case PlacementStrategyT::kFidRandom:
-    return std::make_unique<RoundRobinPlacement>(type, std::forward<Args>(args)...);
-  default:
-    return nullptr;
-  }
-}
+                      size_t max_buckets);
 // We really need a more creative name?
 class FlatScheduler {
 public:
@@ -82,21 +71,8 @@ public:
     }
   };
 
-  FlatScheduler(size_t max_buckets)
-  {
-    for (size_t i = 0; i < TOTAL_PLACEMENT_STRATEGIES; i++) {
-      mPlacementStrategy[i] = makePlacementStrategy(
-          static_cast<PlacementStrategyT>(i), max_buckets);
-    }
-  }
-
-  template <typename... Args>
-  FlatScheduler(PlacementStrategyT strategy, Args&&... args)
-      : mDefaultStrategy(strategy)
-  {
-    mPlacementStrategy[static_cast<int>(strategy)] =
-        makePlacementStrategy(strategy, std::forward<Args>(args)...);
-  }
+  FlatScheduler(size_t max_buckets);
+  FlatScheduler(PlacementStrategyT strategy, size_t max_buckets);
 
   PlacementResult schedule(const ClusterData& cluster_data,
                            PlacementArguments args);
