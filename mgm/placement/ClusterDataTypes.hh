@@ -142,8 +142,21 @@ struct ClusterData {
   std::vector<Disk> disks;
   std::vector<Bucket> buckets;
 
-  void setDiskStatus(fsid_t id, ConfigStatus status) {
-    disks[id].config_status.store(status, std::memory_order_relaxed);
+  bool setDiskStatus(fsid_t id, ConfigStatus status) {
+    if (id > disks.size()) {
+      return false;
+    }
+    disks[id - 1].config_status.store(status, std::memory_order_release);
+    return true;
+  }
+
+  bool setDiskWeight(fsid_t id, uint8_t weight) {
+    if (id > disks.size()) {
+      return false;
+    }
+    return disks[id - 1].weight.compare_exchange_strong(weight,
+                                                        weight,
+                                                        std::memory_order_acq_rel);
   }
 };
 
