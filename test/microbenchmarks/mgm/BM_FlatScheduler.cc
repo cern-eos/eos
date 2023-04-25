@@ -186,7 +186,7 @@ static void BM_WeightedRandomScheduler(benchmark::State& state) {
     }
 
   }
-  FlatScheduler flat_scheduler(PlacementStrategyT::kFidRandom, n_elements);
+  FlatScheduler flat_scheduler(PlacementStrategyT::kWeightedRandom, n_elements);
 
 
   FlatScheduler::PlacementArguments args(state.range(1));
