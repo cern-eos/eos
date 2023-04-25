@@ -67,7 +67,7 @@ public:
 
   StorageHandler getStorageHandler(size_t max_buckets=256);
   StorageHandler getStorageHandlerWithData();
-  //epoch_id_t getCurrentEpoch() const { return mCurrentEpoch; }
+  epoch_id_t getCurrentEpoch() const { return mCurrentEpoch; }
 
   ClusterDataPtr getClusterData();
 
@@ -79,6 +79,7 @@ public:
 
 private:
   eos::common::atomic_unique_ptr<ClusterData> mClusterData;
+  std::atomic<epoch_id_t> mCurrentEpoch {0};
   cluster_rcu_mutex_t cluster_mgr_rcu;
 };
 
