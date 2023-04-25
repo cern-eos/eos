@@ -43,6 +43,7 @@ ClusterMgr::addClusterData(ClusterData&& data)
 {
   cluster_mgr_rcu.rcu_write_lock();
   auto old_data = mClusterData.reset(new ClusterData(std::move(data)));
+  mCurrentEpoch.fetch_add(1, std::memory_order_release);
   cluster_mgr_rcu.rcu_synchronize();
   delete old_data;
 }
