@@ -52,8 +52,17 @@ bool
 ClusterMgr::setDiskStatus(fsid_t disk_id, ConfigStatus status)
 {
 
-  mClusterData->setDiskStatus(disk_id, status);
-  return true;
+  return mClusterData->setDiskStatus(disk_id, status);
+}
+
+bool
+ClusterMgr::setDiskWeight(fsid_t disk_id, uint8_t weight)
+{
+  if (mClusterData->setDiskWeight(disk_id, weight)) {
+    mCurrentEpoch.fetch_add(1, std::memory_order_release);
+    return true;
+  }
+  return false;
 }
 
 StorageHandler
