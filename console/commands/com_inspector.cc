@@ -21,10 +21,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-/*----------------------------------------------------------------------------*/
 #include "console/ConsoleMain.hh"
 extern int com_proto_space(char*);
-/*----------------------------------------------------------------------------*/
 
 int
 com_inspector(char* arg1)

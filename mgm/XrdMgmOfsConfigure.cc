@@ -1932,8 +1932,6 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   // Initialize the replication tracker
   mReplicationTracker.reset(ReplicationTracker::Create(
                               MgmProcTrackerPath.c_str()));
-  // Initialize the file inspector
-  mFileInspector.reset(FileInspector::Create());
   // Set also the archiver ZMQ endpoint were client requests are sent
   std::ostringstream oss;
   oss << "ipc://" << MgmArchiveDir.c_str() << "archive_frontend.ipc";

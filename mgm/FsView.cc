@@ -32,6 +32,7 @@
 #include "mgm/GroupDrainer.hh"
 #include "mgm/GeoTreeEngine.hh"
 #include "mgm/balancer/FsBalancer.hh"
+#include "mgm/inspector/FileInspector.hh"
 #include "mgm/config/IConfigEngine.hh"
 #include "mgm/tgc/Constants.hh"
 #include "mgm/http/rest-api/Constants.hh"
@@ -851,6 +852,7 @@ FsSpace::FsSpace(const char* name)
     mGroupBalancer = new GroupBalancer(name);
     mGeoBalancer = new GeoBalancer(name);
     mGroupDrainer.reset(new GroupDrainer(name));
+    mFileInspector.reset(new FileInspector(name));
   }
 
   if (!gDisableDefaults) {

@@ -80,7 +80,6 @@
 #include "mgm/tgc/RealTapeGcMgm.hh"
 #include "mgm/tgc/MultiSpaceTapeGc.hh"
 #include "mgm/tracker/ReplicationTracker.hh"
-#include "mgm/inspector/FileInspector.hh"
 #include "mgm/XrdMgmOfs/fsctl/CommitHelper.hh"
 #include "mgm/XattrLock.hh"
 #include "mgm/auth/AccessChecker.hh"
@@ -461,14 +460,12 @@ XrdMgmOfs::OrderlyShutdown()
 
   eos_warning("%s", "msg=\"stopping fusex server\"");
   zMQ->gFuseServer.shutdown();
-
   // TODO: for now removing this since it breaks Centos8/9 shutdown
   /*  if (zMQ) {
     delete zMQ;
     zMQ = nullptr;
   }
   */
-  
   eos_warning("%s", "msg=\"stopping FSCK service\"");
   mFsckEngine->Stop();
   eos_warning("%s", "msg=\"stopping messaging\"");

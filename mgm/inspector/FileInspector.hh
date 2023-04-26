@@ -48,37 +48,38 @@ EOSMGMNAMESPACE_BEGIN
 class FileInspector
 {
 public:
-
   struct Options {
-    bool enabled;                  //< Is FileInspector even enabled?
+    bool enabled; //< Is FileInspector even enabled?
     std::chrono::seconds
     interval; //< Run FileInsepctor cleanup every this many seconds
   };
 
-  FileInspector();
-  virtual ~FileInspector();
+  //----------------------------------------------------------------------------
+  //! Constructor
+  //!
+  //! @param space_name corresponding space name
+  //----------------------------------------------------------------------------
+  FileInspector(std::string_view space_name);
 
   //----------------------------------------------------------------------------
-  // Perform a single inspector cycle, in-memory namespace
+  //! Constructor
   //----------------------------------------------------------------------------
-  void performCycleInMem(ThreadAssistant& assistant) noexcept;
+  virtual ~FileInspector();
 
   //----------------------------------------------------------------------------
   // Perform a single inspector cycle, QDB namespace
   //----------------------------------------------------------------------------
   void performCycleQDB(ThreadAssistant& assistant) noexcept;
 
-  static FileInspector* Create()
+  void Dump(std::string& out, std::string_view options);
+
+  Options getOptions();
+
+  inline bool enabled()
   {
-    return new FileInspector();
+    return mEnabled.load();
   }
 
-  void Dump(std::string& out, std::string& options);
-
-  bool enabled()
-  {
-    return (mEnabled.load()) ? true : false;
-  }
   bool disable()
   {
     if (!enabled()) {
@@ -88,6 +89,7 @@ public:
       return true;
     }
   }
+
   bool enable()
   {
     if (enabled()) {
@@ -98,28 +100,24 @@ public:
     }
   }
 
-  Options getOptions();
-
 private:
-  AssistedThread mThread; ///< thread id of the creation background tracker
-
   void backgroundThread(ThreadAssistant& assistant) noexcept;
-
-
-  void Process(std::string& filepath);
   void Process(std::shared_ptr<eos::IFileMD> fmd);
+
+  AssistedThread mThread; ///< thread id of the creation background tracker
   std::atomic<int> mEnabled;
   XrdOucErrInfo mError;
   eos::common::VirtualIdentity mVid;
   std::unique_ptr<qclient::QClient> mQcl;
 
-  // the counters for the last and current scan by layout id
+  // Counters for the last and current scan by layout id
   std::map<uint64_t, std::map<std::string, uint64_t>> lastScanStats;
   std::map<uint64_t, std::map<std::string, uint64_t>> currentScanStats;
   //! Map from types of failures to pairs of fid and layoutid
   std::map<std::string, std::set<std::pair<uint64_t, uint64_t>>> lastFaultyFiles;
   //! Map from types of failures to pairs of fid and layoutid
-  std::map<std::string, std::set<std::pair<uint64_t, uint64_t>>> currentFaultyFiles;
+  std::map<std::string, std::set<std::pair<uint64_t, uint64_t>>>
+  currentFaultyFiles;
   //! Access Time Bins
   std::map<time_t, uint64_t> lastAccessTimeFiles;
   std::map<time_t, uint64_t> lastAccessTimeVolume;
@@ -140,6 +138,7 @@ private:
   uint64_t ndirs;
 
   std::mutex mutexScanStats;
+  std::string mSpaceName; ///< Corresponding space name
 };
 
 

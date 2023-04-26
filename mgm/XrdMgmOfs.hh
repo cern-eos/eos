@@ -172,7 +172,6 @@ class Messaging;
 class PathRouting;
 class CommitHelper;
 class ReplicationTracker;
-class FileInspector;
 class ConversionJob;
 class ConverterDriver;
 }
@@ -1861,9 +1860,6 @@ public:
 
   //! GeoTreeEngine
   std::unique_ptr<eos::mgm::GeoTreeEngine> mGeoTreeEngine;
-
-  //! Class inspecting files in the namespace for statistics
-  std::unique_ptr<eos::mgm::FileInspector> mFileInspector;
 
   std::unique_ptr<Fsck> mFsckEngine; ///< Fsck functionality
 

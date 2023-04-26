@@ -168,7 +168,8 @@ ProcCommand::open(const char* inpath, const char* info,
       XrdOucString follow = sinfo.c_str() + i + 1;
 
       if (!follow.beginswith("mgm.") && (!follow.beginswith("eos.")) &&
-          (!follow.beginswith("xrd.")) && (!follow.beginswith("callback")) && (!follow.beginswith("authz"))) {
+          (!follow.beginswith("xrd.")) && (!follow.beginswith("callback")) &&
+          (!follow.beginswith("authz"))) {
         sinfo.erase(i, 1);
         sinfo.insert("#AND#", i);
       }
@@ -261,9 +262,6 @@ ProcCommand::open(const char* inpath, const char* info,
       mDoSort = false;
     } else if (mCmd == "node") { // @todo (faluchet) drop when move to 5.0.0
       Node();
-      mDoSort = false;
-    } else if (mCmd == "space") { // @todo (faluchet) drop when move to 5.0.0
-      Space();
       mDoSort = false;
     } else if (mCmd == "group") { // @todo (faluchet) drop when move to 5.0.0
       Group();

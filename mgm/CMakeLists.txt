@@ -130,7 +130,6 @@ add_library(
   proc/admin/FileRegisterCmd.cc proc/admin/FileRegisterCmd.hh
   proc/admin/Node.cc # @todo (faluchet) drop when move to 5.0.0
   proc/admin/NodeCmd.cc proc/admin/NodeCmd.hh
-  proc/admin/Space.cc # @todo (faluchet) drop when move to 5.0.0
   proc/admin/SpaceCmd.cc proc/admin/SpaceCmd.hh
   proc/admin/Quota.cc # @todo (faluchet) drop when move to 5.0.0
   proc/admin/QuotaCmd.cc proc/admin/QuotaCmd.hh

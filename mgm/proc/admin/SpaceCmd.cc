@@ -897,12 +897,17 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config,
               }
 
               if (key == "inspector") {
-                if (value == "on") {
-                  gOFS->mFileInspector->enable();
-                  std_out << "success: file inspector is enabled!";
+                if (space->mFileInspector) {
+                  if (value == "on") {
+                    space->mFileInspector->enable();
+                    std_out << "success: file inspector is enabled!";
+                  } else {
+                    space->mFileInspector->disable();
+                    std_out << "success: file inspector is disabled!";
+                  }
                 } else {
-                  gOFS->mFileInspector->disable();
-                  std_out << "success: file inspector is disabled!";
+                  std_err.str("error: no inspector for space");
+                  ret_c = EINVAL;
                 }
               }
 
@@ -1386,16 +1391,28 @@ void SpaceCmd::TrackerSubcmd(const eos::console::SpaceProto_TrackerProto&
 void SpaceCmd::InspectorSubcmd(const eos::console::SpaceProto_InspectorProto&
                                inspector, eos::console::ReplyProto& reply)
 {
-  std::string options = inspector.options();
+  std::string_view options = inspector.options();
   std::string std_out;
-  gOFS->mFileInspector->Dump(std_out, options);
-  reply.set_std_out(std_out);
-  reply.set_retc(0);
+  eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
+  auto space_it = FsView::gFsView.mSpaceView.find(inspector.mgmspace());
+
+  if (space_it != FsView::gFsView.mSpaceView.end()) {
+    space_it->second->mFileInspector->Dump(std_out, options);
+    reply.set_std_out(std_out);
+    reply.set_retc(0);
+  } else {
+    reply.set_std_err("error: no such space");
+    reply.set_retc(EINVAL);
+  }
 }
 
-void SpaceCmd::GroupBalancerSubCmd(const
-                                   eos::console::SpaceProto_GroupBalancerProto& groupbalancer,
-                                   eos::console::ReplyProto& reply)
+//----------------------------------------------------------------------------
+// Execute group balancer subcommand
+//----------------------------------------------------------------------------
+void
+SpaceCmd::GroupBalancerSubCmd(const eos::console::SpaceProto_GroupBalancerProto&
+                              groupbalancer,
+                              eos::console::ReplyProto& reply)
 {
   if (groupbalancer.mgmspace().empty()) {
     reply.set_std_err("error: A spacename is needed for this cmd");
@@ -1403,6 +1420,7 @@ void SpaceCmd::GroupBalancerSubCmd(const
     return;
   }
 
+  eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
   auto space_it = FsView::gFsView.mSpaceView.find(groupbalancer.mgmspace());
 
   if (space_it == FsView::gFsView.mSpaceView.end()) {
@@ -1424,6 +1442,9 @@ void SpaceCmd::GroupBalancerSubCmd(const
   }
 }
 
+//----------------------------------------------------------------------------
+// Execute group balancer status subcommand
+//----------------------------------------------------------------------------
 void SpaceCmd::GroupBalancerStatusCmd(const
                                       eos::console::SpaceProto_GroupBalancerStatusProto& status,
                                       eos::console::ReplyProto& reply,
@@ -1441,6 +1462,9 @@ void SpaceCmd::GroupBalancerStatusCmd(const
   reply.set_retc(0);
 }
 
+//----------------------------------------------------------------------------
+// Execute group drainer status subcommand
+//----------------------------------------------------------------------------
 void
 SpaceCmd::GroupDrainerSubCmd(const eos::console::SpaceProto_GroupDrainerProto&
                              groupdrainer,
@@ -1452,6 +1476,7 @@ SpaceCmd::GroupDrainerSubCmd(const eos::console::SpaceProto_GroupDrainerProto&
     return;
   }
 
+  eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
   auto space_it = FsView::gFsView.mSpaceView.find(groupdrainer.mgmspace());
 
   if (space_it == FsView::gFsView.mSpaceView.end()) {

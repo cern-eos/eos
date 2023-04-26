@@ -65,6 +65,7 @@ class GeoBalancer;
 class Converter;
 class IConfigEngine;
 class FsBalancer;
+class FileInspector;
 
 //------------------------------------------------------------------------------
 //! Struct holding file system info for balancing operations
@@ -591,6 +592,8 @@ public:
   GeoBalancer* mGeoBalancer; ///< Threaded object running geotag balancing
   std::unique_ptr<GroupDrainer>
   mGroupDrainer; ///< Threaded object running group drainer
+  std::unique_ptr<FileInspector> mFileInspector; ///< Space file inspector
+
   //----------------------------------------------------------------------------
   //! Constructor
   //!

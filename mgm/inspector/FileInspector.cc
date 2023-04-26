@@ -44,8 +44,9 @@ EOSMGMNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
-FileInspector::FileInspector() : timeCurrentScan(0), timeLastScan(0), nfiles(0),
-  ndirs(0)
+FileInspector::FileInspector(std::string_view space_name) :
+  timeCurrentScan(0), timeLastScan(0), nfiles(0), ndirs(0),
+  mSpaceName(space_name)
 {
   mVid = eos::common::VirtualIdentity::Root();
   mThread.reset(&FileInspector::backgroundThread, this);
@@ -65,21 +66,21 @@ FileInspector::~FileInspector()
 //------------------------------------------------------------------------------
 FileInspector::Options FileInspector::getOptions()
 {
-  eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
   FileInspector::Options opts;
   // Default options
   opts.enabled = false;
   opts.interval = std::chrono::minutes(4 * 60);
+  eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
 
-  if (FsView::gFsView.mSpaceView.count("default")) {
-    if (FsView::gFsView.mSpaceView["default"]->GetConfigMember("inspector") ==
+  if (FsView::gFsView.mSpaceView.count(mSpaceName)) {
+    if (FsView::gFsView.mSpaceView[mSpaceName]->GetConfigMember("inspector") ==
         "on") {
       opts.enabled = true;
     }
 
     int64_t intv = 0;
     std::string interval =
-      FsView::gFsView.mSpaceView["default"]->GetConfigMember("inspector.interval");
+      FsView::gFsView.mSpaceView[mSpaceName]->GetConfigMember("inspector.interval");
 
     if (!interval.empty()) {
       common::ParseInt64(interval, intv);
@@ -122,7 +123,6 @@ FileInspector::backgroundThread(ThreadAssistant& assistant) noexcept
   eos_static_info("msg=\"async thread started\"");
 
   while (!assistant.terminationRequested()) {
-    // every now and then we wake up
     Options opts = getOptions();
 
     // Only a master needs to run a FileInspector
@@ -137,142 +137,15 @@ FileInspector::backgroundThread(ThreadAssistant& assistant) noexcept
     if (opts.enabled && gOFS->mMaster->IsMaster()) {
       eos_static_info("msg=\"scan started!\"");
       {
-        std::lock_guard<std::mutex> sMutex(mutexScanStats);
+        std::lock_guard<std::mutex> lock(mutexScanStats);
         timeCurrentScan = time(NULL);
       }
-
-      if (gOFS->eosView->inMemory()) {
-        performCycleInMem(assistant);
-      } else {
-        performCycleQDB(assistant);
-      }
-
+      performCycleQDB(assistant);
       eos_static_info("msg=\"scan finished!\"");
     }
 
     assistant.wait_for(stopwatch.timeRemainingInCycle());
   }
-}
-
-//------------------------------------------------------------------------------
-// Perform a single inspector cycle, in-memory namespace
-//------------------------------------------------------------------------------
-
-void FileInspector::performCycleInMem(ThreadAssistant& assistant) noexcept
-{
-  // Do a slow find
-  unsigned long long nfiles_processed;
-  nfiles = ndirs = nfiles_processed = 0;
-  time_t s_time = time(NULL);
-  {
-    eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
-    nfiles = (unsigned long long) gOFS->eosFileService->getNumFiles();
-    ndirs = (unsigned long long) gOFS->eosDirectoryService->getNumContainers();
-  }
-  time_t ms = 1;
-
-  if (ndirs > 10000000) {
-    ms = 0;
-  }
-
-  Options opts = getOptions();
-  uint64_t interval = opts.interval.count();
-  eos_static_info("msg=\"start inspector scan\" ndir=%llu nfiles=%llu ms=%u",
-                  ndirs, nfiles, ms);
-
-  if (!nfiles) {
-    // nothing to scan
-    return;
-  }
-
-  std::map<std::string, std::set<std::string> > inspectordirs;
-  XrdOucString stdErr;
-
-  if (!gOFS->_find("/", mError, stdErr, mVid, inspectordirs, 0,
-                   "*", true, ms, false)) {
-    eos_static_info("msg=\"finished inspector find\" inspector-dirs=%llu",
-                    inspectordirs.size());
-    time_t c_time = time(NULL);
-
-    // scan backwards ...
-    for (auto it = inspectordirs.rbegin(); it != inspectordirs.rend(); it++) {
-      if (it->first.substr(0, gOFS->MgmProcPath.length()) ==
-          gOFS->MgmProcPath.c_str()) {
-        // skip over proc directory entries
-        continue;
-      }
-
-      // Get the attributes
-      eos_static_debug("inspector-dir=\"%s\"", it->first.c_str());
-      // loop over all files
-      XrdMgmOfsDirectory dir;
-      int listrc = dir.open(it->first.c_str(), mVid, "ls.skip.directories=true");
-
-      if (!listrc) {
-        const char* item;
-
-        while ((item = dir.nextEntry())) {
-          nfiles_processed++;
-          std::string filepath = it->first + item;
-          Process(filepath);
-        }
-      }
-
-      scanned_percent.store(100.0 * nfiles_processed / nfiles,
-                            std::memory_order_seq_cst);
-      time_t target_time = (1.0 * nfiles_processed / nfiles) * interval;
-      time_t is_time = time(NULL) - s_time;
-
-      if (target_time > is_time) {
-        uint64_t p_time = target_time - is_time;
-
-        if (p_time > 5) {
-          p_time = 5;
-        }
-
-        eos_static_debug("is:%lu target:%lu is_t:%lu target_t:%lu interval:%lu - pausing for %lu seconds\n",
-                         nfiles_processed, nfiles, is_time, target_time, interval, p_time);
-        // pause for the diff ...
-        std::this_thread::sleep_for(std::chrono::seconds(p_time));
-      }
-
-      if (assistant.terminationRequested()) {
-        return;
-      }
-
-      if ((time(NULL) - c_time) > 60) {
-        c_time = time(NULL);
-        Options opts = getOptions();
-        interval = opts.interval.count();
-
-        if (!opts.enabled) {
-          // interrupt the scan
-          break;
-        }
-
-        if (!gOFS->mMaster->IsMaster()) {
-          // interrupt the scan
-          break;
-        }
-      }
-    }
-  }
-
-  scanned_percent.store(100.0, std::memory_order_seq_cst);
-  std::lock_guard<std::mutex> sMutex(mutexScanStats);
-  lastScanStats = currentScanStats;
-  lastFaultyFiles = currentFaultyFiles;
-  lastAccessTimeFiles = currentAccessTimeFiles;
-  lastAccessTimeVolume = currentAccessTimeVolume;
-  lastBirthTimeFiles = currentBirthTimeFiles;
-  lastBirthTimeVolume = currentBirthTimeVolume;
-  currentScanStats.clear();
-  currentFaultyFiles.clear();
-  currentAccessTimeFiles.clear();
-  currentAccessTimeVolume.clear();
-  currentBirthTimeFiles.clear();
-  currentBirthTimeVolume.clear();
-  timeLastScan = timeCurrentScan;
 }
 
 //------------------------------------------------------------------------------
@@ -282,17 +155,13 @@ void FileInspector::performCycleQDB(ThreadAssistant& assistant) noexcept
 {
   eos_static_info("msg=\"start FileInspector scan on QDB\"");
 
-  //----------------------------------------------------------------------------
   // Initialize qclient..
-  //----------------------------------------------------------------------------
   if (!mQcl) {
     mQcl.reset(new qclient::QClient(gOFS->mQdbContactDetails.members,
                                     gOFS->mQdbContactDetails.constructOptions()));
   }
 
-  //----------------------------------------------------------------------------
   // Start scanning files
-  //----------------------------------------------------------------------------
   unsigned long long nfiles_processed;
   nfiles = ndirs = nfiles_processed = 0;
   time_t s_time = time(NULL);
@@ -328,7 +197,8 @@ void FileInspector::performCycleQDB(ThreadAssistant& assistant) noexcept
           p_time = 5;
         }
 
-        eos_static_debug("is:%lu target:%lu is_t:%lu target_t:%lu interval:%lu - pausing for %lu seconds\n",
+        eos_static_debug("is:%lu target:%lu is_t:%lu target_t:%lu interval:%lu "
+                         "- pausing for %lu seconds\n",
                          nfiles_processed, nfiles, is_time, target_time, interval, p_time);
         // pause for the diff ...
         std::this_thread::sleep_for(std::chrono::seconds(p_time));
@@ -363,7 +233,7 @@ void FileInspector::performCycleQDB(ThreadAssistant& assistant) noexcept
   }
 
   scanned_percent.store(100.0, std::memory_order_seq_cst);
-  std::lock_guard<std::mutex> sMutex(mutexScanStats);
+  std::lock_guard<std::mutex> lock(mutexScanStats);
   lastScanStats = currentScanStats;
   lastFaultyFiles = currentFaultyFiles;
   lastAccessTimeFiles = currentAccessTimeFiles;
@@ -379,11 +249,9 @@ void FileInspector::performCycleQDB(ThreadAssistant& assistant) noexcept
   timeLastScan = timeCurrentScan;
 }
 
-
 //------------------------------------------------------------------------------
 // Process a given fmd object
 //------------------------------------------------------------------------------
-
 void
 FileInspector::Process(std::shared_ptr<eos::IFileMD> fmd)
 {
@@ -392,7 +260,7 @@ FileInspector::Process(std::shared_ptr<eos::IFileMD> fmd)
   }
 
   uint64_t lid = fmd->getLayoutId();
-  std::lock_guard<std::mutex> sMutex(mutexScanStats);
+  std::lock_guard<std::mutex> lock(mutexScanStats);
 
   // zero size files
   if (!fmd->getSize()) {
@@ -452,73 +320,72 @@ FileInspector::Process(std::shared_ptr<eos::IFileMD> fmd)
   }
 
   currentScanStats[lid][tag]++;
-
-
-  static std::set<double> time_bin {0, 86400ll, 7*86400ll, 30*86400ll, 90*86400ll, 182.5*86400ll, 365*86400ll, 2*365*86400ll, 5*365*86400ll};
+  static std::set<double> time_bin {0, 86400ll, 7 * 86400ll, 30 * 86400ll, 90 * 86400ll,
+                                    182.5 * 86400ll, 365 * 86400ll, 2 * 365 * 86400ll, 5 * 365 * 86400ll};
   {
     // create access time distributions
     set<int>::reverse_iterator rev_it;
-    for ( auto rev_it=time_bin.rbegin(); rev_it!=time_bin.rend(); rev_it++ ) {
+
+    for (auto rev_it = time_bin.rbegin(); rev_it != time_bin.rend(); rev_it++) {
       eos::IFileMD::ctime_t atime;
       fmd->getATime(atime);
+
       if ((timeCurrentScan - (int64_t)atime.tv_sec) >= (int64_t) *rev_it) {
-	currentAccessTimeFiles[(uint64_t)*rev_it]++;
-	currentAccessTimeVolume[*rev_it]+=fmd->getSize();
-	break;
+        currentAccessTimeFiles[(uint64_t)*rev_it]++;
+        currentAccessTimeVolume[*rev_it] += fmd->getSize();
+        break;
       }
     }
   }
-
   {
     // create birth time distributions
     set<int>::reverse_iterator rev_it;
-    for ( auto rev_it=time_bin.rbegin(); rev_it!=time_bin.rend(); rev_it++ ) {
+
+    for (auto rev_it = time_bin.rbegin(); rev_it != time_bin.rend(); rev_it++) {
       eos::IFileMD::ctime_t btime {0, 0};
       eos::IFileMD::XAttrMap xattrs = fmd->getAttributes();
+
       if (xattrs.count("sys.eos.btime")) {
-	eos::common::Timing::Timespec_from_TimespecStr(xattrs["sys.eos.btime"], btime);
+        eos::common::Timing::Timespec_from_TimespecStr(xattrs["sys.eos.btime"], btime);
       }
+
       if ((timeCurrentScan - (int64_t)btime.tv_sec) >= (int64_t) *rev_it) {
-	currentBirthTimeFiles[(uint64_t)*rev_it]++;
-	currentBirthTimeVolume[*rev_it]+=fmd->getSize();
-	break;
+        currentBirthTimeFiles[(uint64_t)*rev_it]++;
+        currentBirthTimeVolume[*rev_it] += fmd->getSize();
+        break;
       }
     }
-  }
-}
-
-//------------------------------------------------------------------------------
-// Process a given path
-//------------------------------------------------------------------------------
-
-void
-FileInspector::Process(std::string& filepath)
-{
-  eos_static_debug("inspector-file=\"%s\"", filepath.c_str());
-  eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
-  eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
-  std::shared_ptr<eos::IFileMD> fmd;
-
-  try {
-    fmd = gOFS->eosView->getFile(filepath, false);
-    Process(fmd);
-  } catch (eos::MDException& e) {
-    std::lock_guard<std::mutex> sMutex(mutexScanStats);
-    currentScanStats[999999999]["unfound"]++;
-    eos_static_crit("path=%s not found", filepath.c_str());
   }
 }
 
 //------------------------------------------------------------------------------
 // Dump current status
 //------------------------------------------------------------------------------
-
 void
-FileInspector::Dump(std::string& out, std::string& options)
+FileInspector::Dump(std::string& out, std::string_view options)
 {
   char line[4096];
   time_t now = time(NULL);
-  std::lock_guard<std::mutex> sMutex(mutexScanStats);
+  const bool is_monitoring = (options.find('m') != std::string::npos);
+
+  if (!is_monitoring) {
+    out += "# ------------------------------------------------------------------------------------\n";
+    out += "# ";
+    out += eos::common::Timing::ltime(now);
+    out += "\n";
+  }
+
+  if (!enabled()) {
+    if (is_monitoring) {
+      out = "key=error space=" + mSpaceName + " msg=\"inspector disabled\"";
+    } else {
+      out += "# inspector is disabled - use 'eos space config default space.inspector=on'\n";
+    }
+
+    return;
+  }
+
+  std::lock_guard<std::mutex> lock(mutexScanStats);
 
   if (options.find("m") != std::string::npos) {
     for (auto it = lastScanStats.begin(); it != lastScanStats.end(); ++it) {
@@ -542,63 +409,66 @@ FileInspector::Dump(std::string& out, std::string& options)
     }
 
     if (lastAccessTimeFiles.size()) {
-      std::string afiles="kay=last tag=accesstime::files ";
-      for (auto it = lastAccessTimeFiles.begin(); it != lastAccessTimeFiles.end(); ++it) {
-	afiles += std::to_string(it->first);
-	afiles += "=";
-	afiles += std::to_string(it->second);
-	afiles += " ";
+      std::string afiles = "kay=last tag=accesstime::files ";
+
+      for (auto it = lastAccessTimeFiles.begin(); it != lastAccessTimeFiles.end();
+           ++it) {
+        afiles += std::to_string(it->first);
+        afiles += "=";
+        afiles += std::to_string(it->second);
+        afiles += " ";
       }
+
       out += afiles;
       out += "\n";
     }
 
     if (lastAccessTimeVolume.size()) {
-      std::string avolume="key=last tag=accesstime::volume ";
-      for (auto it = lastAccessTimeVolume.begin(); it != lastAccessTimeVolume.end(); ++it) {
-	avolume += std::to_string(it->first);
-	avolume += "=";
-	avolume += std::to_string(it->second);
-	avolume += " ";
+      std::string avolume = "key=last tag=accesstime::volume ";
+
+      for (auto it = lastAccessTimeVolume.begin(); it != lastAccessTimeVolume.end();
+           ++it) {
+        avolume += std::to_string(it->first);
+        avolume += "=";
+        avolume += std::to_string(it->second);
+        avolume += " ";
       }
-      out	+= avolume;
-      out	+= "\n";
+
+      out += avolume;
+      out += "\n";
     }
 
     if (lastBirthTimeFiles.size()) {
-      std::string bfiles="kay=last tag=birthtime::files ";
-      for (auto it = lastBirthTimeFiles.begin(); it != lastBirthTimeFiles.end(); ++it) {
-	bfiles += std::to_string(it->first);
-	bfiles += "=";
-	bfiles += std::to_string(it->second);
-	bfiles += " ";
+      std::string bfiles = "kay=last tag=birthtime::files ";
+
+      for (auto it = lastBirthTimeFiles.begin(); it != lastBirthTimeFiles.end();
+           ++it) {
+        bfiles += std::to_string(it->first);
+        bfiles += "=";
+        bfiles += std::to_string(it->second);
+        bfiles += " ";
       }
+
       out += bfiles;
       out += "\n";
     }
 
     if (lastBirthTimeVolume.size()) {
-      std::string bvolume="key=last tag=birthtime::volume ";
-      for (auto it = lastBirthTimeVolume.begin(); it != lastBirthTimeVolume.end(); ++it) {
-	bvolume += std::to_string(it->first);
-	bvolume += "=";
-	bvolume += std::to_string(it->second);
-	bvolume += " ";
+      std::string bvolume = "key=last tag=birthtime::volume ";
+
+      for (auto it = lastBirthTimeVolume.begin(); it != lastBirthTimeVolume.end();
+           ++it) {
+        bvolume += std::to_string(it->first);
+        bvolume += "=";
+        bvolume += std::to_string(it->second);
+        bvolume += " ";
       }
-      out	+= bvolume;
-      out	+= "\n";
+
+      out += bvolume;
+      out += "\n";
     }
 
     return;
-  }
-
-  out += "# ------------------------------------------------------------------------------------\n";
-  out += "# ";
-  out += eos::common::Timing::ltime(now);
-  out += "\n";
-
-  if (!enabled()) {
-    out += "# inspector is disabled - use 'eos space config default space.inspector=on'\n";
   }
 
   Options opts = getOptions();
@@ -756,79 +626,91 @@ FileInspector::Dump(std::string& out, std::string& options)
       }
 
       if (lastAccessTimeFiles.size()) {
-	out +=  "======================================================================================\n";
-	out +=  " Access time distribution of files\n";
-       
- 	uint64_t totalfiles=0;
-	for (auto it = lastAccessTimeFiles.begin(); it != lastAccessTimeFiles.end(); ++it) {
-	  totalfiles += it->second;
-	}
-	
-	for (auto it = lastAccessTimeFiles.begin(); it != lastAccessTimeFiles.end(); ++it) {
-	  double fraction = totalfiles?(100.0 * it->second/totalfiles):0;
-	  XrdOucString age;
-          snprintf(line, sizeof(line), " %-32s : %s (%.02f%%)\n",  eos::common::StringConversion::GetReadableAgeString(age, it->first),
-		   eos::common::StringConversion::GetReadableSizeString(it->second,"").c_str(),
-		   fraction);
-	  out += line;
-	}
+        out +=  "======================================================================================\n";
+        out +=  " Access time distribution of files\n";
+        uint64_t totalfiles = 0;
+
+        for (auto it = lastAccessTimeFiles.begin(); it != lastAccessTimeFiles.end();
+             ++it) {
+          totalfiles += it->second;
+        }
+
+        for (auto it = lastAccessTimeFiles.begin(); it != lastAccessTimeFiles.end();
+             ++it) {
+          double fraction = totalfiles ? (100.0 * it->second / totalfiles) : 0;
+          XrdOucString age;
+          snprintf(line, sizeof(line), " %-32s : %s (%.02f%%)\n",
+                   eos::common::StringConversion::GetReadableAgeString(age, it->first),
+                   eos::common::StringConversion::GetReadableSizeString(it->second, "").c_str(),
+                   fraction);
+          out += line;
+        }
       }
 
       if (lastAccessTimeVolume.size()) {
-	out +=  "======================================================================================\n";
-	out +=  " Access time volume distribution of files\n";
-       
- 	uint64_t totalvolume=0;
-	for (auto it = lastAccessTimeVolume.begin(); it != lastAccessTimeVolume.end(); ++it) {
-	  totalvolume += it->second;
-	}
-	
-	for (auto it = lastAccessTimeVolume.begin(); it != lastAccessTimeVolume.end(); ++it) {
-	  double fraction = totalvolume?(100.0 * it->second/totalvolume):0;
-	  XrdOucString age;
-          snprintf(line, sizeof(line), " %-32s : %s (%.02f%%)\n",  eos::common::StringConversion::GetReadableAgeString(age, it->first),
-		   eos::common::StringConversion::GetReadableSizeString(it->second,"B").c_str(),
-		   fraction);
-	  out += line;
-	}
+        out +=  "======================================================================================\n";
+        out +=  " Access time volume distribution of files\n";
+        uint64_t totalvolume = 0;
+
+        for (auto it = lastAccessTimeVolume.begin(); it != lastAccessTimeVolume.end();
+             ++it) {
+          totalvolume += it->second;
+        }
+
+        for (auto it = lastAccessTimeVolume.begin(); it != lastAccessTimeVolume.end();
+             ++it) {
+          double fraction = totalvolume ? (100.0 * it->second / totalvolume) : 0;
+          XrdOucString age;
+          snprintf(line, sizeof(line), " %-32s : %s (%.02f%%)\n",
+                   eos::common::StringConversion::GetReadableAgeString(age, it->first),
+                   eos::common::StringConversion::GetReadableSizeString(it->second, "B").c_str(),
+                   fraction);
+          out += line;
+        }
       }
-      
+
       if (lastBirthTimeFiles.size()) {
-	out +=  "======================================================================================\n";
-	out +=  " Birth time distribution of files\n";
-       
- 	uint64_t totalfiles=0;
-	for (auto it = lastBirthTimeFiles.begin(); it != lastBirthTimeFiles.end(); ++it) {
-	  totalfiles += it->second;
-	}
-	
-	for (auto it = lastBirthTimeFiles.begin(); it != lastBirthTimeFiles.end(); ++it) {
-	  double fraction = totalfiles?(100.0 * it->second/totalfiles):0;
-	  XrdOucString age;
-          snprintf(line, sizeof(line), " %-32s : %s (%.02f%%)\n",  eos::common::StringConversion::GetReadableAgeString(age, it->first),
-		   eos::common::StringConversion::GetReadableSizeString(it->second,"").c_str(),
-		   fraction);
-	  out += line;
-	}
+        out +=  "======================================================================================\n";
+        out +=  " Birth time distribution of files\n";
+        uint64_t totalfiles = 0;
+
+        for (auto it = lastBirthTimeFiles.begin(); it != lastBirthTimeFiles.end();
+             ++it) {
+          totalfiles += it->second;
+        }
+
+        for (auto it = lastBirthTimeFiles.begin(); it != lastBirthTimeFiles.end();
+             ++it) {
+          double fraction = totalfiles ? (100.0 * it->second / totalfiles) : 0;
+          XrdOucString age;
+          snprintf(line, sizeof(line), " %-32s : %s (%.02f%%)\n",
+                   eos::common::StringConversion::GetReadableAgeString(age, it->first),
+                   eos::common::StringConversion::GetReadableSizeString(it->second, "").c_str(),
+                   fraction);
+          out += line;
+        }
       }
 
       if (lastBirthTimeVolume.size()) {
-	out +=  "======================================================================================\n";
-	out +=  " Birth time volume distribution of files\n";
-       
- 	uint64_t totalvolume=0;
-	for (auto it = lastBirthTimeVolume.begin(); it != lastBirthTimeVolume.end(); ++it) {
-	  totalvolume += it->second;
-	}
-	
-	for (auto it = lastBirthTimeVolume.begin(); it != lastBirthTimeVolume.end(); ++it) {
-	  double fraction = totalvolume?(100.0 * it->second/totalvolume):0;
-	  XrdOucString age;
-          snprintf(line, sizeof(line), " %-32s : %s (%.02f%%)\n",  eos::common::StringConversion::GetReadableAgeString(age, it->first),
-		   eos::common::StringConversion::GetReadableSizeString(it->second,"B").c_str(),
-		   fraction);
-	  out += line;
-	}
+        out +=  "======================================================================================\n";
+        out +=  " Birth time volume distribution of files\n";
+        uint64_t totalvolume = 0;
+
+        for (auto it = lastBirthTimeVolume.begin(); it != lastBirthTimeVolume.end();
+             ++it) {
+          totalvolume += it->second;
+        }
+
+        for (auto it = lastBirthTimeVolume.begin(); it != lastBirthTimeVolume.end();
+             ++it) {
+          double fraction = totalvolume ? (100.0 * it->second / totalvolume) : 0;
+          XrdOucString age;
+          snprintf(line, sizeof(line), " %-32s : %s (%.02f%%)\n",
+                   eos::common::StringConversion::GetReadableAgeString(age, it->first),
+                   eos::common::StringConversion::GetReadableSizeString(it->second, "B").c_str(),
+                   fraction);
+          out += line;
+        }
       }
     }
   }

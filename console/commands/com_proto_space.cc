@@ -125,7 +125,14 @@ bool SpaceHelper::ParseCommand(const char* arg)
     std::string options;
 
     while (tokenizer.NextToken(token)) {
-      if (token == "-c" || token == "--current") {
+      if ((token == "-s") || (token == "--space")) {
+        if (tokenizer.NextToken(token)) {
+          inspector->set_mgmspace(token);
+        } else {
+          std::cerr << "error: no space specified" << std::endl;
+          return false;
+        }
+      } else if (token == "-c" || token == "--current") {
         options += "c";
       } else if (token == "-l" || token == "--last") {
         options += "l";
@@ -437,7 +444,6 @@ int com_proto_space(char* arg)
   SpaceHelper space(gGlobalOpts);
 
   if (!space.ParseCommand(arg)) {
-    com_space_help();
     global_retc = EINVAL;
     return EINVAL;
   }
@@ -550,12 +556,13 @@ void com_space_help()
       << "                                                       => <groupsize>=0 means that no groups are built within a space, otherwise it should be the maximum number of nodes in a scheduling group\n"
       << "                                                       => <groupmod> maximum number of groups in the space, which should be at least equal to the maximum number of filesystems per node\n"
       << std::endl
-      << "space inspector [--current|-c] [--last|-l] [-m] [-p] [-e] : show namespace inspector output\n"
+      << "space inspector [--current|-c] [--last|-l] [-m] [-p] [-e] [-s|--space <space_name>]: show namespace inspector output\n"
       << "\t  -c  : show current scan\n"
       << "\t  -l  : show last complete scan\n"
       << "\t  -m  : print last scan in monitoring format\n"
       << "\t  -p  : combined with -c or -l lists erroneous files\n"
       << "\t  -e  : combined with -c or -l exports erroneous files on the MGM into /var/log/eos/mgm/FileInspector.<date>.list\n"
+      << "\t  -s   : select target space, by default \"default\" space is used\n"
       << std::endl
       << "space node-set <space-name> <node.key> <file-name> : store the contents of <file-name> into the node configuration variable <node.key> visible to all FSTs\n"
       << "                                                     => if <file-name> matches file:<path> the file is loaded from the MGM and not from the client\n"
