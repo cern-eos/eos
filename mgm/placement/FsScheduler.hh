@@ -63,6 +63,8 @@ public:
   bool setDiskStatus(const std::string& spaceName, fsid_t disk_id,
                      ConfigStatus status);
 
+  bool setDiskWeight(const std::string& spaceName, fsid_t disk_id,
+                     uint8_t weight);
 private:
 
   ClusterMgr* get_cluster_mgr(const std::string& spaceName);
