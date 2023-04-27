@@ -51,7 +51,7 @@ You are likely to have the best results with the latest release shown in <https:
 
 .. code-block:: bash
 
-   scripts/start_services.sh -i gitlab-registry.cern.ch/dss/eos:4.8.39 -n 6
+   scripts/start_services.sh -i gitlab-registry.cern.ch/dss/eos/eos-ci:5.1.16 -n 6 -q
 
 To connect to EOS using the *eos* shell CLI running in the MGM container you can do:
 
@@ -67,8 +67,8 @@ To connect to EOS using the *eos* shell CLI running in the MGM container you can
    EOS Console [root://localhost] |/> version
    version
    EOS_INSTANCE=eosdockertest
-   EOS_SERVER_VERSION=4.8.39 EOS_SERVER_RELEASE=1
-   EOS_CLIENT_VERSION=4.8.39 EOS_CLIENT_RELEASE=1
+   EOS_SERVER_VERSION=5.1.16 EOS_SERVER_RELEASE=1
+   EOS_CLIENT_VERSION=5.1.16 EOS_CLIENT_RELEASE=1
 
 .. code-block:: bash
 
@@ -144,19 +144,19 @@ Docker images are accessible from the project's `registry <https://gitlab.cern.c
 
 .. code-block:: bash
 
-   docker pull gitlab-registry.cern.ch/dss/eos:<tag>
+   docker pull gitlab-registry.cern.ch/dss/eos-ci:<tag>
 
 Example for a build
 
 .. code-block:: bash
 
-   docker pull gitlab-registry.cern.ch/dss/eos:206970
+   docker pull gitlab-registry.cern.ch/dss/eos-ci:206970
 
 Example for the latest release
 
 .. parsed-literal::
 
-   docker pull gitlab-registry.cern.ch/dss/eos:|version| 
+   docker pull gitlab-registry.cern.ch/dss/eos-ci:|version| 
 
 Selfmade images
 ---------------
