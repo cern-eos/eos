@@ -509,20 +509,36 @@ Fsck::RepairEntry(eos::IFileMD::id_t fid,
 // Print the current log output
 //------------------------------------------------------------------------------
 void
-Fsck::PrintOut(std::string& out) const
+Fsck::PrintOut(std::string& out, bool monitor_fmt) const
 {
   std::ostringstream oss;
-  oss << "Info: collection thread status -> "
-      << (mCollectEnabled ? "enabled" : "disabled") << std::endl
-      << "Info: repair thread status     -> "
-      << (mRepairEnabled ? "enabled" : "disabled") << std::endl
-      << "Info: repair category          -> "
-      << ((mRepairCategory == FsckErr::None) ?
-          "all" : eos::common::FsckErrToString(mRepairCategory)) << std::endl;
+
+  if (monitor_fmt) {
+    static time_t current_time;
+    time(&current_time);
+    oss << "timestamp=" << current_time << std::endl
+        << "collection_thread=" << (mCollectEnabled ? "enabled" : "disabled")
+        << std::endl
+        << "repair_thread=" << (mRepairEnabled ? "enabled" : "disabled")
+        << std::endl
+        << "repair_category=" <<
+        ((mRepairCategory == FsckErr::None) ?
+         "all" : eos::common::FsckErrToString(mRepairCategory)) << std::endl;
+  } else {
+    oss << "Info: collection thread status -> "
+        << (mCollectEnabled ? "enabled" : "disabled") << std::endl
+        << "Info: repair thread status     -> "
+        << (mRepairEnabled ? "enabled" : "disabled") << std::endl
+        << "Info: repair category          -> "
+        << ((mRepairCategory == FsckErr::None) ?
+            "all" : eos::common::FsckErrToString(mRepairCategory)) << std::endl;
+  }
+
   {
     XrdSysMutexHelper lock(mLogMutex);
-    oss << mLog;
+    oss << (monitor_fmt ? mLogMonitor : mLog);
   }
+
   out = oss.str();
 }
 
@@ -786,6 +802,8 @@ Fsck::PublishLogs()
   XrdSysMutexHelper lock(mLogMutex);
   mLog = mTmpLog;
   mTmpLog.clear();
+  mLogMonitor = mTmpLogMonitor;
+  mTmpLogMonitor.clear();
 }
 
 //------------------------------------------------------------------------------
@@ -813,6 +831,22 @@ Fsck::Log(const char* msg, ...) const
   XrdSysMutexHelper lock(mLogMutex);
   mTmpLog += buffer;
   mTmpLog += "\n";
+  va_end(args);
+}
+
+//------------------------------------------------------------------------------
+// Write log message to the current in-memory log in monitoring format
+//------------------------------------------------------------------------------
+void
+Fsck::LogMonitor(const char* msg, ...) const
+{
+  va_list args;
+  va_start(args, msg);
+  char buffer[16384];
+  vsprintf(buffer, msg, args);
+  XrdSysMutexHelper lock(mLogMutex);
+  mTmpLogMonitor += buffer;
+  mTmpLogMonitor += "\n";
   va_end(args);
 }
 
@@ -1046,13 +1080,12 @@ Fsck::PrintErrorsSummary() const
   for (const auto& elem_type : eFsMap) {
     uint64_t count {0ull};
 
-    // @todo (esindril) maybe we could display unique fxid errors since this
-    // accounts also for duplicates
     for (const auto& elem_errs : elem_type.second) {
       count += elem_errs.second.size();
     }
 
     Log("%-30s : %llu", elem_type.first.c_str(), count);
+    LogMonitor("%s=%llu", elem_type.first.c_str(), count);
   }
 }
 

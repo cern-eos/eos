@@ -76,8 +76,9 @@ public:
   //! Print function to display FSCK results
   //!
   //! @param out string holding the output to be displayed
+  //! @param monitor_fmt if try provide monitor output
   //----------------------------------------------------------------------------
-  void PrintOut(std::string& out) const;
+  void PrintOut(std::string& out, bool monitor_fmt) const;
 
   //----------------------------------------------------------------------------
   //! Apply configuration options to the fsck mechanism
@@ -118,6 +119,13 @@ public:
   //! @param msg variable length list of printf like format string and args
   //----------------------------------------------------------------------------
   void Log(const char* msg, ...) const;
+
+  //----------------------------------------------------------------------------
+  //! Write a log message to the in-memory log in monitoring format
+  //!
+  //! @param msg variable length list of printf like format string and args
+  //----------------------------------------------------------------------------
+  void LogMonitor(const char* msg, ...) const;
 
   //----------------------------------------------------------------------------
   //! Apply the FSCK configuration stored in the configuration engine
@@ -220,6 +228,8 @@ private:
   std::atomic<eos::common::FsckErr>
   mRepairCategory; ///< Mark which cat. should be repaired
   mutable std::string mLog, mTmpLog; ///< In-memory fsck log
+  ///< In-memory monitoring fsck log
+  mutable std::string mLogMonitor, mTmpLogMonitor;
   mutable XrdSysMutex mLogMutex; ///< Mutex protecting the in-memory log
   ///< Interval between FSCK collection loops
   std::chrono::seconds mCollectInterval;

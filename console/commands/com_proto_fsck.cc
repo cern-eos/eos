@@ -57,12 +57,12 @@ void com_fsck_help()
   oss << "Usage: fsck [stat|config|report|repair]\n"
       << "    control and display file system check information\n"
       << std::endl
-      << "  fsck stat\n"
+      << "  fsck stat [-m]\n"
       << "    print summary of consistency checks\n"
+      << "    -m         : print in monitoring format\n"
       << std::endl
       << "  fsck config <key> [<value>]\n"
-      << "    configure the fsck with the following possible options:"
-      << std::endl
+      << "    configure the fsck with the following possible options:\n"
       << "    toggle-collect       : enable/disable error collection thread, <value> represents\n"
       << "                           the collection interval in minutes [default 30]\n"
       << "    toggle-repair        : enable/disable repair thread, no <value> required\n"
@@ -75,10 +75,8 @@ void com_fsck_help()
       << "    max-queued-jobs      : maximum number of queued jobs\n"
       << "    max-thread-pool-size : maximum number of threads in the fsck pool\n"
       << std::endl
-      << "  fsck report [-a] [-h] [-i] [-l] [-j|--json] [--error <tag1> <tag2> ...]"
-      << std::endl
-      << "    report consistency check results, with the following options"
-      << std::endl
+      << "  fsck report [-a] [-h] [-i] [-l] [-j|--json] [--error <tag1> <tag2> ...]\n"
+      << "    report consistency check results, with the following options\n"
       << "    -a         : break down statistics per file system" << std::endl
       << "    -i         : display file identifiers" << std::endl
       << "    -l         : display logical file name" << std::endl

@@ -42,6 +42,15 @@ FsckHelper::ParseCommand(const char* arg)
 
   if (cmd == "stat") {
     fsck->set_stat(true);
+
+    if ((option = tokenizer.GetToken()) != nullptr) {
+      if (strncmp(option, "-m", 2) == 0) {
+        mReq.set_format(eos::console::RequestProto_FormatType_FUSE);
+      } else {
+        std::cerr << "error: unknown option for the stat command" << std::endl;
+        return false;
+      }
+    }
   } else if (cmd == "config") {
     if ((option = tokenizer.GetToken()) == nullptr) {
       return false;

@@ -45,8 +45,10 @@ FsckCmd::ProcessRequest() noexcept
   }
 
   if (subcmd == eos::console::FsckProto::kStat) {
+    const bool monitor_fmt = (mReqProto.format() ==
+                              eos::console::RequestProto_FormatType_FUSE);
     std::string output;
-    gOFS->mFsckEngine->PrintOut(output);
+    gOFS->mFsckEngine->PrintOut(output, monitor_fmt);
     reply.set_std_out(std::move(output));
   } else if (subcmd == eos::console::FsckProto::kConfig) {
     const eos::console::FsckProto::ConfigProto& config = fsck.config();
