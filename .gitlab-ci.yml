@@ -102,8 +102,8 @@ build_cc7:
   stage: build:rpm
   image: gitlab-registry.cern.ch/dss/eos/prebuild-cc7-${CODENAME}
   script:
-    - cd quarkdb/deps/mkdoc-material; git remote set-url https://gitlab.cern.ch/eos/mkdocs-material; git pull origin master; git checkout master; git pull; cd ../../
     - git submodule update --init --recursive
+    - cd quarkdb/deps/mkdocs-material; git remote set-url origin https://gitlab.cern.ch/eos/mkdocs-material; git pull origin master; git checkout master; git pull; cd ../../../
     - mkdir build
     - cd build/
     - cmake3 ../ -DPACKAGEONLY=1
@@ -225,8 +225,8 @@ build_cs9:
     - rpm --import /etc/pki/rpm-gpg/*
     - dnf install rpm-build cmake gcc-c++ git -y
   script:
-    - cd quarkdb/deps/mkdoc-material; git remote set-url https://gitlab.cern.ch/eos/mkdocs-material; git pull origin master; git checkout master; git pull; cd ../../
     - git submodule update --init -f --recursive
+    - cd quarkdb/deps/mkdocs-material; git remote set-url origin https://gitlab.cern.ch/eos/mkdocs-material; git pull origin master; git checkout master; git pull; cd ../../..
     - EOS_VERSION="$(./genversion.sh)"; echo "${EOS_VERSION}"
     - mkdir -pv build/
     - cd build/
