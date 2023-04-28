@@ -112,7 +112,7 @@ XrdMgmOfs::ShouldStall(const char* function,
       } else if (IS_ACCESSMODE_W && (Access::gStallWrite)) {
         stalltime = atoi(Access::gStallRules[std::string("w:*")].c_str());
         smsg = Access::gStallComment[std::string("w:*")];
-      } else if (Access::gStallUserGroup && canstall) {
+      } else if (Access::gStallUserGroup) {
         std::string usermatch = "rate:user:";
         usermatch += vid.uid_string;
         std::string groupmatch = "rate:group:";
@@ -122,7 +122,7 @@ XrdMgmOfs::ShouldStall(const char* function,
         std::map<std::string, std::string>::const_iterator it;
 
         if ((functionname != "stat") &&  // never stall stats
-            (vid.app != "fuse::restic") && canstall) {
+            (vid.app != "fuse::restic")) {
           for (it = Access::gStallRules.begin();
                it != Access::gStallRules.end();
                it++) {
