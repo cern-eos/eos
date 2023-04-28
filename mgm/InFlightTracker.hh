@@ -220,7 +220,7 @@ public:
   //! Dump user tracking
   //----------------------------------------------------------------------------
   std::string PrintOut(bool monitoring) ;
-  size_t ShouldStall(uid_t uid, bool& saturated);
+  size_t ShouldStall(uid_t uid, bool& saturated, size_t& used_threads);
 
 private:
   std::atomic<bool> mAcceptingRequests {true};

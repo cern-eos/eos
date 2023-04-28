@@ -58,11 +58,11 @@ XrdMgmOfs::ShouldStall(const char* function,
 
   eos::common::RWMutexReadLock lock(Access::gAccessMutex);
   std::string stallid = "Stall";
-  bool canstall = Access::CanStall(vid.host.c_str());
+  size_t uid_threads = 1;
 
   if (stall) {
     if ((vid.uid > 3) && (functionname != "stat")  && (vid.app != "fuse::restic")) {
-      if (canstall && (stalltime = gOFS->mTracker.ShouldStall(vid.uid, saturated))) {
+      if ((stalltime = gOFS->mTracker.ShouldStall(vid.uid, saturated, uid_threads))) {
         smsg = "operate - your are exceeding your thread pool limit";
         stallid += "::threads::";
         stallid += std::to_string(vid.uid);;
@@ -94,12 +94,12 @@ XrdMgmOfs::ShouldStall(const char* function,
         stalltime = 300;
       } else if (Access::gBannedDomains.count(vid.domain)) {
         smsg = "operate - your client domain is banned in this instance - contact an administrator";
-        // BANNED DOMAINS     
+        // BANNED DOMAINS
         stalltime = 300;
       } else if (vid.token && Access::gBannedTokens.count(vid.token->Voucher())) {
-	smsg = "operate - your token is banned in this instance - contact an administrator";
-	// BANNED TOKEN
-	stalltime = 300;
+        smsg = "operate - your token is banned in this instance - contact an administrator";
+        // BANNED TOKEN
+        stalltime = 300;
       } else if (Access::gStallRules.size() && (Access::gStallGlobal)) {
         // GLOBAL STALL
         stalltime = atoi(Access::gStallRules[std::string("*")].c_str());
@@ -242,10 +242,24 @@ XrdMgmOfs::ShouldStall(const char* function,
           stallid = "Delay";
           stallid += "::threads::";
           stallid += std::to_string(vid.uid);;
+          std::string delayid = stallid;
+          delayid += "::ms";
           size_t ms_to_delay = 1000.0 / limit;
+
+          if (uid_threads) {
+            // renomalize with the curent user thread pool size
+            ms_to_delay *= uid_threads;
+
+            if (ms_to_delay > 40000) {
+              // we should not hang longer than 40s not to trigger timeouts, which are 60s by default for FUSE clients and 5min for XRootD clients
+              ms_to_delay = 40000;
+            }
+          }
+
           lock.Release();
           std::this_thread::sleep_for(std::chrono::milliseconds(ms_to_delay));
           gOFS->MgmStats.Add(stallid.c_str(), vid.uid, vid.gid, 1);
+          gOFS->MgmStats.Add(delayid.c_str(), vid.uid, vid.gid, ms_to_delay);
           return false;
         }
       }

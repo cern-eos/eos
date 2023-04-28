@@ -16,6 +16,23 @@ Introduction
 This release is based on XRootD V4 and IPV6 enabled.
 
 
+``v4.8.102 Citrine``
+===================
+
+2023-04-12
+
+Bug
+---
+
+* [EOS-5620] MGM: Fix thread delay calculation taking into account parallelism
+* [EOS-5612] MGM: Add an option to restrict ctime limits in find's to start at
+  a given deepness. This is required for the recycle bin query.
+* COMMON: Don't reset the current vid identity when handling KEYS mapping
+  unless we actually have a hit in the map. This was breaking the vid mapping
+  for gsi/http with voms extensions that have the endorsements field in the
+  XrdSecEntity populated and this was interpreted as a key.
+
+
 ``v4.8.101 Citrine``
 ===================
 

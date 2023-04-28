@@ -672,7 +672,9 @@ XrdMgmOfs::_find(const char* path, XrdOucErrInfo& out_error,
                  const char* filematch, bool take_lock, bool json_output, FILE* fstdout,
                  time_t max_ctime_dir,
                  time_t max_ctime_file,
-                 std::map<std::string, time_t>* found_ctime_sec)
+                 std::map<std::string, time_t>* found_ctime_sec,
+                 int max_ctime_dir_min_deepness,
+                 int max_ctime_file_min_deepness)
 {
   std::vector< std::vector<std::string> > found_dirs;
   std::shared_ptr<eos::IContainerMD> cmd;
@@ -805,7 +807,8 @@ XrdMgmOfs::_find(const char* path, XrdOucErrInfo& out_error,
         sub_cmd_take_lock = true;
       }
 
-      if (cmd && max_ctime_dir && (ctime.tv_sec > max_ctime_dir)) {
+      if (cmd && max_ctime_dir && (deepness >= max_ctime_dir_min_deepness) &&
+          (ctime.tv_sec > max_ctime_dir)) {
         // skip directory entries which are newer than max_ctime
         continue;
       }
@@ -909,7 +912,8 @@ XrdMgmOfs::_find(const char* path, XrdOucErrInfo& out_error,
               eos::IContainerMD::ctime_t ctime;
               fmd->getCTime(ctime);
 
-              if (max_ctime_file && (ctime.tv_sec > max_ctime_file)) {
+              if (max_ctime_file && (deepness >= max_ctime_file_min_deepness) &&
+                  (ctime.tv_sec > max_ctime_file)) {
                 // skip file entries which are newer than max ctime
                 continue;
               }
