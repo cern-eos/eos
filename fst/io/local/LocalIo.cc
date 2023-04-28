@@ -303,7 +303,7 @@ LocalIo::fileFdeallocate(XrdSfsFileOffset fromOffset,
     } else {
       // Posix_fallocate truncates a file to the reserved size, we have
       // to truncate back to the beginning of the unwritten extent
-      return ftruncate(fd, fromOffset);;
+      return ftruncate(fd, fromOffset);
     }
   }
 

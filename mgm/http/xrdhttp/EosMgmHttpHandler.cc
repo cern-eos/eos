@@ -227,7 +227,7 @@ EosMgmHttpHandler::ProcessReq(XrdHttpExtReq& req)
     if (mTokenHttpHandler) {
       // Delegate request to the XrdMacaroons library
       eos_info("%s", "msg=\"delegate request to XrdMacaroons library\"");
-      return mTokenHttpHandler->ProcessReq(req);
+      return ProcessMacaroonPOST(req);
     } else {
       std::string errmsg = "POST request not supported";
       return req.SendSimpleResp(404, errmsg.c_str(), nullptr, errmsg.c_str(),
@@ -332,6 +332,34 @@ EosMgmHttpHandler::ProcessReq(XrdHttpExtReq& req)
                             response->GetResponseCodeDescription().c_str(),
                             oss_header.str().c_str(), response->GetBody().c_str(),
                             content_length);
+}
+
+//------------------------------------------------------------------------------
+// Process macaroon POST request
+//------------------------------------------------------------------------------
+int
+EosMgmHttpHandler::ProcessMacaroonPOST(XrdHttpExtReq& req)
+{
+  auto& sec_entity = const_cast<XrdSecEntity&>(req.GetSecEntity());
+
+  // If the XrdSecEntity comes with VOMS extensions then we need to call the
+  // eos vid mapping funcationality to actually determine the local user
+  // mapping which could be different then the one embedded in the GSI auth.
+  // This happens for example when we have VOMS mapping enabled in eos vid
+  if (sec_entity.vorg && (sec_entity.vorg[0] != '\0')) {
+    std::unique_ptr<eos::common::VirtualIdentity>
+    vid_tmp {new eos::common::VirtualIdentity()};
+    std::string stident = "https.0:0@" + std::string(sec_entity.host);
+    eos::common::Mapping::IdMap(&sec_entity, "", stident.c_str(), *vid_tmp);
+
+    if (!vid_tmp->uid_string.empty()) {
+      free(sec_entity.name);
+      sec_entity.name = strndup(vid_tmp->uid_string.c_str(),
+                                vid_tmp->uid_string.length());
+    }
+  }
+
+  return mTokenHttpHandler->ProcessReq(req);
 }
 
 //------------------------------------------------------------------------------
@@ -605,7 +633,7 @@ std::optional<int> EosMgmHttpHandler::readBody(XrdHttpExtReq& req,
 //------------------------------------------------------------------------------
 // Returns true if the request is a macaroon token request false otherwise
 //------------------------------------------------------------------------------
-bool EosMgmHttpHandler::IsMacaroonRequest(const XrdHttpExtReq& req)
+bool EosMgmHttpHandler::IsMacaroonRequest(const XrdHttpExtReq& req) const
 {
   if (req.verb == "POST") {
     const auto& contentTypeItor = req.headers.find("Content-Type");

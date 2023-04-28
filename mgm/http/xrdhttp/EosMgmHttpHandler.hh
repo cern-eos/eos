@@ -215,5 +215,14 @@ public:
   //!
   //! @return true if the request is a macaroon token request, false otherwise
   //----------------------------------------------------------------------------
-  bool IsMacaroonRequest(const XrdHttpExtReq& req);
+  bool IsMacaroonRequest(const XrdHttpExtReq& req) const;
+
+  //----------------------------------------------------------------------------
+  //! Process macaroon POST request
+  //!
+  //! @param req XrdHttp request object
+  //!
+  //! @return 0 if successful, otherwise non-0
+  //----------------------------------------------------------------------------
+  int ProcessMacaroonPOST(XrdHttpExtReq& req);
 };
