@@ -73,6 +73,7 @@ enum class PlacementStrategyT : uint8_t {
   kRandom,
   kFidRandom,
   kWeightedRandom,
+  kWeightedRoundRobin,
   Count
 };
 
@@ -100,6 +101,9 @@ constexpr PlacementStrategyT strategy_from_str(std::string_view strategy_sv) {
     return PlacementStrategyT::kFidRandom;
   } else if (strategy_sv == "weightedrandom"sv) {
     return PlacementStrategyT::kWeightedRandom;
+  } else if (strategy_sv == "weightedroundrobin"sv ||
+             strategy_sv == "weightedrr"sv) {
+    return PlacementStrategyT::kWeightedRoundRobin;
   }
   return PlacementStrategyT::kRoundRobin;
 }
