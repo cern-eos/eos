@@ -53,13 +53,13 @@ public:
   //! @param outError error information
   //! @param io access type
   //! @param timeout timeout value
-  //! @param storeRecovery force writing back the recovered blocks to the files
+  //! @param force_recovery force writing back the recovered blocks to the files
   //! @param targetSize initial file size
   //! @param bookingOpaque opaque information
   //----------------------------------------------------------------------------
   RainMetaLayout(XrdFstOfsFile* file, unsigned long lid,
                  const XrdSecEntity* client, XrdOucErrInfo* outError,
-                 const char* path, uint16_t timeout, bool storeRecovery,
+                 const char* path, uint16_t timeout, bool force_recovery,
                  off_t targetSize, std::string bookingOpaque);
 
   //----------------------------------------------------------------------------
@@ -234,7 +234,7 @@ protected:
   bool mIsStreaming; ///< file is written in streaming mode
   //! Set if recovery also triggers writing back to the files, this also means
   //! that all files must be available
-  bool mStoreRecovery;
+  bool mForceRecovery;
   //! Store recovery flag due to file begin opened in RW mode
   bool mStoreRecoveryRW;
   int mStripeHead; ///< head stripe value
@@ -485,11 +485,27 @@ private:
   //----------------------------------------------------------------------------
   bool BasicLayoutChecks();
 
+  //----------------------------------------------------------------------------
+  //! Read operation that triggers a forced recovery
+  //!
+  //! @param offset read offset
+  //! @param buffer read buffer
+  //! @param length read length
+  //!
+  //! @return number of bytes read or -1 if error
+  //----------------------------------------------------------------------------
+  int64_t ReadForceRecovery(XrdSfsFileOffset offset, char* buffer,
+                            XrdSfsXferSize length);
+
   AssistedThread mParityThread; ///< Thread computing and wrintg parity
-  //! Queue holding group offsets to be used for parity computatio
+  //! Queue holding group offsets to be used for parity computation
   eos::common::ConcurrentQueue<uint64_t> mQueueGrps;
   std::atomic<bool> mHasParityErr {false};
   std::atomic<bool> mHasParityThread {false};
+  //! Set of groups already recovered or being processed
+  std::set<uint64_t> mRecoveredGrpIndx;
+  //! Mutex protecting the set of recovered groups
+  std::mutex mMtxRecoveredGrps;
 };
 
 EOSFSTNAMESPACE_END

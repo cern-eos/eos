@@ -294,7 +294,7 @@ RaidDpLayout::RecoverPiecesInGroup(XrdCl::ChunkList& grp_errs)
                      ((id_corrupted / mNbTotalFiles) * mStripeWidth);
       offset_local += mSizeHeader;
 
-      if ((mStoreRecovery || mStoreRecoveryRW) && mStripe[physical_id]) {
+      if ((mForceRecovery || mStoreRecoveryRW) && mStripe[physical_id]) {
         nwrite = mStripe[physical_id]->fileWriteAsync(offset_local,
                  data_blocks[id_corrupted](),
                  mStripeWidth,
@@ -353,7 +353,7 @@ RaidDpLayout::RecoverPiecesInGroup(XrdCl::ChunkList& grp_errs)
                        ((id_corrupted / mNbTotalFiles) * mStripeWidth);
         offset_local += mSizeHeader;
 
-        if ((mStoreRecovery || mStoreRecoveryRW) && mStripe[physical_id]) {
+        if ((mForceRecovery || mStoreRecoveryRW) && mStripe[physical_id]) {
           nwrite = mStripe[physical_id]->fileWriteAsync(offset_local,
                    data_blocks[id_corrupted](),
                    mStripeWidth,
@@ -400,7 +400,7 @@ RaidDpLayout::RecoverPiecesInGroup(XrdCl::ChunkList& grp_errs)
 
   // Wait for write responses and reset all handlers
   for (unsigned int i = 0; i < mStripe.size(); i++) {
-    if ((mStoreRecovery || mStoreRecoveryRW) && mStripe[i]) {
+    if ((mForceRecovery || mStoreRecoveryRW) && mStripe[i]) {
       phandler = static_cast<AsyncMetaHandler*>(mStripe[i]->fileGetAsyncHandler());
 
       if (phandler) {

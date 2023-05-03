@@ -48,7 +48,7 @@ RainMetaLayout::RainMetaLayout(XrdFstOfsFile* file,
                                XrdOucErrInfo* outError,
                                const char* path,
                                uint16_t timeout,
-                               bool storeRecovery,
+                               bool force_recovery,
                                off_t targetSize,
                                std::string bookingOpaque) :
   Layout(file, lid, client, outError, path, timeout),
@@ -58,7 +58,7 @@ RainMetaLayout::RainMetaLayout(XrdFstOfsFile* file,
   mDoTruncate(false),
   mDoneRecovery(false),
   mIsStreaming(true),
-  mStoreRecovery(storeRecovery),
+  mForceRecovery(force_recovery),
   mStoreRecoveryRW(false),
   mStripeHead(-1),
   mNbTotalFiles(0),
@@ -179,7 +179,7 @@ RainMetaLayout::Open(XrdSfsFileOpenMode flags, mode_t mode, const char* opaque)
   }
 
   // When recovery enabled we open the files in RDWR mode
-  if (mStoreRecovery) {
+  if (mForceRecovery) {
     flags = SFS_O_RDWR;
     mIsRw = true;
   } else if (flags & (SFS_O_RDWR | SFS_O_TRUNC | SFS_O_WRONLY)) {
@@ -192,7 +192,7 @@ RainMetaLayout::Open(XrdSfsFileOpenMode flags, mode_t mode, const char* opaque)
   }
 
   eos_debug("flags=%x isrw=%i truncate=%d", flags, mIsRw,
-            ((mStoreRecovery && mIsEntryServer) ? 1 : 0));
+            ((mForceRecovery && mIsEntryServer) ? 1 : 0));
   // Add opaque information to enable readahead
   std::string enhanced_opaque = opaque;
   enhanced_opaque += "&fst.readahead=true";
@@ -409,7 +409,7 @@ RainMetaLayout::OpenPio(std::vector<std::string> stripeUrls,
   //!!!!
   // TODO: allow open only in read only mode
   // Set the correct open flags for the stripe
-  if (mStoreRecovery) {
+  if (mForceRecovery) {
     flags = SFS_O_RDWR;
     mIsRw = true;
     eos_debug("%s", "msg=\"write recovery case\"");
@@ -581,7 +581,7 @@ RainMetaLayout::ValidateHeader()
           mHdrInfo[hd_id_valid]->GetSizeLastBlock());
 
         // If file successfully opened, we need to store the info
-        if ((mStoreRecovery || mStoreRecoveryRW) && mStripe[physical_id]) {
+        if ((mForceRecovery || mStoreRecoveryRW) && mStripe[physical_id]) {
           eos_info("msg=\"recovered header for stripe %i\"", mapPL[physical_id]);
           mHdrInfo[physical_id]->WriteToFile(mStripe[physical_id].get(), mTimeout);
         }
@@ -634,48 +634,18 @@ RainMetaLayout::Read(XrdSfsFileOffset offset, char* buffer,
     }
 
     if (end_raw_offset > mFileSize) {
-      eos_warning("msg=\"read to big resizing the read length\" "
+      eos_warning("msg=\"read too big resizing the read length\" "
                   "end_offset=%lli file_size=%llu", end_raw_offset,
                   mFileSize);
       length = static_cast<int>(mFileSize - offset);
+
+      if (length == 0) {
+        return 0;
+      }
     }
 
-    if (((offset < 0) && (mIsRw)) || ((offset == 0) && mStoreRecovery)) {
-      eos_info("msg=\"force file recover mode\" path=%s",
-               mOfsFile->mOpenOpaque->Get("mgm.path"));
-      // Force recover file mode - use first extra block as dummy buffer
-      offset = 0;
-      int64_t len = mFileSize;
-
-      // If file smaller than a group, set the read size to the size of the group
-      if (mFileSize < mSizeGroup) {
-        len = mSizeGroup;
-      }
-
-      char* recover_block = new char[mStripeWidth];
-
-      while ((uint64_t)offset < mFileSize) {
-        all_errs.push_back(XrdCl::ChunkInfo((uint64_t)offset,
-                                            (uint32_t) mStripeWidth,
-                                            (void*)recover_block));
-
-        if (offset % mSizeGroup == 0) {
-          if (!RecoverPieces(all_errs)) {
-            eos_err("msg=\"failed recovery\" offset=%llu length=%d",
-                    offset, length);
-            delete[] recover_block;
-            return SFS_ERROR;
-          } else {
-            all_errs.clear();
-          }
-        }
-
-        len -= mSizeGroup;
-        offset += mSizeGroup;
-      }
-
-      delete[] recover_block;
-      read_length = length;
+    if (mForceRecovery) {
+      read_length = ReadForceRecovery(offset, buffer, length);
     } else {
       // Split original read in chunks which can be read from one stripe and return
       // their relative offsets in the original file
@@ -737,6 +707,47 @@ RainMetaLayout::Read(XrdSfsFileOffset offset, char* buffer,
   COMMONTIMING("read return", &rt);
   // rt.Print();
   return read_length;
+}
+
+
+//----------------------------------------------------------------------------
+//! Read operation that triggers a forced recovery per group
+//----------------------------------------------------------------------------
+int64_t
+RainMetaLayout::ReadForceRecovery(XrdSfsFileOffset offset,
+                                  char* buffer,
+                                  XrdSfsXferSize length)
+{
+  eos_debug("msg=\"force file recover mode\" path=%s offset=%llu",
+            mOfsFile->mOpenOpaque->Get("mgm.path"), offset);
+  uint64_t grp_indx = (offset / mSizeGroup);
+  {
+    std::unique_lock<std::mutex> lock(mMtxRecoveredGrps);
+
+    // If group already recovered then skip it, we don't care about the
+    // contents of the data returned i.e. the buffer is unpopulated
+    if (mRecoveredGrpIndx.find(grp_indx) != mRecoveredGrpIndx.end()) {
+      return length;
+    } else {
+      eos_info("msg=\"recover group index\" grp_indx=%llu", grp_indx);
+      mRecoveredGrpIndx.insert(grp_indx);
+    }
+  }
+  XrdSfsFileOffset grp_offset = grp_indx * mSizeGroup;
+  std::unique_ptr<RainBlock> recover_block {new RainBlock(mStripeWidth)};
+  XrdCl::ChunkList all_errs {
+    XrdCl::ChunkInfo((uint64_t) grp_offset, (uint32_t) mStripeWidth,
+    (void*)recover_block->GetDataPtr())};
+
+  if (!RecoverPieces(all_errs)) {
+    eos_err("msg=\"failed recovery\" offset=%llu length=%d", offset, length);
+    return SFS_ERROR;
+  }
+
+  eos_debug("msg=\"done forced group recovery\" path=%s offset=%llu "
+            "grp_indx=%llu", mOfsFile->mOpenOpaque->Get("mgm.path"),
+            offset, grp_indx);
+  return length;
 }
 
 //------------------------------------------------------------------------------
@@ -1538,7 +1549,7 @@ RainMetaLayout::Close()
 
   if (mIsOpen) {
     if (mIsEntryServer) {
-      if (mStoreRecovery || mStoreRecoveryRW) {
+      if (mForceRecovery || mStoreRecoveryRW) {
         if (mDoneRecovery || mDoTruncate) {
           eos_debug("%s", "msg=\"truncating after recovery or at end of write\"");
           mDoTruncate = false;
