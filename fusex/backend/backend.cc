@@ -153,7 +153,7 @@ backend::getCAP(fuse_req_t req,
 /* -------------------------------------------------------------------------- */
 {
   uint64_t myclock = (uint64_t) time(NULL) +
-                     13; // allow for 'slow' requests up-to 15s
+                     5; // allow for drifts of up to 5s (+2 on server side)
   std::string requestURL = getURL(req, inode, myclock, "fuseX", "getfusex",
                                   "GETCAP", "", true);
   return fetchResponse(requestURL, contv);
@@ -348,12 +348,21 @@ backend::fetchResponse(std::string& requestURL,
 
       // the xrootd mapping of errno to everything unknown to EIO is really unfortunate
       if (xrootderr.find("get-cap-clock-out-of-sync") != std::string::npos) {
-        // this is a time synchronization error
-        eos_static_err("%s", "msg=\"GETCAP finished during the allowed 2s "
-                       "round-trip time, the clock seems to be out of sync "
-                       "with the MGM\"");
-        errno = EL2NSYNC;
-        return EL2NSYNC;
+	if (exec_time_sec >= 5) {
+	  eos_static_err("%s", "msg=\"GETCAP took more than 5 seconds and we got a clock sync error"
+			 "with the MGM - retrying\"");
+
+	  std::this_thread::sleep_for(std::chrono::seconds(5));
+	  total_exec_time_sec += 5;
+	  continue;
+	} else {
+	  // this is a time synchronization error
+	  eos_static_err("%s", "msg=\"GETCAP finished within 5 seconds "
+			 "round-trip time, the clock seems to be out of sync "
+			 "with the MGM\"");
+	  errno = EL2NSYNC;
+	  return EL2NSYNC;
+	}
       }
 
       if (
