@@ -276,6 +276,11 @@ DrainFs::StopJobs()
              (job->GetStatus() == DrainTransferJob::Status::Ready)) {
         std::this_thread::sleep_for(milliseconds(10));
       }
+      
+      // Also clean them up form the tracker
+      const std::string sfxid = job->GetInfo({"fxid"}).front();
+      eos::IFileMD::id_t fxid = eos::common::FileId::Hex2Fid(sfxid.c_str());
+      gOFS->mFidTracker.RemoveEntry(fxid);
     }
   }
   eos::common::RWMutexWriteLock wr_lock(mJobsMutex);
