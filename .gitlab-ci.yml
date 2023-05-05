@@ -1256,9 +1256,10 @@ eos_docs:
     - yum install --nogpg -y make python-sphinx sssd-client sudo which git
     - cd doc
     - export PYTHONPATH=`pwd`/_themes/
+    - cd diopside
     - make html
-    - sudo -u stci -H rm -rf /eos/project/e/eos/www/docs/*
-    - sudo -u stci -H cp -R _build/html/* /eos/project/e/eos/www/docs/
+    - sudo -u stci -H rm -rf /eos/project/e/eos/www/docs/diopside
+    - sudo -u stci -H cp -R _build/html/* /eos/project/e/eos/www/docs/diopside
   tags:
     - docker_node
   when: manual
