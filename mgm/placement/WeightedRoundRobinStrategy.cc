@@ -65,13 +65,13 @@ WeightedRoundRobinPlacement::Impl::placeFiles(const ClusterData& cluster_data,
        (items_added < args.n_replicas) && (i < MAX_RR_PLACEMENT_ATTEMPTS); i++) {
     item_id_t item_id = eos::common::pickIndexRR(bucket.items, bucket_index_kv++);
 
-    if (--mItemWeights[item_id] < 0) {
-      eos_static_debug("msg=\"Skipping scheduling 0 wt item at\" item_id=%d total_wt=%llu",
-                       item_id, total_wt.load(std::memory_order_relaxed));
-      continue;
-    }
-
     if (item_id > 0) {
+      if (--mItemWeights[item_id] < 0) {
+        eos_static_debug("msg=\"Skipping scheduling 0 wt item at\" item_id=%d total_wt=%llu",
+                         item_id, total_wt.load(std::memory_order_relaxed));
+        continue;
+      }
+
       if ((size_t)item_id > cluster_data.disks.size()) {
         result.err_msg = "Disk ID unknown!";
         result.ret_code = ERANGE;
@@ -84,8 +84,13 @@ WeightedRoundRobinPlacement::Impl::placeFiles(const ClusterData& cluster_data,
         continue;
       }
       item_id = disk.id;
+      --total_wt;
+      --mItemWeights[args.bucket_id];
     } else {
-      total_wt--;
+      // We're dealing with a bucket, make sure we've enough wt left!
+      if (mItemWeights[item_id] < args.n_replicas) {
+        continue;
+      }
     }
     result.ids[items_added++] = item_id;
   }
