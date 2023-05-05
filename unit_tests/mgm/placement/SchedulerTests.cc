@@ -576,6 +576,46 @@ TEST(FlatScheduler, TLNoSiteUniformWeighted)
   }
 }
 
+TEST(FlatScheduler, TLNoSiteUniformWeightedRR)
+{
+  using namespace eos::mgm::placement;
+  eos::mgm::placement::ClusterMgr mgr;
+  int n_elements = 1024;
+  int n_disks_per_group = 16;
+  int n_groups = 32;
+  eos::mgm::placement::FlatScheduler flat_scheduler(PlacementStrategyT::kWeightedRoundRobin,
+                                                    2048);
+
+  {
+
+    auto sh = mgr.getStorageHandler(n_elements);
+    ASSERT_TRUE(sh.addBucket(get_bucket_type(StdBucketType::ROOT), 0));
+    for (int i=0; i< n_groups; ++i) {
+      ASSERT_TRUE(sh.addBucket(get_bucket_type(StdBucketType::GROUP), -100-i, 0));
+    }
+
+    for (int i=0; i < n_groups*n_disks_per_group; i++) {
+      ASSERT_TRUE(sh.addDisk(Disk(i+1, ConfigStatus::kRW, ActiveStatus::kOnline, 1),
+                             -100 - i/n_disks_per_group));
+    }
+
+  }
+  auto cluster_data = mgr.getClusterData();
+  EXPECT_EQ(cluster_data->disks.size(), 32*16);
+  EXPECT_EQ(cluster_data->buckets.size(), n_elements);
+  auto root_bucket = cluster_data->buckets[0];
+  EXPECT_EQ(root_bucket.items.size(), n_groups);
+  for (auto it: root_bucket.items) {
+    EXPECT_EQ(cluster_data->buckets.at(-it).items.size(), n_disks_per_group);
+  }
+
+  for (int i = 0; i < 1000; i++) {
+    auto result = flat_scheduler.schedule(cluster_data(), {2});
+    ASSERT_TRUE(result);
+    ASSERT_TRUE(result.is_valid_placement(2));
+  }
+}
+
 
 TEST(FlatScheduler, TLNoSiteWeighted)
 {
@@ -635,6 +675,74 @@ TEST(FlatScheduler, TLNoSiteWeighted)
   for (const auto &kv: weight_counter) {
     std::cout << kv.first << " : " << kv.second << std::endl;
   }
+}
+
+
+TEST(FlatScheduler, TLNoSiteWeightedRR)
+{
+  using namespace eos::mgm::placement;
+  eos::mgm::placement::ClusterMgr mgr;
+  int n_elements = 1024;
+  int n_disks_per_group = 32;
+  int n_groups = 32;
+  eos::mgm::placement::FlatScheduler flat_scheduler(PlacementStrategyT::kWeightedRoundRobin,
+                                                    2048);
+  std::map<int, int> disk_wt_map;
+  std::map<int, int> disk_wt_count;
+  {
+    std::vector<int> weights = {4, 8, 16, 32};
+    auto sh = mgr.getStorageHandler(n_elements);
+    ASSERT_TRUE(sh.addBucket(get_bucket_type(StdBucketType::ROOT), 0));
+    for (int i=0; i< n_groups; ++i) {
+      ASSERT_TRUE(sh.addBucket(get_bucket_type(StdBucketType::GROUP), -100-i, 0));
+    }
+
+    for (int i=0; i < n_groups*n_disks_per_group; i++) {
+      auto weight = eos::common::pickIndexRR(weights, i);
+      disk_wt_map[i+1] = weight;
+      disk_wt_count[weight]++;
+      ASSERT_TRUE(sh.addDisk(Disk(i+1, ConfigStatus::kRW, ActiveStatus::kOnline,
+                                  weight),
+                             -100 - i/n_disks_per_group));
+    }
+
+  }
+  auto cluster_data = mgr.getClusterData();
+  EXPECT_EQ(cluster_data->disks.size(), 32*32);
+  EXPECT_EQ(cluster_data->buckets.size(), n_elements);
+  auto root_bucket = cluster_data->buckets[0];
+  EXPECT_EQ(root_bucket.items.size(), n_groups);
+  for (auto it: root_bucket.items) {
+    EXPECT_EQ(cluster_data->buckets.at(-it).items.size(), n_disks_per_group);
+  }
+  std::map<int, int> weight_counter;
+  // with Interleaved Weighted RR, you'd need atleast weight*n_items to show the
+  // distribution at lower numbers below the full wt of a category, you'd end up
+  // with uniform ie. for the previous case of 1024 schedulings, you'd end up
+  // with equal distribution as you've not finished a full round of each weights yet
+  for (int i = 0; i < 60*256; i++) {
+    auto result = flat_scheduler.schedule(cluster_data(), {2});
+    ASSERT_TRUE(result);
+    ASSERT_TRUE(result.is_valid_placement(2));
+    weight_counter[disk_wt_map[result.ids[0]]]++;
+    weight_counter[disk_wt_map[result.ids[1]]]++;
+  }
+  ASSERT_TRUE(weight_counter[4] < weight_counter[8]);
+  ASSERT_TRUE(weight_counter[8] < weight_counter[16]);
+  ASSERT_TRUE(weight_counter[16] < weight_counter[32]);
+
+  std::cout << "Cluster Disk weight count: " << std::endl;
+  for (const auto &kv: disk_wt_count) {
+    std::cout << kv.first << " : " << kv.second << std::endl;
+  }
+
+  std::cout << "Scheduling Disk Weight distribution: " << std::endl;
+  for (const auto &kv: weight_counter) {
+    std::cout << kv.first << " : " << kv.second << std::endl;
+  }
+
+  // schedule one more for offby1 errors
+  ASSERT_TRUE(flat_scheduler.schedule(cluster_data(), {2}));
 }
 
 
