@@ -24,9 +24,7 @@ EOS - Open Storage Documentation
    manual/index.rst
    faq/index.rst
    blog/features.rst
-.. develop
-.. restapi
-.. taperestapi
+
    A. QuarkDB Documentation <https://quarkdb.web.cern.ch>
 
 

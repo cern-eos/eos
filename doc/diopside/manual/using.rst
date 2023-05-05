@@ -101,17 +101,17 @@ The CLI interface to create a token is shown here:
    # create a generic read-only token for a file valid 5 minutes
    EXPIRE=`date +%s; let LATER=$EXPIRE+300
 
-  eos token --path /eos/myfile --expires $LATER
-  zteos64:MDAwMDAwNzR4nONS4WIuKq8Q-Dlz-ltWI3H91Pxi~cSsAv2S~OzUPP2SeAgtpMAY7f1e31Ts-od-rgcLZ~a2~bhwcZO9cracyhm1b3c6jpRIEWWOws71Ox6xAABeTC8I
+   eos token --path /eos/myfile --expires $LATER
+   zteos64:MDAwMDAwNzR4nONS4WIuKq8Q-Dlz-ltWI3H91Pxi~cSsAv2S~OzUPP2SeAgtpMAY7f1e31Ts-od-rgcLZ~a2~bhwcZO9cracyhm1b3c6jpRIEWWOws71Ox6xAABeTC8I
 
-  # create a generic read-only token for a directory - mydir has to end with a '/' - valid 5 minutes
-  eos token --path /eos/mydir/ --expires $LATER
+   # create a generic read-only token for a directory - mydir has to end with a '/' - valid 5 minutes
+   eos token --path /eos/mydir/ --expires $LATER
 
-  # create a generic read-only token for a directory tree - mytree has to end with a '/' - valid 5 minutes
-  eos token --path /eos/mydir/ --tree --expires $LATER
+   # create a generic read-only token for a directory tree - mytree has to end with a '/' - valid 5 minutes
+   eos token --path /eos/mydir/ --tree --expires $LATER
 
-  # create a generic write token for a file - valid 5 minutes
-  eos token --path /eos/myfile --permission rwx --expires $LATER
+   # create a generic write token for a file - valid 5 minutes
+   eos token --path /eos/myfile --permission rwx --expires $LATER
 
 
 .. index::
@@ -179,7 +179,8 @@ tokens for files in existing parent directories or directory trees,
 where the calling user is the current owner.
 
 .. index::
-   pair: EOS Tokens; lifetime
+   pair: EOS Tokens; Lifetime
+
 Token lifetime
 ^^^^^^^^^^^^^^^^^^^^^^^^^
 
