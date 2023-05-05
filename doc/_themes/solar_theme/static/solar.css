@@ -268,12 +268,15 @@ div.topic {
 }
 
 table {
-    border-collapse: collapse;
+    border-collapse: separate;
     margin: 0 -0.5em 0 -0.5em;
 }
 
 table td, table th {
     padding: 0.2em 0.5em 0.2em 0.5em;
+    border: 1px solid;
+    border-color:darkblue;
+    background-color: #f7f7f7;
 }
 
 div.admonition {
@@ -338,9 +341,9 @@ div.viewcode-block:target {
     border-bottom: 1px solid #eee;
 }
 
+
 .highlight  { 
-    
-    background: #E6E6E6!important; 
+    background: #dffc7f62; 
     color: #151515;
     font-family: 'Consolas', 'DejaVu Sans Mono', 'Bitstream Vera Sans Mono', monospace;
     font-size: 13px;
@@ -349,4 +352,71 @@ div.viewcode-block:target {
     border: 1px solid #ccc;
     border-radius: 2px;
 
+}
+
+table.docutils 
+{
+    border: 0.5px solid; 
+    border-collapse: collapse;
+    border-top: 0.5px solid #fb7e02;
+    border-left: 0.5px solid #fb7e02;
+    border-right: 0.5px solid #fb7e02;
+    border-bottom: 0.5px solid #fb7e02;
+}
+
+tr.row-even 
+{
+    color: #000000;
+    background-color: #093075;  
+    border-color:#859900
+    border: 0.5px solid; 
+}
+
+tr.row-odd 
+{
+    color: #000000;
+    background-color: #093075;  
+    border-color:#859900
+    border: 0.5px solid; 
+}
+
+div.section table, td
+{
+  white-space: normal !important;  
+}
+
+
+div.section thead, th
+{
+  color: #ff0000;
+  background-color: #093075;    
+}
+
+.rst-content table.docutils thead th, .rst-content table.field-list thead th {
+    border-color: #e1e4e5;
+}
+
+div.sphinxsidebar {
+    top: 50;
+    right: 100px;
+    margin: 0;
+
+    padding: 0.5em 15px 15px 0;
+    width: 210px;
+    height: 80%;
+    float: right;
+    font-size: 0.9em;
+    text-align: left;
+    position: fixed;
+    overflow-y: scroll
+}
+
+
+div.sphinxsidebar::-webkit-scrollbar {
+    width: 10px;
+}
+
+/* Customize the scrollbar */
+div.sphinxsidebar::-webkit-scrollbar-thumb {
+    background-color: #888;
 }
