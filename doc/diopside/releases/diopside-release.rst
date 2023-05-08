@@ -26,13 +26,17 @@ Bug
 
 * [EOS-5515] - EC file with undrained stripes that looks fine
 * [EOS-5612] - Recycle bin setting change disables cleanup
-* [EOS-5633] - Eos inspector: Considers a space already deleted.
+* [EOS-5633] - Eos inspector: Considers a space already deleted
+* FUSEX: fix permission denied errors for slow MGM requests
+* FUSEX: fix ctime setting in eosxd3, enable write-back cache
+* FUSEX: fix blocked statistic output when backen-end waits for a flush
 
 Improvement
 ------------
 * [EOS-5563] - add monitoring format to `eos fsck stat`
 * [EOS-5626] - Converter - Rain file failed to convert (100GB)
-* [EOS-5641] - Have Macaroons take into account vid VOMS mapping when determining client identity
+* [EOS-5641] - Have Macaroons take into account vid VOMS mapping when determining client identit
+* DOC: refactor documentation for Diopside releases
 
 
 ``v5.1.16 Diopside``
