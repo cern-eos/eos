@@ -2186,7 +2186,7 @@ void
 metad::mdcflush(ThreadAssistant& assistant)
 {
   uint64_t lastflushid = 0;
-
+  ThreadAssistant::setSelfThreadName("metad::mdcflush");
   while (!assistant.terminationRequested()) {
     {
       mdflush.Lock();
@@ -2380,6 +2380,8 @@ metad::mdstackfree(ThreadAssistant& assistant)
   size_t cnt = 0;
   int max_inodes = EosFuse::Instance().Config().options.inmemory_inodes;
 
+  ThreadAssistant::setSelfThreadName("metad::mdstackfree");
+  
   while (!assistant.terminationRequested()) {
     cnt++;
     std::this_thread::sleep_for(std::chrono::milliseconds(500));
@@ -2646,6 +2648,8 @@ metad::mdcommunicate(ThreadAssistant& assistant)
   bool shutdown = false;
   bool first = true;
 
+  ThreadAssistant::setSelfThreadName("metad::mdcommunicate");
+    
   while (!assistant.terminationRequested() || shutdown == false) {
     try {
       std::unique_lock<std::mutex> connectionMutex(zmq_socket_mutex);
