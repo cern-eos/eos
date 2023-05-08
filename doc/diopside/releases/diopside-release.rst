@@ -16,6 +16,18 @@ Introduction
 
 This release is based on XRootD V5.
 
+
+``v5.1.18 Diopside``
+==========================
+
+2023-05-08
+
+Bug
+----
+
+* SPEC: Fix dependency to point to eos-xrootd-5.5.9/xrootd-5.5.5
+
+
 ``v5.1.17 Diopside``
 ==========================
 
