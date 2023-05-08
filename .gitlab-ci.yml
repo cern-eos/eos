@@ -103,7 +103,6 @@ build_cc7:
   image: gitlab-registry.cern.ch/dss/eos/prebuild-cc7-${CODENAME}
   script:
     - git submodule update --init --recursive
-    - cd quarkdb/deps/mkdocs-material; git remote set-url origin https://gitlab.cern.ch/eos/mkdocs-material; git pull origin master; git checkout master; git pull; cd ../../../
     - mkdir build
     - cd build/
     - cmake3 ../ -DPACKAGEONLY=1
