@@ -30,8 +30,8 @@
 %bcond_without no_sse
 
 # Define required dependency for XRootD
-%define eos_xrootd_version_min 0:5.5.8
-%define xrootd_version_min 1:5.5.4
+%define eos_xrootd_version_min 0:5.5.9
+%define xrootd_version_min 1:5.5.5
 %define major_version @CPACK_PACKAGE_VERSION_MAJOR@
 %define release_version @CPACK_PACKAGE_RELEASE@
 
@@ -378,8 +378,6 @@ The EOS server installation containing MGM, FST & MQ service.
 %{_sbindir}/eos-mmap
 %{_sbindir}/eos-repair-tool
 %{_sbindir}/eos-ioping
-%{_sbindir}/eos-iobw
-%{_sbindir}/eos-iops
 %{_sbindir}/eos-leveldb-inspect
 %{_sbindir}/eos-fmd-tool
 %{_sbindir}/eos-rain-hd-dump
