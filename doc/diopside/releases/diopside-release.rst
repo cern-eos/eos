@@ -16,6 +16,24 @@ Introduction
 
 This release is based on XRootD V5.
 
+``v5.1.17 Diopside``
+==========================
+
+2023-05-08
+
+Bug
+---
+
+* [EOS-5515] - EC file with undrained stripes that looks fine
+* [EOS-5612] - Recycle bin setting change disables cleanup
+* [EOS-5633] - Eos inspector: Considers a space already deleted.
+
+Improvement
+------------
+* [EOS-5563] - add monitoring format to `eos fsck stat`
+* [EOS-5626] - Converter - Rain file failed to convert (100GB)
+* [EOS-5641] - Have Macaroons take into account vid VOMS mapping when determining client identity
+
 
 ``v5.1.16 Diopside``
 ==========================
