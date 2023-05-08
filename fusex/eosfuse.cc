@@ -2059,9 +2059,7 @@ EosFuse::init(void* userdata, struct fuse_conn_info* conn)
   }
 
 #ifdef USE_FUSE3
-  conn->want |= FUSE_CAP_EXPORT_SUPPORT | FUSE_CAP_POSIX_LOCKS;
-  // disable the writeback cache, since it results in truncated object files
-  //                FUSE_CAP_WRITEBACK_CACHE; // | FUSE_CAP_CACHE_SYMLINKS;
+  conn->want |= FUSE_CAP_EXPORT_SUPPORT | FUSE_CAP_POSIX_LOCKS | FUSE_CAP_WRITEBACK_CACHE;
   Instance().Config().options.writebackcache = true;
   //  conn->want |= FUSE_CAP_EXPORT_SUPPORT | FUSE_CAP_POSIX_LOCKS ; // | FUSE_CAP_CACHE_SYMLINKS;
 #else
@@ -4430,6 +4428,7 @@ EosFuse::open(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info* fi)
   // reading a file destined to be used as an image for an execve.
 #define FMODE_EXEC 0x20
   ExecveAlert execve(fi->flags & FMODE_EXEC);
+
   ADD_FUSE_STAT(__func__, req);
   EXEC_TIMING_BEGIN(__func__);
   Track::Monitor mon("open", Instance().Tracker(), ino, true);
