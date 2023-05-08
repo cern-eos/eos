@@ -295,7 +295,8 @@ set(XRDEOSFST_SRCS
   http/s3/S3Handler.cc  http/s3/S3Handler.hh
   # EosFstIo interface
   io/local/LocalIo.cc  io/local/LocalIo.hh
-  utils/XrdOfsPathHandler.cc)
+  utils/XrdOfsPathHandler.cc
+  utils/DiskMeasurements.cc)
 
 add_library(XrdEosFst-Objects OBJECT ${XRDEOSFST_SRCS})
 
@@ -454,11 +455,16 @@ target_link_libraries(eos-fmd-tool PRIVATE
   stdc++fs
   XrdEosFst-Static)
 
+add_executable(eos-disk-measurements
+  utils/DiskMeasurementsMain.cc
+  utils/DiskMeasurements.cc)
+
+target_link_libraries(eos-disk-measurements PRIVATE
+  EosCommon)
+
 install(PROGRAMS
   tools/eosfstregister
   tools/eosfstinfo
-  tools/eos-iobw
-  tools/eos-iops
   DESTINATION ${CMAKE_INSTALL_FULL_SBINDIR})
 
 install(TARGETS

@@ -26,6 +26,7 @@
 #include "fst/ScanDir.hh"
 #include "fst/txqueue/TransferQueue.hh"
 #include "fst/filemd/FmdDbMap.hh"
+#include "fst/utils/DiskMeasurements.hh"
 
 #ifdef __APPLE__
 #define O_DIRECT 0
@@ -166,36 +167,45 @@ FileSystem::ConfigScanner(Load* fst_load, const std::string& key,
   mScanDir->SetConfig(key, value);
 }
 
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Get file system disk performance metrics eg. IOPS/seq bandwidth
+//------------------------------------------------------------------------------
 void
 FileSystem::IoPing()
 {
-  std::string cmdbw = "eos-iobw ";
-  cmdbw += GetPath();
-  std::string cmdiops = "eos-iops ";
-  cmdiops += GetPath();
-  eos_info("\"%s\" \"%s\"", cmdbw.c_str(), cmdiops.c_str());
-  seqBandwidth = 0;
   IOPS = 0;
+  seqBandwidth = 0;
 
-  // ----------------------
-  // exclude 'remote' disks
-  // ----------------------
-  if (GetPath()[0] == '/') {
-    std::string bwMeasurement = eos::common::StringConversion::StringFromShellCmd(
-                                  cmdbw.c_str());
-    std::string iopsMeasurement = eos::common::StringConversion::StringFromShellCmd(
-                                    cmdiops.c_str());
-
-    if (
-      bwMeasurement.length() &&
-      iopsMeasurement.length()) {
-      seqBandwidth = strtol(bwMeasurement.c_str(), 0, 10);
-      IOPS = atoi(iopsMeasurement.c_str());
-    }
+  // Exclude 'remote' disks
+  if (GetPath()[0] != '/') {
+    eos_static_notice("msg=\"skip disk measurements for \'remote\' disk\" "
+                      "path=%s", GetPath().c_str());
+    return;
   }
 
+  // Create temporary file (1GB) name on the mountpoint
+  uint64_t fn_size = 1 << 30; // 1 GB
+  const std::string fn_path = eos::fst::MakeTemporaryFile(GetPath());
+
+  if (fn_path.empty()) {
+    eos_static_err("msg=\"failed to create tmp file\" base_path=%s",
+                   GetPath().c_str());
+    return;
+  }
+
+  // Fill the file up to the given size with random data
+  if (!eos::fst::FillFileGivenSize(fn_path, fn_size)) {
+    eos_static_err("msg=\"failed to fill file\" path=%s", fn_path.c_str());
+    unlink(fn_path.c_str());
+    return;
+  }
+
+  IOPS = eos::fst::ComputeIops(fn_path);
+  uint64_t rd_buf_size = 4 * (1 << 20); // 4MB
+  seqBandwidth = eos::fst::ComputeBandwidth(fn_path, rd_buf_size);
+  unlink(fn_path.c_str());
   eos_info("bw=%lld iops=%d", seqBandwidth, IOPS);
+  return;
 }
 
 //------------------------------------------------------------------------------

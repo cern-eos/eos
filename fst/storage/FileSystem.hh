@@ -176,14 +176,23 @@ public:
 
   std::unique_ptr<eos::common::Statfs> GetStatfs();
 
+  //----------------------------------------------------------------------------
+  //! Get file system disk performance metrics eg. IOPS/seq bandwidth
+  //----------------------------------------------------------------------------
   void IoPing();
 
-  long long getSeqBandwidth()
+  //----------------------------------------------------------------------------
+  //! Get sequential bandwidth
+  //----------------------------------------------------------------------------
+  inline long long getSeqBandwidth()
   {
     return seqBandwidth;
   }
 
-  int getIOPS()
+  //----------------------------------------------------------------------------
+  //! Get IOPS
+  //----------------------------------------------------------------------------
+  inline int getIOPS()
   {
     return IOPS;
   }
