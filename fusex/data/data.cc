@@ -155,7 +155,6 @@ data::url(fuse_ino_t ino)
 {
   std::string p;
   XrdSysMutexHelper mLock(datamap);
-
   if (datamap.count(ino)) {
     p = datamap[ino]->fullpath();
 
@@ -164,7 +163,7 @@ data::url(fuse_ino_t ino)
     }
 
     p += " [";
-    p += datamap[ino]->url();
+    p += datamap[ino]->url(true);
     p += " ]";
   }
 
@@ -330,6 +329,8 @@ data::datax::flush_nolock(fuse_req_t req, bool wait_open, bool wait_writes)
 /* -------------------------------------------------------------------------- */
 {
   eos_info("");
+  set_shared_url();
+
   bool journal_recovery = false;
   errno = 0;
 
@@ -340,6 +341,8 @@ data::datax::flush_nolock(fuse_req_t req, bool wait_open, bool wait_writes)
     if (wait_open) {
       // wait atleast that we could open that file
       mFile->xrdiorw(req)->WaitOpen();
+      // set again the shared url now, since we know where we are 
+      set_shared_url();
     }
 
     if ((truncate_size != -1)
@@ -2136,6 +2139,7 @@ data::datax::pread(fuse_req_t req, void* buf, size_t count, off_t offset)
     }
 
     memcpy(buf, inline_buffer->ptr() + offset, avail_bytes);
+    mLock.UnLock();
     return avail_bytes;
   }
 
@@ -2165,11 +2169,13 @@ data::datax::pread(fuse_req_t req, void* buf, size_t count, off_t offset)
       ssize_t br = mFile->file()->pread(buf, count, offset);
 
       if (br < 0) {
+	mLock.UnLock();
         return br;
       }
 
       if (br == (ssize_t) count) {
-        return br;
+	mLock.UnLock();
+	return br;
       }
     } else {
       mLock.Lock();
@@ -3028,16 +3034,46 @@ data::datax::Dump(std::string& out)
 }
 
 
+void
+data::datax::set_shared_url() {
+  // this call comes from already locked datax environments
+  std::string p;
+  if (mFile->has_xrdiorw(mReq)) {
+    p = mFile->xrdiorw(mReq)->getLastUrl();
+    if (p.empty()) {
+      p = mRemoteUrlRW;
+    }
+  } else {
+    if (mFile->has_xrdioro(mReq)) {
+      p = mFile->xrdioro(mReq)->getLastUrl();
+      if (p.empty()) {
+	p = mRemoteUrlRO;
+      }
+    }
+  }
+  mUrl = std::make_shared<std::string>(p);
+}
+
 /* -------------------------------------------------------------------------- */
 std::string
-data::datax::url()
+data::datax::url(bool nonblocking)
 /* -------------------------------------------------------------------------- */
 {
 
+  if (mUrl) {
+    return *mUrl;
+  }
   
   std::string p;
   {
-    XrdSysMutexHelper lLock(mLock);
+    if (nonblocking) {
+      if (!mLock.CondLock()) {
+	return "url:unresolved";
+      }
+    } else {
+      mLock.Lock();
+    }
+
     if (mFile->has_xrdiorw(mReq)) {
       p = mFile->xrdiorw(mReq)->getLastUrl();
     } else {
@@ -3045,6 +3081,7 @@ data::datax::url()
 	p = mFile->xrdioro(mReq)->getLastUrl();
       }
     }
+    mLock.UnLock();
   }
 
   size_t f1 = p.find("/fusex-open");
@@ -3098,6 +3135,7 @@ void
 data::dmap::ioflush(ThreadAssistant& assistant)
 /* -------------------------------------------------------------------------- */
 {
+  ThreadAssistant::setSelfThreadName("data::ioflush");
   while (!assistant.terminationRequested()) {
     {
       //eos_static_debug("");
@@ -3152,7 +3190,8 @@ data::dmap::ioflush(ThreadAssistant& assistant)
                   if ((fit->second->state_age() > 1.0)) {
                     if (fit->second->HasReadsInFlight()) {
                       // don't close files if there is still something in flight from read-ahead
-                      // TODO: in EOS5 (Xrootd5) we can ue SetProperty( "BundledClose", "true" ) and end the close with outstanding reads
+                      // TODO: in EOS5 (Xrootd5) we can use SetProperty( "BundledClose", "true" ) and end the close with outstanding reads
+		      eos_static_info("still have reads in flight ino:%16lx",(*it)->id());
                       fit++;
                       continue;
                     }
@@ -3162,7 +3201,9 @@ data::dmap::ioflush(ThreadAssistant& assistant)
                     eos_static_info("closing reader");
                     fit++;
                     continue;
-                  }
+                  } else {
+		    eos_static_info("age still too young ino:%16lx",(*it)->id());
+		  }
                 }
 
                 if (fit->second->IsOpening() || fit->second->IsClosing()) {

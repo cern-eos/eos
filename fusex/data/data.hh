@@ -273,7 +273,9 @@ public:
 
     const char* Dump(std::string& out);
 
-    std::string url();
+    std::string url(bool nonblocking=false);
+    typedef std::shared_ptr<string> shared_url;
+    void set_shared_url();
     
   private:
     XrdSysMutex mLock;
@@ -284,6 +286,7 @@ public:
     std::string mRemoteUrlRW;
     std::string mRemoteUrlRO;
     std::string mBaseName;
+    shared_url mUrl;
     size_t mAttached;
     metad::shared_md mMd;
     XrdCl::Proxy::read_handler mPrefetchHandler;
