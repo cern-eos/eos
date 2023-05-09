@@ -316,9 +316,9 @@ EosMgmHttpHandler::ProcessReq(XrdHttpExtReq& req)
   }
 
   eos_debug("response-header=\"%s\"", oss_header.str().c_str());
-  long long content_length = response->GetBody().length();
 
   if (req.verb == "HEAD") {
+    long long content_length = 0;
     auto it = headers.find("Content-Length");
 
     if (it != headers.end()) {
@@ -326,12 +326,18 @@ EosMgmHttpHandler::ProcessReq(XrdHttpExtReq& req)
         content_length = std::stoll(it->second);
       } catch (...) {}
     }
-  }
 
-  return req.SendSimpleResp(response->GetResponseCode(),
-                            response->GetResponseCodeDescription().c_str(),
-                            oss_header.str().c_str(), response->GetBody().c_str(),
-                            content_length);
+    return req.SendSimpleResp(response->GetResponseCode(),
+                              response->GetResponseCodeDescription().c_str(),
+                              oss_header.str().c_str(),
+                              nullptr, content_length);
+  } else {
+    return req.SendSimpleResp(response->GetResponseCode(),
+                              response->GetResponseCodeDescription().c_str(),
+                              oss_header.str().c_str(),
+                              response->GetBody().c_str(),
+                              response->GetBody().length());
+  }
 }
 
 //------------------------------------------------------------------------------
