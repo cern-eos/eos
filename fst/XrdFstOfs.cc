@@ -369,6 +369,15 @@ XrdFstOfs::XrdFstOfs() :
     mMgmAlias = getenv("EOS_MGM_ALIAS");
   }
 
+  if (getenv("EOS_FST_ALIAS")) {
+    gConfig.HostAlias = getenv("EOS_FST_ALIAS");
+    fprintf(stderr,"Setting host alias to %s\n", gConfig.HostAlias.c_str());
+  }
+
+  if (getenv("EOS_FST_PORT_ALIAS")) {
+    gConfig.PortAlias = getenv("EOS_FST_PORT_ALIAS");
+  }
+  
   // Initialize the google sparse hash maps
   gOFS.WNoDeleteOnCloseFid.clear_deleted_key();
   gOFS.WNoDeleteOnCloseFid.set_deleted_key(0);

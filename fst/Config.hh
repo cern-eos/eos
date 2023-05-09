@@ -55,6 +55,8 @@ public:
   int PublishInterval; // Interval after which filesystem information should be published
   XrdOucString StartDate; // Time when daemon was started
   XrdOucString KeyTabAdler; // adler string of the keytab file
+  XrdOucString HostAlias; // alias for this hostname to use in redirection
+  XrdOucString PortAlias; // alias for the port to use in redirection
   mutable XrdSysMutex Mutex; // lock for dynamic updates like 'Manager'
 
   Config() : generator((std::random_device())())

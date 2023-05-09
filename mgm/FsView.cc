@@ -1493,6 +1493,8 @@ FsView::GetFileSystemFormat(std::string option)
     format += "key=uuid:format=os|";
     format += "key=path:format=os|";
     format += "key=schedgroup:format=os|";
+    format += "key=stat.alias.host:format=oqs|";
+    format += "key=stat.alias.port:format=oqs|";
     format += "key=stat.boot:format=os|";
     format += "key=configstatus:format=os|";
     format += "key=headroom:format=os|";
@@ -1586,6 +1588,8 @@ FsView::GetFileSystemFormat(std::string option)
     // long format
     format = "header=1:key=host:width=24:format=-S|";
     format += "key=port:width=4:format=s|";
+    format += "key=stat.alias.host:width=24:format=-s|";
+    format += "key=stat.alias.port:width=4:format=s|";
     format += "key=id:width=6:format=s|";
     format += "key=uuid:width=36:format=s|";
     format += "key=path:width=32:format=s|";

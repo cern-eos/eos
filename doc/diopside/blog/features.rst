@@ -15,7 +15,19 @@ New Features
 
 This blog is used to track new features added to EOS.
 
+May 2023
+^^^^^^^^
 
+* Support external FST hostname (port) aliases by defining
+  * sysconfig: EOS_FST_ALIAS=externalhostname.domain
+  * sysconfig: EOS_FST_PORT_ALIAS=externalport (normally the same)
+
+  The aliases are shown when using
+   * `eos fs ls -l`
+   * `eos fs ls -m`
+
+.. note:: When an alias is removed on an FST, the MGM and FST have to be shutdown and restarted to get rid of the aliases
+     
 January 2023
 ^^^^^^^^^^^^^
 

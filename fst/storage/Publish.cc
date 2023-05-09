@@ -496,6 +496,11 @@ Storage::GetFsStatistics(FileSystem* fs)
   output["stat.disk.iops"] = std::to_string(fs->getIOPS());
   output["stat.disk.bw"] = std::to_string(fs->getSeqBandwidth()); // in MB
   output["stat.http.port"] = std::to_string(gOFS.mHttpdPort);
+  // FST alias
+  if (gConfig.HostAlias.length()) { output["stat.alias.host"] = gConfig.HostAlias.c_str(); }
+  // FST port alias
+  if (gConfig.PortAlias.length()) { output["stat.alias.port"] = gConfig.PortAlias.c_str(); }
+  // debug level
   output["stat.ropen.hotfiles"] = HotFilesToString(
                                     gOFS.openedForReading.getHotFiles(fsid, 10));
   output["stat.wopen.hotfiles"] = HotFilesToString(

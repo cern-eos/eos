@@ -193,6 +193,16 @@ EOS_NOTIFY="mail -s `date +%s`-`hostname`-eos-notify $EOS_MAIL_CC"
 # directory called .eosdeletions. By default disabled.
 # EOS_FST_FSCK_DELETE_BY_MOVE=1
 
+# This variable overwrites the FST hostname in MGM redirection
+# - use it when the internal name is different from the external name
+# EOS_FST_ALIAS=""
+
+# This variable overwrites the FST port in MGM redirection
+# - use it when the internal name is different from the external name
+# EOS_FST_PORT_ALIAS=1094
+
+
+
 #-------------------------------------------------------------------------------
 # HTTPD Configuration
 #-------------------------------------------------------------------------------

@@ -2509,7 +2509,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
 
   XrdOucString piolist = "";
   XrdOucString infolog = "";
-  std::string fs_hostport, fs_host, fs_port, fs_http_port, fs_prefix;
+  std::string fs_hostport, fs_host, fs_port, fs_http_port, fs_prefix, fs_host_alias, fs_port_alias;
   uint32_t fs_id;
   {
     eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
@@ -2523,6 +2523,17 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
     fs_hostport = filesystem->GetString("hostport");
     fs_host = filesystem->GetString("host");
     fs_port = filesystem->GetString("port");
+    fs_host_alias = filesystem->GetString("stat.alias.host");
+    fs_port_alias = filesystem->GetString("stat.alias.port");
+    // allow FST host alias
+    if (fs_host_alias.length()) {
+      fs_host = fs_host_alias;
+      if (fs_port_alias.length()) {
+	fs_port = fs_port_alias;
+      }
+      fs_hostport = fs_host + std::string(":") + fs_port;
+      eos_info("redirection-alias=\"%s:%s\"", fs_host_alias.c_str(), fs_port_alias.c_str());
+    }
     fs_http_port = filesystem->GetString("stat.http.port");
     fs_prefix = filesystem->GetPath();
     fs_id = filesystem->GetId();
