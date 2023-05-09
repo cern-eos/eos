@@ -19,8 +19,8 @@ May 2023
 ^^^^^^^^
 
 * Support external FST hostname (port) aliases by defining
-  * sysconfig: EOS_FST_ALIAS=externalhostname.domain
-  * sysconfig: EOS_FST_PORT_ALIAS=externalport (normally the same)
+   * sysconfig: EOS_FST_ALIAS=externalhostname.domain
+   * sysconfig: EOS_FST_PORT_ALIAS=externalport (normally the same)
 
   The aliases are shown when using
    * `eos fs ls -l`
@@ -33,10 +33,10 @@ January 2023
 
 
 * Token identity mapping can now be controlled using `eos vid tokensudo always|strong|encrypted|never`
-  * `always` - identity in the token is always taken into account
-  * `strong` - identity in the token is not taken into account for unix authenticated clients
-  * `encrypted` - identity in the token is only taken into account for encrypted connections
-  * `never` - identity in the token is never taken into account
+   * `always` - identity in the token is always taken into account
+   * `strong` - identity in the token is not taken into account for unix authenticated clients
+   * `encrypted` - identity in the token is only taken into account for encrypted connections
+   * `never` - identity in the token is never taken into account
 
 * It is now possible to black-/whitelist EOS tokens using the _access__ interface. This allows e.g. to prevent arbitrary token generation by users and implement an approval process. When using the white list mode, all user created tokens appear in the logfile `/var/log/eos/mgm/TokenCmd.log` e.g.
 
@@ -166,7 +166,7 @@ November 2022
 ------------
 
 * Shipping now *eosxd* based on libfuse2 and *eosxd3* on libfuse3
-  * eosxd3 can be started using `-o clone_fd` to have one FUSE connection per thread
+   * eosxd3 can be started using `-o clone_fd` to have one FUSE connection per thread
 
 ------------
 
