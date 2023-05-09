@@ -26,7 +26,7 @@ EOS - Open Storage Documentation
    blog/features.rst
 
    A. QuarkDB Documentation <https://quarkdb.web.cern.ch>
-
+   B. Citrine Documentation <https://eos-docs.web.cern.ch/index-citrine.html>
 
 
 

@@ -3,7 +3,7 @@
 .. index::
    single: Introduction
 
-
+============
 Introduction
 ============
 

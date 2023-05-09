@@ -3,7 +3,7 @@
 
 .. highlight:: rst
 
-
+========
 Releases
 ========
 
