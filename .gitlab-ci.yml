@@ -1252,6 +1252,7 @@ eos_docs:
   stage: build:manual
   image: almalinux:8
   script:
+    - yum localinstall --nogpg -y https://linuxsoft.cern.ch/cern/alma/8-snapshots/20221215/CERN/x86_64/Packages/almalinux-release-8.7-3.1.al8.cern.x86_64.rpm
     - yum install --nogpg -y make python3-sphinx sssd-client sudo which git
     - cd doc
     - export PYTHONPATH=`pwd`/_themes/
