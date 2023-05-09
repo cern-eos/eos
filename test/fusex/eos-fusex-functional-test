@@ -57,7 +57,7 @@ umountfuse
 
 test-samba-config(){
     umountfuse
-    # Samba relies on Unix (for users) SSS (for root, which maps to eossambabot)
+    # Samba relies on Unix (for users) SSS (for root, which maps to eossambabot/eosdev)
 
     # merge eosxd json config with auth field used in samba
     jq '.*{"auth":{"krb5":0, "unix":1, "sss":1, "ssskeytab":"/etc/sss.samba.keytab", "oauth2":0}}' /etc/eos/fuse.${FSNAME}.conf > /etc/eos/fuse.${FSNAME}samba.conf
@@ -77,7 +77,7 @@ test-samba-config(){
     runuser eos-user -c "touch ${FUSEDIR}/dockertest/sambatests/filefromeos-user"
     test "$(stat -c "%U:%G"  ${FUSEDIR}/dockertest/sambatests/filefromeos-user)" == "eos-user:eos-user"
     rc=$(( $rc<<1  | $? ))
-    runuser eos-user -c "ls -la ${FUSEDIR}/dockertest/sambatests/filefrom*"
+    runuser eos-user -c "ls -la ${FUSEDIR}/dockertest/sambatests/"
     return $rc
 }
 
