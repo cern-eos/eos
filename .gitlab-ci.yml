@@ -1250,7 +1250,7 @@ eos_microhttpd_cc7:
 
 eos_docs:
   stage: build:manual
-  image: almalinux:8
+  image: gitlab-registry.cern.ch/linuxsupport/alma8-base
   script:
     - yum install --nogpg -y make python3-sphinx sssd-client sudo which git
     - cd doc
