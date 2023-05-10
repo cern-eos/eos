@@ -498,7 +498,7 @@ FileSystem::FileSystem(const FileSystemLocator& locator,
   cConfigTime = 0;
   std::string broadcast = mHashLocator.getBroadcastQueue();
 
-  if (realm && realm->getSom()) {
+  if (mRealm && mRealm->getSom()) {
     mq::SharedHashWrapper::Batch updateBatch;
     updateBatch.SetDurable("queue", mLocator.getFSTQueue());
     updateBatch.SetDurable("queuepath", mLocator.getQueuePath());
@@ -514,9 +514,9 @@ FileSystem::FileSystem(const FileSystemLocator& locator,
 
     mq::SharedHashWrapper(mRealm, mHashLocator).set(updateBatch);
     mBalanceQueue = new TransferQueue(TransferQueueLocator(mLocator, "balanceq"),
-                                      realm, bc2mgm);
+                                      mRealm, bc2mgm);
     mExternQueue = new TransferQueue(TransferQueueLocator(mLocator, "externq"),
-                                     realm, bc2mgm);
+                                     mRealm, bc2mgm);
   } else {
     mBalanceQueue = 0;
     mExternQueue = 0;

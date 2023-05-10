@@ -93,16 +93,22 @@ public:
   };
 
   //----------------------------------------------------------------------------
-  //! Constructor
+  //! Delete a shared hash, without creating an object first
   //----------------------------------------------------------------------------
-  SharedHashWrapper(mq::MessagingRealm* realm,
-                    const common::SharedHashLocator& locator,
-                    bool takeLock = true, bool create = true);
+  static bool deleteHash(mq::MessagingRealm* realm,
+                         const common::SharedHashLocator& locator);
 
   //----------------------------------------------------------------------------
   //! "Constructor" for global MGM hash
   //----------------------------------------------------------------------------
   static SharedHashWrapper makeGlobalMgmHash(mq::MessagingRealm* realm);
+
+  //----------------------------------------------------------------------------
+  //! Constructor
+  //----------------------------------------------------------------------------
+  SharedHashWrapper(mq::MessagingRealm* realm,
+                    const common::SharedHashLocator& locator,
+                    bool takeLock = true, bool create = true);
 
   //----------------------------------------------------------------------------
   //! Destructor
@@ -187,12 +193,6 @@ public:
   //! Subscribe for updates from the underlying hash
   //----------------------------------------------------------------------------
   std::unique_ptr<qclient::SharedHashSubscription> subscribe();
-
-  //----------------------------------------------------------------------------
-  //! Delete a shared hash, without creating an object first
-  //----------------------------------------------------------------------------
-  static bool deleteHash(mq::MessagingRealm* realm,
-                         const common::SharedHashLocator& locator);
 
 private:
   XrdMqSharedObjectManager* mSom;
