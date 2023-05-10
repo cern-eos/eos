@@ -2730,7 +2730,7 @@ FsNode::FsNode(const char* name) : BaseView(
 
   if (mSubscription) {
     using namespace std::placeholders;
-    mSubscription->attachCallback(std::bind(&FsNode::ProcessUpdate, this, _1));
+    mSubscription->attachCallback(std::bind(&FsNode::ProcessUpdateCb, this, _1));
   }
 }
 
@@ -2753,10 +2753,10 @@ FsNode::~FsNode()
 }
 
 //------------------------------------------------------------------------------
-// Process update from the shared hash object
+// Callback to process update for the shared hash
 //------------------------------------------------------------------------------
 void
-FsNode::ProcessUpdate(qclient::SharedHashUpdate&& upd)
+FsNode::ProcessUpdateCb(qclient::SharedHashUpdate&& upd)
 {
   if (eos::common::FST_HEARTBEAT_KEY == upd.key) {
     try {

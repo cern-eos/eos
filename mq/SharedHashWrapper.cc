@@ -339,9 +339,9 @@ bool SharedHashWrapper::del(const std::string& key, bool broadcast)
 //------------------------------------------------------------------------------
 bool SharedHashWrapper::getKeys(std::vector<std::string>& out)
 {
-  // @todo(esindril) add implementation for qclient SharedHash
-  if (!mHash) {
-    return false;
+  if (mSharedHash) {
+    out = mSharedHash->getKeys();
+    return true;
   }
 
   std::unique_lock lock(mHash->mMutex);
@@ -354,9 +354,9 @@ bool SharedHashWrapper::getKeys(std::vector<std::string>& out)
 //------------------------------------------------------------------------------
 bool SharedHashWrapper::getContents(std::map<std::string, std::string>& out)
 {
-  // @todo(esindril) add implementation for qclient SharedHash
-  if (!mHash) {
-    return false;
+  if (mSharedHash) {
+    out = mSharedHash->getContents();
+    return true;
   }
 
   std::unique_lock lock(mHash->mMutex);
