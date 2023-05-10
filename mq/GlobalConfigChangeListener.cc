@@ -39,9 +39,13 @@ GlobalConfigChangeListener::GlobalConfigChangeListener(mq::MessagingRealm*
   : mMessagingRealm(realm), mListenerName(name), mConfigQueue(configQueue)
 {
   if (mMessagingRealm->haveQDB()) {
-    mSharedHash = realm->getHashProvider()->get(
+    mSharedHash = mMessagingRealm->getHashProvider()->get(
                     eos::common::SharedHashLocator::makeForGlobalHash().getQDBKey());
     mSubscription = mSharedHash->subscribe(true);
+    using namespace std::placeholders;
+    mSubscription->attachCallback(std::bind(
+                                    &GlobalConfigChangeListener::ProcessUpdateCb,
+                                    this, _1));
   } else {
     mNotifier = mMessagingRealm->getChangeNotifier();
     mNotifier->SubscribesToSubject(mListenerName.c_str(), mConfigQueue.c_str(),
@@ -56,9 +60,43 @@ GlobalConfigChangeListener::GlobalConfigChangeListener(mq::MessagingRealm*
 }
 
 //------------------------------------------------------------------------------
-//! Destructor
+// Destructor
 //------------------------------------------------------------------------------
-GlobalConfigChangeListener::~GlobalConfigChangeListener() {}
+GlobalConfigChangeListener::~GlobalConfigChangeListener()
+{
+  mSubscription->detachCallback();
+}
+
+//----------------------------------------------------------------------------
+// Callback to process update for the shared hash
+//----------------------------------------------------------------------------
+void
+GlobalConfigChangeListener::ProcessUpdateCb(qclient::SharedHashUpdate&& upd)
+{
+  {
+    std::lock_guard lock(mMutex);
+    mPendingUpdates.emplace_back(upd);
+  }
+  mCv.notify_one();
+}
+
+//------------------------------------------------------------------------------
+// Block waiting for an event
+//------------------------------------------------------------------------------
+GlobalConfigChangeListener::Event
+GlobalConfigChangeListener::WaitForEvent()
+{
+  std::unique_lock lock(mMutex);
+  mCv.wait(lock, [&] {return !mPendingUpdates.empty();});
+  auto update = mPendingUpdates.front();
+  mPendingUpdates.pop_front();
+  lock.unlock();
+  Event ev;
+  ev.key = update.key;
+  ev.deletion = update.value.empty();
+  return ev;
+}
+
 
 //------------------------------------------------------------------------------
 // Consume next event, block until there's one.
@@ -66,15 +104,7 @@ GlobalConfigChangeListener::~GlobalConfigChangeListener() {}
 bool GlobalConfigChangeListener::fetch(Event& out, ThreadAssistant& assistant)
 {
   if (mSharedHash) {
-    qclient::SharedHashUpdate hashUpdate;
-
-    if (!mSubscription->front(hashUpdate)) {
-      return false;
-    }
-
-    mSubscription->pop_front();
-    out.key = hashUpdate.key;
-    out.deletion = hashUpdate.value.empty();
+    out = WaitForEvent();
     return true;
   } else {
     mNotifier->tlSubscriber->mSubjMtx.Lock();

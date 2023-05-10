@@ -29,37 +29,48 @@ EOSMQNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
-FileSystemChangeListener::FileSystemChangeListener(const std::string &name, XrdMqSharedObjectChangeNotifier &notif)
-: mNotifier(notif), mListenerName(name) {}
+FileSystemChangeListener::FileSystemChangeListener(const std::string& name,
+    XrdMqSharedObjectChangeNotifier& notif)
+  : mNotifier(notif), mListenerName(name)
+{}
 
 //------------------------------------------------------------------------------
 // Subscribe to the given key, such as "stat.errc" or "stat.geotag"
 //------------------------------------------------------------------------------
-bool FileSystemChangeListener::subscribe(const std::string &key) {
+bool
+FileSystemChangeListener::subscribe(const std::string& key)
+{
   return mNotifier.SubscribesToKey(mListenerName.c_str(), key,
-    XrdMqSharedObjectChangeNotifier::kMqSubjectModification);
+                                   XrdMqSharedObjectChangeNotifier::kMqSubjectModification);
 }
 
 //------------------------------------------------------------------------------
 // Subscribe to the given channel and key combination
 //------------------------------------------------------------------------------
-bool FileSystemChangeListener::subscribe(const std::string &channel, const std::set<std::string> &key) {
+bool
+FileSystemChangeListener::subscribe(const std::string& channel,
+                                    const std::set<std::string>& key)
+{
   return mNotifier.SubscribesToSubjectAndKey(mListenerName.c_str(), channel,
-    key, XrdMqSharedObjectChangeNotifier::kMqSubjectModification);
+         key, XrdMqSharedObjectChangeNotifier::kMqSubjectModification);
 }
 
 //----------------------------------------------------------------------------
 //! Unsubscribe from the given channel and key combination
 //----------------------------------------------------------------------------
-bool FileSystemChangeListener::unsubscribe(const std::string &channel, const std::set<std::string> &key) {
+bool
+FileSystemChangeListener::unsubscribe(const std::string& channel,
+                                      const std::set<std::string>& key)
+{
   return mNotifier.UnsubscribesToSubjectAndKey(mListenerName.c_str(), channel,
-    key, XrdMqSharedObjectChangeNotifier::kMqSubjectModification);
+         key, XrdMqSharedObjectChangeNotifier::kMqSubjectModification);
 }
 
 //------------------------------------------------------------------------------
 // Start listening
 //------------------------------------------------------------------------------
-bool FileSystemChangeListener::startListening() {
+bool FileSystemChangeListener::startListening()
+{
   mNotifier.BindCurrentThread(mListenerName);
   return mNotifier.StartNotifyCurrentThread();
 }
@@ -67,16 +78,17 @@ bool FileSystemChangeListener::startListening() {
 //------------------------------------------------------------------------------
 // Consume next event, block until there's one
 //------------------------------------------------------------------------------
-bool FileSystemChangeListener::fetch(Event &out, ThreadAssistant &assistant) {
+bool FileSystemChangeListener::fetch(Event& out, ThreadAssistant& assistant)
+{
   mNotifier.tlSubscriber->mSubjMtx.Lock();
 
-  if(mNotifier.tlSubscriber->NotificationSubjects.size() == 0u) {
+  if (mNotifier.tlSubscriber->NotificationSubjects.size() == 0u) {
     mNotifier.tlSubscriber->mSubjMtx.UnLock();
     mNotifier.tlSubscriber->mSubjSem.Wait(1);
     mNotifier.tlSubscriber->mSubjMtx.Lock();
   }
 
-  if(mNotifier.tlSubscriber->NotificationSubjects.size() == 0u) {
+  if (mNotifier.tlSubscriber->NotificationSubjects.size() == 0u) {
     mNotifier.tlSubscriber->mSubjMtx.UnLock();
     return false;
   }
@@ -85,12 +97,12 @@ bool FileSystemChangeListener::fetch(Event &out, ThreadAssistant &assistant) {
   event = mNotifier.tlSubscriber->NotificationSubjects.front();
   mNotifier.tlSubscriber->NotificationSubjects.pop_front();
   mNotifier.tlSubscriber->mSubjMtx.UnLock();
-
   out.fileSystemQueue = event.mSubject.c_str();
   size_t dpos = out.fileSystemQueue.find(";");
-  if(dpos != std::string::npos) {
+
+  if (dpos != std::string::npos) {
     out.key = out.fileSystemQueue;
-    out.key.erase(0, dpos+1);
+    out.key.erase(0, dpos + 1);
     out.fileSystemQueue.erase(dpos);
   }
 

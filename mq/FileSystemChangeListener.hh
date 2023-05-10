@@ -39,7 +39,8 @@ EOSMQNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 //! Utility class for listening to FileSystem attribute changes.
 //------------------------------------------------------------------------------
-class FileSystemChangeListener {
+class FileSystemChangeListener
+{
 public:
   //----------------------------------------------------------------------------
   //! Event struct, containing things like FileSystem name, and key changed
@@ -49,7 +50,8 @@ public:
     std::string key;
     bool deletion = false;
 
-    bool isDeletion() const {
+    bool isDeletion() const
+    {
       return deletion;
     }
 
@@ -58,22 +60,23 @@ public:
   //----------------------------------------------------------------------------
   //! Constructor
   //----------------------------------------------------------------------------
-  FileSystemChangeListener(const std::string &name, XrdMqSharedObjectChangeNotifier &notifier);
+  FileSystemChangeListener(const std::string& name,
+                           XrdMqSharedObjectChangeNotifier& notifier);
 
   //----------------------------------------------------------------------------
   //! Subscribe to the given key, such as "stat.errc" or "stat.geotag"
   //----------------------------------------------------------------------------
-  bool subscribe(const std::string &key);
+  bool subscribe(const std::string& key);
 
   //----------------------------------------------------------------------------
   //! Subscribe to the given channel and key combination
   //----------------------------------------------------------------------------
-  bool subscribe(const std::string &channel, const std::set<std::string> &key);
+  bool subscribe(const std::string& channel, const std::set<std::string>& key);
 
   //----------------------------------------------------------------------------
   //! Unsubscribe from the given channel and key combination
   //----------------------------------------------------------------------------
-  bool unsubscribe(const std::string &channel, const std::set<std::string> &key);
+  bool unsubscribe(const std::string& channel, const std::set<std::string>& key);
 
   //----------------------------------------------------------------------------
   //! Start listening - no more subscriptions from this point on
@@ -83,10 +86,10 @@ public:
   //----------------------------------------------------------------------------
   //! Consume next event, block until there's one.
   //----------------------------------------------------------------------------
-  bool fetch(Event &out, ThreadAssistant &assistant);
+  bool fetch(Event& out, ThreadAssistant& assistant);
 
 private:
-  XrdMqSharedObjectChangeNotifier &mNotifier;
+  XrdMqSharedObjectChangeNotifier& mNotifier;
   std::string mListenerName;
 };
 
