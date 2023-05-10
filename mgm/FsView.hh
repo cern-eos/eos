@@ -709,11 +709,11 @@ public:
   bool HasHeartbeat() const;
 
   //----------------------------------------------------------------------------
-  //! Process update from the shared hash object
+  //! Callback to process update for the shared hash
   //!
   //! @param upd SharedHashUpdate object
   //----------------------------------------------------------------------------
-  void ProcessUpdate(qclient::SharedHashUpdate&& upd);
+  void ProcessUpdateCb(qclient::SharedHashUpdate&& upd);
 
 private:
   std::unique_ptr<qclient::SharedHashSubscription> mSubscription {nullptr};
