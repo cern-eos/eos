@@ -402,15 +402,10 @@ protected:
   TransferQueue* mExternQueue;
   //! boot status stored inside the object not the hash
   BootStatus mInternalBootStatus;
-  //! SharedFs name
 
 public:
-  //----------------------------------------------------------------------------
   //! Struct & Type definitions
-  //----------------------------------------------------------------------------
-
-  //! File System ID type
-  typedef uint32_t fsid_t;
+  typedef uint32_t fsid_t; ///< File system ID type
 
   //! Snapshot Structure of a filesystem
   struct fs_snapshot_t {

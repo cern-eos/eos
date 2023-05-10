@@ -27,10 +27,15 @@
 #include "mq/Namespace.hh"
 #include <string>
 #include <memory>
+#include <list>
+#include <mutex>
+#include <condition_variable>
 
-namespace qclient {
-  class SharedHash;
-  class SharedHashSubscription;
+namespace qclient
+{
+class SharedHash;
+class SharedHashSubscription;
+class SharedHashUpdate;
 }
 
 class ThreadAssistant;
@@ -43,7 +48,8 @@ class MessagingRealm;
 //------------------------------------------------------------------------------
 //! Utility class for listening to global MGM configuration changes.
 //------------------------------------------------------------------------------
-class GlobalConfigChangeListener {
+class GlobalConfigChangeListener
+{
 public:
   //----------------------------------------------------------------------------
   //! Event struct
@@ -52,7 +58,8 @@ public:
     std::string key;
     bool deletion = false;
 
-    bool isDeletion() const {
+    bool isDeletion() const
+    {
       return deletion;
     }
   };
@@ -60,7 +67,8 @@ public:
   //----------------------------------------------------------------------------
   //! Constructor
   //----------------------------------------------------------------------------
-  GlobalConfigChangeListener(mq::MessagingRealm *realm, const std::string &name, const std::string &configQueue);
+  GlobalConfigChangeListener(mq::MessagingRealm* realm, const std::string& name,
+                             const std::string& configQueue);
 
   //----------------------------------------------------------------------------
   //! Destructor
@@ -70,16 +78,33 @@ public:
   //----------------------------------------------------------------------------
   //! Consume next event, block until there's one.
   //----------------------------------------------------------------------------
-  bool fetch(Event &out, ThreadAssistant &assistant);
+  bool fetch(Event& out, ThreadAssistant& assistant);
 
 private:
-  mq::MessagingRealm *mMessagingRealm;
-  XrdMqSharedObjectChangeNotifier *mNotifier;
+  //----------------------------------------------------------------------------
+  //! Callback to process update for the shared hash
+  //!
+  //! @param upd SharedHashUpdate object
+  //----------------------------------------------------------------------------
+  void ProcessUpdateCb(qclient::SharedHashUpdate&& upd);
+
+  //----------------------------------------------------------------------------
+  //! Block waiting for an event
+  //!
+  //! @return oldest event in the queue
+  //----------------------------------------------------------------------------
+  Event WaitForEvent();
+
+  mq::MessagingRealm* mMessagingRealm;
+  XrdMqSharedObjectChangeNotifier* mNotifier;
   std::string mListenerName;
   std::string mConfigQueue;
 
   std::shared_ptr<qclient::SharedHash> mSharedHash;
   std::unique_ptr<qclient::SharedHashSubscription> mSubscription;
+  std::mutex mMutex;
+  std::condition_variable mCv;
+  std::list<qclient::SharedHashUpdate> mPendingUpdates;
 };
 
 EOSMQNAMESPACE_END
