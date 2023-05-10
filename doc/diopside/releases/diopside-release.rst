@@ -16,6 +16,21 @@ Introduction
 
 This release is based on XRootD V5.
 
+``v5.1.19 Diopside``
+==========================
+
+2023-05-10
+
+This release is based on eos-xrootd-5.5.9/xrootd-5.5.5
+
+Bug
+---
+* MGM: Do special handling for HEAD requests
+
+Improvement
+------------
+* [EOS-5658] - support external host/port alias for FSTs
+
 
 ``v5.1.18 Diopside``
 ==========================
@@ -39,6 +54,7 @@ Bug
 * [EOS-5515] - EC file with undrained stripes that looks fine
 * [EOS-5612] - Recycle bin setting change disables cleanup
 * [EOS-5633] - Eos inspector: Considers a space already deleted
+* [EOS-5601] - eos cp: Fix memory leaks in eos_roles_opaque
 * FUSEX: fix permission denied errors for slow MGM requests
 * FUSEX: fix ctime setting in eosxd3, enable write-back cache
 * FUSEX: fix blocked statistic output when backen-end waits for a flush
