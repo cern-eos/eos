@@ -39,6 +39,7 @@
 #include <atomic>
 #include <list>
 
+//! Forward declarations
 namespace eos
 {
 namespace mq
@@ -47,14 +48,15 @@ class MessagingRealm;
 }
 }
 
-namespace qclient
-{
+//namespace qclient
+//{
+//class SharedManager;
+//}
 
-class SharedManager;
+EOSCOMMONNAMESPACE_BEGIN
 
-}
-
-EOSCOMMONNAMESPACE_BEGIN;
+//! Forward declaration
+class TransferQueue;
 
 //! Values for a boot status
 enum class BootStatus {
@@ -113,8 +115,6 @@ inline bool operator<=(ConfigStatus one, ConfigStatus two)
 
 #define EOS_TAPE_FSID 65535
 #define EOS_TAPE_MODE_T (0x10000000ll)
-
-class TransferQueue;
 
 //------------------------------------------------------------------------------
 //! Contains a batch of key-value updates on the attributes of a filesystem.
@@ -366,7 +366,7 @@ public:
   std::string getSpace() const;
 
   //----------------------------------------------------------------------------
-  //! Get SharedFs name
+  //! Get shared file system name
   //----------------------------------------------------------------------------
   std::string getSharedFs() const;
 
@@ -391,10 +391,7 @@ protected:
   FileSystemLocator mLocator;
   //! Locator for shared hash
   SharedHashLocator mHashLocator;
-  //! Indicates that if the filesystem is deleted - the deletion should be
-  //! broadcasted or not (only MGMs should broadcast deletion!)
-  bool BroadCastDeletion;
-  //! This filesystem's messaging realm
+  //! Messaging realm
   mq::MessagingRealm* mRealm;
   //! Handle to the balance queue
   TransferQueue* mBalanceQueue;
@@ -494,19 +491,6 @@ public:
     void fillFromCoreParams(const FileSystemCoreParams& coreParams);
   };
 
-  struct host_snapshot_t {
-    std::string mQueue;
-    std::string mHost;
-    std::string mHostPort;
-    std::string mGeoTag;
-    std::string mProxyGroups;
-    size_t mPublishTimestamp;
-    ActiveStatus mActiveStatus;
-    double mNetEthRateMiB;
-    double mNetInRateMiB;
-    double mNetOutRateMiB;
-  };
-
   //----------------------------------------------------------------------------
   //! Constructor
   //! @param queuepath Named Queue to specify the receiver filesystem of
@@ -521,7 +505,7 @@ public:
              bool b2mgm = false);
 
   //----------------------------------------------------------------------------
-  // Destructor
+  //! Destructor
   //----------------------------------------------------------------------------
   virtual ~FileSystem();
 
@@ -626,24 +610,22 @@ public:
   bool SetLongLongLocal(const std::string& key, int64_t value);
 
   //----------------------------------------------------------------------------
-  //! Set a filesystem ID.
-  //----------------------------------------------------------------------------
-  bool
-  SetId(fsid_t fsid)
-  {
-    return SetString("id", std::to_string(fsid).c_str());
-  }
-
-  //----------------------------------------------------------------------------
   //! Set a key-value pair in a filesystem and evt. broadcast it.
   //----------------------------------------------------------------------------
   bool SetString(const char* key, const char* str, bool broadcast = true);
 
   //----------------------------------------------------------------------------
+  //! Set a filesystem ID.
+  //----------------------------------------------------------------------------
+  bool SetId(fsid_t fsid)
+  {
+    return SetString("id", std::to_string(fsid).c_str());
+  }
+
+  //----------------------------------------------------------------------------
   //! Set a double value by name and evt. broadcast it.
   //----------------------------------------------------------------------------
-  bool
-  SetDouble(const char* key, double f)
+  bool SetDouble(const char* key, double f)
   {
     return SetString(key, std::to_string(f).c_str());
   }
@@ -651,22 +633,15 @@ public:
   //----------------------------------------------------------------------------
   //! Set a long long value and evt. broadcast it.
   //----------------------------------------------------------------------------
-  bool
-  SetLongLong(const char* key, long long l, bool broadcast = true)
+  bool SetLongLong(const char* key, long long l, bool broadcast = true)
   {
     return SetString(key, std::to_string(l).c_str(), broadcast);
   }
 
   //----------------------------------------------------------------------------
-  //! Remove a key from a filesystem and evt. broadcast it.
-  //----------------------------------------------------------------------------
-  bool RemoveKey(const char* key, bool broadcast = true);
-
-  //----------------------------------------------------------------------------
   //! Set the filesystem status.
   //----------------------------------------------------------------------------
-  bool
-  SetStatus(BootStatus status, bool broadcast = true)
+  bool SetStatus(BootStatus status, bool broadcast = true)
   {
     mInternalBootStatus = status;
     return SetString("stat.boot", GetStatusAsString(status), broadcast);
@@ -675,8 +650,7 @@ public:
   //----------------------------------------------------------------------------
   //! Set the activation status
   //----------------------------------------------------------------------------
-  bool
-  SetActiveStatus(ActiveStatus active)
+  bool SetActiveStatus(ActiveStatus active)
   {
     if (active == ActiveStatus::kOnline) {
       return SetString("stat.active", "online", false);
@@ -690,19 +664,22 @@ public:
   //----------------------------------------------------------------------------
   //! Set the draining status
   //----------------------------------------------------------------------------
-  bool
-  SetDrainStatus(DrainStatus status)
+  bool SetDrainStatus(DrainStatus status)
   {
     return SetString("local.drain", GetDrainStatusAsString(status), false);
   }
+
+  //----------------------------------------------------------------------------
+  //! Remove a key from a filesystem and evt. broadcast it.
+  //----------------------------------------------------------------------------
+  bool RemoveKey(const char* key, bool broadcast = true);
 
   //----------------------------------------------------------------------------
   //! Get the activation status via a cache.
   //! This can be used with a small cache which 1s expiration time to avoid too
   //! many lookup's in tight loops.
   //----------------------------------------------------------------------------
-  ActiveStatus
-  GetActiveStatus(bool cached = false);
+  ActiveStatus GetActiveStatus(bool cached = false);
 
   //----------------------------------------------------------------------------
   //! Get all keys in a vector of strings.
@@ -727,8 +704,7 @@ public:
   //----------------------------------------------------------------------------
   //! Return handle to the balance queue.
   //----------------------------------------------------------------------------
-  TransferQueue*
-  GetBalanceQueue()
+  TransferQueue* GetBalanceQueue()
   {
     return mBalanceQueue;
   }
@@ -736,8 +712,7 @@ public:
   //----------------------------------------------------------------------------
   //! Return handle to the external queue.
   //----------------------------------------------------------------------------
-  TransferQueue*
-  GetExternQueue()
+  TransferQueue* GetExternQueue()
   {
     return mExternQueue;
   }
@@ -745,8 +720,7 @@ public:
   //----------------------------------------------------------------------------
   //! Return the filesystem id.
   //----------------------------------------------------------------------------
-  fsid_t
-  GetId()
+  fsid_t GetId()
   {
     return (fsid_t) GetLongLong("id");
   }
@@ -754,8 +728,7 @@ public:
   //----------------------------------------------------------------------------
   //! Return the filesystem queue path.
   //----------------------------------------------------------------------------
-  std::string
-  GetQueuePath()
+  std::string GetQueuePath()
   {
     return mLocator.getQueuePath();
   }
@@ -763,8 +736,7 @@ public:
   //----------------------------------------------------------------------------
   //! Return the filesystem host
   //----------------------------------------------------------------------------
-  std::string
-  GetHost()
+  std::string GetHost()
   {
     return mLocator.getHost();
   }
@@ -772,8 +744,7 @@ public:
   //----------------------------------------------------------------------------
   //! Return the filesystem queue name
   //----------------------------------------------------------------------------
-  std::string
-  GetQueue()
+  std::string GetQueue()
   {
     return mLocator.getFSTQueue();
   }
@@ -781,8 +752,7 @@ public:
   //----------------------------------------------------------------------------
   //! Return the filesystem path
   //----------------------------------------------------------------------------
-  std::string
-  GetPath()
+  std::string GetPath()
   {
     return mLocator.getStoragePath();
   }
@@ -790,14 +760,12 @@ public:
   //----------------------------------------------------------------------------
   //! Return the filesystem status (via a cache)
   //----------------------------------------------------------------------------
-  BootStatus
-  GetStatus(bool cached = false);
+  BootStatus GetStatus(bool cached = false);
 
   //----------------------------------------------------------------------------
   //! Get internal boot status
   //----------------------------------------------------------------------------
-  BootStatus
-  GetInternalBootStatus()
+  BootStatus GetInternalBootStatus()
   {
     return mInternalBootStatus;
   }
@@ -805,8 +773,7 @@ public:
   //----------------------------------------------------------------------------
   //! Return the drain status
   //----------------------------------------------------------------------------
-  DrainStatus
-  GetDrainStatus()
+  DrainStatus GetDrainStatus()
   {
     return GetDrainStatusFromString(GetString("local.drain").c_str());
   }
@@ -888,8 +855,6 @@ public:
   //! Get SharedFs name
   //----------------------------------------------------------------------------
   std::string getSharedFs();
-
-
 };
 
 EOSCOMMONNAMESPACE_END;
