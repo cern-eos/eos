@@ -22,12 +22,138 @@
  ************************************************************************/
 
 #include "mgm/FileSystem.hh"
+#include "mq/MessagingRealm.hh"
+#include "mq/FsChangeListener.hh"
 #include "mgm/FsView.hh"
 #include "mgm/XrdMgmOfs.hh"
+#include "qclient/shared/SharedHashSubscription.hh"
 
 EOSMGMNAMESPACE_BEGIN
 
 const std::string FileSystem::sNumBalanceTxTag = "local.balancer.running";
+const std::string FileSystem::sGeotagTag = "stat.geotag";
+const std::string FileSystem::sErrcTag = "stat.errc";
+
+//------------------------------------------------------------------------------
+// Constructor
+//------------------------------------------------------------------------------
+FileSystem::FileSystem(const common::FileSystemLocator& locator,
+                       mq::MessagingRealm* msr) :
+  eos::common::FileSystem(locator, msr)
+{
+  eos_static_info("msg=\"create FileSystem\" queue_path=%s",
+                  locator.getQueuePath().c_str());
+
+  if (mRealm->haveQDB()) {
+    // @todo attach any FsChangeListeners registered in the
+    // messaging realm
+    mSubscription = mq::SharedHashWrapper(mRealm, mHashLocator).subscribe();
+
+    if (mSubscription) {
+      using namespace std::placeholders;
+      mSubscription->attachCallback(std::bind(&FileSystem::ProcessUpdateCb,
+                                              this, _1));
+    }
+  }
+}
+
+//------------------------------------------------------------------------------
+// Destructor
+//------------------------------------------------------------------------------
+FileSystem::~FileSystem()
+{
+  // Make sure we wait for any ongoing callbacks
+  if (mSubscription) {
+    mSubscription->detachCallback();
+  }
+
+  // Clean up the list of listeners
+  eos::common::RWMutexWriteLock wr_lock(mRWMutex);
+  mMapListeners.clear();
+}
+
+//------------------------------------------------------------------------------
+// Attach file system change listener
+//------------------------------------------------------------------------------
+void
+FileSystem::AttachFsListener(eos::mq::FsChangeListener* fs_listener,
+                             const std::set<std::string>& interests)
+{
+  if ((fs_listener == nullptr) || interests.empty()) {
+    return;
+  }
+
+  eos::common::RWMutexWriteLock wr_lock(mRWMutex);
+
+  for (const auto& interest : interests) {
+    auto it = mMapListeners.find(interest);
+
+    if (it == mMapListeners.end()) {
+      // Add new mapping
+      mMapListeners[interest] = {fs_listener};
+    } else {
+      // Extend set of listeners with the same interest
+      it->second.insert(fs_listener);
+    }
+  }
+
+  return;
+}
+
+//------------------------------------------------------------------------------
+// Detach file system change listener
+//------------------------------------------------------------------------------
+void
+FileSystem::DetachFsListener(eos::mq::FsChangeListener* fs_listener,
+                             const std::set<std::string>& interests)
+{
+  if ((fs_listener == nullptr) || interests.empty()) {
+    return;
+  }
+
+  eos::common::RWMutexWriteLock wr_lock(mRWMutex);
+
+  for (const auto& interest : interests) {
+    auto it = mMapListeners.find(interest);
+
+    // Erase listener
+    if (it != mMapListeners.end()) {
+      it->second.erase(fs_listener);
+    }
+  }
+
+  return;
+}
+
+//------------------------------------------------------------------------------
+// Notify file system change listener interested in the given update
+//------------------------------------------------------------------------------
+void
+FileSystem::NotifyFsListener(qclient::SharedHashUpdate&& upd)
+{
+  eos::common::RWMutexReadLock rd_lock(mRWMutex);
+  auto it = mMapListeners.find(upd.key);
+
+  if (it != mMapListeners.end()) {
+    eos::mq::FsChangeListener::Event event;
+    event.fileSystemQueue = GetQueue();
+    event.key = upd.key;
+    event.deletion = upd.value.empty();
+
+    for (auto* listener : it->second) {
+      listener->NotifyEvent(event);
+    }
+  }
+}
+
+//------------------------------------------------------------------------------
+// Process shared hash update
+//------------------------------------------------------------------------------
+void
+FileSystem::ProcessUpdateCb(qclient::SharedHashUpdate&& upd)
+{
+  NotifyFsListener(std::move(upd));
+}
 
 //----------------------------------------------------------------------------
 // Set the configuration status of a file system

@@ -29,6 +29,7 @@
 #include "mq/SharedDequeProvider.hh"
 #include <string>
 
+//! Forward declarations
 class XrdMqSharedObjectManager;
 class XrdMqSharedObjectChangeNotifier;
 class XrdMqClient;
@@ -39,6 +40,9 @@ class SharedManager;
 }
 
 EOSMQNAMESPACE_BEGIN
+
+//! Forward declaration
+class FsChangeListener;
 
 //------------------------------------------------------------------------------
 //! Class allowing contact with a specified messaging realm.
@@ -105,12 +109,22 @@ public:
   //----------------------------------------------------------------------------
   //! Set instance name
   //----------------------------------------------------------------------------
-  bool setInstanceName(const std::string &name);
+  bool setInstanceName(const std::string& name);
 
   //----------------------------------------------------------------------------
   //! Get instance name
   //----------------------------------------------------------------------------
-  bool getInstanceName(std::string &name);
+  bool getInstanceName(std::string& name);
+
+  //----------------------------------------------------------------------------
+  //! Get FsChange listener with given name
+  //!
+  //! @param name name of the file system change listner
+  //!
+  //! @return FsChangeListener object
+  //----------------------------------------------------------------------------
+  std::shared_ptr<FsChangeListener>
+  GetFsChangeListeners(const std::string& name);
 
 private:
   XrdMqSharedObjectManager* mSom;
@@ -121,6 +135,8 @@ private:
 
   SharedHashProvider mHashProvider;
   SharedDequeProvider mDequeProvider;
+  std::mutex mMutexListeners;
+  std::map<std::string, std::shared_ptr<FsChangeListener>> mFsListeners;
 };
 
 EOSMQNAMESPACE_END

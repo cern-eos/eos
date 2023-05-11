@@ -28,6 +28,7 @@
 #include "mq/MessagingRealm.hh"
 #include "mq/XrdMqMessage.hh"
 #include "mq/XrdMqClient.hh"
+#include "mq/FsChangeListener.hh"
 
 EOSMQNAMESPACE_BEGIN
 
@@ -76,14 +77,16 @@ qclient::SharedManager* MessagingRealm::getQSom() const
 //------------------------------------------------------------------------------
 // Get pointer to hash provider
 //------------------------------------------------------------------------------
-SharedHashProvider* MessagingRealm::getHashProvider() {
+SharedHashProvider* MessagingRealm::getHashProvider()
+{
   return &mHashProvider;
 }
 
 //------------------------------------------------------------------------------
 // Get pointer to deque provider
 //------------------------------------------------------------------------------
-SharedDequeProvider* MessagingRealm::getDequeProvider() {
+SharedDequeProvider* MessagingRealm::getDequeProvider()
+{
   return &mDequeProvider;
 }
 
@@ -115,23 +118,26 @@ MessagingRealm::sendMessage(const std::string& descr,
 //------------------------------------------------------------------------------
 // Set instance name
 //------------------------------------------------------------------------------
-bool MessagingRealm::setInstanceName(const std::string &name) {
-  if(!haveQDB()) {
+bool MessagingRealm::setInstanceName(const std::string& name)
+{
+  if (!haveQDB()) {
     return true;
   }
 
-  qclient::QClient *qcl = mQSom->getQClient();
-
-  qclient::redisReplyPtr reply = qcl->exec("SET", "eos-instance-name", name).get();
+  qclient::QClient* qcl = mQSom->getQClient();
+  qclient::redisReplyPtr reply = qcl->exec("SET", "eos-instance-name",
+                                 name).get();
   qclient::StatusParser parser(reply);
 
-  if(!parser.ok()) {
-    eos_static_crit("error while setting instance name in QDB: %s", parser.err().c_str());
+  if (!parser.ok()) {
+    eos_static_crit("error while setting instance name in QDB: %s",
+                    parser.err().c_str());
     return false;
   }
 
-  if(parser.value() != "OK") {
-    eos_static_crit("unexpected response while setting instance name in QDB: %s", parser.value().c_str());
+  if (parser.value() != "OK") {
+    eos_static_crit("unexpected response while setting instance name in QDB: %s",
+                    parser.value().c_str());
     return false;
   }
 
@@ -141,26 +147,44 @@ bool MessagingRealm::setInstanceName(const std::string &name) {
 //------------------------------------------------------------------------------
 // Get instance name
 //------------------------------------------------------------------------------
-bool MessagingRealm::getInstanceName(std::string &name) {
-  if(!haveQDB()) {
+bool MessagingRealm::getInstanceName(std::string& name)
+{
+  if (!haveQDB()) {
     return false;
   }
 
-  qclient::QClient *qcl = mQSom->getQClient();
-
+  qclient::QClient* qcl = mQSom->getQClient();
   qclient::redisReplyPtr reply = qcl->exec("GET", "eos-instance-name").get();
   qclient::StringParser parser(reply);
 
-  if(!parser.ok()) {
+  if (!parser.ok()) {
     return false;
   }
 
   name = parser.value();
-  if(name.empty()) {
+
+  if (name.empty()) {
     return false;
   }
 
   return true;
+}
+
+//----------------------------------------------------------------------------
+//! Get FsChange listener with given name
+//----------------------------------------------------------------------------
+std::shared_ptr<FsChangeListener>
+MessagingRealm::GetFsChangeListeners(const std::string& name)
+{
+  std::scoped_lock lock(mMutexListeners);
+  auto it = mFsListeners.find(name);
+
+  if (it != mFsListeners.end()) {
+    return it->second;
+  }
+
+  mFsListeners[name] = std::make_shared<FsChangeListener>(this, name);
+  return mFsListeners[name];
 }
 
 EOSMQNAMESPACE_END
