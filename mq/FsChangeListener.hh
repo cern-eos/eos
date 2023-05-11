@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// File: FileSystemChangeListener.hh
+// File: FsChangeListener.hh
 // Author: Georgios Bitzes - CERN
 // ----------------------------------------------------------------------
 
@@ -26,20 +26,33 @@
 
 #include "mq/Namespace.hh"
 #include <string>
+#include <map>
 #include <set>
+#include <list>
+#include <mutex>
+#include <condition_variable>
 
+//! Forward declarations
 class ThreadAssistant;
 
 class XrdMqSharedHash;
 class XrdMqSharedObjectManager;
 class XrdMqSharedObjectChangeNotifier;
 
+namespace eos
+{
+namespace mq
+{
+class MessagingRealm;
+}
+}
+
 EOSMQNAMESPACE_BEGIN
 
 //------------------------------------------------------------------------------
-//! Utility class for listening to FileSystem attribute changes.
+//! Utility class listening for FileSystem changes
 //------------------------------------------------------------------------------
-class FileSystemChangeListener
+class FsChangeListener
 {
 public:
   //----------------------------------------------------------------------------
@@ -59,22 +72,55 @@ public:
 
   //----------------------------------------------------------------------------
   //! Constructor
+  //!
+  //! @param realm messaging realm
+  //! @param name listener name
   //----------------------------------------------------------------------------
-  FileSystemChangeListener(const std::string& name,
-                           XrdMqSharedObjectChangeNotifier& notifier);
+  FsChangeListener(mq::MessagingRealm* realm, const std::string& name);
 
   //----------------------------------------------------------------------------
-  //! Subscribe to the given key, such as "stat.errc" or "stat.geotag"
+  //! Destructor
+  //----------------------------------------------------------------------------
+  ~FsChangeListener() = default;
+
+  //----------------------------------------------------------------------------
+  //! Subscribe to the given key, such as "stat.errc" or "stat.geotag" for
+  //! existing and future file systems
+  //!
+  //! @param key interested update key
+  //!
+  //! @return true if successful, otherwise false
   //----------------------------------------------------------------------------
   bool subscribe(const std::string& key);
 
   //----------------------------------------------------------------------------
   //! Subscribe to the given channel and key combination
+  //!
+  //! @param fs file system object
+  //! @param channel file system identifier
+  //! @param key set of interesting keys for the current listener
+  //!
+  //! @return true if successful, otherwise false
   //----------------------------------------------------------------------------
   bool subscribe(const std::string& channel, const std::set<std::string>& key);
 
   //----------------------------------------------------------------------------
+  //! Check if current listener is interested in updates from the given
+  //! channel. Return set of keys that listener is interested in.
+  //!
+  //! @param channel file system identifier
+  //!
+  //! @return set of keys that the listener is interested in or empty
+  //----------------------------------------------------------------------------
+  std::set<std::string> GetInterests(const std::string& channel) const;
+
+  //----------------------------------------------------------------------------
   //! Unsubscribe from the given channel and key combination
+  //!
+  //! @param channel file system identifier
+  //! @param key set of keys from which to unsubscribe
+  //!
+  //! @return true if successful, otherwise false
   //----------------------------------------------------------------------------
   bool unsubscribe(const std::string& channel, const std::set<std::string>& key);
 
@@ -84,13 +130,45 @@ public:
   bool startListening();
 
   //----------------------------------------------------------------------------
-  //! Consume next event, block until there's one.
+  //! Consume next event, block until there's one
+  //!
+  //! @param out new event
+  //! @param assistant thread executing this method
+  //!
+  //! @return true if out event is valid, otherwise false
   //----------------------------------------------------------------------------
   bool fetch(Event& out, ThreadAssistant& assistant);
 
+  //----------------------------------------------------------------------------
+  //! Notify new event
+  //!
+  //! @param event new event object
+  //----------------------------------------------------------------------------
+  void NotifyEvent(const Event& event);
+
 private:
-  XrdMqSharedObjectChangeNotifier& mNotifier;
+  static std::string sAllMatchTag;
+  mq::MessagingRealm* mMessagingRealm;
+  XrdMqSharedObjectChangeNotifier* mNotifier;
   std::string mListenerName;
+  mutable std::mutex mMutex;
+  std::condition_variable mCv;
+  std::list<Event> mPendingEvents;
+  //! Mutex protecting access to mMapInterests
+  mutable std::mutex mMutexMap;
+  //! Map of channel to set of interest keys
+  std::map<std::string, std::set<std::string>> mMapInterests;
+
+  //----------------------------------------------------------------------------
+  //! Waiting at most timout seconds for an event
+  //!
+  //! @param out update event
+  //! @param timeout max time we're willing to wait
+  //!
+  //! @return true if there was an event, otherwise false
+  //----------------------------------------------------------------------------
+  bool WaitForEvent(Event& out,
+                    std::chrono::seconds timeout = std::chrono::seconds(5));
 };
 
 EOSMQNAMESPACE_END

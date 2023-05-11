@@ -191,18 +191,19 @@ XrdMgmOfs::ProcessGeotagChange(const std::string& queue)
 //------------------------------------------------------------------------------
 void XrdMgmOfs::FileSystemMonitorThread(ThreadAssistant& assistant) noexcept
 {
-  eos::mq::FileSystemChangeListener changeListener("filesystem-listener-thread",
-      ObjectNotifier);
+  eos::mq::FsChangeListener changeListener(mMessagingRealm.get(),
+      "filesystem-listener-thread");
   bool ok = changeListener.subscribe("stat.errc");
   ok &= changeListener.subscribe("stat.geotag");
   ok &= changeListener.startListening();
 
   if (!ok) {
-    eos_static_crit("Unspecified problem when attempting to subscribe to filesystem key changes");
+    eos_static_crit("%s", "msg=\"unspecified problem when attempting to "
+                    "subscribe to filesystem key changes\"");
   }
 
   while (!assistant.terminationRequested()) {
-    eos::mq::FileSystemChangeListener::Event event;
+    eos::mq::FsChangeListener::Event event;
 
     if (changeListener.fetch(event, assistant) && !event.isDeletion()) {
       if (event.key == "stat.geotag") {

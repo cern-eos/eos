@@ -23,7 +23,7 @@
 
 #include "mgm/proc/ProcInterface.hh"
 #include "mgm/XrdMgmOfs.hh"
-#include "mgm/Messaging.hh"
+#include "mq/MessagingRealm.hh"
 
 EOSMGMNAMESPACE_BEGIN
 
@@ -108,7 +108,8 @@ ProcCommand::Debug()
           if (debugnode == "*") {
             debugnode = "/eos/*/fst";
 
-            if (!gOFS->mMessagingRealm->sendMessage("debug", body.c_str(), debugnode.c_str()).ok()) {
+            if (!gOFS->mMessagingRealm->sendMessage("debug", body.c_str(),
+                                                    debugnode.c_str()).ok()) {
               stdErr = "error: could not send debug level to nodes mgm.nodename=";
               stdErr += debugnode;
               stdErr += "\n";
@@ -126,7 +127,8 @@ ProcCommand::Debug()
             debugnode = "/eos/*/mgm";
             // Ignore return value as we've already set the loglevel for the
             // current instance. We're doing this only for the slave.
-            (void) gOFS->mMessagingRealm->sendMessage("debug", body.c_str(), debugnode.c_str());
+            (void) gOFS->mMessagingRealm->sendMessage("debug", body.c_str(),
+                debugnode.c_str());
             stdOut += "success: switched to mgm.debuglevel=";
             stdOut += debuglevel;
             stdOut += " on nodes mgm.nodename=";
@@ -136,7 +138,8 @@ ProcCommand::Debug()
           } else {
             if (debugnode != "") {
               // send to the specified list
-              if (!gOFS->mMessagingRealm->sendMessage("debug", body.c_str(), debugnode.c_str()).ok()) {
+              if (!gOFS->mMessagingRealm->sendMessage("debug", body.c_str(),
+                                                      debugnode.c_str()).ok()) {
                 stdErr = "error: could not send debug level to nodes mgm.nodename=";
                 stdErr += debugnode;
                 retc = EINVAL;
