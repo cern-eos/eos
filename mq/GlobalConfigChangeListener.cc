@@ -36,7 +36,8 @@ EOSMQNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 GlobalConfigChangeListener::GlobalConfigChangeListener(mq::MessagingRealm*
     realm, const std::string& name, const std::string& configQueue)
-  : mMessagingRealm(realm), mListenerName(name), mConfigQueue(configQueue)
+  : mMessagingRealm(realm), mNotifier(nullptr),
+    mListenerName(name), mConfigQueue(configQueue)
 {
   if (mMessagingRealm->haveQDB()) {
     mSharedHash = mMessagingRealm->getHashProvider()->get(
@@ -83,30 +84,33 @@ GlobalConfigChangeListener::ProcessUpdateCb(qclient::SharedHashUpdate&& upd)
 //------------------------------------------------------------------------------
 // Block waiting for an event
 //------------------------------------------------------------------------------
-GlobalConfigChangeListener::Event
-GlobalConfigChangeListener::WaitForEvent()
+bool
+GlobalConfigChangeListener::WaitForEvent(Event& out,
+    std::chrono::seconds timeout)
 {
   std::unique_lock lock(mMutex);
-  mCv.wait(lock, [&] {return !mPendingUpdates.empty();});
+
+  if (!mCv.wait_for(lock, timeout, [&] {return !mPendingUpdates.empty();})) {
+    return false;
+  }
   auto update = mPendingUpdates.front();
   mPendingUpdates.pop_front();
   lock.unlock();
-  Event ev;
-  ev.key = update.key;
-  ev.deletion = update.value.empty();
-  return ev;
+  out.key = update.key;
+  out.deletion = update.value.empty();
+  return true;
 }
 
-
 //------------------------------------------------------------------------------
-// Consume next event, block until there's one.
+// Consume next event, block until there's one
 //------------------------------------------------------------------------------
 bool GlobalConfigChangeListener::fetch(Event& out, ThreadAssistant& assistant)
 {
   if (mSharedHash) {
-    out = WaitForEvent();
-    return true;
+    // New QDB implementation
+    return WaitForEvent(out);
   } else {
+    // Old implementation
     mNotifier->tlSubscriber->mSubjMtx.Lock();
 
     if (mNotifier->tlSubscriber->NotificationSubjects.size() == 0u) {

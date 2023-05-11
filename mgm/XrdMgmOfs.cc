@@ -86,7 +86,7 @@
 #include "mgm/config/IConfigEngine.hh"
 #include "mgm/bulk-request/prepare/manager/PrepareManager.hh"
 #include "mq/SharedHashWrapper.hh"
-#include "mq/FileSystemChangeListener.hh"
+#include "mq/FsChangeListener.hh"
 #include "mq/GlobalConfigChangeListener.hh"
 #include "mq/MessagingRealm.hh"
 #include "namespace/interface/IFsView.hh"

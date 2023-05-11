@@ -23,8 +23,9 @@
 
 #pragma once
 #include "common/FileSystem.hh"
-#include "mq/MessagingRealm.hh"
+#include "common/Logging.hh"
 #include "mgm/Namespace.hh"
+#include "mq/FsChangeListener.hh"
 
 //! Forward declarations
 namespace eos
@@ -35,12 +36,17 @@ class MessagingRealm;
 }
 }
 
+namespace qclient
+{
+class SharedHashUpdate;
+}
+
 EOSMGMNAMESPACE_BEGIN
 
 //------------------------------------------------------------------------------
 //! Class representing a filesystem on the MGM
 //------------------------------------------------------------------------------
-class FileSystem : public eos::common::FileSystem
+class FileSystem : public eos::common::FileSystem, public eos::common::LogId
 {
 public:
   //! Tag for saving number of running balance transfers in hash
@@ -60,21 +66,35 @@ public:
                         const eos::common::ConfigStatus new_status);
 
   //----------------------------------------------------------------------------
-  //! @brief Constructor
+  //! Constructor
   //!
-  //! @param queuepath describing a filesystem like /eos/<host:port>/fst/data01/
-  //! @param queue associated to a filesystem like /eos/<host:port>/fst
-  //! @param som external shared object manager object
+  //! @param locator file system locator
+  //! @param msr messaging realm
   //----------------------------------------------------------------------------
-  FileSystem(const common::FileSystemLocator& locator,
-             mq::MessagingRealm* msr) :
-    eos::common::FileSystem(locator, msr)
-  {}
+  FileSystem(const common::FileSystemLocator& locator, mq::MessagingRealm* msr);
 
   //----------------------------------------------------------------------------
-  //! Destructor - needs to kill any on-going drain jobs
+  //! Destructor
   //----------------------------------------------------------------------------
-  virtual ~FileSystem() = default;
+  virtual ~FileSystem();
+
+  //----------------------------------------------------------------------------
+  //! Attach file system change listener
+  //!
+  //! @param fs_listener file system change listener object
+  //! @param interests set of keys which are of interest for the listener
+  //----------------------------------------------------------------------------
+  void AttachFsListener(eos::mq::FsChangeListener* fs_listener,
+                        const std::set<std::string>& interests);
+
+  //----------------------------------------------------------------------------
+  //! Detach file system change listener
+  //!
+  //! @param fs_listener file system change listener object
+  //! @param interests set of interests from which to detach
+  //----------------------------------------------------------------------------
+  void DetachFsListener(eos::mq::FsChangeListener* fs_listener,
+                        const std::set<std::string>& interests);
 
   //----------------------------------------------------------------------------
   //! @brief Get the current broadcasting setting
@@ -117,8 +137,31 @@ public:
   void DecrementBalanceTx();
 
 private:
+  static const std::string sGeotagTag;
+  static const std::string sErrcTag;
   //! Number of running balance transfers
   std::atomic<uint64_t> mNumBalanceTx {0};
+  //! Subscription to underlying shared hash notifications
+  std::unique_ptr<qclient::SharedHashSubscription> mSubscription;
+  //! Map of interests to file system change notifiers
+  std::map<std::string, std::set<eos::mq::FsChangeListener*>>
+      mMapListeners;
+  //! Mutex protecting the listener's map
+  eos::common::RWMutex mRWMutex;
+
+  //----------------------------------------------------------------------------
+  //! Process shared hash update
+  //!
+  //! @param upd shared hash update
+  //----------------------------------------------------------------------------
+  void ProcessUpdateCb(qclient::SharedHashUpdate&& upd);
+
+  //----------------------------------------------------------------------------
+  //! Notify file system change listeners interested in the given update
+  //!
+  //! @param upd shared hash update
+  //----------------------------------------------------------------------------
+  void NotifyFsListener(qclient::SharedHashUpdate&& upd);
 };
 
 EOSMGMNAMESPACE_END
