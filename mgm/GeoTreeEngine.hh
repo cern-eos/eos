@@ -34,7 +34,7 @@
 #include "common/table_formatter/TableFormatterBase.hh"
 #include "common/Timing.hh"
 #include "common/FileSystem.hh"
-#include "mq/FileSystemChangeListener.hh"
+#include "mq/FsChangeListener.hh"
 #include "mq/MessagingRealm.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdOuc/XrdOucString.hh"
@@ -1117,7 +1117,7 @@ protected:
       pCircFrCnt2Timestamp(circSize) {}
   };
   LatencySubSys pLatencySched;
-  mq::FileSystemChangeListener mFsListener;
+  mq::FsChangeListener mFsListener;
   //
   // => background updating
   //

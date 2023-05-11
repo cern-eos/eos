@@ -89,11 +89,15 @@ private:
   void ProcessUpdateCb(qclient::SharedHashUpdate&& upd);
 
   //----------------------------------------------------------------------------
-  //! Block waiting for an event
+  //! Waiting at most timout seconds for an event
   //!
-  //! @return oldest event in the queue
+  //! @param out update event
+  //! @param timeout max time we're willing to wait
+  //!
+  //! @return true if there was an event, otherwise false
   //----------------------------------------------------------------------------
-  Event WaitForEvent();
+  bool WaitForEvent(Event& out,
+                    std::chrono::seconds timeout = std::chrono::seconds(5));
 
   mq::MessagingRealm* mMessagingRealm;
   XrdMqSharedObjectChangeNotifier* mNotifier;

@@ -30,7 +30,7 @@ include_directories(
 add_library(XrdMqClient-Objects OBJECT
   XrdMqTiming.hh
   ErrorReportListener.cc         ErrorReportListener.hh
-  FileSystemChangeListener.cc    FileSystemChangeListener.hh
+  FsChangeListener.cc            FsChangeListener.hh
   GlobalConfigChangeListener.cc  GlobalConfigChangeListener.hh
   MessagingRealm.cc              MessagingRealm.hh
   ReportListener.cc              ReportListener.hh
