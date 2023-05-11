@@ -486,9 +486,9 @@ void FileSystem::fs_snapshot_t::fillFromCoreParams(const FileSystemCoreParams&
 //------------------------------------------------------------------------------
 FileSystem::FileSystem(const FileSystemLocator& locator,
                        mq::MessagingRealm* realm, bool bc2mgm)
-  : mLocator(locator), mHashLocator(locator, bc2mgm)
+  : mLocator(locator), mHashLocator(locator, bc2mgm), mRealm(realm),
+    mBalanceQueue(nullptr), mExternQueue(nullptr)
 {
-  mRealm = realm;
   mInternalBootStatus = BootStatus::kDown;
   cActive = ActiveStatus::kOffline;
   cStatus = BootStatus::kDown;
@@ -517,9 +517,6 @@ FileSystem::FileSystem(const FileSystemLocator& locator,
                                       mRealm, bc2mgm);
     mExternQueue = new TransferQueue(TransferQueueLocator(mLocator, "externq"),
                                      mRealm, bc2mgm);
-  } else {
-    mBalanceQueue = 0;
-    mExternQueue = 0;
   }
 }
 
@@ -949,7 +946,7 @@ FileSystem::GetSpace()
 }
 
 //------------------------------------------------------------------------------
-// Get SharedFs  name
+// Get shared file system name
 //------------------------------------------------------------------------------
 std::string FileSystem::getSharedFs()
 {
