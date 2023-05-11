@@ -143,7 +143,7 @@ GeoTreeEngine::GeoTreeEngine(mq::MessagingRealm* realm) :
   pCircSize(30), pFrameCount(0),
   pPenaltySched(pCircSize),
   pLatencySched(pCircSize),
-  mFsListener("geotree-fs-listener", *(realm->getChangeNotifier()))
+  mFsListener(realm, "geotree-fs-listener")
 {
   // by default, disable all the placement operations for non geotagged fs
   addDisabledBranch("*", "plct", "nogeotag", NULL, false);
@@ -2220,7 +2220,7 @@ void GeoTreeEngine::listenFsChange(ThreadAssistant& assistant)
       }
     }
 
-    mq::FileSystemChangeListener::Event event;
+    mq::FsChangeListener::Event event;
 
     while (mFsListener.fetch(event, assistant)) {
       if (event.isDeletion()) {
