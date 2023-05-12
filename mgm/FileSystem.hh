@@ -83,8 +83,10 @@ public:
   //!
   //! @param fs_listener file system change listener object
   //! @param interests set of keys which are of interest for the listener
+  //!
+  //! @return true if successful, otherwise false
   //----------------------------------------------------------------------------
-  void AttachFsListener(eos::mq::FsChangeListener* fs_listener,
+  bool AttachFsListener(std::shared_ptr<eos::mq::FsChangeListener> fs_listener,
                         const std::set<std::string>& interests);
 
   //----------------------------------------------------------------------------
@@ -92,8 +94,10 @@ public:
   //!
   //! @param fs_listener file system change listener object
   //! @param interests set of interests from which to detach
+  //!
+  //! @param return true if successful, otherwise false
   //----------------------------------------------------------------------------
-  void DetachFsListener(eos::mq::FsChangeListener* fs_listener,
+  bool DetachFsListener(std::shared_ptr<eos::mq::FsChangeListener> fs_listener,
                         const std::set<std::string>& interests);
 
   //----------------------------------------------------------------------------
@@ -144,8 +148,8 @@ private:
   //! Subscription to underlying shared hash notifications
   std::unique_ptr<qclient::SharedHashSubscription> mSubscription;
   //! Map of interests to file system change notifiers
-  std::map<std::string, std::set<eos::mq::FsChangeListener*>>
-      mMapListeners;
+  std::map<std::string, std::set<std::shared_ptr<eos::mq::FsChangeListener>>>
+  mMapListeners;
   //! Mutex protecting the listener's map
   eos::common::RWMutex mRWMutex;
 
@@ -162,6 +166,17 @@ private:
   //! @param upd shared hash update
   //----------------------------------------------------------------------------
   void NotifyFsListener(qclient::SharedHashUpdate&& upd);
+
+  //----------------------------------------------------------------------------
+  //! Register with interested listeners - this called when a new object is
+  //! created and there are already existing FS listeners in the system
+  //----------------------------------------------------------------------------
+  void RegisterWithExistingListeners();
+
+  //----------------------------------------------------------------------------
+  //! Unregister from all the listeners
+  //----------------------------------------------------------------------------
+  void UnregisterFromListeners();
 };
 
 EOSMGMNAMESPACE_END

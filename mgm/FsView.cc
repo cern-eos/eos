@@ -3017,6 +3017,21 @@ ConfigResetMonitor::~ConfigResetMonitor()
 //------------------------------------------------------------------------------
 
 //------------------------------------------------------------------------------
+// Add FsChangeListener to all the existing file systems
+//------------------------------------------------------------------------------
+void
+FsView::AddFsChangeListener(std::shared_ptr<eos::mq::FsChangeListener> fs_lst,
+                            const std::set<std::string>& interests)
+{
+  eos::common::RWMutexReadLock rd_lock(FsView::gFsView.ViewMutex);
+
+  for (const auto& elem : FsView::gFsView.mIdView) {
+    FileSystem* fs = elem.second;
+    fs->AttachFsListener(fs_lst, interests);
+  }
+}
+
+//------------------------------------------------------------------------------
 // Creates a new filesystem id based on a uuid
 //------------------------------------------------------------------------------
 eos::common::FileSystem::fsid_t

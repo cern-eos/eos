@@ -45,8 +45,10 @@ FileSystem::FileSystem(const common::FileSystemLocator& locator,
                   locator.getQueuePath().c_str());
 
   if (mRealm->haveQDB()) {
-    // @todo attach any FsChangeListeners registered in the
-    // messaging realm
+    // Register with FsChangeListeners interested in key updates related
+    // to this file system object
+    RegisterWithExistingListeners();
+    // Subscribe to the underlying SharedHash object to get updates
     mSubscription = mq::SharedHashWrapper(mRealm, mHashLocator).subscribe();
 
     if (mSubscription) {
@@ -67,50 +69,92 @@ FileSystem::~FileSystem()
     mSubscription->detachCallback();
   }
 
-  // Clean up the list of listeners
+  UnregisterFromListeners();
+}
+
+//------------------------------------------------------------------------------
+// Register with interested listeners - called when a new object is created
+// and there are already existing FS listeners in the system
+//------------------------------------------------------------------------------
+void
+FileSystem::RegisterWithExistingListeners()
+{
+  auto map_interests = mRealm->GetInterestedListeners(mLocator.getQueuePath());
+
+  for (auto& elem : map_interests) {
+    auto& fs_listener = elem.first;
+    const auto& set_interests = elem.second;
+    eos_static_info("msg=\"register with existing fs listener\" listener=%s "
+                    "fs_queue_path=%s", fs_listener->GetName().c_str(),
+                    mLocator.getQueuePath().c_str());
+    eos::common::RWMutexWriteLock wr_lock(mRWMutex);
+
+    for (const auto& interest : set_interests) {
+      mMapListeners[interest].insert(fs_listener);
+    }
+  }
+}
+
+//------------------------------------------------------------------------------
+// Unregister from all the listeners
+//------------------------------------------------------------------------------
+void
+FileSystem::UnregisterFromListeners()
+{
   eos::common::RWMutexWriteLock wr_lock(mRWMutex);
+
+  for (const auto& elem : mMapListeners) {
+    for (auto& listener : elem.second) {
+      listener->unsubscribe(mLocator.getQueuePath(), {elem.first});
+    }
+  }
+
   mMapListeners.clear();
 }
 
 //------------------------------------------------------------------------------
 // Attach file system change listener
 //------------------------------------------------------------------------------
-void
-FileSystem::AttachFsListener(eos::mq::FsChangeListener* fs_listener,
+bool
+FileSystem::AttachFsListener(std::shared_ptr<eos::mq::FsChangeListener>
+                             fs_listener,
                              const std::set<std::string>& interests)
 {
   if ((fs_listener == nullptr) || interests.empty()) {
-    return;
+    return false;
   }
 
+  eos_static_info("msg=\"attaching fs listener\" listener_name=%s "
+                  "fs_queue_path=%s", fs_listener->GetName().c_str(),
+                  mLocator.getQueuePath().c_str());
+  // Update the listener
+  fs_listener->subscribe(mLocator.getQueuePath(), interests);
   eos::common::RWMutexWriteLock wr_lock(mRWMutex);
 
   for (const auto& interest : interests) {
-    auto it = mMapListeners.find(interest);
-
-    if (it == mMapListeners.end()) {
-      // Add new mapping
-      mMapListeners[interest] = {fs_listener};
-    } else {
-      // Extend set of listeners with the same interest
-      it->second.insert(fs_listener);
-    }
+    mMapListeners[interest].insert(fs_listener);
   }
 
-  return;
+  return true;
 }
 
 //------------------------------------------------------------------------------
 // Detach file system change listener
 //------------------------------------------------------------------------------
-void
-FileSystem::DetachFsListener(eos::mq::FsChangeListener* fs_listener,
+bool
+FileSystem::DetachFsListener(std::shared_ptr<eos::mq::FsChangeListener>
+                             fs_listener,
                              const std::set<std::string>& interests)
 {
   if ((fs_listener == nullptr) || interests.empty()) {
-    return;
+    return false;
   }
 
+  eos_static_info("msg=\"detaching fs listener\" listener_name=%s "
+                  "fs_queue_path=%s", fs_listener->GetName().c_str(),
+                  mLocator.getQueuePath().c_str());
+  // Update the listener
+  (void) fs_listener->unsubscribe(mLocator.getQueuePath(), interests);
   eos::common::RWMutexWriteLock wr_lock(mRWMutex);
 
   for (const auto& interest : interests) {
@@ -122,7 +166,7 @@ FileSystem::DetachFsListener(eos::mq::FsChangeListener* fs_listener,
     }
   }
 
-  return;
+  return true;
 }
 
 //------------------------------------------------------------------------------
@@ -136,11 +180,11 @@ FileSystem::NotifyFsListener(qclient::SharedHashUpdate&& upd)
 
   if (it != mMapListeners.end()) {
     eos::mq::FsChangeListener::Event event;
-    event.fileSystemQueue = GetQueue();
+    event.fileSystemQueue = GetQueuePath();
     event.key = upd.key;
     event.deletion = upd.value.empty();
 
-    for (auto* listener : it->second) {
+    for (auto& listener : it->second) {
       listener->NotifyEvent(event);
     }
   }
