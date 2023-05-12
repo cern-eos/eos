@@ -782,6 +782,15 @@ public:
   }
 
   //----------------------------------------------------------------------------
+  //! Add FsChangeListener to all the existing file systems
+  //!
+  //! @param fs_listener file system change listener object
+  //! @param interests set of interest keys for the listener
+  //----------------------------------------------------------------------------
+  void AddFsChangeListener(std::shared_ptr<eos::mq::FsChangeListener> fs_lst,
+                           const std::set<std::string>& interests);
+
+  //----------------------------------------------------------------------------
   //! Add or modify a filesystem
   //!
   //! @param fs filesystem to register

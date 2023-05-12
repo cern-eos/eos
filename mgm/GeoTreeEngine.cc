@@ -143,8 +143,9 @@ GeoTreeEngine::GeoTreeEngine(mq::MessagingRealm* realm) :
   pCircSize(30), pFrameCount(0),
   pPenaltySched(pCircSize),
   pLatencySched(pCircSize),
-  mFsListener(realm, "geotree-fs-listener")
+  mFsListener(nullptr)
 {
+  mFsListener = realm->GetFsChangeListener("geotree-fs-listener");
   // by default, disable all the placement operations for non geotagged fs
   addDisabledBranch("*", "plct", "nogeotag", NULL, false);
   addDisabledBranch("*", "accsdrain", "nogeotag", NULL, false);
@@ -350,7 +351,7 @@ bool GeoTreeEngine::insertFsIntoGroup(FileSystem* fs,
 
     gQueue2NotifType[fs->GetQueuePath()] |= sntFilesystem;
 
-    if (!mFsListener.subscribe(fs->GetQueuePath(), gWatchedKeys)) {
+    if (!fs->AttachFsListener(mFsListener, gWatchedKeys)) {
       eos_crit("error inserting fs %lu into group %s : error subscribing to "
                "shared object notifications", (unsigned long)fsid,
                group->mName.c_str());
@@ -465,7 +466,7 @@ bool GeoTreeEngine::removeFsFromGroup(FileSystem* fs, FsGroup* group,
   }
   // ==== update the shared object notifications
   {
-    if (!mFsListener.unsubscribe(fs->GetQueuePath(), gWatchedKeys)) {
+    if (!fs->DetachFsListener(mFsListener, gWatchedKeys)) {
       mapEntry->slowTreeMutex.UnLockWrite();
       eos_crit("error removing fs %lu into group %s : error unsubscribing to "
                "shared object notifications", (unsigned long)fsid,
@@ -2207,7 +2208,7 @@ void GeoTreeEngine::listenFsChange(ThreadAssistant& assistant)
 {
   gUpdaterStarted = true;
 
-  if (!mFsListener.startListening()) {
+  if (!mFsListener->startListening()) {
     eos_crit("error starting shared objects change notifications");
   } else {
     eos_info("GeoTreeEngine updater is starting...");
@@ -2222,7 +2223,7 @@ void GeoTreeEngine::listenFsChange(ThreadAssistant& assistant)
 
     mq::FsChangeListener::Event event;
 
-    while (mFsListener.fetch(event, assistant)) {
+    while (mFsListener->fetch(event, assistant)) {
       if (event.isDeletion()) {
         eos_debug("received deletion on subject %s : the fs was removed from "
                   "the GeoTreeEngine, skipping this update", event.fileSystemQueue.c_str());

@@ -36,8 +36,7 @@ FsChangeListener::FsChangeListener(mq::MessagingRealm* realm,
                                    const std::string& name)
   : mMessagingRealm(realm), mNotifier(nullptr), mListenerName(name)
 {
-  if (mMessagingRealm->haveQDB()) {
-  } else {
+  if (!mMessagingRealm->haveQDB()) {
     mNotifier = mMessagingRealm->getChangeNotifier();
   }
 }
@@ -59,7 +58,8 @@ FsChangeListener::subscribe(const std::string& key)
 }
 
 //------------------------------------------------------------------------------
-// Subscribe to the given channel and key combination
+// Subscribe to the given channel and key combination - MUST NOT be used
+// directly but only from FileSystem::AttachFsListener
 //------------------------------------------------------------------------------
 bool
 FsChangeListener::subscribe(const std::string& channel,
@@ -77,34 +77,9 @@ FsChangeListener::subscribe(const std::string& channel,
   }
 }
 
-//------------------------------------------------------------------------------
-// Check if current listener is interested in updated from the given
-// channel. Return set of keys that listener is interested in.
-//------------------------------------------------------------------------------
-std::set<std::string>
-FsChangeListener::GetInterests(const std::string& channel) const
-{
-  std::set<std::string> keys;
-  std::scoped_lock lock(mMutexMap);
-  // Check if this listener is interested in some updates from all channels
-  auto it = mMapInterests.find(sAllMatchTag);
-
-  if (it != mMapInterests.end()) {
-    keys.insert(it->second.begin(), it->second.end());
-  }
-
-  // Check lister has some special interests in this particular channel
-  it = mMapInterests.find(channel);
-
-  if (it != mMapInterests.end()) {
-    keys.insert(it->second.begin(), it->second.end());
-  }
-
-  return keys;
-}
-
 //----------------------------------------------------------------------------
-// Unsubscribe from the given channel and key combination
+// Unsubscribe from the given channel and key combination - MUST NOT be used
+// directly but only from FileSystem::DetachFsListener
 //----------------------------------------------------------------------------
 bool
 FsChangeListener::unsubscribe(const std::string& channel,
@@ -129,6 +104,32 @@ FsChangeListener::unsubscribe(const std::string& channel,
 
     return true;
   }
+}
+
+//------------------------------------------------------------------------------
+// Check if current listener is interested in updates from the given
+// channel. Return set of keys that listener is interested in.
+//------------------------------------------------------------------------------
+std::set<std::string>
+FsChangeListener::GetInterests(const std::string& channel) const
+{
+  std::set<std::string> keys;
+  std::scoped_lock lock(mMutexMap);
+  // Check if this listener is interested in some updates from all channels
+  auto it = mMapInterests.find(sAllMatchTag);
+
+  if (it != mMapInterests.end()) {
+    keys.insert(it->second.begin(), it->second.end());
+  }
+
+  // Check lister has some special interests in this particular channel
+  it = mMapInterests.find(channel);
+
+  if (it != mMapInterests.end()) {
+    keys.insert(it->second.begin(), it->second.end());
+  }
+
+  return keys;
 }
 
 //------------------------------------------------------------------------------

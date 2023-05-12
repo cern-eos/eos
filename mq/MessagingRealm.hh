@@ -28,6 +28,7 @@
 #include "mq/SharedHashProvider.hh"
 #include "mq/SharedDequeProvider.hh"
 #include <string>
+#include <set>
 
 //! Forward declarations
 class XrdMqSharedObjectManager;
@@ -124,7 +125,18 @@ public:
   //! @return FsChangeListener object
   //----------------------------------------------------------------------------
   std::shared_ptr<FsChangeListener>
-  GetFsChangeListeners(const std::string& name);
+  GetFsChangeListener(const std::string& name);
+
+  //----------------------------------------------------------------------------
+  //! Get map of listeners and the keys they are interested in for the given
+  //! channel i.e. file system queue path
+  //!
+  //! @param channel channel name i.e. file system queue path
+  //!
+  //! @return map of listeners and their interest in the current channel
+  //----------------------------------------------------------------------------
+  std::map<std::shared_ptr<FsChangeListener>, std::set<std::string>>
+      GetInterestedListeners(const std::string& channel);
 
 private:
   XrdMqSharedObjectManager* mSom;

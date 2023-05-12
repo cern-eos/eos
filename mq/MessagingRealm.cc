@@ -170,11 +170,11 @@ bool MessagingRealm::getInstanceName(std::string& name)
   return true;
 }
 
-//----------------------------------------------------------------------------
-//! Get FsChange listener with given name
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
+// Get FsChange listener with given name
+//------------------------------------------------------------------------------
 std::shared_ptr<FsChangeListener>
-MessagingRealm::GetFsChangeListeners(const std::string& name)
+MessagingRealm::GetFsChangeListener(const std::string& name)
 {
   std::scoped_lock lock(mMutexListeners);
   auto it = mFsListeners.find(name);
@@ -185,6 +185,29 @@ MessagingRealm::GetFsChangeListeners(const std::string& name)
 
   mFsListeners[name] = std::make_shared<FsChangeListener>(this, name);
   return mFsListeners[name];
+}
+
+//------------------------------------------------------------------------------
+// Get map of listeners and the keys they are interested in for the given
+// channel i.e. file system queue path
+//------------------------------------------------------------------------------
+std::map<std::shared_ptr<FsChangeListener>, std::set<std::string>>
+    MessagingRealm::GetInterestedListeners(const std::string& channel)
+{
+  std::map<std::shared_ptr<FsChangeListener>, std::set<std::string>>
+      map_interest;
+  std::scoped_lock lock(mMutexListeners);
+
+  for (auto& elem : mFsListeners) {
+    auto& listener = elem.second;
+    std::set<std::string> interested_keys = listener->GetInterests(channel);
+
+    if (!interested_keys.empty()) {
+      map_interest.emplace(listener, std::move(interested_keys));
+    }
+  }
+
+  return map_interest;
 }
 
 EOSMQNAMESPACE_END

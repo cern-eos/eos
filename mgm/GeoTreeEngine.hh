@@ -1117,7 +1117,7 @@ protected:
       pCircFrCnt2Timestamp(circSize) {}
   };
   LatencySubSys pLatencySched;
-  mq::FsChangeListener mFsListener;
+  std::shared_ptr<mq::FsChangeListener> mFsListener;
   //
   // => background updating
   //
