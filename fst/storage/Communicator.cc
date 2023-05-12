@@ -132,7 +132,6 @@ Storage::RegisterFileSystem(const std::string& queuepath)
   }
 
   fst::FileSystem* fs = new fst::FileSystem(locator, gOFS.mMessagingRealm.get());
-  fs->SetStatus(eos::common::BootStatus::kDown);
   fs->SetLocalId();
   fs->SetLocalUuid();
   mFsVect.push_back(fs);
@@ -157,7 +156,6 @@ Storage::RegisterFileSystem(const std::string& queuepath)
 
   if (gOFS.mMessagingRealm->haveQDB()) {
     if (gConfig.autoBoot &&
-        (fs->GetStatus() <= eos::common::BootStatus::kDown) &&
         (fs->GetConfigStatus() > eos::common::ConfigStatus::kOff)) {
       RunBootThread(fs);
     }
