@@ -37,7 +37,8 @@ EOSMQNAMESPACE_BEGIN
 GlobalConfigChangeListener::GlobalConfigChangeListener(mq::MessagingRealm*
     realm, const std::string& name, const std::string& configQueue)
   : mMessagingRealm(realm), mNotifier(nullptr),
-    mListenerName(name), mConfigQueue(configQueue)
+    mListenerName(name), mConfigQueue(configQueue),
+    mSubscription(nullptr)
 {
   if (mMessagingRealm->haveQDB()) {
     mSharedHash = mMessagingRealm->getHashProvider()->get(
@@ -65,7 +66,9 @@ GlobalConfigChangeListener::GlobalConfigChangeListener(mq::MessagingRealm*
 //------------------------------------------------------------------------------
 GlobalConfigChangeListener::~GlobalConfigChangeListener()
 {
-  mSubscription->detachCallback();
+  if (mSubscription) {
+    mSubscription->detachCallback();
+  }
 }
 
 //----------------------------------------------------------------------------

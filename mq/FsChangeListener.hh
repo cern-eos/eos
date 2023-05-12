@@ -67,7 +67,6 @@ public:
     {
       return deletion;
     }
-
   };
 
   //----------------------------------------------------------------------------
@@ -94,7 +93,8 @@ public:
   bool subscribe(const std::string& key);
 
   //----------------------------------------------------------------------------
-  //! Subscribe to the given channel and key combination
+  //! Subscribe to the given channel and key combination - MUST not be used
+  //! directly but only from mgm::FileSystem::AttachFsListener
   //!
   //! @param fs file system object
   //! @param channel file system identifier
@@ -105,6 +105,17 @@ public:
   bool subscribe(const std::string& channel, const std::set<std::string>& key);
 
   //----------------------------------------------------------------------------
+  //! Unsubscribe from the given channel and key combination - MUST not be used
+  //! directly but only from mgm::FileSystem::AttachFsListener
+  //!
+  //! @param channel file system identifier
+  //! @param key set of keys from which to unsubscribe
+  //!
+  //! @return true if successful, otherwise false
+  //----------------------------------------------------------------------------
+  bool unsubscribe(const std::string& channel, const std::set<std::string>& key);
+
+  //----------------------------------------------------------------------------
   //! Check if current listener is interested in updates from the given
   //! channel. Return set of keys that listener is interested in.
   //!
@@ -113,16 +124,6 @@ public:
   //! @return set of keys that the listener is interested in or empty
   //----------------------------------------------------------------------------
   std::set<std::string> GetInterests(const std::string& channel) const;
-
-  //----------------------------------------------------------------------------
-  //! Unsubscribe from the given channel and key combination
-  //!
-  //! @param channel file system identifier
-  //! @param key set of keys from which to unsubscribe
-  //!
-  //! @return true if successful, otherwise false
-  //----------------------------------------------------------------------------
-  bool unsubscribe(const std::string& channel, const std::set<std::string>& key);
 
   //----------------------------------------------------------------------------
   //! Start listening - no more subscriptions from this point on
@@ -145,6 +146,16 @@ public:
   //! @param event new event object
   //----------------------------------------------------------------------------
   void NotifyEvent(const Event& event);
+
+  //----------------------------------------------------------------------------
+  //! Get name of the current listener
+  //!
+  //! @return listener name
+  //----------------------------------------------------------------------------
+  inline std::string GetName() const
+  {
+    return mListenerName;
+  }
 
 private:
   static std::string sAllMatchTag;
