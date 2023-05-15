@@ -23,15 +23,15 @@
 
 #pragma once
 #include "fst/Namespace.hh"
+#include "fst/Load.hh"
+#include "fst/Health.hh"
+#include "fst/txqueue/TransferMultiplexer.hh"
 #include "common/Logging.hh"
 #include "common/FileSystem.hh"
 #include "common/RWMutex.hh"
 #include "common/AssistedThread.hh"
 #include "common/Fmd.hh"
 #include "namespace/ns_quarkdb/QdbContactDetails.hh"
-#include "fst/Load.hh"
-#include "fst/Health.hh"
-#include "fst/txqueue/TransferMultiplexer.hh"
 #include <vector>
 #include <list>
 #include <queue>
@@ -46,12 +46,16 @@ class ExecutorMgr;
 }
 }
 
+namespace qclient
+{
+class SharedHashUpdate;
+}
+
 EOSFSTNAMESPACE_BEGIN
 
 class Verify;
 class Deletion;
 class FileSystem;
-
 
 //------------------------------------------------------------------------------
 //! Class Storage
@@ -238,6 +242,18 @@ public:
                  const std::map<std::string,
                  std::set<eos::common::FileId::fileid_t>>& fidset);
 
+  //----------------------------------------------------------------------------
+  //! Process file system configuration change
+  //!
+  //! @param targetFs target file system object
+  //! @param key configuration key
+  //! @param value configuration value
+  //!
+  //! @note This requires the mFsMutex to be write locked
+  //----------------------------------------------------------------------------
+  void ProcessFsConfigChange(fst::FileSystem* targetFs,
+                             const std::string& key, const std::string& value);
+
 protected:
   mutable eos::common::RWMutex mFsMutex; ///< Mutex protecting the fs map
   std::vector <fst::FileSystem*> mFsVect; ///< Vector of filesystems
@@ -247,6 +263,11 @@ protected:
 private:
   //! Publish inconsistency statistics once every two hours
   static constexpr std::chrono::minutes sConsistencyTimeout {120};
+  //! Set of key updates to be tracked at the node level
+  static std::set<std::string> sNodeUpdateKeys;
+  //! Set of key updates to be tracked at the file system level
+  static std::set<std::string> sFsUpdateKeys;
+
   bool mZombie; ///< State of the node
   XrdOucString mMetaDir; ///< Path to meta directory
   unsigned long long* mScrubPattern[2];
@@ -276,6 +297,10 @@ private:
   std::list< std::unique_ptr<Deletion> > mListDeletions; ///< List of deletions
   Load mFstLoad; ///< Net/IO load monitor
   Health mFstHealth; ///< Local disk S.M.A.R.T monitor
+  AssistedThread mCommunicatorThread;
+  AssistedThread mQdbCommunicatorThread;
+  std::set<std::string> mLastRoundFilesystems;
+  AssistedThread mPublisherThread;
 
   //! Struct BootThreadInfo
   struct BootThreadInfo {
@@ -299,19 +324,23 @@ private:
   static void* StartBoot(void* pp);
 
   //----------------------------------------------------------------------------
-  //! Get statistics about this FileSystem, used for publishing
+  //! Get statistics about given file system used for publishing
+  //!
+  //! @param fs file system object
+  //!
+  //! @return map of statistics to be published
   //----------------------------------------------------------------------------
   std::map<std::string, std::string>
   GetFsStatistics(fst::FileSystem* fs);
 
   //----------------------------------------------------------------------------
-  //! Get statistics about this FST, used for publishing
+  //! Get statistics about this FST node used for publishing
   //----------------------------------------------------------------------------
   std::map<std::string, std::string> GetFstStatistics(
     const std::string& tmpfile, unsigned long long netspeed);
 
   //----------------------------------------------------------------------------
-  //! Publish statistics about the given filesystem
+  //! Publish statistics about the given file system
   //----------------------------------------------------------------------------
   bool PublishFsStatistics(fst::FileSystem* fs);
 
@@ -336,34 +365,41 @@ private:
   void Communicator(ThreadAssistant& assistant);
   void QdbCommunicator(ThreadAssistant& assistant);
 
-  //------------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   //! Get configuration value from global FST config
   //!
   //! @param key configuration key
   //! @param value output configuration value as string
   //!
   //! @return true if config key found, otherwise false
-  //------------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   bool GetFstConfigValue(const std::string& key, std::string& value) const;
 
-  //------------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   //! Get configuration value from global FST config
   //!
   //! @param key configuration key
   //! @param value output configuration value as ull
   //!
   //! @return true if config key found, otherwise false
-  //------------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   bool GetFstConfigValue(const std::string& key, unsigned long long& value) const;
 
-  void ProcessFstConfigChange(const std::string& key);
-  void ProcessFstConfigChange(const std::string& key,
-                              const std::string& value);
-  void ProcessFsConfigChange(const std::string& queue,
-                             const std::string& key);
-  // requires mFsMutex write-locked
-  void ProcessFsConfigChange(fst::FileSystem* targetFs, const std::string& queue,
-                             const std::string& key, const std::string& value);
+  //----------------------------------------------------------------------------
+  //! Process FST node configuration change
+  //!
+  //! @param key configuration key
+  //! @param value configuration value
+  //----------------------------------------------------------------------------
+  void ProcessFstConfigChange(const std::string& key, const std::string& value);
+
+  //----------------------------------------------------------------------------
+  //! Process file system configuration change
+  //!
+  //! @param queue file system queue
+  //! @param key configuration key
+  //----------------------------------------------------------------------------
+  void ProcessFsConfigChange(const std::string& queue, const std::string& key);
 
   void Scrub();
   void Trim();
@@ -459,10 +495,10 @@ private:
   bool IsNodeActive() const;
 
   //----------------------------------------------------------------------------
-  //! Check if the selected FST needs to be registered as "full" or "warning"
-  //! @note  Needs to be called with at least a read lock on the mFsMutex.
+  //! Check if the selected file system needs to be registered as "full" or
+  //! "warning".
   //!
-  //! Parameter i is the index into mFsVect.
+  //! @note  Needs to be called with at least a read lock on the mFsMutex.
   //----------------------------------------------------------------------------
   void CheckFilesystemFullness(fst::FileSystem* fs,
                                eos::common::FileSystem::fsid_t fsid);
@@ -484,14 +520,19 @@ private:
   void ShutdownThreads();
 
   //----------------------------------------------------------------------------
-  // Register which filesystems are in QDB config
+  //! Update file system list given the QDB shared hash configuration i.e. scan
+  //! QDB for file systems belonging to the current node and update the
+  //! internal list.
   //----------------------------------------------------------------------------
-  void updateFilesystemDefinitions();
+  void UpdateFilesystemDefinitions();
 
-  AssistedThread mCommunicatorThread;
-  AssistedThread mQdbCommunicatorThread;
-  std::set<std::string> mLastRoundFilesystems;
-  AssistedThread mPublisherThread;
+  //----------------------------------------------------------------------------
+  //! FST node update callback - this is triggered whenever the underlying
+  //! qclient::SharedHash corresponding to the node is modified.
+  //!
+  //! @param upd SharedHashUpdate object
+  //----------------------------------------------------------------------------
+  void NodeUpdateCb(qclient::SharedHashUpdate&& upd);
 };
 
 EOSFSTNAMESPACE_END
