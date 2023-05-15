@@ -27,13 +27,18 @@
 #include "fst/storage/FileSystem.hh"
 #include "common/SymKeys.hh"
 #include "common/Assert.hh"
+#include "common/Constants.hh"
 #include "common/StringTokenizer.hh"
 #include "mq/SharedHashWrapper.hh"
-#include "common/Constants.hh"
-
-#include <qclient/structures/QScanner.hh>
+#include "qclient/structures/QScanner.hh"
+#include "qclient/shared/SharedHashSubscription.hh"
 
 EOSFSTNAMESPACE_BEGIN
+
+// Set of keys updates to be tracked at the node level
+std::set<std::string> Storage::sNodeUpdateKeys {
+  "manager", "symkey", "publish.interval", "debug.level", "txgw",
+  "gw.rate", "gw.ntx", "error.simulation" };
 
 //------------------------------------------------------------------------------
 // Get configuration value from global FST config
@@ -126,7 +131,7 @@ Storage::RegisterFileSystem(const std::string& queuepath)
   common::FileSystemLocator locator;
 
   if (!common::FileSystemLocator::fromQueuePath(queuepath, locator)) {
-    eos_static_crit("msg=\"failed to parse queuepath\" qpath=%s",
+    eos_static_crit("msg=\"failed to parse locator\" qpath=%s",
                     queuepath.c_str());
     return;
   }
@@ -163,38 +168,34 @@ Storage::RegisterFileSystem(const std::string& queuepath)
 }
 
 //------------------------------------------------------------------------------
-// Process incoming FST-level configuration change
-//------------------------------------------------------------------------------
-void
-Storage::ProcessFstConfigChange(const std::string& key)
-{
-  std::string value;
-
-  if (!GetFstConfigValue(key.c_str(), value)) {
-    return;
-  }
-
-  ProcessFstConfigChange(key, value);
-}
-
-//------------------------------------------------------------------------------
 // Process incoming configuration change
 //------------------------------------------------------------------------------
 void
 Storage::ProcessFstConfigChange(const std::string& key,
                                 const std::string& value)
 {
-  eos_static_info("msg=\"FST configuration change\" key=\"%s\" value=\"%s\"",
-                  key.c_str(), value.c_str());
+  static std::string last_refresh_ts = "";
+  eos_static_info("msg=\"FST node configuration change\" key=\"%s\" "
+                  "value=\"%s\"", key.c_str(), value.c_str());
 
-  if (key == "symkey") {
-    eos::common::gSymKeyStore.SetKey64(value.c_str(), 0);
+  // Refresh the list of FS'es registered from QDB shared hashes
+  if (key == "stat.refresh_fs") {
+    if (last_refresh_ts != value) {
+      last_refresh_ts = value;
+      UpdateFilesystemDefinitions();
+    }
+
     return;
   }
 
   if (key == "manager") {
     XrdSysMutexHelper lock(gConfig.Mutex);
     gConfig.Manager = value.c_str();
+    return;
+  }
+
+  if (key == "symkey") {
+    eos::common::gSymKeyStore.SetKey64(value.c_str(), 0);
     return;
   }
 
@@ -227,7 +228,7 @@ Storage::ProcessFstConfigChange(const std::string& key,
     return;
   }
 
-  // creation/deletion of gateway transfer queue
+  // Creation/deletion of gateway transfer queue
   if (key == "txgw") {
     if (value == "off") {
       // just stop the multiplexer
@@ -243,15 +244,15 @@ Storage::ProcessFstConfigChange(const std::string& key,
     return;
   }
 
+  // Update gw multiplexer bandwidth
   if (key == "gw.rate") {
-    // modify the rate settings of the gw multiplexer
     std::string rate = value;
     mGwMultiplexer.SetBandwidth(atoi(rate.c_str()));
     return;
   }
 
+  // Update gw multiplexer num. of parallel transfers
   if (key == "gw.ntx") {
-    // modify the parallel transfer settings of the gw multiplexer
     std::string ntx = value;
     mGwMultiplexer.SetSlots(atoi(ntx.c_str()));
     return;
@@ -265,12 +266,9 @@ Storage::ProcessFstConfigChange(const std::string& key,
 
 //------------------------------------------------------------------------------
 // Process incoming filesystem-level configuration change
-//
-// Requires mFsMutex to be write-locked.
 //------------------------------------------------------------------------------
 void
 Storage::ProcessFsConfigChange(fst::FileSystem* targetFs,
-                               const std::string& queue,
                                const std::string& key, const std::string& value)
 {
   if ((key == "id") || (key == "uuid")) {
@@ -285,18 +283,18 @@ Storage::ProcessFsConfigChange(fst::FileSystem* targetFs,
     if (targetFs->GetInternalBootStatus() == eos::common::BootStatus::kBooted) {
       if (targetFs->GetLongLong("bootcheck")) {
         eos_static_info("queue=%s status=%d check=%lld msg='boot enforced'",
-                        queue.c_str(), targetFs->GetStatus(),
+                        targetFs->GetQueuePath().c_str(), targetFs->GetStatus(),
                         targetFs->GetLongLong("bootcheck"));
         RunBootThread(targetFs);
       } else {
         eos_static_info("queue=%s status=%d check=%lld msg='skip boot - we are already booted'",
-                        queue.c_str(), targetFs->GetStatus(),
+                        targetFs->GetQueuePath().c_str(), targetFs->GetStatus(),
                         targetFs->GetLongLong("bootcheck"));
         targetFs->SetStatus(eos::common::BootStatus::kBooted);
       }
     } else {
       eos_static_info("queue=%s status=%d check=%lld msg='booting - we are not booted yet'",
-                      queue.c_str(), targetFs->GetStatus(),
+                      targetFs->GetQueuePath().c_str(), targetFs->GetStatus(),
                       targetFs->GetLongLong("bootcheck"));
       // start a boot thread;
       RunBootThread(targetFs);
@@ -389,7 +387,7 @@ Storage::ProcessFsConfigChange(const std::string& queuepath,
   }
 
   hash.releaseLocks();
-  return ProcessFsConfigChange(fs, queuepath, key, value);
+  return ProcessFsConfigChange(fs, key, value);
 }
 
 //------------------------------------------------------------------------------
@@ -491,7 +489,7 @@ Storage::Communicator(ThreadAssistant& assistant)
         }
       } else if (event.mType == XrdMqSharedObjectManager::kMqSubjectModification) {
         // Handle subject modification, seperate <path> from <key>
-        XrdOucString key = queue;
+        std::string key = queue.c_str();
         int dpos = 0;
 
         if ((dpos = queue.find(";")) != STR_NPOS) {
@@ -500,9 +498,13 @@ Storage::Communicator(ThreadAssistant& assistant)
         }
 
         if (queue == gConfig.getFstNodeConfigQueue("communicator", false)) {
-          ProcessFstConfigChange(key.c_str());
+          std::string value;
+
+          if (GetFstConfigValue(key, value)) {
+            ProcessFstConfigChange(key, value);
+          }
         } else {
-          ProcessFsConfigChange(queue.c_str(), key.c_str());
+          ProcessFsConfigChange(queue.c_str(), key);
         }
       }
     } while (true);
@@ -510,9 +512,9 @@ Storage::Communicator(ThreadAssistant& assistant)
 }
 
 //------------------------------------------------------------------------------
-// Extract filesystem path from QDB hash key
+// Extract filesystem path from QDB hash key - helper function
 //------------------------------------------------------------------------------
-static std::string extractFilesystemPath(const std::string& key)
+static std::string ExtractFsPath(const std::string& key)
 {
   std::vector<std::string> parts =
     common::StringTokenizer::split<std::vector<std::string>>(key, '|');
@@ -520,9 +522,9 @@ static std::string extractFilesystemPath(const std::string& key)
 }
 
 //------------------------------------------------------------------------------
-// Register which filesystems are in QDB config
+// Update file system list given the QDB shared hash configuration
 //------------------------------------------------------------------------------
-void Storage::updateFilesystemDefinitions()
+void Storage::UpdateFilesystemDefinitions()
 {
   qclient::QScanner scanner(*gOFS.mMessagingRealm->getQSom()->getQClient(),
                             SSTR("eos-hash||fs||" << gConfig.FstHostPort << "||*"));
@@ -530,8 +532,7 @@ void Storage::updateFilesystemDefinitions()
 
   for (; scanner.valid(); scanner.next()) {
     std::string queuePath = SSTR("/eos/" << gConfig.FstHostPort <<
-                                 "/fst" <<
-                                 extractFilesystemPath(scanner.getValue()));
+                                 "/fst" <<  ExtractFsPath(scanner.getValue()));
     new_filesystems.insert(queuePath);
   }
 
@@ -554,76 +555,91 @@ void Storage::updateFilesystemDefinitions()
 }
 
 //------------------------------------------------------------------------------
+// FST node update callback - this is triggered whenever the underlying
+// qclient::SharedHash corresponding to the node is modified.
+//------------------------------------------------------------------------------
+void
+Storage::NodeUpdateCb(qclient::SharedHashUpdate&& upd)
+{
+  if (sNodeUpdateKeys.find(upd.key) != sNodeUpdateKeys.end()) {
+    ProcessFstConfigChange(upd.key, upd.value);
+  }
+}
+
+//------------------------------------------------------------------------------
 // QdbCommunicator
 //------------------------------------------------------------------------------
 void
 Storage::QdbCommunicator(ThreadAssistant& assistant)
 {
-  eos_static_info("%s", "msg=\"starting QDB communicator thread\"");
-  // Stupid delay to have legacy MQ up and running before we start
-  std::this_thread::sleep_for(std::chrono::seconds(5));
+  using namespace std::placeholders;
 
   if (!gOFS.mMessagingRealm->haveQDB()) {
     eos_static_info("%s", "msg=\"disable QDB communicator\"");
     return;
   }
 
+  eos_static_info("%s", "msg=\"starting QDB communicator thread\"");
   // Process initial FST configuration ... discover instance name
-  std::string instanceName;
+  std::string instance_name;
 
   for (size_t i = 0; i < 10; i++) {
-    if (gOFS.mMessagingRealm->getInstanceName(instanceName)) {
+    if (gOFS.mMessagingRealm->getInstanceName(instance_name)) {
       break;
     }
+
+    std::this_thread::sleep_for(std::chrono::seconds(1));
   }
 
-  if (instanceName.empty()) {
+  if (instance_name.empty()) {
     eos_static_crit("%s", "msg=\"unable to obtain instance name from QDB\"");
     exit(1);
   }
 
-  std::string configQueue = SSTR("/config/" << instanceName << "/node/" <<
-                                 gConfig.FstHostPort);
-  gConfig.setFstNodeConfigQueue(configQueue);
+  std::string cfg_queue = SSTR("/config/" << instance_name << "/node/" <<
+                               gConfig.FstHostPort);
+  gConfig.setFstNodeConfigQueue(cfg_queue);
   // Discover node-specific configuration
-  common::SharedHashLocator nodeLocator = gConfig.getNodeHashLocator();
-  mq::SharedHashWrapper node_hash(gOFS.mMessagingRealm.get(), nodeLocator,
-                                  true, false);
+  mq::SharedHashWrapper node_hash(gOFS.mMessagingRealm.get(),
+                                  gConfig.getNodeHashLocator(),
+                                  false, false);
   // Discover MGM name
-  std::string mgmHost;
+  std::string mgm_host;
 
   for (size_t i = 0; i < 10; i++) {
-    if (node_hash.get("manager", mgmHost)) {
+    if (node_hash.get("manager", mgm_host)) {
       break;
     }
 
     std::this_thread::sleep_for(std::chrono::seconds(5));
   }
 
-  if (!mgmHost.empty()) {
-    ProcessFstConfigChange("manager", mgmHost);
+  if (mgm_host.empty()) {
+    eos_static_crit("%s", "msg=\"unable to obtain manager info\"");
+    exit(1);
   }
 
-  // Discover the rest of FST configuration options
-  std::vector<std::string> keys = {
-    "symkey", "publish.interval", "debug.level", "txgw", "gw.rate",
-    "gw.ntx", "error.simulation"
-  };
+  ProcessFstConfigChange("manager", mgm_host);
 
-  for (size_t i = 0; i < keys.size(); i++) {
+  // Discover the rest of the FST node configuration options
+  for (const auto& node_key : sNodeUpdateKeys) {
     std::string value;
 
-    if (node_hash.get(keys[i], value)) {
-      ProcessFstConfigChange(keys[i], value);
+    if (node_hash.get(node_key, value)) {
+      ProcessFstConfigChange(node_key, value);
     }
   }
 
-  // Discover filesystem configuration
-  // TODO: Find a way to do this without polling?
+  // One-off collect all configured file systems for this node
+  UpdateFilesystemDefinitions();
+  // Attach callback for node configuration updates
+  auto node_subscription = node_hash.subscribe();
+  node_subscription->attachCallback(std::bind(&Storage::NodeUpdateCb,
+                                    this, _1));
+
+  // Broadcast FST node hearbeat
   while (!assistant.terminationRequested()) {
-    updateFilesystemDefinitions();
-    node_hash.set(eos::common::FST_HEARTBEAT_KEY,
-                  std::to_string(time(nullptr)));
+    node_hash.set(eos::common::FST_HEARTBEAT_KEY, std::to_string(time(0)));
     assistant.wait_for(std::chrono::seconds(1));
   }
 }

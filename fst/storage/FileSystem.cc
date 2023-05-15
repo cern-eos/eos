@@ -25,14 +25,24 @@
 #include "fst/XrdFstOfs.hh"
 #include "fst/ScanDir.hh"
 #include "fst/txqueue/TransferQueue.hh"
+#include "fst/txqueue/TransferMultiplexer.hh"
 #include "fst/filemd/FmdDbMap.hh"
 #include "fst/utils/DiskMeasurements.hh"
+#include "common/Constants.hh"
+#include "qclient/shared/SharedHashSubscription.hh"
 
 #ifdef __APPLE__
 #define O_DIRECT 0
 #endif
 
 EOSFSTNAMESPACE_BEGIN
+
+// Set of key updates to be tracked at the file system level
+std::set<std::string> FileSystem::sFsUpdateKeys {
+  "id", "uuid", "bootsenttime",
+  eos::common::SCAN_IO_RATE_NAME, eos::common::SCAN_ENTRY_INTERVAL_NAME,
+  eos::common::SCAN_DISK_INTERVAL_NAME, eos::common::SCAN_NS_INTERVAL_NAME,
+  eos::common::SCAN_NS_RATE_NAME };
 
 //------------------------------------------------------------------------------
 // Constructor
@@ -56,11 +66,28 @@ FileSystem::FileSystem(const common::FileSystemLocator& locator,
   mTxMultiplexer->Run();
   mRecoverable = false;
   mFileIO.reset(FileIoPlugin::GetIoObject(mLocator.getStoragePath()));
+
+  if (mRealm->haveQDB()) {
+    // Subscribe to the underlying SharedHash object to get updates
+    mSubscription = mq::SharedHashWrapper(mRealm, mHashLocator).subscribe();
+
+    if (mSubscription) {
+      using namespace std::placeholders;
+      mSubscription->attachCallback(std::bind(&FileSystem::ProcessUpdateCb,
+                                              this, _1));
+    }
+  }
 }
 
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Destructor
+//------------------------------------------------------------------------------
 FileSystem::~FileSystem()
 {
+  if (mSubscription) {
+    mSubscription->detachCallback();
+  }
+
   mScanDir.release();
   mFileIO.release();
   mTxMultiplexer.reset();
@@ -79,39 +106,65 @@ FileSystem::~FileSystem()
   }
 }
 
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Process shared hash update
+//------------------------------------------------------------------------------
+void
+FileSystem::ProcessUpdateCb(qclient::SharedHashUpdate&& upd)
+{
+  if (sFsUpdateKeys.find(upd.key) != sFsUpdateKeys.end()) {
+    eos_static_info("msg=\"process update callback\" key=%s value=%s",
+                    upd.key.c_str(), upd.value.c_str());
+    gOFS.Storage->ProcessFsConfigChange(this, upd.key, upd.value);
+  }
+}
+
+//------------------------------------------------------------------------------
+// Broadcast given error message
+//------------------------------------------------------------------------------
 void
 FileSystem::BroadcastError(const char* msg)
 {
-  bool shutdown = false;
-
-  if (gOFS.sShutdown) {
-    shutdown = true;
-  }
-
-  if (!shutdown) {
+  if (!gOFS.sShutdown) {
     SetStatus(eos::common::BootStatus::kOpsError);
     SetError(errno ? errno : EIO, msg);
   }
 }
 
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Broadcast given error code and message
+//------------------------------------------------------------------------------
 void
 FileSystem::BroadcastError(int errc, const char* errmsg)
 {
-  bool shutdown = false;
-
-  if (gOFS.sShutdown) {
-    shutdown = true;
-  }
-
-  if (!shutdown) {
+  if (!gOFS.sShutdown) {
     SetStatus(eos::common::BootStatus::kOpsError);
     SetError(errno ? errno : EIO, errmsg);
   }
 }
 
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Set given error code and message
+//------------------------------------------------------------------------------
+void
+FileSystem::SetError(int errc, const char* errmsg)
+{
+  if (errc) {
+    eos_static_err("setting errc=%d errmsg=%s", errc, errmsg ? errmsg : "");
+  }
+
+  if (!SetLongLong("stat.errc", errc)) {
+    eos_static_err("cannot set errcode for filesystem %s", GetQueuePath().c_str());
+  }
+
+  if (errmsg && strlen(errmsg) && !SetString("stat.errmsg", errmsg)) {
+    eos_static_err("cannot set errmsg for filesystem %s", GetQueuePath().c_str());
+  }
+}
+
+//------------------------------------------------------------------------------
+// Get statfs info about mountpoint
+//------------------------------------------------------------------------------
 std::unique_ptr<eos::common::Statfs>
 FileSystem::GetStatfs()
 {
