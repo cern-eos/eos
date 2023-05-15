@@ -508,7 +508,7 @@ FileSystem::FileSystem(const FileSystemLocator& locator,
     updateBatch.SetDurable("port", std::to_string(locator.getPort()));
     updateBatch.SetLocal("local.drain", "nodrain");
 
-    if (!bc2mgm) {
+    if (!mRealm->haveQDB() && !bc2mgm) {
       updateBatch.SetDurable("configstatus", "down");
     }
 
