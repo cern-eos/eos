@@ -496,10 +496,17 @@ Storage::GetFsStatistics(FileSystem* fs)
   output["stat.disk.iops"] = std::to_string(fs->getIOPS());
   output["stat.disk.bw"] = std::to_string(fs->getSeqBandwidth()); // in MB
   output["stat.http.port"] = std::to_string(gOFS.mHttpdPort);
+
   // FST alias
-  if (gConfig.HostAlias.length()) { output["stat.alias.host"] = gConfig.HostAlias.c_str(); }
+  if (gConfig.HostAlias.length()) {
+    output["stat.alias.host"] = gConfig.HostAlias.c_str();
+  }
+
   // FST port alias
-  if (gConfig.PortAlias.length()) { output["stat.alias.port"] = gConfig.PortAlias.c_str(); }
+  if (gConfig.PortAlias.length()) {
+    output["stat.alias.port"] = gConfig.PortAlias.c_str();
+  }
+
   // debug level
   output["stat.ropen.hotfiles"] = HotFilesToString(
                                     gOFS.openedForReading.getHotFiles(fsid, 10));
@@ -569,8 +576,8 @@ Storage::Publish(ThreadAssistant& assistant)
         eos_static_err("%s", "msg=\"cannot open mux transaction\"");
       } else {
         std::map<eos::fst::FileSystem*, std::future<bool>> map_futures;
-        // Copy out statfs info - this could be done in parallel to speed-up
 
+        // Copy out statfs info in parallel to speed-up things
         for (const auto& elem : mFsMap) {
           auto fs = elem.second;
 
@@ -600,11 +607,14 @@ Storage::Publish(ThreadAssistant& assistant)
         common::SharedHashLocator locator = gConfig.getNodeHashLocator("Publish");
 
         if (!locator.empty()) {
-          mq::SharedHashWrapper hash(gOFS.mMessagingRealm.get(), locator, true, false);
+          mq::SharedHashWrapper::Batch batch;
 
           for (auto it = fstStats.begin(); it != fstStats.end(); it++) {
-            hash.set(it->first, it->second);
+            batch.SetTransient(it->first, it->second);
           }
+
+          mq::SharedHashWrapper hash(gOFS.mMessagingRealm.get(), locator, true, false);
+          hash.set(batch);
         }
 
         gOFS.ObjectManager.CloseMuxTransaction();

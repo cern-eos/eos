@@ -160,7 +160,7 @@ bool SharedHashWrapper::set(const std::string& key, const std::string& value,
 }
 
 //------------------------------------------------------------------------------
-//! Set key-value batch
+// Set key-value batch
 //------------------------------------------------------------------------------
 bool SharedHashWrapper::set(const Batch& batch)
 {
