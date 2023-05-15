@@ -319,7 +319,8 @@ Storage::PushVerification(eos::fst::Verify* entry)
     mVerifications.push(entry);
     entry->Show();
   } else {
-    eos_err("verify list has already 1 Mio. entries - discarding verify message");
+    eos_err("%s", "msg=\"verify list has already 1 Mio. entries - discarding "
+            "verify message\"");
   }
 }
 
@@ -350,7 +351,7 @@ Storage::Boot(FileSystem* fs)
     }
 
     std::this_thread::sleep_for(std::chrono::seconds(5));
-    eos_info("msg=\"waiting to know manager\"");
+    eos_info("%s", "msg=\"waiting to know manager\"");
 
     if (cnt > 20) {
       eos_static_alert("%s", "msg=\"didn't receive manager name, aborting\"");
@@ -362,8 +363,8 @@ Storage::Boot(FileSystem* fs)
   eos_info("msg=\"manager known\" manager=\"%s\"", manager.c_str());
   eos::common::FileSystem::fsid_t fsid = fs->GetLocalId();
   std::string uuid = fs->GetLocalUuid();
-  eos_info("booting filesystem %s id=%u uuid=%s", fs->GetQueuePath().c_str(),
-           (unsigned int) fsid, uuid.c_str());
+  eos_info("msg=\"booting filesystem\" qpath=%s id=%u uuid=%s",
+           fs->GetQueuePath().c_str(), (unsigned int) fsid, uuid.c_str());
 
   if (!fsid) {
     return;
@@ -785,7 +786,7 @@ Storage::RunBootThread(FileSystem* fs)
 
       if ((XrdSysThread::Run(&tid, Storage::StartBoot, static_cast<void*>(info),
                              0, "Booter"))) {
-        eos_crit("cannot start boot thread");
+        eos_crit("msg=\"failed to start boot thread\" fsid=%s", fs->GetLocalId());
         mBootingSet.erase(fs->GetLocalId());
       } else {
         retc = true;
@@ -1106,8 +1107,6 @@ Storage::IsNodeActive() const
 // Check if the selected FST needs to be registered as "full" or "warning"
 // CAUTION: mFsMutex must be at-least-read locked before calling
 // this function.
-//
-// Parameter i is the index into mFsVect.
 //----------------------------------------------------------------------------
 void
 Storage::CheckFilesystemFullness(FileSystem* fs,

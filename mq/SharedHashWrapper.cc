@@ -96,9 +96,7 @@ SharedHashWrapper::SharedHashWrapper(mq::MessagingRealm* realm,
     mHash = mSom->GetObject(mLocator.getConfigQueue().c_str(), "hash");
 
     if (!mHash && create) {
-      //--------------------------------------------------------------------------
       // Shared hash does not exist, create
-      //--------------------------------------------------------------------------
       mReadLock.Release();
       mSom->CreateSharedHash(mLocator.getConfigQueue().c_str(),
                              mLocator.getBroadcastQueue().c_str(), mSom);
