@@ -26,7 +26,6 @@
 
 #include "fst/Namespace.hh"
 #include "fst/io/FileIoPlugin.hh"
-#include "fst/txqueue/TransferMultiplexer.hh"
 #include "fst/storage/FileSystem.hh"
 #include "fst/io/FileIo.hh"
 #include "common/Logging.hh"
@@ -48,8 +47,15 @@ namespace eos::common
 class Statfs;
 }
 
+namespace qclient
+{
+class SharedHashUpdate;
+class SharedHashSubscription;
+}
+
 EOSFSTNAMESPACE_BEGIN
 
+class TransferMultiplexer;
 class TransferQueue;
 class ScanDir;
 class Load;
@@ -60,6 +66,9 @@ class Load;
 class FileSystem : public eos::common::FileSystem, eos::common::LogId
 {
 public:
+  //! Set of key updates to be tracked at the file system level
+  static std::set<std::string> sFsUpdateKeys;
+
   //-----------------------------------------------------------------------------
   //! Constructor
   //-----------------------------------------------------------------------------
@@ -146,6 +155,9 @@ public:
     mLocalBootStatus = status;
   }
 
+  //----------------------------------------------------------------------------
+  //
+  //----------------------------------------------------------------------------
   eos::common::BootStatus
   GetStatus()
   {
@@ -154,26 +166,29 @@ public:
     return mLocalBootStatus;
   }
 
+  //----------------------------------------------------------------------------
+  //! Broadcast given error message
+  //!
+  //! @param msg message to be sent
+  //----------------------------------------------------------------------------
   void BroadcastError(const char* msg);
+
+  //----------------------------------------------------------------------------
+  //! Broadcast given error code and message
+  //!
+  //! @param errc error code to be sent
+  //! @param msg message to be sent
+  //----------------------------------------------------------------------------
   void BroadcastError(int errc, const char* errmsg);
-  void BroadcastStatus();
 
-  void
-  SetError(int errc, const char* errmsg)
-  {
-    if (errc) {
-      eos_static_err("setting errc=%d errmsg=%s", errc, errmsg ? errmsg : "");
-    }
+  //----------------------------------------------------------------------------
+  //! Set given error code and message
+  //----------------------------------------------------------------------------
+  void SetError(int errc, const char* errmsg);
 
-    if (!SetLongLong("stat.errc", errc)) {
-      eos_static_err("cannot set errcode for filesystem %s", GetQueuePath().c_str());
-    }
-
-    if (errmsg && strlen(errmsg) && !SetString("stat.errmsg", errmsg)) {
-      eos_static_err("cannot set errmsg for filesystem %s", GetQueuePath().c_str());
-    }
-  }
-
+  //----------------------------------------------------------------------------
+  //! Get statfs info about mountpoint
+  //----------------------------------------------------------------------------
   std::unique_ptr<eos::common::Statfs> GetStatfs();
 
   //----------------------------------------------------------------------------
@@ -284,6 +299,15 @@ public:
   mutable eos::common::RWMutex mInconsistencyMutex;
 
 private:
+  //----------------------------------------------------------------------------
+  //! Process shared hash update
+  //!
+  //! @param upd shared hash update
+  //----------------------------------------------------------------------------
+  void ProcessUpdateCb(qclient::SharedHashUpdate&& upd);
+
+  //! Subscription to underlying shared hash notifications
+  std::unique_ptr<qclient::SharedHashSubscription> mSubscription;
   //! Local file system id irrespective of the shared hash status, populated
   //! the first time the id is broadcasted from the mgm
   eos::common::FileSystem::fsid_t mLocalId {0ull};
