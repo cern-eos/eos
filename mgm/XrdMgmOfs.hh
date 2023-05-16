@@ -1474,9 +1474,9 @@ public:
   // ---------------------------------------------------------------------------
   static void DumpHeapProfile(int);
 
-  // ---------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   // Filesystem error and configuration change listener thread function
-  // ---------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   void FsConfigListener(ThreadAssistant& assistant) noexcept;
 
   //----------------------------------------------------------------------------
@@ -1658,9 +1658,9 @@ public:
   mPrepareDestSpace; ///< Space to be used when retrieving files from tape
   //!  Acts only as a redirector, disables many components in the MGM
   bool MgmRedirector;
-  //! Mgm writes error log with cluster collected file into
-  //! /var/log/eos/error.log if <true>
-  bool ErrorLog;
+  //! Writes error log with cluster wide collected errors in
+  //! /var/log/eos/mgm/error.log
+  bool mErrLogEnabled;
   bool MgmQoSEnabled; ///< True if QoS support is enabled
 
   //----------------------------------------------------------------------------
@@ -1687,8 +1687,8 @@ public:
   AssistedThread mStatsTid; ///< Stats thread
   AssistedThread mFsConfigTid; ///< Fs listener/config change thread
   AssistedThread mAuthMasterTid; ///< Thread Id of the authentication thread
-  AssistedThread
-  mFilesystemMonitorThread; ///< Thread to listen for significant filesystem changes
+  //! Thread to listen for significant filesystem changes
+  AssistedThread mFsMonitorTid;
 
   std::vector<pthread_t> mVectTid; ///< vector of auth worker threads ids
 
@@ -1854,7 +1854,6 @@ public:
   //! Class implementing comment log: mgm writes all proc commands with a
   //! comment into /var/log/eos/comments.log
   std::unique_ptr<eos::common::CommentLog> mCommentLog;
-
   std::unique_ptr<eos::common::CommentLog> mFusexStackTraces;
   std::unique_ptr<eos::common::CommentLog> mFusexLogTraces;
 
@@ -1863,9 +1862,7 @@ public:
 
   //! GeoTreeEngine
   std::unique_ptr<eos::mgm::GeoTreeEngine> mGeoTreeEngine;
-
   std::unique_ptr<Fsck> mFsckEngine; ///< Fsck functionality
-
   //! Master/Slave configuration/failover class
   std::unique_ptr<IMaster> mMaster;
 
@@ -1959,10 +1956,14 @@ public:
   //----------------------------------------------------------------------------
   static std::string prepareOptsToString(const int opts);
 
-  uint64_t getFuseBookingSize()
+  //----------------------------------------------------------------------------
+  //! Get fuse booking size
+  //----------------------------------------------------------------------------
+  inline uint64_t getFuseBookingSize() const
   {
     return mFusePlacementBooking;
   }
+
 protected:
   std::atomic<bool> mDoneOrderlyShutdown; ///< Mark for orderly shutdown
 
@@ -1974,6 +1975,8 @@ private:
   std::map<std::string, XrdMgmOfsFile*> mMapFiles; ///< uuid to file obj. mapping
   XrdSysMutex mMutexDirs; ///< mutex for protecting the access at the dirs map
   XrdSysMutex mMutexFiles; ///< mutex for protecting the access at the files map
+  //! Thread listening for error messages and logging them in error.log
+  AssistedThread mErrLoggerTid;
   AssistedThread mSubmitterTid; ///< Archive submitter thread
   XrdSysMutex mJobsQMutex; ///< Mutex for archive/backup job queue
   std::list<std::string> mPendingBkps; ///< Backup jobs queueRequest
@@ -1985,6 +1988,11 @@ private:
   static thread_local eos::common::LogId tlLogId;
   //! Space/quota which is requested when placing a file via FUSE(x)
   uint64_t mFusePlacementBooking;
+
+  //----------------------------------------------------------------------------
+  //! Convert error code to string representation
+  //----------------------------------------------------------------------------
+  static std::string MacroStringError(int errcode);
 
   //----------------------------------------------------------------------------
   //! Check that the auth ProtocolBuffer request has not been tampered with
@@ -2001,14 +2009,15 @@ private:
   void InitStats();
 
   //----------------------------------------------------------------------------
-  //! Start a thread that will queue, build and submit backup operations to
+  //! Start thread that will queue, build and submit backup operations to
   //! the archiver daemon.
-  //!
-  //! @param arg mgm object
   //----------------------------------------------------------------------------
-  void StartArchiveSubmitter(ThreadAssistant& assistant) noexcept;
+  void ArchiveSubmitterThread(ThreadAssistant& assistant) noexcept;
 
-  static std::string MacroStringError(int errcode);
+  //----------------------------------------------------------------------------
+  //! Start thread listening for error messages and logging them
+  //----------------------------------------------------------------------------
+  void ErrorLogListenerThread(ThreadAssistant& assistant) noexcept;
 
   //----------------------------------------------------------------------------
   // FS control functions

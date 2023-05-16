@@ -89,6 +89,7 @@
 #include "mq/FsChangeListener.hh"
 #include "mq/GlobalConfigChangeListener.hh"
 #include "mq/MessagingRealm.hh"
+#include "mq/QdbErrorReportListener.hh"
 #include "namespace/interface/IFsView.hh"
 #include "namespace/Prefetcher.hh"
 #include "namespace/utils/Stat.hh"
@@ -298,7 +299,7 @@ XrdMgmOfs::XrdMgmOfs(XrdSysError* ep):
   mTotalInitTime(time(nullptr)), mStartTime(time(nullptr)), Shutdown(false),
   mBootFileId(0), mBootContainerId(0), IsRedirect(true), IsStall(true),
   mAuthorize(false), mAuthLib(""), mTapeEnabled(false), MgmRedirector(false),
-  ErrorLog(true), eosDirectoryService(0), eosFileService(0), eosView(0),
+  mErrLogEnabled(true), eosDirectoryService(0), eosFileService(0), eosView(0),
   eosFsView(0), eosContainerAccounting(0), eosSyncTimeAccounting(0),
   mFrontendPort(0), mNumAuthThreads(0),
   zMQ(nullptr), mExtAuthz(nullptr), MgmStatsPtr(new eos::mgm::Stat()),
@@ -513,7 +514,7 @@ XrdMgmOfs::OrderlyShutdown()
   FsView::gFsView.StopHeartBeat();
   FsView::gFsView.Clear();
 
-  if (gOFS->ErrorLog) {
+  if (mErrLogEnabled) {
     eos_warning("%s", "msg=\"error log kill\"");
     std::string errorlogkillline = "pkill -9 -f \"eos -b console log _MGMID_\"";
     int rrc = system(errorlogkillline.c_str());
@@ -604,6 +605,7 @@ XrdMgmOfs::Disc(const XrdSecEntity* client)
 #include "XrdMgmOfs/Exists.cc"
 #include "XrdMgmOfs/Find.cc"
 #include "XrdMgmOfs/FsConfigListener.cc"
+#include "XrdMgmOfs/ErrorLogListener.cc"
 #include "XrdMgmOfs/Fsctl.cc"
 #include "XrdMgmOfs/Link.cc"
 #include "XrdMgmOfs/Mkdir.cc"
@@ -911,7 +913,7 @@ XrdMgmOfs::Redirect(XrdOucErrInfo& error,
 // archiver daemon.
 //------------------------------------------------------------------------------
 void
-XrdMgmOfs::StartArchiveSubmitter(ThreadAssistant& assistant) noexcept
+XrdMgmOfs::ArchiveSubmitterThread(ThreadAssistant& assistant) noexcept
 {
   ProcCommand pcmd;
   std::string job_opaque;
@@ -1071,9 +1073,9 @@ XrdMgmOfs::FuseXCastRefresh(eos::FileIdentifier id,
     parentid.getUnderlyingUInt64());
 }
 
-//----------------------------------------------------------------------------
-// Check if name space is booted
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
+// Check if namespace is booted
+//------------------------------------------------------------------------------
 bool
 XrdMgmOfs::IsNsBooted() const
 {
@@ -1081,6 +1083,9 @@ XrdMgmOfs::IsNsBooted() const
           (mNamespaceState == NamespaceState::kCompacting));
 }
 
+//------------------------------------------------------------------------------
+// Convert error code to string representation
+//------------------------------------------------------------------------------
 std::string
 XrdMgmOfs::MacroStringError(int errcode)
 {
