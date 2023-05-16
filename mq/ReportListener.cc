@@ -46,10 +46,11 @@ ReportListener::ReportListener(const std::string& broker,
 //------------------------------------------------------------------------------
 // Fetch report
 //------------------------------------------------------------------------------
-bool ReportListener::fetch(std::string& out, ThreadAssistant& assistant)
+bool
+ReportListener::fetch(std::string& out, ThreadAssistant* assistant)
 {
   std::unique_ptr<XrdMqMessage> message = std::unique_ptr<XrdMqMessage>
-                                          (mClient.RecvMessage(&assistant));
+                                          (mClient.RecvMessage(assistant));
 
   if (message) {
     out = message->GetBody();

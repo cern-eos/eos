@@ -21,9 +21,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifndef EOS_MQ_REPORT_LISTENER_HH
-#define EOS_MQ_REPORT_LISTENER_HH
-
+#pragma once
 #include "mq/Namespace.hh"
 #include "mq/XrdMqClient.hh"
 
@@ -50,12 +48,10 @@ public:
   //----------------------------------------------------------------------------
   //! Fetch report
   //----------------------------------------------------------------------------
-  bool fetch(std::string& out, ThreadAssistant& assistant);
+  bool fetch(std::string& out, ThreadAssistant* assistant = nullptr);
 
 private:
   XrdMqClient mClient;
 };
 
 EOSMQNAMESPACE_END
-
-#endif
