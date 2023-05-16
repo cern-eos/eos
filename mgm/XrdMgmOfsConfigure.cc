@@ -306,7 +306,6 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
     }
   }
 
-  ErrorLog = true;
   MgmConfigAutoLoad = "";
   long myPort = 0;
   std::string ns_lib_path;
@@ -679,13 +678,13 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
             NoGo = 1;
           } else {
             if ((!strcmp("true", val) || (!strcmp("1", val)))) {
-              ErrorLog = true;
+              mErrLogEnabled = true;
             } else {
-              ErrorLog = false;
+              mErrLogEnabled = false;
             }
           }
 
-          if (ErrorLog) {
+          if (mErrLogEnabled) {
             Eroute.Say("=====> mgmofs.errorlog : true");
           } else {
             Eroute.Say("=====> mgmofs.errorlog : false");
@@ -1269,7 +1268,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
     Eroute.Say("=====> mgmofs.fs: ", MgmOfsName.c_str(), "");
   }
 
-  if (ErrorLog) {
+  if (mErrLogEnabled) {
     Eroute.Say("=====> mgmofs.errorlog : enabled");
   } else {
     Eroute.Say("=====> mgmofs.errorlog : disabled");
@@ -1936,35 +1935,35 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   std::ostringstream oss;
   oss << "ipc://" << MgmArchiveDir.c_str() << "archive_frontend.ipc";
   mArchiveEndpoint = oss.str();
-  // Hook to the appropriate config file
-  std::string stdOut;
-  std::string stdErr;
-
-  if (!MgmRedirector) {
-    if (ErrorLog) {
-      // run the error log console
-      XrdOucString errorlogkillline = "pkill -9 -f \"eos -b console log _MGMID_\"";
-      int rrc = system(errorlogkillline.c_str());
-
-      if (WEXITSTATUS(rrc)) {
-        eos_info("%s returned %d", errorlogkillline.c_str(), rrc);
-      }
-
-      XrdOucString errorlogline = "eos -b console log _MGMID_ >& /dev/null &";
-      rrc = system(errorlogline.c_str());
-
-      if (WEXITSTATUS(rrc)) {
-        eos_info("%s returned %d", errorlogline.c_str(), rrc);
-      }
-    }
-  }
-
   eos_info("%s", "msg=\"starting statistics thread\"");
   mStatsTid.reset(&Stat::Circulate, &MgmStats);
   eos_info("%s", "msg=\"starting archive submitter thread\"");
-  mSubmitterTid.reset(&XrdMgmOfs::StartArchiveSubmitter, this);
+  mSubmitterTid.reset(&XrdMgmOfs::ArchiveSubmitterThread, this);
 
   if (!MgmRedirector) {
+    if (mErrLogEnabled) {
+      if (mMessagingRealm->haveQDB()) {
+        // Start ErrorReportListener and log entries in the local file
+        eos_static_info("%s", "msg=\"starting error logger thread\"");
+        mErrLoggerTid.reset(&XrdMgmOfs::ErrorLogListenerThread, this);
+      } else {
+        // Run the error log console
+        XrdOucString errorlogkillline = "pkill -9 -f \"eos -b console log _MGMID_\"";
+        int rrc = system(errorlogkillline.c_str());
+
+        if (WEXITSTATUS(rrc)) {
+          eos_info("%s returned %d", errorlogkillline.c_str(), rrc);
+        }
+
+        XrdOucString errorlogline = "eos -b console log _MGMID_ >& /dev/null &";
+        rrc = system(errorlogline.c_str());
+
+        if (WEXITSTATUS(rrc)) {
+          eos_info("%s returned %d", errorlogline.c_str(), rrc);
+        }
+      }
+    }
+
     eos_info("%s", "msg=\"starting fs listener thread\"");
 
     try {
@@ -1974,7 +1973,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
       NoGo = 1;
     }
 
-    mFilesystemMonitorThread.reset(&XrdMgmOfs::FileSystemMonitorThread, this);
+    mFsMonitorTid.reset(&XrdMgmOfs::FileSystemMonitorThread, this);
   }
 
   if (!ObjectNotifier.Start()) {
