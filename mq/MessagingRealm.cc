@@ -99,17 +99,30 @@ MessagingRealm::sendMessage(const std::string& descr,
                             const std::string& receiver, bool is_monitor)
 {
   Response resp;
-  XrdMqMessage message(descr.c_str());
-  message.SetBody(payload.c_str());
 
-  if (is_monitor) {
-    message.MarkAsMonitor();
-  }
+  if (haveQDB()) {
+    // The reply to publish is the number of subscribers that receive the msg
+    qclient::redisReplyPtr reply = mQSom->getQClient()->exec("PUBLISH", receiver,
+                                   payload).get();
 
-  if (mMessageClient->SendMessage(message, receiver.c_str())) {
-    resp.status = 0;
+    if (reply->type == REDIS_REPLY_INTEGER) {
+      resp.status = (reply->integer == 0 ? 1 : 0);
+    } else {
+      resp.status = 1;
+    }
   } else {
-    resp.status = 1;
+    XrdMqMessage message(descr.c_str());
+    message.SetBody(payload.c_str());
+
+    if (is_monitor) {
+      message.MarkAsMonitor();
+    }
+
+    if (mMessageClient->SendMessage(message, receiver.c_str())) {
+      resp.status = 0;
+    } else {
+      resp.status = 1;
+    }
   }
 
   return resp;
