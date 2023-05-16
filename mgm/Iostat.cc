@@ -834,7 +834,7 @@ Iostat::Receive(ThreadAssistant& assistant) noexcept
   while (!assistant.terminationRequested()) {
     std::string newmessage;
 
-    while (listener.fetch(newmessage, assistant)) {
+    while (listener.fetch(newmessage, &assistant)) {
       if (assistant.terminationRequested()) {
         break;
       }
