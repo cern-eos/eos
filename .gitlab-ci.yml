@@ -127,7 +127,7 @@ build_cc7:
 macosx_dmg:
   stage: build:rpm
   script:
-    - git submodule update --init -f --recursive
+    - git submodule sync --recursive && git submodule update --init -f --recursive
     - version=`./genversion.sh`
     - ./utils/eos-osx-package.sh $version
     - ccache -s
@@ -224,7 +224,7 @@ build_cs9:
     - rpm --import /etc/pki/rpm-gpg/*
     - dnf install rpm-build cmake gcc-c++ git -y
   script:
-    - git submodule update --init -f --recursive
+    - git submodule sync --recursive && git submodule update --init -f --recursive
     - cd quarkdb/deps/mkdocs-material; git remote set-url origin https://gitlab.cern.ch/eos/mkdocs-material; git pull origin master; git checkout master; git pull; cd ../../..
     - EOS_VERSION="$(./genversion.sh)"; echo "${EOS_VERSION}"
     - mkdir -pv build/
@@ -268,7 +268,7 @@ rh-9:
     - echo -e '\ndeb http://storage-ci.web.cern.ch/storage-ci/debian/xrootd/ '${EOS_DIST}' release' >> /etc/apt/sources.list
     - wget -O - http://storage-ci.web.cern.ch/storage-ci/storageci.key 2>/dev/null | apt-key add -
     - apt-get update -y
-    - git submodule update --init -f --recursive
+    - git submodule sync --recursive && git submodule update --init -f --recursive
     # @todo once the XRootD deb repos are better structured we can point to a
     # particular stable branch. For the moment, we force install the version we want
     # Priority >= 1000 causes a version to be installed even if this constitutes a downgrade of the package
@@ -322,7 +322,7 @@ build_ubuntu_focal:
   stage: build:rpm
   script:
     - dnf install --nogpg -y gcc-c++ cmake3 make rpm-build which git tar dnf-plugins-core ccache rpm-sign
-    - git submodule update --init -f --recursive
+    - git submodule sync --recursive && git submodule update --init -f --recursive
     - mkdir build; cd build
     - cmake3 .. -DPACKAGEONLY=1 -DCLIENT=1; make srpm; cd ..
     - echo -e "[eos-depend]\nname=EOS dependencies\nbaseurl=http://storage-ci.web.cern.ch/storage-ci/eos/${CODENAME}-depend/${EOS_DIST}/x86_64/\ngpgcheck=0\nenabled=1\nexclude=xrootd*\npriority=4\n" >> /etc/yum.repos.d/eos-depend.repo
@@ -374,7 +374,7 @@ build_fedora_rawhide:
   stage: build:rpm
   image: gitlab-registry.cern.ch/dss/eos/prebuild-cc7-${CODENAME}
   script:
-    - git submodule update --init -f --recursive
+    - git submodule sync --recursive && git submodule update --init -f --recursive
     - mkdir build
     - cd build/
     - cmake3 ../ -DPACKAGEONLY=1 ${CMAKE_OPTIONS}
