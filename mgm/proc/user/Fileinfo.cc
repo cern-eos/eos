@@ -397,10 +397,9 @@ ProcCommand::FileInfo(const char* path)
                 << "Change: " << eos::common::Timing::ltime(filectime)
                 << " Timestamp: " << eos::common::Timing::TimespecToString(ctime)
                 << std::endl
-		<< "Access: " << eos::common::Timing::ltime(fileatime)
+                << "Access: " << eos::common::Timing::ltime(fileatime)
                 << " Timestamp: " << eos::common::Timing::TimespecToString(atime)
                 << std::endl
-
                 << " Birth: " << eos::common::Timing::ltime(filebtime)
                 << " Timestamp: " << eos::common::Timing::TimespecToString(btime)
                 << std::endl
@@ -415,8 +414,8 @@ ProcCommand::FileInfo(const char* path)
                 << "    XS: " << xs_spaces
                 << "    ETAGs: " << etag
                 << std::endl;
-            out << "Layout: " << LayoutId::GetLayoutTypeString(fmd_copy->getLayoutId())
-                << " Stripes: " << (LayoutId::GetStripeNumber(fmd_copy->getLayoutId()) + 1)
+            out << "Layout: " << ((xattrs.count("sys.eos.mdino"))?("hardlink"):(LayoutId::GetLayoutTypeString(fmd_copy->getLayoutId())))
+                << " Stripes: " << (LayoutId::GetStripeNumber(fmd_copy->getLayoutId()) + (xattrs.count("sys.eos.mdino"))?0:1)
                 << " Blocksize: " << LayoutId::GetBlockSizeString(fmd_copy->getLayoutId())
                 << " LayoutId: " << FileId::Fid2Hex(fmd_copy->getLayoutId())
                 << " Redundancy: " << redundancy
@@ -454,7 +453,7 @@ ProcCommand::FileInfo(const char* path)
                 << " mtime=" << mtime.tv_sec << "." << mtime.tv_nsec
                 << " ctime=" << ctime.tv_sec << "." << ctime.tv_nsec
                 << " btime=" << btime.tv_sec << "." << btime.tv_nsec
-		<< " atime=" << atime.tv_sec << "." << atime.tv_nsec
+                << " atime=" << atime.tv_sec << "." << atime.tv_nsec
                 << " clock=" << clock
                 << " mode=" << StringConversion::IntToOctal((int) fmd_copy->getFlags(), 4)
                 << " uid=" << fmd_copy->getCUid()
@@ -468,8 +467,8 @@ ProcCommand::FileInfo(const char* path)
                 << " xs=" << xs
                 << " etag=" << etag
                 << " detached=" << detached
-                << " layout=" << LayoutId::GetLayoutTypeString(fmd_copy->getLayoutId())
-                << " nstripes=" << (LayoutId::GetStripeNumber(fmd_copy->getLayoutId()) + 1)
+                << " layout=" << ((xattrs.count("sys.eos.mdino"))?("hardlink"):(LayoutId::GetLayoutTypeString(fmd_copy->getLayoutId())))
+                << " nstripes=" << (LayoutId::GetStripeNumber(fmd_copy->getLayoutId()) + !xattrs.count("sys.eos.mdino"))
                 << " lid=" << FileId::Fid2Hex(fmd_copy->getLayoutId())
                 << " nrep=" << fmd_copy->getNumLocation()
                 << " ";
@@ -958,11 +957,10 @@ ProcCommand::FileJSON(uint64_t fid, Json::Value* ret_json, bool dolock)
     json["path"] = path;
     json["detached"] = detached;
     json["pid"] = (Json::Value::UInt64) fmd_copy->getContainerId();
-    json["layout"] = eos::common::LayoutId::GetLayoutTypeString(
-                       fmd_copy->getLayoutId());
+    json["layout"] = (xattrs.count("sys.eos.mdino"))?("hardlink"):(eos::common::LayoutId::GetLayoutTypeString(fmd_copy->getLayoutId()));
     json["nstripes"] = (int)(eos::common::LayoutId::GetStripeNumber(
                                fmd_copy->getLayoutId())
-                             + 1);
+                             + !xattrs.count("sys.eos.mdino"));
 
     if (fmd_copy->isLink()) {
       json["target"] = fmd_copy->getLink();
