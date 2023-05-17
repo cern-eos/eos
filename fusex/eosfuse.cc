@@ -3135,13 +3135,13 @@ EosFuse::opendir(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info* fi)
         Instance().Config().options.rm_rf_bulk &&
         isRecursiveRm(req, true, true)) {
       md = Instance().mds.get(req, ino);
+      XrdSysMutexHelper mLock(md->Locker());
 
       if (md && (*md)()->attr().count("sys.recycle")) {
         do_listdir = false;
         eos_static_warning("Running recursive rm (pid = %d)", fuse_req_ctx(req)->pid);
         // bulk rm only when a recycle bin is configured
         {
-          XrdSysMutexHelper mLock(md->Locker());
           name = (*md)()->name();
 
           if (!md->xid() || md->deleted()) {
@@ -3164,6 +3164,8 @@ EosFuse::opendir(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info* fi)
             md->unset_rmrf();
           }
         }
+
+        mLock.UnLock();
 
         if (EOS_LOGS_DEBUG) {
           eos_static_debug("rm-rf gave retc=%d", rc);
@@ -3511,9 +3513,8 @@ EBADF  Invalid directory stream descriptor fi->fh
         if (cmd->deleted()) {
           continue;
         }
-      }
-      stbuf.st_ino = cino;
-      {
+
+        stbuf.st_ino = cino;
         auto attrMap = (*cmd)()->mutable_attr();
 
         if (attrMap->count(k_mdino)) {
@@ -3527,8 +3528,10 @@ EBADF  Invalid directory stream descriptor fi->fh
           }
 
           stbuf.st_ino = local_ino;
+          cLock.UnLock();
           metad::shared_md target = Instance().mds.get(req, local_ino, "", 0, 0, 0,
                                     true);
+          XrdSysMutexHelper tLock(target->Locker());
           mode = (*target)()->mode();
         }
       }
