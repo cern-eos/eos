@@ -2498,6 +2498,7 @@ EosFuse::getattr(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info* fi)
     }
     md->Locker().UnLock();
   } else {
+    XrdSysMutexHelper mLock(md->Locker());
     // mountpoint stat does not require a cap
     md->convert(e);
     eos_static_info("%s", md->dump(e).c_str());
