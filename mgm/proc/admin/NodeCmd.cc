@@ -57,6 +57,7 @@ NodeCmd::ProcessRequest() noexcept
     ConfigSubcmd(node.config(), reply);
     break;
 
+  //@todo(esindril) this should be removed as it's not implemented
   case eos::console::NodeProto::kRegisterx:
     RegisterSubcmd(node.registerx(), reply);
     break;
