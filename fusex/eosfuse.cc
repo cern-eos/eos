@@ -4541,6 +4541,7 @@ EosFuse::open(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info* fi)
                                     md_pino,
                                     req,
                                     (mode == U_OK));
+            mLock.Lock(&md->Locker());
             bool outdated = (io->ioctx()->attach(req, cookie,
                                                  fi->flags | cache_flag) == EKEYEXPIRED);
             fi->keep_cache = outdated ? 0 : Instance().Config().options.data_kernelcache;
@@ -4864,8 +4865,11 @@ The O_NONBLOCK flag was specified, and an incompatible lease was held on the fil
                                       req,
                                       true);
               io->hmac.set(obfuscation_key, eoskey);
+              mLock.Lock(&md->Locker());
               io->ioctx()->attach(req, cookie, fi->flags);
             }
+
+            mLock.UnLock();
 
             XrdSysMutexHelper pLock(pmd->Locker());
             pmd->local_enoent().erase(name);
