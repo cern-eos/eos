@@ -1,5 +1,5 @@
 //------------------------------------------------------------------------------
-// File: QdbErrorReportListener.hh
+// File: QdbListener.hh
 // Author: Elvin Sindrilaru - CERN
 //------------------------------------------------------------------------------
 
@@ -21,7 +21,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "mq/QdbErrorReportListener.hh"
+#include "mq/QdbListener.hh"
 #include "namespace/ns_quarkdb/QdbContactDetails.hh"
 #include "qclient/pubsub/Message.hh"
 
@@ -30,22 +30,21 @@ EOSMQNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
-QdbErrorReportListener::QdbErrorReportListener(eos::QdbContactDetails&
-    qdb_details,
-    const std::string& channel):
+QdbListener::QdbListener(eos::QdbContactDetails& qdb_details,
+                         const std::string& channel):
   mSubscriber(qdb_details.members, qdb_details.constructSubscriptionOptions())
 {
   using namespace std::placeholders;
   mSubscription = mSubscriber.subscribe(channel);
   mSubscription->attachCallback(std::bind(
-                                  &QdbErrorReportListener::ProcessUpdateCb,
+                                  &QdbListener::ProcessUpdateCb,
                                   this, _1));
 }
 
 //------------------------------------------------------------------------------
 // Destructor
 //------------------------------------------------------------------------------
-QdbErrorReportListener::~QdbErrorReportListener()
+QdbListener::~QdbListener()
 {
   if (mSubscription) {
     mSubscription->detachCallback();
@@ -56,7 +55,7 @@ QdbErrorReportListener::~QdbErrorReportListener()
 // Callback to process message
 //------------------------------------------------------------------------------
 void
-QdbErrorReportListener::ProcessUpdateCb(qclient::Message&& msg)
+QdbListener::ProcessUpdateCb(qclient::Message&& msg)
 {
   {
     std::lock_guard lock(mMutex);
@@ -69,7 +68,7 @@ QdbErrorReportListener::ProcessUpdateCb(qclient::Message&& msg)
 // Fetch error report
 //------------------------------------------------------------------------------
 bool
-QdbErrorReportListener::fetch(std::string& out, ThreadAssistant* assistant)
+QdbListener::fetch(std::string& out, ThreadAssistant* assistant)
 {
   std::chrono::seconds timeout {5};
   std::unique_lock lock(mMutex);

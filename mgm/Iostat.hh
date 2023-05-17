@@ -211,7 +211,7 @@ public:
 //------------------------------------------------------------------------------
 //! Iostat subscribes to MQ, collects and digests report messages
 //------------------------------------------------------------------------------
-class Iostat
+class Iostat: public eos::common::LogId
 {
 public:
   //! Configuration keys used in config key-val store

@@ -24,8 +24,15 @@
 #pragma once
 #include "mq/Namespace.hh"
 #include "mq/XrdMqClient.hh"
+#include "mq/QdbListener.hh"
 
+//! Forward declarations
 class ThreadAssistant;
+
+namespace eos
+{
+class QdbContactDetails;
+}
 
 EOSMQNAMESPACE_BEGIN
 
@@ -37,8 +44,17 @@ class ReportListener
 public:
   //----------------------------------------------------------------------------
   //! Constructor
+  //!
+  //! @param broker MQ broker URL
+  //! @param hostname current hostname
+  //! @param use_qdb_listener if true then use QdbListener otherwise use old
+  //!        MQ client implementation
+  //! @param qdb_details QDB connection details
+  //! @param channel subscription channel for reports
   //----------------------------------------------------------------------------
-  ReportListener(const std::string& broker, const std::string& hostname);
+  ReportListener(const std::string& broker, const std::string& hostname,
+                 bool use_qdb_listener, eos::QdbContactDetails& qdb_details,
+                 const std::string& channel);
 
   //----------------------------------------------------------------------------
   //! Destructor
@@ -52,6 +68,7 @@ public:
 
 private:
   XrdMqClient mClient;
+  std::unique_ptr<QdbListener> mQdbListener {nullptr};
 };
 
 EOSMQNAMESPACE_END

@@ -98,8 +98,9 @@ XrdMgmOfs::ErrorLogListenerThread(ThreadAssistant& assistant) noexcept
 
   std::string out;
   XrdSysLogger logger(fileno(file), 1);
-  eos::mq::QdbErrorReportListener err_listener(mQdbContactDetails, channel);
-  eos_static_info("%s", "msg=\"starting error report listener\"");
+  int retc = logger.Bind(log_path.c_str(), 1);
+  eos::mq::QdbListener err_listener(mQdbContactDetails, channel);
+  eos_static_info("msg=\"starting error report listener\" bind_retc=%d", retc);
 
   while (!assistant.terminationRequested()) {
     if (err_listener.fetch(out, &assistant)) {
