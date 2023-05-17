@@ -260,14 +260,9 @@ ProcCommand::open(const char* inpath, const char* info,
     } else if (mCmd == "config") { // @todo (faluchet) drop when move to 5.0.0
       Config();
       mDoSort = false;
-    } else if (mCmd == "node") { // @todo (faluchet) drop when move to 5.0.0
-      Node();
-      mDoSort = false;
     } else if (mCmd == "group") { // @todo (faluchet) drop when move to 5.0.0
       Group();
       mDoSort = false;
-    } else if (mCmd == "debug") { // @todo (faluchet) drop when move to 5.0.0
-      Debug();
     } else if (mCmd == "quota") { // @todo (faluchet) drop when move to 5.0.0
       AdminQuota();
       mDoSort = false;

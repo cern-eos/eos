@@ -53,7 +53,6 @@
 #include "common/ShellCmd.hh"
 #include "common/BufferManager.hh"
 #include "common/async/ExecutorMgr.hh"
-#include "mq/SharedHashWrapper.hh"
 #include "XrdNet/XrdNetOpts.hh"
 #include "XrdNet/XrdNetUtils.hh"
 #include "XrdOfs/XrdOfs.hh"
@@ -371,13 +370,13 @@ XrdFstOfs::XrdFstOfs() :
 
   if (getenv("EOS_FST_ALIAS")) {
     gConfig.HostAlias = getenv("EOS_FST_ALIAS");
-    fprintf(stderr,"Setting host alias to %s\n", gConfig.HostAlias.c_str());
+    fprintf(stderr, "Setting host alias to %s\n", gConfig.HostAlias.c_str());
   }
 
   if (getenv("EOS_FST_PORT_ALIAS")) {
     gConfig.PortAlias = getenv("EOS_FST_PORT_ALIAS");
   }
-  
+
   // Initialize the google sparse hash maps
   gOFS.WNoDeleteOnCloseFid.clear_deleted_key();
   gOFS.WNoDeleteOnCloseFid.set_deleted_key(0);

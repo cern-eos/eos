@@ -499,20 +499,20 @@ FileSystem::FileSystem(const FileSystemLocator& locator,
   std::string broadcast = mHashLocator.getBroadcastQueue();
 
   if (mRealm && mRealm->getSom()) {
-    mq::SharedHashWrapper::Batch updateBatch;
-    updateBatch.SetDurable("queue", mLocator.getFSTQueue());
-    updateBatch.SetDurable("queuepath", mLocator.getQueuePath());
-    updateBatch.SetDurable("path", mLocator.getStoragePath());
-    updateBatch.SetDurable("hostport", locator.getHostPort());
-    updateBatch.SetDurable("host", locator.getHost());
-    updateBatch.SetDurable("port", std::to_string(locator.getPort()));
-    updateBatch.SetLocal("local.drain", "nodrain");
+    mq::SharedHashWrapper::Batch upd_batch;
+    upd_batch.SetDurable("queue", mLocator.getFSTQueue());
+    upd_batch.SetDurable("queuepath", mLocator.getQueuePath());
+    upd_batch.SetDurable("path", mLocator.getStoragePath());
+    upd_batch.SetDurable("hostport", locator.getHostPort());
+    upd_batch.SetDurable("host", locator.getHost());
+    upd_batch.SetDurable("port", std::to_string(locator.getPort()));
+    upd_batch.SetLocal("local.drain", "nodrain");
 
     if (!mRealm->haveQDB() && !bc2mgm) {
-      updateBatch.SetDurable("configstatus", "down");
+      upd_batch.SetDurable("configstatus", "down");
     }
 
-    mq::SharedHashWrapper(mRealm, mHashLocator).set(updateBatch);
+    mq::SharedHashWrapper(mRealm, mHashLocator).set(upd_batch);
     mBalanceQueue = new TransferQueue(TransferQueueLocator(mLocator, "balanceq"),
                                       mRealm, bc2mgm);
     mExternQueue = new TransferQueue(TransferQueueLocator(mLocator, "externq"),
