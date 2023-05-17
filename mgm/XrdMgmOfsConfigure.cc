@@ -1497,7 +1497,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
                                     mMessagingRealm.get());
 
     if (!MgmOfsMessaging->StartListenerThread()) {
-      eos_crit("%s", "msg=\"messaging failed to start listening thread\"");
+      eos_static_crit("%s", "msg=\"messaging failed to start listening thread\"");
       return 1;
     }
 
@@ -1521,13 +1521,14 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
     char* ptr = getenv("EOS_MGM_DISABLE_FILE_DUMPER");
 
     if ((ptr == nullptr) || (strncmp(ptr, "1", 1) != 0)) {
-      eos_info("%s", "msg=\"mgm file dumper enabled");
+      eos_static_info("%s", "msg=\"mgm file dumper enabled");
       ObjectManager.StartDumper(dumperfile.c_str());
     } else {
-      eos_info("%s", "msg=\"mgm file dumper disabled");
+      eos_static_info("%s", "msg=\"mgm file dumper disabled");
     }
   }
 
+  // @todo(esindril) decide if this is still neede in qdb pubsub mode
   SetupGlobalConfig();
   // Initialize geotree engine
   mGeoTreeEngine.reset(new eos::mgm::GeoTreeEngine(mMessagingRealm.get()));
@@ -1602,7 +1603,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
 #endif
 
   if (!mMaster->BootNamespace()) {
-    eos_crit("%s", "msg=\"namespace boot failed\"");
+    eos_static_crit("%s", "msg=\"namespace boot failed\"");
     return 1;
   }
 
@@ -1613,7 +1614,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
     rootmd = eosView->getContainer("/");
   } catch (const eos::MDException& e) {
     Eroute.Emsg("Config", "cannot get the / directory meta data");
-    eos_crit("eos view cannot retrieve the / directory");
+    eos_static_crit("eos view cannot retrieve the / directory");
     return 1;
   }
 
@@ -1626,17 +1627,17 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
                         S_IWGRP | S_IXGRP);
       } catch (const eos::MDException& e) {
         Eroute.Emsg("Config", "cannot set the / directory mode to initial mode");
-        eos_crit("cannot set the / directory mode to 755");
+        eos_static_crit("cannot set the / directory mode to 755");
         return 1;
       }
     } else {
       Eroute.Emsg("Config", "/ directory has no 755 permissions set");
-      eos_crit("cannot see / directory with mode to 755");
+      eos_static_crit("cannot see / directory with mode to 755");
       return 1;
     }
   }
 
-  eos_info("msg=\"/ permissions are %o\"", rootmd->getMode());
+  eos_static_info("msg=\"/ permissions are %o\"", rootmd->getMode());
   //mProcDirectoryBulkRequestLocations.reset(new bulk::ProcDirectoryBulkRequestLocations(MgmProcPath.c_str()));
   std::string restApiProcBulkRequestPath = MgmProcPath.c_str();
   restApiProcBulkRequestPath += "/tape-rest-api";
@@ -1660,17 +1661,19 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
                        S_IWGRP | S_IXGRP);
         eosmd->setAttribute("sys.forced.checksum", "adler");
         eosView->updateContainerStore(eosmd.get());
-        eos_info("/eos permissions are %o checksum is set <adler>", eosmd->getMode());
+        eos_static_info("/eos permissions are %o checksum is set <adler>",
+                        eosmd->getMode());
         eosmd = eosView->createContainer(instancepath.c_str(), true);
         eosmd->setMode(S_IFDIR | S_IRWXU | S_IROTH | S_IXOTH | S_IRGRP |
                        S_IWGRP | S_IXGRP);
         eosmd->setAttribute("sys.forced.checksum", "adler");
         eosView->updateContainerStore(eosmd.get());
-        eos_info("%s permissions are %o checksum is set <adler>", instancepath.c_str(),
-                 eosmd->getMode());
+        eos_static_info("%s permissions are %o checksum is set <adler>",
+                        instancepath.c_str(),
+                        eosmd->getMode());
       } catch (const eos::MDException& e) {
         Eroute.Emsg("Config", "cannot set the /eos/ directory mode to initial mode");
-        eos_crit("cannot set the /eos/ directory mode to 755");
+        eos_static_crit("cannot set the /eos/ directory mode to 755");
         return 1;
       }
     }
@@ -1690,7 +1693,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
       } catch (const eos::MDException& e) {
         Eroute.Emsg("Config", "cannot set the /eos/<instance>/proc/ "
                     "directory mode to initial mode");
-        eos_crit("cannot set the /eos/proc directory mode to 755");
+        eos_static_crit("cannot set the /eos/proc directory mode to 755");
         return 1;
       }
     }
@@ -1707,13 +1710,13 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
         eosmd = eosView->createContainer(Recycle::gRecyclingPrefix, true);
         eosmd->setMode(S_IFDIR | S_IRWXU);
         eosView->updateContainerStore(eosmd.get());
-        eos_info("%s permissions are %o", Recycle::gRecyclingPrefix.c_str(),
-                 eosmd->getMode());
+        eos_static_info("%s permissions are %o", Recycle::gRecyclingPrefix.c_str(),
+                        eosmd->getMode());
       } catch (const eos::MDException& e) {
         Eroute.Emsg("Config", "cannot set the recycle directory mode to initial mode");
-        eos_crit("cannot set the %s directory mode to 700",
-                 Recycle::gRecyclingPrefix.c_str());
-        eos_crit("%s", e.what());
+        eos_static_crit("cannot set the %s directory mode to 700",
+                        Recycle::gRecyclingPrefix.c_str());
+        eos_static_crit("%s", e.what());
         return 1;
       }
     }
@@ -1735,7 +1738,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
       } catch (const eos::MDException& e) {
         Eroute.Emsg("Config", "cannot set the /eos/../proc/conversion directory"
                     " mode to initial mode");
-        eos_crit("cannot set the /eos/../proc/conversion directory mode to 770");
+        eos_static_crit("cannot set the /eos/../proc/conversion directory mode to 770");
         return 1;
       }
     }
@@ -1757,7 +1760,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
       } catch (const eos::MDException& e) {
         Eroute.Emsg("Config", "cannot set the /eos/../proc/archive directory "
                     "mode to initial mode");
-        eos_crit("cannot set the /eos/../proc/archive directory mode to 770");
+        eos_static_crit("cannot set the /eos/../proc/archive directory mode to 770");
         return 1;
       }
     }
@@ -1781,7 +1784,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
       } catch (const eos::MDException& e) {
         Eroute.Emsg("Config", "cannot set the /eos/../proc/clone directory "
                     "mode to initial mode");
-        eos_crit("cannot set the /eos/../proc/clone directory mode to 770");
+        eos_static_crit("cannot set the /eos/../proc/clone directory mode to 770");
       }
     }
 
@@ -1801,7 +1804,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
       } catch (const eos::MDException& e) {
         Eroute.Emsg("Config",
                     "cannot set the /eos/../proc/workflow directory mode to initial mode");
-        eos_crit("cannot set the /eos/../proc/workflow directory mode to 700");
+        eos_static_crit("cannot set the /eos/../proc/workflow directory mode to 700");
         return 1;
       }
     }
@@ -1822,7 +1825,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
       } catch (const eos::MDException& e) {
         Eroute.Emsg("Config", "cannot set the /eos/../proc/creation directory mode "
                     "to initial mode");
-        eos_crit("cannot set the /eos/../proc/creation directory mode to 700");
+        eos_static_crit("cannot set the /eos/../proc/creation directory mode to 700");
         return 1;
       }
     }
@@ -1843,7 +1846,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
       } catch (const eos::MDException& e) {
         Eroute.Emsg("Config", "cannot set the /eos/../proc/token directory mode "
                     "to initial mode");
-        eos_crit("cannot set the /eos/../proc/token directory mode to 700");
+        eos_static_crit("cannot set the /eos/../proc/token directory mode to 700");
         return 1;
       }
     }
@@ -1875,7 +1878,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
             std::ostringstream errorMsg;
             errorMsg << "cannot set the " << bulkReqDirPath
                      << " directory mode to 700";
-            eos_crit(errorMsg.str().c_str());
+            eos_static_crit(errorMsg.str().c_str());
           }
           return 1;
         }
@@ -1909,7 +1912,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
             std::ostringstream errorMsg;
             errorMsg << "cannot set the " << bulkReqDirPath
                      << " directory mode to 700";
-            eos_crit(errorMsg.str().c_str());
+            eos_static_crit(errorMsg.str().c_str());
           }
           return 1;
         }
@@ -1935,9 +1938,9 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   std::ostringstream oss;
   oss << "ipc://" << MgmArchiveDir.c_str() << "archive_frontend.ipc";
   mArchiveEndpoint = oss.str();
-  eos_info("%s", "msg=\"starting statistics thread\"");
+  eos_static_info("%s", "msg=\"starting statistics thread\"");
   mStatsTid.reset(&Stat::Circulate, &MgmStats);
-  eos_info("%s", "msg=\"starting archive submitter thread\"");
+  eos_static_info("%s", "msg=\"starting archive submitter thread\"");
   mSubmitterTid.reset(&XrdMgmOfs::ArchiveSubmitterThread, this);
 
   if (!MgmRedirector) {
@@ -1945,31 +1948,36 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
       if (mMessagingRealm->haveQDB()) {
         // Start ErrorReportListener and log entries in the local file
         eos_static_info("%s", "msg=\"starting error logger thread\"");
-        mErrLoggerTid.reset(&XrdMgmOfs::ErrorLogListenerThread, this);
+
+        try {
+          mErrLoggerTid.reset(&XrdMgmOfs::ErrorLogListenerThread, this);
+        } catch (const std::system_error& e) {
+          eos_static_err("%s", "msg=\"failed to start error logger thread\"");
+        }
       } else {
         // Run the error log console
         XrdOucString errorlogkillline = "pkill -9 -f \"eos -b console log _MGMID_\"";
         int rrc = system(errorlogkillline.c_str());
 
         if (WEXITSTATUS(rrc)) {
-          eos_info("%s returned %d", errorlogkillline.c_str(), rrc);
+          eos_static_info("%s returned %d", errorlogkillline.c_str(), rrc);
         }
 
         XrdOucString errorlogline = "eos -b console log _MGMID_ >& /dev/null &";
         rrc = system(errorlogline.c_str());
 
         if (WEXITSTATUS(rrc)) {
-          eos_info("%s returned %d", errorlogline.c_str(), rrc);
+          eos_static_info("%s returned %d", errorlogline.c_str(), rrc);
         }
       }
     }
 
-    eos_info("%s", "msg=\"starting fs listener thread\"");
+    eos_static_info("%s", "msg=\"starting fs listener thread\"");
 
     try {
       mFsConfigTid.reset(&XrdMgmOfs::FsConfigListener, this);
     } catch (const std::system_error& e) {
-      eos_crit("cannot start fs listener thread");
+      eos_static_crit("cannot start fs listener thread");
       NoGo = 1;
     }
 
@@ -1977,19 +1985,19 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   }
 
   if (!ObjectNotifier.Start()) {
-    eos_crit("error starting the shared object change notifier");
+    eos_static_crit("error starting the shared object change notifier");
   }
 
   // Initialize the transfer database
   if (!gTransferEngine.Init("/var/eos/tx")) {
-    eos_crit("cannot initialize transfer database");
+    eos_static_crit("cannot initialize transfer database");
     NoGo = 1;
   }
 
   // create the 'default' quota space which is needed if quota is disabled!
   if (mHttpd) {
     if (!mHttpd->Start()) {
-      eos_warning("msg=\"cannot start httpd daemon\"");
+      eos_static_warning("msg=\"cannot start httpd daemon\"");
     }
   }
 
@@ -2050,12 +2058,12 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
 
   // start the WFE daemon
   if (!gOFS->WFEd.Start()) {
-    eos_warning("msg=\"cannot start WFE thread\"");
+    eos_static_warning("msg=\"cannot start WFE thread\"");
   }
 
   // Start the recycler garbage collection thread on a master machine
   if ((mMaster->IsMaster()) && (!Recycler->Start())) {
-    eos_warning("msg=\"cannot start recycle thread\"");
+    eos_static_warning("msg=\"cannot start recycle thread\"");
   }
 
   // Print a test-stacktrace to ensure we have debugging symbols.
@@ -2071,9 +2079,9 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
                                        << ".dump");
 
   if (!IoStats->Init(MgmOfsInstanceName.c_str(), ManagerPort, iostat_file)) {
-    eos_warning("%s", "msg=\"failed to initialize IoStat object\"");
+    eos_static_warning("%s", "msg=\"failed to initialize IoStat object\"");
   } else {
-    eos_notice("%s", "msg=\"successfully initalized IoStat object\"");
+    eos_static_notice("%s", "msg=\"successfully initalized IoStat object\"");
   }
 
   if (!MgmRedirector) {
@@ -2111,18 +2119,18 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   (void) signal(SIGUSR1, xrdmgmofs_stack);
 
   if (mNumAuthThreads && mFrontendPort) {
-    eos_info("starting the authentication master thread");
+    eos_static_info("starting the authentication master thread");
 
     try {
       mAuthMasterTid.reset(&XrdMgmOfs::AuthMasterThread, this);
     } catch (const std::system_error& e) {
-      eos_crit("cannot start the authentication master thread");
+      eos_static_crit("cannot start the authentication master thread");
       NoGo = 1;
     }
 
     // @todo(esindril): this should be removed and we should use a
     // pool of threads
-    eos_info("starting the authentication worker threads");
+    eos_static_info("starting the authentication worker threads");
 
     for (unsigned int i = 0; i < mNumAuthThreads; ++i) {
       pthread_t worker_tid;
@@ -2130,7 +2138,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
       if ((XrdSysThread::Run(&worker_tid, XrdMgmOfs::StartAuthWorkerThread,
                              static_cast<void*>(this), XRDSYSTHREAD_HOLD,
                              "Auth Worker Thread"))) {
-        eos_crit("msg=\"cannot start authentication thread num=%i\"", i);
+        eos_static_crit("msg=\"cannot start authentication thread num=%i\"", i);
         NoGo = 1;
         break;
       } else {
@@ -2148,7 +2156,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   // Start the drain engine
   mDrainEngine.Start();
   // Start the Converter driver
-  eos_info("%s", "msg=\"starting Converter Engine\"");
+  eos_static_info("%s", "msg=\"starting Converter Engine\"");
   mConverterDriver.reset(new eos::mgm::ConverterDriver(mQdbContactDetails));
   mConverterDriver->Start();
   return NoGo;
@@ -2437,28 +2445,30 @@ XrdMgmOfs::SetupProcFiles()
 void
 XrdMgmOfs::SetupGlobalConfig()
 {
-  std::string configQueue = SSTR("/config/" << eos::common::InstanceName::get() <<
-                                 "/mgm/");
+  if (!mMessagingRealm->haveQDB()) {
+    std::string configQueue = SSTR("/config/"
+                                   << eos::common::InstanceName::get()
+                                   << "/mgm/");
 
-  if (!ObjectManager.CreateSharedHash(
-        configQueue.c_str(), "/eos/*/mgm")) {
-    eos_crit("msg=\"cannot add global config queue\" qpath=\"%s\"",
-             configQueue.c_str());
-  }
+    if (!ObjectManager.CreateSharedHash(configQueue.c_str(), "/eos/*/mgm")) {
+      eos_static_crit("msg=\"cannot add global config queue\" qpath=\"%s\"",
+                      configQueue.c_str());
+    }
 
-  configQueue = SSTR("/config/" << eos::common::InstanceName::get() << "/all/");
+    configQueue = SSTR("/config/" << eos::common::InstanceName::get()
+                       << "/all/");
 
-  if (!ObjectManager.CreateSharedHash(
-        configQueue.c_str(), "/eos/*")) {
-    eos_crit("msg=\"cannot add global config queue\" qpath=\"%s\"",
-             configQueue.c_str());
-  }
+    if (!ObjectManager.CreateSharedHash(configQueue.c_str(), "/eos/*")) {
+      eos_static_crit("msg=\"cannot add global config queue\" qpath=\"%s\"",
+                      configQueue.c_str());
+    }
 
-  configQueue = SSTR("/config/" << eos::common::InstanceName::get() << "/fst/");
+    configQueue = SSTR("/config/" << eos::common::InstanceName::get()
+                       << "/fst/");
 
-  if (!ObjectManager.CreateSharedHash(
-        configQueue.c_str(), "/eos/*/fst")) {
-    eos_crit("msg=\"cannot add global config queue\" qpath=\"%s\"",
-             configQueue.c_str());
+    if (!ObjectManager.CreateSharedHash(configQueue.c_str(), "/eos/*/fst")) {
+      eos_static_crit("msg=\"cannot add global config queue\" qpath=\"%s\"",
+                      configQueue.c_str());
+    }
   }
 }
