@@ -29,8 +29,8 @@ include_directories(
 #-------------------------------------------------------------------------------
 add_library(XrdMqClient-Objects OBJECT
   XrdMqTiming.hh
+  QdbListener.cc                 QdbListener.hh
   ErrorReportListener.cc         ErrorReportListener.hh
-  QdbErrorReportListener.cc      QdbErrorReportListener.hh
   FsChangeListener.cc            FsChangeListener.hh
   GlobalConfigChangeListener.cc  GlobalConfigChangeListener.hh
   MessagingRealm.cc              MessagingRealm.hh

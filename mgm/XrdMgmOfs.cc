@@ -89,7 +89,7 @@
 #include "mq/FsChangeListener.hh"
 #include "mq/GlobalConfigChangeListener.hh"
 #include "mq/MessagingRealm.hh"
-#include "mq/QdbErrorReportListener.hh"
+#include "mq/QdbListener.hh"
 #include "namespace/interface/IFsView.hh"
 #include "namespace/Prefetcher.hh"
 #include "namespace/utils/Stat.hh"
