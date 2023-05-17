@@ -29,17 +29,24 @@ EOSMQNAMESPACE_BEGIN
 // Constructor
 //------------------------------------------------------------------------------
 ReportListener::ReportListener(const std::string& broker,
-                               const std::string& hostname)
+                               const std::string& hostname,
+                               bool use_qdb_listener,
+                               eos::QdbContactDetails& qdb_details,
+                               const std::string& channel)
 {
-  XrdOucString queue = broker.c_str();
-  queue += hostname.c_str();
-  queue += "/report";
-  queue.replace("root://", "root://daemon@");
-
-  if (!mClient.AddBroker(queue.c_str())) {
-    eos_static_err("failed to add broker %s", queue.c_str());
+  if (use_qdb_listener) {
+    mQdbListener.reset(new QdbListener(qdb_details, channel));
   } else {
-    mClient.Subscribe();
+    XrdOucString queue = broker.c_str();
+    queue += hostname.c_str();
+    queue += "/report";
+    queue.replace("root://", "root://daemon@");
+
+    if (!mClient.AddBroker(queue.c_str())) {
+      eos_static_err("msg=\"failed to add broker\" queue=%s", queue.c_str());
+    } else {
+      mClient.Subscribe();
+    }
   }
 }
 
@@ -49,15 +56,19 @@ ReportListener::ReportListener(const std::string& broker,
 bool
 ReportListener::fetch(std::string& out, ThreadAssistant* assistant)
 {
-  std::unique_ptr<XrdMqMessage> message = std::unique_ptr<XrdMqMessage>
-                                          (mClient.RecvMessage(assistant));
+  if (mQdbListener) {
+    return mQdbListener->fetch(out, assistant);
+  } else {
+    std::unique_ptr<XrdMqMessage> message = std::unique_ptr<XrdMqMessage>
+                                            (mClient.RecvMessage(assistant));
 
-  if (message) {
-    out = message->GetBody();
-    return true;
+    if (message) {
+      out = message->GetBody();
+      return true;
+    }
+
+    return false;
   }
-
-  return false;
 }
 
 EOSMQNAMESPACE_END
