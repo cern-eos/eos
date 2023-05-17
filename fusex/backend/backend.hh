@@ -27,6 +27,7 @@
 
 #include "common/Logging.hh"
 #include "fusex/fusex.pb.h"
+#include "md/md.hh"
 #include "misc/FuseId.hh"
 #include "llfusexx.hh"
 #include "XrdCl/XrdClStatus.hh"
@@ -70,8 +71,7 @@ public:
            );
 
   int doLock(fuse_req_t req,
-             eos::fusex::md& md,
-             XrdSysMutex* locker);
+             metad::shared_md md);
 
 
   int fetchResponse(std::string& url,
@@ -83,12 +83,11 @@ public:
 			 std::vector<eos::fusex::container>& cont
 			 );
 
-  int rmRf(fuse_req_t req, eos::fusex::md* md);
+  int rmRf(fuse_req_t req, metad::shared_md md);
 
-  int putMD(fuse_req_t req, eos::fusex::md* md, std::string authid,
-            XrdSysMutex* locker);
-  int putMD(fuse_id& id, eos::fusex::md* md, std::string authid,
-            XrdSysMutex* locker);
+  int putMD(fuse_req_t req, metad::shared_md md, std::string authid);
+
+  int putMD(fuse_id& id, metad::shared_md md, std::string authid);
 
   int getCAP(fuse_req_t req,
              uint64_t inode,

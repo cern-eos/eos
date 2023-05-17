@@ -491,7 +491,7 @@ has_response:
 
 int
 /* -------------------------------------------------------------------------- */
-backend::rmRf(fuse_req_t req, eos::fusex::md* md)
+backend::rmRf(fuse_req_t req, metad::shared_md md)
 /* -------------------------------------------------------------------------- */
 {
   fuse_id id(req);
@@ -500,7 +500,7 @@ backend::rmRf(fuse_req_t req, eos::fusex::md* md)
   XrdCl::URL::ParamsMap query;
   query["mgm.cmd"] = "rm";
   query["mgm.option"] = "r";
-  query["mgm.container.id"] = std::to_string(md->md_ino());
+  query["mgm.container.id"] = std::to_string((*md)()->md_ino());
   query["mgm.uuid"] = clientuuid;
   query["mgm.retc"] = "1";
 
@@ -536,19 +536,18 @@ backend::rmRf(fuse_req_t req, eos::fusex::md* md)
 /* -------------------------------------------------------------------------- */
 int
 /* -------------------------------------------------------------------------- */
-backend::putMD(fuse_req_t req, eos::fusex::md* md, std::string authid,
-               XrdSysMutex* locker)
+backend::putMD(fuse_req_t req, metad::shared_md md, std::string authid)
 {
   fuse_id id(req);
-  return putMD(id, md, authid, locker);
+  return putMD(id, md, authid);
 }
 
 /* -------------------------------------------------------------------------- */
 int
 /* -------------------------------------------------------------------------- */
-backend::putMD(fuse_id& id, eos::fusex::md* md, std::string authid,
-               XrdSysMutex* locker)
+backend::putMD(fuse_id& id, metad::shared_md md, std::string authid)
 {
+  // called with md locked
   XrdCl::URL url;
   XrdCl::URL::ParamsMap query;
   bool was_bound = false;
@@ -571,28 +570,28 @@ backend::putMD(fuse_id& id, eos::fusex::md* md, std::string authid,
   eos_static_debug("identity bound url=%s was-bound=%d",
                    id.getid()->url.GetURL().c_str(), was_bound);
   // temporary add the authid to be used for that request
-  md->set_authid(authid);
-  md->set_clientuuid(clientuuid);
+  (*md)()->set_authid(authid);
+  (*md)()->set_clientuuid(clientuuid);
   std::string mdstream;
   eos_static_info("proto-serialize");
 
-  if (!md->SerializeToString(&mdstream)) {
-    md->clear_authid();
-    md->clear_clientuuid();
-    md->clear_implied_authid();
+  if (!(*md)()->SerializeToString(&mdstream)) {
+    (*md)()->clear_authid();
+    (*md)()->clear_clientuuid();
+    (*md)()->clear_implied_authid();
     eos_static_err("fatal serialization error");
     return EFAULT;
   }
 
   if (EOS_LOGS_DEBUG) {
-    eos_static_debug("MD:\n%s", EosFuse::Instance().mds.dump_md(*md).c_str());
+    eos_static_debug("MD:\n%s", EosFuse::Instance().mds.dump_md(*(*md)()).c_str());
   }
 
-  md->clear_authid();
-  md->clear_clientuuid();
-  md->clear_implied_authid();
+  (*md)()->clear_authid();
+  (*md)()->clear_clientuuid();
+  (*md)()->clear_implied_authid();
 
-  locker->UnLock();
+  md->Locker().UnLock();
 
   eos_static_info("proto-serialize unlock");
   XrdCl::Buffer arg;
@@ -623,7 +622,7 @@ backend::putMD(fuse_id& id, eos::fusex::md* md, std::string authid,
       } else {
         eos_static_err("protocol error - to short response received");
 
-	locker->Lock();
+        md->Locker().Lock();
 
         return EIO;
       }
@@ -631,7 +630,7 @@ backend::putMD(fuse_id& id, eos::fusex::md* md, std::string authid,
       if (responseprefix != "Fusex:") {
         eos_static_err("protocol error - fusex: prefix missing in response");
 
-	locker->Lock();
+        md->Locker().Lock();
 
         return EIO;
       }
@@ -646,7 +645,7 @@ backend::putMD(fuse_id& id, eos::fusex::md* md, std::string authid,
           ((resp.type() != resp.ACK) && (resp.type() != resp.NONE))) {
         eos_static_err("parsing error/wrong response type received");
 
-	locker->Lock();
+        md->Locker().Lock();
 
         return EIO;
       }
@@ -655,34 +654,34 @@ backend::putMD(fuse_id& id, eos::fusex::md* md, std::string authid,
         if (resp.ack_().code() == resp.ack_().OK) {
           eos_static_info("relock do");
 
-	  locker->Lock();
+          md->Locker().Lock();
 
           if (resp.ack_().md_ino()) {
-	    md->set_md_ino(resp.ack_().md_ino());
+	    (*md)()->set_md_ino(resp.ack_().md_ino());
           }
 
-          eos_static_debug("directory inode %lx => %lx/%lx tid=%lx error='%s'", md->id(),
-                           md->md_ino(),
+          eos_static_debug("directory inode %lx => %lx/%lx tid=%lx error='%s'", md->xid(),
+                           (*md)()->md_ino(),
                            resp.ack_().md_ino(), resp.ack_().transactionid(),
                            resp.ack_().err_msg().c_str());
           eos_static_info("relock done");
           return 0;
         }
 
-        eos_static_err("failed query command for ino=%lx error='%s'", md->id(),
+        eos_static_err("failed query command for ino=%lx error='%s'", md->xid(),
                        resp.ack_().err_msg().c_str());
 
         if (EOS_LOGS_DEBUG) {
-          eos_static_err("MD:\n%s", EosFuse::Instance().mds.dump_md(*md).c_str());
+          eos_static_err("MD:\n%s", EosFuse::Instance().mds.dump_md(*(*md)()).c_str());
         }
 
-	locker->Lock();
+        md->Locker().Lock();
 
         return EIO;
       }
 
       if (resp.type() == resp.NONE) {
-	locker->Lock();
+        md->Locker().Lock();
 
         return 0;
       }
@@ -690,19 +689,19 @@ backend::putMD(fuse_id& id, eos::fusex::md* md, std::string authid,
       eos_static_err("no response retrieved response=%lu response-buffer=%lu",
                      response, response ? response->GetBuffer() : 0);
 
-      locker->Lock();
+      md->Locker().Lock();
 
       return EIO;
     }
 
-    locker->Lock();
+    md->Locker().Lock();
 
     return 0;
   } else {
-    eos_static_err("query resulted in error for ino=%lx url=%s", md->id(),
+    eos_static_err("query resulted in error for ino=%lx url=%s", md->xid(),
                    id.getid()->url.GetURL().c_str());
 
-    locker->Lock();
+    md->Locker().Lock();
 
     if (status.code == XrdCl::errErrorResponse) {
       eos_static_err("errno=%i", status.errNo);
@@ -717,8 +716,7 @@ backend::putMD(fuse_id& id, eos::fusex::md* md, std::string authid,
 int
 /* -------------------------------------------------------------------------- */
 backend::doLock(fuse_req_t req,
-                eos::fusex::md& md,
-                XrdSysMutex* locker)
+                metad::shared_md md)
 /* -------------------------------------------------------------------------- */
 {
   XrdCl::URL url("root://" + hostport);
@@ -727,20 +725,20 @@ backend::doLock(fuse_req_t req,
   fusexrdlogin::loginurl(url, query, req, 0);
   query["fuse.v"] = std::to_string(FUSEPROTOCOLVERSION);
   url.SetParams(query);
-  md.set_clientuuid(clientuuid);
+  (*md)()->set_clientuuid(clientuuid);
   std::string mdstream;
   eos_static_info("proto-serialize");
 
-  if (!md.SerializeToString(&mdstream)) {
-    md.clear_clientuuid();
-    md.clear_flock();
+  if (!(*md)()->SerializeToString(&mdstream)) {
+    (*md)()->clear_clientuuid();
+    (*md)()->clear_flock();
     eos_static_err("fatal serialization error");
     return EFAULT;
   }
 
-  md.clear_clientuuid();
-  md.clear_flock();
-  locker->UnLock();
+  (*md)()->clear_clientuuid();
+  (*md)()->clear_flock();
+  md->Locker().UnLock();
   eos_static_info("proto-serialize unlock");
   XrdCl::Buffer arg;
   XrdCl::Buffer* response = 0;
@@ -768,13 +766,13 @@ backend::doLock(fuse_req_t req,
         // retrieve response
       } else {
         eos_static_err("protocol error - to short response received");
-        locker->Lock();
+        md->Locker().Lock();
         return EIO;
       }
 
       if (responseprefix != "Fusex:") {
         eos_static_err("protocol error - fusex: prefix missing in response");
-        locker->Lock();
+        md->Locker().Lock();
         return EIO;
       }
 
@@ -786,42 +784,42 @@ backend::doLock(fuse_req_t req,
 
       if (!resp.ParseFromString(sresponse) || (resp.type() != resp.LOCK)) {
         eos_static_err("parsing error/wrong response type received");
-        locker->Lock();
+        md->Locker().Lock();
         return EIO;
       }
 
       if (resp.ack_().code() == resp.ack_().OK) {
         eos_static_info("relock do");
-        locker->Lock();
-        (*(md.mutable_flock())) = (resp.lock_());
-        eos_static_debug("directory inode %lx => %lx/%lx tid=%lx error='%s'", md.id(),
-                         md.md_ino(),
+        md->Locker().Lock();
+        (*((*md)()->mutable_flock())) = (resp.lock_());
+        eos_static_debug("directory inode %lx => %lx/%lx tid=%lx error='%s'", md->xid(),
+                         (*md)()->md_ino(),
                          resp.ack_().md_ino(), resp.ack_().transactionid(),
                          resp.ack_().err_msg().c_str());
         eos_static_info("relock done");
         return 0;
       }
 
-      eos_static_err("failed query command for ino=%lx error='%s'", md.id(),
+      eos_static_err("failed query command for ino=%lx error='%s'", md->xid(),
                      resp.ack_().err_msg().c_str());
 
       if (EOS_LOGS_DEBUG) {
-        eos_static_err("MD:\n%s", EosFuse::Instance().mds.dump_md(md).c_str());
+        eos_static_err("MD:\n%s", EosFuse::Instance().mds.dump_md(*(*md)()).c_str());
       }
 
-      locker->Lock();
+      md->Locker().Lock();
       return EIO;
     } else {
       eos_static_err("no response retrieved response=%lu response-buffer=%lu",
                      response, response ? response->GetBuffer() : 0);
-      locker->Lock();
+      md->Locker().Lock();
       return EIO;
     }
   } else {
     eos_static_err("query resulted in error url=%s", url.GetURL().c_str());
   }
 
-  locker->Lock();
+  md->Locker().Lock();
   return EIO;
 }
 

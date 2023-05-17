@@ -30,7 +30,6 @@
 #include <fcntl.h>
 #include "llfusexx.hh"
 #include "fusex/fusex.pb.h"
-#include "backend/backend.hh"
 #include "common/Logging.hh"
 #include "common/RWMutex.hh"
 #include "common/AssistedThread.hh"
@@ -54,6 +53,8 @@
 #else
 #include "utils/zmq.hpp"
 #endif
+
+class backend;
 
 class metad
 {
@@ -82,17 +83,14 @@ public:
       inline_size = 0;
       _lru_prev.store(0, std::memory_order_seq_cst);
       _lru_next.store(0, std::memory_order_seq_cst);
+      _id = 0;
+      _pid = 0;
+      _err = 0;
     }
 
     mdx(fuse_ino_t ino) : mdx()
     {
-      proto.set_id(ino);
-    }
-
-    mdx& operator=(const eos::fusex::md& other)
-    {
-      proto = other;
-      return *this;
+      set_xid(ino);
     }
 
     virtual ~mdx() { }
@@ -142,7 +140,7 @@ public:
     {
       // atomic operation, no need to lock before calling
       int prevLookup = lookup_cnt.fetch_add(1, std::memory_order_seq_cst);
-      eos_static_info("ino=%16x lookup=%d => lookup=%d", (*this)()->id(), prevLookup,
+      eos_static_info("ino=%16x lookup=%d => lookup=%d", xid(), prevLookup,
                       prevLookup + 1);
     }
 
@@ -167,7 +165,7 @@ public:
     {
       // atomic operation, no need to lock before calling
       int prevOpendir = opendir_cnt.fetch_add(1, std::memory_order_seq_cst);
-      eos_static_info("ino=%16x opendir=%d => opendir=%d", (*this)()->id(),
+      eos_static_info("ino=%16x opendir=%d => opendir=%d", xid(),
                       prevOpendir,
                       prevOpendir + 1);
     }
@@ -254,7 +252,7 @@ public:
     std::string Cookie()
     {
       char s[256];
-      snprintf(s, sizeof(s), "%lx:%lu.%lu:%lu", (unsigned long)(*this)()->id(),
+      snprintf(s, sizeof(s), "%lx:%lu.%lu:%lu", (unsigned long)xid(),
                (unsigned long)(*this)()->mtime(),
                (unsigned long)(*this)()->mtime_ns(),
                (unsigned long)(*this)()->size());
@@ -415,13 +413,38 @@ public:
       return &proto;
     }
 
-    uint64_t pidTS() {
-      XrdSysMutexHelper cLock(mLock);
-      return proto.pid();
+    void xCopyFrom(const eos::fusex::md& other) {
+      proto.CopyFrom(other);
+      _err = other.err();
+      // do not update either _id or _pid, usually those are
+      // unset in source and mustbe set for us via the setters
     }
-    
-    uint64_t pid() {
-      return proto.pid();
+
+    uint64_t xpid() const {
+      return _pid.load();
+    }
+
+    uint64_t xid() const {
+      return _id.load();
+    }
+
+    int xerr() const {
+      return _err.load();
+    }
+
+    void set_xpid(fuse_ino_t ino) {
+      proto.set_pid(ino);
+      _pid = ino;
+    }
+
+    void set_xid(fuse_ino_t ino) {
+      proto.set_id(ino);
+      _id = ino;
+    }
+
+    void set_xerr(int error) {
+      proto.set_err(error);
+      _err = error;
     }
     
   private:
@@ -443,6 +466,9 @@ public:
     std::atomic<uint64_t> _lru_prev;
     std::atomic<uint64_t> _lru_next;
     eos::fusex::md proto;
+    std::atomic<uint64_t> _id;
+    std::atomic<uint64_t> _pid;
+    std::atomic<int32_t> _err;
 
     struct hmac_t {
       std::string key;
