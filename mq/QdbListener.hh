@@ -1,5 +1,5 @@
 //------------------------------------------------------------------------------
-// File: QdbErrorReportListener.hh
+// File: QdbListener.hh
 // Author: Elvin Sindrilaru - CERN
 //------------------------------------------------------------------------------
 
@@ -50,7 +50,7 @@ EOSMQNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 //! Helper class for listening to error report messages sent through QDB
 //------------------------------------------------------------------------------
-class QdbErrorReportListener
+class QdbListener
 {
 public:
   //----------------------------------------------------------------------------
@@ -59,13 +59,12 @@ public:
   //! @param qdb details QDB contact details
   //! @param channel subscription channel for receiving messages
   //----------------------------------------------------------------------------
-  QdbErrorReportListener(eos::QdbContactDetails& qdb_details,
-                         const std::string& channel);
+  QdbListener(eos::QdbContactDetails& qdb_details, const std::string& channel);
 
   //----------------------------------------------------------------------------
   //! Destructor
   //----------------------------------------------------------------------------
-  ~QdbErrorReportListener();
+  ~QdbListener();
 
   //----------------------------------------------------------------------------
   //! Fetch error report

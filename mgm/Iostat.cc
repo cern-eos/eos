@@ -37,6 +37,7 @@
 #include "mgm/Iostat.hh"
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/IMaster.hh"
+#include "mq/MessagingRealm.hh"
 #include "namespace/interface/IView.hh"
 #include "namespace/ns_quarkdb/QdbContactDetails.hh"
 #include "namespace/ns_quarkdb/flusher/MetadataFlusher.hh"
@@ -817,6 +818,8 @@ Iostat::GetPeriodStatForTag(const char* tag, size_t period, time_t secago) const
 void
 Iostat::Receive(ThreadAssistant& assistant) noexcept
 {
+  eos_static_info("%s", "msg=\"starting iostat receive thread\"");
+
   if (gOFS == nullptr) {
     return;
   }
@@ -829,7 +832,10 @@ Iostat::Receive(ThreadAssistant& assistant) noexcept
     }
   }
 
-  mq::ReportListener listener(gOFS->MgmOfsBroker.c_str(), gOFS->HostName);
+  const std::string qdb_channel = "/eos/*/report";
+  mq::ReportListener listener(gOFS->MgmOfsBroker.c_str(), gOFS->HostName,
+                              gOFS->mMessagingRealm->haveQDB(),
+                              gOFS->mQdbContactDetails, qdb_channel);
 
   while (!assistant.terminationRequested()) {
     std::string newmessage;
