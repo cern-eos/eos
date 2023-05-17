@@ -87,14 +87,26 @@ XrdMgmOfs::ErrorLogListenerThread(ThreadAssistant& assistant) noexcept
     return;
   }
 
+  // Open log file or create if necessary
+  FILE* file = fopen(log_path.c_str(), "a+");
+
+  if (file == nullptr) {
+    eos_static_err("msg=\"failed to open error log file\" path=\"%s\" errno=%d",
+                   log_path.c_str(), errno);
+    return;
+  }
+
   std::string out;
-  XrdSysLogger logger;
-  logger.Bind(log_path.c_str(), 0);
+  XrdSysLogger logger(fileno(file), 1);
   eos::mq::QdbErrorReportListener err_listener(mQdbContactDetails, channel);
+  eos_static_info("%s", "msg=\"starting error report listener\"");
 
   while (!assistant.terminationRequested()) {
     if (err_listener.fetch(out, &assistant)) {
-      fprintf(stderr, "%s\n", out.c_str());
+      fprintf(file, "%s\n", out.c_str());
     }
   }
+
+  (void) fflush(file);
+  (void) fclose(file);
 }
