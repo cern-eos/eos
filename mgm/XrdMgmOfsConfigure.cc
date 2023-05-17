@@ -1337,8 +1337,9 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
     }
   }
 
+  using eos::common::CommentLog;
   // Create comment log to save all proc commands executed with a comment
-  mCommentLog.reset(new eos::common::CommentLog("/var/log/eos/mgm/logbook.log"));
+  mCommentLog.reset(new CommentLog("/var/log/eos/mgm/logbook.log"));
 
   if (mCommentLog && mCommentLog->IsValid()) {
     Eroute.Say("=====> comment log in /var/log/eos/mgm/logbook.log");
@@ -1349,7 +1350,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   }
 
   mFusexStackTraces.reset(new
-                          eos::common::CommentLog("/var/log/eos/mgm/eosxd-stacktraces.log"));
+                          CommentLog("/var/log/eos/mgm/eosxd-stacktraces.log"));
 
   if (mFusexStackTraces && mFusexStackTraces->IsValid()) {
     Eroute.Say("=====> eosxd stacktraces log in /var/log/eos/mgm/eosxd-stacktraces.log");
@@ -1359,8 +1360,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
     NoGo = 1;
   }
 
-  mFusexLogTraces.reset(new
-                        eos::common::CommentLog("/var/log/eos/mgm/eosxd-logtraces.log"));
+  mFusexLogTraces.reset(new CommentLog("/var/log/eos/mgm/eosxd-logtraces.log"));
 
   if (mFusexLogTraces && mFusexLogTraces->IsValid()) {
     Eroute.Say("=====> eosxd logtraces log in /var/log/eos/mgm/eosxd-logtraces.log");
