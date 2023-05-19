@@ -444,8 +444,6 @@ public:
 
   void SendRtLog(XrdMqMessage* message);
 
-  void DoResync(XrdOucEnv& env);
-
   void DoVerify(XrdOucEnv& env);
 
 private:
