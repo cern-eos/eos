@@ -440,15 +440,11 @@ public:
   // @note
   // All of the commands below are going to be deprecated and replaced by XRootD
   // query commands which are handled in the FSctl method
-  void SetDebug(XrdOucEnv& env);
-
   void SendFsck(XrdMqMessage* message);
 
   void SendRtLog(XrdMqMessage* message);
 
   void DoResync(XrdOucEnv& env);
-
-  void DoDrop(XrdOucEnv& env);
 
   void DoVerify(XrdOucEnv& env);
 

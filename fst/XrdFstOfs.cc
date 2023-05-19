@@ -2485,37 +2485,6 @@ XrdFstOfs::Query2Delete()
 //------------------------------------------------------------------------------
 
 //------------------------------------------------------------------------------
-// Set debug level based on the env info
-//------------------------------------------------------------------------------
-void
-XrdFstOfs::SetDebug(XrdOucEnv& env)
-{
-  XrdOucString debuglevel = env.Get("mgm.debuglevel");
-  XrdOucString filterlist = env.Get("mgm.filter");
-  eos::common::Logging& g_logging = eos::common::Logging::GetInstance();
-  int debugval = g_logging.GetPriorityByString(debuglevel.c_str());
-
-  if (debugval < 0) {
-    eos_err("debug level %s is not known!", debuglevel.c_str());
-  } else {
-    // We set the shared hash debug for the lowest 'debug' level
-    if (debuglevel == "debug") {
-      //ObjectManager.SetDebug(true);
-    } else {
-      ObjectManager.SetDebug(false);
-    }
-
-    g_logging.SetLogPriority(debugval);
-    eos_notice("setting debug level to <%s>", debuglevel.c_str());
-
-    if (filterlist.length()) {
-      g_logging.SetFilter(filterlist.c_str());
-      eos_notice("setting message logid filter to <%s>", filterlist.c_str());
-    }
-  }
-}
-
-//------------------------------------------------------------------------------
 // Send real time log through MQ
 //------------------------------------------------------------------------------
 void
@@ -2721,33 +2690,6 @@ XrdFstOfs::DoResync(XrdOucEnv& env)
       }
     }
   }
-}
-
-//------------------------------------------------------------------------------
-// Handle drop query coming through MQ
-//------------------------------------------------------------------------------
-void
-XrdFstOfs::DoDrop(XrdOucEnv& env)
-{
-  int caprc = 0;
-  XrdOucEnv* capOpaque {nullptr};
-
-  if ((caprc = eos::common::SymKey::ExtractCapability(&env, capOpaque))) {
-    eos_static_err("msg=\"extract capability failed for deletion\" errno=%d",
-                   caprc);
-  } else {
-    int envlen = 0;
-    eos_static_debug("opaque=\"%s\"", capOpaque->Env(envlen));
-    std::unique_ptr<Deletion> new_del = Deletion::Create(capOpaque);
-
-    if (new_del) {
-      gOFS.Storage->AddDeletion(std::move(new_del));
-    } else {
-      eos_static_err("%s", "msg=\"illegal drop opaque information\"");
-    }
-  }
-
-  delete capOpaque;
 }
 
 //------------------------------------------------------------------------------
