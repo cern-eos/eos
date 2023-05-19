@@ -115,27 +115,10 @@ ProcCommand::Rtlog()
           stdOut += resp.second.second.c_str();
         }
       } else {
-        // Fallback to old method if we got any error
-        XrdOucString broadcastresponsequeue = gOFS->MgmOfsBrokerUrl;
-        broadcastresponsequeue += "-rtlog-";
-        broadcastresponsequeue += bccount;
-        XrdOucString broadcasttargetqueue = gOFS->MgmDefaultReceiverQueue;
-
-        if (queue != "*") {
-          broadcasttargetqueue = queue;
-        }
-
-        int envlen;
-        XrdOucString msgbody;
-        msgbody = pOpaque->Env(envlen);
-
-        if (!gOFS->MgmOfsMessaging->BroadCastAndCollect(broadcastresponsequeue,
-            broadcasttargetqueue, msgbody, stdOut, 2)) {
-          eos_err("failed to broad cast and collect rtlog from [%s]:[%s]",
-                  broadcastresponsequeue.c_str(), broadcasttargetqueue.c_str());
-          stdErr = "error: broadcast failed\n";
-          retc = EFAULT;
-        }
+        eos_err("msg=\"request for rtlogs failed\" endpoints=\"%s\"",
+                queue.c_str());
+        stdErr = "error: request for rtlogs failed";
+        retc = EFAULT;
       }
     }
   }
