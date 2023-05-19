@@ -1554,27 +1554,8 @@ XrdMgmOfs::QueryResync(eos::common::FileId::fileid_t fid,
   std::string response;
   int query_retc = gOFS->SendQuery(fst_host, fst_port, request, response);
   (void) response;
-
-  if (query_retc) { // Fallback to old mechanism
-    XrdOucString msgbody = "mgm.cmd=resync";
-    char payload[4096];
-    // @todo(esindril) Transition, eventually send mgm.fid=HEX
-    snprintf(payload, sizeof(payload) - 1,
-             "&mgm.fsid=%lu&mgm.fid=%llu&mgm.fxid=%08llx&mgm.resync_force=%i",
-             (unsigned long) fsid, fid, fid, (int)force);
-    msgbody += payload;
-    eos::mq::MessagingRealm::Response response =
-      mMessagingRealm->sendMessage("resync", msgbody.c_str(), fst_queue);
-
-    if (!response.ok()) {
-      eos_err("msg=\"failed to send resync message\" dst=%s", fst_queue.c_str());
-      EXEC_TIMING_END("QueryResync");
-      return -1;
-    }
-  }
-
   EXEC_TIMING_END("QueryResync");
-  return 0;
+  return query_retc;
 }
 
 //------------------------------------------------------------------------------
