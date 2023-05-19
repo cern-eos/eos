@@ -437,10 +437,6 @@ public:
   //! Mark if Fsck deletions should be done by moving files to a quarantine
   //! directory called .eosdeletions on the file system root mount
   bool mEnvFsckDeleteByMove {false};
-  // @note
-  // All of the commands below are going to be deprecated and replaced by XRootD
-  // query commands which are handled in the FSctl method
-  void SendRtLog(XrdMqMessage* message);
 
 private:
 #ifdef IN_TEST_HARNESS
