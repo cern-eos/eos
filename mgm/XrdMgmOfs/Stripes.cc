@@ -165,32 +165,21 @@ XrdMgmOfs::_verifystripe(const char* path,
   qreq += opaquestring.c_str();
   std::string qresp;
 
-  if (gOFS->SendQuery(fst_host, fst_port, qreq, qresp)) {
-    // Fallback to old mechanism if any error encountered
-    XrdOucString msgbody = "mgm.cmd=verify";
-    msgbody += opaquestring;
-    eos_static_warning("%s", "msg=\"using verify fallback\"");
-    eos::mq::MessagingRealm::Response response =
-      mMessagingRealm->sendMessage("verification", msgbody.c_str(), receiver.c_str());
-
-    if (!response.ok()) {
-      eos_static_err("unable to send verification message to %s", receiver.c_str());
-      errno = ECOMM;
-    } else {
-      errno = 0;
-    }
+  if (SendQuery(fst_host, fst_port, qreq, qresp)) {
+    eos_static_err("msg=\"unable to send verification message\" target=%s",
+                   fst_queue.c_str());
+    errno = ECOMM;
   } else {
     errno = 0;
   }
 
-  (void) qresp;
   EXEC_TIMING_END("VerifyStripe");
 
   if (errno) {
     return Emsg(epname, error, errno, "verify stripe", path);
+  } else {
+    return SFS_OK;
   }
-
-  return SFS_OK;
 }
 
 /*----------------------------------------------------------------------------*/
