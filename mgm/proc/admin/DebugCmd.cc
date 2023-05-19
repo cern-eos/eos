@@ -220,7 +220,7 @@ void DebugCmd::SetSubcmd(const eos::console::DebugProto_SetProto& set,
     err << ("error: could not send log level to nodename=" +
             set.nodename() + "\n").c_str();
     eos_static_err("msg=\"failed log level broadcast\" nodename=\"%s\"",
-                   set.nodname().c_str());
+                   set.nodename().c_str());
     ret_c = EINVAL;
   }
 
