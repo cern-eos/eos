@@ -163,7 +163,7 @@ void DebugCmd::SetSubcmd(const eos::console::DebugProto_SetProto& set,
     return;
   }
 
-  int ret_c {0};
+  int ret_c = 0;
   std::ostringstream out, err;
   std::string body = PrepareMsg(set);
   std::string query = PrepareQuery(set);
@@ -212,51 +212,16 @@ void DebugCmd::SetSubcmd(const eos::console::DebugProto_SetProto& set,
   int query_retc = gOFS->BroadcastQuery(query, endpoints, responses);
 
   if (query_retc == 0) {
-    out << ("success: switched to mgm.debuglevel=" + set.debuglevel() +
-            " on nodes mgm.nodename=" + set.nodename() + "\n").c_str();
-    eos_static_notice("msg=\"forwarding debug level <%s> to nodename=%s\"",
+    out << ("success: switched to log level=" + set.debuglevel() +
+            " on nodename=" + set.nodename() + "\n").c_str();
+    eos_static_notice("msg=\"forwarding log level <%s> to nodename=%s\"",
                       set.debuglevel().c_str(), set.nodename().c_str());
   } else {
-    if (set.nodename() == "*") {
-      std::string all_nodes;
-      all_nodes = "/eos/*/fst";
-
-      if (!gOFS->mMessagingRealm->sendMessage("debug", body.c_str(),
-                                              all_nodes.c_str()).ok()) {
-        err << ("error: could not send debug level to nodes mgm.nodename=" +
-                all_nodes + "\n").c_str();
-        ret_c = EINVAL;
-      } else {
-        out << ("success: switched to mgm.debuglevel=" + set.debuglevel() +
-                " on nodes mgm.nodename=" + all_nodes + "\n").c_str();
-        eos_static_notice("forwarding debug level <%s> to nodes mgm.nodename=%s",
-                          set.debuglevel().c_str(), all_nodes.c_str());
-      }
-
-      all_nodes = "/eos/*/mgm";
-      // Ignore return value as we've already set the loglevel for the
-      // current instance. We're doing this only for the slave.
-      (void) gOFS->mMessagingRealm->sendMessage("debug", body.c_str(),
-          all_nodes.c_str());
-      out << ("success: switched to mgm.debuglevel=" + set.debuglevel() +
-              " on nodes mgm.nodename=" + all_nodes).c_str();
-      eos_static_notice("forwarding debug level <%s> to nodes mgm.nodename=%s",
-                        set.debuglevel().c_str(), all_nodes.c_str());
-    } else {
-      if (!set.nodename().empty()) {
-        if (!gOFS->mMessagingRealm->sendMessage("debug", body.c_str(),
-                                                set.nodename().c_str()).ok()) {
-          err << ("error: could not send debug level to nodes mgm.nodename=" +
-                  set.nodename()).c_str();
-          ret_c = EINVAL;
-        } else {
-          out << ("success: switched to mgm.debuglevel=" + set.debuglevel() +
-                  " on nodes mgm.nodename=" + set.nodename()).c_str();
-          eos_static_notice("forwarding debug level <%s> to nodes mgm.nodename=%s",
-                            set.debuglevel().c_str(), set.nodename().c_str());
-        }
-      }
-    }
+    err << ("error: could not send log level to nodename=" +
+            set.nodename() + "\n").c_str();
+    eos_static_err("msg=\"failed log level broadcast\" nodename=\"%s\"",
+                   set.nodname().c_str());
+    ret_c = EINVAL;
   }
 
   reply.set_std_out(out.str());
