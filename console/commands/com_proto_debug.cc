@@ -135,7 +135,6 @@ com_protodebug(char* arg)
   }
 
   global_retc = debug.Execute();
-
   return global_retc;
 }
 
@@ -170,13 +169,13 @@ void com_debug_help()
       << "debug,info,warning,notice,err,crit,alert,emerg\n"
       << std::endl
       << "Examples:\n"
-      << "\t debug info *                         set MGM & all FSTs into debug mode 'info'\n"
+      << "\t debug info \"*\"                     set MGM & all FSTs 'info' log level\n"
       << std::endl
-      << "\t debug err /eos/*/fst                 set all FSTs into debug mode 'info'\n"
+      << "\t debug err hostname:port              set FST indicated by the hostname and port to 'info' log level\n"
       << std::endl
-      << "\t debug crit /eos/*/mgm                set MGM into debug mode 'crit'\n"
+      << "\t debug crit                           set MGM to 'crit' log level\n"
       << std::endl
-      << "\t debug debug --filter MgmOfsMessage   set MGM into debug mode 'debug' and filter only messages coming from unit 'MgmOfsMessage'.\n"
+      << "\t debug debug --filter MgmOfsMessage   set MGM to 'debug' log level and filter only messages coming from unit 'MgmOfsMessage'.\n"
       << std::endl;
   std::cerr << oss.str() << std::endl;
 }
