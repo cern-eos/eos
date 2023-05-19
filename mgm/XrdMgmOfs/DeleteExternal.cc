@@ -57,41 +57,35 @@ XrdMgmOfs::DeleteExternal(eos::common::FileSystem::fsid_t fsid,
     }
   }
   // Encrypt the capability information
-  XrdOucEnv incapability(capability.c_str());
-  XrdOucEnv* capabilityenv = 0;
+  XrdOucEnv incapenv(capability.c_str());
+  XrdOucEnv* outcapenv = 0;
   SymKey* symkey = eos::common::gSymKeyStore.GetCurrentKey();
   int caprc = 0;
 
-  if ((caprc = SymKey::CreateCapability(&incapability, capabilityenv, symkey,
+  if ((caprc = SymKey::CreateCapability(&incapenv, outcapenv, symkey,
                                         mCapabilityValidity))) {
     eos_static_err("msg=\"unable to create capability\" errno=%u", caprc);
     return false;
   }
 
   int caplen = 0;
-  bool ok = true;
+  bool ok = false;
   std::string qreq = "/?fst.pcmd=drop";
 
   if (is_fsck) {
     qreq += "&fst.drop.type=fsck";
   }
 
-  qreq += capabilityenv->Env(caplen);
+  qreq += outcapenv->Env(caplen);
   std::string qresp;
 
   if (SendQuery(fst_host, fst_port, qreq, qresp)) {
-    XrdOucString msgbody = "mgm.cmd=drop";
-    msgbody += capabilityenv->Env(caplen);
-    eos::mq::MessagingRealm::Response response =
-      mMessagingRealm->sendMessage("deletion", msgbody.c_str(), fst_queue.c_str());
-
-    if (!response.ok()) {
-      eos_static_err("msg=\"unable to send deletion message to %s\"",
-                     fst_queue.c_str());
-      ok = false;
-    }
+    eos_static_err("msg=\"unable to send deletion message\" target=%s",
+                   fst_queue.c_str());
+  } else {
+    ok = true;
   }
 
-  delete capabilityenv;
+  delete outcapenv;
   return ok;
 }

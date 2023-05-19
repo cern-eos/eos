@@ -47,17 +47,13 @@ Storage::Remover()
   if (ptr) {
     try {
       request_interval = chrono::seconds(std::stoi(std::string(ptr)));
+      eos_static_info("msg=\"update deletions request interval\" val=%llu",
+                      request_interval.count());
     } catch (...) {}
   }
 
-  // Check if MGM supports query2delete
-  bool has_query2delete = (gOFS.Query2Delete() != SFS_ERROR);
-
-  if (has_query2delete) {
-    eos_static_info("%s", "msg=\"mgm supports query2delete\"");
-  } else {
-    eos_static_info("%s", "msg=\"mgm doesn't support query2delete\"");
-  }
+  // Check for deletions when starting
+  (void) gOFS.Query2Delete();
 
   // Thread that unlinks stored files
   while (true) {
@@ -109,47 +105,14 @@ Storage::Remover()
     bool request_del = (duration_cast<chrono::seconds>(now_ts - last_request_ts) >
                         request_interval);
 
-    if (has_query2delete) {
-      // Ask for more deletions if deleted something in last round or request
-      // interval expired
-      if (num_deleted || request_del) {
-        eos_static_debug("%s", "msg=\"query manager for deletions\"");
-        last_request_ts = now_ts;
-        (void) gOFS.Query2Delete();
-      } else {
-        std::this_thread::sleep_for(std::chrono::seconds(10));
-      }
+    // Ask for more deletions if deleted something in last round or request
+    // interval expired
+    if (num_deleted || request_del) {
+      eos_static_debug("%s", "msg=\"query manager for deletions\"");
+      last_request_ts = now_ts;
+      (void) gOFS.Query2Delete();
     } else {
-      // Ask MGM to schedule deletions regularly (default is every 5 minutes)
-      if (request_del) {
-        last_request_ts = now_ts;
-        eos_static_debug("%s", "msg=\"ask manager for deletions\"");
-        XrdOucString managerQuery = "/?";
-        managerQuery += "mgm.pcmd=schedule2delete";
-        managerQuery += "&mgm.target.nodename=";
-        managerQuery += gConfig.FstQueue;
-        // the log ID to the schedule2delete call
-        managerQuery += "&mgm.logid=";
-        managerQuery += logId;
-        XrdOucErrInfo error;
-        XrdOucString response = "";
-        int rc = gOFS.CallManager(&error, "/", 0, managerQuery, &response);
-
-        if (rc) {
-          eos_static_err("msg=\"error response from mgm\" errno=%d", rc);
-        } else {
-          if (response == "submitted") {
-            eos_static_debug("%s", "msg=\"manager scheduled deletions\"");
-          } else {
-            eos_static_debug("%s", "msg=\"manager returned no deletion to "
-                             "schedule [ENODATA]\"");
-          }
-        }
-      }
-
-      // We wait to receive our deletions or for new deletions
-      std::this_thread::sleep_for(std::chrono::seconds
-                                  ((int)std::ceil(request_interval.count() / 10.0)));
+      std::this_thread::sleep_for(std::chrono::seconds(10));
     }
   }
 }
