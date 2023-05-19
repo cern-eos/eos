@@ -440,8 +440,6 @@ public:
   // @note
   // All of the commands below are going to be deprecated and replaced by XRootD
   // query commands which are handled in the FSctl method
-  void SendFsck(XrdMqMessage* message);
-
   void SendRtLog(XrdMqMessage* message);
 
   void DoVerify(XrdOucEnv& env);
