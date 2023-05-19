@@ -81,13 +81,6 @@ Messaging::Process(XrdMqMessage* newmessage)
       return;
     }
   }
-
-  // @note
-  // All of the commands below are going to be deprecated and replaced by XRootD
-  // query commands which are handled in the FSctl method
-  if (cmd == "rtlog") {
-    return gOFS.SendRtLog(newmessage);
-  }
 }
 
 EOSFSTNAMESPACE_END
