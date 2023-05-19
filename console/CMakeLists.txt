@@ -124,8 +124,6 @@ add_library(EosConsoleCommands-Objects OBJECT
   #@todo (esindril) drop com_quota when move to 5.0.0
   commands/com_quota.cc
   commands/com_proto_quota.cc
-  #@todo (esindril) drop com_node when move to 5.0.0
-  commands/com_node.cc
   commands/com_proto_node.cc
   commands/com_proto_space.cc
   commands/com_proto_io.cc

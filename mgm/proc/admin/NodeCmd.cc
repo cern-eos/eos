@@ -57,11 +57,6 @@ NodeCmd::ProcessRequest() noexcept
     ConfigSubcmd(node.config(), reply);
     break;
 
-  //@todo(esindril) this should be removed as it's not implemented
-  case eos::console::NodeProto::kRegisterx:
-    RegisterSubcmd(node.registerx(), reply);
-    break;
-
   case eos::console::NodeProto::kSet:
     SetSubcmd(node.set(), reply);
     break;
@@ -479,51 +474,6 @@ NodeCmd::ConfigFsSpecific(const std::set<std::string>& nodes,
     }
 
     gOFS->ConfEngine->AutoSave();
-  }
-}
-
-//------------------------------------------------------------------------------
-// Execute register subcommand
-//------------------------------------------------------------------------------
-void NodeCmd::RegisterSubcmd(const eos::console::NodeProto_RegisterProto&
-                             registerx, eos::console::ReplyProto& reply)
-{
-  if (mVid.uid != 0 && mVid.prot != "sss") {
-    reply.set_std_err("error: you have to take role 'root' to execute this command");
-    reply.set_retc(EPERM);
-    return;
-  }
-
-  if (!registerx.node_name().length() ||
-      !registerx.node_path2register().length() ||
-      !registerx.node_space2register().length()) {
-    reply.set_std_err("error: invalid parameters");
-    reply.set_retc(EINVAL);
-    return;
-  }
-
-  std::string msgbody = eos::common::FileSystem::GetRegisterRequestString();
-  msgbody += "&mgm.path2register=" + registerx.node_path2register();
-  msgbody += "&mgm.space2register=" + registerx.node_space2register();
-
-  if (registerx.node_force()) {
-    msgbody += "&mgm.force=true";
-  }
-
-  if (registerx.node_root()) {
-    msgbody += "&mgm.root=true";
-  }
-
-  std::string nodequeue = "/eos/" + registerx.node_name() + "/fst";
-  mq::MessagingRealm::Response response =
-    gOFS->mMessagingRealm->sendMessage("msg", msgbody, nodequeue);
-
-  if (response.ok()) {
-    reply.set_std_out("success: sent global register message to all fst nodes");
-    reply.set_retc(0);
-  } else {
-    reply.set_std_err("error: could not send global fst register message!");
-    reply.set_retc(EIO);
   }
 }
 
