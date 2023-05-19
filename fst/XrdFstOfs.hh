@@ -442,8 +442,6 @@ public:
   // query commands which are handled in the FSctl method
   void SendRtLog(XrdMqMessage* message);
 
-  void DoVerify(XrdOucEnv& env);
-
 private:
 #ifdef IN_TEST_HARNESS
 public:
