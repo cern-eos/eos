@@ -90,12 +90,6 @@ void com_node_help()
       << std::endl
       << "node rm  <queue-name>|<host:port>                        : remove a node\n"
       << std::endl
-      << "node register <host:port|*> <path2register> <space2register> [--force] [--root] : register filesystems on node <host:port>\n"
-      << "\t      <path2register> is used as match for the filesystems to register e.g. /data matches filesystems /data01 /data02 etc. ... /data/ registers all subdirectories in /data/\n"
-      << "\t      <space2register> is formed as <space>:<n> where <space> is the space name and <n> must be equal to the number of filesystems which are matched by <path2register> e.g. data:4 or spare:22 ...\n"
-      << "\t      --force : removes any existing filesystem label and re-registers\n"
-      << "\t      --root  : allows to register paths on the root partition\n"
-      << std::endl
       << "node txgw <queue-name>|<host:port> <on|off> : enable (on) or disable (off) node as a transfer gateway\n"
       << std::endl
       << "node proxygroupadd <group-name> <queue-name>|<host:port> : add a node to a proxy group\n"
