@@ -16,6 +16,19 @@ Introduction
 
 This release is based on XRootD V5.
 
+``v5.1.20 Diopside``
+==========================
+
+2023-05-10
+
+This release is based on eos-xrootd-5.5.10/xrootd-5.5.5
+
+Bug
+---
+This release updates to using eos-xrootd-5.5.10 which includes
+a fix for a regression when higher fdlimits are needed
+
+
 ``v5.1.19 Diopside``
 ==========================
 
