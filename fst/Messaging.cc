@@ -89,10 +89,6 @@ Messaging::Process(XrdMqMessage* newmessage)
     return gOFS.SendFsck(newmessage);
   }
 
-  if (cmd == "resync") {
-    return gOFS.DoResync(action);
-  }
-
   if (cmd == "rtlog") {
     return gOFS.SendRtLog(newmessage);
   }
