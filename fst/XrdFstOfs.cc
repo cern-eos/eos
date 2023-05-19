@@ -2549,23 +2549,6 @@ XrdFstOfs::SendRtLog(XrdMqMessage* message)
 }
 
 //------------------------------------------------------------------------------
-// Handle verify query coming through MQ
-//------------------------------------------------------------------------------
-void
-XrdFstOfs::DoVerify(XrdOucEnv& env)
-{
-  int envlen = 0;
-  eos_static_debug("ms=\"verify opaque\" data=\"%s\"", env.Env(envlen));
-  Verify* new_verify = Verify::Create(&env);
-
-  if (new_verify) {
-    gOFS.Storage->PushVerification(new_verify);
-  } else {
-    eos_static_err("%s", "msg=\"failed verify, illegal opaque info\"");
-  }
-}
-
-//------------------------------------------------------------------------------
 // Set various XrdCl timeouts more appropriate for the EOS use-case but still
 // allow the env variables to override them
 //------------------------------------------------------------------------------
