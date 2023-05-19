@@ -71,7 +71,7 @@ message NodeProto {
     RmProto rm                 = 2;
     StatusProto status         = 3;
     ConfigProto config         = 4;
-    RegisterProto registerx    = 5;
+    RegisterProto registerx    = 5; // deprecated since 5.2.0, slot can be reused in the future
     SetProto set               = 6;
     TxgwProto txgw             = 7;
     ProxygroupProto proxygroup = 8;

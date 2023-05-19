@@ -107,15 +107,6 @@ private:
                         eos::console::ReplyProto& reply);
 
   //----------------------------------------------------------------------------
-  //! Execute register subcommand
-  //!
-  //! @param register register subcommand proto object
-  //! @param reply reply proto object
-  //----------------------------------------------------------------------------
-  void RegisterSubcmd(const eos::console::NodeProto_RegisterProto& registerx,
-                      eos::console::ReplyProto& reply);
-
-  //----------------------------------------------------------------------------
   //! Execute set subcommand
   //!
   //! @param set set subcommand proto object
