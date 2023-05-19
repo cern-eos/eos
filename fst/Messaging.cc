@@ -88,10 +88,6 @@ Messaging::Process(XrdMqMessage* newmessage)
   if (cmd == "rtlog") {
     return gOFS.SendRtLog(newmessage);
   }
-
-  if (cmd == "verify") {
-    return gOFS.DoVerify(action);
-  }
 }
 
 EOSFSTNAMESPACE_END
