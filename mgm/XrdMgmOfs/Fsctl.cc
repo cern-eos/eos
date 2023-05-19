@@ -405,6 +405,10 @@ XrdMgmOfs::FSctl(const int cmd,
     case FsctlCommand::INVALID: {
       eos_thread_err("No implementation for %s", execmd.c_str());
     }
+
+    default: {
+      eos_thread_err("No implementation for %s", execmd.c_str());
+    }
     }
   }
 
