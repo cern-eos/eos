@@ -18,11 +18,11 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 # ******************************************************************************
 
-#------------------------------------------------------------------------------
+#-------------------------------------------------------------------------------
 # Run a given test script and check the return code is successful.
 # Arguments: $1  - text description of the test
 #            $*  - the script to execute + arguments
-#------------------------------------------------------------------------------
+#-------------------------------------------------------------------------------
 function run_test_script() {
   local description=$1
   shift
@@ -36,9 +36,9 @@ function run_test_script() {
   fi
 }
 
-#------------------------------------------------------------------------------
+#-------------------------------------------------------------------------------
 # Execute specific EOS testing scripts
-#------------------------------------------------------------------------------
+#-------------------------------------------------------------------------------
 
 # Arguments setup
 if eos ns | grep -q "In-flight FileMD" ; then
@@ -63,11 +63,14 @@ if [[ $? -ne 0 ]]; then
 fi
 
 
-# -----------------------------------------------------------
-# Functional tests upload/download x509/macaroons/tpc
-# -----------------------------------------------------------
-eos mkdir -p "/eos/dockertest/test/https/"
-run_test_script "HTTPS" eos-https-functional-test -p 8443 --dir "/eos/dockertest/test/https/"
+#-------------------------------------------------------------------------------
+# Functional tests upload/download x509/macaroons/tpc/eos token
+#-------------------------------------------------------------------------------
+HTTPS_DIR="/eos/dockertest/test/https/"
+eos mkdir -p ${HTTPS_DIR}
+eos chown eos-user:eos-user ${HTTPS_DIR}
+run_test_script "HTTPS" eos-https-functional-test -p 8443 --dir ${HTTPS_DIR}
+eos rm -rF ${HTTPS_DIR}
 
 eos space quota default off
 exit 0
