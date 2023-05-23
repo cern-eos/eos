@@ -732,8 +732,22 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
 
   // Handle token based mapping
   if (!authz.empty()) {
+    static const std::string http_enc_tag = "Bearer%20";
+    static const std::string http_tag = "Bearer ";
+
+    // Remove extra characters and decode when passed as a bearer
+    // authorization HTTPS header
+    if (authz.find(http_enc_tag) == 0) {
+      authz.erase(0, http_enc_tag.size());
+      authz = StringConversion::curl_default_unescaped(authz);
+    } else {
+      if (authz.find(http_tag) == 0) {
+        authz.erase(0, http_tag.size());
+      }
+    }
+
     if (authz.substr(0, 8) == "zteos64:") {
-      // this is an eos token
+      // This is an eos token
       eos::common::SymKey* symkey = eos::common::gSymKeyStore.GetCurrentKey();
       std::string key = symkey ? symkey->GetKey64() : "0123457890defaultkey";
       bool skip_key = false;
