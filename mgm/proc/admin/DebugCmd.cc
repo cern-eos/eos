@@ -172,8 +172,8 @@ void DebugCmd::SetSubcmd(const eos::console::DebugProto_SetProto& set,
       (XrdOucString(set.nodename().c_str()) == gOFS->MgmOfsQueue) ||
       (set.nodename() == "/eos/*/mgm")) {
     g_logging.SetLogPriority(debugval);
-    out << "success: debug level is now <" + set.debuglevel() + '>';
-    eos_static_notice("msg=\"setting debug level to <%s>\"",
+    out << "success: log level is now <" + set.debuglevel() + '>';
+    eos_static_notice("msg=\"setting log level to <%s>\"",
                       set.debuglevel().c_str());
 
     if (set.filter().length()) {
@@ -212,7 +212,9 @@ void DebugCmd::SetSubcmd(const eos::console::DebugProto_SetProto& set,
   int query_retc = gOFS->BroadcastQuery(query, endpoints, responses);
 
   if (query_retc == 0) {
-    out << ("success: switched to log level=" + set.debuglevel() +
+    out.str("");
+    out.clear();
+    out << ("success: log level=" + set.debuglevel() +
             " on nodename=" + set.nodename() + "\n").c_str();
     eos_static_notice("msg=\"forwarding log level <%s> to nodename=%s\"",
                       set.debuglevel().c_str(), set.nodename().c_str());
