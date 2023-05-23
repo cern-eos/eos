@@ -175,7 +175,7 @@ EosMgmHttpHandler::Config(XrdSysError* eDest, const char* confg,
         return 1;
       }
     } catch (const std::exception& e) {
-      eos_err("msg=\"caught execption\" msg=\"%s\"", e.what());
+      eos_err("msg=\"caught exception\" msg=\"%s\"", e.what());
       return 1;
     }
 
