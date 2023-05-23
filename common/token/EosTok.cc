@@ -121,10 +121,10 @@ EosTok::Read(const std::string& zb64is, const std::string& key,
     return -EINVAL;
   }
 
-  if ( (nzb64is.substr(0, 8) == "zteos%3A") ||
-       (nzb64is.substr(0, 8) == "zteos%3a") ) {
+  if ((nzb64is.substr(0, 10) == "zteos64%3A") ||
+      (nzb64is.substr(0, 10) == "zteos64%3a")) {
     // support URL encoding
-    nzb64is.replace(0, 6, "zbase:");
+    nzb64is.replace(0, 10, "zbase64:");
   } else {
     nzb64is.replace(0, 5, "zbase");
   }
@@ -138,15 +138,15 @@ EosTok::Read(const std::string& zb64is, const std::string& key,
   ssize_t pad = 0;
 
   if (l1 >= 0)  {
-    if ( (nzb64is.substr(l1, 3) == "%3d") ||
-	 (nzb64is.substr(l1, 3) == "%3D") ) {
+    if ((nzb64is.substr(l1, 3) == "%3d") ||
+        (nzb64is.substr(l1, 3) == "%3D")) {
       pad++;
     }
   }
 
   if (l2 >= 0) {
-    if ( (nzb64is.substr(l2, 3) == "%3d") ||
-	 (nzb64is.substr(l2, 3) == "%3D") ) {
+    if ((nzb64is.substr(l2, 3) == "%3d") ||
+        (nzb64is.substr(l2, 3) == "%3D")) {
       pad++;
     }
   }
@@ -455,9 +455,9 @@ EosTok::Requester() const
 bool
 EosTok::IsEosToken(XrdOucEnv* env)
 {
-  const std::string http_enc_tag = "Bearer%20zteos64";
-  const std::string http_tag = "Bearer zteos64";
-  const std::string tag = "zteos64";
+  static const std::string http_enc_tag = "Bearer%20zteos64";
+  static const std::string http_tag = "Bearer zteos64";
+  static const std::string tag = "zteos64";
 
   if (env) {
     const char* authz_opaque = env->Get("authz");
