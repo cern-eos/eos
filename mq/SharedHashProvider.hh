@@ -29,9 +29,18 @@
 #include <map>
 #include <mutex>
 
-namespace qclient {
-  class SharedManager;
-  class SharedHash;
+namespace qclient
+{
+class SharedManager;
+class SharedHash;
+}
+
+namespace eos
+{
+namespace common
+{
+class SharedHashLocator;
+}
 }
 
 EOSMQNAMESPACE_BEGIN
@@ -39,20 +48,22 @@ EOSMQNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 //! Class to keep ownership of qclient SharedHashes
 //------------------------------------------------------------------------------
-class SharedHashProvider {
+class SharedHashProvider
+{
 public:
   //----------------------------------------------------------------------------
   //! Constructor
   //----------------------------------------------------------------------------
-  SharedHashProvider(qclient::SharedManager *manager);
+  SharedHashProvider(qclient::SharedManager* manager);
 
   //----------------------------------------------------------------------------
   //! Get shared hash
   //----------------------------------------------------------------------------
-  std::shared_ptr<qclient::SharedHash> get(const std::string &key);
+  std::shared_ptr<qclient::SharedHash>
+  get(const eos::common::SharedHashLocator& locator);
 
 private:
-  qclient::SharedManager *mSharedManager;
+  qclient::SharedManager* mSharedManager;
 
   std::mutex mMutex;
   std::map<std::string, std::shared_ptr<qclient::SharedHash>> mStore;
