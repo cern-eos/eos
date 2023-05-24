@@ -16,6 +16,18 @@ Introduction
 
 This release is based on XRootD V5.
 
+
+``v5.1.22 Diopside``
+==========================
+
+2023-05-24
+
+Bug
+----
+
+* COMMON: Serialize calls to setgrent/getgrent/endgrent since they are not thread-safe and can cause a crash
+
+
 ``v5.1.21 Diopside``
 ==========================
 
