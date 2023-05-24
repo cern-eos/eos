@@ -86,6 +86,7 @@ public:
       _id = 0;
       _pid = 0;
       _err = 0;
+      _mode = 0;
     }
 
     mdx(fuse_ino_t ino) : mdx()
@@ -94,6 +95,8 @@ public:
     }
 
     virtual ~mdx() { }
+
+    typedef std::shared_ptr<mdx> shared_md;
 
     XrdSysMutex& Locker()
     {
@@ -278,14 +281,14 @@ public:
       return _local_enoent;
     }
 
-    void store_fullpath(const std::string &pfp, const std::string &name)
+    void store_fullpath(shared_md pmd, std::string name)
     {
-      std::string fullpath = pfp;
+      std::string fullpath = pmd->xfullpath();
       if (fullpath.back() != '/') {
         fullpath += "/";
       }
       fullpath += name;
-      (*this)()->set_fullpath(fullpath.c_str());
+      this->set_xfullpath(fullpath);
     }
     
     const uint64_t inlinesize()
@@ -411,9 +414,22 @@ public:
       return &proto;
     }
 
-    void xCopyFrom(const eos::fusex::md& other) {
+    void xCopyFrom(const eos::fusex::md& other, bool keepfp) {
+      std::string fp;
+      if (keepfp)
+        fp = proto.fullpath();
+
       proto.CopyFrom(other);
+
+      if (keepfp)
+        proto.set_fullpath(fp);
+      else
+        fp = proto.fullpath();
+
       _err = other.err();
+      _mode = other.mode();
+      std::atomic_store(&_fullpath, std::make_shared<std::string>(fp));
+
       // do not update either _id or _pid, usually those are
       // unset in source and mustbe set for us via the setters
     }
@@ -430,6 +446,15 @@ public:
       return _err.load();
     }
 
+    mode_t xmode() const {
+      return _mode.load();
+    }
+
+    std::string xfullpath() const {
+      auto s = std::atomic_load(&_fullpath);
+      return s ? *s : "";
+    }
+
     void set_xpid(fuse_ino_t ino) {
       proto.set_pid(ino);
       _pid = ino;
@@ -443,6 +468,16 @@ public:
     void set_xerr(int error) {
       proto.set_err(error);
       _err = error;
+    }
+
+    void set_xmode(mode_t mode) {
+      proto.set_mode(mode);
+      _mode = mode;
+    }
+    
+    void set_xfullpath(const std::string &fp) {
+      proto.set_fullpath(fp);
+      std::atomic_store(&_fullpath, std::make_shared<std::string>(fp));
     }
     
   private:
@@ -467,6 +502,8 @@ public:
     std::atomic<uint64_t> _id;
     std::atomic<uint64_t> _pid;
     std::atomic<int32_t> _err;
+    std::atomic<int32_t> _mode;
+    std::shared_ptr<std::string> _fullpath;
 
     struct hmac_t {
       std::string key;

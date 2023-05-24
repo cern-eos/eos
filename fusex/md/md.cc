@@ -50,7 +50,7 @@ metad::metad() : mdflush(0), mdqueue_max_backlog(1000),
   }
   shared_md md = std::make_shared<mdx>(1);
   (*md)()->set_nlink(1);
-  (*md)()->set_mode(S_IRWXU | S_IRWXG | S_IRWXO | S_IFDIR);
+  md->set_xmode(S_IRWXU | S_IRWXG | S_IRWXO | S_IFDIR);
   (*md)()->set_name(":root:");
   md->set_xpid(1);
   stat.inodes_inc();
@@ -252,13 +252,12 @@ metad::lookup(fuse_req_t req, fuse_ino_t parent, const char* name)
     // --------------------------------------------------
     // unlock parent and try to get the meta data record
     // --------------------------------------------------
-    const std::string pfullpath = (*pmd)()->fullpath();
     mLock.UnLock();
     md = get(req, inode, "", false, pmd, name);
 
     if (md) {
       md->Locker().Lock();
-      md->store_fullpath(pfullpath, name);
+      md->store_fullpath(pmd, name);
       md->Locker().UnLock();
     } else {
       md = std::make_shared<mdx>();
@@ -359,7 +358,7 @@ metad::mdx::convert(struct fuse_entry_param& e, double lifetime)
   e.ino = xid();
   e.attr.st_dev = 0;
   e.attr.st_ino = xid();
-  e.attr.st_mode = (*this)()->mode();
+  e.attr.st_mode = this->xmode();
   e.attr.st_nlink = (*this)()->nlink();
 
   if (attrMap.count(k_mdino)) {
@@ -373,12 +372,17 @@ metad::mdx::convert(struct fuse_entry_param& e, double lifetime)
       eos_static_err("converting hard-link %s target inode %#lx remote %#lx not in cache, nlink set to %d",
                      (*this)()->name().c_str(), local_ino, mdino, e.attr.st_nlink);
     } else {
+      std::string name = (*this)()->name();
+      this->Locker().UnLock();
+      tmd->Locker().Lock();
       if (EOS_LOGS_DEBUG) {
         eos_static_debug("hlnk convert name=%s id=%#lx target local_ino=%#lx nlink0=",
-                         (*this)()->name().c_str(), xid(), local_ino, (*tmd)()->nlink());
+                         name.c_str(), xid(), local_ino, (*tmd)()->nlink());
       }
 
       e.attr.st_nlink = (*tmd)()->nlink();
+      tmd->Locker().UnLock();
+      this->Locker().Lock();
     }
 
     e.ino = e.attr.st_ino = local_ino;
@@ -456,7 +460,7 @@ metad::mdx::dump()
            "ino=%#lx dev=%#lx mode=%#o nlink=%u uid=%05u gid=%05u rdev=%#lx "
            "size=%llu bsize=%lu blocks=%llu atime=%lu.%lu mtime=%lu.%lu ctime=%lu.%lu",
            (unsigned long)xid(), (unsigned long)0,
-           (unsigned int)(*this)()->mode(),
+           (unsigned int)this->xmode(),
            (unsigned int)(*this)()->nlink(),
            (unsigned int)(*this)()->uid(), (unsigned int)(*this)()->gid(),
            (unsigned long)0,
@@ -637,7 +641,7 @@ metad::getpath(fuse_ino_t ino)
     return "";
   }
 
-  return (*md)()->fullpath().c_str();
+  return md->xfullpath();
 }
 
 /* -------------------------------------------------------------------------- */
@@ -717,7 +721,7 @@ metad::get(fuse_req_t req,
         }
 
         md_pid = md->xpid();
-        md_mode = (*md)()->mode();
+        md_mode = md->xmode();
       }
 
       if (!S_ISDIR(md_mode)) {
@@ -767,6 +771,7 @@ metad::get(fuse_req_t req,
     rc = mdbackend->getMD(req, root_path, contv, listing, authid);
     // set ourselfs as parent of root since we might mount
     // a remote directory != '/'
+    XrdSysMutexHelper mdLock(md->Locker());
     md->set_xpid(1);
   } else if (!ino)
     // -------------------------------------------------------------------------
@@ -1013,10 +1018,10 @@ metad::update(fuse_req_t req, shared_md md, std::string authid,
     }
   }
 
-  flushentry fe(md->xid(), authid, localstore ? mdx::LSTORE : mdx::UPDATE,
-                req);
+  const uint64_t id = md->xid();
+  flushentry fe(id, authid, localstore ? mdx::LSTORE : mdx::UPDATE, req);
   fe.bind();
-  mdqueue[md->xid()]++;
+  mdqueue[id]++;
   mdflushqueue.push_back(fe);
   eos_static_info("added ino=%#lx flushentry=%s queue-size=%u local-store=%d",
                   md->xid(), flushentry::dump(fe).c_str(), mdqueue.size(), localstore);
@@ -1179,9 +1184,10 @@ metad::add_sync(fuse_req_t req, shared_md pmd, shared_md md, std::string authid)
     mdflush.WaitMS(25);
   }
 
-  flushentry fep(pmd->xid(), authid, mdx::LSTORE, req);
+  const uint64_t pid = pmd->xid();
+  flushentry fep(pid, authid, mdx::LSTORE, req);
   fep.bind();
-  mdqueue[pmd->xid()]++;
+  mdqueue[pid]++;
   mdflushqueue.push_back(fep);
   mdflush.Signal();
   mdflush.UnLock();
@@ -1292,13 +1298,15 @@ metad::remove(fuse_req_t req, metad::shared_md pmd, metad::shared_md md,
     return;
   }
 
-  flushentry fe(md->xid(), authid, mdx::RM, req);
+  const uint64_t id = md->xid();
+  const uint64_t pid = pmd->xid();
+  flushentry fe(id, authid, mdx::RM, req);
   fe.bind();
-  flushentry fep(pmd->xid(), authid, mdx::LSTORE, req);
+  flushentry fep(pid, authid, mdx::LSTORE, req);
   fep.bind();
   mdflush.Lock();
-  mdqueue[pmd->xid()]++;
-  mdqueue[md->xid()]++;
+  mdqueue[pid]++;
+  mdqueue[id]++;
   mdflushqueue.push_back(fe);
   mdflushqueue.push_back(fep);
   stat.inodes_backlog_store(mdqueue.size());
@@ -1401,21 +1409,24 @@ metad::mv(fuse_req_t req, shared_md p1md, shared_md p2md, shared_md md,
     mdflush.WaitMS(25);
   }
 
-  flushentry fe1(p1md->xid(), authid1, mdx::UPDATE, req);
+  const uint64_t p1id = p1md->xid();
+  flushentry fe1(p1id, authid1, mdx::UPDATE, req);
   fe1.bind();
-  mdqueue[p1md->xid()]++;
+  mdqueue[p1id]++;
   mdflushqueue.push_back(fe1);
 
-  if (p1md->xid() != p2md->xid()) {
-    flushentry fe2(p2md->xid(), authid2, mdx::UPDATE, req);
+  const uint64_t p2id = p2md->xid();
+  if (p1id != p2id) {
+    flushentry fe2(p2id, authid2, mdx::UPDATE, req);
     fe2.bind();
-    mdqueue[p2md->xid()]++;
+    mdqueue[p2id]++;
     mdflushqueue.push_back(fe2);
   }
 
-  flushentry fe(md->xid(), authid2, mdx::UPDATE, req);
+  const uint64_t id = md->xid();
+  flushentry fe(id, authid2, mdx::UPDATE, req);
   fe.bind();
-  mdqueue[md->xid()]++;
+  mdqueue[id]++;
   mdflushqueue.push_back(fe);
   stat.inodes_backlog_store(mdqueue.size());
   mdflush.Signal();
@@ -1713,7 +1724,6 @@ metad::cleanup(shared_md md)
   eos_static_debug("id=%16x", md->xid());
   std::vector<std::string> inval_entry_name;
   std::vector<fuse_ino_t> inval_files;
-  std::vector<fuse_ino_t> inval_dirs;
 
   for (auto it = md->local_children().begin();
        it != md->local_children().end(); ++it) {
@@ -1723,7 +1733,7 @@ metad::cleanup(shared_md md)
       // XrdSysMutexHelper cmLock(cmd->Locker());
       bool in_flush = has_flush(it->second);
 
-      if (!S_ISDIR((*cmd)()->mode())) {
+      if (!S_ISDIR(cmd->xmode())) {
         if (!in_flush && !EosFuse::Instance().datas.has(cmd->xid())) {
           // clean-only entries, which are not in the flush queue and not open
           inval_files.push_back(it->second);
@@ -1839,7 +1849,7 @@ metad::apply(fuse_req_t req, eos::fusex::container& cont, bool listing)
       ino = new_ino;
     }
 
-    if (!S_ISDIR((*md)()->mode())) {
+    if (!S_ISDIR(md->xmode())) {
       // if its a file we need to have a look at parent cap-count, so we get the parent md
       md->Locker().UnLock();
       mdmap.retrieveTS(p_ino, pmd);
@@ -1848,14 +1858,13 @@ metad::apply(fuse_req_t req, eos::fusex::container& cont, bool listing)
 
     {
       if (!has_flush(ino)) {
-	std::string fullpath=(*md)()->fullpath();
-        md->xCopyFrom(cont.md_());
-	(*md)()->set_fullpath(fullpath);
+        md->xCopyFrom(cont.md_(),true);
         shared_md d_md = EosFuse::Instance().datas.retrieve_wr_md(ino);
 
         if (d_md) {
           // see if this file is open for write, because in that case
           // we have to keep the local size information and modification times
+          // TODO: see if we need to lock d_md
           (*md)()->set_size((*d_md)()->size());
           (*md)()->set_mtime((*d_md)()->mtime());
           (*md)()->set_mtime_ns((*d_md)()->mtime_ns());
@@ -1951,13 +1960,14 @@ metad::apply(fuse_req_t req, eos::fusex::container& cont, bool listing)
             size_t local_size = (*md)()->size();
             uint64_t local_mtime = (*md)()->mtime();
             uint64_t local_mtime_ns = (*md)()->mtime_ns();
-            md->xCopyFrom(map->second);
+            md->xCopyFrom(map->second,false);
             md->clear_refresh();
             shared_md d_md = EosFuse::Instance().datas.retrieve_wr_md(ino);
 
             if (d_md) {
               // see if this file is open for write, because in that case
               // we have to keep the local size information and modification times
+              // TODO: see if we need to lock d_md
               (*md)()->set_size((*d_md)()->size());
               (*md)()->set_mtime((*d_md)()->mtime());
               (*md)()->set_mtime_ns((*d_md)()->mtime_ns());
@@ -1982,7 +1992,7 @@ metad::apply(fuse_req_t req, eos::fusex::container& cont, bool listing)
               mdflush.UnLock();
               todelete = md->get_todelete();
               // overwrite local meta data with remote state
-              md->xCopyFrom(map->second);
+              md->xCopyFrom(map->second,false);
               md->get_todelete() = todelete;
               (*md)()->set_type((*md)()->MD);
               (*md)()->set_nchildren(md->local_children().size());
@@ -2085,7 +2095,7 @@ metad::apply(fuse_req_t req, eos::fusex::container& cont, bool listing)
           cap_received = map->second.capability();
         }
 
-        md->xCopyFrom(map->second);
+        md->xCopyFrom(map->second,false);
         (*md)()->clear_capability();
         md->clear_refresh();
 
@@ -2103,7 +2113,9 @@ metad::apply(fuse_req_t req, eos::fusex::container& cont, bool listing)
           p_ino = inomap.forward((*md)()->md_pino());
         }
 
+        md->Locker().Lock();
         md->set_xpid(p_ino);
+        md->Locker().UnLock();
         eos_static_info("store local pino=%016lx for %016lx", md->xpid(),
                         md->xid());
         inomap.insert(map->first, new_ino);
@@ -2403,9 +2415,9 @@ metad::mdstackfree(ThreadAssistant& assistant)
 
         // if the parent is gone, we can remove the child
         if ((!mdmap.count((it->second->xpid()))) &&
-            (!S_ISDIR((*(it->second))()->mode()) || it->second->deleted())) {
+            (!S_ISDIR(it->second->xmode()) || it->second->deleted())) {
           eos_static_debug("removing orphaned inode from mdmap ino=%#lx path=%s",
-                           it->first, (*(it->second))()->fullpath().c_str());
+                           it->first, it->second->xfullpath().c_str());
           mdmap.lru_remove(it->first);
           it = mdmap.erase(it);
           stat.inodes_dec();
@@ -2414,7 +2426,7 @@ metad::mdstackfree(ThreadAssistant& assistant)
             if ((!has_flush(it->first)) &&
                 (!EosFuse::Instance().datas.has(it->first))) {
               eos_static_debug("removing deleted inode from mdmap ino=%#lx path=%s",
-                               it->first, (*(it->second))()->fullpath().c_str());
+                               it->first, it->second->xfullpath().c_str());
               mdmap.lru_remove(it->first);
               it = mdmap.erase(it);
               stat.inodes_dec();
@@ -2866,7 +2878,7 @@ metad::mdcommunicate(ThreadAssistant& assistant)
               if (ino && mdmap.retrieveTS(ino, md)) {
                 XrdSysMutexHelper mLock(md->Locker());
                 md->force_refresh();
-                mode = (*md)()->mode();
+                mode = md->xmode();
               }
 
               if (EOS_LOGS_DEBUG) {
@@ -2999,11 +3011,9 @@ metad::mdcommunicate(ThreadAssistant& assistant)
                 if (rsp.md_().clock() >= (*md)()->clock()) {
                   eos_static_info("overwriting clock MD %#lx => %#lx", (*md)()->clock(),
                                   rsp.md_().clock());
-		  std::string fullpath=(*md)()->fullpath(); // keep the fullpath information
-                  md->xCopyFrom(rsp.md_());
+                  md->xCopyFrom(rsp.md_(),true);
                   (*md)()->set_creator(false);
                   (*md)()->set_bc_time(time(NULL));
-		  (*md)()->set_fullpath(fullpath);
                 } else {
                   eos_static_warning("keeping clock MD %#lx => %#lx", (*md)()->clock(),
                                      rsp.md_().clock());
@@ -3013,7 +3023,7 @@ metad::mdcommunicate(ThreadAssistant& assistant)
                 pino = inomap.forward((*md)()->md_pino());
                 md->set_xid(ino);
                 md->set_xpid(pino);
-                mode = (*md)()->mode();
+                mode = md->xmode();
 
                 if (EOS_LOGS_DEBUG) {
                   eos_static_debug("%s op=%d", md->dump().c_str(), md->getop());
@@ -3063,7 +3073,7 @@ metad::mdcommunicate(ThreadAssistant& assistant)
                                 md_ino, ino, authid.c_str());
                 // new file
                 md = std::make_shared<mdx>();
-                md->xCopyFrom(rsp.md_());
+                md->xCopyFrom(rsp.md_(),false);
                 md->set_xid(md_ino);
                 insert(req, md, authid);
                 uint64_t md_pino = (*md)()->md_pino();
@@ -3074,6 +3084,7 @@ metad::mdcommunicate(ThreadAssistant& assistant)
                 shared_md pmd;
 
                 if (pino && mdmap.retrieveTS(pino, pmd)) {
+                  // TODO: lock pmd
                   if ((*md)()->pt_mtime()) {
                     (*pmd)()->set_mtime((*md)()->pt_mtime());
                     (*pmd)()->set_mtime_ns((*md)()->pt_mtime_ns());

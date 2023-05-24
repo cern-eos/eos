@@ -147,8 +147,8 @@ public:
     int sync();
     size_t size();
     int cache_invalidate();
-    bool prefetch(fuse_req_t req, bool lock = true);
-    void WaitPrefetch(fuse_req_t req, bool lock = true);
+    bool prefetch(fuse_req_t req, size_t file_size, bool lock = true);
+    void WaitPrefetch(fuse_req_t req, size_t file_size, bool lock = true);
     void WaitOpen();
     void FlagDeleted();
 
@@ -245,7 +245,7 @@ public:
 
     std::string fullpath()
     {
-      return (*md())()->fullpath();
+      return md()->xfullpath();
     }
 
     std::string fid()

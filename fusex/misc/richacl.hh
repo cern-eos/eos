@@ -180,7 +180,7 @@ eos2racl(const char* eosacl, metad::shared_md md)
   curr = strtok_r(tacl, ",", &lasts);
 
   if (curr == NULL) {
-    return richacl_from_mode((*md)()->mode());  /* return ACL from mode bits, NULL means invalid ACL */
+    return richacl_from_mode(md->xmode());  /* return ACL from mode bits, NULL means invalid ACL */
   }
 
   struct richacl* acl = richacl_alloc(numace);
@@ -461,7 +461,7 @@ richacl_find_matching_ace(struct richace *e, metad::shared_md pmd,
 struct richacl *
 richacl_merge_parent(struct richacl *acl, metad::shared_md md,  /* subject */
                      struct richacl *pacl, metad::shared_md pmd /* parent */) {
-  bool isDir = S_ISDIR((*md)()->mode());         /* non-Dir inherits from parent if acl == NULL */
+  bool isDir = S_ISDIR(md->xmode());         /* non-Dir inherits from parent if acl == NULL */
   struct richace *ace, *pace;
 
   if (acl == NULL && !isDir) {              /* inherits ACL from parent */
@@ -475,7 +475,7 @@ richacl_merge_parent(struct richacl *acl, metad::shared_md md,  /* subject */
     }
   } else {                                  /* inherits only RICHACL_DELETE_CHILD */
     if (acl == NULL)                        /* Container without ACL, use mode bits, no inheritance */
-      acl = richacl_from_mode((*md)()->mode());
+      acl = richacl_from_mode(md->xmode());
 
     /* Loop over all entries in parent ACL and merge into child */
     richacl_for_each_entry(pace, pacl) {

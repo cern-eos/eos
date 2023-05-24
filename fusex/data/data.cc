@@ -287,6 +287,7 @@ int
 data::datax::flush(fuse_req_t req)
 /* -------------------------------------------------------------------------- */
 {
+  // this is called with a lock on the mMd object
   eos_info("");
   XrdSysMutexHelper lLock(mLock);
   bool flush_wait_open = false;
@@ -605,6 +606,8 @@ int
 data::datax::attach(fuse_req_t freq, std::string& cookie, int flags)
 /* -------------------------------------------------------------------------- */
 {
+  // this is called with a lock on the mMd object
+  // the lock is released during this method but taken again before returning
   XrdSysMutexHelper lLock(mLock);
   bool isRW = false;
   bool add_O_SYNC = false;
@@ -716,11 +719,15 @@ data::datax::attach(fuse_req_t freq, std::string& cookie, int flags)
     mSimulateWriteErrorInFlusher = true;
   }
 
+  // release mMd lock while setting caches
+  // (as these may issue fs operations)
   if ((flags & O_SYNC) ||
       ((time(NULL) - (*mMd)()->bc_time()) <
        EosFuse::Instance().Config().options.nocache_graceperiod)) {
+    mMd->Locker().UnLock();
     mFile->disable_caches();
-  }
+  } else
+    mMd->Locker().UnLock();
 
   int bcache = mFile->file() ? mFile->file()->attach(freq, cookie, isRW) : 0;
   int jcache = mFile->journal() ? ((isRW ||
@@ -827,6 +834,7 @@ data::datax::attach(fuse_req_t freq, std::string& cookie, int flags)
     }
   }
 
+  mMd->Locker().Lock();
   return bcache | jcache;
 }
 
@@ -835,6 +843,7 @@ bool
 /* -------------------------------------------------------------------------- */
 data::datax::inline_file(ssize_t size)
 {
+  // this is called with a lock on the mMd object
   XrdSysMutexHelper lLock(mLock);
 
   if (size == -1) {
@@ -871,10 +880,9 @@ data::datax::inline_file(ssize_t size)
 /* -------------------------------------------------------------------------- */
 bool
 /* -------------------------------------------------------------------------- */
-data::datax::prefetch(fuse_req_t req, bool lock)
+data::datax::prefetch(fuse_req_t req, size_t file_size, bool lock)
 /* -------------------------------------------------------------------------- */
 {
-  size_t file_size = (*mMd)()->size();
   eos_info("handler=%d file=%lx size=%lu md-size=%lu", mPrefetchHandler ? 1 : 0,
            mFile ? mFile->file() : 0,
            mFile ? mFile->file() ? mFile->file()->size() : 0 : 0,
@@ -942,7 +950,7 @@ data::datax::prefetch(fuse_req_t req, bool lock)
 /* -------------------------------------------------------------------------- */
 void
 /* -------------------------------------------------------------------------- */
-data::datax::WaitPrefetch(fuse_req_t req, bool lock)
+data::datax::WaitPrefetch(fuse_req_t req, size_t file_size, bool lock)
 /* -------------------------------------------------------------------------- */
 {
   eos_info("");
@@ -950,8 +958,6 @@ data::datax::WaitPrefetch(fuse_req_t req, bool lock)
   if (lock) {
     mLock.Lock();
   }
-
-  size_t file_size = (*mMd)()->size();
 
   if (mPrefetchHandler && mFile->file()) {
     XrdCl::shared_proxy proxy = mFile->has_xrdioro(req) ? mFile->xrdioro(
@@ -2104,6 +2110,12 @@ ssize_t
 data::datax::pread(fuse_req_t req, void* buf, size_t count, off_t offset)
 /* -------------------------------------------------------------------------- */
 {
+  size_t md_size = 0;
+  {
+    XrdSysMutexHelper lLock(mMd->Locker());
+    md_size = (*mMd)()->size();
+  }
+
   eos_info("offset=%llu count=%lu", offset, count);
   mLock.Lock();
 
@@ -2163,8 +2175,8 @@ data::datax::pread(fuse_req_t req, void* buf, size_t count, off_t offset)
   if (mFile->file() && (offset < mFile->file()->prefetch_size())) {
     mLock.UnLock();
 
-    if (prefetch(req)) {
-      WaitPrefetch(req);
+    if (prefetch(req, md_size)) {
+      WaitPrefetch(req, md_size);
       mLock.Lock();
       ssize_t br = mFile->file()->pread(buf, count, offset);
 
@@ -2549,8 +2561,8 @@ data::datax::peek_pread(fuse_req_t req, char*& buf, size_t count, off_t offset)
   }
 
   if (mFile->file() && (offset < mFile->file()->prefetch_size())) {
-    if (prefetch(req, false)) {
-      WaitPrefetch(req, false);
+    if (prefetch(req, md_size, false)) {
+      WaitPrefetch(req, md_size, false);
       ssize_t br = mFile->file()->pread(buf, count, offset);
 
       if (br < 0) {
