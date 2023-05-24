@@ -42,7 +42,7 @@ GlobalConfigChangeListener::GlobalConfigChangeListener(mq::MessagingRealm*
 {
   if (mMessagingRealm->haveQDB()) {
     mSharedHash = mMessagingRealm->getHashProvider()->get(
-                    eos::common::SharedHashLocator::makeForGlobalHash().getQDBKey());
+                    eos::common::SharedHashLocator::makeForGlobalHash());
     mSubscription = mSharedHash->subscribe(true);
     using namespace std::placeholders;
     mSubscription->attachCallback(std::bind(

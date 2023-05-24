@@ -26,6 +26,7 @@
 #include "mq/MessagingRealm.hh"
 #include "common/ParseUtils.hh"
 #include "common/StringUtils.hh"
+#include "common/Locators.hh"
 
 #include <qclient/shared/SharedHash.hh>
 #include <qclient/shared/UpdateBatch.hh>
@@ -87,7 +88,7 @@ SharedHashWrapper::SharedHashWrapper(mq::MessagingRealm* realm,
   : mSom(realm->getSom()), mLocator(locator)
 {
   if (realm->haveQDB()) {
-    mSharedHash = realm->getHashProvider()->get(locator.getQDBKey());
+    mSharedHash = realm->getHashProvider()->get(locator);
   } else {
     if (takeLock) {
       mReadLock.Grab(mSom->HashMutex);
@@ -171,8 +172,8 @@ bool SharedHashWrapper::set(const Batch& batch)
   if (mSharedHash) {
     qclient::UpdateBatch updateBatch;
 
-    for (auto it = batch.mDurableUpdates.begin(); it != batch.mDurableUpdates.end();
-         it++) {
+    for (auto it = batch.mDurableUpdates.begin();
+         it != batch.mDurableUpdates.end(); it++) {
       updateBatch.setDurable(it->first, it->second);
     }
 
@@ -181,8 +182,8 @@ bool SharedHashWrapper::set(const Batch& batch)
       updateBatch.setTransient(it->first, it->second);
     }
 
-    for (auto it = batch.mLocalUpdates.begin(); it != batch.mLocalUpdates.end();
-         it++) {
+    for (auto it = batch.mLocalUpdates.begin();
+         it != batch.mLocalUpdates.end(); it++) {
       updateBatch.setLocal(it->first, it->second);
     }
 
