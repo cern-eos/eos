@@ -185,25 +185,40 @@ tcp() {
 
 # EOS token
 eostoken() {
-    echo "Contents of /etc/xrd.cf.mgm:"
-    cat /etc/xrd.cf.mgm
+    # certificate and private key
+    #export X509_USER_CERT=${cert}
+    #export X509_USER_KEY=${key}
+
     echo "Enable token generation"
     eos space config default space.token.generation=1
     EXPIRE=`date +%s`; LATER=$(($EXPIRE+300));
-    export EOS_RW_TOKEN=`XrdSecPROTOCOL=gsi eos token --path ${testdir}/ --tree --permissions rwx --expires $LATER`
+    echo "The current env is:"
+    env
+    echo "whoami:"
+    whoami
+    echo "The cert dir is:"
+    ls -lrta /root/.globus/
+    echo "The client cert is:"
+    openssl x509 -in /root/.globaus/usercert.pem -text
+    echo "The the host cert is:":
+    openssl x509 -in /etc/grid-security/daemon/hostcert.pem -text
 
-    if [[ $? -ne 0 ]]; then
+    export EOS_RW_TOKEN=`XRD_LOGLEVEL=Dump XrdSecPROTOCOL=gsi eos token --path ${testdir}/ --tree --permissions rwx --expires $LATER`
+
+    if [[ $EOS_RW_TOKEN  != "zteos64:"* ]]; then
         echo -e '\terror: eos rw token command failed'
         return 1
     fi
 
     export EOS_RO_TOKEN=`XrdSecPROTOCOL=gsi eos token --path ${testdir}/ --tree --permissions rx --expires $LATER`
 
-    if [[ $? -ne 0 ]]; then
+    if [[ $EOS_RW_TOKEN  != "zteos64:"* ]]; then
         echo -e '\terror: eos ro token command failed'
         return 1
     fi
 
+    # Make destination directory only accessible to eos-user
+    eos chmod 700 ${testdir}
     respEosTokenRwUpload="$(curl -I -sS ${verbose} -L -H "Authorization: Bearer ${EOS_RW_TOKEN}" https://${host}:${port}${testdir}/helloworld-eostoken.txt --upload-file <(echo ola-token) | grep HTTP | tr -d '\r' | paste -sd'+')"
     echo -e "\teostoken rw upload -> ${respEosTokenRwUpload}"
     [[ $respEosTokenRwUpload == "HTTP/1.1 307 TEMPORARY_REDIRECT+HTTP/1.1 201 CREATED" ]]
