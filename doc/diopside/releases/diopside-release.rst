@@ -16,6 +16,17 @@ Introduction
 
 This release is based on XRootD V5.
 
+``v5.1.21 Diopside``
+==========================
+
+2023-05-24
+
+Bug
+----
+
+* COMMON: Fix handling of eos token when passed as HTTPS bearer authorization header
+
+
 ``v5.1.20 Diopside``
 ==========================
 
@@ -25,7 +36,7 @@ This release is based on eos-xrootd-5.5.10/xrootd-5.5.5
 
 Bug
 ---
-This release updates to using eos-xrootd-5.5.10 which includes
+* This release updates to using eos-xrootd-5.5.10 which includes
 a fix for a regression when higher fdlimits are needed
 
 
