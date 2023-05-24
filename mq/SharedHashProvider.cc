@@ -22,6 +22,8 @@
  ************************************************************************/
 
 #include "mq/SharedHashProvider.hh"
+#include "mq/LocalHash.hh"
+#include "common/Locators.hh"
 #include <qclient/shared/SharedHash.hh>
 
 EOSMQNAMESPACE_BEGIN
@@ -29,22 +31,32 @@ EOSMQNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
-SharedHashProvider::SharedHashProvider(qclient::SharedManager *manager)
-: mSharedManager(manager) {}
+SharedHashProvider::SharedHashProvider(qclient::SharedManager* manager)
+  : mSharedManager(manager) {}
 
 //------------------------------------------------------------------------------
 // Get shared hash
 //------------------------------------------------------------------------------
-std::shared_ptr<qclient::SharedHash> SharedHashProvider::get(const std::string &key) {
+std::shared_ptr<qclient::SharedHash>
+SharedHashProvider::get(const eos::common::SharedHashLocator& locator)
+{
+  const std::string& key = locator.getQDBKey();
   std::unique_lock lock(mMutex);
-
   auto it = mStore.find(key);
-  if(it != mStore.end()) {
+
+  if (it != mStore.end()) {
     return it->second;
   }
 
+  using eos::common::SharedHashLocator;
   std::shared_ptr<qclient::SharedHash> hash;
-  hash.reset(new qclient::SharedHash(mSharedManager, key));
+
+  if ((locator.getType() == SharedHashLocator::Type::kSpace) ||
+      ((locator.getType() == SharedHashLocator::Type::kGroup))) {
+    hash.reset(new LocalHash(key));
+  } else {
+    hash.reset(new qclient::SharedHash(mSharedManager, key));
+  }
 
   mStore[key] = hash;
   return hash;

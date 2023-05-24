@@ -127,7 +127,8 @@ private:
 //!
 //! Abstracts away the "config queue" / "broadcast queue" madness.
 //------------------------------------------------------------------------------
-class SharedHashLocator {
+class SharedHashLocator
+{
 public:
   enum class Type {
     kSpace,
@@ -147,26 +148,26 @@ public:
   //!
   //! Once we drop the MQ entirely, the instance name can be removed.
   //----------------------------------------------------------------------------
-  SharedHashLocator(const std::string &instanceName, Type type,
-    const std::string &name);
+  SharedHashLocator(const std::string& instanceName, Type type,
+                    const std::string& name);
 
   //----------------------------------------------------------------------------
   //! Constructor: Same as above, but auto-discover instance name.
   //----------------------------------------------------------------------------
-  SharedHashLocator(Type type, const std::string &name);
+  SharedHashLocator(Type type, const std::string& name);
 
   //----------------------------------------------------------------------------
   //! Constructor: Special case for FileSystems, as they work a bit differently
   //! than the rest.
   //----------------------------------------------------------------------------
-  SharedHashLocator(const FileSystemLocator &fsLocator, bool bc2mgm);
+  SharedHashLocator(const FileSystemLocator& fsLocator, bool bc2mgm);
 
   //----------------------------------------------------------------------------
   //! Convenience "Constructors": Make locator for space, group, node
   //----------------------------------------------------------------------------
-  static SharedHashLocator makeForSpace(const std::string &name);
-  static SharedHashLocator makeForGroup(const std::string &name);
-  static SharedHashLocator makeForNode(const std::string &name);
+  static SharedHashLocator makeForSpace(const std::string& name);
+  static SharedHashLocator makeForGroup(const std::string& name);
+  static SharedHashLocator makeForNode(const std::string& name);
   static SharedHashLocator makeForGlobalHash();
 
   //----------------------------------------------------------------------------
@@ -187,20 +188,27 @@ public:
   //----------------------------------------------------------------------------
   //! Produce SharedHashLocator by parsing config queue
   //----------------------------------------------------------------------------
-  static bool fromConfigQueue(const std::string &configQueue, SharedHashLocator &out);
+  static bool fromConfigQueue(const std::string& configQueue,
+                              SharedHashLocator& out);
 
   //----------------------------------------------------------------------------
   //! Get QDB key for this queue
   //----------------------------------------------------------------------------
   std::string getQDBKey() const;
 
+  //----------------------------------------------------------------------------
+  //! Get locator type
+  //----------------------------------------------------------------------------
+  inline SharedHashLocator::Type getType() const
+  {
+    return mType;
+  }
+
 private:
   bool mInitialized;
-
   std::string mInstanceName;
   Type mType;
   std::string mName;
-
   std::string mMqSharedHashPath;
   std::string mBroadcastQueue;
   std::string mFilesystemChannel;
@@ -210,17 +218,19 @@ private:
 //------------------------------------------------------------------------------
 //! Class to fully specify a TransferQueue
 //------------------------------------------------------------------------------
-class TransferQueueLocator {
+class TransferQueueLocator
+{
 public:
   //----------------------------------------------------------------------------
   //! Constructor: Queue tied to a FileSystem
   //----------------------------------------------------------------------------
-  TransferQueueLocator(const FileSystemLocator &fsLocator, const std::string &tag);
+  TransferQueueLocator(const FileSystemLocator& fsLocator,
+                       const std::string& tag);
 
   //----------------------------------------------------------------------------
   //! Constructor: Queue tied to an FST
   //----------------------------------------------------------------------------
-  TransferQueueLocator(const std::string &fstQueue, const std::string &tag);
+  TransferQueueLocator(const std::string& fstQueue, const std::string& tag);
 
   //----------------------------------------------------------------------------
   //! Get "queue"
