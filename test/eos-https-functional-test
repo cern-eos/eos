@@ -185,16 +185,19 @@ tcp() {
 
 # EOS token
 eostoken() {
+    echo "Contents of /etc/xrd.cf.mgm:"
+    cat /etc/xrd.cf.mgm
+    echo "Enable token generation"
     eos space config default space.token.generation=1
     EXPIRE=`date +%s`; LATER=$(($EXPIRE+300));
-    export EOS_RW_TOKEN=`XrdSecPROTOCOL=gsi eos root://${host}:1094/ token --path ${testdir}/ --tree --permissions rwx --expires $LATER`
+    export EOS_RW_TOKEN=`XrdSecPROTOCOL=gsi eos token --path ${testdir}/ --tree --permissions rwx --expires $LATER`
 
     if [[ $? -ne 0 ]]; then
         echo -e '\terror: eos rw token command failed'
         return 1
     fi
 
-    export EOS_RO_TOKEN=`XrdSecPROTOCOL=gsi eos root://${host}:1094/ token --path ${testdir}/ --tree --permissions rx --expires $LATER`
+    export EOS_RO_TOKEN=`XrdSecPROTOCOL=gsi eos token --path ${testdir}/ --tree --permissions rx --expires $LATER`
 
     if [[ $? -ne 0 ]]; then
         echo -e '\terror: eos ro token command failed'
@@ -217,13 +220,13 @@ eostoken() {
     eostoken_ro_down=$?
 
     # Make destination directory read-only and try to upload with RO token
-    eos root://${host}/ chmod 500 ${testdir}
+    eos chmod 500 ${testdir}
     respEosTokenRoUpload="$(curl -I -sS ${verbose} -L -H "Authorization: Bearer ${EOS_RO_TOKEN}" https://${host}:${port}${testdir}/helloworld-eostoken-ro.txt --upload-file <(echo ola-token) | grep HTTP | tr -d '\r' | paste -sd'+')"
     echo -e "\teostoken ro upload -> ${respEosTokenRoUpload}"
     [[ $respEosTokenRoUpload == "HTTP/1.1 403 FORBIDDEN" ]]
     eostoken_ro_up=$?
 
-    eos root://${host}/ chmod 750 ${testdir}
+    eos chmod 750 ${testdir}
     return $((2#$eostoken_rw_up$eostoken_rw_down$eostoken_ro_down$eostoken_ro_up))
 }
 
