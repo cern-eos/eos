@@ -1999,8 +1999,12 @@ Mapping::addSecondaryGroups(VirtualIdentity& vid, const std::string& name,
                             gid_t gid)
 {
   if (gSecondaryGroups) {
+    eos_static_debug("msg=\"group lookup\" name=\"%s\" gid=%d",
+                     name.c_str(), gid);
     struct group* gr;
-    eos_static_debug("group lookup %s %d", name.c_str(), gid);
+    // Calls to setgrent/getgrent/endgrent are not thread-safe
+    static std::mutex mutex;
+    std::unique_lock<std::mutex> lock(mutex);
     setgrent();
 
     while ((gr = getgrent())) {
