@@ -139,7 +139,7 @@ tcp() {
     export SRC=https://${host}:${port}/${testdir}/helloworld.txt
     export DST=https://${host}:${port}/${testdir}/helloworld-tcp.txt
     export TSRC=$(curl -sS -4 --capath "${capath}" --cert "${cert}" --cacert "${cacert}" --key "${key}" -X POST -H 'Content-Type: application/macaroon-request' -d '{"caveats": ["activity:DOWNLOAD"], "validity": "PT3000M"}' "$SRC" | jq -r '.macaroon')
-    export TDST=$(curl -sS -4 --capath "${capath}" --cert "${cert}" --cacert "${cacert}" --key "${key}" -X POST -H 'Content-Type: application/macaroon-request' -d '{"caveats": ["activity:UPLOAD,DELETE,LIST"], "validity": "PT3000M"}' "$DST" | jq -r '.macaroon')
+    export TDST=$(curl -sS -4 --capath "${capath}" --cert "${cert}" --cacert "${cacert}" --key "${key}" -X POST -H 'Content-Type: application/macaroon-request' -d '{"caveats": ["activity:UPLOAD,DELETE,LIST,MANAGE"], "validity": "PT3000M"}' "$DST" | jq -r '.macaroon')
     if [[ ${verbose} == "-v" ]]; then
       echo -n "Transfer Source Token: "
       echo "${TSRC}" | base64 -d
