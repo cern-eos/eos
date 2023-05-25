@@ -252,14 +252,14 @@ metad::lookup(fuse_req_t req, fuse_ino_t parent, const char* name)
     // --------------------------------------------------
     // try to get the meta data record
     // --------------------------------------------------
-    pmd->Locker().UnLock();
+    const std::string pfullpath = (*pmd)()->fullpath();
+    mLock.UnLock();
     md = get(req, inode, "", false, pmd, name);
 
     if (md) {
       md->Locker().Lock();
-      md->store_fullpath(pmd, name);
+      md->store_fullpath(pfullpath, name);
       md->Locker().UnLock();
-      pmd->Locker().Lock();
     } else {
       md = std::make_shared<mdx>();
       (*md)()->set_err(ENOENT);
@@ -637,7 +637,9 @@ metad::getpath(fuse_ino_t ino)
     return "";
   }
 
-  return (*md)()->fullpath();
+  // TODO: we don't take md lock here; introduce a more robust approach.
+  // Currently return via the c-string to reduce disturbance of the source str
+  return (*md)()->fullpath().c_str();
 }
 
 /* -------------------------------------------------------------------------- */
@@ -877,7 +879,8 @@ metad::get(fuse_req_t req,
     // a not yet published child entry at the parent.
 
     if (md) {
-      mdmap.retrieveWithParentTS(ino, md, pmd);
+      std::string md_name;
+      mdmap.retrieveWithParentTS(ino, md, pmd, md_name);
       eos_static_info("ino=%08llx pino=%08llx name=%s listing=%d", ino,
                       pmd ? (*pmd)()->id() : 0, name, listing);
 
@@ -890,18 +893,17 @@ metad::get(fuse_req_t req,
         // we make sure, that the meta data record is attached to the local parent
         if (pmd && (*pmd)()->id()) {
           std::string encname = eos::common::StringConversion::EncodeInvalidUTF8
-                                ((*md)()->name());
+                                (md_name);
           XrdSysMutexHelper mLock(pmd->Locker());
 
           if (!pmd->local_children().count(encname) &&
               !pmd->get_todelete().count(encname) &&
               !md->deleted()) {
             eos_static_info("attaching %s [%#lx] to %s [%#lx]",
-                            encname.c_str(), (*md)()->id(),
+                            encname.c_str(), ino,
                             (*pmd)()->name().c_str(), (*pmd)()->id());
             // persist this hierarchical dependency
-            pmd->local_children()[eos::common::StringConversion::EncodeInvalidUTF8
-                                  ((*md)()->name())] = (*md)()->id();
+            pmd->local_children()[encname] = ino;
             update(req, pmd, "", true);
           }
         }
@@ -1044,6 +1046,7 @@ metad::add(fuse_req_t req, metad::shared_md pmd, metad::shared_md md,
   uint64_t pid = 0;
   const uint64_t id = (*md)()->id();
   uint64_t pmd_ino = 0;
+  const std::string encname = StringConversion::EncodeInvalidUTF8( (*md)()->name() );
 
   if (EOS_LOGS_DEBUG)
     eos_static_debug("child=%s parent=%s inode=%016lx authid=%s localstore=%d",
@@ -1055,15 +1058,13 @@ metad::add(fuse_req_t req, metad::shared_md pmd, metad::shared_md md,
   {
     XrdSysMutexHelper mLock(pmd->Locker());
 
-    if (!pmd->local_children().count(StringConversion::EncodeInvalidUTF8(
-                                       (*md)()->name()))) {
+    if (!pmd->local_children().count(encname)) {
       (*pmd)()->set_nchildren((*pmd)()->nchildren() + 1);
     }
 
-    pmd->local_children()[StringConversion::EncodeInvalidUTF8(
-                            (*md)()->name())] = id;
+    pmd->local_children()[encname] = id;
     (*pmd)()->set_nlink(1);
-    pmd->get_todelete().erase(StringConversion::EncodeInvalidUTF8((*md)()->name()));
+    pmd->get_todelete().erase(encname);
     pid = (*pmd)()->id();
     pmd_ino = (*pmd)()->md_ino();
   }
@@ -2291,6 +2292,7 @@ metad::mdcflush(ThreadAssistant& assistant)
 
         if ((*md)()->id()) {
           uint64_t removeentry = 0;
+          const std::string md_name = (*md)()->name();
           {
             int rc = 0;
 
@@ -2379,7 +2381,7 @@ metad::mdcflush(ThreadAssistant& assistant)
                 // we don't remote entries from the local deletion list because there could be
                 // a race condition of a thread doing MDLS overwriting the locally deleted entry
                 pmd->get_todelete().erase(eos::common::StringConversion::EncodeInvalidUTF8(
-                                            (*md)()->name()));
+                                            md_name));
                 pmd->Signal();
               }
             }
@@ -3123,15 +3125,16 @@ metad::mdcommunicate(ThreadAssistant& assistant)
                                      pino, (*md)()->clientid().c_str());
                   }
 
+                  const std::string md_name = (*md)()->name();
                   md->Locker().UnLock();
 
                   // possibly invalidate kernel cache for parent
                   if (EosFuse::Instance().Config().options.md_kernelcache) {
                     eos_static_info("invalidate md cache for ino=%016lx", pino);
-                    kernelcache::inval_entry(pino, (*md)()->name());
+                    kernelcache::inval_entry(pino, md_name);
                     kernelcache::inval_inode(pino, false);
                     XrdSysMutexHelper mLock(pmd->Locker());
-                    pmd->local_enoent().erase((*md)()->name());
+                    pmd->local_enoent().erase(md_name);
                   }
                 } else {
                   eos_static_err("missing parent mapping pino=%16x for ino%16x",
@@ -3839,7 +3842,8 @@ metad::pmap::eraseTS(fuse_ino_t ino)
 
 /* -------------------------------------------------------------------------- */
 void
-metad::pmap::retrieveWithParentTS(fuse_ino_t ino, shared_md& md, shared_md& pmd)
+metad::pmap::retrieveWithParentTS(fuse_ino_t ino, shared_md& md, shared_md& pmd,
+                                  std::string &md_name)
 {
   // Atomically retrieve md objects for an inode, and its parent.
   while (true) {
@@ -3848,6 +3852,7 @@ metad::pmap::retrieveWithParentTS(fuse_ino_t ino, shared_md& md, shared_md& pmd)
     // which locks md first, and then mdmap.
     md.reset();
     pmd.reset();
+    md_name.clear();
     XrdSysMutexHelper mLock(this);
 
     if (!retrieve(ino, md)) {
@@ -3858,6 +3863,7 @@ metad::pmap::retrieveWithParentTS(fuse_ino_t ino, shared_md& md, shared_md& pmd)
     if (md->Locker().CondLock()) {
       // Success!
       retrieve((*md)()->pid(), pmd);
+      md_name = (*md)()->name();
       md->Locker().UnLock();
       return;
     }

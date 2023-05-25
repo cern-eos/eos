@@ -3516,9 +3516,8 @@ EBADF  Invalid directory stream descriptor fi->fh
         if (cmd->deleted()) {
           continue;
         }
-      }
-      stbuf.st_ino = cino;
-      {
+
+        stbuf.st_ino = cino;
         auto attrMap = (*cmd)()->mutable_attr();
 
         if (attrMap->count(k_mdino)) {
@@ -3530,6 +3529,7 @@ EBADF  Invalid directory stream descriptor fi->fh
                              (*cmd)()->name().c_str(), (*cmd)()->id(), (*attrMap)[k_mdino].c_str(), mdino,
                              local_ino);
           }
+          cLock.UnLock();
 
           stbuf.st_ino = local_ino;
           metad::shared_md target = Instance().mds.get(req, local_ino, "", 0, 0, 0,
@@ -4719,6 +4719,7 @@ The O_NONBLOCK flag was specified, and an incompatible lease was held on the fil
         bool obfuscate = false;
         md = Instance().mds.lookup(req, parent, name);
         pmd = Instance().mds.get(req, parent, (*pcap)()->authid());
+        std::string pfullpath;
         {
           uint64_t del_ino = 0;
           // logic avoiding a create/unlink/create sync/async race
@@ -4732,6 +4733,7 @@ The O_NONBLOCK flag was specified, and an incompatible lease was held on the fil
             }
 
             obfuscate = pmd->obfuscate();
+            pfullpath = (*pmd)()->fullpath();
           }
 
           if (del_ino) {
@@ -4750,7 +4752,7 @@ The O_NONBLOCK flag was specified, and an incompatible lease was held on the fil
 
           (*md)()->set_err(0);
           (*md)()->set_mode(mode | (S_ISFIFO(mode) ? S_IFIFO : S_IFREG));
-          (*md)()->set_fullpath((*pmd)()->fullpath() + "/" + name);
+          (*md)()->set_fullpath(pfullpath + "/" + name);
 
           if (S_ISFIFO(mode)) {
             (*(*md)()->mutable_attr())[k_fifo] = "";

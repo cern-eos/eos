@@ -245,7 +245,9 @@ public:
 
     std::string fullpath()
     {
-      return (*md())()->fullpath();
+      // TODO: we don't take md lock here; introduce a more robust approach.
+      // Currently return via the c-string to reduce disturbance of the source str
+      return (*md())()->fullpath().c_str();
     }
 
     std::string fid()
