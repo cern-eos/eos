@@ -1002,6 +1002,14 @@ void
 metad::update(fuse_req_t req, shared_md md, std::string authid,
               bool localstore)
 {
+  update(req, (*md)()->id(), authid, localstore);
+}
+
+/* -------------------------------------------------------------------------- */
+void
+metad::update(fuse_req_t req, uint64_t id, std::string authid,
+              bool localstore)
+{
   mdflush.Lock();
   stat.inodes_backlog_store(mdqueue.size());
 
@@ -1013,13 +1021,13 @@ metad::update(fuse_req_t req, shared_md md, std::string authid,
     }
   }
 
-  flushentry fe((*md)()->id(), authid, localstore ? mdx::LSTORE : mdx::UPDATE,
-                req);
+  flushentry fe(id, authid, localstore ? mdx::LSTORE : mdx::UPDATE, req);
+
   fe.bind();
-  mdqueue[(*md)()->id()]++;
+  mdqueue[id]++;
   mdflushqueue.push_back(fe);
   eos_static_info("added ino=%#lx flushentry=%s queue-size=%u local-store=%d",
-                  (*md)()->id(), flushentry::dump(fe).c_str(), mdqueue.size(), localstore);
+                  id, flushentry::dump(fe).c_str(), mdqueue.size(), localstore);
   mdflush.Signal();
   mdflush.UnLock();
 }
@@ -1034,7 +1042,8 @@ metad::add(fuse_req_t req, metad::shared_md pmd, metad::shared_md md,
   stat.inodes_inc();
   stat.inodes_ever_inc();
   uint64_t pid = 0;
-  uint64_t id = 0;
+  const uint64_t id = (*md)()->id();
+  uint64_t pmd_ino = 0;
 
   if (EOS_LOGS_DEBUG)
     eos_static_debug("child=%s parent=%s inode=%016lx authid=%s localstore=%d",
@@ -1052,17 +1061,17 @@ metad::add(fuse_req_t req, metad::shared_md pmd, metad::shared_md md,
     }
 
     pmd->local_children()[StringConversion::EncodeInvalidUTF8(
-                            (*md)()->name())] = (*md)()->id();
+                            (*md)()->name())] = id;
     (*pmd)()->set_nlink(1);
     pmd->get_todelete().erase(StringConversion::EncodeInvalidUTF8((*md)()->name()));
     pid = (*pmd)()->id();
+    pmd_ino = (*pmd)()->md_ino();
   }
   md->Locker().Lock();
   {
     // store the local and remote parent inode
-    (*md)()->set_pid((*pmd)()->id());
-    (*md)()->set_md_pino((*pmd)()->md_ino());
-    id = (*md)()->id();
+    (*md)()->set_pid(pid);
+    (*md)()->set_md_pino(pmd_ino);
   }
   mdflush.Lock();
   stat.inodes_backlog_store(mdqueue.size());
@@ -1094,7 +1103,8 @@ metad::add_sync(fuse_req_t req, shared_md pmd, shared_md md, std::string authid)
   int rc = 0;
   // store the local and remote parent inode
   XrdSysMutexHelper mLockParent(pmd->Locker());
-  (*md)()->set_pid((*pmd)()->id());
+  const uint64_t pid = (*pmd)()->id();
+  (*md)()->set_pid(pid);
   (*md)()->set_md_pino((*pmd)()->md_ino());
   mLockParent.UnLock();
   mdx::md_op op = mdx::ADD;
@@ -1111,10 +1121,10 @@ metad::add_sync(fuse_req_t req, shared_md pmd, shared_md md, std::string authid)
     // wait that the parent is leaving the mdqueue
     mdflush.Lock();
 
-    if (mdqueue.count((*pmd)()->id())) {
+    if (mdqueue.count(pid)) {
       mdflush.UnLock();
       eos_static_info("waiting for parent directory to be synced upstream parent-ino= %#lx ino=%#lx",
-                      (*pmd)()->id(), (*md)()->id());
+                      pid, (*md)()->id());
       std::this_thread::sleep_for(std::chrono::microseconds(500));
     } else {
       mdflush.UnLock();
@@ -1156,6 +1166,7 @@ metad::add_sync(fuse_req_t req, shared_md pmd, shared_md md, std::string authid)
                      (*md)()->name().c_str(),
                      (*pmd)()->name().c_str(), (*md)()->id(), authid.c_str());
 
+  const uint64_t id = (*md)()->id();
   // avoid lock-order violation
   md->Locker().UnLock();
   {
@@ -1167,7 +1178,7 @@ metad::add_sync(fuse_req_t req, shared_md pmd, shared_md md, std::string authid)
     }
 
     pmd->local_children()[eos::common::StringConversion::EncodeInvalidUTF8(
-                            md_name)] = (*md)()->id();
+                            md_name)] = id;
     (*pmd)()->set_nlink(1);
     pmd->get_todelete().erase(eos::common::StringConversion::EncodeInvalidUTF8(
                                 md_name));
@@ -1180,9 +1191,9 @@ metad::add_sync(fuse_req_t req, shared_md pmd, shared_md md, std::string authid)
     mdflush.WaitMS(25);
   }
 
-  flushentry fep((*pmd)()->id(), authid, mdx::LSTORE, req);
+  flushentry fep(pid, authid, mdx::LSTORE, req);
   fep.bind();
-  mdqueue[(*pmd)()->id()]++;
+  mdqueue[pid]++;
   mdflushqueue.push_back(fep);
   mdflush.Signal();
   mdflush.UnLock();
@@ -1265,15 +1276,18 @@ metad::remove(fuse_req_t req, metad::shared_md pmd, metad::shared_md md,
   }
 
   std::string name = (*md)()->name();
+  const uint64_t id = (*md)()->id();
   // avoid lock order violation
   md->Locker().UnLock();
+  uint64_t pid = 0;
   {
     XrdSysMutexHelper mLock(pmd->Locker());
+    pid = (*pmd)()->id();
     pmd->local_children().erase(eos::common::StringConversion::EncodeInvalidUTF8(
                                   name));
     (*pmd)()->set_nchildren((*pmd)()->nchildren() - 1);
     pmd->get_todelete()[eos::common::StringConversion::EncodeInvalidUTF8(
-                          name)] = (*md)()->id();
+                          name)] = id;
     (*pmd)()->set_mtime(ts.tv_sec);
     (*pmd)()->set_mtime_ns(ts.tv_nsec);
   }
@@ -1293,13 +1307,13 @@ metad::remove(fuse_req_t req, metad::shared_md pmd, metad::shared_md md,
     return;
   }
 
-  flushentry fe((*md)()->id(), authid, mdx::RM, req);
+  flushentry fe(id, authid, mdx::RM, req);
   fe.bind();
-  flushentry fep((*pmd)()->id(), authid, mdx::LSTORE, req);
+  flushentry fep(pid, authid, mdx::LSTORE, req);
   fep.bind();
   mdflush.Lock();
-  mdqueue[(*pmd)()->id()]++;
-  mdqueue[(*md)()->id()]++;
+  mdqueue[pid]++;
+  mdqueue[id]++;
   mdflushqueue.push_back(fe);
   mdflushqueue.push_back(fep);
   stat.inodes_backlog_store(mdqueue.size());
@@ -1322,12 +1336,16 @@ metad::mv(fuse_req_t req, shared_md p1md, shared_md p2md, shared_md md,
   struct timespec ts;
   eos::common::Timing::GetTimeSpec(ts);
 
-  if ((*p1md)()->id() != (*p2md)()->id()) {
+  uint64_t p1id = 0, p2id = 0;
+
+  if (p1md != p2md) {
     // move between directories. We need to run an expensive algorithm to
     // determine the correct lock order, but a rename should be rather uncommon,
     // anyway.
     MdLocker locker(p1md, p2md, determineLockOrder(p1md, p2md));
     std::string oldname = (*md)()->name();
+    p1id = (*p1md)()->id();
+    p2id = (*p2md)()->id();
 
     if (!p2md->local_children().count(
           eos::common::StringConversion::EncodeInvalidUTF8(newname))) {
@@ -1352,7 +1370,7 @@ metad::mv(fuse_req_t req, shared_md p1md, shared_md p2md, shared_md md,
     (*p2md)()->set_ctime(ts.tv_sec);
     (*p2md)()->set_ctime_ns(ts.tv_nsec);
     (*md)()->set_name(newname);
-    (*md)()->set_pid((*p2md)()->id());
+    (*md)()->set_pid(p2id);
     (*md)()->set_md_pino((*p2md)()->md_ino());
     p1md->get_todelete()[eos::common::StringConversion::EncodeInvalidUTF8(
                            oldname)] = 0; //(*md)()->id(); // make it known as deleted
@@ -1365,6 +1383,7 @@ metad::mv(fuse_req_t req, shared_md p1md, shared_md p2md, shared_md md,
   } else {
     // move within directory
     XrdSysMutexHelper m1Lock(p1md->Locker());
+    p1id = p2id = (*p1md)()->id();
 
     if (p2md->local_children().count(
           eos::common::StringConversion::EncodeInvalidUTF8(newname))) {
@@ -1402,15 +1421,15 @@ metad::mv(fuse_req_t req, shared_md p1md, shared_md p2md, shared_md md,
     mdflush.WaitMS(25);
   }
 
-  flushentry fe1((*p1md)()->id(), authid1, mdx::UPDATE, req);
+  flushentry fe1(p1id, authid1, mdx::UPDATE, req);
   fe1.bind();
-  mdqueue[(*p1md)()->id()]++;
+  mdqueue[p1id]++;
   mdflushqueue.push_back(fe1);
 
-  if ((*p1md)()->id() != (*p2md)()->id()) {
-    flushentry fe2((*p2md)()->id(), authid2, mdx::UPDATE, req);
+  if (p1id != p2id) {
+    flushentry fe2(p2id, authid2, mdx::UPDATE, req);
     fe2.bind();
-    mdqueue[(*p2md)()->id()]++;
+    mdqueue[p2id]++;
     mdflushqueue.push_back(fe2);
   }
 
@@ -3087,7 +3106,7 @@ metad::mdcommunicate(ThreadAssistant& assistant)
                   (*md)()->clear_pt_mtime_ns();
                   inomap.insert((*md)()->md_ino(), (*md)()->id());
                   add(0, pmd, md, authid, true);
-                  update(req, pmd, authid, true);
+                  update(req, pino, authid, true);
                   // adjust local quota
                   cap::shared_cap cap = EosFuse::Instance().caps.get(pino, md_clientid);
 
