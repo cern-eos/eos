@@ -753,15 +753,13 @@ Fsck::ReportMonitorFormat(std::ostringstream& oss,
       }
 
       oss << "timestamp=" << eTimeStamp << " tag=\"" << elem_map.first << "\"";
-      std::set<unsigned long long> fids;
+      uint64_t count = 0ull;
 
       for (const auto& elem : elem_map.second) {
-        for (auto it = elem.second.begin(); it != elem.second.end(); ++it) {
-          fids.insert(*it);
-        }
+        count += elem.second.size();
       }
 
-      oss << " count=" << fids.size();
+      oss << " count=" << count;
 
       if (display_fxid) {
         oss << " fxid=";
@@ -770,6 +768,14 @@ Fsck::ReportMonitorFormat(std::ostringstream& oss,
       } else {
         oss << std::endl;
         continue;
+      }
+
+      std::set<unsigned long long> fids;
+
+      for (const auto& elem : elem_map.second) {
+        for (auto it = elem.second.begin(); it != elem.second.end(); ++it) {
+          fids.insert(*it);
+        }
       }
 
       for (auto it = fids.begin(); it != fids.end(); ++it) {
