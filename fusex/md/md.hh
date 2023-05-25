@@ -97,8 +97,6 @@ public:
 
     virtual ~mdx() { }
 
-    typedef std::shared_ptr<mdx> shared_md;
-    
     XrdSysMutex& Locker()
     {
       return mLock;
@@ -282,9 +280,9 @@ public:
       return _local_enoent;
     }
 
-    void store_fullpath(shared_md pmd, std::string name)
+    void store_fullpath(const std::string &pfp, const std::string &name)
     {
-      std::string fullpath = (*pmd)()->fullpath();
+      std::string fullpath = pfp;
       if (fullpath.back() != '/') {
         fullpath += "/";
       }
@@ -526,7 +524,8 @@ public:
     bool retrieve(fuse_ino_t ino, shared_md& ret);
     void insertTS(fuse_ino_t ino, shared_md& md);
     bool eraseTS(fuse_ino_t ino);
-    void retrieveWithParentTS(fuse_ino_t ino, shared_md& md, shared_md& pmd);
+    void retrieveWithParentTS(fuse_ino_t ino, shared_md& md, shared_md& pmd,
+                              std::string &md_name);
 
     uint64_t lru_oldest() const;
     void lru_add(fuse_ino_t ino, shared_md md);
