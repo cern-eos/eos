@@ -186,31 +186,24 @@ tcp() {
 # EOS token
 eostoken() {
     # certificate and private key
-    #export X509_USER_CERT=${cert}
-    #export X509_USER_KEY=${key}
+    export X509_USER_CERT=${cert}
+    export X509_USER_KEY=${key}
 
     echo "Enable token generation"
     eos space config default space.token.generation=1
     EXPIRE=`date +%s`; LATER=$(($EXPIRE+300));
     echo "The current env is:"
     env
-    echo "whoami:"
-    whoami
-    echo "The cert dir is:"
-    ls -lrta /root/.globus/
-    echo "The client cert is:"
-    openssl x509 -in /root/.globaus/usercert.pem -text
-    echo "The the host cert is:":
-    openssl x509 -in /etc/grid-security/daemon/hostcert.pem -text
 
-    export EOS_RW_TOKEN=`XRD_LOGLEVEL=Dump XrdSecPROTOCOL=gsi eos token --path ${testdir}/ --tree --permissions rwx --expires $LATER`
+    export EOS_RW_TOKEN=`XRD_LOGLEVEL=Dump XrdSecPROTOCOL=gsi eos root://${host}/ token --path ${testdir}/ --tree --permissions rwx --expires $LATER`
 
     if [[ $EOS_RW_TOKEN  != "zteos64:"* ]]; then
         echo -e '\terror: eos rw token command failed'
+        sleep 600
         return 1
     fi
 
-    export EOS_RO_TOKEN=`XrdSecPROTOCOL=gsi eos token --path ${testdir}/ --tree --permissions rx --expires $LATER`
+    export EOS_RO_TOKEN=`XrdSecPROTOCOL=gsi eos root://${host}/ token --path ${testdir}/ --tree --permissions rx --expires $LATER`
 
     if [[ $EOS_RW_TOKEN  != "zteos64:"* ]]; then
         echo -e '\terror: eos ro token command failed'
