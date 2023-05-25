@@ -192,8 +192,12 @@ eostoken() {
     echo "Enable token generation"
     eos space config default space.token.generation=1
     EXPIRE=`date +%s`; LATER=$(($EXPIRE+300));
-    echo "The current env is:"
-    env
+    yum install -y voms-clients-cpp
+    voms-proxy-init
+    echo "Enable https mapping"
+    eos vid enable https
+    # Make destination directory only accessible to eos-user
+    eos chmod 700 ${testdir}
 
     export EOS_RW_TOKEN=`XRD_LOGLEVEL=Dump XrdSecPROTOCOL=gsi eos root://${host}/ token --path ${testdir}/ --tree --permissions rwx --expires $LATER`
 
@@ -205,13 +209,11 @@ eostoken() {
 
     export EOS_RO_TOKEN=`XrdSecPROTOCOL=gsi eos root://${host}/ token --path ${testdir}/ --tree --permissions rx --expires $LATER`
 
-    if [[ $EOS_RW_TOKEN  != "zteos64:"* ]]; then
+    if [[ $EOS_RO_TOKEN  != "zteos64:"* ]]; then
         echo -e '\terror: eos ro token command failed'
         return 1
     fi
 
-    # Make destination directory only accessible to eos-user
-    eos chmod 700 ${testdir}
     respEosTokenRwUpload="$(curl -I -sS ${verbose} -L -H "Authorization: Bearer ${EOS_RW_TOKEN}" https://${host}:${port}${testdir}/helloworld-eostoken.txt --upload-file <(echo ola-token) | grep HTTP | tr -d '\r' | paste -sd'+')"
     echo -e "\teostoken rw upload -> ${respEosTokenRwUpload}"
     [[ $respEosTokenRwUpload == "HTTP/1.1 307 TEMPORARY_REDIRECT+HTTP/1.1 201 CREATED" ]]
