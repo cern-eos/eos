@@ -3140,13 +3140,13 @@ EosFuse::opendir(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info* fi)
         Instance().Config().options.rm_rf_bulk &&
         isRecursiveRm(req, true, true)) {
       md = Instance().mds.get(req, ino);
+      XrdSysMutexHelper mLock(md->Locker());
 
       if (md && (*md)()->attr().count("sys.recycle")) {
         do_listdir = false;
         eos_static_warning("Running recursive rm (pid = %d)", fuse_req_ctx(req)->pid);
         // bulk rm only when a recycle bin is configured
         {
-          XrdSysMutexHelper mLock(md->Locker());
           name = (*md)()->name();
 
           if (!(*md)()->id() || md->deleted()) {
@@ -3169,6 +3169,8 @@ EosFuse::opendir(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info* fi)
             md->unset_rmrf();
           }
         }
+
+        mLock.UnLock();
 
         if (EOS_LOGS_DEBUG) {
           eos_static_debug("rm-rf gave retc=%d", rc);
@@ -3783,6 +3785,7 @@ EROFS  pathname refers to a file on a read-only filesystem.
           // need to update the parent mtime
           (*md)()->set_pmtime(ts.tv_sec);
           (*md)()->set_pmtime_ns(ts.tv_nsec);
+          pmd->Locker().Lock();
           (*pmd)()->set_mtime(ts.tv_sec);
           (*pmd)()->set_mtime_ns(ts.tv_nsec);
           (*md)()->set_uid((*pcap2)()->uid());
@@ -3796,6 +3799,8 @@ EROFS  pathname refers to a file on a read-only filesystem.
                              elem.second.c_str());
             (*attrMap)[elem.first] = elem.second;
           }
+
+          pmd->Locker().UnLock();
 
           (*md)()->set_nlink(2);
           (*md)()->set_creator(true);
