@@ -248,3 +248,18 @@ TEST(ShardedCache, fetch_add_multithreaded)
   auto result = cache.retrieve("mykey");
   ASSERT_EQ(*result, 200);
 }
+
+TEST(ShardedCache, invalidate)
+{
+  ShardedCache<std::string, int> cache(8, 10);
+  ASSERT_TRUE(cache.store("hello", std::make_unique<int>(5)));
+  ASSERT_TRUE(cache.store("hello2", std::make_unique<int>(6)));
+  ASSERT_EQ(cache.num_entries(), 2);
+  bool ret = cache.invalidate("hello");
+  ASSERT_EQ(ret, true);
+  ASSERT_EQ(cache.num_entries(), 1);
+  ret = cache.invalidate("hello");
+  ASSERT_EQ(ret, false);
+  auto result = cache.retrieve("hello");
+  EXPECT_EQ(result, nullptr);
+}
