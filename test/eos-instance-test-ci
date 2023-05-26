@@ -39,21 +39,6 @@ function run_test_script() {
 #-------------------------------------------------------------------------------
 # Execute specific EOS testing scripts
 #-------------------------------------------------------------------------------
-
-# Arguments setup
-if eos ns | grep -q "In-flight FileMD" ; then
-  QUARKDB=true
-fi
-
-#-------------------------------------------------------------------------------
-# Functional tests upload/download x509/macaroons/tpc/eos token
-#-------------------------------------------------------------------------------
-HTTPS_DIR="/eos/dockertest/test/https/"
-eos mkdir -p ${HTTPS_DIR}
-eos chown eos-user:eos-user ${HTTPS_DIR}
-run_test_script "HTTPS" eos-https-functional-test -p 8443 --dir ${HTTPS_DIR}
-eos rm -rF ${HTTPS_DIR}
-
 run_test_script "MQ" eos-mq-tests "${1:-'eos-mq.eoscluster.cern.ch'}"
 run_test_script "drain" eos-drain-test localhost
 run_test_script "balance" eos-balance-test localhost
@@ -70,6 +55,12 @@ if [[ $? -ne 0 ]]; then
   cat /tmp/eos-instance-test/test-output.log
   exit 1
 fi
+
+#-------------------------------------------------------------------------------
+# Functional tests upload/download x509/macaroons/tpc/eos token
+#-------------------------------------------------------------------------------
+HTTPS_DIR="/eos/dockertest/test/https/"
+run_test_script "HTTPS" eos-https-functional-test -p 8443 --dir ${HTTPS_DIR}
 
 eos space quota default off
 exit 0
