@@ -68,7 +68,7 @@ if [ "$#" != 0 ]; then
       -k|--key)     assert_argument "$1" "$opt"; key="$1"; shift;;
       -C|--cacert)  assert_argument "$1" "$opt"; cacert="${1}" && capath="$(dirname "${cacert}")"; shift;;
       -P|--capath)  assert_argument "$1" "$opt"; capath="${1}"; shift;;
-      -t|--dir) assert_argument "$1" "$opt"; testdir="${1}"; shift;;
+      -t|--dir)     assert_argument "$1" "$opt"; testdir="${1}"; shift;;
 
       --help) usage $0; exit 0;;
 
@@ -106,7 +106,6 @@ x509() {
 ### Macaroon
 # Returns 0 if successful, 1 if upload failed, 2 if download failed, 3 if both failed
 macaroon() {
-
     # certificate and private key
     export X509_USER_CERT=${cert}
     export X509_USER_KEY=${key}
@@ -137,15 +136,21 @@ macaroon() {
 # Returns 0 if successful, 1 if tcp pull failed, 2 if tcp push failed, 3 if both failed
 tcp() {
     export SRC=https://${host}:${port}/${testdir}/helloworld.txt
-    export DST=https://${host}:${port}/${testdir}/helloworld-tcp.txt
+    export DST_PULL=https://${host}:${port}/${testdir}/helloworld-tcp-pull.txt
+    export DST_PUSH=https://${host}:${port}/${testdir}/helloworld-tcp-push.txt
     export TSRC=$(curl -sS -4 --capath "${capath}" --cert "${cert}" --cacert "${cacert}" --key "${key}" -X POST -H 'Content-Type: application/macaroon-request' -d '{"caveats": ["activity:DOWNLOAD"], "validity": "PT3000M"}' "$SRC" | jq -r '.macaroon')
-    export TDST=$(curl -sS -4 --capath "${capath}" --cert "${cert}" --cacert "${cacert}" --key "${key}" -X POST -H 'Content-Type: application/macaroon-request' -d '{"caveats": ["activity:UPLOAD,DELETE,LIST,MANAGE"], "validity": "PT3000M"}' "$DST" | jq -r '.macaroon')
+    export TDST_PULL=$(curl -sS -4 --capath "${capath}" --cert "${cert}" --cacert "${cacert}" --key "${key}" -X POST -H 'Content-Type: application/macaroon-request' -d '{"caveats": ["activity:UPLOAD,DELETE,LIST,MANAGE"], "validity": "PT3000M"}' "$DST_PULL" | jq -r '.macaroon')
+    export TDST_PUSH=$(curl -sS -4 --capath "${capath}" --cert "${cert}" --cacert "${cacert}" --key "${key}" -X POST -H 'Content-Type: application/macaroon-request' -d '{"caveats": ["activity:UPLOAD,DELETE,LIST,MANAGE"], "validity": "PT3000M"}' "$DST_PUSH" | jq -r '.macaroon')
+
     if [[ ${verbose} == "-v" ]]; then
       echo -n "Transfer Source Token: "
       echo "${TSRC}" | base64 -d
 
-      echo -n "Transfer Destination Token: "
-      echo "${TDST}" | base64 -d
+      echo -n "Pull Transfer Destination Token: "
+      echo "${TDST_PULL}" | base64 -d
+
+      echo -n "Push Transfer Destination Token: "
+      echo "${TDST_PUSH}" | base64 -d
     fi
 
     respTpcPull="$(curl -I -sS -4 ${verbose} --capath "${capath}" -L \
@@ -153,11 +158,11 @@ tcp() {
       -H 'Secure-Redirection: 1' \
       -H 'X-No-Delegate: 1' \
       -H 'Credentials: none' \
-      -H "Authorization: Bearer $TDST" \
+      -H "Authorization: Bearer $TDST_PULL" \
       -H "TransferHeaderAuthorization: Bearer $TSRC" \
       -H "TransferHeaderTest: Test" \
       -H "Source: $SRC" \
-      "$DST" |grep HTTP | tr -d '\r' | paste -sd'+')"
+      "$DST_PULL" |grep HTTP | tr -d '\r' | paste -sd'+')"
     echo -e "\ttpc pull -> ${respTpcPull}"
 
 
@@ -170,9 +175,9 @@ tcp() {
         -H 'X-No-Delegate: 1' \
         -H 'Credentials: none' \
         -H "Authorization: Bearer $TSRC" \
-        -H "TransferHeaderAuthorization: Bearer $TDST" \
+        -H "TransferHeaderAuthorization: Bearer $TDST_PUSH" \
         -H "TransferHeaderTest: Test" \
-        -H "Destination: $DST" \
+        -H "Destination: $DST_PUSH" \
         "$SRC" |grep HTTP | tr -d '\r' | paste -sd'+')"
     echo -e "\ttpc push -> ${respTpcPush}"
 
@@ -188,14 +193,11 @@ eostoken() {
     # certificate and private key
     export X509_USER_CERT=${cert}
     export X509_USER_KEY=${key}
-
-    echo "Enable token generation"
+    echo "info: enable token generation"
     eos space config default space.token.generation=1
     EXPIRE=`date +%s`; LATER=$(($EXPIRE+300));
-    yum install -y voms-clients-cpp
+    echo "info: create client proxy certificate"
     voms-proxy-init
-    echo "Enable https mapping"
-    eos vid enable https
     # Make destination directory only accessible to eos-user
     eos chmod 700 ${testdir}
 
@@ -203,7 +205,6 @@ eostoken() {
 
     if [[ $EOS_RW_TOKEN  != "zteos64:"* ]]; then
         echo -e '\terror: eos rw token command failed'
-        sleep 600
         return 1
     fi
 
@@ -237,8 +238,14 @@ eostoken() {
     eostoken_ro_up=$?
 
     eos chmod 750 ${testdir}
+    echo "info: destroy client proxy certificate"
+    voms-proxy-destroy
     return $((2#$eostoken_rw_up$eostoken_rw_down$eostoken_ro_down$eostoken_ro_up))
 }
+
+echo "info: prepare https test directory ${testdir}"
+eos mkdir -p ${testdir}
+eos chown eos-user:eos-user ${testdir}
 
 x509
 x509code=$?
@@ -258,4 +265,8 @@ tcp
 tcpcode=$?
 echo "tpc:"$tcpcode
 
-exit $x509code$macarooncode$tcpcode$eostokencode
+echo "info: cleanup https test directory"
+eos ls -lrta ${testdir}
+eos rm -rF ${testdir}
+
+exit $x509code$macarooncode$eostokencode$tpccode
