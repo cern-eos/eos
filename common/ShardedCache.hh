@@ -255,6 +255,11 @@ public:
   {
     ShardGuard guard(this, key);
     auto it = mContents[guard.getShard()].find(key);
+
+    if (it == mContents[guard.getShard()].end()) {
+      return false;
+    }
+
     mContents[guard.getShard()].erase(it);
     return true;
   }
