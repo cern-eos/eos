@@ -269,6 +269,7 @@ static std::string GetSubtreeSize(const std::string& path)
 
   std::string retval;
   eos::common::StringConversion::LoadFileIntoString(tmp_name.c_str(), retval);
+  (void) unlink(tmp_name.c_str());
   return retval;
 }
 
