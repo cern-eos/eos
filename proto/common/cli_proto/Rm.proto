@@ -7,4 +7,5 @@ message RmProto {
     uint64 Fileid  = 3;
     string Path = 4;
     uint64 Containerid  = 5;
+    bool NoWorkflow = 6;
 }
