@@ -662,45 +662,39 @@ bool
 Logging::rate_limit(struct timeval& tv, int priority, const char* file,
                     int line)
 {
-  static bool do_limit = false;
-  static std::string last_file = "";
-  static int last_line = 0;
-  static int last_priority = priority;
-  static struct timeval last_tv;
-
   if (!gRateLimiter) {
     return false;
   }
 
-  if ((line == last_line) &&
-      (priority == last_priority) &&
-      (last_file == file) &&
+  if ((line == gLastLine) &&
+      (priority == gLastPriority) &&
+      (gLastFile == file) &&
       (priority < LOG_WARNING)) {
-    float elapsed = (1.0 * (tv.tv_sec - last_tv.tv_sec)) - ((
-                      tv.tv_usec - last_tv.tv_usec) / 1000000.0);
+    float elapsed = (1.0 * (tv.tv_sec - gLastTv.tv_sec)) - ((
+                      tv.tv_usec - gLastTv.tv_usec) / 1000000.0);
 
     if (elapsed < 5.0) {
-      if (!do_limit) {
+      if (!gDoingLimit) {
         fprintf(stderr,
                 "                 ---- high rate error messages suppressed ----\n");
       }
 
-      do_limit = true;
+      gDoingLimit = true;
     } else {
-      do_limit = false;
+      gDoingLimit = false;
     }
   } else {
-    do_limit = false;
+    gDoingLimit = false;
   }
 
-  if (!do_limit) {
-    last_tv = tv;
-    last_line = line;
-    last_file = file;
-    last_priority = priority;
+  if (!gDoingLimit) {
+    gLastTv = tv;
+    gLastLine = line;
+    gLastFile = file;
+    gLastPriority = priority;
   }
 
-  return do_limit;
+  return gDoingLimit;
 }
 
 EOSCOMMONNAMESPACE_END

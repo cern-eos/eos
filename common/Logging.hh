@@ -536,6 +536,13 @@ public:
 
   bool gRateLimiter; //< indicating to apply message rate limiting
 
+  //! Rate limiter last message tracking
+  bool gDoingLimit{false};
+  std::string gLastFile;
+  int gLastLine{0};
+  int gLastPriority{0};
+  struct timeval gLastTv{0};
+
   LogBuffer* LB;
 
   //----------------------------------------------------------------------------
