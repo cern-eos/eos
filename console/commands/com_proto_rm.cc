@@ -82,6 +82,8 @@ RmHelper::ParseCommand(const char* arg)
       rm->set_bypassrecycle(true);
     } else if (option == "--no-confirmation") {
       noconfirmation = true;
+    } else if ( option== "--no-workflow" || option == "-n" ) {
+      rm->set_noworkflow(true);
     } else {
       return false;
     }
@@ -164,7 +166,7 @@ int com_protorm(char* arg)
 void com_rm_help()
 {
   std::ostringstream oss;
-  oss << "Usage: rm [-r|-rf|-rF] [--no-recycle-bin|-F] [--no-confirmation] [<path>|fid:<fid-dec>|fxid:<fid-hex>|cid:<cid-dec>|cxid:<cid-hex>]"
+  oss << "Usage: rm [-r|-rf|-rF|-n] [--no-recycle-bin|-F] [--no-confirmation] [--no-workflow] [<path>|fid:<fid-dec>|fxid:<fid-hex>|cid:<cid-dec>|cxid:<cid-hex>]"
       << std::endl
       << "            -r | -rf : remove files/directories recursively" << std::endl
       << "                     - the 'f' option is a convenience option with no additional functionality!"
@@ -179,6 +181,8 @@ void com_rm_help()
       << "                     - you have to take the root role to use this flag!" <<
       std::endl
       << "                     - the recursive flag is automatically removed it the target is a file!"
+      << std::endl
+      << " --no-workflow | -n  : don't run a workflow when deleting!"
       << std::endl
       << "   --no-confirmation : don't ask for confirmation if recursive deletions is running in directory level < 4" << std::endl;
   std::cerr << oss.str() << std::endl;
