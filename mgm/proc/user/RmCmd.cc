@@ -45,6 +45,7 @@ eos::mgm::RmCmd::ProcessRequest() noexcept
   int ret_c = 0;
   eos::console::RmProto rm = mReqProto.rm();
   auto recursive = rm.recursive();
+  auto noworkflow = rm.noworkflow();
   auto force = rm.bypassrecycle();
   std::string spath;
 
@@ -342,7 +343,7 @@ eos::mgm::RmCmd::ProcessRequest() noexcept
               errInfo.clear();
 
               if (gOFS->_rem(fspath.c_str(), errInfo, mVid, nullptr, false, false,
-                             force)) {
+                             force, false, true, noworkflow)) {
                 errStream << "error: unable to remove file '" << fspath.c_str() << "'"
                           << std::endl;
                 ret_c = errno;
@@ -377,7 +378,7 @@ eos::mgm::RmCmd::ProcessRequest() noexcept
         errInfo.clear();
 
         if (gOFS->_rem(it.c_str(), errInfo, mVid, nullptr, false, false,
-                       force) && (errno != ENOENT)) {
+                       force, false, true, noworkflow) && (errno != ENOENT)) {
           errStream << "error: unable to remove file/directory '" << it << "'"
                     << std::endl;
           ret_c |= errno;
