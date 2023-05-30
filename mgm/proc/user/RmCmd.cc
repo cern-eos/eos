@@ -45,6 +45,7 @@ eos::mgm::RmCmd::ProcessRequest() noexcept
   int ret_c = 0;
   eos::console::RmProto rm = mReqProto.rm();
   auto recursive = rm.recursive();
+  auto noworkflow = rm.noworkflow();
   auto force = rm.bypassrecycle();
   std::string spath;
 
@@ -91,7 +92,6 @@ eos::mgm::RmCmd::ProcessRequest() noexcept
   eos::mgm::NamespaceMap(spath, nullptr, mVid);
   std::string err_check;
   int errno_check = 0;
-
   const char* path = spath.c_str();
   PROC_MVID_TOKEN_SCOPE;
 
@@ -245,8 +245,7 @@ eos::mgm::RmCmd::ProcessRequest() noexcept
 
           for (rfoundit = found.rbegin(); rfoundit != found.rend(); rfoundit++) {
             int rpos = 0;
-
-	    RECURSIVE_STALL("Rm", mVid);
+            RECURSIVE_STALL("Rm", mVid);
 
             if ((rpos = rfoundit->first.find("/.sys.v#.")) == STR_NPOS) {
               for (fileit = rfoundit->second.begin(); fileit != rfoundit->second.end();
@@ -275,7 +274,7 @@ eos::mgm::RmCmd::ProcessRequest() noexcept
 
           // Delete directories in simulation mode
           for (rfoundit = found.rbegin(); rfoundit != found.rend(); rfoundit++) {
-	    RECURSIVE_STALL("RmDir", mVid);
+            RECURSIVE_STALL("RmDir", mVid);
             // don't even try to delete the root directory
             std::string fspath = rfoundit->first;
 
@@ -344,7 +343,7 @@ eos::mgm::RmCmd::ProcessRequest() noexcept
               errInfo.clear();
 
               if (gOFS->_rem(fspath.c_str(), errInfo, mVid, nullptr, false, false,
-                             force)) {
+                             force, false, true, noworkflow)) {
                 errStream << "error: unable to remove file '" << fspath.c_str() << "'"
                           << std::endl;
                 ret_c = errno;
@@ -379,7 +378,7 @@ eos::mgm::RmCmd::ProcessRequest() noexcept
         errInfo.clear();
 
         if (gOFS->_rem(it.c_str(), errInfo, mVid, nullptr, false, false,
-                       force) && (errno != ENOENT)) {
+                       force, false, true, noworkflow) && (errno != ENOENT)) {
           errStream << "error: unable to remove file/directory '" << it << "'"
                     << std::endl;
           ret_c |= errno;
