@@ -277,25 +277,39 @@ FmdDbMapHandler::LocalGetFmd(eos::common::FileId::fileid_t fid,
   }
 }
 
+//------------------------------------------------------------------------------
+// Get Fmd struct from local database for a file we know for sure it exists
+//------------------------------------------------------------------------------
 std::pair<bool, eos::common::FmdHelper>
 FmdDbMapHandler::LocalRetrieveFmd(eos::common::FileId::fileid_t fid,
                                   eos::common::FileSystem::fsid_t fsid,
-                                  std::string*)
+                                  std::string* path, bool lock)
 {
-  eos::common::FmdHelper fmd;
   bool found {false};
+  eos::common::FmdHelper fmd;
+  eos::common::DbMap* ptr_db {nullptr};
+  eos::common::RWMutexReadLock map_lock;
 
-  if (auto it = mDbMap.find(fsid);
-      it != mDbMap.end()) {
-    eos::common::DbMap::Tval val;
+  if (lock) {
+    map_lock.Grab(mMapMutex);
+  }
 
-    if (it->second->get(eos::common::Slice((const char*)&fid, sizeof(fid)), &val)) {
-      fmd.mProtoFmd.ParseFromString(val.value);
-      found = true;
-    }
-  } else {
+  auto it = mDbMap.find(fsid);
+
+  if (it == mDbMap.end()) {
     eos_crit("msg=\"db not open\" dbpath=%s fsid=%lu",
              eos::common::DbMap::getDbType().c_str(), fsid);
+    return {found, std::move(fmd)};
+  }
+
+  // We found the entry we were looking for
+  ptr_db = it->second;
+  map_lock.Release();
+  eos::common::DbMap::Tval val;
+
+  if (ptr_db->get(eos::common::Slice((const char*)&fid, sizeof(fid)), &val)) {
+    fmd.mProtoFmd.ParseFromString(val.value);
+    found = true;
   }
 
   // In this particular case we need the move construction only because this
@@ -303,7 +317,6 @@ FmdDbMapHandler::LocalRetrieveFmd(eos::common::FileId::fileid_t fid,
   // were only returning fmd for eg. the copy ellision would've been guaranteed
   return {found, std::move(fmd)};
 }
-
 
 //------------------------------------------------------------------------------
 // Delete a record associated with fid and filesystem fsid
