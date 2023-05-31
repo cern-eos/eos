@@ -292,6 +292,8 @@ public:
   //! @param fid file id
   //! @param fsid filesystem id
   //! @param fmd structure populated in case fid found
+  //! @param path
+  //! @param lock if true make sure to take the lock for the global map
   //!
   //! @return true if object found and retrieved, otherwise false
   //! @note this function must be called with the mMapMutex locked and also the
@@ -300,7 +302,8 @@ public:
   std::pair<bool, eos::common::FmdHelper>
   LocalRetrieveFmd(eos::common::FileId::fileid_t fid,
                    eos::common::FileSystem::fsid_t fsid,
-                   std::string* path = nullptr) override;
+                   std::string* path = nullptr,
+                   bool lock = false) override;
 
 private:
   std::map<eos::common::FileSystem::fsid_t, eos::common::DbMap*> mDbMap;

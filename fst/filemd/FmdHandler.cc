@@ -797,7 +797,7 @@ FmdHandler::ConvertFrom(eos::common::FileId::fileid_t fid,
     return true;
   }
 
-  auto [status, fmd] = src_fmd_handler->LocalRetrieveFmd(fid, fsid, path);
+  auto [status, fmd] = src_fmd_handler->LocalRetrieveFmd(fid, fsid, path, true);
 
   if (!status) {
     eos_err("msg=\"Unable to retrieve filemd from Handler\" fid=%08llx fsid=%u",

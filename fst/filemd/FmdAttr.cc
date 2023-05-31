@@ -118,7 +118,7 @@ FmdAttrHandler::LocalDeleteFmd(const std::string& path, bool drop_file)
 std::pair<bool, eos::common::FmdHelper>
 FmdAttrHandler::LocalRetrieveFmd(eos::common::FileId::fileid_t fid,
                                  eos::common::FileSystem::fsid_t fsid,
-                                 std::string* path)
+                                 std::string* path, bool lock)
 {
   if (path != nullptr) {
     return LocalRetrieveFmd(*path);
