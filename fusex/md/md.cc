@@ -2458,6 +2458,8 @@ metad::mdstackfree(ThreadAssistant& assistant)
 
           if (!inode_to_swap) {
             // nothing in the lru list anymore
+	    stat.lru_resets_inc();
+	    mdmap.lru_reset();
             mdmap.UnLock();
             break;
           }
@@ -2492,7 +2494,10 @@ metad::mdstackfree(ThreadAssistant& assistant)
               }
             }
           } else {
+	    // the inode to be swapped isn't there, reset LRU list
             mdmap.lru_remove(inode_to_swap);
+	    stat.lru_resets_inc();
+	    mdmap.lru_reset();
           }
 
           mdmap.UnLock();
@@ -3455,6 +3460,7 @@ metad::pmap::lru_remove(fuse_ino_t ino)
       } else {
         // this is the tail of the LRU list
         lru_last = next;
+	(*this)[next]->set_lru_prev(0);
       }
 
       if (this->count(next) && (*this)[next]) {
@@ -3462,6 +3468,7 @@ metad::pmap::lru_remove(fuse_ino_t ino)
       } else {
         // this is the head of the LRU list
         lru_first = prev;
+	(*this)[next]->set_lru_next(0);
       }
     }
 
@@ -3523,20 +3530,27 @@ metad::pmap::lru_update(fuse_ino_t ino, shared_md md)
 
 /* -------------------------------------------------------------------------- */
 void
-metad::pmap::lru_dump()
+metad::pmap::lru_dump(bool force)
 {
-  if (!EOS_LOGS_DEBUG) {
+  if (!EOS_LOGS_DEBUG && !force) {
     return;
   }
 
   uint64_t start = lru_first;
   std::stringstream ss;
 
+  size_t cnt = 0;
+  size_t max = this->size();
+  ss << std::endl;
   do {
     if (this->count(start)) {
       shared_md md = (*this)[start];
-      ss << start << "[" << md->lru_next() << ".." << md->lru_prev() << "]" <<
-         std::endl;
+      ss << "[ " << std::setw(16) << std::hex  << md->lru_next();
+      ss << " <- ";
+      ss << std::setw(16) << std::hex << start;
+      ss << " -> ";
+      ss << std::setw(16) << std::hex << md->lru_prev();
+      ss << " ]"    << std::endl;
 
       if (start == md->lru_prev()) {
         eos_static_crit("corruption in list");
@@ -3544,14 +3558,52 @@ metad::pmap::lru_dump()
       }
 
       start = md->lru_prev();
+      cnt++;
     } else {
       start = 0;
     }
-  } while (start);
+  } while (start && (cnt < max));
 
-  eos_static_debug("%s", ss.str().c_str());
-  eos_static_debug("first=%#llx last=%#llx",
-                   lru_first, lru_last);
+  if (force) {
+    std::cerr << ss.str();
+    eos_static_crit("first=%#llx last=%#llx cnt=%d max=%d",
+		    lru_first, lru_last, cnt, max);
+  } else {
+    std::cerr << ss.str();
+    eos_static_debug("first=%#llx last=%#llx",
+		     lru_first, lru_last);
+  }
+}
+
+/* -------------------------------------------------------------------------- */
+void
+metad::pmap::lru_reset()
+{
+  eos_static_crit("resetting LRU list");
+
+  // force an output of that list
+  lru_dump(true);
+  
+  // wipe lru list
+  this->lru_first = this->lru_last = 0;
+  std::map<fuse_ino_t, shared_md>::reverse_iterator it;
+  for ( it = (*this).rbegin(); it != (*this).rend(); ++it ) {
+    shared_md md = (*this)[it->first];
+    if (md) {
+      md->set_lru_prev(0);
+      md->set_lru_next(0);
+    }
+  }
+
+  // recreate lru list in backward inode order
+  for ( it = (*this).rbegin(); it != (*this).rend(); ++it ) {
+    shared_md md = (*this)[it->first];
+    if (md) {
+      lru_add(it->first, md);
+    }
+  }
+  
+  // done
 }
 
 /* -------------------------------------------------------------------------- */
