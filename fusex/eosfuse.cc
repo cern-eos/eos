@@ -198,6 +198,8 @@ EosFuse::UsageSet()
   usage +=
     "                     system.eos.resetstat - <mount>     : reset the statistic counters\n";
   usage +=
+    "                     system.eos.resetlru - <mount>      : reset the lru list and recompute it\n";
+  usage +=
     "                     system.eos.log <mode> <mount>      : make log file public or private with <mode>=public|private\n";
   usage +=
     "                     system.eos.fuzz all|config <mount> : enabling fuzzing in all modes with scaler 1 (all) or switch back to the initial configuration (config)\n";
@@ -2120,6 +2122,7 @@ EosFuse::DumpStatistic(ThreadAssistant& assistant)
       inodes["rhexpired"]   = (Json::UInt64)
                               XrdCl::Proxy::ReadAsyncHandler::nexpired();
       inodes["proxies"]     = (Json::UInt64) XrdCl::Proxy::Proxies();
+      inodes["lrureset"]    =  (Json::UInt64) this->getMdStat().lru_resets();
       jsonstats["inodes"] = inodes;
     }
 
@@ -2140,6 +2143,7 @@ EosFuse::DumpStatistic(ThreadAssistant& assistant)
              "ALL        inodes-tracker      := %lu\n"
              "ALL        rh-expired          := %lu\n"
              "ALL        proxies             := %d\n"
+	     "ALL        lrureset            := %ld\n"
              "# -----------------------------------------------------------------------------------------------------------\n",
              this->getMdStat().inodes(),
              this->getMdStat().inodes_stacked(),
@@ -2152,7 +2156,8 @@ EosFuse::DumpStatistic(ThreadAssistant& assistant)
              this->caps.size(),
              this->Tracker().size(),
              XrdCl::Proxy::ReadAsyncHandler::nexpired(),
-             XrdCl::Proxy::Proxies()
+             XrdCl::Proxy::Proxies(),
+	     this->getMdStat().lru_resets()
             );
     sout += ino_stat;
     {
@@ -5849,6 +5854,7 @@ EosFuse::setxattr(fuse_req_t req, fuse_ino_t ino, const char* xattr_name,
     static std::string s_dropcap = "system.eos.dropcap";
     static std::string s_dropallcap = "system.eos.dropallcap";
     static std::string s_resetstat = "system.eos.resetstat";
+    static std::string s_resetlru = "system.eos.resetlru";
     static std::string s_log = "system.eos.log";
     static std::string s_fuzz = "system.eos.fuzz";
 
@@ -5965,9 +5971,9 @@ EosFuse::setxattr(fuse_req_t req, fuse_ino_t ino, const char* xattr_name,
     }
 
     if (fuse_req_ctx(req)->uid == 0) {
-      if (key.substr(0, s_resetstat.length()) == s_resetstat) {
+      if (key.substr(0, s_resetlru.length()) == s_resetlru) {
         local_setxattr = true;
-        Instance().getFuseStat().Clear();
+	Instance().mds.lrureset();
         fuse_reply_err(req, 0);
         // avoid to show this call in stats again
         return ;

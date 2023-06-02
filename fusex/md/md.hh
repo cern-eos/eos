@@ -531,8 +531,9 @@ public:
     void lru_add(fuse_ino_t ino, shared_md md);
     void lru_remove(fuse_ino_t ino);
     void lru_update(fuse_ino_t ino, shared_md md);
-    void lru_dump();
-
+    void lru_dump(bool force=false);
+    void lru_reset();
+    
     int swap_out(shared_md md);
     int swap_in(fuse_ino_t ino, shared_md md);
     int swap_rm(fuse_ino_t ino);
@@ -664,6 +665,7 @@ public:
       _inodes_deleted.store(0, std::memory_order_seq_cst);
       _inodes_deleted_ever.store(0, std::memory_order_seq_cst);
       _inodes_backlog.store(0, std::memory_order_seq_cst);
+      _lru_resets.store(0, std::memory_order_seq_cst);
     }
 
     void inodes_inc()
@@ -701,6 +703,11 @@ public:
       _inodes_deleted_ever.fetch_add(1, std::memory_order_seq_cst);
     }
 
+    void lru_resets_inc()
+    {
+      _lru_resets.fetch_add(1, std::memory_order_seq_cst);
+    }
+    
     void inodes_deleted_dec()
     {
       _inodes_deleted.fetch_sub(1, std::memory_order_seq_cst);
@@ -742,6 +749,11 @@ public:
       return _inodes_backlog.load();
     }
 
+    ssize_t lru_resets()
+    {
+      return _lru_resets.load();
+    }
+    
   private:
     std::atomic<ssize_t> _inodes;
     std::atomic<ssize_t> _inodes_stacked;
@@ -749,6 +761,7 @@ public:
     std::atomic<ssize_t> _inodes_backlog;
     std::atomic<ssize_t> _inodes_ever;
     std::atomic<ssize_t> _inodes_deleted_ever;
+    std::atomic<ssize_t> _lru_resets;
   };
 
   mdstat& stats()
@@ -774,6 +787,11 @@ public:
     inomap.insert(i_root, 1);
   }
 
+  void lrureset() {
+    stat.lru_resets_inc();
+    mdmap.lru_reset();
+  }
+  
   void
   reset_cap_count(uint64_t ino)
   {
