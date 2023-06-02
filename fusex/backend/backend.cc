@@ -1007,7 +1007,8 @@ backend::statvfs(fuse_req_t req,
     char tag[1024];
 
     if (!response->GetBuffer()) {
-      errno = EFAULT;
+      eos_static_err("no response received to statvfs call");
+      errno = EACCES;
       return errno;
     }
 
@@ -1018,7 +1019,8 @@ backend::statvfs(fuse_req_t req,
                        tag, &retc, &a1, &a2, &a3, &a4);
 
     if ((items != 6) || (strcmp(tag, "statvfs:"))) {
-      errno = EFAULT;
+      eos_static_err("malformed response received to statvfs call");
+      errno = EACCES;
       return errno;
     }
 
