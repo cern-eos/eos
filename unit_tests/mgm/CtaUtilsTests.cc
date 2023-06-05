@@ -244,3 +244,12 @@ TEST_F(TgcUtilsTest, readFdIntoStr_write_lt_maxStrLen)
   const std::string resultStr = CtaUtils::readFdIntoStr(pipeFds[0], maxStrLen);
   ASSERT_EQ(msgStr, resultStr);
 }
+
+//------------------------------------------------------------------------------
+// Test
+//------------------------------------------------------------------------------
+TEST_F(TgcUtilsTest, readFdIntoStr_out_of_range)
+{
+  using namespace eos::mgm;
+  EXPECT_THROW(CtaUtils::readFdIntoStr(0, 1LL<<33), std::out_of_range);
+}
