@@ -82,8 +82,11 @@ CtaUtils::bufToTimespec(const std::string& buf)
 std::string
 CtaUtils::readFdIntoStr(const int fd, const ssize_t maxStrLen)
 {
+  if (maxStrLen + 1 > std::numeric_limits<uint32_t>::max()) {
+    throw std::out_of_range("Reading more than 4GiB is undefined!");
+  }
   auto stdoutBuffer = std::make_unique<char[]>(maxStrLen + 1);
-  const auto readRc = ::read(fd, stdoutBuffer.get(), maxStrLen);
+  const auto readRc = ::read(fd, stdoutBuffer.get(), static_cast<uint32_t>(maxStrLen));
 
   if (readRc < 0) {
     std::ostringstream msg;
