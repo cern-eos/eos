@@ -124,6 +124,8 @@ inline std::string strategy_to_str(PlacementStrategyT strategy) {
     return "fidrandom";
   case PlacementStrategyT::kWeightedRandom:
     return "weightedrandom";
+  case PlacementStrategyT::kWeightedRoundRobin:
+    return "weightedroundrobin";
   case PlacementStrategyT::kGeoScheduler:
     return "geoscheduler";
   default:
