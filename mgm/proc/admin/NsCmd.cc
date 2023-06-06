@@ -37,6 +37,7 @@
 #include "namespace/Constants.hh"
 #include "mgm/config/IConfigEngine.hh"
 #include "mgm/XrdMgmOfs.hh"
+#include "mgm/XrdMgmOfsFile.hh"
 #include "mgm/fsck/Fsck.hh"
 #include "mgm/Quota.hh"
 #include "mgm/Stat.hh"
@@ -76,6 +77,8 @@ NsCmd::ProcessRequest() noexcept
     DrainSizeSubcmd(ns.drain(), reply);
   } else if (subcmd == eos::console::NsProto::kReserve) {
     ReserveIdsSubCmd(ns.reserve(), reply);
+  } else if (subcmd == eos::console::NsProto::kBenchmark) {
+    BenchmarkSubCmd(ns.benchmark(), reply);
   } else {
     reply.set_retc(EINVAL);
     reply.set_std_err("error: not supported");
@@ -1091,6 +1094,247 @@ NsCmd::ReserveIdsSubCmd(const eos::console::NsProto_ReserveIdsProto& reserve,
           reserve.containerid()));
   }
 }
+
+//------------------------------------------------------------------------------
+// Execute benchmark command
+//------------------------------------------------------------------------------
+void
+NsCmd::BenchmarkSubCmd(const eos::console::NsProto_BenchmarkProto& benchmark,
+		       eos::console::ReplyProto& reply)
+{
+  size_t n_threads = (benchmark.threads()<1024)?benchmark.threads():1024;
+  size_t n_subdirs = benchmark.subdirs();
+  size_t n_subfiles = benchmark.subfiles();
+  std::string bench_prefix = benchmark.prefix();
+  
+  eos_static_info("msg=\"runing benchmark\" nthreads=%lu ndirs=%lu nfiles=%lu",
+		  n_threads,
+		  n_subdirs,
+		  n_subfiles);
+
+   eos::common::VirtualIdentity vid = eos::common::VirtualIdentity::Root();
+
+  XrdOucErrInfo error;
+  std::string prefix=bench_prefix+"/benchmark/";
+  std::stringstream oss;
+
+  {
+    eos::common::Timing bench("Benchmark");
+    COMMONTIMING("START", &bench);
+    std::vector<std::thread> workers;  
+
+    //pass 1 - create dir structure
+    gOFS->_mkdir(prefix.c_str(), 0777,  error, vid, "", 0, false);
+    
+    for (size_t i = 0; i < n_threads; i++) {
+      workers.push_back(std::thread([i, n_subdirs, n_subfiles, &vid, prefix]() 
+      {
+	XrdOucErrInfo error;
+	std::string wdir = prefix + std::string("worker.") + std::to_string(i);
+	XrdSecEntity client("sss");
+	client.tident="benchmark";
+	gOFS->_mkdir(wdir.c_str(), 0777, error, vid, "", 0, false);
+	for ( size_t d = 0 ; d < n_subdirs ; d++) {
+	  std::string sdir = wdir + std::string("/d.") + std::to_string(d) + std::string("/");
+	  gOFS->_mkdir(sdir.c_str(), 0777,  error, vid, "", 0, false);
+	  for ( size_t f = 0 ; f < n_subfiles ; f++) {
+	    std::string fname = sdir + std::string("/f.") + std::to_string(f);	    
+	  }
+      }
+      }));
+    }
+    
+    std::for_each(workers.begin(), workers.end(), [](std::thread &t) 
+    {
+      t.join();
+    });
+    
+    COMMONTIMING("STOP",&bench);
+    double rt = bench.RealTime()/1000.0;
+    const char* l =  eos_static_log(LOG_SILENT,  "[   mkdir     ] dirs=%lu time=%.02f dir-rate=%.02f", n_threads * n_subdirs, rt, n_threads * n_subdirs / rt);
+    oss << l;
+    oss << std::endl;
+    eos_static_notice(l);
+  }
+
+  {
+    eos::common::Timing bench("Benchmark");
+    COMMONTIMING("START", &bench);
+    std::vector<std::thread> workers;    
+
+    //pass 2 - create files
+    for (size_t i = 0; i < n_threads; i++) {
+      workers.push_back(std::thread([i, n_subdirs, n_subfiles, &vid, prefix]() 
+      {
+	XrdOucErrInfo error;
+	std::string wdir = prefix + std::string("worker.") + std::to_string(i);
+	XrdSecEntity client("sss");
+	client.tident="benchmark";
+	for ( size_t d = 0 ; d < n_subdirs ; d++) {
+	  std::string sdir = wdir + std::string("/d.") + std::to_string(d) + std::string("/");
+	  for ( size_t f = 0 ; f < n_subfiles ; f++) {
+	    std::string fname = sdir + std::string("/f.") + std::to_string(f);
+	    XrdOucEnv env;
+	      
+	    XrdMgmOfsFile* file = new XrdMgmOfsFile((char*)"bench");
+	    if (file) {
+	      file->open(&vid, fname.c_str(), SFS_O_CREAT| SFS_O_RDWR, 0777, 0, "eos.app=fuse&eos.bookingsize=0");
+	      delete file;
+	    }
+	  }
+      }
+      }));
+    }
+    
+    std::for_each(workers.begin(), workers.end(), [](std::thread &t) 
+    {
+      t.join();
+    });
+    COMMONTIMING("STOP",&bench);
+    double rt = bench.RealTime()/1000.0;
+    const char* l =  eos_static_log(LOG_SILENT,  "[   create    ] files=%lu time=%.02f file-rate=%.02f Hz", n_threads * n_subdirs * n_subfiles, rt, 1.0 * n_threads * n_subdirs * n_subfiles / rt);
+    oss << l;
+    oss << std::endl;
+    eos_static_notice(l);
+  }
+
+  {
+    eos::common::Timing bench("Benchmark");
+    COMMONTIMING("START", &bench);
+    std::vector<std::thread> workers;
+
+    //pass 3 - exists structure
+    gOFS->_mkdir(prefix.c_str(), 0777,  error, vid, "", 0, false);
+    
+    for (size_t i = 0; i < n_threads; i++) {
+      workers.push_back(std::thread([i, n_subdirs, n_subfiles, &vid, prefix]() 
+      {
+	XrdOucErrInfo error;
+	std::string wdir = prefix + std::string("worker.") + std::to_string(i);
+	XrdSecEntity client("sss");
+	client.tident="benchmark";
+	gOFS->_mkdir(wdir.c_str(), 0777, error, vid, "", 0, false);
+	for ( size_t d = 0 ; d < n_subdirs ; d++) {
+	  std::string sdir = wdir + std::string("/d.") + std::to_string(d) + std::string("/");
+	  gOFS->_mkdir(sdir.c_str(), 0777,  error, vid, "", 0, false);
+	  for ( size_t f = 0 ; f < n_subfiles ; f++) {
+	    std::string fname = sdir + std::string("/f.") + std::to_string(f);
+	    XrdOucEnv env;
+	      
+	    XrdMgmOfsFile* file = new XrdMgmOfsFile((char*)"bench");
+	    if (file) {
+	      file->open(&vid, fname.c_str(), SFS_O_CREAT| SFS_O_RDWR, 0777, 0 , 0);
+	      delete file;
+	    }
+	  }
+      }
+      }));
+    }
+    
+    std::for_each(workers.begin(), workers.end(), [](std::thread &t) 
+    {
+      t.join();
+    });
+
+    COMMONTIMING("STOP",&bench);
+    double rt = bench.RealTime()/1000.0;
+    const char* l =  eos_static_log(LOG_SILENT,  "[   exists    ] files=%lu dirs=%lu time=%.02f dir-rate=%.02f file-rate=%.02f Hz", n_threads * n_subdirs * n_subfiles, n_threads*n_subdirs, rt, 1.0 * n_threads * n_subdirs / rt, 1.0 * n_threads * n_subdirs * n_subfiles / rt);
+    oss << l;
+    oss << std::endl;
+    eos_static_notice(l);
+  }
+
+  {
+    eos::common::Timing bench("Benchmark");
+    COMMONTIMING("START", &bench);
+    std::vector<std::thread> workers;    
+    
+    //pass 4 - open files    
+    for (size_t i = 0; i < n_threads; i++) {
+      workers.push_back(std::thread([i, n_subdirs, n_subfiles, &vid, prefix]() 
+      {
+	XrdOucErrInfo error;
+	std::string wdir = prefix + std::string("worker.") + std::to_string(i);
+	XrdSecEntity client("sss");
+	client.tident="benchmark";
+	for ( size_t d = 0 ; d < n_subdirs ; d++) {
+	  std::string sdir = wdir + std::string("/d.") + std::to_string(d) + std::string("/");
+	  for ( size_t f = 0 ; f < n_subfiles ; f++) {
+	    std::string fname = sdir + std::string("/f.") + std::to_string(f);
+	    XrdOucEnv env;
+	      
+	    XrdMgmOfsFile* file = new XrdMgmOfsFile((char*)"bench");
+	    if (file) {
+	      file->open(&vid, fname.c_str(), 0, 0 , 0, "eos.app=fuse");
+	      delete file;
+	    }
+	    //gOFS->Open(fname.c_str(), "", env, error, vid, &client);
+	  }
+	}
+      }));
+    }
+    
+    std::for_each(workers.begin(), workers.end(), [](std::thread &t) 
+    {
+      t.join();
+    });
+    COMMONTIMING("STOP",&bench);
+    double rt = bench.RealTime()/1000.0;
+    const char* l =  eos_static_log(LOG_SILENT,  "[   open      ] files=%lu time=%.02f file-rate=%.02f Hz", n_threads * n_subdirs * n_subfiles, rt, 1.0 * n_threads * n_subdirs * n_subfiles / rt);
+    oss << l;
+    oss << std::endl;
+    eos_static_notice(l);
+  }
+
+  {
+    eos::common::Timing bench("Benchmark");
+    COMMONTIMING("START", &bench);
+    std::vector<std::thread> workers;  
+
+    //pass 5 - delete structure
+    
+    for (size_t i = 0; i < n_threads; i++) {
+      workers.push_back(std::thread([i, n_subdirs, n_subfiles, &vid, prefix]() 
+      {
+	XrdOucErrInfo error;
+	std::string wdir = prefix + std::string("worker.") + std::to_string(i);
+	XrdSecEntity client("sss");
+	client.tident="benchmark";
+	for ( size_t d = 0 ; d < n_subdirs ; d++) {
+	  std::string sdir = wdir + std::string("/d.") + std::to_string(d) + std::string("/");
+	  for ( size_t f = 0 ; f < n_subfiles ; f++) {
+	    std::string fname = sdir + std::string("/f.") + std::to_string(f);
+	    gOFS->_rem(fname.c_str(), error, vid, "");
+	  }
+	  gOFS->_remdir(sdir.c_str(), error, vid);
+	}
+	gOFS->_remdir(wdir.c_str(), error, vid);
+
+      }));
+    }
+    
+    std::for_each(workers.begin(), workers.end(), [](std::thread &t) 
+    {
+      t.join();
+    });
+
+    gOFS->_remdir(prefix.c_str(), error, vid);
+    
+    COMMONTIMING("STOP",&bench);
+    double rt = bench.RealTime()/1000.0;
+    const char* l =  eos_static_log(LOG_SILENT,  "[   rmdir     ] files=%lu dirs=%lu time=%.02f dir-rate=%.02f file-rate=%.02f Hz", n_threads * n_subdirs * n_subfiles, n_threads * n_subdirs, rt, 1.0 * n_threads * n_subdirs / rt, 1.0 * n_threads * n_subdirs * n_subfiles / rt);
+    oss << l;
+    oss << std::endl;
+    eos_static_notice(l);
+  }
+
+  
+  reply.set_retc(0);
+  
+  reply.set_std_out( oss.str().c_str() );
+
+}
+
 
 //------------------------------------------------------------------------------
 // Apply text highlighting to ns output

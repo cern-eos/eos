@@ -109,6 +109,7 @@
 #include "mq/XrdMqMessaging.hh"
 #include "mgm/proc/ProcCommand.hh"
 #include "mgm/proc/admin/SpaceCmd.hh"
+#include "mgm/proc/admin/NsCmd.hh"
 #include "mgm/drain/Drainer.hh"
 //#include "mgm/convert/ConverterDriver.hh"
 #include "mgm/IdTrackerWithValidity.hh"
@@ -240,7 +241,7 @@ public:
   friend class eos::mgm::ConverterDriver;
   friend class eos::mgm::SpaceCmd;
   friend class eos::mgm::FsckEntry;
-
+  friend class eos::mgm::NsCmd;
   //----------------------------------------------------------------------------
   //! Constructor
   //----------------------------------------------------------------------------
