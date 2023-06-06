@@ -1915,7 +1915,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
     targetsize = strtoull(openOpaque->Get("eos.targetsize"), 0, 10);
   }
 
-  placement::PlacementStrategyT strategy (placement::PlacementStrategyT::kRoundRobin);
+  placement::PlacementStrategyT strategy = gOFS->mFsScheduler->getPlacementStrategy();
   const char* strategy_cstr;
   if ((strategy_cstr = openOpaque->Get("eos.schedulingstrategy"))) {
     strategy = placement::strategy_from_str(strategy_cstr);
