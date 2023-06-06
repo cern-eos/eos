@@ -74,6 +74,7 @@ enum class PlacementStrategyT : uint8_t {
   kFidRandom,
   kWeightedRandom,
   kWeightedRoundRobin,
+  kGeoScheduler,
   Count
 };
 
@@ -104,6 +105,9 @@ constexpr PlacementStrategyT strategy_from_str(std::string_view strategy_sv) {
   } else if (strategy_sv == "weightedroundrobin"sv ||
              strategy_sv == "weightedrr"sv) {
     return PlacementStrategyT::kWeightedRoundRobin;
+  } else if (strategy_sv == "geoscheduler"sv ||
+             strategy_sv == "geo"sv) {
+    return PlacementStrategyT::kGeoScheduler;
   }
   return PlacementStrategyT::kRoundRobin;
 }
@@ -120,6 +124,8 @@ inline std::string strategy_to_str(PlacementStrategyT strategy) {
     return "fidrandom";
   case PlacementStrategyT::kWeightedRandom:
     return "weightedrandom";
+  case PlacementStrategyT::kGeoScheduler:
+    return "geoscheduler";
   default:
     return "unknown";
   }
