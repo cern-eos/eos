@@ -475,6 +475,48 @@ NsHelper::ParseCommand(const char* arg)
 
     reserve->set_fileid(fileID);
     reserve->set_containerid(containerID);
+  } else if (cmd == "benchmark") {
+    using eos::console::NsProto_BenchmarkProto;
+    NsProto_BenchmarkProto* benchmark = ns->mutable_benchmark();
+
+    if (!(option = tokenizer.GetToken())) {
+      return false;
+    }
+
+    int64_t n_threads = 0;
+    int64_t n_subdirs = 0;
+    int64_t n_subfiles = 0;
+    
+    if (!eos::common::ParseInt64(option, n_threads) || n_threads < 0) {
+      return false;
+    }
+
+    // ---
+    if (!(option = tokenizer.GetToken())) {
+      return false;
+    }
+
+
+    if (!eos::common::ParseInt64(option, n_subdirs) || n_subdirs < 0) {
+      return false;
+    }
+
+    // ---
+    if (!(option = tokenizer.GetToken())) {
+      return false;
+    }
+
+    if (!eos::common::ParseInt64(option, n_subfiles) || n_subfiles < 0) {
+      return false;
+    }
+
+    if ( (option = tokenizer.GetToken()) ) {
+      benchmark->set_prefix(option);
+    }
+    
+    benchmark->set_threads(n_threads);
+    benchmark->set_subdirs(n_subdirs);
+    benchmark->set_subfiles(n_subfiles);
   } else if (cmd == "") {
     eos::console::NsProto_StatProto* stat = ns->mutable_stat();
     stat->set_summary(true);
