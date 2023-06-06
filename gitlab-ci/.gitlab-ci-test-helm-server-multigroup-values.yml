@@ -8,6 +8,9 @@ global:
   keytab:
     # matches the fusex chart value
     secret: eos-sss-keytab
+  securityContext:
+    privileged: true
+    allowPrivilegeEscalation: true
 
 qdb:
   replicaCount: 1
