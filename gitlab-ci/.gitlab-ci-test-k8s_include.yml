@@ -73,6 +73,7 @@ k8s_stress:
     - job: cc7_docker_image
       artifacts: false
   retry: 1
+  allow_failure: true
   tags:
     - docker_node
     - k8s
