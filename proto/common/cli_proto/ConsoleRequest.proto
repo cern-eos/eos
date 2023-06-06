@@ -37,6 +37,7 @@ import "Recycle.proto";
 import "Rm.proto";
 import "Rmdir.proto";
 import "Route.proto";
+import "Sched.proto";
 import "Space.proto";
 import "StagerRm.proto";
 import "Status.proto";
@@ -112,6 +113,7 @@ message RequestProto {
     StatusProto status     = 49;
     FileRegisterProto record = 50;
     DfProto df             = 51;
+    SchedProto sched = 52;
   }
 
   string Comment = 30;
