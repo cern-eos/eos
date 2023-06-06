@@ -34,6 +34,7 @@
 #include "mgm/proc/admin/NodeCmd.hh"
 #include "mgm/proc/admin/NsCmd.hh"
 #include "mgm/proc/admin/QuotaCmd.hh"
+#include "mgm/proc/admin/SchedCmd.hh"
 #include "mgm/proc/admin/SpaceCmd.hh"
 #include "mgm/proc/admin/EvictCmd.hh"
 #include "mgm/proc/admin/FileRegisterCmd.hh"
@@ -270,6 +271,10 @@ ProcInterface::HandleProtobufRequest(eos::console::RequestProto& req,
 
   case RequestProto::kQuota:
     cmd.reset(new QuotaCmd(std::move(req), vid));
+    break;
+
+  case RequestProto::kSched:
+    cmd.reset(new SchedCmd(std::move(req), vid));
     break;
 
   case RequestProto::kSpace:

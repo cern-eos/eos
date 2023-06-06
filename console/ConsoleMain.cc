@@ -130,6 +130,7 @@ extern int com_who(char*);
 extern int com_accounting(char*);
 extern int com_quota(char*);
 extern int com_daemon(char*);
+extern int com_proto_sched(char*);
 
 
 //------------------------------------------------------------------------------
@@ -193,6 +194,7 @@ COMMAND commands[] = {
   { (char*) "role", com_role, (char*) "Set the client role"},
   { (char*) "route", com_route, (char*) "Routing interface"},
   { (char*) "rtlog", com_rtlog, (char*) "Get realtime log output from mgm & fst servers"},
+  { (char*) "sched", com_proto_sched, (char*) "Configure the various scheduler options"},
   { (char*) "silent", com_silent, (char*) "Toggle silent flag for stdout"},
   { (char*) "status", com_status, (char*) "Display status information on an MGM"},
   { (char*) "space", com_proto_space, (char*) "Space configuration"},
