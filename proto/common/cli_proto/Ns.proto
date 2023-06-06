@@ -98,6 +98,13 @@ message NsProto {
     uint64 containerId = 2;
   }
 
+  message BenchmarkProto {
+    uint64 threads = 1;
+    uint64 subdirs = 2;
+    uint64 subfiles = 3;
+    string prefix =4;
+  }
+    
   oneof subcmd {
     StatProto stat          = 1;
     MutexProto mutex        = 2;
@@ -108,5 +115,6 @@ message NsProto {
     QuotaSizeProto quota    = 7;
     DrainSizeProto drain    = 8;
     ReserveIdsProto reserve = 9;
+    BenchmarkProto benchmark = 10;
   }
 }
