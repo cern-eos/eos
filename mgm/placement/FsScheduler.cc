@@ -169,4 +169,17 @@ FSScheduler::setDiskWeight(const std::string& spaceName, fsid_t disk_id,
   return cluster_mgr->setDiskWeight(disk_id, weight);
 }
 
+void
+FSScheduler::setPlacementStrategy(std::string_view strategy_sv)
+{
+  placement_strategy.store(strategy_from_str(strategy_sv),
+                           std::memory_order_release);
+}
+
+PlacementStrategyT
+FSScheduler::getPlacementStrategy()
+{
+  return placement_strategy.load(std::memory_order_acquire);
+}
+
 }// eos::mgm::placement
