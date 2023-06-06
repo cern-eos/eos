@@ -129,7 +129,8 @@ add_library(EosConsoleCommands-Objects OBJECT
   #@todo (esindril) drop com_access when move to 5.0.0
   commands/com_access.cc
   commands/com_proto_access.cc
-  commands/com_proto_fsck.cc)
+  commands/com_proto_fsck.cc
+  commands/com_proto_sched.cc)
 
 target_link_libraries(EosConsoleCommands-Objects PUBLIC
   EosConsoleHelpers-Objects
