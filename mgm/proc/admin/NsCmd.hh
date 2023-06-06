@@ -141,6 +141,16 @@ private:
                         eos::console::ReplyProto& reply);
 
   //----------------------------------------------------------------------------
+  //! Execute benchmark command
+  //!
+  //! @param ...
+  //! @param reply reply proto object
+  //----------------------------------------------------------------------------
+  void BenchmarkSubCmd(const eos::console::NsProto_BenchmarkProto& benchmark,
+		       eos::console::ReplyProto& reply);
+
+  
+  //----------------------------------------------------------------------------
   //! Do a breadth first search of all the subcontainers under the given
   //! container
   //!
