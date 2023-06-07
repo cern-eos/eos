@@ -24,9 +24,10 @@
 #include "common/SharedMutexWrapper.hh"
 #include "common/Namespace.hh"
 #include "common/IRWMutex.hh"
-#include "safe_ptr.h"
+#include "absl/synchronization/mutex.h"
 
 EOSCOMMONNAMESPACE_BEGIN
+
 
 //------------------------------------------------------------------------------
 //! Class SharedMutex - wrapper around std::shared_timed_mutex
@@ -104,8 +105,9 @@ public:
 
 private:
   //  std::mutex mSharedMutex;
-  sf::contention_free_shared_mutex<> mSharedMutex;
-
+  //  sf::contention_free_shared_mutex<> mSharedMutex;
+  //  folly::SharedMutex mSharedMutex;
+  absl::Mutex mSharedMutex;
 };
 
 EOSCOMMONNAMESPACE_END

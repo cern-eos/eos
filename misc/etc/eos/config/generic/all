@@ -29,5 +29,5 @@ GEO_TAG=local
 
 
 EOS_XROOTD=/opt/eos/xrootd/
-LD_LIBRARY_PATH=${EOS_XROOTD}/lib64
+LD_LIBRARY_PATH=${EOS_XROOTD}/lib64:/opt/eos/grpc/lib64
 LD_PRELOAD=/usr/lib64/libjemalloc.so
