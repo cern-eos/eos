@@ -583,11 +583,6 @@ ScanDir::ScanSubtree(ThreadAssistant& assistant) noexcept
       fprintf(stderr, "[ScanDir] processing file %s\n", fpath.c_str());
     }
 
-    // Skip scanning orphan files
-    if (fpath.find(".eosorphans") != std::string::npos) {
-      continue;
-    }
-
     if (CheckFile(fpath)) {
 #ifndef _NOOFS
 
@@ -639,6 +634,19 @@ ScanDir::CheckFile(const std::string& fpath)
 {
   using eos::common::LayoutId;
   eos_debug("msg=\"start file check\" path=\"%s\"", fpath.c_str());
+
+  // Skip scanning orphan files
+  if (fpath.find("/.eosorphans") != std::string::npos) {
+    eos_debug("msg=\"skip orphan file\" path=\"%s\"", fpath.c_str());
+    return false;
+  }
+
+  // Skip scanning our scrub files (/scrub.write-once.X, /scrub.re-write.X)
+  if (fpath.find("/scrub.") != std::string::npos) {
+    eos_debug("msg=\"skip scrub file\" path=\"%s\"", fpath.c_str());
+    return false;;
+  }
+
   std::unique_ptr<FileIo> io(FileIoPluginHelper::GetIoObject(fpath.c_str()));
   ++mNumTotalFiles;
   // Get last modification time
@@ -654,7 +662,7 @@ ScanDir::CheckFile(const std::string& fpath)
   auto fid = eos::common::FileId::PathToFid(fpath.c_str());
 
   if (!fid) {
-    eos_static_info("msg=\"skip file which is not a eos data file\", "
+    eos_static_info("msg=\"skip file which is not an eos data file\", "
                     "path=\"%s\"", fpath.c_str());
     return false;
   }
