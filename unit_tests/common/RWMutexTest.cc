@@ -26,6 +26,7 @@
 #include "common/StacktraceHere.hh"
 #include <cstdio>
 
+#ifdef EOS_INSTRUMENTED_RWMUTEX
 //------------------------------------------------------------------------------
 // Check stacktrace generation
 //------------------------------------------------------------------------------
@@ -203,3 +204,4 @@ TEST(RWMutex, LockOrder)
   failed_timed_no_order_violation();
   lock_order_violation();
 }
+#endif
