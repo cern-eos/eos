@@ -30,7 +30,7 @@ EOSCOMMONNAMESPACE_BEGIN
 int
 SharedMutex::LockRead()
 {
-  mSharedMutex.lock_shared();
+  mSharedMutex.ReaderLock();
   return 0;
 }
 
@@ -40,7 +40,7 @@ SharedMutex::LockRead()
 int
 SharedMutex::UnLockRead()
 {
-  mSharedMutex.unlock_shared();
+  mSharedMutex.ReaderUnlock();
   return 0;
 }
 
@@ -50,7 +50,7 @@ SharedMutex::UnLockRead()
 int
 SharedMutex::TimedRdLock(uint64_t timeout_ns)
 {
-  mSharedMutex.lock();
+  mSharedMutex.Lock();
   return 0;
 }
 
@@ -60,7 +60,7 @@ SharedMutex::TimedRdLock(uint64_t timeout_ns)
 int
 SharedMutex::LockWrite()
 {
-  mSharedMutex.lock();
+  mSharedMutex.Lock();
   return 0;
 }
 
@@ -70,7 +70,7 @@ SharedMutex::LockWrite()
 int
 SharedMutex::UnLockWrite()
 {
-  mSharedMutex.unlock();
+  mSharedMutex.Unlock();
   return 0;
 }
 
@@ -80,7 +80,7 @@ SharedMutex::UnLockWrite()
 int
 SharedMutex::TimedWrLock(uint64_t timeout_ns)
 {
-  mSharedMutex.lock();
+  mSharedMutex.Lock();
   return 0;
 }
 
