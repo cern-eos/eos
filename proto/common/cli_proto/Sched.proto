@@ -16,10 +16,13 @@ message SchedProto {
     string spacename = 3;
   }
 
+  message ShowProto {}
+
   message ConfigureProto {
     oneof subopt {
       TypeProto type = 1;
       WeightProto weight = 2;
+      ShowProto show = 3;
     }
   }
 
