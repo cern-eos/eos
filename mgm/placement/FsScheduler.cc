@@ -103,6 +103,9 @@ EosClusterMgrHandler::make_cluster_mgr(const std::string& spaceName)
 ClusterMgr*
 FSScheduler::get_cluster_mgr(const std::string& spaceName)
 {
+  if (!cluster_mgr_map) {
+    return nullptr;
+  }
   if (auto kv = cluster_mgr_map->find(spaceName);
       kv != cluster_mgr_map->end()) {
     return kv->second.get();
