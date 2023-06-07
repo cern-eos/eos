@@ -21,7 +21,7 @@
 # * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
 # ************************************************************************
 
-include_directories(${CMAKE_SOURCE_DIR}/common/jwt-cpp/include/)
+include_directories(${CMAKE_SOURCE_DIR}/common/jwt-cpp/include/ ${GRPC_INCLUDE_DIR} )
 
 #-------------------------------------------------------------------------------
 # CTA integration related operations
@@ -164,6 +164,7 @@ target_link_libraries(EosCommon-Objects PUBLIC
   LIBBFD::LIBBFD
   LIBBFD::IBERTY
   GOOGLE::SPARSEHASH
+  GRPC::grpc++
   ${CMAKE_THREAD_LIBS_INIT})
 
 set_target_properties(EosCommon-Objects PROPERTIES
