@@ -37,6 +37,8 @@ unsigned long int NUM_THREADS = NNUM_THREADS;
 RWMutex globmutex;
 RWMutex gm1, gm2, gm3;
 
+
+#ifdef EOS_INSTRUMENTED_RWMUTEX
 //----------------------------------------------------------------------------
 //! Output to stream operator for TimingStats structure
 //!
@@ -137,12 +139,15 @@ TestThread2(void* threadid)
   return NULL;
 }
 
+#endif
+
 //----------------------------------------------------------------------------
 // Main function
 //----------------------------------------------------------------------------
 int
 main()
 {
+#ifdef EOS_INSTRUMENTED_RWMUTEX  
   RWMutex::SetOrderCheckingGlobal(false);
   std::cout << " Using Instrumented Version of RWMutex class" << std::endl;
   RWMutex::EstimateLatenciesAndCompensation();
@@ -392,6 +397,7 @@ main()
   std::cout << "#################################################" << std::endl;
   RunThreads(&TestThread2);
   return 0;
+  #endif
 }
 
 /*

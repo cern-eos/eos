@@ -49,7 +49,7 @@
 
 #pragma once
 #ifndef __APPLE__
-#define EOS_INSTRUMENTED_RWMUTEX
+//#define EOS_INSTRUMENTED_RWMUTEX
 #endif
 
 #include "common/Namespace.hh"
@@ -61,18 +61,16 @@
 #include <chrono>
 #include <map>
 #include <string>
-#ifdef EOS_INSTRUMENTED_RWMUTEX
-#include <vector>
 #include <ostream>
 #include <fstream>
 #include <iostream>
+#include <cmath>
+#include <vector>
 #include <execinfo.h>
 #include <limits>
-#include <cmath>
 #include <set>
 #include <thread>
 #include <mutex>
-#endif
 
 #define _MULTI_THREADED
 #include <pthread.h>

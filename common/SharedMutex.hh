@@ -24,6 +24,7 @@
 #include "common/SharedMutexWrapper.hh"
 #include "common/Namespace.hh"
 #include "common/IRWMutex.hh"
+#include "safe_ptr.h"
 
 EOSCOMMONNAMESPACE_BEGIN
 
@@ -102,7 +103,9 @@ public:
   int TimedWrLock(uint64_t timeout_ns) override;
 
 private:
-  std::shared_timed_mutex mSharedMutex;
+  //  std::mutex mSharedMutex;
+  sf::contention_free_shared_mutex<> mSharedMutex;
+
 };
 
 EOSCOMMONNAMESPACE_END

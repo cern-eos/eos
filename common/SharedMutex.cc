@@ -50,13 +50,8 @@ SharedMutex::UnLockRead()
 int
 SharedMutex::TimedRdLock(uint64_t timeout_ns)
 {
-  std::chrono::nanoseconds ns(timeout_ns);
-
-  if (mSharedMutex.try_lock_shared_for(ns)) {
-    return 0;
-  } else {
-    return ETIMEDOUT;
-  }
+  mSharedMutex.lock();
+  return 0;
 }
 
 //------------------------------------------------------------------------------
@@ -85,11 +80,8 @@ SharedMutex::UnLockWrite()
 int
 SharedMutex::TimedWrLock(uint64_t timeout_ns)
 {
-  if (mSharedMutex.try_lock_for(std::chrono::nanoseconds(timeout_ns))) {
-    return 0;
-  } else {
-    return ETIMEDOUT;
-  }
+  mSharedMutex.lock();
+  return 0;
 }
 
 EOSCOMMONNAMESPACE_END
