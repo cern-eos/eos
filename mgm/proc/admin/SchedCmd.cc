@@ -56,6 +56,8 @@ eos::mgm::SchedCmd::ConfigureSubcmd(const eos::console::SchedProto_ConfigureProt
     return SchedulerTypeSubcmd(config.type());
   case eos::console::SchedProto_ConfigureProto::kWeight:
     return WeightSubCmd(config.weight());
+  case eos::console::SchedProto_ConfigureProto::kShow:
+    return ShowSubCmd(config.show());
   default:
     reply.set_std_err("error: not supported");
     reply.set_retc(EINVAL);
@@ -113,6 +115,19 @@ SchedCmd::LsSubcmd(const eos::console::SchedProto_LsProto& ls)
     reply.set_retc(EINVAL);
   }
 
+  return reply;
+}
+
+eos::console::ReplyProto
+SchedCmd::ShowSubCmd(const eos::console::SchedProto_ShowProto& show)
+{
+  eos::console::ReplyProto reply;
+  std::ostringstream oss;
+  oss << "Scheduler Type:"
+      << placement::strategy_to_str(gOFS->mFsScheduler->getPlacementStrategy())
+      << std::endl;
+  reply.set_std_out(oss.str());
+  reply.set_retc(0);
   return reply;
 }
 

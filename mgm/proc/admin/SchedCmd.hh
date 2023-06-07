@@ -52,6 +52,9 @@ private:
 
   eos::console::ReplyProto
   LsSubcmd(const eos::console::SchedProto_LsProto& ls);
+
+  eos::console::ReplyProto
+  ShowSubCmd(const eos::console::SchedProto_ShowProto& show);
 };
 
 
