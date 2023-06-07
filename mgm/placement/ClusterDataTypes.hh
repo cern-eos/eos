@@ -154,9 +154,8 @@ struct ClusterData {
     if (id > disks.size()) {
       return false;
     }
-    return disks[id - 1].weight.compare_exchange_strong(weight,
-                                                        weight,
-                                                        std::memory_order_acq_rel);
+    disks[id - 1].weight.store(weight, std::memory_order_release);
+    return true;
   }
 };
 
