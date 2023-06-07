@@ -1251,13 +1251,15 @@ Stat::Circulate(ThreadAssistant& assistant) noexcept
     qu1 = qu1tmp;
     qu2 = qu2tmp;
 
-#endif
     std::chrono::milliseconds elapsed =
       std::chrono::duration_cast<std::chrono::milliseconds> (chrononow-chronolast);
+    
     Add("NsUsedR", 0, 0, ns_mtx->GetReadLockTime() / elapsed.count());
     Add("NsUsedW", 0, 0, ns_mtx->GetWriteLockTime() / elapsed.count());
     Add("NsLeadR", 0, 0, ns_mtx->GetReadLockLeadTime() / elapsed.count());
     Add("NsLeadW", 0, 0, ns_mtx->GetWriteLockLeadTime() / elapsed.count());
+
+#endif
 
     l1 = l1tmp;
     l2 = l2tmp;
