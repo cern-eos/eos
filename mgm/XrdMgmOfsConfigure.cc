@@ -1574,11 +1574,14 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   mViewMutexWatcher.activate(eosViewRWMutex, "eosViewRWMutex");
   // Configure the access mutex to be blocking
   Access::gAccessMutex.SetBlocking(true);
+
 #ifdef EOS_INSTRUMENTED_RWMUTEX
   eos::common::RWMutex* fs_mtx = &FsView::gFsView.ViewMutex;
   eos::common::RWMutex* quota_mtx = &Quota::pMapMutex;
   eos::common::RWMutex* ns_mtx = &eosViewRWMutex;
   eos::common::RWMutex* fusex_client_mtx = &gOFS->zMQ->gFuseServer.Client();
+
+  
   //eos::common::RWMutex* fusex_cap_mtx = &gOFS->zMQ->gFuseServer.Cap();
   // eos::common::RWMutex::EstimateLatenciesAndCompensation();
   fs_mtx->SetBlocking(true);

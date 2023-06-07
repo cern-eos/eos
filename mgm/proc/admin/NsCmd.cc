@@ -94,6 +94,8 @@ void
 NsCmd::MutexSubcmd(const eos::console::NsProto_MutexProto& mutex,
                    eos::console::ReplyProto& reply)
 {
+  
+#ifdef EOS_INSTRUMENTED_RWMUTEX
   if (mVid.uid == 0) {
     bool no_option = true;
     std::ostringstream oss;
@@ -219,6 +221,7 @@ NsCmd::MutexSubcmd(const eos::console::NsProto_MutexProto& mutex,
                       " command");
     reply.set_retc(EPERM);
   }
+#endif
 }
 
 //------------------------------------------------------------------------------
