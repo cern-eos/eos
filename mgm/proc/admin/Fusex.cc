@@ -87,7 +87,7 @@ ProcCommand::Fusex()
 
       if (!bc_match.length()) {
 	bc_match = gOFS->zMQ->gFuseServer.Client().BroadCastAudienceSuppressMatch();
-	stdOut += "info: configured FUESX broadcast audience to suppress match is '";
+	stdOut += "info: configured FUSEX broadcast audience to suppress match is '";
 	stdOut += bc_match.c_str();
 	stdOut += "'";
 	stdOut += "\n";
