@@ -58,7 +58,7 @@ bool SchedHelper::ParseCommand(const char* arg)
     return false;
   }
 
-  if (token == "configure") {
+  if (token == "configure" || token == "config") {
     eos::console::SchedProto_ConfigureProto* config = sched->mutable_config();
 
     if (!tokenizer.NextToken(token)) {
@@ -90,6 +90,8 @@ bool SchedHelper::ParseCommand(const char* arg)
       weight_prot->set_id(item_id);
       weight_prot->set_weight(weight);
       weight_prot->set_spacename(space);
+    } else if (token == "show") {
+      eos::console::SchedProto_ShowProto* show_prot = config->mutable_show();
     }
 
 
@@ -139,6 +141,9 @@ void com_sched_help()
       << " sched configure type <schedtype>\n"
       << "\t <schedtype> is one of roundrobin,weightedrr,tlrr,random,weightedrandom,geo\n"
       << " sched configure weight <space> <fsid> <weight>\n"
+      << "\t configure weight for a given fsid in the given space"
+      << " sched configure dump"
+      << "\t dump existing config options"
       << " ls <bucket|disk|all>\n"
       << std::endl;
   std::cerr << oss.str();
