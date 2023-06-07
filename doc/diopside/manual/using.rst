@@ -1274,7 +1274,7 @@ be shown or modified using **eos fusex conf**
 
     [root@eos ]# eos fusex conf
     info: configured FUSEX broadcast max. client audience 256 listeners
-    info: configured FUESX broadcast audience to suppress match is '@b[67]'
+    info: configured FUSEX broadcast audience to suppress match is '@b[67]'
     info: configured FUSEX heartbeat interval is 10 seconds
     info: configured FUSEX quota check interval is 10 seconds
     
