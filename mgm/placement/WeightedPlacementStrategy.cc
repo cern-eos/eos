@@ -66,12 +66,33 @@ PlacementResult WeightedRandomPlacement::Impl::placeFiles(const ClusterData& dat
   }
 
   int32_t bucket_index = -args.bucket_id;
+  int items_added = 0;
 
-  for (int i = 0; i < args.n_replicas; i++) {
+  for (int i = 0; items_added < args.n_replicas && i < MAX_PLACEMENT_ATTEMPTS;
+       i++) {
     auto item_index = mDiskWeights[args.bucket_id](gen);
     eos_static_debug("Got item_index=%d item_id=%d",
                      item_index, data.buckets[bucket_index].items[item_index]);
-    result.ids[i] = data.buckets[bucket_index].items[item_index];
+    //result.ids[i] = data.buckets[bucket_index].items[item_index];
+    item_id_t item_id = data.buckets[bucket_index].items[item_index];
+    if (item_id > 0) {
+      if ((size_t)item_id > data.disks.size()) {
+        result.err_msg = "Disk ID out of range";
+        result.ret_code = ERANGE;
+        return result;
+      }
+
+      const auto& disk = data.disks[item_id - 1];
+      if (disk.config_status.load(std::memory_order_relaxed) < args.status) {
+        continue;
+      }
+
+      if (std::find(args.excludefs.begin(), args.excludefs.end(), item_id)
+          != args.excludefs.end()) {
+        continue;
+      }
+    }
+    result.ids[items_added++] = item_id;
   }
   result.ret_code = 0;
   return result;
