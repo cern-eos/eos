@@ -50,7 +50,8 @@ WeightedRoundRobinPlacement::Impl::placeFiles(const ClusterData& cluster_data,
   //granting all of them... in spite of near 0 weights.. this is fine as the
   //weighting is still an approximate means and there is no need for exactness,
   //the next cycle should refresh the weights correctly
-  if (total_wt < args.n_replicas) {
+
+  if (total_wt < (args.n_replicas)) {
     eos_static_info("%s","msg=\"Refilling weights\"");
     fill_weights(cluster_data);
   }
@@ -66,6 +67,10 @@ WeightedRoundRobinPlacement::Impl::placeFiles(const ClusterData& cluster_data,
     item_id_t item_id = eos::common::pickIndexRR(bucket.items, bucket_index_kv++);
 
     if (item_id > 0) {
+      if (mItemWeights[args.bucket_id] < args.n_replicas) {
+        fill_weights(cluster_data);
+      }
+
       if (--mItemWeights[item_id] < 0) {
         eos_static_debug("msg=\"Skipping scheduling 0 wt item at\" item_id=%d total_wt=%llu",
                          item_id, total_wt.load(std::memory_order_relaxed));
@@ -83,9 +88,19 @@ WeightedRoundRobinPlacement::Impl::placeFiles(const ClusterData& cluster_data,
       if (disk_status < args.status) {
         continue;
       }
+
+      if (std::find(args.excludefs.begin(),
+                    args.excludefs.end(), item_id) != args.excludefs.end()) {
+        --total_wt;
+        --mItemWeights[args.bucket_id];
+        continue;
+      }
+
       item_id = disk.id;
       --total_wt;
       --mItemWeights[args.bucket_id];
+
+
     } else {
       // We're dealing with a bucket, make sure we've enough wt left!
       if (mItemWeights[item_id] < args.n_replicas) {

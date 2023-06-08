@@ -35,42 +35,6 @@ std::unique_ptr<PlacementStrategy> makePlacementStrategy(PlacementStrategyT type
 // We really need a more creative name?
 class FlatScheduler {
 public:
-  struct PlacementArguments {
-    item_id_t bucket_id = 0;
-    uint8_t n_replicas;
-    ConfigStatus status = ConfigStatus::kRW;
-    uint64_t fid;
-    bool default_placement = true;
-    selection_rules_t rules = kDefault2Replica;
-    PlacementStrategyT strategy = PlacementStrategyT::kRoundRobin;
-
-    PlacementArguments(uint8_t n_replicas, ConfigStatus _status)
-        : bucket_id(0), n_replicas(n_replicas), status(_status), fid(0),
-          rules(kDefault2Replica), default_placement(true)
-    {
-    }
-
-    PlacementArguments(uint8_t n_replicas, ConfigStatus _status, PlacementStrategyT _strategy)
-      : bucket_id(0), n_replicas(n_replicas), status(_status), fid(0),
-        rules(kDefault2Replica), default_placement(true), strategy(_strategy)
-    {
-    }
-
-
-    PlacementArguments(uint8_t n_replicas)
-        : PlacementArguments(n_replicas, ConfigStatus::kRW)
-    {
-    }
-
-    PlacementArguments(item_id_t bucket_id, uint8_t n_replicas,
-                       ConfigStatus status, uint64_t fid,
-                       selection_rules_t rules)
-        : bucket_id(bucket_id), n_replicas(n_replicas), status(status),
-          fid(fid), rules(rules), default_placement(false)
-    {
-    }
-  };
-
   FlatScheduler(size_t max_buckets);
   FlatScheduler(PlacementStrategyT strategy, size_t max_buckets);
 

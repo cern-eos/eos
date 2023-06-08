@@ -123,7 +123,7 @@ FSScheduler::updateClusterData()
 
 PlacementResult
 FSScheduler::schedule(const string& spaceName,
-                      FlatScheduler::PlacementArguments args)
+                      PlacementArguments args)
 {
   eos::common::RCUReadLock rlock(cluster_rcu_mutex);
   auto cluster_mgr = get_cluster_mgr(spaceName);
@@ -140,7 +140,7 @@ FSScheduler::schedule(const string& spaceName,
 PlacementResult
 FSScheduler::schedule(const std::string& spaceName, uint8_t n_replicas)
 {
-  return schedule(spaceName, FlatScheduler::PlacementArguments(n_replicas));
+  return schedule(spaceName, PlacementArguments(n_replicas));
 }
 
 bool

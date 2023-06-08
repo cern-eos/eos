@@ -536,6 +536,59 @@ TEST(FlatScheduler, TLNoSite)
   }
 }
 
+TEST(FlatScheduler, TLNoSiteExcludeFsids)
+{
+  using namespace eos::mgm::placement;
+  eos::mgm::placement::ClusterMgr mgr;
+  int n_elements = 1024;
+  int n_disks_per_group = 16;
+  int n_groups = 32;
+  eos::mgm::placement::FlatScheduler flat_scheduler(2048);
+
+  {
+
+    auto sh = mgr.getStorageHandler(n_elements);
+    ASSERT_TRUE(sh.addBucket(get_bucket_type(StdBucketType::ROOT), 0));
+    for (int i=0; i< n_groups; ++i) {
+      ASSERT_TRUE(sh.addBucket(get_bucket_type(StdBucketType::GROUP), -100-i, 0));
+    }
+
+    for (int i=0; i < n_groups*n_disks_per_group; i++) {
+      ASSERT_TRUE(sh.addDisk(Disk(i+1, ConfigStatus::kRW, ActiveStatus::kOnline, 1),
+                             -100 - i/n_disks_per_group));
+    }
+
+  }
+  auto cluster_data = mgr.getClusterData();
+  EXPECT_EQ(cluster_data->disks.size(), 32*16);
+  EXPECT_EQ(cluster_data->buckets.size(), n_elements);
+  auto root_bucket = cluster_data->buckets[0];
+  EXPECT_EQ(root_bucket.items.size(), n_groups);
+  for (auto it: root_bucket.items) {
+    EXPECT_EQ(cluster_data->buckets.at(-it).items.size(), n_disks_per_group);
+  }
+  for (auto t: {PlacementStrategyT::kRoundRobin,
+                PlacementStrategyT::kThreadLocalRoundRobin,
+                PlacementStrategyT::kWeightedRandom,
+                PlacementStrategyT::kWeightedRoundRobin}) {
+
+    PlacementArguments args{2};
+    args.excludefs = {1};
+    args.strategy = t;
+    for (int i = 0; i < 1000; i++) {
+      auto result = flat_scheduler.schedule(cluster_data(), args);
+      if (!result) {
+        std::cerr << "Iteration " << i << " failed: " << result.err_msg.value_or("") << std::endl;
+      }
+      EXPECT_TRUE(result);
+      EXPECT_TRUE(result.is_valid_placement(2));
+      EXPECT_NE(result.ids[0], 1);
+      EXPECT_NE(result.ids[1], 1);
+    }
+  }
+}
+
+
 TEST(FlatScheduler, TLNoSiteUniformWeighted)
 {
   using namespace eos::mgm::placement;
