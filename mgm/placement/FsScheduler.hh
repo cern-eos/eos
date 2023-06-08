@@ -50,7 +50,8 @@ public:
   FSScheduler(size_t max_buckets,
               std::unique_ptr<ClusterMgrHandler>&& _handler) :
     scheduler(std::make_unique<FlatScheduler>(max_buckets)),
-    cluster_handler(std::move(_handler))
+    cluster_handler(std::move(_handler)),
+    placement_strategy(placement::PlacementStrategyT::kGeoScheduler)
   {}
 
   FSScheduler() : FSScheduler(1024,
