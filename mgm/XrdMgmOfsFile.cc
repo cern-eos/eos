@@ -1796,10 +1796,12 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
         }
 
         ns_wr_lock.Release();
+        COMMONTIMING("filemd::update", &tm);
         gOFS->FuseXCastFile(fmd_id);
         gOFS->FuseXCastContainer(cmd_id);
         gOFS->FuseXCastContainer(pcmd_id);
         gOFS->FuseXCastRefresh(cmd_id, pcmd_id);
+        COMMONTIMING("fusex::bc", &tm);
       } catch (eos::MDException& e) {
         errno = e.getErrno();
         std::string errmsg = e.getMessage().str();
