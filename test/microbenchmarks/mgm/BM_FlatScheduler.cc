@@ -151,7 +151,7 @@ static void BM_FidScheduler(benchmark::State& state) {
   FlatScheduler flat_scheduler(PlacementStrategyT::kFidRandom, n_elements);
 
 
-  FlatScheduler::PlacementArguments args(state.range(1));
+  PlacementArguments args(state.range(1));
   args.fid=1;
   for (auto _: state) {
     auto cluster_data_ptr = mgr.getClusterData();
@@ -189,7 +189,7 @@ static void BM_WeightedRandomScheduler(benchmark::State& state) {
   FlatScheduler flat_scheduler(PlacementStrategyT::kWeightedRandom, n_elements);
 
 
-  FlatScheduler::PlacementArguments args(state.range(1));
+  PlacementArguments args(state.range(1));
   args.fid=1;
   for (auto _: state) {
     auto cluster_data_ptr = mgr.getClusterData();
@@ -227,7 +227,7 @@ static void BM_WeightedRRScheduler(benchmark::State& state) {
   FlatScheduler flat_scheduler(PlacementStrategyT::kWeightedRoundRobin, n_elements);
 
 
-  FlatScheduler::PlacementArguments args(state.range(1));
+  PlacementArguments args(state.range(1));
   args.fid=1;
   for (auto _: state) {
     auto cluster_data_ptr = mgr.getClusterData();
