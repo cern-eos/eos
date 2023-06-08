@@ -133,7 +133,7 @@ XrdMgmOfsDirectory::open(const char* inpath,
   MAYREDIRECT;
 
   // we have to show this as a directory inside the tokens cope
-  if (vid.scope.back() != '/') {
+  if (!vid.scope.empty() && vid.scope.back() != '/') {
     vid.scope += "/";
   }
 
