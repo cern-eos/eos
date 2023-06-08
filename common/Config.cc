@@ -98,6 +98,10 @@ std::string
 Config::ParseChapter(const std::string& line)
 {
   std::string pline = line;
+
+  if (pline.empty()) {
+    return "";
+  }
   // remove new line
   if (pline.back() == '\n') {
     pline.pop_back();
@@ -135,6 +139,10 @@ std::string
 Config::ParseSection(const std::string& line)
 {
   std::string pline = line;
+
+  if (pline.empty()) {
+    return "";
+  }
   // remove new line
   if (pline.back() == '\n') {
     pline.pop_back();
