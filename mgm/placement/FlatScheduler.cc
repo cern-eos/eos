@@ -66,6 +66,7 @@ FlatScheduler::schedule(const ClusterData& cluster_data,
   std::queue<item_id_t> item_queue;
   item_queue.push(args.bucket_id);
   int result_index = 0;
+  uint8_t n_final_replicas = args.n_replicas;
 
   while (!item_queue.empty()) {
     item_id_t bucket_id = item_queue.front();
@@ -78,13 +79,13 @@ FlatScheduler::schedule(const ClusterData& cluster_data,
     auto bucket = cluster_data.buckets.at(-bucket_id);
     auto items_to_place = args.rules.at(bucket.bucket_type);
     if (items_to_place == -1) {
-      items_to_place = args.n_replicas;
+      items_to_place = n_final_replicas;
     }
-    PlacementStrategy::Args plct_args{bucket_id, items_to_place,
-          args.status};
 
+    args.bucket_id = bucket_id;
+    args.n_replicas = items_to_place;
 
-    auto result = mPlacementStrategy[strategy_index(args.strategy)]->placeFiles(cluster_data, plct_args);
+    auto result = mPlacementStrategy[strategy_index(args.strategy)]->placeFiles(cluster_data, args);
     if (!result) {
       return result;
     } else {
@@ -103,17 +104,19 @@ FlatScheduler::schedule(const ClusterData& cluster_data,
 
 PlacementResult
 FlatScheduler::scheduleDefault(const ClusterData& cluster_data,
-                               FlatScheduler::PlacementArguments args)
+                               PlacementArguments args)
 {
+  uint8_t n_final_replicas = args.n_replicas;
   do {
     const auto& bucket = cluster_data.buckets.at(-args.bucket_id);
     uint8_t n_replicas = 1;
     if (bucket.bucket_type == static_cast<uint8_t>(StdBucketType::GROUP)) {
-      n_replicas = args.n_replicas;
+      n_replicas = n_final_replicas;
     }
 
-    PlacementStrategy::Args plct_args{args.bucket_id, n_replicas, args.status};
-    auto result = mPlacementStrategy[strategy_index(args.strategy)]->placeFiles(cluster_data, plct_args);
+    args.n_replicas = n_replicas;
+    //PlacementStrategy::Args plct_args{args.bucket_id, n_replicas, args.status};
+    auto result = mPlacementStrategy[strategy_index(args.strategy)]->placeFiles(cluster_data, args);
     if (!result || result.ids.empty()) {
       return result;
     }

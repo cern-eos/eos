@@ -2022,7 +2022,10 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
     if (!use_geoscheduler) {
       COMMONTIMING("PlctScheduler::FilePlacement", &tm);
       uint8_t n_replicas = eos::common::LayoutId::GetStripeNumber(layoutId) + 1;
-      placement::FlatScheduler::PlacementArguments args{n_replicas, placement::ConfigStatus::kRW, strategy};
+      placement::PlacementArguments args{n_replicas, placement::ConfigStatus::kRW, strategy};
+      if (!excludefs.empty()) {
+        args.excludefs = excludefs;
+      }
       auto ret = gOFS->mFsScheduler->schedule(spacename,
                                               args);
       COMMONTIMING("PlctScheduler::FilePlaced", &tm);
@@ -2197,7 +2200,10 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
         if (!use_geoscheduler) {
           COMMONTIMING("PlctScheduler::FilePlacement", &tm);
           uint8_t n_replicas = eos::common::LayoutId::GetStripeNumber(layoutId) + 1;
-          placement::FlatScheduler::PlacementArguments args{n_replicas, placement::ConfigStatus::kRW, strategy};
+          placement::PlacementArguments args{n_replicas, placement::ConfigStatus::kRW, strategy};
+          if (!excludefs.empty()) {
+            args.excludefs = excludefs;
+          }
           auto ret = gOFS->mFsScheduler->schedule(spacename,
                                                   args);
           COMMONTIMING("PlctScheduler::FilePlaced", &tm);
