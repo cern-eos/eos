@@ -59,6 +59,13 @@ RoundRobinPlacement::placeFiles(const ClusterData& cluster_data, Args args)
         continue;
         // TODO: We could potentially reseed the RR index in case of failure, should be fairly simple to do here! Uncommenting should work? rr_seed = GetRRSeed(n_replicas - items_added);
       }
+
+      // exclude disks that are in the exclusion list
+      if (std::find(args.excludefs.cbegin(), args.excludefs.cend(), id) !=
+          args.excludefs.cend()) {
+        continue;
+      }
+
       item_id = disk.id;
     }
     result.ids[items_added++] = item_id;
