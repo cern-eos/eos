@@ -164,7 +164,7 @@ target_link_libraries(EosCommon-Objects PUBLIC
   LIBBFD::LIBBFD
   LIBBFD::IBERTY
   GOOGLE::SPARSEHASH
-  GRPC::grpc++
+  ${ABSL_SYNCHRONIZATION_LIBRARY}
   ${CMAKE_THREAD_LIBS_INIT})
 
 set_target_properties(EosCommon-Objects PROPERTIES
