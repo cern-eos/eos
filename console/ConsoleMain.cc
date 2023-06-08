@@ -799,6 +799,8 @@ Run(int argc, char* argv[])
   // Enable fork handlers for XrdCl
   XrdCl::Env* env = XrdCl::DefaultEnv::GetEnv();
   env->PutInt("RunForkHandler", 1);
+  env->PutInt("RequestTimeout", 900);
+  env->PutInt("StreamTimeout", 1200);
 
   if (getenv("EOS_MGM_URL")) {
     serveruri = getenv("EOS_MGM_URL");
