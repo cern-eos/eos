@@ -133,18 +133,67 @@ inline std::string strategy_to_str(PlacementStrategyT strategy) {
   }
 }
 
-struct PlacementStrategy {
-  struct Args {
-    item_id_t bucket_id;
-    uint8_t n_replicas;
-    ConfigStatus status= ConfigStatus::kRO;
-    uint64_t fid=0;
+struct PlacementArguments {
+  item_id_t bucket_id = 0;
+  uint8_t n_replicas;
+  ConfigStatus status = ConfigStatus::kRW;
+  uint64_t fid;
+  bool default_placement = true;
+  selection_rules_t rules = kDefault2Replica;
+  PlacementStrategyT strategy = PlacementStrategyT::kRoundRobin;
+  std::vector<uint32_t> excludefs;
 
-    Args(item_id_t bucket_id, uint8_t n_replicas,
-         ConfigStatus status= ConfigStatus::kRO, uint64_t fid=0) :
-      bucket_id(bucket_id), n_replicas(n_replicas),
-      status(status), fid(fid) {}
-  };
+  PlacementArguments(item_id_t bucket_id, uint8_t n_replicas,
+                     ConfigStatus status, uint64_t fid,
+                     selection_rules_t rules)
+      : bucket_id(bucket_id), n_replicas(n_replicas), status(status),
+        fid(fid), rules(rules), default_placement(false)
+  {
+  }
+
+  PlacementArguments(item_id_t bucket_id, uint8_t n_replicas,
+                     ConfigStatus status, uint64_t fid)
+      : bucket_id(bucket_id), n_replicas(n_replicas), status(status),
+        fid(fid)
+  {
+  }
+
+  PlacementArguments(uint8_t n_replicas, ConfigStatus _status, PlacementStrategyT _strategy)
+      : bucket_id(0), n_replicas(n_replicas), status(_status), fid(0),
+        rules(kDefault2Replica), default_placement(true), strategy(_strategy)
+  {
+  }
+
+
+  PlacementArguments(uint8_t n_replicas, ConfigStatus _status)
+      : PlacementArguments(0, n_replicas, _status, 0)
+  {
+  }
+
+
+
+  PlacementArguments(uint8_t n_replicas)
+      : PlacementArguments(n_replicas, ConfigStatus::kRW)
+  {
+  }
+
+
+
+  PlacementArguments(item_id_t bucket_id, uint8_t n_replicas, ConfigStatus status)
+      : bucket_id(bucket_id), n_replicas(n_replicas), status(status),
+        fid(0), rules(kDefault2Replica), default_placement(true)
+  {
+  }
+
+  PlacementArguments(item_id_t bucket_id, uint8_t n_replicas) :
+      PlacementArguments(bucket_id, n_replicas, ConfigStatus::kRW)
+  {
+  }
+
+};
+
+struct PlacementStrategy {
+  using Args = PlacementArguments;
 
   virtual PlacementResult placeFiles(const ClusterData& cluster_data,
                                      Args args) = 0;
