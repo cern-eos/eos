@@ -31,6 +31,9 @@
 #include <random>
 #include <mutex>
 
+//! Forward declaration
+class ThreadAssistant;
+
 EOSFSTNAMESPACE_BEGIN
 
 class Config
@@ -78,9 +81,9 @@ public:
   //----------------------------------------------------------------------------
   std::string WaitManager() const;
 
-  XrdOucString getFstNodeConfigQueue(const std::string& location = "",
-                                     bool blocking = true,
-                                     ThreadAssistant* assistant = nullptr);
+  XrdOucString
+  getFstNodeConfigQueue(const std::string& location = "", bool blocking = true,
+                        ThreadAssistant* assistant = nullptr);
 
   common::SharedHashLocator getNodeHashLocator(const std::string& location = "",
       bool blocking = true);
