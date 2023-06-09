@@ -140,7 +140,7 @@ struct PlacementArguments {
   uint64_t fid;
   bool default_placement = true;
   selection_rules_t rules = kDefault2Replica;
-  PlacementStrategyT strategy = PlacementStrategyT::kRoundRobin;
+  PlacementStrategyT strategy = PlacementStrategyT::Count;
   std::vector<uint32_t> excludefs;
 
   PlacementArguments(item_id_t bucket_id, uint8_t n_replicas,
