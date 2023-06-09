@@ -91,7 +91,10 @@ inline size_t strategy_index(PlacementStrategyT strategy) {
 
 constexpr PlacementStrategyT strategy_from_str(std::string_view strategy_sv) {
   using namespace std::string_view_literals;
-  if (strategy_sv == "threadlocalroundrobin"sv||
+  if (strategy_sv == "roundrobin"sv ||
+      strategy_sv == "rr"sv) {
+    return PlacementStrategyT::kRoundRobin;
+  } else if (strategy_sv == "threadlocalroundrobin"sv||
       strategy_sv == "threadlocalrr"sv ||
       strategy_sv == "tlrr"sv) {
     return PlacementStrategyT::kThreadLocalRoundRobin;
@@ -109,7 +112,8 @@ constexpr PlacementStrategyT strategy_from_str(std::string_view strategy_sv) {
              strategy_sv == "geo"sv) {
     return PlacementStrategyT::kGeoScheduler;
   }
-  return PlacementStrategyT::kRoundRobin;
+  // default to geoscheduler!
+  return PlacementStrategyT::kGeoScheduler;
 }
 
 inline std::string strategy_to_str(PlacementStrategyT strategy) {
