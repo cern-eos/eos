@@ -16,7 +16,14 @@ message SchedProto {
     string spacename = 3;
   }
 
-  message ShowProto {}
+  message ShowProto {
+    enum Option {
+      TYPE = 0;
+    }
+
+    Option option = 1;
+    string spacename = 2;
+  }
 
   message ConfigureProto {
     oneof subopt {

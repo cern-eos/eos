@@ -211,6 +211,8 @@ FSScheduler::setPlacementStrategy(const string& spacename,
 
   eos::common::ScopedRCUWrite(cluster_rcu_mutex, space_strategy_map,
                               new SpaceStrategyMapT(std::move(strategy_map)));
+  eos_static_info("msg=\"Configured default scheduler type for\" space=%s, strategy=%s",
+                  spacename.c_str(), strategy_sv.data());
 }
 
 PlacementStrategyT

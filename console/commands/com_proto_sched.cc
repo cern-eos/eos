@@ -92,6 +92,16 @@ bool SchedHelper::ParseCommand(const char* arg)
       weight_prot->set_spacename(space);
     } else if (token == "show") {
       eos::console::SchedProto_ShowProto* show_prot = config->mutable_show();
+      if (!tokenizer.NextToken(token)) {
+        return false;
+      }
+
+      if (token == "type") {
+        show_prot->set_option(eos::console::SchedProto_ShowProto::TYPE);
+        if (tokenizer.NextToken(token)) {
+          show_prot->set_spacename(token);
+        }
+      }
     }
 
 

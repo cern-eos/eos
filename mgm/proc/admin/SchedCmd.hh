@@ -23,8 +23,8 @@
 
 #pragma once
 
-#include "mgm/proc/IProcCommand.hh"
 #include "proto/Sched.pb.h"
+#include "mgm/proc/IProcCommand.hh"
 
 namespace eos::mgm {
 
