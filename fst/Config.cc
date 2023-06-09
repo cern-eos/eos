@@ -68,12 +68,17 @@ Config::WaitManager() const
 // Get node config queue
 //------------------------------------------------------------------------------
 XrdOucString Config::getFstNodeConfigQueue(const std::string& location,
-    bool blocking)
+    bool blocking,
+    ThreadAssistant* assistant)
 {
   while (!configQueueInitialized && blocking) {
     eos_static_info("msg=\"waiting for config queue in %s ...\"",
                     location.c_str());
     std::this_thread::sleep_for(std::chrono::seconds(2));
+
+    if (assistant && assistant->terminationRequested()) {
+      break;
+    }
   }
 
   std::unique_lock<std::mutex> lock(mConfigQueueMtx);
