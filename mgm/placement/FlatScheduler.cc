@@ -54,12 +54,12 @@ FlatScheduler::schedule(const ClusterData& cluster_data,
     return result;
   }
 
-  if (is_valid_placement_strategy(mDefaultStrategy)) {
-    args.strategy = mDefaultStrategy;
-  }
-
   if (args.default_placement) {
     return scheduleDefault(cluster_data, args);
+  }
+
+  if (! is_valid_placement_strategy(args.strategy)) {
+    args.strategy = mDefaultStrategy;
   }
 
   // classical BFS
@@ -107,6 +107,14 @@ FlatScheduler::scheduleDefault(const ClusterData& cluster_data,
                                PlacementArguments args)
 {
   uint8_t n_final_replicas = args.n_replicas;
+  if (!is_valid_placement_strategy(args.strategy) ||
+      mPlacementStrategy[strategy_index(args.strategy)] == nullptr) {
+    PlacementResult result;
+    result.err_msg = "Not a valid PlacementStrategy";
+    result.ret_code = EINVAL;
+    return result;
+  }
+
   do {
     const auto& bucket = cluster_data.buckets.at(-args.bucket_id);
     uint8_t n_replicas = 1;
