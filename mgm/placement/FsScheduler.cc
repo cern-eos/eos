@@ -116,6 +116,11 @@ FSScheduler::get_cluster_mgr(const std::string& spaceName)
 void
 FSScheduler::updateClusterData()
 {
+  if (!cluster_handler) {
+    eos_static_crit("msg=\"Cluster handler is not yet initialized!\"");
+    //Throw an exception? There is no api to set a cluster handler currently!
+    return;
+  }
   auto cluster_map = cluster_handler->make_cluster_mgr();
   eos::common::ScopedRCUWrite(cluster_rcu_mutex, cluster_mgr_map,
                               new ClusterMapT(std::move(cluster_map)));
@@ -125,6 +130,12 @@ PlacementResult
 FSScheduler::schedule(const string& spaceName,
                       PlacementArguments args)
 {
+  if (!is_valid_placement_strategy(args.strategy)) {
+    args.strategy = getPlacementStrategy(spaceName);
+    eos_static_info("msg=\"Overriding scheduling strategy to space default\": %s",
+                    strategy_to_str(args.strategy).c_str());
+  }
+
   eos::common::RCUReadLock rlock(cluster_rcu_mutex);
   auto cluster_mgr = get_cluster_mgr(spaceName);
   if (!cluster_mgr) {
@@ -140,7 +151,8 @@ FSScheduler::schedule(const string& spaceName,
 PlacementResult
 FSScheduler::schedule(const std::string& spaceName, uint8_t n_replicas)
 {
-  return schedule(spaceName, PlacementArguments(n_replicas));
+  return schedule(spaceName, PlacementArguments(n_replicas, ConfigStatus::kRW,
+                                                getPlacementStrategy(spaceName)));
 }
 
 bool
@@ -183,6 +195,36 @@ PlacementStrategyT
 FSScheduler::getPlacementStrategy()
 {
   return placement_strategy.load(std::memory_order_acquire);
+}
+void
+FSScheduler::setPlacementStrategy(const string& spacename,
+                                  std::string_view strategy_sv)
+{
+  std::map<std::string, PlacementStrategyT> strategy_map;
+  if (space_strategy_map && !space_strategy_map->empty())
+  {
+    eos::common::RCUReadLock rlock(cluster_rcu_mutex);
+    strategy_map.insert(space_strategy_map->begin(),
+                        space_strategy_map->end());
+  }
+  strategy_map.insert_or_assign(spacename, strategy_from_str(strategy_sv));
+
+  eos::common::ScopedRCUWrite(cluster_rcu_mutex, space_strategy_map,
+                              new SpaceStrategyMapT(std::move(strategy_map)));
+}
+
+PlacementStrategyT
+FSScheduler::getPlacementStrategy(const string& spacename)
+{
+  eos::common::RCUReadLock rlock(cluster_rcu_mutex);
+  if (space_strategy_map && !space_strategy_map->empty())
+  {
+        if (auto kv = space_strategy_map->find(spacename);
+            kv != space_strategy_map->end()) {
+          return kv->second;
+        }
+  }
+  return getPlacementStrategy();
 }
 
 }// eos::mgm::placement

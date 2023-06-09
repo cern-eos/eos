@@ -46,6 +46,8 @@ class FSScheduler {
 public:
   using RCUMutexT = eos::common::VersionedRCUDomain;
   using ClusterMapPtrT = eos::common::atomic_unique_ptr<ClusterMapT>;
+  using SpaceStrategyMapT = std::map<std::string, PlacementStrategyT>;
+  using SpaceStrategyMapPtrT = eos::common::atomic_unique_ptr<SpaceStrategyMapT>;
 
   FSScheduler(size_t max_buckets,
               std::unique_ptr<ClusterMgrHandler>&& _handler) :
@@ -68,8 +70,11 @@ public:
                      uint8_t weight);
 
   void setPlacementStrategy(std::string_view strategy_sv);
+  void setPlacementStrategy(const std::string& spacename,
+                            std::string_view strategy_sv);
 
   PlacementStrategyT getPlacementStrategy();
+  PlacementStrategyT getPlacementStrategy(const std::string& spacename);
 private:
 
   ClusterMgr* get_cluster_mgr(const std::string& spaceName);
@@ -78,6 +83,7 @@ private:
   std::unique_ptr<ClusterMgrHandler> cluster_handler;
   ClusterMapPtrT cluster_mgr_map;
   std::atomic<PlacementStrategyT> placement_strategy;
+  SpaceStrategyMapPtrT space_strategy_map;
   RCUMutexT cluster_rcu_mutex;
 };
 
