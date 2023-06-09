@@ -109,6 +109,7 @@ cd build
              -DgRPC_SSL_PROVIDER=package        \
              -DgRPC_ZLIB_PROVIDER=package       \
              -DCMAKE_INSTALL_PREFIX=%{_prefix}  \
+	     -DCMAKE_INSTALL_RPATH=%{_prefix}/lib64 \
              -DBUILD_SHARED_LIBS=ON
 %make_build
 
