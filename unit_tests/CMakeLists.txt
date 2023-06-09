@@ -91,7 +91,8 @@ set(MGM_UT_SRCS
   mgm/placement/ClusterMapTests.cc
   mgm/placement/RRSeedTests.cc
   mgm/placement/SchedulerTests.cc
-  mgm/placement/ThreadLocalRRSeedTests.cc)
+  mgm/placement/ThreadLocalRRSeedTests.cc
+  mgm/placement/FsSchedulerTests.cc)
 
 set(COMMON_UT_SRCS
   common/FileIdTests.cc
