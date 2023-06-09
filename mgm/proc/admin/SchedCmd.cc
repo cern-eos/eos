@@ -122,12 +122,19 @@ eos::console::ReplyProto
 SchedCmd::ShowSubCmd(const eos::console::SchedProto_ShowProto& show)
 {
   eos::console::ReplyProto reply;
-  std::ostringstream oss;
-  oss << "Scheduler Type:"
-      << placement::strategy_to_str(gOFS->mFsScheduler->getPlacementStrategy())
-      << std::endl;
-  reply.set_std_out(oss.str());
-  reply.set_retc(0);
+  if (show.option() == eos::console::SchedProto_ShowProto::TYPE) {
+    auto strategy = gOFS->mFsScheduler->getPlacementStrategy();
+    if (!show.spacename().empty()) {
+      strategy = gOFS->mFsScheduler->getPlacementStrategy(show.spacename());
+    }
+    std::ostringstream oss;
+    oss << "Scheduler Type:"
+        << placement::strategy_to_str(strategy)
+        << std::endl;
+    reply.set_std_out(oss.str());
+    reply.set_retc(0);
+
+  }
   return reply;
 }
 
