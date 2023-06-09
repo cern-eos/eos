@@ -22,12 +22,14 @@
  ************************************************************************/
 
 #include "fst/Config.hh"
-#include <vector>
+
 #include "common/Logging.hh"
 #include "common/InstanceName.hh"
 #include "common/StringTokenizer.hh"
+#include "common/AssistedThread.hh"
 #include <thread>
 #include <chrono>
+#include <vector>
 
 EOSFSTNAMESPACE_BEGIN
 
@@ -67,9 +69,9 @@ Config::WaitManager() const
 //------------------------------------------------------------------------------
 // Get node config queue
 //------------------------------------------------------------------------------
-XrdOucString Config::getFstNodeConfigQueue(const std::string& location,
-    bool blocking,
-    ThreadAssistant* assistant)
+XrdOucString
+Config::getFstNodeConfigQueue(const std::string& location, bool blocking,
+                              ThreadAssistant* assistant)
 {
   while (!configQueueInitialized && blocking) {
     eos_static_info("msg=\"waiting for config queue in %s ...\"",
