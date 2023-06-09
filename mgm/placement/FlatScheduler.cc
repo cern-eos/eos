@@ -54,13 +54,15 @@ FlatScheduler::schedule(const ClusterData& cluster_data,
     return result;
   }
 
+  if (! is_valid_placement_strategy(args.strategy)) {
+    args.strategy = mDefaultStrategy;
+  }
+
+
   if (args.default_placement) {
     return scheduleDefault(cluster_data, args);
   }
 
-  if (! is_valid_placement_strategy(args.strategy)) {
-    args.strategy = mDefaultStrategy;
-  }
 
   // classical BFS
   std::queue<item_id_t> item_queue;

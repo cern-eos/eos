@@ -1955,7 +1955,8 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
     targetsize = strtoull(openOpaque->Get("eos.targetsize"), 0, 10);
   }
 
-  placement::PlacementStrategyT strategy = gOFS->mFsScheduler->getPlacementStrategy();
+  std::string spacename = space.c_str();
+  auto strategy = gOFS->mFsScheduler->getPlacementStrategy(spacename);
   const char* strategy_cstr;
   if ((strategy_cstr = openOpaque->Get("eos.schedulingstrategy"))) {
     strategy = placement::strategy_from_str(strategy_cstr);
@@ -2010,7 +2011,6 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
     plctargs.plctpolicy = plctplcy;
     plctargs.exclude_filesystems = &excludefs;
     plctargs.selected_filesystems = &selectedfs;
-    std::string spacename = space.c_str();
     plctargs.spacename = &spacename;
     plctargs.truncate = open_flags & O_TRUNC;
     plctargs.vid = &vid;

@@ -36,6 +36,7 @@
 #include "mgm/GroupBalancer.hh"
 #include "mgm/GroupDrainer.hh"
 #include "mgm/balancer/FsBalancer.hh"
+#include "mgm/placement/FsScheduler.hh"
 #include "namespace/interface/IFsView.hh"
 #include "namespace/interface/IContainerMDSvc.hh"
 #include "namespace/interface/IView.hh"
@@ -756,6 +757,18 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config,
         std_err.str("error: invalid groupbalancer engine name");
         ret_c = EINVAL;
       }
+    } else if (key == "scheduler.type") {
+      if (!space->SetConfigMember(key, value)) {
+        std_err.str("error: cannot set space config value");
+        ret_c = EIO;
+      } else {
+        applied = true;
+        gOFS->mFsScheduler->setPlacementStrategy(space->mName, value);
+        std_out.str("success: configured scheduler.type in space='"+
+                    space_name + "' as " + value + "\n");
+        ret_c = 0;
+      }
+
     } else {
       if ((key == "nominalsize") ||
           (key == "headroom") ||
