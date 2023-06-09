@@ -2162,6 +2162,12 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   mConverterDriver->Start();
 
   mFsScheduler->updateClusterData();
+  {
+    eos::common::RWMutexReadLock vlock(FsView::gFsView.ViewMutex);
+    for (const auto& space: FsView::gFsView.mSpaceView) {
+      mFsScheduler->setPlacementStrategy(space.first, space.second->GetConfigMember("scheduler.type"));
+    }
+  }
   return NoGo;
 }
 /*----------------------------------------------------------------------------*/
