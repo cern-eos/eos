@@ -1,6 +1,6 @@
 #include "mgm/placement/FlatScheduler.hh"
 #include "mgm/placement/RoundRobinPlacementStrategy.hh"
-#include "mgm/placement/WeightedPlacementStrategy.hh"
+#include "mgm/placement/WeightedRandomStrategy.hh"
 #include "mgm/placement/WeightedRoundRobinStrategy.hh"
 #include <queue>
 

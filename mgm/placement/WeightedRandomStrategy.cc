@@ -1,5 +1,5 @@
+#include "mgm/placement/WeightedRandomStrategy.hh"
 #include "common/Logging.hh"
-#include "mgm/placement/WeightedPlacementStrategy.hh"
 #include <random>
 #include <shared_mutex>
 
