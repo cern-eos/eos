@@ -27,7 +27,6 @@
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/FsView.hh"
 #include "mgm/GeoBalancer.hh"
-#include "mgm/Balancer.hh"
 #include "mgm/GroupBalancer.hh"
 #include "mgm/GroupDrainer.hh"
 #include "mgm/GeoTreeEngine.hh"
@@ -840,15 +839,14 @@ LongLongAggregator::aggregateNodes(
 //----------------------------------------------------------------------------
 FsSpace::FsSpace(const char* name)
   : BaseView(common::SharedHashLocator::makeForSpace(name)),
-    mBalancer(nullptr), mFsBalancer(nullptr), mConverter(nullptr),
-    mGroupBalancer(nullptr), mGeoBalancer(nullptr), mGroupDrainer(nullptr)
+    mFsBalancer(nullptr), mConverter(nullptr), mGroupBalancer(nullptr),
+    mGeoBalancer(nullptr), mGroupDrainer(nullptr)
 {
   mName = name;
   mType = "spaceview";
 
   if (mName != eos::common::EOS_SPARE_GROUP) {
     mFsBalancer.reset(new FsBalancer(name));
-    mBalancer = new Balancer(name);
     mGroupBalancer = new GroupBalancer(name);
     mGeoBalancer = new GeoBalancer(name);
     mGroupDrainer.reset(new GroupDrainer(name));
@@ -859,10 +857,6 @@ FsSpace::FsSpace(const char* name)
     // Disable balancing by default
     if (GetConfigMember("balancer").empty()) {
       SetConfigMember("balancer", "off");
-    }
-
-    if (GetConfigMember("new_balancer").empty()) {
-      SetConfigMember("new_balancer", "off");
     }
 
     // Set deviation treshold
@@ -1091,10 +1085,6 @@ FsSpace::FsSpace(const char* name)
 //----------------------------------------------------------------------------
 FsSpace::~FsSpace()
 {
-  if (mBalancer) {
-    delete mBalancer;
-  }
-
   if (mGroupBalancer) {
     delete mGroupBalancer;
   }
@@ -1103,7 +1093,6 @@ FsSpace::~FsSpace()
     delete mGeoBalancer;
   }
 
-  mBalancer = nullptr;
   mGroupBalancer = nullptr;
   mGeoBalancer = nullptr;
 }
@@ -1113,10 +1102,6 @@ FsSpace::~FsSpace()
 //----------------------------------------------------------------------------
 void FsSpace::Stop()
 {
-  if (mBalancer) {
-    mBalancer->Stop();
-  }
-
   if (mGroupBalancer) {
     mGroupBalancer->Stop();
   }

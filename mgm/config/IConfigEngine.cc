@@ -461,6 +461,10 @@ IConfigEngine::IsDeprecated(const std::string& config_key) const
     if (config_key.find("#drainer.central") != std::string::npos) {
       return true;
     }
+
+    if (config_key.find("#new_balancer") != std::string::npos) {
+      return true;
+    }
   }
 
   if (common::startsWith(config_key, "comment-")) {

@@ -578,8 +578,7 @@ public:
   //! values by default values
   static std::atomic<bool> gDisableDefaults;
   static std::string gConfigQueuePrefix; ///<  Configuration queue prefix
-  Balancer* mBalancer {nullptr}; ///< Threaded object supervising space balancing
-  std::unique_ptr<FsBalancer> mFsBalancer;
+  std::unique_ptr<FsBalancer> mFsBalancer; ///< File system balancer
   Converter* mConverter; ///< Threaded object running layout conversion jobs
   GroupBalancer* mGroupBalancer; ///< Threaded object running group balancing
   GeoBalancer* mGeoBalancer; ///< Threaded object running geotag balancing
