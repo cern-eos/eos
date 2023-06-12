@@ -2312,6 +2312,7 @@ WFE::Job::HandleProtoMethodDeleteEvent(const std::string& fullPath,
   // list it. This would be considered as data loss by the end user.
   // However, before deleting the file from the EOS namespace, we should log its contents.
   // This provides a way to recover the namespace after an unintended deletion of a file on tape.
+  uint64_t file_size;
   {
     struct timespec ts_now;
     eos::common::Timing::GetTimeSpec(ts_now);
@@ -2326,6 +2327,7 @@ WFE::Job::HandleProtoMethodDeleteEvent(const std::string& fullPath,
       streamEmpty = false;
     }
 
+    file_size = fmd->getSize();
     std::string checksum;
     eos::appendChecksumOnStringAsHex(fmd.get(), checksum);
     eosLog.addParam(EosCtaReportParam::SEC_APP, "tape_delete")
@@ -2339,11 +2341,12 @@ WFE::Job::HandleProtoMethodDeleteEvent(const std::string& fullPath,
     .addParam(EosCtaReportParam::FILE_DEL_FID, fmd->getId())
     .addParam(EosCtaReportParam::FILE_DEL_FXID,
               eos::common::FileId::Fid2Hex(fmd->getId()).c_str())
-    .addParam(EosCtaReportParam::FILE_DEL_EOS_BTIME, fmd->getAttribute(EOS_BTIME))
+    .addParam(EosCtaReportParam::FILE_DEL_EOS_BTIME,
+              xAttrs.count(EOS_BTIME) ? xAttrs[EOS_BTIME] : "")
     .addParam(EosCtaReportParam::FILE_DEL_ARCHIVE_FILE_ID,
-              fmd->getAttribute(ARCHIVE_FILE_ID_ATTR_NAME))
+              xAttrs.count(ARCHIVE_FILE_ID_ATTR_NAME) ? xAttrs[ARCHIVE_FILE_ID_ATTR_NAME] : "")
     .addParam(EosCtaReportParam::FILE_DEL_ARCHIVE_STORAGE_CLASS,
-              fmd->getAttribute(ARCHIVE_STORAGE_CLASS_ATTR_NAME))
+              xAttrs.count(ARCHIVE_STORAGE_CLASS_ATTR_NAME) ? xAttrs[ARCHIVE_STORAGE_CLASS_ATTR_NAME] : "")
     .addParam(EosCtaReportParam::FILE_DEL_LOCATIONS, locationsOStream.str())
     .addParam(EosCtaReportParam::FILE_DEL_CHECKSUMTYPE,
               eos::common::LayoutId::GetChecksumString(fmd->getLayoutId()))
@@ -2366,13 +2369,22 @@ WFE::Job::HandleProtoMethodDeleteEvent(const std::string& fullPath,
   }
 
   if (tapeLocationWasRemoved) {
-    const int sendRc = SendProtoWFRequest(this, fullPath, request, errorMsg);
-
-    if (SFS_OK != sendRc) {
-      // The EOS namespace can ignore the failed deletion of the tape file(s) as
-      // this only generates dark data tape which will be picked up later
-      eos_static_err("msg=\"Failed to notify protocol buffer endpoint about the deletion of file %s: %s\" sendRc=%d",
-                     fullPath.c_str(), errorMsg.c_str(), sendRc);
+    if (xAttrs.count(ARCHIVE_FILE_ID_ATTR_NAME)) {
+      const int sendRc = SendProtoWFRequest(this, fullPath, request, errorMsg);
+      if (SFS_OK != sendRc) {
+        // The EOS namespace can ignore the failed deletion of the tape file(s) as this only generates dark data tape which will be picked up later
+        eos_static_err("msg=\"Failed to notify protocol buffer endpoint about the deletion of file %s: %s\" sendRc=%d",
+                       fullPath.c_str(), errorMsg.c_str(), sendRc);
+      }
+    } else {
+      if (file_size == 0) {
+        eos_static_warning(
+            "msg=\"File size is zero and attribute sys.archive.file_id not found. Not sending deletion request to CTA.\"");
+      } else {
+        eos_static_err(
+            "msg=\"File size is %d but attribute sys.archive.file_id not found. Not sending deletion request to CTA.\"",
+            file_size);
+      }
     }
   }
 
