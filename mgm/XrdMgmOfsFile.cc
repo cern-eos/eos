@@ -1556,18 +1556,12 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
   std::string ioprio;
   std::string iotype;
   bool schedule = false;
-  bool is_local = false;
   uint64_t atimeage = 0;
-
-  if (openOpaque->Get("localconfig")) {
-    is_local = true;
-  }
-
   // select space and layout according to policies
   COMMONTIMING("Policy::begin", &tm);
   Policy::GetLayoutAndSpace(path, attrmap, vid, new_lid, space, *openOpaque,
-                            forcedFsId, forced_group, bandwidth, schedule, ioprio, iotype, isRW, true,
-                            is_local, &atimeage);
+                            forcedFsId, forced_group, bandwidth, schedule,
+                            ioprio, iotype, isRW, true, &atimeage);
   COMMONTIMING("Policy::end", &tm);
 
   // do a local redirect here if there is only one replica attached
@@ -2509,7 +2503,8 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
 
   XrdOucString piolist = "";
   XrdOucString infolog = "";
-  std::string fs_hostport, fs_host, fs_port, fs_http_port, fs_prefix, fs_host_alias, fs_port_alias;
+  std::string fs_hostport, fs_host, fs_port, fs_http_port, fs_prefix,
+      fs_host_alias, fs_port_alias;
   uint32_t fs_id;
   {
     eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
@@ -2525,15 +2520,20 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
     fs_port = filesystem->GetString("port");
     fs_host_alias = filesystem->GetString("stat.alias.host");
     fs_port_alias = filesystem->GetString("stat.alias.port");
+
     // allow FST host alias
     if (fs_host_alias.length()) {
       fs_host = fs_host_alias;
+
       if (fs_port_alias.length()) {
-	fs_port = fs_port_alias;
+        fs_port = fs_port_alias;
       }
+
       fs_hostport = fs_host + std::string(":") + fs_port;
-      eos_info("redirection-alias=\"%s:%s\"", fs_host_alias.c_str(), fs_port_alias.c_str());
+      eos_info("redirection-alias=\"%s:%s\"", fs_host_alias.c_str(),
+               fs_port_alias.c_str());
     }
+
     fs_http_port = filesystem->GetString("stat.http.port");
     fs_prefix = filesystem->GetPath();
     fs_id = filesystem->GetId();
