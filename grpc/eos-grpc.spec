@@ -110,12 +110,14 @@ cd build
              -DgRPC_ZLIB_PROVIDER=package       \
              -DCMAKE_INSTALL_PREFIX=%{_prefix}  \
 	     -DCMAKE_INSTALL_RPATH=%{_prefix}/lib64 \
+	     -DCMAKE_SKIP_BUILD_RPATH=false \
              -DBUILD_SHARED_LIBS=ON
 %make_build
 
 %check
 
 %install
+export QA_RPATHS=3
 cd grpc/build
 rm -rf %{buildroot}; mkdir %{buildroot}
 make DESTDIR=%{buildroot} install
