@@ -22,10 +22,10 @@
  ************************************************************************/
 
 #include "common/utils/ContainerUtils.hh"
-#include "mgm/placement/RoundRobinPlacementStrategy.hh"
-#include "mgm/placement/WeightedPlacementStrategy.hh"
 #include "mgm/placement/FlatScheduler.hh"
 #include "mgm/placement/PlacementStrategy.hh"
+#include "mgm/placement/RoundRobinPlacementStrategy.hh"
+#include "mgm/placement/WeightedRandomStrategy.hh"
 #include "unit_tests/mgm/placement/ClusterMapFixture.hh"
 #include "gtest/gtest.h"
 using eos::mgm::placement::item_id_t;
