@@ -61,8 +61,7 @@ public:
                                 std::string& ioptype,
                                 bool isrw,
                                 bool lock_view = false,
-                                bool is_local = true,
-				uint64_t* atimeage = 0);
+                                uint64_t* atimeage = 0);
 
   static void GetPlctPolicy(const char* path,
                             eos::IContainerMD::XAttrMap& map,
@@ -97,7 +96,10 @@ public:
 
   struct RWParams;
 
-  static std::vector<std::string> GetConfigKeys(bool local = false);
+  static inline std::vector<std::string> GetConfigKeys()
+  {
+    return gBasePolicyKeys;
+  }
 
   static std::vector<std::string> GetRWConfigKeys(const RWParams& params);
 
@@ -117,22 +119,20 @@ public:
     std::string group_key;
     std::string app_key;
     std::string rw_marker;
-    std::string local_prefix;
 
     RWParams(const std::string& user_str,
              const std::string& group_str,
              const std::string& app_str,
-             bool is_rw,
-             bool is_local) :
+             bool is_rw) :
       user_key(".user:" + user_str),
       group_key(".group:" + group_str),
       app_key(".app:" + app_str),
-      rw_marker(is_rw ? ":w" : ":r"),
-      local_prefix(is_local ? "local." : "") {}
+      rw_marker(is_rw ? ":w" : ":r")
+    {}
 
     std::string getKey(const std::string& key) const
     {
-      return local_prefix + key + rw_marker;
+      return key + rw_marker;
     }
 
     std::vector<std::string> getKeys(const std::string& key) const;
