@@ -200,16 +200,6 @@ Storage::Storage(const char* meta_dir)
   eos_info("starting filesystem publishing thread");
   mPublisherThread.reset(&Storage::Publish, this);
   mPublisherThread.setName("Publisher Thread");
-  eos_info("starting filesystem balancer thread");
-
-  if ((rc = XrdSysThread::Run(&tid, Storage::StartFsBalancer,
-                              static_cast<void*>(this),
-                              0, "Balancer Thread"))) {
-    eos_crit("cannot start balancer thread");
-    mZombie = true;
-  }
-
-  mThreadSet.insert(tid);
   eos_info("starting mgm synchronization thread");
 
   if ((rc = XrdSysThread::Run(&tid, Storage::StartMgmSyncer,
@@ -700,17 +690,6 @@ Storage::StartDaemonSupervisor(void* pp)
 {
   Storage* storage = (Storage*) pp;
   storage->Supervisor();
-  return 0;
-}
-
-//------------------------------------------------------------------------------
-// Start balancer thread
-//------------------------------------------------------------------------------
-void*
-Storage::StartFsBalancer(void* pp)
-{
-  Storage* storage = (Storage*) pp;
-  storage->Balancer();
   return 0;
 }
 

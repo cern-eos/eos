@@ -58,10 +58,8 @@ FileSystem::FileSystem(const common::FileSystemLocator& locator,
   seqBandwidth = 0;
   IOPS = 0;
   mLocalBootStatus = eos::common::BootStatus::kDown;
-  mTxBalanceQueue = new TransferQueue(&mBalanceQueue);
   mTxExternQueue = new TransferQueue(&mExternQueue);
   mTxMultiplexer = std::make_unique<TransferMultiplexer>();
-  mTxMultiplexer->Add(mTxBalanceQueue);
   mTxMultiplexer->Add(mTxExternQueue);
   mTxMultiplexer->Run();
   mRecoverable = false;
@@ -95,10 +93,6 @@ FileSystem::~FileSystem()
   if (gOFS.FmdOnDb()) {
     auto fmd_handler = static_cast<FmdDbMapHandler*>(gOFS.mFmdHandler.get());
     fmd_handler->ShutdownDB(mLocalId, true);
-  }
-
-  if (mTxBalanceQueue) {
-    delete mTxBalanceQueue;
   }
 
   if (mTxExternQueue) {

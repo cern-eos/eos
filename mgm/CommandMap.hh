@@ -47,7 +47,7 @@ enum class FsctlCommand {
   open,
   readlink,
   redirect,
-  schedule2balance,
+  schedule2balance, // not used anymore
   schedule2delete,
   stat,
   statvfs,
