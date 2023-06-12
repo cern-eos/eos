@@ -2312,7 +2312,7 @@ WFE::Job::HandleProtoMethodDeleteEvent(const std::string& fullPath,
   // list it. This would be considered as data loss by the end user.
   // However, before deleting the file from the EOS namespace, we should log its contents.
   // This provides a way to recover the namespace after an unintended deletion of a file on tape.
-  int file_size;
+  uint64_t file_size;
   {
     struct timespec ts_now;
     eos::common::Timing::GetTimeSpec(ts_now);
