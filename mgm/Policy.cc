@@ -48,16 +48,6 @@ const std::vector<std::string> Policy::gBasePolicyKeys = {
   "policy.localredirect"
 };
 
-const std::vector<std::string> Policy::gBaseLocalPolicyKeys = {
-  "local.policy.space",
-  "local.policy.layout",
-  "local.policy.nstripes",
-  "local.policy.checksum",
-  "local.policy.blocksize",
-  "local.policy.blockchecksum",
-  "local.policy.localredirect"
-};
-
 const std::vector<std::string> Policy::gBasePolicyRWKeys = {
   "policy.bandwidth",
   "policy.iopriority",
@@ -97,11 +87,9 @@ Policy::GetDefaultSizeFactor(std::shared_ptr<eos::IContainerMD> cmd)
                     iotype,
                     isrw,
                     true,
-                    true,
                     &atimeage);
-
   double f = eos::common::LayoutId::GetSizeFactor(layoutid);
-  return f?f:1.0;
+  return f ? f : 1.0;
 }
 
 /*----------------------------------------------------------------------------*/
@@ -137,7 +125,6 @@ Policy::GetSpacePolicyLayout(const char* space)
                     iotype,
                     isrw,
                     true,
-                    true,
                     &atimeage);
   return layoutid;
 }
@@ -157,7 +144,6 @@ Policy::GetLayoutAndSpace(const char* path,
                           std::string& iotype,
                           bool rw,
                           bool lockview,
-                          bool is_local,
                           uint64_t* atimeage)
 {
   eos::common::RWMutexReadLock lock;
@@ -177,9 +163,8 @@ Policy::GetLayoutAndSpace(const char* path,
   std::string satime;
   RWParams rwparams {vid.uid_string, vid.gid_string,
                      eos::common::XrdUtils::GetEnv(env, "eos.app", "default"),
-                     rw, is_local
-                    };
-  auto policy_keys = GetConfigKeys(is_local);
+                     rw};
+  auto policy_keys = GetConfigKeys();
   auto policy_rw_keys = GetRWConfigKeys(rwparams);
 
   if (!conversion) {
@@ -191,18 +176,10 @@ Policy::GetLayoutAndSpace(const char* path,
     auto it = FsView::gFsView.mSpaceView.find("default");
 
     if (it != FsView::gFsView.mSpaceView.end()) {
-      if (is_local) {
-        it->second->GetLocalConfigMembers(policy_keys,
-                                          spacepolicies);
-        it->second->GetLocalConfigMembers(policy_rw_keys,
-                                          spacerwpolicies);
-      } else {
-        it->second->GetConfigMembers(policy_keys,
-                                     spacepolicies);
-        it->second->GetConfigMembers(policy_rw_keys,
-                                     spacerwpolicies);
-      }
-
+      it->second->GetConfigMembers(policy_keys,
+                                   spacepolicies);
+      it->second->GetConfigMembers(policy_rw_keys,
+                                   spacerwpolicies);
       satime = it->second->GetConfigMember("atime");
     } // FSView default
 
@@ -224,7 +201,7 @@ Policy::GetLayoutAndSpace(const char* path,
     space = "default";
 
     if (!conversion) {
-      std::string space_key = is_local ? "local.policy.space" : "policy.space";
+      std::string space_key = "policy.space";
 
       if (auto kv = spacepolicies.find(space_key);
           kv != spacepolicies.end() && (! kv->second.empty())) {
@@ -247,18 +224,10 @@ Policy::GetLayoutAndSpace(const char* path,
     auto it = FsView::gFsView.mSpaceView.find(space.c_str());
 
     if (it != FsView::gFsView.mSpaceView.end()) {
-      if (is_local) {
-        it->second->GetLocalConfigMembers(policy_keys,
-                                          nondefault_policies);
-        it->second->GetLocalConfigMembers(policy_rw_keys,
-                                          spacerwpolicies);
-      } else {
-        it->second->GetConfigMembers(policy_keys,
-                                     nondefault_policies);
-        it->second->GetConfigMembers(policy_rw_keys,
-                                     spacerwpolicies);
-      }
-
+      it->second->GetConfigMembers(policy_keys,
+                                   nondefault_policies);
+      it->second->GetConfigMembers(policy_rw_keys,
+                                   spacerwpolicies);
       satime = it->second->GetConfigMember("atime");
     } // FsView;
 
@@ -285,15 +254,7 @@ Policy::GetLayoutAndSpace(const char* path,
 
   // look if we have to inject the default space policies
   for (const auto& it : spacepolicies) {
-    if (is_local) {
-      if (!eos::common::startsWith(it.first, "local.")) {
-        eos_static_err("msg=\"key=%s doesn't start with local prefix\"",
-                       it.first.c_str());
-        continue;
-      }
-    }
-
-    std::string key_name = is_local ? it.first.substr(13) : it.first.substr(7);
+    std::string key_name = it.first.substr(7);
 
     if (key_name == "space") {
       continue;
@@ -534,9 +495,9 @@ Policy::GetPlctPolicy(const char* path,
   }
 
   targetgeotag = policyString.substr(seppos + 1);
-
   // Check if geotag is valid
   std::string tmp_geotag = eos::common::SanitizeGeoTag(targetgeotag);
+
   if (tmp_geotag != targetgeotag) {
     eos_static_warning("%s", tmp_geotag.c_str());
     return;
@@ -675,13 +636,6 @@ Policy::IsProcConversion(const char* path)
     return false;
   }
 }
-
-std::vector<std::string>
-Policy::GetConfigKeys(bool local)
-{
-  return local ? gBaseLocalPolicyKeys : gBasePolicyKeys;
-}
-
 
 void
 Policy::GetRWValue(const std::map<std::string, std::string>& conf_map,

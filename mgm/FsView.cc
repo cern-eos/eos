@@ -2946,17 +2946,6 @@ BaseView::GetConfigMembers(const std::vector<std::string>& keys,
 }
 
 //------------------------------------------------------------------------------
-// Get a list of local configuration member variables from config engine
-//------------------------------------------------------------------------------
-bool
-BaseView::GetLocalConfigMembers(const std::vector<std::string>& keys,
-                                std::map<std::string, std::string>& out) const
-{
-  return mq::SharedHashWrapper(gOFS->mMessagingRealm.get(),
-                               mLocator).getLocal(keys, out);
-}
-
-//------------------------------------------------------------------------------
 // Delete a configuration member variable (stored in the config engine)
 //------------------------------------------------------------------------------
 bool
