@@ -319,7 +319,6 @@ private:
   static void* StartFsReport(void* pp);
   static void* StartFsErrorReport(void* pp);
   static void* StartFsVerify(void* pp);
-  static void* StartFsBalancer(void* pp);
   static void* StartMgmSyncer(void* pp);
   static void* StartBoot(void* pp);
 
@@ -408,7 +407,6 @@ private:
   void ErrorReport();
   void Verify();
   void Publish(ThreadAssistant& assistant);
-  void Balancer();
   void MgmSyncer();
   void Boot(fst::FileSystem* fs);
 
@@ -466,28 +464,6 @@ private:
   bool CheckLabel(std::string path, eos::common::FileSystem::fsid_t fsid,
                   std::string uuid, bool fail_noid = false,
                   bool fail_nouuid = false);
-
-  //----------------------------------------------------------------------------
-  //! Balancer related methods
-  //----------------------------------------------------------------------------
-  XrdSysCondVar balanceJobNotification;
-
-  void GetBalanceSlotVariables(unsigned long long& nparalleltx,
-                               unsigned long long& ratex);
-
-  unsigned long long GetScheduledBalanceJobs(unsigned long long totalscheduled,
-      unsigned long long& totalexecuted);
-
-  unsigned long long WaitFreeBalanceSlot(unsigned long long& nparalleltx,
-                                         unsigned long long& totalscheduled,
-                                         unsigned long long& totalexecuted);
-
-  bool GetFileSystemInBalanceMode(std::vector<unsigned int>& balancefsvector,
-                                  unsigned int& cycler,
-                                  unsigned long long nparalleltx,
-                                  unsigned long long ratetx);
-
-  bool GetBalanceJob(unsigned int index);
 
   //----------------------------------------------------------------------------
   //! Check if node is active i.e. the stat.active

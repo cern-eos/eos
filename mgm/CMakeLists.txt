@@ -188,7 +188,6 @@ add_library(
   XrdMgmOfs/fsctl/Open.cc
   XrdMgmOfs/fsctl/Readlink.cc
   XrdMgmOfs/fsctl/Redirect.cc
-  XrdMgmOfs/fsctl/Schedule2Balance.cc
   XrdMgmOfs/fsctl/Schedule2Delete.cc
   XrdMgmOfs/fsctl/Stat.cc
   XrdMgmOfs/fsctl/Statvfs.cc
@@ -197,7 +196,6 @@ add_library(
   XrdMgmOfs/fsctl/Utimes.cc
   XrdMgmOfs/fsctl/Version.cc
   XrdMgmOfs/fsctl/Xattr.cc
-  Balancer.cc
   balancer/FsBalancer.cc
   balancer/FsBalancerStats.cc
   CommandMap.cc

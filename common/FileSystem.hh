@@ -393,8 +393,6 @@ protected:
   SharedHashLocator mHashLocator;
   //! Messaging realm
   mq::MessagingRealm* mRealm;
-  //! Handle to the balance queue
-  TransferQueue* mBalanceQueue;
   //! Handle to the extern queue
   TransferQueue* mExternQueue;
   //! boot status stored inside the object not the hash
@@ -700,14 +698,6 @@ public:
   //! Get a double value by key
   //----------------------------------------------------------------------------
   double GetDouble(const char* key);
-
-  //----------------------------------------------------------------------------
-  //! Return handle to the balance queue.
-  //----------------------------------------------------------------------------
-  TransferQueue* GetBalanceQueue()
-  {
-    return mBalanceQueue;
-  }
 
   //----------------------------------------------------------------------------
   //! Return handle to the external queue.

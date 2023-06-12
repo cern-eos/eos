@@ -773,7 +773,6 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config,
           (key == "graceperiod") ||
           (key == "drainperiod") ||
           (key == "balancer") ||
-          (key == "new_balancer") ||
           (key == "balancer.threshold") ||
           (key == "balancer.node.rate") ||
           (key == "balancer.node.ntx") ||
@@ -828,7 +827,6 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config,
           (key == eos::common::SCAN_NS_RATE_NAME) ||
           (key == eos::common::FSCK_REFRESH_INTERVAL_NAME)) {
         if ((key == "balancer") ||
-            (key == "new_balancer") ||
             (key == "converter") ||
             (key == "tracker") ||
             (key == "inspector") ||
@@ -850,41 +848,18 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config,
               std_err.str("error: cannot set space config value");
             } else {
               if (key == "balancer") {
-                if (space->mBalancer) {
-                  if (value == "on") {
-                    std_out << "success: balancer is enabled!";
-                  } else {
-                    std_out << "success: balancer is disabled!";
-                  }
-
-                  // Make sure the new balancer is disabled
-                  space->SetConfigMember("new_balancer", "off");
-
-                  if (space->mFsBalancer) {
-                    space->mFsBalancer->SignalConfigUpdate();
-                  }
-                } else {
-                  std_err.str("error: balancer not initialized for space");
-                  ret_c = EIO;
-                }
-              }
-
-              if (key == "new_balancer") {
                 if (space->mFsBalancer) {
                   if (value == "on") {
-                    std_out << "success: new_balancer is enabled!";
+                    std_out << "success: (fs) balancer is enabled!";
                   } else {
-                    std_out << "success: new_balancer is disabled!";
+                    std_out << "success: (fs) balancer is disabled!";
                   }
-
-                  // Make sure the old balancer is disabled
-                  space->SetConfigMember("balancer", "off");
 
                   if (space->mFsBalancer) {
                     space->mFsBalancer->SignalConfigUpdate();
                   }
                 } else {
-                  std_err.str("error: balancer not initialized for space");
+                  std_err.str("error: (fs) balancer not initialized for space");
                   ret_c = EIO;
                 }
               }
