@@ -123,12 +123,6 @@ public:
   void ConfigScanner(Load* fst_load, const std::string& key, long long value);
 
   inline TransferQueue*
-  GetBalanceQueue()
-  {
-    return mTxBalanceQueue;
-  }
-
-  inline TransferQueue*
   GetExternQueue()
   {
     return mTxExternQueue;
@@ -317,7 +311,6 @@ private:
   std::unique_ptr<eos::fst::ScanDir> mScanDir; ///< Filesystem scanner
   std::unique_ptr<FileIo> mFileIO; ///< File used for statfs calls
   std::unique_ptr<TransferMultiplexer> mTxMultiplexer;
-  TransferQueue* mTxBalanceQueue;
   TransferQueue* mTxExternQueue;
   std::string mTxDirectory;
   unsigned long last_blocks_free;

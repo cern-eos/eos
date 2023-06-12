@@ -486,8 +486,8 @@ void FileSystem::fs_snapshot_t::fillFromCoreParams(const FileSystemCoreParams&
 //------------------------------------------------------------------------------
 FileSystem::FileSystem(const FileSystemLocator& locator,
                        mq::MessagingRealm* realm, bool bc2mgm)
-  : mLocator(locator), mHashLocator(locator, bc2mgm), mRealm(realm),
-    mBalanceQueue(nullptr), mExternQueue(nullptr)
+  : mLocator(locator), mHashLocator(locator, bc2mgm),
+    mRealm(realm), mExternQueue(nullptr)
 {
   mInternalBootStatus = BootStatus::kDown;
   cActive = ActiveStatus::kOffline;
@@ -513,8 +513,6 @@ FileSystem::FileSystem(const FileSystemLocator& locator,
     }
 
     mq::SharedHashWrapper(mRealm, mHashLocator).set(upd_batch);
-    mBalanceQueue = new TransferQueue(TransferQueueLocator(mLocator, "balanceq"),
-                                      mRealm, bc2mgm);
     mExternQueue = new TransferQueue(TransferQueueLocator(mLocator, "externq"),
                                      mRealm, bc2mgm);
   }
@@ -525,10 +523,6 @@ FileSystem::FileSystem(const FileSystemLocator& locator,
 //------------------------------------------------------------------------------
 FileSystem::~FileSystem()
 {
-  if (mBalanceQueue) {
-    delete mBalanceQueue;
-  }
-
   if (mExternQueue) {
     delete mExternQueue;
   }

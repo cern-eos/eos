@@ -48,7 +48,6 @@ struct fsctlMapInit {
     fsctlCommandMap["open"] = FsctlCommand::open;
     fsctlCommandMap["readlink"] = FsctlCommand::readlink;
     fsctlCommandMap["redirect"] = FsctlCommand::redirect;
-    fsctlCommandMap["schedule2balance"] = FsctlCommand::schedule2balance;
     fsctlCommandMap["query2delete"] = FsctlCommand::schedule2delete;
     fsctlCommandMap["stat"] = FsctlCommand::stat;
     fsctlCommandMap["statvfs"] = FsctlCommand::statvfs;

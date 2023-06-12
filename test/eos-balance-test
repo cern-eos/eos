@@ -41,7 +41,7 @@ cleanup() {
   eos rmdir "${EOS_BALANCE_DIR}/rain/"
   eos rmdir "${EOS_BALANCE_DIR}/"
   rm -rf ${TEST_FN1} ${TEST_FN2}
-  eos space config default space.new_balancer=off
+  eos space config default space.balancer=off
 }
 
 if [[ $# -eq 0 || $# -gt 2 ]]; then
@@ -105,7 +105,7 @@ done
 # Enable the balancing at the space level
 eos space config default space.balancer.threshold=${EOS_BALANCER_THRESHOLD}
 eos space config default space.balancer.update.interval=5
-eos space config default space.new_balancer=on
+eos space config default space.balancer=on
 
 # Get current dev of the group
 START_DEV=$(sudo eos group ls -m | grep "default.0" | awk '{print $20;}' | cut -d '=' -f2)

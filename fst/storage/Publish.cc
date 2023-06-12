@@ -492,8 +492,6 @@ Storage::GetFsStatistics(FileSystem* fs)
   output["stat.geotag"] = gOFS.GetGeoTag();
   output["stat.publishtimestamp"] = std::to_string(
                                       eos::common::getEpochInMilliseconds().count());
-  output["stat.balancer.running"] = std::to_string(
-                                      fs->GetBalanceQueue()->GetRunningAndQueued());
   output["stat.disk.iops"] = std::to_string(fs->getIOPS());
   output["stat.disk.bw"] = std::to_string(fs->getSeqBandwidth()); // in MB
   output["stat.http.port"] = std::to_string(gOFS.mHttpdPort);
