@@ -11,7 +11,7 @@
 # Issue tracked at:
 # https://github.com/grpc/grpc/pull/14844
 #-------------------------------------------------------------------------------
-%define _prefix /opt/eos/grpc/
+%define _prefix /opt/eos/grpc
 %define _unpackaged_files_terminate_build 0
 
 %if 0%{?rhel} == 7
