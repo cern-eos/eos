@@ -57,7 +57,7 @@ FsBalancer::ConfigUpdate()
   auto* space = it_space->second;
 
   // Check if balancer is enabled
-  if (space->GetConfigMember("new_balancer") != "on") {
+  if (space->GetConfigMember("balancer") != "on") {
     mIsEnabled = false;
     return;
   }

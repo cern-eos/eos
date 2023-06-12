@@ -171,7 +171,7 @@ XrdMgmOfs::fsctl(const int cmd,
  * This function locates files on the redirector. Additionally it is used in EOS
  * to implement many stateless operations like commit/drop a replica, stat
  * a file/directory, create a directory listing for FUSE, chmod, chown, access,
- * utimes, get checksum, schedule to drain/balance/delete ...
+ * utimes, get checksum, schedule to delete ...
  */
 /*----------------------------------------------------------------------------*/
 int
@@ -364,10 +364,6 @@ XrdMgmOfs::FSctl(const int cmd,
 
     case FsctlCommand::redirect: {
       return XrdMgmOfs::Redirect(path, ininfo, env, error, vid, client);
-    }
-
-    case FsctlCommand::schedule2balance: {
-      return XrdMgmOfs::Schedule2Balance(path, ininfo, env, error, vid, client);
     }
 
     case FsctlCommand::schedule2delete: {
