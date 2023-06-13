@@ -31,7 +31,8 @@ std::unique_ptr<URLBuilderProtocol> URLBuilder::getInstance()
 {
   std::unique_ptr<URLBuilderProtocol> ret;
   ret.reset(new URLBuilder());
-  return std::move(ret);
+  //copy-ellision here
+  return ret;
 }
 
 URLBuilderHostname* URLBuilder::setHttpsProtocol()
