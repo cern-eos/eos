@@ -207,7 +207,7 @@ QuarkFileMD::unlinkAllLocations()
   bool stop = false;
   while (!stop) {
     location_t location;
-    stop = this->runWriteOp([this, &stop, &location]() {
+    stop = this->runWriteOp([this, &location]() {
       auto it = mFile.locations().cbegin();
 
       if (it == mFile.locations().cend()) {
