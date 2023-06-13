@@ -74,7 +74,7 @@ TEST_F(TgcMultiSpaceTapeGcTest, start_with_one_eos_space)
 
   auto itor = stats.begin();
   ASSERT_EQ(space, itor->first);
-  ASSERT_EQ(0, itor->second.nbStagerrms);
+  ASSERT_EQ(0, itor->second.nbEvicts);
   ASSERT_EQ(0, itor->second.lruQueueSize);
   ASSERT_TRUE(now <= itor->second.queryTimestamp && itor->second.queryTimestamp <= (now + 5));
 }
@@ -102,12 +102,12 @@ TEST_F(TgcMultiSpaceTapeGcTest, start_with_two_eos_spaces)
 
   auto itor = stats.begin();
   ASSERT_EQ(space1, itor->first);
-  ASSERT_EQ(0, itor->second.nbStagerrms);
+  ASSERT_EQ(0, itor->second.nbEvicts);
   ASSERT_EQ(0, itor->second.lruQueueSize);
 
   itor++;
   ASSERT_EQ(space2, itor->first);
-  ASSERT_EQ(0, itor->second.nbStagerrms);
+  ASSERT_EQ(0, itor->second.nbEvicts);
   ASSERT_EQ(0, itor->second.lruQueueSize);
 }
 
@@ -161,7 +161,7 @@ TEST_F(TgcMultiSpaceTapeGcTest, start_and_restart_with_one_eos_space)
 
   auto itor = stats.begin();
   ASSERT_EQ(space, itor->first);
-  ASSERT_EQ(0, itor->second.nbStagerrms);
+  ASSERT_EQ(0, itor->second.nbEvicts);
   ASSERT_EQ(0, itor->second.lruQueueSize);
   ASSERT_TRUE(now <= itor->second.queryTimestamp && itor->second.queryTimestamp <= (now + 5));
 }

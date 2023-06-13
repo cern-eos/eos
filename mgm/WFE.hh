@@ -271,11 +271,11 @@ public:
                                   const cta::xrd::Request& request, std::string& errorMsg,
                                   bool retry = false);
 
-    //! @brief Execute stagerrm as user root
+    //! @brief Execute evict as user root
     //!
     //! @param fid The file identifier
-    //! @return stagerrm result
-    static console::ReplyProto StagerrmAsRoot(const IFileMD::id_t fid);
+    //! @return evict result
+    static console::ReplyProto EvictAsRoot(const eos::IFileMD::id_t fid);
 
     //! @brief Returns true if the 'file archived' garbage collector should be
     //! enabled

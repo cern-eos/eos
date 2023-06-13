@@ -1,5 +1,5 @@
 //------------------------------------------------------------------------------
-// File: com_stagerrm.cc
+// File: com_evict.cc
 // Author: Jozsef Makai - CERN
 //------------------------------------------------------------------------------
 
@@ -26,12 +26,12 @@
 #include "console/ConsoleMain.hh"
 #include "console/commands/ICmdHelper.hh"
 
-void com_stagerrm_help();
+void com_evict_help();
 
 //------------------------------------------------------------------------------
-//! Class StagerRmHelper
+//! Class EvictHelper
 //------------------------------------------------------------------------------
-class StagerRmHelper: public ICmdHelper
+class EvictHelper: public ICmdHelper
 {
 public:
   //----------------------------------------------------------------------------
@@ -39,7 +39,7 @@ public:
   //!
   //! @param opts global options
   //----------------------------------------------------------------------------
-  StagerRmHelper(const GlobalOptions& opts):
+  EvictHelper(const GlobalOptions& opts):
     ICmdHelper(opts)
   {
     mIsAdmin = false;
@@ -48,7 +48,7 @@ public:
   //----------------------------------------------------------------------------
   //! Destructor
   //----------------------------------------------------------------------------
-  ~StagerRmHelper() override = default;
+  ~EvictHelper() override = default;
 
   //----------------------------------------------------------------------------
   //! Parse command line input
@@ -61,19 +61,54 @@ public:
 };
 
 bool
-StagerRmHelper::ParseCommand(const char* arg)
+EvictHelper::ParseCommand(const char* arg)
 {
-  eos::console::StagerRmProto* stagerRm = mReq.mutable_stagerrm();
+  const char* nextToken;
+  std::string snextToken;
+  eos::console::EvictProto* evict = mReq.mutable_evict();
   eos::common::StringTokenizer tokenizer(arg);
   XrdOucString path = tokenizer.GetLine();
-  path = tokenizer.GetToken();
+
+  if (!(nextToken = tokenizer.GetToken())) {
+    return false;
+  } else {
+    snextToken = nextToken;
+    if (snextToken.substr(0, 2) == "--") {
+      snextToken.erase(0, 2);
+
+      // No other option besides --fsid is accepted
+      if (snextToken != "fsid") {
+        return false;
+      }
+
+      // Parse fsid
+      if (!(nextToken = tokenizer.GetToken())) {
+        std::cerr << "error: --fsid flag needs to be followed by value" << std::endl;
+        return false;
+      }
+
+      snextToken = nextToken;
+      try {
+        uint64_t fsid = std::stoull(snextToken);
+        evict->mutable_evictsinglereplica()->set_fsid(fsid);
+      } catch (const std::exception& e) {
+        std::cerr << "error: --fsid value needs to be numeric" << std::endl;
+        return false;
+      }
+
+      path = tokenizer.GetToken();
+    } else {
+      // There was no option, use it as first path
+      path = nextToken;
+    }
+  }
 
   while (path != "") {
     // remove escaped blanks
     while (path.replace("\\ ", " "));
 
     if (path != "") {
-      auto file = stagerRm->add_file();
+      auto file = evict->add_file();
       auto fid = 0ull;
 
       if (Path2FileDenominator(path, fid)) {
@@ -88,36 +123,36 @@ StagerRmHelper::ParseCommand(const char* arg)
   }
 
   // at least 1 path has to be given
-  return stagerRm->file_size() > 0;
+  return evict->file_size() > 0;
 }
 
 //------------------------------------------------------------------------------
-// StagerRm command entry point
+// Evict command entry point
 //------------------------------------------------------------------------------
-int com_stagerrm(char* arg)
+int com_evict(char* arg)
 {
   if (wants_help(arg)) {
-    com_stagerrm_help();
+    com_evict_help();
     global_retc = EINVAL;
     return EINVAL;
   }
 
-  StagerRmHelper stagerRm(gGlobalOpts);
+  EvictHelper evict(gGlobalOpts);
 
-  if (!stagerRm.ParseCommand(arg)) {
-    com_stagerrm_help();
+  if (!evict.ParseCommand(arg)) {
+    com_evict_help();
     global_retc = EINVAL;
     return EINVAL;
   }
 
-  global_retc = stagerRm.Execute();
+  global_retc = evict.Execute();
   return global_retc;
 }
 
-void com_stagerrm_help()
+void com_evict_help()
 {
   std::ostringstream oss;
-  oss << "Usage: stagerrm <path>|fid:<fid-dec>]|fxid:<fid-hex> [<path>|fid:<fid-dec>]|fxid:<fid-hex>] ..."
+  oss << "Usage: evict [--fsid <fsid>] <path>|fid:<fid-dec>]|fxid:<fid-hex> [<path>|fid:<fid-dec>]|fxid:<fid-hex>] ..."
       << std::endl
       << "       Removes all disk replicas of the given files separated by space"
       << std::endl

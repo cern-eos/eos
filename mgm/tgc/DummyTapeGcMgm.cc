@@ -33,8 +33,7 @@ DummyTapeGcMgm::DummyTapeGcMgm():
 m_nbCallsToGetTapeGcSpaceConfig(0),
 m_nbCallsToGetSpaceStats(0),
 m_nbCallsToFileInNamespaceAndNotScheduledForDeletion(0),
-m_nbCallsToGetFileSizeBytes(0),
-m_nbCallsToStagerrmAsRoot(0)
+m_nbCallsToGetFileSizeBytes(0), m_nbCallsToEvictAsRoot(0)
 {
 }
 
@@ -107,13 +106,13 @@ DummyTapeGcMgm::getFileSizeBytes(const IFileMD::id_t /* fid */)
 }
 
 //----------------------------------------------------------------------------
-// Execute stagerrm as user root
+// Execute evict as user root
 //----------------------------------------------------------------------------
 void
-DummyTapeGcMgm::stagerrmAsRoot(const IFileMD::id_t /* fid */)
+DummyTapeGcMgm::evictAsRoot(const IFileMD::id_t /* fid */)
 {
   std::lock_guard<std::mutex> lock(m_mutex);
-  m_nbCallsToStagerrmAsRoot++;
+  m_nbCallsToEvictAsRoot++;
 }
 
 //----------------------------------------------------------------------------
@@ -211,13 +210,13 @@ DummyTapeGcMgm::getNbCallsToGetFileSizeBytes() const {
 }
 
 //------------------------------------------------------------------------------
-// Return number of times stagerrmAsRoot() has been called
+// Return number of times evictAsRoot() has been called
 //------------------------------------------------------------------------------
 uint64_t
-DummyTapeGcMgm::getNbCallsToStagerrmAsRoot() const {
+DummyTapeGcMgm::getNbCallsToEvictAsRoot() const {
   std::lock_guard<std::mutex> lock(m_mutex);
 
-  return m_nbCallsToStagerrmAsRoot;
+  return m_nbCallsToEvictAsRoot;
 }
 
 //----------------------------------------------------------------------------

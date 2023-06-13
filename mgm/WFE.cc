@@ -21,27 +21,27 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "mgm/WFE.hh"
-#include "Xrd/XrdScheduler.hh"
-#include "common/Constants.hh"
-#include "common/CtaCommon.hh"
-#include "common/LayoutId.hh"
-#include "common/Logging.hh"
 #include "common/Path.hh"
+#include "common/Logging.hh"
+#include "common/LayoutId.hh"
 #include "common/ShellCmd.hh"
 #include "common/StringTokenizer.hh"
-#include "common/eos_cta_pb/EosCtaAlertHandler.hh"
-#include "mgm/CtaUtils.hh"
-#include "mgm/EosCtaReporter.hh"
+#include "common/Constants.hh"
 #include "mgm/Quota.hh"
-#include "mgm/Stat.hh"
+#include "common/CtaCommon.hh"
+#include "common/eos_cta_pb/EosCtaAlertHandler.hh"
 #include "mgm/XattrSet.hh"
-#include "mgm/XrdMgmOfs.hh"
+#include "mgm/WFE.hh"
+#include "mgm/Stat.hh"
 #include "mgm/XrdMgmOfsDirectory.hh"
+#include "mgm/XrdMgmOfs.hh"
+#include "mgm/EosCtaReporter.hh"
+#include "mgm/CtaUtils.hh"
 #include "mgm/proc/admin/EvictCmd.hh"
-#include "namespace/Prefetcher.hh"
 #include "namespace/interface/IView.hh"
+#include "namespace/Prefetcher.hh"
 #include "namespace/utils/Checksum.hh"
+#include "Xrd/XrdScheduler.hh"
 
 #define EOS_WFE_BASH_PREFIX "/var/eos/wfe/bash/"
 
@@ -2196,19 +2196,19 @@ WFE::Job::HandleProtoMethodEvictPrepareEvent(const std::string& fullPath,
     if (evictionCounter > 0) {
       std::ostringstream msg;
       msg << preamble.str() <<
-          " msg=\"Evict counter not null, bypassing stagerrm for evict_prepare event\"";
+          " msg=\"Evict counter not null, bypassing evict for evict_prepare event\"";
       eos_static_info(msg.str().c_str());
     } else {
-      const auto result = StagerrmAsRoot(mFid);
+      const auto result = EvictAsRoot(mFid);
       if (0 == result.retc()) {
         std::ostringstream msg;
         msg << preamble.str() <<
-            " msg=\"Successfully issued stagerrm for evict_prepare event\"";
+            " msg=\"Successfully issued evict for evict_prepare event\"";
         eos_static_info(msg.str().c_str());
       } else {
         std::ostringstream msg;
         msg << preamble.str() <<
-            " msg=\"Failed to issue stagerrm for evict_prepare event\"";
+            " msg=\"Failed to issue evict for evict_prepare event\"";
         eos_static_info(msg.str().c_str());
         eosLog.addParam(EosCtaReportParam::PREP_WFE_ERROR, msg.str());
         MoveWithResults(EAGAIN);
@@ -2874,12 +2874,12 @@ WFE::Job::SendProtoWFRequest(Job* jobPtr, const std::string& fullPath,
 }
 
 console::ReplyProto
-WFE::Job::StagerrmAsRoot(const eos::IFileMD::id_t fid)
+WFE::Job::EvictAsRoot(const eos::IFileMD::id_t fid)
 {
   eos::common::VirtualIdentity rootVid = eos::common::VirtualIdentity::Root();
   eos::console::RequestProto req;
-  eos::console::StagerRmProto* stagerRm = req.mutable_stagerrm();
-  auto file = stagerRm->add_file();
+  eos::console::EvictProto* evict = req.mutable_evict();
+  auto file = evict->add_file();
   file->set_fid(fid);
   EvictCmd cmd(std::move(req), rootVid);
   return cmd.ProcessRequest();

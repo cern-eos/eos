@@ -21,6 +21,7 @@ Client Commands
   clicommands/console
   clicommands/cp
   clicommands/debug
+  clicommands/evict
   clicommands/exit
   clicommands/file
   clicommands/fileinfo
