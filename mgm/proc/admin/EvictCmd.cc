@@ -1,5 +1,5 @@
 //------------------------------------------------------------------------------
-// File: StagerRmCmd.cc
+// File: EvictCmd.cc
 // Author: Jozsef Makai - CERN
 //------------------------------------------------------------------------------
 
@@ -21,20 +21,19 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-
+#include "EvictCmd.hh"
+#include "common/Constants.hh"
 #include "common/Path.hh"
 #include "common/Timing.hh"
-#include "StagerRmCmd.hh"
-#include "mgm/XrdMgmOfs.hh"
-#include "mgm/EosCtaReporter.hh"
 #include "mgm/Acl.hh"
-#include "common/Constants.hh"
+#include "mgm/EosCtaReporter.hh"
+#include "mgm/XrdMgmOfs.hh"
 #include "namespace/interface/IView.hh"
 
 EOSMGMNAMESPACE_BEGIN
 
 eos::console::ReplyProto
-eos::mgm::StagerRmCmd::ProcessRequest() noexcept
+eos::mgm::EvictCmd::ProcessRequest() noexcept
 {
   eos::console::ReplyProto reply;
   std::ostringstream errStream;

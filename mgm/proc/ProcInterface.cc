@@ -27,6 +27,8 @@
 #include "mgm/proc/admin/ConfigCmd.hh"
 #include "mgm/proc/admin/ConvertCmd.hh"
 #include "mgm/proc/admin/DebugCmd.hh"
+#include "mgm/proc/admin/EvictCmd.hh"
+#include "mgm/proc/admin/FileRegisterCmd.hh"
 #include "mgm/proc/admin/FsCmd.hh"
 #include "mgm/proc/admin/FsckCmd.hh"
 #include "mgm/proc/admin/GroupCmd.hh"
@@ -36,8 +38,6 @@
 #include "mgm/proc/admin/QuotaCmd.hh"
 #include "mgm/proc/admin/SchedCmd.hh"
 #include "mgm/proc/admin/SpaceCmd.hh"
-#include "mgm/proc/admin/StagerRmCmd.hh"
-#include "mgm/proc/admin/FileRegisterCmd.hh"
 #include "mgm/proc/user/AclCmd.hh"
 #include "mgm/proc/user/DfCmd.hh"
 #include "mgm/proc/user/NewfindCmd.hh"
@@ -234,7 +234,7 @@ ProcInterface::HandleProtobufRequest(eos::console::RequestProto& req,
     break;
 
   case RequestProto::kStagerRm:
-    cmd.reset(new StagerRmCmd(std::move(req), vid));
+    cmd.reset(new EvictCmd(std::move(req), vid));
     break;
 
   case RequestProto::kRoute:
