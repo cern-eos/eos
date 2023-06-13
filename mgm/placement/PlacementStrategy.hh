@@ -61,6 +61,7 @@ struct PlacementResult {
     return os;
   }
 
+  // Simple helper to convert to string
   std::string result_string() const {
     std::stringstream ss;
     ss << *this;
@@ -160,6 +161,7 @@ struct PlacementArguments {
   selection_rules_t rules = kDefault2Replica;
   PlacementStrategyT strategy = PlacementStrategyT::Count;
   std::vector<uint32_t> excludefs;
+  int64_t forced_group_index = -1;
 
   PlacementArguments(item_id_t bucket_id, uint8_t n_replicas,
                      ConfigStatus status, uint64_t fid,

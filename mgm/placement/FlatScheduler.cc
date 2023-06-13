@@ -122,6 +122,19 @@ FlatScheduler::scheduleDefault(const ClusterData& cluster_data,
     uint8_t n_replicas = 1;
     if (bucket.bucket_type == static_cast<uint8_t>(StdBucketType::GROUP)) {
       n_replicas = n_final_replicas;
+
+      // Check if there is a forced group, reset the bucket_id in that case
+      // TODO: determine from the previous level in the hierarchy whether we're
+      // choosing groups and force groups in those cases
+      if (args.forced_group_index >= 0) {
+        args.bucket_id = kBaseGroupOffset - args.forced_group_index;
+        if (!isValidBucketId(args.bucket_id, cluster_data)) {
+          PlacementResult result;
+          result.err_msg = "Invalid forced group index";
+          result.ret_code = EINVAL;
+          return result;
+        }
+      }
     }
 
     args.n_replicas = n_replicas;
