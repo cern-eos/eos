@@ -108,6 +108,7 @@ eos::mgm::EvictCmd::ProcessRequest() noexcept
   int count_some_disk_replicas_removed = 0;
   int count_all_disk_replicas_removed = 0;
   int count_evict_counter_not_zero = 0;
+
   for (int i = 0; i < evict.file_size(); i++) {
     EosCtaReporterEvict eosLog;
     eosLog

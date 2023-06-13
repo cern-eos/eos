@@ -63,45 +63,10 @@ public:
 bool
 StagerRmHelper::ParseCommand(const char* arg)
 {
-  const char* nextToken;
-  std::string snextToken;
   eos::console::StagerRmProto* stagerRm = mReq.mutable_stagerrm();
   eos::common::StringTokenizer tokenizer(arg);
   XrdOucString path = tokenizer.GetLine();
-
-  if (!(nextToken = tokenizer.GetToken())) {
-    return false;
-  } else {
-    snextToken = nextToken;
-    if (snextToken.substr(0, 2) == "--") {
-      snextToken.erase(0, 2);
-
-      // No other option besides --fsid is accepted
-      if (snextToken != "fsid") {
-        return false;
-      }
-
-      // Parse fsid
-      if (!(nextToken = tokenizer.GetToken())) {
-        std::cerr << "error: --fsid flag needs to be followed by value" << std::endl;
-        return false;
-      }
-
-      snextToken = nextToken;
-      try {
-        uint64_t fsid = std::stoull(snextToken);
-        stagerRm->mutable_stagerrmsinglereplica()->set_fsid(fsid);
-      } catch (const std::exception& e) {
-        std::cerr << "error: --fsid value needs to be numeric" << std::endl;
-        return false;
-      }
-
-      path = tokenizer.GetToken();
-    } else {
-      // There was no option, use it as first path
-      path = nextToken;
-    }
-  }
+  path = tokenizer.GetToken();
 
   while (path != "") {
     // remove escaped blanks
@@ -152,7 +117,7 @@ int com_stagerrm(char* arg)
 void com_stagerrm_help()
 {
   std::ostringstream oss;
-  oss << "Usage: stagerrm [--fsid <fsid>] <path>|fid:<fid-dec>]|fxid:<fid-hex> [<path>|fid:<fid-dec>]|fxid:<fid-hex>] ..."
+  oss << "Usage: stagerrm <path>|fid:<fid-dec>]|fxid:<fid-hex> [<path>|fid:<fid-dec>]|fxid:<fid-hex>] ..."
       << std::endl
       << "       Removes all disk replicas of the given files separated by space"
       << std::endl
