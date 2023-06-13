@@ -2021,7 +2021,13 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
 
     if (!use_geoscheduler) {
       COMMONTIMING("PlctScheduler::FilePlacement", &tm);
-      uint8_t n_replicas = eos::common::LayoutId::GetStripeNumber(layoutId) + 1;
+      uint64_t n_replicas_ = eos::common::LayoutId::GetStripeNumber(layoutId) + 1;
+
+      if (n_replicas_ > std::numeric_limits<uint8_t>::max()) {
+        eos_err("msg=\"too many replicas requested\" n_replicas=%" PRIu64, n_replicas_);
+        return Emsg(epname, error, EINVAL, "open - too many replicas requested", path);
+      }
+      uint8_t n_replicas = static_cast<uint8_t>(n_replicas_);
       placement::PlacementArguments args{n_replicas, placement::ConfigStatus::kRW, strategy};
       if (!excludefs.empty()) {
         args.excludefs = excludefs;
@@ -2034,9 +2040,12 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
         for (int i=0;i<n_replicas;i++) {
           selectedfs.push_back(ret.ids[i]);
         }
+        // TODO: this should be demoted to DEBUG once we have a proper understanding
+        eos_info("msg=\"FlatScheduler selected filesystems\" fs=%s",
+                 ret.result_string().c_str());
       } else {
         // Fallback to classic geoscheduler on failure
-        eos_info("msg =\"no valid placement found with FSScheduler\" ret=%d, err_msg=%s",
+        eos_err("msg =\"no valid placement found with FlatScheduler\" ret=%d, err_msg=%s",
                  ret.ret_code, ret.error_string().c_str());
         use_geoscheduler = true;
       }
