@@ -164,7 +164,7 @@ Storage::Verify()
           localUpdate = true;
         }
       } else {
-        if (fMd->mProtoFmd.size() != statinfo.st_size) {
+        if (fMd->mProtoFmd.size() != (unsigned long long)statinfo.st_size) {
           fMd->mProtoFmd.set_size(statinfo.st_size);
           localUpdate = true;
         }
