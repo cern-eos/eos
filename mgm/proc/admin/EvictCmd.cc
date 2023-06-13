@@ -21,13 +21,13 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
+#include "EvictCmd.hh"
+#include "common/Constants.hh"
 #include "common/Path.hh"
 #include "common/Timing.hh"
-#include "EvictCmd.hh"
-#include "mgm/XrdMgmOfs.hh"
-#include "mgm/EosCtaReporter.hh"
 #include "mgm/Acl.hh"
-#include "common/Constants.hh"
+#include "mgm/EosCtaReporter.hh"
+#include "mgm/XrdMgmOfs.hh"
 #include "namespace/interface/IView.hh"
 #include <optional>
 
