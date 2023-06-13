@@ -159,9 +159,15 @@ Storage::Verify()
       if (eos::common::LayoutId::IsRain(fMd->mProtoFmd.lid())) {
         // This is the best he have, no easy way to know the logical size
         // for a RAIN file
-        fMd->mProtoFmd.set_size(fMd->mProtoFmd.mgmsize());
+        if (fMd->mProtoFmd.size() != fMd->mProtoFmd.mgmsize()) {
+          fMd->mProtoFmd.set_size(fMd->mProtoFmd.mgmsize());
+          localUpdate = true;
+        }
       } else {
-        fMd->mProtoFmd.set_size(statinfo.st_size);
+        if (fMd->mProtoFmd.size() != statinfo.st_size) {
+          fMd->mProtoFmd.set_size(statinfo.st_size);
+          localUpdate = true;
+        }
       }
 
       fMd->mProtoFmd.set_lid(verifyfile->lId);
