@@ -885,9 +885,6 @@ XrdFstOfsFile::read(XrdSfsFileOffset fileOffset, char* buffer,
     totalBytes += rc;
   }
 
-  gettimeofday(&lrTime, &tz);
-  AddReadTime();
-
   if (rc < 0) {
     // Here we might take some other action
     int envlen = 0;
