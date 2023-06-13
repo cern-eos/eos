@@ -66,6 +66,10 @@ WeightedRoundRobinPlacement::Impl::placeFiles(const ClusterData& cluster_data,
        (items_added < args.n_replicas) && (i < MAX_RR_PLACEMENT_ATTEMPTS); i++) {
     item_id_t item_id = eos::common::pickIndexRR(bucket.items, bucket_index_kv++);
 
+    if (result.contains(item_id)) {
+      continue;
+    }
+
     if (item_id > 0) {
       if (mItemWeights[args.bucket_id] < args.n_replicas) {
         fill_weights(cluster_data);
