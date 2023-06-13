@@ -62,8 +62,8 @@ std::unique_ptr<PathsModel> PathsModelBuilder::buildFromJson(
   if (validationErrors->hasAnyError()) {
     throw JsonValidationException(std::move(validationErrors));
   }
-
-  return std::move(model);
+  //copy-ellision here
+  return model;
 }
 
 EOSMGMRESTNAMESPACE_END
