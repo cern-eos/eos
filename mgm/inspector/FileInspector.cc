@@ -267,6 +267,7 @@ FileInspector::Process(std::shared_ptr<eos::IFileMD> fmd)
     currentScanStats[lid]["zerosize"]++;
   } else {
     currentScanStats[lid]["volume"] += fmd->getSize();
+    currentScanStats[lid]["physicalsize"] += (fmd->getSize() * eos::common::LayoutId::GetSizeFactor(lid));
   }
 
   // no location files
@@ -605,7 +606,7 @@ FileInspector::Dump(std::string& out, std::string_view options)
         }
 
         snprintf(line, sizeof(line),
-                 " layout=%08lx type=%-13s nominal_stripes=%schecksum=%-8s "
+                 " layout=%08lx type=%-13s nominal_stripes=%s checksum=%-8s "
                  "blockchecksum=%-8s blocksize=%-4s\n\n",
                  it->first,
                  eos::common::LayoutId::GetLayoutTypeString(it->first),
