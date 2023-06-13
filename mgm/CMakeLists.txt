@@ -114,7 +114,7 @@ add_library(
   proc/admin/GeoSched.cc
   proc/admin/NsCmd.cc
   proc/admin/Rtlog.cc
-  proc/admin/StagerRmCmd.cc proc/admin/StagerRmCmd.hh
+  proc/admin/EvictCmd.cc proc/admin/EvictCmd.hh
   proc/admin/Transfer.cc
   proc/admin/Vid.cc
   proc/admin/Access.cc # @todo (faluchet) drop when move to 5.0.0

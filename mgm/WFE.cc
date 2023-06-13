@@ -21,27 +21,27 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "common/Path.hh"
-#include "common/Logging.hh"
+#include "mgm/WFE.hh"
+#include "Xrd/XrdScheduler.hh"
+#include "common/Constants.hh"
+#include "common/CtaCommon.hh"
 #include "common/LayoutId.hh"
+#include "common/Logging.hh"
+#include "common/Path.hh"
 #include "common/ShellCmd.hh"
 #include "common/StringTokenizer.hh"
-#include "common/Constants.hh"
-#include "mgm/Quota.hh"
-#include "common/CtaCommon.hh"
 #include "common/eos_cta_pb/EosCtaAlertHandler.hh"
-#include "mgm/XattrSet.hh"
-#include "mgm/WFE.hh"
-#include "mgm/Stat.hh"
-#include "mgm/XrdMgmOfsDirectory.hh"
-#include "mgm/XrdMgmOfs.hh"
-#include "mgm/EosCtaReporter.hh"
 #include "mgm/CtaUtils.hh"
-#include "mgm/proc/admin/StagerRmCmd.hh"
-#include "namespace/interface/IView.hh"
+#include "mgm/EosCtaReporter.hh"
+#include "mgm/Quota.hh"
+#include "mgm/Stat.hh"
+#include "mgm/XattrSet.hh"
+#include "mgm/XrdMgmOfs.hh"
+#include "mgm/XrdMgmOfsDirectory.hh"
+#include "mgm/proc/admin/EvictCmd.hh"
 #include "namespace/Prefetcher.hh"
+#include "namespace/interface/IView.hh"
 #include "namespace/utils/Checksum.hh"
-#include "Xrd/XrdScheduler.hh"
 
 #define EOS_WFE_BASH_PREFIX "/var/eos/wfe/bash/"
 
@@ -2881,7 +2881,7 @@ WFE::Job::StagerrmAsRoot(const eos::IFileMD::id_t fid)
   eos::console::StagerRmProto* stagerRm = req.mutable_stagerrm();
   auto file = stagerRm->add_file();
   file->set_fid(fid);
-  StagerRmCmd cmd(std::move(req), rootVid);
+  EvictCmd cmd(std::move(req), rootVid);
   return cmd.ProcessRequest();
 }
 
