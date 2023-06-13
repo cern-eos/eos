@@ -138,6 +138,10 @@ struct Bucket {
   }
 };
 
+// Constant to offset the group id, so group ids would be starting from this offset
+// in memory they'd be stored at -group_id
+constexpr int kBaseGroupOffset = -10;
+
 struct ClusterData {
   std::vector<Disk> disks;
   std::vector<Bucket> buckets;
