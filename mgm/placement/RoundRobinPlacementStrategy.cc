@@ -44,6 +44,13 @@ RoundRobinPlacement::placeFiles(const ClusterData& cluster_data, Args args)
        (items_added < args.n_replicas) && (i < MAX_PLACEMENT_ATTEMPTS); i++) {
 
     auto id = eos::common::pickIndexRR(bucket.items, rr_seed + i);
+
+    // While it is highly unlikely that we'll get a duplicate with RR placement,
+    // random seed gen can still generate the same seed twice.
+    if (result.contains(id)) {
+      continue;
+    }
+
     item_id_t item_id = id;
     if (id > 0) {
       // we are dealing with a disk! check if it is usable
