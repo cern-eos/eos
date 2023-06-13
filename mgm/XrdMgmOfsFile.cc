@@ -1994,6 +1994,9 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
       if (!excludefs.empty()) {
         args.excludefs = excludefs;
       }
+      if (forced_group >= 0) {
+        args.forced_group_index = forced_group;
+      }
       auto ret = gOFS->mFsScheduler->schedule(spacename,
                                               args);
       COMMONTIMING("PlctScheduler::FilePlaced", &tm);
@@ -2174,6 +2177,9 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
           placement::PlacementArguments args{n_replicas, placement::ConfigStatus::kRW, strategy};
           if (!excludefs.empty()) {
             args.excludefs = excludefs;
+          }
+          if (forced_group >=0) {
+            args.forced_group_index = forced_group;
           }
           auto ret = gOFS->mFsScheduler->schedule(spacename,
                                                   args);
