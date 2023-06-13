@@ -21,16 +21,52 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "EvictCmd.hh"
-#include "common/Constants.hh"
 #include "common/Path.hh"
 #include "common/Timing.hh"
-#include "mgm/Acl.hh"
-#include "mgm/EosCtaReporter.hh"
+#include "EvictCmd.hh"
 #include "mgm/XrdMgmOfs.hh"
+#include "mgm/EosCtaReporter.hh"
+#include "mgm/Acl.hh"
+#include "common/Constants.hh"
 #include "namespace/interface/IView.hh"
 
 EOSMGMNAMESPACE_BEGIN
+
+eos::console::RequestProto eos::mgm::EvictCmd::convertStagerRmToEvict(const eos::console::RequestProto & req, std::ostringstream & errStream, int & ret_c) {
+
+  struct timespec ts_now;
+  eos::console::RequestProto new_req;
+  auto req_evict = new_req.mutable_evict();
+  auto req_stagerrm = req.stagerrm();
+
+  for (int i = 0; i < req_stagerrm.file_size(); i++) {
+    const auto& file_stagerrm = req_stagerrm.file(i);
+    switch (file_stagerrm.File_case()) {
+    case eos::console::StagerRmProto::FileProto::kPath:
+      req_evict->add_file()->set_path(file_stagerrm.path());
+      break;
+    case eos::console::StagerRmProto::FileProto::kFid:
+      req_evict->add_file()->set_fid(file_stagerrm.fid());
+      break;
+    default:
+      errStream << "error: Received a file with neither a path nor an fid, unable to convert stagerrm request to evict request" <<
+          std::endl;
+      ret_c = EINVAL;
+      EosCtaReporterEvict eosLog;
+      eosLog
+          .addParam(EosCtaReportParam::SEC_APP, "tape_evict")
+          .addParam(EosCtaReportParam::LOG, std::string(gOFS->logId))
+          .addParam(EosCtaReportParam::RUID, mVid.uid)
+          .addParam(EosCtaReportParam::RGID, mVid.gid)
+          .addParam(EosCtaReportParam::TD, mVid.tident.c_str())
+          .addParam(EosCtaReportParam::TS, ts_now.tv_sec)
+          .addParam(EosCtaReportParam::TNS, ts_now.tv_nsec)
+          .addParam(EosCtaReportParam::EVICTCMD_ERROR, errStream.str());
+      break;
+    }
+  }
+  return new_req;
+}
 
 eos::console::ReplyProto
 eos::mgm::EvictCmd::ProcessRequest() noexcept
@@ -40,16 +76,28 @@ eos::mgm::EvictCmd::ProcessRequest() noexcept
   std::ostringstream outStream;
   bool allReplicasRemoved = false;
   int ret_c = 0;
-  const auto& stagerRm = mReqProto.stagerrm();
+
+  // TODO: Remove this segment of code when the StagerRm command is deprecated, and replace by the line bellow
+  eos::console::RequestProto req;
+  if (mReqProto.command_case() == eos::console::RequestProto::kStagerRm) {
+    req = convertStagerRmToEvict(mReqProto, errStream, ret_c);
+  } else {
+    req = mReqProto;
+  }
+  const auto& evict = req.evict();
+
+  // TODO: Replace the code removed above by this line
+  // const auto& stagerRm = mReqProto.stagerrm();
+
   XrdOucErrInfo errInfo;
   eos::common::VirtualIdentity root_vid = eos::common::VirtualIdentity::Root();
   struct timespec ts_now;
   eos::common::Timing::GetTimeSpec(ts_now);
   std::optional<uint64_t> fsid = 0;
-  fsid = stagerRm.has_stagerrmsinglereplica() ? std::optional(stagerRm.stagerrmsinglereplica().fsid()) : std::nullopt;
+  fsid = evict.has_evictsinglereplica() ? std::optional(evict.evictsinglereplica().fsid()) : std::nullopt;
 
-  for (auto i = 0; i < stagerRm.file_size(); i++) {
-    EosCtaReporterStagerRm eosLog;
+  for (int i = 0; i < evict.file_size(); i++) {
+    EosCtaReporterEvict eosLog;
     eosLog
     .addParam(EosCtaReportParam::SEC_APP, "tape_evict")
     .addParam(EosCtaReportParam::LOG, std::string(gOFS->logId))
@@ -58,32 +106,32 @@ eos::mgm::EvictCmd::ProcessRequest() noexcept
     .addParam(EosCtaReportParam::TD, mVid.tident.c_str())
     .addParam(EosCtaReportParam::TS, ts_now.tv_sec)
     .addParam(EosCtaReportParam::TNS, ts_now.tv_nsec);
-    const auto& file = stagerRm.file(i);
+    const auto& file = evict.file(i);
     std::string path;
     std::string err;
 
     switch (file.File_case()) {
-    case eos::console::StagerRmProto::FileProto::kPath:
+    case eos::console::EvictProto::FileProto::kPath:
       path = file.path();
 
       if (0 == path.length()) {
         errStream << "error: Received an empty string path" << std::endl;
         ret_c = EINVAL;
-        eosLog.addParam(EosCtaReportParam::STAGERRM_ERROR, errStream.str());
+        eosLog.addParam(EosCtaReportParam::EVICTCMD_ERROR, errStream.str());
         continue;
       }
 
       eosLog.addParam(EosCtaReportParam::PATH, path);
       break;
 
-    case eos::console::StagerRmProto::FileProto::kFid:
+    case eos::console::EvictProto::FileProto::kFid:
       GetPathFromFid(path, file.fid(), err);
 
       if (0 == path.length()) {
         errStream << "error: Received an unknown fid: value=" << file.fid() <<
                   std::endl;
         ret_c = EINVAL;
-        eosLog.addParam(EosCtaReportParam::STAGERRM_ERROR, errStream.str());
+        eosLog.addParam(EosCtaReportParam::EVICTCMD_ERROR, errStream.str());
         continue;
       }
 
@@ -94,7 +142,7 @@ eos::mgm::EvictCmd::ProcessRequest() noexcept
       errStream << "error: Received a file with neither a path nor an fid" <<
                 std::endl;
       ret_c = EINVAL;
-      eosLog.addParam(EosCtaReportParam::STAGERRM_ERROR, errStream.str());
+      eosLog.addParam(EosCtaReportParam::EVICTCMD_ERROR, errStream.str());
       continue;
     }
 
@@ -106,7 +154,7 @@ eos::mgm::EvictCmd::ProcessRequest() noexcept
       errStream << "error: you don't have 'p' acl flag permission on path '"
                 << cPath.GetParentPath() << "'" << std::endl;
       ret_c = EPERM;
-      eosLog.addParam(EosCtaReportParam::STAGERRM_ERROR, errStream.str());
+      eosLog.addParam(EosCtaReportParam::EVICTCMD_ERROR, errStream.str());
       continue;
     }
 
@@ -118,19 +166,19 @@ eos::mgm::EvictCmd::ProcessRequest() noexcept
       errStream << "error: unable to run exists on path '" << path << "'" <<
                 std::endl;
       ret_c = errno;
-      eosLog.addParam(EosCtaReportParam::STAGERRM_ERROR, errStream.str());
+      eosLog.addParam(EosCtaReportParam::EVICTCMD_ERROR, errStream.str());
       continue;
     }
 
     if (file_exists == XrdSfsFileExistNo) {
       errStream << "error: no such file with path '" << path << "'" << std::endl;
       ret_c = ENODATA;
-      eosLog.addParam(EosCtaReportParam::STAGERRM_ERROR, errStream.str());
+      eosLog.addParam(EosCtaReportParam::EVICTCMD_ERROR, errStream.str());
       continue;
     } else if (file_exists == XrdSfsFileExistIsDirectory) {
       errStream << "error: given path is a directory '" << path << "'" << std::endl;
       ret_c = EINVAL;
-      eosLog.addParam(EosCtaReportParam::STAGERRM_ERROR, errStream.str());
+      eosLog.addParam(EosCtaReportParam::EVICTCMD_ERROR, errStream.str());
       continue;
     }
 
@@ -141,7 +189,7 @@ eos::mgm::EvictCmd::ProcessRequest() noexcept
       errStream << "error: unable to run stat for replicas on path '" << path << "'"
                 << std::endl;
       ret_c = EINVAL;
-      eosLog.addParam(EosCtaReportParam::STAGERRM_ERROR, errStream.str());
+      eosLog.addParam(EosCtaReportParam::EVICTCMD_ERROR, errStream.str());
       continue;
     }
 
@@ -149,7 +197,7 @@ eos::mgm::EvictCmd::ProcessRequest() noexcept
     if ((buf.st_mode & EOS_TAPE_MODE_T) == 0) {
       errStream << "error: no tape replicas for file '" << path << "'" << std::endl;
       ret_c = EINVAL;
-      eosLog.addParam(EosCtaReportParam::STAGERRM_ERROR, errStream.str());
+      eosLog.addParam(EosCtaReportParam::EVICTCMD_ERROR, errStream.str());
       continue;
     }
 
@@ -170,8 +218,8 @@ eos::mgm::EvictCmd::ProcessRequest() noexcept
                        path.c_str(), fsid.value(), errInfo.getErrText());
         errStream << "error: unable to find replica of '" << path << "'" <<
                   std::endl;
-        eosLog.addParam(EosCtaReportParam::STAGERRM_FSID,  fsid.value());
-        eosLog.addParam(EosCtaReportParam::STAGERRM_ERROR, errStream.str());
+        eosLog.addParam(EosCtaReportParam::EVICTCMD_FSID,  fsid.value());
+        eosLog.addParam(EosCtaReportParam::EVICTCMD_ERROR, errStream.str());
         ret_c = SFS_ERROR;
         continue;
       }
@@ -186,8 +234,8 @@ eos::mgm::EvictCmd::ProcessRequest() noexcept
                        path.c_str(), fsid.value(), errInfo.getErrText());
         errStream << "error: could not delete replica of '" << path << "'" <<
                   std::endl;
-        eosLog.addParam(EosCtaReportParam::STAGERRM_FSID, fsid.value());
-        eosLog.addParam(EosCtaReportParam::STAGERRM_ERROR, errStream.str());
+        eosLog.addParam(EosCtaReportParam::EVICTCMD_FSID, fsid.value());
+        eosLog.addParam(EosCtaReportParam::EVICTCMD_ERROR, errStream.str());
         ret_c = SFS_ERROR;
       } else {
         if (diskReplicaCount <= 1) {
@@ -201,7 +249,7 @@ eos::mgm::EvictCmd::ProcessRequest() noexcept
                        path.c_str(), errInfo.getErrText());
         errStream << "error: could not delete all replicas of '" << path << "'" <<
                   std::endl;
-        eosLog.addParam(EosCtaReportParam::STAGERRM_ERROR, errStream.str());
+        eosLog.addParam(EosCtaReportParam::EVICTCMD_ERROR, errStream.str());
         ret_c = SFS_ERROR;
       } else {
         allReplicasRemoved = true;
@@ -226,9 +274,9 @@ eos::mgm::EvictCmd::ProcessRequest() noexcept
                        eos::common::RETRIEVE_EVICT_COUNTER_NAME);
       }
       if (fsid.has_value()) {
-        eosLog.addParam(EosCtaReportParam::STAGERRM_FSID, fsid.value());
+        eosLog.addParam(EosCtaReportParam::EVICTCMD_FSID, fsid.value());
       }
-      eosLog.addParam(EosCtaReportParam::STAGERRM_FILEREMOVED, true);
+      eosLog.addParam(EosCtaReportParam::EVICTCMD_FILEREMOVED, true);
     }
   }
 

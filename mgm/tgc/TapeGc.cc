@@ -44,8 +44,7 @@ TapeGc::TapeGc(ITapeGcMgm& mgm, const std::string& spaceName,
   m_spaceName(spaceName),
   m_config(std::bind(&ITapeGcMgm::getTapeGcSpaceConfig, &mgm, spaceName),
            maxConfigCacheAgeSecs),
-  m_spaceStats(spaceName, mgm, m_config),
-  m_nbStagerrms(0)
+  m_spaceStats(spaceName, mgm, m_config), m_nbEvicts(0)
 {
 }
 
@@ -202,7 +201,7 @@ TapeGc::tryToGarbageCollectASingleFile() noexcept
     }
 
     try {
-      m_mgm.stagerrmAsRoot(fid);
+      m_mgm.evictAsRoot(fid);
     } catch (std::exception& ex) {
       std::ostringstream msg;
       msg << "fxid=" << std::hex << fid <<
@@ -222,11 +221,11 @@ TapeGc::tryToGarbageCollectASingleFile() noexcept
       return false; // No disk replica was garbage collected
     }
 
-    m_nbStagerrms++;
+    m_nbEvicts++;
     diskReplicaQueuedForDeletion(diskReplicaToBeDeletedSizeBytes);
     std::ostringstream msg;
     msg << "fxid=" << std::hex << fid <<
-        " msg=\"Garbage collected disk replica using stagerrm\"";
+        " msg=\"Garbage collected disk replica using evict\"";
     eos_static_info(msg.str().c_str());
     return true; // A disk replica was garbage collected
   } catch (std::exception& ex) {
@@ -246,7 +245,7 @@ TapeGc::getStats() noexcept
 {
   try {
     TapeGcStats tgcStats;
-    tgcStats.nbStagerrms = m_nbStagerrms;
+    tgcStats.nbEvicts = m_nbEvicts;
     tgcStats.lruQueueSize = getLruQueueSize();
     tgcStats.spaceStats = m_spaceStats.get().stats;
     tgcStats.queryTimestamp = m_spaceStats.getQueryTimestamp();

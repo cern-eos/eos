@@ -183,9 +183,9 @@ protected:
   SmartSpaceStats m_spaceStats;
 
   //----------------------------------------------------------------------------
-  //! Counter that is incremented each time a file is successfully stagerrm'ed
+  //! Counter that is incremented each time a file is successfully evicted
   //----------------------------------------------------------------------------
-  std::atomic<std::uint64_t> m_nbStagerrms;
+  std::atomic<std::uint64_t> m_nbEvicts;
 
   //----------------------------------------------------------------------------
   //! Take note of a disk replica queued for deletion so that the amount of free

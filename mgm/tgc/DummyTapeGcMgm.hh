@@ -99,11 +99,11 @@ public:
   bool fileInNamespaceAndNotScheduledForDeletion(IFileMD::id_t fid) override;
 
   //----------------------------------------------------------------------------
-  //! Execute stagerrm as user root
+  //! Execute evict as user root
   //!
   //! @param fid The file identifier
   //----------------------------------------------------------------------------
-  void stagerrmAsRoot(IFileMD::id_t fid) override;
+  void evictAsRoot(const IFileMD::id_t fid) override;
 
   //----------------------------------------------------------------------------
   //! @return Map from file system ID to EOS space name
@@ -168,9 +168,9 @@ public:
   std::uint64_t getNbCallsToGetFileSizeBytes() const;
 
   //------------------------------------------------------------------------------
-  //! @return number of times stagerrmAsRoot() has been called
+  //! @return number of times evictAsRoot() has been called
   //------------------------------------------------------------------------------
-  std::uint64_t getNbCallsToStagerrmAsRoot() const;
+  std::uint64_t getNbCallsToEvictAsRoot() const;
 
   //----------------------------------------------------------------------------
   //! Set the standard out from the shell command
@@ -217,9 +217,9 @@ private:
   std::uint64_t m_nbCallsToGetFileSizeBytes;
 
   //----------------------------------------------------------------------------
-  //! Number of times stagerrmAsRoot() has been called
+  //! Number of times evictAsRoot() has been called
   //----------------------------------------------------------------------------
-  std::uint64_t m_nbCallsToStagerrmAsRoot;
+  std::uint64_t m_nbCallsToEvictAsRoot;
 
   //----------------------------------------------------------------------------
   //! Standard out from the shel command as a string.

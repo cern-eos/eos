@@ -1,7 +1,7 @@
 syntax="proto3";
 package eos.console;
 
-message StagerRmProto {
+message EvictProto {
   message FileProto {
     oneof File {
       string Path = 1;
@@ -9,5 +9,10 @@ message StagerRmProto {
     }
   }
 
+  message EvictSingleReplicaProto {
+    uint64 fsid = 1;
+  }
+
   repeated FileProto File = 1;
+  EvictSingleReplicaProto evictSingleReplica = 2;
 }

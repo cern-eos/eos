@@ -65,11 +65,11 @@ enum class EosCtaReportParam {
   PREP_WFE_ACTIVITY,
   PREP_WFE_ERROR,
 
-  // StagerRm params
-  STAGERRM_EVICTCOUNTER,
-  STAGERRM_FILEREMOVED,
-  STAGERRM_ERROR,
-  STAGERRM_FSID,
+  // Evict cmd params
+  EVICTCMD_EVICTCOUNTER,
+  EVICTCMD_FILEREMOVED,
+  EVICTCMD_ERROR,
+  EVICTCMD_FSID,
 
   // File deletion params
   FILE_DEL_FID,
@@ -167,13 +167,13 @@ private:
   static std::vector<EosCtaReportParam> DEFAULT_PARAMS_PREPARE_WFE;
 };
 
-// StagerRm EOS-CTA Reporter
-class EosCtaReporterStagerRm : public EosCtaReporter
+// Evict cmd EOS-CTA Reporter
+class EosCtaReporterEvict : public EosCtaReporter
 {
 public:
-  EosCtaReporterStagerRm();
+  EosCtaReporterEvict();
 private:
-  static std::vector<EosCtaReportParam> DEFAULT_PARAMS_STAGERRM;
+  static std::vector<EosCtaReportParam> DEFAULT_PARAMS_EVICTCMD;
 };
 
 // File deletion EOS-CTA Reporter

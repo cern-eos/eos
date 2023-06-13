@@ -81,6 +81,8 @@ private:
 
   grpc::Status Debug();
 
+  grpc::Status Evict();
+
   grpc::Status File();
 
   grpc::Status Fileinfo();
@@ -126,8 +128,6 @@ private:
   grpc::Status Route();
 
   grpc::Status Space();
-
-  grpc::Status StagerRm();
 
   grpc::Status Stat();
 

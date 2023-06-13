@@ -54,7 +54,7 @@ TEST_F(TgcTapeGcTest, constructor)
   const auto now = std::time(nullptr);
   const auto stats = gc.getStats();
 
-  ASSERT_EQ(0, stats.nbStagerrms);
+  ASSERT_EQ(0, stats.nbEvicts);
   ASSERT_EQ(0, stats.lruQueueSize);
   ASSERT_EQ(0, stats.spaceStats.totalBytes);
   ASSERT_EQ(0, stats.spaceStats.availBytes);
@@ -108,7 +108,7 @@ TEST_F(TgcTapeGcTest, tryToGarbageCollectASingleFile)
   ASSERT_EQ(2, mgm.getNbCallsToGetTapeGcSpaceConfig());
   ASSERT_EQ(0, mgm.getNbCallsToFileInNamespaceAndNotScheduledForDeletion());
   ASSERT_EQ(0, mgm.getNbCallsToGetFileSizeBytes());
-  ASSERT_EQ(0, mgm.getNbCallsToStagerrmAsRoot());
+  ASSERT_EQ(0, mgm.getNbCallsToEvictAsRoot());
 
   eos::IFileMD::id_t fid = 1;
   gc.fileAccessed(fid);
@@ -118,7 +118,7 @@ TEST_F(TgcTapeGcTest, tryToGarbageCollectASingleFile)
   ASSERT_EQ(4, mgm.getNbCallsToGetTapeGcSpaceConfig());
   ASSERT_EQ(0, mgm.getNbCallsToFileInNamespaceAndNotScheduledForDeletion());
   ASSERT_EQ(0, mgm.getNbCallsToGetFileSizeBytes());
-  ASSERT_EQ(0, mgm.getNbCallsToStagerrmAsRoot());
+  ASSERT_EQ(0, mgm.getNbCallsToEvictAsRoot());
 
 
   {
@@ -132,7 +132,7 @@ TEST_F(TgcTapeGcTest, tryToGarbageCollectASingleFile)
   ASSERT_EQ(6, mgm.getNbCallsToGetTapeGcSpaceConfig());
   ASSERT_EQ(0, mgm.getNbCallsToFileInNamespaceAndNotScheduledForDeletion());
   ASSERT_EQ(0, mgm.getNbCallsToGetFileSizeBytes());
-  ASSERT_EQ(0, mgm.getNbCallsToStagerrmAsRoot());
+  ASSERT_EQ(0, mgm.getNbCallsToEvictAsRoot());
 
   {
     SpaceConfig config;
@@ -146,7 +146,7 @@ TEST_F(TgcTapeGcTest, tryToGarbageCollectASingleFile)
   ASSERT_EQ(8, mgm.getNbCallsToGetTapeGcSpaceConfig());
   ASSERT_EQ(0, mgm.getNbCallsToFileInNamespaceAndNotScheduledForDeletion());
   ASSERT_EQ(1, mgm.getNbCallsToGetFileSizeBytes());
-  ASSERT_EQ(1, mgm.getNbCallsToStagerrmAsRoot());
+  ASSERT_EQ(1, mgm.getNbCallsToEvictAsRoot());
 }
 
 //------------------------------------------------------------------------------
