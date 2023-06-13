@@ -11,17 +11,15 @@
 //-----------------------------------------------------------------------------
 #include "common/Fmd.hh"
 #include "common/ParseUtils.hh"
-#include "console/ConsoleMain.hh"
 #include "console/commands/HealthCommand.hh"
+#include "console/ConsoleMain.hh"
 #include "mgm/Acl.hh"
 #include "mgm/Egroup.hh"
 #include "mgm/GeoTreeEngine.hh"
-#include "mgm/XrdMgmOfs.hh"
 #include "mgm/proc/admin/AccessCmd.hh"
 #include "mgm/proc/admin/ConfigCmd.hh"
 #include "mgm/proc/admin/ConvertCmd.hh"
 #include "mgm/proc/admin/DebugCmd.hh"
-#include "mgm/proc/admin/EvictCmd.hh"
 #include "mgm/proc/admin/FsCmd.hh"
 #include "mgm/proc/admin/FsckCmd.hh"
 #include "mgm/proc/admin/GroupCmd.hh"
@@ -30,6 +28,7 @@
 #include "mgm/proc/admin/NsCmd.hh"
 #include "mgm/proc/admin/QuotaCmd.hh"
 #include "mgm/proc/admin/SpaceCmd.hh"
+#include "mgm/proc/admin/EvictCmd.hh"
 #include "mgm/proc/user/AclCmd.hh"
 #include "mgm/proc/user/NewfindCmd.hh"
 #include "mgm/proc/user/QoSCmd.hh"
@@ -37,6 +36,7 @@
 #include "mgm/proc/user/RmCmd.hh"
 #include "mgm/proc/user/RouteCmd.hh"
 #include "mgm/proc/user/TokenCmd.hh"
+#include "mgm/XrdMgmOfs.hh"
 #include "namespace/interface/IContainerMD.hh"
 #include "namespace/interface/IFileMD.hh"
 #include "namespace/interface/IView.hh"
@@ -101,6 +101,10 @@ GrpcWncInterface::ExecCmd(eos::common::VirtualIdentity& vid,
 
   case eos::console::RequestProto::kDebug:
     return Debug();
+    break;
+
+  case eos::console::RequestProto::kEvict:
+    return Evict();
     break;
 
   case eos::console::RequestProto::kFile:
@@ -194,7 +198,7 @@ GrpcWncInterface::ExecCmd(eos::common::VirtualIdentity& vid,
     break;
 
   case eos::console::RequestProto::kStagerRm:
-    return StagerRm();
+    return Evict();
     break;
 
   case eos::console::RequestProto::kStat:
@@ -899,6 +903,14 @@ grpc::Status GrpcWncInterface::Debug()
   eos::console::RequestProto req = *mRequest;
   eos::mgm::DebugCmd debugcmd(std::move(req), *mVid);
   *mReply = debugcmd.ProcessRequest();
+  return grpc::Status::OK;
+}
+
+grpc::Status GrpcWncInterface::Evict()
+{
+  eos::console::RequestProto req = *mRequest;
+  eos::mgm::EvictCmd evictcmd(std::move(req), *mVid);
+  *mReply = evictcmd.ProcessRequest();
   return grpc::Status::OK;
 }
 
@@ -2485,14 +2497,6 @@ grpc::Status GrpcWncInterface::Space()
 
   eos::mgm::SpaceCmd spacecmd(std::move(req), *mVid);
   *mReply = spacecmd.ProcessRequest();
-  return grpc::Status::OK;
-}
-
-grpc::Status GrpcWncInterface::StagerRm()
-{
-  eos::console::RequestProto req = *mRequest;
-  eos::mgm::EvictCmd stagerrmcmd(std::move(req), *mVid);
-  *mReply = stagerrmcmd.ProcessRequest();
   return grpc::Status::OK;
 }
 

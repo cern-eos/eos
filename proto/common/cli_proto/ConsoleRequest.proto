@@ -15,6 +15,7 @@ import "Convert.proto";
 import "Cp.proto";
 import "Debug.proto";
 import "Df.proto";
+import "Evict.proto";
 import "File.proto";
 import "Fileinfo.proto";
 import "Find.proto";
@@ -113,7 +114,8 @@ message RequestProto {
     StatusProto status     = 49;
     FileRegisterProto record = 50;
     DfProto df             = 51;
-    SchedProto sched = 52;
+    SchedProto sched       = 52;
+    EvictProto evict       = 53;
   }
 
   string Comment = 30;

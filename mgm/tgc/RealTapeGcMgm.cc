@@ -21,18 +21,18 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "mgm/tgc/RealTapeGcMgm.hh"
 #include "common/ShellCmd.hh"
-#include "mgm/CtaUtils.hh"
+#include "mgm/proc/admin/EvictCmd.hh"
 #include "mgm/FsView.hh"
 #include "mgm/Policy.hh"
-#include "mgm/proc/admin/EvictCmd.hh"
 #include "mgm/tgc/Constants.hh"
+#include "mgm/tgc/RealTapeGcMgm.hh"
 #include "mgm/tgc/SpaceNotFound.hh"
-#include "namespace/Prefetcher.hh"
+#include "mgm/CtaUtils.hh"
 #include "namespace/interface/IFileMDSvc.hh"
 #include "namespace/ns_quarkdb/inspector/FileScanner.hh"
 #include "namespace/ns_quarkdb/qclient/include/qclient/QClient.hh"
+#include "namespace/Prefetcher.hh"
 
 #include <sstream>
 #include <stdexcept>
@@ -272,15 +272,15 @@ std::uint64_t RealTapeGcMgm::getFileSizeBytes(const IFileMD::id_t fid)
 }
 
 //----------------------------------------------------------------------------
-// Execute stagerrm as user root
+// Execute evict as user root
 //----------------------------------------------------------------------------
 void
-RealTapeGcMgm::stagerrmAsRoot(const IFileMD::id_t fid)
+RealTapeGcMgm::evictAsRoot(const IFileMD::id_t fid)
 {
   eos::common::VirtualIdentity rootVid = eos::common::VirtualIdentity::Root();
   eos::console::RequestProto req;
-  eos::console::StagerRmProto* stagerRm = req.mutable_stagerrm();
-  auto file = stagerRm->add_file();
+  eos::console::EvictProto* evict = req.mutable_evict();
+  auto file = evict->add_file();
   file->set_fid(fid);
   EvictCmd cmd(std::move(req), rootVid);
   auto const result = cmd.ProcessRequest();
