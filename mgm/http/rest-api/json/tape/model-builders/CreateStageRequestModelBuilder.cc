@@ -128,8 +128,8 @@ CreateStageRequestModelBuilder::buildFromJson(const std::string& json)
 
     model->addFile(path.asString(), opaqueInfos);
   }
-
-  return std::move(model);
+  //copy-ellision here
+  return model;
 }
 
 EOSMGMRESTNAMESPACE_END
