@@ -55,15 +55,29 @@ struct PlacementResult {
   }
 
   friend std::ostream& operator<< (std::ostream& os, const PlacementResult r) {
-    for (const auto& id: r.ids) {
-      os << id << " ";
+    for (int i=0; i< r.n_replicas; ++i) {
+      os << r.ids[i] << " ";
     }
-    os << "\n";
     return os;
+  }
+
+  std::string result_string() const {
+    std::stringstream ss;
+    ss << *this;
+    return ss.str();
   }
 
   std::string error_string() const {
     return err_msg.value_or("");
+  }
+
+  bool contains(item_id_t item) const {
+    for (int i=0; i< n_replicas; ++i) {
+      if (ids[i] == item) {
+        return true;
+      }
+      return false;
+    }
   }
 };
 

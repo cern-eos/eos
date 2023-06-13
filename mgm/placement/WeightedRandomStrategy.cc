@@ -75,6 +75,12 @@ PlacementResult WeightedRandomPlacement::Impl::placeFiles(const ClusterData& dat
                      item_index, data.buckets[bucket_index].items[item_index]);
     //result.ids[i] = data.buckets[bucket_index].items[item_index];
     item_id_t item_id = data.buckets[bucket_index].items[item_index];
+
+    if (result.contains(item_id)) {
+      eos_static_info("msg=\"Skipping duplicate result\" item_id=%d", item_id);
+      continue;
+    }
+
     if (item_id > 0) {
       if ((size_t)item_id > data.disks.size()) {
         result.err_msg = "Disk ID out of range";
