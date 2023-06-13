@@ -11,15 +11,17 @@
 //-----------------------------------------------------------------------------
 #include "common/Fmd.hh"
 #include "common/ParseUtils.hh"
-#include "console/commands/HealthCommand.hh"
 #include "console/ConsoleMain.hh"
+#include "console/commands/HealthCommand.hh"
 #include "mgm/Acl.hh"
 #include "mgm/Egroup.hh"
 #include "mgm/GeoTreeEngine.hh"
+#include "mgm/XrdMgmOfs.hh"
 #include "mgm/proc/admin/AccessCmd.hh"
 #include "mgm/proc/admin/ConfigCmd.hh"
 #include "mgm/proc/admin/ConvertCmd.hh"
 #include "mgm/proc/admin/DebugCmd.hh"
+#include "mgm/proc/admin/EvictCmd.hh"
 #include "mgm/proc/admin/FsCmd.hh"
 #include "mgm/proc/admin/FsckCmd.hh"
 #include "mgm/proc/admin/GroupCmd.hh"
@@ -28,7 +30,6 @@
 #include "mgm/proc/admin/NsCmd.hh"
 #include "mgm/proc/admin/QuotaCmd.hh"
 #include "mgm/proc/admin/SpaceCmd.hh"
-#include "mgm/proc/admin/StagerRmCmd.hh"
 #include "mgm/proc/user/AclCmd.hh"
 #include "mgm/proc/user/NewfindCmd.hh"
 #include "mgm/proc/user/QoSCmd.hh"
@@ -36,7 +37,6 @@
 #include "mgm/proc/user/RmCmd.hh"
 #include "mgm/proc/user/RouteCmd.hh"
 #include "mgm/proc/user/TokenCmd.hh"
-#include "mgm/XrdMgmOfs.hh"
 #include "namespace/interface/IContainerMD.hh"
 #include "namespace/interface/IFileMD.hh"
 #include "namespace/interface/IView.hh"
@@ -2491,7 +2491,7 @@ grpc::Status GrpcWncInterface::Space()
 grpc::Status GrpcWncInterface::StagerRm()
 {
   eos::console::RequestProto req = *mRequest;
-  eos::mgm::StagerRmCmd stagerrmcmd(std::move(req), *mVid);
+  eos::mgm::EvictCmd stagerrmcmd(std::move(req), *mVid);
   *mReply = stagerrmcmd.ProcessRequest();
   return grpc::Status::OK;
 }
