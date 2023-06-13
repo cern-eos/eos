@@ -39,6 +39,8 @@
 #include "mgm/proc/admin/QuotaCmd.hh"
 #include "mgm/proc/admin/SchedCmd.hh"
 #include "mgm/proc/admin/SpaceCmd.hh"
+#include "mgm/proc/admin/EvictCmd.hh"
+#include "mgm/proc/admin/FileRegisterCmd.hh"
 #include "mgm/proc/user/AclCmd.hh"
 #include "mgm/proc/user/DfCmd.hh"
 #include "mgm/proc/user/NewfindCmd.hh"

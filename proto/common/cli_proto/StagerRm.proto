@@ -9,10 +9,5 @@ message StagerRmProto {
     }
   }
 
-  message StagerRmSingleReplicaProto {
-    uint64 fsid = 1;
-  }
-
   repeated FileProto File = 1;
-  StagerRmSingleReplicaProto stagerRmSingleReplica = 2;
 }
