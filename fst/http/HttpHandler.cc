@@ -692,11 +692,16 @@ HttpHandler::Put(eos::common::HttpRequest* request)
         return response;
       } else {
         response = new eos::common::PlainHttpResponse();
-	response->AddHeader("ETag", mFile->GetETag());
 
-        if (header.count("x-oc-mtime") && (mLastChunk ||
-                                           (!header.count("oc-chunked")))) {
+        // Add the etag only if we are not an intermediary chunk upload,
+        // otherwise the cernbox client interprets it as the end of the
+        // transfers and gets an error.
+        if (header.count("x-oc-mtime") == 0) {
+          response->AddHeader("ETag", mFile->GetETag());
+        }
 
+        if (header.count("x-oc-mtime") &&
+            (mLastChunk || (!header.count("oc-chunked")))) {
           // only normal uploads or the last chunk receive these extra response headers
           if (!mOffsetMap.size()) {
             response->AddHeader("X-OC-Mtime", "accepted");
