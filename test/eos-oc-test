@@ -29,7 +29,7 @@ usage() { echo '''Usage: # File: eos-oc-test <method> <name> <dir> [-h|--host <h
                            <methodd>  : only chunkedupload for the time being
                            <name>     : name of the file
                            <dir>      : name of the destination directory
-                           
+
                            [-h|--help] - usage & exit
 '''; }
 
@@ -37,7 +37,7 @@ usage() { echo '''Usage: # File: eos-oc-test <method> <name> <dir> [-h|--host <h
 usage_error () { echo >&2 "$(basename "$0"):  $1"; exit 2; }
 assert_argument () { test "$1" != "$EOL" || usage_error "$2 requires an argument"; }
 
-port="${EOS_HTTPS_PORT:-443}" 
+port="${EOS_HTTPS_PORT:-443}"
 host=$(hostname -f)
 cacert="/etc/grid-security/certificates/rootCA.pem"
 capath="$(dirname "${cacert}")"
@@ -59,7 +59,7 @@ if [ "$#" != 0 ]; then
       -k|--key)     assert_argument "$1" "$opt"; key="$1"; shift;;
       -C|--cacert)  assert_argument "$1" "$opt"; cacert="${1}" && capath="$(dirname "${cacert}")"; shift;;
       -P|--capath)  assert_argument "$1" "$opt"; capath="${1}"; shift;;
-       
+
       -h|--help) usage; exit 0;;
 
       # Arguments processing. You may remove any unneeded line after the 1st.
@@ -75,7 +75,7 @@ if [ "$#" != 0 ]; then
   shift  # $EOL
 fi
 
-echo 
+echo
 
 chunkedupload () {
   echo "# Testing Chunked upload"
@@ -97,16 +97,16 @@ chunkedupload () {
     echo $f
     EOS_FN=`basename $f`
     curl  --capath "${capath}" --cert "${cert}" --cacert "${cacert}" --key "${key}" -L --verbose -k --header "Oc-Chunk-Uuid:$UUID" --header "Oc-Chunk-n:$i" --header "Oc-Chunk-Max:4" --header "OC-Chunked:1" --header "X-OC-Mtime:1402061782" --header "OC-Total-Length:33554432" -T $f $DEST_URL$EOS_FN 2> $f.log
-  
+
     if (( i < $LAST_CHUNK_NUMBER )); then
-      grep -q 'X-OC-Mtime: accepted' $f.log && echo "redundant reply header: 'X-OC-Mtime: accepted" 
+      grep -q 'X-OC-Mtime: accepted' $f.log && echo "err: redundant reply header 'X-OC-Mtime: accepted'"
       grep -q 'X-OC-Mtime: accepted' $f.log && ok=1
       # We are only interested in the final reply from the server if it contains
       # the etag or not.
       grep -A 100 'CREATED' $f.log | grep -q 'ETag: ' && echo "err: redundant reply header 'ETag: '"
       grep -A 100 'CREATED' $f.log | grep -q 'ETag: ' && ok=1
     else
-      grep -q 'X-OC-Mtime: accepted' $f.log || echo "missing required header: 'X-OC-Mtime: accepted" 
+      grep -q 'X-OC-Mtime: accepted' $f.log || echo "err: missing required header 'X-OC-Mtime: accepted'"
       grep -q 'X-OC-Mtime: accepted' $f.log || ok=1
       # We are only interested in the final reply from the server if it contains
       # the etag or not.
@@ -117,7 +117,7 @@ chunkedupload () {
     let i=$i+1
 
   done
-  
+
   if [ $ok -eq 0 ]; then
     curl -v -i HEAD $DEST_URL >& $DIR/$NAME.log
     ok=$?
@@ -129,7 +129,7 @@ chunkedupload () {
 if [ "$#" -eq 3 ] && [ "$1" = "chunkedupload" ]; then
   chunkedupload $2 $3;
   exit $?
-else 
+else
   usage
 fi
 
