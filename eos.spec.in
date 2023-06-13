@@ -161,6 +161,8 @@ BuildRequires: eos-libmicrohttpd, eos-libmicrohttpd-devel >= 0.9.38
 BuildRequires: eos-grpc == %{eos_grpc_version}
 BuildRequires: eos-grpc-devel == %{eos_grpc_version}
 BuildRequires: eos-grpc-plugins == %{eos_grpc_version}
+%else
+BuildRequires: abseil-cpp, abseil-cpp-devel
 %endif
 
 BuildRequires: bzip2-devel
