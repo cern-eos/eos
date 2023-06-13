@@ -5,7 +5,6 @@
 
 namespace eos::mgm::placement {
 
-constexpr int kBaseGroupOffset = -10;
 
 std::map<std::string, std::unique_ptr<ClusterMgr>>
 EosClusterMgrHandler::make_cluster_mgr()

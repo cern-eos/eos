@@ -588,6 +588,95 @@ TEST(FlatScheduler, TLNoSiteExcludeFsids)
   }
 }
 
+TEST(FlatScheduler, ForcedGroup)
+{
+  using namespace eos::mgm::placement;
+  using namespace eos::mgm::placement;
+  eos::mgm::placement::ClusterMgr mgr;
+  int n_elements = 1024;
+  int n_disks_per_group = 16;
+  int n_groups = 32;
+  eos::mgm::placement::FlatScheduler flat_scheduler(2048);
+
+  {
+
+    auto sh = mgr.getStorageHandler(n_elements);
+    ASSERT_TRUE(sh.addBucket(get_bucket_type(StdBucketType::ROOT), 0));
+    for (int i=0; i< n_groups; ++i) {
+      ASSERT_TRUE(sh.addBucket(get_bucket_type(StdBucketType::GROUP),
+                               kBaseGroupOffset-i, 0));
+    }
+
+    for (int i=0; i < n_groups*n_disks_per_group; i++) {
+      ASSERT_TRUE(sh.addDisk(Disk(i+1, ConfigStatus::kRW, ActiveStatus::kOnline, 1),
+                             kBaseGroupOffset - i/n_disks_per_group));
+    }
+
+  }
+  auto cluster_data = mgr.getClusterData();
+  for (int i=0; i<n_groups;i++) {
+    for (auto strategy :{PlacementStrategyT::kRoundRobin,
+                          PlacementStrategyT::kThreadLocalRoundRobin,
+                          PlacementStrategyT::kRandom,
+                          PlacementStrategyT::kWeightedRandom,
+                          PlacementStrategyT::kWeightedRoundRobin}) {
+      PlacementArguments args {2, ConfigStatus::kRW, strategy};
+      args.forced_group_index = i;
+      auto result = flat_scheduler.schedule(cluster_data(),
+                                            args);
+      EXPECT_TRUE(result);
+      EXPECT_TRUE(result.is_valid_placement(2));
+      auto bucket = cluster_data().buckets.at(-kBaseGroupOffset+i);
+      auto bucket_contains = [&bucket](int id) {
+        return std::find(bucket.items.begin(), bucket.items.end(), id) != bucket.items.end();
+      };
+      for (int i = 0; i <2; i++) {
+        EXPECT_TRUE(bucket_contains(result.ids[i]));
+      }
+    }
+  }
+}
+
+TEST(FlatScheduler, ForcedGroupOutofRange)
+{
+  using namespace eos::mgm::placement;
+  using namespace eos::mgm::placement;
+  eos::mgm::placement::ClusterMgr mgr;
+  int n_elements = 1024;
+  int n_disks_per_group = 16;
+  int n_groups = 32;
+  eos::mgm::placement::FlatScheduler flat_scheduler(2048);
+
+  {
+
+    auto sh = mgr.getStorageHandler(n_elements);
+    ASSERT_TRUE(sh.addBucket(get_bucket_type(StdBucketType::ROOT), 0));
+    for (int i=0; i< n_groups; ++i) {
+      ASSERT_TRUE(sh.addBucket(get_bucket_type(StdBucketType::GROUP),
+                               kBaseGroupOffset-i, 0));
+    }
+
+    for (int i=0; i < n_groups*n_disks_per_group; i++) {
+      ASSERT_TRUE(sh.addDisk(Disk(i+1, ConfigStatus::kRW, ActiveStatus::kOnline, 1),
+                             kBaseGroupOffset - i/n_disks_per_group));
+    }
+
+  }
+  auto cluster_data = mgr.getClusterData();
+  for (auto strategy :{PlacementStrategyT::kRoundRobin,
+                       PlacementStrategyT::kThreadLocalRoundRobin,
+                       PlacementStrategyT::kRandom,
+                       PlacementStrategyT::kWeightedRandom,
+                       PlacementStrategyT::kWeightedRoundRobin}) {
+    PlacementArguments args {2, ConfigStatus::kRW, strategy};
+    args.forced_group_index = 4000;
+    auto result = flat_scheduler.schedule(cluster_data(),
+                                          args);
+
+    EXPECT_FALSE(result);
+    EXPECT_EQ(result.error_string(),"Invalid forced group index");
+  }
+}
 
 TEST(FlatScheduler, TLNoSiteUniformWeighted)
 {
