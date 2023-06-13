@@ -157,6 +157,8 @@ BuildRequires: e2fsprogs-devel
 BuildRequires: eos-libmicrohttpd, eos-libmicrohttpd-devel >= 0.9.38
 %endif
 BuildRequires: eos-grpc, eos-grpc-devel, eos-grpc-plugins
+%else
+BuildRequires: abseil-cpp, abseil-cpp-devel
 %endif
 
 BuildRequires: bzip2-devel
