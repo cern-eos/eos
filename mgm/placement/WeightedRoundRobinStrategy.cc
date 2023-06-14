@@ -71,7 +71,8 @@ WeightedRoundRobinPlacement::Impl::placeFiles(const ClusterData& cluster_data,
     }
 
     if (item_id > 0) {
-      if (mItemWeights[args.bucket_id] < args.n_replicas) {
+      if ((mItemWeights[args.bucket_id] < args.n_replicas)
+          || mItemWeights[args.bucket_id] == mItemWeights[item_id]) {
         fill_weights(cluster_data);
       }
 
@@ -112,6 +113,11 @@ WeightedRoundRobinPlacement::Impl::placeFiles(const ClusterData& cluster_data,
       }
     }
     result.ids[items_added++] = item_id;
+  }
+  if (items_added != args.n_replicas) {
+    result.err_msg = "Failed to place files!";
+    result.ret_code = ENOSPC;
+    return result;
   }
   result.ret_code = 0;
   return result;
