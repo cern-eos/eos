@@ -703,6 +703,8 @@ HttpHandler::Put(eos::common::HttpRequest* request)
         if (header.count("x-oc-mtime") &&
             (mLastChunk || (!header.count("oc-chunked")))) {
           // only normal uploads or the last chunk receive these extra response headers
+          response->AddHeader("ETag", mFile->GetETag());
+
           if (!mOffsetMap.size()) {
             response->AddHeader("X-OC-Mtime", "accepted");
             // return the OC-FileId header
