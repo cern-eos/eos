@@ -143,4 +143,5 @@ message FileRegisterProto {
   int32    layoutid = 11;
   bool     update = 12;
   repeated uint32 locations = 13;
+  bool     atimeIfNewer = 14;
 }
