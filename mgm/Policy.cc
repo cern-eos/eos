@@ -86,7 +86,7 @@ Policy::GetDefaultSizeFactor(std::shared_ptr<eos::IContainerMD> cmd)
                     iopriority,
                     iotype,
                     isrw,
-                    true,
+                    false,
                     &atimeage);
   double f = eos::common::LayoutId::GetSizeFactor(layoutid);
   return f ? f : 1.0;
