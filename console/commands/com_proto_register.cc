@@ -130,6 +130,15 @@ RegisterHelper::ParseCommand(const char* arg)
 	}
 	reg->mutable_atime()->set_sec(ts.tv_sec);
 	reg->mutable_atime()->set_nsec(ts.tv_nsec);
+      } else if (param.substr(0,13) == "atimeifnewer=") {	
+	std::string t = param.substr(13);
+	struct timespec ts;
+	if (eos::common::Timing::Timespec_from_TimespecStr(t,ts)) {
+	  return false;
+	}
+	reg->mutable_atime()->set_sec(ts.tv_sec);
+	reg->mutable_atime()->set_nsec(ts.tv_nsec);
+	reg->set_atimeifnewer(true);
       } else if (param.substr(0,6) == "btime=") {
 	std::string t = param.substr(6);
 	struct timespec ts;
@@ -229,6 +238,6 @@ void com_register_help()
   oss << "             attr=\"sys.acl=u:100:rwx\"" << std::endl;
   oss << "             attr=\"user.md=private\"" << std::endl;
   oss << "             path=\"/eos/newfile\"   # can be used instead of the regular path argument of the path" << std::endl;
-						  
+  oss << "             atimeifnewer=1670334863.101233  # only update if this atime is newer than the existing one!" << std::endl;
   std::cerr << oss.str() << std::endl;
 }
