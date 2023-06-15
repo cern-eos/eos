@@ -96,12 +96,11 @@ Policy::GetDefaultSizeFactor(std::shared_ptr<eos::IContainerMD> cmd)
                     iopriority,
                     iotype,
                     isrw,
-                    true,
+                    false,
                     true,
                     &atimeage);
-
   double f = eos::common::LayoutId::GetSizeFactor(layoutid);
-  return f?f:1.0;
+  return f ? f : 1.0;
 }
 
 /*----------------------------------------------------------------------------*/
@@ -534,9 +533,9 @@ Policy::GetPlctPolicy(const char* path,
   }
 
   targetgeotag = policyString.substr(seppos + 1);
-
   // Check if geotag is valid
   std::string tmp_geotag = eos::common::SanitizeGeoTag(targetgeotag);
+
   if (tmp_geotag != targetgeotag) {
     eos_static_warning("%s", tmp_geotag.c_str());
     return;

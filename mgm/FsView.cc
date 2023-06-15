@@ -1178,6 +1178,7 @@ std::string FsView::Df(bool monitoring, bool si, bool readable,
     std::shared_ptr<eos::IContainerMD> cmd;
     // Prefetch path
     eos::Prefetcher::prefetchItemAndWait(gOFS->eosView, path, false);
+    eos::common::RWMutexReadLock viewlock(ViewMutex);
     eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
 
     try {
