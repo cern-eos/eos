@@ -326,15 +326,20 @@ FileInspector::Process(std::shared_ptr<eos::IFileMD> fmd)
   {
     // create access time distributions
     set<int>::reverse_iterator rev_it;
+    eos::IFileMD::ctime_t atime;
+    fmd->getATime(atime);
 
-    for (auto rev_it = time_bin.rbegin(); rev_it != time_bin.rend(); rev_it++) {
-      eos::IFileMD::ctime_t atime;
-      fmd->getATime(atime);
-
-      if ((timeCurrentScan - (int64_t)atime.tv_sec) >= (int64_t) *rev_it) {
-        currentAccessTimeFiles[(uint64_t)*rev_it]++;
-        currentAccessTimeVolume[*rev_it] += fmd->getSize();
-        break;
+    // future access time goes to bin 0
+    if (atime.tv_sec > timeCurrentScan) {
+      currentAccessTimeFiles[0]++;
+      currentAccessTimeVolume[0] += fmd->getSize();
+    } else {
+      for (auto rev_it = time_bin.rbegin(); rev_it != time_bin.rend(); rev_it++) {
+	if ((timeCurrentScan - (int64_t)atime.tv_sec) >= (int64_t) *rev_it) {
+	  currentAccessTimeFiles[(uint64_t)*rev_it]++;
+	  currentAccessTimeVolume[*rev_it] += fmd->getSize();
+	  break;
+	}
       }
     }
   }
@@ -342,18 +347,23 @@ FileInspector::Process(std::shared_ptr<eos::IFileMD> fmd)
     // create birth time distributions
     set<int>::reverse_iterator rev_it;
 
-    for (auto rev_it = time_bin.rbegin(); rev_it != time_bin.rend(); rev_it++) {
-      eos::IFileMD::ctime_t btime {0, 0};
-      eos::IFileMD::XAttrMap xattrs = fmd->getAttributes();
-
-      if (xattrs.count("sys.eos.btime")) {
-        eos::common::Timing::Timespec_from_TimespecStr(xattrs["sys.eos.btime"], btime);
-      }
-
-      if ((timeCurrentScan - (int64_t)btime.tv_sec) >= (int64_t) *rev_it) {
-        currentBirthTimeFiles[(uint64_t)*rev_it]++;
-        currentBirthTimeVolume[*rev_it] += fmd->getSize();
-        break;
+    eos::IFileMD::ctime_t btime {0, 0};
+    eos::IFileMD::XAttrMap xattrs = fmd->getAttributes();
+    if (xattrs.count("sys.eos.btime")) {
+      eos::common::Timing::Timespec_from_TimespecStr(xattrs["sys.eos.btime"], btime);
+    }
+    
+    // future birth time goes to bin 0
+    if (btime.tv_sec > timeCurrentScan) {
+      currentBirthTimeFiles[0]++;
+      currentBirthTimeVolume[0] += fmd->getSize();
+    } else {
+      for (auto rev_it = time_bin.rbegin(); rev_it != time_bin.rend(); rev_it++) {
+	if ((timeCurrentScan - (int64_t)btime.tv_sec) >= (int64_t) *rev_it) {
+	  currentBirthTimeFiles[(uint64_t)*rev_it]++;
+	  currentBirthTimeVolume[*rev_it] += fmd->getSize();
+	  break;
+	}
       }
     }
   }
