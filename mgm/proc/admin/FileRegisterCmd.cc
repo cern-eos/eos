@@ -151,8 +151,6 @@ FileRegisterCmd::ProcessRequest() noexcept
 	} else {
 	  fmd->setATime(tvp);
 	}
-      } else {
-	fmd->setATime(tvp);
       }
 
       if (reg.btime().sec()) {
