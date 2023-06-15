@@ -101,13 +101,17 @@ chunkedupload () {
     if (( i < $LAST_CHUNK_NUMBER )); then
       grep -q 'X-OC-Mtime: accepted' $f.log && echo "redundant reply header: 'X-OC-Mtime: accepted" 
       grep -q 'X-OC-Mtime: accepted' $f.log && ok=1
-      grep -q 'ETag: ' $f.log && echo "err: redundant reply header 'ETag: '"
-      grep -q 'ETag: ' $f.log && ok=1
+      # We are only interested in the final reply from the server if it contains
+      # the etag or not.
+      grep -A 100 'CREATED' $f.log | grep -q 'ETag: ' && echo "err: redundant reply header 'ETag: '"
+      grep -A 100 'CREATED' $f.log | grep -q 'ETag: ' && ok=1
     else
       grep -q 'X-OC-Mtime: accepted' $f.log || echo "missing required header: 'X-OC-Mtime: accepted" 
       grep -q 'X-OC-Mtime: accepted' $f.log || ok=1
-      grep -q 'ETag: ' $f.log || echo "err: missing required reply header 'ETag: '"
-      grep -q 'ETag: ' $f.log || ok=1
+      # We are only interested in the final reply from the server if it contains
+      # the etag or not.
+      grep -A 100 'CREATED' $f.log | grep -q 'ETag: ' || echo "err: missing required reply header 'ETag: '"
+      grep -A 100 'CREATED' $f.log | grep -q 'ETag: ' || ok=1
     fi
 
     let i=$i+1
