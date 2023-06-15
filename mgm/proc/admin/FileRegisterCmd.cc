@@ -133,11 +133,26 @@ FileRegisterCmd::ProcessRequest() noexcept
       }
 
       if (reg.atime().sec()) {
-        // add atime
-        struct timespec tvp;
-        tvp.tv_sec = reg.atime().sec();
-        tvp.tv_nsec = reg.atime().nsec();
-        fmd->setATime(tvp);
+	// add atime
+	struct timespec tvp;
+	struct timespec tvnow;
+	tvp.tv_sec = reg.atime().sec();
+	tvp.tv_nsec = reg.atime().nsec();
+
+	if (reg.atimeifnewer()) {
+	  // only update if the input atime is actually newer than the existing one
+	  fmd->getATime(tvnow);
+	  if ( (tvp.tv_sec > tvnow.tv_sec) ||
+	       ( (tvp.tv_sec == tvnow.tv_sec) && (tvp.tv_nsec > tvnow.tv_nsec) ) ) {
+	    fmd->setATime(tvp);
+	  } else {
+	    reply.set_std_out("warning: atime is not newer than existing one");
+	  }
+	} else {
+	  fmd->setATime(tvp);
+	}
+      } else {
+	fmd->setATime(tvp);
       }
 
       if (reg.btime().sec()) {
