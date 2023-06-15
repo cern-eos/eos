@@ -164,7 +164,7 @@ target_link_libraries(EosCommon-Objects PUBLIC
   LIBBFD::LIBBFD
   LIBBFD::IBERTY
   GOOGLE::SPARSEHASH
-  ABSL::ABSL
+  ${ABSL_LIBRARIES}
   ${CMAKE_THREAD_LIBS_INIT})
 
 set_target_properties(EosCommon-Objects PROPERTIES
@@ -202,7 +202,7 @@ set(EosCommonLinkLibs
   XROOTD::CL
   UUID::UUID
   ZLIB::ZLIB
-  ABSL::ABSL
+  ${ABSL_LIBRARIES}
   NCURSES::NCURSES)
 
 if (CHARCONV_FOUND)
