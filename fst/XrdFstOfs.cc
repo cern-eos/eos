@@ -896,8 +896,6 @@ XrdFstOfs::Configure(XrdSysError& Eroute, XrdOucEnv* envP)
       NoGo = 1;
       return NoGo;
     }
-
-    RequestBroadcasts();
   }
 
   // Attach Storage to the meta log dir
@@ -910,6 +908,12 @@ XrdFstOfs::Configure(XrdSysError& Eroute, XrdOucEnv* envP)
     Eroute.Emsg("Config", "cannot setup meta data storage using directory: ",
                 gConfig.FstMetaLogDir.c_str());
     return 1;
+  }
+
+  // Request broadcasts after the Communicator thread is started inside the
+  // Storage class otherwise we might miss the updates
+  if (!mMessagingRealm->haveQDB()) {
+    RequestBroadcasts();
   }
 
   // Start dumper thread
