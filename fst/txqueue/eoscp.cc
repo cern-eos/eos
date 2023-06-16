@@ -43,6 +43,7 @@
 #include "common/XrdErrorMap.hh"
 #include "common/Timing.hh"
 #include "common/SymKeys.hh"
+#include "common/StringSplit.hh"
 #include "fst/layout/RaidDpLayout.hh"
 #include "fst/layout/ReedSLayout.hh"
 #include "fst/io/AsyncMetaHandler.hh"
@@ -122,6 +123,8 @@ char* buffer = NULL; ///< used for doing the reading
 bool first_time = true; ///< first time prefetch two blocks
 bool nooverwrite = false; ///< buy default we overwrite the target files
 int gtimeout = 0; ///< copy process timeout in seconds
+int cksumcomparison = 0; ///< performs a checksum comparison between the source and the destination, returns an error to the user in the case it happens
+int cksummismatchdelete = 0; ///< performs a deletion of the destination file if the checksum of the source and the destination mismatch
 
 //..............................................................................
 // RAID related variables
@@ -147,10 +150,10 @@ std::string src_lasturl;
 //..............................................................................
 // Checksum variables
 //..............................................................................
-int kXS = 0;
 off_t offsetXS = 0;
 bool computeXS = false;
 std::string xsString = "";
+std::string xsValue = "";
 std::unique_ptr<eos::fst::CheckSum> xsObj;
 
 
@@ -233,6 +236,8 @@ usage()
   fprintf(stderr,
           "       -0           : RAID layouts - don't use parallel IO mode\n");
   fprintf(stderr, "       -x           : don't overwrite an existing file\n");
+  fprintf(stderr, "       -C           : fail if checksum comparison between source and destination fails (XRootD destination only)\n");
+  fprintf(stderr, "       -E           : automatically delete the destination file if checksum comparison between source and destination fails (XRootD destination only) \n");
   exit(-1);
 }
 
@@ -392,7 +397,12 @@ print_summary(VectLocationType& src,
   }
 
   if (!monitoring) {
-    COUT(("[eoscp] # Data Copied [bytes]      : %lld\n", bytesread));
+    // This is a quick-and-dirty trick to keep the ':' after the checksum type label aligned with the rest
+    // of the output (part 1)
+    std::string key = "[eoscp] # Data Copied [bytes]      ";
+    const size_t keyLen = key.size();
+    key += ": %lld\n";
+    COUT((key.c_str(), bytesread));
 
     if (ndst > 1) {
       COUT(("[eoscp] # Tot. Data Copied [bytes] : %lld\n", bytesread * ndst));
@@ -420,8 +430,15 @@ print_summary(VectLocationType& src,
     }
 
     if (computeXS) {
-      COUT(("[eoscp] # Checksum Type %s        : ", xsString.c_str()));
-      COUT(("%s", xsObj->GetHexChecksum()));
+      // This is a quick-and-dirty trick to keep the ':' after the checksum type label aligned with the rest
+      // of the output (part 2)
+      std::string cksumTypeTitle = "[eoscp] # Checksum Type " + xsString;
+      size_t paddingSize = int(keyLen - cksumTypeTitle.length()) > 0 ? keyLen - cksumTypeTitle.length() : 0;
+      if(paddingSize) {
+        cksumTypeTitle += std::string(paddingSize,' ');
+      }
+      COUT(((cksumTypeTitle + std::string(": ")).c_str()));
+      COUT(("%s", xsValue.c_str()));
       COUT(("\n"));
     }
 
@@ -469,7 +486,7 @@ print_summary(VectLocationType& src,
 
     if (computeXS) {
       COUT(("checksum_type=%s ", xsString.c_str()));
-      COUT(("checksum=%s ", xsObj->GetHexChecksum()));
+      COUT(("checksum=%s ", xsValue.c_str()));
     }
 
     COUT(("write_start=%lld ", startwritebyte));
@@ -553,6 +570,61 @@ write_progress(unsigned long long bytesread, unsigned long long size)
   }
 }
 
+struct CompareCksumResult {
+  bool cksumMismatch = true;
+  uint32_t xrdErrno = 0;
+  std::string errMsg = "";
+};
+
+CompareCksumResult compareChecksum(XrdCl::FileSystem & fs,const std::string & destFilePath, std::string srcCksumType, const std::string & srcCksumValue) {
+  CompareCksumResult result;
+  // Get the checksum of the file that got uploaded to the destination
+  std::unique_ptr<XrdCl::Buffer> response_sp;
+  XrdCl::Buffer * response = response_sp.get();
+  if(srcCksumType == "adler") {
+    // xrootd adler32 checksum is called "adler32"
+    srcCksumType = "adler32";
+  }
+  XrdCl::Buffer arg;
+  arg.FromString(destFilePath + "?cks.type=" + srcCksumType);
+  XrdCl::XRootDStatus status = fs.Query(XrdCl::QueryCode::Checksum,arg,response);
+  if(status.IsOK()) {
+    // we got the checksum of the destination file
+    // compare the checksums between source and destination
+    std::string queryCksumResp = response->GetBuffer();
+    auto splittedResp = eos::common::StringSplit(queryCksumResp," ");
+    if(splittedResp.size() == 2) {
+      // The checksum response we received has a proper format
+      const std::string destCksumType(splittedResp[0]);
+      const std::string destCksumValue(splittedResp[1]);
+      if(destCksumType == srcCksumType) {
+        // Same checksum type between the source and the destination
+        if(destCksumValue == srcCksumValue) {
+          // Checksum match!
+          result.cksumMismatch = false;
+        } else {
+          // Checksum mismatch
+          result.xrdErrno = EIO;
+          result.errMsg = "error: checksum mismatch between source (" + srcCksumValue + ") and destination (" + destCksumValue + ")";
+        }
+      } else {
+        // Different checksum type between source and destination
+        result.errMsg = "error while extracting destination checksum: received a different checksum type from the destination (" + destCksumType + ") compared to the one computed on the source (" + srcCksumType + ")";
+        result.xrdErrno = EINVAL;
+      }
+    } else {
+      // Wrong response format received
+      result.errMsg = "error while extracting the destination checksum: expected 'destCksumType destCksumValue', received:" + queryCksumResp;
+      result.xrdErrno = EINVAL;
+    }
+  } else {
+    // Problem while querying the destination checksum
+    result.errMsg = "error while getting the destination checksum: " + status.ToStr();
+    result.xrdErrno = status.errNo;
+  }
+  return result;
+}
+
 
 //------------------------------------------------------------------------------
 // Abort handler
@@ -596,7 +668,7 @@ main(int argc, char* argv[])
                                       8);  // needed for high performance on 100GE
 
   while ((c = getopt(argc, argv,
-                     "nshxdvlipfce:P:X:b:m:u:g:t:S:D:5aA:r:N:L:RT:O:V0q:")) != -1) {
+                     "CEnshxdvlipfce:P:X:b:m:u:g:t:S:D:5aA:r:N:L:RT:O:V0q:")) != -1) {
     switch (c) {
     case 'v':
       verbose = 1;
@@ -853,6 +925,14 @@ main(int argc, char* argv[])
       isStreamFile = true;
       break;
 
+    case 'C':
+      cksumcomparison = 1;
+      break;
+
+    case 'E':
+      cksummismatchdelete = 1;
+      break;
+
     case 'h':
     default:
       usage();
@@ -942,6 +1022,17 @@ main(int argc, char* argv[])
 
   if (verbose || debug) {
     fprintf(stdout, "\n");
+  }
+
+  if(cksumcomparison || cksummismatchdelete) {
+    if(src_location.size() != 1 && dst_location.size() != 1) {
+      fprintf(stderr,"error: only one source and one destination can be provided if the destination checksum check option is enabled (-C or -E)\n");
+      exit(-EINVAL);
+    }
+    if(cksummismatchdelete && !cksumcomparison){
+      fprintf(stderr,"error: source and destination checksum comparison (-C) not enabled, automatic deletion option (-E) cannot be enabled\n");
+      exit(-EINVAL);
+    }
   }
 
   //.............................................................................
@@ -1232,6 +1323,18 @@ main(int argc, char* argv[])
       }
 
       fprintf(stdout, "\n");
+    }
+  }
+
+  if(cksumcomparison) {
+    size_t dst_type_sz = dst_type.size();
+    if(dst_type_sz > 1) {
+      fprintf(stderr, "error: too many destination provided. Checksum comparison between source and destination cannot be enabled.\n");
+      exit(-EINVAL);
+    }
+    if(dst_type_sz == 1 && dst_type[0] != XRD_ACCESS) {
+      fprintf(stderr,"error: source and checksum comparison (-C) only allowed for destination using root protocol.\n");
+      exit(-EINVAL);
     }
   }
 
@@ -2374,6 +2477,7 @@ main(int argc, char* argv[])
 
   if (computeXS && xsObj) {
     xsObj->Finalize();
+    xsValue = xsObj->GetHexChecksum();
   }
 
   if (progbar) {
@@ -2540,6 +2644,33 @@ main(int argc, char* argv[])
             write_wait);
   }
 
+  if(cksumcomparison) {
+    // The client asked for some checksum comparison between the source and the destination
+    std::string destServer = dst_location[0].first;
+    std::string destFilePath = dst_location[0].second;
+    XrdCl::URL url(destServer);
+    // No need to check the URL consistency as the transfer already happened
+    XrdCl::FileSystem fs(url);
+    CompareCksumResult res = compareChecksum(fs, destFilePath, xsString, xsValue);
+    if (res.cksumMismatch) {
+      // Checksum mismatch, print related error
+      fprintf(stderr,"%s\n", res.errMsg.c_str());
+      if (cksummismatchdelete) {
+        // The user wants to delete the file if the checksum mismatch between source and destination
+        fprintf(stderr, "Deleting the file from the destination %s%s\n",
+                destServer.c_str(), destFilePath.c_str());
+        status = fs.Rm(destFilePath);
+        if (!status.IsOK()) {
+          fprintf(stderr,
+                  "error while trying to delete the file from the destination (%s): %s\n",
+                  destFilePath.c_str(), status.ToStr().c_str());
+          exit(-status.errNo ? -status.errNo : -1);
+        }
+      }
+      // Just return the error code set during the checksum checking
+      exit(-res.xrdErrno ? -res.xrdErrno : -1);
+    }
+  }
   // Free memory
   delete[] buffer;
 
