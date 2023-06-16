@@ -16,6 +16,22 @@ Introduction
 This release is based on XRootD V4 and IPV6 enabled.
 
 
+``v4.8.103 Citrine``
+===================
+
+2023-06-15
+
+Bug
+----
+
+* MGM: Fix error when deleting 0-sized files with CTA workflow
+
+Improvement
+------------
+
+* EOS-5671 - MGM/CONSOLE/PROTO: add '-n | --no-workflow' option to deletions to not invoke workflows on request
+
+
 ``v4.8.102 Citrine``
 ===================
 
