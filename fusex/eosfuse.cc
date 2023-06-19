@@ -247,7 +247,7 @@ EosFuse::run(int argc, char* argv[], void* userdata)
   XrdCl::Env* env = XrdCl::DefaultEnv::GetEnv();
   env->PutInt("RunForkHandler", 1);
   env->PutInt("ParallelEvtLoop", 3);
-  env->PutInt("WorkerThreads", 10);
+  env->PutInt("WorkerThreads", 10); 
   struct fuse_args args = FUSE_ARGS_INIT(argc, argv);
   fuse_opt_parse(&args, NULL, NULL, NULL);
 #ifndef USE_FUSE3
@@ -257,6 +257,7 @@ EosFuse::run(int argc, char* argv[], void* userdata)
 #endif
   int err = 0;
   std::string no_fsync_list;
+  std::string pio_suffixes_list;
   std::string nowait_flush_exec_list;
   // check the fsname to choose the right JSON config file
   std::string fsname = "";
@@ -650,6 +651,14 @@ EosFuse::run(int argc, char* argv[], void* userdata)
       if (!root["options"].isMember("hide-versions")) {
         root["options"]["hide-versions"] = 1;
       }
+      
+      if (!root["options"].isMember("pio")) {
+        root["options"]["pio"] = 1;
+      }
+
+      if (!root["options"].isMember("pio-min-size")) {
+        root["options"]["pio-min-size"] = 100*1024*1024;
+      }
 
       if (!root["auth"].isMember("krb5")) {
         root["auth"]["krb5"] = 1;
@@ -733,6 +742,12 @@ EosFuse::run(int argc, char* argv[], void* userdata)
         root["options"]["no-fsync"].append(".db3");
         root["options"]["no-fsync"].append(".db3-journal");
         root["options"]["no-fsync"].append(".o");
+      }
+
+
+      if (!root["options"].isMember("pio-suffixes")) {
+        root["options"]["pio-suffixes"].append(".root");
+        root["options"]["pio-suffixes"].append(".raw");
       }
 
       if (!root["options"].isMember("flush-nowait-executables")) {
@@ -919,6 +934,8 @@ EosFuse::run(int argc, char* argv[], void* userdata)
       root["options"]["rm-rf-bulk"].asInt();
     config.options.show_tree_size = root["options"]["show-tree-size"].asInt();
     config.options.hide_versions = root["options"]["hide-versions"].asInt();
+    config.options.pio = root["options"]["pio"].asInt();
+    config.options.pio_min_size = root["options"]["pio-min-size"].asInt();
     config.options.protect_directory_symlink_loops =
       root["options"]["protect-directory-symlink-loops"].asInt();
     config.options.cpu_core_affinity = root["options"]["cpu-core-affinity"].asInt();
@@ -1016,6 +1033,13 @@ EosFuse::run(int argc, char* argv[], void* userdata)
       config.options.no_fsync_suffixes.push_back(it->asString());
       no_fsync_list += it->asString();
       no_fsync_list += ",";
+    }
+
+    for (Json::Value::iterator it = root["options"]["pio-suffixes"].begin();
+         it != root["options"]["pio-suffixes"].end(); ++it) {
+      config.options.pio_suffixes.push_back(it->asString());
+      pio_suffixes_list += it->asString();
+      pio_suffixes_list += ",";
     }
 
     for (Json::Value::iterator it =
@@ -1791,7 +1815,7 @@ EosFuse::run(int argc, char* argv[], void* userdata)
         eos_static_warning("sss-keytabfile         := %s", config.ssskeytab.c_str());
       }
 
-      eos_static_warning("options                := backtrace=%d md-cache:%d md-enoent:%.02f md-timeout:%.02f md-put-timeout:%.02f data-cache:%d rename-sync:%d rmdir-sync:%d flush:%d flush-w-open:%d flush-w-open-sz:%ld flush-w-umount:%d locking:%d no-fsync:%s flush-nowait-exec:%s ol-mode:%03o show-tree-size:%d hide-versions:%d protect-symlink-loops:%d core-affinity:%d no-xattr:%d no-eos-xattr-listing: %d no-link:%d nocache-graceperiod:%d rm-rf-protect-level=%d rm-rf-bulk=%d t(lease)=%d t(size-flush)=%d submounts=%d ino(in-mem)=%d flock:%d",
+      eos_static_warning("options                := backtrace=%d md-cache:%d md-enoent:%.02f md-timeout:%.02f md-put-timeout:%.02f data-cache:%d rename-sync:%d rmdir-sync:%d flush:%d flush-w-open:%d flush-w-open-sz:%ld flush-w-umount:%d locking:%d no-fsync:%s pio-suffixes:%s flush-nowait-exec:%s ol-mode:%03o show-tree-size:%d hide-versions:%d protect-symlink-loops:%d core-affinity:%d no-xattr:%d no-eos-xattr-listing: %d no-link:%d nocache-graceperiod:%d rm-rf-protect-level=%d rm-rf-bulk=%d t(lease)=%d t(size-flush)=%d submounts=%d ino(in-mem)=%d flock:%d",
                          config.options.enable_backtrace,
                          config.options.md_kernelcache,
                          config.options.md_kernelcache_enoent_timeout,
@@ -1806,6 +1830,7 @@ EosFuse::run(int argc, char* argv[], void* userdata)
                          config.options.flush_wait_umount,
                          config.options.global_locking,
                          no_fsync_list.c_str(),
+			 pio_suffixes_list.c_str(),
                          nowait_flush_exec_list.c_str(),
                          config.options.overlay_mode,
                          config.options.show_tree_size,
@@ -4514,6 +4539,8 @@ EosFuse::open(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info* fi)
             std::string md_name = (*md)()->name();
             uint64_t md_ino = (*md)()->md_ino();
             uint64_t md_pino = (*md)()->md_pino();
+	    uint64_t md_size = (*md)()->size();
+	    
             std::string cookie = md->Cookie();
 
             if ((*md)()->attr().count("sys.file.cache")) {
@@ -4546,12 +4573,27 @@ EosFuse::open(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info* fi)
             capLock.UnLock();
             // attach a datapool object
             fi->fh = (uint64_t) io;
+
+	    // logic to enable PIO for RAIN files
+	    bool request_pio = Instance().Config().options.pio;
+	    if (request_pio) {
+	      if (!filename::matches_suffix(md_name,
+					    Instance().Config().options.pio_suffixes)) {
+		request_pio = false;
+	      } else {
+		if (md_size < Instance().Config().options.pio_min_size)  {
+		  request_pio = false;
+		}
+	      }
+	    }
+
             io->ioctx()->set_remote(Instance().Config().hostport,
                                     md_name,
                                     md_ino,
                                     md_pino,
                                     req,
-                                    (mode == U_OK));
+                                    (mode == U_OK),
+				    request_pio);
             bool outdated = (io->ioctx()->attach(req, cookie,
                                                  fi->flags | cache_flag) == EKEYEXPIRED);
             fi->keep_cache = outdated ? 0 : Instance().Config().options.data_kernelcache;

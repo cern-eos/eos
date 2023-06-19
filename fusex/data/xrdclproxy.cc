@@ -485,6 +485,7 @@ XrdCl::Proxy::OpenAsync(XrdCl::shared_proxy proxy,
 
   if (!status.IsOK()) {
   } else {
+    set_state(OPENING);
     XOpenAsyncHandler.SetProxy(proxy);
     status = Open(url.c_str(),
                   flags,
@@ -493,9 +494,7 @@ XrdCl::Proxy::OpenAsync(XrdCl::shared_proxy proxy,
                   timeout);
   }
 
-  if (status.IsOK()) {
-    set_state(OPENING);
-  } else {
+  if (!status.IsOK()) {
     eos_err("url=%s flags=%x mode=%x state=failed errmsg=%s", url.c_str(),
             (int) flags, (int) mode, status.ToString().c_str());
     XOpenAsyncHandler.SetProxy(0);
@@ -516,7 +515,10 @@ XrdCl::Proxy::OpenAsyncHandler::HandleResponseWithHosts(
 {
   eos_static_debug("");
   {
-    XrdSysCondVarHelper openLock(proxy()->OpenCondVar());
+    XrdSysCondVar localCond(0);
+    bool syncCallBack = (status->IsOK() && (hostList==0));
+    
+    XrdSysCondVarHelper openLock(!syncCallBack?proxy()->OpenCondVar():localCond);
     XRootDStatus fuzzingstatus = proxy()->fuzzing().OpenAsyncResponseFuzz();
 
     if (!fuzzingstatus.IsOK()) {
@@ -553,7 +555,7 @@ XrdCl::Proxy::OpenAsyncHandler::HandleResponseWithHosts(
       }
 
       writeLock.UnLock();
-      openLock.Lock(&proxy()->OpenCondVar());
+      openLock.Lock(syncCallBack?&localCond:&proxy()->OpenCondVar());
     } else {
       eos_static_err("state=failed async open returned errmsg=%s",
                      status->ToString().c_str());
@@ -567,7 +569,7 @@ XrdCl::Proxy::OpenAsyncHandler::HandleResponseWithHosts(
       proxy()->set_state(FAILED, status);
     }
 
-    proxy()->OpenCondVar().Signal();
+    if (!syncCallBack) {proxy()->OpenCondVar().Signal();}
     delete hostList;
     delete status;
 
@@ -621,15 +623,20 @@ XrdCl::Proxy::CloseAsync(XrdCl::shared_proxy proxy, uint16_t timeout)
   if ((state() == OPENED) ||
       (state() == WAITWRITE)) {
     XCloseAsyncHandler.SetProxy(proxy);
-    XrdCl::XRootDStatus status = XrdCl::File::Close(&XCloseAsyncHandler,
-                                 timeout);
-
+    XRootDStatus status(XrdCl::stOK,
+			0,
+			0,
+			"closing"
+			);
+    
+    set_state(CLOSING, &status);
+    status = XrdCl::File::Close(&XCloseAsyncHandler,
+				timeout);
+    
     if (!status.IsOK()) {
       eos_err("state=failed closeasync errms=%s", status.ToString().c_str());
       set_state(FAILED, &status);
       XCloseAsyncHandler.SetProxy(0);
-    } else {
-      set_state(CLOSING, &status);
     }
   } else {
     eos_crit("%x closing an unopened file state=%d url=%s\n", this, state(),
@@ -731,8 +738,9 @@ XrdCl::Proxy::CloseAsyncHandler::HandleResponse(XrdCl::XRootDStatus* status,
 {
   eos_static_debug("");
   {
-    XrdSysCondVarHelper lLock(mProxy->OpenCondVar());
-
+    XrdSysCondVar localCond(0);
+    bool syncCallBack = (status->IsOK() && (response==0));
+    XrdSysCondVarHelper lLock(!syncCallBack?proxy()->OpenCondVar():localCond);	
     if (!status->IsOK()) {
       // if the open failed before, we leave the open failed state here
       if (!mProxy->isDeleted()) {

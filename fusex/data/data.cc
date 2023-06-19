@@ -890,6 +890,11 @@ data::datax::prefetch(fuse_req_t req, bool lock)
     return true;
   }
 
+  if (pio()) {
+    // never pretech pio(direct EC reads)
+    return false;
+  }
+  
   if (lock) {
     mLock.Lock();
   }
@@ -2933,7 +2938,8 @@ data::datax::set_remote(const std::string& hostport,
                         const uint64_t md_ino,
                         const uint64_t md_pino,
                         fuse_req_t req,
-                        bool isRW)
+                        bool isRW,
+			bool isPIO)
 /* -------------------------------------------------------------------------- */
 {
   eos_info("");
@@ -2973,6 +2979,10 @@ data::datax::set_remote(const std::string& hostport,
     // we don't check checksums in read, because we might read a file which is open and it does not have
     // a final checksum when we read over the end
     remoteurl += "&eos.checksum=ignore";
+    if (isPIO) {
+      remoteurl += "&eos.pio=1";
+      mPio = true;
+    }
   }
 
   XrdCl::URL url(remoteurl);

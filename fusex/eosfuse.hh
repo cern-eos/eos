@@ -288,8 +288,11 @@ public:
       bool flock;
       bool hide_versions;
       std::vector<std::string> no_fsync_suffixes;
+      std::vector<std::string> pio_suffixes;
+      uint32_t pio_min_size;
       std::vector<std::string> nowait_flush_executables;
       bool protect_directory_symlink_loops;
+      bool pio;
     } options_t;
 
     typedef struct recovery

@@ -45,6 +45,9 @@
     "write-size-flush-interval" : 10,
     "submounts" : 0,
     "inmemory-inodes" : 16384
+    "pio" : 1,
+    "pio-min-size" : 100000000,
+    "pio-suffixes : [ ".root", ".raw" ],
   },
   "auth" : {
     "shared-mount" : 1,

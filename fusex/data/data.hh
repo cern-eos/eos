@@ -60,14 +60,14 @@ public:
   //----------------------------------------------------------------------------
   {
   public:
-
+    
     datax() : mIno(0), mReq(0), mFile(0), mSize(0), mAttached(0), mMd(0),
-      mPrefetchHandler(0),
-      mSimulateWriteErrorInFlush(false),
-      mSimulateWriteErrorInFlusher(false),
-      mFlags(0), mXoff(false), mIsInlined(false), mInlineMaxSize(0),
-      mInlineCompressor("none"), mIsUnlinked(false),
-      mCanRecoverRead(true)
+	      mPrefetchHandler(0),
+	      mSimulateWriteErrorInFlush(false),
+	      mSimulateWriteErrorInFlusher(false),
+	      mFlags(0), mXoff(false), mIsInlined(false), mInlineMaxSize(0),
+	      mInlineCompressor("none"), mIsUnlinked(false),
+	      mCanRecoverRead(true), mPio(false)
 
     {
       inline_buffer = nullptr;
@@ -136,7 +136,8 @@ public:
                     const uint64_t md_ino,
                     const uint64_t md_pino,
                     fuse_req_t req,
-                    bool isRW);
+                    bool isRW,
+		    bool isPIO=false);
 
     // IO bridge interface
     ssize_t pread(fuse_req_t req, void* buf, size_t count, off_t offset);
@@ -233,6 +234,11 @@ public:
       return mIsInlined;
     }
 
+    bool pio()
+    {
+      return mPio;
+    }
+       
     static std::string kInlineAttribute;
     static std::string kInlineMaxSize;
     static std::string kInlineCompressor;
@@ -307,6 +313,7 @@ public:
     bufferllmanager::shared_buffer inline_buffer;
     bool mIsUnlinked;
     bool mCanRecoverRead;
+    bool mPio;
   };
 
   typedef std::shared_ptr<datax> shared_data;
