@@ -108,7 +108,7 @@ FmdConverter::Convert(eos::common::FileSystem::fsid_t fsid, std::string path)
   }
 
   bool status = mTgtFmdHandler->ConvertFrom(fid, fsid, mSrcFmdHandler,
-                                            true, &path);
+                true, &path);
   eos_static_info("msg=\"conversion done\" file=%s, fid=%08llx, status=%d",
                   path.data(), fid, status);
   return status;
@@ -132,15 +132,15 @@ FmdConverter::ConvertFS(std::string_view fspath,
   }
 
   LoadConfigFromEnv(fsid);
-
   using future_vector = std::vector<eos::common::OpaqueFuture<bool>>;
   future_vector futures;
-  eos_static_info("msg=\"starting file system conversion\" fsid=%u", fsid);
+  eos_static_info("msg=\"starting file system conversion\" fsid=%u path=\"%s\"",
+                  fsid, fspath.data());
   std::error_code ec;
   size_t success_count = 0;
   mConversionCounter.Init();
   stdfs::WalkFSTree(std::string(fspath),
-      [this, fsid, &futures, &success_count](std::string path) {
+  [this, fsid, &futures, &success_count](std::string path) {
     try {
       auto fut = mExecutorMgr->PushTask([this, fsid, path = std::move(path)]() {
         return this->Convert(fsid, std::move(path));
@@ -152,8 +152,8 @@ FmdConverter::ConvertFS(std::string_view fspath,
                       e.what());
     }
   }, ec);
-
   success_count += DrainFutures(futures, fsid, true);
+
   if (ec) {
     eos_static_err("msg=\"walking fs tree ran into errors!\" err=%s",
                    ec.message().c_str());
@@ -163,7 +163,7 @@ FmdConverter::ConvertFS(std::string_view fspath,
   eos_static_info("msg=\"conversion successful, set done marker\" count=%llu "
                   "success_count=%llu frequency=%0.02f kHz",
                   mTotalFiles, success_count,
-                  mConversionCounter.GetFrequency()/1000.0);
+                  mConversionCounter.GetFrequency() / 1000.0);
   mDoneHandler->markFSConverted(fspath);
 }
 
@@ -185,28 +185,29 @@ FmdConverter::DrainFutures(std::vector<common::OpaqueFuture<bool>>& futures,
 
   if (force ||
       futures.size() > mPerDiskQueueSize) {
-      for (auto && fut : futures) {
-        try {
-          success_count += fut.getValue();
-          ++mTotalFiles;
-        } catch (const std::exception& e) {
-           eos_static_crit("msg=\"failed to get value\" err=%s, fsid=%u", e.what(), fsid);
-        }
+    for (auto && fut : futures) {
+      try {
+        success_count += fut.getValue();
+        ++mTotalFiles;
+      } catch (const std::exception& e) {
+        eos_static_crit("msg=\"failed to get value\" err=%s, fsid=%u", e.what(), fsid);
       }
+    }
 
     mConversionCounter.Increment(mTotalFiles);
     futures.clear();
     unsigned int wait_ctr {0};
+
     while (mExecutorMgr->GetQueueSize() > mGlobalQueueSize) {
       eos_static_info("msg=\"waiting for FmdConverter queue to drain\" "
                       "fsid=%u wait_ctr=%u", fsid, ++wait_ctr);
       std::this_thread::sleep_for(std::chrono::milliseconds(500));
     }
 
-    if (wait_ctr || mTotalFiles % (5*mPerDiskQueueSize) == 0) {
+    if (wait_ctr || mTotalFiles % (5 * mPerDiskQueueSize) == 0) {
       LogConversionProgress(fsid);
     }
-   }
+  }
 
   return success_count;
 }
@@ -215,9 +216,9 @@ void
 FmdConverter::LoadConfigFromEnv(eos::common::FileSystem::fsid_t fsid)
 {
   mPerDiskQueueSize = common::XrdUtils::GetEnv("EOS_FMD_PER_FS_QUEUE_SIZE",
-                                       FMD_PER_FS_QUEUE_SIZE);
+                      FMD_PER_FS_QUEUE_SIZE);
   mGlobalQueueSize = common::XrdUtils::GetEnv("EOS_FMD_GLOBAL_QUEUE_SIZE",
-                                      FMD_GLOBAL_QUEUE_SIZE);
+                     FMD_GLOBAL_QUEUE_SIZE);
   eos_static_info("msg=\"loading FmdConverter config:\" "
                   "fsid=%u per_disk_queue_size=%lu global_queue_size=%lu",
                   fsid, mPerDiskQueueSize, mGlobalQueueSize);
@@ -226,8 +227,8 @@ FmdConverter::LoadConfigFromEnv(eos::common::FileSystem::fsid_t fsid)
 void FmdConverter::LogConversionProgress(eos::common::FileSystem::fsid_t fsid)
 {
   eos_static_info("msg=\"conversion frequency\" fsid=%u frequency=%0.02f kHz last_frequency=%0.02f kHz",
-                  fsid, mConversionCounter.GetFrequency()/1000.0,
-                  mConversionCounter.GetLastFrequency()/1000.0);
+                  fsid, mConversionCounter.GetFrequency() / 1000.0,
+                  mConversionCounter.GetLastFrequency() / 1000.0);
 }
 
 EOSFSTNAMESPACE_END
