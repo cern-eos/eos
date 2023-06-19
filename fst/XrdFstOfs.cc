@@ -911,7 +911,11 @@ XrdFstOfs::Configure(XrdSysError& Eroute, XrdOucEnv* envP)
   }
 
   // Request broadcasts after the Communicator thread is started inside the
-  // Storage class otherwise we might miss the updates
+  // Storage class otherwise we might miss the updates. Practice show this is
+  // not enough and we might need to sleep for a couple of seconds to have the
+  // communicator thread up and running.
+  std::this_thread::sleep_for(std::chrono::seconds(2));
+
   if (!mMessagingRealm->haveQDB()) {
     RequestBroadcasts();
   }
