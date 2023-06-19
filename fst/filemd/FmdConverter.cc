@@ -141,7 +141,8 @@ FmdConverter::ConvertFS(std::string_view fspath,
   LoadConfigFromEnv(fsid);
   using future_vector = std::vector<eos::common::OpaqueFuture<bool>>;
   future_vector futures;
-  eos_static_info("msg=\"starting file system conversion\" fsid=%u", fsid);
+  eos_static_info("msg=\"starting file system conversion\" fsid=%u path=\"%s\"",
+                  fsid, fspath.data());
   std::error_code ec;
   size_t success_count = 0;
   mConversionCounter.Init();
