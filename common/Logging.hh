@@ -396,9 +396,11 @@ public:
 
   void resume_int()
   {
-    log_suspended = false;
-    log_thread_p = std::thread([this] { log_thread(); });
-    log_thread_started = true;
+    if (log_suspended && !log_thread_started) {
+      log_suspended = false;
+      log_thread_p = std::thread([this] { log_thread(); });
+      log_thread_started = true;
+    }
   }
 
   void
