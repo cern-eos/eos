@@ -80,6 +80,7 @@ uint64_t WalkDirTree(std::string_view path, FilterFn&& filter, PathOp&& path_op,
                      std::error_code& ec) noexcept
 {
   uint64_t count {0};
+  eos_static_debug("msg=\"walking directory\" path=\"%s\"", path.data());
 
   for (auto p = fs::recursive_directory_iterator(path,
                 fs::directory_options::skip_permission_denied,
@@ -92,12 +93,16 @@ uint64_t WalkDirTree(std::string_view path, FilterFn&& filter, PathOp&& path_op,
       return count;
     }
 
+    eos_static_debug("msg=\"processing path\" path=\"%s\"", p->path().c_str());
+
     if (p->path().filename().c_str()[0] == '.') {
       p.disable_recursion_pending();
       continue;
     }
 
     if (filter(p)) {
+      eos_static_debug("msg=\"processing after filter\" path=\"%s\"",
+                       p->path().c_str());
       path_op(p->path());
       ++count;
     }
@@ -133,4 +138,3 @@ WalkFSTree(std::string_view path, UnaryOp&& op, std::error_code& ec)
 }
 
 } // namespace eos::fst::stdfs
-
