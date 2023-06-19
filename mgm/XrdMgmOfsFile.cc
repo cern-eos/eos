@@ -1920,14 +1920,15 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
   std::string spacename = space.c_str();
   auto strategy = gOFS->mFsScheduler->getPlacementStrategy(spacename);
   const char* strategy_cstr;
+
   if ((strategy_cstr = openOpaque->Get("eos.schedulingstrategy"))) {
     strategy = placement::strategy_from_str(strategy_cstr);
     eos_debug("msg=\"using scheduling strategy\" strategy=%s",
               strategy_to_str(strategy).c_str());
   }
 
-  bool use_geoscheduler = strategy == placement::PlacementStrategyT::kGeoScheduler;
-
+  bool use_geoscheduler = strategy ==
+                          placement::PlacementStrategyT::kGeoScheduler;
   //eos::mgm::FileSystem* filesystem = 0;
   std::vector<unsigned int> selectedfs;
   std::vector<unsigned int> excludefs = GetExcludedFsids();
@@ -1976,6 +1977,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
     plctargs.spacename = &spacename;
     plctargs.truncate = open_flags & O_TRUNC;
     plctargs.vid = &vid;
+
     if (!plctargs.isValid()) {
       // there is something wrong in the arguments of file placement
       return Emsg(epname, error, EINVAL, "open - invalid placement argument", path);
@@ -1989,35 +1991,39 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
         eos_err("msg=\"too many replicas requested\" n_replicas=%" PRIu64, n_replicas_);
         return Emsg(epname, error, EINVAL, "open - too many replicas requested", path);
       }
+
       uint8_t n_replicas = static_cast<uint8_t>(n_replicas_);
       placement::PlacementArguments args{n_replicas, placement::ConfigStatus::kRW, strategy};
+
       if (!excludefs.empty()) {
         args.excludefs = excludefs;
       }
+
       if (forced_group >= 0) {
         args.forced_group_index = forced_group;
       }
+
       auto ret = gOFS->mFsScheduler->schedule(spacename,
                                               args);
       COMMONTIMING("PlctScheduler::FilePlaced", &tm);
 
       if (ret.is_valid_placement(n_replicas)) {
-        for (int i=0;i<n_replicas;i++) {
+        for (int i = 0; i < n_replicas; i++) {
           selectedfs.push_back(ret.ids[i]);
         }
+
         // TODO: this should be demoted to DEBUG once we have a proper understanding
         eos_info("msg=\"FlatScheduler selected filesystems\" fs=%s",
                  ret.result_string().c_str());
       } else {
         // Fallback to classic geoscheduler on failure
         eos_err("msg =\"no valid placement found with FlatScheduler\" ret=%d, err_msg=%s",
-                 ret.ret_code, ret.error_string().c_str());
+                ret.ret_code, ret.error_string().c_str());
         use_geoscheduler = true;
       }
     }
 
-    if (use_geoscheduler)
-    {
+    if (use_geoscheduler) {
       COMMONTIMING("Scheduler::FilePlacement", &tm);
       eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
       retc = Quota::FilePlacement(&plctargs);
@@ -2175,18 +2181,21 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
           COMMONTIMING("PlctScheduler::FilePlacement", &tm);
           uint8_t n_replicas = eos::common::LayoutId::GetStripeNumber(layoutId) + 1;
           placement::PlacementArguments args{n_replicas, placement::ConfigStatus::kRW, strategy};
+
           if (!excludefs.empty()) {
             args.excludefs = excludefs;
           }
-          if (forced_group >=0) {
+
+          if (forced_group >= 0) {
             args.forced_group_index = forced_group;
           }
+
           auto ret = gOFS->mFsScheduler->schedule(spacename,
                                                   args);
           COMMONTIMING("PlctScheduler::FilePlaced", &tm);
 
           if (ret.is_valid_placement(n_replicas)) {
-            for (int i=0;i<n_replicas;i++) {
+            for (int i = 0; i < n_replicas; i++) {
               selectedfs.push_back(ret.ids[i]);
             }
           } else {
@@ -2202,6 +2211,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
           retc = Quota::FilePlacement(&plctargs);
           COMMONTIMING("Scheduler::FilePlaced", &tm);
         }
+
         eos_info("msg=\"file-recreation due to offline/full locations\" path=%s retc=%d",
                  path, retc);
         isRecreation = true;
@@ -3508,7 +3518,7 @@ XrdMgmOfsFile::Emsg(const char* pfx,
 //------------------------------------------------------------------------------
 // Check if this is a client retry with exclusion of some diskserver. This
 // happens usually for CMS workflows. To distinguish such a scenario from
-// a legitimate retry due to a recoverable error, we need to serarch for the
+// a legitimate retry due to a recoverable error, we need to search for the
 // "tried=" opaque tag without a corresponding "triedrc=" tag.
 //------------------------------------------------------------------------------
 bool
@@ -3517,14 +3527,25 @@ XrdMgmOfsFile::IsRainRetryWithExclusion(bool is_rw, unsigned long lid) const
   if (!is_rw && eos::common::LayoutId::IsRain(lid)) {
     char* tried_info = openOpaque->Get("tried");
 
-    if (tried_info == nullptr) {
+    if ((tried_info == nullptr) || strlen(tried_info) == 0) {
       return false;
     }
 
-    char* tried_rc = openOpaque->Get("triedrc");
+    // Don't exclude if tried information contains a globally unique cluster
+    // ID which has the form: +<port><host>
+    bool exclude = false;
+    auto endpoints =  eos::common::StringTokenizer::split
+                      <std::list<std::string>>(tried_info, ',');
 
-    if (tried_rc == nullptr) {
-      return true;
+    for (const auto& ep : endpoints) {
+      if (!ep.empty() && (ep[0] != '+')) {
+        exclude = true;
+        break;
+      }
+    }
+
+    if (openOpaque->Get("triedrc") == nullptr) {
+      return exclude;
     }
   }
 
