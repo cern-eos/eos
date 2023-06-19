@@ -75,38 +75,41 @@ RainFile::Open(const std::string& url,
   eos_debug("url=%s", url.c_str());
   XRootDStatus st;
 
+  mURL = url;
+  
   if (mIsOpen) {
     st = XRootDStatus(stError, errInvalidOp);
     return st;
   }
 
+  XrdCl::URL oURL(url);
+  XrdCl::URL::ParamsMap cgi = oURL.GetParams();
+  
   // For reading try PIO mode
-  if ((flags & OpenFlags::Flags::Read) == OpenFlags::Flags::Read) {
+  if ( ((flags & OpenFlags::Flags::Read) == OpenFlags::Flags::Read) && (cgi.count("eos.pio") && (cgi["eos.pio"]=="1")) ) {
     XrdCl::Buffer arg;
     XrdCl::Buffer* response = 0;
-    std::string fpath = url;
-    size_t spos = fpath.rfind("//");
-
-    if (spos != std::string::npos) {
-      fpath.erase(0, spos + 1);
-    }
-
-    std::string request = fpath;
-    request += "?mgm.pcmd=open";
+    cgi["mgm.pcmd"] = "open";
+    oURL.SetParams(cgi);
+    std::string request = oURL.GetPathWithParams();
+    std::string fpath = oURL.GetPath();
     arg.FromString(request);
-    std::string endpoint = url;
-    endpoint.erase(spos + 1);
-    URL Url(endpoint);
-    XrdCl::FileSystem fs(Url);
+    std::string empty;
+    oURL.SetPath(empty);
+    cgi.clear();
+    oURL.SetParams(cgi);
+    
+    XrdCl::FileSystem fs(oURL);
     st = fs.Query(QueryCode::OpaqueFile, arg, response);
 
-    if (st.IsOK()) {
+    if (st.IsOK() && response) {
       // Parse output
       XrdOucString tag;
       XrdOucString stripePath;
       std::vector<std::string> stripeUrls;
-      XrdOucString origResponse = response->GetBuffer();
-      XrdOucString stringOpaque = response->GetBuffer();
+
+      XrdOucString origResponse = response->ToString().c_str();
+      XrdOucString stringOpaque = response->ToString().c_str();
       // Add the eos.app=rainplugin tag to all future PIO open requests
       origResponse += "&eos.app=rainplugin";
 
@@ -114,7 +117,7 @@ RainFile::Open(const std::string& url,
 
       while (stringOpaque.replace("&&", "&")) { }
 
-      XrdOucEnv* openOpaque = new XrdOucEnv(stringOpaque.c_str());
+      std::unique_ptr<XrdOucEnv> openOpaque = std::make_unique<XrdOucEnv>(stringOpaque.c_str());
       char* opaqueInfo = (char*) strstr(origResponse.c_str(), "&mgm.logid");
 
       if (opaqueInfo) {
@@ -137,8 +140,15 @@ RainFile::Open(const std::string& url,
         } else if ((LayoutId::IsRain(layout))) {
           pRainFile = new ReedSLayout(NULL, layout, NULL, NULL, "");
         } else {
-          eos_warning("unsupported PIO layout");
-          return XRootDStatus(stError, errNotSupported, 0, "unsupported PIO layout");
+          eos_warning("unsupported PIO layout - fall back to XrdCl::File");
+	  delete response;
+	  pFile = new XrdCl::File(false);
+	  st = pFile->Open(url, flags, mode, handler, timeout);
+	  
+	  if (st.IsOK()) {
+	    mIsOpen = true;
+	  }
+	  return st;
         }
 
         if (pRainFile) {
@@ -163,7 +173,10 @@ RainFile::Open(const std::string& url,
     if (st.IsOK()) {
       mIsOpen = true;
       XRootDStatus* ret_st = new XRootDStatus(st);
-      handler->HandleResponse(ret_st, 0);
+      handler->HandleResponseWithHosts(ret_st, 0, 0);
+    }
+    if (response) {
+      delete response;
     }
   } else {
     // Normal XrdCl file access
@@ -210,7 +223,6 @@ RainFile::Close(ResponseHandler* handler,
     XRootDStatus* ret_st = new XRootDStatus(st);
     handler->HandleResponse(ret_st, 0);
   }
-
   return st;
 }
 
@@ -487,7 +499,11 @@ RainFile::GetProperty(const std::string& name,
   if (pFile) {
     return pFile->GetProperty(name, value);
   } else {
-    eos_err("op. not implemented for RAIN files");
+    if (name == "LastURL") {
+      value = mURL;
+      return true;
+    }
+    eos_err("property '%s'. not implemented for RAIN files", name.c_str());
     return false;
   }
 }
@@ -511,7 +527,8 @@ URL
 RainFile::GetLastURL() const
 {
   eos_debug("get last URL");
-  return std::string("");
+  // we return the initial contact point as last url
+  return XrdCl::URL(mURL);
 }
 
 

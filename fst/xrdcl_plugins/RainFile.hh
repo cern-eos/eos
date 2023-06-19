@@ -96,7 +96,22 @@ public:
                             ResponseHandler* handler,
                             uint16_t timeout);
 
-
+  //----------------------------------------------------------------------------
+  //! PgRead
+  //----------------------------------------------------------------------------
+  virtual XRootDStatus PgRead( uint64_t         offset,
+                               uint32_t         size,
+                               void            *buffer,
+                               ResponseHandler *handler,
+                               uint16_t         timeout )
+  {
+    if (pRainFile) {
+      return Read( offset, size, buffer, handler, timeout );
+    } else {
+      return pFile->PgRead( offset, size, buffer, handler, timeout );
+    }
+  }
+  
   //----------------------------------------------------------------------------
   //! Write
   //----------------------------------------------------------------------------
@@ -106,6 +121,22 @@ public:
                              ResponseHandler* handler,
                              uint16_t timeout);
 
+  //----------------------------------------------------------------------------
+  //! PgWrite
+  //----------------------------------------------------------------------------
+  virtual XRootDStatus PgWrite( uint64_t               offset,
+				uint32_t               size,
+				const void            *buffer,
+				std::vector<uint32_t> &cksums,
+				uint16_t               timeout = 0 )
+    
+  {
+    if (pRainFile) {
+      return XRootDStatus(stError, errNotImplemented, 0, "RAIN PgWrite not implemented");
+    } else {
+      return pFile->PgWrite( offset, size, buffer, cksums, timeout );
+    }
+  }
 
   //----------------------------------------------------------------------------
   //! Sync
@@ -180,6 +211,7 @@ public:
 private:
 
   bool mIsOpen;
+  std::string mURL;
   XrdCl::File* pFile;
   eos::fst::RainMetaLayout* pRainFile;
 
