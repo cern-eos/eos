@@ -36,11 +36,11 @@ static constexpr std::string_view ATTR_CONVERSION_DONE_FILE =
 static constexpr size_t MIN_FMDCONVERTER_THREADS = 2;
 static constexpr size_t MAX_FMDCONVERTER_THREADS = 100;
 static constexpr size_t FMD_PER_FS_QUEUE_SIZE = 100'000;
-static constexpr size_t FMD_GLOBAL_QUEUE_SIZE = 4'000'000;
-//----------------------------------------------------------------------------
-//! A simple interface to track whether full conversions have been done for a given
-//! FST mount path. The implementation is supposed to track whether the FST is
-//! done converting or mark the FST as converted when we're done converting.
+    static constexpr size_t FMD_GLOBAL_QUEUE_SIZE = 4'000'000;
+    //----------------------------------------------------------------------------
+    //! A simple interface to track whether full conversions have been done for a given
+    //! FST mount path. The implementation is supposed to track whether the FST is
+    //! done converting or mark the FST as converted when we're done converting.
 //----------------------------------------------------------------------------
 struct FSConversionDoneHandler {
   virtual bool isFSConverted(std::string_view fstpath) = 0;
@@ -64,7 +64,8 @@ public:
   FmdConverter(FmdHandler* src_handler,
                FmdHandler* tgt_handler,
                size_t per_disk_pool,
-               std::string_view executor_type);
+               std::string_view executor_type,
+               std::string_view walk_fs_type);
 
   FmdConverter(FmdHandler* src_handler,
                FmdHandler* tgt_handler,
@@ -107,6 +108,13 @@ private:
   size_t mGlobalQueueSize {FMD_GLOBAL_QUEUE_SIZE};
   size_t mTotalFiles {0};
   eos::common::Counter mConversionCounter;
+  //! Type of file system walk implementation
+  enum WalkType {
+    STDFS, // using c++ std::filesystem
+    FTS    // using classic fts implementation
+  };
+
+  WalkType mWalkFs {WalkType::STDFS};
 };
 
 //------------------------------------------------------------------------------

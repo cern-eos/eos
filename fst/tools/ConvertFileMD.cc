@@ -55,6 +55,7 @@ main(int argc, char* argv[])
   std::string fst_path;
   std::string fst_metadir {"/var/eos/md"};
   std::string executor_type {"folly"};
+  std::string walk_type {"stdfs"};
   size_t num_threads{8};
   convert_subcmd->add_option("--fst-path", fst_path, "Mount point of FST")
   ->required();
@@ -66,6 +67,8 @@ main(int argc, char* argv[])
                              true);
   convert_subcmd->add_option("--executor", executor_type,
                              "Executor Type: folly or std", true);
+  convert_subcmd->add_option("--walk-type", walk_type,
+                             "Walk FS Type: stdfs or fts", true);
   std::string file_path;
   auto inspect_subcmd = app.add_subcommand("inspect",
                         "inspect filemd attributes");
@@ -105,9 +108,10 @@ main(int argc, char* argv[])
     auto db_handler = std::make_unique<eos::fst::FmdDbMapHandler>();
     db_handler->SetDBFile(fst_metadir.c_str(), fsid);
     eos::fst::FmdConverter converter(db_handler.get(), attr_handler.get(),
-                                     num_threads, executor_type);
-    eos_static_info("msg=\"starting conversion\" num_threads=%ul executor=%s",
-                    num_threads, executor_type.c_str());
+                                     num_threads, executor_type, walk_type);
+    eos_static_info("msg=\"starting conversion\" num_threads=%ul executor=%s "
+                    "walk_type=%s", num_threads, executor_type.c_str(),
+                    walk_type.c_str());
     converter.ConvertFS(fst_path);
   }
 
