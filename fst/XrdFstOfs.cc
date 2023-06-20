@@ -518,7 +518,7 @@ XrdFstOfs::Configure(XrdSysError& Eroute, XrdOucEnv* envP)
   gConfig.FstMetaLogDir = "/var/tmp/eos/md/";
   gConfig.FstAuthDir = "/var/eos/auth/";
   setenv("XrdClientEUSER", "daemon", 1);
-  SetXrdClTimeouts();
+  SetXrdClConfig();
   // Extract the manager from the config file
   XrdOucStream Config(&Eroute, getenv("XRDINSTANCE"));
 
@@ -2480,19 +2480,19 @@ XrdFstOfs::Query2Delete()
 }
 
 //------------------------------------------------------------------------------
-// Set various XrdCl timeouts more appropriate for the EOS use-case but still
-// allow the env variables to override them
+// Set various XrdCl config options more appropriate for the EOS use-case but
+// still allow the env variables to override them.
 //------------------------------------------------------------------------------
 void
-XrdFstOfs::SetXrdClTimeouts()
+XrdFstOfs::SetXrdClConfig()
 {
   char* ptr {nullptr};
   int env_value {0};
-  std::map<std::string, int> map_timeouts {
+  std::map<std::string, int> map_settings {
     {"TimeoutResolution", 1}, {"ConnectionWindow", 5}, {"ConnectionRetry", 1},
-    {"StreamErrorWindow", 0}, {"MetalinkProcessing", 0}};
+    {"StreamErrorWindow", 0}, {"MetalinkProcessing", 0}, {"ParallelEvtLoop", 8} };
 
-  for (auto& elem : map_timeouts) {
+  for (auto& elem : map_settings) {
     std::string env_name = "XRD_" + elem.first;
     std::transform(env_name.begin(), env_name.end(), env_name.begin(),
                    ::toupper);
