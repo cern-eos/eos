@@ -651,7 +651,7 @@ The EOS fuse core containing eosxd/eosxd3.
 %dir %attr(755,daemon,daemon) %{_localstatedir}/log/eos/fusex/
 %dir %attr(755,daemon,daemon) %{_localstatedir}/cache/eos/
 %dir %attr(755,daemon,daemon) %{_localstatedir}/cache/eos/fusex/
-%config(noreplace) %{_sysconfdir}/eos/eos/client.plugins.d/eos-ec.conf
+%config(noreplace) %{_sysconfdir}/eos/client.plugins.d/eos-ec.conf
 
 %post -n eos-fusex-core
 # Ensure /var/run/eos creation
