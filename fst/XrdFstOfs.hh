@@ -581,10 +581,10 @@ public:
   int HandleCleanOrphans(XrdOucEnv& env, XrdOucErrInfo& err_obj);
 
   //----------------------------------------------------------------------------
-  //! Set various XrdCl timeouts more appropriate for the EOS use-case but still
-  //! allow the env variables to override them
+  //! Set various XrdCl config options more appropriate for the EOS use-case
+  //! but still allow the env variables to override them
   //----------------------------------------------------------------------------
-  static void SetXrdClTimeouts();
+  static void SetXrdClConfig();
 };
 
 //------------------------------------------------------------------------------
