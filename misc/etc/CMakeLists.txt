@@ -34,6 +34,7 @@ install(DIRECTORY DESTINATION /etc/eos/config/fst)
 install(DIRECTORY DESTINATION /etc/eos/config/qdb)
 install(DIRECTORY DESTINATION /etc/eos/config/generic)
 install(DIRECTORY DESTINATION /etc/eos/config/modules)
+install(DIRECTORY DESTINATION /etc/eos/client.plugins.d)
 
 install(
   FILES eos.keytab eos.client.keytab
@@ -86,6 +87,10 @@ install(
 install(
   FILES logrotate.d/eos-logs logrotate.d/eos-fuse-logs logrotate.d/eos-fusex-logs
   DESTINATION ${CMAKE_INSTALL_SYSCONFDIR}/logrotate.d/)
+
+install(
+  FILES eos/client.plugins.d/eos-ec.conf
+  DESTINATION ${CMAKE_INSTALL_SYSCONFDIR}/eos/client.plugins.d/)
 
 
 # Installing files depending on service manager (systemd or sysVinit)

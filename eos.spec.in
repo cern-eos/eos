@@ -417,6 +417,7 @@ The EOS server installation containing MGM, FST & MQ service.
 %config(noreplace) %{_sysconfdir}/eos/config/generic/all
 %config(noreplace) %{_sysconfdir}/eos/config/qdb/qdb
 %config(noreplace) %{_sysconfdir}/eos/config/modules/alice
+
 %if %{use_systemd}
     %config %{_sysconfdir}/sysconfig/eos_env.example
     %{_prefix}/lib/systemd/system/eos.target
@@ -650,10 +651,18 @@ The EOS fuse core containing eosxd/eosxd3.
 %dir %attr(755,daemon,daemon) %{_localstatedir}/log/eos/fusex/
 %dir %attr(755,daemon,daemon) %{_localstatedir}/cache/eos/
 %dir %attr(755,daemon,daemon) %{_localstatedir}/cache/eos/fusex/
+%config(noreplace) %{_sysconfdir}/eos/eos/client.plugins.d/eos-ec.conf
 
 %post -n eos-fusex-core
 # Ensure /var/run/eos creation
 systemd-tmpfiles --create %{_tmpfilesdir}/eos-fusex-core.conf || true
+# Link pseudo eos protocol plugin
+mkdir -p /etc/xrootd/client.plugins.d/
+ln -v -s -f %{_SYSCONFDIR}/eos/eos/client.plugins.d/eos-ec.conf %{_SYSCONFDIR}/xrootd/client.plugins.d/eos-ec.conf
+
+# Remove pseudo eos protocol plugin
+%postun -n eos-fusex-core
+%{__rm} -v -f %{_SYSCONFDIR}/xrootd/client.plugins.d/eos-ec.conf
 
 #-------------------------------------------------------------------------------
 # Package eos-fusex-selinux
