@@ -2944,7 +2944,11 @@ data::datax::set_remote(const std::string& hostport,
 {
   eos_info("");
   std::string remoteurl;
-  remoteurl = "root://";
+  if (!isRW && isPIO) {
+    remoteurl = "eos://";
+  } else {
+    remoteurl = "root://";
+  }
   remoteurl += hostport;
   remoteurl += "//fusex-open";
   remoteurl += "?eos.lfn=";

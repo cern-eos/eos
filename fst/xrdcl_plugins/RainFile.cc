@@ -86,7 +86,8 @@ RainFile::Open(const std::string& url,
   XrdCl::URL::ParamsMap cgi = oURL.GetParams();
   
   // For reading try PIO mode
-  if ( ((flags & OpenFlags::Flags::Read) == OpenFlags::Flags::Read) && (cgi.count("eos.pio") && (cgi["eos.pio"]=="1")) ) {
+  if ( ((flags & OpenFlags::Flags::Read) == OpenFlags::Flags::Read) &&
+       ((oURL.GetProtocol() =="eos") || (cgi.count("eos.pio") && cgi["eos.pio"] == "1")) ) {
     XrdCl::Buffer arg;
     XrdCl::Buffer* response = 0;
     cgi["mgm.pcmd"] = "open";
@@ -98,7 +99,7 @@ RainFile::Open(const std::string& url,
     oURL.SetPath(empty);
     cgi.clear();
     oURL.SetParams(cgi);
-    
+    oURL.SetProtocol("root");
     XrdCl::FileSystem fs(oURL);
     st = fs.Query(QueryCode::OpaqueFile, arg, response);
 
