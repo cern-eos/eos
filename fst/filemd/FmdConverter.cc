@@ -67,13 +67,20 @@ FmdConverter::FmdConverter(FmdHandler* src_handler,
 {}
 
 FmdConverter::FmdConverter(FmdHandler* src_handler, FmdHandler* tgt_handler,
-                           size_t per_disk_pool, std::string_view executor_type):
+                           size_t per_disk_pool, std::string_view executor_type,
+                           std::string_view walkfs_type):
   mSrcFmdHandler(src_handler), mTgtFmdHandler(tgt_handler),
   mExecutorMgr(std::make_shared<common::ExecutorMgr>(executor_type,
                per_disk_pool)),
   mDoneHandler(std::make_unique<FileFSConversionDoneHandler>
                (ATTR_CONVERSION_DONE_FILE))
 {
+  if (walkfs_type == "fts") {
+    mWalkFs = WalkType::FTS;
+  } else {
+    eos_static_notice("msg=\"unknown walk type, using stdfs by default\" type=%s",
+                      walkfs_type.data());
+  }
 }
 
 FmdConverter::FmdConverter(FmdHandler* src_handler, FmdHandler* tgt_handler,
@@ -139,8 +146,7 @@ FmdConverter::ConvertFS(std::string_view fspath,
   std::error_code ec;
   size_t success_count = 0;
   mConversionCounter.Init();
-  stdfs::WalkFSTree(std::string(fspath),
-  [this, fsid, &futures, &success_count](std::string path) {
+  auto lambda_work = [this, fsid, &futures, &success_count](std::string path) {
     try {
       auto fut = mExecutorMgr->PushTask([this, fsid, path = std::move(path)]() {
         return this->Convert(fsid, std::move(path));
@@ -151,7 +157,18 @@ FmdConverter::ConvertFS(std::string_view fspath,
       eos_static_crit("msg=\"failed to push task\" fsid=%u err=%s", fsid,
                       e.what());
     }
-  }, ec);
+  };
+
+  if (mWalkFs == WalkType::STDFS) {
+    eos_static_info("msg=\"calling STDFS walk implementation\" path=\"%s\"",
+                    fspath.data());
+    eos::fst::stdfs::WalkFSTree(std::string(fspath), lambda_work, ec);
+  } else {
+    eos_static_info("msg=\"calling FTS walk implementation\" path=\"%s\"",
+                    fspath.data());
+    eos::fst::WalkFSTree(std::string(fspath), lambda_work, ec);
+  }
+
   success_count += DrainFutures(futures, fsid, true);
 
   if (ec) {
