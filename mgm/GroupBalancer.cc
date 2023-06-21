@@ -428,12 +428,13 @@ GroupBalancer::GroupBalance(ThreadAssistant& assistant) noexcept
     }
 
     // Try to read lock the mutex
-    while (!FsView::gFsView.ViewMutex.TimedRdLock(timeout_ns)) {
-      if (assistant.terminationRequested()) {
-        return;
-      }
-    }
 
+    if (assistant.terminationRequested()) {
+      return;
+    }
+    
+    FsView::gFsView.ViewMutex.LockRead();
+    
     if (!FsView::gFsView.mSpaceGroupView.count(mSpaceName.c_str())) {
       FsView::gFsView.ViewMutex.UnLockRead();
       eos_static_warning("msg=\"no groups to balance\" space=\"%s\"",
