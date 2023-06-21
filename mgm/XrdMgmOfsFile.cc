@@ -971,7 +971,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
             }
 
 	    if (fmd->isLink()) {
-	      // we have to it by path
+	      // we have to get it by path
 	      fmd = gOFS->eosView->getFile(filePath);
 	    }
 	    
