@@ -993,3 +993,23 @@ Contains an clean-up scripts to remove 'left-overs' of an EOS instance for FST/M
 %{_sbindir}/eos-fst-clean
 %{_sbindir}/eos-mgm-clean
 %endif
+
+
+
+#-------------------------------------------------------------------------------
+# Package eos-flamegraph
+#-------------------------------------------------------------------------------
+%package -n eos-flamegraph
+Summary: The EOS test package
+Group: Applications/File
+ExclusiveArch: x86_64 aarch64
+
+%description -n eos-flamegraph
+Contains required scripts to create a framegraph for a default EOS namespace benchmark
+
+%files -n eos-flamegraph
+%defattr(-, root, root, -)
+%{_sbindir}/eos-make-flamegraph
+%{_sbindir}/eos-util-flamegraph
+%{_sbindir}/eos-util-stackcollapse
+%endif
