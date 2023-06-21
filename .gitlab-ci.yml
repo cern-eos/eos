@@ -802,7 +802,7 @@ code_quality_html:
   <<: *dock8s_before_script_template
   script:
     - date
-    - exec_cmd eos-mgm1 'eos-make-flamegraph'
+    - exec_cmd eos-mgm1 '/usr/sbin/eos-make-flamegraph'
     - date
   <<: *dock8s_after_script_template
   artifacts:
