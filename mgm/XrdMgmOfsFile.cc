@@ -969,6 +969,11 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
               }
             }
 
+	    if (fmd->isLink()) {
+	      // we have to it by path
+	      fmd = gOFS->eosView->getFile(filePath);
+	    }
+	    
             uint64_t dmd_id = fmd->getContainerId();
 
             // If fmd is resolved via a symbolic link, we have to find the
