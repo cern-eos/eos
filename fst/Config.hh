@@ -31,6 +31,9 @@
 #include <random>
 #include <mutex>
 
+//! Forward declaration
+class ThreadAssistant;
+
 EOSFSTNAMESPACE_BEGIN
 
 class Config
