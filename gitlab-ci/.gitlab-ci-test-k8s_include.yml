@@ -45,6 +45,17 @@ k8s_fusex:
     - docker_node
     - k8s
 
+k8s_flamegraph:
+  extends: .dock8s_flamegraph_test_template
+  image: alpine/k8s:1.18.2
+  needs:
+    - job: cc7_docker_image
+      artifacts: false
+  allow_failure: true
+  tags:
+    - docker_node
+    - k8s
+
 k8s_cbox:
   extends: .dock8s_cbox_test_template
   image: alpine/k8s:1.18.2
