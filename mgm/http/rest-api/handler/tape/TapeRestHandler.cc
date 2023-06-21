@@ -45,55 +45,61 @@
 
 EOSMGMRESTNAMESPACE_BEGIN
 
+std::string TapeRestHandler::apiVersionToStr(TapeRestHandler::ApiVersion apiVersion) {
+  switch(apiVersion) {
+  case ApiVersion::V0Dot1:
+    return "v1.0";
+  case ApiVersion::V1:
+    return "v1";
+  default:
+    throw std::invalid_argument("Unknown Tape REST API version");
+  }
+}
+
 TapeRestHandler::TapeRestHandler(const TapeRestApiConfig* config): RestHandler(
     config->getAccessURL()), mTapeRestApiConfig(config)
 {
   initializeTapeWellKnownInfos();
-  initializeV1();
+  initialize(DEFAULT_API_VERSION);
+  auto endpointToUrlMap = config->getEndpointToUriMapping();
+  for (auto & [version, url]: endpointToUrlMap) {
+    addEndpointToWellKnown(version, url);
+  }
+  // If there was no .well-known endpoint provided for the version DEFAULT_API_VERSION
+  // construct it with the default setup
+  if (!endpointToUrlMap.count(apiVersionToStr(DEFAULT_API_VERSION))) {
+    addEndpointToWellKnown(apiVersionToStr(DEFAULT_API_VERSION));
+  }
 }
 
-void TapeRestHandler::initializeV1()
-{
-  const std::string version = "v1";
+void TapeRestHandler::initialize(TapeRestHandler::ApiVersion apiVersion) {
   std::shared_ptr<TapeRestApiBusiness> restApiBusiness =
-    std::make_shared<TapeRestApiBusiness>();
-  std::unique_ptr<Controller> stageController = initializeStageController(version,
-      restApiBusiness);
+      std::make_shared<TapeRestApiBusiness>();
+  std::unique_ptr<Controller> stageController;
+  switch (apiVersion) {
+  case ApiVersion::V0Dot1:
+    stageController = TapeControllerFactory::getNotImplementedController(mEntryPointURL + apiVersionToStr(apiVersion) +"/stage/");
+    break;
+  case ApiVersion::V1:
+    stageController = initializeStageController(apiVersion, restApiBusiness);
+    break ;
+  default:
+    std::string errorMsg = "Unknown API version " + apiVersionToStr(apiVersion) + ". Failed to initialize Tape REST API.";
+    throw std::invalid_argument(errorMsg);
+  }
   mControllerManager.addController(std::move(stageController));
-  std::unique_ptr<Controller> fileInfoController =
-    initializeArchiveinfoController(version, restApiBusiness);
+  std::unique_ptr<Controller> fileInfoController = initializeArchiveinfoController(apiVersion, restApiBusiness);
   mControllerManager.addController(std::move(fileInfoController));
-  std::unique_ptr<Controller> releaseController = initializeReleaseController(
-        version, restApiBusiness);
+  std::unique_ptr<Controller> releaseController = initializeReleaseController(apiVersion, restApiBusiness);
   mControllerManager.addController(std::move(releaseController));
-  addEndpointToWellKnown(version);
-}
-
-void TapeRestHandler::initializeV0Dot1()
-{
-  const std::string version = "v0.1";
-  std::shared_ptr<TapeRestApiBusiness> restApiBusiness =
-    std::make_shared<TapeRestApiBusiness>();
-  //The STAGE resource is marked as NON_IMPLEMENTED for version 0.1
-  std::unique_ptr<Controller> stageController =
-    TapeControllerFactory::getNotImplementedController(mEntryPointURL + version +
-        "/stage/");
-  mControllerManager.addController(std::move(stageController));
-  std::unique_ptr<Controller> fileInfoController =
-    initializeArchiveinfoController(version, restApiBusiness);
-  mControllerManager.addController(std::move(fileInfoController));
-  std::unique_ptr<Controller> releaseController = initializeReleaseController(
-        version, restApiBusiness);
-  mControllerManager.addController(std::move(releaseController));
-  addEndpointToWellKnown(version);
 }
 
 std::unique_ptr<Controller> TapeRestHandler::initializeStageController(
-  const std::string& apiVersion,
+  TapeRestHandler::ApiVersion apiVersion,
   std::shared_ptr<ITapeRestApiBusiness> tapeRestApiBusiness)
 {
   std::unique_ptr<Controller> stageController(
-    TapeControllerFactory::getStageController(mEntryPointURL + apiVersion +
+    TapeControllerFactory::getStageController(mEntryPointURL + apiVersionToStr(apiVersion) +
         "/stage/", mTapeRestApiConfig));
   const std::string& controllerAccessURL = stageController->getAccessURL();
   stageController->addAction(std::make_unique<CreateStageBulkRequest>
@@ -116,11 +122,11 @@ std::unique_ptr<Controller> TapeRestHandler::initializeStageController(
 }
 
 std::unique_ptr<Controller> TapeRestHandler::initializeArchiveinfoController(
-  const std::string& apiVersion,
+  TapeRestHandler::ApiVersion apiVersion,
   std::shared_ptr<ITapeRestApiBusiness> tapeRestApiBusiness)
 {
   std::unique_ptr<Controller> archiveInfoController(
-    TapeControllerFactory::getArchiveInfoController(mEntryPointURL + apiVersion +
+    TapeControllerFactory::getArchiveInfoController(mEntryPointURL + apiVersionToStr(apiVersion) +
         "/archiveinfo/"));
   const std::string& archiveinfoControllerAccessURL =
     archiveInfoController->getAccessURL();
@@ -132,11 +138,11 @@ std::unique_ptr<Controller> TapeRestHandler::initializeArchiveinfoController(
 }
 
 std::unique_ptr<Controller> TapeRestHandler::initializeReleaseController(
-  const std::string& apiVersion,
+  TapeRestHandler::ApiVersion apiVersion,
   std::shared_ptr<ITapeRestApiBusiness> tapeRestApiBusiness)
 {
   std::unique_ptr<Controller> releaseController(
-    TapeControllerFactory::getReleaseController(mEntryPointURL + apiVersion +
+    TapeControllerFactory::getReleaseController(mEntryPointURL + apiVersionToStr(apiVersion) +
         "/release/"));
   const std::string& releaseControllerAccessURL =
     releaseController->getAccessURL();
@@ -159,6 +165,11 @@ void TapeRestHandler::addEndpointToWellKnown(const std::string& version)
   accessURLBuilder->add(mEntryPointURL);
   accessURLBuilder->add(version);
   mTapeWellKnownInfos->addEndpoint(accessURLBuilder->build(), version);
+}
+
+void TapeRestHandler::addEndpointToWellKnown(const std::string& version, const std::string& url)
+{
+  mTapeWellKnownInfos->addEndpoint(url, version);
 }
 
 bool TapeRestHandler::isRestRequest(const std::string& requestURL,

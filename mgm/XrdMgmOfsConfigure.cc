@@ -28,6 +28,7 @@
 #include <fcntl.h>
 #include <cstring>
 #include <sstream>
+#include <regex>
 #include "grpc/GrpcServer.hh"
 #include "grpc/GrpcWncServer.hh"
 #include "mgm/AdminSocket.hh"
@@ -390,6 +391,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   }
 
   std::string tapeRestApiSitename;
+  std::map<std::string, std::string> tapeRestApiEndpointUrlMap;
   XrdHttpPort = ManagerPort;
 
   if (!ConfigFN || !*ConfigFN) {
@@ -1094,6 +1096,28 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
           Eroute.Say("=====> taperestapi.sitename: ", val, "");
         } else {
           Eroute.Say("Config warning: REST API sitename not specified, disabling tape REST API.");
+        }
+      }
+
+      if (!strncmp("taperestapi.endpoints.", var, 22)) {
+        char * version_ptr_begin = var + 22;
+        char * version_ptr_end = strstr(var + 22, ".uri");
+
+        if (!version_ptr_end || strcmp(version_ptr_end, ".uri")) {
+          auto err_msg = std::string("command ") + var + " is invalid";
+          Eroute.Emsg("Config", err_msg.c_str());
+          NoGo = 1;
+        } else {
+          std::string version(version_ptr_begin, version_ptr_end);
+          if (!std::regex_match(version, std::regex("v[0-9]+(\\.[0-9]+)?"))) {
+            auto err_msg = std::string("version ") + version + " in command " + var + " is invalid";
+            Eroute.Emsg("Config", err_msg.c_str());
+            NoGo = 1;
+          } else {
+            val = Config.GetWord();
+            tapeRestApiEndpointUrlMap[version] = val;
+            Eroute.Say("=====> ", var, ": ", val);
+          }
         }
       }
     }
@@ -2050,6 +2074,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
     tapeRestApiConfig->setTapeEnabled(mTapeEnabled);
     tapeRestApiConfig->setActivated(restApiActivated);
     tapeRestApiConfig->setSiteName(tapeRestApiSitename);
+    tapeRestApiConfig->setEndpointToUrlMapping(tapeRestApiEndpointUrlMap);
     tapeRestApiConfig->setHostAlias(MgmOfsAlias.c_str());
     tapeRestApiConfig->setXrdHttpPort(XrdHttpPort);
     tapeRestApiConfig->setStageEnabled(restApiStageEnabled);
