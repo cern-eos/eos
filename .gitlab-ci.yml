@@ -797,6 +797,20 @@ code_quality_html:
       - eos-logs-${CI_JOB_ID}/
   retry: 1
 
+.dock8s_flamegraph_test_template:
+  stage: test
+  <<: *dock8s_before_script_template
+  script:
+    - date
+    - exec_cmd eos-mgm1 'eos-make-flamegraph'
+    - date
+  <<: *dock8s_after_script_template
+  artifacts:
+    expire_in: 1 days
+    paths:
+      - eos-logs-${CI_JOB_ID}/
+
+
 .unit_test_template: &unit_test_template_definition
   stage: test
   script:

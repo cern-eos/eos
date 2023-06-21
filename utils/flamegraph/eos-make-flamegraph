@@ -1,0 +1,63 @@
+#!/bin/bash
+export `eos version`;
+
+pid1=`ps aux | grep eos-mgm | grep -v grep | awk '{print $2}'`
+pid2=`ps aux | grep "xrootd -n mgm" | grep -v grep | head -1  | awk '{print $2}'`
+unlink flame.done 2> /dev/null
+
+flamefile="eos.${EOS_SERVER_RELEASE}.`date +%s`.svg"
+flamereport=${flamefile}.log
+
+echo Flamegraph: $flamefile
+
+if [ -n "$pid1" ]; then
+    eos debug notice
+    eos ns stat --reset > /dev/null
+    (
+	perf record -F 99 -p $pid1 -g -- sleep 60 > perf.log
+	perf script > out.perf
+	eos-util-stackcollapse --addrs out.perf > out.folded
+	eos-util-flamegraph out.folded > $flamefile
+	unlink perf.log
+	unlink out.perf
+	unlink out.folded
+	mv perf.data $flamefile.data
+	touch flame.done
+    ) &
+
+    eos ns benchmark 100 1 500 > $flamereport
+    eos ns stat >> $flamereport
+    eos debug info
+fi
+
+if [ -n "$pid2" ]; then
+    eos debug notice
+    eos ns stat --reset > /dev/null
+    (
+	perf record -F 99 -p $pid2 -g -- sleep 60
+	perf script > out.perf
+	eos-util-stackcollapse --addrs out.perf > out.folded
+	eos-util-flamegraph out.folded > $flamefile
+	unlink perf.log
+	unlink out.perf
+	unlink out.folded
+	mv perf.data $flamefile.data
+	touch flame.done
+    ) &
+
+    eos ns benchmark 1000 1 50 > $flamereport
+    eos ns stat >> $flamereport
+    eos debug info
+fi
+
+while [ ! -f flame.done ]; do
+    sleep 1
+done
+
+unlink flame.done
+echo "[ makeflame ] Wrote flamegraph svg file $flamefile"
+echo "[ makeflame ] Wrote benchmark report file $flamereport"
+echo "[ makeflame ] Wrote perf data file $flamefile.data"
+      
+	  
+
