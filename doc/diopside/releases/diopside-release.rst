@@ -17,6 +17,22 @@ Introduction
 This release is based on XRootD V5.
 
 
+``v5.1.23 Diopside``
+==========================
+
+Bug
+----
+
+* [EOS-5695] - some Fsts not booting into EOS after upgrade to 5
+* [EOS-5696] - Allow 0-sized CTA files to be deleted from EOS namespace
+* [EOS-5699] - request retries discarded on RAIN layout
+
+New Feature
+------------
+
+* [EOS-5697] - [eoscp] Add checksum comparison between source and destination
+
+
 ``v5.1.22 Diopside``
 ==========================
 
