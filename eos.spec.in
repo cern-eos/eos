@@ -1008,4 +1008,3 @@ Contains required scripts to create a framegraph for a default EOS namespace ben
 %{_sbindir}/eos-make-flamegraph
 %{_sbindir}/eos-util-flamegraph
 %{_sbindir}/eos-util-stackcollapse
-%endif
