@@ -232,7 +232,7 @@ QdbMaster::ConfigureTimeouts(uint64_t& master_init_lease)
     }
   }
 
-  MasterLog(eos_log(LOG_INFO, "%s", "msg=\"QDB master lease vailidy configured "
+  MasterLog(eos_log(LOG_INFO, "msg=\"QDB master lease vailidy configured "
                     "as %u ms\"",  mLeaseValidity.count()));
 }
 
