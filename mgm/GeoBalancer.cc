@@ -545,12 +545,9 @@ GeoBalancer::GeoBalance(ThreadAssistant& assistant) noexcept
       goto wait;
     }
 
-    // Try to read lock the mutex
-    while (!FsView::gFsView.ViewMutex.TimedRdLock(timeout_ns)) {
-      if (assistant.terminationRequested()) {
-        return;
-      }
-    }
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+
+    FsView::gFsView.ViewMutex.LockRead();
 
     if (!FsView::gFsView.mSpaceGroupView.count(mSpaceName.c_str())) {
       FsView::gFsView.ViewMutex.UnLockRead();
