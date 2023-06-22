@@ -74,6 +74,11 @@ k8s_stress:
       artifacts: false
   retry: 1
   allow_failure: true
+  artifacts:
+    when: on_failure
+    expire_in: 3 days
+    paths:
+      - eos-logs-${CI_JOB_ID}/
   tags:
     - docker_node
     - k8s
