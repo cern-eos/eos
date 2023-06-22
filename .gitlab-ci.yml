@@ -804,7 +804,7 @@ code_quality_html:
     - date
     - echo 0 > /proc/sys/kernel/perf_event_paranoid
     - echo 0 > /proc/sys/kernel/kptr_restrict 
-    - exec_cmd eos-mgm1 '/usr/sbin/eos-make-flamegraph'
+    - exec_cmd eos-mgm1 "cd eos-logs-${CI_JOB_ID}; /usr/sbin/eos-make-flamegraph"
     - date
   <<: *dock8s_after_script_template
   artifacts:
