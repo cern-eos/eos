@@ -128,12 +128,12 @@ bool readAndParseConfiguration(const std::string &path,
   return true;
 }
 
-int runDumpSubcommand(eos::mgm::QuarkConfigHandler &configHandler) {
+int runDumpSubcommand(const std::string &configEntry, eos::mgm::QuarkConfigHandler &configHandler) {
   std::map<std::string, std::string> configuration;
-  eos::common::Status status = configHandler.fetchConfiguration("default", configuration);
+  eos::common::Status status = configHandler.fetchConfiguration(configEntry, configuration);
 
   if(!status) {
-    std::cerr << "error while fetching configuration: " << status.toString() << std::endl;
+    std::cerr << "error while fetching configuration '" << configEntry <<"' : " << status.toString() << std::endl;
     return 1;
   }
 
@@ -335,13 +335,16 @@ int main(int argc, char* argv[])
   // Set-up dump subcommand..
   //----------------------------------------------------------------------------
   auto dumpSubcommand = app.add_subcommand("dump",
-                          "Dump the contens of a given configuration stored in QDB");
+                          "Dump the contents of a given configuration stored in QDB");
+  std::string configEntry = 'default';
+  dumpSubcommand->add_option("--config", configEntry,
+			     "Configuration to dump (from 'list'), default is actual");
 
   addClusterOptions(dumpSubcommand, membersStr, memberValidator, password,
                     passwordFile);
 
   //----------------------------------------------------------------------------
-  // Set-up dump subcommand..
+  // Set-up list subcommand..
   //----------------------------------------------------------------------------
   auto listSubcommand = app.add_subcommand("list",
                          "List all stored configurations, including backups");
@@ -417,7 +420,7 @@ int main(int argc, char* argv[])
     return runRelocateFilesystemSubcommand(configHandler, fsid, newFstHost, newFstPort);
   }
   else if(dumpSubcommand->parsed()) {
-    return runDumpSubcommand(configHandler);
+    return runDumpSubcommand(configEntry, configHandler);
   }
   else if(listSubcommand->parsed()) {
     return runListSubcommand(configHandler);
