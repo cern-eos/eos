@@ -138,10 +138,11 @@ void ProcDirectoryBulkRequestDAO::generateXattrsMapFromBulkRequest(
       file = mFileSystem->eosView->getFile(currentFilePath);
       fid = std::to_string(file->getId());
     } catch (const eos::MDException& ex) {
-      //The file does not exist, we will store the path under the same format as it is in the recycle bin
-      std::string newFilePath = currentFilePath;
-      common::StringConversion::ReplaceStringInPlace(newFilePath, "/", "#:#");
-      fid = newFilePath;
+      //The file does not exist, we will store the path with URL encoding
+      std::string encodedFilePath = eos::common::StringConversion::curl_default_escaped(currentFilePath);
+      // curl encoding does not convert dots '.', so we need to do this explicitly
+      eos::common::StringConversion::ReplaceStringInPlace(encodedFilePath, ".", "%2E");
+      fid = encodedFilePath;
     } catch (const std::exception& ex) {
       std::ostringstream errMsg;
       errMsg << "In ProcDirectoryBulkRequestDAO::generateXattrsMapFromBulkRequest(), got a standard exception trying to get informations about the file "
@@ -423,15 +424,20 @@ void ProcDirectoryBulkRequestDAO::fillBulkRequestFromXattrs(
     }
 
     try {
-      //The file name is normally a fid. But if the file submitted before did not exist, the path will be stored in another format (e.g: #:#eos#:#test#:#testFile.txt)
+      //The file name is normally a fid. But if the file submitted before did not exist, the path will be stored in another format (e.g: URL encoding)
       eos::common::FileId::fileid_t fid = std::stoull(file.getName());
       file.setFileId(fid);
       initiateFileMDFetch(file, filesInBulkReqProcDirWithFuture);
     } catch (std::invalid_argument& ex) {
-      // The current file is not a fid, it is therefore a file that has the format #:#eos#:#test#:#testFile.txt (#:# replaced by '/')
+      // The current file is not a fid, it is therefore a file that has the URL encoding
+      // It may also have the old format #:#eos#:#test#:#testFile.txt (#:# replaced by '/')
       std::string filePathCopy = file.getName();
-      common::StringConversion::ReplaceStringInPlace(filePathCopy, "#:#",
-          "/");
+      if (filePathCopy.find("#:#") != std::string::npos) {
+        // TODO: Remove this once no more bulk requests exist with the format #:#eos#:#test#:#testFile.txt
+        common::StringConversion::ReplaceStringInPlace(filePathCopy, "#:#","/");
+      } else {
+        filePathCopy = eos::common::StringConversion::curl_default_unescaped(filePathCopy);
+      }
       std::unique_ptr<File> bulkRequestFile = std::make_unique<File>(filePathCopy);
       bulkRequestFile->setError(file.getError());
       bulkRequest->addFile(std::move(bulkRequestFile));
