@@ -1,7 +1,7 @@
 #!/bin/bash
 export `eos version`;
 
-pid1=`ps aux | grep eos-mgm | grep -v grep | awk '{print $2}'`
+pid1=`ps aux | grep "eos-mgm -n mgm" | grep -v grep | awk '{print $2}'`
 pid2=`ps aux | grep "xrootd -n mgm" | grep -v grep | head -1  | awk '{print $2}'`
 unlink flame.done 2> /dev/null
 
