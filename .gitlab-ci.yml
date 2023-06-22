@@ -802,6 +802,8 @@ code_quality_html:
   <<: *dock8s_before_script_template
   script:
     - date
+    - echo 0 > /proc/sys/kernel/perf_event_paranoid
+    - echo 0 > /proc/sys/kernel/kptr_restrict 
     - exec_cmd eos-mgm1 '/usr/sbin/eos-make-flamegraph'
     - date
   <<: *dock8s_after_script_template
