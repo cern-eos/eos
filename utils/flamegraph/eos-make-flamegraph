@@ -34,7 +34,7 @@ if [ -n "$pid2" ]; then
     eos debug notice
     eos ns stat --reset > /dev/null
     (
-	perf record -F 99 -p $pid2 -g -- sleep 60
+	perf record -F 99 -p $pid2 -g -- sleep 60 > perf.log
 	perf script > out.perf
 	eos-util-stackcollapse --addrs out.perf > out.folded
 	eos-util-flamegraph out.folded > $flamefile
