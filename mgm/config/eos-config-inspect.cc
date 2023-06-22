@@ -76,7 +76,9 @@ void addClusterOptions(CLI::App* subcmd, std::string& membersStr,
 //------------------------------------------------------------------------------
 // Read source configuration file
 //------------------------------------------------------------------------------
-bool readConfigurationFile(const std::string &sourceFile, std::string &fullContents) {
+bool readConfigurationFile(const std::string& sourceFile,
+                           std::string& fullContents)
+{
   std::ifstream infile(sourceFile.c_str());
 
   if (!infile.is_open()) {
@@ -84,6 +86,7 @@ bool readConfigurationFile(const std::string &sourceFile, std::string &fullConte
   }
 
   std::ostringstream ss;
+
   while (!infile.eof()) {
     std::string s;
     std::getline(infile, s);
@@ -101,14 +104,15 @@ bool readConfigurationFile(const std::string &sourceFile, std::string &fullConte
 //------------------------------------------------------------------------------
 // Read and parse configuration file
 //------------------------------------------------------------------------------
-bool readAndParseConfiguration(const std::string &path,
-  std::map<std::string, std::string> &configuration) {
-
+bool readAndParseConfiguration(const std::string& path,
+                               std::map<std::string, std::string>& configuration)
+{
   //----------------------------------------------------------------------------
   // Read source configuration file
   //----------------------------------------------------------------------------
   std::string fullContents;
-  if(!readConfigurationFile(path, fullContents) || fullContents.empty()) {
+
+  if (!readConfigurationFile(path, fullContents) || fullContents.empty()) {
     std::cerr << "could not read configuration file: " << path << std::endl;
     return false;
   }
@@ -128,107 +132,124 @@ bool readAndParseConfiguration(const std::string &path,
   return true;
 }
 
-int runDumpSubcommand(const std::string &configEntry, eos::mgm::QuarkConfigHandler &configHandler) {
+int runDumpSubcommand(const std::string& configEntry,
+                      eos::mgm::QuarkConfigHandler& configHandler)
+{
   std::map<std::string, std::string> configuration;
-  eos::common::Status status = configHandler.fetchConfiguration(configEntry, configuration);
+  eos::common::Status status = configHandler.fetchConfiguration(configEntry,
+                               configuration);
 
-  if(!status) {
-    std::cerr << "error while fetching configuration '" << configEntry <<"' : " << status.toString() << std::endl;
+  if (!status) {
+    std::cerr << "error while fetching configuration '" << configEntry << "' : " <<
+              status.toString() << std::endl;
     return 1;
   }
 
-  for(auto it = configuration.begin(); it != configuration.end(); it++) {
+  for (auto it = configuration.begin(); it != configuration.end(); it++) {
     std::cout << it->first << " => " << it->second << std::endl;
   }
 
   return 0;
 }
 
-int runExportSubcommand(const std::string &sourceFile, eos::mgm::QuarkConfigHandler &configHandler,
-  bool overwrite) {
-
+int runExportSubcommand(const std::string& sourceFile,
+                        eos::mgm::QuarkConfigHandler& configHandler,
+                        bool overwrite)
+{
   std::map<std::string, std::string> configuration;
-  if(!readAndParseConfiguration(sourceFile, configuration)) {
+
+  if (!readAndParseConfiguration(sourceFile, configuration)) {
     return 1;
   }
 
-  eos::common::Status st = configHandler.writeConfiguration("default", configuration, overwrite).get();
+  eos::common::Status st = configHandler.writeConfiguration("default",
+                           configuration, overwrite).get();
 
-  if(!st) {
+  if (!st) {
     std::cerr << "ERROR: " << st.toString() << std::endl;
     return 1;
   }
 
-  std::cerr << "--- Operation successful - wrote configuration 'default' with " << configuration.size() << " entries" << std::endl;
+  std::cerr << "--- Operation successful - wrote configuration 'default' with " <<
+            configuration.size() << " entries" << std::endl;
   return 0;
 }
 
-int runListSubcommand(eos::mgm::QuarkConfigHandler &configHandler) {
+int runListSubcommand(eos::mgm::QuarkConfigHandler& configHandler)
+{
   std::vector<std::string> configs, backups;
   eos::common::Status st = configHandler.listConfigurations(configs, backups);
 
-  if(!st) {
+  if (!st) {
     std::cerr << "ERROR: " << st.toString() << std::endl;
     return 1;
   }
 
   std::cout << "Stored configurations:" << std::endl;
-  for(auto it = configs.begin(); it != configs.end(); it++) {
+
+  for (auto it = configs.begin(); it != configs.end(); it++) {
     std::cout << "    " << *it << std::endl;
   }
 
   std::cout << std::endl;
-
   std::cout << "Stored backups:" << std::endl;
-  for(auto it = backups.begin(); it != backups.end(); it++) {
+
+  for (auto it = backups.begin(); it != backups.end(); it++) {
     std::cout << "    " << *it << std::endl;
   }
 
   return 0;
 }
 
-int runTailSubcommand(size_t nlines, eos::mgm::QuarkConfigHandler &configHandler) {
+int runTailSubcommand(size_t nlines,
+                      eos::mgm::QuarkConfigHandler& configHandler)
+{
   std::vector<std::string> changelog;
   eos::common::Status st = configHandler.tailChangelog(nlines, changelog);
 
-  if(!st) {
+  if (!st) {
     std::cerr << st.toString() << std::endl;
     return 1;
   }
 
-  for(auto it = changelog.begin(); it != changelog.end(); it++) {
+  for (auto it = changelog.begin(); it != changelog.end(); it++) {
     std::cout << *it << std::endl;
   }
 
   return 0;
 }
 
-int runRelocateFilesystemSubcommand(eos::mgm::QuarkConfigHandler &configHandler, uint32_t fsid, const std::string &newhost, int newport) {
+int runRelocateFilesystemSubcommand(eos::mgm::QuarkConfigHandler& configHandler,
+                                    uint32_t fsid, const std::string& newhost, int newport)
+{
   std::map<std::string, std::string> configMap;
   eos::common::Status st = configHandler.fetchConfiguration("default", configMap);
 
-  if(!st) {
+  if (!st) {
     std::cerr << "could not fetch configuration: " << st.toString() << std::endl;
     return 1;
   }
 
-  for(auto it = configMap.begin(); it != configMap.end(); it++) {
-    if(eos::common::startsWith(it->first, "fs:")) {
+  for (auto it = configMap.begin(); it != configMap.end(); it++) {
+    if (eos::common::startsWith(it->first, "fs:")) {
       std::map<std::string, std::string> configEntry;
 
-      if(!eos::common::ConfigParsing::parseFilesystemConfig(it->second, configEntry)) {
-        std::cerr << "could not parse fs entry: " << it->first << it->second << std::endl;
+      if (!eos::common::ConfigParsing::parseFilesystemConfig(it->second,
+          configEntry)) {
+        std::cerr << "could not parse fs entry: " << it->first << it->second <<
+                  std::endl;
         return 1;
       }
 
-      if(configEntry["id"] == SSTR(fsid)) {
+      if (configEntry["id"] == SSTR(fsid)) {
         // We have a match
-        std::cout << "Found filesystem with fsid=" << fsid << ": " << configEntry["queue"] << std::endl;
+        std::cout << "Found filesystem with fsid=" << fsid << ": " <<
+                  configEntry["queue"] << std::endl;
         std::cout << it->first << " " << it->second << std::endl;
+        st = eos::common::ConfigParsing::relocateFilesystem(newhost, newport,
+             configEntry);
 
-        st = eos::common::ConfigParsing::relocateFilesystem(newhost, newport, configEntry);
-
-        if(!st) {
+        if (!st) {
           std::cerr << "filesystem relocation failed: " << st.toString() << std::endl;
           return 1;
         }
@@ -236,23 +257,22 @@ int runRelocateFilesystemSubcommand(eos::mgm::QuarkConfigHandler &configHandler,
         std::string configKey = SSTR("fs:" << configEntry["queuepath"]);
         std::string newConfig = eos::common::joinMap(configEntry, " ");
         std::cout << "After relocation: " << configKey << " " << newConfig << std::endl;
-
         configMap.erase(it);
         configMap[configKey] = newConfig;
-
         char buff[128];
         time_t timestamp = time(NULL);
         strftime(buff, 127, "%Y%m%d%H%M%S", localtime(&timestamp));
-        std::string backupName = SSTR("default-" << buff << "-relocation"); 
+        std::string backupName = SSTR("default-" << buff << "-relocation");
+        st = configHandler.writeConfiguration("default", configMap, true,
+                                              backupName).get();
 
-        st = configHandler.writeConfiguration("default", configMap, true, backupName).get();
-
-        if(!st) {
+        if (!st) {
           std::cerr << "writing configuration failed: " << st.toString() << std::endl;
           return 1;
         }
 
-        std::cout << "Successfully wrote configuration, backup key: " << backupName << std::endl;
+        std::cout << "Successfully wrote configuration, backup key: " << backupName <<
+                  std::endl;
         return 0;
       }
     }
@@ -265,10 +285,13 @@ int runRelocateFilesystemSubcommand(eos::mgm::QuarkConfigHandler &configHandler,
 //------------------------------------------------------------------------------
 // Trim backups subcommand
 //------------------------------------------------------------------------------
-int runTrimBackupsSubcommand(size_t limit, eos::mgm::QuarkConfigHandler &configHandler) {
+int runTrimBackupsSubcommand(size_t limit,
+                             eos::mgm::QuarkConfigHandler& configHandler)
+{
   size_t deleted = 0;
   eos::common::Status st = configHandler.trimBackups("default", limit, deleted);
-  if(!st) {
+
+  if (!st) {
     std::cerr << st.toString() << std::endl;
     return st.getErrc();
   }
@@ -281,7 +304,6 @@ int main(int argc, char* argv[])
 {
   CLI::App app("Tool to inspect contents of the QuarkDB-based EOS configuration.");
   app.require_subcommand();
-
   //----------------------------------------------------------------------------
   // Parameters common to all subcommands
   //----------------------------------------------------------------------------
@@ -289,13 +311,11 @@ int main(int argc, char* argv[])
   MemberValidator memberValidator;
   std::string password;
   std::string passwordFile;
-
   //----------------------------------------------------------------------------
   // Set-up export subcommand..
   //----------------------------------------------------------------------------
   auto exportSubcommand = app.add_subcommand("export",
                           "[DANGEROUS] Read a legacy file-based configuration file, and export to QDB. Ensure the MGM is not running while you run this command!");
-
   std::string sourceFile;
   exportSubcommand->add_option("--source", sourceFile,
                                "Path to the source configuration file to export")
@@ -303,79 +323,65 @@ int main(int argc, char* argv[])
   bool overwrite = false;
   exportSubcommand->add_flag("--overwrite", overwrite,
                              "Overwrite already-existing configuration in QDB.");
-
   addClusterOptions(exportSubcommand, membersStr, memberValidator, password,
                     passwordFile);
-
   //----------------------------------------------------------------------------
   // Set-up relocate-filesystem subcommand..
   //----------------------------------------------------------------------------
   auto relocateFilesystemSubcommand = app.add_subcommand("relocate-filesystem",
-                          "[DANGEROUS] Change the FST to which a filesystem belongs to");
-
+                                      "[DANGEROUS] Change the FST to which a filesystem belongs to");
   uint32_t fsid;
   relocateFilesystemSubcommand->add_option("--fsid", fsid,
-                               "The ID of the filesystem to change")
+      "The ID of the filesystem to change")
   ->required();
-
   std::string newFstHost;
   relocateFilesystemSubcommand->add_option("--new-fst-host", newFstHost,
-                               "The new FST host")
+      "The new FST host")
   ->required();
-
   int newFstPort;
   relocateFilesystemSubcommand->add_option("--new-fst-port", newFstPort,
-                               "The new FST port")
+      "The new FST port")
   ->required();
-
-  addClusterOptions(relocateFilesystemSubcommand, membersStr, memberValidator, password,
+  addClusterOptions(relocateFilesystemSubcommand, membersStr, memberValidator,
+                    password,
                     passwordFile);
-
   //----------------------------------------------------------------------------
   // Set-up dump subcommand..
   //----------------------------------------------------------------------------
   auto dumpSubcommand = app.add_subcommand("dump",
-                          "Dump the contents of a given configuration stored in QDB");
-  std::string configEntry = 'default';
+                        "Dump the contents of a given configuration stored in QDB");
+  std::string configEntry = "default";
   dumpSubcommand->add_option("--config", configEntry,
-			     "Configuration to dump (from 'list'), default is actual");
-
+                             "Configuration to dump (from 'list'), default is actual");
   addClusterOptions(dumpSubcommand, membersStr, memberValidator, password,
                     passwordFile);
-
   //----------------------------------------------------------------------------
   // Set-up list subcommand..
   //----------------------------------------------------------------------------
   auto listSubcommand = app.add_subcommand("list",
-                         "List all stored configurations, including backups");
-
+                        "List all stored configurations, including backups");
   addClusterOptions(listSubcommand, membersStr, memberValidator, password,
                     passwordFile);
-
   //----------------------------------------------------------------------------
   // Set-up tail-changelog subcommand..
   //----------------------------------------------------------------------------
   auto tailSubcommand = app.add_subcommand("tail-changelog",
-                         "Tail configuration changelog");
-
+                        "Tail configuration changelog");
   size_t nlines = 1000;
   tailSubcommand->add_option("--nlines", nlines,
-                               "The maximum number of changelog entries to print");
+                             "The maximum number of changelog entries to print");
   addClusterOptions(tailSubcommand, membersStr, memberValidator, password,
                     passwordFile);
-
   //----------------------------------------------------------------------------
   // Set-up trim-backups subcommand..
   //----------------------------------------------------------------------------
   auto trimBackupsSubcommand = app.add_subcommand("trim-backups",
-    "Trim number of configuration backups");
-
+                               "Trim number of configuration backups");
   size_t nbackups = 1000;
   trimBackupsSubcommand->add_option("--limit", nbackups,
-    "The maximum number of backups to keep");
-
+                                    "The maximum number of backups to keep");
   addClusterOptions(trimBackupsSubcommand, membersStr, memberValidator, password,
-    passwordFile);
+                    passwordFile);
 
   //----------------------------------------------------------------------------
   // Parse
@@ -403,32 +409,30 @@ int main(int argc, char* argv[])
   qclient::Members members = qclient::Members::fromString(membersStr);
   eos::QdbContactDetails contactDetails(members, password);
   eos::mgm::QuarkConfigHandler configHandler(contactDetails);
-
   //----------------------------------------------------------------------------
   // Ensure connection is sane
   //----------------------------------------------------------------------------
-  eos::common::Status status = configHandler.checkConnection(std::chrono::seconds(3));
-  if(!status) {
-    std::cerr << "could not connect to QDB backend: " << status.toString() << std::endl;
+  eos::common::Status status = configHandler.checkConnection(std::chrono::seconds(
+                                 3));
+
+  if (!status) {
+    std::cerr << "could not connect to QDB backend: " << status.toString() <<
+              std::endl;
     return 1;
   }
 
-  if(exportSubcommand->parsed()) {
+  if (exportSubcommand->parsed()) {
     return runExportSubcommand(sourceFile, configHandler, overwrite);
-  }
-  else if(relocateFilesystemSubcommand->parsed()) {
-    return runRelocateFilesystemSubcommand(configHandler, fsid, newFstHost, newFstPort);
-  }
-  else if(dumpSubcommand->parsed()) {
+  } else if (relocateFilesystemSubcommand->parsed()) {
+    return runRelocateFilesystemSubcommand(configHandler, fsid, newFstHost,
+                                           newFstPort);
+  } else if (dumpSubcommand->parsed()) {
     return runDumpSubcommand(configEntry, configHandler);
-  }
-  else if(listSubcommand->parsed()) {
+  } else if (listSubcommand->parsed()) {
     return runListSubcommand(configHandler);
-  }
-  else if(tailSubcommand->parsed()) {
+  } else if (tailSubcommand->parsed()) {
     return runTailSubcommand(nlines, configHandler);
-  }
-  else if(trimBackupsSubcommand->parsed()) {
+  } else if (trimBackupsSubcommand->parsed()) {
     return runTrimBackupsSubcommand(nbackups, configHandler);
   }
 
