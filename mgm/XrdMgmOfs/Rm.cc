@@ -112,7 +112,7 @@ XrdMgmOfs::_rem(const char* path,
     gOFS->MgmStats.Add("Rm", vid.uid, vid.gid, 1);
   }
 
-  std::string errMsg = "remote";
+  std::string errMsg = "remove";
   // Perform the actual deletion
   errno = 0;
   XrdSfsFileExistence file_exists;
@@ -307,13 +307,13 @@ XrdMgmOfs::_rem(const char* path,
             eos_info("msg=\"workflow trigger returned\" retc=%d errno=%d", ret_wfe, errno);
           }
 
-          lock.Grab(gOFS->eosViewRWMutex);
-
           if (ret_wfe && errno != ENOKEY) {
+	    eos_err("ret-wfe=%d errno=%d", ret_wfe, errno);
             eos::MDException e(errno);
             e.getMessage() << "Deletion workflow failed";
             throw e;
           }
+	  lock.Grab(gOFS->eosViewRWMutex);
         }
 
         /* create a Copy-on-Write clone if needed */
@@ -356,6 +356,7 @@ XrdMgmOfs::_rem(const char* path,
       errno = 0;
     } catch (eos::MDException& e) {
       errno = e.getErrno();
+      eos_err("catched errno=%d", errno);
       eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"",
                 e.getErrno(), e.getMessage().str().c_str());
     }
@@ -401,6 +402,7 @@ XrdMgmOfs::_rem(const char* path,
         }
       }
     } else {
+      eos_err("no quota defined do-recycle=%d", doRecycle);
       // There is no quota defined on that recycle path
       errno = ENODEV;
       return Emsg(epname, error, ENODEV, "remove existing file - the recycle "
@@ -451,6 +453,7 @@ XrdMgmOfs::_rem(const char* path,
   EXEC_TIMING_END("Rm");
 
   if (errno) {
+    eos_err("returning errno=%d", errno);
     return Emsg(epname, error, errno, errMsg.c_str(), path);
   } else {
     eos_info("msg=\"deleted\" can-recycle=%d path=%s owner.uid=%u owner.gid=%u vid.uid=%u vid.gid=%u",
