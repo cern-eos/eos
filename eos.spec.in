@@ -947,6 +947,9 @@ Contains an instance and fuse test script and some test executables and test arc
 %{_sbindir}/eos-unit-tests-fst
 %{_sbindir}/eos-unit-tests-with-qdb
 %{_sbindir}/eos-ns-quarkdb-tests
+%{_sbindir}/eos-make-flamegraph
+%{_sbindir}/eos-util-flamegraph
+%{_sbindir}/eos-util-stackcollapse
 %attr(444,daemon,daemon) %{_localstatedir}/eos/test/fuse/untar/untar.tgz
 %attr(444,daemon,daemon) %{_localstatedir}/eos/test/fuse/untar/xrootd.tgz
 %if %{?_with_asan:1}%{!?_with_asan:0}
@@ -990,21 +993,3 @@ Contains an clean-up scripts to remove 'left-overs' of an EOS instance for FST/M
 %{_sbindir}/eos-mgm-clean
 %endif
 
-
-
-#-------------------------------------------------------------------------------
-# Package eos-flamegraph
-#-------------------------------------------------------------------------------
-%package -n eos-flamegraph
-Summary: The EOS test package
-Group: Applications/File
-ExclusiveArch: x86_64 aarch64
-
-%description -n eos-flamegraph
-Contains required scripts to create a framegraph for a default EOS namespace benchmark
-
-%files -n eos-flamegraph
-%defattr(-, root, root, -)
-%{_sbindir}/eos-make-flamegraph
-%{_sbindir}/eos-util-flamegraph
-%{_sbindir}/eos-util-stackcollapse
