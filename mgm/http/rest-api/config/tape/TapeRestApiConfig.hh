@@ -84,6 +84,18 @@ public:
   const std::string getHostAlias() const;
 
   /**
+   * Sets (thus overriding the default values) the mapping between the REST API versions and URIs in the .well-known
+   * is running
+   * @param tapeRestApiEndpointUriMap the mapping between the REST API versions and URIs
+   */
+  void setEndpointToUrlMapping(const std::map<std::string, std::string>& tapeRestApiEndpointUriMap);
+
+  /**
+   * @return Gets the mapping between the REST API versions and URIs
+   */
+  const std::map<std::string, std::string> getEndpointToUriMapping() const;
+
+  /**
    * Sets the port of the XrdHttp server where the tape REST API is running
    * @param xrdHttpPort
    */
@@ -116,6 +128,8 @@ private:
   std::string mAccessURL;
   //The mgmofs.alias value coming from the MGM configuration file
   std::string mHostAlias;
+  // The mapping between the REST API versions and URIs
+  std::map<std::string, std::string> mTapeRestApiEndpointUrlMap;
   //By default, the tape REST API is not activated
   std::atomic<bool> mIsActivated = false;
   //The tape enabled flag of the EOS instance where the tape REST API is running
