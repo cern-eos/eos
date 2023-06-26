@@ -70,6 +70,18 @@ const std::string TapeRestApiConfig::getHostAlias() const
   return mHostAlias;
 }
 
+void TapeRestApiConfig::setEndpointToUrlMapping(const std::map<std::string, std::string>& tapeRestApiEndpointUriMap)
+{
+  common::RWMutexWriteLock rwlock(mConfigMutex);
+  mTapeRestApiEndpointUrlMap = tapeRestApiEndpointUriMap;
+}
+
+const std::map<std::string, std::string> TapeRestApiConfig::getEndpointToUriMapping() const
+{
+  common::RWMutexReadLock rwlock(mConfigMutex);
+  return mTapeRestApiEndpointUrlMap;
+}
+
 void TapeRestApiConfig::setXrdHttpPort(const uint16_t xrdHttpPort)
 {
   mXrdHttpPort = xrdHttpPort;

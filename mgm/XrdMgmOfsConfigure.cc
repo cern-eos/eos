@@ -28,6 +28,7 @@
 #include <fcntl.h>
 #include <cstring>
 #include <sstream>
+#include <regex>
 #include "grpc/GrpcServer.hh"
 #include "grpc/GrpcWncServer.hh"
 #include "mgm/AdminSocket.hh"
@@ -390,6 +391,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   }
 
   std::string tapeRestApiSitename;
+  std::map<std::string, std::string> tapeRestApiEndpointUrlMap;
   XrdHttpPort = ManagerPort;
 
   if (!ConfigFN || !*ConfigFN) {
@@ -1086,14 +1088,41 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
         }
       }
 
-      if (!strcmp("taperestapi.sitename", var)) {
-        val = Config.GetWord();
+      {
+        if (!strcmp("taperestapi.sitename", var)) {
+          val = Config.GetWord();
 
-        if (val != nullptr) {
-          tapeRestApiSitename = val;
-          Eroute.Say("=====> taperestapi.sitename: ", val, "");
-        } else {
-          Eroute.Say("Config warning: REST API sitename not specified, disabling tape REST API.");
+          if (val != nullptr) {
+            tapeRestApiSitename = val;
+            Eroute.Say("=====> taperestapi.sitename: ", val, "");
+          } else {
+            Eroute.Say("Config warning: REST API sitename not specified, disabling tape REST API.");
+          }
+        }
+
+        const char * endpointsStr = "taperestapi.endpoints.";
+        int endpointsStrLen = strlen(endpointsStr);
+        if (!strncmp(endpointsStr, var, endpointsStrLen)) {
+          char* version_ptr_begin = var + endpointsStrLen;
+          char* version_ptr_end = strstr(var + endpointsStrLen, ".uri");
+
+          if (!version_ptr_end || strcmp(version_ptr_end, ".uri")) {
+            auto err_msg = std::string("command ") + var + " is invalid";
+            Eroute.Emsg("Config", err_msg.c_str());
+            NoGo = 1;
+          } else {
+            std::string version(version_ptr_begin, version_ptr_end);
+            if (!std::regex_match(version, std::regex("v[0-9]+(\\.[0-9]+)?"))) {
+              auto err_msg = std::string("version ") + version +
+                             " in command " + var + " is invalid";
+              Eroute.Emsg("Config", err_msg.c_str());
+              NoGo = 1;
+            } else {
+              val = Config.GetWord();
+              tapeRestApiEndpointUrlMap[version] = val;
+              Eroute.Say("=====> ", var, ": ", val);
+            }
+          }
         }
       }
     }
@@ -2042,6 +2071,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
     tapeRestApiConfig->setTapeEnabled(mTapeEnabled);
     tapeRestApiConfig->setActivated(restApiActivated);
     tapeRestApiConfig->setSiteName(tapeRestApiSitename);
+    tapeRestApiConfig->setEndpointToUrlMapping(tapeRestApiEndpointUrlMap);
     tapeRestApiConfig->setHostAlias(MgmOfsAlias.c_str());
     tapeRestApiConfig->setXrdHttpPort(XrdHttpPort);
     tapeRestApiConfig->setStageEnabled(restApiStageEnabled);

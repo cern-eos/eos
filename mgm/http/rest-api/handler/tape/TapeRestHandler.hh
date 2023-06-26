@@ -79,11 +79,26 @@ public:
   const TapeWellKnownInfos* getWellKnownInfos() const;
 
 private:
-  void initializeV0Dot1();
+
+  enum class ApiVersion {
+    V0Dot1,
+    V1
+  };
+
+  static constexpr ApiVersion DEFAULT_API_VERSION = ApiVersion::V1;
+
   /**
-   * Initialize the version 1 of the tape REST API
+   * Convert the Tape REST API version to it's string representation
+   * @param apiVersion the version of the Tape REST API
    */
-  void initializeV1();
+  std::string apiVersionToStr(ApiVersion apiVersion);
+
+  /**
+   * Initialize a version of the tape REST API
+   * @param apiVersion the version of the Tape REST API to initialize
+   */
+  void initialize(TapeRestHandler::ApiVersion apiVersion);
+
   /**
    * Initializes the STAGE controller for a specific version
    * @param apiVersion the version to apply to this stage controller
@@ -92,7 +107,7 @@ private:
    * @return the StageController for a specific version
    */
   std::unique_ptr<Controller>
-  initializeStageController(const std::string& apiVersion,
+  initializeStageController(TapeRestHandler::ApiVersion apiVersion,
                             std::shared_ptr<ITapeRestApiBusiness> tapeRestApiBusiness);
 
   /**
@@ -102,8 +117,8 @@ private:
    * @return the ArchiveInfoController for a specific version
    */
   std::unique_ptr<Controller> initializeArchiveinfoController(
-    const std::string& apiVersion,
-    std::shared_ptr<ITapeRestApiBusiness> tapeRestApiBusiness);
+      TapeRestHandler::ApiVersion apiVersion,
+      std::shared_ptr<ITapeRestApiBusiness> tapeRestApiBusiness);
   /**
    * Initializes the RELEASE controller for a specific version
    * @param apiVersion the version to apply to this RELEASE controller
@@ -111,8 +126,8 @@ private:
    * @return the ReleaseController for a specific version
    */
   std::unique_ptr<Controller> initializeReleaseController(
-    const std::string& apiVersion,
-    std::shared_ptr<ITapeRestApiBusiness> tapeRestApiBusiness);
+      TapeRestHandler::ApiVersion apiVersion,
+      std::shared_ptr<ITapeRestApiBusiness> tapeRestApiBusiness);
 
   /**
    * Initialize the well-known information
@@ -126,6 +141,14 @@ private:
    * @param version
    */
   void addEndpointToWellKnown(const std::string& version);
+
+  /**
+   * Adds the tape REST API endpoint to the well-known information
+   * that will later be used by the .well-known handler
+   * @param version
+   * @param url
+   */
+  void addEndpointToWellKnown(const std::string& version, const std::string& url);
 
   /**
    * HttpResponse factory for the tape REST API
