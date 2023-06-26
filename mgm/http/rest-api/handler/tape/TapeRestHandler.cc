@@ -48,11 +48,9 @@ EOSMGMRESTNAMESPACE_BEGIN
 std::string TapeRestHandler::apiVersionToStr(TapeRestHandler::ApiVersion apiVersion) {
   switch(apiVersion) {
   case ApiVersion::V0Dot1:
-    return "v1.0";
+    return "v0.1";
   case ApiVersion::V1:
     return "v1";
-  default:
-    throw std::invalid_argument("Unknown Tape REST API version");
   }
 }
 
