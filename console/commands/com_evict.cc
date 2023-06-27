@@ -64,45 +64,45 @@ bool
 EvictHelper::ParseCommand(const char* arg)
 {
   const char* nextToken;
-  std::string snextToken;
+  std::string sNextToken;
   eos::console::EvictProto* evict = mReq.mutable_evict();
   eos::common::StringTokenizer tokenizer(arg);
   XrdOucString path = tokenizer.GetLine();
 
   if (!(nextToken = tokenizer.GetToken())) {
     return false;
-  } else {
-    snextToken = nextToken;
-    if (snextToken.substr(0, 2) == "--") {
-      snextToken.erase(0, 2);
+  }
 
-      // No other option besides --fsid is accepted
-      if (snextToken != "fsid") {
-        return false;
-      }
 
-      // Parse fsid
+  for (
+      sNextToken = nextToken;
+      sNextToken == "--fsid" || sNextToken == "--force" || sNextToken == "-f";
+      nextToken = tokenizer.GetToken(), sNextToken = nextToken ? nextToken : ""
+      ) {
+    if (sNextToken == "--force" || sNextToken == "-f") {
+      evict->set_force(true);
+    } else if (sNextToken == "--fsid") {
       if (!(nextToken = tokenizer.GetToken())) {
-        std::cerr << "error: --fsid flag needs to be followed by value" << std::endl;
+        std::cerr << "error: --fsid needs to be followed by value" << std::endl;
         return false;
+      } else {
+        try {
+          uint64_t fsid = std::stoull(nextToken);
+          evict->mutable_evictsinglereplica()->set_fsid(fsid);
+        } catch (const std::exception& e) {
+          std::cerr << "error: --fsid value needs to be numeric" << std::endl;
+          return false;
+        }
       }
-
-      snextToken = nextToken;
-      try {
-        uint64_t fsid = std::stoull(snextToken);
-        evict->mutable_evictsinglereplica()->set_fsid(fsid);
-      } catch (const std::exception& e) {
-        std::cerr << "error: --fsid value needs to be numeric" << std::endl;
-        return false;
-      }
-
-      path = tokenizer.GetToken();
-    } else {
-      // There was no option, use it as first path
-      path = nextToken;
     }
   }
 
+  if (evict->has_evictsinglereplica() && !evict->force()) {
+    std::cerr << "error: --fsid can only be used with --force" << std::endl;
+    return false;
+  }
+
+  path = nextToken;
   while (path != "") {
     // remove escaped blanks
     while (path.replace("\\ ", " "));
