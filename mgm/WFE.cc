@@ -2169,51 +2169,20 @@ WFE::Job::HandleProtoMethodEvictPrepareEvent(const std::string& fullPath,
     MoveWithResults(ENODATA);
     return ENODATA;
   } else {
-
-    // check eviction counter must reach zero for file to be deleted
-    int evictionCounter = 0;
-
-    try {
-      eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
-      auto fmd = gOFS->eosView->getFile(fullPath.c_str());
-
-      if (fmd->hasAttribute(eos::common::RETRIEVE_EVICT_COUNTER_NAME)) {
-        evictionCounter = std::stoi(fmd->getAttribute(
-                eos::common::RETRIEVE_EVICT_COUNTER_NAME));
-      }
-
-      eosLog.addParam(EosCtaReportParam::PREP_WFE_EVICTCOUNTER, evictionCounter);
-
-      evictionCounter = std::max(0, evictionCounter - 1);
-      fmd->setAttribute(eos::common::RETRIEVE_EVICT_COUNTER_NAME,
-                        std::to_string(evictionCounter));
-      gOFS->eosView->updateFileStore(fmd.get());
-    } catch (eos::MDException& ex) {
-      eos_static_err("msg=\"could not update eviction counter for file %s\"",
-                     fullPath.c_str());
-    }
-
-    if (evictionCounter > 0) {
+    const auto result = EvictAsRoot(mFid);
+    if (0 == result.retc()) {
       std::ostringstream msg;
       msg << preamble.str() <<
-          " msg=\"Evict counter not null, bypassing evict for evict_prepare event\"";
+          " msg=\"Successfully issued evict for evict_prepare event\"";
       eos_static_info(msg.str().c_str());
     } else {
-      const auto result = EvictAsRoot(mFid);
-      if (0 == result.retc()) {
-        std::ostringstream msg;
-        msg << preamble.str() <<
-            " msg=\"Successfully issued evict for evict_prepare event\"";
-        eos_static_info(msg.str().c_str());
-      } else {
-        std::ostringstream msg;
-        msg << preamble.str() <<
-            " msg=\"Failed to issue evict for evict_prepare event\"";
-        eos_static_info(msg.str().c_str());
-        eosLog.addParam(EosCtaReportParam::PREP_WFE_ERROR, msg.str());
-        MoveWithResults(EAGAIN);
-        return EAGAIN;
-      }
+      std::ostringstream msg;
+      msg << preamble.str() <<
+          " msg=\"Failed to issue evict for evict_prepare event\"";
+      eos_static_info(msg.str().c_str());
+      eosLog.addParam(EosCtaReportParam::PREP_WFE_ERROR, msg.str());
+      MoveWithResults(EAGAIN);
+      return EAGAIN;
     }
   }
 

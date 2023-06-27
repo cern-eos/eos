@@ -87,14 +87,23 @@ eos::mgm::EvictCmd::ProcessRequest() noexcept
   const auto& evict = req.evict();
 
   // TODO: Replace the code removed above by this line
-  // const auto& stagerRm = mReqProto.stagerrm();
+  // const auto& evict = mReqProto.evict();
 
   XrdOucErrInfo errInfo;
   eos::common::VirtualIdentity root_vid = eos::common::VirtualIdentity::Root();
   struct timespec ts_now;
   eos::common::Timing::GetTimeSpec(ts_now);
-  std::optional<uint64_t> fsid = 0;
-  fsid = evict.has_evictsinglereplica() ? std::optional(evict.evictsinglereplica().fsid()) : std::nullopt;
+  std::optional<uint64_t> fsid =
+      evict.has_evictsinglereplica() ? std::optional(evict.evictsinglereplica().fsid()) : std::nullopt;
+  bool force = evict.force();
+
+  if (fsid.has_value() && !force) {
+    reply.set_retc(EINVAL);
+    errStream << "error: Parameter 'fsid' can only be used with 'force'" << std::endl;
+    reply.set_std_err(errStream.str());
+    reply.set_std_out(outStream.str());
+    return reply;
+  }
 
   for (int i = 0; i < evict.file_size(); i++) {
     EosCtaReporterEvict eosLog;
@@ -227,7 +236,7 @@ eos::mgm::EvictCmd::ProcessRequest() noexcept
 
     errInfo.clear();
 
-    if (fsid.has_value()) {
+    if (fsid.has_value() && force) {
       // Drop single stripe
       if (gOFS->_dropstripe(path.c_str(), 0, errInfo, root_vid, fsid.value(), true) != 0) {
         eos_static_err("msg=\"could not delete replica of %s\" fsid=\"%u\" reason=\"%s\"",
@@ -243,6 +252,36 @@ eos::mgm::EvictCmd::ProcessRequest() noexcept
         }
       }
     } else {
+      // May drop all stripes
+      if (!force) {
+        // Check the eviction counter first, if not force
+        int evictionCounter = 0;
+        try {
+          eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
+          auto fmd = gOFS->eosView->getFile(path.c_str());
+
+          if (fmd->hasAttribute(eos::common::RETRIEVE_EVICT_COUNTER_NAME)) {
+            evictionCounter = std::stoi(fmd->getAttribute(
+                eos::common::RETRIEVE_EVICT_COUNTER_NAME));
+          }
+
+          eosLog.addParam(EosCtaReportParam::EVICTCMD_EVICTCOUNTER, evictionCounter);
+          evictionCounter = std::max(0, evictionCounter - 1);
+          fmd->setAttribute(eos::common::RETRIEVE_EVICT_COUNTER_NAME,
+                            std::to_string(evictionCounter));
+          gOFS->eosView->updateFileStore(fmd.get());
+        } catch (eos::MDException& ex) {
+          eos_static_err("msg=\"could not update eviction counter for file %s\"",
+                         path.c_str());
+        }
+
+        if (evictionCounter > 0) {
+          // Do not remove if eviction counter not zero
+          eosLog.addParam(EosCtaReportParam::EVICTCMD_FILEREMOVED, false);
+          continue;
+        }
+      }
+
       // Drop all stripes
       if (gOFS->_dropallstripes(path.c_str(), errInfo, root_vid, true) != 0) {
         eos_static_err("msg=\"could not delete all replicas of %s\" reason=\"%s\"",
