@@ -51,6 +51,8 @@ std::string TapeRestHandler::apiVersionToStr(TapeRestHandler::ApiVersion apiVers
     return "v0.1";
   case ApiVersion::V1:
     return "v1";
+  default:
+    throw std::invalid_argument("Unknown Tape REST API version.");
   }
 }
 
@@ -82,8 +84,7 @@ void TapeRestHandler::initialize(TapeRestHandler::ApiVersion apiVersion) {
     stageController = initializeStageController(apiVersion, restApiBusiness);
     break ;
   default:
-    std::string errorMsg = "Unknown API version " + apiVersionToStr(apiVersion) + ". Failed to initialize Tape REST API.";
-    throw std::invalid_argument(errorMsg);
+    throw std::invalid_argument("Unknown Tape REST API version. Failed to initialize.");
   }
   mControllerManager.addController(std::move(stageController));
   std::unique_ptr<Controller> fileInfoController = initializeArchiveinfoController(apiVersion, restApiBusiness);
