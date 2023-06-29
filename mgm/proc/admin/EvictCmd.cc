@@ -105,6 +105,9 @@ eos::mgm::EvictCmd::ProcessRequest() noexcept
     return reply;
   }
 
+  int count_some_disk_replicas_removed = 0;
+  int count_all_disk_replicas_removed = 0;
+  int count_evict_counter_not_zero = 0;
   for (int i = 0; i < evict.file_size(); i++) {
     EosCtaReporterEvict eosLog;
     eosLog
@@ -249,6 +252,9 @@ eos::mgm::EvictCmd::ProcessRequest() noexcept
       } else {
         if (diskReplicaCount <= 1) {
           allReplicasRemoved = true;
+          count_all_disk_replicas_removed++;
+        } else {
+          count_some_disk_replicas_removed++;
         }
       }
     } else {
@@ -278,6 +284,7 @@ eos::mgm::EvictCmd::ProcessRequest() noexcept
         if (evictionCounter > 0) {
           // Do not remove if eviction counter not zero
           eosLog.addParam(EosCtaReportParam::EVICTCMD_FILEREMOVED, false);
+          count_evict_counter_not_zero++;
           continue;
         }
       }
@@ -291,6 +298,7 @@ eos::mgm::EvictCmd::ProcessRequest() noexcept
         eosLog.addParam(EosCtaReportParam::EVICTCMD_ERROR, errStream.str());
         ret_c = SFS_ERROR;
       } else {
+        count_all_disk_replicas_removed++;
         allReplicasRemoved = true;
       }
     }
@@ -324,9 +332,14 @@ eos::mgm::EvictCmd::ProcessRequest() noexcept
   std::string stdout_reply_s;
   if (ret_c == 0) {
     if (fsid.has_value()) {
-      outStream << "success: removed fsid "<< fsid.value() << " replica for all given files";
-    } else {
-      outStream << "success: removed all replicas for all given files";
+      outStream << "success: found and removed the fsid="<< fsid.value() << " replica for "
+                << (count_all_disk_replicas_removed + count_some_disk_replicas_removed)
+                << "/" << evict.file_size() << " files";
+    } else  {
+      outStream << "success: removed all replicas for "
+                << count_all_disk_replicas_removed << "/" << evict.file_size()
+                << " files; reduced evict counter for " << count_evict_counter_not_zero << "/"
+                << evict.file_size() << " files";
     }
   }
   reply.set_std_out(outStream.str());
