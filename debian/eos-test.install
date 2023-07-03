@@ -19,6 +19,7 @@ usr/sbin/xrdcpposixcache
 usr/sbin/xrdcprandom
 usr/sbin/xrdcpshrink
 usr/sbin/xrdcptruncate
+usr/sbin/xrdcpvectorread
 usr/sbin/xrdstress
 usr/sbin/xrdstress.exe
 usr/sbin/eos-test-credential-bindings

@@ -935,6 +935,7 @@ Contains an instance and fuse test script and some test executables and test arc
 %{_sbindir}/xrdcppartial
 %{_sbindir}/xrdcpslowwriter
 %{_sbindir}/xrdcpupdate
+%{_sbindir}/xrdcpvectorread
 %{_sbindir}/xrdstress
 %{_sbindir}/xrdstress.exe
 %{_sbindir}/eos-io-test

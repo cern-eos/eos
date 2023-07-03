@@ -65,6 +65,8 @@ add_executable(xrdcpslowwriter XrdCpSlowWriter.cc)
 set_target_properties(xrdcpslowwriter PROPERTIES POSITION_INDEPENDENT_CODE TRUE)
 add_executable(xrdcpnonstreaming XrdCpNonStreaming.cc)
 set_target_properties(xrdcpnonstreaming PROPERTIES POSITION_INDEPENDENT_CODE TRUE)
+add_executable(xrdcpvectorread XrdCpVectorRead.cc)
+set_target_properties(xrdcpvectorread PROPERTIES POSITION_INDEPENDENT_CODE TRUE)
 add_executable(eos-udp-dumper EosUdpDumper.cc)
 set_target_properties(eos-udp-dumper PROPERTIES POSITION_INDEPENDENT_CODE TRUE)
 add_executable(eos-mmap EosMmap.cc)
@@ -109,6 +111,7 @@ target_link_libraries(xrdcppartial PRIVATE XROOTD::POSIX XROOTD::UTILS)
 target_link_libraries(xrdcpupdate PRIVATE XROOTD::POSIX XROOTD::UTILS)
 target_link_libraries(xrdcpslowwriter PRIVATE XROOTD::CL)
 target_link_libraries(xrdcpnonstreaming PRIVATE XROOTD::CL)
+target_link_libraries(xrdcpvectorread PRIVATE XROOTD::CL)
 target_link_libraries(eoshashbench PRIVATE EosCommon)
 target_link_libraries(eoslogbench PRIVATE EosCommon)
 target_link_libraries(eos-crypto-timing-test PRIVATE EosCommon)
@@ -145,8 +148,8 @@ target_link_libraries(threadpooltest PRIVATE EosCommon)
 install(TARGETS xrdstress.exe xrdcpabort xrdcprandom xrdcppgread
   xrdcpextend xrdcpshrink xrdcpappend xrdcpappendoverlap xrdcptruncate
   xrdcpholes xrdcpbackward xrdcpdownloadrandom xrdcppartial xrdcpupdate
-  xrdcpposixcache xrdcpslowwriter xrdcpnonstreaming eos-checksum-benchmark
-  eos-udp-dumper eos-mmap eos-io-tool
+  xrdcpposixcache xrdcpslowwriter xrdcpnonstreaming xrdcpvectorread
+  eos-checksum-benchmark eos-udp-dumper eos-mmap eos-io-tool
   RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_SBINDIR})
 
 install(PROGRAMS xrdstress eos-instance-test eos-instance-test-ci
