@@ -226,11 +226,27 @@ eos::mgm::EvictCmd::ProcessRequest() noexcept
         ++diskReplicaCount;
       }
       if (!diskReplicaFound) {
-        eos_static_err("msg=\"unable to find replica of %s\" fsid=\"%u\" reason=\"%s\"",
+        eos_static_err("msg=\"unable to find disk replica of %s\" fsid=\"%u\" reason=\"%s\"",
                        path.c_str(), fsid.value(), errInfo.getErrText());
-        errStream << "error: unable to find replica of '" << path << "'" <<
+        errStream << "error: unable to find disk replica of '" << path << "'" <<
                   std::endl;
         eosLog.addParam(EosCtaReportParam::EVICTCMD_FSID,  fsid.value());
+        eosLog.addParam(EosCtaReportParam::EVICTCMD_ERROR, errStream.str());
+        ret_c = SFS_ERROR;
+        continue;
+      }
+    } else {
+      auto fmd = gOFS->eosView->getFile(path.c_str());
+      for (auto location : fmd->getLocations()) {
+        // Ignore tape replica
+        if (location == eos::common::TAPE_FS_ID) continue;
+        ++diskReplicaCount;
+      }
+      if (diskReplicaCount == 0) {
+        eos_static_err("msg=\"unable to find any disk replica of %s\" reason=\"%s\"",
+                       path.c_str(), errInfo.getErrText());
+        errStream << "error: unable to find any disk replica of '" << path << "'" <<
+            std::endl;
         eosLog.addParam(EosCtaReportParam::EVICTCMD_ERROR, errStream.str());
         ret_c = SFS_ERROR;
         continue;
@@ -291,9 +307,9 @@ eos::mgm::EvictCmd::ProcessRequest() noexcept
 
       // Drop all stripes
       if (gOFS->_dropallstripes(path.c_str(), errInfo, root_vid, true) != 0) {
-        eos_static_err("msg=\"could not delete all replicas of %s\" reason=\"%s\"",
+        eos_static_err("msg=\"could not delete all disk replicas of %s\" reason=\"%s\"",
                        path.c_str(), errInfo.getErrText());
-        errStream << "error: could not delete all replicas of '" << path << "'" <<
+        errStream << "error: could not delete all disk replicas of '" << path << "'" <<
                   std::endl;
         eosLog.addParam(EosCtaReportParam::EVICTCMD_ERROR, errStream.str());
         ret_c = SFS_ERROR;
@@ -330,16 +346,18 @@ eos::mgm::EvictCmd::ProcessRequest() noexcept
   reply.set_retc(ret_c);
   reply.set_std_err(errStream.str());
   std::string stdout_reply_s;
-  if (ret_c == 0) {
+  if ((count_all_disk_replicas_removed + count_some_disk_replicas_removed + count_evict_counter_not_zero) > 0) {
     if (fsid.has_value()) {
-      outStream << "success: found and removed the fsid="<< fsid.value() << " replica for "
+      outStream << "found and removed the fsid="<< fsid.value() << " disk replica for "
                 << (count_all_disk_replicas_removed + count_some_disk_replicas_removed)
                 << "/" << evict.file_size() << " files";
     } else  {
-      outStream << "success: removed all replicas for "
-                << count_all_disk_replicas_removed << "/" << evict.file_size()
-                << " files; reduced evict counter for " << count_evict_counter_not_zero << "/"
-                << evict.file_size() << " files";
+      outStream << "removed all disk replicas for "
+                << count_all_disk_replicas_removed << "/" << evict.file_size() << " files";
+      if (!force) {
+        outStream << "; reduced evict counter for " << count_evict_counter_not_zero << "/"
+                  << evict.file_size() << " files";
+      }
     }
   }
   reply.set_std_out(outStream.str());
