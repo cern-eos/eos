@@ -184,6 +184,12 @@ Storage::ScrubFs(const char* path, unsigned long long free,
         }
 
         if (ff < 0) {
+	  if (errno == EMFILE) {
+	    eos_static_warning("Unable to create/wopen scrubfile %s errno=%d",
+			    scrubfile[k].c_str(), errno);
+	    // this is not fatal, since it might be a temporary problem
+	    return 0;
+	  }
           eos_static_crit("Unable to create/wopen scrubfile %s errno=%d",
                           scrubfile[k].c_str(), errno);
           fserrors = 1;
@@ -216,9 +222,16 @@ Storage::ScrubFs(const char* path, unsigned long long free,
       int ff = open(scrubfile[k].c_str(), dflags | O_RDONLY);
 
       if (ff < 0) {
-        eos_static_crit("Unable to open static scrubfile %s, errno=%d",
-                        scrubfile[k].c_str(), errno);
-        return 1;
+	if (errno == EMFILE) {
+	  eos_static_warning("Unable to create/wopen scrubfile %s errno=%d",
+			     scrubfile[k].c_str(), errno);
+	  // this is not fatal, since it might be a temporary problem
+	  return 0;
+	} else {
+	  eos_static_crit("Unable to open static scrubfile %s, errno=%d",
+			  scrubfile[k].c_str(), errno);
+	  return 1;
+	}
       }
 
       int eberrors = 0;
