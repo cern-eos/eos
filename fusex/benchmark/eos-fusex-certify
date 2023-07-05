@@ -331,6 +331,27 @@ if [ $? -eq 0 ] ; then echo OK > /dev/null; else exit 13; fi
 fi
 
 
+if [ "$1" = "14" ] ; then
+time (
+echo "===================================================================="
+echo "014 ... flock test"
+mkdir 014-flock-test
+cd 014-flock-test
+
+FLOCK=$PWD/flocktest
+flock --verbose "$FLOCK" -c '/bin/sleep 5' > /dev/null &
+sleep 1;
+# the lock should not work now
+flock --verbose --nonblock "$FLOCK" -c '/bin/sleep 5' > /dev/null 2>&1
+if [ $? -ne 0 ]; then echo OK > /dev/null; else exit 14; fi
+sleep 5;
+# the lock should work now
+flock --verbose --nonblock "$FLOCK" -c '/bin/sleep 5' > /dev/null
+if [ $? -eq 0 ]; then echo OK > /dev/null; else exit 14; fi
+exit 0;
+) || exit 14;
+fi
+
 echo "===================================================================="
 echo "... :-) passed !"
 echo "===================================================================="
