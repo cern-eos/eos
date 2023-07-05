@@ -5329,6 +5329,16 @@ EosFuse::flush(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info* fi)
       }
 
       rc |= Instance().mds.setlk(req, io->mdctx(), &lock, 0);
+    } else {
+      if (io->flocked) {
+	struct flock lock;
+	lock.l_type = F_UNLCK;
+	lock.l_start = 0;
+	lock.l_len = -1;
+	lock.l_pid = fuse_req_ctx(req)->pid;
+
+	rc |= Instance().mds.setlk(req, io->mdctx(), &lock, 0);
+      }
     }
   }
 
