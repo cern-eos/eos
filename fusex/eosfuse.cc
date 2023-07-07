@@ -6279,8 +6279,11 @@ EosFuse::removexattr(fuse_req_t req, fuse_ino_t ino, const char* xattr_name)
       static std::string s_apple = "com.apple";
       static std::string s_racl = "system.richacl";
 
-      // ignore silently any security attribute
-      if (key.substr(0, s_sec.length()) == s_sec) {
+      if (key.substr(0, 4) == "eos.") {
+        // eos attributes are silently ignored
+        rc = 0;
+      }  else if (key.substr(0, s_sec.length()) == s_sec) {
+        // ignore silently any security attribute
         rc = 0;
       } else
 
