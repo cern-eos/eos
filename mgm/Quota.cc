@@ -2159,17 +2159,26 @@ Quota::GetQuotaInfo(SpaceQuota* squota, uid_t uid, gid_t gid,
   squota->UpdateFromQuotaNode(uid, gid,
                               squota->GetQuota(SpaceQuota::kGroupBytesTarget, Quota::gProjectId)
                               ? true : false);
-  maxbytes_user  = squota->GetQuota(SpaceQuota::kUserLogicalBytesTarget, uid);
-  maxbytes_group = squota->GetQuota(SpaceQuota::kGroupLogicalBytesTarget, gid);
-  maxbytes_project = squota->GetQuota(SpaceQuota::kGroupLogicalBytesTarget,
+  maxbytes_user  = squota->GetQuota(SpaceQuota::kUserBytesTarget, uid);
+  maxbytes_group = squota->GetQuota(SpaceQuota::kGroupBytesTarget, gid);
+  maxbytes_project = squota->GetQuota(SpaceQuota::kGroupBytesTarget,
                                       Quota::gProjectId);
   freebytes_user = maxbytes_user - squota->GetQuota(
-                     SpaceQuota::kUserLogicalBytesIs, uid);
+                     SpaceQuota::kUserBytesIs, uid);
   freebytes_group = maxbytes_group - squota->GetQuota(
-                      SpaceQuota::kGroupLogicalBytesIs, gid);
+                      SpaceQuota::kGroupBytesIs, gid);
   freebytes_project = maxbytes_project - squota->GetQuota(
-                        SpaceQuota::kGroupLogicalBytesIs, Quota::gProjectId);
+                        SpaceQuota::kGroupBytesIs, Quota::gProjectId);
 
+  // rescale the leftover physical space to the default layout and report the recomputed logical quota
+  maxbytes_user /= squota->GetLayoutSizeFactor();
+  maxbytes_group /= squota->GetLayoutSizeFactor();
+  maxbytes_project /= squota->GetLayoutSizeFactor();
+
+  freebytes_user /= squota->GetLayoutSizeFactor();
+  freebytes_group /= squota->GetLayoutSizeFactor();
+  freebytes_project /= squota->GetLayoutSizeFactor();
+  
   if (freebytes_user > freebytes) {
     freebytes = freebytes_user;
   }
