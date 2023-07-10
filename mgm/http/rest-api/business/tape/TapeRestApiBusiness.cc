@@ -185,9 +185,9 @@ TapeRestApiBusiness::getStageBulkRequest(const std::string& requestId,
       } else if (!queryPrepareResponse.error_text.empty()) {
         //Error comes from CTA, so we need to update the state of the file to ERROR
         item->mError = queryPrepareResponse.error_text;
-      } else if (!queryPrepareResponse.is_online && !queryPrepareResponse.is_requested) {
+      } else if (!queryPrepareResponse.is_online && !queryPrepareResponse.is_reqid_present) {
         //If there is no request for the file, an error should be returned
-        item->mError = "File not requested in request ID " + requestId;
+        item->mError = "File not requested with request ID " + requestId;
       } else {
         item->mError = "";
       }
