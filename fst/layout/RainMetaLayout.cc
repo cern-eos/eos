@@ -785,13 +785,13 @@ RainMetaLayout::ReadV(XrdCl::ChunkList& chunkList, uint32_t len)
     // Entry server splits requests per stripe returning the relative position of
     // each chunks inside the stripe file including the header offset
     bool do_recovery = false;
-    bool got_error = false;
     uint32_t stripe_id;
     uint32_t physical_id;
     std::vector<XrdCl::ChunkList> stripe_chunks = SplitReadV(chunkList,
         mSizeHeader);
 
     for (stripe_id = 0; stripe_id < stripe_chunks.size(); ++stripe_id) {
+      bool got_error = false;
       if (stripe_chunks[stripe_id].size() == 0) {
         continue;
       }
