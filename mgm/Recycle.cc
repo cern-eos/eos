@@ -837,9 +837,9 @@ Recycle::Print(std::string& std_out, std::string& std_err,
                 << "___________________________________________________________"
                 << "___________________________" << std::endl;
       } else {
-        snprintf(sline, sizeof(sline) - 1, "recycle-bin=%s used_bytes=%llu "
-                 "max_bytes=%llu volumeusage=%.02f%% used_inodes=%llu "
-                 "max_inodes=%llu inodeusage=%.02f%% lifetime=%s ratio=%s",
+        snprintf(sline, sizeof(sline) - 1, "recycle-bin=%s usedbytes=%llu "
+                 "maxbytes=%llu volumeusage=%.02f%% usedinodes=%llu "
+                 "maxinodes=%llu inodeusage=%.02f%% lifetime=%s ratio=%s",
                  Recycle::gRecyclingPrefix.c_str(),
                  used_bytes, max_bytes, used_bytes * 100.0 / max_bytes,
                  used_inodes, max_inodes, used_inodes * 100.0 / max_inodes,
