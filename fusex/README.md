@@ -4,18 +4,18 @@ eosxd
 Warning
 -------
 
-To have *eosxd* working properly with many writers you have to modify the MGM configuration file ```/etc/xrd.cf.mgm``` with the nolock option: ```all.export / nolock```
+To have *eosxd* working properly with many writers you have to modify the MGM configuration file `/etc/xrd.cf.mgm` with the nolock option: `all.export / nolock`
 
 Configuration File
 ------------------
-The configuration file name for an unnamed instance is ```/etc/eos/fuse.conf```.
-The configuration file for a named instance is ```/etc/eos/fuse.<name>.conf```.
+The configuration file name for an unnamed instance is `/etc/eos/fuse.conf`.
+The configuration file for a named instance is `/etc/eos/fuse.<name>.conf`.
 
-You can select a named instance adding ```'-ofsname=<name>'``` to the argument list.
+You can select a named instance adding `'-ofsname=<name>'` to the argument list.
 
 This
 
-```
+```json
 {
   "name" : "",
   "hostport" : "localhost:1094",
@@ -91,7 +91,7 @@ This
 
 You also need to define a local cache directory (location) where small files are cached and an optional journal directory to improve the write speed (journal).
 
-```
+```json
   "cache" : {
     "type" : "disk",
     "size-mb" : 512,
@@ -118,7 +118,7 @@ The daemon automatically appends a directory to the mdcachedir, location and jou
 
 You can modify some of the XrdCl variables, however it is recommended not to change these:
 
-```
+```json
   "xrdcl" : {
     "TimeoutResolution" : 1,
     "ConnectionWindow": 10,
@@ -134,7 +134,7 @@ You can modify some of the XrdCl variables, however it is recommended not to cha
 
 The recovery settings are defined in the following section:
 
-```
+```json
    "recovery" : {
      "read-open" : 1,
      "read-open-noserver" : 1,
@@ -146,7 +146,8 @@ The recovery settings are defined in the following section:
 ```
 
 It is possible to overwrite the settings of any standard config files using a second configuration file:
-```/etc/eos/fuse.local.conf``` or```/etc/eos/fuse.<name>.local.conf```. This is usefule to ship a standard configuration via a package and give users the opportunity to change individual parameters.
+`/etc/eos/fuse.local.conf` or `/etc/eos/fuse.<name>.local.conf`.
+This is usefule to ship a standard configuration via a package and give users the opportunity to change individual parameters.
 
 
 Configuration default values and avoiding configuration files
@@ -155,7 +156,7 @@ Configuration default values and avoiding configuration files
 Every configuration value has a corresponding default value .
 As explained the configuration file name is taken from the fsname option given on the command line:
 
-```
+```shell
 root> eosxd -ofsname=foo loads /etc/eos/fuse.foo.conf
 root> eosxd              loads /etc/eos/fuse.conf
 
@@ -164,7 +165,7 @@ user> eosxd -ofsname=foo loads $HOME/.eos/fuse.foo.conf
 
 One can avoid to use configuration files if the defaults are fine providing the remote host and remote mount directory via the fsname:
 
-```
+```shell
 root> eosxd -ofsname=eos.cern.ch:/eos/ $HOME/eos # mounts the /eos/ directory from eos.cern.ch shared under $HOME/eos/
 
 user> eosxd -ofsname=user@eos.cern.ch:/eos/user/u/user/ $home/eos # mounts /eos/user/u/user from eos.cern.ch private under $HOME/eos/
@@ -191,6 +192,8 @@ By enabling 'options.jsonstats 'in the mount configuration file one can find `/v
   }
 }
 ```
+
+```shell
 bash> cat /var/log/eos/fusex/fuse.stats
 ALL      Execution Time                   0.00 +- 0.00
 # -----------------------------------------------------------------------------------------------------------
@@ -259,7 +262,7 @@ All        instance-url        := apeters.cern.ch
 Mounting with configuration files
 ---------------------------------
 
-```
+```shell
 # mount on /eos/
 mount -t fuse eosxd /eos/
 
@@ -290,7 +293,7 @@ Mounting with sss credentials
 -----------------------------
 
 Use these authentication directives in the config file:
-```
+```json
   "auth" : {
     "shared-mount" : 1,
     "krb5" : 0,
@@ -307,7 +310,7 @@ Mounting for UNIX gateways
 
 
 Use these authentication directives in the config files:
-```
+```json
   "auth" : {
     "shared-mount" : 1,
     "unix" : 1,
@@ -324,17 +327,17 @@ If you define "unix-root":1 it will also be used for the root user!
 AUTOFS Configuration
 --------------------
 
-Make sure you have in /etc/autofs.conf :
+Make sure you have in `/etc/autofs.conf` :
 ```
 browse_mode = yes
 ```
-Add this line to /etc/auto.master to configure automount for the directory /eos/ :
+Add this line to `/etc/auto.master` to configure automount for the directory `/eos/` :
 ```
 /eos/  /etc/auto.eos
 ```
-Create the directory /eos (should be empty).
+Create the directory `/eos` (should be empty).
 
-Create the file /etc/auto.eos to mount f.e. from instance eos.cern.ch the path /eos/user/ under /eos/scratch :
+Create the file `/etc/auto.eos` to mount f.e. from instance `eos.cern.ch` the remote path `/eos/user/` under local `/eos/scratch` :
 ```
 scratch -fstype=eosx,fsname=eos.cern.ch:/eos/user/ :eosxd
 ```
@@ -345,7 +348,7 @@ Web/NFS/Samba Gateway Configuration
 
 To run eosxd for gateways you can specify the gateway type. eosxd will optimize internal settings for the referenced gateway type.
 
-```
+```shell
 # WebServer, NFS etc...
 eosxd -ofsname=gw@eos.cern.ch:/eos/user/ /eos/user/
 
@@ -359,7 +362,7 @@ Client Interaction with a FUSE mount
 
 eosxd provides a command line interface to interact with mounts (see eosxd -h):
 
-```
+```shell
 # eosxd -h 
 usage CLI   : eosxd get <key> [<path>]
 
@@ -406,7 +409,7 @@ usage HELP  : eosxd [-h|--help|help]                    : get help
 The CLI uses the following extended attribute interfaces internally:
 
 To change the log configuration do as root:
-```
+```shell
 # setfattr -n system.eos.debug -v info <path>
 # setfattr -n system.eos.debug -v debug <path>
 # setfattr -n system.eos.debug -v notice <path>
@@ -415,99 +418,100 @@ To change the log configuration do as root:
 ```
 
 To display the local meta data record do as root
-```
+```shell
 # getfattr --only-values -n system.eos.md <path>
 ```
 
 To display a capability on a path do as root
-```
+```shell
 # getfattr --only-values -n system.eos.cap <path>
 ```
 
 To display a list of all capabilities on a path do as root
-```
+```shell
 # getfattr --only-values -n system.eos.caps <any-path>
 ```
 
 To display a list of local to remote inode translations
-```
+```shell
 # getfattr --only-values -n system.eos.vmap <any-path>
 ```
 
 To drop a capability on a path do as root
-```
+```shell
 # setfattr -n system.eos.dropcap <path>
 ```
 
 To drop all capabilities on a mount do as root
-```
+```shell
 # setfattr -n system.eos.dropallcap <any-path>
 ```
 
 Show all hidden system attributes on a given path
-```
-# getfattr -d -m - <path>
+```shell
+$ getfattr -d -m - <path>
 ```
 
 Inspect which set of credentials have been assigned to the calling process:
-```
-getfattr --only-values -n eos.identity <any-path>
+```shell
+$ getfattr --only-values -n eos.identity <any-path>
 ```
 
 Inspect which set of credentials have been assigned to the parent of the calling process,
 in this case this would be the shell:
-```
-getfattr --only-values -n eos.identityparent <any-path>
+```shell
+$ getfattr --only-values -n eos.identityparent <any-path>
 ```
 
 Invalidate current set of credentials assigned to the calling process, and reconnect
 while printing a detailed log of what's happening:
-```
-getfattr --only-values -n eos.reconnect <any-path>
+```shell
+$ getfattr --only-values -n eos.reconnect <any-path>
 ```
 
 Invalidate current set of credentials assigned to the parent of the calling process
 (in this case, the shell), and reconnect while printing a detailed log of what's happening.
-```
-getfattr --only-values -n eos.reconnectparent <any-path>
+```shell
+$ getfattr --only-values -n eos.reconnectparent <any-path>
 ```
 
 Reset the statis counters on a mount as root
-
+```shell
 # setfattr -n system.eos.resetstat <any-path>
+```
 
 Virtual extended attributes on a FUSE mount
 -------------------------------------------
 
 Display instance name
-```
+```shell
 # getfattr --only-values -n eos.name /eos/
 ```
 
 Display MGM hostname+port
-```
+```shell
 # getfattr --only-values -n eos.hostport /eos/
 ```
 
 Display MGM url
-```
+```shell
 # getfattr --only-values -n eos.mgmurl /eos/
 ```
 
 Display Quota Information for a given path
-```
+```shell
 # getfattr --only-values -n eos.quota <path>
 ```
 
 Display Checksum value for a given path
-```
+```shell
 # getfattr --only-values -n eos.checksum <path>
 ```
 
 Server Interaction with a FUSE mount
 ------------------------------------
 
-
+```shell
 EOS Console [root://localhost] |/eos/dev/fusetest/workspace/senf/> fusex
 usage: fusex ls [-c] [-n] [-z] [-a] [-m] [-s]                        :  print statistics about eosxd fuse clients
                 -c                                                   -  break down by client host
@@ -533,6 +537,7 @@ examples:
            fusex caps -p ^/eos/$                                     :  show caps for path /eos
            fusex caps -p ^/eos/caps/                                 :  show all caps in subtree /eos/caps
 
+```
 
 Allow traversing of directories without 'x' mode
 -------------------------------------------------
@@ -547,8 +552,8 @@ File Obfuscation
 It is possible to obfuscate files inside the mount client using random per file 256-bit key. The original contents of the files is only
 visible using the mount client, all other protocols see obfuscated contents. Obfuscation is enabled per directory defining an extended attribute:
 
-```
-attr set sys.file.obfuscate="1" <mydir>
+```shell
+$ attr set sys.file.obfuscate="1" <mydir>
 ```
 
 The obfuscation key is stored on each file as an extended user argument, which cannot be displayed:
@@ -562,7 +567,7 @@ File Encryption
 
 It is possible to combine obfuscation with encryption. To encrypt files using a 256-bit key you just do:
 
-```
+```shell
 # set the encryption key in your shell environment
 export EOS_FUSE_SECRET=e117c22d-a844-4f53-89d3-43a21e9cdaea
 
@@ -592,8 +597,8 @@ If you have read such a file and change the key to re-read the file, you might n
 
 If you lose EOS_FUSE_SECRET for a given file, there is no way to decrypt the contents since the key is stored nowhereelse.
 
-```
-eos fileinfo myfile
+```shell
+# eos fileinfo myfile
 
 EOS Console [root://localhost] |/eos/dev/encryption/> fileinfo enc.32
   File: '/eos/dev/encryption/enc.1'  Flags: 0644
