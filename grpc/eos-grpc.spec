@@ -34,7 +34,7 @@
 #-------------------------------------------------------------------------------
 Summary: gRPC, A high performance, open-source universal RPC framework
 Name: eos-grpc
-Version: 1.41.0
+Version: 1.56.1
 Release: 2%{?dist}
 License: BSD
 URL: http://www.grpc.io/
