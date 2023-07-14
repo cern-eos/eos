@@ -17,6 +17,23 @@ Introduction
 This release is based on XRootD V5.
 
 
+``v5.1.24 Diopside``
+==========================
+
+2023-07-14
+
+Bug
+----
+
+* [EOS-5652] - eosxd abrtd reports from lxplus
+* [EOS-5480] - eosxd crash under count() / metad::lookup() / EosFuse::lookup()
+* [EOS-5486] - eosxd crash with SIGABRT
+* [EOS-5667] - eosxd abtrd reports from lxplus705
+* [EOS-5668] - Input/output error on FUSE mount, client ok
+* FUSEX: don't return EFAULT with invalid statvfs responses
+* FUSEX: avoid some further concurrent access to md attr field
+
+
 ``v5.1.23 Diopside``
 ==========================
 
