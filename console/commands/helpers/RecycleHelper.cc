@@ -37,7 +37,7 @@ RecycleHelper::CheckDateFormat(const std::string& sdate) const
     std::vector<std::string> tokens;
     StringConversion::Tokenize(sdate, tokens, "/");
 
-    if (tokens.size() > 3) {
+    if (tokens.size() > 4) {
       return false;
     }
 
