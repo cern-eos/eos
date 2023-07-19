@@ -184,11 +184,6 @@ public:
   int Evict(std::string& uuid, std::string reason,
             std::vector<std::string>* evicted_out = 0);
 
-  // release CAPs
-  int ReleaseCAP(uint64_t id,
-                 const std::string& uuid,
-                 const std::string& clientid);
-
   // delete entry
   int DeleteEntry(uint64_t id,
                   const std::string& uuid,
@@ -212,9 +207,6 @@ public:
 
   // broadcast a new cap
   int SendCAP(FuseServer::Caps::shared_cap cap);
-
-  // drop caps of a given client
-  int Dropcaps(const std::string& uuid, std::string& out);
 
   // broad cast triggered by heartbeat function
   int BroadcastDropAllCaps(const std::string& identity,

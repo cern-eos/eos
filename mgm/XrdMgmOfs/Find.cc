@@ -200,7 +200,8 @@ _cloneResp(XrdOucErrInfo& out_error, XrdOucString& stdErr,
         return;
       }
 
-      gOFS->FuseXCastFile(fmd->getIdentifier());
+      gOFS->FuseXCastRefresh(fmd->getIdentifier(), eos::ContainerIdentifier(
+									    fmd->getContainerId()));
       fmd->getSyncTime(stime);
 
       if (json_output) {
@@ -312,8 +313,7 @@ _cloneMD(std::shared_ptr<eos::IContainerMD>& cloneMd, char cFlag,
         eos::ContainerIdentifier d_id = pCloneMd->getIdentifier();
         eos::ContainerIdentifier d_pid = pCloneMd->getParentIdentifier();
         lock.Release();
-        gOFS->FuseXCastContainer(md_id);
-        gOFS->FuseXCastContainer(d_id);
+        gOFS->FuseXCastRefresh(md_id, d_id);
         gOFS->FuseXCastRefresh(d_id, d_pid);
       } catch (eos::MDException& e) {
         eos_static_err("cannot create the %s directory mode 755", clonePath.c_str());

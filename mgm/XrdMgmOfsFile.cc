@@ -244,8 +244,6 @@ XrdMgmOfsFile::create_cow(int cowType,
   }
 
   gOFS->eosDirectoryService->updateStore(dirMd.get());
-  gOFS->FuseXCastContainer(dirMd->getIdentifier());
-  gOFS->FuseXCastContainer(dirMd->getParentIdentifier());       /* cloneMd */
   gOFS->FuseXCastRefresh(dirMd->getIdentifier(), dirMd->getParentIdentifier());
   gOFS->FuseXCastRefresh(cloneMd->getIdentifier(),
                          cloneMd->getParentIdentifier());
@@ -1399,8 +1397,6 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
             eos::ContainerIdentifier cmd_pid = cmd->getParentIdentifier();
             gOFS->mReplicationTracker->Create(fmd);
             ns_wr_lock.Release();
-            gOFS->FuseXCastContainer(cmd_id);
-            gOFS->FuseXCastContainer(cmd_pid);
             gOFS->FuseXCastRefresh(cmd_id, cmd_pid);
           } catch (eos::MDException& e) {
             fmd.reset();
@@ -1797,9 +1793,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
 
         ns_wr_lock.Release();
         COMMONTIMING("filemd::update", &tm);
-        gOFS->FuseXCastFile(fmd_id);
-        gOFS->FuseXCastContainer(cmd_id);
-        gOFS->FuseXCastContainer(pcmd_id);
+        gOFS->FuseXCastRefresh(fmd_id, cmd_id);
         gOFS->FuseXCastRefresh(cmd_id, pcmd_id);
         COMMONTIMING("fusex::bc", &tm);
       } catch (eos::MDException& e) {
