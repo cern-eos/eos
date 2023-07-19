@@ -1024,26 +1024,6 @@ XrdMgmOfs::DiscoverPlatformServices(const char* svc_name, void* opaque)
 }
 
 //------------------------------------------------------------------------------
-// Cast a change message to all fusex clients regarding a file change
-//------------------------------------------------------------------------------
-void
-XrdMgmOfs::FuseXCastFile(eos::FileIdentifier id)
-{
-  gOFS->zMQ->gFuseServer.Cap().BroadcastReleaseFromExternal(
-    eos::common::FileId::FidToInode(id.getUnderlyingUInt64()));
-}
-
-//------------------------------------------------------------------------------
-// Cast a change message to all fusex clients regarding a container change
-//------------------------------------------------------------------------------
-void
-XrdMgmOfs::FuseXCastContainer(eos::ContainerIdentifier id)
-{
-  gOFS->zMQ->gFuseServer.Cap().BroadcastReleaseFromExternal(
-    id.getUnderlyingUInt64());
-}
-
-//------------------------------------------------------------------------------
 // Cast a change message to all fusex clients about a deletion of an entry
 //------------------------------------------------------------------------------
 void

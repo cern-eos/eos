@@ -1762,20 +1762,6 @@ public:
   std::string AuthPrintStatistics() const;
 
   //----------------------------------------------------------------------------
-  //! Cast a change message to all fusex clients regarding a file change
-  //!
-  //! @param id file identifier
-  //----------------------------------------------------------------------------
-  void FuseXCastFile(eos::FileIdentifier id);
-
-  //----------------------------------------------------------------------------
-  //! Cast a change message to all fusex clients regarding a container change
-  //!
-  //! @param id container identifier
-  //----------------------------------------------------------------------------
-  void FuseXCastContainer(eos::ContainerIdentifier id);
-
-  //----------------------------------------------------------------------------
   //! Cast a change message to all fusex clients regarding deletion of a name
   //!
   //! @param id container identifier

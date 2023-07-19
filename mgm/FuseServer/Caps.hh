@@ -240,8 +240,6 @@ public:
 
   int BroadcastCap(shared_cap cap);
 
-  int BroadcastRelease(const eos::fusex::md&
-                       md); // broad cast triggered by fuse network
 
   int BroadcastDeletion(uint64_t inode,
                         const eos::fusex::md& md,
@@ -252,11 +250,6 @@ public:
                        const eos::fusex::md& md,
                        uint64_t
                        parent_inode); // broad cast triggered by fuse network
-
-
-  int BroadcastReleaseFromExternal(uint64_t
-                                   inode); // broad cast triggered non-fuse network
-
 
   int BroadcastRefreshFromExternal(uint64_t
                                    inode,

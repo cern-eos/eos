@@ -346,7 +346,6 @@ XrdMgmOfs::_rem(const char* path,
             eos::ContainerIdentifier c_ident = container->getIdentifier();
             eos::ContainerIdentifier p_ident = container->getParentIdentifier();
             lock.Release();
-            gOFS->FuseXCastContainer(c_ident);
             gOFS->FuseXCastDeletion(c_ident, deletion_name);
             gOFS->FuseXCastRefresh(c_ident, p_ident);
           }

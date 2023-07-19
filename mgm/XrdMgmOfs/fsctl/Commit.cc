@@ -310,7 +310,6 @@ XrdMgmOfs::Commit(const char* path,
         // Broadcast to the fusex network only if the change has been
         // triggered outside the fusex client network e.g. xrdcp etc.
         if (!option["fusex"]) {
-          gOFS->FuseXCastContainer(c_ident);
           gOFS->FuseXCastRefresh(c_ident, p_ident);
         }
       }

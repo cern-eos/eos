@@ -725,7 +725,6 @@ CommitHelper::handle_versioning(eos::common::VirtualIdentity& vid,
         fuse_batch.Register([&, vfid, did, vdid, atomic_name]() {
           gOFS->FuseXCastDeletion(did, atomic_name);
           gOFS->FuseXCastRefresh(vfid, vdid);
-          gOFS->FuseXCastContainer(vdid);
         });
         // Update the ownership and mode of the new file to the original one
         fmd->setCUid(versionfmd->getCUid());

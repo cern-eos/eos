@@ -210,7 +210,6 @@ XrdMgmOfs::_attr_set(const char* path, XrdOucErrInfo& error,
         ns_wr_lock.Release();
       }
 
-      gOFS->FuseXCastContainer(d_id);
       gOFS->FuseXCastRefresh(d_id, d_pid);
       errno = 0;
     }
@@ -267,7 +266,8 @@ XrdMgmOfs::_attr_set(const char* path, XrdOucErrInfo& error,
           ns_wr_lock.Release();
         }
 
-        gOFS->FuseXCastFile(f_id);
+        gOFS->FuseXCastRefresh(f_id, eos::ContainerIdentifier(
+							      fmd->getContainerId()));
         errno = 0;
       }
     } catch (eos::MDException& e) {
@@ -556,7 +556,6 @@ XrdMgmOfs::_attr_rem(const char* path, XrdOucErrInfo& error,
           eos::ContainerIdentifier d_id = dh->getIdentifier();
           eos::ContainerIdentifier d_pid = dh->getParentIdentifier();
           lock.Release();
-          gOFS->FuseXCastContainer(d_id);
           gOFS->FuseXCastRefresh(d_id, d_pid);
         } else {
           errno = ENODATA;
@@ -588,7 +587,8 @@ XrdMgmOfs::_attr_rem(const char* path, XrdOucErrInfo& error,
             eosView->updateFileStore(fmd.get());
             eos::FileIdentifier f_id = fmd->getIdentifier();
             lock.Release();
-            gOFS->FuseXCastFile(f_id);
+            gOFS->FuseXCastRefresh(f_id, eos::ContainerIdentifier(
+								  fmd->getContainerId()));
             errno = 0;
           } else {
             errno = ENODATA;

@@ -104,7 +104,6 @@ XrdMgmOfs::_chown(const char* path,
 
       cmd->setCTimeNow();
       eosView->updateContainerStore(cmd.get());
-      gOFS->FuseXCastContainer(cmd->getIdentifier());
       gOFS->FuseXCastRefresh(cmd->getIdentifier(), cmd->getParentIdentifier());
       errno = 0;
     }

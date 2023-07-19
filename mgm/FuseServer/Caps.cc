@@ -232,29 +232,6 @@ std::vector<std::shared_ptr<eos::mgm::FuseServer::Caps::capx>>
   return bccaps;
 }
 
-//------------------------------------------------------------------------------
-// Broadcast release for id from external
-//----------------------------------------------------------------------------
-int
-FuseServer::Caps::BroadcastReleaseFromExternal(uint64_t id)
-
-{
-  gOFS->MgmStats.Add("Eosxd::int::BcReleaseExt", 0, 0, 1);
-  EXEC_TIMING_BEGIN("Eosxd::int::BcReleaseExt");
-  auto bccaps = GetBroadcastCapsTS(id);
-
-  for (auto it : bccaps) {
-    eos_static_debug("ReleaseCAP id %#lx clientid %s", (*it)()->clientid().c_str());
-    gOFS->zMQ->gFuseServer.Client().ReleaseCAP((uint64_t)(*it)()->id(),
-        (*it)()->clientuuid(),
-        (*it)()->clientid());
-    errno = 0 ; // seems that ZMQ function might set errno
-  }
-
-  EXEC_TIMING_END("Eosxd::int::BcReleaseExt");
-  return 0;
-}
-
 /*----------------------------------------------------------------------------*/
 int
 FuseServer::Caps::BroadcastRefreshFromExternal(uint64_t id, uint64_t pid)
@@ -275,37 +252,6 @@ FuseServer::Caps::BroadcastRefreshFromExternal(uint64_t id, uint64_t pid)
   }
 
   EXEC_TIMING_END("Eosxd::int::BcRefreshExt");
-  return 0;
-}
-
-int
-FuseServer::Caps::BroadcastRelease(const eos::fusex::md& md)
-{
-  gOFS->MgmStats.Add("Eosxd::int::BcRelease", 0, 0, 1);
-  EXEC_TIMING_BEGIN("Eosxd::int::BcRelease");
-  FuseServer::Caps::shared_cap refcap = GetTS(md.authid());
-  eos_static_info("id=%lx/%lx clientid=%s clientuuid=%s authid=%s",
-                  (*refcap)()->id(),
-                  md.md_pino(),
-                  (*refcap)()->clientid().c_str(),
-                  (*refcap)()->clientuuid().c_str(),
-                  (*refcap)()->authid().c_str());
-  uint64_t md_pino = (*refcap)()->id();
-
-  if (!md_pino) {
-    md_pino = md.md_pino();
-  }
-
-  auto bccaps = GetBroadcastCapsTS(md_pino, refcap, &md);
-
-  for (auto it : bccaps) {
-    gOFS->zMQ->gFuseServer.Client().ReleaseCAP((uint64_t)(*it)()->id(),
-        (*it)()->clientuuid(),
-        (*it)()->clientid());
-    errno = 0 ;
-  }
-
-  EXEC_TIMING_END("Eosxd::int::BcRelease");
   return 0;
 }
 

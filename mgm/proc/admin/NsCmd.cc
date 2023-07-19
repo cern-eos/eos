@@ -966,7 +966,7 @@ NsCmd::UpdateTreeSize(eos::IContainerMDPtr cont) const
 
   cont->setTreeSize(tree_size);
   gOFS->eosDirectoryService->updateStore(cont.get());
-  gOFS->FuseXCastContainer(cont->getIdentifier());
+  gOFS->FuseXCastRefresh(cont->getIdentifier(), cont->getParentIdentifier());
 }
 
 //------------------------------------------------------------------------------

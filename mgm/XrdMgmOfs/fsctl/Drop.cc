@@ -170,7 +170,6 @@ XrdMgmOfs::Drop(const char* path,
               eos::ContainerIdentifier container_id = container->getIdentifier();
               eos::ContainerIdentifier container_pid = container->getParentIdentifier();
               ns_wr_lock.Release();
-              gOFS->FuseXCastContainer(container_id);
               gOFS->FuseXCastRefresh(container_id, container_pid);
             }
           }
