@@ -2838,7 +2838,6 @@ Server::OpDeleteDirectory(const std::string& id,
       resp.mutable_ack_()->set_code(resp.ack_().OK);
       resp.mutable_ack_()->set_transactionid(md.reqid());
       resp.SerializeToString(response);
-      Cap().BroadcastRelease(md);
       Cap().BroadcastDeletion(pcmd->getId(), md, cmd->getName());
       Cap().BroadcastRefresh(pcmd->getId(), md, pcmd->getParentId());
       Cap().Delete(md.md_ino());
@@ -3059,7 +3058,6 @@ Server::OpDeleteFile(const std::string& id,
     resp.mutable_ack_()->set_code(resp.ack_().OK);
     resp.mutable_ack_()->set_transactionid(md.reqid());
     resp.SerializeToString(response);
-    Cap().BroadcastRelease(md);
     Cap().BroadcastDeletion(pcmd->getId(), md, md.name());
     Cap().BroadcastRefresh(pcmd->getId(), md, pcmd->getParentId());
     Cap().Delete(md.md_ino());
@@ -3157,7 +3155,6 @@ Server::OpDeleteLink(const std::string& id,
     resp.mutable_ack_()->set_code(resp.ack_().OK);
     resp.mutable_ack_()->set_transactionid(md.reqid());
     resp.SerializeToString(response);
-    Cap().BroadcastRelease(md);
     Cap().BroadcastDeletion(pcmd->getId(), md, md.name());
     Cap().BroadcastRefresh(pcmd->getId(), md, pcmd->getParentId());
     Cap().Delete(md.md_ino());
