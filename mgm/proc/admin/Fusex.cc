@@ -170,20 +170,6 @@ ProcCommand::Fusex()
 	}
         retc = 0;
       }
-    } else if (mSubCmd == "dropcaps") {
-      std::string uuid = pOpaque->Get("mgm.fusex.uuid") ?
-                         pOpaque->Get("mgm.fusex.uuid") : "";
-      std::string out;
-
-      if (gOFS->zMQ->gFuseServer.Client().Dropcaps(uuid, out)) {
-        stdErr += "error: no such client '";
-        stdErr += uuid.c_str();
-        retc = ENOENT;
-        stdErr += "'";
-      } else {
-        retc = 0;
-        stdOut += out.c_str();
-      }
     } else if (mSubCmd == "droplocks") {
       std::string sinode = pOpaque->Get("mgm.inode") ?
                            pOpaque->Get("mgm.inode") : "";

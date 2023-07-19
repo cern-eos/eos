@@ -240,7 +240,6 @@ XrdMgmOfs::_remdir(const char* path,
       viewLock.Release();
 
       if (dhpar) {
-        gOFS->FuseXCastContainer(dhpar_id);
         gOFS->FuseXCastDeletion(dhpar_id, dh_name);
         gOFS->FuseXCastRefresh(dhpar_id, dhpar_pid);
       }

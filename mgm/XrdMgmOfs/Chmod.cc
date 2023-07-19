@@ -189,16 +189,14 @@ XrdMgmOfs::_chmod(const char* path,
           }
 
           lock.Release();
-          gOFS->FuseXCastContainer(pcmd_id);
           gOFS->FuseXCastRefresh(pcmd_id, pcmd_pid);
 
           if (cmd) {
-            gOFS->FuseXCastContainer(cmd_id);
             gOFS->FuseXCastRefresh(cmd_id, cmd_pid);
           }
 
           if (fmd) {
-            gOFS->FuseXCastFile(f_id);
+            gOFS->FuseXCastRefresh(f_id, pcmd_id);
           }
 
           errno = 0;

@@ -1729,11 +1729,8 @@ Server::OpSetDirectory(const std::string& id,
       break;
 
     case MOVE:
-      Cap().BroadcastRelease(mv_md);
-
     case UPDATE:
     case RENAME:
-      Cap().BroadcastRelease(md);
       Cap().BroadcastRefresh(md.md_ino(), md, md.md_pino());
       break;
     }

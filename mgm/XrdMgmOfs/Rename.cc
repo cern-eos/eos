@@ -449,7 +449,6 @@ XrdMgmOfs::_rename(const char* old_name,
             if (fusexcast) {
               const eos::FileIdentifier fid = file->getIdentifier();
               fuse_batch.Register([&, did, pdid, fid]() {
-                gOFS->FuseXCastContainer(did);
                 gOFS->FuseXCastRefresh(did, pdid);
                 gOFS->FuseXCastRefresh(fid, did);
               });
@@ -474,8 +473,6 @@ XrdMgmOfs::_rename(const char* old_name,
               const eos::FileIdentifier fid = file->getIdentifier();
               const std::string old_name = oPath.GetName();
               fuse_batch.Register([&, did, pdid, ndid, pndid, fid, old_name]() {
-                gOFS->FuseXCastContainer(did);
-                gOFS->FuseXCastContainer(ndid);
                 gOFS->FuseXCastRefresh(did, pdid);
                 gOFS->FuseXCastRefresh(ndid, pndid);
                 gOFS->FuseXCastDeletion(did, old_name);
@@ -670,9 +667,8 @@ XrdMgmOfs::_rename(const char* old_name,
             eosView->updateContainerStore(dir.get());
             const eos::ContainerIdentifier rdid = rdir->getIdentifier();
             const eos::ContainerIdentifier prdid = rdir->getParentIdentifier();
-            fuse_batch.Register([&, rdid, prdid, did, pdid]() {
-              gOFS->FuseXCastContainer(rdid);
-              gOFS->FuseXCastContainer(prdid);
+            fuse_batch.Register([&, rdid, did, pdid]() {
+              gOFS->FuseXCastRefresh(rdid, did);
               gOFS->FuseXCastRefresh(did, pdid);
             });
           } else {
@@ -701,7 +697,6 @@ XrdMgmOfs::_rename(const char* old_name,
 
               eosView->updateContainerStore(dir.get());
               fuse_batch.Register([&, did, pdid]() {
-                gOFS->FuseXCastContainer(did);
                 gOFS->FuseXCastRefresh(did, pdid);
               });
             }
@@ -718,7 +713,6 @@ XrdMgmOfs::_rename(const char* old_name,
               const eos::ContainerIdentifier rdid = rdir->getIdentifier();
               const eos::ContainerIdentifier prdid = rdir->getParentIdentifier();
               fuse_batch.Register([&, rdid, prdid]() {
-                gOFS->FuseXCastContainer(rdid);
                 gOFS->FuseXCastRefresh(rdid, prdid);
               });
             }
@@ -734,7 +728,6 @@ XrdMgmOfs::_rename(const char* old_name,
               newdir->notifyMTimeChange(gOFS->eosDirectoryService);
               eosView->updateContainerStore(newdir.get());
               fuse_batch.Register([&, ndid, pndid]() {
-                gOFS->FuseXCastContainer(ndid);
                 gOFS->FuseXCastRefresh(ndid, pndid);
               });
             }
