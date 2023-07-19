@@ -1326,14 +1326,6 @@ EosFuse::run(int argc, char* argv[], void* userdata)
 
     if (config.mdcachedir.length()) {
       system(mk_cachedir.c_str());
-      size_t slashes = std::count(config.mdcachedir.begin(), config.mdcachedir.end(),
-                                  '/');
-
-      // just some paranoid safety to avoid wiping by accident something we didn't intend to wipe
-      if ((slashes > 2)  &&
-          config.mdcachedir[config.mdcachedir.length() - 37] == '/') {
-        config.mdcachedir_unlink = config.mdcachedir;
-      }
     }
 
     if (cconfig.journal.length()) {
@@ -1964,13 +1956,6 @@ EosFuse::run(int argc, char* argv[], void* userdata)
       fuse_unmount(local_mount_dir, fusechan);
 #endif
       mKV.reset();
-
-      if (config.mdcachedir_unlink.length()) {
-        // clean rocksdb directory
-        std::string rmline = "rm -rf ";
-        rmline += config.mdcachedir_unlink.c_str();
-        system(rmline.c_str());
-      }
     } else {
       fprintf(stderr, "error: failed to daemonize\n");
       exit(errno ? errno : -1);
