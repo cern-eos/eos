@@ -584,6 +584,9 @@ Recycle::Print(std::string& std_out, std::string& std_err,
   eos::common::VirtualIdentity rootvid = eos::common::VirtualIdentity::Root();
   std::ostringstream oss_out;
 
+  // fix security hole
+  if (date.find("..")) {return;}
+  
   if (global && ((!vid.uid) ||
                  (vid.hasUid(3)) ||
                  (vid.hasGid(4)))) {
@@ -1390,6 +1393,12 @@ Recycle::Purge(std::string& std_out, std::string& std_err,
   int nbulk_deleted = 0;
   std::string rpath;
 
+  // fix security hole
+  if (date.find("..")) {
+    std_err = "error: the date contains an illegal character sequence";
+    return EINVAL;
+  }
+  
   // translate key into search pattern
   if (key.length()) {
     if (key.substr(0, 5) == "fxid:") {
