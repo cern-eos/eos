@@ -2502,8 +2502,6 @@ metad::mdstackfree(ThreadAssistant& assistant)
               continue;
             }
 
-            mdmap.lru_remove(inode_to_swap);
-
             if (md) {
               eos_static_info("swap-out lru-removed ino=%#llx oldest=%#llx", inode_to_swap,
                               mdmap.lru_oldest());
@@ -3420,6 +3418,13 @@ uint64_t
 metad::pmap::lru_oldest() const
 {
   return lru_last;
+}
+
+/* -------------------------------------------------------------------------- */
+uint64_t
+metad::pmap::lru_newest() const
+{
+  return lru_first;
 }
 
 /* -------------------------------------------------------------------------- */

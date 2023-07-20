@@ -528,6 +528,7 @@ public:
                               std::string &md_name);
 
     uint64_t lru_oldest() const;
+    uint64_t lru_newest() const;
     void lru_add(fuse_ino_t ino, shared_md md);
     void lru_remove(fuse_ino_t ino);
     void lru_update(fuse_ino_t ino, shared_md md);
