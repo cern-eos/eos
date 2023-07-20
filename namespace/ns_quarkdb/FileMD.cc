@@ -349,7 +349,11 @@ QuarkFileMD::setSize(uint64_t size)
 void
 QuarkFileMD::getCTimeNoLock(ctime_t& ctime) const
 {
-  (void) memcpy(&ctime, mFile.ctime().data(), sizeof(ctime_t));
+  if (mFile.ctime().length() == sizeof(ctime_t)) {
+    (void) memcpy(&ctime, mFile.ctime().data(), sizeof(ctime_t));
+  } else {
+    (void) memset(&ctime, 0, sizeof(ctime_t));
+  }
 }
 
 //------------------------------------------------------------------------------
@@ -396,7 +400,11 @@ QuarkFileMD::setCTimeNow()
 void
 QuarkFileMD::getMTimeNoLock(ctime_t& mtime) const
 {
-  (void) memcpy(&mtime, mFile.mtime().data(), sizeof(ctime_t));
+  if (mFile.mtime().length() == sizeof(ctime_t)) {
+    (void) memcpy(&mtime, mFile.mtime().data(), sizeof(ctime_t));
+  } else {
+    (void) memset(&mtime, 0, sizeof(ctime_t));
+  }
 }
 
 //------------------------------------------------------------------------------
