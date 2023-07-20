@@ -585,7 +585,7 @@ Recycle::Print(std::string& std_out, std::string& std_err,
   std::ostringstream oss_out;
 
   // fix security hole
-  if (date.find("..")) {return;}
+  if (date.find("..")!=std::string::npos) {return;}
   
   if (global && ((!vid.uid) ||
                  (vid.hasUid(3)) ||
@@ -1394,7 +1394,7 @@ Recycle::Purge(std::string& std_out, std::string& std_err,
   std::string rpath;
 
   // fix security hole
-  if (date.find("..")) {
+  if (date.find("..")!=std::string::npos) {
     std_err = "error: the date contains an illegal character sequence";
     return EINVAL;
   }
