@@ -445,7 +445,11 @@ QuarkFileMD::setMTimeNow()
 void
 QuarkFileMD::getATimeNoLock(ctime_t& atime) const
 {
-  (void) memcpy(&atime, mFile.atime().data(), sizeof(ctime_t));
+  if (mFile.atime().length() == sizeof(ctime_t)) {
+    (void) memcpy(&atime, mFile.atime().data(), sizeof(ctime_t));
+  } else {
+    (void) memset(&atime, 0, sizeof(ctime_t));
+  }
 }
 
 //------------------------------------------------------------------------------
