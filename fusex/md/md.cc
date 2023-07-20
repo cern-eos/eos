@@ -3170,7 +3170,7 @@ metad::mdcommunicate(ThreadAssistant& assistant)
         std::string blocker;
         uint64_t blocker_inode;
         hb.mutable_statistics_()->set_blockedms(
-          EosFuse::Instance().Tracker().blocked_ms(blocker, blocker_inode));
+						EosFuse::Instance().Tracker().blocked_ms(blocker, blocker_inode));
         hb.mutable_statistics_()->set_blockedfunc(blocker);
       } else {
         hb.clear_statistics_();
@@ -3482,7 +3482,9 @@ metad::pmap::lru_remove(fuse_ino_t ino)
       } else {
         // this is the tail of the LRU list
         lru_last = next;
-	(*this)[next]->set_lru_prev(0);
+	if (next) {
+	  (*this)[next]->set_lru_prev(0);
+	}
       }
 
       if (this->count(next) && (*this)[next]) {
@@ -3490,7 +3492,9 @@ metad::pmap::lru_remove(fuse_ino_t ino)
       } else {
         // this is the head of the LRU list
         lru_first = prev;
-	(*this)[next]->set_lru_next(0);
+	if (prev) {
+	  (*this)[prev]->set_lru_next(0);
+	}
       }
     }
 
