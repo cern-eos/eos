@@ -48,6 +48,7 @@ add_executable(eos-fusex-tests
   journal-cache.cc
   rb-tree.cc
   rocks-kv.cc
+  lru-test.cc
   ${EOSXD_COMMON_SOURCES})
 
 target_link_libraries(eos-fusex-tests PRIVATE
