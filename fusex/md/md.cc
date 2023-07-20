@@ -398,12 +398,18 @@ metad::mdx::convert(struct fuse_entry_param& e, double lifetime)
   e.attr.st_atime = (*this)()->atime();
   e.attr.st_mtime = (*this)()->mtime();
   e.attr.st_ctime = (*this)()->ctime();
-  e.attr.ATIMESPEC.tv_sec = (*this)()->atime();
-  e.attr.ATIMESPEC.tv_nsec = (*this)()->atime_ns();
   e.attr.MTIMESPEC.tv_sec = (*this)()->mtime();
   e.attr.MTIMESPEC.tv_nsec = (*this)()->mtime_ns();
   e.attr.CTIMESPEC.tv_sec = (*this)()->ctime();
   e.attr.CTIMESPEC.tv_nsec = (*this)()->ctime_ns();
+  if (!e.attr.st_atime) {
+    // if 0 atime, we adopt MTIME as ATIME
+    e.attr.ATIMESPEC.tv_sec = e.attr.MTIMESPEC.tv_sec;
+    e.attr.ATIMESPEC.tv_nsec = e.attr.MTIMESPEC.tv_nsec;
+  } else {
+    e.attr.ATIMESPEC.tv_sec = (*this)()->atime();
+    e.attr.ATIMESPEC.tv_nsec = (*this)()->atime_ns();
+  }
 
   if (EosFuse::Instance().Config().options.md_kernelcache) {
     e.attr_timeout = lifetime;
