@@ -17,6 +17,20 @@ Introduction
 This release is based on XRootD V5.
 
 
+``v5.1.25 Diopside``
+==========================
+
+2023-07-20
+
+Bug
+----
+
+* [EOS-5753] - Crash in LRU remove function
+* [EOS-5754] - cp -a gives "preserving times for .. : Invalid argument" - negative accesstime?
+* [EOS-5748] - MGM: Disable TPC timeout estimates as this can lead to corruption of RAIN
+  stripes for slow transfers - temporary workaround.
+
+
 ``v5.1.24 Diopside``
 ==========================
 
