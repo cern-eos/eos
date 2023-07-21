@@ -3493,7 +3493,7 @@ metad::pmap::lru_remove(fuse_ino_t ino)
       } else {
         // this is the tail of the LRU list
         lru_last = next;
-	if (next) {
+	if (next && this->count(next) && (*this)[next]) {
 	  (*this)[next]->set_lru_prev(0);
 	}
       }
@@ -3503,7 +3503,7 @@ metad::pmap::lru_remove(fuse_ino_t ino)
       } else {
         // this is the head of the LRU list
         lru_first = prev;
-	if (prev) {
+	if (prev && this->count(prev) && (*this)[prev]) {
 	  (*this)[prev]->set_lru_next(0);
 	}
       }
