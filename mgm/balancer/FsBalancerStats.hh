@@ -111,9 +111,18 @@ public:
 #else
 private:
 #endif
+  //! Group max deviation modification threshold that triggers an update
+  static constexpr double sGrpDevUpdThreshold = 0.25;
+  //! Time threshold value in minutes that triggers an update
+  static constexpr int sGrpUpdTimeThreshold = 10;
   std::string mSpaceName;
-  //! Map groups to balance (above threshold) to max deviation acting as a cache
-  std::map<std::string, double> mGrpToMaxDev;
+  //! Map groups to balance (above threshold) to max deviation and last update
+  //! timestamp, acting as a cache
+  std::map<std::string,
+      std::pair<double,
+      std::chrono::time_point<std::chrono::steady_clock>
+      >
+      > mGrpToMaxDev;
   //! Map groups to tuple of priority sets to be used when selecting source
   //! and destination filesystems
   std::map<std::string, FsPrioritySets> mGrpToPrioritySets;

@@ -3403,7 +3403,6 @@ FsPrioritySets
 FsView::GetFsToBalance(const std::string& group_name, double threshold) const
 {
   static const std::string metric = "stat.statfs.filled";
-  std::set<FsBalanceInfo> prio_fs_above, fs_above, fs_below, prio_fs_below;
   FsPrioritySets fs_prio;
   eos::common::RWMutexReadLock fs_rd_lock(ViewMutex);
   const auto it = mGroupView.find(group_name);
