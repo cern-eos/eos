@@ -41,10 +41,29 @@ FsBalancerStats::UpdateInfo(eos::mgm::FsView* fs_view, double threshold)
 
     if (it != mGrpToMaxDev.end()) {
       // Check against the cached value
-      eos_static_info("msg=\"compare group usage\" group=%s current=%0.2f new=%0.2f",
-                      elem.first.c_str(), it->second, elem.second);
+      const double grp_dev = it->second.first;
+      const auto last_upd_ts = it->second.second;
+      eos_static_info("msg=\"compare group max abs deviation\" group=%s "
+                      "current=%0.2f new=%0.2f last_update_ts=%llu",
+                      elem.first.c_str(), grp_dev, elem.second,
+                      std::chrono::duration_cast<std::chrono::milliseconds>
+                      (last_upd_ts.time_since_epoch()).count());
+      bool do_update = false;
 
-      if (std::floor(it->second) != std::floor(elem.second)) {
+      // Trigger update due to group max dev changes
+      if (std::abs(grp_dev - std::floor(elem.second)) >= sGrpDevUpdThreshold) {
+        do_update = true;
+      }
+
+      // Trigger time based update
+      if (!do_update &&
+          (std::chrono::duration_cast<std::chrono::minutes>
+           (std::chrono::steady_clock::now() - last_upd_ts).count() >=
+           sGrpDevUpdThreshold)) {
+        do_update = true;
+      }
+
+      if (do_update) {
         grp_to_update.insert(elem.first);
       }
     } else {
@@ -69,7 +88,8 @@ FsBalancerStats::UpdateInfo(eos::mgm::FsView* fs_view, double threshold)
   }
 
   for (const auto& grp : grp_to_update) {
-    mGrpToMaxDev[grp] = grp_dev[grp];
+    mGrpToMaxDev[grp] = std::make_pair(grp_dev[grp],
+                                       std::chrono::steady_clock::now());
     mGrpToPrioritySets[grp] =
       fs_view->GetFsToBalance(grp, FsPrioritySets::sThreshold);
   }
