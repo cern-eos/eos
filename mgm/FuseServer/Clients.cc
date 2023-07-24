@@ -294,7 +294,7 @@ std::string
 FuseServer::Clients::Info(const std::string& identity)
 {
   std::string out;
-  char formatline[4096];
+  char formatline[16384];
   struct timespec tsnow;
   eos::common::Timing::GetTimeSpec(tsnow);
   auto it = this->map().find(identity);
@@ -453,7 +453,9 @@ FuseServer::Clients::Print(std::string& out, std::string options)
                "......   idle         : %ld\n"
                "......   recovery-ok  : %d\n"
                "......   recovery-fail: %d\n"
-               "......   blockedms    : %.02f [%s]\n",
+               "......   blockedms    : %.02f [%s]\n"
+	       "......   blockedops   : %lu\n"
+	       "......   blockedroot  : %s\n",
                it->second.statistics().inodes(),
                it->second.statistics().inodes_todelete(),
                it->second.statistics().inodes_backlog(),
@@ -484,7 +486,9 @@ FuseServer::Clients::Print(std::string& out, std::string options)
                it->second.statistics().recovery_ok(),
                it->second.statistics().recovery_fail(),
                it->second.statistics().blockedms(),
-               it->second.statistics().blockedfunc().c_str()
+               it->second.statistics().blockedfunc().length()?it->second.statistics().blockedfunc().c_str() : "none",
+	       it->second.statistics().blockedops(),
+	       it->second.statistics().blockedroot()?"true":"false"
               );
       out += formatline;
     }
@@ -522,7 +526,9 @@ FuseServer::Clients::Print(std::string& out, std::string options)
                "recovery-ok=%d "
                "recovery-fail=%d "
                "blockedms=%f "
-               "blockedfunc=%s\n",
+               "blockedfunc=%s "
+	       "blockedops=%lu "
+	       "blockedroot=%d\n", 
                it->second.heartbeat().name().c_str(),
                it->second.heartbeat().host().c_str(),
                it->second.heartbeat().version().c_str(),
@@ -569,8 +575,9 @@ FuseServer::Clients::Print(std::string& out, std::string options)
                it->second.statistics().recovery_ok(),
                it->second.statistics().recovery_fail(),
                it->second.statistics().blockedms(),
-               it->second.statistics().blockedfunc().length() ?
-               it->second.statistics().blockedfunc().c_str() : "none");
+               it->second.statistics().blockedfunc().length()?it->second.statistics().blockedfunc().c_str() : "none",
+	       it->second.statistics().blockedops(),
+	       it->second.statistics().blockedroot());
       out += formatline;
     }
 
