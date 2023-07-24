@@ -31,6 +31,7 @@
 #include "llfusexx.hh"
 #include "fusex/fusex.pb.h"
 #include "backend/backend.hh"
+#include "common/ConcurrentQueue.hh"
 #include "common/Logging.hh"
 #include "common/RWMutex.hh"
 #include "common/AssistedThread.hh"
@@ -633,6 +634,9 @@ public:
   void mdcommunicate(ThreadAssistant&
                      assistant); // thread interacting with the MGM for meta data
 
+  void mdcallback(ThreadAssistant&
+		  assistant); // thread applying MGM callback responses
+
   void mdstackfree(ThreadAssistant&
                    assistant); // thread removing stacked inodes
 
@@ -1017,6 +1021,8 @@ private:
   bool appname;
   bool mdquery;
   bool hideversion;
+  std::atomic<int>  hb_interval;
+  
   std::string serverversion;
 
   XrdSysCondVar mdflush;
@@ -1024,6 +1030,11 @@ private:
   std::map<uint64_t, size_t> mdqueue; // inode, counter of mds to flush
   std::deque<flushentry> mdflushqueue; // linear queue with all entries to flush
 
+  typedef std::shared_ptr<eos::fusex::response> shared_response;
+  std::deque<shared_response> mCbQueue; // queue will callbacks
+  XrdSysCondVar mCb; // condition variable for queue
+  std::string mCbTrace; // stack trace response
+  std::string mCbLog; // logging response
   
   size_t mdqueue_max_backlog;
 
@@ -1039,6 +1050,8 @@ private:
   std::atomic<int> want_zmq_connect;
   std::atomic<int> fusex_visible;
   backend* mdbackend;
+
+  
 };
 
 #endif /* FUSE_MD_HH_ */
