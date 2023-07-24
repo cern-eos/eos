@@ -212,7 +212,7 @@ class MessagingRealm;
 
 namespace eos::mgm::placement
 {
-  class FSScheduler;
+class FSScheduler;
 }
 
 enum class NamespaceState {
@@ -1107,8 +1107,7 @@ public:
                   XrdOucErrInfo& error,
                   eos::common::VirtualIdentity& vid,
                   unsigned long sourcefsid,
-                  unsigned long targetfsid,
-                  bool expressflag = false);
+                  unsigned long targetfsid);
 
   // ---------------------------------------------------------------------------
   // copy stripe by vid
@@ -1117,8 +1116,7 @@ public:
                   XrdOucErrInfo& error,
                   eos::common::VirtualIdentity& vid,
                   unsigned long sourcefsid,
-                  unsigned long targetfsid,
-                  bool expressflag = false);
+                  unsigned long targetfsid);
 
   // ---------------------------------------------------------------------------
   // replicate stripe by vid
@@ -1128,8 +1126,7 @@ public:
                        eos::common::VirtualIdentity& vid,
                        unsigned long sourcefsid,
                        unsigned long targetfsid,
-                       bool dropstripe = false,
-                       bool expressflag = false);
+                       bool dropstripe = false);
 
   // ---------------------------------------------------------------------------
   // replicate stripe providing file meta data by vid
@@ -1140,8 +1137,7 @@ public:
                        eos::common::VirtualIdentity& vid,
                        unsigned long sourcefsid,
                        unsigned long targetfsid,
-                       bool dropstripe = false,
-                       bool expressflag = false);
+                       bool dropstripe = false);
 
   // ---------------------------------------------------------------------------
   // create a versioned file

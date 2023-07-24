@@ -1037,8 +1037,7 @@ ProcCommand::File()
             // -------------------------------------------------------------------
             if (plctplcy != "scattered" &&
                 !plctplcy.beginswith("hybrid:") &&
-                !plctplcy.beginswith("gathered:"))
-            {
+                !plctplcy.beginswith("gathered:")) {
               stdErr += "error: placement policy is invalid";
               retc = EINVAL;
               return SFS_OK;
@@ -1049,6 +1048,7 @@ ProcCommand::File()
               std::string policy = plctplcy.c_str();
               std::string targetgeotag = policy.substr(policy.find(':') + 1);
               std::string tmp_geotag = eos::common::SanitizeGeoTag(targetgeotag);
+
               if (tmp_geotag != targetgeotag) {
                 stdErr += tmp_geotag.c_str();
                 retc = EINVAL;
@@ -1431,15 +1431,6 @@ ProcCommand::File()
           nodrop = true;
         }
 
-        // This flag indicates that the replicate command should queue
-        // this transfers on the head of the FST transfer lists
-        bool expressflag = false;
-        XrdOucString file_express = pOpaque->Get("mgm.file.express");
-
-        if (file_express == "1") {
-          expressflag = 1;
-        }
-
         int icreationsubgroup = -1;
         XrdOucString creationspace = pOpaque->Get("mgm.file.desiredspace");
 
@@ -1640,7 +1631,7 @@ ProcCommand::File()
                       // Add replication here
                       if (gOFS->_replicatestripe(fmd.get(), spath.c_str(),
                                                  *mError, *pVid, sourcefsid,
-                                                 selectedfs[i], false, expressflag)) {
+                                                 selectedfs[i], false)) {
                         stdErr += "error: unable to replicate stripe ";
                         stdErr += (int) sourcefsid;
                         stdErr += " => ";
