@@ -666,7 +666,6 @@ XrdMgmOfs::_rename(const char* old_name,
             eosView->updateContainerStore(rdir.get());
             eosView->updateContainerStore(dir.get());
             const eos::ContainerIdentifier rdid = rdir->getIdentifier();
-            const eos::ContainerIdentifier prdid = rdir->getParentIdentifier();
             fuse_batch.Register([&, rdid, did, pdid]() {
               gOFS->FuseXCastRefresh(rdid, did);
               gOFS->FuseXCastRefresh(did, pdid);
