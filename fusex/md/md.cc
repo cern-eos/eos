@@ -3627,7 +3627,7 @@ metad::pmap::lru_dump(bool force)
   size_t max = this->size();
   ss << std::endl;
   do {
-    if (this->count(start)) {
+    if (this->count(start) && (*this)[start]) {
       shared_md md = (*this)[start];
       ss << "[ " << std::setw(16) << std::hex  << md->lru_next();
       ss << " <- ";
