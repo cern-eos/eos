@@ -419,14 +419,6 @@ XrdMgmOfs::_dropallstripes(const char* path,
 }
 
 /*----------------------------------------------------------------------------*/
-int
-XrdMgmOfs::_movestripe(const char* path,
-                       XrdOucErrInfo& error,
-                       eos::common::VirtualIdentity& vid,
-                       unsigned long sourcefsid,
-                       unsigned long targetfsid,
-                       bool expressflag)
-/*----------------------------------------------------------------------------*/
 /*
  * @brief send a move message for a given file from source to target file system
  *
@@ -435,7 +427,6 @@ XrdMgmOfs::_movestripe(const char* path,
  * @param vid virtual identity of the client
  * @param sourcefsid filesystem id of the source
  * @param targetfsid filesystem id of the target
- * @param expressflag if true the move is put in front of the queue on the FST
  *
  * @return SFS_OK if success otherwise SFS_ERROR
  *
@@ -443,22 +434,19 @@ XrdMgmOfs::_movestripe(const char* path,
  * It calls _replicatestripe internally.
  */
 /*----------------------------------------------------------------------------*/
+int
+XrdMgmOfs::_movestripe(const char* path,
+                       XrdOucErrInfo& error,
+                       eos::common::VirtualIdentity& vid,
+                       unsigned long sourcefsid,
+                       unsigned long targetfsid)
 {
   EXEC_TIMING_BEGIN("MoveStripe");
-  int retc = _replicatestripe(path, error, vid, sourcefsid, targetfsid, true,
-                              expressflag);
+  int retc = _replicatestripe(path, error, vid, sourcefsid, targetfsid, true);
   EXEC_TIMING_END("MoveStripe");
   return retc;
 }
 
-/*----------------------------------------------------------------------------*/
-int
-XrdMgmOfs::_copystripe(const char* path,
-                       XrdOucErrInfo& error,
-                       eos::common::VirtualIdentity& vid,
-                       unsigned long sourcefsid,
-                       unsigned long targetfsid,
-                       bool expressflag)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief send a copy message for a given file from source to target file system
@@ -468,7 +456,6 @@ XrdMgmOfs::_copystripe(const char* path,
  * @param vid virtual identity of the client
  * @param sourcefsid filesystem id of the source
  * @param targetfsid filesystem id of the target
- * @param expressflag if true the copy is put in front of the queue on the FST
  *
  * @return SFS_OK if success otherwise SFS_ERROR
  *
@@ -476,23 +463,19 @@ XrdMgmOfs::_copystripe(const char* path,
  * It calls _replicatestripe internally.
  */
 /*----------------------------------------------------------------------------*/
+int
+XrdMgmOfs::_copystripe(const char* path,
+                       XrdOucErrInfo& error,
+                       eos::common::VirtualIdentity& vid,
+                       unsigned long sourcefsid,
+                       unsigned long targetfsid)
 {
   EXEC_TIMING_BEGIN("CopyStripe");
-  int retc = _replicatestripe(path, error, vid, sourcefsid, targetfsid, false,
-                              expressflag);
+  int retc = _replicatestripe(path, error, vid, sourcefsid, targetfsid, false);
   EXEC_TIMING_END("CopyStripe");
   return retc;
 }
 
-/*----------------------------------------------------------------------------*/
-int
-XrdMgmOfs::_replicatestripe(const char* path,
-                            XrdOucErrInfo& error,
-                            eos::common::VirtualIdentity& vid,
-                            unsigned long sourcefsid,
-                            unsigned long targetfsid,
-                            bool dropsource,
-                            bool expressflag)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief send a replication message for a given file from source to target file system
@@ -503,7 +486,6 @@ XrdMgmOfs::_replicatestripe(const char* path,
  * @param sourcefsid filesystem id of the source
  * @param targetfsid filesystem id of the target
  * @param dropsource indicates if the source is deleted(dropped) after successful replication
- * @param expressflag if true the copy is put in front of the queue on the FST
  *
  * @return SFS_OK if success otherwise SFS_ERROR
  *
@@ -512,6 +494,13 @@ XrdMgmOfs::_replicatestripe(const char* path,
  * The call needs to have   eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
  */
 /*----------------------------------------------------------------------------*/
+int
+XrdMgmOfs::_replicatestripe(const char* path,
+                            XrdOucErrInfo& error,
+                            eos::common::VirtualIdentity& vid,
+                            unsigned long sourcefsid,
+                            unsigned long targetfsid,
+                            bool dropsource)
 {
   static const char* epname = "replicatestripe";
   std::shared_ptr<eos::IContainerMD> dh;
@@ -568,21 +557,11 @@ XrdMgmOfs::_replicatestripe(const char* path,
   // ---------------------------------------------------------------------------
   viewReadLock.Release();
   int retc = _replicatestripe(fmd.get(), path, error, vid, sourcefsid,
-                              targetfsid, dropsource, expressflag);
+                              targetfsid, dropsource);
   EXEC_TIMING_END("ReplicateStripe");
   return retc;
 }
 
-/*----------------------------------------------------------------------------*/
-int
-XrdMgmOfs::_replicatestripe(eos::IFileMD* fmd,
-                            const char* path,
-                            XrdOucErrInfo& error,
-                            eos::common::VirtualIdentity& vid,
-                            unsigned long sourcefsid,
-                            unsigned long targetfsid,
-                            bool dropsource,
-                            bool expressflag)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief send a replication message for a given file from source to target file system
@@ -594,7 +573,6 @@ XrdMgmOfs::_replicatestripe(eos::IFileMD* fmd,
  * @param sourcefsid filesystem id of the source
  * @param targetfsid filesystem id of the target
  * @param dropsource indicates if the source is deleted(dropped) after successful replication
- * @param expressflag if true the copy is put in front of the queue on the FST
  *
  * @return SFS_OK if success otherwise SFS_ERROR
  *
@@ -602,6 +580,14 @@ XrdMgmOfs::_replicatestripe(eos::IFileMD* fmd,
  * The call needs to have   eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
  */
 /*----------------------------------------------------------------------------*/
+int
+XrdMgmOfs::_replicatestripe(eos::IFileMD* fmd,
+                            const char* path,
+                            XrdOucErrInfo& error,
+                            eos::common::VirtualIdentity& vid,
+                            unsigned long sourcefsid,
+                            unsigned long targetfsid,
+                            bool dropsource)
 {
   using namespace eos::common;
   using eos::common::LayoutId;
