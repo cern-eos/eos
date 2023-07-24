@@ -174,6 +174,13 @@ public:
 	    on_root=true;
 	  }
         }
+	
+	if (is_blocked >= 1000) {
+	  blocked_ops++;
+	}
+	if ( (it.first == 1) && (is_blocked >= 1000) ) {
+	  on_root=true;
+	}
       }
     }
 

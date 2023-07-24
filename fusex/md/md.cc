@@ -2658,6 +2658,7 @@ metad::mdcallback(ThreadAssistant& assistant)
     mCb.Lock();
     while (!mCbQueue.size()) {
       mCb.WaitMS(1000);
+
       if (assistant.terminationRequested() || shutdown == true ) {
 	mCb.UnLock();
 	return;
