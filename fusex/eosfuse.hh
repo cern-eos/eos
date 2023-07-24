@@ -548,6 +548,7 @@ private:
   AssistedThread tMetaCacheFlush;
   AssistedThread tMetaStackFree;
   AssistedThread tMetaCommunicate;
+  AssistedThread tMetaCallback;
   AssistedThread tCapFlush;
 
   std::string umount_system_line;

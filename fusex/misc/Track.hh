@@ -42,6 +42,8 @@ public:
       openr = openw = 0;
       mInUse.SetBlockedStackTracing(false); // disable stacktracing
       mInUse.SetBlocking(true); // do not use a timed mutex
+      caller="";
+      origin="";
     }
 
     RWMutex mInUse;
@@ -50,6 +52,7 @@ public:
     std::atomic<size_t> openw;
     std::atomic<uint64_t> attachtime;
     const char* caller;
+    const char* origin;
   } meta_t;
 
   Track() { }
@@ -125,12 +128,14 @@ public:
     return iNodes.size();
   }
 
-  double blocked_ms(std::string& function, uint64_t& inode)
+  double blocked_ms(std::string& function, uint64_t& inode, std::string& orig, size_t& blocked_ops, bool& on_root)
   {
     // return's the time of the longest blocked mutex
     double max_blocked = 0;
     function = "";
     inode = 0;
+    blocked_ops = 0;
+    on_root = false;
     // get current time
     auto now = std::chrono::steady_clock::now();
     XrdSysMutexHelper l(iMutex);
@@ -144,8 +149,16 @@ public:
         if (is_blocked > max_blocked) {
           max_blocked = is_blocked;
           function = it.second->caller;
+	  orig = it.second->origin;
           inode = it.first;
         }
+	
+	if (is_blocked >= 1000) {
+	  blocked_ops++;
+	}
+	if ( (it.first == 1) && (is_blocked >= 1000) ) {
+	  on_root=true;
+	}
       }
     }
 
@@ -153,6 +166,7 @@ public:
       // don't report under 1000ms
       max_blocked = 0;
       function = "";
+      orig = "";
     }
 
     return max_blocked;
@@ -171,6 +185,7 @@ public:
 
       m = iNodes[ino];
       m->caller = caller;
+      m->origin = "fs";
     }
 
     if (!m->openr && !m->openw) {
@@ -190,12 +205,25 @@ public:
     return m;
   }
 
+  void SetOrigin(unsigned long long ino, const char* origin) {
+    std::shared_ptr<meta_t> m;
+    {
+      XrdSysMutexHelper l(iMutex);
+
+      if (!iNodes.count(ino)) {
+	return ;
+      }
+
+      m = iNodes[ino];
+      m->origin = origin;
+    }
+  }
 
   class Monitor
   {
   public:
 
-    Monitor(const char* caller, Track& tracker, unsigned long long ino,
+    Monitor(const char* caller, const char* origin, Track& tracker, unsigned long long ino,
             bool exclusive = false, bool disable = false)
     {
       if (!disable) {
@@ -205,16 +233,18 @@ public:
 
         this->ino = ino;
         this->caller = caller;
+	this->origin = origin;
         this->exclusive = exclusive;
         this->me = tracker.Attach(ino, exclusive, caller);
 
         if (EOS_LOGS_DEBUG)
-          eos_static_debug("locked  caller=%s self=%lld in=%llu exclusive=%d obj=%llx",
-                           caller, thread_id(), ino, exclusive,
+          eos_static_debug("locked  caller=%s origin=%s self=%lld in=%llu exclusive=%d obj=%llx",
+                           caller, origin, thread_id(), ino, exclusive,
                            &(*(this->me)));
       } else {
         this->ino = 0;
-        this->caller = 0;
+        this->caller = "";
+	this->origin = "disabled";
         this->exclusive = false;
       }
     }
@@ -244,6 +274,7 @@ public:
     bool exclusive;
     unsigned long long ino;
     const char* caller;
+    const char* origin;
   };
 
 private:

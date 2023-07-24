@@ -168,6 +168,8 @@ message statistics {
   string blockedfunc = 28; //< function with is blocked for ms
   fixed32 recovery_ok = 29; // < number of recoveries ok
   fixed32 recovery_fail = 30; // < number of recoveries failed
+  fixed32 blockedops = 31; // < number of blocking operations
+  bool blockedroot = 32; // < indicate if operation on / is blocking
 }
 
 message container {
