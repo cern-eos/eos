@@ -696,6 +696,7 @@ XrdMgmOfs::_rename(const char* old_name,
 
               eosView->updateContainerStore(dir.get());
               fuse_batch.Register([&, did, pdid]() {
+		gOFS->FuseXCastDeletion(did, oPath.GetName());
                 gOFS->FuseXCastRefresh(did, pdid);
               });
             }
