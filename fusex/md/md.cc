@@ -2666,7 +2666,10 @@ metad::mdcallback(ThreadAssistant& assistant)
     mCb.Lock();
     while (!mCbQueue.size()) {
       mCb.WaitMS(1000);
-      eos_static_notice("re-checking queue");
+      if (assistant.terminationRequested() || shutdown == true ) {
+	mCb.UnLock();
+	return;
+      }
     }
     auto it = mCbQueue.begin();
     shared_response rsp = *it;
