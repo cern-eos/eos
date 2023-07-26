@@ -17,6 +17,21 @@ Introduction
 This release is based on XRootD V5.
 
 
+``v5.1.26 Diopside``
+==========================
+
+2023-07-26
+
+Bug
+---
+
+* FUSEX: protect against inserting md objects with ino=0
+* FUSEX: check the md err code of entries returned by the server before using
+* FUSEX: add sanity check to not dump a swapped-out meta-data object which is in the LRU list
+* FUSEX: avoid writing into swapped-out MD objects
+* FUSEX: remove dead code deleting old cache entries
+
+
 ``v5.1.25 Diopside``
 ==========================
 
