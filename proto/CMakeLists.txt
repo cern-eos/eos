@@ -40,7 +40,8 @@ add_library(EosNsQuarkdbProto-Objects OBJECT
   ${NS_PROTO_SRCS}  ${NS_PROTO_HDRS})
 
 target_link_libraries(EosNsQuarkdbProto-Objects PUBLIC
-  PROTOBUF::PROTOBUF)
+  PROTOBUF::PROTOBUF
+  ABSL::ABSL)
 
 target_include_directories(EosNsQuarkdbProto-Objects PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>)
@@ -59,7 +60,8 @@ add_library(EosFstProto-Objects OBJECT
   ${DELETE_SRCS}  ${DELETE_HDRS})
 
 target_link_libraries(EosFstProto-Objects PUBLIC
-  PROTOBUF::PROTOBUF)
+  PROTOBUF::PROTOBUF
+  ABSL::ABSL)
 
 target_include_directories(EosFstProto-Objects PUBLIC
   $<BUILD_INTERFACE:${CMAKE_BINARY_DIR}>
@@ -154,7 +156,8 @@ add_library(EosCliProto-Objects OBJECT
   ${CLI_PROTO_SRCS} ${CLI_PROTO_HDRS})
 
 target_link_libraries(EosCliProto-Objects PUBLIC
-  PROTOBUF::PROTOBUF)
+  PROTOBUF::PROTOBUF
+  ABSL::ABSL)
 
 target_include_directories(EosCliProto-Objects PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>)
@@ -189,7 +192,8 @@ if (GRPC_FOUND)
   target_link_libraries(EosGrpcProto-Objects PUBLIC
     GRPC::grpc
     GRPC::grpc++
-    PROTOBUF::PROTOBUF)
+    PROTOBUF::PROTOBUF
+    ABSL::ABSL)
 
   target_include_directories(EosGrpcProto-Objects PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>)
@@ -293,7 +297,8 @@ if (GRPC_FOUND)
 
   target_link_libraries(EosCliGrpc-Objects PUBLIC
     GRPC::grpc++
-    PROTOBUF::PROTOBUF)
+    PROTOBUF::PROTOBUF
+    ABSL::ABSL)
 
   target_include_directories(EosCliGrpc-Objects PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>)
@@ -329,7 +334,8 @@ if (GRPC_FOUND)
 
   target_link_libraries(EosWncGrpcProto-Objects PUBLIC
     GRPC::grpc++
-    PROTOBUF::PROTOBUF)
+    PROTOBUF::PROTOBUF
+    ABSL::ABSL)
 
   target_include_directories(EosWncGrpcProto-Objects PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>)

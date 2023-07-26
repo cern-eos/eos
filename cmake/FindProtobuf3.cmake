@@ -67,6 +67,7 @@ if (PROTOBUF3_FOUND AND NOT TARGET PROTOBUF::PROTOBUF)
   set_target_properties(PROTOBUF::PROTOBUF PROPERTIES
     IMPORTED_LOCATION "${PROTOBUF3_LIBRARY}"
     INTERFACE_INCLUDE_DIRECTORIES "${PROTOBUF3_INCLUDE_DIR}")
+  target_compile_definitions(PROTOBUF::PROTOBUF INTERFACE PROTOBUF_USE_DLLS=1)
 
   # Overwrite these since they are used in generating the Protobuf files
   if (NOT TARGET protobuf::protoc)

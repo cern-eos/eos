@@ -50,7 +50,7 @@ if(NOT PACKAGEONLY)
   find_package(jemalloc)
   find_package(RocksDB)
   find_package(absl REQUIRED)
-  
+
   # Add extra requirements that come from RocksDB
   if (ROCKSDB_FOUND)
     find_package(zstd REQUIRED)

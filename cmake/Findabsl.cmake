@@ -13,7 +13,9 @@ find_path(ABSL_INCLUDE_DIR
 
 set(libraries absl_synchronization absl_graphcycles_internal absl_stacktrace absl_symbolize absl_time absl_civil_time absl_time_zone
   absl_malloc_internal absl_debugging_internal absl_demangle_internal absl_strings absl_int128
-  absl_strings_internal absl_base absl_spinlock_wait absl_throw_delegate absl_raw_logging_internal absl_log_severity)
+  absl_strings_internal absl_base absl_spinlock_wait absl_throw_delegate absl_raw_logging_internal absl_log_severity
+  absl_log_internal_check_op absl_log_internal_message absl_cord_internal absl_cordz_info absl_cordz_sample_token
+  absl_cord absl_cord_functions absl_hash absl_status absl_log_internal_nullguard)
 
 foreach( lib ${libraries})
   find_library(ABSL_${lib}_LIBRARY NAMES ${lib} HINTS 
@@ -37,4 +39,18 @@ find_package_handle_standard_args(absl
 mark_as_advanced(ABSL_INCLUDE_DIR ABSL_LIBRARY)
 message(STATUS "Abseil include path: ${ABSL_INCLUDE_DIR}")
 
+find_library(MAIN_ABSL_LIBRARY NAMES absl_base HINTS 
+    HINTS /opt/eos/grpc/lib64 ${ABSL_ROOT}
+    PATH_SUFFIXES ${CMAKE_INSTALL_LIBDIR})
 
+if (ABSL_FOUND AND NOT TARGET ABSL::ABSL)
+  add_library(ABSL::ABSL UNKNOWN IMPORTED)
+  set_target_properties(ABSL::ABSL PROPERTIES
+    IMPORTED_LOCATION "${MAIN_ABSL_LIBRARY}"
+    INTERFACE_INCLUDE_DIRECTORIES "${ABSL_INCLUDE_DIR}"
+    INTERFACE_LINK_LIBRARIES "${ABSL_LIBRARIES}")
+endif ()
+
+if (TARGET ABSL::ABSL)
+  message(STATUS "Successfully created target ABSL::ABSL")
+endif()
