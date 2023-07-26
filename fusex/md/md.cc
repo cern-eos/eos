@@ -2471,19 +2471,6 @@ metad::mdstackfree(ThreadAssistant& assistant)
     if (!EosFuse::Instance().Config().mdcachedir.empty()) {
       // level the inodes stored in memory and eventually swap out into kv store
       int swap_out_inodes = 0 ;
-      size_t filled = 0;
-      size_t empty = 0;
-      {
-        XrdSysMutexHelper mLock(mdmap);
-
-        for (auto it = mdmap.begin(); it != mdmap.end(); ++it) {
-          if (it->second) {
-            filled++;
-          } else {
-            empty++;
-          }
-        }
-      }
 
       do {
         swap_out_inodes = mdmap.sizeTS() - max_inodes -
