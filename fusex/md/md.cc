@@ -3500,7 +3500,7 @@ metad::pmap::lru_newest() const
 void
 metad::pmap::lru_add(fuse_ino_t ino, shared_md md)
 {
-  if (ino == 1) {
+  if (ino <= 1) {
     return;
   }
 
@@ -3532,7 +3532,7 @@ metad::pmap::lru_add(fuse_ino_t ino, shared_md md)
 void
 metad::pmap::lru_remove(fuse_ino_t ino)
 {
-  if (ino == 1) {
+  if (ino <= 1) {
     return;
   }
 
