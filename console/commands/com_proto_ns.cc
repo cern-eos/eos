@@ -557,7 +557,7 @@ int com_ns(char* arg)
 void com_ns_help()
 {
   std::ostringstream oss;
-  oss << "Usage: ns [stat|mutex|compact|master|cache]" << std::endl
+  oss << "Usage: ns [stat|mutex|compact|master|cache|benchmark]" << std::endl
       << "    print or configure basic namespace parameters" << std::endl
       << "  ns stat [-a] [-m] [-n] [--reset]" << std::endl
       << "    print namespace statistics" << std::endl
@@ -651,6 +651,16 @@ void com_ns_help()
       << "    will not allocate any file or container with IDs less than, or equal to the"
       << std::endl
       << "    given blacklist thresholds." << std::endl
-      << std::endl;
+      << std::endl
+      << "  ns benchmark <n-threads> <n-subdirs> <n-subfiles> [prefix=/benchmark]" << std::endl
+      << "     run's a MD benchmark inside the MGM - results are printed into the MGM logfile and the shell" << std::endl 
+      << "                n-threads  : number of parallel threads running a benchmark in the MGM" << std::endl
+      << "                n-subdirs  : directories created by each threads" << std::endl
+      << "                n-subfiles : number of files created in each sub-directory" << std::endl
+      << "                prefix     : absolute directory where to write the benchmark files - default is /benchmark" << std::endl
+      << std::endl
+      << "     example: eos ns benchmark 100 10 10" << std::endl;
+									       
+  
   std::cerr << oss.str() << std::endl;
 }
