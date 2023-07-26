@@ -316,7 +316,7 @@ FuseServer::Clients::Info(const std::string& identity)
              it->second.statistics().open_files(),
              it->second.heartbeat().automounted() ? "autofs" : "static",
              it->second.heartbeat().mount().c_str(),
-	     it->second.heartbeat().appname().c_str()
+             it->second.heartbeat().appname().c_str()
             );
     out += formatline;
   }
@@ -417,7 +417,7 @@ FuseServer::Clients::Print(std::string& out, std::string options)
                lockup.c_str(),
                idle.c_str(),
                it->second.heartbeat().mount().c_str(),
-	       it->second.heartbeat().appname().c_str()
+               it->second.heartbeat().appname().c_str()
               );
       out += formatline;
     }
@@ -454,8 +454,8 @@ FuseServer::Clients::Print(std::string& out, std::string options)
                "......   recovery-ok  : %d\n"
                "......   recovery-fail: %d\n"
                "......   blockedms    : %.02f [%s]\n"
-	       "......   blockedops   : %lu\n"
-	       "......   blockedroot  : %s\n",
+               "......   blockedops   : %u\n"
+               "......   blockedroot  : %s\n",
                it->second.statistics().inodes(),
                it->second.statistics().inodes_todelete(),
                it->second.statistics().inodes_backlog(),
@@ -486,9 +486,10 @@ FuseServer::Clients::Print(std::string& out, std::string options)
                it->second.statistics().recovery_ok(),
                it->second.statistics().recovery_fail(),
                it->second.statistics().blockedms(),
-               it->second.statistics().blockedfunc().length()?it->second.statistics().blockedfunc().c_str() : "none",
-	       it->second.statistics().blockedops(),
-	       it->second.statistics().blockedroot()?"true":"false"
+               it->second.statistics().blockedfunc().length() ?
+               it->second.statistics().blockedfunc().c_str() : "none",
+               it->second.statistics().blockedops(),
+               it->second.statistics().blockedroot() ? "true" : "false"
               );
       out += formatline;
     }
@@ -527,8 +528,8 @@ FuseServer::Clients::Print(std::string& out, std::string options)
                "recovery-fail=%d "
                "blockedms=%f "
                "blockedfunc=%s "
-	       "blockedops=%lu "
-	       "blockedroot=%d\n", 
+               "blockedops=%u "
+               "blockedroot=%d\n",
                it->second.heartbeat().name().c_str(),
                it->second.heartbeat().host().c_str(),
                it->second.heartbeat().version().c_str(),
@@ -544,7 +545,7 @@ FuseServer::Clients::Print(std::string& out, std::string options)
                it->second.statistics().open_files(),
                it->second.heartbeat().automounted() ? "autofs" : "static",
                it->second.heartbeat().mount().c_str(),
-	       it->second.heartbeat().appname().c_str(),
+               it->second.heartbeat().appname().c_str(),
                it->second.statistics().inodes(),
                it->second.statistics().inodes_todelete(),
                it->second.statistics().inodes_backlog(),
@@ -575,9 +576,10 @@ FuseServer::Clients::Print(std::string& out, std::string options)
                it->second.statistics().recovery_ok(),
                it->second.statistics().recovery_fail(),
                it->second.statistics().blockedms(),
-               it->second.statistics().blockedfunc().length()?it->second.statistics().blockedfunc().c_str() : "none",
-	       it->second.statistics().blockedops(),
-	       it->second.statistics().blockedroot());
+               it->second.statistics().blockedfunc().length() ?
+               it->second.statistics().blockedfunc().c_str() : "none",
+               it->second.statistics().blockedops(),
+               it->second.statistics().blockedroot());
       out += formatline;
     }
 
