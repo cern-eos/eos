@@ -1826,6 +1826,12 @@ metad::apply(fuse_req_t req, eos::fusex::container& cont, bool listing)
   }
 
   if (cont.type() == cont.MD) {
+    int mderr = 0;
+    if ((mderr = cont.md_().err())) {
+      eos_static_info("ref_ino=%016lx skipped applying MD container with err=%d",
+                      (long) cont.ref_inode_(), mderr);
+      return 0;
+    }
     uint64_t md_ino = cont.md_().md_ino();
     uint64_t md_pino = cont.md_().md_pino();
     uint64_t ino = inomap.forward(md_ino);
@@ -1923,6 +1929,13 @@ metad::apply(fuse_req_t req, eos::fusex::container& cont, bool listing)
     for (auto map = cont.md_map_().md_map_().begin();
          map != cont.md_map_().md_map_().end(); ++map) {
       // loop over the map of meta data objects
+      int mderr = 0;
+      if ((mderr = map->second.err())) {
+        eos_static_info("ref_ino=%016lx ino=%016lx skipped applying MDMAP "
+                        "container entry with err=%d",
+                        (long) cont.ref_inode_(), (long) map->first, mderr);
+        continue;
+      }
       uint64_t ino = inomap.forward(map->first);
       eos::fusex::cap cap_received;
       cap_received.set_id(0);
