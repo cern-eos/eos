@@ -696,11 +696,7 @@ XrdMgmOfs::_rename(const char* old_name,
 
               eosView->updateContainerStore(dir.get());
               fuse_batch.Register([&, did, pdid]() {
-<<<<<<< HEAD
 		gOFS->FuseXCastDeletion(did, oPath.GetName());
-=======
-   	        gOFS->FuseXCastDeletion(did, oPath.GetName());
->>>>>>> 458b7ed5d (MGM: remove BroadcastRelease protocol calls, since they are not required)
                 gOFS->FuseXCastRefresh(did, pdid);
               });
             }
