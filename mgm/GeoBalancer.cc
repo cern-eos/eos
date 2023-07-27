@@ -528,7 +528,6 @@ GeoBalancer::prepareTransfers(int nrTransfers)
 void
 GeoBalancer::GeoBalance(ThreadAssistant& assistant) noexcept
 {
-  uint64_t timeout_ns = 100 * 1e6; // 100ms
   eos::common::VirtualIdentity rootvid = eos::common::VirtualIdentity::Root();
   gOFS->WaitUntilNamespaceIsBooted(assistant);
   assistant.wait_for(std::chrono::seconds(10));
