@@ -49,10 +49,12 @@ QoSConfig::LoadConfig()
   std::map<std::string, eos::mgm::QoSClass> map;
 
   if (IsValid()) {
-    Json::Reader reader;
-    Json::Value root;
+    std::string errs;
+    Json::CharReaderBuilder reader;
 
-    if (reader.parse(mFile, root, false)) {
+    Json::Value root;
+    bool ok = parseFromStream(reader, mFile, &root, &errs);
+    if (ok) {
       for (auto& it: root) {
         // Create QoS class
         auto qosclass_ptr = QoSConfig::CreateQoSClass(it);
@@ -63,7 +65,7 @@ QoSConfig::LoadConfig()
       }
     } else {
       eos_static_err("msg=\"failed parsing JSON config file\" emsg=\"%s\"",
-                     reader.getFormattedErrorMessages().c_str());
+                     errs.c_str());
     }
   }
 
