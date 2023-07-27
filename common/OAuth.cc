@@ -188,9 +188,11 @@ OAuth::Validate(OAuth::AuthInfo& info, const std::string& accesstoken,
 
     if (httpCode == 200) {
       Json::Value jsonData;
-      Json::Reader jsonReader;
-
-      if (jsonReader.parse(*httpData.get(), jsonData)) {
+      std::string errs;
+      Json::CharReaderBuilder reader;
+      std::unique_ptr<Json::CharReader> jsonReader;
+      jsonReader.reset(reader.newCharReader());
+      if (jsonReader->parse((*httpData.get()).c_str(), (*httpData.get()).c_str() + (*httpData.get()).length(), &jsonData, &errs)) {
         if (EOS_LOGS_DEBUG) {
           std::cerr << "Successfully parsed JSON data" << std::endl;
           std::cerr << "\nJSON data received:" << std::endl;
