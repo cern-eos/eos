@@ -17,9 +17,8 @@ find_path(ZMQ_INCLUDE_DIR
 
 find_path(ZMQ_CPP_INCLUDE_DIR
   NAMES zmq.hpp
-  HINTS ${ZMQ_ROOT}
-  PATHS ${CMAKE_SOURCE_DIR}/utils
-  PATH_SUFFIXES include)
+  HINTS ${ZMQ_ROOT} ${CMAKE_SOURCE_DIR}/common/
+  PATH_SUFFIXES cppzmq )
 
 find_library(ZMQ_LIBRARY
   NAMES zmq

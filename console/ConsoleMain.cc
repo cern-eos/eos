@@ -603,28 +603,13 @@ client_command(XrdOucString& in, bool is_admin, std::string* reply)
     socket.connect(serveruri.c_str());
     zmq::message_t request(path.length());
     memcpy(request.data(), path.c_str(), path.length());
-#if CPPZMQ_VERSION >= ZMQ_MAKE_VERSION(4, 3, 1)
     socket.send(request, zmq::send_flags::none);
-#else
-    socket.send(request);
-#endif
-#if CPPZMQ_VERSION >= ZMQ_MAKE_VERSION(4, 3, 1)
-    zmq::mutable_buffer response;
-#if CPPZMQ_VERSION < ZMQ_MAKE_VERSION(4, 6, 0)
-    zmq::detail::recv_buffer_result_t ret_recv;
-#else
-    zmq::recv_buffer_result_t ret_recv;
-#endif
-    ret_recv = socket.recv(response, zmq::recv_flags::none);
-#else
-    zmq::message_t response;
-    size_t ret_recv = socket.recv(&response);
-#endif
     std::string sout;
-
-    if (ret_recv) {
+    zmq::message_t response;
+    zmq::recv_result_t ret_recv = socket.recv(response);
+    if (ret_recv.has_value()) {
       sout.assign((char*)response.data(), response.size());
-    }
+    }    
 
     CommandEnv = new XrdOucEnv(sout.c_str());
 

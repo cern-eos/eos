@@ -688,8 +688,8 @@ ProcCommand::ArchiveExecuteCmd(const::string& cmd)
   int sock_linger = 0;
   zmq::socket_t socket(*(gOFS->mZmqContext), ZMQ_REQ);
   int sock_timeout = 1500; // 1,5s
-  socket.setsockopt(ZMQ_RCVTIMEO, &sock_timeout, sizeof(sock_timeout));
-  socket.setsockopt(ZMQ_LINGER, &sock_linger, sizeof(sock_linger));
+  socket.set(zmq::sockopt::rcvtimeo, sock_timeout);
+  socket.set(zmq::sockopt::linger, sock_linger);
 
   try {
     socket.connect(gOFS->mArchiveEndpoint.c_str());
@@ -701,40 +701,44 @@ ProcCommand::ArchiveExecuteCmd(const::string& cmd)
 
   if (!retc) {
     zmq::message_t msg((void*)cmd.c_str(), cmd.length(), NULL);
-
+    zmq::send_flags sf = zmq::send_flags::none;
+    zmq::recv_flags rf = zmq::recv_flags::none;
     try {
-      if (!socket.send(msg)) {
+      if (!socket.send(msg,sf)) {
         stdErr = "error: send request to archiver";
         retc = EINVAL;
-      } else if (!socket.recv(&msg)) {
-        stdErr = "error: no response from archiver";
-        retc = EINVAL;
       } else {
-        // Parse response from the archiver
-        XrdOucString msg_str((const char*) msg.data(), msg.size());
-        //eos_info("Msg_str:%s", msg_str.c_str());
-        std::istringstream iss(msg_str.c_str());
-        std::string status, line, response;
-        iss >> status;
-
-        // Discard whitespaces from the beginning
-        while (getline(iss >> std::ws, line)) {
-          response += line;
-
-          if (iss.good()) {
-            response += '\n';
-          }
-        }
-
-        if (status == "OK") {
-          stdOut = response.c_str();
-        } else if (status == "ERROR") {
-          stdErr = response.c_str();
-          retc = EINVAL;
-        } else {
-          stdErr = "error: unknown response format from archiver";
-          retc = EINVAL;
-        }
+	zmq::recv_result_t rc = socket.recv(msg, rf);
+	if (!rc.has_value()) {
+	  stdErr = "error: no response from archiver";
+	  retc = EINVAL;
+	} else {
+	  // Parse response from the archiver
+	  XrdOucString msg_str((const char*) msg.data(), msg.size());
+	  //eos_info("Msg_str:%s", msg_str.c_str());
+	  std::istringstream iss(msg_str.c_str());
+	  std::string status, line, response;
+	  iss >> status;
+	  
+	  // Discard whitespaces from the beginning
+	  while (getline(iss >> std::ws, line)) {
+	    response += line;
+	    
+	    if (iss.good()) {
+	      response += '\n';
+	    }
+	  }
+	  
+	  if (status == "OK") {
+	    stdOut = response.c_str();
+	  } else if (status == "ERROR") {
+	    stdErr = response.c_str();
+	    retc = EINVAL;
+	  } else {
+	    stdErr = "error: unknown response format from archiver";
+	    retc = EINVAL;
+	  }
+	}
       }
     } catch (zmq::error_t& zmq_err) {
       stdErr = "error: timeout getting response from archiver, msg: ";

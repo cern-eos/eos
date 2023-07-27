@@ -98,13 +98,7 @@ metad::connect(std::string zmqtarget, std::string zmqidentity,
 {
   set_zmq_wants_to_connect(1);
   std::lock_guard<std::mutex> connectionMutex(zmq_socket_mutex);
-#if CPPZMQ_VERSION >= ZMQ_MAKE_VERSION(4, 7, 1)
-
   if (z_socket && z_socket->handle() && (zmqtarget != zmq_target)) {
-#else
-
-  if (z_socket && z_socket->connected() && (zmqtarget != zmq_target)) {
-#endif
     // delete the exinsting ZMQ connection
     delete z_socket;
     delete z_ctx;
@@ -134,27 +128,25 @@ metad::connect(std::string zmqtarget, std::string zmqidentity,
                   zmq_target.c_str(), zmq_identity.c_str(), zmq_identity.length());
   z_ctx = new zmq::context_t(1);
   z_socket = new zmq::socket_t(*z_ctx, ZMQ_DEALER);
-#if CPPZMQ_VERSION >= ZMQ_MAKE_VERSION(4, 7, 1)
+
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations" 
+
+#if ZMQ_VERSION >= ZMQ_MAKE_VERSION(4, 2, 1)
   z_socket->set(zmq::sockopt::routing_id, zmq_identity);
+#else
+  z_socket->setsockopt(ZMQ_IDENTITY, zmq_identity.c_str(), zmq_identity.length());
+#endif
   z_socket->set(zmq::sockopt::tcp_keepalive, 1);
   z_socket->set(zmq::sockopt::tcp_keepalive_idle, 90);
   z_socket->set(zmq::sockopt::tcp_keepalive_intvl, 90);
-#else
-  z_socket->setsockopt(ZMQ_IDENTITY, zmq_identity.c_str(), zmq_identity.length());
-  z_socket->setsockopt(ZMQ_TCP_KEEPALIVE, 1);
-  z_socket->setsockopt(ZMQ_TCP_KEEPALIVE_IDLE, 90);
-  z_socket->setsockopt(ZMQ_TCP_KEEPALIVE_INTVL, 90);
-#endif
+#pragma GCC diagnostic pop
 
   while (1) {
     try {
       z_socket->connect(zmq_target);
       int linger = 0;
-#if CPPZMQ_VERSION >= ZMQ_MAKE_VERSION(4, 7, 1)
       z_socket->set(zmq::sockopt::linger, linger);
-#else
-      z_socket->setsockopt(ZMQ_LINGER, &linger, sizeof(linger));
-#endif
       eos_static_notice("connected to %s", zmq_target.c_str());
       break;
     } catch (zmq::error_t& e) {
@@ -3146,8 +3138,11 @@ metad::mdcommunicate(ThreadAssistant& assistant)
         }
 
         // 10 milliseconds
-        zmq_poll(items, 1, 10);
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations" 
 
+        zmq_poll(items, 1, 10);
+#pragma GCC diagnostic pop
         if (assistant.terminationRequested()) {
           shutdown = true;
           EosFuse::Instance().caps.reset();
@@ -3261,13 +3256,7 @@ metad::mdcommunicate(ThreadAssistant& assistant)
       zmq::message_t hb_msg;
       hb.SerializeToString(&hbstream);
       hb_msg.rebuild(hbstream.c_str(), hbstream.length());
-#if CPPZMQ_VERSION >= ZMQ_MAKE_VERSION(4, 3, 1)
-
       if (!z_socket->send(hb_msg, zmq::send_flags::none)) {
-#else
-
-      if (!z_socket->send(hb_msg)) {
-#endif
         eos_static_err("err sending heartbeat: hbstream.c_str()=%s, hbstream.length()=%d, hbstream:hex=%s",
                        hbstream.c_str(), hbstream.length(),
                        eos::common::stringToHex(hbstream).c_str());

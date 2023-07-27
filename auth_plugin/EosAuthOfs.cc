@@ -288,12 +288,10 @@ EosAuthOfs::Configure(XrdSysError& error, XrdOucEnv* envP)
       for (int i = 0; i < mSizePoolSocket; i++) {
         // Set socket receive timeout to 5 seconds
         zmq::socket_t* socket = new zmq::socket_t(*mZmqContext, ZMQ_REQ);
-#if ZMQ_VERSION >= 20200
         int timeout_mili = 5000;
-        socket->setsockopt(ZMQ_RCVTIMEO, &timeout_mili, sizeof timeout_mili);
+        socket->set(zmq::sockopt::rcvtimeo, timeout_mili);
         int socket_linger = 0;
-        socket->setsockopt(ZMQ_LINGER, &socket_linger, sizeof(socket_linger));
-#endif
+        socket->set(zmq::sockopt::linger, socket_linger);
         std::string endpoint = "inproc://proxyfrontend";
 
         // Try in a loop to connect to the proxyfrontend as it can take a while for
@@ -415,7 +413,6 @@ EosAuthOfs::AuthProxyThread()
   zmq::message_t msg;
   // Start the proxy using the first entry
   int more;
-  size_t moresz;
   int poll_size = 2;
   zmq::pollitem_t items[3] = {
     { (void*)* mFrontend, 0, ZMQ_POLLIN, 0},
@@ -433,7 +430,10 @@ EosAuthOfs::AuthProxyThread()
   while (true) {
     // Wait while there are either requests or replies to process
     try {
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations" 
       rc = zmq::poll(&items[0], poll_size, -1);
+#pragma GCC diagnostic pop
     } catch (zmq::error_t& e) {
       eos_err("Exception thrown: %s", e.what());
     }
@@ -446,16 +446,15 @@ EosAuthOfs::AuthProxyThread()
     // Process a request
     if (items[0].revents & ZMQ_POLLIN) {
       eos_debug("got frontend event");
-
+      zmq::recv_flags rf = zmq::recv_flags::none;
       while (true) {
-        if (!mFrontend->recv(&msg)) {
+        if (!mFrontend->recv(msg,rf).has_value()) {
           eos_err("error while recv on frontend");
           return;
         }
 
         try {
-          moresz = sizeof more;
-          mFrontend->getsockopt(ZMQ_RCVMORE, &more, &moresz);
+          more = mFrontend->get(zmq::sockopt::rcvmore);
         } catch (zmq::error_t& err) {
           eos_err("exception in getsockopt");
           return;
@@ -464,8 +463,11 @@ EosAuthOfs::AuthProxyThread()
         // Send request to the current master MGM
         {
           XrdSysMutexHelper scop_lock(mMutexMaster);
-
-          if (!mMaster->send(msg, more ? ZMQ_SNDMORE : 0)) {
+	  zmq::send_flags sf = zmq::send_flags::none;
+	  if (more) {
+	    sf = zmq::send_flags::sndmore;
+	  }
+          if (!mMaster->send(msg, sf)) {
             eos_err("error while sending to master");
             return;
           }
@@ -480,23 +482,26 @@ EosAuthOfs::AuthProxyThread()
     // Process a reply from the first MGM
     if (items[1].revents & ZMQ_POLLIN) {
       eos_debug("got mBackend1 event");
-
+      zmq::recv_flags rf = zmq::recv_flags::none;
+      
       while (true) {
-        if (!mBackend1.second->recv(&msg)) {
+        if (!mBackend1.second->recv(msg,rf).has_value()) {
           eos_err("error while recv on mBackend1");
           return;
         }
 
-        moresz = sizeof more;
-
         try {
-          mBackend1.second->getsockopt(ZMQ_RCVMORE, &more, &moresz);
+          more = mBackend1.second->get(zmq::sockopt::rcvmore);
         } catch (zmq::error_t& err) {
           eos_err("exception in getsockopt");
           return;
         }
 
-        if (!mFrontend->send(msg, more ? ZMQ_SNDMORE : 0)) {
+	zmq::send_flags sf = zmq::send_flags::none;
+	if (more) {
+	  sf = zmq::send_flags::sndmore;
+	}
+	if (!mFrontend->send(msg, sf)) {
           eos_err("error while send to frontend(1)");
           return;
         }
@@ -510,23 +515,26 @@ EosAuthOfs::AuthProxyThread()
     // Process a reply from the second MGM
     if ((poll_size == 3) && (items[2].revents & ZMQ_POLLIN)) {
       eos_debug("got mBackend2 event");
-
+      zmq::recv_flags rf = zmq::recv_flags::none;
+      
       while (true) {
-        if (!mBackend2.second->recv(&msg)) {
+        if (!mBackend2.second->recv(msg,rf).has_value()) {
           eos_err("error while recv on mBackend2");
           return;
         }
 
-        moresz = sizeof more;
-
         try {
-          mBackend2.second->getsockopt(ZMQ_RCVMORE, &more, &moresz);
+          more = mBackend2.second->get(zmq::sockopt::rcvmore);
         } catch (zmq::error_t& err) {
           eos_err("exception in getsockopt");
           return;
         }
 
-        if (!mFrontend->send(msg, more ? ZMQ_SNDMORE : 0)) {
+	zmq::send_flags sf = zmq::send_flags::none;
+	if (more) {
+	  sf = zmq::send_flags::sndmore;
+	}
+        if (!mFrontend->send(msg, sf)) {
           eos_err("error while send to frontend(2)");
           return;
         }
@@ -1258,8 +1266,10 @@ EosAuthOfs::SendProtoBufRequest(zmq::socket_t* socket,
     return sent;
   }
 
-  sent = socket->send(request, ZMQ_NOBLOCK);
-
+  zmq::send_flags sf = zmq::send_flags::dontwait;
+  auto r = socket->send(request, sf);
+  if (r.has_value()) sent = true;
+  
   if (!sent) {
     eos_err("unable to send request using zmq");
   }
@@ -1283,15 +1293,17 @@ EosAuthOfs::GetResponse(zmq::socket_t*& socket)
   ResponseProto* resp = static_cast<ResponseProto*>(0);
 
   try {
+    zmq::recv_flags rf = zmq::recv_flags::none;
+    zmq::recv_result_t rr;
     do {
-      done = socket->recv(&reply);
+      rr = socket->recv(reply, rf);
       --num_retries;
 
-      if (!done) {
+      if (!rr.has_value()) {
         eos_err("ptr_socket=%p, num_retries=%i failed receive", socket,
                 num_retries);
       }
-    } while (!done && (num_retries > 0));
+    } while (!rr.has_value() && (num_retries > 0));
   } catch (zmq::error_t& e) {
     eos_err("socket error: %s", e.what());
     reset_socket = true;
@@ -1303,12 +1315,10 @@ EosAuthOfs::GetResponse(zmq::socket_t*& socket)
     eos_err("discard current socket and create a new one");
     delete socket;
     socket = new zmq::socket_t(*mZmqContext, ZMQ_REQ);
-#if ZMQ_VERSION >= 20200
     int timeout_mili = 5000;
-    socket->setsockopt(ZMQ_RCVTIMEO, &timeout_mili, sizeof timeout_mili);
+    socket->set(zmq::sockopt::rcvtimeo, timeout_mili);
     int socket_linger = 0;
-    socket->setsockopt(ZMQ_LINGER, &socket_linger, sizeof(socket_linger));
-#endif
+    socket->set(zmq::sockopt::linger, socket_linger);
     std::string endpoint = "inproc://proxyfrontend";
 
     // Try in a loop to connect to the proxyfrontend as it can take a while for
