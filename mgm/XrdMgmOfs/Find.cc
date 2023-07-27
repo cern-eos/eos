@@ -87,8 +87,7 @@ _cloneResp(XrdOucErrInfo& out_error, XrdOucString& stdErr,
   std::string p;
   eos::IContainerMD::tmtime_t stime;
   Json::Value j;
-  Json::FastWriter jfw;
-
+  Json::StreamWriterBuilder jfw;
   if (! _found.empty()) {                                   /* first element is root of tree */
     p = gOFS->eosView->getUri(gOFS->eosDirectoryService->getContainerMD(
                                 _found.front().id).get());
@@ -268,7 +267,7 @@ _cloneResp(XrdOucErrInfo& out_error, XrdOucString& stdErr,
 
       j["attr"] = attr;
       j["st"] = sts;
-      fprintf(fstdout, "%s", jfw.write(j).c_str());
+      fprintf(fstdout, "%s", Json::writeString(jfw,j).c_str());
     }
   }
 };
