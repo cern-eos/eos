@@ -408,7 +408,6 @@ GroupBalancer::Configure(FsSpace* const space, GroupBalancer::Config& cfg)
 void
 GroupBalancer::GroupBalance(ThreadAssistant& assistant) noexcept
 {
-  uint64_t timeout_ns = 100 * 1e6; // 100 ms
   gOFS->WaitUntilNamespaceIsBooted();
   eos_static_info("%s", "msg=\"starting group balancer thread\"");
   eosGroupsInfoFetcher fetcher(mSpaceName);
