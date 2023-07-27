@@ -545,7 +545,6 @@ GeoBalancer::GeoBalance(ThreadAssistant& assistant) noexcept
     }
 
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
-
     FsView::gFsView.ViewMutex.LockRead();
 
     if (!FsView::gFsView.mSpaceGroupView.count(mSpaceName.c_str())) {
