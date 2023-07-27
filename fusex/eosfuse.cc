@@ -447,19 +447,20 @@ EosFuse::run(int argc, char* argv[], void* userdata)
   try {
     // parse JSON configuration
     Json::Value root;
-    Json::Reader reader;
+    std::string errs;
+    Json::CharReaderBuilder reader;
     struct stat configstat;
     bool has_config = false;
-
     if (!::stat(jsonconfig.c_str(), &configstat)) {
       std::ifstream configfile(jsonconfig, std::ifstream::binary);
-
-      if (reader.parse(configfile, root, false)) {
+      
+      bool ok = parseFromStream(reader, configfile, &root, &errs);
+      if (ok) {
         fprintf(stderr, "# JSON parsing successful\n");
         has_config = true;
       } else {
         fprintf(stderr, "error: invalid configuration file %s - %s\n",
-                jsonconfig.c_str(), reader.getFormattedErrorMessages().c_str());
+                jsonconfig.c_str(), errs.c_str());
         exit(EINVAL);
       }
     } else {
@@ -470,12 +471,13 @@ EosFuse::run(int argc, char* argv[], void* userdata)
       Json::Value localjson;
       std::ifstream configfile(jsonconfiglocal, std::ifstream::binary);
 
-      if (reader.parse(configfile, localjson, false)) {
+      bool ok = parseFromStream(reader, configfile, &localjson, &errs);
+      if (ok) {
         fprintf(stderr, "# JSON parsing successful\n");
         has_config = true;
       } else {
         fprintf(stderr, "error: invalid configuration file %s - %s\n",
-                jsonconfiglocal.c_str(), reader.getFormattedErrorMessages().c_str());
+                jsonconfiglocal.c_str(), errs.c_str());
         exit(EINVAL);
       }
 
@@ -2090,7 +2092,9 @@ EosFuse::DumpStatistic(ThreadAssistant& assistant)
   time_t start_time = time(NULL);
 
   while (!assistant.terminationRequested()) {
-    Json::StyledWriter jsonwriter;
+    Json::StreamWriterBuilder builder;
+    std::unique_ptr<Json::StreamWriter> jsonwriter(
+						   builder.newStreamWriter());
     Json::Value jsonstats{};
     meminfo.update();
     eos::common::LinuxStat::linux_stat_t osstat;
@@ -2437,7 +2441,7 @@ EosFuse::DumpStatistic(ThreadAssistant& assistant)
 
     if (EosFuse::Instance().config.options.jsonstats) {
       std::ofstream dumpjsonfile(EosFuse::Instance().config.statfilepath + ".json");
-      dumpjsonfile << jsonwriter.write(jsonstats);
+      jsonwriter->write(jsonstats, &dumpjsonfile);
     }
 
     sout += ino_stat;

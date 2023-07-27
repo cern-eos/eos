@@ -68,6 +68,11 @@ void QoSCmd::ListSubcmd(const eos::console::QoSProto_ListProto& list,
                         eos::console::ReplyProto& reply,
                         bool jsonOutput)
 {
+  Json::StreamWriterBuilder builder;
+  std::unique_ptr<Json::StreamWriter> jsonwriter(
+						 builder.newStreamWriter());
+
+  
   std::ostringstream out;
 
   if (!gOFS->MgmQoSEnabled) {
@@ -96,7 +101,7 @@ void QoSCmd::ListSubcmd(const eos::console::QoSProto_ListProto& list,
         json["name"].append(it.first);
       }
 
-      out << Json::StyledWriter().write(json);
+      jsonwriter->write(json, &out);
     }
   } else {
     // List properties of the given QoS class
@@ -107,9 +112,11 @@ void QoSCmd::ListSubcmd(const eos::console::QoSProto_ListProto& list,
     }
 
     auto qos = gOFS->mQoSClassMap.at(list.classname());
-    out <<
-        (jsonOutput ? Json::StyledWriter().write(QoSConfig::QoSClassToJson(qos))
-                    : QoSConfig::QoSClassToString(qos));
+    if (jsonOutput) {
+      jsonwriter->write(QoSConfig::QoSClassToJson(qos), &out);
+    } else {
+      out << QoSConfig::QoSClassToString(qos);
+    }
   }
 
   reply.set_std_out(out.str());
@@ -375,8 +382,13 @@ std::string QoSCmd::MapToJSONOutput(const eos::IFileMD::QoSAttrMap& map)
   if (!jsonCDMI.empty()) {
     jsonOut["metadata"] = jsonCDMI;
   }
-
-  return Json::StyledWriter().write(jsonOut);
+  
+  Json::StreamWriterBuilder builder;
+  std::unique_ptr<Json::StreamWriter> jsonwriter(
+						 builder.newStreamWriter());
+  std::stringstream ss;
+  jsonwriter->write(jsonOut, &ss);
+  return ss.str();
 }
 
 //------------------------------------------------------------------------------
