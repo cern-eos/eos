@@ -135,28 +135,14 @@ ICmdHelper::RawExecute(const std::string& full_url)
     std::string path = full_url;
     path.erase(0, mGlobalOpts.mMgmUri.length() + 1);
     socket.connect(mGlobalOpts.mMgmUri);
+
     zmq::message_t request(path.length());
     memcpy(request.data(), path.c_str(), path.length());
-#if CPPZMQ_VERSION >= ZMQ_MAKE_VERSION(4, 3, 1)
     socket.send(request, zmq::send_flags::none);
-#else
-    socket.send(request);
-#endif
-#if CPPZMQ_VERSION >= ZMQ_MAKE_VERSION(4, 3, 1)
-    zmq::mutable_buffer response;
-#if CPPZMQ_VERSION < ZMQ_MAKE_VERSION(4, 6, 0)
-    zmq::detail::recv_buffer_result_t ret_recv;
-#else
-    zmq::recv_buffer_result_t ret_recv;
-#endif
-    ret_recv = socket.recv(response, zmq::recv_flags::none);
-#else
+    std::string sout;
     zmq::message_t response;
-    size_t ret_recv = socket.recv(&response);
-#endif
-
-    if (ret_recv) {
-      std::string sout;
+    zmq::recv_result_t ret_recv = socket.recv(response);
+    if (ret_recv.has_value()) {
       sout.assign((char*)response.data(), response.size());
       oss << sout;
     }

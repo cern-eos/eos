@@ -170,7 +170,7 @@ Requires: elfutils-devel
 BuildRequires: zlib-static,
 BuildRequires: libcurl, libcurl-devel
 BuildRequires: libuuid-devel, sparsehash-devel
-BuildRequires: zeromq, zeromq-devel, cppzmq-devel
+BuildRequires: zeromq, zeromq-devel
 BuildRequires: libevent, libevent-devel
 BuildRequires: bzip2-devel
 Requires: bzip2
@@ -354,7 +354,7 @@ Requires: chkconfig
 Requires: initscripts
 Requires: sysvinit-tools
 %endif
-BuildRequires: zeromq, zeromq-devel, cppzmq-devel
+BuildRequires: zeromq, zeromq-devel
 Requires: zeromq
 BuildRequires: eos-folly = 2019.11.11.00
 Requires: eos-folly = 2019.11.11.00

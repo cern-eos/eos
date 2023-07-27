@@ -68,26 +68,17 @@ void
 ZMQ::Task::run() noexcept
 {
   int enable_ipv6 = 1;
-#if CPPZMQ_VERSION >= ZMQ_MAKE_VERSION(4, 8, 1)
   mFrontend.set(zmq::sockopt::ipv6, enable_ipv6);
-#elif CPPZMQ_VERSION >= ZMQ_MAKE_VERSION(4, 7, 1)
-  mFrontend.set(ZMQ_IPV6, enable_ipv6);
-#else
-  mFrontend.setsockopt(ZMQ_IPV6, &enable_ipv6, sizeof(enable_ipv6));
-#endif
   {
     // set keepalive options
     int32_t keep_alive = 1;
     int32_t keep_alive_idle = 30;
     int32_t keep_alive_cnt = 2;
     int32_t keep_alive_intvl = 30;
-    mFrontend.setsockopt(ZMQ_TCP_KEEPALIVE, &keep_alive, sizeof(keep_alive));
-    mFrontend.setsockopt(ZMQ_TCP_KEEPALIVE_IDLE, &keep_alive_idle,
-                         sizeof(keep_alive_idle));
-    mFrontend.setsockopt(ZMQ_TCP_KEEPALIVE_CNT, &keep_alive_cnt,
-                         sizeof(keep_alive_cnt));
-    mFrontend.setsockopt(ZMQ_TCP_KEEPALIVE_INTVL, &keep_alive_intvl,
-                         sizeof(keep_alive_intvl));
+    mFrontend.set(zmq::sockopt::tcp_keepalive, keep_alive);
+    mFrontend.set(zmq::sockopt::tcp_keepalive_idle,keep_alive_idle);
+    mFrontend.set(zmq::sockopt::tcp_keepalive_cnt, keep_alive_cnt);
+    mFrontend.set(zmq::sockopt::tcp_keepalive_intvl, keep_alive_intvl);
   }
   mFrontend.bind(mBindUrl.c_str());
   mBackend.bind("inproc://backend");
@@ -100,8 +91,7 @@ ZMQ::Task::run() noexcept
   }
 
   try {
-    zmq::proxy(static_cast<void*>(mFrontend), static_cast<void*>(mBackend),
-               nullptr);
+    zmq::proxy(mFrontend, mBackend);
   } catch (const zmq::error_t& e) {
     if (e.num() == ETERM) {
       // Shutdown
@@ -120,10 +110,11 @@ ZMQ::Task::reply(const std::string& id, const std::string& data)
   XrdSysMutexHelper lLock(sMutex);
   zmq::message_t id_msg(id.c_str(), id.size());
   zmq::message_t data_msg(data.c_str(), data.size());
-
+  zmq::send_flags sfm = zmq::send_flags::sndmore;
+  zmq::send_flags sf  = zmq::send_flags::none;
   try {
-    mInjector.send(id_msg, ZMQ_SNDMORE);
-    mInjector.send(data_msg);
+    mInjector.send(id_msg, sfm);
+    mInjector.send(data_msg, sf);
   } catch (const zmq::error_t& e) {
     if (e.num() == ETERM) {
       return;
@@ -142,21 +133,19 @@ ZMQ::Worker::work()
 
   try {
     while (true) {
-      int more = 0;
-      size_t size = sizeof(int);
       zmq::message_t identity;
       zmq::message_t msg;
       zmq::message_t copied_id;
       zmq::message_t copied_msg;
-      worker_.recv(&identity, 0);
-      worker_.getsockopt(ZMQ_RCVMORE, &more, &size);
+      auto rc = worker_.recv(identity);
+      auto more = worker_.get(zmq::sockopt::rcvmore);
 
       if (!more) {
         eos_static_warning("discarding illegal message");
         continue;
       }
 
-      worker_.recv(&msg, 0);
+      rc = worker_.recv(msg);
       std::string id(static_cast<const char*>(identity.data()), identity.size());
       std::string s(static_cast<const char*>(msg.data()), msg.size());
       hb.Clear();
