@@ -100,8 +100,7 @@ ZMQ::Task::run() noexcept
   }
 
   try {
-    zmq::proxy(static_cast<void*>(mFrontend), static_cast<void*>(mBackend),
-               nullptr);
+    zmq::proxy(mFrontend, mBackend);
   } catch (const zmq::error_t& e) {
     if (e.num() == ETERM) {
       // Shutdown
@@ -120,10 +119,11 @@ ZMQ::Task::reply(const std::string& id, const std::string& data)
   XrdSysMutexHelper lLock(sMutex);
   zmq::message_t id_msg(id.c_str(), id.size());
   zmq::message_t data_msg(data.c_str(), data.size());
-
+  zmq::send_flags sfm = zmq::send_flags::sndmore;
+  zmq::send_flags sf  = zmq::send_flags::none;
   try {
-    mInjector.send(id_msg, ZMQ_SNDMORE);
-    mInjector.send(data_msg);
+    mInjector.send(id_msg, sfm);
+    mInjector.send(data_msg, sf);
   } catch (const zmq::error_t& e) {
     if (e.num() == ETERM) {
       return;
@@ -148,7 +148,7 @@ ZMQ::Worker::work()
       zmq::message_t msg;
       zmq::message_t copied_id;
       zmq::message_t copied_msg;
-      worker_.recv(&identity, 0);
+      worker_.recv(identity);
       worker_.getsockopt(ZMQ_RCVMORE, &more, &size);
 
       if (!more) {
@@ -156,7 +156,7 @@ ZMQ::Worker::work()
         continue;
       }
 
-      worker_.recv(&msg, 0);
+      worker_.recv(msg);
       std::string id(static_cast<const char*>(identity.data()), identity.size());
       std::string s(static_cast<const char*>(msg.data()), msg.size());
       hb.Clear();
