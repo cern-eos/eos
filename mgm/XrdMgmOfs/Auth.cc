@@ -73,8 +73,7 @@ XrdMgmOfs::AuthMasterThread(ThreadAssistant& assistant) noexcept
 
   // Start the proxy
   try {
-    zmq::proxy(static_cast<void*>(frontend), static_cast<void*>(backend),
-               static_cast<void*>(0));
+    zmq::proxy(frontend, backend);
   } catch (const zmq::error_t& e) {
     if (e.num() == ETERM) {
       eos_warning("msg=\"master termination requested\" tid=%08x",
@@ -142,7 +141,6 @@ XrdMgmOfs::AuthWorkerThread()
     return;
   }
 
-  bool done = false;
   std::chrono::steady_clock::time_point time_start, time_end;
 
   // Main loop of the worker thread
@@ -151,9 +149,11 @@ XrdMgmOfs::AuthWorkerThread()
 
     // Wait for next request
     try {
+      zmq::recv_flags rf = zmq::recv_flags::none;
+      zmq::detail::recv_result_t rr;
       do {
-        done = responder->recv(&request);
-      } while (!done);
+	rr = responder->recv(request, rf);
+      } while (!rr.has_value());
     } catch (const zmq::error_t& e) {
       if (e.num() == ETERM) {
         eos_warning("msg=\"worker termination requested\" tid=%08x",
@@ -556,10 +556,12 @@ XrdMgmOfs::AuthWorkerThread()
     int num_retries = 40;
 
     try {
+      zmq::detail::send_result_t sr;
       do {
-        done = responder->send(reply, ZMQ_NOBLOCK);
+	zmq::send_flags sf = zmq::send_flags::dontwait;
+	sr = responder->send(reply, sf);
         num_retries--;
-      } while (!done && (num_retries > 0));
+      } while (!sr.has_value() && (num_retries > 0));
     } catch (zmq::error_t& e) {
       if (e.num() == ETERM) {
         eos_warning("msg=\"worker termination requested\" tid=%08x",
