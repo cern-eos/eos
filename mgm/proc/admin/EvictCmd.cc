@@ -35,6 +35,9 @@ EOSMGMNAMESPACE_BEGIN
 eos::console::RequestProto eos::mgm::EvictCmd::convertStagerRmToEvict(const eos::console::RequestProto & req, std::ostringstream & errStream, int & ret_c) {
 
   struct timespec ts_now;
+  ts_now.tv_sec = 0;
+  ts_now.tv_nsec = 0;
+  
   eos::console::RequestProto new_req;
   auto req_evict = new_req.mutable_evict();
   auto req_stagerrm = req.stagerrm();
@@ -257,6 +260,8 @@ eos::mgm::EvictCmd::ProcessRequest() noexcept
 
     if (fsid.has_value() && force) {
       // Drop single stripe
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wmaybe-uninitialized" 
       if (gOFS->_dropstripe(path.c_str(), 0, errInfo, root_vid, fsid.value(), true) != 0) {
         eos_static_err("msg=\"could not delete replica of %s\" fsid=\"%u\" reason=\"%s\"",
                        path.c_str(), fsid.value(), errInfo.getErrText());
@@ -273,6 +278,7 @@ eos::mgm::EvictCmd::ProcessRequest() noexcept
           count_some_disk_replicas_removed++;
         }
       }
+#pragma GCC diagnostic pop
     } else {
       // May drop all stripes
       if (!force) {
