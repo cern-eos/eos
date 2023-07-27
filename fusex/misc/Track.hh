@@ -77,8 +77,9 @@ public:
   clean()
   {
     eos_static_info("");
-    auto now = std::chrono::steady_clock::now();
     XrdSysMutexHelper l(iMutex);
+    // take reference time after acquiring mutex, to ensure positive age
+    auto now = std::chrono::steady_clock::now();
     eos_static_info("size=%lu", iNodes.size());
     size_t clean_age = 60000;
 
@@ -136,9 +137,9 @@ public:
     inode = 0;
     blocked_ops = 0;
     on_root = false;
-    // get current time
-    auto now = std::chrono::steady_clock::now();
     XrdSysMutexHelper l(iMutex);
+    // get current time, after acquiring mutex to ensure positive elapsed time
+    auto now = std::chrono::steady_clock::now();
 
     for (auto it : iNodes) {
       if (it.second->openr || it.second->openw) {
@@ -175,6 +176,9 @@ public:
   std::shared_ptr<meta_t>
   Attach(unsigned long long ino, bool exclusive = false, const char* caller = 0)
   {
+    // get current time. attachtime should give a positive elapsed time, when
+    // calculated by another thread, so record time before we acquire mutex.
+    auto now = std::chrono::steady_clock::now();
     std::shared_ptr<meta_t> m;
     {
       XrdSysMutexHelper l(iMutex);
@@ -191,7 +195,7 @@ public:
     if (!m->openr && !m->openw) {
       // track first attach time
       m->attachtime = std::chrono::duration_cast<std::chrono::milliseconds>
-                      (std::chrono::steady_clock::now().time_since_epoch()).count();
+                      (now.time_since_epoch()).count();
     }
 
     if (exclusive) {
