@@ -123,14 +123,18 @@ TEST(Load, DiskStats)
 {
   eos::fst::DiskStat ds_unkown;
   ASSERT_FALSE(ds_unkown.Measure("/unkown/path"));
+  time_t s = time(NULL);
   // Check CentOS7 file format
-  std::string tmp_path_c7 = std::tmpnam(nullptr);
+  std::string tmp_path_c7 = "/tmp/.c7.";
+  tmp_path_c7 += std::to_string(s);
   CreateCentOS7InputFile(tmp_path_c7);
   eos::fst::DiskStat ds_c7;
   ASSERT_TRUE(ds_c7.Measure(tmp_path_c7));
   ASSERT_TRUE("24898" == ds_c7.values_t1["sda"]["readReq"]);
+  ASSERT_EQ(0, unlink(tmp_path_c7.c_str()));
   // Check CentOS8 file format
-  std::string tmp_path_c8 = std::tmpnam(nullptr);
+  std::string tmp_path_c8 = "/tmp/.c8.";
+  tmp_path_c8 += std::to_string(s);
   CreateCentOS8InputFile(tmp_path_c8);
   eos::fst::DiskStat ds_c8;
   ASSERT_TRUE(ds_c8.Measure(tmp_path_c8));
