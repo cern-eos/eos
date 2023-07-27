@@ -155,7 +155,11 @@ void ConvertCmd::StatusSubcmd(
     json["running"] = (Json::Value::UInt64) running;
     json["pending"] = (Json::Value::UInt64) pending;
     json["failed"] = (Json::Value::UInt64) failed;
-    out << Json::StyledWriter().write(json);
+
+    Json::StreamWriterBuilder builder;
+    std::unique_ptr<Json::StreamWriter> jsonwriter(
+						   builder.newStreamWriter());
+    jsonwriter->write(json, &out);
   } else {
     out << "Status: " << state << std::endl
         << "Config: " << config << std::endl
@@ -208,7 +212,10 @@ void ConvertCmd::ConfigSubcmd(
       json[it->first] = it->second;
     }
 
-    out << Json::StyledWriter().write(json);
+    Json::StreamWriterBuilder builder;
+    std::unique_ptr<Json::StreamWriter> jsonwriter(
+						   builder.newStreamWriter());
+    jsonwriter->write(json, &out);  
   } else {
     out << "Config values updated:" << std::endl;
 
@@ -335,7 +342,10 @@ void ConvertCmd::FileSubcmd(const eos::console::ConvertProto_FileProto& file,
     json["path"] = path;
     json["space"] = space;
     json["checksum"] = LayoutId::GetChecksumString(echecksum);
-    out << Json::StyledWriter().write(json);
+    Json::StreamWriterBuilder builder;
+    std::unique_ptr<Json::StreamWriter> jsonwriter(
+						   builder.newStreamWriter());
+    jsonwriter->write(json, &out);
   } else {
     out << "Scheduled conversion job: " << conversion_id;
   }
@@ -422,7 +432,10 @@ void ConvertCmd::RuleSubcmd(const eos::console::ConvertProto_RuleProto& rule,
     Json::Value json;
     json["conversion_rule"] = conversion_rule;
     json["path"] = path;
-    out << Json::StyledWriter().write(json);
+    Json::StreamWriterBuilder builder;
+    std::unique_ptr<Json::StreamWriter> jsonwriter(
+						   builder.newStreamWriter());
+    jsonwriter->write(json, &out);
   } else {
     out << "Set conversion rule '" << conversion_rule
         << "' on path '" << path << "'";
@@ -455,7 +468,10 @@ ConvertCmd::ListSubcmd(const eos::console::ConvertProto_ListProto& list,
         json[std::to_string(elem.first)] = elem.second;
       }
 
-      oss << Json::StyledWriter().write(json);
+      Json::StreamWriterBuilder builder;
+      std::unique_ptr<Json::StreamWriter> jsonwriter(
+						     builder.newStreamWriter());
+      jsonwriter->write(json, &oss);    
     } else {
       TableFormatterBase table;
       TableHeader header;
@@ -489,7 +505,10 @@ ConvertCmd::ListSubcmd(const eos::console::ConvertProto_ListProto& list,
         json[elem.first] = elem.second;
       }
 
-      oss << Json::StyledWriter().write(json);
+      Json::StreamWriterBuilder builder;
+      std::unique_ptr<Json::StreamWriter> jsonwriter(
+						     builder.newStreamWriter());
+      jsonwriter->write(json, &oss);
     } else {
       TableFormatterBase table;
       TableHeader header;
