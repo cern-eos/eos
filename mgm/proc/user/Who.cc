@@ -224,7 +224,12 @@ ProcCommand::Who()
 
   if (json_format) {
     stdOut = "";
-    stdJson += Json::StyledWriter().write(json).c_str();
+    Json::StreamWriterBuilder builder;
+    std::unique_ptr<Json::StreamWriter> jsonwriter(
+						   builder.newStreamWriter());
+    std::stringstream ss;
+    jsonwriter->write(json, &ss);
+    stdJson += ss.str().c_str();
   }
 
   return SFS_OK;
