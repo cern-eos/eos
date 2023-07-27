@@ -229,6 +229,7 @@ public:
     std::string statfilepath;
     std::string logfilepath;
     std::string mdcachedir;
+    std::string mdcachedir_unlink;
     std::string mqtargethost;
     std::string mqidentity;
     std::string mqname;
