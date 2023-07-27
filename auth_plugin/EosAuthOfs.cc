@@ -446,9 +446,9 @@ EosAuthOfs::AuthProxyThread()
     // Process a request
     if (items[0].revents & ZMQ_POLLIN) {
       eos_debug("got frontend event");
-
+      zmq::recv_flags rf = zmq::recv_flags::none;
       while (true) {
-        if (!mFrontend->recv(&msg)) {
+        if (!mFrontend->recv(msg,rf).has_value()) {
           eos_err("error while recv on frontend");
           return;
         }
@@ -464,8 +464,11 @@ EosAuthOfs::AuthProxyThread()
         // Send request to the current master MGM
         {
           XrdSysMutexHelper scop_lock(mMutexMaster);
-
-          if (!mMaster->send(msg, more ? ZMQ_SNDMORE : 0)) {
+	  zmq::send_flags sf = zmq::send_flags::none;
+	  if (more) {
+	    sf = zmq::send_flags::sndmore;
+	  }
+          if (!mMaster->send(msg, sf)) {
             eos_err("error while sending to master");
             return;
           }
@@ -480,9 +483,10 @@ EosAuthOfs::AuthProxyThread()
     // Process a reply from the first MGM
     if (items[1].revents & ZMQ_POLLIN) {
       eos_debug("got mBackend1 event");
-
+      zmq::recv_flags rf = zmq::recv_flags::none;
+      
       while (true) {
-        if (!mBackend1.second->recv(&msg)) {
+        if (!mBackend1.second->recv(msg,rf).has_value()) {
           eos_err("error while recv on mBackend1");
           return;
         }
@@ -496,7 +500,11 @@ EosAuthOfs::AuthProxyThread()
           return;
         }
 
-        if (!mFrontend->send(msg, more ? ZMQ_SNDMORE : 0)) {
+	zmq::send_flags sf = zmq::send_flags::none;
+	if (more) {
+	  sf = zmq::send_flags::sndmore;
+	}
+	if (!mFrontend->send(msg, sf)) {
           eos_err("error while send to frontend(1)");
           return;
         }
@@ -510,9 +518,10 @@ EosAuthOfs::AuthProxyThread()
     // Process a reply from the second MGM
     if ((poll_size == 3) && (items[2].revents & ZMQ_POLLIN)) {
       eos_debug("got mBackend2 event");
-
+      zmq::recv_flags rf = zmq::recv_flags::none;
+      
       while (true) {
-        if (!mBackend2.second->recv(&msg)) {
+        if (!mBackend2.second->recv(msg,rf).has_value()) {
           eos_err("error while recv on mBackend2");
           return;
         }
@@ -526,7 +535,11 @@ EosAuthOfs::AuthProxyThread()
           return;
         }
 
-        if (!mFrontend->send(msg, more ? ZMQ_SNDMORE : 0)) {
+	zmq::send_flags sf = zmq::send_flags::none;
+	if (more) {
+	  sf = zmq::send_flags::sndmore;
+	}
+        if (!mFrontend->send(msg, sf)) {
           eos_err("error while send to frontend(2)");
           return;
         }
@@ -1258,8 +1271,10 @@ EosAuthOfs::SendProtoBufRequest(zmq::socket_t* socket,
     return sent;
   }
 
-  sent = socket->send(request, ZMQ_NOBLOCK);
-
+  zmq::send_flags sf = zmq::send_flags::dontwait;
+  auto r = socket->send(request, sf);
+  if (r.has_value()) sent = true;
+  
   if (!sent) {
     eos_err("unable to send request using zmq");
   }
@@ -1283,15 +1298,17 @@ EosAuthOfs::GetResponse(zmq::socket_t*& socket)
   ResponseProto* resp = static_cast<ResponseProto*>(0);
 
   try {
+    zmq::recv_flags rf = zmq::recv_flags::none;
+    zmq::recv_result_t rr;
     do {
-      done = socket->recv(&reply);
+      rr = socket->recv(reply, rf);
       --num_retries;
 
-      if (!done) {
+      if (!rr.has_value()) {
         eos_err("ptr_socket=%p, num_retries=%i failed receive", socket,
                 num_retries);
       }
-    } while (!done && (num_retries > 0));
+    } while (!rr.has_value() && (num_retries > 0));
   } catch (zmq::error_t& e) {
     eos_err("socket error: %s", e.what());
     reset_socket = true;
