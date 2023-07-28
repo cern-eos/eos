@@ -314,7 +314,7 @@ Server::Print(std::string& out, std::string options)
 
 int
 Server::FillContainerMD(uint64_t id, eos::fusex::md& dir,
-                        eos::common::VirtualIdentity& vid)
+                        eos::common::VirtualIdentity& vid, bool lock)
 {
   gOFS->MgmStats.Add("Eosxd::int::FillContainerMD", vid.uid, vid.gid, 1);
   EXEC_TIMING_BEGIN("Eosxd::int::FillContainerMD");
@@ -328,7 +328,9 @@ Server::FillContainerMD(uint64_t id, eos::fusex::md& dir,
     eos_debug("container-id=%llx", id);
   }
 
-  eos::common::RWMutexReadLock rd_ns_lock(gOFS->eosViewRWMutex);
+  eos::common::RWMutexReadLock rd_ns_lock;
+
+  if (lock) {rd_ns_lock.Grab(gOFS->eosViewRWMutex);}
 
   try {
     cmd = gOFS->eosDirectoryService->getContainerMD(id, &clock);
@@ -429,7 +431,7 @@ Server::FillContainerMD(uint64_t id, eos::fusex::md& dir,
 
 bool
 Server::FillFileMD(uint64_t inode, eos::fusex::md& file,
-                   eos::common::VirtualIdentity& vid)
+                   eos::common::VirtualIdentity& vid, bool lock)
 {
   gOFS->MgmStats.Add("Eosxd::int::FillFileMD", vid.uid, vid.gid, 1);
   EXEC_TIMING_BEGIN("Eosxd::int::FillFileMD");
@@ -443,8 +445,10 @@ Server::FillFileMD(uint64_t inode, eos::fusex::md& file,
   if (EOS_LOGS_DEBUG) eos_debug("file-inode=%llx file-id=%llx", inode,
                                   eos::common::FileId::InodeToFid(inode));
 
-  eos::common::RWMutexReadLock rd_ns_lock(gOFS->eosViewRWMutex);
+  eos::common::RWMutexReadLock rd_ns_lock;
 
+  if (lock) {rd_ns_lock.Grab(gOFS->eosViewRWMutex);}
+  
   try {
     bool has_mdino = false;
     fmd = gOFS->eosFileService->getFileMD(eos::common::FileId::InodeToFid(inode),
