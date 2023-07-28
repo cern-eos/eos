@@ -609,22 +609,23 @@ client_command(XrdOucString& in, bool is_admin, std::string* reply)
     socket.send(request);
 #endif
 #if CPPZMQ_VERSION >= ZMQ_MAKE_VERSION(4, 3, 1)
-    zmq::mutable_buffer response;
-#if CPPZMQ_VERSION < ZMQ_MAKE_VERSION(4, 6, 0)
-    zmq::detail::recv_buffer_result_t ret_recv;
-#else
-    zmq::recv_buffer_result_t ret_recv;
-#endif
-    ret_recv = socket.recv(response, zmq::recv_flags::none);
+    std::string sout;
+    zmq::message_t response;
+    zmq::recv_result_t ret_recv = socket.recv(response);
+    if (ret_recv.has_value()) {
+      sout.assign((char*)response.data(), response.size());
+    }    
 #else
     zmq::message_t response;
     size_t ret_recv = socket.recv(&response);
-#endif
     std::string sout;
-
     if (ret_recv) {
       sout.assign((char*)response.data(), response.size());
     }
+#endif
+
+
+
 
     CommandEnv = new XrdOucEnv(sout.c_str());
 
