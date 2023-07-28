@@ -79,9 +79,11 @@ public:
   void Print(std::string& out, std::string options = "");
 
   int FillContainerMD(uint64_t id, eos::fusex::md& dir,
-                      eos::common::VirtualIdentity& vid);
+                      eos::common::VirtualIdentity& vid, bool lock=true);
+
   bool FillFileMD(uint64_t id, eos::fusex::md& file,
-                  eos::common::VirtualIdentity& vid);
+                  eos::common::VirtualIdentity& vid, bool lock=true);
+
   bool FillContainerCAP(uint64_t id, eos::fusex::md& md,
                         eos::common::VirtualIdentity& vid,
                         std::string reuse_uuid = "",
