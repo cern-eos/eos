@@ -460,7 +460,7 @@ echo "Starting conditional EOS services"
 sleep 2
 %if %{use_systemd}
     systemctl daemon-reload > /dev/null 2>&1 || :
-    systemctl restart eos@* > /dev/null 2>&1 || :
+    systemctl --no-legend list-units eos@* | grep -v q*db | cut -d " " -f1 | xargs -n1 echo systemctl restart || :
 %else
     /sbin/chkconfig --add eos
     /sbin/chkconfig --add eosslave
