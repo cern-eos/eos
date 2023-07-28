@@ -150,7 +150,7 @@ XrdMgmOfs::AuthWorkerThread()
     // Wait for next request
     try {
       zmq::recv_flags rf = zmq::recv_flags::none;
-      zmq::detail::recv_result_t rr;
+      zmq::recv_result_t rr;
       do {
 	rr = responder->recv(request, rf);
       } while (!rr.has_value());
@@ -556,7 +556,7 @@ XrdMgmOfs::AuthWorkerThread()
     int num_retries = 40;
 
     try {
-      zmq::detail::send_result_t sr;
+      zmq::send_result_t sr;
       do {
 	zmq::send_flags sf = zmq::send_flags::dontwait;
 	sr = responder->send(reply, sf);

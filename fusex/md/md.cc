@@ -98,7 +98,7 @@ metad::connect(std::string zmqtarget, std::string zmqidentity,
 {
   set_zmq_wants_to_connect(1);
   std::lock_guard<std::mutex> connectionMutex(zmq_socket_mutex);
-#if CPPZMQ_VERSION >= ZMQ_MAKE_VERSION(4, 7, 1)
+#if ZMQ_VERSION >= ZMQ_MAKE_VERSION(4, 2, 0)
 
   if (z_socket && z_socket->handle() && (zmqtarget != zmq_target)) {
 #else
@@ -134,7 +134,7 @@ metad::connect(std::string zmqtarget, std::string zmqidentity,
                   zmq_target.c_str(), zmq_identity.c_str(), zmq_identity.length());
   z_ctx = new zmq::context_t(1);
   z_socket = new zmq::socket_t(*z_ctx, ZMQ_DEALER);
-#if CPPZMQ_VERSION >= ZMQ_MAKE_VERSION(4, 7, 1)
+#if ZMQ_VERSION >= ZMQ_MAKE_VERSION(4, 2, 0)
   z_socket->set(zmq::sockopt::routing_id, zmq_identity);
   z_socket->set(zmq::sockopt::tcp_keepalive, 1);
   z_socket->set(zmq::sockopt::tcp_keepalive_idle, 90);
@@ -150,7 +150,7 @@ metad::connect(std::string zmqtarget, std::string zmqidentity,
     try {
       z_socket->connect(zmq_target);
       int linger = 0;
-#if CPPZMQ_VERSION >= ZMQ_MAKE_VERSION(4, 7, 1)
+#if ZMQ_VERSION >= ZMQ_MAKE_VERSION(4, 2, 0)
       z_socket->set(zmq::sockopt::linger, linger);
 #else
       z_socket->setsockopt(ZMQ_LINGER, &linger, sizeof(linger));
@@ -3261,8 +3261,7 @@ metad::mdcommunicate(ThreadAssistant& assistant)
       zmq::message_t hb_msg;
       hb.SerializeToString(&hbstream);
       hb_msg.rebuild(hbstream.c_str(), hbstream.length());
-#if CPPZMQ_VERSION >= ZMQ_MAKE_VERSION(4, 3, 1)
-
+#if ZMQ_VERSION >= ZMQ_MAKE_VERSION(4, 2, 0)
       if (!z_socket->send(hb_msg, zmq::send_flags::none)) {
 #else
 

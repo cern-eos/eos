@@ -708,7 +708,7 @@ ProcCommand::ArchiveExecuteCmd(const::string& cmd)
         stdErr = "error: send request to archiver";
         retc = EINVAL;
       } else {
-	zmq::detail::recv_result_t rc = socket.recv(msg, rf);
+	zmq::recv_result_t rc = socket.recv(msg, rf);
 	if (!rc.has_value()) {
 	  stdErr = "error: no response from archiver";
 	  retc = EINVAL;
