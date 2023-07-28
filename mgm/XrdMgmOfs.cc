@@ -1035,25 +1035,52 @@ XrdMgmOfs::FuseXCastDeletion(eos::ContainerIdentifier id,
 }
 
 
-//------------------------------------------------------------------------------
-// Cast a refresh message to all fusex clients about a refresh of an entry
+
 //------------------------------------------------------------------------------
 void
 XrdMgmOfs::FuseXCastRefresh(eos::ContainerIdentifier id,
                             eos::ContainerIdentifier parentid)
 {
   gOFS->zMQ->gFuseServer.Cap().BroadcastRefreshFromExternal(
-    id.getUnderlyingUInt64(), parentid.getUnderlyingUInt64());
+							    id.getUnderlyingUInt64(), parentid.getUnderlyingUInt64());
+}
+ 
+void
+XrdMgmOfs::FuseXCastRefresh(eos::FileIdentifier id,
+			    eos::ContainerIdentifier parentid)
+{
+  gOFS->zMQ->gFuseServer.Cap().BroadcastRefreshFromExternal(
+							    eos::common::FileId::FidToInode(id.getUnderlyingUInt64()),
+							    parentid.getUnderlyingUInt64());
+}
+
+//------------------------------------------------------------------------------
+// Cast a MD objects to clients
+//------------------------------------------------------------------------------
+void
+XrdMgmOfs::FuseXCastMD(eos::ContainerIdentifier id,
+			      eos::ContainerIdentifier parentid,
+			      bool lock)
+{
+  eos::fusex::md dir;
+  static eos::common::VirtualIdentity root_vid = eos::common::VirtualIdentity::Root();
+  if (!gOFS->zMQ->gFuseServer.FillContainerMD(id.getUnderlyingUInt64(), dir, root_vid, lock)) {
+    gOFS->zMQ->gFuseServer.Cap().BroadcastRefresh(id.getUnderlyingUInt64(), dir, parentid.getUnderlyingUInt64());
+  }
 }
 
 void
-XrdMgmOfs::FuseXCastRefresh(eos::FileIdentifier id,
-                            eos::ContainerIdentifier parentid)
+XrdMgmOfs::FuseXCastMD(eos::FileIdentifier id,
+		       eos::ContainerIdentifier parentid,
+		       bool lock)
 {
-  gOFS->zMQ->gFuseServer.Cap().BroadcastRefreshFromExternal(
-    eos::common::FileId::FidToInode(id.getUnderlyingUInt64()),
-    parentid.getUnderlyingUInt64());
+  eos::fusex::md file;
+  static eos::common::VirtualIdentity root_vid = eos::common::VirtualIdentity::Root();
+  if (gOFS->zMQ->gFuseServer.FillFileMD(eos::common::FileId::FidToInode(id.getUnderlyingUInt64()), file, root_vid, lock)) {
+    gOFS->zMQ->gFuseServer.Cap().BroadcastRefresh(eos::common::FileId::FidToInode(id.getUnderlyingUInt64()), file, parentid.getUnderlyingUInt64());
+  }
 }
+
 
 //------------------------------------------------------------------------------
 // Check if namespace is booted
