@@ -41,6 +41,7 @@
 #include "mgm/tracker/ReplicationTracker.hh"
 #include "mgm/GeoTreeEngine.hh"
 #include "mgm/Workflow.hh"
+#include "mgm/XattrLock.hh"
 #include "namespace/interface/IView.hh"
 #include "namespace/interface/IFileMD.hh"
 #include "namespace/interface/IContainerMD.hh"
@@ -3288,7 +3289,8 @@ Server::OpSetLock(const std::string& id,
   eos::fusex::response resp;
   resp.set_type(resp.LOCK);
   int sleep = 0;
-
+  bool xattr_lock = false;
+  
   if (md.operation() == md.SETLKW) {
     gOFS->MgmStats.Add("Eosxd::ext::SETLKW", vid.uid, vid.gid, 1);
     sleep = 1;
@@ -3329,20 +3331,51 @@ Server::OpSetLock(const std::string& id,
     lock.l_len = -1;
   }
 
-  eos_info("setlk: ino=%016lx start=%lu len=%ld pid=%u type=%d",
+  // block also xattr locks
+  if ( lock.l_type != F_UNLCK) {
+    std::shared_ptr<eos::IFileMD> fmd;
+    uint64_t clock = 0;
+    
+    eos::common::RWMutexReadLock rd_ns_lock(gOFS->eosViewRWMutex);
+    try {
+      fmd = gOFS->eosFileService->getFileMD(eos::common::FileId::InodeToFid(md.md_ino()),
+					    &clock);
+      if (fmd) {
+	eos::IFileMD::XAttrMap attrmapF;
+	eos::listAttributes(gOFS->eosView, fmd.get(), attrmapF, false);
+	XattrLock alock(attrmapF);
+	if (alock.foreignLock(vid, (lock.l_type == F_WRLCK))) {
+	  xattr_lock = true;
+	}
+      }
+    } catch (eos::MDException& e) {
+      errno = e.getErrno();
+      eos_err("caught exception %d %s\n", e.getErrno(),
+	      e.getMessage().str().c_str());
+      // we go on, if don't find the file here ...
+    }
+  }
+	     
+  eos_info("setlk: ino=%016lx start=%lu len=%ld pid=%u type=%d xattr-lock=%d",
            md.md_ino(),
            lock.l_start,
            lock.l_len,
            lock.l_pid,
-           lock.l_type);
+           lock.l_type,
+	   xattr_lock);
 
-  if (Locks().getLocks(md.md_ino())->setlk(md.flock().pid(), &lock, sleep,
-      md.clientuuid())) {
-    // lock ok!
-    resp.mutable_lock_()->set_err_no(0);
-  } else {
-    // lock is busy
+  if (xattr_lock) {
+    // lock is busy by xattr
     resp.mutable_lock_()->set_err_no(EAGAIN);
+  } else {
+    if (Locks().getLocks(md.md_ino())->setlk(md.flock().pid(), &lock, sleep,
+					     md.clientuuid())) {
+      // lock ok!
+      resp.mutable_lock_()->set_err_no(0);
+    } else {
+      // lock is busy
+      resp.mutable_lock_()->set_err_no(EAGAIN);
+    }
   }
 
   resp.SerializeToString(response);
