@@ -1781,7 +1781,30 @@ public:
   //----------------------------------------------------------------------------
   void FuseXCastRefresh(eos::FileIdentifier id,
                         eos::ContainerIdentifier parentid);
-
+  
+  //----------------------------------------------------------------------------
+  //! Cast MD to FUSE clients
+  //!
+  //! @param id container identifier
+  //! @param parentid container identifier
+  //! @param lock take the namespace lock
+  //----------------------------------------------------------------------------
+  void FuseXCastMD(eos::ContainerIdentifier id,
+		   eos::ContainerIdentifier parentid,
+		   bool lock=false);
+  
+  //----------------------------------------------------------------------------
+  //! Cast MD to FUSE clients
+  //!
+  //! @param id file identifier
+  //! @param parentid container identifier
+  //! @param lock take the namespace lock
+  
+  //----------------------------------------------------------------------------
+  void FuseXCastMD(eos::FileIdentifier id,
+		   eos::ContainerIdentifier parentid,
+		   bool lock=false);
+  
   //----------------------------------------------------------------------------
   //! Setup /eos/<instance>/proc files
   //----------------------------------------------------------------------------
