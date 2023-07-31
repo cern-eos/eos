@@ -286,7 +286,8 @@ eos::mgm::EvictCmd::ProcessRequest() noexcept
       // Drop single stripe
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wmaybe-uninitialized" 
-      if (gOFS->_dropstripe(path.c_str(), 0, errInfo, root_vid, fsid.value(), true) != 0) {
+      if (gOFS->_dropstripe(path.c_str(), 0, errInfo, root_vid, fsid.value(),
+                            true) != 0) {
         eos_static_err("msg=\"could not delete replica of %s\" fsid=\"%u\" reason=\"%s\"",
                        path.c_str(), fsid.value(), errInfo.getErrText());
         errStream << "error: could not delete replica of '" << path << "'" <<
