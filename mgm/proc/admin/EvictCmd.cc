@@ -29,11 +29,14 @@
 #include "mgm/Acl.hh"
 #include "common/Constants.hh"
 #include "namespace/interface/IView.hh"
+#include <optional>
 
 EOSMGMNAMESPACE_BEGIN
 
-eos::console::RequestProto eos::mgm::EvictCmd::convertStagerRmToEvict(const eos::console::RequestProto & req, std::ostringstream & errStream, int & ret_c) {
-
+eos::console::RequestProto eos::mgm::EvictCmd::convertStagerRmToEvict(
+  const eos::console::RequestProto& req, std::ostringstream& errStream,
+  int& ret_c)
+{
   struct timespec ts_now;
   ts_now.tv_sec = 0;
   ts_now.tv_nsec = 0;
@@ -44,30 +47,36 @@ eos::console::RequestProto eos::mgm::EvictCmd::convertStagerRmToEvict(const eos:
 
   for (int i = 0; i < req_stagerrm.file_size(); i++) {
     const auto& file_stagerrm = req_stagerrm.file(i);
+
     switch (file_stagerrm.File_case()) {
     case eos::console::StagerRmProto::FileProto::kPath:
       req_evict->add_file()->set_path(file_stagerrm.path());
       break;
+
     case eos::console::StagerRmProto::FileProto::kFid:
       req_evict->add_file()->set_fid(file_stagerrm.fid());
       break;
+
     default:
-      errStream << "error: Received a file with neither a path nor an fid, unable to convert stagerrm request to evict request" <<
-          std::endl;
+      errStream <<
+                "error: Received a file with neither a path nor an fid, unable to convert stagerrm request to evict request"
+                <<
+                std::endl;
       ret_c = EINVAL;
       EosCtaReporterEvict eosLog;
       eosLog
-          .addParam(EosCtaReportParam::SEC_APP, "tape_evict")
-          .addParam(EosCtaReportParam::LOG, std::string(gOFS->logId))
-          .addParam(EosCtaReportParam::RUID, mVid.uid)
-          .addParam(EosCtaReportParam::RGID, mVid.gid)
-          .addParam(EosCtaReportParam::TD, mVid.tident.c_str())
-          .addParam(EosCtaReportParam::TS, ts_now.tv_sec)
-          .addParam(EosCtaReportParam::TNS, ts_now.tv_nsec)
-          .addParam(EosCtaReportParam::EVICTCMD_ERROR, errStream.str());
+      .addParam(EosCtaReportParam::SEC_APP, "tape_evict")
+      .addParam(EosCtaReportParam::LOG, std::string(gOFS->logId))
+      .addParam(EosCtaReportParam::RUID, mVid.uid)
+      .addParam(EosCtaReportParam::RGID, mVid.gid)
+      .addParam(EosCtaReportParam::TD, mVid.tident.c_str())
+      .addParam(EosCtaReportParam::TS, ts_now.tv_sec)
+      .addParam(EosCtaReportParam::TNS, ts_now.tv_nsec)
+      .addParam(EosCtaReportParam::EVICTCMD_ERROR, errStream.str());
       break;
     }
   }
+
   return new_req;
 }
 
@@ -79,30 +88,31 @@ eos::mgm::EvictCmd::ProcessRequest() noexcept
   std::ostringstream outStream;
   bool allReplicasRemoved = false;
   int ret_c = 0;
-
   // TODO: Remove this segment of code when the StagerRm command is deprecated, and replace by the line bellow
   eos::console::RequestProto req;
+
   if (mReqProto.command_case() == eos::console::RequestProto::kStagerRm) {
     req = convertStagerRmToEvict(mReqProto, errStream, ret_c);
   } else {
     req = mReqProto;
   }
-  const auto& evict = req.evict();
 
+  const auto& evict = req.evict();
   // TODO: Replace the code removed above by this line
   // const auto& evict = mReqProto.evict();
-
   XrdOucErrInfo errInfo;
   eos::common::VirtualIdentity root_vid = eos::common::VirtualIdentity::Root();
   struct timespec ts_now;
   eos::common::Timing::GetTimeSpec(ts_now);
   std::optional<uint64_t> fsid =
-      evict.has_evictsinglereplica() ? std::optional(evict.evictsinglereplica().fsid()) : std::nullopt;
+    evict.has_evictsinglereplica() ? std::optional(
+      evict.evictsinglereplica().fsid()) : std::nullopt;
   bool force = evict.force();
 
   if (fsid.has_value() && !force) {
     reply.set_retc(EINVAL);
-    errStream << "error: Parameter 'fsid' can only be used with 'force'" << std::endl;
+    errStream << "error: Parameter 'fsid' can only be used with 'force'" <<
+              std::endl;
     reply.set_std_err(errStream.str());
     reply.set_std_out(outStream.str());
     return reply;
@@ -223,12 +233,20 @@ eos::mgm::EvictCmd::ProcessRequest() noexcept
     if (fsid.has_value()) {
       auto fmd = gOFS->eosView->getFile(path.c_str());
       bool diskReplicaFound = false;
+
       for (auto location : fmd->getLocations()) {
         // Ignore tape replica
-        if (location == eos::common::TAPE_FS_ID) continue;
-        if (location == fsid.value()) diskReplicaFound = true;
+        if (location == eos::common::TAPE_FS_ID) {
+          continue;
+        }
+
+        if (location == fsid.value()) {
+          diskReplicaFound = true;
+        }
+
         ++diskReplicaCount;
       }
+
       if (!diskReplicaFound) {
         eos_static_err("msg=\"unable to find disk replica of %s\" fsid=\"%u\" reason=\"%s\"",
                        path.c_str(), fsid.value(), errInfo.getErrText());
@@ -241,16 +259,21 @@ eos::mgm::EvictCmd::ProcessRequest() noexcept
       }
     } else {
       auto fmd = gOFS->eosView->getFile(path.c_str());
+
       for (auto location : fmd->getLocations()) {
         // Ignore tape replica
-        if (location == eos::common::TAPE_FS_ID) continue;
+        if (location == eos::common::TAPE_FS_ID) {
+          continue;
+        }
+
         ++diskReplicaCount;
       }
+
       if (diskReplicaCount == 0) {
         eos_static_err("msg=\"unable to find any disk replica of %s\" reason=\"%s\"",
                        path.c_str(), errInfo.getErrText());
         errStream << "error: unable to find any disk replica of '" << path << "'" <<
-            std::endl;
+                  std::endl;
         eosLog.addParam(EosCtaReportParam::EVICTCMD_ERROR, errStream.str());
         ret_c = SFS_ERROR;
         continue;
@@ -285,13 +308,14 @@ eos::mgm::EvictCmd::ProcessRequest() noexcept
       if (!force) {
         // Check the eviction counter first, if not force
         int evictionCounter = 0;
+
         try {
           eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
           auto fmd = gOFS->eosView->getFile(path.c_str());
 
           if (fmd->hasAttribute(eos::common::RETRIEVE_EVICT_COUNTER_NAME)) {
             evictionCounter = std::stoi(fmd->getAttribute(
-                eos::common::RETRIEVE_EVICT_COUNTER_NAME));
+                                          eos::common::RETRIEVE_EVICT_COUNTER_NAME));
           }
 
           eosLog.addParam(EosCtaReportParam::EVICTCMD_EVICTCOUNTER, evictionCounter);
@@ -343,9 +367,11 @@ eos::mgm::EvictCmd::ProcessRequest() noexcept
                        eos::common::RETRIEVE_REQTIME_ATTR_NAME,
                        eos::common::RETRIEVE_EVICT_COUNTER_NAME);
       }
+
       if (fsid.has_value()) {
         eosLog.addParam(EosCtaReportParam::EVICTCMD_FSID, fsid.value());
       }
+
       eosLog.addParam(EosCtaReportParam::EVICTCMD_FILEREMOVED, true);
     }
   }
@@ -353,20 +379,26 @@ eos::mgm::EvictCmd::ProcessRequest() noexcept
   reply.set_retc(ret_c);
   reply.set_std_err(errStream.str());
   std::string stdout_reply_s;
-  if ((count_all_disk_replicas_removed + count_some_disk_replicas_removed + count_evict_counter_not_zero) > 0) {
+
+  if ((count_all_disk_replicas_removed + count_some_disk_replicas_removed +
+       count_evict_counter_not_zero) > 0) {
     if (fsid.has_value()) {
-      outStream << "found and removed the fsid="<< fsid.value() << " disk replica for "
+      outStream << "found and removed the fsid=" << fsid.value() <<
+                " disk replica for "
                 << (count_all_disk_replicas_removed + count_some_disk_replicas_removed)
                 << "/" << evict.file_size() << " files";
     } else  {
       outStream << "removed all disk replicas for "
                 << count_all_disk_replicas_removed << "/" << evict.file_size() << " files";
+
       if (!force) {
-        outStream << "; reduced evict counter for " << count_evict_counter_not_zero << "/"
+        outStream << "; reduced evict counter for " << count_evict_counter_not_zero <<
+                  "/"
                   << evict.file_size() << " files";
       }
     }
   }
+
   reply.set_std_out(outStream.str());
   return reply;
 }
