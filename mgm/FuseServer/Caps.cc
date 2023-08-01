@@ -234,7 +234,8 @@ std::vector<std::shared_ptr<eos::mgm::FuseServer::Caps::capx>>
 
 /*----------------------------------------------------------------------------*/
 int
-FuseServer::Caps::BroadcastRefreshFromExternal(uint64_t id, uint64_t pid)
+FuseServer::Caps::BroadcastRefreshFromExternal(uint64_t id, uint64_t pid,
+					       bool notprot5)
 /*----------------------------------------------------------------------------*/
 {
   gOFS->MgmStats.Add("Eosxd::int::BcRefreshExt", 0, 0, 1);
@@ -246,8 +247,9 @@ FuseServer::Caps::BroadcastRefreshFromExternal(uint64_t id, uint64_t pid)
 
   for (auto it : bccaps) {
     gOFS->zMQ->gFuseServer.Client().RefreshEntry((uint64_t) id,
-        (*it)()->clientuuid(),
-        (*it)()->clientid());
+						 (*it)()->clientuuid(),
+						 (*it)()->clientid(),
+						 notprot5);
     errno = 0 ; // seems that ZMQ function might set errno
   }
 
@@ -258,7 +260,8 @@ FuseServer::Caps::BroadcastRefreshFromExternal(uint64_t id, uint64_t pid)
 /*----------------------------------------------------------------------------*/
 int
 FuseServer::Caps::BroadcastDeletionFromExternal(uint64_t id,
-    const std::string& name)
+						const std::string& name,
+						struct timespec& pt_mtime)
 /*----------------------------------------------------------------------------*/
 {
   gOFS->MgmStats.Add("Eosxd::int::BcDeletionExt", 0, 0, 1);
@@ -269,9 +272,10 @@ FuseServer::Caps::BroadcastDeletionFromExternal(uint64_t id,
 
   for (auto it : bccaps) {
     gOFS->zMQ->gFuseServer.Client().DeleteEntry((uint64_t)(*it)()->id(),
-        (*it)()->clientuuid(),
-        (*it)()->clientid(),
-        name);
+						(*it)()->clientuuid(),
+						(*it)()->clientid(),
+						name,
+						pt_mtime);
     errno = 0 ; // seems that ZMQ function might set errno
   }
 
@@ -282,7 +286,9 @@ FuseServer::Caps::BroadcastDeletionFromExternal(uint64_t id,
 /*----------------------------------------------------------------------------*/
 int
 FuseServer::Caps::BroadcastDeletion(uint64_t id, const eos::fusex::md& md,
-                                    const std::string& name)
+                                    const std::string& name,
+				    struct timespec& pt_mtime
+				  )
 /*----------------------------------------------------------------------------*/
 {
   gOFS->MgmStats.Add("Eosxd::int::BcDeletion", 0, 0, 1);
@@ -293,9 +299,11 @@ FuseServer::Caps::BroadcastDeletion(uint64_t id, const eos::fusex::md& md,
 
   for (auto it : bccaps) {
     gOFS->zMQ->gFuseServer.Client().DeleteEntry((uint64_t)(*it)()->id(),
-        (*it)()->clientuuid(),
-        (*it)()->clientid(),
-        name);
+						(*it)()->clientuuid(),
+						(*it)()->clientid(),
+						name,
+						pt_mtime
+						);
     errno = 0;
   }
 
@@ -307,7 +315,8 @@ FuseServer::Caps::BroadcastDeletion(uint64_t id, const eos::fusex::md& md,
 int
 FuseServer::Caps::BroadcastRefresh(uint64_t inode,
                                    const eos::fusex::md& md,
-                                   uint64_t parent_inode)
+                                   uint64_t parent_inode,
+				   bool notprot5)
 /*----------------------------------------------------------------------------*/
 {
   gOFS->MgmStats.Add("Eosxd::int::BcRefresh", 0, 0, 1);
@@ -374,8 +383,9 @@ FuseServer::Caps::BroadcastRefresh(uint64_t inode,
     }
 
     gOFS->zMQ->gFuseServer.Client().RefreshEntry((uint64_t) inode,
-        (*cap)()->clientuuid(),
-        (*cap)()->clientid());
+						 (*cap)()->clientuuid(),
+						 (*cap)()->clientid(),
+						 notprot5);
     errno = 0;
   }
 
@@ -418,11 +428,13 @@ FuseServer::Caps::BroadcastMD(const eos::fusex::md& md,
   FuseServer::Caps::shared_cap refcap {nullptr};
   {
     std::lock_guard lg(mtx);
-    refcap = Get(md.authid(), false);
-
-    if (refcap == nullptr) {
-      EXEC_TIMING_END("Eosxd::int::BcMD");
-      return 0;
+    if (md.authid().length()) {
+      refcap = Get(md.authid(), false);
+      
+      if (refcap == nullptr) {
+	EXEC_TIMING_END("Eosxd::int::BcMD");
+	return 0;
+      }
     }
 
     auto kv = mInodeCaps.find(md_pino);

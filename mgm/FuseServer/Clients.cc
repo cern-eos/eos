@@ -399,7 +399,7 @@ FuseServer::Clients::Print(std::string& out, std::string options)
 
     if (options.find("m") == std::string::npos) {
       snprintf(formatline, sizeof(formatline),
-               "client : %-8s %32s %-8s %-8s %s %.02f %.02f %36s p=%u caps=%lu fds=%u %s [%s] %s mount=%s app=%s\n",
+               "client : %-8s %32s %-8s %-8s %s %.02f %.02f %36s p=%u caps=%lu fds=%u %s [%s] %s mount=%s prot=%d app=%s\n",
                it->second.heartbeat().name().c_str(),
                it->second.heartbeat().host().c_str(),
                it->second.heartbeat().version().c_str(),
@@ -417,6 +417,7 @@ FuseServer::Clients::Print(std::string& out, std::string options)
                lockup.c_str(),
                idle.c_str(),
                it->second.heartbeat().mount().c_str(),
+	       it->second.heartbeat().protversion(),
                it->second.heartbeat().appname().c_str()
               );
       out += formatline;
@@ -496,7 +497,7 @@ FuseServer::Clients::Print(std::string& out, std::string options)
 
     if (options.find("m") != std::string::npos) {
       snprintf(formatline, sizeof(formatline),
-               "client=%s host=%s version=%s state=%s time=\"%s\" tof=%.02f delta=%.02f uuid=%s pid=%u caps=%lu fds=%u type=%s mount=\"%s\" app=%s "
+               "client=%s host=%s version=%s state=%s time=\"%s\" tof=%.02f delta=%.02f uuid=%s pid=%u caps=%lu fds=%u type=%s mount=\"%s\" prot=%d app=%s "
                "ino=%ld "
                "ino-to-del=%ld "
                "ino-backlog=%ld "
@@ -545,6 +546,7 @@ FuseServer::Clients::Print(std::string& out, std::string options)
                it->second.statistics().open_files(),
                it->second.heartbeat().automounted() ? "autofs" : "static",
                it->second.heartbeat().mount().c_str(),
+	       it->second.heartbeat().protversion(),
                it->second.heartbeat().appname().c_str(),
                it->second.statistics().inodes(),
                it->second.statistics().inodes_todelete(),
@@ -790,7 +792,8 @@ int
 FuseServer::Clients::DeleteEntry(uint64_t md_ino,
                                  const std::string& uuid,
                                  const std::string& clientid,
-                                 const std::string& name
+                                 const std::string& name,
+				 struct timespec& pt_mtime
                                 )
 {
   gOFS->MgmStats.Add("Eosxd::int::DeleteEntry", 0, 0, 1);
@@ -802,6 +805,9 @@ FuseServer::Clients::DeleteEntry(uint64_t md_ino,
   rsp.mutable_dentry_()->set_name(name);
   rsp.mutable_dentry_()->set_md_ino(md_ino);
   rsp.mutable_dentry_()->set_clientid(clientid);
+  rsp.mutable_dentry_()->set_pt_mtime(pt_mtime.tv_sec);
+  rsp.mutable_dentry_()->set_pt_mtime_ns(pt_mtime.tv_nsec);
+  
   std::string rspstream;
   rsp.SerializeToString(&rspstream);
   eos::common::RWMutexReadLock lLock(*this);
@@ -825,10 +831,10 @@ FuseServer::Clients::DeleteEntry(uint64_t md_ino,
 int
 FuseServer::Clients::RefreshEntry(uint64_t md_ino,
                                   const std::string& uuid,
-                                  const std::string& clientid
+                                  const std::string& clientid,
+				  bool notprot5
                                  )
 {
-  gOFS->MgmStats.Add("Eosxd::int::RefreshEntry", 0, 0, 1);
   EXEC_TIMING_BEGIN("Eosxd::int::RefreshEntry");
   // prepare release cap message
   eos::fusex::response rsp;
@@ -845,18 +851,27 @@ FuseServer::Clients::RefreshEntry(uint64_t md_ino,
   std::string id = mUUIDView[uuid];
   eos_static_info("client=%s\n", map()[id].heartbeat().version().c_str());
 
-  if (DeferClient(map()[id].heartbeat().version(), "4.4.18")) {
-    // dont' send refresh to client version < 4.4.18 (4.4.17 deadlocks, others ignore)
-    eos_static_info("suppressing refresh to client '%s' version='%s'",
-                    clientid.c_str(), map()[id].heartbeat().version().c_str());
+  if (notprot5 && map()[id].heartbeat().protversion() >= map()[id].heartbeat().PROTOCOLV5) {
+    // this protocol version does not need refresh messages
+    if (EOS_LOGS_DEBUG) {
+      eos_static_debug("suppressing refresh to client '%s' version='%s' protocl='%d'",
+		       clientid.c_str(), map()[id].heartbeat().version().c_str(),
+		       map()[id].heartbeat().protversion());
+    }
   } else {
-    std::string id = mUUIDView[uuid];
-    lLock.Release();
-    eos_static_info("msg=\"asking dentry refresh\" uuid=%s clientid=%s id=%lx",
-                    uuid.c_str(), clientid.c_str(), md_ino);
-    gOFS->zMQ->mTask->reply(id, rspstream);
+    if (DeferClient(map()[id].heartbeat().version(), "4.4.18")) {
+      // dont' send refresh to client version < 4.4.18 (4.4.17 deadlocks, others ignore)
+      eos_static_info("suppressing refresh to client '%s' version='%s'",
+		      clientid.c_str(), map()[id].heartbeat().version().c_str());
+    } else {
+      gOFS->MgmStats.Add("Eosxd::int::RefreshEntry", 0, 0, 1);
+      std::string id = mUUIDView[uuid];
+      lLock.Release();
+      eos_static_info("msg=\"asking dentry refresh\" uuid=%s clientid=%s id=%lx",
+		      uuid.c_str(), clientid.c_str(), md_ino);
+      gOFS->zMQ->mTask->reply(id, rspstream);
+    }
   }
-
   EXEC_TIMING_END("Eosxd::int::RefreshEntry");
   return 0;
 }
