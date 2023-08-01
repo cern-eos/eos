@@ -499,7 +499,7 @@ QuarkFileMD::setATimeNow(uint64_t olderthan)
 #endif
   getATime(atime);
   // only set the atime if it is older than olderthan
-  if ((olderthan) && ((tnow.tv_sec - atime.tv_sec) >= (time_t) olderthan)) {
+  if (((tnow.tv_sec - atime.tv_sec) >= (time_t) olderthan)) {
     setATime(tnow);
     return true;
   } else {
