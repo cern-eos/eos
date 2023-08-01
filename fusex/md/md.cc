@@ -2797,6 +2797,8 @@ metad::mdcallback(ThreadAssistant& assistant)
       std::string authid = rsp->dentry_().authid();
       std::string name = rsp->dentry_().name();
       uint64_t ino = inomap.forward(md_ino);
+      uint64_t pt_mtime = rsp->dentry_().pt_mtime();
+      uint64_t pt_mtime_ns = rsp->dentry_().pt_mtime_ns();
       
       if (rsp->dentry_().type() == rsp->dentry_().ADD) {
       } else if (rsp->dentry_().type() == rsp->dentry_().REMOVE) {
@@ -2811,15 +2813,24 @@ metad::mdcallback(ThreadAssistant& assistant)
 	shared_md pmd;
 	
 	if (ino && mdmap.retrieveTS(ino, pmd)) {
-	  XrdSysMutexHelper mLock(pmd->Locker());
-	  
-	  if (pmd->local_children().count(
-					  eos::common::StringConversion::EncodeInvalidUTF8(name))) {
-	    pmd->local_children().erase(eos::common::StringConversion::EncodeInvalidUTF8(
+	  {
+	    XrdSysMutexHelper mLock(pmd->Locker());
+	    
+	    if (pmd->local_children().count(
+					    eos::common::StringConversion::EncodeInvalidUTF8(name))) {
+	      pmd->local_children().erase(eos::common::StringConversion::EncodeInvalidUTF8(
+											   name));
+	      pmd->get_todelete().erase(eos::common::StringConversion::EncodeInvalidUTF8(
 											 name));
-	    pmd->get_todelete().erase(eos::common::StringConversion::EncodeInvalidUTF8(
-										       name));
-	    (*pmd)()->set_nchildren((*pmd)()->nchildren() - 1);
+	      (*pmd)()->set_nchildren((*pmd)()->nchildren() - 1);
+	      if (pt_mtime || pt_mtime_ns) {
+		(*pmd)()->set_mtime(pt_mtime);
+		(*pmd)()->set_mtime_ns(pt_mtime_ns);
+		(*pmd)()->set_ctime(pt_mtime);
+		(*pmd)()->set_ctime_ns(pt_mtime_ns);
+	      }	    
+	    }
+	    kernelcache::inval_inode(ino, false);
 	  }
 	}
       }
@@ -3017,10 +3028,12 @@ metad::mdcallback(ThreadAssistant& assistant)
 	  kernelcache::inval_inode(ino, S_ISDIR(mode) ? false : true);
 	}
 	
-	if (EosFuse::Instance().Config().options.md_kernelcache && old_name.length()) {
-	  eos_static_info("invalidate previous name for ino=%#lx old-name=%s", ino,
-			  old_name.c_str());
-	  kernelcache::inval_entry(pino, old_name.c_str());
+	if (EosFuse::Instance().Config().options.md_kernelcache) {
+	  if (old_name.length()) {
+	    eos_static_info("invalidate previous name for ino=%#lx old-name=%s", ino,
+			    old_name.c_str());
+	    kernelcache::inval_entry(pino, old_name.c_str());
+	  }
 	  kernelcache::inval_inode(pino, false);
 	}
 	
@@ -3048,6 +3061,8 @@ metad::mdcallback(ThreadAssistant& assistant)
 	  if ((*md)()->pt_mtime()) {
 	    (*pmd)()->set_mtime((*md)()->pt_mtime());
 	    (*pmd)()->set_mtime_ns((*md)()->pt_mtime_ns());
+	    (*pmd)()->set_ctime((*md)()->pt_mtime());
+	    (*pmd)()->set_ctime_ns((*md)()->pt_mtime_ns());
 	  }
 	  
 	  (*md)()->clear_pt_mtime();

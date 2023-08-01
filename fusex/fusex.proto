@@ -18,8 +18,8 @@ message md {
   fixed64 btime_ns = 10; //< ns of birth time
   fixed64 ttime = 11   ; //< tree modification time
   fixed64 ttime_ns = 12; //< ns of tree modification time
-  fixed64 pmtime = 13   ; //< tree modification time
-  fixed64 pmtime_ns = 14; //< ns of tree modification time
+  fixed64 pmtime = 13   ; //< parent modification time
+  fixed64 pmtime_ns = 14; //< ns of parent modification time
   fixed64 size = 15     ; //< size 
   sfixed32 uid = 16    ; //< user  id
   sfixed32 gid = 17    ; //< group id
@@ -114,7 +114,7 @@ message cap_map {
 };
 
 message heartbeat {
-  enum ProtVersion { PROTOCOLV1 = 0; PROTOCOLV2 = 1; PROTOCOLV3 = 2; PROTOCOLV4 = 3;}
+  enum ProtVersion { PROTOCOLV1 = 0; PROTOCOLV2 = 1; PROTOCOLV3 = 2; PROTOCOLV4 = 3; PROTOCOLV5 = 4;}
 
   string name = 1; //< client chosen ID	
   string host = 2; //< client host
@@ -220,6 +220,8 @@ message dentry {
   bytes name = 3; //< entry name to delete
   string clientid = 4; //< clientid
   string authid = 5; //< authid
+  fixed64 pt_mtime = 6 ; //< modification time for the parent directory
+  fixed64 pt_mtime_ns= 7 ; //< ns of modification time for the parent directory
 }
 
 message refresh {

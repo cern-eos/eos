@@ -1787,10 +1787,12 @@ public:
   //!
   //! @param id container identifier
   //! @param parentid container identifier
+  //! @param parent mtime
   //! @param lock take the namespace lock
   //----------------------------------------------------------------------------
   void FuseXCastMD(eos::ContainerIdentifier id,
 		   eos::ContainerIdentifier parentid,
+		   struct timespec& p_mtime,
 		   bool lock=false);
   
   //----------------------------------------------------------------------------
@@ -1798,11 +1800,13 @@ public:
   //!
   //! @param id file identifier
   //! @param parentid container identifier
+  //! @param parent mtime
   //! @param lock take the namespace lock
   
   //----------------------------------------------------------------------------
   void FuseXCastMD(eos::FileIdentifier id,
 		   eos::ContainerIdentifier parentid,
+		   struct timespec& p_mtime,
 		   bool lock=false);
   
   //----------------------------------------------------------------------------

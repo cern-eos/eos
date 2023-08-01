@@ -188,12 +188,14 @@ public:
   int DeleteEntry(uint64_t id,
                   const std::string& uuid,
                   const std::string& clientid,
-                  const std::string& name);
+                  const std::string& name,
+		  struct timespec& pt_mtime);
 
   // refresh entry
   int RefreshEntry(uint64_t id,
                    const std::string& uuid,
-                   const std::string& clientid);
+                   const std::string& clientid,
+		   bool notprot5=false);
 
   // send MD after update
   int SendMD(const eos::fusex::md& md,

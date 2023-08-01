@@ -53,7 +53,7 @@
 #include <google/dense_hash_map>
 
 // PROTOBUF protocol version announced via heartbeats and attached to URLs by the backend
-#define FUSEPROTOCOLVERSION eos::fusex::heartbeat::PROTOCOLV4
+#define FUSEPROTOCOLVERSION eos::fusex::heartbeat::PROTOCOLV5
 
 class EosFuse : public llfusexx::FuseBase<EosFuse>
 {

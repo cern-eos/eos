@@ -243,21 +243,27 @@ public:
 
   int BroadcastDeletion(uint64_t inode,
                         const eos::fusex::md& md,
-                        const std::string& name);
+                        const std::string& name,
+			struct timespec& p_mtime);
 
   int BroadcastRefresh(uint64_t
                        inode,
                        const eos::fusex::md& md,
                        uint64_t
-                       parent_inode); // broad cast triggered by fuse network
+                       parent_inode,
+		       bool notprot5 = false
+		       ); // broad cast triggered by fuse network
 
   int BroadcastRefreshFromExternal(uint64_t
                                    inode,
                                    uint64_t
-                                   parent_inode); // broad cast triggered non-fuse network
+                                   parent_inode,
+				   bool notprot5 = false
+				   ); // broad cast triggered non-fuse network
 
   int BroadcastDeletionFromExternal(uint64_t inode,
-                                    const std::string& name);
+                                    const std::string& name,
+				    struct timespec& p_mtime);
 
   int BroadcastMD(const eos::fusex::md& md,
                   uint64_t md_ino,
