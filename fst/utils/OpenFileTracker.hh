@@ -170,6 +170,9 @@ private:
   std::map<eos::common::FileSystem::fsid_t, std::map<uint64_t, bool>>
       mMultiOpen;
 
+  std::map<eos::common::FileSystem::fsid_t, std::map<uint64_t, bool>>
+      mClosing;
+
   std::map<eos::common::FileSystem::fsid_t, std::map<std::string, std::mutex>>
       mApp;
 };

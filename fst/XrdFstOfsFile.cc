@@ -760,7 +760,7 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
     }
   }
 
-  COMMONTIMING("open::accountingt", &tm);
+  COMMONTIMING("open::accounting", &tm);
 
   if (mIsRW) {
     gOFS.openedForWriting.up(mFsId, mFileId);
@@ -1547,37 +1547,48 @@ XrdFstOfsFile::_close()
     capOpaqueString += OpaqueString;
     eos_info("viaDelete=%d writeDelete=%d", viaDelete, mWrDelete);
 
+    bool issinglewriter = (gOFS.openedForWriting.getUseCount(mFmd->mProtoFmd.fsid(),
+							     mFmd->mProtoFmd.fid()) <= 1);
+    
+
     if ((viaDelete || mWrDelete) &&
         ((isCreation || (isReplication && mIsRW) || mIsInjection ||
           IsChunkedUpload()) && (!mFusex))) {
-      // It is closed by the destructor e.g. no proper close
-      // or the specified checksum does not match the computed one
-      if (viaDelete) {
-        eos_info("msg=\"(unpersist): deleting file\" reason=\"client disconnect\""
-                 " fsid=%lu fxid=%08llx", mFmd->mProtoFmd.fsid(), mFmd->mProtoFmd.fid());
-      }
 
-      if (mWrDelete) {
-        eos_info("msg=\"(unpersist): deleting file\" reason=\"write/policy error\""
-                 " fsid=%lu fxid=%08llx", mFmd->mProtoFmd.fsid(), mFmd->mProtoFmd.fid());
-      }
+      if (issinglewriter) {
+	// It is closed by the destructor e.g. no proper close
+	// or the specified checksum does not match the computed one
+	if (viaDelete) {
+	  eos_info("msg=\"(unpersist): deleting file\" reason=\"client disconnect\""
+		   " fsid=%lu fxid=%08llx", mFmd->mProtoFmd.fsid(), mFmd->mProtoFmd.fid());
+	}
+	
+	if (mWrDelete) {
+	  eos_info("msg=\"(unpersist): deleting file\" reason=\"write/policy error\""
+		   " fsid=%lu fxid=%08llx", mFmd->mProtoFmd.fsid(), mFmd->mProtoFmd.fid());
+	}
 
-      // Delete the file - set the file to be deleted
-      deleteOnClose = true;
-      mLayout->Remove();
-
-      if (mLayout->IsEntryServer() && (!isReplication) && (!mIsInjection) &&
-          (!mRainReconstruct)) {
-        capOpaqueString += "&mgm.dropall=1";
-      }
-
-      // Delete the replica in the MGM
-      XrdOucErrInfo lerror;
-
-      if (gOFS.CallManager(&lerror, mCapOpaque->Get("mgm.path"),
-                           mCapOpaque->Get("mgm.manager"), capOpaqueString)) {
-        eos_warning("(unpersist): unable to drop file id %s fsid %u at manager %s",
-                    hex_fid.c_str(), mFmd->mProtoFmd.fid(), mCapOpaque->Get("mgm.manager"));
+	// Delete the file - set the file to be deleted
+	deleteOnClose = true;
+	mLayout->Remove();
+	
+	if (mLayout->IsEntryServer() && (!isReplication) && (!mIsInjection) &&
+	    (!mRainReconstruct)) {
+	  capOpaqueString += "&mgm.dropall=1";
+	}
+	
+	// Delete the replica in the MGM
+	XrdOucErrInfo lerror;
+	
+	if (gOFS.CallManager(&lerror, mCapOpaque->Get("mgm.path"),
+			     mCapOpaque->Get("mgm.manager"), capOpaqueString)) {
+	  eos_warning("(unpersist): unable to drop file id %s fsid %u at manager %s",
+		      hex_fid.c_str(), mFmd->mProtoFmd.fid(), mCapOpaque->Get("mgm.manager"));
+	}
+      } else {
+	eos_info("msg=\"(unpersist): suppressing delete on close\" reason=\"several writers\""
+		 " fsid=%lu fxid=%08llx", mFmd->mProtoFmd.fsid(), mFmd->mProtoFmd.fid());
+	  
       }
     } else {
       // Check if this was a newly created file
