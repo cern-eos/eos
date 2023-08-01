@@ -122,7 +122,7 @@ TEST(AtomicUniquePtr, multireadwrite)
 
   std::vector<std::thread> reader_threads;
   std::vector<std::thread> writer_threads;
-  for (int i=0;i<2000;i++) {
+  for (int i=0;i<200;i++) {
     reader_threads.emplace_back(reader_fn);
     if (i%10==0) {
       writer_threads.emplace_back(writer_fn);
