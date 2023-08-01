@@ -1030,8 +1030,9 @@ void
 XrdMgmOfs::FuseXCastDeletion(eos::ContainerIdentifier id,
                              const std::string& name)
 {
+  struct timespec pt_mtime {0,0};
   gOFS->zMQ->gFuseServer.Cap().BroadcastDeletionFromExternal(
-    id.getUnderlyingUInt64(), name);
+							     id.getUnderlyingUInt64(), name, pt_mtime);
 }
 
 
@@ -1055,29 +1056,32 @@ XrdMgmOfs::FuseXCastRefresh(eos::FileIdentifier id,
 }
 
 //------------------------------------------------------------------------------
-// Cast a MD objects to clients
+// Cast a MD object to clients
 //------------------------------------------------------------------------------
 void
 XrdMgmOfs::FuseXCastMD(eos::ContainerIdentifier id,
-			      eos::ContainerIdentifier parentid,
-			      bool lock)
+		       eos::ContainerIdentifier parentid,
+		       struct timespec& pt_mtime,
+		       bool lock)
 {
   eos::fusex::md dir;
   static eos::common::VirtualIdentity root_vid = eos::common::VirtualIdentity::Root();
   if (!gOFS->zMQ->gFuseServer.FillContainerMD(id.getUnderlyingUInt64(), dir, root_vid, lock)) {
-    gOFS->zMQ->gFuseServer.Cap().BroadcastRefresh(id.getUnderlyingUInt64(), dir, parentid.getUnderlyingUInt64());
+    gOFS->zMQ->gFuseServer.Cap().BroadcastMD(dir, dir.md_ino(), dir.md_pino(), dir.clock(), pt_mtime);
   }
 }
 
 void
 XrdMgmOfs::FuseXCastMD(eos::FileIdentifier id,
 		       eos::ContainerIdentifier parentid,
-		       bool lock)
+		       struct timespec& pt_mtime,
+		       bool lock
+		       )
 {
   eos::fusex::md file;
   static eos::common::VirtualIdentity root_vid = eos::common::VirtualIdentity::Root();
   if (gOFS->zMQ->gFuseServer.FillFileMD(eos::common::FileId::FidToInode(id.getUnderlyingUInt64()), file, root_vid, lock)) {
-    gOFS->zMQ->gFuseServer.Cap().BroadcastRefresh(eos::common::FileId::FidToInode(id.getUnderlyingUInt64()), file, parentid.getUnderlyingUInt64());
+    gOFS->zMQ->gFuseServer.Cap().BroadcastMD(file, file.md_ino(), file.md_pino(), file.clock(), pt_mtime);
   }
 }
 

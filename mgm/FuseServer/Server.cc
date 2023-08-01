@@ -2840,8 +2840,10 @@ Server::OpDeleteDirectory(const std::string& id,
       resp.mutable_ack_()->set_code(resp.ack_().OK);
       resp.mutable_ack_()->set_transactionid(md.reqid());
       resp.SerializeToString(response);
-      Cap().BroadcastDeletion(pcmd->getId(), md, cmd->getName());
-      Cap().BroadcastRefresh(pcmd->getId(), md, pcmd->getParentId());
+      eos::IContainerMD::ctime_t pt_mtime;
+      pcmd->getMTime(pt_mtime);
+      Cap().BroadcastDeletion(pcmd->getId(), md, cmd->getName(),pt_mtime);
+      Cap().BroadcastRefresh(pcmd->getId(), md, pcmd->getParentId(), true);
       Cap().Delete(md.md_ino());
     }
   } catch (eos::MDException& e) {
@@ -3060,8 +3062,10 @@ Server::OpDeleteFile(const std::string& id,
     resp.mutable_ack_()->set_code(resp.ack_().OK);
     resp.mutable_ack_()->set_transactionid(md.reqid());
     resp.SerializeToString(response);
-    Cap().BroadcastDeletion(pcmd->getId(), md, md.name());
-    Cap().BroadcastRefresh(pcmd->getId(), md, pcmd->getParentId());
+    eos::IContainerMD::ctime_t pt_mtime;  
+    pcmd->getMTime(pt_mtime);
+    Cap().BroadcastDeletion(pcmd->getId(), md, md.name(), pt_mtime);
+    Cap().BroadcastRefresh(pcmd->getId(), md, pcmd->getParentId(), true);
     Cap().Delete(md.md_ino());
   } catch (eos::MDException& e) {
     resp.mutable_ack_()->set_code(resp.ack_().PERMANENT_FAILURE);
@@ -3157,8 +3161,10 @@ Server::OpDeleteLink(const std::string& id,
     resp.mutable_ack_()->set_code(resp.ack_().OK);
     resp.mutable_ack_()->set_transactionid(md.reqid());
     resp.SerializeToString(response);
-    Cap().BroadcastDeletion(pcmd->getId(), md, md.name());
-    Cap().BroadcastRefresh(pcmd->getId(), md, pcmd->getParentId());
+    eos::IContainerMD::ctime_t pt_mtime;
+    pcmd->getMTime(pt_mtime);
+    Cap().BroadcastDeletion(pcmd->getId(), md, md.name(), pt_mtime);
+    Cap().BroadcastRefresh(pcmd->getId(), md, pcmd->getParentId(), true);
     Cap().Delete(md.md_ino());
   } catch (eos::MDException& e) {
     resp.mutable_ack_()->set_code(resp.ack_().PERMANENT_FAILURE);
