@@ -13,7 +13,7 @@ add_custom_command(
             ${CMAKE_CURRENT_BINARY_DIR}/${GW_HDR}
      DEPENDS GoogleApis-Target GoSources
      WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
-     COMMAND env CGO_CFLAGS="-I${CMAKE_BINARY_DIR}" go build -buildmode=c-shared -o "${CMAKE_CURRENT_BINARY_DIR}/${GW_SO}" .
+     COMMAND env CGO_CPPFLAGS="-I${CMAKE_BINARY_DIR}" go build -buildmode=c-shared -o "${CMAKE_CURRENT_BINARY_DIR}/${GW_SO}" .
      COMMENT "Building grpc gateway library")
 
 add_custom_target(GW_TARGET DEPENDS ${GW_SO} ${GW_HDR})
@@ -21,10 +21,14 @@ add_library(GrpcGateway SHARED IMPORTED GLOBAL)
 add_dependencies(GrpcGateway GW_TARGET)
 set_target_properties(GrpcGateway PROPERTIES
   IMPORTED_LOCATION ${CMAKE_CURRENT_BINARY_DIR}/${GW_SO}
-  INTERFACE_INCLUDE_DIRECTORIES ${CMAKE_CURRENT_BINARY_DIR})
+  INTERFACE_INCLUDE_DIRECTORIES "${CMAKE_BINARY_DIR};${CMAKE_CURRENT_BINARY_DIR}")
 
 add_executable(dummy
   server_main.cc)
   
 target_link_libraries(dummy PUBLIC
-  GrpcGateway)
+  GrpcGateway
+  Annot-Objects
+  GRPC::grpc++
+  PROTOBUF::PROTOBUF
+  ABSL::ABSL)

@@ -5,7 +5,7 @@
 #include <gflags/gflags.h>
 #include <grpc++/grpc++.h>
 
-#include "proto/echo_service/echo_service.grpc.pb.h"
+#include "proto/go/echo_service.grpc.pb.h"
 #include "gateway.h"
 
 DEFINE_string(addr, "0.0.0.0:19000", "addr to listen on");
