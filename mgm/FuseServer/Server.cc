@@ -2932,8 +2932,14 @@ Server::OpDeleteFile(const std::string& id,
     eos_info("ino=%lx delete-file", (long) md.md_ino());
     eos::IContainerMD::XAttrMap attrmap = pcmd->getAttributes();
     // this is a client hiding versions, force the version cleanup
-    bool version_cleanup = (md.opflags() == eos::fusex::md::DELETEVERSIONS);
-
+    bool version_cleanup =
+      (md.opflags() == eos::fusex::md::DELETEVERSIONS) ||
+      (md.opflags() == eos::fusex::md::DELETEVERSIONSNORECYCLEBIN);
+    
+    bool no_recyclebin =
+      (md.opflags() == eos::fusex::md::NORECYCLEBIN) ||
+      (md.opflags() == eos::fusex::md::DELETEVERSIONSNORECYCLEBIN);
+    
     // recycle bin - not for hardlinked files or hardlinks!
     if (
       (version_cleanup || attrmap.count(Recycle::gRecyclingAttribute)) &&
@@ -2944,11 +2950,13 @@ Server::OpDeleteFile(const std::string& id,
       gOFS->WriteRecycleRecord(fmd);
       lock.Release();
       XrdOucErrInfo error;
+      bool no_recycle = !attrmap.count(Recycle::gRecyclingAttribute);
+      no_recycle |= no_recyclebin;
+      
       (void) gOFS->_rem(fullpath.c_str(), error, vid, "",
                         false,  // not simulated
-                        false, // delete versions as well
-                        !attrmap.count(Recycle::gRecyclingAttribute)
-                        ,  // indicate if recycle bin is disabled
+                        false, // don't keep any version - delete versions as well
+                        no_recycle, // recycle bin setting and client with combined
                         true,  // don't enforce quota
                         false // don't broadcast
                        );

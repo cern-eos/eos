@@ -4,7 +4,7 @@ package eos.fusex;
 message md {
   enum OP { GET = 0; SET = 1; DELETE = 2; GETCAP = 3; LS = 4; GETLK = 5; SETLK = 6; SETLKW = 7; BEGINFLUSH = 8; ENDFLUSH = 9;}
   enum TYPE { MD = 0; MDLS = 1; EXCL = 2;}
-  enum FLAG { NONE = 0; DELETEVERSIONS = 1; }
+  enum FLAG { NONE = 0; DELETEVERSIONS = 1; NORECYCLEBIN = 2; DELETEVERSIONSNORECYCLEBIN = 3;}
 
   fixed64 id = 1;        //< file/container id
   fixed64 pid = 2;       //< parent id
