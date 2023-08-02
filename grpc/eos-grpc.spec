@@ -102,7 +102,7 @@ cd build
              -DCMAKE_BUILD_TYPE=Release         \
              -DgRPC_SSL_PROVIDER=package        \
              -DgRPC_ZLIB_PROVIDER=package       \
-             -DgRPC_PROTOBUF_PROVIDER=modeul    \
+             -DgRPC_PROTOBUF_PROVIDER=module    \
              -DCMAKE_INSTALL_PREFIX=%{_prefix}  \
              -DCMAKE_INSTALL_RPATH=%{_prefix}/lib64 \
              -DCMAKE_SKIP_BUILD_RPATH=false \
