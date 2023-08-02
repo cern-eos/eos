@@ -1068,7 +1068,12 @@ Server::ValidatePERM(const eos::fusex::md& md, const std::string& mode,
       if (acl.CanNotWrite() || acl.CanWriteOnce()) {
         w_ok = false;
       }
-
+      
+      // the owner can always delete, otherwise it might be forbidden by ACLs
+      if ((vid.uid != (uid_t) cmd->getCUid()) && acl.CanNotDelete()) {
+	d_ok =false;
+      }
+      
       // deletion might be overwritten/forbidden
       if (acl.CanNotDelete()) {
         d_ok = false;
