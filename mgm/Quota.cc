@@ -1576,12 +1576,14 @@ Quota::SetQuotaTypeForId(const std::string& qpath, long id, Quota::IdT id_type,
   oss_config << id << ":" << SpaceQuota::GetTagAsString(quota_tag);
   gOFS->ConfEngine->SetConfigValue("quota", oss_config.str().c_str(),
                                    svalue.c_str());
+
   oss_msg << "success: updated "
           << ((quota_type == Type::kVolume) ? "volume" : "inode")
           << " quota for "
           << ((id_type == IdT::kUid) ? "uid=" : "gid=") << id
-          << " for node " << path;
-  msg = oss_msg.str();
+          << " for node " << path << std::endl;
+    msg = oss_msg.str();
+
   retc = 0;
   return true;
 }
