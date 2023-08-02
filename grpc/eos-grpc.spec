@@ -35,12 +35,12 @@
 Summary: gRPC, A high performance, open-source universal RPC framework
 Name: eos-grpc
 Version: 1.56.1
-Release: 2%{?dist}
+Release: 1%{?dist}
 License: BSD
 URL: http://www.grpc.io/
 Source: https://github.com/grpc/grpc/archive/v%{version}.tar.gz
 
-# Handle the different paths for the cmake package depending on the OS
+# Handle the different binaries for the cmake package depending on the OS
 %if 0%{distribution} == 7
 BuildRequires: cmake3
 %define cmake cmake3
@@ -86,35 +86,25 @@ git clone https://github.com/grpc/grpc
 cd grpc
 git checkout -b %{version} tags/v%{version}
 git submodule update --init --recursive
-#cd third_party/abseil-cpp
-#echo "Note: update abseil-cpp to avoid compilation error https://github.com/abseil/abseil-cpp/issues/952"
-#git checkout 278e0a071885a22dcd2fd1b5576cc44757299343
-#cd -
-#!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-# Patch the protobuf code so that we get properly formatted library versions.
-# If we don't to this then we'll get libprotobuf.so.3.17.3.0 instead of the usual
-# libprotobuf.so.3.17.3.
-#!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-#sed -i 's/${protobuf_VERSION}.0/${protobuf_VERSION}/g' third_party/protobuf/cmake/CMakeLists.txt
+
 %build
 cd grpc
-%if %{?fedora}%{!?fedora:0} >= 19 || 0%{distribution} == 8
-export CPPFLAGS="-Wno-error=class-memaccess -Wno-error=tautological-compare -Wno-error=ignored-qualifiers -Wno-error=stringop-truncation"
-export HAS_SYSTEM_PROTOBUF=false
-%endif
+# %if %{?fedora}%{!?fedora:0} >= 19 || 0%{distribution} == 8
+# export CPPFLAGS="-Wno-error=class-memaccess -Wno-error=tautological-compare -Wno-error=ignored-qualifiers -Wno-error=stringop-truncation"
+# export HAS_SYSTEM_PROTOBUF=false
+# %endif
 mkdir build
 cd build
 %{cmake} ../ -DgRPC_INSTALL=ON                  \
              -DCMAKE_BUILD_TYPE=Release         \
              -DgRPC_SSL_PROVIDER=package        \
              -DgRPC_ZLIB_PROVIDER=package       \
+             -DgRPC_PROTOBUF_PROVIDER=modeul    \
              -DCMAKE_INSTALL_PREFIX=%{_prefix}  \
-	     -DCMAKE_INSTALL_RPATH=%{_prefix}/lib64 \
-	     -DCMAKE_SKIP_BUILD_RPATH=false \
+             -DCMAKE_INSTALL_RPATH=%{_prefix}/lib64 \
+             -DCMAKE_SKIP_BUILD_RPATH=false \
              -DBUILD_SHARED_LIBS=ON
 %make_build
-
-%check
 
 %install
 export QA_RPATHS=3
@@ -147,11 +137,3 @@ rm -rf %{buildroot}
 
 %files static
 %{_libdir}/*.a
-
-%changelog
-* Mon Mar 28 2022 Manuel Reis <manuel.b.reis@cern.ch> - 1.45.0-1
-- Add CentOS Stream 9 build
-* Thu Jan 16 2020 Mihai Patrascoiu <mihai.patrascoiu@cern.ch> - 1.19.0-2
-- Add CentOS 8 build
-* Fri Jul 27 2018 AJP
-- Initial revision
