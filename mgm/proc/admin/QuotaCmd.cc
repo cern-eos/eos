@@ -86,10 +86,12 @@ void QuotaCmd::LsuserSubcmd(const eos::console::QuotaProto_LsuserProto& lsuser,
     XrdOucErrInfo mError;
     // evt. correct the space variable to be a directory path (+/)
     struct stat buf {};
-    std::string sspace = space;
 
-    if (sspace[sspace.length() - 1] != '/') {
-      sspace += '/';
+    eos::common::Path cPath(space.c_str());
+    std::string sspace = cPath.GetPath(); 
+
+    if (sspace != "/" && sspace.back() != '/') {
+      sspace += "/";
     }
 
     if (!gOFS->_stat(sspace.c_str(), &buf, mError, mVid,
@@ -186,11 +188,13 @@ void QuotaCmd::LsSubcmd(const eos::console::QuotaProto_LsProto& ls,
 
   if (!space.empty()) {
     // evt. correct the space variable to be a directory path (+/)
-    std::string sspace = space;
     struct stat buf {};
+    
+    eos::common::Path cPath(space.c_str());
+    std::string sspace = cPath.GetPath(); 
 
-    if (sspace[sspace.length() - 1] != '/') {
-      sspace += '/';
+    if (sspace != "/" && sspace.back() != '/') {
+      sspace += "/";
     }
 
     if (!gOFS->_stat(sspace.c_str(), &buf, mError, mVid, nullptr)) { // @note no.01
@@ -308,10 +312,11 @@ void QuotaCmd::SetSubcmd(const eos::console::QuotaProto_SetProto& set,
   if (!space.empty()) {
     // evt. correct the space variable to be a directory path (+/)
     struct stat buf {};
-    std::string sspace = space;
-
-    if (sspace[sspace.length() - 1] != '/') {
-      sspace += '/';
+    eos::common::Path cPath(space.c_str());
+    std::string sspace = cPath.GetPath(); 
+ 
+    if (sspace != "/" && sspace.back() != '/') {
+      sspace += "/";
     }
 
     if (!gOFS->_stat(sspace.c_str(), &buf, mError, mVid, nullptr)) { // @note no.01
@@ -419,14 +424,14 @@ void QuotaCmd::SetSubcmd(const eos::console::QuotaProto_SetProto& set,
       reply.set_std_err(std_err.str());
       return ;
     }
-    
+
     // Set volume quota
     if (!Quota::SetQuotaTypeForId(space, id, id_type, Quota::Type::kVolume, size,
                                   msg, ret_c)) {
       std_err.str(msg);
       return;
     } else {
-      std_out.str(msg);
+      std_out << msg;
     }
   }
 
@@ -477,10 +482,11 @@ void QuotaCmd::RmSubcmd(const eos::console::QuotaProto_RmProto& rm,
   if (!space.empty()) {
     // evt. correct the space variable to be a directory path (+/)
     struct stat buf {};
-    std::string sspace = space;
+    eos::common::Path cPath(space.c_str());
+    std::string sspace = cPath.GetPath(); 
 
-    if (sspace[sspace.length() - 1] != '/') {
-      sspace += '/';
+    if (sspace != "/" && sspace.back() != '/') {
+      sspace += "/";
     }
 
     if (!gOFS->_stat(sspace.c_str(), &buf, mError, mVid, nullptr)) { // @note no.01
