@@ -1,0 +1,22 @@
+syntax = "proto3";
+
+// Simple Service
+//
+// Simple Service API consists of a simple ping service
+package simple_service;
+
+option go_package = "simple_service";
+
+service SimpleService {
+  // Replies to a ping
+  rpc Ping (PingRequest) returns (PingReply) {}
+}
+
+message PingRequest {
+  string authkey = 1;
+  bytes message = 2;
+}
+
+message PingReply {
+  bytes message = 1;
+}

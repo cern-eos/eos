@@ -45,6 +45,8 @@
 #include "namespace/utils/Attributes.hh"
 #include "grpc/GrpcServer.hh"
 #include "grpc/GrpcWncServer.hh"
+#include "grpc/GrpcEchoServer.hh"
+#include "grpc/GrpcAndreeaServer.hh"
 #include "mgm/AdminSocket.hh"
 #include "mgm/Stat.hh"
 #include "mgm/Access.hh"
@@ -358,6 +360,14 @@ XrdMgmOfs::XrdMgmOfs(XrdSysError* ep):
 
   if (mWncPort) {
     WNCd.reset(new eos::mgm::GrpcWncServer(mWncPort));
+  }
+
+  if (mEchoPort) {
+    Echod.reset(new eos::mgm::GrpcEchoServer(mEchoPort));
+  }
+
+  if (mAndreeaPort) {
+    AndreeaGrpcd.reset(new eos::mgm::GrpcAndreeaServer(mAndreeaPort));
   }
 
   EgroupRefresh.reset(new eos::mgm::Egroup());

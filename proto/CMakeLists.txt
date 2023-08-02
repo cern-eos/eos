@@ -345,6 +345,39 @@ if (GRPC_FOUND)
 endif()
 
 #------------------------------------------------------------------------------
+# Generate protobuf and gRPC objects for Simple Service
+#------------------------------------------------------------------------------
+if (GRPC_FOUND)
+  set(SIMPLE_PROTO common/cli_proto/SimpleService.proto)
+  PROTOBUF_GENERATE_CPP(SIMPLE_SRCS SIMPLE_HDRS ${SIMPLE_PROTO})
+  grpc_generate_cpp(SIMPLE_GRPC_SRCS SIMPLE_GRPC_HDRS ${GRPC_PROTOBUF_PATH} ${SIMPLE_PROTO})
+
+  set_source_files_properties(
+    ${SIMPLE_SRCS}
+    ${SIMPLE_HDRS}
+    ${SIMPLE_GRPC_SRCS}
+    ${SIMPLE_GRPC_HDRS}
+    PROPERTIES GENERATED TRUE)
+
+  add_library(SimpleGrpcProto-Objects OBJECT
+    ${SIMPLE_SRCS}
+    ${SIMPLE_HDRS}
+    ${SIMPLE_GRPC_SRCS}
+    ${SIMPLE_GRPC_HDRS})
+
+  target_link_libraries(SimpleGrpcProto-Objects PUBLIC
+    GRPC::grpc++
+    PROTOBUF::PROTOBUF
+    ABSL::ABSL)
+
+  target_include_directories(SimpleGrpcProto-Objects PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>)
+
+  set_target_properties(SimpleGrpcProto-Objects PROPERTIES
+    POSITION_INDEPENDENT_CODE TRUE)
+endif()
+
+#------------------------------------------------------------------------------
 # Generate protobuf and gRPC objects for EOS Echo Service
 #------------------------------------------------------------------------------
 set(ECHO_PROTO echo_service)

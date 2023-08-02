@@ -17,6 +17,7 @@ add_custom_command(
      COMMENT "Building grpc gateway library")
 
 add_custom_target(GW_TARGET DEPENDS ${GW_SO} ${GW_HDR})
+message(STATUS "Gateway SO is: ${GW_SO}")
 add_library(GrpcGateway SHARED IMPORTED GLOBAL)
 add_dependencies(GrpcGateway GW_TARGET)
 set_target_properties(GrpcGateway PROPERTIES
@@ -27,8 +28,15 @@ add_executable(dummy
   server_main.cc)
   
 target_link_libraries(dummy PUBLIC
-  GrpcGateway
   Annot-Objects
+  GrpcGateway
   GRPC::grpc++
   PROTOBUF::PROTOBUF
   ABSL::ABSL)
+
+install(FILES ${GO_SO} DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR})
+
+#install(TARGETS GrpcGateway
+#    LIBRARY DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
+#    RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_BINDIR}
+#    ARCHIVE DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR})

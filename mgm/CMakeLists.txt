@@ -251,6 +251,8 @@ add_library(
   grpc/GrpcNsInterface.cc   grpc/GrpcNsInterface.hh
   grpc/GrpcWncServer.cc      grpc/GrpcWncServer.hh
   grpc/GrpcWncInterface.cc      grpc/GrpcWncInterface.hh
+  grpc/GrpcAndreeaServer.cc grpc/GrpcAndreeaServer.hh
+  grpc/GrpcEchoServer.cc grpc/GrpcEchoServer.hh
   http/HttpServer.cc
   http/HttpHandler.cc
   http/s3/S3Handler.cc
@@ -348,6 +350,7 @@ target_link_libraries(XrdEosMgm-Objects PUBLIC
   EosGrpcProto-Objects
   EosCliGrpc-Objects
   EosWncGrpcProto-Objects
+  GrpcGateway
   EosCommonServer
   LIBMICROHTTPD::LIBMICROHTTPD
   GOOGLE::SPARSEHASH
@@ -438,6 +441,8 @@ if(Linux)
     EosGrpcProto-Objects
     EosCliProto-Objects
     EosCliGrpc-Objects
+    Annot-Objects
+    GrpcGateway
     EosWncGrpcProto-Objects
     ZLIB::ZLIB
     XROOTD::SSI

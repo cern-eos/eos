@@ -176,6 +176,7 @@ target_link_libraries(eos-unit-tests PRIVATE
   qclient
   XROOTD::POSIX
   XROOTD::SERVER
+  Annot-Objects
   XrdEosMgm-Static)
 
 #-------------------------------------------------------------------------------
@@ -215,11 +216,11 @@ add_executable(eos-unit-tests-with-qdb
   with_qdb/configuration.cc
   with_qdb/TestUtils.cc)
 
-target_link_libraries(
-  eos-unit-tests-with-qdb
+target_link_libraries(eos-unit-tests-with-qdb
   GTest::Main
   GTest::gmock
   qclient
+  Annot-Objects
   XrdEosMgm-Static
   READLINE::READLINE
   JSONCPP::JSONCPP)
