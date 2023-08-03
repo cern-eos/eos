@@ -41,7 +41,7 @@
 #include "misc/longstring.hh"
 
 /* -------------------------------------------------------------------------- */
-metad::metad() : mdflush(0), mdqueue_max_backlog(1000),
+metad::metad() : last_heartbeat(0), mdflush(0), mdqueue_max_backlog(1000),
   z_ctx(0), z_socket(0)
 {
   // make a mapping for inode 1, it is re-loaded afterwards in init '/'
