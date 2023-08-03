@@ -51,6 +51,7 @@ BuildRequires: cmake
 
 BuildRequires: pkgconfig gcc-c++
 BuildRequires: openssl-devel
+BuildRequires: sed
 
 %description
 Remote Procedure Calls (RPCs) provide a useful abstraction for
@@ -86,16 +87,15 @@ git clone https://github.com/grpc/grpc
 cd grpc
 git checkout -b %{version} tags/v%{version}
 git submodule update --init --recursive
+# NOTE: We need to patch protobuf CMake file to properly create the symlink
+# libprotobuf.so.{MAJOR} -> libprotobuf.so.{MAJOR}.{MINOR}.{PATCH}
+sed -i '/^set_target_properties(libprotobuf PROPERTIES/a\ \ \ \ SOVERSION ${protobuf_VERSION_MAJOR}' third_party/protobuf/cmake/libprotobuf.cmake
 
 %build
 %if 0%{distribution} == 7
 source /opt/rh/devtoolset-8/enable
 %endif
 cd grpc
-# %if %{?fedora}%{!?fedora:0} >= 19 || 0%{distribution} == 8
-# export CPPFLAGS="-Wno-error=class-memaccess -Wno-error=tautological-compare -Wno-error=ignored-qualifiers -Wno-error=stringop-truncation"
-# export HAS_SYSTEM_PROTOBUF=false
-# %endif
 mkdir build
 cd build
 %{cmake} ../ -DgRPC_INSTALL=ON                  \
