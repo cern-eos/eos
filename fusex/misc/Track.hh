@@ -160,16 +160,17 @@ public:
           if (is_blocked > max_blocked) {
             max_blocked = is_blocked;
             function = it.second->caller;
+            orig = it.second->origin;
             inode = it.first;
           }
-        }
 	
-	if (is_blocked >= 1000) {
-	  blocked_ops++;
-	}
-	if ( (it.first == 1) && (is_blocked >= 1000) ) {
-	  on_root=true;
-	}
+	  if (is_blocked >= 1000) {
+	    blocked_ops++;
+	  }
+	  if ( (it.first == 1) && (is_blocked >= 1000) ) {
+	    on_root=true;
+	  }
+        }
       }
     }
 
@@ -199,6 +200,7 @@ public:
 
       m = iNodes[ino];
       m->caller = caller;
+      m->origin = "fs";
       m->inoLastAttachTime = std::chrono::duration_cast<std::chrono::milliseconds>
                              (now.time_since_epoch()).count();
       m->monAttachTimes[monp] = m->inoLastAttachTime;
@@ -233,7 +235,7 @@ public:
   {
   public:
 
-    Monitor(const char* caller, Track& tracker, unsigned long long ino,
+    Monitor(const char* caller, const char* origin, Track& tracker, unsigned long long ino,
             bool exclusive = false, bool disable = false) : tracker(tracker)
     {
       if (!disable) {
@@ -286,6 +288,7 @@ public:
     bool exclusive;
     unsigned long long ino;
     const char* caller;
+    const char* origin;
     Track &tracker;
   };
 
