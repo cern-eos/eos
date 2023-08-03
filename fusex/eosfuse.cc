@@ -2238,7 +2238,10 @@ EosFuse::DumpStatistic(ThreadAssistant& assistant)
         loads0 = meminfo.getref().loads[0];
       }
       double blocked_ms = this->Tracker().blocked_ms(blocker, blocker_inode, origin, blocked_ops, root_blocked);
-      int heartbeat_age = time(NULL) - EosFuse::Instance().mds.last_heartbeat;
+      const time_t last_heartbeat = EosFuse::Instance().mds.last_heartbeat;
+      int heartbeat_age = 0;
+      if (last_heartbeat)
+        heartbeat_age = time(NULL) - last_heartbeat;
 
       if (EosFuse::Instance().config.options.jsonstats) {
         Json::Value stats {};
@@ -2410,7 +2413,7 @@ EosFuse::DumpStatistic(ThreadAssistant& assistant)
         }
       }
 
-      if (!EosFuse::Instance().mds.last_heartbeat) {
+      if (!last_heartbeat) {
         eos_static_warning("HB (heartbeat) has not started!");
         hb_warning = true;
       } else {

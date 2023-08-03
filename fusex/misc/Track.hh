@@ -35,6 +35,8 @@ class Track
 {
 public:
 
+  class Monitor;
+
   typedef struct _meta {
 
     _meta()
@@ -50,7 +52,8 @@ public:
     XrdSysMutex mlocker;
     std::atomic<size_t> openr;
     std::atomic<size_t> openw;
-    std::atomic<uint64_t> attachtime;
+    uint64_t inoLastAttachTime;
+    std::map<Monitor*, uint64_t> monAttachTimes;
     const char* caller;
     const char* origin;
   } meta_t;
@@ -94,7 +97,7 @@ public:
 
       if ((it->second.use_count() == 1)) {
         double age = std::chrono::duration_cast<std::chrono::milliseconds>
-                     (now.time_since_epoch()).count() - it->second->attachtime;
+                     (now.time_since_epoch()).count() - it->second->inoLastAttachTime;
 
         if (EOS_LOGS_DEBUG) {
           eos_static_crit("age=%f", age);
@@ -122,6 +125,14 @@ public:
     iNodes.erase(ino);
   }
 
+  void
+  forget(Monitor *monp, std::shared_ptr<meta_t> me)
+  {
+    XrdSysMutexHelper l(iMutex);
+    if (me)
+      me->monAttachTimes.erase(monp);
+  }
+
   size_t
   size()
   {
@@ -143,23 +154,25 @@ public:
 
     for (auto it : iNodes) {
       if (it.second->openr || it.second->openw) {
-        // get duration since first lock
-        double is_blocked = std::chrono::duration_cast<std::chrono::milliseconds>
-                            (now.time_since_epoch()).count() - it.second->attachtime;
+        for (auto it2 : it.second->monAttachTimes) {
+          // get duration since Monitor attached
+          double is_blocked = std::chrono::duration_cast<std::chrono::milliseconds>
+                              (now.time_since_epoch()).count() - it2.second;
 
-        if (is_blocked > max_blocked) {
-          max_blocked = is_blocked;
-          function = it.second->caller;
-	  orig = it.second->origin;
-          inode = it.first;
-        }
+          if (is_blocked > max_blocked) {
+            max_blocked = is_blocked;
+            function = it.second->caller;
+            orig = it.second->origin;
+            inode = it.first;
+          }
 	
-	if (is_blocked >= 1000) {
-	  blocked_ops++;
-	}
-	if ( (it.first == 1) && (is_blocked >= 1000) ) {
-	  on_root=true;
-	}
+	  if (is_blocked >= 1000) {
+	    blocked_ops++;
+	  }
+	  if ( (it.first == 1) && (is_blocked >= 1000) ) {
+	    on_root=true;
+	  }
+        }
       }
     }
 
@@ -174,7 +187,7 @@ public:
   }
 
   std::shared_ptr<meta_t>
-  Attach(unsigned long long ino, bool exclusive = false, const char* caller = 0)
+  Attach(Monitor *monp, unsigned long long ino, bool exclusive = false, const char* caller = 0)
   {
     // get current time. attachtime should give a positive elapsed time, when
     // calculated by another thread, so record time before we acquire mutex.
@@ -190,12 +203,9 @@ public:
       m = iNodes[ino];
       m->caller = caller;
       m->origin = "fs";
-    }
-
-    if (!m->openr && !m->openw) {
-      // track first attach time
-      m->attachtime = std::chrono::duration_cast<std::chrono::milliseconds>
-                      (now.time_since_epoch()).count();
+      m->inoLastAttachTime = std::chrono::duration_cast<std::chrono::milliseconds>
+                             (now.time_since_epoch()).count();
+      m->monAttachTimes[monp] = m->inoLastAttachTime;
     }
 
     if (exclusive) {
@@ -228,7 +238,7 @@ public:
   public:
 
     Monitor(const char* caller, const char* origin, Track& tracker, unsigned long long ino,
-            bool exclusive = false, bool disable = false)
+            bool exclusive = false, bool disable = false) : tracker(tracker)
     {
       if (!disable) {
         if (EOS_LOGS_DEBUG)
@@ -239,7 +249,7 @@ public:
         this->caller = caller;
 	this->origin = origin;
         this->exclusive = exclusive;
-        this->me = tracker.Attach(ino, exclusive, caller);
+        this->me = tracker.Attach(this, ino, exclusive, caller);
 
         if (EOS_LOGS_DEBUG)
           eos_static_debug("locked  caller=%s origin=%s self=%lld in=%llu exclusive=%d obj=%llx",
@@ -271,6 +281,8 @@ public:
         if (EOS_LOGS_DEBUG)
           eos_static_debug("unlocked  caller=%s self=%lld in=%llu exclusive=%d", caller,
                            thread_id(), ino, exclusive);
+
+        tracker.forget(this, this->me);
       }
     }
   private:
@@ -279,6 +291,7 @@ public:
     unsigned long long ino;
     const char* caller;
     const char* origin;
+    Track &tracker;
   };
 
 private:
