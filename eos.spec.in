@@ -29,9 +29,11 @@
 # By default we allow sse instruction set
 %bcond_without no_sse
 
-# Define required dependency for XRootD
+# Define required dependencies
 %define eos_xrootd_version_min 0:5.5.10
 %define xrootd_version_min 1:5.5.5
+%define eos_grpc_version 1.41.0
+
 %define major_version @CPACK_PACKAGE_VERSION_MAJOR@
 %define release_version @CPACK_PACKAGE_RELEASE@
 
@@ -156,7 +158,9 @@ BuildRequires: e2fsprogs-devel
 %if ! 0%{?almalinux} || ! 0%{?rhel} >= 8
 BuildRequires: eos-libmicrohttpd, eos-libmicrohttpd-devel >= 0.9.38
 %endif
-BuildRequires: eos-grpc, eos-grpc-devel, eos-grpc-plugins
+BuildRequires: eos-grpc == %{eos_grpc_version}
+BuildRequires: eos-grpc-devel == %{eos_grpc_version}
+BuildRequires: eos-grpc-plugins == %{eos_grpc_version}
 %endif
 
 BuildRequires: bzip2-devel
