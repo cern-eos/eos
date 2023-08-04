@@ -2,6 +2,7 @@
 #include "mgm/Namespace.hh"
 #include "common/AssistedThread.hh"
 #include "common/Mapping.hh"
+#include "common/Logging.hh"
 #ifdef EOS_GRPC
 #include <grpc++/grpc++.h>
 #endif
@@ -13,7 +14,7 @@ EOSMGMNAMESPACE_BEGIN
  *
  * @brief  This class implements a simple GRPC server
  */
-class GrpcEchoServer
+class GrpcEchoServer: public eos::common::LogId
 {
 private:
   int mPort;
@@ -32,9 +33,9 @@ private:
 
 public:
 
-  /* Default Constructor - enabling port 50051 by default
+  /* Default Constructor - enabling port 50054 by default
    */
-  GrpcEchoServer(int port = 50054) : mPort(port), mSSL(false) { }
+  GrpcEchoServer(int port = 50054) : mPort(port), mSSL(false) {  }
 
   ~GrpcEchoServer()
   {

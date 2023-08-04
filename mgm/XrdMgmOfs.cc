@@ -310,7 +310,8 @@ XrdMgmOfs::XrdMgmOfs(XrdSysError* ep):
   mHttpd(nullptr), mLRUEngine(new eos::mgm::LRU()),
   WFEPtr(new eos::mgm::WFE()), WFEd(*WFEPtr), UTF8(false), mFstGwHost(""),
   mFstGwPort(0), mQdbCluster(""), mHttpdPort(8000),
-  mFusexPort(1100), mGRPCPort(50051), mWncPort(50052), mEchoPort(50053),
+  mFusexPort(1100), mGRPCPort(50051), mWncPort(50052),
+  mAndreeaPort(50053), mEchoPort(50054),
   mFidTracker(std::chrono::seconds(600), std::chrono::seconds(3600)),
   mDoneOrderlyShutdown(false),
   mXrdBuffPool(2 * eos::common::KB, 2 * eos::common::MB, 8, 64),
@@ -361,8 +362,6 @@ XrdMgmOfs::XrdMgmOfs(XrdSysError* ep):
   if (mWncPort) {
     WNCd.reset(new eos::mgm::GrpcWncServer(mWncPort));
   }
-
-  fprintf(stderr, "msg=\"start echo service on port %i\"", mEchoPort);
 
   if (mEchoPort) {
     Echod.reset(new eos::mgm::GrpcEchoServer(mEchoPort));

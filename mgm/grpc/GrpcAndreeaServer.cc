@@ -187,6 +187,7 @@ GrpcAndreeaServer::Run(ThreadAssistant& assistant) noexcept
   //   builder.AddListeningPort(bind_address, grpc::InsecureServerCredentials());
   // }
 
+  builder.AddListeningPort(bind_address, grpc::InsecureServerCredentials());
   builder.RegisterService(&service);
   mAndreeaServer = builder.BuildAndStart();
 

@@ -448,6 +448,8 @@ if(Linux)
     EosGrpcProto-Objects
     EosCliProto-Objects
     EosCliGrpc-Objects
+    SimpleGrpcProto-Objects
+    Srv-Objects
     Annot-Objects
     GATEWAY::GATEWAY
     EosWncGrpcProto-Objects

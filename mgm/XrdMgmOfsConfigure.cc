@@ -31,6 +31,8 @@
 #include <regex>
 #include "grpc/GrpcServer.hh"
 #include "grpc/GrpcWncServer.hh"
+#include "grpc/GrpcEchoServer.hh"
+#include "grpc/GrpcAndreeaServer.hh"
 #include "mgm/AdminSocket.hh"
 #include "mgm/Stat.hh"
 #include "mgm/FsView.hh"
@@ -2035,6 +2037,15 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
     WNCd->StartWnc();
   }
 
+  if (Echod) {
+    eos_static_info("%s", "msg=\"starting echo service\"");
+    Echod->Start();
+  }
+
+  if (AndreeaGrpcd) {
+    AndreeaGrpcd->Start();
+  }
+
 #endif
   // start the Admin socket
   {
@@ -2197,6 +2208,8 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
                                          space.second->GetConfigMember("scheduler.type"));
     }
   }
+  
+  eos_static_info("msg=\"running echo service on port=%i\"", mEchoPort);
   return NoGo;
 }
 /*----------------------------------------------------------------------------*/

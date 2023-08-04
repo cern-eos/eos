@@ -190,6 +190,7 @@ GrpcEchoServer::Run(ThreadAssistant& assistant) noexcept
   //   builder.AddListeningPort(bind_address, grpc::InsecureServerCredentials());
   // }
 
+  builder.AddListeningPort(bind_address, grpc::InsecureServerCredentials());
   builder.RegisterService(&service);
   mEchoServer = builder.BuildAndStart();
 
