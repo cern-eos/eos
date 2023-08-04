@@ -17,6 +17,25 @@ Introduction
 This release is based on XRootD V5.
 
 
+``v5.1.27 Diopside``
+==========================
+
+2023-08-04
+
+Note
+----
+
+* Pin down the eos-grpc dependency package version to 1.41.0 to better control the update process in the future.
+
+Bug
+---
+
+* [EOS-5763] - eosxd: occasional very large max-inode-lock-ms reported
+* [EOS-5776] - Blocked IO measurement can be wrong in case of multithreaded readers on same inode
+* [EOS-5768]: File write recovery can lead to file loss
+* FUSEX: put back md-cache auto-cleanup on umount, which was removed since 5.1.25
+
+
 ``v5.1.26 Diopside``
 ==========================
 
