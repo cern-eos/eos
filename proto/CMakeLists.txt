@@ -416,6 +416,9 @@ add_library(Annot-Objects OBJECT
 target_include_directories(Annot-Objects PUBLIC
   "$<BUILD_INTERFACE:${CMAKE_BINARY_DIR}>")
 
+set_target_properties(Annot-Objects PROPERTIES
+  POSITION_INDEPENDENT_CODE TRUE)
+
 target_link_libraries(Annot-Objects PUBLIC
     GRPC::grpc++)
 
@@ -447,6 +450,9 @@ target_include_directories(Srv-Objects PUBLIC
 
 target_link_libraries(Srv-Objects PUBLIC
     GRPC::grpc++)
+
+set_target_properties(Srv-Objects PROPERTIES
+  POSITION_INDEPENDENT_CODE TRUE)
 
 add_custom_target(
   GrpcRest-Service

@@ -6,7 +6,7 @@
 #include <grpc++/grpc++.h>
 
 #include "proto/go/echo_service.grpc.pb.h"
-#include "gateway.h"
+#include "libgateway.h"
 
 DEFINE_string(addr, "0.0.0.0:19000", "addr to listen on");
 DEFINE_string(gwaddr, "0.0.0.0:18080", "gateway addr to listen on");

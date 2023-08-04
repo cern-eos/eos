@@ -350,7 +350,10 @@ target_link_libraries(XrdEosMgm-Objects PUBLIC
   EosGrpcProto-Objects
   EosCliGrpc-Objects
   EosWncGrpcProto-Objects
-  GrpcGateway
+  SimpleGrpcProto-Objects
+  Srv-Objects
+  Annot-Objects
+  GATEWAY::GATEWAY
   EosCommonServer
   LIBMICROHTTPD::LIBMICROHTTPD
   GOOGLE::SPARSEHASH
@@ -381,6 +384,10 @@ target_link_libraries(XrdEosMgm-${XRDPLUGIN_SOVERSION} PUBLIC
   EosConsoleHelpers-Objects
   EosConsoleCommands-Objects
   EosWncGrpcProto-Objects
+  SimpleGrpcProto-Objects
+  Srv-Objects
+  Annot-Objects
+  GATEWAY::GATEWAY
   ZLIB::ZLIB
   XROOTD::CL
   XROOTD::SSI
@@ -442,7 +449,7 @@ if(Linux)
     EosCliProto-Objects
     EosCliGrpc-Objects
     Annot-Objects
-    GrpcGateway
+    GATEWAY::GATEWAY
     EosWncGrpcProto-Objects
     ZLIB::ZLIB
     XROOTD::SSI
