@@ -1,11 +1,7 @@
-if( MacOSX )
-  install(DIRECTORY DESTINATION /usr/local/lib/tmpfiles.d/)
-  install(
-    FILES eos-fusex-core.conf
-    DESTINATION /usr/local/lib/tmpfiles.d/)
-else()
-  install(DIRECTORY DESTINATION /usr/lib/tmpfiles.d/)
-  install(
-      FILES eos-fusex-core.conf
-      DESTINATION /usr/lib/tmpfiles.d/)
+find_program(SYSTEMD_TMPFILES NAMES systemd-tmpfiles)
+
+if(NOT SYSTEMD_TMPFILES)
+  return()
 endif()
+
+install(FILES eosd.conf eos-fusex-core.conf DESTINATION lib/tmpfiles.d)
