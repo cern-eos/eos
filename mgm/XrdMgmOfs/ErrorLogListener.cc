@@ -40,7 +40,7 @@ bool CheckFileExistanceAndPerm(const std::string& log_file, std::string& err)
   if (::stat(log_file.c_str(), &info)) {
     if (errno == ENOENT) {
       // Try to create the log file
-      int fd = open(log_file.c_str(), O_CREAT | S_IRUSR | S_IWUSR);
+      int fd = open(log_file.c_str(), O_CREAT | O_RDWR, S_IRUSR | S_IWUSR);
 
       if (fd == -1) {
         err = "cannot create log file";
