@@ -1100,27 +1100,62 @@ public:
                     unsigned long fsid,
                     XrdOucString options);
 
-  // ---------------------------------------------------------------------------
-  // move stripe by vid
-  // ---------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
+  //! Move file replica/stripe from source to target file system
+  //!
+  //! @param path file name to move stripe
+  //! @param error error object
+  //! @param vid virtual identity of the client
+  //! @param sourcefsid filesystem id of the source
+  //! param targetfsid filesystem id of the target
+  //!
+  //! @return SFS_OK if success otherwise SFS_ERROR
+  //!
+  //! @note The function requires POSIX W_OK & X_OK on the parent directory to
+  //! succeed. It calls _replicatestripe internally.
+  //----------------------------------------------------------------------------
   int _movestripe(const char* path,
                   XrdOucErrInfo& error,
                   eos::common::VirtualIdentity& vid,
                   unsigned long sourcefsid,
                   unsigned long targetfsid);
 
-  // ---------------------------------------------------------------------------
-  // copy stripe by vid
-  // ---------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
+  //! Copy file replica/stripe from source to target file system
+  //!
+  //! @param path file name to move stripe
+  //! @param error error object
+  //! @param vid virtual identity of the client
+  //! @param sourcefsid filesystem id of the source
+  //! param targetfsid filesystem id of the target
+  //!
+  //! @return SFS_OK if success otherwise SFS_ERROR
+  //!
+  //! @note The function requires POSIX W_OK & X_OK on the parent directory to
+  //! succeed. It calls _replicatestripe internally.
+  //----------------------------------------------------------------------------
   int _copystripe(const char* path,
                   XrdOucErrInfo& error,
                   eos::common::VirtualIdentity& vid,
                   unsigned long sourcefsid,
                   unsigned long targetfsid);
 
-  // ---------------------------------------------------------------------------
-  // replicate stripe by vid
-  // ---------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
+  //! Copy file replica/stripe from source to target file system - by path
+  //!
+  //! @param path file name to move stripe
+  //! @param error error object
+  //! @param vid virtual identity of the client
+  //! @param sourcefsid filesystem id of the source
+  //! param targetfsid filesystem id of the target
+  //! @param dropsource if true source is deleted(dropped) after successful
+  //!  replication
+  //!
+  //! @return SFS_OK if success otherwise SFS_ERROR
+  //!
+  //! @note  The function requires POSIX W_OK & X_OK on the parent directory to
+  //! succeed. It calls _replicatestripe with a file meta data object.
+  //----------------------------------------------------------------------------
   int _replicatestripe(const char* path,
                        XrdOucErrInfo& error,
                        eos::common::VirtualIdentity& vid,
@@ -1128,9 +1163,22 @@ public:
                        unsigned long targetfsid,
                        bool dropstripe = false);
 
-  // ---------------------------------------------------------------------------
-  // replicate stripe providing file meta data by vid
-  // ---------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
+  //! Copy file replica/stripe from source to target file system - by FileMD
+  //!
+  //! @param path file name to move stripe
+  //! @param error error object
+  //! @param vid virtual identity of the client
+  //! @param sourcefsid filesystem id of the source
+  //! param targetfsid filesystem id of the target
+  //! @param dropsource if true source is deleted(dropped) after successful
+  //!  replication
+  //!
+  //! @return SFS_OK if success otherwise SFS_ERROR
+  //!
+  //! @note  The function requires POSIX W_OK & X_OK on the parent directory to
+  //! succeed. It calls _replicatestripe with a file meta data object.
+  //----------------------------------------------------------------------------
   int _replicatestripe(eos::IFileMD* fmd,
                        const char* path,
                        XrdOucErrInfo& error,
@@ -1142,7 +1190,6 @@ public:
   // ---------------------------------------------------------------------------
   // create a versioned file
   // ---------------------------------------------------------------------------
-
   int Version(eos::common::FileId::fileid_t fileid,
               XrdOucErrInfo& error,
               eos::common::VirtualIdentity& vid,
@@ -1781,7 +1828,7 @@ public:
   //----------------------------------------------------------------------------
   void FuseXCastRefresh(eos::FileIdentifier id,
                         eos::ContainerIdentifier parentid);
-  
+
   //----------------------------------------------------------------------------
   //! Cast MD to FUSE clients
   //!
@@ -1791,10 +1838,10 @@ public:
   //! @param lock take the namespace lock
   //----------------------------------------------------------------------------
   void FuseXCastMD(eos::ContainerIdentifier id,
-		   eos::ContainerIdentifier parentid,
-		   struct timespec& p_mtime,
-		   bool lock=false);
-  
+                   eos::ContainerIdentifier parentid,
+                   struct timespec& p_mtime,
+                   bool lock = false);
+
   //----------------------------------------------------------------------------
   //! Cast MD to FUSE clients
   //!
@@ -1802,13 +1849,13 @@ public:
   //! @param parentid container identifier
   //! @param parent mtime
   //! @param lock take the namespace lock
-  
+
   //----------------------------------------------------------------------------
   void FuseXCastMD(eos::FileIdentifier id,
-		   eos::ContainerIdentifier parentid,
-		   struct timespec& p_mtime,
-		   bool lock=false);
-  
+                   eos::ContainerIdentifier parentid,
+                   struct timespec& p_mtime,
+                   bool lock = false);
+
   //----------------------------------------------------------------------------
   //! Setup /eos/<instance>/proc files
   //----------------------------------------------------------------------------
