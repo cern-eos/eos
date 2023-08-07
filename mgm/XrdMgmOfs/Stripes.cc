@@ -21,19 +21,11 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-
 // -----------------------------------------------------------------------
 // This file is included source code in XrdMgmOfs.cc to make the code more
 // transparent without slowing down the compilation time.
 // -----------------------------------------------------------------------
 
-/*----------------------------------------------------------------------------*/
-int
-XrdMgmOfs::_verifystripe(const char* path,
-                         XrdOucErrInfo& error,
-                         eos::common::VirtualIdentity& vid,
-                         unsigned long fsid,
-                         XrdOucString option)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief send a verification message to a file system for a given file
@@ -49,6 +41,12 @@ XrdMgmOfs::_verifystripe(const char* path,
  * The function requires POSIX W_OK & X_OK on the parent directory to succeed.
  */
 /*----------------------------------------------------------------------------*/
+int
+XrdMgmOfs::_verifystripe(const char* path,
+                         XrdOucErrInfo& error,
+                         eos::common::VirtualIdentity& vid,
+                         unsigned long fsid,
+                         XrdOucString option)
 {
   static const char* epname = "verifystripe";
   std::shared_ptr<eos::IContainerMD> dh;
@@ -183,14 +181,6 @@ XrdMgmOfs::_verifystripe(const char* path,
 }
 
 /*----------------------------------------------------------------------------*/
-int
-XrdMgmOfs::_dropstripe(const char* path,
-                       eos::common::FileId::fileid_t fid,
-                       XrdOucErrInfo& error,
-                       eos::common::VirtualIdentity& vid,
-                       unsigned long fsid,
-                       bool forceRemove)
-/*----------------------------------------------------------------------------*/
 /*
  * @brief send a drop message to a file system for a given file
  *
@@ -206,6 +196,13 @@ XrdMgmOfs::_dropstripe(const char* path,
  * The function requires POSIX W_OK & X_OK on the parent directory to succeed.
  */
 /*----------------------------------------------------------------------------*/
+int
+XrdMgmOfs::_dropstripe(const char* path,
+                       eos::common::FileId::fileid_t fid,
+                       XrdOucErrInfo& error,
+                       eos::common::VirtualIdentity& vid,
+                       unsigned long fsid,
+                       bool forceRemove)
 {
   static const char* epname = "dropstripe";
   std::shared_ptr<eos::IContainerMD> dh;
@@ -306,12 +303,6 @@ XrdMgmOfs::_dropstripe(const char* path,
 }
 
 /*----------------------------------------------------------------------------*/
-int
-XrdMgmOfs::_dropallstripes(const char* path,
-                           XrdOucErrInfo& error,
-                           eos::common::VirtualIdentity& vid,
-                           bool forceRemove)
-/*----------------------------------------------------------------------------*/
 /*
  * @brief send a drop message to all filesystems where given file is located
  *
@@ -325,6 +316,11 @@ XrdMgmOfs::_dropallstripes(const char* path,
  * The function requires POSIX W_OK & X_OK on the parent directory to succeed.
  */
 /*----------------------------------------------------------------------------*/
+int
+XrdMgmOfs::_dropallstripes(const char* path,
+                           XrdOucErrInfo& error,
+                           eos::common::VirtualIdentity& vid,
+                           bool forceRemove)
 {
   static const char* epname = "dropallstripes";
   std::shared_ptr<eos::IContainerMD> dh;
@@ -418,22 +414,9 @@ XrdMgmOfs::_dropallstripes(const char* path,
   return SFS_OK;
 }
 
-/*----------------------------------------------------------------------------*/
-/*
- * @brief send a move message for a given file from source to target file system
- *
- * @param path file name to move stripe
- * @param error error object
- * @param vid virtual identity of the client
- * @param sourcefsid filesystem id of the source
- * @param targetfsid filesystem id of the target
- *
- * @return SFS_OK if success otherwise SFS_ERROR
- *
- * The function requires POSIX W_OK & X_OK on the parent directory to succeed.
- * It calls _replicatestripe internally.
- */
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Move file replica/stripe from source to target file system
+//------------------------------------------------------------------------------
 int
 XrdMgmOfs::_movestripe(const char* path,
                        XrdOucErrInfo& error,
@@ -447,22 +430,9 @@ XrdMgmOfs::_movestripe(const char* path,
   return retc;
 }
 
-/*----------------------------------------------------------------------------*/
-/*
- * @brief send a copy message for a given file from source to target file system
- *
- * @param path file name to copy stripe
- * @param error error object
- * @param vid virtual identity of the client
- * @param sourcefsid filesystem id of the source
- * @param targetfsid filesystem id of the target
- *
- * @return SFS_OK if success otherwise SFS_ERROR
- *
- * The function requires POSIX W_OK & X_OK on the parent directory to succeed.
- * It calls _replicatestripe internally.
- */
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Copy file replica/stripe from source to target file system
+//------------------------------------------------------------------------------
 int
 XrdMgmOfs::_copystripe(const char* path,
                        XrdOucErrInfo& error,
@@ -476,24 +446,9 @@ XrdMgmOfs::_copystripe(const char* path,
   return retc;
 }
 
-/*----------------------------------------------------------------------------*/
-/*
- * @brief send a replication message for a given file from source to target file system
- *
- * @param path file name to copy stripe
- * @param error error object
- * @param vid virtual identity of the client
- * @param sourcefsid filesystem id of the source
- * @param targetfsid filesystem id of the target
- * @param dropsource indicates if the source is deleted(dropped) after successful replication
- *
- * @return SFS_OK if success otherwise SFS_ERROR
- *
- * The function requires POSIX W_OK & X_OK on the parent directory to succeed.
- * It calls _replicatestripe with a file meta data object.
- * The call needs to have   eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
- */
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Copy file replica/stripe from source to target file system - by path
+//------------------------------------------------------------------------------
 int
 XrdMgmOfs::_replicatestripe(const char* path,
                             XrdOucErrInfo& error,
@@ -504,82 +459,64 @@ XrdMgmOfs::_replicatestripe(const char* path,
 {
   static const char* epname = "replicatestripe";
   std::shared_ptr<eos::IContainerMD> dh;
+  std::shared_ptr<eos::IFileMD> fmd;
   errno = 0;
   EXEC_TIMING_BEGIN("ReplicateStripe");
   eos::common::Path cPath(path);
-  eos_debug("replicating %s from %u=>%u [drop=%d]", path, sourcefsid, targetfsid,
-            dropsource);
-  // ---------------------------------------------------------------------------
-  eos::common::RWMutexReadLock viewReadLock(gOFS->eosViewRWMutex);
+  eos_debug("msg=\"replicate file\" path=\"%s\" src_fsid=%u dst_fsid=%u drop=%d",
+            path, sourcefsid, targetfsid, dropsource);
+  {
+    eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
 
-  try {
-    dh = gOFS->eosView->getContainer(cPath.GetParentPath());
-    dh = gOFS->eosView->getContainer(gOFS->eosView->getUri(dh.get()));
-  } catch (eos::MDException& e) {
-    dh.reset();
-    errno = e.getErrno();
-    eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n", e.getErrno(),
-              e.getMessage().str().c_str());
-  }
-
-  // check permissions
-  if (dh && (!dh->access(vid.uid, vid.gid, X_OK | W_OK)))
-    if (!errno) {
-      errno = EPERM;
+    try {
+      dh = gOFS->eosView->getContainer(cPath.GetParentPath());
+      dh = gOFS->eosView->getContainer(gOFS->eosView->getUri(dh.get()));
+    } catch (eos::MDException& e) {
+      dh.reset();
+      errno = e.getErrno();
+      eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n", e.getErrno(),
+                e.getMessage().str().c_str());
     }
 
-  std::shared_ptr<eos::IFileMD> fmd;
-
-  // get the file
-  try {
-    fmd = gOFS->eosView->getFile(path);
-
-    if (fmd->hasLocation(sourcefsid)) {
-      if (fmd->hasLocation(targetfsid)) {
-        errno = EEXIST;
+    // check permissions
+    if (dh && (!dh->access(vid.uid, vid.gid, X_OK | W_OK)))
+      if (!errno) {
+        errno = EPERM;
       }
-    } else {
-      // this replica does not exist!
-      errno = ENODATA;
+
+    // get the file
+    try {
+      fmd = gOFS->eosView->getFile(path);
+
+      if (fmd->hasLocation(sourcefsid)) {
+        if (fmd->hasLocation(targetfsid)) {
+          errno = EEXIST;
+        }
+      } else {
+        // this replica does not exist!
+        errno = ENODATA;
+      }
+    } catch (eos::MDException& e) {
+      fmd.reset();
+      errno = e.getErrno();
+      eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n", e.getErrno(),
+                e.getMessage().str().c_str());
     }
-  } catch (eos::MDException& e) {
-    fmd.reset();
-    errno = e.getErrno();
-    eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n", e.getErrno(),
-              e.getMessage().str().c_str());
   }
 
   if (errno) {
-    // -------------------------------------------------------------------------
     return Emsg(epname, error, errno, "replicate stripe", path);
   }
 
-  // ---------------------------------------------------------------------------
-  viewReadLock.Release();
   int retc = _replicatestripe(fmd.get(), path, error, vid, sourcefsid,
                               targetfsid, dropsource);
   EXEC_TIMING_END("ReplicateStripe");
   return retc;
 }
 
-/*----------------------------------------------------------------------------*/
-/*
- * @brief send a replication message for a given file from source to target file system
- *
- * @param fmd namespace file meta data object
- * @param path file name
- * @param error error object
- * @param vid virtual identity of the client
- * @param sourcefsid filesystem id of the source
- * @param targetfsid filesystem id of the target
- * @param dropsource indicates if the source is deleted(dropped) after successful replication
- *
- * @return SFS_OK if success otherwise SFS_ERROR
- *
- * The function sends an appropriate message to the target FST.
- * The call needs to have   eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
- */
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Copy file replica/stripe from source to target file system - by FileMD
+//------------------------------------------------------------------------------
 int
 XrdMgmOfs::_replicatestripe(eos::IFileMD* fmd,
                             const char* path,
