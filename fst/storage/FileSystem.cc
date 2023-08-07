@@ -173,7 +173,7 @@ FileSystem::GetStatfs()
   }
 
   if ((!statFs) && GetPath().length()) {
-    eos_err("cannot statfs");
+    eos_err("msg=\"cannot statfs\" path=\"%s\"", GetPath().c_str());
     BroadcastError("cannot statfs");
     return nullptr;
   } else {
