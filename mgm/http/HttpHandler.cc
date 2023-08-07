@@ -345,7 +345,6 @@ HttpHandler::Get(eos::common::HttpRequest* request, bool isHEAD)
           // no permission or entry doesn't exist
           eos_static_info("method=GET error=%i path=%s", error.getErrInfo(),
                           url.c_str());
-
           response = HttpServer::HttpError(ErrnoToString(error.getErrInfo()).c_str(),
                                            (error.getErrInfo() == ENOENT) ?
                                            response->NOT_FOUND :
@@ -363,9 +362,9 @@ HttpHandler::Get(eos::common::HttpRequest* request, bool isHEAD)
         return response;
       }
     }
-
-    response = HttpServer::HttpError("Browsing is disabled and no index attribute is defined!",
-				     response->FORBIDDEN);
+    response =
+      HttpServer::HttpError("Browsing is disabled and no index attribute is defined!",
+                            response->FORBIDDEN);
     return response;
   } else {
     eos_static_info("method=GET file=%s tident=%s query=%s",
@@ -392,12 +391,8 @@ HttpHandler::Get(eos::common::HttpRequest* request, bool isHEAD)
                                               file->error.getErrText(),
                                               file->error.getErrInfo(), false);
         } else if (rc == SFS_ERROR) {
-          if (file->error.getErrInfo() == ENODEV) {
-            response = new eos::common::PlainHttpResponse();
-          } else {
-            response = HttpServer::HttpError(file->error.getErrText(),
-                                             file->error.getErrInfo());
-          }
+          response = HttpServer::HttpError(file->error.getErrText(),
+                                           file->error.getErrInfo());
         } else if (rc == SFS_DATA) {
           response = HttpServer::HttpData(file->error.getErrText(),
                                           file->error.getErrInfo());
