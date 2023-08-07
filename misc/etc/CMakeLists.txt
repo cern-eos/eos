@@ -21,103 +21,26 @@
 # * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
 # ************************************************************************
 
-# Check if we are on a Debian system
-if(EXISTS "/etc/debian_version")
-  set ( DEBIAN 1 )
-endif()
+install(DIRECTORY systemd USE_SOURCE_PERMISSIONS DESTINATION lib)
 
-install(DIRECTORY DESTINATION /etc/eos/)
-install(DIRECTORY DESTINATION /etc/eos/config)
-install(DIRECTORY DESTINATION /etc/eos/config/mgm)
-install(DIRECTORY DESTINATION /etc/eos/config/mq)
-install(DIRECTORY DESTINATION /etc/eos/config/fst)
-install(DIRECTORY DESTINATION /etc/eos/config/qdb)
-install(DIRECTORY DESTINATION /etc/eos/config/generic)
-install(DIRECTORY DESTINATION /etc/eos/config/modules)
+install(DIRECTORY bash_completion.d cron.d eos logrotate.d sysconfig
+  USE_SOURCE_PERMISSIONS DESTINATION ${CMAKE_INSTALL_FULL_SYSCONFDIR})
 
-install(
-  FILES eos.keytab eos.client.keytab
-  DESTINATION ${CMAKE_INSTALL_SYSCONFDIR}/
+install(FILES
+  eos.keytab
+  eos.client.keytab
+  DESTINATION ${CMAKE_INSTALL_FULL_SYSCONFDIR}
   PERMISSIONS OWNER_READ)
 
-install(
-  FILES xrd.cf.fst xrd.cf.mgm xrd.cf.mq xrd.cf.sync xrd.cf.fed xrd.cf.prefix
-	xrd.cf.global-mq xrd.cf.auth xrd.cf.quarkdb fuse.conf fuse.conf.eos 
-  DESTINATION ${CMAKE_INSTALL_SYSCONFDIR}/)
-
-
-install(
-  FILES eos/config/mgm/mgm
-  DESTINATION ${CMAKE_INSTALL_SYSCONFDIR}/eos/config/mgm/)
-
-install(
-  FILES eos/config/mgm/mgm.modules
-  DESTINATION ${CMAKE_INSTALL_SYSCONFDIR}/eos/config/mgm/)
-
-
-install(
-  FILES eos/config/fst/fst
-  DESTINATION ${CMAKE_INSTALL_SYSCONFDIR}/eos/config/fst/)
-
-install(
-  FILES eos/config/mq/mq
-  DESTINATION ${CMAKE_INSTALL_SYSCONFDIR}/eos/config/mq/)
-
-install(
-  FILES eos/config/generic/all
-  DESTINATION ${CMAKE_INSTALL_SYSCONFDIR}/eos/config/generic/)
-
-install(
-  FILES eos/config/modules/alice
-  DESTINATION ${CMAKE_INSTALL_SYSCONFDIR}/eos/config/modules/)
-
-install(
-  FILES eos/config/qdb/qdb
-  DESTINATION ${CMAKE_INSTALL_SYSCONFDIR}/eos/config/qdb/)
-
-install(
-  FILES bash_completion.d/eos
-  DESTINATION ${CMAKE_INSTALL_SYSCONFDIR}/bash_completion.d/)
-
-install(
-  FILES cron.d/eos-logs cron.d/eos-reports
-  DESTINATION ${CMAKE_INSTALL_SYSCONFDIR}/cron.d/)
-
-install(
-  FILES logrotate.d/eos-logs logrotate.d/eos-fuse-logs logrotate.d/eos-fusex-logs
-  DESTINATION ${CMAKE_INSTALL_SYSCONFDIR}/logrotate.d/)
-
-set(SYSTEMD_DIR /usr/lib/systemd/)
-
-if(EXISTS ${SYSTEMD_DIR})
- install(DIRECTORY DESTINATION ${CMAKE_INSTALL_PREFIX}/lib/systemd/system/)
-
- # TODO (esindril): Uncomment (or undebian) this when systemd support is enabled for fuse
- if(DEBIAN)
-   install(
-     FILES sysconfig/eosd_env.example
-     DESTINATION ${CMAKE_INSTALL_SYSCONFDIR}/sysconfig/)
-
-   install(
-     FILES systemd/system/eosd@.service
-     DESTINATION ${CMAKE_INSTALL_PREFIX}/lib/systemd/system/)
- endif()
-
- install(
-   FILES sysconfig/eos_env.example
-   DESTINATION ${CMAKE_INSTALL_SYSCONFDIR}/sysconfig/)
-
- install(
-   FILES systemd/system/eos.target
-        systemd/system/eos.service
- 	systemd/system/eos@.service
- 	systemd/system/eos@master.service
- 	systemd/system/eos@slave.service
-	systemd/system/eos5.service
-	systemd/system/eos5-mgm@.service
-	systemd/system/eos5-mq@.service
-	systemd/system/eos5-fst@.service
-	systemd/system/eos5-qdb@.service
-
-   DESTINATION ${CMAKE_INSTALL_PREFIX}/lib/systemd/system/)
-endif()
+install(FILES
+  fuse.conf.eos
+  xrd.cf.auth
+  xrd.cf.fed
+  xrd.cf.fst
+  xrd.cf.global-mq
+  xrd.cf.mgm
+  xrd.cf.mq
+  xrd.cf.prefix
+  xrd.cf.quarkdb
+  xrd.cf.sync
+  DESTINATION ${CMAKE_INSTALL_FULL_SYSCONFDIR})
