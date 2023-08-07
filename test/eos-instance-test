@@ -775,9 +775,9 @@ runtest "### UploadSz  " unix 1 "" upload    "$TESTSYSFILE1K" "/eos/$EOS_TEST_IN
 runtest "### FileInfo  " unix 1 "" eos fileinfo "/eos/$EOS_TEST_INSTANCE/test/instancetest/faulty-size1k -m | grep nrep=0"
 runtest "### Rem       " unix 2 "" eos rm    "/eos/$EOS_TEST_INSTANCE/test/instancetest/faulty-size1k"
 
-# -------------------------------
+#-------------------------------------------------------------------------------
 # Verify sys.owner.auth behaviour
-# -------------------------------
+#-------------------------------------------------------------------------------
 runtest "### Mkdir     " unix 0 "" eos "mkdir /eos/$EOS_TEST_INSTANCE/test/instancetest/owner-auth/"
 runtest "### Attr      " unix 0 "" eos "attr set sys.owner.auth=* /eos/$EOS_TEST_INSTANCE/test/instancetest/owner-auth"
 runtest "### Chown     " unix 0 "" eos chown 2000:2001 "/eos/$EOS_TEST_INSTANCE/test/instancetest/owner-auth"
@@ -985,7 +985,6 @@ runtest "### Attr Rm   " unix 0 "" eos attr rm user.attr.json5 "/eos/$EOS_TEST_I
 # Test fid|fxid|pid|pxid identifiers for attributes
 #----------------------------------------------------------------------------
 fid=$(command eos -j -b root://$EOS_TEST_REDIRECTOR fileinfo "/eos/$EOS_TEST_INSTANCE/test/file" | jq -r .id)
-# ------------------------------------------------------------------------------
 runtest "### Attr Set  " unix 0 "" eos attr set user.attr.key='value' "fid:${fid}"
 runtest "### Attr Get  " unix 0 "" eos attr get user.attr.key "fid:${fid} | grep -w 'value'"
 runtest "### Attr Get  " unix 0 "" eosj attr get user.attr.key "fid:${fid} | jq -r '.attr.get[].user.attr.key' | grep -w 'value'"
@@ -996,9 +995,9 @@ runtest "### Attr Get  " unix 1 "" eos attr get user.attr.key "fxid:123456"
 runtest "### Attr Get  " unix 1 "" eos attr get user.attr.key "pxid:"
 runtest "### Rm        " unix 0 "" eos rm "/eos/$EOS_TEST_INSTANCE/test/file"
 
-# -------------------------------
-# Xattr Locks
-# -------------------------------
+#-------------------------------------------------------------------------------
+# Xattr locks
+#-------------------------------------------------------------------------------
 runtest "### Mkdir     " unix 0 "" eos "mkdir /eos/$EOS_TEST_INSTANCE/test/instancetest/xattr-lock/"
 runtest "### Chmod     " unix 0 "" eos chmod "777" "/eos/$EOS_TEST_INSTANCE/test/instancetest/xattr-lock"
 runtest "### File Lck  " unix 0 "EOSAPP='-a app1' EOSROLE='-r 2 2'" eos file touch -l "/eos/$EOS_TEST_INSTANCE/test/instancetest/xattr-lock/lock1"
@@ -1216,7 +1215,6 @@ runtest "### Rmdir   " unix 0 "" eos rm -rf "/eos/$EOS_TEST_INSTANCE/test/acl"
 # CHECKSUMS
 ###################################################A############################
 categorie="checksum"
-
 runtest "### adler32 " unix 0 "" shell echo -n "123456789 |  eos-checksum adler /dev/stdin | grep 091e01de"
 runtest "### crc32   " unix 0 "" shell echo -n "123456789 |  eos-checksum crc32 /dev/stdin | grep cbf43926"
 runtest "### crc32c  " unix 0 "" shell echo -n "123456789 |  eos-checksum crc32c /dev/stdin | grep e3069283"
@@ -1606,6 +1604,25 @@ runtest "### Fileinfo    " unix 0 "" eos fileinfo "fxid:${rm_fxid}"
 runtest "### Rm force    " unix 0 "" eos rm -F "fxid:${rm_fxid}"
 runtest "### Fileinfo    " unix 1 "" eos fileinfo "fxid:${rm_fxid}"
 
+# ------------------------------------------------------------------------------
+categorie="adjustreplica"
+# ------------------------------------------------------------------------------
+ADJUST_TEST_DIR="/eos/$EOS_TEST_INSTANCE/test/instancetest/adjustreplica"
+ADJUST_TEST_FILE="${ADJUST_TEST_DIR}/file.dat"
+runtest "### Mkdir     " unix 0 "" eos mkdir ${ADJUST_TEST_DIR}
+runtest "### Mkdir     " unix 0 "" eos attr set default=replica  ${ADJUST_TEST_DIR}
+runtest "### Upload    " unix 0 "" eos cp ${TESTSYSFILE1K} ${ADJUST_TEST_FILE}
+adj_fsid=$(command eos -j -b root://$EOS_TEST_REDIRECTOR fileinfo ${ADJUST_TEST_FILE} | jq -r .locations[].fsid | head -n 1)
+runtest "### Drop fsid " unix 0 "" eos file drop ${ADJUST_TEST_FILE} ${adj_fsid}
+runtest "### Delay     " unix 0 "" delay 7
+eos root://$EOS_TEST_REDIRECTOR fileinfo ${ADJUST_TEST_FILE}
+runtest "### Adjust    " unix 0 "" eos file adjustreplica ${ADJUST_TEST_FILE}
+runtest "### Delay     " unix 0 "" delay 5
+eos root://$EOS_TEST_REDIRECTOR fileinfo ${ADJUST_TEST_FILE}
+runtest "### Check     " unix 0 "" eosj root://$EOS_TEST_REDIRECTOR fileinfo ${ADJUST_TEST_FILE} | jq -r .locations[].fsid | wc -l | grep 2
+runtest "### Rm        " unix 0 "" eos rm -F ${ADJUST_TEST_FILE}
+runtest "### Rmdir     " unix 0 "" eos rmdir ${ADJUST_TEST_DIR}
+
 # --------------------------
 # Parallel sockets (does not work currently with 3.1.0 clients)
 # --------------------------
@@ -1851,7 +1868,7 @@ runtest "### tokensudo " unix 0 "" eos vid tokensudo never
 runtest "### tokensudo " unix 1 "" eos vid tokensudo bla
 runtest "### tokensudo " unix 0 "" eos vid tokensudo always
 
-# token via fusex tests 
+# token via fusex tests
 runtest "### Mkdir     " unix 0 "" eos mkdir "/eos/$EOS_TEST_INSTANCE/test/instancetest/fusex/token"
 runtest "### Chown     " unix 0 "" eos chown root:root "/eos/$EOS_TEST_INSTANCE/test/instancetest/fusex/token"
 runtest "### Chmod     " unix 0 "" eos chmod 700 "/eos/$EOS_TEST_INSTANCE/test/instancetest/fusex/token"
@@ -2049,11 +2066,11 @@ runtest "### Cleanup      " unix 0 "" eos rm "-r" "/$HTTPDIR"
 # runtest "### Mkdir        " unix 0 "" eos mkdir /$DAVDIR
 # runtest "### Chmod        " unix 0 "" eos chmod 777 /$DAVDIR
 # runtest "### Upload       " unix 0 "" upload "$TESTSYSFILE50M" "/$DAVDIR/file.50m"
-# 
+#
 # bundle="$(dirname ${cert})/userbundle.p12"
 # # generate user bundle as cadaver seems to have replacee cert and key options in favor of client-cert
 # openssl pkcs12 -export -out "${bundle}" -inkey "${key}" -in "${cert}" -passout pass:
-# 
+#
 # # dirty hack to get cadaver https to work:
 # # - passing the hostname -f to the command fails
 # # - interactively opening a connection to the same address works?!?!
@@ -2066,7 +2083,7 @@ runtest "### Cleanup      " unix 0 "" eos rm "-r" "/$HTTPDIR"
 # runtest "### WebDAV Mkdir " unix 0 "" tgrep "succeeded" "cadaver --rcfile=$EOS_TEST_TESTSYS/.cadaverrc       <<< \"mkdir sub.dir\""
 # runtest "### WebDAV Ls    " unix 0 "" tgrep "sub.dir"   "cadaver --rcfile=$EOS_TEST_TESTSYS/.cadaverrc       <<< ls"
 # runtest "### WebDAV Mkdir " unix 0 "" tgrep "409"       "cadaver --rcfile=$EOS_TEST_TESTSYS/.cadaverrc       <<< \"mkdir foo/bar/sub.dir\""
-# 
+#
 # # Disable overwrite
 # runtest "### WebDAV Copy  " unix 0 "" tgrep "succeeded" "cadaver --rcfile=$EOS_TEST_TESTSYS/.cadaverrc <<< \"copy file.50m file.50m.copy\""
 # runtest "### WebDAV Copy  " unix 0 "" tgrep "succeeded" "cadaver --rcfile=$EOS_TEST_TESTSYS/.cadaverrc <<< \"copy file.50m file.50m.copy\""
@@ -2180,7 +2197,7 @@ runtest "### eos-token  " unix 0 "" eos_grpc "/eos/$EOS_TEST_INSTANCE/test/insta
 # ------------------------------------------------------------------------------
 categorie="rain"
 # ------------------------------------------------------------------------------
-NUM_FST=$(command eos -b $EOSROLE fs ls | awk '{ if (($6 ~ /booted/) || ($7 ~ /booted/)) c++} END {print c}')
+NUM_FST=$(command eos -b $EOSROLE root://$EOS_TEST_REDIRECTOR fs ls | awk '{ if (($6 ~ /booted/) || ($7 ~ /booted/)) c++} END {print c}')
 if [ $NUM_FST -ge 6 ]; then
    # Create temporary RAIN test file outside EOS
    export EOS_TEST_RAIN_TMP=/tmp/rain_test
