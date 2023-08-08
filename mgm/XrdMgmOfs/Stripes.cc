@@ -526,211 +526,23 @@ XrdMgmOfs::_replicatestripe(eos::IFileMD* fmd,
                             unsigned long targetfsid,
                             bool dropsource)
 {
-  using namespace eos::common;
-  using eos::common::LayoutId;
   static const char* epname = "replicatestripe";
-  unsigned long long fid = fmd->getId();
-  unsigned long long cid = fmd->getContainerId();
-  long unsigned int lid = fmd->getLayoutId();
-  unsigned long src_lid = LayoutId::SetLayoutType(lid, LayoutId::kPlain);
-  unsigned long dst_lid = LayoutId::SetLayoutType(lid, LayoutId::kPlain);
+  uint64_t fid = fmd->getId();
+  std::string app_tag = (dropsource ? "MoveStripe" : "CopyStripe");;
+  std::shared_ptr<DrainTransferJob> job {
+    new DrainTransferJob(fid, sourcefsid, targetfsid, {}, {}, dropsource, app_tag,
+    false, vid)};
 
-  // Mask block checksum (set to kNone) for replica layouts
-  if (LayoutId::GetLayoutType(lid) == LayoutId::kReplica) {
-    dst_lid = LayoutId::SetBlockChecksum(dst_lid, LayoutId::kNone);
-  }
-
-  uid_t uid = fmd->getCUid();
-  gid_t gid = fmd->getCGid();
-  unsigned long long size = fmd->getSize();
-
-  if (dropsource) {
-    gOFS->MgmStats.Add("MoveStripe", vid.uid, vid.gid, 1);
+  if (!gOFS->mFidTracker.AddEntry(fid, TrackerType::Drain)) {
+    eos_err("msg=\"file already tracked\" fxid=%08llx", fid);
+    return Emsg(epname, error, ENOENT, "replicate stripe - file already "
+                "tracked ", std::to_string(fid).c_str());
   } else {
-    gOFS->MgmStats.Add("CopyStripe", vid.uid, vid.gid, 1);
-  }
-
-  if ((!sourcefsid) || (!targetfsid)) {
-    eos_err("illegal fsid sourcefsid=%u targetfsid=%u", sourcefsid, targetfsid);
-    return Emsg(epname, error, EINVAL,
-                "illegal source/target fsid", fmd->getName().c_str());
-  }
-
-  eos::mgm::FileSystem* sourcefilesystem = FsView::gFsView.mIdView.lookupByID(
-        sourcefsid);
-  eos::mgm::FileSystem* targetfilesystem = FsView::gFsView.mIdView.lookupByID(
-        targetfsid);
-
-  if (!sourcefilesystem) {
-    errno = EINVAL;
-    return Emsg(epname, error, ENOENT,
-                "replicate stripe - source filesystem does not exist",
-                fmd->getName().c_str());
-  }
-
-  if (!targetfilesystem) {
-    errno = EINVAL;
-    return Emsg(epname, error, ENOENT,
-                "replicate stripe - target filesystem does not exist",
-                fmd->getName().c_str());
-  }
-
-  // snapshot the filesystems
-  eos::common::FileSystem::fs_snapshot_t source_snapshot;
-  eos::common::FileSystem::fs_snapshot_t target_snapshot;
-  sourcefilesystem->SnapShotFileSystem(source_snapshot);
-  targetfilesystem->SnapShotFileSystem(target_snapshot);
-  // build a transfer capability
-  XrdOucString source_capability = "";
-  XrdOucString sizestring;
-  source_capability += "mgm.access=read";
-  source_capability += "&mgm.lid=";
-  source_capability += std::to_string(src_lid).c_str();
-  // make's it a plain replica
-  source_capability += "&mgm.cid=";
-  source_capability += std::to_string(cid).c_str();
-  source_capability += "&mgm.ruid=";
-  source_capability += (int) 1;
-  source_capability += "&mgm.rgid=";
-  source_capability += (int) 1;
-  source_capability += "&mgm.uid=";
-  source_capability += (int) 1;
-  source_capability += "&mgm.gid=";
-  source_capability += (int) 1;
-  source_capability += "&mgm.path=";
-  XrdOucString safepath = path;
-  eos::common::StringConversion::SealXrdPath(safepath);
-  source_capability += safepath;
-  source_capability += "&mgm.manager=";
-  source_capability += gOFS->ManagerId.c_str();
-  source_capability += "&mgm.fid=";
-  const std::string hex_fid =  eos::common::FileId::Fid2Hex(fid);
-  source_capability += hex_fid.c_str();
-  source_capability += "&mgm.sec=";
-  source_capability += eos::common::SecEntity::ToKey(0,
-                       "eos/replication").c_str();
-
-  // this is a move of a replica
-  if (dropsource) {
-    source_capability += "&mgm.drainfsid=";
-    source_capability += (int) source_snapshot.mId;
-  }
-
-  // build the source_capability contents
-  source_capability += "&mgm.localprefix=";
-  source_capability += source_snapshot.mPath.c_str();
-  source_capability += "&mgm.fsid=";
-  source_capability += (int) source_snapshot.mId;
-  source_capability += "&mgm.sourcehostport=";
-  source_capability += source_snapshot.mHostPort.c_str();
-  XrdOucString target_capability = "";
-  target_capability += "mgm.access=write";
-  target_capability += "&mgm.lid=";
-  target_capability += std::to_string(dst_lid).c_str();
-  // make's it a plain replica
-  target_capability += "&mgm.cid=";
-  target_capability += std::to_string(cid).c_str();
-  target_capability += "&mgm.ruid=";
-  target_capability += (int) 1;
-  target_capability += "&mgm.rgid=";
-  target_capability += (int) 1;
-  target_capability += "&mgm.uid=";
-  target_capability += (int) 1;
-  target_capability += "&mgm.gid=";
-  target_capability += (int) 1;
-  target_capability += "&mgm.path=";
-  target_capability += safepath;
-  target_capability += "&mgm.manager=";
-  target_capability += gOFS->ManagerId.c_str();
-  target_capability += "&mgm.fid=";
-  target_capability += hex_fid.c_str();
-  target_capability += "&mgm.sec=";
-  target_capability += eos::common::SecEntity::ToKey(0,
-                       "eos/replication").c_str();
-
-  if (dropsource) {
-    target_capability += "&mgm.drainfsid=";
-    target_capability += (int) source_snapshot.mId;
-  }
-
-  target_capability += "&mgm.source.lid=";
-  target_capability += eos::common::StringConversion::GetSizeString(sizestring,
-                       (unsigned long long) lid);
-  target_capability += "&mgm.source.ruid=";
-  target_capability += eos::common::StringConversion::GetSizeString(sizestring,
-                       (unsigned long long) uid);
-  target_capability += "&mgm.source.rgid=";
-  target_capability += eos::common::StringConversion::GetSizeString(sizestring,
-                       (unsigned long long) gid);
-  // build the target_capability contents
-  target_capability += "&mgm.localprefix=";
-  target_capability += target_snapshot.mPath.c_str();
-  target_capability += "&mgm.fsid=";
-  target_capability += (int) target_snapshot.mId;
-  target_capability += "&mgm.targethostport=";
-  target_capability += target_snapshot.mHostPort.c_str();
-  target_capability += "&mgm.bookingsize=";
-  target_capability += eos::common::StringConversion::GetSizeString(sizestring,
-                       size);
-  // issue a source_capability
-  XrdOucEnv insource_capability(source_capability.c_str());
-  XrdOucEnv intarget_capability(target_capability.c_str());
-  XrdOucEnv* source_capabilityenv = 0;
-  XrdOucEnv* target_capabilityenv = 0;
-  XrdOucString fullcapability = "";
-  SymKey* symkey = eos::common::gSymKeyStore.GetCurrentKey();
-  int caprc = 0;
-
-  if ((caprc = SymKey::CreateCapability(&insource_capability,
-                                        source_capabilityenv,
-                                        symkey, mCapabilityValidity)) ||
-      (caprc = SymKey::CreateCapability(&intarget_capability,
-                                        target_capabilityenv,
-                                        symkey, mCapabilityValidity))) {
-    eos_err("unable to create source/target capability - errno=%u", caprc);
-    errno = caprc;
-  } else {
-    errno = 0;
-    int caplen = 0;
-    XrdOucString source_cap = source_capabilityenv->Env(caplen);
-    XrdOucString target_cap = target_capabilityenv->Env(caplen);
-    source_cap.replace("cap.sym", "source.cap.sym");
-    target_cap.replace("cap.sym", "target.cap.sym");
-    source_cap.replace("cap.msg", "source.cap.msg");
-    target_cap.replace("cap.msg", "target.cap.msg");
-    source_cap += "&source.url=root://";
-    source_cap += source_snapshot.mHostPort.c_str();
-    source_cap += "//replicate:";
-    source_cap += hex_fid.c_str();
-    target_cap += "&target.url=root://";
-    target_cap += target_snapshot.mHostPort.c_str();
-    target_cap += "//replicate:";
-    target_cap += hex_fid.c_str();
-    fullcapability += source_cap;
-    fullcapability += target_cap;
-    std::unique_ptr<eos::common::TransferJob> txjob(
-      new eos::common::TransferJob(fullcapability.c_str()));
-    bool sub = targetfilesystem->GetExternQueue()->Add(txjob.get());
-    eos_info("info=\"submitted transfer job\" subretc=%d fxid=%s cap=%s\n",
-             sub, hex_fid.c_str(), fullcapability.c_str());
-
-    if (!sub) {
-      errno = ENXIO;
-    } else {
-      errno = 0;
-    }
-  }
-
-  if (source_capabilityenv) {
-    delete source_capabilityenv;
-  }
-
-  if (target_capabilityenv) {
-    delete target_capabilityenv;
-  }
-
-  if (errno) {
-    return Emsg(epname, error, errno, "replicate stripe", fmd->getName().c_str());
+    gOFS->mDrainEngine.GetThreadPool().PushTask<void>([ = ] {
+      job->UpdateMgmStats();
+      job->DoIt();
+      job->UpdateMgmStats();
+    });
   }
 
   return SFS_OK;

@@ -37,7 +37,6 @@
 #include "common/plugin_manager/DynamicLibrary.hh"
 #include "common/plugin_manager/PluginManager.hh"
 #include "common/Strerror_r_wrapper.hh"
-#include "common/TransferQueue.hh"
 #include "common/BufferManager.hh"
 #include "namespace/Constants.hh"
 #include "namespace/interface/ContainerIterators.hh"
@@ -1030,9 +1029,11 @@ void
 XrdMgmOfs::FuseXCastDeletion(eos::ContainerIdentifier id,
                              const std::string& name)
 {
-  struct timespec pt_mtime {0,0};
+  struct timespec pt_mtime {
+    0, 0
+  };
   gOFS->zMQ->gFuseServer.Cap().BroadcastDeletionFromExternal(
-							     id.getUnderlyingUInt64(), name, pt_mtime);
+    id.getUnderlyingUInt64(), name, pt_mtime);
 }
 
 
@@ -1043,16 +1044,16 @@ XrdMgmOfs::FuseXCastRefresh(eos::ContainerIdentifier id,
                             eos::ContainerIdentifier parentid)
 {
   gOFS->zMQ->gFuseServer.Cap().BroadcastRefreshFromExternal(
-							    id.getUnderlyingUInt64(), parentid.getUnderlyingUInt64());
+    id.getUnderlyingUInt64(), parentid.getUnderlyingUInt64());
 }
- 
+
 void
 XrdMgmOfs::FuseXCastRefresh(eos::FileIdentifier id,
-			    eos::ContainerIdentifier parentid)
+                            eos::ContainerIdentifier parentid)
 {
   gOFS->zMQ->gFuseServer.Cap().BroadcastRefreshFromExternal(
-							    eos::common::FileId::FidToInode(id.getUnderlyingUInt64()),
-							    parentid.getUnderlyingUInt64());
+    eos::common::FileId::FidToInode(id.getUnderlyingUInt64()),
+    parentid.getUnderlyingUInt64());
 }
 
 //------------------------------------------------------------------------------
@@ -1060,28 +1061,36 @@ XrdMgmOfs::FuseXCastRefresh(eos::FileIdentifier id,
 //------------------------------------------------------------------------------
 void
 XrdMgmOfs::FuseXCastMD(eos::ContainerIdentifier id,
-		       eos::ContainerIdentifier parentid,
-		       struct timespec& pt_mtime,
-		       bool lock)
+                       eos::ContainerIdentifier parentid,
+                       struct timespec& pt_mtime,
+                       bool lock)
 {
   eos::fusex::md dir;
-  static eos::common::VirtualIdentity root_vid = eos::common::VirtualIdentity::Root();
-  if (!gOFS->zMQ->gFuseServer.FillContainerMD(id.getUnderlyingUInt64(), dir, root_vid, lock)) {
-    gOFS->zMQ->gFuseServer.Cap().BroadcastMD(dir, dir.md_ino(), dir.md_pino(), dir.clock(), pt_mtime);
+  static eos::common::VirtualIdentity root_vid =
+    eos::common::VirtualIdentity::Root();
+
+  if (!gOFS->zMQ->gFuseServer.FillContainerMD(id.getUnderlyingUInt64(), dir,
+      root_vid, lock)) {
+    gOFS->zMQ->gFuseServer.Cap().BroadcastMD(dir, dir.md_ino(), dir.md_pino(),
+        dir.clock(), pt_mtime);
   }
 }
 
 void
 XrdMgmOfs::FuseXCastMD(eos::FileIdentifier id,
-		       eos::ContainerIdentifier parentid,
-		       struct timespec& pt_mtime,
-		       bool lock
-		       )
+                       eos::ContainerIdentifier parentid,
+                       struct timespec& pt_mtime,
+                       bool lock
+                      )
 {
   eos::fusex::md file;
-  static eos::common::VirtualIdentity root_vid = eos::common::VirtualIdentity::Root();
-  if (gOFS->zMQ->gFuseServer.FillFileMD(eos::common::FileId::FidToInode(id.getUnderlyingUInt64()), file, root_vid, lock)) {
-    gOFS->zMQ->gFuseServer.Cap().BroadcastMD(file, file.md_ino(), file.md_pino(), file.clock(), pt_mtime);
+  static eos::common::VirtualIdentity root_vid =
+    eos::common::VirtualIdentity::Root();
+
+  if (gOFS->zMQ->gFuseServer.FillFileMD(eos::common::FileId::FidToInode(
+                                          id.getUnderlyingUInt64()), file, root_vid, lock)) {
+    gOFS->zMQ->gFuseServer.Cap().BroadcastMD(file, file.md_ino(), file.md_pino(),
+        file.clock(), pt_mtime);
   }
 }
 

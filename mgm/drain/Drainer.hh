@@ -118,6 +118,16 @@ public:
   }
 
   //----------------------------------------------------------------------------
+  //! Get reference to thread pool
+  //!
+  //! @return thread pool object
+  //----------------------------------------------------------------------------
+  eos::common::ThreadPool& GetThreadPool()
+  {
+    return mThreadPool;
+  }
+
+  //----------------------------------------------------------------------------
   //! Get drain jobs info (global or specific to an fsid)
   //!
   //! @param out output string

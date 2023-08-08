@@ -142,10 +142,12 @@ public:
                    std::set<eos::common::FileSystem::fsid_t> exclude_dsts = {},
                    bool drop_src = true,
                    const std::string& app_tag = "drain",
-                   bool balance_mode = false):
+                   bool balance_mode = false,
+                   eos::common::VirtualIdentity vid = eos::common::VirtualIdentity::Root()):
     mAppTag(app_tag), mFileId(fid), mFsIdSource(fsid_src), mFsIdTarget(fsid_trg),
     mTxFsIdSource(fsid_src), mStatus(Status::Ready), mRainAttempt(false),
-    mRainReconstruct(false), mDropSrc(drop_src), mBalanceMode(balance_mode)
+    mRainReconstruct(false), mDropSrc(drop_src), mBalanceMode(balance_mode),
+    mVid(vid)
   {
     mTriedSrcs.insert(exclude_srcs.begin(), exclude_srcs.end());
     mExcludeDsts.insert(mExcludeDsts.begin(), exclude_dsts.begin(),
@@ -293,6 +295,7 @@ private:
   //! In balance mode the source and destination file systems are enforced
   bool mBalanceMode;
   DrainProgressHandler mProgressHandler; ///< TPC progress handler
+  eos::common::VirtualIdentity mVid; /// VID triggering the job
 };
 
 EOSMGMNAMESPACE_END
