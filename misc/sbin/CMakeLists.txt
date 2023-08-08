@@ -21,26 +21,17 @@
 # * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
 # ************************************************************************
 
-# Script used by systemd in the start-up phase
-install(
-  FILES eos_start_pre.sh eos_start.sh eos-status
-  DESTINATION ${CMAKE_INSTALL_FULL_SBINDIR}
-  PERMISSIONS OWNER_READ OWNER_EXECUTE
-	      GROUP_READ GROUP_EXECUTE
-	      WORLD_READ WORLD_EXECUTE)
+install(PROGRAMS
+  eos-status
+  eos_start.sh
+  eos_start_pre.sh
+  mount.eos
+  DESTINATION ${CMAKE_INSTALL_FULL_SBINDIR})
 
-if( MacOSX )
-  install(
-    FILES mount.eos mount.eosx
-    DESTINATION ${CMAKE_INSTALL_PREFIX}/sbin/
-    PERMISSIONS OWNER_READ OWNER_EXECUTE
-               GROUP_READ GROUP_EXECUTE
-               WORLD_READ WORLD_EXECUTE)
-else()
-  install(
-    FILES mount.eos mount.eosx mount.eosx3
-    DESTINATION ${CMAKE_INSTALL_PREFIX}/../sbin/
-    PERMISSIONS OWNER_READ OWNER_EXECUTE
-               GROUP_READ GROUP_EXECUTE
-               WORLD_READ WORLD_EXECUTE)
+if(TARGET eosxd)
+  install(PROGRAMS mount.eosx DESTINATION ${CMAKE_INSTALL_FULL_SBINDIR})
+endif()
+
+if(TARGET eosxd3)
+  install(PROGRAMS mount.eosx3 DESTINATION ${CMAKE_INSTALL_FULL_SBINDIR})
 endif()

@@ -563,8 +563,8 @@ The EOS fuse core containing eosxd/eosxd3.
 %{_bindir}/eosxd
 %{_bindir}/eosfusebind
 %{_bindir}/eosxd3
-/sbin/mount.eosx
-/sbin/mount.eosx3
+%{_sbindir}/mount.eosx
+%{_sbindir}/mount.eosx3
 %{_tmpfilesdir}/eos-fusex-core.conf
 %{_sysconfdir}/logrotate.d/eos-fusex-logs
 %dir %attr(755,daemon,daemon) %{_localstatedir}/log/eos/
