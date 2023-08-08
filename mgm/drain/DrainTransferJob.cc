@@ -705,7 +705,7 @@ DrainTransferJob::UpdateMgmStats()
   } else if (mAppTag == "balance") {
     tag_stats = "Balance";
   } else {
-    tag_stats = "Unknown";
+    tag_stats = mAppTag;
   }
 
   if (mStatus == Status::OK) {
@@ -716,8 +716,8 @@ DrainTransferJob::UpdateMgmStats()
     tag_stats += "Started";
   }
 
-  if (gOFS && (tag_stats != "Unknown")) {
-    gOFS->MgmStats.Add(tag_stats.c_str(), 0, 0, 1);
+  if (gOFS) {
+    gOFS->MgmStats.Add(tag_stats.c_str(), mVid.uid, mVid.gid, 1);
   }
 }
 
