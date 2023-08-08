@@ -55,8 +55,6 @@ class MessagingRealm;
 
 EOSCOMMONNAMESPACE_BEGIN
 
-//! Forward declaration
-class TransferQueue;
 
 //! Values for a boot status
 enum class BootStatus : int8_t {
@@ -394,8 +392,6 @@ protected:
   SharedHashLocator mHashLocator;
   //! Messaging realm
   mq::MessagingRealm* mRealm;
-  //! Handle to the extern queue
-  TransferQueue* mExternQueue;
   //! boot status stored inside the object not the hash
   BootStatus mInternalBootStatus;
 
@@ -506,7 +502,7 @@ public:
   //----------------------------------------------------------------------------
   //! Destructor
   //----------------------------------------------------------------------------
-  virtual ~FileSystem();
+  virtual ~FileSystem() = default;
 
   //----------------------------------------------------------------------------
   // Get underlying hash locator
@@ -699,14 +695,6 @@ public:
   //! Get a double value by key
   //----------------------------------------------------------------------------
   double GetDouble(const char* key);
-
-  //----------------------------------------------------------------------------
-  //! Return handle to the external queue.
-  //----------------------------------------------------------------------------
-  TransferQueue* GetExternQueue()
-  {
-    return mExternQueue;
-  }
 
   //----------------------------------------------------------------------------
   //! Return the filesystem id.

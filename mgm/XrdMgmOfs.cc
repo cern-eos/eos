@@ -61,7 +61,6 @@
 #include "mgm/Acl.hh"
 #include "mgm/Workflow.hh"
 #include "mgm/proc/ProcInterface.hh"
-#include "mgm/txengine/TransferEngine.hh"
 #include "mgm/Recycle.hh"
 #include "mgm/PathRouting.hh"
 #include "mgm/Macros.hh"
@@ -505,8 +504,6 @@ XrdMgmOfs::OrderlyShutdown()
     WNCd.reset();
   }
 
-  eos_warning("%s", "msg=\"stopping the transfer engine threads\"");
-  gTransferEngine.Stop();
   eos_warning("%s", "msg=\"stopping the shared object notifier thread\"");
   ObjectNotifier.Stop();
   eos_warning("%s", "msg=\"cleanup quota information\"");

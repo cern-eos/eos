@@ -36,7 +36,6 @@
 #include "mgm/FsView.hh"
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/XrdMgmOfsTrace.hh"
-#include "mgm/txengine/TransferEngine.hh"
 #include "mgm/Quota.hh"
 #include "mgm/Access.hh"
 #include "mgm/Recycle.hh"
@@ -211,7 +210,6 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   MgmOfsBrokerUrl = "root://localhost:1097//eos/";
   MgmOfsInstanceName = "testinstance";
   MgmMetaLogDir = "";
-  MgmTxDir = "";
   MgmAuthDir = "";
   MgmArchiveDir = "";
   MgmQoSDir = "";
@@ -789,39 +787,6 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
           }
         }
 
-        if (!strcmp("txdir", var)) {
-          if (!(val = Config.GetWord())) {
-            Eroute.Emsg("Config", "argument 2 for txdir missing");
-            NoGo = 1;
-          } else {
-            MgmTxDir = val;
-            // just try to create it in advance
-            XrdOucString makeit = "mkdir -p ";
-            makeit += MgmTxDir;
-            int src = system(makeit.c_str());
-
-            if (src) {
-              eos_err("%s returned %d", makeit.c_str(), src);
-            }
-
-            XrdOucString chownit = "chown -R daemon ";
-            chownit += MgmTxDir;
-            src = system(chownit.c_str());
-
-            if (src) {
-              eos_err("%s returned %d", chownit.c_str(), src);
-            }
-
-            if (::access(MgmTxDir.c_str(), W_OK | R_OK | X_OK)) {
-              Eroute.Emsg("Config", "cannot access the transfer directory for r/w:",
-                          MgmTxDir.c_str());
-              NoGo = 1;
-            } else {
-              Eroute.Say("=====> mgmofs.txdir:   ", MgmTxDir.c_str(), "");
-            }
-          }
-        }
-
         if (!strcmp("authdir", var)) {
           if (!(val = Config.GetWord())) {
             Eroute.Emsg("Config", "argument 2 for authdir missing");
@@ -1100,8 +1065,9 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
           }
         }
 
-        const char * endpointsStr = "taperestapi.endpoints.";
+        const char* endpointsStr = "taperestapi.endpoints.";
         int endpointsStrLen = strlen(endpointsStr);
+
         if (!strncmp(endpointsStr, var, endpointsStrLen)) {
           char* version_ptr_begin = var + endpointsStrLen;
           char* version_ptr_end = strstr(var + endpointsStrLen, ".uri");
@@ -1112,6 +1078,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
             NoGo = 1;
           } else {
             std::string version(version_ptr_begin, version_ptr_end);
+
             if (!std::regex_match(version, std::regex("v[0-9]+(\\.[0-9]+)?"))) {
               auto err_msg = std::string("version ") + version +
                              " in command " + var + " is invalid";
@@ -1164,12 +1131,6 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   if (!MgmMetaLogDir.length()) {
     Eroute.Say("Config error: meta data log directory is not defined : "
                "mgm.metalog=</var/eos/md/>");
-    return 1;
-  }
-
-  if (!MgmTxDir.length()) {
-    Eroute.Say("Config error: transfer directory is not defined : "
-               "mgm.txdir=</var/eos/tx/>");
     return 1;
   }
 
@@ -1604,14 +1565,11 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   mViewMutexWatcher.activate(eosViewRWMutex, "eosViewRWMutex");
   // Configure the access mutex to be blocking
   Access::gAccessMutex.SetBlocking(true);
-
 #ifdef EOS_INSTRUMENTED_RWMUTEX
   eos::common::RWMutex* fs_mtx = &FsView::gFsView.ViewMutex;
   eos::common::RWMutex* quota_mtx = &Quota::pMapMutex;
   eos::common::RWMutex* ns_mtx = &eosViewRWMutex;
   eos::common::RWMutex* fusex_client_mtx = &gOFS->zMQ->gFuseServer.Client();
-
-  
   //eos::common::RWMutex* fusex_cap_mtx = &gOFS->zMQ->gFuseServer.Cap();
   // eos::common::RWMutex::EstimateLatenciesAndCompensation();
   fs_mtx->SetBlocking(true);
@@ -2021,12 +1979,6 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
     eos_static_crit("error starting the shared object change notifier");
   }
 
-  // Initialize the transfer database
-  if (!gTransferEngine.Init("/var/eos/tx")) {
-    eos_static_crit("cannot initialize transfer database");
-    NoGo = 1;
-  }
-
   // create the 'default' quota space which is needed if quota is disabled!
   if (mHttpd) {
     if (!mHttpd->Start()) {
@@ -2193,12 +2145,13 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   eos_static_info("%s", "msg=\"starting Converter Engine\"");
   mConverterDriver.reset(new eos::mgm::ConverterDriver(mQdbContactDetails));
   mConverterDriver->Start();
-
   mFsScheduler->updateClusterData();
   {
     eos::common::RWMutexReadLock vlock(FsView::gFsView.ViewMutex);
-    for (const auto& space: FsView::gFsView.mSpaceView) {
-      mFsScheduler->setPlacementStrategy(space.first, space.second->GetConfigMember("scheduler.type"));
+
+    for (const auto& space : FsView::gFsView.mSpaceView) {
+      mFsScheduler->setPlacementStrategy(space.first,
+                                         space.second->GetConfigMember("scheduler.type"));
     }
   }
   return NoGo;

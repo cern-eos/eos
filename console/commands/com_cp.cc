@@ -33,8 +33,6 @@
 #include "XrdCl/XrdClFileSystem.hh"
 /*----------------------------------------------------------------------------*/
 
-extern int com_transfer(char* argin);
-
 int
 com_cp_usage()
 {
@@ -44,8 +42,6 @@ com_cp_usage()
   fprintf(stdout,
           "          <src>|<dst> can be root://<host>/<path>, a local path /tmp/../ or an eos path /eos/ in the connected instance\n");
   fprintf(stdout, "Options:\n");
-  fprintf(stdout,
-          "       --async         : run an asynchronous transfer via a gateway server (see 'transfer submit --sync' for the full options)\n");
   fprintf(stdout,
           "       --atomic        : run an atomic upload where files are only visible with the target name when their are completely uploaded [ adds ?eos.atomic=1 to the target URL ]\n");
   fprintf(stdout, "       --rate          : limit the cp rate to <rate>\n");
@@ -174,14 +170,6 @@ com_cp(char* argin)
   int retc = 0;
   // Check if this is an 'async' command
   XrdOucString sarg = argin;
-
-  if ((sarg.find("--async")) != STR_NPOS) {
-    char fullcmd[4096];
-    sarg.replace("--async", "submit --sync");
-    snprintf(fullcmd, sizeof(fullcmd) - 1, "%s", sarg.c_str());
-    return com_transfer(fullcmd);
-  }
-
   // ----------------------------------------------------------------------------
   // Parse arguments
   // ----------------------------------------------------------------------------
@@ -1474,6 +1462,7 @@ std::string
 eos_roles_opaque()
 {
   std::string roles;
+
   if (user_role.length() && group_role.length()) {
     roles = "eos.ruid=";
     roles += user_role.c_str();

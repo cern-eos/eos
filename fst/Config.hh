@@ -47,7 +47,6 @@ public:
   FstDefaultReceiverQueue; // Queue where we are sending to by default
   XrdOucString FstQueue; // our queue name
   XrdOucString FstQueueWildcard; // our queue match name
-  XrdOucString FstGwQueueWildcard; // our gateway queue match name
   XrdOucString FstConfigQueueWildcard; // our configuration queue match name
   XrdOucString FstHostPort; // <host>:<port>
   XrdOucString FstS3Credentials; // S3 storage credentials <access>:<secret>

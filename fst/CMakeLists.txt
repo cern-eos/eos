@@ -203,7 +203,7 @@ set_target_properties(EosFstIo-Static PROPERTIES
 #-------------------------------------------------------------------------------
 # eoscp executable
 #-------------------------------------------------------------------------------
-add_executable(eoscp txqueue/eoscp.cc)
+add_executable(eoscp eoscp.cc)
 
 target_link_libraries(eoscp PRIVATE EosFstIo-Static)
 
@@ -276,10 +276,6 @@ set(XRDEOSFST_SRCS
   storage/Report.cc              storage/Scrub.cc
   storage/Storage.cc             storage/Supervisor.cc
   storage/Trim.cc                storage/Verify.cc
-  # Transfer interface
-  txqueue/TransferMultiplexer.cc
-  txqueue/TransferJob.cc
-  txqueue/TransferQueue.cc
   # Utils
   utils/OpenFileTracker.cc
   # File metadata interface

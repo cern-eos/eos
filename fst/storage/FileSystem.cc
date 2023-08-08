@@ -24,8 +24,6 @@
 #include "fst/storage/FileSystem.hh"
 #include "fst/XrdFstOfs.hh"
 #include "fst/ScanDir.hh"
-#include "fst/txqueue/TransferQueue.hh"
-#include "fst/txqueue/TransferMultiplexer.hh"
 #include "fst/filemd/FmdDbMap.hh"
 #include "fst/utils/DiskMeasurements.hh"
 #include "common/Constants.hh"
@@ -50,18 +48,13 @@ std::set<std::string> FileSystem::sFsUpdateKeys {
 FileSystem::FileSystem(const common::FileSystemLocator& locator,
                        mq::MessagingRealm* realm) :
   eos::common::FileSystem(locator, realm, true),
-  mLocalId(0ul), mLocalUuid(""),  mScanDir(nullptr), mFileIO(nullptr),
-  mTxDirectory("")
+  mLocalId(0ul), mLocalUuid(""),  mScanDir(nullptr), mFileIO(nullptr)
 {
   last_blocks_free = 0;
   last_status_broadcast = 0;
   seqBandwidth = 0;
   IOPS = 0;
   mLocalBootStatus = eos::common::BootStatus::kDown;
-  mTxExternQueue = new TransferQueue(&mExternQueue);
-  mTxMultiplexer = std::make_unique<TransferMultiplexer>();
-  mTxMultiplexer->Add(mTxExternQueue);
-  mTxMultiplexer->Run();
   mRecoverable = false;
   mFileIO.reset(FileIoPlugin::GetIoObject(mLocator.getStoragePath()));
 
@@ -88,15 +81,10 @@ FileSystem::~FileSystem()
 
   mScanDir.release();
   mFileIO.release();
-  mTxMultiplexer.reset();
 
   if (gOFS.FmdOnDb()) {
     auto fmd_handler = static_cast<FmdDbMapHandler*>(gOFS.mFmdHandler.get());
     fmd_handler->ShutdownDB(mLocalId, true);
-  }
-
-  if (mTxExternQueue) {
-    delete mTxExternQueue;
   }
 }
 

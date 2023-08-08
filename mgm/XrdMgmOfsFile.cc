@@ -42,7 +42,6 @@
 #include "mgm/Workflow.hh"
 #include "mgm/proc/ProcInterface.hh"
 #include "mgm/tracker/ReplicationTracker.hh"
-#include "mgm/txengine/TransferEngine.hh"
 #include "mgm/Recycle.hh"
 #include "mgm/Macros.hh"
 #include "mgm/ZMQ.hh"
@@ -912,10 +911,11 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
     // want prefetching here.
     if (!byfid) {
       if (!(open_flags & O_EXCL)) {
-	// if we want to create, why would we prefetch file md?
-	eos::Prefetcher::prefetchFileMDAndWait(gOFS->eosView, cPath.GetPath());
+        // if we want to create, why would we prefetch file md?
+        eos::Prefetcher::prefetchFileMDAndWait(gOFS->eosView, cPath.GetPath());
       } else {
-	eos::Prefetcher::prefetchContainerMDAndWait(gOFS->eosView, cPath.GetParentPath());
+        eos::Prefetcher::prefetchContainerMDAndWait(gOFS->eosView,
+            cPath.GetParentPath());
       }
     }
 
@@ -930,22 +930,21 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
 
       // get the attributes out
       eos::listAttributes(gOFS->eosView, dmd.get(), attrmap, true);
-      
       // extract workflows
       workflow.Init(&attrmap);
 
       if (dmd) {
         try {
           std::string filePath = cPath.GetPath();
-	  std::string fileName = cPath.GetName();
+          std::string fileName = cPath.GetName();
+
           if (ocUploadUuid.length()) {
             eos::common::Path aPath(cPath.GetAtomicPath(attrmap.count("sys.versioning"),
                                     ocUploadUuid));
             filePath = aPath.GetPath();
-	    fileName = aPath.GetName();
+            fileName = aPath.GetName();
           }
-	  
-	  
+
           if ((fmd = dmd->findFile(fileName))) {
             /* in case of a hard link, may need to switch to target */
             /* A hard link to another file */
@@ -968,11 +967,11 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
               }
             }
 
-	    if (fmd->isLink()) {
-	      // we have to get it by path
-	      fmd = gOFS->eosView->getFile(filePath);
-	    }
-	    
+            if (fmd->isLink()) {
+              // we have to get it by path
+              fmd = gOFS->eosView->getFile(filePath);
+            }
+
             uint64_t dmd_id = fmd->getContainerId();
 
             // If fmd is resolved via a symbolic link, we have to find the
@@ -987,10 +986,11 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
                 errno = ENOENT;
               }
             }
-	    // check for O_EXCL here to save some time
-	    if (open_flags & O_EXCL) {
-	      gOFS->MgmStats.Add("OpenFailedExists", vid.uid, vid.gid, 1);
-	      return Emsg(epname, error, EEXIST, "create file - (O_EXCL)", path);
+
+            // check for O_EXCL here to save some time
+            if (open_flags & O_EXCL) {
+              gOFS->MgmStats.Add("OpenFailedExists", vid.uid, vid.gid, 1);
+              return Emsg(epname, error, EEXIST, "create file - (O_EXCL)", path);
             }
           }
         } catch (eos::MDException& e) {
@@ -1038,7 +1038,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
         try {
           dmd = gOFS->eosView->getContainer(cPath.GetSubPath(2));
           // get the attributes out
-	  eos::listAttributes(gOFS->eosView, dmd.get(), attrmap, false);
+          eos::listAttributes(gOFS->eosView, dmd.get(), attrmap, false);
         } catch (eos::MDException& e) {
           dmd.reset();
           errno = e.getErrno();
@@ -1337,13 +1337,13 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
 
             // Avoid any race condition when opening for creation O_EXCL
             if (open_flags & O_EXCL) {
-	      if (isAtomicUpload) {
-		try {
-		  fmd = gOFS->eosView->getFile(creation_path);
-		} catch (eos::MDException& e1) {
-		  // empty
-		}
-	      }
+              if (isAtomicUpload) {
+                try {
+                  fmd = gOFS->eosView->getFile(creation_path);
+                } catch (eos::MDException& e1) {
+                  // empty
+                }
+              }
 
               if (fmd) {
                 gOFS->MgmStats.Add("OpenFailedExists", vid.uid, vid.gid, 1);
@@ -1351,28 +1351,27 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
               }
             }
 
-	    {
-	      // a faster replacement for createFile view view 
-	      auto file = gOFS->eosFileService->createFile(0);
-	      
-	      if (!file) {
-		eos_static_crit("File creation failed for %s", creation_path.c_str());
-		throw_mdexception(EIO, "File creation failed");
-	      }
+            {
+              // a faster replacement for createFile view view
+              auto file = gOFS->eosFileService->createFile(0);
 
-	      eos::common::Path cPath (creation_path.c_str());
-	      std::string fileName = cPath.GetName();
+              if (!file) {
+                eos_static_crit("File creation failed for %s", creation_path.c_str());
+                throw_mdexception(EIO, "File creation failed");
+              }
 
-	      file->setName(fileName);
-	      file->setCUid(vid.uid);
-	      file->setCGid(vid.gid);
-	      file->setCTimeNow();
-	      file->setATimeNow(0);
-	      file->setMTimeNow();
-	      file->clearChecksum(0);
-	      dmd->addFile(file.get());
-	      fmd = file;
-	    }
+              eos::common::Path cPath(creation_path.c_str());
+              std::string fileName = cPath.GetName();
+              file->setName(fileName);
+              file->setCUid(vid.uid);
+              file->setCGid(vid.gid);
+              file->setCTimeNow();
+              file->setATimeNow(0);
+              file->setMTimeNow();
+              file->clearChecksum(0);
+              dmd->addFile(file.get());
+              fmd = file;
+            }
 
             if ((mEosObfuscate > 0) ||
                 (attrmap.count("sys.file.obfuscate") &&
@@ -1424,17 +1423,20 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
             fmdlid = fmd->getLayoutId();
             // oc chunks start with flags=0
             cid = fmd->getContainerId();
-	    auto cmd = dmd; // we have this already
+            auto cmd = dmd; // we have this already
             cmd->setMTimeNow();
             cmd->notifyMTimeChange(gOFS->eosDirectoryService);
             eos::ContainerIdentifier cmd_id = cmd->getIdentifier();
             eos::ContainerIdentifier cmd_pid = cmd->getParentIdentifier();
             gOFS->mReplicationTracker->Create(fmd);
             ns_wr_lock.Release();
-	    gOFS->eosView->updateContainerStore(cmd.get());
-	    gOFS->eosView->updateFileStore(fmd.get());
-	    if (ref_fmd) {gOFS->eosView->updateFileStore(ref_fmd.get());}
-	      
+            gOFS->eosView->updateContainerStore(cmd.get());
+            gOFS->eosView->updateFileStore(fmd.get());
+
+            if (ref_fmd) {
+              gOFS->eosView->updateFileStore(ref_fmd.get());
+            }
+
             gOFS->FuseXCastRefresh(cmd_id, cmd_pid);
           } catch (eos::MDException& e) {
             fmd.reset();

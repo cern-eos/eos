@@ -55,8 +55,6 @@ class SharedHashSubscription;
 
 EOSFSTNAMESPACE_BEGIN
 
-class TransferMultiplexer;
-class TransferQueue;
 class ScanDir;
 class Load;
 
@@ -121,12 +119,6 @@ public:
   //! @param value configuration value
   //-----------------------------------------------------------------------------
   void ConfigScanner(Load* fst_load, const std::string& key, long long value);
-
-  inline TransferQueue*
-  GetExternQueue()
-  {
-    return mTxExternQueue;
-  }
 
   void
   SetStatus(eos::common::BootStatus status)
@@ -310,9 +302,6 @@ private:
   std::string mLocalUuid;
   std::unique_ptr<eos::fst::ScanDir> mScanDir; ///< Filesystem scanner
   std::unique_ptr<FileIo> mFileIO; ///< File used for statfs calls
-  std::unique_ptr<TransferMultiplexer> mTxMultiplexer;
-  TransferQueue* mTxExternQueue;
-  std::string mTxDirectory;
   unsigned long last_blocks_free;
   time_t last_status_broadcast;
   //! Internal boot state not stored in the shared hash

@@ -24,7 +24,6 @@
 #include "common/Namespace.hh"
 #include "common/FileSystem.hh"
 #include "common/Logging.hh"
-#include "common/TransferQueue.hh"
 #include "common/StringUtils.hh"
 #include "common/ParseUtils.hh"
 #include "common/Assert.hh"
@@ -487,7 +486,7 @@ void FileSystem::fs_snapshot_t::fillFromCoreParams(const FileSystemCoreParams&
 FileSystem::FileSystem(const FileSystemLocator& locator,
                        mq::MessagingRealm* realm, bool bc2mgm)
   : mLocator(locator), mHashLocator(locator, bc2mgm),
-    mRealm(realm), mExternQueue(nullptr)
+    mRealm(realm)
 {
   mInternalBootStatus = BootStatus::kDown;
   cActive = ActiveStatus::kOffline;
@@ -513,18 +512,6 @@ FileSystem::FileSystem(const FileSystemLocator& locator,
     }
 
     mq::SharedHashWrapper(mRealm, mHashLocator).set(upd_batch);
-    mExternQueue = new TransferQueue(TransferQueueLocator(mLocator, "externq"),
-                                     mRealm, bc2mgm);
-  }
-}
-
-//------------------------------------------------------------------------------
-// Destructor
-//------------------------------------------------------------------------------
-FileSystem::~FileSystem()
-{
-  if (mExternQueue) {
-    delete mExternQueue;
   }
 }
 

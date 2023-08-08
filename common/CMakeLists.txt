@@ -229,9 +229,6 @@ if (Linux)
     ShellExecutor.cc
     ShellCmd.cc
     FileSystem.cc
-    TransferQueue.cc
-    TransferJob.cc
-    sqlite/sqlite3.c
     DbMap.cc
     DbMapLevelDb.cc
     DbMapCommon.cc

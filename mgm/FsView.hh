@@ -661,8 +661,6 @@ protected:
 class FsNode : public BaseView
 {
 public:
-  eos::common::TransferQueue* mGwQueue; ///< Gateway transfer queue
-
   //----------------------------------------------------------------------------
   //! Constructor
   //!

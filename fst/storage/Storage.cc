@@ -28,7 +28,6 @@
 #include "fst/filemd/FmdConverter.hh"
 #include "fst/Verify.hh"
 #include "fst/Deletion.hh"
-#include "fst/txqueue/TransferQueue.hh"
 #include "fst/io/FileIoPluginCommon.hh"
 #include "fst/XrdFstOss.hh"
 #include "common/Fmd.hh"
@@ -225,28 +224,6 @@ Storage::Storage(const char* meta_dir)
   mFstLoad.Monitor();
   eos_info("enabling local disk S.M.A.R.T attribute monitor");
   mFstHealth.Monitor();
-  // Create gw queue
-  XrdSysMutexHelper lock(gConfig.Mutex);
-  mGwQueue = new eos::common::TransferQueue(
-    eos::common::TransferQueueLocator(gConfig.FstQueue.c_str(),
-                                      "txq"),
-    gOFS.mMessagingRealm.get(), true);
-  mTxGwQueue = new TransferQueue(&mGwQueue);
-
-  if (mTxGwQueue) {
-    mGwMultiplexer.Add(mTxGwQueue);
-  } else {
-    eos_err("unable to create transfer queue");
-  }
-}
-
-//------------------------------------------------------------------------------
-// Destructor
-//------------------------------------------------------------------------------
-Storage::~Storage()
-{
-  delete mTxGwQueue;
-  delete mGwQueue;
 }
 
 //------------------------------------------------------------------------------

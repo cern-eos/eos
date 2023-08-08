@@ -31,7 +31,6 @@
 #include "mgm/proc/proc_fs.hh"
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/GeoTreeEngine.hh"
-#include "mgm/txengine/TransferEngine.hh"
 #include "mgm/RouteEndpoint.hh"
 #include "mgm/PathRouting.hh"
 #include "mgm/fsck/Fsck.hh"
@@ -268,7 +267,6 @@ IConfigEngine::ApplyConfig(XrdOucString& err, bool apply_stall_redirect)
   Access::ApplyAccessConfig(apply_stall_redirect);
   gOFS->mFsckEngine->ApplyFsckConfig();
   gOFS->IoStats->ApplyIostatConfig(&FsView::gFsView);
-  gTransferEngine.ApplyTransferEngineConfig();
 
   if (err.length()) {
     errno = EINVAL;
@@ -463,6 +461,10 @@ IConfigEngine::IsDeprecated(const std::string& config_key) const
     }
 
     if (config_key.find("#new_balancer") != std::string::npos) {
+      return true;
+    }
+
+    if (config_key.find("#transfer.schedule") != std::string::npos) {
       return true;
     }
   }
