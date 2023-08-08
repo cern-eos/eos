@@ -23,7 +23,6 @@
 
 #include "common/Statfs.hh"
 #include "common/FileSystem.hh"
-#include "common/TransferQueue.hh"
 #include "common/Locators.hh"
 #include "common/InstanceName.hh"
 #include "common/LayoutId.hh"

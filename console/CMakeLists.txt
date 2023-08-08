@@ -99,7 +99,6 @@ add_library(EosConsoleCommands-Objects OBJECT
   commands/com_touch.cc
   commands/com_proto_token.cc
   commands/com_tracker.cc
-  commands/com_transfer.cc
   commands/com_version.cc
   commands/com_vid.cc
   commands/com_whoami.cc

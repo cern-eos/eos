@@ -115,7 +115,6 @@ add_library(
   proc/admin/NsCmd.cc
   proc/admin/Rtlog.cc
   proc/admin/EvictCmd.cc proc/admin/EvictCmd.hh
-  proc/admin/Transfer.cc
   proc/admin/Vid.cc
   proc/admin/Access.cc # @todo (faluchet) drop when move to 5.0.0
   proc/admin/AccessCmd.cc proc/admin/AccessCmd.hh
@@ -193,7 +192,6 @@ add_library(
   XrdMgmOfs/fsctl/Stat.cc
   XrdMgmOfs/fsctl/Statvfs.cc
   XrdMgmOfs/fsctl/Symlink.cc
-  XrdMgmOfs/fsctl/Txstate.cc
   XrdMgmOfs/fsctl/Utimes.cc
   XrdMgmOfs/fsctl/Version.cc
   XrdMgmOfs/fsctl/Xattr.cc
@@ -218,8 +216,6 @@ add_library(
   utils/FileSystemRegistry.cc                  utils/FileSystemRegistry.hh
   utils/FilesystemUuidMapper.cc                utils/FilesystemUuidMapper.hh
   utils/FileSystemStatusUtils.cc
-  txengine/TransferEngine.cc
-  txengine/TransferFsDB.cc
   GroupBalancer.cc
   GroupDrainer.cc
   groupbalancer/BalancerEngine.cc

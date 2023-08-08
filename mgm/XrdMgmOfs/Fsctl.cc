@@ -382,10 +382,6 @@ XrdMgmOfs::FSctl(const int cmd,
       return XrdMgmOfs::Symlink(path, ininfo, env, error, vid, client);
     }
 
-    case FsctlCommand::txstate: {
-      return XrdMgmOfs::Txstate(path, ininfo, env, error, vid, client);
-    }
-
     case FsctlCommand::utimes: {
       return XrdMgmOfs::Utimes(path, ininfo, env, error, vid, client);
     }

@@ -25,7 +25,6 @@
 #include "fst/Namespace.hh"
 #include "fst/Load.hh"
 #include "fst/Health.hh"
-#include "fst/txqueue/TransferMultiplexer.hh"
 #include "common/Logging.hh"
 #include "common/FileSystem.hh"
 #include "common/RWMutex.hh"
@@ -41,7 +40,6 @@ namespace eos
 {
 namespace common
 {
-class TransferQueue;
 class ExecutorMgr;
 }
 }
@@ -82,7 +80,7 @@ public:
   //----------------------------------------------------------------------------
   //! Destructor
   //----------------------------------------------------------------------------
-  virtual ~Storage();
+  virtual ~Storage() = default;
 
   //----------------------------------------------------------------------------
   //! General shutdown including stopping the helper threads and also
@@ -272,12 +270,6 @@ private:
   XrdOucString mMetaDir; ///< Path to meta directory
   unsigned long long* mScrubPattern[2];
   unsigned long long* mScrubPatternVerify;
-  //! Handle to the storage queue of gw transfers
-  TransferQueue* mTxGwQueue;
-  //! Handle to the low-level queue of gw transfers
-  eos::common::TransferQueue* mGwQueue;
-  //! Multiplexer for gw transfers
-  TransferMultiplexer mGwMultiplexer;
   mutable XrdSysMutex mBootingMutex; // Mutex protecting the boot set
   //! Set containing the filesystems currently booting
   std::set<eos::common::FileSystem::fsid_t> mBootingSet;

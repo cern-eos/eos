@@ -37,8 +37,7 @@ EOSFSTNAMESPACE_BEGIN
 
 // Set of keys updates to be tracked at the node level
 std::set<std::string> Storage::sNodeUpdateKeys {
-  "manager", "symkey", "publish.interval", "debug.level", "txgw",
-  "gw.rate", "gw.ntx", "error.simulation" };
+  "manager", "symkey", "publish.interval", "debug.level", "error.simulation" };
 
 //------------------------------------------------------------------------------
 // Get configuration value from global FST config
@@ -228,36 +227,6 @@ Storage::ProcessFstConfigChange(const std::string& key,
     return;
   }
 
-  // Creation/deletion of gateway transfer queue
-  if (key == "txgw") {
-    if (value == "off") {
-      // just stop the multiplexer
-      mGwMultiplexer.Stop();
-      eos_static_info("Stopping transfer multiplexer");
-    }
-
-    if (value == "on") {
-      mGwMultiplexer.Run();
-      eos_static_info("Starting transfer multiplexer");
-    }
-
-    return;
-  }
-
-  // Update gw multiplexer bandwidth
-  if (key == "gw.rate") {
-    std::string rate = value;
-    mGwMultiplexer.SetBandwidth(atoi(rate.c_str()));
-    return;
-  }
-
-  // Update gw multiplexer num. of parallel transfers
-  if (key == "gw.ntx") {
-    std::string ntx = value;
-    mGwMultiplexer.SetSlots(atoi(ntx.c_str()));
-    return;
-  }
-
   if (key == "error.simulation") {
     gOFS.SetSimulationError(value.c_str());
     return;
@@ -401,7 +370,7 @@ Storage::Communicator(ThreadAssistant& assistant)
       eos::common::SCAN_IO_RATE_NAME, eos::common::SCAN_ENTRY_INTERVAL_NAME,
       eos::common::SCAN_DISK_INTERVAL_NAME, eos::common::SCAN_NS_INTERVAL_NAME,
       eos::common::SCAN_NS_RATE_NAME, "symkey", "manager", "publish.interval",
-      "debug.level", "txgw", "gw.rate", "gw.ntx", "error.simulation"};
+      "debug.level", "error.simulation"};
   bool ok = true;
 
   for (const auto& key : watch_modification_keys) {
@@ -452,9 +421,8 @@ Storage::Communicator(ThreadAssistant& assistant)
       XrdOucString queue = event.mSubject.c_str();
 
       if (event.mType == XrdMqSharedObjectManager::kMqSubjectCreation) {
-        // Skip fst wildcard queue creation and txqueue
-        if ((queue == gConfig.FstQueueWildcard) ||
-            (queue.find("/txqueue/") != STR_NPOS)) {
+        // Skip fst wildcard queue creation
+        if (queue == gConfig.FstQueueWildcard) {
           continue;
         }
 
@@ -480,9 +448,8 @@ Storage::Communicator(ThreadAssistant& assistant)
 
         RegisterFileSystem(queue.c_str());
       } else if (event.mType == XrdMqSharedObjectManager::kMqSubjectDeletion) {
-        // Skip txqueue and deletions that don't concern us
-        if ((queue.find("/txqueue/") != STR_NPOS) ||
-            (queue.beginswith(gConfig.FstQueue) == false)) {
+        // Skip deletions that don't concern us
+        if (queue.beginswith(gConfig.FstQueue) == false) {
           continue;
         } else {
           UnregisterFileSystem(event.mSubject);

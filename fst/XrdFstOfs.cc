@@ -789,12 +789,6 @@ XrdFstOfs::Configure(XrdSysError& Eroute, XrdOucEnv* envP)
   gConfig.FstConfigQueueWildcard += mHostName;
   gConfig.FstConfigQueueWildcard += ":";
   gConfig.FstConfigQueueWildcard += myPort;
-  // Create our wildcard gw broadcast name
-  gConfig.FstGwQueueWildcard = "*/";
-  gConfig.FstGwQueueWildcard += mHostName;
-  gConfig.FstGwQueueWildcard += ":";
-  gConfig.FstGwQueueWildcard += myPort;
-  gConfig.FstGwQueueWildcard += "/fst/gw/txqueue/txq";
   // Set logging parameters
   XrdOucString unit = "fst@";
   unit += mHostName;
@@ -1896,7 +1890,6 @@ XrdFstOfs::RequestBroadcasts()
   eos_notice("%s", "msg=\"requesting broadcasts\"");
   // Create a wildcard broadcast
   XrdMqSharedHash* hash = 0;
-  XrdMqSharedQueue* queue = 0;
   // Create a node broadcast
   ObjectManager.CreateSharedHash(gConfig.FstConfigQueueWildcard.c_str(),
                                  gConfig.FstDefaultReceiverQueue.c_str());
@@ -1908,20 +1901,6 @@ XrdFstOfs::RequestBroadcasts()
              gConfig.FstDefaultReceiverQueue.c_str())) {
       eos_static_notice("msg=\"retry broadcast request in 1 second\" hash=\"%s\"",
                         gConfig.FstConfigQueueWildcard.c_str());
-      std::this_thread::sleep_for(std::chrono::seconds(1));
-    }
-  }
-  // Create a node gateway broadcast
-  ObjectManager.CreateSharedQueue(gConfig.FstGwQueueWildcard.c_str(),
-                                  gConfig.FstDefaultReceiverQueue.c_str());
-  {
-    eos::common::RWMutexReadLock rd_lock(ObjectManager.HashMutex);
-    queue = ObjectManager.GetQueue(gConfig.FstGwQueueWildcard.c_str());
-
-    while (!queue->BroadcastRequest(
-             gConfig.FstDefaultReceiverQueue.c_str())) {
-      eos_static_notice("msg=\"retry broadcast request in 1 second\" hash=\"%s\"",
-                        gConfig.FstGwQueueWildcard.c_str());
       std::this_thread::sleep_for(std::chrono::seconds(1));
     }
   }

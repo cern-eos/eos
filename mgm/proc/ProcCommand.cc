@@ -246,9 +246,6 @@ ProcCommand::open(const char* inpath, const char* info,
     } else if (mCmd == "fusex") {
       Fusex();
       mDoSort = false;
-    } else if (mCmd == "transfer") {
-      Transfer();
-      mDoSort = false;
     } else if (mCmd == "vid") {
       Vid();
     } else if (mCmd == "rtlog") {

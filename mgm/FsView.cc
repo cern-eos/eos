@@ -46,7 +46,6 @@
 #include "mq/SharedHashWrapper.hh"
 #include "common/Constants.hh"
 #include "common/token/EosTok.hh"
-#include "common/TransferQueue.hh"
 #include "namespace/Prefetcher.hh"
 #include "namespace/interface/IContainerMDSvc.hh"
 
@@ -2708,9 +2707,6 @@ FsNode::FsNode(const char* name) : BaseView(
   mName = name;
   mType = "nodesview";
   SetConfigMember("stat.hostport", GetMember("hostport"), false);
-  mGwQueue = new eos::common::TransferQueue(
-    eos::common::TransferQueueLocator(mName, "txq"),
-    gOFS->mMessagingRealm.get(), false);
   eos_static_info("msg=\"FsNode constructor\" name=\"%s\" ptr=%p",
                   mName.c_str(), this);
   mSubscription = mq::SharedHashWrapper(gOFS->mMessagingRealm.get(),
@@ -2729,10 +2725,6 @@ FsNode::~FsNode()
 {
   if (mSubscription) {
     mSubscription->detachCallback();
-  }
-
-  if (mGwQueue) {
-    delete mGwQueue;
   }
 
   FsView::gFsView.mGwNodes.erase(mName); // unregister evt. gateway node
@@ -2892,10 +2884,6 @@ BaseView::SetConfigMember(std::string key, std::string value,
     if (value == "on") {
       // we have to register this queue into the gw set for fast lookups
       FsView::gFsView.mGwNodes.insert(mLocator.getBroadcastQueue());
-      // clear the queue if a machine is enabled
-      // @todo (esindril): Clear also takes the HashMutex lock again - this
-      // is undefined behaviour !!!
-      FsView::gFsView.mNodeView[mLocator.getBroadcastQueue()]->mGwQueue->Clear();
     } else {
       FsView::gFsView.mGwNodes.erase(mLocator.getBroadcastQueue());
     }
@@ -3278,6 +3266,7 @@ FsView::ApplyGlobalConfig(const char* key, std::string& val)
   bool success = hash.set(tokens[1].c_str(), val.c_str());
   hash.releaseLocks();
 
+  // @todo(esindril): to be removed since there is no TransferEngine anymore
   // Here we build a set with the gw nodes for fast lookup in the TransferEngine
   if ((tokens[0].find("/node/")) != std::string::npos) {
     if (tokens[1] == "txgw") {

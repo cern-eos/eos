@@ -119,7 +119,6 @@ extern int com_squash(char*);
 extern int com_test(char*);
 extern int com_timing(char*);
 extern int com_tracker(char*);
-extern int com_transfer(char*);
 extern int com_touch(char*);
 extern int com_proto_token(char*);
 extern int com_prot_token(char*);
@@ -207,7 +206,6 @@ COMMAND commands[] = {
   { (char*) "touch", com_touch, (char*) "Touch a file"},
   { (char*) "token", com_proto_token, (char*) "Token interface"},
   { (char*) "tracker", com_tracker, (char*) "Interact with File Tracker"},
-  { (char*) "transfer", com_transfer, (char*) "Transfer Interface"},
   { (char*) "version", com_version, (char*) "Verbose client/server version"},
   { (char*) "vid", com_vid, (char*) "Virtual ID System Configuration"},
   { (char*) "whoami", com_whoami, (char*) "Determine how we are mapped on server side"},
@@ -555,9 +553,9 @@ client_command(XrdOucString& in, bool is_admin, std::string* reply)
   } else {
     if (getenv("EOS_NEWGRP")) {
       if (getegid()) {
-	// add the current effective group ID as a wish to the request, but not root!
-	in += "&eos.rgid=";
-	in += std::to_string(getegid()).c_str();
+        // add the current effective group ID as a wish to the request, but not root!
+        in += "&eos.rgid=";
+        in += std::to_string(getegid()).c_str();
       }
     }
   }
@@ -607,9 +605,10 @@ client_command(XrdOucString& in, bool is_admin, std::string* reply)
     std::string sout;
     zmq::message_t response;
     zmq::recv_result_t ret_recv = socket.recv(response);
+
     if (ret_recv.has_value()) {
       sout.assign((char*)response.data(), response.size());
-    }    
+    }
 
     CommandEnv = new XrdOucEnv(sout.c_str());
 
@@ -744,9 +743,8 @@ usage()
           "            EOS_MGM_URL                         : sets the redirector URL - if ipc://[ipc-path] is used, it will talk via ZMQ messaging to a single dedicated thread in the MGM\n");
   fprintf(stderr,
           "            EOS_HISTORY_FILE                    : sets the command history file - by default '$HOME/.eos_history' is used\n\n");
-
   fprintf(stderr,
-	  "            EOS_NEWGRP                          : requests for each command the group ID of the current shell\n");
+          "            EOS_NEWGRP                          : requests for each command the group ID of the current shell\n");
   fprintf(stderr,
           "            EOS_PWD_FILE                        : sets the file where the last working directory is stored- by default '$HOME/.eos_pwd\n\n");
   fprintf(stderr,
