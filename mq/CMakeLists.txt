@@ -50,6 +50,7 @@ target_link_libraries(XrdMqClient-Objects PUBLIC
   PROTOBUF::PROTOBUF
   OpenSSL::SSL
   GOOGLE::SPARSEHASH
+  ZSTD::ZSTD
   qclient)
 
 set_target_properties(XrdMqClient-Objects PROPERTIES
