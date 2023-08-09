@@ -152,6 +152,7 @@ set_target_properties(EosCommon-Objects PROPERTIES
 
 target_link_libraries(EosCommon-Objects PUBLIC
   fmt
+  sframe
   EosFstProto-Objects
   EosCliProto-Objects
   CURL::libcurl
