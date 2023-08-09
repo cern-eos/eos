@@ -313,7 +313,7 @@ if(NOT CLIENT AND Linux)
     EosCommonServer)
 
   target_link_libraries(mutextest PRIVATE
-    EosCommon-Static)
+    EosCommon)
 
   target_link_libraries(dbmaptestfunc PRIVATE
     EosCommon
