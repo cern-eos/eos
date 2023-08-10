@@ -253,6 +253,7 @@ add_library(
   grpc/GrpcWncInterface.cc      grpc/GrpcWncInterface.hh
   grpc/GrpcAndreeaServer.cc grpc/GrpcAndreeaServer.hh
   grpc/GrpcEchoServer.cc grpc/GrpcEchoServer.hh
+  grpc/GrpcEchoInterface.cc      grpc/GrpcEchoInterface.hh
   http/HttpServer.cc
   http/HttpHandler.cc
   http/s3/S3Handler.cc

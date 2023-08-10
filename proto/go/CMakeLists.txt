@@ -24,21 +24,23 @@
 #   IMPORTED_LOCATION ${CMAKE_CURRENT_BINARY_DIR}/${GW_SO}
 #   INTERFACE_INCLUDE_DIRECTORIES "${CMAKE_BINARY_DIR};${CMAKE_CURRENT_BINARY_DIR}")
 
-add_executable(dummy
-  server_main.cc
-  ${PROTO_SRC}
-  ${PROTO_GRPC_SRC})
+# add_executable(dummy
+#   server_main.cc
+#   ${PROTO_SRC}
+#   ${PROTO_GRPC_SRC})
 
-add_dependencies(dummy
-  GoogleApis-Target GoSources)
+# add_dependencies(dummy
+#   GoogleApis-Target)
   
-target_link_libraries(dummy PUBLIC
-  Annot-Objects
-  GATEWAY::GATEWAY
-  GRPC::grpc++
-  GRPC::grpc
-  PROTOBUF::PROTOBUF
-  ABSL::ABSL)
+# target_link_libraries(dummy PUBLIC
+#   Annot-Objects
+#   Srv-Objects
+#   EosCliGrpc-Objects
+#   GATEWAY::GATEWAY
+#   GRPC::grpc++
+#   GRPC::grpc
+#   PROTOBUF::PROTOBUF
+#   ABSL::ABSL)
 
 # install(FILES ${CMAKE_CURRENT_BINARY_DIR}/${GW_SO} DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR})
 

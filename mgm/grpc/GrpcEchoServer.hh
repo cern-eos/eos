@@ -1,8 +1,11 @@
 #pragma once
+
 #include "mgm/Namespace.hh"
 #include "common/AssistedThread.hh"
 #include "common/Mapping.hh"
 #include "common/Logging.hh"
+#include "GrpcEchoInterface.hh"
+
 #ifdef EOS_GRPC
 #include <grpc++/grpc++.h>
 #endif

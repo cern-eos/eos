@@ -2038,7 +2038,6 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   }
 
   if (Echod) {
-    eos_static_info("%s", "msg=\"starting echo service\"");
     Echod->Start();
   }
 
@@ -2208,8 +2207,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
                                          space.second->GetConfigMember("scheduler.type"));
     }
   }
-  
-  eos_static_info("msg=\"running echo service on port=%i\"", mEchoPort);
+
   return NoGo;
 }
 /*----------------------------------------------------------------------------*/

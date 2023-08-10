@@ -7,6 +7,8 @@ syntax = "proto3";
 package eos.echo.service;
 
 import "proto/go/google/api/annotations.proto";
+import "Acl.proto";
+import "ConsoleReply.proto";
 
 option go_package = "eos.echo.service";
 
@@ -31,10 +33,19 @@ service EchoService {
 			}
 		};
 	}
+
 	// EchoBody method receives a simple message and returns it.
 	rpc EchoBody(SimpleMessage) returns (SimpleMessage) {
 		option (google.api.http) = {
 			post: "/v1/example/echo_body"
+			body: "*"
+		};
+	}
+
+	// Acl command
+	rpc AclRequest(eos.console.AclProto) returns (eos.console.ReplyProto) {
+		option (google.api.http) = {
+			post: "/v1/example/acl_cmd"
 			body: "*"
 		};
 	}

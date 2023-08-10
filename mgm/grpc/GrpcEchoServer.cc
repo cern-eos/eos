@@ -7,6 +7,8 @@
 
 #ifdef EOS_GRPC
 #include "proto/go/echo_service.grpc.pb.h"
+#include "libgateway.h"
+
 #include <grpc++/security/credentials.h>
 
 using grpc::Server;
@@ -16,6 +18,8 @@ using grpc::ServerWriter;
 using grpc::Status;
 using eos::echo::service::EchoService;
 using eos::echo::service::SimpleMessage;
+using eos::console::AclProto;
+using eos::console::ReplyProto;
 
 #endif
 
@@ -23,12 +27,14 @@ EOSMGMNAMESPACE_BEGIN
 
 #ifdef EOS_GRPC
 
-class EchoServiceImpl final : public EchoService::Service
+class EchoServiceImpl final : public EchoService::Service, public eos::common::LogId
 {
   Status Echo(ServerContext* context, const SimpleMessage* request,
                SimpleMessage* reply) override
   {
-    std::cerr << "Got an echo request!" << std::endl;
+    std::string json_out;
+    (void) google::protobuf::util::MessageToJsonString(*request, &json_out);
+    eos_static_info("msg=\"received echo request\" data=\"%s\"", json_out.c_str());
     reply->CopyFrom(*request);
     return Status::OK;
   }
@@ -38,6 +44,17 @@ class EchoServiceImpl final : public EchoService::Service
   {
     reply->CopyFrom(*request);
     return Status::OK;
+  }
+
+  Status AclRequest(ServerContext* context, const AclProto* request,
+                  ReplyProto* reply) override
+  {
+    std::string json_out;
+    (void) google::protobuf::util::MessageToJsonString(*request, &json_out);
+    eos_static_info("msg=\"received acl request\" data=\"%s\"", json_out.c_str());
+
+    GrpcEchoInterface echoInterface;
+    return echoInterface.AclCall(request, reply);
   }
 };
 
@@ -172,9 +189,14 @@ GrpcEchoServer::Run(ThreadAssistant& assistant) noexcept
 //   }
 
   EchoServiceImpl service;
+  grpc::ServerBuilder builder;
+
+  // server bind address
   std::string bind_address = "0.0.0.0:";
   bind_address += std::to_string(mPort);
-  grpc::ServerBuilder builder;
+  // gateway bind address
+  std::string gw_bind_address = "0.0.0.0:";
+  gw_bind_address += "40054";
 
   // if (mSSL) {
   //   grpc::SslServerCredentialsOptions::PemKeyCertPair keycert = {
@@ -194,9 +216,18 @@ GrpcEchoServer::Run(ThreadAssistant& assistant) noexcept
   builder.RegisterService(&service);
   mEchoServer = builder.BuildAndStart();
 
+  // spawn grpc gateway
+  char* const addr = const_cast<char*>(bind_address.c_str());
+  char* const gwaddr = const_cast<char*>(gw_bind_address.c_str());
+  char* path = (char *)"../../../../protos/examplepb";
+  const auto gatewayServer = SpawnGrpcGateway(gwaddr, "tcp", addr, path);
+  std::cerr << "Done spawning GrpcGateway" << std::endl;
+
   if (mEchoServer) {
     mEchoServer->Wait();
   }
+
+  WaitForGrpcGateway(gatewayServer);
 
 #else
   // Make the compiler happy
