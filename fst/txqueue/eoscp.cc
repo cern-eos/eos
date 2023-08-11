@@ -37,6 +37,7 @@
 #include <iostream>
 #include <chrono>
 #include <openssl/md5.h>
+#include <optional>
 #include "XrdCl/XrdClFile.hh"
 #include "XrdCl/XrdClDefaultEnv.hh"
 #include "XrdOuc/XrdOucString.hh"
@@ -44,6 +45,8 @@
 #include "common/Timing.hh"
 #include "common/SymKeys.hh"
 #include "common/StringSplit.hh"
+#include "common/json/Jsonifiable.hh"
+#include "common/json/JsonCppJsonifier.hh"
 #include "fst/layout/RaidDpLayout.hh"
 #include "fst/layout/ReedSLayout.hh"
 #include "fst/io/AsyncMetaHandler.hh"
@@ -69,6 +72,93 @@ enum AccessType {
   CONSOLE_ACCESS ///< input/output to console
 };
 
+class XferSummary : public eos::common::Jsonifiable<XferSummary>
+{
+public:
+  std::vector<std::string> sources;
+  std::vector<std::string> destinations;
+  time_t rawtime;
+  std::string astime;
+  std::optional<std::string> xrdsecprotocol;
+  std::optional<std::string> krb5ccname;
+  std::optional<std::string> x509userproxy;
+  std::string src_clientinfo;
+  std::string dst_clientinfo;
+  uint64_t bytescopied;
+  uint64_t totalbytescopied;
+  float abs_time;
+  float realtime;
+  float copyrate;
+  double ingress_rate;
+  double egress_rate;
+  double ingress_microseconds;
+  double egress_microseconds;
+  float bandwidth;
+  std::optional<std::string> checksum_type;
+  std::optional<std::string> checksum_value;
+  off_t write_start;
+  off_t write_stop;
+  long long read_start;
+  long long read_stop;
+  int ndst;
+  virtual ~XferSummary() = default;
+};
+
+class XferSummaryJson : public eos::common::JsonCppJsonifier<XferSummary>
+{
+public:
+  virtual ~XferSummaryJson() = default;
+  void jsonify(const XferSummary* obj, std::stringstream& oss) override
+  {
+    Json::Value root;
+    root["unixtime"] = Json::UInt64(obj->rawtime);
+    root["date"] = obj->astime;
+    root["auth"] = obj->xrdsecprotocol ? Json::Value(*obj->xrdsecprotocol) :
+                   Json::nullValue;
+    root["krb5"] = obj->krb5ccname ? Json::Value(*obj->krb5ccname) :
+                   Json::nullValue;
+    root["x509userproxy"] = obj->x509userproxy ? Json::Value(
+                              *obj->x509userproxy) : Json::nullValue;
+    initializeArray(root["sources"]);
+
+    for (size_t i = 0; i < obj->sources.size(); ++i) {
+      root["sources"].append(obj->sources[i]);
+    }
+
+    for (size_t i = 0; i < obj->destinations.size(); ++i) {
+      root["destinations"].append(obj->destinations[i]);
+    }
+
+    root["bytes_copied"] = Json::UInt64(obj->bytescopied);
+
+    if (obj->ndst > 1) {
+      root["totalbytes_copied"] = Json::UInt64(obj->totalbytescopied);
+    }
+
+    root["realtime"] = obj->realtime;
+    root["copy_rate"] = obj->copyrate;
+    root["ingress_rate"] = obj->ingress_rate;
+    root["egress_rate"] = obj->egress_rate;
+    root["ingress_server_info"] = !obj->src_clientinfo.empty() ? Json::Value(
+                                    obj->src_clientinfo) : Json::nullValue;
+    root["egress_server_info"] = !obj->dst_clientinfo.empty() ? Json::Value(
+                                   obj->dst_clientinfo) : Json::nullValue;
+    root["bandwidth"] = obj->bandwidth ? Json::Value(obj->bandwidth) :
+                        Json::nullValue;
+    root["checksum_type"] = obj->checksum_type ? Json::Value(
+                              *obj->checksum_type) : Json::nullValue;
+    root["checksum_value"] = obj->checksum_value ? Json::Value(
+                               *obj->checksum_value) : Json::nullValue;
+    root["write_start"] = Json::UInt64(obj->write_start);
+    root["write_stop"] = Json::UInt64(obj->write_stop);
+    root["read_start"] = obj->read_start >= 0 ? Json::UInt64(
+                           obj->read_start) : Json::nullValue;
+    root["read_stop"] = obj->read_start >= 0 ? Json::UInt64(
+                          obj->read_stop) : Json::nullValue;
+    oss << root;
+  }
+};
+
 const char* protocols[] = {"file", "raid", "xroot", "rio", NULL};
 const char* xs[] = {"adler", "md5", "sha1", "crc32", "crc32c"};
 std::set<std::string> xsTypeSet(xs, xs + 5);
@@ -91,6 +181,7 @@ std::vector<AccessType> dst_type; ///< vector of destination type access
 int verbose = 0;
 int debug = 0;
 int monitoring = 0;
+int jsonoutput = 0;
 int trylocal = 0;
 int progbar = 1;
 int summary = 1;
@@ -123,8 +214,10 @@ char* buffer = NULL; ///< used for doing the reading
 bool first_time = true; ///< first time prefetch two blocks
 bool nooverwrite = false; ///< buy default we overwrite the target files
 int gtimeout = 0; ///< copy process timeout in seconds
-int cksumcomparison = 0; ///< performs a checksum comparison between the source and the destination, returns an error to the user in the case it happens
-int cksummismatchdelete = 0; ///< performs a deletion of the destination file if the checksum of the source and the destination mismatch
+int cksumcomparison =
+  0; ///< performs a checksum comparison between the source and the destination, returns an error to the user in the case it happens
+int cksummismatchdelete =
+  0; ///< performs a deletion of the destination file if the checksum of the source and the destination mismatch
 
 //..............................................................................
 // RAID related variables
@@ -179,7 +272,7 @@ void
 usage()
 {
   fprintf(stderr,
-          "Usage: %s [-5] [-0] [-X <type>] [-t <mb/s>] [-h] [-x] [-v] [-V] [-d] [-l] [-b <size>] [-T <size>] [-Y] [-n] [-s] [-u <id>] [-g <id>] [-S <#>] [-D <#>] [-O <filename>] [-N <name>]<src1> [src2...] <dst1> [dst2...]\n",
+          "Usage: %s [-5] [-0] [-X <type>] [-t <mb/s>] [-h] [-x] [-v] [-V] [-d] [-l] [-j] [-b <size>] [-T <size>] [-Y] [-n] [-s] [-u <id>] [-g <id>] [-S <#>] [-D <#>] [-O <filename>] [-N <name>]<src1> [src2...] <dst1> [dst2...]\n",
           PROGRAM);
   fprintf(stderr, "       -h           : help\n");
   fprintf(stderr, "       -d           : debug mode\n");
@@ -199,6 +292,8 @@ usage()
   fprintf(stderr, "       -n           : hide progress bar\n");
   fprintf(stderr, "       -N           : set name for progress printout\n");
   fprintf(stderr, "       -s           : hide summary\n");
+  fprintf(stderr,
+          "       -j           : JSON output (flags -V -d -v -s are ignored)\n");
   fprintf(stderr,
           "       -u <uid|name>: use <uid> as UID to execute the operation -  (user)<name> is mapped to unix UID if possible\n");
   fprintf(stderr,
@@ -236,8 +331,10 @@ usage()
   fprintf(stderr,
           "       -0           : RAID layouts - don't use parallel IO mode\n");
   fprintf(stderr, "       -x           : don't overwrite an existing file\n");
-  fprintf(stderr, "       -C           : fail if checksum comparison between source and destination fails (XRootD destination only)\n");
-  fprintf(stderr, "       -E           : automatically delete the destination file if checksum comparison between source and destination fails (XRootD destination only) \n");
+  fprintf(stderr,
+          "       -C           : fail if checksum comparison between source and destination fails (XRootD destination only)\n");
+  fprintf(stderr,
+          "       -E           : automatically delete the destination file if checksum comparison between source and destination fails (XRootD destination only) \n");
   exit(-1);
 }
 
@@ -279,27 +376,68 @@ extern "C"
 
 }
 
-//------------------------------------------------------------------------------
-// Printing summary header
-//------------------------------------------------------------------------------
-
-void
-print_summary_header(VectLocationType& src,
-                     VectLocationType& dst)
+XferSummary createXferSummary(const VectLocationType& src,
+                              const VectLocationType& dst, unsigned long long bytesread)
 {
-  XrdOucString xsrc[MAXSRCDST];
-  XrdOucString xdst[MAXSRCDST];
+  XferSummary xferSummary;
+  xferSummary.setJsonifier(std::make_shared<XferSummaryJson>());
+  std::string src_clientinfo;
+  std::string dst_clientinfo;
+
+  if (src_lasturl.length()) {
+    XrdCl::URL url(src_lasturl);
+    XrdCl::URL::ParamsMap cgi = url.GetParams();
+    std::string zclientinfo = cgi["eos.clientinfo"];
+    eos::common::SymKey::ZDeBase64(zclientinfo, src_clientinfo);
+    xferSummary.src_clientinfo = src_clientinfo;
+  }
+
+  if (dst_lasturl.length()) {
+    XrdCl::URL url(dst_lasturl);
+    XrdCl::URL::ParamsMap cgi = url.GetParams();
+    std::string zclientinfo = cgi["eos.clientinfo"];
+    eos::common::SymKey::ZDeBase64(zclientinfo, dst_clientinfo);
+    xferSummary.dst_clientinfo = dst_clientinfo;
+  }
+
+  gettimeofday(&abs_stop_time, &tz);
+  float abs_time = ((float)((abs_stop_time.tv_sec - abs_start_time.tv_sec) * 1000
+                            +
+                            (abs_stop_time.tv_usec - abs_start_time.tv_usec) / 1000));
+  xferSummary.abs_time = abs_time;
 
   for (unsigned int i = 0; i < src.size(); i++) {
-    xsrc[i] = src[i].first.c_str();
-    xsrc[i] += src[i].second.c_str();
-    xsrc[i].erase(xsrc[i].rfind('?'));
+    xferSummary.sources.push_back("");
+    auto& srcStr = xferSummary.sources.back();
+    srcStr += src[i].first.c_str();
+    srcStr += src[i].second.c_str();
+    size_t pos = srcStr.rfind('?');
+
+    if (pos != std::string::npos) {
+      srcStr.erase(pos);
+    }
+
+    if (srcStr.find("//replicate:") != std::string::npos) {
+      // disable client redirection eoscp
+      XrdCl::DefaultEnv::GetEnv()->PutInt("RedirectLimit", 1);
+    }
   }
 
   for (unsigned int i = 0; i < dst.size(); i++) {
-    xdst[i] = dst[i].first.c_str();
-    xdst[i] += dst[i].second.c_str();
-    xdst[i].erase(xdst[i].rfind('?'));
+    xferSummary.destinations.push_back("");
+    auto& dstStr = xferSummary.destinations.back();
+    dstStr += dst[i].first.c_str();
+    dstStr += dst[i].second.c_str();
+    size_t pos = dstStr.rfind('?');
+
+    if (pos != std::string::npos) {
+      dstStr.erase(pos);
+    }
+
+    if (dstStr.find("//replicate:") != std::string::npos) {
+      // disable client redirection eoscp
+      XrdCl::DefaultEnv::GetEnv()->PutInt("RedirectLimit", 1);
+    }
   }
 
   time_t rawtime;
@@ -308,33 +446,76 @@ print_summary_header(VectLocationType& src,
   timeinfo = localtime(&rawtime);
   XrdOucString astime = asctime(timeinfo);
   astime.erase(astime.length() - 1);
+  xferSummary.rawtime = rawtime;
+  xferSummary.astime = astime.c_str();
+  xferSummary.xrdsecprotocol = getenv("XrdSecPROTOCOL") ?
+                               std::optional<std::string>(getenv("XrdSecPROTOCOL")) : std::nullopt;
+  xferSummary.krb5ccname = getenv("KRB5CCNAME") ? std::optional<std::string>
+                           (getenv("KRB5CCNAME")) : std::nullopt;
+  xferSummary.x509userproxy = getenv("X509_USER_PROXY") ?
+                              std::optional<std::string>(getenv("X509_USER_PROXY")) : std::nullopt;
+  xferSummary.bytescopied = bytesread;
+  xferSummary.totalbytescopied = bytesread * ndst;
+  xferSummary.realtime = xferSummary.abs_time / 1000.0;
+  xferSummary.copyrate = xferSummary.abs_time > 0 ? xferSummary.bytescopied /
+                         xferSummary.abs_time / 1000.0 : 0;
+  xferSummary.ingress_microseconds = ingress_microseconds;
+  xferSummary.egress_microseconds = egress_microseconds;
+  xferSummary.ingress_rate = xferSummary.ingress_microseconds  ? bytesread /
+                             xferSummary.ingress_microseconds : 0;
+  xferSummary.egress_rate = xferSummary. egress_microseconds  ? bytesread /
+                            xferSummary.egress_microseconds : 0;
+  xferSummary.bandwidth = bandwidth;
 
+  if (computeXS) {
+    xferSummary.checksum_type = xsString;
+    xferSummary.checksum_value = xsValue;
+  }
+
+  xferSummary.write_start = startwritebyte;
+  xferSummary.write_stop = stopwritebyte;
+  xferSummary.read_start = startbyte;
+  xferSummary.read_stop = stopbyte;
+  xferSummary.ndst = ndst;
+  return xferSummary;
+}
+
+//------------------------------------------------------------------------------
+// Printing summary header
+//------------------------------------------------------------------------------
+void
+print_summary_header(const XferSummary& xferSummary)
+{
   if (!monitoring) {
     COUT(("[eoscp] #################################################################\n"));
     COUT(("[eoscp] # Date                     : ( %lu ) %s\n",
-          (unsigned long) rawtime, astime.c_str()));
+          (unsigned long) xferSummary.rawtime, xferSummary.astime.c_str()));
     COUT(("[eoscp] # auth forced=%s krb5=%s gsi=%s\n",
-          getenv("XrdSecPROTOCOL") ? (getenv("XrdSecPROTOCOL")) : "<none>",
-          getenv("KRB5CCNAME") ? getenv("KRB5CCNAME") : "<none>",
-          getenv("X509_USER_PROXY") ? getenv("X509_USER_PROXY") : "<none>"));
+          xferSummary.xrdsecprotocol ? xferSummary.xrdsecprotocol->c_str() : "<none>",
+          xferSummary.krb5ccname ? xferSummary.krb5ccname->c_str() : "<none>",
+          xferSummary.x509userproxy ? xferSummary.x509userproxy->c_str() : "<none>"));
 
-    for (unsigned int i = 0; i < src.size(); i++) {
-      COUT(("[eoscp] # Source Name [%02d]         : %s\n", i, xsrc[i].c_str()));
+    for (unsigned int i = 0; i < xferSummary.sources.size(); i++) {
+      COUT(("[eoscp] # Source Name [%02d]         : %s\n", i,
+            xferSummary.sources[i].c_str()));
     }
 
-    for (unsigned int i = 0; i < dst.size(); i++) {
-      COUT(("[eoscp] # Destination Name [%02d]    : %s\n", i, xdst[i].c_str()));
+    for (unsigned int i = 0; i < xferSummary.destinations.size(); i++) {
+      COUT(("[eoscp] # Destination Name [%02d]    : %s\n", i,
+            xferSummary.destinations[i].c_str()));
     }
   } else {
-    COUT(("unixtime=%lu date=\"%s\" auth=\"%s\" ", (unsigned long) rawtime,
-          astime.c_str(), getenv("XrdSecPROTOCOL")));
+    COUT(("unixtime=%lu date=\"%s\" auth=\"%s\" ",
+          (unsigned long) xferSummary.rawtime,
+          xferSummary.astime.c_str(),
+          xferSummary.xrdsecprotocol ? xferSummary.xrdsecprotocol->c_str() : "(null)"));
 
-    for (unsigned int i = 0; i < src.size(); i++) {
-      COUT(("src_%d=%s ", i, xsrc[i].c_str()));
+    for (unsigned int i = 0; i < xferSummary.sources.size(); i++) {
+      COUT(("src_%d=%s ", i, xferSummary.sources[i].c_str()));
     }
 
-    for (unsigned int i = 0; i < dst.size(); i++) {
-      COUT(("dst_%d=%s ", i, xdst[i].c_str()));
+    for (unsigned int i = 0; i < xferSummary.destinations.size(); i++) {
+      COUT(("dst_%d=%s ", i, xferSummary.destinations[i].c_str()));
     }
   }
 }
@@ -345,56 +526,9 @@ print_summary_header(VectLocationType& src,
 //------------------------------------------------------------------------------
 
 void
-print_summary(VectLocationType& src,
-              VectLocationType& dst,
-              unsigned long long bytesread)
+print_summary(const XferSummary& xferSummary)
 {
-  std::string src_clientinfo;
-  std::string dst_clientinfo;
-
-  if (src_lasturl.length()) {
-    XrdCl::URL url(src_lasturl);
-    XrdCl::URL::ParamsMap cgi = url.GetParams();
-    std::string zclientinfo = cgi["eos.clientinfo"];
-    eos::common::SymKey::ZDeBase64(zclientinfo, src_clientinfo);
-  }
-
-  if (dst_lasturl.length()) {
-    XrdCl::URL url(dst_lasturl);
-    XrdCl::URL::ParamsMap cgi = url.GetParams();
-    std::string zclientinfo = cgi["eos.clientinfo"];
-    eos::common::SymKey::ZDeBase64(zclientinfo, dst_clientinfo);
-  }
-
-  gettimeofday(&abs_stop_time, &tz);
-  float abs_time = ((float)((abs_stop_time.tv_sec - abs_start_time.tv_sec) * 1000
-                            +
-                            (abs_stop_time.tv_usec - abs_start_time.tv_usec) / 1000));
-  XrdOucString xsrc[MAXSRCDST];
-  XrdOucString xdst[MAXSRCDST];
-  print_summary_header(src, dst);
-
-  for (unsigned int i = 0; i < src.size(); i++) {
-    xsrc[i] = src[i].first.c_str();
-    xsrc[i] += src[i].second.c_str();
-    xsrc[i].erase(xsrc[i].rfind('?'));
-
-    if (xsrc[i].find("//replicate:") != STR_NPOS) {
-      // disable client redirection eoscp
-      XrdCl::DefaultEnv::GetEnv()->PutInt("RedirectLimit", 1);
-    }
-  }
-
-  for (unsigned int i = 0; i < dst.size(); i++) {
-    xdst[i] = dst[i].first.c_str();
-    xdst[i] += dst[i].second.c_str();
-    xdst[i].erase(xdst[i].rfind('?'));
-
-    if (xdst[i].find("//replicate:") != STR_NPOS) {
-      // disable client redirection eoscp
-      XrdCl::DefaultEnv::GetEnv()->PutInt("RedirectLimit", 1);
-    }
-  }
+  print_summary_header(xferSummary);
 
   if (!monitoring) {
     // This is a quick-and-dirty trick to keep the ':' after the checksum type label aligned with the rest
@@ -402,103 +536,118 @@ print_summary(VectLocationType& src,
     std::string key = "[eoscp] # Data Copied [bytes]      ";
     const size_t keyLen = key.size();
     key += ": %lld\n";
-    COUT((key.c_str(), bytesread));
+    COUT((key.c_str(), xferSummary.totalbytescopied));
 
-    if (ndst > 1) {
-      COUT(("[eoscp] # Tot. Data Copied [bytes] : %lld\n", bytesread * ndst));
+    if (xferSummary.ndst > 1) {
+      COUT(("[eoscp] # Tot. Data Copied [bytes] : %lld\n",
+            xferSummary.totalbytescopied));
     }
 
-    COUT(("[eoscp] # Realtime [s]             : %.03f\n", abs_time / 1000.0));
+    COUT(("[eoscp] # Realtime [s]             : %.03f\n", xferSummary.realtime));
 
-    if (abs_time > 0) {
+    if (xferSummary.abs_time > 0) {
       COUT(("[eoscp] # Eff.Copy. Rate[MB/s]     : %.02f\n",
-            bytesread / abs_time / 1000.0));
+            xferSummary.copyrate));
     }
 
-    if (ingress_microseconds) {
+    if (xferSummary.ingress_microseconds) {
       COUT(("[eoscp] # INGRESS [MB/s]           : %.02f\n",
-            bytesread / ingress_microseconds));
+            xferSummary.ingress_rate));
     }
 
-    if (egress_microseconds) {
+    if (xferSummary.egress_microseconds) {
       COUT(("[eoscp] # EGRESS [MB/s]            : %.02f\n",
-            bytesread / egress_microseconds));
+            xferSummary.egress_rate));
     }
 
-    if (bandwidth) {
-      COUT(("[eoscp] # Bandwidth[MB/s]          : %d\n", (int) bandwidth));
+    if (xferSummary.bandwidth) {
+      COUT(("[eoscp] # Bandwidth[MB/s]          : %d\n",
+            (int) xferSummary.bandwidth));
     }
 
-    if (computeXS) {
+    if (xferSummary.checksum_type) {
       // This is a quick-and-dirty trick to keep the ':' after the checksum type label aligned with the rest
       // of the output (part 2)
-      std::string cksumTypeTitle = "[eoscp] # Checksum Type " + xsString;
-      size_t paddingSize = int(keyLen - cksumTypeTitle.length()) > 0 ? keyLen - cksumTypeTitle.length() : 0;
-      if(paddingSize) {
-        cksumTypeTitle += std::string(paddingSize,' ');
+      std::string cksumTypeTitle = "[eoscp] # Checksum Type " +
+                                   *xferSummary.checksum_type;
+      size_t paddingSize = int(keyLen - cksumTypeTitle.length()) > 0 ? keyLen -
+                           cksumTypeTitle.length() : 0;
+
+      if (paddingSize) {
+        cksumTypeTitle += std::string(paddingSize, ' ');
       }
+
       COUT(((cksumTypeTitle + std::string(": ")).c_str()));
-      COUT(("%s", xsValue.c_str()));
+      COUT(("%s", xferSummary.checksum_value->c_str()));
       COUT(("\n"));
     }
 
-    COUT(("[eoscp] # Write Start Position     : %lld\n", startwritebyte));
-    COUT(("[eoscp] # Write Stop  Position     : %lld\n", stopwritebyte));
+    COUT(("[eoscp] # Write Start Position     : %lld\n", xferSummary.write_start));
+    COUT(("[eoscp] # Write Stop  Position     : %lld\n", xferSummary.write_stop));
 
-    if (startbyte >= 0) {
-      COUT(("[eoscp] # Read  Start Position     : %lld\n", startbyte));
-      COUT(("[eoscp] # Read  Stop  Position     : %lld\n", stopbyte));
+    if (xferSummary.read_start >= 0) {
+      COUT(("[eoscp] # Read  Start Position     : %lld\n", xferSummary.read_start));
+      COUT(("[eoscp] # Read  Stop  Position     : %lld\n", xferSummary.read_stop));
     }
 
-    if (!src_clientinfo.empty()) {
-      COUT(("[eoscp] # INGRESS Server Info      : %s\n", src_clientinfo.c_str()));
+    if (!xferSummary.src_clientinfo.empty()) {
+      COUT(("[eoscp] # INGRESS Server Info      : %s\n",
+            xferSummary.src_clientinfo.c_str()));
     }
 
-    if (!dst_clientinfo.empty()) {
-      COUT(("[eoscp] # EGRESS  Server info      : %s\n", dst_clientinfo.c_str()));
+    if (!xferSummary.dst_clientinfo.empty()) {
+      COUT(("[eoscp] # EGRESS  Server info      : %s\n",
+            xferSummary.dst_clientinfo.c_str()));
     }
   } else {
-    COUT(("bytes_copied=%lld ", bytesread));
+    COUT(("bytes_copied=%lld ", xferSummary.bytescopied));
 
     if (ndst > 1) {
-      COUT(("totalbytes_copied=%lld ", bytesread * ndst));
+      COUT(("totalbytes_copied=%lld ", xferSummary.totalbytescopied));
     }
 
-    COUT(("realtime=%.02f ", abs_time / 1000.0));
+    COUT(("realtime=%.02f ", xferSummary.abs_time / 1000.0));
 
-    if (abs_time > 0) {
-      COUT(("copy_rate=%f ", bytesread / abs_time / 1000.0));
+    if (xferSummary.abs_time > 0) {
+      COUT(("copy_rate=%f ", xferSummary.bytescopied / xferSummary.abs_time /
+            1000.0));
     }
 
-    if (ingress_microseconds) {
+    if (xferSummary.ingress_microseconds) {
       COUT(("ingress_rate=%f ",
-            bytesread / ingress_microseconds));
+            xferSummary.ingress_rate));
     }
 
-    if (egress_microseconds) {
+    if (xferSummary.egress_microseconds) {
       COUT(("egress_rate=%f ",
-            bytesread / egress_microseconds));
+            xferSummary.egress_rate));
     }
 
-    if (bandwidth) {
-      COUT(("bandwidth=%d ", (int) bandwidth));
+    if (xferSummary.bandwidth) {
+      COUT(("bandwidth=%d ", (int) xferSummary.bandwidth));
     }
 
-    if (computeXS) {
-      COUT(("checksum_type=%s ", xsString.c_str()));
-      COUT(("checksum=%s ", xsValue.c_str()));
+    if (xferSummary.checksum_type) {
+      COUT(("checksum_type=%s ", xferSummary.checksum_type->c_str()));
+      COUT(("checksum=%s ", xferSummary.checksum_value->c_str()));
     }
 
-    COUT(("write_start=%lld ", startwritebyte));
-    COUT(("write_stop=%lld ", stopwritebyte));
+    COUT(("write_start=%lld ", xferSummary.write_start));
+    COUT(("write_stop=%lld ", xferSummary.write_stop));
 
-    if (startbyte >= 0) {
-      COUT(("read_start=%lld ", startbyte));
-      COUT(("read_stop=%lld ", stopbyte));
+    if (xferSummary.read_start >= 0) {
+      COUT(("read_start=%lld ", xferSummary.read_start));
+      COUT(("read_stop=%lld ", xferSummary.read_stop));
     }
   }
 }
 
+void print_json_summary(const XferSummary& xferSummary)
+{
+  std::stringstream ss;
+  xferSummary.jsonify(ss);
+  COUT((ss.str().c_str()));
+}
 
 //------------------------------------------------------------------------------
 // Printing progress bar
@@ -576,52 +725,69 @@ struct CompareCksumResult {
   std::string errMsg = "";
 };
 
-CompareCksumResult compareChecksum(XrdCl::FileSystem & fs,const std::string & destFilePath, std::string srcCksumType, const std::string & srcCksumValue) {
+CompareCksumResult compareChecksum(XrdCl::FileSystem& fs,
+                                   const std::string& destFilePath, std::string srcCksumType,
+                                   const std::string& srcCksumValue)
+{
   CompareCksumResult result;
   // Get the checksum of the file that got uploaded to the destination
   std::unique_ptr<XrdCl::Buffer> response_sp;
-  XrdCl::Buffer * response = response_sp.get();
-  if(srcCksumType == "adler") {
+  XrdCl::Buffer* response = response_sp.get();
+
+  if (srcCksumType == "adler") {
     // xrootd adler32 checksum is called "adler32"
     srcCksumType = "adler32";
   }
+
   XrdCl::Buffer arg;
   arg.FromString(destFilePath + "?cks.type=" + srcCksumType);
-  XrdCl::XRootDStatus status = fs.Query(XrdCl::QueryCode::Checksum,arg,response);
-  if(status.IsOK()) {
+  XrdCl::XRootDStatus status = fs.Query(XrdCl::QueryCode::Checksum, arg,
+                                        response);
+
+  if (status.IsOK()) {
     // we got the checksum of the destination file
     // compare the checksums between source and destination
     std::string queryCksumResp = response->GetBuffer();
-    auto splittedResp = eos::common::StringSplit(queryCksumResp," ");
-    if(splittedResp.size() == 2) {
+    auto splittedResp = eos::common::StringSplit(queryCksumResp, " ");
+
+    if (splittedResp.size() == 2) {
       // The checksum response we received has a proper format
       const std::string destCksumType(splittedResp[0]);
       const std::string destCksumValue(splittedResp[1]);
-      if(destCksumType == srcCksumType) {
+
+      if (destCksumType == srcCksumType) {
         // Same checksum type between the source and the destination
-        if(destCksumValue == srcCksumValue) {
+        if (destCksumValue == srcCksumValue) {
           // Checksum match!
           result.cksumMismatch = false;
         } else {
           // Checksum mismatch
           result.xrdErrno = EIO;
-          result.errMsg = "error: checksum mismatch between source (" + srcCksumValue + ") and destination (" + destCksumValue + ")";
+          result.errMsg = "error: checksum mismatch between source (" + srcCksumValue +
+                          ") and destination (" + destCksumValue + ")";
         }
       } else {
         // Different checksum type between source and destination
-        result.errMsg = "error while extracting destination checksum: received a different checksum type from the destination (" + destCksumType + ") compared to the one computed on the source (" + srcCksumType + ")";
+        result.errMsg =
+          "error while extracting destination checksum: received a different checksum type from the destination ("
+          + destCksumType + ") compared to the one computed on the source (" +
+          srcCksumType + ")";
         result.xrdErrno = EINVAL;
       }
     } else {
       // Wrong response format received
-      result.errMsg = "error while extracting the destination checksum: expected 'destCksumType destCksumValue', received:" + queryCksumResp;
+      result.errMsg =
+        "error while extracting the destination checksum: expected 'destCksumType destCksumValue', received:"
+        + queryCksumResp;
       result.xrdErrno = EINVAL;
     }
   } else {
     // Problem while querying the destination checksum
-    result.errMsg = "error while getting the destination checksum: " + status.ToStr();
+    result.errMsg = "error while getting the destination checksum: " +
+                    status.ToStr();
     result.xrdErrno = status.errNo;
   }
+
   return result;
 }
 
@@ -668,7 +834,7 @@ main(int argc, char* argv[])
                                       8);  // needed for high performance on 100GE
 
   while ((c = getopt(argc, argv,
-                     "CEnshxdvlipfce:P:X:b:m:u:g:t:S:D:5aA:r:N:L:RT:O:V0q:")) != -1) {
+                     "CEnshxdvlipfcje:P:X:b:m:u:g:t:S:D:5aA:r:N:L:RT:O:V0q:")) != -1) {
     switch (c) {
     case 'v':
       verbose = 1;
@@ -676,6 +842,10 @@ main(int argc, char* argv[])
 
     case 'V':
       monitoring = 1;
+      break;
+
+    case 'j':
+      jsonoutput = 1;
       break;
 
     case 'd':
@@ -940,6 +1110,14 @@ main(int argc, char* argv[])
     }
   }
 
+  if (jsonoutput) {
+    summary = 1;
+    monitoring = 0;
+    debug = 0;
+    verbose = 0;
+    progbar = 0;
+  }
+
   if (debug) {
     eos::common::Logging& g_logging = eos::common::Logging::GetInstance();
     g_logging.SetLogPriority(LOG_DEBUG);
@@ -1024,13 +1202,16 @@ main(int argc, char* argv[])
     fprintf(stdout, "\n");
   }
 
-  if(cksumcomparison || cksummismatchdelete) {
-    if(src_location.size() != 1 && dst_location.size() != 1) {
-      fprintf(stderr,"error: only one source and one destination can be provided if the destination checksum check option is enabled (-C or -E)\n");
+  if (cksumcomparison || cksummismatchdelete) {
+    if (src_location.size() != 1 && dst_location.size() != 1) {
+      fprintf(stderr,
+              "error: only one source and one destination can be provided if the destination checksum check option is enabled (-C or -E)\n");
       exit(-EINVAL);
     }
-    if(cksummismatchdelete && !cksumcomparison){
-      fprintf(stderr,"error: source and destination checksum comparison (-C) not enabled, automatic deletion option (-E) cannot be enabled\n");
+
+    if (cksummismatchdelete && !cksumcomparison) {
+      fprintf(stderr,
+              "error: source and destination checksum comparison (-C) not enabled, automatic deletion option (-E) cannot be enabled\n");
       exit(-EINVAL);
     }
   }
@@ -1113,12 +1294,14 @@ main(int argc, char* argv[])
           }
 
           if (doPIO && status.IsOK()) {
-	    if (!getenv("EOS_FST_XRDIO_READAHEAD")) {
-	      setenv("EOS_FST_XRDIO_READAHEAD","1",1);
-	    }
-	    if (!getenv("EOS_FST_XRDIO_BLOCK_SIZE")) {
-	      setenv("EOS_FST_XRDIO_BLOCK_SIZE","4194304 ", 1);
-	    }
+            if (!getenv("EOS_FST_XRDIO_READAHEAD")) {
+              setenv("EOS_FST_XRDIO_READAHEAD", "1", 1);
+            }
+
+            if (!getenv("EOS_FST_XRDIO_BLOCK_SIZE")) {
+              setenv("EOS_FST_XRDIO_BLOCK_SIZE", "4194304 ", 1);
+            }
+
             XrdCl::StatInfo* statresponse = 0;
             status = fs.Stat(file_path.c_str(), statresponse);
 
@@ -1326,14 +1509,18 @@ main(int argc, char* argv[])
     }
   }
 
-  if(cksumcomparison) {
+  if (cksumcomparison) {
     size_t dst_type_sz = dst_type.size();
-    if(dst_type_sz > 1) {
-      fprintf(stderr, "error: too many destination provided. Checksum comparison between source and destination cannot be enabled.\n");
+
+    if (dst_type_sz > 1) {
+      fprintf(stderr,
+              "error: too many destination provided. Checksum comparison between source and destination cannot be enabled.\n");
       exit(-EINVAL);
     }
-    if(dst_type_sz == 1 && dst_type[0] != XRD_ACCESS) {
-      fprintf(stderr,"error: source and checksum comparison (-C) only allowed for destination using root protocol.\n");
+
+    if (dst_type_sz == 1 && dst_type[0] != XRD_ACCESS) {
+      fprintf(stderr,
+              "error: source and checksum comparison (-C) only allowed for destination using root protocol.\n");
       exit(-EINVAL);
     }
   }
@@ -2493,8 +2680,14 @@ main(int argc, char* argv[])
     cout << endl;
   }
 
-  if (summary) {
-    print_summary(src_location, dst_location, totalbytes);
+  auto xferSummary = createXferSummary(src_location, dst_location, totalbytes);
+
+  if (jsonoutput) {
+    print_json_summary(xferSummary);
+  } else {
+    if (summary) {
+      print_summary(xferSummary);
+    }
   }
 
   //............................................................................
@@ -2644,7 +2837,7 @@ main(int argc, char* argv[])
             write_wait);
   }
 
-  if(cksumcomparison) {
+  if (cksumcomparison) {
     // The client asked for some checksum comparison between the source and the destination
     std::string destServer = dst_location[0].first;
     std::string destFilePath = dst_location[0].second;
@@ -2652,14 +2845,17 @@ main(int argc, char* argv[])
     // No need to check the URL consistency as the transfer already happened
     XrdCl::FileSystem fs(url);
     CompareCksumResult res = compareChecksum(fs, destFilePath, xsString, xsValue);
+
     if (res.cksumMismatch) {
       // Checksum mismatch, print related error
-      fprintf(stderr,"%s\n", res.errMsg.c_str());
+      fprintf(stderr, "%s\n", res.errMsg.c_str());
+
       if (cksummismatchdelete) {
         // The user wants to delete the file if the checksum mismatch between source and destination
         fprintf(stderr, "Deleting the file from the destination %s%s\n",
                 destServer.c_str(), destFilePath.c_str());
         status = fs.Rm(destFilePath);
+
         if (!status.IsOK()) {
           fprintf(stderr,
                   "error while trying to delete the file from the destination (%s): %s\n",
@@ -2667,10 +2863,12 @@ main(int argc, char* argv[])
           exit(-status.errNo ? -status.errNo : -1);
         }
       }
+
       // Just return the error code set during the checksum checking
       exit(-res.xrdErrno ? -res.xrdErrno : -1);
     }
   }
+
   // Free memory
   delete[] buffer;
 
