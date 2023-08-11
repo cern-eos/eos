@@ -32,9 +32,10 @@ class EchoServiceImpl final : public EchoService::Service, public eos::common::L
   Status Echo(ServerContext* context, const SimpleMessage* request,
                SimpleMessage* reply) override
   {
-    std::string json_out;
-    (void) google::protobuf::util::MessageToJsonString(*request, &json_out);
-    eos_static_info("msg=\"received echo request\" data=\"%s\"", json_out.c_str());
+    // std::string json_out;
+    // (void) google::protobuf::util::MessageToJsonString(*request, &json_out);
+    // eos_static_info("msg=\"received echo request\" data=\"%s\"", json_out.c_str());
+    
     reply->CopyFrom(*request);
     return Status::OK;
   }
@@ -49,12 +50,34 @@ class EchoServiceImpl final : public EchoService::Service, public eos::common::L
   Status AclRequest(ServerContext* context, const AclProto* request,
                   ReplyProto* reply) override
   {
-    std::string json_out;
-    (void) google::protobuf::util::MessageToJsonString(*request, &json_out);
-    eos_static_info("msg=\"received acl request\" data=\"%s\"", json_out.c_str());
+    // std::string json_out;
+    // (void) google::protobuf::util::MessageToJsonString(*request, &json_out);
+    // eos_static_info("msg=\"received acl request\" data=\"%s\"", json_out.c_str());
 
     GrpcEchoInterface echoInterface;
     return echoInterface.AclCall(request, reply);
+  }
+
+  Status AccessRequest(ServerContext* context, const AccessProto* request,
+                  ReplyProto* reply) override
+  {
+    // std::string json_out;
+    // (void) google::protobuf::util::MessageToJsonString(*request, &json_out);
+    // eos_static_info("msg=\"received access request\" data=\"%s\"", json_out.c_str());
+
+    GrpcEchoInterface echoInterface;
+    return echoInterface.AccessCall(request, reply);
+  }
+
+  Status AttrRequest(ServerContext* context, const AttrProto* request,
+                  ReplyProto* reply) override
+  {
+    // std::string json_out;
+    // (void) google::protobuf::util::MessageToJsonString(*request, &json_out);
+    // eos_static_info("msg=\"received attr request\" data=\"%s\"", json_out.c_str());
+
+    GrpcEchoInterface echoInterface;
+    return echoInterface.AttrCall(request, reply);
   }
 };
 

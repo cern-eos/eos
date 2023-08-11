@@ -3,6 +3,7 @@
 #ifdef EOS_GRPC
 
 //-----------------------------------------------------------------------------
+#include "common/VirtualIdentity.hh"
 #include "mgm/Namespace.hh"
 #include "proto/go/echo_service.grpc.pb.h"
 //-----------------------------------------------------------------------------
@@ -13,7 +14,9 @@ using grpc::ServerWriter;
 using grpc::Status;
 using eos::echo::service::EchoService;
 using eos::echo::service::SimpleMessage;
+using eos::console::AccessProto;
 using eos::console::AclProto;
+using eos::console::AttrProto;
 using eos::console::ReplyProto;
 //-----------------------------------------------------------------------------
 
@@ -33,17 +36,14 @@ public:
 //  Execute specific EOS command for the EOS gRPC request
 //-----------------------------------------------------------------------------
   Status AclCall(const AclProto* aclRequest, ReplyProto* reply);
+  Status AccessCall(const AccessProto* accessRequest, ReplyProto* reply);
+  Status AttrCall(const AttrProto* attrRequest, ReplyProto* reply);
 //-----------------------------------------------------------------------------
 
 private:
 
-//-----------------------------------------------------------------------------
-// Class member variables
-//-----------------------------------------------------------------------------
-  // ServerContext* context;
-  // const eos::console::RequestProto* mRequest;
-  // eos::console::ReplyProto* mReply;
-  // ServerWriter<eos::console::ReplyProto>* mWriter;
+  void ExecProcCmd(eos::common::VirtualIdentity vid, ReplyProto* reply,
+                   std::string input, bool admin = true);
 };
 
 EOSMGMNAMESPACE_END

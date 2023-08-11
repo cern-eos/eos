@@ -7,7 +7,9 @@ syntax = "proto3";
 package eos.echo.service;
 
 import "proto/go/google/api/annotations.proto";
+import "Access.proto";
 import "Acl.proto";
+import "Attr.proto";
 import "ConsoleReply.proto";
 
 option go_package = "eos.echo.service";
@@ -42,10 +44,29 @@ service EchoService {
 		};
 	}
 
-	// Acl command
+	// AclRequest method receives a request for an eos acl command
+	// and returns the result of the command
 	rpc AclRequest(eos.console.AclProto) returns (eos.console.ReplyProto) {
 		option (google.api.http) = {
 			post: "/v1/example/acl_cmd"
+			body: "*"
+		};
+	}
+
+	// AccessRequest method receives a request for an eos access command
+	// and returns the result of the command
+	rpc AccessRequest(eos.console.AccessProto) returns (eos.console.ReplyProto) {
+		option (google.api.http) = {
+			post: "/v1/example/access_cmd"
+			body: "*"
+		};
+	}
+
+	// AttrRequest method receives a request for an eos command
+	// and returns the result of the command
+	rpc AttrRequest(eos.console.AttrProto) returns (eos.console.ReplyProto) {
+		option (google.api.http) = {
+			post: "/v1/example/attr_cmd"
 			body: "*"
 		};
 	}
