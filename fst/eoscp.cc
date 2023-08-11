@@ -292,6 +292,7 @@ usage()
   fprintf(stderr, "       -n           : hide progress bar\n");
   fprintf(stderr, "       -N           : set name for progress printout\n");
   fprintf(stderr, "       -s           : hide summary\n");
+  fprintf(stderr, "       -j           : JSON output (flags -V -d -v -s are ignored)\n");
   fprintf(stderr,
           "       -j           : JSON output (flags -V -d -v -s are ignored)\n");
   fprintf(stderr,
@@ -423,6 +424,34 @@ XferSummary createXferSummary(const VectLocationType& src,
     }
   }
 
+  if (dst_lasturl.length()) {
+    XrdCl::URL url(dst_lasturl);
+    XrdCl::URL::ParamsMap cgi = url.GetParams();
+    std::string zclientinfo = cgi["eos.clientinfo"];
+    eos::common::SymKey::ZDeBase64(zclientinfo, dst_clientinfo);
+    xferSummary.dst_clientinfo = dst_clientinfo;
+  }
+
+  gettimeofday(&abs_stop_time, &tz);
+  float abs_time = ((float)((abs_stop_time.tv_sec - abs_start_time.tv_sec) * 1000
+                            +
+                            (abs_stop_time.tv_usec - abs_start_time.tv_usec) / 1000));
+  xferSummary.abs_time = abs_time;
+
+  for (unsigned int i = 0; i < src.size(); i++) {
+    xferSummary.sources.push_back("");
+    auto & srcStr = xferSummary.sources.back();
+    srcStr += src[i].first.c_str();
+    srcStr += src[i].second.c_str();
+    size_t pos = srcStr.rfind('?');
+    if(pos != std::string::npos) {
+      srcStr.erase(pos);
+    }
+    if (srcStr.find("//replicate:") != std::string::npos) {
+      // disable client redirection eoscp
+      XrdCl::DefaultEnv::GetEnv()->PutInt("RedirectLimit", 1);
+    }
+  }
   for (unsigned int i = 0; i < dst.size(); i++) {
     xferSummary.destinations.push_back("");
     auto& dstStr = xferSummary.destinations.back();
@@ -571,7 +600,7 @@ print_summary(const XferSummary& xferSummary)
       std::string cksumTypeTitle = "[eoscp] # Checksum Type " +
                                    *xferSummary.checksum_type;
       size_t paddingSize = int(keyLen - cksumTypeTitle.length()) > 0 ? keyLen -
-                           cksumTypeTitle.length() : 0;
+                                                                           cksumTypeTitle.length() : 0;
 
       if (paddingSize) {
         cksumTypeTitle += std::string(paddingSize, ' ');
