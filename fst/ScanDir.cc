@@ -31,7 +31,6 @@
 #include "fst/Deletion.hh"
 #include "fst/storage/FileSystem.hh"
 #include "fst/checksum/ChecksumPlugins.hh"
-#include "fst/filemd/FmdDbMap.hh"
 #include "fst/io/FileIoPluginCommon.hh"
 #include "namespace/ns_quarkdb/Constants.hh"
 #include "qclient/structures/QSet.hh"
@@ -242,20 +241,14 @@ ScanDir::AccountMissing()
             fmd->mProtoFmd.set_layouterror(fmd->mProtoFmd.layouterror() |
                                            LayoutId::kMissing);
           } else {
-            if (gOFS.FmdOnDb()) {
-              eos_err("msg=\"failed to create local fmd for missing entry\" "
-                      "fxid=%08llx fsid=%lu", fid, mFsId);
-              continue;
-            } else {
-              // With Force Retrieve if we come up null, this means this file
-              // doesn't exist! This path will only execute for the FmdAttr layer
-              // as leveldb will still have an entry even if the original file was
-              // dropped. Create a dummy file so that we can set kMissing!
-              fmd.reset(new common::FmdHelper());
-              fmd->mProtoFmd.set_fid(fid);
-              fmd->mProtoFmd.set_fsid(mFsId);
-              fmd->mProtoFmd.set_layouterror(LayoutId::kMissing);
-            }
+            // With Force Retrieve if we come up null, this means this file
+            // doesn't exist! This path will only execute for the FmdAttr layer
+            // as leveldb will still have an entry even if the original file was
+            // dropped. Create a dummy file so that we can set kMissing!
+            fmd.reset(new common::FmdHelper());
+            fmd->mProtoFmd.set_fid(fid);
+            fmd->mProtoFmd.set_fsid(mFsId);
+            fmd->mProtoFmd.set_layouterror(LayoutId::kMissing);
           }
 
           if (!gOFS.mFmdHandler->Commit(fmd.get())) {
@@ -585,22 +578,19 @@ ScanDir::ScanSubtree(ThreadAssistant& assistant) noexcept
 
     if (CheckFile(fpath)) {
 #ifndef _NOOFS
-
       // Collect fsck errors and save them to be sent later on to QDB
-      if (!gOFS.FmdOnDb()) {
-        auto fid = eos::common::FileId::PathToFid(fpath.c_str());
+      auto fid = eos::common::FileId::PathToFid(fpath.c_str());
 
-        if (!fid) {
-          eos_static_info("msg=\"skip file which is not a eos data file\", "
-                          "path=\"%s\"", fpath.c_str());
-          continue;
-        }
+      if (!fid) {
+        eos_static_info("msg=\"skip file which is not a eos data file\", "
+                        "path=\"%s\"", fpath.c_str());
+        continue;
+      }
 
-        auto fmd = gOFS.mFmdHandler->LocalGetFmd(fid, mFsId, true, false);
+      auto fmd = gOFS.mFmdHandler->LocalGetFmd(fid, mFsId, true, false);
 
-        if (fmd) {
-          CollectInconsistencies(*fmd.get(), statistics, fidset);
-        }
+      if (fmd) {
+        CollectInconsistencies(*fmd.get(), statistics, fidset);
       }
 
 #endif

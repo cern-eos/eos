@@ -26,8 +26,6 @@
 #include "common/Fmd.hh"
 #include "common/FileId.hh"
 #include "common/LayoutId.hh"
-#include "namespace/interface/IFileMD.hh"
-#include "namespace/ns_quarkdb/FileMD.hh"
 #include <set>
 
 //! Forward declaration
@@ -36,20 +34,18 @@ namespace eos
 class QdbContactDetails;
 }
 
-EOSFSTNAMESPACE_BEGIN
+namespace qclient
+{
+class QClient;
+}
 
-enum class fmd_handler_t {
-  DB,
-  ATTR,
-  UNDEF
-};
+EOSFSTNAMESPACE_BEGIN
 
 class FmdHandler: public eos::common::LogId
 {
 public:
-
   //----------------------------------------------------------------------------
-  //! Reset the disk checksums from a given string
+  //! Reset the disk info related to the encoded Fmd object
   //!
   //! @param input a string that can serialize to FmdProtobuf object
   //!
@@ -59,7 +55,7 @@ public:
   static std::string ResetFmdDiskInfo(const std::string& input);
 
   //----------------------------------------------------------------------------
-  //! Reset the mgm checksums from a given string
+  //! Reset the mgm info related to the encoded Fmd object
   //!
   //! @param input a string that can serialize to FmdProtobuf object
   //!
@@ -86,11 +82,6 @@ public:
   //! Destructor
   //----------------------------------------------------------------------------
   virtual ~FmdHandler() = default;
-
-  //----------------------------------------------------------------------------
-  //! Get type of Fmd handler
-  //----------------------------------------------------------------------------
-  virtual fmd_handler_t GetType() = 0;
 
   //----------------------------------------------------------------------------
   //! Check if entry has a file checksum error
@@ -307,11 +298,6 @@ public:
     return true;
   }
 
-  // A shutdown/cleanup routine for the specific handler, meant to be overriden
-  // if the class handles some objects needing cleanup
-  virtual void Shutdown() {}
-
-
   //----------------------------------------------------------------------------
   //! Get inconsistency statistics
   //!
@@ -327,26 +313,13 @@ public:
                                           std::set <eos::common::FileId::fileid_t>>& fidset) = 0;
 
 
-  virtual bool Convert(eos::common::FileId::fileid_t fid,
-                       eos::common::FileSystem::fsid_t fsid,
-                       FmdHandler* const target_fmd_handler,
-                       bool lock_it);
-
   virtual std::pair<bool, eos::common::FmdHelper>
   LocalRetrieveFmd(eos::common::FileId::fileid_t fid,
                    eos::common::FileSystem::fsid_t fsid,
                    std::string* path = nullptr,
                    bool lock = false) = 0;
 
-
-  virtual bool ConvertFrom(eos::common::FileId::fileid_t fid,
-                           eos::common::FileSystem::fsid_t fsid,
-                           FmdHandler* const src_fmd_handler,
-                           bool lock_it,
-                           std::string* path);
-
 private:
-
   // Virtual private methods are overrideable at derived classes, this allows
   // for the interface to remain the same while the specific implementation is
   // done in the derived class
@@ -355,8 +328,14 @@ private:
                            const eos::common::FmdHelper& fmd) = 0;
 
 
-
+  //----------------------------------------------------------------------------
+  //!
+  //----------------------------------------------------------------------------
   virtual bool ResetDiskInformation(eos::common::FileSystem::fsid_t fsid) = 0;
+
+  //----------------------------------------------------------------------------
+  //!
+  //----------------------------------------------------------------------------
   virtual bool ResetMgmInformation(eos::common::FileSystem::fsid_t fsid) = 0;
 
   // TODO: Technically we could hold move the mIsSyncing map & mutex to this class. Do

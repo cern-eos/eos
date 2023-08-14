@@ -24,8 +24,6 @@
 #include "fst/Config.hh"
 #include "fst/storage/Storage.hh"
 #include "fst/XrdFstOfs.hh"
-#include "fst/filemd/FmdDbMap.hh"
-#include "fst/filemd/FmdConverter.hh"
 #include "fst/Verify.hh"
 #include "fst/Deletion.hh"
 #include "fst/io/FileIoPluginCommon.hh"
@@ -123,18 +121,6 @@ Storage::Storage(const char* meta_dir)
   }
 
   XrdSysMutexHelper tsLock(mThreadsMutex);
-  mThreadSet.insert(tid);
-  eos_info("starting trim thread");
-
-  if (gOFS.FmdOnDb()) {
-    if ((rc = XrdSysThread::Run(&tid, Storage::StartFsTrim,
-                                static_cast<void*>(this),
-                                0, "Meta Store Trim"))) {
-      eos_crit("cannot start trimming theread");
-      mZombie = true;
-    }
-  }
-
   mThreadSet.insert(tid);
   eos_info("starting deletion thread");
 
@@ -408,35 +394,6 @@ Storage::Boot(FileSystem* fs)
     cPath.MakeParentPath(S_IRWXU | S_IRGRP | S_IXGRP);
   }
 
-  // Attach to the local DB if we deal with DB
-  if (gOFS.FmdOnDb()) {
-    auto* fmd_handler = static_cast<FmdDbMapHandler*>(gOFS.mFmdHandler.get());
-
-    if (!fmd_handler->SetDBFile(metadir.c_str(), fsid)) {
-      fs->SetStatus(eos::common::BootStatus::kBootFailure);
-      fs->SetError(EFAULT, "cannot set DB filename - see the fst logfile "
-                   "for details");
-      return;
-    }
-  } else {
-    auto db_handler = std::make_unique<FmdDbMapHandler>();
-
-    if (!db_handler->SetDBFile(metadir.c_str(), fsid)) {
-      fs->SetStatus(eos::common::BootStatus::kBootFailure);
-      fs->SetError(EFAULT, "cannot set DB filename - see the fst logfile "
-                   "for details");
-      return;
-    }
-
-    FmdConverter fmd_converter(db_handler.get(), gOFS.mFmdHandler.get(),
-                               gOFS.mThreadPoolExecutor);
-    fmd_converter.ConvertFS(GetStoragePath(fsid), fsid);
-    // @note(esindril): if this is removed the current folly library will crash
-    // when trying to recycle one of the threads that was created by the
-    // IOThreadPoolExecutor inside the FmdConverter.
-    //mConverter.reset();
-  }
-
   bool resyncmgm = (fs->GetLongLong("bootcheck") ==
                     eos::common::FileSystem::kBootResync);
   bool resyncdisk = (fs->GetLongLong("bootcheck") >=
@@ -448,18 +405,6 @@ Storage::Boot(FileSystem* fs)
 
   // Sync only local disks
   if (resyncdisk && (fs->GetPath()[0] == '/')) {
-    if (resyncmgm) {
-      if (gOFS.FmdOnDb()) {
-        auto* fmd_handler = static_cast<FmdDbMapHandler*>(gOFS.mFmdHandler.get());
-
-        if (!fmd_handler->ResetDB(fsid)) {
-          fs->SetStatus(eos::common::BootStatus::kBootFailure);
-          fs->SetError(EFAULT, "cannot clean DB on local disk");
-          return;
-        }
-      }
-    }
-
     if (!gOFS.mFmdHandler->ResyncAllDisk(fs->GetPath().c_str(), fsid, resyncmgm)) {
       fs->SetStatus(eos::common::BootStatus::kBootFailure);
       fs->SetError(EFAULT, "cannot resync the DB from local disk");
@@ -601,17 +546,6 @@ Storage::StartFsScrub(void* pp)
 {
   Storage* storage = (Storage*) pp;
   storage->Scrub();
-  return 0;
-}
-
-//------------------------------------------------------------------------------
-// Start fmd DB trimmer thread
-//------------------------------------------------------------------------------
-void*
-Storage::StartFsTrim(void* pp)
-{
-  Storage* storage = (Storage*) pp;
-  storage->Trim();
   return 0;
 }
 
@@ -877,18 +811,7 @@ Storage::GetFileSystemConfig(eos::common::FileSystem::fsid_t fsid,
 bool
 Storage::UpdateInconsistencyInfo(eos::common::FileSystem::fsid_t fsid)
 {
-  if (!gOFS.FmdOnDb()) {
-    return true;
-  }
-
-  eos::common::RWMutexReadLock fs_rd_lock(mFsMutex);
-  FileSystem* fs = GetFileSystemById(fsid);
-
-  if (fs) {
-    fs->UpdateInconsistencyInfo();
-    return true;
-  }
-
+  //@todo(esindril) decide how/if to implement
   return false;
 }
 
@@ -1168,22 +1091,12 @@ Storage::CleanupOrphans(eos::common::FileSystem::fsid_t fsid,
       success = false;
     }
 
-    if (gOFS.FmdOnDb()) {
-      if (!CleanupOrphansDb(elem.first)) {
-        err_msg << "error: failed orphans cleanup in db fsid="
-                << elem.first << std::endl;
-        eos_static_err("msg=\"failed orphans cleanup in db\" fsid=%lu",
-                       elem.first);
-        success = false;
-      }
-    } else {
-      if (!CleanupOrphansQdb(elem.first, fids)) {
-        err_msg << "error: failed orphans cleanup in QDB fsid="
-                << elem.first << std::endl;
-        eos_static_err("msg=\"failed orphans cleanup in QDB\" fsid=%lu",
-                       elem.first);
-        success = false;
-      }
+    if (!CleanupOrphansQdb(elem.first, fids)) {
+      err_msg << "error: failed orphans cleanup in QDB fsid="
+              << elem.first << std::endl;
+      eos_static_err("msg=\"failed orphans cleanup in QDB\" fsid=%lu",
+                     elem.first);
+      success = false;
     }
   }
 
@@ -1359,10 +1272,6 @@ Storage::PushToQdb(eos::common::FileSystem::fsid_t fsid,
 {
 #ifndef _NOOFS
   static const uint32_t s_max_batch_size = 10000;
-
-  if (gOFS.FmdOnDb() || fidset.empty()) {
-    return true;
-  }
 
   if (gOFS.mFsckQcl == nullptr) {
     eos_notice("%s", "msg=\"no qclient present, push to QDB failed\"");

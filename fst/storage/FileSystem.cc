@@ -24,7 +24,6 @@
 #include "fst/storage/FileSystem.hh"
 #include "fst/XrdFstOfs.hh"
 #include "fst/ScanDir.hh"
-#include "fst/filemd/FmdDbMap.hh"
 #include "fst/utils/DiskMeasurements.hh"
 #include "common/Constants.hh"
 #include "qclient/shared/SharedHashSubscription.hh"
@@ -81,11 +80,6 @@ FileSystem::~FileSystem()
 
   mScanDir.release();
   mFileIO.release();
-
-  if (gOFS.FmdOnDb()) {
-    auto fmd_handler = static_cast<FmdDbMapHandler*>(gOFS.mFmdHandler.get());
-    fmd_handler->ShutdownDB(mLocalId, true);
-  }
 }
 
 //------------------------------------------------------------------------------

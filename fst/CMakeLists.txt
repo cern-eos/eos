@@ -275,15 +275,13 @@ set(XRDEOSFST_SRCS
   storage/Publish.cc             storage/Remover.cc
   storage/Report.cc              storage/Scrub.cc
   storage/Storage.cc             storage/Supervisor.cc
-  storage/Trim.cc                storage/Verify.cc
+  storage/Verify.cc
   # Utils
   utils/OpenFileTracker.cc
   # File metadata interface
   filemd/FmdHandler.cc
-  filemd/FmdDbMap.cc          filemd/FmdDbMap.hh
   filemd/FmdMgm.cc
   filemd/FmdAttr.cc
-  filemd/FmdConverter.cc
   # HTTP interface
   http/HttpServer.cc    http/HttpServer.hh
   http/HttpHandler.cc   http/HttpHandler.hh
@@ -390,7 +388,6 @@ add_executable(eos-scan-fs
   tools/ScanXS.cc
   ScanDir.cc
   Load.cc
-  filemd/FmdDbMap.cc
   filemd/FmdHandler.cc
   filemd/FmdMgm.cc
   Config.cc
@@ -433,16 +430,13 @@ add_executable(eos-fmd-tool
   tools/ConvertFileMD.cc
   # File metadata interface
   filemd/FmdHandler.cc
-  filemd/FmdDbMap.cc
   filemd/FmdAttr.cc
-  filemd/FmdConverter.cc
   filemd/FmdMgm.cc
   utils/FSPathHandler.cc)
 
 target_link_libraries(eos-fmd-tool PRIVATE
   EosFstIo
   EosCommonServer
-  stdc++fs
   XrdEosFst-Static)
 
 add_executable(eos-disk-measurements

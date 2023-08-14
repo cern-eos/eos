@@ -367,13 +367,6 @@ public:
   //----------------------------------------------------------------------------
   int Query2Delete();
 
-  //----------------------------------------------------------------------------
-  //! Check if FMD entries are stored in the local leveldb
-  //!
-  //! @return true if using leveldb, otherwise false
-  //----------------------------------------------------------------------------
-  bool FmdOnDb() const;
-
   int Stall(XrdOucErrInfo& error, int stime, const char* msg);
 
   int Redirect(XrdOucErrInfo& error, const char* host, int& port);
@@ -430,10 +423,6 @@ public:
   std::chrono::seconds mTpcKeyMaxValidity {15 * 60}; ///< TPC key maximum validity
   std::string mMgmAlias; ///< MGM alias
   std::shared_ptr<FmdHandler> mFmdHandler; // <File Metadata Handler
-  uint16_t mFmdConverterThreads{64};
-  std::string mFmdConverterExecutorType;
-  std::shared_ptr<eos::common::ExecutorMgr>
-  mThreadPoolExecutor; ///< A global threadpool executor
   //! Mark if Fsck deletions should be done by moving files to a quarantine
   //! directory called .eosdeletions on the file system root mount
   bool mEnvFsckDeleteByMove {false};

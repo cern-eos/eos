@@ -30,6 +30,7 @@
 #include "common/RWMutex.hh"
 #include "common/AssistedThread.hh"
 #include "common/Fmd.hh"
+#include "fst/filemd/FmdHandler.hh"
 #include "namespace/ns_quarkdb/QdbContactDetails.hh"
 #include <vector>
 #include <list>
@@ -306,7 +307,6 @@ private:
   static void* StartVarPartitionMonitor(void* pp);
   static void* StartDaemonSupervisor(void* pp);
   static void* StartFsScrub(void* pp);
-  static void* StartFsTrim(void* pp);
   static void* StartFsRemover(void* pp);
   static void* StartFsReport(void* pp);
   static void* StartFsErrorReport(void* pp);
@@ -393,7 +393,6 @@ private:
   void ProcessFsConfigChange(const std::string& queue, const std::string& key);
 
   void Scrub();
-  void Trim();
   void Remover();
   void Report();
   void ErrorReport();

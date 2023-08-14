@@ -23,7 +23,6 @@
 
 #include "fst/ScanDir.hh"
 #include "fst/checksum/ChecksumPlugins.hh"
-#include "fst/filemd/FmdDbMap.hh"
 #include "fst/Config.hh"
 #include "common/LayoutId.hh"
 #include "common/AssistedThread.hh"

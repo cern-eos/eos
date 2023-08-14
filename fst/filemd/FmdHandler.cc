@@ -1,4 +1,29 @@
+//------------------------------------------------------------------------------
+//! @file FmdHandler.hh
+//! @author Abhishek Lekshmanan - CERN
+//------------------------------------------------------------------------------
+
+/************************************************************************
+ * EOS - the CERN Disk Storage System                                   *
+ * Copyright (C) 2021 CERN/Switzerland                                  *
+ *                                                                      *
+ * This program is free software: you can redistribute it and/or modify *
+ * it under the terms of the GNU General Public License as published by *
+ * the Free Software Foundation, either version 3 of the License, or    *
+ * (at your option) any later version.                                  *
+ *                                                                      *
+ * This program is distributed in the hope that it will be useful,      *
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of       *
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the        *
+ * GNU General Public License for more details.                         *
+ *                                                                      *
+ * You should have received a copy of the GNU General Public License    *
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
+ ************************************************************************/
+
 #include "common/Path.hh"
+#include "namespace/interface/IFileMD.hh"
+#include "namespace/ns_quarkdb/FileMD.hh"
 #include "namespace/ns_quarkdb/persistency/FileMDSvc.hh"
 #include "namespace/ns_quarkdb/persistency/MetadataFetcher.hh"
 #include "namespace/ns_quarkdb/persistency/RequestBuilder.hh"
@@ -767,47 +792,9 @@ FmdHandler::ResyncAllFromQdb(const QdbContactDetails& contact_details,
   return true;
 }
 
-bool
-FmdHandler::Convert(eos::common::FileId::fileid_t fid,
-                    eos::common::FileSystem::fsid_t fsid,
-                    FmdHandler* const target_fmd_handler,
-                    bool lock_it)
-{
-  auto [ok, fmd] = this->LocalRetrieveFmd(fid, fsid);
-
-  if (!ok) {
-    return false;
-  }
-
-  return target_fmd_handler->Commit(&fmd, lock_it);
-}
-
-bool
-FmdHandler::ConvertFrom(eos::common::FileId::fileid_t fid,
-                        eos::common::FileSystem::fsid_t fsid,
-                        FmdHandler* const src_fmd_handler,
-                        bool lock_it,
-                        std::string* path)
-{
-  auto [ok, _] = this->LocalRetrieveFmd(fid, fsid, path);
-
-  if (ok) {
-    eos_debug("msg=\"Skipping Conversion as target already has filemd\" fid=%08llx fsid=%u",
-              fid, fsid);
-    return true;
-  }
-
-  auto [status, fmd] = src_fmd_handler->LocalRetrieveFmd(fid, fsid, path, true);
-
-  if (!status) {
-    eos_err("msg=\"Unable to retrieve filemd from Handler\" fid=%08llx fsid=%u",
-            fid, fsid);
-    return false;
-  }
-
-  return Commit(&fmd, lock_it);
-}
-
+//------------------------------------------------------------------------------
+// Reset the disk info related to the encoded Fmd object
+//------------------------------------------------------------------------------
 std::string
 FmdHandler::ResetFmdDiskInfo(const std::string& input)
 {
@@ -833,7 +820,9 @@ FmdHandler::ResetFmdDiskInfo(const std::string& input)
   return out;
 }
 
-
+//------------------------------------------------------------------------------
+// Reset the MGM info related to the encoded Fmd object
+//------------------------------------------------------------------------------
 std::string
 FmdHandler::ResetFmdMgmInfo(const std::string& input)
 {
