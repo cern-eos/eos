@@ -192,15 +192,6 @@ public:
                           std::set<uint64_t>& fids);
 
   //----------------------------------------------------------------------------
-  //! Cleanup orphans from local DB
-  //!
-  //! @param fsid file system id
-  //!
-  //! @return true if successful, otherwise false
-  //----------------------------------------------------------------------------
-  bool CleanupOrphansDb(eos::common::FileSystem::fsid_t fsid);
-
-  //----------------------------------------------------------------------------
   //! Cleanup orphans from QDB
   //!
   //! @param fsid file system id
