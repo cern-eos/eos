@@ -1179,33 +1179,6 @@ Storage::CleanupOrphansDisk(const std::string& mount,
 }
 
 //------------------------------------------------------------------------------
-// Cleanup orphans from local DB
-//------------------------------------------------------------------------------
-bool
-Storage::CleanupOrphansDb(eos::common::FileSystem::fsid_t fsid)
-{
-  eos_static_info("msg=\"doing orphans cleanup in db\" fsid=%lu", fsid);
-  std::set<eos::common::FileId::fileid_t> set_orphans;
-  {
-    eos::common::RWMutexReadLock rd_lock(mFsMutex);
-    auto it_fs = mFsMap.find(fsid);
-
-    if (it_fs == mFsMap.end()) {
-      eos_static_err("msg=\"unknown file system id\" fsid=%lu", fsid);
-      return false;
-    }
-
-    set_orphans = it_fs->second->CollectOrphans();
-  }
-
-  for (const auto& fid : set_orphans) {
-    gOFS.mFmdHandler->LocalDeleteFmd(fid, fsid, true);
-  }
-
-  return true;
-}
-
-//------------------------------------------------------------------------------
 // Cleanup orphans from QDB
 //------------------------------------------------------------------------------
 bool
