@@ -806,16 +806,6 @@ Storage::GetFileSystemConfig(eos::common::FileSystem::fsid_t fsid,
 }
 
 //------------------------------------------------------------------------------
-// Update inconsistency info for the given file system id
-//------------------------------------------------------------------------------
-bool
-Storage::UpdateInconsistencyInfo(eos::common::FileSystem::fsid_t fsid)
-{
-  //@todo(esindril) decide how/if to implement
-  return false;
-}
-
-//------------------------------------------------------------------------------
 // Writes file system label files .eosfsid .eosuuid according to config (if
 // they didn't exist!)
 //------------------------------------------------------------------------------

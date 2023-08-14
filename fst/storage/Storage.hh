@@ -160,15 +160,6 @@ public:
                                   const std::string& key) const;
 
   //----------------------------------------------------------------------------
-  //! Update inconsistency info for the given file system id
-  //!
-  //! @param fsid file system id
-  //!
-  //! return true if successful, otherwise false
-  //----------------------------------------------------------------------------
-  bool UpdateInconsistencyInfo(eos::common::FileSystem::fsid_t fsid);
-
-  //----------------------------------------------------------------------------
   //! Cleanup orphans
   //!
   //! @param fsid file system id or 0 if cleanup is to be performed for all

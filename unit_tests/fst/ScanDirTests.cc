@@ -134,7 +134,6 @@ TEST_F(TmpDirTree, ScanDirSetConfig)
   ASSERT_EQ(TMP_DIR_ROOT, "/tmp/fstest");
   ASSERT_EQ(sd.mDirPath, TMP_DIR_ROOT);
   ASSERT_EQ(sd.mDiskIntervalSec, eos::fst::DEFAULT_DISK_INTERVAL);
-  ASSERT_EQ(sd.mFsckRefreshIntervalSec, eos::fst::DEFAULT_FSCK_INTERVAL);
 #ifdef _NOOFS
   sd.SetConfig(eos::common::SCAN_DISK_INTERVAL_NAME, 3000);
   ASSERT_EQ(sd.mDiskIntervalSec, 3000);
@@ -144,12 +143,5 @@ TEST_F(TmpDirTree, ScanDirSetConfig)
   ASSERT_EQ(sd.mDiskIntervalSec, eos::fst::DEFAULT_DISK_INTERVAL);
   sd.SetConfig(eos::common::SCAN_DISK_INTERVAL_NAME, 2500);
   ASSERT_EQ(sd.mDiskIntervalSec, 2500);
-  sd.SetConfig(eos::common::FSCK_REFRESH_INTERVAL_NAME, 2000);
-  ASSERT_EQ(sd.mFsckRefreshIntervalSec, 2000);
-  sd.SetConfig(eos::common::FSCK_REFRESH_INTERVAL_NAME, 2500);
-  ASSERT_EQ(sd.mFsckRefreshIntervalSec, 2500);
-  sd.SetConfig(eos::common::FSCK_REFRESH_INTERVAL_NAME,
-               eos::fst::DEFAULT_FSCK_INTERVAL);
-  ASSERT_EQ(sd.mFsckRefreshIntervalSec, eos::fst::DEFAULT_FSCK_INTERVAL);
 #endif
 }

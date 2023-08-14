@@ -250,40 +250,6 @@ public:
            map, "=", ",");
   }
 
-  //----------------------------------------------------------------------------
-  //! Collect inconsistency statistics about the current file system
-  //!
-  //! @param prefix optional prefix
-  //!
-  //! @return map of inconsistency types to counters
-  //----------------------------------------------------------------------------
-  std::map<std::string, std::string>
-  CollectInconsistencyStats(const std::string prefix = "") const;
-
-  //----------------------------------------------------------------------------
-  //! Collect orphans registered in the db for the current file system
-  //!
-  //! @return set of orphan file ids
-  //----------------------------------------------------------------------------
-  std::set<eos::common::FileId::fileid_t> CollectOrphans() const;
-
-  //----------------------------------------------------------------------------
-  //! Update inconsistency info about the current file system
-  //----------------------------------------------------------------------------
-  void UpdateInconsistencyInfo();
-
-  //----------------------------------------------------------------------------
-  //! Get inconsistency sets - this requires the mInconsistencyMutex locked
-  //----------------------------------------------------------------------------
-  const std::map<std::string, std::set<eos::common::FileId::fileid_t> >&
-  GetInconsistencySets() const
-  {
-    return mInconsistencySets;
-  }
-
-  //! Mutex protecting inconsistency stats
-  mutable eos::common::RWMutex mInconsistencyMutex;
-
 private:
   //----------------------------------------------------------------------------
   //! Process shared hash update
@@ -306,9 +272,6 @@ private:
   time_t last_status_broadcast;
   //! Internal boot state not stored in the shared hash
   std::atomic<eos::common::BootStatus> mLocalBootStatus;
-  std::map<std::string, size_t> mInconsistencyStats;
-  std::map<std::string, std::set<eos::common::FileId::fileid_t> >
-  mInconsistencySets;
   long long seqBandwidth; // measurement of sequential bandwidth
   int IOPS; // measurement of IOPS
   bool mRecoverable; // true if a filesystem was booted and then set to ops error

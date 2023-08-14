@@ -405,8 +405,6 @@ add_executable(eos-checksum
   tools/CheckSum.cc
   checksum/CheckSum.cc)
 
-set_target_properties(eos-scan-fs PROPERTIES COMPILE_FLAGS -D_NOOFS=1)
-
 add_executable(eos-ioping tools/IoPing.c)
 target_compile_options(eos-ioping PRIVATE -std=gnu99)
 target_link_libraries(eos-ioping PRIVATE GLIBC::RT GLIBC::M)
