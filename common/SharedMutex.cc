@@ -50,7 +50,7 @@ SharedMutex::UnLockRead()
 int
 SharedMutex::TimedRdLock(uint64_t timeout_ns)
 {
-  mSharedMutex.Lock();
+  mSharedMutex.ReaderLock();
   return 0;
 }
 
