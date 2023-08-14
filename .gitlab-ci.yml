@@ -1,3 +1,21 @@
+# ************************************************************************
+# * EOS - the CERN Disk Storage System                                   *
+# * Copyright (C) 2023 CERN/Switzerland                                  *
+# *                                                                      *
+# * This program is free software: you can redistribute it and/or modify *
+# * it under the terms of the GNU General Public License as published by *
+# * the Free Software Foundation, either version 3 of the License, or    *
+# * (at your option) any later version.                                  *
+# *                                                                      *
+# * This program is distributed in the hope that it will be useful,      *
+# * but WITHOUT ANY WARRANTY; without even the implied warranty of       *
+# * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the        *
+# * GNU General Public License for more details.                         *
+# *                                                                      *
+# * You should have received a copy of the GNU General Public License    *
+# * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
+# ************************************************************************
+
 stages:
   - build:manual
   - prebuild
@@ -50,44 +68,52 @@ default:
     variables:
       - $PREBUILD_TRIGGER
 
+
 prebuild-cc7:
-  <<: *prebuild-template_definition
+  extends: .prebuild-template
   variables:
     PREBUILD_NAME: cc7
 
+
 prebuild-cs8:
-  <<: *prebuild-template_definition
+  extends: .prebuild-template
   variables:
     PREBUILD_NAME: cs8
 
+
 prebuild-cs9:
-  <<: *prebuild-template_definition
+  extends: .prebuild-template
   variables:
     PREBUILD_NAME: cs9
 
+
 prebuild-al8:
-  <<: *prebuild-template_definition
+  extends: .prebuild-template
   variables:
     PREBUILD_NAME: al8
 
+
 prebuild-al9:
-  <<: *prebuild-template_definition
+  extends: .prebuild-template
   variables:
     PREBUILD_NAME: al9
 
+
 .prebuild-cc7_clang:
-  <<: *prebuild-template_definition
+  extends: .prebuild-template
   variables:
     PREBUILD_NAME: cc7_clang
     CMAKE_OPTIONS: "-DCLANG_BUILD=1"
 
+
 .prebuild-cc7_xrd_testing:
-  <<: *prebuild-template_definition
+  extends: .prebuild-template
   variables:
     PREBUILD_NAME: cc7_xrd_testing
 
+
 .prebuild-cc7_coverage:
-  <<: *prebuild-template_definition
+  extends: .prebuild-template
   variables:
     PREBUILD_NAME: cc7_coverage
   only:
@@ -95,34 +121,8 @@ prebuild-al9:
       - $COVERAGE_SCHEDULE
 
 #-------------------------------------------------------------------------------
-# Build RPMs
+# MacOS build - disabled waiting for a build machine
 #-------------------------------------------------------------------------------
-
-build_cc7:
-  stage: build:rpm
-  image: gitlab-registry.cern.ch/dss/eos/prebuild-cc7-${CODENAME}
-  script:
-    - git submodule sync --recursive && git submodule update --init --recursive
-    - mkdir build
-    - cd build/
-    - cmake3 ../ -DPACKAGEONLY=1
-    - make srpm
-    - cd ../
-    - echo -e "[eos-depend]\nname=EOS dependencies\nbaseurl=http://storage-ci.web.cern.ch/storage-ci/eos/${CODENAME}-depend/el-7/x86_64/\ngpgcheck=0\nenabled=1\npriority=2\n" >> /etc/yum.repos.d/eos-depend.repo
-    - yum-builddep --nogpgcheck --setopt="cern*.exclude=xrootd*" -y build/SRPMS/*
-    - if [[ -n "$CI_COMMIT_TAG" ]]; then export CCACHE_DISABLE=1; else source gitlab-ci/setup_ccache.sh; fi
-    - rpmbuild --rebuild --with server --define "_rpmdir build/RPMS/" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" build/SRPMS/* | ts;
-    - ccache -s
-    - if [[ -n "$CI_COMMIT_TAG" ]]; then gpg --import $STCI_REPO_KEY; printf "" | setsid rpmsign --define='%_gpg_name stci@cern.ch' --define='%_signature gpg' --addsign build/RPMS/*.rpm; fi
-    - mkdir cc7_artifacts; cp -R build/SRPMS/ build/RPMS/ build/eos-*.tar.gz cc7_artifacts
-  cache:
-    key: "$CI_JOB_NAME-$CI_COMMIT_REF_SLUG"
-    paths:
-      - ccache/
-  artifacts:
-    expire_in: 1 day
-    paths:
-      - cc7_artifacts/
 
 macosx_dmg:
   stage: build:rpm
@@ -141,6 +141,7 @@ macosx_dmg:
     - macosx-shell
   when: manual
 
+
 clone_docker:
   stage: build:rpm
   image: gitlab-registry.cern.ch/linuxsupport/cc7-base
@@ -152,7 +153,10 @@ clone_docker:
     paths:
       - eos-docker/
 
-# schedules ------------------------------
+
+#-------------------------------------------------------------------------------
+# Build RPMs
+#-------------------------------------------------------------------------------
 
 .build-template: &build-template_definition
   stage: build:rpm
@@ -182,40 +186,75 @@ clone_docker:
     - tags
   allow_failure: true # @todo dont allow failure when/if we drop Centos8 and switch to Stream
 
+
+build_cc7:
+  stage: build:rpm
+  image: gitlab-registry.cern.ch/dss/eos/prebuild-cc7-${CODENAME}
+  script:
+    - git submodule sync --recursive && git submodule update --init --recursive
+    - mkdir build
+    - cd build/
+    - cmake3 ../ -DPACKAGEONLY=1
+    - make srpm
+    - cd ../
+    - echo -e "[eos-depend]\nname=EOS dependencies\nbaseurl=http://storage-ci.web.cern.ch/storage-ci/eos/${CODENAME}-depend/el-7/x86_64/\ngpgcheck=0\nenabled=1\npriority=2\n" >> /etc/yum.repos.d/eos-depend.repo
+    - yum-builddep --nogpgcheck --setopt="cern*.exclude=xrootd*" -y build/SRPMS/*
+    - if [[ -n "$CI_COMMIT_TAG" ]]; then export CCACHE_DISABLE=1; else source gitlab-ci/setup_ccache.sh; fi
+    - rpmbuild --rebuild --with server --define "_rpmdir build/RPMS/" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" build/SRPMS/* | ts;
+    - ccache -s
+    - if [[ -n "$CI_COMMIT_TAG" ]]; then gpg --import $STCI_REPO_KEY; printf "" | setsid rpmsign --define='%_gpg_name stci@cern.ch' --define='%_signature gpg' --addsign build/RPMS/*.rpm; fi
+    - mkdir cc7_artifacts; cp -R build/SRPMS/ build/RPMS/ build/eos-*.tar.gz cc7_artifacts
+  cache:
+    key: "$CI_JOB_NAME-$CI_COMMIT_REF_SLUG"
+    paths:
+      - ccache/
+  artifacts:
+    expire_in: 1 day
+    paths:
+      - cc7_artifacts/
+
+
 build_al8:
+  extends: .build-template
   image: gitlab-registry.cern.ch/dss/eos/prebuild-al8-${CODENAME}
-  <<: *build-template_definition
-  only:
-    - schedules
-    - tags
   variables:
     BUILD_NAME: al8
-
-build_al9:
-  image: gitlab-registry.cern.ch/dss/eos/prebuild-al9-${CODENAME}
-  <<: *build-template_definition
   only:
     - schedules
     - tags
+
+
+build_al9:
+  extends: .build-template
+  image: gitlab-registry.cern.ch/dss/eos/prebuild-al9-${CODENAME}
   variables:
     BUILD_NAME: al9
+  only:
+    - schedules
+    - tags
 
-# Client Only builds:
+
+# Client only builds
 build_cs8:
+  extends: .build-template
   image: gitlab-registry.cern.ch/dss/eos/prebuild-cs8-${CODENAME}
-  <<: *build-template_definition
   variables:
     BUILD_NAME: cs8
     CLIENT: "-DCLIENT=1"
 
+
 build_cs9:
+  extends: .build-template
   image: gitlab-registry.cern.ch/dss/eos/prebuild-cs9-${CODENAME}
-  <<: *build-template_definition
   variables:
     BUILD_NAME: cs9
     CLIENT: "-DCLIENT=1"
 
-####################### Build SRPM for RHEL #######################
+
+#-------------------------------------------------------------------------------
+# EOS client builds for RHEL
+#-------------------------------------------------------------------------------
+
 .build-client-srpm-template: &build-client-srpm-template_definition
   stage: build:rpm
   before_script:
@@ -225,7 +264,6 @@ build_cs9:
     - dnf install rpm-build cmake gcc-c++ git -y
   script:
     - git submodule sync --recursive && git submodule update --init -f --recursive
-    - cd quarkdb/deps/mkdocs-material; git remote set-url origin https://gitlab.cern.ch/eos/mkdocs-material; git pull origin master; git checkout master; git pull; cd ../../..
     - EOS_VERSION="$(./genversion.sh)"; echo "${EOS_VERSION}"
     - mkdir -pv build/
     - cd build/
@@ -244,28 +282,34 @@ build_cs9:
   tags:
     - docker_node
 
-rh-8:
- image: gitlab-registry.cern.ch/linuxsupport/ubi8/ubi
- extends: .build-client-srpm-template
- 
-rh-9:
- image: gitlab-registry.cern.ch/linuxsupport/ubi9/ubi
- extends: .build-client-srpm-template
 
-###################### Build Ubuntu ######################
-.build_ubuntu-template: &build_ubuntu-template_definition
+rh-8:
+ extends: .build-client-srpm-template
+ image: gitlab-registry.cern.ch/linuxsupport/ubi8/ubi
+
+
+rh-9:
+ extends: .build-client-srpm-template
+ image: gitlab-registry.cern.ch/linuxsupport/ubi9/ubi
+
+
+#-------------------------------------------------------------------------------
+# Ubuntu builds
+#-------------------------------------------------------------------------------
+
+.build-ubuntu-template: &build-ubuntu-template_definition
   stage: build:rpm
   before_script:
     - apt-get update -y
     - apt-get install -y apt-transport-https ca-certificates gnupg software-properties-common wget
     - wget -O - https://apt.kitware.com/keys/kitware-archive-latest.asc 2>/dev/null | apt-key add -
-    - apt-add-repository 'deb https://apt.kitware.com/ubuntu/ '${EOS_DIST}' main'
+    - apt-add-repository 'deb https://apt.kitware.com/ubuntu/ '${BUILD_NAME}' main'
   script:
     - apt-get update -y
     - apt-get install -y git cmake g++ debhelper devscripts equivs gdebi-core ccache gawk
     # @todo re-enable building against latest XRootD master commit when CMake allows using XRootD plugin version 5 libraries
-    #- echo -e '\ndeb http://storage-ci.web.cern.ch/storage-ci/debian/xrootd/ '${EOS_DIST}' master' >> /etc/apt/sources.list
-    - echo -e '\ndeb http://storage-ci.web.cern.ch/storage-ci/debian/xrootd/ '${EOS_DIST}' release' >> /etc/apt/sources.list
+    #- echo -e '\ndeb http://storage-ci.web.cern.ch/storage-ci/debian/xrootd/ '${BUILD_NAME}' master' >> /etc/apt/sources.list
+    - echo -e '\ndeb http://storage-ci.web.cern.ch/storage-ci/debian/xrootd/ '${BUILD_NAME}' release' >> /etc/apt/sources.list
     - wget -O - http://storage-ci.web.cern.ch/storage-ci/storageci.key 2>/dev/null | apt-key add -
     - apt-get update -y
     - git submodule sync --recursive && git submodule update --init -f --recursive
@@ -278,15 +322,15 @@ rh-9:
     - mk-build-deps --build-dep debian/control
     - gdebi -n eos-build-deps-depends*.deb
     - EOS_VERSION="$(./genversion.sh)"; echo "${EOS_VERSION}"
-    - dch --create -v "${EOS_VERSION}" --package eos --urgency low --distribution ${EOS_DIST} -M "This package is built and released automatically. For important notices and releases subscribe to our mailing lists or visit our website."
+    - dch --create -v "${EOS_VERSION}" --package eos --urgency low --distribution ${BUILD_NAME} -M "This package is built and released automatically. For important notices and releases subscribe to our mailing lists or visit our website."
     - if [[ -n "$CI_COMMIT_TAG" ]]; then export CCACHE_DISABLE=1; else source gitlab-ci/setup_ccache_deb.sh; fi
-    - if [[ "$EOS_DIST" == "jammy" ]]; then
+    - if [[ "$BUILD_NAME" == "jammy" ]]; then
         dpkg-buildpackage -b -us -uc -tc --buildinfo-option="-udeb_packages" --changes-option="-udeb_packages" --buildinfo-file="deb_packages/eos_${EOS_VERSION}_$(dpkg-architecture -qDEB_BUILD_ARCH).buildinfo" --changes-file="deb_packages/eos_${EOS_VERSION}_$(dpkg-architecture -qDEB_BUILD_ARCH).changes";
       else
         dpkg-buildpackage -b -us -uc -tc --buildinfo-option="-udeb_packages" --changes-option="-udeb_packages";
       fi
     - ccache -s
-    - mkdir ${EOS_DIST}_artifacts/; cp deb_packages/*.deb ${EOS_DIST}_artifacts
+    - mkdir ${BUILD_NAME}_artifacts/; cp deb_packages/*.deb ${BUILD_NAME}_artifacts
   cache:
     key: "$CI_JOB_NAME-$CI_COMMIT_REF_SLUG"
     paths:
@@ -294,44 +338,48 @@ rh-9:
   artifacts:
     expire_in: 1 day
     paths:
-      - ${EOS_DIST}_artifacts/
-  variables:
-    CODENAME: ${CODENAME}
+      - ${BUILD_NAME}_artifacts/
   dependencies: []
-  allow_failure: true # @todo false for tags
+  allow_failure: true
+
 
 build_ubuntu_jammy:
+  extends: .build-ubuntu-template
   image: ubuntu:jammy
-  <<: *build_ubuntu-template_definition
   variables:
-    EOS_DIST: jammy
+    BUILD_NAME: jammy
   only:
     - schedules
     - tags
+
 
 build_ubuntu_focal:
+  extends: .build-ubuntu-template
   image: ubuntu:focal
-  <<: *build_ubuntu-template_definition
   variables:
-    EOS_DIST: focal
+    BUILD_NAME: focal
   only:
     - schedules
     - tags
 
-.build_fedora-template: &build_fedora-template_definition
+#-------------------------------------------------------------------------------
+# Fedora builds
+#-------------------------------------------------------------------------------
+
+.build-fedora-template: &build-fedora-template_definition
   stage: build:rpm
   script:
     - dnf install --nogpg -y gcc-c++ cmake3 make rpm-build which git tar dnf-plugins-core ccache rpm-sign
     - git submodule sync --recursive && git submodule update --init -f --recursive
     - mkdir build; cd build
     - cmake3 .. -DPACKAGEONLY=1 -DCLIENT=1; make srpm; cd ..
-    - echo -e "[eos-depend]\nname=EOS dependencies\nbaseurl=http://storage-ci.web.cern.ch/storage-ci/eos/${CODENAME}-depend/${EOS_DIST}/x86_64/\ngpgcheck=0\nenabled=1\nexclude=xrootd*\npriority=4\n" >> /etc/yum.repos.d/eos-depend.repo
+    - echo -e "[eos-depend]\nname=EOS dependencies\nbaseurl=http://storage-ci.web.cern.ch/storage-ci/eos/${CODENAME}-depend/${BUILD_NAME}/x86_64/\ngpgcheck=0\nenabled=1\nexclude=xrootd*\npriority=4\n" >> /etc/yum.repos.d/eos-depend.repo
     - dnf builddep --nogpgcheck --allowerasing -y build/SRPMS/*
     - if [[ -n "$CI_COMMIT_TAG" ]]; then export CCACHE_DISABLE=1; else source gitlab-ci/setup_ccache_fc.sh; fi
     - rpmbuild --rebuild --define "_rpmdir build/RPMS/" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" build/SRPMS/*
     - ccache -s
     - if [[ -n "$CI_COMMIT_TAG" ]]; then gpg2 --import $STCI_REPO_KEY; printf "" | setsid rpmsign --define='%_gpg_name stci@cern.ch' --define='%_signature gpg' --addsign build/RPMS/*.rpm; fi
-    - mkdir ${EOS_DIST}_artifacts; cp -R build/SRPMS build/RPMS ${EOS_DIST}_artifacts
+    - mkdir ${BUILD_NAME}_artifacts; cp -R build/SRPMS build/RPMS ${BUILD_NAME}_artifacts
   cache:
     key: "$CI_JOB_NAME-$CI_COMMIT_REF_SLUG"
     paths:
@@ -339,38 +387,46 @@ build_ubuntu_focal:
   artifacts:
     expire_in: 1 day
     paths:
-      - ${EOS_DIST}_artifacts/
+      - ${BUILD_NAME}_artifacts/
   dependencies: []
   allow_failure: true
 
+
 build_fedora_36:
+  extends: .build-fedora-template
   image: fedora:36
-  <<: *build_fedora-template_definition
   variables:
-    EOS_DIST: fc-36
+    BUILD_NAME: fc-36
   only:
     - tags
 
+
 build_fedora_37:
+  extends: .build-fedora-template
   image: fedora:37
-  <<: *build_fedora-template_definition
   variables:
-    EOS_DIST: fc-37
+    BUILD_NAME: fc-37
   only:
     - schedules
     - tags
 
+
 build_fedora_rawhide:
+  extends: .build-fedora-template
   image: registry.fedoraproject.org/fedora:rawhide
-  <<: *build_fedora-template_definition
   variables:
-    EOS_DIST: fc-rawhide
+    BUILD_NAME: fc-rawhide
   only:
     - schedules
   when: manual
 
+
+#-------------------------------------------------------------------------------
+# Exotic builds
+#-------------------------------------------------------------------------------
+
 # @note Using "normal" cc7 image as it doesn't actually need an exotic one, yet
-.build_cc7_exotic-template: &build_cc7_exotic-template_definition
+.build_exotic-template: &build_exotic-template_definition
   stage: build:rpm
   image: gitlab-registry.cern.ch/dss/eos/prebuild-cc7-${CODENAME}
   script:
@@ -382,9 +438,13 @@ build_fedora_rawhide:
     - cd ../
     - >
       if [[ "$RPMBUILD_OPTIONS" == *asan* ]]; then
-        echo -e "[eos-asan-depend]\nname=EOS dependencies\nbaseurl=http://storage-ci.web.cern.ch/storage-ci/eos/${CODENAME}-depend/el-7-asan/x86_64/\ngpgcheck=0\nenabled=1\npriority=10\n" > /etc/yum.repos.d/eos-depend.repo;
+        echo -e "[eos-asan-depend]\nname=EOS dependencies\nbaseurl=http://storage-ci.web.cern.ch/storage-ci/eos/${CODENAME}-depend/el-7-asan/x86_64/\ngpgcheck=0\nenabled=1\npriority=2\n" > /etc/yum.repos.d/eos-depend.repo;
         yum remove -y eos-xrootd;
-        yum install -y eos-xrootd;
+        yum install -y eos-xrootd; # install eos-xrootd asan
+      elif [[ "$RPMBUILD_OPTIONS" == *tsan* ]]; then
+        echo -e "[eos-tsan-depend]\nname=EOS dependencies\nbaseurl=http://storage-ci.web.cern.ch/storage-ci/eos/${CODENAME}-depend/el-7-tsan/x86_64/\ngpgcheck=0\nenabled=1\npriority=2\n" > /etc/yum.repos.d/eos-depend.repo;
+        yum remove -y eos-xrootd;
+        yum install -y eos-xrootd; # install eos-xrootd tsan
       else
         echo -e "[eos-depend]\nname=EOS dependencies\nbaseurl=http://storage-ci.web.cern.ch/storage-ci/eos/${CODENAME}-depend/el-7/x86_64/\ngpgcheck=0\nenabled=1\npriority=2\n" > /etc/yum.repos.d/eos-depend.repo;
       fi
@@ -405,8 +465,9 @@ build_fedora_rawhide:
   dependencies: []
   allow_failure: true
 
+
 build_cc7_asan:
-  <<: *build_cc7_exotic-template_definition
+  extends: .build_exotic-template
   variables:
     BUILD_NAME: cc7_asan
     CMAKE_OPTIONS: "-DASAN=1"
@@ -417,28 +478,25 @@ build_cc7_asan:
     - yum install -y devtoolset-8-libasan-devel # explicitly install libasan from devtoolset-8
     - source /opt/rh/devtoolset-8/enable && gcc --version
   when: manual
-  allow_failure: true
+
 
 build_client_cc7_tsan:
-  <<: *build_cc7_exotic-template_definition
+  extends: .build_exotic-template
   variables:
     BUILD_NAME: cc7_tsan
     CMAKE_OPTIONS: "-DTSAN=1"
     RPMBUILD_OPTIONS: "--with tsan"
-    CXXFLAGS: "-Wno-parentheses"
+    CXXFLAGS: "-Wno-parentheses"    # Avoid boost header compilation errors
   before_script:
     - yum install -y cmake3 centos-release-scl devtoolset-8
     - yum install -y libtsan --disablerepo=* --enablerepo=centos-sclo-rh
     - yum install -y devtoolset-8-libtsan-devel
     - source /opt/rh/devtoolset-8/enable && gcc --version
-    - echo -e "[eos-tsan-depend]\nname=EOS dependencies\nbaseurl=http://storage-ci.web.cern.ch/storage-ci/eos/${CODENAME}-depend/el-7-tsan/x86_64/\ngpgcheck=0\nenabled=1\npriority=2\n" > /etc/yum.repos.d/eos-tsan-depend.repo;
-    - yum remove -y eos-xrootd;
-    - yum install -y eos-xrootd;
   when: manual
-  allow_failure: true
+
 
 build_cc7_clang:
-  <<: *build_cc7_exotic-template_definition
+  extends: .build_exotic-template
   variables:
     BUILD_NAME: cc7_clang
     CMAKE_OPTIONS: "-DCLANG_BUILD=1"
@@ -447,37 +505,35 @@ build_cc7_clang:
     - schedules
     - triggers
 
-.build_cc7_xrd_testing: # @todo Re-enable xrd_testing jobs once project ugprades to XRootD 5
-  before_script:
-    - source gitlab-ci/export_commit-type.sh
-    - echo "Exporting COMMIT_TYPE=${COMMIT_TYPE}"
-    - echo -e '[xrootd-testing]\nname=XRootD Testing repository\nbaseurl=http://xrootd.cern.ch/sw/repos/testing/slc/7/$basearch\ngpgcheck=0\nenabled=1\npriority=5\nprotect=0\n' >> /etc/yum.repos.d/xrootd-testing.repo
-  <<: *build_cc7_exotic-template_definition
+
+# @todo Re-enable xrd_testing jobs once project ugprades to XRootD 5
+.build_cc7_xrd_testing:
+  extends: .build_exotic-template
   variables:
     BUILD_NAME: cc7_xrd_testing
+  before_script:
+    - echo -e '[xrootd-testing]\nname=XRootD Testing repository\nbaseurl=http://xrootd.cern.ch/sw/repos/testing/slc/7/$basearch\ngpgcheck=0\nenabled=1\npriority=5\nprotect=0\n' >> /etc/yum.repos.d/xrootd-testing.repo
   only:
     - schedules
-  allow_failure: true
 
-build_cc7_opt_xrootd: # @note please contact CTA team / jleduc if you want to change this job
-  before_script:
-    - source gitlab-ci/export_commit-type.sh
-    - echo "Exporting COMMIT_TYPE=${COMMIT_TYPE}"
-    - sed -i "s/pgm \/usr\/bin\/xrdcp/pgm \/bin\/true/g" misc/etc/xrd.cf.fst
-  <<: *build_cc7_exotic-template_definition
+
+# @note Please contact CTA team / jleduc if you want to change this job
+build_cc7_opt_xrootd:
+  extends: .build_exotic-template
   image: gitlab-registry.cern.ch/dss/eos/prebuild-cc7-${CODENAME}
   variables:
     BUILD_NAME: cc7_opt_xrootd
     CMAKE_OPTIONS: "-DEOS_XROOTD=1"
     RPMBUILD_OPTIONS: "--with eos_xrootd_rh"
-  allow_failure: true
+  before_script:
+    - sed -i "s/pgm \/usr\/bin\/xrdcp/pgm \/bin\/true/g" misc/etc/xrd.cf.fst
   except:
     - tags
   when: manual
 
 
 build_cc7_no_sse:
-  <<: *build_cc7_exotic-template_definition
+  extends: .build_exotic-template
   variables:
     BUILD_NAME: cc7_no_sse
     CMAKE_OPTIONS: "-DNO_SSE=1"
@@ -487,8 +543,9 @@ build_cc7_no_sse:
     - triggers
   when: manual
 
+
 build_cc7_coverage:
-  <<: *build_cc7_exotic-template_definition
+  extends: .build_exotic-template
   variables:
     BUILD_NAME: cc7_coverage
     RPMBUILD_OPTIONS: "--with coverage"
@@ -522,6 +579,7 @@ build_cc7_coverage:
     - /kaniko/executor --cache=$CACHE --destination $DESTINATION --dockerfile $DOCKERFILE --context $CI_PROJECT_DIR --build-arg=EOS_CODENAME="${CODENAME}"
   retry: 1
 
+
 cc7_docker_image:
   extends: .build_dockerimage-template
   variables:
@@ -530,6 +588,7 @@ cc7_docker_image:
   needs:
     - job: clone_docker
     - job: build_cc7
+
 
 ubuntu_focal_docker_image:
   extends: .build_dockerimage-template
@@ -544,6 +603,7 @@ ubuntu_focal_docker_image:
     - tags
   allow_failure: true
 
+
 ubuntu_jammy_docker_image:
   extends: .build_dockerimage-template
   variables:
@@ -557,8 +617,8 @@ ubuntu_jammy_docker_image:
     - tags
   allow_failure: true
 
-# schedules ------------------------------
 
+# Disabled
 .cs8_docker_image:
   extends: .build_dockerimage-template
   variables:
@@ -571,6 +631,7 @@ ubuntu_jammy_docker_image:
     - schedules
     - tags
   allow_failure: true
+
 
 cc7_asan_docker_image:
   extends: .build_dockerimage-template
@@ -597,6 +658,7 @@ cc7_asan_docker_image:
   only:
     - schedules
   allow_failure: true
+
 
 .cc7_coverage_docker_image:
   extends: .build_dockerimage-template
@@ -637,6 +699,7 @@ code_quality_html:
 #-------------------------------------------------------------------------------
 
 .dock8s_before_script_template: &dock8s_before_script_template
+  stage: test
   before_script:
     - case $CI_JOB_NAME in
       "k8s"*  )
@@ -647,6 +710,7 @@ code_quality_html:
         source ./gitlab-ci/utilities_func_for_tests.sh --type docker; ;;
       esac
 
+
 .dock8s_after_script_template: &dock8s_after_script_template
   after_script:
     - case $CI_JOB_NAME in
@@ -656,9 +720,11 @@ code_quality_html:
         source ./gitlab-ci/after_script_docker_test.sh ;;
       esac
 
+
 .dock8s_system_test_template:
-  stage: test
-  <<: *dock8s_before_script_template
+  extends:
+    - .dock8s_before_script_template
+    - .dock8s_after_script_template
   script:
     - date
     - exec_cmd eos-mgm1 'eos ns mutex --toggleorder'
@@ -667,16 +733,17 @@ code_quality_html:
     - exec_cmd eos-mgm1 'eos-unit-tests-with-instance -n root://localhost//eos/dockertest/'
     - exec_cmd eos-mgm1 'grep "RWMutex. Order Checking Error in thread" /var/log/eos/mgm/xrdlog.mgm && exit 1 || exit 0'
     - date
-  <<: *dock8s_after_script_template
   artifacts:
     when: on_failure
     expire_in: 3 days
     paths:
       - eos-logs-${CI_JOB_ID}/
 
+
 .dock8s_cnvrt_fsck_template:
-  stage: test
-  <<: *dock8s_before_script_template
+  extends:
+    - .dock8s_before_script_template
+    - .dock8s_after_script_template
   script:
     - cp_to_local_cmd eos-cli1:/usr/sbin/eos-test-utils ./eos-test-utils
     # converter
@@ -699,16 +766,17 @@ code_quality_html:
     - rm -rf eos-convert-test
     - rm -rf eos-fsck-test
     - rm -rf eos-test-utils
-  <<: *dock8s_after_script_template
   artifacts:
     when: on_failure
     expire_in: 3 days
     paths:
       - eos-logs-${CI_JOB_ID}/
 
+
 .dock8s_rtb_clone_template:
-  stage: test
-  <<: *dock8s_before_script_template
+  extends:
+    - .dock8s_before_script_template
+    - .dock8s_after_script_template
   script:
     # prepare mountpoints
     - exec_cmd eos-cli1 'atd; at now <<< "mkdir -p /eos1/ && mount -t fuse eosxd -ofsname=mount-1 /eos1/; mkdir -p /eos2/ && mount -t fuse eosxd -ofsname=mount-2 /eos2/;"'
@@ -720,16 +788,17 @@ code_quality_html:
       "ub_focal"* | "ub_jammy"* ) ;;
       *                          ) exec_cmd eos-cli1 'cd /eosclient-tests; clone_tests/clone_test.sh prepare; rc=$?; exit $rc' ;;
       esac
-  <<: *dock8s_after_script_template
   artifacts:
     when: on_failure
     expire_in: 3 days
     paths:
       - eos-logs-${CI_JOB_ID}/
 
+
 .dock8s_fusex_test_template:
-  stage: test
-  <<: *dock8s_before_script_template
+  extends:
+    - .dock8s_before_script_template
+    - .dock8s_after_script_template
   script:
     # prepare mountpoints
     - exec_cmd eos-cli1 'atd; at now <<< "mkdir -p /eos1/ && mount -t fuse eosxd -ofsname=mount-1 /eos1/; mkdir -p /eos2/ && mount -t fuse eosxd -ofsname=mount-2 /eos2/;"'
@@ -765,7 +834,6 @@ code_quality_html:
     - echo ${CLI_POD_HOSTNAME}
     - exec_cmd eos-mgm1 "eos vid add gateway ${CLI_POD_HOSTNAME} unix"
     - exec_cmd eos-cli1 'eos-fusex-functional-test --samba'
-  <<: *dock8s_after_script_template
   artifacts:
     when: on_failure
     expire_in: 3 days
@@ -773,8 +841,9 @@ code_quality_html:
       - eos-logs-${CI_JOB_ID}/
 
 .dock8s_cbox_test_template:
-  stage: test
-  <<: *dock8s_before_script_template
+  extends:
+    - .dock8s_before_script_template
+    - .dock8s_after_script_template
   script:
     # enable converter and prepare eoshome folder, cernbox alike
     - exec_cmd eos-mgm1 'eos space config default space.converter=on'
@@ -789,24 +858,23 @@ code_quality_html:
     # launch the tests
     - exec_cmd eos-cli1 'su eos-user -c "cd /eos/user/e/eos-user && python2 ./eosclient-tests/run.py --workdir=/eos/user/e/eos-user ci-eosfuse_release"'
     - exec_cmd eos-cli1 'su eos-user -c "cd /eos/user/e/eos-user && python2 ./eosclient-tests/run.py --workdir=/eos/user/e/eos-user regression"'
-  <<: *dock8s_after_script_template
   artifacts:
     when: on_failure
     expire_in: 3 days
     paths:
       - eos-logs-${CI_JOB_ID}/
-  retry: 1
+
 
 .dock8s_flamegraph_test_template:
-  stage: test
-  <<: *dock8s_before_script_template
+  extends:
+    - .dock8s_before_script_template
+    - .dock8s_after_script_template
   script:
     - date
     - echo 0 > /proc/sys/kernel/perf_event_paranoid
-    - echo 0 > /proc/sys/kernel/kptr_restrict 
+    - echo 0 > /proc/sys/kernel/kptr_restrict
     - exec_cmd eos-mgm1 "cd eos-logs-${CI_JOB_ID}; /usr/sbin/eos-make-flamegraph"
     - date
-  <<: *dock8s_after_script_template
   artifacts:
     expire_in: 1 days
     paths:
@@ -836,29 +904,31 @@ code_quality_html:
      - dock
 
 unit_test:tag:
+  extends: .unit_test_template
   image:
     name: gitlab-registry.cern.ch/dss/eos/eos-ci:${CI_COMMIT_TAG}
     entrypoint: ["/bin/bash", "-c"]
-  <<: *unit_test_template_definition
   only:
     - tags
 
+
 unit_test:
+  extends: .unit_test_template
   image:
     name: gitlab-registry.cern.ch/dss/eos/eos-ci:${CI_COMMIT_SHORT_SHA}
     entrypoint: ["/bin/bash", "-c"]
-  <<: *unit_test_template_definition
   except:
     - tags
+
 
 # @note.1 jobs with `needs: on manual jobs get stuck (no fail nor succeed)
 # if an `optional: true` policy is not defined in GitLab < 13.12
 # Drop as we upgrade, ref: https://about.gitlab.com/blog/2021/05/20/dag-manual-fix/
 unit_test_asan:
+  extends: .unit_test_template
   image:
     name: gitlab-registry.cern.ch/dss/eos/eos-ci:asan_${CI_COMMIT_SHORT_SHA}
     entrypoint: ["/bin/bash", "-c"]
-  <<: *unit_test_template_definition
   variables:
     LSAN_OPTIONS: "suppressions=/var/eos/test/LeakSanitizer.supp"  # Suppress known memory leaks. For the generic tests
     ASAN_OPTIONS: "fast_unwind_on_malloc=0"  # Avoid indirect leaks from linked dependencies. For the namespace tests
@@ -880,8 +950,8 @@ unit_test_asan:
   script:
     - yum install --nogpg -y sssd-client
     - kinit stci@CERN.CH -k -t /stci.krb5/stci.keytab
+    # KOJI_SCRATCH will be set for branches and empty for tags
     - koji build ${KOJI_SCRATCH} ${TARGET} ${BUILD_NAME}_artifacts/SRPMS/*.src.rpm
-# KOJI_SCRATCH will be set for branches and empty for tags
   only:
     - tags
     - rhel
@@ -891,6 +961,7 @@ unit_test_asan:
     - docker_node
     - publish
 
+
 publish_koji_al8:
   <<: *publish_koji_template_definition
   variables:
@@ -898,6 +969,7 @@ publish_koji_al8:
     BUILD_NAME: "al8"
   dependencies:
     - build_al8
+
 
 publish_koji_al9:
   <<: *publish_koji_template_definition
@@ -907,6 +979,7 @@ publish_koji_al9:
   dependencies:
     - build_al9
 
+
 publish_koji_cs9:
   <<: *publish_koji_template_definition
   variables:
@@ -914,6 +987,7 @@ publish_koji_cs9:
     BUILD_NAME: "cs9"
   dependencies:
     - build_cs9
+
 
 publish_koji_cs8:
   <<: *publish_koji_template_definition
@@ -923,6 +997,7 @@ publish_koji_cs8:
   dependencies:
     - build_cs8
 
+
 publish_koji_cc7:
   <<: *publish_koji_template_definition
   variables:
@@ -931,7 +1006,7 @@ publish_koji_cc7:
   dependencies:
     - build_cc7
 
-####### Publish RHEL from SRPMs #######
+
 publish_koji_rh-8:
   <<: *publish_koji_template_definition
   variables:
@@ -940,6 +1015,7 @@ publish_koji_rh-8:
   needs:
     - job: rh-8
 
+
 publish_koji_rh-9:
   <<: *publish_koji_template_definition
   variables:
@@ -947,6 +1023,7 @@ publish_koji_rh-9:
     BUILD_NAME: "rh-9"
   needs:
     - job: rh-9
+
 
 rpm_commit_artifacts:
   stage: publish
@@ -963,6 +1040,7 @@ rpm_commit_artifacts:
   allow_failure: true
   when: manual
 
+
 rpm_testing_artifacts:
   stage: publish
   image: gitlab-registry.cern.ch/linuxsupport/cc7-base
@@ -978,6 +1056,7 @@ rpm_testing_artifacts:
     - eos5
     - tags
   retry: 1
+
 
 rpm_stable_artifacts:
   stage: publish
@@ -996,6 +1075,7 @@ rpm_stable_artifacts:
   dependencies: []
   when: manual
 
+
 rpm_no_sse_tag_artifacts:
   stage: publish
   image: gitlab-registry.cern.ch/linuxsupport/cc7-base
@@ -1011,6 +1091,7 @@ rpm_no_sse_tag_artifacts:
   dependencies:
     - build_cc7_no_sse
   when: manual
+
 
 # @todo rework on the entanglement between the sign, the publish and the removal of the old artifacts
 debian_focal_artifacts:
@@ -1035,6 +1116,7 @@ debian_focal_artifacts:
     - publish
   allow_failure: true
 
+
 debian_jammy_artifacts:
   stage: publish
   image: ubuntu:jammy
@@ -1057,6 +1139,7 @@ debian_jammy_artifacts:
     - publish
   allow_failure: true
 
+
 debian_artifacts_volume:
   stage: publish
   image: ubuntu:focal
@@ -1074,6 +1157,7 @@ debian_artifacts_volume:
   tags:
     - docker_node
     - publish
+
 
 #to be run after the rpm publish
 .publish_dockerimage-template:
@@ -1093,6 +1177,7 @@ debian_artifacts_volume:
     - /kaniko/executor --cache=false --destination $DESTINATION --dockerfile $DOCKERFILE --context $CI_PROJECT_DIR --build-arg=EOS_CODENAME="${CODENAME}" --build-arg=REPOBRANCH="${REPOBRANCH}"
   retry: 1
 
+
 c7_publish_dockerimage_all:
   extends: .publish_dockerimage-template
   variables:
@@ -1104,6 +1189,7 @@ c7_publish_dockerimage_all:
   allow_failure: true
   when: manual
 
+
 c7_publish_dockerimage_fusex:
   extends: .publish_dockerimage-template
   variables:
@@ -1114,7 +1200,6 @@ c7_publish_dockerimage_fusex:
     - job: build_cc7
   allow_failure: true
   when: manual
-
 
 
 #-------------------------------------------------------------------------------
@@ -1134,6 +1219,7 @@ clean_rpm_artifacts:
   tags:
     - docker_node
 
+
 # @todo rework on the entanglement between the sign, the publish and the removal of the old artifacts
 clean_debian_artifacts:
   stage: clean
@@ -1152,6 +1238,7 @@ clean_debian_artifacts:
   tags:
     - docker_node
 
+
 # get all the namespaces, filter out the "mgmt" ones, delete if older than 30h
 clean_k8s_cluster:
   stage: clean
@@ -1168,6 +1255,7 @@ clean_k8s_cluster:
   tags:
     - docker_node
     - k8s
+
 
 # @todo cleanup helm leftover for failed / hanging tests. May be merged to 'clean_k8s_cluster'
 clean_helm_cluster:
@@ -1206,6 +1294,7 @@ eos_nginx_cc7:
   environment:
     name: nginx-cc7-prod
 
+
 eos_apmon_cc7:
   stage: build:manual
   image: gitlab-registry.cern.ch/linuxsupport/cc7-base
@@ -1225,6 +1314,7 @@ eos_apmon_cc7:
   when: manual
   environment:
     name: apmon-cc7-prod
+
 
 eos_apmon_al8:
   stage: build:manual
@@ -1246,6 +1336,7 @@ eos_apmon_al8:
   environment:
     name: apmon-al8-prod
 
+
 eos_microhttpd_cc7:
   stage: build:manual
   image: gitlab-registry.cern.ch/linuxsupport/cc7-base
@@ -1264,6 +1355,7 @@ eos_microhttpd_cc7:
     - docker_node
   when: manual
 
+
 eos_docs:
   stage: build:manual
   image: gitlab-registry.cern.ch/linuxsupport/alma8-base
@@ -1279,6 +1371,7 @@ eos_docs:
   tags:
     - docker_node
   when: manual
+
 
 eos_repopackage:
   stage: build:manual
