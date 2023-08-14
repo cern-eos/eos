@@ -17,8 +17,6 @@
 //  ************************************************************************
 
 #include "fst/filemd/FmdAttr.hh"
-#include "fst/filemd/FmdConverter.hh"
-#include "fst/filemd/FmdDbMap.hh"
 #include "fst/utils/FSPathHandler.hh"
 #include "common/StringUtils.hh"
 #include "common/Logging.hh"
@@ -47,28 +45,9 @@ main(int argc, char* argv[])
 {
   std::string log_file {""};
   std::string log_level {"err"}; // accepts info, debug, err, crit, warning etc.
-  CLI::App app("Tool to translate/inspect filemd metadata");
+  CLI::App app("Tool to inspect filemd metadata");
   app.add_option("--log-level", log_level, "Logging level", true);
   app.require_subcommand();
-  auto convert_subcmd = app.add_subcommand("convert",
-                        "Convert from LevelDB -> Attrs");
-  std::string fst_path;
-  std::string fst_metadir {"/var/eos/md"};
-  std::string executor_type {"folly"};
-  std::string walk_type {"stdfs"};
-  size_t num_threads{8};
-  convert_subcmd->add_option("--fst-path", fst_path, "Mount point of FST")
-  ->required();
-  convert_subcmd->add_option("--fst-metadir", fst_metadir,
-                             "Metadir directory of FST ", true);
-  convert_subcmd->add_option("--num-threads", num_threads,
-                             "Num of threads for conversion", true);
-  convert_subcmd->add_option("--log-file", log_file, "Log file for operations",
-                             true);
-  convert_subcmd->add_option("--executor", executor_type,
-                             "Executor Type: folly or std", true);
-  convert_subcmd->add_option("--walk-type", walk_type,
-                             "Walk FS Type: stdfs or fts", true);
   std::string file_path;
   auto inspect_subcmd = app.add_subcommand("inspect",
                         "inspect filemd attributes");
@@ -95,25 +74,7 @@ main(int argc, char* argv[])
   }
 
   auto attr_handler = std::make_unique<eos::fst::FmdAttrHandler>(
-                        eos::fst::makeFSPathHandler(fst_path));
-
-  if (app.got_subcommand("convert")) {
-    if (fst_metadir.empty()) {
-      std::cerr << "error: empty meta dir given" << std::endl;
-      return -1;
-    }
-
-    auto fsid = eos::fst::FSPathHandler::GetFsid(fst_path);
-    eos_static_info("msg=\"got FSID from .eosfsid\" fsid=%u", fsid);
-    auto db_handler = std::make_unique<eos::fst::FmdDbMapHandler>();
-    db_handler->SetDBFile(fst_metadir.c_str(), fsid);
-    eos::fst::FmdConverter converter(db_handler.get(), attr_handler.get(),
-                                     num_threads, executor_type, walk_type);
-    eos_static_info("msg=\"starting conversion\" num_threads=%ul executor=%s "
-                    "walk_type=%s", num_threads, executor_type.c_str(),
-                    walk_type.c_str());
-    converter.ConvertFS(fst_path);
-  }
+                        eos::fst::makeFSPathHandler(""));
 
   if (app.got_subcommand("inspect")) {
     auto [status, fmd] = attr_handler->LocalRetrieveFmd(file_path);
@@ -126,6 +87,5 @@ main(int argc, char* argv[])
     std::cout << fmd.mProtoFmd.DebugString() << std::endl;
   }
 
-  eos_static_info("%s", "msg=\"finished conversion\"");
   return 0;
 }

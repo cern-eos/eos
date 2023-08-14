@@ -49,14 +49,6 @@ public:
   //----------------------------------------------------------------------------
   ~FmdAttrHandler() = default;
 
-  //----------------------------------------------------------------------------
-  //! Get type of Fmd handler
-  //----------------------------------------------------------------------------
-  fmd_handler_t GetType() override
-  {
-    return fmd_handler_t::ATTR;
-  }
-
   void LocalDeleteFmd(eos::common::FileId::fileid_t fid,
                       eos::common::FileSystem::fsid_t fsid,
                       bool drop_file = false) override;

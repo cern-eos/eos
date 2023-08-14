@@ -24,7 +24,6 @@
 #include "fst/XrdFstOfs.hh"
 #include "fst/XrdFstOss.hh"
 #include "fst/Config.hh"
-#include "fst/filemd/FmdDbMap.hh"
 #include "fst/filemd/FmdAttr.hh"
 #include "fst/checksum/ChecksumPlugins.hh"
 #include "fst/http/HttpServer.hh"
@@ -53,6 +52,7 @@
 #include "common/ShellCmd.hh"
 #include "common/BufferManager.hh"
 #include "common/async/ExecutorMgr.hh"
+#include "namespace/interface/IFileMD.hh"
 #include "XrdNet/XrdNetOpts.hh"
 #include "XrdNet/XrdNetUtils.hh"
 #include "XrdOfs/XrdOfs.hh"
@@ -64,6 +64,7 @@
 #include "XrdCl/XrdClDefaultEnv.hh"
 #include "XrdVersion.hh"
 #include "qclient/Members.hh"
+#include "qclient/QClient.hh"
 #include "qclient/shared/SharedManager.hh"
 #include "proto/Delete.pb.h"
 #include <sys/types.h>
@@ -221,12 +222,6 @@ XrdFstOfs::xrdfstofs_shutdown(int sig)
   gOFS.Storage->Shutdown();
   eos_static_warning("%s", "op=shutdown msg=\"stopped storage activities\"");
 
-  // This is unlikely to be null, but let's check anyway
-  if (gOFS.mFmdHandler != nullptr) {
-    gOFS.mFmdHandler->Shutdown();
-    eos_static_warning("%s", "op=shutdown msg=\"stopped FmdHandler\"");
-  }
-
   if (watchdog > 1) {
     kill(watchdog, 9);
   }
@@ -292,15 +287,13 @@ XrdFstOfs::xrdfstofs_graceful_shutdown(int sig)
   std::chrono::seconds io_timeout((std::int64_t)(wait * 0.9));
 
   if (gOFS.WaitForOngoingIO(io_timeout)) {
-    eos_static_warning("op=shutdown msg=\"successful graceful IO shutdown\"");
+    eos_static_warning("%s", "op=shutdown msg=\"successful graceful IO shutdown\"");
   } else {
-    eos_static_err("op=shutdown msg=\"failed graceful IO shutdown\"");
+    eos_static_err("%s", "op=shutdown msg=\"failed graceful IO shutdown\"");
   }
 
+  eos_static_warning("%s", "op=shutdown msg=\"storage object shutdown\"");
   gOFS.Storage->Shutdown();
-  eos_static_warning("op=shutdown msg=\"shutdown fmddbmap handler\"");
-  gOFS.mFmdHandler->Shutdown();
-  eos_static_warning("op=shutdown status=dbmapclosed");
 
   if (watchdog > 1) {
     kill(watchdog, 9);
@@ -310,7 +303,7 @@ XrdFstOfs::xrdfstofs_graceful_shutdown(int sig)
   ::wait(&wstatus);
   // Close all file descriptors we can sync or are sockets
   SyncAll::AllandCloseFileSocks();
-  eos_static_warning("op=shutdown status=completed");
+  eos_static_warning("%s", "op=shutdown status=completed");
   // harakiri - yes!
   (void) signal(SIGABRT, SIG_IGN);
   (void) signal(SIGINT,  SIG_IGN);
@@ -679,43 +672,6 @@ XrdFstOfs::Configure(XrdSysError& Eroute, XrdOucEnv* envP)
 
           Eroute.Say("=====> fstofs.mq_implementation : ", value.c_str());
         }
-
-        if (!strcmp("filemd_handler", var)) {
-          std::string value;
-
-          while ((val = Config.GetWord())) {
-            value += val;
-          }
-
-          if (value == "leveldb") {
-            mFmdHandler.reset(new FmdDbMapHandler());
-            Eroute.Say("Config", "creating leveldb handler");
-          } else if (value == "attr") {
-            mFmdHandler.reset(new FmdAttrHandler(makeFSPathHandler(this)));
-            Eroute.Say("Config", "creating attr handler");
-          }
-
-          Eroute.Say("=====> fstofs.filemd_handler : ", value.c_str());
-        }
-
-        if (!strcmp("filemd_converter_threads", var)) {
-          if ((val = Config.GetWord())) {
-            uint16_t num_threads(0);
-            common::StringToNumeric(std::string_view(val), num_threads);
-            mFmdConverterThreads = std::clamp(num_threads,
-                                              MIN_FMDCONVERTER_THREADS,
-                                              MAX_FMDCONVERTER_THREADS);
-            Eroute.Say("=====> fstofs.filemd_converter_threads : ", val);
-          }
-        }
-
-        if (!strcmp("filemd_converter_executor", var)) {
-          if ((val = Config.GetWord())) {
-            mFmdConverterExecutorType = val;
-            Eroute.Say("=====> fstofs.filemd_converter_executor : ",
-                       mFmdConverterExecutorType.c_str());
-          }
-        }
       }
     }
 
@@ -752,8 +708,8 @@ XrdFstOfs::Configure(XrdSysError& Eroute, XrdOucEnv* envP)
   }
 
   if (!mFmdHandler) {
-    mFmdHandler.reset(new FmdDbMapHandler());
-    Eroute.Say("=====> fstofs.filemd_handler : leveldb");
+    mFmdHandler.reset(new FmdAttrHandler(makeFSPathHandler(this)));
+    Eroute.Say("=====> fstofs.filemd_handler : attr");
   }
 
   gConfig.FstDefaultReceiverQueue = gConfig.FstOfsBrokerUrl;
@@ -936,9 +892,6 @@ XrdFstOfs::Configure(XrdSysError& Eroute, XrdOucEnv* envP)
     mHttpd->Start();
   }
 
-  mThreadPoolExecutor.reset(new eos::common::ExecutorMgr(
-                              mFmdConverterExecutorType,
-                              mFmdConverterThreads));
   eos_notice("FST_HOST=%s FST_PORT=%ld FST_HTTP_PORT=%d VERSION=%s RELEASE=%s "
              "KEYTABADLER=%s", mHostName, myPort, mHttpdPort, VERSION, RELEASE,
              kt_cks.c_str());
@@ -2412,15 +2365,6 @@ XrdFstOfs::SetXrdClConfig()
     eos_static_info("msg=\"update xrootd client timeouts\" name=%s value=%i",
                     elem.first.c_str(), env_value);
   }
-}
-
-//------------------------------------------------------------------------------
-// Check if FMD entries are stored in the local leveldb
-//------------------------------------------------------------------------------
-bool XrdFstOfs::FmdOnDb() const
-{
-  return ((mFmdHandler != nullptr) &&
-          (mFmdHandler->GetType() == fmd_handler_t::DB));
 }
 
 EOSFSTNAMESPACE_END

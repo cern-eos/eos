@@ -25,7 +25,6 @@
 #include "fst/XrdFstOfs.hh"
 #include "fst/Config.hh"
 #include "fst/storage/FileSystem.hh"
-#include "fst/filemd/FmdDbMap.hh"
 #include "qclient/Formatting.hh"
 #include "common/LinuxStat.hh"
 #include "common/ShellCmd.hh"
@@ -477,11 +476,8 @@ Storage::GetFsStatistics(FileSystem* fs)
   output["stat.ropen"] = std::to_string(r_open);
   output["stat.wopen"] = std::to_string(w_open);
 
-  if (gOFS.FmdOnDb()) {
-    auto* fmd_handler = static_cast<FmdDbMapHandler*>(gOFS.mFmdHandler.get());
-    output["stat.usedfiles"] = std::to_string(fmd_handler->GetNumFiles(fsid));
-  } else if (auto kv = output.find("stat.statfs.fused");
-             kv != output.end()) {
+  if (auto kv = output.find("stat.statfs.fused");
+      kv != output.end()) {
     // FIXME: Actually subtract the statfs of the .eosorphans, also count
     // checksums & scrub files!
     output["stat.usedfiles"] = kv->second;

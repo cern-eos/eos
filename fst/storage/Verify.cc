@@ -24,16 +24,13 @@
 #define __STDC_FORMAT_MACROS
 #include <inttypes.h>
 
-/*----------------------------------------------------------------------------*/
 #include "fst/storage/Storage.hh"
 #include "fst/XrdFstOfs.hh"
 #include "fst/XrdFstOss.hh"
-#include "fst/io/FileIoPluginCommon.hh"
-#include "fst/filemd/FmdDbMap.hh"
 #include "fst/Verify.hh"
 #include "fst/checksum/ChecksumPlugins.hh"
+#include "fst/io/FileIoPluginCommon.hh"
 #include "common/Path.hh"
-/*----------------------------------------------------------------------------*/
 
 extern eos::fst::XrdFstOss* XrdOfsOss;
 
