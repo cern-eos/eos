@@ -273,7 +273,7 @@ cd build
     source /opt/rh/%{devtoolset}/enable
   %endif
 
-%if 0%{?rhel} >= 7 && 0%{?rhel} <= 9
+  %if 0%{?rhel} >= 7 && 0%{?rhel} <= 9
     %{cmake} ../ -DRELEASE=@CPACK_PACKAGE_RELEASE@ -DCMAKE_BUILD_TYPE=%{build_type} -DXROOTD_ROOT=/opt/eos/xrootd/ %{build_flags}
   %else
     %{cmake} ../ -DRELEASE=@CPACK_PACKAGE_RELEASE@ -DCMAKE_BUILD_TYPE=%{build_type} %{build_flags}
@@ -294,7 +294,6 @@ cd build
 # of debuginfo happens here. "make install" will still remember to use devtoolset,
 # but find-debuginfo.sh will not, resulting in a debuginfo package that is corrupted
 # and may cause GDB to crash.
-
 %if "%{?compiler}" == "gcc"
 %if 0%{?rhel} == 7
   source /opt/rh/%{devtoolset}/enable
