@@ -229,9 +229,6 @@ if (Linux)
     ShellExecutor.cc
     ShellCmd.cc
     FileSystem.cc
-    DbMap.cc
-    DbMapLevelDb.cc
-    DbMapCommon.cc
     http/HttpServer.cc
     http/HttpRequest.cc
     http/HttpResponse.cc
@@ -291,31 +288,10 @@ endif()
 if(NOT CLIENT AND Linux)
   add_executable(eos-layout-print EosLayoutPrint.cc)
   target_link_libraries(eos-layout-print PUBLIC EosCommon)
-  add_executable(dbmaptestburn dbmaptest/DbMapTestBurn.cc)
   add_executable(mutextest
     mutextest/RWMutexTest.cc RWMutex.cc PthreadRWMutex.cc StacktraceHere.cc)
   # Avoid warnings related to bfd_get_section* macros being redefined
   target_compile_options(mutextest PRIVATE -Wno-macro-redefined)
-
-  PROTOBUF_GENERATE_CPP(DBMAPTEST_SRCS DBMAPTEST_HDRS dbmaptest/test.proto)
-  set_source_files_properties(
-    ${DBMAPTEST_SRCS}
-    ${DBMAPTEST_HDRS}
-    PROPERTIES GENERATED 1)
-
-  add_executable(dbmaptestfunc
-    dbmaptest/DbMapTestFunc.cc
-    ${DBMAPTEST_SRCS}
-    ${DBMAPTEST_HDRS})
-
-  target_link_libraries(dbmaptestburn PRIVATE
-    EosCommon
-    EosCommonServer)
-
   target_link_libraries(mutextest PRIVATE
     EosCommon-Static)
-
-  target_link_libraries(dbmaptestfunc PRIVATE
-    EosCommon
-    EosCommonServer)
 endif()
