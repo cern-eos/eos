@@ -376,11 +376,6 @@ add_executable(eos-rain-hd-dump
 target_link_libraries(eos-rain-hd-dump
   EosFstIo XROOTD::SERVER)
 
-add_executable(eos-leveldb-inspect
-  tools/eos-leveldb-inspect.cc)
-
-target_link_libraries(eos-leveldb-inspect PRIVATE EosCommonServer)
-
 add_executable(eos-check-blockxs
   tools/CheckBlockXS.cc
   checksum/Adler.cc
@@ -463,7 +458,7 @@ install(PROGRAMS
   DESTINATION ${CMAKE_INSTALL_FULL_SBINDIR})
 
 install(TARGETS
-  eos-ioping eos-adler32 eos-checksum eos-leveldb-inspect eos-rain-hd-dump
+  eos-ioping eos-adler32 eos-checksum eos-rain-hd-dump
   eos-check-blockxs eos-compute-blockxs eos-scan-fs
   eos-create-file-pattern eos-readv-pattern eos-fmd-tool
   RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_SBINDIR})
