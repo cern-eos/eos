@@ -134,7 +134,6 @@ BuildRequires: fuse-devel, fuse >= 2.5
 BuildRequires: fuse3-devel, fuse3 >= 3.0
 BuildRequires: krb5-devel
 BuildRequires: redhat-rpm-config
-BuildRequires: leveldb-devel
 BuildRequires: libattr-devel, xfsprogs-devel
 BuildRequires: gcc gcc-c++
 BuildRequires: jsoncpp, jsoncpp-devel
