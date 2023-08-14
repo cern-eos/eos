@@ -416,12 +416,6 @@ Storage::GetFsStatistics(FileSystem* fs)
   }
 
   std::map<std::string, std::string> output;
-
-  // Publish inconsistency statistics
-  if (fs->GetStatus() == eos::common::BootStatus::kBooted) {
-    output = fs->CollectInconsistencyStats("stat.fsck.");
-  }
-
   // Publish statfs
   std::unique_ptr<eos::common::Statfs> statfs = fs->GetStatfs();
 

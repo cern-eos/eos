@@ -40,7 +40,6 @@ class FileIo;
 class CheckSum;
 
 constexpr uint64_t DEFAULT_DISK_INTERVAL = 4 * 3600;
-constexpr uint64_t DEFAULT_FSCK_INTERVAL = 2 * 3600;
 constexpr uint64_t DEFAULT_NS_INTERVAL = 3 * 24 * 3600;
 //------------------------------------------------------------------------------
 //! Class ScanDir
@@ -259,12 +258,9 @@ public:
   std::atomic<uint64_t> mDiskIntervalSec;
   //! Time interval after which the scanner will run again, default 3 days
   std::atomic<uint64_t> mNsIntervalSec;
-  //! Time interval after which fsck inconsistencies are refreshed, default 2h
-  std::atomic<uint64_t> mFsckRefreshIntervalSec;
 
-  // Configuration variable to track changes in Disk/FSCK intervals
+  // Configuration variable to track changes in disk scan intervals
   uint64_t mConfDiskIntervalSec;
-  uint64_t mConfFsckIntervalSec;
 
   // Statistics
   long int mNumScannedFiles;

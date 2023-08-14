@@ -59,9 +59,7 @@ ScanDir::ScanDir(const char* dirpath, eos::common::FileSystem::fsid_t fsid,
   mFstLoad(fstload), mFsId(fsid), mDirPath(dirpath),
   mRateBandwidth(ratebandwidth), mEntryIntervalSec(file_rescan_interval),
   mDiskIntervalSec(DEFAULT_DISK_INTERVAL), mNsIntervalSec(DEFAULT_NS_INTERVAL),
-  mFsckRefreshIntervalSec(DEFAULT_FSCK_INTERVAL),
   mConfDiskIntervalSec(DEFAULT_DISK_INTERVAL),
-  mConfFsckIntervalSec(DEFAULT_FSCK_INTERVAL),
   mNumScannedFiles(0), mNumCorruptedFiles(0),
   mNumHWCorruptedFiles(0),  mTotalScanSize(0), mNumTotalFiles(0),
   mNumSkippedFiles(0), mBuffer(nullptr),
@@ -131,14 +129,6 @@ ScanDir::SetConfig(const std::string& key, long long value)
         std::memory_order_acq_rel)) {
       // Move the following line after join if you want to prevent a toggle until join
       mConfDiskIntervalSec = static_cast<uint64_t>(value);
-      mDiskThread.join();
-      mDiskThread.reset(&ScanDir::RunDiskScan, this);
-    }
-  } else if (key == eos::common::FSCK_REFRESH_INTERVAL_NAME) {
-    if (mFsckRefreshIntervalSec.compare_exchange_strong(mConfFsckIntervalSec,
-        static_cast<uint64_t>(value),
-        std::memory_order_acq_rel)) {
-      mConfFsckIntervalSec = static_cast<uint64_t>(value);
       mDiskThread.join();
       mDiskThread.reset(&ScanDir::RunDiskScan, this);
     }
@@ -462,25 +452,12 @@ ScanDir::RunDiskScan(ThreadAssistant& assistant) noexcept
   // If there is a reconfiguration of Disk/Fsck Interval, reload these only
   // after current run
   uint64_t disk_interval_sec = mDiskIntervalSec.load(std::memory_order_acquire);
-  uint64_t fsck_interval_sec = mFsckRefreshIntervalSec.load(
-                                 std::memory_order_acquire);
 
   if (mBgThread) {
-    // Make sure we update the inconsistencies once before the initial sleep
-#ifndef _NOOFS
-    if (!gOFS.Storage->UpdateInconsistencyInfo(mFsId)) {
-      eos_notice("msg=\"file system (being) deleted, abort any further scanning\""
-                 " fsid=%lu", mFsId);
-      return;
-    } else {
-      eos_info("msg=\"done initial collection of inconsistency stats\" fsid=%lu "
-               "disk_scan_interval_sec=%llu fsck_refresh_interval_sec=%llu",
-               mFsId, disk_interval_sec, fsck_interval_sec);
-    }
-
-#endif
     // Get a random smearing and avoid that all start at the same time! 0-4 hours
     size_t sleeper = (1.0 * disk_interval_sec * random() / RAND_MAX);
+    eos_info("msg=\"start scanning\" fsid=%lu disk_scan_interval_sec=%llu "
+             "init_delay_sec=%llu", mFsId, disk_interval_sec, sleeper);
     assistant.wait_for(seconds(sleeper));
   }
 
@@ -494,7 +471,6 @@ ScanDir::RunDiskScan(ThreadAssistant& assistant) noexcept
     seconds duration = duration_cast<seconds>(finish_ts - start_ts);
     // Check if there was a config update before we sleep
     disk_interval_sec = mDiskIntervalSec.load(std::memory_order_acquire);
-    fsck_interval_sec = mFsckRefreshIntervalSec.load(std::memory_order_acquire);
     std::string log_msg =
       SSTR("[ScanDir] Directory: " << mDirPath << " files=" << mNumTotalFiles
            << " scanduration=" << duration.count() << " [s] scansize="
@@ -502,8 +478,7 @@ ScanDir::RunDiskScan(ThreadAssistant& assistant) noexcept
            << " MB ] scannedfiles=" << mNumScannedFiles << " corruptedfiles="
            << mNumCorruptedFiles << " hwcorrupted=" << mNumHWCorruptedFiles
            << " skippedfiles=" << mNumSkippedFiles
-           << " disk_scan_interval_sec=" << disk_interval_sec
-           << " fsck_refresh_interval_sec=" << fsck_interval_sec);
+           << " disk_scan_interval_sec=" << disk_interval_sec);
 
     if (mBgThread) {
       syslog(LOG_ERR, "%s\n", log_msg.c_str());
@@ -513,30 +488,8 @@ ScanDir::RunDiskScan(ThreadAssistant& assistant) noexcept
     }
 
     if (mBgThread) {
-      // Run again after (default) 4 hours. In the meantime update the
-      // inconsistencies every mFsckRefreshIntervalSec or every mDiskIntervalSec
-      // if this is more frequent.
-      long effective_delay = (fsck_interval_sec > disk_interval_sec ?
-                              disk_interval_sec : fsck_interval_sec) - 1;
-      auto deadline = std::chrono::system_clock::now() +
-                      std::chrono::seconds(effective_delay);
-
-      do {
-#ifndef _NOOFS
-
-        if (!gOFS.Storage->UpdateInconsistencyInfo(mFsId)) {
-          eos_notice("msg=\"file system (being) deleted, abort any further scanning\""
-                     " fsid=%lu", mFsId);
-          return;
-        }
-
-#endif
-        assistant.wait_for(std::chrono::seconds(effective_delay));
-
-        if (assistant.terminationRequested()) {
-          break;
-        }
-      } while (deadline > std::chrono::system_clock::now());
+      // Run again after (default) 4 hours
+      assistant.wait_for(std::chrono::seconds(disk_interval_sec));
     } else {
       break;
     }
