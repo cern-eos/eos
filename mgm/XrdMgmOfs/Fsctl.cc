@@ -110,7 +110,8 @@ XrdMgmOfs::fsctl(const int cmd,
     eos_thread_info("path=%s cgi=%s", path.c_str(), opaque.c_str());
 
     if (query_space ||
-        (!getenv("EOS_MGM_STATVFS_ONLY_QUOTA") && ((path == "/") || (path == "")))) {
+        (!getenv("EOS_MGM_STATVFS_ONLY_QUOTA") && ((path == "/") || (path == ""))) ||
+        (getenv("EOS_MGM_STATVFS_ONLY_SPACE"))) {
       {
         eos::common::RWMutexReadLock vlock(FsView::gFsView.ViewMutex);
 
