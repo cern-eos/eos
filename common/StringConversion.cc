@@ -117,7 +117,7 @@ StringConversion::GetReadableAgeString(XrdOucString& sizestring,
   char formsize[1024];
 
   if (age > 31536000) {
-    sprintf(formsize, "%lluy", age/ 31536000);
+    sprintf(formsize, "%lluy", age / 31536000);
   } else if (age > 86400) {
     sprintf(formsize, "%llud", age / 86400);
   } else if (age > 3600) {
@@ -169,7 +169,7 @@ StringConversion::GetReadableSizeString(unsigned long long insize,
 {
   char formsize[1024];
 
-  if (insize >= 10*si) {
+  if (insize >= 10 * si) {
     if (insize >= (si * si)) {
       if (insize >= (si * si * si)) {
         if (insize >= (si * si * si * si)) {
@@ -632,87 +632,6 @@ StringConversion::SplitByPoint(std::string in, std::string& pre,
 }
 
 //------------------------------------------------------------------------------
-// Convert a string into a line-wise map
-//------------------------------------------------------------------------------
-void
-StringConversion::StringToLineVector(char* in, std::vector<std::string>& out)
-{
-  char* pos = in;
-  char* old_pos = in;
-  int len = strlen(in);
-
-  while ((pos = strchr(pos, '\n'))) {
-    *pos = 0;
-    out.push_back(old_pos);
-    *pos = '\n';
-    pos++;
-    old_pos = pos;
-    // check for the end of string
-
-    if ((pos - in) >= len) {
-      break;
-    }
-  }
-}
-
-//------------------------------------------------------------------------------
-// Split a string of type '<string>@<int>[:<0xXXXXXXXX] into string,int,
-// std::set<unsigned long long>'
-//------------------------------------------------------------------------------
-bool
-StringConversion::ParseStringIdSet(char* in, std::string& tag,
-                                   unsigned long& id,
-                                   std::set<unsigned long long>& set)
-{
-  char* ptr = in;
-  char* add = strchr(in, '@');
-
-  if (!add) {
-    return false;
-  }
-
-  char* colon = strchr(add, ':');
-
-  if (!colon) {
-    id = strtoul(add + 1, 0, 10);
-
-    if (id) {
-      return true;
-    } else {
-      return false;
-    }
-  } else {
-    *colon = 0;
-    id = strtoul(add + 1, 0, 10);
-    *colon = ':';
-  }
-
-  *add = 0;
-  tag = ptr;
-  *add = '@';
-  ptr = colon + 1;
-
-  do {
-    char* nextcolon = strchr(ptr, ':');
-
-    // get a set member
-    if (nextcolon) {
-      *nextcolon = 0;
-      unsigned long long n = strtoull(ptr, 0, 16);
-      *nextcolon = ':';
-      set.insert(n);
-      ptr = nextcolon + 1;
-    } else {
-      unsigned long long n = strtoull(ptr, 0, 16);
-      set.insert(n);
-      return true;
-    }
-  } while (1);
-
-  return false;
-}
-
-//------------------------------------------------------------------------------
 // Load a text file <name> into a string
 //------------------------------------------------------------------------------
 const char*
@@ -1007,7 +926,8 @@ StringConversion::IsHexNumber(const char* hexstring, const char* format)
 // Check if string is a decimal number
 //------------------------------------------------------------------------------
 bool
-StringConversion::IsDecimalNumber(const std::string & str) {
+StringConversion::IsDecimalNumber(const std::string& str)
+{
   return !str.empty() && std::all_of(str.begin(), str.end(), ::isdigit);
 }
 
