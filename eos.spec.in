@@ -383,7 +383,6 @@ The EOS server installation containing MGM, FST & MQ service.
 %{_sbindir}/eos-mmap
 %{_sbindir}/eos-repair-tool
 %{_sbindir}/eos-ioping
-%{_sbindir}/eos-leveldb-inspect
 %{_sbindir}/eos-fmd-tool
 %{_sbindir}/eos-rain-hd-dump
 %{_sbindir}/eos-filter-stacktrace
