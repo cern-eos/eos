@@ -1473,10 +1473,6 @@ XrdFstOfs::FSctl(const int cmd, XrdSfsFSctl& args, XrdOucErrInfo& error,
       return HandleDebug(env, error);
     }
 
-    if (execmd == "fsck") {
-      return HandleFsck(env, error);
-    }
-
     if (execmd == "resync") {
       return HandleResync(env, error);
     }
@@ -2042,82 +2038,6 @@ XrdFstOfs::HandleDebug(XrdOucEnv& env, XrdOucErrInfo& err_obj)
   // return SFS_OK;
   const char* done = "OK";
   err_obj.setErrInfo(strlen(done) + 1, done);
-  return SFS_DATA;
-}
-
-//------------------------------------------------------------------------------
-// Handle fsck query
-//------------------------------------------------------------------------------
-int
-XrdFstOfs::HandleFsck(XrdOucEnv& env, XrdOucErrInfo& err_obj)
-{
-  if (!FmdOnDb()) {
-    eos_notice("%s", "msg=\"fsck moved to QDB\"");
-    // @todo(esindril) once xrootd bug regarding handling of SFS_OK response
-    // in XrdXrootdXeq is fixed we can just return SFS_OK (>= XRootD 5)
-    // return SFS_OK;
-    const char* done = "";
-    err_obj.setErrInfo(strlen(done) + 1, done);
-    return SFS_DATA;
-  }
-
-  std::string response;
-  response.reserve(4 * eos::common::MB);
-  size_t max_sz = mXrdBuffPool.MaxSize() - 2 * eos::common::MB;
-  {
-    eos::common::RWMutexReadLock fs_rd_lock(Storage->mFsMutex);
-
-    for (const auto& elem : Storage->mFsMap) {
-      auto fs = elem.second;
-
-      // Don't report filesystems which are not booted!
-      if (fs->GetStatus() != eos::common::BootStatus::kBooted) {
-        continue;
-      }
-
-      eos::common::FileSystem::fsid_t fsid = fs->GetLocalId();
-      eos::common::RWMutexReadLock rd_lock(fs->mInconsistencyMutex);
-      const auto& icset = fs->GetInconsistencySets();
-
-      for (auto icit = icset.cbegin(); icit != icset.cend(); ++icit) {
-        // Construct the tag
-        response += SSTR(icit->first << "@" << fsid);
-
-        for (auto fit = icit->second.cbegin(); fit != icit->second.cend(); ++fit) {
-          // Don't report files which are currently write-open
-          if (openedForWriting.isOpen(fsid, *fit)) {
-            continue;
-          }
-
-          response += ':';
-          response += eos::common::FileId::Fid2Hex(*fit);
-        }
-
-        response += '\n';
-
-        if (response.length() >= max_sz) {
-          eos_static_warning("%s", "msg=\"reached max fsck size limit\"");
-          break;
-        }
-      }
-    }
-  }
-  // Use XrdOucBuffPool to manage XrdOucBuffer objects that can hold redirection
-  // info >= 2kb but not bigger than MaxSize
-  const uint32_t aligned_sz = eos::common::GetPowerCeil(response.length() + 1);
-  XrdOucBuffer* buff = mXrdBuffPool.Alloc(aligned_sz);
-
-  if (buff == nullptr) {
-    eos_static_err("msg=\"requested fsck result buffer too big\" req_sz=%llu "
-                   "max_sz=%i", response.length(), mXrdBuffPool.MaxSize());
-    err_obj.setErrInfo(ENOMEM, "fsck result buffer too big");
-    return SFS_ERROR;
-  }
-
-  eos_static_debug("msg=\"fsck reply\" data=\"%s\"", response.c_str());
-  (void) strcpy(buff->Buffer(), response.c_str());
-  buff->SetLen(response.length() + 1);
-  err_obj.setErrInfo(buff->DataLen(), buff);
   return SFS_DATA;
 }
 
