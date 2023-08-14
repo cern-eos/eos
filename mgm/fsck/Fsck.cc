@@ -298,10 +298,7 @@ Fsck::CollectErrs(ThreadAssistant& assistant) noexcept
   while (!assistant.terminationRequested()) {
     Log("Start error collection");
     Log("Filesystems to check: %lu", FsView::gFsView.GetNumFileSystems());
-    // Broadcast fsck request and collect responses
-    std::string response = QueryFsts();
     decltype(eFsMap) tmp_err_map;
-    ParseFstResponses(response, tmp_err_map);
     QueryQdb(tmp_err_map);
     {
       // Swap in the new list of errors and clear the rest
@@ -1126,98 +1123,6 @@ Fsck::AccountDarkFiles()
       }
     } catch (const eos::MDException& e) {
       // ignore
-    }
-  }
-}
-
-//----------------------------------------------------------------------------
-// Query for fsck responses
-//----------------------------------------------------------------------------
-std::string Fsck::QueryFsts()
-{
-  eos::common::Timing tm("QueryFsts");
-  COMMONTIMING("START", &tm);
-  uint16_t timeout = 10;
-  std::string response;
-  std::string request = "/?fst.pcmd=fsck";
-  std::map<std::string, std::pair<int, std::string>> responses;
-  std::set<std::string> endpoints;
-  int query_resp = gOFS->BroadcastQuery(request, endpoints, responses, timeout);
-
-  if (query_resp == 0) {
-    for (const auto& resp : responses) {
-      response += resp.second.second;
-    }
-
-    eos_static_debug("msg=\"fsck query response\" out=\"%s\"", response.c_str());
-    COMMONTIMING("QUERY_RESP", &tm);
-
-    if (EOS_LOGS_DEBUG) {
-      tm.Print();
-    }
-
-    return response;
-  }
-
-  // Fallback to old mechanism if there was any error
-  int bccount = 0;
-  XrdOucString broadcastresponsequeue = gOFS->MgmOfsBrokerUrl;
-  broadcastresponsequeue += "-fsck-";
-  broadcastresponsequeue += bccount;
-  XrdOucString broadcasttargetqueue = gOFS->MgmDefaultReceiverQueue;
-  XrdOucString msgbody;
-  // mgm.fsck.tags no longer necessary for newer versions, but keeping for
-  // compatibility
-  msgbody = "mgm.cmd=fsck&mgm.fsck.tags=*";
-  XrdOucString stdOut = "";
-
-  if (!gOFS->MgmOfsMessaging->BroadCastAndCollect(broadcastresponsequeue,
-      broadcasttargetqueue, msgbody, stdOut, timeout)) {
-    eos_err("msg=\"failed to broadcast and collect fsck from [%s]:[%s]\"",
-            broadcastresponsequeue.c_str(), broadcasttargetqueue.c_str());
-  }
-
-  eos_static_debug("msg=\"fsck response for broadcast\" out=\"%s\"",
-                   stdOut.c_str());
-  response = stdOut.c_str();
-  COMMONTIMING("MSG_RESP", &tm);
-
-  if (EOS_LOGS_DEBUG) {
-    tm.Print();
-  }
-
-  return response;
-}
-
-//------------------------------------------------------------------------------
-// Parse fsck responses received from the FSTs
-//------------------------------------------------------------------------------
-void
-Fsck::ParseFstResponses(const std::string& response,
-                        ErrMapT& err_map)
-{
-  using eos::common::StringConversion;
-  std::vector<std::string> lines;
-  // Convert into a line-wise seperated array
-  eos::common::StringConversion::StringToLineVector((char*) response.c_str(),
-      lines);
-
-  for (size_t nlines = 0; nlines < lines.size(); ++nlines) {
-    std::set<unsigned long long> fids;
-    unsigned long fsid = 0;
-    std::string err_tag;
-
-    if (StringConversion::ParseStringIdSet((char*)lines[nlines].c_str(),
-                                           err_tag, fsid, fids)) {
-      if (fsid) {
-        // Add the fids into the error maps
-        for (auto it = fids.cbegin(); it != fids.cend(); ++it) {
-          err_map[err_tag][fsid].insert(*it);
-        }
-      }
-    } else {
-      eos_err("msg=\"cannot parse fsck response\" msg=\"%s\"",
-              lines[nlines].c_str());
     }
   }
 }

@@ -254,13 +254,6 @@ private:
   std::shared_ptr<qclient::QClient> mQcl; ///< QClient object for metadata
 
   //----------------------------------------------------------------------------
-  //! Query FSTs for fsck errors
-  //!
-  //! @return string with the fsck replied from all the FSTs
-  //----------------------------------------------------------------------------
-  std::string QueryFsts();
-
-  //----------------------------------------------------------------------------
   //! Query QDB for fsck errors
   //!
   //! @param err_map map of fsck errors collected
@@ -349,15 +342,6 @@ private:
   //! FsView.
   //----------------------------------------------------------------------------
   void AccountDarkFiles();
-
-  //----------------------------------------------------------------------------
-  //! Parse fsck responses received from the FSTs
-  //!
-  //! @param response string representation of the responses
-  //! @param err_map map of fsck errors collected
-  //----------------------------------------------------------------------------
-  void ParseFstResponses(const std::string& response,
-                         ErrMapT& err_map);
 };
 
 EOSMGMNAMESPACE_END

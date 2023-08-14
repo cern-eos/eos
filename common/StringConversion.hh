@@ -193,7 +193,8 @@ public:
   //! @return string representation
   //----------------------------------------------------------------------------
   static std::string
-  GetReadableSizeString(unsigned long long insize, const char* unit = "", size_t si=1000);
+  GetReadableSizeString(unsigned long long insize, const char* unit = "",
+                        size_t si = 1000);
 
   //----------------------------------------------------------------------------
   //! Convert a long long value into K,M,G,T,P,E byte scale
@@ -444,33 +445,6 @@ public:
 
   // ---------------------------------------------------------------------------
   /**
-   * Convert a string into a line-wise map
-   *
-   * @param in char*
-   * @param out vector with std::string lines
-   */
-  // ---------------------------------------------------------------------------
-  static void
-  StringToLineVector(char* in, std::vector<std::string>& out);
-
-  // ---------------------------------------------------------------------------
-  /**
-   * Split a string of type '<string>@<int>[:<0xXXXXXXXX] into string,int,
-   * std::set<unsigned long long>'.
-   *
-   * @param in char*
-   * @param tag string
-   * @param id unsigned long
-   * @param set std::set<unsigned long long>
-   * @return true if parsed, false if format error
-   */
-  // ---------------------------------------------------------------------------
-  static bool
-  ParseStringIdSet(char* in, std::string& tag, unsigned long& id,
-                   std::set<unsigned long long>& set);
-
-  // ---------------------------------------------------------------------------
-  /**
    * Load a text file <name> into a string
    *
    * @param filename from where to load the contents
@@ -598,7 +572,7 @@ public:
    * @return true if it is a decimal number
    */
   // ---------------------------------------------------------------------------
-  
+
   static bool
   IsDecimalNumber(const std::string& s);
 
@@ -611,13 +585,16 @@ public:
    */
   // ---------------------------------------------------------------------------
   static std::string
-  UnQuote(std::string s) {
+  UnQuote(std::string s)
+  {
     if (s.front() == '\"') {
-      s.erase(0,1);
-      if (s.back() =='\"') {
-	s.pop_back();
+      s.erase(0, 1);
+
+      if (s.back() == '\"') {
+        s.pop_back();
       }
     }
+
     return s;
   }
 
