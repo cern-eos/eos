@@ -400,7 +400,7 @@ public:
   //! Constructor
   //----------------------------------------------------------------------------
   BaseView(const common::SharedHashLocator& locator):
-    mLocator(locator), mHeartBeat(0), mStatus("unknown"), mInQueue(0)
+    mLocator(locator), mHeartBeat(0), mStatus("unknown")
   {}
 
   //----------------------------------------------------------------------------
@@ -482,16 +482,6 @@ public:
   }
 
   //----------------------------------------------------------------------------
-  //! Set the queue size
-  //!
-  //! @param iq size to set a s queue size variable
-  //----------------------------------------------------------------------------
-  void SetInQueue(size_t iq)
-  {
-    mInQueue = iq;
-  }
-
-  //----------------------------------------------------------------------------
   //! Should the provided fsid participate in statistics calculations?
   //! Yes, if:
   //! - The filesystem exists (duh)
@@ -565,7 +555,6 @@ protected:
 private:
   std::string mStatus; ///< Status (meaning depends on inheritor)
   std::string mSize; ///< Size of base object (meaning depends on inheritor)
-  size_t mInQueue; ///< Number of items in queue(meaning depends on inheritor)
 };
 
 //------------------------------------------------------------------------------

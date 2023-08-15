@@ -354,37 +354,7 @@ void NodeCmd::ConfigSubcmd(const eos::console::NodeProto_ConfigProto& config,
 
     FsNode* node = it->second;
 
-    if (config.node_key() == "gw.ntx") {
-      int slots = std::stoi(config.node_value());
-
-      if ((slots < 1) || (slots > 100)) {
-        reply.set_std_err("error: number of gateway transfer slots must be between 1-100");
-        reply.set_retc(EINVAL);
-      } else {
-        if (node->SetConfigMember(config.node_key(), config.node_value(), false)) {
-          reply.set_std_out("success: number of gateway transfer slots set to gw.ntx=" +
-                            std::to_string(slots));
-        } else {
-          reply.set_std_err("error: failed to store the config value gw.ntx");
-          reply.set_retc(EFAULT);
-        }
-      }
-    } else if (config.node_key() == "gw.rate") {
-      int bw = std::stoi(config.node_value());
-
-      if ((bw < 1) || (bw > 10000)) {
-        reply.set_std_err("error: gateway transfer speed must be 1-10000 (MB/s)");
-        reply.set_retc(EINVAL);
-      } else {
-        if (node->SetConfigMember(config.node_key(), config.node_value(), false)) {
-          reply.set_std_out("success: gateway transfer rate set to gw.rate=" +
-                            std::to_string(bw) + " Mb/s");
-        } else {
-          reply.set_std_err("error: failed to store the config value gw.rate");
-          reply.set_retc(EFAULT);
-        }
-      }
-    } else if (config.node_key() == "error.simulation") {
+    if (config.node_key() == "error.simulation") {
       if (node->SetConfigMember(config.node_key(), config.node_value(), false)) {
         reply.set_std_out("success: setting error simulation tag '" +
                           config.node_value() += "'");

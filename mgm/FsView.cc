@@ -1369,7 +1369,6 @@ FsView::GetNodeFormat(std::string option)
     format += "sum=stat.statfs.fused:format=ol|";
     format += "sum=stat.statfs.files:format=ol|";
     format += "sum=local.balancer.running:format=ol:tag=local.balancer.running|";
-    format += "member=stat.gw.queued:format=os:tag=stat.gw.queued|";
     format += "member=cfg.stat.sys.vsize:format=ol|";
     format += "member=cfg.stat.sys.rss:format=ol|";
     format += "member=cfg.stat.sys.threads:format=ol|";
@@ -1382,8 +1381,6 @@ FsView::GetNodeFormat(std::string option)
     format += "sum=stat.disk.iops?configstatus@rw:format=ol|";
     format += "sum=stat.disk.bw?configstatus@rw:format=ol|";
     format += "member=cfg.stat.geotag:format=os|";
-    format += "member=cfg.gw.rate:format=os|";
-    format += "member=cfg.gw.ntx:format=os";
   } else if (option == "io") {
     // io format
     format = "header=1:member=hostport:width=32:format=-sS|";
@@ -1401,7 +1398,6 @@ FsView::GetNodeFormat(std::string option)
     format += "sum=stat.usedfiles:width=12:format=+l:tag=used-files|";
     format += "sum=stat.statfs.files:width=11:format=+l:tag=max-files|";
     format += "sum=local.balancer.running:width=10:format=l:tag=bal-shd|";
-    format += "member=inqueue:width=10:format=s:tag=gw-queue|";
     format += "sum=stat.disk.iops?configstatus@rw:width=6:format=l:tag=iops|";
     format += "sum=stat.disk.bw?configstatus@rw:width=9:format=l:unit=MB:tag=bw";
   } else if (option == "sys") {
@@ -1442,7 +1438,6 @@ FsView::GetNodeFormat(std::string option)
     format += "member=heartbeatdelta:width=16:format=s|";
     format += "member=nofs:width=5:format=s|";
     format += "sum=local.balancer.running:width=10:format=l:tag=bal-shd|";
-    format += "member=inqueue:width=10:format=s:tag=gw-queue";
   } else {
     // default format
     format = "header=1:member=type:width=10:format=-s|";
@@ -1451,9 +1446,6 @@ FsView::GetNodeFormat(std::string option)
     format += "member=status:width=10:format=s|";
     format += "member=cfg.status:width=12:format=s:tag=activated|";
     format += "member=cfg.txgw:width=6:format=s|";
-    format += "member=inqueue:width=10:format=s:tag=gw-queued|";
-    format += "member=cfg.gw.ntx:width=8:format=s:tag=gw-ntx|";
-    format += "member=cfg.gw.rate:width=8:format=s:tag=gw-rate|";
     format += "member=heartbeatdelta:width=16:format=s|";
     format += "member=nofs:width=5:format=s";
   }
@@ -2641,12 +2633,6 @@ BaseView::GetMember(const std::string& member) const
     return std::string(line);
   }
 
-  if (member == "inqueue") {
-    XrdOucString s = "";
-    s += (int) mInQueue;
-    return s.c_str();
-  }
-
   if (member == "heartbeat") {
     char line[1024];
     snprintf(line, sizeof(line) - 1, "%llu", (unsigned long long) mHeartBeat);
@@ -2790,18 +2776,6 @@ FsNode::SetNodeConfigDefault()
   // Set by default as no transfer gateway
   if ((GetConfigMember("txgw") != "on") && (GetConfigMember("txgw") != "off")) {
     SetConfigMember("txgw", "off", true);
-  }
-
-  // set by default 10 transfers per gateway node
-  if ((strtol(GetConfigMember("gw.ntx").c_str(), 0, 10) == 0) ||
-      (strtol(GetConfigMember("gw.ntx").c_str(), 0, 10) == LONG_MAX)) {
-    SetConfigMember("gw.ntx", "10", true);
-  }
-
-  // Set by default the gateway stream transfer speed to 120 Mb/s
-  if ((strtol(GetConfigMember("gw.rate").c_str(), 0, 10) == 0) ||
-      (strtol(GetConfigMember("gw.rate").c_str(), 0, 10) == LONG_MAX)) {
-    SetConfigMember("gw.rate", "120", true);
   }
 
   // Set by default the MGM domain e.g. same geographical position as the MGM
