@@ -809,17 +809,21 @@ XrdFstOfs::Configure(XrdSysError& Eroute, XrdOucEnv* envP)
   ObjectManager.mEnableQueue = true;
   ObjectManager.SetAutoReplyQueue("/eos/*/mgm");
   ObjectManager.SetDebug(false);
-
   // Enable experimental MQ on QDB? Note that any functionality not supported
   // will fallback to regular MQ, which is still required.
+  // Shared object manager to be used
+  qclient::SharedManager* qsm = nullptr;
+
   if (getenv("EOS_USE_MQ_ON_QDB")) {
-    eos_static_info("MQ on QDB - setting up SharedManager..");
-    mQSOM.reset(new qclient::SharedManager(mQdbContactDetails.members,
-                                           mQdbContactDetails.constructSubscriptionOptions()));
+    eos_static_notice("%s", "msg=\"running SharedManager via QDB i.e NO-MQ\"");
+    qsm = new qclient::SharedManager(mQdbContactDetails.members,
+                                     mQdbContactDetails.constructSubscriptionOptions());
+  } else {
+    eos_static_notice("%s", "msg=\"running SharedManager via MQ\"");
   }
 
   mMessagingRealm.reset(new mq::MessagingRealm(&ObjectManager, &ObjectNotifier,
-                        &XrdMqMessaging::gMessageClient, mQSOM.get()));
+                        &XrdMqMessaging::gMessageClient, qsm));
   ObjectNotifier.SetShareObjectManager(&ObjectManager);
 
   if (!ObjectNotifier.Start()) {
