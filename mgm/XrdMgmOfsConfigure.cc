@@ -190,7 +190,6 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   int cfgFD, retc, NoGo = 0;
   XrdOucStream Config(&Eroute, getenv("XRDINSTANCE"));
   XrdOucString role = "server";
-  MgmRedirector = false;
   // set short timeouts in the new XrdCl class
   XrdCl::DefaultEnv::GetEnv()->PutInt("TimeoutResolution", 1);
   // set connection window short
@@ -705,12 +704,6 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
             } else {
               MgmRedirector = false;
             }
-          }
-
-          if (MgmRedirector) {
-            Eroute.Say("=====> mgmofs.redirector : true");
-          } else {
-            Eroute.Say("=====> mgmofs.redirector : false");
           }
         }
 
@@ -1474,6 +1467,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
 
   if (!mMessagingRealm->setInstanceName(MgmOfsInstanceName.c_str())) {
     eos_static_crit("%s", "msg=\"unable to set instance name in QDB\"");
+    Eroute.Emsg("Config", "cannot set instance name in QDB");
     return 1;
   }
 
@@ -1484,17 +1478,20 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
 
   // Disable some features if we are only a redirector
   if (!MgmRedirector) {
-    // Create the specific listener class
-    MgmOfsMessaging = new Messaging(MgmOfsBrokerUrl.c_str(),
+    // Create the specific listener class when running with MQ
+    if (!mMessagingRealm->haveQDB()) {
+      mMgmMessaging = new Messaging(MgmOfsBrokerUrl.c_str(),
                                     MgmDefaultReceiverQueue.c_str(),
                                     mMessagingRealm.get());
+      mMgmMessaging->SetLogId("MgmMessaging");
 
-    if (!MgmOfsMessaging->StartListenerThread()) {
-      eos_static_crit("%s", "msg=\"messaging failed to start listening thread\"");
-      return 1;
+      if (!mMgmMessaging->StartListenerThread() || mMgmMessaging->IsZombie()) {
+        eos_static_crit("%s", "msg=\"failed to start messaging\"");
+        Eroute.Emsg("Config", "cannot start messaging thread)");
+        return 1;
+      }
     }
 
-    MgmOfsMessaging->SetLogId("MgmOfsMessaging");
     // Create the ZMQ processor used especially for fuse
     XrdOucString zmq_port = "tcp://*:";
     zmq_port += (int) mFusexPort;

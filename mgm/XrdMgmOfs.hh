@@ -1627,7 +1627,7 @@ public:
   XrdOucString MgmOfsBrokerUrl; ///< Url of the message broker with MGM subject
   XrdOucString MgmArchiveDstUrl; ////< URL where all archives are saved
   XrdOucString MgmArchiveSvcClass; ////< CASTOR svcClass for archive transfers
-  Messaging* MgmOfsMessaging; ///< messaging interface class
+  Messaging* mMgmMessaging; ///< messaging interface class
   //! Queue where we are sending to by default
   XrdOucString MgmDefaultReceiverQueue;
   XrdOucString MgmOfsName; ///< mount point of the filesystem
