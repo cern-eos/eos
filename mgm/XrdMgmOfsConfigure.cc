@@ -1456,14 +1456,16 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   MgmConfigQueue = configbasequeue;
   MgmConfigQueue += "/mgm/";
   ObjectNotifier.SetShareObjectManager(&ObjectManager);
-  // we need to set the shared object manager to be used
+  // Shared object manager to be used
   qclient::SharedManager* qsm = nullptr;
 
-  if ((getenv("EOS_USE_MQ_ON_QDB") != 0)) {
-    eos_static_info("MQ on QDB - setting up SharedManager..");
+  if (getenv("EOS_USE_MQ_ON_QDB")) {
+    eos_static_notice("%s", "msg=\"running SharedManager via QDB i.e NO-MQ\"");
     qsm = new qclient::SharedManager(
       mQdbContactDetails.members,
       mQdbContactDetails.constructSubscriptionOptions());
+  } else {
+    eos_static_notice("%s", "msg=\"running SharedManager via MQ\"");
   }
 
   mMessagingRealm.reset(new eos::mq::MessagingRealm(&ObjectManager,
@@ -1471,7 +1473,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   eos::common::InstanceName::set(MgmOfsInstanceName.c_str());
 
   if (!mMessagingRealm->setInstanceName(MgmOfsInstanceName.c_str())) {
-    eos_static_crit("unable to set instance name in QDB");
+    eos_static_crit("%s", "msg=\"unable to set instance name in QDB\"");
     return 1;
   }
 
