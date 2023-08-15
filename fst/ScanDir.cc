@@ -29,6 +29,7 @@
 #include "fst/Config.hh"
 #include "fst/XrdFstOfs.hh"
 #include "fst/Deletion.hh"
+#include "fst/filemd/FmdMgm.hh"
 #include "fst/storage/FileSystem.hh"
 #include "fst/checksum/ChecksumPlugins.hh"
 #include "fst/io/FileIoPluginCommon.hh"
@@ -222,42 +223,21 @@ ScanDir::AccountMissing()
                     "fsid=%lu", fpath.c_str(), fid, mFsId);
           }
         } else {
-          // File missing on disk - create fmd entry and mark it as missing but
-          // then also check the MGM info since the file might be 0-size so we
-          // need to remove the kMissing flag
-          auto fmd = gOFS.mFmdHandler->LocalGetFmd(fid, mFsId, true, true);
+          // File missing on disk, mark it but check the MGM info since the
+          // file might be 0-size so we need to remove the kMissing flag
+          eos::common::FmdHelper ns_fmd;
+          auto file = eos::MetadataFetcher::getFileFromId(*gOFS.mFsckQcl.get(),
+                      eos::FileIdentifier(fid));
+          FmdMgmHandler::NsFileProtoToFmd(std::move(file).get(), ns_fmd);
 
-          if (fmd) {
-            fmd->mProtoFmd.set_layouterror(fmd->mProtoFmd.layouterror() |
-                                           LayoutId::kMissing);
-          } else {
-            // With Force Retrieve if we come up null, this means this file
-            // doesn't exist! This path will only execute for the FmdAttr layer
-            // as leveldb will still have an entry even if the original file was
-            // dropped. Create a dummy file so that we can set kMissing!
-            fmd.reset(new common::FmdHelper());
-            fmd->mProtoFmd.set_fid(fid);
-            fmd->mProtoFmd.set_fsid(mFsId);
-            fmd->mProtoFmd.set_layouterror(LayoutId::kMissing);
+          if (ns_fmd.mProtoFmd.mgmsize() != 0) {
+            // Mark as missing and also mark the current fsid
+            ns_fmd.mProtoFmd.set_fsid(mFsId);
+            ns_fmd.mProtoFmd.set_layouterror(ns_fmd.mProtoFmd.layouterror() |
+                                             LayoutId::kMissing);
           }
 
-          // @todo(esindril) rewrite to properly account missing replicas
-
-          if (!gOFS.mFmdHandler->Commit(fmd.get())) {
-            eos_err("msg=\"failed to create local fmd entry for missing file\" "
-                    "fxid=%08llx fsid=%lu", fid, mFsId);
-            continue;
-          }
-
-          (void) gOFS.mFmdHandler->ResyncFileFromQdb(fid, mFsId, fpath,
-              gOFS.mFsckQcl);
-          fmd = gOFS.mFmdHandler->LocalGetFmd(fid, mFsId, true, false);
-
-          if (fmd) {
-            CollectInconsistencies(*fmd.get(), statistics, fidset);
-          } else {
-            continue;
-          }
+          CollectInconsistencies(ns_fmd, statistics, fidset);
         }
       } catch (eos::MDException& e) {
         // No file on disk, no ns file metadata object but we have a ghost entry
