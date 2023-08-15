@@ -137,8 +137,6 @@ private:
 
   grpc::Status Touch();
 
-  grpc::Status Transfer();
-
   grpc::Status Version();
 
   grpc::Status Vid();
