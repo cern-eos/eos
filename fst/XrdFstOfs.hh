@@ -377,7 +377,7 @@ public:
                                  bool viamq = true);
 
   XrdSysError* Eroute;
-  eos::fst::Messaging* Messaging; ///< messaging interface class
+  eos::fst::Messaging* mFstMessaging; ///< messaging interface class
   eos::fst::Storage* Storage; ///< Meta data & filesystem store object
   mutable XrdSysMutex OpenFidMutex;
 

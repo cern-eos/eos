@@ -292,15 +292,15 @@ extern "C" {
 // Constructor MGM Ofs
 //------------------------------------------------------------------------------
 XrdMgmOfs::XrdMgmOfs(XrdSysError* ep):
-  ConfigFN(0), ConfEngine(0), mCapabilityValidity(3600), MgmOfsMessaging(0),
-  ManagerPort(1094), LinuxStatsStartup{0}, HostName(0), HostPref(0),
-  mNamespaceState(NamespaceState::kDown), mFileInitTime(0),
-  mTotalInitTime(time(nullptr)), mStartTime(time(nullptr)), Shutdown(false),
-  mBootFileId(0), mBootContainerId(0), IsRedirect(true), IsStall(true),
-  mAuthorize(false), mAuthLib(""), mTapeEnabled(false), MgmRedirector(false),
-  mErrLogEnabled(true), eosDirectoryService(0), eosFileService(0), eosView(0),
-  eosFsView(0), eosContainerAccounting(0), eosSyncTimeAccounting(0),
-  mFrontendPort(0), mNumAuthThreads(0),
+  ConfigFN(0), ConfEngine(0), mCapabilityValidity(3600),
+  mMgmMessaging(nullptr), ManagerPort(1094), LinuxStatsStartup{0},
+  HostName(0), HostPref(0), mNamespaceState(NamespaceState::kDown),
+  mFileInitTime(0), mTotalInitTime(time(nullptr)), mStartTime(time(nullptr)),
+  Shutdown(false), mBootFileId(0), mBootContainerId(0), IsRedirect(true),
+  IsStall(true), mAuthorize(false), mAuthLib(""), mTapeEnabled(false),
+  MgmRedirector(false), mErrLogEnabled(true), eosDirectoryService(0),
+  eosFileService(0), eosView(0), eosFsView(0), eosContainerAccounting(0),
+  eosSyncTimeAccounting(0), mFrontendPort(0), mNumAuthThreads(0),
   zMQ(nullptr), mExtAuthz(nullptr), MgmStatsPtr(new eos::mgm::Stat()),
   MgmStats(*MgmStatsPtr), mFsckEngine(new Fsck()), mMaster(nullptr),
   mRouting(new eos::mgm::PathRouting()), mConverterDriver(),
@@ -471,9 +471,9 @@ XrdMgmOfs::OrderlyShutdown()
   mFsckEngine->Stop();
   eos_warning("%s", "msg=\"stopping messaging\"");
 
-  if (MgmOfsMessaging) {
-    delete MgmOfsMessaging;
-    MgmOfsMessaging = nullptr;
+  if (mMgmMessaging) {
+    delete mMgmMessaging;
+    mMgmMessaging = nullptr;
   }
 
   if (Recycler) {

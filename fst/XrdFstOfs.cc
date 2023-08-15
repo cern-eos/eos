@@ -213,9 +213,10 @@ XrdFstOfs::xrdfstofs_shutdown(int sig)
 
   // Handler to shutdown the daemon for valgrinding and clean server stop
   // (e.g. let time to finish write operations)
-  if (gOFS.Messaging) {
-    gOFS.Messaging->StopListener();  // stop any communication
-    delete gOFS.Messaging;
+  if (gOFS.mFstMessaging) {
+    gOFS.mFstMessaging->StopListener();  // stop any communication
+    delete gOFS.mFstMessaging;
+    gOFS.mFstMessaging = nullptr;
   }
 
   eos_static_warning("%s", "op=shutdown msg=\"stopped messaging\"");
@@ -273,9 +274,10 @@ XrdFstOfs::xrdfstofs_graceful_shutdown(int sig)
   // Stop any communication - this will also stop scheduling to this node
   eos_static_warning("op=shutdown msg=\"stop messaging\"");
 
-  if (gOFS.Messaging) {
-    gOFS.Messaging->StopListener();
-    delete gOFS.Messaging;
+  if (gOFS.mFstMessaging) {
+    gOFS.mFstMessaging->StopListener();  // stop any communication
+    delete gOFS.mFstMessaging;
+    gOFS.mFstMessaging = nullptr;
   }
 
   // Wait for 60 seconds heartbeat timeout (see mgm/FsView) + 30 seconds
@@ -317,9 +319,9 @@ XrdFstOfs::xrdfstofs_graceful_shutdown(int sig)
 // Constructor
 //------------------------------------------------------------------------------
 XrdFstOfs::XrdFstOfs() :
-  eos::common::LogId(), mHostName(NULL), mMqOnQdb(false), mHttpd(nullptr),
-  mGeoTag("nogeotag"),
-  mXrdBuffPool(eos::common::KB, 32 * eos::common::MB),
+  eos::common::LogId(), mFstMessaging(nullptr), Storage(nullptr),
+  mHostName(NULL), mMqOnQdb(false), mHttpd(nullptr),
+  mGeoTag("nogeotag"), mXrdBuffPool(eos::common::KB, 32 * eos::common::MB),
   mCloseThreadPool(8, 64, 5, 6, 5, "async_close"),
   mMgmXrdPool(nullptr), mSimIoReadErr(false), mSimIoWriteErr(false),
   mSimXsReadErr(false), mSimXsWriteErr(false), mSimFmdOpenErr(false),
@@ -327,8 +329,6 @@ XrdFstOfs::XrdFstOfs() :
   mSimCloseErr(false), mSimUnresponsive(false)
 {
   Eroute = 0;
-  Messaging = 0;
-  Storage = 0;
   TransferScheduler = 0;
   TpcMap.resize(2);
   TpcMap[0].set_deleted_key(""); // readers
@@ -832,23 +832,16 @@ XrdFstOfs::Configure(XrdSysError& Eroute, XrdOucEnv* envP)
   }
 
   if (!mMessagingRealm->haveQDB()) {
-    // Create the specific listener class
-    Messaging = new eos::fst::Messaging(gConfig.FstOfsBrokerUrl.c_str(),
-                                        gConfig.FstDefaultReceiverQueue.c_str(),
-                                        false, false, &ObjectManager);
+    // Create the specific listener class when running with MQ
+    mFstMessaging = new eos::fst::Messaging(gConfig.FstOfsBrokerUrl.c_str(),
+                                            gConfig.FstDefaultReceiverQueue.c_str(),
+                                            false, false, &ObjectManager);
+    mFstMessaging->SetLogId("FstOfsMessaging", "<service>");
 
-    if (!Messaging) {
-      Eroute.Emsg("Config", "cannot allocate messaging object");
-      NoGo = 1;
-      return NoGo;
-    }
-
-    Messaging->SetLogId("FstOfsMessaging", "<service>");
-
-    if (!Messaging->StartListenerThread() || Messaging->IsZombie()) {
+    if (!mFstMessaging->StartListenerThread() || mFstMessaging->IsZombie()) {
+      eos_static_crit("%s", "msg=\"failed to start messaging\"");
       Eroute.Emsg("Config", "cannot create messaging object(thread)");
-      NoGo = 1;
-      return NoGo;
+      return 1;
     }
   }
 
