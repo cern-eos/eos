@@ -176,10 +176,6 @@ EOS_NOTIFY="mail -s `date +%s`-`hostname`-eos-notify $EOS_MAIL_CC"
 # If not specified then the values is 0 bytes.
 # EOS_FST_ASYNC_CLOSE_MIN_SIZE_BYTES=0
 
-# Enable caching of leveldb info in memory to speed up scanning operations
-# for fsck inconsistencies
-# EOS_FST_CACHE_LEVELDB=1
-
 # Enable internal stacktrace printing in the logs - this is useful especially
 # for container environments where abrtd is not running
 # EOS_FST_ENABLE_STACKTRACE=1
