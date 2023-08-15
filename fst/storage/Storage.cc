@@ -379,21 +379,6 @@ Storage::Boot(FileSystem* fs)
     gOFS.WNoDeleteOnCloseFid[fsid].set_deleted_key(0);
   }
 
-  std::string fmd_on_disk = getenv("EOS_FST_FMD_ON_DATA_DISK") ?
-                            getenv("EOS_FST_FMD_ON_DATA_DISK") : "";
-  std::string metadir = (fmd_on_disk == "1") ? fs->GetPath() : mMetaDir.c_str();
-
-  if (fmd_on_disk == "1") {
-    // e.g. we store on /data01/.eosmd/<leveldb>
-    if (metadir.back() != '/') {
-      metadir += "/";
-    }
-
-    metadir += ".eosmd/";
-    eos::common::Path cPath(std::string(metadir + "dummy").c_str());
-    cPath.MakeParentPath(S_IRWXU | S_IRGRP | S_IXGRP);
-  }
-
   bool resyncmgm = (fs->GetLongLong("bootcheck") ==
                     eos::common::FileSystem::kBootResync);
   bool resyncdisk = (fs->GetLongLong("bootcheck") >=
