@@ -39,7 +39,6 @@ add_library(XrdMqClient-Objects OBJECT
   SharedHashProvider.cc          SharedHashProvider.hh
   SharedHashWrapper.cc           SharedHashWrapper.hh
   LocalHash.cc                   LocalHash.hh
-  SharedQueueWrapper.cc          SharedQueueWrapper.hh
   XrdMqClient.cc                 XrdMqClient.hh
   XrdMqMessage.cc                XrdMqMessage.hh
   XrdMqMessaging.cc              XrdMqMessaging.hh

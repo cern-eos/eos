@@ -148,28 +148,6 @@ TEST(GroupLocator, BasicSanity)
   ASSERT_EQ(locator.getIndex(), 0);
 }
 
-TEST(TransferQueueLocator, BasicSanity)
-{
-  FileSystemLocator fsLocator("example-host.cern.ch", 1095, "/some/path");
-  ASSERT_EQ(fsLocator.getQueuePath(),
-            "/eos/example-host.cern.ch:1095/fst/some/path");
-  TransferQueueLocator locator(fsLocator, "drainq");
-  ASSERT_EQ(locator.getQueue(), "/eos/example-host.cern.ch:1095/fst");
-  ASSERT_EQ(locator.getQueuePath(),
-            "/eos/example-host.cern.ch:1095/fst/some/path/txqueue/drainq");
-  ASSERT_EQ(locator.getQDBKey(),
-            "txqueue-filesystem||example-host.cern.ch:1095||/some/path||drainq");
-}
-
-TEST(TransferQueueLocator, txq)
-{
-  TransferQueueLocator locator("/eos/example-host.cern.ch:1095/fst", "txq");
-  ASSERT_EQ(locator.getQueue(), "/eos/example-host.cern.ch:1095/fst");
-  ASSERT_EQ(locator.getQueuePath(),
-            "/eos/example-host.cern.ch:1095/fst/gw/txqueue/txq");
-  ASSERT_EQ(locator.getQDBKey(), "txqueue-fst||example-host.cern.ch:1095||txq");
-}
-
 TEST(FstLocator, BasicSanity)
 {
   FstLocator locator("example.com", 999);
