@@ -70,6 +70,25 @@ FmdHandler::FileHasXsError(const std::string& lpath,
 }
 
 //------------------------------------------------------------------------------
+// Update file metadata object with new fid information
+//------------------------------------------------------------------------------
+bool
+FmdHandler::UpdateFmd(const std::string& path,
+                      eos::common::FileId::fileid_t fid)
+{
+  // We rely on the path to retrieve the Fmd object
+  auto [status, fmd] = LocalRetrieveFmd(0ull, 0ul, path);
+
+  if (!status) {
+    return false;
+  }
+
+  fmd.mProtoFmd.set_fid(fid);
+  return LocalPutFmd(fmd, 0ull, 0ul, path);
+}
+
+
+//------------------------------------------------------------------------------
 // Update fmd with disk info i.e. physical file extended attributes
 //------------------------------------------------------------------------------
 bool
@@ -125,7 +144,7 @@ FmdHandler::UpdateWithDiskInfo(eos::common::FileSystem::fsid_t fsid,
     valfmd.mProtoFmd.set_layouterror(LayoutId::kOrphan);
   }
 
-  return LocalPutFmd(fid, fsid, valfmd);
+  return LocalPutFmd(valfmd, fid, fsid);
 }
 
 
@@ -195,7 +214,7 @@ FmdHandler::UpdateWithMgmInfo(eos::common::FileSystem::fsid_t fsid,
     valfmd.mProtoFmd.set_checksum(valfmd.mProtoFmd.mgmchecksum());
   }
 
-  return LocalPutFmd(fid, fsid, valfmd);
+  return LocalPutFmd(valfmd, fid, fsid);
 }
 
 //------------------------------------------------------------------------------

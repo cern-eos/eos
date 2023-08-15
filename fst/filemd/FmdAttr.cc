@@ -39,7 +39,24 @@ FmdAttrHandler::FmdAttrHandler(std::unique_ptr<FSPathHandler>&& _FSPathHandler)
   : mFSPathHandler(std::move(_FSPathHandler))
 {}
 
+//------------------------------------------------------------------------------
+// Low level Fmd retrieve method
+//------------------------------------------------------------------------------
+std::pair<bool, eos::common::FmdHelper>
+FmdAttrHandler::LocalRetrieveFmd(eos::common::FileId::fileid_t fid,
+                                 eos::common::FileSystem::fsid_t fsid,
+                                 const std::string& path)
+{
+  if (path.empty()) {
+    return LocalRetrieveFmd(mFSPathHandler->GetPath(fid, fsid));
+  } else {
+    return LocalRetrieveFmd(path);
+  }
+}
 
+//------------------------------------------------------------------------------
+// Low level Fmd retrieve method by path
+//------------------------------------------------------------------------------
 std::pair<bool, eos::common::FmdHelper>
 FmdAttrHandler::LocalRetrieveFmd(const std::string& path)
 {
@@ -63,10 +80,28 @@ FmdAttrHandler::LocalRetrieveFmd(const std::string& path)
   return {status, std::move(fmd)};
 }
 
-
+//------------------------------------------------------------------------------
+// Set Fmd xattr for the given file identifier
+//------------------------------------------------------------------------------
 bool
-FmdAttrHandler::LocalPutFmd(const std::string& path,
-                            const eos::common::FmdHelper& fmd)
+FmdAttrHandler::LocalPutFmd(const eos::common::FmdHelper& fmd,
+                            eos::common::FileId::fileid_t fid,
+                            eos::common::FileSystem::fsid_t fsid,
+                            const std::string& path)
+{
+  if (path.empty()) {
+    return LocalPutFmd(fmd, mFSPathHandler->GetPath(fid, fsid));
+  } else {
+    return LocalPutFmd(fmd, path);
+  }
+}
+
+//------------------------------------------------------------------------------
+// Set Fmd xattr for the corresponding file path
+//------------------------------------------------------------------------------
+bool
+FmdAttrHandler::LocalPutFmd(const eos::common::FmdHelper& fmd,
+                            const std::string& path)
 {
   FsIo localio {path};
   struct stat info;
@@ -88,7 +123,20 @@ FmdAttrHandler::LocalPutFmd(const std::string& path,
   return rc == 0;
 }
 
+//------------------------------------------------------------------------------
+// Delete Fmd xattr for the corresponding file identifier
+//------------------------------------------------------------------------------
+void
+FmdAttrHandler::LocalDeleteFmd(eos::common::FileId::fileid_t fid,
+                               eos::common::FileSystem::fsid_t fsid,
+                               bool drop_file)
+{
+  return LocalDeleteFmd(mFSPathHandler->GetPath(fid, fsid), drop_file);
+}
 
+//------------------------------------------------------------------------------
+// Delete Fmd xattr for the corresponding file path
+//------------------------------------------------------------------------------
 void
 FmdAttrHandler::LocalDeleteFmd(const std::string& path, bool drop_file)
 {
@@ -115,33 +163,6 @@ FmdAttrHandler::LocalDeleteFmd(const std::string& path, bool drop_file)
   }
 }
 
-std::pair<bool, eos::common::FmdHelper>
-FmdAttrHandler::LocalRetrieveFmd(eos::common::FileId::fileid_t fid,
-                                 eos::common::FileSystem::fsid_t fsid,
-                                 std::string* path, bool lock)
-{
-  if (path != nullptr) {
-    return LocalRetrieveFmd(*path);
-  }
-
-  return LocalRetrieveFmd(mFSPathHandler->GetPath(fid, fsid));
-}
-
-bool
-FmdAttrHandler::LocalPutFmd(eos::common::FileId::fileid_t fid,
-                            eos::common::FileSystem::fsid_t fsid,
-                            const eos::common::FmdHelper& fmd)
-{
-  return LocalPutFmd(mFSPathHandler->GetPath(fid, fsid), fmd);
-}
-
-void
-FmdAttrHandler::LocalDeleteFmd(eos::common::FileId::fileid_t fid,
-                               eos::common::FileSystem::fsid_t fsid,
-                               bool drop_file)
-{
-  return LocalDeleteFmd(mFSPathHandler->GetPath(fid, fsid), drop_file);
-}
 
 bool
 FmdAttrHandler::Commit(eos::common::FmdHelper* fmd, bool lockit,
@@ -156,11 +177,10 @@ FmdAttrHandler::Commit(eos::common::FmdHelper* fmd, bool lockit,
   fmd->mProtoFmd.set_atime_ns(tv.tv_usec * 1000);
 
   if (path != nullptr) {
-    return LocalPutFmd(*path, *fmd);
+    return LocalPutFmd(*fmd, *path);
   }
 
-  return LocalPutFmd(fmd->mProtoFmd.fid(), fmd->mProtoFmd.fsid(),
-                     *fmd);
+  return LocalPutFmd(*fmd, fmd->mProtoFmd.fid(), fmd->mProtoFmd.fsid());
 }
 
 std::unique_ptr<eos::common::FmdHelper>
@@ -333,23 +353,6 @@ FmdAttrHandler::ResetMgmInformation(eos::common::FileSystem::fsid_t fsid)
   }
 
   return !ec;
-}
-
-//------------------------------------------------------------------------------
-// Update file metadata object with new fid information
-//------------------------------------------------------------------------------
-bool
-FmdAttrHandler::UpdateFmd(const std::string& path,
-                          eos::common::FileId::fileid_t fid)
-{
-  auto [status, fmd] = LocalRetrieveFmd(path);
-
-  if (!status) {
-    return false;
-  }
-
-  fmd.mProtoFmd.set_fid(fid);
-  return LocalPutFmd(path, fmd);
 }
 
 EOSFSTNAMESPACE_END

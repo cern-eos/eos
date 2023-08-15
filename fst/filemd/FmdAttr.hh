@@ -77,32 +77,31 @@ public:
   std::pair<bool, eos::common::FmdHelper>
   LocalRetrieveFmd(eos::common::FileId::fileid_t fid,
                    eos::common::FileSystem::fsid_t fsid,
-                   std::string* path = nullptr,
-                   bool lock = false) override;
+                   const std::string& path = "") override;
 
   std::pair<bool, eos::common::FmdHelper>
   LocalRetrieveFmd(const std::string& path);
 
-  //----------------------------------------------------------------------------
-  //! Update file metadata object with new fid information
-  //!
-  //! @param path full path to file
-  //! @param fid new file identifier
-  //!
-  //! @return true if succesful, otherwise false
-  //----------------------------------------------------------------------------
-  bool UpdateFmd(const std::string& path,
-                 eos::common::FileId::fileid_t fid) override;
-
 private:
   std::unique_ptr<FSPathHandler> mFSPathHandler;
 
-  bool LocalPutFmd(eos::common::FileId::fileid_t fid,
+  //----------------------------------------------------------------------------
+  //! Attach Fmd metadata info to the current file identifier
+  //!
+  //! @param fmd file metadata info protobuf object
+  //! @param fid file identifier
+  //! @param fsid file system identifier
+  //! @param path local file absolute path
+  //!
+  //! @return true if successful, otherwise false
+  //----------------------------------------------------------------------------
+  bool LocalPutFmd(const eos::common::FmdHelper& fmd,
+                   eos::common::FileId::fileid_t fid,
                    eos::common::FileSystem::fsid_t fsid,
-                   const eos::common::FmdHelper& fmd) override;
+                   const std::string& path = "") override;
 
-  bool LocalPutFmd(const std::string& path,
-                   const eos::common::FmdHelper& fmd);
+  bool LocalPutFmd(const eos::common::FmdHelper& fmd,
+                   const std::string& path);
 
   void LocalDeleteFmd(const std::string& path, bool drop_file);
 
