@@ -45,7 +45,6 @@ import "Status.proto";
 import "StatWnc.proto";
 import "Token.proto";
 import "Touch.proto";
-import "Transfer.proto";
 import "Version.proto";
 import "Vid.proto";
 import "Who.proto";
@@ -100,7 +99,7 @@ message RequestProto {
     MkdirProto mkdir       = 35;
     StatProto stat         = 36;
     VidProto vid           = 37;
-    TransferProto transfer = 38;
+    // TransferProto transfer = 38; @note not used, can be reused later on
     VersionProto version   = 39;
     ChmodProto chmod       = 40;
     ChownProto chown       = 41;

@@ -260,7 +260,6 @@ public:
   int GeoSched();
   int Ns();
   int Rtlog();
-  int Transfer();
   int Vid();
   int Access(); // @todo (faluchet) drop when move to 5.0.0
   int Config(); // @todo (faluchet) drop when move to 5.0.0

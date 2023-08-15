@@ -54,8 +54,8 @@ GrpcWncInterface::ExecCmd(eos::common::VirtualIdentity& vid,
   mVid = &vid;
   mRequest = request;
   mReply = reply;
-  mJsonFormat = (mRequest->format() == eos::console::RequestProto_FormatType_JSON);
-
+  mJsonFormat = (mRequest->format() ==
+                 eos::console::RequestProto_FormatType_JSON);
   RoleChanger();
 
   switch (mRequest->command_case()) {
@@ -133,8 +133,9 @@ GrpcWncInterface::ExecCmd(eos::common::VirtualIdentity& vid,
 
   case eos::console::RequestProto::kHealth: {
     for (auto it : mVid->allowed_uids)
-      if ((it == 0 && mVid->uid == 0) || it == 2 || it == 3)
+      if ((it == 0 && mVid->uid == 0) || it == 2 || it == 3) {
         return Health();
+      }
 
     mReply->set_std_err("Error: Permission denied");
     mReply->set_retc(EACCES);
@@ -217,11 +218,6 @@ GrpcWncInterface::ExecCmd(eos::common::VirtualIdentity& vid,
     return Touch();
     break;
 
-  case eos::console::RequestProto::kTransfer: {
-    return Transfer();
-    break;
-  }
-
   case eos::console::RequestProto::kVersion:
     return Version();
     break;
@@ -262,9 +258,9 @@ GrpcWncInterface::ExecStreamCmd(eos::common::VirtualIdentity& vid,
   mVid = &vid;
   mRequest = request;
   mWriter = writer;
-  mJsonFormat = (mRequest->format() == eos::console::RequestProto_FormatType_JSON);
+  mJsonFormat = (mRequest->format() ==
+                 eos::console::RequestProto_FormatType_JSON);
   grpc::Status retc;
-
   RoleChanger();
 
   switch (mRequest->command_case()) {
@@ -275,11 +271,6 @@ GrpcWncInterface::ExecStreamCmd(eos::common::VirtualIdentity& vid,
   case eos::console::RequestProto::kLs:
     retc = Ls();
     break;
-
-  case eos::console::RequestProto::kTransfer: {
-    retc = Transfer();
-    break;
-  }
 
   default:
     retc = grpc::Status::OK;
@@ -299,11 +290,9 @@ void GrpcWncInterface::RoleChanger()
   if (!mRequest->auth().role().username().empty()) {
     uid = eos::common::Mapping::UserNameToUid(mRequest->auth().role().username(),
           errc);
-  }
-  else if (mRequest->auth().role().uid() != 0) {
+  } else if (mRequest->auth().role().uid() != 0) {
     uid = mRequest->auth().role().uid();
-  }
-  else {
+  } else {
     uid = mVid->uid;
   }
 
@@ -331,11 +320,9 @@ void GrpcWncInterface::RoleChanger()
   if (!mRequest->auth().role().groupname().empty()) {
     gid = eos::common::Mapping::GroupNameToGid(mRequest->auth().role().groupname(),
           errc);
-  }
-  else if (mRequest->auth().role().gid() != 0) {
+  } else if (mRequest->auth().role().gid() != 0) {
     gid = mRequest->auth().role().gid();
-  }
-  else {
+  } else {
     gid = mVid->gid;
   }
 
@@ -373,8 +360,7 @@ void GrpcWncInterface::ExecProcCmd(std::string input, bool admin)
 
   if (admin) {
     cmd.open("/proc/admin", input.c_str(), *mVid, &error);
-  }
-  else {
+  } else {
     cmd.open("/proc/user", input.c_str(), *mVid, &error);
   }
 
@@ -413,11 +399,9 @@ grpc::Status GrpcWncInterface::Archive()
 
   if (subcmd == "kill") {
     cmd_in += "&mgm.archive.option=" + mRequest->archive().job_uuid();
-  }
-  else if (subcmd == "transfers") {
+  } else if (subcmd == "transfers") {
     cmd_in += "&mgm.archive.option=" + mRequest->archive().selection();
-  }
-  else {
+  } else {
     if (mRequest->archive().retry()) {
       cmd_in += "&mgm.archive.option=r";
     }
@@ -426,7 +410,6 @@ grpc::Status GrpcWncInterface::Archive()
   }
 
   ExecProcCmd(cmd_in, false);
-
   return grpc::Status::OK;
 }
 
@@ -448,8 +431,7 @@ grpc::Status GrpcWncInterface::Attr()
         path = "";
         errno = e.getErrno();
       }
-    }
-    else {
+    } else {
       try {
         eos::common::RWMutexReadLock vlock(gOFS->eosViewRWMutex);
         path = gOFS->eosView->getUri(
@@ -471,8 +453,7 @@ grpc::Status GrpcWncInterface::Attr()
 
   if (subcmd == eos::console::AttrCmd::ATTR_LS) {
     cmd_in += "&mgm.subcmd=ls";
-  }
-  else if (subcmd == eos::console::AttrCmd::ATTR_SET) {
+  } else if (subcmd == eos::console::AttrCmd::ATTR_SET) {
     cmd_in += "&mgm.subcmd=set";
     std::string value = mRequest->attr().value();
 
@@ -501,39 +482,34 @@ grpc::Status GrpcWncInterface::Attr()
       ProcCommand cmd;
       XrdOucErrInfo error;
       std::string set_def;
-
-      set_def = cmd_in + "&mgm.attr.key=sys.forced.blocksize&mgm.attr.value=" + val[0];
+      set_def = cmd_in + "&mgm.attr.key=sys.forced.blocksize&mgm.attr.value=" +
+                val[0];
       cmd.open("/proc/user", set_def.c_str(), *mVid, &error);
-
       set_def = cmd_in + "&mgm.attr.key=sys.forced.checksum&mgm.attr.value=" + val[1];
       cmd.open("/proc/user", set_def.c_str(), *mVid, &error);
-
       set_def = cmd_in + "&mgm.attr.key=sys.forced.layout&mgm.attr.value=" + val[2];
       cmd.open("/proc/user", set_def.c_str(), *mVid, &error);
-
       set_def = cmd_in + "&mgm.attr.key=sys.forced.nstripes&mgm.attr.value=" + val[3];
       cmd.open("/proc/user", set_def.c_str(), *mVid, &error);
-
       set_def = cmd_in + "&mgm.attr.key=sys.forced.space&mgm.attr.value=" + val[4];
       cmd.open("/proc/user", set_def.c_str(), *mVid, &error);
 
       if (value != "replica") {
-        set_def = cmd_in + "&mgm.attr.key=sys.forced.blockchecksum&mgm.attr.value=" + val[5];
+        set_def = cmd_in + "&mgm.attr.key=sys.forced.blockchecksum&mgm.attr.value=" +
+                  val[5];
         cmd.open("/proc/user", set_def.c_str(), *mVid, &error);
       }
     }
 
     if (key == "sys.forced.placementpolicy" ||
-        key == "user.forced.placementpolicy")
-    {
+        key == "user.forced.placementpolicy") {
       std::string policy;
       eos::common::SymKey::DeBase64(value, policy);
 
       // Check placement policy
       if (policy != "scattered" &&
           policy.rfind("hybrid:", 0) != 0 &&
-          policy.rfind("gathered:", 0) != 0)
-      {
+          policy.rfind("gathered:", 0) != 0) {
         mReply->set_std_err("Error: placement policy '" + policy + "' is invalid\n");
         mReply->set_retc(EINVAL);
         return grpc::Status::OK;
@@ -543,6 +519,7 @@ grpc::Status GrpcWncInterface::Attr()
       if (policy != "scattered") {
         std::string targetgeotag = policy.substr(policy.find(':') + 1);
         std::string tmp_geotag = eos::common::SanitizeGeoTag(targetgeotag);
+
         if (tmp_geotag != targetgeotag) {
           mReply->set_std_err(tmp_geotag);
           mReply->set_retc(EINVAL);
@@ -553,25 +530,20 @@ grpc::Status GrpcWncInterface::Attr()
 
     cmd_in += "&mgm.attr.key=" + key;
     cmd_in += "&mgm.attr.value=" + value;
-  }
-  else if (subcmd == eos::console::AttrCmd::ATTR_GET) {
+  } else if (subcmd == eos::console::AttrCmd::ATTR_GET) {
     cmd_in += "&mgm.subcmd=get";
     cmd_in += "&mgm.attr.key=" + key;
-  }
-  else if (subcmd == eos::console::AttrCmd::ATTR_RM) {
+  } else if (subcmd == eos::console::AttrCmd::ATTR_RM) {
     cmd_in += "&mgm.subcmd=rm";
     cmd_in += "&mgm.attr.key=" + key;
-  }
-  else if (subcmd == eos::console::AttrCmd::ATTR_LINK) {
+  } else if (subcmd == eos::console::AttrCmd::ATTR_LINK) {
     cmd_in += "&mgm.subcmd=set";
     cmd_in += "&mgm.attr.key=sys.attr.link";
     cmd_in += "&mgm.attr.value=" + mRequest->attr().link();
-  }
-  else if (subcmd == eos::console::AttrCmd::ATTR_UNLINK) {
+  } else if (subcmd == eos::console::AttrCmd::ATTR_UNLINK) {
     cmd_in += "&mgm.subcmd=rm";
     cmd_in += "&mgm.attr.key=sys.attr.link";
-  }
-  else if (subcmd == eos::console::AttrCmd::ATTR_FOLD) {
+  } else if (subcmd == eos::console::AttrCmd::ATTR_FOLD) {
     cmd_in += "&mgm.subcmd=fold";
   }
 
@@ -580,7 +552,6 @@ grpc::Status GrpcWncInterface::Attr()
   }
 
   ExecProcCmd(cmd_in, false);
-
   return grpc::Status::OK;
 }
 
@@ -604,7 +575,8 @@ grpc::Status GrpcWncInterface::Backup()
     return grpc::Status::OK;
   }
 
-  std::string cmd_in = "mgm.cmd=backup&mgm.backup.src=" + src + "&mgm.backup.dst=" + dst;
+  std::string cmd_in = "mgm.cmd=backup&mgm.backup.src=" + src + "&mgm.backup.dst="
+                       + dst;
 
   if (mRequest->backup().ctime()) {
     struct timeval tv;
@@ -615,7 +587,8 @@ grpc::Status GrpcWncInterface::Backup()
       return grpc::Status::OK;
     }
 
-    cmd_in += "&mgm.backup.ttime=ctime&mgm.backup.vtime=" + std::to_string(tv.tv_sec - mRequest->backup().ctime());
+    cmd_in += "&mgm.backup.ttime=ctime&mgm.backup.vtime=" + std::to_string(
+                tv.tv_sec - mRequest->backup().ctime());
   }
 
   if (mRequest->backup().mtime()) {
@@ -627,7 +600,8 @@ grpc::Status GrpcWncInterface::Backup()
       return grpc::Status::OK;
     }
 
-    cmd_in += "&mgm.backup.ttime=mtime&mgm.backup.vtime=" + std::to_string(tv.tv_sec - mRequest->backup().mtime());
+    cmd_in += "&mgm.backup.ttime=mtime&mgm.backup.vtime=" + std::to_string(
+                tv.tv_sec - mRequest->backup().mtime());
   }
 
   if (!mRequest->backup().xattr().empty()) {
@@ -635,7 +609,6 @@ grpc::Status GrpcWncInterface::Backup()
   }
 
   ExecProcCmd(cmd_in);
-
   return grpc::Status::OK;
 }
 
@@ -656,8 +629,7 @@ grpc::Status GrpcWncInterface::Chmod()
         path = "";
         errno = e.getErrno();
       }
-    }
-    else {
+    } else {
       try {
         eos::common::RWMutexReadLock vlock(gOFS->eosViewRWMutex);
         path = gOFS->eosView->getUri(gOFS->eosDirectoryService->getContainerMD(
@@ -685,7 +657,6 @@ grpc::Status GrpcWncInterface::Chmod()
   }
 
   ExecProcCmd(cmd_in, false);
-
   return grpc::Status::OK;
 }
 
@@ -710,8 +681,7 @@ grpc::Status GrpcWncInterface::Chown()
         path = "";
         errno = e.getErrno();
       }
-    }
-    else {
+    } else {
       try {
         eos::common::RWMutexReadLock vlock(gOFS->eosViewRWMutex);
         path = gOFS->eosView->getUri(gOFS->eosDirectoryService->getContainerMD(
@@ -763,7 +733,6 @@ grpc::Status GrpcWncInterface::Chown()
   }
 
   ExecProcCmd(cmd_in, false);
-
   return grpc::Status::OK;
 }
 
@@ -814,8 +783,7 @@ grpc::Status GrpcWncInterface::Cp()
       std::string msg = "checksum=";
       msg += xsum.c_str();
       mReply->set_std_out(msg);
-    }
-    else {
+    } else {
       std::string msg = "Warning: failed getting checksum for ";
       msg += path;
       mReply->set_std_err(msg);
@@ -863,8 +831,7 @@ grpc::Status GrpcWncInterface::Cp()
         msg += query.c_str();
         mReply->set_std_err(msg);
       }
-    }
-    else {
+    } else {
       // Get atime and mtime
       std::string path = mRequest->cp().keeptime().path();
       XrdOucString url = "root://localhost/";
@@ -878,8 +845,7 @@ grpc::Status GrpcWncInterface::Cp()
         msg += "mtime:";
         msg += std::to_string(buf.st_mtime);
         mReply->set_std_out(msg);
-      }
-      else {
+      } else {
         std::string msg = "Warning: failed getting stat information for ";
         msg += path;
         mReply->set_std_err(msg);
@@ -977,7 +943,7 @@ grpc::Status GrpcWncInterface::File()
 
       if (!mRequest->file().adjustreplica().subgroup().empty()) {
         cmd_in += "&mgm.file.desiredsubgroup=" +
-              mRequest->file().adjustreplica().subgroup();
+                  mRequest->file().adjustreplica().subgroup();
       }
     }
 
@@ -1096,8 +1062,7 @@ grpc::Status GrpcWncInterface::File()
               std_err += bs.c_str();
               std_err += " ]\n";
             }
-          }
-          else {
+          } else {
             if ((option.find("%checksumattr") != STR_NPOS)) {
               checksumattribute = "";
 
@@ -1176,8 +1141,7 @@ grpc::Status GrpcWncInterface::File()
                 if (sss != size) {
                   consistencyerror = true;
                   inconsistencylable = "SIZE";
-                }
-                else {
+                } else {
                   if (fmd.mProtoFmd.size() != (unsigned long long) rsize) {
                     if (!consistencyerror) {
                       consistencyerror = true;
@@ -1293,8 +1257,7 @@ grpc::Status GrpcWncInterface::File()
 
       if (consistencyerror) {
         mReply->set_retc(EFAULT);
-      }
-      else {
+      } else {
         mReply->set_retc(0);
       }
     } else {
@@ -1326,7 +1289,7 @@ grpc::Status GrpcWncInterface::File()
 
     if (!mRequest->file().convert().placement_policy().empty()) {
       cmd_in += "&mgm.convert.placementpolicy=" +
-            mRequest->file().convert().placement_policy();
+                mRequest->file().convert().placement_policy();
     }
 
     if (mRequest->file().convert().sync()) {
@@ -1405,7 +1368,7 @@ grpc::Status GrpcWncInterface::File()
 
     if (mRequest->file().layout().stripes()) {
       cmd_in += "&mgm.file.layout.stripes=" + std::to_string(
-              mRequest->file().layout().stripes());
+                  mRequest->file().layout().stripes());
     }
 
     if (!mRequest->file().layout().checksum().empty()) {
@@ -1425,8 +1388,10 @@ grpc::Status GrpcWncInterface::File()
       cmd_in += "&mgm.path=" + path;
     }
 
-    cmd_in += "&mgm.file.sourcefsid=" + std::to_string(mRequest->file().move().fsid1());
-    cmd_in += "&mgm.file.targetfsid=" + std::to_string(mRequest->file().move().fsid2());
+    cmd_in += "&mgm.file.sourcefsid=" + std::to_string(
+                mRequest->file().move().fsid1());
+    cmd_in += "&mgm.file.targetfsid=" + std::to_string(
+                mRequest->file().move().fsid2());
     break;
   }
 
@@ -1441,7 +1406,7 @@ grpc::Status GrpcWncInterface::File()
     }
 
     cmd_in += "&mgm.purge.version=" + std::to_string(
-            mRequest->file().purge().purge_version());
+                mRequest->file().purge().purge_version());
     break;
   }
 
@@ -1456,9 +1421,9 @@ grpc::Status GrpcWncInterface::File()
     }
 
     cmd_in += "&mgm.file.sourcefsid=" + std::to_string(
-            mRequest->file().replicate().fsid1());
+                mRequest->file().replicate().fsid1());
     cmd_in += "&mgm.file.targetfsid=" + std::to_string(
-            mRequest->file().replicate().fsid2());
+                mRequest->file().replicate().fsid2());
     break;
   }
 
@@ -1511,8 +1476,7 @@ grpc::Status GrpcWncInterface::File()
       std_err += "\n";
       mReply->set_std_err(std_err);
       mReply->set_retc(-1);
-    }
-    else {
+    } else {
       if (!mqc.SendMessage(message, receiver.c_str())) {
         std_err = "unable to send resync message to " + receiver;
         mReply->set_std_err(std_err);
@@ -1581,7 +1545,7 @@ grpc::Status GrpcWncInterface::File()
     cmd_in += "&mgm.subcmd=verify";
     cmd_in += "&mgm.path=" + path;
     cmd_in += "&mgm.file.verify.filterid=" + std::to_string(
-            mRequest->file().verify().fsid());
+                mRequest->file().verify().fsid());
 
     if (mRequest->file().verify().checksum()) {
       cmd_in += "&mgm.file.compute.checksum=1";
@@ -1601,7 +1565,7 @@ grpc::Status GrpcWncInterface::File()
 
     if (mRequest->file().verify().rate()) {
       cmd_in += "&mgm.file.verify.rate=" + std::to_string(
-              mRequest->file().verify().rate());
+                  mRequest->file().verify().rate());
     }
 
     if (mRequest->file().verify().resync()) {
@@ -1622,7 +1586,7 @@ grpc::Status GrpcWncInterface::File()
     }
 
     cmd_in += "&mgm.purge.version=" + std::to_string(
-            mRequest->file().version().purge_version());
+                mRequest->file().version().purge_version());
     break;
   }
 
@@ -1648,7 +1612,8 @@ grpc::Status GrpcWncInterface::File()
   case eos::console::FileProto::kShare: {
     cmd_in += "&mgm.subcmd=share";
     cmd_in += "&mgm.path=" + path;
-    cmd_in += "&mgm.file.expires=" + std::to_string(mRequest->file().share().expires());
+    cmd_in += "&mgm.file.expires=" + std::to_string(
+                mRequest->file().share().expires());
     break;
   }
 
@@ -1668,7 +1633,6 @@ grpc::Status GrpcWncInterface::File()
   }
 
   ExecProcCmd(cmd_in, false);
-
   return grpc::Status::OK;
 }
 
@@ -1749,9 +1713,11 @@ grpc::Status GrpcWncInterface::Fileinfo()
 
   cmd.open("/proc/user", cmd_in.c_str(), *mVid, &error);
   cmd.AddOutput(std_out, std_err);
+
   if (mJsonFormat) {
     std_out = cmd.GetStdJson();
   }
+
   cmd.close();
 
   // Complement EOS-Drive output with usernames and groupnames
@@ -1763,9 +1729,9 @@ grpc::Status GrpcWncInterface::Fileinfo()
     if ((pos = std_out.find("uid=")) != std::string::npos) {
       size_t pos1 = pos + 4;
       size_t pos2 = std_out.find(' ', pos1);
+
       if (pos1 < pos2) {
         uid_t id = std::stoull(std_out.substr(pos1, pos2 - pos1));
-
         std::string name = eos::common::Mapping::UidToUserName(id, errc);
         std_out += "wnc_username=" + name + " ";
       }
@@ -1775,6 +1741,7 @@ grpc::Status GrpcWncInterface::Fileinfo()
     if ((pos = std_out.find("gid=")) != std::string::npos) {
       size_t pos1 = pos + 4;
       size_t pos2 = std_out.find(' ', pos1);
+
       if (pos1 < pos2) {
         uid_t id = std::stoull(std_out.substr(pos1, pos2 - pos1));
         std::string name = eos::common::Mapping::GidToGroupName(id, errc);
@@ -1790,21 +1757,22 @@ grpc::Status GrpcWncInterface::Fileinfo()
     GrpcWncInterface exec_acl;
     exec_acl.ExecCmd(*mVid, &acl_request, &acl_reply);
 
-    if (!acl_reply.std_out().empty())
+    if (!acl_reply.std_out().empty()) {
       std_out += "wnc_acl_user=" + acl_reply.std_out() + " ";
+    }
 
     // Get sys ACL with usernames/groupnames/egroupnames
     acl_request.mutable_acl()->set_sys_acl(true);
     exec_acl.ExecCmd(*mVid, &acl_request, &acl_reply);
 
-    if (!acl_reply.std_out().empty())
+    if (!acl_reply.std_out().empty()) {
       std_out += "wnc_acl_sys=" + acl_reply.std_out() + " ";
+    }
   }
 
   mReply->set_std_out(std_out);
   mReply->set_std_err(std_err);
   mReply->set_retc(cmd.GetRetc());
-
   return grpc::Status::OK;
 }
 
@@ -1838,7 +1806,8 @@ grpc::Status GrpcWncInterface::Geosched()
     std::string subcmd;
     mReply->set_retc(SFS_ERROR);
 
-    if (mRequest->geosched().subcmd_case() == eos::console::GeoschedProto::kAccess) {
+    if (mRequest->geosched().subcmd_case() ==
+        eos::console::GeoschedProto::kAccess) {
       subcmd = mRequest->geosched().access().subcmd();
       // XrdOucString has to be manually initialized to avoid strange behaviour
       // of some GeoTreeEngine functions
@@ -1850,6 +1819,7 @@ grpc::Status GrpcWncInterface::Geosched()
 
       if (!geotag.empty()) {
         std::string tmp_geotag = eos::common::SanitizeGeoTag(geotag);
+
         if (tmp_geotag != geotag) {
           mReply->set_std_err(tmp_geotag);
           mReply->set_retc(EINVAL);
@@ -1877,6 +1847,7 @@ grpc::Status GrpcWncInterface::Geosched()
 
         for (const auto& tag : geotags) {
           std::string tmp_tag = eos::common::SanitizeGeoTag(tag);
+
           if (tmp_tag != tag) {
             mReply->set_std_err(tmp_tag);
             mReply->set_retc(EINVAL);
@@ -1922,6 +1893,7 @@ grpc::Status GrpcWncInterface::Geosched()
 
       if (!(geotag == "*" && subcmd != "add")) {
         std::string tmp_geotag = eos::common::SanitizeGeoTag(geotag);
+
         if (tmp_geotag != geotag) {
           mReply->set_std_err(tmp_geotag);
           mReply->set_retc(EINVAL);
@@ -2041,11 +2013,13 @@ grpc::Status GrpcWncInterface::Health()
   std::string output;
   std::string args = mRequest->health().section();
 
-  if (mRequest->health().all_info())
+  if (mRequest->health().all_info()) {
     args += " -a";
+  }
 
-  if (mRequest->health().monitoring())
+  if (mRequest->health().monitoring()) {
     args += " -m";
+  }
 
   HealthCommand health(args.c_str());
 
@@ -2053,8 +2027,7 @@ grpc::Status GrpcWncInterface::Health()
     health.Execute(output);
     mReply->set_std_out(output.c_str());
     mReply->set_retc(0);
-  }
-  catch (std::string& err) {
+  } catch (std::string& err) {
     output = "Error: ";
     output += err;
     mReply->set_std_err(output.c_str());
@@ -2087,8 +2060,7 @@ grpc::Status GrpcWncInterface::Ls()
       } catch (eos::MDException& e) {
         errno = e.getErrno();
       }
-    }
-    else {
+    } else {
       try {
         eos::common::RWMutexReadLock vlock(gOFS->eosViewRWMutex);
         path = gOFS->eosView->getUri(gOFS->eosDirectoryService->getContainerMD(
@@ -2116,8 +2088,7 @@ grpc::Status GrpcWncInterface::Ls()
       mRequest->ls().readable_sizes() || mRequest->ls().show_hidden() ||
       mRequest->ls().inode_info() || mRequest->ls().num_ids() ||
       mRequest->ls().append_dir_ind() || mRequest->ls().silent() ||
-      mRequest->ls().wnc())
-  {
+      mRequest->ls().wnc()) {
     cmd_in += "&mgm.option=";
 
     if (mRequest->ls().long_list()) {
@@ -2167,19 +2138,21 @@ grpc::Status GrpcWncInterface::Ls()
         uint64_t size = 0;
         eos::IFileMD::ctime_t mtime;
         eos::IFileMD::XAttrMap xattrs;
-
         // Get full path
         std::string full_path;
-        if (entry == "../")
+
+        if (entry == "../") {
           continue;
-        else if (entry == "./")
+        } else if (entry == "./") {
           full_path = path;
-        else
+        } else {
           full_path = path + entry;
+        }
 
         // Get the parameters if entry is a file
         if (entry[entry.size() - 1] != '/') {
           std::shared_ptr<eos::IFileMD> fmd;
+
           try {
             fmd = gOFS->eosView->getFile(full_path.c_str());
           } catch (eos::MDException& e) {
@@ -2201,6 +2174,7 @@ grpc::Status GrpcWncInterface::Ls()
         // Get the parameters if entry is a directory
         else {
           std::shared_ptr<eos::IContainerMD> cmd;
+
           try {
             cmd = gOFS->eosView->getContainer(full_path.c_str());
           } catch (eos::MDException& e) {
@@ -2219,16 +2193,19 @@ grpc::Status GrpcWncInterface::Ls()
         out += "\t\tsize=" + std::to_string(size);
         out += " mtime=" + std::to_string(mtime.tv_sec);
         out += "." + std::to_string(mtime.tv_nsec);
-        if (xattrs.count("sys.eos.btime"))
+
+        if (xattrs.count("sys.eos.btime")) {
           out += " btime=" + xattrs["sys.eos.btime"];
+        }
+
         out += "\n";
-      }
-      else {
+      } else {
         out += entry + "\n";
       }
 
       // Write every 100 lines separately to gRPC
       counter++;
+
       if (counter >= 100) {
         StreamReply.set_std_out(out);
         StreamReply.set_retc(0);
@@ -2244,8 +2221,7 @@ grpc::Status GrpcWncInterface::Ls()
       StreamReply.set_retc(0);
       mWriter->Write(StreamReply);
     }
-  }
-  else {
+  } else {
     StreamReply.set_std_out(std_out);
     StreamReply.set_std_err(std_err);
     StreamReply.set_retc(cmd.GetRetc());
@@ -2263,13 +2239,11 @@ grpc::Status GrpcWncInterface::Map()
   if (subcmd == "link") {
     cmd_in += "&mgm.map.src=" + mRequest->map().src_path();
     cmd_in += "&mgm.map.dest=" + mRequest->map().dst_path();
-  }
-  else if (subcmd == "unlink") {
+  } else if (subcmd == "unlink") {
     cmd_in += "&mgm.map.src=" + mRequest->map().src_path();
   }
 
   ExecProcCmd(cmd_in, false);
-
   return grpc::Status::OK;
 }
 
@@ -2281,19 +2255,16 @@ grpc::Status GrpcWncInterface::Member()
   std::string rs;
 
   if (!egroup.empty()) {
-
     if (mRequest->member().update()) {
       gOFS->EgroupRefresh->refresh(uid_string, egroup);
     }
 
     rs = gOFS->EgroupRefresh->DumpMember(uid_string, egroup);
-  }
-  else if (mVid->uid != 0) {
+  } else if (mVid->uid != 0) {
     mReply->set_std_err("error: you have to take role 'root' to execute this command");
     mReply->set_retc(EPERM);
     return grpc::Status::OK;
-  }
-  else {
+  } else {
     rs = gOFS->EgroupRefresh->DumpMembers();
   }
 
@@ -2302,7 +2273,7 @@ grpc::Status GrpcWncInterface::Member()
 
     try {
       json["errormsg"] = "";
-      json["member"] = ProcCommand::CallJsonFormatter((const std::string )rs);
+      json["member"] = ProcCommand::CallJsonFormatter((const std::string)rs);
       json["retc"] = std::to_string(SFS_OK);
       mReply->set_std_out(SSTR(json).c_str());
     } catch (Json::Exception& e) {
@@ -2312,8 +2283,7 @@ grpc::Status GrpcWncInterface::Member()
       mReply->set_retc(EFAULT);
       return grpc::Status::OK;
     }
-  }
-  else {
+  } else {
     mReply->set_std_out(rs);
   }
 
@@ -2366,8 +2336,7 @@ grpc::Status GrpcWncInterface::Mv()
       } catch (eos::MDException& e) {
         errno = e.getErrno();
       }
-    }
-    else {
+    } else {
       try {
         eos::common::RWMutexReadLock vlock(gOFS->eosViewRWMutex);
         path = gOFS->eosView->getUri(gOFS->eosDirectoryService->getContainerMD(
@@ -2385,9 +2354,7 @@ grpc::Status GrpcWncInterface::Mv()
   }
 
   cmd_in += "&mgm.subcmd=rename&mgm.path=" + path + "&mgm.file.target=" + target;
-
   ExecProcCmd(cmd_in, false);
-
   return grpc::Status::OK;
 }
 
@@ -2461,9 +2428,7 @@ grpc::Status GrpcWncInterface::Rmdir()
   }
 
   std::string cmd_in = "mgm.cmd=rmdir&mgm.path=" + path;
-
   ExecProcCmd(cmd_in, false);
-
   return grpc::Status::OK;
 }
 
@@ -2513,15 +2478,13 @@ grpc::Status GrpcWncInterface::Stat()
       } else {
         mReply->set_retc(1);
       }
-    }
-    else if (mRequest->stat().directory()) {
+    } else if (mRequest->stat().directory()) {
       if (S_ISDIR(buf.st_mode)) {
         mReply->set_retc(0);
       } else {
         mReply->set_retc(1);
       }
-    }
-    else {
+    } else {
       std::string output = "Path: " + path + "\n";
 
       if (S_ISREG(buf.st_mode)) {
@@ -2531,11 +2494,9 @@ grpc::Status GrpcWncInterface::Stat()
                     sizestring, (unsigned long long)buf.st_size, "B");
         output += ")\n";
         output += "Type: regular file\n";
-      }
-      else if (S_ISDIR(buf.st_mode)) {
+      } else if (S_ISDIR(buf.st_mode)) {
         output += "Type: directory\n";
-      }
-      else {
+      } else {
         output += "Type: symbolic link\n";
       }
 
@@ -2604,9 +2565,9 @@ grpc::Status GrpcWncInterface::Touch()
   // Create parent directories
   if (mRequest->touch().parents() && mReply->retc() == 2) {
     size_t pos = 0;
+
     if (!path.empty() && path[path.size() - 1] != '/' &&
-        (pos = path.rfind('/')) != std::string::npos)
-    {
+        (pos = path.rfind('/')) != std::string::npos) {
       std::string parent_path = path.substr(0, pos);
       eos::console::RequestProto mkdir_request;
       eos::console::ReplyProto mkdir_reply;
@@ -2616,272 +2577,11 @@ grpc::Status GrpcWncInterface::Touch()
       exec_mkdir.ExecCmd(*mVid, &mkdir_request, &mkdir_reply);
 
       // Run touch command again
-      if (mkdir_reply.retc() == 0)
+      if (mkdir_reply.retc() == 0) {
         ExecProcCmd(cmd_in, false);
-    }
-  }
-
-  return grpc::Status::OK;
-}
-
-grpc::Status GrpcWncInterface::Transfer()
-{
-  std::string std_out, std_err;
-  ProcCommand cmd;
-  XrdOucErrInfo error;
-  std::string cmd_in = "mgm.cmd=transfer";
-  eos::console::TransferProto_SubCommand subcommand = mRequest->transfer().subcommand();
-
-  switch (subcommand) {
-  case eos::console::TransferProto_SubCommand_CANCEL: {
-    cmd_in += "&mgm.subcmd=cancel";
-    break;
-  }
-
-  case eos::console::TransferProto_SubCommand_CLEAR: {
-    cmd_in += "&mgm.subcmd=clear";
-    break;
-  }
-
-  case eos::console::TransferProto_SubCommand_ENABLE: {
-    cmd_in += "&mgm.subcmd=enable";
-    break;
-  }
-
-  case eos::console::TransferProto_SubCommand_DISABLE: {
-    cmd_in += "&mgm.subcmd=disable";
-    break;
-  }
-
-  case eos::console::TransferProto_SubCommand_KILL: {
-    cmd_in += "&mgm.subcmd=kill";
-    break;
-  }
-
-  case eos::console::TransferProto_SubCommand_LOG: {
-    cmd_in += "&mgm.subcmd=log";
-    break;
-  }
-
-  case eos::console::TransferProto_SubCommand_LS: {
-    cmd_in += "&mgm.subcmd=ls";
-
-    if (!mRequest->transfer().common().groupname().empty()) {
-      cmd_in += "&mgm.txgroup=" + mRequest->transfer().common().groupname();
-    }
-
-    if (mRequest->transfer().ls().is_id()) {
-      cmd_in += "&mgm.txid=" + std::to_string(mRequest->transfer().common().id());
-    }
-
-    if (mRequest->transfer().ls().all() ||
-        mRequest->transfer().ls().monitoring() ||
-        mRequest->transfer().ls().progress() ||
-        mRequest->transfer().ls().summary())
-    {
-      cmd_in += "&mgm.txoption=";
-    }
-
-    if (mRequest->transfer().ls().all()) {
-      cmd_in += "a";
-    }
-
-    if (mRequest->transfer().ls().monitoring()) {
-      cmd_in += "m";
-    }
-
-    if (mRequest->transfer().ls().progress()) {
-      cmd_in += "mp";
-    }
-
-    if (mRequest->transfer().ls().summary()) {
-      cmd_in += "s";
-    }
-
-    break;
-  }
-
-  case eos::console::TransferProto_SubCommand_PURGE: {
-    cmd_in += "&mgm.subcmd=purge";
-    break;
-  }
-
-  case eos::console::TransferProto_SubCommand_RESET: {
-    cmd_in += "&mgm.subcmd=reset";
-    break;
-  }
-
-  case eos::console::TransferProto_SubCommand_RESUBMIT: {
-    cmd_in += "&mgm.subcmd=resubmit";
-    break;
-  }
-
-  case eos::console::TransferProto_SubCommand_SUBMIT: {
-    cmd_in += "&mgm.subcmd=submit";
-    cmd_in += "&mgm.txsrc=" + mRequest->transfer().submit().url1();
-    cmd_in += "&mgm.txdst=" + mRequest->transfer().submit().url2();
-    cmd_in += "&mgm.txrate=" + std::to_string(mRequest->transfer().submit().rate());
-    cmd_in += "&mgm.txstreams=" + std::to_string(mRequest->transfer().submit().streams());
-
-    if (!mRequest->transfer().submit().group().empty()) {
-      cmd_in += "&mgm.txgroup=" + mRequest->transfer().submit().group();
-    }
-
-    if (mRequest->transfer().submit().noauth()) {
-      cmd_in += "&mgm.txnoauth=1";
-    }
-
-    if (mRequest->transfer().submit().silent()) {
-      cmd_in += "&mgm.txoption=s";
-    }
-
-    if (mRequest->transfer().submit().sync()) {
-      eos::console::ReplyProto StreamReply;
-      time_t starttime = time(NULL);
-      cmd_in += "&mgm.txoption=s";
-      cmd.open("/proc/admin", cmd_in.c_str(), *mVid, &error);
-      cmd.AddOutput(std_out, std_err);
-      cmd.close();
-      StreamReply.set_std_out(std_out + "\n");
-      StreamReply.set_retc(0);
-      mWriter->Write(StreamReply);
-
-      if (!cmd.GetRetc()) {
-        std::string id;
-        size_t pos = 0;
-
-        if (!std_out.empty() && (pos = std_out.find(" id=")) != std::string::npos) {
-          id = std_out;
-          id.erase(0, pos + 4);
-        }
-
-        // now poll the state
-        errno = 0;
-        long lid = strtol(id.c_str(), 0, 10);
-
-        if (std_out.empty() || errno || (lid == LONG_MIN) || (lid == LONG_MAX)) {
-          StreamReply.set_std_err("error: submission of transfer probably failed - check with 'transfer ls'\n");
-          StreamReply.set_retc(EFAULT);
-          mWriter->Write(StreamReply);
-          return grpc::Status::OK;
-        }
-
-        // prepare the get progress command
-        cmd_in = "mgm.cmd=transfer";
-        cmd_in += "&mgm.subcmd=ls";
-        cmd_in += "&mgm.txoption=mp";
-        cmd_in += "&mgm.txid=" + id;
-        std::string incp =cmd_in;
-
-        while (1) {
-          std_out = "";
-          cmd.open("/proc/admin", cmd_in.c_str(), *mVid, &error);
-          cmd.AddOutput(std_out, std_err);
-          cmd.close();
-          cmd_in = incp;
-
-          if (std_out.empty()) {
-            StreamReply.set_std_err("error: transfer has been canceled externally!\n");
-            StreamReply.set_retc(EFAULT);
-            mWriter->Write(StreamReply);
-            return grpc::Status::OK;
-          }
-
-          XrdOucString std_out_xrd = std_out.c_str();
-
-          while (std_out_xrd.replace(" ", "&")) {}
-
-          XrdOucEnv txinfo(std_out_xrd.c_str());
-          XrdOucString status = txinfo.Get("tx.status");
-
-          if (!mRequest->transfer().submit().noprogress()) {
-            std::stringstream output;
-            output << "[eoscp TX] [ " << std::setw(10) << txinfo.Get("tx.status") <<
-                   " ]\t|";
-            int progress = atoi(txinfo.Get("tx.progress"));
-
-            for (int l = 0; l < 20; l++) {
-              if (l < ((int)(0.2 * progress))) {
-                output << "=";
-              }
-              else if (l == ((int)(0.2 * progress))) {
-                output << ">";
-              }
-              else if (l > ((int)(0.2 * progress))) {
-                output << ".";
-              }
-            }
-
-            output << "| " << std::setw(5) << txinfo.Get("tx.progress");
-            output << "% : " << std::to_string((time(NULL) - starttime));
-
-            if ((status != "done") && (status != "failed")) {
-              output << "s\r";
-            } else {
-              output << "s\n";
-            }
-
-            StreamReply.set_std_out(output.str());
-            StreamReply.set_retc(0);
-            mWriter->Write(StreamReply);
-          }
-
-          if ((status == "done") || (status == "failed")) {
-            if (!mRequest->transfer().submit().silent()) {
-              // get the log
-              cmd_in = "mgm.cmd=transfer&mgm.subcmd=log&mgm.txid=" + id;
-              std_out = "";
-              cmd.open("/proc/admin", cmd_in.c_str(), *mVid, &error);
-              cmd.AddOutput(std_out, std_err);
-              cmd.close();
-              StreamReply.set_std_out(std_out);
-              StreamReply.set_std_err(std_err);
-
-              if (status == "done") {
-                StreamReply.set_retc(0);
-              } else {
-                StreamReply.set_retc(EFAULT);
-              }
-
-              mWriter->Write(StreamReply);
-            }
-
-            return grpc::Status::OK;
-          }
-
-          sleep(1);
-        }
       }
-
-      return grpc::Status::OK;
-    }
-
-    break;
-  }
-
-  default: {
-    mReply->set_std_err("error: subcommand is not supported");
-    mReply->set_retc(EINVAL);
-    return grpc::Status::OK;
-  }
-  }
-
-  if (subcommand == eos::console::TransferProto_SubCommand_CANCEL ||
-      subcommand == eos::console::TransferProto_SubCommand_KILL ||
-      subcommand == eos::console::TransferProto_SubCommand_LOG ||
-      ((subcommand == eos::console::TransferProto_SubCommand_PURGE ||
-        subcommand == eos::console::TransferProto_SubCommand_RESET) &&
-        mRequest->transfer().common().IsInitialized()) ||
-      subcommand == eos::console::TransferProto_SubCommand_RESUBMIT)
-  {
-    if (!mRequest->transfer().common().groupname().empty()) {
-      cmd_in += "&mgm.txgroup=" + mRequest->transfer().common().groupname();
-    } else {
-      cmd_in += "&mgm.txid=" + std::to_string(mRequest->transfer().common().id());
     }
   }
-
-  ExecProcCmd(cmd_in);
 
   return grpc::Status::OK;
 }
@@ -2903,7 +2603,6 @@ grpc::Status GrpcWncInterface::Version()
   }
 
   ExecProcCmd(cmd_in, false);
-
   return grpc::Status::OK;
 }
 
@@ -2918,30 +2617,26 @@ grpc::Status GrpcWncInterface::Vid()
 
   switch (mRequest->vid().subcmd_case()) {
   case eos::console::VidProto::kGateway: {
-    eos::console::VidProto_GatewayProto_Protocol prot = mRequest->vid().gateway().protocol();
+    eos::console::VidProto_GatewayProto_Protocol prot =
+      mRequest->vid().gateway().protocol();
     std::string protocol;
-    eos::console::VidProto_GatewayProto_Option option = mRequest->vid().gateway().option();
+    eos::console::VidProto_GatewayProto_Option option =
+      mRequest->vid().gateway().option();
     std::string host = mRequest->vid().gateway().hostname();
 
     if (prot == eos::console::VidProto_GatewayProto_Protocol_ALL) {
       protocol = "*";
-    }
-    else if (prot == eos::console::VidProto_GatewayProto_Protocol_KRB5) {
+    } else if (prot == eos::console::VidProto_GatewayProto_Protocol_KRB5) {
       protocol = "krb5";
-    }
-    else if (prot == eos::console::VidProto_GatewayProto_Protocol_GSI) {
+    } else if (prot == eos::console::VidProto_GatewayProto_Protocol_GSI) {
       protocol = "gsi";
-    }
-    else if (prot == eos::console::VidProto_GatewayProto_Protocol_SSS) {
+    } else if (prot == eos::console::VidProto_GatewayProto_Protocol_SSS) {
       protocol = "sss";
-    }
-    else if (prot == eos::console::VidProto_GatewayProto_Protocol_UNIX) {
+    } else if (prot == eos::console::VidProto_GatewayProto_Protocol_UNIX) {
       protocol = "unix";
-    }
-    else if (prot == eos::console::VidProto_GatewayProto_Protocol_HTTPS) {
+    } else if (prot == eos::console::VidProto_GatewayProto_Protocol_HTTPS) {
       protocol = "https";
-    }
-    else if (prot == eos::console::VidProto_GatewayProto_Protocol_GRPC) {
+    } else if (prot == eos::console::VidProto_GatewayProto_Protocol_GRPC) {
       protocol = "grpc";
     }
 
@@ -2953,8 +2648,7 @@ grpc::Status GrpcWncInterface::Vid()
       cmd_in1 += "&mgm.vid.key=<key>";
       cmd_in1 += "&mgm.vid.pattern=\"" + protocol + "@" + host + "\"";
       cmd_in1 += "&mgm.vid.uid=0";
-    }
-    else if (option == eos::console::VidProto_GatewayProto_Option_REMOVE) {
+    } else if (option == eos::console::VidProto_GatewayProto_Option_REMOVE) {
       has_cmd2 = true;
       cmd_in1 += "&mgm.subcmd=rm";
       cmd_in1 += "&mgm.vid.cmd=unmap";
@@ -2968,8 +2662,10 @@ grpc::Status GrpcWncInterface::Vid()
   }
 
   case eos::console::VidProto::kDefaultmapping: {
-    eos::console::VidProto_DefaultMappingProto_Option opt = mRequest->vid().defaultmapping().option();
-    eos::console::VidProto_DefaultMappingProto_Type type = mRequest->vid().defaultmapping().type();
+    eos::console::VidProto_DefaultMappingProto_Option opt =
+      mRequest->vid().defaultmapping().option();
+    eos::console::VidProto_DefaultMappingProto_Type type =
+      mRequest->vid().defaultmapping().type();
 
     if (opt == eos::console::VidProto_DefaultMappingProto_Option_ENABLE) {
       cmd_in1 += "&mgm.subcmd=set";
@@ -2981,34 +2677,28 @@ grpc::Status GrpcWncInterface::Vid()
         cmd_in1 += "&mgm.vid.auth=krb5";
         cmd_in1 += "&mgm.vid.uid=0";
         cmd_in1 += "&mgm.vid.gid=0";
-      }
-      else if (type == eos::console::VidProto_DefaultMappingProto_Type_GSI) {
+      } else if (type == eos::console::VidProto_DefaultMappingProto_Type_GSI) {
         cmd_in1 += "&mgm.vid.auth=gsi";
         cmd_in1 += "&mgm.vid.uid=0";
         cmd_in1 += "&mgm.vid.gid=0";
-      }
-      else if (type == eos::console::VidProto_DefaultMappingProto_Type_SSS) {
+      } else if (type == eos::console::VidProto_DefaultMappingProto_Type_SSS) {
         cmd_in1 += "&mgm.vid.auth=sss";
         cmd_in1 += "&mgm.vid.uid=0";
         cmd_in1 += "&mgm.vid.gid=0";
-      }
-      else if (type == eos::console::VidProto_DefaultMappingProto_Type_UNIX) {
+      } else if (type == eos::console::VidProto_DefaultMappingProto_Type_UNIX) {
         cmd_in1 += "&mgm.vid.auth=unix";
         cmd_in1 += "&mgm.vid.uid=99";
         cmd_in1 += "&mgm.vid.gid=99";
-      }
-      else if (type == eos::console::VidProto_DefaultMappingProto_Type_HTTPS) {
+      } else if (type == eos::console::VidProto_DefaultMappingProto_Type_HTTPS) {
         cmd_in1 += "&mgm.vid.auth=https";
         cmd_in1 += "&mgm.vid.uid=0";
         cmd_in1 += "&mgm.vid.gid=0";
-      }
-      else if (type == eos::console::VidProto_DefaultMappingProto_Type_TIDENT) {
+      } else if (type == eos::console::VidProto_DefaultMappingProto_Type_TIDENT) {
         cmd_in1 += "&mgm.vid.auth=tident";
         cmd_in1 += "&mgm.vid.uid=0";
         cmd_in1 += "&mgm.vid.gid=0";
       }
-    }
-    else if (opt == eos::console::VidProto_DefaultMappingProto_Option_DISABLE) {
+    } else if (opt == eos::console::VidProto_DefaultMappingProto_Option_DISABLE) {
       has_cmd2 = true;
       cmd_in1 += "&mgm.subcmd=rm";
       cmd_in1 += "&mgm.vid.cmd=unmap";
@@ -3018,24 +2708,19 @@ grpc::Status GrpcWncInterface::Vid()
       if (type == eos::console::VidProto_DefaultMappingProto_Type_KRB5) {
         cmd_in1 += "&mgm.vid.key=krb5:\"<pwd>\":uid";
         cmd_in2 += "&mgm.vid.key=krb5:\"<pwd>\":gid";
-      }
-      else if (type == eos::console::VidProto_DefaultMappingProto_Type_GSI) {
+      } else if (type == eos::console::VidProto_DefaultMappingProto_Type_GSI) {
         cmd_in1 += "&mgm.vid.key=gsi:\"<pwd>\":uid";
         cmd_in2 += "&mgm.vid.key=gsi:\"<pwd>\":gid";
-      }
-      else if (type == eos::console::VidProto_DefaultMappingProto_Type_SSS) {
+      } else if (type == eos::console::VidProto_DefaultMappingProto_Type_SSS) {
         cmd_in1 += "&mgm.vid.key=sss:\"<pwd>\":uid";
         cmd_in2 += "&mgm.vid.key=sss:\"<pwd>\":gid";
-      }
-      else if (type == eos::console::VidProto_DefaultMappingProto_Type_UNIX) {
+      } else if (type == eos::console::VidProto_DefaultMappingProto_Type_UNIX) {
         cmd_in1 += "&mgm.vid.key=unix:\"<pwd>\":uid";
         cmd_in2 += "&mgm.vid.key=unix:\"<pwd>\":gid";
-      }
-      else if (type == eos::console::VidProto_DefaultMappingProto_Type_HTTPS) {
+      } else if (type == eos::console::VidProto_DefaultMappingProto_Type_HTTPS) {
         cmd_in1 += "&mgm.vid.key=https:\"<pwd>\":uid";
         cmd_in2 += "&mgm.vid.key=https:\"<pwd>\":gid";
-      }
-      else if (type == eos::console::VidProto_DefaultMappingProto_Type_TIDENT) {
+      } else if (type == eos::console::VidProto_DefaultMappingProto_Type_TIDENT) {
         cmd_in1 += "&mgm.vid.key=tident:\"<pwd>\":uid";
         cmd_in2 += "&mgm.vid.key=tident:\"<pwd>\":gid";
       }
@@ -3051,8 +2736,7 @@ grpc::Status GrpcWncInterface::Vid()
         mRequest->vid().ls().sudoers() || mRequest->vid().ls().user_alias() ||
         mRequest->vid().ls().group_alias() || mRequest->vid().ls().gateway() ||
         mRequest->vid().ls().auth() || mRequest->vid().ls().deepness() ||
-        mRequest->vid().ls().geo_location() || mRequest->vid().ls().num_ids())
-    {
+        mRequest->vid().ls().geo_location() || mRequest->vid().ls().num_ids()) {
       cmd_in1 += "&mgm.vid.option=";
     }
 
@@ -3115,8 +2799,7 @@ grpc::Status GrpcWncInterface::Vid()
       cmd_in1 += "&mgm.vid.key=vid:" + mRequest->vid().rm().key() + ":uids";
       cmd_in2 += "&mgm.subcmd=rm";
       cmd_in2 += "&mgm.vid.key=vid:" + mRequest->vid().rm().key() + ":gids";
-    }
-    else {
+    } else {
       cmd_in1 += "&mgm.subcmd=rm";
       cmd_in1 += "&mgm.vid.key=" + mRequest->vid().rm().key();
     }
@@ -3128,6 +2811,7 @@ grpc::Status GrpcWncInterface::Vid()
     // Check if geotag is valid
     std::string targetgeotag = mRequest->vid().setgeotag().geotag();
     std::string geotag = eos::common::SanitizeGeoTag(targetgeotag);
+
     if (geotag != targetgeotag) {
       mReply->set_std_err(geotag);
       mReply->set_retc(EINVAL);
@@ -3142,7 +2826,8 @@ grpc::Status GrpcWncInterface::Vid()
   }
 
   case eos::console::VidProto::kSetmembership: {
-    eos::console::VidProto_SetMembershipProto_Option opt = mRequest->vid().setmembership().option();
+    eos::console::VidProto_SetMembershipProto_Option opt =
+      mRequest->vid().setmembership().option();
     std::string user = mRequest->vid().setmembership().user();
     std::string members = mRequest->vid().setmembership().members();
     cmd_in1 += "&mgm.subcmd=set";
@@ -3152,16 +2837,14 @@ grpc::Status GrpcWncInterface::Vid()
     if (opt == eos::console::VidProto_SetMembershipProto_Option_USER) {
       cmd_in1 += "&mgm.vid.key=" + user + ":uids";
       cmd_in1 += "&mgm.vid.target.uid=" + members;
-    }
-    else if (opt == eos::console::VidProto_SetMembershipProto_Option_GROUP) {
+    } else if (opt == eos::console::VidProto_SetMembershipProto_Option_GROUP) {
       cmd_in1 += "&mgm.vid.key=" + user + ":gids";
       cmd_in1 += "&mgm.vid.target.gid=" + members;
-    }
-    else if (opt == eos::console::VidProto_SetMembershipProto_Option_ADD_SUDO) {
+    } else if (opt == eos::console::VidProto_SetMembershipProto_Option_ADD_SUDO) {
       cmd_in1 += "&mgm.vid.key=" + user + ":root";
       cmd_in1 += "&mgm.vid.target.sudo=true";
-    }
-    else if (opt == eos::console::VidProto_SetMembershipProto_Option_REMOVE_SUDO) {
+    } else if (opt ==
+               eos::console::VidProto_SetMembershipProto_Option_REMOVE_SUDO) {
       cmd_in1 += "&mgm.vid.key=" + user + ":root";
       cmd_in1 += "&mgm.vid.target.sudo=false";
     }
@@ -3176,26 +2859,19 @@ grpc::Status GrpcWncInterface::Vid()
 
     if (type == eos::console::VidProto_SetMapProto_Type_KRB5) {
       cmd_in1 += "&mgm.vid.auth=krb5";
-    }
-    else if (type == eos::console::VidProto_SetMapProto_Type_GSI) {
+    } else if (type == eos::console::VidProto_SetMapProto_Type_GSI) {
       cmd_in1 += "&mgm.vid.auth=gsi";
-    }
-    else if (type == eos::console::VidProto_SetMapProto_Type_HTTPS) {
+    } else if (type == eos::console::VidProto_SetMapProto_Type_HTTPS) {
       cmd_in1 += "&mgm.vid.auth=https";
-    }
-    else if (type == eos::console::VidProto_SetMapProto_Type_SSS) {
+    } else if (type == eos::console::VidProto_SetMapProto_Type_SSS) {
       cmd_in1 += "&mgm.vid.auth=sss";
-    }
-    else if (type == eos::console::VidProto_SetMapProto_Type_UNIX) {
+    } else if (type == eos::console::VidProto_SetMapProto_Type_UNIX) {
       cmd_in1 += "&mgm.vid.auth=unix";
-    }
-    else if (type == eos::console::VidProto_SetMapProto_Type_TIDENT) {
+    } else if (type == eos::console::VidProto_SetMapProto_Type_TIDENT) {
       cmd_in1 += "&mgm.vid.auth=tident";
-    }
-    else if (type == eos::console::VidProto_SetMapProto_Type_VOMS) {
+    } else if (type == eos::console::VidProto_SetMapProto_Type_VOMS) {
       cmd_in1 += "&mgm.vid.auth=voms";
-    }
-    else if (type == eos::console::VidProto_SetMapProto_Type_GRPC) {
+    } else if (type == eos::console::VidProto_SetMapProto_Type_GRPC) {
       cmd_in1 += "&mgm.vid.auth=grpc";
     }
 
@@ -3249,7 +2925,8 @@ grpc::Status GrpcWncInterface::Vid()
 
   mReply->set_std_out(std_out1 + std_out2);
   mReply->set_std_err(std_err1 + std_err2);
-  mReply->set_retc((cmd1.GetRetc() > cmd2.GetRetc()) ? cmd1.GetRetc() : cmd2.GetRetc());
+  mReply->set_retc((cmd1.GetRetc() > cmd2.GetRetc()) ? cmd1.GetRetc() :
+                   cmd2.GetRetc());
   return grpc::Status::OK;
 }
 
@@ -3259,8 +2936,7 @@ grpc::Status GrpcWncInterface::Who()
 
   if (mRequest->who().showclients() || mRequest->who().showauth() ||
       mRequest->who().showall() || mRequest->who().showsummary() ||
-      mRequest->who().monitoring())
-  {
+      mRequest->who().monitoring()) {
     cmd_in += "&mgm.option=";
   }
 
@@ -3285,16 +2961,13 @@ grpc::Status GrpcWncInterface::Who()
   }
 
   ExecProcCmd(cmd_in, false);
-
   return grpc::Status::OK;
 }
 
 grpc::Status GrpcWncInterface::Whoami()
 {
   std::string cmd_in = "mgm.cmd=whoami";
-
   ExecProcCmd(cmd_in, false);
-
   return grpc::Status::OK;
 }
 

@@ -180,10 +180,6 @@ class WncService final : public EosWnc::Service
       command = "Touch";
       break;
 
-    case eos::console::RequestProto::kTransfer:
-      command = "Transfer";
-      break;
-
     case eos::console::RequestProto::kVersion:
       command = "Version";
       break;
@@ -232,10 +228,6 @@ class WncService final : public EosWnc::Service
 
     case eos::console::RequestProto::kLs:
       command = "Ls";
-      break;
-
-    case eos::console::RequestProto::kTransfer:
-      command = "Transfer";
       break;
 
     default:
@@ -296,10 +288,11 @@ GrpcWncServer::RunWnc(ThreadAssistant& assistant) noexcept
   }
 
   if (gGlobalOpts.mMgmUri.empty()) {
-    if (getenv("EOS_MGM_URL"))
+    if (getenv("EOS_MGM_URL")) {
       gGlobalOpts.mMgmUri = getenv("EOS_MGM_URL");
-    else
+    } else {
       gGlobalOpts.mMgmUri = "root://localhost";
+    }
   }
 
   eos_static_info("Creating gRPC server for EOS-wnc.");
@@ -327,14 +320,16 @@ GrpcWncServer::RunWnc(ThreadAssistant& assistant) noexcept
   WncService wncService;
   wncBuilder.RegisterService(&wncService);
   mWncServer = wncBuilder.BuildAndStart();
-  if(mWncServer){
+
+  if (mWncServer) {
     eos_static_info("gRPC server for EOS-wnc is running on port %i.", mWncPort);
     /*WARNING: The server must be either shutting down or
     *some other thread must call a Shutdown for Wait function to ever return.*/
     mWncServer->Wait();
-  }else{
+  } else {
     eos_static_err("gRPC server for EOS-wnc failed to start!");
   }
+
 #else
   (void) mWncPort;
   (void) mSSL;
