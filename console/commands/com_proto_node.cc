@@ -68,8 +68,6 @@ void com_node_help()
       << "\t  --fsck : print filesystem check statistcis\n"
       << std::endl
       << "node config <host:port> <key>=<value : configure file system parameters for each filesystem of this node\n"
-      << "\t    <key> : gw.rate=<mb/s> - set the transfer speed per gateway transfer\n"
-      << "\t    <key> : gw.ntx=<#>     - set the number of concurrent transfers for a gateway node\n"
       << "\t    <key> : error.simulation=io_read|io_write|xs_read|xs_write|fmd_open|fake_write|close|unresponsive\n"
       << "\t            If offset is given the the error will get triggered for request past the given value.\n"
       << "\t            Accepted format for offset: 8B, 10M, 20G etc.\n"
