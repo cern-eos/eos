@@ -139,6 +139,45 @@ public:
                       std::string* path = nullptr) = 0;
 
   //----------------------------------------------------------------------------
+  //! Get inconsistency statistics
+  //!
+  //! @param fsid file system id
+  //! @param statistics map of inconsistency type to counter
+  //! @param fidset map of fid to set of inconsitent file ids
+  //!
+  //! @return true if successful, otherwise false
+  //----------------------------------------------------------------------------
+  virtual bool GetInconsistencyStatistics(eos::common::FileSystem::fsid_t fsid,
+                                          std::map<std::string, size_t>& statistics,
+                                          std::map<std::string,
+                                          std::set <eos::common::FileId::fileid_t>>& fidset) = 0;
+
+  //----------------------------------------------------------------------------
+  //! Low level Fmd retrieve method
+  //!
+  //! @param fid file identifier
+  //! @param fsid file system identifier
+  //! @param path optional file path
+  //!
+  //! @return true if found and the corresponding FmdHelper object otherwise
+  //!         false
+  //----------------------------------------------------------------------------
+  virtual std::pair<bool, eos::common::FmdHelper>
+  LocalRetrieveFmd(eos::common::FileId::fileid_t fid,
+                   eos::common::FileSystem::fsid_t fsid,
+                   const std::string& path = "") = 0;
+
+  //----------------------------------------------------------------------------
+  //! Update file metadata object with new fid information
+  //!
+  //! @param path full path to file
+  //! @param fid new file identifier
+  //!
+  //! @return true if succesful, otherwise false
+  //----------------------------------------------------------------------------
+  bool UpdateFmd(const std::string& path, eos::common::FileId::fileid_t fid);
+
+  //----------------------------------------------------------------------------
   //! Update local fmd with info from the disk i.e. physical file extended
   //! attributes
   //!
@@ -153,12 +192,12 @@ public:
   //!
   //! @return true if record has been committed
   //----------------------------------------------------------------------------
-  virtual bool UpdateWithDiskInfo(eos::common::FileSystem::fsid_t fsid,
-                                  eos::common::FileId::fileid_t fid,
-                                  unsigned long long disk_size,
-                                  const std::string& disk_xs,
-                                  unsigned long check_ts_sec, bool filexs_err,
-                                  bool blockxs_err, bool layout_err);
+  bool UpdateWithDiskInfo(eos::common::FileSystem::fsid_t fsid,
+                          eos::common::FileId::fileid_t fid,
+                          unsigned long long disk_size,
+                          const std::string& disk_xs,
+                          unsigned long check_ts_sec, bool filexs_err,
+                          bool blockxs_err, bool layout_err);
 
   //----------------------------------------------------------------------------
   //! Update local fmd with info from the MGM
@@ -172,18 +211,18 @@ public:
   //!
   //! @return true if record has been committed
   //----------------------------------------------------------------------------
-  virtual bool UpdateWithMgmInfo(eos::common::FileSystem::fsid_t fsid,
-                                 eos::common::FileId::fileid_t fid,
-                                 eos::common::FileId::fileid_t cid,
-                                 eos::common::LayoutId::layoutid_t lid,
-                                 unsigned long long mgmsize,
-                                 std::string mgmchecksum,
-                                 uid_t uid, gid_t gid,
-                                 unsigned long long ctime,
-                                 unsigned long long ctime_ns,
-                                 unsigned long long mtime,
-                                 unsigned long long mtime_ns,
-                                 int layouterror, std::string locations);
+  bool UpdateWithMgmInfo(eos::common::FileSystem::fsid_t fsid,
+                         eos::common::FileId::fileid_t fid,
+                         eos::common::FileId::fileid_t cid,
+                         eos::common::LayoutId::layoutid_t lid,
+                         unsigned long long mgmsize,
+                         std::string mgmchecksum,
+                         uid_t uid, gid_t gid,
+                         unsigned long long ctime,
+                         unsigned long long ctime_ns,
+                         unsigned long long mtime,
+                         unsigned long long mtime_ns,
+                         int layouterror, std::string locations);
 
   //----------------------------------------------------------------------------
   //! Update local fmd with info from the scanner
@@ -198,11 +237,11 @@ public:
   //! @note: the qclient should favor followers as we're doing only read
   //!        operations and this should reduce the load on the master QDB
   //----------------------------------------------------------------------------
-  virtual void UpdateWithScanInfo(eos::common::FileId::fileid_t fid,
-                                  eos::common::FileSystem::fsid_t fsid,
-                                  const std::string& fpath,
-                                  uint64_t scan_sz, const std::string& scan_xs_hex,
-                                  std::shared_ptr<qclient::QClient> qcl);
+  void UpdateWithScanInfo(eos::common::FileId::fileid_t fid,
+                          eos::common::FileSystem::fsid_t fsid,
+                          const std::string& fpath,
+                          uint64_t scan_sz, const std::string& scan_xs_hex,
+                          std::shared_ptr<qclient::QClient> qcl);
 
   //----------------------------------------------------------------------------
   //! Resync a single entry from disk
@@ -215,10 +254,10 @@ public:
   //!
   //! @return 0 if successful, otherwise errno
   //----------------------------------------------------------------------------
-  virtual int ResyncDisk(const char* fstpath,
-                         eos::common::FileSystem::fsid_t fsid,
-                         bool flaglayouterror, uint64_t scan_sz = 0ull,
-                         const std::string& scan_xs_hex = "");
+  int ResyncDisk(const char* fstpath,
+                 eos::common::FileSystem::fsid_t fsid,
+                 bool flaglayouterror, uint64_t scan_sz = 0ull,
+                 const std::string& scan_xs_hex = "");
 
 
   //----------------------------------------------------------------------------
@@ -230,9 +269,9 @@ public:
   //!
   //! @return true if successful, otherwise false
   //----------------------------------------------------------------------------
-  virtual bool ResyncAllDisk(const char* path,
-                             eos::common::FileSystem::fsid_t fsid,
-                             bool flaglayouterror);
+  bool ResyncAllDisk(const char* path,
+                     eos::common::FileSystem::fsid_t fsid,
+                     bool flaglayouterror);
 
   //----------------------------------------------------------------------------
   //! Resync file meta data from MGM into local database
@@ -243,8 +282,8 @@ public:
   //!
   //! @return true if successful, otherwise false
   //----------------------------------------------------------------------------
-  virtual bool ResyncMgm(eos::common::FileSystem::fsid_t fsid,
-                         eos::common::FileId::fileid_t fid, const char* manager);
+  bool ResyncMgm(eos::common::FileSystem::fsid_t fsid,
+                 eos::common::FileId::fileid_t fid, const char* manager);
 
   //----------------------------------------------------------------------------
   //! Resync all meta data from MGM into local database
@@ -254,8 +293,7 @@ public:
   //!
   //! @return true if successful, otherwise false
   //----------------------------------------------------------------------------
-  virtual bool ResyncAllMgm(eos::common::FileSystem::fsid_t fsid,
-                            const char* manager);
+  bool ResyncAllMgm(eos::common::FileSystem::fsid_t fsid, const char* manager);
 
   //------------------------------------------------------------------------------
   //! Resync file meta data from QuarkDB into local database
@@ -268,10 +306,10 @@ public:
   //!
   //! @return 0 if successful, otherwise errno
   //------------------------------------------------------------------------------
-  virtual int ResyncFileFromQdb(eos::common::FileId::fileid_t fid,
-                                eos::common::FileSystem::fsid_t fsid,
-                                const std::string& fpath,
-                                std::shared_ptr<qclient::QClient> qcl);
+  int ResyncFileFromQdb(eos::common::FileId::fileid_t fid,
+                        eos::common::FileSystem::fsid_t fsid,
+                        const std::string& fpath,
+                        std::shared_ptr<qclient::QClient> qcl);
 
   //----------------------------------------------------------------------------
   //! Resync all meta data from QuarkdDB
@@ -281,52 +319,30 @@ public:
   //!
   //! @return true if successful, otherwise false
   //----------------------------------------------------------------------------
-  virtual bool ResyncAllFromQdb(const QdbContactDetails& contact_details,
-                                eos::common::FileSystem::fsid_t fsid);
+  bool ResyncAllFromQdb(const QdbContactDetails& contact_details,
+                        eos::common::FileSystem::fsid_t fsid);
+
+private:
+  //----------------------------------------------------------------------------
+  // Virtual private methods are overrideable in derived classes, this allows
+  // for the interface to remain the same while the specific implementation is
+  // done in the derived class
+  //----------------------------------------------------------------------------
 
   //----------------------------------------------------------------------------
-  //! Update file metadata object with new fid information
+  //! Attach Fmd metadata info to the current file identifier
   //!
-  //! @param path full path to file
-  //! @param fid new file identifier
-  //!
-  //! @return true if succesful, otherwise false
-  //----------------------------------------------------------------------------
-  virtual bool UpdateFmd(const std::string& path,
-                         eos::common::FileId::fileid_t fid)
-  {
-    return true;
-  }
-
-  //----------------------------------------------------------------------------
-  //! Get inconsistency statistics
-  //!
-  //! @param fsid file system id
-  //! @param statistics map of inconsistency type to counter
-  //! @param fidset map of fid to set of inconsitent file ids
+  //! @param fmd file metadata info protobuf object
+  //! @param fid file identifier
+  //! @param fsid file system identifier
+  //! @param path local file absolute path
   //!
   //! @return true if successful, otherwise false
   //----------------------------------------------------------------------------
-  virtual bool GetInconsistencyStatistics(eos::common::FileSystem::fsid_t fsid,
-                                          std::map<std::string, size_t>& statistics,
-                                          std::map<std::string,
-                                          std::set <eos::common::FileId::fileid_t>>& fidset) = 0;
-
-
-  virtual std::pair<bool, eos::common::FmdHelper>
-  LocalRetrieveFmd(eos::common::FileId::fileid_t fid,
-                   eos::common::FileSystem::fsid_t fsid,
-                   std::string* path = nullptr,
-                   bool lock = false) = 0;
-
-private:
-  // Virtual private methods are overrideable at derived classes, this allows
-  // for the interface to remain the same while the specific implementation is
-  // done in the derived class
-  virtual bool LocalPutFmd(eos::common::FileId::fileid_t fid,
+  virtual bool LocalPutFmd(const eos::common::FmdHelper& fmd,
+                           eos::common::FileId::fileid_t fid,
                            eos::common::FileSystem::fsid_t fsid,
-                           const eos::common::FmdHelper& fmd) = 0;
-
+                           const std::string& path = "") = 0;
 
   //----------------------------------------------------------------------------
   //!

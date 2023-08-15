@@ -213,7 +213,7 @@ ScanDir::AccountMissing()
       // Double check that this not a file which was deleted in the meantime
       try {
         if (IsBeingDeleted(fid)) {
-          // Give it one more kick by dropping the file from disk and db
+          // Give it one more kick by dropping the file from disk and QDB
           XrdOucErrInfo tmp_err;
 
           if (gOFS._rem("/DELETION_FSCK", tmp_err, nullptr, nullptr, fpath.c_str(),
@@ -240,6 +240,8 @@ ScanDir::AccountMissing()
             fmd->mProtoFmd.set_fsid(mFsId);
             fmd->mProtoFmd.set_layouterror(LayoutId::kMissing);
           }
+
+          // @todo(esindril) rewrite to properly account missing replicas
 
           if (!gOFS.mFmdHandler->Commit(fmd.get())) {
             eos_err("msg=\"failed to create local fmd entry for missing file\" "
