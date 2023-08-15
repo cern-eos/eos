@@ -95,23 +95,6 @@ bool NodeHelper::ParseCommand(const char* arg)
     } else {
       return false;
     }
-  } else if (token == "txgw") {
-    if (!tokenizer.NextToken(token)) {
-      return false;
-    }
-
-    eos::console::NodeProto_TxgwProto* txgw = node->mutable_txgw();
-    txgw->set_node(token);
-
-    if (!tokenizer.NextToken(token)) {
-      return false;
-    }
-
-    if (token == "on" || token == "off") {
-      txgw->set_node_txgw_switch(token);
-    } else {
-      return false;
-    }
   } else if (token == "config") {
     if (!tokenizer.NextToken(token)) {
       return false;
@@ -133,46 +116,6 @@ bool NodeHelper::ParseCommand(const char* arg)
       config->set_node_value(token.substr(pos + 1, token.length() - 1));
     } else {
       return false;
-    }
-  } else if (token == "register") {
-    if (!tokenizer.NextToken(token)) {
-      return false;
-    }
-
-    eos::console::NodeProto_RegisterProto* registerx = node->mutable_registerx();
-    registerx->set_node_name(token);
-
-    if (!tokenizer.NextToken(token)) {
-      return false;
-    }
-
-    registerx->set_node_path2register(token);
-
-    if (!tokenizer.NextToken(token)) {
-      return false;
-    }
-
-    registerx->set_node_space2register(token);
-
-    // repeats twice to (eventually) parse both flags.
-    if (tokenizer.NextToken(token)) {
-      if (token == "--force") {
-        registerx->set_node_force(true);
-      } else if (token == "--root") {
-        registerx->set_node_root(true);
-      } else {
-        return false;
-      }
-    }
-
-    if (tokenizer.NextToken(token)) {
-      if (token == "--force") {
-        registerx->set_node_force(true);
-      } else if (token == "--root") {
-        registerx->set_node_root(true);
-      } else {
-        return false;
-      }
     }
   } else if (token == "proxygroupadd" || token == "proxygrouprm" ||
              token == "proxygroupclear") {

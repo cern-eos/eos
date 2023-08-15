@@ -36,22 +36,9 @@ message NodeProto {
     string node_value = 3;
   }
 
-  message RegisterProto {
-    string node_name           = 1;
-    string node_path2register  = 2;
-    string node_space2register = 3;
-    bool node_force            = 4;
-    bool node_root             = 5;
-  }
-
   message SetProto {
     string node              = 1;
     string node_state_switch = 2;
-  }
-
-  message TxgwProto {
-    string node             = 1;
-    string node_txgw_switch = 2;
   }
 
   message ProxygroupProto {
@@ -71,11 +58,10 @@ message NodeProto {
     RmProto rm                 = 2;
     StatusProto status         = 3;
     ConfigProto config         = 4;
-    RegisterProto registerx    = 5; // deprecated since 5.2.0, slot can be reused in the future
+    //    RegisterProto registerx    = 5; // deprecated since 5.2.0, slot can be reused in the future
     SetProto set               = 6;
-    TxgwProto txgw             = 7;
+    //    TxgwProto txgw             = 7; // deprecated since 5.2.0, slot can be reused in the future
     ProxygroupProto proxygroup = 8;
-
   }
 
 }

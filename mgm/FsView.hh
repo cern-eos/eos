@@ -1084,10 +1084,6 @@ public:
   std::map<std::string, FsNode* > mNodeView;
   //! Map translating a filesystem ID to a file system object
   FileSystemRegistry mIdView;
-  //! Mutex protecting the set of gateway nodes mGwNodes
-  eos::common::RWMutex GwMutex;
-  //! Set containing all nodes which are usable as a gateway machine
-  std::set<std::string> mGwNodes;
 
 private:
   IConfigEngine* mConfigEngine;

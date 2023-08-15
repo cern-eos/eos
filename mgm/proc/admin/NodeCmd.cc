@@ -61,10 +61,6 @@ NodeCmd::ProcessRequest() noexcept
     SetSubcmd(node.set(), reply);
     break;
 
-  case eos::console::NodeProto::kTxgw:
-    TxgwSubcmd(node.txgw(), reply);
-    break;
-
   case eos::console::NodeProto::kProxygroup:
     ProxygroupSubcmd(node.proxygroup(), reply);
     break;
@@ -520,100 +516,6 @@ void NodeCmd::SetSubcmd(const eos::console::NodeProto_SetProto& set,
 
     // reply.set_std_err("error: no such node '" + nodename + "'");
     // reply.set_retc(ENOENT);
-    if (!FsView::gFsView.RegisterNode(nodename.c_str())) {
-      reply.set_std_err("error: cannot register node <" + nodename + ">");
-      reply.set_retc(EIO);
-      return;
-    }
-  }
-
-  if (!FsView::gFsView.mNodeView[nodename]->SetConfigMember(key, status)) {
-    reply.set_std_err("error: cannot set node config value");
-    reply.set_retc(EIO);
-    return;
-  }
-
-  // set also the manager name
-  if (!FsView::gFsView.mNodeView[nodename]->SetConfigMember("manager",
-      gOFS->mMaster->GetMasterId(), true)) {
-    reply.set_std_err("error: cannot set the manager name");
-    reply.set_retc(EIO);
-    return;
-  }
-}
-
-//------------------------------------------------------------------------------
-// Execute txgw subcommand
-//------------------------------------------------------------------------------
-void NodeCmd::TxgwSubcmd(const eos::console::NodeProto_TxgwProto& txgw,
-                         eos::console::ReplyProto& reply)
-{
-  std::string nodename = txgw.node();
-  const std::string& status = txgw.node_txgw_switch();
-  std::string key = "txgw";
-
-  if (!nodename.length() || !status.length()) {
-    reply.set_std_err("error: illegal parameter");
-    reply.set_retc(EINVAL);
-    return;
-  }
-
-  if ((nodename.find(':') == std::string::npos)) {
-    nodename += ":1095"; // default eos fst port
-  }
-
-  if ((nodename.find("/eos/") == std::string::npos)) {
-    nodename.insert(0, "/eos/");
-    nodename.append("/fst");
-  }
-
-  std::string tident = mVid.tident.c_str();
-  std::string rnodename = nodename;
-  {
-    // for sss + node identification
-    rnodename.erase(0, 5);
-    size_t dpos;
-
-    if ((dpos = rnodename.find(':')) != std::string::npos) {
-      rnodename.erase(dpos);
-    }
-
-    if ((dpos = rnodename.find('.')) != std::string::npos) {
-      rnodename.erase(dpos);
-    }
-
-    size_t addpos = 0;
-
-    if ((addpos = tident.find('@')) != std::string::npos) {
-      tident.erase(0, addpos + 1);
-    }
-  }
-  eos::common::RWMutexWriteLock lock(FsView::gFsView.ViewMutex);
-  // If EOS_SKIP_SSS_HOSTNAME_MATCH env variable is set then we skip
-  // the check below as this currently breaks the Kubernetes setup.
-  bool skip_hostname_match = (getenv("EOS_SKIP_SSS_HOSTNAME_MATCH")) ? true :
-                             false;
-
-  if (mVid.uid == 0 || mVid.prot == "sss") {
-    if (mVid.uid != 0 && mVid.prot == "sss") {
-      if (!skip_hostname_match &&
-          tident.compare(0, tident.length(), rnodename, 0, tident.length())) {
-        reply.set_std_err("error: nodes can only be configured as 'root' or by "
-                          "connecting from the node itself using the sss protocol(1)");
-        reply.set_retc(EPERM);
-        return;
-      }
-    }
-  } else {
-    reply.set_std_err("error: nodes can only be configured as 'root' or by "
-                      "connecting from the node itself using the sss protocol(2)");
-    reply.set_retc(EPERM);
-    return;
-  }
-
-  if (!FsView::gFsView.mNodeView.count(nodename)) {
-    reply.set_std_out("info: creating node '" + nodename + "'");
-
     if (!FsView::gFsView.RegisterNode(nodename.c_str())) {
       reply.set_std_err("error: cannot register node <" + nodename + ">");
       reply.set_retc(EIO);

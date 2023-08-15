@@ -116,15 +116,6 @@ private:
                  eos::console::ReplyProto& reply);
 
   //----------------------------------------------------------------------------
-  //! Execute txgw subcommand
-  //!
-  //! @param txgw txgw subcommand proto object
-  //! @param reply reply proto object
-  //----------------------------------------------------------------------------
-  void TxgwSubcmd(const eos::console::NodeProto_TxgwProto& txgw,
-                  eos::console::ReplyProto& reply);
-
-  //----------------------------------------------------------------------------
   //! Execute proxygroup subcommand
   //!
   //! @param proxygroup proxygroup subcommand proto object
