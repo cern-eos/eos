@@ -636,7 +636,6 @@ FmdHandler::ResyncFileFromQdb(eos::common::FileId::fileid_t fid,
 
   // Orphan files get moved to a special directory .eosorphans
   if (ns_fmd.mProtoFmd.layouterror() & eos::common::LayoutId::kOrphan) {
-    // Also mark it as orphan in leveldb
     local_fmd->mProtoFmd.set_layouterror(LayoutId::kOrphan);
 
     if (!Commit(local_fmd.get())) {

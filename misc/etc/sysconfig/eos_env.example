@@ -164,9 +164,6 @@ EOS_NOTIFY="mail -s `date +%s`-`hostname`-eos-notify $EOS_MAIL_CC"
 # Modify the TPC key validity which by default is 120 seconds
 # EOS_FST_TPC_KEY_VALIDITY_SEC=120
 
-# Store FMD database on the same partition as the data disk
-# EOS_FST_FMD_ON_DATA_DISK=0
-
 # Control the asynchronous callback on close, if undefined or 0 then disabled,
 # else if 1 then enabled. This option is applied only for write operations.
 # EOS_FST_ASYNC_CLOSE=0
