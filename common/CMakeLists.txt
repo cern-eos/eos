@@ -238,7 +238,6 @@ if (Linux)
   target_link_libraries(EosCommonServer-Objects PUBLIC
     qclient
     XROOTD::UTILS
-    LEVELDB::LEVELDB
     PROTOBUF::PROTOBUF
     LIBMICROHTTPD::LIBMICROHTTPD)
 
