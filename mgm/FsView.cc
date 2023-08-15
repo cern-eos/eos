@@ -1349,7 +1349,6 @@ FsView::GetNodeFormat(std::string option)
     format += "member=hostport:format=os|";
     format += "member=status:format=os|";
     format += "member=cfg.status:format=os|";
-    format += "member=cfg.txgw:format=os|";
     format += "member=heartbeatdelta:format=os|";
     format += "member=nofs:format=ol|";
     format += "avg=stat.disk.load:format=of|";
@@ -1434,7 +1433,6 @@ FsView::GetNodeFormat(std::string option)
     format += "member=cfg.stat.geotag:width=16:format=s|";
     format += "member=status:width=10:format=s|";
     format += "member=cfg.status:width=12:format=s:tag=activated|";
-    format += "member=cfg.txgw:width=6:format=s|";
     format += "member=heartbeatdelta:width=16:format=s|";
     format += "member=nofs:width=5:format=s|";
     format += "sum=local.balancer.running:width=10:format=l:tag=bal-shd|";
@@ -1445,7 +1443,6 @@ FsView::GetNodeFormat(std::string option)
     format += "member=cfg.stat.geotag:width=16:format=s|";
     format += "member=status:width=10:format=s|";
     format += "member=cfg.status:width=12:format=s:tag=activated|";
-    format += "member=cfg.txgw:width=6:format=s|";
     format += "member=heartbeatdelta:width=16:format=s|";
     format += "member=nofs:width=5:format=s";
   }
@@ -2406,10 +2403,6 @@ FsView::Reset()
   mSpaceView.clear();
   mGroupView.clear();
   mNodeView.clear();
-  {
-    eos::common::RWMutexWriteLock gwlock(GwMutex);
-    mGwNodes.clear();
-  }
   mIdView.clear();
 }
 
@@ -2435,11 +2428,6 @@ FsView::Clear()
   }
 
   mFilesystemMapper.clear();
-  {
-    // Remove all gateway nodes
-    eos::common::RWMutexWriteLock wr_gw_lock(GwMutex);
-    mGwNodes.clear();
-  }
   mSpaceView.clear();
   mGroupView.clear();
   mNodeView.clear();
@@ -2713,7 +2701,6 @@ FsNode::~FsNode()
     mSubscription->detachCallback();
   }
 
-  FsView::gFsView.mGwNodes.erase(mName); // unregister evt. gateway node
   eos_static_info("msg=\"FsNode destructor\" name=\"%s\" ptr=%p",
                   mName.c_str(), this);
 }
@@ -2771,11 +2758,6 @@ FsNode::SetNodeConfigDefault()
   // Set the default debug level to notice
   if (!(GetConfigMember("debug.level").length())) {
     SetConfigMember("debug.level", "info", true);
-  }
-
-  // Set by default as no transfer gateway
-  if ((GetConfigMember("txgw") != "on") && (GetConfigMember("txgw") != "off")) {
-    SetConfigMember("txgw", "off", true);
   }
 
   // Set by default the MGM domain e.g. same geographical position as the MGM
@@ -2851,17 +2833,6 @@ BaseView::SetConfigMember(std::string key, std::string value,
 {
   bool success = mq::SharedHashWrapper(gOFS->mMessagingRealm.get(),
                                        mLocator).set(key, value);
-
-  if (key == "txgw") {
-    eos::common::RWMutexWriteLock gwlock(FsView::gFsView.GwMutex);
-
-    if (value == "on") {
-      // we have to register this queue into the gw set for fast lookups
-      FsView::gFsView.mGwNodes.insert(mLocator.getBroadcastQueue());
-    } else {
-      FsView::gFsView.mGwNodes.erase(mLocator.getBroadcastQueue());
-    }
-  }
 
   // Register in the configuration engine
   if (gOFS->mMaster->IsMaster() && (!isstatus) && FsView::gFsView.mConfigEngine) {
@@ -3239,34 +3210,6 @@ FsView::ApplyGlobalConfig(const char* key, std::string& val)
   mq::SharedHashWrapper hash(gOFS->mMessagingRealm.get(), locator);
   bool success = hash.set(tokens[1].c_str(), val.c_str());
   hash.releaseLocks();
-
-  // @todo(esindril): to be removed since there is no TransferEngine anymore
-  // Here we build a set with the gw nodes for fast lookup in the TransferEngine
-  if ((tokens[0].find("/node/")) != std::string::npos) {
-    if (tokens[1] == "txgw") {
-      std::string broadcast = "/eos/";
-      broadcast += paths[paths.size() - 1];
-      size_t dashpos = 0;
-
-      // Remote the #<variable>
-      if ((dashpos = broadcast.find("#")) != std::string::npos) {
-        broadcast.erase(dashpos);
-      }
-
-      broadcast += "/fst";
-      // The node might not yet exist!
-      FsView::gFsView.RegisterNode(broadcast.c_str());
-      eos::common::RWMutexWriteLock gwlock(GwMutex);
-
-      if (val == "on") {
-        // we have to register this queue into the gw set for fast lookups
-        FsView::gFsView.mGwNodes.insert(broadcast.c_str());
-      } else {
-        FsView::gFsView.mGwNodes.erase(broadcast.c_str());
-      }
-    }
-  }
-
   return success;
 }
 
