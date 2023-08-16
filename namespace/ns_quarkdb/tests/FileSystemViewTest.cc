@@ -943,9 +943,7 @@ TEST_F(FileSystemViewF, getFileAfterBeingRenamed) {
   std::chrono::time_point<std::chrono::steady_clock> start;
   std::chrono::time_point<std::chrono::steady_clock> stop;
   auto threadGetFile = std::thread([this,&start,&stop,&fileRenamed](){
-    while(!fileRenamed){
-      ::sleep(0.1);
-    }
+    while(!fileRenamed){}
     ASSERT_THROW(view()->getFile("/root/file1"),eos::MDException);
     start = std::chrono::steady_clock::now();
     auto file2 = view()->getFile("/root/file2");
