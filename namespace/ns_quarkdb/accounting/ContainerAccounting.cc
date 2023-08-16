@@ -102,9 +102,7 @@ QuarkContainerAccounting::QueueForUpdate(IContainerMD::id_t id, int64_t dsize)
 {
   uint16_t deepness = 0;
   std::shared_ptr<IContainerMD> cont;
-  std::lock_guard<std::mutex> scope_lock(mMutexBatch);
-  auto& batch = mBatch[mAccumulateIndx];
-
+  std::vector<IContainerMD::id_t> idsToUpdate;
   while ((id > 1) && (deepness < 255)) {
     try {
       cont = mContainerMDSvc->getContainerMD(id);
@@ -112,17 +110,22 @@ QuarkContainerAccounting::QueueForUpdate(IContainerMD::id_t id, int64_t dsize)
       // TODO (esindril): error message using default logging
       break;
     }
+    idsToUpdate.push_back(id);
+    id = cont->getParentId();
+    ++deepness;
+  }
 
-    auto it_map = batch.mMap.find(id);
+  std::lock_guard<std::mutex> scope_lock(mMutexBatch);
+  auto& batch = mBatch[mAccumulateIndx];
+
+  for(auto idToUpdate: idsToUpdate) {
+    auto it_map = batch.mMap.find(idToUpdate);
 
     if (it_map != batch.mMap.end()) {
       it_map->second += dsize;
     } else {
-      batch.mMap.emplace(id, dsize);
+      batch.mMap.emplace(idToUpdate, dsize);
     }
-
-    id = cont->getParentId();
-    ++deepness;
   }
 }
 
