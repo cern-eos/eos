@@ -37,7 +37,8 @@ EOSFSTNAMESPACE_BEGIN
 
 // Set of keys updates to be tracked at the node level
 std::set<std::string> Storage::sNodeUpdateKeys {
-  "manager", "symkey", "publish.interval", "debug.level", "error.simulation" };
+  "stat.refresh_fs", "manager", "symkey", "publish.interval",
+  "debug.level", "error.simulation" };
 
 //------------------------------------------------------------------------------
 // Get configuration value from global FST config
@@ -582,7 +583,7 @@ Storage::QdbCommunicator(ThreadAssistant& assistant)
   }
 
   if (mgm_host.empty()) {
-    eos_static_crit("%s", "msg=\"unable to obtain manager info\"");
+    eos_static_crit("%s", "msg=\"unable to obtain manager info for node\"");
     exit(1);
   }
 

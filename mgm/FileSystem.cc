@@ -41,7 +41,7 @@ FileSystem::FileSystem(const common::FileSystemLocator& locator,
                        mq::MessagingRealm* msr) :
   eos::common::FileSystem(locator, msr)
 {
-  eos_static_info("msg=\"create FileSystem\" queue_path=%s",
+  eos_static_info("msg=\"create file system\" queue_path=%s",
                   locator.getQueuePath().c_str());
 
   if (mRealm->haveQDB()) {

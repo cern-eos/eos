@@ -548,7 +548,6 @@ public:
                        bool isstatus = false);
 
 protected:
-
   common::SharedHashLocator mLocator; ///< Locator for shared hash
   std::atomic<time_t> mHeartBeat; ///< Last heartbeat time
 
@@ -694,7 +693,13 @@ public:
   //----------------------------------------------------------------------------
   void ProcessUpdateCb(qclient::SharedHashUpdate&& upd);
 
+  //----------------------------------------------------------------------------
+  //! Set refresh marker for the FST
+  //----------------------------------------------------------------------------
+  void SignalRefresh();
+
 private:
+  static std::string msRefreshTag;
   std::unique_ptr<qclient::SharedHashSubscription> mSubscription {nullptr};
 };
 
