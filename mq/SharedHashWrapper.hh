@@ -137,17 +137,6 @@ public:
   std::string get(const std::string& key);
 
   //----------------------------------------------------------------------------
-  //! Get the values for a given set of keys that are local
-  //!
-  //! @param keys vector of keys to be retrieved
-  //! @param out map of key value pairs returned
-  //!
-  //! @return false if has not found otherwise true
-  //----------------------------------------------------------------------------
-  bool getLocal(const std::vector<std::string>& keys,
-                std::map<std::string, std::string>& out);
-
-  //----------------------------------------------------------------------------
   //! Query the given key - convert to long long automatically
   //----------------------------------------------------------------------------
   long long getLongLong(const std::string& key);
