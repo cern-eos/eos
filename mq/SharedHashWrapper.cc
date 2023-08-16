@@ -238,14 +238,12 @@ bool SharedHashWrapper::get(const std::string& key, std::string& value)
 {
   if (mSharedHash) {
     return mSharedHash->get(key, value);
-  } else {
-    if (!mHash) {
-      return false;
-    }
-
+  } else if (mHash) {
     std::unique_lock lock(mHash->mMutex);
     value = mHash->Get(key.c_str());
     return true;
+  } else {
+    return false;
   }
 }
 
@@ -289,11 +287,7 @@ SharedHashWrapper::get(const std::vector<std::string>& keys,
 {
   if (mSharedHash) {
     return mSharedHash->get(keys, values);
-  } else {
-    if (!mHash) {
-      return false;
-    }
-
+  } else if (mHash) {
     std::unique_lock lock(mHash->mMutex);
     std::transform(keys.begin(), keys.end(),
                    std::inserter(values, values.end()),
@@ -301,6 +295,8 @@ SharedHashWrapper::get(const std::vector<std::string>& keys,
       return std::make_pair(key, mHash->Get(key.c_str()));
     });
     return true;
+  } else {
+    return false;
   }
 }
 
@@ -323,13 +319,11 @@ bool SharedHashWrapper::del(const std::string& key, bool broadcast)
     std::future<qclient::redisReplyPtr> reply = mSharedHash->set(updateBatch);
     reply.wait();
     return true;
-  } else {
-    if (!mHash) {
-      return false;
-    }
-
+  } else if (mHash) {
     std::unique_lock lock(mHash->mMutex);
     return mHash->Delete(key.c_str(), broadcast);
+  } else {
+    return false;
   }
 }
 
@@ -341,11 +335,13 @@ bool SharedHashWrapper::getKeys(std::vector<std::string>& out)
   if (mSharedHash) {
     out = mSharedHash->getKeys();
     return true;
+  } else if (mHash) {
+    std::unique_lock lock(mHash->mMutex);
+    out = mHash->GetKeys();
+    return true;
+  } else {
+    return false;
   }
-
-  std::unique_lock lock(mHash->mMutex);
-  out = mHash->GetKeys();
-  return true;
 }
 
 //------------------------------------------------------------------------------
@@ -356,11 +352,13 @@ bool SharedHashWrapper::getContents(std::map<std::string, std::string>& out)
   if (mSharedHash) {
     out = mSharedHash->getContents();
     return true;
+  } else if (mHash) {
+    std::unique_lock lock(mHash->mMutex);
+    out = mHash->GetContents();
+    return true;
+  } else {
+    return false;
   }
-
-  std::unique_lock lock(mHash->mMutex);
-  out = mHash->GetContents();
-  return true;
 }
 
 //------------------------------------------------------------------------------
@@ -380,34 +378,6 @@ bool SharedHashWrapper::deleteHash(mq::MessagingRealm* realm,
 bool SharedHashWrapper::deleteHash()
 {
   return mSom->DeleteSharedHash(mLocator.getConfigQueue().c_str(), true);
-}
-
-//------------------------------------------------------------------------------
-// @todo(esindril) this needs to be removed as there is not added benefit
-//                 in comparision to simple get that already gives precedence
-//                 to local entries
-// Get the values for a given set of keys that are local
-//------------------------------------------------------------------------------
-bool
-SharedHashWrapper::getLocal(const std::vector<std::string>& keys,
-                            std::map<std::string, std::string>& out)
-{
-  if (mSharedHash) {
-    mSharedHash->getLocal(keys, out);
-    return true;
-  } else {
-    if (!mHash) {
-      return false;
-    }
-
-    std::unique_lock lock(mHash->mMutex);
-
-    for (const auto& key : keys) {
-      out.emplace(key, mHash->Get(key.c_str()));
-    }
-
-    return true;
-  }
 }
 
 EOSMQNAMESPACE_END
