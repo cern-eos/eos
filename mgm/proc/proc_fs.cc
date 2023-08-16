@@ -584,7 +584,7 @@ proc_fs_add(mq::MessagingRealm* realm, std::string& sfsid, std::string& uuid,
   }
 
   eos::common::RWMutexWriteLock fs_wr_lock(FsView::gFsView.ViewMutex);
-  // queuepath = /eos/<host:port><path>
+  // queuepath = /eos/<host:port>/<path>
   std::string queuepath = nodename;
   queuepath += mountpoint;
   common::FileSystemLocator locator;
@@ -731,8 +731,8 @@ proc_fs_add(mq::MessagingRealm* realm, std::string& sfsid, std::string& uuid,
 
   if (fsid) {
     if (!FsView::gFsView.ProvideMapping(uuid, fsid)) {
-      eos_static_err("msg=\"conflict registering file system uuid/id\""
-                     "uuid=%s fsid=%lu", uuid.c_str(), fsid);
+      eos_static_err("msg=\"conflict registering file system id/uuid\""
+                     "fsid=%lu uuid=%s", fsid, uuid.c_str());
       stdErr += "error: conflict adding your uuid/fsid mapping";
       return EINVAL;
     } else {

@@ -55,6 +55,7 @@ EOSMGMNAMESPACE_BEGIN
 
 FsView FsView::gFsView;
 std::atomic<bool> FsSpace::gDisableDefaults {false};
+std::string FsNode::msRefreshTag {"stat.refresh_fs"};
 
 
 //------------------------------------------------------------------------------
@@ -1823,109 +1824,116 @@ FsView::Register(FileSystem* fs, const common::FileSystemCoreParams& coreParams,
 
   eos::common::FileSystem::fs_snapshot_t snapshot;
 
-  if (fs->SnapShotFileSystem(snapshot)) {
-    // Check if this is already in the view
-    if (mIdView.lookupByPtr(fs) != 0) {
-      // This filesystem is already there, this might be an update
-      eos::common::FileSystem::fsid_t fsid = mIdView.lookupByPtr(fs);
+  if (!fs->SnapShotFileSystem(snapshot)) {
+    eos_err("msg=\"failed to snapshot file system, abort registration\" "
+            " qpath=\"%s\"", coreParams.getQueuePath().c_str());
+    return false;
+  }
 
-      if (fsid != coreParams.getId()) {
-        // Remove previous mapping
-        mIdView.eraseById(fsid);
-        // Setup new two way mapping
-        mIdView.registerFileSystem(coreParams.getLocator(), coreParams.getId(), fs);
-        eos_debug("updating mapping %u<=>%lld", coreParams.getId(), fs);
-      }
-    } else {
+  // Check if this is already in the view
+  if (mIdView.lookupByPtr(fs) != 0) {
+    // This filesystem is already there, this might be an update
+    eos::common::FileSystem::fsid_t fsid = mIdView.lookupByPtr(fs);
+
+    if (fsid != coreParams.getId()) {
+      // Remove previous mapping
+      mIdView.eraseById(fsid);
+      // Setup new two way mapping
       mIdView.registerFileSystem(coreParams.getLocator(), coreParams.getId(), fs);
-      eos_debug("registering mapping %u<=>%lld", coreParams.getId(), fs);
+      eos_debug("msg=\"updating mapping\" fsid=%lu fs_ptr=%x",
+                coreParams.getId(), fs);
     }
+  } else {
+    mIdView.registerFileSystem(coreParams.getLocator(), coreParams.getId(), fs);
+    eos_debug("msg=\"registering mapping\" fsid=%lu fs_ptr=%x",
+              coreParams.getId(), fs);
+  }
 
-    // Align view by nodename (= MQ queue) e.g. /eos/<host>:<port>/fst
-    // Check if we have already a node view
-    if (mNodeView.count(coreParams.getFSTQueue())) {
-      mNodeView[coreParams.getFSTQueue()]->insert(coreParams.getId());
-      eos_debug("inserting into node view %s<=>%u", coreParams.getFSTQueue().c_str(),
-                coreParams.getId());
+  // Align view by nodename (= MQ queue) e.g. /eos/<host>:<port>/fst
+  // Check if we have already a node view
+  if (mNodeView.count(coreParams.getFSTQueue())) {
+    mNodeView[coreParams.getFSTQueue()]->insert(coreParams.getId());
+    eos_debug("msg=\"inserting into node view\" fst_queue=\"%s\" fsid=%lu",
+              coreParams.getFSTQueue().c_str(), coreParams.getId());
+  } else {
+    FsNode* node = new FsNode(coreParams.getFSTQueue().c_str());
+    mNodeView[coreParams.getFSTQueue()] = node;
+    node->insert(coreParams.getId());
+    node->SetNodeConfigDefault();
+    eos_debug("msg=\"creating new node and inserting\" fst_queue=\"%s\" "
+              "fsid=%lu", coreParams.getFSTQueue().c_str(),
+              coreParams.getId());
+  }
+
+  // Align view by groupname
+  if (mGroupView.count(coreParams.getGroup())) {
+    mGroupView[coreParams.getGroup()]->insert(coreParams.getId());
+    eos_debug("msg=\"inserting into group view\" group=%s fsid=%lu",
+              coreParams.getGroup().c_str(), coreParams.getId());
+  } else {
+    FsGroup* group = new FsGroup(coreParams.getGroup().c_str());
+    mGroupView[coreParams.getGroup()] = group;
+    group->insert(coreParams.getId());
+    group->mIndex = coreParams.getGroupLocator().getIndex();
+    eos_debug("msg=\"creating and inserting into group view\" group=%s "
+              "fsid=%lu", coreParams.getGroup().c_str(), coreParams.getId());
+  }
+
+  if (registerInGeoTreeEngine &&
+      !gOFS->mGeoTreeEngine->insertFsIntoGroup(fs, mGroupView[coreParams.getGroup()],
+          coreParams)) {
+    // Roll back the changes
+    if (UnRegister(fs, false)) {
+      eos_err("msg=\"could not insert insert fs %u into GeoTreeEngine : "
+              "fs was unregistered and consistency is KEPT between FsView "
+              "and GeoTreeEngine", coreParams.getId());
     } else {
-      FsNode* node = new FsNode(coreParams.getFSTQueue().c_str());
-      mNodeView[coreParams.getFSTQueue()] = node;
-      node->insert(coreParams.getId());
-      node->SetNodeConfigDefault();
-      eos_debug("creating/inserting into node view %s<=>%u",
-                coreParams.getFSTQueue().c_str(),
-                coreParams.getId());
+      eos_crit("msg=\"could not insert insert fs %u into GeoTreeEngine: "
+               "fs could not be unregistered and consistency is BROKEN "
+               "between FsView and GeoTreeEngine\"", coreParams.getId());
     }
 
-    // Align view by groupname
-    // Check if we have already a group view
-    if (mGroupView.count(coreParams.getGroup())) {
-      mGroupView[coreParams.getGroup()]->insert(coreParams.getId());
-      eos_debug("inserting into group view %s<=>%u", coreParams.getGroup().c_str(),
-                coreParams.getId());
-    } else {
-      FsGroup* group = new FsGroup(coreParams.getGroup().c_str());
-      mGroupView[coreParams.getGroup()] = group;
-      group->insert(coreParams.getId());
-      group->mIndex = coreParams.getGroupLocator().getIndex();
-      eos_debug("creating/inserting into group view %s<=>%u",
-                coreParams.getGroup().c_str(),
-                coreParams.getId());
+    return false;
+  }
+
+  mSpaceGroupView[coreParams.getSpace()].insert
+  (mGroupView[coreParams.getGroup()]);
+
+  // Align view by spacename
+  if (mSpaceView.count(coreParams.getSpace())) {
+    mSpaceView[coreParams.getSpace()]->insert(coreParams.getId());
+    eos_debug("msg=\"inserting into space view\" space=%s "
+              "fsid=%lu fs_ptr=%x", coreParams.getSpace().c_str(),
+              coreParams.getId(), fs);
+  } else {
+    FsSpace* space = new FsSpace(coreParams.getSpace().c_str());
+    std::string grp_sz = "0";
+    std::string grp_mod = "24";
+
+    // Special case of spare space with has size 0 and mod 0
+    if (coreParams.getSpace() == eos::common::EOS_SPARE_GROUP) {
+      grp_mod = "0";
     }
 
-    if (registerInGeoTreeEngine &&
-        !gOFS->mGeoTreeEngine->insertFsIntoGroup(fs, mGroupView[coreParams.getGroup()],
-            coreParams)) {
-      // Roll back the changes
-      if (UnRegister(fs, false)) {
-        eos_err("could not insert insert fs %u into GeoTreeEngine : fs was "
-                "unregistered and consistency is KEPT between FsView and "
-                "GeoTreeEngine", coreParams.getId());
-      } else {
-        eos_crit("could not insert insert fs %u into GeoTreeEngine : fs could "
-                 "not be unregistered and consistency is BROKEN between FsView "
-                 "and GeoTreeEngine", coreParams.getId());
-      }
-
+    // Set new space default parameters
+    if ((!space->SetConfigMember(std::string("groupsize"), grp_sz, true)) ||
+        (!space->SetConfigMember(std::string("groupmod"), grp_mod, true))) {
+      eos_err("msg=\"failed setting space default config\" space=%s",
+              coreParams.getSpace().c_str());
       return false;
     }
 
-    mSpaceGroupView[coreParams.getSpace()].insert(
-      mGroupView[coreParams.getGroup()]);
-
-    // Align view by spacename
-    // Check if we have already a space view
-    if (mSpaceView.count(coreParams.getSpace())) {
-      mSpaceView[coreParams.getSpace()]->insert(coreParams.getId());
-      eos_debug("inserting into space view %s<=>%u %x", coreParams.getSpace().c_str(),
-                coreParams.getId(), fs);
-    } else {
-      FsSpace* space = new FsSpace(coreParams.getSpace().c_str());
-      std::string grp_sz = "0";
-      std::string grp_mod = "24";
-
-      // Special case of spare space with has size 0 and mod 0
-      if (coreParams.getSpace() == eos::common::EOS_SPARE_GROUP) {
-        grp_mod = "0";
-      }
-
-      // Set new space default parameters
-      if ((!space->SetConfigMember(std::string("groupsize"), grp_sz, true)) ||
-          (!space->SetConfigMember(std::string("groupmod"), grp_mod, true))) {
-        eos_err("failed setting space %s default config values",
-                coreParams.getSpace().c_str());
-        return false;
-      }
-
-      mSpaceView[coreParams.getSpace()] = space;
-      space->insert(coreParams.getId());
-      eos_debug("creating/inserting into space view %s<=>%u %x",
-                coreParams.getSpace().c_str(), coreParams.getId(), fs);
-    }
+    mSpaceView[coreParams.getSpace()] = space;
+    space->insert(coreParams.getId());
+    eos_debug("msg=\"creating and inserting into space view\" space=%s "
+              "fsid=%lu fs_ptr=%x", coreParams.getSpace().c_str(),
+              coreParams.getId(), fs);
   }
 
   fs->applyCoreParams(coreParams);
   StoreFsConfig(fs);
+  // Trigger a refresh for the FST node which for sure exists
+  mNodeView[coreParams.getFSTQueue()]->SignalRefresh();
   return true;
 }
 
@@ -2090,7 +2098,7 @@ FsView::UnRegister(FileSystem* fs, bool unreg_from_geo_tree,
   }
 
   // Delete in the configuration engine
-  std::string key = fs->GetQueuePath();
+  const std::string key = fs->GetQueuePath();
 
   if (gOFS->mMaster->IsMaster() && FsView::gFsView.mConfigEngine) {
     FsView::gFsView.mConfigEngine->DeleteConfigValue("fs", key.c_str());
@@ -2098,81 +2106,98 @@ FsView::UnRegister(FileSystem* fs, bool unreg_from_geo_tree,
 
   eos::common::FileSystem::fs_snapshot_t snapshot;
 
-  if (fs->SnapShotFileSystem(snapshot)) {
-    // Remove fs from node view & evt. remove node view
-    if (mNodeView.count(snapshot.mQueue)) {
-      FsNode* node = mNodeView[snapshot.mQueue];
-      node->erase(snapshot.mId);
-
-      if (node->size() == 0) {
-        eos_debug("unregister node %s from node view", node->GetMember("name").c_str());
-        mNodeView.erase(snapshot.mQueue);
-        delete node;
-      }
-    }
-
-    // Remove fs from group view & evt. remove group view
-    if (mGroupView.count(snapshot.mGroup)) {
-      FsGroup* group = mGroupView[snapshot.mGroup];
-
-      if (unreg_from_geo_tree
-          && !gOFS->mGeoTreeEngine->removeFsFromGroup(fs, group, false)) {
-        if (Register(fs, fs->getCoreParams(), false)) {
-          eos_err("could not remove fs %u from GeoTreeEngine : fs was "
-                  "registered back and consistency is KEPT between FsView "
-                  "and GeoTreeEngine", snapshot.mId);
-        } else {
-          eos_crit("could not remove fs %u from GeoTreeEngine : fs could not "
-                   "be registered back and consistency is BROKEN between "
-                   "FsView and GeoTreeEngine", snapshot.mId);
-        }
-
-        return false;
-      }
-
-      group->erase(snapshot.mId);
-      eos_debug("msg=\"unregister group %s from group view\"",
-                group->GetMember("name").c_str());
-
-      if (!group->size()) {
-        mSpaceGroupView[snapshot.mSpace].erase(mGroupView[snapshot.mGroup]);
-        mGroupView.erase(snapshot.mGroup);
-        delete group;
-      }
-    }
-
-    // Remove fs from space view & evt. remove space view
-    if (mSpaceView.count(snapshot.mSpace)) {
-      FsSpace* space = mSpaceView[snapshot.mSpace];
-      space->erase(snapshot.mId);
-      eos_debug("msg=\"unregister space %s from space view\"",
-                space->GetMember("name").c_str());
-
-      if (!space->size()) {
-        mSpaceView.erase(snapshot.mSpace);
-        delete space;
-      }
-    }
-
-    // Remove view by filesystem object and filesystem id
-    if (!mIdView.eraseByPtr(fs)) {
-      eos_static_crit("msg=\"no such file system to unregister\" ptr=%x fsid=%lu",
-                      fs,  snapshot.mId);
-    }
-
-    // Remove mapping
-    RemoveMapping(snapshot.mId, snapshot.mUuid);
-
-    // Notify the FST to delete the fs object from local maps
-    if (notify_fst) {
-      fs->DeleteSharedHash();
-    }
-
-    delete fs;
-    return true;
+  if (!fs->SnapShotFileSystem(snapshot)) {
+    eos_err("msg=\"failed to snapshot file system, abort deregistration\" "
+            " qpath=\"%s\"", key.c_str());
+    return false;
   }
 
-  return false;
+  // Remove fs from node view & evt. remove node view
+  if (mNodeView.count(snapshot.mQueue)) {
+    FsNode* node = mNodeView[snapshot.mQueue];
+    node->erase(snapshot.mId);
+
+    // @todo(esindril) delay node detition until FST removal is done and notified
+    if (node->size() == 0) {
+      eos_debug("msg=\"unregister node %s from node view\"",
+                node->GetMember("name").c_str());
+      mNodeView.erase(snapshot.mQueue);
+      delete node;
+    }
+  }
+
+  // Remove fs from group view & evt. remove group view
+  if (mGroupView.count(snapshot.mGroup)) {
+    FsGroup* group = mGroupView[snapshot.mGroup];
+
+    if (unreg_from_geo_tree
+        && !gOFS->mGeoTreeEngine->removeFsFromGroup(fs, group, false)) {
+      if (Register(fs, fs->getCoreParams(), false)) {
+        eos_err("could not remove fs %u from GeoTreeEngine : fs was "
+                "registered back and consistency is KEPT between FsView "
+                "and GeoTreeEngine", snapshot.mId);
+      } else {
+        eos_crit("could not remove fs %u from GeoTreeEngine : fs could not "
+                 "be registered back and consistency is BROKEN between "
+                 "FsView and GeoTreeEngine", snapshot.mId);
+      }
+
+      return false;
+    }
+
+    group->erase(snapshot.mId);
+    eos_debug("msg=\"unregister group %s from group view\"",
+              group->GetMember("name").c_str());
+
+    if (!group->size()) {
+      mSpaceGroupView[snapshot.mSpace].erase(mGroupView[snapshot.mGroup]);
+      mGroupView.erase(snapshot.mGroup);
+      delete group;
+    }
+  }
+
+  // Remove fs from space view & evt. remove space view
+  if (mSpaceView.count(snapshot.mSpace)) {
+    FsSpace* space = mSpaceView[snapshot.mSpace];
+    space->erase(snapshot.mId);
+    eos_debug("msg=\"unregister space %s from space view\"",
+              space->GetMember("name").c_str());
+
+    if (!space->size()) {
+      mSpaceView.erase(snapshot.mSpace);
+      delete space;
+    }
+  }
+
+  // Remove view by filesystem object and filesystem id
+  if (!mIdView.eraseByPtr(fs)) {
+    eos_static_crit("msg=\"no such fs to unregister\" fsid=%lu fs_ptr=%x",
+                    snapshot.mId, fs);
+  }
+
+  // Remove mapping
+  RemoveMapping(snapshot.mId, snapshot.mUuid);
+
+  // Notify the FST to delete the fs object from local maps
+  if (notify_fst) {
+    fs->DeleteSharedHash();
+  }
+
+  // Eventually delete the node
+  if (mNodeView.count(snapshot.mQueue)) {
+    FsNode* node = mNodeView[snapshot.mQueue];
+    node->SignalRefresh();
+
+    if (node->size() == 0) {
+      eos_debug("msg=\"unregister node %s from node view\"",
+                node->GetMember("name").c_str());
+      mNodeView.erase(snapshot.mQueue);
+      delete node;
+    }
+  }
+
+  delete fs;
+  return true;
 }
 
 //------------------------------------------------------------------------------
@@ -2235,8 +2260,9 @@ FsView::UnRegisterNode(const char* nodename)
 
       if (fs) {
         has_fs = true;
-        eos_static_debug("Unregister filesystem fsid=%llu node=%s queue=%s",
-                         (unsigned long long) fsid, nodename, fs->GetQueue().c_str());
+        eos_static_debug("msg=\"unregister filesystem\" fsid=%llu node=%s "
+                         "queue=%s", (unsigned long long) fsid, nodename,
+                         fs->GetQueue().c_str());
         retc |= UnRegister(fs);
       }
     }
@@ -2288,8 +2314,9 @@ FsView::UnRegisterSpace(const char* spacename)
 
       if (fs) {
         has_fs = true;
-        eos_static_debug("Unregister filesystem fsid=%llu space=%s queue=%s",
-                         (unsigned long long) fsid, spacename, fs->GetQueue().c_str());
+        eos_static_debug("msg=\"unregister filesystem \"fsid=%llu space=%s "
+                         "queue=%s", (unsigned long long) fsid, spacename,
+                         fs->GetQueue().c_str());
         retc |= UnRegister(fs);
       }
 
@@ -2349,8 +2376,9 @@ FsView::UnRegisterGroup(const char* groupname)
 
       if (fs) {
         has_fs = true;
-        eos_static_debug("Unregister filesystem fsid=%llu group=%s queue=%s",
-                         (unsigned long long) fsid, groupname, fs->GetQueue().c_str());
+        eos_static_debug("msg=\"unregister filesystem fsid=%llu group=%s "
+                         "queue=%s", (unsigned long long) fsid, groupname,
+                         fs->GetQueue().c_str());
         retc |= UnRegister(fs);
       }
     }
@@ -2725,6 +2753,17 @@ FsNode::ProcessUpdateCb(qclient::SharedHashUpdate&& upd)
 }
 
 //------------------------------------------------------------------------------
+// Set refresh marker for the FSTs
+//------------------------------------------------------------------------------
+void
+FsNode::SignalRefresh()
+{
+  const auto ts_ms = std::chrono::duration_cast<std::chrono::milliseconds>
+                     (std::chrono::steady_clock::now().time_since_epoch()).count();
+  SetConfigMember(msRefreshTag, std::to_string(ts_ms), true);
+}
+
+//------------------------------------------------------------------------------
 // Set the configuration default values for a node
 //------------------------------------------------------------------------------
 void
@@ -2737,11 +2776,13 @@ FsNode::SetNodeConfigDefault()
     SetConfigMember("manager", gOFS->mMaster->GetMasterId(), true);
   }
 
+  // @todo(esindril) to be remove in 5.2.1
   // By default set 2 balancing streams per node
   if (!(GetConfigMember("stat.balance.ntx").length())) {
     SetConfigMember("stat.balance.ntx", "2", true);
   }
 
+  // @todo(esindril) to be remove in 5.2.1
   // By default set 25 MB/s stream balancing rate
   if (!(GetConfigMember("stat.balance.rate").length())) {
     SetConfigMember("stat.balance.rate", "25", true);
@@ -2812,7 +2853,8 @@ FsNode::SetActiveStatus(eos::common::ActiveStatus active)
 //------------------------------------------------------------------------------
 // Check if node has a recent enough heartbeat ie. less then 60 seconds
 //------------------------------------------------------------------------------
-bool FsNode::HasHeartbeat() const
+bool
+FsNode::HasHeartbeat() const
 {
   if (mHeartBeat == 0) {
     return false;
@@ -3087,7 +3129,7 @@ FsView::ApplyFsConfig(const char* inkey, const std::string& val,
     return false;
   }
 
-  const auto it = configmap.find("id");
+  auto it = configmap.find("id");
 
   if (it == configmap.end()) {
     eos_static_err("msg=\"missing id from fs config entry\" value=\"%s\"",
@@ -3095,14 +3137,22 @@ FsView::ApplyFsConfig(const char* inkey, const std::string& val,
     return false;
   }
 
-  eos::common::FileSystem::fsid_t fsid =
-    eos::common::FileSystem::ConvertToFsid(it->second);
+  FileSystem::fsid_t fsid = common::FileSystem::ConvertToFsid(it->second);
 
   if (fsid == 0ul) {
     eos_static_err("msg=\"no such fsid 0\" value=\"%s\"", it->second.c_str());
     return false;
   }
 
+  it = configmap.find("uuid");
+
+  if (it == configmap.end()) {
+    eos_static_err("msg=\"missing uuid from fs config entry\" value=\"%s\"",
+                   val.c_str());
+    return false;
+  }
+
+  const std::string uuid = it->second;
   FileSystem* fs = FsView::gFsView.mIdView.lookupByID(fsid);
 
   if (first_unregister && fs) {
@@ -3116,12 +3166,18 @@ FsView::ApplyFsConfig(const char* inkey, const std::string& val,
 
   // Apply only the registration for a new filesystem if it does not exist
   if (fs == nullptr) {
+    if (!ProvideMapping(uuid, fsid)) {
+      eos_err("msg=\"conflict registering file system id/uuid\""
+              "fsid=%lu uuid=%s", fsid, uuid.c_str());
+      return false;
+    }
+
     fs = new FileSystem(locator, gOFS->mMessagingRealm.get());
   }
 
   common::FileSystemUpdateBatch batch;
   batch.setId(fsid);
-  batch.setStringDurable("uuid", configmap["uuid"]);
+  batch.setStringDurable("uuid", uuid);
 
   for (auto it = configmap.begin(); it != configmap.end(); it++) {
     // Set config parameters except for the "configstatus" which can trigger a
@@ -3141,13 +3197,19 @@ FsView::ApplyFsConfig(const char* inkey, const std::string& val,
   }
 
   if (!Register(fs, fs->getCoreParams())) {
-    eos_err("msg=\"cannot register filesystem name=%s from configuration\"",
+    eos_err("msg=\"cannot register filesystem from config\" queuepath=\"%s\"",
             configmap["queuepath"].c_str());
+
+    if (RemoveMapping(fsid, uuid)) {
+      eos_info("msg=\"remove mapping\" fsid=%lu uuid=%s", fsid, uuid.c_str());
+    } else {
+      eos_err("msg=\"failed to remove mapping\" fsid=%lu uuid=%s",
+              fsid, uuid.c_str());
+    }
+
     return false;
   }
 
-  // insert into the mapping
-  FsView::gFsView.ProvideMapping(configmap["uuid"], fsid);
   return true;
 }
 
