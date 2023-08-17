@@ -824,14 +824,15 @@ XrdFstOfs::Configure(XrdSysError& Eroute, XrdOucEnv* envP)
 
   mMessagingRealm.reset(new mq::MessagingRealm(&ObjectManager, &ObjectNotifier,
                         &XrdMqMessaging::gMessageClient, qsm));
-  ObjectNotifier.SetShareObjectManager(&ObjectManager);
-
-  if (!ObjectNotifier.Start()) {
-    eos_crit("%s", "msg=\"error starting the shared object change notifier\"");
-    return 1;
-  }
 
   if (!mMessagingRealm->haveQDB()) {
+    ObjectNotifier.SetShareObjectManager(&ObjectManager);
+
+    if (!ObjectNotifier.Start()) {
+      eos_crit("%s", "msg=\"error starting the shared object change notifier\"");
+      return 1;
+    }
+
     // Create the specific listener class when running with MQ
     mFstMessaging = new eos::fst::Messaging(gConfig.FstOfsBrokerUrl.c_str(),
                                             gConfig.FstDefaultReceiverQueue.c_str(),
