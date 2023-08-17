@@ -1974,7 +1974,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
     mFsMonitorTid.reset(&XrdMgmOfs::FileSystemMonitorThread, this);
   }
 
-  if (!ObjectNotifier.Start()) {
+  if (!mMessagingRealm->haveQDB() && !ObjectNotifier.Start()) {
     eos_static_crit("error starting the shared object change notifier");
   }
 
