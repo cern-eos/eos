@@ -195,7 +195,7 @@ void XrdMgmOfs::FileSystemMonitorThread(ThreadAssistant& assistant) noexcept
     mMessagingRealm->GetFsChangeListener("filesystem-listener-thread");
   FsView::gFsView.AddFsChangeListener(fs_listener, {"stat.errc", "stat.geotag"});
 
-  if (fs_listener->startListening()) {
+  if (!fs_listener->startListening()) {
     eos_static_crit("%s", "msg=\"unspecified problem when attempting to "
                     "subscribe to filesystem key changes\"");
   }
