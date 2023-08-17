@@ -51,10 +51,10 @@ if(NOT PACKAGEONLY)
   find_package(jemalloc)
   find_package(RocksDB)
   find_package(absl REQUIRED)
-  
+  find_package(zstd REQUIRED) # Needed for libbfd/sframe in newer binutils
+
   # Add extra requirements that come from RocksDB
   if (ROCKSDB_FOUND)
-    find_package(zstd REQUIRED)
     find_package(lz4 REQUIRED)
     target_link_libraries(ROCKSDB::ROCKSDB INTERFACE ZSTD::ZSTD LZ4::LZ4)
   endif()
