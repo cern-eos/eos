@@ -617,7 +617,7 @@ void com_ns_help()
       << std::endl
       << "  ns update_quotanode <path>|cid:<decimal_id>|cxid:<hex_id> uid:<uid>|gid:<gid> bytes:<bytes> physicalbytes:<bytes> inodes:<inodes>"
       << std::endl
-      << "    recompute the specified quotanode"
+      << "    update the specified quotanode, with the specified (and unchecked) values"
       << std::endl
       << std::endl
       << "  ns cache set|drop [-d|-f] [<max_num>] [<max_size>K|M|G...]" << std::endl
