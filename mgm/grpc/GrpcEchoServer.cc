@@ -18,8 +18,49 @@ using grpc::ServerWriter;
 using grpc::Status;
 using eos::echo::service::EchoService;
 using eos::echo::service::SimpleMessage;
+using eos::console::AccessProto;
 using eos::console::AclProto;
+using eos::console::ArchiveProto;
+using eos::console::AttrProto;
+using eos::console::BackupProto;
+using eos::console::ChmodProto;
+using eos::console::ChownProto;
+using eos::console::ConfigProto;
+using eos::console::ConfigProto;
+using eos::console::ConvertProto;
+using eos::console::CpProto;
+using eos::console::DebugProto;
+using eos::console::FileProto;
+using eos::console::FileinfoProto;
+using eos::console::FsProto;
+using eos::console::FsckProto;
+using eos::console::GeoschedProto;
+using eos::console::GroupProto;
+using eos::console::HealthProto;
+using eos::console::MapProto;
+using eos::console::MemberProto;
+using eos::console::IoProto;
+using eos::console::MkdirProto;
+using eos::console::MoveProto;
+using eos::console::NodeProto;
+using eos::console::NsProto;
+using eos::console::QoSProto;
+using eos::console::QuotaProto;
+using eos::console::RecycleProto;
 using eos::console::ReplyProto;
+using eos::console::RmProto;
+using eos::console::RmdirProto;
+using eos::console::RouteProto;
+using eos::console::SpaceProto;
+using eos::console::StagerRmProto;
+using eos::console::StatProto;
+using eos::console::StatusProto;
+using eos::console::TokenProto;
+using eos::console::TouchProto;
+using eos::console::VersionProto;
+using eos::console::VidProto;
+using eos::console::WhoProto;
+using eos::console::WhoamiProto;
 
 #endif
 
@@ -32,10 +73,6 @@ class EchoServiceImpl final : public EchoService::Service, public eos::common::L
   Status Echo(ServerContext* context, const SimpleMessage* request,
                SimpleMessage* reply) override
   {
-    // std::string json_out;
-    // (void) google::protobuf::util::MessageToJsonString(*request, &json_out);
-    // eos_static_info("msg=\"received echo request\" data=\"%s\"", json_out.c_str());
-    
     reply->CopyFrom(*request);
     return Status::OK;
   }
@@ -48,36 +85,290 @@ class EchoServiceImpl final : public EchoService::Service, public eos::common::L
   }
 
   Status AclRequest(ServerContext* context, const AclProto* request,
-                  ReplyProto* reply) override
+                    ReplyProto* reply) override
   {
-    // std::string json_out;
-    // (void) google::protobuf::util::MessageToJsonString(*request, &json_out);
-    // eos_static_info("msg=\"received acl request\" data=\"%s\"", json_out.c_str());
-
     GrpcEchoInterface echoInterface;
     return echoInterface.AclCall(request, reply);
   }
 
   Status AccessRequest(ServerContext* context, const AccessProto* request,
-                  ReplyProto* reply) override
+                        ReplyProto* reply) override
   {
-    // std::string json_out;
-    // (void) google::protobuf::util::MessageToJsonString(*request, &json_out);
-    // eos_static_info("msg=\"received access request\" data=\"%s\"", json_out.c_str());
-
     GrpcEchoInterface echoInterface;
     return echoInterface.AccessCall(request, reply);
+  }
+
+  Status ArchiveRequest(ServerContext* context, const ArchiveProto* request,
+                        ReplyProto* reply) override
+  {
+    GrpcEchoInterface echoInterface;
+    return echoInterface.ArchiveCall(request, reply);
   }
 
   Status AttrRequest(ServerContext* context, const AttrProto* request,
                   ReplyProto* reply) override
   {
-    // std::string json_out;
-    // (void) google::protobuf::util::MessageToJsonString(*request, &json_out);
-    // eos_static_info("msg=\"received attr request\" data=\"%s\"", json_out.c_str());
-
     GrpcEchoInterface echoInterface;
     return echoInterface.AttrCall(request, reply);
+  }
+
+  Status BackupRequest(ServerContext* context, const BackupProto* request,
+                        ReplyProto* reply) override
+  {
+    GrpcEchoInterface echoInterface;
+    return echoInterface.BackupCall(request, reply);
+  }
+
+  Status ChmodRequest(ServerContext* context, const ChmodProto* request,
+                  ReplyProto* reply) override
+  {
+    GrpcEchoInterface echoInterface;
+    return echoInterface.ChmodCall(request, reply);
+  }
+
+  Status ChownRequest(ServerContext* context, const ChownProto* request,
+                      ReplyProto* reply) override
+  {
+    GrpcEchoInterface echoInterface;
+    return echoInterface.ChownCall(request, reply);
+  }
+
+  Status ConfigRequest(ServerContext* context, const ConfigProto* request,
+                        ReplyProto* reply) override
+  {
+    GrpcEchoInterface echoInterface;
+    return echoInterface.ConfigCall(request, reply);
+  }
+
+  Status ConvertRequest(ServerContext* context, const ConvertProto* request,
+                        ReplyProto* reply) override
+  {
+    GrpcEchoInterface echoInterface;
+    return echoInterface.ConvertCall(request, reply);
+  }
+
+  Status CpRequest(ServerContext* context, const CpProto* request,
+                    ReplyProto* reply) override
+  {
+    GrpcEchoInterface echoInterface;
+    return echoInterface.CpCall(request, reply);
+  }
+
+  Status DebugRequest(ServerContext* context, const DebugProto* request,
+                      ReplyProto* reply) override
+  {
+    GrpcEchoInterface echoInterface;
+    return echoInterface.DebugCall(request, reply);
+  }
+
+  Status FileRequest(ServerContext* context, const FileProto* request,
+                      ReplyProto* reply)
+  {
+    GrpcEchoInterface echoInterface;
+    return echoInterface.FileCall(request, reply);
+  }
+
+  Status FileinfoRequest(ServerContext* context, const FileinfoProto* request,
+                          ReplyProto* reply)
+  {
+    GrpcEchoInterface echoInterface;
+    return echoInterface.FileinfoCall(request, reply);
+  }
+
+  Status FsRequest(ServerContext* context, const FsProto* request,
+                    ReplyProto* reply)
+  {
+    GrpcEchoInterface echoInterface;
+    return echoInterface.FsCall(request, reply);
+  }
+
+  Status FsckRequest(ServerContext* context, const FsckProto* request,
+                      ReplyProto* reply)
+  {
+    GrpcEchoInterface echoInterface;
+    return echoInterface.FsckCall(request, reply);
+  }
+
+  Status GeoschedRequest(ServerContext* context, const GeoschedProto* request,
+                          ReplyProto* reply)
+  {
+    GrpcEchoInterface echoInterface;
+    return echoInterface.GeoschedCall(request, reply);
+  }
+
+  Status GroupRequest(ServerContext* context, const GroupProto* request,
+                      ReplyProto* reply) override
+  {
+    GrpcEchoInterface echoInterface;
+    return echoInterface.GroupCall(request, reply);
+  }
+
+  Status HealthRequest(ServerContext* context, const HealthProto* request,
+                    ReplyProto* reply) override
+  {
+    GrpcEchoInterface echoInterface;
+    return echoInterface.HealthCall(request, reply);
+  }
+
+  Status IoRequest(ServerContext* context, const IoProto* request,
+                    ReplyProto* reply) override
+  {
+    GrpcEchoInterface echoInterface;
+    return echoInterface.IoCall(request, reply);
+  }
+
+  Status MapRequest(ServerContext* context, const MapProto* request,
+                    ReplyProto* reply) override
+  {
+    GrpcEchoInterface echoInterface;
+    return echoInterface.MapCall(request, reply);
+  }
+
+  Status MemberRequest(ServerContext* context, const MemberProto* request,
+                        ReplyProto* reply) override
+  {
+    GrpcEchoInterface echoInterface;
+    return echoInterface.MemberCall(request, reply);
+  }
+
+  Status MkdirRequest(ServerContext* context, const MkdirProto* request,
+                      ReplyProto* reply) override
+  {
+    GrpcEchoInterface echoInterface;
+    return echoInterface.MkdirCall(request, reply);
+  }
+
+  Status MvRequest(ServerContext* context, const MoveProto* request,
+                    ReplyProto* reply) override
+  {
+    GrpcEchoInterface echoInterface;
+    return echoInterface.MvCall(request, reply);
+  }
+
+  Status NodeRequest(ServerContext* context, const NodeProto* request,
+                    ReplyProto* reply) override
+  {
+    GrpcEchoInterface echoInterface;
+    return echoInterface.NodeCall(request, reply);
+  }
+
+  Status NsRequest(ServerContext* context, const NsProto* request,
+                    ReplyProto* reply) override
+  {
+    GrpcEchoInterface echoInterface;
+    return echoInterface.NsCall(request, reply);
+  }
+
+  Status QoSRequest(ServerContext* context, const QoSProto* request,
+                    ReplyProto* reply) override
+  {
+    GrpcEchoInterface echoInterface;
+    return echoInterface.QoSCall(request, reply);
+  }
+
+  Status QuotaRequest(ServerContext* context, const QuotaProto* request,
+                      ReplyProto* reply) override
+  {
+    GrpcEchoInterface echoInterface;
+    return echoInterface.QuotaCall(request, reply);
+  }
+
+  Status RecycleRequest(ServerContext* context, const RecycleProto* request,
+                        ReplyProto* reply) override
+  {
+    GrpcEchoInterface echoInterface;
+    return echoInterface.RecycleCall(request, reply);
+  }
+  
+  Status RmRequest(ServerContext* context, const RmProto* request,
+                    ReplyProto* reply) override
+  {
+    GrpcEchoInterface echoInterface;
+    return echoInterface.RmCall(request, reply);
+  }
+
+  Status RmdirRequest(ServerContext* context, const RmdirProto* request,
+                      ReplyProto* reply) override
+  {
+    GrpcEchoInterface echoInterface;
+    return echoInterface.RmdirCall(request, reply);
+  }
+
+  Status RouteRequest(ServerContext* context, const RouteProto* request,
+                      ReplyProto* reply) override
+  {
+    GrpcEchoInterface echoInterface;
+    return echoInterface.RouteCall(request, reply);
+  }
+
+  Status SpaceRequest(ServerContext* context, const SpaceProto* request,
+                      ReplyProto* reply) override
+  {
+    GrpcEchoInterface echoInterface;
+    return echoInterface.SpaceCall(request, reply);
+  }
+
+  Status StagerRmRequest(ServerContext* context, const StagerRmProto* request,
+                          ReplyProto* reply) override
+  {
+    GrpcEchoInterface echoInterface;
+    return echoInterface.StagerRmCall(request, reply);
+  }
+
+  Status StatRequest(ServerContext* context, const StatProto* request,
+                    ReplyProto* reply) override
+  {
+    GrpcEchoInterface echoInterface;
+    return echoInterface.StatCall(request, reply);
+  }
+
+  Status StatusRequest(ServerContext* context, const StatusProto* request,
+                        ReplyProto* reply) override
+  {
+    GrpcEchoInterface echoInterface;
+    return echoInterface.StatusCall(request, reply);
+  }
+
+  Status TokenRequest(ServerContext* context, const TokenProto* request,
+                      ReplyProto* reply) override
+  {
+    GrpcEchoInterface echoInterface;
+    return echoInterface.TokenCall(request, reply);
+  }
+
+  Status TouchRequest(ServerContext* context, const TouchProto* request,
+                      ReplyProto* reply) override
+  {
+    GrpcEchoInterface echoInterface;
+    return echoInterface.TouchCall(request, reply);
+  }
+
+  Status VersionRequest(ServerContext* context, const VersionProto* request,
+                        ReplyProto* reply) override
+  {
+    GrpcEchoInterface echoInterface;
+    return echoInterface.VersionCall(request, reply);
+  }
+
+  Status VidRequest(ServerContext* context, const VidProto* request,
+                    ReplyProto* reply) override
+  {
+    GrpcEchoInterface echoInterface;
+    return echoInterface.VidCall(request, reply);
+  }
+
+  Status WhoRequest(ServerContext* context, const WhoProto* request,
+                    ReplyProto* reply) override
+  {
+    GrpcEchoInterface echoInterface;
+    return echoInterface.WhoCall(request, reply);
+  }
+
+  Status WhoamiRequest(ServerContext* context, const WhoamiProto* request,
+                        ReplyProto* reply) override
+  {
+    GrpcEchoInterface echoInterface;
+    return echoInterface.WhoamiCall(request, reply);
   }
 };
 

@@ -9,8 +9,46 @@ package eos.echo.service;
 import "proto/go/google/api/annotations.proto";
 import "Access.proto";
 import "Acl.proto";
+import "Archive.proto";
 import "Attr.proto";
+import "Backup.proto";
+import "ChangeMode.proto";
+import "Chown.proto";
+import "Config.proto";
 import "ConsoleReply.proto";
+import "Convert.proto";
+import "Cp.proto";
+import "Debug.proto";
+import "File.proto";
+import "Fileinfo.proto";
+import "Fs.proto";
+import "Fsck.proto";
+import "Geosched.proto";
+import "Group.proto";
+import "Health.proto";
+import "Io.proto";
+import "MakeDirectory.proto";
+import "Map.proto";
+import "Member.proto";
+import "Move.proto";
+import "Node.proto";
+import "Ns.proto";
+import "QoS.proto";
+import "Quota.proto";
+import "Recycle.proto";
+import "Rm.proto";
+import "Rmdir.proto";
+import "Route.proto";
+import "Space.proto";
+import "StagerRm.proto";
+import "StatWnc.proto";
+import "Status.proto";
+import "Token.proto";
+import "Touch.proto";
+import "Version.proto";
+import "Vid.proto";
+import "Who.proto";
+import "Whoami.proto";
 
 option go_package = "eos.echo.service";
 
@@ -62,11 +100,353 @@ service EchoService {
 		};
 	}
 
+	// ArchiveRequest method receives a request for an eos archive command
+	// and returns the result of the command
+	rpc ArchiveRequest(eos.console.ArchiveProto) returns (eos.console.ReplyProto) {
+		option (google.api.http) = {
+			post: "/v1/example/archive_cmd"
+			body: "*"
+		};
+	}
+
 	// AttrRequest method receives a request for an eos command
 	// and returns the result of the command
 	rpc AttrRequest(eos.console.AttrProto) returns (eos.console.ReplyProto) {
 		option (google.api.http) = {
 			post: "/v1/example/attr_cmd"
+			body: "*"
+		};
+	}
+
+	// BackupRequest method receives a request for an eos backup command
+	// and returns the result of the command
+	rpc BackupRequest(eos.console.BackupProto) returns (eos.console.ReplyProto) {
+		option (google.api.http) = {
+			post: "/v1/example/backup_cmd"
+			body: "*"
+		};
+	}
+
+	// ChmodRequest method receives a request for an eos chmod command
+	// and returns the result of the command
+	rpc ChmodRequest(eos.console.ChmodProto) returns (eos.console.ReplyProto) {
+		option (google.api.http) = {
+			post: "/v1/example/chmod_cmd"
+			body: "*"
+		};
+	}
+
+	// ChownRequest method receives a request for an eos chown command
+	// and returns the result of the command
+	rpc ChownRequest(eos.console.ChownProto) returns (eos.console.ReplyProto) {
+		option (google.api.http) = {
+			post: "/v1/example/chown_cmd"
+			body: "*"
+		};
+	}
+
+	// ConfigRequest method receives a request for an eos config command
+	// and returns the result of the command
+	rpc ConfigRequest(eos.console.ConfigProto) returns (eos.console.ReplyProto) {
+		option (google.api.http) = {
+			post: "/v1/example/config_cmd"
+			body: "*"
+		};
+	}
+
+	// ConvertRequest method receives a request for an eos convert command
+	// and returns the result of the command
+	rpc ConvertRequest(eos.console.ConvertProto) returns (eos.console.ReplyProto) {
+		option (google.api.http) = {
+			post: "/v1/example/convert_cmd"
+			body: "*"
+		};
+	}
+
+	// CpRequest method receives a request for an eos cp command
+	// and returns the result of the command
+	rpc CpRequest(eos.console.CpProto) returns (eos.console.ReplyProto) {
+		option (google.api.http) = {
+			post: "/v1/example/cp_cmd"
+			body: "*"
+		};
+	}
+
+	// DebugRequest method receives a request for an eos debug command
+	// and returns the result of the command
+	rpc DebugRequest(eos.console.DebugProto) returns (eos.console.ReplyProto) {
+		option (google.api.http) = {
+			post: "/v1/example/debug_cmd"
+			body: "*"
+		};
+	}
+
+	// FileRequest method receives a request for an eos file command
+	// and returns the result of the command
+	rpc FileRequest(eos.console.FileProto) returns (eos.console.ReplyProto) {
+		option (google.api.http) = {
+			post: "/v1/example/file_cmd"
+			body: "*"
+		};
+	}
+
+	// FileinfoRequest method receives a request for an eos file info command
+	// and returns the result of the command
+	rpc FileinfoRequest(eos.console.FileinfoProto) returns (eos.console.ReplyProto) {
+		option (google.api.http) = {
+			post: "/v1/example/fileinfo_cmd"
+			body: "*"
+		};
+	}
+
+	// FsRequest method receives a request for an eos fs command
+	// and returns the result of the command
+	rpc FsRequest(eos.console.FsProto) returns (eos.console.ReplyProto) {
+		option (google.api.http) = {
+			post: "/v1/example/fs_cmd"
+			body: "*"
+		};
+	}
+
+	// FsckRequest method receives a request for an eos fsck command
+	// and returns the result of the command
+	rpc FsckRequest(eos.console.FsckProto) returns (eos.console.ReplyProto) {
+		option (google.api.http) = {
+			post: "/v1/example/fsck_cmd"
+			body: "*"
+		};
+	}
+
+	// GeoschedRequest method receives a request for an eos geosched command
+	// and returns the result of the command
+	rpc GeoschedRequest(eos.console.GeoschedProto) returns (eos.console.ReplyProto) {
+		option (google.api.http) = {
+			post: "/v1/example/geosched_cmd"
+			body: "*"
+		};
+	}
+
+	// GroupRequest method receives a request for an eos group command
+	// and returns the result of the command
+	rpc GroupRequest(eos.console.GroupProto) returns (eos.console.ReplyProto) {
+		option (google.api.http) = {
+			post: "/v1/example/group_cmd"
+			body: "*"
+		};
+	}
+
+	// HealthRequest method receives a request for an eos health command
+	// and returns the result of the command
+	rpc HealthRequest(eos.console.HealthProto) returns (eos.console.ReplyProto) {
+		option (google.api.http) = {
+			post: "/v1/example/health_cmd"
+			body: "*"
+		};
+	}
+
+	// IoRequest method receives a request for an eos io command
+	// and returns the result of the command
+	rpc IoRequest(eos.console.IoProto) returns (eos.console.ReplyProto) {
+		option (google.api.http) = {
+			post: "/v1/example/io_cmd"
+			body: "*"
+		};
+	}
+
+	// MapRequest method receives a request for an eos map command
+	// and returns the result of the command
+	rpc MapRequest(eos.console.MapProto) returns (eos.console.ReplyProto) {
+		option (google.api.http) = {
+			post: "/v1/example/map_cmd"
+			body: "*"
+		};
+	}
+
+	// MemberRequest method receives a request for an eos member command
+	// and returns the result of the command
+	rpc MemberRequest(eos.console.MemberProto) returns (eos.console.ReplyProto) {
+		option (google.api.http) = {
+			post: "/v1/example/member_cmd"
+			body: "*"
+		};
+	}
+
+	// MkdirRequest method receives a request for an eos mkdir command
+	// and returns the result of the command
+	rpc MkdirRequest(eos.console.MkdirProto) returns (eos.console.ReplyProto) {
+		option (google.api.http) = {
+			post: "/v1/example/mkdir_cmd"
+			body: "*"
+		};
+	}
+
+	// MvRequest method receives a request for an eos mv command
+	// and returns the result of the command
+	rpc MvRequest(eos.console.MoveProto) returns (eos.console.ReplyProto) {
+		option (google.api.http) = {
+			post: "/v1/example/mv_cmd"
+			body: "*"
+		};
+	}
+
+	// NodeRequest method receives a request for an eos node command
+	// and returns the result of the command
+	rpc NodeRequest(eos.console.NodeProto) returns (eos.console.ReplyProto) {
+		option (google.api.http) = {
+			post: "/v1/example/node_cmd"
+			body: "*"
+		};
+	}
+
+	// NsRequest method receives a request for an eos ns command
+	// and returns the result of the command
+	rpc NsRequest(eos.console.NsProto) returns (eos.console.ReplyProto) {
+		option (google.api.http) = {
+			post: "/v1/example/ns_cmd"
+			body: "*"
+		};
+	}
+
+	// QoSRequest method receives a request for an eos qos command
+	// and returns the result of the command
+	rpc QoSRequest(eos.console.QoSProto) returns (eos.console.ReplyProto) {
+		option (google.api.http) = {
+			post: "/v1/example/qos_cmd"
+			body: "*"
+		};
+	}
+
+	// QuotaRequest method receives a request for an eos quota command
+	// and returns the result of the command
+	rpc QuotaRequest(eos.console.QuotaProto) returns (eos.console.ReplyProto) {
+		option (google.api.http) = {
+			post: "/v1/example/quota_cmd"
+			body: "*"
+		};
+	}
+
+	// RecycleRequest method receives a request for an eos recycle command
+	// and returns the result of the command
+	rpc RecycleRequest(eos.console.RecycleProto) returns (eos.console.ReplyProto) {
+		option (google.api.http) = {
+			post: "/v1/example/recycle_cmd"
+			body: "*"
+		};
+	}
+
+	// RmRequest method receives a request for an eos rm command
+	// and returns the result of the command
+	rpc RmRequest(eos.console.RmProto) returns (eos.console.ReplyProto) {
+		option (google.api.http) = {
+			post: "/v1/example/rm_cmd"
+			body: "*"
+		};
+	}
+
+	// RmdirRequest method receives a request for an eos rmdir command
+	// and returns the result of the command
+	rpc RmdirRequest(eos.console.RmdirProto) returns (eos.console.ReplyProto) {
+		option (google.api.http) = {
+			post: "/v1/example/rmdir_cmd"
+			body: "*"
+		};
+	}
+
+	// RouteRequest method receives a request for an eos route command
+	// and returns the result of the command
+	rpc RouteRequest(eos.console.RouteProto) returns (eos.console.ReplyProto) {
+		option (google.api.http) = {
+			post: "/v1/example/route_cmd"
+			body: "*"
+		};
+	}
+
+	// SpaceRequest method receives a request for an eos space command
+	// and returns the result of the command
+	rpc SpaceRequest(eos.console.SpaceProto) returns (eos.console.ReplyProto) {
+		option (google.api.http) = {
+			post: "/v1/example/space_cmd"
+			body: "*"
+		};
+	}
+
+	// StagerRmRequest method receives a request for an eos stager rm command
+	// and returns the result of the command
+	rpc StagerRmRequest(eos.console.StagerRmProto) returns (eos.console.ReplyProto) {
+		option (google.api.http) = {
+			post: "/v1/example/stagerrm_cmd"
+			body: "*"
+		};
+	}
+
+	// StatRequest method receives a request for an eos stat command
+	// and returns the result of the command
+	rpc StatRequest(eos.console.StatProto) returns (eos.console.ReplyProto) {
+		option (google.api.http) = {
+			post: "/v1/example/stat_cmd"
+			body: "*"
+		};
+	}
+
+	// StatusRequest method receives a request for an eos status command
+	// and returns the result of the command
+	rpc StatusRequest(eos.console.StatusProto) returns (eos.console.ReplyProto) {
+		option (google.api.http) = {
+			post: "/v1/example/status_cmd"
+			body: "*"
+		};
+	}
+
+	// TokenRequest method receives a request for an eos token command
+	// and returns the result of the command
+	rpc TokenRequest(eos.console.TokenProto) returns (eos.console.ReplyProto) {
+		option (google.api.http) = {
+			post: "/v1/example/token_cmd"
+			body: "*"
+		};
+	}
+
+	// TouchRequest method receives a request for an eos touch command
+	// and returns the result of the command
+	rpc TouchRequest(eos.console.TouchProto) returns (eos.console.ReplyProto) {
+		option (google.api.http) = {
+			post: "/v1/example/touch_cmd"
+			body: "*"
+		};
+	}
+
+	// VersionRequest method receives a request for an eos version command
+	// and returns the result of the command
+	rpc VersionRequest(eos.console.VersionProto) returns (eos.console.ReplyProto) {
+		option (google.api.http) = {
+			post: "/v1/example/version_cmd"
+			body: "*"
+		};
+	}
+
+	// VidRequest method receives a request for an eos vid command
+	// and returns the result of the command
+	rpc VidRequest(eos.console.VidProto) returns (eos.console.ReplyProto) {
+		option (google.api.http) = {
+			post: "/v1/example/vid_cmd"
+			body: "*"
+		};
+	}
+
+	// WhoRequest method receives a request for an eos who command
+	// and returns the result of the command
+	rpc WhoRequest(eos.console.WhoProto) returns (eos.console.ReplyProto) {
+		option (google.api.http) = {
+			post: "/v1/example/who_cmd"
+			body: "*"
+		};
+	}
+
+	// WhoamiRequest method receives a request for an eos whoami command
+	// and returns the result of the command
+	rpc WhoamiRequest(eos.console.WhoamiProto) returns (eos.console.ReplyProto) {
+		option (google.api.http) = {
+			post: "/v1/example/whoami_cmd"
 			body: "*"
 		};
 	}
