@@ -26,6 +26,7 @@ This
   "mdzmqtarget" : "tcp://localhost:1100",
   "mdzmqidentity" : "eosxd",
   "appname" : "",
+  "encryptionkey" : "",
   "options" : {
     "debug" : 1,
     "debuglevel" : 4,
@@ -613,3 +614,5 @@ Layout: plain Stripes: 1 Blocksize: 4k LayoutId: 00100002 Redundancy: d1::t0
  Crypt: encrypted
 ```
 shows in a comprehensive way after the "Crypt:" tag, if a file is either encrypted or obfuscated.
+
+If encryption is to be applied for all users in the same way sharing the same key, it is possible to define the encryption key in the FUSE configuration file.  The configuration file has to have mode 0400 in this case and has to be owned by root:root for shared mounts, or the mounting user/group id for private mounts. The configuration parameter is called "encryptionkey" in the main section of the JSON configuration file. By default it is empty as shown above.
