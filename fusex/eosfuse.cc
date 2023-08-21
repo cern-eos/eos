@@ -444,6 +444,8 @@ EosFuse::run(int argc, char* argv[], void* userdata)
     }
   }
 
+  bool config_is_safe=false;
+
   try {
     // parse JSON configuration
     Json::Value root;
@@ -453,7 +455,11 @@ EosFuse::run(int argc, char* argv[], void* userdata)
     bool has_config = false;
     if (!::stat(jsonconfig.c_str(), &configstat)) {
       std::ifstream configfile(jsonconfig, std::ifstream::binary);
-      
+      if ( (configstat.st_uid == geteuid()) &&
+	   (configstat.st_gid == getegid())  &&
+	   (configstat.st_mode == 0100400) ) {
+	config_is_safe = true;
+      }
       bool ok = parseFromStream(reader, configfile, &root, &errs);
       if (ok) {
         fprintf(stderr, "# JSON parsing successful\n");
@@ -871,6 +877,7 @@ EosFuse::run(int argc, char* argv[], void* userdata)
     config.statfilesuffix = root["statfilesuffix"].asString();
     config.statfilepath = root["statfilepath"].asString();
     config.appname = "fuse";
+    config.encryptionkey = "";
 
     if (root["appname"].asString().length()) {
       if (root["appname"].asString().find("&") == std::string::npos) {
@@ -879,6 +886,15 @@ EosFuse::run(int argc, char* argv[], void* userdata)
       } else {
         fprintf(stderr, "error: appname cannot contain '&' character!\n");
         exit(EINVAL);
+      }
+    }
+
+    if (root["encryptionkey"].asString().length()) {
+      config.encryptionkey = root["encryptionkey"].asString();
+      if (!config_is_safe) {
+	fprintf(stderr,"error: config file has to be owned by uid/gid:%u/%u and needs to have 400 mode set!\n",
+		geteuid(), getegid());
+	exit(EINVAL);
       }
     }
 
@@ -986,6 +1002,7 @@ EosFuse::run(int argc, char* argv[], void* userdata)
     config.auth.use_user_gsiproxy = root["auth"]["gsi"].asInt();
     config.auth.use_user_sss = root["auth"]["sss"].asInt();
     config.auth.credentialStore = root["auth"]["credential-store"].asString();
+    config.auth.encryptionKey = config.encryptionkey;
 
     if (config.auth.use_user_sss || config.auth.use_user_oauth2) {
       // store keytab location for this mount

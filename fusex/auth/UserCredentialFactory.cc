@@ -137,6 +137,7 @@ void UserCredentialFactory::addKrb5FromEnv(const JailIdentifier &id,
 					   const Environment& env, uid_t uid, gid_t gid, SearchOrder &out)
 {
   std::string key = env.get("EOS_FUSE_SECRET");
+  if (key.empty() && config.encryptionKey.length()) { key = config.encryptionKey; }
   return addKrb5(id, env.get("KRB5CCNAME"), uid, gid, out, key);
 }
 
@@ -148,6 +149,7 @@ void UserCredentialFactory::addOAUTH2FromEnv(const JailIdentifier &id,
 					     const Environment& env, uid_t uid, gid_t gid, SearchOrder &out)
 {
   std::string key = env.get("EOS_FUSE_SECRET");
+  if (key.empty() && config.encryptionKey.length()) { key = config.encryptionKey; }
   return addOAUTH2(id, env.get("OAUTH2_TOKEN"), uid, gid, out, key);
 }
 
@@ -173,6 +175,7 @@ void UserCredentialFactory::addx509FromEnv(const JailIdentifier &id,
 					   const Environment& env, uid_t uid, gid_t gid, SearchOrder &out)
 {
   std::string key = env.get("EOS_FUSE_SECRET");
+  if (key.empty() && config.encryptionKey.length()) { key = config.encryptionKey; }
   return addx509(id, env.get("X509_USER_PROXY"), uid, gid, out, key);
 }
 
@@ -183,6 +186,7 @@ void UserCredentialFactory::addDefaultsFromEnv(const JailIdentifier &id,
 					       const Environment& env, uid_t uid, gid_t gid, SearchOrder &searchOrder)
 {
   std::string key = env.get("EOS_FUSE_SECRET");
+  if (key.empty() && config.encryptionKey.length()) { key = config.encryptionKey; }
 
   //----------------------------------------------------------------------------
   // Using SSS? If so, add first.
@@ -231,6 +235,7 @@ bool UserCredentialFactory::parseSingle(LogbookScope &scope,
   uid_t uid, gid_t gid, SearchOrder &out)
 {
   std::string key = env.get("EOS_FUSE_SECRET");
+  if (key.empty() && config.encryptionKey.length()) { key = config.encryptionKey; }
   //----------------------------------------------------------------------------
   // Defaults?
   //----------------------------------------------------------------------------
