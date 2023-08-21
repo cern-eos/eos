@@ -26,6 +26,7 @@
 #include "mgm/drain/DrainTransferJob.hh"
 #include "mgm/FsView.hh"
 #include "mgm/IMaster.hh"
+#include "common/StacktraceHere.hh"
 #include "common/table_formatter/TableFormatterBase.hh"
 
 EOSMGMNAMESPACE_BEGIN
@@ -155,6 +156,13 @@ Drainer::StopFsDrain(eos::mgm::FileSystem* fs, std::string& err)
 {
   eos::common::FileSystem::fsid_t fsid = fs->GetId();
   eos_notice("msg=\"stop draining\" fsid=%d ", fsid);
+
+  if (fsid == 0) {
+    std::ostringstream ss;
+    ss << "Debug stacktrace: " << eos::common::getStacktrace();
+    eos_static_crit("msg=\"%s\"", ss.str().c_str());
+  }
+
   eos::common::FileSystem::fs_snapshot_t drain_snapshot;
   fs->SnapShotFileSystem(drain_snapshot);
   eos::common::RWMutexWriteLock wr_lock(mDrainMutex);
