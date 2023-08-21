@@ -94,58 +94,44 @@ public:
     return mLocalId;
   }
 
-  //-----------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   //! Set local uuid as it was published by the MGM the first time, this won't
   //! change throughout the lifetime of this object.
-  //-----------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   inline void SetLocalUuid()
   {
     mLocalUuid = GetString("uuid");
   }
 
-  //-----------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   //! Get local id value
-  //-----------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   inline std::string GetLocalUuid() const
   {
     return mLocalUuid;;
   }
 
-  //-----------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   //! Configure scanner thread - possibly start the scanner
   //!
   //! @param fst_load file system IO load monitoring object
   //! @param key configuration key
   //! @param value configuration value
-  //-----------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   void ConfigScanner(Load* fst_load, const std::string& key, long long value);
 
-  void
-  SetStatus(eos::common::BootStatus status)
-  {
-    eos::common::FileSystem::SetStatus(status);
-
-    if (mLocalBootStatus == status) {
-      return;
-    }
-
-    eos_debug("before=%d after=%d", mLocalBootStatus.load(), status);
-
-    if ((mLocalBootStatus == eos::common::BootStatus::kBooted) &&
-        (status == eos::common::BootStatus::kOpsError)) {
-      mRecoverable = true;
-    } else {
-      mRecoverable = false;
-    }
-
-    mLocalBootStatus = status;
-  }
+  //----------------------------------------------------------------------------
+  //! Set file system boot status
+  //!
+  //! @param status new value to set
+  //----------------------------------------------------------------------------
+  void SetStatus(eos::common::BootStatus status);
 
   //----------------------------------------------------------------------------
-  //
+  //! Get local boot status
   //----------------------------------------------------------------------------
   eos::common::BootStatus
-  GetStatus()
+  GetStatus() const
   {
     // we patch this function because we don't want to see the shared information
     // but the 'true' information created locally
@@ -198,57 +184,45 @@ public:
     return IOPS;
   }
 
-  bool condReloadFileIo(std::string iotype)
-  {
-    if (!mFileIO || mFileIO->GetIoType() != iotype) {
-      return false;
-    }
+  //----------------------------------------------------------------------------
+  //! Do a reload of the underlying file IO object
+  //----------------------------------------------------------------------------
+  // bool condReloadFileIo(std::string iotype)
+  // {
+  //   if (!mFileIO || mFileIO->GetIoType() != iotype) {
+  //     return false;
+  //   }
 
-    mFileIO.reset(FileIoPlugin::GetIoObject(GetPath().c_str()));
-    return true;
-  }
+  //   mFileIO.reset(FileIoPlugin::GetIoObject(GetPath().c_str()));
+  //   return true;
+  // }
 
-  bool getFileIOStats(std::map<std::string, std::string>& map)
-  {
-    if (!mFileIO) {
-      return false;
-    }
+  //----------------------------------------------------------------------------
+  //! Get IO statistics from the `sys.iostats` xattr
+  //!
+  //! @param map map containing returned information
+  //!
+  //! @return true if successful, otherwise false
+  //----------------------------------------------------------------------------
+  bool GetFileIOStats(std::map<std::string, std::string>& map);
 
-    // Avoid querying IO stats attributes for certain storage types
-    if (mFileIO->GetIoType() == "DavixIo" ||
-        mFileIO->GetIoType() == "XrdIo") {
-      return false;
-    }
+  //----------------------------------------------------------------------------
+  //! Get health information from the `sys.health` xattr
+  //!
+  //! @param map map containing health information
+  //!
+  //! @return true if successful, otherwise false
+  //----------------------------------------------------------------------------
+  bool GetHealthInfo(std::map<std::string, std::string>& map);
 
-    std::string iostats;
-    mFileIO->attrGet("sys.iostats", iostats);
-    return eos::common::StringConversion::GetKeyValueMap(iostats.c_str(),
-           map, "=", ",");
-  }
-
-  bool getHealth(std::map<std::string, std::string>& map)
-  {
-    if (!mFileIO) {
-      return false;
-    }
-
-    // Avoid querying Health attributes for certain storage types
-    if (mFileIO->GetIoType() == "DavixIo" ||
-        mFileIO->GetIoType() == "XrdIo") {
-      return false;
-    }
-
-    // Avoid querying Health attributes for certain storage types
-    if (mFileIO->GetIoType() == "DavixIo" ||
-        mFileIO->GetIoType() == "XrdIo") {
-      return false;
-    }
-
-    std::string health;
-    mFileIO->attrGet("sys.health", health);
-    return eos::common::StringConversion::GetKeyValueMap(health.c_str(),
-           map, "=", ",");
-  }
+  //----------------------------------------------------------------------------
+  //! Decide if we should run the boot procedure for current file system
+  //!
+  //! @param trigger update key that trigger the current check
+  //!
+  //! @return true if boot should run, otherwise false
+  //----------------------------------------------------------------------------
+  bool ShouldBoot(const std::string& trigger);
 
 private:
   //----------------------------------------------------------------------------

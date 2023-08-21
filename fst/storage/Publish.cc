@@ -430,7 +430,7 @@ Storage::GetFsStatistics(FileSystem* fs)
   double diskload;
   std::map<std::string, std::string> iostats;
 
-  if (fs->getFileIOStats(iostats)) {
+  if (fs->GetFileIOStats(iostats)) {
     readratemb = strtod(iostats["read-mb-second"].c_str(), 0);
     writeratemb = strtod(iostats["write-mb-second"].c_str(), 0);
     diskload = strtod(iostats["load"].c_str(), 0);
@@ -449,7 +449,7 @@ Storage::GetFsStatistics(FileSystem* fs)
   // Publish stat.health.*
   std::map<std::string, std::string> health;
 
-  if (!fs->getHealth(health)) {
+  if (!fs->GetHealthInfo(health)) {
     health = mFstHealth.getDiskHealth(fs->GetPath());
   }
 

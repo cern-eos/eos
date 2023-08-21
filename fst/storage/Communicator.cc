@@ -162,7 +162,7 @@ Storage::RegisterFileSystem(const std::string& queuepath)
   if (gOFS.mMessagingRealm->haveQDB()) {
     if (gConfig.autoBoot &&
         (fs->GetConfigStatus() > eos::common::ConfigStatus::kOff)) {
-      RunBootThread(fs);
+      RunBootThread(fs, "");
     }
   }
 }
@@ -241,44 +241,23 @@ void
 Storage::ProcessFsConfigChange(fst::FileSystem* targetFs,
                                const std::string& key, const std::string& value)
 {
-  if ((key == "id") || (key == "uuid")) {
-    // Check if we are autobooting
-    if (gConfig.autoBoot &&
-        (targetFs->GetStatus() <= eos::common::BootStatus::kDown) &&
-        (targetFs->GetConfigStatus() > eos::common::ConfigStatus::kOff)) {
-      RunBootThread(targetFs);
-    }
-  } else if (key == "bootsenttime") {
-    // Request to (re-)boot a filesystem
-    if (targetFs->GetInternalBootStatus() == eos::common::BootStatus::kBooted) {
-      if (targetFs->GetLongLong("bootcheck")) {
-        eos_static_info("queue=%s status=%d check=%lld msg='boot enforced'",
-                        targetFs->GetQueuePath().c_str(), targetFs->GetStatus(),
-                        targetFs->GetLongLong("bootcheck"));
-        RunBootThread(targetFs);
-      } else {
-        eos_static_info("queue=%s status=%d check=%lld msg='skip boot - we are already booted'",
-                        targetFs->GetQueuePath().c_str(), targetFs->GetStatus(),
-                        targetFs->GetLongLong("bootcheck"));
-        targetFs->SetStatus(eos::common::BootStatus::kBooted);
-      }
-    } else {
-      eos_static_info("queue=%s status=%d check=%lld msg='booting - we are not booted yet'",
-                      targetFs->GetQueuePath().c_str(), targetFs->GetStatus(),
-                      targetFs->GetLongLong("bootcheck"));
-      // start a boot thread;
-      RunBootThread(targetFs);
-    }
+  if ((key == "id") || (key == "uuid") || (key == "bootsenttime")) {
+    RunBootThread(targetFs, key);
   } else {
     if ((key == eos::common::SCAN_IO_RATE_NAME) ||
         (key == eos::common::SCAN_ENTRY_INTERVAL_NAME) ||
         (key == eos::common::SCAN_DISK_INTERVAL_NAME) ||
         (key == eos::common::SCAN_NS_INTERVAL_NAME) ||
         (key == eos::common::SCAN_NS_RATE_NAME)) {
-      long long value = targetFs->GetLongLong(key.c_str());
+      try {
+        long long val = std::stoll(value);
 
-      if (value >= 0) {
-        targetFs->ConfigScanner(&mFstLoad, key.c_str(), value);
+        if (val >= 0) {
+          targetFs->ConfigScanner(&mFstLoad, key.c_str(), val);
+        }
+      } catch (...) {
+        eos_static_err("msg=\"failed to convert value\" key=\"%s\" val=\"%s\"",
+                       key.c_str(), value.c_str());
       }
     }
   }
