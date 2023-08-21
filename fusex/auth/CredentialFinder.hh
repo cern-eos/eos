@@ -75,6 +75,8 @@ public:
   std::string credentialStore;
   //! Ignore containerization
   bool ignore_containerization;
+  //! Encryption Key
+  std::string encryptionKey;
 };
 
 //------------------------------------------------------------------------------

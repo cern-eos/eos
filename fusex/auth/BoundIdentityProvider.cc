@@ -53,6 +53,8 @@ BoundIdentityProvider::krb5EnvToBoundIdentity(const JailInformation& jail,
 {
   std::string path = env.get("KRB5CCNAME");
   std::string key = env.get("EOS_FUSE_SECRET");
+  if (key.empty() && credConfig.encryptionKey.length()) { key = credConfig.encryptionKey; }
+
   //----------------------------------------------------------------------------
   // Kerberos keyring?
   //----------------------------------------------------------------------------
@@ -105,6 +107,7 @@ BoundIdentityProvider::oauth2EnvToBoundIdentity(const JailInformation& jail,
 {
   std::string path = env.get("OAUTH2_TOKEN");
   std::string key = env.get("EOS_FUSE_SECRET");
+  if (key.empty() && credConfig.encryptionKey.length()) { key = credConfig.encryptionKey; }
 
   //----------------------------------------------------------------------------
   // Drop FILE:, if exists
@@ -140,6 +143,7 @@ BoundIdentityProvider::x509EnvToBoundIdentity(const JailInformation& jail,
 {
   std::string path = env.get("X509_USER_PROXY");
   std::string key = env.get("EOS_FUSE_SECRET");
+  if (key.empty() && credConfig.encryptionKey.length()) { key = credConfig.encryptionKey; }
 
   if (path.empty()) {
     //--------------------------------------------------------------------------
@@ -167,6 +171,8 @@ BoundIdentityProvider::sssEnvToBoundIdentity(const JailInformation& jail,
 {
   std::string endorsement = env.get("XrdSecsssENDORSEMENT");
   std::string key = env.get("EOS_FUSE_SECRET");
+  if (key.empty() && credConfig.encryptionKey.length()) { key = credConfig.encryptionKey; }
+
   LOGBOOK_INSERT(scope, "Found SSS endorsement of size " << endorsement.size());
   return userCredsToBoundIdentity(jail,
 				  UserCredentials::MakeSSS(endorsement, uid, gid, key), reconnect,

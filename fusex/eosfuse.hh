@@ -237,6 +237,7 @@ public:
     std::string clientuuid;
     std::string ssskeytab;
     std::string appname;
+    std::string encryptionkey;
 
     typedef struct options
     {
