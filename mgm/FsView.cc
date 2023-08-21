@@ -1499,7 +1499,7 @@ FsView::GetFileSystemFormat(std::string option)
     format += "key=local.drain.timeleft:format=ol|";
     format += "key=graceperiod:format=ol|";
     format += "key=drainperiod:format=ol|";
-    format += "key=stat.active:format=os|";
+    format += "key=local.active:format=os|";
     format += "key=scaninterval:format=os|";
     format += "key=scanreruninterval:format=os|";
     format += "key=local.balancer.running:format=ol:tag=local.balancer.running|";
@@ -1575,7 +1575,7 @@ FsView::GetFileSystemFormat(std::string option)
     format += "key=configstatus:width=14:format=s|";
     format += "key=local.drain:width=12:format=s|";
     format += "compute=usage:width=6:format=f|";
-    format += "key=stat.active:width=8:format=s|";
+    format += "key=local.active:width=8:format=s|";
     format += "key=scaninterval:width=14:format=s|";
     format += "key=stat.health:width=16:format=s|";
     format += "key=statuscomment:width=24:format=s";
@@ -1601,7 +1601,7 @@ FsView::GetFileSystemFormat(std::string option)
     format += "key=configstatus:width=14:format=s|";
     format += "key=local.drain:width=12:format=s|";
     format += "compute=usage:width=6:format=f|";
-    format += "key=stat.active:width=8:format=s|";
+    format += "key=local.active:width=8:format=s|";
     format += "key=stat.health:width=16:format=s";
   }
 
@@ -3525,9 +3525,7 @@ BaseView::SumLongLong(const char* param, bool lock,
     // for query sum's we always fold in that a group and host has to be enabled
     if (!key.length() || fs->GetString(key.c_str()) == value) {
       if (isquery &&
-          ((eos::common::FileSystem::GetActiveStatusFromString(
-              fs->GetString("stat.active").c_str())
-            == eos::common::ActiveStatus::kOffline) ||
+          ((fs->GetActiveStatus() == eos::common::ActiveStatus::kOffline) ||
            (eos::common::FileSystem::GetStatusFromString(
               fs->GetString("stat.boot").c_str()) !=
             eos::common::BootStatus::kBooted))) {

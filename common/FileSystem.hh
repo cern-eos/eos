@@ -535,16 +535,6 @@ public:
   static ConfigStatus GetConfigStatusFromString(const char*  ss);
 
   //----------------------------------------------------------------------------
-  //! Parse an active status into the enum value
-  //----------------------------------------------------------------------------
-  static ActiveStatus GetActiveStatusFromString(const char*  ss);
-
-  //----------------------------------------------------------------------------
-  //! Get the message string to register a filesystem
-  //----------------------------------------------------------------------------
-  static const char* GetRegisterRequestString();
-
-  //----------------------------------------------------------------------------
   //! Convert input to file system id
   //!
   //! @param value input string
@@ -649,7 +639,10 @@ public:
   //----------------------------------------------------------------------------
   inline bool SetActiveStatus(ActiveStatus active)
   {
-    mActStatus = active;
+    if (mActStatus != active) {
+      mActStatus = active;
+      SetString("local.active", GetActiveStatusAsString().c_str(), false);
+    }
   }
 
   //----------------------------------------------------------------------------
@@ -659,6 +652,11 @@ public:
   {
     return mActStatus;
   }
+
+  //----------------------------------------------------------------------------
+  //! Get active status as string
+  //----------------------------------------------------------------------------
+  std::string GetActiveStatusAsString() const;
 
   //----------------------------------------------------------------------------
   //! Get all keys in a vector of strings.
