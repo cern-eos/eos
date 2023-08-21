@@ -1041,7 +1041,7 @@ Fsck::AccountOfflineFiles()
         if (fs) {
           eos::common::BootStatus bootstatus = fs->GetStatus(true);
           eos::common::ConfigStatus configstatus = fs->GetConfigStatus();
-          bool conda = (fs->GetActiveStatus(true) == eos::common::ActiveStatus::kOffline);
+          bool conda = (fs->GetActiveStatus() == eos::common::ActiveStatus::kOffline);
           bool condb = (bootstatus != eos::common::BootStatus::kBooted);
           bool condc = (configstatus == eos::common::ConfigStatus::kDrainDead);
 

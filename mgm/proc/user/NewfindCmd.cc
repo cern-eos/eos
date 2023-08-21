@@ -271,7 +271,8 @@ static bool hasStripeDiff(std::shared_ptr<eos::IFileMD>& fmd)
 // Print path.
 //------------------------------------------------------------------------------
 template<typename S>   // std::ofstream or std::stringstream
-static void printPath(S& ss, const eos::console::FindProto& req, const std::string& path)
+static void printPath(S& ss, const eos::console::FindProto& req,
+                      const std::string& path)
 {
   if (req.format().length() || req.treecount()) {
     ss << "path=\"";
@@ -282,6 +283,7 @@ static void printPath(S& ss, const eos::console::FindProto& req, const std::stri
   }
 
   ss << path;
+
   if (req.format().length() || req.treecount()) {
     ss << "\"";
   }
@@ -297,6 +299,7 @@ static void printUidGid(S& ss, const eos::console::FindProto& req, const T& md)
   if (req.format().length()) {
     return;
   }
+
   if (req.printuid()) {
     ss << " uid=" << md->getCUid();
   }
@@ -329,7 +332,8 @@ static void printAttributes(S& ss,
 //------------------------------------------------------------------------------
 // Print directories and files count of a ContainerMD, if requested by req.
 //------------------------------------------------------------------------------
-static void printChildCount(std::ofstream& ss, const eos::console::FindProto& req,
+static void printChildCount(std::ofstream& ss,
+                            const eos::console::FindProto& req,
                             const std::shared_ptr<eos::IContainerMD>& cmd, size_t ndirs, size_t nfiles)
 {
   if (req.format().length()) {
@@ -337,91 +341,108 @@ static void printChildCount(std::ofstream& ss, const eos::console::FindProto& re
   }
 
   if (req.childcount()) {
-    ss <<" ndirs=" << ndirs
+    ss << " ndirs=" << ndirs
        << " nfiles=" << nfiles;
   }
-
 }
 
 //------------------------------------------------------------------------------
 // Print user defined format
 //------------------------------------------------------------------------------
 static void printFormat(std::ofstream& ss, const eos::console::FindProto& req,
-			const std::shared_ptr<eos::IContainerMD>& cmd, size_t ndirs, size_t nfiles)
+                        const std::shared_ptr<eos::IContainerMD>& cmd, size_t ndirs, size_t nfiles)
 {
   if (req.format().length()) {
     std::vector<std::string> tokens;
     eos::common::StringConversion::Tokenize(req.format(),
-					    tokens, ",");
+                                            tokens, ",");
 
-    for (auto i:tokens) {
+    for (auto i : tokens) {
       if (i == "type") {
-	ss << " type=directory ";
+        ss << " type=directory ";
       }
+
       if (i == "size") {
-	ss << " size=" << std::to_string(cmd->getTreeSize());
+        ss << " size=" << std::to_string(cmd->getTreeSize());
       }
+
       if (i == "cxid") {
-	ss << " cxid="  << std::hex << cmd->getId() << std::dec;
+        ss << " cxid="  << std::hex << cmd->getId() << std::dec;
       }
+
       if (i == "pxid") {
-	ss << " pxid="  << std::hex << cmd->getParentId() << std::dec;
+        ss << " pxid="  << std::hex << cmd->getParentId() << std::dec;
       }
+
       if (i == "cid") {
-	ss << " cid="  << cmd->getId();
+        ss << " cid="  << cmd->getId();
       }
+
       if (i == "pid") {
-	ss << " pid="  << cmd->getParentId();
+        ss << " pid="  << cmd->getParentId();
       }
+
       if (i == "uid") {
-	ss << " uid=" << cmd->getCUid();
+        ss << " uid=" << cmd->getCUid();
       }
+
       if (i == "gid") {
-	ss << " gid=" << cmd->getCGid();
+        ss << " gid=" << cmd->getCGid();
       }
+
       if (i == "mode") {
-	ss << " mode=" << std::oct << cmd->getMode() << std::dec;
+        ss << " mode=" << std::oct << cmd->getMode() << std::dec;
       }
+
       if (i == "files") {
-	ss << " files=" << ndirs;
+        ss << " files=" << ndirs;
       }
+
       if (i == "directories") {
-	ss << " directories=" << nfiles;
+        ss << " directories=" << nfiles;
       }
+
       if (i == "mtime") {
-	eos::IFileMD::ctime_t mtime {0, 0};
-	cmd->getCTime(mtime);
-	ss << " mtime=" << eos::common::Timing::TimespecToString(mtime);
+        eos::IFileMD::ctime_t mtime {0, 0};
+        cmd->getCTime(mtime);
+        ss << " mtime=" << eos::common::Timing::TimespecToString(mtime);
       }
+
       if (i == "btime") {
-	eos::IFileMD::ctime_t btime {0, 0};
-	if (cmd->getAttributes().count("sys.eos.btime")) {
-	  eos::common::Timing::Timespec_from_TimespecStr(cmd->getAttributes()["sys.eos.btime"], btime);
-	}
-	ss << " btime=" << eos::common::Timing::TimespecToString(btime);
+        eos::IFileMD::ctime_t btime {0, 0};
+
+        if (cmd->getAttributes().count("sys.eos.btime")) {
+          eos::common::Timing::Timespec_from_TimespecStr(
+            cmd->getAttributes()["sys.eos.btime"], btime);
+        }
+
+        ss << " btime=" << eos::common::Timing::TimespecToString(btime);
       }
+
       if (i == "ctime") {
-	eos::IFileMD::ctime_t ctime {0, 0};
-	cmd->getCTime(ctime);
-	ss << " ctime=" << eos::common::Timing::TimespecToString(ctime);
+        eos::IFileMD::ctime_t ctime {0, 0};
+        cmd->getCTime(ctime);
+        ss << " ctime=" << eos::common::Timing::TimespecToString(ctime);
       }
+
       if (i == "etag") {
-	std::string etag;
-	eos::calculateEtag(cmd.get(), etag);
-	ss << " etag=" << etag;
+        std::string etag;
+        eos::calculateEtag(cmd.get(), etag);
+        ss << " etag=" << etag;
       }
-      if ( i.substr(0,5) == "attr.") {
-	std::string attr=i.substr(5);
-	if (attr == "*") {
-	  
-	  for (const auto& elem : cmd->getAttributes()) {
-	    ss << " attr." << elem.first << "=" << "\"" << elem.second << "\"";
-	  }
-	} else {
-	  if (cmd->getAttributes().count(attr)) {
-	    ss << " " << i << "=\"" << cmd->getAttributes()[attr] << "\"";
-	  }
-	}
+
+      if (i.substr(0, 5) == "attr.") {
+        std::string attr = i.substr(5);
+
+        if (attr == "*") {
+          for (const auto& elem : cmd->getAttributes()) {
+            ss << " attr." << elem.first << "=" << "\"" << elem.second << "\"";
+          }
+        } else {
+          if (cmd->getAttributes().count(attr)) {
+            ss << " " << i << "=\"" << cmd->getAttributes()[attr] << "\"";
+          }
+        }
       }
     }
   }
@@ -431,92 +452,112 @@ static void printFormat(std::ofstream& ss, const eos::console::FindProto& req,
 // Print user defined format
 //------------------------------------------------------------------------------
 static void printFormat(std::ofstream& ss, const eos::console::FindProto& req,
-			const std::shared_ptr<eos::IFileMD>& fmd)
+                        const std::shared_ptr<eos::IFileMD>& fmd)
 {
   if (req.format().length()) {
     std::vector<std::string> tokens;
     eos::common::StringConversion::Tokenize(req.format(),
-					    tokens, ",");
+                                            tokens, ",");
 
-    for (auto i:tokens) {
+    for (auto i : tokens) {
       if (i == "type") {
-	if (fmd->isLink()) {
-	  ss << " type=link ";
-	} else {
-	  ss << " type=file ";
-	}
+        if (fmd->isLink()) {
+          ss << " type=link ";
+        } else {
+          ss << " type=file ";
+        }
       }
+
       if (i == "size") {
-	ss << " size=" << std::to_string(fmd->getSize());
+        ss << " size=" << std::to_string(fmd->getSize());
       }
+
       if (i == "fxid") {
-	ss << " fxid="  << std::hex << fmd->getId() << std::dec;
+        ss << " fxid="  << std::hex << fmd->getId() << std::dec;
       }
+
       if (i == "cxid") {
-	ss << " cxid="  << std::hex << fmd->getContainerId() << std::dec;
+        ss << " cxid="  << std::hex << fmd->getContainerId() << std::dec;
       }
+
       if (i == "fid") {
-	ss << " fid="  << fmd->getId();
+        ss << " fid="  << fmd->getId();
       }
+
       if (i == "cid") {
-	ss << " cid="  << fmd->getContainerId();
+        ss << " cid="  << fmd->getContainerId();
       }
+
       if (i == "uid") {
-	ss << " uid=" << fmd->getCUid();
+        ss << " uid=" << fmd->getCUid();
       }
+
       if (i == "gid") {
-	ss << " gid=" << fmd->getCGid();
+        ss << " gid=" << fmd->getCGid();
       }
+
       if (i == "flags") {
-	ss << " flags=" << std::oct << fmd->getFlags() << std::dec;
+        ss << " flags=" << std::oct << fmd->getFlags() << std::dec;
       }
+
       if (i == "atime") {
-	eos::IFileMD::ctime_t atime {0, 0};
-	fmd->getCTime(atime);
-	ss << " atime=" << eos::common::Timing::TimespecToString(atime);
+        eos::IFileMD::ctime_t atime {0, 0};
+        fmd->getCTime(atime);
+        ss << " atime=" << eos::common::Timing::TimespecToString(atime);
       }
+
       if (i == "mtime") {
-	eos::IFileMD::ctime_t mtime {0, 0};
-	fmd->getCTime(mtime);
-	ss << " mtime=" << eos::common::Timing::TimespecToString(mtime);
+        eos::IFileMD::ctime_t mtime {0, 0};
+        fmd->getCTime(mtime);
+        ss << " mtime=" << eos::common::Timing::TimespecToString(mtime);
       }
+
       if (i == "btime") {
-	eos::IFileMD::ctime_t btime {0, 0};
-	if (fmd->getAttributes().count("sys.eos.btime")) {
-	  eos::common::Timing::Timespec_from_TimespecStr(fmd->getAttributes()["sys.eos.btime"], btime);
-	}
-	ss << " btime=" << eos::common::Timing::TimespecToString(btime);
+        eos::IFileMD::ctime_t btime {0, 0};
+
+        if (fmd->getAttributes().count("sys.eos.btime")) {
+          eos::common::Timing::Timespec_from_TimespecStr(
+            fmd->getAttributes()["sys.eos.btime"], btime);
+        }
+
+        ss << " btime=" << eos::common::Timing::TimespecToString(btime);
       }
+
       if (i == "ctime") {
-	eos::IFileMD::ctime_t ctime {0, 0};
-	fmd->getCTime(ctime);
-	ss << " ctime=" << eos::common::Timing::TimespecToString(ctime);
+        eos::IFileMD::ctime_t ctime {0, 0};
+        fmd->getCTime(ctime);
+        ss << " ctime=" << eos::common::Timing::TimespecToString(ctime);
       }
+
       if (i == "etag") {
-	std::string etag;
-	eos::calculateEtag(fmd.get(), etag);
-	ss << " etag=" << etag;
+        std::string etag;
+        eos::calculateEtag(fmd.get(), etag);
+        ss << " etag=" << etag;
       }
+
       if (i == "checksum") {
-	std::string xs;
-	eos::appendChecksumOnStringAsHex(fmd.get(), xs);
-	ss << " checksum=" << xs;
+        std::string xs;
+        eos::appendChecksumOnStringAsHex(fmd.get(), xs);
+        ss << " checksum=" << xs;
       }
+
       if (i == "checksumtype") {
-	ss << " checksumtype=" << eos::common::LayoutId::GetChecksumString(fmd->getLayoutId());
+        ss << " checksumtype=" << eos::common::LayoutId::GetChecksumString(
+             fmd->getLayoutId());
       }
-      if ( i.substr(0,5) == "attr.") {
-	std::string attr=i.substr(5);
-	if (attr == "*") {
-	  
-	  for (const auto& elem : fmd->getAttributes()) {
-	    ss << " attr." << elem.first << "=" << "\"" << elem.second << "\"";
-	  }
-	} else {
-	  if (fmd->getAttributes().count(attr)) {
-	    ss << " " << i << "=\"" << fmd->getAttributes()[attr] << "\"";
-	  }
-	}
+
+      if (i.substr(0, 5) == "attr.") {
+        std::string attr = i.substr(5);
+
+        if (attr == "*") {
+          for (const auto& elem : fmd->getAttributes()) {
+            ss << " attr." << elem.first << "=" << "\"" << elem.second << "\"";
+          }
+        } else {
+          if (fmd->getAttributes().count(attr)) {
+            ss << " " << i << "=\"" << fmd->getAttributes()[attr] << "\"";
+          }
+        }
       }
     }
   }
@@ -570,7 +611,7 @@ static void printReplicas(S& ss, const std::shared_ptr<eos::IFileMD>& fmd,
     eos::common::FileSystem::fs_snapshot_t fs;
 
     if (filesystem->SnapShotFileSystem(fs, true)) {
-      if (selectonline && filesystem->GetActiveStatus(true) !=
+      if (selectonline && filesystem->GetActiveStatus() !=
           eos::common::ActiveStatus::kOnline) {
         continue;
       }
@@ -811,29 +852,32 @@ struct FindResult {
   uint64_t numFiles = 0;
   uint64_t numContainers = 0;
   NamespaceItem item;
-  
+
   std::shared_ptr<eos::IContainerMD> toContainerMD()
   {
     if (iscache) {
       try {
-	auto cmd = gOFS->eosView->getContainer(path);
-	numFiles = cmd->getNumFiles();
-	numContainers = cmd->getNumContainers();
-	return cmd;
+        auto cmd = gOFS->eosView->getContainer(path);
+        numFiles = cmd->getNumFiles();
+        numContainers = cmd->getNumContainers();
+        return cmd;
       } catch (eos::MDException& e) {
       }
+
       return {};
     } else {
       if (item.isFile) {
-	return {};
+        return {};
       } else {
-	auto p = std::make_shared<eos::QuarkContainerMD>(eos::QuarkContainerMD());
-	p->initializeWithoutChildren(eos::ns::ContainerMdProto(item.containerMd));
-	// copy xattributes
-	for ( auto i:item.attrs ) {
-	  p->setAttribute(i.first, i.second);
-	}
-	return p;
+        auto p = std::make_shared<eos::QuarkContainerMD>(eos::QuarkContainerMD());
+        p->initializeWithoutChildren(eos::ns::ContainerMdProto(item.containerMd));
+
+        // copy xattributes
+        for (auto i : item.attrs) {
+          p->setAttribute(i.first, i.second);
+        }
+
+        return p;
       }
     }
   }
@@ -842,21 +886,24 @@ struct FindResult {
   {
     if (iscache) {
       try {
-	return gOFS->eosView->getFile(path);
+        return gOFS->eosView->getFile(path);
       } catch (eos::MDException& e) {
       }
+
       return {};
     } else {
       if (item.isFile) {
-	auto p = std::make_shared<eos::QuarkFileMD>(eos::QuarkFileMD());
-	p->initialize(eos::ns::FileMdProto(item.fileMd));
-	// copy xattributes
-	for ( auto i:item.attrs ) {
-	  p->setAttribute(i.first, i.second);
-	}
-	return p;
+        auto p = std::make_shared<eos::QuarkFileMD>(eos::QuarkFileMD());
+        p->initialize(eos::ns::FileMdProto(item.fileMd));
+
+        // copy xattributes
+        for (auto i : item.attrs) {
+          p->setAttribute(i.first, i.second);
+        }
+
+        return p;
       } else {
-	return {};
+        return {};
       }
     }
   }
@@ -947,6 +994,7 @@ public:
   {
     res.expansionFilteredOut = false;
     res.iscache = true;
+
     // Search not started yet?
     if (!inMemStarted) {
       dirIterator = found->begin();
@@ -984,6 +1032,7 @@ public:
   bool nextInQDB(FindResult& res)
   {
     res.iscache = false;
+
     // Just copy the result given by namespace explorer
     if (!explorer->fetch(res.item)) {
       return false;
@@ -1127,14 +1176,16 @@ NewfindCmd::ProcessRequest() noexcept
     }
   }
 
-  bool onlydirs = (findRequest.directories() && !findRequest.files()) | findRequest.count() | findRequest.treecount() | findRequest.childcount();
+  bool onlydirs = (findRequest.directories() &&
+                   !findRequest.files()) | findRequest.count() | findRequest.treecount() |
+                  findRequest.childcount();
 
   if (findRequest.cache()) {
     // read via our in-memory cache using _find
     findResultProvider.reset(new FindResultProvider());
     std::map<std::string, std::set<std::string>>* found =
-      findResultProvider->getFoundMap();
-    
+          findResultProvider->getFoundMap();
+
     if (gOFS->_find(findRequest.path().c_str(), errInfo, m_err, mVid, (*found),
                     findRequest.attributekey().length() ? findRequest.attributekey().c_str() :
                     nullptr,
@@ -1149,14 +1200,14 @@ NewfindCmd::ProcessRequest() noexcept
       if (m_err.length()) {
         ofstderrStream << m_err;
         reply.set_retc(E2BIG);
-	return reply;
+        return reply;
       }
     }
   } else {
     // read from the QDB backend
     findResultProvider.reset(new FindResultProvider(qcl.get(),
-						    findRequest.path(), depthlimit,
-						    onlydirs, mVid));
+                             findRequest.path(), depthlimit,
+                             onlydirs, mVid));
   }
 
   uint64_t treecount_aggregate_dircounter = 0;
@@ -1193,7 +1244,8 @@ NewfindCmd::ProcessRequest() noexcept
     }
 
     if (findResult.isdir) {
-      if (!findRequest.directories() && findRequest.files() && !findRequest.count() && !findRequest.treecount()) {
+      if (!findRequest.directories() && findRequest.files() && !findRequest.count() &&
+          !findRequest.treecount()) {
         continue;
       }
 
@@ -1239,7 +1291,7 @@ NewfindCmd::ProcessRequest() noexcept
 
       dircounter++;
       filecounter += findResult.numFiles;
-      
+
       if (findRequest.count() || findRequest.treecount()) {
         continue;
       }
@@ -1259,8 +1311,10 @@ NewfindCmd::ProcessRequest() noexcept
       }
 
       printPath(ofstdoutStream, findRequest, findResult.path);
-      printChildCount(ofstdoutStream, findRequest, cMD, findResult.numContainers, findResult.numFiles);
-      printFormat(ofstdoutStream, findRequest, cMD, findResult.numContainers, findResult.numFiles);
+      printChildCount(ofstdoutStream, findRequest, cMD, findResult.numContainers,
+                      findResult.numFiles);
+      printFormat(ofstdoutStream, findRequest, cMD, findResult.numContainers,
+                  findResult.numFiles);
       printUidGid(ofstdoutStream, findRequest, cMD);
       printAttributes(ofstdoutStream, findRequest, cMD);
       ofstdoutStream << std::endl;
@@ -1475,7 +1529,8 @@ NewfindCmd::ProcessRequest(grpc::ServerWriter<eos::console::ReplyProto>* writer)
     }
   }
 
-  bool onlydirs = (findRequest.directories() && !findRequest.files()) || findRequest.treecount();
+  bool onlydirs = (findRequest.directories() && !findRequest.files()) ||
+                  findRequest.treecount();
 
   if (findRequest.cache()) {
     // read via our in-memory cache using _find
@@ -1496,16 +1551,16 @@ NewfindCmd::ProcessRequest(grpc::ServerWriter<eos::console::ReplyProto>* writer)
       if (m_err.length()) {
         ofstderrStream << m_err;
         StreamReply.set_retc(E2BIG);
-	return;
+        return;
       }
     }
   } else {
     // read from the back-end
     findResultProvider.reset(new FindResultProvider(qcl.get(),
-						    findRequest.path(), depthlimit,
-						    onlydirs, mVid));
+                             findRequest.path(), depthlimit,
+                             onlydirs, mVid));
   }
-  
+
   uint64_t treecount_aggregate_dircounter = 0;
   uint64_t treecount_aggregate_filecounter = 0;
   uint64_t dircounter = 0;
@@ -1586,7 +1641,7 @@ NewfindCmd::ProcessRequest(grpc::ServerWriter<eos::console::ReplyProto>* writer)
 
       dircounter++;
       filecounter += findResult.numFiles;
-	
+
       if (findRequest.count() || findRequest.treecount()) {
         continue;
       }
@@ -1601,8 +1656,10 @@ NewfindCmd::ProcessRequest(grpc::ServerWriter<eos::console::ReplyProto>* writer)
         this->PrintFileInfoMinusM(output, findResult.path, errInfo);
       } else {
         printPath(output, findRequest, findResult.path);
-	printChildCount(ofstdoutStream, findRequest, cMD, findResult.numContainers, findResult.numFiles);
-	printFormat(ofstdoutStream, findRequest, cMD, findResult.numContainers, findResult.numFiles);
+        printChildCount(ofstdoutStream, findRequest, cMD, findResult.numContainers,
+                        findResult.numFiles);
+        printFormat(ofstdoutStream, findRequest, cMD, findResult.numContainers,
+                    findResult.numFiles);
         printUidGid(output, findRequest, cMD);
         printAttributes(output, findRequest, cMD);
 
@@ -1676,7 +1733,7 @@ NewfindCmd::ProcessRequest(grpc::ServerWriter<eos::console::ReplyProto>* writer)
       } else {
         printPath(output, findRequest,
                   fMD->isLink() ? findResult.path + " -> " + fMD->getLink() : findResult.path);
-	printFormat(ofstdoutStream, findRequest, fMD);
+        printFormat(ofstdoutStream, findRequest, fMD);
         printUidGid(output, findRequest, fMD);
         printAttributes(output, findRequest, fMD);
         printFMD(output, findRequest, fMD);
@@ -1724,9 +1781,9 @@ NewfindCmd::ProcessRequest(grpc::ServerWriter<eos::console::ReplyProto>* writer)
 
   if (findRequest.treecount()) {
     StreamReply.set_std_out(
-			    "path=\"" + findRequest.path() + 
-			    "\" sum.nfiles=" + std::to_string(treecount_aggregate_filecounter) +
-			    " sum.ndirectories=" + std::to_string(treecount_aggregate_dircounter) + "\n");
+      "path=\"" + findRequest.path() +
+      "\" sum.nfiles=" + std::to_string(treecount_aggregate_filecounter) +
+      " sum.ndirectories=" + std::to_string(treecount_aggregate_dircounter) + "\n");
     StreamReply.set_std_err("");
     StreamReply.set_retc(0);
     writer->Write(StreamReply);

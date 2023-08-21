@@ -466,14 +466,6 @@ public:
     time_t mDrainPeriod;
 
     //--------------------------------------------------------------------------
-    //! Get active status
-    //--------------------------------------------------------------------------
-    ActiveStatus GetActiveStatus() const
-    {
-      return mActiveStatus;
-    }
-
-    //--------------------------------------------------------------------------
     //! Empty constructor
     //--------------------------------------------------------------------------
     fs_snapshot_t();
@@ -579,9 +571,6 @@ public:
   //----------------------------------------------------------------------------
   //! Cache Members
   //----------------------------------------------------------------------------
-  ActiveStatus cActive; ///< cache value of the active status
-  XrdSysMutex cActiveLock; ///< lock protecting the cached active status
-  time_t cActiveTime; ///< unix time stamp of last update of the active status
   BootStatus cStatus; ///< cache value of the status
   time_t cStatusTime; ///< unix time stamp of last update of the cached status
   XrdSysMutex cStatusLock; ///< lock protecting the cached status
@@ -643,20 +632,6 @@ public:
   }
 
   //----------------------------------------------------------------------------
-  //! Set the activation status
-  //----------------------------------------------------------------------------
-  bool SetActiveStatus(ActiveStatus active)
-  {
-    if (active == ActiveStatus::kOnline) {
-      return SetString("stat.active", "online", false);
-    } else if (active == ActiveStatus::kOverload) {
-      return SetString("stat.active", "overload", false);
-    } else {
-      return SetString("stat.active", "offline", false);
-    }
-  }
-
-  //----------------------------------------------------------------------------
   //! Set the draining status
   //----------------------------------------------------------------------------
   bool SetDrainStatus(DrainStatus status)
@@ -670,11 +645,20 @@ public:
   bool RemoveKey(const char* key, bool broadcast = true);
 
   //----------------------------------------------------------------------------
-  //! Get the activation status via a cache.
-  //! This can be used with a small cache which 1s expiration time to avoid too
-  //! many lookup's in tight loops.
+  //! Set the activation status
   //----------------------------------------------------------------------------
-  ActiveStatus GetActiveStatus(bool cached = false);
+  inline bool SetActiveStatus(ActiveStatus active)
+  {
+    mActStatus = active;
+  }
+
+  //----------------------------------------------------------------------------
+  //! Get the activation status
+  //----------------------------------------------------------------------------
+  inline ActiveStatus GetActiveStatus() const
+  {
+    return mActStatus;
+  }
 
   //----------------------------------------------------------------------------
   //! Get all keys in a vector of strings.
@@ -834,6 +818,9 @@ public:
   //! Get SharedFs name
   //----------------------------------------------------------------------------
   std::string getSharedFs();
+
+private:
+  std::atomic<ActiveStatus> mActStatus; ///< File system active status
 };
 
 EOSCOMMONNAMESPACE_END;

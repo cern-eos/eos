@@ -2530,7 +2530,7 @@ FsView::HeartBeatCheck(ThreadAssistant& assistant) noexcept
 {
   while (!assistant.terminationRequested()) {
     assistant.wait_for(std::chrono::seconds(10));
-    eos::common::RWMutexReadLock lock(ViewMutex);
+    eos::common::RWMutexReadLock fs_rd_lock(ViewMutex);
 
     // Loop over all the nodes and update their status
     for (auto it_node = mNodeView.begin();
