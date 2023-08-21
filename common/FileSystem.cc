@@ -504,6 +504,7 @@ FileSystem::FileSystem(const FileSystemLocator& locator,
     upd_batch.SetDurable("host", locator.getHost());
     upd_batch.SetDurable("port", std::to_string(locator.getPort()));
     upd_batch.SetLocal("local.drain", "nodrain");
+    upd_batch.SetLocal("local.active", "offline");
 
     if (!mRealm->haveQDB() && !bc2mgm) {
       upd_batch.SetDurable("configstatus", "down");
@@ -787,37 +788,21 @@ FileSystem::GetDrainStatusFromString(const char* ss)
 }
 
 //------------------------------------------------------------------------------
-// Return active status from a string representation
+// Get active status as string
 //------------------------------------------------------------------------------
-ActiveStatus
-FileSystem::GetActiveStatusFromString(const char* ss)
+std::string
+FileSystem::GetActiveStatusAsString() const
 {
-  if (!ss) {
-    return ActiveStatus::kOffline;
+  switch (mActStatus.load()) {
+  case ActiveStatus::kOnline:
+    return "online";
+
+  case ActiveStatus::kOverload:
+    return "overload";
+
+  default:
+    return "offline";
   }
-
-  if (!strcmp(ss, "online")) {
-    return ActiveStatus::kOnline;
-  }
-
-  if (!strcmp(ss, "offline")) {
-    return ActiveStatus::kOffline;
-  }
-
-  if (!strcmp(ss, "overload")) {
-    return ActiveStatus::kOverload;
-  }
-
-  return ActiveStatus::kOffline;
-}
-
-//------------------------------------------------------------------------------
-// Return register request string
-//------------------------------------------------------------------------------
-const char*
-FileSystem::GetRegisterRequestString()
-{
-  return "mgm.cmd=register";
 }
 
 //------------------------------------------------------------------------------

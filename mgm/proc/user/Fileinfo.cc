@@ -362,7 +362,7 @@ ProcCommand::FileInfo(const char* path)
           eos::IFileMD::ctime_t atime {0, 0};
           fmd_copy->getCTime(ctime);
           fmd_copy->getMTime(mtime);
-	  fmd_copy->getATime(atime);
+          fmd_copy->getATime(atime);
 
           if (xattrs.count("sys.eos.btime")) {
             Timing::Timespec_from_TimespecStr(xattrs["sys.eos.btime"], btime);
@@ -371,7 +371,7 @@ ProcCommand::FileInfo(const char* path)
           time_t filectime = (time_t) ctime.tv_sec;
           time_t filemtime = (time_t) mtime.tv_sec;
           time_t filebtime = (time_t) btime.tv_sec;
-	  time_t fileatime = (time_t) atime.tv_sec;
+          time_t fileatime = (time_t) atime.tv_sec;
           std::string etag, xs_spaces;
           eos::calculateEtag(fmd_copy.get(), etag);
           eos::appendChecksumOnStringAsHex(fmd_copy.get(), xs_spaces, ' ');
@@ -397,10 +397,9 @@ ProcCommand::FileInfo(const char* path)
                 << "Change: " << eos::common::Timing::ltime(filectime)
                 << " Timestamp: " << eos::common::Timing::TimespecToString(ctime)
                 << std::endl
-		<< "Access: " << eos::common::Timing::ltime(fileatime)
+                << "Access: " << eos::common::Timing::ltime(fileatime)
                 << " Timestamp: " << eos::common::Timing::TimespecToString(atime)
                 << std::endl
-
                 << " Birth: " << eos::common::Timing::ltime(filebtime)
                 << " Timestamp: " << eos::common::Timing::TimespecToString(btime)
                 << std::endl
@@ -454,7 +453,7 @@ ProcCommand::FileInfo(const char* path)
                 << " mtime=" << mtime.tv_sec << "." << mtime.tv_nsec
                 << " ctime=" << ctime.tv_sec << "." << ctime.tv_nsec
                 << " btime=" << btime.tv_sec << "." << btime.tv_nsec
-		<< " atime=" << atime.tv_sec << "." << atime.tv_nsec
+                << " atime=" << atime.tv_sec << "." << atime.tv_nsec
                 << " clock=" << clock
                 << " mode=" << StringConversion::IntToOctal((int) fmd_copy->getFlags(), 4)
                 << " uid=" << fmd_copy->getCUid()
@@ -522,7 +521,7 @@ ProcCommand::FileInfo(const char* path)
 
               if (!Monitoring) {
                 std::string format =
-                  "header=1|key=host:width=24:format=s|key=schedgroup:width=16:format=s|key=path:width=16:format=s|key=stat.boot:width=10:format=s|key=configstatus:width=14:format=s|key=local.drain:width=12:format=s|key=stat.active:width=8:format=s|key=stat.geotag:width=24:format=s";
+                  "header=1|key=host:width=24:format=s|key=schedgroup:width=16:format=s|key=path:width=16:format=s|key=stat.boot:width=10:format=s|key=configstatus:width=14:format=s|key=local.drain:width=12:format=s|key=local.active:width=8:format=s|key=stat.geotag:width=24:format=s";
 
                 if (showProxygroup) {
                   format += "|key=proxygroup:width=24:format=s";
