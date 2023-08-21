@@ -168,6 +168,10 @@ inline std::string SanitizeGeoTag(const std::string& geotag)
     return std::string("Error: empty geotag");
   }
 
+  if (geotag == "<none>") {
+    return geotag;
+  }
+
   std::string tmp_tag(geotag);
   auto segments = eos::common::StringTokenizer::split<std::vector<std::string>>
                   (tmp_tag, ':');
