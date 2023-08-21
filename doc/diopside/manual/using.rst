@@ -1880,3 +1880,72 @@ privileges on the EOS instance he will need to contact one of the administrators
 Permanently deleting the achive will not delete any data from EOS, but only the data saved in CTA.
 Therefore, it is the **user's responsibility** to make sure he/she first gets the data back to EOS before
 requesting the deletion of the archive.
+
+Data Obufscation and Encryption
+-------------------------------
+
+We provide a generic EOS mechanism to obfuscate or encrypt data files stored on storage nodes, which does not require encrypted disk partitions. Each file is obfuscated/encrypted individually.
+Encryption uses an obfuscation key (start vector) which is transformed into an encryption key using a client secret to compute an HMAC value of the obfuscation key. Data are then encrypted with a simple block cipher algorithm (ECB). This is the fastest way of encryption for random access without any read-write-amplicification - but does not meet the highest security standards. Obfuscation keys are stored as an extended attribute of each file. It is not possible to view obfuscation keys using the EOS CLI. A low resolution fingerprint of the encryption key is also stored as an invisible extended attribute when encryption is done using a FUSE mount. This allows to identify wrong client side keys and avoids returning unreadable content to clients on FUSE mounts. This mechanism is not used for remote access protocols.
+
+
+.. index::
+   pair: Encryption; Obfuscation
+
+To enable obfuscation for individual files using remote protocols, one can use the CGI `&eos.obfuscate=1` when creating a new file.
+
+To enable obbfuscation for all new files created in in a directory use:
+
+.. code-block:: bash
+
+		[root@host~] eos attr set sys.file.obfuscate=1 /eos/obfuscate/
+
+
+Obfuscated files are accessible with any protocol. For remote access protocols like xrdcp,eoscp,http files are unobfuscated by the FST gateway node. For FUSE mounts files are unobfuscated by the FUSE client.
+		
+
+.. NOTE:: Only new files are obfuscated when the obfuscation attribute was (re-)defined. Existing files will stay unobfuscated. You can use `eos convert --rewrite filename` to rewrite an existing file obfuscated.
+
+
+Encryption requires obfuscation to be enabled! This is done by defining on the target directory: 
+
+.. code-block:: bash
+
+		[root@host~] eos attr set sys.file.obfuscate=1 /eos/encryption/
+
+Encryption is additionally enabled client-side defining the environment variable `EOS_FUSE_SECRET`. It is used automatically by the `eoscp` command or the `eosxd` FUSE mounts, but not when using `xrdcp` or `http` access:
+
+.. code-block:: bash
+
+		[root@host~] eos attr set sys.file.obfuscate=1 /eos/encryption/
+		[root@host~] export EOS_FUSE_SECRET=858aa9f8-545f-4b10-a823-3b7d822291a3
+		[root@host~] eosxd get eos.reconnect /eos/ #after defining a new encryption key you have to reconnect the FUSE mount or create a new subshell
+		[root@host~] eos cp /tmp/file root://localhost//eos/encryption/encrypted-file
+		[root@host~] eos file info /eos/encryption/encrypted-file
+		  File: '/eos/encryption/encrypted-file'  Flags: 0640
+		  Size: 13
+		 ...
+		  #Rep: 1
+		 Crypt: encrypted
+		 ...
+
+		[root@host~] cat /eos/encryption/encrypted-file
+		Hello World!
+
+
+When using `eoscp` files are decrypted by the FST and the encryption has to be forwared to the FST as part of the encrypted capability issued by the MGM node. When using FUSE mounts, encryption keys never leave the clients and decryption is done only on client side.
+
+
+.. NOTE:: There is no way to recover contents of encrypted files if you lose the `EOS_FUSE_SECRET` key, which was used to encrypt a file!
+
+.. NOTE:: To access encrypted files with remote protocols using `xrdcp` or `curl` you can define the encryption key using CGI e.g. `&eos.key=858aa9f8-545f-4b10-a823-3b7d822291a3`
+
+Starting with EOS v5.2 it is possible to define a global encryption key in the fuse configuration file which is shared by all calling client applications. The configuration has to have mode 0400 and for shared mounts has to be owned by root:root, for private mounts it is has to be owned by the user/group id of the mounting user.
+
+The syntax in the FUSE configuration file is as shown:
+
+.. code-block:: bash
+
+		cat /etc/eos/fuse.my.conf
+		{"encryptionkey":"655361ab-5af9-4697-8a32-8069ade18a27"}
+
+.. NOTE:: To create an unencrypted and encrypted area using single FUSE mounts, it is sufficient to define an encryption key in the FUSE configuration file, have a storage area where the `sys.eos.obfuscate` exteneded attribute is not defined (unencrypted) and one where the `sys.eos.obfuscate` attribute is defined (encrypted).
