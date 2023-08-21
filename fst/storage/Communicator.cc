@@ -182,7 +182,7 @@ Storage::ProcessFstConfigChange(const std::string& key,
   if (key == "stat.refresh_fs") {
     if (last_refresh_ts != value) {
       last_refresh_ts = value;
-      UpdateFilesystemDefinitions();
+      SignalRegisterThread();
     }
 
     return;
@@ -469,36 +469,43 @@ static std::string ExtractFsPath(const std::string& key)
 }
 
 //------------------------------------------------------------------------------
-// Update file system list given the QDB shared hash configuration
+// Update file system list given the QDB shared hash configuration -this
+// update is done in a separate thread handling the trigger event otherwise
+// we deadlock in the QClient code.
 //------------------------------------------------------------------------------
-void Storage::UpdateFilesystemDefinitions()
+void Storage::UpdateRegisteredFs(ThreadAssistant& assistant)
 {
-  qclient::QScanner scanner(*gOFS.mMessagingRealm->getQSom()->getQClient(),
-                            SSTR("eos-hash||fs||" << gConfig.FstHostPort << "||*"));
-  std::set<std::string> new_filesystems;
+  while (!assistant.terminationRequested()) {
+    std::unique_lock lock(mMutexRegisterFs);
+    mCvRegisterFs.wait(lock, [&] {return mTriggerRegisterFs;});
+    mTriggerRegisterFs = false;
+    qclient::QScanner scanner(*gOFS.mMessagingRealm->getQSom()->getQClient(),
+                              SSTR("eos-hash||fs||" << gConfig.FstHostPort << "||*"));
+    std::set<std::string> new_filesystems;
 
-  for (; scanner.valid(); scanner.next()) {
-    std::string queuePath = SSTR("/eos/" << gConfig.FstHostPort <<
-                                 "/fst" <<  ExtractFsPath(scanner.getValue()));
-    new_filesystems.insert(queuePath);
-  }
-
-  // Filesystems added?
-  for (auto it = new_filesystems.begin(); it != new_filesystems.end(); ++it) {
-    if (mLastRoundFilesystems.find(*it) == mLastRoundFilesystems.end()) {
-      RegisterFileSystem(*it);
+    for (; scanner.valid(); scanner.next()) {
+      std::string queuePath = SSTR("/eos/" << gConfig.FstHostPort <<
+                                   "/fst" <<  ExtractFsPath(scanner.getValue()));
+      new_filesystems.insert(queuePath);
     }
-  }
 
-  // Filesystems removed?
-  for (auto it = mLastRoundFilesystems.begin();
-       it != mLastRoundFilesystems.end(); ++it) {
-    if (new_filesystems.find(*it) == new_filesystems.end()) {
-      UnregisterFileSystem(*it);
+    // Filesystems added?
+    for (auto it = new_filesystems.begin(); it != new_filesystems.end(); ++it) {
+      if (mLastRoundFilesystems.find(*it) == mLastRoundFilesystems.end()) {
+        RegisterFileSystem(*it);
+      }
     }
-  }
 
-  mLastRoundFilesystems = std::move(new_filesystems);
+    // Filesystems removed?
+    for (auto it = mLastRoundFilesystems.begin();
+         it != mLastRoundFilesystems.end(); ++it) {
+      if (new_filesystems.find(*it) == new_filesystems.end()) {
+        UnregisterFileSystem(*it);
+      }
+    }
+
+    mLastRoundFilesystems = std::move(new_filesystems);
+  }
 }
 
 //------------------------------------------------------------------------------
@@ -578,7 +585,7 @@ Storage::QdbCommunicator(ThreadAssistant& assistant)
   }
 
   // One-off collect all configured file systems for this node
-  UpdateFilesystemDefinitions();
+  SignalRegisterThread();
   // Attach callback for node configuration updates
   auto node_subscription = node_hash.subscribe();
   node_subscription->attachCallback(std::bind(&Storage::NodeUpdateCb,
@@ -589,6 +596,19 @@ Storage::QdbCommunicator(ThreadAssistant& assistant)
     node_hash.set(eos::common::FST_HEARTBEAT_KEY, std::to_string(time(0)));
     assistant.wait_for(std::chrono::seconds(1));
   }
+}
+
+//------------------------------------------------------------------------------
+// Signal the thread responsible with registered file systems
+//------------------------------------------------------------------------------
+void
+Storage::SignalRegisterThread()
+{
+  {
+    std::unique_lock lock(mMutexRegisterFs);
+    mTriggerRegisterFs = true;
+  }
+  mCvRegisterFs.notify_one();
 }
 
 EOSFSTNAMESPACE_END

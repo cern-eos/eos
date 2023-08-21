@@ -162,6 +162,13 @@ Storage::Storage(const char* meta_dir)
   }
 
   mThreadSet.insert(tid);
+
+  if (gOFS.mMessagingRealm->haveQDB()) {
+    eos_info("%s", "msg=\"starting register file system thread\"");
+    mRegisterFsThread.reset(&Storage::UpdateRegisteredFs, this);
+    mRegisterFsThread.setName("RegisterFS Thread");
+  }
+
   eos_info("starting filesystem communication thread");
 
   if (gOFS.mMessagingRealm->haveQDB()) {
