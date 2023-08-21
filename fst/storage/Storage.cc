@@ -416,7 +416,8 @@ Storage::Boot(FileSystem* fs)
   // If we see the bootcheck resyncflag for the filesystem, we resync with
   // the mgm. Remove the bootcheck flag.
   fs->SetLongLong("bootcheck", 0);
-  eos_info("msg=\"start disk synchronisation\" fsid=%u", fsid);
+  eos_info("msg=\"start disk synchronisation\" fsid=%u resync_mgm=%d "
+           "resync_disk=%d", fsid, resyncmgm, resyncdisk);
 
   // Sync only local disks
   if (resyncdisk && (fs->GetPath()[0] == '/')) {

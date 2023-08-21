@@ -599,7 +599,7 @@ FsCmd::Status(const eos::console::FsProto::StatusProto& statusProto)
                     if ((snapshot.mStatus == eos::common::BootStatus::kBooted) &&
                         (snapshot.mConfigStatus == eos::common::ConfigStatus::kRW) &&
                         (snapshot.mErrCode == 0) && // this we probably don't need
-                        (snapshot.GetActiveStatus() == eos::common::ActiveStatus::kOnline)) {
+                        (snapshot.mActiveStatus == eos::common::ActiveStatus::kOnline)) {
                       nloc_ok++;
                     }
                   }

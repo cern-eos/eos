@@ -486,13 +486,11 @@ void FileSystem::fs_snapshot_t::fillFromCoreParams(const FileSystemCoreParams&
 FileSystem::FileSystem(const FileSystemLocator& locator,
                        mq::MessagingRealm* realm, bool bc2mgm)
   : mLocator(locator), mHashLocator(locator, bc2mgm),
-    mRealm(realm)
+    mRealm(realm), mActStatus(ActiveStatus::kOffline)
 {
   mInternalBootStatus = BootStatus::kDown;
-  cActive = ActiveStatus::kOffline;
   cStatus = BootStatus::kDown;
   cConfigStatus = ConfigStatus::kOff;
-  cActiveTime = 0;
   cStatusTime = 0;
   cConfigTime = 0;
   std::string broadcast = mHashLocator.getBroadcastQueue();
@@ -1222,7 +1220,7 @@ FileSystem::SnapShotFileSystem(FileSystem::fs_snapshot_t& fs, bool dolock)
   fs.mStatus = GetStatusFromString(hash.get("stat.boot").c_str());
   fs.mConfigStatus = GetConfigStatusFromString(hash.get("configstatus").c_str());
   fs.mDrainStatus = GetDrainStatusFromString(hash.get("local.drain").c_str());
-  fs.mActiveStatus = GetActiveStatusFromString(hash.get("stat.active").c_str());
+  fs.mActiveStatus = mActStatus.load();
   //headroom can be configured as KMGTP so the string should be properly converted
   fs.mHeadRoom = StringConversion::GetSizeFromString(hash.get("headroom"));
   fs.mErrCode = (unsigned int) hash.getLongLong("stat.errc");
@@ -1321,43 +1319,6 @@ FileSystem::Print(TableHeader& table_mq_header, TableData& table_mq_data,
 {
   mq::SharedHashWrapper hash(mRealm, mHashLocator);
   printOntoTable(hash, table_mq_header, table_mq_data, listformat, filter);
-}
-
-//----------------------------------------------------------------------------
-// Get the activation status via a cache.
-// This can be used with a small cache which 1s expiration time to avoid too
-// many lookup's in tight loops.
-//----------------------------------------------------------------------------
-ActiveStatus
-FileSystem::GetActiveStatus(bool cached)
-{
-  XrdSysMutexHelper lock(cActiveLock);
-
-  if (cached) {
-    time_t now = time(NULL);
-
-    if (now - cActiveTime) {
-      cActiveTime = now;
-    } else {
-      return cActive;
-    }
-  }
-
-  std::string active = GetString("stat.active");
-
-  if (active == "online") {
-    cActive = ActiveStatus::kOnline;
-    return ActiveStatus::kOnline;
-  } else if (active == "offline") {
-    cActive = ActiveStatus::kOffline;
-    return ActiveStatus::kOffline;
-  } else if (active == "overload") {
-    cActive = ActiveStatus::kOverload;
-    return ActiveStatus::kOverload;
-  } else {
-    cActive = ActiveStatus::kUndefined;
-    return ActiveStatus::kUndefined;
-  }
 }
 
 //------------------------------------------------------------------------------
