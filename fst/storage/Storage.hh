@@ -275,7 +275,12 @@ private:
   AssistedThread mCommunicatorThread;
   AssistedThread mQdbCommunicatorThread;
   std::set<std::string> mLastRoundFilesystems;
-  AssistedThread mPublisherThread;
+  AssistedThread mPublisherThread; ///< Thread publishing FST/FS info
+  AssistedThread mRegisterFsThread; ///< Thread updating list of FS registered
+  //! CV and mutex used for notifying the register thread
+  std::condition_variable mCvRegisterFs;
+  std::mutex mMutexRegisterFs;
+  bool mTriggerRegisterFs {false};
 
   //! Struct BootThreadInfo
   struct BootThreadInfo {
@@ -336,8 +341,23 @@ private:
   //! Worker threads implementation
   //----------------------------------------------------------------------------
   void Supervisor();
+
+  //----------------------------------------------------------------------------
+  //! Communicator used for processing updates coming through MQ
+  //----------------------------------------------------------------------------
   void Communicator(ThreadAssistant& assistant);
+
+  //----------------------------------------------------------------------------
+  //! Communicator used for processing updates coming through QDB
+  //----------------------------------------------------------------------------
   void QdbCommunicator(ThreadAssistant& assistant);
+
+  //----------------------------------------------------------------------------
+  //! Update file system list given the QDB shared hash configuration i.e. scan
+  //! QDB for file systems belonging to the current node and update the
+  //! internal list.
+  //----------------------------------------------------------------------------
+  void UpdateRegisteredFs(ThreadAssistant& assistant);
 
   //----------------------------------------------------------------------------
   //! Get configuration value from global FST config
@@ -471,19 +491,17 @@ private:
   void ShutdownThreads();
 
   //----------------------------------------------------------------------------
-  //! Update file system list given the QDB shared hash configuration i.e. scan
-  //! QDB for file systems belonging to the current node and update the
-  //! internal list.
-  //----------------------------------------------------------------------------
-  void UpdateFilesystemDefinitions();
-
-  //----------------------------------------------------------------------------
   //! FST node update callback - this is triggered whenever the underlying
   //! qclient::SharedHash corresponding to the node is modified.
   //!
   //! @param upd SharedHashUpdate object
   //----------------------------------------------------------------------------
   void NodeUpdateCb(qclient::SharedHashUpdate&& upd);
+
+  //----------------------------------------------------------------------------
+  //! Signal the thread responsible with registered file systems
+  //----------------------------------------------------------------------------
+  void SignalRegisterThread();
 };
 
 EOSFSTNAMESPACE_END
