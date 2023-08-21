@@ -21,10 +21,9 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifndef EOS_MQ_FILESYSTEM_CHANGE_LISTENER_HH
-#define EOS_MQ_FILESYSTEM_CHANGE_LISTENER_HH
-
+#pragma once
 #include "mq/Namespace.hh"
+#include "common/RWMutex.hh"
 #include <string>
 #include <map>
 #include <set>
@@ -166,7 +165,7 @@ private:
   std::condition_variable mCv;
   std::list<Event> mPendingEvents;
   //! Mutex protecting access to mMapInterests
-  mutable std::mutex mMutexMap;
+  mutable eos::common::RWMutex mMutexMap;
   //! Map of channel to set of interest keys
   std::map<std::string, std::set<std::string>> mMapInterests;
 
@@ -180,9 +179,16 @@ private:
   //----------------------------------------------------------------------------
   bool WaitForEvent(Event& out,
                     std::chrono::seconds timeout = std::chrono::seconds(5));
+
+  //----------------------------------------------------------------------------
+  //! Check if given event is interesting for the current listener given the
+  //! keys that it has subscribed with (i.e. interests)
+  //!
+  //! @param event new event object
+  //!
+  //! @return true if event is interesting, otherwise false
+  //----------------------------------------------------------------------------
+  bool IsEventInteresting(const Event& event) const;
 };
 
 EOSMQNAMESPACE_END
-
-
-#endif

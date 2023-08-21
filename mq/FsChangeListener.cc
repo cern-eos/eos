@@ -51,7 +51,7 @@ FsChangeListener::subscribe(const std::string& key)
     return mNotifier->SubscribesToKey(mListenerName.c_str(), key,
                                       XrdMqSharedObjectChangeNotifier::kMqSubjectModification);
   } else {
-    std::scoped_lock lock(mMutexMap);
+    eos::common::RWMutexWriteLock wr_lock(mMutexMap);
     mMapInterests[sAllMatchTag].insert(key);
     return true;
   }
@@ -69,7 +69,7 @@ FsChangeListener::subscribe(const std::string& channel,
     return mNotifier->SubscribesToSubjectAndKey(mListenerName.c_str(), channel,
            keys, XrdMqSharedObjectChangeNotifier::kMqSubjectModification);
   } else {
-    std::scoped_lock lock(mMutexMap);
+    eos::common::RWMutexWriteLock wr_lock(mMutexMap);
     auto resp = mMapInterests.emplace(channel, std::set<std::string>());
     auto& set_keys = resp.first->second;
     set_keys.insert(keys.begin(), keys.end());
@@ -89,7 +89,7 @@ FsChangeListener::unsubscribe(const std::string& channel,
     return mNotifier->UnsubscribesToSubjectAndKey(mListenerName.c_str(), channel,
            keys, XrdMqSharedObjectChangeNotifier::kMqSubjectModification);
   } else {
-    std::scoped_lock lock(mMutexMap);
+    eos::common::RWMutexWriteLock wr_lock(mMutexMap);
     auto it = mMapInterests.find(channel);
 
     if (it != mMapInterests.end()) {
@@ -114,7 +114,7 @@ std::set<std::string>
 FsChangeListener::GetInterests(const std::string& channel) const
 {
   std::set<std::string> keys;
-  std::scoped_lock lock(mMutexMap);
+  eos::common::RWMutexReadLock rd_lock(mMutexMap);
   // Check if this listener is interested in some updates from all channels
   auto it = mMapInterests.find(sAllMatchTag);
 
@@ -187,16 +187,34 @@ bool FsChangeListener::fetch(Event& out, ThreadAssistant& assistant)
 }
 
 //------------------------------------------------------------------------------
+// Check if given event is interesting for the current listener given its
+// interests
+//------------------------------------------------------------------------------
+bool
+FsChangeListener::IsEventInteresting(const Event& event) const
+{
+  const std::set<std::string> key_interest = GetInterests(event.fileSystemQueue);
+
+  if (key_interest.find(event.key) != key_interest.cend()) {
+    return true;
+  }
+
+  return false;
+}
+
+//------------------------------------------------------------------------------
 // Notify new event
 //------------------------------------------------------------------------------
 void
 FsChangeListener::NotifyEvent(const Event& event)
 {
-  {
-    std::lock_guard lock(mMutex);
-    mPendingEvents.emplace_back(event);
+  if (IsEventInteresting(event)) {
+    {
+      std::lock_guard lock(mMutex);
+      mPendingEvents.emplace_back(event);
+    }
+    mCv.notify_one();
   }
-  mCv.notify_one();
 }
 
 //------------------------------------------------------------------------------
