@@ -24,6 +24,7 @@
 #include "fst/storage/FileSystem.hh"
 #include "fst/XrdFstOfs.hh"
 #include "fst/ScanDir.hh"
+#include "fst/Config.hh"
 #include "fst/utils/DiskMeasurements.hh"
 #include "common/Constants.hh"
 #include "qclient/shared/SharedHashSubscription.hh"
@@ -37,8 +38,10 @@ EOSFSTNAMESPACE_BEGIN
 // Set of key updates to be tracked at the file system level
 std::set<std::string> FileSystem::sFsUpdateKeys {
   "id", "uuid", "bootsenttime",
-  eos::common::SCAN_IO_RATE_NAME, eos::common::SCAN_ENTRY_INTERVAL_NAME,
-  eos::common::SCAN_DISK_INTERVAL_NAME, eos::common::SCAN_NS_INTERVAL_NAME,
+  eos::common::SCAN_IO_RATE_NAME,
+  eos::common::SCAN_ENTRY_INTERVAL_NAME,
+  eos::common::SCAN_DISK_INTERVAL_NAME,
+  eos::common::SCAN_NS_INTERVAL_NAME,
   eos::common::SCAN_NS_RATE_NAME };
 
 //------------------------------------------------------------------------------
@@ -91,6 +94,12 @@ FileSystem::ProcessUpdateCb(qclient::SharedHashUpdate&& upd)
   if (sFsUpdateKeys.find(upd.key) != sFsUpdateKeys.end()) {
     eos_static_info("msg=\"process update callback\" key=%s value=%s",
                     upd.key.c_str(), upd.value.c_str());
+    // @note handle here the updates but make sure not to access or set any
+    // shared hash values as this will trigger a deadlock. We are now called
+    // from the shared hash itself that digest the updates and also pushes them
+    // through a subscriber to us. Disgesting these update is done in an
+    // exclusive lock region that protects the contents of the shared hash -
+    // therefore we risk ending up in a deadlock situation
     gOFS.Storage->ProcessFsConfigChange(this, upd.key, upd.value);
   }
 }
@@ -196,6 +205,31 @@ FileSystem::ConfigScanner(Load* fst_load, const std::string& key,
   mScanDir->SetConfig(key, value);
 }
 
+
+//------------------------------------------------------------------------------
+// Set file system boot status
+//------------------------------------------------------------------------------
+void
+FileSystem::SetStatus(eos::common::BootStatus status)
+{
+  eos::common::FileSystem::SetStatus(status);
+
+  if (mLocalBootStatus == status) {
+    return;
+  }
+
+  eos_debug("before=%d after=%d", mLocalBootStatus.load(), status);
+
+  if ((mLocalBootStatus == eos::common::BootStatus::kBooted) &&
+      (status == eos::common::BootStatus::kOpsError)) {
+    mRecoverable = true;
+  } else {
+    mRecoverable = false;
+  }
+
+  mLocalBootStatus = status;
+}
+
 //------------------------------------------------------------------------------
 // Get file system disk performance metrics eg. IOPS/seq bandwidth
 //------------------------------------------------------------------------------
@@ -235,6 +269,101 @@ FileSystem::IoPing()
   unlink(fn_path.c_str());
   eos_info("bw=%lld iops=%d", seqBandwidth, IOPS);
   return;
+}
+
+//------------------------------------------------------------------------------
+// Get IO statistics from the `sys.iostats` xattr
+//------------------------------------------------------------------------------
+bool
+FileSystem::GetFileIOStats(std::map<std::string, std::string>& map)
+{
+  if (!mFileIO) {
+    return false;
+  }
+
+  // Avoid querying IO stats attributes for certain storage types
+  if (mFileIO->GetIoType() == "DavixIo" ||
+      mFileIO->GetIoType() == "XrdIo") {
+    return false;
+  }
+
+  std::string iostats;
+  mFileIO->attrGet("sys.iostats", iostats);
+  return eos::common::StringConversion::GetKeyValueMap(iostats.c_str(),
+         map, "=", ",");
+}
+
+//------------------------------------------------------------------------------
+// Get health information from the `sys.health` xattr
+//------------------------------------------------------------------------------
+bool
+FileSystem::GetHealthInfo(std::map<std::string, std::string>& map)
+{
+  if (!mFileIO) {
+    return false;
+  }
+
+  // Avoid querying Health attributes for certain storage types
+  if (mFileIO->GetIoType() == "DavixIo" ||
+      mFileIO->GetIoType() == "XrdIo") {
+    return false;
+  }
+
+  // Avoid querying Health attributes for certain storage types
+  if (mFileIO->GetIoType() == "DavixIo" ||
+      mFileIO->GetIoType() == "XrdIo") {
+    return false;
+  }
+
+  std::string health;
+  mFileIO->attrGet("sys.health", health);
+  return eos::common::StringConversion::GetKeyValueMap(health.c_str(),
+         map, "=", ",");
+}
+
+//----------------------------------------------------------------------------
+// Decide if we should run the boot procedure for current file system
+//----------------------------------------------------------------------------
+bool
+FileSystem::ShouldBoot(const std::string& trigger)
+{
+  if ((trigger == "id") || (trigger == "uuid")) {
+    // Check if we are auto-booting
+    if (gConfig.autoBoot &&
+        (GetStatus() <= eos::common::BootStatus::kDown) &&
+        (GetConfigStatus() > eos::common::ConfigStatus::kOff)) {
+      return true;
+    }
+  }
+
+  if (trigger == "bootsenttime") {
+    uint64_t bootcheck_val = GetLongLong("bootcheck");
+
+    if (GetInternalBootStatus() == eos::common::BootStatus::kBooted) {
+      if (bootcheck_val) {
+        eos_static_info("msg=\"boot enforced\" queue=%s status=%d check=%lld",
+                        GetQueuePath().c_str(), GetStatus(), bootcheck_val);
+        return true;
+      } else {
+        eos_static_info("msg=\"skip boot, already booted\" queue=%s "
+                        "status=%d check=%lld", GetQueuePath().c_str(),
+                        GetStatus(), bootcheck_val);
+        SetStatus(eos::common::BootStatus::kBooted);
+        return false;
+      }
+    } else {
+      eos_static_info("msg=\"do boot as we're not yet booted\" queue=%s "
+                      "status=%d check=%lld", GetQueuePath().c_str(),
+                      GetStatus(), bootcheck_val);
+      return true;
+    }
+  }
+
+  if (trigger.empty()) {
+    return true;
+  }
+
+  return false;
 }
 
 EOSFSTNAMESPACE_END

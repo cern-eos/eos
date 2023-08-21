@@ -281,6 +281,7 @@ private:
   struct BootThreadInfo {
     Storage* storage;
     fst::FileSystem* filesystem;
+    std::string mTriggerKey;
   };
 
   //----------------------------------------------------------------------------
@@ -404,10 +405,11 @@ private:
   //! Run boot thread for specified filesystem
   //!
   //! @param fs filesystem object
+  //! @param trigger_key update key which is triggering this boot request
   //!
   //! @return true if boot thread started successfully, otherwise false
   //----------------------------------------------------------------------------
-  bool RunBootThread(fst::FileSystem* fs);
+  bool RunBootThread(fst::FileSystem* fs, const std::string& trigger_key);
 
   //----------------------------------------------------------------------------
   //! Write file system label files (.eosid and .eosuuid) according to the
