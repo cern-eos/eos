@@ -310,6 +310,11 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
 
       HandleUidGidMapping(client_username.c_str(), vid,
                           g_ztn_uid_key, g_ztn_gid_key);
+    } else {
+      // add the ZTN credential if there is not another one provided
+      if (authz.empty()) {
+	authz = client->creds;
+      }
     }
   }
 
