@@ -44,7 +44,6 @@ add_executable(eos-grpc-md grpc/Md.cc)
 add_executable(eos-grpc-find grpc/Find.cc)
 add_executable(eos-grpc-ns grpc/Ns.cc)
 add_executable(eos-grpc-insert grpc/Insert.cc)
-add_executable(eos-grpc-manila grpc/Manila.cc)
 add_executable(eos-grpc-ns-stat grpc/NsStat.cc)
 
 #-------------------------------------------------------------------------------
@@ -76,17 +75,12 @@ target_link_libraries(eos-grpc-insert PUBLIC
   EosGrpcClient-Objects
   EosCommon )
 
-target_link_libraries(eos-grpc-manila PUBLIC
-  EosGrpcProto-Objects
-  EosGrpcClient-Objects
-  EosCommon )
-
 target_link_libraries(eos-grpc-ns-stat PUBLIC
   EosGrpcProto-Objects
   EosGrpcClient-Objects
   EosCommon)
 
-install(TARGETS eos-grpc-ping eos-grpc-md eos-grpc-insert eos-grpc-manila
+install(TARGETS eos-grpc-ping eos-grpc-md eos-grpc-insert 
   eos-grpc-ns eos-grpc-find eos-grpc-ns-stat
   LIBRARY DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
   RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_BINDIR}

@@ -246,7 +246,6 @@ add_library(
   InFlightTracker.cc
   grpc/GrpcServer.cc   grpc/GrpcServer.hh
   grpc/GrpcNsInterface.cc   grpc/GrpcNsInterface.hh
-  grpc/GrpcManilaInterface.cc   grpc/GrpcManilaInterface.hh
   grpc/GrpcWncServer.cc      grpc/GrpcWncServer.hh
   grpc/GrpcWncInterface.cc      grpc/GrpcWncInterface.hh
   http/HttpServer.cc
