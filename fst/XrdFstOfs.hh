@@ -562,6 +562,13 @@ public:
   //! but still allow the env variables to override them
   //----------------------------------------------------------------------------
   static void SetXrdClConfig();
+
+  //----------------------------------------------------------------------------
+  //! Get Kernel relase information
+  //!
+  //! @return kernel release info or empty if failed
+  //----------------------------------------------------------------------------
+  static std::string GetKernelRelease();
 };
 
 //------------------------------------------------------------------------------

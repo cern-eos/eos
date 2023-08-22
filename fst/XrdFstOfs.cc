@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// File: XrdFstOfs.cc
+// Fileq: XrdFstOfs.cc
 // Author: Andreas-Joachim Peters - CERN
 // ----------------------------------------------------------------------
 
@@ -83,6 +83,7 @@
 #include <cctype>
 #include <algorithm>
 #include <sys/prctl.h>
+#include <sys/utsname.h>
 
 // The global OFS handle
 eos::fst::XrdFstOfs eos::fst::gOFS;
@@ -720,8 +721,7 @@ XrdFstOfs::Configure(XrdSysError& Eroute, XrdOucEnv* envP)
   gConfig.FstHostPort = mHostName;
   gConfig.FstHostPort += ":";
   gConfig.FstHostPort += myPort;
-  gConfig.KernelVersion =
-    eos::common::StringConversion::StringFromShellCmd("uname -r | tr -d \"\n\"").c_str();
+  gConfig.KernelVersion = GetKernelRelease().c_str();
   Eroute.Say("=====> fstofs.broker : ", gConfig.FstOfsBrokerUrl.c_str(), "");
   // Extract our queue name
   gConfig.FstQueue = gConfig.FstOfsBrokerUrl;
@@ -2367,6 +2367,23 @@ XrdFstOfs::SetXrdClConfig()
     eos_static_info("msg=\"update xrootd client timeouts\" name=%s value=%i",
                     elem.first.c_str(), env_value);
   }
+}
+
+//------------------------------------------------------------------------------
+// Get Kernel relase information
+//------------------------------------------------------------------------------
+std::string
+XrdFstOfs::GetKernelRelease()
+{
+  std::string kernel_release;
+  struct utsname buf;
+  int rc = uname(&buf);
+
+  if (!rc) {
+    kernel_release = buf.release;
+  }
+
+  return kernel_release;
 }
 
 EOSFSTNAMESPACE_END
