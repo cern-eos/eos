@@ -23,7 +23,6 @@
 
 #include "GrpcServer.hh"
 #include "GrpcNsInterface.hh"
-#include "GrpcManilaInterface.hh"
 #include <google/protobuf/util/json_util.h>
 #include "common/Logging.hh"
 #include "common/StringConversion.hh"
@@ -45,8 +44,6 @@ using eos::rpc::PingReply;
 using eos::rpc::FileInsertRequest;
 using eos::rpc::ContainerInsertRequest;
 using eos::rpc::InsertReply;
-using eos::rpc::ManilaRequest;
-using eos::rpc::ManilaResponse;
 
 #endif
 
@@ -147,31 +144,6 @@ class RequestServiceImpl final : public Eos::Service
     GrpcServer::Vid(context, vid, request->authkey());
     WAIT_BOOT;
     return GrpcNsInterface::NsStat(vid, reply, request);
-  }
-
-  Status ManilaServerRequest(ServerContext* context,
-                             const eos::rpc::ManilaRequest* request,
-                             eos::rpc::ManilaResponse* reply) override
-  {
-    std::string jsonstring;
-    google::protobuf::util::JsonPrintOptions options;
-    options.add_whitespace = true;
-    options.always_print_primitive_fields = true;
-    google::protobuf::util::MessageToJsonString(*request,
-        &jsonstring, options);
-    eos_static_notice("grpc::manila::server::request from client peer=%s ip=%s DN=%s token=%s type=%d \nrequest:\n%s",
-                      context->peer().c_str(), GrpcServer::IP(context).c_str(),
-                      GrpcServer::DN(context).c_str(), request->auth_key().c_str(),
-                      request->request_type(),
-                      jsonstring.c_str());
-    eos::common::VirtualIdentity vid;
-    GrpcServer::Vid(context, vid, request->auth_key());
-    WAIT_BOOT;
-    Status st = GrpcManilaInterface::Process(vid, reply, request);
-    google::protobuf::util::MessageToJsonString(*reply,
-        &jsonstring, options);
-    eos_static_notice("\nreply:\n%s", jsonstring.c_str());
-    return st;
   }
 
   Status Exec(ServerContext* context,
