@@ -1395,7 +1395,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
 
             // For versions copy xattrs over from the original file
             if (versioning) {
-              static std::set<std::string> skip_tag {"sys.eos.btime", "sys.fs.tracking", "sys.utrace", "sys.vtrace", "sys.tmp.atomic"};
+              static std::set<std::string> skip_tag {"sys.eos.btime", "sys.fs.tracking", eos::common::EOS_DTRACE_ATTR, eos::common::EOS_VTRACE_ATTR, "sys.tmp.atomic"};
 
               for (const auto& xattr : attrmapF) {
                 if (skip_tag.find(xattr.first) == skip_tag.end()) {

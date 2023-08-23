@@ -21,6 +21,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
+#include "common/Constants.hh"
 #include "common/Logging.hh"
 #include "common/LayoutId.hh"
 #include "common/Mapping.hh"
@@ -575,7 +576,7 @@ void
 Recycle::Print(std::string& std_out, std::string& std_err,
                eos::common::VirtualIdentity& vid, bool monitoring,
                bool translateids, bool details, std::string date, bool global,
-               Recycle::RecycleListing* rvec)
+               Recycle::RecycleListing* rvec, bool whodeleted)
 {
   using namespace eos::common;
   XrdOucString uids;
@@ -694,6 +695,8 @@ Recycle::Print(std::string& std_out, std::string& std_err,
 
           XrdOucErrInfo error;
           XrdOucString type = "file";
+	  XrdOucString deleter;
+	  
           struct stat buf;
 
           if (!gOFS->_stat(fullpath.c_str(), &buf, error, vid, "", nullptr, false)) {
@@ -731,6 +734,14 @@ Recycle::Print(std::string& std_out, std::string& std_err,
               originode.insert("pxid:", 0);
             }
 
+	    if (whodeleted) {
+	      if (!gOFS->_attr_get(fullpath.c_str(), error, vid, "", eos::common::EOS_DTRACE_ATTR,
+				   deleter, false)) {
+	      } else {
+		deleter = "{}";
+	      }
+	    }
+	    
             if (monitoring) {
               oss_out << "recycle=ls recycle-bin=" << Recycle::gRecyclingPrefix
                       << " uid=" << uids.c_str() << " gid=" << gids.c_str()
@@ -740,6 +751,7 @@ Recycle::Print(std::string& std_out, std::string& std_err,
                       << " keylength.restore-path=" << origpath.length()
                       << " restore-path=" << origpath.c_str()
                       << " restore-key=" << originode.c_str()
+		      << " dtrace=\"" << deleter.c_str() << "\""
                       << std::endl;
 
               if (rvec) {
@@ -753,6 +765,7 @@ Recycle::Print(std::string& std_out, std::string& std_err,
                 rmap["type"] = type.c_str();
                 rmap["path"] = origpath.c_str();
                 rmap["key"] = originode.c_str();
+		rmap["dtrace"] = deleter.c_str();
                 rvec->push_back(rmap);
               }
             } else {
@@ -761,21 +774,23 @@ Recycle::Print(std::string& std_out, std::string& std_err,
               if (count == 0) {
                 // print a header
                 snprintf(sline, sizeof(sline) - 1,
-                         "# %-24s %-8s %-8s %-12s %-13s %-20s %-64s\n", "Deletion Time", "UID", "GID",
-                         "SIZE", "TYPE", "RESTORE-KEY", "RESTORE-PATH");
+                         "# %-24s %-8s %-8s %-12s %-13s %-21s %-64s %-32s\n", "Deletion Time", "UID", "GID",
+                         "SIZE", "TYPE", "RESTORE-KEY", "RESTORE-PATH", "DTRACE");
                 oss_out << sline
                         << "# ================================================"
                         << "=================================================="
-                        << "============================" << std::endl;
+                        << "========================================================="
+			<< "============================="
+			<< std::endl;
               }
 
               char tdeltime[4096];
               std::string deltime = ctime_r(&buf.st_ctime, tdeltime);
               deltime.erase(deltime.length() - 1);
-              snprintf(sline, sizeof(sline) - 1, "%-26s %-8s %-8s %-12s %-13s %-16s %-64s",
+              snprintf(sline, sizeof(sline) - 1, "%-26s %-8s %-8s %-12s %-13s %-16s %-64s %-32s",
                        deltime.c_str(), uids.c_str(), gids.c_str(),
                        StringConversion::GetSizeString((unsigned long long) buf.st_size).c_str(),
-                       type.c_str(), originode.c_str(), origpath.c_str());
+                       type.c_str(), originode.c_str(), origpath.c_str(), deleter.c_str());
 
               if (oss_out.tellp() > 1 * 1024 * 1024 * 1024) {
                 retc = E2BIG;

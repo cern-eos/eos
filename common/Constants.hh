@@ -73,8 +73,12 @@ static constexpr auto SCAN_NS_INTERVAL_NAME = "scan_ns_interval";
 static constexpr auto FSCK_REFRESH_INTERVAL_NAME = "fsck_refresh_interval";
 //! Special EOS scheduling group space
 static constexpr auto EOS_SPARE_GROUP = "spare";
-//! Appliation lock attribute
+//! Application lock attribute
 static constexpr auto EOS_APP_LOCK_ATTR = "sys.app.lock";
+//! Trace attributes
+static constexpr auto EOS_DTRACE_ATTR = "sys.dtrace";
+static constexpr auto EOS_VTRACE_ATTR = "sys.vtrace";
+static constexpr auto EOS_UTRACE_ATTR = "sys.utrace";
 //! FST heartbeat key marker, the "stat." prefix makes it transient
 static constexpr auto FST_HEARTBEAT_KEY = "stat.heartbeat";
 
