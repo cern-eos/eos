@@ -405,6 +405,13 @@ XrdMgmOfs::_rem(const char* path,
                   "space has no quota configuration");
     }
 
+    // track who is deleting 
+    if (gOFS->_attr_set(recyclePath.c_str(), error, vid, "",
+			eos::common::EOS_DTRACE_ATTR, vid.getTrace(true).c_str())) {
+      eos_err("msg=\"failed to set attribute on recycle path\" path=%s",
+	      recyclePath.c_str());
+    }
+    
     if (!keepversion) {
       // call the version purge function in case there is a version (without gQuota locked)
       eos::common::Path cPath(path);

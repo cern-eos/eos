@@ -156,7 +156,8 @@ public:
                     bool transalteids, bool details,
                     std::string date = "",
                     bool global = false,
-                    RecycleListing* rvec = 0
+                    RecycleListing* rvec = 0,
+		    bool whodeleted = true
                    );
 
   /**

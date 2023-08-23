@@ -103,17 +103,22 @@ VirtualIdentity::getGroupAtDomain() const
 //----------------------------------------------------------------------------
 
 std::string
-VirtualIdentity::getTrace() const
+VirtualIdentity::getTrace(bool compact) const
 {
   std::stringstream ss;
   time_t now = time(NULL);
-  ss << "[" << eos::common::Timing::ltime(now) << "] uid:" << uid << "[" <<
-     uid_string << "] gid:" << gid << "[" << gid_string << "] tident:" <<
-     tident.c_str() << " name:" << name << " dn:" << dn << " prot:" << prot <<
-     " app:" << app << " host:" << host << " domain:" << domain << " geo:" <<
-     geolocation << " sudo:"
-     << sudoer;
-  return ss.str();
+  if (compact) {
+    ss << "{uid:" << uid << ",gid:" << gid << ",tident:" << tident << ",prot:" << prot << ",app:" << app << ",host:" << host << ",domain:"<<domain<<"}";
+    return ss.str();
+  } else {
+    ss << "[" << eos::common::Timing::ltime(now) << "] uid:" << uid << "[" <<
+      uid_string << "] gid:" << gid << "[" << gid_string << "] tident:" <<
+      tident.c_str() << " name:" << name << " dn:" << dn << " prot:" << prot <<
+      " app:" << app << " host:" << host << " domain:" << domain << " geo:" <<
+      geolocation << " sudo:"
+       << sudoer;
+    return ss.str();
+  }
 }
 
 //----------------------------------------------------------------------------
