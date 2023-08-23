@@ -99,6 +99,10 @@ ICmdHelper::ExecuteWithoutPrint(bool add_route)
     oss << "&authz=" << getenv("EOSAUTHZ");
   }
 
+  if (getenv("EOSAPP")) {
+    oss << "&eos.app=" << getenv("EOSAPP");
+  }
+  
   if (mGlobalOpts.mDebug) {
     PrintDebugMsg(oss.str());
   }
