@@ -637,13 +637,7 @@ public:
   //----------------------------------------------------------------------------
   //! Set the activation status
   //----------------------------------------------------------------------------
-  inline bool SetActiveStatus(ActiveStatus active)
-  {
-    if (mActStatus != active) {
-      mActStatus = active;
-      SetString("local.active", GetActiveStatusAsString().c_str(), false);
-    }
-  }
+  void SetActiveStatus(ActiveStatus active);
 
   //----------------------------------------------------------------------------
   //! Get the activation status
@@ -656,7 +650,7 @@ public:
   //----------------------------------------------------------------------------
   //! Get active status as string
   //----------------------------------------------------------------------------
-  std::string GetActiveStatusAsString() const;
+  const std::string GetActiveStatusAsString() const;
 
   //----------------------------------------------------------------------------
   //! Get all keys in a vector of strings.
