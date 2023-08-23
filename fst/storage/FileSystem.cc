@@ -83,6 +83,7 @@ FileSystem::~FileSystem()
 
   mScanDir.release();
   mFileIO.release();
+  // @todo(esindril) set the stat.boot to down and propagate it to the MGM
 }
 
 //------------------------------------------------------------------------------

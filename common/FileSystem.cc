@@ -787,21 +787,33 @@ FileSystem::GetDrainStatusFromString(const char* ss)
   return DrainStatus::kNoDrain;
 }
 
+//----------------------------------------------------------------------------
+//! Set the activation status
+//----------------------------------------------------------------------------
+void
+FileSystem::SetActiveStatus(ActiveStatus active)
+{
+  if (mActStatus != active) {
+    mActStatus = active;
+    const std::string act_status = GetActiveStatusAsString();
+    SetString("local.active", act_status.c_str(), false);
+  }
+}
+
 //------------------------------------------------------------------------------
 // Get active status as string
 //------------------------------------------------------------------------------
-std::string
+const std::string
 FileSystem::GetActiveStatusAsString() const
 {
-  switch (mActStatus.load()) {
-  case ActiveStatus::kOnline:
+  if (mActStatus == ActiveStatus::kOnline) {
     return "online";
-
-  case ActiveStatus::kOverload:
-    return "overload";
-
-  default:
+  } else if (mActStatus == ActiveStatus::kOffline) {
     return "offline";
+  } else if (mActStatus == ActiveStatus::kOverload) {
+    return "overload";
+  } else {
+    return "undef";
   }
 }
 
