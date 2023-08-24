@@ -795,8 +795,7 @@ FileSystem::SetActiveStatus(ActiveStatus active)
 {
   if (mActStatus != active) {
     mActStatus = active;
-    const std::string act_status = GetActiveStatusAsString();
-    SetString("local.active", act_status.c_str(), false);
+    SetString("local.active", GetActiveStatusAsString().c_str(), false);
   }
 }
 

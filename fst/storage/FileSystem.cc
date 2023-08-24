@@ -83,7 +83,8 @@ FileSystem::~FileSystem()
 
   mScanDir.release();
   mFileIO.release();
-  // @todo(esindril) set the stat.boot to down and propagate it to the MGM
+  // Notify the MGM this file system is down
+  SetStatus(eos::common::BootStatus::kDown);
 }
 
 //------------------------------------------------------------------------------
