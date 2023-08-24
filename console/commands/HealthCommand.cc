@@ -515,7 +515,7 @@ void HealthCommand::GetGroupsInfo()
     temp.host       = extractor.GetValue("host");
     str_temp = extractor.GetValue("port");
     temp.port       = std::stoi(str_temp.empty() ? "0" : str_temp);
-    temp.active     = extractor.GetValue("stat.active");
+    temp.active     = extractor.GetValue("local.active");
     str_temp = extractor.GetValue("id");
     temp.id         = std::stoi(str_temp.empty() ? "0" : str_temp);
     temp.path       = extractor.GetValue("path");
