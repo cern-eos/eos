@@ -68,7 +68,6 @@ uint64_t FreeSpaceBalancerEngine::getFreeSpaceLLimit() const
 
 void FreeSpaceBalancerEngine::updateGroup(const std::string& group_name)
 {
-
   std::scoped_lock lock(mtx);
   // clear threshold is a set erase. should always work!
   clear_threshold(group_name);
@@ -99,8 +98,8 @@ void FreeSpaceBalancerEngine::updateGroup(const std::string& group_name)
 std::string FreeSpaceBalancerEngine::get_status_str(bool detail, bool monitoring) const
 {
   std::stringstream oss;
-
   std::scoped_lock lock(mtx);
+
   if (!monitoring) {
     oss << "Engine configured: FreeSpace\n";
     oss << "Min Threshold   : " << mMinDeviation << "\n";
