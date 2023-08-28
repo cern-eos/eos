@@ -51,3 +51,23 @@ TEST(GroupBalancerUtils, threshold_multi)
   EXPECT_FALSE(is_valid_threshold("2", "0.0f"));
   EXPECT_FALSE(is_valid_threshold("10", "2", "kitchensink"));
 }
+
+
+TEST(GroupBalancerUtils, extract_percent_value_simple)
+{
+  engine_conf_t conf;
+  conf["min_threshold"]="5";
+  EXPECT_DOUBLE_EQ(extract_percent_value(conf,"min_threshold"),0.05);
+}
+
+TEST(GroupBalancerUtils, extract_percent_value_null)
+{
+  engine_conf_t conf;
+  EXPECT_DOUBLE_EQ(extract_percent_value(conf,"min_threshold"),0.0);
+}
+
+TEST(GroupBalancerUtils, extract_percent_value_default)
+{
+  engine_conf_t conf;
+  EXPECT_DOUBLE_EQ(extract_percent_value(conf,"min_threshold",5.0),0.05);
+}
