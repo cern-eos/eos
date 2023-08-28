@@ -1,11 +1,11 @@
 //------------------------------------------------------------------------------
-// File: BalancerEngineFactory.hh
+// File: FreeSpaceBalancerEngine.hh
 // Author: Abhishek Lekshmanan - CERN
 //------------------------------------------------------------------------------
 
 /************************************************************************
  * EOS - the CERN Disk Storage System                                   *
- * Copyright (C) 2022 CERN/Switzerland                                  *
+ * Copyright (C) 2023 CERN/Switzerland
  *                                                                      *
  * This program is free software: you can redistribute it and/or modify *
  * it under the terms of the GNU General Public License as published by *
@@ -22,33 +22,32 @@
  ************************************************************************/
 
 #pragma once
-#include "mgm/groupbalancer/StdDevBalancerEngine.hh"
-#include "mgm/groupbalancer/MinMaxBalancerEngine.hh"
-#include "mgm/groupbalancer/FreeSpaceBalancerEngine.hh"
+#include <unordered_set>
+#include "mgm/groupbalancer/BalancerEngine.hh"
 
 namespace eos::mgm::group_balancer
 {
 
-BalancerEngineT get_engine_type(std::string_view name)
+class FreeSpaceBalancerEngine: public BalancerEngine
 {
-  if (name == "minmax") {
-    return BalancerEngineT::minmax;
-  } else if (name == "freespace") {
-    return BalancerEngineT::freespace;
-  }
-
-  return BalancerEngineT::stddev;
-}
-
-BalancerEngine* make_balancer_engine(BalancerEngineT engine_t)
-{
-  if (engine_t == BalancerEngineT::minmax) {
-    return new MinMaxBalancerEngine();
-  } else if (engine_t == BalancerEngineT::freespace) {
-    return new FreeSpaceBalancerEngine();
-  }
-
-  return new StdDevBalancerEngine();
-}
-
+public:
+  using group_set_t = std::unordered_set<std::string>;
+  void recalculate() override;
+  void updateGroup(const std::string& group_name) override;
+  void configure(const engine_conf_t& conf) override;
+  std::string get_status_str(bool detail = false,
+                             bool monitoring = false) const override;
+  // Currently consumed by tests, show the expected free space per group
+  uint64_t getGroupFreeSpace() const;
+  uint64_t getFreeSpaceULimit() const;
+  uint64_t getFreeSpaceLLimit() const;
+private:
+  uint64_t mTotalFreeSpace; //!< Total Free space in the space
+  uint64_t mGroupFreeSpace; //!< Per Group Free Space
+  double mMinDeviation {0.02};     //!< Allowed percent deviation from left of GroupFreeSpace
+  double mMaxDeviation {0.02};     //!< Allowed percent deviation from right of GroupFreeSpace
+  //! TODO future: make this part of the base class and make this feature
+  //! available for all engines
+  group_set_t mBlocklistedGroups; //!< Groups that will be blocked from participation
+};
 }

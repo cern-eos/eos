@@ -162,6 +162,7 @@ using engine_conf_t = std::map<std::string, std::string, std::less<>>;
 enum class BalancerEngineT {
   stddev,
   minmax,
+  freespace,
   total_count
 };
 
