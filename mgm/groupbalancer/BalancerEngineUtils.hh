@@ -27,6 +27,7 @@
 #include <random>
 #include <functional>
 #include "common/StringUtils.hh"
+#include "common/StringSplit.hh"
 #include "mgm/groupbalancer/BalancerEngine.hh"
 
 namespace
@@ -97,6 +98,17 @@ double extract_percent_value(Args&& ... args)
 {
   double value = extract_double_value(std::forward<Args>(args)...);
   return value / 100.0;
+}
+
+template <typename map_type, typename key_type>
+std::unordered_set<std::string>
+extract_commalist_value(const map_type& m, const key_type& k)
+{
+  using namespace std::string_view_literals;
+  auto cl_extractor_fn = [](std::string_view value) {
+    return common::StringSplit<std::unordered_set<std::string>>(value, ", ");
+  };
+  return extract_value(m, k, cl_extractor_fn);
 }
 
 inline bool is_valid_threshold(const std::string& threshold_str)
