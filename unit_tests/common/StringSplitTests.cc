@@ -1,5 +1,6 @@
 #include "gtest/gtest.h"
 #include "common/StringSplit.hh"
+#include <unordered_set>
 
 using namespace eos::common;
 using sv_vector = std::vector<std::string_view>;
@@ -150,6 +151,16 @@ TEST(StringSplit, MultiSplit)
 
   k2 += k;
   ASSERT_EQ(StringSplit(k2, delim), expect_v);
+}
+
+TEST(StringSplit, CommaList)
+{
+  sv_vector expect_v {"group1","group2","group3","group4", "group5"};
+  ASSERT_EQ(StringSplit("group1, group2, group3 \n, group4,group5", ", \n"), expect_v);
+
+  std::unordered_set<std::string> expect_s {"group2","group1","group3","group5","group4"};
+  ASSERT_EQ(StringSplit<std::unordered_set<std::string>>("group1, group2, group3 \n, group4,group5", ", \n"),
+            expect_s);
 }
 
 TEST(StringSplit, get_delim_p)
