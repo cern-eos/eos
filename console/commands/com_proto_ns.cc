@@ -263,6 +263,7 @@ NsHelper::ParseCommand(const char* arg)
   } else if (cmd == "recompute_quotanode") {
     using eos::console::NsProto_QuotaSizeProto;
     NsProto_QuotaSizeProto* quota = ns->mutable_quota();
+    quota->set_recompute(true);
 
     if (!(option = tokenizer.GetToken())) {
       return false;
@@ -289,7 +290,7 @@ NsHelper::ParseCommand(const char* arg)
   } else if (cmd == "update_quotanode") {
     using eos::console::NsProto_QuotaSizeProto;
     NsProto_QuotaSizeProto* quota = ns->mutable_quota();
-
+    quota->set_recompute(false);
     if (!(option = tokenizer.GetToken())) {
       return false;
     } else {

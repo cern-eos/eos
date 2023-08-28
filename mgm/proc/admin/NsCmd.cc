@@ -855,7 +855,7 @@ NsCmd::QuotaSizeSubcmd(const eos::console::NsProto_QuotaSizeProto& tree,
   QuotaNodeCore qnc;
   bool update = false;
 
-  if (tree.used_bytes() || tree.used_inodes()) {
+  if (!tree.recompute()) {
     QuotaNodeCore::UsageInfo usage;
     usage.space = tree.used_bytes();
     usage.physicalSpace = tree.physical_bytes();
@@ -868,10 +868,13 @@ NsCmd::QuotaSizeSubcmd(const eos::console::NsProto_QuotaSizeProto& tree,
       // set by group
       qnc.setByGid(strtoul(tree.gid().c_str(), 0, 10), usage);
     } else {
-      reply.set_std_err("error: to overwrite quota you have to set a user or group id - never both");
+      reply.set_std_err("error: to overwrite quota you have to set a user or group id - mutually exclusive");
       reply.set_retc(EINVAL);
       return;
     }
+
+    eos_info("msg=\"will update quota\" cxid=%08llx path=\"%s\"",
+             cont_id, cont_uri.c_str());
 
     update = true;
   } else {
@@ -881,6 +884,9 @@ NsCmd::QuotaSizeSubcmd(const eos::console::NsProto_QuotaSizeProto& tree,
       reply.set_retc(EINVAL);
       return;
     }
+
+    eos_info("msg=\"will recompute quota\" cxid=%08llx path=\"%s\"",
+             cont_id, cont_uri.c_str());
 
     std::unique_ptr<qclient::QClient> qcl =
       std::make_unique<qclient::QClient>(gOFS->mQdbContactDetails.members,

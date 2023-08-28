@@ -15,6 +15,12 @@ sleep 6
 d=`eos quota ls -m $1 | grep $grep_str`
 echo $d
 
+echo "=================="
+echo "a=$a"
+echo "c=$c"
+echo "d=$d"
+echo "=================="
+
 if [ "$a" != "$d" ]; then
   exit -1
 fi
