@@ -25,6 +25,8 @@
 #include <string>
 #include <numeric>
 #include <random>
+#include <functional>
+#include "common/StringUtils.hh"
 #include "mgm/groupbalancer/BalancerEngine.hh"
 
 namespace
@@ -35,6 +37,13 @@ std::mt19937 generator(rd());
 
 namespace eos::mgm::group_balancer
 {
+
+namespace detail
+{
+// uses CTAD
+template <typename Fn>
+using ret_type_t = typename decltype(std::function{std::declval<Fn>()})::result_type;
+} // detail
 
 inline uint32_t getRandom(uint32_t max)
 {
@@ -54,36 +63,39 @@ inline double calculateAvg(const group_size_map& m)
   { return s + kv.second.filled(); }) / m.size();
 }
 
-template <typename map_type, typename key_type>
-double extract_value(const map_type& m, const key_type& k,
-                     double default_val = 0.0,
-                     std::string* err_str = nullptr)
+
+template <typename map_type, typename key_type, typename Fn,
+          typename value_type = detail::ret_type_t<Fn>>
+value_type
+extract_value(const map_type& m, const key_type& k,
+              Fn extractor_fn)
 {
   auto kv = m.find(k);
-
-  if (kv == m.end()) {
-    return default_val;
+  if (kv != m.end()) {
+    return extractor_fn(kv->second);
   }
 
-  double result;
+  return extractor_fn("");
+}
 
-  try {
-    result = std::stod(kv->second);
-  } catch (std::exception& e) {
-    if (err_str) {
-      *err_str = e.what();
-    }
+template <typename map_type, typename key_type>
+double extract_double_value(const map_type& m, const key_type& k,
+                            double default_val = 0.0,
+                            std::string* err_str = nullptr)
+{
+  auto double_extractor = [&default_val, err_str](const std::string& str) {
+    double value;
+    common::StringToNumeric(str, value, default_val, err_str);
+    return value;
+  };
 
-    return default_val;
-  }
-
-  return result;
+  return extract_value(m, k, double_extractor);
 }
 
 template <typename... Args>
 double extract_percent_value(Args&& ... args)
 {
-  double value = extract_value(std::forward<Args>(args)...);
+  double value = extract_double_value(std::forward<Args>(args)...);
   return value / 100.0;
 }
 
