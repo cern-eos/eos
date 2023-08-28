@@ -328,7 +328,7 @@ GroupBalancer::Status(bool detail, bool monitoring) const
 bool
 GroupBalancer::is_valid_engine(std::string_view engine_name)
 {
-  return engine_name == "std" || engine_name == "minmax";
+  return engine_name == "std" || engine_name == "minmax" || engine_name == "freespace";
 }
 
 //------------------------------------------------------------------------------
@@ -393,8 +393,11 @@ GroupBalancer::Configure(FsSpace* const space, GroupBalancer::Config& cfg)
     max_threshold_str = threshold_str;
   }
 
+  auto blocklisted_groups = space->GetConfigMember("groupbalancer.blocklist");
+
   mEngineConf.insert_or_assign("min_threshold", std::move(min_threshold_str));
   mEngineConf.insert_or_assign("max_threshold", std::move(max_threshold_str));
+  mEngineConf.insert_or_assign("blocklisted_groups", std::move(blocklisted_groups));
   return true;
 }
 

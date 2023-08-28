@@ -220,6 +220,7 @@ add_library(
   GroupDrainer.cc
   groupbalancer/BalancerEngine.cc
   groupbalancer/ConverterUtils.cc
+  groupbalancer/FreeSpaceBalancerEngine.cc
   groupbalancer/MinMaxBalancerEngine.cc
   groupbalancer/StdDevBalancerEngine.cc
   groupbalancer/StdDrainerEngine.cc

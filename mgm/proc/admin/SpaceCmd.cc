@@ -757,6 +757,16 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config,
         std_err.str("error: invalid groupbalancer engine name");
         ret_c = EINVAL;
       }
+    } else if (key == "groupbalancer.blocklist") {
+      if (!space->SetConfigMember(key, value)) {
+        std_err.str("error: cannot set space config value");
+        ret_c = EIO;
+      } else {
+        applied = true;
+        std_out.str("success: configured groupbalancer.engine in space='" +
+                    space_name + "' as " + key + "='" + value + "'\n");
+        ret_c = 0;
+      }
     } else if (key == "scheduler.type") {
       if (!space->SetConfigMember(key, value)) {
         std_err.str("error: cannot set space config value");
