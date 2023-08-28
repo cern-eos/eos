@@ -71,3 +71,16 @@ TEST(GroupBalancerUtils, extract_percent_value_default)
   engine_conf_t conf;
   EXPECT_DOUBLE_EQ(extract_percent_value(conf,"min_threshold",5.0),0.05);
 }
+
+TEST(GroupBalancerUtils, extract_commalist_value)
+{
+  engine_conf_t conf;
+  conf["blocklist_groups"] = "group1,group2, group3, group4";
+  std::unordered_set<std::string> expected {"group2","group1","group3","group4"};
+  EXPECT_EQ(expected,
+            extract_commalist_value(conf, "blocklist_groups"));
+
+  std::unordered_set<std::string> empty;
+  EXPECT_EQ(empty,
+            extract_commalist_value(conf, "some key"));
+}
