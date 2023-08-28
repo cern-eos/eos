@@ -66,6 +66,20 @@ auto get_delim_p(const str_t& str, char delim,
   return str.find(delim, start_pos);
 }
 
+
+// simple overloads for distinguishing vector/deque types vs set types - technically
+// is_assoc_container_v should already get the job done, but a future map vs set
+// distinction would require has_emplace_back type functionality anyway as is_assoc
+// would be true for a map type
+template <typename T, typename = void>
+struct has_emplace_back : std::false_type {};
+
+template <typename T>
+struct has_emplace_back<T, std::void_t<decltype(std::declval<T>().emplace_back())>> :
+   std::true_type {};
+
+template <typename T>
+bool constexpr has_emplace_back_v = has_emplace_back<T>::value;
 } // detail
 
 
@@ -230,13 +244,30 @@ using StringSplitIt = LazySplit<std::string_view, std::string_view>;
 using CharSplitIt = LazySplit<std::string_view, char>;
 
 template <typename C = std::vector<std::string_view>>
-C StringSplit(std::string_view input, std::string_view delim)
+auto StringSplit(std::string_view input, std::string_view delim)
+  -> std::enable_if_t<detail::has_emplace_back_v<C>, C>
 {
   C c;
   auto split_iter = StringSplitIt(input, delim);
 
   for (std::string_view part : split_iter) {
     c.emplace_back(part);
+  }
+
+  return c;
+}
+
+// Not defaulting this type as it will mean an additional include of an
+// unordered/ordered type which is unnecessary
+template <typename C>
+auto StringSplit(std::string_view input, std::string_view delim)
+  -> std::enable_if_t<!detail::has_emplace_back_v<C>, C>
+{
+  C c;
+  auto split_iter = StringSplitIt(input, delim);
+
+  for (std::string_view part : split_iter) {
+    c.emplace(part);
   }
 
   return c;
