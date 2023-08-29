@@ -23,6 +23,7 @@
 
 #pragma once
 #include <unordered_set>
+#include <mutex>
 #include "mgm/groupbalancer/BalancerEngine.hh"
 
 namespace eos::mgm::group_balancer
@@ -38,6 +39,7 @@ public:
   std::string get_status_str(bool detail = false,
                              bool monitoring = false) const override;
   // Currently consumed by tests, show the expected free space per group
+  // Not TS, all the methods calling these already hold locks
   uint64_t getGroupFreeSpace() const;
   uint64_t getFreeSpaceULimit() const;
   uint64_t getFreeSpaceLLimit() const;
@@ -46,6 +48,7 @@ private:
   uint64_t mGroupFreeSpace; //!< Per Group Free Space
   double mMinDeviation {0.02};     //!< Allowed percent deviation from left of GroupFreeSpace
   double mMaxDeviation {0.02};     //!< Allowed percent deviation from right of GroupFreeSpace
+  mutable std::mutex mtx;
   //! TODO future: make this part of the base class and make this feature
   //! available for all engines
   group_set_t mBlocklistedGroups; //!< Groups that will be blocked from participation

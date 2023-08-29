@@ -762,10 +762,11 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config,
         std_err.str("error: cannot set space config value");
         ret_c = EIO;
       } else {
-        applied = true;
-        std_out.str("success: configured groupbalancer.engine in space='" +
-                    space_name + "' as " + key + "='" + value + "'\n");
-        ret_c = 0;
+        space->mGroupBalancer->reconfigure();
+          applied = true;
+          std_out.str("success: configured groupbalancer.engine in space='" +
+                      space_name + "' as " + key + "='" + value + "'\n");
+          ret_c = 0;
       }
     } else if (key == "scheduler.type") {
       if (!space->SetConfigMember(key, value)) {
