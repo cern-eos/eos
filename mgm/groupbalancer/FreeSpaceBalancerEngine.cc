@@ -101,6 +101,7 @@ std::string FreeSpaceBalancerEngine::get_status_str(bool detail,
   std::stringstream oss;
   std::scoped_lock lock(mtx);
 
+  std::scoped_lock lock(mtx);
   if (!monitoring) {
     oss << "Engine configured: FreeSpace\n";
     oss << "Min Threshold   : " << mMinDeviation << "\n";
