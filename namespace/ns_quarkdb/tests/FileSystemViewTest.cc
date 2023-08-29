@@ -956,6 +956,27 @@ TEST_F(FileSystemViewF, getFileAfterBeingRenamed) {
   ASSERT_EQ(sleepSeconds,diff);
 }
 
+TEST_F(FileSystemViewF, getFileOrContainerWriteLockedTwiceInSameThread) {
+  {
+    view()->createContainer("/root/", true);
+    view()->createFile("/root/file1");
+  }
+
+  auto cont = view()->getContainerWriteLocked("/root/");
+  auto cont2 = view()->getContainerWriteLocked("/root/");
+  auto cont3 = view()->getContainerReadLocked("/root/");
+
+  auto file = view()->getFileWriteLocked("/root/file1");
+  auto file2 = view()->getFileWriteLocked("/root/file1");
+  auto file3 = view()->getFileReadLocked("/root/file1");
+
+  ASSERT_EQ(cont->getUnderlyingPtr().get(),cont2->getUnderlyingPtr().get());
+  ASSERT_EQ(cont->getUnderlyingPtr().get(),cont3->getUnderlyingPtr().get());
+  ASSERT_EQ(file->getUnderlyingPtr().get(), file2->getUnderlyingPtr().get());
+  ASSERT_EQ(file->getUnderlyingPtr().get(), file3->getUnderlyingPtr().get());
+}
+
+
 TEST(SetChangeList, BasicSanity)
 {
   eos::IFsView::FileList contents;
