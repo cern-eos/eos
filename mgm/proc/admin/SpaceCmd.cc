@@ -762,10 +762,10 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config,
         ret_c = EIO;
       } else {
         space->mGroupBalancer->reconfigure();
-          applied = true;
-          std_out.str("success: configured groupbalancer.engine in space='" +
-                      space_name + "' as " + key + "='" + value + "'\n");
-          ret_c = 0;
+        applied = true;
+        std_out.str("success: updated " + key + "in space='" +
+                    space_name + "' as " + value + "'\n");
+        ret_c = 0;
       }
     } else {
       if ((key == "nominalsize") ||
