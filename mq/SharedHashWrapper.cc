@@ -88,7 +88,7 @@ SharedHashWrapper::SharedHashWrapper(mq::MessagingRealm* realm,
   : mSom(realm->getSom()), mLocator(locator)
 {
   if (realm->haveQDB()) {
-    mSharedHash = realm->getHashProvider()->get(locator);
+    mSharedHash = realm->getHashProvider()->Get(locator);
   } else {
     if (takeLock) {
       mReadLock.Grab(mSom->HashMutex);
@@ -367,17 +367,17 @@ bool SharedHashWrapper::getContents(std::map<std::string, std::string>& out)
 bool SharedHashWrapper::deleteHash(mq::MessagingRealm* realm,
                                    const common::SharedHashLocator& locator)
 {
-  return realm->getSom()->DeleteSharedHash(locator.getConfigQueue().c_str(),
-         true);
-}
-
-//------------------------------------------------------------------------------
-// Entirely clear contents. For old MQ implementation, call
-// DeleteSharedHash too.
-//------------------------------------------------------------------------------
-bool SharedHashWrapper::deleteHash()
-{
-  return mSom->DeleteSharedHash(mLocator.getConfigQueue().c_str(), true);
+  if (realm->getQSom()) {
+    realm->getHashProvider()->Delete(locator);
+    return true;
+  } else if (realm->getSom()) {
+    return realm->getSom()->DeleteSharedHash(locator.getConfigQueue().c_str(),
+           true);
+  } else {
+    eos_static_crit("msg=\"no shared object manager\" locator=\"%s\"",
+                    locator.getConfigQueue().c_str());
+    return false;
+  }
 }
 
 EOSMQNAMESPACE_END
