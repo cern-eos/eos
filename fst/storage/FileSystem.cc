@@ -99,7 +99,7 @@ FileSystem::ProcessUpdateCb(qclient::SharedHashUpdate&& upd)
     // @note handle here the updates but make sure not to access or set any
     // shared hash values as this will trigger a deadlock. We are now called
     // from the shared hash itself that digest the updates and also pushes them
-    // through a subscriber to us. Disgesting these update is done in an
+    // through a subscriber to us. Digesting these update is done in an
     // exclusive lock region that protects the contents of the shared hash -
     // therefore we risk ending up in a deadlock situation
     gOFS.Storage->ProcessFsConfigChange(this, upd.key, upd.value);
