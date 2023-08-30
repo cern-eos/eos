@@ -24,7 +24,9 @@
 #include "mq/SharedHashProvider.hh"
 #include "mq/LocalHash.hh"
 #include "common/Locators.hh"
-#include <qclient/shared/SharedHash.hh>
+#include "qclient/QClient.hh"
+#include "qclient/shared/SharedHash.hh"
+#include "qclient/shared/SharedManager.hh"
 
 EOSMQNAMESPACE_BEGIN
 
@@ -38,7 +40,7 @@ SharedHashProvider::SharedHashProvider(qclient::SharedManager* manager)
 // Get shared hash
 //------------------------------------------------------------------------------
 std::shared_ptr<qclient::SharedHash>
-SharedHashProvider::get(const eos::common::SharedHashLocator& locator)
+SharedHashProvider::Get(const eos::common::SharedHashLocator& locator)
 {
   const std::string& key = locator.getQDBKey();
   std::unique_lock lock(mMutex);
@@ -60,6 +62,27 @@ SharedHashProvider::get(const eos::common::SharedHashLocator& locator)
 
   mStore[key] = hash;
   return hash;
+}
+
+//------------------------------------------------------------------------------
+// Delete shared hash
+//------------------------------------------------------------------------------
+void
+SharedHashProvider::Delete(const eos::common::SharedHashLocator& locator)
+{
+  const std::string qdb_key = locator.getQDBKey();
+  std::unique_lock lock(mMutex);
+  auto it = mStore.find(qdb_key);
+
+  if (it != mStore.end()) {
+    mStore.erase(it);
+  }
+
+  qclient::QClient* qcl = mSharedManager->getQClient();
+
+  if (qcl) {
+    qcl->exec("DEL", qdb_key);
+  }
 }
 
 EOSMQNAMESPACE_END

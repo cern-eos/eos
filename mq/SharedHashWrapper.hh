@@ -173,12 +173,6 @@ public:
   bool getContents(std::map<std::string, std::string>& out);
 
   //----------------------------------------------------------------------------
-  //! Entirely clear contents. For old MQ implementation, calls
-  //! DeleteSharedHash.
-  //----------------------------------------------------------------------------
-  bool deleteHash();
-
-  //----------------------------------------------------------------------------
   //! Subscribe for updates from the underlying hash
   //----------------------------------------------------------------------------
   std::unique_ptr<qclient::SharedHashSubscription> subscribe();

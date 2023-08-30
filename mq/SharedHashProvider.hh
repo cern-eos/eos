@@ -60,7 +60,14 @@ public:
   //! Get shared hash
   //----------------------------------------------------------------------------
   std::shared_ptr<qclient::SharedHash>
-  get(const eos::common::SharedHashLocator& locator);
+  Get(const eos::common::SharedHashLocator& locator);
+
+  //----------------------------------------------------------------------------
+  //! Delete shared hash
+  //!
+  //! @param locator locator object for the given hash
+  //----------------------------------------------------------------------------
+  void Delete(const eos::common::SharedHashLocator& locator);
 
 private:
   qclient::SharedManager* mSharedManager;
