@@ -25,8 +25,8 @@ TEST(FreeSpaceBalancerEngine, simple)
   auto d = engine->get_data();
 
   EXPECT_EQ(d.mGroupSizes.size(), 5);
-  EXPECT_EQ(d.mGroupsOverThreshold.size(), 2);
-  EXPECT_EQ(d.mGroupsUnderThreshold.size(), 3);
+  EXPECT_EQ(d.mGroupsOverThreshold.size(), 3);
+  EXPECT_EQ(d.mGroupsUnderThreshold.size(), 2);
   EXPECT_EQ(d.mGroupsUnderThreshold, expected_targets);
   EXPECT_EQ(d.mGroupsOverThreshold, expected_sources);
 
@@ -51,8 +51,8 @@ TEST(FreeSpaceBalancerEngine, blocklisting)
   auto d = engine->get_data();
 
   EXPECT_EQ(d.mGroupSizes.size(), 5);
-  EXPECT_EQ(d.mGroupsOverThreshold.size(), 2);
-  EXPECT_EQ(d.mGroupsUnderThreshold.size(), 3);
+  EXPECT_EQ(d.mGroupsOverThreshold.size(), 3);
+  EXPECT_EQ(d.mGroupsUnderThreshold.size(), 2);
   EXPECT_EQ(d.mGroupsUnderThreshold, expected_targets);
   EXPECT_EQ(d.mGroupsOverThreshold, expected_sources);
 
@@ -69,8 +69,8 @@ TEST(FreeSpaceBalancerEngine, blocklisting)
 
   auto d2 = engine->get_data();
   EXPECT_EQ(d2.mGroupSizes.size(), 5);
-  EXPECT_EQ(d2.mGroupsOverThreshold.size(), 1);
-  EXPECT_EQ(d2.mGroupsUnderThreshold.size(), 2);
+  EXPECT_EQ(d2.mGroupsOverThreshold.size(), 2);
+  EXPECT_EQ(d2.mGroupsUnderThreshold.size(), 1);
   EXPECT_EQ(d2.mGroupsUnderThreshold, expected_targets2);
   EXPECT_EQ(d2.mGroupsOverThreshold, expected_sources2);
 }
