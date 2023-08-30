@@ -88,11 +88,11 @@ void FreeSpaceBalancerEngine::updateGroup(const std::string& group_name)
   uint64_t lower_limit = getFreeSpaceLLimit();
 
   if (group_free_bytes > upper_limit) {
-    data.mGroupsOverThreshold.emplace(group_name);
+    data.mGroupsUnderThreshold.emplace(group_name);
   }
 
   if (group_free_bytes < lower_limit) {
-    data.mGroupsUnderThreshold.emplace(group_name);
+    data.mGroupsOverThreshold.emplace(group_name);
   }
 }
 
