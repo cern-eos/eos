@@ -932,8 +932,10 @@ TEST_F(FileSystemViewF, getFileAfterBeingRenamed) {
   //Create two threads, one will write lock the file and rename it, one will
   //wait X seconds, asks the view to retrieve it and see if it locks.
   std::atomic<bool> fileRenamed = false;
+  std::atomic<bool> threadRenameStarted = false;
   uint8_t sleepSeconds = 3;
-  auto threadWriteLockingFile = std::thread([this,&file,&root,&fileRenamed,sleepSeconds](){
+  auto threadWriteLockingFile = std::thread([this,&file,&root,&fileRenamed,&threadRenameStarted,sleepSeconds](){
+    threadRenameStarted = true;
     eos::IFileMD::IFileMDWriteLocker fileLocker(file);
     view()->renameFile(file.get(),"file2");
     view()->updateContainerStore(root.get());
@@ -942,13 +944,14 @@ TEST_F(FileSystemViewF, getFileAfterBeingRenamed) {
   });
   std::chrono::time_point<std::chrono::steady_clock> start;
   std::chrono::time_point<std::chrono::steady_clock> stop;
-  auto threadGetFile = std::thread([this,&start,&stop,&fileRenamed](){
+  auto threadGetFile = std::thread([this,&start,&stop,&fileRenamed,&threadRenameStarted](){
+    while(!threadRenameStarted){}
     while(!fileRenamed){}
-    ASSERT_THROW(view()->getFile("/root/file1"),eos::MDException);
+    ASSERT_THROW(view()->getFileReadLocked("/root/file1"),eos::MDException);
     start = std::chrono::steady_clock::now();
-    auto file2 = view()->getFile("/root/file2");
+    auto file2 = view()->getFileReadLocked("/root/file2");
     stop = std::chrono::steady_clock::now();
-    ASSERT_EQ("file2",file2->getName());
+    ASSERT_EQ("file2",file2->getUnderlyingPtr()->getName());
   });
   threadWriteLockingFile.join();
   threadGetFile.join();
