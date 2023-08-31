@@ -194,7 +194,22 @@ EOS_NOTIFY="mail -s `date +%s`-`hostname`-eos-notify $EOS_MAIL_CC"
 # - use it when the internal name is different from the external name
 # EOS_FST_PORT_ALIAS=1094
 
+# Enable XrdIo read-ahead functionality. By default disabled ie. 0.
+# EOS_FST_XRDIO_READAHEAD=0
 
+# Force disable XrdIo read-ahead even if this is enabled by using the above
+# env variable or through the fst.readahead opaque information. By default
+# disabled ie. 0 This can be useful in case read-ahead needs to be disabled
+# instance wide.
+# EOS_FST_XRDIO_READAHEAD_FORCE_DISABLE=0
+
+# In case XrdIo read-ahead is enabled this can control the number of blocks that
+# are pre-fetched. By default this is set to 2.
+# EOS_FST_XRDIO_READAHEAD_BLOCKS=2
+
+# In case XrdIo read-ahead is enabled this controls the block size of requests
+# that are pre-fetched. By default this is set to 1024*1024 (1MB).
+# EOS_FST_XRDIO_READAHEAD_BLOCK_SIZE=1024*1024
 
 #-------------------------------------------------------------------------------
 # HTTPD Configuration
