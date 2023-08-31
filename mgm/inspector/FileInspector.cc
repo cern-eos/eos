@@ -35,6 +35,7 @@
 #include "namespace/interface/IView.hh"
 #include "namespace/ns_quarkdb/inspector/FileScanner.hh"
 #include "namespace/ns_quarkdb/FileMD.hh"
+#include "namespace/utils/Stat.hh"
 #include "namespace/Resolver.hh"
 #include "namespace/Prefetcher.hh"
 #include <qclient/QClient.hh>
@@ -51,6 +52,9 @@ FileInspector::FileInspector(std::string_view space_name) :
   mVid = eos::common::VirtualIdentity::Root();
   mThread.reset(&FileInspector::backgroundThread, this);
   scanned_percent.store(0, std::memory_order_seq_cst);
+  PriceTbPerYearDisk = 20;
+  PriceTbPerYearTape = 10;
+  currency = currencies[0];
 }
 
 //------------------------------------------------------------------------------
@@ -89,8 +93,40 @@ FileInspector::Options FileInspector::getOptions()
         opts.interval = std::chrono::seconds(intv);
       }
     }
-  }
 
+    std::string tbprice =
+      FsView::gFsView.mSpaceView[mSpaceName]->GetConfigMember("inspector.price.disk.tbyear");
+    
+    double price=0;
+    if (!tbprice.empty()) {
+      price = common::ParseDouble(tbprice);
+      if (price) {
+	PriceTbPerYearDisk = price;
+      }
+    }
+
+    tbprice =
+      FsView::gFsView.mSpaceView[mSpaceName]->GetConfigMember("inspector.price.tape.tbyear");
+    
+    price=0;
+    if (!tbprice.empty()) {
+      price = common::ParseDouble(tbprice);
+      if (price) {
+	PriceTbPerYearTape = price;
+      }
+    }
+    
+    std::string scurrency =
+      FsView::gFsView.mSpaceView[mSpaceName]->GetConfigMember("inspector.price.currency");
+    if (!scurrency.empty()) {
+      int64_t index=0;
+      common::ParseInt64(scurrency, index);
+      if (index < 6) {
+	currency = currencies[index];
+      }
+    }
+  }
+  
   if (opts.enabled) {
     enable();
     eos_static_debug("file inspector is enabled - interval = %ld seconds",
@@ -240,12 +276,52 @@ void FileInspector::performCycleQDB(ThreadAssistant& assistant) noexcept
   lastAccessTimeVolume = currentAccessTimeVolume;
   lastBirthTimeFiles = currentBirthTimeFiles;
   lastBirthTimeVolume = currentBirthTimeVolume;
+
+  for (auto n=0; n<2; ++n) {
+    lastUserTotalCosts[n] = 0;
+    lastGroupTotalCosts[n] = 0;
+    lastUserCosts[n] = currentUserCosts[n];
+    lastGroupCosts[n] = currentGroupCosts[n];
+
+    lastCostsUsers[n].clear();
+    lastCostsGroups[n].clear();
+    for (auto i:lastUserCosts[n]) {
+      lastUserTotalCosts[n] += i.second;
+      lastCostsUsers[n].insert(std::pair<uint64_t,uid_t>(i.second,i.first));
+    }
+    for (auto i:lastGroupCosts[n]) {
+      lastGroupTotalCosts[n] += i.second;
+      lastCostsGroups[n].insert(std::pair<uint64_t,gid_t>(i.second,i.first));
+    }
+
+    lastUserTotalBytes[n] = 0;
+    lastGroupTotalBytes[n] = 0;
+    lastUserBytes[n] = currentUserBytes[n];
+    lastGroupBytes[n] = currentGroupBytes[n];
+
+    lastBytesUsers[n].clear();
+    lastBytesGroups[n].clear();
+    for (auto i:lastUserBytes[n]) {
+      lastUserTotalBytes[n] += i.second;
+      lastBytesUsers[n].insert(std::pair<uint64_t,uid_t>(i.second,i.first));
+    }
+    for (auto i:lastGroupBytes[n]) {
+      lastGroupTotalBytes[n] += i.second;
+      lastBytesGroups[n].insert(std::pair<uint64_t,gid_t>(i.second,i.first));
+    }
+  }
   currentScanStats.clear();
   currentFaultyFiles.clear();
   currentAccessTimeFiles.clear();
   currentAccessTimeVolume.clear();
   currentBirthTimeFiles.clear();
   currentBirthTimeVolume.clear();
+  for (auto n=0; n<2; n++) {
+    currentUserCosts[n].clear();
+    currentGroupCosts[n].clear();
+    currentUserBytes[n].clear();
+    currentGroupBytes[n].clear();
+  }
   timeLastScan = timeCurrentScan;
 }
 
@@ -262,12 +338,16 @@ FileInspector::Process(std::shared_ptr<eos::IFileMD> fmd)
   uint64_t lid = fmd->getLayoutId();
   std::lock_guard<std::mutex> lock(mutexScanStats);
 
+  double disksize = 1.0 * fmd->getSize() * eos::common::LayoutId::GetSizeFactor(lid);
+  bool ontape = eos::modeFromMetadataEntry(fmd) & EOS_TAPE_MODE_T;
+  double tapesize = ontape?(1.0 * fmd->getSize()):0;
+
   // zero size files
   if (!fmd->getSize()) {
     currentScanStats[lid]["zerosize"]++;
   } else {
     currentScanStats[lid]["volume"] += fmd->getSize();
-    currentScanStats[lid]["physicalsize"] += (fmd->getSize() * eos::common::LayoutId::GetSizeFactor(lid));
+    currentScanStats[lid]["physicalsize"] += disksize;
   }
 
   // no location files
@@ -347,10 +427,25 @@ FileInspector::Process(std::shared_ptr<eos::IFileMD> fmd)
     // create birth time distributions
     set<int>::reverse_iterator rev_it;
 
+    double ageInYears=0; // stores the ages of a file in years as a double
+    
     eos::IFileMD::ctime_t btime {0, 0};
     eos::IFileMD::XAttrMap xattrs = fmd->getAttributes();
     if (xattrs.count("sys.eos.btime")) {
       eos::common::Timing::Timespec_from_TimespecStr(xattrs["sys.eos.btime"], btime);
+      if (btime.tv_sec > timeCurrentScan) {
+	ageInYears=0;
+      } else {
+	ageInYears = (timeCurrentScan - btime.tv_sec) / (86400*365.0);
+      }
+    } else {
+      eos::IFileMD::ctime_t ctime;
+      fmd->getCTime(ctime);
+      if (ctime.tv_sec > timeCurrentScan) {
+	ageInYears = 0;
+      } else {
+	ageInYears = (timeCurrentScan - ctime.tv_sec) / (86400*365.0);
+      }
     }
     
     // future birth time goes to bin 0
@@ -366,6 +461,33 @@ FileInspector::Process(std::shared_ptr<eos::IFileMD> fmd)
 	}
       }
     }
+
+    double costdisk = disksize*PriceTbPerYearDisk*ageInYears / (1000000000000.0);
+    double costtape = tapesize*PriceTbPerYearTape*ageInYears / (1000000000000.0);
+
+    if (costdisk) {
+      // create costs disk
+      currentUserCosts[0][fmd->getCUid()]  += costdisk;
+      currentGroupCosts[0][fmd->getCGid()] += costdisk;
+    }
+    
+    if (costtape) {
+      // create costs tape
+      currentUserCosts[1][fmd->getCUid()]  += costtape;
+      currentGroupCosts[1][fmd->getCGid()] += costtape;
+    }
+
+    if (disksize) {
+      // create costs disk
+      currentUserBytes[0][fmd->getCUid()]  += disksize;
+      currentGroupBytes[0][fmd->getCGid()] += disksize;
+    }
+
+    if (tapesize) {
+      // create costs tape
+      currentUserBytes[1][fmd->getCUid()]  += tapesize;
+      currentGroupBytes[1][fmd->getCGid()] += tapesize;
+    }
   }
 }
 
@@ -378,6 +500,40 @@ FileInspector::Dump(std::string& out, std::string_view options)
   char line[4096];
   time_t now = time(NULL);
   const bool is_monitoring = (options.find('m') != std::string::npos);
+
+  bool printall=false; // normally we only print top 10!
+  bool printlayouts=true;
+  bool printcosts=true;
+  bool printusage=true;
+  bool printaccesstime = true;
+  bool printbirthtime = true;
+  if ( options.find("Z") != std::string::npos ) {
+    printall = true;
+  }
+  
+  if ( options.find('L') != std::string::npos  ||
+       options.find('C') != std::string::npos ||
+       options.find('U') != std::string::npos ||
+       options.find('A') != std::string::npos ||
+       options.find('B') != std::string::npos ) {
+
+    printlayouts=printcosts=printusage=printaccesstime=printbirthtime=false;
+    if (options.find('L') != std::string::npos) {
+      printlayouts=true;
+    }
+    if (options.find('C') != std::string::npos) {
+      printcosts=true;
+    }
+    if (options.find('A') != std::string::npos) {
+      printaccesstime=true;
+    }
+    if (options.find('U') != std::string::npos) {
+      printusage=true;
+    }
+    if (options.find('B') != std::string::npos) {
+      printbirthtime=true;
+    }
+  }
 
   if (!is_monitoring) {
     out += "# ------------------------------------------------------------------------------------\n";
@@ -466,22 +622,126 @@ FileInspector::Dump(std::string& out, std::string_view options)
 
     if (lastBirthTimeVolume.size()) {
       std::string bvolume = "key=last tag=birthtime::volume ";
-
+      
       for (auto it = lastBirthTimeVolume.begin(); it != lastBirthTimeVolume.end();
-           ++it) {
-        bvolume += std::to_string(it->first);
-        bvolume += "=";
-        bvolume += std::to_string(it->second);
-        bvolume += " ";
+	   ++it) {
+	bvolume += std::to_string(it->first);
+	bvolume += "=";
+	bvolume += std::to_string(it->second);
+	bvolume += " ";
       }
-
+      
       out += bvolume;
       out += "\n";
     }
 
+    for (auto n=0; n<2;++n) {
+      std::string media= "disk";
+      double price=PriceTbPerYearDisk;
+      if (n==1) {
+	media="tape";price=PriceTbPerYearTape;
+      }
+      
+      if (lastUserCosts[n].size()) {
+	for ( auto it = lastUserCosts[n].begin(); it != lastUserCosts[n].end();
+	      ++it) {
+	  std::string ucost = "key=last tag=user::cost::";
+	  ucost += media;
+	  ucost += " ";
+	  int terrc=0;
+	  std::string username = eos::common::Mapping::UidToUserName(it->first, terrc);
+	  if (terrc) {
+	    username = std::to_string(it->first);
+	  }
+	  
+	  ucost += "username=";
+	  ucost += username;
+	  ucost += " uid=";
+	  ucost += std::to_string(it->first);
+	  ucost += " cost=";
+	  ucost += std::to_string(it->second);
+	  ucost += " price=";
+	  ucost += std::to_string(price);
+	  out += ucost;
+	  out += "\n";
+	}
+      }
+      
+      if (lastGroupCosts[n].size()) {
+	for ( auto it = lastGroupCosts[n].begin(); it != lastGroupCosts[n].end();
+	      ++it) {
+	  std::string gcost = "key=last tag=group::cost::";
+	  gcost += media;
+	  gcost += " ";
+	  int terrc=0;
+	  std::string groupname = eos::common::Mapping::GidToGroupName(it->first, terrc);
+	  if (terrc) {
+	    groupname = std::to_string(it->first);
+	  }
+	  
+	  gcost += "groupname=";
+	  gcost += groupname;
+	  gcost += " gid=";
+	  gcost += std::to_string(it->first);
+	  gcost += " cost=";
+	  gcost += std::to_string(it->second);
+	  gcost += " price=";
+	  gcost += std::to_string(price);
+	  out += gcost;
+	  out += "\n";
+	}
+      }
+
+      if (lastUserBytes[n].size()) {
+	for ( auto it = lastUserBytes[n].begin(); it != lastUserBytes[n].end();
+	      ++it) {
+	  std::string ubytes = "key=last tag=user::bytes::";
+	  ubytes += media;
+	  ubytes += " ";
+	  int terrc=0;
+	  std::string username = eos::common::Mapping::UidToUserName(it->first, terrc);
+	  if (terrc) {
+	    username = std::to_string(it->first);
+	  }
+	  
+	  ubytes += "username=";
+	  ubytes += username;
+	  ubytes += " uid=";
+	  ubytes += std::to_string(it->first);
+	  ubytes += " bytes=";
+	  ubytes += std::to_string(it->second);
+	  out += ubytes;
+	  out += "\n";
+	}
+      }
+      
+      if (lastGroupBytes[n].size()) {
+	for ( auto it = lastGroupBytes[n].begin(); it != lastGroupBytes[n].end();
+	      ++it) {
+	  std::string gbytes = "key=last tag=group::bytes::";
+	  gbytes += media;
+	  gbytes += " ";
+	  int terrc=0;
+	  std::string groupname = eos::common::Mapping::GidToGroupName(it->first, terrc);
+	  if (terrc) {
+	    groupname = std::to_string(it->first);
+	  }
+	  
+	  gbytes += "groupname=";
+	  gbytes += groupname;
+	  gbytes += " gid=";
+	  gbytes += std::to_string(it->first);
+	  gbytes += " bytes=";
+	  gbytes += std::to_string(it->second);
+	  out += gbytes;
+	  out += "\n";
+	}
+      }
+    }
+    
     return;
   }
-
+  
   Options opts = getOptions();
   out += "# ";
   out += std::to_string((int)(scanned_percent.load()));
@@ -529,10 +789,10 @@ FileInspector::Dump(std::string& out, std::string_view options)
         out += "'\n";
       }
     } else {
-      out += "# current scan: ";
+      out += "# current scan          : ";
       out += eos::common::Timing::ltime(timeCurrentScan).c_str();
       out += "\n";
-      out += " not-found-during-scan            : ";
+      out += "# not-found-during-scan : ";
       out += std::to_string(currentScanStats[999999999]["unfound"]);
       out += "\n";
 
@@ -603,40 +863,42 @@ FileInspector::Dump(std::string& out, std::string_view options)
         out += "'\n";
       }
     } else {
-      out += "# last scan: ";
-      out += eos::common::Timing::ltime(timeLastScan).c_str();
-      out += "\n";
-      out += " not-found-during-scan            : ";
-      out += std::to_string(lastScanStats[999999999]["unfound"]);
-      out += "\n";
-
-      for (auto it = lastScanStats.begin(); it != lastScanStats.end(); ++it) {
-        if (it->first == 999999999) {
-          continue;
-        }
-
-        snprintf(line, sizeof(line),
-                 " layout=%08lx type=%-13s nominal_stripes=%s checksum=%-8s "
-                 "blockchecksum=%-8s blocksize=%-4s\n\n",
-                 it->first,
-                 eos::common::LayoutId::GetLayoutTypeString(it->first),
-                 eos::common::LayoutId::GetStripeNumberString(it->first).c_str(),
-                 eos::common::LayoutId::GetChecksumStringReal(it->first),
-                 eos::common::LayoutId::GetBlockChecksumString(it->first),
-                 eos::common::LayoutId::GetBlockSizeString(it->first));
-        out +=  "======================================================================================\n";
-        out += line;
-
-        for (auto mit = it->second.begin(); mit != it->second.end(); ++mit) {
-          snprintf(line, sizeof(line), " %-32s : %lu\n",  mit->first.c_str(),
-                   mit->second);
-          out += line;
-        }
-
-        out += "\n";
+      if (printlayouts) {
+	out += "# last scan             : ";
+	out += eos::common::Timing::ltime(timeLastScan).c_str();
+	out += "\n";
+	out += "# not-found-during-scan : ";
+	out += std::to_string(lastScanStats[999999999]["unfound"]);
+	out += "\n";
+	
+	for (auto it = lastScanStats.begin(); it != lastScanStats.end(); ++it) {
+	  if (it->first == 999999999) {
+	    continue;
+	  }
+	  
+	  snprintf(line, sizeof(line),
+		   " layout=%08lx type=%-13s nominal_stripes=%s checksum=%-8s "
+		   "blockchecksum=%-8s blocksize=%-4s\n\n",
+		   it->first,
+		   eos::common::LayoutId::GetLayoutTypeString(it->first),
+		   eos::common::LayoutId::GetStripeNumberString(it->first).c_str(),
+		   eos::common::LayoutId::GetChecksumStringReal(it->first),
+		   eos::common::LayoutId::GetBlockChecksumString(it->first),
+		   eos::common::LayoutId::GetBlockSizeString(it->first));
+	  out +=  "======================================================================================\n";
+	  out += line;
+	  
+	  for (auto mit = it->second.begin(); mit != it->second.end(); ++mit) {
+	    snprintf(line, sizeof(line), " %-32s : %lu\n",  mit->first.c_str(),
+		     mit->second);
+	    out += line;
+	  }
+	  
+	  out += "\n";
+	}
       }
 
-      if (lastAccessTimeFiles.size()) {
+      if (printaccesstime && lastAccessTimeFiles.size()) {
         out +=  "======================================================================================\n";
         out +=  " Access time distribution of files\n";
         uint64_t totalfiles = 0;
@@ -658,7 +920,7 @@ FileInspector::Dump(std::string& out, std::string_view options)
         }
       }
 
-      if (lastAccessTimeVolume.size()) {
+      if (printaccesstime && lastAccessTimeVolume.size()) {
         out +=  "======================================================================================\n";
         out +=  " Access time volume distribution of files\n";
         uint64_t totalvolume = 0;
@@ -680,7 +942,7 @@ FileInspector::Dump(std::string& out, std::string_view options)
         }
       }
 
-      if (lastBirthTimeFiles.size()) {
+      if (printbirthtime && lastBirthTimeFiles.size()) {
         out +=  "======================================================================================\n";
         out +=  " Birth time distribution of files\n";
         uint64_t totalfiles = 0;
@@ -702,7 +964,7 @@ FileInspector::Dump(std::string& out, std::string_view options)
         }
       }
 
-      if (lastBirthTimeVolume.size()) {
+      if (printbirthtime && lastBirthTimeVolume.size()) {
         out +=  "======================================================================================\n";
         out +=  " Birth time volume distribution of files\n";
         uint64_t totalvolume = 0;
@@ -723,9 +985,164 @@ FileInspector::Dump(std::string& out, std::string_view options)
           out += line;
         }
       }
+      
+      for ( auto n=0; n<2; n++) {
+	std::string media = "disk";
+	if (n==1) {
+	  media = "tape";
+	}
+	
+	if (printcosts && lastCostsUsers[n].size()) {
+	  out +=  "======================================================================================\n";
+	  out +=  " Storage Costs - User View [ "; out += media; out += " ]\n";
+	  out +=  " -------------------------------------------------------------------------------------\n";
+	  out +=  " Total Costs : ";
+	  out += eos::common::StringConversion::GetReadableSizeString(lastUserTotalCosts[n], currency.c_str()).c_str();
+	  out += "\n";
+	  out +=  " -------------------------------------------------------------------------------------\n";
+	  size_t cnt=0;
+	  size_t top_cnt=10;
+	  if (printall) {
+	    top_cnt = 1000000;
+	  }
+	  for ( auto it = lastCostsUsers[n].rbegin(); it != lastCostsUsers[n].rend();
+		++it) {
+	    int terrc=0;
+	    std::string username = eos::common::Mapping::UidToUserName(it->second, terrc);
+	    if (terrc) {
+	      username = std::to_string(it->second);
+	    }
+
+	    if (it->first <1) {
+	      continue;
+	    }
+
+	    snprintf(line, sizeof(line), " %02ld. %-28s : %s\n",
+		     ++cnt,
+		     username.c_str(),
+		     eos::common::StringConversion::GetReadableSizeString(it->first, currency.c_str()).c_str());
+	    out += line;
+	    
+	    if (cnt >= top_cnt) {
+	      break;
+	    }
+	  }
+	}
+	
+	if (printcosts && lastCostsGroups[n].size()) {
+	  out +=  "======================================================================================\n";
+	  out +=  " Storage Costs - Group View [ "; out += media; out += " ]\n";
+	  out +=  " -------------------------------------------------------------------------------------\n";
+	  out +=  " Total Costs : ";
+	  out += eos::common::StringConversion::GetReadableSizeString(lastGroupTotalCosts[n], currency.c_str()).c_str();
+	  out += "\n";
+	  out +=  " -------------------------------------------------------------------------------------\n";
+	  size_t cnt=0;
+	  size_t top_cnt=10;
+	  if (printall) {
+	    top_cnt = 1000000;
+	  }
+	  for ( auto it = lastCostsGroups[n].rbegin(); it != lastCostsGroups[n].rend();
+		++it) {
+	    int terrc=0;
+	    std::string groupname = eos::common::Mapping::GidToGroupName(it->second, terrc);
+	    if (terrc) {
+	      groupname = std::to_string(it->second);
+	    }
+
+	    if (it->first <1) {
+	      continue;
+	    }
+
+	    snprintf(line, sizeof(line), " %02ld. %-28s : %s\n",
+		     ++cnt,
+		     groupname.c_str(),
+		     eos::common::StringConversion::GetReadableSizeString(it->first, currency.c_str()).c_str());
+	    out += line;
+	    
+	    if (cnt >= top_cnt) {
+	      break;
+	    }
+	  }
+	}
+
+	if (printusage && lastBytesUsers[n].size()) {
+	  out +=  "======================================================================================\n";
+	  out +=  " Storage Bytes - User View [ "; out += media; out += " ]\n";
+	  out +=  " -------------------------------------------------------------------------------------\n";
+	  out +=  " Total Bytes : ";
+	  out += eos::common::StringConversion::GetReadableSizeString(lastUserTotalBytes[n], "B").c_str();
+	  out += "\n";
+	  out +=  " -------------------------------------------------------------------------------------\n";
+	  size_t cnt=0;
+	  size_t top_cnt=10;
+	  if (printall) {
+	    top_cnt=1000000;
+	  }
+	  for ( auto it = lastBytesUsers[n].rbegin(); it != lastBytesUsers[n].rend();
+		++it) {
+	    int terrc=0;
+	    std::string username = eos::common::Mapping::UidToUserName(it->second, terrc);
+	    if (terrc) {
+	      username = std::to_string(it->second);
+	    }
+
+	    if (it->first <1) {
+	      continue;
+	    }
+
+	    snprintf(line, sizeof(line), " %02ld. %-28s : %s\n",
+		     ++cnt,
+		     username.c_str(),
+		     eos::common::StringConversion::GetReadableSizeString(it->first, "B").c_str());
+	    out += line;
+	    
+	    if (cnt >= top_cnt) {
+	      break;
+	    }
+	  }
+	}
+	
+	if (printusage && lastBytesGroups[n].size()) {
+	  out +=  "======================================================================================\n";
+	  out +=  " Storage Bytes - Group View [ "; out += media; out += " ]\n";
+	  out +=  " -------------------------------------------------------------------------------------\n";
+	  out +=  " Total Bytes : ";
+	  out += eos::common::StringConversion::GetReadableSizeString(lastGroupTotalBytes[n], "B").c_str();
+	  out += "\n";
+	  out +=  " -------------------------------------------------------------------------------------\n";
+	  size_t cnt=0;
+	  size_t top_cnt=10;
+	  if (printall) {
+	    top_cnt = 1000000;
+	  }
+	  for ( auto it = lastBytesGroups[n].rbegin(); it != lastBytesGroups[n].rend();
+		++it) {
+	    int terrc=0;
+	    std::string groupname = eos::common::Mapping::GidToGroupName(it->second, terrc);
+	    if (terrc) {
+	      groupname = std::to_string(it->second);
+	    }
+
+	    if (it->first <1) {
+	      continue;
+	    }
+
+	    snprintf(line, sizeof(line), " %02ld. %-28s : %s\n",
+		     ++cnt,
+		     groupname.c_str(),
+		     eos::common::StringConversion::GetReadableSizeString(it->first, "B").c_str());
+	    out += line;
+	    
+	    if (cnt >= top_cnt) {
+	      break;
+	    }
+	  }
+	}
+
+      }
     }
   }
-
   out += "# ------------------------------------------------------------------------------------\n";
 }
 

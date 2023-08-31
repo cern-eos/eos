@@ -142,6 +142,18 @@ bool SpaceHelper::ParseCommand(const char* arg)
         options += "p";
       } else if (token == "-e") {
         options += "e";
+      } else if (token == "-C" || token == "--cost") {
+	options += "C";
+      } else if (token == "-U" || token == "--usage") {
+	options += "U";
+      } else if (token == "-L" || token == "--layouts") {
+	options += "L";
+      } else if (token == "-B" || token == "--birth") {
+	options += "B";
+      } else if (token == "-A" || token == "--access") {
+	options += "A";
+      } else if (token == "-a" || token == "--all") {
+	options += "Z";
       } else {
         return false;
       }
@@ -521,6 +533,10 @@ void com_space_help()
       << "space config <space-name> space.filearchivedgc=on|off                 : enable/disable the 'file archived' garbage collector [ default=off ]\n"
       << "space config <space-name> space.tracker=on|off                        : enable/disable the space layout creation tracker [ default=off ]\n"
       << "space config <space-name> space.inspector=on|off                      : enable/disable the file inspector [ default=off ]\n"
+      << "space config <space-name> space.inspector.interval=<sec>              : time interval after which the inspector will run, default 4h\n"
+      << "space config <space-name> space.inspector.price.currency=[0-5]        : currency printed by the cost evaluation ( 0=EOS, 1=CHF, 2=EUR, 3=USD, 4=AUD, 5=YEN )\n"
+      << "space config <space-name> space.inspector.price.disk.tbyear=<price>   : set the price of a tb year of data on disk without redundancy (default=20)\n"
+      << "space config <space-name> space.inspector.price.tape.tbyear=<price>   : set the price of a tb year of data on disk without redundancy (default=10)\n"
       << "space config <space-name> space.geo.access.policy.write.exact=on|off  : if 'on' use exact matching geo replica (if available), 'off' uses weighting [ for write case ]\n"
       << "space config <space-name> space.geo.access.policy.read.exact=on|off   : if 'on' use exact matching geo replica (if available), 'off' uses weighting [ for read  case ]\n"
       << "space config <space-name> fs.<key>=<value>                            : configure file system parameters for each filesystem in this space (see help of 'fs config' for details)\n"
@@ -558,13 +574,19 @@ void com_space_help()
       << "                                                       => <groupsize>=0 means that no groups are built within a space, otherwise it should be the maximum number of nodes in a scheduling group\n"
       << "                                                       => <groupmod> maximum number of groups in the space, which should be at least equal to the maximum number of filesystems per node\n"
       << std::endl
-      << "space inspector [--current|-c] [--last|-l] [-m] [-p] [-e] [-s|--space <space_name>]: show namespace inspector output\n"
+      << "space inspector [--current|-c] [--last|-l] [-m] [-p] [-e] [-s|--space <space_name>] [--all|-a] [--cost|-C] [--usage|-U] [--birth|-B] [--access|-A] [--layouts|-L] : show namespace inspector output\n"
       << "\t  -c  : show current scan\n"
       << "\t  -l  : show last complete scan\n"
-      << "\t  -m  : print last scan in monitoring format\n"
+      << "\t  -m  : print last scan in monitoring format ( by default this enables --cost --usage --birth --access --layouts)\n"
+      << "\t  -A  : combined with -m prints access time distributions\n"
+      << "\t  -B  : combined with -m prints birth time distributions\n"
+      << "\t  -C  : combined with -m prints cost information (storage price per user/group)\n"
+      << "\t  -U  : combined with -m prints usage information (stored bytes per user/group)\n"
+      << "\t  -L  : combined with -m prints layout statistics\n"
+      << "\t  -a  : combined with -m or -C or -U removes the restriction to show only the top 10 user ranking\n"
       << "\t  -p  : combined with -c or -l lists erroneous files\n"
       << "\t  -e  : combined with -c or -l exports erroneous files on the MGM into /var/log/eos/mgm/FileInspector.<date>.list\n"
-      << "\t  -s   : select target space, by default \"default\" space is used\n"
+      << "\t  -s  : select target space, by default \"default\" space is used\n"
       << std::endl
       << "space node-set <space-name> <node.key> <file-name> : store the contents of <file-name> into the node configuration variable <node.key> visible to all FSTs\n"
       << "                                                     => if <file-name> matches file:<path> the file is loaded from the MGM and not from the client\n"

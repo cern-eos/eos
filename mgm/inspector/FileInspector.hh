@@ -51,7 +51,7 @@ public:
   struct Options {
     bool enabled; //< Is FileInspector even enabled?
     std::chrono::seconds
-    interval; //< Run FileInsepctor cleanup every this many seconds
+    interval; //< Run FileInspector cleanup every this many seconds
   };
 
   //----------------------------------------------------------------------------
@@ -100,6 +100,8 @@ public:
     }
   }
 
+  const std::string currencies[6] = { "EOS", "CHF", "EUR", "USD", "AUD", "YEN" };
+
 private:
   void backgroundThread(ThreadAssistant& assistant) noexcept;
   void Process(std::shared_ptr<eos::IFileMD> fmd);
@@ -130,6 +132,37 @@ private:
   std::map<time_t, uint64_t> currentBirthTimeFiles;
   std::map<time_t, uint64_t> currentBirthTimeVolume;
 
+  //! User Cost Bins
+  std::map<uid_t, uint64_t> lastUserCosts[2];
+  std::map<uid_t, uint64_t> currentUserCosts[2];
+  std::multimap<uint64_t,uid_t> lastCostsUsers[2];
+  
+  //! Group Cost Bins
+  std::map<gid_t, uint64_t> lastGroupCosts[2];
+  std::map<gid_t, uint64_t> currentGroupCosts[2];
+  std::multimap<uint64_t,gid_t> lastCostsGroups[2];
+  
+  double lastUserTotalCosts[2];
+  double lastGroupTotalCosts[2];
+
+  //! User Bytes Bins
+  std::map<uid_t, uint64_t> lastUserBytes[2];
+  std::map<uid_t, uint64_t> currentUserBytes[2];
+  std::multimap<uint64_t,uid_t> lastBytesUsers[2];
+
+  //! Group Bytes Bins
+  std::map<gid_t, uint64_t> lastGroupBytes[2];
+  std::map<gid_t, uint64_t> currentGroupBytes[2];
+  std::multimap<uint64_t,gid_t> lastBytesGroups[2];
+  
+  double lastUserTotalBytes[2];
+  double lastGroupTotalBytes[2];
+  
+  std::atomic<double> PriceTbPerYearDisk;
+  std::atomic<double> PriceTbPerYearTape;
+
+  std::string currency;
+  
   time_t timeCurrentScan;
   time_t timeLastScan;
 
