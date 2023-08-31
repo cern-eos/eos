@@ -800,6 +800,9 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config,
           (key == "tracker") ||
           (key == "inspector") ||
           (key == "inspector.interval") ||
+	  (key == "inspector.price.disk.tbyear") ||
+	  (key == "inspector.price.tape.tbyear") ||
+	  (key == "inspector.price.currency") ||
           (key == "lru") ||
           (key == "lru.interval") ||
           (key == "wfe") ||
