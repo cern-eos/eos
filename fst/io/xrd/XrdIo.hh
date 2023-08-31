@@ -138,52 +138,6 @@ class XrdIo : public FileIo
   friend class AsyncIoOpenHandler;
 public:
   //----------------------------------------------------------------------------
-  //! InitBlocksize
-  //!
-  //! @return : block size that should be used to initialize
-  //!           the mDefaultBlockSize
-  //----------------------------------------------------------------------------
-  static int32_t InitBlocksize()
-  {
-    char* ptr = getenv("EOS_FST_XRDIO_BLOCK_SIZE");
-    //default is 1M if the envar is not set
-    return (ptr ? strtol(ptr, 0, 10) : 1024 * 1024);
-  }
-
-  //----------------------------------------------------------------------------
-  //! InitReadahead
-  //!
-  //! @return : true if readahead is enabled, otherwise false
-  //----------------------------------------------------------------------------
-  static bool InitReadahead()
-  {
-    char* ptr = getenv("EOS_FST_XRDIO_READAHEAD");
-    return (ptr ? strtol(ptr, 0, 10)?true:false:false);
-  }
-
-  //----------------------------------------------------------------------------
-  //! InitInitNumRdAheadBlocks
-  //!
-  //! @return : number of blocks that should be read ahead
-  //----------------------------------------------------------------------------
-  static uint32_t InitNumRdAheadBlocks()
-  {
-    char* ptr = getenv("EOS_FST_XRDIO_RDAHEAD_BLOCKS");
-    // default is 2 if envar is not set
-    return (ptr ? strtoul(ptr, 0, 10) : 2ul);
-  }
-
-  //----------------------------------------------------------------------------
-  //! GetDefaultBlocksize
-  //!
-  //! @return : default block size
-  //----------------------------------------------------------------------------
-  int32_t GetBlockSize()
-  {
-    return mBlocksize;
-  }
-
-  //----------------------------------------------------------------------------
   //! Constructor
   //!
   //! @param path path or URI for the file
@@ -518,6 +472,16 @@ public:
   void setAttrSync(bool mode = false)
   {
     mAttrSync = mode;
+  }
+
+  //----------------------------------------------------------------------------
+  //! Get block size used for read-ahead
+  //!
+  //! @return : default block size
+  //----------------------------------------------------------------------------
+  int32_t GetBlockSize()
+  {
+    return mBlocksize;
   }
 
   //----------------------------------------------------------------------------

@@ -43,6 +43,57 @@
 
 namespace
 {
+//----------------------------------------------------------------------------
+//! InitReadahead
+//!
+//! @return true if readahead is enabled, otherwise false
+//----------------------------------------------------------------------------
+bool InitReadahead()
+{
+  char* ptr = getenv("EOS_FST_XRDIO_READAHEAD");
+  return (ptr ? strtol(ptr, 0, 10) ? true : false : false);
+}
+
+//----------------------------------------------------------------------------
+//! InitReadaheadForceDisable
+//!
+//! @return true if readahead is force disabled, otherwise false
+//----------------------------------------------------------------------------
+bool InitReadaheadForceDisable()
+{
+  char* ptr = getenv("EOS_FST_XRDIO_READAHEAD_FORCE_DISABLE");
+  return (ptr ? strtol(ptr, 0, 10) ? true : false : false);
+}
+
+//----------------------------------------------------------------------------
+//! InitInitNumRdAheadBlocks
+//!
+//! @return number of blocks that should be read ahead
+//----------------------------------------------------------------------------
+uint32_t InitNumRdAheadBlocks()
+{
+  char* ptr = getenv("EOS_FST_XRDIO_READAHEAD_BLOCKS");
+  // default is 2 if envar is not set
+  return (ptr ? strtoul(ptr, 0, 10) : 2ul);
+}
+
+//----------------------------------------------------------------------------
+//! InitBlocksize
+//!
+//! @return read-ahead block size
+//----------------------------------------------------------------------------
+int32_t InitBlocksize()
+{
+  char* ptr = getenv("EOS_FST_XRDIO_BLOCK_SIZE");
+  //default is 1M if the envar is not set
+  return (ptr ? strtol(ptr, 0, 10) : 1024 * 1024);
+}
+
+
+const bool sReadaheadForceDisable = InitReadaheadForceDisable();
+const bool sReadahead = InitReadahead();
+const int32_t sBlockSize = InitBlocksize();
+const uint32_t sNumRdAheadBlocks = InitNumRdAheadBlocks();
 eos::common::BufferManager gBuffMgr(2 * eos::common::GB);
 }
 
@@ -142,9 +193,9 @@ AsyncIoOpenHandler::HandleResponseWithHosts(XrdCl::XRootDStatus* status,
 //------------------------------------------------------------------------------
 XrdIo::XrdIo(std::string path) :
   FileIo(path, "XrdIo"),
-  mDoReadahead(InitReadahead()),
-  mNumRdAheadBlocks(InitNumRdAheadBlocks()),
-  mBlocksize(InitBlocksize()),
+  mDoReadahead(sReadahead),
+  mNumRdAheadBlocks(sNumRdAheadBlocks),
+  mBlocksize(sBlockSize),
   mXrdFile(NULL),
   mMetaHandler(new AsyncMetaHandler()),
   mXrdIdHelper(nullptr),
@@ -234,7 +285,8 @@ XrdIo::fileOpen(XrdSfsFileOpenMode flags,
   XrdOucEnv env_opaque(mOpaque.c_str());
 
   // Decide if readahead is used and the block size
-  if ((val = env_opaque.Get("fst.readahead")) &&
+  if (!sReadaheadForceDisable &&
+      (val = env_opaque.Get("fst.readahead")) &&
       (strncmp(val, "true", 4) == 0)) {
     eos_debug("%s", "msg=\"enabling the readahead\"");
     mDoReadahead = true;
@@ -324,7 +376,8 @@ XrdIo::fileOpenAsync(XrdSfsFileOpenMode flags, mode_t mode,
   const char* val = nullptr;
 
   // Decide if readahead is used and the block size
-  if ((val = env_opaque.Get("fst.readahead")) &&
+  if (!sReadaheadForceDisable &&
+      (val = env_opaque.Get("fst.readahead")) &&
       (strncmp(val, "true", 4) == 0)) {
     eos_debug("%s", "msg=\"enabling the readahead\"");
     mDoReadahead = true;
