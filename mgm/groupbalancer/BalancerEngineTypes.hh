@@ -166,5 +166,9 @@ enum class BalancerEngineT {
   total_count
 };
 
+inline bool engine_should_average(BalancerEngineT engine) {
+  return engine != BalancerEngineT::freespace;
+}
+
 }
 
