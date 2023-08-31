@@ -92,6 +92,16 @@ public:
   virtual std::shared_ptr<IFileMD> getFileMD(IFileMD::id_t id,
       uint64_t* clock) override;
 
+  //------------------------------------------------------------------------
+  //! Get the file metadata information for the given file ID and read lock it
+  //------------------------------------------------------------------------
+  virtual std::unique_ptr<IFileMD::IFileMDReadLocker> getFileMDReadLocked(IFileMD::id_t id) override;
+
+  //------------------------------------------------------------------------
+  //! Get the file metadata information for the given file ID and write lock it
+  //------------------------------------------------------------------------
+  virtual std::unique_ptr<IFileMD::IFileMDWriteLocker> getFileMDWriteLocked(IFileMD::id_t id) override;
+
   //----------------------------------------------------------------------------
   //! Check if a FileMD with a given identifier exists
   //----------------------------------------------------------------------------
@@ -188,6 +198,18 @@ private:
   //! an eos::MDException.
   //----------------------------------------------------------------------------
   void SafetyCheck();
+
+  //----------------------------------------------------------------------------
+  //! Convenient method to get a file, lock it and return the unique_ptr of the locker object
+  //----------------------------------------------------------------------------
+  template<typename Locker>
+  std::unique_ptr<Locker> getFileLocked(eos::IContainerMD::id_t id,uint64_t * clock){
+    auto fileMD = getFileMD(id,clock);
+    if(fileMD) {
+      return std::make_unique<Locker>(fileMD);
+    }
+    return nullptr;
+  }
 
   ListenerList pListeners; ///< List of listeners to notify of changes
   IQuotaStats* pQuotaStats; ///< Quota view
