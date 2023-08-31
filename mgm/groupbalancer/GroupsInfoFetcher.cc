@@ -24,9 +24,16 @@ eosGroupsInfoFetcher::fetch()
       continue;
     }
 
-    uint64_t size = (*it)->AverageDouble("stat.statfs.usedbytes", false);
-    uint64_t capacity = (*it)->AverageDouble("stat.statfs.capacity", false);
+    uint64_t size {0}, capacity {0};
 
+    // TODO - this might be dropped in favour of summing
+    if (do_average) {
+      size = (*it)->AverageDouble("stat.statfs.usedbytes", false);
+      capacity = (*it)->AverageDouble("stat.statfs.capacity", false);
+    } else {
+      size = (*it)->SumLongLong("stat.statfs.usedbytes", false);
+      capacity = (*it)->SumLongLong("stat.statfs.capacity", false);
+    }
     if (capacity == 0) {
       continue;
     }

@@ -92,7 +92,13 @@ public:
   {
     return status_filter_fn->apply(status);
   }
+
+  void should_average(bool _do_average) {
+    do_average = _do_average;
+  }
+
 private:
+  bool do_average {true};
   std::string spaceName;
   std::unique_ptr<base_group_status_filter> status_filter_fn;
 };

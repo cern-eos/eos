@@ -460,6 +460,7 @@ GroupBalancer::GroupBalance(ThreadAssistant& assistant) noexcept
       mEngine.reset(group_balancer::make_balancer_engine(mCfg.engine_type));
       engine_reconfigured = true;
       prev_engine_type = mCfg.engine_type;
+      fetcher.should_average(engine_should_average(mCfg.engine_type));
     }
 
     mEngine->configure(mEngineConf);
