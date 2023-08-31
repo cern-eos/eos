@@ -871,9 +871,9 @@ code_quality_html:
     - .dock8s_after_script_template
   script:
     - date
-    - echo 0 > /proc/sys/kernel/perf_event_paranoid
-    - echo 0 > /proc/sys/kernel/kptr_restrict
-    - exec_cmd eos-mgm1 "cd eos-logs-${CI_JOB_ID}; /usr/sbin/eos-make-flamegraph"
+    - echo 0 > /proc/sys/kernel/perf_event_paranoid; cat /proc/sys/kernel/perf_event_paranoid
+    - echo 0 > /proc/sys/kernel/kptr_restrict; cat /proc/sys/kernel/kptr_restrict
+    - exec_cmd eos-mgm1 "mkdir eos-logs-${CI_JOB_ID}; cd eos-logs-${CI_JOB_ID}; /usr/sbin/eos-make-flamegraph"
     - date
   artifacts:
     expire_in: 1 days
