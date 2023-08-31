@@ -197,10 +197,10 @@ RainMetaLayout::Open(XrdSfsFileOpenMode flags, mode_t mode, const char* opaque)
   std::string enhanced_opaque = opaque;
   enhanced_opaque += "&fst.readahead=true";
   enhanced_opaque += "&fst.blocksize=";
-  enhanced_opaque += static_cast<int>(mStripeWidth);
-  std::vector<std::string> stripe_urls;
+  enhanced_opaque += std::to_string(mStripeWidth);
   // Local stripe is always on the first position
   std::string local_url = SSTR(mLocalPath << "?" << enhanced_opaque).c_str();
+  std::vector<std::string> stripe_urls;
   stripe_urls.push_back(local_url);
   XrdOucString ns_path = mOfsFile->mOpenOpaque->Get("mgm.path");
 
@@ -256,7 +256,11 @@ RainMetaLayout::Open(XrdSfsFileOpenMode flags, mode_t mode, const char* opaque)
             new_opaque += static_cast<int>(i);
           }
 
-          stripe_url += new_opaque.c_str();
+          enhanced_opaque = new_opaque.c_str();
+          enhanced_opaque += "&fst.readahead=true";
+          enhanced_opaque += "&fst.blocksize=";
+          enhanced_opaque += std::to_string(mStripeWidth);
+          stripe_url += enhanced_opaque;
           stripe_urls.push_back(stripe_url);
         }
       }
@@ -792,6 +796,7 @@ RainMetaLayout::ReadV(XrdCl::ChunkList& chunkList, uint32_t len)
 
     for (stripe_id = 0; stripe_id < stripe_chunks.size(); ++stripe_id) {
       bool got_error = false;
+
       if (stripe_chunks[stripe_id].size() == 0) {
         continue;
       }

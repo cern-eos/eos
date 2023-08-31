@@ -220,7 +220,7 @@ XrdIo::fileOpen(XrdSfsFileOpenMode flags,
                 const std::string& opaque,
                 uint16_t timeout)
 {
-  const char* val = 0;
+  const char* val = nullptr;
   mWriteStatus = XrdCl::XRootDStatus();
 
   if (!opaque.empty()) {
@@ -312,14 +312,6 @@ XrdIo::fileOpenAsync(XrdSfsFileOpenMode flags, mode_t mode,
   std::promise<XrdCl::XRootDStatus> open_promise;
   std::future<XrdCl::XRootDStatus> open_future = open_promise.get_future();
 
-  if (mXrdFile) {
-    delete mXrdFile;
-    mXrdFile = NULL;
-  }
-
-  mXrdFile = new XrdCl::File();
-
-  // Final path + opaque info used in the open
   if (!opaque.empty()) {
     if (mOpaque.empty()) {
       mOpaque = opaque;
@@ -328,6 +320,28 @@ XrdIo::fileOpenAsync(XrdSfsFileOpenMode flags, mode_t mode,
     }
   }
 
+  XrdOucEnv env_opaque(mOpaque.c_str());
+  const char* val = nullptr;
+
+  // Decide if readahead is used and the block size
+  if ((val = env_opaque.Get("fst.readahead")) &&
+      (strncmp(val, "true", 4) == 0)) {
+    eos_debug("%s", "msg=\"enabling the readahead\"");
+    mDoReadahead = true;
+    val = 0;
+
+    if ((val = env_opaque.Get("fst.blocksize"))) {
+      mBlocksize = static_cast<uint64_t>(atoll(val));
+    }
+  }
+
+  if (mXrdFile) {
+    delete mXrdFile;
+    mXrdFile = NULL;
+  }
+
+  mXrdFile = new XrdCl::File();
+  // Final path + opaque info used in the open
   mTargetUrl.FromString(BuildRequestUrl());
   mXrdIdHelper.reset(new eos::common::XrdConnIdHelper(mXrdConnPool, mTargetUrl));
 
