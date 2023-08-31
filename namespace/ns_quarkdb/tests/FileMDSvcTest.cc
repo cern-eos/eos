@@ -102,3 +102,23 @@ TEST_F(FileMDSvcF, LoadTest)
   ASSERT_EQ(fileSvc()->getNumFiles(), 0);
   fileSvc()->finalize();
 }
+
+TEST_F(FileMDSvcF, getFileLocked) {
+  view()->createContainer("/root/");
+  auto file = view()->createFile("/root/file.txt");
+  auto fileId = file->getId();
+  ASSERT_THROW(fileSvc()->getFileMDReadLocked(42), eos::MDException);
+  {
+    auto fileReadLocked = fileSvc()->getFileMDReadLocked(fileId);
+    ASSERT_NE(nullptr, fileReadLocked);
+    ASSERT_EQ(fileId, fileReadLocked->getUnderlyingPtr()->getId());
+  }
+  ASSERT_THROW(fileSvc()->getFileMDWriteLocked(42), eos::MDException);
+  {
+    auto fileWriteLocked = fileSvc()->getFileMDWriteLocked(fileId);
+    auto fileWriteLocked2 = fileSvc()->getFileMDWriteLocked(fileId);
+    ASSERT_NE(nullptr, fileWriteLocked);
+    ASSERT_EQ(fileId, fileWriteLocked2->getUnderlyingPtr()->getId());
+    ASSERT_EQ(fileWriteLocked->getUnderlyingPtr().get(),fileWriteLocked2->getUnderlyingPtr().get());
+  }
+}
