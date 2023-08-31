@@ -16,6 +16,18 @@ Introduction
 This release is based on XRootD V4 and IPV6 enabled.
 
 
+``v4.8.104 Citrine``
+===================
+
+2023-08-31
+
+Bug
+---
+
+* [EOS-5771] - HTTP transfers of a file with no disk replicas create a zero-length file
+* [EOS-5813] - Show physical space info for xrdfs spaceinfo query
+
+
 ``v4.8.103 Citrine``
 ===================
 
