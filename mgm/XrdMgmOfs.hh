@@ -759,6 +759,11 @@ public:
   int _access(const char*, int mode, XrdOucErrInfo&,
               eos::common::VirtualIdentity& vid, const char*, bool lock = true);
 
+  // ---------------------------------------------------------------------------
+  // check access permissions of the file or container and by vid
+  // ---------------------------------------------------------------------------
+  int md_access(eos::IFileMDPtr fh, eos::IContainerMDPtr dh, int mode,XrdOucErrInfo& error, eos::common::VirtualIdentity & vid);
+
   //----------------------------------------------------------------------------
   //! @brief define access permissions for files/directories
   //!

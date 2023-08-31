@@ -216,6 +216,87 @@ XrdMgmOfs::_access(const char* path,
   return Emsg(epname, error, EOPNOTSUPP, "access", path);
 }
 
+int XrdMgmOfs::md_access(eos::IFileMDPtr fh, eos::IContainerMDPtr dh, int mode,XrdOucErrInfo& error, eos::common::VirtualIdentity & vid) {
+  static const char* epname = "md_access";
+  eos_debug("fh=%s dh=%s mode=%x uid=%u gid=%u", fh ? std::to_string(fh->getId()) : "null", dh ? std::to_string(dh->getId()) : "null", mode, vid.uid, vid.gid);
+  gOFS->MgmStats.Add("MdAccess", vid.uid, vid.gid, 1);
+
+  bool permok = false;
+
+  errno = 0;
+  if((!fh && !dh) || (fh && dh)) {
+    errno = EOPNOTSUPP;
+    return Emsg(epname, error, EOPNOTSUPP, "access - at least one file or container metadata should be provided and be mutually exclusive", "null");
+  }
+
+  //The parent container will be checked to check the access
+  std::unique_ptr<eos::IContainerMD::IContainerMDReadLocker> contToCheckLock;
+  eos::IContainerMDPtr contToCheck;
+  try {
+    eos::IContainerMD::XAttrMap attrmap;
+    eos::IFileMD::XAttrMap fattrmap;
+    if(fh) {
+      contToCheckLock = gOFS->eosDirectoryService->getContainerMDReadLocked(fh->getContainerId());
+    } else {
+      contToCheckLock = std::make_unique<eos::IContainerMD::IContainerMDReadLocker>(dh);
+    }
+    contToCheck = contToCheckLock->getUnderlyingPtr();
+    // Check the ACL on the parent container
+    Acl acl(contToCheck,vid,attrmap);
+    if(fh) {
+      // if it is a file, take into account file acl too
+      fattrmap = fh->getAttributes();
+      acl.SetFromAttrMap(attrmap,vid,&fattrmap);
+    }
+    eos_info("acl=%d r=%d w=%d wo=%d x=%d egroup=%d mutable=%d",
+             acl.HasAcl(), acl.CanRead(), acl.CanWrite(), acl.CanWriteOnce(),
+             acl.CanBrowse(), acl.HasEgroup(), acl.IsMutable());
+
+    if (!AccessChecker::checkContainer(contToCheck.get(), acl, mode, vid)) {
+      errno = EPERM;
+      //TODO: Do we really want the path?
+      return Emsg(epname, error, EPERM, "access", gOFS->eosView->getUri(contToCheck.get()).c_str());
+    }
+
+    if (fh && !AccessChecker::checkFile(fh.get(), mode, vid)) {
+      errno = EPERM;
+      //TODO: Do we really want the path?
+      return Emsg(epname, error, EPERM, "access", gOFS->eosView->getUri(fh.get()).c_str());
+    }
+
+    // root/daemon can always access, daemon only for reading!
+    if ((vid.uid == 0) || ((vid.uid == DAEMONUID) && (!(mode & W_OK)))) {
+      permok = true;
+    }
+
+    if (contToCheck) {
+      eos_debug("msg=\"access\" uid=%d gid=%d retc=%d mode=%o",
+                vid.uid, vid.gid, permok, contToCheck->getMode());
+    }
+
+    if (contToCheck && (mode & F_OK)) {
+      return SFS_OK;
+    }
+
+    if (contToCheck && permok) {
+      return SFS_OK;
+    }
+
+    if (contToCheck && (!permok)) {
+      errno = EACCES;
+      // TODO: do we really want the path?
+      return Emsg(epname, error, EACCES, "access", gOFS->eosView->getUri(contToCheck.get()).c_str());
+    }
+  } catch (eos::MDException& e) {
+    eos_debug("msg=\"access\" errno=ENOENT");
+    errno = ENOENT;
+    return Emsg(epname, error, ENOENT, "access", "null");
+  }
+
+  errno = EOPNOTSUPP;
+  return Emsg(epname, error, EOPNOTSUPP, "access","null");
+}
+
 //------------------------------------------------------------------------------
 // Define access permissions by vid for a file/directory
 //------------------------------------------------------------------------------

@@ -75,6 +75,16 @@ Acl::Acl(const char* path, XrdOucErrInfo& error,
   SetFromAttrMap(attrmap, vid);
 }
 
+Acl::Acl(eos::IContainerMDPtr container,
+         const eos::common::VirtualIdentity& vid,
+         eos::IContainerMD::XAttrMap& attrmap) {
+  {
+    eos::IContainerMD::IContainerMDReadLocker locker(container);
+    attrmap = container->getAttributes();
+  }
+  SetFromAttrMap(attrmap,vid);
+}
+
 //------------------------------------------------------------------------------
 // Set Acls by interpreting the attribute map
 //------------------------------------------------------------------------------

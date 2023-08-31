@@ -131,6 +131,17 @@ public:         // [+] prevents '+' interpreted as "one or more"
       eos::IContainerMD::XAttrMap& attrmap, bool lockNs);
 
   //----------------------------------------------------------------------------
+  //! Constructor by container MD object
+  //!
+  //! @param container where to read the acl attributes from
+  //! @param vid virtual id to match ACL
+  //! @param attr map returns all the attributes from the container
+  //----------------------------------------------------------------------------
+  Acl(eos::IContainerMDPtr container,
+      const eos::common::VirtualIdentity& vid,
+      eos::IContainerMD::XAttrMap& attrmap);
+
+  //----------------------------------------------------------------------------
   //! Destructor
   //----------------------------------------------------------------------------
   virtual ~Acl() = default;
