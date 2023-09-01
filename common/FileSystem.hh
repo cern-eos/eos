@@ -424,7 +424,6 @@ public:
     ConfigStatus mConfigStatus;
     DrainStatus mDrainStatus;
     ActiveStatus mActiveStatus;
-    double mBalThresh;
     long long mHeadRoom;
     unsigned int mErrCode;
     time_t mBootSentTime;

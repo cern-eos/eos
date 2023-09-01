@@ -456,7 +456,6 @@ FileSystem::fs_snapshot_t::fs_snapshot_t()
   mScanNsInterval = 0;
   mScanNsRate = 0;
   mFsckRefreshInterval = 0;
-  mBalThresh = 0.0;
 }
 
 //------------------------------------------------------------------------------
@@ -1258,7 +1257,6 @@ FileSystem::SnapShotFileSystem(FileSystem::fs_snapshot_t& fs, bool dolock)
                               eos::common::FSCK_REFRESH_INTERVAL_NAME);
   fs.mGracePeriod = (time_t) hash.getLongLong("graceperiod");
   fs.mDrainPeriod = (time_t) hash.getLongLong("drainperiod");
-  fs.mBalThresh   = hash.getDouble("stat.balance.threshold");
   return true;
 }
 
