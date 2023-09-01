@@ -107,7 +107,7 @@ GlobalConfigChangeListener::WaitForEvent(Event& out,
 //------------------------------------------------------------------------------
 // Consume next event, block until there's one
 //------------------------------------------------------------------------------
-bool GlobalConfigChangeListener::fetch(Event& out, ThreadAssistant& assistant)
+bool GlobalConfigChangeListener::fetch(ThreadAssistant& assistant, Event& out)
 {
   if (mSharedHash) {
     // New QDB implementation

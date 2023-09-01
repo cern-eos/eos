@@ -78,7 +78,7 @@ public:
   //----------------------------------------------------------------------------
   //! Consume next event, block until there's one.
   //----------------------------------------------------------------------------
-  bool fetch(Event& out, ThreadAssistant& assistant);
+  bool fetch(ThreadAssistant& assistant, Event& out);
 
 private:
   //----------------------------------------------------------------------------

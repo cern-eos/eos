@@ -2214,6 +2214,9 @@ void GeoTreeEngine::listenFsChange(ThreadAssistant& assistant)
     eos_info("GeoTreeEngine updater is starting...");
   }
 
+  std::chrono::seconds timeout {1};
+  mq::FsChangeListener::Event event;
+
   while (!assistant.terminationRequested()) {
     while (sem_wait(&gUpdaterPauseSem)) {
       if (EINTR != errno) {
@@ -2221,9 +2224,7 @@ void GeoTreeEngine::listenFsChange(ThreadAssistant& assistant)
       }
     }
 
-    mq::FsChangeListener::Event event;
-
-    while (mFsListener->fetch(event, assistant)) {
+    while (mFsListener->fetch(assistant, event, timeout)) {
       if (event.isDeletion()) {
         eos_debug("received deletion on subject %s : the fs was removed from "
                   "the GeoTreeEngine, skipping this update", event.fileSystemQueue.c_str());
@@ -2262,10 +2263,14 @@ void GeoTreeEngine::listenFsChange(ThreadAssistant& assistant)
       checkPendingDeletionsDp();
       {
         eos::common::RWMutexWriteLock lock(pAddRmFsMutex);
-        updateTreeInfo(gNotificationsBufferFs, gNotificationsBufferProxy);
+
+        if (!gNotificationsBufferFs.empty() || !gNotificationsBufferProxy.empty()) {
+          updateTreeInfo(gNotificationsBufferFs, gNotificationsBufferProxy);
+        }
+
+        gNotificationsBufferFs.clear();
+        gNotificationsBufferProxy.clear();
       }
-      gNotificationsBufferFs.clear();
-      gNotificationsBufferProxy.clear();
     }
     pFrameCount++;
 
