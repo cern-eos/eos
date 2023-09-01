@@ -17,6 +17,18 @@ Introduction
 This release is based on XRootD V5.
 
 
+``v5.1.28 Diopside``
+==========================
+
+2023-09-01
+
+New Feature
+-----------
+
+* [EOS-5803] - Introduce New groupbalancer engine - freespace which balances on
+  absolute freespace Additionally blocklisting groups is now supported in this
+  engine.
+
 ``v5.1.27 Diopside``
 ==========================
 
