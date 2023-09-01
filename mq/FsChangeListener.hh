@@ -130,14 +130,16 @@ public:
   bool startListening();
 
   //----------------------------------------------------------------------------
-  //! Consume next event, block until there's one
+  //! Consume next event, block until there's one or timeout expires
   //!
-  //! @param out new event
   //! @param assistant thread executing this method
+  //! @param out new event
+  //! @param timeout max time we're willing to wait, default 5
   //!
-  //! @return true if out event is valid, otherwise false
+  //! @return true if there is an event, otherwise false
   //----------------------------------------------------------------------------
-  bool fetch(Event& out, ThreadAssistant& assistant);
+  bool fetch(ThreadAssistant& assistant, Event& out,
+             std::chrono::seconds timeout = std::chrono::seconds(5));
 
   //----------------------------------------------------------------------------
   //! Notify new event

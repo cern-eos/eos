@@ -203,7 +203,7 @@ void XrdMgmOfs::FileSystemMonitorThread(ThreadAssistant& assistant) noexcept
   while (!assistant.terminationRequested()) {
     eos::mq::FsChangeListener::Event event;
 
-    if (fs_listener->fetch(event, assistant) && !event.isDeletion()) {
+    if (fs_listener->fetch(assistant, event) && !event.isDeletion()) {
       if (event.key == "stat.geotag") {
         ProcessGeotagChange(event.fileSystemQueue);
       } else {
@@ -266,7 +266,7 @@ XrdMgmOfs::FsConfigListener(ThreadAssistant& assistant) noexcept
   while (!assistant.terminationRequested()) {
     eos::mq::GlobalConfigChangeListener::Event event;
 
-    if (changeListener.fetch(event, assistant)) {
+    if (changeListener.fetch(assistant, event)) {
       if (!event.isDeletion() && !gOFS->mMaster->IsMaster()) {
         // This is an MGM configuration modification - only an MGM
         // slave needs to apply this.

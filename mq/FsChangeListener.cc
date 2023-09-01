@@ -148,11 +148,12 @@ bool FsChangeListener::startListening()
 //------------------------------------------------------------------------------
 // Consume next event, block until there's one
 //------------------------------------------------------------------------------
-bool FsChangeListener::fetch(Event& out, ThreadAssistant& assistant)
+bool FsChangeListener::fetch(ThreadAssistant& assistant, Event& out,
+                             std::chrono::seconds timeout)
 {
   if (mNotifier == nullptr) {
     // New QDB implementation
-    return WaitForEvent(out);
+    return WaitForEvent(out, timeout);
   } else {
     // Old implementation
     mNotifier->tlSubscriber->mSubjMtx.Lock();
