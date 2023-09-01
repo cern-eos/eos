@@ -60,7 +60,6 @@ const int GeoTreeEngine::sfgActive = 1 << 4;
 const int GeoTreeEngine::sfgConfigstatus = 1 << 5;
 const int GeoTreeEngine::sfgDrain = 1 << 6;
 const int GeoTreeEngine::sfgDrainer = 1 << 6;
-const int GeoTreeEngine::sfgBalthres = 1 << 7;
 const int GeoTreeEngine::sfgBlkavailb = 1 << 8;
 const int GeoTreeEngine::sfgFsfilled = 1 << 9;
 const int GeoTreeEngine::sfgNomfilled = 1 << 10;
@@ -86,7 +85,6 @@ const map<string, int> GeoTreeEngine::gNotifKey2EnumSched = {
   make_pair("configstatus", sfgConfigstatus),
   make_pair("local.drain", sfgDrain),
   make_pair("stat.drainer", sfgDrainer),
-  make_pair("stat.balance.threshold", sfgBalthres),
   make_pair("stat.nominal.filled", sfgNomfilled),
   make_pair("stat.statfs.bavail", sfgBlkavailb),
   make_pair("stat.statfs.filled", sfgFsfilled),
@@ -2231,7 +2229,7 @@ void GeoTreeEngine::listenFsChange(ThreadAssistant& assistant)
         continue;
       }
 
-      pAddRmFsMutex.LockWrite();
+      eos::common::RWMutexWriteLock wr_lock(pAddRmFsMutex);
       auto notifTypeIt = gQueue2NotifType.find(event.fileSystemQueue);
 
       if (notifTypeIt == gQueue2NotifType.end()) {
@@ -2250,8 +2248,6 @@ void GeoTreeEngine::listenFsChange(ThreadAssistant& assistant)
           }
         }
       }
-
-      pAddRmFsMutex.UnLockWrite();
     }
 
     // Do the processing
@@ -2510,13 +2506,12 @@ bool GeoTreeEngine::updateTreeInfo(SchedTME* entry,
     }
   }
 
-  if (keys & (sfgBalthres | sfgFsfilled | sfgNomfilled)) {
+  if (keys & (sfgFsfilled | sfgNomfilled)) {
     auto nominal = fs->mNominalFilled;
     auto filled = fs->mDiskFilled;
-    auto threshold = fs->mBalThresh;
     bool balancing = false;
 
-    if (nominal && ((filled - threshold) >= nominal)) {
+    if (nominal && (filled >= nominal)) {
       balancing = true;
     }
 
