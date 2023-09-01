@@ -497,6 +497,16 @@ the std. engine to balance for longer periods of time.
 .. index::
    pair: Group Balancer; Configuration
 
+Freespace
+~~~~~~~~~
+
+This engine can be used in case groups have non uniform total capacities and you
+want to make the absolute free space equal in all groups. The geoscheduler picks
+groups in a round robin fashion, so having absolute freespace equal makes it
+easy to keep groups in balance after. The same parameters `max_threshold` and
+`min_threshold` can be used to tweak the spread of total freespace allowed. Additionally a list of groups that do not need to participate in balancing activity can be configured via the key ``groupbalancer.blocklist``. For adding removing the same key needs to be set again to the new value.
+
+
 Configuration
 """""""""""""
 Groupbalancing is enabled/disabled by space:
@@ -591,6 +601,13 @@ One can see the same settings and the number of active conversion transfers
    #------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
    spaceview           default           22           22    202       123          2.91 T       339.38 T      245.53 T          0.00     on        off        0.00          on 100.00     0.00         off
 
+
+Configure blocklisting, ie. groups that do not participate. (Only used in freespace engine currently)
+
+.. code-block:: bash
+
+   # blocklist groups default.2, default.8 in participating
+   eos space config default space.groupbalancer.blocklist=default.2, default.8
 
 .. index::
    pair: Group Balancer; Info
