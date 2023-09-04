@@ -296,7 +296,7 @@ FileSystem::IsDrainTransition(const eos::common::ConfigStatus old,
 bool
 FileSystem::ShouldBroadCast()
 {
-  if (mRealm) {
+  if (mRealm && mRealm->getSom()) {
     return mRealm->getSom()->ShouldBroadCast();
   } else {
     return false;
