@@ -25,6 +25,7 @@ using eos::console::ConfigProto;
 using eos::console::ConvertProto;
 using eos::console::CpProto;
 using eos::console::DebugProto;
+using eos::console::EvictProto;
 using eos::console::FileProto;
 using eos::console::FileinfoProto;
 using eos::console::FsProto;
@@ -83,6 +84,7 @@ public:
   Status ConvertCall(const ConvertProto* convertRequest, ReplyProto* reply);
   Status CpCall(const CpProto* cpRequest, ReplyProto* reply);
   Status DebugCall(const DebugProto* debugRequest, ReplyProto* reply);
+  Status EvictCall(const EvictProto* evictRequest, ReplyProto* reply);
   Status FileCall(const FileProto* fileRequest, ReplyProto* reply);
   Status FileinfoCall(const FileinfoProto* fileinfoRequest, ReplyProto* reply);
   Status FsCall(const FsProto* fsRequest, ReplyProto* reply);

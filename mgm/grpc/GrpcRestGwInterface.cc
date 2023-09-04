@@ -16,6 +16,7 @@
 #include "mgm/proc/admin/ConfigCmd.hh"
 #include "mgm/proc/admin/ConvertCmd.hh"
 #include "mgm/proc/admin/DebugCmd.hh"
+#include "mgm/proc/admin/EvictCmd.hh"
 #include "mgm/proc/admin/FsCmd.hh"
 #include "mgm/proc/admin/FsckCmd.hh"
 #include "mgm/proc/admin/GroupCmd.hh"
@@ -653,6 +654,23 @@ grpc::Status GrpcRestGwInterface::DebugCall(const DebugProto* debugRequest, Repl
 
   eos::mgm::DebugCmd debugcmd(std::move(req), rootvid);
   *reply = debugcmd.ProcessRequest();
+
+  return grpc::Status::OK;
+}
+
+grpc::Status GrpcRestGwInterface::EvictCall(const EvictProto* evictRequest, ReplyProto* reply)
+{
+  // wrap the EvictProto object into a RequestProto object
+  EvictProto evictRequestCopy;
+  evictRequestCopy.CopyFrom(*evictRequest);
+  eos::console::RequestProto req;
+  req.mutable_debug()->CopyFrom(evictRequestCopy);
+
+  // initialise VirtualIdentity object
+  auto rootvid = eos::common::VirtualIdentity::Root();
+
+  eos::mgm::EvictCmd evictcmd(std::move(req), rootvid);
+  *reply = evictcmd.ProcessRequest();
 
   return grpc::Status::OK;
 }

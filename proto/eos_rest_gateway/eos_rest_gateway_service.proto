@@ -16,6 +16,7 @@ import "ConsoleReply.proto";
 import "Convert.proto";
 import "Cp.proto";
 import "Debug.proto";
+import "Evict.proto";
 import "File.proto";
 import "Fileinfo.proto";
 import "Fs.proto";
@@ -37,7 +38,6 @@ import "Rm.proto";
 import "Rmdir.proto";
 import "Route.proto";
 import "Space.proto";
-import "StagerRm.proto";
 import "StatWnc.proto";
 import "Status.proto";
 import "Token.proto";
@@ -146,6 +146,15 @@ service EosRestGatewayService {
 	rpc DebugRequest(eos.console.DebugProto) returns (eos.console.ReplyProto) {
 		option (google.api.http) = {
 			post: "/eos/rest/gateway/debug_cmd"
+			body: "*"
+		};
+	}
+
+	// EvictRequest method receives a request for an eos evict command
+	// and returns the result of the command
+	rpc EvictRequest(eos.console.EvictProto) returns (eos.console.ReplyProto) {
+		option (google.api.http) = {
+			post: "/eos/rest/gateway/evict_cmd"
 			body: "*"
 		};
 	}
@@ -335,15 +344,6 @@ service EosRestGatewayService {
 	rpc SpaceRequest(eos.console.SpaceProto) returns (eos.console.ReplyProto) {
 		option (google.api.http) = {
 			post: "/eos/rest/gateway/space_cmd"
-			body: "*"
-		};
-	}
-
-	// StagerRmRequest method receives a request for an eos stager rm command
-	// and returns the result of the command
-	rpc StagerRmRequest(eos.console.StagerRmProto) returns (eos.console.ReplyProto) {
-		option (google.api.http) = {
-			post: "/eos/rest/gateway/stagerrm_cmd"
 			body: "*"
 		};
 	}

@@ -29,6 +29,7 @@ using eos::console::ConfigProto;
 using eos::console::ConvertProto;
 using eos::console::CpProto;
 using eos::console::DebugProto;
+using eos::console::EvictProto;
 using eos::console::FileProto;
 using eos::console::FileinfoProto;
 using eos::console::FsProto;
@@ -143,6 +144,13 @@ class EosRestGatewayServiceImpl final : public EosRestGatewayService::Service, p
   {
     GrpcRestGwInterface restGwInterface;
     return restGwInterface.DebugCall(request, reply);
+  }
+
+  Status EvictRequest(ServerContext* context, const EvictProto* request,
+                      ReplyProto* reply) override
+  {
+    GrpcRestGwInterface restGwInterface;
+    return restGwInterface.EvictCall(request, reply);
   }
 
   Status FileRequest(ServerContext* context, const FileProto* request,
