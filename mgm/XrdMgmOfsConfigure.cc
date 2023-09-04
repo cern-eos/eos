@@ -1457,12 +1457,15 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
     qsm = new qclient::SharedManager(
       mQdbContactDetails.members,
       mQdbContactDetails.constructSubscriptionOptions());
+    mMessagingRealm.reset(new eos::mq::MessagingRealm(nullptr,
+                          nullptr, &XrdMqMessaging::gMessageClient, qsm));
   } else {
     eos_static_notice("%s", "msg=\"running SharedManager via MQ\"");
+    mMessagingRealm.reset(new eos::mq::MessagingRealm(&ObjectManager,
+                          &ObjectNotifier, &XrdMqMessaging::gMessageClient,
+                          qsm));
   }
 
-  mMessagingRealm.reset(new eos::mq::MessagingRealm(&ObjectManager,
-                        &ObjectNotifier, &XrdMqMessaging::gMessageClient, qsm));
   eos::common::InstanceName::set(MgmOfsInstanceName.c_str());
 
   if (!mMessagingRealm->setInstanceName(MgmOfsInstanceName.c_str())) {
