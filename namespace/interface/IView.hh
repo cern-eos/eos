@@ -188,15 +188,15 @@ public:
   //----------------------------------------------------------------------------
   //! Get a container (directory) and read lock it
   //----------------------------------------------------------------------------
-  virtual std::unique_ptr<IContainerMD::IContainerMDReadLocker> getContainerReadLocked(const std::string & uri,
-                                                                                       bool follow = true,
-                                                                                       size_t * link_depths = 0) = 0;
+  virtual IContainerMD::IContainerMDReadLockerPtr getContainerReadLocked(const std::string & uri,
+                                                                         bool follow = true,
+                                                                         size_t * link_depths = 0) = 0;
   //----------------------------------------------------------------------------
   //! Get a container (directory) and write lock it
   //----------------------------------------------------------------------------
-  virtual std::unique_ptr<IContainerMD::IContainerMDWriteLocker> getContainerWriteLocked(const std::string & uri,
-                                                                                       bool follow = true,
-                                                                                       size_t * link_depths = 0) = 0;
+  virtual IContainerMD::IContainerMDWriteLockerPtr getContainerWriteLocked(const std::string & uri,
+                                                                           bool follow = true,
+                                                                           size_t * link_depths = 0) = 0;
 
   //----------------------------------------------------------------------------
   //! Get parent container of a file

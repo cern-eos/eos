@@ -96,14 +96,14 @@ public:
   //----------------------------------------------------------------------------
   //! Get the container metadata information for the given container ID and read lock it
   //----------------------------------------------------------------------------
-  virtual std::unique_ptr<IContainerMD::IContainerMDReadLocker> getContainerMDReadLocked(IContainerMD::id_t id) override {
+  virtual IContainerMD::IContainerMDReadLockerPtr getContainerMDReadLocked(IContainerMD::id_t id) override {
     return getContainerLocked<IContainerMD::IContainerMDReadLocker>(id,0);
  }
 
  //----------------------------------------------------------------------------
  //! Get the container metadata information for the given container ID and write lock it
  //----------------------------------------------------------------------------
- virtual std::unique_ptr<IContainerMD::IContainerMDWriteLocker> getContainerMDWriteLocked(IContainerMD::id_t id) override {
+ virtual IContainerMD::IContainerMDWriteLockerPtr getContainerMDWriteLocked(IContainerMD::id_t id) override {
    return getContainerLocked<IContainerMD::IContainerMDWriteLocker>(id,0);
  }
 
