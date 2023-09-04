@@ -187,18 +187,18 @@ MockPrepareMgmFSInterface::_STAT_ERROR =
   return SFS_ERROR;
 };
 
-std::function<int(const char* path, int mode, XrdOucErrInfo& error, eos::common::VirtualIdentity& vid, const char* info, bool lock)>
+std::function<int(const char* path, int mode, XrdOucErrInfo& error, eos::common::VirtualIdentity& vid, const char* info)>
 MockPrepareMgmFSInterface::_ACCESS_FILE_NO_PREPARE_PERMISSION_LAMBDA =
   [](const char* path, int mode, XrdOucErrInfo& error,
-     eos::common::VirtualIdentity& vid, const char* info, bool lock)
+     eos::common::VirtualIdentity& vid, const char* info)
 {
   return SFS_ERROR;
 };
 
-std::function<int(const char* path, int mode, XrdOucErrInfo& error, eos::common::VirtualIdentity& vid, const char* info, bool lock)>
+std::function<int(const char* path, int mode, XrdOucErrInfo& error, eos::common::VirtualIdentity& vid, const char* info)>
 MockPrepareMgmFSInterface::_ACCESS_FILE_PREPARE_PERMISSION_LAMBDA =
   [](const char* path, int mode, XrdOucErrInfo& error,
-     eos::common::VirtualIdentity& vid, const char* info, bool lock)
+     eos::common::VirtualIdentity& vid, const char* info)
 {
   return SFS_OK;
 };

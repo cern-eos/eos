@@ -214,7 +214,7 @@ eos::mgm::TokenCmd::ProcessRequest() noexcept
           }
         } else {
           // directory token
-          if (gOFS->_access(token.path().c_str(), mode, error, mVid, "", true)) {
+          if (gOFS->_access(token.path().c_str(), mode, error, mVid, "")) {
             if (errno) {
               // return errno
               reply.set_retc(errno);
@@ -233,7 +233,7 @@ eos::mgm::TokenCmd::ProcessRequest() noexcept
         eos::common::Path cPath(token.path().c_str());
         errno = 0;
 
-        if (gOFS->_access(token.path().c_str(), R_OK, error, mVid, "", true)) {
+        if (gOFS->_access(token.path().c_str(), R_OK, error, mVid, "")) {
           if (errno) {
             // return errno
             reply.set_retc(errno);
