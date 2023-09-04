@@ -461,11 +461,6 @@ private:
                   bool fail_nouuid = false);
 
   //----------------------------------------------------------------------------
-  //! Check if node is active i.e. the stat.active
-  //----------------------------------------------------------------------------
-  bool IsNodeActive() const;
-
-  //----------------------------------------------------------------------------
   //! Check if the selected file system needs to be registered as "full" or
   //! "warning".
   //!

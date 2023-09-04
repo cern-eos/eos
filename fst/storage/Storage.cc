@@ -961,22 +961,6 @@ Storage::CheckLabel(std::string path,
   return true;
 }
 
-//------------------------------------------------------------------------------
-// Check if node is active i.e. the stat.active
-//------------------------------------------------------------------------------
-bool
-Storage::IsNodeActive() const
-{
-  std::string status;
-  GetFstConfigValue("stat.active", status);
-
-  if (status == "online") {
-    return true;
-  } else {
-    return false;
-  }
-}
-
 //----------------------------------------------------------------------------
 // Check if the selected FST needs to be registered as "full" or "warning"
 // CAUTION: mFsMutex must be at-least-read locked before calling
