@@ -29,6 +29,7 @@
 #include "common/LayoutId.hh"
 #include "namespace/interface/IView.hh"
 #include "namespace/Resolver.hh"
+#include "namespace/Prefetcher.hh"
 
 EOSMGMNAMESPACE_BEGIN
 
@@ -106,6 +107,7 @@ ProcCommand::Attr()
       stdErr = "error: you have to provide 'mgm.attr.key' for set,get,rm and 'mgm.attr.value' for set commands!";
       retc = EINVAL;
     } else {
+      bool isRecursive = false;
       retc = 0;
       XrdOucString key = pOpaque->Get("mgm.attr.key");
       XrdOucString val = pOpaque->Get("mgm.attr.value");
@@ -120,22 +122,15 @@ ProcCommand::Attr()
       }
 
       // Find everything to be modified i.e. directories only
-      std::map<std::string, std::set<std::string> > found;
+      using foundmap = std::map<std::string, std::set<std::string> >;
+      using foundmapptr = std::unique_ptr<foundmap>;
 
+      std::vector<foundmapptr> toBrowse;
+      foundmapptr found = std::make_unique<foundmap>();
+      (*found)[spath.c_str()].size();
+      toBrowse.push_back(std::move(found));
       if (option.find("r") != STR_NPOS) {
-        if (gOFS->_find(spath.c_str(), *mError, stdErr, *pVid, found, nullptr,
-                        nullptr, true)) {
-          stdErr += "error: unable to search in path";
-          retc = errno;
-        } else {
-          // Path may be a file, so add it to the list
-          if (found.empty()) {
-            (void) found[spath.c_str()].size();
-          }
-        }
-      } else {
-        // the single dir case
-        (void) found[spath.c_str()].size();
+        isRecursive = true;
       }
 
       if (option.find("c") != STR_NPOS) {
@@ -148,32 +143,90 @@ ProcCommand::Attr()
 
       if (!retc) {
         // apply to  directories starting at the highest level
-        for (auto foundit = found.begin(); foundit != found.end(); foundit++) {
-          {
+        uint64_t cumulLockTime = 0;
+        uint64_t cumulFindTime = 0;
+        uint64_t cumulAccessTime = 0;
+        uint64_t cumulAttrLsTime = 0;
+        uint64_t cumulInnerLoopTime = 0;
+        uint64_t cumulOuterLoopTime = 0;
+        uint64_t cumulEosViewGet = 0;
+        uint64_t cumulContLock = 0;
+        auto startOuterLoop = std::chrono::steady_clock::now();
+        for(size_t i = 0; i < toBrowse.size(); ++i) {
+          auto start = std::chrono::steady_clock::now();
+          for(auto foundit = toBrowse[i]->begin(); foundit != toBrowse[i]->end(); foundit++) {
+            std::unique_ptr<eos::IContainerMD::IContainerMDWriteLocker> contLock;
+            std::unique_ptr<eos::IFileMD::IFileMDWriteLocker> fileLock;
+            eos::IFileMDPtr file;
+            eos::IContainerMDPtr cont;
             eos::IContainerMD::XAttrMap map;
             eos::IContainerMD::XAttrMap linkmap;
+            {
+              auto start = std::chrono::steady_clock::now();
+              try {
+                auto startViewGet = std::chrono::steady_clock::now();
+                cont = gOFS->eosView->getContainer(foundit->first);
+                eos::Prefetcher::prefetchContainerMDWithChildrenAndWait(gOFS->eosView, foundit->first,true,true);
+                auto endViewGet = std::chrono::steady_clock::now();
+                cumulEosViewGet += chrono::duration_cast<std::chrono::nanoseconds>(endViewGet - startViewGet).count();
+                auto startContLock = std::chrono::steady_clock::now();
+                contLock = std::make_unique<eos::IContainerMD::IContainerMDWriteLocker>(cont);
+                auto endContLock = std::chrono::steady_clock::now();
+                cumulContLock += chrono::duration_cast<std::chrono::nanoseconds>(endContLock - startContLock).count();
+              } catch(const eos::MDException &) {
+                //Not a directory, it's a file
+                try {
+                  file = gOFS->eosView->getFile(foundit->first);
+                  fileLock = std::make_unique<eos::IFileMD::IFileMDWriteLocker>(file);
+                } catch (const eos::MDException &) {
+                    stdErr += "error: unable to search in path ";
+                    stdErr += toBrowse[i]->begin()->first.c_str();
+                    retc = errno;
+                }
+              }
+              auto end = std::chrono::steady_clock::now();
+              cumulLockTime += chrono::duration_cast<std::chrono::nanoseconds>(end - start).count();
+            }
+            if(isRecursive && !fileLock) {
+              auto start = std::chrono::steady_clock::now();
+              found = std::make_unique<foundmap>();
+              if (gOFS->_find(foundit->first.c_str(), *mError, stdErr, *pVid, *found, nullptr,
+                              nullptr, true,0, true, 1, nullptr, true)) {
+                stdErr += "error: unable to search in path";
+                retc = errno;
+              }
+              auto end = std::chrono::steady_clock::now();
+              cumulFindTime += chrono::duration_cast<std::chrono::nanoseconds>(end - start).count();
+              if(found->size()) {
+                found->erase(foundit->first.back() != '/' ?  foundit->first + "/" : foundit->first);
+                toBrowse.push_back(std::move(found));
+              }
+            }
 
             if ((mSubCmd == "ls")) {
               RECURSIVE_STALL("AttrLs", (*pVid));
-
-              if (gOFS->_access(foundit->first.c_str(), R_OK, *mError, *pVid, 0)) {
-                stdErr += "error: unable to get attributes  ";
-                stdErr += foundit->first.c_str();
-                retc = errno;
-                return SFS_OK;
+              {
+                auto start = std::chrono::steady_clock::now();
+                if (gOFS->_access(foundit->first.c_str(), R_OK, *mError, *pVid,
+                                  0, false)) {
+                  stdErr += "error: unable to get attributes  ";
+                  stdErr += foundit->first.c_str();
+                  retc = errno;
+                  return SFS_OK;
+                }
+                auto end = std::chrono::steady_clock::now();
+                cumulAccessTime += chrono::duration_cast<std::chrono::nanoseconds>(end - start).count();
               }
-
               XrdOucString partialStdOut = "";
-
+              auto start = std::chrono::steady_clock::now();
               if (gOFS->_attr_ls(foundit->first.c_str(), *mError, *pVid, (const char*) 0, map,
-                                 true, true)) {
+                                 false, true)) {
                 stdErr += "error: unable to list attributes of ";
                 stdErr += foundit->first.c_str();
                 stdErr += "\n";
                 retc = errno;
               } else {
                 eos::IContainerMD::XAttrMap::const_iterator it;
-
                 if (option == "r") {
                   stdOut += foundit->first.c_str();
                   stdOut += ":\n";
@@ -202,6 +255,8 @@ ProcCommand::Attr()
                   stdOut += "\n";
                 }
               }
+              auto end = std::chrono::steady_clock::now();
+              cumulAttrLsTime += chrono::duration_cast<std::chrono::nanoseconds>(end - start).count();
             }
 
             if (mSubCmd == "set") {
@@ -215,7 +270,7 @@ ProcCommand::Attr()
                 if ((pVid->uid != 0) && gOFS->_attr_get(foundit->first.c_str(),
                                                         *mError, *pVid,
                                                         (const char*) 0,
-                                                        "sys.eval.useracl", evalacl)) {
+                                                        "sys.eval.useracl", evalacl,false)) {
                   stdErr += "error: unable to set user.acl - the file/directory does not "
                             "evaluate user acls (sys.eval.useracl is undefined)!\n";
                   retc = EINVAL;
@@ -225,7 +280,6 @@ ProcCommand::Attr()
 
               // Check if the origin exists and is a directory
               if (key == "sys.attr.link") {
-                eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
 
                 try {
                   auto cmd = gOFS->eosView->getContainer(val.c_str());
@@ -240,7 +294,7 @@ ProcCommand::Attr()
               }
 
               if (gOFS->_attr_set(foundit->first.c_str(), *mError, *pVid, (const char*) 0,
-                                  key.c_str(), val.c_str(), true, exclusive)) {
+                                  key.c_str(), val.c_str(), false, exclusive)) {
                 stdErr += "error: unable to set attribute in file/directory ";
                 stdErr += foundit->first.c_str();
 
@@ -257,7 +311,7 @@ ProcCommand::Attr()
             if (mSubCmd == "get") {
               RECURSIVE_STALL("AttrGet", (*pVid));
 
-              if (gOFS->_access(foundit->first.c_str(), R_OK, *mError, *pVid, 0)) {
+              if (gOFS->_access(foundit->first.c_str(), R_OK, *mError, *pVid, 0,false)) {
                 stdErr += "error: unable to get attributes of ";
                 stdErr += foundit->first.c_str();
                 retc = errno;
@@ -265,7 +319,7 @@ ProcCommand::Attr()
               }
 
               if (gOFS->_attr_get(foundit->first.c_str(), *mError, *pVid, (const char*) 0,
-                                  key.c_str(), val)) {
+                                  key.c_str(), val,false)) {
                 stdErr += "error: unable to get attribute ";
                 stdErr += key;
                 stdErr += " in file/directory ";
@@ -284,7 +338,7 @@ ProcCommand::Attr()
               RECURSIVE_STALL("AttrRm", (*pVid));
 
               if (gOFS->_attr_rem(foundit->first.c_str(), *mError, *pVid, (const char*) 0,
-                                  key.c_str())) {
+                                  key.c_str(),false)) {
                 stdErr += "error: unable to remove attribute '";
                 stdErr += key;
                 stdErr += "' in file/directory ";
@@ -303,11 +357,11 @@ ProcCommand::Attr()
             if (mSubCmd == "fold") {
               RECURSIVE_STALL("AttrLs", (*pVid));
               int retc = gOFS->_attr_ls(foundit->first.c_str(), *mError, *pVid,
-                                        (const char*) 0, map, true, false);
+                                        (const char*) 0, map, false, false);
 
               if ((!retc) && map.count("sys.attr.link")) {
                 retc |= gOFS->_attr_ls(map["sys.attr.link"].c_str(), *mError, *pVid,
-                                       (const char*) 0, linkmap, true, true);
+                                       (const char*) 0, linkmap, false, true);
               }
 
               if (retc) {
@@ -328,7 +382,7 @@ ProcCommand::Attr()
                   if (linkmap.count(it->first) &&
                       linkmap[it->first] == map[it->first]) {
                     if (gOFS->_attr_rem(foundit->first.c_str(), *mError, *pVid, (const char*) 0,
-                                        it->first.c_str())) {
+                                        it->first.c_str(),false)) {
                       stdErr += "error [ attr fold ] : unable to remove local attribute ";
                       stdErr += it->first.c_str();
                       stdErr += "\n";
@@ -351,7 +405,12 @@ ProcCommand::Attr()
               }
             }
           }
+          auto stop = std::chrono::steady_clock::now();
+          cumulInnerLoopTime += std::chrono::duration_cast<std::chrono::nanoseconds >(stop - start).count();
         }
+        auto stopOuterLoop = std::chrono::steady_clock::now();
+        cumulOuterLoopTime += std::chrono::duration_cast<std::chrono::nanoseconds >(stopOuterLoop - startOuterLoop).count();
+        eos_static_crit("cumulLockTime = %ld, cumulFindTime = %ld, cumulAccessTime = %ld, cumulAttrLsTime = %ld, cumulInnerLoopTime = %ld, cumulOuterLoopTime = %ld, cumulEosViewGet = %ld, cumulContLock = %ld\n",cumulLockTime, cumulFindTime, cumulAccessTime,cumulAttrLsTime, cumulInnerLoopTime, cumulOuterLoopTime, cumulEosViewGet, cumulContLock);
       }
     }
   }
