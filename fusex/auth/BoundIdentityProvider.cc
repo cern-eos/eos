@@ -161,6 +161,41 @@ BoundIdentityProvider::x509EnvToBoundIdentity(const JailInformation& jail,
 }
 
 //------------------------------------------------------------------------------
+// Attempt to produce a BoundIdentity object out of ZTN environment
+// variables. NO fallback to default paths. If not possible, return nullptr.
+//------------------------------------------------------------------------------
+std::shared_ptr<const BoundIdentity>
+BoundIdentityProvider::ztnEnvToBoundIdentity(const JailInformation& jail,
+  const Environment& env, uid_t uid, gid_t gid, bool reconnect,
+  LogbookScope &scope)
+{
+  std::string key = env.get("EOS_FUSE_SECRET");
+  std::string btf = env.get("BEARER_TOKEN_FILE");
+  std::string btfd = env.get("XDG_RUNTIME_DIR");
+  std::string path;
+  
+  if (btf.length()) {
+    path = btf;
+  } else if (btfd.length()) {
+    path = btfd + std::string("/bt_u") + std::to_string(uid);
+  }
+  
+  if (path.empty()) {
+    //--------------------------------------------------------------------------
+    // Early exit, no need to go through the trouble
+    // of userCredsToBoundIdentity.
+    //--------------------------------------------------------------------------
+    LOGBOOK_INSERT(scope, "No bearer token file specified (size: " << path.size() << ")");
+    return {};
+  }
+
+  LOGBOOK_INSERT(scope, "Found token: " << path << ", need to validate");
+  return userCredsToBoundIdentity(jail,
+				  UserCredentials::MakeZTN(jail.id, path, uid, gid, key), reconnect,
+           scope);
+}
+
+//------------------------------------------------------------------------------
 // Attempt to produce a BoundIdentity object out of SSS environment
 // variables. If not possible, return nullptr.
 //------------------------------------------------------------------------------
@@ -207,6 +242,17 @@ BoundIdentityProvider::environmentToBoundIdentity(const JailInformation& jail,
     //--------------------------------------------------------------------------
     if(credConfig.use_user_gsiproxy) {
       output = x509EnvToBoundIdentity(jail, env, uid, gid, reconnect, scope);
+
+      if (output) {
+        return output;
+      }
+    }
+
+    //--------------------------------------------------------------------------
+    // No x509.. what about ztn..
+    //--------------------------------------------------------------------------
+    if(credConfig.use_user_ztn) {
+      output = ztnEnvToBoundIdentity(jail, env, uid, gid, reconnect, scope);
 
       if (output) {
         return output;
@@ -445,7 +491,8 @@ BoundIdentityProvider::defaultPathsToBoundIdentity(const JailInformation& jail,
   }
   defaultEnv.push_back("X509_USER_PROXY=/tmp/x509up_u" + std::to_string(uid));
   defaultEnv.push_back("OAUTH2_TOKEN=FILE:/tmp/oauthtk_" + std::to_string(uid));
-
+  defaultEnv.push_back("BEARER_TOKEN_FILE=/tmp/bt_u" + std::to_string(uid));
+  
   LogbookScope subscope(scope.makeScope(
     SSTR("Attempting to produce BoundIdentity out of default paths for uid="
       << uid)));

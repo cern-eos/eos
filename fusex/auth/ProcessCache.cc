@@ -66,8 +66,9 @@ ProcessCache::discoverBoundIdentity(const JailInformation& jail,
   // Shortcut: If all authentication methods are disabled, or unix is enabled and uid!=0 just use Unix
   //----------------------------------------------------------------------------
   if ((!credConfig.use_user_krb5cc && !credConfig.use_user_gsiproxy &&
-       !credConfig.use_user_sss && !credConfig.use_user_oauth2) ||
+       !credConfig.use_user_sss && !credConfig.use_user_oauth2 && !credConfig.use_user_ztn) ||
       (credConfig.use_user_unix && (uid || credConfig.use_root_unix))) {
+    
     LogbookScope scope;
 
     if (credConfig.use_user_unix && (uid || credConfig.use_root_unix)) {

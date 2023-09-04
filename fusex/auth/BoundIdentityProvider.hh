@@ -138,6 +138,14 @@ private:
   std::shared_ptr<const BoundIdentity> x509EnvToBoundIdentity(
     const JailInformation& jail, const Environment& env, uid_t uid, gid_t gid,
     bool reconnect, LogbookScope &scope);
+  
+  //----------------------------------------------------------------------------
+  // Attempt to produce a BoundIdentity object out of ZTN environment
+  // variables. NO fallback to default paths. If not possible, return nullptr.
+  //----------------------------------------------------------------------------
+  std::shared_ptr<const BoundIdentity> ztnEnvToBoundIdentity(
+    const JailInformation& jail, const Environment& env, uid_t uid, gid_t gid,
+    bool reconnect, LogbookScope &scope);
 
   //----------------------------------------------------------------------------
   // Attempt to produce a BoundIdentity object out of SSS environment
