@@ -1499,7 +1499,7 @@ FsView::GetFileSystemFormat(std::string option)
     format += "key=local.drain.timeleft:format=ol|";
     format += "key=graceperiod:format=ol|";
     format += "key=drainperiod:format=ol|";
-    format += "key=local.active:format=os|";
+    format += "key=stat.active:format=os|";
     format += "key=scaninterval:format=os|";
     format += "key=scanreruninterval:format=os|";
     format += "key=local.balancer.running:format=ol:tag=local.balancer.running|";
@@ -1575,7 +1575,7 @@ FsView::GetFileSystemFormat(std::string option)
     format += "key=configstatus:width=14:format=s|";
     format += "key=local.drain:width=12:format=s|";
     format += "compute=usage:width=6:format=f|";
-    format += "key=local.active:width=8:format=s|";
+    format += "key=stat.active:width=8:format=s|";
     format += "key=scaninterval:width=14:format=s|";
     format += "key=stat.health:width=16:format=s|";
     format += "key=statuscomment:width=24:format=s";
@@ -1601,7 +1601,7 @@ FsView::GetFileSystemFormat(std::string option)
     format += "key=configstatus:width=14:format=s|";
     format += "key=local.drain:width=12:format=s|";
     format += "compute=usage:width=6:format=f|";
-    format += "key=local.active:width=8:format=s|";
+    format += "key=stat.active:width=8:format=s|";
     format += "key=stat.health:width=16:format=s";
   }
 
