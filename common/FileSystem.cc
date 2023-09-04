@@ -1173,6 +1173,7 @@ FileSystem::SnapShotFileSystem(FileSystem::fs_snapshot_t& fs, bool dolock)
   std::string tmp;
 
   if (!hash.get("id", tmp)) {
+    eos_static_err("%s", "msg=\"failed to get file system id\"");
     fs = {};
     return false;
   }

@@ -1822,14 +1822,6 @@ FsView::Register(FileSystem* fs, const common::FileSystemCoreParams& coreParams,
     return false;
   }
 
-  eos::common::FileSystem::fs_snapshot_t snapshot;
-
-  if (!fs->SnapShotFileSystem(snapshot)) {
-    eos_err("msg=\"failed to snapshot file system, abort registration\" "
-            " qpath=\"%s\"", coreParams.getQueuePath().c_str());
-    return false;
-  }
-
   // Check if this is already in the view
   if (mIdView.lookupByPtr(fs) != 0) {
     // This filesystem is already there, this might be an update
