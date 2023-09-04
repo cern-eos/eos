@@ -822,8 +822,7 @@ XrdMgmOfs::_find(const char* path, XrdOucErrInfo& out_error,
       if (cmd) {
         if (!permok) {
           // check-out for ACLs
-          permok = _access(Path.c_str(), R_OK | X_OK, out_error, vid, "",
-                           false) ? false : true;
+          permok = _access(Path.c_str(), R_OK | X_OK, out_error, vid, "") ? false : true;
         }
 
         if (!permok) {
