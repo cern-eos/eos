@@ -521,7 +521,7 @@ TEST_F(PrepareManagerTest, queryPrepareFileDoesNotExist)
   );
   EXPECT_CALL(mgmOfs, _stat(_, _, _, _, _, _, _, _)).Times(0);
   EXPECT_CALL(mgmOfs, _attr_ls(_, _, _, _, _, _, _)).Times(0);
-  EXPECT_CALL(mgmOfs, _access(_, _, _, _, _, _)).Times(0);
+  EXPECT_CALL(mgmOfs, _access(_, _, _, _, _)).Times(0);
   ClientWrapper client = PrepareManagerTest::getDefaultClient();
   std::string requestId = "testReqId";
   PrepareArgumentsWrapper pargs(requestId, Prep_QUERY, paths, oinfos);
@@ -564,7 +564,7 @@ TEST_F(PrepareManagerTest, queryPrepareFileStatFails)
       MockPrepareMgmFSInterface::_STAT_ERROR
     ));
   EXPECT_CALL(mgmOfs, _attr_ls(_, _, _, _, _, _, _)).Times(0);
-  EXPECT_CALL(mgmOfs, _access(_, _, _, _, _, _)).Times(0);
+  EXPECT_CALL(mgmOfs, _access(_, _, _, _, _)).Times(0);
   ClientWrapper client = PrepareManagerTest::getDefaultClient();
   std::string requestId = "testReqId";
   PrepareArgumentsWrapper pargs(requestId, Prep_QUERY, paths, oinfos);
@@ -610,7 +610,7 @@ TEST_F(PrepareManagerTest, queryPrepareFileOnTapeRetrieveError)
                                  Invoke(
                                    MockPrepareMgmFSInterface::_ATTR_LS_RETRIEVE_ERROR_LAMBDA
                                  ));
-  EXPECT_CALL(mgmOfs, _access(_, _, _, _, _, _)).Times(nbFiles);
+  EXPECT_CALL(mgmOfs, _access(_, _, _, _, _)).Times(nbFiles);
   ClientWrapper client = PrepareManagerTest::getDefaultClient();
   std::string requestId = MockPrepareMgmFSInterface::RETRIEVE_REQ_ID;
   PrepareArgumentsWrapper pargs(requestId, Prep_QUERY, paths, oinfos);
@@ -656,7 +656,7 @@ TEST_F(PrepareManagerTest, queryPrepareFileOnDiskArchiveError)
                                  Invoke(
                                    MockPrepareMgmFSInterface::_ATTR_LS_ARCHIVE_ERROR_LAMBDA
                                  ));
-  EXPECT_CALL(mgmOfs, _access(_, _, _, _, _, _)).Times(nbFiles);
+  EXPECT_CALL(mgmOfs, _access(_, _, _, _, _)).Times(nbFiles);
   ClientWrapper client = PrepareManagerTest::getDefaultClient();
   std::string requestId = "testReqId";
   PrepareArgumentsWrapper pargs(requestId, Prep_QUERY, paths, oinfos);
@@ -703,7 +703,7 @@ TEST_F(PrepareManagerTest, queryPrepareFileNoPreparePermissionOnDirectory)
                                    //Set all possible errors, we want to see the "USER ERROR: you don't have prepare permission" error message in all cases.
                                    MockPrepareMgmFSInterface::_ATTR_LS_ARCHIVE_RETRIEVE_ERROR_LAMBDA
                                  ));
-  EXPECT_CALL(mgmOfs, _access(_, _, _, _, _, _)).Times(nbFiles).WillRepeatedly(
+  EXPECT_CALL(mgmOfs, _access(_, _, _, _, _)).Times(nbFiles).WillRepeatedly(
     Invoke(
       MockPrepareMgmFSInterface::_ACCESS_FILE_NO_PREPARE_PERMISSION_LAMBDA
     )
