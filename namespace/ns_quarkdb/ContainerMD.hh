@@ -107,7 +107,7 @@ public:
   //----------------------------------------------------------------------------
   //! Find sub container and write lock it
   //----------------------------------------------------------------------------
-  std::unique_ptr<IContainerMD::IContainerMDWriteLocker> findContainerAndWriteLock(const std::string & name) override;
+  IContainerMDWriteLockerPtr findContainerAndWriteLock(const std::string & name) override;
 
   //----------------------------------------------------------------------------
   //! Find item
