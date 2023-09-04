@@ -74,8 +74,7 @@ XrdMgmOfs::_access(const char* path,
                    int mode,
                    XrdOucErrInfo& error,
                    eos::common::VirtualIdentity& vid,
-                   const char* info,
-                   bool lock)
+                   const char* info)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief check access permissions for file/directories
@@ -102,22 +101,22 @@ XrdMgmOfs::_access(const char* path,
   std::string attr_path = cPath.GetPath();
   // ---------------------------------------------------------------------------
   eos::Prefetcher::prefetchItemAndWait(gOFS->eosView, cPath.GetPath());
-  eos::common::RWMutexReadLock viewReadLock;
 
-  if (lock) {
-    viewReadLock.Grab(gOFS->eosViewRWMutex);
-  }
+  eos::IFileMD::IFileMDReadLockerPtr fhLock;
+  eos::IContainerMD::IContainerMDReadLockerPtr dhLock;
 
   // check for existing file
   try {
-    fh = gOFS->eosView->getFile(cPath.GetPath());
+    fhLock = gOFS->eosView->getFileReadLocked(cPath.GetPath());
+    fh = fhLock->getUnderlyingPtr();
   } catch (eos::MDException& e) {
     eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"", e.getErrno(),
               e.getMessage().str().c_str());
   }
 
   try {
-    dh = gOFS->eosView->getContainer(cPath.GetPath());
+    dhLock = gOFS->eosView->getContainerReadLocked(cPath.GetPath());
+    dh = dhLock->getUnderlyingPtr();
   } catch (eos::MDException& e) {
     eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"", e.getErrno(),
               e.getMessage().str().c_str());
@@ -141,7 +140,8 @@ XrdMgmOfs::_access(const char* path,
       }
 
       eos::common::Path pPath(uri.c_str());
-      dh = gOFS->eosView->getContainer(pPath.GetParentPath());
+      dhLock = gOFS->eosView->getContainerReadLocked(pPath.GetParentPath());
+      dh = dhLock->getUnderlyingPtr();
       attr_path = pPath.GetParentPath();
     }
 
