@@ -1,7 +1,11 @@
 #pragma once
+
 #include "mgm/Namespace.hh"
 #include "common/AssistedThread.hh"
 #include "common/Mapping.hh"
+#include "common/Logging.hh"
+#include "GrpcRestGwInterface.hh"
+
 #ifdef EOS_GRPC
 #include <grpc++/grpc++.h>
 #endif
@@ -9,11 +13,12 @@
 EOSMGMNAMESPACE_BEGIN
 
 /**
- * @file   AndreeaGrpcServer.hh
+ * @file   GrpcRestGwServer.hh
  *
- * @brief  This class implements a simple GRPC server
+ * @brief  This class implements a GRPC server with a grpc-gateway
+           for accessing all EOS console commands through HTTP requests
  */
-class GrpcAndreeaServer
+class GrpcRestGwServer: public eos::common::LogId
 {
 private:
   int mPort;
@@ -27,21 +32,21 @@ private:
   AssistedThread mThread; // Thread running GRPC service
 
 #ifdef EOS_GRPC
-  std::unique_ptr<grpc::Server> mAndreeaServer;
+  std::unique_ptr<grpc::Server> mRestGwServer;
 #endif
 
 public:
 
-  /* Default Constructor - enabling port 50051 by default
+  /* Default Constructor - enabling port 50054 by default
    */
-  GrpcAndreeaServer(int port = 50053) : mPort(port), mSSL(false) { }
+  GrpcRestGwServer(int port = 50054) : mPort(port), mSSL(false) {  }
 
-  ~GrpcAndreeaServer()
+  ~GrpcRestGwServer()
   {
 #ifdef EOS_GRPC
 
-    if (mAndreeaServer) {
-      mAndreeaServer->Shutdown();
+    if (mRestGwServer) {
+      mRestGwServer->Shutdown();
     }
 
 #endif
@@ -54,7 +59,7 @@ public:
   /* Startup function */
   void Start()
   {
-    mThread.reset(&GrpcAndreeaServer::Run, this);
+    mThread.reset(&GrpcRestGwServer::Run, this);
   }
 
 #ifdef EOS_GRPC

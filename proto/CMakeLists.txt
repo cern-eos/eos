@@ -380,36 +380,36 @@ endif()
 #------------------------------------------------------------------------------
 # Generate protobuf and gRPC objects for EOS Echo Service
 #------------------------------------------------------------------------------
-# set(ECHO_PROTO echo_service)
-# set(PROTO_PATH ${CMAKE_SOURCE_DIR}/proto/go/${ECHO_PROTO}.proto)
-# set(PROTO_SRC ${CMAKE_BINARY_DIR}/proto/go/${ECHO_PROTO}.pb.cc)
-# set(PROTO_HDR ${CMAKE_BINARY_DIR}/proto/go/${ECHO_PROTO}.pb.h)
-# set(PROTO_GRPC_SRC ${CMAKE_BINARY_DIR}/proto/go/${ECHO_PROTO}.grpc.pb.cc)
-# set(PROTO_GRPC_HDR ${CMAKE_BINARY_DIR}/proto/go/${ECHO_PROTO}.grpc.pb.h)
-# set(GW_GO_GEN ${CMAKE_BINARY_DIR}/go/eos.echo.service/${ECHO_PROTO}.pb.gw.go)
-# set(PROTO_GRPC_GO ${CMAKE_BINARY_DIR}/go/eos.echo.service/${ECHO_PROTO}_grpc.pb.go)
-# set(PROTO_GO ${CMAKE_BINARY_DIR}/go/eos.echo.service/${ECHO_PROTO}.pb.go)
+# set(REST_GW_PROTO echo_service)
+# set(PROTO_PATH ${CMAKE_SOURCE_DIR}/proto/eos_rest_gateway/${REST_GW_PROTO}.proto)
+# set(PROTO_SRC ${CMAKE_BINARY_DIR}/proto/eos_rest_gateway/${REST_GW_PROTO}.pb.cc)
+# set(PROTO_HDR ${CMAKE_BINARY_DIR}/proto/eos_rest_gateway/${REST_GW_PROTO}.pb.h)
+# set(PROTO_GRPC_SRC ${CMAKE_BINARY_DIR}/proto/eos_rest_gateway/${REST_GW_PROTO}.grpc.pb.cc)
+# set(PROTO_GRPC_HDR ${CMAKE_BINARY_DIR}/proto/eos_rest_gateway/${REST_GW_PROTO}.grpc.pb.h)
+# set(GW_GO_GEN ${CMAKE_BINARY_DIR}/go/eos.rest.gateway.service/${REST_GW_PROTO}.pb.gw.go)
+# set(PROTO_GRPC_GO ${CMAKE_BINARY_DIR}/go/eos.rest.gateway.service/${REST_GW_PROTO}_grpc.pb.go)
+# set(PROTO_GO ${CMAKE_BINARY_DIR}/go/eos.rest.gateway.service/${REST_GW_PROTO}.pb.go)
 
-set(ECHO_PROTO echo_service)
-set(PROTO_PATH ${CMAKE_SOURCE_DIR}/proto/go/${ECHO_PROTO}.proto)
-set(ECHO_SERVICE_PROTOS ${CMAKE_SOURCE_DIR}/proto/go/${ECHO_PROTO}.proto)
-set(ECHO_SERVICE_SRCS ${CMAKE_BINARY_DIR}/proto/go/${ECHO_PROTO}.pb.cc)
-set(ECHO_SERVICE_HDRS ${CMAKE_BINARY_DIR}/proto/go/${ECHO_PROTO}.pb.h)
-set(ECHO_SERVICE_GRPC_SRCS  ${CMAKE_BINARY_DIR}/proto/go/${ECHO_PROTO}.grpc.pb.cc)
-set(ECHO_SERVICE_GRPC_HDRS  ${CMAKE_BINARY_DIR}/proto/go/${ECHO_PROTO}.grpc.pb.h)
-set(GW_GO_GEN ${CMAKE_BINARY_DIR}/go/eos.echo.service/${ECHO_PROTO}.pb.gw.go)
-set(PROTO_GRPC_GO ${CMAKE_BINARY_DIR}/go/eos.echo.service/${ECHO_PROTO}_grpc.pb.go)
-set(PROTO_GO ${CMAKE_BINARY_DIR}/go/eos.echo.service/${ECHO_PROTO}.pb.go)
+set(REST_GW_PROTO eos_rest_gateway_service)
+set(PROTO_PATH ${CMAKE_SOURCE_DIR}/proto/eos_rest_gateway/${REST_GW_PROTO}.proto)
+set(REST_GW_PROTOS ${CMAKE_SOURCE_DIR}/proto/eos_rest_gateway/${REST_GW_PROTO}.proto)
+set(REST_GW_SRCS ${CMAKE_BINARY_DIR}/proto/eos_rest_gateway/${REST_GW_PROTO}.pb.cc)
+set(REST_GW_HDRS ${CMAKE_BINARY_DIR}/proto/eos_rest_gateway/${REST_GW_PROTO}.pb.h)
+set(REST_GW_GRPC_SRCS  ${CMAKE_BINARY_DIR}/proto/eos_rest_gateway/${REST_GW_PROTO}.grpc.pb.cc)
+set(REST_GW_GRPC_HDRS  ${CMAKE_BINARY_DIR}/proto/eos_rest_gateway/${REST_GW_PROTO}.grpc.pb.h)
+set(GW_GO_GEN ${CMAKE_BINARY_DIR}/go/eos.rest.gateway.service/${REST_GW_PROTO}.pb.gw.go)
+set(PROTO_GRPC_GO ${CMAKE_BINARY_DIR}/go/eos.rest.gateway.service/${REST_GW_PROTO}_grpc.pb.go)
+set(PROTO_GO ${CMAKE_BINARY_DIR}/go/eos.rest.gateway.service/${REST_GW_PROTO}.pb.go)
 
 set(ANN_PROTO1 annotations)
 set(ANN_PROTO2 http)
-set(ANN_PROTO1_PATH ${CMAKE_SOURCE_DIR}/proto/go/google/api/${ANN_PROTO1}.proto)
-set(ANN_PROTO2_PATH ${CMAKE_SOURCE_DIR}/proto/go/google/api/${ANN_PROTO2}.proto)
+set(ANN_PROTO1_PATH ${CMAKE_SOURCE_DIR}/proto/eos_rest_gateway/google/api/${ANN_PROTO1}.proto)
+set(ANN_PROTO2_PATH ${CMAKE_SOURCE_DIR}/proto/eos_rest_gateway/google/api/${ANN_PROTO2}.proto)
 set(ANN_PROTOS ${ANN_PROTO1_PATH} ${ANN_PROTO2_PATH})
-set(ANN_SRCS ${CMAKE_BINARY_DIR}/proto/go/google/api/${ANN_PROTO1}.pb.cc
-             ${CMAKE_BINARY_DIR}/proto/go/google/api/${ANN_PROTO2}.pb.cc)
-set(ANN_HDRS ${CMAKE_BINARY_DIR}/proto/go/google/api/${ANN_PROTO1}.pb.h
-             ${CMAKE_BINARY_DIR}/proto/go/google/api//${ANN_PROTO2}.pb.h)
+set(ANN_SRCS ${CMAKE_BINARY_DIR}/proto/eos_rest_gateway/google/api/${ANN_PROTO1}.pb.cc
+             ${CMAKE_BINARY_DIR}/proto/eos_rest_gateway/google/api/${ANN_PROTO2}.pb.cc)
+set(ANN_HDRS ${CMAKE_BINARY_DIR}/proto/eos_rest_gateway/google/api/${ANN_PROTO1}.pb.h
+             ${CMAKE_BINARY_DIR}/proto/eos_rest_gateway/google/api//${ANN_PROTO2}.pb.h)
 
 set_source_files_properties(
     ${ANN_SRCS} ${ANN_HDRS}
@@ -418,7 +418,7 @@ set_source_files_properties(
 # protoc command for http.proto and annotations.proto
 add_custom_command(
     OUTPUT ${ANN_SRCS} ${ANN_HDRS}
-    COMMAND ${PROTOBUF3_PROTOC_EXECUTABLE} -I${CMAKE_SOURCE_DIR} -I${CMAKE_SOURCE_DIR}/proto/go -I${GRPC_INCLUDE_DIR}
+    COMMAND ${PROTOBUF3_PROTOC_EXECUTABLE} -I${CMAKE_SOURCE_DIR} -I${CMAKE_SOURCE_DIR}/proto/eos_rest_gateway -I${GRPC_INCLUDE_DIR}
 	    --cpp_out=../ ${ANN_PROTOS})
 
 add_library(Annot-Objects OBJECT
@@ -440,21 +440,21 @@ add_custom_target(
 
 # # protoc command for echo_service.proto
 add_custom_command(
-    OUTPUT ${ECHO_SERVICE_SRCS} ${ECHO_SERVICE_HDRS} ${ECHO_SERVICE_GRPC_SRCS} ${ECHO_SERVICE_GRPC_HDRS}
+    OUTPUT ${REST_GW_SRCS} ${REST_GW_HDRS} ${REST_GW_GRPC_SRCS} ${REST_GW_GRPC_HDRS}
     COMMAND ${PROTOBUF3_PROTOC_EXECUTABLE} -I${CMAKE_SOURCE_DIR} -I${CMAKE_SOURCE_DIR}/proto/common/cli_proto -I${GRPC_INCLUDE_DIR}
 	    --plugin=protoc-gen-grpc=${GRPC_CPP_PLUGIN}
 	    --cpp_out=../
 	    --grpc_out=../
-	    ${ECHO_SERVICE_PROTOS}
+	    ${REST_GW_PROTOS}
     DEPENDS GoogleApis-Target EosCliProto-Objects)
 
 set_source_files_properties(
-    ${ECHO_SERVICE_SRCS} ${ECHO_SERVICE_HDRS} ${ECHO_SERVICE_GRPC_SRCS} ${ECHO_SERVICE_GRPC_HDRS}
+    ${REST_GW_SRCS} ${REST_GW_HDRS} ${REST_GW_GRPC_SRCS} ${REST_GW_GRPC_HDRS}
     PROPERTIES GENERATED TRUE)
 
 add_library(Srv-Objects OBJECT
-  ${ECHO_SERVICE_SRCS} ${ECHO_SERVICE_HDRS}
-  ${ECHO_SERVICE_GRPC_SRCS} ${ECHO_SERVICE_GRPC_HDRS})
+  ${REST_GW_SRCS} ${REST_GW_HDRS}
+  ${REST_GW_GRPC_SRCS} ${REST_GW_GRPC_HDRS})
 
 target_include_directories(Srv-Objects PUBLIC
   "$<BUILD_INTERFACE:${CMAKE_BINARY_DIR};${CMAKE_CURRENT_BINARY_DIR}>;")
@@ -469,39 +469,3 @@ add_custom_target(
   GrpcRest-Service
   COMMAND echo "Build GRPC C++ stub from proto"
   DEPENDS Srv-Objects)
-
-# # protoc command with protoc-gen-go-grpc and protoc-gen-go
-# add_custom_command(
-#     OUTPUT ${PROTO_GRPC_GO}
-#     COMMAND ${PROTOBUF3_PROTOC_EXECUTABLE} -I${CMAKE_SOURCE_DIR} -I${GRPC_INCLUDE_DIR}
-# 	    --plugin=protoc-gen-go-grpc=${PROTOC_GEN_GO_GRPC}
-# 	    --go-grpc_out=${CMAKE_CURRENT_BINARY_DIR}/go
-# 	    ${PROTO_PATH}
-#     DEPENDS GrpcRest-Service
-#     COMMENT "Build Go GRPC code stub from proto")
-
-# add_custom_command(
-#     OUTPUT ${PROTO_GO}
-#     COMMAND ${PROTOBUF3_PROTOC_EXECUTABLE} -I${CMAKE_SOURCE_DIR} -I${GRPC_INCLUDE_DIR}
-# 	    --plugin=protoc-gen-go=${PROTOC_GEN_GO}
-# 	    --go_out=${CMAKE_CURRENT_BINARY_DIR}/go
-# 	    ${PROTO_PATH}
-#     DEPENDS GrpcRest-Service
-#     COMMENT "Build Go code stub from proto")
-
-# # protoc command to for grpc-gateway
-# add_custom_command(
-#     OUTPUT ${GW_GO_GEN}
-#     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/go/
-#     COMMAND ${PROTOBUF3_PROTOC_EXECUTABLE} -I${CMAKE_SOURCE_DIR} -I${GRPC_INCLUDE_DIR}
-# 	    --plugin=${PROTOC_GEN_GRPC_GATEWAY}
-# 	    --grpc-gateway_out=${CMAKE_CURRENT_BINARY_DIR}/go
-# 	    --grpc-gateway_opt logtostderr=true
-# 	    --grpc-gateway_opt generate_unbound_methods=true
-# 	    ${PROTO_PATH}
-#     DEPENDS GrpcRest-Service
-#     COMMENT "Build GRPC gateway stub from proto")
-
-# add_custom_target(GoSources DEPENDS ${GW_GO_GEN} ${PROTO_GRPC_GO} ${PROTO_GO})
-
-add_subdirectory(go)

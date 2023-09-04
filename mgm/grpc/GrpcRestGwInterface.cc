@@ -1,7 +1,7 @@
 #ifdef EOS_GRPC
 
 //-----------------------------------------------------------------------------
-#include "GrpcEchoInterface.hh"
+#include "GrpcRestGwInterface.hh"
 //-----------------------------------------------------------------------------
 #include "common/Fmd.hh"
 #include "common/ParseUtils.hh"
@@ -24,7 +24,6 @@
 #include "mgm/proc/admin/NsCmd.hh"
 #include "mgm/proc/admin/QuotaCmd.hh"
 #include "mgm/proc/admin/SpaceCmd.hh"
-#include "mgm/proc/admin/StagerRmCmd.hh"
 #include "mgm/proc/user/AclCmd.hh"
 #include "mgm/proc/user/NewfindCmd.hh"
 #include "mgm/proc/user/QoSCmd.hh"
@@ -43,7 +42,7 @@
 
 EOSMGMNAMESPACE_BEGIN
 
-grpc::Status GrpcEchoInterface::AclCall(const AclProto* aclRequest, ReplyProto* reply)
+grpc::Status GrpcRestGwInterface::AclCall(const AclProto* aclRequest, ReplyProto* reply)
 {
   // wrap the AclProto object into a RequestProto object
   AclProto aclRequestCopy;
@@ -60,7 +59,7 @@ grpc::Status GrpcEchoInterface::AclCall(const AclProto* aclRequest, ReplyProto* 
   return grpc::Status::OK;
 }
 
-grpc::Status GrpcEchoInterface::AccessCall(const AccessProto* accessRequest, ReplyProto* reply)
+grpc::Status GrpcRestGwInterface::AccessCall(const AccessProto* accessRequest, ReplyProto* reply)
 {
   // wrap the AccessProto object into a RequestProto object
   AccessProto accessRequestCopy;
@@ -77,7 +76,7 @@ grpc::Status GrpcEchoInterface::AccessCall(const AccessProto* accessRequest, Rep
   return grpc::Status::OK;
 }
 
-grpc::Status GrpcEchoInterface::ArchiveCall(const ArchiveProto* archiveRequest, ReplyProto* reply)
+grpc::Status GrpcRestGwInterface::ArchiveCall(const ArchiveProto* archiveRequest, ReplyProto* reply)
 {
   // wrap the ArchiveProto object into a RequestProto object
   ArchiveProto archiveRequestCopy;
@@ -110,7 +109,7 @@ grpc::Status GrpcEchoInterface::ArchiveCall(const ArchiveProto* archiveRequest, 
   return grpc::Status::OK;
 }
 
-grpc::Status GrpcEchoInterface::AttrCall(const AttrProto* attrRequest, ReplyProto* reply)
+grpc::Status GrpcRestGwInterface::AttrCall(const AttrProto* attrRequest, ReplyProto* reply)
 {
   // wrap the AttrProto object into a RequestProto object
   AttrProto attrRequestCopy;
@@ -273,7 +272,7 @@ grpc::Status GrpcEchoInterface::AttrCall(const AttrProto* attrRequest, ReplyProt
   return grpc::Status::OK;
 }
 
-grpc::Status GrpcEchoInterface::BackupCall(const BackupProto* backupRequest, ReplyProto* reply)
+grpc::Status GrpcRestGwInterface::BackupCall(const BackupProto* backupRequest, ReplyProto* reply)
 {
   // wrap the BackupProto object into a RequestProto object
   BackupProto backupRequestCopy;
@@ -337,7 +336,7 @@ grpc::Status GrpcEchoInterface::BackupCall(const BackupProto* backupRequest, Rep
   return grpc::Status::OK;
 }
 
-grpc::Status GrpcEchoInterface::ChmodCall(const ChmodProto* chmodRequest, ReplyProto* reply)
+grpc::Status GrpcRestGwInterface::ChmodCall(const ChmodProto* chmodRequest, ReplyProto* reply)
 {
   // wrap the ChmodProto object into a RequestProto object
   ChmodProto chmodRequestCopy;
@@ -396,7 +395,7 @@ grpc::Status GrpcEchoInterface::ChmodCall(const ChmodProto* chmodRequest, ReplyP
   return grpc::Status::OK;
 }
 
-grpc::Status GrpcEchoInterface::ChownCall(const ChownProto* chownRequest, ReplyProto* reply)
+grpc::Status GrpcRestGwInterface::ChownCall(const ChownProto* chownRequest, ReplyProto* reply)
 {
   // wrap the ChownProto object into a RequestProto object
   ChownProto chownRequestCopy;
@@ -483,7 +482,7 @@ grpc::Status GrpcEchoInterface::ChownCall(const ChownProto* chownRequest, ReplyP
   return grpc::Status::OK;
 }
 
-grpc::Status GrpcEchoInterface::ConfigCall(const ConfigProto* configRequest, ReplyProto* reply)
+grpc::Status GrpcRestGwInterface::ConfigCall(const ConfigProto* configRequest, ReplyProto* reply)
 {
   // wrap the ConfigProto object into a RequestProto object
   ConfigProto configRequestCopy;
@@ -500,7 +499,7 @@ grpc::Status GrpcEchoInterface::ConfigCall(const ConfigProto* configRequest, Rep
   return grpc::Status::OK;
 }
 
-grpc::Status GrpcEchoInterface::ConvertCall(const ConvertProto* convertRequest, ReplyProto* reply)
+grpc::Status GrpcRestGwInterface::ConvertCall(const ConvertProto* convertRequest, ReplyProto* reply)
 {
   // wrap the ConvertProto object into a RequestProto object
   ConvertProto convertRequestCopy;
@@ -517,7 +516,7 @@ grpc::Status GrpcEchoInterface::ConvertCall(const ConvertProto* convertRequest, 
   return grpc::Status::OK;
 }
 
-grpc::Status GrpcEchoInterface::CpCall(const CpProto* cpRequest, ReplyProto* reply)
+grpc::Status GrpcRestGwInterface::CpCall(const CpProto* cpRequest, ReplyProto* reply)
 {
   // wrap the CpProto object into a RequestProto object
   CpProto cpRequestCopy;
@@ -641,7 +640,7 @@ grpc::Status GrpcEchoInterface::CpCall(const CpProto* cpRequest, ReplyProto* rep
   return grpc::Status::OK;
 }
 
-grpc::Status GrpcEchoInterface::DebugCall(const DebugProto* debugRequest, ReplyProto* reply)
+grpc::Status GrpcRestGwInterface::DebugCall(const DebugProto* debugRequest, ReplyProto* reply)
 {
   // wrap the DebugProto object into a RequestProto object
   DebugProto debugRequestCopy;
@@ -669,7 +668,7 @@ int
 FileHelper_GetRemoteFmdFromLocalDb(const char* manager, const char* shexfid,
                              const char* sfsid, eos::common::FmdHelper& fmd);
 
-grpc::Status GrpcEchoInterface::FileCall(const FileProto* fileRequest, ReplyProto* reply)
+grpc::Status GrpcRestGwInterface::FileCall(const FileProto* fileRequest, ReplyProto* reply)
 {
   // wrap the AccessProto object into a RequestProto object
   FileProto fileRequestCopy;
@@ -1425,7 +1424,7 @@ grpc::Status GrpcEchoInterface::FileCall(const FileProto* fileRequest, ReplyProt
   return grpc::Status::OK;
 }
 
-grpc::Status GrpcEchoInterface::FileinfoCall(const FileinfoProto* fileinfoRequest, ReplyProto* reply)
+grpc::Status GrpcRestGwInterface::FileinfoCall(const FileinfoProto* fileinfoRequest, ReplyProto* reply)
 {
   // wrap the FileinfoProto object into a RequestProto object
   FileinfoProto fileinfoRequestCopy;
@@ -1542,7 +1541,7 @@ grpc::Status GrpcEchoInterface::FileinfoCall(const FileinfoProto* fileinfoReques
     eos::console::ReplyProto acl_reply;
     acl_request.set_op(eos::console::AclProto_OpType_LIST);
     acl_request.set_path(req.fileinfo().md().path());
-    GrpcEchoInterface exec_acl;
+    GrpcRestGwInterface exec_acl;
     exec_acl.AclCall(&acl_request, &acl_reply);
 
     if (!acl_reply.std_out().empty())
@@ -1563,7 +1562,7 @@ grpc::Status GrpcEchoInterface::FileinfoCall(const FileinfoProto* fileinfoReques
   return grpc::Status::OK;
 }
 
-grpc::Status GrpcEchoInterface::FsCall(const FsProto* fsRequest, ReplyProto* reply)
+grpc::Status GrpcRestGwInterface::FsCall(const FsProto* fsRequest, ReplyProto* reply)
 {
   // wrap the FsProto object into a RequestProto object
   FsProto fsRequestCopy;
@@ -1580,7 +1579,7 @@ grpc::Status GrpcEchoInterface::FsCall(const FsProto* fsRequest, ReplyProto* rep
   return grpc::Status::OK;
 }
 
-grpc::Status GrpcEchoInterface::FsckCall(const FsckProto* fsckRequest, ReplyProto* reply)
+grpc::Status GrpcRestGwInterface::FsckCall(const FsckProto* fsckRequest, ReplyProto* reply)
 {
   // wrap the AccessProto object into a RequestProto object
   FsckProto fsckRequestCopy;
@@ -1597,7 +1596,7 @@ grpc::Status GrpcEchoInterface::FsckCall(const FsckProto* fsckRequest, ReplyProt
   return grpc::Status::OK;
 }
 
-grpc::Status GrpcEchoInterface::GeoschedCall(const GeoschedProto* geoschedRequest, ReplyProto* reply)
+grpc::Status GrpcRestGwInterface::GeoschedCall(const GeoschedProto* geoschedRequest, ReplyProto* reply)
 {
   // wrap the AccessProto object into a RequestProto object
   GeoschedProto geoschedRequestCopy;
@@ -1802,7 +1801,7 @@ grpc::Status GrpcEchoInterface::GeoschedCall(const GeoschedProto* geoschedReques
   return grpc::Status::OK;
 }
 
-grpc::Status GrpcEchoInterface::GroupCall(const GroupProto* groupRequest, ReplyProto* reply)
+grpc::Status GrpcRestGwInterface::GroupCall(const GroupProto* groupRequest, ReplyProto* reply)
 {
   // wrap the GroupProto object into a RequestProto object
   GroupProto groupRequestCopy;
@@ -1819,7 +1818,7 @@ grpc::Status GrpcEchoInterface::GroupCall(const GroupProto* groupRequest, ReplyP
   return grpc::Status::OK;
 }
 
-grpc::Status GrpcEchoInterface::HealthCall(const HealthProto* healthRequest, ReplyProto* reply)
+grpc::Status GrpcRestGwInterface::HealthCall(const HealthProto* healthRequest, ReplyProto* reply)
 {
   // wrap the HealthProto object into a RequestProto object
   HealthProto healthRequestCopy;
@@ -1853,7 +1852,7 @@ grpc::Status GrpcEchoInterface::HealthCall(const HealthProto* healthRequest, Rep
   return grpc::Status::OK;
 }
 
-grpc::Status GrpcEchoInterface::IoCall(const IoProto* ioRequest, ReplyProto* reply)
+grpc::Status GrpcRestGwInterface::IoCall(const IoProto* ioRequest, ReplyProto* reply)
 {
   // wrap the IoProto object into a RequestProto object
   IoProto ioRequestCopy;
@@ -1870,7 +1869,7 @@ grpc::Status GrpcEchoInterface::IoCall(const IoProto* ioRequest, ReplyProto* rep
   return grpc::Status::OK;
 }
 
-grpc::Status GrpcEchoInterface::MapCall(const MapProto* mapRequest, ReplyProto* reply)
+grpc::Status GrpcRestGwInterface::MapCall(const MapProto* mapRequest, ReplyProto* reply)
 {
   // wrap the MapProto object into a RequestProto object
   MapProto mapRequestCopy;
@@ -1897,7 +1896,7 @@ grpc::Status GrpcEchoInterface::MapCall(const MapProto* mapRequest, ReplyProto* 
   return grpc::Status::OK;
 }
 
-grpc::Status GrpcEchoInterface::MemberCall(const MemberProto* memberRequest, ReplyProto* reply)
+grpc::Status GrpcRestGwInterface::MemberCall(const MemberProto* memberRequest, ReplyProto* reply)
 {
   // wrap the MemberProto object into a RequestProto object
   MemberProto memberRequestCopy;
@@ -1936,7 +1935,7 @@ grpc::Status GrpcEchoInterface::MemberCall(const MemberProto* memberRequest, Rep
   return grpc::Status::OK;
 }
 
-grpc::Status GrpcEchoInterface::MkdirCall(const MkdirProto* mkdirRequest, ReplyProto* reply)
+grpc::Status GrpcRestGwInterface::MkdirCall(const MkdirProto* mkdirRequest, ReplyProto* reply)
 {
   // wrap the MkdirProto object into a RequestProto object
   MkdirProto mkdirRequestCopy;
@@ -1962,7 +1961,7 @@ grpc::Status GrpcEchoInterface::MkdirCall(const MkdirProto* mkdirRequest, ReplyP
     eos::console::ReplyProto chmod_reply;
     chmod_request.mutable_md()->set_path(path);
     chmod_request.set_mode(req.mkdir().mode());
-    GrpcEchoInterface exec_chmod;
+    GrpcRestGwInterface exec_chmod;
     exec_chmod.ChmodCall(&chmod_request, &chmod_reply);
 
     if (chmod_reply.retc() != 0) {
@@ -1974,7 +1973,7 @@ grpc::Status GrpcEchoInterface::MkdirCall(const MkdirProto* mkdirRequest, ReplyP
   return grpc::Status::OK;
 }
 
-grpc::Status GrpcEchoInterface::MvCall(const MoveProto* mvRequest, ReplyProto* reply)
+grpc::Status GrpcRestGwInterface::MvCall(const MoveProto* mvRequest, ReplyProto* reply)
 {
   // wrap the MoveProto object into a RequestProto object
   MoveProto mvRequestCopy;
@@ -2024,7 +2023,7 @@ grpc::Status GrpcEchoInterface::MvCall(const MoveProto* mvRequest, ReplyProto* r
   return grpc::Status::OK;
 }
 
-grpc::Status GrpcEchoInterface::NodeCall(const NodeProto* nodeRequest, ReplyProto* reply)
+grpc::Status GrpcRestGwInterface::NodeCall(const NodeProto* nodeRequest, ReplyProto* reply)
 {
   // wrap the NodeProto object into a RequestProto object
   NodeProto nodeRequestCopy;
@@ -2041,7 +2040,7 @@ grpc::Status GrpcEchoInterface::NodeCall(const NodeProto* nodeRequest, ReplyProt
   return grpc::Status::OK;
 }
 
-grpc::Status GrpcEchoInterface::NsCall(const NsProto* nsRequest, ReplyProto* reply)
+grpc::Status GrpcRestGwInterface::NsCall(const NsProto* nsRequest, ReplyProto* reply)
 {
   // wrap the NodeProto object into a RequestProto object
   NsProto nsRequestCopy;
@@ -2058,7 +2057,7 @@ grpc::Status GrpcEchoInterface::NsCall(const NsProto* nsRequest, ReplyProto* rep
   return grpc::Status::OK;
 }
 
-grpc::Status GrpcEchoInterface::QoSCall(const QoSProto* qosRequest, ReplyProto* reply)
+grpc::Status GrpcRestGwInterface::QoSCall(const QoSProto* qosRequest, ReplyProto* reply)
 {
   // wrap the QoSProto object into a RequestProto object
   QoSProto qosRequestCopy;
@@ -2075,7 +2074,7 @@ grpc::Status GrpcEchoInterface::QoSCall(const QoSProto* qosRequest, ReplyProto* 
   return grpc::Status::OK;
 }
 
-grpc::Status GrpcEchoInterface::QuotaCall(const QuotaProto* quotaRequest, ReplyProto* reply)
+grpc::Status GrpcRestGwInterface::QuotaCall(const QuotaProto* quotaRequest, ReplyProto* reply)
 {
   // wrap the QuotaProto object into a RequestProto object
   QuotaProto quotaRequestCopy;
@@ -2092,7 +2091,7 @@ grpc::Status GrpcEchoInterface::QuotaCall(const QuotaProto* quotaRequest, ReplyP
   return grpc::Status::OK;
 }
 
-grpc::Status GrpcEchoInterface::RecycleCall(const RecycleProto* recycleRequest, ReplyProto* reply)
+grpc::Status GrpcRestGwInterface::RecycleCall(const RecycleProto* recycleRequest, ReplyProto* reply)
 {
   // wrap the RecycleProto object into a RequestProto object
   RecycleProto recycleRequestCopy;
@@ -2109,7 +2108,7 @@ grpc::Status GrpcEchoInterface::RecycleCall(const RecycleProto* recycleRequest, 
   return grpc::Status::OK;
 }
 
-grpc::Status GrpcEchoInterface::RmCall(const RmProto* rmRequest, ReplyProto* reply)
+grpc::Status GrpcRestGwInterface::RmCall(const RmProto* rmRequest, ReplyProto* reply)
 {
   // wrap the RmProto object into a RequestProto object
   RmProto rmRequestCopy;
@@ -2126,7 +2125,7 @@ grpc::Status GrpcEchoInterface::RmCall(const RmProto* rmRequest, ReplyProto* rep
   return grpc::Status::OK;
 }
 
-grpc::Status GrpcEchoInterface::RmdirCall(const RmdirProto* rmdirRequest, ReplyProto* reply)
+grpc::Status GrpcRestGwInterface::RmdirCall(const RmdirProto* rmdirRequest, ReplyProto* reply)
 {
   // wrap the NodeProto object into a RequestProto object
   RmdirProto rmdirRequestCopy;
@@ -2163,7 +2162,7 @@ grpc::Status GrpcEchoInterface::RmdirCall(const RmdirProto* rmdirRequest, ReplyP
   return grpc::Status::OK;
 }
 
-grpc::Status GrpcEchoInterface::RouteCall(const RouteProto* routeRequest, ReplyProto* reply)
+grpc::Status GrpcRestGwInterface::RouteCall(const RouteProto* routeRequest, ReplyProto* reply)
 {
   // wrap the RouteProto object into a RequestProto object
   RouteProto routeRequestCopy;
@@ -2180,7 +2179,7 @@ grpc::Status GrpcEchoInterface::RouteCall(const RouteProto* routeRequest, ReplyP
   return grpc::Status::OK;
 }
 
-grpc::Status GrpcEchoInterface::SpaceCall(const SpaceProto* spaceRequest, ReplyProto* reply)
+grpc::Status GrpcRestGwInterface::SpaceCall(const SpaceProto* spaceRequest, ReplyProto* reply)
 {
   // wrap the SpaceProto object into a RequestProto object
   SpaceProto spaceRequestCopy;
@@ -2213,24 +2212,7 @@ grpc::Status GrpcEchoInterface::SpaceCall(const SpaceProto* spaceRequest, ReplyP
   return grpc::Status::OK;
 }
 
-grpc::Status GrpcEchoInterface::StagerRmCall(const StagerRmProto* stagerrmRequest, ReplyProto* reply)
-{
-  // wrap the StagerRmProto object into a RequestProto object
-  StagerRmProto stagerrmRequestCopy;
-  stagerrmRequestCopy.CopyFrom(*stagerrmRequest);
-  eos::console::RequestProto req;
-  req.mutable_stagerrm()->CopyFrom(stagerrmRequestCopy);
-
-  // initialise VirtualIdentity object
-  auto rootvid = eos::common::VirtualIdentity::Root();
-
-  eos::mgm::StagerRmCmd stagerrmcmd(std::move(req), rootvid);
-  *reply = stagerrmcmd.ProcessRequest();
-
-  return grpc::Status::OK;
-}
-
-grpc::Status GrpcEchoInterface::StatCall(const StatProto* statRequest, ReplyProto* reply)
+grpc::Status GrpcRestGwInterface::StatCall(const StatProto* statRequest, ReplyProto* reply)
 {
   // wrap the StatProto object into a RequestProto object
   StatProto statRequestCopy;
@@ -2289,7 +2271,7 @@ grpc::Status GrpcEchoInterface::StatCall(const StatProto* statRequest, ReplyProt
   return grpc::Status::OK;
 }
 
-grpc::Status GrpcEchoInterface::StatusCall(const StatusProto* statusRequest, ReplyProto* reply)
+grpc::Status GrpcRestGwInterface::StatusCall(const StatusProto* statusRequest, ReplyProto* reply)
 {
   // wrap the StatusProto object into a RequestProto object
   StatusProto statusRequestCopy;
@@ -2327,7 +2309,7 @@ grpc::Status GrpcEchoInterface::StatusCall(const StatusProto* statusRequest, Rep
   return grpc::Status::OK;
 }
 
-grpc::Status GrpcEchoInterface::TokenCall(const TokenProto* tokenRequest, ReplyProto* reply)
+grpc::Status GrpcRestGwInterface::TokenCall(const TokenProto* tokenRequest, ReplyProto* reply)
 {
   // wrap the TokenProto object into a RequestProto object
   TokenProto tokenRequestCopy;
@@ -2344,7 +2326,7 @@ grpc::Status GrpcEchoInterface::TokenCall(const TokenProto* tokenRequest, ReplyP
   return grpc::Status::OK;
 }
 
-grpc::Status GrpcEchoInterface::TouchCall(const TouchProto* touchRequest, ReplyProto* reply)
+grpc::Status GrpcRestGwInterface::TouchCall(const TouchProto* touchRequest, ReplyProto* reply)
 {
   // wrap the TokenProto object into a RequestProto object
   TouchProto touchRequestCopy;
@@ -2379,7 +2361,7 @@ grpc::Status GrpcEchoInterface::TouchCall(const TouchProto* touchRequest, ReplyP
       eos::console::ReplyProto mkdir_reply;
       mkdir_request.mutable_md()->set_path(parent_path);
       mkdir_request.set_parents(true);
-      GrpcEchoInterface exec_mkdir;
+      GrpcRestGwInterface exec_mkdir;
       exec_mkdir.MkdirCall(&mkdir_request, &mkdir_reply);
 
       // Run touch command again
@@ -2391,7 +2373,7 @@ grpc::Status GrpcEchoInterface::TouchCall(const TouchProto* touchRequest, ReplyP
   return grpc::Status::OK;
 }
 
-grpc::Status GrpcEchoInterface::VersionCall(const VersionProto* versionRequest, ReplyProto* reply)
+grpc::Status GrpcRestGwInterface::VersionCall(const VersionProto* versionRequest, ReplyProto* reply)
 {
   // wrap the VersionProto object into a RequestProto object
   VersionProto versionRequestCopy;
@@ -2421,7 +2403,7 @@ grpc::Status GrpcEchoInterface::VersionCall(const VersionProto* versionRequest, 
   return grpc::Status::OK;
 }
 
-grpc::Status GrpcEchoInterface::VidCall(const VidProto* vidRequest, ReplyProto* reply)
+grpc::Status GrpcRestGwInterface::VidCall(const VidProto* vidRequest, ReplyProto* reply)
 {
   // wrap the VidProto object into a RequestProto object
   VidProto vidRequestCopy;
@@ -2776,7 +2758,7 @@ grpc::Status GrpcEchoInterface::VidCall(const VidProto* vidRequest, ReplyProto* 
   return grpc::Status::OK;
 }
 
-grpc::Status GrpcEchoInterface::WhoCall(const WhoProto* whoRequest, ReplyProto* reply)
+grpc::Status GrpcRestGwInterface::WhoCall(const WhoProto* whoRequest, ReplyProto* reply)
 {
   // wrap the WhoProto object into a RequestProto object
   WhoProto whoRequestCopy;
@@ -2821,7 +2803,7 @@ grpc::Status GrpcEchoInterface::WhoCall(const WhoProto* whoRequest, ReplyProto* 
   return grpc::Status::OK;
 }
 
-grpc::Status GrpcEchoInterface::WhoamiCall(const WhoamiProto* whoamiRequest, ReplyProto* reply)
+grpc::Status GrpcRestGwInterface::WhoamiCall(const WhoamiProto* whoamiRequest, ReplyProto* reply)
 {
   // wrap the WhoamiProto object into a RequestProto object
   WhoamiProto whoamiRequestCopy;
@@ -2839,7 +2821,7 @@ grpc::Status GrpcEchoInterface::WhoamiCall(const WhoamiProto* whoamiRequest, Rep
   return grpc::Status::OK;
 }
 
-void GrpcEchoInterface::ExecProcCmd(eos::common::VirtualIdentity vid,
+void GrpcRestGwInterface::ExecProcCmd(eos::common::VirtualIdentity vid,
                               ReplyProto* reply, std::string input, bool admin)
 {
   ProcCommand cmd;
@@ -2863,7 +2845,7 @@ void GrpcEchoInterface::ExecProcCmd(eos::common::VirtualIdentity vid,
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
-//  Additional functions needed by GrpcEchoInterface::File function
+//  Additional functions needed by GrpcRestGwInterface::File function
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
 

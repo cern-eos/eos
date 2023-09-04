@@ -2262,7 +2262,7 @@ EosFuse::DumpStatistic(ThreadAssistant& assistant)
         freeram = meminfo.getref().freeram;
         loads0 = meminfo.getref().loads[0];
       }
-x
+
       double blocked_ms = this->Tracker().blocked_ms(blocker, blocker_inode, origin, blocked_ops, root_blocked);
       const time_t last_heartbeat = EosFuse::Instance().mds.last_heartbeat;
       int heartbeat_age = 0;

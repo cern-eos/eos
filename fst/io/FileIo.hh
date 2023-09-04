@@ -431,9 +431,11 @@ public:
   std::unique_ptr<eos::common::Statfs> GetStatfs()
   {
     struct statfs rawStatfs;
+    int rc = Statfs(&rawStatfs);
 
-    if (Statfs(&rawStatfs) != 0) {
+    if (rc != 0) {
       // Could not retrieve statfs
+      eos_static_err("msg=\"failed statfs\" rc=%i errno=%d", rc, errno);
       return nullptr;
     }
 

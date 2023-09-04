@@ -31,8 +31,7 @@
 #include <regex>
 #include "grpc/GrpcServer.hh"
 #include "grpc/GrpcWncServer.hh"
-#include "grpc/GrpcEchoServer.hh"
-#include "grpc/GrpcAndreeaServer.hh"
+#include "grpc/GrpcRestGwServer.hh"
 #include "mgm/AdminSocket.hh"
 #include "mgm/Stat.hh"
 #include "mgm/FsView.hh"
@@ -2037,12 +2036,8 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
     WNCd->StartWnc();
   }
 
-  if (Echod) {
-    Echod->Start();
-  }
-
-  if (AndreeaGrpcd) {
-    AndreeaGrpcd->Start();
+  if (RestGwd) {
+    RestGwd->Start();
   }
 
 #endif

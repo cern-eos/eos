@@ -4,16 +4,15 @@
 
 //-----------------------------------------------------------------------------
 #include "common/VirtualIdentity.hh"
+#include "common/Logging.hh"
 #include "mgm/Namespace.hh"
-#include "proto/go/echo_service.grpc.pb.h"
+#include "proto/eos_rest_gateway/eos_rest_gateway_service.grpc.pb.h"
 //-----------------------------------------------------------------------------
 using grpc::Server;
 using grpc::ServerBuilder;
 using grpc::ServerContext;
 using grpc::ServerWriter;
 using grpc::Status;
-using eos::echo::service::EchoService;
-using eos::echo::service::SimpleMessage;
 using eos::console::AccessProto;
 using eos::console::AclProto;
 using eos::console::ArchiveProto;
@@ -48,7 +47,6 @@ using eos::console::RmProto;
 using eos::console::RmdirProto;
 using eos::console::RouteProto;
 using eos::console::SpaceProto;
-using eos::console::StagerRmProto;
 using eos::console::StatProto;
 using eos::console::StatusProto;
 using eos::console::TokenProto;
@@ -62,12 +60,12 @@ using eos::console::WhoamiProto;
 EOSMGMNAMESPACE_BEGIN
 
 /**
- * @file   GrpcEchoInterface.hh
+ * @file   GrpcRestGwInterface.hh
  *
  * @brief  This class bridges Http client commands to gRPC requests
  *
  */
-class GrpcEchoInterface
+class GrpcRestGwInterface : public eos::common::LogId
 {
 public:
 
@@ -106,7 +104,6 @@ public:
   Status RmdirCall(const RmdirProto* rmdirRequest, ReplyProto* reply);
   Status RouteCall(const RouteProto* routeRequest, ReplyProto* reply);
   Status SpaceCall(const SpaceProto* spaceRequest, ReplyProto* reply);
-  Status StagerRmCall(const StagerRmProto* stagerrmRequest, ReplyProto* reply);
   Status StatCall(const StatProto* statRequest, ReplyProto* reply);
   Status StatusCall(const StatusProto* statusRequest, ReplyProto* reply);
   Status TokenCall(const TokenProto* tokenRequest, ReplyProto* reply);
