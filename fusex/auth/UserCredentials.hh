@@ -37,6 +37,8 @@
 // - X509: GSI user certificates
 // - SSS: SSS ticket delegation
 // - NOBODY: Identify as nobody, no user credentails whatsoever
+// - OAUTH2: oauth2 over sss
+// --ZTN:  Token authentication
 //------------------------------------------------------------------------------
 enum class CredentialType : std::uint32_t {
   KRB5 = 0,
@@ -46,6 +48,7 @@ enum class CredentialType : std::uint32_t {
   SSS,
   NOBODY,
   OAUTH2,
+  ZTN,
   INVALID
 };
 
@@ -71,6 +74,9 @@ inline std::string credentialTypeAsString(CredentialType type) {
     }
     case CredentialType::OAUTH2: {
       return "oauth2";
+    }
+    case CredentialType::ZTN: {
+      return "ztn";
     }
     case CredentialType::NOBODY: {
       return "nobody";
@@ -222,6 +228,25 @@ struct UserCredentials {
   }
 
   //----------------------------------------------------------------------------
+  // Constructor: Make a ZTN object.
+  // We only need two pieces of information: The path at which the ticket cache
+  // resides in, and the uid to validate file permissions.
+  //----------------------------------------------------------------------------
+  static UserCredentials MakeZTN(const JailIdentifier& jail,
+				 const std::string& path, uid_t uid, gid_t gid, const std::string& key) {
+
+    UserCredentials retval;
+    retval.type = CredentialType::ZTN;
+    retval.jail = jail;
+    retval.fname = path;
+    retval.uid = uid;
+    retval.gid = gid;
+    retval.secretkey = key;
+    return retval;
+  }
+
+
+  //----------------------------------------------------------------------------
   // Check if path contains unsafe characters: '&' or '='
   //----------------------------------------------------------------------------
   bool hasUnsafeCharacters() const {
@@ -305,6 +330,7 @@ struct UserCredentials {
     switch(type) {
       case CredentialType::KRB5:
       case CredentialType::OAUTH2:
+      case CredentialType::ZTN:
       case CredentialType::X509: {
         ss << ": " << fname << " for uid=" << uid << ", gid=" << gid << ", secret=" << secretkey <<
           ", under " << jail.describe();

@@ -130,6 +130,35 @@ void UserCredentialFactory::addOAUTH2(const JailIdentifier &id, std::string path
 }
 
 //------------------------------------------------------------------------------
+// Append ZTN UserCredentials built from KRB5CCNAME-equivalent string.
+//------------------------------------------------------------------------------
+void UserCredentialFactory::addZTN(const JailIdentifier &id, std::string path,
+				      uid_t uid, gid_t gid, SearchOrder &out, const std::string& key)
+{
+  if(!config.use_user_ztn || path.empty()) {
+    return;
+  }
+
+  //----------------------------------------------------------------------------
+  // Drop FILE:, if exists
+  //----------------------------------------------------------------------------
+  const std::string prefix = "FILE:";
+  if(startsWith(path, prefix)) {
+    path = path.substr(prefix.size());
+  }
+
+  if(path.empty()) {
+    //--------------------------------------------------------------------------
+    // Early exit, nothing to add to search order.
+    //--------------------------------------------------------------------------
+    return;
+  }
+
+  out.emplace_back(UserCredentials::MakeZTN(id, path, uid, gid, key));
+  return;
+}
+
+//------------------------------------------------------------------------------
 // Append krb5 UserCredentials built from Environment, if KRB5CCNAME
 // is defined.
 //------------------------------------------------------------------------------
@@ -149,8 +178,30 @@ void UserCredentialFactory::addOAUTH2FromEnv(const JailIdentifier &id,
 					     const Environment& env, uid_t uid, gid_t gid, SearchOrder &out)
 {
   std::string key = env.get("EOS_FUSE_SECRET");
+
   if (key.empty() && config.encryptionKey.length()) { key = config.encryptionKey; }
   return addOAUTH2(id, env.get("OAUTH2_TOKEN"), uid, gid, out, key);
+}
+
+//------------------------------------------------------------------------------
+// Append ztn UserCredentials built from Environment, if
+// is defined.
+//------------------------------------------------------------------------------
+void UserCredentialFactory::addZTNFromEnv(const JailIdentifier &id,
+					   const Environment& env, uid_t uid, gid_t gid, SearchOrder &out)
+{
+  std::string key  = env.get("EOS_FUSE_SECRET");
+  std::string btf  = env.get("BEARER_TOKEN_FILE");
+  std::string btfd = env.get("XDG_RUNTIME_DIR");
+  std::string path;
+
+  if (btf.length()) {
+    path = btf;
+  } else if (btfd.length()){
+    path = btfd + std::string("/bt_u") + std::to_string(uid);
+  }
+
+  return addZTN(id, path, uid, gid, out, key);
 }
 
 
@@ -259,6 +310,15 @@ bool UserCredentialFactory::parseSingle(LogbookScope &scope,
   const std::string x509Prefix = "x509:";
   if(startsWith(str, x509Prefix)) {
     addx509(id, str.substr(x509Prefix.size()), uid, gid, out, key);
+    return true;
+  }
+
+  //----------------------------------------------------------------------------
+  // ZTN?
+  //----------------------------------------------------------------------------
+  const std::string ztnPrefix = "ztn:";
+  if(startsWith(str, ztnPrefix)) {
+    addZTN(id, str.substr(ztnPrefix.size()), uid, gid, out, key);
     return true;
   }
 

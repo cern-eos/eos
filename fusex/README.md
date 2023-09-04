@@ -71,6 +71,7 @@ This
     "sss" : 1,
     "ssskeytab" : "/etc/eos/fuse.sss.keytab",
     "oauth2" : 1,
+    "ztn" : 1,    	     
     "unix" : 0,
     "unix-root" : 0,    	  
     "environ-deadlock-timeout" : 100,

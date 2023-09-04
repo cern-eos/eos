@@ -88,10 +88,22 @@ private:
 		 gid_t gid, SearchOrder& out, const std::string& key);
 
   //----------------------------------------------------------------------------
+  //! Append ZTN UserCredentials built from bearer token file.
+  //----------------------------------------------------------------------------
+  void addZTN(const JailIdentifier& id, std::string path, uid_t uid,
+		 gid_t gid, SearchOrder& out, const std::string& key);
+
+  //----------------------------------------------------------------------------
   //! Append UserCredentials object built from KRB5CCNAME
   //----------------------------------------------------------------------------
   void addKrb5FromEnv(const JailIdentifier& id, const Environment& env,
                       uid_t uid, gid_t gid, SearchOrder& out);
+
+    //----------------------------------------------------------------------------
+  //! Append UserCredentials object built from KRB5CCNAME
+  //----------------------------------------------------------------------------
+  void addZTNFromEnv(const JailIdentifier& id, const Environment& env,
+		     uid_t uid, gid_t gid, SearchOrder& out);
 
   //----------------------------------------------------------------------------
   //! Append UserCredentials object built from OAUTH2_TOKEN_FILE

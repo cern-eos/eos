@@ -671,6 +671,10 @@ EosFuse::run(int argc, char* argv[], void* userdata)
         root["auth"]["oauth2"] = 1;
       }
 
+      if (!root["auth"].isMember("ztn")) {
+        root["auth"]["ztn"] = 1;
+      }
+
       if (!root["auth"].isMember("unix")) {
         root["auth"]["unix"] = 0;
       }
@@ -995,6 +999,7 @@ EosFuse::run(int argc, char* argv[], void* userdata)
     config.auth.fuse_shared = root["auth"]["shared-mount"].asInt();
     config.auth.use_user_krb5cc = root["auth"]["krb5"].asInt();
     config.auth.use_user_oauth2 = root["auth"]["oauth2"].asInt();
+    config.auth.use_user_ztn = root["auth"]["ztn"].asInt();
     config.auth.use_user_unix = root["auth"]["unix"].asInt();
     config.auth.use_root_unix = root["auth"]["unix-root"].asInt();
     config.auth.ignore_containerization =
@@ -1811,6 +1816,9 @@ EosFuse::run(int argc, char* argv[], void* userdata)
         eos_static_warning("sss-keytabfile         := %s", config.ssskeytab.c_str());
       }
 
+      if (config.auth.use_user_ztn) {
+	eos_static_warning("ztn token              := enabled");
+      }
       eos_static_warning("options                := backtrace=%d md-cache:%d md-enoent:%.02f md-timeout:%.02f md-put-timeout:%.02f data-cache:%d rename-sync:%d rmdir-sync:%d flush:%d flush-w-open:%d flush-w-open-sz:%ld flush-w-umount:%d locking:%d no-fsync:%s flush-nowait-exec:%s ol-mode:%03o show-tree-size:%d hide-versions:%d protect-symlink-loops:%d core-affinity:%d no-xattr:%d no-eos-xattr-listing: %d no-link:%d nocache-graceperiod:%d rm-rf-protect-level=%d rm-rf-bulk=%d t(lease)=%d t(size-flush)=%d submounts=%d ino(in-mem)=%d flock:%d",
                          config.options.enable_backtrace,
                          config.options.md_kernelcache,

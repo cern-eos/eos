@@ -44,12 +44,12 @@ class CredentialConfig
 public:
 
   CredentialConfig() : use_user_krb5cc(false), use_user_gsiproxy(false),
-    use_user_sss(false), use_user_oauth2(false), tryKrb5First(false),
-    use_user_unix(false),
-    use_root_unix(false),		         
-    fuse_shared(false),
-    environ_deadlock_timeout(500), forknoexec_heuristic(true),
-    ignore_containerization(false) { }
+		       use_user_sss(false), use_user_oauth2(false), use_user_ztn(false), tryKrb5First(false),
+		       use_user_unix(false),
+		       use_root_unix(false),
+		       fuse_shared(false),
+		       environ_deadlock_timeout(500), forknoexec_heuristic(true),
+		       ignore_containerization(false) { }
 
   //! Indicates if user krb5cc file should be used for authentication
   bool use_user_krb5cc;
@@ -59,6 +59,8 @@ public:
   bool use_user_sss;
   //! Indicates if user oauth2 file should be used for authentication
   bool use_user_oauth2;
+  //! Indicates if user ztn token authentication should be used for authentication
+  bool use_user_ztn;
   //! Indicates if Krb5 should be tried before Gsi
   bool tryKrb5First;
   //! Indicates if unix authentication is to be used for authentication for all but uid=0
@@ -215,6 +217,9 @@ public:
       paramsMap["xrd.gsiusrpxy"] = getFinalPath();
     } else if (uc.type == CredentialType::OAUTH2) {
       paramsMap["xrd.wantprot"] = "sss,unix";
+    } else if (uc.type == CredentialType::ZTN) {
+      paramsMap["xrd.wantprot"] = "ztn,unix";
+      paramsMap["xrd.ztn"] = getFinalPath();
     } else {
       THROW("should never reach here");
     }
