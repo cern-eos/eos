@@ -762,7 +762,8 @@ proc_fs_add(mq::MessagingRealm* realm, std::string& sfsid, std::string& uuid,
   } else {
     // Remove mapping
     if (FsView::gFsView.RemoveMapping(fsid, uuid)) {
-      stdErr += SSTR("\ninfo: unmapped '" << uuid << "' <!> fsid=" << fsid).c_str();
+      stdErr += SSTR("\ninfo: unmapped '" << uuid << "' <!> fsid="
+                     << fsid << std::endl).c_str();
     } else {
       stdErr += "error: cannot remove mapping - this can be fatal!";
     }
