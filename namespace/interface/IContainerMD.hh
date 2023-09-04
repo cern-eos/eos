@@ -90,6 +90,8 @@ public:
   friend class LockableNSObjMD;
   using IContainerMDReadLocker = NSObjectMDLocker<IContainerMDPtr,MDReadLock>;
   using IContainerMDWriteLocker = NSObjectMDLocker<IContainerMDPtr,MDWriteLock>;
+  using IContainerMDReadLockerPtr = std::unique_ptr<IContainerMDReadLocker>;
+  using IContainerMDWriteLockerPtr = std::unique_ptr<IContainerMDWriteLocker>;
 
   using identifier_t = ContainerIdentifier;
 
@@ -138,7 +140,7 @@ public:
   //----------------------------------------------------------------------------
   //! Find sub container and write lock it
   //----------------------------------------------------------------------------
-  virtual std::unique_ptr<IContainerMD::IContainerMDWriteLocker> findContainerAndWriteLock(const std::string & name) = 0;
+  virtual IContainerMDWriteLockerPtr findContainerAndWriteLock(const std::string & name) = 0;
 
   //----------------------------------------------------------------------------
   //! Get number of containers
