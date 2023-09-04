@@ -2108,14 +2108,6 @@ FsView::UnRegister(FileSystem* fs, bool unreg_from_geo_tree,
   if (mNodeView.count(snapshot.mQueue)) {
     FsNode* node = mNodeView[snapshot.mQueue];
     node->erase(snapshot.mId);
-
-    // @todo(esindril) delay node detition until FST removal is done and notified
-    if (node->size() == 0) {
-      eos_debug("msg=\"unregister node %s from node view\"",
-                node->GetMember("name").c_str());
-      mNodeView.erase(snapshot.mQueue);
-      delete node;
-    }
   }
 
   // Remove fs from group view & evt. remove group view
@@ -2173,18 +2165,27 @@ FsView::UnRegister(FileSystem* fs, bool unreg_from_geo_tree,
   // Notify the FST to delete the fs object from local maps
   if (notify_fst) {
     fs->DeleteSharedHash();
-  }
 
-  // Eventually delete the node
-  if (mNodeView.count(snapshot.mQueue)) {
-    FsNode* node = mNodeView[snapshot.mQueue];
-    node->SignalRefresh();
+    // Eventually delete the node
+    if (mNodeView.count(snapshot.mQueue)) {
+      FsNode* node = mNodeView[snapshot.mQueue];
+      node->SignalRefresh();
 
-    if (node->size() == 0) {
-      eos_debug("msg=\"unregister node %s from node view\"",
-                node->GetMember("name").c_str());
-      mNodeView.erase(snapshot.mQueue);
-      delete node;
+      if (node->size() == 0) {
+        eos_static_debug("msg=\"unregister node %s from node view\"",
+                         node->GetMember("name").c_str());
+        mNodeView.erase(snapshot.mQueue);
+        common::SharedHashLocator nodeLocator =
+          common::SharedHashLocator::makeForNode(snapshot.mQueue);
+
+        if (!mq::SharedHashWrapper::deleteHash(gOFS->mMessagingRealm.get(),
+                                               nodeLocator)) {
+          eos_static_err("msg=\"failed to delete shared hash\" queue=\"%s\"",
+                         snapshot.mQueue.c_str());
+        }
+
+        delete node;
+      }
     }
   }
 
