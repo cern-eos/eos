@@ -52,8 +52,8 @@ public:
   MOCK_METHOD7(_attr_ls, int(const char* path, XrdOucErrInfo& out_error,
                              const eos::common::VirtualIdentity& vid, const char* opaque,
                              eos::IContainerMD::XAttrMap& map, bool take_lock, bool links));
-  MOCK_METHOD6(_access, int(const char* path, int mode, XrdOucErrInfo& error,
-                            eos::common::VirtualIdentity& vid, const char* info, bool lock));
+  MOCK_METHOD5(_access, int(const char* path, int mode, XrdOucErrInfo& error,
+                            eos::common::VirtualIdentity& vid, const char* info));
   MOCK_METHOD4(FSctl, int(const int cmd, XrdSfsFSctl& args, XrdOucErrInfo& error,
                           const XrdSecEntity* client));
   MOCK_METHOD8(_stat, int(const char* Name, struct stat* buf,
@@ -116,9 +116,9 @@ public:
   static std::function<int(const char* Name, struct stat* buf, XrdOucErrInfo& out_error, eos::common::VirtualIdentity& vid, const char* opaque, std::string* etag, bool follow, std::string* uri)>
   _STAT_ERROR;
 
-  static std::function<int(const char* path, int mode, XrdOucErrInfo& error, eos::common::VirtualIdentity& vid, const char* info, bool lock)>
+  static std::function<int(const char* path, int mode, XrdOucErrInfo& error, eos::common::VirtualIdentity& vid, const char* info)>
   _ACCESS_FILE_PREPARE_PERMISSION_LAMBDA;
-  static std::function<int(const char* path, int mode, XrdOucErrInfo& error, eos::common::VirtualIdentity& vid, const char* info, bool lock)>
+  static std::function<int(const char* path, int mode, XrdOucErrInfo& error, eos::common::VirtualIdentity& vid, const char* info)>
   _ACCESS_FILE_NO_PREPARE_PERMISSION_LAMBDA;
 
   static inline const std::string ERROR_RETRIEVE_STR = "ERROR_RETRIEVE";

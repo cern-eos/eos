@@ -103,8 +103,7 @@ XrdMgmOfs::_utimes(const char* path,
                     W_OK,
                     error,
                     vid,
-                    info,
-                    false)) {
+                    info)) {
     return SFS_ERROR;
   }
 

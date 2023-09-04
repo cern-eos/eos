@@ -133,7 +133,7 @@ ProcCommand::Ls()
                                              buf.st_mtim.tv_nsec, std::string(option.length() ? option.c_str() : ""));
 
       if (use_cache && dirCache.tryGet(cacheentry, cachedresult)) {
-        if (!gOFS->_access(spath.c_str(), R_OK | X_OK, *mError, *pVid, 0, true)) {
+        if (!gOFS->_access(spath.c_str(), R_OK | X_OK, *mError, *pVid, 0)) {
           // return from cache
           retc = cachedresult.retc;
           stdOut = cachedresult.out.c_str();

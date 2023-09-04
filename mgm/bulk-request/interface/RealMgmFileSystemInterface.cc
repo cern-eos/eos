@@ -68,10 +68,9 @@ int RealMgmFileSystemInterface::_attr_ls(const char* path,
 }
 
 int RealMgmFileSystemInterface::_access(const char* path, int mode,
-                                        XrdOucErrInfo& error, eos::common::VirtualIdentity& vid, const char* info,
-                                        bool lock)
+                                        XrdOucErrInfo& error, eos::common::VirtualIdentity& vid, const char* info)
 {
-  return mMgmOfs->_access(path, mode, error, vid, info, lock);
+  return mMgmOfs->_access(path, mode, error, vid, info);
 }
 
 int RealMgmFileSystemInterface::FSctl(const int cmd, XrdSfsFSctl& args,

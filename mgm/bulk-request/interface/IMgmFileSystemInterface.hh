@@ -58,7 +58,7 @@ public:
                        eos::IContainerMD::XAttrMap& map, bool take_lock = true,
                        bool links = false) = 0;
   virtual int _access(const char* path, int mode, XrdOucErrInfo& error,
-                      eos::common::VirtualIdentity& vid, const char* info, bool lock = true) = 0;
+                      eos::common::VirtualIdentity& vid, const char* info) = 0;
   virtual int FSctl(const int cmd, XrdSfsFSctl& args, XrdOucErrInfo& error,
                     const XrdSecEntity* client) = 0;
   virtual int _stat(const char* Name, struct stat* buf, XrdOucErrInfo& out_error,
