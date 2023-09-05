@@ -55,7 +55,7 @@ public:
                       bool take_lock = true) = 0;
   virtual int _attr_ls(const char* path, XrdOucErrInfo& out_error,
                        const eos::common::VirtualIdentity& vid, const char* opaque,
-                       eos::IContainerMD::XAttrMap& map, bool take_lock = true,
+                       eos::IContainerMD::XAttrMap& map,
                        bool links = false) = 0;
   virtual int _access(const char* path, int mode, XrdOucErrInfo& error,
                       eos::common::VirtualIdentity& vid, const char* info) = 0;

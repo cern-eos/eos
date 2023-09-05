@@ -847,7 +847,7 @@ XrdMgmOfs::_find(const char* path, XrdOucErrInfo& out_error,
               eos::IContainerMD::XAttrMap attrmap;
 
               if (!gOFS->_attr_ls(fpath.c_str(), out_error, vid,
-                                  (const char*) 0, attrmap, sub_cmd_take_lock)) {
+                                  (const char*) 0, attrmap)) {
                 for (auto it = attrmap.begin(); it != attrmap.end(); it++) {
                   XrdOucString akey = it->first.c_str();
 

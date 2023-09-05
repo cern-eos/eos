@@ -49,9 +49,9 @@ public:
   MOCK_METHOD6(_exists, int(const char* path, XrdSfsFileExistence& file_exists,
                             XrdOucErrInfo& error, eos::common::VirtualIdentity& vid, const char* opaque,
                             bool take_lock));
-  MOCK_METHOD7(_attr_ls, int(const char* path, XrdOucErrInfo& out_error,
+  MOCK_METHOD6(_attr_ls, int(const char* path, XrdOucErrInfo& out_error,
                              const eos::common::VirtualIdentity& vid, const char* opaque,
-                             eos::IContainerMD::XAttrMap& map, bool take_lock, bool links));
+                             eos::IContainerMD::XAttrMap& map, bool links));
   MOCK_METHOD5(_access, int(const char* path, int mode, XrdOucErrInfo& error,
                             eos::common::VirtualIdentity& vid, const char* info));
   MOCK_METHOD4(FSctl, int(const int cmd, XrdSfsFSctl& args, XrdOucErrInfo& error,
@@ -83,25 +83,25 @@ public:
   _EXISTS_VID_FILE_DOES_NOT_EXIST_LAMBDA;
 
   //Lambda that will be called by the mock method _attr_ls on the files' parent directory in the case of stage prepare
-  static std::function<int(const char* path, XrdOucErrInfo& out_error, const eos::common::VirtualIdentity& vid, const char* opaque, eos::IContainerMD::XAttrMap& map, bool take_lock, bool links)>
+  static std::function<int(const char* path, XrdOucErrInfo& out_error, const eos::common::VirtualIdentity& vid, const char* opaque, eos::IContainerMD::XAttrMap& map, bool links)>
   _ATTR_LS_STAGE_PREPARE_LAMBDA;
   //Lambda that will be called by the mock method _attr_ls on the files' parent directory in the case of abort prepare
-  static std::function<int(const char* path, XrdOucErrInfo& out_error, const eos::common::VirtualIdentity& vid, const char* opaque, eos::IContainerMD::XAttrMap& map, bool take_lock, bool links)>
+  static std::function<int(const char* path, XrdOucErrInfo& out_error, const eos::common::VirtualIdentity& vid, const char* opaque, eos::IContainerMD::XAttrMap& map, bool links)>
   _ATTR_LS_ABORT_PREPARE_LAMBDA;
   //Lambda that will be called by the mock method _attr_ls on the files' parent directory in the case of evict prepare
-  static std::function<int(const char* path, XrdOucErrInfo& out_error, const eos::common::VirtualIdentity& vid, const char* opaque, eos::IContainerMD::XAttrMap& map, bool take_lock, bool links)>
+  static std::function<int(const char* path, XrdOucErrInfo& out_error, const eos::common::VirtualIdentity& vid, const char* opaque, eos::IContainerMD::XAttrMap& map, bool links)>
   _ATTR_LS_EVICT_PREPARE_LAMBDA;
   //Lambda that will be called by the mock method _attr_ls on the files and will return empty RETRIEVE and empty ARCHIVE errors
-  static std::function<int(const char* path, XrdOucErrInfo& out_error, const eos::common::VirtualIdentity& vid, const char* opaque, eos::IContainerMD::XAttrMap& map, bool take_lock, bool links)>
+  static std::function<int(const char* path, XrdOucErrInfo& out_error, const eos::common::VirtualIdentity& vid, const char* opaque, eos::IContainerMD::XAttrMap& map, bool links)>
   _ATTR_LS_QUERY_PREPARE_NO_ERROR_LAMBDA;
   //Lambda that will be called by the mock method _attr_ls on the files and will return a RETRIEVE ERROR
-  static std::function<int(const char* path, XrdOucErrInfo& out_error, const eos::common::VirtualIdentity& vid, const char* opaque, eos::IContainerMD::XAttrMap& map, bool take_lock, bool links)>
+  static std::function<int(const char* path, XrdOucErrInfo& out_error, const eos::common::VirtualIdentity& vid, const char* opaque, eos::IContainerMD::XAttrMap& map, bool links)>
   _ATTR_LS_RETRIEVE_ERROR_LAMBDA;
   //Lambda that will be called by the mock method _attr_ls on the files and will return a ARCHIVE ERROR
-  static std::function<int(const char* path, XrdOucErrInfo& out_error, const eos::common::VirtualIdentity& vid, const char* opaque, eos::IContainerMD::XAttrMap& map, bool take_lock, bool links)>
+  static std::function<int(const char* path, XrdOucErrInfo& out_error, const eos::common::VirtualIdentity& vid, const char* opaque, eos::IContainerMD::XAttrMap& map, bool links)>
   _ATTR_LS_ARCHIVE_ERROR_LAMBDA;
   //Lambda that will be called by the mock method _attr_ls on the files and will return a ARCHIVE AND RETRIEVE ERROR
-  static std::function<int(const char* path, XrdOucErrInfo& out_error, const eos::common::VirtualIdentity& vid, const char* opaque, eos::IContainerMD::XAttrMap& map, bool take_lock, bool links)>
+  static std::function<int(const char* path, XrdOucErrInfo& out_error, const eos::common::VirtualIdentity& vid, const char* opaque, eos::IContainerMD::XAttrMap& map, bool links)>
   _ATTR_LS_ARCHIVE_RETRIEVE_ERROR_LAMBDA;
   //Lambda that will be called by the mock method _stat on the file. This lambda will fill the stat buffer to fake the fact that the file is on tape only
   static std::function<int(const char* Name, struct stat* buf, XrdOucErrInfo& out_error, eos::common::VirtualIdentity& vid, const char* opaque, std::string* etag, bool follow, std::string* uri)>

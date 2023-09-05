@@ -59,20 +59,14 @@ XrdMgmOfs::attr_ls(const char* inpath,
 int
 XrdMgmOfs::_attr_ls(const char* path, XrdOucErrInfo& error,
                     const eos::common::VirtualIdentity& vid,
-                    const char* info, eos::IContainerMD::XAttrMap& map,
-                    bool take_lock, bool links)
+                    const char* info, eos::IContainerMD::XAttrMap& map, bool links)
 {
   static const char* epname = "attr_ls";
   std::shared_ptr<eos::IContainerMD> dh;
   EXEC_TIMING_BEGIN("AttrLs");
   gOFS->MgmStats.Add("AttrLs", vid.uid, vid.gid, 1);
-  eos::common::RWMutexReadLock ns_rd_lock;
   errno = 0;
   eos::Prefetcher::prefetchItemAndWait(gOFS->eosView, path);
-
-  if (take_lock) {
-    ns_rd_lock.Grab(gOFS->eosViewRWMutex);
-  }
 
   try {
     eos::FileOrContainerMD item = gOFS->eosView->getItem(path).get();

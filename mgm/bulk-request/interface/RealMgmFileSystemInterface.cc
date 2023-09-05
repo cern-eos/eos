@@ -61,10 +61,10 @@ int RealMgmFileSystemInterface::_exists(const char* path,
 
 int RealMgmFileSystemInterface::_attr_ls(const char* path,
     XrdOucErrInfo& out_error, const eos::common::VirtualIdentity& vid,
-    const char* opaque, eos::IContainerMD::XAttrMap& map, bool take_lock,
+    const char* opaque, eos::IContainerMD::XAttrMap& map,
     bool links)
 {
-  return mMgmOfs->_attr_ls(path, out_error, vid, opaque, map, take_lock, links);
+  return mMgmOfs->_attr_ls(path, out_error, vid, opaque, map, links);
 }
 
 int RealMgmFileSystemInterface::_access(const char* path, int mode,

@@ -760,7 +760,7 @@ ProcCommand::ArchiveCheckAcl(const std::string& arch_dir) const
   bool is_allowed = false;
   eos::IContainerMD::XAttrMap attrmap;
   // Load evt. the attributes
-  gOFS->_attr_ls(arch_dir.c_str(), *mError, *pVid, 0, attrmap, false);
+  gOFS->_attr_ls(arch_dir.c_str(), *mError, *pVid, 0, attrmap);
   // ACL and permission check
   Acl acl(arch_dir.c_str(), *mError, *pVid, attrmap, true);
   eos_info("acl=%d a=%d egroup=%d mutable=%d", acl.HasAcl(), acl.CanArchive(),
