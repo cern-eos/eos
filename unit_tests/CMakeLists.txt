@@ -128,7 +128,8 @@ set(COMMON_UT_SRCS
   common/ShardedCacheTests.cc
   common/concurrency/AtomicUniquePtrTests.cc
   common/concurrency/ThreadEpochCounterTests.cc
-  common/concurrency/RCUTests.cc)
+  common/concurrency/RCUTests.cc
+  common/RandTests.cc)
 
 set(FUSEX_UT_SRCS
   fusex/StatTests.cc
