@@ -102,14 +102,14 @@ public:
   //----------------------------------------------------------------------------
   //! Retrieve a file for given uri and read-lock it
   //----------------------------------------------------------------------------
-  virtual std::unique_ptr<IFileMD::IFileMDReadLocker> getFileReadLocked(const std::string & uri,
+  virtual IFileMD::IFileMDReadLockerPtr getFileReadLocked(const std::string & uri,
                                                                         bool follow = true,
                                                                         size_t * link_depths = 0) = 0;
 
   //----------------------------------------------------------------------------
   //! Retrieve a file for given uri and write-lock it
   //----------------------------------------------------------------------------
-  virtual std::unique_ptr<IFileMD::IFileMDWriteLocker> getFileWriteLocked(const std::string & uri,
+  virtual IFileMD::IFileMDWriteLockerPtr getFileWriteLocked(const std::string & uri,
                                                                         bool follow = true,
                                                                         size_t * link_depths = 0) = 0;
 

@@ -142,12 +142,12 @@ public:
   //------------------------------------------------------------------------
   //! Get the file metadata information for the given file ID and read lock it
   //------------------------------------------------------------------------
-  virtual std::unique_ptr<IFileMD::IFileMDReadLocker> getFileMDReadLocked(IFileMD::id_t id) = 0;
+  virtual IFileMD::IFileMDReadLockerPtr getFileMDReadLocked(IFileMD::id_t id) = 0;
 
   //------------------------------------------------------------------------
   //! Get the file metadata information for the given file ID and write lock it
   //------------------------------------------------------------------------
-  virtual std::unique_ptr<IFileMD::IFileMDWriteLocker> getFileMDWriteLocked(IFileMD::id_t id) = 0;
+  virtual IFileMD::IFileMDWriteLockerPtr getFileMDWriteLocked(IFileMD::id_t id) = 0;
 
   //----------------------------------------------------------------------------
   //! Check if a FileMD with a given identifier exists - no caching
