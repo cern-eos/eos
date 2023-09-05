@@ -24,15 +24,7 @@
 #include "namespace/interface/IFsView.hh"
 #include "FileListRandomPicker.hh"
 #include <mutex>
-#include <random>
-
-namespace {
-
-std::random_device randomDevice;
-std::mt19937 generator(randomDevice());
-std::mutex generatorMtx;
-
-}
+#include "common/utils/RandUtils.hh"
 
 EOSNSNAMESPACE_BEGIN
 
@@ -41,12 +33,9 @@ bool pickRandomFile(const IFsView::FileList &filelist, eos::IFileMD::id_t &retva
     return false;
   }
 
-  std::uniform_int_distribution<> distribution(0, filelist.bucket_count() - 1);
 
   while(true) {
-    std::unique_lock<std::mutex> lock(generatorMtx);
-    eos::IFileMD::id_t randomPosition = distribution(generator);
-    lock.unlock();
+    eos::IFileMD::id_t randomPosition = eos::common::getRandom<uint64_t>(0, filelist.bucket_count() - 1);
 
     // Is there an element at that location on the table?
     auto it = filelist.begin(randomPosition);

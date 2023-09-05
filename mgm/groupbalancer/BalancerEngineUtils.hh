@@ -30,12 +30,6 @@
 #include "common/StringSplit.hh"
 #include "mgm/groupbalancer/BalancerEngine.hh"
 
-namespace
-{
-std::random_device rd;
-std::mt19937 generator(rd());
-}
-
 namespace eos::mgm::group_balancer
 {
 
@@ -45,13 +39,6 @@ namespace detail
 template <typename Fn>
 using ret_type_t = typename decltype(std::function{std::declval<Fn>()})::result_type;
 } // detail
-
-inline uint32_t getRandom(uint32_t max)
-{
-  std::uniform_int_distribution<> distribution(0, max);
-  return distribution(generator);
-}
-
 
 inline double calculateAvg(const group_size_map& m)
 {
