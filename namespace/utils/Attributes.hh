@@ -72,7 +72,8 @@ populateLinkedAttributes(IView* view, eos::IContainerMD::XAttrMap& out,
       return;
     }
 
-    IContainerMDPtr dh = view->getContainer(linkedPath->second);
+    IContainerMD::IContainerMDReadLockerPtr dhLock = view->getContainerReadLocked(linkedPath->second);
+    IContainerMDPtr dh = dhLock ? dhLock->getUnderlyingPtr() : nullptr;
 
     if (!dh) {
       return;
@@ -138,8 +139,10 @@ listAttributes(IView* view, FileOrContainerMD target,
   out.clear();
 
   if (target.file) {
+    eos::IFileMD::IFileMDReadLocker (target.file);
     listAttributes(view, target.file.get(), out, prefixLinks);
   } else if (target.container) {
+    eos::IContainerMD::IContainerMDReadLocker (target.container);
     listAttributes(view, target.container.get(), out, prefixLinks);
   }
 }
