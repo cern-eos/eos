@@ -28,6 +28,7 @@
 #include "namespace/interface/IFsView.hh"
 #include "common/StringConversion.hh"
 #include "common/FileId.hh"
+#include "common/utils/RandUtils.hh"
 #include "mgm/groupbalancer/BalancerEngineFactory.hh"
 #include "mgm/groupbalancer/BalancerEngineUtils.hh"
 #include "mgm/groupbalancer/GroupsInfoFetcher.hh"
@@ -156,7 +157,7 @@ GroupBalancer::chooseFidFromGroup(FsGroup* group)
 
   while (validFsIndexes.size() > 0) {
     fs_it = group->begin();
-    rndIndex = group_balancer::getRandom(validFsIndexes.size() - 1);
+    rndIndex = common::getRandom((uint64_t)0, validFsIndexes.size() - 1);
     std::advance(fs_it, validFsIndexes[rndIndex]);
     fsid = *fs_it;
     // Accept only active file systems

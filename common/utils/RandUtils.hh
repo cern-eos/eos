@@ -11,7 +11,7 @@ auto getRandom(IntType start, IntType end) -> IntType
   thread_local std::mt19937 generator(tlrd());
 
   std::uniform_int_distribution<IntType> distrib(start, end);
-  return distrib(get_local_generator());
+  return distrib(generator);
 }
 
 } // eos::common

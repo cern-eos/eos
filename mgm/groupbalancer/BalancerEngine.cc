@@ -3,6 +3,7 @@
 #include "mgm/groupbalancer/BalancerEngineUtils.hh"
 #include "common/table_formatter/TableFormatterBase.hh"
 #include "common/utils/ContainerUtils.hh"
+#include "common/utils/RandUtils.hh"
 
 namespace eos::mgm::group_balancer
 {
@@ -68,9 +69,9 @@ BalancerEngine::pickGroupsforTransfer()
 
   auto over_it = data.mGroupsOverThreshold.begin();
   auto under_it = data.mGroupsUnderThreshold.begin();
-  int rndIndex = getRandom(data.mGroupsOverThreshold.size() - 1);
+  int rndIndex = common::getRandom((uint64_t)0, data.mGroupsOverThreshold.size() - 1);
   std::advance(over_it, rndIndex);
-  rndIndex = getRandom(data.mGroupsUnderThreshold.size() - 1);
+  rndIndex = common::getRandom((uint64_t)0, data.mGroupsUnderThreshold.size() - 1);
   std::advance(under_it, rndIndex);
   return {*over_it, *under_it};
 }
