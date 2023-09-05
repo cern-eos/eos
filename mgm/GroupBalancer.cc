@@ -28,6 +28,7 @@
 #include "namespace/interface/IFsView.hh"
 #include "common/StringConversion.hh"
 #include "common/FileId.hh"
+#include "common/utils/RandUtils.hh"
 #include "mgm/groupbalancer/BalancerEngineFactory.hh"
 #include "mgm/groupbalancer/BalancerEngineUtils.hh"
 #include "mgm/groupbalancer/GroupsInfoFetcher.hh"
