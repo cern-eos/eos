@@ -142,11 +142,11 @@ TEST_F(PrepareManagerTest, stagePrepareFilesWorkflow)
         MockPrepareMgmFSInterface::_EXISTS_VID_FILE_EXISTS_LAMBDA));
   //the _exists method should be called for all files
   EXPECT_CALL(mgmOfs, _exists(_, _, _, _, _, _)).Times(nbFiles);
-  ON_CALL(mgmOfs, _attr_ls(_, _, _, _, _, _, _))
+  ON_CALL(mgmOfs, _attr_ls(_, _, _, _, _, _))
   .WillByDefault(Invoke(
                    MockPrepareMgmFSInterface::_ATTR_LS_STAGE_PREPARE_LAMBDA
                  ));
-  EXPECT_CALL(mgmOfs, _attr_ls(_, _, _, _, _, _, _)).Times(nbFiles);
+  EXPECT_CALL(mgmOfs, _attr_ls(_, _, _, _, _, _)).Times(nbFiles);
   EXPECT_CALL(mgmOfs, Emsg).Times(0);
   EXPECT_CALL(mgmOfs, _access).Times(nbFiles);
   EXPECT_CALL(mgmOfs, FSctl).Times(nbFiles);
@@ -174,7 +174,7 @@ TEST_F(PrepareManagerTest, stagePrepareFileWithNoPath)
   EXPECT_CALL(mgmOfs, Emsg).Times(0);
   //No path are set, no mgmOfs method should be called
   EXPECT_CALL(mgmOfs, _exists(_, _, _, _, _, _)).Times(0);
-  EXPECT_CALL(mgmOfs, _attr_ls(_, _, _, _, _, _, _)).Times(0);
+  EXPECT_CALL(mgmOfs, _attr_ls(_, _, _, _, _, _)).Times(0);
   EXPECT_CALL(mgmOfs, _access).Times(0);
   EXPECT_CALL(mgmOfs, FSctl).Times(0);
   ClientWrapper client = PrepareManagerTest::getDefaultClient();
@@ -207,7 +207,7 @@ TEST_F(PrepareManagerTest, stagePrepareAllFilesDoNotExist)
         MockPrepareMgmFSInterface::_EXISTS_VID_FILE_DOES_NOT_EXIST_LAMBDA));
   //The current behaviour is that the prepare logic returns an error if at least one file does not exist.
   EXPECT_CALL(mgmOfs, _exists(_, _, _, _, _, _)).Times(3);
-  EXPECT_CALL(mgmOfs, _attr_ls(_, _, _, _, _, _, _)).Times(0);
+  EXPECT_CALL(mgmOfs, _attr_ls(_, _, _, _, _, _)).Times(0);
   EXPECT_CALL(mgmOfs, _access).Times(0);
   EXPECT_CALL(mgmOfs, FSctl).Times(0);
   ClientWrapper client = PrepareManagerTest::getDefaultClient();
@@ -247,7 +247,7 @@ TEST_F(PrepareManagerTest, stagePrepareOneFileDoNotExistReturnsSfsData)
               Invoke(MockPrepareMgmFSInterface::_EXISTS_VID_FILE_EXISTS_LAMBDA)
             );
   //Attr ls should work for the files that exist
-  EXPECT_CALL(mgmOfs, _attr_ls(_, _, _, _, _, _, _)).Times(nbFiles - 1)
+  EXPECT_CALL(mgmOfs, _attr_ls(_, _, _, _, _, _)).Times(nbFiles - 1)
   .WillRepeatedly(Invoke(
                     MockPrepareMgmFSInterface::_ATTR_LS_STAGE_PREPARE_LAMBDA
                   ));
@@ -289,11 +289,11 @@ TEST_F(PrepareManagerTest, abortPrepareFilesWorkflow)
         MockPrepareMgmFSInterface::_EXISTS_VID_FILE_EXISTS_LAMBDA));
   //the _exists method should be called for all files
   EXPECT_CALL(mgmOfs, _exists(_, _, _, _, _, _)).Times(nbFiles);
-  ON_CALL(mgmOfs, _attr_ls(_, _, _, _, _, _, _))
+  ON_CALL(mgmOfs, _attr_ls(_, _, _, _, _, _))
   .WillByDefault(Invoke(
                    MockPrepareMgmFSInterface::_ATTR_LS_ABORT_PREPARE_LAMBDA
                  ));
-  EXPECT_CALL(mgmOfs, _attr_ls(_, _, _, _, _, _, _)).Times(nbFiles);
+  EXPECT_CALL(mgmOfs, _attr_ls(_, _, _, _, _, _)).Times(nbFiles);
   EXPECT_CALL(mgmOfs, Emsg).Times(0);
   EXPECT_CALL(mgmOfs, _access).Times(nbFiles);
   EXPECT_CALL(mgmOfs, FSctl).Times(nbFiles);
@@ -334,7 +334,7 @@ TEST_F(PrepareManagerTest, abortPrepareOneFileExistsOthersDoNotExist)
           Invoke(
             MockPrepareMgmFSInterface::_EXISTS_VID_FILE_DOES_NOT_EXIST_LAMBDA));
   //Attr ls should work for the file that exists
-  EXPECT_CALL(mgmOfs, _attr_ls(_, _, _, _, _, _, _)).Times(1)
+  EXPECT_CALL(mgmOfs, _attr_ls(_, _, _, _, _, _)).Times(1)
   .WillRepeatedly(Invoke(
                     MockPrepareMgmFSInterface::_ATTR_LS_ABORT_PREPARE_LAMBDA
                   ));
@@ -375,11 +375,11 @@ TEST_F(PrepareManagerTest, evictPrepareFilesWorkflow)
         MockPrepareMgmFSInterface::_EXISTS_VID_FILE_EXISTS_LAMBDA));
   //the _exists method should be called for all files
   EXPECT_CALL(mgmOfs, _exists(_, _, _, _, _, _)).Times(nbFiles);
-  ON_CALL(mgmOfs, _attr_ls(_, _, _, _, _, _, _))
+  ON_CALL(mgmOfs, _attr_ls(_, _, _, _, _, _))
   .WillByDefault(Invoke(
                    MockPrepareMgmFSInterface::_ATTR_LS_EVICT_PREPARE_LAMBDA
                  ));
-  EXPECT_CALL(mgmOfs, _attr_ls(_, _, _, _, _, _, _)).Times(nbFiles);
+  EXPECT_CALL(mgmOfs, _attr_ls(_, _, _, _, _, _)).Times(nbFiles);
   EXPECT_CALL(mgmOfs, Emsg).Times(0);
   EXPECT_CALL(mgmOfs, _access).Times(nbFiles);
   EXPECT_CALL(mgmOfs, FSctl).Times(nbFiles);
@@ -421,7 +421,7 @@ TEST_F(PrepareManagerTest, evictPrepareOneFileExistsOthersDoNotExist)
           Invoke(
             MockPrepareMgmFSInterface::_EXISTS_VID_FILE_DOES_NOT_EXIST_LAMBDA));
   //Attr ls should work for the files that exist
-  EXPECT_CALL(mgmOfs, _attr_ls(_, _, _, _, _, _, _)).Times(1)
+  EXPECT_CALL(mgmOfs, _attr_ls(_, _, _, _, _, _)).Times(1)
   .WillRepeatedly(Invoke(
                     MockPrepareMgmFSInterface::_ATTR_LS_EVICT_PREPARE_LAMBDA
                   ));
@@ -469,7 +469,7 @@ TEST_F(PrepareManagerTest, queryPrepare)
   EXPECT_CALL(mgmOfs, _stat(_, _, _, _, _, _, _, _)).Times(1).WillOnce(Invoke(
         MockPrepareMgmFSInterface::_STAT_FILE_ON_DISK_AND_TAPE));
   //Attr ls should work for the files that exist
-  EXPECT_CALL(mgmOfs, _attr_ls(_, _, _, _, _, _, _)).Times(1)
+  EXPECT_CALL(mgmOfs, _attr_ls(_, _, _, _, _, _)).Times(1)
   .WillRepeatedly(Invoke(
                     MockPrepareMgmFSInterface::_ATTR_LS_STAGE_PREPARE_LAMBDA
                   ));
@@ -520,7 +520,7 @@ TEST_F(PrepareManagerTest, queryPrepareFileDoesNotExist)
       MockPrepareMgmFSInterface::_EXISTS_VID_FILE_DOES_NOT_EXIST_LAMBDA)
   );
   EXPECT_CALL(mgmOfs, _stat(_, _, _, _, _, _, _, _)).Times(0);
-  EXPECT_CALL(mgmOfs, _attr_ls(_, _, _, _, _, _, _)).Times(0);
+  EXPECT_CALL(mgmOfs, _attr_ls(_, _, _, _, _, _)).Times(0);
   EXPECT_CALL(mgmOfs, _access(_, _, _, _, _)).Times(0);
   ClientWrapper client = PrepareManagerTest::getDefaultClient();
   std::string requestId = "testReqId";
@@ -563,7 +563,7 @@ TEST_F(PrepareManagerTest, queryPrepareFileStatFails)
       //Stat fails for one file
       MockPrepareMgmFSInterface::_STAT_ERROR
     ));
-  EXPECT_CALL(mgmOfs, _attr_ls(_, _, _, _, _, _, _)).Times(0);
+  EXPECT_CALL(mgmOfs, _attr_ls(_, _, _, _, _, _)).Times(0);
   EXPECT_CALL(mgmOfs, _access(_, _, _, _, _)).Times(0);
   ClientWrapper client = PrepareManagerTest::getDefaultClient();
   std::string requestId = "testReqId";
@@ -605,8 +605,7 @@ TEST_F(PrepareManagerTest, queryPrepareFileOnTapeRetrieveError)
       //File could not be recalled
       MockPrepareMgmFSInterface::_STAT_FILE_ON_TAPE_ONLY
     ));
-  EXPECT_CALL(mgmOfs, _attr_ls(_, _, _, _, _, _,
-                               _)).Times(nbFiles).WillRepeatedly(
+  EXPECT_CALL(mgmOfs, _attr_ls(_, _, _, _, _, _)).Times(nbFiles).WillRepeatedly(
                                  Invoke(
                                    MockPrepareMgmFSInterface::_ATTR_LS_RETRIEVE_ERROR_LAMBDA
                                  ));
@@ -651,8 +650,7 @@ TEST_F(PrepareManagerTest, queryPrepareFileOnDiskArchiveError)
       //File could not be recalled
       MockPrepareMgmFSInterface::_STAT_FILE_ON_DISK_ONLY
     ));
-  EXPECT_CALL(mgmOfs, _attr_ls(_, _, _, _, _, _,
-                               _)).Times(nbFiles).WillRepeatedly(
+  EXPECT_CALL(mgmOfs, _attr_ls(_, _, _, _, _, _)).Times(nbFiles).WillRepeatedly(
                                  Invoke(
                                    MockPrepareMgmFSInterface::_ATTR_LS_ARCHIVE_ERROR_LAMBDA
                                  ));
@@ -697,8 +695,7 @@ TEST_F(PrepareManagerTest, queryPrepareFileNoPreparePermissionOnDirectory)
       //File could not be recalled
       MockPrepareMgmFSInterface::_STAT_FILE_ON_TAPE_ONLY
     ));
-  EXPECT_CALL(mgmOfs, _attr_ls(_, _, _, _, _, _,
-                               _)).Times(nbFiles).WillRepeatedly(
+  EXPECT_CALL(mgmOfs, _attr_ls(_, _, _, _, _, _)).Times(nbFiles).WillRepeatedly(
                                  Invoke(
                                    //Set all possible errors, we want to see the "USER ERROR: you don't have prepare permission" error message in all cases.
                                    MockPrepareMgmFSInterface::_ATTR_LS_ARCHIVE_RETRIEVE_ERROR_LAMBDA

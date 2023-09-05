@@ -63,52 +63,52 @@ MockPrepareMgmFSInterface::_EXISTS_VID_FILE_DOES_NOT_EXIST_LAMBDA =
   return SFS_ERROR;
 };
 
-std::function<int(const char* path, XrdOucErrInfo& out_error, const eos::common::VirtualIdentity& vid, const char* opaque, eos::IContainerMD::XAttrMap& map, bool take_lock, bool links)>
+std::function<int(const char* path, XrdOucErrInfo& out_error, const eos::common::VirtualIdentity& vid, const char* opaque, eos::IContainerMD::XAttrMap& map, bool links)>
 MockPrepareMgmFSInterface::_ATTR_LS_STAGE_PREPARE_LAMBDA =
   [](const char* path, XrdOucErrInfo& out_error,
      const eos::common::VirtualIdentity& vid, const char* opaque,
-     eos::IContainerMD::XAttrMap& map, bool take_lock, bool links)
+     eos::IContainerMD::XAttrMap& map, bool links)
 {
   map["sys.workflow.sync::prepare"] = "";
   return SFS_OK;
 };
 
-std::function<int(const char* path, XrdOucErrInfo& out_error, const eos::common::VirtualIdentity& vid, const char* opaque, eos::IContainerMD::XAttrMap& map, bool take_lock, bool links)>
+std::function<int(const char* path, XrdOucErrInfo& out_error, const eos::common::VirtualIdentity& vid, const char* opaque, eos::IContainerMD::XAttrMap& map, bool links)>
 MockPrepareMgmFSInterface::_ATTR_LS_ABORT_PREPARE_LAMBDA =
   [](const char* path, XrdOucErrInfo& out_error,
      const eos::common::VirtualIdentity& vid, const char* opaque,
-     eos::IContainerMD::XAttrMap& map, bool take_lock, bool links)
+     eos::IContainerMD::XAttrMap& map, bool links)
 {
   map["sys.workflow.sync::abort_prepare"] = "";
   return SFS_OK;
 };
 
-std::function<int(const char* path, XrdOucErrInfo& out_error, const eos::common::VirtualIdentity& vid, const char* opaque, eos::IContainerMD::XAttrMap& map, bool take_lock, bool links)>
+std::function<int(const char* path, XrdOucErrInfo& out_error, const eos::common::VirtualIdentity& vid, const char* opaque, eos::IContainerMD::XAttrMap& map, bool links)>
 MockPrepareMgmFSInterface::_ATTR_LS_EVICT_PREPARE_LAMBDA =
   [](const char* path, XrdOucErrInfo& out_error,
      const eos::common::VirtualIdentity& vid, const char* opaque,
-     eos::IContainerMD::XAttrMap& map, bool take_lock, bool links)
+     eos::IContainerMD::XAttrMap& map, bool links)
 {
   map["sys.workflow.sync::evict_prepare"] = "";
   return SFS_OK;
 };
 
-std::function<int(const char* path, XrdOucErrInfo& out_error, const eos::common::VirtualIdentity& vid, const char* opaque, eos::IContainerMD::XAttrMap& map, bool take_lock, bool links)>
+std::function<int(const char* path, XrdOucErrInfo& out_error, const eos::common::VirtualIdentity& vid, const char* opaque, eos::IContainerMD::XAttrMap& map, bool links)>
 MockPrepareMgmFSInterface::_ATTR_LS_QUERY_PREPARE_NO_ERROR_LAMBDA =
   [](const char* path, XrdOucErrInfo& out_error,
      const eos::common::VirtualIdentity& vid, const char* opaque,
-     eos::IContainerMD::XAttrMap& map, bool take_lock, bool links)
+     eos::IContainerMD::XAttrMap& map, bool links)
 {
   map[common::RETRIEVE_ERROR_ATTR_NAME] = "";
   map[common::ARCHIVE_ERROR_ATTR_NAME] = "";
   return SFS_OK;
 };
 
-std::function<int(const char* path, XrdOucErrInfo& out_error, const eos::common::VirtualIdentity& vid, const char* opaque, eos::IContainerMD::XAttrMap& map, bool take_lock, bool links)>
+std::function<int(const char* path, XrdOucErrInfo& out_error, const eos::common::VirtualIdentity& vid, const char* opaque, eos::IContainerMD::XAttrMap& map, bool links)>
 MockPrepareMgmFSInterface::_ATTR_LS_RETRIEVE_ERROR_LAMBDA =
   [](const char* path, XrdOucErrInfo& out_error,
      const eos::common::VirtualIdentity& vid, const char* opaque,
-     eos::IContainerMD::XAttrMap& map, bool take_lock, bool links)
+     eos::IContainerMD::XAttrMap& map, bool links)
 {
   map[common::RETRIEVE_ERROR_ATTR_NAME] = ERROR_RETRIEVE_STR;
   map[common::ARCHIVE_ERROR_ATTR_NAME] = "";
@@ -117,22 +117,22 @@ MockPrepareMgmFSInterface::_ATTR_LS_RETRIEVE_ERROR_LAMBDA =
   return SFS_OK;
 };
 
-std::function<int(const char* path, XrdOucErrInfo& out_error, const eos::common::VirtualIdentity& vid, const char* opaque, eos::IContainerMD::XAttrMap& map, bool take_lock, bool links)>
+std::function<int(const char* path, XrdOucErrInfo& out_error, const eos::common::VirtualIdentity& vid, const char* opaque, eos::IContainerMD::XAttrMap& map, bool links)>
 MockPrepareMgmFSInterface::_ATTR_LS_ARCHIVE_ERROR_LAMBDA =
   [](const char* path, XrdOucErrInfo& out_error,
      const eos::common::VirtualIdentity& vid, const char* opaque,
-     eos::IContainerMD::XAttrMap& map, bool take_lock, bool links)
+     eos::IContainerMD::XAttrMap& map, bool links)
 {
   //No retrieve error if archive error
   map[common::ARCHIVE_ERROR_ATTR_NAME] = ERROR_ARCHIVE_STR;
   return SFS_OK;
 };
 
-std::function<int(const char* path, XrdOucErrInfo& out_error, const eos::common::VirtualIdentity& vid, const char* opaque, eos::IContainerMD::XAttrMap& map, bool take_lock, bool links)>
+std::function<int(const char* path, XrdOucErrInfo& out_error, const eos::common::VirtualIdentity& vid, const char* opaque, eos::IContainerMD::XAttrMap& map, bool links)>
 MockPrepareMgmFSInterface::_ATTR_LS_ARCHIVE_RETRIEVE_ERROR_LAMBDA =
   [](const char* path, XrdOucErrInfo& out_error,
      const eos::common::VirtualIdentity& vid, const char* opaque,
-     eos::IContainerMD::XAttrMap& map, bool take_lock, bool links)
+     eos::IContainerMD::XAttrMap& map, bool links)
 {
   map[common::RETRIEVE_ERROR_ATTR_NAME] = ERROR_RETRIEVE_STR;
   map[common::ARCHIVE_ERROR_ATTR_NAME] = ERROR_ARCHIVE_STR;

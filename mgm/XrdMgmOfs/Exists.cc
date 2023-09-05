@@ -158,7 +158,7 @@ XrdMgmOfs::_exists(const char* path,
       dir = eosView->getContainer(cPath.GetParentPath(), false);
       eos::IContainerMD::XAttrMap::const_iterator it;
       // get attributes
-      gOFS->_attr_ls(cPath.GetParentPath(), error, vid, 0, attrmap, false);
+      gOFS->_attr_ls(cPath.GetParentPath(), error, vid, 0, attrmap);
     } catch (eos::MDException& e) {
       dir.reset();
     }

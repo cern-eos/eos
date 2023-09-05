@@ -165,8 +165,7 @@ ProcCommand::Attr()
 
               XrdOucString partialStdOut = "";
 
-              if (gOFS->_attr_ls(foundit->first.c_str(), *mError, *pVid, (const char*) 0, map,
-                                 true, true)) {
+              if (gOFS->_attr_ls(foundit->first.c_str(), *mError, *pVid, (const char*) 0, map, true)) {
                 stdErr += "error: unable to list attributes of ";
                 stdErr += foundit->first.c_str();
                 stdErr += "\n";
@@ -311,11 +310,11 @@ ProcCommand::Attr()
             if (mSubCmd == "fold") {
               RECURSIVE_STALL("AttrLs", (*pVid));
               int retc = gOFS->_attr_ls(foundit->first.c_str(), *mError, *pVid,
-                                        (const char*) 0, map, true, false);
+                                        (const char*) 0, map, false);
 
               if ((!retc) && map.count("sys.attr.link")) {
                 retc |= gOFS->_attr_ls(map["sys.attr.link"].c_str(), *mError, *pVid,
-                                       (const char*) 0, linkmap, true, true);
+                                       (const char*) 0, linkmap, true);
               }
 
               if (retc) {
