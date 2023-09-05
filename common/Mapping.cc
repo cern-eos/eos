@@ -80,6 +80,11 @@ Mapping::ip_cache Mapping::gIpCache(300);
 
 OAuth Mapping::gOAuth;
 
+std::mutex Mapping::gLastUserMtx;
+std::atomic<uint64_t> Mapping::gLastUserCounter{0};
+std::atomic<uid_t> Mapping::gLastActiveUser{0};
+std::atomic<uint64_t> Mapping::gActiveUserUpdate{0};
+
 static std::string g_pwd_key = "\"<pwd>\"";
 static std::string g_pwd_uid_key = g_pwd_key + ":uid";
 static std::string g_pwd_gid_key = g_pwd_key + ":gid";
@@ -1984,8 +1989,24 @@ Mapping::UidFromTident(const std::string& tident)
 size_t
 Mapping::ActiveSessions(uid_t uid)
 {
+  using namespace std::chrono_literals;
+  using std::chrono::seconds;
+  uint64_t now = std::chrono::duration_cast<seconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+
+  if (gLastActiveUser == uid &&
+      now < gActiveUserUpdate) {
+    return gLastUserCounter;
+  }
+
   //XrdSysMutexHelper mLock(ActiveLock);
   if (auto n = ActiveUidsSharded.retrieve(uid)) {
+    if (*n > 500 && now < gActiveUserUpdate) {
+      std::scoped_lock lock(gLastUserMtx);
+      auto tp = std::chrono::duration_cast<seconds>(std::chrono::system_clock::now().time_since_epoch());
+      gActiveUserUpdate = (tp + 60s).count();
+      gLastActiveUser = uid;
+      gLastUserCounter = *n;
+    }
     return *n;
   }
 
