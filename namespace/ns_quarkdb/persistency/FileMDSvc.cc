@@ -174,7 +174,7 @@ QuarkFileMDSvc::getFileMD(IFileMD::id_t id, uint64_t* clock)
 //------------------------------------------------------------------------
 //! Get the file metadata information for the given file ID and read lock it
 //------------------------------------------------------------------------
-std::unique_ptr<IFileMD::IFileMDReadLocker> QuarkFileMDSvc::getFileMDReadLocked(IFileMD::id_t id) {
+IFileMD::IFileMDReadLockerPtr QuarkFileMDSvc::getFileMDReadLocked(IFileMD::id_t id) {
   return getFileLocked<IFileMD::IFileMDReadLocker>(id,0);
 }
 
@@ -182,7 +182,7 @@ std::unique_ptr<IFileMD::IFileMDReadLocker> QuarkFileMDSvc::getFileMDReadLocked(
 //------------------------------------------------------------------------
 //! Get the file metadata information for the given file ID and write lock it
 //------------------------------------------------------------------------
-std::unique_ptr<IFileMD::IFileMDWriteLocker> QuarkFileMDSvc::getFileMDWriteLocked(IFileMD::id_t id) {
+IFileMD::IFileMDWriteLockerPtr QuarkFileMDSvc::getFileMDWriteLocked(IFileMD::id_t id) {
   return getFileLocked<IFileMD::IFileMDWriteLocker>(id,0);
 }
 
