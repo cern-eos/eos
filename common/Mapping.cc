@@ -290,7 +290,7 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
 
       if (authz_obj->Access(client, path.c_str(), oper, &op_env) == XrdAccPriv_None) {
         eos_static_err("msg=\"failed token authz\" path=\"%s\" opaque=\"%s\" "
-                       "authz=\"%s\"",  path.c_str(), env, authz.c_str());
+                       "authz=\"%s\"",  path.c_str(), env, client->creds);
         return;
       }
 
@@ -2309,8 +2309,10 @@ Mapping::HandleUidGidMapping(const char* name, VirtualIdentity& vid,
       vid.allowed_gids.clear();
       vid.allowed_gids.insert(vid.gid);
     }
+  } else {
+    vid.toNobody();
   }
-
+  
   if (gid_mapped) {
     if (kv_gid->second == 0) {
       eos_static_debug("msg=\"%s gid mapping\"", vid.prot.c_str());
@@ -2321,6 +2323,8 @@ Mapping::HandleUidGidMapping(const char* name, VirtualIdentity& vid,
       vid.gid = kv_gid->second;
       vid.allowed_gids.insert(vid.gid);
     }
+  } else {
+    vid.toNobody();
   }
 }
 

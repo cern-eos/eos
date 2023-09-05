@@ -1276,6 +1276,9 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
         NoGo = 1;
       } else {
         mExtAuthz = ep(Eroute.logger(), ConfigFN, 0);
+	if (!mTokenAuthz) {
+	  mTokenAuthz = mExtAuthz;
+	}
       }
     }
   }

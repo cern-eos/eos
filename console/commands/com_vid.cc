@@ -241,6 +241,11 @@ com_vid(char* arg1)
         hastype = true;
       }
 
+      if ((type == "-ztn")) {
+        in += "&mgm.vid.auth=ztn";
+        hastype = true;
+      }
+
       if (!hastype) {
         goto com_vid_usage;
       }
@@ -598,7 +603,7 @@ com_vid_usage:
           "       vid rm membership <uid>             : delete the membership entries for <uid>.\n");
   fprintf(stdout, "       vid set membership <uid> [+|-]sudo \n");
   fprintf(stdout,
-          "       vid set map -krb5|-gsi|-https|-sss|-unix|-tident|-voms|-grpc|-oauth2 <pattern> [vuid:<uid>] [vgid:<gid>] \n");
+          "       vid set map -krb5|-gsi|-https|-sss|-unix|-tident|-voms|-grpc|-oauth2|-ztn <pattern> [vuid:<uid>] [vgid:<gid>] \n");
   fprintf(stdout,
           "           -voms <pattern>  : <pattern> is <group>:<role> e.g. to map VOMS attribute /dteam/cern/Role=NULL/Capability=NULL one should define <pattern>=/dteam/cern: \n");
   fprintf(stdout,

@@ -57,7 +57,7 @@ XrdMgmOfs::access(const char* inpath,
   // use a thread private vid
   eos::common::VirtualIdentity vid;
   EXEC_TIMING_BEGIN("IdMap");
-  eos::common::Mapping::IdMap(client, ininfo, tident, vid);
+  eos::common::Mapping::IdMap(client, ininfo, tident, vid, gOFS->mTokenAuthz);
   EXEC_TIMING_END("IdMap");
   gOFS->MgmStats.Add("IdMap", vid.uid, vid.gid, 1);
   BOUNCE_NOT_ALLOWED;
@@ -453,12 +453,12 @@ XrdMgmOfs::GetXrdAccPrivs(const std::string& path, const XrdSecEntity* client,
     const char* tident = client->tident;
     NAMESPACEMAP;
     BOUNCE_ILLEGAL_NAMES;
-    AUTHORIZE(client, env, AOP_Stat, "access", inpath, error);
 
     EXEC_TIMING_BEGIN("IdMap");
-    eos::common::Mapping::IdMap(client, ininfo, tident, vid);
+    eos::common::Mapping::IdMap(client, ininfo, tident, vid, gOFS->mTokenAuthz);
     EXEC_TIMING_END("IdMap");
     gOFS->MgmStats.Add("IdMap", vid.uid, vid.gid, 1);
+    AUTHORIZE(client, env, AOP_Stat, "access", inpath, error);
     BOUNCE_NOT_ALLOWED;
     ACCESSMODE_R;
     MAYSTALL;

@@ -57,7 +57,7 @@ XrdMgmOfs::rename(const char* old_name,
   // use a thread private vid
   eos::common::VirtualIdentity vid;
   EXEC_TIMING_BEGIN("IdMap");
-  eos::common::Mapping::IdMap(client, infoO, tident, vid);
+  eos::common::Mapping::IdMap(client, infoO, tident, vid, gOFS->mTokenAuthz);
   EXEC_TIMING_END("IdMap");
   eos_info("old-name=%s new-name=%s", old_name, new_name);
   gOFS->MgmStats.Add("IdMap", vid.uid, vid.gid, 1);

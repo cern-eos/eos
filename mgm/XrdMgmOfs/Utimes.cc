@@ -53,7 +53,7 @@ XrdMgmOfs::utimes(const char* inpath,
   // use a thread private vid
   eos::common::VirtualIdentity vid;
   EXEC_TIMING_BEGIN("IdMap");
-  eos::common::Mapping::IdMap(client, ininfo, tident, vid);
+  eos::common::Mapping::IdMap(client, ininfo, tident, vid, gOFS->mTokenAuthz);
   EXEC_TIMING_END("IdMap");
   NAMESPACEMAP;
   BOUNCE_ILLEGAL_NAMES;

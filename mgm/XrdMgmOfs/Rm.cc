@@ -58,7 +58,7 @@ XrdMgmOfs::rem(const char* inpath,
   XrdOucEnv env(ininfo);
   AUTHORIZE(client, &env, AOP_Delete, "remove", inpath, error);
   EXEC_TIMING_BEGIN("IdMap");
-  eos::common::Mapping::IdMap(client, ininfo, tident, vid);
+  eos::common::Mapping::IdMap(client, ininfo, tident, vid, gOFS->mTokenAuthz);
   EXEC_TIMING_END("IdMap");
   gOFS->MgmStats.Add("IdMap", vid.uid, vid.gid, 1);
   BOUNCE_NOT_ALLOWED;

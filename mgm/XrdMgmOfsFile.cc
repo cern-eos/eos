@@ -779,6 +779,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
         (vid.prot != "sss") &&
         (vid.prot != "gsi") &&
         (vid.prot != "krb5") &&
+	(vid.prot != "ztn") && 
         (vid.host != "localhost") &&
         (vid.host != "localhost.localdomain")) {
       return Emsg(epname, error, EPERM, "execute proc command - you don't have"

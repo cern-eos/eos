@@ -42,7 +42,7 @@ XrdMgmOfs::attr_ls(const char* inpath,
   // use a thread private vid
   eos::common::VirtualIdentity vid;
   EXEC_TIMING_BEGIN("IdMap");
-  eos::common::Mapping::IdMap(client, ininfo, tident, vid);
+  eos::common::Mapping::IdMap(client, ininfo, tident, vid, gOFS->mTokenAuthz);
   EXEC_TIMING_END("IdMap");
   NAMESPACEMAP;
   BOUNCE_ILLEGAL_NAMES;
@@ -108,7 +108,7 @@ XrdMgmOfs::attr_set(const char* inpath, XrdOucErrInfo& error,
   // use a thread private vid
   eos::common::VirtualIdentity vid;
   EXEC_TIMING_BEGIN("IdMap");
-  eos::common::Mapping::IdMap(client, ininfo, tident, vid);
+  eos::common::Mapping::IdMap(client, ininfo, tident, vid, gOFS->mTokenAuthz);
   EXEC_TIMING_END("IdMap");
   NAMESPACEMAP;
   BOUNCE_ILLEGAL_NAMES;
@@ -300,7 +300,7 @@ XrdMgmOfs::attr_get(const char* inpath, XrdOucErrInfo& error,
   // use a thread private vid
   eos::common::VirtualIdentity vid;
   EXEC_TIMING_BEGIN("IdMap");
-  eos::common::Mapping::IdMap(client, ininfo, tident, vid);
+  eos::common::Mapping::IdMap(client, ininfo, tident, vid, gOFS->mTokenAuthz);
   EXEC_TIMING_END("IdMap");
   NAMESPACEMAP;
   BOUNCE_ILLEGAL_NAMES;
@@ -500,7 +500,7 @@ XrdMgmOfs::attr_rem(const char* inpath, XrdOucErrInfo& error,
   // use a thread private vid
   eos::common::VirtualIdentity vid;
   EXEC_TIMING_BEGIN("IdMap");
-  eos::common::Mapping::IdMap(client, ininfo, tident, vid);
+  eos::common::Mapping::IdMap(client, ininfo, tident, vid, gOFS->mTokenAuthz);
   EXEC_TIMING_END("IdMap");
   NAMESPACEMAP;
   BOUNCE_ILLEGAL_NAMES;

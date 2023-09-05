@@ -55,7 +55,7 @@ XrdMgmOfs::symlink(const char* source_name,
   // use a thread private vid
   eos::common::VirtualIdentity vid;
   EXEC_TIMING_BEGIN("IdMap");
-  eos::common::Mapping::IdMap(client, infoO, tident, vid);
+  eos::common::Mapping::IdMap(client, infoO, tident, vid, gOFS->mTokenAuthz);
   EXEC_TIMING_END("IdMap");
   eos_info("old-name=%s new-name=%s", source_name, target_name);
   gOFS->MgmStats.Add("IdMap", vid.uid, vid.gid, 1);
@@ -271,7 +271,7 @@ XrdMgmOfs::readlink(const char* inpath,
   // use a thread private vid
   eos::common::VirtualIdentity vid;
   EXEC_TIMING_BEGIN("IdMap");
-  eos::common::Mapping::IdMap(client, ininfo, tident, vid);
+  eos::common::Mapping::IdMap(client, ininfo, tident, vid, gOFS->mTokenAuthz);
   EXEC_TIMING_END("IdMap");
   eos_info("path=%s", inpath);
   gOFS->MgmStats.Add("IdMap", vid.uid, vid.gid, 1);
