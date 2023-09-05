@@ -408,13 +408,13 @@ QuarkHierarchicalView::getFile(const std::string& uri, bool follow,
   return getFileFut(uri, follow).get();
 }
 
-std::unique_ptr<IFileMD::IFileMDReadLocker>
+IFileMD::IFileMDReadLockerPtr
 QuarkHierarchicalView::getFileReadLocked(const std::string& uri, bool follow, size_t* link_depths)
 {
   return getFileLocked<IFileMD::IFileMDReadLocker>(uri,follow,link_depths);
 }
 
-std::unique_ptr<IFileMD::IFileMDWriteLocker>
+IFileMD::IFileMDWriteLockerPtr
 QuarkHierarchicalView::getFileWriteLocked(const std::string& uri, bool follow, size_t* link_depths)
 {
   return getFileLocked<IFileMD::IFileMDWriteLocker>(uri,follow,link_depths);

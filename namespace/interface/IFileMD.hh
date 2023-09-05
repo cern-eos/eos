@@ -457,6 +457,8 @@ public:
   friend class LockableNSObjMD;
   using IFileMDReadLocker = NSObjectMDLocker<IFileMDPtr,MDReadLock>;
   using IFileMDWriteLocker = NSObjectMDLocker<IFileMDPtr,MDWriteLock>;
+  using IFileMDReadLockerPtr = std::unique_ptr<IFileMDReadLocker>;
+  using IFileMDWriteLockerPtr = std::unique_ptr<IFileMDWriteLocker>;
 protected:
   mutable std::shared_timed_mutex mMutex;
 
