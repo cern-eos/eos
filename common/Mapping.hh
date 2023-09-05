@@ -215,6 +215,13 @@ public:
   static ShardedCache<gid_t, std::string> gShardedNegativeGroupNameCache;
 
   // ---------------------------------------------------------------------------
+  //! A cache for last active_sessions
+  // ---------------------------------------------------------------------------
+  static std::mutex gLastUserMtx;
+  static std::atomic<uint64_t> gLastUserCounter;
+  static std::atomic<uid_t> gLastActiveUser;
+  static std::atomic<uint64_t> gActiveUserUpdate;
+  // ---------------------------------------------------------------------------
   //! RWMutex protecting all global hash maps
   // ---------------------------------------------------------------------------
   static RWMutex gMapMutex;
