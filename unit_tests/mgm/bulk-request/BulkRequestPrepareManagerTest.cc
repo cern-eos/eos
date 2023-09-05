@@ -70,11 +70,11 @@ TEST_F(BulkRequestPrepareManagerTest, stagePrepareFilesWorkflow)
         MockPrepareMgmFSInterface::_EXISTS_VID_FILE_EXISTS_LAMBDA));
   //the _exists method should be called for all files
   EXPECT_CALL(mgmOfs, _exists(_, _, _, _, _, _)).Times(nbFiles);
-  ON_CALL(mgmOfs, _attr_ls(_, _, _, _, _, _, _))
+  ON_CALL(mgmOfs, _attr_ls(_, _, _, _, _, _))
   .WillByDefault(Invoke(
                    MockPrepareMgmFSInterface::_ATTR_LS_STAGE_PREPARE_LAMBDA
                  ));
-  EXPECT_CALL(mgmOfs, _attr_ls(_, _, _, _, _, _, _)).Times(nbFiles);
+  EXPECT_CALL(mgmOfs, _attr_ls(_, _, _, _, _, _)).Times(nbFiles);
   EXPECT_CALL(mgmOfs, Emsg).Times(0);
   EXPECT_CALL(mgmOfs, _access).Times(nbFiles);
   EXPECT_CALL(mgmOfs, FSctl).Times(nbFiles);
@@ -104,7 +104,7 @@ TEST_F(BulkRequestPrepareManagerTest, stagePrepareFileWithNoPath)
   EXPECT_CALL(mgmOfs, Emsg).Times(0);
   //No path are set, no mgmOfs method should be called
   EXPECT_CALL(mgmOfs, _exists(_, _, _, _, _, _)).Times(0);
-  EXPECT_CALL(mgmOfs, _attr_ls(_, _, _, _, _, _, _)).Times(0);
+  EXPECT_CALL(mgmOfs, _attr_ls(_, _, _, _, _, _)).Times(0);
   EXPECT_CALL(mgmOfs, _access).Times(0);
   EXPECT_CALL(mgmOfs, FSctl).Times(0);
   ClientWrapper client = PrepareManagerTest::getDefaultClient();
@@ -130,7 +130,7 @@ TEST_F(BulkRequestPrepareManagerTest, stagePrepareFileWithEmptyStringPaths)
   EXPECT_CALL(mgmOfs, Emsg).Times(1);
   //No path are set, no mgmOfs method should be called
   EXPECT_CALL(mgmOfs, _exists(_, _, _, _, _, _)).Times(0);
-  EXPECT_CALL(mgmOfs, _attr_ls(_, _, _, _, _, _, _)).Times(0);
+  EXPECT_CALL(mgmOfs, _attr_ls(_, _, _, _, _, _)).Times(0);
   EXPECT_CALL(mgmOfs, _access).Times(0);
   EXPECT_CALL(mgmOfs, FSctl).Times(0);
   ClientWrapper client = PrepareManagerTest::getDefaultClient();
@@ -165,7 +165,7 @@ TEST_F(BulkRequestPrepareManagerTest, stagePrepareAllFilesDoNotExist)
         MockPrepareMgmFSInterface::_EXISTS_VID_FILE_DOES_NOT_EXIST_LAMBDA));
   //The current behaviour is that the prepare logic returns an error if at least one file does not exist.
   EXPECT_CALL(mgmOfs, _exists(_, _, _, _, _, _)).Times(3);
-  EXPECT_CALL(mgmOfs, _attr_ls(_, _, _, _, _, _, _)).Times(0);
+  EXPECT_CALL(mgmOfs, _attr_ls(_, _, _, _, _, _)).Times(0);
   EXPECT_CALL(mgmOfs, _access).Times(0);
   EXPECT_CALL(mgmOfs, FSctl).Times(0);
   ClientWrapper client = PrepareManagerTest::getDefaultClient();
@@ -215,7 +215,7 @@ TEST_F(BulkRequestPrepareManagerTest,
               Invoke(MockPrepareMgmFSInterface::_EXISTS_VID_FILE_EXISTS_LAMBDA)
             );
   //Attr ls should work for the files that exist
-  EXPECT_CALL(mgmOfs, _attr_ls(_, _, _, _, _, _, _)).Times(nbFiles - 1)
+  EXPECT_CALL(mgmOfs, _attr_ls(_, _, _, _, _, _)).Times(nbFiles - 1)
   .WillRepeatedly(Invoke(
                     MockPrepareMgmFSInterface::_ATTR_LS_STAGE_PREPARE_LAMBDA
                   ));
@@ -262,11 +262,11 @@ TEST_F(BulkRequestPrepareManagerTest, stagePrepareNoPreparePermission)
         MockPrepareMgmFSInterface::_EXISTS_VID_FILE_EXISTS_LAMBDA));
   //the _exists method should be called for all files
   EXPECT_CALL(mgmOfs, _exists(_, _, _, _, _, _)).Times(nbFiles);
-  ON_CALL(mgmOfs, _attr_ls(_, _, _, _, _, _, _))
+  ON_CALL(mgmOfs, _attr_ls(_, _, _, _, _, _))
   .WillByDefault(Invoke(
                    MockPrepareMgmFSInterface::_ATTR_LS_STAGE_PREPARE_LAMBDA
                  ));
-  EXPECT_CALL(mgmOfs, _attr_ls(_, _, _, _, _, _, _)).Times(nbFiles);
+  EXPECT_CALL(mgmOfs, _attr_ls(_, _, _, _, _, _)).Times(nbFiles);
   //Access should
   EXPECT_CALL(mgmOfs, _access).Times(nbFiles).WillRepeatedly(Return(SFS_ERROR));
   EXPECT_CALL(mgmOfs, FSctl).Times(0);
@@ -307,11 +307,11 @@ TEST_F(BulkRequestPrepareManagerTest, abortPrepareFilesWorkflow)
         MockPrepareMgmFSInterface::_EXISTS_VID_FILE_EXISTS_LAMBDA));
   //the _exists method should be called for all files
   EXPECT_CALL(mgmOfs, _exists(_, _, _, _, _, _)).Times(nbFiles);
-  ON_CALL(mgmOfs, _attr_ls(_, _, _, _, _, _, _))
+  ON_CALL(mgmOfs, _attr_ls(_, _, _, _, _, _))
   .WillByDefault(Invoke(
                    MockPrepareMgmFSInterface::_ATTR_LS_ABORT_PREPARE_LAMBDA
                  ));
-  EXPECT_CALL(mgmOfs, _attr_ls(_, _, _, _, _, _, _)).Times(nbFiles);
+  EXPECT_CALL(mgmOfs, _attr_ls(_, _, _, _, _, _)).Times(nbFiles);
   EXPECT_CALL(mgmOfs, Emsg).Times(0);
   EXPECT_CALL(mgmOfs, _access).Times(nbFiles);
   EXPECT_CALL(mgmOfs, FSctl).Times(nbFiles);
@@ -353,7 +353,7 @@ TEST_F(BulkRequestPrepareManagerTest, abortPrepareOnFileExistsOtherDoNotExist)
           Invoke(
             MockPrepareMgmFSInterface::_EXISTS_VID_FILE_DOES_NOT_EXIST_LAMBDA));
   //Attr ls should work for the file that exists
-  EXPECT_CALL(mgmOfs, _attr_ls(_, _, _, _, _, _, _)).Times(1)
+  EXPECT_CALL(mgmOfs, _attr_ls(_, _, _, _, _, _)).Times(1)
   .WillRepeatedly(Invoke(
                     MockPrepareMgmFSInterface::_ATTR_LS_ABORT_PREPARE_LAMBDA
                   ));
@@ -390,11 +390,11 @@ TEST_F(BulkRequestPrepareManagerTest, evictPrepareFilesWorkflow)
         MockPrepareMgmFSInterface::_EXISTS_VID_FILE_EXISTS_LAMBDA));
   //the _exists method should be called for all files
   EXPECT_CALL(mgmOfs, _exists(_, _, _, _, _, _)).Times(nbFiles);
-  ON_CALL(mgmOfs, _attr_ls(_, _, _, _, _, _, _))
+  ON_CALL(mgmOfs, _attr_ls(_, _, _, _, _, _))
   .WillByDefault(Invoke(
                    MockPrepareMgmFSInterface::_ATTR_LS_EVICT_PREPARE_LAMBDA
                  ));
-  EXPECT_CALL(mgmOfs, _attr_ls(_, _, _, _, _, _, _)).Times(nbFiles);
+  EXPECT_CALL(mgmOfs, _attr_ls(_, _, _, _, _, _)).Times(nbFiles);
   EXPECT_CALL(mgmOfs, Emsg).Times(0);
   EXPECT_CALL(mgmOfs, _access).Times(nbFiles);
   EXPECT_CALL(mgmOfs, FSctl).Times(nbFiles);
@@ -441,7 +441,7 @@ TEST_F(BulkRequestPrepareManagerTest, evictPrepareOneFileExistsOtherDoNotExist)
           Invoke(
             MockPrepareMgmFSInterface::_EXISTS_VID_FILE_DOES_NOT_EXIST_LAMBDA));
   //Attr ls should work for the files that exist
-  EXPECT_CALL(mgmOfs, _attr_ls(_, _, _, _, _, _, _)).Times(1)
+  EXPECT_CALL(mgmOfs, _attr_ls(_, _, _, _, _, _)).Times(1)
   .WillRepeatedly(Invoke(
                     MockPrepareMgmFSInterface::_ATTR_LS_EVICT_PREPARE_LAMBDA
                   ));

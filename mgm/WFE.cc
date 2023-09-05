@@ -2547,7 +2547,7 @@ WFE::Job::HandleProtoMethodArchivedEvent(const std::string& event,
       XrdOucErrInfo errInfo;
 
       if (gOFS->_attr_ls(eos::common::Path{fullPath.c_str()} .GetParentPath(),
-                         errInfo, root_vid, nullptr, parentDirAttributes, true, true) == 0) {
+                         errInfo, root_vid, nullptr, parentDirAttributes, true) == 0) {
         for (const auto& attrPair : parentDirAttributes) {
           if (attrPair.first == "sys.wfe.archived.dropdiskreplicas" &&
               attrPair.second == "0") {
@@ -2965,7 +2965,7 @@ WFE::CollectAttributes(const std::string& fullPath)
   IContainerMD::XAttrMap fileAttributes, parentDirAttributes, result;
 
   if (gOFS->_attr_ls(fullPath.c_str(),
-                     errInfo, rootvid, nullptr, fileAttributes, true, true) == 0) {
+                     errInfo, rootvid, nullptr, fileAttributes, true) == 0) {
     for (const auto& fileAttrPair : fileAttributes) {
       // sys.archive.file_id and sys.archive.storage_class are set in the MGM and need to be
       // communicated to the CTA Frontend.
@@ -2983,7 +2983,7 @@ WFE::CollectAttributes(const std::string& fullPath)
   errInfo.clear();
 
   if (gOFS->_attr_ls(eos::common::Path{fullPath.c_str()} .GetParentPath(),
-                     errInfo, rootvid, nullptr, parentDirAttributes, true, true) == 0) {
+                     errInfo, rootvid, nullptr, parentDirAttributes, true) == 0) {
     for (const auto& dirAttrPair : parentDirAttributes) {
       if (dirAttrPair.first.find("sys.archive.") == 0 ||
           dirAttrPair.first.find("CTA_") == 0) {

@@ -91,7 +91,7 @@ XrdMgmOfs::_verifystripe(const char* path,
     }
 
     // Get attributes
-    gOFS->_attr_ls(attr_path.c_str(), error, vid, 0, attrmap, false);
+    gOFS->_attr_ls(attr_path.c_str(), error, vid, 0, attrmap);
 
     // Get the file
     try {

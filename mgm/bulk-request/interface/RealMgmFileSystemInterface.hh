@@ -48,7 +48,7 @@ public:
               bool take_lock = true) override;
   int _attr_ls(const char* path, XrdOucErrInfo& out_error,
                const eos::common::VirtualIdentity& vid, const char* opaque,
-               eos::IContainerMD::XAttrMap& map, bool take_lock = true,
+               eos::IContainerMD::XAttrMap& map,
                bool links = false) override;
   int _access(const char* path, int mode, XrdOucErrInfo& error,
               eos::common::VirtualIdentity& vid, const char* info) override;

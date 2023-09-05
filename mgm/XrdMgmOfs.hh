@@ -875,8 +875,7 @@ public:
   //----------------------------------------------------------------------------
   int _attr_ls(const char* path, XrdOucErrInfo& out_error,
                const eos::common::VirtualIdentity& vid,
-               const char* opaque, eos::IContainerMD::XAttrMap& map,
-               bool take_lock = true, bool links = false);
+               const char* opaque, eos::IContainerMD::XAttrMap& map, bool links = false);
 
 
   //----------------------------------------------------------------------------

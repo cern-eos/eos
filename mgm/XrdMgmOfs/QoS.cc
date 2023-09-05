@@ -351,7 +351,7 @@ std::string QoSGetter<T>::Placement() const
     XrdOucErrInfo error;
     XrdOucEnv env;
     eos::IContainerMD::XAttrMap attrmap;
-    gOFS->_attr_ls(path.c_str(), error, vid, 0, attrmap, false);
+    gOFS->_attr_ls(path.c_str(), error, vid, 0, attrmap);
     Policy::GetPlctPolicy(path.c_str(), attrmap, vid, env, plctplcy,
                           targetgeotag);
     placement = Scheduler::PlctPolicyString(plctplcy);

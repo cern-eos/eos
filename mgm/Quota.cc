@@ -177,7 +177,7 @@ SpaceQuota::UpdateLogicalSizeFactor()
   eos::common::VirtualIdentity vid = eos::common::VirtualIdentity::Root();
   vid.sudoer = 1;
   eos::IContainerMD::XAttrMap map;
-  int retc = gOFS->_attr_ls(pPath.c_str(), error, vid, 0, map, false);
+  int retc = gOFS->_attr_ls(pPath.c_str(), error, vid, 0, map);
 
   if (!retc) {
     unsigned long layoutId;
