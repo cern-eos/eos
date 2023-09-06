@@ -70,6 +70,11 @@ set_target_properties(
   SOVERSION ${VERSION_MAJOR}
   MACOSX_RPATH TRUE)
 
+install(TARGETS XrdMqClient
+  LIBRARY DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
+  RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_BINDIR}
+  ARCHIVE DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR})
+
 add_library(XrdMqClient-Static STATIC
   $<TARGET_OBJECTS:XrdMqClient-Objects>)
 
@@ -97,31 +102,3 @@ install(TARGETS XrdMqOfs-${XRDPLUGIN_SOVERSION}
   RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_BINDIR}
   ARCHIVE DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR})
 endif ()
-
-#-------------------------------------------------------------------------------
-# Other executables
-#-------------------------------------------------------------------------------
-add_executable(xrdmqclienttest tests/XrdMqClientTest.cc)
-add_executable(eos-mq-dumper tests/XrdMqQueueDumper.cc)
-add_executable(eos-mq-feeder tests/XrdMqQueueFeeder.cc)
-add_executable(xrdmqinjection tests/XrdMqQueueInjection.cc)
-add_executable(xrdmqclientmaster tests/XrdMqClientMaster.cc)
-add_executable(xrdmqclientworker tests/XrdMqClientWorker.cc)
-add_executable(xrdmqsharedobjectclient tests/XrdMqSharedObjectClient.cc)
-add_executable(xrdmqsharedobjectqueueclient tests/XrdMqSharedObjectQueueClient.cc)
-add_executable(xrdmqsharedobjectbroadcastclient tests/XrdMqSharedObjectBroadCastClient.cc)
-target_link_libraries(xrdmqclienttest PRIVATE XrdMqClient-Static)
-target_link_libraries(eos-mq-dumper PRIVATE XrdMqClient-Static)
-target_link_libraries(eos-mq-feeder PRIVATE XrdMqClient-Static)
-target_link_libraries(xrdmqinjection PRIVATE XrdMqClient-Static)
-target_link_libraries(xrdmqclientmaster PRIVATE XrdMqClient-Static)
-target_link_libraries(xrdmqclientworker PRIVATE XrdMqClient-Static)
-target_link_libraries(xrdmqsharedobjectclient PRIVATE XrdMqClient-Static)
-target_link_libraries(xrdmqsharedobjectqueueclient PRIVATE XrdMqClient-Static)
-target_link_libraries(xrdmqsharedobjectbroadcastclient PRIVATE XrdMqClient-Static)
-
-install(
-  TARGETS XrdMqClient eos-mq-feeder eos-mq-dumper
-  LIBRARY DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
-  RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_BINDIR}
-  ARCHIVE DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR})

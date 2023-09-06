@@ -142,11 +142,33 @@ target_compile_options(eos-checksum-benchmark PRIVATE ${CPU_ARCH_FLAGS})
 target_compile_definitions(eos-open-trunc-update PUBLIC -D_FILE_OFFSET_BITS=64)
 target_link_libraries(threadpooltest PRIVATE EosCommon)
 
+#-------------------------------------------------------------------------------
+# MQ test related executables
+#-------------------------------------------------------------------------------
+add_executable(xrdmqclienttest mq/XrdMqClientTest.cc)
+add_executable(eos-mq-dumper mq/XrdMqQueueDumper.cc)
+add_executable(eos-mq-feeder mq/XrdMqQueueFeeder.cc)
+add_executable(xrdmqinjection mq/XrdMqQueueInjection.cc)
+add_executable(xrdmqclientmaster mq/XrdMqClientMaster.cc)
+add_executable(xrdmqclientworker mq/XrdMqClientWorker.cc)
+add_executable(xrdmqsharedobjectclient mq/XrdMqSharedObjectClient.cc)
+add_executable(xrdmqsharedobjectqueueclient mq/XrdMqSharedObjectQueueClient.cc)
+add_executable(xrdmqsharedobjectbroadcastclient mq/XrdMqSharedObjectBroadCastClient.cc)
+target_link_libraries(xrdmqclienttest PRIVATE XrdMqClient-Static)
+target_link_libraries(eos-mq-dumper PRIVATE XrdMqClient-Static)
+target_link_libraries(eos-mq-feeder PRIVATE XrdMqClient-Static)
+target_link_libraries(xrdmqinjection PRIVATE XrdMqClient-Static)
+target_link_libraries(xrdmqclientmaster PRIVATE XrdMqClient-Static)
+target_link_libraries(xrdmqclientworker PRIVATE XrdMqClient-Static)
+target_link_libraries(xrdmqsharedobjectclient PRIVATE XrdMqClient-Static)
+target_link_libraries(xrdmqsharedobjectqueueclient PRIVATE XrdMqClient-Static)
+target_link_libraries(xrdmqsharedobjectbroadcastclient PRIVATE XrdMqClient-Static)
+
 install(TARGETS xrdstress.exe xrdcpabort xrdcprandom xrdcppgread
   xrdcpextend xrdcpshrink xrdcpappend xrdcpappendoverlap xrdcptruncate
   xrdcpholes xrdcpbackward xrdcpdownloadrandom xrdcppartial xrdcpupdate
   xrdcpposixcache xrdcpslowwriter xrdcpnonstreaming eos-checksum-benchmark
-  eos-udp-dumper eos-mmap eos-io-tool
+  eos-udp-dumper eos-mmap eos-io-tool eos-mq-feeder eos-mq-dumper
   RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_SBINDIR})
 
 install(PROGRAMS xrdstress eos-instance-test eos-instance-test-ci
