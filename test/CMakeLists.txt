@@ -168,8 +168,11 @@ install(TARGETS xrdstress.exe xrdcpabort xrdcprandom xrdcppgread
   xrdcpextend xrdcpshrink xrdcpappend xrdcpappendoverlap xrdcptruncate
   xrdcpholes xrdcpbackward xrdcpdownloadrandom xrdcppartial xrdcpupdate
   xrdcpposixcache xrdcpslowwriter xrdcpnonstreaming eos-checksum-benchmark
-  eos-udp-dumper eos-mmap eos-io-tool eos-mq-feeder eos-mq-dumper
+  eos-udp-dumper eos-mmap eos-io-tool
   RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_SBINDIR})
+
+install(TARGETS eos-mq-feeder eos-mq-dumper
+  RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_BINDIR})
 
 install(PROGRAMS xrdstress eos-instance-test eos-instance-test-ci
   fuse/eos-fuse-test eos-rain-test eoscp-rain-test eos-io-test
