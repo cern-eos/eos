@@ -239,7 +239,7 @@ ProcCommand::Attr()
               }
 
               if (gOFS->_attr_set(foundit->first.c_str(), *mError, *pVid, (const char*) 0,
-                                  key.c_str(), val.c_str(), true, exclusive)) {
+                                  key.c_str(), val.c_str(), exclusive)) {
                 stdErr += "error: unable to set attribute in file/directory ";
                 stdErr += foundit->first.c_str();
 
