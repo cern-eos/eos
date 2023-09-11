@@ -125,7 +125,7 @@ public:
     XrdOucString value;
 
     if (!gOFS->_attr_get(path, error, vid, "", eos::common::EOS_APP_LOCK_ATTR,
-                         value, false)) {
+                         value)) {
       // parse the lock
       Parse(value.c_str());
 
@@ -174,7 +174,7 @@ public:
     XrdOucString value;
 
     if (!gOFS->_attr_get(path, error, vid, "", eos::common::EOS_APP_LOCK_ATTR,
-                         value, false)) {
+                         value)) {
       // parse the lock
       Parse(value.c_str());
 

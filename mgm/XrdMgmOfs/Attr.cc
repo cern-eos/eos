@@ -308,8 +308,7 @@ XrdMgmOfs::attr_get(const char* inpath, XrdOucErrInfo& error,
 int
 XrdMgmOfs::_attr_get(const char* path, XrdOucErrInfo& error,
                      eos::common::VirtualIdentity& vid,
-                     const char* info, const char* key, XrdOucString& value,
-                     bool take_lock)
+                     const char* info, const char* key, XrdOucString& value)
 {
   static const char* epname = "attr_get";
   std::shared_ptr<eos::IContainerMD> dh;
@@ -335,57 +334,59 @@ XrdMgmOfs::_attr_get(const char* path, XrdOucErrInfo& error,
   }
 
   eos::Prefetcher::prefetchContainerMDAndWait(gOFS->eosView, path);
-  eos::common::RWMutexReadLock viewReadLock;
 
-  if (take_lock) {
-    viewReadLock.Grab(gOFS->eosViewRWMutex);
-  }
-
-  try {
-    dh = gOFS->eosView->getContainer(path);
-    value = (dh->getAttribute(key)).c_str();
-  } catch (eos::MDException& e) {
-    errno = e.getErrno();
-    eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
-              e.getErrno(), e.getMessage().str().c_str());
-  }
-
-  if (dh && errno) {
-    // try linked attributes
+  {
+    eos::IContainerMD::IContainerMDReadLockerPtr dhLock;
     try {
-      std::string lkey = "sys.attr.link";
-      link = (dh->getAttribute(lkey)).c_str();
-      dh = gOFS->eosView->getContainer(link.c_str());
-      value = (dh->getAttribute(key)).c_str();
-      errno = 0;
+      dhLock = gOFS->eosView->getContainerReadLocked(path);
+      dh = dhLock ? dhLock->getUnderlyingPtr() : nullptr;
+      if (dh)
+        value = (dh->getAttribute(key)).c_str();
     } catch (eos::MDException& e) {
-      dh.reset();
       errno = e.getErrno();
-      eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
-                e.getErrno(), e.getMessage().str().c_str());
+      eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n", e.getErrno(),
+                e.getMessage().str().c_str());
+    }
+
+    if (dh && errno) {
+      // try linked attributes
+      try {
+        std::string lkey = "sys.attr.link";
+        link = (dh->getAttribute(lkey)).c_str();
+        dhLock = gOFS->eosView->getContainerReadLocked(link.c_str());
+        dh = dhLock ? dhLock->getUnderlyingPtr() : nullptr;
+        if (dh)
+          value = (dh->getAttribute(key)).c_str();
+        errno = 0;
+      } catch (eos::MDException& e) {
+        dh.reset();
+        errno = e.getErrno();
+        eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n", e.getErrno(),
+                  e.getMessage().str().c_str());
+      }
     }
   }
 
   if (!dh) {
     std::shared_ptr<eos::IFileMD> fmd;
-
+    eos::IFileMD::IFileMDReadLockerPtr fmdLock;
     try {
-      fmd = gOFS->eosView->getFile(path);
-      value = (fmd->getAttribute(key)).c_str();
+      fmdLock = gOFS->eosView->getFileReadLocked(path);
+      fmd = fmdLock ? fmdLock->getUnderlyingPtr() : nullptr;
+      if (fmd)
+        value = (fmd->getAttribute(key)).c_str();
       errno = 0;
-
       if (std::string(key) == "user.obfuscate.key") {
         // we never show this key
         value = "";
       }
     } catch (eos::MDException& e) {
       errno = e.getErrno();
-      eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
-                e.getErrno(), e.getMessage().str().c_str());
+      eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n", e.getErrno(),
+                e.getMessage().str().c_str());
     }
   }
 
-  viewReadLock.Release();
   // we always decode attributes here, even if they are stored as base64:
   XrdOucString val64 = value;
   eos::common::SymKey::DeBase64(val64, value);
