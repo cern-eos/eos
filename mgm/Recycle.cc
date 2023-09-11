@@ -736,7 +736,7 @@ Recycle::Print(std::string& std_out, std::string& std_err,
 
 	    if (whodeleted) {
 	      if (!gOFS->_attr_get(fullpath.c_str(), error, vid, "", eos::common::EOS_DTRACE_ATTR,
-				   deleter, false)) {
+				   deleter)) {
 	      } else {
 		deleter = "{}";
 	      }
