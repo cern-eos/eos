@@ -865,7 +865,7 @@ XrdMgmOfs::_find(const char* path, XrdOucErrInfo& out_error,
               XrdOucString attr = "";
 
               if (!gOFS->_attr_get(fpath.c_str(), out_error, vid,
-                                   (const char*) 0, key, attr, sub_cmd_take_lock)) {
+                                   (const char*) 0, key, attr)) {
                 found_dirs[deepness + 1].push_back(fpath.c_str());
 
                 if ((val == std::string("*")) || (attr == val)) {

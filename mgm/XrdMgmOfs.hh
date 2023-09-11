@@ -961,13 +961,12 @@ public:
   //! @param opaque CGI
   //! @param key key to get
   //! @param value value returned
-  //! @param take_lock if true take namespace lock, otherwise don't
   //!
   //! @return SFS_OK if success, otherwise SFS_ERROR
   //----------------------------------------------------------------------------
   int _attr_get(const char* path, XrdOucErrInfo& out_error,
                 eos::common::VirtualIdentity& vid, const char* opaque,
-                const char* key, XrdOucString& value, bool take_lock = true);
+                const char* key, XrdOucString& value);
 
   //----------------------------------------------------------------------------
   //! Remove an extended attribute for a given entry - high-level API.
