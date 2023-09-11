@@ -120,7 +120,6 @@ int
 XrdMgmOfs::_attr_set(const char* path, XrdOucErrInfo& error,
                      eos::common::VirtualIdentity& vid,
                      const char* info, const char* key, const char* value,
-                     bool take_lock,
                      bool exclusive)
 {
   static const char* epname = "attr_set";
@@ -147,16 +146,12 @@ XrdMgmOfs::_attr_set(const char* path, XrdOucErrInfo& error,
   }
 
   std::shared_ptr<eos::IContainerMD> dh;
-  eos::common::RWMutexWriteLock ns_wr_lock;
+  eos::IContainerMD::IContainerMDWriteLockerPtr dhLock;
   eos::Prefetcher::prefetchContainerMDAndWait(gOFS->eosView, path);
 
-  if (take_lock) {
-    ns_wr_lock.Grab(gOFS->eosViewRWMutex);
-  }
-
   try {
-    dh = gOFS->eosView->getContainer(path);
-
+    dhLock = gOFS->eosView->getContainerWriteLocked(path);
+    dh = dhLock ? dhLock->getUnderlyingPtr() : nullptr;
     // Check permissions in case of user attributes
     if (dh && !Key.beginswith("sys.") && (vid.uid != dh->getCUid())
         && (!vid.sudoer && vid.uid)) {
@@ -196,13 +191,13 @@ XrdMgmOfs::_attr_set(const char* path, XrdOucErrInfo& error,
         dh->setCTimeNow();
       }
 
-      eosView->updateContainerStore(dh.get());
       eos::ContainerIdentifier d_id = dh->getIdentifier();
       eos::ContainerIdentifier d_pid = dh->getParentIdentifier();
 
-      if (take_lock) {
-        ns_wr_lock.Release();
-      }
+      eosView->updateContainerStore(dh.get());
+
+      // Release the current lock on the object before broadcasting to fuse
+      dhLock.reset(nullptr);
 
       gOFS->FuseXCastRefresh(d_id, d_pid);
       errno = 0;
@@ -216,9 +211,11 @@ XrdMgmOfs::_attr_set(const char* path, XrdOucErrInfo& error,
 
   if (!dh) {
     std::shared_ptr<eos::IFileMD> fmd;
+    eos::IFileMD::IFileMDWriteLockerPtr fmdLock;
 
     try {
-      fmd = gOFS->eosView->getFile(path);
+      fmdLock = gOFS->eosView->getFileWriteLocked(path);
+      fmd = fmdLock ? fmdLock->getUnderlyingPtr() : nullptr;
 
       // Check permissions in case of user attributes
       if (fmd && !Key.beginswith("sys.") && (vid.uid != fmd->getCUid())
@@ -253,15 +250,15 @@ XrdMgmOfs::_attr_set(const char* path, XrdOucErrInfo& error,
           fmd->setCTimeNow();
         }
 
-        eosView->updateFileStore(fmd.get());
         eos::FileIdentifier f_id = fmd->getIdentifier();
+        eos::ContainerIdentifier c_id = eos::ContainerIdentifier(fmd->getContainerId());
 
-        if (take_lock) {
-          ns_wr_lock.Release();
-        }
+        eosView->updateFileStore(fmd.get());
 
-        gOFS->FuseXCastRefresh(f_id, eos::ContainerIdentifier(
-							      fmd->getContainerId()));
+        // Release the current lock on the object before broadcasting to fuse
+        fmdLock.reset(nullptr);
+
+        gOFS->FuseXCastRefresh(f_id, c_id);
         errno = 0;
       }
     } catch (eos::MDException& e) {
