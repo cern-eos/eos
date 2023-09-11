@@ -85,8 +85,7 @@ AclCmd::GetAcls(const std::string& path, std::string& acl, bool is_sys,
   XrdOucErrInfo error;
   std::string acl_key = (is_sys ? "sys.acl" : "user.acl");
 
-  if (gOFS->_attr_get(path.c_str(), error, mVid, 0, acl_key.c_str(), value,
-                      take_lock)) {
+  if (gOFS->_attr_get(path.c_str(), error, mVid, 0, acl_key.c_str(), value)) {
     value = "";
   }
 
