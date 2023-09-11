@@ -159,7 +159,7 @@ public:
 
     // store the lock attribute
     if (gOFS->_attr_set(path, error, vid, "", eos::common::EOS_APP_LOCK_ATTR,
-                        Value().c_str(), false, false)) {
+                        Value().c_str())) {
       return false;
     }
 
