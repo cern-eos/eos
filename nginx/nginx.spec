@@ -1,7 +1,7 @@
 %define _unpackaged_files_terminate_build 0
 # distribution specific definitions
 %define use_systemd (0%{?fedora} && 0%{?fedora} >= 18) || (0%{?rhel} && 0%{?rhel} >= 7)
-
+%define debug_package %{nil}
 %define nginx_user      daemon
 %define nginx_group     %{nginx_user}
 %define nginx_home      %{_localstatedir}/lib/nginx
@@ -12,8 +12,8 @@
 %define nginx_webroot   %{nginx_datadir}/html
 
 Name:           eos-nginx
-Version:        1.9.9
-Release:        5
+Version:        1.24.0
+Release:        0
 Summary:        Robust, small and high performance http and reverse proxy server
 Group:          System Environment/Daemons
 Packager:       Justin Salmon <jsalmon@cern.ch>
@@ -58,21 +58,7 @@ Source5:    nginx.eos.conf.template
 Source6:    nginx.service
 Source7:    nginx.sysconfig.systemd
 
-# removes -Werror in upstream build scripts.  -Werror conflicts with
-# -D_FORTIFY_SOURCE=2 causing warnings to turn into errors.
-Patch0:     nginx-auto-cc-gcc.patch
-
-# nginx has its own configure/build scripts.  These patches allow nginx
-# to install into a buildroot.
-Patch1:     nginx-auto-install.patch
-
-# configuration patch to match all the Fedora paths for logs, pid files
-# etc.
-Patch2:     nginx-auto-options.patch
-
-Patch3:     nginx-auth-ldap.patch
-
-Patch4:     nginx-no-put-body.patch
+Patch0:     nginx-no-put-body.patch
 
 %description
 Nginx [engine x] is an HTTP(S) server, HTTP(S) reverse proxy and IMAP/POP3
@@ -84,12 +70,7 @@ A second third party modul, nginx-auth-ldap has been added.
 %prep
 %setup -q -n nginx-%{version}
 
-#%patch0 -p0
-%patch4 -p1
-
-#%patch1 -p0
-#%patch2 -p0
-
+%patch0 -p1
 %build
 
 rm -rf %{_builddir}/spnego-http-auth-nginx-module
@@ -101,15 +82,8 @@ git clone https://github.com/kvspb/nginx-auth-ldap.git \
           %{_builddir}/nginx-auth-ldap-module
 
 rm -rf %{_builddir}/nginx-auth-pam-module
-curl http://web.iti.upv.es/~sto/nginx/ngx_http_auth_pam_module-1.3.tar.gz -o - | tar xvzf - -C %{_builddir}/
-mv %{_builddir}/ngx_http_auth_pam_module-1.3 %{_builddir}/nginx-auth-pam-module
-
-# patches for openldap24
-%if 0%{?rhel} >= 6 || %{?fedora}%{!?fedora:0}
-( cd %{_builddir}/nginx-auth-ldap-module; echo '### Nothing to patch ###' )
-%else
-( cd %{_builddir}/nginx-auth-ldap-module; git config --global user.email "info@eos.cern.ch" ; git config --global user.name "EOS" ; git am --signoff < %{_sourcedir}/nginx-auth-ldap.patch )
-%endif
+git clone https://github.com/sto/ngx_http_auth_pam_module.git \
+          %{_builddir}/nginx-auth-pam-module
 
 # nginx does not utilize a standard configure script.  It has its own
 # and the standard configure options cause the nginx configure script
@@ -277,9 +251,11 @@ fi
 %attr(-,%{nginx_user},%{nginx_group}) %dir %{nginx_logdir}
 
 %changelog
-* Fri Jul 21 2017 Andrea Manzi <amanzi@cern.h>
+* Tue Sep 12 2023 Andreas-Joachim Peters <andreas.joachim.peters@cern.ch>
+- Switch to nginx version 1.24.0
+* Fri Jul 21 2017 Andrea Manzi <amanzi@cern.ch>
 - bump release number
-* Tue Feb 28 2017 Andrea Manzi <amanzi@cern.h>
+* Tue Feb 28 2017 Andrea Manzi <amanzi@cern.ch>
 - added systemd support
 - fix deps on el7
 * Thu Aug 28 2013 Justin Salmon <jsalmon@cern.ch>
