@@ -154,7 +154,7 @@ BuildRequires: openssl-static, ncurses-static
 BuildRequires: eos-rocksdb = 6.2.4
 BuildRequires: openldap-devel
 BuildRequires: e2fsprogs-devel
-%if ! 0%{?almalinux} || ! 0%{?rhel} >= 8
+%if 0%{?almalinux} > 7 ||  0%{?rhel} < 8
 BuildRequires: eos-libmicrohttpd, eos-libmicrohttpd-devel >= 0.9.38
 %endif
 BuildRequires: eos-grpc == %{eos_grpc_version}
