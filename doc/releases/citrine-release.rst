@@ -16,6 +16,17 @@ Introduction
 This release is based on XRootD V4 and IPV6 enabled.
 
 
+``v4.8.105 Citrine``
+===================
+
+2023-09-12
+
+Bug
+---
+
+* FST/HTTP: Fix typo when doing header filtering that leads to having the Content-Length twice in the response
+
+
 ``v4.8.104 Citrine``
 ===================
 
