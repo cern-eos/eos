@@ -152,7 +152,7 @@ EosFstHttpHandler::ProcessReq(XrdHttpExtReq& req)
   if (req.verb == "HEAD") {
     return req.SendSimpleResp(response->GetResponseCode(),
                               response->GetResponseCodeDescription().c_str(),
-                              response->GetSerializedHeadersWithFilter({"Content-Lenght"}).c_str(),
+                              response->GetSerializedHeadersWithFilter({"Content-Length"}).c_str(),
                               response->GetBody().c_str(),
                               response->GetBody().length());
   }
@@ -162,7 +162,7 @@ EosFstHttpHandler::ProcessReq(XrdHttpExtReq& req)
         (response->GetResponseCode() != response->PARTIAL_CONTENT)) {
       return req.SendSimpleResp(response->GetResponseCode(),
                                 response->GetResponseCodeDescription().c_str(),
-                                response->GetSerializedHeadersWithFilter({"Content-Lenght"}).c_str(),
+                                response->GetSerializedHeadersWithFilter({"Content-Length"}).c_str(),
                                 response->GetBody().c_str(),
                                 response->GetBody().length());
     } else {
@@ -180,11 +180,11 @@ EosFstHttpHandler::ProcessReq(XrdHttpExtReq& req)
       if (response->GetResponseCode() == response->PARTIAL_CONTENT) {
         retc = req.SendSimpleResp(response->GetResponseCode(),
                                   response->GetResponseCodeDescription().c_str(),
-                                  response->GetSerializedHeadersWithFilter({"Content-Lenght"}).c_str(),
+                                  response->GetSerializedHeadersWithFilter({"Content-Length"}).c_str(),
                                   nullptr, content_length);
       } else {
         retc = req.SendSimpleResp(0, response->GetResponseCodeDescription().c_str(),
-                                  response->GetSerializedHeadersWithFilter({"Content-Lenght"}).c_str(),
+                                  response->GetSerializedHeadersWithFilter({"Content-Length"}).c_str(),
                                   nullptr , content_length);
       }
 
@@ -232,7 +232,7 @@ EosFstHttpHandler::ProcessReq(XrdHttpExtReq& req)
         (response->GetResponseCode() != 200)) {
       return req.SendSimpleResp(response->GetResponseCode(),
                                 response->GetResponseCodeDescription().c_str(),
-                                response->GetSerializedHeadersWithFilter({"Content-Lenght"}).c_str(),
+                                response->GetSerializedHeadersWithFilter({"Content-Length"}).c_str(),
                                 response->GetBody().c_str(),
                                 response->GetBody().length());
     }
@@ -256,7 +256,7 @@ EosFstHttpHandler::ProcessReq(XrdHttpExtReq& req)
         // reply to 100-CONTINUE request
         eos_static_debug("%s", "msg=\"sending 100-continue\"");
         req.SendSimpleResp(100, nullptr,
-                           response->GetSerializedHeadersWithFilter({"Content-Lenght"}).c_str(),
+                           response->GetSerializedHeadersWithFilter({"Content-Length"}).c_str(),
                            "", 0);
       }
 
@@ -316,7 +316,7 @@ EosFstHttpHandler::ProcessReq(XrdHttpExtReq& req)
     if (response && response->GetResponseCode()) {
       return req.SendSimpleResp(response->GetResponseCode(),
                                 response->GetResponseCodeDescription().c_str(),
-                                response->GetSerializedHeadersWithFilter({"Content-Lenght"}).c_str(),
+                                response->GetSerializedHeadersWithFilter({"Content-Length"}).c_str(),
                                 response->GetBody().c_str(),
                                 response->GetBody().length());
     } else {
