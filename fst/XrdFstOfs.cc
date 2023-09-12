@@ -899,6 +899,10 @@ XrdFstOfs::Configure(XrdSysError& Eroute, XrdOucEnv* envP)
     }
   }
 
+  mThreadPoolExecutor.reset(new eos::common::ExecutorMgr(
+                                                         mFmdConverterExecutorType,
+                                                         mFmdConverterThreads));
+
   // Attach Storage to the meta log dir
   Storage = eos::fst::Storage::Create(
               gConfig.FstMetaLogDir.c_str());
@@ -943,9 +947,6 @@ XrdFstOfs::Configure(XrdSysError& Eroute, XrdOucEnv* envP)
     mHttpd->Start();
   }
 
-  mThreadPoolExecutor.reset(new eos::common::ExecutorMgr(
-                              mFmdConverterExecutorType,
-                              mFmdConverterThreads));
   eos_notice("FST_HOST=%s FST_PORT=%ld FST_HTTP_PORT=%d VERSION=%s RELEASE=%s "
              "KEYTABADLER=%s", mHostName, myPort, mHttpdPort, VERSION, RELEASE,
              kt_cks.c_str());
