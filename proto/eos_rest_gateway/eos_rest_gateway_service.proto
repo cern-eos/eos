@@ -55,7 +55,7 @@ service EosRestGatewayService {
 	// and returns the result of the command
 	rpc AclRequest(eos.console.AclProto) returns (eos.console.ReplyProto) {
 		option (google.api.http) = {
-			post: "/eos/rest/gateway/acl_cmd"
+			post: "/v1/eos/rest/gateway/acl_cmd"
 			body: "*"
 		};
 	}
@@ -64,7 +64,7 @@ service EosRestGatewayService {
 	// and returns the result of the command
 	rpc AccessRequest(eos.console.AccessProto) returns (eos.console.ReplyProto) {
 		option (google.api.http) = {
-			post: "/eos/rest/gateway/access_cmd"
+			post: "/v1/eos/rest/gateway/access_cmd"
 			body: "*"
 		};
 	}
@@ -73,7 +73,7 @@ service EosRestGatewayService {
 	// and returns the result of the command
 	rpc ArchiveRequest(eos.console.ArchiveProto) returns (eos.console.ReplyProto) {
 		option (google.api.http) = {
-			post: "/eos/rest/gateway/archive_cmd"
+			post: "/v1/eos/rest/gateway/archive_cmd"
 			body: "*"
 		};
 	}
@@ -82,7 +82,7 @@ service EosRestGatewayService {
 	// and returns the result of the command
 	rpc AttrRequest(eos.console.AttrProto) returns (eos.console.ReplyProto) {
 		option (google.api.http) = {
-			post: "/eos/rest/gateway/attr_cmd"
+			post: "/v1/eos/rest/gateway/attr_cmd"
 			body: "*"
 		};
 	}
@@ -91,7 +91,7 @@ service EosRestGatewayService {
 	// and returns the result of the command
 	rpc BackupRequest(eos.console.BackupProto) returns (eos.console.ReplyProto) {
 		option (google.api.http) = {
-			post: "/eos/rest/gateway/backup_cmd"
+			post: "/v1/eos/rest/gateway/backup_cmd"
 			body: "*"
 		};
 	}
@@ -100,7 +100,7 @@ service EosRestGatewayService {
 	// and returns the result of the command
 	rpc ChmodRequest(eos.console.ChmodProto) returns (eos.console.ReplyProto) {
 		option (google.api.http) = {
-			post: "/eos/rest/gateway/chmod_cmd"
+			post: "/v1/eos/rest/gateway/chmod_cmd"
 			body: "*"
 		};
 	}
@@ -109,7 +109,7 @@ service EosRestGatewayService {
 	// and returns the result of the command
 	rpc ChownRequest(eos.console.ChownProto) returns (eos.console.ReplyProto) {
 		option (google.api.http) = {
-			post: "/eos/rest/gateway/chown_cmd"
+			post: "/v1/eos/rest/gateway/chown_cmd"
 			body: "*"
 		};
 	}
@@ -118,7 +118,7 @@ service EosRestGatewayService {
 	// and returns the result of the command
 	rpc ConfigRequest(eos.console.ConfigProto) returns (eos.console.ReplyProto) {
 		option (google.api.http) = {
-			post: "/eos/rest/gateway/config_cmd"
+			post: "/v1/eos/rest/gateway/config_cmd"
 			body: "*"
 		};
 	}
@@ -127,7 +127,7 @@ service EosRestGatewayService {
 	// and returns the result of the command
 	rpc ConvertRequest(eos.console.ConvertProto) returns (eos.console.ReplyProto) {
 		option (google.api.http) = {
-			post: "/eos/rest/gateway/convert_cmd"
+			post: "/v1/eos/rest/gateway/convert_cmd"
 			body: "*"
 		};
 	}
@@ -136,7 +136,7 @@ service EosRestGatewayService {
 	// and returns the result of the command
 	rpc CpRequest(eos.console.CpProto) returns (eos.console.ReplyProto) {
 		option (google.api.http) = {
-			post: "/eos/rest/gateway/cp_cmd"
+			post: "/v1/eos/rest/gateway/cp_cmd"
 			body: "*"
 		};
 	}
@@ -145,7 +145,7 @@ service EosRestGatewayService {
 	// and returns the result of the command
 	rpc DebugRequest(eos.console.DebugProto) returns (eos.console.ReplyProto) {
 		option (google.api.http) = {
-			post: "/eos/rest/gateway/debug_cmd"
+			post: "/v1/eos/rest/gateway/debug_cmd"
 			body: "*"
 		};
 	}
@@ -154,7 +154,7 @@ service EosRestGatewayService {
 	// and returns the result of the command
 	rpc EvictRequest(eos.console.EvictProto) returns (eos.console.ReplyProto) {
 		option (google.api.http) = {
-			post: "/eos/rest/gateway/evict_cmd"
+			post: "/v1/eos/rest/gateway/evict_cmd"
 			body: "*"
 		};
 	}
@@ -163,7 +163,7 @@ service EosRestGatewayService {
 	// and returns the result of the command
 	rpc FileRequest(eos.console.FileProto) returns (eos.console.ReplyProto) {
 		option (google.api.http) = {
-			post: "/eos/rest/gateway/file_cmd"
+			post: "/v1/eos/rest/gateway/file_cmd"
 			body: "*"
 		};
 	}
@@ -172,7 +172,7 @@ service EosRestGatewayService {
 	// and returns the result of the command
 	rpc FileinfoRequest(eos.console.FileinfoProto) returns (eos.console.ReplyProto) {
 		option (google.api.http) = {
-			post: "/eos/rest/gateway/fileinfo_cmd"
+			post: "/v1/eos/rest/gateway/fileinfo_cmd"
 			body: "*"
 		};
 	}
@@ -181,7 +181,7 @@ service EosRestGatewayService {
 	// and returns the result of the command
 	rpc FsRequest(eos.console.FsProto) returns (eos.console.ReplyProto) {
 		option (google.api.http) = {
-			post: "/eos/rest/gateway/fs_cmd"
+			post: "/v1/eos/rest/gateway/fs_cmd"
 			body: "*"
 		};
 	}
@@ -190,7 +190,7 @@ service EosRestGatewayService {
 	// and returns the result of the command
 	rpc FsckRequest(eos.console.FsckProto) returns (eos.console.ReplyProto) {
 		option (google.api.http) = {
-			post: "/eos/rest/gateway/fsck_cmd"
+			post: "/v1/eos/rest/gateway/fsck_cmd"
 			body: "*"
 		};
 	}
@@ -199,7 +199,7 @@ service EosRestGatewayService {
 	// and returns the result of the command
 	rpc GeoschedRequest(eos.console.GeoschedProto) returns (eos.console.ReplyProto) {
 		option (google.api.http) = {
-			post: "/eos/rest/gateway/geosched_cmd"
+			post: "/v1/eos/rest/gateway/geosched_cmd"
 			body: "*"
 		};
 	}
@@ -208,7 +208,7 @@ service EosRestGatewayService {
 	// and returns the result of the command
 	rpc GroupRequest(eos.console.GroupProto) returns (eos.console.ReplyProto) {
 		option (google.api.http) = {
-			post: "/eos/rest/gateway/group_cmd"
+			post: "/v1/eos/rest/gateway/group_cmd"
 			body: "*"
 		};
 	}
@@ -217,7 +217,7 @@ service EosRestGatewayService {
 	// and returns the result of the command
 	rpc HealthRequest(eos.console.HealthProto) returns (eos.console.ReplyProto) {
 		option (google.api.http) = {
-			post: "/eos/rest/gateway/health_cmd"
+			post: "/v1/eos/rest/gateway/health_cmd"
 			body: "*"
 		};
 	}
@@ -226,7 +226,7 @@ service EosRestGatewayService {
 	// and returns the result of the command
 	rpc IoRequest(eos.console.IoProto) returns (eos.console.ReplyProto) {
 		option (google.api.http) = {
-			post: "/eos/rest/gateway/io_cmd"
+			post: "/v1/eos/rest/gateway/io_cmd"
 			body: "*"
 		};
 	}
@@ -235,7 +235,7 @@ service EosRestGatewayService {
 	// and returns the result of the command
 	rpc MapRequest(eos.console.MapProto) returns (eos.console.ReplyProto) {
 		option (google.api.http) = {
-			post: "/eos/rest/gateway/map_cmd"
+			post: "/v1/eos/rest/gateway/map_cmd"
 			body: "*"
 		};
 	}
@@ -244,7 +244,7 @@ service EosRestGatewayService {
 	// and returns the result of the command
 	rpc MemberRequest(eos.console.MemberProto) returns (eos.console.ReplyProto) {
 		option (google.api.http) = {
-			post: "/eos/rest/gateway/member_cmd"
+			post: "/v1/eos/rest/gateway/member_cmd"
 			body: "*"
 		};
 	}
@@ -253,7 +253,7 @@ service EosRestGatewayService {
 	// and returns the result of the command
 	rpc MkdirRequest(eos.console.MkdirProto) returns (eos.console.ReplyProto) {
 		option (google.api.http) = {
-			post: "/eos/rest/gateway/mkdir_cmd"
+			post: "/v1/eos/rest/gateway/mkdir_cmd"
 			body: "*"
 		};
 	}
@@ -262,7 +262,7 @@ service EosRestGatewayService {
 	// and returns the result of the command
 	rpc MvRequest(eos.console.MoveProto) returns (eos.console.ReplyProto) {
 		option (google.api.http) = {
-			post: "/eos/rest/gateway/mv_cmd"
+			post: "/v1/eos/rest/gateway/mv_cmd"
 			body: "*"
 		};
 	}
@@ -271,7 +271,7 @@ service EosRestGatewayService {
 	// and returns the result of the command
 	rpc NodeRequest(eos.console.NodeProto) returns (eos.console.ReplyProto) {
 		option (google.api.http) = {
-			post: "/eos/rest/gateway/node_cmd"
+			post: "/v1/eos/rest/gateway/node_cmd"
 			body: "*"
 		};
 	}
@@ -280,7 +280,7 @@ service EosRestGatewayService {
 	// and returns the result of the command
 	rpc NsRequest(eos.console.NsProto) returns (eos.console.ReplyProto) {
 		option (google.api.http) = {
-			post: "/eos/rest/gateway/ns_cmd"
+			post: "/v1/eos/rest/gateway/ns_cmd"
 			body: "*"
 		};
 	}
@@ -289,7 +289,7 @@ service EosRestGatewayService {
 	// and returns the result of the command
 	rpc QoSRequest(eos.console.QoSProto) returns (eos.console.ReplyProto) {
 		option (google.api.http) = {
-			post: "/eos/rest/gateway/qos_cmd"
+			post: "/v1/eos/rest/gateway/qos_cmd"
 			body: "*"
 		};
 	}
@@ -298,7 +298,7 @@ service EosRestGatewayService {
 	// and returns the result of the command
 	rpc QuotaRequest(eos.console.QuotaProto) returns (eos.console.ReplyProto) {
 		option (google.api.http) = {
-			post: "/eos/rest/gateway/quota_cmd"
+			post: "/v1/eos/rest/gateway/quota_cmd"
 			body: "*"
 		};
 	}
@@ -307,7 +307,7 @@ service EosRestGatewayService {
 	// and returns the result of the command
 	rpc RecycleRequest(eos.console.RecycleProto) returns (eos.console.ReplyProto) {
 		option (google.api.http) = {
-			post: "/eos/rest/gateway/recycle_cmd"
+			post: "/v1/eos/rest/gateway/recycle_cmd"
 			body: "*"
 		};
 	}
@@ -316,7 +316,7 @@ service EosRestGatewayService {
 	// and returns the result of the command
 	rpc RmRequest(eos.console.RmProto) returns (eos.console.ReplyProto) {
 		option (google.api.http) = {
-			post: "/eos/rest/gateway/rm_cmd"
+			post: "/v1/eos/rest/gateway/rm_cmd"
 			body: "*"
 		};
 	}
@@ -325,7 +325,7 @@ service EosRestGatewayService {
 	// and returns the result of the command
 	rpc RmdirRequest(eos.console.RmdirProto) returns (eos.console.ReplyProto) {
 		option (google.api.http) = {
-			post: "/eos/rest/gateway/rmdir_cmd"
+			post: "/v1/eos/rest/gateway/rmdir_cmd"
 			body: "*"
 		};
 	}
@@ -334,7 +334,7 @@ service EosRestGatewayService {
 	// and returns the result of the command
 	rpc RouteRequest(eos.console.RouteProto) returns (eos.console.ReplyProto) {
 		option (google.api.http) = {
-			post: "/eos/rest/gateway/route_cmd"
+			post: "/v1/eos/rest/gateway/route_cmd"
 			body: "*"
 		};
 	}
@@ -343,7 +343,7 @@ service EosRestGatewayService {
 	// and returns the result of the command
 	rpc SpaceRequest(eos.console.SpaceProto) returns (eos.console.ReplyProto) {
 		option (google.api.http) = {
-			post: "/eos/rest/gateway/space_cmd"
+			post: "/v1/eos/rest/gateway/space_cmd"
 			body: "*"
 		};
 	}
@@ -352,7 +352,7 @@ service EosRestGatewayService {
 	// and returns the result of the command
 	rpc StatRequest(eos.console.StatProto) returns (eos.console.ReplyProto) {
 		option (google.api.http) = {
-			post: "/eos/rest/gateway/stat_cmd"
+			post: "/v1/eos/rest/gateway/stat_cmd"
 			body: "*"
 		};
 	}
@@ -361,7 +361,7 @@ service EosRestGatewayService {
 	// and returns the result of the command
 	rpc StatusRequest(eos.console.StatusProto) returns (eos.console.ReplyProto) {
 		option (google.api.http) = {
-			post: "/eos/rest/gateway/status_cmd"
+			post: "/v1/eos/rest/gateway/status_cmd"
 			body: "*"
 		};
 	}
@@ -370,7 +370,7 @@ service EosRestGatewayService {
 	// and returns the result of the command
 	rpc TokenRequest(eos.console.TokenProto) returns (eos.console.ReplyProto) {
 		option (google.api.http) = {
-			post: "/eos/rest/gateway/token_cmd"
+			post: "/v1/eos/rest/gateway/token_cmd"
 			body: "*"
 		};
 	}
@@ -379,7 +379,7 @@ service EosRestGatewayService {
 	// and returns the result of the command
 	rpc TouchRequest(eos.console.TouchProto) returns (eos.console.ReplyProto) {
 		option (google.api.http) = {
-			post: "/eos/rest/gateway/touch_cmd"
+			post: "/v1/eos/rest/gateway/touch_cmd"
 			body: "*"
 		};
 	}
@@ -388,7 +388,7 @@ service EosRestGatewayService {
 	// and returns the result of the command
 	rpc VersionRequest(eos.console.VersionProto) returns (eos.console.ReplyProto) {
 		option (google.api.http) = {
-			post: "/eos/rest/gateway/version_cmd"
+			post: "/v1/eos/rest/gateway/version_cmd"
 			body: "*"
 		};
 	}
@@ -397,7 +397,7 @@ service EosRestGatewayService {
 	// and returns the result of the command
 	rpc VidRequest(eos.console.VidProto) returns (eos.console.ReplyProto) {
 		option (google.api.http) = {
-			post: "/eos/rest/gateway/vid_cmd"
+			post: "/v1/eos/rest/gateway/vid_cmd"
 			body: "*"
 		};
 	}
@@ -406,7 +406,7 @@ service EosRestGatewayService {
 	// and returns the result of the command
 	rpc WhoRequest(eos.console.WhoProto) returns (eos.console.ReplyProto) {
 		option (google.api.http) = {
-			post: "/eos/rest/gateway/who_cmd"
+			post: "/v1/eos/rest/gateway/who_cmd"
 			body: "*"
 		};
 	}
@@ -415,7 +415,7 @@ service EosRestGatewayService {
 	// and returns the result of the command
 	rpc WhoamiRequest(eos.console.WhoamiProto) returns (eos.console.ReplyProto) {
 		option (google.api.http) = {
-			post: "/eos/rest/gateway/whoami_cmd"
+			post: "/v1/eos/rest/gateway/whoami_cmd"
 			body: "*"
 		};
 	}

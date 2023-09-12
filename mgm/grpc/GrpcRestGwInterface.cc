@@ -46,10 +46,8 @@ EOSMGMNAMESPACE_BEGIN
 grpc::Status GrpcRestGwInterface::AclCall(const AclProto* aclRequest, ReplyProto* reply)
 {
   // wrap the AclProto object into a RequestProto object
-  AclProto aclRequestCopy;
-  aclRequestCopy.CopyFrom(*aclRequest);
   eos::console::RequestProto req;
-  req.mutable_acl()->CopyFrom(aclRequestCopy);
+  req.mutable_acl()->CopyFrom(*aclRequest);
 
   // initialise VirtualIdentity object
   auto rootvid = eos::common::VirtualIdentity::Root();
@@ -63,10 +61,8 @@ grpc::Status GrpcRestGwInterface::AclCall(const AclProto* aclRequest, ReplyProto
 grpc::Status GrpcRestGwInterface::AccessCall(const AccessProto* accessRequest, ReplyProto* reply)
 {
   // wrap the AccessProto object into a RequestProto object
-  AccessProto accessRequestCopy;
-  accessRequestCopy.CopyFrom(*accessRequest);
   eos::console::RequestProto req;
-  req.mutable_access()->CopyFrom(accessRequestCopy);
+  req.mutable_access()->CopyFrom(*accessRequest);
 
   // initialise VirtualIdentity object
   auto rootvid = eos::common::VirtualIdentity::Root();
@@ -80,10 +76,8 @@ grpc::Status GrpcRestGwInterface::AccessCall(const AccessProto* accessRequest, R
 grpc::Status GrpcRestGwInterface::ArchiveCall(const ArchiveProto* archiveRequest, ReplyProto* reply)
 {
   // wrap the ArchiveProto object into a RequestProto object
-  ArchiveProto archiveRequestCopy;
-  archiveRequestCopy.CopyFrom(*archiveRequest);
   eos::console::RequestProto req;
-  req.mutable_archive()->CopyFrom(archiveRequestCopy);
+  req.mutable_archive()->CopyFrom(*archiveRequest);
 
   // initialise VirtualIdentity object
   auto rootvid = eos::common::VirtualIdentity::Root();
@@ -113,10 +107,8 @@ grpc::Status GrpcRestGwInterface::ArchiveCall(const ArchiveProto* archiveRequest
 grpc::Status GrpcRestGwInterface::AttrCall(const AttrProto* attrRequest, ReplyProto* reply)
 {
   // wrap the AttrProto object into a RequestProto object
-  AttrProto attrRequestCopy;
-  attrRequestCopy.CopyFrom(*attrRequest);
   eos::console::RequestProto req;
-  req.mutable_attr()->CopyFrom(attrRequestCopy);
+  req.mutable_attr()->CopyFrom(*attrRequest);
 
   // initialise VirtualIdentity object
   auto rootvid = eos::common::VirtualIdentity::Root();
@@ -276,10 +268,8 @@ grpc::Status GrpcRestGwInterface::AttrCall(const AttrProto* attrRequest, ReplyPr
 grpc::Status GrpcRestGwInterface::BackupCall(const BackupProto* backupRequest, ReplyProto* reply)
 {
   // wrap the BackupProto object into a RequestProto object
-  BackupProto backupRequestCopy;
-  backupRequestCopy.CopyFrom(*backupRequest);
   eos::console::RequestProto req;
-  req.mutable_backup()->CopyFrom(backupRequestCopy);
+  req.mutable_backup()->CopyFrom(*backupRequest);
 
   // initialise VirtualIdentity object
   auto rootvid = eos::common::VirtualIdentity::Root();
@@ -340,10 +330,8 @@ grpc::Status GrpcRestGwInterface::BackupCall(const BackupProto* backupRequest, R
 grpc::Status GrpcRestGwInterface::ChmodCall(const ChmodProto* chmodRequest, ReplyProto* reply)
 {
   // wrap the ChmodProto object into a RequestProto object
-  ChmodProto chmodRequestCopy;
-  chmodRequestCopy.CopyFrom(*chmodRequest);
   eos::console::RequestProto req;
-  req.mutable_chmod()->CopyFrom(chmodRequestCopy);
+  req.mutable_chmod()->CopyFrom(*chmodRequest);
 
   // initialise VirtualIdentity object
   auto rootvid = eos::common::VirtualIdentity::Root();
@@ -399,10 +387,8 @@ grpc::Status GrpcRestGwInterface::ChmodCall(const ChmodProto* chmodRequest, Repl
 grpc::Status GrpcRestGwInterface::ChownCall(const ChownProto* chownRequest, ReplyProto* reply)
 {
   // wrap the ChownProto object into a RequestProto object
-  ChownProto chownRequestCopy;
-  chownRequestCopy.CopyFrom(*chownRequest);
   eos::console::RequestProto req;
-  req.mutable_chown()->CopyFrom(chownRequestCopy);
+  req.mutable_chown()->CopyFrom(*chownRequest);
 
   // initialise VirtualIdentity object
   auto rootvid = eos::common::VirtualIdentity::Root();
@@ -486,10 +472,8 @@ grpc::Status GrpcRestGwInterface::ChownCall(const ChownProto* chownRequest, Repl
 grpc::Status GrpcRestGwInterface::ConfigCall(const ConfigProto* configRequest, ReplyProto* reply)
 {
   // wrap the ConfigProto object into a RequestProto object
-  ConfigProto configRequestCopy;
-  configRequestCopy.CopyFrom(*configRequest);
   eos::console::RequestProto req;
-  req.mutable_config()->CopyFrom(configRequestCopy);
+  req.mutable_config()->CopyFrom(*configRequest);
 
   // initialise VirtualIdentity object
   auto rootvid = eos::common::VirtualIdentity::Root();
@@ -503,10 +487,8 @@ grpc::Status GrpcRestGwInterface::ConfigCall(const ConfigProto* configRequest, R
 grpc::Status GrpcRestGwInterface::ConvertCall(const ConvertProto* convertRequest, ReplyProto* reply)
 {
   // wrap the ConvertProto object into a RequestProto object
-  ConvertProto convertRequestCopy;
-  convertRequestCopy.CopyFrom(*convertRequest);
   eos::console::RequestProto req;
-  req.mutable_convert()->CopyFrom(convertRequestCopy);
+  req.mutable_convert()->CopyFrom(*convertRequest);
 
   // initialise VirtualIdentity object
   auto rootvid = eos::common::VirtualIdentity::Root();
@@ -520,10 +502,8 @@ grpc::Status GrpcRestGwInterface::ConvertCall(const ConvertProto* convertRequest
 grpc::Status GrpcRestGwInterface::CpCall(const CpProto* cpRequest, ReplyProto* reply)
 {
   // wrap the CpProto object into a RequestProto object
-  CpProto cpRequestCopy;
-  cpRequestCopy.CopyFrom(*cpRequest);
   eos::console::RequestProto req;
-  req.mutable_cp()->CopyFrom(cpRequestCopy);
+  req.mutable_cp()->CopyFrom(*cpRequest);
 
   // initialise VirtualIdentity object
   auto rootvid = eos::common::VirtualIdentity::Root();
@@ -644,10 +624,8 @@ grpc::Status GrpcRestGwInterface::CpCall(const CpProto* cpRequest, ReplyProto* r
 grpc::Status GrpcRestGwInterface::DebugCall(const DebugProto* debugRequest, ReplyProto* reply)
 {
   // wrap the DebugProto object into a RequestProto object
-  DebugProto debugRequestCopy;
-  debugRequestCopy.CopyFrom(*debugRequest);
   eos::console::RequestProto req;
-  req.mutable_debug()->CopyFrom(debugRequestCopy);
+  req.mutable_debug()->CopyFrom(*debugRequest);
 
   // initialise VirtualIdentity object
   auto rootvid = eos::common::VirtualIdentity::Root();
@@ -661,10 +639,8 @@ grpc::Status GrpcRestGwInterface::DebugCall(const DebugProto* debugRequest, Repl
 grpc::Status GrpcRestGwInterface::EvictCall(const EvictProto* evictRequest, ReplyProto* reply)
 {
   // wrap the EvictProto object into a RequestProto object
-  EvictProto evictRequestCopy;
-  evictRequestCopy.CopyFrom(*evictRequest);
   eos::console::RequestProto req;
-  req.mutable_debug()->CopyFrom(evictRequestCopy);
+  req.mutable_debug()->CopyFrom(*evictRequest);
 
   // initialise VirtualIdentity object
   auto rootvid = eos::common::VirtualIdentity::Root();
@@ -689,10 +665,8 @@ FileHelper_GetRemoteFmdFromLocalDb(const char* manager, const char* shexfid,
 grpc::Status GrpcRestGwInterface::FileCall(const FileProto* fileRequest, ReplyProto* reply)
 {
   // wrap the AccessProto object into a RequestProto object
-  FileProto fileRequestCopy;
-  fileRequestCopy.CopyFrom(*fileRequest);
   eos::console::RequestProto req;
-  req.mutable_file()->CopyFrom(fileRequestCopy);
+  req.mutable_file()->CopyFrom(*fileRequest);
 
   // initialise VirtualIdentity object
   auto rootvid = eos::common::VirtualIdentity::Root();
@@ -1445,10 +1419,8 @@ grpc::Status GrpcRestGwInterface::FileCall(const FileProto* fileRequest, ReplyPr
 grpc::Status GrpcRestGwInterface::FileinfoCall(const FileinfoProto* fileinfoRequest, ReplyProto* reply)
 {
   // wrap the FileinfoProto object into a RequestProto object
-  FileinfoProto fileinfoRequestCopy;
-  fileinfoRequestCopy.CopyFrom(*fileinfoRequest);
   eos::console::RequestProto req;
-  req.mutable_fileinfo()->CopyFrom(fileinfoRequestCopy);
+  req.mutable_fileinfo()->CopyFrom(*fileinfoRequest);
 
   // initialise VirtualIdentity object
   auto rootvid = eos::common::VirtualIdentity::Root();
@@ -1583,10 +1555,8 @@ grpc::Status GrpcRestGwInterface::FileinfoCall(const FileinfoProto* fileinfoRequ
 grpc::Status GrpcRestGwInterface::FsCall(const FsProto* fsRequest, ReplyProto* reply)
 {
   // wrap the FsProto object into a RequestProto object
-  FsProto fsRequestCopy;
-  fsRequestCopy.CopyFrom(*fsRequest);
   eos::console::RequestProto req;
-  req.mutable_fs()->CopyFrom(fsRequestCopy);
+  req.mutable_fs()->CopyFrom(*fsRequest);
 
   // initialise VirtualIdentity object
   auto rootvid = eos::common::VirtualIdentity::Root();
@@ -1600,10 +1570,8 @@ grpc::Status GrpcRestGwInterface::FsCall(const FsProto* fsRequest, ReplyProto* r
 grpc::Status GrpcRestGwInterface::FsckCall(const FsckProto* fsckRequest, ReplyProto* reply)
 {
   // wrap the AccessProto object into a RequestProto object
-  FsckProto fsckRequestCopy;
-  fsckRequestCopy.CopyFrom(*fsckRequest);
   eos::console::RequestProto req;
-  req.mutable_fsck()->CopyFrom(fsckRequestCopy);
+  req.mutable_fsck()->CopyFrom(*fsckRequest);
 
   // initialise VirtualIdentity object
   auto rootvid = eos::common::VirtualIdentity::Root();
@@ -1617,10 +1585,8 @@ grpc::Status GrpcRestGwInterface::FsckCall(const FsckProto* fsckRequest, ReplyPr
 grpc::Status GrpcRestGwInterface::GeoschedCall(const GeoschedProto* geoschedRequest, ReplyProto* reply)
 {
   // wrap the AccessProto object into a RequestProto object
-  GeoschedProto geoschedRequestCopy;
-  geoschedRequestCopy.CopyFrom(*geoschedRequest);
   eos::console::RequestProto req;
-  req.mutable_geosched()->CopyFrom(geoschedRequestCopy);
+  req.mutable_geosched()->CopyFrom(*geoschedRequest);
 
   // initialise VirtualIdentity object
   auto rootvid = eos::common::VirtualIdentity::Root();
@@ -1822,10 +1788,8 @@ grpc::Status GrpcRestGwInterface::GeoschedCall(const GeoschedProto* geoschedRequ
 grpc::Status GrpcRestGwInterface::GroupCall(const GroupProto* groupRequest, ReplyProto* reply)
 {
   // wrap the GroupProto object into a RequestProto object
-  GroupProto groupRequestCopy;
-  groupRequestCopy.CopyFrom(*groupRequest);
   eos::console::RequestProto req;
-  req.mutable_group()->CopyFrom(groupRequestCopy);
+  req.mutable_group()->CopyFrom(*groupRequest);
 
   // initialise VirtualIdentity object
   auto rootvid = eos::common::VirtualIdentity::Root();
@@ -1839,10 +1803,8 @@ grpc::Status GrpcRestGwInterface::GroupCall(const GroupProto* groupRequest, Repl
 grpc::Status GrpcRestGwInterface::HealthCall(const HealthProto* healthRequest, ReplyProto* reply)
 {
   // wrap the HealthProto object into a RequestProto object
-  HealthProto healthRequestCopy;
-  healthRequestCopy.CopyFrom(*healthRequest);
   eos::console::RequestProto req;
-  req.mutable_health()->CopyFrom(healthRequestCopy);
+  req.mutable_health()->CopyFrom(*healthRequest);
 
   std::string output;
   std::string args = req.health().section();
@@ -1873,10 +1835,8 @@ grpc::Status GrpcRestGwInterface::HealthCall(const HealthProto* healthRequest, R
 grpc::Status GrpcRestGwInterface::IoCall(const IoProto* ioRequest, ReplyProto* reply)
 {
   // wrap the IoProto object into a RequestProto object
-  IoProto ioRequestCopy;
-  ioRequestCopy.CopyFrom(*ioRequest);
   eos::console::RequestProto req;
-  req.mutable_io()->CopyFrom(ioRequestCopy);
+  req.mutable_io()->CopyFrom(*ioRequest);
 
   // initialise VirtualIdentity object
   auto rootvid = eos::common::VirtualIdentity::Root();
@@ -1890,10 +1850,8 @@ grpc::Status GrpcRestGwInterface::IoCall(const IoProto* ioRequest, ReplyProto* r
 grpc::Status GrpcRestGwInterface::MapCall(const MapProto* mapRequest, ReplyProto* reply)
 {
   // wrap the MapProto object into a RequestProto object
-  MapProto mapRequestCopy;
-  mapRequestCopy.CopyFrom(*mapRequest);
   eos::console::RequestProto req;
-  req.mutable_map()->CopyFrom(mapRequestCopy);
+  req.mutable_map()->CopyFrom(*mapRequest);
 
   // initialise VirtualIdentity object
   auto rootvid = eos::common::VirtualIdentity::Root();
@@ -1917,10 +1875,8 @@ grpc::Status GrpcRestGwInterface::MapCall(const MapProto* mapRequest, ReplyProto
 grpc::Status GrpcRestGwInterface::MemberCall(const MemberProto* memberRequest, ReplyProto* reply)
 {
   // wrap the MemberProto object into a RequestProto object
-  MemberProto memberRequestCopy;
-  memberRequestCopy.CopyFrom(*memberRequest);
   eos::console::RequestProto req;
-  req.mutable_member()->CopyFrom(memberRequestCopy);
+  req.mutable_member()->CopyFrom(*memberRequest);
 
   // initialise VirtualIdentity object
   auto rootvid = eos::common::VirtualIdentity::Root();
@@ -1956,10 +1912,8 @@ grpc::Status GrpcRestGwInterface::MemberCall(const MemberProto* memberRequest, R
 grpc::Status GrpcRestGwInterface::MkdirCall(const MkdirProto* mkdirRequest, ReplyProto* reply)
 {
   // wrap the MkdirProto object into a RequestProto object
-  MkdirProto mkdirRequestCopy;
-  mkdirRequestCopy.CopyFrom(*mkdirRequest);
   eos::console::RequestProto req;
-  req.mutable_mkdir()->CopyFrom(mkdirRequestCopy);
+  req.mutable_mkdir()->CopyFrom(*mkdirRequest);
 
   // initialise VirtualIdentity object
   auto rootvid = eos::common::VirtualIdentity::Root();
@@ -1994,10 +1948,8 @@ grpc::Status GrpcRestGwInterface::MkdirCall(const MkdirProto* mkdirRequest, Repl
 grpc::Status GrpcRestGwInterface::MvCall(const MoveProto* mvRequest, ReplyProto* reply)
 {
   // wrap the MoveProto object into a RequestProto object
-  MoveProto mvRequestCopy;
-  mvRequestCopy.CopyFrom(*mvRequest);
   eos::console::RequestProto req;
-  req.mutable_mv()->CopyFrom(mvRequestCopy);
+  req.mutable_mv()->CopyFrom(*mvRequest);
 
   // initialise VirtualIdentity object
   auto rootvid = eos::common::VirtualIdentity::Root();
@@ -2044,10 +1996,8 @@ grpc::Status GrpcRestGwInterface::MvCall(const MoveProto* mvRequest, ReplyProto*
 grpc::Status GrpcRestGwInterface::NodeCall(const NodeProto* nodeRequest, ReplyProto* reply)
 {
   // wrap the NodeProto object into a RequestProto object
-  NodeProto nodeRequestCopy;
-  nodeRequestCopy.CopyFrom(*nodeRequest);
   eos::console::RequestProto req;
-  req.mutable_node()->CopyFrom(nodeRequestCopy);
+  req.mutable_node()->CopyFrom(*nodeRequest);
 
   // initialise VirtualIdentity object
   auto rootvid = eos::common::VirtualIdentity::Root();
@@ -2061,10 +2011,8 @@ grpc::Status GrpcRestGwInterface::NodeCall(const NodeProto* nodeRequest, ReplyPr
 grpc::Status GrpcRestGwInterface::NsCall(const NsProto* nsRequest, ReplyProto* reply)
 {
   // wrap the NodeProto object into a RequestProto object
-  NsProto nsRequestCopy;
-  nsRequestCopy.CopyFrom(*nsRequest);
   eos::console::RequestProto req;
-  req.mutable_ns()->CopyFrom(nsRequestCopy);
+  req.mutable_ns()->CopyFrom(*nsRequest);
 
   // initialise VirtualIdentity object
   auto rootvid = eos::common::VirtualIdentity::Root();
@@ -2078,10 +2026,8 @@ grpc::Status GrpcRestGwInterface::NsCall(const NsProto* nsRequest, ReplyProto* r
 grpc::Status GrpcRestGwInterface::QoSCall(const QoSProto* qosRequest, ReplyProto* reply)
 {
   // wrap the QoSProto object into a RequestProto object
-  QoSProto qosRequestCopy;
-  qosRequestCopy.CopyFrom(*qosRequest);
   eos::console::RequestProto req;
-  req.mutable_qos()->CopyFrom(qosRequestCopy);
+  req.mutable_qos()->CopyFrom(*qosRequest);
 
   // initialise VirtualIdentity object
   auto rootvid = eos::common::VirtualIdentity::Root();
@@ -2095,10 +2041,8 @@ grpc::Status GrpcRestGwInterface::QoSCall(const QoSProto* qosRequest, ReplyProto
 grpc::Status GrpcRestGwInterface::QuotaCall(const QuotaProto* quotaRequest, ReplyProto* reply)
 {
   // wrap the QuotaProto object into a RequestProto object
-  QuotaProto quotaRequestCopy;
-  quotaRequestCopy.CopyFrom(*quotaRequest);
   eos::console::RequestProto req;
-  req.mutable_quota()->CopyFrom(quotaRequestCopy);
+  req.mutable_quota()->CopyFrom(*quotaRequest);
 
   // initialise VirtualIdentity object
   auto rootvid = eos::common::VirtualIdentity::Root();
@@ -2112,10 +2056,8 @@ grpc::Status GrpcRestGwInterface::QuotaCall(const QuotaProto* quotaRequest, Repl
 grpc::Status GrpcRestGwInterface::RecycleCall(const RecycleProto* recycleRequest, ReplyProto* reply)
 {
   // wrap the RecycleProto object into a RequestProto object
-  RecycleProto recycleRequestCopy;
-  recycleRequestCopy.CopyFrom(*recycleRequest);
   eos::console::RequestProto req;
-  req.mutable_recycle()->CopyFrom(recycleRequestCopy);
+  req.mutable_recycle()->CopyFrom(*recycleRequest);
 
   // initialise VirtualIdentity object
   auto rootvid = eos::common::VirtualIdentity::Root();
@@ -2129,10 +2071,8 @@ grpc::Status GrpcRestGwInterface::RecycleCall(const RecycleProto* recycleRequest
 grpc::Status GrpcRestGwInterface::RmCall(const RmProto* rmRequest, ReplyProto* reply)
 {
   // wrap the RmProto object into a RequestProto object
-  RmProto rmRequestCopy;
-  rmRequestCopy.CopyFrom(*rmRequest);
   eos::console::RequestProto req;
-  req.mutable_rm()->CopyFrom(rmRequestCopy);
+  req.mutable_rm()->CopyFrom(*rmRequest);
 
   // initialise VirtualIdentity object
   auto rootvid = eos::common::VirtualIdentity::Root();
@@ -2146,10 +2086,8 @@ grpc::Status GrpcRestGwInterface::RmCall(const RmProto* rmRequest, ReplyProto* r
 grpc::Status GrpcRestGwInterface::RmdirCall(const RmdirProto* rmdirRequest, ReplyProto* reply)
 {
   // wrap the NodeProto object into a RequestProto object
-  RmdirProto rmdirRequestCopy;
-  rmdirRequestCopy.CopyFrom(*rmdirRequest);
   eos::console::RequestProto req;
-  req.mutable_rmdir()->CopyFrom(rmdirRequestCopy);
+  req.mutable_rmdir()->CopyFrom(*rmdirRequest);
 
   // initialise VirtualIdentity object
   auto rootvid = eos::common::VirtualIdentity::Root();
@@ -2183,10 +2121,8 @@ grpc::Status GrpcRestGwInterface::RmdirCall(const RmdirProto* rmdirRequest, Repl
 grpc::Status GrpcRestGwInterface::RouteCall(const RouteProto* routeRequest, ReplyProto* reply)
 {
   // wrap the RouteProto object into a RequestProto object
-  RouteProto routeRequestCopy;
-  routeRequestCopy.CopyFrom(*routeRequest);
   eos::console::RequestProto req;
-  req.mutable_route()->CopyFrom(routeRequestCopy);
+  req.mutable_route()->CopyFrom(*routeRequest);
 
   // initialise VirtualIdentity object
   auto rootvid = eos::common::VirtualIdentity::Root();
@@ -2200,10 +2136,8 @@ grpc::Status GrpcRestGwInterface::RouteCall(const RouteProto* routeRequest, Repl
 grpc::Status GrpcRestGwInterface::SpaceCall(const SpaceProto* spaceRequest, ReplyProto* reply)
 {
   // wrap the SpaceProto object into a RequestProto object
-  SpaceProto spaceRequestCopy;
-  spaceRequestCopy.CopyFrom(*spaceRequest);
   eos::console::RequestProto req;
-  req.mutable_space()->CopyFrom(spaceRequestCopy);
+  req.mutable_space()->CopyFrom(*spaceRequest);
 
   // initialise VirtualIdentity object
   auto rootvid = eos::common::VirtualIdentity::Root();
@@ -2233,10 +2167,8 @@ grpc::Status GrpcRestGwInterface::SpaceCall(const SpaceProto* spaceRequest, Repl
 grpc::Status GrpcRestGwInterface::StatCall(const StatProto* statRequest, ReplyProto* reply)
 {
   // wrap the StatProto object into a RequestProto object
-  StatProto statRequestCopy;
-  statRequestCopy.CopyFrom(*statRequest);
   eos::console::RequestProto req;
-  req.mutable_stat()->CopyFrom(statRequestCopy);
+  req.mutable_stat()->CopyFrom(*statRequest);
 
   // initialise VirtualIdentity object
   auto rootvid = eos::common::VirtualIdentity::Root();
@@ -2292,10 +2224,8 @@ grpc::Status GrpcRestGwInterface::StatCall(const StatProto* statRequest, ReplyPr
 grpc::Status GrpcRestGwInterface::StatusCall(const StatusProto* statusRequest, ReplyProto* reply)
 {
   // wrap the StatusProto object into a RequestProto object
-  StatusProto statusRequestCopy;
-  statusRequestCopy.CopyFrom(*statusRequest);
   eos::console::RequestProto req;
-  req.mutable_status()->CopyFrom(statusRequestCopy);
+  req.mutable_status()->CopyFrom(*statusRequest);
 
   // initialise VirtualIdentity object
   auto rootvid = eos::common::VirtualIdentity::Root();
@@ -2330,10 +2260,8 @@ grpc::Status GrpcRestGwInterface::StatusCall(const StatusProto* statusRequest, R
 grpc::Status GrpcRestGwInterface::TokenCall(const TokenProto* tokenRequest, ReplyProto* reply)
 {
   // wrap the TokenProto object into a RequestProto object
-  TokenProto tokenRequestCopy;
-  tokenRequestCopy.CopyFrom(*tokenRequest);
   eos::console::RequestProto req;
-  req.mutable_token()->CopyFrom(tokenRequestCopy);
+  req.mutable_token()->CopyFrom(*tokenRequest);
 
   // initialise VirtualIdentity object
   auto rootvid = eos::common::VirtualIdentity::Root();
@@ -2347,10 +2275,8 @@ grpc::Status GrpcRestGwInterface::TokenCall(const TokenProto* tokenRequest, Repl
 grpc::Status GrpcRestGwInterface::TouchCall(const TouchProto* touchRequest, ReplyProto* reply)
 {
   // wrap the TokenProto object into a RequestProto object
-  TouchProto touchRequestCopy;
-  touchRequestCopy.CopyFrom(*touchRequest);
   eos::console::RequestProto req;
-  req.mutable_touch()->CopyFrom(touchRequestCopy);
+  req.mutable_touch()->CopyFrom(*touchRequest);
 
   // initialise VirtualIdentity object
   auto rootvid = eos::common::VirtualIdentity::Root();
@@ -2394,10 +2320,8 @@ grpc::Status GrpcRestGwInterface::TouchCall(const TouchProto* touchRequest, Repl
 grpc::Status GrpcRestGwInterface::VersionCall(const VersionProto* versionRequest, ReplyProto* reply)
 {
   // wrap the VersionProto object into a RequestProto object
-  VersionProto versionRequestCopy;
-  versionRequestCopy.CopyFrom(*versionRequest);
   eos::console::RequestProto req;
-  req.mutable_version()->CopyFrom(versionRequestCopy);
+  req.mutable_version()->CopyFrom(*versionRequest);
 
   // initialise VirtualIdentity object
   auto rootvid = eos::common::VirtualIdentity::Root();
@@ -2424,10 +2348,8 @@ grpc::Status GrpcRestGwInterface::VersionCall(const VersionProto* versionRequest
 grpc::Status GrpcRestGwInterface::VidCall(const VidProto* vidRequest, ReplyProto* reply)
 {
   // wrap the VidProto object into a RequestProto object
-  VidProto vidRequestCopy;
-  vidRequestCopy.CopyFrom(*vidRequest);
   eos::console::RequestProto req;
-  req.mutable_vid()->CopyFrom(vidRequestCopy);
+  req.mutable_vid()->CopyFrom(*vidRequest);
 
   // initialise VirtualIdentity object
   auto rootvid = eos::common::VirtualIdentity::Root();
@@ -2779,10 +2701,8 @@ grpc::Status GrpcRestGwInterface::VidCall(const VidProto* vidRequest, ReplyProto
 grpc::Status GrpcRestGwInterface::WhoCall(const WhoProto* whoRequest, ReplyProto* reply)
 {
   // wrap the WhoProto object into a RequestProto object
-  WhoProto whoRequestCopy;
-  whoRequestCopy.CopyFrom(*whoRequest);
   eos::console::RequestProto req;
-  req.mutable_who()->CopyFrom(whoRequestCopy);
+  req.mutable_who()->CopyFrom(*whoRequest);
 
   // initialise VirtualIdentity object
   auto rootvid = eos::common::VirtualIdentity::Root();
@@ -2824,10 +2744,8 @@ grpc::Status GrpcRestGwInterface::WhoCall(const WhoProto* whoRequest, ReplyProto
 grpc::Status GrpcRestGwInterface::WhoamiCall(const WhoamiProto* whoamiRequest, ReplyProto* reply)
 {
   // wrap the WhoamiProto object into a RequestProto object
-  WhoamiProto whoamiRequestCopy;
-  whoamiRequestCopy.CopyFrom(*whoamiRequest);
   eos::console::RequestProto req;
-  req.mutable_whoami()->CopyFrom(whoamiRequestCopy);
+  req.mutable_whoami()->CopyFrom(*whoamiRequest);
 
   // initialise VirtualIdentity object
   auto rootvid = eos::common::VirtualIdentity::Root();
