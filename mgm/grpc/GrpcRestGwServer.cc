@@ -93,6 +93,13 @@ class EosRestGatewayServiceImpl final : public EosRestGatewayService::Service, p
   Status AttrRequest(ServerContext* context, const AttrProto* request,
                   ReplyProto* reply) override
   {
+    // Print client metadata
+    for (auto iter = context->client_metadata().begin(); iter != context->client_metadata().end(); ++iter) {
+      std::string key (iter->first.data(), iter->first.length());
+      std::string value (iter->second.data(), iter->second.length());
+      eos_static_info("Metadata Key=\"%s\" Value=\"%s\"", key.c_str(), value.c_str());
+    }
+        
     GrpcRestGwInterface restGwInterface;
     return restGwInterface.AttrCall(request, reply);
   }

@@ -37,6 +37,7 @@
 #include "XrdOuc/XrdOucPinPath.hh"
 #include <stdio.h>
 #include "mgm/http/rest-api/manager/RestApiManager.hh"
+#include <curl/curl.h>
 
 XrdVERSIONINFO(XrdHttpGetExtHandler, EosMgmHttp);
 static XrdVERSIONINFODEF(compiledVer, EosMgmHttp, XrdVNUMBER, XrdVERSION);
@@ -235,6 +236,10 @@ EosMgmHttpHandler::ProcessReq(XrdHttpExtReq& req)
     }
   }
 
+  if (IsRestApiGwRequest(req)) {
+    return ProcessRestApiGwPOST(req);
+  }
+
   bool is_rest_req = mMgmOfsHandler->mRestApiManager->isRestRequest(
                        req.resource);
 
@@ -366,6 +371,88 @@ EosMgmHttpHandler::ProcessMacaroonPOST(XrdHttpExtReq& req)
   }
 
   return mTokenHttpHandler->ProcessReq(req);
+}
+
+//------------------------------------------------------------------------------
+// Process rest api gw POST request
+//------------------------------------------------------------------------------
+int
+EosMgmHttpHandler::ProcessRestApiGwPOST(XrdHttpExtReq& req)
+{
+  // Extract request body
+  std::string body;
+  std::optional<int> retCode = readBody(req, body);
+  if (retCode) {
+    return retCode.value();
+  }
+
+  // Extract command name from the resource path
+  // To do so search for the last occurrence of '/'
+  std::string eosCommand;
+  size_t lastSlashPos = req.resource.rfind('/');
+
+  if (lastSlashPos != std::string::npos && lastSlashPos + 1 < req.resource.length()) {
+      // Extract the command string
+      eosCommand = req.resource.substr(lastSlashPos + 1);
+  } else {
+      eos_err("msg=\"invalid input string\"");
+  }
+
+  // Initialize curl object
+  CURL* curl = curl_easy_init();
+  if (!curl) {
+      eos_err("msg=\"failed to initialize curl object\"");
+      return 1;
+  }
+
+  // Set the URL for the POST request
+  const std::string url = std::string(mRestApiGwUrl) + std::string(mRestApiGwPath) + eosCommand;
+  curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
+
+  // Set the HTTP method to POST
+  curl_easy_setopt(curl, CURLOPT_POST, 1L);
+
+  // Add headers
+  struct curl_slist *list = NULL;
+  list = curl_slist_append(list, "Grpc-Metadata-Andreea: test");
+  curl_easy_setopt(curl, CURLOPT_HTTPHEADER, list);
+
+  // Set the request data
+  curl_easy_setopt(curl, CURLOPT_POSTFIELDS, body.c_str());
+
+  // Response data will be stored in this string
+  std::string responseData;
+  // Set the callback function to handle response data
+  curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, EosMgmHttpHandler::WriteCallback);
+  curl_easy_setopt(curl, CURLOPT_WRITEDATA, &responseData);
+
+  // Perform the HTTP request
+  CURLcode curlRes = curl_easy_perform(curl);
+  int res;
+  if (curlRes != CURLE_OK) {
+    std::string errmsg = std::string("curl_easy_perform() failed: ") + curl_easy_strerror(curlRes);
+    res = req.SendSimpleResp(500, errmsg.c_str(), "", errmsg.c_str(),
+                              errmsg.length());
+  } else {
+    // HTTP request successful, send the response
+    res = req.SendSimpleResp(200, responseData.c_str(), "", responseData.c_str(),
+                              responseData.length());
+  }
+
+  // Clean up and free resources
+  curl_easy_cleanup(curl);
+  
+  return res;
+}
+
+size_t
+EosMgmHttpHandler::WriteCallback(void* contents, size_t size, size_t nmemb,
+                        std::string* output)
+{
+  size_t total_size = size * nmemb;
+  output->append(static_cast<char*>(contents), total_size);
+
+  return total_size;
 }
 
 //------------------------------------------------------------------------------
@@ -648,6 +735,23 @@ bool EosMgmHttpHandler::IsMacaroonRequest(const XrdHttpExtReq& req) const
       if (contentTypeItor->second == "application/macaroon-request") {
         return true;
       }
+    }
+  }
+
+  return false;
+}
+
+//------------------------------------------------------------------------------
+// Returns true if the request is a rest api gateway token request 
+// false otherwise
+//------------------------------------------------------------------------------
+bool EosMgmHttpHandler::IsRestApiGwRequest(const XrdHttpExtReq& req) const
+{
+  if (req.verb == "POST") {
+    const auto& resourcePath = req.resource.find(mRestApiGwPath);
+
+    if (resourcePath != std::string::npos) {
+      return true;
     }
   }
 

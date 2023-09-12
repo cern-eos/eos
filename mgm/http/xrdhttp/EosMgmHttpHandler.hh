@@ -113,6 +113,10 @@ public:
   //! Authz plugin from libMacaroons/libXrdSciTokens
   XrdAccAuthorize* mTokenAuthzHandler;
   XrdMgmOfs* mMgmOfsHandler; ///< Pointer to the MGM OFS plugin
+  //! Url to access rest api grpc-gateway
+  const char* mRestApiGwUrl = "http://localhost:40054";
+  //! Path to rest api grpc-gateway
+  const char* mRestApiGwPath = "/v1/eos/rest/gateway/";
 
   //----------------------------------------------------------------------------
   //! Copy XrdSecEntity info
@@ -225,4 +229,36 @@ public:
   //! @return 0 if successful, otherwise non-0
   //----------------------------------------------------------------------------
   int ProcessMacaroonPOST(XrdHttpExtReq& req);
+
+  //----------------------------------------------------------------------------
+  //! Returns true if the request is a rest api gateway token request
+  //! false otherwise
+  //! @param req the request from which we will read the header and the HTTP verb
+  //!
+  //! @return true if the request is a macaroon token request, false otherwise
+  //----------------------------------------------------------------------------
+  bool IsRestApiGwRequest(const XrdHttpExtReq& req) const;
+
+  //----------------------------------------------------------------------------
+  //! Process rest api gateway POST request
+  //!
+  //! @param req XrdHttp request object
+  //!
+  //! @return 0 if successful, otherwise non-0
+  //----------------------------------------------------------------------------
+  int ProcessRestApiGwPOST(XrdHttpExtReq& req);
+
+//----------------------------------------------------------------------------
+  //! Function used to handle responses from grpc server
+  //!
+  //! @param contents pointer to the data received from the grpc server
+  //! @param size the size of each data element received
+  //! @param nmemb the number of data elements received
+  //! @param output buffer where the received data from an HTTP response is
+  //!               stored
+  //!
+  //! @return number of bytes received if successful, otherwise non-0
+  //----------------------------------------------------------------------------
+  static size_t WriteCallback(void* contents, size_t size, size_t nmemb,
+                        std::string* output);
 };

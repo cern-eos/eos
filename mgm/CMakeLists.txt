@@ -49,7 +49,8 @@ target_link_libraries(EosMgmHttp-Objects PUBLIC
   EosAuthProto-Objects
   EosCommonServer
   XROOTD::PRIVATE
-  XROOTD::HTTP)
+  XROOTD::HTTP
+  CURL::libcurl)
 
 set_target_properties(EosMgmHttp-Objects
   PROPERTIES POSITION_INDEPENDENT_CODE TRUE)
