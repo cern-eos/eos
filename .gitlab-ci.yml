@@ -1274,9 +1274,8 @@ clean_helm_cluster:
 # Manually triggered builds
 #-------------------------------------------------------------------------------
 
-eos_nginx_cc7:
+.eos_nginx_build_template:
   stage: build:manual
-  image: gitlab-registry.cern.ch/linuxsupport/cc7-base
   script:
     - yum install --nogpg -y gcc-c++ cmake3 make rpm-build which git sssd-client sudo createrepo
     - cd nginx
@@ -1284,17 +1283,39 @@ eos_nginx_cc7:
     - yum-builddep --nogpgcheck -y *.src.rpm
     - mkdir RPMS
     - rpmbuild --rebuild --define "_rpmdir RPMS/" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" *.src.rpm
-    - STORAGE_PATH=/eos/project/s/storage-ci/www/eos/${CODENAME}-depend/el-7/x86_64
+    - STORAGE_PATH=/eos/project/s/storage-ci/www/eos/${CODENAME}-depend/${BUILD_NAME}/x86_64
     - sudo -u stci -H mkdir -p $STORAGE_PATH
     - sudo -u stci -H cp -f RPMS/*.rpm $STORAGE_PATH
     - sudo -u stci -H createrepo --update -q $STORAGE_PATH
   tags:
     - docker_node
   when: manual
+
+eos_nginx_cc7:
+  extends: .eos_nginx_build_template
+  image: gitlab-registry.cern.ch/linuxsupport/cc7-base
   environment:
     name: nginx-cc7-prod
+  variables:
+    BUILD_NAME: el-7
 
 
+eos_nginx_rh8:
+  extends: .eos_nginx_build_template
+  image: gitlab-registry.cern.ch/linuxsupport/ubi8/ubi
+  environment:
+    name: nginx-rh8-prod
+  variables:
+    BUILD_NAME: rh8  
+
+eos_nginx_rh9:
+  extends: .eos_nginx_build_template
+  image: gitlab-registry.cern.ch/linuxsupport/ubi9/ubi
+  environment:
+    name: nginx-rh9-prod
+  variables:
+    BUILD_NAME: rh9
+    
 eos_apmon_cc7:
   stage: build:manual
   image: gitlab-registry.cern.ch/linuxsupport/cc7-base
