@@ -1277,6 +1277,7 @@ clean_helm_cluster:
 .eos_nginx_build_template:
   stage: build:manual
   before_script:
+    - dnf install --nogpg -y https://dl.fedoraproject.org/pub/epel/epel-release-latest-${BUILD_ID}.noarch.rpm 
     - dnf config-manager --add-repo https://linuxsoft.cern.ch/cern/rhel/$(rpm --eval '%{rhel}')/CERN/$(uname -i)/ --set-enabled
     - dnf install cern-gpg-keys --nogpgcheck -y
     - rpm --import /etc/pki/rpm-gpg/*
@@ -1318,7 +1319,8 @@ eos_nginx_rh8:
   environment:
     name: nginx-rh8-prod
   variables:
-    BUILD_NAME: rh8  
+    BUILD_NAME: rh8
+    BUILD_ID: 8
 
 eos_nginx_rh9:
   extends: .eos_nginx_build_template
@@ -1327,6 +1329,7 @@ eos_nginx_rh9:
     name: nginx-rh9-prod
   variables:
     BUILD_NAME: rh9
+    BUILD_ID: 9
     
 eos_apmon_cc7:
   stage: build:manual
