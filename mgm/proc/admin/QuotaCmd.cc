@@ -27,6 +27,7 @@
 #include "mgm/Acl.hh"
 #include "mgm/Stat.hh"
 #include "mgm/Quota.hh"
+#include "mgm/Recycle.hh"
 #include "common/Path.hh"
 
 EOSMGMNAMESPACE_BEGIN
@@ -409,6 +410,28 @@ void QuotaCmd::SetSubcmd(const eos::console::QuotaProto_SetProto& set,
     return;
   }
 
+  // Deal with quota on recycle bin
+  {
+    XrdOucString spath =
+      space.c_str();
+    if (spath.beginswith(Recycle::gRecyclingPrefix.c_str())) {
+      if (mVid.isLocalhost()) {
+	std_err << "warning: better use 'recycle config --size' to modify the size of the recycle bin!\n";
+	if ( (id_type != Quota::IdT::kGid) ||
+	     (id != Quota::gProjectId ) ) {
+	  std_err << "warning: you have modified a user or group quota in the recycle bin, which is not the project quota - hopefully you know\
+ what you are doing!\n";
+	}
+      } else {
+	std_err << "error: please use 'recycle config --size' to modify the size of the recycle bin!";
+	reply.set_retc(EINVAL);
+	reply.set_std_err(std_err.str());
+	return;
+      }
+    }
+  }
+
+  
   // Deal with volume quota
   unsigned long long size = eos::common::StringConversion::GetDataSizeFromString(
                               set.maxbytes());
