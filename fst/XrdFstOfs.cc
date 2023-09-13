@@ -818,12 +818,12 @@ XrdFstOfs::Configure(XrdSysError& Eroute, XrdOucEnv* envP)
     eos_static_notice("%s", "msg=\"running SharedManager via QDB i.e NO-MQ\"");
     qsm = new qclient::SharedManager(mQdbContactDetails.members,
                                      mQdbContactDetails.constructSubscriptionOptions());
+    mMessagingRealm.reset(new mq::MessagingRealm(nullptr, nullptr, nullptr, qsm));
   } else {
     eos_static_notice("%s", "msg=\"running SharedManager via MQ\"");
+    mMessagingRealm.reset(new mq::MessagingRealm(&ObjectManager, &ObjectNotifier,
+                          &XrdMqMessaging::gMessageClient, qsm));
   }
-
-  mMessagingRealm.reset(new mq::MessagingRealm(&ObjectManager, &ObjectNotifier,
-                        &XrdMqMessaging::gMessageClient, qsm));
 
   if (!mMessagingRealm->haveQDB()) {
     ObjectNotifier.SetShareObjectManager(&ObjectManager);
