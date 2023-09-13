@@ -70,98 +70,101 @@ EOSMGMNAMESPACE_BEGIN
 class EosRestGatewayServiceImpl final : public EosRestGatewayService::Service, public eos::common::LogId
 {
   Status AclRequest(ServerContext* context, const AclProto* request,
-                    ReplyProto* reply) override
+		    ReplyProto* reply) override
   {
     GrpcRestGwInterface restGwInterface;
     return restGwInterface.AclCall(request, reply);
   }
 
   Status AccessRequest(ServerContext* context, const AccessProto* request,
-                        ReplyProto* reply) override
+			ReplyProto* reply) override
   {
     GrpcRestGwInterface restGwInterface;
     return restGwInterface.AccessCall(request, reply);
   }
 
   Status ArchiveRequest(ServerContext* context, const ArchiveProto* request,
-                        ReplyProto* reply) override
+			ReplyProto* reply) override
   {
     GrpcRestGwInterface restGwInterface;
     return restGwInterface.ArchiveCall(request, reply);
   }
 
   Status AttrRequest(ServerContext* context, const AttrProto* request,
-                  ReplyProto* reply) override
+		  ReplyProto* reply) override
   {
     // Print client metadata
-    for (auto iter = context->client_metadata().begin(); iter != context->client_metadata().end(); ++iter) {
+    for (auto iter = context->client_metadata().begin();
+	 iter != context->client_metadata().end(); ++iter) {
       std::string key (iter->first.data(), iter->first.length());
       std::string value (iter->second.data(), iter->second.length());
       eos_static_info("Metadata Key=\"%s\" Value=\"%s\"", key.c_str(), value.c_str());
     }
-        
+
+    eos::common::VirtualIdentity vid;
+    GrpcRestGwServer::Vid(context, vid);
     GrpcRestGwInterface restGwInterface;
     return restGwInterface.AttrCall(request, reply);
   }
 
   Status BackupRequest(ServerContext* context, const BackupProto* request,
-                        ReplyProto* reply) override
+			ReplyProto* reply) override
   {
     GrpcRestGwInterface restGwInterface;
     return restGwInterface.BackupCall(request, reply);
   }
 
   Status ChmodRequest(ServerContext* context, const ChmodProto* request,
-                  ReplyProto* reply) override
+		  ReplyProto* reply) override
   {
     GrpcRestGwInterface restGwInterface;
     return restGwInterface.ChmodCall(request, reply);
   }
 
   Status ChownRequest(ServerContext* context, const ChownProto* request,
-                      ReplyProto* reply) override
+		      ReplyProto* reply) override
   {
     GrpcRestGwInterface restGwInterface;
     return restGwInterface.ChownCall(request, reply);
   }
 
   Status ConfigRequest(ServerContext* context, const ConfigProto* request,
-                        ReplyProto* reply) override
+			ReplyProto* reply) override
   {
     GrpcRestGwInterface restGwInterface;
     return restGwInterface.ConfigCall(request, reply);
   }
 
   Status ConvertRequest(ServerContext* context, const ConvertProto* request,
-                        ReplyProto* reply) override
+			ReplyProto* reply) override
   {
     GrpcRestGwInterface restGwInterface;
     return restGwInterface.ConvertCall(request, reply);
   }
 
   Status CpRequest(ServerContext* context, const CpProto* request,
-                    ReplyProto* reply) override
+		    ReplyProto* reply) override
   {
     GrpcRestGwInterface restGwInterface;
     return restGwInterface.CpCall(request, reply);
   }
 
   Status DebugRequest(ServerContext* context, const DebugProto* request,
-                      ReplyProto* reply) override
+		      ReplyProto* reply) override
   {
     GrpcRestGwInterface restGwInterface;
     return restGwInterface.DebugCall(request, reply);
   }
 
   Status EvictRequest(ServerContext* context, const EvictProto* request,
-                      ReplyProto* reply) override
+		      ReplyProto* reply) override
   {
     GrpcRestGwInterface restGwInterface;
     return restGwInterface.EvictCall(request, reply);
   }
 
   Status FileRequest(ServerContext* context, const FileProto* request,
-                      ReplyProto* reply)
+		      ReplyProto* reply)
   {
     std::string json_out;
     (void) google::protobuf::util::MessageToJsonString(*request, &json_out);
@@ -172,196 +175,196 @@ class EosRestGatewayServiceImpl final : public EosRestGatewayService::Service, p
   }
 
   Status FileinfoRequest(ServerContext* context, const FileinfoProto* request,
-                          ReplyProto* reply)
+			  ReplyProto* reply)
   {
     GrpcRestGwInterface restGwInterface;
     return restGwInterface.FileinfoCall(request, reply);
   }
 
   Status FsRequest(ServerContext* context, const FsProto* request,
-                    ReplyProto* reply)
+		    ReplyProto* reply)
   {
     GrpcRestGwInterface restGwInterface;
     return restGwInterface.FsCall(request, reply);
   }
 
   Status FsckRequest(ServerContext* context, const FsckProto* request,
-                      ReplyProto* reply)
+		      ReplyProto* reply)
   {
     GrpcRestGwInterface restGwInterface;
     return restGwInterface.FsckCall(request, reply);
   }
 
   Status GeoschedRequest(ServerContext* context, const GeoschedProto* request,
-                          ReplyProto* reply)
+			  ReplyProto* reply)
   {
     GrpcRestGwInterface restGwInterface;
     return restGwInterface.GeoschedCall(request, reply);
   }
 
   Status GroupRequest(ServerContext* context, const GroupProto* request,
-                      ReplyProto* reply) override
+		      ReplyProto* reply) override
   {
     GrpcRestGwInterface restGwInterface;
     return restGwInterface.GroupCall(request, reply);
   }
 
   Status HealthRequest(ServerContext* context, const HealthProto* request,
-                    ReplyProto* reply) override
+		    ReplyProto* reply) override
   {
     GrpcRestGwInterface restGwInterface;
     return restGwInterface.HealthCall(request, reply);
   }
 
   Status IoRequest(ServerContext* context, const IoProto* request,
-                    ReplyProto* reply) override
+		    ReplyProto* reply) override
   {
     GrpcRestGwInterface restGwInterface;
     return restGwInterface.IoCall(request, reply);
   }
 
   Status MapRequest(ServerContext* context, const MapProto* request,
-                    ReplyProto* reply) override
+		    ReplyProto* reply) override
   {
     GrpcRestGwInterface restGwInterface;
     return restGwInterface.MapCall(request, reply);
   }
 
   Status MemberRequest(ServerContext* context, const MemberProto* request,
-                        ReplyProto* reply) override
+			ReplyProto* reply) override
   {
     GrpcRestGwInterface restGwInterface;
     return restGwInterface.MemberCall(request, reply);
   }
 
   Status MkdirRequest(ServerContext* context, const MkdirProto* request,
-                      ReplyProto* reply) override
+		      ReplyProto* reply) override
   {
     GrpcRestGwInterface restGwInterface;
     return restGwInterface.MkdirCall(request, reply);
   }
 
   Status MvRequest(ServerContext* context, const MoveProto* request,
-                    ReplyProto* reply) override
+		    ReplyProto* reply) override
   {
     GrpcRestGwInterface restGwInterface;
     return restGwInterface.MvCall(request, reply);
   }
 
   Status NodeRequest(ServerContext* context, const NodeProto* request,
-                    ReplyProto* reply) override
+		    ReplyProto* reply) override
   {
     GrpcRestGwInterface restGwInterface;
     return restGwInterface.NodeCall(request, reply);
   }
 
   Status NsRequest(ServerContext* context, const NsProto* request,
-                    ReplyProto* reply) override
+		    ReplyProto* reply) override
   {
     GrpcRestGwInterface restGwInterface;
     return restGwInterface.NsCall(request, reply);
   }
 
   Status QoSRequest(ServerContext* context, const QoSProto* request,
-                    ReplyProto* reply) override
+		    ReplyProto* reply) override
   {
     GrpcRestGwInterface restGwInterface;
     return restGwInterface.QoSCall(request, reply);
   }
 
   Status QuotaRequest(ServerContext* context, const QuotaProto* request,
-                      ReplyProto* reply) override
+		      ReplyProto* reply) override
   {
     GrpcRestGwInterface restGwInterface;
     return restGwInterface.QuotaCall(request, reply);
   }
 
   Status RecycleRequest(ServerContext* context, const RecycleProto* request,
-                        ReplyProto* reply) override
+			ReplyProto* reply) override
   {
     GrpcRestGwInterface restGwInterface;
     return restGwInterface.RecycleCall(request, reply);
   }
-  
+
   Status RmRequest(ServerContext* context, const RmProto* request,
-                    ReplyProto* reply) override
+		    ReplyProto* reply) override
   {
     GrpcRestGwInterface restGwInterface;
     return restGwInterface.RmCall(request, reply);
   }
 
   Status RmdirRequest(ServerContext* context, const RmdirProto* request,
-                      ReplyProto* reply) override
+		      ReplyProto* reply) override
   {
     GrpcRestGwInterface restGwInterface;
     return restGwInterface.RmdirCall(request, reply);
   }
 
   Status RouteRequest(ServerContext* context, const RouteProto* request,
-                      ReplyProto* reply) override
+		      ReplyProto* reply) override
   {
     GrpcRestGwInterface restGwInterface;
     return restGwInterface.RouteCall(request, reply);
   }
 
   Status SpaceRequest(ServerContext* context, const SpaceProto* request,
-                      ReplyProto* reply) override
+		      ReplyProto* reply) override
   {
     GrpcRestGwInterface restGwInterface;
     return restGwInterface.SpaceCall(request, reply);
   }
 
   Status StatRequest(ServerContext* context, const StatProto* request,
-                    ReplyProto* reply) override
+		    ReplyProto* reply) override
   {
     GrpcRestGwInterface restGwInterface;
     return restGwInterface.StatCall(request, reply);
   }
 
   Status StatusRequest(ServerContext* context, const StatusProto* request,
-                        ReplyProto* reply) override
+			ReplyProto* reply) override
   {
     GrpcRestGwInterface restGwInterface;
     return restGwInterface.StatusCall(request, reply);
   }
 
   Status TokenRequest(ServerContext* context, const TokenProto* request,
-                      ReplyProto* reply) override
+		      ReplyProto* reply) override
   {
     GrpcRestGwInterface restGwInterface;
     return restGwInterface.TokenCall(request, reply);
   }
 
   Status TouchRequest(ServerContext* context, const TouchProto* request,
-                      ReplyProto* reply) override
+		      ReplyProto* reply) override
   {
     GrpcRestGwInterface restGwInterface;
     return restGwInterface.TouchCall(request, reply);
   }
 
   Status VersionRequest(ServerContext* context, const VersionProto* request,
-                        ReplyProto* reply) override
+			ReplyProto* reply) override
   {
     GrpcRestGwInterface restGwInterface;
     return restGwInterface.VersionCall(request, reply);
   }
 
   Status VidRequest(ServerContext* context, const VidProto* request,
-                    ReplyProto* reply) override
+		    ReplyProto* reply) override
   {
     GrpcRestGwInterface restGwInterface;
     return restGwInterface.VidCall(request, reply);
   }
 
   Status WhoRequest(ServerContext* context, const WhoProto* request,
-                    ReplyProto* reply) override
+		    ReplyProto* reply) override
   {
     GrpcRestGwInterface restGwInterface;
     return restGwInterface.WhoCall(request, reply);
   }
 
   Status WhoamiRequest(ServerContext* context, const WhoamiProto* request,
-                        ReplyProto* reply) override
+			ReplyProto* reply) override
   {
     GrpcRestGwInterface restGwInterface;
     return restGwInterface.WhoamiCall(request, reply);
@@ -395,14 +398,14 @@ GrpcRestGwServer::DN(grpc::ServerContext* context)
 
 /* return client IP */
 std::string GrpcRestGwServer::IP(grpc::ServerContext* context, std::string* id,
-                           std::string* port)
+			   std::string* port)
 {
   // format is ipv4:<ip>:<..> or ipv6:<ip>:<..> - we just return the IP address
   // butq net and id are populated as well with the prefix and suffix, respectively
   std::vector<std::string> tokens;
   eos::common::StringConversion::Tokenize(context->peer(),
-                                          tokens,
-                                          "[]");
+					  tokens,
+					  "[]");
 
   if (tokens.size() == 3) {
     if (id) {
@@ -417,16 +420,16 @@ std::string GrpcRestGwServer::IP(grpc::ServerContext* context, std::string* id,
   } else {
     tokens.clear();
     eos::common::StringConversion::Tokenize(context->peer(),
-                                            tokens,
-                                            ":");
+					    tokens,
+					    ":");
 
     if (tokens.size() == 3) {
       if (id) {
-        *id = tokens[0].substr(0, tokens[0].size());
+	*id = tokens[0].substr(0, tokens[0].size());
       }
 
       if (port) {
-        *port = tokens[2].substr(0, tokens[2].size());
+	*port = tokens[2].substr(0, tokens[2].size());
       }
 
       return tokens[1];
@@ -439,25 +442,35 @@ std::string GrpcRestGwServer::IP(grpc::ServerContext* context, std::string* id,
 /* return VID for a given call */
 void
 GrpcRestGwServer::Vid(grpc::ServerContext* context,
-                eos::common::VirtualIdentity& vid,
-                const std::string& authkey)
+		eos::common::VirtualIdentity& vid)
 {
-  XrdSecEntity client("grpc");
-  std::string dn = DN(context);
-  client.name = const_cast<char*>(dn.c_str());
-  bool isEosToken = (authkey.substr(0, 8) == "zteos64:");
-  std::string tident = dn.length() ? dn.c_str() : (isEosToken ? "eostoken" :
-                       authkey.c_str());
-  std::string id;
-  std::string ip = GrpcRestGwServer::IP(context, &id).c_str();
-  tident += ".1:";
-  tident += id;
-  tident += "@";
-  tident += ip;
-  client.tident = tident.c_str();
+  static const std::string hdr_name = "client-name";
+  static const std::string hdr_tident = "client-tident";
+  static const std::string hdr_authz = "client-authorization";
+  const auto& map_hdrs = context->client_metadata();
+  std::string name_val, tident_val, authz_val;
 
-  if (authkey.length()) {
-    client.endorsements = const_cast<char*>(authkey.c_str());
+  XrdSecEntity client("grpc");
+  // Populate client name
+  auto it = map_hdrs.find(hdr_name);
+
+  if (it != map_hdrs.end()) {
+    name_val = std::string(it->first.data(), it->first.length());
+    client.name = const_cast<char*>(name_val.c_str());
+  }
+  // Populate client tident
+  it = map_hdrs.find(hdr_tident);
+
+  if (it != map_hdrs.end()) {
+    tident_val = std::string(it->first.data(), it->first.length());
+    client.tident = const_cast<char*>(tident_val.c_str());
+  }
+  // Populate client endorsemetns if authz info present
+  it = map_hdrs.find(hdr_authz);
+
+  if (it != map_hdrs.end()) {
+    authz_val = std::string(it->first.data(), it->first.length());
+    client.endorsements = const_cast<char*>(authz_val.c_str());
   }
 
   eos::common::Mapping::IdMap(&client, "eos.app=grpc", client.tident, vid);

@@ -37,7 +37,6 @@
 #include "XrdOuc/XrdOucPinPath.hh"
 #include <stdio.h>
 #include "mgm/http/rest-api/manager/RestApiManager.hh"
-#include <curl/curl.h>
 
 XrdVERSIONINFO(XrdHttpGetExtHandler, EosMgmHttp);
 static XrdVERSIONINFODEF(compiledVer, EosMgmHttp, XrdVNUMBER, XrdVERSION);
@@ -63,9 +62,9 @@ static XrdVERSIONINFODEF(compiledVer, EosMgmHttp, XrdVNUMBER, XrdVERSION);
 //!
 //------------------------------------------------------------------------------
 #define XrdHttpExtHandlerArgs XrdSysError       *eDest, \
-                              const char        *confg, \
-                              const char        *parms, \
-                              XrdOucEnv         *myEnv
+			      const char        *confg, \
+			      const char        *parms, \
+			      XrdOucEnv         *myEnv
 
 extern "C" XrdHttpExtHandler* XrdHttpGetExtHandler(XrdHttpExtHandlerArgs)
 {
@@ -99,7 +98,7 @@ EosMgmHttpHandler::~EosMgmHttpHandler()
 //------------------------------------------------------------------------------
 int
 EosMgmHttpHandler::Config(XrdSysError* eDest, const char* confg,
-                          const char* parms, XrdOucEnv* myEnv)
+			  const char* parms, XrdOucEnv* myEnv)
 {
   using namespace eos::common;
   const std::string ofs_lib_tag = "xrootd.fslib";
@@ -123,24 +122,24 @@ EosMgmHttpHandler::Config(XrdSysError* eDest, const char* confg,
       mMgmOfsHandler = GetOfsPlugin(eDest, ofs_lib_path, confg);
 
       if (!mMgmOfsHandler) {
-        eDest->Emsg("Config", "failed to get MGM OFS plugin pointer");
-        return 1;
+	eDest->Emsg("Config", "failed to get MGM OFS plugin pointer");
+	return 1;
       }
     } else if (line.find(authz_lib_tag) == 0) {
       authz_libs = GetAuthzLibPaths(line);
       http_ext_lib_path = GetHttpExtLibPath(line);
 
       if (authz_libs.empty() || http_ext_lib_path.empty()) {
-        eos_err("msg=\"wrong mgmofs.macaroonslib configuration\" data=\"%s\"",
-                line.c_str());
-        return 1;
+	eos_err("msg=\"wrong mgmofs.macaroonslib configuration\" data=\"%s\"",
+		line.c_str());
+	return 1;
       }
     }
   }
 
   if (authz_libs.empty() || http_ext_lib_path.empty())  {
     eos_notice("%s", "msg=\"mgmofs.macaroonslib configuration missing so "
-               "there is no token authorization support\"");
+	       "there is no token authorization support\"");
     return 0;
   }
 
@@ -154,7 +153,7 @@ EosMgmHttpHandler::Config(XrdSysError* eDest, const char* confg,
   // Load the XrdHttpExHandler plugin from the XrdMacaroons library which
   // is always on the first position
   if (!(mTokenHttpHandler = GetHttpExtPlugin(eDest, *authz_libs.begin(),
-                            confg, myEnv))) {
+			    confg, myEnv))) {
     return 1;
   }
 
@@ -171,9 +170,9 @@ EosMgmHttpHandler::Config(XrdSysError* eDest, const char* confg,
 
     try {
       if (!(authz = GetAuthzPlugin(eDest, *it, confg, myEnv, chain_authz))) {
-        eos_err("msg=\"failed to chain XrdAccAuthorize plugin\" lib=\"%s\"",
-                it->c_str());
-        return 1;
+	eos_err("msg=\"failed to chain XrdAccAuthorize plugin\" lib=\"%s\"",
+		it->c_str());
+	return 1;
       }
     } catch (const std::exception& e) {
       eos_err("msg=\"caught exception\" msg=\"%s\"", e.what());
@@ -184,7 +183,7 @@ EosMgmHttpHandler::Config(XrdSysError* eDest, const char* confg,
   }
 
   eos_info("%s", "msg=\"successfully chained the XrdAccAuthorizeObject "
-           "plugins and updated the MGM token authorization handler\"");
+	   "plugins and updated the MGM token authorization handler\"");
   mTokenAuthzHandler = authz;
   mMgmOfsHandler->SetTokenAuthzHandler(mTokenAuthzHandler);
   return 0;
@@ -221,7 +220,16 @@ EosMgmHttpHandler::ProcessReq(XrdHttpExtReq& req)
   if (mMgmOfsHandler->Shutdown) {
     std::string errmsg = "MGM daemon is shutting down";
     return req.SendSimpleResp(500, errmsg.c_str(), nullptr, errmsg.c_str(),
-                              errmsg.length());
+			      errmsg.length());
+  }
+
+  // Normalize the input headers to lower-case
+  std::map<std::string, std::string> normalized_headers;
+
+  for (const auto& hdr : req.headers) {
+    eos_static_info("msg=\"normalize hdr\" key=\"%s\" value=\"%s\"",
+		    hdr.first.c_str(), hdr.second.c_str());
+    normalized_headers[LC_STRING(hdr.first)] = hdr.second;
   }
 
   if (IsMacaroonRequest(req)) {
@@ -232,16 +240,16 @@ EosMgmHttpHandler::ProcessReq(XrdHttpExtReq& req)
     } else {
       std::string errmsg = "POST request not supported";
       return req.SendSimpleResp(404, errmsg.c_str(), nullptr, errmsg.c_str(),
-                                errmsg.length());
+				errmsg.length());
     }
   }
 
   if (IsRestApiGwRequest(req)) {
-    return ProcessRestApiGwPOST(req);
+    return ProcessRestApiGwPOST(req, normalized_headers);
   }
 
   bool is_rest_req = mMgmOfsHandler->mRestApiManager->isRestRequest(
-                       req.resource);
+		       req.resource);
 
   if (is_rest_req) {
     std::optional<int> retCode = readBody(req, body);
@@ -259,15 +267,6 @@ EosMgmHttpHandler::ProcessReq(XrdHttpExtReq& req)
     body.assign(data, (size_t) rbytes);
   }
 
-  // Normalize the input headers to lower-case
-  std::map<std::string, std::string> normalized_headers;
-
-  for (const auto& hdr : req.headers) {
-    eos_static_info("msg=\"normalize hdr\" key=\"%s\" value=\"%s\"",
-                    hdr.first.c_str(), hdr.second.c_str());
-    normalized_headers[LC_STRING(hdr.first)] = hdr.second;
-  }
-
   std::string err_msg;
   std::map<std::string, std::string> cookies;
   std::unique_ptr<eos::common::ProtocolHandler> handler =
@@ -277,7 +276,7 @@ EosMgmHttpHandler::ProcessReq(XrdHttpExtReq& req)
 
   if (handler == nullptr) {
     return req.SendSimpleResp(500, err_msg.c_str(), "", err_msg.c_str(),
-                              err_msg.length());
+			      err_msg.length());
   }
 
   eos::common::HttpResponse* response = handler->GetResponse();
@@ -285,7 +284,7 @@ EosMgmHttpHandler::ProcessReq(XrdHttpExtReq& req)
   if (response == nullptr) {
     std::string errmsg = "failed to create response object";
     return req.SendSimpleResp(500, errmsg.c_str(), nullptr, errmsg.c_str(),
-                              errmsg.length());
+			      errmsg.length());
   }
 
   std::ostringstream oss_header;
@@ -303,13 +302,13 @@ EosMgmHttpHandler::ProcessReq(XrdHttpExtReq& req)
 
     if (mRedirectToHttps) {
       if (key == "Location") {
-        if (normalized_headers["xrd-http-prot"] == "https") {
-          if (!normalized_headers.count("xrd-http-redirect-http") ||
-              (normalized_headers["xrd-http-redirect-http"] == "0")) {
-            // Re-write http: as https:
-            val.insert(4, "s");
-          }
-        }
+	if (normalized_headers["xrd-http-prot"] == "https") {
+	  if (!normalized_headers.count("xrd-http-redirect-http") ||
+	      (normalized_headers["xrd-http-redirect-http"] == "0")) {
+	    // Re-write http: as https:
+	    val.insert(4, "s");
+	  }
+	}
       }
     }
 
@@ -328,20 +327,20 @@ EosMgmHttpHandler::ProcessReq(XrdHttpExtReq& req)
 
     if (it != headers.end()) {
       try {
-        content_length = std::stoll(it->second);
+	content_length = std::stoll(it->second);
       } catch (...) {}
     }
 
     return req.SendSimpleResp(response->GetResponseCode(),
-                              response->GetResponseCodeDescription().c_str(),
-                              oss_header.str().c_str(),
-                              nullptr, content_length);
+			      response->GetResponseCodeDescription().c_str(),
+			      oss_header.str().c_str(),
+			      nullptr, content_length);
   } else {
     return req.SendSimpleResp(response->GetResponseCode(),
-                              response->GetResponseCodeDescription().c_str(),
-                              oss_header.str().c_str(),
-                              response->GetBody().c_str(),
-                              response->GetBody().length());
+			      response->GetResponseCodeDescription().c_str(),
+			      oss_header.str().c_str(),
+			      response->GetBody().c_str(),
+			      response->GetBody().length());
   }
 }
 
@@ -366,7 +365,7 @@ EosMgmHttpHandler::ProcessMacaroonPOST(XrdHttpExtReq& req)
     if (!vid_tmp->uid_string.empty()) {
       free(sec_entity.name);
       sec_entity.name = strndup(vid_tmp->uid_string.c_str(),
-                                vid_tmp->uid_string.length());
+				vid_tmp->uid_string.length());
     }
   }
 
@@ -377,11 +376,15 @@ EosMgmHttpHandler::ProcessMacaroonPOST(XrdHttpExtReq& req)
 // Process rest api gw POST request
 //------------------------------------------------------------------------------
 int
-EosMgmHttpHandler::ProcessRestApiGwPOST(XrdHttpExtReq& req)
+EosMgmHttpHandler::ProcessRestApiGwPOST(XrdHttpExtReq& req,
+					const HdrsMapT& norm_hdrs)
 {
+  std::string errmsg;
+
   // Extract request body
   std::string body;
   std::optional<int> retCode = readBody(req, body);
+
   if (retCode) {
     return retCode.value();
   }
@@ -395,14 +398,20 @@ EosMgmHttpHandler::ProcessRestApiGwPOST(XrdHttpExtReq& req)
       // Extract the command string
       eosCommand = req.resource.substr(lastSlashPos + 1);
   } else {
-      eos_err("msg=\"invalid input string\"");
+    errmsg = "invalid input string";
+    eos_static_err("msg=\"%s\"", errmsg.c_str());
+    return req.SendSimpleResp(500, errmsg.c_str(), "", errmsg.c_str(),
+			      errmsg.length());
   }
 
   // Initialize curl object
   CURL* curl = curl_easy_init();
+
   if (!curl) {
-      eos_err("msg=\"failed to initialize curl object\"");
-      return 1;
+    errmsg = "failed to initialize curl object";
+    eos_static_err("msg=\"%s\"", errmsg.c_str());
+    return req.SendSimpleResp(500, errmsg.c_str(), "", errmsg.c_str(),
+			      errmsg.length());
   }
 
   // Set the URL for the POST request
@@ -412,10 +421,13 @@ EosMgmHttpHandler::ProcessRestApiGwPOST(XrdHttpExtReq& req)
   // Set the HTTP method to POST
   curl_easy_setopt(curl, CURLOPT_POST, 1L);
 
-  // Add headers
-  struct curl_slist *list = NULL;
-  list = curl_slist_append(list, "Grpc-Metadata-Andreea: test");
-  curl_easy_setopt(curl, CURLOPT_HTTPHEADER, list);
+  // Forward relevant headers for auth
+  if (!RestApiGwFrwAuthHeaders(curl, req.GetSecEntity(), norm_hdrs)) {
+    errmsg = "failure while forwarding auth headers";
+    eos_static_err("msg=\"%s\"", errmsg.c_str());
+    return req.SendSimpleResp(500, errmsg.c_str(), "", errmsg.c_str(),
+			      errmsg.length());
+  }
 
   // Set the request data
   curl_easy_setopt(curl, CURLOPT_POSTFIELDS, body.c_str());
@@ -428,30 +440,60 @@ EosMgmHttpHandler::ProcessRestApiGwPOST(XrdHttpExtReq& req)
 
   // Perform the HTTP request
   CURLcode curlRes = curl_easy_perform(curl);
-  int res;
+  int res = 0;
+
   if (curlRes != CURLE_OK) {
     std::string errmsg = std::string("curl_easy_perform() failed: ") + curl_easy_strerror(curlRes);
     res = req.SendSimpleResp(500, errmsg.c_str(), "", errmsg.c_str(),
-                              errmsg.length());
+			      errmsg.length());
   } else {
     // HTTP request successful, send the response
     res = req.SendSimpleResp(200, responseData.c_str(), "", responseData.c_str(),
-                              responseData.length());
+			      responseData.length());
   }
 
   // Clean up and free resources
   curl_easy_cleanup(curl);
-  
   return res;
 }
 
+
+//----------------------------------------------------------------------------
+// Forward the authentication relevant info as custom headers to the
+// GRPC-gateway that will then send them further down to the GRPC server
+//----------------------------------------------------------------------------
+bool
+EosMgmHttpHandler::RestApiGwFrwAuthHeaders(CURL* curl,
+					   const XrdSecEntity& client,
+					   const HdrsMapT& norm_hdrs)
+{
+  static const std::string hdr_prefix = "Grpc-Metadata-";
+  static const std::string authz_hdr = "authorization";
+  struct curl_slist *list = NULL;
+  list = curl_slist_append(list, SSTR(hdr_prefix << "client-name: "
+				      << client.name).c_str());
+  list = curl_slist_append(list, SSTR(hdr_prefix << "client-tident: "
+				      << client.tident).c_str());
+  auto it_authz = norm_hdrs.find(authz_hdr);
+
+  if (it_authz != norm_hdrs.end()) {
+    list = curl_slist_append(list, SSTR(hdr_prefix << "client-authorization: "
+					<< it_authz->second).c_str());
+  }
+
+  curl_easy_setopt(curl, CURLOPT_HTTPHEADER, list);
+  return true;
+}
+
+//----------------------------------------------------------------------------
+// Function used to handle responses from grpc server
+//----------------------------------------------------------------------------
 size_t
 EosMgmHttpHandler::WriteCallback(void* contents, size_t size, size_t nmemb,
-                        std::string* output)
+			std::string* output)
 {
   size_t total_size = size * nmemb;
   output->append(static_cast<char*>(contents), total_size);
-
   return total_size;
 }
 
@@ -467,7 +509,7 @@ EosMgmHttpHandler::GetOfsLibPath(const std::string& cfg_line)
 
   if (tokens.size() < 2) {
     eos_err("msg=\"failed parsing xrootd.ofslib directive\" line=\"%s\"",
-            cfg_line.c_str());
+	    cfg_line.c_str());
     return lib_path;
   }
 
@@ -478,7 +520,7 @@ EosMgmHttpHandler::GetOfsLibPath(const std::string& cfg_line)
   if (lib_path == "-2")  {
     if (tokens.size() < 3) {
       eos_err("msg=\"failed parsing xrootd.ofslib directive\" line=\"%s\"",
-              cfg_line.c_str());
+	      cfg_line.c_str());
       lib_path.clear();
       return lib_path;
     }
@@ -504,7 +546,7 @@ EosMgmHttpHandler::GetAuthzLibPaths(const std::string& cfg_line)
 
   if (tokens.size() < 2) {
     eos_err("msg=\"missing mgmofs.macaroonslib configuration\" "
-            "tokens_sz=%i", tokens.size());
+	    "tokens_sz=%i", tokens.size());
     return authz_libs;
   }
 
@@ -532,7 +574,7 @@ EosMgmHttpHandler::GetHttpExtLibPath(const std::string& cfg_line)
 
   if (tokens.size() < 2) {
     eos_err("msg=\"missing mgmofs.macaroonslib configuration\" "
-            "tokens_sz=%i", tokens.size());
+	    "tokens_sz=%i", tokens.size());
     return std::string();
   }
 
@@ -546,16 +588,16 @@ EosMgmHttpHandler::GetHttpExtLibPath(const std::string& cfg_line)
 //------------------------------------------------------------------------------
 XrdMgmOfs*
 EosMgmHttpHandler::GetOfsPlugin(XrdSysError* eDest, const std::string& lib_path,
-                                const char* confg)
+				const char* confg)
 {
   char resolve_path[2048];
   bool no_alt_path {false};
   XrdMgmOfs* mgm_ofs_handler {nullptr};
 
   if (!XrdOucPinPath(lib_path.c_str(), no_alt_path, resolve_path,
-                     sizeof(resolve_path))) {
+		     sizeof(resolve_path))) {
     eDest->Emsg("Config", "Failed to locate the MGM OFS library path for ",
-                lib_path.c_str());
+		lib_path.c_str());
     return mgm_ofs_handler;
   }
 
@@ -571,13 +613,13 @@ EosMgmHttpHandler::GetOfsPlugin(XrdSysError* eDest, const std::string& lib_path,
 
   if (!(ep && (sfs_fs = ep(nullptr, eDest->logger(), confg)))) {
     eDest->Emsg("Config", "Failed loading XrdSfsFileSystem from ",
-                lib_path.c_str());
+		lib_path.c_str());
     return mgm_ofs_handler;
   }
 
   mgm_ofs_handler = static_cast<XrdMgmOfs*>(sfs_fs);
   eos_info("msg=\"successfully loaed XrdSfsFileSystem\" mgm_plugin_addr=%p",
-           mgm_ofs_handler);
+	   mgm_ofs_handler);
   return mgm_ofs_handler;
 }
 
@@ -586,33 +628,33 @@ EosMgmHttpHandler::GetOfsPlugin(XrdSysError* eDest, const std::string& lib_path,
 //------------------------------------------------------------------------------
 XrdHttpExtHandler*
 EosMgmHttpHandler::GetHttpExtPlugin(XrdSysError* eDest,
-                                    const std::string& lib_path,
-                                    const char* confg, XrdOucEnv* myEnv)
+				    const std::string& lib_path,
+				    const char* confg, XrdOucEnv* myEnv)
 {
   bool no_alt_path = false;
   char resolve_path[2048];
   XrdHttpExtHandler* http_ptr {nullptr};
 
   if (!XrdOucPinPath(lib_path.c_str(), no_alt_path, resolve_path,
-                     sizeof(resolve_path))) {
+		     sizeof(resolve_path))) {
     eos_err("msg=\"failed to locate library path\" lib=\"%s\"",
-            lib_path.c_str());
+	    lib_path.c_str());
     return http_ptr;
   }
 
   eos_info("msg=\"loading HttpExtHandler(XrdMacaroons) plugin\" path=\"%s\"",
-           resolve_path);
+	   resolve_path);
   XrdHttpExtHandler *(*ep)(XrdHttpExtHandlerArgs);
   std::string http_symbol {"XrdHttpGetExtHandler"};
   XrdSysPlugin http_plugin(eDest, resolve_path, "httpexthandler",
-                           &compiledVer, 1);
+			   &compiledVer, 1);
   void* http_addr = http_plugin.getPlugin(http_symbol.c_str(), 0, 0);
   http_plugin.Persist();
   ep = (XrdHttpExtHandler * (*)(XrdHttpExtHandlerArgs))(http_addr);
 
   if (!http_addr) {
     eos_err("msg=\"no XrdHttpGetExtHandler entry point in library\" "
-            "lib=\"%s\"", resolve_path);
+	    "lib=\"%s\"", resolve_path);
     return http_ptr;
   }
 
@@ -622,10 +664,10 @@ EosMgmHttpHandler::GetHttpExtPlugin(XrdSysError* eDest,
 
   if (ep && (http_ptr = ep(eDest, confg, (const char*) nullptr, myEnv))) {
     eos_info("msg=\"successfully loaded XrdHttpGetExtHandler\" lib=\"%s\"",
-             resolve_path);
+	     resolve_path);
   } else {
     eos_err("msg=\"failed loading XrdHttpGetExtHandler\" lib=\"%s\"",
-            resolve_path);
+	    resolve_path);
   }
 
   return http_ptr;
@@ -636,38 +678,38 @@ EosMgmHttpHandler::GetHttpExtPlugin(XrdSysError* eDest,
 //------------------------------------------------------------------------------
 XrdAccAuthorize*
 EosMgmHttpHandler::GetAuthzPlugin(XrdSysError* eDest,
-                                  const std::string& lib_path,
-                                  const char* confg, XrdOucEnv* myEnv,
-                                  XrdAccAuthorize* to_chain)
+				  const std::string& lib_path,
+				  const char* confg, XrdOucEnv* myEnv,
+				  XrdAccAuthorize* to_chain)
 {
   bool no_alt_path = false;
   char resolve_path[2048];
   XrdAccAuthorize* authz_ptr {nullptr};
 
   if (!XrdOucPinPath(lib_path.c_str(), no_alt_path, resolve_path,
-                     sizeof(resolve_path))) {
+		     sizeof(resolve_path))) {
     eos_err("msg=\"failed to locate library path\" lib=\"%s\"",
-            lib_path.c_str());
+	    lib_path.c_str());
     return authz_ptr;
   }
 
   eos_info("msg=\"loading XrdAccAuthorize plugin\" lib=\"%s\"", resolve_path);
   XrdAccAuthorize *(*authz_add_ep)(XrdSysLogger*, const char*, const char*,
-                                   XrdOucEnv*, XrdAccAuthorize*);
+				   XrdOucEnv*, XrdAccAuthorize*);
   std::string authz_add_symbol {"XrdAccAuthorizeObjAdd"};
   XrdSysPlugin authz_add_plugin(eDest, resolve_path, "authz", &compiledVer, 1);
   void* authz_addr = authz_add_plugin.getPlugin(authz_add_symbol.c_str(), 0, 0);
   authz_add_plugin.Persist();
   authz_add_ep = (XrdAccAuthorize * (*)(XrdSysLogger*, const char*, const char*,
-                                        XrdOucEnv*, XrdAccAuthorize*))(authz_addr);
+					XrdOucEnv*, XrdAccAuthorize*))(authz_addr);
 
   if (authz_add_ep &&
       (authz_ptr = authz_add_ep(eDest->logger(), confg, nullptr, myEnv, to_chain))) {
     eos_info("msg=\"successfully loaded XrdAccAuthorizeObject\" lib=\"%s\" ptr=%p",
-             resolve_path, authz_ptr);
+	     resolve_path, authz_ptr);
   } else {
     eos_err("msg=\"failed loading XrdAccAuthorizeObject\" lib=\"%s\"",
-            resolve_path);
+	    resolve_path);
   }
 
   return authz_ptr;
@@ -697,22 +739,22 @@ std::optional<int> EosMgmHttpHandler::readBody(XrdHttpExtReq& req,
       size_t chunk_len = std::min(xrdhttp_sz, contentToRead - dataRead);
       int bytesRead = req.BuffgetData(chunk_len, &data, true);
       eos_static_debug("contentToRead=%lli rb=%i body=%u contentLeft=%lli",
-                       contentToRead, bytesRead, body.size(), contentLeft);
+		       contentToRead, bytesRead, body.size(), contentLeft);
 
       if (bytesRead > 0) {
-        bodyTemp.append(data, bytesRead);
-        dataRead += bytesRead;
+	bodyTemp.append(data, bytesRead);
+	dataRead += bytesRead;
       } else if (bytesRead == -1) {
-        std::ostringstream oss;
-        oss << "msg=\"In EosMgmHttpHandler::ProcessReq(), unable to read the "
-            << "body of the request coming from the user. Internal XRootD Http"
-            << " request buffer error\"";
-        eos_static_err(oss.str().c_str());
-        std::string errorMsg = "Http server error: unable to read the request received";
-        return req.SendSimpleResp(500, errorMsg.c_str(), nullptr, errorMsg.c_str(),
-                                  errorMsg.length());
+	std::ostringstream oss;
+	oss << "msg=\"In EosMgmHttpHandler::ProcessReq(), unable to read the "
+	    << "body of the request coming from the user. Internal XRootD Http"
+	    << " request buffer error\"";
+	eos_static_err(oss.str().c_str());
+	std::string errorMsg = "Http server error: unable to read the request received";
+	return req.SendSimpleResp(500, errorMsg.c_str(), nullptr, errorMsg.c_str(),
+				  errorMsg.length());
       } else {
-        break;
+	break;
       }
     } while (dataRead < contentToRead);
 
@@ -733,7 +775,7 @@ bool EosMgmHttpHandler::IsMacaroonRequest(const XrdHttpExtReq& req) const
 
     if (contentTypeItor != req.headers.end()) {
       if (contentTypeItor->second == "application/macaroon-request") {
-        return true;
+	return true;
       }
     }
   }
@@ -742,7 +784,7 @@ bool EosMgmHttpHandler::IsMacaroonRequest(const XrdHttpExtReq& req) const
 }
 
 //------------------------------------------------------------------------------
-// Returns true if the request is a rest api gateway token request 
+// Returns true if the request is a rest api gateway token request
 // false otherwise
 //------------------------------------------------------------------------------
 bool EosMgmHttpHandler::IsRestApiGwRequest(const XrdHttpExtReq& req) const

@@ -26,6 +26,7 @@
 #include "XrdVersion.hh"
 #include <optional>
 #include <list>
+#include <curl/curl.h>
 
 //! Forward declaration
 class XrdMgmOfs;
@@ -38,8 +39,9 @@ class XrdSfsFileSystem;
 class EosMgmHttpHandler: public XrdHttpExtHandler,
   public eos::common::LogId
 {
-
 public:
+  using HdrsMapT = std::map<std::string, std::string>;
+
   //----------------------------------------------------------------------------
   //! Constructor
   //----------------------------------------------------------------------------
@@ -243,12 +245,31 @@ public:
   //! Process rest api gateway POST request
   //!
   //! @param req XrdHttp request object
+  //! @param norm_hdrs normalized headers from the HTTP request
   //!
   //! @return 0 if successful, otherwise non-0
   //----------------------------------------------------------------------------
-  int ProcessRestApiGwPOST(XrdHttpExtReq& req);
+  int ProcessRestApiGwPOST(XrdHttpExtReq& req,
+			   const HdrsMapT& norm_hdrs);
 
-//----------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
+  //! Forward the authentication relevant info as custom headers to the
+  //! GRPC-gateway that will then send them further down to the GRPC server
+  //!
+  //! @note All appened headers need to start with the Grpc-Metadata- prefix
+  //! so that they are forwarded by the GRPC gateway otherwise they will just
+  //! be discarded!
+  //!
+  //! @param curl CURL handler where headers are appended
+  //! @param client XrdSecEntity object from which information is extracted
+  //! @param norm_hdrs normalized headers from the HTTP request
+  //!
+  //! @return true if successful, otherwise false
+  //----------------------------------------------------------------------------
+  bool RestApiGwFrwAuthHeaders(CURL* curl, const XrdSecEntity& client,
+			       const HdrsMapT& norm_hdrs);
+
+  //----------------------------------------------------------------------------
   //! Function used to handle responses from grpc server
   //!
   //! @param contents pointer to the data received from the grpc server

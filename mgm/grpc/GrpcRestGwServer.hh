@@ -71,8 +71,7 @@ public:
                         std::string* port = 0);
   /* return VID for a given call */
   static void Vid(grpc::ServerContext* context,
-                  eos::common::VirtualIdentity& vid,
-                  const std::string& authkey);
+                  eos::common::VirtualIdentity& vid);
 
 #endif
 };
