@@ -52,6 +52,7 @@ add_executable(eos-flatscheduler-microbenchmark mgm/BM_FlatScheduler.cc
         ${CMAKE_SOURCE_DIR}/mgm/placement/ThreadLocalRRSeed.cc)
 add_executable(eos-rrseed-microbenchmark mgm/BM_RRSeed.cc
         ${CMAKE_SOURCE_DIR}/mgm/placement/ThreadLocalRRSeed.cc)
+add_executable(eos-inflighttracker-microbenchmark mgm/BM_InFlightTracker.cc)
 
 target_link_libraries(eos-microbenchmarks PRIVATE
   benchmark::benchmark
@@ -74,3 +75,8 @@ target_link_libraries(eos-rrseed-microbenchmark PRIVATE
 target_link_libraries(eos-flatscheduler-microbenchmark PRIVATE
   benchmark::benchmark
   EosCommon-Static)
+
+target_link_libraries(eos-inflighttracker-microbenchmark PRIVATE
+  benchmark::benchmark
+  EosCommon-Static
+  ${ABSL_LIBRARIES})

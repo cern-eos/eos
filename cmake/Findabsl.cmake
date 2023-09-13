@@ -13,7 +13,7 @@ find_path(ABSL_INCLUDE_DIR
 
 set(libraries absl_synchronization absl_graphcycles_internal absl_stacktrace absl_symbolize absl_time absl_civil_time absl_time_zone
   absl_malloc_internal absl_debugging_internal absl_demangle_internal absl_strings absl_int128
-  absl_strings_internal absl_base absl_spinlock_wait absl_throw_delegate absl_raw_logging_internal absl_log_severity)
+  absl_strings_internal absl_base absl_spinlock_wait absl_throw_delegate absl_raw_logging_internal absl_log_severity absl_hash absl_raw_hash_set absl)
 
 foreach( lib ${libraries})
   find_library(ABSL_${lib}_LIBRARY NAMES ${lib} HINTS 

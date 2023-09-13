@@ -59,7 +59,7 @@ InFlightTracker::PrintOut(bool monitoring)
     });
   }
 
-  std::map<uid_t, size_t> vids = getInFlightUids();
+  auto vids = getInFlightUids();
 
   for (auto it : vids) {
     TableData table_data;

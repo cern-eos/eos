@@ -28,7 +28,7 @@
 #include "common/table_formatter/TableFormatterBase.hh"
 #include <atomic>
 #include <cassert>
-
+#include "absl/container/flat_hash_map.h"
 EOSMGMNAMESPACE_BEGIN
 
 //------------------------------------------------------------------------------
@@ -84,12 +84,12 @@ public:
     uid_t myuid = vid.uid;
     std::unique_lock<std::mutex> scope_lock(mInFlightPidMutex);
 
-    if (!mInFlightPids[myself]) {
+    if (!mInFlightPids[myself]++) {
       mInFlightUid[myself] = myuid;
       mInFlightVids[myuid]++;
     }
 
-    mInFlightPids[myself]++;
+    //mInFlightPids[myself]++;
     return true;
   }
 
@@ -178,7 +178,7 @@ public:
     return inflight_threads;
   }
 
-  std::map<uid_t, size_t> getInFlightUids()
+  auto getInFlightUids()
   {
     std::unique_lock<std::mutex> scope_lock(mInFlightPidMutex);
     return mInFlightVids;
@@ -225,10 +225,10 @@ public:
 private:
   std::atomic<bool> mAcceptingRequests {true};
   std::atomic<int64_t> mInFlight {0};
-  std::map<pthread_t, size_t> mInFlightPids;
-  std::map<pthread_t, uid_t> mInFlightUid;
-  std::map<uid_t, size_t> mInFlightVids;
-  std::map<uid_t, size_t> mInFlightStalls;
+  absl::flat_hash_map<pthread_t, size_t> mInFlightPids;
+  absl::flat_hash_map<pthread_t, uid_t> mInFlightUid;
+  absl::flat_hash_map<uid_t, size_t> mInFlightVids;
+  absl::flat_hash_map<uid_t, size_t> mInFlightStalls;
   std::mutex mInFlightPidMutex;
 
 };
