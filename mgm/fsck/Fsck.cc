@@ -1185,7 +1185,7 @@ Fsck::NotifyFixedErr(eos::IFileMD::id_t fid,
                      const std::string& err_type,
                      bool force, uint32_t count_flush)
 {
-  eos_static_debug("msg=\"fsck notification\" fid=%08llx fsid=%lu "
+  eos_static_debug("msg=\"fsck notification\" fxid=%08llx fsid=%lu "
                    "err=%s", fid, fsid_err, err_type.c_str());
   static std::mutex mutex;
   static uint64_t num_updates = 0ull;
