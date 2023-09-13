@@ -473,7 +473,8 @@ EosMgmHttpHandler::RestApiGwFrwAuthHeaders(CURL* curl,
   list = curl_slist_append(list, SSTR(hdr_prefix << "client-name: "
 				      << client.name).c_str());
   list = curl_slist_append(list, SSTR(hdr_prefix << "client-tident: "
-				      << client.tident).c_str());
+				      << "https.0:0@" 
+				      << client.host).c_str());
   auto it_authz = norm_hdrs.find(authz_hdr);
 
   if (it_authz != norm_hdrs.end()) {

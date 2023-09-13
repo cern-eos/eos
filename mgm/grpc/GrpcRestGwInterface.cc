@@ -43,44 +43,38 @@
 
 EOSMGMNAMESPACE_BEGIN
 
-grpc::Status GrpcRestGwInterface::AclCall(const AclProto* aclRequest, ReplyProto* reply)
+grpc::Status GrpcRestGwInterface::AclCall(VirtualIdentity& vid,
+                                const AclProto* aclRequest, ReplyProto* reply)
 {
   // wrap the AclProto object into a RequestProto object
   eos::console::RequestProto req;
   req.mutable_acl()->CopyFrom(*aclRequest);
 
-  // initialise VirtualIdentity object
-  auto rootvid = eos::common::VirtualIdentity::Root();
-
-  eos::mgm::AclCmd aclcmd(std::move(req), rootvid);
+  eos::mgm::AclCmd aclcmd(std::move(req), vid);
   *reply = aclcmd.ProcessRequest();
 
   return grpc::Status::OK;
 }
 
-grpc::Status GrpcRestGwInterface::AccessCall(const AccessProto* accessRequest, ReplyProto* reply)
+grpc::Status GrpcRestGwInterface::AccessCall(VirtualIdentity& vid,
+                          const AccessProto* accessRequest, ReplyProto* reply)
 {
   // wrap the AccessProto object into a RequestProto object
   eos::console::RequestProto req;
   req.mutable_access()->CopyFrom(*accessRequest);
 
-  // initialise VirtualIdentity object
-  auto rootvid = eos::common::VirtualIdentity::Root();
-
-  eos::mgm::AccessCmd accesscmd(std::move(req), rootvid);
+  eos::mgm::AccessCmd accesscmd(std::move(req), vid);
   *reply = accesscmd.ProcessRequest();
 
   return grpc::Status::OK;
 }
 
-grpc::Status GrpcRestGwInterface::ArchiveCall(const ArchiveProto* archiveRequest, ReplyProto* reply)
+grpc::Status GrpcRestGwInterface::ArchiveCall(VirtualIdentity& vid,
+                        const ArchiveProto* archiveRequest, ReplyProto* reply)
 {
   // wrap the ArchiveProto object into a RequestProto object
   eos::console::RequestProto req;
   req.mutable_archive()->CopyFrom(*archiveRequest);
-
-  // initialise VirtualIdentity object
-  auto rootvid = eos::common::VirtualIdentity::Root();
 
   std::string subcmd = req.archive().command();
   std::string cmd_in = "mgm.cmd=archive&mgm.subcmd=" + subcmd;
@@ -99,19 +93,17 @@ grpc::Status GrpcRestGwInterface::ArchiveCall(const ArchiveProto* archiveRequest
     cmd_in += "&mgm.archive.path=" + req.archive().path();
   }
 
-  ExecProcCmd(rootvid, reply, cmd_in, false);
+  ExecProcCmd(vid, reply, cmd_in, false);
 
   return grpc::Status::OK;
 }
 
-grpc::Status GrpcRestGwInterface::AttrCall(const AttrProto* attrRequest, ReplyProto* reply)
+grpc::Status GrpcRestGwInterface::AttrCall(VirtualIdentity& vid,
+                              const AttrProto* attrRequest, ReplyProto* reply)
 {
   // wrap the AttrProto object into a RequestProto object
   eos::console::RequestProto req;
   req.mutable_attr()->CopyFrom(*attrRequest);
-
-  // initialise VirtualIdentity object
-  auto rootvid = eos::common::VirtualIdentity::Root();
 
   std::string cmd_in;
   std::string path = req.attr().md().path();
@@ -184,23 +176,23 @@ grpc::Status GrpcRestGwInterface::AttrCall(const AttrProto* attrRequest, ReplyPr
       std::string set_def;
 
       set_def = cmd_in + "&mgm.attr.key=sys.forced.blocksize&mgm.attr.value=" + val[0];
-      cmd.open("/proc/user", set_def.c_str(), rootvid, &error);
+      cmd.open("/proc/user", set_def.c_str(), vid, &error);
 
       set_def = cmd_in + "&mgm.attr.key=sys.forced.checksum&mgm.attr.value=" + val[1];
-      cmd.open("/proc/user", set_def.c_str(), rootvid, &error);
+      cmd.open("/proc/user", set_def.c_str(), vid, &error);
 
       set_def = cmd_in + "&mgm.attr.key=sys.forced.layout&mgm.attr.value=" + val[2];
-      cmd.open("/proc/user", set_def.c_str(), rootvid, &error);
+      cmd.open("/proc/user", set_def.c_str(), vid, &error);
 
       set_def = cmd_in + "&mgm.attr.key=sys.forced.nstripes&mgm.attr.value=" + val[3];
-      cmd.open("/proc/user", set_def.c_str(), rootvid, &error);
+      cmd.open("/proc/user", set_def.c_str(), vid, &error);
 
       set_def = cmd_in + "&mgm.attr.key=sys.forced.space&mgm.attr.value=" + val[4];
-      cmd.open("/proc/user", set_def.c_str(), rootvid, &error);
+      cmd.open("/proc/user", set_def.c_str(), vid, &error);
 
       if (value != "replica") {
         set_def = cmd_in + "&mgm.attr.key=sys.forced.blockchecksum&mgm.attr.value=" + val[5];
-        cmd.open("/proc/user", set_def.c_str(), rootvid, &error);
+        cmd.open("/proc/user", set_def.c_str(), vid, &error);
       }
     }
 
@@ -260,19 +252,17 @@ grpc::Status GrpcRestGwInterface::AttrCall(const AttrProto* attrRequest, ReplyPr
     cmd_in += "&mgm.option=r";
   }
 
-  ExecProcCmd(rootvid, reply, cmd_in, false);
+  ExecProcCmd(vid, reply, cmd_in, false);
 
   return grpc::Status::OK;
 }
 
-grpc::Status GrpcRestGwInterface::BackupCall(const BackupProto* backupRequest, ReplyProto* reply)
+grpc::Status GrpcRestGwInterface::BackupCall(VirtualIdentity& vid,
+                          const BackupProto* backupRequest, ReplyProto* reply)
 {
   // wrap the BackupProto object into a RequestProto object
   eos::console::RequestProto req;
   req.mutable_backup()->CopyFrom(*backupRequest);
-
-  // initialise VirtualIdentity object
-  auto rootvid = eos::common::VirtualIdentity::Root();
 
   std::string src = req.backup().src_url();
   std::string dst = req.backup().dst_url();
@@ -322,19 +312,17 @@ grpc::Status GrpcRestGwInterface::BackupCall(const BackupProto* backupRequest, R
     cmd_in += "&mgm.backup.excl_xattr=" + req.backup().xattr();
   }
 
-  ExecProcCmd(rootvid, reply, cmd_in);
+  ExecProcCmd(vid, reply, cmd_in);
 
   return grpc::Status::OK;
 }
 
-grpc::Status GrpcRestGwInterface::ChmodCall(const ChmodProto* chmodRequest, ReplyProto* reply)
+grpc::Status GrpcRestGwInterface::ChmodCall(VirtualIdentity& vid,
+                            const ChmodProto* chmodRequest, ReplyProto* reply)
 {
   // wrap the ChmodProto object into a RequestProto object
   eos::console::RequestProto req;
   req.mutable_chmod()->CopyFrom(*chmodRequest);
-
-  // initialise VirtualIdentity object
-  auto rootvid = eos::common::VirtualIdentity::Root();
 
   std::string cmd_in;
   std::string path = req.chmod().md().path();
@@ -379,19 +367,17 @@ grpc::Status GrpcRestGwInterface::ChmodCall(const ChmodProto* chmodRequest, Repl
     cmd_in += "&mgm.option=r";
   }
 
-  ExecProcCmd(rootvid, reply, cmd_in, false);
+  ExecProcCmd(vid, reply, cmd_in, false);
 
   return grpc::Status::OK;
 }
 
-grpc::Status GrpcRestGwInterface::ChownCall(const ChownProto* chownRequest, ReplyProto* reply)
+grpc::Status GrpcRestGwInterface::ChownCall(VirtualIdentity& vid,
+                            const ChownProto* chownRequest, ReplyProto* reply)
 {
   // wrap the ChownProto object into a RequestProto object
   eos::console::RequestProto req;
   req.mutable_chown()->CopyFrom(*chownRequest);
-
-  // initialise VirtualIdentity object
-  auto rootvid = eos::common::VirtualIdentity::Root();
 
   std::string path = req.chown().md().path();
   uid_t uid = req.chown().owner().uid();
@@ -464,49 +450,43 @@ grpc::Status GrpcRestGwInterface::ChownCall(const ChownProto* chownRequest, Repl
     }
   }
 
-  ExecProcCmd(rootvid, reply, cmd_in, false);
+  ExecProcCmd(vid, reply, cmd_in, false);
 
   return grpc::Status::OK;
 }
 
-grpc::Status GrpcRestGwInterface::ConfigCall(const ConfigProto* configRequest, ReplyProto* reply)
+grpc::Status GrpcRestGwInterface::ConfigCall(VirtualIdentity& vid,
+                          const ConfigProto* configRequest, ReplyProto* reply)
 {
   // wrap the ConfigProto object into a RequestProto object
   eos::console::RequestProto req;
   req.mutable_config()->CopyFrom(*configRequest);
 
-  // initialise VirtualIdentity object
-  auto rootvid = eos::common::VirtualIdentity::Root();
-
-  eos::mgm::ConfigCmd configcmd(std::move(req), rootvid);
+  eos::mgm::ConfigCmd configcmd(std::move(req), vid);
   *reply = configcmd.ProcessRequest();
 
   return grpc::Status::OK;
 }
 
-grpc::Status GrpcRestGwInterface::ConvertCall(const ConvertProto* convertRequest, ReplyProto* reply)
+grpc::Status GrpcRestGwInterface::ConvertCall(VirtualIdentity& vid,
+                        const ConvertProto* convertRequest, ReplyProto* reply)
 {
   // wrap the ConvertProto object into a RequestProto object
   eos::console::RequestProto req;
   req.mutable_convert()->CopyFrom(*convertRequest);
 
-  // initialise VirtualIdentity object
-  auto rootvid = eos::common::VirtualIdentity::Root();
-
-  eos::mgm::ConvertCmd convertcmd(std::move(req), rootvid);
+  eos::mgm::ConvertCmd convertcmd(std::move(req), vid);
   *reply = convertcmd.ProcessRequest();
 
   return grpc::Status::OK;
 }
 
-grpc::Status GrpcRestGwInterface::CpCall(const CpProto* cpRequest, ReplyProto* reply)
+grpc::Status GrpcRestGwInterface::CpCall(VirtualIdentity& vid,
+                                  const CpProto* cpRequest, ReplyProto* reply)
 {
   // wrap the CpProto object into a RequestProto object
   eos::console::RequestProto req;
   req.mutable_cp()->CopyFrom(*cpRequest);
-
-  // initialise VirtualIdentity object
-  auto rootvid = eos::common::VirtualIdentity::Root();
 
   switch (req.cp().subcmd_case()) {
   case eos::console::CpProto::kCksum: {
@@ -621,31 +601,27 @@ grpc::Status GrpcRestGwInterface::CpCall(const CpProto* cpRequest, ReplyProto* r
   return grpc::Status::OK;
 }
 
-grpc::Status GrpcRestGwInterface::DebugCall(const DebugProto* debugRequest, ReplyProto* reply)
+grpc::Status GrpcRestGwInterface::DebugCall(VirtualIdentity& vid,
+                            const DebugProto* debugRequest, ReplyProto* reply)
 {
   // wrap the DebugProto object into a RequestProto object
   eos::console::RequestProto req;
   req.mutable_debug()->CopyFrom(*debugRequest);
 
-  // initialise VirtualIdentity object
-  auto rootvid = eos::common::VirtualIdentity::Root();
-
-  eos::mgm::DebugCmd debugcmd(std::move(req), rootvid);
+  eos::mgm::DebugCmd debugcmd(std::move(req), vid);
   *reply = debugcmd.ProcessRequest();
 
   return grpc::Status::OK;
 }
 
-grpc::Status GrpcRestGwInterface::EvictCall(const EvictProto* evictRequest, ReplyProto* reply)
+grpc::Status GrpcRestGwInterface::EvictCall(VirtualIdentity& vid,
+                            const EvictProto* evictRequest, ReplyProto* reply)
 {
   // wrap the EvictProto object into a RequestProto object
   eos::console::RequestProto req;
   req.mutable_debug()->CopyFrom(*evictRequest);
 
-  // initialise VirtualIdentity object
-  auto rootvid = eos::common::VirtualIdentity::Root();
-
-  eos::mgm::EvictCmd evictcmd(std::move(req), rootvid);
+  eos::mgm::EvictCmd evictcmd(std::move(req), vid);
   *reply = evictcmd.ProcessRequest();
 
   return grpc::Status::OK;
@@ -662,7 +638,8 @@ int
 FileHelper_GetRemoteFmdFromLocalDb(const char* manager, const char* shexfid,
                              const char* sfsid, eos::common::FmdHelper& fmd);
 
-grpc::Status GrpcRestGwInterface::FileCall(const FileProto* fileRequest, ReplyProto* reply)
+grpc::Status GrpcRestGwInterface::FileCall(VirtualIdentity& vid,
+                              const FileProto* fileRequest, ReplyProto* reply)
 {
   // wrap the AccessProto object into a RequestProto object
   eos::console::RequestProto req;
@@ -738,7 +715,7 @@ grpc::Status GrpcRestGwInterface::FileCall(const FileProto* fileRequest, ReplyPr
     cmd_in += "&mgm.path=";
     cmd_in += path;
     XrdOucString option = req.file().check().options().c_str();
-    cmd.open("/proc/user", cmd_in.c_str(), rootvid, &error);
+    cmd.open("/proc/user", cmd_in.c_str(), vid, &error);
     cmd.AddOutput(std_out, std_err);
     cmd.close();
     XrdOucEnv* result = new XrdOucEnv(std_out.c_str());
@@ -1284,7 +1261,7 @@ grpc::Status GrpcRestGwInterface::FileCall(const FileProto* fileRequest, ReplyPr
     XrdOucErrInfo error;
     errno = 0;
 
-    if (gOFS->_symlink(path.c_str(), target.c_str(), error, rootvid)) {
+    if (gOFS->_symlink(path.c_str(), target.c_str(), error, vid)) {
       reply->set_std_err(error.getErrText());
       reply->set_retc(errno);
       return grpc::Status::OK;
@@ -1411,12 +1388,13 @@ grpc::Status GrpcRestGwInterface::FileCall(const FileProto* fileRequest, ReplyPr
   }
   }
 
-  ExecProcCmd(rootvid, reply, cmd_in, false);
+  ExecProcCmd(vid, reply, cmd_in, false);
 
   return grpc::Status::OK;
 }
 
-grpc::Status GrpcRestGwInterface::FileinfoCall(const FileinfoProto* fileinfoRequest, ReplyProto* reply)
+grpc::Status GrpcRestGwInterface::FileinfoCall(VirtualIdentity& vid,
+                      const FileinfoProto* fileinfoRequest, ReplyProto* reply)
 {
   // wrap the FileinfoProto object into a RequestProto object
   eos::console::RequestProto req;
@@ -1532,14 +1510,14 @@ grpc::Status GrpcRestGwInterface::FileinfoCall(const FileinfoProto* fileinfoRequ
     acl_request.set_op(eos::console::AclProto_OpType_LIST);
     acl_request.set_path(req.fileinfo().md().path());
     GrpcRestGwInterface exec_acl;
-    exec_acl.AclCall(&acl_request, &acl_reply);
+    exec_acl.AclCall(vid, &acl_request, &acl_reply);
 
     if (!acl_reply.std_out().empty())
       std_out += "wnc_acl_user=" + acl_reply.std_out() + " ";
 
     // Get sys ACL with usernames/groupnames/egroupnames
     acl_request.set_sys_acl(true);
-    exec_acl.AclCall(&acl_request, &acl_reply);
+    exec_acl.AclCall(vid, &acl_request, &acl_reply);
 
     if (!acl_reply.std_out().empty())
       std_out += "wnc_acl_sys=" + acl_reply.std_out() + " ";
@@ -1552,46 +1530,40 @@ grpc::Status GrpcRestGwInterface::FileinfoCall(const FileinfoProto* fileinfoRequ
   return grpc::Status::OK;
 }
 
-grpc::Status GrpcRestGwInterface::FsCall(const FsProto* fsRequest, ReplyProto* reply)
+grpc::Status GrpcRestGwInterface::FsCall(VirtualIdentity& vid,
+                                  const FsProto* fsRequest, ReplyProto* reply)
 {
   // wrap the FsProto object into a RequestProto object
   eos::console::RequestProto req;
   req.mutable_fs()->CopyFrom(*fsRequest);
 
-  // initialise VirtualIdentity object
-  auto rootvid = eos::common::VirtualIdentity::Root();
-
-  eos::mgm::FsCmd fscmd(std::move(req), rootvid);
+  eos::mgm::FsCmd fscmd(std::move(req), vid);
   *reply = fscmd.ProcessRequest();
 
   return grpc::Status::OK;
 }
 
-grpc::Status GrpcRestGwInterface::FsckCall(const FsckProto* fsckRequest, ReplyProto* reply)
+grpc::Status GrpcRestGwInterface::FsckCall(VirtualIdentity& vid,
+                              const FsckProto* fsckRequest, ReplyProto* reply)
 {
   // wrap the AccessProto object into a RequestProto object
   eos::console::RequestProto req;
   req.mutable_fsck()->CopyFrom(*fsckRequest);
 
-  // initialise VirtualIdentity object
-  auto rootvid = eos::common::VirtualIdentity::Root();
-
-  eos::mgm::FsckCmd fsckcmd(std::move(req), rootvid);
+  eos::mgm::FsckCmd fsckcmd(std::move(req), vid);
   *reply = fsckcmd.ProcessRequest();
 
   return grpc::Status::OK;
 }
 
-grpc::Status GrpcRestGwInterface::GeoschedCall(const GeoschedProto* geoschedRequest, ReplyProto* reply)
+grpc::Status GrpcRestGwInterface::GeoschedCall(VirtualIdentity& vid,
+                      const GeoschedProto* geoschedRequest, ReplyProto* reply)
 {
   // wrap the AccessProto object into a RequestProto object
   eos::console::RequestProto req;
   req.mutable_geosched()->CopyFrom(*geoschedRequest);
 
-  // initialise VirtualIdentity object
-  auto rootvid = eos::common::VirtualIdentity::Root();
-
-  if (rootvid.uid == 0) {
+  if (vid.uid == 0) {
     std::string subcmd;
     reply->set_retc(SFS_ERROR);
 
@@ -1785,22 +1757,21 @@ grpc::Status GrpcRestGwInterface::GeoschedCall(const GeoschedProto* geoschedRequ
   return grpc::Status::OK;
 }
 
-grpc::Status GrpcRestGwInterface::GroupCall(const GroupProto* groupRequest, ReplyProto* reply)
+grpc::Status GrpcRestGwInterface::GroupCall(VirtualIdentity& vid,
+                            const GroupProto* groupRequest, ReplyProto* reply)
 {
   // wrap the GroupProto object into a RequestProto object
   eos::console::RequestProto req;
   req.mutable_group()->CopyFrom(*groupRequest);
 
-  // initialise VirtualIdentity object
-  auto rootvid = eos::common::VirtualIdentity::Root();
-
-  eos::mgm::GroupCmd groupcmd(std::move(req), rootvid);
+  eos::mgm::GroupCmd groupcmd(std::move(req), vid);
   *reply = groupcmd.ProcessRequest();
 
   return grpc::Status::OK;
 }
 
-grpc::Status GrpcRestGwInterface::HealthCall(const HealthProto* healthRequest, ReplyProto* reply)
+grpc::Status GrpcRestGwInterface::HealthCall(VirtualIdentity& vid,
+                          const HealthProto* healthRequest, ReplyProto* reply)
 {
   // wrap the HealthProto object into a RequestProto object
   eos::console::RequestProto req;
@@ -1832,29 +1803,25 @@ grpc::Status GrpcRestGwInterface::HealthCall(const HealthProto* healthRequest, R
   return grpc::Status::OK;
 }
 
-grpc::Status GrpcRestGwInterface::IoCall(const IoProto* ioRequest, ReplyProto* reply)
+grpc::Status GrpcRestGwInterface::IoCall(VirtualIdentity& vid,
+                                  const IoProto* ioRequest, ReplyProto* reply)
 {
   // wrap the IoProto object into a RequestProto object
   eos::console::RequestProto req;
   req.mutable_io()->CopyFrom(*ioRequest);
 
-  // initialise VirtualIdentity object
-  auto rootvid = eos::common::VirtualIdentity::Root();
-
-  eos::mgm::IoCmd iocmd(std::move(req), rootvid);
+  eos::mgm::IoCmd iocmd(std::move(req), vid);
   *reply = iocmd.ProcessRequest();
 
   return grpc::Status::OK;
 }
 
-grpc::Status GrpcRestGwInterface::MapCall(const MapProto* mapRequest, ReplyProto* reply)
+grpc::Status GrpcRestGwInterface::MapCall(VirtualIdentity& vid,
+                                const MapProto* mapRequest, ReplyProto* reply)
 {
   // wrap the MapProto object into a RequestProto object
   eos::console::RequestProto req;
   req.mutable_map()->CopyFrom(*mapRequest);
-
-  // initialise VirtualIdentity object
-  auto rootvid = eos::common::VirtualIdentity::Root();
 
   std::string subcmd = req.map().command();
   std::string cmd_in = "mgm.cmd=map&mgm.subcmd=" + subcmd;
@@ -1867,23 +1834,21 @@ grpc::Status GrpcRestGwInterface::MapCall(const MapProto* mapRequest, ReplyProto
     cmd_in += "&mgm.map.src=" + req.map().src_path();
   }
 
-  ExecProcCmd(rootvid, reply, cmd_in, false);
+  ExecProcCmd(vid, reply, cmd_in, false);
 
   return grpc::Status::OK;
 }
 
-grpc::Status GrpcRestGwInterface::MemberCall(const MemberProto* memberRequest, ReplyProto* reply)
+grpc::Status GrpcRestGwInterface::MemberCall(VirtualIdentity& vid,
+                          const MemberProto* memberRequest, ReplyProto* reply)
 {
   // wrap the MemberProto object into a RequestProto object
   eos::console::RequestProto req;
   req.mutable_member()->CopyFrom(*memberRequest);
 
-  // initialise VirtualIdentity object
-  auto rootvid = eos::common::VirtualIdentity::Root();
-
   std::string egroup = req.member().egroup();
   int errc = 0;
-  std::string uid_string = eos::common::Mapping::UidToUserName(rootvid.uid, errc);
+  std::string uid_string = eos::common::Mapping::UidToUserName(vid.uid, errc);
   std::string rs;
 
   if (!egroup.empty()) {
@@ -1894,7 +1859,7 @@ grpc::Status GrpcRestGwInterface::MemberCall(const MemberProto* memberRequest, R
 
     rs = gOFS->EgroupRefresh->DumpMember(uid_string, egroup);
   }
-  else if (rootvid.uid != 0) {
+  else if (vid.uid != 0) {
     reply->set_std_err("error: you have to take role 'root' to execute this command");
     reply->set_retc(EPERM);
     return grpc::Status::OK;
@@ -1909,14 +1874,12 @@ grpc::Status GrpcRestGwInterface::MemberCall(const MemberProto* memberRequest, R
   return grpc::Status::OK;
 }
 
-grpc::Status GrpcRestGwInterface::MkdirCall(const MkdirProto* mkdirRequest, ReplyProto* reply)
+grpc::Status GrpcRestGwInterface::MkdirCall(VirtualIdentity& vid,
+                            const MkdirProto* mkdirRequest, ReplyProto* reply)
 {
   // wrap the MkdirProto object into a RequestProto object
   eos::console::RequestProto req;
   req.mutable_mkdir()->CopyFrom(*mkdirRequest);
-
-  // initialise VirtualIdentity object
-  auto rootvid = eos::common::VirtualIdentity::Root();
 
   std::string cmd_in = "mgm.cmd=mkdir";
   std::string path = req.mkdir().md().path();
@@ -1926,7 +1889,7 @@ grpc::Status GrpcRestGwInterface::MkdirCall(const MkdirProto* mkdirRequest, Repl
     cmd_in += "&mgm.option=p";
   }
 
-  ExecProcCmd(rootvid, reply, cmd_in, false);
+  ExecProcCmd(vid, reply, cmd_in, false);
 
   if (req.mkdir().mode() != 0 && reply->retc() == 0) {
     eos::console::ChmodProto chmod_request;
@@ -1934,7 +1897,7 @@ grpc::Status GrpcRestGwInterface::MkdirCall(const MkdirProto* mkdirRequest, Repl
     chmod_request.mutable_md()->set_path(path);
     chmod_request.set_mode(req.mkdir().mode());
     GrpcRestGwInterface exec_chmod;
-    exec_chmod.ChmodCall(&chmod_request, &chmod_reply);
+    exec_chmod.ChmodCall(vid, &chmod_request, &chmod_reply);
 
     if (chmod_reply.retc() != 0) {
       reply->set_std_err(chmod_reply.std_err());
@@ -1945,14 +1908,12 @@ grpc::Status GrpcRestGwInterface::MkdirCall(const MkdirProto* mkdirRequest, Repl
   return grpc::Status::OK;
 }
 
-grpc::Status GrpcRestGwInterface::MvCall(const MoveProto* mvRequest, ReplyProto* reply)
+grpc::Status GrpcRestGwInterface::MvCall(VirtualIdentity& vid,
+                                const MoveProto* mvRequest, ReplyProto* reply)
 {
   // wrap the MoveProto object into a RequestProto object
   eos::console::RequestProto req;
   req.mutable_mv()->CopyFrom(*mvRequest);
-
-  // initialise VirtualIdentity object
-  auto rootvid = eos::common::VirtualIdentity::Root();
 
   std::string path = req.mv().md().path();
   std::string target = req.mv().target();
@@ -1988,109 +1949,95 @@ grpc::Status GrpcRestGwInterface::MvCall(const MoveProto* mvRequest, ReplyProto*
 
   cmd_in += "&mgm.subcmd=rename&mgm.path=" + path + "&mgm.file.target=" + target;
 
-  ExecProcCmd(rootvid, reply, cmd_in, false);
+  ExecProcCmd(vid, reply, cmd_in, false);
 
   return grpc::Status::OK;
 }
 
-grpc::Status GrpcRestGwInterface::NodeCall(const NodeProto* nodeRequest, ReplyProto* reply)
+grpc::Status GrpcRestGwInterface::NodeCall(VirtualIdentity& vid,
+                              const NodeProto* nodeRequest, ReplyProto* reply)
 {
   // wrap the NodeProto object into a RequestProto object
   eos::console::RequestProto req;
   req.mutable_node()->CopyFrom(*nodeRequest);
 
-  // initialise VirtualIdentity object
-  auto rootvid = eos::common::VirtualIdentity::Root();
-
-  eos::mgm::NodeCmd nodecmd(std::move(req), rootvid);
+  eos::mgm::NodeCmd nodecmd(std::move(req), vid);
   *reply = nodecmd.ProcessRequest();
 
   return grpc::Status::OK;
 }
 
-grpc::Status GrpcRestGwInterface::NsCall(const NsProto* nsRequest, ReplyProto* reply)
+grpc::Status GrpcRestGwInterface::NsCall(VirtualIdentity& vid,
+                                  const NsProto* nsRequest, ReplyProto* reply)
 {
   // wrap the NodeProto object into a RequestProto object
   eos::console::RequestProto req;
   req.mutable_ns()->CopyFrom(*nsRequest);
 
-  // initialise VirtualIdentity object
-  auto rootvid = eos::common::VirtualIdentity::Root();
-
-  eos::mgm::NsCmd nscmd(std::move(req), rootvid);
+  eos::mgm::NsCmd nscmd(std::move(req), vid);
   *reply = nscmd.ProcessRequest();
 
   return grpc::Status::OK;
 }
 
-grpc::Status GrpcRestGwInterface::QoSCall(const QoSProto* qosRequest, ReplyProto* reply)
+grpc::Status GrpcRestGwInterface::QoSCall(VirtualIdentity& vid,
+                                const QoSProto* qosRequest, ReplyProto* reply)
 {
   // wrap the QoSProto object into a RequestProto object
   eos::console::RequestProto req;
   req.mutable_qos()->CopyFrom(*qosRequest);
 
-  // initialise VirtualIdentity object
-  auto rootvid = eos::common::VirtualIdentity::Root();
-
-  eos::mgm::QoSCmd qoscmd(std::move(req), rootvid);
+  eos::mgm::QoSCmd qoscmd(std::move(req), vid);
   *reply = qoscmd.ProcessRequest();
 
   return grpc::Status::OK;
 }
 
-grpc::Status GrpcRestGwInterface::QuotaCall(const QuotaProto* quotaRequest, ReplyProto* reply)
+grpc::Status GrpcRestGwInterface::QuotaCall(VirtualIdentity& vid,
+                            const QuotaProto* quotaRequest, ReplyProto* reply)
 {
   // wrap the QuotaProto object into a RequestProto object
   eos::console::RequestProto req;
   req.mutable_quota()->CopyFrom(*quotaRequest);
 
-  // initialise VirtualIdentity object
-  auto rootvid = eos::common::VirtualIdentity::Root();
-
-  eos::mgm::QuotaCmd quotacmd(std::move(req), rootvid);
+  eos::mgm::QuotaCmd quotacmd(std::move(req), vid);
   *reply = quotacmd.ProcessRequest();
 
   return grpc::Status::OK;
 }
 
-grpc::Status GrpcRestGwInterface::RecycleCall(const RecycleProto* recycleRequest, ReplyProto* reply)
+grpc::Status GrpcRestGwInterface::RecycleCall(VirtualIdentity& vid,
+                        const RecycleProto* recycleRequest, ReplyProto* reply)
 {
   // wrap the RecycleProto object into a RequestProto object
   eos::console::RequestProto req;
   req.mutable_recycle()->CopyFrom(*recycleRequest);
 
-  // initialise VirtualIdentity object
-  auto rootvid = eos::common::VirtualIdentity::Root();
-
-  eos::mgm::RecycleCmd recyclecmd(std::move(req), rootvid);
+  eos::mgm::RecycleCmd recyclecmd(std::move(req), vid);
   *reply = recyclecmd.ProcessRequest();
 
   return grpc::Status::OK;
 }
 
-grpc::Status GrpcRestGwInterface::RmCall(const RmProto* rmRequest, ReplyProto* reply)
+grpc::Status GrpcRestGwInterface::RmCall(VirtualIdentity& vid,
+                                  const RmProto* rmRequest, ReplyProto* reply)
 {
   // wrap the RmProto object into a RequestProto object
   eos::console::RequestProto req;
   req.mutable_rm()->CopyFrom(*rmRequest);
 
-  // initialise VirtualIdentity object
-  auto rootvid = eos::common::VirtualIdentity::Root();
-
-  eos::mgm::RmCmd rmcmd(std::move(req), rootvid);
+  eos::mgm::RmCmd rmcmd(std::move(req), vid);
   *reply = rmcmd.ProcessRequest();
 
   return grpc::Status::OK;
 }
 
-grpc::Status GrpcRestGwInterface::RmdirCall(const RmdirProto* rmdirRequest, ReplyProto* reply)
+grpc::Status GrpcRestGwInterface::RmdirCall(VirtualIdentity& vid,
+                            const RmdirProto* rmdirRequest, ReplyProto* reply)
 {
   // wrap the NodeProto object into a RequestProto object
   eos::console::RequestProto req;
   req.mutable_rmdir()->CopyFrom(*rmdirRequest);
-
-  // initialise VirtualIdentity object
-  auto rootvid = eos::common::VirtualIdentity::Root();
 
   std::string path = req.rmdir().md().path();
   errno = 0;
@@ -2113,34 +2060,30 @@ grpc::Status GrpcRestGwInterface::RmdirCall(const RmdirProto* rmdirRequest, Repl
 
   std::string cmd_in = "mgm.cmd=rmdir&mgm.path=" + path;
 
-  ExecProcCmd(rootvid, reply, cmd_in, false);
+  ExecProcCmd(vid, reply, cmd_in, false);
 
   return grpc::Status::OK;
 }
 
-grpc::Status GrpcRestGwInterface::RouteCall(const RouteProto* routeRequest, ReplyProto* reply)
+grpc::Status GrpcRestGwInterface::RouteCall(VirtualIdentity& vid,
+                            const RouteProto* routeRequest, ReplyProto* reply)
 {
   // wrap the RouteProto object into a RequestProto object
   eos::console::RequestProto req;
   req.mutable_route()->CopyFrom(*routeRequest);
 
-  // initialise VirtualIdentity object
-  auto rootvid = eos::common::VirtualIdentity::Root();
-
-  eos::mgm::RouteCmd routecmd(std::move(req), rootvid);
+  eos::mgm::RouteCmd routecmd(std::move(req), vid);
   *reply = routecmd.ProcessRequest();
 
   return grpc::Status::OK;
 }
 
-grpc::Status GrpcRestGwInterface::SpaceCall(const SpaceProto* spaceRequest, ReplyProto* reply)
+grpc::Status GrpcRestGwInterface::SpaceCall(VirtualIdentity& vid,
+                            const SpaceProto* spaceRequest, ReplyProto* reply)
 {
   // wrap the SpaceProto object into a RequestProto object
   eos::console::RequestProto req;
   req.mutable_space()->CopyFrom(*spaceRequest);
-
-  // initialise VirtualIdentity object
-  auto rootvid = eos::common::VirtualIdentity::Root();
 
   if (req.space().subcmd_case() == eos::console::SpaceProto::kNodeSet) {
     // encoding the value to Base64
@@ -2158,20 +2101,18 @@ grpc::Status GrpcRestGwInterface::SpaceCall(const SpaceProto* spaceRequest, Repl
     }
   }
 
-  eos::mgm::SpaceCmd spacecmd(std::move(req), rootvid);
+  eos::mgm::SpaceCmd spacecmd(std::move(req), vid);
   *reply = spacecmd.ProcessRequest();
 
   return grpc::Status::OK;
 }
 
-grpc::Status GrpcRestGwInterface::StatCall(const StatProto* statRequest, ReplyProto* reply)
+grpc::Status GrpcRestGwInterface::StatCall(VirtualIdentity& vid,
+                              const StatProto* statRequest, ReplyProto* reply)
 {
   // wrap the StatProto object into a RequestProto object
   eos::console::RequestProto req;
   req.mutable_stat()->CopyFrom(*statRequest);
-
-  // initialise VirtualIdentity object
-  auto rootvid = eos::common::VirtualIdentity::Root();
 
   struct stat buf;
   std::string path = req.stat().path();
@@ -2221,14 +2162,12 @@ grpc::Status GrpcRestGwInterface::StatCall(const StatProto* statRequest, ReplyPr
   return grpc::Status::OK;
 }
 
-grpc::Status GrpcRestGwInterface::StatusCall(const StatusProto* statusRequest, ReplyProto* reply)
+grpc::Status GrpcRestGwInterface::StatusCall(VirtualIdentity& vid,
+                          const StatusProto* statusRequest, ReplyProto* reply)
 {
   // wrap the StatusProto object into a RequestProto object
   eos::console::RequestProto req;
   req.mutable_status()->CopyFrom(*statusRequest);
-
-  // initialise VirtualIdentity object
-  auto rootvid = eos::common::VirtualIdentity::Root();
 
   FILE* pipe = popen("eos-status", "r");
   char line[4096];
@@ -2257,29 +2196,25 @@ grpc::Status GrpcRestGwInterface::StatusCall(const StatusProto* statusRequest, R
   return grpc::Status::OK;
 }
 
-grpc::Status GrpcRestGwInterface::TokenCall(const TokenProto* tokenRequest, ReplyProto* reply)
+grpc::Status GrpcRestGwInterface::TokenCall(VirtualIdentity& vid,
+                            const TokenProto* tokenRequest, ReplyProto* reply)
 {
   // wrap the TokenProto object into a RequestProto object
   eos::console::RequestProto req;
   req.mutable_token()->CopyFrom(*tokenRequest);
 
-  // initialise VirtualIdentity object
-  auto rootvid = eos::common::VirtualIdentity::Root();
-
-  eos::mgm::TokenCmd tokencmd(std::move(req), rootvid);
+  eos::mgm::TokenCmd tokencmd(std::move(req), vid);
   *reply = tokencmd.ProcessRequest();
 
   return grpc::Status::OK;
 }
 
-grpc::Status GrpcRestGwInterface::TouchCall(const TouchProto* touchRequest, ReplyProto* reply)
+grpc::Status GrpcRestGwInterface::TouchCall(VirtualIdentity& vid,
+                            const TouchProto* touchRequest, ReplyProto* reply)
 {
   // wrap the TokenProto object into a RequestProto object
   eos::console::RequestProto req;
   req.mutable_touch()->CopyFrom(*touchRequest);
-
-  // initialise VirtualIdentity object
-  auto rootvid = eos::common::VirtualIdentity::Root();
 
   std::string path = req.touch().md().path();
   std::string cmd_in = "mgm.cmd=file&mgm.subcmd=touch&mgm.path=" + path;
@@ -2292,7 +2227,7 @@ grpc::Status GrpcRestGwInterface::TouchCall(const TouchProto* touchRequest, Repl
     cmd_in += "&mgm.file.touch.truncate=true";
   }
 
-  ExecProcCmd(rootvid, reply, cmd_in, false);
+  ExecProcCmd(vid, reply, cmd_in, false);
 
   // Create parent directories
   if (req.touch().parents() && reply->retc() == 2) {
@@ -2306,25 +2241,23 @@ grpc::Status GrpcRestGwInterface::TouchCall(const TouchProto* touchRequest, Repl
       mkdir_request.mutable_md()->set_path(parent_path);
       mkdir_request.set_parents(true);
       GrpcRestGwInterface exec_mkdir;
-      exec_mkdir.MkdirCall(&mkdir_request, &mkdir_reply);
+      exec_mkdir.MkdirCall(vid, &mkdir_request, &mkdir_reply);
 
       // Run touch command again
       if (mkdir_reply.retc() == 0)
-        ExecProcCmd(rootvid, reply, cmd_in, false);
+        ExecProcCmd(vid, reply, cmd_in, false);
     }
   }
 
   return grpc::Status::OK;
 }
 
-grpc::Status GrpcRestGwInterface::VersionCall(const VersionProto* versionRequest, ReplyProto* reply)
+grpc::Status GrpcRestGwInterface::VersionCall(VirtualIdentity& vid,
+                        const VersionProto* versionRequest, ReplyProto* reply)
 {
   // wrap the VersionProto object into a RequestProto object
   eos::console::RequestProto req;
   req.mutable_version()->CopyFrom(*versionRequest);
-
-  // initialise VirtualIdentity object
-  auto rootvid = eos::common::VirtualIdentity::Root();
 
   std::string cmd_in = "mgm.cmd=version";
 
@@ -2340,19 +2273,17 @@ grpc::Status GrpcRestGwInterface::VersionCall(const VersionProto* versionRequest
     cmd_in += "m";
   }
 
-  ExecProcCmd(rootvid, reply, cmd_in, false);
+  ExecProcCmd(vid, reply, cmd_in, false);
 
   return grpc::Status::OK;
 }
 
-grpc::Status GrpcRestGwInterface::VidCall(const VidProto* vidRequest, ReplyProto* reply)
+grpc::Status GrpcRestGwInterface::VidCall(VirtualIdentity& vid,
+                                const VidProto* vidRequest, ReplyProto* reply)
 {
   // wrap the VidProto object into a RequestProto object
   eos::console::RequestProto req;
   req.mutable_vid()->CopyFrom(*vidRequest);
-
-  // initialise VirtualIdentity object
-  auto rootvid = eos::common::VirtualIdentity::Root();
 
   std::string std_out1, std_out2, std_err1, std_err2;
   ProcCommand cmd1, cmd2;
@@ -2664,12 +2595,12 @@ grpc::Status GrpcRestGwInterface::VidCall(const VidProto* vidRequest, ReplyProto
     return grpc::Status::OK;
   }
 
-  cmd1.open("/proc/admin", cmd_in1.c_str(), rootvid, &error1);
+  cmd1.open("/proc/admin", cmd_in1.c_str(), vid, &error1);
   cmd1.AddOutput(std_out1, std_err1);
   cmd1.close();
 
   if (has_cmd2) {
-    cmd2.open("/proc/admin", cmd_in2.c_str(), rootvid, &error2);
+    cmd2.open("/proc/admin", cmd_in2.c_str(), vid, &error2);
     cmd2.AddOutput(std_out2, std_err2);
     cmd2.close();
 
@@ -2698,7 +2629,8 @@ grpc::Status GrpcRestGwInterface::VidCall(const VidProto* vidRequest, ReplyProto
   return grpc::Status::OK;
 }
 
-grpc::Status GrpcRestGwInterface::WhoCall(const WhoProto* whoRequest, ReplyProto* reply)
+grpc::Status GrpcRestGwInterface::WhoCall(VirtualIdentity& vid,
+                                const WhoProto* whoRequest, ReplyProto* reply)
 {
   // wrap the WhoProto object into a RequestProto object
   eos::console::RequestProto req;
@@ -2741,7 +2673,8 @@ grpc::Status GrpcRestGwInterface::WhoCall(const WhoProto* whoRequest, ReplyProto
   return grpc::Status::OK;
 }
 
-grpc::Status GrpcRestGwInterface::WhoamiCall(const WhoamiProto* whoamiRequest, ReplyProto* reply)
+grpc::Status GrpcRestGwInterface::WhoamiCall(VirtualIdentity& vid,
+                          const WhoamiProto* whoamiRequest, ReplyProto* reply)
 {
   // wrap the WhoamiProto object into a RequestProto object
   eos::console::RequestProto req;
@@ -2757,7 +2690,7 @@ grpc::Status GrpcRestGwInterface::WhoamiCall(const WhoamiProto* whoamiRequest, R
   return grpc::Status::OK;
 }
 
-void GrpcRestGwInterface::ExecProcCmd(eos::common::VirtualIdentity vid,
+void GrpcRestGwInterface::ExecProcCmd(eos::common::VirtualIdentity &vid,
                               ReplyProto* reply, std::string input, bool admin)
 {
   ProcCommand cmd;

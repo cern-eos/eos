@@ -13,6 +13,7 @@ using grpc::ServerBuilder;
 using grpc::ServerContext;
 using grpc::ServerWriter;
 using grpc::Status;
+using eos::common::VirtualIdentity;
 using eos::console::AccessProto;
 using eos::console::AclProto;
 using eos::console::ArchiveProto;
@@ -73,52 +74,52 @@ public:
 //-----------------------------------------------------------------------------
 //  Execute specific EOS command for the EOS gRPC request
 //-----------------------------------------------------------------------------
-  Status AclCall(const AclProto* aclRequest, ReplyProto* reply);
-  Status AccessCall(const AccessProto* accessRequest, ReplyProto* reply);
-  Status ArchiveCall(const ArchiveProto* archiveRequest, ReplyProto* reply);
-  Status AttrCall(const AttrProto* attrRequest, ReplyProto* reply);
-  Status BackupCall(const BackupProto* backupRequest, ReplyProto* reply);
-  Status ChmodCall(const ChmodProto* chmodRequest, ReplyProto* reply);
-  Status ChownCall(const ChownProto* chownRequest, ReplyProto* reply);
-  Status ConfigCall(const ConfigProto* configRequest, ReplyProto* reply);
-  Status ConvertCall(const ConvertProto* convertRequest, ReplyProto* reply);
-  Status CpCall(const CpProto* cpRequest, ReplyProto* reply);
-  Status DebugCall(const DebugProto* debugRequest, ReplyProto* reply);
-  Status EvictCall(const EvictProto* evictRequest, ReplyProto* reply);
-  Status FileCall(const FileProto* fileRequest, ReplyProto* reply);
-  Status FileinfoCall(const FileinfoProto* fileinfoRequest, ReplyProto* reply);
-  Status FsCall(const FsProto* fsRequest, ReplyProto* reply);
-  Status FsckCall(const FsckProto* fsckRequest, ReplyProto* reply);
-  Status GeoschedCall(const GeoschedProto* geoschedRequest, ReplyProto* reply);
-  Status GroupCall(const GroupProto* groupRequest, ReplyProto* reply);
-  Status HealthCall(const HealthProto* healthRequest, ReplyProto* reply);
-  Status IoCall(const IoProto* ioRequest, ReplyProto* reply);
-  Status MapCall(const MapProto* mapRequest, ReplyProto* reply);
-  Status MemberCall(const MemberProto* memberRequest, ReplyProto* reply);
-  Status MkdirCall(const MkdirProto* mkdirRequest, ReplyProto* reply);
-  Status MvCall(const MoveProto* mvRequest, ReplyProto* reply);
-  Status NodeCall(const NodeProto* nodeRequest, ReplyProto* reply);
-  Status NsCall(const NsProto* nsRequest, ReplyProto* reply);
-  Status QoSCall(const QoSProto* qosRequest, ReplyProto* reply);
-  Status QuotaCall(const QuotaProto* quotaRequest, ReplyProto* reply);
-  Status RecycleCall(const RecycleProto* recycleRequest, ReplyProto* reply);
-  Status RmCall(const RmProto* rmRequest, ReplyProto* reply);
-  Status RmdirCall(const RmdirProto* rmdirRequest, ReplyProto* reply);
-  Status RouteCall(const RouteProto* routeRequest, ReplyProto* reply);
-  Status SpaceCall(const SpaceProto* spaceRequest, ReplyProto* reply);
-  Status StatCall(const StatProto* statRequest, ReplyProto* reply);
-  Status StatusCall(const StatusProto* statusRequest, ReplyProto* reply);
-  Status TokenCall(const TokenProto* tokenRequest, ReplyProto* reply);
-  Status TouchCall(const TouchProto* touchRequest, ReplyProto* reply);
-  Status VersionCall(const VersionProto* versionRequest, ReplyProto* reply);
-  Status VidCall(const VidProto* vidRequest, ReplyProto* reply);
-  Status WhoCall(const WhoProto* whoRequest, ReplyProto* reply);
-  Status WhoamiCall(const WhoamiProto* whoamiRequest, ReplyProto* reply);
+  Status AclCall(VirtualIdentity& vid, const AclProto* aclRequest, ReplyProto* reply);
+  Status AccessCall(VirtualIdentity& vid, const AccessProto* accessRequest, ReplyProto* reply);
+  Status ArchiveCall(VirtualIdentity& vid, const ArchiveProto* archiveRequest, ReplyProto* reply);
+  Status AttrCall(VirtualIdentity& vid, const AttrProto* attrRequest, ReplyProto* reply);
+  Status BackupCall(VirtualIdentity& vid, const BackupProto* backupRequest, ReplyProto* reply);
+  Status ChmodCall(VirtualIdentity& vid, const ChmodProto* chmodRequest, ReplyProto* reply);
+  Status ChownCall(VirtualIdentity& vid, const ChownProto* chownRequest, ReplyProto* reply);
+  Status ConfigCall(VirtualIdentity& vid, const ConfigProto* configRequest, ReplyProto* reply);
+  Status ConvertCall(VirtualIdentity& vid, const ConvertProto* convertRequest, ReplyProto* reply);
+  Status CpCall(VirtualIdentity& vid, const CpProto* cpRequest, ReplyProto* reply);
+  Status DebugCall(VirtualIdentity& vid, const DebugProto* debugRequest, ReplyProto* reply);
+  Status EvictCall(VirtualIdentity& vid, const EvictProto* evictRequest, ReplyProto* reply);
+  Status FileCall(VirtualIdentity& vid, const FileProto* fileRequest, ReplyProto* reply);
+  Status FileinfoCall(VirtualIdentity& vid, const FileinfoProto* fileinfoRequest, ReplyProto* reply);
+  Status FsCall(VirtualIdentity& vid, const FsProto* fsRequest, ReplyProto* reply);
+  Status FsckCall(VirtualIdentity& vid, const FsckProto* fsckRequest, ReplyProto* reply);
+  Status GeoschedCall(VirtualIdentity& vid, const GeoschedProto* geoschedRequest, ReplyProto* reply);
+  Status GroupCall(VirtualIdentity& vid, const GroupProto* groupRequest, ReplyProto* reply);
+  Status HealthCall(VirtualIdentity& vid, const HealthProto* healthRequest, ReplyProto* reply);
+  Status IoCall(VirtualIdentity& vid, const IoProto* ioRequest, ReplyProto* reply);
+  Status MapCall(VirtualIdentity& vid, const MapProto* mapRequest, ReplyProto* reply);
+  Status MemberCall(VirtualIdentity& vid, const MemberProto* memberRequest, ReplyProto* reply);
+  Status MkdirCall(VirtualIdentity& vid, const MkdirProto* mkdirRequest, ReplyProto* reply);
+  Status MvCall(VirtualIdentity& vid, const MoveProto* mvRequest, ReplyProto* reply);
+  Status NodeCall(VirtualIdentity& vid, const NodeProto* nodeRequest, ReplyProto* reply);
+  Status NsCall(VirtualIdentity& vid, const NsProto* nsRequest, ReplyProto* reply);
+  Status QoSCall(VirtualIdentity& vid, const QoSProto* qosRequest, ReplyProto* reply);
+  Status QuotaCall(VirtualIdentity& vid, const QuotaProto* quotaRequest, ReplyProto* reply);
+  Status RecycleCall(VirtualIdentity& vid, const RecycleProto* recycleRequest, ReplyProto* reply);
+  Status RmCall(VirtualIdentity& vid, const RmProto* rmRequest, ReplyProto* reply);
+  Status RmdirCall(VirtualIdentity& vid, const RmdirProto* rmdirRequest, ReplyProto* reply);
+  Status RouteCall(VirtualIdentity& vid, const RouteProto* routeRequest, ReplyProto* reply);
+  Status SpaceCall(VirtualIdentity& vid, const SpaceProto* spaceRequest, ReplyProto* reply);
+  Status StatCall(VirtualIdentity& vid, const StatProto* statRequest, ReplyProto* reply);
+  Status StatusCall(VirtualIdentity& vid, const StatusProto* statusRequest, ReplyProto* reply);
+  Status TokenCall(VirtualIdentity& vid, const TokenProto* tokenRequest, ReplyProto* reply);
+  Status TouchCall(VirtualIdentity& vid, const TouchProto* touchRequest, ReplyProto* reply);
+  Status VersionCall(VirtualIdentity& vid, const VersionProto* versionRequest, ReplyProto* reply);
+  Status VidCall(VirtualIdentity& vid, const VidProto* vidRequest, ReplyProto* reply);
+  Status WhoCall(VirtualIdentity& vid, const WhoProto* whoRequest, ReplyProto* reply);
+  Status WhoamiCall(VirtualIdentity& vid, const WhoamiProto* whoamiRequest, ReplyProto* reply);
 //-----------------------------------------------------------------------------
 
 private:
 
-  void ExecProcCmd(eos::common::VirtualIdentity vid, ReplyProto* reply,
+  void ExecProcCmd(eos::common::VirtualIdentity& vid, ReplyProto* reply,
                    std::string input, bool admin = true);
 };
 
