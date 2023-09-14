@@ -484,8 +484,7 @@ XrdMgmOfs::_attr_get(eos::IFileMD& fmd, std::string key, std::string& rvalue)
 int
 XrdMgmOfs::attr_rem(const char* inpath, XrdOucErrInfo& error,
                     const XrdSecEntity* client, const char* ininfo,
-                    const char* key,
-                    bool take_lock)
+                    const char* key)
 {
   static const char* epname = "attr_rm";
   const char* tident = error.getErrUser();
@@ -500,7 +499,7 @@ XrdMgmOfs::attr_rem(const char* inpath, XrdOucErrInfo& error,
   AUTHORIZE(client, &access_Env, AOP_Delete, "delete", inpath, error);
   gOFS->MgmStats.Add("IdMap", vid.uid, vid.gid, 1);
   BOUNCE_NOT_ALLOWED;
-  return _attr_rem(path, error, vid, ininfo, key, take_lock);
+  return _attr_rem(path, error, vid, ininfo, key);
 }
 
 //------------------------------------------------------------------------------
@@ -509,8 +508,7 @@ XrdMgmOfs::attr_rem(const char* inpath, XrdOucErrInfo& error,
 int
 XrdMgmOfs::_attr_rem(const char* path, XrdOucErrInfo& error,
                      eos::common::VirtualIdentity& vid,
-                     const char* info, const char* key,
-                     bool take_lock)
+                     const char* info, const char* key)
 
 {
   static const char* epname = "attr_rm";
@@ -525,14 +523,10 @@ XrdMgmOfs::_attr_rem(const char* path, XrdOucErrInfo& error,
   }
 
   eos::Prefetcher::prefetchContainerMDAndWait(gOFS->eosView, path);
-  eos::common::RWMutexWriteLock lock;
-
-  if (take_lock) {
-    lock.Grab(gOFS->eosViewRWMutex);
-  }
 
   try {
-    dh = gOFS->eosView->getContainer(path);
+    eos::IContainerMD::IContainerMDWriteLockerPtr dhLock = gOFS->eosView->getContainerWriteLocked(path);
+    dh = dhLock ? dhLock->getUnderlyingPtr() : nullptr;
     XrdOucString Key = key;
 
     if (Key.beginswith("sys.") && ((!vid.sudoer) && (vid.uid))) {
@@ -542,12 +536,13 @@ XrdMgmOfs::_attr_rem(const char* path, XrdOucErrInfo& error,
       if (dh && (!dh->access(vid.uid, vid.gid, X_OK | W_OK))) {
         errno = EPERM;
       } else {
-        if (dh->hasAttribute(key)) {
+        if (dh && dh->hasAttribute(key)) {
           dh->removeAttribute(key);
-          eosView->updateContainerStore(dh.get());
           eos::ContainerIdentifier d_id = dh->getIdentifier();
           eos::ContainerIdentifier d_pid = dh->getParentIdentifier();
-          lock.Release();
+          eosView->updateContainerStore(dh.get());
+          // Release object lock before doing the fuse refresh
+          dhLock.reset(nullptr);
           gOFS->FuseXCastRefresh(d_id, d_pid);
         } else {
           errno = ENODATA;
@@ -563,32 +558,35 @@ XrdMgmOfs::_attr_rem(const char* path, XrdOucErrInfo& error,
 
   if (!dh) {
     try {
-      fmd = gOFS->eosView->getFile(path);
+      eos::IFileMD::IFileMDWriteLockerPtr fmdLock = gOFS->eosView->getFileWriteLocked(path);
+      fmd = fmdLock ? fmdLock->getUnderlyingPtr() : nullptr;
       XrdOucString Key = key;
 
       if (Key.beginswith("sys.") && ((!vid.sudoer) && (vid.uid))) {
         errno = EPERM;
       } else {
-        if ((vid.uid != fmd->getCUid())
-            && (!vid.sudoer && vid.uid)) {
-          // TODO: REVIEW: only owner/sudoer can delete file attributes
-          errno = EPERM;
-        } else {
-          if (fmd->hasAttribute(key)) {
-            fmd->removeAttribute(key);
-            eosView->updateFileStore(fmd.get());
-            eos::FileIdentifier f_id = fmd->getIdentifier();
-            lock.Release();
-            gOFS->FuseXCastRefresh(f_id, eos::ContainerIdentifier(
-								  fmd->getContainerId()));
-            errno = 0;
+        if(fmd) {
+          if ((vid.uid != fmd->getCUid())
+              && (!vid.sudoer && vid.uid)) {
+            // TODO: REVIEW: only owner/sudoer can delete file attributes
+            errno = EPERM;
           } else {
-            errno = ENODATA;
+            if (fmd->hasAttribute(key)) {
+              fmd->removeAttribute(key);
+              eosView->updateFileStore(fmd.get());
+              eos::FileIdentifier f_id = fmd->getIdentifier();
+              eos::ContainerIdentifier d_id(fmd->getContainerId());
+              fmdLock.reset(nullptr);
+              gOFS->FuseXCastRefresh(f_id, d_id);
+              errno = 0;
+            } else {
+              errno = ENODATA;
+            }
           }
         }
       }
     } catch (eos::MDException& e) {
-      dh.reset();
+      fmd.reset();
       errno = e.getErrno();
       eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n", e.getErrno(),
                 e.getMessage().str().c_str());
