@@ -1278,7 +1278,7 @@ clean_helm_cluster:
   stage: build:manual
   before_script:
     - sed -i 's#://cdn-ubi.redhat.com/#://linuxsoft.cern.ch/cdn-ubi.redhat.com/#' /etc/yum.repos.d/ubi.repo
-    - curl -o /etc/yum.repos.d/rhel%{rpm --eval '%{rhel}'}.repo https://linux.web.cern.ch/rhel/repofiles/rhel%{rpm --eval '%{rhel}'}.repo
+    - curl -o /etc/yum.repos.d/rhel$(rpm --eval '%{rhel}').repo https://linux.web.cern.ch/rhel/repofiles/rhel$(rpm --eval '%{rhel}').repo
     - dnf install --nogpg -y gcc-c++ cmake make rpm-build which git sudo yum-utils createrepo sssd-client
   script:
     - cd nginx
