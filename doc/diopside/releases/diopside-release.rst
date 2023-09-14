@@ -16,6 +16,24 @@ Introduction
 
 This release is based on XRootD V5.
 
+``v5.1.29 Diopside``
+==========================
+
+2023-09-14
+
+Bug
+----
+
+* [EOS-5771] - HTTP transfers of a file with no disk replicas create a zero-length file
+* [EOS-5813] - Show physical space info for xrdfs spaceinfo query
+* [EOS-5818] - FST crash in eos::fst::FmdConverter::ConvertFS
+
+Improvement
+-----------
+
+* [EOS-5530] - Send fid as string to CTA
+* [EOS-5822] - Implement JSON output for eoscp command
+
 
 ``v5.1.28 Diopside``
 ==========================
