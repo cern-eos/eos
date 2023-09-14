@@ -1277,7 +1277,8 @@ clean_helm_cluster:
 .eos_nginx_build_template:
   stage: build:manual
   before_script:
-    - curl -o /etc/yum.repos.d/rhel9.repo https://linux.web.cern.ch/rhel/repofiles/rhel9.repo
+    - sed -i 's#://cdn-ubi.redhat.com/#://linuxsoft.cern.ch/cdn-ubi.redhat.com/#' /etc/yum.repos.d/ubi.repo
+    - curl -o /etc/yum.repos.d/rhel%{rpm --eval '%{rhel}'}.repo https://linux.web.cern.ch/rhel/repofiles/rhel%{rpm --eval '%{rhel}'}.repo
     - dnf install --nogpg -y gcc-c++ cmake make rpm-build which git sudo yum-utils createrepo sssd-client
   script:
     - cd nginx
@@ -1313,7 +1314,7 @@ eos_nginx_cc7:
 
 eos_nginx_rh8:
   extends: .eos_nginx_build_template
-  image: gitlab-registry.cern.ch/linuxsupport/alma8-base 
+  image: gitlab-registry.cern.ch/linuxsupport/ubi8/ubi
   environment:
     name: nginx-rh8-prod
   variables:
@@ -1322,7 +1323,7 @@ eos_nginx_rh8:
 
 eos_nginx_rh9:
   extends: .eos_nginx_build_template
-  image: gitlab-registry.cern.ch/linuxsupport/alma9-base 
+  image: gitlab-registry.cern.ch/linuxsupport/ubi9/ubi
   environment:
     name: nginx-rh9-prod
   variables:
