@@ -1310,23 +1310,21 @@ eos_nginx_cc7:
      - docker_node
    when: manual
 
-eos_nginx_rh8:
+eos_nginx_al8:
   extends: .eos_nginx_build_template
   image: gitlab-registry.cern.ch/linuxsupport/alma8-base 
   environment:
-    name: nginx-rh8-prod
+    name: nginx-al8-prod
   variables:
-    BUILD_NAME: rh8
-    BUILD_ID: 8
+    BUILD_NAME: al-8
 
-eos_nginx_rh9:
+eos_nginx_al9:
   extends: .eos_nginx_build_template
   image: gitlab-registry.cern.ch/linuxsupport/alma9-base 
   environment:
-    name: nginx-rh9-prod
+    name: nginx-al9-prod
   variables:
-    BUILD_NAME: rh9
-    BUILD_ID: 9
+    BUILD_NAME: al-9
     
 eos_apmon_cc7:
   stage: build:manual
