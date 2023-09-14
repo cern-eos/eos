@@ -436,11 +436,13 @@ static bool attrGetInternal(T& md, std::string key, std::string& rvalue)
   //----------------------------------------------------------------------------
   std::string linkedContainer = md.getAttribute(kMagicKey);
   std::shared_ptr<eos::IContainerMD> dh;
+  eos::IContainerMD::IContainerMDReadLockerPtr dhLock;
   eos::Prefetcher::prefetchContainerMDAndWait(gOFS->eosView, linkedContainer);
-  eos::common::RWMutexReadLock nsLock(gOFS->eosViewRWMutex);
 
   try {
-    dh = gOFS->eosView->getContainer(linkedContainer.c_str());
+    dhLock = gOFS->eosView->getContainerReadLocked(linkedContainer);
+    if(!dhLock) return false;
+    dh = dhLock->getUnderlyingPtr();
   } catch (eos::MDException& e) {
     errno = e.getErrno();
     eos_static_err("msg=\"exception while following linked container\" ec=%d emsg=\"%s\"\n",
