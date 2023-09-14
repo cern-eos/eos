@@ -25,12 +25,12 @@ URL:                http://nginx.net/
 BuildRoot:          %{_tmppath}/%{name}-%{version}-%{release}-%(%{__id_u} -n)
 
 %if %{use_systemd}
-BuildRequires:      systemd,pcre-devel,zlib-devel,openssl-devel,perl(ExtUtils::Embed),pam-devel,git,e2fsprogs-devel,openldap-devel
+BuildRequires:      systemd,pcre-devel,zlib-devel,openssl-devel,perl(ExtUtils::Embed),pam-devel,git,e2fsprogs-devel,openldap-devel,krb5-devel
 Requires:           systemd,zlib,openssl,openldap 
 %endif
 
 %if 0%{?rhel} == 6 
-BuildRequires:      pcre-devel,zlib-devel,openssl-devel,perl(ExtUtils::Embed),pam-devel,git,e2fsprogs-devel,openldap-devel
+BuildRequires:      pcre-devel,zlib-devel,openssl-devel,perl(ExtUtils::Embed),pam-devel,git,e2fsprogs-devel,openldap-devel,krb5-devel
 Requires:           pcre,zlib,openssl,openldap
 Requires(post):     chkconfig
 Requires(preun):    chkconfig, initscripts
@@ -38,7 +38,7 @@ Requires(postun):   initscripts
 %endif
 
 %if 0%{?rhel} == 5
-BuildRequires:      pcre-devel,zlib-devel,openssl-devel,perl(ExtUtils::Embed),pam-devel,git,e2fsprogs-devel,openldap24-libs-devel
+BuildRequires:      pcre-devel,zlib-devel,openssl-devel,perl(ExtUtils::Embed),pam-devel,git,e2fsprogs-devel,openldap24-libs-devel,krb5-devel
 Requires:           pcre,zlib,openssl,openldap24-libs
 Requires(post):     chkconfig
 Requires(preun):    chkconfig, initscripts
