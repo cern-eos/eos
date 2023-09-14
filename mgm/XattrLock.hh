@@ -186,8 +186,7 @@ public:
     }
 
     // remove the lock attribute
-    if (gOFS->_attr_rem(path, error, vid, "", eos::common::EOS_APP_LOCK_ATTR,
-                        false)) {
+    if (gOFS->_attr_rem(path, error, vid, "", eos::common::EOS_APP_LOCK_ATTR)) {
       return false;
     }
 
