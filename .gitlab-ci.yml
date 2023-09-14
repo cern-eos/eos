@@ -1277,11 +1277,8 @@ clean_helm_cluster:
 .eos_nginx_build_template:
   stage: build:manual
   before_script:
-    - dnf install --nogpg -y https://dl.fedoraproject.org/pub/epel/epel-release-latest-${BUILD_ID}.noarch.rpm 
-    - dnf config-manager --add-repo https://linuxsoft.cern.ch/cern/rhel/$(rpm --eval '%{rhel}')/CERN/$(uname -i)/ --set-enabled
-    - dnf install cern-gpg-keys --nogpgcheck -y
-    - rpm --import /etc/pki/rpm-gpg/*
-    - dnf install --enablerepo=epel --nogpg -y gcc-c++ cmake make rpm-build which git sssd-client sudo createrepo
+    - curl -o /etc/yum.repos.d/rhel9.repo https://linux.web.cern.ch/rhel/repofiles/rhel9.repo
+    - dnf install --nogpg -y gcc-c++ cmake make rpm-build which git sudo yum-utils createrepo sssd-client
   script:
     - cd nginx
     - ./makesrpm.sh
@@ -1292,6 +1289,7 @@ clean_helm_cluster:
     - sudo -u stci -H mkdir -p $STORAGE_PATH
     - sudo -u stci -H cp -f RPMS/*.rpm $STORAGE_PATH
     - sudo -u stci -H createrepo --update -q $STORAGE_PATH
+
   tags:
     - docker_node
   when: manual
@@ -1315,7 +1313,7 @@ eos_nginx_cc7:
 
 eos_nginx_rh8:
   extends: .eos_nginx_build_template
-  image: gitlab-registry.cern.ch/linuxsupport/ubi8/ubi
+  image: gitlab-registry.cern.ch/linuxsupport/alma8-base 
   environment:
     name: nginx-rh8-prod
   variables:
@@ -1324,7 +1322,7 @@ eos_nginx_rh8:
 
 eos_nginx_rh9:
   extends: .eos_nginx_build_template
-  image: gitlab-registry.cern.ch/linuxsupport/ubi9/ubi
+  image: gitlab-registry.cern.ch/linuxsupport/alma9-base 
   environment:
     name: nginx-rh9-prod
   variables:
