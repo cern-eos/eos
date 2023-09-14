@@ -1299,6 +1299,7 @@ eos_nginx_cc7:
    script:
      - yum install --nogpg -y gcc-c++ cmake3 make rpm-build which git sssd-client sudo createrepo
      - cd nginx
+     - ./makesrpm.sh
      - yum-builddep --nogpgcheck -y *.src.rpm
      - mkdir RPMS
      - rpmbuild --rebuild --define "_rpmdir RPMS/" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" *.src.rpm
