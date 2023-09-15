@@ -154,7 +154,8 @@ BuildRequires: openssl-static, ncurses-static
 BuildRequires: eos-rocksdb = 6.2.4
 BuildRequires: openldap-devel
 BuildRequires: e2fsprogs-devel
-%if 0%{?almalinux} > 7 ||  0%{?rhel} < 8
+# This conditional evaluates to false only for alma >= 8 or rhel >= 8
+%if ! 0%{?almalinux} >= 8 && ! 0%{?rhel} >= 8
 BuildRequires: eos-libmicrohttpd, eos-libmicrohttpd-devel >= 0.9.38
 %endif
 BuildRequires: eos-grpc == %{eos_grpc_version}
@@ -331,7 +332,8 @@ Requires: xrootd-client >= %{xrootd_version_min}
 %endif
 
 Requires: eos-client == @CPACK_PACKAGE_VERSION@
-%if ! 0%{?almalinux}
+# This conditional evaluates to false only for alma >= 8 or rhel >=8
+%if ! 0%{?almalinux} >= 8 && ! 0%{?rhel} >= 8
 Requires: eos-libmicrohttpd >= 0.9.38
 %endif
 Requires: acl
