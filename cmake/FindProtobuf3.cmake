@@ -12,27 +12,13 @@
 # PROTOBUF_ROOT may be defined as a hint for where to look
 
 find_program(PROTOBUF3_PROTOC_EXECUTABLE
-  NAMES protoc3
+  NAMES protoc
   HINTS ${PROTOBUF_ROOT}
   PATHS /opt/eos/grpc/ /opt/eos/ /usr/local /usr /
   PATH_SUFFIXES bin
-  DOC "Version 3 of The Google Protocol Buffers Compiler (protoc3)"
+  DOC "Version 3 of The Google Protocol Buffers Compiler (protoc)"
   NO_DEFAULT_PATH)
-
-if (PROTOBUF3_PROTOC_EXECUTABLE)
-  message(STATUS "Found protoc3: ${PROTOBUF3_PROTOC_EXECUTABLE}")
-else()
-  message(STATUS "Trying to search for protoc instead for protoc3")
-  unset(PROTOBUF3_PROTOC_EXECUTABLE)
-  find_program(PROTOBUF3_PROTOC_EXECUTABLE
-    NAMES protoc
-    HINTS ${PROTOBUF_ROOT}
-    PATHS /opt/eos/grpc/ /opt/eos/ /usr/local /usr /
-    PATH_SUFFIXES bin
-    DOC "Version 3 of The Google Protocol Buffers Compiler (protoc)"
-    NO_DEFAULT_PATH)
-  message(STATUS "Found protoc: ${PROTOBUF3_PROTOC_EXECUTABLE}")
-endif()
+message(STATUS "Found protoc: ${PROTOBUF3_PROTOC_EXECUTABLE}")
 
 find_path(PROTOBUF3_INCLUDE_DIR
   NAMES google/protobuf/message.h
@@ -48,62 +34,6 @@ find_library(PROTOBUF3_LIBRARY
 	/usr/local /usr /usr/lib/x86_64-linux-gnu
   PATH_SUFFIXES lib64 lib
   NO_DEFAULT_PATH)
-
-find_program(PROTOC_GEN_GRPC_GATEWAY
-  NAME protoc-gen-grpc-gateway
-  HINTS ${PROTOBUF_ROOT}
-  PATHS /home/aprigore/go
-  PATH_SUFFIXES bin
-NO_DEFAULT_PATH)
-
-# check if protoc-gen-grpc-gateway was found
-if (PROTOC_GEN_GRPC_GATEWAY)
-  message(STATUS "Found protoc-gen-grpc-gateway: ${PROTOC_GEN_GRPC_GATEWAY}")
-else()
-  message(STATUS "protoc-gen-grpc-gateway not found")
-endif()
-
-find_program(PROTOC_GEN_OPENAPIV2
-  NAME protoc-gen-openapiv2
-  HINTS ${PROTOBUF_ROOT}
-  PATHS /home/aprigore/go
-  PATH_SUFFIXES bin
-  NO_DEFAULT_PATH)
-
-# check if protoc-gen-openapiv2 was found
-if (PROTOC_GEN_OPENAPIV2)
-  message(STATUS "Found protoc-gen-openapiv2: ${PROTOC_GEN_OPENAPIV2}")
-else()
-  message(STATUS "protoc-gen-openapiv2 not found")
-endif()
-
-find_program(PROTOC_GEN_GO
-  NAME protoc-gen-go
-  HINTS ${PROTOBUF_ROOT}
-  PATHS /home/aprigore/go
-  PATH_SUFFIXES bin
-  NO_DEFAULT_PATH)
-
-# check if protoc-gen-go was found
-if (PROTOC_GEN_GO)
-  message(STATUS "Found protoc-gen-go: ${PROTOC_GEN_GO}")
-else()
-  message(STATUS "protoc-gen-go not found")
-endif()
-
-find_program(PROTOC_GEN_GO_GRPC
-  NAME protoc-gen-go-grpc
-  HINTS ${PROTOBUF_ROOT}
-  PATHS /home/aprigore/go
-  PATH_SUFFIXES bin
-  NO_DEFAULT_PATH)
-
-# check if protoc-gen-go-grpc was found
-if (PROTOC_GEN_GO_GRPC)
-  message(STATUS "Found protoc-gen-go-grpc: ${PROTOC_GEN_GO_GRPC}")
-else()
-  message(STATUS "protoc-gen-go-grpc not found")
-endif()
 
 find_program(GRPC_CPP_PLUGIN
   NAME grpc_cpp_plugin
