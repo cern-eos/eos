@@ -51,6 +51,7 @@ HttpServer::Handler(void* cls,
                     size_t* uploadDataSize,
                     void** ptr)
 {
+  using namespace eos::common;
   std::map<std::string, std::string> headers;
   // Wait for the namespace to boot
   WAIT_BOOT;
@@ -85,6 +86,48 @@ HttpServer::Handler(void* cls,
       }
     }
 
+    // Clients which are gateways/sudoer can pass x-forwarded-for and remote-user
+    if (headers.count("x-forwarded-for")) {
+      // Check if this is a http gateway and sudoer by calling the mapping function
+      std::unique_ptr<VirtualIdentity> vid_tmp  {new VirtualIdentity()};
+      
+      if (vid_tmp) {
+	XrdSecEntity eclient(headers.count("x-real-ip") ? "https" : "http");
+	eclient.tident="";
+	eclient.name=(char*)"nobody";
+	eclient.host=(char*)(headers["client-real-host"].length()?headers["client-real-host"].c_str():"");
+	
+	if (headers.count("x-gateway-authorization")) {
+	  eclient.endorsements = (char*)headers["x-gateway-authorization"].c_str();
+	}
+	
+	std::string stident = "https.0:0@";
+	stident += headers["client-real-host"];
+	eos::common::Mapping::IdMap(&eclient, "", stident.c_str(), *vid_tmp);
+	
+	if (!vid_tmp->isGateway() ||
+	    ((vid_tmp->prot != "https") && (vid_tmp->prot != "http"))) {
+	  headers.erase("x-forwarded-for");
+	  headers.erase("x-real-ip");
+	}
+	
+	eos_static_debug("vid trace: %s gw:%d", vid_tmp->getTrace().c_str(), vid_tmp->isGateway());
+	
+
+	if (headers.count("x-gateway-authorization") && !vid_tmp->sudoer) {
+	  headers.erase("remote-user");
+	}
+      } else {
+	eos_static_err("msg=\"failed to allocate VirtualIdentity object\" "
+		       "method=%s", method);
+	return MHD_NO;
+      }
+    } else {
+      headers.erase("x-real-ip");
+      headers.erase("remote-user");
+    }
+    
+    
     // Authenticate the client
     eos::common::VirtualIdentity* vid = Authenticate(headers);
     eos_static_info("request=%s client-real-ip=%s client-real-host=%s vid.uid=%s vid.gid=%s vid.host=%s vid.tident=%s\n",
@@ -264,7 +307,6 @@ HttpServer::XrdHttpHandler(std::string& method,
 {
   using namespace eos::common;
   WAIT_BOOT;
-
   // Clients which are gateways/sudoer can pass x-forwarded-for and remote-user
   if (headers.count("x-forwarded-for")) {
     // Check if this is a http gateway and sudoer by calling the mapping function
@@ -272,28 +314,34 @@ HttpServer::XrdHttpHandler(std::string& method,
 
     if (vid_tmp) {
       XrdSecEntity eclient(client.prot);
+
       // Save initial eaAPI pointer and reset after the copy to avoid
       // double free of the same pointer.
       auto ea = eclient.eaAPI;
       eclient = client;
       eclient.eaAPI = ea;
-
+      
       if (headers.count("x-gateway-authorization")) {
         eclient.endorsements = (char*)headers["x-gateway-authorization"].c_str();
       }
 
       std::string stident = "https.0:0@";
       stident += std::string(client.host);
+      
       eos::common::Mapping::IdMap(&eclient, "", stident.c_str(), *vid_tmp);
 
       if (!vid_tmp->isGateway() ||
           ((vid_tmp->prot != "https") && (vid_tmp->prot != "http"))) {
         headers.erase("x-forwarded-for");
+	headers.erase("x-real-ip");
       }
 
-      if (!vid_tmp->sudoer) {
+      eos_static_debug("vid trace: %s gw:%d", vid_tmp->getTrace().c_str(), vid_tmp->isGateway());
+      
+      if (headers.count("x-gateway-authorization") && !vid_tmp->sudoer) {
         headers.erase("remote-user");
       }
+      
     } else {
       err_msg = "failed to allocate memory";
       eos_static_err("msg=\"failed to allocate VirtualIdentity object\" "
