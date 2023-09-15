@@ -29,6 +29,7 @@
 
 #include "mgm/Namespace.hh"
 #include "common/Constants.hh"
+#include "namespace/Prefetcher.hh"
 
 EOSMGMNAMESPACE_BEGIN
 
@@ -120,9 +121,21 @@ public:
             eos::common::VirtualIdentity& vid, bool userwildcard, bool appwildcard)
   {
     errno = 0;
-    eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
     XrdOucErrInfo error;
     XrdOucString value;
+
+    eos::Prefetcher::prefetchFileMDAndWait(gOFS->eosView, path);
+
+    eos::IFileMD::IFileMDWriteLockerPtr fdLock;
+
+    try {
+      fdLock = gOFS->eosView->getFileWriteLocked(path);
+    } catch (eos::MDException &e) {
+      errno = e.getErrno();
+      eos_static_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n", e.getErrno(),
+                e.getMessage().str().c_str());
+      return false;
+    }
 
     if (!gOFS->_attr_get(path, error, vid, "", eos::common::EOS_APP_LOCK_ATTR,
                          value)) {
@@ -169,9 +182,22 @@ public:
   bool Unlock(const char* path, eos::common::VirtualIdentity& vid)
   {
     errno = 0;
-    eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
+
     XrdOucErrInfo error;
     XrdOucString value;
+
+    eos::Prefetcher::prefetchFileMDAndWait(gOFS->eosView, path);
+
+    eos::IFileMD::IFileMDWriteLockerPtr fdLock;
+
+    try {
+      fdLock = gOFS->eosView->getFileWriteLocked(path);
+    } catch (eos::MDException &e) {
+      errno = e.getErrno();
+      eos_static_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n", e.getErrno(),
+                       e.getMessage().str().c_str());
+      return false;
+    }
 
     if (!gOFS->_attr_get(path, error, vid, "", eos::common::EOS_APP_LOCK_ATTR,
                          value)) {
