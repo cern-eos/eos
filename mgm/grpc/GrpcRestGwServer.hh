@@ -6,9 +6,9 @@
 #include "common/Logging.hh"
 #include "GrpcRestGwInterface.hh"
 
-#ifdef EOS_GRPC
+#ifdef EOS_GRPC_GATEWAY
 #include <grpc++/grpc++.h>
-#endif
+#endif // EOS_GRPC_GATEWAY
 
 EOSMGMNAMESPACE_BEGIN
 
@@ -31,9 +31,9 @@ private:
   std::string mSSLCaFile;
   AssistedThread mThread; // Thread running GRPC service
 
-#ifdef EOS_GRPC
+#ifdef EOS_GRPC_GATEWAY
   std::unique_ptr<grpc::Server> mRestGwServer;
-#endif
+#endif /// EOS_GRPC_GATEWAY
 
 public:
 
@@ -43,13 +43,13 @@ public:
 
   ~GrpcRestGwServer()
   {
-#ifdef EOS_GRPC
+#ifdef EOS_GRPC_GATEWAY
 
     if (mRestGwServer) {
       mRestGwServer->Shutdown();
     }
 
-#endif
+#endif // EOS_GRPC_GATEWAY
     mThread.join();
   }
 
@@ -62,7 +62,7 @@ public:
     mThread.reset(&GrpcRestGwServer::Run, this);
   }
 
-#ifdef EOS_GRPC
+#ifdef EOS_GRPC_GATEWAY
 
   /* return client DN*/
   static std::string DN(grpc::ServerContext* context);
@@ -73,7 +73,7 @@ public:
   static void Vid(grpc::ServerContext* context,
                   eos::common::VirtualIdentity& vid);
 
-#endif
+#endif // EOS_GRPC_GATEWAY
 };
 
 EOSMGMNAMESPACE_END

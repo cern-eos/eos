@@ -5,7 +5,7 @@
 #include "mgm/Macros.hh"
 #include "XrdSec/XrdSecEntity.hh"
 
-#ifdef EOS_GRPC
+#ifdef EOS_GRPC_GATEWAY
 #include "proto/eos_rest_gateway/eos_rest_gateway_service.grpc.pb.h"
 #include "libgateway.h"
 
@@ -61,11 +61,11 @@ using eos::console::VidProto;
 using eos::console::WhoProto;
 using eos::console::WhoamiProto;
 
-#endif
+#endif // EOS_GRPC_GATEWAY
 
 EOSMGMNAMESPACE_BEGIN
 
-#ifdef EOS_GRPC
+#ifdef EOS_GRPC_GATEWAY
 
 class EosRestGatewayServiceImpl final : public EosRestGatewayService::Service, public eos::common::LogId
 {
@@ -102,14 +102,6 @@ class EosRestGatewayServiceImpl final : public EosRestGatewayService::Service, p
   Status AttrRequest(ServerContext* context, const AttrProto* request,
 		  ReplyProto* reply) override
   {
-    // Print client metadata
-    for (auto iter = context->client_metadata().begin();
-	        iter != context->client_metadata().end(); ++iter) {
-      std::string key (iter->first.data(), iter->first.length());
-      std::string value (iter->second.data(), iter->second.length());
-      eos_static_info("Metadata Key=\"%s\" Value=\"%s\"", key.c_str(), value.c_str());
-    }
-
     eos::common::VirtualIdentity vid;
     GrpcRestGwServer::Vid(context, vid);
 
@@ -593,41 +585,12 @@ GrpcRestGwServer::Vid(grpc::ServerContext* context,
   eos::common::Mapping::IdMap(&client, "eos.app=grpc", client.tident, vid);
 }
 
-#endif
+#endif // EOS_GRPC_GATEWAY
 
 void
 GrpcRestGwServer::Run(ThreadAssistant& assistant) noexcept
 {
-#ifdef EOS_GRPC
-
-//   if (getenv("EOS_MGM_GRPC_SSL_CERT") &&
-//       getenv("EOS_MGM_GRPC_SSL_KEY") &&
-//       getenv("EOS_MGM_GRPC_SSL_CA")) {
-//     mSSL = true;
-//     mSSLCertFile = getenv("EOS_MGM_GRPC_SSL_CERT");
-//     mSSLKeyFile = getenv("EOS_MGM_GRPC_SSL_KEY");
-//     mSSLCaFile = getenv("EOS_MGM_GRPC_SSL_CA");
-
-//     if (eos::common::StringConversion::LoadFileIntoString(mSSLCertFile.c_str(),
-//         mSSLCert) && !mSSLCert.length()) {
-//       eos_static_crit("unable to load ssl certificate file '%s'",
-//                       mSSLCertFile.c_str());
-//       mSSL = false;
-//     }
-
-//     if (eos::common::StringConversion::LoadFileIntoString(mSSLKeyFile.c_str(),
-//         mSSLKey) && !mSSLKey.length()) {
-//       eos_static_crit("unable to load ssl key file '%s'", mSSLKeyFile.c_str());
-//       mSSL = false;
-//     }
-
-//     if (eos::common::StringConversion::LoadFileIntoString(mSSLCaFile.c_str(),
-//         mSSLCa) && !mSSLCa.length()) {
-//       eos_static_crit("unable to load ssl ca file '%s'", mSSLCaFile.c_str());
-//       mSSL = false;
-//     }
-//   }
-
+#ifdef EOS_GRPC_GATEWAY
   EosRestGatewayServiceImpl service;
   grpc::ServerBuilder builder;
 
@@ -637,20 +600,6 @@ GrpcRestGwServer::Run(ThreadAssistant& assistant) noexcept
   // gateway bind address
   std::string gw_bind_address = "0.0.0.0:";
   gw_bind_address += "40054";
-
-  // if (mSSL) {
-  //   grpc::SslServerCredentialsOptions::PemKeyCertPair keycert = {
-  //     mSSLKey,
-  //     mSSLCert
-  //   };
-  //   grpc::SslServerCredentialsOptions sslOps(
-  //     GRPC_SSL_REQUEST_AND_REQUIRE_CLIENT_CERTIFICATE_AND_VERIFY);
-  //   sslOps.pem_root_certs = mSSLCa;
-  //   sslOps.pem_key_cert_pairs.push_back(keycert);
-  //   builder.AddListeningPort(bind_address, grpc::SslServerCredentials(sslOps));
-  // } else {
-  //   builder.AddListeningPort(bind_address, grpc::InsecureServerCredentials());
-  // }
 
   builder.AddListeningPort(bind_address, grpc::InsecureServerCredentials());
   builder.RegisterService(&service);

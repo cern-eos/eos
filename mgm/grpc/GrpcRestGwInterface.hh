@@ -1,6 +1,6 @@
 #pragma once
 
-#ifdef EOS_GRPC
+#ifdef EOS_GRPC_GATEWAY
 
 //-----------------------------------------------------------------------------
 #include "common/VirtualIdentity.hh"
@@ -125,4 +125,4 @@ private:
 
 EOSMGMNAMESPACE_END
 
-#endif // EOS_GRPC
+#endif // EOS_GRPC_GATEWAY

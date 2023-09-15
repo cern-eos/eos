@@ -1,4 +1,4 @@
-#ifdef EOS_GRPC
+#ifdef EOS_GRPC_GATEWAY
 
 //-----------------------------------------------------------------------------
 #include "GrpcRestGwInterface.hh"
@@ -2944,4 +2944,4 @@ FileHelper_GetRemoteFmdFromLocalDb(const char* manager, const char* shexfid,
 
 EOSMGMNAMESPACE_END
 
-#endif // EOS_GRPC
+#endif // EOS_GRPC_GATEWAY
