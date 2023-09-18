@@ -131,6 +131,7 @@ add_library(EosCommon-Objects OBJECT
   XrdConnPool.cc
   XrdErrorMap.cc
   OAuth.cc
+  Glob.cc
   Strerror_r_wrapper.cc
   ErrnoToString.cc
   JeMallocHandler.cc

@@ -263,15 +263,18 @@ com_ls(char* arg1)
   }
 
   path = abspath(path.c_str());
-
+  
   if (strlen(path.c_str()) >= FILENAME_MAX) {
     fprintf(stderr, "error: path length longer than %i bytes", FILENAME_MAX);
     global_retc = EINVAL;
     return (0);
   }
 
+  path = eos::common::StringConversion::curl_escaped(path.c_str()).c_str();
+
   in += "&mgm.path=";
   in += path;
+  in += "&eos.encodepath=1";
   in += "&mgm.option=";
   in += option;
   global_retc = output_result(client_command(in));
