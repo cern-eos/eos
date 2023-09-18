@@ -65,9 +65,18 @@ private:
   //----------------------------------------------------------------------------
   std::string smartctl(const char* device);
 
+  //----------------------------------------------------------------------------
+  //! Obtain smart attributes
+  //!
+  //! @param device targeted device
+  //!
+  //! @return json output with all attributes
+  //----------------------------------------------------------------------------
+  std::string smartattributes(const char* device);
+
   //! Map holding the smartclt results
   std::map<std::string, std::map<std::string, std::string>> smartctl_results;
-  std::mutex mMutex; ///< Protect acces to the smartctl_results map
+  std::mutex mMutex; ///< Protect acces to the smartctl_results/attributes map
 
 #ifdef IN_TEST_HARNESS
 public:
@@ -122,13 +131,14 @@ public:
   //! @return map of health parameters and values
   //----------------------------------------------------------------------------
   std::map<std::string, std::string> getDiskHealth(const std::string& devpath);
-
+  uint64_t getPowerOnHours(const std::string& devpath);
+  
 private:
   ///< Trigger update thread without waiting for the whole interval to elapse
   std::atomic<bool> mSkip;
   AssistedThread monitoringThread; ///< Monitoring thread
   unsigned int mIntervalMin; ///< Minutes interval when monitoring thread runs
-  DiskHealth mDiskHealth; ///< Objecting collecting disk health information
+  DiskHealth mDiskHealth; ///< Objecting collecting disk (health) information
 };
 
 EOSFSTNAMESPACE_END

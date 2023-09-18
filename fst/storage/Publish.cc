@@ -32,6 +32,7 @@
 #include "common/StringTokenizer.hh"
 #include "common/StringUtils.hh"
 #include "common/IntervalStopwatch.hh"
+#include "common/SymKeys.hh"
 #include "XrdVersion.hh"
 
 XrdVERSIONINFOREF(XrdgetProtocol);
@@ -464,6 +465,10 @@ Storage::GetFsStatistics(FileSystem* fs)
                                          health["drives_failed"] : "0");
   output["stat.health.redundancy_factor"] = (health.count("redundancy_factor") ?
       health["redundancy_factor"] : "1");
+
+  // compress the json smart info  
+  eos::common::SymKey::ZBase64(health["attributes"], output["stat.health.z64smart"]);
+  
   // Publish generic statistics, related to free space and current load
   long long r_open = (long long) gOFS.openedForReading.getOpenOnFilesystem(fsid);
   long long w_open = (long long) gOFS.openedForWriting.getOpenOnFilesystem(fsid);

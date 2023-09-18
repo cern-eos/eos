@@ -82,6 +82,7 @@ DiskHealth::Measure()
 
   for (const auto& elem : dev_names) {
     tmp[elem]["summary"] = smartctl(elem.c_str());
+    tmp[elem]["attributes"] = smartattributes(elem.c_str());
   }
 
   std::lock_guard<std::mutex> lock(mMutex);
@@ -269,6 +270,42 @@ std::string DiskHealth::smartctl(const char* device)
   }
 
   return "invalid";
+}
+
+//------------------------------------------------------------------------------
+// Obtain smart attributes of an attached local storage device
+//------------------------------------------------------------------------------
+std::string DiskHealth::smartattributes(const char* device)
+{
+  std::string command("smartctl -x -j /dev/");
+
+  // dev name starts with mpath, it's scsi multipath from linux device mapper,
+  // i.e. /dev/dm-XY
+  if(std::string(device).find("dm-") == 0) {
+    command = std::string("smartctl -x -j --device=scsi -a /dev/");
+  }
+
+  command += device;
+  // write output into a dedicated file
+  command += " ";
+  std::string tmpname = "/tmp/.smartattributes-";
+  tmpname += device;
+  command += tmpname;
+  
+  eos::common::ShellCmd scmd(command.c_str());
+  eos::common::cmd_status rc = scmd.wait(5);
+
+  if (rc.exit_code != 0) {
+    return "";
+  }
+
+  if (rc.exit_code == 127) {
+    return "{}";
+  }
+
+  std::string retval;
+  eos::common::StringConversion::LoadFileIntoString(tmpname.c_str(), retval);
+  return retval;
 }
 
 //------------------------------------------------------------------------------
