@@ -17,7 +17,7 @@ find_library(GATEWAY_LIBRARY NAMES libgateway.so
 
 if(GATEWAY_LIBRARY)
   set(GATEWAY_FOUND 1)
-  message ("${GATEWAY_LIBRARY}")
+  message (STATUS "GATEWAY_LIBRARY=${GATEWAY_LIBRARY}")
 endif()
 
 include(FindPackageHandleStandardArgs)
@@ -25,7 +25,7 @@ find_package_handle_standard_args(eosgateway
   REQUIRED_VARS GATEWAY_LIBRARY GATEWAY_INCLUDE_DIR)
 
 mark_as_advanced(GATEWAY_INCLUDE_DIR GATEWAY_LIBRARY)
-message(STATUS "eos-gateway include path: ${GATEWAY_INCLUDE_DIR}")
+message(STATUS "GATEWAY_INCLUDE_DIR=${GATEWAY_INCLUDE_DIR}")
 
 if (GATEWAY_FOUND AND NOT TARGET GATEWAY::GATEWAY)
   add_library(GATEWAY::GATEWAY UNKNOWN IMPORTED)
