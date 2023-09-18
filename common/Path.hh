@@ -383,7 +383,42 @@ public:
 
     return true;
   }
+  
+  bool Globbing() {
+    std::string name=lastPath.c_str();
+    size_t index = 0;
+    while ((index = name.find('*', index)) != std::string::npos) {
+      if ( (index==0) || ((index>0)  && name[index-1] != '\\')) {
+	return true;
+      }
+      index++;
+    }
+    index = 0;
+    while ((index = name.find('?', index)) != std::string::npos) {
+      if ( (index==0) || ((index>0)  && name[index-1] != '\\')) {
+	return true;
+      }
+      index++;
+    }
+    
+    index = 0;
+    while ((index = name.find('[', index)) != std::string::npos) {
+      if ( (index==0) || ((index>0)  && name[index-1] != '\\')) {
+	return true;
+      }
+      index++;
+    }
 
+    index = 0;
+    while ((index = name.find('{', index)) != std::string::npos) {
+      if ( (index==0) || ((index>0)  && name[index-1] != '\\')) {
+	return true;
+      }
+      index++;
+    }
+    return false;
+  }
+  
   // check if path points to a version
   static bool IsVersion(std::string& path) {
     return (path.find(EOS_COMMON_PATH_VERSION_PREFIX) != std::string::npos);

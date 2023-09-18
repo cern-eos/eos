@@ -27,6 +27,7 @@
 #include "mgm/Access.hh"
 #include "mgm/Macros.hh"
 #include "mgm/Stat.hh"
+#include "common/Glob.hh"
 #include "common/Path.hh"
 #include "common/StringUtils.hh"
 #include "common/Timing.hh"
@@ -71,6 +72,10 @@ ProcCommand::Ls()
   gOFS->MgmStats.Add("Ls", pVid->uid, pVid->gid, 1);
   XrdOucString spath = pOpaque->Get("mgm.path");
 
+  if (pOpaque->Get("eos.encodepath")) {
+    spath = eos::common::StringConversion::curl_unescaped(spath.c_str()).c_str();
+  }
+
   if (spath.length() >= FILENAME_MAX) {
     oss << "error: path length longer than " << FILENAME_MAX << " bytes";
     eos_err("msg=\"%s\"", oss.str().c_str());
@@ -110,13 +115,15 @@ ProcCommand::Ls()
     struct stat buf;
     int listrc = 0;
     XrdOucString filter = "";
+    eos::common::Glob glob;
 
-    if (spath.find("*") != STR_NPOS) {
-      eos::common::Path cPath(spath.c_str());
+    eos::common::Path cPath(spath.c_str());
+
+    if (cPath.Globbing()) {
+      // always use globbing
       spath = cPath.GetParentPath();
       filter = cPath.GetName();
     }
-
     XrdOucString ls_file;
     std::string uri;
     std::string cacheentry;
@@ -206,7 +213,7 @@ ProcCommand::Ls()
             continue;
           }
 
-          if ((filter.length()) && (!entryname.matches(filter.c_str()))) {
+          if ((filter.length()) && !glob.Match(filter.c_str(), entryname.c_str())) {
             // apply filter & skip single file/directories
             if (ls_file.length()) {
               break;

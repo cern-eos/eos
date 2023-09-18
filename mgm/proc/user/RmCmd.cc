@@ -31,6 +31,7 @@
 #include "mgm/Macros.hh"
 #include "mgm/Access.hh"
 #include "common/Path.hh"
+#include "common/Glob.hh"
 
 EOSMGMNAMESPACE_BEGIN
 
@@ -118,9 +119,8 @@ eos::mgm::RmCmd::ProcessRequest() noexcept
     errStream << "error: you have to give a path name to call 'rm'";
     ret_c = EINVAL;
   } else {
-    if (spath.find('*') != std::string::npos) {
-      // this is wildcard deletion
-      eos::common::Path objPath(spath.c_str());
+    eos::common::Path objPath(spath.c_str());
+    if (objPath.Globbing()) {
       spath = objPath.GetParentPath();
       filter = objPath.GetName();
     }
@@ -149,25 +149,9 @@ eos::mgm::RmCmd::ProcessRequest() noexcept
     }
 
     if ((file_exists == XrdSfsFileExistIsDirectory) && filter.length()) {
-      regex_t regex_filter;
-      // Adding regex anchors for beginning and end of string
-      XrdOucString filter_temp = "^";
-      // Changing wildcard * into regex syntax
-      filter.replace("*", ".*");
-      filter_temp += filter;
-      filter_temp += "$";
-      int reg_rc = regcomp(&(regex_filter), filter_temp.c_str(),
-                           REG_EXTENDED | REG_NEWLINE);
-
-      if (reg_rc) {
-        errStream << "error: failed to compile filter regex " << filter_temp;
-        reply.set_std_err(errStream.str());
-        reply.set_retc(EINVAL);
-        return reply;
-      }
-
       // List the path and match against filter
       XrdMgmOfsDirectory dir;
+      eos::common::Glob glob;
       int listrc = dir.open(spath.c_str(), mVid, nullptr);
 
       if (!listrc) {
@@ -183,13 +167,12 @@ eos::mgm::RmCmd::ProcessRequest() noexcept
             continue;
           }
 
-          if (!regexec(&regex_filter, entry.c_str(), 0, nullptr, 0)) {
+	  if (glob.Match(filter.c_str(), entry.c_str())) {
             rmList.insert(mpath.c_str());
           }
         }
       }
 
-      regfree(&regex_filter);
       // if we have rm * (whatever wildcard) we remove the -r flag
       recursive = false;
     } else {
