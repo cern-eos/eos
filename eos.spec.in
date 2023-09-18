@@ -145,6 +145,7 @@ BuildRequires: libzstd-devel
 BuildRequires: lz4-devel
 Requires: libzstd, zstd, lz4
 BuildRequires: libcap-devel
+BuildRequires: gflags
 
 %if %{?rhel:1}%{!?rhel:0} && 0%{?rhel} <= 7
 BuildRequires: openssl-static, ncurses-static
