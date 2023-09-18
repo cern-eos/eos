@@ -411,6 +411,17 @@ build_fedora_37:
     - tags
 
 
+build_fedora_38:
+  extends: .build-fedora-template
+  image: fedora:38
+  variables:
+    BUILD_NAME: fc-38
+#  only:
+#    - schedules
+#    - tags
+  when: manual
+
+
 build_fedora_rawhide:
   extends: .build-fedora-template
   image: registry.fedoraproject.org/fedora:rawhide

@@ -23,6 +23,7 @@ BUILDMAP[cs8]=el-8s
 BUILDMAP[cs9]=el-9s
 BUILDMAP[fc-36]=fc-36
 BUILDMAP[fc-37]=fc-37
+BUILDMAP[fc-38]=fc-38
 BUILDMAP[fc-rawhide]=fc-rawhide
 BUILDMAP[osx]=osx
 BUILDMAP[cc7_asan]=el-7-asan
