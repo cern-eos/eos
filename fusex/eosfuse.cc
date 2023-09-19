@@ -3327,11 +3327,11 @@ EosFuse::readdir_filler(fuse_req_t req, EosFuse::opendir_t* md,
       break;
     }
 
-    pmd->Locker().UnLock();
+    mLock.UnLock();
     // refresh the listing
     eos_static_debug("refresh listing int=%#lx", pmd_id);
     rc = listdir(req, pmd_id, pmd, lifetime);
-    pmd->Locker().Lock();
+    mLock.Lock(&pmd->Locker());
   } while ((!rc) && ((*pmd)()->type() != (*pmd)()->MDLS));
 
   if (md->pmd_children.size() != pmd->local_children().size() ||
