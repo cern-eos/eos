@@ -500,7 +500,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
   BOUNCE_ILLEGAL_NAMES;
   BOUNCE_NOT_ALLOWED;
   spath = path;
-
+  COMMONTIMING("Bounce", &tm);
   if (!spath.beginswith("/proc/") && spath.endswith("/")) {
     return Emsg(epname, error, EISDIR,
                 "open - you specified a directory as target file name", path);
@@ -1425,11 +1425,11 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
             cid = fmd->getContainerId();
             auto cmd = dmd; // we have this already
             cmd->setMTimeNow();
-            cmd->notifyMTimeChange(gOFS->eosDirectoryService);
             eos::ContainerIdentifier cmd_id = cmd->getIdentifier();
             eos::ContainerIdentifier cmd_pid = cmd->getParentIdentifier();
             gOFS->mReplicationTracker->Create(fmd);
             ns_wr_lock.Release();
+            cmd->notifyMTimeChange(gOFS->eosDirectoryService);
             gOFS->eosView->updateContainerStore(cmd.get());
             gOFS->eosView->updateFileStore(fmd.get());
 
@@ -1813,14 +1813,11 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
       try {
         eos::common::RWMutexWriteLock ns_wr_lock(gOFS->eosViewRWMutex);
         eos::FileIdentifier fmd_id = fmd->getIdentifier();
-        gOFS->eosView->updateFileStore(fmd.get());
         std::shared_ptr<eos::IContainerMD> cmd =
           gOFS->eosDirectoryService->getContainerMD(cid);
-        cmd->setMTimeNow();
-        cmd->notifyMTimeChange(gOFS->eosDirectoryService);
-        gOFS->eosView->updateContainerStore(cmd.get());
         eos::ContainerIdentifier cmd_id = cmd->getIdentifier();
         eos::ContainerIdentifier pcmd_id = cmd->getParentIdentifier();
+        cmd->setMTimeNow();
 
         if (isCreation || (!fmd->getNumLocation())) {
           eos::IQuotaNode* ns_quota = gOFS->eosView->getQuotaNode(cmd.get());
@@ -1829,9 +1826,12 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
             ns_quota->addFile(fmd.get());
           }
         }
-
         ns_wr_lock.Release();
         COMMONTIMING("filemd::update", &tm);
+        gOFS->eosView->updateFileStore(fmd.get());
+        cmd->notifyMTimeChange(gOFS->eosDirectoryService);
+        gOFS->eosView->updateContainerStore(cmd.get());
+
         gOFS->FuseXCastRefresh(fmd_id, cmd_id);
         gOFS->FuseXCastRefresh(cmd_id, pcmd_id);
         COMMONTIMING("fusex::bc", &tm);
