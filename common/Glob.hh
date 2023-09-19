@@ -76,10 +76,10 @@ public:
 
   struct dirent* getEntry() {
     if (mIt < mNames.size()) {
-      mEntry.d_ino = mIt;
+      mEntry.d_ino = mIt+1; // 0 leads to NOMATCH with glibc 2-17!!!
       mEntry.d_off = mIt;
       mEntry.d_reclen = 255;
-      mEntry.d_type = 0;
+      mEntry.d_type = DT_REG;;
       snprintf(mEntry.d_name, mEntry.d_reclen, "%s",mNames[mIt++].c_str());
       return &mEntry;
     } else {
