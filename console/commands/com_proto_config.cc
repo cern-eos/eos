@@ -202,7 +202,6 @@ int com_protoconfig(char* arg)
   }
 
   global_retc = config.Execute();
-
   return global_retc;
 }
 
@@ -218,7 +217,7 @@ void com_config_help()
       << "'[eos] config' provides the configuration interface to EOS.\n"
       << std::endl
       << "Subcommands:\n"
-      << "config changelog [-#lines] : show the last #lines from the changelog - default is 10\n"
+      << "config changelog [#lines] : show the last #lines from the changelog - default is 10\n"
       << std::endl
       << "config dump [<name>] : dump configuration with name <name> or current one by default\n"
       << std::endl
