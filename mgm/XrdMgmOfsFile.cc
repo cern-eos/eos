@@ -500,7 +500,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
   BOUNCE_ILLEGAL_NAMES;
   BOUNCE_NOT_ALLOWED;
   spath = path;
-
+  COMMONTIMING("Bounce", &tm);
   if (!spath.beginswith("/proc/") && spath.endswith("/")) {
     return Emsg(epname, error, EISDIR,
                 "open - you specified a directory as target file name", path);
@@ -1811,16 +1811,13 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
       }
 
       try {
-        eos::common::RWMutexWriteLock ns_wr_lock(gOFS->eosViewRWMutex);
+        eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
         eos::FileIdentifier fmd_id = fmd->getIdentifier();
-        gOFS->eosView->updateFileStore(fmd.get());
         std::shared_ptr<eos::IContainerMD> cmd =
           gOFS->eosDirectoryService->getContainerMD(cid);
-        cmd->setMTimeNow();
-        cmd->notifyMTimeChange(gOFS->eosDirectoryService);
-        gOFS->eosView->updateContainerStore(cmd.get());
         eos::ContainerIdentifier cmd_id = cmd->getIdentifier();
         eos::ContainerIdentifier pcmd_id = cmd->getParentIdentifier();
+        ns_rd_lock.Release();
 
         if (isCreation || (!fmd->getNumLocation())) {
           eos::IQuotaNode* ns_quota = gOFS->eosView->getQuotaNode(cmd.get());
@@ -1830,8 +1827,12 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
           }
         }
 
-        ns_wr_lock.Release();
         COMMONTIMING("filemd::update", &tm);
+        gOFS->eosView->updateFileStore(fmd.get());
+        cmd->setMTimeNow();
+        cmd->notifyMTimeChange(gOFS->eosDirectoryService);
+        gOFS->eosView->updateContainerStore(cmd.get());
+
         gOFS->FuseXCastRefresh(fmd_id, cmd_id);
         gOFS->FuseXCastRefresh(cmd_id, pcmd_id);
         COMMONTIMING("fusex::bc", &tm);
