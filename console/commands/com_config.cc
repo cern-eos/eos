@@ -242,7 +242,7 @@ com_config_usage:
       << "'[eos] config' provides the configuration interface to EOS." << std::endl
       << std::endl
       << "Subcommands:" << std::endl
-      << "config changelog [-#lines]" << std::endl
+      << "config changelog [#lines]" << std::endl
       << "       show the last <#> lines from the changelog - default is 10" <<
       std::endl
       << std::endl
