@@ -132,6 +132,12 @@ private:
   std::map<time_t, uint64_t> currentBirthTimeFiles;
   std::map<time_t, uint64_t> currentBirthTimeVolume;
 
+  //! BirthVsAccess Time Bins
+  std::map<time_t, std::map<time_t,uint64_t>> lastBirthVsAccessTimeFiles;
+  std::map<time_t, std::map<time_t,uint64_t>> lastBirthVsAccessTimeVolume;
+  std::map<time_t, std::map<time_t,uint64_t>> currentBirthVsAccessTimeFiles;
+  std::map<time_t, std::map<time_t,uint64_t>> currentBirthVsAccessTimeVolume;
+
   //! User Cost Bins
   std::map<uid_t, uint64_t> lastUserCosts[2];
   std::map<uid_t, uint64_t> currentUserCosts[2];
