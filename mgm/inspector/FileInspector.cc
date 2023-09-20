@@ -276,6 +276,8 @@ void FileInspector::performCycleQDB(ThreadAssistant& assistant) noexcept
   lastAccessTimeVolume = currentAccessTimeVolume;
   lastBirthTimeFiles = currentBirthTimeFiles;
   lastBirthTimeVolume = currentBirthTimeVolume;
+  lastBirthVsAccessTimeFiles = currentBirthVsAccessTimeFiles;
+  lastBirthVsAccessTimeVolume = currentBirthVsAccessTimeVolume;
 
   for (auto n=0; n<2; ++n) {
     lastUserTotalCosts[n] = 0;
@@ -316,6 +318,8 @@ void FileInspector::performCycleQDB(ThreadAssistant& assistant) noexcept
   currentAccessTimeVolume.clear();
   currentBirthTimeFiles.clear();
   currentBirthTimeVolume.clear();
+  currentBirthVsAccessTimeFiles.clear();
+  currentBirthVsAccessTimeVolume.clear();
   for (auto n=0; n<2; n++) {
     currentUserCosts[n].clear();
     currentGroupCosts[n].clear();
@@ -400,25 +404,36 @@ FileInspector::Process(std::shared_ptr<eos::IFileMD> fmd)
                                    fmd->getLayoutId()));
   }
 
+#define UNDEFINED_BIN (100 *365 * 86400.0)
+  
   currentScanStats[lid][tag]++;
   static std::set<double> time_bin {0, 86400ll, 7 * 86400ll, 30 * 86400ll, 90 * 86400ll,
-                                    182.5 * 86400ll, 365 * 86400ll, 2 * 365 * 86400ll, 5 * 365 * 86400ll};
+    182.5 * 86400ll, 365 * 86400ll, 2 * 365 * 86400ll, 5 * 365 * 86400ll, UNDEFINED_BIN};
+  size_t atime_bin=0;
   {
     // create access time distributions
     set<int>::reverse_iterator rev_it;
     eos::IFileMD::ctime_t atime;
     fmd->getATime(atime);
 
-    // future access time goes to bin 0
-    if (atime.tv_sec > timeCurrentScan) {
-      currentAccessTimeFiles[0]++;
-      currentAccessTimeVolume[0] += fmd->getSize();
+    if (!atime.tv_sec) {
+      currentAccessTimeFiles[UNDEFINED_BIN]++;
+      currentAccessTimeVolume[UNDEFINED_BIN] += fmd->getSize();
+      atime_bin = UNDEFINED_BIN;
     } else {
-      for (auto rev_it = time_bin.rbegin(); rev_it != time_bin.rend(); rev_it++) {
-	if ((timeCurrentScan - (int64_t)atime.tv_sec) >= (int64_t) *rev_it) {
-	  currentAccessTimeFiles[(uint64_t)*rev_it]++;
-	  currentAccessTimeVolume[*rev_it] += fmd->getSize();
-	  break;
+      // future access time goes to bin 0
+      if (atime.tv_sec > timeCurrentScan) {
+	currentAccessTimeFiles[0]++;
+	currentAccessTimeVolume[0] += fmd->getSize();
+	atime_bin = 0;
+      } else {
+	for (auto rev_it = time_bin.rbegin(); rev_it != time_bin.rend(); rev_it++) {
+	  if ((timeCurrentScan - (int64_t)atime.tv_sec) >= (int64_t) *rev_it) {
+	    currentAccessTimeFiles[(uint64_t)*rev_it]++;
+	    currentAccessTimeVolume[*rev_it] += fmd->getSize();
+	    atime_bin = *rev_it;
+	    break;
+	  }
 	}
       }
     }
@@ -452,11 +467,15 @@ FileInspector::Process(std::shared_ptr<eos::IFileMD> fmd)
     if (btime.tv_sec > timeCurrentScan) {
       currentBirthTimeFiles[0]++;
       currentBirthTimeVolume[0] += fmd->getSize();
+      currentBirthVsAccessTimeFiles[0][atime_bin]++;
+      currentBirthVsAccessTimeVolume[0][atime_bin] += fmd->getSize();
     } else {
       for (auto rev_it = time_bin.rbegin(); rev_it != time_bin.rend(); rev_it++) {
 	if ((timeCurrentScan - (int64_t)btime.tv_sec) >= (int64_t) *rev_it) {
 	  currentBirthTimeFiles[(uint64_t)*rev_it]++;
 	  currentBirthTimeVolume[*rev_it] += fmd->getSize();
+	  currentBirthVsAccessTimeFiles[*rev_it][atime_bin]++;
+	  currentBirthVsAccessTimeVolume[*rev_it][atime_bin] += fmd->getSize();
 	  break;
 	}
       }
@@ -507,6 +526,8 @@ FileInspector::Dump(std::string& out, std::string_view options)
   bool printusage=true;
   bool printaccesstime = true;
   bool printbirthtime = true;
+  bool printbirthvsaccesstime = true;
+  
   if ( options.find("Z") != std::string::npos ) {
     printall = true;
   }
@@ -515,9 +536,10 @@ FileInspector::Dump(std::string& out, std::string_view options)
        options.find('C') != std::string::npos ||
        options.find('U') != std::string::npos ||
        options.find('A') != std::string::npos ||
-       options.find('B') != std::string::npos ) {
+       options.find('B') != std::string::npos ||
+       options.find('V') != std::string::npos) {
 
-    printlayouts=printcosts=printusage=printaccesstime=printbirthtime=false;
+    printlayouts=printcosts=printusage=printaccesstime=printbirthtime=printbirthvsaccesstime=false;
     if (options.find('L') != std::string::npos) {
       printlayouts=true;
     }
@@ -532,6 +554,9 @@ FileInspector::Dump(std::string& out, std::string_view options)
     }
     if (options.find('B') != std::string::npos) {
       printbirthtime=true;
+    }
+    if (options.find('V') != std::string::npos) {
+      printbirthvsaccesstime=true;
     }
   }
 
@@ -614,6 +639,41 @@ FileInspector::Dump(std::string& out, std::string_view options)
         bfiles += "=";
         bfiles += std::to_string(it->second);
         bfiles += " ";
+      }
+
+      out += bfiles;
+      out += "\n";
+    }
+
+    if (lastBirthTimeVolume.size()) {
+      std::string bvolume = "key=last tag=birthtime::volume ";
+      
+      for (auto it = lastBirthTimeVolume.begin(); it != lastBirthTimeVolume.end();
+	   ++it) {
+	bvolume += std::to_string(it->first);
+	bvolume += "=";
+	bvolume += std::to_string(it->second);
+	bvolume += " ";
+      }
+      
+      out += bvolume;
+      out += "\n";
+    }
+
+
+    if (lastBirthVsAccessTimeFiles.size()) {
+      std::string bfiles = "kay=last tag=birthvsaccesstime::files ";
+
+      for (auto it = lastBirthVsAccessTimeFiles.begin(); it != lastBirthVsAccessTimeFiles.end();
+           ++it) {
+	for ( auto iit = it->second.begin(); iit != it->second.end(); ++iit) {
+	  bfiles += std::to_string(it->first);
+	  bfiles += ":";
+	  bfiles += std::to_string(iit->first);
+	  bfiles += "=";
+	  bfiles += std::to_string(iit->second);
+	  bfiles += " ";
+	}
       }
 
       out += bfiles;
@@ -934,7 +994,7 @@ FileInspector::Dump(std::string& out, std::string_view options)
              ++it) {
           double fraction = totalvolume ? (100.0 * it->second / totalvolume) : 0;
           XrdOucString age;
-          snprintf(line, sizeof(line), " %-32s : %s (%.02f%%)\n",
+          snprintf(line, sizeof(line), " %-32s : %16s (%.02f%%)\n",
                    eos::common::StringConversion::GetReadableAgeString(age, it->first),
                    eos::common::StringConversion::GetReadableSizeString(it->second, "B").c_str(),
                    fraction);
@@ -956,7 +1016,7 @@ FileInspector::Dump(std::string& out, std::string_view options)
              ++it) {
           double fraction = totalfiles ? (100.0 * it->second / totalfiles) : 0;
           XrdOucString age;
-          snprintf(line, sizeof(line), " %-32s : %s (%.02f%%)\n",
+          snprintf(line, sizeof(line), " %-32s : %16s (%.02f%%)\n",
                    eos::common::StringConversion::GetReadableAgeString(age, it->first),
                    eos::common::StringConversion::GetReadableSizeString(it->second, "").c_str(),
                    fraction);
@@ -978,14 +1038,80 @@ FileInspector::Dump(std::string& out, std::string_view options)
              ++it) {
           double fraction = totalvolume ? (100.0 * it->second / totalvolume) : 0;
           XrdOucString age;
-          snprintf(line, sizeof(line), " %-32s : %s (%.02f%%)\n",
+          snprintf(line, sizeof(line), " %-32s : %16s (%.02f%%)\n",
                    eos::common::StringConversion::GetReadableAgeString(age, it->first),
                    eos::common::StringConversion::GetReadableSizeString(it->second, "B").c_str(),
                    fraction);
           out += line;
         }
       }
-      
+
+      if (printbirthvsaccesstime && lastBirthVsAccessTimeFiles.size()) {
+        out +=  "======================================================================================\n";
+        out +=  " Birth vs Access time distribution of files\n";
+	std::map<time_t,uint64_t> totalfiles;
+
+        for (auto it = lastBirthVsAccessTimeFiles.begin(); it != lastBirthVsAccessTimeFiles.end();
+             ++it) {
+	  for ( auto iit = it->second.begin(); iit != it->second.end(); iit++) {
+	    totalfiles[it->first] += iit->second;
+	  }
+        }
+
+        for (auto it = lastBirthVsAccessTimeFiles.begin(); it != lastBirthVsAccessTimeFiles.end();
+             ++it) {
+	  XrdOucString age;
+	  snprintf(line, sizeof(line), " %-8s : [ \n",
+		   eos::common::StringConversion::GetReadableAgeString(age, it->first));
+	  out += line;
+	  for ( auto iit = it->second.begin(); iit != it->second.end(); ++iit) {
+	    double fraction = totalfiles[it->first] ? (100.0 * iit->second / totalfiles[it->first]) : 0;
+	    snprintf(line, sizeof(line), " %-8s     %-32s %16s (%.02f%%)\n",
+		     "",
+		     eos::common::StringConversion::GetReadableAgeString(age, iit->first),
+		     eos::common::StringConversion::GetReadableSizeString(iit->second, "").c_str(),
+		     fraction);
+	    out += line;
+	  }
+	  snprintf(line, sizeof(line), " %-8s   ] \n",
+		   "");
+	  out += line;
+        }
+      }
+
+      if (printbirthvsaccesstime && lastBirthVsAccessTimeVolume.size()) {
+        out +=  "======================================================================================\n";
+        out +=  " Birth vs Access time volume distribution of files\n";
+	std::map<time_t,uint64_t> totalfiles;
+
+        for (auto it = lastBirthVsAccessTimeVolume.begin(); it != lastBirthVsAccessTimeVolume.end();
+             ++it) {
+	  for ( auto iit = it->second.begin(); iit != it->second.end(); iit++) {
+	    totalfiles[it->first] += iit->second;
+	  }
+        }
+
+        for (auto it = lastBirthVsAccessTimeVolume.begin(); it != lastBirthVsAccessTimeVolume.end();
+             ++it) {
+	  XrdOucString age;
+	  snprintf(line, sizeof(line), " %-8s : [ \n",
+		   eos::common::StringConversion::GetReadableAgeString(age, it->first));
+	  out += line;
+	  for ( auto iit = it->second.begin(); iit != it->second.end(); ++iit) {
+	    double fraction = totalfiles[it->first] ? (100.0 * iit->second / totalfiles[it->first]) : 0;
+	    snprintf(line, sizeof(line), " %-8s     %-32s %16s (%.02f%%)\n",
+		     "",
+		     eos::common::StringConversion::GetReadableAgeString(age, iit->first),
+		     eos::common::StringConversion::GetReadableSizeString(iit->second, "B").c_str(),
+		     fraction);
+	    out += line;
+	  }
+	  snprintf(line, sizeof(line), " %-8s   ] \n",
+		   "");
+	  out += line;
+        }
+      }
+
       for ( auto n=0; n<2; n++) {
 	std::string media = "disk";
 	if (n==1) {

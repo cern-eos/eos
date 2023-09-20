@@ -154,6 +154,8 @@ bool SpaceHelper::ParseCommand(const char* arg)
 	options += "A";
       } else if (token == "-a" || token == "--all") {
 	options += "Z";
+      } else if (token == "-V" || token == "--vs") {
+	options += "V";
       } else {
         return false;
       }
@@ -574,11 +576,12 @@ void com_space_help()
       << "                                                       => <groupsize>=0 means that no groups are built within a space, otherwise it should be the maximum number of nodes in a scheduling group\n"
       << "                                                       => <groupmod> maximum number of groups in the space, which should be at least equal to the maximum number of filesystems per node\n"
       << std::endl
-      << "space inspector [--current|-c] [--last|-l] [-m] [-p] [-e] [-s|--space <space_name>] [--all|-a] [--cost|-C] [--usage|-U] [--birth|-B] [--access|-A] [--layouts|-L] : show namespace inspector output\n"
+      << "space inspector [--current|-c] [--last|-l] [-m] [-p] [-e] [-s|--space <space_name>] [--all|-a] [--cost|-C] [--usage|-U] [--birth|-B] [--access|-A] [--vs|-V] [--layouts|-L] : show namespace inspector output\n"
       << "\t  -c  : show current scan\n"
       << "\t  -l  : show last complete scan\n"
       << "\t  -m  : print last scan in monitoring format ( by default this enables --cost --usage --birth --access --layouts)\n"
       << "\t  -A  : combined with -m prints access time distributions\n"
+      << "\t  -V  : combined with -m prints birth time vs access time distributions\n"
       << "\t  -B  : combined with -m prints birth time distributions\n"
       << "\t  -C  : combined with -m prints cost information (storage price per user/group)\n"
       << "\t  -U  : combined with -m prints usage information (stored bytes per user/group)\n"
