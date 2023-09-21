@@ -37,6 +37,14 @@ public:
 
   class Monitor;
 
+  struct attachDetail_t {
+    attachDetail_t() : atime(0), caller(""), origin(""), req(nullptr) { }
+    uint64_t atime;
+    const char* caller;
+    const char* origin;
+    void *req;
+  };
+
   typedef struct _meta {
 
     _meta()
@@ -44,8 +52,7 @@ public:
       openr = openw = 0;
       mInUse.SetBlockedStackTracing(false); // disable stacktracing
       mInUse.SetBlocking(true); // do not use a timed mutex
-      caller="";
-      origin="";
+      inoLastAttachTime = 0;
     }
 
     RWMutex mInUse;
@@ -53,9 +60,7 @@ public:
     std::atomic<size_t> openr;
     std::atomic<size_t> openw;
     uint64_t inoLastAttachTime;
-    std::map<Monitor*, uint64_t> monAttachTimes;
-    const char* caller;
-    const char* origin;
+    std::map<Monitor*, attachDetail_t> adet;
   } meta_t;
 
   Track() { }
@@ -130,7 +135,7 @@ public:
   {
     XrdSysMutexHelper l(iMutex);
     if (me)
-      me->monAttachTimes.erase(monp);
+      me->adet.erase(monp);
   }
 
   size_t
@@ -155,15 +160,16 @@ public:
 
     for (auto it : iNodes) {
       if (it.second->openr || it.second->openw) {
-        for (auto it2 : it.second->monAttachTimes) {
+        for (auto it2 : it.second->adet) {
+          const attachDetail_t &det = it2.second;
           // get duration since Monitor attached
           double is_blocked = std::chrono::duration_cast<std::chrono::milliseconds>
-                              (now.time_since_epoch()).count() - it2.second;
+                              (now.time_since_epoch()).count() - det.atime;
 
           if (is_blocked > max_blocked) {
             max_blocked = is_blocked;
-            function = it.second->caller;
-            orig = it.second->origin;
+            function = det.caller;
+            orig = det.origin;
             inode = it.first;
           }
 	
@@ -188,7 +194,8 @@ public:
   }
 
   std::shared_ptr<meta_t>
-  Attach(Monitor *monp, unsigned long long ino, bool exclusive = false, const char* caller = 0)
+  Attach(Monitor *monp, void *req, unsigned long long ino, bool exclusive = false,
+         const char* caller = 0, const char* origin = 0)
   {
     // get current time. attachtime should give a positive elapsed time, when
     // calculated by another thread, so record time before we acquire mutex.
@@ -202,11 +209,13 @@ public:
       }
 
       m = iNodes[ino];
-      m->caller = caller;
-      m->origin = "fs";
       m->inoLastAttachTime = std::chrono::duration_cast<std::chrono::milliseconds>
                              (now.time_since_epoch()).count();
-      m->monAttachTimes[monp] = m->inoLastAttachTime;
+      attachDetail_t &det = m->adet[monp];
+      det.caller = caller ? caller : "";
+      det.origin = origin ? origin : "";
+      det.atime = m->inoLastAttachTime;
+      det.req = req;
     }
 
     if (exclusive) {
@@ -220,7 +229,7 @@ public:
     return m;
   }
 
-  void SetOrigin(unsigned long long ino, const char* origin) {
+  void SetOrigin(void *req, unsigned long long ino, const char* origin) {
     std::shared_ptr<meta_t> m;
     {
       XrdSysMutexHelper l(iMutex);
@@ -230,7 +239,12 @@ public:
       }
 
       m = iNodes[ino];
-      m->origin = origin;
+      for(auto it: m->adet) {
+        attachDetail_t &det = it.second;
+        if (det.req == req) {
+          det.origin = origin;
+        }
+      }
     }
   }
 
@@ -238,7 +252,7 @@ public:
   {
   public:
 
-    Monitor(const char* caller, const char* origin, Track& tracker, unsigned long long ino,
+    Monitor(const char* caller, const char* origin, Track& tracker, void *req, unsigned long long ino,
             bool exclusive = false, bool disable = false) : tracker(tracker)
     {
       if (!disable) {
@@ -248,9 +262,8 @@ public:
 
         this->ino = ino;
         this->caller = caller;
-	this->origin = origin;
         this->exclusive = exclusive;
-        this->me = tracker.Attach(this, ino, exclusive, caller);
+        this->me = tracker.Attach(this, req, ino, exclusive, caller, origin);
 
         if (EOS_LOGS_DEBUG)
           eos_static_debug("locked  caller=%s origin=%s self=%lld in=%llu exclusive=%d obj=%llx",
@@ -259,7 +272,6 @@ public:
       } else {
         this->ino = 0;
         this->caller = "";
-	this->origin = "disabled";
         this->exclusive = false;
       }
     }
@@ -291,7 +303,6 @@ public:
     bool exclusive;
     unsigned long long ino;
     const char* caller;
-    const char* origin;
     Track &tracker;
   };
 

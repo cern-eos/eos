@@ -3183,7 +3183,7 @@ EosFuse::opendir(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info* fi)
   bool do_listdir = true;
   double lifetime = 0;
   {
-    Track::Monitor mon("opendir", "fs", Instance().Tracker(), ino);
+    Track::Monitor mon("opendir", "fs", Instance().Tracker(), req, ino);
 
     if (Instance().Config().options.rm_rf_protect_levels &&
         Instance().Config().options.rm_rf_bulk &&
@@ -3772,7 +3772,7 @@ EROFS  pathname refers to a file on a read-only filesystem.
   eos_static_debug(name);
   ADD_FUSE_STAT(__func__, req);
   EXEC_TIMING_BEGIN(__func__);
-  Track::Monitor mon("mkdir", "fs", Instance().Tracker(), parent, true);
+  Track::Monitor mon("mkdir", "fs", Instance().Tracker(), req, parent, true);
   int rc = 0;
   fuse_id id(req);
   struct fuse_entry_param e;
@@ -3950,7 +3950,7 @@ EROFS  pathname refers to a file on a read-only filesystem.
   ADD_FUSE_STAT(__func__, req);
   EXEC_TIMING_BEGIN(__func__);
   fuse_ino_t hardlink_target_ino = 0;
-  Track::Monitor pmon("unlink", "fs",  Instance().Tracker(), parent, true);
+  Track::Monitor pmon("unlink", "fs",  Instance().Tracker(), req, parent, true);
   int rc = 0;
   fuse_id id(req);
   // retrieve cap
@@ -4156,7 +4156,7 @@ EROFS  pathname refers to a directory on a read-only filesystem.
   eos_static_debug("");
   ADD_FUSE_STAT(__func__, req);
   EXEC_TIMING_BEGIN(__func__);
-  Track::Monitor mon("rmdir", "fs", Instance().Tracker(), parent, true);
+  Track::Monitor mon("rmdir", "fs", Instance().Tracker(), req, parent, true);
   int rc = 0;
   fuse_id id(req);
   // retrieve cap
@@ -4182,7 +4182,7 @@ EROFS  pathname refers to a directory on a read-only filesystem.
       metad::shared_md md;
       metad::shared_md pmd;
       md = Instance().mds.lookup(req, parent, name);
-      Track::Monitor mon("rmdir", "fs", Instance().Tracker(), (*md)()->id(), true);
+      Track::Monitor mon("rmdir", "fs", Instance().Tracker(), req, (*md)()->id(), true);
       md->Locker().Lock();
       
       if (!(*md)()->id() || md->deleted()) {
@@ -4280,8 +4280,8 @@ EosFuse::rename(fuse_req_t req, fuse_ino_t parent, const char* name,
   // use the same locking order, and no deadlock can occur.
   fuse_ino_t first = std::min(parent, newparent);
   fuse_ino_t second = std::max(parent, newparent);
-  Track::Monitor monp("rename", "fs", Instance().Tracker(), first, true);
-  Track::Monitor monn("rename", "fs", Instance().Tracker(), second, true,
+  Track::Monitor monp("rename", "fs", Instance().Tracker(), req, first, true);
+  Track::Monitor monn("rename", "fs", Instance().Tracker(), req, second, true,
                       first == second);
   int rc = 0;
   fuse_id id(req);
@@ -4359,7 +4359,7 @@ EosFuse::rename(fuse_req_t req, fuse_ino_t parent, const char* name,
     }
 
     if (!rc) {
-      Track::Monitor mone("rename", "fs", Instance().Tracker(), md_ino, true);
+      Track::Monitor mone("rename", "fs", Instance().Tracker(), req, md_ino, true);
       std::string new_name = newname;
       Instance().mds.mv(req, p1md, p2md, md, newname, (*p1cap)()->authid(),
                         (*p2cap)()->authid());
@@ -4390,7 +4390,7 @@ EosFuse::access(fuse_req_t req, fuse_ino_t ino, int mask)
   eos_static_debug("");
   ADD_FUSE_STAT(__func__, req);
   EXEC_TIMING_BEGIN(__func__);
-  Track::Monitor mon("access", "fs", Instance().Tracker(), ino);
+  Track::Monitor mon("access", "fs", Instance().Tracker(), req, ino);
   int rc = 0;
   fuse_id id(req);
   metad::shared_md md = Instance().mds.getlocal(req, ino);
@@ -4490,7 +4490,7 @@ EosFuse::open(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info* fi)
 
   ADD_FUSE_STAT(__func__, req);
   EXEC_TIMING_BEGIN(__func__);
-  Track::Monitor mon("open", "fs", Instance().Tracker(), ino, true);
+  Track::Monitor mon("open", "fs", Instance().Tracker(), req, ino, true);
   int rc = 0;
   fuse_id id(req);
   int mode = R_OK;
@@ -4738,7 +4738,7 @@ The O_NONBLOCK flag was specified, and an incompatible lease was held on the fil
   fuse_ino_t pino = 0;
   {
     COMMONTIMING("_start_", &timing);
-    Track::Monitor mon("create", "fs", Instance().Tracker(), parent, true);
+    Track::Monitor mon("create", "fs", Instance().Tracker(), req, parent, true);
 
     if (fi) {
       eos_static_debug("flags=%x", fi->flags);
@@ -4969,7 +4969,7 @@ EosFuse::read(fuse_req_t req, fuse_ino_t ino, size_t size, off_t off,
 {
   eos::common::Timing timing(__func__);
   COMMONTIMING("_start_", &timing);
-  Track::Monitor mon("read", "io", Instance().Tracker(), ino);
+  Track::Monitor mon("read", "io", Instance().Tracker(), req, ino);
   eos_static_debug("inode=%llu size=%li off=%llu",
                    (unsigned long long) ino, size, (unsigned long long) off);
   eos_static_debug("");
@@ -5021,7 +5021,7 @@ EosFuse::write(fuse_req_t req, fuse_ino_t ino, const char* buf, size_t size,
 {
   eos::common::Timing timing(__func__);
   COMMONTIMING("_start_", &timing);
-  Track::Monitor mon("write", "io", Instance().Tracker(), ino, true);
+  Track::Monitor mon("write", "io", Instance().Tracker(), req, ino, true);
   eos_static_debug("inode=%lld size=%lld off=%lld buf=%lld",
                    (long long) ino, (long long) size,
                    (long long) off, (long long) buf);
@@ -5128,7 +5128,7 @@ EosFuse::release(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info* fi)
   eos_static_debug("");
   ADD_FUSE_STAT(__func__, req);
   EXEC_TIMING_BEGIN(__func__);
-  Track::Monitor mon("release", "io", Instance().Tracker(), ino, true);
+  Track::Monitor mon("release", "io", Instance().Tracker(), req, ino, true);
   int rc = 0;
   fuse_id id(req);
 
@@ -5171,7 +5171,7 @@ EosFuse::fsync(fuse_req_t req, fuse_ino_t ino, int datasync,
   eos_static_debug("datasync=%d", datasync);
   ADD_FUSE_STAT(__func__, req);
   EXEC_TIMING_BEGIN(__func__);
-  Track::Monitor mon("fsync", "io", Instance().Tracker(), ino);
+  Track::Monitor mon("fsync", "io", Instance().Tracker(), req, ino);
   int rc = 0;
   fuse_id id(req);
   data::data_fh* io = (data::data_fh*) fi->fh;
@@ -5304,7 +5304,7 @@ EosFuse::flush(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info* fi)
 
   if (io) {
     if (io->rw) {
-      Track::Monitor mon("flush", "io", Instance().Tracker(), ino, true);
+      Track::Monitor mon("flush", "io", Instance().Tracker(), req, ino, true);
 
       if (io->has_update()) {
         cap::shared_cap pcap;
@@ -5445,7 +5445,7 @@ EosFuse::getxattr(fuse_req_t req, fuse_ino_t ino, const char* xattr_name,
                    key.c_str()); /* key in case xattr_name == NULL */
   ADD_FUSE_STAT(__func__, req);
   EXEC_TIMING_BEGIN(__func__);
-  Track::Monitor mon("getxattr", "fs", Instance().Tracker(), ino);
+  Track::Monitor mon("getxattr", "fs", Instance().Tracker(), req, ino);
   int rc = 0;
   fuse_id id(req);
   cap::shared_cap pcap;
@@ -5887,7 +5887,7 @@ EosFuse::setxattr(fuse_req_t req, fuse_ino_t ino, const char* xattr_name,
   eos_static_debug(key.c_str()); /* key in case xattr_name == NULL */
   ADD_FUSE_STAT(__func__, req);
   EXEC_TIMING_BEGIN(__func__);
-  Track::Monitor mon("setxattr", "fs", Instance().Tracker(), ino, true);
+  Track::Monitor mon("setxattr", "fs", Instance().Tracker(), req, ino, true);
   int rc = 0;
   fuse_id id(req);
   cap::shared_cap pcap;
@@ -6184,7 +6184,7 @@ EosFuse::listxattr(fuse_req_t req, fuse_ino_t ino, size_t size)
   eos_static_debug("");
   ADD_FUSE_STAT(__func__, req);
   EXEC_TIMING_BEGIN(__func__);
-  Track::Monitor mon("listxattr", "fs", Instance().Tracker(), ino);
+  Track::Monitor mon("listxattr", "fs", Instance().Tracker(), req, ino);
   int rc = 0;
   fuse_id id(req);
   cap::shared_cap pcap;
@@ -6293,7 +6293,7 @@ EosFuse::removexattr(fuse_req_t req, fuse_ino_t ino, const char* xattr_name)
   eos_static_debug("");
   ADD_FUSE_STAT(__func__, req);
   EXEC_TIMING_BEGIN(__func__);
-  Track::Monitor mon("removexattr", "fs", Instance().Tracker(), ino);
+  Track::Monitor mon("removexattr", "fs", Instance().Tracker(), req, ino);
   int rc = 0;
   fuse_id id(req);
   cap::shared_cap pcap;
@@ -6410,7 +6410,7 @@ EosFuse::readlink(fuse_req_t req, fuse_ino_t ino)
   eos_static_debug("");
   ADD_FUSE_STAT(__func__, req);
   EXEC_TIMING_BEGIN(__func__);
-  Track::Monitor mon("readlink", "fs", Instance().Tracker(), ino);
+  Track::Monitor mon("readlink", "fs", Instance().Tracker(), req, ino);
   int rc = 0;
   std::string target;
   fuse_id id(req);
@@ -6543,7 +6543,7 @@ EosFuse::symlink(fuse_req_t req, const char* link, fuse_ino_t parent,
   eos_static_debug("");
   ADD_FUSE_STAT(__func__, req);
   EXEC_TIMING_BEGIN(__func__);
-  Track::Monitor mon("symlink", "fs", Instance().Tracker(), parent, true);
+  Track::Monitor mon("symlink", "fs", Instance().Tracker(), req, parent, true);
   int rc = 0;
   fuse_id id(req);
   struct fuse_entry_param e;
@@ -6639,7 +6639,7 @@ EosFuse::link(fuse_req_t req, fuse_ino_t ino, fuse_ino_t parent,
 
   ADD_FUSE_STAT(__func__, req);
   EXEC_TIMING_BEGIN(__func__);
-  Track::Monitor mon("link", "fs", Instance().Tracker(), parent, true);
+  Track::Monitor mon("link", "fs", Instance().Tracker(), req, parent, true);
   int rc = 0;
   fuse_id id(req);
   struct fuse_entry_param e;
@@ -6776,7 +6776,7 @@ EosFuse::getlk(fuse_req_t req, fuse_ino_t ino,
   eos_static_debug("");
   ADD_FUSE_STAT(__func__, req);
   EXEC_TIMING_BEGIN(__func__);
-  Track::Monitor mon("getlk", "fs", Instance().Tracker(), ino);
+  Track::Monitor mon("getlk", "fs", Instance().Tracker(), req, ino);
   fuse_id id(req);
   int rc = 0;
 
@@ -6844,7 +6844,7 @@ EosFuse::setlk(fuse_req_t req, fuse_ino_t ino,
 
 	{
 	  // take the exlusive lock only during the setlk call, then release
-	  Track::Monitor mon("setlk", "fs", Instance().Tracker(), ino, true);
+	  Track::Monitor mon("setlk", "fs", Instance().Tracker(), req, ino, true);
 	  rc = Instance().mds.setlk(req, io->mdctx(), lock, sleep);
 	}
 
@@ -6886,7 +6886,7 @@ EosFuse::flock(fuse_req_t req, fuse_ino_t ino,
   eos_static_debug("");
   ADD_FUSE_STAT(__func__, req);
   EXEC_TIMING_BEGIN(__func__);
-  Track::Monitor mon("flock", "fs", Instance().Tracker(), ino, true);
+  Track::Monitor mon("flock", "fs", Instance().Tracker(), req, ino, true);
   fuse_id id(req);
   int rc = 0;
 
