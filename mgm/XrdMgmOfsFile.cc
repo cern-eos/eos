@@ -1840,7 +1840,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
         cmd->notifyMTimeChange(gOFS->eosDirectoryService);
         gOFS->eosView->updateContainerStore(cmd.get());
 
-
+	COMMONTIMING("filemd::updated",&tm);
         auto fut = gOFS->mFuseXPool->PushTask([fmd_id, cmd_id, pcmd_id](){
           gOFS->FuseXCastRefresh(fmd_id, cmd_id);
           gOFS->FuseXCastRefresh(cmd_id, pcmd_id);
