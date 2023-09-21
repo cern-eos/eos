@@ -146,6 +146,9 @@ public:
     double max_blocked = 0;
     function = "";
     inode = 0;
+    orig = "";
+    blocked_ops = 0;
+    on_root = false;
     XrdSysMutexHelper l(iMutex);
     // get current time, after acquiring mutex to ensure positive elapsed time
     auto now = std::chrono::steady_clock::now();
