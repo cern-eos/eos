@@ -1306,7 +1306,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
         gOFS->MgmStats.Add("OpenWrite", vid.uid, vid.gid, 1);
       }
     }
-
+    std::vector<eos::common::OpaqueFuture<void>> completions;
     // -------------------------------------------------------------------------
     // write case
     // -------------------------------------------------------------------------
@@ -1437,7 +1437,13 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
               gOFS->eosView->updateFileStore(ref_fmd.get());
             }
 
-            gOFS->FuseXCastRefresh(cmd_id, cmd_pid);
+
+            completions.emplace_back(
+                                     gOFS->mFusexPool->PushTask([&cmd_id,&cmd_pid](){
+                                       gOFS->FuseXCastRefresh(cmd_id, cmd_pid);
+                                     })
+                                     );
+                        //gOFS->FuseXCastRefresh(cmd_id, cmd_pid);
           } catch (eos::MDException& e) {
             fmd.reset();
             errno = e.getErrno();
@@ -1833,8 +1839,13 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
         cmd->notifyMTimeChange(gOFS->eosDirectoryService);
         gOFS->eosView->updateContainerStore(cmd.get());
 
-        gOFS->FuseXCastRefresh(fmd_id, cmd_id);
-        gOFS->FuseXCastRefresh(cmd_id, pcmd_id);
+
+        auto fut = gOFS->mFusexPool->PushTask([fmd_id, cmd_id, pcmd_id](){
+          gOFS->FuseXCastRefresh(fmd_id, cmd_id);
+          gOFS->FuseXCastRefresh(cmd_id, pcmd_id);
+        }
+          );
+        completions.emplace_back(std::move(fut));
         COMMONTIMING("fusex::bc", &tm);
       } catch (eos::MDException& e) {
         errno = e.getErrno();

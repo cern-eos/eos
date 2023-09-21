@@ -149,6 +149,7 @@ namespace eos::common
 {
 class CommentLog;
 class JeMallocHandler;
+class ExecutorMgr;
 }
 
 namespace eos::mgm
@@ -2016,6 +2017,8 @@ public:
   mHttpTapeRestApiBulkReqProcCleaner;
 
   std::unique_ptr<eos::mgm::placement::FSScheduler> mFsScheduler;
+
+  std::unique_ptr<eos::common::ExecutorMgr> mFuseXPool;
   //----------------------------------------------------------------------------
   //! Return string representation of prepare options
   //----------------------------------------------------------------------------
