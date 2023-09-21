@@ -370,7 +370,7 @@ XrdMgmOfs::XrdMgmOfs(XrdSysError* ep):
   mTapeGcMgm.reset(new tgc::RealTapeGcMgm(*this));
   mTapeGc.reset(new tgc::MultiSpaceTapeGc(*mTapeGcMgm));
   mFsScheduler.reset(new eos::mgm::placement::FSScheduler());
-  mFusexPool.reset(new eos::common::ExecutorMgr("threadpool",4));
+  mFuseXPool.reset(new eos::common::ExecutorMgr("threadpool",4));
 }
 
 //------------------------------------------------------------------------------

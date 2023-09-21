@@ -30,6 +30,7 @@
 #include "common/ParseUtils.hh"
 #include "common/StringTokenizer.hh"
 #include "common/Strerror_r_wrapper.hh"
+#include "common/async/ExecutorMgr.hh"
 #include "mgm/Access.hh"
 #include "mgm/FileSystem.hh"
 #include "mgm/XrdMgmOfs.hh"
@@ -1228,6 +1229,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
                 "open file - file has a valid extended attribute lock ", path);
   }
 
+  std::vector<eos::common::OpaqueFuture<void>> completions;
   if (isRW) {
     // Allow updates of 0-size RAIN files so that we are able to write from the
     // FUSE mount with lazy-open mode enabled.
@@ -1306,7 +1308,6 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
         gOFS->MgmStats.Add("OpenWrite", vid.uid, vid.gid, 1);
       }
     }
-    std::vector<eos::common::OpaqueFuture<void>> completions;
     // -------------------------------------------------------------------------
     // write case
     // -------------------------------------------------------------------------
@@ -1439,7 +1440,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
 
 
             completions.emplace_back(
-                                     gOFS->mFusexPool->PushTask([&cmd_id,&cmd_pid](){
+                                     gOFS->mFuseXPool->PushTask([&cmd_id,&cmd_pid](){
                                        gOFS->FuseXCastRefresh(cmd_id, cmd_pid);
                                      })
                                      );
@@ -1840,7 +1841,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
         gOFS->eosView->updateContainerStore(cmd.get());
 
 
-        auto fut = gOFS->mFusexPool->PushTask([fmd_id, cmd_id, pcmd_id](){
+        auto fut = gOFS->mFuseXPool->PushTask([fmd_id, cmd_id, pcmd_id](){
           gOFS->FuseXCastRefresh(fmd_id, cmd_id);
           gOFS->FuseXCastRefresh(cmd_id, pcmd_id);
         }
