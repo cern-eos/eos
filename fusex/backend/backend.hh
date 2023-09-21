@@ -74,7 +74,8 @@ public:
              XrdSysMutex* locker);
 
 
-  int fetchResponse(uint64_t inode,
+  int fetchResponse(fuse_req_t req,
+                    uint64_t inode,
 		    std::string& url,
                     std::vector<eos::fusex::container>& cont,
 		    bool cap=false

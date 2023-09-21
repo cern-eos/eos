@@ -93,7 +93,7 @@ backend::getMD(fuse_req_t req,
                                   listing ? "LS" : "GET", authid, listing ? true : false);
 
   if (listing || !use_mdquery()) {
-    return fetchResponse(0, requestURL, contv);
+    return fetchResponse(req, 0, requestURL, contv);
   } else {
     return fetchQueryResponse(0, requestURL, contv);
   }
@@ -110,13 +110,13 @@ backend::getMD(fuse_req_t req,
                std::string authid
               )
 {
-  EosFuse::instance().Tracker().SetOrigin(inode,"md::get");
+  EosFuse::instance().Tracker().SetOrigin(req,inode,"md::get");
   std::string requestURL = getURL(req, inode, name, "fuseX" , "getfusex",
                                   listing ? "LS" : "GET",
                                   authid, listing ? true : false);
 
   if (listing || !use_mdquery()) {
-    return fetchResponse(0, requestURL, contv);
+    return fetchResponse(req, 0, requestURL, contv);
   } else {
     return fetchQueryResponse(0, requestURL, contv);
   }
@@ -134,13 +134,13 @@ backend::getMD(fuse_req_t req,
               )
 /* -------------------------------------------------------------------------- */
 {
-  EosFuse::instance().Tracker().SetOrigin(inode,"md::get");
+  EosFuse::instance().Tracker().SetOrigin(req,inode,"md::get");
   std::string requestURL = getURL(req, inode, myclock, "fuseX" , "getfusex",
                                   listing ? "LS" : "GET",
                                   authid, listing ? true : false);
 
   if (listing || !use_mdquery()) {
-    return fetchResponse(inode,requestURL, contv);
+    return fetchResponse(req, inode,requestURL, contv);
   } else {
     return fetchQueryResponse(inode, requestURL, contv);
   }
@@ -154,12 +154,12 @@ backend::getCAP(fuse_req_t req,
                )
 /* -------------------------------------------------------------------------- */
 {
-  EosFuse::instance().Tracker().SetOrigin(inode,"cap::get");
+  EosFuse::instance().Tracker().SetOrigin(req,inode,"cap::get");
   uint64_t myclock = (uint64_t) time(NULL) +
                      5; // allow for drifts of up to 5s (+2 on server side)
   std::string requestURL = getURL(req, inode, myclock, "fuseX", "getfusex",
                                   "GETCAP", "", true);
-  return fetchResponse(inode, requestURL, contv, true);
+  return fetchResponse(req, inode, requestURL, contv, true);
 }
 
 
@@ -280,7 +280,8 @@ backend::fetchQueryResponse(uint64_t inode,
 /* -------------------------------------------------------------------------- */
 int
 /* -------------------------------------------------------------------------- */
-backend::fetchResponse(uint64_t inode,
+backend::fetchResponse(fuse_req_t req,
+                       uint64_t inode,
 		       std::string& requestURL,
                        std::vector<eos::fusex::container>& contv,
 		       bool cap
@@ -333,7 +334,7 @@ backend::fetchResponse(uint64_t inode,
         // this is just no such file or directory
         eos_static_debug("error=status is NOT ok : %s", status.ToString().c_str());
         errno = ENOENT;
-	EosFuse::instance().Tracker().SetOrigin(inode, "fs");
+	EosFuse::instance().Tracker().SetOrigin(req, inode, "fs");
         return ENOENT;
       }
 
@@ -348,7 +349,7 @@ backend::fetchResponse(uint64_t inode,
       if (status.code == XrdCl::errAuthFailed) {
         // this is an authentication error which results in permission denied
         errno = EPERM;
-	EosFuse::instance().Tracker().SetOrigin(inode,"fs");
+	EosFuse::instance().Tracker().SetOrigin(req,inode,"fs");
         return EPERM;
       }
 
@@ -358,9 +359,9 @@ backend::fetchResponse(uint64_t inode,
       if (xrootderr.find("get-cap-clock-out-of-sync") != std::string::npos) {
 	if (exec_time_sec >= 5) {
 	  if (cap) {
-	    EosFuse::instance().Tracker().SetOrigin(inode,"cap::rtt");
+	    EosFuse::instance().Tracker().SetOrigin(req,inode,"cap::rtt");
 	  } else {
-	    EosFuse::instance().Tracker().SetOrigin(inode,"fetch::rtt");
+	    EosFuse::instance().Tracker().SetOrigin(req,inode,"fetch::rtt");
 	  }
 	  eos_static_err("%s", "msg=\"GETCAP took more than 5 seconds and we got a clock sync error"
 			 "with the MGM - retrying\"");
@@ -374,7 +375,7 @@ backend::fetchResponse(uint64_t inode,
 			 "round-trip time, the clock seems to be out of sync "
 			 "with the MGM\"");
 	  errno = EL2NSYNC;
-	  EosFuse::instance().Tracker().SetOrigin(inode,"fs");
+	  EosFuse::instance().Tracker().SetOrigin(req,inode,"fs");
 	  return EL2NSYNC;
 	}
       }
@@ -395,30 +396,30 @@ backend::fetchResponse(uint64_t inode,
         } else {
 	  if (status.code == XrdCl::errConnectionError){
 	    if (cap) {
-	      EosFuse::instance().Tracker().SetOrigin(inode,"cap::conn::err");
+	      EosFuse::instance().Tracker().SetOrigin(req,inode,"cap::conn::err");
 	    } else {
-	      EosFuse::instance().Tracker().SetOrigin(inode,"fetch::conn::err");
+	      EosFuse::instance().Tracker().SetOrigin(req,inode,"fetch::conn::err");
 	    }
 	  }
 	  if (status.code == XrdCl::errSocketTimeout) {
 	    if (cap) {
-	      EosFuse::instance().Tracker().SetOrigin(inode,"cap::sock::tout");
+	      EosFuse::instance().Tracker().SetOrigin(req,inode,"cap::sock::tout");
 	    } else {
-	      EosFuse::instance().Tracker().SetOrigin(inode,"fetch::sock::tout");
+	      EosFuse::instance().Tracker().SetOrigin(req,inode,"fetch::sock::tout");
 	    }
 	  }
 	  if (status.code == XrdCl::errOperationExpired) {
 	    if (cap) {
-	      EosFuse::instance().Tracker().SetOrigin(inode,"cap::oper::exp");
+	      EosFuse::instance().Tracker().SetOrigin(req,inode,"cap::oper::exp");
 	    } else {
-	      EosFuse::instance().Tracker().SetOrigin(inode,"fetch::oper::exp");
+	      EosFuse::instance().Tracker().SetOrigin(req,inode,"fetch::oper::exp");
 	    }
 	  }
 	  if (status.code == XrdCl::errSocketDisconnected) {
 	    if (cap) {
-	      EosFuse::instance().Tracker().SetOrigin(inode,"cap::sock::disc");
+	      EosFuse::instance().Tracker().SetOrigin(req,inode,"cap::sock::disc");
 	    } else {
-	      EosFuse::instance().Tracker().SetOrigin(inode,"fetch::sock::disc");
+	      EosFuse::instance().Tracker().SetOrigin(req,inode,"fetch::sock::disc");
 	    }
 	  }
 
@@ -449,7 +450,7 @@ backend::fetchResponse(uint64_t inode,
       if (status.code) {
         errno = EIO;
         eos_static_err("error=status is not ok : code=%d", errno);
-	EosFuse::instance().Tracker().SetOrigin(inode,"fs");
+	EosFuse::instance().Tracker().SetOrigin(req,inode,"fs");
         return errno;
       }
     } else {
@@ -481,7 +482,7 @@ backend::fetchResponse(uint64_t inode,
   } while (bytesread);
 
 has_response:
-  EosFuse::instance().Tracker().SetOrigin(inode,"fs");
+  EosFuse::instance().Tracker().SetOrigin(req,inode,"fs");
   eos_static_debug("response-size=%u response=%s",
                    response.size(), response.c_str());
   //eos_static_debug("response-dump=%s", eos::common::StringConversion::string_to_hex(response).c_str());
@@ -498,7 +499,7 @@ has_response:
 
       if (!len) {
         eos_static_debug("response had illegal length");
-	EosFuse::instance().Tracker().SetOrigin(inode,"fs");
+	EosFuse::instance().Tracker().SetOrigin(req,inode,"fs");
         return EINVAL;
       }
 
@@ -513,7 +514,7 @@ has_response:
             (cont.type() != cont.MDMAP) &&
             (cont.type() != cont.CAP)) {
           eos_static_debug("wrong response type");
-	  EosFuse::instance().Tracker().SetOrigin(inode,"fs");
+	  EosFuse::instance().Tracker().SetOrigin(req,inode,"fs");
           return EINVAL;
         }
 
@@ -525,17 +526,17 @@ has_response:
         }
       } else {
         eos_static_debug("response parsing FAILED");
-	EosFuse::instance().Tracker().SetOrigin(inode,"fs");
+	EosFuse::instance().Tracker().SetOrigin(req,inode,"fs");
         return EIO;
       }
     } else {
       eos_static_err("fatal protocol parsing error");
-      EosFuse::instance().Tracker().SetOrigin(inode,"fs");
+      EosFuse::instance().Tracker().SetOrigin(req,inode,"fs");
       return EINVAL;
     };
   } while (1);
 
-  EosFuse::instance().Tracker().SetOrigin(inode,"fs");
+  EosFuse::instance().Tracker().SetOrigin(req,inode,"fs");
   return 0;
 }
 
