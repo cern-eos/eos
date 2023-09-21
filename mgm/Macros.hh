@@ -83,8 +83,9 @@ extern XrdMgmOfs* gOFS; //< global handle to XrdMgmOfs object
 //! Stall Macro
 //------------------------------------------------------------------------------
 #define MAYSTALL \
+  std::unique_ptr<eos::mgm::InFlightRegistration> tracker_helper;              \
   if(gOFS != nullptr){ \
-    eos::mgm::InFlightRegistration tracker_helper(gOFS->mTracker, vid); \
+    tracker_helper = std::make_unique<eos::mgm::InFlightRegistration>(gOFS->mTracker, vid); \
     if (gOFS->IsStall) {                                                  \
       XrdOucString stallmsg="";                                           \
       int stalltime=0;                                                    \
@@ -95,7 +96,7 @@ extern XrdMgmOfs* gOFS; //< global handle to XrdMgmOfs object
           return gOFS->Emsg("maystall", error, EPERM, stallmsg.c_str(), ""); \
         }                                                                 \
       } else {                                                            \
-        if (!tracker_helper.IsOK()) {                                     \
+        if (!tracker_helper->IsOK()) {                                     \
           stallmsg="track request, stall the client 5 seconds";           \
           stalltime = 5;                                                  \
           return gOFS->Stall(error,stalltime, stallmsg.c_str());          \
