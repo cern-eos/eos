@@ -107,7 +107,6 @@ XrdMgmOfs::_exists(const char* path,
   {
     // -------------------------------------------------------------------------
     eos::Prefetcher::prefetchContainerMDAndWait(gOFS->eosView, path, false);
-    eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
 
     try {
       cmd = gOFS->eosView->getContainer(path, false);
@@ -124,7 +123,6 @@ XrdMgmOfs::_exists(const char* path,
     // try if that is a file
     // -------------------------------------------------------------------------
     eos::Prefetcher::prefetchFileMDAndWait(gOFS->eosView, path, false);
-    eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
     std::shared_ptr<eos::IFileMD> fmd;
 
     try {
@@ -152,10 +150,12 @@ XrdMgmOfs::_exists(const char* path,
     // -------------------------------------------------------------------------
     eos::Prefetcher::prefetchContainerMDAndWait(gOFS->eosView,
         cPath.GetParentPath(), false);
-    eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
 
     try {
-      dir = eosView->getContainer(cPath.GetParentPath(), false);
+      auto dirLock = eosView->getContainerReadLocked(cPath.GetParentPath(), false);
+      if(dirLock) {
+        dir = dirLock->getUnderlyingPtr();
+      }
       eos::IContainerMD::XAttrMap::const_iterator it;
       // get attributes
       gOFS->_attr_ls(cPath.GetParentPath(), error, vid, 0, attrmap);
@@ -207,7 +207,7 @@ XrdMgmOfs::_exists(const char* path,
                    eos::common::VirtualIdentity& vid,
                    std::shared_ptr<eos::IContainerMD>& cmd,
                    std::shared_ptr<eos::IFileMD>& fmd,
-                   const char* ininfo, bool take_lock)
+                   const char* ininfo)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief check for the existence of a file or directory
@@ -218,7 +218,6 @@ XrdMgmOfs::_exists(const char* path,
  * @param cmd Container MD (out param)
  * @param fmd File MD (out param)
  * @param ininfo CGI
- * @param take_lock  hold the FSView lock
  * @return SFS_OK if found otherwise SFS_ERROR
  *
  * The values of file_exists are:
@@ -234,12 +233,7 @@ XrdMgmOfs::_exists(const char* path,
   // try if that is directory
   {
     // -------------------------------------------------------------------------
-    eos::common::RWMutexReadLock ns_rd_lock;
     eos::Prefetcher::prefetchContainerMDAndWait(gOFS->eosView, path, false);
-
-    if (take_lock) {
-      ns_rd_lock.Grab(gOFS->eosViewRWMutex);
-    }
 
     try {
       cmd = gOFS->eosView->getContainer(path, false);
@@ -255,12 +249,7 @@ XrdMgmOfs::_exists(const char* path,
   if (!cmd) {
     // try if that is a file
     // -------------------------------------------------------------------------
-    eos::common::RWMutexReadLock ns_rd_lock;
     eos::Prefetcher::prefetchFileMDAndWait(gOFS->eosView, path, false);
-
-    if (take_lock) {
-      ns_rd_lock.Grab(gOFS->eosViewRWMutex);
-    }
 
     try {
       fmd = gOFS->eosView->getFile(path, false);
@@ -310,6 +299,5 @@ XrdMgmOfs::_exists(const char* fileName,
 {
   std::shared_ptr<eos::IContainerMD> cmd;
   std::shared_ptr<eos::IFileMD> fmd;
-  return _exists(fileName, exists_flag, out_error, vid, cmd, fmd, opaque,
-                 take_lock);
+  return _exists(fileName, exists_flag, out_error, vid, cmd, fmd, opaque);
 }

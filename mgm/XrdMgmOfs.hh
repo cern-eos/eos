@@ -374,7 +374,6 @@ public:
    * @param cmd Container MD (out param)
    * @param fmd File MD (out param)
    * @param ininfo CGI
-   * @param take_lock  hold the FSView lock
    * @return SFS_OK if found otherwise SFS_ERROR
    *
    * The values of file_exists are:
@@ -391,7 +390,7 @@ public:
           eos::common::VirtualIdentity& vid,
           std::shared_ptr<eos::IContainerMD>& container_md_ptr,
           std::shared_ptr<eos::IFileMD>& file_md_ptr,
-          const char* opaque = 0, bool take_lock = true);
+          const char* opaque = 0);
 
   // ---------------------------------------------------------------------------
   // EOS plugin call fan-out function
