@@ -16,6 +16,37 @@ New Features
 
 This blog is used to track new features added to EOS.
 
+September 2023
+^^^^^^^^^^^^^^
+
+* FSTs now publish regulary S.M.A.R.T information and the MGM can provide statistics by storage device or model categories including age, capacity etc.
+  The information is available using the new devices interface:
+
+  `eos devices ls [-l]`
+
+  All the information is also available as JSON output using `eos --json devices ls`! The feature will be available with EOS 5.2!
+
+August 2023
+^^^^^^^^^^
+
+* The EOS group balancer had been rewritten during 2023 and now supports a 'free space engine'
+  Instead of balancing groups to the same usage level (percentage),
+  groups are balanced to have the same amount of free space. This allows
+  to avoid significant performance degradation when an EOS instance is
+  close to be full. 
+
+June 2023
+^^^^^^^^^
+
+* The EOS MGM provides now a meta-data benchmark command to measure MGM performance
+   Example:
+
+   `eos ns benchmark 100 10 10 # see the help in the CLI`
+
+   The tool got added when validating the shared mutex implementation of the Abseil library
+   as a new namespace mutex implementation, which performs much better than the
+   standard C++ implementation. The new mutex will be available with EOS 5.2!
+   
 May 2023
 ^^^^^^^^
 
@@ -28,7 +59,29 @@ May 2023
    * `eos fs ls -m`
 
 .. note:: When an alias is removed on an FST, the MGM and FST have to be shutdown and restarted to get rid of the aliases
-     
+
+
+March 2023
+^^^^^^^^^^^^^
+
+* HTTPS gateways can use now a shared key to act as gateway for an EOS instance. This simplifies deployment and removes the need
+  to specify the IPV6 addresses of each gateway node using the vid interface.
+
+  Example:
+  * `vid set map -https key:e9d2011d-942a-4ec1-9f78-3643316ed336 vuid:100`
+  * `vid set map -https key:e9d2011d-942a-4ec1-9f78-3643316ed336 vgid:100`
+  * If a client sends the header "x-gateway-authorization:  e9d2011d-942a-4ec1-9f78-3643316ed336" he will be authenticated as user 100 in this example.
+  * If user 100 is a sudoer, the client can select the effective user ID specifying a "remote-user: ..." header.
+
+* `newfind` has now improved performance and new usability features.
+
+  Examples:
+  * `eos newfind --format uid,gid,checksum,fxid,atime,btime /eos/ #select output format`
+  * `eos newfind --count -d /eos/dev/ #better performance`
+  * `eos newfind --treecount /eos/dev/ #aggregate number of dirs and files`
+  * `eos newfind --cache ... #store items in in-memory MD cache, by default we don't cache meta-data to avoid trashing`
+
+
 January 2023
 ^^^^^^^^^^^^^
 

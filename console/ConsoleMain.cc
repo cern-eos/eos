@@ -111,6 +111,7 @@ extern int com_role(char*);
 extern int com_rtlog(char*);
 extern int com_status(char*);
 extern int com_silent(char*);
+extern int com_proto_devices(char*);
 extern int com_proto_space(char*);
 extern int com_stagerrm(char*);
 extern int com_evict(char*);
@@ -152,6 +153,7 @@ COMMAND commands[] = {
   { (char*) "cp", com_cp, (char*) "Cp command"},
   { (char*) "daemon", com_daemon, (char*) "Handle service daemon"},
   { (char*) "debug", com_protodebug, (char*) "Set debug level"},
+  { (char*) "devices", com_proto_devices, (char*) "Get Device Information"},  
   { (char*) "df", com_protodf, (char*) "Get df output"},
   { (char*) "exit", com_quit, (char*) "Exit from EOS console"},
   { (char*) "file", com_file, (char*) "File Handling"},

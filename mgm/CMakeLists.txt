@@ -122,6 +122,7 @@ add_library(
   proc/admin/ConfigCmd.cc proc/admin/ConfigCmd.hh
   proc/admin/ConvertCmd.cc proc/admin/ConvertCmd.hh
   proc/admin/DebugCmd.cc proc/admin/DebugCmd.hh
+  proc/admin/DevicesCmd.cc proc/admin/DevicesCmd.hh
   proc/admin/Group.cc # @todo (faluchet) drop when move to 5.0.0
   proc/admin/GroupCmd.cc proc/admin/GroupCmd.hh
   proc/admin/IoCmd.cc proc/admin/IoCmd.hh
@@ -237,6 +238,7 @@ add_library(
   fuse-locks/LockTracker.cc   fuse-locks/LockTracker.hh
   IMaster.cc                  IMaster.hh
   QdbMaster.cc
+  Devices.cc
   Recycle.cc
   PathRouting.cc
   RouteEndpoint.cc

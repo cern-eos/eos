@@ -397,3 +397,9 @@ EOS_TTY_BROACAST_EGREP="\"CRIT|ALERT|EMERG|PROGRESS\""
 # ------------------------------------------------------------------
 # by default the token generation key is derived from an sss key
 # EOS_MGM_TOKEN_KEYFILE=/etc/eos/token.key
+
+# ------------------------------------------------------------------
+# MGM Device Tracking
+# ------------------------------------------------------------------
+# change the interval at which the MGM takes out compressed JSON S.M.A.R.T info and publishes them 
+# EOS_MGM_DEVICES_PUBLISHING_INTERVAL=900
