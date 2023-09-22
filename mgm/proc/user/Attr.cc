@@ -182,18 +182,22 @@ ProcCommand::Attr()
                 for (it = map.begin(); it != map.end(); ++it) {
                   partialStdOut += (it->first).c_str();
 
-                  if (it->first != "sys.file.buffer") {
-                    partialStdOut += "=";
-                    partialStdOut += "\"";
-                    partialStdOut += (it->second).c_str();
-                  } else {
-                    partialStdOut += "=\"[";
-                    partialStdOut += (std::to_string(it->second.size()).c_str());
-                    partialStdOut += "] bytes";
-                  }
-
-                  partialStdOut += "\"";
-                  partialStdOut += "\n";
+		  if (option.find("V")== STR_NPOS) {
+		    if (it->first != "sys.file.buffer") {
+		      partialStdOut += "=";
+		      partialStdOut += "\"";
+		      partialStdOut += (it->second).c_str();
+		    } else {
+		      partialStdOut += "=\"[";
+		      partialStdOut += (std::to_string(it->second.size()).c_str());
+		      partialStdOut += "] bytes";
+		    }
+		    
+		    partialStdOut += "\"";
+		    partialStdOut += "\n";
+		  } else {
+		    partialStdOut += "\n";
+		  }
                 }
 
                 stdOut += partialStdOut;
@@ -273,10 +277,14 @@ ProcCommand::Attr()
                 stdErr += "\n";
                 retc = errno;
               } else {
-                stdOut += key;
-                stdOut += "=\"";
-                stdOut += val;
-                stdOut += "\"\n";
+		if (option.find("V") != STR_NPOS) {
+		  stdOut += val;
+		} else {
+		  stdOut += key;
+		  stdOut += "=\"";
+		  stdOut += val;
+		  stdOut += "\"\n";
+		}
               }
             }
 
