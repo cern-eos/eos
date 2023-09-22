@@ -454,10 +454,11 @@ com_attr_usage:
   //  fprintf(stdout,"attr [-r] set default=reeds <path> :\n");
   //  fprintf(stdout,"                                                : set attributes of path (-r recursive) to the EOS defaults for reed solomon (4+2).\n");
   fprintf(stdout, " -r : set recursive on all directory children\n");
-  fprintf(stdout, "attr [-r] get <key> <identifier> :\n");
+  fprintf(stdout, "attr [-r] [-V] get <key> <identifier> :\n");
   fprintf(stdout,
           "                                                : get attributes of path (-r recursive)\n");
   fprintf(stdout, " -r : get recursive on all directory children\n");
+  fprintf(stdout, " -V : only print the value\n");
   fprintf(stdout, "attr [-r] rm  <key> <identifier> :\n");
   fprintf(stdout,
           "                                                : delete attributes of path (-r recursive)\n\n");
