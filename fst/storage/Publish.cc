@@ -466,8 +466,26 @@ Storage::GetFsStatistics(FileSystem* fs)
   output["stat.health.redundancy_factor"] = (health.count("redundancy_factor") ?
       health["redundancy_factor"] : "1");
 
-  // compress the json smart info  
-  eos::common::SymKey::ZBase64(health["attributes"], output["stat.health.z64smart"]);
+  {
+    // don't publish smart info too often, it is few kb per filesystem!
+    time_t now = time(NULL);
+    static std::map<FileSystem*, time_t> smartPublishing;
+    static XrdSysMutex smartPublishingMutex;
+    bool publish = false;
+    {
+      XrdSysMutexHelper scope_lock(smartPublishingMutex);
+      if (!smartPublishing[fs] ||
+	  (smartPublishing[fs] < now )) {
+	smartPublishing[fs]=now+900;
+	publish = true;
+      }
+    }
+    if ( publish ) {
+      // compress the json smart info  
+      eos::common::SymKey::ZBase64(health["attributes"], output["stat.health.z64smart"]);
+    }
+  }
+       
   
   // Publish generic statistics, related to free space and current load
   long long r_open = (long long) gOFS.openedForReading.getOpenOnFilesystem(fsid);

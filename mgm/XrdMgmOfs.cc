@@ -62,6 +62,7 @@
 #include "mgm/Workflow.hh"
 #include "mgm/proc/ProcInterface.hh"
 #include "mgm/Recycle.hh"
+#include "mgm/Devices.hh"
 #include "mgm/PathRouting.hh"
 #include "mgm/Macros.hh"
 #include "mgm/GeoTreeEngine.hh"
@@ -364,6 +365,7 @@ XrdMgmOfs::XrdMgmOfs(XrdSysError* ep):
 
   EgroupRefresh.reset(new eos::mgm::Egroup());
   Recycler.reset(new eos::mgm::Recycle());
+  DeviceTracker.reset(new eos::mgm::Devices());
   mTapeGcMgm.reset(new tgc::RealTapeGcMgm(*this));
   mTapeGc.reset(new tgc::MultiSpaceTapeGc(*mTapeGcMgm));
   mFsScheduler.reset(new eos::mgm::placement::FSScheduler());

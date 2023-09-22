@@ -14,6 +14,7 @@ import "Config.proto";
 import "Convert.proto";
 import "Cp.proto";
 import "Debug.proto";
+import "Devices.proto";
 import "Df.proto";
 import "Evict.proto";
 import "File.proto";
@@ -115,6 +116,7 @@ message RequestProto {
     DfProto df             = 51;
     SchedProto sched       = 52;
     EvictProto evict       = 53;
+    DevicesProto devices   = 54;
   }
 
   string Comment = 30;

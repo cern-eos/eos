@@ -3047,3 +3047,97 @@ The return codes and log information is tagged on the virtual directory entries 
 
    sys.wfe.retc=<return code value>
    sys.wfe.log=<message describing the result of running the workflow>
+
+Devices Interface
+-----------------
+
+
+eos devices
+^^^^^^^^^^^
+
+The devices interface `eos devices` has the main purpose to track storage devices in EOS. The backend of the devices interfaces is a background thread, which by default every 15 minutes decodes S.M.A.R.T information published every 15 minutes from FST nodes. 
+
+.. index::
+   pair: Devices; Storage Devices
+
+
+The MGM extraction interval used by the async. thread can only be modified in the sysconfig file by definining `EOS_MGM_DEVICES_PUBLISHING_INTERVAL` in seconds.
+
+The CLI interface by default creates overview statistic about all storage devices configured in the instance:
+
+.. code-block:: bash
+
+   eos devices ls
+   # Fri Sep 22 14:50:05 2023
+   ┌───────────────────┬──────────────┬────────┬─────┬───────┐
+   │model              │avg:age[years]│   bytes│count│  hours│
+   ├───────────────────┴──────────────┴────────┴─────┴───────┤
+   │TOSHIBA:MG07ACA14TE           0.19 56.00 TB     4 6.55 Kh│
+   └─────────────────────────────────────────────────────────┘
+
+   The first line prints the extraction time of the information.
+
+The fields are:
+
+.. code-block:: bash
+		
+   model          : name of storage device (blanks are replaced with :)
+   avg:age[years] : average age of all devices for a given storage model
+   bytes          : storage capacity of all devices for a given storage model
+   hours          : power-on-hours for all devices for a given storage model
+   
+
+The long option of the devices command prints all devices ordered by space. The space name is shown in the top left header
+
+.. code-block:: bash
+
+   eos devices ls -l
+
+   # Fri Sep 22 14:50:05 2023
+   ┌────────────┬───────────────────┬────────────┬────┬────────┬────┬──────────┬─────────────┬─────────┬────────┬────┬────┐
+   │     default│model              │serial      │type│capacity│rpms│poweron[h]│temp[degrees]│S.M.A.R.T│if      │rla │wc  │
+   ├────────────┴───────────────────┴────────────┴────┴────────┴────┴──────────┴─────────────┴─────────┴────────┴────┴────┤
+   │           1 TOSHIBA:MG07ACA14TE 23S0A0MBF94G sat  14.00 TB 7200    1.64 Kh            31     noctl 6.0:Gb/s true true│
+   │           2 TOSHIBA:MG07ACA14TE 23S0B0MBF94G sat  14.00 TB 7200    1.64 Kh            31     noctl 6.0:Gb/s true true│
+   │           3 TOSHIBA:MG07ACA14TE 23S0C0MBF94G sat  14.00 TB 7200    1.64 Kh            31     noctl 6.0:Gb/s true true│
+   │           4 TOSHIBA:MG07ACA14TE 23S0D0MBF94G sat  14.00 TB 7200    1.64 Kh            31     noctl 6.0:Gb/s true true│
+   └──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘		
+
+   ┌───────────────────┬──────────────┬────────┬─────┬───────┬───────┬──────────┬───────┬────────────┬──────────┬──────────┬────────────┐
+   │model              │avg:age[years]│   bytes│count│  hours│smrt:ok│smrt:noctl│smrt:na│smrt:failing│smrt:check│smrt:inval│smrt:unknown│
+   ├───────────────────┴──────────────┴────────┴─────┴───────┴───────┴──────────┴───────┴────────────┴──────────┴──────────┴────────────┤
+   │TOSHIBA:MG07ACA14TE           0.19 56.00 TB     4 6.55 Kh       0          4       0            0          0          0            0│
+   └────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
+
+.. code-block:: bash
+		
+   1st column     : EOS filesystem ID
+   model          : model name
+   type           : storage HW type
+   capacity       : human readable device capacity
+   rpms           : RPMs in case of HDDs
+   poweron[h]     : hours device has been powerd on
+   S.M.A.R.T.     : device status ({"ok", "noctl","na","failing","check","inval","unknown"})
+   if             : connection interface speed
+   rla            : read-look-ahead (enabled=true,disabled=false)
+   wc             : write-cache (enabled=true, disabled=false)
+
+The devices command supports monitoring and JSON format including per device and device statistics.
+
+.. code-block:: bash
+
+   # key:val output for monitoring		 
+   eos devices ls -m
+
+   # json output for monitoring
+   eos --json devices ls
+
+
+proc/devices
+^^^^^^^^^^^^
+
+The devices async thread creates for each `serialnumber.filesystem-id` combination an entry in `/eos/.../proc/devices/`. The birth time of these entries is the first time a serialnumber/filesystem-id combination has been stored. Each of these empty file entries carries an extended attribute `sys.smart.json`, which stores the last JSON output provided by `smartctl` running on FSTs. These entries allow on the long term to trace the appearance and disappearance of devices.
+
+
+		
+   
