@@ -568,6 +568,9 @@ public:
              fuse_ino_t ino,
              int nlookup);
 
+  void wait_backlog(uint64_t id,
+                    size_t minfree);
+
   void wait_upstream(fuse_req_t req,
                      fuse_ino_t ino);
 
@@ -596,11 +599,6 @@ public:
 
   void update(fuse_req_t req,
               shared_md md,
-              std::string authid,
-              bool localstore = false);
-
-  void update(fuse_req_t req,
-              uint64_t id,
               std::string authid,
               bool localstore = false);
 
@@ -1029,6 +1027,7 @@ private:
 
   std::map<uint64_t, size_t> mdqueue; // inode, counter of mds to flush
   std::deque<flushentry> mdflushqueue; // linear queue with all entries to flush
+  uint64_t mdqueue_current{0};
 
   typedef std::shared_ptr<eos::fusex::response> shared_response;
   std::deque<shared_response> mCbQueue; // queue will callbacks
