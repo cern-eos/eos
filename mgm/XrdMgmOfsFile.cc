@@ -869,7 +869,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
     XrdSfsFileExistence file_exists;
     std::shared_ptr<eos::IFileMD> _fmd;
     int ec = gOFS->_exists(cPath.GetParentPath(), file_exists,
-                           error, vid, dmd, _fmd, 0, true);
+                           error, vid, dmd, _fmd, 0);
 
     // check if that is a file
     if ((!ec) && (file_exists != XrdSfsFileExistNo) &&
