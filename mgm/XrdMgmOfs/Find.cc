@@ -669,7 +669,7 @@ XrdMgmOfs::_find(const char* path, XrdOucErrInfo& out_error,
                  std::map<std::string, std::set<std::string> >& found,
                  const char* key, const char* val, bool no_files,
                  time_t millisleep, bool nscounter, int maxdepth,
-                 const char* filematch, bool take_lock, bool json_output, FILE* fstdout,
+                 const char* filematch, bool json_output, FILE* fstdout,
                  time_t max_ctime_dir,
                  time_t max_ctime_file,
                  std::map<std::string, time_t>* found_ctime_sec,
@@ -704,7 +704,6 @@ XrdMgmOfs::_find(const char* path, XrdOucErrInfo& out_error,
   bool limitresult = false;
   bool limited = false;
   bool fail_if_limited = (out_error.getErrInfo() == E2BIG);
-  bool sub_cmd_take_lock = false;
 
   if ((vid.uid != 0) && (!vid.hasUid(3)) && (!vid.hasGid(4)) && (!vid.sudoer)) {
     limitresult = true;
@@ -730,11 +729,6 @@ XrdMgmOfs::_find(const char* path, XrdOucErrInfo& out_error,
     }
 
     eos::Prefetcher::prefetchContainerMDAndWait(gOFS->eosView, Path.c_str(), false);
-    eos::common::RWMutexReadLock ns_rd_lock;
-
-    if (take_lock) {
-      ns_rd_lock.Grab(gOFS->eosViewRWMutex);
-    }
 
     try {
       cmd = gOFS->eosView->getContainer(Path.c_str(), false);
@@ -743,10 +737,6 @@ XrdMgmOfs::_find(const char* path, XrdOucErrInfo& out_error,
       cmd.reset();
       eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
                 e.getErrno(), e.getMessage().str().c_str());
-    }
-
-    if (take_lock) {
-      ns_rd_lock.Release();
     }
 
     time_t newId = time(NULL);
@@ -780,14 +770,11 @@ XrdMgmOfs::_find(const char* path, XrdOucErrInfo& out_error,
       // Held only for the current loop
       eos::Prefetcher::prefetchContainerMDWithChildrenAndWait(gOFS->eosView,
           Path.c_str(), false, no_files, limitresult, dir_limit, file_limit);
-      eos::common::RWMutexReadLock ns_rd_lock;
 
-      if (take_lock) {
-        ns_rd_lock.Grab(gOFS->eosViewRWMutex);
-      }
-
+      eos::IContainerMD::IContainerMDReadLockerPtr cmdLock;
       try {
-        cmd = gOFS->eosView->getContainer(Path.c_str(), false);
+        cmdLock = gOFS->eosView->getContainerReadLocked(Path.c_str(), false);
+        cmd = cmdLock->getUnderlyingPtr();
         permok = cmd->access(vid.uid, vid.gid, R_OK | X_OK);
       } catch (eos::MDException& e) {
         errno = e.getErrno();
@@ -800,11 +787,6 @@ XrdMgmOfs::_find(const char* path, XrdOucErrInfo& out_error,
 
       if (cmd) {
         cmd->getCTime(ctime);
-      }
-
-      if (take_lock) {
-        ns_rd_lock.Release();
-        sub_cmd_take_lock = true;
       }
 
       if (cmd && max_ctime_dir && (deepness >= max_ctime_dir_min_deepness) &&
@@ -895,13 +877,14 @@ XrdMgmOfs::_find(const char* path, XrdOucErrInfo& out_error,
         if (!no_files) {
           std::string link;
           std::string fname;
-          std::shared_ptr<eos::IFileMD> fmd;
 
           for (auto fit = eos::FileMapIterator(cmd); fit.valid(); fit.next()) {
             fname = fit.key();
-
+            std::shared_ptr<eos::IFileMD> fmd;
+            eos::IFileMD::IFileMDReadLockerPtr fmdLock;
             try {
-              fmd = cmd->findFile(fname);
+              fmdLock = cmd->findFileReadLocked(fname);
+              fmd = fmdLock->getUnderlyingPtr();
             } catch (eos::MDException& e) {
               fmd = 0;
             }
@@ -986,7 +969,7 @@ XrdMgmOfs::_find(const char* path, XrdOucErrInfo& out_error,
       XrdSfsFileExistence file_exists;
 
       if (((_exists(Path.c_str(), file_exists, out_error, vid,
-                    0, sub_cmd_take_lock)) == SFS_OK) &&
+                    0)) == SFS_OK) &&
           (file_exists == XrdSfsFileExistIsFile)) {
         eos::common::Path cPath(Path.c_str());
         found[cPath.GetParentPath()].insert(cPath.GetName());
@@ -999,7 +982,7 @@ XrdMgmOfs::_find(const char* path, XrdOucErrInfo& out_error,
   XrdSfsFileExistence dir_exists;
 
   if (((_exists(found_dirs[0][0].c_str(), dir_exists, out_error, vid,
-                0, sub_cmd_take_lock)) == SFS_OK)
+                0)) == SFS_OK)
       && (dir_exists == XrdSfsFileExistIsDirectory)) {
     eos::common::Path cPath(found_dirs[0][0].c_str());
     (void) found[found_dirs[0][0].c_str()].size();
