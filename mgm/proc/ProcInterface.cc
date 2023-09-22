@@ -27,6 +27,7 @@
 #include "mgm/proc/admin/ConfigCmd.hh"
 #include "mgm/proc/admin/ConvertCmd.hh"
 #include "mgm/proc/admin/DebugCmd.hh"
+#include "mgm/proc/admin/DevicesCmd.hh"
 #include "mgm/proc/admin/FsCmd.hh"
 #include "mgm/proc/admin/FsckCmd.hh"
 #include "mgm/proc/admin/GroupCmd.hh"
@@ -227,6 +228,10 @@ ProcInterface::HandleProtobufRequest(eos::console::RequestProto& req,
 
   case RequestProto::kDf:
     cmd.reset(new DfCmd(std::move(req), vid));
+    break;
+    
+  case RequestProto::kDevices:
+    cmd.reset(new DevicesCmd(std::move(req), vid));
     break;
 
   case RequestProto::kToken:

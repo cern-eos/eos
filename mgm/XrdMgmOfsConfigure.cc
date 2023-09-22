@@ -38,6 +38,7 @@
 #include "mgm/XrdMgmOfsTrace.hh"
 #include "mgm/Quota.hh"
 #include "mgm/Access.hh"
+#include "mgm/Devices.hh"
 #include "mgm/Recycle.hh"
 #include "mgm/drain/Drainer.hh"
 #include "mgm/config/QuarkDBConfigEngine.hh"
@@ -1546,6 +1547,8 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   // This path is used for temporary output files for layout conversions
   MgmProcConversionPath = MgmProcPath;
   MgmProcConversionPath += "/conversion";
+  MgmProcDevicesPath = MgmProcPath;
+  MgmProcDevicesPath += "/devices";
   MgmProcMasterPath = MgmProcPath;
   MgmProcMasterPath += "/master";
   MgmProcArchivePath = MgmProcPath;
@@ -1732,6 +1735,27 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
         Eroute.Emsg("Config", "cannot set the /eos/../proc/conversion directory"
                     " mode to initial mode");
         eos_static_crit("cannot set the /eos/../proc/conversion directory mode to 770");
+        return 1;
+      }
+    }
+
+    // Create output directory with device information
+    try {
+      eosmd = gOFS->eosView->getContainer(MgmProcDevicesPath.c_str());
+    } catch (const eos::MDException& e) {
+      eosmd = nullptr;
+    }
+
+    if (!eosmd) {
+      try {
+        eosmd = gOFS->eosView->createContainer(MgmProcDevicesPath.c_str(), true);
+        eosmd->setMode(S_IFDIR | S_IRWXU | S_IRWXG);
+        eosmd->setCUid(0); 
+        eosmd->setCGid(0);
+        gOFS->eosView->updateContainerStore(eosmd.get());
+      } catch (const eos::MDException& e) {
+        Eroute.Emsg("Config", "cannot create the /eos/../proc/devices directory");
+        eos_static_crit("cannot create the /eos/../proc/devices directory");
         return 1;
       }
     }
@@ -1927,6 +1951,10 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   // Initialize the replication tracker
   mReplicationTracker.reset(ReplicationTracker::Create(
                               MgmProcTrackerPath.c_str()));
+
+  // Configure proc path for devices
+  DeviceTracker->SetDevicesPath(MgmProcDevicesPath.c_str());
+  
   // Set also the archiver ZMQ endpoint were client requests are sent
   std::ostringstream oss;
   oss << "ipc://" << MgmArchiveDir.c_str() << "archive_frontend.ipc";
@@ -2049,6 +2077,11 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
     eos_static_warning("msg=\"cannot start WFE thread\"");
   }
 
+  // Start the device tracking thread
+  if ((mMaster->IsMaster()) && (!DeviceTracker->Start())) {
+    eos_static_warning("msg=\"cannot start device tracking thread\"");
+  }
+  
   // Start the recycler garbage collection thread on a master machine
   if ((mMaster->IsMaster()) && (!Recycler->Start())) {
     eos_static_warning("msg=\"cannot start recycle thread\"");
@@ -2192,6 +2225,8 @@ XrdMgmOfs::InitStats()
   MgmStats.Add("ConversionDone", 0, 0, 0);
   MgmStats.Add("ConversionFailed", 0, 0, 0);
   MgmStats.Add("CopyStripe", 0, 0, 0);
+  MgmStats.Add("Devices::Extract", 0, 0, 0);
+  MgmStats.Add("Devices::Store", 0, 0, 0);
   MgmStats.Add("DumpMd", 0, 0, 0);
   MgmStats.Add("Drop", 0, 0, 0);
   MgmStats.Add("DropStripe", 0, 0, 0);

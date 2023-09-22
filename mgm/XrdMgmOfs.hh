@@ -162,6 +162,7 @@ class Egroup;
 class GeoTreeEngine;
 class ZMQ;
 class Recycle;
+class Devices;
 class Iostat;
 class Stat;
 class WFE;
@@ -1646,6 +1647,7 @@ public:
   //! Directory with conversion files (used as temporary files when a layout
   //! is changed using third party copy)
   XrdOucString MgmProcConversionPath;
+  XrdOucString MgmProcDevicesPath;
   XrdOucString MgmProcWorkflowPath; ///< Directory with workflows
   XrdOucString
   MgmProcTrackerPath; ///< Directory with file creations which are not consistent (yet)
@@ -1968,6 +1970,8 @@ public:
   std::unique_ptr<Egroup> EgroupRefresh;
   //!  Recycle object running the recycle bin deletion thread
   std::unique_ptr<Recycle> Recycler;
+  //!  Device Tracking Thread
+  std::unique_ptr<Devices> DeviceTracker;
 
   //!  Variable enforcing a globally applied recycle bin policy
   std::atomic<bool> enforceRecycleBin;
