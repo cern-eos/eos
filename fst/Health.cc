@@ -287,7 +287,7 @@ std::string DiskHealth::smartattributes(const char* device)
 
   command += device;
   // write output into a dedicated file
-  command += " ";
+  command += " > ";
   std::string tmpname = "/tmp/.smartattributes-";
   tmpname += device;
   command += tmpname;
