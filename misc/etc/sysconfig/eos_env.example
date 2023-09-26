@@ -212,14 +212,22 @@ EOS_NOTIFY="mail -s `date +%s`-`hostname`-eos-notify $EOS_MAIL_CC"
 # EOS_FST_XRDIO_READAHEAD_BLOCK_SIZE=1024*1024
 
 #-------------------------------------------------------------------------------
-# HTTPD Configuration
+# Libmicrohttpd configuration
 #-------------------------------------------------------------------------------
 # HTTP server ports
 
-# MGM - set to 0 to disable HTTP
+# MGM - by default libmicrohttpd is disabled i.e. 0. To enable it one needs
+# to set the following env variable to 1 and a non-zero value for the port.
+# EOS_MGM_ENABLE_LIBMICROHTTPD=0
+
+# MGM - set to 0 to disable libmicrohttpd implementation
 # EOS_MGM_HTTP_PORT=8000
 
-# FST - set to 0 to disable HTTP
+# FST - by default libmicrohttpd is disabled i.e. 0. To enable it one needs
+# to set the following env variable to 1 and a non-zero value for the port.
+# EOS_FST_ENABLE_LIBMICROHTTPD=0
+
+# FST - set to 0 to disable libmicrohttpd implementation
 # EOS_FST_HTTP_PORT=8001
 
 # HTTP uses by default one thread per connection
@@ -401,5 +409,5 @@ EOS_TTY_BROACAST_EGREP="\"CRIT|ALERT|EMERG|PROGRESS\""
 # ------------------------------------------------------------------
 # MGM Device Tracking
 # ------------------------------------------------------------------
-# change the interval at which the MGM takes out compressed JSON S.M.A.R.T info and publishes them 
+# change the interval at which the MGM takes out compressed JSON S.M.A.R.T info and publishes them
 # EOS_MGM_DEVICES_PUBLISHING_INTERVAL=900
