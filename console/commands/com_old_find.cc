@@ -34,7 +34,7 @@ extern int com_file(char*);
 
 /* Find files/directories */
 int
-com_find(char* arg1)
+com_old_find(char* arg1)
 {
   XrdPosixXrootd Xroot;
   // split subcommands
@@ -616,7 +616,7 @@ com_find(char* arg1)
     repstripes += " ";
     subfind.replace("-layoutstripes", "");
     subfind.replace(repstripes, " -f -s ");
-    int rc = com_find((char*) subfind.c_str());
+    int rc = com_old_find((char*) subfind.c_str());
     std::vector<std::string> files_found;
     files_found.clear();
     command_result_stdout_to_vector(files_found);
@@ -659,7 +659,7 @@ com_find(char* arg1)
     XrdOucString subfind = oarg;
     subfind.replace("-c", "-s -f");
     subfind.replace(filter, "");
-    int rc = com_find((char*) subfind.c_str());
+    int rc = com_old_find((char*) subfind.c_str());
     std::vector<std::string> files_found;
     files_found.clear();
     command_result_stdout_to_vector(files_found);
@@ -822,11 +822,11 @@ com_find_usage:
   global_retc = EINVAL;
   return (0);
 }
-
-void com_find_help()
+/*
+void com_oldfind_help()
 {
   std::ostringstream oss;
-  oss << "Usage: find [-name <pattern>] [--xurl] [--childcount] [--purge <n> ] [--count] [-s] [-d] [-f] [-0] [-1] [-g] [-uid <n>] [-nuid <n>] [-gid <n>] [-ngid <n>] [-flag <n>] [-nflag <n>] [-ctime +<n>|-<n>] [-m] [-x <key>=<val>] [-p <key>] [-b] [--layoutstripes <n>] <path>"
+  oss << "Usage: oldfind [-name <pattern>] [--xurl] [--childcount] [--purge <n> ] [--count] [-s] [-d] [-f] [-0] [-1] [-g] [-uid <n>] [-nuid <n>] [-gid <n>] [-ngid <n>] [-flag <n>] [-nflag <n>] [-ctime +<n>|-<n>] [-m] [-x <key>=<val>] [-p <key>] [-b] [--layoutstripes <n>] <path>"
       << std::endl;
   oss << "                -f -d :  find files(-f) or directories (-d) in <path>"
       << std::endl;
@@ -891,4 +891,4 @@ void com_find_help()
       << std::endl;
   std::cerr << oss.str() << std::endl;
 }
-
+*/

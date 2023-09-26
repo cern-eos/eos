@@ -652,8 +652,8 @@ runtest "### Dowl Lfn  " unix 0 "" download  "$EOS_TEST_TESTSYS/dumpit" "/eos/$E
 runtest "### Dowl Lfn  " unix 1 "" download  "$EOS_TEST_TESTSYS/dumpit" "/eos/$EOS_TEST_INSTANCE/test/instancetest/enoent" "-OSeos.lfn=/eos/$EOS_TEST_INSTANCE/test/instancetest/passwd.1"
 runtest "### Dowl Pfx  " unix 0 "" download  "$EOS_TEST_TESTSYS/dumpit" "/test/instancetest/passwd" "-OSeos.prefix=/eos/$EOS_TEST_INSTANCE/"
 runtest "### Dowl Pfx  " unix 1 "" download  "$EOS_TEST_TESTSYS/dumpit" "/test/instancetest/passwd" "-OSeos.prefix=/eos/faulty/"
+runtest "### Old find  " unix 0 "" eos oldfind "-f --count /eos/$EOS_TEST_INSTANCE/test/ | grep nfiles=1"
 runtest "### Find      " unix 0 "" eos find "-f --count /eos/$EOS_TEST_INSTANCE/test/ | grep nfiles=1"
-runtest "### Newfind      " unix 0 "" eos newfind "-f --count /eos/$EOS_TEST_INSTANCE/test/ | grep nfiles=1"
 runtest "### Rem       " unix 1 "" eos rm    "/eos/$EOS_TEST_INSTANCE/test/instancetest/passwd.1"
 runtest "### FileInfo  " unix 1 "" eos fileinfo "/eos/$EOS_TEST_INSTANCE/test/instancetest/passwd.1"
 runtest "### Stat      " unix 0 "" meta stat "/eos/$EOS_TEST_INSTANCE/test/instancetest/passwd"
@@ -906,8 +906,8 @@ runtest "### Chmod     " unix 0 "" eos chmod "777" "/eos/$EOS_TEST_INSTANCE/test
 runtest "### Recycle   " unix 0 "" eos recycle config --add-bin /eos/$EOS_TEST_INSTANCE/test/instancetest/recycle
 runtest "### Upload    " unix 0 "" upload "/etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/instancetest/recycle/passwd.recycle"
 runtest "### Rem       " unix 0 "" eos rm "/eos/$EOS_TEST_INSTANCE/test/instancetest/recycle/passwd.recycle"
+runtest "### Old find  " unix 0 "" eos oldfind -f /eos/$EOS_TEST_INSTANCE/proc/recycle/ | grep passwd.recycle | wc -l |grep -w 1
 runtest "### Find      " unix 0 "" eos find -f /eos/$EOS_TEST_INSTANCE/proc/recycle/ | grep passwd.recycle | wc -l |grep -w 1
-runtest "### Newfind      " unix 0 "" eos newfind -f /eos/$EOS_TEST_INSTANCE/proc/recycle/ | grep passwd.recycle | wc -l |grep -w 1
 runtest "### Recycle-Ls" unix 0 "" eos recycle ls | grep /eos/$EOS_TEST_INSTANCE/test/instancetest/recycle/passwd.recycle | wc -l | grep -w 1
 runtest "### Restore   " unix 1 "" eos recycle restore `command eos -b root://$EOS_TEST_REDIRECTOR recycle ls -g | grep /eos/$EOS_TEST_INSTANCE/test/instancetest/recycle/passwd.recycle | awk '{print $10}' | tail -1`
 runtest "### Restore   " unix 0 "EOSROLE='-r 3 4'" eos recycle restore `command eos -b root://$EOS_TEST_REDIRECTOR recycle ls -g | grep /eos/$EOS_TEST_INSTANCE/test/instancetest/recycle/passwd.recycle | awk '{print $10}' | tail -1`
@@ -929,16 +929,16 @@ runtest "### Chmod      " unix 0 "" eos chmod "777" "/eos/$EOS_TEST_INSTANCE/tes
 runtest "### Attr Set   " unix 0 "" eos attr set default=replica "/eos/$EOS_TEST_INSTANCE/test"
 runtest "### Stress Wpp " unix 0 "" stress "-d root://localhost//eos/$EOS_TEST_INSTANCE/test -o wr -f 50 -s 1KB -n stress -j 10 -c -p"
 runtest "### Stress Wp  " unix 0 "" stress "-d root://localhost//eos/$EOS_TEST_INSTANCE/test -o wr -f 50 -s 1KB -n stress -j 10 -c "
+runtest "### Old find   " unix 0 "" eos oldfind "-f --count /eos/$EOS_TEST_INSTANCE/test/ | grep nfiles=100"
 runtest "### Find       " unix 0 "" eos find "-f --count /eos/$EOS_TEST_INSTANCE/test/ | grep nfiles=100"
-runtest "### Newfind    " unix 0 "" eos newfind "-f --count /eos/$EOS_TEST_INSTANCE/test/ | grep nfiles=100"
 runtest "### Stress Rp  " unix 0 "" stress "-d root://localhost//eos/$EOS_TEST_INSTANCE/test -o rd -f 50 -s 1KB -n stress -j 10 -c"
 runtest "### Stress Rpp " unix 0 "" stress "-d root://localhost//eos/$EOS_TEST_INSTANCE/test -o rd -f 50 -s 1KB -n stress -j 10 -c -p"
 runtest "### Cleanup    " unix 2 "" eos rm "-r" "/eos/$EOS_TEST_INSTANCE/test/stress/*"
 runtest "### Ls         " unix 0 "" eos ls "/eos/$EOS_TEST_INSTANCE/test | grep [a-z] | wc -l | grep -w 2"
 runtest "### Ls         " unix 0 "" eos ls -l "/eos/$EOS_TEST_INSTANCE/test | grep ^d| wc -l | grep -w 2"
 runtest "### Ls         " unix 0 "" eos ls -la "/eos/$EOS_TEST_INSTANCE/test | grep ^d| wc -l | grep -w 4"
+runtest "### Old find   " unix 0 "" eos oldfind -d "/eos/$EOS_TEST_INSTANCE/test | grep eos | wc -l | grep -w 3"
 runtest "### Find       " unix 0 "" eos find -d "/eos/$EOS_TEST_INSTANCE/test | grep eos | wc -l | grep -w 3"
-runtest "### Newfind       " unix 0 "" eos newfind -d "/eos/$EOS_TEST_INSTANCE/test | grep eos | wc -l | grep -w 3"
 
 ################################################################################
 # ATTRIBUTES
@@ -1085,8 +1085,8 @@ runtest "### Rmdir      " unix 0 "" eos rmdir "/eos/$EOS_TEST_INSTANCE/test/inst
 # FIND
 ################################################################################
 # @note recursive find missing
-categorie="find"
-echo "### Skipping find test"
+categorie="oldfind"
+echo "### Skipping old find test"
 #runtest "### Mkdir     " unix 0 "" eos mkdir "/eos/$EOS_TEST_INSTANCE/test/instancetest/findtest"
 #runtest "### Mkdir     " unix 0 "" eos mkdir "/eos/$EOS_TEST_INSTANCE/test/instancetest/findtest/a"
 #runtest "### Mkdir     " unix 0 "" eos mkdir "/eos/$EOS_TEST_INSTANCE/test/instancetest/findtest/b"
@@ -1118,9 +1118,9 @@ echo "### Skipping find test"
 #runtest "### Find      " unix 0 "" eos find -f -x sys.test=abc "/eos/$EOS_TEST_INSTANCE/test/instancetest/findtest | wc -l | grep -w 1"
 
 ################################################################################
-# NEWFIND
+# Find - using the protobuf implementation
 ################################################################################
-categorie="newfind"
+categorie="find"
 runtest "### Mkdir     " unix 0 "" eos mkdir "/eos/$EOS_TEST_INSTANCE/test/instancetest/findtest"
 runtest "### Mkdir     " unix 0 "" eos mkdir "/eos/$EOS_TEST_INSTANCE/test/instancetest/findtest/a"
 runtest "### Mkdir     " unix 0 "" eos mkdir "/eos/$EOS_TEST_INSTANCE/test/instancetest/findtest/b"
@@ -1136,23 +1136,23 @@ runtest "### Chown     " unix 0 "" eos chown 99:99 "/eos/$EOS_TEST_INSTANCE/test
 runtest "### Chown     " unix 0 "" eos chown 0:0 "/eos/$EOS_TEST_INSTANCE/test/instancetest/findtest/a.txt"
 runtest "### Chown     " unix 0 "" eos chown 0:0 "/eos/$EOS_TEST_INSTANCE/test/instancetest/findtest/b.txt"
 runtest "### Chown     " unix 0 "" eos chown 99:99 "/eos/$EOS_TEST_INSTANCE/test/instancetest/findtest/c.txt"
-runtest "### Newfind   " unix 0 "" eos newfind -d -flag 750 "/eos/$EOS_TEST_INSTANCE/test/instancetest/findtest | wc -l | grep -w 1"
-runtest "### Newfind   " unix 0 "" eos newfind -d -nflag 750 "/eos/$EOS_TEST_INSTANCE/test/instancetest/findtest | wc -l | grep -w 3"
-runtest "### Newfind   " unix 0 "" eos newfind -d -uid 99 "/eos/$EOS_TEST_INSTANCE/test/instancetest/findtest | wc -l | grep -w 1"
-runtest "### Newfind   " unix 0 "" eos newfind -d -nuid 99 "/eos/$EOS_TEST_INSTANCE/test/instancetest/findtest | wc -l | grep -w 3"
-runtest "### Newfind   " unix 0 "" eos newfind -d -gid 99 "/eos/$EOS_TEST_INSTANCE/test/instancetest/findtest | wc -l | grep -w 1"
-runtest "### Newfind   " unix 0 "" eos newfind -d -ngid 99 "/eos/$EOS_TEST_INSTANCE/test/instancetest/findtest | wc -l | grep -w 3"
-runtest "### Newfind   " unix 0 "" eos newfind -f -uid 99 "/eos/$EOS_TEST_INSTANCE/test/instancetest/findtest | wc -l | grep -w 1"
-runtest "### Newfind   " unix 0 "" eos newfind -f -nuid 99 "/eos/$EOS_TEST_INSTANCE/test/instancetest/findtest | wc -l | grep -w 2"
-runtest "### Newfind   " unix 0 "" eos newfind -f -gid 99 "/eos/$EOS_TEST_INSTANCE/test/instancetest/findtest | wc -l | grep -w 1"
-runtest "### Newfind   " unix 0 "" eos newfind -f -ngid 99 "/eos/$EOS_TEST_INSTANCE/test/instancetest/findtest | wc -l | grep -w 2"
+runtest "### Find      " unix 0 "" eos find -d -flag 750 "/eos/$EOS_TEST_INSTANCE/test/instancetest/findtest | wc -l | grep -w 1"
+runtest "### Find      " unix 0 "" eos find -d -nflag 750 "/eos/$EOS_TEST_INSTANCE/test/instancetest/findtest | wc -l | grep -w 3"
+runtest "### Find      " unix 0 "" eos find -d -uid 99 "/eos/$EOS_TEST_INSTANCE/test/instancetest/findtest | wc -l | grep -w 1"
+runtest "### Find      " unix 0 "" eos find -d -nuid 99 "/eos/$EOS_TEST_INSTANCE/test/instancetest/findtest | wc -l | grep -w 3"
+runtest "### Find      " unix 0 "" eos find -d -gid 99 "/eos/$EOS_TEST_INSTANCE/test/instancetest/findtest | wc -l | grep -w 1"
+runtest "### Find      " unix 0 "" eos find -d -ngid 99 "/eos/$EOS_TEST_INSTANCE/test/instancetest/findtest | wc -l | grep -w 3"
+runtest "### Find      " unix 0 "" eos find -f -uid 99 "/eos/$EOS_TEST_INSTANCE/test/instancetest/findtest | wc -l | grep -w 1"
+runtest "### Find      " unix 0 "" eos find -f -nuid 99 "/eos/$EOS_TEST_INSTANCE/test/instancetest/findtest | wc -l | grep -w 2"
+runtest "### Find      " unix 0 "" eos find -f -gid 99 "/eos/$EOS_TEST_INSTANCE/test/instancetest/findtest | wc -l | grep -w 1"
+runtest "### Find      " unix 0 "" eos find -f -ngid 99 "/eos/$EOS_TEST_INSTANCE/test/instancetest/findtest | wc -l | grep -w 2"
 runtest "### Attr Set  " unix 0 "" eos attr set sys.test=abc "/eos/$EOS_TEST_INSTANCE/test/instancetest/findtest/a.txt"
 runtest "### Attr Set  " unix 0 "" eos attr set sys.test=def "/eos/$EOS_TEST_INSTANCE/test/instancetest/findtest/b.txt"
 runtest "### Attr Set  " unix 0 "" eos attr set sys.test=def "/eos/$EOS_TEST_INSTANCE/test/instancetest/findtest/c.txt"
-runtest "### Newfind   " unix 0 "" eos newfind -f -x sys.test=abc "/eos/$EOS_TEST_INSTANCE/test/instancetest/findtest | wc -l | grep -w 1"
+runtest "### Find      " unix 0 "" eos find -f -x sys.test=abc "/eos/$EOS_TEST_INSTANCE/test/instancetest/findtest | wc -l | grep -w 1"
 runtest "### Mkdir     " unix 0 "" eos mkdir "/eos/$EOS_TEST_INSTANCE/test/instancetest/findtest/links/"
 runtest "### Symlink   " unix 0 "" eos file symlink "/eos/$EOS_TEST_INSTANCE/test/instancetest/findtest/links/a.ln" "/eos/$EOS_TEST_INSTANCE/test/instancetest/findtest/a.txt"
-runtest "### Newfind   " unix 0 "" eos newfind "/eos/$EOS_TEST_INSTANCE/test/instancetest/findtest/links/ | grep -w \"/eos/$EOS_TEST_INSTANCE/test/instancetest/findtest/links/a.ln -> /eos/$EOS_TEST_INSTANCE/test/instancetest/findtest/a.txt\""
+runtest "### Find      " unix 0 "" eos find "/eos/$EOS_TEST_INSTANCE/test/instancetest/findtest/links/ | grep -w \"/eos/$EOS_TEST_INSTANCE/test/instancetest/findtest/links/a.ln -> /eos/$EOS_TEST_INSTANCE/test/instancetest/findtest/a.txt\""
 runtest "### Rm        " unix 0 "" eos rm -r "/eos/$EOS_TEST_INSTANCE/test/instancetest/findtest"
 
 ################################################################################
@@ -1242,22 +1242,22 @@ runtest "### Rm        " unix 0 "" eos rm -r /eos/$EOS_TEST_INSTANCE/test/instan
 # Public access
 ###################################################A############################
 categorie="publicaccess"
-runtest "### Mkdir   " unix 0 "" eos mkdir -p /eos/$EOS_TEST_INSTANCE/test/instancetest/public/
-runtest "### Chmod   " unix 0 "" eos chmod "777" "/eos/$EOS_TEST_INSTANCE/test/instancetest/public/"
-runtest "### Upload  " unix 0 "" upload    "/etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/instancetest/public/p1" "-ODeos.space=default"
-runtest "### Vid     " unix 0 "" eos vid publicaccesslevel 2
-runtest "### Rm      " unix 1 "EOSROLE='-r 99 99'" eos rm "/eos/$EOS_TEST_INSTANCE/test/instancetest/public/p1"
-runtest "### Rm      " unix 0 "" eos rm "/eos/$EOS_TEST_INSTANCE/test/instancetest/public/p1"
-runtest "### Rmdir   " unix 1 "EOSROLE='-r 99 99'" eos rmdir /eos/$EOS_TEST_INSTANCE/test/instancetest/public
-runtest "### Ls      " unix 1 "EOSROLE='-r 99 99'" eos ls "/eos/$EOS_TEST_INSTANCE/test/"
-runtest "### Ls      " unix 0 "" eos ls -l "/eos/$EOS_TEST_INSTANCE/test/"
-runtest "### Find    " unix 1 "EOSROLE='-r 99 99'" eos find "/eos/$EOS_TEST_INSTANCE/test/"
-runtest "### Newfind    " unix 1 "EOSROLE='-r 99 99'" eos newfind "/eos/$EOS_TEST_INSTANCE/test/"
-runtest "### Vid     " unix 0 "" eos vid publicaccesslevel 1024
-runtest "### Ls      " unix 0 "EOSROLE='-r 99 99'" eos ls "/eos/$EOS_TEST_INSTANCE/test/"
-runtest "### Find    " unix 0 "EOSROLE='-r 99 99'" eos find "/eos/$EOS_TEST_INSTANCE/test/"
-runtest "### Newfind    " unix 0 "EOSROLE='-r 99 99'" eos newfind "/eos/$EOS_TEST_INSTANCE/test/"
-runtest "### Rmdir   " unix 0 "" eos rmdir /eos/$EOS_TEST_INSTANCE/test/instancetest/public
+runtest "### Mkdir    " unix 0 "" eos mkdir -p /eos/$EOS_TEST_INSTANCE/test/instancetest/public/
+runtest "### Chmod    " unix 0 "" eos chmod "777" "/eos/$EOS_TEST_INSTANCE/test/instancetest/public/"
+runtest "### Upload   " unix 0 "" upload    "/etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/instancetest/public/p1" "-ODeos.space=default"
+runtest "### Vid      " unix 0 "" eos vid publicaccesslevel 2
+runtest "### Rm       " unix 1 "EOSROLE='-r 99 99'" eos rm "/eos/$EOS_TEST_INSTANCE/test/instancetest/public/p1"
+runtest "### Rm       " unix 0 "" eos rm "/eos/$EOS_TEST_INSTANCE/test/instancetest/public/p1"
+runtest "### Rmdir    " unix 1 "EOSROLE='-r 99 99'" eos rmdir /eos/$EOS_TEST_INSTANCE/test/instancetest/public
+runtest "### Ls       " unix 1 "EOSROLE='-r 99 99'" eos ls "/eos/$EOS_TEST_INSTANCE/test/"
+runtest "### Ls       " unix 0 "" eos ls -l "/eos/$EOS_TEST_INSTANCE/test/"
+runtest "### Old find " unix 1 "EOSROLE='-r 99 99'" eos oldfind "/eos/$EOS_TEST_INSTANCE/test/"
+runtest "### Find     " unix 1 "EOSROLE='-r 99 99'" eos find "/eos/$EOS_TEST_INSTANCE/test/"
+runtest "### Vid      " unix 0 "" eos vid publicaccesslevel 1024
+runtest "### Ls       " unix 0 "EOSROLE='-r 99 99'" eos ls "/eos/$EOS_TEST_INSTANCE/test/"
+runtest "### Old find " unix 0 "EOSROLE='-r 99 99'" eos oldfind "/eos/$EOS_TEST_INSTANCE/test/"
+runtest "### Find     " unix 0 "EOSROLE='-r 99 99'" eos find "/eos/$EOS_TEST_INSTANCE/test/"
+runtest "### Rmdir    " unix 0 "" eos rmdir /eos/$EOS_TEST_INSTANCE/test/instancetest/public
 
 ################################################################################
 # eosnobody
@@ -2010,17 +2010,17 @@ usleep 1100000 # force the first file to fall in a different tv_sec interval
 runtest "### Upload    " unix 0 "EOSROLE='-r 99 99'" eos cp "/etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/passwd"
 runtest "### Upload    " unix 0 "EOSROLE='-r 99 99'" eos cp "/etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/passwd"
 runtest "### Upload    " unix 0 "EOSROLE='-r 99 99'" eos cp "/etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/passwd"
+runtest "### Old find Purge" unix 0 "EOSROLE='-r 99 99'" eos oldfind --purge -1 /eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/
+# @note check whether --purge change(d) the state
 runtest "### Find Purge" unix 0 "EOSROLE='-r 99 99'" eos find --purge -1 /eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/
-# @note check whether --purge change(d) the state
-runtest "### Newfind Purge" unix 0 "EOSROLE='-r 99 99'" eos newfind --purge -1 /eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/
 runtest "### Ls        " unix 0 "EOSROLE='-r 99 99'" eos ls "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/.sys.v#.passwd | wc -l | grep -w 3"
+runtest "### Old find Purge" unix 0 "EOSROLE='-r 99 99'" eos oldfind --purge 1 /eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/
+# @note check whether --purge change(d) the state
 runtest "### Find Purge" unix 0 "EOSROLE='-r 99 99'" eos find --purge 1 /eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/
-# @note check whether --purge change(d) the state
-runtest "### Newfind Purge" unix 0 "EOSROLE='-r 99 99'" eos newfind --purge 1 /eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/
 runtest "### Ls        " unix 0 "EOSROLE='-r 99 99'" eos ls "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/.sys.v#.passwd | wc -l | grep -w 2"
-runtest "### Find Purge" unix 0 "EOSROLE='-r 99 99'" eos find --purge 0 /eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/
+runtest "### Old find Purge" unix 0 "EOSROLE='-r 99 99'" eos oldfind --purge 0 /eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/
 # @note check whether --purge change(d) the state
-runtest "### Newind Purge" unix 0 "EOSROLE='-r 99 99'" eos newfind --purge 0 /eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/
+runtest "### Find Purge" unix 0 "EOSROLE='-r 99 99'" eos find --purge 0 /eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/
 runtest "### Stat      " unix 1 "" meta stat "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/.sys.v#.passwd"
 # Versioning test when acls control the permission for the user on the folder and
 # implicitly also for the creation of the versions directory.
@@ -2174,8 +2174,8 @@ runtest "### OcChunk   " unix 0 "" shell eos-oc-test chunkedupload chunked /eos/
 runtest "### OcChunk   " unix 0 "" shell eos-oc-test chunkedupload chunked /eos/$EOS_TEST_INSTANCE/test/instancetest/oc/
 # check that versions are kept as expected
 runtest "### Stat      " unix 0 "" meta stat "/eos/$EOS_TEST_INSTANCE/test/instancetest/oc/.sys.v#.chunked/"
+runtest "### Old Find  " unix 0 "" eos oldfind "-f --count /eos/$EOS_TEST_INSTANCE/test/instancetest/oc | grep nfiles=3"
 runtest "### Find      " unix 0 "" eos find "-f --count /eos/$EOS_TEST_INSTANCE/test/instancetest/oc | grep nfiles=3"
-runtest "### Newfind   " unix 0 "" eos newfind "-f --count /eos/$EOS_TEST_INSTANCE/test/instancetest/oc | grep nfiles=3"
 
 #----------------------------------------------------------------------------
 # Clean up the files created in owncloud tests

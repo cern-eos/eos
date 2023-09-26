@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// @file: com_proto_newfind.cc
+// @file: com_proto_find.cc
 // @author: Fabio Luchetti - CERN
 // ----------------------------------------------------------------------
 
@@ -30,13 +30,13 @@
 #include "XrdOuc/XrdOucEnv.hh"
 /*----------------------------------------------------------------------------*/
 
-extern void com_newfind_help();
+extern void com_find_help();
 
 int
-com_protonewfind(char* arg)
+com_proto_find(char* arg)
 {
   if (wants_help(arg)) {
-    com_newfind_help();
+    com_find_help();
     global_retc = EINVAL;
     return EINVAL;
   }
@@ -69,7 +69,7 @@ com_protonewfind(char* arg)
   }
 
   if (!find.ParseCommand(arg)) {
-    com_newfind_help();
+    com_find_help();
     global_retc = EINVAL;
     return EINVAL;
   }
@@ -78,12 +78,12 @@ com_protonewfind(char* arg)
   return global_retc;
 }
 
-void com_newfind_help()
+void com_find_help()
 {
   std::ostringstream oss;
   oss
       << " usage\n"
-      << "newfind [OPTIONS] <path> : find files and directories\n"
+      << "find/newfind [OPTIONS] <path> : find files and directories\n"
       << "OPTIONS can be filters, actions to perform, or output integrations/modifiers for the found items\n"
       << "Filters: [--maxdepth <n>] [--name <pattern>] [-d] [-f] [-0] [-g] [-uid <n>] [-nuid <n>] [-gid <n>] [-ngid <n>] [-flag <n>] [-nflag <n>] [-ctime +<n>|-<n>] [-x <key>=<val>] [--format formatlist] [--cache]\n"
 //      << "\t                   -1 : \n"

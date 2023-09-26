@@ -71,8 +71,8 @@ extern int com_protodebug(char*);
 extern int com_protodf(char*);
 extern int com_file(char*);
 extern int com_fileinfo(char*);
-extern int com_find(char*);
-extern int com_protonewfind(char*);
+extern int com_old_find(char*);
+extern int com_proto_find(char*);
 extern int com_protofs(char*);
 extern int com_proto_fsck(char*);
 extern int com_fuse(char*);
@@ -153,13 +153,14 @@ COMMAND commands[] = {
   { (char*) "cp", com_cp, (char*) "Cp command"},
   { (char*) "daemon", com_daemon, (char*) "Handle service daemon"},
   { (char*) "debug", com_protodebug, (char*) "Set debug level"},
-  { (char*) "devices", com_proto_devices, (char*) "Get Device Information"},  
+  { (char*) "devices", com_proto_devices, (char*) "Get Device Information"},
   { (char*) "df", com_protodf, (char*) "Get df output"},
   { (char*) "exit", com_quit, (char*) "Exit from EOS console"},
   { (char*) "file", com_file, (char*) "File Handling"},
   { (char*) "fileinfo", com_fileinfo, (char*) "File Information"},
-  { (char*) "find", com_find, (char*) "Find files/directories"},
-  { (char*) "newfind", com_protonewfind, (char*) "Find files/directories (new implementation)"},
+  { (char*) "oldfind", com_old_find, (char*) "Find files/directories (old implementation)"},
+  { (char*) "find", com_proto_find, (char*) "Find files/directories (new implementation)"},
+  { (char*) "newfind", com_proto_find, (char*) "Find files/directories (new implementation)"},
   { (char*) "fs", com_protofs, (char*) "File System configuration"},
   { (char*) "fsck", com_proto_fsck, (char*) "File System Consistency Checking"},
   { (char*) "fuse", com_fuse, (char*) "Fuse Mounting"},
@@ -1651,7 +1652,6 @@ int filesystems::Connect()
 //------------------------------------------------------------------------------
 // Find files
 //------------------------------------------------------------------------------
-
 int files::Find(const char* path, bool verbose)
 {
   fprintf(stdout, "# finding files ...\n");
@@ -1660,7 +1660,7 @@ int files::Find(const char* path, bool verbose)
   cmd += path;
   bool old_silent = silent;
   silent = true;
-  int retc = com_find((char*)cmd.c_str());
+  int retc = com_proto_find((char*)cmd.c_str());
   silent = old_silent;
 
   if (!retc) {
