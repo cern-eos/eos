@@ -884,10 +884,16 @@ XrdFstOfs::Configure(XrdSysError& Eroute, XrdOucEnv* envP)
     }
   }
 
-  mHttpd.reset(new eos::fst::HttpServer(mHttpdPort));
+  if (mHttpdPort) {
+    const char* ptr = getenv("EOS_FST_ENABLE_LIBMICROHTTPD");
 
-  if (mHttpdPort && mHttpd) {
-    mHttpd->Start();
+    if (ptr && (strncmp(ptr, "1", 1) == 0)) {
+      mHttpd.reset(new eos::fst::HttpServer(mHttpdPort));
+
+      if (mHttpd) {
+        mHttpd->Start();
+      }
+    }
   }
 
   eos_notice("FST_HOST=%s FST_PORT=%ld FST_HTTP_PORT=%d VERSION=%s RELEASE=%s "

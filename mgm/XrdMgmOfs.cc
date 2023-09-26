@@ -305,7 +305,7 @@ XrdMgmOfs::XrdMgmOfs(XrdSysError* ep):
   zMQ(nullptr), mExtAuthz(nullptr), MgmStatsPtr(new eos::mgm::Stat()),
   MgmStats(*MgmStatsPtr), mFsckEngine(new Fsck()), mMaster(nullptr),
   mRouting(new eos::mgm::PathRouting()), mConverterDriver(),
-  mLRUEngine(new eos::mgm::LRU()),
+  mHttpd(nullptr), mLRUEngine(new eos::mgm::LRU()),
   WFEPtr(new eos::mgm::WFE()), WFEd(*WFEPtr), UTF8(false), mFstGwHost(""),
   mFstGwPort(0), mQdbCluster(""), mHttpdPort(8000),
   mFusexPort(1100), mGRPCPort(50051), mWncPort(50052),
@@ -352,7 +352,11 @@ XrdMgmOfs::XrdMgmOfs(XrdSysError* ep):
   IoStats.reset(new eos::mgm::Iostat());
 
   if (mHttpdPort)  {
-    mHttpd.reset(new eos::mgm::HttpServer(mHttpdPort));
+    const char* ptr = getenv("EOS_MGM_ENABLE_LIBMICROHTTPD");
+
+    if (ptr && (strncmp(ptr, "1", 1) == 0)) {
+      mHttpd.reset(new eos::mgm::HttpServer(mHttpdPort));
+    }
   }
 
   if (mGRPCPort) {
