@@ -1190,7 +1190,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
     }
 
     // If a file has the sys.proc attribute, it will be redirected as a command
-    if (fmd != nullptr && fmd->getAttributes().count("sys.proc")) {
+    if (fmd != nullptr && fmd->hasAttribute("sys.proc")) {
       ns_rd_lock.Release();
       return open("/proc/user/", open_mode, Mode, client,
                   fmd->getAttribute("sys.proc").c_str());
@@ -1758,9 +1758,9 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
       if (isFuse && (open_flags & O_TRUNC)) {
         std::string s;
 
-        try {
+        if (fmd->hasAttribute("sys.fusex.state")) {
           s = fmd->getAttribute("sys.fusex.state");
-        } catch (...) {}
+        }
 
         s += "T";
         fmd->setAttribute("sys.fusex.state",
@@ -2438,9 +2438,9 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
           try {
             std::string locations;
 
-            try {
+            if (fmd->hasAttribute("sys.fs.tracking")) {
               locations = fmd->getAttribute("sys.fs.tracking");
-            } catch (...) {}
+            }
 
             if (isRecreation) {
               fmd->unlinkAllLocations();
@@ -2450,9 +2450,9 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
             if (isRecreation) {
               std::string s;
 
-              try {
+              if (fmd->hasAttribute("sys.fusex.state")) {
                 s = fmd->getAttribute("sys.fusex.state");
-              } catch (...) {}
+              }
 
               s += "Z";
               fmd->setAttribute("sys.fusex.state",
@@ -2492,14 +2492,12 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
         if (byfid) {
           // the new FUSE client needs to have the replicas attached after the
           // first open call
-          eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
           std::string locations;
 
           try {
-            try {
+            if (fmd->hasAttribute("sys.fs.tracking")) {
               locations = fmd->getAttribute("sys.fs.tracking");
-            } catch (...) {}
-
+            }
             for (auto& fsid : selectedfs) {
               fmd->addLocation(fsid);
               locations += "+";
