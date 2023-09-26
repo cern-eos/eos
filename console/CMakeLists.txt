@@ -64,8 +64,8 @@ add_library(EosConsoleCommands-Objects OBJECT
   commands/com_cp.cc
   commands/com_daemon.cc
   commands/com_file.cc
-  commands/com_find.cc
-  commands/com_proto_newfind.cc
+  commands/com_old_find.cc
+  commands/com_proto_find.cc
   commands/com_fs.cc
   commands/com_fuse.cc
   commands/com_fusex.cc
