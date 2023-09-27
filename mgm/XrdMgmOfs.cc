@@ -350,14 +350,7 @@ XrdMgmOfs::XrdMgmOfs(XrdSysError* ep):
   eos::common::LogId::SetSingleShotLogId();
   mZmqContext = new zmq::context_t(1);
   IoStats.reset(new eos::mgm::Iostat());
-
-  if (mHttpdPort)  {
-    const char* ptr = getenv("EOS_MGM_ENABLE_LIBMICROHTTPD");
-
-    if (ptr && (strncmp(ptr, "1", 1) == 0)) {
-      mHttpd.reset(new eos::mgm::HttpServer(mHttpdPort));
-    }
-  }
+  mHttpd.reset(new eos::mgm::HttpServer(mHttpdPort));
 
   if (mGRPCPort) {
     GRPCd.reset(new eos::mgm::GrpcServer(mGRPCPort));
