@@ -281,6 +281,7 @@ void DevicesCmd::LsSubcmd(const eos::console::DevicesProto_LsProto& ls,
 	header.push_back(std::make_tuple("key", 0, "os"));
 	header.push_back(std::make_tuple("model", 0, "os"));
       } else {
+	header.push_back(std::make_tuple("space", 0, "+s"));
 	header.push_back(std::make_tuple("model", 0, "-s"));
       }
       auto fst = driveModelStats.begin();
@@ -308,6 +309,8 @@ void DevicesCmd::LsSubcmd(const eos::console::DevicesProto_LsProto& ls,
 	TableRow row;
 	if ( format_case == DevicesProto::LsProto::MONITORING ) {
 	  row.emplace_back("devicestats","os");
+	} else {
+	  row.emplace_back(space.c_str(),"s");
 	}
 	row.emplace_back(it->first,"-s");
 	row.emplace_back(avgage, "f");
