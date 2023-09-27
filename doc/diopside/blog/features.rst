@@ -13,7 +13,6 @@ BLOG
 New Features
 -------------
 
-
 This blog is used to track new features added to EOS.
 
 September 2023
@@ -26,6 +25,8 @@ September 2023
 
   All the information is also available as JSON output using `eos --json devices ls`! The feature will be available with EOS 5.2!
 
+* `eos df` supports now JSON output e.g. `eos --json df` and prints the performance capacity ratio in GB/s per TB
+  
 August 2023
 ^^^^^^^^^^
 

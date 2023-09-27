@@ -37,7 +37,7 @@ DfCmd::ProcessRequest() noexcept
   eos::console::ReplyProto reply;
   eos::console::DfProto df = mReqProto.df();
 
-  reply.set_std_out(FsView::gFsView.Df(df.monitoring(),df.si(),df.readable(), df.path()));
+  reply.set_std_out(FsView::gFsView.Df(df.monitoring(),df.si(),df.readable(), df.path(), WantsJsonOutput()));
   reply.set_retc(0);
 
   return reply;

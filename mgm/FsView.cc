@@ -1130,9 +1130,11 @@ bool FsView::IsQuotaEnabled(const std::string& space)
 
 
 std::string FsView::Df(bool monitoring, bool si, bool readable,
-                       std::string dfpath)
+                       std::string dfpath, bool json)
 {
   std::string nominal;
+  std::string network;
+  double networkmib=0;
   size_t i_nominal = 0;
   size_t i_used = 0;
   double sizefactor = 1.0;
@@ -1149,7 +1151,7 @@ std::string FsView::Df(bool monitoring, bool si, bool readable,
 
     for (auto it = mSpaceView.begin(); it != mSpaceView.end(); ++it) {
       if (it->first == "spare") {
-        // don't account spaRE
+        // don't account spare
         continue;
       }
 
@@ -1159,112 +1161,149 @@ std::string FsView::Df(bool monitoring, bool si, bool readable,
         i_nominal += std::strtoll(nominal.c_str(), 0, 10);
       }
     }
-  }
-  {
-    std::shared_ptr<eos::IContainerMD> cmd;
-    // Prefetch path
-    eos::Prefetcher::prefetchItemAndWait(gOFS->eosView, path, false);
-    eos::common::RWMutexReadLock viewlock(ViewMutex);
-    eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
 
-    try {
-      cmd = gOFS->eosView->getContainer(path, false);
-    } catch (eos::MDException& e) {
-      errno = e.getErrno();
-      eos_err("msg=\"exception\" ec=%d emsg=\"%s\"", e.getErrno(),
-              e.getMessage().str().c_str());
-    }
-
-    if (!cmd) {
-      // fall back to instance path
-      try {
-        path = instancepath;
-        cmd = gOFS->eosView->getContainer(path, false);
-      } catch (eos::MDException& e) {
-        errno = e.getErrno();
-        eos_err("msg=\"exception\" ec=%d emsg=\"%s\"", e.getErrno(),
-                e.getMessage().str().c_str());
-        return "";
+    for (auto it = mNodeView.begin(); it != mNodeView.end(); ++it) {
+      network = it->second->GetMember("cfg.stat.net.ethratemib");
+      fprintf(stderr,"Node '%s' '%s'\n", it->first.c_str(), network.c_str());
+      
+      if (network.length()) {
+	networkmib += std::strtoll(network.c_str(), 0, 10);
       }
     }
 
-    i_used = cmd->getTreeSize();
-    sizefactor = Policy::GetDefaultSizeFactor(cmd);
-    files = gOFS->eosFileService->getNumFiles();
-    directories = gOFS->eosDirectoryService->getNumContainers();
+    {
+      std::shared_ptr<eos::IContainerMD> cmd;
+      // Prefetch path
+      eos::Prefetcher::prefetchItemAndWait(gOFS->eosView, path, false);
+      eos::common::RWMutexReadLock viewlock(ViewMutex);
+      eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
+      
+      try {
+	cmd = gOFS->eosView->getContainer(path, false);
+      } catch (eos::MDException& e) {
+	errno = e.getErrno();
+	eos_err("msg=\"exception\" ec=%d emsg=\"%s\"", e.getErrno(),
+		e.getMessage().str().c_str());
+      }
+      
+      if (!cmd) {
+	// fall back to instance path
+	try {
+	  path = instancepath;
+	  cmd = gOFS->eosView->getContainer(path, false);
+	} catch (eos::MDException& e) {
+	  errno = e.getErrno();
+	  eos_err("msg=\"exception\" ec=%d emsg=\"%s\"", e.getErrno(),
+		  e.getMessage().str().c_str());
+	  return "";
+	}
+      }
+      
+      i_used = cmd->getTreeSize();
+      sizefactor = Policy::GetDefaultSizeFactor(cmd);
+      files = gOFS->eosFileService->getNumFiles();
+      directories = gOFS->eosDirectoryService->getNumContainers();
+    }
+    
+    if (sizefactor) {
+      i_nominal /= sizefactor;
+    }
+    
+    std::string size = readable ?
+      eos::common::StringConversion::GetReadableSizeString(i_nominal, si ? "iB" : "B",
+							   si ? 1024 : 1000) :
+      std::to_string(i_nominal);
+    std::string used = readable ?
+      eos::common::StringConversion::GetReadableSizeString(i_used, si ? "iB" : "B",
+							   si ? 1024 : 1000) :
+      std::to_string(i_used);
+    use = (int)(100.0 * i_used / i_nominal);
+    
+    if (use > 100) {
+      use = 100;
+    }
+    
+    std::string suse = std::to_string(use) + (monitoring ? std::string("") :
+					      std::string("%"));
+    std::string sfiles = readable ?
+      eos::common::StringConversion::GetReadableSizeString(files, "", 1000) :
+      std::to_string(files);
+    std::string sdirectories = readable ?
+      eos::common::StringConversion::GetReadableSizeString(directories, "", 1000) :
+      std::to_string(directories);
+    
+    char _perfratio[1024];
+    double pcr = networkmib/(si?1024.0:1000.0)/(i_nominal/(si?(1024*1024*1024*1024.0):(1000*1000*1000*1000.0))); // GB/s per TB
+    if (i_nominal) {
+      snprintf(_perfratio, sizeof(_perfratio), "%.02f", pcr); // GB/s per TB
+    } else {
+      snprintf(_perfratio, sizeof(_perfratio), "0.00");
+    }
+    std::string sperf = _perfratio;
+    char _sizefactor[1024];
+    snprintf(_sizefactor, sizeof(_sizefactor), "%.02f", sizefactor);
+    std::string ssizefactor = _sizefactor;
+    TableFormatterBase table;
+    TableData table_data;
+    std::string format_s = (!monitoring ? "s" : "os");
+    std::string format_ss = (!monitoring ? "-s" : "os");
+    
+    if (json) {
+      Json::Value gjson;
+      
+      gjson["df"]["instance"] = instance;
+      gjson["df"]["size"] = (Json::Value::UInt64)i_nominal;
+      gjson["df"]["used"] = (Json::Value::UInt64)i_used;
+      gjson["df"]["files"] = (Json::Value::UInt64) files;
+      gjson["df"]["directories"] = (Json::Value::UInt64) directories;    
+      gjson["df"]["performancecapacityratio-gb-tbs"] = pcr;
+      gjson["df"]["sizefactor"] = sizefactor;
+      gjson["df"]["path"] = path;
+      out += SSTR(gjson).c_str();
+      return out;
+    } else {
+      if (!monitoring) {
+	table.SetHeader({
+	    std::make_tuple("Instance", 14, format_ss),
+	    std::make_tuple("Size",  8, format_s),
+	    std::make_tuple("Used",  8, format_s),
+	    std::make_tuple("Files", 8, format_s),
+	    std::make_tuple("Directories", 15, format_s),
+	    std::make_tuple("PCR GB/TB*s", 12, format_s),
+	    std::make_tuple("Use%", 6, format_s),
+	    std::make_tuple("Vol-x", 7, format_s),
+	    std::make_tuple("Path",  0, format_s)
+	  });
+      } else {
+	table.SetHeader({
+	    std::make_tuple("instance", 14, format_ss),
+	    std::make_tuple("size",  8, format_s),
+	    std::make_tuple("used",  8, format_s),
+	    std::make_tuple("files", 8, format_s),
+	    std::make_tuple("directories", 15, format_s),
+	    std::make_tuple("performancecapacityratio", 12, format_s),
+	    std::make_tuple("usage", 6, format_s),
+	    std::make_tuple("spacefactor", 6, format_s),
+	    std::make_tuple("path",  0, format_s)
+	  });
+      }
+      
+      table_data.emplace_back();
+      TableRow& row = table_data.back();
+      row.emplace_back(instance, format_ss);
+      row.emplace_back(size, format_s);
+      row.emplace_back(used, format_s);
+      row.emplace_back(sfiles, format_s);
+      row.emplace_back(sdirectories, format_s);
+      row.emplace_back(sperf, format_s);
+      row.emplace_back(suse , format_s);
+      row.emplace_back(ssizefactor , format_s);
+      row.emplace_back(path, format_s);
+      table.AddRows(table_data);
+      out += table.GenerateTable(HEADER).c_str();
+      return out;
+    }
   }
-
-  if (sizefactor) {
-    i_nominal /= sizefactor;
-  }
-
-  std::string size = readable ?
-                     eos::common::StringConversion::GetReadableSizeString(i_nominal, si ? "iB" : "B",
-                         si ? 1024 : 1000) :
-                     std::to_string(i_nominal);
-  std::string used = readable ?
-                     eos::common::StringConversion::GetReadableSizeString(i_used, si ? "iB" : "B",
-                         si ? 1024 : 1000) :
-                     std::to_string(i_used);
-  use = (int)(100.0 * i_used / i_nominal);
-
-  if (use > 100) {
-    use = 100;
-  }
-
-  std::string suse = std::to_string(use) + (monitoring ? std::string("") :
-                     std::string("%"));
-  std::string sfiles = readable ?
-                       eos::common::StringConversion::GetReadableSizeString(files, "", 1000) :
-                       std::to_string(files);
-  std::string sdirectories = readable ?
-                             eos::common::StringConversion::GetReadableSizeString(directories, "", 1000) :
-                             std::to_string(directories);
-  char _sizefactor[1024];
-  snprintf(_sizefactor, sizeof(_sizefactor), "%.02f", sizefactor);
-  std::string ssizefactor = _sizefactor;
-  TableFormatterBase table;
-  TableData table_data;
-  std::string format_s = (!monitoring ? "s" : "os");
-  std::string format_ss = (!monitoring ? "-s" : "os");
-
-  if (!monitoring) {
-    table.SetHeader({
-      std::make_tuple("Instance", 14, format_ss),
-      std::make_tuple("Size",  8, format_s),
-      std::make_tuple("Used",  8, format_s),
-      std::make_tuple("Files", 8, format_s),
-      std::make_tuple("Directories", 15, format_s),
-      std::make_tuple("Use%", 6, format_s),
-      std::make_tuple("Vol-x", 7, format_s),
-      std::make_tuple("Path",  0, format_s)
-    });
-  } else {
-    table.SetHeader({
-      std::make_tuple("instance", 14, format_ss),
-      std::make_tuple("size",  8, format_s),
-      std::make_tuple("used",  8, format_s),
-      std::make_tuple("files", 8, format_s),
-      std::make_tuple("directories", 15, format_s),
-      std::make_tuple("usage", 6, format_s),
-      std::make_tuple("spacefactor", 6, format_s),
-      std::make_tuple("path",  0, format_s)
-    });
-  }
-
-  table_data.emplace_back();
-  TableRow& row = table_data.back();
-  row.emplace_back(instance, format_ss);
-  row.emplace_back(size, format_s);
-  row.emplace_back(used, format_s);
-  row.emplace_back(sfiles, format_s);
-  row.emplace_back(sdirectories, format_s);
-  row.emplace_back(suse , format_s);
-  row.emplace_back(ssizefactor , format_s);
-  row.emplace_back(path, format_s);
-  table.AddRows(table_data);
-  out += table.GenerateTable(HEADER).c_str();
-  return out;
 }
 
 
@@ -3994,7 +4033,7 @@ BaseView::Print(TableFormatterBase& table, std::string table_format,
             table_header.push_back(std::make_tuple("sched.capacity", width, format));
           }
         }
-
+	
         // Normal member printout
         if (formattags.count("member")) {
           if ((format.find("+") != std::string::npos) &&

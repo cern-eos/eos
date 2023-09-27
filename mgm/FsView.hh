@@ -1023,7 +1023,7 @@ public:
   //----------------------------------------------------------------------------
 
   std::string Df(bool monitoring = false, bool si = false, bool readable = true,
-                 std::string path = "");
+                 std::string path = "", bool json = false);
 
   //----------------------------------------------------------------------------
   //! Physical bytes available
