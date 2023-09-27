@@ -102,6 +102,11 @@ void DevicesCmd::LsSubcmd(const eos::console::DevicesProto_LsProto& ls,
   for ( auto it = FsView::gFsView.mSpaceView.begin(); it != FsView::gFsView.mSpaceView.end(); ++it ) {
     std::map<std::string,std::map<std::string, uint64_t>> driveModelStats;
     std::map<std::string,std::map<std::string, uint64_t>> driveModelSmartStats;
+    double totalcapacity=0;
+    double totalhours=0;
+    double totaltbhours=0;
+    uint64_t totaldrivecount=0;
+    
     TableFormatterBase table;
     std::string space=it->first;
     
@@ -147,8 +152,13 @@ void DevicesCmd::LsSubcmd(const eos::console::DevicesProto_LsProto& ls,
     std::vector<std::string> smHuman {"ok", "noctl","na","failing","check","inval","unknown"};
     
     if (!jinfo || !spinfo) {
-      reply.set_std_err("error: not yet availabe - try again");
-      reply.set_retc(EAGAIN);
+      if ( !WantsJsonOutput()) {
+	reply.set_std_err("error: not yet availabe - try again");
+	reply.set_retc(EAGAIN);
+      } else {
+	reply.set_std_err("{ \"errmsg\" : \"not yet available -try again\", \"errc\" : 11 }");
+	reply.set_retc(EAGAIN);
+      }
       return ;
     }
     for (auto it=jinfo->begin(); it != jinfo->end(); ++it) {
@@ -188,12 +198,17 @@ void DevicesCmd::LsSubcmd(const eos::console::DevicesProto_LsProto& ls,
 	  std::replace( ifspeed.begin(), ifspeed.end(), ' ', ':');
 	  string read_lookahead = (root.isMember("read_lookahead"))? (root["read_lookahead"]["enabled"].asBool()?"true":"false") : "unknown";
 	  string write_cache    = (root.isMember("write_cache"))? (root["write_cache"]["enabled"].asBool()?"true":"false") : "unknown";
-	  
+
 	  if (model.length()) {
-	    driveModelStats[model]["count"]++;	    
+	    driveModelStats[model]["count"]++;
+	    totaldrivecount++;
 	    driveModelStats[model]["bytes"]+= capacity;
 	    driveModelStats[model]["hours"]+= powerhours;
-	  
+
+	    totalcapacity += capacity;
+	    totalhours += powerhours;
+	    totaltbhours += (capacity*powerhours/1000000000000.0);
+	    
 	    if (!driveModelSmartStats.count(model)) {
 	      // make sure we have each smart status in the smart stats map
 	      for (size_t i=0; i< smStatus.size(); ++i) {
@@ -257,7 +272,7 @@ void DevicesCmd::LsSubcmd(const eos::console::DevicesProto_LsProto& ls,
       std_out += table.GenerateTable();
     }
 
-    if (1) {
+    if (true) { // we might add a switch to suppress this output later
       TableFormatterBase table;
       TableHeader header;
       TableData body;
@@ -290,7 +305,6 @@ void DevicesCmd::LsSubcmd(const eos::console::DevicesProto_LsProto& ls,
       table.SetHeader(header);
       for ( auto it = driveModelStats.begin(); it != driveModelStats.end(); ++it) {
 	double avgage = driveModelStats[it->first]["hours"]/driveModelStats[it->first]["count"]/24.0/365.0;
-	      
 	TableRow row;
 	if ( format_case == DevicesProto::LsProto::MONITORING ) {
 	  row.emplace_back("devicestats","os");
@@ -318,6 +332,64 @@ void DevicesCmd::LsSubcmd(const eos::console::DevicesProto_LsProto& ls,
 	body.push_back(row);
       }
       
+      table.AddRows(body);
+      if ( !WantsJsonOutput()) {
+	std_out += table.GenerateTable();
+      }
+    }
+
+    if (true) { // we might add a switch to suppress this output later
+      TableFormatterBase table;
+      TableHeader header;
+      TableData body;
+      
+      if ( format_case == DevicesProto::LsProto::MONITORING ) {
+	header.push_back(std::make_tuple("key", 0, "os"));
+	header.push_back(std::make_tuple("capacityyears", 0, "of"));
+	header.push_back(std::make_tuple("tbyears", 0, "of"));
+	header.push_back(std::make_tuple("driveage", 0, "of"));
+	header.push_back(std::make_tuple("drivehours", 0, "ol"));
+	header.push_back(std::make_tuple("clouddollar-replica", 0, "ol"));
+	header.push_back(std::make_tuple("clouddollar-erasure", 0, "ol"));
+      } else {
+	header.push_back(std::make_tuple("Cost-Matrix", 0, "+s"));
+	header.push_back(std::make_tuple("Vol*Years", 0, "+l"));
+	header.push_back(std::make_tuple("TB*Years", 0, "+l"));
+	header.push_back(std::make_tuple("Avg-Drive-Hours", 6, "+l"));
+	header.push_back(std::make_tuple("Tot-Drive-Hours", 0, "+l"));
+	header.push_back(std::make_tuple("Cloud$-Replica", 0, "+l"));
+	header.push_back(std::make_tuple("Cloud$-Erasure", 0, "+l"));
+      }
+      table.SetHeader(header);
+      double volyears = totalcapacity*totalhours/24.0/365.0;
+      double tbyears = totaltbhours/24.0/365.0;
+      double tage = totalhours/(totaldrivecount?totaldrivecount:1000000);
+      double cloudinstancecost = tbyears*250.0; // assume 250 cloud$ per tb/year
+      gjson["cost"]["vol:years"] = volyears;
+      gjson["cost"]["tb:years"] = tbyears;
+      gjson["cost"]["avg-drive-hours"] = tage;
+      gjson["cost"]["tot-drive-hours"] = totalhours;
+      gjson["cost"]["cloud-dollar-replica"] = cloudinstancecost/2.0;
+      gjson["cost"]["cloud-dollar-erasure"] = cloudinstancecost/1.2;
+      
+      TableRow row;
+      if ( format_case == DevicesProto::LsProto::MONITORING ) {
+	row.emplace_back(volyears, "f");
+	row.emplace_back(tbyears, "f");
+	row.emplace_back(tage, "l");
+	row.emplace_back(totalhours, "l");
+	row.emplace_back(cloudinstancecost/2.0, "l");
+	row.emplace_back(cloudinstancecost/1.2, "l");
+      } else {
+	row.emplace_back(gOFS->MgmOfsInstanceName.c_str(),"s");
+	row.emplace_back(volyears, "+l");
+	row.emplace_back(tbyears, "+l");
+	row.emplace_back(tage, "+l");
+	row.emplace_back(totalhours, "+l");
+	row.emplace_back(cloudinstancecost/2.0, "+l","$");
+	row.emplace_back(cloudinstancecost/1.2, "+l","$");
+      }
+      body.push_back(row);
       table.AddRows(body);
       if ( !WantsJsonOutput()) {
 	std_out += table.GenerateTable();
