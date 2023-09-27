@@ -888,22 +888,29 @@ XrdFstOfs::Configure(XrdSysError& Eroute, XrdOucEnv* envP)
     }
   }
 
-  if (mHttpdPort) {
+  mHttpd.reset(new eos::fst::HttpServer(mHttpdPort));
+
+  if (mHttpd) {
     const char* ptr = getenv("EOS_FST_ENABLE_LIBMICROHTTPD");
 
     if (ptr && (strncmp(ptr, "1", 1) == 0)) {
-      mHttpd.reset(new eos::fst::HttpServer(mHttpdPort));
-
-      if (mHttpd) {
-        mHttpd->Start();
+      if (!mHttpd->Start()) {
+        eos_static_warning("%s", "msg=\"failed to start libmicrohttpd\"");
+      } else {
+        eos_static_notice("%s", "msg=\"successfully started libmicrohttpd\"");
       }
+    } else {
+      eos_static_notice("%s", "msg=\"libmicrohttpd is disabled\"");
     }
+  } else {
+    eos_static_crit("%s", "msg=\"failed to allocate HttpServer object\"");
+    NoGo = 1;
   }
 
   eos_notice("FST_HOST=%s FST_PORT=%ld FST_HTTP_PORT=%d VERSION=%s RELEASE=%s "
              "KEYTABADLER=%s", mHostName, myPort, mHttpdPort, VERSION, RELEASE,
              kt_cks.c_str());
-  return 0;
+  return NoGo;
 }
 
 //------------------------------------------------------------------------------

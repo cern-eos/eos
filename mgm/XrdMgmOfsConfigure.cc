@@ -1750,7 +1750,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
       try {
         eosmd = gOFS->eosView->createContainer(MgmProcDevicesPath.c_str(), true);
         eosmd->setMode(S_IFDIR | S_IRWXU | S_IRWXG);
-        eosmd->setCUid(0); 
+        eosmd->setCUid(0);
         eosmd->setCGid(0);
         gOFS->eosView->updateContainerStore(eosmd.get());
       } catch (const eos::MDException& e) {
@@ -1951,10 +1951,8 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   // Initialize the replication tracker
   mReplicationTracker.reset(ReplicationTracker::Create(
                               MgmProcTrackerPath.c_str()));
-
   // Configure proc path for devices
   DeviceTracker->SetDevicesPath(MgmProcDevicesPath.c_str());
-  
   // Set also the archiver ZMQ endpoint were client requests are sent
   std::ostringstream oss;
   oss << "ipc://" << MgmArchiveDir.c_str() << "archive_frontend.ipc";
@@ -2009,11 +2007,21 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
     eos_static_crit("error starting the shared object change notifier");
   }
 
-  // create the 'default' quota space which is needed if quota is disabled!
   if (mHttpd) {
-    if (!mHttpd->Start()) {
-      eos_static_warning("msg=\"cannot start httpd daemon\"");
+    const char* ptr = getenv("EOS_MGM_ENABLE_LIBMICROHTTPD");
+
+    if (ptr && (strncmp(ptr, "1", 1) == 0)) {
+      if (!mHttpd->Start()) {
+        eos_static_warning("%s", "msg=\"failed to start libmicrohttpd\"");
+      } else {
+        eos_static_notice("%s", "msg=\"successfully started libmicrohttpd\"");
+      }
+    } else {
+      eos_static_notice("%s", "msg=\"libmicrohttpd is disabled\"");
     }
+  } else {
+    eos_static_crit("%s", "msg=\"failed to allocate HttpServer object\"");
+    NoGo = 1;
   }
 
 #ifdef EOS_GRPC
@@ -2081,7 +2089,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   if ((mMaster->IsMaster()) && (!DeviceTracker->Start())) {
     eos_static_warning("msg=\"cannot start device tracking thread\"");
   }
-  
+
   // Start the recycler garbage collection thread on a master machine
   if ((mMaster->IsMaster()) && (!Recycler->Start())) {
     eos_static_warning("msg=\"cannot start recycle thread\"");
