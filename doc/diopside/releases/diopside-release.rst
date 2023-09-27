@@ -16,6 +16,20 @@ Introduction
 
 This release is based on XRootD V5.
 
+``v5.1.30 Diopside``
+==========================
+
+2023-09-27
+
+Bug
+---
+* [EOS-5834] - Corrected MGM Namespace mutex tracking
+
+New feature
+-----------
+
+* MGM: add 'eos ns benchmark' command to run inside the MGM a multithreaded benchmark
+
 ``v5.1.29 Diopside``
 ==========================
 
