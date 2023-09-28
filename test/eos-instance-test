@@ -453,6 +453,10 @@ eos_synctime() {
     echo eos-synctime-test $1 $2 root://$EOS_TEST_REDIRECTOR/$3 >& $EOSLASTLOG; eval eos-synctime-test $1 $2 root://$EOS_TEST_REDIRECTOR/$3 >> $EOSCERTLOG 2>&1
 }
 
+eos_rclone() {
+    echo eos-rclone-test $1 $2 root://$EOS_TEST_REDIRECTOR/$3 >& $EOSLASTLOG; eval eos-rclone-test $1 $2 root://$EOS_TEST_REDIRECTOR/$3 >> $EOSCERTLOG 2>&1
+}
+
 eoscp_rain() {
     echo eoscp-rain-test $1 root://$EOS_TEST_REDIRECTOR/$2 >& $EOSLASTLOG; eval eoscp-rain-test $1 root://$EOS_TEST_REDIRECTOR/$2 >> $EOSCERTLOG 2>&1
 }
@@ -1896,6 +1900,15 @@ test -d /test-fusex/ && umount -fl /test-fusex/
 test -d /test-fusex/ && rmdir /test-fusex/
 test -e /etc/eos/fuse.sss.keytab && unlink /etc/eos/fuse.sss.keytab
 fi
+
+
+################################################################################
+# eos rclone test
+################################################################################
+# ------------------------------------------------------------------------------
+categorie="rclone"
+# ------------------------------------------------------------------------------
+runtest "### rclone    " unix 0 "" eos_rclone "/var/tmp/eos-instance-test/" "$EOS_TEST_INSTANCE/test/instancetest/fusex/"
 
 ################################################################################
 # eos squashfs tests

@@ -1,0 +1,35 @@
+#!/bin/bash
+set -e
+localdir=$1
+eosdir=$2
+
+echo "eos rclone $eosdir => $localdir"
+
+eos mkdir -p /eos/$eosdir/cl/
+eos chmod 777 /eos/$eosdir/cl/
+eos rm -r /eos/$eosdir/cl/
+eos mkdir -p /eos/$eosdir/cl/dir1/dir2/
+test -d $localdir/cl/ && rm -rf $localdir/cl/
+mkdir -p $localdir/cl/
+
+# create some files
+for name in `seq 1 100`; do 
+    eos cp ${TESTSYSFILE1K-"/etc/passwd"} /eos/$eosdir/cl/dir1/dir2/file.$name
+done
+eos cp ${TESTSYSFILE1K-"/etc/passwd"} /eos/$eosdir/cl/file.0
+
+# rclone to a local dir
+eos -b rclone copy /eos/$eosdir/cl/ $localdir/cl/ --dryrun || exit -2
+eos -b rclone copy /eos/$eosdir/cl/ $localdir/cl/ || exit -3
+echo 
+nfiles=`find /var/tmp/eos-instance-test/cl/ -type f | wc -l`
+ndirs=`find /var/tmp/eos-instance-test/cl/ -type d | wc -l`
+
+test $nfiles = "101" || exit -3
+test $ndirs = "3" || exit -3
+
+# rclone copy a symlink
+eos file symlink /eos/$eosdir/cl/link.0 file.0 
+eos -b rclone copy /eos/$eosdir/cl/ $localdir/cl/ || exit -4
+nlinks=`find /var/tmp/eos-instance-test/cl/ -type l | wc -l`
+test $nlinks = "1" || exit -4

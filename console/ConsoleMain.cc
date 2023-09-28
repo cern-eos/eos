@@ -106,6 +106,7 @@ extern int com_route(char*);
 extern int com_qos(char*);
 extern int com_protorm(char*);
 extern int com_protoregister(char*);
+extern int com_rclone(char*);
 extern int com_rmdir(char*);
 extern int com_role(char*);
 extern int com_rtlog(char*);
@@ -187,6 +188,7 @@ COMMAND commands[] = {
   { (char*) "qos", com_qos, (char*) "QoS configuration"},
   { (char*) "quit", com_quit, (char*) "Exit from EOS console"},
   { (char*) "quota", com_protoquota, (char*) "Quota System configuration"},
+  { (char*) "rclone", com_rclone, (char*) "RClone like command"},
   { (char*) "report", com_report, (char*) "Analyze report log files on the local machine"},
   { (char*) "reconnect", com_reconnect, (char*) "Forces a re-authentication of the shell"},
   { (char*) "recycle", com_protorecycle, (char*) "Recycle Bin Functionality"},

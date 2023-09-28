@@ -85,6 +85,7 @@ add_library(EosConsoleCommands-Objects OBJECT
   commands/com_print.cc
   commands/com_pwd.cc
   commands/com_quit.cc
+  commands/com_rclone.cc
   commands/com_report.cc
   commands/com_reconnect.cc
   commands/com_rmdir.cc
@@ -156,7 +157,9 @@ target_link_libraries(
   EosConsoleHelpers-Objects
   ZMQ::ZMQ
   XROOTD::POSIX
-  EosFstIo-Static)
+  EosFstIo-Static
+  stdc++fs 
+  )
 
 install(PROGRAMS eosadmin eos-iam-mapfile
   DESTINATION ${CMAKE_INSTALL_FULL_SBINDIR})
