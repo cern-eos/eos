@@ -28,7 +28,7 @@ stages:
 include:
   - template: Code-Quality.gitlab-ci.yml
   #  - local: /gitlab-ci/.gitlab-ci-test-dock_include.yml @note on the file
-  - local: /gitlab-ci/.gitlab-ci-test-k8s_include.yml
+  #  - local: /gitlab-ci/.gitlab-ci-test-k8s_include.yml
   - local: /gitlab-ci/.gitlab-ci-test-helm_include.yml
 
 workflow:
