@@ -39,7 +39,9 @@ target_link_libraries(EosConsoleHelpers-Objects PUBLIC
   OpenSSL::SSL
   GOOGLE::SPARSEHASH
   XROOTD::UTILS
-  XROOTD::POSIX)
+  XROOTD::POSIX
+  stdc++fs 
+  )
 
 set_target_properties(EosConsoleHelpers-Objects PROPERTIES
   POSITION_INDEPENDENT_CODE TRUE)
