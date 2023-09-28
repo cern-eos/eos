@@ -2516,7 +2516,7 @@ metad::mdstackfree(ThreadAssistant& assistant)
               mdmap.lru_remove(inode_to_swap);
               mdmap[inode_to_swap] = 0;
 
-              if (mdmap.swap_out(md)) {
+              if (mdmap.swap_out(inode_to_swap, md)) {
                 eos_static_err("swap-out failed for ino=%#llx", inode_to_swap);
               }
             }
@@ -3465,24 +3465,30 @@ metad::pmap::retrieve(fuse_ino_t ino, shared_md& ret)
     return false;
   }
 
-  ret = it->second;
-  eos_static_debug("retc=%x", (bool)(ret));
+  shared_md md = it->second;
+  eos_static_debug("retc=%x", (bool)(md));
 
-  if (!ret) {
-    ret = std::make_shared<mdx>();
+  if (!md) {
+    md = std::make_shared<mdx>();
 
     // swap-in this inode
-    if (swap_in(ino, ret)) {
+    const int rc = swap_in(ino, md);
+    if (rc) {
       eos_static_crit("failed to swap-in ino=%#llx", ino);
+      if (!ret) {
+        ret = std::make_shared<mdx>();
+        (*ret)()->set_err(rc);
+      }
       return false;
     }
 
     // attach the new object
-    (*this)[ino] = ret;
+    (*this)[ino] = md;
     // add to the lru list
-    lru_add(ino, ret);
+    lru_add(ino, md);
   }
 
+  ret = md;
   // update lru entry whenever we retrieve something
   lru_update(ino, ret);
   return true;
@@ -3785,7 +3791,7 @@ metad::mdx::state_deserialize(std::string& mdsstream)
 
 /* -------------------------------------------------------------------------- */
 int
-metad::pmap::swap_out(shared_md md)
+metad::pmap::swap_out(fuse_ino_t ino, shared_md md)
 {
   // serialize an in-memory md object into the kv store
   std::string mdstream;
@@ -3801,14 +3807,14 @@ metad::pmap::swap_out(shared_md md)
 
   if (store) {
     std::string md_key = "md.";
-    md_key += std::to_string((*md)()->id());
+    md_key += std::to_string(ino);
 
     if (store->put(md_key, mdstream)) {
       return EIO;
     }
 
     std::string md_state_key = "mds.";
-    md_state_key += std::to_string((*md)()->id());
+    md_state_key += std::to_string(ino);
 
     if (store->put(md_state_key, mdsstream)) {
       return EIO;
