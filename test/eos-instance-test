@@ -1908,7 +1908,7 @@ fi
 # ------------------------------------------------------------------------------
 categorie="rclone"
 # ------------------------------------------------------------------------------
-runtest "### rclone    " unix 0 "" eos_rclone "/var/tmp/eos-instance-test/" "$EOS_TEST_INSTANCE/test/instancetest/fusex/"
+runtest "### rclone    " unix 0 "" eos_rclone "/var/tmp/eos-instance-test/" "$EOS_TEST_INSTANCE/test/instancetest/rclone/"
 
 ################################################################################
 # eos squashfs tests
