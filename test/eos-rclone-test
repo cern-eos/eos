@@ -33,3 +33,26 @@ eos file symlink /eos/$eosdir/cl/link.0 file.0
 eos -b rclone copy /eos/$eosdir/cl/ $localdir/cl/ || exit -4
 nlinks=`find /var/tmp/eos-instance-test/cl/ -type l | wc -l`
 test $nlinks = "1" || exit -4
+
+eos file info /eos/$eosdir/cl
+
+# remove the symlink and sync it back
+eos rm /eos/$eosdir/cl/link.0
+eos file info /eos/$eosdir/cl
+eos -b rclone sync /eos/$eosdir/cl/ $localdir/cl/ --verbose || exit -5
+nlinks=`find /var/tmp/eos-instance-test/cl/ -type l | wc -l`
+test $nlinks = "1" || exit -5
+eos stat /eos/$eosdir/cl/link.0 || exit -5
+
+# add some new files locally
+mkdir -p $localdir/cl/subtree/
+for name in `seq 1 50`; do 
+    eos cp ${TESTSYSFILE1K-"/etc/passwd"} $localdir/cl/subtree/f.$name
+done
+
+eos -b rclone sync /eos/$eosdir/cl/ $localdir/cl/ --verbose || exit -6
+nfiles=`eos newfind -f /eos/$eosdir/cl/ | wc -l`
+
+test $nfiles = "152" || exit -6
+echo
+echo "eos-rclone: all tests passwd OK"
