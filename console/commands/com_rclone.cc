@@ -396,9 +396,8 @@ int createLink(const std::string& i, eos::common::Path& prefix, const std::strin
       oss << std::setfill('0') << std::setw(9) << mtime.tv_nsec;
       request += oss.str();
       request += "&eos.encodepath=1";
-      
       arg.FromString(request);
-      
+
       XrdCl::FileSystem fs(url);
       XrdCl::XRootDStatus status = fs.Query(XrdCl::QueryCode::OpaqueFile, arg, response);
       
@@ -521,15 +520,15 @@ XrdCl::PropertyList* copyFile(const std::string& i, eos::common::Path& src, eos:
 
 void rclone_usage() {
   fprintf(stderr,
-          "usage: rclone copy src-dir dst-dir [--nodelete] [--noupdate] [--dryrun] [--atomic] [--versions] [--hidden] [-v|--verbose] [-s|--silent]\n");
+          "usage: rclone copy src-dir dst-dir [--delete] [--noupdate] [--dryrun] [--atomic] [--versions] [--hidden] [-v|--verbose] [-s|--silent]\n");
   fprintf(stderr,
 	  "                                       : copy from source to destination [one-way sync]\n");
   fprintf(stderr,
-          "       rclone sync dir1 dir2 [--nodelete] [--noupdate] [--dryrun] [--atomic] [--versions] [--hidden] [-v|--verbose] [-s|--silent]\n");
+          "       rclone sync dir1 dir2 [--delete] [--noupdate] [--dryrun] [--atomic] [--versions] [--hidden] [-v|--verbose] [-s|--silent]\n");
   fprintf(stderr,
 	  "                                       : bi-directional sync based on modification times\n");
   fprintf(stderr,
-	  "                            --nodelete : never delete!\n");
+	  "                              --delete : delete based on mtimes (currently unsupported)!\n");
   fprintf(stderr,
 	  "                            --noupdate : never update files, only create new ones!\n");
   fprintf(stderr,
@@ -680,7 +679,7 @@ com_rclone(char* arg1)
     rclone_usage();
   }
 
-  nodelete = false;
+  nodelete = true;
   noreplace = false;
   dryrun = false;
   
@@ -690,8 +689,8 @@ com_rclone(char* arg1)
     if (!option.length()) {
       break;
     }
-    if (option == "--nodelete") {
-      nodelete = true;
+    if (option == "--delete") {
+      nodelete = false;
     } else if (option == "--noreplace") {
       noreplace = true;
     } else if (option == "--dryrun") {
