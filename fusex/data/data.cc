@@ -1751,10 +1751,18 @@ data::datax::recover_write(fuse_req_t req)
   if (mFile->file() || recover_truncate) {
     void* buf = 0;
     std::string stagefile;
-    int fd = 0;
+    int fd = -1;
     off_t off = 0;
     uint32_t size = 1 * 1024 * 1024;
     bufferllmanager::shared_buffer buffer;
+
+    struct fd_guard {
+      fd_guard(int &fd) : fd_(fd) { }
+     ~fd_guard() {
+        if (fd_ >= 0) { ::close(fd_); fd_ = -1; }
+      }
+      int &fd_;
+    } fdg(fd);
 
     if (!recover_truncate) {
       mFile->file()->recovery_location(stagefile);
@@ -1794,7 +1802,6 @@ data::datax::recover_write(fuse_req_t req)
           sBufferManager.put_buffer(buffer);
         }
 
-        close(fd);
         eos_crit("unable to read file for recovery from local file cache");
 
         if (req && end_flush(req)) {
@@ -1826,7 +1833,6 @@ data::datax::recover_write(fuse_req_t req)
             mRecoveryStack.push_back(eos_log(LOG_SILENT,
                                              "status='%s' hint='failed to read remote file for recovery'",
                                              status.ToString().c_str()));
-            ::close(fd);
 
             if (req && end_flush(req)) {
               eos_warning("failed to signal end-flush");
@@ -1846,7 +1852,6 @@ data::datax::recover_write(fuse_req_t req)
           if (wr != bytesRead) {
             sBufferManager.put_buffer(buffer);
             eos_crit("failed to write to local stage file %s", stagefile.c_str());
-            ::close(fd);
 
             if (req && end_flush(req)) {
               eos_warning("failed to signal end-flush");
@@ -1894,8 +1899,6 @@ data::datax::recover_write(fuse_req_t req)
         sBufferManager.put_buffer(buffer);
       }
 
-      ::close(fd);
-
       if (req && end_flush(req)) {
         eos_warning("failed to signal end-flush");
       }
@@ -1919,7 +1922,6 @@ data::datax::recover_write(fuse_req_t req)
         if (nr < 0) {
           sBufferManager.put_buffer(buffer);
           eos_crit("failed to read from local stagefile");
-          ::close(fd);
 
           if (req && end_flush(req)) {
             eos_warning("failed to signal end-flush");
@@ -1953,7 +1955,6 @@ data::datax::recover_write(fuse_req_t req)
         }
       } while (nr > 0);
 
-      ::close(fd);
       // collect the writes to verify everything is alright now
       uploadproxy->WaitWrite(req);
 

@@ -536,7 +536,7 @@ public:
     void lru_dump(bool force=false);
     void lru_reset();
     
-    int swap_out(shared_md md);
+    int swap_out(fuse_ino_t ino, shared_md md);
     int swap_in(fuse_ino_t ino, shared_md md);
     int swap_rm(fuse_ino_t ino);
 
