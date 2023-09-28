@@ -289,6 +289,18 @@ static void printPath(S& ss, const eos::console::FindProto& req,
   }
 }
 
+//------------------------------------------------------------------------------
+// Print target.
+//------------------------------------------------------------------------------
+template<typename S>   // std::ofstream or std::stringstream
+static void printTarget(S& ss, const eos::console::FindProto& req,
+			const std::string& path)
+{
+  ss << " target=\"";
+  ss << path;
+  ss << "\"";
+}
+
 
 //------------------------------------------------------------------------------
 // Print uid / gid of a FileMD or ContainerMD, if requested by req.
@@ -462,7 +474,7 @@ static void printFormat(std::ofstream& ss, const eos::console::FindProto& req,
     for (auto i : tokens) {
       if (i == "type") {
         if (fmd->isLink()) {
-          ss << " type=link ";
+          ss << " type=symlink ";
         } else {
           ss << " type=file ";
         }
@@ -1380,9 +1392,19 @@ NewfindCmd::ProcessRequest() noexcept
         continue;
       }
 
-      printPath(ofstdoutStream, findRequest,
-                fMD->isLink() ? findResult.path + " -> " + fMD->getLink() : findResult.path);
+      if (findRequest.format().length()) {
+	// format printing for symlinks
+	printPath(ofstdoutStream, findRequest, findResult.path);
+      } else {
+	// standard represenation for symlinks
+	printPath(ofstdoutStream, findRequest,
+		  fMD->isLink() ? findResult.path + " -> " + fMD->getLink() : findResult.path);
+      }
       printFormat(ofstdoutStream, findRequest, fMD);
+      if (fMD->isLink()) {
+	printTarget(ofstdoutStream, findRequest, fMD->getLink());
+      }
+
       printUidGid(ofstdoutStream, findRequest, fMD);
       printAttributes(ofstdoutStream, findRequest, fMD);
       printFMD(ofstdoutStream, findRequest, fMD);
