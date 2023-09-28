@@ -1134,7 +1134,7 @@ std::string FsView::Df(bool monitoring, bool si, bool readable,
 {
   std::string nominal;
   std::string network;
-  double networkmib=0;
+  double networkmib = 0;
   size_t i_nominal = 0;
   size_t i_used = 0;
   double sizefactor = 1.0;
@@ -1164,10 +1164,10 @@ std::string FsView::Df(bool monitoring, bool si, bool readable,
 
     for (auto it = mNodeView.begin(); it != mNodeView.end(); ++it) {
       network = it->second->GetMember("cfg.stat.net.ethratemib");
-      fprintf(stderr,"Node '%s' '%s'\n", it->first.c_str(), network.c_str());
-      
+      fprintf(stderr, "Node '%s' '%s'\n", it->first.c_str(), network.c_str());
+
       if (network.length()) {
-	networkmib += std::strtoll(network.c_str(), 0, 10);
+        networkmib += std::strtoll(network.c_str(), 0, 10);
       }
     }
 
@@ -1177,68 +1177,70 @@ std::string FsView::Df(bool monitoring, bool si, bool readable,
       eos::Prefetcher::prefetchItemAndWait(gOFS->eosView, path, false);
       eos::common::RWMutexReadLock viewlock(ViewMutex);
       eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
-      
+
       try {
-	cmd = gOFS->eosView->getContainer(path, false);
+        cmd = gOFS->eosView->getContainer(path, false);
       } catch (eos::MDException& e) {
-	errno = e.getErrno();
-	eos_err("msg=\"exception\" ec=%d emsg=\"%s\"", e.getErrno(),
-		e.getMessage().str().c_str());
+        errno = e.getErrno();
+        eos_err("msg=\"exception\" ec=%d emsg=\"%s\"", e.getErrno(),
+                e.getMessage().str().c_str());
       }
-      
+
       if (!cmd) {
-	// fall back to instance path
-	try {
-	  path = instancepath;
-	  cmd = gOFS->eosView->getContainer(path, false);
-	} catch (eos::MDException& e) {
-	  errno = e.getErrno();
-	  eos_err("msg=\"exception\" ec=%d emsg=\"%s\"", e.getErrno(),
-		  e.getMessage().str().c_str());
-	  return "";
-	}
+        // fall back to instance path
+        try {
+          path = instancepath;
+          cmd = gOFS->eosView->getContainer(path, false);
+        } catch (eos::MDException& e) {
+          errno = e.getErrno();
+          eos_err("msg=\"exception\" ec=%d emsg=\"%s\"", e.getErrno(),
+                  e.getMessage().str().c_str());
+          return "";
+        }
       }
-      
+
       i_used = cmd->getTreeSize();
       sizefactor = Policy::GetDefaultSizeFactor(cmd);
       files = gOFS->eosFileService->getNumFiles();
       directories = gOFS->eosDirectoryService->getNumContainers();
     }
-    
+
     if (sizefactor) {
       i_nominal /= sizefactor;
     }
-    
+
     std::string size = readable ?
-      eos::common::StringConversion::GetReadableSizeString(i_nominal, si ? "iB" : "B",
-							   si ? 1024 : 1000) :
-      std::to_string(i_nominal);
+                       eos::common::StringConversion::GetReadableSizeString(i_nominal, si ? "iB" : "B",
+                           si ? 1024 : 1000) :
+                       std::to_string(i_nominal);
     std::string used = readable ?
-      eos::common::StringConversion::GetReadableSizeString(i_used, si ? "iB" : "B",
-							   si ? 1024 : 1000) :
-      std::to_string(i_used);
+                       eos::common::StringConversion::GetReadableSizeString(i_used, si ? "iB" : "B",
+                           si ? 1024 : 1000) :
+                       std::to_string(i_used);
     use = (int)(100.0 * i_used / i_nominal);
-    
+
     if (use > 100) {
       use = 100;
     }
-    
+
     std::string suse = std::to_string(use) + (monitoring ? std::string("") :
-					      std::string("%"));
+                       std::string("%"));
     std::string sfiles = readable ?
-      eos::common::StringConversion::GetReadableSizeString(files, "", 1000) :
-      std::to_string(files);
+                         eos::common::StringConversion::GetReadableSizeString(files, "", 1000) :
+                         std::to_string(files);
     std::string sdirectories = readable ?
-      eos::common::StringConversion::GetReadableSizeString(directories, "", 1000) :
-      std::to_string(directories);
-    
+                               eos::common::StringConversion::GetReadableSizeString(directories, "", 1000) :
+                               std::to_string(directories);
     char _perfratio[1024];
-    double pcr = networkmib/(si?1024.0:1000.0)/(i_nominal/(si?(1024*1024*1024*1024.0):(1000*1000*1000*1000.0))); // GB/s per TB
+    double pcr = networkmib / (si ? 1024.0 : 1000.0) / (i_nominal / (si ?
+                 (1024 * 1024 * 1024 * 1024.0) : (1000 * 1000 * 1000 * 1000.0))); // GB/s per TB
+
     if (i_nominal) {
       snprintf(_perfratio, sizeof(_perfratio), "%.02f", pcr); // GB/s per TB
     } else {
       snprintf(_perfratio, sizeof(_perfratio), "0.00");
     }
+
     std::string sperf = _perfratio;
     char _sizefactor[1024];
     snprintf(_sizefactor, sizeof(_sizefactor), "%.02f", sizefactor);
@@ -1247,15 +1249,14 @@ std::string FsView::Df(bool monitoring, bool si, bool readable,
     TableData table_data;
     std::string format_s = (!monitoring ? "s" : "os");
     std::string format_ss = (!monitoring ? "-s" : "os");
-    
+
     if (json) {
       Json::Value gjson;
-      
       gjson["df"]["instance"] = instance;
       gjson["df"]["size"] = (Json::Value::UInt64)i_nominal;
       gjson["df"]["used"] = (Json::Value::UInt64)i_used;
       gjson["df"]["files"] = (Json::Value::UInt64) files;
-      gjson["df"]["directories"] = (Json::Value::UInt64) directories;    
+      gjson["df"]["directories"] = (Json::Value::UInt64) directories;
       gjson["df"]["performancecapacityratio-gb-tbs"] = pcr;
       gjson["df"]["sizefactor"] = sizefactor;
       gjson["df"]["path"] = path;
@@ -1263,31 +1264,31 @@ std::string FsView::Df(bool monitoring, bool si, bool readable,
       return out;
     } else {
       if (!monitoring) {
-	table.SetHeader({
-	    std::make_tuple("Instance", 14, format_ss),
-	    std::make_tuple("Size",  8, format_s),
-	    std::make_tuple("Used",  8, format_s),
-	    std::make_tuple("Files", 8, format_s),
-	    std::make_tuple("Directories", 15, format_s),
-	    std::make_tuple("PCR GB/TB*s", 12, format_s),
-	    std::make_tuple("Use%", 6, format_s),
-	    std::make_tuple("Vol-x", 7, format_s),
-	    std::make_tuple("Path",  0, format_s)
-	  });
+        table.SetHeader({
+          std::make_tuple("Instance", 14, format_ss),
+          std::make_tuple("Size",  8, format_s),
+          std::make_tuple("Used",  8, format_s),
+          std::make_tuple("Files", 8, format_s),
+          std::make_tuple("Directories", 15, format_s),
+          std::make_tuple("PCR GB/TB*s", 12, format_s),
+          std::make_tuple("Use%", 6, format_s),
+          std::make_tuple("Vol-x", 7, format_s),
+          std::make_tuple("Path",  0, format_s)
+        });
       } else {
-	table.SetHeader({
-	    std::make_tuple("instance", 14, format_ss),
-	    std::make_tuple("size",  8, format_s),
-	    std::make_tuple("used",  8, format_s),
-	    std::make_tuple("files", 8, format_s),
-	    std::make_tuple("directories", 15, format_s),
-	    std::make_tuple("performancecapacityratio", 12, format_s),
-	    std::make_tuple("usage", 6, format_s),
-	    std::make_tuple("spacefactor", 6, format_s),
-	    std::make_tuple("path",  0, format_s)
-	  });
+        table.SetHeader({
+          std::make_tuple("instance", 14, format_ss),
+          std::make_tuple("size",  8, format_s),
+          std::make_tuple("used",  8, format_s),
+          std::make_tuple("files", 8, format_s),
+          std::make_tuple("directories", 15, format_s),
+          std::make_tuple("performancecapacityratio", 12, format_s),
+          std::make_tuple("usage", 6, format_s),
+          std::make_tuple("spacefactor", 6, format_s),
+          std::make_tuple("path",  0, format_s)
+        });
       }
-      
+
       table_data.emplace_back();
       TableRow& row = table_data.back();
       row.emplace_back(instance, format_ss);
@@ -2572,8 +2573,11 @@ FsView::HeartBeatCheck(ThreadAssistant& assistant) noexcept
       }
 
       auto* node = it_node->second;
+      eos_static_info("msg=\"check heart beat\" node=%s", node->mName.c_str());
 
       if (node->HasHeartbeat()) {
+        eos_static_info("msg=\"has heart beat\" node=%s", node->mName.c_str());
+
         if (node->GetActiveStatus() != eos::common::ActiveStatus::kOnline) {
           node->SetActiveStatus(eos::common::ActiveStatus::kOnline);
         }
@@ -2595,6 +2599,9 @@ FsView::HeartBeatCheck(ThreadAssistant& assistant) noexcept
             is_group_active = group_status == "on" || group_status == "drain";
           }
 
+          eos_static_info("msg=\"node status\" node_status=%s is_grp_active=%d",
+                          node->GetConfigMember("status").c_str(), is_group_active);
+
           if ((node->GetConfigMember("status") == "on") &&
               is_group_active) {
             ssize_t max_ropen = fs->GetLongLong("max.ropen");
@@ -2613,12 +2620,17 @@ FsView::HeartBeatCheck(ThreadAssistant& assistant) noexcept
               }
             }
           } else {
+            eos_static_info("msg=\"node status off or group inactive\" node=%s",
+                            node->mName.c_str());
+
             if (fs->GetActiveStatus() != eos::common::ActiveStatus::kOffline) {
               fs->SetActiveStatus(eos::common::ActiveStatus::kOffline);
             }
           }
         }
       } else {
+        eos_static_info("msg=\"no heart beat\" node=%s", node->mName.c_str());
+
         if (node->GetActiveStatus() != eos::common::ActiveStatus::kOffline) {
           node->SetActiveStatus(eos::common::ActiveStatus::kOffline);
         }
@@ -4033,7 +4045,7 @@ BaseView::Print(TableFormatterBase& table, std::string table_format,
             table_header.push_back(std::make_tuple("sched.capacity", width, format));
           }
         }
-	
+
         // Normal member printout
         if (formattags.count("member")) {
           if ((format.find("+") != std::string::npos) &&
