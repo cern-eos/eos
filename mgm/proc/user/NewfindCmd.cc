@@ -416,7 +416,7 @@ static void printFormat(std::ofstream& ss, const eos::console::FindProto& req,
 
       if (i == "mtime") {
         eos::IFileMD::ctime_t mtime {0, 0};
-        cmd->getCTime(mtime);
+        cmd->getMTime(mtime);
         ss << " mtime=" << eos::common::Timing::TimespecToString(mtime);
       }
 
@@ -520,7 +520,7 @@ static void printFormat(std::ofstream& ss, const eos::console::FindProto& req,
 
       if (i == "mtime") {
         eos::IFileMD::ctime_t mtime {0, 0};
-        fmd->getCTime(mtime);
+        fmd->getMTime(mtime);
         ss << " mtime=" << eos::common::Timing::TimespecToString(mtime);
       }
 
