@@ -107,6 +107,22 @@ diskcache::diskcache(fuse_ino_t _ino) : ino(_ino), nattached(0), fd(-1)
 diskcache::~diskcache()
 /* -------------------------------------------------------------------------- */
 {
+  if (!nattached) return;
+
+  // we may be destroyed while still being attached, e.g. during truncation
+  // via datax::truncate -> datax::remove_file_cache -> io::disable_file_cache
+
+  eos_static_debug("diskcache::~diskcache nattached=%lu fd=%d\n", nattached, fd);
+
+  if (fd<0) return;
+
+  if (fstat(fd, &detachstat)) {
+    return;
+  }
+
+  sDirCleaner->get_external_tree().change(detachstat.st_size - attachstat.st_size,
+                                          0);
+  (void) close(fd);
 }
 
 /* -------------------------------------------------------------------------- */
