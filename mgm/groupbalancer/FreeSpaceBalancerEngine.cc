@@ -9,7 +9,6 @@ void FreeSpaceBalancerEngine::configure(const engine_conf_t& conf)
 {
   using namespace std::string_view_literals;
   std::string err;
-
   std::scoped_lock lock(mtx);
   mMinDeviation = extract_percent_value(conf, "min_threshold"sv, 2, &err);
 
@@ -32,19 +31,20 @@ void FreeSpaceBalancerEngine::recalculate()
   uint64_t total_used{0};
   uint16_t count{0};
   std::scoped_lock lock(mtx);
-
   std::for_each(data.mGroupSizes.begin(), data.mGroupSizes.end(),
-                [&](const auto& kv) {
-                  if (mBlocklistedGroups.find(kv.first) == mBlocklistedGroups.end()) {
-                    const auto& group_info = kv.second;
-                    if (group_info.on()) {
-                      total_size += group_info.capacity();
-                      total_used += group_info.usedBytes();
-                      ++count;
-                    }
-                  }
-                });
+  [&](const auto & kv) {
+    if (mBlocklistedGroups.find(kv.first) == mBlocklistedGroups.end()) {
+      const auto& group_info = kv.second;
+
+      if (group_info.on()) {
+        total_size += group_info.capacity();
+        total_used += group_info.usedBytes();
+        ++count;
+      }
+    }
+  });
   mTotalFreeSpace = total_size - total_used;
+
   if (count > 0) {
     mGroupFreeSpace = mTotalFreeSpace / count; // integer division, half of a byte
     // makes no sense, round down is fine
@@ -95,12 +95,12 @@ void FreeSpaceBalancerEngine::updateGroup(const std::string& group_name)
   }
 }
 
-std::string FreeSpaceBalancerEngine::get_status_str(bool detail, bool monitoring) const
+std::string FreeSpaceBalancerEngine::get_status_str(bool detail,
+    bool monitoring) const
 {
   std::stringstream oss;
   std::scoped_lock lock(mtx);
 
-  std::scoped_lock lock(mtx);
   if (!monitoring) {
     oss << "Engine configured: FreeSpace\n";
     oss << "Min Threshold   : " << mMinDeviation << "\n";
@@ -110,9 +110,11 @@ std::string FreeSpaceBalancerEngine::get_status_str(bool detail, bool monitoring
   }
 
   oss << BalancerEngine::get_status_str(detail, monitoring);
+
   if (!mBlocklistedGroups.empty()) {
     oss << "Blocklisted groups: \n";
-    for (const auto& group: mBlocklistedGroups) {
+
+    for (const auto& group : mBlocklistedGroups) {
       oss << group << "\n";
     }
   }

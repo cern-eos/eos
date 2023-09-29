@@ -846,10 +846,6 @@ XrdFstOfs::Configure(XrdSysError& Eroute, XrdOucEnv* envP)
     }
   }
 
-  mThreadPoolExecutor.reset(new eos::common::ExecutorMgr(
-                                                         mFmdConverterExecutorType,
-                                                         mFmdConverterThreads));
-
   // Attach Storage to the meta log dir
   Storage = eos::fst::Storage::Create(
               gConfig.FstMetaLogDir.c_str());
