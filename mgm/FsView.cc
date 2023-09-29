@@ -2609,6 +2609,10 @@ FsView::HeartBeatCheck(ThreadAssistant& assistant) noexcept
             bool overloaded = ((max_ropen &&
                                 (max_ropen <= fs->GetLongLong("stat.ropen"))) ||
                                (max_wopen && (max_wopen <= fs->GetLongLong("stat.wopen"))));
+            eos_static_info("msg=\"file system status\" fsid=%lu active_status=%s "
+                            "active_status_hash=%s\"",
+                            *it_fsid, fs->GetActiveStatusAsString().c_str(),
+                            fs->GetString("stat.active").c_str());
 
             if (!overloaded) {
               if (fs->GetActiveStatus() != eos::common::ActiveStatus::kOnline) {
