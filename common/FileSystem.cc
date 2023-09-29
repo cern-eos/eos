@@ -501,7 +501,6 @@ FileSystem::FileSystem(const FileSystemLocator& locator,
     upd_batch.SetDurable("hostport", locator.getHostPort());
     upd_batch.SetDurable("host", locator.getHost());
     upd_batch.SetDurable("port", std::to_string(locator.getPort()));
-    upd_batch.SetTransient("stat.active", "offline");
     upd_batch.SetLocal("local.drain", "nodrain");
 
     if (!mRealm->haveQDB() && !bc2mgm) {
