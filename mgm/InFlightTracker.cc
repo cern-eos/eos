@@ -23,6 +23,7 @@
 /*----------------------------------------------------------------------------*/
 #include "mgm/InFlightTracker.hh"
 #include "mgm/Access.hh"
+#include "common/utils/RandUtils.hh"
 /*----------------------------------------------------------------------------*/
 /*----------------------------------------------------------------------------*/
 
@@ -109,13 +110,9 @@ InFlightTracker::getStallTime(uid_t uid, size_t& limit)
     stalltime = 1;
   }
 
-  int random_stall = rand() % stalltime;
+  size_t random_stall = common::getRandom((size_t)1, stalltime);
   stalltime /= 2;
   stalltime += random_stall;
-
-  if (stalltime < 1) {
-    stalltime = 1;
-  }
 
   return stalltime;
 }
