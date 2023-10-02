@@ -40,6 +40,7 @@
 #include <iostream>
 #include <filesystem>
 #include <chrono>
+#include <optional>
 
 extern XrdOucString serveruri;
 
@@ -547,6 +548,35 @@ void rclone_usage() {
   exit(-1);
 }  
 
+
+std::string parent(const std::string& path) {
+  std::filesystem::path p(path);
+  return p.parent_path();
+}
+  
+
+std::optional<bool> parent_newer(std::map<std::string, fs_entry> &a, std::map<std::string, fs_entry> &b, const std::string& path) {
+  // checks if the parent mtime of b is newer than parent mtime of a !
+  std::string p_path = parent(path);
+
+  if (!a.count(path) || !b.count(path) ||
+      !a.count(p_path) || !b.count(p_path)) {
+    return {};
+  }
+
+  if ( (b[p_path].mtime.tv_sec == a[p_path].mtime.tv_sec) &&
+       (b[p_path].mtime.tv_nsec == a[p_path].mtime.tv_nsec)) {
+    return {};
+  }
+    
+  if (b[p_path].newer(a[p_path].mtime)) {
+    return true;
+  } else {
+    return false;
+  }
+}
+
+
 int
 com_rclone(char* arg1)
 {
@@ -640,11 +670,12 @@ com_rclone(char* arg1)
       actions.push_back(kTargetLinkUpdate);
     }
     actions.push_back(kTargetLinkMismatch);
-    if (!nodelete) {
-      actions.push_back(kTargetLinkDelete);
-      actions.push_back(kTargetFileDelete);
-      actions.push_back(kTargetDirDelete);
-    }
+    // we cannot detect two-way deletion without history
+    // if (!nodelete) {
+    //   actions.push_back(kTargetLinkDelete);
+    //   actions.push_back(kTargetFileDelete);
+    //   actions.push_back(kTargetDirDelete);
+    // }
     actions.push_back(kTargetDirMtime);
     actions.push_back(kSourceDirCreate);
     actions.push_back(kSourceFileCreate);
@@ -655,11 +686,13 @@ com_rclone(char* arg1)
       actions.push_back(kSourceLinkUpdate);
     }
     //    actions.push_back(kSourceLinkMismatch);
-    if (!nodelete) {
-      actions.push_back(kSourceLinkDelete);   
-      actions.push_back(kSourceFileDelete);
-      actions.push_back(kSourceDirDelete);
-    }
+
+    // we cannot detec two-way deletion without historya
+    // if (!nodelete) {
+    //   actions.push_back(kSourceLinkDelete);   
+    //   actions.push_back(kSourceFileDelete);
+    //   actions.push_back(kSourceDirDelete);
+    // }
     actions.push_back(kSourceDirMtime);
   } else {
     rclone_usage();
@@ -749,10 +782,15 @@ com_rclone(char* arg1)
   for ( auto d:dstmap.directories ) {
     if (!srcmap.directories.count(d.first)) {
       if (!is_silent && verbose) { std::cout << "[ source folder missing ] : " << d.first << std::endl; }
-      source_create_dirs.insert(d.first);
-      source_mtime_dirs.insert(d.first);
+      if (!nodelete) {
+	target_delete_dirs.insert(d.first);
+	target_mtime_dirs.insert(parent(d.first));
+      } else {
+	source_create_dirs.insert(d.first);
+	source_mtime_dirs.insert(d.first);
+      }
     } else {
-      if (dstmap.directories[d.first].newer(dstmap.directories[d.first].mtime)) {
+      if (srcmap.directories[d.first].newer(dstmap.directories[d.first].mtime)) {
 	source_mtime_dirs.insert(d.first);
       }
     }
@@ -786,9 +824,13 @@ com_rclone(char* arg1)
   for ( auto d:dstmap.files ) {
     if (!srcmap.files.count(d.first)) {
       if (!is_silent && verbose) { std::cout << "[ source file   missing ] : " << d.first << std::endl; }
-      source_create_files.insert(d.first);
-      copySize += d.second.size;
-      copyTransactions++;
+      if (!nodelete) {
+	target_delete_files.insert(d.first);
+      } else {
+	source_create_files.insert(d.first);
+	copySize += d.second.size;
+	copyTransactions++;
+      }
     } else {
       if (srcmap.files[d.first].newer(dstmap.files[d.first].mtime)) {
 	if (!is_silent && verbose){ std::cout << "[ source file   older   ] : " << d.first << std::endl; }
@@ -828,7 +870,11 @@ com_rclone(char* arg1)
   for ( auto d:dstmap.links ) {
     if (!srcmap.links.count(d.first)) {
       if (!is_silent && verbose) { std::cout << "[ source link   missing ] : " << d.first << std::endl; }
-      source_create_links.insert(d.first);
+      if (!nodelete) {
+	target_delete_links.insert(d.first);
+      } else {
+	source_create_links.insert(d.first);
+      }
     } else {
       if (srcmap.links[d.first].newer(dstmap.links[d.first].mtime)) {
 	if (!is_silent && verbose) { std::cout << "[ source link   older   ] : " << d.first << std::endl; }
