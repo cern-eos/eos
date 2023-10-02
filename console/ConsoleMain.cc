@@ -68,6 +68,7 @@ extern int com_console(char*);
 extern int com_convert(char*);
 extern int com_cp(char*);
 extern int com_protodebug(char*);
+extern int com_du(char*);
 extern int com_protodf(char*);
 extern int com_file(char*);
 extern int com_fileinfo(char*);
@@ -155,6 +156,7 @@ COMMAND commands[] = {
   { (char*) "daemon", com_daemon, (char*) "Handle service daemon"},
   { (char*) "debug", com_protodebug, (char*) "Set debug level"},
   { (char*) "devices", com_proto_devices, (char*) "Get Device Information"},
+  { (char*) "du", com_du, (char*) "Get du output"},
   { (char*) "df", com_protodf, (char*) "Get df output"},
   { (char*) "exit", com_quit, (char*) "Exit from EOS console"},
   { (char*) "file", com_file, (char*) "File Handling"},
@@ -327,22 +329,30 @@ abspath(const char* in)
 // Help flag filter
 //------------------------------------------------------------------------------
 bool
-wants_help(const char* args_line)
+wants_help(const char* args_line, bool no_h)
 {
   XrdOucString allargs = " ";
   allargs += args_line;
   allargs += " ";
-
-  if ((allargs.find(" help ") != STR_NPOS) ||
-      (allargs.find("\"-h\"") != STR_NPOS) ||
-      (allargs.find("\"--help\"") != STR_NPOS) ||
-      (allargs.find(" -h ") != STR_NPOS) ||
-      (allargs.find(" \"-h\" ") != STR_NPOS) ||
-      (allargs.find(" --help ") != STR_NPOS) ||
-      (allargs.find(" \"--help\" ") != STR_NPOS)) {
-    return true;
+  
+  if (no_h) {
+    if ((allargs.find(" help ") != STR_NPOS) ||
+	(allargs.find("\"--help\"") != STR_NPOS) ||
+	(allargs.find(" --help ") != STR_NPOS) ||
+	(allargs.find(" \"--help\" ") != STR_NPOS)) {
+      return true;
+    }
+  } else {
+    if ((allargs.find(" help ") != STR_NPOS) ||
+	(allargs.find("\"-h\"") != STR_NPOS) ||
+	(allargs.find("\"--help\"") != STR_NPOS) ||
+	(allargs.find(" -h ") != STR_NPOS) ||
+	(allargs.find(" \"-h\" ") != STR_NPOS) ||
+	(allargs.find(" --help ") != STR_NPOS) ||
+	(allargs.find(" \"--help\" ") != STR_NPOS)) {
+      return true;
+    }
   }
-
   return false;
 }
 

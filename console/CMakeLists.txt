@@ -115,6 +115,7 @@ add_library(EosConsoleCommands-Objects OBJECT
   commands/com_evict.cc
   commands/com_proto_ns.cc
   commands/com_proto_debug.cc
+  commands/com_du.cc
   commands/com_proto_df.cc
   commands/com_proto_group.cc
   commands/com_proto_recycle.cc

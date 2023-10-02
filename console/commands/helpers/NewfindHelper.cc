@@ -82,6 +82,12 @@ NewfindHelper::ParseCommand(const char* arg)
       find->set_count(true);
     } else if (s1 == "--cache") {
       find->set_cache(true);
+    } else if (s1 == "--du") {
+      find->set_du(true);
+    } else if (s1 == "--du-si") {
+      find->set_dusi(true);
+    } else if (s1 == "--du-h") {
+      find->set_dureadable(true);
     } else if (s1 == "--hosts") {
       find->set_hosts(true);
     } else if (s1 == "--partition") {

@@ -359,6 +359,23 @@ static void printChildCount(std::ofstream& ss,
 }
 
 //------------------------------------------------------------------------------
+// Print du information
+//------------------------------------------------------------------------------
+static void printDu(std::ofstream& ss, const eos::console::FindProto& req,
+		    const std::shared_ptr<eos::IContainerMD>& cmd, size_t ndirs, size_t nfiles)
+{
+  if (req.du()) {
+    bool si = req.dusi();
+    bool readable = req.dureadable();
+    size_t treesize = cmd->getTreeSize();
+    std::string size = readable ?
+      eos::common::StringConversion::GetReadableSizeString(treesize, si ? ((treesize>(10*si))?"iB":"B") : "B",
+							   si ? 1024 : 1000) : std::to_string(treesize);
+    ss << std::left << std::setw(16) << size << " ";
+  }
+}
+  
+//------------------------------------------------------------------------------
 // Print user defined format
 //------------------------------------------------------------------------------
 static void printFormat(std::ofstream& ss, const eos::console::FindProto& req,
@@ -457,6 +474,23 @@ static void printFormat(std::ofstream& ss, const eos::console::FindProto& req,
         }
       }
     }
+  }
+}
+
+//------------------------------------------------------------------------------
+// Print du information
+//------------------------------------------------------------------------------
+static void printDu(std::ofstream& ss, const eos::console::FindProto& req,
+		    const std::shared_ptr<eos::IFileMD>& fmd)
+{
+  if (req.du()) {
+    bool si = req.dusi();
+    bool readable = req.dureadable();
+    size_t filesize = fmd->getSize();
+    std::string size = readable ?
+      eos::common::StringConversion::GetReadableSizeString(filesize, si ? ((filesize>(10*si))?"iB":"B") : "B",
+							   si ? 1024 : 1000) : std::to_string(filesize);
+    ss << std::left << std::setw(16) << size << " ";
   }
 }
 
@@ -1322,6 +1356,8 @@ NewfindCmd::ProcessRequest() noexcept
         continue;
       }
 
+      printDu(ofstdoutStream, findRequest, cMD, findResult.numContainers,
+	      findResult.numFiles);
       printPath(ofstdoutStream, findRequest, findResult.path);
       printChildCount(ofstdoutStream, findRequest, cMD, findResult.numContainers,
                       findResult.numFiles);
@@ -1392,6 +1428,8 @@ NewfindCmd::ProcessRequest() noexcept
         continue;
       }
 
+      printDu(ofstdoutStream, findRequest, fMD);
+      
       if (findRequest.format().length()) {
 	// format printing for symlinks
 	printPath(ofstdoutStream, findRequest, findResult.path);
@@ -1677,6 +1715,8 @@ NewfindCmd::ProcessRequest(grpc::ServerWriter<eos::console::ReplyProto>* writer)
       else if (findRequest.fileinfo()) {
         this->PrintFileInfoMinusM(output, findResult.path, errInfo);
       } else {
+	printDu(ofstdoutStream, findRequest, cMD, findResult.numContainers,
+		findResult.numFiles);
         printPath(output, findRequest, findResult.path);
         printChildCount(ofstdoutStream, findRequest, cMD, findResult.numContainers,
                         findResult.numFiles);
@@ -1753,6 +1793,7 @@ NewfindCmd::ProcessRequest(grpc::ServerWriter<eos::console::ReplyProto>* writer)
       else if (findRequest.fileinfo()) {
         this->PrintFileInfoMinusM(output, findResult.path, errInfo);
       } else {
+	printDu(ofstdoutStream, findRequest, fMD);
         printPath(output, findRequest,
                   fMD->isLink() ? findResult.path + " -> " + fMD->getLink() : findResult.path);
         printFormat(ofstdoutStream, findRequest, fMD);

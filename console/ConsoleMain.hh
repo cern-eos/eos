@@ -96,7 +96,7 @@ typedef struct {
 //!
 //! @return true if help messaged should be displayed, false otherwise
 //------------------------------------------------------------------------------
-extern bool wants_help(const char* args_line);
+extern bool wants_help(const char* args_line, bool no_h=false);
 
 extern COMMAND commands[];
 extern int done;

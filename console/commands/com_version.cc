@@ -62,8 +62,10 @@ com_version(char* arg)
   }
 
   global_retc = output_result(client_command(in));
-  fprintf(stdout, "EOS_CLIENT_VERSION=%s EOS_CLIENT_RELEASE=%s\n", VERSION,
+  if ( (option.find("m") == STR_NPOS) && !json ) {
+    fprintf(stdout, "EOS_CLIENT_VERSION=%s EOS_CLIENT_RELEASE=%s\n", VERSION,
           RELEASE);
+  }
   return (0);
 com_version_usage:
   fprintf(stdout,
