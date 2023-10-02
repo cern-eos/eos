@@ -395,7 +395,12 @@ add_custom_target(
 # # protoc command for echo_service.proto
 add_custom_command(
     OUTPUT ${REST_GW_SRCS} ${REST_GW_HDRS} ${REST_GW_GRPC_SRCS} ${REST_GW_GRPC_HDRS}
-    COMMAND ${PROTOBUF3_PROTOC_EXECUTABLE} -I${CMAKE_SOURCE_DIR} -I${CMAKE_SOURCE_DIR}/proto/common/cli_proto -I${GRPC_INCLUDE_DIR}
+    COMMAND ${CMAKE_COMMAND} -E env
+    "LD_LIBRARY_PATH=${GRPC_LD_LIBRARY_PATH}:${LD_LIBRARY_PATH}"
+    ${PROTOBUF3_PROTOC_EXECUTABLE}
+            -I${CMAKE_SOURCE_DIR}
+            -I${CMAKE_SOURCE_DIR}/proto/common/cli_proto
+            -I${GRPC_INCLUDE_DIR}
 	    --plugin=protoc-gen-grpc=${GRPC_CPP_PLUGIN}
 	    --cpp_out=../
 	    --grpc_out=../
