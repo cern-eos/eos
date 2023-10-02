@@ -63,7 +63,7 @@ function(GRPC_GENERATE_CPP SRCS HDRS DEST)
              "${DEST}/${FIL_WE}.grpc.pb.h"
       COMMAND ${CMAKE_COMMAND} -E env
       "LD_LIBRARY_PATH=${GRPC_LD_LIBRARY_PATH}:$LD_LIBRARY_PATH"
-      ${PROTOBUF_PROTOC_EXECUTABLE}
+      ${PROTOBUF3_PROTOC_EXECUTABLE}
       ARGS --grpc_out ${DEST} ${_protobuf_include_path} --plugin=protoc-gen-grpc=${GRPC_CPP_PLUGIN} ${ABS_FIL}
       DEPENDS ${ABS_FIL} ${PROTOBUF3_PROTOC_EXECUTABLE} GRPC::grpc_cpp_plugin
       COMMENT "Running C++ GRPC compiler on ${FIL}"
