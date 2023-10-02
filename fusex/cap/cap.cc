@@ -73,7 +73,7 @@ cap::capx::dump(bool dense)
              (*this)()->vtime_ns(), (*this)()->uid(), (*this)()->gid(),
              (*this)()->clientid().c_str(),
              (*this)()->authid().c_str(),
-	     (*this)()->errc(),
+             (*this)()->errc(),
              (*this)()->max_file_size(),
              (*this)()->_quota().quota_inode(),
              (*this)()->_quota().inode_quota(),
@@ -237,13 +237,11 @@ cap::store(fuse_req_t req,
   uint64_t id = mds->vmaps().forward(icap.id());
   std::string cid = cap::capx::capid(req, id); // cid uses the local inode
   XrdSysMutexHelper mLock(capmap);
-
   shared_cap cap = std::make_shared<capx>();
   (*cap)()->set_clientid(clientid);
   *cap = icap;
   (*cap)()->set_id(id);
   capmap[cid] = cap;
-
   eos_static_debug("store inode=[r:%lx l:%lx] capid=%s cap: %s", icap.id(),
                    id, cid.c_str(), capmap[cid]->dump().c_str());
 }
@@ -316,15 +314,15 @@ cap::acquire(fuse_req_t req, fuse_ino_t ino, mode_t mode, bool lock)
   shared_cap cap = get(req, ino);
   // avoid we create the same cap concurrently
   {
-    bool valid=false;
+    bool valid = false;
     {
       XrdSysMutexHelper cLock(cap->Locker());
       valid = cap->valid();
     }
-    
+
     if (!valid) {
       if (refresh(req, cap)) {
-	(*cap)()->set_errc(errno ? errno : EIO);
+        (*cap)()->set_errc(errno ? errno : EIO);
         return cap;
       }
 
@@ -333,22 +331,22 @@ cap::acquire(fuse_req_t req, fuse_ino_t ino, mode_t mode, bool lock)
 
     {
       XrdSysMutexHelper cLock(cap->Locker());
+
       if (!cap->satisfy(mode) || !cap->valid()) {
-	if (!cap->valid()) {
-	  eos_static_err("msg=\"unsynchronized clocks between fuse client machine "
-			 "and MGM\" now_time=%lu cap_time=%lu", time(nullptr),
-			 (*cap)()->vtime());
-	}
-	
-	(*cap)()->set_errc(EPERM);
+        if (!cap->valid()) {
+          eos_static_err("msg=\"unsynchronized clocks between fuse client machine "
+                         "and MGM\" now_time=%lu cap_time=%lu", time(nullptr),
+                         (*cap)()->vtime());
+        }
+
+        (*cap)()->set_errc(EPERM);
       } else {
-	(*cap)()->set_errc(0);
+        (*cap)()->set_errc(0);
       }
-      
+
       eos_static_debug("%s", cap->dump().c_str());
     }
   }
-
   XrdSysMutexHelper mLock2(cap->Locker());
   // stamp latest time of use
   cap->use();
@@ -384,7 +382,7 @@ cap::refresh(fuse_req_t req, shared_cap cap)
           //XrdSysMutexHelper mLock(cap->Locker());
           // check if the cap received matches what we think about local mapping
           if ((*cap)()->id() == id) {
-	    store(req, it->cap_());
+            store(req, it->cap_());
             eos_static_debug("correct cap received for inode=%#lx", (*cap)()->id());
           } else {
             eos_static_debug("wrong cap received for inode=%#lx", (*cap)()->id());
@@ -484,7 +482,6 @@ cap::capx::lifetime()
   struct timespec ts;
   ts.tv_sec = (*this)()->vtime();
   ts.tv_nsec = (*this)()->vtime_ns();
-
   double lifetime = -1.0 * (eos::common::Timing::GetCoarseAgeInNs(&ts,
                             0)) / 1000000000.0;
   eos_static_debug("inode=%08lx client-id=%s lifetime=%.02f",
@@ -612,7 +609,8 @@ cap::quotax::dump()
   std::string jsonstring;
   {
     XrdSysMutexHelper qLock(Locker());
-    google::protobuf::util::MessageToJsonString(*((eos::fusex::quota*)((*this)())),
+    (void) google::protobuf::util::MessageToJsonString(*((eos::fusex::quota*)((
+          *this)())),
         &jsonstring, options);
   }
   jsonstring.pop_back();

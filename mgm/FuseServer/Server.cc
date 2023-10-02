@@ -132,7 +132,8 @@ Server::dump_message(const google::protobuf::Message& message)
   options.add_whitespace = true;
   options.always_print_primitive_fields = true;
   std::string jsonstring;
-  google::protobuf::util::MessageToJsonString(message, &jsonstring, options);
+  (void) google::protobuf::util::MessageToJsonString(message, &jsonstring,
+      options);
   return jsonstring;
 }
 
@@ -331,7 +332,9 @@ Server::FillContainerMD(uint64_t id, eos::fusex::md& dir,
 
   eos::common::RWMutexReadLock rd_ns_lock;
 
-  if (lock) {rd_ns_lock.Grab(gOFS->eosViewRWMutex);}
+  if (lock) {
+    rd_ns_lock.Grab(gOFS->eosViewRWMutex);
+  }
 
   try {
     cmd = gOFS->eosDirectoryService->getContainerMD(id, &clock);
@@ -448,8 +451,10 @@ Server::FillFileMD(uint64_t inode, eos::fusex::md& file,
 
   eos::common::RWMutexReadLock rd_ns_lock;
 
-  if (lock) {rd_ns_lock.Grab(gOFS->eosViewRWMutex);}
-  
+  if (lock) {
+    rd_ns_lock.Grab(gOFS->eosViewRWMutex);
+  }
+
   try {
     bool has_mdino = false;
     fmd = gOFS->eosFileService->getFileMD(eos::common::FileId::InodeToFid(inode),
@@ -658,29 +663,30 @@ Server::FillContainerCAP(uint64_t id,
       }
     }
 
-    bool same_group=false;
+    bool same_group = false;
+
     if (vid.gid == (gid_t) dir.gid()) {
-      same_group=true;
+      same_group = true;
     } else {
       if (eos::common::Mapping::gSecondaryGroups) {
-	if (vid.allowed_gids.count(dir.gid())) {
-	  same_group = true;
-	}
+        if (vid.allowed_gids.count(dir.gid())) {
+          same_group = true;
+        }
       }
     }
-    
+
     if (same_group) {
       // we apply a mask if we are in the same group
       if (dir.mode() & mask & S_IRGRP) {
-	mode |= R_OK;
+        mode |= R_OK;
       }
-      
+
       if (dir.mode() & mask & S_IWGRP) {
-	mode |= U_OK | W_OK | D_OK | SA_OK | M_OK | SU_OK;
+        mode |= U_OK | W_OK | D_OK | SA_OK | M_OK | SU_OK;
       }
-      
+
       if (dir.mode() & mask & S_IXGRP) {
-	mode |= X_OK;
+        mode |= X_OK;
       }
     }
 
@@ -1026,29 +1032,29 @@ Server::ValidatePERM(const eos::fusex::md& md, const std::string& mode,
     // for performance reasons we implement a seperate access control check here, because
     // we want to avoid another id=path translation and unlock lock of the namespace
     eos::IContainerMD::XAttrMap attrmap = cmd->getAttributes();
-
     std::set<gid_t> gids;
+
     if (eos::common::Mapping::gSecondaryGroups) {
-      gids=vid.allowed_gids;
+      gids = vid.allowed_gids;
     } else {
       gids.insert(vid.gid);
     }
 
-    for (auto g:gids) {
+    for (auto g : gids) {
       if (cmd->access(vid.uid, g, R_OK)) {
-	r_ok = true;
+        r_ok = true;
       }
-      
+
       if (cmd->access(vid.uid, g, W_OK)) {
-	w_ok = true;
-	d_ok = true;
+        w_ok = true;
+        d_ok = true;
       }
-      
+
       if (cmd->access(vid.uid, g, X_OK)) {
-	x_ok = true;
+        x_ok = true;
       }
     }
-    
+
     vid.scope = path;
     // ACL and permission check
     Acl acl(attrmap, vid);
@@ -1068,12 +1074,12 @@ Server::ValidatePERM(const eos::fusex::md& md, const std::string& mode,
       if (acl.CanNotWrite() || acl.CanWriteOnce()) {
         w_ok = false;
       }
-      
+
       // the owner can always delete, otherwise it might be forbidden by ACLs
       if ((vid.uid != (uid_t) cmd->getCUid()) && acl.CanNotDelete()) {
-	d_ok =false;
+        d_ok = false;
       }
-      
+
       // deletion might be overwritten/forbidden
       if (acl.CanNotDelete()) {
         d_ok = false;
@@ -1344,7 +1350,7 @@ Server::OpGetLs(const std::string& id,
         options.add_whitespace = true;
         options.always_print_primitive_fields = true;
         std::string jsonstring;
-        google::protobuf::util::MessageToJsonString(cont, &jsonstring, options);
+        (void) google::protobuf::util::MessageToJsonString(cont, &jsonstring, options);
         eos_static_debug("MD GET file-cap ino %#x %s", md.md_ino(), jsonstring.c_str());
       }
 
@@ -1867,12 +1873,10 @@ Server::OpSetFile(const std::string& id,
             hasVersion = true;
           }
 
-	  // store the current filename
-	  std::string removed_name = fmd->getName();
-
-	  // before moving a file in the hierarchy, we first create necessary version on the target in case this
-	  // overwrites an existing file and then we do the hierarchy change
-	  
+          // store the current filename
+          std::string removed_name = fmd->getName();
+          // before moving a file in the hierarchy, we first create necessary version on the target in case this
+          // overwrites an existing file and then we do the hierarchy change
           fmd->setName(md.name());
           ofmd = pcmd->findFile(md.name());
 
@@ -1956,12 +1960,12 @@ Server::OpSetFile(const std::string& id,
             }
           }
 
-	  // add file to new directory
+          // add file to new directory
           pcmd->addFile(fmd.get());
-	  // remove file from previous directory
-	  cpcmd->removeFile(removed_name);
+          // remove file from previous directory
+          cpcmd->removeFile(removed_name);
           cpcmd = gOFS->eosDirectoryService->getContainerMD(fmd->getContainerId());
-	  // persist updates
+          // persist updates
           gOFS->eosView->updateContainerStore(cpcmd.get());
           gOFS->eosView->updateFileStore(fmd.get());
           gOFS->eosView->updateContainerStore(pcmd.get());
@@ -2847,7 +2851,7 @@ Server::OpDeleteDirectory(const std::string& id,
       resp.SerializeToString(response);
       eos::IContainerMD::ctime_t pt_mtime;
       pcmd->getMTime(pt_mtime);
-      Cap().BroadcastDeletion(pcmd->getId(), md, cmd->getName(),pt_mtime);
+      Cap().BroadcastDeletion(pcmd->getId(), md, cmd->getName(), pt_mtime);
       Cap().BroadcastRefresh(pcmd->getId(), md, pcmd->getParentId(), true);
       Cap().Delete(md.md_ino());
     }
@@ -2935,11 +2939,10 @@ Server::OpDeleteFile(const std::string& id,
     bool version_cleanup =
       (md.opflags() == eos::fusex::md::DELETEVERSIONS) ||
       (md.opflags() == eos::fusex::md::DELETEVERSIONSNORECYCLEBIN);
-    
     bool no_recyclebin =
       (md.opflags() == eos::fusex::md::NORECYCLEBIN) ||
       (md.opflags() == eos::fusex::md::DELETEVERSIONSNORECYCLEBIN);
-    
+
     // recycle bin - not for hardlinked files or hardlinks!
     if (
       (version_cleanup || attrmap.count(Recycle::gRecyclingAttribute)) &&
@@ -2952,7 +2955,6 @@ Server::OpDeleteFile(const std::string& id,
       XrdOucErrInfo error;
       bool no_recycle = !attrmap.count(Recycle::gRecyclingAttribute);
       no_recycle |= no_recyclebin;
-      
       (void) gOFS->_rem(fullpath.c_str(), error, vid, "",
                         false,  // not simulated
                         false, // don't keep any version - delete versions as well
@@ -3075,7 +3077,7 @@ Server::OpDeleteFile(const std::string& id,
     resp.mutable_ack_()->set_code(resp.ack_().OK);
     resp.mutable_ack_()->set_transactionid(md.reqid());
     resp.SerializeToString(response);
-    eos::IContainerMD::ctime_t pt_mtime;  
+    eos::IContainerMD::ctime_t pt_mtime;
     pcmd->getMTime(pt_mtime);
     Cap().BroadcastDeletion(pcmd->getId(), md, md.name(), pt_mtime);
     Cap().BroadcastRefresh(pcmd->getId(), md, pcmd->getParentId(), true);
@@ -3309,7 +3311,7 @@ Server::OpSetLock(const std::string& id,
   resp.set_type(resp.LOCK);
   int sleep = 0;
   bool xattr_lock = false;
-  
+
   if (md.operation() == md.SETLKW) {
     gOFS->MgmStats.Add("Eosxd::ext::SETLKW", vid.uid, vid.gid, 1);
     sleep = 1;
@@ -3351,44 +3353,47 @@ Server::OpSetLock(const std::string& id,
   }
 
   // block also xattr locks
-  if ( lock.l_type != F_UNLCK) {
+  if (lock.l_type != F_UNLCK) {
     std::shared_ptr<eos::IFileMD> fmd;
     uint64_t clock = 0;
-    
     eos::common::RWMutexReadLock rd_ns_lock(gOFS->eosViewRWMutex);
+
     try {
-      fmd = gOFS->eosFileService->getFileMD(eos::common::FileId::InodeToFid(md.md_ino()),
-					    &clock);
+      fmd = gOFS->eosFileService->getFileMD(eos::common::FileId::InodeToFid(
+                                              md.md_ino()),
+                                            &clock);
+
       if (fmd) {
-	eos::IFileMD::XAttrMap attrmapF;
-	eos::listAttributes(gOFS->eosView, fmd.get(), attrmapF, false);
-	XattrLock alock(attrmapF);
-	if (alock.foreignLock(vid, (lock.l_type == F_WRLCK))) {
-	  xattr_lock = true;
-	}
+        eos::IFileMD::XAttrMap attrmapF;
+        eos::listAttributes(gOFS->eosView, fmd.get(), attrmapF, false);
+        XattrLock alock(attrmapF);
+
+        if (alock.foreignLock(vid, (lock.l_type == F_WRLCK))) {
+          xattr_lock = true;
+        }
       }
     } catch (eos::MDException& e) {
       errno = e.getErrno();
       eos_err("caught exception %d %s\n", e.getErrno(),
-	      e.getMessage().str().c_str());
+              e.getMessage().str().c_str());
       // we go on, if don't find the file here ...
     }
   }
-	     
+
   eos_info("setlk: ino=%016lx start=%lu len=%ld pid=%u type=%d xattr-lock=%d",
            md.md_ino(),
            lock.l_start,
            lock.l_len,
            lock.l_pid,
            lock.l_type,
-	   xattr_lock);
+           xattr_lock);
 
   if (xattr_lock) {
     // lock is busy by xattr
     resp.mutable_lock_()->set_err_no(EAGAIN);
   } else {
     if (Locks().getLocks(md.md_ino())->setlk(md.flock().pid(), &lock, sleep,
-					     md.clientuuid())) {
+        md.clientuuid())) {
       // lock ok!
       resp.mutable_lock_()->set_err_no(0);
     } else {

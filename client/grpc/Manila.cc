@@ -13,23 +13,22 @@ int usage(const char* prog)
           "--cert <ssl-cert-file> "
           "--ca <ca-cert-file>] "
           "[--endpoint <host:port>] [--token <auth-token>] "
-	  "--command <command> "
-	  "--params <paramlist := key1:val1,key2:val2,key3:val3...> \n", prog);
-  fprintf(stderr, "\nvalid commands: create,delete,extend,shrink,manage,unmanage,capacity\n");
-
+          "--command <command> "
+          "--params <paramlist := key1:val1,key2:val2,key3:val3...> \n", prog);
+  fprintf(stderr,
+          "\nvalid commands: create,delete,extend,shrink,manage,unmanage,capacity\n");
   fprintf(stderr, "\n"
-	  "valid params:   authkey=<authkey>\n"
-	  "                protocol=<protocol>\n"
-	  "                name=<name>\n"
-	  "                description=<description>\n"
-	  "                id=<id>\n"
-	  "                group_id=<group_id>\n"
-	  "                quota=<quota>\n"
-	  "                creator=<creator>\n"
-	  "                egroup=<egroup>\n"
-	  "                admin_egroup=<admin_egroup>\n"
-	  "                location=<locaion>\n");
-	  
+          "valid params:   authkey=<authkey>\n"
+          "                protocol=<protocol>\n"
+          "                name=<name>\n"
+          "                description=<description>\n"
+          "                id=<id>\n"
+          "                group_id=<group_id>\n"
+          "                quota=<quota>\n"
+          "                creator=<creator>\n"
+          "                egroup=<egroup>\n"
+          "                admin_egroup=<admin_egroup>\n"
+          "                location=<locaion>\n");
   return -1;
 }
 
@@ -123,7 +122,7 @@ int main(int argc, const char* argv[])
   }
 
   if (keyfile.length() || certfile.length() || cafile.length()) {
-    if (!keyfile.length() || !certfile.length() || !cafile.length() ) {
+    if (!keyfile.length() || !certfile.length() || !cafile.length()) {
       return usage(argv[0]);
     }
   }
@@ -144,10 +143,10 @@ int main(int argc, const char* argv[])
     return usage(argv[0]);
   }
 
-  std::cout << "=> settings: command=" << command << " params=" << params << std::endl;
-
+  std::cout << "=> settings: command=" << command << " params=" << params <<
+            std::endl;
   /*
-enum MANILA_REQUEST_TYPE {
+  enum MANILA_REQUEST_TYPE {
    CREATE_SHARE = 0;
    DELETE_SHARE = 1;
    EXTEND_SHARE = 2;
@@ -155,9 +154,9 @@ enum MANILA_REQUEST_TYPE {
    MANAGE_EXISTING = 4;
    UNMANAGE = 5;
    GET_CAPACITIES = 6;
-}
+  }
 
-message ManilaRequest {
+  message ManilaRequest {
    MANILA_REQUEST_TYPE request_type = 1;
    string auth_key = 2;
    string protocol = 3;
@@ -170,9 +169,9 @@ message ManilaRequest {
    string egroup = 10;
    string admin_egroup = 11;
    string share_location = 12;
-}
+  }
 
-message ManilaResponse {
+  message ManilaResponse {
    string msg = 1; //for generic messages
    int32 code = 2; // < 1 is an error -- > 1 is OK
    int64 total_used = 3;
@@ -180,7 +179,7 @@ message ManilaResponse {
    int64 new_share_quota = 5;
    string new_share_path = 6;
 
-}
+  }
   */
   eos::rpc::ManilaRequest request;
   eos::rpc::ManilaResponse reply;
@@ -203,37 +202,36 @@ message ManilaResponse {
     std::cerr << "Invalid command: " << command << std::endl;
     return usage(argv[0]);
   }
-  
+
   std::map<std::string, std::string> pmap;
-
   eos::common::StringConversion::GetKeyValueMap(params.c_str(),
-						pmap);
+      pmap);
 
-  for (auto it = pmap.begin(); it!= pmap.end(); ++it) {
-    if ( it->first == "authkey" ) {
-      request.set_auth_key (it->second); 
-    } else if ( it->first == "protocol" ) {
+  for (auto it = pmap.begin(); it != pmap.end(); ++it) {
+    if (it->first == "authkey") {
+      request.set_auth_key(it->second);
+    } else if (it->first == "protocol") {
       request.set_protocol(it->second);
-    } else if ( it->first == "name" ) {
+    } else if (it->first == "name") {
       request.set_share_name(it->second);
-    } else if ( it->first == "description" ) { 
+    } else if (it->first == "description") {
       request.set_description(it->second);
-    } else if ( it->first == "id") {
+    } else if (it->first == "id") {
       request.set_share_id(it->second);
-    } else if ( it->first == "group_id") {
+    } else if (it->first == "group_id") {
       request.set_share_group_id(it->second);
-    } else if ( it->first == "quota") {
-      request.set_quota(strtoull(it->second.c_str(),0,10));
-    } else if ( it->first == "creator") {
+    } else if (it->first == "quota") {
+      request.set_quota(strtoull(it->second.c_str(), 0, 10));
+    } else if (it->first == "creator") {
       request.set_creator(it->second);
-    } else if ( it->first == "egroup") {
+    } else if (it->first == "egroup") {
       request.set_egroup(it->second);
-    } else if ( it->first == "admin_egroup") {
+    } else if (it->first == "admin_egroup") {
       request.set_admin_egroup(it->second);
-    } else if ( it->first == "location") {
+    } else if (it->first == "location") {
       request.set_share_location(it->second);
     } else {
-      std::cerr << "param:" << it->first << " is not valid "<< std::endl;
+      std::cerr << "param:" << it->first << " is not valid " << std::endl;
       return usage(argv[0]);
     }
   }
@@ -242,29 +240,20 @@ message ManilaResponse {
   options.add_whitespace = true;
   options.always_print_primitive_fields = true;
   std::string jsonstring;
-
-  google::protobuf::util::MessageToJsonString(request,
-					      &jsonstring, options);
-
-  
+  (void) google::protobuf::util::MessageToJsonString(request,
+      &jsonstring, options);
   std::cout << "# sending request " << std::endl << jsonstring << std::endl;
-
   eosgrpc->ManilaRequest(request,
-			 reply);
-
-  google::protobuf::util::MessageToJsonString(reply,
-					      &jsonstring, options);
-
-  std::cout << "# got response " << std::endl << jsonstring << std::endl;
-
-
-  std::chrono::steady_clock::time_point watch_global =
-    std::chrono::steady_clock::now();
-
-  std::chrono::microseconds elapsed_global =
-    std::chrono::duration_cast<std::chrono::microseconds>
-    (std::chrono::steady_clock::now() - watch_global);
-  std::cout << "Request took " << elapsed_global.count() <<
-            " micro seconds" << std::endl;
-  return reply.code();
+                         reply);
+  (void0 google::protobuf::util::MessageToJsonString(reply,
+      &jsonstring, options);
+   std::cout << "# got response " << std::endl << jsonstring << std::endl;
+   std::chrono::steady_clock::time_point watch_global =
+     std::chrono::steady_clock::now();
+   std::chrono::microseconds elapsed_global =
+     std::chrono::duration_cast<std::chrono::microseconds>
+     (std::chrono::steady_clock::now() - watch_global);
+   std::cout << "Request took " << elapsed_global.count() <<
+   " micro seconds" << std::endl;
+   return reply.code();
 }

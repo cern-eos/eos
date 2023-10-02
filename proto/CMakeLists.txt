@@ -187,6 +187,9 @@ if (GRPC_FOUND)
   add_library(EosGrpcProto-Objects OBJECT
     ${GRPC_SVC_SRCS} ${GRPC_SVC_HDRS})
 
+  # @note see remark from RestGrpc-Objects
+  target_compile_options(EosGrpcProto-Objects PRIVATE -Wno-sign-compare)
+
   add_dependencies(EosGrpcProto-Objects RpcFileGeneration)
 
   target_link_libraries(EosGrpcProto-Objects PUBLIC
@@ -293,6 +296,9 @@ if (GRPC_FOUND)
     ${CLI_GRPC_SRCS}
     ${CLI_GRPC_HDRS})
 
+  # @note see remark from RestGrpc-Objects
+  target_compile_options(EosCliGrpc-Objects PRIVATE -Wno-sign-compare)
+
   add_dependencies(EosCliGrpc-Objects EosCliProto-Objects)
 
   target_link_libraries(EosCliGrpc-Objects PUBLIC
@@ -327,6 +333,9 @@ if (GRPC_FOUND)
     ${WNC_HDRS}
     ${WNC_GRPC_SRCS}
     ${WNC_GRPC_HDRS})
+
+  # @note see remark from RestGrpc-Objects
+  target_compile_options(EosWncGrpcProto-Objects PRIVATE -Wno-sign-compare)
 
   add_dependencies(EosWncGrpcProto-Objects
     EosCliProto-Objects
@@ -373,7 +382,7 @@ set_source_files_properties(
 add_custom_command(
     OUTPUT ${ANN_SRCS} ${ANN_HDRS}
     COMMAND ${PROTOBUF3_PROTOC_EXECUTABLE} -I${CMAKE_SOURCE_DIR} -I${CMAKE_SOURCE_DIR}/proto/eos_rest_gateway -I${GRPC_INCLUDE_DIR}
-	    --cpp_out=../ ${ANN_PROTOS})
+            --cpp_out=../ ${ANN_PROTOS})
 
 add_library(RestAnnot-Objects OBJECT
     ${ANN_SRCS} ${ANN_HDRS})
@@ -401,10 +410,10 @@ add_custom_command(
             -I${CMAKE_SOURCE_DIR}
             -I${CMAKE_SOURCE_DIR}/proto/common/cli_proto
             -I${GRPC_INCLUDE_DIR}
-	    --plugin=protoc-gen-grpc=${GRPC_CPP_PLUGIN}
-	    --cpp_out=../
-	    --grpc_out=../
-	    ${REST_GW_PROTOS}
+            --plugin=protoc-gen-grpc=${GRPC_CPP_PLUGIN}
+            --cpp_out=../
+            --grpc_out=../
+            ${REST_GW_PROTOS}
     DEPENDS GoogleApis-Target EosCliProto-Objects)
 
 set_source_files_properties(
@@ -414,6 +423,14 @@ set_source_files_properties(
 add_library(RestGrpc-Objects OBJECT
   ${REST_GW_SRCS} ${REST_GW_HDRS}
   ${REST_GW_GRPC_SRCS} ${REST_GW_GRPC_HDRS})
+
+# @note avoid warning coming from from protobuf implementation
+# /opt/eos/grpc/include/grpcpp/support/proto_buffer_reader.h:157:24:
+# warning: comparison of integer expressions of different signedness:
+# ‘uint64_t’ {aka ‘long unsigned int’} and ‘int’ [-Wsign-compare]
+#       if (slice_length <= count) {
+#           ~~~~~~~~~~~~~^~~~~~~~
+target_compile_options(RestGrpc-Objects PRIVATE -Wno-sign-compare)
 
 target_include_directories(RestGrpc-Objects PUBLIC
   "$<BUILD_INTERFACE:${CMAKE_BINARY_DIR};${CMAKE_CURRENT_BINARY_DIR}>;")

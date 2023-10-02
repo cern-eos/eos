@@ -107,9 +107,9 @@ std::string GrpcClient::Ping(const std::string& payload)
   }
 }
 
-int 
-GrpcClient::ManilaRequest(const eos::rpc::ManilaRequest& request, 
-			  eos::rpc::ManilaResponse& reply)
+int
+GrpcClient::ManilaRequest(const eos::rpc::ManilaRequest& request,
+                          eos::rpc::ManilaResponse& reply)
 {
   ClientContext context;
   CompletionQueue cq;
@@ -135,8 +135,8 @@ std::string
 GrpcClient::Md(const std::string& path,
                uint64_t id,
                uint64_t ino,
-               bool list, 
-	       bool printonly)
+               bool list,
+               bool printonly)
 {
   MDRequest request;
 
@@ -166,7 +166,6 @@ GrpcClient::Md(const std::string& path,
     stub_->AsyncMD(&context, request, &cq, (void*) 1));
   void* got_tag;
   bool ok = false;
-  
   bool ret = cq.Next(&got_tag, &ok);
 
   while (1) {
@@ -182,8 +181,9 @@ GrpcClient::Md(const std::string& path,
     options.add_whitespace = true;
     options.always_print_primitive_fields = true;
     std::string jsonstring;
-    google::protobuf::util::MessageToJsonString(response,
+    (void) google::protobuf::util::MessageToJsonString(response,
         &jsonstring, options);
+
     if (printonly) {
       std::cout << jsonstring << std::endl;
     } else {
@@ -200,16 +200,17 @@ GrpcClient::Md(const std::string& path,
 
 std::string
 GrpcClient::Find(const std::string& path,
-		 const std::string& filter, 
-		 uint64_t id, 
-		 uint64_t ino,
-		 bool files, 
-		 bool dirs, 
-		 uint64_t depth, 
-		 bool printonly, 
-		 const std::string& exportfs)
+                 const std::string& filter,
+                 uint64_t id,
+                 uint64_t ino,
+                 bool files,
+                 bool dirs,
+                 uint64_t depth,
+                 bool printonly,
+                 const std::string& exportfs)
 {
   FindRequest request;
+
   if (files && !dirs) {
     // query files
     request.set_type(eos::rpc::FILE);
@@ -237,93 +238,120 @@ GrpcClient::Find(const std::string& path,
 
   request.set_authkey(token());
 
-
   if (filter.length()) {
-    // enable filtering 
+    // enable filtering
     request.mutable_selection()->set_select(true);
+    std::map<std::string, std::string> filtermap;
+    eos::common::StringConversion::GetKeyValueMap(filter.c_str(),
+        filtermap);
 
-    std::map<std::string,std::string> filtermap;
-    eos::common::StringConversion::GetKeyValueMap(filter.c_str(), 
-		   filtermap);
-
-    for ( auto const& x : filtermap ) {
+    for (auto const& x : filtermap) {
       if (x.first == "owner-root") {
-	  request.mutable_selection()->set_owner_root(strtoul(x.second.c_str(),0,10)?true:false);
+        request.mutable_selection()->set_owner_root(strtoul(x.second.c_str(), 0,
+            10) ? true : false);
       }  else if (x.first == "group-root") {
-	request.mutable_selection()->set_group_root(strtoul(x.second.c_str(),0,10)?true:false);
+        request.mutable_selection()->set_group_root(strtoul(x.second.c_str(), 0,
+            10) ? true : false);
       } else if (x.first == "owner") {
-	request.mutable_selection()->set_owner(strtoul(x.second.c_str(),0,10));
+        request.mutable_selection()->set_owner(strtoul(x.second.c_str(), 0, 10));
       } else if (x.first == "group") {
-	request.mutable_selection()->set_group(strtoul(x.second.c_str(),0,10));
+        request.mutable_selection()->set_group(strtoul(x.second.c_str(), 0, 10));
       } else if (x.first == "regex-filename") {
-	request.mutable_selection()->set_regexp_filename(x.second);
+        request.mutable_selection()->set_regexp_filename(x.second);
       } else if (x.first == "regex-dirname") {
-	request.mutable_selection()->set_regexp_dirname(x.second);
+        request.mutable_selection()->set_regexp_dirname(x.second);
       } else if (x.first == "zero-size") {
-	request.mutable_selection()->mutable_size()->set_zero(strtoul(x.second.c_str(),0,10)?true:false);
+        request.mutable_selection()->mutable_size()->set_zero(strtoul(x.second.c_str(),
+            0, 10) ? true : false);
       } else if (x.first == "min-size") {
-	request.mutable_selection()->mutable_size()->set_min(strtoul(x.second.c_str(),0,10));
+        request.mutable_selection()->mutable_size()->set_min(strtoul(x.second.c_str(),
+            0, 10));
       } else if (x.first == "max-size") {
-	request.mutable_selection()->mutable_size()->set_max(strtoul(x.second.c_str(),0,10));
+        request.mutable_selection()->mutable_size()->set_max(strtoul(x.second.c_str(),
+            0, 10));
       } else if (x.first == "min-children") {
-	request.mutable_selection()->mutable_children()->set_min(strtoul(x.second.c_str(),0,10));
+        request.mutable_selection()->mutable_children()->set_min(strtoul(
+              x.second.c_str(), 0, 10));
       } else if (x.first == "max-children") {
-	request.mutable_selection()->mutable_children()->set_max(strtoul(x.second.c_str(),0,10));
+        request.mutable_selection()->mutable_children()->set_max(strtoul(
+              x.second.c_str(), 0, 10));
       } else if (x.first == "zero-children") {
-	request.mutable_selection()->mutable_children()->set_zero(strtoul(x.second.c_str(),0,10)?true:false);} else if (x.first == "min-locations") {
-	request.mutable_selection()->mutable_locations()->set_min(strtoul(x.second.c_str(),0,10));
+        request.mutable_selection()->mutable_children()->set_zero(strtoul(
+              x.second.c_str(), 0, 10) ? true : false);
+      } else if (x.first == "min-locations") {
+        request.mutable_selection()->mutable_locations()->set_min(strtoul(
+              x.second.c_str(), 0, 10));
       } else if (x.first == "max-locations") {
-	request.mutable_selection()->mutable_locations()->set_max(strtoul(x.second.c_str(),0,10));
+        request.mutable_selection()->mutable_locations()->set_max(strtoul(
+              x.second.c_str(), 0, 10));
       } else if (x.first == "zero-locations") {
-	request.mutable_selection()->mutable_locations()->set_zero(strtoul(x.second.c_str(),0,10)?true:false);
+        request.mutable_selection()->mutable_locations()->set_zero(strtoul(
+              x.second.c_str(), 0, 10) ? true : false);
       } else if (x.first == "min-unlinked_locations") {
-	request.mutable_selection()->mutable_unlinked_locations()->set_min(strtoul(x.second.c_str(),0,10));
+        request.mutable_selection()->mutable_unlinked_locations()->set_min(strtoul(
+              x.second.c_str(), 0, 10));
       } else if (x.first == "max-unlinked_locations") {
-	request.mutable_selection()->mutable_unlinked_locations()->set_max(strtoul(x.second.c_str(),0,10));
+        request.mutable_selection()->mutable_unlinked_locations()->set_max(strtoul(
+              x.second.c_str(), 0, 10));
       } else if (x.first == "zero-unlinked_locations") {
-	request.mutable_selection()->mutable_unlinked_locations()->set_zero(strtoul(x.second.c_str(),0,10)?true:false);
+        request.mutable_selection()->mutable_unlinked_locations()->set_zero(strtoul(
+              x.second.c_str(), 0, 10) ? true : false);
       } else if (x.first == "min-treesize") {
-	request.mutable_selection()->mutable_treesize()->set_min(strtoul(x.second.c_str(),0,10));
+        request.mutable_selection()->mutable_treesize()->set_min(strtoul(
+              x.second.c_str(), 0, 10));
       } else if (x.first == "max-treesize") {
-	request.mutable_selection()->mutable_treesize()->set_max(strtoul(x.second.c_str(),0,10));
+        request.mutable_selection()->mutable_treesize()->set_max(strtoul(
+              x.second.c_str(), 0, 10));
       } else if (x.first == "zero-treesize") {
-	request.mutable_selection()->mutable_treesize()->set_zero(strtoul(x.second.c_str(),0,10)?true:false);
+        request.mutable_selection()->mutable_treesize()->set_zero(strtoul(
+              x.second.c_str(), 0, 10) ? true : false);
       } else if (x.first == "min-ctime") {
-	request.mutable_selection()->mutable_ctime()->set_min(strtoul(x.second.c_str(),0,10));
+        request.mutable_selection()->mutable_ctime()->set_min(strtoul(x.second.c_str(),
+            0, 10));
       } else if (x.first == "max-ctime") {
-	request.mutable_selection()->mutable_ctime()->set_max(strtoul(x.second.c_str(),0,10));
+        request.mutable_selection()->mutable_ctime()->set_max(strtoul(x.second.c_str(),
+            0, 10));
       } else if (x.first == "zero-ctime") {
-	request.mutable_selection()->mutable_ctime()->set_zero(strtoul(x.second.c_str(),0,10)?true:false);
+        request.mutable_selection()->mutable_ctime()->set_zero(strtoul(x.second.c_str(),
+            0, 10) ? true : false);
       } else if (x.first == "min-mtime") {
-	request.mutable_selection()->mutable_mtime()->set_min(strtoul(x.second.c_str(),0,10));
+        request.mutable_selection()->mutable_mtime()->set_min(strtoul(x.second.c_str(),
+            0, 10));
       } else if (x.first == "max-mtime") {
-	request.mutable_selection()->mutable_mtime()->set_max(strtoul(x.second.c_str(),0,10));
+        request.mutable_selection()->mutable_mtime()->set_max(strtoul(x.second.c_str(),
+            0, 10));
       } else if (x.first == "zero-mtime") {
-	request.mutable_selection()->mutable_mtime()->set_zero(strtoul(x.second.c_str(),0,10)?true:false);
+        request.mutable_selection()->mutable_mtime()->set_zero(strtoul(x.second.c_str(),
+            0, 10) ? true : false);
       } else if (x.first == "min-stime") {
-	request.mutable_selection()->mutable_stime()->set_min(strtoul(x.second.c_str(),0,10));
+        request.mutable_selection()->mutable_stime()->set_min(strtoul(x.second.c_str(),
+            0, 10));
       } else if (x.first == "max-stime") {
-	request.mutable_selection()->mutable_stime()->set_max(strtoul(x.second.c_str(),0,10));
+        request.mutable_selection()->mutable_stime()->set_max(strtoul(x.second.c_str(),
+            0, 10));
       } else if (x.first == "zero-stime") {
-	request.mutable_selection()->mutable_stime()->set_zero(strtoul(x.second.c_str(),0,10)?true:false);
+        request.mutable_selection()->mutable_stime()->set_zero(strtoul(x.second.c_str(),
+            0, 10) ? true : false);
       } else if (x.first == "layoutid") {
-	request.mutable_selection()->set_layoutid(strtoull(x.second.c_str(),0,10));
+        request.mutable_selection()->set_layoutid(strtoull(x.second.c_str(), 0, 10));
       } else if (x.first == "flags") {
-	request.mutable_selection()->set_flags(strtoull(x.second.c_str(),0,10));
+        request.mutable_selection()->set_flags(strtoull(x.second.c_str(), 0, 10));
       } else if (x.first == "symlink") {
-	request.mutable_selection()->set_symlink(strtoul(x.second.c_str(),0,10)?true:false);
+        request.mutable_selection()->set_symlink(strtoul(x.second.c_str(), 0,
+            10) ? true : false);
       } else if (x.first == "checksum-type") {
-	request.mutable_selection()->mutable_checksum()->set_type(x.second);
+        request.mutable_selection()->mutable_checksum()->set_type(x.second);
       } else if (x.first == "checksum-value") {
-	request.mutable_selection()->mutable_checksum()->set_value(x.second);
+        request.mutable_selection()->mutable_checksum()->set_value(x.second);
       } else if (x.first == "xattr") {
-	std::string key;
-	std::string val;
-	eos::common::StringConversion::SplitKeyValue(x.second, key, val, "=");
-	(*(request.mutable_selection()->mutable_xattr()))[key] = val;
+        std::string key;
+        std::string val;
+        eos::common::StringConversion::SplitKeyValue(x.second, key, val, "=");
+        (*(request.mutable_selection()->mutable_xattr()))[key] = val;
       } else {
-	std::cerr << "error: unknown filter '" << x.first << ":" << x.second << "'" << std::endl;
-	return "";
+        std::cerr << "error: unknown filter '" << x.first << ":" << x.second << "'" <<
+                  std::endl;
+        return "";
       }
     }
   }
@@ -349,19 +377,19 @@ GrpcClient::Find(const std::string& path,
     }
 
     if (!exportfs.empty()) {
-      responsestring = ExportFs(response,exportfs);
+      responsestring = ExportFs(response, exportfs);
     } else {
       google::protobuf::util::JsonPrintOptions options;
       options.add_whitespace = true;
       options.always_print_primitive_fields = true;
       std::string jsonstring;
-      google::protobuf::util::MessageToJsonString(response,
-						  &jsonstring, options);
+      (void) google::protobuf::util::MessageToJsonString(response,
+          &jsonstring, options);
 
       if (printonly) {
-	std::cout << jsonstring << std::endl;
+        std::cout << jsonstring << std::endl;
       } else {
-	responsestring += jsonstring;
+        responsestring += jsonstring;
       }
     }
   }
@@ -373,24 +401,24 @@ GrpcClient::Find(const std::string& path,
   return responsestring;
 }
 
-int 
+int
 GrpcClient::FileInsert(const std::vector<std::string>& paths)
 {
   FileInsertRequest request;
-  size_t cnt=0;
-  for (auto it : paths ) {
+  size_t cnt = 0;
+
+  for (auto it : paths) {
     std::string path = it;
     struct timespec tsnow;
     eos::common::Timing::GetTimeSpec(tsnow);
     uint64_t inode = 0;
-
     cnt++;
     FileMdProto* file = request.add_files();
 
-    if (it.substr(0,4) == "ino:") {
+    if (it.substr(0, 4) == "ino:") {
       // the format is ino:xxxxxxxxxxxxxxxx:<path> where xxxxxxxxxxxxxxxx is a 64bit hex string of the inode
       path = it.substr(21);
-      inode = std::strtol(it.substr(4,20).c_str() ,0, 16);
+      inode = std::strtol(it.substr(4, 20).c_str() , 0, 16);
     }
 
     if (inode) {
@@ -402,14 +430,13 @@ GrpcClient::FileInsert(const std::vector<std::string>& paths)
     file->set_gid(2);
     file->set_size(cnt);
     file->set_layout_id(0x00100002);
-    file->mutable_checksum()->set_value("\0\0\0\1",4);
+    file->mutable_checksum()->set_value("\0\0\0\1", 4);
     file->set_flags(0);
     file->mutable_ctime()->set_sec(tsnow.tv_sec);
     file->mutable_ctime()->set_n_sec(tsnow.tv_nsec);
     file->mutable_mtime()->set_sec(tsnow.tv_sec);
     file->mutable_mtime()->set_n_sec(tsnow.tv_nsec);
     file->mutable_locations()->Add(65535);
-
     auto map = file->mutable_xattrs();
     (*map)["sys.acl"] = "u:100:rwx";
     (*map)["sys.cta.id"] = "fake";
@@ -440,34 +467,35 @@ GrpcClient::FileInsert(const std::vector<std::string>& paths)
   // ... and that the request was completed successfully. Note that "ok"
   // corresponds solely to the request for updates introduced by Finish().
   GPR_ASSERT(ok);
-
   // Act upon the status of the actual RPC.
   int retc = 0;
+
   if (status.ok()) {
     for (auto it : reply.retc()) {
       retc |= it;
     }
+
     return retc;
   } else {
     return -1;
   }
 }
 
-int 
+int
 GrpcClient::ContainerInsert(const std::vector<std::string>& paths)
 {
   ContainerInsertRequest request;
-  for (auto it : paths ) {
+
+  for (auto it : paths) {
     std::string path;
     struct timespec tsnow;
     eos::common::Timing::GetTimeSpec(tsnow);
-
     uint64_t inode = 0 ;
 
-    if (it.substr(0,4) == "ino:") {
+    if (it.substr(0, 4) == "ino:") {
       // the format is ino:xxxxxxxxxxxxxxxx:<path> where xxxxxxxxxxxxxxxx is a 64bit hex string of the inode
       path = it.substr(21);
-      inode = std::strtol(it.substr(4,20).c_str() ,0, 16);
+      inode = std::strtol(it.substr(4, 20).c_str() , 0, 16);
     }
 
     ContainerMdProto* container = request.add_container();
@@ -517,13 +545,14 @@ GrpcClient::ContainerInsert(const std::vector<std::string>& paths)
   // ... and that the request was completed successfully. Note that "ok"
   // corresponds solely to the request for updates introduced by Finish().
   GPR_ASSERT(ok);
-
   // Act upon the status of the actual RPC.
   int retc = 0;
+
   if (status.ok()) {
     for (auto it : reply.retc()) {
       retc |= it;
     }
+
     return retc;
   } else {
     return -1;
@@ -594,9 +623,8 @@ GrpcClient::NsStat(const eos::rpc::NsStatRequest& request,
   CompletionQueue cq;
   Status status;
   std::unique_ptr<ClientAsyncResponseReader<NsStatResponse>> rpc(
-    stub_->AsyncNsStat(&context, request, &cq));
+        stub_->AsyncNsStat(&context, request, &cq));
   rpc->Finish(&reply, &status, (void*) 1);
-
   void* got_tag;
   bool ok = false;
   GPR_ASSERT(cq.Next(&got_tag, &ok));
@@ -611,9 +639,9 @@ GrpcClient::NsStat(const eos::rpc::NsStatRequest& request,
   }
 }
 
-int 
-GrpcClient::Exec(const eos::rpc::NSRequest& request, 
-		  eos::rpc::NSResponse& reply)
+int
+GrpcClient::Exec(const eos::rpc::NSRequest& request,
+                 eos::rpc::NSResponse& reply)
 {
   ClientContext context;
   CompletionQueue cq;
@@ -626,7 +654,7 @@ GrpcClient::Exec(const eos::rpc::NSRequest& request,
   GPR_ASSERT(cq.Next(&got_tag, &ok));
   GPR_ASSERT(got_tag == (void*) 1);
   GPR_ASSERT(ok);
-  
+
   // Act upon the status of the actual RPC.
   if (status.ok()) {
     return reply.error().code();
@@ -636,38 +664,46 @@ GrpcClient::Exec(const eos::rpc::NSRequest& request,
 }
 
 std::string
-GrpcClient::ExportFs(const eos::rpc::MDResponse& response, const std::string& exportfs) 
+GrpcClient::ExportFs(const eos::rpc::MDResponse& response,
+                     const std::string& exportfs)
 {
-  bool first=false;
+  bool first = false;
+
   if (response.type() == eos::rpc::CONTAINER) {
     if (!tree.size()) {
       first = true;
       tree[response.cmd().id()] = response.cmd().name() + "/";
     } else {
       first = false;
-      tree[response.cmd().id()] = tree[response.cmd().parent_id()] + response.cmd().name() + "/";
+      tree[response.cmd().id()] = tree[response.cmd().parent_id()] +
+                                  response.cmd().name() + "/";
     }
-    fprintf(stderr,"%s\n",tree[response.cmd().id()].c_str());
+
+    fprintf(stderr, "%s\n", tree[response.cmd().id()].c_str());
 
     if (!first) {
       std::string target = exportfs + "/" + tree[response.cmd().id()];
       eos::common::Path cPath(target.c_str());
-      
+
       if (!cPath.MakeParentPath(755)) {
-	fprintf(stderr,"error: failed to created '%s'\n", cPath.GetParentPath());
-	exit(errno);
+        fprintf(stderr, "error: failed to created '%s'\n", cPath.GetParentPath());
+        exit(errno);
       }
-      int rc = mkdir(cPath.GetPath(),755);
+
+      int rc = mkdir(cPath.GetPath(), 755);
+
       if (rc) {
-	fprintf(stderr,"error: failed to created '%s'\n", cPath.GetPath());
-	exit(errno);
+        fprintf(stderr, "error: failed to created '%s'\n", cPath.GetPath());
+        exit(errno);
       }
     }
   }
 
   if (response.type() == eos::rpc::FILE) {
-    fprintf(stderr,"%s\n",(tree[response.fmd().cont_id()] + response.fmd().name()).c_str());
+    fprintf(stderr, "%s\n", (tree[response.fmd().cont_id()] +
+                             response.fmd().name()).c_str());
   }
+
   return "";
 }
 

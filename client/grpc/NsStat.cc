@@ -25,23 +25,19 @@
 int usage(const char* name)
 {
   std::ostringstream oss;
-
   oss << "usage: " << name
       << " [--key <ssl-key-file> --cert <ssl-cert-file> --ca <ca-cert-file>]"
       << " [--token <auth-token>]"
       << std::endl << std::setw(strlen(name) + 8) << ""
       << "[--endpoint <host:port>] [-d|--debug] [-h|--help]"
       << std::endl;
-
   std::cerr << oss.str();
-
   return -1;
 }
 
 int main(int argc, char* argv[])
 {
   using eos::client::GrpcClient;
-
   std::string endpoint{"localhost:50051"};
   std::string keyfile;
   std::string certfile;
@@ -69,35 +65,35 @@ int main(int argc, char* argv[])
     }
 
     switch (c) {
-      case 'k':
-        keyfile = optarg;
-        break;
+    case 'k':
+      keyfile = optarg;
+      break;
 
-      case 'c':
-        certfile = optarg;
-        break;
+    case 'c':
+      certfile = optarg;
+      break;
 
-      case 'a':
-        cafile = optarg;
-        break;
+    case 'a':
+      cafile = optarg;
+      break;
 
-      case 'e':
-        endpoint = optarg;
-        break;
+    case 'e':
+      endpoint = optarg;
+      break;
 
-      case 't':
-        token = optarg;
-        break;
+    case 't':
+      token = optarg;
+      break;
 
-      case 'd':
-        debug = true;
-        break;
+    case 'd':
+      debug = true;
+      break;
 
-      case 'h':
-        return usage(argv[0]);
+    case 'h':
+      return usage(argv[0]);
 
-      default:
-        return usage(argv[0]);
+    default:
+      return usage(argv[0]);
     }
   }
 
@@ -117,18 +113,17 @@ int main(int argc, char* argv[])
   }
 
   auto start_time = std::chrono::steady_clock::now();
-
   google::protobuf::util::JsonPrintOptions options;
   options.always_print_primitive_fields = true;
   options.add_whitespace = true;
   std::string jsonstring;
-
   eos::rpc::NsStatRequest request;
   eos::rpc::NsStatResponse reply;
   request.set_authkey(token);
 
   if (debug) {
-    google::protobuf::util::MessageToJsonString(request, &jsonstring, options);
+    (void) google::protobuf::util::MessageToJsonString(request, &jsonstring,
+        options);
     std::cout << "request: " << std::endl << jsonstring << std::endl;
   }
 
@@ -142,11 +137,10 @@ int main(int argc, char* argv[])
   }
 
   jsonstring = "";
-  google::protobuf::util::MessageToJsonString(reply, &jsonstring, options);
+  (void) google::protobuf::util::MessageToJsonString(reply, &jsonstring, options);
   std::cout << jsonstring << std::endl;
-
   auto elapsed_time = std::chrono::duration_cast<std::chrono::microseconds>(
-    std::chrono::steady_clock::now() - start_time);
+                        std::chrono::steady_clock::now() - start_time);
 
   if (debug) {
     std::cout << "request took " << elapsed_time.count() << " microseconds"

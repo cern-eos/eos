@@ -344,6 +344,8 @@ add_library(
   placement/ThreadLocalRRSeed.cc
   ${FUSEX_SRCS})
 
+target_compile_options(XrdEosMgm-Objects PRIVATE -Wno-sign-compare)
+
 target_link_libraries(XrdEosMgm-Objects PUBLIC
   EosCliProto-Objects
   EosAuthProto-Objects

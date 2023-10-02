@@ -229,7 +229,7 @@ EosTok::Dump(std::string& dump, bool filtersec, bool oneline)
   google::protobuf::util::JsonPrintOptions options;
   options.add_whitespace = true;
   options.always_print_primitive_fields = true;
-  google::protobuf::util::MessageToJsonString(*share,
+  (void) google::protobuf::util::MessageToJsonString(*share,
       &dump, options);
 
   if (filtersec) {

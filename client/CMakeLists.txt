@@ -29,6 +29,8 @@ include_directories(${CMAKE_BINARY_DIR})
 add_library(EosGrpcClient-Objects OBJECT
   grpc/GrpcClient.cc grpc/GrpcClient.hh)
 
+target_compile_options(EosGrpcClient-Objects PRIVATE -Wno-sign-compare)
+
 target_link_libraries(EosGrpcClient-Objects PUBLIC
   EosGrpcProto-Objects
   XROOTD::UTILS)
