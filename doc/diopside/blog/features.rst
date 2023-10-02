@@ -15,6 +15,14 @@ New Features
 
 This blog is used to track new features added to EOS.
 
+October 2024
+
+* The eos CLI provides now a similar command to the du shell command:
+  `eos du -s /eos/mydir` 
+  `eos du -s -h /eos/mydir`
+  `eos du -s -h --si /eos/mydir`
+  `eos du -a /eos/mydir`
+  
 September 2023
 ^^^^^^^^^^^^^^
 
