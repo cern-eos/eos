@@ -21,7 +21,7 @@ if(EosGrpcGateway_LIBRARY)
 endif()
 
 include(FindPackageHandleStandardArgs)
-find_package_handle_standard_args(eosgateway
+find_package_handle_standard_args(EosGrpcGateway
   REQUIRED_VARS EosGrpcGateway_LIBRARY EosGrpcGateway_INCLUDE_DIR)
 
 mark_as_advanced(EosGrpcGateway_INCLUDE_DIR EosGrpcGateway_LIBRARY)
@@ -36,10 +36,6 @@ if (EosGrpcGateway_FOUND AND NOT TARGET EosGrpcGateway::EosGrpcGateway)
 else()
   add_library(EosGrpcGateway::EosGrpcGateway INTERFACE IMPORTED)
 endif ()
-
-if (TARGET EosGrpcGateway::EosGrpcGateway)
-  message(STATUS "Successfully created target EosGrpcGateway::EosGrpcGateway")
-endif()
 
 unset(EosGrpcGateway_INCLUDE_DIR)
 unset(EosGrpcGateway_LIBRARY)

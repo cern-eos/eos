@@ -116,15 +116,13 @@ BuildRequires: xrootd-server-devel >= %{xrootd_version_min}
 BuildRequires: xrootd-private-devel >= %{xrootd_version_min}
 %endif
 
-# Select protobuf package
-%if 0%{?rhel} >= 7 && 0%{?rhel} <= 9
-BuildRequires: eos-protobuf3 >= 3.3, eos-protobuf3-devel >= 3.3, eos-protobuf3-compiler >= 3.3
+BuildRequires: eos-grpc == %{eos_grpc_version}
+BuildRequires: eos-grpc-devel == %{eos_grpc_version}
+BuildRequires: eos-grpc-plugins == %{eos_grpc_version}
+
 # Don't put an explicit dependency on xrootd because eos-xrootd hides the
 # shared libraries from provide
-%global __requires_exclude ^libprotobuf*|^libXrd*
-%else
-BuildRequires: protobuf >= 3.3, protobuf-devel >= 3.3, protobuf-compiler >= 3.3
-%endif
+%global __requires_exclude ^libproto*|^libXrd*|^libabsl*
 
 BuildRequires: git, readline-devel
 BuildRequires: openssl, openssl-devel
@@ -156,12 +154,12 @@ BuildRequires: eos-rocksdb = 6.2.4
 BuildRequires: openldap-devel
 BuildRequires: e2fsprogs-devel
 BuildRequires: eos-libmicrohttpd, eos-libmicrohttpd-devel >= 0.9.38
+%endif
+
 BuildRequires: eos-grpc == %{eos_grpc_version}
 BuildRequires: eos-grpc-devel == %{eos_grpc_version}
 BuildRequires: eos-grpc-plugins == %{eos_grpc_version}
-%else
-BuildRequires: abseil-cpp, abseil-cpp-devel
-%endif
+Requires: eos-grpc == %{eos_grpc_version}
 
 BuildRequires: bzip2-devel
 Requires: bzip2-devel
@@ -339,12 +337,7 @@ Requires: psmisc
 Requires: libcurl
 Requires: logrotate
 Requires: redis
-
-%if 0%{?rhel} >= 7 && 0%{?rhel} <= 9
-Requires: eos-protobuf3 >= 3.3
-%else
-Requires: protobuf >= 3.3
-%endif
+Requires: eos-grpc == %{eos_grpc_version}
 
 %if %{use_systemd}
 Requires: systemd
@@ -505,13 +498,7 @@ Requires: xrootd-client >= %{xrootd_version_min}
 Requires: xrootd-client >= %{xrootd_version_min}
 %endif
 
-# Select protobuf package
-%if 0%{?rhel} >= 7 && 0%{?rhel} <=9
-Requires: eos-protobuf3 >= 3.3
-%else
-Requires: protobuf >= 3.3
-%endif
-
+Requires: eos-grpc == %{eos_grpc_version}
 BuildRequires: eos-folly = 2019.11.11.00
 Requires: eos-folly = 2019.11.11.00
 
@@ -535,8 +522,8 @@ Group: Applications/File
 ExclusiveArch: x86_64 aarch64
 Requires: zeromq
 Requires: squashfs-tools
-
 Requires: elfutils
+Requires: eos-grpc == %{eos_grpc_version}
 
 # Select xrootd package
 %if %{?_with_eos_xrootd_rh:1}%{!?_with_eos_xrootd_rh:0}
@@ -548,13 +535,6 @@ Requires: xrootd-client >= %{xrootd_version_min}
 %endif
 %else
 Requires: xrootd-client >= %{xrootd_version_min}
-%endif
-
-# Select protobuf package
-%if 0%{?rhel} >= 7 && 0%{?rhel} <= 9
-Requires: eos-protobuf3 >= 3.3
-%else
-Requires: protobuf >= 3.3
 %endif
 
 %if %{use_systemd}
