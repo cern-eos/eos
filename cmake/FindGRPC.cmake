@@ -158,7 +158,7 @@ mark_as_advanced(GRPC_LIBRARY GRPC_GRPC++_LIBRARY
 
 if (GRPC_FOUND AND NOT TARGET GRPC::grpc AND NOT TARGET GRPC::grpc++)
   get_filename_component(GRPC_LD_LIBRARY_PATH ${GRPC_GRPC++_LIBRARY} DIRECTORY)
-  message(STATUS "GRPC ld_library path: ${GRPC_LD_LIBRARY_PATH}")
+  message(STATUS "GRPC library path: ${GRPC_LD_LIBRARY_PATH}")
 
   add_library(GRPC::grpc UNKNOWN IMPORTED)
   set_target_properties(GRPC::grpc PROPERTIES
@@ -188,10 +188,7 @@ if (GRPC_FOUND AND NOT TARGET GRPC::grpc AND NOT TARGET GRPC::grpc++)
   add_executable(GRPC::grpc_cpp_plugin IMPORTED)
   set_target_properties(GRPC::grpc_cpp_plugin PROPERTIES
     IMPORTED_LOCATION ${GRPC_CPP_PLUGIN})
-else()
-  message(WARNING "Notice: GRPC not found, no GRPC access available")
-  add_library(GRPC::grpc INTERFACE IMPORTED)
-  add_library(GRPC::grpc++ INTERFACE IMPORTED)
-  add_library(GRPC::grpc++_reflection INTERFACE IMPORTED)
-  add_executable(GRPC::grpc_cpp_plugin IMPORTED)
 endif()
+
+unset(GRPC_INCLUDE_DIR)
+unset(GRPC_LIBRARY)

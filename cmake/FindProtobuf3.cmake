@@ -18,6 +18,7 @@ find_program(PROTOBUF3_PROTOC_EXECUTABLE
   PATH_SUFFIXES bin
   DOC "Version 3 of The Google Protocol Buffers Compiler (protoc)"
   NO_DEFAULT_PATH)
+
 message(STATUS "Found protoc: ${PROTOBUF3_PROTOC_EXECUTABLE}")
 
 find_path(PROTOBUF3_INCLUDE_DIR
@@ -34,20 +35,6 @@ find_library(PROTOBUF3_LIBRARY
 	/usr/local /usr /usr/lib/x86_64-linux-gnu
   PATH_SUFFIXES lib64 lib
   NO_DEFAULT_PATH)
-
-find_program(GRPC_CPP_PLUGIN
-  NAME grpc_cpp_plugin
-  HINTS ${PROTOBUF_ROOT}
-  PATHS /opt/eos/grpc
-  PATH_SUFFIXES bin
-  NO_DEFAULT_PATH)
-
-# check if protoc-gen-go-grpc was found
-if (GRPC_CPP_PLUGIN)
-  message(STATUS "Found grpc_cpp_plugin: ${GRPC_CPP_PLUGIN}")
-else()
-  message(STATUS "grpc_cpp_plugin not found")
-endif()
 
 include(FindPackageHandleStandardArgs)
 find_package_handle_standard_args(Protobuf3
@@ -86,5 +73,5 @@ if (PROTOBUF3_FOUND AND NOT TARGET PROTOBUF::PROTOBUF)
    IMPORTED_LOCATION ${PROTOBUF3_LIBRARY})
 endif ()
 
-# Include Protobuf package from the generation commands like PROTOBUF_GENERATE_CPP
+# Include Protobuf package for the generation commands like PROTOBUF_GENERATE_CPP
 find_package(Protobuf)

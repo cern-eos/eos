@@ -21,7 +21,7 @@
 # * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
 # ************************************************************************
 
-include_directories(${CMAKE_SOURCE_DIR}/common/jwt-cpp/include/ ${ABSL_INCLUDE_DIR} )
+include_directories(${CMAKE_SOURCE_DIR}/common/jwt-cpp/include/)
 
 #-------------------------------------------------------------------------------
 # CTA integration related operations
@@ -79,8 +79,7 @@ endif()
 
 add_library(EosBlake3-Objects OBJECT
   ${BLAKE3_PORTABLE_SRCS}
-  ${BLAKE3_NATIVE_SRCS}
-  )
+  ${BLAKE3_NATIVE_SRCS})
 
 set_target_properties(EosBlake3-Objects PROPERTIES
   POSITION_INDEPENDENT_CODE TRUE)
@@ -165,7 +164,7 @@ target_link_libraries(EosCommon-Objects PUBLIC
   LIBBFD::LIBBFD
   LIBBFD::IBERTY
   GOOGLE::SPARSEHASH
-  ${ABSL_LIBRARIES}
+  ABSL::ABSL
   ${CMAKE_THREAD_LIBS_INIT})
 
 set_target_properties(EosCommon-Objects PROPERTIES
@@ -203,7 +202,7 @@ set(EosCommonLinkLibs
   XROOTD::CL
   UUID::UUID
   ZLIB::ZLIB
-  ${ABSL_LIBRARIES}
+  ABSL::ABSL
   NCURSES::NCURSES)
 
 if (CHARCONV_FOUND)

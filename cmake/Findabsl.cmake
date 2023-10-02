@@ -4,12 +4,11 @@
 # ABSL_FOUND          - system has absl library
 # ABSL_INCLUDE_DIRS   - absl include directories
 # ABSL_LIBRARIES      - libraries needed to use absl
-#
-#
+##
 find_path(ABSL_INCLUDE_DIR
   NAMES absl/base/config.h
-  HINTS /opt/eos/grpc/include ${ABSL_ROOT}
-  PATH_SUFFIXES include jemalloc)
+  HINTS /opt/eos/grpc ${ABSL_ROOT}
+  PATH_SUFFIXES include)
 
 set(libraries absl_synchronization absl_graphcycles_internal absl_stacktrace absl_symbolize absl_time absl_civil_time absl_time_zone
   absl_malloc_internal absl_debugging_internal absl_demangle_internal absl_strings absl_int128
@@ -51,6 +50,5 @@ if (ABSL_FOUND AND NOT TARGET ABSL::ABSL)
     INTERFACE_LINK_LIBRARIES "${ABSL_LIBRARIES}")
 endif ()
 
-if (TARGET ABSL::ABSL)
-  message(STATUS "Successfully created target ABSL::ABSL")
-endif()
+unset(ABSL_INCLUDE_DIR)
+unset(ABSL_LIBRARIES)

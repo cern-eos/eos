@@ -69,6 +69,7 @@ if(NOT PACKAGEONLY)
   find_package(richacl)
   find_package(davix)
   find_package(Scitokens)
+  find_package(Protobuf3 REQUIRED)
 
   if (Linux)
     # Clang Linux build requires libatomic & special flags for charconv
@@ -81,22 +82,22 @@ if(NOT PACKAGEONLY)
     find_package(glibc REQUIRED)
     find_package(xfs REQUIRED)
 
-    find_package(Protobuf3 REQUIRED)
-    # Protobuf3 needs to be added to the RPATH of the libraries and binaries
-    # built since it's not installed in the usual system location
-    set(CMAKE_SKIP_RPATH FALSE)
-    set(CMAKE_SKIP_BUILD_RPATH FALSE)
-    # TODO: To be removed in the future when CMAKE properly handles RPATH.
-    # Currently without this option the koji builds fail with error:
-    # file RPATH_CHANGE could not write new RPATH
-    set(CMAKE_BUILD_WITH_INSTALL_RPATH TRUE)
-    set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
-    get_filename_component(EOS_PROTOBUF_RPATH ${PROTOBUF_LIBRARY} DIRECTORY)
-    get_filename_component(EOS_XROOTD_RPATH ${XROOTD_UTILS_LIBRARY} DIRECTORY)
-    set(CMAKE_INSTALL_RPATH "${EOS_PROTOBUF_RPATH};${EOS_XROOTD_RPATH}")
-    message(STATUS "Info CMAKE_INSTALL_RPATH=${CMAKE_INSTALL_RPATH}")
+    if (PROTOBUF_FOUND)
+      # Protobuf3 needs to be added to the RPATH of the libraries and binaries
+      # built since it's not installed in the usual system location
+      set(CMAKE_SKIP_RPATH FALSE)
+      set(CMAKE_SKIP_BUILD_RPATH FALSE)
+      # TODO: To be removed in the future when CMAKE properly handles RPATH.
+      # Currently without this option the koji builds fail with error:
+      # file RPATH_CHANGE could not write new RPATH
+      set(CMAKE_BUILD_WITH_INSTALL_RPATH TRUE)
+      set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
+      get_filename_component(EOS_PROTOBUF_RPATH ${PROTOBUF_LIBRARY} DIRECTORY)
+      get_filename_component(EOS_XROOTD_RPATH ${XROOTD_UTILS_LIBRARY} DIRECTORY)
+      set(CMAKE_INSTALL_RPATH "${EOS_PROTOBUF_RPATH};${EOS_XROOTD_RPATH}")
+      message(STATUS "Info CMAKE_INSTALL_RPATH=${CMAKE_INSTALL_RPATH}")
+    endif()
   else ()
-    find_package(Protobuf3 REQUIRED)
     # Add dummy targets for APPLE to simplify the cmake file using these targets
     add_library(GLIBC::DL    INTERFACE IMPORTED)
     add_library(GLIBC::RT    INTERFACE IMPORTED)
@@ -109,14 +110,13 @@ if(NOT PACKAGEONLY)
     find_package(ldap REQUIRED)
     # gflags has to be found before GRPC
     find_package(gflags REQUIRED)
-    find_package(GRPC)
+    find_package(GRPC REQUIRED)
 
     if (GRPC_FOUND)
       get_filename_component(EOS_GRPC_RPATH ${GRPC_GRPC++_LIBRARY} DIRECTORY)
       set(CMAKE_INSTALL_RPATH "${EOS_PROTOBUF_RPATH};${EOS_GRPC_RPATH};${EOS_XROOTD_RPATH}")
       message(STATUS "Info CMAKE_INSTALL_RPATH=${CMAKE_INSTALL_RPATH}")
     endif()
-
   endif()
 else()
   message(STATUS "Running CMake in package only mode.")
