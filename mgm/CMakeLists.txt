@@ -351,9 +351,8 @@ target_link_libraries(XrdEosMgm-Objects PUBLIC
   EosGrpcProto-Objects
   EosCliGrpc-Objects
   EosWncGrpcProto-Objects
-  SimpleGrpcProto-Objects
-  Srv-Objects
-  Annot-Objects
+  RestGrpc-Objects
+  RestAnnot-Objects
   GATEWAY::GATEWAY
   EosCommonServer
   LIBMICROHTTPD::LIBMICROHTTPD
@@ -385,9 +384,8 @@ target_link_libraries(XrdEosMgm-${XRDPLUGIN_SOVERSION} PUBLIC
   EosConsoleHelpers-Objects
   EosConsoleCommands-Objects
   EosWncGrpcProto-Objects
-  SimpleGrpcProto-Objects
-  Srv-Objects
-  Annot-Objects
+  RestGrpc-Objects
+  RestAnnot-Objects
   GATEWAY::GATEWAY
   ZLIB::ZLIB
   XROOTD::CL
@@ -449,9 +447,8 @@ if(Linux)
     EosGrpcProto-Objects
     EosCliProto-Objects
     EosCliGrpc-Objects
-    SimpleGrpcProto-Objects
-    Srv-Objects
-    Annot-Objects
+    RestGrpc-Objects
+    RestAnnot-Objects
     GATEWAY::GATEWAY
     EosWncGrpcProto-Objects
     ZLIB::ZLIB

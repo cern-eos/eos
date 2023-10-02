@@ -176,7 +176,7 @@ target_link_libraries(eos-unit-tests PRIVATE
   qclient
   XROOTD::POSIX
   XROOTD::SERVER
-  Annot-Objects
+  RestAnnot-Objects
   XrdEosMgm-Static)
 
 #-------------------------------------------------------------------------------
@@ -220,7 +220,7 @@ target_link_libraries(eos-unit-tests-with-qdb
   GTest::Main
   GTest::gmock
   qclient
-  Annot-Objects
+  RestAnnot-Objects
   XrdEosMgm-Static
   READLINE::READLINE
   JSONCPP::JSONCPP)

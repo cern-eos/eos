@@ -239,18 +239,18 @@ public:
   //!
   //! @return true if the request is a macaroon token request, false otherwise
   //----------------------------------------------------------------------------
-  bool IsRestApiGwRequest(const XrdHttpExtReq& req) const;
+  bool IsRestApiRequest(const XrdHttpExtReq& req) const;
 
   //----------------------------------------------------------------------------
-  //! Process rest api gateway POST request
+  //! Process REST API gateway POST request
   //!
   //! @param req XrdHttp request object
   //! @param norm_hdrs normalized headers from the HTTP request
   //!
   //! @return 0 if successful, otherwise non-0
   //----------------------------------------------------------------------------
-  int ProcessRestApiGwPOST(XrdHttpExtReq& req,
-			   const HdrsMapT& norm_hdrs);
+  int ProcessRestApiPost(XrdHttpExtReq& req,
+                         const HdrsMapT& norm_hdrs);
 
   //----------------------------------------------------------------------------
   //! Forward the authentication relevant info as custom headers to the
@@ -267,7 +267,7 @@ public:
   //! @return true if successful, otherwise false
   //----------------------------------------------------------------------------
   bool RestApiGwFrwAuthHeaders(CURL* curl, const XrdSecEntity& client,
-			       const HdrsMapT& norm_hdrs);
+                               const HdrsMapT& norm_hdrs);
 
   //----------------------------------------------------------------------------
   //! Function used to handle responses from grpc server
@@ -281,5 +281,5 @@ public:
   //! @return number of bytes received if successful, otherwise non-0
   //----------------------------------------------------------------------------
   static size_t WriteCallback(void* contents, size_t size, size_t nmemb,
-                        std::string* output);
+                              std::string* output);
 };

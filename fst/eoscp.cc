@@ -292,9 +292,6 @@ usage()
   fprintf(stderr, "       -n           : hide progress bar\n");
   fprintf(stderr, "       -N           : set name for progress printout\n");
   fprintf(stderr, "       -s           : hide summary\n");
-  fprintf(stderr, "       -j           : JSON output (flags -V -d -v -s are ignored)\n");
-  fprintf(stderr,
-          "       -j           : JSON output (flags -V -d -v -s are ignored)\n");
   fprintf(stderr,
           "       -j           : JSON output (flags -V -d -v -s are ignored)\n");
   fprintf(stderr,
@@ -574,7 +571,7 @@ print_summary(const XferSummary& xferSummary)
       std::string cksumTypeTitle = "[eoscp] # Checksum Type " +
                                    *xferSummary.checksum_type;
       size_t paddingSize = int(keyLen - cksumTypeTitle.length()) > 0 ? keyLen -
-                                                                           cksumTypeTitle.length() : 0;
+                           cksumTypeTitle.length() : 0;
 
       if (paddingSize) {
         cksumTypeTitle += std::string(paddingSize, ' ');

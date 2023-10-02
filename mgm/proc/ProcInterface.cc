@@ -28,8 +28,6 @@
 #include "mgm/proc/admin/ConvertCmd.hh"
 #include "mgm/proc/admin/DebugCmd.hh"
 #include "mgm/proc/admin/DevicesCmd.hh"
-#include "mgm/proc/admin/EvictCmd.hh"
-#include "mgm/proc/admin/FileRegisterCmd.hh"
 #include "mgm/proc/admin/FsCmd.hh"
 #include "mgm/proc/admin/FsckCmd.hh"
 #include "mgm/proc/admin/GroupCmd.hh"
@@ -231,7 +229,7 @@ ProcInterface::HandleProtobufRequest(eos::console::RequestProto& req,
   case RequestProto::kDf:
     cmd.reset(new DfCmd(std::move(req), vid));
     break;
-    
+
   case RequestProto::kDevices:
     cmd.reset(new DevicesCmd(std::move(req), vid));
     break;
@@ -307,7 +305,7 @@ ProcInterface::HandleProtobufRequest(eos::console::RequestProto& req,
   case RequestProto::kRecord:
     cmd.reset(new FileRegisterCmd(std::move(req), vid));
     break;
-      
+
   default:
     eos_static_err("error: unknown request type");
     break;
@@ -449,9 +447,8 @@ ProcInterface::ProtoIsWriteAccess(const char* opaque)
 
   case RequestProto::kAccess:
     switch (req.access().subcmd_case()) {
-      // we have always to allow to modify the access settings, otherwise we cannot remove write or global stalls
+    // we have always to allow to modify the access settings, otherwise we cannot remove write or global stalls
     default:
-      
       return false;
     }
 

@@ -344,52 +344,6 @@ if (GRPC_FOUND)
     POSITION_INDEPENDENT_CODE TRUE)
 endif()
 
-#------------------------------------------------------------------------------
-# Generate protobuf and gRPC objects for Simple Service
-#------------------------------------------------------------------------------
-if (GRPC_FOUND)
-  set(SIMPLE_PROTO common/cli_proto/SimpleService.proto)
-  PROTOBUF_GENERATE_CPP(SIMPLE_SRCS SIMPLE_HDRS ${SIMPLE_PROTO})
-  grpc_generate_cpp(SIMPLE_GRPC_SRCS SIMPLE_GRPC_HDRS ${GRPC_PROTOBUF_PATH} ${SIMPLE_PROTO})
-
-  set_source_files_properties(
-    ${SIMPLE_SRCS}
-    ${SIMPLE_HDRS}
-    ${SIMPLE_GRPC_SRCS}
-    ${SIMPLE_GRPC_HDRS}
-    PROPERTIES GENERATED TRUE)
-
-  add_library(SimpleGrpcProto-Objects OBJECT
-    ${SIMPLE_SRCS}
-    ${SIMPLE_HDRS}
-    ${SIMPLE_GRPC_SRCS}
-    ${SIMPLE_GRPC_HDRS})
-
-  target_link_libraries(SimpleGrpcProto-Objects PUBLIC
-    GRPC::grpc++
-    PROTOBUF::PROTOBUF
-    ABSL::ABSL)
-
-  target_include_directories(SimpleGrpcProto-Objects PUBLIC
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>)
-
-  set_target_properties(SimpleGrpcProto-Objects PROPERTIES
-    POSITION_INDEPENDENT_CODE TRUE)
-endif()
-
-#------------------------------------------------------------------------------
-# Generate protobuf and gRPC objects for EOS Echo Service
-#------------------------------------------------------------------------------
-# set(REST_GW_PROTO echo_service)
-# set(PROTO_PATH ${CMAKE_SOURCE_DIR}/proto/eos_rest_gateway/${REST_GW_PROTO}.proto)
-# set(PROTO_SRC ${CMAKE_BINARY_DIR}/proto/eos_rest_gateway/${REST_GW_PROTO}.pb.cc)
-# set(PROTO_HDR ${CMAKE_BINARY_DIR}/proto/eos_rest_gateway/${REST_GW_PROTO}.pb.h)
-# set(PROTO_GRPC_SRC ${CMAKE_BINARY_DIR}/proto/eos_rest_gateway/${REST_GW_PROTO}.grpc.pb.cc)
-# set(PROTO_GRPC_HDR ${CMAKE_BINARY_DIR}/proto/eos_rest_gateway/${REST_GW_PROTO}.grpc.pb.h)
-# set(GW_GO_GEN ${CMAKE_BINARY_DIR}/go/eos.rest.gateway.service/${REST_GW_PROTO}.pb.gw.go)
-# set(PROTO_GRPC_GO ${CMAKE_BINARY_DIR}/go/eos.rest.gateway.service/${REST_GW_PROTO}_grpc.pb.go)
-# set(PROTO_GO ${CMAKE_BINARY_DIR}/go/eos.rest.gateway.service/${REST_GW_PROTO}.pb.go)
-
 set(REST_GW_PROTO eos_rest_gateway_service)
 set(PROTO_PATH ${CMAKE_SOURCE_DIR}/proto/eos_rest_gateway/${REST_GW_PROTO}.proto)
 set(REST_GW_PROTOS ${CMAKE_SOURCE_DIR}/proto/eos_rest_gateway/${REST_GW_PROTO}.proto)
@@ -421,22 +375,22 @@ add_custom_command(
     COMMAND ${PROTOBUF3_PROTOC_EXECUTABLE} -I${CMAKE_SOURCE_DIR} -I${CMAKE_SOURCE_DIR}/proto/eos_rest_gateway -I${GRPC_INCLUDE_DIR}
 	    --cpp_out=../ ${ANN_PROTOS})
 
-add_library(Annot-Objects OBJECT
+add_library(RestAnnot-Objects OBJECT
     ${ANN_SRCS} ${ANN_HDRS})
 
-target_include_directories(Annot-Objects PUBLIC
+target_include_directories(RestAnnot-Objects PUBLIC
   "$<BUILD_INTERFACE:${CMAKE_BINARY_DIR}>")
 
-set_target_properties(Annot-Objects PROPERTIES
+set_target_properties(RestAnnot-Objects PROPERTIES
   POSITION_INDEPENDENT_CODE TRUE)
 
-target_link_libraries(Annot-Objects PUBLIC
+target_link_libraries(RestAnnot-Objects PUBLIC
     GRPC::grpc++)
 
 add_custom_target(
   GoogleApis-Target
   COMMAND echo "Running protoc for annotations and http"
-  DEPENDS Annot-Objects)
+  DEPENDS RestAnnot-Objects)
 
 # # protoc command for echo_service.proto
 add_custom_command(
@@ -452,20 +406,15 @@ set_source_files_properties(
     ${REST_GW_SRCS} ${REST_GW_HDRS} ${REST_GW_GRPC_SRCS} ${REST_GW_GRPC_HDRS}
     PROPERTIES GENERATED TRUE)
 
-add_library(Srv-Objects OBJECT
+add_library(RestGrpc-Objects OBJECT
   ${REST_GW_SRCS} ${REST_GW_HDRS}
   ${REST_GW_GRPC_SRCS} ${REST_GW_GRPC_HDRS})
 
-target_include_directories(Srv-Objects PUBLIC
+target_include_directories(RestGrpc-Objects PUBLIC
   "$<BUILD_INTERFACE:${CMAKE_BINARY_DIR};${CMAKE_CURRENT_BINARY_DIR}>;")
 
-target_link_libraries(Srv-Objects PUBLIC
+target_link_libraries(RestGrpc-Objects PUBLIC
     GRPC::grpc++)
 
-set_target_properties(Srv-Objects PROPERTIES
+set_target_properties(RestGrpc-Objects PROPERTIES
   POSITION_INDEPENDENT_CODE TRUE)
-
-add_custom_target(
-  GrpcRest-Service
-  COMMAND echo "Build GRPC C++ stub from proto"
-  DEPENDS Srv-Objects)
