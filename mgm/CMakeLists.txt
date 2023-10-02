@@ -353,8 +353,8 @@ target_link_libraries(XrdEosMgm-Objects PUBLIC
   EosWncGrpcProto-Objects
   RestGrpc-Objects
   RestAnnot-Objects
-  GATEWAY::GATEWAY
   EosCommonServer
+  EosGrpcGateway::EosGrpcGateway
   LIBMICROHTTPD::LIBMICROHTTPD
   GOOGLE::SPARSEHASH
   JSONCPP::JSONCPP
@@ -386,7 +386,7 @@ target_link_libraries(XrdEosMgm-${XRDPLUGIN_SOVERSION} PUBLIC
   EosWncGrpcProto-Objects
   RestGrpc-Objects
   RestAnnot-Objects
-  GATEWAY::GATEWAY
+  EosGrpcGateway::EosGrpcGateway
   ZLIB::ZLIB
   XROOTD::CL
   XROOTD::SSI
@@ -449,12 +449,12 @@ if(Linux)
     EosCliGrpc-Objects
     RestGrpc-Objects
     RestAnnot-Objects
-    GATEWAY::GATEWAY
     EosWncGrpcProto-Objects
     ZLIB::ZLIB
     XROOTD::SSI
     XROOTD::PRIVATE
     XROOTD::POSIX
+    EosGrpcGateway::EosGrpcGateway
     EosNsCommon-Static
     EosCommonServer-Static)
 
