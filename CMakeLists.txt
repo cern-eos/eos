@@ -130,6 +130,7 @@ if (NOT TARGET fmt)
   include_directories(common/fmt/include)
   add_subdirectory(common/fmt)
   set_target_properties(fmt PROPERTIES POSITION_INDEPENDENT_CODE TRUE)
+  target_compile_options(fmt PUBLIC -Wno-sign-compare)
 endif ()
 
 #-------------------------------------------------------------------------------

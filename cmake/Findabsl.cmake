@@ -18,7 +18,7 @@ set(libraries absl_synchronization absl_graphcycles_internal absl_stacktrace abs
 
 foreach( lib ${libraries})
   find_library(ABSL_${lib}_LIBRARY NAMES ${lib} HINTS 
-    HINTS /opt/eos/grpc/lib64 ${ABSL_ROOT}
+    HINTS /opt/eos/grpc ${ABSL_ROOT}
     PATH_SUFFIXES ${CMAKE_INSTALL_LIBDIR})
   
   if(ABSL_${lib}_LIBRARY)

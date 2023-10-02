@@ -32,7 +32,6 @@
 #include "namespace/interface/IView.hh"
 #include "namespace/ns_quarkdb/persistency/MetadataFetcher.hh"
 #include "namespace/Prefetcher.hh"
-#include "fmt/format.h"
 
 EOSMGMNAMESPACE_BEGIN
 
@@ -658,18 +657,18 @@ DrainTransferJob::GetInfo(const std::list<std::string>& tags) const
     if (tag == "fxid") {
       info.push_back(eos::common::FileId::Fid2Hex(mFileId));
     } else if (tag == "fs_src") {
-      info.push_back(fmt::to_string(mFsIdSource));
+      info.push_back(std::to_string(mFsIdSource));
     } else if (tag == "fs_dst") {
-      info.push_back(fmt::to_string(mFsIdTarget));
+      info.push_back(std::to_string(mFsIdTarget));
     } else if (tag == "tx_fs_src") {
-      info.push_back(fmt::to_string(mTxFsIdSource));
+      info.push_back(std::to_string(mTxFsIdSource));
     } else if (tag == "start_timestamp") {
       std::time_t start_ts {(long int)mProgressHandler.mStartTimestampSec.load()};
       std::tm calendar_time;
       (void) localtime_r(&start_ts, &calendar_time);
       info.push_back(SSTR(std::put_time(&calendar_time, "%c %Z")));
     } else if (tag == "progress") {
-      info.push_back(fmt::to_string(mProgressHandler.mProgress.load()) + "%");
+      info.push_back(std::to_string(mProgressHandler.mProgress.load()) + "%");
     } else if (tag == "speed") {
       uint64_t now_sec = std::chrono::duration_cast<std::chrono::seconds>
                          (std::chrono::system_clock::now().time_since_epoch()).count();
@@ -678,7 +677,7 @@ DrainTransferJob::GetInfo(const std::list<std::string>& tags) const
         uint64_t duration_sec = now_sec - mProgressHandler.mStartTimestampSec;
         float rate = (mProgressHandler.mBytesTransferred / (1024 * 1024)) /
                      duration_sec;
-        info.push_back(fmt::to_string(rate));
+        info.push_back(std::to_string(rate));
       } else {
         info.push_back("N/A");
       }
