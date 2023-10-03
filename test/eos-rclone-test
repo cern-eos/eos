@@ -54,5 +54,17 @@ eos -b rclone sync /eos/$eosdir/cl/ $localdir/cl/ --verbose || exit -6
 nfiles=`eos newfind -f /eos/$eosdir/cl/ | wc -l`
 
 test $nfiles = "152" || exit -6
+
+
+# remove a target file and try one-way sync with delete open
+
+eos rm /eos/$eosdir/cl/file.0
+eos -b rclone copy /eos/$eosdir/cl/ $localdir/cl/ --verbose --delete || exit -7
+
+# local find does not find symlinks, so we have one less
+nfiles=`find $localdir/cl/ -type f | wc -l`
+
+test $nfiles = "150" || exit -7
+
 echo
 echo "eos-rclone: all tests passwd OK"
