@@ -241,7 +241,7 @@ FuseServer::Caps::BroadcastRefreshFromExternal(uint64_t id, uint64_t pid,
   gOFS->MgmStats.Add("Eosxd::int::BcRefreshExt", 0, 0, 1);
   EXEC_TIMING_BEGIN("Eosxd::int::BcRefreshExt");
   // broad-cast refresh for a given inode
-  eos_static_info("id=%lx pid=%lx", id, pid);
+  eos_static_debug("id=%lx pid=%lx", id, pid);
   auto bccaps = GetBroadcastCapsTS(pid, nullptr, nullptr, true,
                                    "Eosxd::int::BcRefreshExtSup");
 
@@ -266,7 +266,7 @@ FuseServer::Caps::BroadcastDeletionFromExternal(uint64_t id,
 {
   gOFS->MgmStats.Add("Eosxd::int::BcDeletionExt", 0, 0, 1);
   EXEC_TIMING_BEGIN("Eosxd::int::BcDeletionExt");
-  eos_static_info("id=%lx name=%s", id, name.c_str());
+  eos_static_debug("id=%lx name=%s", id, name.c_str());
   // broad-cast deletion for a given name in a container
   auto bccaps = GetBroadcastCapsTS(id);
 
@@ -293,7 +293,7 @@ FuseServer::Caps::BroadcastDeletion(uint64_t id, const eos::fusex::md& md,
 {
   gOFS->MgmStats.Add("Eosxd::int::BcDeletion", 0, 0, 1);
   EXEC_TIMING_BEGIN("Eosxd::int::BcDeletion");
-  eos_static_info("id=%lx name=%s", id, name.c_str());
+  eos_static_debug("id=%lx name=%s", id, name.c_str());
   FuseServer::Caps::shared_cap refcap = GetTS(md.authid());
   auto bccaps = GetBroadcastCapsTS((*refcap)()->id(), refcap, &md);
 
@@ -321,7 +321,7 @@ FuseServer::Caps::BroadcastRefresh(uint64_t inode,
 {
   gOFS->MgmStats.Add("Eosxd::int::BcRefresh", 0, 0, 1);
   EXEC_TIMING_BEGIN("Eosxd::int::BcRefresh");
-  eos_static_info("id=%lx parent=%lx", inode, parent_inode);
+  eos_static_debug("id=%lx parent=%lx", inode, parent_inode);
   size_t n_suppressed = 0;
   std::vector<authid_t> auth_ids;
   FuseServer::Caps::shared_cap refcap {nullptr};
