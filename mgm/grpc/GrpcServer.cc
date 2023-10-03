@@ -191,10 +191,11 @@ std::string GrpcServer::IP(grpc::ServerContext* context, std::string* id,
 {
   // format is ipv4:<ip>:<..> or ipv6:<ip>:<..> - we just return the IP address
   // butq net and id are populated as well with the prefix and suffix, respectively
+  // The context peer information is curl encoded
+  const std::string decoded_peer =
+    eos::common::StringConversion::curl_default_unescaped(context->peer().c_str());
   std::vector<std::string> tokens;
-  eos::common::StringConversion::Tokenize(context->peer(),
-                                          tokens,
-                                          "[]");
+  eos::common::StringConversion::Tokenize(decoded_peer, tokens, "[]");
 
   if (tokens.size() == 3) {
     if (id) {
@@ -324,4 +325,3 @@ GrpcServer::Run(ThreadAssistant& assistant) noexcept
 }
 
 EOSMGMNAMESPACE_END
-
