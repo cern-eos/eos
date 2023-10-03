@@ -820,7 +820,7 @@ code_quality_html:
     - date
     - echo 0 > /proc/sys/kernel/perf_event_paranoid; cat /proc/sys/kernel/perf_event_paranoid
     - echo 0 > /proc/sys/kernel/kptr_restrict; cat /proc/sys/kernel/kptr_restrict
-    - exec_cmd eos-mgm1 "mkdir eos-flamegraph-data; cd eos-flamegraph-data; /usr/sbin/eos-make-flamegraph;tree"
+    - exec_cmd eos-mgm1 "mkdir eos-flamegraph-data; cd eos-flamegraph-data; /usr/sbin/eos-make-flamegraph; yum install -y tree; tree"
     - date
   artifacts:
     expire_in: 1 days
