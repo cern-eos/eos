@@ -217,6 +217,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   MgmQoSConfigFile = "";
   IoReportStorePath = "/var/tmp/eos/report";
   TmpStorePath = "/var/tmp/eos/mgm";
+  mQClientDir = "/var/eos/ns-queue/";
   MgmArchiveDstUrl = "";
   MgmArchiveSvcClass = "default";
   mPrepareDestSpace = "default";
@@ -602,6 +603,21 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
           std::string pwlen = std::to_string(mQdbPassword.size());
           Eroute.Say("=====> mgmofs.qdbpassword length : ", pwlen.c_str());
           mQdbContactDetails.password = mQdbPassword;
+        }
+
+
+        if (!strcmp("qclientdir",var)) {
+          if (!(val = Config.GetWord())) {
+            Eroute.Emsg("Config", "argument for qclientdir is invalid");
+            NoGo = 1;
+          } else {
+            mQClientDir = val;
+
+            if (!eos::common::endsWith(mQClientDir, "/")) {
+              mQClientDir += "/";
+            }
+            Eroute.Say("=====> mgmofs.qclientdir : ", mQClientDir.c_str());
+          }
         }
 
         if (!strcmp("authlib", var)) {
