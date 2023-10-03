@@ -16,13 +16,8 @@ set -ex
 declare -A BUILDMAP
 
 BUILDMAP[cc7]=el-7
-BUILDMAP[rl8]=el-8
-BUILDMAP[al8]=al-8
-BUILDMAP[al9]=al-9
-BUILDMAP[cs8]=el-8s
-BUILDMAP[cs9]=el-9s
-BUILDMAP[fc-36]=fc-36
-BUILDMAP[fc-37]=fc-37
+BUILDMAP[al8]=el-8
+BUILDMAP[al9]=el-9
 BUILDMAP[fc-38]=fc-38
 BUILDMAP[fc-rawhide]=fc-rawhide
 BUILDMAP[osx]=osx

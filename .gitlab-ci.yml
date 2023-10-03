@@ -363,34 +363,14 @@ build_ubuntu_focal:
   allow_failure: true
 
 
-build_fedora_36:
-  extends: .build-fedora-template
-  image: fedora:36
-  variables:
-    BUILD_NAME: fc-36
-  only:
-    - tags
-
-
-build_fedora_37:
-  extends: .build-fedora-template
-  image: fedora:37
-  variables:
-    BUILD_NAME: fc-37
-  only:
-    - schedules
-    - tags
-
-
 build_fedora_38:
   extends: .build-fedora-template
   image: fedora:38
   variables:
     BUILD_NAME: fc-38
-#  only:
-#    - schedules
-#    - tags
-  when: manual
+  only:
+    - schedules
+    - tags
 
 
 build_fedora_rawhide:
