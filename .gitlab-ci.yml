@@ -63,7 +63,7 @@ default:
     - export DOCKERFILE="$CI_PROJECT_DIR/gitlab-ci/prebuild_OSbase/prebuild-${PREBUILD_NAME}.Dockerfile"
     - echo "{\"auths\":{\"$CI_REGISTRY\":{\"auth\":\"$(echo -n $CI_REGISTRY_USER:$CI_REGISTRY_PASSWORD | base64)\"}}}" > /kaniko/.docker/config.json
     # no need yet for --build-arg PREBUILD_NAME="$PREBUILD_NAME" --build-arg CMAKE_OPTIONS="$CMAKE_OPTIONS" --build-arg CXXFLAGS="$CXXFLAGS"
-    - /kaniko/executor --cache="false" --destination $DESTINATION --dockerfile $DOCKERFILE --context $CI_PROJECT_DIR --build-arg=EOS_CODENAME="${CODENAME}" --single-snapshot
+    - /kaniko/executor --cache="false" --destination $DESTINATION --dockerfile $DOCKERFILE --context $CI_PROJECT_DIR --build-arg=EOS_CODENAME="${CODENAME}" --compressed-caching=false --use-new-run
   only:
     variables:
       - $PREBUILD_TRIGGER
@@ -538,7 +538,7 @@ build_cc7_coverage:
     - DESTINATION="${IMAGE_REPO}:${IMAGE_TAG}"
     - echo "CACHE=$CACHE - DESTINATION=$DESTINATION"
     - echo "{\"auths\":{\"$CI_REGISTRY\":{\"auth\":\"$(echo -n $CI_REGISTRY_USER:$CI_REGISTRY_PASSWORD | base64)\"}}}" > /kaniko/.docker/config.json
-    - /kaniko/executor --cache=$CACHE --destination $DESTINATION --dockerfile $DOCKERFILE --context $CI_PROJECT_DIR --build-arg=EOS_CODENAME="${CODENAME}" --single-snapshot
+    - /kaniko/executor --cache=$CACHE --destination $DESTINATION --dockerfile $DOCKERFILE --context $CI_PROJECT_DIR --build-arg=EOS_CODENAME="${CODENAME}" --compressed-caching=false --use-new-run
   retry: 1
 
 
@@ -1103,7 +1103,7 @@ debian_artifacts_volume:
         export DESTINATION="${IMAGE_REPO}:${CI_COMMIT_SHORT_SHA}";
       fi
     - echo "{\"auths\":{\"$CI_REGISTRY\":{\"auth\":\"$(echo -n $CI_REGISTRY_USER:$CI_REGISTRY_PASSWORD | base64)\"}}}" > /kaniko/.docker/config.json
-    - /kaniko/executor --cache=false --destination $DESTINATION --dockerfile $DOCKERFILE --context $CI_PROJECT_DIR --build-arg=EOS_CODENAME="${CODENAME}" --build-arg=REPOBRANCH="${REPOBRANCH}" --single-snapshot
+    - /kaniko/executor --cache=false --destination $DESTINATION --dockerfile $DOCKERFILE --context $CI_PROJECT_DIR --build-arg=EOS_CODENAME="${CODENAME}" --build-arg=REPOBRANCH="${REPOBRANCH}" --compressed-caching=false --use-new-run
   retry: 1
 
 
