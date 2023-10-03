@@ -375,7 +375,7 @@ Iostat::Init(const std::string& instance_name, int port,
              const std::string& legacy_file)
 {
   mHashKeyBase = SSTR("eos-iostat:" << instance_name << ":");
-  mFlusherPath = SSTR("/var/eos/ns-queue/" << instance_name << ":" << port
+  mFlusherPath = SSTR(gOFS->mQClientDir << instance_name << ":" << port
                       << "_iostat");
 
   if (gOFS) {
