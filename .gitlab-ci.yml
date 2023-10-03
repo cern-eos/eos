@@ -75,18 +75,6 @@ prebuild-cc7:
     PREBUILD_NAME: cc7
 
 
-prebuild-cs8:
-  extends: .prebuild-template
-  variables:
-    PREBUILD_NAME: cs8
-
-
-prebuild-cs9:
-  extends: .prebuild-template
-  variables:
-    PREBUILD_NAME: cs9
-
-
 prebuild-al8:
   extends: .prebuild-template
   variables:
@@ -233,24 +221,6 @@ build_al9:
   only:
     - schedules
     - tags
-
-
-# Client only builds
-build_cs8:
-  extends: .build-template
-  image: gitlab-registry.cern.ch/dss/eos/prebuild-cs8-${CODENAME}
-  variables:
-    BUILD_NAME: cs8
-    CLIENT: "-DCLIENT=1"
-
-
-build_cs9:
-  extends: .build-template
-  image: gitlab-registry.cern.ch/dss/eos/prebuild-cs9-${CODENAME}
-  variables:
-    BUILD_NAME: cs9
-    CLIENT: "-DCLIENT=1"
-
 
 #-------------------------------------------------------------------------------
 # EOS client builds for RHEL
@@ -630,21 +600,6 @@ ubuntu_jammy_docker_image:
   allow_failure: true
 
 
-# Disabled
-.cs8_docker_image:
-  extends: .build_dockerimage-template
-  variables:
-    DOCKERFILE: eos-docker/Dockerfile_cs8
-    BASETAG: "cs8_"
-  needs:
-    - job: clone_docker
-    - job: build_cs8
-  only:
-    - schedules
-    - tags
-  allow_failure: true
-
-
 cc7_asan_docker_image:
   extends: .build_dockerimage-template
   variables:
@@ -990,24 +945,6 @@ publish_koji_al9:
     BUILD_NAME: "al9"
   dependencies:
     - build_al9
-
-
-publish_koji_cs9:
-  <<: *publish_koji_template_definition
-  variables:
-    TARGET: "eos9"
-    BUILD_NAME: "cs9"
-  dependencies:
-    - build_cs9
-
-
-publish_koji_cs8:
-  <<: *publish_koji_template_definition
-  variables:
-    TARGET: "eos8s"
-    BUILD_NAME: "cs8"
-  dependencies:
-    - build_cs8
 
 
 publish_koji_cc7:
