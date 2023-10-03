@@ -588,7 +588,7 @@ build_cc7_coverage:
     - DESTINATION="${IMAGE_REPO}:${IMAGE_TAG}"
     - echo "CACHE=$CACHE - DESTINATION=$DESTINATION"
     - echo "{\"auths\":{\"$CI_REGISTRY\":{\"auth\":\"$(echo -n $CI_REGISTRY_USER:$CI_REGISTRY_PASSWORD | base64)\"}}}" > /kaniko/.docker/config.json
-    - /kaniko/executor --cache=$CACHE --destination $DESTINATION --dockerfile $DOCKERFILE --context $CI_PROJECT_DIR --build-arg=EOS_CODENAME="${CODENAME}" --single-snapshot --compressed-caching=false
+    - /kaniko/executor --cache=$CACHE --destination $DESTINATION --dockerfile $DOCKERFILE --context $CI_PROJECT_DIR --build-arg=EOS_CODENAME="${CODENAME}" --single-snapshot
   retry: 1
 
 
@@ -1186,7 +1186,7 @@ debian_artifacts_volume:
         export DESTINATION="${IMAGE_REPO}:${CI_COMMIT_SHORT_SHA}";
       fi
     - echo "{\"auths\":{\"$CI_REGISTRY\":{\"auth\":\"$(echo -n $CI_REGISTRY_USER:$CI_REGISTRY_PASSWORD | base64)\"}}}" > /kaniko/.docker/config.json
-    - /kaniko/executor --cache=false --destination $DESTINATION --dockerfile $DOCKERFILE --context $CI_PROJECT_DIR --build-arg=EOS_CODENAME="${CODENAME}" --build-arg=REPOBRANCH="${REPOBRANCH}" --single-snapshot --compressed-caching=false
+    - /kaniko/executor --cache=false --destination $DESTINATION --dockerfile $DOCKERFILE --context $CI_PROJECT_DIR --build-arg=EOS_CODENAME="${CODENAME}" --build-arg=REPOBRANCH="${REPOBRANCH}" --single-snapshot
   retry: 1
 
 
