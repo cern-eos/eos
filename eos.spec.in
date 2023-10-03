@@ -331,7 +331,7 @@ Requires: eos-client == @CPACK_PACKAGE_VERSION@
 Requires: eos-libmicrohttpd >= 0.9.38
 Requires: acl
 Requires: gdb
-Requires: jemalloc, jemalloc-devel
+Requires: jemalloc
 Requires: jsoncpp
 Requires: psmisc
 Requires: libcurl
