@@ -13,7 +13,7 @@ RUN dnf install --nogpg -y git && dnf clean all \
 
 RUN dnf install -y dnf-plugins-core epel-release\
     && dnf config-manager --set-enabled crb \
-    && echo -e "[eos-depend]\nname=EOS dependencies\nbaseurl=http://storage-ci.web.cern.ch/storage-ci/eos/${EOS_CODENAME}-depend/al-9/x86_64/\ngpgcheck=0\nenabled=1\npriority=4" > /etc/yum.repos.d/eos-depend.repo
+    && echo -e "[eos-depend]\nname=EOS dependencies\nbaseurl=http://storage-ci.web.cern.ch/storage-ci/eos/${EOS_CODENAME}-depend/el-9/x86_64/\ngpgcheck=0\nenabled=1\npriority=4" > /etc/yum.repos.d/eos-depend.repo
 
 RUN dnf install --nogpg -y ccache cmake3 gcc-c++ git make rpm-build rpm-sign which\
     && git submodule update --init --recursive \
