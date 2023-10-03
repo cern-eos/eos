@@ -56,18 +56,14 @@
 %if %{?rhel:1}%{!?rhel:0}
   %if %{?rhel} >= 7
     %define use_systemd 1
-    %define use_richacl 1
   %else
     %define use_systemd 0
-    %define use_richacl 0
   %endif
 %else
   %if %{?fedora}%{!?fedora:0} >= 19
     %define use_systemd 1
-    %define use_richacl 1
   %else
     %define use_systemd 0
-    %define use_richacl 0
   %endif
 %endif
 
@@ -174,10 +170,6 @@ BuildRequires: zeromq, zeromq-devel
 BuildRequires: libevent, libevent-devel
 BuildRequires: bzip2-devel
 Requires: bzip2
-
-%if %{use_richacl}
-BuildRequires: eos-librichacl-devel, eos-richacl >= 1.12
-%endif
 
 # ISA-L[_crypto], XXHash and scitokens dependencies for CC7 and CS8/9
 %if %{?_with_server:1}%{!?_with_server:0}
@@ -607,9 +599,6 @@ Requires: eos-client = @CPACK_PACKAGE_VERSION@
 Requires: fuse
 Requires: jemalloc
 Requires: attr
-%if %{use_richacl}
-Requires: eos-librichacl, eos-richacl >= 1.12
-%endif
 Requires: zeromq
 
 %description -n eos-fusex-core

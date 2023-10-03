@@ -109,7 +109,6 @@ target_link_libraries(eosxd-objects PUBLIC
   JSONCPP::JSONCPP
   XROOTD::PRIVATE
   XROOTD::UTILS
-  RICHACL::RICHACL
   GOOGLE::SPARSEHASH
   ZMQ::ZMQ)
 
@@ -151,7 +150,6 @@ target_link_libraries(eosxd3-objects PUBLIC
   JSONCPP::JSONCPP
   XROOTD::PRIVATE
   XROOTD::UTILS
-  RICHACL::RICHACL
   GOOGLE::SPARSEHASH
   ZMQ::ZMQ)
 endif()
