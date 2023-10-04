@@ -107,8 +107,6 @@ if(NOT PACKAGEONLY)
   if (NOT CLIENT)
     find_package(eosfolly REQUIRED)
     find_package(ldap REQUIRED)
-    # gflags has to be found before GRPC
-    find_package(gflags REQUIRED)
     find_package(GRPC REQUIRED)
 
     if (GRPC_FOUND)
