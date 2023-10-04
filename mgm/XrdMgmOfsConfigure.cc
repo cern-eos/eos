@@ -2036,8 +2036,19 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
     WNCd->StartWnc();
   }
 
-  if (RestGwd) {
-    RestGwd->Start();
+  // Start gRPC server for EOS HTTP REST API
+  if (mRestGrpcSrv) {
+#ifdef EOS_GRPC_GATEWAY
+    eos_static_notice("msg=\"REST GRPC service enabled\" port=%i",
+                      mRestGrpcPort);
+    mRestGrpcSrv->Start();
+#else
+    mRestGrpcSrv.reset();
+    eos_static_notice("%s", "msg=\"REST GPRC service disabled due to lack of "
+                      "GRPC GATEWAY support i.e. eos-grpc-gateway\"");
+#endif
+  } else {
+    eos_static_notice("%s", "msg=\"REST GRPC service disabled\"");
   }
 
 #endif
@@ -2202,7 +2213,6 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
                                          space.second->GetConfigMember("scheduler.type"));
     }
   }
-
   return NoGo;
 }
 /*----------------------------------------------------------------------------*/

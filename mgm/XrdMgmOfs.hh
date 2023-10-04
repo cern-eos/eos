@@ -1956,7 +1956,8 @@ public:
 
   std::unique_ptr<GrpcServer> GRPCd; ///< GRPC server
   std::unique_ptr<GrpcWncServer> WNCd; ///< GRPC server for EOS Wnc
-  std::unique_ptr<GrpcRestGwServer> RestGwd; ///< GRPC server for REST API
+  //! GRPC server for REST API
+  std::unique_ptr<GrpcRestGwServer> mRestGrpcSrv;
 
   //! LRU object running the LRU policy engine
   std::unique_ptr<LRU> mLRUEngine;
@@ -1990,7 +1991,7 @@ public:
   int mFusexPort; ///< port of the FUSEX broadcast MQZ, default 1100
   int mGRPCPort; ///< port of the GRPC server, default 50051
   int mWncPort; ///< port of the GRPC server for EOS Wnc, default 50052
-  int mRestGwPort; ///< port of the REST GRPC server, default 50054
+  int mRestGrpcPort; ///< port of the REST GRPC server, default 50054
   eos::common::XrdConnPool mXrdConnPool; ///< XRD connection pool
   //! Tracker for requests which are currently executing MGM code
   eos::mgm::InFlightTracker mTracker;

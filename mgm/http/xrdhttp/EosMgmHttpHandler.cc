@@ -244,7 +244,7 @@ EosMgmHttpHandler::ProcessReq(XrdHttpExtReq& req)
     }
   }
 
-  if (IsRestApiRequest(req)) {
+  if (mMgmOfsHandler->mRestGrpcSrv && IsRestApiRequest(req)) {
     return ProcessRestApiPost(req, normalized_headers);
   }
 
@@ -786,6 +786,7 @@ bool EosMgmHttpHandler::IsMacaroonRequest(const XrdHttpExtReq& req) const
 //------------------------------------------------------------------------------
 // Returns true if the request is a rest api gateway token request
 // false otherwise
+// @todo(esindril) this should be moved in the GrpcRestGwServer
 //------------------------------------------------------------------------------
 bool EosMgmHttpHandler::IsRestApiRequest(const XrdHttpExtReq& req) const
 {

@@ -306,11 +306,12 @@ XrdMgmOfs::XrdMgmOfs(XrdSysError* ep):
   zMQ(nullptr), mExtAuthz(nullptr), MgmStatsPtr(new eos::mgm::Stat()),
   MgmStats(*MgmStatsPtr), mFsckEngine(new Fsck()), mMaster(nullptr),
   mRouting(new eos::mgm::PathRouting()), mConverterDriver(),
-  mHttpd(nullptr), mLRUEngine(new eos::mgm::LRU()),
+  mHttpd(nullptr), GRPCd(nullptr), WNCd(nullptr), mRestGrpcSrv(nullptr),
+  mLRUEngine(new eos::mgm::LRU()),
   WFEPtr(new eos::mgm::WFE()), WFEd(*WFEPtr), UTF8(false), mFstGwHost(""),
   mFstGwPort(0), mQdbCluster(""), mHttpdPort(8000),
   mFusexPort(1100), mGRPCPort(50051), mWncPort(50052),
-  mRestGwPort(50054),
+  mRestGrpcPort(50054),
   mFidTracker(std::chrono::seconds(600), std::chrono::seconds(3600)),
   mDoneOrderlyShutdown(false),
   mXrdBuffPool(2 * eos::common::KB, 2 * eos::common::MB, 8, 64),
@@ -362,8 +363,16 @@ XrdMgmOfs::XrdMgmOfs(XrdSysError* ep):
     WNCd.reset(new eos::mgm::GrpcWncServer(mWncPort));
   }
 
-  if (mRestGwPort) {
-    RestGwd.reset(new eos::mgm::GrpcRestGwServer(mRestGwPort));
+  if (getenv("EOS_MGM_REST_GRPC_PORT")) {
+    mRestGrpcPort = strtol(getenv("EOS_MGM_REST_GRPC_PORT"), 0, 10);
+  }
+
+  if (mRestGrpcPort) {
+    const char* ptr = getenv("EOS_MGM_ENABLE_REST_API");
+
+    if (ptr && strncmp(ptr, "1", 1) == 0) {
+      mRestGrpcSrv.reset(new eos::mgm::GrpcRestGwServer(mRestGrpcPort));
+    }
   }
 
   EgroupRefresh.reset(new eos::mgm::Egroup());

@@ -269,6 +269,20 @@ EOS_HTTP_CONNECTION_MEMORY_LIMIT=4194304
 # EOS_MGM_WNC_SSL_CA
 
 #-------------------------------------------------------------------------------
+# REST API dedicated GRPC service
+#-------------------------------------------------------------------------------
+
+# Enable the REST API support. The effect of this env variable depends if the
+# code has been built with grpc-gateway (eos-grpc-gateway) support or not. To
+# have a fully functional REST API both conditions (built-in support and env
+# variable set to 1) need to be satisfied. Disabled by default i.e. 0.
+# EOS_MGM_ENABLE_REST_API=0
+
+# Set the port for the internal GRPC server handling the REST API requests.
+# Default value is 500054.
+# EOS_MGM_REST_GRPC_PORT=50054
+
+#-------------------------------------------------------------------------------
 # FUSEX Configuration
 #-------------------------------------------------------------------------------
 
