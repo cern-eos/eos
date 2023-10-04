@@ -209,9 +209,7 @@ std::string GrpcServer::IP(grpc::ServerContext* context, std::string* id,
     return "[" + tokens[1] + "]";
   } else {
     tokens.clear();
-    eos::common::StringConversion::Tokenize(context->peer(),
-                                            tokens,
-                                            ":");
+    eos::common::StringConversion::Tokenize(decoded_peer, tokens, ":");
 
     if (tokens.size() == 3) {
       if (id) {
