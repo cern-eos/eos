@@ -181,8 +181,9 @@ FsckEntry::CollectFstInfo(eos::common::FileSystem::fsid_t fsid)
   stat_info.reset(stat_info_raw);
 
   if (!status.IsOK()) {
-    eos_err("msg=\"failed stat\" fxid=%08llx fsid=%lu local_path=%s", mFid,
-            fsid, fpath_local.c_str());
+    eos_err("msg=\"failed stat\" fxid=%08llx fsid=%lu local_path=%s "
+            "xrd_code=%u xrd_errno=%u", mFid, fsid, fpath_local.c_str(),
+            status.code, status.errNo);
 
     if (status.code == XrdCl::errOperationExpired) {
       mFstFileInfo.emplace(fsid, std::make_unique<FstFileInfoT>("",
@@ -284,8 +285,6 @@ FsckEntry::RepairMgmXsSzDiff()
           bad_fsids.insert(it->first);
         } else {
           // Trigger a resync of the FST info as it looks to be out of sync
-          // @todo(esindril) eosams02 should fix the following file:
-          // eos file check fxid:12ea07da
           ResyncFstMd(false);
           return false;
         }
@@ -631,6 +630,7 @@ FsckEntry::RepairReplicaInconsistencies()
 
     if ((it == mFstFileInfo.end()) ||
         (it->second->mFstErr == FstErr::NotOnDisk)) {
+      eos_info("msg=\"mark as missing\" fxid=%08llx fsid=%lu", mFid, fsid);
       repmiss_fsids.insert(fsid);
     }
   }
@@ -714,6 +714,7 @@ FsckEntry::RepairReplicaInconsistencies()
     }
   }
 
+  to_drop.clear();
   bool to_delete = (mMgmFmd.cont_id() == 0ull);
 
   if (to_delete) {
@@ -727,7 +728,6 @@ FsckEntry::RepairReplicaInconsistencies()
     return true;
   }
 
-  to_drop.clear();
   // Decide if we need to attach or discard any replicas
   uint32_t num_expected_rep = LayoutId::GetStripeNumber(mMgmFmd.layout_id()) + 1;
   uint32_t num_actual_rep = mMgmFmd.locations().size();
