@@ -1160,7 +1160,7 @@ runtest "### Find      " unix 0 "" eos find "/eos/$EOS_TEST_INSTANCE/test/instan
 runtest "### Upload    " unix 0 "" upload   "$TESTSYSFILE1M" "/eos/$EOS_TEST_INSTANCE/test/instancetest/findtest/f1" "-ODeos.ruid=0"
 runtest "### Delay     " unix 0 "" delay 10
 runtest "### Du -s     " unix 0 "" eos du -s "/eos/$EOS_TEST_INSTANCE/test/instancetest/findtest/"
-runtest "### Du -s     " unix 0 "" eos du "/eos/$EOS_TEST_INSTANCE/test/instancetest/findtest/"
+runtest "### Du -s     " unix 0 "" eos du -a "/eos/$EOS_TEST_INSTANCE/test/instancetest/findtest/"
 runtest "### Du -s     " unix 0 "" eos du -s "/eos/$EOS_TEST_INSTANCE/test/instancetest/findtest/ | grep 1024041"
 runtest "### Du -s     " unix 0 "" eos du -s -h "/eos/$EOS_TEST_INSTANCE/test/instancetest/findtest/ | grep 1.02 | grep MB"
 runtest "### Du -s     " unix 0 "" eos du -s -h --si "/eos/$EOS_TEST_INSTANCE/test/instancetest/findtest/"
