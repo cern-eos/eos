@@ -578,6 +578,34 @@ metad::map_children_to_local(shared_md pmd)
 /* -------------------------------------------------------------------------- */
 void
 /* -------------------------------------------------------------------------- */
+metad::wait_backlog(uint64_t id, size_t minfree)
+/* -------------------------------------------------------------------------- */
+{
+  // ------------------------------------------------------------------------
+  // wait_backlog should be called with mdflush locked.
+  //
+  // id:      if non-zero the caller holds a lock on the associated mdx
+  //          (order for lock acquisition is mdx, then mdflush). This should
+  //          be the only mdx lock the caller holds.
+  // minfree: if possible wait for the number of elements in mdqueue map to
+  //          have this much headroom below the mdqueue_max_backlog level.
+  //
+  // if the mdcflush thread is currently attempting to process "id", skip the
+  // wait as we risk a deadlock with mdcflush.
+  // ------------------------------------------------------------------------
+
+  while (mdqueue.size() + minfree > mdqueue_max_backlog) {
+    if (id) {
+      if (id == mdqueue_current)
+        return;
+    }
+    mdflush.WaitMS(25);
+  }
+}
+
+/* -------------------------------------------------------------------------- */
+void
+/* -------------------------------------------------------------------------- */
 metad::wait_upstream(fuse_req_t req,
                      fuse_ino_t ino)
 /* -------------------------------------------------------------------------- */
@@ -1001,23 +1029,14 @@ void
 metad::update(fuse_req_t req, shared_md md, std::string authid,
               bool localstore)
 {
-  update(req, (*md)()->id(), authid, localstore);
-}
-
-/* -------------------------------------------------------------------------- */
-void
-metad::update(fuse_req_t req, uint64_t id, std::string authid,
-              bool localstore)
-{
   mdflush.Lock();
   stat.inodes_backlog_store(mdqueue.size());
+  const uint64_t id = (*md)()->id();
 
   if (!localstore) {
     // only updates initiated from FUSE limited,
     // server response updates pass
-    while (mdqueue.size() == mdqueue_max_backlog) {
-      mdflush.WaitMS(25);
-    }
+    wait_backlog(id, 1);
   }
 
   flushentry fe(id, authid, localstore ? mdx::LSTORE : mdx::UPDATE, req);
@@ -1075,9 +1094,7 @@ metad::add(fuse_req_t req, metad::shared_md pmd, metad::shared_md md,
   stat.inodes_backlog_store(mdqueue.size());
 
   if (!localstore) {
-    while (mdqueue.size() == mdqueue_max_backlog) {
-      mdflush.WaitMS(25);
-    }
+    wait_backlog(id, 2);
 
     flushentry fe(id, authid, mdx::ADD, req);
     fe.bind();
@@ -1185,10 +1202,7 @@ metad::add_sync(fuse_req_t req, shared_md pmd, shared_md md, std::string authid)
   mdflush.Lock();
   stat.inodes_backlog_store(mdqueue.size());
 
-  while (mdqueue.size() == mdqueue_max_backlog) {
-    mdflush.WaitMS(25);
-  }
-
+  wait_backlog(id, 1);
   flushentry fep(pid, authid, mdx::LSTORE, req);
   fep.bind();
   mdqueue[pid]++;
@@ -1289,27 +1303,20 @@ metad::remove(fuse_req_t req, metad::shared_md pmd, metad::shared_md md,
     (*pmd)()->set_mtime(ts.tv_sec);
     (*pmd)()->set_mtime_ns(ts.tv_nsec);
   }
-  {
-    // wait that there is space in the queue
-    mdflush.Lock();
 
-    while (mdqueue.size() == mdqueue_max_backlog) {
-      mdflush.WaitMS(25);
-    }
-
-    mdflush.UnLock();
-  }
   md->Locker().Lock();
 
   if (!upstream) {
     return;
   }
 
+  mdflush.Lock();
+  // wait for there to be space in the queue
+  wait_backlog(id, 2);
   flushentry fe(id, authid, mdx::RM, req);
   fe.bind();
   flushentry fep(pid, authid, mdx::LSTORE, req);
   fep.bind();
-  mdflush.Lock();
   mdqueue[pid]++;
   mdqueue[id]++;
   mdflushqueue.push_back(fe);
@@ -1414,9 +1421,7 @@ metad::mv(fuse_req_t req, shared_md p1md, shared_md p2md, shared_md md,
   (*md)()->set_mv_authid(authid1); // store also the source authid
   mdflush.Lock();
 
-  while (mdqueue.size() == mdqueue_max_backlog) {
-    mdflush.WaitMS(25);
-  }
+  wait_backlog((*md)()->id(), (p1id != p2id) ?  3 : 2);
 
   flushentry fe1(p1id, authid1, mdx::UPDATE, req);
   fe1.bind();
@@ -2233,6 +2238,7 @@ metad::mdcflush(ThreadAssistant& assistant)
         }
       }
 
+      mdqueue_current = 0;
       stat.inodes_backlog_store(mdqueue.size());
 
       while (mdqueue.size() == 0) {
@@ -2259,6 +2265,7 @@ metad::mdcflush(ThreadAssistant& assistant)
       eos_static_info("metacache::flush %s", flushentry::dump(*it).c_str());
       mdflushqueue.erase(it);
       mdqueue[ino]--;
+      mdqueue_current = ino;
       mdflush.UnLock();
 
       if (assistant.terminationRequested()) {
@@ -3076,7 +3083,6 @@ metad::mdcallback(ThreadAssistant& assistant)
           (*md)()->clear_pt_mtime_ns();
           inomap.insert((*md)()->md_ino(), (*md)()->id());
           add(0, pmd, md, authid, true);
-          update(req, pino, authid, true);
           // adjust local quota
           cap::shared_cap cap = EosFuse::Instance().caps.get(pino, md_clientid);
 
