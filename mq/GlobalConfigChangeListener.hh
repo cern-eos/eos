@@ -35,7 +35,7 @@ namespace qclient
 {
 class SharedHash;
 class SharedHashSubscription;
-class SharedHashUpdate;
+struct SharedHashUpdate;
 }
 
 class ThreadAssistant;
