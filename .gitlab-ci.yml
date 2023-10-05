@@ -459,7 +459,7 @@ build_cc7_clang:
   variables:
     BUILD_NAME: cc7_clang
     CMAKE_OPTIONS: "-DCLANG_BUILD=1"
-    RPMBUILD_OPTIONS: "--with clang --with-server"
+    RPMBUILD_OPTIONS: "--with clang --with server"
   only:
     - schedules
     - triggers
