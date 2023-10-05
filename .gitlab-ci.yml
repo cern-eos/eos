@@ -26,7 +26,7 @@ stages:
   - clean
 
 include:
-  - template: Code-Quality.gitlab-ci.yml
+  # - template: Code-Quality.gitlab-ci.yml
   #  - local: /gitlab-ci/.gitlab-ci-test-dock_include.yml @note on the file
   - local: /gitlab-ci/.gitlab-ci-test-k8s_include.yml
   - local: /gitlab-ci/.gitlab-ci-test-helm_include.yml
@@ -623,19 +623,19 @@ cc7_asan_docker_image:
 # Code quality, from codeclimate plugins - disabled
 #-------------------------------------------------------------------------------
 
-.code_quality:
-  artifacts:
-    paths: [gl-code-quality-report.json]
-  rules:
-    - if: '$CI_PIPELINE_SOURCE == "schedule"'
-      allow_failure: true
+# .code_quality:
+#   artifacts:
+#     paths: [gl-code-quality-report.json]
+#   rules:
+#     - if: '$CI_PIPELINE_SOURCE == "schedule"'
+#       allow_failure: true
 
-.code_quality_html:
-  extends: code_quality
-  variables:
-    REPORT_FORMAT: html
-  artifacts:
-    paths: [gl-code-quality-report.html]
+# .code_quality_html:
+#   extends: code_quality
+#   variables:
+#     REPORT_FORMAT: html
+#   artifacts:
+#     paths: [gl-code-quality-report.html]
 
 #-------------------------------------------------------------------------------
 # Dock8rnetes testing framework (exec_cmd wraps both docker and k8s!)
