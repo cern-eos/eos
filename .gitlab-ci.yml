@@ -896,12 +896,20 @@ unit_test_asan:
     - koji build ${KOJI_SCRATCH} ${TARGET} ${BUILD_NAME}_artifacts/SRPMS/*.src.rpm
   only:
     - tags
-    - rhel
-    - alma
-    - centos
+    - master
+  when: manual
   tags:
     - docker_node
     - publish
+
+
+publish_koji_cc7:
+  <<: *publish_koji_template_definition
+  variables:
+    TARGET: "eos7"
+    BUILD_NAME: "cc7"
+  dependencies:
+    - build_cc7
 
 
 publish_koji_al8:
@@ -920,15 +928,6 @@ publish_koji_al9:
     BUILD_NAME: "al9"
   dependencies:
     - build_al9
-
-
-publish_koji_cc7:
-  <<: *publish_koji_template_definition
-  variables:
-    TARGET: "eos7"
-    BUILD_NAME: "cc7"
-  dependencies:
-    - build_cc7
 
 
 publish_koji_rh-8:
@@ -977,7 +976,6 @@ rpm_testing_artifacts:
     - publish
   only:
     - master
-    - eos5
     - tags
   retry: 1
 
