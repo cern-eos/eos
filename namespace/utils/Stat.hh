@@ -22,6 +22,7 @@
 //------------------------------------------------------------------------------
 
 #pragma once
+#include "common/FileSystem.hh"
 #include "namespace/interface/IContainerMD.hh"
 #include "namespace/utils/Mode.hh"
 
@@ -71,4 +72,4 @@ inline mode_t modeFromMetadataEntry(const std::shared_ptr<eos::IFileMD>& fmd)
 
   return retval;
 }
-}
+} // namespace eos
