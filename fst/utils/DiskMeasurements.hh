@@ -23,6 +23,7 @@
 
 #include "fst/Namespace.hh"
 #include <string>
+#include <cstdint>
 
 EOSFSTNAMESPACE_BEGIN
 
