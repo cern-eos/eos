@@ -180,16 +180,13 @@ build_cc7:
   image: gitlab-registry.cern.ch/dss/eos/prebuild-cc7-${CODENAME}
   script:
     - git submodule sync --recursive && git submodule update --init --recursive
-    - mkdir build
-    - cd build/
-    - cmake3 ../ -DPACKAGEONLY=1
-    - make srpm
-    - cd ../
+    - mkdir build; - cd build/
+    - cmake3 ../ -DPACKAGEONLY=1; make srpm; cd ..
     - echo -e "[eos-depend]\nname=EOS dependencies\nbaseurl=http://storage-ci.web.cern.ch/storage-ci/eos/${CODENAME}-depend/el-7/x86_64/\ngpgcheck=0\nenabled=1\npriority=2\n" >> /etc/yum.repos.d/eos-depend.repo
     - echo -e "[eos-grpc-depend]\nname=EOS GRPC dependencies\nbaseurl=http://storage-ci.web.cern.ch/storage-ci/eos/${CODENAME}-depend/el-7/x86_64_grpc_gateway/\ngpgcheck=0\nenabled=1\npriority=2\n" >> /etc/yum.repos.d/eos-grpc-depend.repo
     - yum-builddep --nogpgcheck --setopt="cern*.exclude=xrootd*" -y build/SRPMS/*
     - if [[ -n "$CI_COMMIT_TAG" ]]; then export CCACHE_DISABLE=1; else source gitlab-ci/setup_ccache.sh; fi
-    - rpmbuild --rebuild --with server --define "_rpmdir build/RPMS/" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" build/SRPMS/* | ts;
+    - rpmbuild --rebuild --with server --define "_rpmdir build/RPMS/" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" build/SRPMS/* | ts
     - ccache -s
     - if [[ -n "$CI_COMMIT_TAG" ]]; then gpg --import $STCI_REPO_KEY; printf "" | setsid rpmsign --define='%_gpg_name stci@cern.ch' --define='%_signature gpg' --addsign build/RPMS/*.rpm; fi
     - mkdir cc7_artifacts; cp -R build/SRPMS/ build/RPMS/ build/eos-*.tar.gz cc7_artifacts
@@ -343,11 +340,11 @@ build_ubuntu_focal:
     - dnf install --nogpg -y gcc-c++ cmake3 make rpm-build which git tar dnf-plugins-core ccache rpm-sign
     - git submodule sync --recursive && git submodule update --init -f --recursive
     - mkdir build; cd build
-    - cmake3 .. -DPACKAGEONLY=1 -DCLIENT=1; make srpm; cd ..
+    - cmake3 .. -DPACKAGEONLY=1; make srpm; cd ..
     - echo -e "[eos-depend]\nname=EOS dependencies\nbaseurl=http://storage-ci.web.cern.ch/storage-ci/eos/${CODENAME}-depend/${BUILD_NAME}/x86_64/\ngpgcheck=0\nenabled=1\nexclude=xrootd*\npriority=4\n" >> /etc/yum.repos.d/eos-depend.repo
     - dnf builddep --nogpgcheck --allowerasing -y build/SRPMS/*
     - if [[ -n "$CI_COMMIT_TAG" ]]; then export CCACHE_DISABLE=1; else source gitlab-ci/setup_ccache_fc.sh; fi
-    - rpmbuild --rebuild --define "_rpmdir build/RPMS/" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" build/SRPMS/*
+    - rpmbuild --rebuild --with server --define "_rpmdir build/RPMS/" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" build/SRPMS/* | ts
     - ccache -s
     - if [[ -n "$CI_COMMIT_TAG" ]]; then gpg2 --import $STCI_REPO_KEY; printf "" | setsid rpmsign --define='%_gpg_name stci@cern.ch' --define='%_signature gpg' --addsign build/RPMS/*.rpm; fi
     - mkdir ${BUILD_NAME}_artifacts; cp -R build/SRPMS build/RPMS ${BUILD_NAME}_artifacts
@@ -359,7 +356,6 @@ build_ubuntu_focal:
     expire_in: 1 day
     paths:
       - ${BUILD_NAME}_artifacts/
-  dependencies: []
   allow_failure: true
 
 
@@ -624,19 +620,17 @@ cc7_asan_docker_image:
 
 
 #-------------------------------------------------------------------------------
-# Code quality, from codeclimate plugins
+# Code quality, from codeclimate plugins - disabled
 #-------------------------------------------------------------------------------
 
-code_quality:
+.code_quality:
   artifacts:
     paths: [gl-code-quality-report.json]
   rules:
     - if: '$CI_PIPELINE_SOURCE == "schedule"'
       allow_failure: true
-  tags:
-    - docker-privileged
 
-code_quality_html:
+.code_quality_html:
   extends: code_quality
   variables:
     REPORT_FORMAT: html
@@ -1243,7 +1237,7 @@ eos_nginx_cc7:
 
 eos_nginx_al8:
   extends: .eos_nginx_build_template
-  image: gitlab-registry.cern.ch/linuxsupport/alma8-base 
+  image: gitlab-registry.cern.ch/linuxsupport/alma8-base
   environment:
     name: nginx-al8-prod
   variables:
@@ -1251,12 +1245,12 @@ eos_nginx_al8:
 
 eos_nginx_al9:
   extends: .eos_nginx_build_template
-  image: gitlab-registry.cern.ch/linuxsupport/alma9-base 
+  image: gitlab-registry.cern.ch/linuxsupport/alma9-base
   environment:
     name: nginx-al9-prod
   variables:
     BUILD_NAME: al-9
-    
+
 eos_apmon_cc7:
   stage: build:manual
   image: gitlab-registry.cern.ch/linuxsupport/cc7-base
