@@ -90,7 +90,7 @@ struct FsBalanceInfo {
   //----------------------------------------------------------------------------
   //! Operator < implementation for storing such objects in sets
   //----------------------------------------------------------------------------
-  operator< (const FsBalanceInfo& rhs) const
+  bool operator< (const FsBalanceInfo& rhs) const
   {
     return mFsId < rhs.mFsId;
   }
