@@ -55,7 +55,7 @@ public:
     }
 
     if (stat("/opt/rh/devtoolset-7/root/usr/bin/gdb", &statbuf) == 0) {
-      return "/opt/rh/devtoolset-8/root/usr/bin/gdb";
+      return "/opt/rh/devtoolset-7/root/usr/bin/gdb";
     }
 
     if (stat("/opt/rh/devtoolset-6/root/usr/bin/gdb", &statbuf) == 0) {
