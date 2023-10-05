@@ -371,6 +371,7 @@ build_fedora_38:
   only:
     - schedules
     - tags
+    - master
 
 
 build_fedora_rawhide:
@@ -466,6 +467,7 @@ build_cc7_clang:
   only:
     - schedules
     - triggers
+    - master
 
 
 # @todo Re-enable xrd_testing jobs once project ugprades to XRootD 5
