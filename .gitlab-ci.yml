@@ -180,7 +180,7 @@ build_cc7:
   image: gitlab-registry.cern.ch/dss/eos/prebuild-cc7-${CODENAME}
   script:
     - git submodule sync --recursive && git submodule update --init --recursive
-    - mkdir build; - cd build/
+    - mkdir build; cd build/
     - cmake3 ../ -DPACKAGEONLY=1; make srpm; cd ..
     - echo -e "[eos-depend]\nname=EOS dependencies\nbaseurl=http://storage-ci.web.cern.ch/storage-ci/eos/${CODENAME}-depend/el-7/x86_64/\ngpgcheck=0\nenabled=1\npriority=2\n" >> /etc/yum.repos.d/eos-depend.repo
     - echo -e "[eos-grpc-depend]\nname=EOS GRPC dependencies\nbaseurl=http://storage-ci.web.cern.ch/storage-ci/eos/${CODENAME}-depend/el-7/x86_64_grpc_gateway/\ngpgcheck=0\nenabled=1\npriority=2\n" >> /etc/yum.repos.d/eos-grpc-depend.repo
