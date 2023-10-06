@@ -25,11 +25,11 @@
 #include "console/ConsoleMain.hh"
 /*----------------------------------------------------------------------------*/
 
-extern char* license;
+extern const char* license;
 
 /* Display License File*/
 int
-com_license (char *arg)
+com_license(char* arg)
 {
   fprintf(stdout, "%s", license);
   global_retc = 0;
