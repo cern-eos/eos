@@ -217,7 +217,7 @@ XrdMgmOfs::PurgeVersion(const char* versiondir,
     //info=eos.rgid=0&eos.ruid=0&mgm.cmd=rm&mgm.option=r&mgm.path=
     XrdOucString info = "mgm.cmd=rm&mgm.option=r&mgm.path=";
     info += path.c_str();
-    Cmd.open("/proc/user", info.c_str(), vid, &error);
+    Cmd.open("/proc/user", info.c_str(), rootvid, &error);
     Cmd.close();
 
     if (Cmd.GetRetc()) {
