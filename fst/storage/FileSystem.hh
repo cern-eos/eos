@@ -49,7 +49,7 @@ class Statfs;
 
 namespace qclient
 {
-class SharedHashUpdate;
+struct SharedHashUpdate;
 class SharedHashSubscription;
 }
 
