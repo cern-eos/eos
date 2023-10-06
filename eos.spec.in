@@ -53,20 +53,6 @@
   %define compiler clang
 %endif
 
-%if %{?rhel:1}%{!?rhel:0}
-  %if %{?rhel} >= 7
-    %define use_systemd 1
-  %else
-    %define use_systemd 0
-  %endif
-%else
-  %if %{?fedora}%{!?fedora:0} >= 19
-    %define use_systemd 1
-  %else
-    %define use_systemd 0
-  %endif
-%endif
-
 #-------------------------------------------------------------------------------
 # Package definitions
 #-------------------------------------------------------------------------------
@@ -140,6 +126,7 @@ BuildRequires: lz4-devel
 Requires: libzstd, zstd, lz4
 BuildRequires: libcap-devel
 BuildRequires: gflags gflags-devel
+BuildRequires: systemd
 
 %if %{?rhel:1}%{!?rhel:0} && 0%{?rhel} <= 7
 BuildRequires: openssl-static, ncurses-static
@@ -223,9 +210,7 @@ BuildRequires: libasan
 BuildRequires: libtsan
 %endif
 
-%if %{use_systemd}
-BuildRequires: systemd
-%endif
+
 
 %description
 The EOS software package.
@@ -333,14 +318,8 @@ Requires: libcurl
 Requires: logrotate
 Requires: redis
 Requires: eos-grpc == %{eos_grpc_version}
-
-%if %{use_systemd}
 Requires: systemd
-%else
-Requires: chkconfig
-Requires: initscripts
-Requires: sysvinit-tools
-%endif
+
 BuildRequires: zeromq, zeromq-devel
 Requires: zeromq
 BuildRequires: eos-folly = 2019.11.11.00
@@ -403,27 +382,21 @@ The EOS server installation containing MGM, FST & MQ service.
 %config(noreplace) %{_sysconfdir}/eos/config/generic/all
 %config(noreplace) %{_sysconfdir}/eos/config/qdb/qdb
 %config(noreplace) %{_sysconfdir}/eos/config/modules/alice
-%if %{use_systemd}
-    %config %{_sysconfdir}/sysconfig/eos_env.example
-    %{_prefix}/lib/systemd/system/eos.target
-    %{_prefix}/lib/systemd/system/eos.service
-    %{_prefix}/lib/systemd/system/eos@.service
-    %{_prefix}/lib/systemd/system/eos@master.service
-    %{_prefix}/lib/systemd/system/eos@slave.service
-    %{_prefix}/lib/systemd/system/eosfstdb@.service
-    %{_prefix}/lib/systemd/system/eosslave.service
-    %{_prefix}/lib/systemd/system/eos5-fst@.service
-    %{_prefix}/lib/systemd/system/eos5-mgm@.service
-    %{_prefix}/lib/systemd/system/eos5-mq@.service
-    %{_prefix}/lib/systemd/system/eos5-qdb@.service
-    %{_prefix}/lib/systemd/system/eos5.service
-    %{_sbindir}/eos_start_pre.sh
-    %{_sbindir}/eos_start.sh
-%else
-    %config %{_sysconfdir}/sysconfig/eos.example
-    %{_sysconfdir}/rc.d/init.d/eos
-    %{_sysconfdir}/rc.d/init.d/eosslave
-%endif
+%config %{_sysconfdir}/sysconfig/eos_env.example
+%{_prefix}/lib/systemd/system/eos.target
+%{_prefix}/lib/systemd/system/eos.service
+%{_prefix}/lib/systemd/system/eos@.service
+%{_prefix}/lib/systemd/system/eos@master.service
+%{_prefix}/lib/systemd/system/eos@slave.service
+%{_prefix}/lib/systemd/system/eosfstdb@.service
+%{_prefix}/lib/systemd/system/eosslave.service
+%{_prefix}/lib/systemd/system/eos5-fst@.service
+%{_prefix}/lib/systemd/system/eos5-mgm@.service
+%{_prefix}/lib/systemd/system/eos5-mq@.service
+%{_prefix}/lib/systemd/system/eos5-qdb@.service
+%{_prefix}/lib/systemd/system/eos5.service
+%{_sbindir}/eos_start_pre.sh
+%{_sbindir}/eos_start.sh
 %config(noreplace) %{_sysconfdir}/cron.d/eos-logs
 %config(noreplace) %{_sysconfdir}/cron.d/eos-reports
 %config(noreplace) %{_sysconfdir}/logrotate.d/eos-logs
@@ -444,32 +417,17 @@ The EOS server installation containing MGM, FST & MQ service.
 if [ ! -f /etc/sysconfig/eos-yum-noscripts ]; then
 echo "Starting conditional EOS services"
 sleep 2
-%if %{use_systemd}
-    systemctl daemon-reload > /dev/null 2>&1 || :
-    systemctl --no-legend list-units eos@* | grep -v q*db | awk '{print $1}' | xargs -n1 systemctl restart || :
-%else
-    /sbin/chkconfig --add eos
-    /sbin/chkconfig --add eosslave
-    /sbin/service eos condrestart > /dev/null 2>&1 || :
-    /sbin/service eosd condrestart > /dev/null 2>&1 || :
-%endif
+systemctl daemon-reload > /dev/null 2>&1 || :
+systemctl --no-legend list-units eos@* | grep -v q*db | awk '{print $1}' | xargs -n1 systemctl restart || :
 fi
 
 %preun -n eos-server
 if [ ! -f /etc/sysconfig/eos-yum-noscripts ]; then
 if [ $1 = 0 ]; then
   echo "Stopping EOS services"
-  %if %{use_systemd}
-    systemctl stop eosd@* > /dev/null 2>&1
-    systemctl stop eos@* > /dev/null 2>&1 || :
-    systemctl stop eosslave > /dev/null 2>&1
-  %else
-    /sbin/service eosd stop > /dev/null 2>&1
-    /sbin/service eos stop > /dev/null 2>&1 || :
-    /sbin/service eosslave stop > /dev/null 2>&1
-    /sbin/chkconfig --del eos
-    /sbin/chkconfig --del eosslave
-  %endif
+  systemctl stop eosd@* > /dev/null 2>&1
+  systemctl stop eos@* > /dev/null 2>&1 || :
+  systemctl stop eosslave > /dev/null 2>&1
 fi
 fi
 
@@ -519,6 +477,7 @@ Requires: zeromq
 Requires: squashfs-tools
 Requires: elfutils
 Requires: eos-grpc == %{eos_grpc_version}
+Requires: systemd
 
 # Select xrootd package
 %if %{?_with_eos_xrootd_rh:1}%{!?_with_eos_xrootd_rh:0}
@@ -532,13 +491,7 @@ Requires: xrootd-client >= %{xrootd_version_min}
 Requires: xrootd-client >= %{xrootd_version_min}
 %endif
 
-%if %{use_systemd}
-Requires: systemd
-%else
-Requires: chkconfig
-Requires: initscripts
-Requires: sysvinit-tools
-%endif
+
 
 %description -n eos-client
 The EOS shell client.
@@ -791,27 +744,14 @@ case "$1" in
   1)
     # Initial installation
     echo "Starting EOS archive services"
-    %if %{use_systemd}
-      systemctl daemon-reload > /dev/null 2>&1 || :
-      systemctl restart eosarchived > /dev/null 2>&1 || :
-    %else
-      /sbin/chkconfig --add eosarchived
-      /sbin/service eosarchived restart > /dev/null 2>&1 || :
-    %endif
+    systemctl daemon-reload > /dev/null 2>&1 || :
+    systemctl restart eosarchived > /dev/null 2>&1 || :
   ;;
   2)
     # Upgrade
-    %if %{use_systemd}
-      echo "Restarting EOS archive services"
-      systemctl daemon-reload > /dev/null 2>&1 || :
-      systemctl restart eosarchived > /dev/null 2>&1 || :
-    %else
-      echo "Stopping EOS archive services"  
-      /sbin/service eosarchived stop > /dev/null 2>&1 || :
-      # In case runlevels changed
-      /sbin/chkconfig --del eosarchived
-      /sbin/chkconfig --add eosarchived
-    %endif
+    echo "Restarting EOS archive services"
+    systemctl daemon-reload > /dev/null 2>&1 || :
+    systemctl restart eosarchived > /dev/null 2>&1 || :
   ;;
 esac
 
@@ -820,19 +760,10 @@ case "$1" in
   0)
     # Uninstall
     echo "Stopping EOS archive services"
-    %if %{use_systemd}
-      systemctl stop eosarchived > /dev/null 2>&1 || :
-    %else
-      /sbin/service eosarchived stop > /dev/null 2>&1 || :
-      /sbin/chkconfig --del eosarchived || :
-    %endif
+    systemctl stop eosarchived > /dev/null 2>&1 || :
   ;;
   1)
-    # Upgrade
-    %if %{use_systemd} == 0
-      echo "Starting EOS archive services"
-      /sbin/service eosarchived restart > /dev/null 2>&1 || :
-    %endif
+    # Upgrade - nothing to do
   ;;
 esac
 
