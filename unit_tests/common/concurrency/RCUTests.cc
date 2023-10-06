@@ -25,29 +25,30 @@
 TEST(RCUTests, Basic)
 {
   using namespace eos::common;
-
   // Test that we can create an RCU object
-  RCUDomain<experimental::ThreadEpochCounter,1> rcu_domain;
+  RCUDomain<experimental::ThreadEpochCounter, 1> rcu_domain;
   atomic_unique_ptr<int> ptr(new int(0));
   int sum{0};
   int i{0};
   // Test that we can create an RCU read lock
-  auto read_fn = [&rcu_domain,&i, &sum,&ptr](int index) {
+  auto read_fn = [&rcu_domain, &sum, &ptr](int index) {
     auto tid = experimental::tlocalID.get();
     std::cout << "Starting reader at index=" << index << "tid=" << tid
               <<  std::endl;
-    for (int j=0; j<100; ++j) {
+
+    for (int j = 0; j < 100; ++j) {
       RCUReadLock rlock(rcu_domain);
       ASSERT_TRUE(ptr);
     }
-    std::cout << "Done with reader at index= " << index << " tid=" << tid << std::endl;
-  };
 
+    std::cout << "Done with reader at index= " << index << " tid=" << tid <<
+              std::endl;
+  };
   std::thread writer([&rcu_domain, &ptr, &i]() {
     std::cout << "Starting writer";
 
-    for (int j=0; j < 5000; ++j) {
-      int* old_ptr (nullptr);
+    for (int j = 0; j < 5000; ++j) {
+      int* old_ptr(nullptr);
       {
         RCUWriteLock wlock(rcu_domain);
         old_ptr = ptr.reset(new int(i++));
@@ -57,43 +58,45 @@ TEST(RCUTests, Basic)
       std::this_thread::sleep_for(std::chrono::nanoseconds(1));
     }
   });
-
   std::vector<std::thread> readers;
-  for (int k=0; k<100; ++k) {
+
+  for (int k = 0; k < 100; ++k) {
     readers.emplace_back(read_fn, k);
   }
-  for (int i=0; i<100; ++i) {
+
+  for (int i = 0; i < 100; ++i) {
     readers[i].join();
   }
-  writer.join();
 
+  writer.join();
 }
 
 TEST(RCUTests, BasicVersionCounter)
 {
   using namespace eos::common;
-
   // Test that we can create an RCU object
   VersionedRCUDomain rcu_domain;
   atomic_unique_ptr<int> ptr(new int(0));
   int sum{0};
   int i{0};
   // Test that we can create an RCU read lock
-  auto read_fn = [&rcu_domain,&i, &sum,&ptr](int index) {
-    auto tid = std::hash<std::thread::id>{}(std::this_thread::get_id()) % 4096;
+  auto read_fn = [&rcu_domain, &i, &sum, &ptr](int index) {
+    auto tid = std::hash<std::thread::id> {}(std::this_thread::get_id()) % 4096;
     std::cout << "Starting reader at index=" << index << "tid=" << tid
               <<  std::endl;
-    for (int j=0; j<100; ++j) {
+
+    for (int j = 0; j < 100; ++j) {
       RCUReadLock rlock(rcu_domain);
       ASSERT_TRUE(ptr);
     }
-    std::cout << "Done with reader at index= " << index << " tid=" << tid << std::endl;
-  };
 
+    std::cout << "Done with reader at index= " << index << " tid=" << tid <<
+              std::endl;
+  };
   std::thread writer([&rcu_domain, &ptr, &i]() {
     std::cout << "Starting writer";
 
-    for (int j=0; j < 5000; ++j) {
+    for (int j = 0; j < 5000; ++j) {
       rcu_domain.rcu_write_lock();
       auto old_ptr = ptr.reset(new int(i++));
       rcu_domain.rcu_synchronize();
@@ -102,14 +105,15 @@ TEST(RCUTests, BasicVersionCounter)
       std::this_thread::sleep_for(std::chrono::nanoseconds(1));
     }
   });
-
   std::vector<std::thread> readers;
-  for (int k=0; k<100; ++k) {
+
+  for (int k = 0; k < 100; ++k) {
     readers.emplace_back(read_fn, k);
   }
-  for (int i=0; i<100; ++i) {
+
+  for (int i = 0; i < 100; ++i) {
     readers[i].join();
   }
-  writer.join();
 
+  writer.join();
 } // namespace eos::common

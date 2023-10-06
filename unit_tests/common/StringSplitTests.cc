@@ -14,9 +14,16 @@ TEST(StringSplit, Empty)
   ASSERT_EQ(StringSplit("////", "/"), emptyv);
   ASSERT_EQ(StringSplit("abcd", ""), sv_vector({"abcd"}));
   ASSERT_EQ(CharSplitIt("abcd", '/'), sv_vector({"abcd"}));
+  // We explicitly want to test that passing an unitialized char variable
+  // does not cause any issues - therefore deactivate the warning for
+  // this piece of code.
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
+#pragma GCC diagnostic ignored "-Wuninitialized"
   char un_init;
   ASSERT_EQ(CharSplitIt("abcd", un_init), sv_vector({"abcd"}));
   ASSERT_EQ(CharSplitIt("abcd", '\0'), sv_vector({"abcd"}));
+#pragma GCC diagnostic pop
 }
 
 TEST(StringSplit, BasicIt)
@@ -155,12 +162,14 @@ TEST(StringSplit, MultiSplit)
 
 TEST(StringSplit, CommaList)
 {
-  sv_vector expect_v {"group1","group2","group3","group4", "group5"};
-  ASSERT_EQ(StringSplit("group1, group2, group3 \n, group4,group5", ", \n"), expect_v);
-
-  std::unordered_set<std::string> expect_s {"group2","group1","group3","group5","group4"};
-  ASSERT_EQ(StringSplit<std::unordered_set<std::string>>("group1, group2, group3 \n, group4,group5", ", \n"),
-            expect_s);
+  sv_vector expect_v {"group1", "group2", "group3", "group4", "group5"};
+  ASSERT_EQ(StringSplit("group1, group2, group3 \n, group4,group5", ", \n"),
+            expect_v);
+  std::unordered_set<std::string> expect_s {"group2", "group1", "group3", "group5", "group4"};
+  ASSERT_EQ(
+    StringSplit<std::unordered_set<std::string>>("group1, group2, group3 \n, group4,group5",
+        ", \n"),
+    expect_s);
 }
 
 TEST(StringSplit, get_delim_p)

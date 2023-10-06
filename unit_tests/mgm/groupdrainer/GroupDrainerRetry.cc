@@ -20,7 +20,5 @@ TEST(RetryTracker, basic)
   test_clock.advance(eos::common::SteadyClock::secondsSinceEpoch(
                        std::chrono::steady_clock::now()));
   test_clock.advance(std::chrono::seconds(902));
-  auto diff = std::chrono::duration_cast<std::chrono::seconds>
-              (test_clock.getTime() - updated_time);
   ASSERT_TRUE(tracker.need_update(900, &test_clock));
 }
