@@ -24,13 +24,12 @@
 #include <gtest/gtest.h>
 #include "namespace/ns_quarkdb/flusher/MetadataFlusher.hh"
 
-int main(int argc, char **argv) {
+int main(int argc, char** argv)
+{
   const std::string testpath("/tmp/eos-ns-tests/");
-
   std::string rmrf = "rm -rf " + testpath;
-  system(rmrf.c_str());
+  (void) !system(rmrf.c_str());
   mkdir(testpath.c_str(), 0755);
-
   testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();
 }

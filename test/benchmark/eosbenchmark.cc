@@ -255,9 +255,9 @@ RunProcessConfig(Configuration& config, const string& outputFile)
       str_result.reserve(buff_size);
       str_result = ll_result.SerializeAsString();
       // Write first the size of the result object and then the object itself
-      write(pipefd[i][1], &buff_size, sizeof(buff_size));
-      write(pipefd[i][1], str_result.c_str(), buff_size);
-      close(pipefd[i][1]);  //close writing end
+      (void) !write(pipefd[i][1], &buff_size, sizeof(buff_size));
+      (void) !write(pipefd[i][1], str_result.c_str(), buff_size);
+      (void) !close(pipefd[i][1]);  //close writing end
       delete proc_result;
       exit(EXIT_SUCCESS);
     }

@@ -84,8 +84,8 @@ public:
   virtual void SetUp() override
   {
     // Initialize partition
-    system("mkdir -p /mnt/var_test");
-    system("mount -t tmpfs -o size=100m tmpfs /mnt/var_test/");
+    (void) !system("mkdir -p /mnt/var_test");
+    (void) ! system("mount -t tmpfs -o size=100m tmpfs /mnt/var_test/");
     // Add few fileSystems in the vector
     this->fsVector.push_back(new MockFileSystem());
     this->fsVector.push_back(new MockFileSystem());
@@ -107,8 +107,8 @@ public:
     // Stop monitoring
     this->monitor.StopMonitoring();
     this->monitor_thread.join();
-    system("umount /mnt/var_test/");
-    system("rmdir /mnt/var_test/");
+    (void) !system("umount /mnt/var_test/");
+    (void) !system("rmdir /mnt/var_test/");
   }
 };
 
@@ -155,7 +155,7 @@ TEST_F(MonitorVarPartitionTest, MonitorVarPartition)
   // Close and delete file
   GLOG << "Deleting file: /mnt/var_test/fill.temp" << std::endl;
   fill.close();
-  system("rm /mnt/var_test/fill.temp");
+  (void) !system("rm /mnt/var_test/fill.temp");
   // Setting status of filesystems to RW
   GLOG << "Setting status to RW -- should stay at RW" << std::endl;
   mFsMutex.LockWrite();

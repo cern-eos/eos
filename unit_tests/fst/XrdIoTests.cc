@@ -103,8 +103,8 @@ TEST(XrdIo, BasicPrefetch)
   ASSERT_EQ(file->fileOpen(SFS_O_RDONLY), 0);
   ASSERT_EQ(file->fileStat(&info), 0);
   int64_t offset {0ll};
-  std::unique_ptr<char> buffer {new char[1 * MB]};
-  std::unique_ptr<char> file_in_mem {new char[info.st_size]};
+  std::unique_ptr<char[]> buffer {new char[1 * MB]};
+  std::unique_ptr<char[]> file_in_mem {new char[info.st_size]};
 
   for (const auto length : read_sizes) {
     while (offset < info.st_size) {
@@ -162,8 +162,8 @@ TEST(XrdIo, FailPrefetchInFlight)
   ASSERT_EQ(file->fileOpen(SFS_O_RDONLY), 0);
   ASSERT_EQ(file->fileStat(&info), 0);
   int64_t offset {0ll};
-  std::unique_ptr<char> buffer {new char[1 * MB]};
-  std::unique_ptr<char> file_in_mem {new char[info.st_size]};
+  std::unique_ptr<char[]> buffer {new char[1 * MB]};
+  std::unique_ptr<char[]> file_in_mem {new char[info.st_size]};
   // Pre-fill the prefetch block with a custom handler that returns an error
   // for the given offset
   std::list<int64_t> err_offsets {8 * MB, 9 * MB + 123, 14 * MB};

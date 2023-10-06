@@ -310,7 +310,7 @@ RocksKV::clean_stores(const std::string& storedir, const std::string& newdb)
           // cleanup this old directory
           std::string rmline = "rm -rf ";
           rmline += dbdir;
-          system(rmline.c_str());
+          (void) !system(rmline.c_str());
           fprintf(stderr, "###### cleaning stale cache directory '%s'\n",
                   dbdir.c_str());
         }

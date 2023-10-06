@@ -29,8 +29,8 @@
 /*----------------------------------------------------------------------------*/
 
 int
-com_status (char*)
+com_status(char*)
 {
-  system("eos-status");
+  (void) !system("eos-status");
   return (0);
 }

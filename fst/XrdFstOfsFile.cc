@@ -40,7 +40,7 @@
 #include "fst/io/FileIoPluginCommon.hh"
 #include "namespace/utils/Etag.hh"
 #include "XrdOuc/XrdOucPgrwUtils.hh"
-extern XrdOssSys* XrdOfsOss;
+extern XrdOss* XrdOfsOss;
 
 EOSFSTNAMESPACE_BEGIN
 

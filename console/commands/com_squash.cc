@@ -381,7 +381,7 @@ com_squash(char* arg1)
         // remove any mounts - only possible as root
         std::string umountcmd = "umount -f -l ";
         umountcmd += mounttarget.c_str();
-        system(umountcmd.c_str());
+        (void) !system(umountcmd.c_str());
 
         if (rmdir(mounttarget.c_str())) {
           if (errno != ENOENT) {
