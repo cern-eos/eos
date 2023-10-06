@@ -87,8 +87,6 @@ install(
   FILES logrotate.d/eos-logs logrotate.d/eos-fuse-logs logrotate.d/eos-fusex-logs
   DESTINATION ${CMAKE_INSTALL_SYSCONFDIR}/logrotate.d/)
 
-
-# Installing files depending on service manager (systemd or sysVinit)
 set(SYSTEMD_DIR /usr/lib/systemd/)
 
 if(EXISTS ${SYSTEMD_DIR})
@@ -115,8 +113,6 @@ if(EXISTS ${SYSTEMD_DIR})
  	systemd/system/eos@.service
  	systemd/system/eos@master.service
  	systemd/system/eos@slave.service
- 	systemd/system/eosfstdb@.service
- 	systemd/system/eosslave.service
 	systemd/system/eos5.service
 	systemd/system/eos5-mgm@.service
 	systemd/system/eos5-mq@.service
@@ -124,27 +120,4 @@ if(EXISTS ${SYSTEMD_DIR})
 	systemd/system/eos5-qdb@.service
 
    DESTINATION ${CMAKE_INSTALL_PREFIX}/lib/systemd/system/)
-
-#We keep for the moment the SysV scripts for eosd
-install(
-  FILES sysconfig/eos.example
-  DESTINATION ${CMAKE_INSTALL_SYSCONFDIR}/sysconfig/)
-
-install(
- FILES rc.d/init.d/eosd
- DESTINATION ${CMAKE_INSTALL_SYSCONFDIR}/rc.d/init.d
- PERMISSIONS OWNER_READ OWNER_EXECUTE
-	     GROUP_READ GROUP_EXECUTE
-	     WORLD_READ WORLD_EXECUTE)
-else()
-install(
-  FILES sysconfig/eos.example
-  DESTINATION ${CMAKE_INSTALL_SYSCONFDIR}/sysconfig/)
-
-install(
- FILES rc.d/init.d/eos rc.d/init.d/eosslave rc.d/init.d/eosd
- DESTINATION ${CMAKE_INSTALL_SYSCONFDIR}/rc.d/init.d
- PERMISSIONS OWNER_READ OWNER_EXECUTE
-	     GROUP_READ GROUP_EXECUTE
-	     WORLD_READ WORLD_EXECUTE)
 endif()

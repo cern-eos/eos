@@ -388,8 +388,6 @@ The EOS server installation containing MGM, FST & MQ service.
 %{_prefix}/lib/systemd/system/eos@.service
 %{_prefix}/lib/systemd/system/eos@master.service
 %{_prefix}/lib/systemd/system/eos@slave.service
-%{_prefix}/lib/systemd/system/eosfstdb@.service
-%{_prefix}/lib/systemd/system/eosslave.service
 %{_prefix}/lib/systemd/system/eos5-fst@.service
 %{_prefix}/lib/systemd/system/eos5-mgm@.service
 %{_prefix}/lib/systemd/system/eos5-mq@.service
@@ -425,9 +423,7 @@ fi
 if [ ! -f /etc/sysconfig/eos-yum-noscripts ]; then
 if [ $1 = 0 ]; then
   echo "Stopping EOS services"
-  systemctl stop eosd@* > /dev/null 2>&1
   systemctl stop eos@* > /dev/null 2>&1 || :
-  systemctl stop eosslave > /dev/null 2>&1
 fi
 fi
 
