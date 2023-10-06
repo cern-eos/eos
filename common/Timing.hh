@@ -144,8 +144,9 @@ public:
   {
     auto now = std::chrono::system_clock::now();
     std::time_t now_t = std::chrono::system_clock::to_time_t(now);
-    std::tm* const nowtimeparts = std::localtime(&now_t);
-    return std::to_string(1900 + nowtimeparts->tm_year);
+    tm nowtimeparts;
+    localtime_r(&now_t, &nowtimeparts);
+    return std::to_string(1900 + nowtimeparts.tm_year);
   }
 
   //----------------------------------------------------------------------------
@@ -331,15 +332,16 @@ public:
   static std::string
   UnixTimestamp_to_Day(time_t when)
   {
-    struct tm* now = localtime(&when);
+    struct tm now;
+    localtime_r(&when, &now);
     std::string year;
     std::string month;
     std::string day;
     char sDay[4096];
     snprintf(sDay, sizeof(sDay), "%04u%02u%02u",
-             (unsigned int)(now->tm_year + 1900),
-             (unsigned int)(now->tm_mon + 1),
-             (unsigned int)(now->tm_mday));
+             (unsigned int)(now.tm_year + 1900),
+             (unsigned int)(now.tm_mon + 1),
+             (unsigned int)(now.tm_mday));
     return sDay;
   }
 
@@ -520,13 +522,14 @@ public:
   //! Covert time local time
   //----------------------------------------------------------------------------
   static
-  std::string ltime(time_t& t)
+  std::string ltime(const time_t& t)
   {
     char a_time[32];
     a_time[0] = 0;
-    struct tm* timeinfo = localtime(&t);
+    struct tm timeinfo;
+    localtime_r(&t, &timeinfo);
 
-    if (asctime_r(timeinfo, a_time) == nullptr) {
+    if (asctime_r(&timeinfo, a_time) == nullptr) {
       return "N/A";
     }
 
@@ -545,9 +548,10 @@ public:
   {
     char a_time[32];
     a_time[0] = 0;
-    struct tm* timeinfo = gmtime(&t);
+    struct tm timeinfo;
+    gmtime_r(&t, &timeinfo);
 
-    if (asctime_r(timeinfo, a_time) == nullptr) {
+    if (asctime_r(&timeinfo, a_time) == nullptr) {
       return "N/A";
     }
 

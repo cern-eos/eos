@@ -266,10 +266,7 @@ std::string IostatPeriods::GetLastSampleUpdateTimestamp(bool date_format) const
   std::string ts;
 
   if (date_format) {
-    struct tm* timedatestr;
-    // Convert time to struct tm form
-    timedatestr = localtime(&mLastTfMaxLenUpdateTime);
-    ts = asctime(timedatestr);
+    ts = common::Timing::ltime(mLastTfMaxLenUpdateTime);
   } else {
     ts = std::to_string(mLastTfMaxLenUpdateTime);
   }
