@@ -197,8 +197,10 @@ Requires: libatomic
 %if 0%{?rhel} == 7
 BuildRequires: llvm-toolset-7.0
 BuildRequires: llvm-toolset-7.0-compiler-rt
-%else if 0%{?fedora} >= 39
+%else
+%if 0%{?fedora} >= 38
 BuildRequires: compiler-rt
+%endif
 %endif
 %endif
 
