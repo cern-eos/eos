@@ -368,7 +368,6 @@ build_fedora_38:
   only:
     - schedules
     - tags
-    - master
 
 
 build_fedora_rawhide:
