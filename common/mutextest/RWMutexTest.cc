@@ -147,7 +147,7 @@ TestThread2(void* threadid)
 int
 main()
 {
-#ifdef EOS_INSTRUMENTED_RWMUTEX  
+#ifdef EOS_INSTRUMENTED_RWMUTEX
   RWMutex::SetOrderCheckingGlobal(false);
   std::cout << " Using Instrumented Version of RWMutex class" << std::endl;
   RWMutex::EstimateLatenciesAndCompensation();
@@ -397,7 +397,10 @@ main()
   std::cout << "#################################################" << std::endl;
   RunThreads(&TestThread2);
   return 0;
-  #endif
+#endif
+  // Make compiler happy
+  (void) loopsize;
+  return 0;
 }
 
 /*

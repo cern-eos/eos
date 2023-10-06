@@ -138,8 +138,6 @@ extern "C"
 
 EOSFSTNAMESPACE_BEGIN
 
-static constexpr uint16_t MIN_FMDCONVERTER_THREADS = 2;
-static constexpr uint16_t MAX_FMDCONVERTER_THREADS = 128;
 //------------------------------------------------------------------------------
 // Get stacktrace from crashing process
 //------------------------------------------------------------------------------

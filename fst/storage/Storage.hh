@@ -47,7 +47,7 @@ class ExecutorMgr;
 
 namespace qclient
 {
-class SharedHashUpdate;
+struct SharedHashUpdate;
 }
 
 EOSFSTNAMESPACE_BEGIN
