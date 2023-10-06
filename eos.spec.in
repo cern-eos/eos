@@ -522,9 +522,9 @@ ExclusiveArch: x86_64 aarch64
 Requires: eos-fusex-core = @CPACK_PACKAGE_VERSION@
 Requires: eos-fusex-selinux = @CPACK_PACKAGE_VERSION@
 Requires: fuse3
-Obsoletes: eos-fuse <= ${version}
-Obsoletes: eos-fuse-core <= ${version}
-Obsoletes: eos-fuse-sysv <= ${version}
+Obsoletes: eos-fuse <= %{version}
+Obsoletes: eos-fuse-core <= %{version}
+Obsoletes: eos-fuse-sysv <= %{version}
 %description -n eos-fusex
 The new EOS fuse client bundle.
 
