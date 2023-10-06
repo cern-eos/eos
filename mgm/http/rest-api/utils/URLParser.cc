@@ -27,7 +27,7 @@
 
 EOSMGMRESTNAMESPACE_BEGIN
 
-URLParser::URLParser(const std::string& url): mURL(url)
+URLParser::URLParser(const std::string& url)
 {
   common::StringConversion::Tokenize(url, mURLTokens, "/");
 }

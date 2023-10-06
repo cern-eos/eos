@@ -56,7 +56,6 @@ public:
 private:
   std::vector<std::unique_ptr<File>> mFiles;
   time_t mCreationTime;
-  time_t mStartTime;
   std::string mId;
 };
 

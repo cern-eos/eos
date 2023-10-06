@@ -501,6 +501,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
   BOUNCE_NOT_ALLOWED;
   spath = path;
   COMMONTIMING("Bounce", &tm);
+
   if (!spath.beginswith("/proc/") && spath.endswith("/")) {
     return Emsg(epname, error, EISDIR,
                 "open - you specified a directory as target file name", path);
@@ -1826,12 +1827,12 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
             ns_quota->addFile(fmd.get());
           }
         }
+
         ns_wr_lock.Release();
         COMMONTIMING("filemd::update", &tm);
         gOFS->eosView->updateFileStore(fmd.get());
         cmd->notifyMTimeChange(gOFS->eosDirectoryService);
         gOFS->eosView->updateContainerStore(cmd.get());
-
         gOFS->FuseXCastRefresh(fmd_id, cmd_id);
         gOFS->FuseXCastRefresh(cmd_id, pcmd_id);
         COMMONTIMING("fusex::bc", &tm);
@@ -1971,7 +1972,6 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
   std::vector<unsigned int> unavailfs;
   // file systems which have been replaced with a new reconstructed stripe
   std::vector<unsigned int> replacedfs;
-  std::vector<unsigned int>::const_iterator sfs;
   int retc = 0;
   bool isRecreation = false;
 
@@ -2498,6 +2498,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
             if (fmd->hasAttribute("sys.fs.tracking")) {
               locations = fmd->getAttribute("sys.fs.tracking");
             }
+
             for (auto& fsid : selectedfs) {
               fmd->addLocation(fsid);
               locations += "+";

@@ -139,9 +139,11 @@ void ProcDirectoryBulkRequestDAO::generateXattrsMapFromBulkRequest(
       fid = std::to_string(file->getId());
     } catch (const eos::MDException& ex) {
       //The file does not exist, we will store the path with URL encoding
-      std::string encodedFilePath = eos::common::StringConversion::curl_default_escaped(currentFilePath);
+      std::string encodedFilePath =
+        eos::common::StringConversion::curl_default_escaped(currentFilePath);
       // curl encoding does not convert dots '.', so we need to do this explicitly
-      eos::common::StringConversion::ReplaceStringInPlace(encodedFilePath, ".", "%2E");
+      eos::common::StringConversion::ReplaceStringInPlace(encodedFilePath, ".",
+          "%2E");
       fid = encodedFilePath;
     } catch (const std::exception& ex) {
       std::ostringstream errMsg;
@@ -330,7 +332,7 @@ std::unique_ptr<BulkRequest> ProcDirectoryBulkRequestDAO::getBulkRequest(
 
       switch (type) {
       case BulkRequest::PREPARE_STAGE: {
-        bulkRequest = std::move(initializeStageBulkRequestFromXattrs(id, xattrs));
+        bulkRequest = initializeStageBulkRequestFromXattrs(id, xattrs);
         break;
       }
 
@@ -432,12 +434,15 @@ void ProcDirectoryBulkRequestDAO::fillBulkRequestFromXattrs(
       // The current file is not a fid, it is therefore a file that has the URL encoding
       // It may also have the old format #:#eos#:#test#:#testFile.txt (#:# replaced by '/')
       std::string filePathCopy = file.getName();
+
       if (filePathCopy.find("#:#") != std::string::npos) {
         // TODO: Remove this once no more bulk requests exist with the format #:#eos#:#test#:#testFile.txt
-        common::StringConversion::ReplaceStringInPlace(filePathCopy, "#:#","/");
+        common::StringConversion::ReplaceStringInPlace(filePathCopy, "#:#", "/");
       } else {
-        filePathCopy = eos::common::StringConversion::curl_default_unescaped(filePathCopy);
+        filePathCopy = eos::common::StringConversion::curl_default_unescaped(
+                         filePathCopy);
       }
+
       std::unique_ptr<File> bulkRequestFile = std::make_unique<File>(filePathCopy);
       bulkRequestFile->setError(file.getError());
       bulkRequest->addFile(std::move(bulkRequestFile));

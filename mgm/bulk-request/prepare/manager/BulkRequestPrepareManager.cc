@@ -48,15 +48,14 @@ std::unique_ptr<BulkRequest> BulkRequestPrepareManager::getBulkRequest()
 void BulkRequestPrepareManager::initializeStagePrepareRequest(
   XrdOucString& reqid, const common::VirtualIdentity& vid)
 {
-  mBulkRequest = std::move(BulkRequestFactory::createStageBulkRequest(vid));
+  mBulkRequest = BulkRequestFactory::createStageBulkRequest(vid);
   reqid = mBulkRequest->getId().c_str();
 }
 
 void BulkRequestPrepareManager::initializeCancelPrepareRequest(
   XrdOucString& reqid)
 {
-  mBulkRequest = std::move(BulkRequestFactory::createCancelBulkRequest(
-                             reqid.c_str()));
+  mBulkRequest = BulkRequestFactory::createCancelBulkRequest(reqid.c_str());
 }
 
 void BulkRequestPrepareManager::addFileToBulkRequest(std::unique_ptr<File>&&

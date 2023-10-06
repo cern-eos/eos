@@ -58,7 +58,7 @@ TEST_F(RestApiTest, RestHandlerHandleRequestNoResource)
         request.get(), &vid));
   ASSERT_EQ(eos::common::HttpResponse::ResponseCodes::NOT_FOUND,
             response->GetResponseCode());
-  request = std::move(createHttpRequestWithEmptyBody("/rest-api-entry-point/v1"));
+  request = createHttpRequestWithEmptyBody("/rest-api-entry-point/v1");
   response.reset(restHandler->handleRequest(request.get(), &vid));
   ASSERT_EQ(eos::common::HttpResponse::ResponseCodes::NOT_FOUND,
             response->GetResponseCode());

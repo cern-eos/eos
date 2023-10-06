@@ -47,7 +47,7 @@ public:
   // Constructor.
   //----------------------------------------------------------------------------
   BoundIdentityProvider(SecurityChecker& checker, EnvironmentReader& reader,
-    CredentialValidator& validator);
+                        CredentialValidator& validator);
 
   //----------------------------------------------------------------------------
   // Destructor.
@@ -62,7 +62,7 @@ public:
   //----------------------------------------------------------------------------
   std::shared_ptr<const BoundIdentity> environmentToBoundIdentity(
     const JailInformation& jail, const Environment& env, uid_t uid,
-    gid_t gid, bool reconnect, LogbookScope &scope, bool skip_sss = false);
+    gid_t gid, bool reconnect, LogbookScope& scope, bool skip_sss = false);
 
   //----------------------------------------------------------------------------
   // Attempt to produce a BoundIdentity object out of environment variables
@@ -70,7 +70,7 @@ public:
   //----------------------------------------------------------------------------
   std::shared_ptr<const BoundIdentity> pidEnvironmentToBoundIdentity(
     const JailInformation& jail, pid_t pid, uid_t uid, gid_t gid,
-    bool reconnect, LogbookScope &logbook, Environment& env);
+    bool reconnect, LogbookScope& logbook, Environment& env);
 
   //----------------------------------------------------------------------------
   // Attempt to produce a BoundIdentity object out of default paths, such
@@ -79,7 +79,7 @@ public:
   //----------------------------------------------------------------------------
   std::shared_ptr<const BoundIdentity>
   defaultPathsToBoundIdentity(const JailInformation& jail, uid_t uid,
-			      gid_t gid, bool reconnect, LogbookScope &scope, const Environment& env);
+                              gid_t gid, bool reconnect, LogbookScope& scope, const Environment& env);
 
   //----------------------------------------------------------------------------
   // Attempt to produce a BoundIdentity object out of the global eosfusebind
@@ -87,7 +87,7 @@ public:
   //----------------------------------------------------------------------------
   std::shared_ptr<const BoundIdentity>
   globalBindingToBoundIdentity(const JailInformation& jail, uid_t uid,
-			       gid_t gid, bool reconnect, LogbookScope &scope, const Environment& env);
+                               gid_t gid, bool reconnect, LogbookScope& scope, const Environment& env);
 
   void setCredentialConfig(const CredentialConfig& conf)
   {
@@ -98,7 +98,7 @@ public:
   // Check if the given BoundIdentity object is still valid.
   //----------------------------------------------------------------------------
   bool checkValidity(const JailInformation& jail,
-    const BoundIdentity& identity);
+                     const BoundIdentity& identity);
 
   //----------------------------------------------------------------------------
   // Fallback to unix authentication. Guaranteed to always return a valid
@@ -106,10 +106,9 @@ public:
   // matter)
   //----------------------------------------------------------------------------
   std::shared_ptr<const BoundIdentity> unixAuth(pid_t pid, uid_t uid, gid_t gid,
-						bool reconnect, LogbookScope &scope, const Environment& env);
+      bool reconnect, LogbookScope& scope, const Environment& env);
 
 private:
-  SecurityChecker& securityChecker;
   EnvironmentReader& environmentReader;
   CredentialValidator& validator;
 
@@ -119,7 +118,7 @@ private:
 
   static XrdSecsssID& XrdSecsssIDInstance()
   {
-    static XrdSecsssID *sssRegistry = new XrdSecsssID( XrdSecsssID::idDynamic );
+    static XrdSecsssID* sssRegistry = new XrdSecsssID(XrdSecsssID::idDynamic);
     return *sssRegistry;
   }
 
@@ -129,7 +128,7 @@ private:
   //----------------------------------------------------------------------------
   std::shared_ptr<const BoundIdentity> krb5EnvToBoundIdentity(
     const JailInformation& jail, const Environment& env, uid_t uid, gid_t gid,
-    bool reconnect, LogbookScope &scope);
+    bool reconnect, LogbookScope& scope);
 
   //----------------------------------------------------------------------------
   // Attempt to produce a BoundIdentity object out of X509 environment
@@ -137,15 +136,15 @@ private:
   //----------------------------------------------------------------------------
   std::shared_ptr<const BoundIdentity> x509EnvToBoundIdentity(
     const JailInformation& jail, const Environment& env, uid_t uid, gid_t gid,
-    bool reconnect, LogbookScope &scope);
-  
+    bool reconnect, LogbookScope& scope);
+
   //----------------------------------------------------------------------------
   // Attempt to produce a BoundIdentity object out of ZTN environment
   // variables. NO fallback to default paths. If not possible, return nullptr.
   //----------------------------------------------------------------------------
   std::shared_ptr<const BoundIdentity> ztnEnvToBoundIdentity(
     const JailInformation& jail, const Environment& env, uid_t uid, gid_t gid,
-    bool reconnect, LogbookScope &scope);
+    bool reconnect, LogbookScope& scope);
 
   //----------------------------------------------------------------------------
   // Attempt to produce a BoundIdentity object out of SSS environment
@@ -153,7 +152,7 @@ private:
   //----------------------------------------------------------------------------
   std::shared_ptr<const BoundIdentity> sssEnvToBoundIdentity(
     const JailInformation& jail, const Environment& env, uid_t uid, gid_t gid,
-    bool reconnect, LogbookScope &scope);
+    bool reconnect, LogbookScope& scope);
 
   //----------------------------------------------------------------------------
   // Attempt to produce a BoundIdentity object out of OAUTH2 environment
@@ -161,7 +160,7 @@ private:
   //----------------------------------------------------------------------------
   std::shared_ptr<const BoundIdentity> oauth2EnvToBoundIdentity(
     const JailInformation& jail, const Environment& env, uid_t uid, gid_t gid,
-    bool reconnect, LogbookScope &scope);
+    bool reconnect, LogbookScope& scope);
 
   //----------------------------------------------------------------------------
   // Given a set of user-provided, non-trusted UserCredentials, attempt to
@@ -171,8 +170,8 @@ private:
   // If such a thing is not possible, return nullptr.
   //----------------------------------------------------------------------------
   std::shared_ptr<const BoundIdentity> userCredsToBoundIdentity(
-    const JailInformation& jail, const UserCredentials &creds, bool reconnect,
-    LogbookScope &scope);
+    const JailInformation& jail, const UserCredentials& creds, bool reconnect,
+    LogbookScope& scope);
 
   //----------------------------------------------------------------------------
   // Register SSS credentials

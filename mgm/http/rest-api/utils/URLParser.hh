@@ -80,7 +80,6 @@ public:
   static void removeDuplicateSlashes(std::string& path);
 
 private:
-  const std::string& mURL;
   std::vector<std::string> mURLTokens;
 };
 

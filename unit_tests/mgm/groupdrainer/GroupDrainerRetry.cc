@@ -13,7 +13,6 @@ TEST(RetryTracker, basic)
   ASSERT_TRUE(tracker.need_update());
   tracker.update();
   ASSERT_EQ(tracker.count, 1);
-  auto updated_time = tracker.last_run_time;
   EXPECT_NE(tracker.last_run_time, time0);
   eos::common::SteadyClock test_clock(true);
   ASSERT_FALSE(tracker.need_update(900));

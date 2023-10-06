@@ -28,10 +28,9 @@ TEST(RCUTests, Basic)
   // Test that we can create an RCU object
   RCUDomain<experimental::ThreadEpochCounter, 1> rcu_domain;
   atomic_unique_ptr<int> ptr(new int(0));
-  int sum{0};
   int i{0};
   // Test that we can create an RCU read lock
-  auto read_fn = [&rcu_domain, &sum, &ptr](int index) {
+  auto read_fn = [&rcu_domain, &ptr](int index) {
     auto tid = experimental::tlocalID.get();
     std::cout << "Starting reader at index=" << index << "tid=" << tid
               <<  std::endl;
@@ -77,10 +76,9 @@ TEST(RCUTests, BasicVersionCounter)
   // Test that we can create an RCU object
   VersionedRCUDomain rcu_domain;
   atomic_unique_ptr<int> ptr(new int(0));
-  int sum{0};
   int i{0};
   // Test that we can create an RCU read lock
-  auto read_fn = [&rcu_domain, &i, &sum, &ptr](int index) {
+  auto read_fn = [&rcu_domain, &ptr](int index) {
     auto tid = std::hash<std::thread::id> {}(std::this_thread::get_id()) % 4096;
     std::cout << "Starting reader at index=" << index << "tid=" << tid
               <<  std::endl;

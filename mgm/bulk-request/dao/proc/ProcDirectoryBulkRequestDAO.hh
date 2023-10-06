@@ -108,7 +108,6 @@ private:
   const ProcDirectoryBulkRequestLocations& mProcDirectoryBulkRequestLocations;
   eos::common::VirtualIdentity mVid;
 
-  const char* ERROR_MSG_XATTR_NAME = "error_msg";
   const char* LAST_ACCESS_TIME_XATTR_NAME = "last_accessed_time";
   inline static const std::string ISSUER_UID_XATTR_NAME = "issuer_uid";
   //File persisted as bulk-request's directory extended attribute will be prefixed by this prefix
