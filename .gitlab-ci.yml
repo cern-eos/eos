@@ -247,6 +247,7 @@ build_al9:
   only:
     - schedules
     - tags
+    - master
   tags:
     - docker_node
 
