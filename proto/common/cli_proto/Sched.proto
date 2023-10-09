@@ -25,11 +25,15 @@ message SchedProto {
     string spacename = 2;
   }
 
+  message RefreshProto {
+  }
+
   message ConfigureProto {
     oneof subopt {
       TypeProto type = 1;
       WeightProto weight = 2;
       ShowProto show = 3;
+      RefreshProto refresh = 4;
     }
   }
 

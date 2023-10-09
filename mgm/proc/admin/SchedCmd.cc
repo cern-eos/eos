@@ -58,6 +58,8 @@ eos::mgm::SchedCmd::ConfigureSubcmd(const eos::console::SchedProto_ConfigureProt
     return WeightSubCmd(config.weight());
   case eos::console::SchedProto_ConfigureProto::kShow:
     return ShowSubCmd(config.show());
+  case eos::console::SchedProto_ConfigureProto::kRefresh:
+    return RefreshSubCmd(config.refresh());
   default:
     reply.set_std_err("error: not supported");
     reply.set_retc(EINVAL);
@@ -135,6 +137,16 @@ SchedCmd::ShowSubCmd(const eos::console::SchedProto_ShowProto& show)
     reply.set_retc(0);
 
   }
+  return reply;
+}
+
+eos::console::ReplyProto
+SchedCmd::RefreshSubCmd(const eos::console::SchedProto_RefreshProto& refresh)
+{
+  eos::console::ReplyProto reply;
+  gOFS->mFsScheduler->updateClusterData();
+  reply.set_std_out("Refreshed Cluster Data for all spaces!");
+  reply.set_retc(0);
   return reply;
 }
 

@@ -102,8 +102,12 @@ bool SchedHelper::ParseCommand(const char* arg)
           show_prot->set_spacename(token);
         }
       }
+    } else if (token == "forcerefresh") {
+      // TODO: implement a space level refresh command; however it requires a
+      // deep copy of the internal spacemap ptrs of all other spaces other than
+      // the asked space probably easier to just do a full refresh
+      config->mutable_refresh();
     }
-
 
   } else if (token == "ls") {
     // Implement me!
@@ -155,6 +159,8 @@ void com_sched_help()
       << "\t configure weight for a given fsid in the given space\n"
       << " sched configure show type [spacename]\n"
       << "\t show existing configured scheduler; optionally for space\n"
+      << " sched configure forcerefresh [spacename]\n"
+      << "\t Force refresh scheduler internal state\n"
       << " ls <bucket|disk|all>\n"
       << std::endl;
   std::cerr << oss.str();
