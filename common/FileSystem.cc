@@ -653,6 +653,23 @@ FileSystem::GetConfigStatusAsString(ConfigStatus status)
 }
 
 //------------------------------------------------------------------------------
+// Return given Active status as a string
+//------------------------------------------------------------------------------
+const char*
+FileSystem::GetActiveStatusAsString(ActiveStatus status)
+{
+  if (status == ActiveStatus::kOnline) {
+    return "online";
+  } else if (status == ActiveStatus::kOffline) {
+    return "offline";
+  } else if (status == ActiveStatus::kOverload) {
+    return "overload";
+  } else {
+    return "undef";
+  }
+}
+
+//------------------------------------------------------------------------------
 // Get the status from a string representation
 //------------------------------------------------------------------------------
 BootStatus
@@ -792,24 +809,7 @@ FileSystem::SetActiveStatus(ActiveStatus active)
 {
   if (mActStatus != active) {
     mActStatus = active;
-    SetString("stat.active", GetActiveStatusAsString().c_str(), false);
-  }
-}
-
-//------------------------------------------------------------------------------
-// Get active status as string
-//------------------------------------------------------------------------------
-const std::string
-FileSystem::GetActiveStatusAsString() const
-{
-  if (mActStatus == ActiveStatus::kOnline) {
-    return "online";
-  } else if (mActStatus == ActiveStatus::kOffline) {
-    return "offline";
-  } else if (mActStatus == ActiveStatus::kOverload) {
-    return "overload";
-  } else {
-    return "undef";
+    SetString("stat.active", GetActiveStatusAsString(mActStatus), false);
   }
 }
 

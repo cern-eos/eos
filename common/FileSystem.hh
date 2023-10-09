@@ -517,6 +517,7 @@ public:
   static const char* GetStatusAsString(BootStatus status);
   static const char* GetDrainStatusAsString(DrainStatus status);
   static const char* GetConfigStatusAsString(ConfigStatus status);
+  static const char* GetActiveStatusAsString(ActiveStatus status);
 
   //----------------------------------------------------------------------------
   //! Parse a string status into the enum value
@@ -645,11 +646,6 @@ public:
   {
     return mActStatus;
   }
-
-  //----------------------------------------------------------------------------
-  //! Get active status as string
-  //----------------------------------------------------------------------------
-  const std::string GetActiveStatusAsString() const;
 
   //----------------------------------------------------------------------------
   //! Get all keys in a vector of strings.
