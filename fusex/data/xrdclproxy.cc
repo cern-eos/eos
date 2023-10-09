@@ -112,7 +112,8 @@ XrdCl::Proxy::Read(XrdCl::shared_proxy proxy,
   } else {
     if (!XReadAheadDisabled) {
       // Offset if unsigned so abs might not work properly in case of underflow
-      off_t seek_distance = (offset >= mPosition ? offset - mPosition : mPosition -
+      off_t seek_distance = (offset >= (uint64_t)mPosition ? offset - mPosition :
+                             mPosition -
                              offset);
       double sparse_ratio = 1.0 * mSeqDistance / (seek_distance + mSeqDistance);
 
