@@ -35,6 +35,8 @@
 #include "common/StringConversion.hh"
 #include "common/LinuxStat.hh"
 #include "common/ShellCmd.hh"
+#include "common/StringUtils.hh"
+#include "fst/utils/FTSWalkTree.hh"
 #include "MonitorVarPartition.hh"
 #include "qclient/structures/QSet.hh"
 #include <google/dense_hash_map>
@@ -45,6 +47,44 @@
 extern eos::fst::XrdFstOss* XrdOfsOss;
 
 EOSFSTNAMESPACE_BEGIN
+
+//------------------------------------------------------------------------------
+//! Check that the Fmd information was moved to xattrs for the given sub-tree
+//!
+//! @param path file system mount-point
+//!
+//! @return true if conversion was done, otherwise false
+//------------------------------------------------------------------------------
+bool
+CheckFsXattrConverted(std::string fs_path)
+{
+  // Add some predefined indexes
+  std::set<uint64_t> match_indexes {1, 10, 20, 30, 44, 50, 100, 202, 505,
+                                    1010, 2020, 5050, 10100, 22222, 33333, 44444, 15001, 50001};
+  srand(time(0));
+
+  // Add some random indexes
+  for (int i = 0; i < 100; ++i) {
+    match_indexes.insert(rand() % 100000);
+  }
+
+  auto exclude_files = [](std::string_view filename) -> bool {
+    static const std::string xsmap_ext = ".xsmap";
+    static const std::string scrub_prefix = "scrub.";
+    return (eos::common::endsWith(filename, xsmap_ext) ||
+    eos::common::startsWith(std::string(filename), scrub_prefix));
+  };
+  auto check_fmd_xattr = [](std::string_view abs_path) -> bool {
+    static const std::string xattr_key = "user.eos.fmd";
+    FsIo local_io {abs_path.data()};
+    std::string xattr_val;
+    return (local_io.attrGet(xattr_key, xattr_val) == 0);
+  };
+  eos_static_info("msg=\"check %i files for xattrs\"", match_indexes.size());
+  return WalkFsTreeCheckCond({fs_path.data(), nullptr}, check_fmd_xattr,
+                             exclude_files, match_indexes);
+}
+
 
 //------------------------------------------------------------------------------
 // Create new Storage object
@@ -408,6 +448,18 @@ Storage::Boot(FileSystem* fs)
         return;
       }
     }
+  }
+
+  // Make sure the Fmd info was move to xattrs
+  if (!CheckFsXattrConverted(fs->GetPath())) {
+    eos_static_crit("msg=\"files don't have Fmd info in xattr\" "
+                    "fs_path=\"%s\"", fs->GetPath().c_str());
+    eos_static_crit("%s", "msg=\"process will abort now, please convert "
+                    "your file systems to drop LeveDB and use xattrs\"");
+    std::abort();
+  } else {
+    eos_static_info("msg=\"check for Fmd xattr conversion successful\" "
+                    "fs_path=%s", fs->GetPath().c_str());
   }
 
   {

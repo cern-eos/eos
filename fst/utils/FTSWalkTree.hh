@@ -21,16 +21,17 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 #pragma once
-#include <vector>
+
+#include "fst/Namespace.hh"
 #include "common/Logging.hh"
 #include "common/StringUtils.hh"
 #include <fts.h>
 #include <utility>
 #include <type_traits>
 #include <system_error>
+#include <vector>
 
-namespace eos::fst
-{
+EOSFSTNAMESPACE_BEGIN
 
 static constexpr std::string_view XSMAP_EXT = "xsmap";
 
@@ -93,5 +94,69 @@ WalkFSTree(std::string path, UnaryOp&& op, std::error_code& ec)
 }
 
 
+//------------------------------------------------------------------------------
+//! Method to travers the subtree and check the file if they satisfy a certain
+//! condition. The files are counted and only the ones with the index matching
+//! the given ones are checked.
+//!
+//! @param path path of the sub-tree to check
+//! @param check_fn operation to be applied to individual files
+//! @param exclude_fn operator that should skip check the file if it returns
+//!                   true
+//! @param match_indexes set of indexes to check inside the subtree
+//------------------------------------------------------------------------------
+template <typename CheckFn, typename ExcludeFn>
+bool
+WalkFsTreeCheckCond(std::vector<char*>&& paths,
+                    CheckFn check_fn,
+                    ExcludeFn exclude_fn,
+                    const std::set<uint64_t>& match_indexes)
+{
+  FTS* tree = fts_open(paths.data(), FTS_NOCHDIR, 0);
 
-} // namespace eos::fst
+  if (!tree) {
+    eos_static_err("msg=\"fts_open failed\" path=\"%s\" errno=%d",
+                   paths.data(), errno);
+    return false;
+  }
+
+  std::set<uint64_t> checked_indexes;
+  uint64_t cnt {0};
+  FTSENT* node {nullptr};
+
+  while ((node = fts_read(tree))) {
+    if (node->fts_level > 0 && node->fts_name[0] == '.') {
+      fts_set(tree, node, FTS_SKIP);
+    } else {
+      if (node->fts_info == FTS_F) {
+        if (!exclude_fn(node->fts_name)) {
+          ++cnt;
+
+          if (match_indexes.find(cnt) != match_indexes.end()) {
+            if (!check_fn(node->fts_path)) {
+              eos_static_crit("msg=\"file not matching condition\" fn=\"%s\" "
+                              "index=%llu", node->fts_path, cnt);
+              (void) fts_close(tree);
+              return false;
+            } else {
+              checked_indexes.insert(cnt);
+
+              if (checked_indexes.size() == match_indexes.size()) {
+                break;
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+
+  if (fts_close(tree)) {
+    eos_static_err("msg=\"fts_close failed\" errno=%d", errno);
+    return false;
+  }
+
+  return true;
+}
+
+EOSFSTNAMESPACE_END
