@@ -128,6 +128,8 @@ inline std::string BucketTypeToStr(StdBucketType t) {
     return "room";
   case StdBucketType::SITE:
     return "site";
+  case StdBucketType::ROOT:
+    return "root";
   default:
     return "unknown";
   }
@@ -217,6 +219,10 @@ struct ClusterData {
   std::string getBucketsAsString() const {
     std::string result_str;
     for (const auto& b: buckets) {
+      if (b.id==0 && b.bucket_type == 0) {
+        continue;
+      }
+
       result_str.append(b.to_string());
       result_str.append("\n");
     }

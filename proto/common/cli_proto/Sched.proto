@@ -45,6 +45,7 @@ message SchedProto {
     }
 
     Option option = 1;
+    string spacename = 2;
   }
 
   oneof subcmd {

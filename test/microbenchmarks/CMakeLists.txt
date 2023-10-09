@@ -50,7 +50,8 @@ add_executable(eos-flatscheduler-microbenchmark mgm/BM_FlatScheduler.cc
         ${CMAKE_SOURCE_DIR}/mgm/placement/RoundRobinPlacementStrategy.cc
         ${CMAKE_SOURCE_DIR}/mgm/placement/WeightedRandomStrategy.cc
         ${CMAKE_SOURCE_DIR}/mgm/placement/WeightedRoundRobinStrategy.cc
-        ${CMAKE_SOURCE_DIR}/mgm/placement/ThreadLocalRRSeed.cc)
+        ${CMAKE_SOURCE_DIR}/mgm/placement/ThreadLocalRRSeed.cc
+        )
 add_executable(eos-rrseed-microbenchmark mgm/BM_RRSeed.cc
         ${CMAKE_SOURCE_DIR}/mgm/placement/ThreadLocalRRSeed.cc)
 
@@ -74,7 +75,7 @@ target_link_libraries(eos-rrseed-microbenchmark PRIVATE
 
 target_link_libraries(eos-flatscheduler-microbenchmark PRIVATE
   benchmark::benchmark
-  EosCommon-Static)
+  EosCommonServer-Static)
 
 target_link_libraries(eos-random-microbenchmark PRIVATE
   benchmark::benchmark)

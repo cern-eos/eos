@@ -77,6 +77,20 @@ ClusterMgr::getStorageHandlerWithData()
   return StorageHandler(*this, std::move(cluster_data_copy));
 }
 
+std::string
+ClusterMgr::getStateStr(std::string_view type)
+{
+  using namespace std::string_view_literals;
+  std::stringstream ss;
+  eos::common::RCUReadLock rlock(cluster_mgr_rcu);
+  if (type == "bucket"sv || type == "all"sv) {
+    ss << mClusterData->getBucketsAsString();
+  } else if (type == "disk"sv || type == "all"sv) {
+    ss << mClusterData->getDisksAsString();
+  }
+  return ss.str();
+}
+
 bool
 StorageHandler::isValidBucketID(item_id_t bucket_id) const
 {

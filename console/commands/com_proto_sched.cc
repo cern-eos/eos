@@ -116,6 +116,11 @@ bool SchedHelper::ParseCommand(const char* arg)
     if (!tokenizer.NextToken(token)) {
       return false;
     }
+    ls->set_spacename(token);
+
+    if (!tokenizer.NextToken(token)) {
+      return false;
+    }
 
     if (token == "bucket") {
       ls->set_option(eos::console::SchedProto_LsProto::BUCKET);
@@ -161,7 +166,7 @@ void com_sched_help()
       << "\t show existing configured scheduler; optionally for space\n"
       << " sched configure forcerefresh [spacename]\n"
       << "\t Force refresh scheduler internal state\n"
-      << " ls <bucket|disk|all>\n"
+      << " ls <spacename> <bucket|disk|all>\n"
       << std::endl;
   std::cerr << oss.str();
 }

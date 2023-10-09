@@ -228,4 +228,19 @@ FSScheduler::getPlacementStrategy(const string& spacename)
   return getPlacementStrategy();
 }
 
+std::string
+FSScheduler::getStateStr(const std::string& spacename, std::string_view type_sv)
+{
+
+  eos::common::RCUReadLock rlock(cluster_rcu_mutex);
+  auto* cluster_mgr = get_cluster_mgr(spacename);
+  if (!cluster_mgr) {
+    eos_static_crit("msg=\"Scheduler is not yet initialized for\" space=%s",
+                    spacename.c_str());
+    return {};
+  }
+  return cluster_mgr->getStateStr(type_sv);
+}
+
+
 }// eos::mgm::placement

@@ -76,7 +76,7 @@ public:
   // Not meant to be called directly! use storage handler, we might consider
   // making this private and friending if this is abused
   void addClusterData(ClusterData&& data);
-
+  std::string getStateStr(std::string_view type);
 private:
   eos::common::atomic_unique_ptr<ClusterData> mClusterData;
   std::atomic<epoch_id_t> mCurrentEpoch {0};

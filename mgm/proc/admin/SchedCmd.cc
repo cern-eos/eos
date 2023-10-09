@@ -108,15 +108,22 @@ eos::console::ReplyProto
 SchedCmd::LsSubcmd(const eos::console::SchedProto_LsProto& ls)
 {
   eos::console::ReplyProto reply;
+  std::string status;
+  std::string type;
   switch (ls.option()) {
   case eos::console::SchedProto_LsProto::BUCKET:
-    //FIXME: Implement!
+    type = "bucket";
+    break;
   case eos::console::SchedProto_LsProto::DISK:
-    //FIXME: Implement!
+    type = "disk";
+    break;
   default:
-    reply.set_retc(EINVAL);
+    type = "all";
   }
 
+  status = gOFS->mFsScheduler->getStateStr(ls.spacename(),type);
+  reply.set_std_out(status);
+  reply.set_retc(0);
   return reply;
 }
 
