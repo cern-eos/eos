@@ -38,6 +38,7 @@
 #include <sstream>
 #include <unistd.h>
 #include <folly/executors/IOThreadPoolExecutor.h>
+#include <chrono>
 
 //------------------------------------------------------------------------------
 // Randomize a location
@@ -929,6 +930,7 @@ TEST_F(FileSystemViewF, getFileOrContainerMDLocked)
 
 TEST_F(FileSystemViewF, getFileWhileBeingWriteLocked)
 {
+  using namespace std::chrono_literals;
   view()->createContainer("/root/", true);
   auto file = view()->createFile("/root/file1");
   //Create two threads, one will write lock the file and wait X seconds, one will
@@ -938,13 +940,13 @@ TEST_F(FileSystemViewF, getFileWhileBeingWriteLocked)
   auto threadWriteLockingFile = std::thread([&file, &fileLocked, sleepSeconds]() {
     eos::IFileMD::IFileMDWriteLocker fileLocker(file);
     fileLocked = true;
-    ::sleep(sleepSeconds);
+    std::this_thread::sleep_for(std::chrono::duration<double>(sleepSeconds + 0.1));
   });
   std::chrono::time_point<std::chrono::steady_clock> start;
   std::chrono::time_point<std::chrono::steady_clock> stop;
   auto threadGetFile = std::thread([this, &start, &stop, &fileLocked]() {
     while (!fileLocked) {
-      ::sleep(0.1);
+      std::this_thread::sleep_for(std::chrono::milliseconds(100ms));
     }
 
     start = std::chrono::steady_clock::now();
