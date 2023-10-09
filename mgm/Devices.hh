@@ -102,7 +102,7 @@ public:
   void Extract(); // extract from MQ messaging infos
   
 private:
-  AssistedThread mThread; ///< Thread doing the recycling
+  AssistedThread mThread; ///< Thread doing the device extraction
   std::string mDevicesPath;
   std::mutex fsJsonMutex;
   json_map_t fsJson; // contains fsid->json info

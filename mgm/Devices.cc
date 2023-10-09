@@ -47,7 +47,7 @@ Devices::Start()
 }
 
 //------------------------------------------------------------------------------
-// Cancel the asynchronous recycle thread
+// Cancel the asynchronous devices thread
 //------------------------------------------------------------------------------
 void
 Devices::Stop()
