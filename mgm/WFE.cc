@@ -2319,6 +2319,8 @@ WFE::Job::HandleProtoMethodDeleteEvent(const std::string& fullPath,
     }
 
     file_size = fmd->getSize();
+    // Add File Size to notification
+    notification->mutable_file()->set_size(file_size);
     std::string checksum;
     eos::appendChecksumOnStringAsHex(fmd.get(), checksum);
     eosLog.addParam(EosCtaReportParam::SEC_APP, "tape_delete")
@@ -2343,6 +2345,9 @@ WFE::Job::HandleProtoMethodDeleteEvent(const std::string& fullPath,
               eos::common::LayoutId::GetChecksumString(fmd->getLayoutId()))
     .addParam(EosCtaReportParam::FILE_DEL_CHECKSUMVALUE, checksum)
     .addParam(EosCtaReportParam::FILE_DEL_SIZE, fmd->getSize());
+
+    // Add checksum to the notification
+    CtaCommon::SetChecksum(notification->mutable_file()->mutable_csb()->add_cs(), fmd->getLayoutId(), checksum);
   }
   bool tapeLocationWasRemoved = false;
 
