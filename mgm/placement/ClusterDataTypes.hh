@@ -85,6 +85,20 @@ struct Disk {
   {
     return l.id < r.id;
   }
+
+  std::string to_string() const {
+    std::stringstream ss;
+    ss << "id: " << id << "\n"
+       << "ConfigStatus: "
+       << common::FileSystem::GetConfigStatusAsString(config_status.load(std::memory_order_relaxed))
+       <<"\n"
+       << "ActiveStatus: "
+       << common::FileSystem::GetActiveStatusAsString(active_status.load(std::memory_order_relaxed))
+       << "\n"
+       << "Weight: " << weight.load(std::memory_order_relaxed) << "\n"
+       << "UsedPercent: " << percent_used.load(std::memory_order_relaxed);
+    return ss.str();
+  }
 };
 
 static_assert(sizeof(Disk) == 8, "Disk data type not aligned to 8 bytes!");
@@ -104,6 +118,20 @@ get_bucket_type(StdBucketType t)
   return static_cast<uint8_t>(t);
 }
 
+inline std::string BucketTypeToStr(StdBucketType t) {
+  switch (t) {
+  case StdBucketType::GROUP:
+    return "group";
+  case StdBucketType::RACK:
+    return "rack";
+  case StdBucketType::ROOM:
+    return "room";
+  case StdBucketType::SITE:
+    return "site";
+  default:
+    return "unknown";
+  }
+}
 
 // Determining placement of replicas for a file
 // We need to understand how many storage elements we select at each level
@@ -136,6 +164,21 @@ struct Bucket {
   {
     return l.id < r.id;
   }
+
+  std::string to_string() const
+  {
+    std::stringstream ss;
+    ss << "id: " << id <<"\n"
+       << "Total Weight: " << total_weight << "\n"
+       << "Bucket Type: "
+       << BucketTypeToStr(static_cast<StdBucketType>(bucket_type))
+       << "\nItem List: ";
+
+    for (const auto& it : items) {
+      ss << it << ", ";
+    }
+    return ss.str();
+  }
 };
 
 // Constant to offset the group id, so group ids would be starting from this offset
@@ -161,6 +204,25 @@ struct ClusterData {
     disks[id - 1].weight.store(weight, std::memory_order_release);
     return true;
   }
+
+  std::string getDisksAsString() const {
+    std::string result_str;
+    for (const auto& d: disks) {
+      result_str.append(d.to_string());
+      result_str.append("\n");
+    }
+    return result_str;
+  }
+
+  std::string getBucketsAsString() const {
+    std::string result_str;
+    for (const auto& b: buckets) {
+      result_str.append(b.to_string());
+      result_str.append("\n");
+    }
+    return result_str;
+  }
+
 };
 
 inline bool isValidBucketId(item_id_t id, const ClusterData& data) {
