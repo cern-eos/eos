@@ -150,10 +150,11 @@ void com_sched_help()
   oss << " Usage:\n"
       << " sched configure type <schedtype>\n"
       << "\t <schedtype> is one of roundrobin,weightedrr,tlrr,random,weightedrandom,geo\n"
+      << "\t if configured via space; space takes precedence\n"
       << " sched configure weight <space> <fsid> <weight>\n"
-      << "\t configure weight for a given fsid in the given space"
-      << " sched configure dump"
-      << "\t dump existing config options"
+      << "\t configure weight for a given fsid in the given space\n"
+      << " sched configure show type [spacename]\n"
+      << "\t show existing configured scheduler; optionally for space\n"
       << " ls <bucket|disk|all>\n"
       << std::endl;
   std::cerr << oss.str();
