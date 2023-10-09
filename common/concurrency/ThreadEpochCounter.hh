@@ -93,7 +93,7 @@ namespace experimental {
 // https://github.com/cmuparlay/concurrent_deferred_rcu
 // Turning Manual Concurrent Memory Reclamation into Automatic Reference Counting
 // Daniel Anderson, Guy E. Blelloch, Yuanhao Wei (PLDI 2022)
-static constexpr size_t EOS_MAX_THREADS=4096;
+static constexpr size_t EOS_MAX_THREADS=32768;
 static std::array<std::atomic<bool>, EOS_MAX_THREADS> g_thread_in_use {false};
 
 struct ThreadID {
