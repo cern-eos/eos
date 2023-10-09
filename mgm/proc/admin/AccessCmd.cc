@@ -652,8 +652,12 @@ void AccessCmd::RmSubcmd(const eos::console::AccessProto_RmProto& rm,
           return;
         }
 
+        // Remove by uid
         Access::gStallRules.erase(rule_key);
         Access::gStallComment.erase(rule_key);
+        // Also remove by username to cover old bug
+        Access::gStallRules.erase(rm.key());
+        Access::gStallComment.erase(rm.key());
       } else if (rm.key().empty()) {
         Access::gStallRules.erase("*");
         Access::gStallComment.erase("*");
