@@ -69,6 +69,7 @@ Improvement
 * [EOS-5734] - eos recycle -m, revert usage of underscore on keys
 * [EOS-5739] - RFE: honour sys.app.lock also when serving flock operations via FUSE
 * [EOS-5819] - Forbid quota set cli on recycle bin
+* [EOS-5779] - EOS: server rpm upgrades shouldn't affect quarkdb
 * [EOS-5831] - Add Birthtime vs Accesstime distributions to inspector output
 * [EOS-5840] - Add 'du' command to CLI
 
