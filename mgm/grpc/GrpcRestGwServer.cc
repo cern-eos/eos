@@ -7,7 +7,7 @@
 
 #ifdef EOS_GRPC_GATEWAY
 #include "proto/eos_rest_gateway/eos_rest_gateway_service.grpc.pb.h"
-#include "libgateway.h"
+#include "EosGrpcGateway.h"
 
 #include <grpc++/security/credentials.h>
 
