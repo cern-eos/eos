@@ -5,6 +5,7 @@
 
 namespace eos::mgm::placement {
 
+static constexpr int MAX_GROUPS_TO_TRY=5;
 
 std::map<std::string, std::unique_ptr<ClusterMgr>>
 EosClusterMgrHandler::make_cluster_mgr()
@@ -143,8 +144,15 @@ FSScheduler::schedule(const string& spaceName,
     return {};
   }
 
+  PlacementResult result;
   auto cluster_data_ptr = cluster_mgr->getClusterData();
-  return scheduler->schedule(cluster_data_ptr(), args);
+  for (int i=0; i < MAX_GROUPS_TO_TRY; i++) {
+    result = scheduler->schedule(cluster_data_ptr(), args);
+    if (result.is_valid_placement(args.n_replicas)) {
+      return result;
+    }
+  }
+  return result;
 }
 
 PlacementResult
