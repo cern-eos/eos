@@ -26,6 +26,7 @@
 #include "mgm/proc/proc_fs.hh"
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/Stat.hh"
+#include "mgm/placement/FsScheduler.hh"
 #include "common/LayoutId.hh"
 #include "namespace/interface/IFsView.hh"
 #include "namespace/interface/IView.hh"
@@ -443,6 +444,9 @@ FsCmd::Mv(const eos::console::FsProto::MvProto& mvProto)
     XrdOucString out, err;
     mRetc = proc_fs_mv(source, dest, out, err, mVid, force,
                        gOFS->mMessagingRealm.get());
+    // do a blanket refresh of internal state
+    // TODO fine grain to group/disk status here
+    gOFS->mFsScheduler->updateClusterData();
     mOut = out.c_str() != nullptr ? out.c_str() : "";
     mErr = err.c_str() != nullptr ? err.c_str() : "";
   } else {

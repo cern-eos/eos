@@ -47,11 +47,11 @@ EosClusterMgrHandler::make_cluster_mgr()
           if (capacity > (1LL << 40)) {
             weight = capacity / (1LL << 40);
           }
-          storage_handler.addDisk(Disk(fs->GetId(), fs->GetConfigStatus(),
-                                       fs->GetActiveStatus(), weight, used),
-                                  group_id);
-          eos_static_info("msg=\"Adding disk at \" ID=%d group_id=%d",
-                          fs->GetId(), group_id);
+          auto add_status = storage_handler.addDisk(Disk(fs->GetId(), fs->GetConfigStatus(),
+                                                     fs->GetActiveStatus(), weight, used),
+                                                group_id);
+          eos_static_info("msg=\"Adding disk at \" ID=%d group_id=%d status=%d",
+                          fs->GetId(), group_id, add_status);
         }
       }
     }
