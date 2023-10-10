@@ -16,6 +16,63 @@ Introduction
 
 This release is based on XRootD V5.
 
+
+``v5.2.0 Diopside``
+==========================
+
+2023-10-10
+
+Note
+----
+
+* Update dependency to eos-xrootd-5.6.2 that matches XRootD-5.6.2.
+* New eos-grpc-1.56.1 dependency that obsoletes any previous eos-protobuf3 packages.
+
+
+Bug
+----
+
+* [EOS-5429] - [TAPE REST API] Modify STAGE polling (GET) logic to take into account files not queued on CTA
+* [EOS-5680] - MQ overloaded when deleting a large number of EC files
+* [EOS-5687] - CtaUtils: GCC12 FTBS
+* [EOS-5694] - chunked upload fails on EOS5 + XrdHTTP
+* [EOS-5699] - request retries discarded on RAIN layout
+* [EOS-5700] - readv errors ReedSLayout claims corrupted but file is ok
+* [EOS-5704] - RAIN layouts don't enable XrdIo read-ahead
+* [EOS-5732] - removexattr fails with ENOENT when trying to remove any of the extended attributes from a created file
+* [EOS-5784] - /etc/cron.d/eos-reports : do not use "bc"
+* [EOS-5791] - Force physical space info for xrdfs spaceinfo command not working
+* [EOS-5798] - FST abort() on "no manager name" shutdown: "terminate called without an active exception"
+* [EOS-5843] - Wrong quota checks when recycling directories with EC files
+* [EOS-5855] - Cannot remove access limits already introduced by username
+
+New Feature
+------------
+
+* [EOS-5613] - Store in xattr who deleted a file
+* [EOS-5716] - [eoscp] Create JSON output in addition to the text output
+* [EOS-5857] - Add support for HTTP REST API via grpc-gateway
+
+
+Task
+----
+
+* [EOS-5530] - Send fid as string to CTA
+* [EOS-5856] - Libmicrohttpd support disabled by default
+
+Improvement
+------------
+
+* [EOS-5537] - RS layouts don't use read-ahead anymore
+* [EOS-5703] - Modifications to eos `evict`/`stagerrm` command
+* [EOS-5707] - eos-config-inspect dump: allow to choose a particular config backup
+* [EOS-5734] - eos recycle -m, revert usage of underscore on keys
+* [EOS-5739] - RFE: honour sys.app.lock also when serving flock operations via FUSE
+* [EOS-5819] - Forbid quota set cli on recycle bin
+* [EOS-5831] - Add Birthtime vs Accesstime distributions to inspector output
+* [EOS-5840] - Add 'du' command to CLI
+
+
 ``v5.1.30 Diopside``
 ==========================
 
