@@ -43,6 +43,10 @@ Bug
 * [EOS-5784] - /etc/cron.d/eos-reports : do not use "bc"
 * [EOS-5791] - Force physical space info for xrdfs spaceinfo command not working
 * [EOS-5798] - FST abort() on "no manager name" shutdown: "terminate called without an active exception"
+* [EOS-5825] - eosxd heartbeat stuck, duration slowly rising (maybe mdcflush deadlock)
+* [EOS-5826] - eosxd rising heartbeat time, suspected mdx left locked by exited thread
+* [EOS-5832] - FUSEX crash around cap::capx::lifetime(this=0x0)
+* [EOS-5842] - FUSEX: throw in data::datax::attach
 * [EOS-5843] - Wrong quota checks when recycling directories with EC files
 * [EOS-5855] - Cannot remove access limits already introduced by username
 
@@ -68,8 +72,8 @@ Improvement
 * [EOS-5707] - eos-config-inspect dump: allow to choose a particular config backup
 * [EOS-5734] - eos recycle -m, revert usage of underscore on keys
 * [EOS-5739] - RFE: honour sys.app.lock also when serving flock operations via FUSE
-* [EOS-5819] - Forbid quota set cli on recycle bin
 * [EOS-5779] - EOS: server rpm upgrades shouldn't affect quarkdb
+* [EOS-5819] - Forbid quota set cli on recycle bin
 * [EOS-5831] - Add Birthtime vs Accesstime distributions to inspector output
 * [EOS-5840] - Add 'du' command to CLI
 
