@@ -7,11 +7,11 @@
 #
 
 find_path(EosGrpcGateway_INCLUDE_DIR
-  NAMES libgateway.h
+  NAMES EosGrpcGateway.h
   HINTS /usr ${EosGrpcGateway_ROOT}
   PATH_SUFFIXES include)
 
-find_library(EosGrpcGateway_LIBRARY NAMES libgateway.so
+find_library(EosGrpcGateway_LIBRARY NAMES libEosGrpcGateway.so
   HINTS /usr/lib64 ${EosGrpcGateway_ROOT}
   PATH_SUFFIXES ${CMAKE_INSTALL_LIBDIR})
 
