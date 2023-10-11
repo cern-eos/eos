@@ -237,9 +237,10 @@ void com_fs_help()
       << std::endl
       << "          'fs ls -l default,drain,bootfailure'" << std::endl
       << std::endl
-      << "  fs mv [--force] <src_fsid|src_grp|src_space> <dst_grp|dst_space>" <<
+      << "  fs mv [--force] <src_fsid|src_grp|src_space> <dst_grp|dst_space|node:port>"
+      <<
       std::endl
-      << "    move filesystem(s) in different scheduling group or space"
+      << "    move filesystem(s) in different scheduling group, space or node"
       << std::endl
       << "    --force   : force mode - allows to move non-empty filesystems bypassing group "
       << std::endl
@@ -249,7 +250,11 @@ void com_fs_help()
       << std::endl
       << "    src_space : all filesystems from space are moved" << std::endl
       << "    dst_grp   : destination scheduling group" << std::endl
-      << "    dst_space : destination space - best match scheduling group"
+      << "    dst_space : destination space - best match scheduling group" <<
+      std::endl
+      << "    node:port : destination node, useful to serve a disk from a different\n"
+      << "                FST on the same node or failover an FST serving data from\n"
+      << "                a shared filesystem backend\n"
       << std::endl
       << "                is auto-selected" << std::endl
       << std::endl
