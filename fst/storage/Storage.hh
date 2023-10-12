@@ -126,6 +126,20 @@ public:
   //----------------------------------------------------------------------------
   void PushVerification(eos::fst::Verify* entry);
 
+
+  //----------------------------------------------------------------------------
+  //! Check that file system exists i.e properly registered in the internal
+  //! maps with an id and uuid
+  //!
+  //! @param fsid file system id
+  //!
+  //! @return true if it exists, otherwise false
+  //----------------------------------------------------------------------------
+  inline bool ExistsFs(eos::common::FileSystem::fsid_t fsid) const
+  {
+    return (GetFileSystemById(fsid) != nullptr);
+  }
+
   //----------------------------------------------------------------------------
   //! Check if files system is booting
   //!

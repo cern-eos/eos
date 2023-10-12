@@ -167,7 +167,8 @@ ScanDir::RunNsScan(ThreadAssistant& assistant) noexcept
   }
 
   // Wait for the corresponding file system to boot before starting
-  while (gOFS.Storage->IsFsBooting(mFsId)) {
+  while ((gOFS.Storage->ExistsFs(mFsId) == false) ||
+         gOFS.Storage->IsFsBooting(mFsId)) {
     assistant.wait_for(std::chrono::seconds(5));
 
     if (assistant.terminationRequested()) {
