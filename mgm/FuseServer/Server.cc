@@ -2027,6 +2027,11 @@ Server::OpSetFile(const std::string& id,
                 }
               }
 
+	      if ((ofmd->hasAttribute(k_mdino) || (ofmd->hasAttribute(k_nlink)))) {
+		// disable versioning when hardlink are involved
+		versioning = 0;
+	      }
+	      
               bool try_recycle = true;
               bool created_version = false;
 
