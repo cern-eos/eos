@@ -6899,7 +6899,6 @@ EosFuse::flock(fuse_req_t req, fuse_ino_t ino,
   eos_static_debug("");
   ADD_FUSE_STAT(__func__, req);
   EXEC_TIMING_BEGIN(__func__);
-  Track::Monitor mon("flock", "fs", Instance().Tracker(), req, ino, true);
   fuse_id id(req);
   int rc = 0;
 
@@ -6912,7 +6911,6 @@ EosFuse::flock(fuse_req_t req, fuse_ino_t ino,
       data::data_fh* io = (data::data_fh*) fi->fh;
 
       if (io) {
-        metad::shared_md md = io->mdctx();
         size_t w_ms = 10;
         int sleep = 1;
         struct flock lock;
@@ -6955,7 +6953,16 @@ EosFuse::flock(fuse_req_t req, fuse_ino_t ino,
           do {
             // we currently implement the polling lock on client side due to the
             // thread-per-link model of XRootD
-            rc = Instance().mds.setlk(req, md, &lock, sleep);
+            {
+              // take the exlusive lock only during the setlk call, then release.
+              // Otherwise we risk deadlock if we block other fuse queries coming
+              // from a user pid already holding an exclusive flock for this ino.
+              Track::Monitor mon("flock", "fs", Instance().Tracker(), req, ino, true);
+              rc = Instance().mds.setlk(req, io->mdctx(), &lock, sleep);
+              if (!rc) {
+                io->flocked = true;
+              }
+            }
 
             if (rc && sleep) {
               std::this_thread::sleep_for(std::chrono::milliseconds(w_ms));
@@ -6973,9 +6980,6 @@ EosFuse::flock(fuse_req_t req, fuse_ino_t ino,
           } while (rc);
         }
 
-        if (!rc) {
-          io->flocked = true;
-        }
       } else {
         rc = ENXIO;
       }
