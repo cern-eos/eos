@@ -81,8 +81,9 @@ BuildRequires: %{cmake} >= 3.17
 %if 0%{?rhel} >= 7 && 0%{?rhel} <= 9
 BuildRequires: eos-xrootd == %{eos_xrootd_version_min}
 # Don't put an explicit dependency on xrootd because eos-xrootd hides the
-# shared libraries from provide
-%global __requires_exclude ^libXrd*
+# shared libraries from provide. Make sure we don't exclude any EOS specific
+# libraries.
+%global __requires_exclude ^libXrdCl.*$|^libXrdHttp.*$|^libXrdPosix.*$|^libXrdServer.*$|^libXrdSsiLib.*|^libXrdUtils.*$
 %else
 # Install default xrootd
 BuildRequires: xrootd >= %{xrootd_version_min}
