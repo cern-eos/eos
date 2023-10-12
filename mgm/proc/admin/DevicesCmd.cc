@@ -391,7 +391,6 @@ void DevicesCmd::LsSubcmd(const eos::console::DevicesProto_LsProto& ls,
 
       if (format_case == DevicesProto::LsProto::MONITORING) {
         header.push_back(std::make_tuple("key", 0, "os"));
-        header.push_back(std::make_tuple("capacityyears", 0, "of"));
         header.push_back(std::make_tuple("tbyears", 0, "of"));
         header.push_back(std::make_tuple("driveage", 0, "of"));
         header.push_back(std::make_tuple("drivehours", 0, "ol"));
@@ -399,7 +398,6 @@ void DevicesCmd::LsSubcmd(const eos::console::DevicesProto_LsProto& ls,
         header.push_back(std::make_tuple("clouddollar-erasure", 0, "ol"));
       } else {
         header.push_back(std::make_tuple("Cost-Matrix", 0, "+s"));
-        header.push_back(std::make_tuple("Vol*Years", 0, "+l"));
         header.push_back(std::make_tuple("TB*Years", 0, "+l"));
         header.push_back(std::make_tuple("Avg-Drive-Hours", 6, "+l"));
         header.push_back(std::make_tuple("Tot-Drive-Hours", 0, "+l"));
@@ -421,7 +419,6 @@ void DevicesCmd::LsSubcmd(const eos::console::DevicesProto_LsProto& ls,
       TableRow row;
 
       if (format_case == DevicesProto::LsProto::MONITORING) {
-        row.emplace_back(volyears, "f");
         row.emplace_back(tbyears, "f");
         row.emplace_back(tage, "l");
         row.emplace_back(totalhours, "l");
@@ -429,7 +426,6 @@ void DevicesCmd::LsSubcmd(const eos::console::DevicesProto_LsProto& ls,
         row.emplace_back(cloudinstancecost / 1.2, "l");
       } else {
         row.emplace_back(gOFS->MgmOfsInstanceName.c_str(), "s");
-        row.emplace_back(volyears, "+l");
         row.emplace_back(tbyears, "+l");
         row.emplace_back(tage, "+l");
         row.emplace_back(totalhours, "+l");
