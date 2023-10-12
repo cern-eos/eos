@@ -29,6 +29,9 @@
 # By default we allow sse instruction set
 %bcond_without no_sse
 
+# By default build without eos-grpc-gateway support
+%bcond_without eos_grpc_gateway
+
 # Define required dependencies
 %define eos_xrootd_version_min 0:5.6.2
 %define xrootd_version_min 1:5.6.2
@@ -38,7 +41,7 @@
 %define release_version @CPACK_PACKAGE_RELEASE@
 
 # releases for el 7,8 or 9 distributions enable automatically to build with eos-xrootd
-%if 0%{?rhel} >= 7 && 0%{?rhel} <= 9 
+%if 0%{?rhel} >= 7 && 0%{?rhel} <= 9
 %define _with_eos_xrootd_rh 1
 %endif
 
@@ -73,8 +76,6 @@ BuildRequires: epel-release
 Requires: epel-release
 %endif
 
-BuildRequires: %{cmake} >= 3.17
-
 # Select xrootd package
 %if %{?_with_eos_xrootd_rh:1}%{!?_with_eos_xrootd_rh:0}
 # Install eos-xrootd
@@ -85,20 +86,21 @@ BuildRequires: eos-xrootd == %{eos_xrootd_version_min}
 # libraries.
 %global __requires_exclude ^libXrdCl.*$|^libXrdHttp.*$|^libXrdPosix.*$|^libXrdServer.*$|^libXrdSsiLib.*|^libXrdUtils.*$
 %else
-# Install default xrootd
+# Add default xrootd dependencies
 BuildRequires: xrootd >= %{xrootd_version_min}
 BuildRequires: xrootd-client-devel >= %{xrootd_version_min}
 BuildRequires: xrootd-server-devel >= %{xrootd_version_min}
 BuildRequires: xrootd-private-devel >= %{xrootd_version_min}
 %endif
 %else
-# Install default xrootd
+# Add default xrootd dependencies
 BuildRequires: xrootd >= %{xrootd_version_min}
 BuildRequires: xrootd-client-devel >= %{xrootd_version_min}
 BuildRequires: xrootd-server-devel >= %{xrootd_version_min}
 BuildRequires: xrootd-private-devel >= %{xrootd_version_min}
 %endif
 
+# Add eos-grpc dependencies
 BuildRequires: eos-grpc == %{eos_grpc_version}
 BuildRequires: eos-grpc-devel == %{eos_grpc_version}
 BuildRequires: eos-grpc-plugins == %{eos_grpc_version}
@@ -107,6 +109,12 @@ BuildRequires: eos-grpc-plugins == %{eos_grpc_version}
 # the package hides shared libraries from the list of provided capabilities.
 %global __requires_exclude ^libprot.*$|^libabsl.*$|^libgrpc.*$|^libaddress_sorting.*$|^libre2.*$|^libgpr.*$|^libupb.*$
 
+%if %{?_with_eos_grpc_gateway:1}%{!?_with_eos_grpc_gateway:0}
+BuildRequires: eos-grpc-gateway
+Requires: eos-grpc-gateway
+%endif
+
+BuildRequires: %{cmake} >= 3.17
 BuildRequires: git, readline-devel
 BuildRequires: openssl, openssl-devel
 BuildRequires: ncurses, ncurses-devel
@@ -737,7 +745,7 @@ The EOS archive daemon.
 echo "Make sure eosarchi user and c3 group exist"
 getent group c3 >/dev/null 2>&1 || groupadd -r -g 1028 c3
 getent passwd eosarchi >/dev/null 2>&1 || useradd -r -u 72811 eosarchi
-  
+
 %post -n eos-archive
 case "$1" in
   1)
@@ -893,4 +901,3 @@ Contains an clean-up scripts to remove 'left-overs' of an EOS instance for FST/M
 %{_sbindir}/eos-fst-clean
 %{_sbindir}/eos-mgm-clean
 %endif
-

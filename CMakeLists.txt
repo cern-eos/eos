@@ -233,9 +233,17 @@ if (ASAN)
 endif()
 
 option(NO_SSE "Build without sse instruction set" OFF)
+
 if (NO_SSE)
   LIST(APPEND RPM_OPTIONS --with no_sse)
 endif()
+
+option(EOS_GRPC_GW "Build without eos grpc support" OFF)
+
+if (EOS_GRPC_GW)
+  LIST(APPEND RPM_OPTIONS --with eos_grpc_gateway)
+endif()
+
 
 add_custom_target(
   srpm
