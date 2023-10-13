@@ -76,6 +76,31 @@ BuildRequires: epel-release
 Requires: epel-release
 %endif
 
+# For asan/tsan builds we need devtoolset-9
+%if %{?_with_asan:1}%{!?_with_asan:0} || %{?_with_tsan:1}%{!?_with_tsan:0}
+%define devtoolset devtoolset-9
+%endif
+
+%if %{?_with_asan:1}%{!?_with_asan:0}
+%if 0%{?rhel} == 7
+BuildRequires: libasan5, %{devtoolset}-libasan-devel
+Requires: libasan5
+%else
+BuildRequires: libasan
+Requires: libasan
+%endif
+%endif
+
+%if %{?_with_tsan:1}%{!?_with_tsan:0}
+%if 0%{?rhel} == 7
+BuildRequires: libtsan, %{devtoolset}-libtsan-devel
+Requires: libtsan
+%else
+BuildRequires: libtsan
+Requires: libtsan
+%endif
+%endif
+
 # Select xrootd package
 %if %{?_with_eos_xrootd_rh:1}%{!?_with_eos_xrootd_rh:0}
 # Install eos-xrootd
@@ -212,15 +237,6 @@ BuildRequires: compiler-rt
 %endif
 %endif
 %endif
-
-%if %{?_with_asan:1}%{!?_with_asan:0}
-BuildRequires: libasan
-%endif
-
-%if %{?_with_tsan:1}%{!?_with_tsan:0}
-BuildRequires: libtsan
-%endif
-
 
 
 %description

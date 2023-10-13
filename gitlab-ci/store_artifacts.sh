@@ -22,6 +22,9 @@ BUILDMAP[fc-38]=fc-38
 BUILDMAP[fc-rawhide]=fc-rawhide
 BUILDMAP[osx]=osx
 BUILDMAP[cc7_asan]=el-7-asan
+BUILDMAP[cc7_tsan]=el-7-tsan
+BUILDMAP[el-9_asan]=el-9-asan
+BUILDMAP[el-9_tsan]=el-9-tsan
 BUILDMAP[cc7_no_sse]=el-7
 
 CODENAME=$1
