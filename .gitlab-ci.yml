@@ -387,6 +387,7 @@ build_fedora_rawhide:
   variables:
     PKG_MGR: dnf
   script:
+    - ${PKG_MGR} install -y git
     - git submodule sync --recursive && git submodule update --init -f --recursive
     - mkdir build
     - cd build/
