@@ -389,7 +389,7 @@ build_fedora_rawhide:
     CMAKE_CMD: cmake3
   script:
     - export DIST=$(rpm --eval '%{rhel}')
-    - ${PKG_MGR} install -y git
+    - ${PKG_MGR} install -y git ccache tar sudo which tar gzip moreutils
     - git submodule sync --recursive && git submodule update --init -f --recursive
     - mkdir build
     - cd build/
@@ -401,12 +401,10 @@ build_fedora_rawhide:
         echo -e "[eos-asan-depend]\nname=EOS dependencies\nbaseurl=http://storage-ci.web.cern.ch/storage-ci/eos/${CODENAME}-depend/el-${DIST}-asan/x86_64/\ngpgcheck=0\nenabled=1\npriority=2\n" > /etc/yum.repos.d/eos-depend.repo;
         # Install the asan enabled dependencies
         ${PKG_MGR} remove -y eos-xrootd eos-folly eos-grpc eos-rocksdb || true;
-        ${PKG_MGR} install -y eos-xrootd eos-folly eos-grpc eos-rocksdb;
       elif [[ "$RPMBUILD_OPTIONS" == *tsan* ]]; then
         echo -e "[eos-tsan-depend]\nname=EOS dependencies\nbaseurl=http://storage-ci.web.cern.ch/storage-ci/eos/${CODENAME}-depend/el-${DIST}-tsan/x86_64/\ngpgcheck=0\nenabled=1\npriority=2\n" > /etc/yum.repos.d/eos-depend.repo;
         # Install the tsan enabled dependencies
         ${PKG_MGR} remove -y eos-xrootd eos-folly eos-grpc eos-rocksdb || true;
-        ${PKG_MGR} install -y eos-xrootd eos-folly eos-grpc eos-rocksdb;
       else
         echo -e "[eos-depend]\nname=EOS dependencies\nbaseurl=http://storage-ci.web.cern.ch/storage-ci/eos/${CODENAME}-depend/el-${DIST}/x86_64/\ngpgcheck=0\nenabled=1\npriority=2\n" > /etc/yum.repos.d/eos-depend.repo;
       fi
@@ -414,6 +412,7 @@ build_fedora_rawhide:
       if [[ ${PKG_MGR} == "yum" ]]; then
         ${PKG_MGR}-builddep --nogpgcheck --setopt="cern*.exclude=xrootd*" -y build/SRPMS/*;
       else
+        ${PKG_MGR} install -y dnf-plugins-core;
         ${PKG_MGR} builddep --nogpgcheck --setopt="cern*.exclude=xrootd*" -y build/SRPMS/*;
       fi
     - if [[ -n "$CI_COMMIT_TAG" ]]; then export CCACHE_DISABLE=1; else source gitlab-ci/setup_ccache.sh; fi
@@ -473,7 +472,7 @@ build_el9_asan:
     RPMBUILD_OPTIONS: "--with server --with asan"
     CXXFLAGS: "-Wno-parentheses"    # Avoid boost header compilation errors
   before_script:
-    - ${PKG_MGR} install -y epel-release libasan cmake gcc gcc-c++ which rpmdevtools
+    - ${PKG_MGR} install -y epel-release libasan cmake gcc gcc-c++ rpmdevtools
   extends: .build_exotic-template
   when: manual
 
