@@ -926,12 +926,12 @@ unit_test_asan:
     # KOJI_SCRATCH will be set for branches and empty for tags
     - koji build ${KOJI_SCRATCH} ${TARGET} ${BUILD_NAME}_artifacts/SRPMS/*.src.rpm
   only:
+    - schedules
     - tags
-    - master
-  when: manual
   tags:
     - docker_node
     - publish
+  when: manual
 
 
 publish_koji_cc7:
