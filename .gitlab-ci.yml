@@ -386,12 +386,13 @@ build_fedora_rawhide:
   stage: build:rpm
   variables:
     PKG_MGR: dnf
+    CMAKE_CMD: cmake3
   script:
     - ${PKG_MGR} install -y git
     - git submodule sync --recursive && git submodule update --init -f --recursive
     - mkdir build
     - cd build/
-    - cmake3 ../ -DPACKAGEONLY=1 ${CMAKE_OPTIONS} -Wno-dev
+    - ${CMAKE_CMD} ../ -DPACKAGEONLY=1 ${CMAKE_OPTIONS} -Wno-dev
     - make srpm
     - cd ../
     - |
@@ -465,12 +466,13 @@ build_client_cc7_tsan:
 build_el9_asan:
   image: gitlab-registry.cern.ch/linuxsupport/alma9-base
   variables:
+    CMAKE_CMD: cmake
     BUILD_NAME: el-9-asan
     CMAKE_OPTIONS: "-DASAN=1"
     RPMBUILD_OPTIONS: "--with server --with asan"
     CXXFLAGS: "-Wno-parentheses"    # Avoid boost header compilation errors
   before_script:
-    - ${PKG_MGR} install -y epel-release libasan
+    - ${PKG_MGR} install -y epel-release libasan cmake
   extends: .build_exotic-template
   when: manual
 
@@ -478,20 +480,21 @@ build_el9_asan:
 build_client_el9_tsan:
   image: gitlab-registry.cern.ch/linuxsupport/alma9-base
   variables:
+    CMAKE_CMD: cmake
     BUILD_NAME: el-9-tsan
     CMAKE_OPTIONS: "-DTSAN=1"
     RPMBUILD_OPTIONS: "--with tsan"
     CXXFLAGS: "-Wno-parentheses"    # Avoid boost header compilation errors
   before_script:
-    - ${PKG_MGR} install -y epel-release libtsan
+    - ${PKG_MGR} install -y epel-release libtsan cmake
   extends: .build_exotic-template
   when: manual
 
 
 build_cc7_clang:
   image: gitlab-registry.cern.ch/dss/eos/prebuild-cc7-${CODENAME}
-
   variables:
+    PKG_MGR: yum
     BUILD_NAME: cc7_clang
     CMAKE_OPTIONS: "-DCLANG_BUILD=1"
     RPMBUILD_OPTIONS: "--with clang --with server"
@@ -506,6 +509,7 @@ build_cc7_clang:
 .build_cc7_xrd_testing:
   extends: .build_exotic-template
   variables:
+    PKG_MGR: yum
     BUILD_NAME: cc7_xrd_testing
   before_script:
     - echo -e '[xrootd-testing]\nname=XRootD Testing repository\nbaseurl=http://xrootd.cern.ch/sw/repos/testing/slc/7/$basearch\ngpgcheck=0\nenabled=1\npriority=5\nprotect=0\n' >> /etc/yum.repos.d/xrootd-testing.repo
@@ -517,6 +521,7 @@ build_cc7_clang:
 build_cc7_opt_xrootd:
   image: gitlab-registry.cern.ch/dss/eos/prebuild-cc7-${CODENAME}
   variables:
+    PKG_MGR: yum
     BUILD_NAME: cc7_opt_xrootd
     CMAKE_OPTIONS: "-DEOS_XROOTD=1"
     RPMBUILD_OPTIONS: "--with eos_xrootd_rh"
@@ -531,6 +536,7 @@ build_cc7_opt_xrootd:
 build_cc7_no_sse:
   image: gitlab-registry.cern.ch/dss/eos/prebuild-cc7-${CODENAME}
   variables:
+    PKG_MGR: yum
     BUILD_NAME: cc7_no_sse
     CMAKE_OPTIONS: "-DNO_SSE=1"
     RPMBUILD_OPTIONS: "--with server --with no_sse"
@@ -544,6 +550,7 @@ build_cc7_no_sse:
 build_cc7_coverage:
   image: gitlab-registry.cern.ch/dss/eos/prebuild-cc7-${CODENAME}
   variables:
+    PKG_MGR: yum
     BUILD_NAME: cc7_coverage
     RPMBUILD_OPTIONS: "--with coverage"
   only:
