@@ -472,7 +472,7 @@ build_el9_asan:
     RPMBUILD_OPTIONS: "--with server --with asan"
     CXXFLAGS: "-Wno-parentheses"    # Avoid boost header compilation errors
   before_script:
-    - ${PKG_MGR} install -y epel-release libasan cmake
+    - ${PKG_MGR} install -y epel-release libasan cmake gcc gcc-c++
   extends: .build_exotic-template
   when: manual
 
@@ -486,7 +486,7 @@ build_client_el9_tsan:
     RPMBUILD_OPTIONS: "--with tsan"
     CXXFLAGS: "-Wno-parentheses"    # Avoid boost header compilation errors
   before_script:
-    - ${PKG_MGR} install -y epel-release libtsan cmake
+    - ${PKG_MGR} install -y epel-release libtsan cmake  gcc gcc-c++
   extends: .build_exotic-template
   when: manual
 
