@@ -49,7 +49,7 @@
 
 #pragma once
 #ifndef __APPLE__
-//#define EOS_INSTRUMENTED_RWMUTEX
+#define EOS_INSTRUMENTED_RWMUTEX
 #endif
 
 #include "common/Namespace.hh"
