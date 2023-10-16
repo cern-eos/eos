@@ -2060,7 +2060,7 @@ Quota::Create(const std::string& path)
       pMapQuota[path] = squota;
       pMapInodeQuota[squota->GetQuotaNode()->getId()] = squota;
     } catch (const eos::MDException& e) {
-      eos_static_crit("Faile to create quota node %s", path.c_str());
+      eos_static_crit("Failed to create quota node %s", path.c_str());
       return false;
     }
   }
