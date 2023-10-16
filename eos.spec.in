@@ -109,7 +109,7 @@ BuildRequires: eos-xrootd == %{eos_xrootd_version_min}
 # Don't put an explicit dependency on xrootd because eos-xrootd hides the
 # shared libraries from provide. Make sure we don't exclude any EOS specific
 # libraries.
-%global __requires_exclude ^libXrdCl.*$|^libXrdHttp.*$|^libXrdPosix.*$|^libXrdServer.*$|^libXrdSsiLib.*|^libXrdUtils.*$
+%global __requires_exclude ^libXrdCl.*$|^libXrdHttp.*$|^libXrdPosix.*$|^libXrdServer.*$|^libXrdSsiLib.*$|^libXrdUtils.*$|^libXrdXml.*$|^libXrdCrypto.*$
 %else
 # Add default xrootd dependencies
 BuildRequires: xrootd >= %{xrootd_version_min}
