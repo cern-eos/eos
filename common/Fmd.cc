@@ -19,6 +19,7 @@
 #include "common/Fmd.hh"
 #include "common/StringConversion.hh"
 #include "common/LayoutId.hh"
+#include "common/StringTokenizer.hh"
 
 EOSCOMMONNAMESPACE_BEGIN
 
@@ -29,7 +30,7 @@ std::set<std::string> GetKnownFsckErrs()
 {
   return {FSCK_M_CX_DIFF, FSCK_M_MEM_SZ_DIFF, FSCK_D_CX_DIFF, FSCK_D_MEM_SZ_DIFF,
           FSCK_UNREG_N, FSCK_REP_DIFF_N, FSCK_REP_MISSING_N, FSCK_BLOCKXS_ERR,
-          FSCK_ORPHANS_N};
+          FSCK_ORPHANS_N, FSCK_STRIPE_ERR};
 }
 
 //------------------------------------------------------------------------------
@@ -55,6 +56,8 @@ FsckErr ConvertToFsckErr(const std::string& serr)
     return FsckErr::BlockxsErr;
   } else if (serr == FSCK_ORPHANS_N) {
     return FsckErr::Orphans;
+  } else if (serr == FSCK_STRIPE_ERR) {
+    return FsckErr::StripeErr;
   } else {
     return FsckErr::None;
   }
@@ -83,6 +86,8 @@ std::string FsckErrToString(const FsckErr& err)
     return FSCK_BLOCKXS_ERR;
   } else if (err == FsckErr::Orphans) {
     return FSCK_ORPHANS_N;
+  } else if (err == FsckErr::StripeErr) {
+    return FSCK_STRIPE_ERR;
   } else {
     return "none";
   }
@@ -171,6 +176,19 @@ bool EnvToFstFmd(XrdOucEnv& env, FmdHelper& fmd)
     fmd.mProtoFmd.set_locations("");
   }
 
+  if (env.Get("stripeerror")) {
+    fmd.mProtoFmd.clear_stripeerror();
+    if (std::string(env.Get("stripeerror")) != "none") {
+      std::vector<std::string> stripeErrToken;
+      eos::common::StringConversion::Tokenize(env.Get("stripeerror"),
+                                              stripeErrToken, ",");
+
+      for (const auto& id : stripeErrToken) {
+        fmd.mProtoFmd.add_stripeerror(std::stol(id));
+      }
+    }
+  }
+
   return true;
 }
 
@@ -179,76 +197,64 @@ bool EnvToFstFmd(XrdOucEnv& env, FmdHelper& fmd)
 // the FmdHelper object
 //------------------------------------------------------------------------------
 void
-CollectInconsistencies(const FmdHelper& fmd,
-                       std::map<std::string, size_t>& statistics,
-                       std::map<std::string,
-                       std::set<eos::common::FileId::fileid_t>>& fidset)
+CollectInconsistencies(
+    const FmdHelper& fmd, const eos::common::FileSystem::fsid_t fsid,
+    std::map<std::string, std::map<eos::common::FileSystem::fsid_t,
+                                   std::set<eos::common::FileId::fileid_t>>>&
+        fidset)
 {
   auto& proto_fmd = fmd.mProtoFmd;
-  statistics["mem_n"]++;
 
   if (proto_fmd.blockcxerror()) {
-    statistics["blockxs_err"]++;
-    fidset["blockxs_err"].insert(proto_fmd.fid());
+    fidset["blockxs_err"][fsid].insert(proto_fmd.fid());
   }
 
   if (proto_fmd.layouterror()) {
     if (proto_fmd.layouterror() & LayoutId::kOrphan) {
-      statistics["orphans_n"]++;
-      fidset["orphans_n"].insert(proto_fmd.fid());
+      fidset["orphans_n"][fsid].insert(proto_fmd.fid());
     }
 
     if (proto_fmd.layouterror() & LayoutId::kUnregistered) {
-      statistics["unreg_n"]++;
-      fidset["unreg_n"].insert(proto_fmd.fid());
+      fidset["unreg_n"][fsid].insert(proto_fmd.fid());
     }
 
     if (proto_fmd.layouterror() & LayoutId::kReplicaWrong) {
-      statistics["rep_diff_n"]++;
-      fidset["rep_diff_n"].insert(proto_fmd.fid());
+      fidset["rep_diff_n"][fsid].insert(proto_fmd.fid());
     }
 
     if (proto_fmd.layouterror() & LayoutId::kMissing) {
-      statistics["rep_missing_n"]++;
-      fidset["rep_missing_n"].insert(proto_fmd.fid());
+      fidset["rep_missing_n"][fsid].insert(proto_fmd.fid());
     }
   }
 
   if (proto_fmd.mgmsize() != eos::common::FmdHelper::UNDEF) {
-    statistics["m_sync_n"]++;
 
     if (proto_fmd.size() != eos::common::FmdHelper::UNDEF) {
       // Report missmatch only for non-rain layout files
       if (!LayoutId::IsRain(proto_fmd.lid()) &&
           proto_fmd.size() != proto_fmd.mgmsize()) {
-        statistics["m_mem_sz_diff"]++;
-        fidset["m_mem_sz_diff"].insert(proto_fmd.fid());
+        fidset["m_mem_sz_diff"][fsid].insert(proto_fmd.fid());
       }
     } else {
       // RAIN stripes with mgmsize != 0 and disksize == 0 are broken
       if (LayoutId::IsRain(proto_fmd.lid())) {
         if (proto_fmd.mgmsize() && (proto_fmd.disksize() == 0)) {
-          statistics["d_mem_sz_diff"]++;
-          fidset["d_mem_sz_diff"].insert(proto_fmd.fid());
+          fidset["d_mem_sz_diff"][fsid].insert(proto_fmd.fid());
         }
       }
     }
   }
 
   if (proto_fmd.disksize() != eos::common::FmdHelper::UNDEF) {
-    statistics["d_sync_n"]++;
-
     if (proto_fmd.size() != eos::common::FmdHelper::UNDEF) {
       if (LayoutId::IsRain(proto_fmd.lid())) {
         if (proto_fmd.disksize() != LayoutId::ExpectedStripeSize(proto_fmd.lid(),
             proto_fmd.size())) {
-          statistics["d_mem_sz_diff"]++;
-          fidset["d_mem_sz_diff"].insert(proto_fmd.fid());
+          fidset["d_mem_sz_diff"][fsid].insert(proto_fmd.fid());
         }
       } else {
         if (proto_fmd.size() != proto_fmd.disksize()) {
-          statistics["d_mem_sz_diff"]++;
-          fidset["d_mem_sz_diff"].insert(proto_fmd.fid());
+          fidset["d_mem_sz_diff"][fsid].insert(proto_fmd.fid());
         }
       }
     }
@@ -258,15 +264,19 @@ CollectInconsistencies(const FmdHelper& fmd,
     if (!LayoutId::IsRain(proto_fmd.lid())) {
       if (proto_fmd.size() && proto_fmd.diskchecksum().length() &&
           (proto_fmd.diskchecksum() != proto_fmd.checksum())) {
-        statistics["d_cx_diff"]++;
-        fidset["d_cx_diff"].insert(proto_fmd.fid());
+        fidset["d_cx_diff"][fsid].insert(proto_fmd.fid());
       }
 
       if (proto_fmd.size() && proto_fmd.mgmchecksum().length() &&
           (proto_fmd.mgmchecksum() != proto_fmd.checksum())) {
-        statistics["m_cx_diff"]++;
-        fidset["m_cx_diff"].insert(proto_fmd.fid());
+        fidset["m_cx_diff"][fsid].insert(proto_fmd.fid());
       }
+    }
+  }
+
+  if (LayoutId::IsRain(proto_fmd.lid())) {
+    for (auto efsid : proto_fmd.stripeerror()) {
+      fidset["stripe_err"][efsid].insert(proto_fmd.fid());
     }
   }
 }
@@ -329,6 +339,7 @@ FmdHelper::Reset()
   mProtoFmd.set_blockcxerror(0);
   mProtoFmd.set_layouterror(0);
   mProtoFmd.set_locations("");
+  mProtoFmd.clear_stripeerror();
 }
 
 //------------------------------------------------------------------------------
@@ -404,6 +415,12 @@ FmdHelper::FmdToEnv()
     oss << "&locations=none";
   } else {
     oss << "&locations=" << std::dec << mProtoFmd.locations();
+  }
+
+  if (mProtoFmd.stripeerror_size() == 0) {
+    oss << "&stripeerror=none";
+  } else {
+    oss << "&stripeerror=" << eos::common::StringTokenizer::merge(mProtoFmd.stripeerror(), ',');
   }
 
   oss << '&';

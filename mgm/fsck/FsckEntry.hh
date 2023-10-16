@@ -75,7 +75,8 @@ using RepairFactoryFnT =
    std::set<eos::common::FileSystem::fsid_t> exclude_srcs,
    std::set<eos::common::FileSystem::fsid_t> exclude_dsts,
    bool drop_src,
-   const std::string& app_tag)>;
+   const std::string& app_tag,
+   bool repair_excluded)>;
 
 //------------------------------------------------------------------------------
 //! Class FsckEntry
@@ -92,7 +93,7 @@ public:
   //! @param qcl QClient object for getting metadata information
   //----------------------------------------------------------------------------
   FsckEntry(eos::IFileMD::id_t fid,
-            eos::common::FileSystem::fsid_t fsid_err,
+            const std::set<eos::common::FileSystem::fsid_t>& fsid_err,
             const std::string& expected_err,
             std::shared_ptr<qclient::QClient> qcl);
 
@@ -209,7 +210,7 @@ public:
   void ResyncFstMd(bool refresh_mgm_md = false);
 
   eos::IFileMD::id_t mFid; ///< File id
-  eos::common::FileSystem::fsid_t mFsidErr; ///< File system id with expected err
+  std::set<eos::common::FileSystem::fsid_t> mFsidErr; ///< File system ids with expected err
   eos::common::FsckErr mReportedErr; ///< Reported error type
   eos::ns::FileMdProto mMgmFmd; ///< MGM file metadata protobuf object
   //! Map of file system id to file metadata held at the corresponding fs

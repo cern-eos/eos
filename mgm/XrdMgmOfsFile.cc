@@ -2749,8 +2749,14 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
   capability += static_cast<int>(new_lid);
   // space to be prebooked/allocated
   capability += "&mgm.bookingsize=";
-  capability += eos::common::StringConversion::GetSizeString(sizestring,
-                bookingsize);
+  if (isPioReconstruct) {
+    // For pio reconstruct the booking size needs to be 0,
+    // the recovery will fail on non xfs filesystem otherwise.
+    capability += "0";
+  } else {
+    capability +=
+        eos::common::StringConversion::GetSizeString(sizestring, bookingsize);
+  }
 
   if (minimumsize) {
     capability += "&mgm.minsize=";

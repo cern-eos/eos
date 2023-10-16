@@ -25,6 +25,8 @@
 #include "common/Path.hh"
 #include "common/Constants.hh"
 #include "common/IoPriority.hh"
+#include "common/StringSplit.hh"
+#include "common/StringTokenizer.hh"
 #include "console/commands/helpers/FsHelper.hh"
 #include "fst/Config.hh"
 #include "fst/XrdFstOfs.hh"
@@ -33,6 +35,9 @@
 #include "fst/storage/FileSystem.hh"
 #include "fst/checksum/ChecksumPlugins.hh"
 #include "fst/io/FileIoPluginCommon.hh"
+#include "fst/layout/HeaderCRC.hh"
+#include "fst/layout/ReedSLayout.hh"
+#include "fst/layout/RaidDpLayout.hh"
 #include "namespace/ns_quarkdb/Constants.hh"
 #include "qclient/structures/QSet.hh"
 #include <sys/stat.h>
@@ -199,8 +204,9 @@ ScanDir::AccountMissing()
 {
   using eos::common::FileId;
   struct stat info;
-  std::map<std::string, size_t> statistics;
-  std::map<std::string, std::set<eos::common::FileId::fileid_t>> fidset;
+  std::map<std::string, std::map<eos::common::FileSystem::fsid_t,
+                                 std::set<eos::common::FileId::fileid_t>>>
+      fidset;
   auto fids = CollectNsFids(eos::fsview::sFilesSuffix);
   eos_info("msg=\"scanning %llu attached namespace entries\"", fids.size());
 
@@ -238,7 +244,7 @@ ScanDir::AccountMissing()
                                              LayoutId::kMissing);
           }
 
-          CollectInconsistencies(ns_fmd, statistics, fidset);
+          CollectInconsistencies(ns_fmd, mFsId, fidset);
         }
       } catch (eos::MDException& e) {
         // No file on disk, no ns file metadata object but we have a ghost entry
@@ -504,8 +510,7 @@ ScanDir::ScanSubtree(ThreadAssistant& assistant) noexcept
   }
 
   std::string fpath;
-  std::map<std::string, size_t> statistics;
-  std::map<std::string, std::set<eos::common::FileId::fileid_t>> fidset;
+  std::map<std::string, std::map<eos::common::FileSystem::fsid_t, std::set<eos::common::FileId::fileid_t>>> fidset;
 
   while ((fpath = io->ftsRead(handle.get())) != "") {
     if (!mBgThread) {
@@ -526,7 +531,7 @@ ScanDir::ScanSubtree(ThreadAssistant& assistant) noexcept
       auto fmd = gOFS.mFmdHandler->LocalGetFmd(fid, mFsId, true, false);
 
       if (fmd) {
-        CollectInconsistencies(*fmd.get(), statistics, fidset);
+        CollectInconsistencies(*fmd.get(), mFsId, fidset);
       }
 
 #endif
@@ -552,6 +557,262 @@ ScanDir::ScanSubtree(ThreadAssistant& assistant) noexcept
 }
 
 //------------------------------------------------------------------------------
+// Check if a given stripe combination can recreate the original file
+//------------------------------------------------------------------------------
+bool
+ScanDir::isValidStripeCombination(const std::vector<std::string>& stripes,
+                                  const std::string& XS, CheckSum* xsObj,
+                                  LayoutId::layoutid_t layout,
+                                  const std::string& opaqueInfo)
+{
+  eos::fst::RainMetaLayout* redundancyObj = nullptr;
+
+  if (LayoutId::GetLayoutType(layout) == LayoutId::kRaidDP) {
+    redundancyObj = new eos::fst::RaidDpLayout(
+        nullptr, layout, nullptr, nullptr, stripes.front().c_str(), 0, false);
+  } else {
+    redundancyObj = new eos::fst::ReedSLayout(
+        nullptr, layout, nullptr, nullptr, stripes.front().c_str(), 0, false);
+  }
+
+  if (redundancyObj->OpenPio(stripes, 0, 0, opaqueInfo.c_str())) {
+    eos_err("msg=\"unable to pio open\"");
+    redundancyObj->Close();
+    delete redundancyObj;
+    return false;
+  }
+
+  uint32_t offsetXrd = 0;
+  const auto open_ts = std::chrono::system_clock::now();
+  int scan_rate = mRateBandwidth.load(std::memory_order_relaxed);
+  xsObj->Reset();
+  while (true) {
+    int64_t nread = redundancyObj->Read(offsetXrd, mBuffer, mBufferSize);
+
+    if (nread == 0) {
+      break;
+    }
+    if (nread == -1) {
+      redundancyObj->Close();
+      delete redundancyObj;
+      return false;
+    }
+
+    xsObj->Add(mBuffer, nread, offsetXrd);
+    offsetXrd += nread;
+
+    EnforceAndAdjustScanRate(offsetXrd, open_ts, scan_rate);
+  }
+
+  redundancyObj->Close();
+  delete redundancyObj;
+  xsObj->Finalize();
+
+  return !strcmp(xsObj->GetHexChecksum(), XS.c_str());
+}
+
+//------------------------------------------------------------------------------
+// Check for stripes that are unable to reconstruct the original file
+//------------------------------------------------------------------------------
+std::set<eos::common::FileSystem::fsid_t>
+ScanDir::CheckRainStripes(eos::common::FileId::fileid_t fid)
+{
+  std::string const mgr = gConfig.GetManager();
+  if (mgr.empty()) {
+    eos_static_err("msg=\"no manager info available\"");
+    return {};
+  }
+
+  eos::common::FmdHelper fmd;
+  if (FmdMgmHandler::GetMgmFmd(mgr, fid, fmd)) {
+    eos_static_err("msg=\"could not get fmd from manager\"");
+    return {};
+  }
+
+  LayoutId::layoutid_t const layout = fmd.mProtoFmd.lid();
+  if (!LayoutId::IsRain(layout)) {
+    eos_static_err("msg=\"layout is not rain\"");
+    return {};
+  }
+
+  std::string const XS = fmd.mProtoFmd.mgmchecksum();
+  if (XS.empty()) {
+    eos_static_err("msg=\"checksum received from mgm is empty\"");
+    return {};
+  }
+
+  std::string const address = SSTR("root://" << mgr << "/");
+  XrdCl::URL const url(address.c_str());
+
+  if (!url.IsValid()) {
+    eos_static_err("msg=\"invalid url\" url=\"%s\"", address.c_str());
+    return {};
+  }
+
+  XrdCl::Buffer arg;
+  XrdCl::Buffer* responseRaw = nullptr;
+  std::string const opaque =
+      SSTR("/.fxid:" << std::hex << fid
+                     << "?mgm.pcmd=open&eos.ruid=0&xrd.wantprot=sss");
+  arg.FromString(opaque);
+
+  XrdCl::FileSystem fs(url);
+  XrdCl::XRootDStatus const status =
+      fs.Query(XrdCl::QueryCode::OpaqueFile, arg, responseRaw);
+
+  if (!status.IsOK()) {
+    eos_static_err("msg=\"MGM query failed\" opaque=\"%s\"", opaque.c_str());
+    delete responseRaw;
+    return {};
+  }
+
+  std::string const response(responseRaw->GetBuffer(), responseRaw->GetSize());
+  delete responseRaw;
+
+  std::string const opaqueInfo = strstr(response.c_str(), "&mgm.logid");
+
+  auto* openOpaque = new XrdOucEnv(response.c_str());
+  XrdOucEnv* capOpaque = nullptr;
+  eos::common::SymKey::ExtractCapability(openOpaque, capOpaque);
+
+  if (!capOpaque->Get("mgm.path")) {
+    eos_static_err("msg=\"no path in mgm response\"");
+    delete capOpaque;
+    delete openOpaque;
+    return {};
+  }
+  std::string const filePath = capOpaque->Get("mgm.path");
+
+  const int nStripes = static_cast<int>(LayoutId::GetStripeNumber(layout)) + 1;
+  const int nDataStripes =
+      nStripes - static_cast<int>(LayoutId::GetRedundancyStripeNumber(layout));
+
+  std::string stripeUrl;
+  FileSystem::fsid_t stripeFsId = 0;
+  std::string pio;
+  std::string tag;
+  std::vector<std::pair<std::string, FileSystem::fsid_t>> stripes;
+  stripes.reserve(nStripes);
+
+  for (int i = 0; i < nStripes; i++) {
+    tag = SSTR("pio." << i);
+
+    // Skip files with missing replicas, they will be detected elsewhere.
+    if (!openOpaque->Get(tag.c_str())) {
+      eos_static_err("msg=\"empty pio url in mgm response\"");
+      delete capOpaque;
+      delete openOpaque;
+      return {};
+    }
+    pio = openOpaque->Get(tag.c_str());
+    stripeUrl = SSTR("root://" << pio << "/" << filePath);
+    stripeFsId = capOpaque->GetInt(SSTR("mgm.fsid" << i).c_str());
+
+    stripes.emplace_back(stripeUrl.c_str(), stripeFsId);
+  }
+  delete openOpaque;
+  delete capOpaque;
+
+  std::vector<bool> combinations(nStripes, false);
+  std::fill(combinations.begin(), combinations.begin() + nDataStripes, true);
+
+  std::vector<std::string> stripeCombination(nStripes, std::string());
+
+  std::set<int> validStripes;
+  std::set<int> unknownStripes;
+  std::set<int> invalidStripes;
+
+  auto* xsObj =
+      eos::fst::ChecksumPlugins::GetXsObj(LayoutId::GetChecksum(layout));
+  if (!xsObj) {
+    eos_err("msg=\"invalid xs_type\"");
+    return {};
+  }
+
+  // Try to find a valid stripe combination
+  do {
+    for (int i = 0; i < nStripes; i++) {
+      // Paths need to keep the same idx in `stripesPath` and `pathsCombination`
+      if (combinations[i]) {
+        stripeCombination[i] = stripes[i].first;
+      } else {
+        stripeCombination[i] = "root://__offline_";
+      }
+    }
+
+    if (isValidStripeCombination(stripeCombination, XS, xsObj, layout,
+                                 opaqueInfo)) {
+      bool markInvalid = true;
+      for (int i = 0; i < nStripes; i++) {
+        if (combinations[i]) {
+          markInvalid = false;
+          validStripes.insert(i);
+        } else {
+          // We can mark all the indexes before the first valid stripe as
+          // invalid. Any stripe combination containing them has already been
+          // checked and is not valid.
+          if (markInvalid) {
+            invalidStripes.insert(i);
+          } else {
+            unknownStripes.insert(i);
+          }
+        }
+      }
+      break;
+    }
+  } while (std::prev_permutation(combinations.begin(), combinations.end()));
+
+  if (validStripes.empty()) {
+    eos_err("msg=\"could not find enough valid stripes to reconstruct file "
+            "fxid:%08llx\"",
+            fid);
+    delete xsObj;
+    return {0};
+  }
+
+  // Found a valid combination, check the rest of the stripes
+  for (auto stripeId : unknownStripes) {
+    combinations.assign(nStripes, false);
+
+    // Try combinations with 1 unknown stripe and `nDataStripes - 1` valid
+    // stripes
+    combinations[stripeId] = true;
+    auto vsid = validStripes.begin();
+    for (int i = 0; i < nDataStripes - 1; i++, vsid++) {
+      combinations[*vsid] = true;
+    }
+
+    for (int i = 0; i < nStripes; i++) {
+      // Paths need to keep the same idx in `stripes` and `stripeCombination`
+      if (combinations[i]) {
+        stripeCombination[i] = stripes[i].first;
+      } else {
+        stripeCombination[i] = "root://__offline_";
+      }
+    }
+
+    if (isValidStripeCombination(stripeCombination, XS, xsObj, layout,
+                                 opaqueInfo)) {
+      validStripes.insert(stripeId);
+    } else {
+      invalidStripes.insert(stripeId);
+    }
+  }
+
+  delete xsObj;
+
+  // Map stripe id to fsid
+  std::set<eos::common::FileSystem::fsid_t> invalidStripesFsid;
+  for (auto stripeId : invalidStripes) {
+    eos_err("msg=\"stripe %d on fst %d is invalid. fxid: %08llx\"", stripeId,
+            stripes[stripeId].second, fid);
+    invalidStripesFsid.insert(stripes[stripeId].second);
+  }
+
+  return invalidStripesFsid;
+}
+
+//------------------------------------------------------------------------------
 // Check the given file for errors and properly account them both at the
 // scanner level and also by setting the proper xattrs on the file.
 //------------------------------------------------------------------------------
@@ -570,7 +831,7 @@ ScanDir::CheckFile(const std::string& fpath)
   // Skip scanning our scrub files (/scrub.write-once.X, /scrub.re-write.X)
   if (fpath.find("/scrub.") != std::string::npos) {
     eos_debug("msg=\"skip scrub file\" path=\"%s\"", fpath.c_str());
-    return false;;
+    return false;
   }
 
   std::unique_ptr<FileIo> io(FileIoPluginHelper::GetIoObject(fpath.c_str()));
@@ -690,6 +951,21 @@ ScanDir::CheckFile(const std::string& fpath)
 #ifndef _NOOFS
 
   if (mBgThread) {
+    // Skip check if file is open for reading, as this can mean we are in the middle of a recovery operation,
+    // and another stripe is open for write
+    if (!gOFS.openedForReading.isOpen(mFsId, fid)) {
+      HeaderCRC* hd = new HeaderCRC(0, 0);
+      hd->ReadFromFile(io.get(), 0);
+
+      if (hd->IsValid() && hd->GetIdStripe() == 0) {
+        std::set<eos::common::FileSystem::fsid_t> invalidStripes =
+            CheckRainStripes(fid);
+        gOFS.mFmdHandler->UpdateWithStripeCheckInfo(fid, mFsId, invalidStripes);
+      }
+
+      delete hd;
+    }
+
     gOFS.mFmdHandler->UpdateWithScanInfo(fid, mFsId, fpath, scan_size,
                                          scan_xs_hex, gOFS.mFsckQcl);
   }

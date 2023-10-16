@@ -217,6 +217,24 @@ FmdHandler::UpdateWithMgmInfo(eos::common::FileSystem::fsid_t fsid,
   return LocalPutFmd(valfmd, fid, fsid);
 }
 
+void
+FmdHandler::UpdateWithStripeCheckInfo(
+    eos::common::FileId::fileid_t fid, eos::common::FileSystem::fsid_t fsid,
+    const std::set<eos::common::FileSystem::fsid_t>& invalidStripes)
+{
+  auto fmd = LocalGetFmd(fid, fsid, true);
+
+  if (fmd) {
+    fmd->mProtoFmd.clear_stripeerror();
+
+    for (auto invalidFsid : invalidStripes) {
+      fmd->mProtoFmd.add_stripeerror(invalidFsid);
+    }
+
+    Commit(fmd.get());
+  }
+}
+
 //------------------------------------------------------------------------------
 // Update local fmd with info from the scanner
 //------------------------------------------------------------------------------
@@ -830,6 +848,8 @@ FmdHandler::ResetFmdDiskInfo(const std::string& input)
   f.mProtoFmd.set_filecxerror(0);
 
   f.mProtoFmd.set_blockcxerror(0);
+
+  f.mProtoFmd.clear_stripeerror();
 
   std::string out;
 

@@ -1289,9 +1289,11 @@ Storage::GetFSCount() const
 // Push collected errors to quarkdb
 //------------------------------------------------------------------------------
 bool
-Storage::PushToQdb(eos::common::FileSystem::fsid_t fsid,
-                   const std::map<std::string,
-                   std::set<eos::common::FileId::fileid_t>>& fidset)
+Storage::PushToQdb(
+    eos::common::FileSystem::fsid_t fsid,
+    const std::map<std::string,
+                   std::map<eos::common::FileSystem::fsid_t,
+                            std::set<eos::common::FileId::fileid_t>>>& fidset)
 {
 #ifndef _NOOFS
   static const uint32_t s_max_batch_size = 10000;
@@ -1307,13 +1309,15 @@ Storage::PushToQdb(eos::common::FileSystem::fsid_t fsid,
   for (const auto& elem : fidset) {
     std::list<std::string> values; // contains fid:fsid entries
 
-    for (auto& fid : elem.second) {
-      if (values.size() <= s_max_batch_size) {
-        values.push_back(SSTR(fid << ":" << fsid));
-      } else {
-        fsck_set.setKey(SSTR("fsck:" << elem.first).c_str());
-        fsck_set.sadd_async(values, &ah);
-        values.clear();
+    for (auto& errfsid : elem.second) {
+      for (auto& fid : errfsid.second) {
+        if (values.size() <= s_max_batch_size) {
+          values.push_back(SSTR(fid << ":" << errfsid.first));
+        } else {
+          fsck_set.setKey(SSTR("fsck:" << elem.first).c_str());
+          fsck_set.sadd_async(values, &ah);
+          values.clear();
+        }
       }
     }
 
@@ -1340,9 +1344,8 @@ Storage::PublishFsckError(eos::common::FileId::fileid_t fid,
                           eos::common::FileSystem::fsid_t fsid,
                           eos::common::FsckErr err_type)
 {
-  std::map<std::string, std::set<eos::common::FileId::fileid_t>> fidset = {
-    {eos::common::FsckErrToString(err_type), {fid}}
-  };
+  std::map<std::string, std::map<eos::common::FileSystem::fsid_t, std::set<eos::common::FileId::fileid_t>>> fidset;
+  fidset[eos::common::FsckErrToString(err_type)][fsid].insert(fid);
 
   if (!PushToQdb(fsid, fidset)) {
     eos_static_err("msg=\"failed to push fsck error to QDB\" fid=%08llx "

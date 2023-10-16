@@ -164,7 +164,7 @@ public:
   //! @return true if successful, otherwise false
   //----------------------------------------------------------------------------
   bool RepairEntry(eos::IFileMD::id_t fid,
-                   eos::common::FileSystem::fsid_t fsid_err,
+                   const std::set<eos::common::FileSystem::fsid_t>& fsid_err,
                    const std::string& err_type, bool async,
                    std::string& out_msg);
 
@@ -236,8 +236,8 @@ private:
   mutable eos::common::RWMutex mErrMutex; ///< Mutex protecting all map obj
   //! Error detail map storing "<error-name>=><fsid>=>[fid1,fid2,fid3...]"
   using ErrMapT = std::map<std::string,
-        std::map<eos::common::FileSystem::fsid_t,
-        std::set <eos::common::FileId::fileid_t>>>;
+        std::map<eos::common::FileId::fileid_t ,
+        std::set <eos::common::FileSystem::fsid_t>>>;
   ErrMapT eFsMap;
   //! Unavailable filesystems map
   std::map<eos::common::FileSystem::fsid_t, unsigned long long > eFsUnavail;

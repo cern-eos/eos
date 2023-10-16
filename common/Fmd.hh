@@ -116,6 +116,7 @@ static constexpr auto FSCK_REP_DIFF_N    = "rep_diff_n";
 static constexpr auto FSCK_REP_MISSING_N = "rep_missing_n";
 static constexpr auto FSCK_BLOCKXS_ERR   = "blockxs_err";
 static constexpr auto FSCK_ORPHANS_N     = "orphans_n";
+static constexpr auto FSCK_STRIPE_ERR    = "stripe_err";
 
 //------------------------------------------------------------------------------
 //! FsckErr types
@@ -130,7 +131,8 @@ enum class FsckErr {
   DiffRepl   = 0x06,
   MissRepl   = 0x07,
   BlockxsErr = 0x08,
-  Orphans    = 0x09
+  Orphans    = 0x09,
+  StripeErr  = 0x0A
 };
 
 //------------------------------------------------------------------------------
@@ -167,17 +169,17 @@ std::string FsckErrToString(const FsckErr& err);
 bool EnvToFstFmd(XrdOucEnv& env, FmdHelper& fmd);
 
 //------------------------------------------------------------------------------
-//! Populate data structures with any inconsistencies deteced while inspecting
+//! Populate data structures with any inconsistencies detected while inspecting
 //! the FmdHelper object
 //!
 //! @param fmd file info object
-//! @param statistics map of errors to number of currences
-//! @param map of errors to file identifiers
+//! @param fsid file system id
+//! @param map of errors to filesystem id and file identifiers
 //------------------------------------------------------------------------------
-void
-CollectInconsistencies(const FmdHelper& fmd,
-                       std::map<std::string, size_t>& statistics,
-                       std::map<std::string,
-                       std::set<eos::common::FileId::fileid_t>>& fidset);
+void CollectInconsistencies(
+    const FmdHelper& fmd, const eos::common::FileSystem::fsid_t fsid,
+    std::map<std::string, std::map<eos::common::FileSystem::fsid_t,
+                                   std::set<eos::common::FileId::fileid_t>>>&
+        fidset);
 
 EOSCOMMONNAMESPACE_END

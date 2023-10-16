@@ -278,50 +278,6 @@ FmdAttrHandler::LocalGetFmd(eos::common::FileId::fileid_t fid,
 }
 
 bool
-FmdAttrHandler::GetInconsistencyStatistics(
-  eos::common::FileSystem::fsid_t fsid,
-  std::map<std::string, size_t>& statistics,
-  std::map<std::string, std::set<eos::common::FileId::fileid_t>>& fidset)
-{
-  std::error_code ec;
-  uint64_t count {0};
-  auto ret = WalkFSTree(mFSPathHandler->GetFSPath(fsid),
-  [this, &statistics, &fidset, &count ](const char* path) {
-    eos_debug("msg=\"Accessing file=\"%s", path);
-
-    if (++count % 10000 == 0) {
-      eos_info("msg=\"synced files so far\" nfiles=%llu",
-               count);
-    }
-
-    this->UpdateInconsistencyStat(path, statistics, fidset);
-  },
-  ec);
-  statistics["mem_n"] += ret;
-
-  if (ec) {
-    eos_err("msg=\"Failed to walk FST Tree\" error=%s", ec.message().c_str());
-  }
-
-  return true;
-}
-
-bool
-FmdAttrHandler::UpdateInconsistencyStat(
-  const std::string& path, std::map<std::string, size_t>& statistics,
-  std::map<std::string, std::set<eos::common::FileId::fileid_t>>& fidset)
-{
-  auto&& [status, fmd] = LocalRetrieveFmd(path);
-
-  if (!status) {
-    return status;
-  }
-
-  CollectInconsistencies(fmd, statistics, fidset);
-  return true;
-}
-
-bool
 FmdAttrHandler::ResetDiskInformation(eos::common::FileSystem::fsid_t fsid)
 {
   std::error_code ec;

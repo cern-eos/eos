@@ -73,7 +73,7 @@ protected:
   {
     mRepairJob = nullptr;
     mFsckEntry = std::unique_ptr<eos::mgm::FsckEntry>
-                 (new eos::mgm::FsckEntry(1234567, 3, "none", nullptr));
+                 (new eos::mgm::FsckEntry(1234567, {3}, "none", nullptr));
     PopulateMgmFmd();
 
     for (auto fsid : mFsckEntry->mMgmFmd.locations()) {
@@ -88,7 +88,8 @@ protected:
           std::set<FileSystem::fsid_t> exclude_srcs,
           std::set<FileSystem::fsid_t> exclude_dsts,
           bool drop_src,
-    const std::string & app_tag) {
+    const std::string & app_tag,
+          bool repair_excluded) {
       if (mRepairJob) {
         return mRepairJob;
       } else {
@@ -258,7 +259,7 @@ TEST_F(FsckEntryTest, FstSzDiff)
   ASSERT_FALSE(mFsckEntry->Repair());
   // Set the first FST fmd disksize to the correct one - repair successful
   std::shared_ptr<eos::mgm::FsckRepairJob> repair_job =
-    mFsckEntry->mRepairFactory(0, 0, 0, {}, {}, true, "none");
+    mFsckEntry->mRepairFactory(0, 0, 0, {}, {}, true, "none", false);
   MockRepairJob* mock_job = static_cast<MockRepairJob*>(repair_job.get());
   EXPECT_CALL(*mock_job, DoItNoExcept);
   EXPECT_CALL(*mock_job, GetStatus).
@@ -289,7 +290,7 @@ TEST_F(FsckEntryTest, FstXsDiff)
   // @note the repair factory always returns the same repair job object so that
   // we can easily set expecteations on it
   std::shared_ptr<eos::mgm::FsckRepairJob> repair_job =
-    mFsckEntry->mRepairFactory(0, 0, 0, {}, {}, true, "none");
+    mFsckEntry->mRepairFactory(0, 0, 0, {}, {}, true, "none", false);
   MockRepairJob* mock_job = static_cast<MockRepairJob*>(repair_job.get());
   EXPECT_CALL(*mock_job, DoItNoExcept);
   EXPECT_CALL(*mock_job, GetStatus).
@@ -409,7 +410,7 @@ TEST_F(FsckEntryTest, FileUnderReplicated)
   // @note the repair factory always returns the same repair job object so that
   // we can easily set expecteations on it
   std::shared_ptr<eos::mgm::FsckRepairJob> repair_job =
-    mFsckEntry->mRepairFactory(0, 0, 0, {}, {}, false, "none");
+    mFsckEntry->mRepairFactory(0, 0, 0, {}, {}, false, "none", false);
   MockRepairJob* mock_job = static_cast<MockRepairJob*>(repair_job.get());
   EXPECT_CALL(*mock_job, DoItNoExcept).Times(1);
   EXPECT_CALL(*mock_job, GetStatus).
@@ -436,7 +437,7 @@ TEST_F(FsckEntryTest, FileMissingReplica)
   // @note the repair factory always returns the same repair job object so that
   // we can easily set expecteations on it
   std::shared_ptr<eos::mgm::FsckRepairJob> repair_job =
-    mFsckEntry->mRepairFactory(0, 0, 0, {}, {}, false, "none");
+    mFsckEntry->mRepairFactory(0, 0, 0, {}, {}, false, "none", false);
   MockRepairJob* mock_job = static_cast<MockRepairJob*>(repair_job.get());
   EXPECT_CALL(*mock_job, DoItNoExcept).Times(1);
   EXPECT_CALL(*mock_job, GetStatus).

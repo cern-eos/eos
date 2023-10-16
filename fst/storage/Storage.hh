@@ -233,9 +233,12 @@ public:
   //!
   //! @return true if push was successful, othewise false
   //----------------------------------------------------------------------------
-  bool PushToQdb(eos::common::FileSystem::fsid_t fsid,
-                 const std::map<std::string,
-                 std::set<eos::common::FileId::fileid_t>>& fidset);
+  bool
+  PushToQdb(eos::common::FileSystem::fsid_t fsid,
+            const std::map<std::string,
+                           std::map<eos::common::FileSystem::fsid_t,
+                                    std::set<eos::common::FileId::fileid_t>>>&
+                fidset);
 
   //----------------------------------------------------------------------------
   //! Process file system configuration change

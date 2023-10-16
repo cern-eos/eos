@@ -137,19 +137,6 @@ public:
                       bool lockit = true,
                       std::string* path = nullptr) = 0;
 
-  //----------------------------------------------------------------------------
-  //! Get inconsistency statistics
-  //!
-  //! @param fsid file system id
-  //! @param statistics map of inconsistency type to counter
-  //! @param fidset map of fid to set of inconsitent file ids
-  //!
-  //! @return true if successful, otherwise false
-  //----------------------------------------------------------------------------
-  virtual bool GetInconsistencyStatistics(eos::common::FileSystem::fsid_t fsid,
-                                          std::map<std::string, size_t>& statistics,
-                                          std::map<std::string,
-                                          std::set <eos::common::FileId::fileid_t>>& fidset) = 0;
 
   //----------------------------------------------------------------------------
   //! Low level Fmd retrieve method
@@ -222,6 +209,18 @@ public:
                          unsigned long long mtime,
                          unsigned long long mtime_ns,
                          int layouterror, std::string locations);
+
+  //----------------------------------------------------------------------------
+  //! Update local fmd with info from the stripe check
+  //!
+  //! @param fid file identifier
+  //! @param fsid file system id
+  //! @param invalidStripes list of fsid with invalid stripes
+  //!
+  //----------------------------------------------------------------------------
+  void UpdateWithStripeCheckInfo(
+      eos::common::FileId::fileid_t fid, eos::common::FileSystem::fsid_t fsid,
+      const std::set<eos::common::FileSystem::fsid_t>& invalidStripes);
 
   //----------------------------------------------------------------------------
   //! Update local fmd with info from the scanner
