@@ -29,6 +29,7 @@
 #include "common/AssistedThread.hh"
 #include "common/SteadyClock.hh"
 #include "common/RateLimit.hh"
+#include "common/LayoutId.hh"
 #include "namespace/interface/IFileMD.hh"
 #include "namespace/ns_quarkdb/persistency/MetadataFetcher.hh"
 #include <deque>
@@ -140,6 +141,32 @@ public:
                          unsigned long long& scan_size,
                          std::string& scan_xs_hex,
                          bool& filexs_err, bool& blockxs_err);
+
+  //----------------------------------------------------------------------------
+  //! Check if a given stripe combination can reconstruct the original file
+  //!
+  //! @param fid file id
+  //!
+  //! @return set of fsid with invalid stripes
+  //----------------------------------------------------------------------------
+  std::set<eos::common::FileSystem::fsid_t>
+  CheckRainStripes(eos::common::FileId::fileid_t fid);
+
+  //----------------------------------------------------------------------------
+  //! Check for stripes that are unable to reconstruct the original file
+  //!
+  //! @param stripes list of stripe urls
+  //! @param XS expected checksum
+  //! @param xsObj checksum object used to calculate the checksum
+  //! @param layout layout id
+  //! @param opaqueInfo opaque information
+  //!
+  //! @return true if file has expected checksum, false otherwise
+  //----------------------------------------------------------------------------
+  bool isValidStripeCombination(const std::vector<std::string>& stripes,
+                                const std::string& XS, CheckSum* xsObj,
+                                eos::common::LayoutId::layoutid_t layout,
+                                const std::string& opaqueInfo);
 
   //----------------------------------------------------------------------------
   //! Get clock reference for testing purposes

@@ -227,6 +227,29 @@ install(TARGETS eoscp
   RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_BINDIR}
   ARCHIVE DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR})
 
+#-------------------------------------------------------------------------------
+# raincheck executable
+#-------------------------------------------------------------------------------
+add_executable(raincheck raincheck.cc)
+
+target_link_libraries(raincheck PRIVATE EosFstIo-Static)
+
+target_compile_definitions(raincheck PRIVATE
+  -D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64)
+
+set_target_properties(
+  raincheck PROPERTIES
+  INSTALL_RPATH "${EOS_RPATH}"
+  SKIP_RPATH FALSE
+  SKIP_BUILD_RPATH FALSE
+  BUILD_WITH_INSTALL_RPATH TRUE
+  INSTALL_RPATH_USE_LINK_PATH TRUE)
+
+install(TARGETS raincheck
+  LIBRARY DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
+  RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_BINDIR}
+  ARCHIVE DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR})
+
 if(NOT CLIENT)
 #-------------------------------------------------------------------------------
 # EosFstOss library

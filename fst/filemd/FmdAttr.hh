@@ -63,17 +63,6 @@ public:
               uid_t uid = 0, gid_t gid = 0,
               eos::common::LayoutId::layoutid_t layoutid = 0) override;
 
-  bool GetInconsistencyStatistics(
-    eos::common::FileSystem::fsid_t fsid,
-    std::map<std::string, size_t>& statistics,
-    std::map<std::string, std::set<eos::common::FileId::fileid_t>>& fidset)
-  override;
-
-
-  bool UpdateInconsistencyStat(const std::string& path,
-                               std::map<std::string, size_t>& statistics,
-                               std::map<std::string, std::set<eos::common::FileId::fileid_t>>& fidset);
-
   std::pair<bool, eos::common::FmdHelper>
   LocalRetrieveFmd(eos::common::FileId::fileid_t fid,
                    eos::common::FileSystem::fsid_t fsid,

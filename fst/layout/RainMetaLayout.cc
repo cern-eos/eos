@@ -714,6 +714,59 @@ RainMetaLayout::Read(XrdSfsFileOffset offset, char* buffer,
   return read_length;
 }
 
+//------------------------------------------------------------------------------
+// Read from stripes
+//------------------------------------------------------------------------------
+int64_t
+RainMetaLayout::ReadStripe(XrdSfsFileOffset offset, char* buffer,
+                           XrdSfsXferSize length, int stripeIdx)
+{
+  eos_debug("offset=%llu, length=%i", offset, length);
+  XrdSysMutexHelper scope_lock(mExclAccess);
+  eos::common::Timing rt("read");
+  COMMONTIMING("start", &rt);
+  uint64_t end_raw_offset = offset + length;
+
+  uint64_t const stripeSize =
+      mSizeHeader +
+      mStripeWidth * (1 + ((mFileSize - 1) / (mStripeWidth * mNbDataFiles)));
+
+  if ((uint64_t)offset > stripeSize) {
+    eos_warning("msg=\"read past end-of-file\" offset=%lld file_size=%llu",
+                offset, stripeSize);
+    return 0;
+  }
+
+  if (end_raw_offset > stripeSize) {
+    eos_warning("msg=\"read too big resizing the read length\" "
+                "end_offset=%lli file_size=%llu",
+                end_raw_offset, stripeSize);
+    length = static_cast<int>(stripeSize - offset);
+
+    if (length == 0) {
+      return 0;
+    }
+  }
+
+  COMMONTIMING("read remote in", &rt);
+
+  if (mStripe[stripeIdx]) {
+    int64_t nbytes =
+        mStripe[stripeIdx]->fileReadPrefetch(offset, buffer, length, mTimeout);
+
+    if (nbytes == length) {
+      COMMONTIMING("read return", &rt);
+      // rt.Print();
+      return length;
+    }
+  }
+  if (mStripe[stripeIdx]) {
+    eos_err("msg=\"read error\" offset=%llu length=%d msg=\"%s\"", offset,
+            length, mStripe[stripeIdx]->GetLastErrMsg().c_str());
+  }
+
+  return -1;
+}
 
 //----------------------------------------------------------------------------
 //! Read operation that triggers a forced recovery per group

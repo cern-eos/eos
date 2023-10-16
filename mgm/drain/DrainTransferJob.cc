@@ -29,6 +29,7 @@
 #include "mgm/proc/proc_fs.hh"
 #include "common/SecEntity.hh"
 #include "common/LayoutId.hh"
+#include "common/StringTokenizer.hh"
 #include "namespace/interface/IView.hh"
 #include "namespace/ns_quarkdb/persistency/MetadataFetcher.hh"
 #include "namespace/Prefetcher.hh"
@@ -371,8 +372,13 @@ DrainTransferJob::BuildTpcSrc(const FileDrainInfo& fdrain,
     src_cap << output_cap->Env(cap_len)
             << "&mgm.logid=" << log_id
             << "&eos.pio.action=reconstruct"
-            << "&eos.pio.recfs=" << mFsIdSource
             << "&eos.encodepath=curl";
+
+    if (mRepairExcluded) {
+      src_cap << "&eos.pio.recfs=" << eos::common::StringTokenizer::merge(mTriedSrcs, ',');
+    } else {
+      src_cap << "&eos.pio.recfs=" << mFsIdSource;
+    }
   } else {
     std::ostringstream oss_path;
     oss_path << "/replicate:" << eos::common::FileId::Fid2Hex(mFileId);

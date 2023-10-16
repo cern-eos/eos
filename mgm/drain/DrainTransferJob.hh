@@ -143,10 +143,12 @@ public:
                    bool drop_src = true,
                    const std::string& app_tag = "drain",
                    bool balance_mode = false,
-                   eos::common::VirtualIdentity vid = eos::common::VirtualIdentity::Root()):
+                   eos::common::VirtualIdentity vid = eos::common::VirtualIdentity::Root(),
+                   bool repair_excluded = false
+                   ):
     mAppTag(app_tag), mFileId(fid), mFsIdSource(fsid_src), mFsIdTarget(fsid_trg),
     mTxFsIdSource(fsid_src), mStatus(Status::Ready), mRainAttempt(false),
-    mRainReconstruct(false), mDropSrc(drop_src), mBalanceMode(balance_mode),
+    mRainReconstruct(false), mDropSrc(drop_src), mBalanceMode(balance_mode), mRepairExcluded(repair_excluded),
     mVid(vid)
   {
     mTriedSrcs.insert(exclude_srcs.begin(), exclude_srcs.end());
@@ -294,6 +296,7 @@ private:
   bool mDropSrc; ///< Mark if source replicas should be dropped
   //! In balance mode the source and destination file systems are enforced
   bool mBalanceMode;
+  bool mRepairExcluded; ///< Mark if mTriedSrcs should be included in recfs for rain layouts
   DrainProgressHandler mProgressHandler; ///< TPC progress handler
   eos::common::VirtualIdentity mVid; /// VID triggering the job
 };

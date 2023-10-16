@@ -111,6 +111,19 @@ public:
                        XrdSfsXferSize length, bool readahead = false) override;
 
   //----------------------------------------------------------------------------
+  //! Read from stripe
+  //!
+  //! @param offset offset
+  //! @param buffer place to hold the read data
+  //! @param length length
+  //! @param stripeIdx idx of the stripe
+  //!
+  //! @return number of bytes read or -1 if error
+  //--------------------------------------------------------------------------
+  virtual int64_t ReadStripe(XrdSfsFileOffset offset, char* buffer,
+                             XrdSfsXferSize length, int stripeIdx);
+
+  //----------------------------------------------------------------------------
   //! Vector read
   //!
   //! @param chunkList list of chunks for the vector read
@@ -506,6 +519,7 @@ private:
   std::set<uint64_t> mRecoveredGrpIndx;
   //! Mutex protecting the set of recovered groups
   std::mutex mMtxRecoveredGrps;
+
 };
 
 EOSFSTNAMESPACE_END

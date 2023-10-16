@@ -398,18 +398,18 @@ Fsck::RepairErrs(ThreadAssistant& assistant) noexcept
     // Create local struct for errors so that we avoid the iterator invalidation
     // and the long locks
     std::map<std::string,
-        std::map<eos::common::FileSystem::fsid_t,
-        std::set <eos::common::FileId::fileid_t> > > local_emap;
+        std::map<eos::common::FileId::fileid_t ,
+        std::set <eos::common::FileSystem::fsid_t> > > local_emap;
     {
       eos::common::RWMutexReadLock rd_lock(mErrMutex);
       local_emap.insert(eFsMap.begin(), eFsMap.end());
     }
     uint64_t count = 0ull;
     uint64_t msg_delay = 0;
-    std::list<std::string> err_priority {"blockxs_err", "unreg_n", "rep_diff_n",
-                                         "rep_missing_n", "m_mem_sz_diff",
-                                         "m_cx_diff", "d_mem_sz_diff",
-                                         "d_cx_diff"};
+    std::list<std::string> err_priority{
+        "stripe_err", "blockxs_err",   "unreg_n",
+        "rep_diff_n", "rep_missing_n", "m_mem_sz_diff",
+        "m_cx_diff",  "d_mem_sz_diff", "d_cx_diff"};
 
     for (const auto& err_type : err_priority) {
       // Repair only targeted categories if this option is set
@@ -419,43 +419,40 @@ Fsck::RepairErrs(ThreadAssistant& assistant) noexcept
       }
 
       for (const auto& elem : local_emap[err_type]) {
-        for (const auto& fid : elem.second) {
-          if (!gOFS->mFidTracker.AddEntry(fid, TrackerType::Fsck)) {
-            eos_debug("msg=\"skip already scheduled transfer\" fxid=%08llx", fid);
-            continue;
-          }
+        if (!gOFS->mFidTracker.AddEntry(elem.first, TrackerType::Fsck)) {
+          eos_debug("msg=\"skip already scheduled transfer\" fxid=%08llx",
+                    elem.first);
+          continue;
+        }
 
-          std::shared_ptr<FsckEntry> job {
-            new FsckEntry(fid, elem.first, err_type, mQcl)};
-          mThreadPool.PushTask<void>([job]() {
-            return job->Repair();
-          });
+        std::shared_ptr<FsckEntry> job{
+            new FsckEntry(elem.first, elem.second, err_type, mQcl)};
+        mThreadPool.PushTask<void>([job]() { return job->Repair(); });
 
-          // Check regularly if we should exit and sleep if queue is full
-          while ((mThreadPool.GetQueueSize() > mMaxQueuedJobs) ||
-                 (++count % 100 == 0)) {
-            if (assistant.terminationRequested()) {
-              // Wait that there are not more jobs in the queue - this can
-              // take a while depending on the queue size
-              while (mThreadPool.GetQueueSize()) {
-                std::this_thread::sleep_for(std::chrono::seconds(1));
+        // Check regularly if we should exit and sleep if queue is full
+        while ((mThreadPool.GetQueueSize() > mMaxQueuedJobs) ||
+               (++count % 100 == 0)) {
+          if (assistant.terminationRequested()) {
+            // Wait that there are not more jobs in the queue - this can
+            // take a while depending on the queue size
+            while (mThreadPool.GetQueueSize()) {
+              std::this_thread::sleep_for(std::chrono::seconds(1));
 
-                if (++msg_delay % 5 == 0) {
-                  eos_info("%s", "msg=\"stopping fsck repair waiting for thread "
-                           "pool queue to be consummed\"");
-                  msg_delay = 0;
-                }
+              if (++msg_delay % 5 == 0) {
+                eos_info("%s", "msg=\"stopping fsck repair waiting for thread "
+                               "pool queue to be consummed\"");
+                msg_delay = 0;
               }
+            }
 
-              eos_info("%s", "msg=\"stopped fsck repair thread\"");
-              mRepairRunning = false;
-              return;
+            eos_info("%s", "msg=\"stopped fsck repair thread\"");
+            mRepairRunning = false;
+            return;
+          } else {
+            if (mThreadPool.GetQueueSize() > mMaxQueuedJobs) {
+              assistant.wait_for(std::chrono::seconds(1));
             } else {
-              if (mThreadPool.GetQueueSize() > mMaxQueuedJobs) {
-                assistant.wait_for(std::chrono::seconds(1));
-              } else {
-                break;
-              }
+              break;
             }
           }
         }
@@ -483,7 +480,7 @@ Fsck::RepairErrs(ThreadAssistant& assistant) noexcept
 //------------------------------------------------------------------------------
 bool
 Fsck::RepairEntry(eos::IFileMD::id_t fid,
-                  eos::common::FileSystem::fsid_t fsid_err,
+                  const std::set<eos::common::FileSystem::fsid_t>& fsid_err,
                   const std::string& err_type, bool async, std::string& out_msg)
 {
   if (fid == 0ull) {
@@ -616,8 +613,8 @@ Fsck::ReportJsonFormat(std::ostringstream& oss,
       }
 
       for (const auto& elem : elem_map.second) {
-        for (const auto& fxid : elem.second) {
-          fs_fxid[elem.first][elem_map.first].insert(fxid);
+        for (const auto& fsid : elem.second) {
+          fs_fxid[fsid][elem_map.first].insert(elem.first);
         }
       }
     }
@@ -664,9 +661,7 @@ Fsck::ReportJsonFormat(std::ostringstream& oss,
       std::set<unsigned long long> fids;
 
       for (const auto& elem : elem_map.second) {
-        for (auto it = elem.second.begin(); it != elem.second.end(); ++it) {
-          fids.insert(*it);
-        }
+          fids.insert(elem.first);
       }
 
       for (auto it = fids.begin(); it != fids.end(); ++it) {
@@ -720,8 +715,8 @@ Fsck::ReportMonitorFormat(std::ostringstream& oss,
       }
 
       for (const auto& elem : elem_map.second) {
-        for (const auto& fxid : elem.second) {
-          fs_fxid[elem.first][elem_map.first].insert(fxid);
+        for (const auto& fsid : elem.second) {
+          fs_fxid[fsid][elem_map.first].insert(elem.first);
         }
       }
     }
@@ -779,9 +774,7 @@ Fsck::ReportMonitorFormat(std::ostringstream& oss,
       std::set<unsigned long long> fids;
 
       for (const auto& elem : elem_map.second) {
-        for (auto it = elem.second.begin(); it != elem.second.end(); ++it) {
-          fids.insert(*it);
-        }
+          fids.insert(elem.first);
       }
 
       for (auto it = fids.begin(); it != fids.end(); ++it) {
@@ -919,7 +912,7 @@ Fsck::AccountOfflineReplicas()
         for (auto it_fid = gOFS->eosFsView->getFileList(fsid);
              (it_fid && it_fid->valid()); it_fid->next()) {
           eFsUnavail[fsid]++;
-          eFsMap["rep_offline"][fsid].insert(it_fid->getElement());
+          eFsMap["rep_offline"][it_fid->getElement()].insert(fsid);
         }
       } catch (eos::MDException& e) {
         errno = e.getErrno();
@@ -958,7 +951,7 @@ Fsck::AccountNoReplicaFiles()
       }
 
       if (fmd && (!fmd->isLink())) {
-        eFsMap["zero_replica"][0].insert(it_fid->getElement());
+        eFsMap["zero_replica"][it_fid->getElement()].insert(0);
       }
     }
   } catch (eos::MDException& e) {
@@ -1009,7 +1002,7 @@ Fsck::AccountOfflineFiles()
 
     if (it_offline != eFsMap.end()) {
       for (const auto& elem : it_offline->second) {
-        fid2check.insert(elem.second.begin(), elem.second.end());
+        fid2check.insert(elem.first);
       }
     }
 
@@ -1017,7 +1010,7 @@ Fsck::AccountOfflineFiles()
 
     if (it_diff_n != eFsMap.end()) {
       for (const auto& elem : it_diff_n->second) {
-        fid2check.insert(elem.second.begin(), elem.second.end());
+        fid2check.insert(elem.first);
       }
     }
   }
@@ -1065,17 +1058,17 @@ Fsck::AccountOfflineFiles()
 
     if (layout_type == LayoutId::kReplica) {
       if (offlinelocations == nlocations) {
-        eFsMap["file_offline"][0].insert(*it);
+        eFsMap["file_offline"][*it].insert(0);
       }
     } else if (layout_type >= LayoutId::kArchive) {
       // Proper condition for RAIN layout
       if (offlinelocations > LayoutId::GetRedundancyStripeNumber(lid)) {
-        eFsMap["file_offline"][0].insert(*it);
+        eFsMap["file_offline"][*it].insert(0);
       }
     }
 
     if (offlinelocations && (offlinelocations != nlocations)) {
-      eFsMap["adjust_replica"][0].insert(*it);
+      eFsMap["adjust_replica"][*it].insert(0);
     }
   }
 }
@@ -1178,7 +1171,7 @@ Fsck::QueryQdb(ErrMapT& err_map)
     for (auto it = set_errs.getIterator(); it.valid(); it.next()) {
       // Set elements are in the form: fid:fsid
       auto pair_info = parse_fsck(it.getElement());
-      err_map[err_type][pair_info.second].insert(pair_info.first);
+      err_map[err_type][pair_info.first].insert(pair_info.second);
     }
   }
 
@@ -1201,7 +1194,7 @@ Fsck::NotifyFixedErr(eos::IFileMD::id_t fid,
   static std::map<std::string, std::set<std::string>> updates;
   std::unique_lock<std::mutex> scope_lock(mutex);
 
-  if (fid && fsid_err && !err_type.empty() && (err_type != "none")) {
+  if ((fid || fsid_err) && !err_type.empty() && (err_type != "none")) {
     auto it = updates.find(err_type);
 
     if (it == updates.end()) {
