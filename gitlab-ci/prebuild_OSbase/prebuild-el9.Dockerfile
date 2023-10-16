@@ -1,7 +1,5 @@
-FROM  docker.io/library/almalinux:8
-
+FROM  gitlab-registry.cern.ch/linuxsupport/alma9-base
 LABEL maintainer="Manuel Reis, manuel.b.reis@cern.ch, CERN 2022"
-
 ARG EOS_CODENAME
 WORKDIR /builds/dss/eos/
 
@@ -12,8 +10,8 @@ RUN dnf install --nogpg -y git && dnf clean all \
         then git clone https://gitlab.cern.ch/dss/eos.git . ; fi
 
 RUN dnf install -y dnf-plugins-core epel-release\
-    && dnf config-manager --set-enabled powertools \
-    && echo -e "[eos-depend]\nname=EOS dependencies\nbaseurl=http://storage-ci.web.cern.ch/storage-ci/eos/${EOS_CODENAME}-depend/el-8/x86_64/\ngpgcheck=0\nenabled=1\npriority=4" > /etc/yum.repos.d/eos-depend.repo
+    && dnf config-manager --set-enabled crb \
+    && echo -e "[eos-depend]\nname=EOS dependencies\nbaseurl=http://storage-ci.web.cern.ch/storage-ci/eos/${EOS_CODENAME}-depend/el-9/x86_64/\ngpgcheck=0\nenabled=1\npriority=4" > /etc/yum.repos.d/eos-depend.repo
 
 RUN dnf install --nogpg -y ccache cmake3 gcc-c++ git make rpm-build rpm-sign which\
     && git submodule update --init --recursive \
