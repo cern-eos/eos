@@ -178,7 +178,7 @@ void
 QuarkFileMD::unlinkLocation(location_t location)
 {
   {
-    this->runReadOp([this, location]() {
+    this->runWriteOp([this, location]() {
       for (auto it = mFile.mutable_locations()->cbegin();
            it != mFile.mutable_locations()->cend(); ++it) {
         if (*it == location) {
