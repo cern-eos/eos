@@ -1123,7 +1123,7 @@ NsCmd::BenchmarkSubCmd(const eos::console::NsProto_BenchmarkProto& benchmark,
 		  n_subdirs,
 		  n_subfiles);
 
-   eos::common::VirtualIdentity vid = eos::common::VirtualIdentity::Root();
+  eos::common::VirtualIdentity vid = eos::common::VirtualIdentity::Root();
 
   XrdOucErrInfo error;
   std::string prefix=bench_prefix+"/benchmark/";
@@ -1140,6 +1140,7 @@ NsCmd::BenchmarkSubCmd(const eos::console::NsProto_BenchmarkProto& benchmark,
     for (size_t i = 0; i < n_threads; i++) {
       workers.push_back(std::thread([i, n_subdirs, n_subfiles, &vid, prefix]() 
       {
+	eos::common::VirtualIdentity vid = eos::common::VirtualIdentity::Root();
 	XrdOucErrInfo error;
 	std::string wdir = prefix + std::string("worker.") + std::to_string(i);
 	XrdSecEntity client("sss");
@@ -1149,7 +1150,7 @@ NsCmd::BenchmarkSubCmd(const eos::console::NsProto_BenchmarkProto& benchmark,
 	  std::string sdir = wdir + std::string("/d.") + std::to_string(d) + std::string("/");
 	  gOFS->_mkdir(sdir.c_str(), 0777,  error, vid, "", 0, false);
 	  for ( size_t f = 0 ; f < n_subfiles ; f++) {
-	    std::string fname = sdir + std::string("/f.") + std::to_string(f);	    
+	    std::string fname = sdir + std::string("f.") + std::to_string(f);	    
 	  }
       }
       }));
@@ -1177,6 +1178,7 @@ NsCmd::BenchmarkSubCmd(const eos::console::NsProto_BenchmarkProto& benchmark,
     for (size_t i = 0; i < n_threads; i++) {
       workers.push_back(std::thread([i, n_subdirs, n_subfiles, &vid, prefix]() 
       {
+	eos::common::VirtualIdentity vid = eos::common::VirtualIdentity::Root();
 	XrdOucErrInfo error;
 	std::string wdir = prefix + std::string("worker.") + std::to_string(i);
 	XrdSecEntity client("sss");
@@ -1184,7 +1186,7 @@ NsCmd::BenchmarkSubCmd(const eos::console::NsProto_BenchmarkProto& benchmark,
 	for ( size_t d = 0 ; d < n_subdirs ; d++) {
 	  std::string sdir = wdir + std::string("/d.") + std::to_string(d) + std::string("/");
 	  for ( size_t f = 0 ; f < n_subfiles ; f++) {
-	    std::string fname = sdir + std::string("/f.") + std::to_string(f);
+	    std::string fname = sdir + std::string("f.") + std::to_string(f);
 	    XrdOucEnv env;
 	      
 	    XrdMgmOfsFile* file = new XrdMgmOfsFile((char*)"bench");
@@ -1220,6 +1222,7 @@ NsCmd::BenchmarkSubCmd(const eos::console::NsProto_BenchmarkProto& benchmark,
     for (size_t i = 0; i < n_threads; i++) {
       workers.push_back(std::thread([i, n_subdirs, n_subfiles, &vid, prefix]() 
       {
+	eos::common::VirtualIdentity vid = eos::common::VirtualIdentity::Root();
 	XrdOucErrInfo error;
 	std::string wdir = prefix + std::string("worker.") + std::to_string(i);
 	XrdSecEntity client("sss");
@@ -1229,7 +1232,7 @@ NsCmd::BenchmarkSubCmd(const eos::console::NsProto_BenchmarkProto& benchmark,
 	  std::string sdir = wdir + std::string("/d.") + std::to_string(d) + std::string("/");
 	  gOFS->_mkdir(sdir.c_str(), 0777,  error, vid, "", 0, false);
 	  for ( size_t f = 0 ; f < n_subfiles ; f++) {
-	    std::string fname = sdir + std::string("/f.") + std::to_string(f);
+	    std::string fname = sdir + std::string("f.") + std::to_string(f);
 	    XrdOucEnv env;
 	      
 	    XrdMgmOfsFile* file = new XrdMgmOfsFile((char*)"bench");
@@ -1264,6 +1267,7 @@ NsCmd::BenchmarkSubCmd(const eos::console::NsProto_BenchmarkProto& benchmark,
     for (size_t i = 0; i < n_threads; i++) {
       workers.push_back(std::thread([i, n_subdirs, n_subfiles, &vid, prefix]() 
       {
+	eos::common::VirtualIdentity vid = eos::common::VirtualIdentity::Root();
 	XrdOucErrInfo error;
 	std::string wdir = prefix + std::string("worker.") + std::to_string(i);
 	XrdSecEntity client("sss");
@@ -1271,7 +1275,7 @@ NsCmd::BenchmarkSubCmd(const eos::console::NsProto_BenchmarkProto& benchmark,
 	for ( size_t d = 0 ; d < n_subdirs ; d++) {
 	  std::string sdir = wdir + std::string("/d.") + std::to_string(d) + std::string("/");
 	  for ( size_t f = 0 ; f < n_subfiles ; f++) {
-	    std::string fname = sdir + std::string("/f.") + std::to_string(f);
+	    std::string fname = sdir + std::string("f.") + std::to_string(f);
 	    XrdOucEnv env;
 	      
 	    XrdMgmOfsFile* file = new XrdMgmOfsFile((char*)"bench");
@@ -1305,6 +1309,7 @@ NsCmd::BenchmarkSubCmd(const eos::console::NsProto_BenchmarkProto& benchmark,
     for (size_t i = 0; i < n_threads; i++) {
       workers.push_back(std::thread([i, n_subdirs, n_subfiles, &vid, prefix]() 
       {
+	eos::common::VirtualIdentity vid = eos::common::VirtualIdentity::Root();
 	XrdOucErrInfo error;
 	std::string wdir = prefix + std::string("worker.") + std::to_string(i);
 	XrdSecEntity client("sss");
@@ -1312,7 +1317,7 @@ NsCmd::BenchmarkSubCmd(const eos::console::NsProto_BenchmarkProto& benchmark,
 	for ( size_t d = 0 ; d < n_subdirs ; d++) {
 	  std::string sdir = wdir + std::string("/d.") + std::to_string(d) + std::string("/");
 	  for ( size_t f = 0 ; f < n_subfiles ; f++) {
-	    std::string fname = sdir + std::string("/f.") + std::to_string(f);
+	    std::string fname = sdir + std::string("f.") + std::to_string(f);
 	    XrdOucEnv env;
 	      
 	    XrdMgmOfsFile* file = new XrdMgmOfsFile((char*)"bench");
@@ -1346,6 +1351,7 @@ NsCmd::BenchmarkSubCmd(const eos::console::NsProto_BenchmarkProto& benchmark,
     for (size_t i = 0; i < n_threads; i++) {
       workers.push_back(std::thread([i, n_subdirs, n_subfiles, &vid, prefix]() 
       {
+	eos::common::VirtualIdentity vid = eos::common::VirtualIdentity::Root();
 	XrdOucErrInfo error;
 	std::string wdir = prefix + std::string("worker.") + std::to_string(i);
 	XrdSecEntity client("sss");
@@ -1353,7 +1359,7 @@ NsCmd::BenchmarkSubCmd(const eos::console::NsProto_BenchmarkProto& benchmark,
 	for ( size_t d = 0 ; d < n_subdirs ; d++) {
 	  std::string sdir = wdir + std::string("/d.") + std::to_string(d) + std::string("/");
 	  for ( size_t f = 0 ; f < n_subfiles ; f++) {
-	    std::string fname = sdir + std::string("/f.") + std::to_string(f);
+	    std::string fname = sdir + std::string("f.") + std::to_string(f);
 	    gOFS->_rem(fname.c_str(), error, vid, "");
 	  }
 	  gOFS->_remdir(sdir.c_str(), error, vid);
