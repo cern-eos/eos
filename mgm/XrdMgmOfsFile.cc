@@ -580,8 +580,11 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
 
     try {
       eos::Prefetcher::prefetchFileMDAndWait(gOFS->eosView, byfid);
-      eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
-      fmd = gOFS->eosFileService->getFileMD(byfid);
+      auto fileLock = gOFS->eosFileService->getFileMDReadLocked(byfid);
+      if(fileLock) {
+        fmd = fileLock->getUnderlyingPtr();
+      }
+
       spath = gOFS->eosView->getUri(fmd.get()).c_str();
       bypid = fmd->getContainerId();
       eos_info("msg=\"access by inode\" ino=%s path=%s", path, spath.c_str());
@@ -830,8 +833,10 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
 
     try {
       eos::Prefetcher::prefetchFileMDAndWait(gOFS->eosView, byfid);
-      eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
-      fmd = gOFS->eosFileService->getFileMD(byfid);
+      auto fileLock = gOFS->eosFileService->getFileMDReadLocked(byfid);
+      if(fileLock) {
+        fmd = fileLock->getUnderlyingPtr();
+      }
       spath = gOFS->eosView->getUri(fmd.get()).c_str();
       bypid = fmd->getContainerId();
       eos_info("msg=\"access by inode\" ino=%s path=%s", path, spath.c_str());
@@ -918,13 +923,17 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
       }
     }
 
-    eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
-
     try {
       if (byfid) {
-        dmd = gOFS->eosDirectoryService->getContainerMD(bypid);
+	auto dmdLock = gOFS->eosDirectoryService->getContainerMDReadLocked(byfid);
+	if(dmdLock) {
+	  dmd = dmdLock->getUnderlyingPtr();
+	}
       } else if (!dmd) {
-        dmd = gOFS->eosView->getContainer(cPath.GetParentPath());
+	auto dmdLock = gOFS->eosView->getContainerReadLocked(cPath.GetParentPath());
+	if(dmdLock) {
+	  dmd = dmdLock->getUnderlyingPtr();
+	}
       }
 
       // get the attributes out
@@ -1190,7 +1199,6 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
 
     // If a file has the sys.proc attribute, it will be redirected as a command
     if (fmd != nullptr && fmd->hasAttribute("sys.proc")) {
-      ns_rd_lock.Release();
       return open("/proc/user/", open_mode, Mode, client,
                   fmd->getAttribute("sys.proc").c_str());
     }
@@ -1319,7 +1327,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
         {
           // -------------------------------------------------------------------
           std::shared_ptr<eos::IFileMD> ref_fmd;
-          eos::common::RWMutexWriteLock ns_wr_lock(gOFS->eosViewRWMutex);
+          
 
           try {
             // we create files with the uid/gid of the parent directory
@@ -1329,6 +1337,10 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
 
               try {
                 ref_fmd = gOFS->eosView->getFile(path);
+		auto fileLock = gOFS->eosView->getFileWriteLocked(path);
+		if(fileLock) {
+		  ref_fmd = fileLock->getUnderlyingPtr();
+		}
               } catch (eos::MDException& e) {
                 // empty
               }
@@ -1338,7 +1350,10 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
             if (open_flags & O_EXCL) {
               if (isAtomicUpload) {
                 try {
-                  fmd = gOFS->eosView->getFile(creation_path);
+		  auto fileLock = gOFS->eosView->getFileReadLocked(creation_path);
+		  if(fileLock) {
+		    fmd = fileLock->getUnderlyingPtr();
+		  }
                 } catch (eos::MDException& e1) {
                   // empty
                 }
@@ -1349,6 +1364,12 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
                 return Emsg(epname, error, EEXIST, "create file - (O_EXCL)", path);
               }
             }
+	    
+	    // exclusively write lock the parent
+	    auto dirLock = std::make_unique<eos::IContainerMD::IContainerMDWriteLocker>(dmd);
+	    if (dirLock) {
+	      dmd = dirLock->getUnderlyingPtr();
+	    }
 
             {
               // a faster replacement for createFile view view
@@ -1424,19 +1445,12 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
             cid = fmd->getContainerId();
             auto cmd = dmd; // we have this already
             cmd->setMTimeNow();
-            eos::ContainerIdentifier cmd_id = cmd->getIdentifier();
-            eos::ContainerIdentifier cmd_pid = cmd->getParentIdentifier();
-            gOFS->mReplicationTracker->Create(fmd);
-            ns_wr_lock.Release();
-            cmd->notifyMTimeChange(gOFS->eosDirectoryService);
-            gOFS->eosView->updateContainerStore(cmd.get());
-            gOFS->eosView->updateFileStore(fmd.get());
+	    gOFS->mReplicationTracker->Create(fmd);
 
             if (ref_fmd) {
-              gOFS->eosView->updateFileStore(ref_fmd.get());
+	      gOFS->eosView->updateFileStore(ref_fmd.get());
             }
 
-            gOFS->FuseXCastRefresh(cmd_id, cmd_pid);
           } catch (eos::MDException& e) {
             fmd.reset();
             errno = e.getErrno();
@@ -1810,10 +1824,14 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
       }
 
       try {
-        eos::common::RWMutexWriteLock ns_wr_lock(gOFS->eosViewRWMutex);
+	
         eos::FileIdentifier fmd_id = fmd->getIdentifier();
-        std::shared_ptr<eos::IContainerMD> cmd =
-          gOFS->eosDirectoryService->getContainerMD(cid);
+	std::shared_ptr<eos::IContainerMD> cmd;
+	auto dirLock = gOFS->eosDirectoryService->getContainerMDWriteLocked(cid);
+	if(dirLock) {
+	  cmd = dirLock->getUnderlyingPtr();
+	}
+
         eos::ContainerIdentifier cmd_id = cmd->getIdentifier();
         eos::ContainerIdentifier pcmd_id = cmd->getParentIdentifier();
         cmd->setMTimeNow();
@@ -1826,11 +1844,10 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
           }
         }
 
-        ns_wr_lock.Release();
         COMMONTIMING("filemd::update", &tm);
-        gOFS->eosView->updateFileStore(fmd.get());
-        cmd->notifyMTimeChange(gOFS->eosDirectoryService);
-        gOFS->eosView->updateContainerStore(cmd.get());
+	gOFS->eosView->updateFileStore(fmd.get());
+	cmd->notifyMTimeChange(gOFS->eosDirectoryService);
+	gOFS->eosView->updateContainerStore(cmd.get());
         gOFS->FuseXCastRefresh(fmd_id, cmd_id);
         gOFS->FuseXCastRefresh(cmd_id, pcmd_id);
         COMMONTIMING("fusex::bc", &tm);
