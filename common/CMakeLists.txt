@@ -151,7 +151,6 @@ set_target_properties(EosCommon-Objects PROPERTIES
   POSITION_INDEPENDENT_CODE TRUE)
 
 target_link_libraries(EosCommon-Objects PUBLIC
-  fmt
   EosFstProto-Objects
   EosCliProto-Objects
   CURL::libcurl
@@ -165,6 +164,7 @@ target_link_libraries(EosCommon-Objects PUBLIC
   LIBBFD::IBERTY
   GOOGLE::SPARSEHASH
   ABSL::ABSL
+  fmt::fmt-header-only
   ${CMAKE_THREAD_LIBS_INIT})
 
 set_target_properties(EosCommon-Objects PROPERTIES

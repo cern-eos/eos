@@ -110,7 +110,8 @@ target_link_libraries(eosxd-objects PUBLIC
   XROOTD::PRIVATE
   XROOTD::UTILS
   GOOGLE::SPARSEHASH
-  ZMQ::ZMQ)
+  ZMQ::ZMQ
+  fmt::fmt-header-only)
 
 if (FUSE3_FOUND)
 #-------------------------------------------------------------------------------

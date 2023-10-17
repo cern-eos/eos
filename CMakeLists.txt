@@ -124,16 +124,6 @@ if (BUILD_MANPAGES AND HELP2MAN_FOUND)
 endif()
 
 #-------------------------------------------------------------------------------
-# Build the libfmt for fast conversions
-#-------------------------------------------------------------------------------
-if (NOT TARGET fmt)
-  include_directories(common/fmt/include)
-  add_subdirectory(common/fmt)
-  set_target_properties(fmt PROPERTIES POSITION_INDEPENDENT_CODE TRUE)
-  target_compile_options(fmt PUBLIC -Wno-sign-compare)
-endif ()
-
-#-------------------------------------------------------------------------------
 # Build qclient static library
 #-------------------------------------------------------------------------------
 include_directories(SYSTEM ${CMAKE_SOURCE_DIR})
