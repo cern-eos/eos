@@ -351,7 +351,8 @@ public:
               XrdSfsFileExistence& exists_flag,
               XrdOucErrInfo& out_error,
               const XrdSecEntity* client = 0,
-              const char* opaque = 0);
+              const char* opaque = 0,
+	      bool files_first = false);
 
   // ---------------------------------------------------------------------------
   //! check if file exists by vid
@@ -361,7 +362,7 @@ public:
           XrdSfsFileExistence& exists_flag,
           XrdOucErrInfo& out_error,
           eos::common::VirtualIdentity& vid,
-          const char* opaque = 0, bool take_lock = true);
+          const char* opaque = 0, bool take_lock = true, bool files_first = false);
 
   /*----------------------------------------------------------------------------*/
   /*
@@ -390,7 +391,8 @@ public:
           eos::common::VirtualIdentity& vid,
           std::shared_ptr<eos::IContainerMD>& container_md_ptr,
           std::shared_ptr<eos::IFileMD>& file_md_ptr,
-          const char* opaque = 0);
+          const char* opaque = 0,
+	  bool files_first = false);
 
   // ---------------------------------------------------------------------------
   // EOS plugin call fan-out function
