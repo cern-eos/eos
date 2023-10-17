@@ -1612,7 +1612,6 @@ ProcCommand::File()
             retc = EINVAL;
           } else {
             {
-              eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
               errno = retc = Quota::FilePlacement(&plctargs);
             }
 
@@ -1636,7 +1635,6 @@ ProcCommand::File()
                 // We got a new replication vector
                 for (unsigned int i = 0; i < selectedfs.size(); ++i) {
                   {
-                    eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
                     errno = Scheduler::FileAccess(&acsargs);
                   }
 
@@ -1681,8 +1679,6 @@ ProcCommand::File()
             eos_debug("msg=\"drop %d replicas\" space=%s group=%d fxid=%08llx",
                       n2delete, creationspace.c_str(), icreationsubgroup, fid);
             {
-              eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
-
               for (auto loc_it = loc_vect.begin();
                    loc_it != loc_vect.end(); ++loc_it) {
                 if (!(*loc_it)) {
