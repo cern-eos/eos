@@ -184,6 +184,9 @@ TEST(RWMutex, LockOrder)
     ASSERT_NO_THROW(mutex2.UnLockRead());
     ASSERT_NO_THROW(mutex1.UnLockRead());
   };
+  /*
+  // @note SharedMutex implemetation using absl::Mutex uses simple ReadLock
+  // for the TimedRdLock implementation so this check does not apply
   auto failed_timed_no_order_violation = [&]() {
     capture_out cap_err(stderr);
     std::thread t([&]() {
@@ -200,10 +203,10 @@ TEST(RWMutex, LockOrder)
     ASSERT_TRUE(output.find("Order Checking Error") == std::string::npos);
     mutex1.UnLockRead();
   };
+
+  failed_timed_no_order_violation();
+  */
   correct_lock_order();
-  // @note SharedMutex implemetation using absl::Mutex uses simple ReadLock
-  // for the TimedRdLock implementation so this check does not apply
-  //failed_timed_no_order_violation();
   lock_order_violation();
 }
 #endif
