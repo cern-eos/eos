@@ -201,7 +201,9 @@ TEST(RWMutex, LockOrder)
     mutex1.UnLockRead();
   };
   correct_lock_order();
-  failed_timed_no_order_violation();
+  // @note SharedMutex implemetation using absl::Mutex uses simple ReadLock
+  // for the TimedRdLock implementation so this check does not apply
+  //failed_timed_no_order_violation();
   lock_order_violation();
 }
 #endif
