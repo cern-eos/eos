@@ -140,11 +140,11 @@ clone_docker:
     CMAKE_BIN: cmake
   script:
     - git submodule sync --recursive && git submodule update --init -f --recursive
-    - mkdir build; cd build; ${CMAKE_BIN} .. -DPACKAGEONLY=1 -Wno-dev; make srpm; cd ..;
+    - mkdir build; cd build; ${CMAKE_BIN} .. -DPACKAGEONLY=1 -DEOS_GRPC_GW=1 -Wno-dev; make srpm; cd ..;
     - echo -e "[eos-depend]\nname=EOS dependencies\nbaseurl=http://storage-ci.web.cern.ch/storage-ci/eos/${CODENAME}-depend/el-$(rpm --eval '%{rhel}')/x86_64/\ngpgcheck=0\nenabled=1\npriority=2\n" >> /etc/yum.repos.d/eos-depend.repo
     - |
       if [[ ${PKG_MGR} == "yum" ]]; then
-        ${PKG_MGR}-builddep --nogpgcheck --allowerasing -y --setopt="cern*.exclude=xrootd*" build/SRPMS/*;
+        ${PKG_MGR}-builddep --nogpgcheck -y --setopt="cern*.exclude=xrootd*" build/SRPMS/*;
       else
         ${PKG_MGR} builddep --nogpgcheck --allowerasing -y --setopt="cern*.exclude=xrootd*" build/SRPMS/*;
       fi
