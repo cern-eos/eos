@@ -1378,7 +1378,7 @@ Server::OpGetLs(const std::string& id,
       gOFS->zMQ->mTask->reply(id, rspstream);
     } else {
       *response += Header(rspstream);
-      *response += rspstream;
+      response->append(rspstream.c_str(), rspstream.size());
     }
 
     EXEC_TIMING_END("Eosxd::ext::GET");
