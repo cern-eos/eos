@@ -281,8 +281,8 @@ rh-9:
   dependencies: []
   allow_failure: true
 
-
-build_ubuntu_jammy:
+# @note(esindril) disable ubuntu builds
+.build_ubuntu_jammy:
   extends: .build-ubuntu-template
   image: ubuntu:jammy
   variables:
@@ -292,7 +292,7 @@ build_ubuntu_jammy:
     - tags
 
 
-build_ubuntu_focal:
+.build_ubuntu_focal:
   extends: .build-ubuntu-template
   image: ubuntu:focal
   variables:
@@ -552,8 +552,8 @@ cc7_docker_image:
     - job: clone_docker
     - job: build_cc7
 
-
-ubuntu_focal_docker_image:
+# @note(esindril) disable ubuntu builds
+.ubuntu_focal_docker_image:
   extends: .build_dockerimage-template
   variables:
     DOCKERFILE: eos-docker/Dockerfile_ubuntu_focal
@@ -567,7 +567,7 @@ ubuntu_focal_docker_image:
   allow_failure: true
 
 
-ubuntu_jammy_docker_image:
+.ubuntu_jammy_docker_image:
   extends: .build_dockerimage-template
   variables:
     DOCKERFILE: eos-docker/Dockerfile_ubuntu_jammy
@@ -1001,7 +1001,7 @@ rpm_no_sse_tag_artifacts:
 
 
 # @todo rework on the entanglement between the sign, the publish and the removal of the old artifacts
-debian_focal_artifacts:
+.debian_focal_artifacts:
   stage: publish
   image: ubuntu:focal
   script:
@@ -1024,7 +1024,7 @@ debian_focal_artifacts:
   allow_failure: true
 
 
-debian_jammy_artifacts:
+.debian_jammy_artifacts:
   stage: publish
   image: ubuntu:jammy
   script:
@@ -1047,7 +1047,7 @@ debian_jammy_artifacts:
   allow_failure: true
 
 
-debian_artifacts_volume:
+.debian_artifacts_volume:
   stage: publish
   image: ubuntu:focal
   script:
