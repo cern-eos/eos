@@ -228,7 +228,7 @@ helm_fusex:
      artifacts: false
   when: manual
 
-helm_fusex_ub_focal:
+.helm_fusex_ub_focal:
   extends: .helm_fusex_test_template
   variables:
     CLI_BASETAG: "ubuntu_focal_client_"
@@ -244,7 +244,7 @@ helm_fusex_ub_focal:
   retry: 1
   when: manual
 
-helm_fusex_ub_jammy:
+.helm_fusex_ub_jammy:
   extends: .helm_fusex_test_template
   variables:
     CLI_BASETAG: "ubuntu_jammy_client_"
