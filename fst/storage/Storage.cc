@@ -31,6 +31,7 @@
 #include "common/Fmd.hh"
 #include "common/FileId.hh"
 #include "common/FileSystem.hh"
+#include "common/Constants.hh"
 #include "common/Path.hh"
 #include "common/StringConversion.hh"
 #include "common/LinuxStat.hh"
@@ -450,7 +451,7 @@ Storage::Boot(FileSystem* fs)
     }
   }
 
-  // Make sure the Fmd info was move to xattrs
+  // Make sure the Fmd info was moved to xattrs
   if (!CheckFsXattrConverted(fs->GetPath())) {
     eos_static_crit("msg=\"files don't have Fmd info in xattr\" "
                     "fs_path=\"%s\"", fs->GetPath().c_str());
@@ -539,34 +540,6 @@ Storage::Boot(FileSystem* fs)
     return;
   }
 
-  // Create FS transaction directory
-  std::string transactionDirectory = fs->GetPath();
-
-  if (fs->GetPath()[0] != '/') {
-    transactionDirectory = mMetaDir.c_str();
-    transactionDirectory += "/.eostransaction";
-    transactionDirectory += "-";
-    transactionDirectory += (int) fs->GetLocalId();
-  } else {
-    transactionDirectory += "/.eostransaction";
-  }
-
-  if (mkdir(transactionDirectory.c_str(),
-            S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH)) {
-    if (errno != EEXIST) {
-      fs->SetStatus(eos::common::BootStatus::kBootFailure);
-      fs->SetError(errno ? errno : EIO, "cannot create transaction directory");
-      return;
-    }
-  }
-
-  if (chown(transactionDirectory.c_str(), 2, 2)) {
-    fs->SetStatus(eos::common::BootStatus::kBootFailure);
-    fs->SetError(errno ? errno : EIO,
-                 "cannot change ownership of transaction directory");
-    return;
-  }
-
   fs->SetLongLong("stat.bootdonetime", (unsigned long long) time(NULL));
   fs->IoPing();
   fs->SetStatus(eos::common::BootStatus::kBooted);
@@ -589,9 +562,9 @@ Storage::Boot(FileSystem* fs)
     deletions_dir += "/.eosdeletions";
   }
 
-  for (const auto& dir : {
-  orphans_dir, deletions_dir
-}) {
+  const std::list<std::string> lst_dirs = {orphans_dir, deletions_dir};
+
+  for (const auto& dir : lst_dirs) {
     if (mkdir(dir.c_str(),
               S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH)) {
       if (errno != EEXIST) {
@@ -609,6 +582,28 @@ Storage::Boot(FileSystem* fs)
       return;
     }
   }
+
+  // Apply scanner configuration after booting is done
+  const std::list<std::string> scan_keys {
+    eos::common::SCAN_IO_RATE_NAME, eos::common::SCAN_ENTRY_INTERVAL_NAME,
+    eos::common::SCAN_DISK_INTERVAL_NAME, eos::common::SCAN_NS_INTERVAL_NAME,
+    eos::common::SCAN_NS_RATE_NAME};
+
+  for (const auto& key : scan_keys) {
+    const std::string sval = fs->GetString(key.c_str());
+
+    try {
+      long long val = std::stoll(sval);
+
+      if (val >= 0) {
+        fs->ConfigScanner(&mFstLoad, key.c_str(), val);
+      }
+    } catch (...) {
+      eos_static_err("msg=\"failed to convert value\" key=\"%s\" val=\"%s\"",
+                     key.c_str(), sval.c_str());
+    }
+  }
+
   eos_info("msg=\"finished boot procedure\" fsid=%lu", (unsigned long) fsid);
   return;
 }

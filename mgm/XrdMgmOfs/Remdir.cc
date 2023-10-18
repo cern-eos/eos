@@ -103,14 +103,14 @@ XrdMgmOfs::_remdir(const char* path,
 
   eos::common::RWMutexWriteLock viewLock(gOFS->eosViewRWMutex);
   std::string aclpath;
-
-  uid_t container_owner_uid=0;
+  uid_t container_owner_uid = 0;
   bool container_vtx = false;
+
   try {
     dh = gOFS->eosView->getContainer(path);
     eos::common::Path pPath(gOFS->eosView->getUri(dh.get()).c_str());
     dhpar = gOFS->eosView->getContainer(pPath.GetParentPath());
-    container_owner_uid=dh->getCUid();
+    container_owner_uid = dh->getCUid();
     container_vtx = dhpar->getMode() & S_ISVTX;
     aclpath = pPath.GetParentPath();
   } catch (eos::MDException& e) {
@@ -121,32 +121,32 @@ XrdMgmOfs::_remdir(const char* path,
               e.getErrno(), e.getMessage().str().c_str());
   }
 
-  eos_info("path='%s' scope='%s' aclpath='%s'\n", path, vid.scope.c_str(),
+  eos_info("path=\"%s\" scope=\"%s\" aclpath=\"%s\"", path, vid.scope.c_str(),
            aclpath.c_str());
-  
+
   // check existence
   if (!dh) {
     errno = ENOENT;
     return Emsg(epname, error, errno, "rmdir", path);
   }
-  
+
   // ACL and permission check
   Acl acl(aclpath.c_str(), error, vid, attrmap, false);
-  
+
   if (vid.uid && !acl.IsMutable()) {
     errno = EPERM;
     return Emsg(epname, error, EPERM, "rmdir - immutable", path);
   }
-  
+
   if (!gOFS->allow_public_access(aclpath.c_str(), vid)) {
     errno = EACCES;
     return Emsg(epname, error, EACCES, "access - public access level restriction",
                 aclpath.c_str());
   }
-  
+
   if (ininfo) {
     XrdOucEnv env_info(ininfo);
-    
+
     if (env_info.Get("mgm.option")) {
       XrdOucString option = env_info.Get("mgm.option");
 
@@ -171,20 +171,19 @@ XrdMgmOfs::_remdir(const char* path,
 
   bool stdpermcheck = false;
   bool aclok = false;
-  
+
   if (acl.HasAcl() && !container_vtx) {
     // acls only if this is not a VTX directory
     if ((dh->getCUid() != vid.uid) &&
         (vid.uid) && // not the root user
         (vid.uid != 3) && // not the admin user
         (vid.gid != 4) && // not the admin group
-        (acl.CanNotDelete()))  // acl does not allow deletion
-      {
-	// deletion is explicitly forbidden
-	errno = EPERM;
-	return Emsg(epname, error, EPERM, "rmdir by ACL", path);
-      }
-    
+        (acl.CanNotDelete())) { // acl does not allow deletion
+      // deletion is explicitly forbidden
+      errno = EPERM;
+      return Emsg(epname, error, EPERM, "rmdir by ACL", path);
+    }
+
     if ((!acl.CanWrite())) {
       // we have to check the standard permissions
       stdpermcheck = true;
@@ -197,14 +196,14 @@ XrdMgmOfs::_remdir(const char* path,
 
   // Check permissions
   bool permok = stdpermcheck ? (dhpar ? (dhpar->access(vid.uid, vid.gid,
-						       X_OK | W_OK)) : false) : aclok;
-  
+                                         X_OK | W_OK)) : false) : aclok;
+
   if (container_vtx) {
     if (vid.uid) {
       if (container_owner_uid != vid.uid) {
-	// only the owner can delete
-	errno = EPERM;
-	return Emsg(epname, error, errno, "rmdir", path);
+        // only the owner can delete
+        errno = EPERM;
+        return Emsg(epname, error, errno, "rmdir", path);
       }
     }
   } else {
@@ -214,29 +213,29 @@ XrdMgmOfs::_remdir(const char* path,
       return Emsg(epname, error, errno, "rmdir", path);
     }
   }
-  
+
   if ((dh->getFlags() && eos::QUOTA_NODE_FLAG) && (vid.uid)) {
     errno = EADDRINUSE;
     eos_err("%s is a quota node - deletion canceled", path);
     return Emsg(epname, error, errno, "rmdir - this is a quota node", path);
   }
-  
+
   if (!simulate) {
     try {
       eos::ContainerIdentifier dhpar_id;
       eos::ContainerIdentifier dhpar_pid;
       std::string dh_name;
-      
+
       // update the in-memory modification time of the parent directory
       if (dhpar) {
         dhpar->setMTimeNow();
         dhpar->notifyMTimeChange(gOFS->eosDirectoryService);
         eosView->updateContainerStore(dhpar.get());
         dhpar_id = dhpar->getIdentifier();
-	dhpar_pid = dhpar->getParentIdentifier();
+        dhpar_pid = dhpar->getParentIdentifier();
         dh_name = dh->getName();
       }
-      
+
       eosView->removeContainer(path);
       viewLock.Release();
 

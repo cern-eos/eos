@@ -198,13 +198,18 @@ FileSystem::ConfigScanner(Load* fst_load, const std::string& key,
   }
 
   // If not running then create scanner thread with default parameters
-  if (mScanDir == nullptr) {
-    mScanDir.reset(new ScanDir(GetPath().c_str(), mLocalId, fst_load, true));
-    eos_info("msg=\"started ScanDir thread with default parameters\" fsid=%d",
-             mLocalId);
-  }
+  if (mLocalId && !mLocalUuid.empty()) {
+    if (mScanDir == nullptr) {
+      mScanDir.reset(new ScanDir(GetPath().c_str(), mLocalId, fst_load, true));
+      eos_info("msg=\"started ScanDir thread with default parameters\" fsid=%d",
+               mLocalId);
+    }
 
-  mScanDir->SetConfig(key, value);
+    mScanDir->SetConfig(key, value);
+  } else {
+    eos_static_notice("msg=\"skip scanner config for partial file system\" "
+                      "queue=\"%s\"", GetQueuePath().c_str());
+  }
 }
 
 
