@@ -570,6 +570,11 @@ void GeoTreeEngine::printInfo(std::string& info, bool dispTree, bool dispSnaps,
                               schedgroup, const std::string& optype,
                               bool useColors, bool monitoring)
 {
+  eos::common::RWMutexWriteLock arlock;
+  if (dispState) {
+    arlock.Grab(pAddRmFsMutex);
+  }
+	
   RWMutexReadLock lock(pTreeMapMutex);
   stringstream ostr;
   map<string, string> orderByGroupName;
@@ -631,7 +636,6 @@ void GeoTreeEngine::printInfo(std::string& info, bool dispTree, bool dispSnaps,
 
     {
       // to be sure that no fs in inserted removed in the meantime
-      eos::common::RWMutexWriteLock lock(pAddRmFsMutex);
       struct timeval curtime;
       gettimeofday(&curtime, 0);
       size_t ts = curtime.tv_sec * 1000 + curtime.tv_usec / 1000;
