@@ -96,6 +96,15 @@ FileSystem::ProcessUpdateCb(qclient::SharedHashUpdate&& upd)
   if (sFsUpdateKeys.find(upd.key) != sFsUpdateKeys.end()) {
     eos_static_info("msg=\"process update callback\" key=%s value=%s",
                     upd.key.c_str(), upd.value.c_str());
+
+    if (upd.key == "id") {
+      try {
+        mLocalId = std::stoul(upd.value);
+      } catch (...) {}
+    } else if (upd.key == "uuid") {
+      mLocalUuid = upd.value;
+    }
+
     // @note handle here the updates but make sure not to access or set any
     // shared hash values as this will trigger a deadlock. We are now called
     // from the shared hash itself that digest the updates and also pushes them
