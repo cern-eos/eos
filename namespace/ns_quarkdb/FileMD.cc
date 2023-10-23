@@ -204,20 +204,22 @@ QuarkFileMD::unlinkLocation(location_t location)
 void
 QuarkFileMD::unlinkAllLocations()
 {
-  bool stop = false;
-  while (!stop) {
-    location_t location;
-    stop = this->runWriteOp([this, &location]() {
+  while (true) {
+    std::optional<location_t> location;
+    this->runWriteOp([this, &location]() {
       auto it = mFile.locations().cbegin();
 
       if (it == mFile.locations().cend()) {
-        return true;
+        return;
       }
 
       location = *it;
-      return false;
     });
-    unlinkLocation(location);
+    if(location) {
+      unlinkLocation(*location);
+    } else {
+      return;
+    }
   }
 }
 
