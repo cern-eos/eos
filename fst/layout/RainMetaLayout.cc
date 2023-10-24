@@ -195,9 +195,9 @@ RainMetaLayout::Open(XrdSfsFileOpenMode flags, mode_t mode, const char* opaque)
             ((mForceRecovery && mIsEntryServer) ? 1 : 0));
   // Add opaque information to enable readahead
   std::string enhanced_opaque = opaque;
-  //enhanced_opaque += "&fst.readahead=true";
-  //enhanced_opaque += "&fst.blocksize=";
-  //enhanced_opaque += std::to_string(mStripeWidth);
+  enhanced_opaque += "&fst.readahead=true";
+  enhanced_opaque += "&fst.blocksize=";
+  enhanced_opaque += std::to_string(mStripeWidth);
   // Local stripe is always on the first position
   std::string local_url = SSTR(mLocalPath << "?" << enhanced_opaque).c_str();
   std::vector<std::string> stripe_urls;
@@ -257,9 +257,9 @@ RainMetaLayout::Open(XrdSfsFileOpenMode flags, mode_t mode, const char* opaque)
           }
 
           enhanced_opaque = new_opaque.c_str();
-          //enhanced_opaque += "&fst.readahead=true";
-          //enhanced_opaque += "&fst.blocksize=";
-          //enhanced_opaque += std::to_string(mStripeWidth);
+          enhanced_opaque += "&fst.readahead=true";
+          enhanced_opaque += "&fst.blocksize=";
+          enhanced_opaque += std::to_string(mStripeWidth);
           stripe_url += enhanced_opaque;
           stripe_urls.push_back(stripe_url);
         }
