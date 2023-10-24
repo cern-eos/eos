@@ -93,6 +93,152 @@ const char* k_nlink = "sys.eos.nlink";
 const char* k_fifo = "sys.eos.fifo";
 EosFuse* EosFuse::sEosFuse = 0;
 
+/**
+ * ConcurrentMountDetect is a utility class, used to avoid multiple concurrent
+ * mounts or mount attempts from interfering from one another. Mount attempts
+ * might be triggered by autofs automountd.
+ *
+ * Uses exclusive flock advisory locks on two dedicated lock files termed A & B.
+ *
+ * A+B are locked during mount preparation.
+ * B   only is locked while the filesystem is mounted.
+ * A   only is locked while the filesystem is being unmounted.
+ *
+ */
+class ConcurrentMountDetect {
+public:
+  /**
+   * Constructor, opens lock files.
+   */
+  ConcurrentMountDetect(const std::string &locknameprefix) {
+    if (locknameprefix.empty()) return;
+
+    const std::string fnA = locknameprefix + ".A.lock";
+    const std::string fnB = locknameprefix + ".B.lock";
+    lockAfd_ = open(fnA.c_str(), O_RDWR|O_CREAT, 0600);
+
+    if (lockAfd_ >= 0) {
+      lockBfd_ = open(fnB.c_str(), O_RDWR|O_CREAT, 0600);
+    }
+    if (lockAfd_<0 || lockBfd_<0) {
+      fprintf(stderr, "# could not open lockfile %s errno=%d\n",
+              (lockAfd_<0) ? fnA.c_str() : fnB.c_str(), errno);
+      if (lockAfd_ >= 0) close(lockAfd_);
+      lockAfd_ = -1;
+    }
+  }
+
+  /**
+   * Destrcutor, closes lock file descriptors.
+   */
+ ~ConcurrentMountDetect() {
+    Unlock();
+    if (lockBfd_ >= 0) {
+      close(lockBfd_);
+    }
+    if (lockAfd_ >= 0) {
+      close(lockAfd_);
+    }
+  }
+
+  /**
+   * Lock in preparation of mounting:
+   * Returns -1 on error
+   *          0 for successful lock (A + B locked)
+   *          1 locks consistent with existing ongoing mount (B locked)
+   *
+   * If the lock is held by an existing mount some retries up to 5
+   * seconds are made to avoid race on unmount.
+   */
+  int Lock() {
+    int retry = 2;
+    do {
+      const int rc = llock();
+      if (rc<=0) return rc;
+      if (retry) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(2500));
+      }
+    } while(retry--);
+    return 1;
+  }
+
+  /**
+   * Called after mounting and before entering the fuse session loop.
+   */
+  void MountDone() {
+    if (lockAfd_<0) return;
+    if (lockA_) {
+      if (flock(lockAfd_, LOCK_UN) == 0) {
+        lockA_ = false;
+      }
+    }
+  }
+
+  /**
+   * Called after leaving the fuse session loop but before unmounting.
+   */
+  void Unmounting() {
+    if (lockAfd_<0 || lockBfd_<0) return;
+    if (lockA_ || !lockB_) return;
+    int ret;
+    do {
+      ret = flock(lockAfd_, LOCK_EX);
+    } while(ret<0 && errno==EINTR);
+    if (ret<0) return;
+    lockA_ = true;
+    if (flock(lockBfd_, LOCK_UN) == 0) {
+      lockB_ = false;
+    }
+  }
+
+  /**
+   * May be called once mount & unmount activity is done. (However the
+   * destructor may be called without calling this method).
+   */
+  void Unlock() {
+    if (lockBfd_ >= 0) {
+      if (lockB_) {
+        if (flock(lockBfd_, LOCK_UN) == 0)
+          lockB_ = false;
+      }
+    }
+    if (lockAfd_ >= 0) {
+      if (lockA_) {
+        if (flock(lockAfd_, LOCK_UN) == 0)
+          lockA_ = false;
+      }
+    }
+  }
+
+private:
+  int llock() {
+    if (lockAfd_<0 || lockBfd_<0) return -1;
+    if (lockA_ || lockB_) return -1;
+    int ret;
+    do {
+      ret = flock(lockAfd_, LOCK_EX);
+    } while(ret<0 && errno == EINTR);
+    if (ret<0) return -1;
+    lockA_ = true;
+    if (flock(lockBfd_, LOCK_EX|LOCK_NB)<0) {
+      const int err = errno;
+      if (flock(lockAfd_, LOCK_UN) == 0) {
+        lockA_ = false;
+        if (err == EWOULDBLOCK) {
+          return 1;
+        }
+      }
+      return -1;
+    }
+    return 0;
+  }
+
+  int  lockAfd_{-1};
+  int  lockBfd_{-1};
+  bool lockA_  {false};
+  bool lockB_  {false};
+};
+
 /* -------------------------------------------------------------------------- */
 EosFuse::EosFuse()
 {
@@ -1339,6 +1485,45 @@ EosFuse::run(int argc, char* argv[], void* userdata)
       cconfig.journal += config.name.length() ? config.name : "default";
     }
 
+    std::string lockpfx;
+    if (geteuid()) {
+      char ldir[1024];
+      snprintf(ldir, sizeof(ldir), "/var/tmp/eos-%d/", geteuid());
+      lockpfx = ldir;
+    } else {
+      lockpfx = "/var/run/eos/";
+    }
+    if (mountpoint[0] != '/') {
+      fprintf(stderr, "# not using concurrent mount detection, mountpoint is "
+                      "relative\n");
+      lockpfx.clear();
+    } else {
+      std::string mk_lockdir = "mkdir -m 0755 -p " + lockpfx;
+      system(mk_lockdir.c_str());
+      lockpfx += "fusex/";
+      mk_lockdir = "mkdir -m 0755 -p " + lockpfx;
+      system(mk_lockdir.c_str());
+
+      XrdOucString id = mountpoint.c_str();
+      while (id.replace("//", "/"));
+      if (id.length()>1 && id.endswith("/")) id.erase(id.length()-1);
+      id.replace("-","--");
+      id.replace("/","-");
+      lockpfx += std::string("mount.") + id.c_str();
+    }
+    ConcurrentMountDetect cmdet(lockpfx);
+    if (const int rc = cmdet.Lock(); rc > 0) {
+      // concurrent mount detected
+      fprintf(stderr, "# detected concurrent mount, "
+                      "ending mount process\n");
+      exit(0);
+    } else if (rc < 0) {
+      fprintf(stderr, "# concurrent mount detection not available\n");
+    } else {
+      fprintf(stderr, "# concurrent mount detect enabled, lock prefix %s\n",
+              lockpfx.c_str());
+    }
+
     config.auth.credentialStore += config.name.length() ? config.name : "default";
     // apply some defaults for all existing options
     // by default create all the specified cache paths
@@ -1574,6 +1759,9 @@ EosFuse::run(int argc, char* argv[], void* userdata)
     }
 
 #endif
+
+    // notify the locking object that fuse is aware of the mount
+    cmdet.MountDone();
 
     if (fuse_daemonize(config.options.foreground) != -1) {
 #ifndef __APPLE__
@@ -1948,6 +2136,8 @@ EosFuse::run(int argc, char* argv[], void* userdata)
       }
 
 #endif
+      // notify the locking object that the fuse session loop has finished
+      cmdet.Unmounting();
 
       if (config.options.flush_wait_umount) {
         datas.terminate(config.options.flush_wait_umount);
@@ -2000,6 +2190,9 @@ EosFuse::run(int argc, char* argv[], void* userdata)
 #else
       fuse_unmount(local_mount_dir, fusechan);
 #endif
+      // notify the locking object that the fuse mount has finished
+      cmdet.Unlock();
+
       mKV.reset();
 
       if (config.mdcachedir_unlink.length()) {
