@@ -565,10 +565,15 @@ FsckEntry::RepairRainInconsistencies()
     }
   }
 
-  bool drop_src_fsid = false;
+  if (mMgmFmd.locations().empty()) {
+    eos_err("msg=\"failed repair, no location available\" fxid=%08llx", mFid);
+    return false;
+  }
+
   // Trigger a fsck repair job to make sure all the remaining stripes are
   // recovered and new ones are created if need be. By default pick the
   // first stripe as "source" unless we have a better candidate
+  bool drop_src_fsid = false;
   eos::common::FileSystem::fsid_t src_fsid = mMgmFmd.locations(0);
 
   if (mReportedErr == FsckErr::MissRepl) {
