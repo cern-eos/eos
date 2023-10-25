@@ -1251,9 +1251,22 @@ NewfindCmd::ProcessRequest() noexcept
     }
   } else {
     // read from the QDB backend
-    findResultProvider.reset(new FindResultProvider(qcl.get(),
-                             findRequest.path(), depthlimit,
-                             onlydirs, mVid));
+    try {
+      findResultProvider.reset(new FindResultProvider(qcl.get(),
+                               findRequest.path(), depthlimit,
+                               onlydirs, mVid));
+    } catch(eos::MDException& e) {
+      eos_static_info("caught exception errno=%d what=\"%s\" in newfind "
+                      "findRequest.path()=%s",
+                      e.getErrno(), e.what(), findRequest.path().c_str());
+      if (e.getErrno() == ENOENT) {
+        ofstderrStream << "error: no such file or directory" << std::endl;
+      } else {
+        ofstderrStream << "error: unable to start find" << std::endl;
+      }
+      reply.set_retc(e.getErrno());
+      return reply;
+    }
   }
 
   uint64_t treecount_aggregate_dircounter = 0;
@@ -1594,6 +1607,7 @@ NewfindCmd::ProcessRequest(grpc::ServerWriter<eos::console::ReplyProto>* writer)
 
   if (findRequest.cache()) {
     // read via our in-memory cache using _find
+    // TODO: check, may need to reset findResultProvider
     std::map<std::string, std::set<std::string>>* found =
           findResultProvider->getFoundMap();
 
@@ -1616,9 +1630,24 @@ NewfindCmd::ProcessRequest(grpc::ServerWriter<eos::console::ReplyProto>* writer)
     }
   } else {
     // read from the back-end
-    findResultProvider.reset(new FindResultProvider(qcl.get(),
-                             findRequest.path(), depthlimit,
-                             onlydirs, mVid));
+    try {
+      findResultProvider.reset(new FindResultProvider(qcl.get(),
+                               findRequest.path(), depthlimit,
+                               onlydirs, mVid));
+    } catch(eos::MDException& e) {
+      eos_static_info("caught exception errno=%d what=\"%s\" in newfind "
+                      "findRequest.path()=%s",
+                      e.getErrno(), e.what(), findRequest.path().c_str());
+      StreamReply.set_std_out("");
+      if (e.getErrno() == ENOENT) {
+        StreamReply.set_std_err("error: no such file or directory\n");
+      } else {
+        StreamReply.set_std_err("error: unable to start find\n");
+      }
+      StreamReply.set_retc(e.getErrno());
+      writer->Write(StreamReply);
+      return;
+    }
   }
 
   uint64_t treecount_aggregate_dircounter = 0;
