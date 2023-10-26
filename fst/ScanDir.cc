@@ -560,7 +560,7 @@ ScanDir::ScanSubtree(ThreadAssistant& assistant) noexcept
 // Check if a given stripe combination can recreate the original file
 //------------------------------------------------------------------------------
 bool
-ScanDir::isValidStripeCombination(const std::vector<std::string>& stripes,
+ScanDir::isValidStripeCombination(const std::vector<std::pair<int, std::string>>& stripes,
                                   const std::string& XS, CheckSum* xsObj,
                                   LayoutId::layoutid_t layout,
                                   const std::string& opaqueInfo)
@@ -569,10 +569,10 @@ ScanDir::isValidStripeCombination(const std::vector<std::string>& stripes,
 
   if (LayoutId::GetLayoutType(layout) == LayoutId::kRaidDP) {
     redundancyObj = new eos::fst::RaidDpLayout(
-        nullptr, layout, nullptr, nullptr, stripes.front().c_str(), 0, false);
+        nullptr, layout, nullptr, nullptr, stripes.front().second.c_str(), 0, false);
   } else {
     redundancyObj = new eos::fst::ReedSLayout(
-        nullptr, layout, nullptr, nullptr, stripes.front().c_str(), 0, false);
+        nullptr, layout, nullptr, nullptr, stripes.front().second.c_str(), 0, false);
   }
 
   if (redundancyObj->OpenPio(stripes, 0, 0, opaqueInfo.c_str())) {
@@ -625,19 +625,20 @@ ScanDir::CheckRainStripes(eos::common::FileId::fileid_t fid)
 
   eos::common::FmdHelper fmd;
   if (FmdMgmHandler::GetMgmFmd(mgr, fid, fmd)) {
-    eos_static_err("msg=\"could not get fmd from manager\"");
+    eos_static_err("msg=\"could not get fmd from manager\" fxid=%08llx", fid);
     return {};
   }
 
   LayoutId::layoutid_t const layout = fmd.mProtoFmd.lid();
   if (!LayoutId::IsRain(layout)) {
-    eos_static_err("msg=\"layout is not rain\"");
+    eos_static_err("msg=\"layout is not rain\" fixd=%08llx", fid);
     return {};
   }
 
   std::string const XS = fmd.mProtoFmd.mgmchecksum();
   if (XS.empty()) {
-    eos_static_err("msg=\"checksum received from mgm is empty\"");
+    eos_static_err("msg=\"checksum received from mgm is empty\" fxid=%08llx",
+                   fid);
     return {};
   }
 
@@ -676,30 +677,41 @@ ScanDir::CheckRainStripes(eos::common::FileId::fileid_t fid)
   eos::common::SymKey::ExtractCapability(openOpaque, capOpaque);
 
   if (!capOpaque->Get("mgm.path")) {
-    eos_static_err("msg=\"no path in mgm response\"");
+    eos_static_err("msg=\"no path in mgm cap response\" response=\"%s\"",
+                   response.c_str());
     delete capOpaque;
     delete openOpaque;
     return {};
   }
   std::string const filePath = capOpaque->Get("mgm.path");
 
-  const int nStripes = static_cast<int>(LayoutId::GetStripeNumber(layout)) + 1;
-  const int nDataStripes =
-      nStripes - static_cast<int>(LayoutId::GetRedundancyStripeNumber(layout));
+  const auto nStripes = LayoutId::GetStripeNumber(layout) + 1;
+  const auto nParityStripes = LayoutId::GetRedundancyStripeNumber(layout);
+  const auto nDataStripes = nStripes - nParityStripes;
+  const auto nLocations = fmd.GetLocations().size();
 
   std::string stripeUrl;
   FileSystem::fsid_t stripeFsId = 0;
   std::string pio;
   std::string tag;
-  std::vector<std::pair<std::string, FileSystem::fsid_t>> stripes;
-  stripes.reserve(nStripes);
 
-  for (int i = 0; i < nStripes; i++) {
+  struct stripe_s {
+    FileSystem::fsid_t fsid;
+    std::string url;
+    enum { Unknown, Valid, Invalid } state;
+    unsigned int id;
+  };
+
+  std::vector<stripe_s> stripes;
+  stripes.reserve(nLocations);
+
+  for (unsigned long i = 0; i < nLocations; i++) {
     tag = SSTR("pio." << i);
 
     // Skip files with missing replicas, they will be detected elsewhere.
     if (!openOpaque->Get(tag.c_str())) {
-      eos_static_err("msg=\"empty pio url in mgm response\"");
+      eos_static_err("msg=\"missing pio entry in mgm response\" fxid=%08llx",
+                     fid);
       delete capOpaque;
       delete openOpaque;
       return {};
@@ -708,105 +720,172 @@ ScanDir::CheckRainStripes(eos::common::FileId::fileid_t fid)
     stripeUrl = SSTR("root://" << pio << "/" << filePath);
     stripeFsId = capOpaque->GetInt(SSTR("mgm.fsid" << i).c_str());
 
-    stripes.emplace_back(stripeUrl.c_str(), stripeFsId);
+    // Start by marking all stripes invalid. Mark them unknown once we
+    // successfully read their headers.
+    stripes.push_back({stripeFsId, stripeUrl, stripe_s::Invalid, 0});
   }
   delete openOpaque;
   delete capOpaque;
 
-  std::vector<bool> combinations(nStripes, false);
-  std::fill(combinations.begin(), combinations.begin() + nDataStripes, true);
+  // Map of stripe id to replica index
+  std::map<unsigned int, std::set<unsigned long>> mapPL;
 
-  std::vector<std::string> stripeCombination(nStripes, std::string());
+  // Read each header to check if it is valid, store the stripe id and replica index in `mapPL`.
+  auto* hd = new HeaderCRC(0, 0);
+  for (unsigned long i = 0; i < stripes.size(); i++) {
+    std::unique_ptr<FileIo> file{FileIoPlugin::GetIoObject(stripes[i].url)};
 
-  std::set<int> validStripes;
-  std::set<int> unknownStripes;
-  std::set<int> invalidStripes;
+    if (file) {
+      std::string const newOpaque =
+          SSTR(opaqueInfo << "&mgm.replicaindex=" << i);
+
+      file->fileOpen(SFS_O_RDONLY, 0, newOpaque);
+      hd->ReadFromFile(file.get(), 0);
+      file->fileClose();
+      // If stripe id is greater than `nStripe`, it will be invalid
+      if (hd->IsValid() && hd->GetIdStripe() < nStripes) {
+        stripes[i].id = hd->GetIdStripe();
+        stripes[i].state = stripe_s::Unknown;
+        mapPL[hd->GetIdStripe()].insert(i);
+      }
+    }
+  }
+  delete hd;
+
+  if (mapPL.size() < nDataStripes) {
+    eos_static_err(
+        "msg=\"could not find enough valid stripes to reconstruct file\" "
+        "fxid=%08llx",
+        fid);
+    return {0};
+  }
 
   auto* xsObj =
       eos::fst::ChecksumPlugins::GetXsObj(LayoutId::GetChecksum(layout));
   if (!xsObj) {
-    eos_err("msg=\"invalid xs_type\"");
+    eos_static_err("msg=\"invalid xs_type\" fxid=%08llx", fid);
     return {};
   }
 
+  std::vector<bool> combinations(nLocations, false);
+  std::fill(combinations.begin(), combinations.begin() + nDataStripes, true);
+
+  std::vector<std::pair<int, std::string>> stripeCombination(
+      nParityStripes, std::make_pair(0, "root://__offline_"));
+  stripeCombination.reserve(nStripes);
+
   // Try to find a valid stripe combination
   do {
-    for (int i = 0; i < nStripes; i++) {
-      // Paths need to keep the same idx in `stripesPath` and `pathsCombination`
+    stripeCombination.erase(stripeCombination.begin() + nParityStripes,
+                            stripeCombination.end());
+    for (unsigned long i = 0; i < combinations.size(); i++) {
       if (combinations[i]) {
-        stripeCombination[i] = stripes[i].first;
-      } else {
-        stripeCombination[i] = "root://__offline_";
+        // Skip combinations with invalid stripes
+        if (stripes[i].state == stripe_s::Invalid) {
+          break;
+        }
+        // Skip if multiple duplicated stripes are in the same combination
+        auto hasDuplicate = [i, &combinations](unsigned long j) {
+          return i != j && combinations[j];
+        };
+        auto& stripeLocations = mapPL[stripes[i].id];
+        if (std::find_if(stripeLocations.begin(), stripeLocations.end(),
+                         hasDuplicate) != stripeLocations.end()) {
+          break;
+        }
+
+        stripeCombination.emplace_back(i, stripes[i].url);
       }
+    }
+
+    if (stripeCombination.size() != nStripes) {
+      continue;
     }
 
     if (isValidStripeCombination(stripeCombination, XS, xsObj, layout,
                                  opaqueInfo)) {
-      bool markInvalid = true;
-      for (int i = 0; i < nStripes; i++) {
+      for (unsigned long i = 0; i < combinations.size(); i++) {
         if (combinations[i]) {
-          markInvalid = false;
-          validStripes.insert(i);
-        } else {
-          // We can mark all the indexes before the first valid stripe as
-          // invalid. Any stripe combination containing them has already been
-          // checked and is not valid.
-          if (markInvalid) {
-            invalidStripes.insert(i);
-          } else {
-            unknownStripes.insert(i);
-          }
+          stripes[i].state = stripe_s::Valid;
         }
       }
       break;
     }
   } while (std::prev_permutation(combinations.begin(), combinations.end()));
 
-  if (validStripes.empty()) {
-    eos_err("msg=\"could not find enough valid stripes to reconstruct file "
-            "fxid:%08llx\"",
-            fid);
+  auto isValid = [](const stripe_s& s) { return s.state == stripe_s::Valid; };
+  if (std::count_if(stripes.begin(), stripes.end(), isValid) == 0) {
+    eos_static_err(
+        "msg=\"could not find enough valid stripes to reconstruct file "
+        "fxid:%08llx\"",
+        fid);
     delete xsObj;
     return {0};
   }
 
   // Found a valid combination, check the rest of the stripes
-  for (auto stripeId : unknownStripes) {
-    combinations.assign(nStripes, false);
+  for (unsigned long i = 0; i < stripes.size(); i++) {
+    if (stripes[i].state == stripe_s::Unknown) {
+      stripeCombination.erase(stripeCombination.begin() + nParityStripes,
+                              stripeCombination.end());
+      // Try combinations with 1 unknown stripe and `nDataStripes - 1` valid stripes.
+      // Exclude duplicates from the combination.
+      stripeCombination.emplace_back(i, stripes[i].url);
 
-    // Try combinations with 1 unknown stripe and `nDataStripes - 1` valid
-    // stripes
-    combinations[stripeId] = true;
-    auto vsid = validStripes.begin();
-    for (int i = 0; i < nDataStripes - 1; i++, vsid++) {
-      combinations[*vsid] = true;
-    }
-
-    for (int i = 0; i < nStripes; i++) {
-      // Paths need to keep the same idx in `stripes` and `stripeCombination`
-      if (combinations[i]) {
-        stripeCombination[i] = stripes[i].first;
-      } else {
-        stripeCombination[i] = "root://__offline_";
+      auto& skipStripes = mapPL[stripes[i].id];
+      for (unsigned long j = 0; j < stripes.size(); j++) {
+        if (stripes[j].state == stripe_s::Valid &&
+            skipStripes.find(j) == skipStripes.end()) {
+          stripeCombination.emplace_back(j, stripes[j].url);
+          if (stripeCombination.size() == nStripes) {
+            break;
+          }
+        }
       }
-    }
 
-    if (isValidStripeCombination(stripeCombination, XS, xsObj, layout,
-                                 opaqueInfo)) {
-      validStripes.insert(stripeId);
-    } else {
-      invalidStripes.insert(stripeId);
+      if (isValidStripeCombination(stripeCombination, XS, xsObj, layout,
+                                   opaqueInfo)) {
+        stripes[i].state = stripe_s::Valid;
+      } else {
+        stripes[i].state = stripe_s::Invalid;
+      }
     }
   }
 
   delete xsObj;
 
-  // Map stripe id to fsid
+  // Collect the fsids of all the invalid stripes
   std::set<eos::common::FileSystem::fsid_t> invalidStripesFsid;
-  for (auto stripeId : invalidStripes) {
-    eos_err("msg=\"stripe %d on fst %d is invalid. fxid: %08llx\"", stripeId,
-            stripes[stripeId].second, fid);
-    invalidStripesFsid.insert(stripes[stripeId].second);
+  for (unsigned long i = 0; i < stripes.size(); i++) {
+    if (stripes[i].state == stripe_s::Invalid) {
+      eos_static_err("msg=\"stripe %d on fst %d is invalid\" fxid=%08llx", i,
+                     stripes[i].fsid, fid);
+      invalidStripesFsid.insert(stripes[i].fsid);
+    }
+  }
+
+  // Collect the fsids of all the duplicated stripes. Keeping a valid replica with the lowest fsid
+  for (auto [_, replicas] : mapPL) {
+    if (replicas.size() > 1) {
+      // Used to get the valid replica index with the lowest fsid
+      auto fsidCmp = [&stripes](const auto& a, const auto& b) {
+        return stripes[b].state != stripe_s::Valid ||
+               (stripes[a].state == stripe_s::Valid &&
+                stripes[a].fsid < stripes[b].fsid);
+      };
+      auto min = *std::min_element(replicas.begin(), replicas.end(), fsidCmp);
+
+      if (stripes[min].state == stripe_s::Valid) {
+        for (auto i : replicas) {
+          if (i != min && stripes[i].state == stripe_s::Valid) {
+            eos_static_info(
+                "msg=\"marking excess stripe %d on fst %d as invalid\" fxid: %08llx",
+                i, stripes[i].fsid, fid);
+            invalidStripesFsid.insert(stripes[i].fsid);
+          }
+        }
+      }
+    }
   }
 
   return invalidStripesFsid;

@@ -577,7 +577,9 @@ FsckEntry::RepairRainInconsistencies()
   // recovered and new ones are created if need be. By default pick the
   // first stripe as "source" unless we have a better candidate
   bool drop_src_fsid = false;
+  bool repair_excluded = false;
   eos::common::FileSystem::fsid_t src_fsid = mMgmFmd.locations(0);
+  std::set<eos::common::FileSystem::fsid_t> bad_fsids;
 
   if (mReportedErr == FsckErr::MissRepl) {
     src_fsid = *mFsidErr.begin();
@@ -600,22 +602,53 @@ FsckEntry::RepairRainInconsistencies()
                "src_fsid=%lu", mFid, src_fsid);
       return true;
     }
-  }
-
-  std::set<eos::common::FileSystem::fsid_t> bad_fsids;
-  if (mReportedErr == FsckErr::StripeErr) {
+  } else if (mReportedErr == FsckErr::StripeErr) {
     // File has too many corrupted stripes, we can't recover.
     if (mFsidErr.find(0) != mFsidErr.end()) {
+      eos_err("msg=\"RAIN file has too many corrupted stripes, unable to "
+              "reconstruct\" fxid=%08llu",
+              mFid);
       return false;
     }
 
     bad_fsids = mFsidErr;
-    src_fsid = *mFsidErr.begin();
+
+    // If there is over replication, drop replicas until we have the right
+    // number of stripes
+    while (mMgmFmd.locations_size() >
+               LayoutId::GetStripeNumber(mMgmFmd.layout_id()) + 1 &&
+           !bad_fsids.empty()) {
+      FileSystem::fsid_t const dropFsid = *bad_fsids.begin();
+      bad_fsids.erase(dropFsid);
+
+      eos_info(
+          "msg=\"dropping over replicated stripe\" fxid=%08llx drop_fsid=%lu",
+          mFid, dropFsid);
+
+      (void)DropReplica(dropFsid);
+      mFstFileInfo.erase(dropFsid);
+      auto *mutable_loc = mMgmFmd.mutable_locations();
+
+      for (auto it = mutable_loc->begin(); it != mutable_loc->end(); ++it) {
+        if (*it == dropFsid) {
+          mutable_loc->erase(it);
+          break;
+        }
+      }
+    }
+
+    if (bad_fsids.empty()) {
+      eos_info("msg=\"stripe inconsistency repair successful\" fxid=%08llx",
+               mFid);
+      return true;
+    }
+
+    src_fsid = *bad_fsids.begin();
+    repair_excluded = true;
   }
 
   auto repair_job = mRepairFactory(mFid, src_fsid, 0, bad_fsids, bad_fsids,
-                                   drop_src_fsid, "fsck",
-                                   (mReportedErr == FsckErr::StripeErr));
+                                   drop_src_fsid, "fsck", repair_excluded);
   repair_job->DoIt();
 
   if (repair_job->GetStatus() != FsckRepairJob::Status::OK) {

@@ -163,7 +163,7 @@ public:
   //!
   //! @return true if file has expected checksum, false otherwise
   //----------------------------------------------------------------------------
-  bool isValidStripeCombination(const std::vector<std::string>& stripes,
+  bool isValidStripeCombination(const std::vector<std::pair<int, std::string>>& stripes,
                                 const std::string& XS, CheckSum* xsObj,
                                 eos::common::LayoutId::layoutid_t layout,
                                 const std::string& opaqueInfo);
