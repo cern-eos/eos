@@ -53,3 +53,35 @@ function exec_cmd_k8s() {
 function exec_cmd_local() {
   /bin/bash -l -c "EOS_MGM_URL=${EOS_MGM_URL} ${@:2}"
 }
+
+# Copy a file preserving xattrs. The containers need to have `tar` for this to work
+# Arguments: `src_container` `src_dir` `src_file` `dest_container` `dest_dir`
+function cp_file_with_xattr_cmd() {
+  if [[ "${IS_DOCKER}" == true ]]; then
+      cp_file_with_xattr_cmd_docker "$@"
+  elif [[ "${IS_LOCAL}" == true ]]; then
+      cp_file_with_xattr_cmd_local "$@"
+  else
+      cp_file_with_xattr_cmd_k8s "$@"
+  fi
+}
+
+function cp_file_with_xattr_cmd_docker() {
+  set -o xtrace
+  docker exec -i "${1}" tar cf - --xattrs -C "${2}" "${3}" | docker exec -i "${4}" tar xf - -C "${5}" --xattrs
+  set +o xtrace
+}
+
+function cp_file_with_xattr_cmd_k8s() {
+  set -o xtrace
+  kubectl exec -n "$K8S_NAMESPACE" "$(get_podname "${1}")" -- tar cf - --xattrs -C "${2}" "${3}" | kubectl exec -i -n "$K8S_NAMESPACE" "$(get_podname "${4}")" -- tar xf - -C "${5}" --xattrs
+  set +o xtrace
+}
+
+function cp_file_with_xattr_cmd_local() {
+  tar cf - --xattrs -C "${2}" "${3}" | tar xf - -C "${5}" --xattrs
+}
+
+function get_podname () {
+  kubectl get pods -n "$K8S_NAMESPACE" --no-headers -o custom-columns=":metadata.name" -l app="${1}"
+}

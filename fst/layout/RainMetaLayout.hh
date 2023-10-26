@@ -87,6 +87,20 @@ public:
   //----------------------------------------------------------------------------
   //! Open file using parallel IO
   //!
+  //! @param stripeUrls map of replicaindex to stripeUrl
+  //! @param flags flags O_RDWR/O_RDONLY/O_WRONLY
+  //! @param mode creation permissions
+  //! @param opaque opaque information
+  //!
+  //! @return 0 if successful, -1 otherwise and error code is set
+  //----------------------------------------------------------------------------
+  virtual int OpenPio(const std::vector<std::pair<int, std::string>>& stripeUrls,
+                      XrdSfsFileOpenMode flags, mode_t mode = 0,
+                      const char* opaque = "fst.pio");
+
+  //----------------------------------------------------------------------------
+  //! Open file using parallel IO
+  //!
   //! @param flags flags O_RDWR/O_RDONLY/O_WRONLY
   //! @param mode creation permissions
   //! @param opaque opaque information
