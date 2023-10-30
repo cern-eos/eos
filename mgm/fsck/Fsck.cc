@@ -459,6 +459,21 @@ Fsck::RepairErrs(ThreadAssistant& assistant) noexcept
       }
     }
 
+    // Remove orphans error from unavailable filesystems
+    for (const auto& [fid, fsids] : local_emap[eos::common::FSCK_ORPHANS_N]) {
+      for (const auto& fsid : fsids) {
+        eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
+        FileSystem* fs = FsView::gFsView.mIdView.lookupByID(fsid);
+
+        if (!fs) {
+          eos_info("msg=\"dropping orphans_n error for missing filesystem\" "
+                   "fxid=%08llx fsid=%d",
+                   fid, fsid);
+          NotifyFixedErr(fid, fsid, eos::common::FSCK_ORPHANS_N);
+        }
+      }
+    }
+
     // Force flush any collected notifications
     NotifyFixedErr(0ull, 0ul, "", true);
     gOFS->mFidTracker.Clear(TrackerType::Fsck);
