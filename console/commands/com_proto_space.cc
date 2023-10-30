@@ -524,6 +524,7 @@ void com_space_help()
       << "space config <space-name> space.wfe.interval=<sec>                    : configure the default WFE scan interval\n"
       << "space config <space-name> space.headroom=<size>                       : configure the default disk headroom if not defined on a filesystem (see fs for details)\n"
       << "space config <space-name> space.scaninterval=<sec>                    : configure the default scan interval if not defined on a filesystem (see fs for details)\n"
+      << "space config <space-name> space.scan_rain_interval=<sec>              : configure the default rain scan interval if not defined on a filesystem (see fs for details)\n"
       << "space config <space-name> space.scanrate=<MB/S>                       : configure the default scan rate if not defined on a filesystem     (see fs for details)\n"
       << "space config <space-name> space.scan_disk_interva=<sec>               : time interval after which the disk scanner will run, default 4h\n"
       << "space config <space-name> space.scan_ns_interval=<sec>                : time interval after which the namespace scanner will run, default 3 days\n"

@@ -837,6 +837,7 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config,
           (key == "token.generation") ||
           (key == eos::common::SCAN_IO_RATE_NAME) ||
           (key == eos::common::SCAN_ENTRY_INTERVAL_NAME) ||
+          (key == eos::common::SCAN_RAIN_ENTRY_INTERVAL_NAME) ||
           (key == eos::common::SCAN_DISK_INTERVAL_NAME) ||
           (key == eos::common::SCAN_NS_INTERVAL_NAME) ||
           (key == eos::common::SCAN_NS_RATE_NAME) ||
@@ -1187,6 +1188,7 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config,
         (key == "max.ropen") || (key == "max.wopen") ||
         (key == eos::common::SCAN_IO_RATE_NAME) ||
         (key == eos::common::SCAN_ENTRY_INTERVAL_NAME) ||
+        (key == eos::common::SCAN_RAIN_ENTRY_INTERVAL_NAME) ||
         (key == eos::common::SCAN_DISK_INTERVAL_NAME) ||
         (key == eos::common::SCAN_NS_INTERVAL_NAME) ||
         (key == eos::common::SCAN_NS_RATE_NAME) ||
@@ -1235,6 +1237,7 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config,
                (key == "max.ropen") || (key == "max.wopen") ||
                (key == eos::common::SCAN_IO_RATE_NAME) ||
                (key == eos::common::SCAN_ENTRY_INTERVAL_NAME) ||
+               (key == eos::common::SCAN_RAIN_ENTRY_INTERVAL_NAME) ||
                (key == eos::common::SCAN_DISK_INTERVAL_NAME) ||
                (key == eos::common::SCAN_NS_INTERVAL_NAME) ||
                (key == eos::common::SCAN_NS_RATE_NAME) ||

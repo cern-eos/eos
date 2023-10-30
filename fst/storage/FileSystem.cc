@@ -40,6 +40,7 @@ std::set<std::string> FileSystem::sFsUpdateKeys {
   "id", "uuid", "bootsenttime",
   eos::common::SCAN_IO_RATE_NAME,
   eos::common::SCAN_ENTRY_INTERVAL_NAME,
+  eos::common::SCAN_RAIN_ENTRY_INTERVAL_NAME,
   eos::common::SCAN_DISK_INTERVAL_NAME,
   eos::common::SCAN_NS_INTERVAL_NAME,
   eos::common::SCAN_NS_RATE_NAME };

@@ -40,6 +40,7 @@ class Load;
 class FileIo;
 class CheckSum;
 
+constexpr uint64_t DEFAULT_RAIN_RESCAN_INTERVAL = 4 * 7 * 24 * 3600;
 constexpr uint64_t DEFAULT_DISK_INTERVAL = 4 * 3600;
 constexpr uint64_t DEFAULT_NS_INTERVAL = 3 * 24 * 3600;
 //------------------------------------------------------------------------------
@@ -101,7 +102,7 @@ public:
   //!
   //! @param timestamp_us timestamp in seconds
   //----------------------------------------------------------------------------
-  bool DoRescan(const std::string& timestamp_sec) const;
+  bool DoRescan(const std::string& timestamp_sec, bool rainEntryInterval = false) const;
 
   //----------------------------------------------------------------------------
   //! Check the given file for errors and properly account them both at the
@@ -126,6 +127,37 @@ public:
   GetBlockXS(const std::string& file_path);
 
   //----------------------------------------------------------------------------
+  //! Check the given file for errors and properly account them both at the
+  //! scanner level and also by setting the proper xattrs on the file.
+  //!
+  //! @param io io object attached to the file
+  //! @param fpath file path
+  //! @param fid file id
+  //! @param xs_stamp_sec time file was last checked
+  //! @param mtime time file was last modified
+  //!
+  //! @return true if file check, otherwise false
+  //----------------------------------------------------------------------------
+  bool ScanFile(const std::unique_ptr<eos::fst::FileIo>& io,
+                const std::string& fpath, eos::common::FileId::fileid_t fid,
+                const std::string& xs_stamp_sec, time_t mtime);
+
+  //----------------------------------------------------------------------------
+  //! Check the given file for rain stripes errors
+  //!
+  //! @param io io object attached to the file
+  //! @param fpath file path
+  //! @param fid file id
+  //! @param xs_stamp_sec time file was last checked
+  //!
+  //! @return true if file check, otherwise false
+  //----------------------------------------------------------------------------
+  bool ScanRainFile(const std::unique_ptr<eos::fst::FileIo>& io,
+                    const std::string& fpath,
+                    eos::common::FileId::fileid_t fid,
+                    const std::string& xs_stamp_sec);
+
+  //----------------------------------------------------------------------------
   //! Scan the given file for checksum errors taking the load into consideration
   //!
   //! @param io io object attached to the file
@@ -143,19 +175,21 @@ public:
                          bool& filexs_err, bool& blockxs_err);
 
   //----------------------------------------------------------------------------
-  //! Check if a given stripe combination can reconstruct the original file
+  //! Check each stripe to verify if they can reconstruct the original file
   //!
   //! @param fid file id
+  //! @param invalidStripesFsid filled with fsids of invalid stripes
   //!
-  //! @return set of fsid with invalid stripes
+  //! @return true if check happened, false if error occurred
   //----------------------------------------------------------------------------
-  std::set<eos::common::FileSystem::fsid_t>
-  CheckRainStripes(eos::common::FileId::fileid_t fid);
+  bool ScanRainFileLoadAware(
+      eos::common::FileId::fileid_t fid,
+      std::set<eos::common::FileSystem::fsid_t>& invalidStripesFsid);
 
   //----------------------------------------------------------------------------
   //! Check for stripes that are unable to reconstruct the original file
   //!
-  //! @param stripes list of stripe urls
+  //! @param stripes list of replica index and stripe urls
   //! @param XS expected checksum
   //! @param xsObj checksum object used to calculate the checksum
   //! @param layout layout id
@@ -163,10 +197,10 @@ public:
   //!
   //! @return true if file has expected checksum, false otherwise
   //----------------------------------------------------------------------------
-  bool isValidStripeCombination(const std::vector<std::pair<int, std::string>>& stripes,
-                                const std::string& XS, CheckSum* xsObj,
-                                eos::common::LayoutId::layoutid_t layout,
-                                const std::string& opaqueInfo);
+  bool isValidStripeCombination(
+      const std::vector<std::pair<int, std::string>>& stripes,
+      const std::string& XS, std::unique_ptr<CheckSum>& xsObj,
+      eos::common::LayoutId::layoutid_t layout, const std::string& opaqueInfo);
 
   //----------------------------------------------------------------------------
   //! Get clock reference for testing purposes
@@ -177,12 +211,12 @@ public:
   }
 
   //----------------------------------------------------------------------------
-  //! Get timestamp in seconds smeared +/-20% of mRescanIntervalSec around the
+  //! Get timestamp in seconds smeared +/-20% of mEntryIntervalSec/mRainEntryIntervalSec around the
   //!  current timestamp value
   //!
   //! @return string representing timestamp in seconds since epoch
   //----------------------------------------------------------------------------
-  std::string GetTimestampSmearedSec() const;
+  std::string GetTimestampSmearedSec(bool rainEntryInterval = false) const;
 
 private:
 #ifdef IN_TEST_HARNESS
@@ -281,6 +315,9 @@ public:
   //! Time interval after which a file is rescanned in seconds, if 0 then
   //! rescanning is completely disabled
   std::atomic<uint64_t> mEntryIntervalSec;
+  //! Time interval after which a rain file is rescanned in seconds, if 0 then
+  //! rescanning is completely disabled
+  std::atomic<uint64_t> mRainEntryIntervalSec;
   //! Time interval after which the disk scanner will run again, default 4h
   std::atomic<uint64_t> mDiskIntervalSec;
   //! Time interval after which the scanner will run again, default 3 days

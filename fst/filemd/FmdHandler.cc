@@ -217,6 +217,9 @@ FmdHandler::UpdateWithMgmInfo(eos::common::FileSystem::fsid_t fsid,
   return LocalPutFmd(valfmd, fid, fsid);
 }
 
+//------------------------------------------------------------------------------
+// Update local fmd with info from the rain stripes scanner
+//-----------------------------------------------------------------------------
 void
 FmdHandler::UpdateWithStripeCheckInfo(
     eos::common::FileId::fileid_t fid, eos::common::FileSystem::fsid_t fsid,
@@ -266,6 +269,25 @@ FmdHandler::UpdateWithScanInfo(eos::common::FileId::fileid_t fid,
         Commit(fmd.get());
       }
     }
+  }
+}
+
+//------------------------------------------------------------------------------
+// Clear errors on local fmd
+//------------------------------------------------------------------------------
+void
+FmdHandler::ClearErrors(eos::common::FileId::fileid_t fid,
+                        eos::common::FileSystem::fsid_t fsid)
+{
+  auto fmd = LocalGetFmd(fid, fsid, true);
+
+  if (fmd) {
+    fmd->mProtoFmd.set_layouterror(LayoutId::kNone);
+    fmd->mProtoFmd.set_blockcxerror(0);
+    fmd->mProtoFmd.set_filecxerror(0);
+    fmd->mProtoFmd.clear_stripeerror();
+
+    Commit(fmd.get());
   }
 }
 

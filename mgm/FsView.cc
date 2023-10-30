@@ -905,6 +905,11 @@ FsSpace::FsSpace(const char* name)
       SetConfigMember(eos::common::SCAN_ENTRY_INTERVAL_NAME, "604800");
     }
 
+    // Set the rain scan entry interval by default to 4 weeks
+    if (GetConfigMember(eos::common::SCAN_RAIN_ENTRY_INTERVAL_NAME).empty()) {
+      SetConfigMember(eos::common::SCAN_RAIN_ENTRY_INTERVAL_NAME, "2419200");
+    }
+
     // Set the scan disk rerun interval by default to 4 hours
     if (GetConfigMember(eos::common::SCAN_DISK_INTERVAL_NAME).empty()) {
       SetConfigMember(eos::common::SCAN_DISK_INTERVAL_NAME, "14400");
@@ -1538,6 +1543,7 @@ FsView::GetFileSystemFormat(std::string option)
     format += "key=drainperiod:format=ol|";
     format += "key=stat.active:format=os|";
     format += "key=scaninterval:format=os|";
+    format += "key=scan_rain_interval:format=os|";
     format += "key=scanreruninterval:format=os|";
     format += "key=local.balancer.running:format=ol:tag=local.balancer.running|";
     format += "key=stat.disk.iops:format=ol|";
@@ -1614,6 +1620,7 @@ FsView::GetFileSystemFormat(std::string option)
     format += "compute=usage:width=6:format=f|";
     format += "key=stat.active:width=8:format=s|";
     format += "key=scaninterval:width=14:format=s|";
+    format += "key=scan_rain_interval:width=20:format=s|";
     format += "key=stat.health:width=16:format=s|";
     format += "key=statuscomment:width=24:format=s";
   } else if (option == "e") {
@@ -4374,6 +4381,14 @@ FsSpace::ApplySpaceDefaultParameters(eos::mgm::FileSystem* fs, bool force)
         modified = true;
         fs->SetString(eos::common::SCAN_ENTRY_INTERVAL_NAME,
                       GetConfigMember(eos::common::SCAN_ENTRY_INTERVAL_NAME).c_str());
+      }
+    }
+
+    if (force || (!snapshot.mScanRainEntryInterval)) {
+      if (GetConfigMember(eos::common::SCAN_RAIN_ENTRY_INTERVAL_NAME).length()) {
+        modified = true;
+        fs->SetString(eos::common::SCAN_RAIN_ENTRY_INTERVAL_NAME,
+                      GetConfigMember(eos::common::SCAN_RAIN_ENTRY_INTERVAL_NAME).c_str());
       }
     }
 
