@@ -125,10 +125,17 @@ bool
 Fsck::StoreFsckConfig()
 {
   using namespace std::chrono;
+  uint32_t collect_interval_min = duration_cast<minutes>
+                                  (mCollectInterval).count();
+
+  // Make sure the collection internval is at least one minute
+  if (collect_interval_min == 0) {
+    collect_interval_min = 1;
+  }
+
   std::ostringstream oss;
   oss << sCollectKey << "=" << mCollectEnabled << " "
-      << sCollectIntervalKey << "="
-      << duration_cast<minutes>(mCollectInterval).count() << " "
+      << sCollectIntervalKey << "=" << collect_interval_min
       << sRepairKey << "=" << mRepairEnabled << " "
       << sRepairCategory  << "=" << eos::common::FsckErrToString(mRepairCategory);
   return FsView::gFsView.SetGlobalConfig(sFsckKey, oss.str());
@@ -180,7 +187,9 @@ Fsck::Config(const std::string& key, const std::string& value, std::string& msg)
         try {
           float fval = std::stof(value);
 
-          if (fval < 1) {
+          if (fval == 0) {
+            mCollectInterval = std::chrono::seconds(60);
+          } else if (fval < 1) {
             mCollectInterval = std::chrono::seconds((long)std::ceil(fval * 60));
           } else {
             mCollectInterval = std::chrono::seconds((long)fval * 60);
