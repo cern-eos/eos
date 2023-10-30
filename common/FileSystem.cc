@@ -452,6 +452,7 @@ FileSystem::fs_snapshot_t::fs_snapshot_t()
   mMaxDiskWopen = 0;
   mScanIoRate = 0;
   mScanEntryInterval = 0;
+  mScanRainEntryInterval = 0;
   mScanDiskInterval = 0;
   mScanNsInterval = 0;
   mScanNsRate = 0;
@@ -1248,6 +1249,8 @@ FileSystem::SnapShotFileSystem(FileSystem::fs_snapshot_t& fs, bool dolock)
   fs.mScanIoRate = (long) hash.getLongLong(eos::common::SCAN_IO_RATE_NAME);
   fs.mScanEntryInterval = (long)hash.getLongLong
                           (eos::common::SCAN_ENTRY_INTERVAL_NAME);
+  fs.mScanRainEntryInterval =
+      (long)hash.getLongLong(eos::common::SCAN_RAIN_ENTRY_INTERVAL_NAME);
   fs.mScanDiskInterval = (long)hash.getLongLong(
                            eos::common::SCAN_DISK_INTERVAL_NAME);
   fs.mScanNsInterval = (long)hash.getLongLong(eos::common::SCAN_NS_INTERVAL_NAME);

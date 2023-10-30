@@ -611,6 +611,7 @@ ProcCommand::Space()
                   (key == "token.generation") ||
                   (key == eos::common::SCAN_IO_RATE_NAME) ||
                   (key == eos::common::SCAN_ENTRY_INTERVAL_NAME) ||
+                  (key == eos::common::SCAN_RAIN_ENTRY_INTERVAL_NAME) ||
                   (key == eos::common::SCAN_DISK_INTERVAL_NAME) ||
                   (key == eos::common::SCAN_NS_INTERVAL_NAME) ||
                   (key == eos::common::SCAN_NS_RATE_NAME)) {
@@ -790,6 +791,7 @@ ProcCommand::Space()
                 (key == "drainperiod") ||
                 (key == eos::common::SCAN_IO_RATE_NAME) ||
                 (key == eos::common::SCAN_ENTRY_INTERVAL_NAME) ||
+                (key == eos::common::SCAN_RAIN_ENTRY_INTERVAL_NAME) ||
                 (key == eos::common::SCAN_DISK_INTERVAL_NAME) ||
                 (key == eos::common::SCAN_NS_INTERVAL_NAME) ||
                 (key == eos::common::SCAN_NS_RATE_NAME)) {
@@ -831,6 +833,7 @@ ProcCommand::Space()
                   if (((key == "headroom") || (key == "graceperiod") || (key == "drainperiod") ||
                        (key == eos::common::SCAN_IO_RATE_NAME) ||
                        (key == eos::common::SCAN_ENTRY_INTERVAL_NAME) ||
+                       (key == eos::common::SCAN_RAIN_ENTRY_INTERVAL_NAME) ||
                        (key == eos::common::SCAN_DISK_INTERVAL_NAME) ||
                        (key == eos::common::SCAN_NS_INTERVAL_NAME) ||
                        (key == eos::common::SCAN_NS_RATE_NAME)) && (!errno)) {

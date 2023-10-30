@@ -61,6 +61,8 @@ static constexpr auto WF_CUSTOM_ATTRIBUTES_TO_FST_SEPARATOR = ";;;";
 static constexpr auto SCAN_IO_RATE_NAME = "scanrate";
 //! Time interval after which a scanned filed is rescanned
 static constexpr auto SCAN_ENTRY_INTERVAL_NAME = "scaninterval";
+//! Time interval after which a scanned rain filed is rescanned
+static constexpr auto SCAN_RAIN_ENTRY_INTERVAL_NAME = "scan_rain_interval";
 //! Time interval after which the scanner will rerun
 static constexpr auto SCAN_DISK_INTERVAL_NAME = "scan_disk_interval";
 //! Maximum ns scan rate when it comes to stat requests done against the

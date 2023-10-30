@@ -456,6 +456,7 @@ public:
     long mMaxDiskWopen;
     long mScanIoRate; ///< Maximum scan rate in MB/s
     long mScanEntryInterval; ///< Time after which a scanned file is rescanned
+    long mScanRainEntryInterval; ///< Time after which a scanned rain file is rescanned
     long mScanDiskInterval; ///< Time after which the disk scanner runs again
     long mScanNsInterval; ///< Time after which the disk scanner runs again
     long mScanNsRate; ///< Max ns scan rate in entries/s

@@ -242,6 +242,16 @@ public:
                           std::shared_ptr<qclient::QClient> qcl);
 
   //----------------------------------------------------------------------------
+  //! Clear errors on local fmd
+  //!
+  //! @param fid file identifier
+  //! @param fsid file system id
+  //!
+  //----------------------------------------------------------------------------
+  void ClearErrors(eos::common::FileId::fileid_t fid,
+                   eos::common::FileSystem::fsid_t fsid);
+
+  //----------------------------------------------------------------------------
   //! Resync a single entry from disk
   //!
   //! @param fstpath file system location

@@ -248,6 +248,7 @@ Storage::ProcessFsConfigChange(fst::FileSystem* targetFs,
   } else {
     if ((key == eos::common::SCAN_IO_RATE_NAME) ||
         (key == eos::common::SCAN_ENTRY_INTERVAL_NAME) ||
+        (key == eos::common::SCAN_RAIN_ENTRY_INTERVAL_NAME) ||
         (key == eos::common::SCAN_DISK_INTERVAL_NAME) ||
         (key == eos::common::SCAN_NS_INTERVAL_NAME) ||
         (key == eos::common::SCAN_NS_RATE_NAME)) {
@@ -350,9 +351,9 @@ Storage::Communicator(ThreadAssistant& assistant) noexcept
   eos_static_info("%s", "msg=\"starting communicator thread\"");
   std::set<std::string> watch_modification_keys { "id", "uuid", "bootsenttime",
       eos::common::SCAN_IO_RATE_NAME, eos::common::SCAN_ENTRY_INTERVAL_NAME,
-      eos::common::SCAN_DISK_INTERVAL_NAME, eos::common::SCAN_NS_INTERVAL_NAME,
-      eos::common::SCAN_NS_RATE_NAME, "symkey", "manager", "publish.interval",
-      "debug.level", "error.simulation"};
+      eos::common::SCAN_RAIN_ENTRY_INTERVAL_NAME, eos::common::SCAN_DISK_INTERVAL_NAME,
+      eos::common::SCAN_NS_INTERVAL_NAME, eos::common::SCAN_NS_RATE_NAME, "symkey",
+      "manager", "publish.interval", "debug.level", "error.simulation"};
   bool ok = true;
 
   for (const auto& key : watch_modification_keys) {

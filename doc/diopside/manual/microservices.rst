@@ -1897,7 +1897,8 @@ Name                 Default           Description
 scan_disk_interval   14400 [s] (4h)    interval at which files in the FS should be scanned, by the FST itself
 scan_ns_interval     259200 [s] (3d)   interval at which files in the FS are compares against the
                                        namespace information from QuarkDB
-scaninterval         604800 [s] (7d)   target interval at which all file should be scanned
+scaninterval         604800 [s] (7d)   target interval at which all files should be scanned
+scan_rain_interval   2419200 [s] (4w)  target interval at which all rain files should be scanned
 scan_ns_rate         50 [Hz]           rate limit the requests to QuarkDB for the namespace scans
 scanrate             100 [MB/s]        rate limit bandwidth used by the scanner when reading files
                                        from disk
@@ -1935,6 +1936,7 @@ Error Types detected by FSCK
 =============  ====================================================  ================================================================================================================
 Error          Description                                           Fixed by
 =============  ====================================================  ================================================================================================================
+stripe_err     stripe is unable to reconstruct original file         FsckRepairJob
 d_mem_sz_diff  disk and reference size mismatch                      FsckRepairJob
 m_mem_sz_diff  MGM and reference size mismatch                       inspecting all the replicas or saved for manual inspection
 d_cx_diff      disk and reference checksum mismatch                  FsckRepairJob
@@ -1973,6 +1975,7 @@ The intervals other than `scaninterval` are defaults for newly created filesyste
    scan_ns_interval                 := 259200
    scan_ns_rate                     := 50
    scaninterval                     := 604800
+   scan_rain_interval               := 2419200
    scanrate                         := 100
    [...]
 
@@ -2006,6 +2009,7 @@ To enable the FST scan you have to set the variable `scaninterval` on the space 
    scan_ns_interval                 := 259200
    scan_ns_rate                     := 50
    scaninterval                     := 604800
+   scan_rain_interval               := 2419200
    scanrate                         := 100
 
    [...] various stat values reported back by the FST

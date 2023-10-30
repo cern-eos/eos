@@ -134,6 +134,9 @@ void com_fs_help()
       << "    scaninterval=<seconds>\n"
       << "      entry rescan interval (default 7 days), 0 disables scanning"
       << std::endl
+      << "    scan_rain_interval=<seconds>\n"
+      << "      rain entry rescan interval (default 4 weeks), 0 disables scanning"
+      << std::endl
       << "    scanrate=<MB/s>" << std::endl
       << "      maximum IO scan rate per filesystem"
       << std::endl

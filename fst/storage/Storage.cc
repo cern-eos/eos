@@ -610,8 +610,8 @@ Storage::Boot(FileSystem* fs)
   // Apply scanner configuration after booting is done
   const std::list<std::string> scan_keys {
     eos::common::SCAN_IO_RATE_NAME, eos::common::SCAN_ENTRY_INTERVAL_NAME,
-    eos::common::SCAN_DISK_INTERVAL_NAME, eos::common::SCAN_NS_INTERVAL_NAME,
-    eos::common::SCAN_NS_RATE_NAME};
+    eos::common::SCAN_RAIN_ENTRY_INTERVAL_NAME, eos::common::SCAN_DISK_INTERVAL_NAME,
+    eos::common::SCAN_NS_INTERVAL_NAME, eos::common::SCAN_NS_RATE_NAME};
 
   for (const auto& key : scan_keys) {
     const std::string sval = fs->GetString(key.c_str());

@@ -943,6 +943,9 @@ com_fs_usage:
   fprintf(stdout, "fs config <fsid> scaninterval=<seconds>: \n");
   fprintf(stdout,
           "                                                  configures a scanner thread on each FST to recheck the file & block checksums of all stored files every <seconds> seconds. 0 disables the scanning.\n\n");
+  fprintf(stdout, "fs config <fsid> scan_rain_interval=<seconds>: \n");
+  fprintf(stdout,
+          "                                                  configures a scanner thread on each FST to recheck the stripes of all stored rain files every <seconds> seconds. 0 disables the scanning.\n\n");
   fprintf(stdout, "fs config <fsid> graceperiod=<seconds> :\n");
   fprintf(stdout,
           "                                                  grace period before a filesystem with an operation error get's automatically drained\n");
