@@ -1164,8 +1164,6 @@ std::string FsView::Df(bool monitoring, bool si, bool readable,
 
     for (auto it = mNodeView.begin(); it != mNodeView.end(); ++it) {
       network = it->second->GetMember("cfg.stat.net.ethratemib");
-      fprintf(stderr,"Node '%s' '%s'\n", it->first.c_str(), network.c_str());
-      
       if (network.length()) {
 	networkmib += std::strtoll(network.c_str(), 0, 10);
       }
@@ -1750,6 +1748,7 @@ FsView::GetSpaceFormat(std::string option)
     format += "sum=stat.statfs.capacity?configstatus@rw:width=13:format=+l:tag=capacity(rw):unit=B|";
     format += "member=cfg.nominalsize:width=13:format=+l:tag=nom.capacity:unit=B|";
     format += "geosched=totalspace:width=14:format=+l:tag=sched.capacity:unit=B|";
+    format += "compute=usage:width=6:format=f:tag=usage|";
     format += "member=cfg.quota:width=6:format=s|";
     format += "member=cfg.balancer:width=10:format=s:tag=balancing|";
     format += "member=cfg.balancer.threshold:width=11:format=+l:tag=threshold|";
@@ -4072,6 +4071,38 @@ BaseView::Print(TableFormatterBase& table, std::string table_format,
           header = pkey.c_str();
         }
 
+	// Compution
+	if (formattags.count("compute")) {
+	  if (formattags["compute"] == "usage") {
+	    // compute the percentage usage
+	    long long used_bytes = SumLongLong("stat.statfs.usedbytes");
+	    long long headroom = SumLongLong("headroom");
+	    long long capacity = strtoull(GetMember("cfg.nominalsize").c_str(),0,10);
+	    std::string header = "";
+	    std::string format = formattags["format"];
+	    unsigned int width = (formattags.count("width") ?
+				  atoi(formattags["width"].c_str()) : 0);
+	    std::string unit = (formattags.count("unit") ? formattags["unit"] : "");
+
+	    table_header.push_back(std::make_tuple("usage", width, format));
+	    
+	    if (!capacity) {
+	      capacity = SumLongLong("stat.statfs.capacity?configstatus@rw");
+	    }
+	    double usage = 0;
+	    
+	    if (capacity) {
+	      usage = 100.0 * (used_bytes + headroom) / (capacity);
+	      
+	      if (usage > 100.0) {
+		usage = 100.0;
+	      }
+	    }
+
+	    table_data.back().push_back(TableCell(usage, format));
+	  }
+	}
+	
         // Sum printout
         if (formattags.count("sum")) {
           if (!outdepth) {
