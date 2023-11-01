@@ -127,7 +127,9 @@ add_library(EosCommon-Objects OBJECT
   RateLimit.cc
   IntervalStopwatch.cc
   VirtualIdentity.cc
+  XrdArchive.cc
   XrdConnPool.cc
+  XrdCopy.cc
   XrdErrorMap.cc
   OAuth.cc
   Glob.cc
@@ -158,6 +160,7 @@ target_link_libraries(EosCommon-Objects PUBLIC
   JSONCPP::JSONCPP
   OpenSSL::SSL
   XROOTD::UTILS
+  XROOTD::PRIVATE
   GLIBC::DL
   GLIBC::RT
   LIBBFD::LIBBFD
