@@ -35,6 +35,7 @@ add_library(EosConsoleHelpers-Objects OBJECT
 target_link_libraries(EosConsoleHelpers-Objects PUBLIC
   EosFstProto-Objects
   EosCliProto-Objects
+  JSONCPP::JSONCPP
   ZMQ::ZMQ
   OpenSSL::SSL
   GOOGLE::SPARSEHASH
