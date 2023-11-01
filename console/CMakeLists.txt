@@ -40,6 +40,7 @@ target_link_libraries(EosConsoleHelpers-Objects PUBLIC
   GOOGLE::SPARSEHASH
   XROOTD::UTILS
   XROOTD::POSIX
+  XROOTD::PRIVATE
   stdc++fs 
   )
 
@@ -80,6 +81,7 @@ add_library(EosConsoleCommands-Objects OBJECT
   commands/com_ls.cc
   commands/com_ln.cc
   commands/com_map.cc
+  commands/com_mdcopy.cc
   commands/com_member.cc
   commands/com_mkdir.cc
   commands/com_motd.cc
@@ -97,6 +99,7 @@ add_library(EosConsoleCommands-Objects OBJECT
   commands/com_stat.cc
   commands/com_status.cc
   commands/com_squash.cc
+  commands/com_zip.cc
   commands/com_test.cc
   commands/com_timing.cc
   commands/com_touch.cc
@@ -159,9 +162,11 @@ target_link_libraries(
   EosConsoleCommands-Objects
   EosConsoleHelpers-Objects
   ZMQ::ZMQ
+  ZSTD::ZSTD
   XROOTD::POSIX
   EosFstIo-Static
-  stdc++fs 
+  stdc++fs
+  PRIVATE JEMALLOC::JEMALLOC
   )
 
 install(PROGRAMS eosadmin eos-iam-mapfile
