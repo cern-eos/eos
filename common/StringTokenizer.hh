@@ -106,6 +106,12 @@ public:
   const char* GetTokenUnquoted(bool escapeand = true);
 
   //----------------------------------------------------------------------------
+  //! Return arg vector
+  //!
+  //----------------------------------------------------------------------------
+  std::vector<std::string> GetArgs() {return fLineArgs;}
+  
+  //----------------------------------------------------------------------------
   //! Get next token and return it in the supplied StringType.
   //!
   //! Note: We use the StringType template to support both
