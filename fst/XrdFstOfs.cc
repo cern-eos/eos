@@ -33,6 +33,7 @@
 #include "fst/Deletion.hh"
 #include "fst/Verify.hh"
 #include "fst/utils/XrdOfsPathHandler.hh"
+#include "fst/stat/Stat.hh"
 #include "common/PasswordHandler.hh"
 #include "common/FileId.hh"
 #include "common/FileSystem.hh"
@@ -218,6 +219,9 @@ XrdFstOfs::xrdfstofs_shutdown(int sig)
     gOFS.mFstMessaging = nullptr;
   }
 
+  eos_static_warning("op=shutdown msg=\"stop stream statistics\"");
+  gOFS.mStreamStats.Stop();
+
   eos_static_warning("%s", "op=shutdown msg=\"stopped messaging\"");
   gOFS.Storage->Shutdown();
   eos_static_warning("%s", "op=shutdown msg=\"stopped storage activities\"");
@@ -279,6 +283,9 @@ XrdFstOfs::xrdfstofs_graceful_shutdown(int sig)
     gOFS.mFstMessaging = nullptr;
   }
 
+  eos_static_warning("op=shutdown msg=\"stop stream statistics\"");
+  gOFS.mStreamStats.Stop();
+  
   // Wait for 60 seconds heartbeat timeout (see mgm/FsView) + 30 seconds
   // for in-flight redirections
   eos_static_warning("op=shutdown msg=\"wait 90 seconds for configuration "
@@ -319,7 +326,7 @@ XrdFstOfs::xrdfstofs_graceful_shutdown(int sig)
 //------------------------------------------------------------------------------
 XrdFstOfs::XrdFstOfs() :
   eos::common::LogId(), mFstMessaging(nullptr), Storage(nullptr),
-  mHostName(NULL), mMqOnQdb(false), mHttpd(nullptr),
+  mHostName(NULL), mPort(1094), mMqOnQdb(false), mHttpd(nullptr),
   mGeoTag("nogeotag"), mXrdBuffPool(eos::common::KB, 32 * eos::common::MB),
   mCloseThreadPool(8, 64, 5, 6, 5, "async_close"),
   mMgmXrdPool(nullptr), mSimIoReadErr(false), mSimIoWriteErr(false),
@@ -477,6 +484,9 @@ XrdFstOfs::Configure(XrdSysError& Eroute, XrdOucEnv* envP)
 
   TransferScheduler = new XrdScheduler(&Eroute, &OfsTrace, 8, 128, 60);
   TransferScheduler->Start();
+
+  mStreamStats.Start();
+  
   gConfig.autoBoot = false;
   gConfig.FstOfsBrokerUrl = "root://localhost:1097//eos/";
 
@@ -510,6 +520,7 @@ XrdFstOfs::Configure(XrdSysError& Eroute, XrdOucEnv* envP)
   gConfig.FstMetaLogDir = "/var/tmp/eos/md/";
   gConfig.FstAuthDir = "/var/eos/auth/";
   setenv("XrdClientEUSER", "daemon", 1);
+
   SetXrdClConfig();
   // Extract the manager from the config file
   XrdOucStream Config(&Eroute, getenv("XRDINSTANCE"));
@@ -678,6 +689,9 @@ XrdFstOfs::Configure(XrdSysError& Eroute, XrdOucEnv* envP)
     close(cfgFD);
   }
 
+  gOFS.mStreamStats.SetDumpPath(gConfig.FstMetaLogDir.c_str());
+  gOFS.mStreamStats.SetPort(mPort);
+  
   if (NoGo) {
     return 1;
   }
@@ -719,6 +733,8 @@ XrdFstOfs::Configure(XrdSysError& Eroute, XrdOucEnv* envP)
   gConfig.FstHostPort = mHostName;
   gConfig.FstHostPort += ":";
   gConfig.FstHostPort += myPort;
+  mPort = myPort;
+    
   gConfig.KernelVersion = GetKernelRelease().c_str();
   Eroute.Say("=====> fstofs.broker : ", gConfig.FstOfsBrokerUrl.c_str(), "");
   // Extract our queue name

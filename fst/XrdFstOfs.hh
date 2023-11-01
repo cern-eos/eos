@@ -27,6 +27,7 @@
 #include "fst/Namespace.hh"
 #include "fst/utils/OpenFileTracker.hh"
 #include "fst/utils/TpcInfo.hh"
+#include "fst/stat/Stat.hh"
 #include "common/Fmd.hh"
 #include "common/Logging.hh"
 #include "common/XrdConnPool.hh"
@@ -412,6 +413,7 @@ public:
   XrdSysMutex TransferSchedulerMutex; ///< protecting the TransferScheduler
   XrdOucString eoscpTransferLog; ///< eoscp.log full path
   const char* mHostName; ///< FST hostname
+  int mPort; ///< FST port
   QdbContactDetails mQdbContactDetails; ///< QDB contact details
   std::shared_ptr<qclient::QClient> mFsckQcl; ///< Qclient used for fsck
   bool mMqOnQdb; ///< Are we using QDB as an MQ?
@@ -426,6 +428,8 @@ public:
   //! directory called .eosdeletions on the file system root mount
   bool mEnvFsckDeleteByMove {false};
 
+  eos::fst::Stat& getStreamStats() { return mStreamStats; }
+  
 private:
 #ifdef IN_TEST_HARNESS
 public:
@@ -448,6 +452,8 @@ public:
   std::atomic<bool> mSimCloseErr; ///< simulate an error during close
   std::atomic<bool> mSimUnresponsive; ///< simulate timeouts in the OFS layer
 
+  eos::fst::Stat mStreamStats;
+  
   //! A vector map pointing from tpc key => tpc information for reads, [0]
   //! are readers [1] are writers
   std::vector<google::sparse_hash_map<std::string, struct TpcInfo >> TpcMap;

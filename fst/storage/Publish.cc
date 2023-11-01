@@ -364,6 +364,8 @@ Storage::GetFstStatistics(const std::string& tmpfile,
   // publish timestamp
   output["stat.publishtimestamp"] = SSTR(
                                       eos::common::getEpochInMilliseconds().count());
+
+  output["stat.iotop.z64"] = gOFS.getStreamStats().GetJsonZBase64();
   return output;
 }
 
@@ -486,7 +488,6 @@ Storage::GetFsStatistics(FileSystem* fs)
     }
   }
        
-  
   // Publish generic statistics, related to free space and current load
   long long r_open = (long long) gOFS.openedForReading.getOpenOnFilesystem(fsid);
   long long w_open = (long long) gOFS.openedForWriting.getOpenOnFilesystem(fsid);

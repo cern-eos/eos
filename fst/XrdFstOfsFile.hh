@@ -663,12 +663,10 @@ public:
   //! on the encrypted opaque info
   //!
   //! @param is_repair_read flag if this is a repair read
-  //! @param vid client virtual identity
   //!
   //! @return SFS_OK if successful, otherwise SFS_ERROR
   //----------------------------------------------------------------------------
-  int ProcessCapOpaque(bool& is_repair_read,
-                       eos::common::VirtualIdentity& vid);
+  int ProcessCapOpaque(bool& is_repair_read);
 
   //----------------------------------------------------------------------------
   //! Process mixed opaque information - decisions that need to be taken based
@@ -686,20 +684,20 @@ public:
   //----------------------------------------------------------------------------
   //! Compute total time to serve read requests
   //----------------------------------------------------------------------------
-  void AddReadTime();
-  void AddLayoutReadTime();
+  double AddReadTime();
+  double AddLayoutReadTime();
 
   //----------------------------------------------------------------------------
   //! Compute total time to serve vector read requests
   //----------------------------------------------------------------------------
-  void AddReadVTime();
-  void AddLayoutReadVTime();
+  double AddReadVTime();
+  double AddLayoutReadVTime();
 
   //----------------------------------------------------------------------------
   //! Compute total time to serve write requests
   //----------------------------------------------------------------------------
-  void AddWriteTime();
-  void AddLayoutWriteTime();
+  double AddWriteTime();
+  double AddLayoutWriteTime();
 
   //----------------------------------------------------------------------------
   //! Compute general statistics on a set of input values

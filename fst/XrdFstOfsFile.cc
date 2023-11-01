@@ -199,9 +199,7 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
     return SFS_ERROR;
   }
 
-  eos::common::VirtualIdentity vid;
-
-  if (ProcessCapOpaque(isRepairRead, vid)) {
+  if (ProcessCapOpaque(isRepairRead)) {
     eos_err("%s", "msg=\"failed while processing cap opaque info\"");
     return SFS_ERROR;
   }
@@ -916,7 +914,15 @@ XrdFstOfsFile::read(XrdSfsFileOffset fileOffset, char* buffer,
     }
   }
 
-  AddLayoutReadTime();
+  auto t = AddLayoutReadTime();
+
+  if (rc>0) {
+    // build stream stats
+    ADD_IO_STAT(GetPath().c_str(),"rbytes",vid,rc);
+    ADD_IO_STAT(GetPath().c_str(),"nreads",vid,1);
+    ADD_IO_EXEC(GetPath().c_str(),"rbytes",vid,t);
+  }
+    
   return rc;
 }
 
@@ -1003,7 +1009,15 @@ XrdFstOfsFile::readv(XrdOucIOVec* readV, int readCount)
     }
   }
 
-  AddLayoutReadVTime();
+  auto t = AddLayoutReadVTime();
+
+  if (rv>0) {
+    // build stream stats
+    ADD_IO_STAT(GetPath().c_str(),"rbytes",vid,rv);
+    ADD_IO_STAT(GetPath().c_str(),"nreadv",vid,1);
+    ADD_IO_EXEC(GetPath().c_str(),"rbytes",vid,t);
+  }
+
   return rv;
 }
 
@@ -1199,7 +1213,15 @@ XrdFstOfsFile::write(XrdSfsFileOffset fileOffset, const char* buffer,
             errdetail.c_str());
   }
 
-  AddLayoutWriteTime();
+  auto t = AddLayoutWriteTime();
+
+  if (rc>0) {
+    // build stream stats
+    ADD_IO_STAT(GetPath().c_str(),"wbytes",vid,rc);
+    ADD_IO_STAT(GetPath().c_str(),"nwrite",vid,1);
+    ADD_IO_EXEC(GetPath().c_str(),"wbytes",vid,t);
+  }
+
   return rc;
 }
 
@@ -2725,8 +2747,7 @@ XrdFstOfsFile::ProcessOpenOpaque()
 // by the MGM to the FST
 //------------------------------------------------------------------------------
 int
-XrdFstOfsFile::ProcessCapOpaque(bool& is_repair_read,
-                                eos::common::VirtualIdentity& vid)
+XrdFstOfsFile::ProcessCapOpaque(bool& is_repair_read)
 {
   EPNAME("open");
 
@@ -2873,6 +2894,8 @@ XrdFstOfsFile::ProcessCapOpaque(bool& is_repair_read,
     mAppRR = mSecMap["app"];
   }
 
+  vid.app = mSecMap["app"];
+  
   std::string obfuscation_key;
   std::string encryption_key;
 
@@ -3229,64 +3252,70 @@ XrdFstOfsFile::CloseTime()
 //------------------------------------------------------------------------------
 // Account for total read time
 //------------------------------------------------------------------------------
-void
+double
 XrdFstOfsFile::AddReadTime()
 {
   unsigned long mus = (lrTime.tv_sec - cTime.tv_sec) * 1000000 +
                       (lrTime.tv_usec - cTime.tv_usec);
   rTime.tv_sec += (mus / 1000000);
   rTime.tv_usec += (mus % 1000000);
+  return mus/1000000.0;
 }
 
-void
+double
 XrdFstOfsFile::AddLayoutReadTime()
 {
   struct timeval nowtime;
   gettimeofday(&nowtime, &tz);
-  timeToRead += ((nowtime.tv_sec - rStart.tv_sec) * 1000) + ((
-                  nowtime.tv_usec - rStart.tv_usec) / 1000.0);
+  double t = ((nowtime.tv_sec - rStart.tv_sec) * 1000) + ((nowtime.tv_usec - rStart.tv_usec) / 1000.0);
+  timeToRead += t;
+  return t;
 }
 
 //------------------------------------------------------------------------------
 // Account for total readv time
 //------------------------------------------------------------------------------
-void
+double
 XrdFstOfsFile::AddReadVTime()
 {
   unsigned long mus = (lrvTime.tv_sec - cTime.tv_sec) * 1000000 +
                       (lrvTime.tv_usec - cTime.tv_usec);
   rvTime.tv_sec += (mus / 1000000);
   rvTime.tv_usec += (mus % 1000000);
+  return mus/1000000.0;
 }
 
-void
+double
 XrdFstOfsFile::AddLayoutReadVTime()
 {
   struct timeval nowtime;
   gettimeofday(&nowtime, &tz);
-  timeToReadV += ((nowtime.tv_sec - rvStart.tv_sec) * 1000) + ((
-                   nowtime.tv_usec - rvStart.tv_usec) / 1000.0);
+  double t = ((nowtime.tv_sec - rvStart.tv_sec) * 1000) + ((nowtime.tv_usec - rvStart.tv_usec) / 1000.0);
+  timeToReadV += t;
+  return t;
 }
 
 //------------------------------------------------------------------------------
 // Account for total write time
 //------------------------------------------------------------------------------
-void
+double
 XrdFstOfsFile::AddWriteTime()
 {
   unsigned long mus = ((lwTime.tv_sec - cTime.tv_sec) * 1000000) +
                       lwTime.tv_usec - cTime.tv_usec;
   wTime.tv_sec += (mus / 1000000);
   wTime.tv_usec += (mus % 1000000);
+  return mus/1000000.0;
 }
 
-void
+double
 XrdFstOfsFile::AddLayoutWriteTime()
 {
   struct timeval nowtime;
   gettimeofday(&nowtime, &tz);
-  timeToWrite += ((nowtime.tv_sec - wStart.tv_sec) * 1000) + ((
-                   nowtime.tv_usec - wStart.tv_usec) / 1000.0);
+  double t = ((nowtime.tv_sec - wStart.tv_sec) * 1000) + ((nowtime.tv_usec - wStart.tv_usec) / 1000.0);
+  timeToWrite += t;
+  return t;
 }
 
 //------------------------------------------------------------------------------
