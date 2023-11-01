@@ -49,11 +49,18 @@ message IoProto {
     Count count           = 6;
   }
 
+  message LimitProto {
+    bool listing        = 1;
+    string typefilter   = 2;
+    string rangefilter  = 3;
+    string keyfilter    = 4;
+  }
+
   oneof subcmd {
     StatProto stat        = 1;
     EnableProto enable    = 2;
     ReportProto report    = 3;
     NsProto ns            = 4;
-  }
-
+    LimitProto limit      = 5;
+ }
 }
