@@ -185,7 +185,6 @@ build_el8:
   only:
     - schedules
     - tags
-    - master
 
 
 build_el9:
