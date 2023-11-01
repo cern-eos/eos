@@ -28,6 +28,7 @@
 #include "common/Timing.hh"
 #include "common/Path.hh"
 #include "common/LayoutId.hh"
+#include "common/XrdCopy.hh"
 /*----------------------------------------------------------------------------*/
 
 #include <XrdCl/XrdClFileSystem.hh>
@@ -44,6 +45,9 @@
 
 extern XrdOucString serveruri;
 
+
+bool rclone_mtime_lowres=false;
+
 struct fs_entry {
   struct timespec mtime;
   size_t size;
@@ -56,7 +60,12 @@ struct fs_entry {
     } else if (mtime.tv_sec > cmptime.tv_sec) {
       return false;
     } else if (mtime.tv_nsec < cmptime.tv_nsec) {
-      return true;
+      if (rclone_mtime_lowres) {
+	// ignore ns resolution
+	return false;
+      } else {
+	return true;
+      }
     } else {
       return false;
     }
@@ -77,6 +86,9 @@ bool is_silent = false;
 bool filter_versions = true;
 bool filter_atomic = true;
 bool filter_hidden = true;
+size_t make_sparse = std::numeric_limits<size_t>::max();
+std::string sparse_files_dump;
+std::string sparse_files_list;
 
 fs_result fs_find(const char* path)
 {
@@ -169,7 +181,10 @@ fs_result eos_find(const char* path) {
     eos::common::StringConversion::Tokenize(findresult, lines, "\n");
     for (auto l:lines) {
       std::vector<std::string> kvs;
-      eos::common::StringConversion::Tokenize(l, kvs, " ");
+      eos::common::StringTokenizer subtokenizer(l);
+      subtokenizer.GetLine();
+      kvs = subtokenizer.GetArgs();
+      //      eos::common::StringConversion::Tokenize(l, kvs, " ");
       struct timespec ts{0,0};
       size_t size{0};
       string path;
@@ -247,7 +262,9 @@ int createDir(const std::string& i, eos::common::Path& prefix) {
     if (!dryrun) {
       rc = ::mkdir(mkpath.c_str(), S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH);
     }
-    std::cerr << "[ mkdir                 ] : path:" << "[mkdir] path: " << mkpath.c_str() << " retc: " << rc << std::endl;
+    if (verbose) {
+      std::cerr << "[ mkdir                 ] : path:" << "[mkdir] path: " << mkpath.c_str() << " retc: " << rc << std::endl;
+    }
     return rc;
   } else {     
     XrdCl::URL url(serveruri.c_str());
@@ -263,7 +280,9 @@ int createDir(const std::string& i, eos::common::Path& prefix) {
     XrdCl::XRootDStatus status = fs.MkDir(url.GetPath(),
 					  XrdCl::MkDirFlags::MakePath,
 					  mode_xrdcl);
-    std::cerr << "[ mkdir                 ] : url:" << url.GetURL() << " : " << status.IsOK() << std::endl;
+    if (verbose) {
+      std::cerr << "[ mkdir                 ] : url:" << url.GetURL() << " : " << status.IsOK() << std::endl;
+    }
     return (!status.IsOK());
   }
 }
@@ -473,22 +492,52 @@ int setDirMtime(const std::string& i, eos::common::Path& prefix, struct timespec
   }
 }
 
-XrdCl::CopyProcess copyProcess;
-std::vector<XrdCl::PropertyList*> tprops;
+int copySparse( const std::string& i, eos::common::Path& dst, struct timespec mtime, size_t size ) {
+  std::string dstpath = std::string(dst.GetFullPath().c_str()) + i;  
+    
+  if (verbose) {
+    std::cout << "[ copy sparse            ] dsturl: " << dstpath << std::endl;
+  }
 
-XrdCl::PropertyList* copyFile(const std::string& i, eos::common::Path& src, eos::common::Path& dst, struct timespec mtime) {
-  XrdCl::PropertyList props;
-  XrdCl::PropertyList* result = new XrdCl::PropertyList();
+  mode_t mode = S_IRUSR | S_IWUSR | S_IXUSR | S_IRGRP;
+  auto fd = ::creat(dstpath.c_str(), mode);
+  if (fd<0) {
+    std::cerr << "error: failed to create '" << dstpath.c_str() << "'" << std::endl;
+    return -1;
+  }
+  if (ftruncate(fd, size)) {
+    ::close(fd);
+    std::cerr << "error: failed to truncate '" << dstpath.c_str() << "'" << std::endl;
+    return -1;
+  }
 
+  struct timespec times[2];
+  times[0] = mtime;
+  times[1] = mtime;
+
+  if (utimensat(0, dstpath.c_str(), times, AT_SYMLINK_NOFOLLOW)) {
+    ::close(fd);
+    std::cerr << "error: failed to update modification time of '" << dstpath.c_str() << "'" << std::endl;
+    return -1;
+  }
+  ::close(fd);
+
+  return 0;
+}
+
+eos::common::XrdCopy xrdCopy;
+eos::common::XrdCopy::job_t job;
+
+void copyFile(eos::common::XrdCopy::job_t& job, const std::string& i, eos::common::Path& src, eos::common::Path& dst, struct timespec mtime) {
   std::string srcurl = std::string(src.GetFullPath().c_str()) + i;
   std::string dsturl = std::string(dst.GetFullPath().c_str()) + i;
-
+  
   if (srcurl.substr(0,5) == "/eos/") {
     XrdCl::URL surl(serveruri.c_str());
     surl.SetPath(srcurl);
     srcurl = surl.GetURL();
   }
-
+  
   if (dsturl.substr(0,5) == "/eos/") {
     XrdCl::URL durl(serveruri.c_str());
     durl.SetPath(dsturl);
@@ -503,25 +552,17 @@ XrdCl::PropertyList* copyFile(const std::string& i, eos::common::Path& src, eos:
     durl.SetParams(params);
     dsturl = durl.GetURL();
   }
-  
-  props.Set("source", srcurl);
-  props.Set("target", dsturl);
-  props.Set("force", true); // allows overwrite
-  
-  result->Set("source", srcurl);
-  result->Set("target", dsturl);
 
-  //  props.Set("parallel", 10);
+  job[i].first  = srcurl;
+  job[i].second = dsturl;
   if (verbose) {
     std::cout << "[ copy file             ] : srcurl: " << srcurl << " dsturl: " << dsturl << std::endl;
   }
-  copyProcess.AddJob(props,result);
-  return result;
 }
 
 void rclone_usage() {
   fprintf(stderr,
-          "usage: rclone copy src-dir dst-dir [--delete] [--noupdate] [--dryrun] [--atomic] [--versions] [--hidden] [-v|--verbose] [-s|--silent]\n");
+          "usage: rclone copy src-dir dst-dir [--delete] [--noupdate] [--dryrun] [--atomic] [--versions] [--hidden] [-v|--verbose] [-s|--silent] [--sparse <bytes>] [--sparse-dump <file] \n");
   fprintf(stderr,
 	  "                                       : copy from source to destination [one-way sync]\n");
   fprintf(stderr,
@@ -540,6 +581,10 @@ void rclone_usage() {
 	  "                            --versions : copy/sync also EOS atomic files\n");
   fprintf(stderr,
 	  "                            --hidden   : copy/sync also hidden files/directories\n");
+  fprintf(stderr,
+	  "                      --sparse <bytes> : copy files >= <bytes> as empty sparse file\n");
+  fprintf(stderr,
+	  "                  --sparse-dump <path> : write the paths of sparse files into <path>\n");
   fprintf(stderr,
 	  "                         -v --verbose  : display all actions, not only a summary\n");
   fprintf(stderr,
@@ -622,6 +667,9 @@ com_rclone(char* arg1)
 
   uint64_t copySize=0;
   uint64_t copyTransactions=0;
+
+  uint64_t origSize=0;
+  uint64_t origTransactions=0;
   
   enum eActions {
     kTargetDirCreate, kSourceDirCreate,
@@ -736,8 +784,26 @@ com_rclone(char* arg1)
       filter_hidden = false;
     } else if (option == "-v" || option == "--verbose") {
       verbose = true;
+      xrdCopy.s_verbose = true;
     } else if (option == "-s" || option == "--silent") {
       is_silent = true;
+      xrdCopy.s_silent = true;
+    } else if (option == "--lowres") {
+      rclone_mtime_lowres=true;
+    } else if (option == "--sparse") {
+      option = subtokenizer.GetToken();
+      if (!option.length()) {
+	rclone_usage();
+      } else {
+	make_sparse = std::strtoul(option.c_str(),0, 10);
+      }
+    } else if (option == "--sparse-dump") {
+      option = subtokenizer.GetToken();
+      if (!option.length()) {
+	rclone_usage();
+      } else {
+	sparse_files_dump = option.c_str();
+      }
     } else {
       rclone_usage();
     }
@@ -756,6 +822,10 @@ com_rclone(char* arg1)
     srcmap = fs_find(src.c_str());
   }
   if (dst.beginswith("/eos/")) {
+    if (make_sparse) {
+      fprintf(stderr,"warning: ignoring sparse option when target is non-local \n");
+      make_sparse=0;
+    }
     // get the sync information using newfind
     dstmap = eos_find(dst.c_str());
   } else {
@@ -768,6 +838,7 @@ com_rclone(char* arg1)
   
   // forward comparison
   for ( auto d:srcmap.directories ) {
+    origTransactions++;
     if (!dstmap.directories.count(d.first)) {
       if (!is_silent && verbose) { std::cout << "[ target folder missing ] : " << d.first << std::endl; }
       target_create_dirs.insert(d.first);
@@ -798,6 +869,8 @@ com_rclone(char* arg1)
   
   // forward comparison
   for ( auto d:srcmap.files ) {
+    origSize += d.second.size;
+    origTransactions++;
     if (!dstmap.files.count(d.first)) {
       if (!is_silent && verbose) { std::cout << "[ target file   missing ] : " << d.first << std::endl; }
       target_create_files.insert(d.first);
@@ -850,6 +923,7 @@ com_rclone(char* arg1)
 
     // forward comparison
   for ( auto d:srcmap.links ) {
+    origTransactions++;
     if (!dstmap.links.count(d.first)) {
       if (!is_silent && verbose) { std::cout << "[ target link   missing ] : " << d.first << std::endl; }
       target_create_links.insert(d.first);
@@ -912,8 +986,12 @@ com_rclone(char* arg1)
       std::cout << "[ volume                      ]" << std::endl;
       std::cout << "[ --------------------------- ]" << std::endl;
       XrdOucString sizestring;
+      eos::common::StringConversion::GetReadableSizeString(sizestring, origSize, "B");
+      std::cout << "[ # orig size                 ] : " << sizestring.c_str() << std::endl;
+      eos::common::StringConversion::GetReadableSizeString(sizestring, origTransactions, "");
+      std::cout << "[ # orig transactions         ] : " << sizestring.c_str() << std::endl;      
       eos::common::StringConversion::GetReadableSizeString(sizestring, copySize, "B");
-      std::cout << "[ # data size                 ] : " << sizestring.c_str() << std::endl;
+      std::cout << "[ # copy size                 ] : " << sizestring.c_str() << std::endl;
       eos::common::StringConversion::GetReadableSizeString(sizestring, copyTransactions, "");
       std::cout << "[ # copy transactions         ] : " << sizestring.c_str() << std::endl;
       std::cout << "[ --------------------------- ]" << std::endl;
@@ -1119,20 +1197,50 @@ com_rclone(char* arg1)
       }
     }
   }
-  
+
   for ( auto i:cp_target_files ) {
     if (!dryrun) {
-      tprops.push_back(copyFile(i, srcPath, dstPath, srcmap.files[i].mtime));
+      if (srcmap.files[i].size > make_sparse) {
+        if (copySparse(i, dstPath, srcmap.files[i].mtime, srcmap.files[i].size)) {
+	  std::cerr << "error: sparse copy failed " << dstPath.GetFullPath().c_str() << std::endl;
+	  exit(-1);
+	} else {
+	  sparse_files_list += "\"";
+	  XrdCl::URL surl(serveruri.c_str());
+	  surl.SetPath(src.c_str()+i);
+	  sparse_files_list += surl.GetURL();
+	  sparse_files_list += "\"";
+	  // sparse_files_list += " ";
+	  // sparse_files_list += "\"";
+	  // sparse_files_list += dst.c_str();
+	  // sparse_files_list += i;
+	  // sparse_files_list += "\" ";
+	  // sparse_files_list += std::to_string(srcmap.files[i].size);
+	  sparse_files_list += "\n";
+
+	  xrdCopy.s_sp++;
+	}
+      } else {
+	copyFile(job, i, srcPath, dstPath, srcmap.files[i].mtime);
+      }
     } else {
       if (!is_silent && verbose) {
-	std::cout << "[ copy ] : " << i.c_str() << " " << srcPath.GetFullPath().c_str() << " => " << dstPath.GetFullPath().c_str() << std::endl;
+	if (srcmap.files[i].size > make_sparse) {
+	  std::cout << "[ sparse ] : " << i.c_str() << " " << srcPath.GetFullPath().c_str() << " => " << dstPath.GetFullPath().c_str() << std::endl;
+	} else {
+	  std::cout << "[ copy ] : " << i.c_str() << " " << srcPath.GetFullPath().c_str() << " => " << dstPath.GetFullPath().c_str() << std::endl;
+	}
       }
     }
+  }
+
+  if (xrdCopy.s_sp) {
+    std::cerr << "[ " << xrdCopy.s_sp << "/" << xrdCopy.s_sp << " ] sparse files copied" << std::endl;
   }
   
   for ( auto i:cp_source_files ) {
     if (!dryrun) {
-      tprops.push_back(copyFile(i, dstPath, srcPath, dstmap.files[i].mtime));
+      copyFile(job, i, dstPath, srcPath, dstmap.files[i].mtime);
     } else {
       if (!is_silent && verbose) {
 	std::cout << "[ copy ] : " << i.c_str() << " " << dstPath.GetFullPath().c_str() << " => " << srcPath.GetFullPath().c_str() << std::endl;
@@ -1140,81 +1248,8 @@ com_rclone(char* arg1)
     }
   }
 
-  class RCloneProgressHandler : public XrdCl::CopyProgressHandler {
-  public:
-    virtual void BeginJob( uint16_t   jobNum,
-			   uint16_t   jobTotal,
-			   const URL *source,
-			   const URL *destination )
-    {
-      n = jobNum;
-      tot = jobTotal;
-    }
-    
-    virtual void EndJob( uint16_t            jobNum,
-			 const PropertyList *result )
-    {
-      
-      (void)jobNum; (void)result;
-      std::string src;
-      std::string dst;
-      result->Get("source",src);
-      result->Get("target",dst);
-      XrdCl::URL durl(dst.c_str());
-      auto param = durl.GetParams();
-      if (param.count("local.mtime")) {
-	// apply mtime changes when done to local files
-	struct timespec ts;
-	std::string tss = param["local.mtime"];
-	if (!eos::common::Timing::Timespec_from_TimespecStr(tss, ts)) {
-	  // apply local mtime;
-	  struct timespec times[2];
-	  times[0] = ts;
-	  times[1] = ts;
-	  if (utimensat(0, durl.GetPath().c_str(), times, AT_SYMLINK_NOFOLLOW)) {
-	    std::cerr << "error: failed to update modification time of '" << durl.GetPath() << "'" << std::endl;
-	  }
-	}
-      }
-    };
-    
-    virtual void JobProgress( uint16_t jobNum,
-			      uint64_t bytesProcessed,
-			      uint64_t bytesTotal )
-    {
-      bp = bytesProcessed;
-      bt = bytesTotal;
-      n  = jobNum;
-      if (verbose) {
-	std::cerr << "[ " << jobNum << "/" << tot << " ] files copied" << std::endl;
-      } else {
-	if (!is_silent) {
-	  std::cerr << "[ " << jobNum << "/" << tot << " ] files copied" << "\r";
-	}
-      }
-    }
-    
-    virtual bool ShouldCancel( uint16_t jobNum )
-    {
-      (void)jobNum;
-      return false;
-    }
-    
-    std::atomic<uint64_t> bp;
-    std::atomic<uint64_t> bt;
-    std::atomic<uint16_t> n;
-    std::atomic<uint16_t> tot;
-  };
-
-  RCloneProgressHandler copyProgress;
-  if (!is_silent && verbose) {
-    std::cerr << "# preparing" << std::endl;
-  }
-  copyProcess.Prepare();
-  if (!is_silent && verbose) {
-    std::cerr << "# running" << std::endl;
-  }
-  copyProcess.Run(&copyProgress);
+  xrdCopy.run(job, "", 32);
+  
   if (!is_silent) {
     std::cout << std::endl;
   }
@@ -1247,6 +1282,14 @@ com_rclone(char* arg1)
       }
     }
   }
+
+  if ( sparse_files_dump.length() ) {
+    eos::common::StringConversion::SaveStringIntoFile(sparse_files_dump.c_str(), sparse_files_list);
+    if (!is_silent) {
+      std::cout << "[ --------------------------- ]" << std::endl;
+      std::cout << "[ sparse: " << sparse_files_dump << std::endl;
+    }
+  }
   
   if (dryrun && !is_silent) {
     std::cout << "[ --------------------------- ]" << std::endl;
@@ -1267,6 +1310,10 @@ com_rclone(char* arg1)
     std::cout << "[ volume                      ]" << std::endl;
     std::cout << "[ --------------------------- ]" << std::endl;
     XrdOucString sizestring;
+    eos::common::StringConversion::GetReadableSizeString(sizestring, origSize, "B");
+    std::cout << "[ # orig size                 ] : " << sizestring.c_str() << std::endl;
+    eos::common::StringConversion::GetReadableSizeString(sizestring, origTransactions, "");
+    std::cout << "[ # orig transactions         ] : " << sizestring.c_str() << std::endl;      
     eos::common::StringConversion::GetReadableSizeString(sizestring, copySize, "B");
     std::cout << "[ # data size                 ] : " << sizestring.c_str() << std::endl;
     eos::common::StringConversion::GetReadableSizeString(sizestring, copyTransactions, "");
