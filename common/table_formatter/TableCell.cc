@@ -456,21 +456,24 @@ void TableCell::SetValue(double value)
       } else if (value >= scale) {
         mUnit.insert(0, "K");
         value /= scale;
-        //} else if (value >= 1) {
-        //  value = value;
+	//      } else if (value >= 1) {
+	//	value = value;
       } else if (value >= 1 / scale) {
+        mUnit.insert(0, "");
+	value = value;
+      } else if (value >= 1 / (scale * scale)) {
         mUnit.insert(0, "m");
         value *= scale;
-      } else if (value >= 1 / (scale * scale)) {
+      } else if (value >= 1 / (scale * scale * scale)) {
         mUnit.insert(0, "u");
         value *= scale * scale;
-      } else if (value >= 1 / (scale * scale * scale)) {
+      } else if (value >= 1 / (scale * scale * scale * scale)) {
         mUnit.insert(0, "n");
         value *= scale * scale * scale;
       } else if (value >= 1 / (scale * scale * scale * scale)) {
         mUnit.insert(0, "p");
-        value *= scale * scale * scale * scale;
-      } else if (value >= 1 / (scale * scale * scale * scale * scale)) {
+        value *= scale * scale * scale * scale * scale;
+      } else if (value >= 1 / (scale * scale * scale * scale)) {
         mUnit.insert(0, "f");
         value *= scale * scale * scale * scale * scale;
       }
