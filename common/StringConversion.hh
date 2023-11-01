@@ -752,6 +752,15 @@ public:
   curl_default_escaped(const std::string& str);
 
   //----------------------------------------------------------------------------
+  //! Return an escaped path
+  //!
+  //! @param path to escape
+  //! @return escaped path string
+  //----------------------------------------------------------------------------
+  static std::string
+  curl_path_escaped(const std::string& str);
+
+  //----------------------------------------------------------------------------
   //! Return an unescaped URI
   //!
   //! @param str - uri to unescape

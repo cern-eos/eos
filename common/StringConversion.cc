@@ -1025,6 +1025,18 @@ StringConversion::curl_default_escaped(const std::string& str)
 }
 
 //------------------------------------------------------------------------------
+// Escape path using CURL
+//------------------------------------------------------------------------------
+std::string
+StringConversion::curl_path_escaped(const std::string& str)
+{
+  XrdOucString escaped = curl_default_escaped(str).c_str();
+  while(escaped.replace("%2F","/")){}
+  return std::string(escaped.c_str());
+}
+
+
+  //------------------------------------------------------------------------------
 // Unescape string using CURL
 //------------------------------------------------------------------------------
 std::string

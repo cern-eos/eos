@@ -387,7 +387,8 @@ HttpHandler::Get(eos::common::HttpRequest* request, bool isHEAD)
 
       if (rc != SFS_OK) {
         if (rc == SFS_REDIRECT) {
-          response = HttpServer::HttpRedirect(request->GetUrl(),
+	  std::string urlenc = eos::common::StringConversion::curl_path_escaped(request->GetUrl().c_str());
+          response = HttpServer::HttpRedirect(urlenc,
                                               file->error.getErrText(),
                                               file->error.getErrInfo(), false);
         } else if (rc == SFS_ERROR) {
