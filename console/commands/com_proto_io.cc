@@ -197,6 +197,45 @@ bool IoHelper::ParseCommand(const char* arg)
         return false;
       }
     }
+  } else if (token == "limit") {
+    eos::console::IoProto_LimitProto* limit = io->mutable_limit();
+    std::string subcmd = "ls";
+    if (tokenizer.NextToken(token)) {
+      subcmd = token.c_str();
+    }
+
+    if (subcmd == "ls") {
+      limit->set_listing(true);
+      limit->set_typefilter("app");
+      limit->set_rangefilter("1min");
+      limit->set_keyfilter("bytes");
+      
+      if (tokenizer.NextToken(token)) {
+	if (token == "*") {
+	  limit->set_typefilter("");
+	} else {
+	  limit->set_typefilter(token.c_str());
+	}
+      }
+      
+      if (tokenizer.NextToken(token)) {
+	if (token == "*") {
+	  limit->set_rangefilter("");
+	} else {
+	  limit->set_rangefilter(token.c_str());
+	}
+      }
+      
+      if (tokenizer.NextToken(token)) {
+	if (token == "*") {
+	  limit->set_keyfilter("");
+	} else {
+	  limit->set_keyfilter(token.c_str());
+	}
+      }
+    } else {
+      return false;
+    }
   } else { // no proper subcommand
     return false;
   }
@@ -275,6 +314,13 @@ void com_io_help()
       << "\t  -10000 :  show the first 10000 in the ranking\n"
       << "\t      -w :  show history for the last 7 days\n"
       << "\t      -f :  show the 'hotfiles' which are the files with highest number of present file opens\n"
+      << std::endl
+      << "io limit ls [type-filter] [range-filter] [key-filter]: interface for global IO limits\n"
+      << "\t              ls : list current usage, limits and scalers\n"
+      << "\t                   [type-filter] : default is 'app', possible values are 'app','uid','gid' or '*'\n"
+      << "\t                   [range-filter] : default is '1min', possible values are '10s','1min','5min', '1h' or '*'\n"
+      << "\t                   [key-filter] : default is 'bytes', possible values are 'bytes', 'rbytes', 'bytes', 'nreads','nwrites', 'nreadv' or '*'\n"
+
       << std::endl;
   std::cerr << oss.str() << std::endl;
 }
