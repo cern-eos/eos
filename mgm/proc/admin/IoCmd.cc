@@ -24,6 +24,7 @@
 #include "IoCmd.hh"
 #include "mgm/proc/ProcInterface.hh"
 #include "mgm/XrdMgmOfs.hh"
+#include "mgm/Iolimit.hh"
 #include "mgm/Iostat.hh"
 
 EOSMGMNAMESPACE_BEGIN
@@ -52,6 +53,10 @@ IoCmd::ProcessRequest() noexcept
 
   case eos::console::IoProto::kNs:
     NsSubcmd(io.ns(), reply);
+    break;
+
+  case eos::console::IoProto::kLimit:
+    LimitSubcmd(io.limit(), reply);
     break;
 
   default:
@@ -285,6 +290,23 @@ void IoCmd::NsSubcmd(const eos::console::IoProto_NsProto& ns,
   }
 
   reply.set_std_out(out.c_str());
+  reply.set_retc(0);
+}
+
+
+//------------------------------------------------------------------------------
+// Execute limit ls subcommand
+//------------------------------------------------------------------------------
+
+void
+IoCmd::LimitSubcmd(const eos::console::IoProto_LimitProto& limit,
+		   eos::console::ReplyProto& reply)
+{
+  if (limit.listing()) {
+    reply.set_std_out(gOFS->IoLimit->Print(limit.typefilter(), limit.rangefilter(),limit.keyfilter()));
+  } else {
+    reply.set_std_out("[limit cmd]'\n");
+  }
   reply.set_retc(0);
 }
 

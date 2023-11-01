@@ -164,6 +164,7 @@ class GeoTreeEngine;
 class ZMQ;
 class Recycle;
 class Devices;
+class Iolimit;
 class Iostat;
 class Stat;
 class WFE;
@@ -1899,6 +1900,7 @@ public:
   std::unique_ptr<Stat> MgmStatsPtr;
   Stat& MgmStats;
   std::unique_ptr<Iostat> IoStats; ///<  Mgm IO Statistics
+  std::unique_ptr<Iolimit> IoLimit; ///<  Mgm IO Limiter
 
   //! Mgm IO Report store path by default is /var/tmp/eos/report
   XrdOucString IoReportStorePath;

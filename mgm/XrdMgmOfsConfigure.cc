@@ -48,6 +48,7 @@
 #include "mgm/http/HttpServer.hh"
 #include "mgm/ZMQ.hh"
 #include "mgm/Iostat.hh"
+#include "mgm/Iolimit.hh"
 #include "mgm/LRU.hh"
 #include "mgm/WFE.hh"
 #include "mgm/QdbMaster.hh"
@@ -2120,6 +2121,10 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   // Start the device tracking thread
   if ((mMaster->IsMaster()) && (!DeviceTracker->Start())) {
     eos_static_warning("msg=\"cannot start device tracking thread\"");
+  }
+
+  if ((mMaster->IsMaster()) && (!IoLimit->Start())) {
+    eos_static_warning("msg=\"cannot start iol imiter thread\"");
   }
 
   // Start the recycler garbage collection thread on a master machine

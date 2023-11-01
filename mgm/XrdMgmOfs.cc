@@ -73,6 +73,7 @@
 #include "mgm/http/HttpServer.hh"
 #include "mgm/ZMQ.hh"
 #include "mgm/Iostat.hh"
+#include "mgm/Iolimit.hh"
 #include "mgm/LRU.hh"
 #include "mgm/WFE.hh"
 #include "mgm/fsck/Fsck.hh"
@@ -351,6 +352,7 @@ XrdMgmOfs::XrdMgmOfs(XrdSysError* ep):
   eos::common::LogId::SetSingleShotLogId();
   mZmqContext = new zmq::context_t(1);
   IoStats.reset(new eos::mgm::Iostat());
+  IoLimit.reset(new eos::mgm::Iolimit());
   mHttpd.reset(new eos::mgm::HttpServer(mHttpdPort));
 
   if (mGRPCPort) {
@@ -469,6 +471,11 @@ XrdMgmOfs::OrderlyShutdown()
   if (IoStats) {
     eos_warning("%s", "msg=\"stopping and deleting IoStats\"");
     IoStats.reset();
+  }
+
+  if (IoLimit) {
+    eos_warning("%s", "msg=\"stopping and deleting IoLimit\"");
+    IoLimit.reset();
   }
 
   eos_warning("%s", "msg=\"stopping fusex server\"");

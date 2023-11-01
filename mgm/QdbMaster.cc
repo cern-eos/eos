@@ -29,6 +29,8 @@
 #include "mgm/fsck/Fsck.hh"
 #include "mgm/LRU.hh"
 #include "mgm/Recycle.hh"
+#include "mgm/Devices.hh"
+#include "mgm/Iolimit.hh"
 #include "mgm/convert/ConverterDriver.hh"
 #include "mgm/config/IConfigEngine.hh"
 #include "mgm/tgc/MultiSpaceTapeGc.hh"
@@ -374,6 +376,9 @@ QdbMaster::SlaveToMaster()
 
   gOFS->mLRUEngine->Start();
   gOFS->Recycler->Start();
+  gOFS->DeviceTracker->Start();
+  gOFS->IoLimit->Start();
+
   Access::RemoveStallRule("*");
   Access::SetSlaveToMasterRules();
   gOFS->mTracker.SetAcceptingRequests(true);
@@ -413,7 +418,9 @@ QdbMaster::MasterToSlave()
   gOFS->mDrainEngine.Stop();
   gOFS->mFsckEngine->Stop();
   gOFS->mLRUEngine->Stop();
-
+  gOFS->DeviceTracker->Stop();
+  gOFS->IoLimit->Stop();
+  
   if (gOFS->mConverterDriver) {
     gOFS->mConverterDriver->Stop();
   }

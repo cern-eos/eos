@@ -212,6 +212,7 @@ add_library(
   Acl.cc
   Stat.cc
   Iostat.cc
+  Iolimit.cc
   fsck/Fsck.cc
   fsck/FsckEntry.cc
   utils/AttrHelper.cc

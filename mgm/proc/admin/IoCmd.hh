@@ -92,6 +92,15 @@ private:
   //----------------------------------------------------------------------------
   void NsSubcmd(const eos::console::IoProto_NsProto& ns,
                 eos::console::ReplyProto& reply);
+
+  //----------------------------------------------------------------------------
+  //! Execute iolimit  subcommand
+  //!
+  //! @param limitsubcommand proto object
+  //! @param reply reply proto object
+  //----------------------------------------------------------------------------
+  void LimitSubcmd(const eos::console::IoProto_LimitProto& limit,
+                  eos::console::ReplyProto& reply);
 };
 
 EOSMGMNAMESPACE_END
