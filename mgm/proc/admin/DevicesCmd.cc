@@ -409,13 +409,18 @@ void DevicesCmd::LsSubcmd(const eos::console::DevicesProto_LsProto& ls,
       double volyears = totalcapacity * totalhours / 24.0 / 365.0;
       double tbyears = totaltbhours / 24.0 / 365.0;
       double tage = totalhours / (totaldrivecount ? totaldrivecount : 1000000);
-      double cloudinstancecost = tbyears * 250.0; // assume 250 cloud$ per tb/year
+      double cloudcosttbyear = getenv("EOS_CLOUD_TB_YEAR_PRICE")?strtod(getenv("EOS_CLOUD_TB_YEAR_PRICE"),0):250.0; // default 250$ per TB*year
+      double replicafactor = getenv("EOS_CLOUD_REPLICA_FACTOR")?strtod(getenv("EOS_CLOUD_REPLICA_FACTOR"),0):2.0;   // default 2 replica factor 2.0
+      double erasurefactor = getenv("EOS_CLOUD_EC_FACTOR")?strtod(getenv("EOS_CLOUD_EC_FACTOR"),0):1.2;             // default RS(10,2) factor 1.2
+      if (!replicafactor) { replicafactor = 2.0; }
+      if (!erasurefactor) { erasurefactor = 2.0; } 
+      double cloudinstancecost = tbyears * cloudcosttbyear; 
       gjson["cost"]["vol:years"] = volyears;
       gjson["cost"]["tb:years"] = tbyears;
       gjson["cost"]["avg-drive-hours"] = tage;
       gjson["cost"]["tot-drive-hours"] = totalhours;
-      gjson["cost"]["cloud-dollar-replica"] = cloudinstancecost / 2.0;
-      gjson["cost"]["cloud-dollar-erasure"] = cloudinstancecost / 1.2;
+      gjson["cost"]["cloud-dollar-replica"] = cloudinstancecost / replicafactor;
+      gjson["cost"]["cloud-dollar-erasure"] = cloudinstancecost / erasurefactor;
       TableRow row;
 
       if (format_case == DevicesProto::LsProto::MONITORING) {
