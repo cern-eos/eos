@@ -69,11 +69,35 @@ CheckFsXattrConverted(std::string fs_path)
     match_indexes.insert(rand() % 100000);
   }
 
-  auto exclude_files = [](std::string_view filename) -> bool {
+  auto exclude_files = [fs_path](std::string_view filename) -> bool {
     static const std::string xsmap_ext = ".xsmap";
     static const std::string scrub_prefix = "scrub.";
-    return (eos::common::endsWith(filename, xsmap_ext) ||
-    eos::common::startsWith(std::string(filename), scrub_prefix));
+    static const std::string ioping_prefix = "fst.ioping.";
+    bool name_exclude = (eos::common::endsWith(filename, xsmap_ext) ||
+    eos::common::startsWith(std::string(filename), scrub_prefix) ||
+    eos::common::startsWith(std::string(filename), ioping_prefix));
+
+    if (name_exclude)
+    {
+      return true; // exclude based on filename
+    }
+
+    // Exclude also 0-size files
+    struct stat info;
+    const std::string full_path = fs_path + "/" + filename.data();
+    int retc = stat(full_path.c_str(), &info);
+
+    if (retc)
+    {
+      return true; // exclude as we can not access
+    }
+
+    if (info.st_size == 0)
+    {
+      return true; // exclude 0-size files
+    }
+
+    return false;
   };
   auto check_fmd_xattr = [](std::string_view abs_path) -> bool {
     static const std::string xattr_key = "user.eos.fmd";
@@ -81,7 +105,7 @@ CheckFsXattrConverted(std::string fs_path)
     std::string xattr_val;
     return (local_io.attrGet(xattr_key, xattr_val) == 0);
   };
-  eos_static_info("msg=\"check %i files for xattrs\"", match_indexes.size());
+  eos_static_info("msg=\"checking %i files for xattrs\"", match_indexes.size());
   return WalkFsTreeCheckCond({fs_path.data(), nullptr}, check_fmd_xattr,
                              exclude_files, match_indexes);
 }
