@@ -10,12 +10,9 @@ struct WeightedRandomPlacement::Impl {
                              Args args);
 
   void populateWeights(const ClusterData& data);
-  Impl(): rd(), gen(rd()) {}
   std::shared_mutex mtx;
   std::discrete_distribution<> mBucketWeights;
   std::map<item_id_t, std::discrete_distribution<>> mDiskWeights;
-  std::random_device rd;
-  std::mt19937 gen;
 };
 
 void WeightedRandomPlacement::Impl::populateWeights(const ClusterData& data)
@@ -46,6 +43,8 @@ PlacementResult WeightedRandomPlacement::Impl::placeFiles(const ClusterData& dat
                                                           Args args)
 {
   PlacementResult result(args.n_replicas);
+  static thread_local std::random_device rd;
+  static thread_local std::mt19937 gen(rd());
   std::shared_lock rlock(mtx);
 
   // This is only called at initialization
