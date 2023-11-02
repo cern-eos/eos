@@ -227,29 +227,6 @@ install(TARGETS eoscp
   RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_BINDIR}
   ARCHIVE DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR})
 
-#-------------------------------------------------------------------------------
-# raincheck executable
-#-------------------------------------------------------------------------------
-add_executable(raincheck raincheck.cc)
-
-target_link_libraries(raincheck PRIVATE EosFstIo-Static)
-
-target_compile_definitions(raincheck PRIVATE
-  -D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64)
-
-set_target_properties(
-  raincheck PROPERTIES
-  INSTALL_RPATH "${EOS_RPATH}"
-  SKIP_RPATH FALSE
-  SKIP_BUILD_RPATH FALSE
-  BUILD_WITH_INSTALL_RPATH TRUE
-  INSTALL_RPATH_USE_LINK_PATH TRUE)
-
-install(TARGETS raincheck
-  LIBRARY DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
-  RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_BINDIR}
-  ARCHIVE DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR})
-
 if(NOT CLIENT)
 #-------------------------------------------------------------------------------
 # EosFstOss library
@@ -400,11 +377,13 @@ install(TARGETS EosFstHttp
 #-------------------------------------------------------------------------------
 # Other executables
 #-------------------------------------------------------------------------------
-add_executable(eos-rain-hd-dump
-  tools/RainHdrDump.cc)
+add_executable(eos-rain-check tools/RainCheck.cc)
+target_link_libraries(eos-rain-check PRIVATE EosFstIo-Static)
+target_compile_definitions(eos-rain-check PRIVATE
+  -D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64)
 
-target_link_libraries(eos-rain-hd-dump
-  EosFstIo XROOTD::SERVER)
+add_executable(eos-rain-hd-dump  tools/RainHdrDump.cc)
+target_link_libraries(eos-rain-hd-dump PRIVATE EosFstIo XROOTD::SERVER)
 
 add_executable(eos-check-blockxs
   tools/CheckBlockXS.cc
@@ -453,8 +432,7 @@ add_executable(eos-create-file-pattern
 add_executable(eos-readv-pattern
   utils/CheckFileReadWithPattern.cc)
 
-target_link_libraries(eos-readv-pattern
-  XROOTD::CL)
+target_link_libraries(eos-readv-pattern PRIVATE XROOTD::CL)
 
 add_executable(eos-fmd-tool
   tools/ConvertFileMD.cc
@@ -473,8 +451,7 @@ add_executable(eos-disk-measurements
   utils/DiskMeasurementsMain.cc
   utils/DiskMeasurements.cc)
 
-target_link_libraries(eos-disk-measurements PRIVATE
-  EosCommon)
+target_link_libraries(eos-disk-measurements PRIVATE EosCommon)
 
 install(PROGRAMS
   tools/eosfstregister
@@ -485,6 +462,7 @@ install(TARGETS
   eos-ioping eos-adler32 eos-checksum eos-rain-hd-dump
   eos-check-blockxs eos-compute-blockxs eos-scan-fs
   eos-create-file-pattern eos-readv-pattern eos-fmd-tool
+  eos-rain-check
   RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_SBINDIR})
 
 endif()
