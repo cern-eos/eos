@@ -26,6 +26,10 @@
 
 EOSCOMMONNAMESPACE_BEGIN
 
+using FsckErrsPerFsMap = std::map<std::string,
+      std::map<eos::common::FileSystem::fsid_t,
+      std::set<eos::common::FileId::fileid_t>>>;
+
 //------------------------------------------------------------------------------
 //! Class modelling the file metadata stored on the FST. It wrapps an FmdBase
 //! class generated from the ProtoBuffer specification and adds some extra
@@ -176,10 +180,9 @@ bool EnvToFstFmd(XrdOucEnv& env, FmdHelper& fmd);
 //! @param fsid file system id
 //! @param map of errors to filesystem id and file identifiers
 //------------------------------------------------------------------------------
-void CollectInconsistencies(
-    const FmdHelper& fmd, const eos::common::FileSystem::fsid_t fsid,
-    std::map<std::string, std::map<eos::common::FileSystem::fsid_t,
-                                   std::set<eos::common::FileId::fileid_t>>>&
-        fidset);
+void
+CollectInconsistencies(const FmdHelper& fmd,
+                       const eos::common::FileSystem::fsid_t fsid,
+                       FsckErrsPerFsMap& errs_map);
 
 EOSCOMMONNAMESPACE_END
