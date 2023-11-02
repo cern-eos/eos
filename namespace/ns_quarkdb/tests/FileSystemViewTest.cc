@@ -563,6 +563,14 @@ TEST_F(FileSystemViewF, FileSystemHandlerCache)
     fs1.clearCache(std::chrono::seconds(53));
     ASSERT_EQ(eos::FileSystemHandler::CacheStatus::kNotLoaded,
               fs1.getCacheStatus());
+    fs1.nuke();
+  }
+  mdFlusher()->synchronize();
+  // Ensure it's empty in the backend as well
+  {
+    qclient::QSet qset2(qcl(), eos::RequestBuilder::keyFilesystemFiles(1));
+    auto it = qset2.getIterator();
+    ASSERT_TRUE(eos::ns::testing::verifyContents(&it, std::set<std::string> { }));
   }
 }
 
