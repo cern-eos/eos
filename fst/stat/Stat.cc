@@ -429,7 +429,7 @@ Stat::PrintOutTotalJson(Json::Value& out)
   }
   COMMONTIMING("STOP",&tm);
   out["publishing"]["ms"] = tm.RealTime();
-  out["publishing"]["unixtime"] = time(NULL);
+  out["publishing"]["unixtime"] =(Json::LargestUInt) time(NULL);
 }
 
 std::string
