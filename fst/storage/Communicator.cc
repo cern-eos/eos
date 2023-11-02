@@ -343,7 +343,7 @@ Storage::ProcessFsConfigChange(const std::string& queuepath,
 // Communicator
 //------------------------------------------------------------------------------
 void
-Storage::Communicator(ThreadAssistant& assistant)
+Storage::Communicator(ThreadAssistant& assistant) noexcept
 {
   eos_static_info("%s", "msg=\"starting communicator thread\"");
   std::set<std::string> watch_modification_keys { "id", "uuid", "bootsenttime",
@@ -473,7 +473,7 @@ static std::string ExtractFsPath(const std::string& key)
 // update is done in a separate thread handling the trigger event otherwise
 // we deadlock in the QClient code.
 //------------------------------------------------------------------------------
-void Storage::UpdateRegisteredFs(ThreadAssistant& assistant)
+void Storage::UpdateRegisteredFs(ThreadAssistant& assistant) noexcept
 {
   while (!assistant.terminationRequested()) {
     std::unique_lock lock(mMutexRegisterFs);
@@ -524,7 +524,7 @@ Storage::NodeUpdateCb(qclient::SharedHashUpdate&& upd)
 // QdbCommunicator
 //------------------------------------------------------------------------------
 void
-Storage::QdbCommunicator(ThreadAssistant& assistant)
+Storage::QdbCommunicator(ThreadAssistant& assistant) noexcept
 {
   using namespace std::placeholders;
 

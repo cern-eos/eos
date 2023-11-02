@@ -465,7 +465,6 @@ Storage::GetFsStatistics(FileSystem* fs)
                                          health["drives_failed"] : "0");
   output["stat.health.redundancy_factor"] = (health.count("redundancy_factor") ?
       health["redundancy_factor"] : "1");
-
   {
     // don't publish smart info too often, it is few kb per filesystem!
     time_t now = time(NULL);
@@ -474,19 +473,20 @@ Storage::GetFsStatistics(FileSystem* fs)
     bool publish = false;
     {
       XrdSysMutexHelper scope_lock(smartPublishingMutex);
+
       if (!smartPublishing[fs] ||
-	  (smartPublishing[fs] < now )) {
-	smartPublishing[fs]=now+900;
-	publish = true;
+          (smartPublishing[fs] < now)) {
+        smartPublishing[fs] = now + 900;
+        publish = true;
       }
     }
-    if ( publish ) {
-      // compress the json smart info  
-      eos::common::SymKey::ZBase64(health["attributes"], output["stat.health.z64smart"]);
+
+    if (publish) {
+      // compress the json smart info
+      eos::common::SymKey::ZBase64(health["attributes"],
+                                   output["stat.health.z64smart"]);
     }
   }
-       
-  
   // Publish generic statistics, related to free space and current load
   long long r_open = (long long) gOFS.openedForReading.getOpenOnFilesystem(fsid);
   long long w_open = (long long) gOFS.openedForWriting.getOpenOnFilesystem(fsid);
@@ -559,7 +559,7 @@ bool Storage::PublishFsStatistics(FileSystem* fs)
 // Publish
 //------------------------------------------------------------------------------
 void
-Storage::Publish(ThreadAssistant& assistant)
+Storage::Publish(ThreadAssistant& assistant) noexcept
 {
   eos_static_info("%s", "msg=\"publisher activated\"");
   std::string tmp_name = MakeTemporaryFile();
