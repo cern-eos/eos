@@ -167,6 +167,7 @@ target_link_libraries(EosCommon-Objects PUBLIC
   LIBBFD::IBERTY
   GOOGLE::SPARSEHASH
   ABSL::ABSL
+  ZSTD::ZSTD
   fmt::fmt-header-only
   ${CMAKE_THREAD_LIBS_INIT})
 
