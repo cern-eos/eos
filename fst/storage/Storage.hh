@@ -296,6 +296,12 @@ private:
   std::mutex mMutexRegisterFs;
   bool mTriggerRegisterFs {false};
 
+  enum class FsRegisterStatus {
+    kNoAction,
+    kPartial,
+    kRegistered
+  };
+
   //! Struct BootThreadInfo
   struct BootThreadInfo {
     Storage* storage;
@@ -342,7 +348,7 @@ private:
   //!
   //! @param queuepath file system queuepath identifier
   //----------------------------------------------------------------------------
-  void RegisterFileSystem(const std::string& queuepath);
+  FsRegisterStatus RegisterFileSystem(const std::string& queuepath);
 
   //----------------------------------------------------------------------------
   //! Unregister file system given a queue path

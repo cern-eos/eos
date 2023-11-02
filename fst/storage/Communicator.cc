@@ -113,7 +113,7 @@ Storage::UnregisterFileSystem(const std::string& queuepath)
 //------------------------------------------------------------------------------
 // Register file system
 //------------------------------------------------------------------------------
-void
+Storage::FsRegisterStatus
 Storage::RegisterFileSystem(const std::string& queuepath)
 {
   eos::common::RWMutexWriteLock fs_wr_lock(mFsMutex);
@@ -125,7 +125,7 @@ Storage::RegisterFileSystem(const std::string& queuepath)
   if (it != mFsVect.end()) {
     eos_static_warning("msg=\"file system is already registered\" qpath=%s",
                        queuepath.c_str());
-    return;
+    return FsRegisterStatus::kNoAction;
   }
 
   common::FileSystemLocator locator;
@@ -133,7 +133,7 @@ Storage::RegisterFileSystem(const std::string& queuepath)
   if (!common::FileSystemLocator::fromQueuePath(queuepath, locator)) {
     eos_static_crit("msg=\"failed to parse locator\" qpath=%s",
                     queuepath.c_str());
-    return;
+    return FsRegisterStatus::kNoAction;
   }
 
   fst::FileSystem* fs = new fst::FileSystem(locator, gOFS.mMessagingRealm.get());
@@ -147,7 +147,7 @@ Storage::RegisterFileSystem(const std::string& queuepath)
   if ((fs->GetLocalId() == 0ul) || fs->GetLocalUuid().empty()) {
     eos_static_info("msg=\"partially register file system\" qpath=\"%s\"",
                     queuepath.c_str());
-    return;
+    return FsRegisterStatus::kPartial;
   }
 
   if (mFsMap.find(fs->GetLocalId()) != mFsMap.end()) {
@@ -165,6 +165,8 @@ Storage::RegisterFileSystem(const std::string& queuepath)
       RunBootThread(fs, "");
     }
   }
+
+  return FsRegisterStatus::kRegistered;
 }
 
 //------------------------------------------------------------------------------
@@ -426,7 +428,7 @@ Storage::Communicator(ThreadAssistant& assistant) noexcept
           continue;
         }
 
-        RegisterFileSystem(queue.c_str());
+        (void) RegisterFileSystem(queue.c_str());
       } else if (event.mType == XrdMqSharedObjectManager::kMqSubjectDeletion) {
         // Skip deletions that don't concern us
         if (queue.beginswith(gConfig.FstQueue) == false) {
@@ -478,6 +480,7 @@ void Storage::UpdateRegisteredFs(ThreadAssistant& assistant) noexcept
   while (!assistant.terminationRequested()) {
     std::unique_lock lock(mMutexRegisterFs);
     mCvRegisterFs.wait(lock, [&] {return mTriggerRegisterFs;});
+    eos_static_info("%s", "msg=\"update registered file systems\"");
     mTriggerRegisterFs = false;
     qclient::QScanner scanner(*gOFS.mMessagingRealm->getQSom()->getQClient(),
                               SSTR("eos-hash||fs||" << gConfig.FstHostPort << "||*"));
@@ -490,9 +493,13 @@ void Storage::UpdateRegisteredFs(ThreadAssistant& assistant) noexcept
     }
 
     // Filesystems added?
+    std::set<std::string> partial_filesystems;
+
     for (auto it = new_filesystems.begin(); it != new_filesystems.end(); ++it) {
       if (mLastRoundFilesystems.find(*it) == mLastRoundFilesystems.end()) {
-        RegisterFileSystem(*it);
+        if (RegisterFileSystem(*it) == FsRegisterStatus::kPartial) {
+          partial_filesystems.insert(*it);
+        }
       }
     }
 
@@ -502,6 +509,22 @@ void Storage::UpdateRegisteredFs(ThreadAssistant& assistant) noexcept
       if (new_filesystems.find(*it) == new_filesystems.end()) {
         UnregisterFileSystem(*it);
       }
+    }
+
+    if (!partial_filesystems.empty()) {
+      // Reset register trigger flag and remove partial file systems so
+      // that we properly register them in them next loop.
+      mTriggerRegisterFs = true;
+
+      for (const auto& elem : partial_filesystems) {
+        UnregisterFileSystem(elem);
+        auto it_del  = new_filesystems.find(elem);
+        new_filesystems.erase(it_del);
+      }
+
+      eos_static_info("%s", "msg=\"re-trigger file system registration "
+                      "in 5 seconds\"");
+      std::this_thread::sleep_for(std::chrono::seconds(5));
     }
 
     mLastRoundFilesystems = std::move(new_filesystems);
