@@ -211,6 +211,7 @@ TEST_F(FileSystemViewF, BasicSanity)
   view()->updateFileStore(f.get());
   ASSERT_EQ(fsview()->getNumNoReplicasFiles(), 501);
   view()->removeFile(f.get());
+  mdFlusher()->synchronize();
   ASSERT_EQ(fsview()->getNumNoReplicasFiles(), 500);
   shut_down_everything();
 
