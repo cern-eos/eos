@@ -144,7 +144,7 @@ XrdArchive::Open(bool showbytes, bool json, bool silent)
       } else {
 	Json::Value jentry;
 	jentry["path"] = (*it)->GetName();
-	jentry["size"] = (*it)->GetStatInfo()->GetSize();
+	jentry["size"] = (Json::UInt64)(*it)->GetStatInfo()->GetSize();
 	jentry["url"]  = archivefile + std::string("?xrdcl.unzip=/") + (*it)->GetName();
 	gjson["archive"]["files"].append(jentry);
       }
@@ -599,7 +599,7 @@ XrdArchive::getAndUncompressAPI(std::string source, std::string target)
 	    return -1;
 	  }
 	  bytesout+=output.pos;
-	  fprintf(stderr,"decompressed %lu to %lu\n", bytesRead, bytesout);
+	  fprintf(stderr,"decompressed %u to %lu\n", bytesRead, bytesout);
 	  st = yfile.Write( offset, output.pos, compbuf->GetDataPtr(), (uint16_t)0);
 	  if (!st.IsOK()) {
 	    fprintf(stderr,"error: write error writing '%s'\n", target.c_str());
@@ -613,7 +613,7 @@ XrdArchive::getAndUncompressAPI(std::string source, std::string target)
 	bytestoupload += bytesout;
 	bytesread += bytesRead;
       } else {
-	fprintf(stderr,"copying %lu of %lu \n", bytesRead, blocksize);
+	fprintf(stderr,"copying %u of %lu \n", bytesRead, blocksize);
 	// uncompressed output
 	st = yfile.Write( offset, bytesRead, buf->GetDataPtr(),(uint16_t)0);
 	if (!st.IsOK()) {
