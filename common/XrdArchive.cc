@@ -254,12 +254,12 @@ XrdArchive::Download(size_t pjobs, bool json, bool silent)
   } else {
     Json::Value gjson;
     gjson["archive"]["url"] = archiveurl;
-    gjson["archive"]["bytes::in"] = bytesread.load();
-    gjson["archive"]["bytes::out"] = bytestoupload.load();
-    gjson["archive"]["compression::ratio"] = bytesread?(1.00*bytestoupload/bytesread):0;
-    gjson["archive"]["files::n"] = downloadJobs.size();
+    gjson["archive"]["bytes::in"] = (Json::UInt64) bytesread.load();
+    gjson["archive"]["bytes::out"] = (Json::UInt64) bytestoupload.load();
+    gjson["archive"]["compression::ratio"] = bytesread?(1.00*bytestoupload/bytesread):0.0;
+    gjson["archive"]["files::n"] = (Json::UInt64)downloadJobs.size();
     gjson["archive"]["compression"] = zstdcompression?"zstd":"none";
-    gjson["archive"]["splitsize"] = splitsize.load();
+    gjson["archive"]["splitsize"] = (Json::UInt64)splitsize.load();
     if (!silent) {
       std::cout << SSTR(gjson) << std::endl;
     }
