@@ -147,6 +147,7 @@ public:
   //----------------------------------------------------------------------------
   inline void ResetLog()
   {
+    std::unique_lock<std::mutex> lock(mMutex);
     mLog.clear();
   }
 
@@ -184,6 +185,7 @@ public:
 
 protected:
   std::string mLog; ///< Master logs
+  std::mutex mMutex; ///< Mutex protecting access to the log message
 };
 
 EOSMGMNAMESPACE_END

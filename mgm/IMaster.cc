@@ -30,6 +30,7 @@ void
 IMaster::MasterLog(const char* log)
 {
   if (log && strlen(log)) {
+    std::unique_lock<std::mutex> lock(mMutex);
     mLog += log;
     mLog += '\n';
   }
@@ -39,7 +40,7 @@ IMaster::MasterLog(const char* log)
 // Create status file
 //------------------------------------------------------------------------------
 bool
-IMaster:: CreateStatusFile(const char* path)
+IMaster::CreateStatusFile(const char* path)
 {
   struct stat buf;
 
