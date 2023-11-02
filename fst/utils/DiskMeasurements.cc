@@ -23,6 +23,7 @@
 
 #include "fst/utils/DiskMeasurements.hh"
 #include "common/Logging.hh"
+#include "common/BufferManager.hh"
 #include <iostream>
 #include <chrono>
 #include <random>
@@ -45,17 +46,12 @@ GenerateRandomData(char* data, size_t length)
 //------------------------------------------------------------------------------
 // Create file path with given size
 //------------------------------------------------------------------------------
-bool FillFileGivenSize(const std::string& path, size_t length)
+bool FillFileGivenSize(int fd, size_t length)
 {
-  int fd = open(path.c_str(), O_TRUNC | O_WRONLY);
-
-  if (fd == -1) {
-    return false;
-  }
-
+  using namespace eos::common;
   int retc = 0, nwrite = 0;
   const size_t sz {4 * 1024 * 1024};
-  std::unique_ptr<char[]> buffer {new char[sz]()};
+  auto buffer = GetAlignedBuffer(sz);
   GenerateRandomData(buffer.get(), sz);
 
   while (length > 0) {
@@ -63,8 +59,6 @@ bool FillFileGivenSize(const std::string& path, size_t length)
     retc = write(fd, buffer.get(), nwrite);
 
     if (retc != nwrite) {
-      (void) close(fd);
-      unlink(path.c_str());
       return false;
     }
 
@@ -72,7 +66,6 @@ bool FillFileGivenSize(const std::string& path, size_t length)
   }
 
   fsync(fd);
-  close(fd);
   return true;
 }
 
@@ -109,40 +102,21 @@ std::string MakeTemporaryFile(std::string base_path)
 //------------------------------------------------------------------------------
 // Get IOPS measurement for the given path
 //------------------------------------------------------------------------------
-int ComputeIops(const std::string& fn_path, uint64_t rd_buf_size)
+int ComputeIops(int fd, uint64_t rd_buf_size)
 {
+  using namespace eos::common;
   int IOPS = -1;
-  // Open the file for direct reading
-  int fd = open(fn_path.c_str(), O_RDONLY | O_DIRECT | O_SYNC);
-
-  if (fd == -1) {
-    std::cerr << "err: failed to open for direct reading" << std::endl;
-    eos_static_err("msg=\"failed to open file for direct reading\" path=%s",
-                   fn_path.c_str());
-    return IOPS;
-  }
-
   // Get file size
   struct stat info;
 
   if (fstat(fd, &info)) {
-    std::cerr << "err: failed to stat file " << fn_path << std::endl;
-    eos_static_err("msg=\"failed to stat file\" path=%s", fn_path.c_str());
+    std::cerr << "err: failed to stat file fd=" << fd << std::endl;
+    eos_static_err("msg=\"failed to stat file\" fd=%i", fd);
     return IOPS;
   }
 
   uint64_t fn_size = info.st_size;
-  char* buf = nullptr;
-  int retc = posix_memalign((void**)&buf, 0x1000, rd_buf_size);
-
-  if (retc != 0) {
-    std::cerr << "err: failed to allocate aligned memory" << std::endl;
-    eos_static_err("msg=\"failed to allocate aligned memory\" sz=%i",
-                   rd_buf_size);
-    close(fd);
-    return IOPS;
-  }
-
+  auto buf = GetAlignedBuffer(rd_buf_size);
   // Get a uniform int distribution for offset generation
   std::random_device rd;
   std::mt19937 gen(rd());
@@ -157,11 +131,9 @@ int ComputeIops(const std::string& fn_path, uint64_t rd_buf_size)
     offset = (((fn_size * distrib(gen)) >> 10) >> 12) << 12;
     start = std::chrono::high_resolution_clock::now();
 
-    if (pread(fd, buf, rd_buf_size, offset) == -1) {
+    if (pread(fd, buf.get(), rd_buf_size, offset) == -1) {
       std::cerr << "error: failed to read at offset=" << offset << std::endl;
       eos_static_err("msg=\"failed read\" offset=%llu", offset);
-      (void) close(fd);
-      free(buf);
       return IOPS;
     }
 
@@ -171,58 +143,35 @@ int ComputeIops(const std::string& fn_path, uint64_t rd_buf_size)
   }
 
   IOPS = iterations / (duration / 1000000);
-  (void) close(fd);
-  free(buf);
   return IOPS;
 }
 
 //------------------------------------------------------------------------------
 // Get disk bandwidth for the given path
 //------------------------------------------------------------------------------
-int ComputeBandwidth(const std::string& fn_path, uint64_t rd_buf_size)
+int ComputeBandwidth(int fd, uint64_t rd_buf_size)
 {
+  using namespace eos::common;
   int bandwidth = -1;
-  // Open the file for direct reading
-  int fd = open(fn_path.c_str(), O_RDONLY | O_DIRECT | O_SYNC);
-
-  if (fd == -1) {
-    std::cerr << "err: failed to open for direct reading" << std::endl;
-    eos_static_err("msg=\"failed to open file for direct reading\" path=%s",
-                   fn_path.c_str());
-    return bandwidth;
-  }
-
   // Get file size
   struct stat info;
 
   if (fstat(fd, &info)) {
-    std::cerr << "err: failed to stat file " << fn_path << std::endl;
-    eos_static_err("msg=\"failed to stat file\" path=%s", fn_path.c_str());
+    std::cerr << "err: failed to stat file fd=" << fd << std::endl;
+    eos_static_err("msg=\"failed to stat file\" fd=%i", fd);
     return bandwidth;
   }
 
   uint64_t fn_size = info.st_size;
-  char* buf = nullptr;
-  int retc = posix_memalign((void**)&buf, 0x1000, rd_buf_size);
-
-  if (retc != 0) {
-    std::cerr << "err: failed to allocate aligned memory" << std::endl;
-    eos_static_err("msg=\"failed to allocate aligned memory\" sz=%i",
-                   rd_buf_size);
-    close(fd);
-    return bandwidth;
-  }
-
+  auto buf = GetAlignedBuffer(rd_buf_size);
   uint64_t offset = 0ull;
   uint64_t max_read = 1 << 28; // 256 MB
   auto start = std::chrono::high_resolution_clock::now();
 
   while ((offset < fn_size)  && (offset < max_read)) {
-    if (pread(fd, buf, rd_buf_size, offset) == -1) {
+    if (pread(fd, buf.get(), rd_buf_size, offset) == -1) {
       std::cerr << "error: failed to read at offset=" << offset << std::endl;
       eos_static_err("msg=\"failed read\" offset=%llu", offset);
-      (void) close(fd);
-      free(buf);
       return bandwidth;
     }
 
@@ -233,8 +182,6 @@ int ComputeBandwidth(const std::string& fn_path, uint64_t rd_buf_size)
   auto duration = std::chrono::duration_cast<std::chrono::microseconds>
                   (end - start).count();
   bandwidth = ((offset >> 20) * 1000000) / duration;
-  (void) close(fd);
-  free(buf);
   return bandwidth;
 }
 

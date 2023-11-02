@@ -38,12 +38,12 @@ void GenerateRandomData(char* data, uint64_t length);
 //------------------------------------------------------------------------------
 //! Create file path with given size
 //!
-//! @param path file path that should not exit
+//! @param fd file descriptor with flags O_RDRW | O_TRUNC | O_DIRECT | O_SYNC
 //! @param lenght lenght of the generated file
 //!
 //! @return true if successful, otherwise false
 //------------------------------------------------------------------------------
-bool FillFileGivenSize(const std::string& path, uint64_t length);
+bool FillFileGivenSize(int fd, uint64_t length);
 
 //------------------------------------------------------------------------------
 //! Create random temporary file in given location
@@ -55,23 +55,23 @@ bool FillFileGivenSize(const std::string& path, uint64_t length);
 std::string MakeTemporaryFile(std::string base_path);
 
 //------------------------------------------------------------------------------
-//! Get IOPS measurement for the given path
+//! Get IOPS measurement using the given file descriptor
 //!
-//! @param fn_path given file path
+//! @param fd file descriptor with flags O_RDRW | O_TRUNC | O_DIRECT | O_SYNC
 //! @param rd_buf_size size of buffer used for read operations [default 4096]
 //!
 //! @return IOPS measurement
 //------------------------------------------------------------------------------
-int ComputeIops(const std::string& fn_path, uint64_t rd_buf_size = 4096);
+int ComputeIops(int fd, uint64_t rd_buf_size = 4096);
 
 //------------------------------------------------------------------------------
-//! Get disk bandwidth for the given path
+//! Get disk bandwidth using the given file descriptor
 //!
-//! @param path file system path
+//! @param fd file descriptor with flags O_RDRW | O_TRUNC | O_DIRECT | O_SYNC
 //! @param rd_buf_size size of buffer used for read operations [default 4096]
 //!
 //! @return disk bandwidth measurement
 //------------------------------------------------------------------------------
-int ComputeBandwidth(const std::string& fn_path, uint64_t rd_buf_size = 4096);
+int ComputeBandwidth(int fd, uint64_t rd_buf_size = 4096);
 
 EOSFSTNAMESPACE_END

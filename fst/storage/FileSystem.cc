@@ -272,17 +272,29 @@ FileSystem::IoPing()
     return;
   }
 
-  // Fill the file up to the given size with random data
-  if (!eos::fst::FillFileGivenSize(fn_path, fn_size)) {
-    eos_static_err("msg=\"failed to fill file\" path=%s", fn_path.c_str());
-    unlink(fn_path.c_str());
+  // Open the file for direct access
+  int fd = open(fn_path.c_str(), O_RDWR | O_TRUNC | O_DIRECT | O_SYNC);
+
+  if (fd == -1) {
+    eos_static_err("msg=\"failed to open file\" path=%s", fn_path.c_str());
     return;
   }
 
-  IOPS = eos::fst::ComputeIops(fn_path);
+  // Unlink the file so that we don't leave any behind even in the case of
+  // a crash of the FST. The file descritor will still be valid for use.
+  (void) unlink(fn_path.c_str());
+
+  // Fill the file up to the given size with random data
+  if (!eos::fst::FillFileGivenSize(fd, fn_size)) {
+    eos_static_err("msg=\"failed to fill file\" path=%s", fn_path.c_str());
+    (void) close(fd);
+    return;
+  }
+
+  IOPS = eos::fst::ComputeIops(fd);
   uint64_t rd_buf_size = 4 * (1 << 20); // 4MB
-  seqBandwidth = eos::fst::ComputeBandwidth(fn_path, rd_buf_size);
-  unlink(fn_path.c_str());
+  seqBandwidth = eos::fst::ComputeBandwidth(fd, rd_buf_size);
+  (void) close(fd);
   eos_info("bw=%lld iops=%d", seqBandwidth, IOPS);
   return;
 }
