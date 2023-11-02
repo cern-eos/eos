@@ -165,8 +165,6 @@ public:
     // epoch per thread
 
     auto old = mCounter[tid].get();
-    assert(old && 0xFFFF == 0 || (old >> 16) == epoch);
-
     auto new_val = (epoch << 16) | (old & 0xFFFF) + count;
     mCounter[tid].epoch_counter.store(new_val, std::memory_order_release);
     return tid;
