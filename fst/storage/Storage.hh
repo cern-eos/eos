@@ -359,19 +359,19 @@ private:
   //----------------------------------------------------------------------------
   //! Communicator used for processing updates coming through MQ
   //----------------------------------------------------------------------------
-  void Communicator(ThreadAssistant& assistant);
+  void Communicator(ThreadAssistant& assistant) noexcept;
 
   //----------------------------------------------------------------------------
   //! Communicator used for processing updates coming through QDB
   //----------------------------------------------------------------------------
-  void QdbCommunicator(ThreadAssistant& assistant);
+  void QdbCommunicator(ThreadAssistant& assistant) noexcept;
 
   //----------------------------------------------------------------------------
   //! Update file system list given the QDB shared hash configuration i.e. scan
   //! QDB for file systems belonging to the current node and update the
   //! internal list.
   //----------------------------------------------------------------------------
-  void UpdateRegisteredFs(ThreadAssistant& assistant);
+  void UpdateRegisteredFs(ThreadAssistant& assistant) noexcept;
 
   //----------------------------------------------------------------------------
   //! Get configuration value from global FST config
@@ -414,7 +414,7 @@ private:
   void Report();
   void ErrorReport();
   void Verify();
-  void Publish(ThreadAssistant& assistant);
+  void Publish(ThreadAssistant& assistant) noexcept;
   void MgmSyncer();
   void Boot(fst::FileSystem* fs);
 

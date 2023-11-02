@@ -32,6 +32,7 @@
 #include <folly/futures/FutureSplitter.h>
 #include <folly/executors/Async.h>
 #include "common/Assert.hh"
+#include "common/SteadyClock.hh"
 
 namespace qclient
 {
@@ -160,10 +161,11 @@ public:
   //! @param qcl QClient object to use for loading the view from QDB
   //! @param flusher Flusher object for propagating updates to the backend
   //! @param unlinked whether we want the unlinked file list, or the regular one
+  //! @param fake_clock if true is fake clock implementation for tests
   //----------------------------------------------------------------------------
   FileSystemHandler(IFileMD::location_t location, folly::Executor* pExecutor,
-                    qclient::QClient* qcl, MetadataFlusher *flusher,
-                    bool unlinked);
+                    qclient::QClient* qcl, MetadataFlusher* flusher,
+                    bool unlinked, bool fake_clock = false);
 
   //----------------------------------------------------------------------------
   //! Constructor for the special case of "no replica list".
@@ -174,7 +176,7 @@ public:
   //! @param Tag for dispatching to this constructor overload
   //----------------------------------------------------------------------------
   FileSystemHandler(folly::Executor* pExecutor, qclient::QClient* qcl,
-                    MetadataFlusher *flusher, IsNoReplicaListTag tag);
+                    MetadataFlusher* flusher, IsNoReplicaListTag tag);
 
   //----------------------------------------------------------------------------
   //! Ensure contents have been loaded into the cache. If so, returns
@@ -244,12 +246,24 @@ public:
   //----------------------------------------------------------------------------
   bool hasFileId(IFileMD::id_t file);
 
-private:
   //----------------------------------------------------------------------------
-  //! Trigger cache load. Must only be called once.
+  //! Clear cache if given timeout is exceeded
+  //!
+  //! @param inactive_timeout timeout in seconds since the last time there was
+  //!        a call that required the entries to be actually loaded in memory.
+  //!        If inactive timeout is 0 then the cache is cleared immediately. By
+  //!        default once every 30 minutes.
   //----------------------------------------------------------------------------
-  FileSystemHandler* triggerCacheLoad();
+  void clearCache(std::chrono::seconds inactive_timeout =
+                    std::chrono::seconds(30 * 60));
 
+private:
+#ifdef IN_TEST_HARNESS
+public:
+#endif
+  //----------------------------------------------------------------------------
+  //! Cache status states
+  //----------------------------------------------------------------------------
   enum class CacheStatus {
     kNotLoaded,
     kInFlight,
@@ -269,14 +283,31 @@ private:
   IFileMD::location_t location;             ///< Filesystem ID, if available
   folly::Executor* pExecutor;               ///< Folly executor
   qclient::QClient* pQcl;                   ///< QClient object
-  MetadataFlusher *pFlusher;                ///< Metadata flusher object
-  std::shared_timed_mutex mMutex;           ///< Object mutex
-  IFsView::FileList
-  mContents;              ///< Actual contents. May be incomplete if mCacheStatus != kLoaded.
-  SetChangeList<IFileMD::id_t>
-  mChangeList; ///< ChangeList for what happens when cache loading is in progress.
-
+  MetadataFlusher* pFlusher;                ///< Metadata flusher object
+  mutable std::shared_timed_mutex mMutex;           ///< Object mutex
+  //! Actual contents. May be incomplete if mCacheStatus != kLoaded.
+  IFsView::FileList mContents;
+  //! ChangeList for what happens when cache loading is in progress.
+  SetChangeList<IFileMD::id_t> mChangeList;
   folly::FutureSplitter<FileSystemHandler*> mSplitter;
+  //! Timestamp of the last mandatory cache load attempt. This value will be
+  //! used to decide when the cache contents can be dropped.
+  std::atomic<uint64_t> mLastCacheLoadTS;
+  eos::common::SteadyClock mClock;
+
+  //----------------------------------------------------------------------------
+  //! Trigger cache load. Must only be called once.
+  //----------------------------------------------------------------------------
+  FileSystemHandler* triggerCacheLoad();
+
+  //----------------------------------------------------------------------------
+  //! Get cache status
+  //----------------------------------------------------------------------------
+  inline CacheStatus getCacheStatus() const
+  {
+    std::unique_lock<std::shared_timed_mutex> lock(mMutex);
+    return mCacheStatus;
+  }
 };
 
 EOSNSNAMESPACE_END

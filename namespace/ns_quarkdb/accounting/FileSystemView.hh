@@ -30,6 +30,7 @@
 #include "namespace/ns_quarkdb/Constants.hh"
 #include "namespace/ns_quarkdb/accounting/FileSystemView.hh"
 #include "namespace/ns_quarkdb/accounting/FileSystemHandler.hh"
+#include "common/AssistedThread.hh"
 #include "qclient/QClient.hh"
 #include <utility>
 
@@ -174,12 +175,12 @@ public:
   //----------------------------------------------------------------------------
   //! Constructor
   //----------------------------------------------------------------------------
-  QuarkFileSystemView(qclient::QClient *qcl, MetadataFlusher *flusher);
+  QuarkFileSystemView(qclient::QClient* qcl, MetadataFlusher* flusher);
 
   //----------------------------------------------------------------------------
   //! Destructor
   //----------------------------------------------------------------------------
-  virtual ~QuarkFileSystemView() = default;
+  virtual ~QuarkFileSystemView();
 
   //----------------------------------------------------------------------------
   //! Notify me about the changes in the main view
@@ -392,6 +393,14 @@ private:
   //----------------------------------------------------------------------------
   FileSystemHandler* fetchUnlinkedFilelistIfExists(IFileMD::location_t fsid);
 
+  //----------------------------------------------------------------------------
+  //! Run cache cleanup of the different FileSystemHandle objects tracked by
+  //! the FileSystemView in order to keep the memory overhead under control
+  //!
+  //! @param assistand thread responsible for this activity
+  //----------------------------------------------------------------------------
+  void CleanCacheJob(ThreadAssistant& assistant) noexcept;
+
   ///! Metadata flusher object
   MetadataFlusher* pFlusher;
   ///! QClient object
@@ -410,6 +419,10 @@ private:
   ///! Mutex protecting access to the maps. Not the contents of the maps,
   ///! though.
   std::mutex mMutex;
+  //! Thread cleaning the FileSystemHandler cache regularly
+  AssistedThread mCacheCleanerThread;
+  //! Period after which the thread cache cleaner will run. Default 45 min.
+  static const std::chrono::minutes sCacheCleanerTimeout;
 };
 
 //------------------------------------------------------------------------------

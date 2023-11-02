@@ -31,8 +31,10 @@ FileSystemHandler::FileSystemHandler(IFileMD::location_t loc,
                                      folly::Executor* executor,
                                      qclient::QClient* qcl,
                                      MetadataFlusher* flusher,
-                                     bool unlinked)
-  : location(loc), pExecutor(executor), pQcl(qcl), pFlusher(flusher)
+                                     bool unlinked,
+                                     bool fake_clock)
+  : location(loc), pExecutor(executor), pQcl(qcl), pFlusher(flusher),
+    mLastCacheLoadTS(0ull), mClock(fake_clock)
 {
   if (unlinked) {
     target = Target::kUnlinked;
@@ -65,6 +67,8 @@ FileSystemHandler::FileSystemHandler(folly::Executor* executor,
 //------------------------------------------------------------------------------
 FileSystemHandler* FileSystemHandler::ensureContentsLoaded()
 {
+  using eos::common::SteadyClock;
+  mLastCacheLoadTS = SteadyClock::secondsSinceEpoch(mClock.getTime()).count();
   return ensureContentsLoadedAsync().get();
 }
 
@@ -186,9 +190,22 @@ void FileSystemHandler::erase(FileIdentifier identifier)
 //------------------------------------------------------------------------------
 uint64_t FileSystemHandler::size()
 {
-  ensureContentsLoaded();
-  std::shared_lock<std::shared_timed_mutex> lock(mMutex);
-  return mContents.size();
+  {
+    std::shared_lock<std::shared_timed_mutex> lock(mMutex);
+
+    if (mCacheStatus == CacheStatus::kLoaded) {
+      return mContents.size();
+    }
+  }
+  // Do direct call to the backend
+  qclient::redisReplyPtr reply = pQcl->exec("SCARD", getRedisKey()).get();
+
+  if ((reply == nullptr) || (reply->type != REDIS_REPLY_INTEGER)) {
+    // Unexpected reply just return 0
+    return 0ull;
+  }
+
+  return reply->integer;
 }
 
 //------------------------------------------------------------------------------
@@ -223,9 +240,9 @@ void FileSystemHandler::nuke()
   pFlusher->del(getRedisKey());
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // Get an approximately random file in the filelist.
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 bool FileSystemHandler::getApproximatelyRandomFile(IFileMD::id_t& res)
 {
   ensureContentsLoaded();
@@ -233,14 +250,44 @@ bool FileSystemHandler::getApproximatelyRandomFile(IFileMD::id_t& res)
   return pickRandomFile(mContents, res);
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // Check whether a given id_t is contained in this filelist
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 bool FileSystemHandler::hasFileId(IFileMD::id_t file)
 {
   ensureContentsLoaded();
   std::shared_lock<std::shared_timed_mutex> lock(mMutex);
   return mContents.find(file) != mContents.end();
+}
+
+//------------------------------------------------------------------------------
+// Clear cache if it has been inactive during the given period
+//------------------------------------------------------------------------------
+void
+FileSystemHandler::clearCache(std::chrono::seconds inactive_timeout)
+{
+  using eos::common::SteadyClock;
+  using namespace std::chrono_literals;
+
+  if (inactive_timeout.count()) {
+    int64_t inactive_interval =
+      SteadyClock::secondsSinceEpoch(mClock.getTime()).count() - mLastCacheLoadTS;
+
+    if (inactive_timeout.count() > inactive_interval) {
+      return;
+    }
+  }
+
+  // Skip if mutex held by a long running operation
+  if (mMutex.try_lock_for(100ms)) {
+    if (mCacheStatus == CacheStatus::kLoaded) {
+      mContents.clear();
+      mContents.resize(0);
+      mCacheStatus = CacheStatus::kNotLoaded;
+    }
+
+    mMutex.unlock();
+  }
 }
 
 EOSNSNAMESPACE_END

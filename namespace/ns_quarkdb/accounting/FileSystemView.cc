@@ -32,6 +32,11 @@
 
 EOSNSNAMESPACE_BEGIN
 
+const std::chrono::minutes QuarkFileSystemView::sCacheCleanerTimeout
+{
+  45
+};
+
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
@@ -39,6 +44,14 @@ QuarkFileSystemView::QuarkFileSystemView(qclient::QClient* qcl,
     MetadataFlusher* flusher)
   : pFlusher(flusher), pQcl(qcl), mExecutor(new folly::IOThreadPoolExecutor(8))
 { }
+
+//-----------------------------------------------------------------------------
+// Destructor
+//------------------------------------------------------------------------------
+QuarkFileSystemView::~QuarkFileSystemView()
+{
+  mCacheCleanerThread.join();
+}
 
 //------------------------------------------------------------------------------
 // Configure the container service
@@ -56,6 +69,55 @@ QuarkFileSystemView::configure(const std::map<std::string, std::string>& config)
                   duration.count());
   mNoReplicas.reset(new FileSystemHandler(mExecutor.get(), pQcl, pFlusher,
                                           IsNoReplicaListTag()));
+  mCacheCleanerThread.reset(&QuarkFileSystemView::CleanCacheJob, this);
+}
+
+
+//------------------------------------------------------------------------------
+// Run cache cleanup of the different FileSystemHandle objects tracked by
+// the FileSystemView in order to keep the memory overhead under control
+//------------------------------------------------------------------------------
+void
+QuarkFileSystemView::CleanCacheJob(ThreadAssistant& assistant) noexcept
+{
+  while (!assistant.terminationRequested()) {
+    assistant.wait_for(sCacheCleanerTimeout);
+
+    if (assistant.terminationRequested()) {
+      break;
+    }
+
+    eos_static_info("%s", "msg=\"running file system clean cache job\"");
+    // Collect list of all file system ids being tracked
+    std::set<uint32_t> fsids;
+    {
+      std::unique_lock<std::mutex> lock(mMutex);
+
+      for (const auto& elem : mFiles) {
+        fsids.insert(elem.first);
+      }
+
+      for (const auto& elem : mUnlinkedFiles) {
+        fsids.insert(elem.first);
+      }
+    }
+
+    for (const auto& fsid : fsids) {
+      auto* handle = fetchRegularFilelistIfExists(fsid);
+
+      if (handle) {
+        handle->clearCache();
+      }
+
+      handle = fetchUnlinkedFilelistIfExists(fsid);
+
+      if (handle) {
+        handle->clearCache();
+      }
+    }
+
+    mNoReplicas->clearCache();
+  }
 }
 
 //------------------------------------------------------------------------------

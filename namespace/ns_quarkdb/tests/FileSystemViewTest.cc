@@ -20,6 +20,7 @@
 //! @author Elvin-Alin Sindrilaru <esindril@cern.ch>
 //! @brief FileSystemView test
 //------------------------------------------------------------------------------
+#define IN_TEST_HARNESS
 #include "namespace/ns_quarkdb/accounting/SetChangeList.hh"
 #include "namespace/ns_quarkdb/accounting/FileSystemView.hh"
 #include "namespace/ns_quarkdb/accounting/FileSystemHandler.hh"
@@ -39,6 +40,7 @@
 #include <unistd.h>
 #include <folly/executors/IOThreadPoolExecutor.h>
 #include <chrono>
+#undef IN_TEST_HARNESS
 
 //------------------------------------------------------------------------------
 // Randomize a location
@@ -500,6 +502,73 @@ TEST_F(FileSystemViewF, FileSystemHandler)
   }
 }
 
+//------------------------------------------------------------------------------
+// Tests targetting FileSystemHandler cache clearing functionality
+//------------------------------------------------------------------------------
+TEST_F(FileSystemViewF, FileSystemHandlerCache)
+{
+  // We're only using FileSystemHandler on its own in this test, don't spin
+  // up the rest of the namespace..
+  std::unique_ptr<folly::Executor> executor;
+  executor.reset(new folly::IOThreadPoolExecutor(16));
+  {
+    eos::FileSystemHandler fs1(1, executor.get(), &qcl(),
+                               mdFlusher(), false, true);
+    ASSERT_EQ(fs1.getRedisKey(), "fsview:1:files");
+
+    for (int i = 100;  i < 400; ++i) {
+      if (i % 2 == 0) {
+        fs1.insert(eos::FileIdentifier(i));
+      }
+    }
+
+    mdFlusher()->synchronize();
+    ASSERT_EQ(150, fs1.size());
+    ASSERT_EQ(eos::FileSystemHandler::CacheStatus::kNotLoaded,
+              fs1.getCacheStatus());
+    fs1.ensureContentsLoaded();
+    ASSERT_EQ(eos::FileSystemHandler::CacheStatus::kLoaded, fs1.getCacheStatus());
+    ASSERT_EQ(150, fs1.size());
+
+    for (int i = 100; i < 200; ++i) {
+      if (i % 2 == 0) {
+        fs1.erase(eos::FileIdentifier(i));
+      }
+    }
+
+    ASSERT_EQ(100, fs1.size());
+    ASSERT_EQ(eos::FileSystemHandler::CacheStatus::kLoaded, fs1.getCacheStatus());
+    fs1.clearCache(std::chrono::seconds(10));
+    ASSERT_EQ(eos::FileSystemHandler::CacheStatus::kLoaded, fs1.getCacheStatus());
+    fs1.mClock.advance(std::chrono::seconds(30));
+    fs1.clearCache(std::chrono::seconds(10));
+    ASSERT_EQ(eos::FileSystemHandler::CacheStatus::kNotLoaded,
+              fs1.getCacheStatus());
+
+    for (int i = 200; i < 300; ++i) {
+      if (i % 2 == 0) {
+        fs1.erase(eos::FileIdentifier(i));
+      }
+    }
+
+    mdFlusher()->synchronize();
+    ASSERT_EQ(50, fs1.size());
+    ASSERT_EQ(eos::FileSystemHandler::CacheStatus::kNotLoaded,
+              fs1.getCacheStatus());
+    ASSERT_TRUE(fs1.hasFileId(300));
+    ASSERT_EQ(eos::FileSystemHandler::CacheStatus::kLoaded, fs1.getCacheStatus());
+    fs1.clearCache(std::chrono::seconds(60));
+    ASSERT_EQ(eos::FileSystemHandler::CacheStatus::kLoaded, fs1.getCacheStatus());
+    fs1.mClock.advance(std::chrono::seconds(54));
+    fs1.clearCache(std::chrono::seconds(53));
+    ASSERT_EQ(eos::FileSystemHandler::CacheStatus::kNotLoaded,
+              fs1.getCacheStatus());
+  }
+}
+
+//------------------------------------------------------------------------------
+// Tests targetting BulkNsObjectLocker
+//------------------------------------------------------------------------------
 TEST_F(FileSystemViewF, BulkNsObjectLocker)
 {
   {
