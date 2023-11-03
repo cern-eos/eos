@@ -207,9 +207,7 @@ ScanDir::AccountMissing()
 {
   using eos::common::FileId;
   struct stat info;
-  std::map<std::string, std::map<eos::common::FileSystem::fsid_t,
-                                 std::set<eos::common::FileId::fileid_t>>>
-      fidset;
+  eos::common::FsckErrsPerFsMap errs_map;
   auto fids = CollectNsFids(eos::fsview::sFilesSuffix);
   eos_info("msg=\"scanning %llu attached namespace entries\"", fids.size());
 
@@ -247,7 +245,7 @@ ScanDir::AccountMissing()
                                              LayoutId::kMissing);
           }
 
-          CollectInconsistencies(ns_fmd, mFsId, fidset);
+          CollectInconsistencies(ns_fmd, mFsId, errs_map);
         }
       } catch (eos::MDException& e) {
         // No file on disk, no ns file metadata object but we have a ghost entry
@@ -264,7 +262,7 @@ ScanDir::AccountMissing()
   }
 
   // Push collected errors to QDB
-  if (!gOFS.Storage->PushToQdb(mFsId, fidset)) {
+  if (!gOFS.Storage->PushToQdb(mFsId, errs_map)) {
     eos_err("msg=\"failed to push fsck errors to QDB\" fsid=%lu", mFsId);
   }
 }
@@ -513,7 +511,7 @@ ScanDir::ScanSubtree(ThreadAssistant& assistant) noexcept
   }
 
   std::string fpath;
-  std::map<std::string, std::map<eos::common::FileSystem::fsid_t, std::set<eos::common::FileId::fileid_t>>> fidset;
+  eos::common::FsckErrsPerFsMap errs_map;
 
   while ((fpath = io->ftsRead(handle.get())) != "") {
     if (!mBgThread) {
@@ -534,7 +532,7 @@ ScanDir::ScanSubtree(ThreadAssistant& assistant) noexcept
       auto fmd = gOFS.mFmdHandler->LocalGetFmd(fid, mFsId, true, false);
 
       if (fmd) {
-        CollectInconsistencies(*fmd.get(), mFsId, fidset);
+        CollectInconsistencies(*fmd.get(), mFsId, errs_map);
       }
 
 #endif
@@ -552,344 +550,11 @@ ScanDir::ScanSubtree(ThreadAssistant& assistant) noexcept
 #ifndef _NOOFS
 
   // Push collected errors to QDB
-  if (!gOFS.Storage->PushToQdb(mFsId, fidset)) {
+  if (!gOFS.Storage->PushToQdb(mFsId, errs_map)) {
     eos_err("msg=\"failed to push fsck errors to QDB\" fsid=%lu", mFsId);
   }
 
 #endif
-}
-
-//------------------------------------------------------------------------------
-// Check if a given stripe combination can recreate the original file
-//------------------------------------------------------------------------------
-bool
-ScanDir::isValidStripeCombination(
-    const std::vector<std::pair<int, std::string>>& stripes,
-    const std::string& XS, std::unique_ptr<CheckSum>& xsObj,
-    LayoutId::layoutid_t layout, const std::string& opaqueInfo)
-{
-  std::unique_ptr<RainMetaLayout> redundancyObj;
-
-  if (LayoutId::GetLayoutType(layout) == LayoutId::kRaidDP) {
-    redundancyObj = std::make_unique<RaidDpLayout>(
-        nullptr, layout, nullptr, nullptr, stripes.front().second.c_str(), 0,
-        false);
-  } else {
-    redundancyObj =
-        std::make_unique<ReedSLayout>(nullptr, layout, nullptr, nullptr,
-                                      stripes.front().second.c_str(), 0, false);
-  }
-
-  if (redundancyObj->OpenPio(stripes, 0, 0, opaqueInfo.c_str())) {
-    eos_err("msg=\"unable to pio open\"");
-    redundancyObj->Close();
-    return false;
-  }
-
-  uint32_t offsetXrd = 0;
-  const auto open_ts = std::chrono::system_clock::now();
-  int scan_rate = mRateBandwidth.load(std::memory_order_relaxed);
-  xsObj->Reset();
-  while (true) {
-    int64_t nread = redundancyObj->Read(offsetXrd, mBuffer, mBufferSize);
-
-    if (nread == 0) {
-      break;
-    }
-    if (nread == -1) {
-      redundancyObj->Close();
-      return false;
-    }
-
-    xsObj->Add(mBuffer, nread, offsetXrd);
-    offsetXrd += nread;
-
-    EnforceAndAdjustScanRate(offsetXrd, open_ts, scan_rate);
-  }
-
-  redundancyObj->Close();
-  xsObj->Finalize();
-
-  return !strcmp(xsObj->GetHexChecksum(), XS.c_str());
-}
-
-//------------------------------------------------------------------------------
-// Check for stripes that are unable to reconstruct the original file
-//------------------------------------------------------------------------------
-bool
-ScanDir::ScanRainFileLoadAware(eos::common::FileId::fileid_t fid, std::set<eos::common::FileSystem::fsid_t> &invalidStripesFsid)
-{
-  std::string const mgr = gConfig.GetManager();
-  if (mgr.empty()) {
-    eos_static_err("msg=\"no manager info available\"");
-    return false;
-  }
-
-  eos::common::FmdHelper fmd;
-  if (FmdMgmHandler::GetMgmFmd(mgr, fid, fmd)) {
-    eos_static_err("msg=\"could not get fmd from manager\" fxid=%08llx", fid);
-    return false;
-  }
-
-  LayoutId::layoutid_t const layout = fmd.mProtoFmd.lid();
-  if (!LayoutId::IsRain(layout)) {
-    eos_static_err("msg=\"layout is not rain\" fixd=%08llx", fid);
-    return false;
-  }
-
-  std::string const XS = fmd.mProtoFmd.mgmchecksum();
-  if (XS.empty()) {
-    eos_static_err("msg=\"checksum received from mgm is empty\" fxid=%08llx",
-                   fid);
-    return false;
-  }
-
-  std::string const address = SSTR("root://" << mgr << "/");
-  XrdCl::URL const url(address.c_str());
-
-  if (!url.IsValid()) {
-    eos_static_err("msg=\"invalid url\" url=\"%s\"", address.c_str());
-    return false;
-  }
-
-  XrdCl::Buffer arg;
-  XrdCl::Buffer* responseRaw = nullptr;
-  std::string const opaque =
-      SSTR("/.fxid:" << std::hex << fid
-                     << "?mgm.pcmd=open&eos.ruid=0&xrd.wantprot=sss");
-  arg.FromString(opaque);
-
-  XrdCl::FileSystem fs(url);
-  XrdCl::XRootDStatus const status =
-      fs.Query(XrdCl::QueryCode::OpaqueFile, arg, responseRaw);
-
-  if (!status.IsOK()) {
-    eos_static_err("msg=\"MGM query failed\" opaque=\"%s\"", opaque.c_str());
-    delete responseRaw;
-    return false;
-  }
-
-  std::string const response(responseRaw->GetBuffer(), responseRaw->GetSize());
-  delete responseRaw;
-
-  std::string const opaqueInfo = strstr(response.c_str(), "&mgm.logid");
-
-  std::unique_ptr<XrdOucEnv> openOpaque(new XrdOucEnv(response.c_str()));
-  XrdOucEnv* capOpaque = nullptr;
-  eos::common::SymKey::ExtractCapability(openOpaque.get(), capOpaque);
-
-  if (!capOpaque->Get("mgm.path")) {
-    eos_static_err("msg=\"no path in mgm cap response\" response=\"%s\"",
-                   response.c_str());
-    delete capOpaque;
-    return false;
-  }
-  std::string const filePath = capOpaque->Get("mgm.path");
-
-  const auto nStripes = LayoutId::GetStripeNumber(layout) + 1;
-  const auto nParityStripes = LayoutId::GetRedundancyStripeNumber(layout);
-  const auto nDataStripes = nStripes - nParityStripes;
-  const auto nLocations = fmd.GetLocations().size();
-
-  std::string stripeUrl;
-  FileSystem::fsid_t stripeFsId = 0;
-  std::string pio;
-  std::string tag;
-
-  struct stripe_s {
-    FileSystem::fsid_t fsid;
-    std::string url;
-    enum { Unknown, Valid, Invalid } state;
-    unsigned int id;
-  };
-
-  std::vector<stripe_s> stripes;
-  stripes.reserve(nLocations);
-
-  for (unsigned long i = 0; i < nLocations; i++) {
-    tag = SSTR("pio." << i);
-
-    // Skip files with missing replicas, they will be detected elsewhere.
-    if (!openOpaque->Get(tag.c_str())) {
-      eos_static_err("msg=\"missing pio entry in mgm response\" fxid=%08llx",
-                     fid);
-      delete capOpaque;
-      return false;
-    }
-    pio = openOpaque->Get(tag.c_str());
-    stripeUrl = SSTR("root://" << pio << "/" << filePath);
-    stripeFsId = capOpaque->GetInt(SSTR("mgm.fsid" << i).c_str());
-
-    // Start by marking all stripes invalid. Mark them unknown once we
-    // successfully read their headers.
-    stripes.push_back({stripeFsId, stripeUrl, stripe_s::Invalid, 0});
-  }
-  delete capOpaque;
-
-  std::unique_ptr<HeaderCRC> hd(new HeaderCRC(0, 0));
-  if (!hd) {
-    eos_err("msg=\"failed to instantiate header\"");
-    return false;
-  }
-
-  // Map of stripe id to replica index
-  std::map<unsigned int, std::set<unsigned long>> mapPL;
-
-  // Read each header to check if it is valid, store the stripe id and replica index in `mapPL`.
-  for (unsigned long i = 0; i < stripes.size(); i++) {
-    std::unique_ptr<FileIo> file{FileIoPlugin::GetIoObject(stripes[i].url)};
-
-    if (file) {
-      std::string const newOpaque =
-          SSTR(opaqueInfo << "&mgm.replicaindex=" << i);
-
-      file->fileOpen(SFS_O_RDONLY, 0, newOpaque);
-      hd->ReadFromFile(file.get(), 0);
-      file->fileClose();
-      // If stripe id is greater than `nStripe`, it will be invalid
-      if (hd->IsValid() && hd->GetIdStripe() < nStripes) {
-        stripes[i].id = hd->GetIdStripe();
-        stripes[i].state = stripe_s::Unknown;
-        mapPL[hd->GetIdStripe()].insert(i);
-      }
-    }
-  }
-
-  if (mapPL.size() < nDataStripes) {
-    eos_static_err(
-        "msg=\"could not find enough valid stripes to reconstruct file\" "
-        "fxid=%08llx",
-        fid);
-    invalidStripesFsid.insert(0);
-    return true;
-  }
-
-  std::unique_ptr<CheckSum> xsObj(ChecksumPlugins::GetChecksumObject(layout));
-  if (!xsObj) {
-    eos_static_err("msg=\"invalid xs_type\" fxid=%08llx", fid);
-    return false;
-  }
-
-  std::vector<bool> combinations(nLocations, false);
-  std::fill(combinations.begin(), combinations.begin() + nDataStripes, true);
-
-  std::vector<std::pair<int, std::string>> stripeCombination(
-      nParityStripes, std::make_pair(0, "root://__offline_"));
-  stripeCombination.reserve(nStripes);
-
-  // Try to find a valid stripe combination
-  do {
-    stripeCombination.erase(stripeCombination.begin() + nParityStripes,
-                            stripeCombination.end());
-    for (unsigned long i = 0; i < combinations.size(); i++) {
-      if (combinations[i]) {
-        // Skip combinations with invalid stripes
-        if (stripes[i].state == stripe_s::Invalid) {
-          break;
-        }
-        // Skip if multiple duplicated stripes are in the same combination
-        auto hasDuplicate = [i, &combinations](unsigned long j) {
-          return i != j && combinations[j];
-        };
-        auto& stripeLocations = mapPL[stripes[i].id];
-        if (std::find_if(stripeLocations.begin(), stripeLocations.end(),
-                         hasDuplicate) != stripeLocations.end()) {
-          break;
-        }
-
-        stripeCombination.emplace_back(i, stripes[i].url);
-      }
-    }
-
-    // Skip combination if we exited early from previous loop
-    if (stripeCombination.size() != nStripes) {
-      continue;
-    }
-
-    if (isValidStripeCombination(stripeCombination, XS, xsObj, layout,
-                                 opaqueInfo)) {
-      for (unsigned long i = 0; i < combinations.size(); i++) {
-        if (combinations[i]) {
-          stripes[i].state = stripe_s::Valid;
-        }
-      }
-      break;
-    }
-  } while (std::prev_permutation(combinations.begin(), combinations.end()));
-
-  auto isValid = [](const stripe_s& s) { return s.state == stripe_s::Valid; };
-  if (std::none_of(stripes.begin(), stripes.end(), isValid)) {
-    eos_static_err(
-        "msg=\"could not find enough valid stripes to reconstruct file "
-        "fxid:%08llx\"",
-        fid);
-    invalidStripesFsid.insert(0);
-    return true;
-  }
-
-  // Found a valid combination, check the rest of the stripes
-  for (unsigned long i = 0; i < stripes.size(); i++) {
-    if (stripes[i].state == stripe_s::Unknown) {
-      stripeCombination.erase(stripeCombination.begin() + nParityStripes,
-                              stripeCombination.end());
-
-      // Try combinations with 1 unknown stripe and `nDataStripes - 1` valid stripes.
-      // Exclude duplicates from the combination.
-      stripeCombination.emplace_back(i, stripes[i].url);
-      auto& skipStripes = mapPL[stripes[i].id];
-      for (unsigned long j = 0; j < stripes.size(); j++) {
-        if (stripes[j].state == stripe_s::Valid &&
-            skipStripes.find(j) == skipStripes.end()) {
-          stripeCombination.emplace_back(j, stripes[j].url);
-          if (stripeCombination.size() == nStripes) {
-            break;
-          }
-        }
-      }
-
-      if (isValidStripeCombination(stripeCombination, XS, xsObj, layout,
-                                   opaqueInfo)) {
-        stripes[i].state = stripe_s::Valid;
-      } else {
-        stripes[i].state = stripe_s::Invalid;
-      }
-    }
-  }
-
-  // Collect the fsids of all the invalid stripes
-  for (unsigned long i = 0; i < stripes.size(); i++) {
-    if (stripes[i].state == stripe_s::Invalid) {
-      eos_static_err("msg=\"stripe %d on fst %d is invalid\" fxid=%08llx", i,
-                     stripes[i].fsid, fid);
-      invalidStripesFsid.insert(stripes[i].fsid);
-    }
-  }
-
-  // Collect the fsids of all the duplicated stripes. Keeping the replica with the lowest fsid.
-  for (auto [_, replicas] : mapPL) {
-    if (replicas.size() > 1) {
-      // Used to get the index of the replica which is both valid, and has the lowest fsid.
-      auto fsidCmp = [&stripes](const auto& a, const auto& b) {
-        return stripes[b].state != stripe_s::Valid ||
-               (stripes[a].state == stripe_s::Valid &&
-                stripes[a].fsid < stripes[b].fsid);
-      };
-      auto min = *std::min_element(replicas.begin(), replicas.end(), fsidCmp);
-
-      // Skip if all replicas are invalid
-      if (stripes[min].state == stripe_s::Valid) {
-        for (auto i : replicas) {
-          if (i != min && stripes[i].state == stripe_s::Valid) {
-            eos_static_info(
-                "msg=\"marking excess stripe %d on fst %d as invalid\" fxid: %08llx",
-                i, stripes[i].fsid, fid);
-            invalidStripesFsid.insert(stripes[i].fsid);
-          }
-        }
-      }
-    }
-  }
-  return true;
 }
 
 //------------------------------------------------------------------------------
@@ -947,32 +612,42 @@ ScanDir::CheckFile(const std::string& fpath)
   }
 
 #endif
-
   io->attrDelete("user.eos.filecxerror");
   io->attrDelete("user.eos.blockcxerror");
-
-  std::string xs_stamp_sec;
-  io->attrGet("user.eos.timestamp", xs_stamp_sec);
+  std::string scan_ts_sec;
+  io->attrGet("user.eos.timestamp", scan_ts_sec);
 
   // Handle the old format in microseconds, truncate to seconds
-  if (xs_stamp_sec.length() > 10) {
-    xs_stamp_sec.erase(10);
+  if (scan_ts_sec.length() > 10) {
+    scan_ts_sec.erase(10);
   }
 
-  bool scanResult = false;
-  if (DoRescan(xs_stamp_sec)) {
-    scanResult = ScanFile(io, fpath, fid, xs_stamp_sec, buf1.st_mtime);
+  bool scan_result = false;
+
+  if (DoRescan(scan_ts_sec)) {
+    scan_result = ScanFile(io, fpath, fid, scan_ts_sec, buf1.st_mtime);
   } else {
     ++mNumSkippedFiles;
   }
 
-  io->attrGet("user.eos.rain_timestamp", xs_stamp_sec);
+#ifndef _NOOFS
+  // Check for block xs file otherwise it has no sense even to attempt a
+  // rain rescan of the file
+  struct stat info;
+  const std::string filexs_path = fpath + ".xsmap";
 
-  if (DoRescan(xs_stamp_sec, true)) {
-    scanResult = ScanRainFile(io, fpath, fid, xs_stamp_sec) || scanResult;
+  if ((stat(filexs_path.c_str(), &info) == 0) && info.st_size) {
+    // Grab the latest rain scan timestamp if it exists
+    io->attrGet("user.eos.rain_timestamp", scan_ts_sec);
+
+    if (DoRescan(scan_ts_sec, true)) {
+      scan_result = (ScanRainFile(io, fpath, fid, scan_ts_sec, buf1.st_ctime)
+                     || scan_result);
+    }
   }
 
-  return scanResult;
+#endif
+  return scan_result;
 }
 
 //------------------------------------------------------------------------------
@@ -1027,19 +702,15 @@ ScanDir::GetBlockXS(const std::string& file_path)
 // configured rescan interval
 //------------------------------------------------------------------------------
 bool
-ScanDir::DoRescan(const std::string& timestamp_sec, bool rainEntryInterval) const
+ScanDir::DoRescan(const std::string& timestamp_sec, bool rain_ts) const
 {
   using namespace std::chrono;
-  uint64_t entryInterval;
+  uint64_t rescan_interval = rain_ts ?
+                             mRainEntryIntervalSec.load(std::memory_order_acquire) :
+                             mEntryIntervalSec.load(std::memory_order_acquire);
 
-  if (rainEntryInterval) {
-    entryInterval = mRainEntryIntervalSec.load(std::memory_order_acquire);
-  } else {
-    entryInterval = mEntryIntervalSec.load(std::memory_order_acquire);
-  }
-
-  if (!timestamp_sec.compare("")) {
-    if (entryInterval == 0ull) {
+  if (timestamp_sec == "") {
+    if (rescan_interval == 0ull) {
       return false;
     } else {
       // Check the first time if scanner is not completely disabled
@@ -1060,10 +731,10 @@ ScanDir::DoRescan(const std::string& timestamp_sec, bool rainEntryInterval) cons
     elapsed_sec = duration_cast<seconds>(now_ts - old_ts).count();
   }
 
-  if (elapsed_sec < entryInterval) {
+  if (elapsed_sec < rescan_interval) {
     return false;
   } else {
-    if (entryInterval) {
+    if (rescan_interval) {
       return true;
     } else {
       return false;
@@ -1079,17 +750,15 @@ bool
 ScanDir::ScanFile(const std::unique_ptr<eos::fst::FileIo>& io,
                   const std::string& fpath,
                   eos::common::FileId::fileid_t fid,
-                  const std::string& xs_stamp_sec,
+                  const std::string& scan_ts_sec,
                   time_t mtime)
 {
   std::string lfn, previous_xs_err;
-  struct stat buf2;
-
   io->attrGet("user.eos.lfn", lfn);
   io->attrGet("user.eos.filecxerror", previous_xs_err);
   bool was_healthy = (previous_xs_err == "0");
   // Flag if file has been modified since the last time we scanned it
-  bool didnt_change = (mtime < atoll(xs_stamp_sec.c_str()));
+  bool didnt_change = (mtime < atoll(scan_ts_sec.c_str()));
   bool blockxs_err = false;
   bool filexs_err = false;
   unsigned long long scan_size{0ull};
@@ -1105,17 +774,16 @@ ScanDir::ScanFile(const std::unique_ptr<eos::fst::FileIo>& io,
   if (mBgThread) {
     if (gOFS.openedForWriting.isOpen(mFsId, fid)) {
       eos_err("msg=\"file reopened during the scan, ignore checksum error\" "
-              "path=%s",
-              fpath.c_str());
+              "path=%s", fpath.c_str());
       reopened = true;
     }
   }
 
 #endif
+  // If file changed or opened for update in the meantime then skip the scan
+  struct stat buf1;
 
-  // If the file was changed in the meanwhile or is reopened for update
-  // we leave it for a later scan
-  if (reopened || io->fileStat(&buf2) || (mtime != buf2.st_mtime)) {
+  if (reopened || io->fileStat(&buf1) || (mtime != buf1.st_mtime)) {
     LogMsg(LOG_ERR, "msg=\"[ScanDir] skip file modified during scan path=%s",
            fpath.c_str());
     return false;
@@ -1123,10 +791,10 @@ ScanDir::ScanFile(const std::unique_ptr<eos::fst::FileIo>& io,
 
   if (filexs_err) {
     if (mBgThread) {
-      syslog(LOG_ERR, "corrupted file checksum path=%s lfn=%s\n", fpath.c_str(),
-             lfn.c_str());
-      eos_err("corrupted file checksum path=%s lfn=%s", fpath.c_str(),
-              lfn.c_str());
+      syslog(LOG_ERR, "corrupted file checksum path=%s lfn=%s\n",
+             fpath.c_str(), lfn.c_str());
+      eos_err("msg=\"corrupted file checksum\" path=\"%s\" lfn=\"%s\"",
+              fpath.c_str(), lfn.c_str());
     } else {
       fprintf(stderr, "[ScanDir] corrupted file checksum path=%s lfn=%s\n",
               fpath.c_str(), lfn.c_str());
@@ -1162,100 +830,6 @@ ScanDir::ScanFile(const std::unique_ptr<eos::fst::FileIo>& io,
   }
 
 #endif
-
-  return true;
-}
-
-bool
-ScanDir::ScanRainFile(const std::unique_ptr<eos::fst::FileIo>& io,
-                      const std::string& fpath,
-                      eos::common::FileId::fileid_t fid,
-                      const std::string& xs_stamp_sec)
-{
-#ifndef _NOOFS
-
-  if (mBgThread) {
-    //  Skip check if file is open for reading, as this can mean we are in the
-    //  middle of a recovery operation, and another stripe is open for write
-    if (gOFS.openedForReading.isOpen(mFsId, fid)) {
-      syslog(
-          LOG_ERR,
-          "skipping rain scan r-open file: localpath=%s fsid=%d fxid=%08llx\n",
-          fpath.c_str(), mFsId, fid);
-      eos_warning(
-          "msg=\"skipping rain scan of r-open file\" localpath=%s fsid=%d "
-          "fxid=%08llx",
-          fpath.c_str(), mFsId, fid);
-      return false;
-    }
-  }
-
-#endif
-
-  std::unique_ptr<HeaderCRC> hd(new HeaderCRC(0, 0));
-  if (!hd) {
-    eos_err("msg=\"failed to instantiate header\"");
-    return false;
-  }
-
-  hd->ReadFromFile(io.get(), 0);
-  // Only do the check from the fst with the first stripe
-  if (!hd->IsValid() || hd->GetIdStripe() != 0) {
-    return false;
-  }
-
-  struct stat buf1;
-  struct stat buf2;
-
-  if (io->fileStat(&buf1)) {
-    LogMsg(LOG_ERR, "msg=\"open/stat failed\" path=%s", fpath.c_str());
-    return false;
-  }
-
-  if (buf1.st_ctime < atoll(xs_stamp_sec.c_str())) {
-    LogMsg(LOG_INFO, "msg=\"skip check of unmodified file\" path=%s", fpath.c_str());
-    return false;
-  }
-
-  std::set<eos::common::FileSystem::fsid_t> invalidStripes;
-  if (!ScanRainFileLoadAware(fid, invalidStripes)) {
-    return false;
-  }
-
-  bool reopened = false;
-#ifndef _NOOFS
-
-  if (mBgThread) {
-    if (gOFS.openedForWriting.isOpen(mFsId, fid)) {
-      eos_err("msg=\"file reopened during the scan, ignore stripe error\" "
-              "path=%s",
-              fpath.c_str());
-      reopened = true;
-    }
-  }
-
-#endif
-
-  // If the file was changed in the meanwhile or is reopened for update
-  // we leave it for a later scan
-  if (reopened || io->fileStat(&buf2) || (buf1.st_ctime != buf2.st_ctime)) {
-    LogMsg(LOG_ERR, "msg=\"[ScanDir] skip file modified during scan path=%s",
-           fpath.c_str());
-    return false;
-  }
-
-  if (io->attrSet("user.eos.rain_timestamp", GetTimestampSmearedSec(true))) {
-    LogMsg(LOG_ERR, "msg=\"failed to set xattrs\" path=%s", fpath.c_str());
-  }
-
-#ifndef _NOOFS
-
-  if (mBgThread) {
-    gOFS.mFmdHandler->UpdateWithStripeCheckInfo(fid, mFsId, invalidStripes);
-  }
-
-#endif
-
   return true;
 }
 
@@ -1384,6 +958,435 @@ ScanDir::ScanFileLoadAware(const std::unique_ptr<eos::fst::FileIo>& io,
   return true;
 }
 
+#ifndef _NOOFS
+//------------------------------------------------------------------------------
+// Check the given file for rain stripes errors
+//------------------------------------------------------------------------------
+bool
+ScanDir::ScanRainFile(const std::unique_ptr<eos::fst::FileIo>& io,
+                      const std::string& fpath, eos::common::FileId::fileid_t fid,
+                      const std::string& scan_ts_sec, time_t ctime)
+{
+  if (mBgThread) {
+    //  Skip check if file is open for reading, as this can mean we are in the
+    //  middle of a recovery operation, and another stripe is open for write
+    if (gOFS.openedForReading.isOpen(mFsId, fid)) {
+      syslog(LOG_ERR, "skipping rain scan r-open file: localpath=%s fsid=%d "
+             "fxid=%08llx\n", fpath.c_str(), mFsId, fid);
+      eos_warning("msg=\"skipping rain scan of r-open file\" localpath=%s "
+                  "fsid=%d fxid=%08llx", fpath.c_str(), mFsId, fid);
+      return false;
+    }
+  }
+
+  std::unique_ptr<HeaderCRC> hd(new HeaderCRC(0, 0));
+
+  if (!hd) {
+    eos_static_err("msg=\"failed to allocate header\" path=\"%s\"",
+                   fpath.c_str());
+    return false;
+  }
+
+  hd->ReadFromFile(io.get(), 0);
+
+  // Only do the check from the fst with the first stripe
+  if (!hd->IsValid() || hd->GetIdStripe() != 0) {
+    return false;
+  }
+
+  if (ctime < std::stoll(scan_ts_sec)) {
+    eos_static_debug("msg=\"skip rain check for unmodified file\" path=\"%s\"",
+                     fpath.c_str());
+    return false;
+  }
+
+  std::set<eos::common::FileSystem::fsid_t> invalid_fsid;
+
+  if (!ScanRainFileLoadAware(fid, invalid_fsid)) {
+    return false;
+  }
+
+  bool reopened = false;
+
+  if (mBgThread) {
+    if (gOFS.openedForWriting.isOpen(mFsId, fid)) {
+      eos_static_err("msg=\"file reopened during the scan, ignore stripe "
+                     "error\" path=\"%s\"", fpath.c_str());
+      reopened = true;
+    }
+  }
+
+  // If file changed or opened for update in the meantime then skip the scan
+  struct stat buf1;
+
+  if (reopened || io->fileStat(&buf1) || (ctime != buf1.st_ctime)) {
+    eos_static_err("msg=\"skip file modified during scan\" path=\"%s\"",
+                   fpath.c_str());
+    return false;
+  }
+
+  if (io->attrSet("user.eos.rain_timestamp", GetTimestampSmearedSec(true))) {
+    eos_static_err("msg=\"failed to set xattr rain_timestamp\" path=\"%s\"",
+                   fpath.c_str());
+  }
+
+  if (mBgThread) {
+    gOFS.mFmdHandler->UpdateWithStripeCheckInfo(fid, mFsId, invalid_fsid);
+  }
+
+  return true;
+}
+
+
+//------------------------------------------------------------------------------
+// Check if a given stripe combination can recreate the original file
+//------------------------------------------------------------------------------
+bool
+ScanDir::IsValidStripeCombination(
+  const std::vector<std::pair<int, std::string>>& stripes,
+  const std::string& xs_val, std::unique_ptr<CheckSum>& xs_obj,
+  LayoutId::layoutid_t layout, const std::string& opaqueInfo)
+{
+  std::unique_ptr<RainMetaLayout> redundancyObj;
+
+  if (LayoutId::GetLayoutType(layout) == LayoutId::kRaidDP) {
+    redundancyObj = std::make_unique<RaidDpLayout>
+                    (nullptr, layout, nullptr, nullptr,
+                     stripes.front().second.c_str(), 0, false);
+  } else {
+    redundancyObj = std::make_unique<ReedSLayout>
+                    (nullptr, layout, nullptr, nullptr,
+                     stripes.front().second.c_str(), 0, false);
+  }
+
+  if (redundancyObj->OpenPio(stripes, 0, 0, opaqueInfo.c_str())) {
+    eos_static_err("msg=\"unable to pio open\" opaque=\"%s\"", opaqueInfo.c_str());
+    redundancyObj->Close();
+    return false;
+  }
+
+  uint32_t offsetXrd = 0;
+  const auto open_ts = std::chrono::system_clock::now();
+  int scan_rate = mRateBandwidth.load(std::memory_order_relaxed);
+  xs_obj->Reset();
+
+  while (true) {
+    int64_t nread = redundancyObj->Read(offsetXrd, mBuffer, mBufferSize);
+
+    if (nread == 0) {
+      break;
+    }
+
+    if (nread == -1) {
+      redundancyObj->Close();
+      return false;
+    }
+
+    xs_obj->Add(mBuffer, nread, offsetXrd);
+    offsetXrd += nread;
+    EnforceAndAdjustScanRate(offsetXrd, open_ts, scan_rate);
+  }
+
+  redundancyObj->Close();
+  xs_obj->Finalize();
+  return !strcmp(xs_obj->GetHexChecksum(), xs_val.c_str());
+}
+
+//------------------------------------------------------------------------------
+// Check for stripes that are unable to reconstruct the original file
+//------------------------------------------------------------------------------
+bool
+ScanDir::ScanRainFileLoadAware(eos::common::FileId::fileid_t fid,
+                               std::set<eos::common::FileSystem::fsid_t>&
+                               invalid_fsid)
+{
+  const std::string mgr = gConfig.GetManager();
+
+  if (mgr.empty()) {
+    eos_static_err("%s", "msg=\"no manager info available\"");
+    return false;
+  }
+
+  std::string xs_mgm;
+  uint32_t nLocations;
+  LayoutId::layoutid_t layout;
+  {
+    // Reduce scope of the FmdHelper object
+    auto fmd = gOFS.mFmdHandler->LocalGetFmd(fid, mFsId, true, false);
+
+    if (fmd == nullptr) {
+      eos_static_err("msg=\"could not get fmd info\" fxid=%08llx", fid);
+      return false;
+    }
+
+    layout = fmd->mProtoFmd.lid();
+
+    if (!LayoutId::IsRain(layout)) {
+      eos_static_err("msg=\"layout is not rain\" fixd=%08llx", fid);
+      return false;
+    }
+
+    nLocations = fmd->GetLocations().size();
+    xs_mgm = fmd->mProtoFmd.mgmchecksum();
+  }
+
+  if (xs_mgm.empty() || (nLocations == 0)) {
+    eos_static_err("msg=\"mgm checksum empty or no locations\" "
+                   "fxid=%08llx", fid);
+    return false;
+  }
+
+  const std::string address = SSTR("root://" << mgr << "/");
+  const XrdCl::URL url(address.c_str());
+
+  if (!url.IsValid()) {
+    eos_static_err("msg=\"invalid url\" url=\"%s\"", address.c_str());
+    return false;
+  }
+
+  // Query MGM for list of stripes to open
+  XrdCl::Buffer arg;
+  XrdCl::Buffer* resp_raw = nullptr;
+  const std::string opaque = SSTR("/.fxid:" << std::hex << fid << std::dec
+                                  << "?mgm.pcmd=open&eos.ruid=0&"
+                                  << "xrd.wantprot=sss");
+  arg.FromString(opaque);
+  XrdCl::FileSystem fs(url);
+  const XrdCl::XRootDStatus status =
+    fs.Query(XrdCl::QueryCode::OpaqueFile, arg, resp_raw);
+
+  if (!status.IsOK()) {
+    eos_static_err("msg=\"MGM query failed\" opaque=\"%s\"", opaque.c_str());
+    delete resp_raw;
+    return false;
+  }
+
+  const std::string response(resp_raw->GetBuffer(), resp_raw->GetSize());
+  delete resp_raw;
+  // @note: fragile design as it depends on the location of mgm.logid!
+  const std::string opaqueInfo = strstr(response.c_str(), "&mgm.logid");
+  std::unique_ptr<XrdOucEnv> openOpaque(new XrdOucEnv(response.c_str()));
+  XrdOucEnv* raw_cap_opaque = nullptr;
+  eos::common::SymKey::ExtractCapability(openOpaque.get(), raw_cap_opaque);
+  std::unique_ptr<XrdOucEnv> capOpaque(raw_cap_opaque);
+
+  if (!capOpaque->Get("mgm.path")) {
+    eos_static_err("msg=\"no path in mgm cap response\" response=\"%s\"",
+                   response.c_str());
+    return false;
+  }
+
+  const std::string ns_path = capOpaque->Get("mgm.path");
+  const auto nStripes = LayoutId::GetStripeNumber(layout) + 1;
+  const auto nParityStripes = LayoutId::GetRedundancyStripeNumber(layout);
+  const auto nDataStripes = nStripes - nParityStripes;
+  FileSystem::fsid_t stripeFsId = 0;
+  std::string stripeUrl;
+  std::string pio;
+  std::string tag;
+  // Struct for stripe extra information
+  struct stripe_s {
+    FileSystem::fsid_t fsid;
+    std::string url;
+    enum { Unknown, Valid, Invalid } state;
+    unsigned int id;
+  };
+  std::vector<stripe_s> stripes;
+  stripes.reserve(nLocations);
+
+  for (unsigned long i = 0; i < nLocations; ++i) {
+    tag = SSTR("pio." << i);
+
+    // Skip files with missing replicas, they will be detected elsewhere.
+    if (!openOpaque->Get(tag.c_str())) {
+      eos_static_err("msg=\"missing pio entry in mgm response\" fxid=%08llx",
+                     fid);
+      return false;
+    }
+
+    pio = openOpaque->Get(tag.c_str());
+    stripeUrl = SSTR("root://" << pio << "/" << ns_path);
+    stripeFsId = capOpaque->GetInt(SSTR("mgm.fsid" << i).c_str());
+    // Start by marking all stripes invalid. Mark them unknown once we
+    // have successfully read their headers.
+    stripes.push_back({stripeFsId, stripeUrl, stripe_s::Invalid, 0});
+  }
+
+  std::unique_ptr<HeaderCRC> hd {new HeaderCRC(0, 0)};
+
+  if (!hd) {
+    eos_static_err("%s", "msg=\"failed to instantiate header object\"");
+    return false;
+  }
+
+  // Read each header to check if it is valid, store the stripe id and
+  // stripe logical index in mapPL.
+  std::map<unsigned int, std::set<unsigned long>> mapPL;
+
+  for (unsigned long i = 0; i < stripes.size(); ++i) {
+    std::unique_ptr<FileIo> file{FileIoPlugin::GetIoObject(stripes[i].url)};
+
+    if (file) {
+      std::string const new_opaque =
+        SSTR(opaqueInfo << "&mgm.replicaindex=" << i);
+      file->fileOpen(SFS_O_RDONLY, 0, new_opaque);
+      hd->ReadFromFile(file.get(), 0);
+      file->fileClose();
+
+      // If stripe id is greater than nStripe, it's invalid
+      if (hd->IsValid() && (hd->GetIdStripe() < nStripes)) {
+        stripes[i].id = hd->GetIdStripe();
+        stripes[i].state = stripe_s::Unknown;
+        mapPL[hd->GetIdStripe()].insert(i);
+      }
+    }
+  }
+
+  if (mapPL.size() < nDataStripes) {
+    eos_static_err("msg=\"could not find enough valid stripes to reconstruct "
+                   "file\" fxid=%08llx", fid);
+    invalid_fsid.insert(0);
+    return true;
+  }
+
+  std::unique_ptr<CheckSum> xs_obj(ChecksumPlugins::GetChecksumObject(layout));
+
+  if (!xs_obj) {
+    eos_static_err("msg=\"invalid xs_type\" fxid=%08llx", fid);
+    return false;
+  }
+
+  std::vector<bool> combinations(nLocations, false);
+  std::fill(combinations.begin(), combinations.begin() + nDataStripes, true);
+  std::vector<std::pair<int, std::string>>
+                                        stripeCombination(nParityStripes, std::make_pair(0, "root://__offline_"));
+  stripeCombination.reserve(nStripes);
+
+  // Try to find a valid stripe combination
+  do {
+    stripeCombination.erase(stripeCombination.begin() + nParityStripes,
+                            stripeCombination.end());
+
+    for (unsigned long i = 0; i < combinations.size(); ++i) {
+      if (combinations[i]) {
+        // Skip combinations with invalid stripes
+        if (stripes[i].state == stripe_s::Invalid) {
+          break;
+        }
+
+        // Skip if multiple duplicated stripes are in the same combination
+        auto HasDuplicate = [i, &combinations](unsigned long j) {
+          return i != j && combinations[j];
+        };
+        auto& stripe_loc = mapPL[stripes[i].id];
+
+        if (std::find_if(stripe_loc.begin(), stripe_loc.end(), HasDuplicate) !=
+            stripe_loc.end()) {
+          break;
+        }
+
+        stripeCombination.emplace_back(i, stripes[i].url);
+      }
+    }
+
+    // Skip combination if we exited early from previous loop
+    if (stripeCombination.size() != nStripes) {
+      continue;
+    }
+
+    if (IsValidStripeCombination(stripeCombination, xs_mgm, xs_obj,
+                                 layout, opaqueInfo)) {
+      for (unsigned long i = 0; i < combinations.size(); ++i) {
+        if (combinations[i]) {
+          stripes[i].state = stripe_s::Valid;
+        }
+      }
+
+      break;
+    }
+  } while (std::prev_permutation(combinations.begin(), combinations.end()));
+
+  auto isValid = [](const stripe_s & s) {
+    return s.state == stripe_s::Valid;
+  };
+
+  if (std::none_of(stripes.begin(), stripes.end(), isValid)) {
+    eos_static_err("msg=\"not enough valid stripes for reconstruction\" "
+                   "fxid=%08llx", fid);
+    invalid_fsid.insert(0);
+    return true;
+  }
+
+  // Found a valid combination, check the rest of the stripes
+  for (unsigned long i = 0; i < stripes.size(); ++i) {
+    if (stripes[i].state == stripe_s::Unknown) {
+      stripeCombination.erase(stripeCombination.begin() + nParityStripes,
+                              stripeCombination.end());
+      // Try combinations with 1 unknown stripe and nDataStripes - 1 valid stripes.
+      // Exclude duplicates from the combination.
+      stripeCombination.emplace_back(i, stripes[i].url);
+      auto& skipStripes = mapPL[stripes[i].id];
+
+      for (unsigned long j = 0; j < stripes.size(); ++j) {
+        if (stripes[j].state == stripe_s::Valid &&
+            skipStripes.find(j) == skipStripes.end()) {
+          stripeCombination.emplace_back(j, stripes[j].url);
+
+          if (stripeCombination.size() == nStripes) {
+            break;
+          }
+        }
+      }
+
+      if (IsValidStripeCombination(stripeCombination, xs_mgm, xs_obj,
+                                   layout, opaqueInfo)) {
+        stripes[i].state = stripe_s::Valid;
+      } else {
+        stripes[i].state = stripe_s::Invalid;
+      }
+    }
+  }
+
+  // Collect the fsids of all the invalid stripes
+  for (unsigned long i = 0; i < stripes.size(); i++) {
+    if (stripes[i].state == stripe_s::Invalid) {
+      eos_static_err("msg=\"stripe %d on fst %d is invalid\" fxid=%08llx", i,
+                     stripes[i].fsid, fid);
+      invalid_fsid.insert(stripes[i].fsid);
+    }
+  }
+
+  // Collect the fsids of all the duplicated stripes, keeping the replica
+  // with the lowest fsid
+  for (auto [_, replicas] : mapPL) {
+    if (replicas.size() > 1) {
+      // Used to get the index of the replica which is both valid
+      // and has the lowest fsid.
+      auto fsidCmp = [&stripes](const auto & a, const auto & b) {
+        return stripes[b].state != stripe_s::Valid ||
+               (stripes[a].state == stripe_s::Valid &&
+                stripes[a].fsid < stripes[b].fsid);
+      };
+      auto min = *std::min_element(replicas.begin(), replicas.end(), fsidCmp);
+
+      // Skip if all replicas are invalid
+      if (stripes[min].state == stripe_s::Valid) {
+        for (auto i : replicas) {
+          if ((i != min) && (stripes[i].state == stripe_s::Valid)) {
+            eos_static_info("msg=\"marking excess stripe %d on fst %d as "
+                            "invalid\" fxid=%08llx", i, stripes[i].fsid, fid);
+            invalid_fsid.insert(stripes[i].fsid);
+          }
+        }
+      }
+    }
+  }
+
+  return true;
+}
+
+#endif
+
 //------------------------------------------------------------------------------
 // Enforce the scan rate by throttling the current thread and also adjust it
 // depending on the IO load on the mountpoint
@@ -1427,15 +1430,17 @@ ScanDir::EnforceAndAdjustScanRate(const off_t offset,
 // timestamp value
 //------------------------------------------------------------------------------
 std::string
-ScanDir::GetTimestampSmearedSec(bool rainEntryInterval) const
+ScanDir::GetTimestampSmearedSec(bool rain_ts) const
 {
   using namespace std::chrono;
   uint64_t entry_interval_sec;
-  if (rainEntryInterval) {
+
+  if (rain_ts) {
     entry_interval_sec = mRainEntryIntervalSec.load(std::memory_order_relaxed);
   } else {
     entry_interval_sec = mEntryIntervalSec.load(std::memory_order_relaxed);
   }
+
   int64_t smearing =
     (int64_t)(0.2 * 2 * entry_interval_sec * random() / RAND_MAX) -
     (int64_t)(0.2 * entry_interval_sec);

@@ -210,7 +210,8 @@ public:
   void ResyncFstMd(bool refresh_mgm_md = false);
 
   eos::IFileMD::id_t mFid; ///< File id
-  std::set<eos::common::FileSystem::fsid_t> mFsidErr; ///< File system ids with expected err
+  //! File system ids with expected errors
+  std::set<eos::common::FileSystem::fsid_t> mFsidErr;
   eos::common::FsckErr mReportedErr; ///< Reported error type
   eos::ns::FileMdProto mMgmFmd; ///< MGM file metadata protobuf object
   //! Map of file system id to file metadata held at the corresponding fs

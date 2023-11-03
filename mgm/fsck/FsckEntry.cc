@@ -67,10 +67,11 @@ FsckEntry::FsckEntry(eos::IFileMD::id_t fid,
                       eos::common::FileSystem::fsid_t fsid_trg ,
                       std::set<eos::common::FileSystem::fsid_t> exclude_srcs,
                       std::set<eos::common::FileSystem::fsid_t> exclude_dsts,
-  bool drop_src, const std::string & app_tag, bool repair_excluded) {
+                      bool drop_src, const std::string & app_tag,
+  bool repair_excluded) {
     return std::make_shared<FsckRepairJob>(
-        fid, fsid_src, fsid_trg, exclude_srcs, exclude_dsts, drop_src, app_tag,
-        false, eos::common::VirtualIdentity::Root(), repair_excluded);
+             fid, fsid_src, fsid_trg, exclude_srcs, exclude_dsts, drop_src, app_tag,
+             false, eos::common::VirtualIdentity::Root(), repair_excluded);
   };
 }
 
@@ -429,9 +430,9 @@ FsckEntry::RepairFstXsSzDiff()
         // computed - this does not mean the replica is bad
         if (!finfo->mFstFmd.mProtoFmd.diskchecksum().empty()) {
           std::string hex_xs_val = StringConversion::BinData2HexString(
-              finfo->mFstFmd.mProtoFmd.diskchecksum().c_str(),
-              SHA256_DIGEST_LENGTH,
-              LayoutId::GetChecksumLen(finfo->mFstFmd.mProtoFmd.lid()));
+                                     finfo->mFstFmd.mProtoFmd.diskchecksum().c_str(),
+                                     SHA256_DIGEST_LENGTH,
+                                     LayoutId::GetChecksumLen(finfo->mFstFmd.mProtoFmd.lid()));
           eos_debug("got xs_val=%s, finfo=%s hex_xs_val=%s", xs_val.c_str(),
                     xs_val.c_str(), hex_xs_val.c_str());
 
@@ -603,11 +604,10 @@ FsckEntry::RepairRainInconsistencies()
       return true;
     }
   } else if (mReportedErr == FsckErr::StripeErr) {
-    // File has too many corrupted stripes, we can't recover.
+    // File has too many corrupted stripes, we can't recover
     if (mFsidErr.find(0) != mFsidErr.end()) {
       eos_err("msg=\"RAIN file has too many corrupted stripes, unable to "
-              "reconstruct\" fxid=%08llu",
-              mFid);
+              "reconstruct\" fxid=%08llu", mFid);
       return false;
     }
 
@@ -615,22 +615,19 @@ FsckEntry::RepairRainInconsistencies()
 
     // If there is over replication, drop replicas until we have the right
     // number of stripes
-    while (mMgmFmd.locations_size() >
-               LayoutId::GetStripeNumber(mMgmFmd.layout_id()) + 1 &&
+    while ((mMgmFmd.locations_size() >
+            LayoutId::GetStripeNumber(mMgmFmd.layout_id()) + 1) &&
            !bad_fsids.empty()) {
-      FileSystem::fsid_t const dropFsid = *bad_fsids.begin();
-      bad_fsids.erase(dropFsid);
-
-      eos_info(
-          "msg=\"dropping over replicated stripe\" fxid=%08llx drop_fsid=%lu",
-          mFid, dropFsid);
-
-      (void)DropReplica(dropFsid);
-      mFstFileInfo.erase(dropFsid);
-      auto *mutable_loc = mMgmFmd.mutable_locations();
+      const FileSystem::fsid_t drop_fsid = *bad_fsids.begin();
+      bad_fsids.erase(drop_fsid);
+      eos_info("msg=\"drop over-replicated stripe\" fxid=%08llx dfsid=%lu",
+               mFid, drop_fsid);
+      (void)DropReplica(drop_fsid);
+      mFstFileInfo.erase(drop_fsid);
+      auto* mutable_loc = mMgmFmd.mutable_locations();
 
       for (auto it = mutable_loc->begin(); it != mutable_loc->end(); ++it) {
-        if (*it == dropFsid) {
+        if (*it == drop_fsid) {
           mutable_loc->erase(it);
           break;
         }
@@ -1066,6 +1063,7 @@ FsckEntry::NotifyOutcome(bool success) const
     if (success) {
       gOFS->MgmStats.Add("FsckRepairSuccessful", 0, 0, 1);
       const std::string sfsck_err = eos::common::FsckErrToString(mReportedErr);
+
       if (mReportedErr == eos::common::FsckErr::StripeErr) {
         for (auto fsid : mFsidErr) {
           gOFS->mFsckEngine->NotifyFixedErr(mFid, fsid, sfsck_err);
@@ -1074,6 +1072,7 @@ FsckEntry::NotifyOutcome(bool success) const
         // If error is not stripe error, only the first fsid has been fixed
         gOFS->mFsckEngine->NotifyFixedErr(mFid, *mFsidErr.begin(), sfsck_err);
       }
+
       // Such errors are reported by all the attached locations so when they
       // are fixed we need to update the fsck info for all of them
       if (mReportedErr == eos::common::FsckErr::DiffRepl) {

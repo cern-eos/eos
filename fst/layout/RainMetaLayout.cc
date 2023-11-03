@@ -389,14 +389,30 @@ RainMetaLayout::Open(XrdSfsFileOpenMode flags, mode_t mode, const char* opaque)
 }
 
 //------------------------------------------------------------------------------
+// Open file using parallel IO - helper
+//------------------------------------------------------------------------------
+int
+RainMetaLayout::OpenPio(const std::vector<std::string>& stripe_urls,
+                        XrdSfsFileOpenMode flags, mode_t mode,
+                        const char* opaque)
+{
+  std::vector<std::pair<int, std::string>> stripes;
+  stripes.reserve(stripe_urls.size());
+
+  for (unsigned long i = 0; i < stripe_urls.size(); i++) {
+    stripes.emplace_back(static_cast<int>(i), stripe_urls[i]);
+  }
+
+  return OpenPio(stripes, flags, mode, opaque);
+}
+
+//------------------------------------------------------------------------------
 // Open file using paralled IO
 //------------------------------------------------------------------------------
 int
-RainMetaLayout::OpenPio(const std::vector<std::pair<int, std::string>>& stripeUrls,
-                        XrdSfsFileOpenMode flags,
-                        mode_t mode,
-                        const char* opaque)
-
+RainMetaLayout::OpenPio(const std::vector<std::pair<int, std::string>>&
+                        stripe_urls,
+                        XrdSfsFileOpenMode flags, mode_t mode, const char* opaque)
 {
   // Do some minimal checkups
   if (mNbTotalFiles < 2) {
@@ -431,7 +447,7 @@ RainMetaLayout::OpenPio(const std::vector<std::pair<int, std::string>>& stripeUr
   std::vector<std::future<XrdCl::XRootDStatus>> open_futures;
 
   // Open stripes
-  for (auto [replicaIndex, url]: stripeUrls) {
+  for (auto [replicaIndex, url] : stripe_urls) {
     XrdOucString new_opaque = opaque;
     new_opaque += "&mgm.replicaindex=";
     new_opaque += replicaIndex;
@@ -450,7 +466,7 @@ RainMetaLayout::OpenPio(const std::vector<std::pair<int, std::string>>& stripeUr
   }
 
   // Collect open replies and read header information
-  for (unsigned int i = 0; i < stripeUrls.size(); ++i) {
+  for (unsigned int i = 0; i < stripe_urls.size(); ++i) {
     HeaderCRC* hd = new HeaderCRC(mSizeHeader, mStripeWidth);
     mHdrInfo.push_back(hd);
 
@@ -458,7 +474,7 @@ RainMetaLayout::OpenPio(const std::vector<std::pair<int, std::string>>& stripeUr
       if (open_futures[i].get().IsOK()) {
         if (!hd->ReadFromFile(mStripe[i].get(), mTimeout)) {
           eos_warning("msg=\"failed reading header\" url=\"%s\"",
-                      stripeUrls[i].second.c_str());
+                      stripe_urls[i].second.c_str());
         }
       } else {
         // If flag is SFS_RDWR then we can try to create the file otherwise
@@ -468,7 +484,7 @@ RainMetaLayout::OpenPio(const std::vector<std::pair<int, std::string>>& stripeUr
           mode_t tmp_mode = mode | S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH;
           XrdOucString new_opaque = opaque;
           new_opaque += "&mgm.replicaindex=";
-          new_opaque += stripeUrls[i].first;
+          new_opaque += stripe_urls[i].first;
           new_opaque += "&fst.readahead=true";
           new_opaque += "&fst.blocksize=";
           new_opaque += static_cast<int>(mStripeWidth);
@@ -476,7 +492,7 @@ RainMetaLayout::OpenPio(const std::vector<std::pair<int, std::string>>& stripeUr
 
           if (ret == SFS_ERROR) {
             eos_err("msg=\"failed open create stripe\" url=%s",
-                    stripeUrls[i].second.c_str());
+                    stripe_urls[i].second.c_str());
             mStripe[i] = nullptr;
             ++num_failures;
           }
@@ -512,21 +528,6 @@ RainMetaLayout::OpenPio(const std::vector<std::pair<int, std::string>>& stripeUr
   mIsOpen = true;
   mIsEntryServer = true;
   return SFS_OK;
-}
-
-int
-RainMetaLayout::OpenPio(std::vector<std::string> stripeUrls,
-                        XrdSfsFileOpenMode flags, mode_t mode,
-                        const char* opaque)
-{
-  std::vector<std::pair<int, std::string>> stripes;
-  stripes.reserve(stripeUrls.size());
-
-  for (unsigned long i = 0; i < stripeUrls.size(); i++) {
-    stripes.emplace_back(static_cast<int>(i), stripeUrls[i]);
-  }
-
-  return OpenPio(stripes, flags, mode, opaque);
 }
 
 //------------------------------------------------------------------------------
@@ -740,10 +741,9 @@ RainMetaLayout::ReadStripe(XrdSfsFileOffset offset, char* buffer,
   eos::common::Timing rt("read");
   COMMONTIMING("start", &rt);
   uint64_t end_raw_offset = offset + length;
-
   uint64_t const stripeSize =
-      mSizeHeader +
-      mStripeWidth * (1 + ((mFileSize - 1) / (mStripeWidth * mNbDataFiles)));
+    mSizeHeader +
+    mStripeWidth * (1 + ((mFileSize - 1) / (mStripeWidth * mNbDataFiles)));
 
   if ((uint64_t)offset > stripeSize) {
     eos_warning("msg=\"read past end-of-file\" offset=%lld file_size=%llu",
@@ -766,7 +766,7 @@ RainMetaLayout::ReadStripe(XrdSfsFileOffset offset, char* buffer,
 
   if (mStripe[stripeIdx]) {
     int64_t nbytes =
-        mStripe[stripeIdx]->fileReadPrefetch(offset, buffer, length, mTimeout);
+      mStripe[stripeIdx]->fileReadPrefetch(offset, buffer, length, mTimeout);
 
     if (nbytes == length) {
       COMMONTIMING("read return", &rt);
@@ -774,6 +774,7 @@ RainMetaLayout::ReadStripe(XrdSfsFileOffset offset, char* buffer,
       return length;
     }
   }
+
   if (mStripe[stripeIdx]) {
     eos_err("msg=\"read error\" offset=%llu length=%d msg=\"%s\"", offset,
             length, mStripe[stripeIdx]->GetLastErrMsg().c_str());

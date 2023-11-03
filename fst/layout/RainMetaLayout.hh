@@ -87,7 +87,7 @@ public:
   //----------------------------------------------------------------------------
   //! Open file using parallel IO
   //!
-  //! @param stripeUrls map of replicaindex to stripeUrl
+  //! @param stripeUrls map of replica index to stripeUrl
   //! @param flags flags O_RDWR/O_RDONLY/O_WRONLY
   //! @param mode creation permissions
   //! @param opaque opaque information
@@ -99,15 +99,16 @@ public:
                       const char* opaque = "fst.pio");
 
   //----------------------------------------------------------------------------
-  //! Open file using parallel IO
+  //! Open file using parallel IO - helper
   //!
+  //  @param stripe_urls vector of stripe URLs for open
   //! @param flags flags O_RDWR/O_RDONLY/O_WRONLY
   //! @param mode creation permissions
   //! @param opaque opaque information
   //!
   //! @return 0 if successful, -1 otherwise and error code is set
   //----------------------------------------------------------------------------
-  virtual int OpenPio(std::vector<std::string> stripeUrls,
+  virtual int OpenPio(const std::vector<std::string>& stripeUrls,
                       XrdSfsFileOpenMode flags, mode_t mode = 0,
                       const char* opaque = "fst.pio");
 
@@ -125,7 +126,7 @@ public:
                        XrdSfsXferSize length, bool readahead = false) override;
 
   //----------------------------------------------------------------------------
-  //! Read from stripe
+  //! Read from stripe - offset and length are relative to the given stripe
   //!
   //! @param offset offset
   //! @param buffer place to hold the read data
@@ -134,8 +135,8 @@ public:
   //!
   //! @return number of bytes read or -1 if error
   //--------------------------------------------------------------------------
-  virtual int64_t ReadStripe(XrdSfsFileOffset offset, char* buffer,
-                             XrdSfsXferSize length, int stripeIdx);
+  int64_t ReadStripe(XrdSfsFileOffset offset, char* buffer,
+                     XrdSfsXferSize length, int stripeIdx);
 
   //----------------------------------------------------------------------------
   //! Vector read
