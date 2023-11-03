@@ -407,9 +407,9 @@ Fsck::RepairErrs(ThreadAssistant& assistant) noexcept
     uint64_t count = 0ull;
     uint64_t msg_delay = 0;
     std::list<std::string> err_priority{
-        "stripe_err", "blockxs_err",   "unreg_n",
-        "rep_diff_n", "rep_missing_n", "m_mem_sz_diff",
-        "m_cx_diff",  "d_mem_sz_diff", "d_cx_diff"};
+      "stripe_err", "blockxs_err",   "unreg_n",
+      "rep_diff_n", "rep_missing_n", "m_mem_sz_diff",
+      "m_cx_diff",  "d_mem_sz_diff", "d_cx_diff"};
 
     for (const auto& err_type : err_priority) {
       // Repair only targeted categories if this option is set
@@ -426,8 +426,10 @@ Fsck::RepairErrs(ThreadAssistant& assistant) noexcept
         }
 
         std::shared_ptr<FsckEntry> job{
-            new FsckEntry(elem.first, elem.second, err_type, mQcl)};
-        mThreadPool.PushTask<void>([job]() { return job->Repair(); });
+          new FsckEntry(elem.first, elem.second, err_type, mQcl)};
+        mThreadPool.PushTask<void>([job]() {
+          return job->Repair();
+        });
 
         // Check regularly if we should exit and sleep if queue is full
         while ((mThreadPool.GetQueueSize() > mMaxQueuedJobs) ||
@@ -440,7 +442,7 @@ Fsck::RepairErrs(ThreadAssistant& assistant) noexcept
 
               if (++msg_delay % 5 == 0) {
                 eos_info("%s", "msg=\"stopping fsck repair waiting for thread "
-                               "pool queue to be consummed\"");
+                         "pool queue to be consummed\"");
                 msg_delay = 0;
               }
             }
@@ -459,16 +461,15 @@ Fsck::RepairErrs(ThreadAssistant& assistant) noexcept
       }
     }
 
-    // Remove orphans error from unavailable filesystems
+    // Remove orphans from unavailable filesystems
     for (const auto& [fid, fsids] : local_emap[eos::common::FSCK_ORPHANS_N]) {
       for (const auto& fsid : fsids) {
         eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
         FileSystem* fs = FsView::gFsView.mIdView.lookupByID(fsid);
 
         if (!fs) {
-          eos_info("msg=\"dropping orphans_n error for missing filesystem\" "
-                   "fxid=%08llx fsid=%d",
-                   fid, fsid);
+          eos_info("msg=\"dropping orphans for missing filesystem\" "
+                   "fxid=%08llx fsid=%d", fid, fsid);
           NotifyFixedErr(fid, fsid, eos::common::FSCK_ORPHANS_N);
         }
       }
@@ -676,7 +677,7 @@ Fsck::ReportJsonFormat(std::ostringstream& oss,
       std::set<unsigned long long> fids;
 
       for (const auto& elem : elem_map.second) {
-          fids.insert(elem.first);
+        fids.insert(elem.first);
       }
 
       for (auto it = fids.begin(); it != fids.end(); ++it) {
@@ -789,7 +790,7 @@ Fsck::ReportMonitorFormat(std::ostringstream& oss,
       std::set<unsigned long long> fids;
 
       for (const auto& elem : elem_map.second) {
-          fids.insert(elem.first);
+        fids.insert(elem.first);
       }
 
       for (auto it = fids.begin(); it != fids.end(); ++it) {

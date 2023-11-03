@@ -229,16 +229,13 @@ public:
   //! Push collected fsck errors to QDB
   //!
   //! @param fsid file system identifier
-  //! @param fidset map of error types to set of fids which are affected
+  //! @param errs_map map of error types to set of fids which are affected
   //!
   //! @return true if push was successful, othewise false
   //----------------------------------------------------------------------------
   bool
   PushToQdb(eos::common::FileSystem::fsid_t fsid,
-            const std::map<std::string,
-                           std::map<eos::common::FileSystem::fsid_t,
-                                    std::set<eos::common::FileId::fileid_t>>>&
-                fidset);
+            const eos::common::FsckErrsPerFsMap& errs_map);
 
   //----------------------------------------------------------------------------
   //! Process file system configuration change

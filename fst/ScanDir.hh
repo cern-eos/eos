@@ -101,8 +101,13 @@ public:
   //! configured rescan interval
   //!
   //! @param timestamp_us timestamp in seconds
+  //! @param rain_ts if true it refers to a rain scan timestamp, otherwise to a
+  //!        regular scan timestamp
+  //!
+  //! @return true if file is to be rescanned, otherwise false
   //----------------------------------------------------------------------------
-  bool DoRescan(const std::string& timestamp_sec, bool rainEntryInterval = false) const;
+  bool DoRescan(const std::string& timestamp_sec,
+                bool rain_ts = false) const;
 
   //----------------------------------------------------------------------------
   //! Check the given file for errors and properly account them both at the
@@ -133,29 +138,14 @@ public:
   //! @param io io object attached to the file
   //! @param fpath file path
   //! @param fid file id
-  //! @param xs_stamp_sec time file was last checked
-  //! @param mtime time file was last modified
+  //! @param scan_ts_sec time file was last checked
+  //! @param mtime time file contents was last modified
   //!
   //! @return true if file check, otherwise false
   //----------------------------------------------------------------------------
   bool ScanFile(const std::unique_ptr<eos::fst::FileIo>& io,
                 const std::string& fpath, eos::common::FileId::fileid_t fid,
-                const std::string& xs_stamp_sec, time_t mtime);
-
-  //----------------------------------------------------------------------------
-  //! Check the given file for rain stripes errors
-  //!
-  //! @param io io object attached to the file
-  //! @param fpath file path
-  //! @param fid file id
-  //! @param xs_stamp_sec time file was last checked
-  //!
-  //! @return true if file check, otherwise false
-  //----------------------------------------------------------------------------
-  bool ScanRainFile(const std::unique_ptr<eos::fst::FileIo>& io,
-                    const std::string& fpath,
-                    eos::common::FileId::fileid_t fid,
-                    const std::string& xs_stamp_sec);
+                const std::string& scan_ts_sec, time_t mtime);
 
   //----------------------------------------------------------------------------
   //! Scan the given file for checksum errors taking the load into consideration
@@ -174,33 +164,56 @@ public:
                          std::string& scan_xs_hex,
                          bool& filexs_err, bool& blockxs_err);
 
-  //----------------------------------------------------------------------------
-  //! Check each stripe to verify if they can reconstruct the original file
-  //!
-  //! @param fid file id
-  //! @param invalidStripesFsid filled with fsids of invalid stripes
-  //!
-  //! @return true if check happened, false if error occurred
-  //----------------------------------------------------------------------------
-  bool ScanRainFileLoadAware(
-      eos::common::FileId::fileid_t fid,
-      std::set<eos::common::FileSystem::fsid_t>& invalidStripesFsid);
+#ifndef _NOOFS
 
   //----------------------------------------------------------------------------
   //! Check for stripes that are unable to reconstruct the original file
   //!
   //! @param stripes list of replica index and stripe urls
-  //! @param XS expected checksum
-  //! @param xsObj checksum object used to calculate the checksum
+  //! @param xs_val expected checksum
+  //! @param xs_obj checksum object used to calculate the checksum
   //! @param layout layout id
-  //! @param opaqueInfo opaque information
+  //! @param opaqueInfo oopaque information
   //!
   //! @return true if file has expected checksum, false otherwise
   //----------------------------------------------------------------------------
-  bool isValidStripeCombination(
-      const std::vector<std::pair<int, std::string>>& stripes,
-      const std::string& XS, std::unique_ptr<CheckSum>& xsObj,
-      eos::common::LayoutId::layoutid_t layout, const std::string& opaqueInfo);
+  bool IsValidStripeCombination(
+    const std::vector<std::pair<int, std::string>>& stripes,
+    const std::string& xs_val, std::unique_ptr<CheckSum>& xs_obj,
+    eos::common::LayoutId::layoutid_t layout, const std::string& opaqueInfo);
+
+
+  //----------------------------------------------------------------------------
+  //! Check the given file for rain stripes errors
+  //!
+  //! @param io io object attached to the file
+  //! @param fpath file path
+  //! @param fid file id
+  //! @param scan_ts_sec time file was last checked
+  //! @param ctime time file metadata was last modified - for example a rain
+  //!        recovery will update the ctime of the raw file on disk.
+  //!
+  //! @return true if file check, otherwise false
+  //----------------------------------------------------------------------------
+  bool ScanRainFile(const std::unique_ptr<eos::fst::FileIo>& io,
+                    const std::string& fpath,
+                    eos::common::FileId::fileid_t fid,
+                    const std::string& scan_ts_sec,
+                    time_t ctime);
+
+  //----------------------------------------------------------------------------
+  //! Check each stripe to verify if they can reconstruct the original file
+  //!
+  //! @param fid file id
+  //! @param invalid_fsid fsids of invalid stripes
+  //!
+  //! @return true if check happened, false if error occurred
+  //----------------------------------------------------------------------------
+  bool
+  ScanRainFileLoadAware(eos::common::FileId::fileid_t fid,
+                        std::set<eos::common::FileSystem::fsid_t>& invalid_fsid);
+
+#endif
 
   //----------------------------------------------------------------------------
   //! Get clock reference for testing purposes
@@ -211,12 +224,15 @@ public:
   }
 
   //----------------------------------------------------------------------------
-  //! Get timestamp in seconds smeared +/-20% of mEntryIntervalSec/mRainEntryIntervalSec around the
-  //!  current timestamp value
+  //! Get timestamp in seconds smeared +/-20% of
+  //! mEntryIntervalSec/mRainEntryIntervalSec around the current timestamp value
+  //!
+  //! @param rain_ts if true it refers to a rain scan timestamp, otherwise to a
+  //!        regular scan timestamp
   //!
   //! @return string representing timestamp in seconds since epoch
   //----------------------------------------------------------------------------
-  std::string GetTimestampSmearedSec(bool rainEntryInterval = false) const;
+  std::string GetTimestampSmearedSec(bool rain_ts = false) const;
 
 private:
 #ifdef IN_TEST_HARNESS

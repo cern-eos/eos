@@ -134,6 +134,8 @@ public:
   //! @param app_tag application tag for easy classification of job types
   //! @param balance_mode if true force transfer between given source and
   //!        destination file systems
+  //! @param vid virtual identity running the job
+  //! @param repair_excluded
   //----------------------------------------------------------------------------
   DrainTransferJob(eos::common::FileId::fileid_t fid,
                    eos::common::FileSystem::fsid_t fsid_src,
@@ -144,12 +146,11 @@ public:
                    const std::string& app_tag = "drain",
                    bool balance_mode = false,
                    eos::common::VirtualIdentity vid = eos::common::VirtualIdentity::Root(),
-                   bool repair_excluded = false
-                   ):
+                   bool repair_excluded = false):
     mAppTag(app_tag), mFileId(fid), mFsIdSource(fsid_src), mFsIdTarget(fsid_trg),
     mTxFsIdSource(fsid_src), mStatus(Status::Ready), mRainAttempt(false),
-    mRainReconstruct(false), mDropSrc(drop_src), mBalanceMode(balance_mode), mRepairExcluded(repair_excluded),
-    mVid(vid)
+    mRainReconstruct(false), mDropSrc(drop_src), mBalanceMode(balance_mode),
+    mRepairExcluded(repair_excluded), mVid(vid)
   {
     mTriedSrcs.insert(exclude_srcs.begin(), exclude_srcs.end());
     mExcludeDsts.insert(mExcludeDsts.begin(), exclude_dsts.begin(),

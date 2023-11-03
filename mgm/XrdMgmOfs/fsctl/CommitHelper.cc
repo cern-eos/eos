@@ -498,15 +498,15 @@ CommitHelper::handle_location(eos::common::VirtualIdentity& vid,
   }
 
   if (cgi["dropfsid"].length()) {
-    std::vector<std::string> dropFsidToken;
-    eos::common::StringConversion::Tokenize(cgi["dropfsid"], dropFsidToken, ",");
+    std::vector<std::string> fsid_tokens;
+    eos::common::StringConversion::Tokenize(cgi["dropfsid"], fsid_tokens, ",");
 
-    for (auto id : dropFsidToken) {
-      unsigned long dropfsid = std::stoul(id);
-      eos_thread_info("commit: dropping replica on fs %lu", dropfsid);
-      fmd->unlinkLocation((unsigned short)dropfsid);
+    for (auto id : fsid_tokens) {
+      unsigned long drop_fsid = std::stoul(id);
+      eos_thread_info("commit: dropping replica on fs %lu", drop_fsid);
+      fmd->unlinkLocation((unsigned short)drop_fsid);
       locations += "-";
-      locations += std::to_string(dropfsid);
+      locations += std::to_string(drop_fsid);
     }
   }
 

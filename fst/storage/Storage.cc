@@ -1289,11 +1289,8 @@ Storage::GetFSCount() const
 // Push collected errors to quarkdb
 //------------------------------------------------------------------------------
 bool
-Storage::PushToQdb(
-    eos::common::FileSystem::fsid_t fsid,
-    const std::map<std::string,
-                   std::map<eos::common::FileSystem::fsid_t,
-                            std::set<eos::common::FileId::fileid_t>>>& fidset)
+Storage::PushToQdb(eos::common::FileSystem::fsid_t fsid,
+                   const eos::common::FsckErrsPerFsMap& errs_map)
 {
 #ifndef _NOOFS
   static const uint32_t s_max_batch_size = 10000;
@@ -1306,7 +1303,7 @@ Storage::PushToQdb(
   qclient::AsyncHandler ah;
   qclient::QSet fsck_set(*gOFS.mFsckQcl, "");
 
-  for (const auto& elem : fidset) {
+  for (const auto& elem : errs_map) {
     std::list<std::string> values; // contains fid:fsid entries
 
     for (auto& errfsid : elem.second) {
@@ -1344,10 +1341,10 @@ Storage::PublishFsckError(eos::common::FileId::fileid_t fid,
                           eos::common::FileSystem::fsid_t fsid,
                           eos::common::FsckErr err_type)
 {
-  std::map<std::string, std::map<eos::common::FileSystem::fsid_t, std::set<eos::common::FileId::fileid_t>>> fidset;
-  fidset[eos::common::FsckErrToString(err_type)][fsid].insert(fid);
+  eos::common::FsckErrsPerFsMap errs_map;
+  errs_map[eos::common::FsckErrToString(err_type)][fsid].insert(fid);
 
-  if (!PushToQdb(fsid, fidset)) {
+  if (!PushToQdb(fsid, errs_map)) {
     eos_static_err("msg=\"failed to push fsck error to QDB\" fid=%08llx "
                    "fsid=%lu err=%s", fid, fsid,
                    eos::common::FsckErrToString(err_type).c_str());
