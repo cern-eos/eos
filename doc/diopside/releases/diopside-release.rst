@@ -16,6 +16,32 @@ Introduction
 
 This release is based on XRootD V5.
 
+``v5.2.1 Diopside``
+==========================
+
+2023-11-06
+
+Bug
+----
+
+* [EOS-5849] - MGM crash, possibly around eos::QuarkHierarchicalView::getUriInternal()
+* [EOS-5858] - FlatScheduler: groups are not retried
+* [EOS-5861] - MGM crash (corrupted free memory?)
+* [EOS-5862] - Files with strange state after editing on two places at the same time via FUSE
+* [EOS-5866] - Invalid NS entry when a file is renamed on top of a hard-link with recycle bin enabled
+* [EOS-5872] - NS: IFileMD::unlinkLocation() takes a read lock instead of a write lock
+* [EOS-5895] - MGM memory increase (EOSHOMEs)
+* [EOS-5902] - XrdHttp access throws 500 when file name contains a '#'
+* [EOS-5903] - Left over fst.ioping.XXXX files on FSTs
+* [EOS-5904] - Fix unsafe modification in Qdb Master logging
+* [EOS-5906] - 5.2 FST don't start because of benchmark files irritating LevelDB check code
+
+Improvement
+------------
+
+* [EOS-5792] - Document the possibility of moving fs between nodes in the help and the eos official documentation
+* [EOS-5894] - MGM memory increase with agressive parameters for balancing
+
 
 ``v5.2.0 Diopside``
 ==========================
