@@ -454,7 +454,7 @@ private:
   IContainerMD(const IContainerMD& other) = delete;
   IContainerMD& operator=(const IContainerMD& other) = delete;
 
-  bool mIsDeleted; ///< Mark if object is still in cache but it was deleted
+  mutable std::atomic<bool> mIsDeleted; ///< Mark if object is still in cache but it was deleted
 
   std::chrono::steady_clock::time_point mLastPrefetch;
   mutable std::shared_mutex mLastPrefetchMtx;
