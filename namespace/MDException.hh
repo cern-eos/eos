@@ -32,7 +32,7 @@
 
 #define SSTR(message) static_cast<std::ostringstream&>(std::ostringstream().flush() << message).str()
 #define throw_mdexception(err, msg) { eos::MDException __md___exception____(err); __md___exception____.getMessage() << msg; throw __md___exception____; }
-#define make_mdexception(err, msg) folly::make_exception_wrapper<eos::MDException>(err, SSTR(msg))
+#define make_mdexception(err, msg) folly::make_exception_wrapper<eos::MDException>(err, std::move(SSTR(msg)))
 
 namespace eos
 {
@@ -53,6 +53,11 @@ public:
     }
   }
 
+  MDException(int errno, std::string&& msg):
+    pErrorNo(errno), pTmpMessage(0)
+  {
+    getMessage() << msg;
+  }
   //------------------------------------------------------------------------
   //! Destructor
   //------------------------------------------------------------------------
@@ -120,7 +125,7 @@ private:
   mutable char*       pTmpMessage;
 };
 
-inline MDException makeMDException(int err, const std::string& msg)
+inline MDException makeMDException(int err, std::string&& msg)
 {
   MDException exc(err);
   exc.getMessage() << msg;
