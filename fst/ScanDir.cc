@@ -614,7 +614,7 @@ ScanDir::CheckFile(const std::string& fpath)
 #endif
   io->attrDelete("user.eos.filecxerror");
   io->attrDelete("user.eos.blockcxerror");
-  std::string scan_ts_sec;
+  std::string scan_ts_sec = "0";
   io->attrGet("user.eos.timestamp", scan_ts_sec);
 
   // Handle the old format in microseconds, truncate to seconds
@@ -638,6 +638,7 @@ ScanDir::CheckFile(const std::string& fpath)
 
   if ((stat(filexs_path.c_str(), &info) == 0) && info.st_size) {
     // Grab the latest rain scan timestamp if it exists
+    scan_ts_sec = "0";
     io->attrGet("user.eos.rain_timestamp", scan_ts_sec);
 
     if (DoRescan(scan_ts_sec, true)) {
