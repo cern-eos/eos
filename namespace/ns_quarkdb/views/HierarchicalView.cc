@@ -758,7 +758,7 @@ QuarkHierarchicalView::removeContainer(const std::string& uri)
 //------------------------------------------------------------------------------
 // Concatenate a deque of chunks into a string
 //------------------------------------------------------------------------------
-static std::string concatenateDeque(const std::deque<std::string> &chunks) {
+static std::string concatenateDeque(std::deque<std::string>&& chunks) {
   std::ostringstream ss;
 
   for(size_t i = 0; i < chunks.size(); i++) {
@@ -771,7 +771,7 @@ static std::string concatenateDeque(const std::deque<std::string> &chunks) {
 //------------------------------------------------------------------------------
 // Concatenate a deque of chunks into a string, with an ending slash
 //------------------------------------------------------------------------------
-static std::string concatenateDequeWithEndingSlash(const std::deque<std::string> &chunks) {
+static std::string concatenateDequeWithEndingSlash(std::deque<std::string>&& chunks) {
   std::ostringstream ss;
 
   for(size_t i = 0; i < chunks.size(); i++) {
@@ -830,7 +830,7 @@ QuarkHierarchicalView::getUriInternal(std::deque<std::string> currentChunks,
     //--------------------------------------------------------------------------
     if(!nextToLookup) {
       std::string err = SSTR("Potential namespace corruption, received null nextToLookup in getUri. " <<
-        "Current state: " << concatenateDeque(currentChunks));
+        "Current state: " << concatenateDeque(std::move(currentChunks)));
 
       eos_static_crit(err.c_str());
       return folly::makeFuture<std::deque<std::string>>(make_mdexception(EFAULT, err.c_str()));
@@ -848,7 +848,7 @@ QuarkHierarchicalView::getUriInternal(std::deque<std::string> currentChunks,
     //--------------------------------------------------------------------------
     if(currentChunks.size() > 255) {
       std::string err = SSTR("Potential namespace corruption, detected loop in getUri. Current container: "
-        << nextToLookup->getId() << ", current state: " << concatenateDeque(currentChunks));
+        << nextToLookup->getId() << ", current state: " << concatenateDeque(std::move(currentChunks)));
 
       eos_static_crit(err.c_str());
       return folly::makeFuture<std::deque<std::string>>(make_mdexception(EFAULT, err.c_str()));
