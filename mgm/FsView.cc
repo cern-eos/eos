@@ -4075,8 +4075,8 @@ BaseView::Print(TableFormatterBase& table, std::string table_format,
 	if (formattags.count("compute")) {
 	  if (formattags["compute"] == "usage") {
 	    // compute the percentage usage
-	    long long used_bytes = SumLongLong("stat.statfs.usedbytes");
-	    long long headroom = SumLongLong("headroom");
+	    long long used_bytes = SumLongLong("stat.statfs.usedbytes", false);
+	    long long headroom = SumLongLong("headroom", false);
 	    long long capacity = strtoull(GetMember("cfg.nominalsize").c_str(),0,10);
 	    std::string header = "";
 	    std::string format = formattags["format"];
@@ -4087,7 +4087,7 @@ BaseView::Print(TableFormatterBase& table, std::string table_format,
 	    table_header.push_back(std::make_tuple("usage", width, format));
 	    
 	    if (!capacity) {
-	      capacity = SumLongLong("stat.statfs.capacity?configstatus@rw");
+	      capacity = SumLongLong("stat.statfs.capacity?configstatus@rw", false);
 	    }
 	    double usage = 0;
 	    
