@@ -54,13 +54,6 @@ XrdMgmOfs::rename(const char* old_name,
 {
   static const char* epname = "rename";
   const char* tident = error.getErrUser();
-  // use a thread private vid
-  eos::common::VirtualIdentity vid;
-  EXEC_TIMING_BEGIN("IdMap");
-  eos::common::Mapping::IdMap(client, infoO, tident, vid);
-  EXEC_TIMING_END("IdMap");
-  eos_info("old-name=%s new-name=%s", old_name, new_name);
-  gOFS->MgmStats.Add("IdMap", vid.uid, vid.gid, 1);
   errno = 0;
   XrdOucString source, destination;
   XrdOucEnv renameo_Env(infoO);
@@ -83,6 +76,14 @@ XrdMgmOfs::rename(const char* old_name,
                 "rename version files - use 'file versions' !");
   }
 
+  // Use a thread private vid
+  eos::common::VirtualIdentity vid;
+  EXEC_TIMING_BEGIN("IdMap");
+  eos::common::Mapping::IdMap(client, infoO, tident, vid, gOFS->mTokenAuthz,
+                              AOP_Update, newn.c_str());
+  EXEC_TIMING_END("IdMap");
+  eos_info("old-name=%s new-name=%s", old_name, new_name);
+  gOFS->MgmStats.Add("IdMap", vid.uid, vid.gid, 1);
   const char* inpath = 0;
   const char* ininfo = 0;
   {

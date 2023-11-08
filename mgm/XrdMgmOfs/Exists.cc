@@ -53,7 +53,8 @@ XrdMgmOfs::exists(const char* inpath,
   const char* tident = error.getErrUser();
   eos::common::VirtualIdentity vid;
   EXEC_TIMING_BEGIN("IdMap");
-  eos::common::Mapping::IdMap(client, ininfo, tident, vid);
+  eos::common::Mapping::IdMap(client, ininfo, tident, vid, gOFS->mTokenAuthz,
+                              AOP_Stat, inpath);
   EXEC_TIMING_END("IdMap");
   NAMESPACEMAP;
   BOUNCE_ILLEGAL_NAMES;
@@ -153,9 +154,11 @@ XrdMgmOfs::_exists(const char* path,
 
     try {
       auto dirLock = eosView->getContainerReadLocked(cPath.GetParentPath(), false);
-      if(dirLock) {
+
+      if (dirLock) {
         dir = dirLock->getUnderlyingPtr();
       }
+
       eos::IContainerMD::XAttrMap::const_iterator it;
       // get attributes
       gOFS->_attr_ls(cPath.GetParentPath(), error, vid, 0, attrmap);

@@ -58,7 +58,8 @@ XrdMgmOfs::rem(const char* inpath,
   XrdOucEnv env(ininfo);
   AUTHORIZE(client, &env, AOP_Delete, "remove", inpath, error);
   EXEC_TIMING_BEGIN("IdMap");
-  eos::common::Mapping::IdMap(client, ininfo, tident, vid);
+  eos::common::Mapping::IdMap(client, ininfo, tident, vid, gOFS->mTokenAuthz,
+                              AOP_Delete, path);
   EXEC_TIMING_END("IdMap");
   gOFS->MgmStats.Add("IdMap", vid.uid, vid.gid, 1);
   BOUNCE_NOT_ALLOWED;
@@ -153,8 +154,9 @@ XrdMgmOfs::_rem(const char* path,
               e.getMessage().str().c_str());
   }
 
-  uid_t container_owner_uid=0;
-  bool container_vtx=false;
+  uid_t container_owner_uid = 0;
+  bool container_vtx = false;
+
   if (fmd) {
     owner_uid = fmd->getCUid();
     owner_gid = fmd->getCGid();
@@ -162,7 +164,7 @@ XrdMgmOfs::_rem(const char* path,
 
     try {
       container = gOFS->eosDirectoryService->getContainerMD(fmd->getContainerId());
-      container_owner_uid=container->getCUid();
+      container_owner_uid = container->getCUid();
       container_vtx = container->getMode() & S_ISVTX;
       aclpath = gOFS->eosView->getUri(container.get());
     } catch (eos::MDException& e) {
@@ -191,7 +193,7 @@ XrdMgmOfs::_rem(const char* path,
       eos_info("acl=%d r=%d w=%d wo=%d egroup=%d delete=%d not-delete=%d mutable=%d",
                acl.HasAcl(), acl.CanRead(), acl.CanWrite(), acl.CanWriteOnce(),
                acl.HasEgroup(), acl.CanDelete(), acl.CanNotDelete(), acl.IsMutable());
-      
+
       if ((!acl.CanWrite()) && (!acl.CanWriteOnce())) {
         // we have to check the standard permissions
         stdpermcheck = true;
@@ -199,54 +201,54 @@ XrdMgmOfs::_rem(const char* path,
     } else {
       stdpermcheck = true;
     }
-    
-    if (container_vtx) { 
+
+    if (container_vtx) {
       if (
-	  (container_owner_uid == vid.uid) ||
-	  (owner_uid == vid.uid) ) {
-	// great VTX allows the owner to delete, this is not overruled by a !delete acl
+        (container_owner_uid == vid.uid) ||
+        (owner_uid == vid.uid)) {
+        // great VTX allows the owner to delete, this is not overruled by a !delete acl
       } else {
-	if (vid.uid) {
-	  // forbidden because of VTX bit
-	  errno = EPERM;
-	  std::ostringstream oss;
-	  oss << path << " by tident=" << vid.tident;
-	  return Emsg(epname, error, errno, "remove file", oss.str().c_str());
-	}
+        if (vid.uid) {
+          // forbidden because of VTX bit
+          errno = EPERM;
+          std::ostringstream oss;
+          oss << path << " by tident=" << vid.tident;
+          return Emsg(epname, error, errno, "remove file", oss.str().c_str());
+        }
       }
     } else {
       // try other permissions
       if (container) {
-	if (stdpermcheck && (!container->access(vid.uid, vid.gid, W_OK | X_OK))) {
-	  errno = EPERM;
-	  std::ostringstream oss;
-	  oss << path << " by tident=" << vid.tident;
-	  return Emsg(epname, error, errno, "remove file", oss.str().c_str());
-	}
-	
-	// check if this directory is write-once for the mapped user
-	if (acl.CanWriteOnce() && (fmd->getSize())) {
-	  errno = EPERM;
-	  // this is a write once user
-	  return Emsg(epname, error, EPERM,
-		      "remove existing file - you are write-once user");
-	}
-	
-	// if there is a !d policy we cannot delete files which we don't own
-	if (((vid.uid) && (vid.uid != 3) && (vid.gid != 4) && (acl.CanNotDelete())) &&
-	    ((fmd->getCUid() != vid.uid))) {
-	  errno = EPERM;
-	  // deletion is forbidden for not-owner
-	  return Emsg(epname, error, EPERM,
-		      "remove existing file - ACL forbids file deletion");
-	}
-	
-	if ((!stdpermcheck) && (!acl.CanWrite())) {
-	  errno = EPERM;
-	  // this user is not allowed to write
-	  return Emsg(epname, error, EPERM,
-		      "remove existing file - you don't have write permissions");
-	}
+        if (stdpermcheck && (!container->access(vid.uid, vid.gid, W_OK | X_OK))) {
+          errno = EPERM;
+          std::ostringstream oss;
+          oss << path << " by tident=" << vid.tident;
+          return Emsg(epname, error, errno, "remove file", oss.str().c_str());
+        }
+
+        // check if this directory is write-once for the mapped user
+        if (acl.CanWriteOnce() && (fmd->getSize())) {
+          errno = EPERM;
+          // this is a write once user
+          return Emsg(epname, error, EPERM,
+                      "remove existing file - you are write-once user");
+        }
+
+        // if there is a !d policy we cannot delete files which we don't own
+        if (((vid.uid) && (vid.uid != 3) && (vid.gid != 4) && (acl.CanNotDelete())) &&
+            ((fmd->getCUid() != vid.uid))) {
+          errno = EPERM;
+          // deletion is forbidden for not-owner
+          return Emsg(epname, error, EPERM,
+                      "remove existing file - ACL forbids file deletion");
+        }
+
+        if ((!stdpermcheck) && (!acl.CanWrite())) {
+          errno = EPERM;
+          // this user is not allowed to write
+          return Emsg(epname, error, EPERM,
+                      "remove existing file - you don't have write permissions");
+        }
       }
 
       // -----------------------------------------------------------------------
@@ -312,7 +314,8 @@ XrdMgmOfs::_rem(const char* path,
             e.getMessage() << "Deletion workflow failed";
             throw e;
           }
-	  lock.Grab(gOFS->eosViewRWMutex);
+
+          lock.Grab(gOFS->eosViewRWMutex);
         }
 
         /* create a Copy-on-Write clone if needed */
@@ -405,13 +408,13 @@ XrdMgmOfs::_rem(const char* path,
                   "space has no quota configuration");
     }
 
-    // track who is deleting 
+    // track who is deleting
     if (gOFS->_attr_set(recyclePath.c_str(), error, vid, "",
-			eos::common::EOS_DTRACE_ATTR, vid.getTrace(true).c_str())) {
+                        eos::common::EOS_DTRACE_ATTR, vid.getTrace(true).c_str())) {
       eos_err("msg=\"failed to set attribute on recycle path\" path=%s",
-	      recyclePath.c_str());
+              recyclePath.c_str());
     }
-    
+
     if (!keepversion) {
       // call the version purge function in case there is a version (without gQuota locked)
       eos::common::Path cPath(path);
@@ -429,7 +432,7 @@ XrdMgmOfs::_rem(const char* path,
 
           if (gOFS->_attr_set(recyclePath.c_str(), error, vid, "",
                               Recycle::gRecyclingVersionKey.c_str(), sp)) {
-	    eos_err("msg=\"failed to set attribute on recycle path\" path=%s",
+            eos_err("msg=\"failed to set attribute on recycle path\" path=%s",
                     recyclePath.c_str());
           }
         }

@@ -54,7 +54,8 @@ XrdMgmOfs::mkdir(const char* inpath,
   // use a thread private vid
   eos::common::VirtualIdentity vid;
   EXEC_TIMING_BEGIN("IdMap");
-  eos::common::Mapping::IdMap(client, ininfo, tident, vid);
+  eos::common::Mapping::IdMap(client, ininfo, tident, vid, gOFS->mTokenAuthz,
+                              AOP_Mkdir, inpath);
   EXEC_TIMING_END("IdMap");
   NAMESPACEMAP;
   BOUNCE_ILLEGAL_NAMES;
@@ -93,7 +94,7 @@ XrdMgmOfs::_mkdir(const char* path,
                   eos::common::VirtualIdentity& vid,
                   const char* ininfo,
                   ino_t* outino,
-		  bool nopermissioncheck)
+                  bool nopermissioncheck)
 {
   static const char* epname = "_mkdir";
   //mode_t acc_mode = (Mode & S_IAMB) | S_IFDIR;
@@ -135,27 +136,26 @@ XrdMgmOfs::_mkdir(const char* path,
     if (dir) {
       uid_t d_uid = dir->getCUid();
       gid_t d_gid = dir->getCGid();
-
       // ACL and permission check
       Acl acl(cPath.GetParentPath(), error, vid, attrmap, false);
       eos_info("path=%s acl=%d r=%d w=%d wo=%d egroup=%d mutable=%d",
-	       cPath.GetParentPath(),
-	       acl.HasAcl(), acl.CanRead(), acl.CanWrite(), acl.CanWriteOnce(),
-	       acl.HasEgroup(), acl.IsMutable());
+               cPath.GetParentPath(),
+               acl.HasAcl(), acl.CanRead(), acl.CanWrite(), acl.CanWriteOnce(),
+               acl.HasEgroup(), acl.IsMutable());
 
       if (!nopermissioncheck) {
-	// Immutable directory
-	if (vid.uid && !acl.IsMutable()) {
-	  errno = EPERM;
-	  return Emsg(epname, error, EPERM, "create directory - immutable",
-		      cPath.GetParentPath());
-	}
+        // Immutable directory
+        if (vid.uid && !acl.IsMutable()) {
+          errno = EPERM;
+          return Emsg(epname, error, EPERM, "create directory - immutable",
+                      cPath.GetParentPath());
+        }
       }
-      
+
       bool sticky_owner;
       attr::checkDirOwner(attrmap, d_uid, d_gid, vid, sticky_owner, path);
       bool stdpermcheck = false;
-      
+
       if (acl.HasAcl()) {
         if ((!acl.CanWrite()) && (!acl.CanWriteOnce())) {
           // we have to check the standard permissions
@@ -166,12 +166,13 @@ XrdMgmOfs::_mkdir(const char* path,
       }
 
       // Admin can always create a directory
-      if (!nopermissioncheck && stdpermcheck && (!dir->access(vid.uid, vid.gid, X_OK | W_OK))) {
+      if (!nopermissioncheck && stdpermcheck &&
+          (!dir->access(vid.uid, vid.gid, X_OK | W_OK))) {
         errno = EPERM;
         return Emsg(epname, error, EPERM, "access(XW) parent directory",
                     cPath.GetParentPath());
       }
-      
+
       if (sticky_owner) {
         eos_info("msg=\"client acting as directory owner\" path=\"%s\"uid=\"%u=>%u\" gid=\"%u=>%u\"",
                  path, vid.uid, vid.gid, d_uid, d_gid);
@@ -304,7 +305,7 @@ XrdMgmOfs::_mkdir(const char* path,
           newdir = eosView->createContainer(cPath.GetSubPath(j), recurse);
           newdir->setCUid(vid.uid);
           newdir->setCGid(vid.gid);
-          newdir->setMode(dir->getMode()&~(1UL << 9));
+          newdir->setMode(dir->getMode() & ~(1UL << 9));
           // Inherit the attributes
           eos::IFileMD::XAttrMap xattrs = dir->getAttributes();
 
@@ -368,7 +369,7 @@ XrdMgmOfs::_mkdir(const char* path,
     // @note: we always inherit the mode of the parent directory. So far nobody
     // complained so we'll keep it as it is until someone does. The VTX bit is removed.
     //newdir->setMode(acc_mode);
-    newdir->setMode(dir->getMode()&~(1UL << 9));
+    newdir->setMode(dir->getMode() & ~(1UL << 9));
     // Store the in-memory modification time
     eos::IContainerMD::ctime_t ctime;
     newdir->getCTime(ctime);

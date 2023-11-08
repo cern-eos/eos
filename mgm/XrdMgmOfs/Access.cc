@@ -57,7 +57,8 @@ XrdMgmOfs::access(const char* inpath,
   // use a thread private vid
   eos::common::VirtualIdentity vid;
   EXEC_TIMING_BEGIN("IdMap");
-  eos::common::Mapping::IdMap(client, ininfo, tident, vid);
+  eos::common::Mapping::IdMap(client, ininfo, tident, vid,
+                              gOFS->mTokenAuthz, AOP_Stat, inpath);
   EXEC_TIMING_END("IdMap");
   gOFS->MgmStats.Add("IdMap", vid.uid, vid.gid, 1);
   BOUNCE_NOT_ALLOWED;
@@ -101,7 +102,6 @@ XrdMgmOfs::_access(const char* path,
   std::string attr_path = cPath.GetPath();
   // ---------------------------------------------------------------------------
   eos::Prefetcher::prefetchItemAndWait(gOFS->eosView, cPath.GetPath());
-
   eos::IFileMD::IFileMDReadLockerPtr fhLock;
   eos::IContainerMD::IContainerMDReadLockerPtr dhLock;
 
@@ -276,24 +276,25 @@ XrdMgmOfs::acc_access(const char* path,
     }
 
     std::set<gid_t> gids;
+
     if (eos::common::Mapping::gSecondaryGroups) {
-      gids=vid.allowed_gids;
+      gids = vid.allowed_gids;
     } else {
       gids.insert(vid.gid);
     }
 
-    for (auto g:gids) {
+    for (auto g : gids) {
       if (dh->access(vid.uid, g, R_OK)) {
-	r_ok = true;
+        r_ok = true;
       }
-      
+
       if (dh->access(vid.uid, g, W_OK)) {
-	w_ok = true;
-	d_ok = true;
+        w_ok = true;
+        d_ok = true;
       }
-      
+
       if (dh->access(vid.uid, g, X_OK)) {
-	x_ok = true;
+        x_ok = true;
       }
     }
 

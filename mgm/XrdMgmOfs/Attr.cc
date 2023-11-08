@@ -42,7 +42,8 @@ XrdMgmOfs::attr_ls(const char* inpath,
   // use a thread private vid
   eos::common::VirtualIdentity vid;
   EXEC_TIMING_BEGIN("IdMap");
-  eos::common::Mapping::IdMap(client, ininfo, tident, vid);
+  eos::common::Mapping::IdMap(client, ininfo, tident, vid, gOFS->mTokenAuthz,
+                              AOP_Stat, inpath);
   EXEC_TIMING_END("IdMap");
   NAMESPACEMAP;
   BOUNCE_ILLEGAL_NAMES;
@@ -102,7 +103,8 @@ XrdMgmOfs::attr_set(const char* inpath, XrdOucErrInfo& error,
   // use a thread private vid
   eos::common::VirtualIdentity vid;
   EXEC_TIMING_BEGIN("IdMap");
-  eos::common::Mapping::IdMap(client, ininfo, tident, vid);
+  eos::common::Mapping::IdMap(client, ininfo, tident, vid, gOFS->mTokenAuthz,
+                              AOP_Update, inpath);
   EXEC_TIMING_END("IdMap");
   NAMESPACEMAP;
   BOUNCE_ILLEGAL_NAMES;
@@ -152,6 +154,7 @@ XrdMgmOfs::_attr_set(const char* path, XrdOucErrInfo& error,
   try {
     dhLock = gOFS->eosView->getContainerWriteLocked(path);
     dh = dhLock ? dhLock->getUnderlyingPtr() : nullptr;
+
     // Check permissions in case of user attributes
     if (dh && !Key.beginswith("sys.") && (vid.uid != dh->getCUid())
         && (!vid.sudoer && vid.uid)) {
@@ -193,12 +196,9 @@ XrdMgmOfs::_attr_set(const char* path, XrdOucErrInfo& error,
 
       eos::ContainerIdentifier d_id = dh->getIdentifier();
       eos::ContainerIdentifier d_pid = dh->getParentIdentifier();
-
       eosView->updateContainerStore(dh.get());
-
       // Release the current lock on the object before broadcasting to fuse
       dhLock.reset(nullptr);
-
       gOFS->FuseXCastRefresh(d_id, d_pid);
       errno = 0;
     }
@@ -228,18 +228,18 @@ XrdMgmOfs::_attr_set(const char* path, XrdOucErrInfo& error,
                       "set attribute (exclusive set for existing attribute)", path);
         }
 
-	// screen for attribute locks
-	if (Key == eos::common::EOS_APP_LOCK_ATTR) {
-	  errno = 0;
-	  eos::IContainerMD::XAttrMap map = fmd->getAttributes();
-	  XattrLock applock(map);
-	  
-	  if (applock.foreignLock(vid, true)) {
-	    errno = EBUSY;
-	    return Emsg(epname, error, errno,
-			"set attribute (foreign attribute lock existing)", path);
-	  }
-	}
+        // screen for attribute locks
+        if (Key == eos::common::EOS_APP_LOCK_ATTR) {
+          errno = 0;
+          eos::IContainerMD::XAttrMap map = fmd->getAttributes();
+          XattrLock applock(map);
+
+          if (applock.foreignLock(vid, true)) {
+            errno = EBUSY;
+            return Emsg(epname, error, errno,
+                        "set attribute (foreign attribute lock existing)", path);
+          }
+        }
 
         XrdOucString val64 = value;
         XrdOucString val;
@@ -252,12 +252,9 @@ XrdMgmOfs::_attr_set(const char* path, XrdOucErrInfo& error,
 
         eos::FileIdentifier f_id = fmd->getIdentifier();
         eos::ContainerIdentifier c_id = eos::ContainerIdentifier(fmd->getContainerId());
-
         eosView->updateFileStore(fmd.get());
-
         // Release the current lock on the object before broadcasting to fuse
         fmdLock.reset(nullptr);
-
         gOFS->FuseXCastRefresh(f_id, c_id);
         errno = 0;
       }
@@ -291,7 +288,8 @@ XrdMgmOfs::attr_get(const char* inpath, XrdOucErrInfo& error,
   // use a thread private vid
   eos::common::VirtualIdentity vid;
   EXEC_TIMING_BEGIN("IdMap");
-  eos::common::Mapping::IdMap(client, ininfo, tident, vid);
+  eos::common::Mapping::IdMap(client, ininfo, tident, vid, gOFS->mTokenAuthz,
+                              AOP_Stat, inpath);
   EXEC_TIMING_END("IdMap");
   NAMESPACEMAP;
   BOUNCE_ILLEGAL_NAMES;
@@ -334,14 +332,16 @@ XrdMgmOfs::_attr_get(const char* path, XrdOucErrInfo& error,
   }
 
   eos::Prefetcher::prefetchContainerMDAndWait(gOFS->eosView, path);
-
   {
     eos::IContainerMD::IContainerMDReadLockerPtr dhLock;
+
     try {
       dhLock = gOFS->eosView->getContainerReadLocked(path);
       dh = dhLock ? dhLock->getUnderlyingPtr() : nullptr;
-      if (dh)
+
+      if (dh) {
         value = (dh->getAttribute(key)).c_str();
+      }
     } catch (eos::MDException& e) {
       errno = e.getErrno();
       eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n", e.getErrno(),
@@ -355,8 +355,11 @@ XrdMgmOfs::_attr_get(const char* path, XrdOucErrInfo& error,
         link = (dh->getAttribute(lkey)).c_str();
         dhLock = gOFS->eosView->getContainerReadLocked(link.c_str());
         dh = dhLock ? dhLock->getUnderlyingPtr() : nullptr;
-        if (dh)
+
+        if (dh) {
           value = (dh->getAttribute(key)).c_str();
+        }
+
         errno = 0;
       } catch (eos::MDException& e) {
         dh.reset();
@@ -370,12 +373,17 @@ XrdMgmOfs::_attr_get(const char* path, XrdOucErrInfo& error,
   if (!dh) {
     std::shared_ptr<eos::IFileMD> fmd;
     eos::IFileMD::IFileMDReadLockerPtr fmdLock;
+
     try {
       fmdLock = gOFS->eosView->getFileReadLocked(path);
       fmd = fmdLock ? fmdLock->getUnderlyingPtr() : nullptr;
-      if (fmd)
+
+      if (fmd) {
         value = (fmd->getAttribute(key)).c_str();
+      }
+
       errno = 0;
+
       if (std::string(key) == "user.obfuscate.key") {
         // we never show this key
         value = "";
@@ -441,7 +449,11 @@ static bool attrGetInternal(T& md, std::string key, std::string& rvalue)
 
   try {
     dhLock = gOFS->eosView->getContainerReadLocked(linkedContainer);
-    if(!dhLock) return false;
+
+    if (!dhLock) {
+      return false;
+    }
+
     dh = dhLock->getUnderlyingPtr();
   } catch (eos::MDException& e) {
     errno = e.getErrno();
@@ -493,7 +505,8 @@ XrdMgmOfs::attr_rem(const char* inpath, XrdOucErrInfo& error,
   // use a thread private vid
   eos::common::VirtualIdentity vid;
   EXEC_TIMING_BEGIN("IdMap");
-  eos::common::Mapping::IdMap(client, ininfo, tident, vid);
+  eos::common::Mapping::IdMap(client, ininfo, tident, vid, gOFS->mTokenAuthz,
+                              AOP_Delete, inpath);
   EXEC_TIMING_END("IdMap");
   NAMESPACEMAP;
   BOUNCE_ILLEGAL_NAMES;
@@ -527,7 +540,8 @@ XrdMgmOfs::_attr_rem(const char* path, XrdOucErrInfo& error,
   eos::Prefetcher::prefetchContainerMDAndWait(gOFS->eosView, path);
 
   try {
-    eos::IContainerMD::IContainerMDWriteLockerPtr dhLock = gOFS->eosView->getContainerWriteLocked(path);
+    eos::IContainerMD::IContainerMDWriteLockerPtr dhLock =
+      gOFS->eosView->getContainerWriteLocked(path);
     dh = dhLock ? dhLock->getUnderlyingPtr() : nullptr;
     XrdOucString Key = key;
 
@@ -560,14 +574,15 @@ XrdMgmOfs::_attr_rem(const char* path, XrdOucErrInfo& error,
 
   if (!dh) {
     try {
-      eos::IFileMD::IFileMDWriteLockerPtr fmdLock = gOFS->eosView->getFileWriteLocked(path);
+      eos::IFileMD::IFileMDWriteLockerPtr fmdLock = gOFS->eosView->getFileWriteLocked(
+            path);
       fmd = fmdLock ? fmdLock->getUnderlyingPtr() : nullptr;
       XrdOucString Key = key;
 
       if (Key.beginswith("sys.") && ((!vid.sudoer) && (vid.uid))) {
         errno = EPERM;
       } else {
-        if(fmd) {
+        if (fmd) {
           if ((vid.uid != fmd->getCUid())
               && (!vid.sudoer && vid.uid)) {
             // TODO: REVIEW: only owner/sudoer can delete file attributes

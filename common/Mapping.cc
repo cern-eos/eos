@@ -280,15 +280,17 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
 
   // ZTN mapping
   if ((vid.prot == "ztn") && client->creds) {
-    // Handle bearer token authorization - operation doesn't matter we're
-    // interested in the client identity.
+    // Handle bearer token authorization
+    eos_static_debug("msg=\"dumping client credentials/token\" creds=\"%s\"",
+                     client->creds);
+
     if (authz_obj) {
       authz = "&authz=";
       authz += client->creds;
-      Access_Operation oper = AOP_Stat;
       XrdOucEnv op_env(authz.c_str());
 
-      if (authz_obj->Access(client, path.c_str(), oper, &op_env) == XrdAccPriv_None) {
+      if (authz_obj->Access(client, path.c_str(), acc_op, &op_env) ==
+          XrdAccPriv_None) {
         eos_static_err("msg=\"failed token authz\" path=\"%s\" opaque=\"%s\" "
                        "authz=\"%s\"",  path.c_str(), env, authz.c_str());
         return;
@@ -313,7 +315,7 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
     } else {
       // add the ZTN credential if there is not another one provided
       if (authz.empty()) {
-	authz = client->creds;
+        authz = client->creds;
       }
     }
   }

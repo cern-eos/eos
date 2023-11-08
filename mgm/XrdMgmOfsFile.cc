@@ -417,7 +417,7 @@ XrdMgmOfsFile::GetPosixOpenFlags(XrdSfsFileOpenMode open_mode)
 // Get XRootD acceess operation bases on the given open flags
 //------------------------------------------------------------------------------
 Access_Operation
-XrdMgmOfsFile::GetXrdAccessOpeation(int open_flags)
+XrdMgmOfsFile::GetXrdAccessOperation(int open_flags)
 {
   Access_Operation op;
 
@@ -433,8 +433,6 @@ XrdMgmOfsFile::GetXrdAccessOpeation(int open_flags)
 
   return op;
 }
-
-
 
 /*----------------------------------------------------------------------------*/
 /*
@@ -474,7 +472,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
   int open_flags = GetPosixOpenFlags(open_mode);
   bool isRW = ((open_flags == O_RDONLY) ? false : true);
   bool isRewrite = ((open_flags & O_CREAT) ? false : true);
-  Access_Operation acc_op = GetXrdAccessOpeation(open_flags);
+  Access_Operation acc_op = GetXrdAccessOperation(open_flags);
   {
     EXEC_TIMING_BEGIN("IdMap");
 

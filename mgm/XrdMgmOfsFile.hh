@@ -425,7 +425,7 @@ private:
   //! @return access opeation type see XrdAccAuthorization.hh
   //----------------------------------------------------------------------------
   static Access_Operation
-  GetXrdAccessOpeation(int open_flags);
+  GetXrdAccessOperation(int open_flags);
 
   int oh {0}; //< file handle
   std::string fileName; //< file name

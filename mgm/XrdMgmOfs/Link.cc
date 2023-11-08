@@ -52,13 +52,6 @@ XrdMgmOfs::symlink(const char* source_name,
 {
   static const char* epname = "symlink";
   const char* tident = error.getErrUser();
-  // use a thread private vid
-  eos::common::VirtualIdentity vid;
-  EXEC_TIMING_BEGIN("IdMap");
-  eos::common::Mapping::IdMap(client, infoO, tident, vid);
-  EXEC_TIMING_END("IdMap");
-  eos_info("old-name=%s new-name=%s", source_name, target_name);
-  gOFS->MgmStats.Add("IdMap", vid.uid, vid.gid, 1);
   errno = 0;
   XrdOucString source, destination;
   XrdOucEnv symlinko_Env(infoO);
@@ -74,6 +67,14 @@ XrdMgmOfs::symlink(const char* source_name,
     targetn.replace("#space#", " ");
   }
 
+  // Use a thread private vid
+  eos::common::VirtualIdentity vid;
+  EXEC_TIMING_BEGIN("IdMap");
+  eos::common::Mapping::IdMap(client, infoO, tident, vid, gOFS->mTokenAuthz,
+                              AOP_Create, sourcen.c_str());
+  EXEC_TIMING_END("IdMap");
+  eos_info("old-name=%s new-name=%s", source_name, target_name);
+  gOFS->MgmStats.Add("IdMap", vid.uid, vid.gid, 1);
   const char* inpath = 0;
   const char* ininfo = 0;
   {
@@ -271,7 +272,8 @@ XrdMgmOfs::readlink(const char* inpath,
   // use a thread private vid
   eos::common::VirtualIdentity vid;
   EXEC_TIMING_BEGIN("IdMap");
-  eos::common::Mapping::IdMap(client, ininfo, tident, vid);
+  eos::common::Mapping::IdMap(client, ininfo, tident, vid, gOFS->mTokenAuthz,
+                              AOP_Read, inpath);
   EXEC_TIMING_END("IdMap");
   eos_info("path=%s", inpath);
   gOFS->MgmStats.Add("IdMap", vid.uid, vid.gid, 1);
