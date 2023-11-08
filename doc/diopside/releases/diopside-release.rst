@@ -19,6 +19,19 @@ This release is based on XRootD V5.
 ``v5.2.1 Diopside``
 ==========================
 
+2023-11-08
+
+Bug
+----
+
+* MGM: Make sure token information is passed to all namespace operations
+* MGM: Avoid re-entrant lock in space ls
+* SPEC: Add eos-grpc-gateway as an explicit requirement
+
+
+``v5.2.1 Diopside``
+==========================
+
 2023-11-06
 
 Bug
