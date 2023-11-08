@@ -335,6 +335,10 @@ Requires: xrootd >= %{xrootd_version_min}
 Requires: xrootd-client >= %{xrootd_version_min}
 %endif
 
+%if %{?_with_eos_grpc_gateway:1}%{!?_with_eos_grpc_gateway:0}
+Requires: eos-grpc-gateway
+%endif
+
 Requires: eos-client == @CPACK_PACKAGE_VERSION@
 Requires: eos-libmicrohttpd >= 0.9.38
 Requires: acl
