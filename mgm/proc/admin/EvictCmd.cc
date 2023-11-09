@@ -107,12 +107,22 @@ eos::mgm::EvictCmd::ProcessRequest() noexcept
   std::optional<uint64_t> fsid =
     evict.has_evictsinglereplica() ? std::optional(
       evict.evictsinglereplica().fsid()) : std::nullopt;
-  bool force = evict.force();
+  bool ignoreEvictCounter = evict.ignoreevictcounter();
+  bool ignoreRemovalOnFst = evict.ignoreremovalonfst();
 
-  if (fsid.has_value() && !force) {
+  if (fsid.has_value() && !ignoreEvictCounter) {
     reply.set_retc(EINVAL);
-    errStream << "error: Parameter 'fsid' can only be used with 'force'" <<
+    errStream << "error: Parameter 'fsid' can only be used with 'ignore-evict-counter'" <<
               std::endl;
+    reply.set_std_err(errStream.str());
+    reply.set_std_out(outStream.str());
+    return reply;
+  }
+
+  if(ignoreRemovalOnFst && !fsid.has_value()) {
+    reply.set_retc(EINVAL);
+    errStream << "error: Parameter 'ignore-removal-on-fst' can only be used with 'fsid'" <<
+        std::endl;
     reply.set_std_err(errStream.str());
     reply.set_std_out(outStream.str());
     return reply;
@@ -282,12 +292,12 @@ eos::mgm::EvictCmd::ProcessRequest() noexcept
 
     errInfo.clear();
 
-    if (fsid.has_value() && force) {
+    if (fsid.has_value() && ignoreEvictCounter) {
       // Drop single stripe
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wmaybe-uninitialized" 
       if (gOFS->_dropstripe(path.c_str(), 0, errInfo, root_vid, fsid.value(),
-                            true) != 0) {
+                            ignoreRemovalOnFst) != 0) {
         eos_static_err("msg=\"could not delete replica of %s\" fsid=\"%u\" reason=\"%s\"",
                        path.c_str(), fsid.value(), errInfo.getErrText());
         errStream << "error: could not delete replica of '" << path << "'" <<
@@ -306,7 +316,7 @@ eos::mgm::EvictCmd::ProcessRequest() noexcept
 #pragma GCC diagnostic pop
     } else {
       // May drop all stripes
-      if (!force) {
+      if (!ignoreEvictCounter) {
         // Check the eviction counter first, if not force
         int evictionCounter = 0;
 
@@ -338,7 +348,7 @@ eos::mgm::EvictCmd::ProcessRequest() noexcept
       }
 
       // Drop all stripes
-      if (gOFS->_dropallstripes(path.c_str(), errInfo, root_vid, true) != 0) {
+      if (gOFS->_dropallstripes(path.c_str(), errInfo, root_vid) != 0) {
         eos_static_err("msg=\"could not delete all disk replicas of %s\" reason=\"%s\"",
                        path.c_str(), errInfo.getErrText());
         errStream << "error: could not delete all disk replicas of '" << path << "'" <<
@@ -392,7 +402,7 @@ eos::mgm::EvictCmd::ProcessRequest() noexcept
       outStream << "removed all disk replicas for "
                 << count_all_disk_replicas_removed << "/" << evict.file_size() << " files";
 
-      if (!force) {
+      if (!ignoreEvictCounter) {
         outStream << "; reduced evict counter for " << count_evict_counter_not_zero <<
                   "/"
                   << evict.file_size() << " files";
