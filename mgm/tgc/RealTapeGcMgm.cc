@@ -280,7 +280,7 @@ RealTapeGcMgm::evictAsRoot(const IFileMD::id_t fid)
   eos::common::VirtualIdentity rootVid = eos::common::VirtualIdentity::Root();
   eos::console::RequestProto req;
   eos::console::EvictProto* evict = req.mutable_evict();
-  evict->set_force(true);
+  evict->set_ignoreevictcounter(true);
   auto file = evict->add_file();
   file->set_fid(fid);
   EvictCmd cmd(std::move(req), rootVid);

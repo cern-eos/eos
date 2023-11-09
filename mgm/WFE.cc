@@ -2563,7 +2563,7 @@ WFE::Job::HandleProtoMethodArchivedEvent(const std::string& event,
       errInfo.clear();
 
       if (dropAllStripes &&
-          gOFS->_dropallstripes(fullPath.c_str(), errInfo, root_vid, true) != 0) {
+          gOFS->_dropallstripes(fullPath.c_str(), errInfo, root_vid) != 0) {
         eos_static_err("Could not delete all file replicas of %s. Reason: %s",
                        fullPath.c_str(), errInfo.getErrText());
         MoveToRetry(fullPath);

@@ -76,11 +76,13 @@ EvictHelper::ParseCommand(const char* arg)
 
   for (
       sNextToken = nextToken;
-      sNextToken == "--fsid" || sNextToken == "--force" || sNextToken == "-f";
+      sNextToken == "--fsid" || sNextToken == "--ignore-evict-counter" || sNextToken == "--ignore-removal-on-fst";
       nextToken = tokenizer.GetToken(), sNextToken = nextToken ? nextToken : ""
       ) {
-    if (sNextToken == "--force" || sNextToken == "-f") {
-      evict->set_force(true);
+    if (sNextToken == "--ignore-evict-counter") {
+      evict->set_ignoreevictcounter(true);
+    } else if (sNextToken == "--ignore-removal-on-fst") {
+      evict->set_ignoreremovalonfst(true);
     } else if (sNextToken == "--fsid") {
       if (!(nextToken = tokenizer.GetToken())) {
         std::cerr << "error: --fsid needs to be followed by value" << std::endl;
@@ -97,8 +99,13 @@ EvictHelper::ParseCommand(const char* arg)
     }
   }
 
-  if (evict->has_evictsinglereplica() && !evict->force()) {
-    std::cerr << "error: --fsid can only be used with --force" << std::endl;
+  if (evict->has_evictsinglereplica() && !evict->ignoreevictcounter()) {
+    std::cerr << "error: --fsid can only be used with --ignore-evict-counter" << std::endl;
+    return false;
+  }
+
+  if (!evict->has_evictsinglereplica() && evict->ignoreremovalonfst()) {
+    std::cerr << "error: --ignore-removal-on-fst can only be used with --fsid" << std::endl;
     return false;
   }
 
