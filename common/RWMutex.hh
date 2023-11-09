@@ -54,10 +54,12 @@
 
 #include "common/Namespace.hh"
 #include "common/IRWMutex.hh"
+#include "common/concurrency/AlignMacros.hh"
 #include "XrdSys/XrdSysPthread.hh"
 #include <stdio.h>
 #include <stdint.h>
 #include <atomic>
+#include <array>
 #include <chrono>
 #include <map>
 #include <string>
@@ -79,6 +81,13 @@
 
 EOSCOMMONNAMESPACE_BEGIN
 
+//------------------------------------------------------------------------------
+//! struct TimingArray aligned to a cacheline
+//------------------------------------------------------------------------------
+struct alignas(hardware_destructive_interference_size) TimingArray {
+  std::array<std::atomic<int64_t>, 4> items;
+  TimingArray(): items{0}{};
+};
 //------------------------------------------------------------------------------
 //! Class RWMutex
 //------------------------------------------------------------------------------
@@ -313,28 +322,28 @@ public:
 
     if (blockedForSeconds >= 2) {
       //The second before the current one, the mutex was locked the entire time
-      mNbMsMutexLocked[(releasedAtSecondsSinceEpoch - 1) % 4] += std::chrono::milliseconds(1000);
+      mNbMsMutexLocked.items[(releasedAtSecondsSinceEpoch - 1) % 4].fetch_add(1000);
       //We add to the current second the amount of milliseconds between the start of the current second and the releasedAt milliseconds
-      mNbMsMutexLocked[releasedAtSecondsSinceEpoch % 4] += std::chrono::milliseconds(releasedAtMsSinceEpoch - (releasedAtSecondsSinceEpoch * 1000));
+      mNbMsMutexLocked.items[releasedAtSecondsSinceEpoch % 4].fetch_add(std::chrono::milliseconds(releasedAtMsSinceEpoch - (releasedAtSecondsSinceEpoch * 1000)).count());
     } else if (blockedForSeconds >= 1) {
       //The lock time is overlapping between the previous second and the current second
       //compute lock time during last second to add it to last second
-      mNbMsMutexLocked[(releasedAtSecondsSinceEpoch - 1) % 4] += std::chrono::milliseconds((releasedAtSecondsSinceEpoch * 1000) - acquiredAtMsSinceEpoch);
+      mNbMsMutexLocked.items[(releasedAtSecondsSinceEpoch - 1) % 4].fetch_add(std::chrono::milliseconds((releasedAtSecondsSinceEpoch * 1000) - acquiredAtMsSinceEpoch).count());
       //Compute lock time during the current second and add it to the current second
-      mNbMsMutexLocked[(releasedAtSecondsSinceEpoch) % 4] += std::chrono::milliseconds(releasedAtMsSinceEpoch - (releasedAtSecondsSinceEpoch * 1000));
+      mNbMsMutexLocked.items[(releasedAtSecondsSinceEpoch) % 4].fetch_add(std::chrono::milliseconds(releasedAtMsSinceEpoch - (releasedAtSecondsSinceEpoch * 1000)).count());
     } else {
       //The lock was acquired and released within the current second, just add the amount of milliseconds
-      mNbMsMutexLocked[(releasedAtSecondsSinceEpoch) % 4] += std::chrono::milliseconds(blockedForMs);
+      mNbMsMutexLocked.items[(releasedAtSecondsSinceEpoch) % 4].fetch_add(blockedForMs);
     }
     //Reset the next second lock time
-    mNbMsMutexLocked[(releasedAtSecondsSinceEpoch + 1) % 4] = std::chrono::milliseconds(0);
+    mNbMsMutexLocked.items[(releasedAtSecondsSinceEpoch + 1) % 4].store(0);
   }
 
   const std::chrono::milliseconds
   getNbMsMutexWriteLockedPenultimateSecond() {
     auto now = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now().time_since_epoch()).count();
     //We take the amount of milliseconds the mutex was locked 2 seconds before the current second
-    return mNbMsMutexLocked[(now - 2) % 4];
+    return std::chrono::milliseconds(mNbMsMutexLocked.items[(now - 2) % 4].load(std::memory_order_relaxed));
   }
 
 #ifdef EOS_INSTRUMENTED_RWMUTEX
@@ -651,7 +660,7 @@ private:
    * - Second 0: Will be set to 0 to reset the counter because this second
    * will be the one to be considered after the current one
    */
-  std::chrono::milliseconds mNbMsMutexLocked[4] = {std::chrono::milliseconds(0)};
+  TimingArray mNbMsMutexLocked;
 
   std::string mName;
 
