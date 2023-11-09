@@ -15,5 +15,6 @@ message EvictProto {
 
   repeated FileProto File = 1;
   EvictSingleReplicaProto evictSingleReplica = 2;
-  bool force = 3;
+  bool ignoreEvictCounter = 3;
+  bool ignoreRemovalOnFst = 4;
 }
