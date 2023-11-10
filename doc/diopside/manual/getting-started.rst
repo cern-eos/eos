@@ -9,6 +9,57 @@ Getting Started
 =================
 
 Our recommended way to install a production ready EOS instance is using RPM configuration.
+A Kubernetes-based demonstrator is avilable for testing purposes.
+
+EOS installtion with Kubernetes and Helm for test / demonstration
+-----------------------------------------------------------------
+The `EOS Charts repository <https://gitlab.cern.ch/eos/eos-charts>`_ provides Helm charts for the deployment of EOS in Kubernetes for test and demostration purposes.
+A working Kubernetes cluster (`v1.20.15` or newer) and Helm (`v3.8.0`) are required.
+
+To deployment is fully automated via the `server` chart, which deployes 1 MGM, 3 QDB instances in cluster mode, and 4 FSTs.
+
+.. code-block:: bash
+  helm install eos oci://registry.cern.ch/eos/charts/server
+
+The resulting cluster will consist of 8 pods:
+
+.. code-block::
+  kubectl get pods
+  NAME        READY   STATUS    RESTARTS   AGE
+  eos-fst-0   1/1     Running   0          4m47s
+  eos-fst-1   1/1     Running   0          79s
+  eos-fst-2   1/1     Running   0          69s
+  eos-fst-3   1/1     Running   0          59s
+  eos-mgm-0   2/2     Running   0          4m47s
+  eos-qdb-0   1/1     Running   0          4m47s
+  eos-qdb-1   1/1     Running   0          2m21s
+  eos-qdb-2   1/1     Running   0          2m6s
+
+... and will be configured out of the box with relevant defaults:
+
+.. code-block::
+  eos ns
+  # ------------------------------------------------------------------------------------
+  # Namespace Statistics
+  # ------------------------------------------------------------------------------------
+  ALL      Files                            5 [booted] (0s)
+  ALL      Directories                      11
+  ALL      Total boot time                  0 s
+  # ------------------------------------------------------------------------------------
+  ALL      Compactification                 status=off waitstart=0 interval=0 ratio-file=0.0:1 ratio-dir=0.0:1
+  # ------------------------------------------------------------------------------------
+  ALL      Replication                      mode=master-rw state=master-rw master=eos-mgm-0.eos-mgm.default.svc.cluster.local configdir=/var/eos/config/ config=default
+  # ------------------------------------------------------------------------------------
+  {...cut...}
+
+  eos fs ls
+  ┌───────────────────────────────────────────┬────┬──────┬────────────────────────────────┬────────────────┬────────────────┬────────────┬──────────────┬────────────┬────────┬────────────────┐
+  │host                                       │port│    id│                            path│      schedgroup│          geotag│        boot│  configstatus│       drain│  active│          health│
+  └───────────────────────────────────────────┴────┴──────┴────────────────────────────────┴────────────────┴────────────────┴────────────┴──────────────┴────────────┴────────┴────────────────┘
+   eos-fst-0.eos-fst.default.svc.cluster.local 1095      1                     /fst_storage        default.0      docker::k8s       booted             rw      nodrain   online              N/A
+   eos-fst-1.eos-fst.default.svc.cluster.local 1095      2                     /fst_storage        default.1      docker::k8s       booted             rw      nodrain   online              N/A
+   eos-fst-2.eos-fst.default.svc.cluster.local 1095      3                     /fst_storage        default.2      docker::k8s       booted             rw      nodrain   online              N/A
+   eos-fst-3.eos-fst.default.svc.cluster.local 1095      4                     /fst_storage        default.3      docker::k8s       booted             rw      nodrain   online              N/A
 
 EOS up in few minutes
 ---------------------
