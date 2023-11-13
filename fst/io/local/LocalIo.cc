@@ -265,7 +265,13 @@ LocalIo::fileFallocate(XrdSfsFileOffset length)
     fl.l_len = (off64_t) length;
     return xfsctl(NULL, fd, XFS_IOC_RESVSP64, &fl);
   } else {
-    return posix_fallocate(fd, 0, length);
+    if (getenv("EOS_FST_POSIX_FALLOCATE")) {
+      // only fallocate if defined
+      return posix_fallocate(fd, 0, length);
+    } else {
+      // don't fallocate
+      return 0;
+    }
   }
 
 #endif
