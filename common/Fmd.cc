@@ -265,12 +265,16 @@ CollectInconsistencies(const FmdHelper& fmd,
 
   if (!proto_fmd.layouterror()) {
     if (!LayoutId::IsRain(proto_fmd.lid())) {
-      if (proto_fmd.size() && proto_fmd.diskchecksum().length() &&
+      if (proto_fmd.size() &&
+          (proto_fmd.size() != eos::common::FmdHelper::UNDEF) &&
+          proto_fmd.diskchecksum().length() &&
           (proto_fmd.diskchecksum() != proto_fmd.checksum())) {
         errs_map["d_cx_diff"][fsid].insert(proto_fmd.fid());
       }
 
-      if (proto_fmd.size() && proto_fmd.mgmchecksum().length() &&
+      if (proto_fmd.size() &&
+          (proto_fmd.size() != eos::common::FmdHelper::UNDEF) &&
+          proto_fmd.mgmchecksum().length() &&
           (proto_fmd.mgmchecksum() != proto_fmd.checksum())) {
         errs_map["m_cx_diff"][fsid].insert(proto_fmd.fid());
       }
