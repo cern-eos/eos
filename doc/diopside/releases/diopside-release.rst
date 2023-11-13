@@ -16,7 +16,7 @@ Introduction
 
 This release is based on XRootD V5.
 
-``v5.2.1 Diopside``
+``v5.2.2 Diopside``
 ==========================
 
 2023-11-08
