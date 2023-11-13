@@ -190,16 +190,13 @@ public:
   //! @param fpath file path
   //! @param fid file id
   //! @param scan_ts_sec time file was last checked
-  //! @param ctime time file metadata was last modified - for example a rain
-  //!        recovery will update the ctime of the raw file on disk.
   //!
   //! @return true if file check, otherwise false
   //----------------------------------------------------------------------------
   bool ScanRainFile(const std::unique_ptr<eos::fst::FileIo>& io,
                     const std::string& fpath,
                     eos::common::FileId::fileid_t fid,
-                    const std::string& scan_ts_sec,
-                    time_t ctime);
+                    const std::string& scan_ts_sec);
 
   //----------------------------------------------------------------------------
   //! Check each stripe to verify if they can reconstruct the original file

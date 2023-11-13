@@ -574,21 +574,13 @@ ScanDir::CheckFile(const std::string& fpath)
   }
 
   // Skip scanning our scrub files (/scrub.write-once.X, /scrub.re-write.X)
-  if (fpath.find("/scrub.") != std::string::npos) {
-    eos_debug("msg=\"skip scrub file\" path=\"%s\"", fpath.c_str());
+  if ((fpath.find("/scrub.") != std::string::npos) ||
+      (fpath.find(".xsmap") != std::string::npos)) {
+    eos_debug("msg=\"skip scrub/xs file\" path=\"%s\"", fpath.c_str());
     return false;
   }
 
   std::unique_ptr<FileIo> io(FileIoPluginHelper::GetIoObject(fpath.c_str()));
-  ++mNumTotalFiles;
-  // Get last modification time
-  struct stat buf1;
-
-  if ((io->fileOpen(0, 0)) || io->fileStat(&buf1)) {
-    LogMsg(LOG_ERR, "msg=\"open/stat failed\" path=%s\"", fpath.c_str());
-    return false;
-  }
-
   auto fid = eos::common::FileId::PathToFid(fpath.c_str());
 
   if (!fid) {
@@ -597,6 +589,15 @@ ScanDir::CheckFile(const std::string& fpath)
     return false;
   }
 
+  // Get last modification time
+  struct stat info;
+
+  if ((io->fileOpen(0, 0)) || io->fileStat(&info)) {
+    LogMsg(LOG_ERR, "msg=\"open/stat failed\" path=%s\"", fpath.c_str());
+    return false;
+  }
+
+  ++mNumTotalFiles;
 #ifndef _NOOFS
 
   if (mBgThread) {
@@ -612,8 +613,6 @@ ScanDir::CheckFile(const std::string& fpath)
   }
 
 #endif
-  io->attrDelete("user.eos.filecxerror");
-  io->attrDelete("user.eos.blockcxerror");
   std::string scan_ts_sec = "0";
   io->attrGet("user.eos.timestamp", scan_ts_sec);
 
@@ -625,7 +624,7 @@ ScanDir::CheckFile(const std::string& fpath)
   bool scan_result = false;
 
   if (DoRescan(scan_ts_sec)) {
-    scan_result = ScanFile(io, fpath, fid, scan_ts_sec, buf1.st_mtime);
+    scan_result = ScanFile(io, fpath, fid, scan_ts_sec, info.st_mtime);
   } else {
     ++mNumSkippedFiles;
   }
@@ -633,17 +632,16 @@ ScanDir::CheckFile(const std::string& fpath)
 #ifndef _NOOFS
   // Check for block xs file otherwise it has no sense even to attempt a
   // rain rescan of the file
-  struct stat info;
+  struct stat info_xs;
   const std::string filexs_path = fpath + ".xsmap";
 
-  if ((stat(filexs_path.c_str(), &info) == 0) && info.st_size) {
+  if ((stat(filexs_path.c_str(), &info_xs) == 0) && info_xs.st_size) {
     // Grab the latest rain scan timestamp if it exists
     scan_ts_sec = "0";
     io->attrGet("user.eos.rain_timestamp", scan_ts_sec);
 
     if (DoRescan(scan_ts_sec, true)) {
-      scan_result = (ScanRainFile(io, fpath, fid, scan_ts_sec, buf1.st_ctime)
-                     || scan_result);
+      scan_result = (ScanRainFile(io, fpath, fid, scan_ts_sec) || scan_result);
     }
   }
 
@@ -782,9 +780,9 @@ ScanDir::ScanFile(const std::unique_ptr<eos::fst::FileIo>& io,
 
 #endif
   // If file changed or opened for update in the meantime then skip the scan
-  struct stat buf1;
+  struct stat info;
 
-  if (reopened || io->fileStat(&buf1) || (mtime != buf1.st_mtime)) {
+  if (reopened || io->fileStat(&info) || (mtime != info.st_mtime)) {
     LogMsg(LOG_ERR, "msg=\"[ScanDir] skip file modified during scan path=%s",
            fpath.c_str());
     return false;
@@ -966,7 +964,7 @@ ScanDir::ScanFileLoadAware(const std::unique_ptr<eos::fst::FileIo>& io,
 bool
 ScanDir::ScanRainFile(const std::unique_ptr<eos::fst::FileIo>& io,
                       const std::string& fpath, eos::common::FileId::fileid_t fid,
-                      const std::string& scan_ts_sec, time_t ctime)
+                      const std::string& scan_ts_sec)
 {
   if (mBgThread) {
     //  Skip check if file is open for reading, as this can mean we are in the
@@ -995,7 +993,14 @@ ScanDir::ScanRainFile(const std::unique_ptr<eos::fst::FileIo>& io,
     return false;
   }
 
-  if (ctime < std::stoll(scan_ts_sec)) {
+  struct stat info1;
+
+  if (io->fileStat(&info1)) {
+    LogMsg(LOG_ERR, "msg=\"stat failed\" path=%s\"", fpath.c_str());
+    return false;
+  }
+
+  if (info1.st_ctime < std::stoll(scan_ts_sec)) {
     eos_static_debug("msg=\"skip rain check for unmodified file\" path=\"%s\"",
                      fpath.c_str());
     return false;
@@ -1018,9 +1023,9 @@ ScanDir::ScanRainFile(const std::unique_ptr<eos::fst::FileIo>& io,
   }
 
   // If file changed or opened for update in the meantime then skip the scan
-  struct stat buf1;
+  struct stat info2;
 
-  if (reopened || io->fileStat(&buf1) || (ctime != buf1.st_ctime)) {
+  if (reopened || io->fileStat(&info2) || (info1.st_ctime != info2.st_ctime)) {
     eos_static_err("msg=\"skip file modified during scan\" path=\"%s\"",
                    fpath.c_str());
     return false;
