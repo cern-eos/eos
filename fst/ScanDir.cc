@@ -1118,23 +1118,24 @@ ScanDir::ScanRainFileLoadAware(eos::common::FileId::fileid_t fid,
   LayoutId::layoutid_t layout;
   {
     // Reduce scope of the FmdHelper object
-    //auto fmd = gOFS.mFmdHandler->LocalGetFmd(fid, mFsId, true, false);
-    eos::common::FmdHelper fmd;
+    auto fmd = gOFS.mFmdHandler->LocalGetFmd(fid, mFsId, true, false);
+    //eos::common::FmdHelper fmd;
 
-    if (FmdMgmHandler::GetMgmFmd(mgr, fid, fmd)) {
+    //if (FmdMgmHandler::GetMgmFmd(mgr, fid, fmd)) {
+    if (!fmd) {
       eos_static_err("msg=\"could not get fmd from manager\" fxid=%08llx", fid);
       return false;
     }
 
-    layout = fmd.mProtoFmd.lid();
+    layout = fmd->mProtoFmd.lid();
 
     if (!LayoutId::IsRain(layout)) {
       eos_static_err("msg=\"layout is not rain\" fixd=%08llx", fid);
       return false;
     }
 
-    nLocations = fmd.GetLocations().size();
-    xs_mgm = fmd.mProtoFmd.mgmchecksum();
+    nLocations = fmd->GetLocations().size();
+    xs_mgm = fmd->mProtoFmd.mgmchecksum();
   }
 
   if (xs_mgm.empty() || (nLocations == 0)) {
