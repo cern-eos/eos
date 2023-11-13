@@ -22,6 +22,7 @@ sec.protocol unix
 sec.protocol sss -c /etc/eos.keytab -s /etc/eos.keytab
 
 ###########################################################
+sec.protbind [::ffff:127.0.0.1] unix sss
 sec.protbind localhost.localdomain unix sss
 sec.protbind localhost unix sss
 sec.protbind * only ${KRB5} ${GSI} sss unix
