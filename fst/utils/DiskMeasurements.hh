@@ -24,6 +24,7 @@
 #include "fst/Namespace.hh"
 #include <string>
 #include <cstdint>
+#include <chrono>
 
 EOSFSTNAMESPACE_BEGIN
 
@@ -59,19 +60,23 @@ std::string MakeTemporaryFile(std::string base_path);
 //!
 //! @param fd file descriptor with flags O_RDRW | O_TRUNC | O_DIRECT | O_SYNC
 //! @param rd_buf_size size of buffer used for read operations [default 4096]
+//! @param timeout max time this computation can run for
 //!
 //! @return IOPS measurement
 //------------------------------------------------------------------------------
-int ComputeIops(int fd, uint64_t rd_buf_size = 4096);
+int ComputeIops(int fd, uint64_t rd_buf_size = 4096,
+                std::chrono::seconds timeout = std::chrono::seconds(5));
 
 //------------------------------------------------------------------------------
 //! Get disk bandwidth using the given file descriptor
 //!
 //! @param fd file descriptor with flags O_RDRW | O_TRUNC | O_DIRECT | O_SYNC
 //! @param rd_buf_size size of buffer used for read operations [default 4096]
+//! @param timeout max time this computation can run for
 //!
 //! @return disk bandwidth measurement
 //------------------------------------------------------------------------------
-int ComputeBandwidth(int fd, uint64_t rd_buf_size = 4096);
+int ComputeBandwidth(int fd, uint64_t rd_buf_size = 4096,
+                     std::chrono::seconds timeout = std::chrono::seconds(5));
 
 EOSFSTNAMESPACE_END

@@ -102,9 +102,10 @@ std::string MakeTemporaryFile(std::string base_path)
 //------------------------------------------------------------------------------
 // Get IOPS measurement for the given path
 //------------------------------------------------------------------------------
-int ComputeIops(int fd, uint64_t rd_buf_size)
+int ComputeIops(int fd, uint64_t rd_buf_size, std::chrono::seconds timeout)
 {
   using namespace eos::common;
+  using namespace std::chrono;
   int IOPS = -1;
   // Get file size
   struct stat info;
@@ -122,14 +123,15 @@ int ComputeIops(int fd, uint64_t rd_buf_size)
   std::mt19937 gen(rd());
   std::uniform_int_distribution<> distrib(0, 1024);
   int iterations = 10000;
+  int actual_iter = 0;
   uint64_t offset = 0ull;
-  double duration = 0.0;
-  std::chrono::time_point<std::chrono::high_resolution_clock> start, end;
+  microseconds  duration {0};
+  time_point<high_resolution_clock> start, end;
 
-  for (int i = 0; i < iterations; ++i) {
+  for (; actual_iter < iterations; ++actual_iter) {
     // Generate offset 4kB aligned inside the given file size
     offset = (((fn_size * distrib(gen)) >> 10) >> 12) << 12;
-    start = std::chrono::high_resolution_clock::now();
+    start = high_resolution_clock::now();
 
     if (pread(fd, buf.get(), rd_buf_size, offset) == -1) {
       std::cerr << "error: failed to read at offset=" << offset << std::endl;
@@ -137,21 +139,27 @@ int ComputeIops(int fd, uint64_t rd_buf_size)
       return IOPS;
     }
 
-    end = std::chrono::high_resolution_clock::now();
-    duration += std::chrono::duration_cast<std::chrono::microseconds>
-                (end - start).count();
+    end = high_resolution_clock::now();
+    duration += duration_cast<microseconds>(end - start);
+
+    if (actual_iter % 100 == 0) {
+      if (duration.count() > timeout.count() * 1000000) {
+        break;
+      }
+    }
   }
 
-  IOPS = iterations / (duration / 1000000);
+  IOPS = (actual_iter * 1000000.0) / duration.count();
   return IOPS;
 }
 
 //------------------------------------------------------------------------------
 // Get disk bandwidth for the given path
 //------------------------------------------------------------------------------
-int ComputeBandwidth(int fd, uint64_t rd_buf_size)
+int ComputeBandwidth(int fd, uint64_t rd_buf_size, std::chrono::seconds timeout)
 {
   using namespace eos::common;
+  using namespace std::chrono;
   int bandwidth = -1;
   // Get file size
   struct stat info;
@@ -166,7 +174,8 @@ int ComputeBandwidth(int fd, uint64_t rd_buf_size)
   auto buf = GetAlignedBuffer(rd_buf_size);
   uint64_t offset = 0ull;
   uint64_t max_read = 1 << 28; // 256 MB
-  auto start = std::chrono::high_resolution_clock::now();
+  time_point<high_resolution_clock> start, end;
+  start = high_resolution_clock::now();
 
   while ((offset < fn_size)  && (offset < max_read)) {
     if (pread(fd, buf.get(), rd_buf_size, offset) == -1) {
@@ -176,12 +185,17 @@ int ComputeBandwidth(int fd, uint64_t rd_buf_size)
     }
 
     offset += rd_buf_size;
+
+    if ((offset & (eos::common::MB - 1)) == 0) {
+      if (duration_cast<seconds>(high_resolution_clock::now() - start) > timeout) {
+        break;
+      }
+    }
   }
 
-  auto end = std::chrono::high_resolution_clock::now();
-  auto duration = std::chrono::duration_cast<std::chrono::microseconds>
-                  (end - start).count();
-  bandwidth = ((offset >> 20) * 1000000) / duration;
+  end = high_resolution_clock::now();
+  auto duration = duration_cast<microseconds> (end - start).count();
+  bandwidth = ((offset >> 20) * 1000000.0) / duration;
   return bandwidth;
 }
 
