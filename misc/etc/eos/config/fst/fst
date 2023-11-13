@@ -2,9 +2,11 @@
 [sysconfig]
 # ------------------------------------------------------------ #
 
-EOS_XRDCP=/opt/eos/xrootd/bin/xrdcp
+EOS_XRDCP=${EOS_XROOTD}/bin/xrdcp
 EOS_MGM_ALIAS=${SERVER_HOST}
 EOS_GEOTAG=local::geo
+QDB_HOST=${SERVER_HOST}
+QDB_PORT=7777
 
 # ------------------------------------------------------------ #
 # create a private mount namespace for the process
@@ -42,8 +44,10 @@ fstofs.autoboot true
 fstofs.quotainterval 10
 fstofs.metalog /var/eos/md/
 fstofs.filemd_handler attr
-###########################################################
+fstofs.qdbcluster ${QDB_HOST}:${QDB_PORT}
+fstofs.qdbpassword_file  /etc/eos.keytab
 
+###########################################################
 #-------------------------------------------------------------------------------
 # Configuration for XrdHttp http(s) service on port 11000
 #-------------------------------------------------------------------------------
