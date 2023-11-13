@@ -291,11 +291,18 @@ FileSystem::IoPing()
     return;
   }
 
+  using namespace std::chrono;
+  auto start_iops = high_resolution_clock::now();
   IOPS = eos::fst::ComputeIops(fd);
+  auto end_iops = high_resolution_clock::now();
   uint64_t rd_buf_size = 4 * (1 << 20); // 4MB
+  auto start_bw = high_resolution_clock::now();
   seqBandwidth = eos::fst::ComputeBandwidth(fd, rd_buf_size);
+  auto end_bw = high_resolution_clock::now();
   (void) close(fd);
-  eos_info("bw=%lld iops=%d", seqBandwidth, IOPS);
+  eos_info("bw=%lld iops=%d iops_time=%llums bw_time=%llums", seqBandwidth, IOPS,
+           duration_cast<milliseconds>(end_iops - start_iops).count(),
+           duration_cast<milliseconds>(end_bw - start_bw).count());
   return;
 }
 
