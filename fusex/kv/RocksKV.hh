@@ -36,6 +36,7 @@
 #include <event.h>
 #include <rocksdb/db.h>
 #include <rocksdb/table.h>
+#include <rocksdb/statistics.h>
 #include <rocksdb/utilities/transaction_db.h>
 #include <rocksdb/utilities/transaction.h>
 
