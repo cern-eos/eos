@@ -116,7 +116,7 @@ def do_clone(subcmd):
     catalogFile = tempfile.mkstemp()
     
     if '-P' not in opt: opt['-P'] = 10
-    cmd = "eos find -j -x sys.clone=+%d %s > %s" % (int(opt['-P']), args[0], catalogFile[1])
+    cmd = "eos oldfind -j -x sys.clone=+%d %s > %s" % (int(opt['-P']), args[0], catalogFile[1])
     try:
       os.system(cmd)
     except:
@@ -682,7 +682,7 @@ def do_backup():
     newCatalog.close()
 
 
-    cmd = "eos find -f -x sys.clone=-%s %s > /dev/null" % (cloneId, args[0] if len(args) > 0 else rootPath)
+    cmd = "eos oldfind -f -x sys.clone=-%s %s > /dev/null" % (cloneId, args[0] if len(args) > 0 else rootPath)
     os.system(cmd)
 
 # perform a restore based on multiple catalogFiles
