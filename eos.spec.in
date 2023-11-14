@@ -132,7 +132,7 @@ BuildRequires: eos-grpc-plugins == %{eos_grpc_version}
 
 # Don't put an explicit dependency on libraries provided by eos-grpc because
 # the package hides shared libraries from the list of provided capabilities.
-%global __requires_exclude ^libprot.*$|^libabsl.*$|^libgrpc.*$|^libaddress_sorting.*$|^libre2.*$|^libgpr.*$|^libupb.*$
+%global __requires_exclude %{__requires_exclude}|^libprot.*$|^libabsl.*$|^libgrpc.*$|^libaddress_sorting.*$|^libre2.*$|^libgpr.*$|^libupb.*$
 
 %if %{?_with_eos_grpc_gateway:1}%{!?_with_eos_grpc_gateway:0}
 BuildRequires: eos-grpc-gateway
