@@ -1086,7 +1086,7 @@ class Transfer(object):
 
                 if not st_stat.ok:
                     err_msg = "Error stat entry={0}".format(dst)
-                    self.logger.err(err_msg)
+                    self.logger.error(err_msg)
                     raise IOError()
 
                 # Check file is on tape
