@@ -308,7 +308,9 @@ Storage::Verify()
                               verifyfile->fId, verifyfile->fsId, fstPath.c_str());
             }
 
+            XrdSysThread::SetCancelOff();
             int rc = gOFS.CallManager(&error, verifyfile->path.c_str(), 0, capOpaqueFile);
+            XrdSysThread::SetCancelOn();
 
             if (rc) {
               eos_static_err("unable to verify file id=%s fs=%u at manager %s",

@@ -47,9 +47,11 @@ Storage::Report()
       XrdOucString report = gOFS.ReportQueue.front();
       gOFS.ReportQueueMutex.UnLock();
       // this type of messages can have no receiver
+      XrdSysThread::SetCancelOff();
       mq::MessagingRealm::Response response =
         gOFS.mMessagingRealm->sendMessage("report", report.c_str(),
                                           monitorReceiver.c_str(), true);
+      XrdSysThread::SetCancelOn();
 
       if (!response.ok()) {
         // display communication error

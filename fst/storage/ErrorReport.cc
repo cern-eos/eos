@@ -83,9 +83,11 @@ Storage::ErrorReport()
 
       // evt. exclude some messages from upstream reporting if the contain [NB]
       if (report.find("[NB]") == STR_NPOS) {
+        XrdSysThread::SetCancelOff();
         mq::MessagingRealm::Response response =
           gOFS.mMessagingRealm->sendMessage("errorreport", report.c_str(),
                                             errorReceiver.c_str(), true);
+        XrdSysThread::SetCancelOn();
 
         if (!response.ok()) {
           // display communication error

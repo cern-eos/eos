@@ -94,7 +94,11 @@ Storage::Remover()
         }
 
         // Update the manager
-        if (gOFS.CallManager(&error, 0, 0 , capOpaqueString)) {
+        XrdSysThread::SetCancelOff();
+        const int rc = gOFS.CallManager(&error, 0, 0 , capOpaqueString);
+        XrdSysThread::SetCancelOn();
+
+        if (rc) {
           eos_static_err("msg=\"unable to drop file\" fxid=\"%s\" fsid=\"%u\"",
                          hex_fid.c_str(), to_del->mFsid);
         }

@@ -96,8 +96,11 @@ Storage::MgmSyncer()
 
       if (!isopenforwrite) {
         // now do the consistency check
-        if (gOFS.mFmdHandler->ResyncMgm(fmd.mProtoFmd.fsid(),
-                                        fmd.mProtoFmd.fid(), nullptr)) {
+        XrdSysThread::SetCancelOff();
+        const bool resyn = gOFS.mFmdHandler->ResyncMgm(fmd.mProtoFmd.fsid(),
+                                             fmd.mProtoFmd.fid(), nullptr);
+        XrdSysThread::SetCancelOn();
+        if (resyn) {
           eos_static_debug("msg=\"resync ok\" fsid=%lu fxid=%08llx",
                            (unsigned long) fmd.mProtoFmd.fsid(),
                            fmd.mProtoFmd.fid());
