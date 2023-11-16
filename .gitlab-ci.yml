@@ -943,7 +943,7 @@ email_notification:
      - git clone https://token:$EOS_REPO_MAILSERVICE_TOKEN@gitlab.cern.ch/eos/eos-mailservices-code-samples.git
      - cd eos-mailservices-code-samples/Python/oauth2-samples; pip install --no-input -r requirements.txt
      - export EOS_VERSION=$CI_COMMIT_TAG
-     - python -m oauth2-smtp
+     - python -m oauth2_smtp
 #   only:
 #     - tags
    when: manual
