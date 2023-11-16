@@ -24,7 +24,8 @@
 
 #include "mgm/placement/ClusterMap.hh"
 
-namespace eos::mgm::placement {
+namespace eos::mgm::placement
+{
 
 StorageHandler
 ClusterMgr::getStorageHandler(size_t max_buckets)
@@ -52,7 +53,6 @@ ClusterMgr::addClusterData(ClusterData&& data)
 bool
 ClusterMgr::setDiskStatus(fsid_t disk_id, ConfigStatus status)
 {
-
   return mClusterData->setDiskStatus(disk_id, status);
 }
 
@@ -63,6 +63,7 @@ ClusterMgr::setDiskWeight(fsid_t disk_id, uint8_t weight)
     mCurrentEpoch.fetch_add(1, std::memory_order_release);
     return true;
   }
+
   return false;
 }
 
@@ -72,6 +73,7 @@ ClusterMgr::getStorageHandlerWithData()
   if (!mClusterData) {
     return getStorageHandler();
   }
+
   auto cluster_data = getClusterData();
   ClusterData cluster_data_copy(cluster_data());
   return StorageHandler(*this, std::move(cluster_data_copy));
@@ -83,11 +85,13 @@ ClusterMgr::getStateStr(std::string_view type)
   using namespace std::string_view_literals;
   std::stringstream ss;
   eos::common::RCUReadLock rlock(cluster_mgr_rcu);
+
   if (type == "bucket"sv || type == "all"sv) {
     ss << mClusterData->getBucketsAsString();
   } else if (type == "disk"sv || type == "all"sv) {
     ss << mClusterData->getDisksAsString();
   }
+
   return ss.str();
 }
 
@@ -105,12 +109,13 @@ StorageHandler::addBucket(uint8_t bucket_type, item_id_t bucket_id,
   if (bucket_id > 0 || parent_bucket_id > 0) {
     return false;
   }
+
   int32_t index = -bucket_id;
   int32_t parent_index = -parent_bucket_id;
 
   // This cast is safe, we'd already checked that the value is +ve
-  if ((size_t)index > mData.buckets.size()) {
-    mData.buckets.resize(index+1);
+  if ((size_t)index >= mData.buckets.size()) {
+    mData.buckets.resize(index + 1);
   }
 
   mData.buckets.at(index) = Bucket(bucket_id, bucket_type);
@@ -119,6 +124,7 @@ StorageHandler::addBucket(uint8_t bucket_type, item_id_t bucket_id,
   if (parent_index != bucket_id) {
     mData.buckets[parent_index].items.push_back(bucket_id);
   }
+
   return true;
 }
 
@@ -133,8 +139,8 @@ StorageHandler::addDisk(Disk disk, item_id_t bucket_id)
     return false;
   }
 
-
   size_t insert_pos = disk.id - 1;
+
   if (disk.id > mData.disks.size()) {
     mData.disks.resize(disk.id);
   }
