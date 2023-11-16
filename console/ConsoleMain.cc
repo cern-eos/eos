@@ -334,25 +334,26 @@ wants_help(const char* args_line, bool no_h)
   XrdOucString allargs = " ";
   allargs += args_line;
   allargs += " ";
-  
+
   if (no_h) {
     if ((allargs.find(" help ") != STR_NPOS) ||
-	(allargs.find("\"--help\"") != STR_NPOS) ||
-	(allargs.find(" --help ") != STR_NPOS) ||
-	(allargs.find(" \"--help\" ") != STR_NPOS)) {
+        (allargs.find("\"--help\"") != STR_NPOS) ||
+        (allargs.find(" --help ") != STR_NPOS) ||
+        (allargs.find(" \"--help\" ") != STR_NPOS)) {
       return true;
     }
   } else {
     if ((allargs.find(" help ") != STR_NPOS) ||
-	(allargs.find("\"-h\"") != STR_NPOS) ||
-	(allargs.find("\"--help\"") != STR_NPOS) ||
-	(allargs.find(" -h ") != STR_NPOS) ||
-	(allargs.find(" \"-h\" ") != STR_NPOS) ||
-	(allargs.find(" --help ") != STR_NPOS) ||
-	(allargs.find(" \"--help\" ") != STR_NPOS)) {
+        (allargs.find("\"-h\"") != STR_NPOS) ||
+        (allargs.find("\"--help\"") != STR_NPOS) ||
+        (allargs.find(" -h ") != STR_NPOS) ||
+        (allargs.find(" \"-h\" ") != STR_NPOS) ||
+        (allargs.find(" --help ") != STR_NPOS) ||
+        (allargs.find(" \"--help\" ") != STR_NPOS)) {
       return true;
     }
   }
+
   return false;
 }
 
@@ -877,7 +878,7 @@ Run(int argc, char* argv[])
     if ((in1 == "--version") || (in1 == "-v")) {
       fprintf(stderr, "EOS %s (2020)\n\n", VERSION);
       fprintf(stderr, "Developed by the CERN IT storage group\n");
-      exit(-1);
+      exit(0);
     }
 
     if ((in1 == "--batch") || (in1 == "-b")) {
