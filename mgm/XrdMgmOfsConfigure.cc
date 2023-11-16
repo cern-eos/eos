@@ -605,8 +605,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
           mQdbContactDetails.password = mQdbPassword;
         }
 
-
-        if (!strcmp("qclientdir",var)) {
+        if (!strcmp("qclientdir", var)) {
           if (!(val = Config.GetWord())) {
             Eroute.Emsg("Config", "argument for qclientdir is invalid");
             NoGo = 1;
@@ -616,6 +615,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
             if (!eos::common::endsWith(mQClientDir, "/")) {
               mQClientDir += "/";
             }
+
             Eroute.Say("=====> mgmofs.qclientdir : ", mQClientDir.c_str());
           }
         }
@@ -1294,6 +1294,12 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
         NoGo = 1;
       } else {
         mExtAuthz = ep(Eroute.logger(), ConfigFN, 0);
+
+        if (mExtAuthz == nullptr) {
+          Eroute.Emsg("Config", "Failed to get external authorization "
+                      "plugin object!");
+          NoGo = 1;
+        }
       }
     }
   }
