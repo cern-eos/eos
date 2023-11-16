@@ -351,7 +351,7 @@ StringConversion::GetSizeFromString(const std::string& sizestring,
 unsigned long long
 StringConversion::GetSizeFromString(const char* instring)
 {
-  if (!instring) {
+  if (!instring || !*instring) {
     errno = EINVAL;
     return 0;
   }
@@ -359,11 +359,6 @@ StringConversion::GetSizeFromString(const char* instring)
   XrdOucString sizestring = instring;
   unsigned long long convfactor = 1ll;
   errno = 0;
-
-  if (!sizestring.length()) {
-    errno = EINVAL;
-    return 0;
-  }
 
   if (sizestring.endswith("B") || sizestring.endswith("b")) {
     sizestring.erase(sizestring.length() - 1);
@@ -440,7 +435,7 @@ StringConversion::GetSizeFromString(const char* instring)
 unsigned long long
 StringConversion::GetDataSizeFromString(const char* instring)
 {
-  if (!instring) {
+  if (!instring || !*instring) {
     errno = EINVAL;
     return 0ll;
   }
@@ -449,27 +444,22 @@ StringConversion::GetDataSizeFromString(const char* instring)
   unsigned long long convfactor = 1ll;
   errno = 0;
 
-  if (!sizestring.length()) {
-    errno = EINVAL;
-    return 0ll;
-  } else {
-    if (sizestring.endswith("B") || sizestring.endswith("b")) {
-      sizestring.erase(sizestring.length() - 1);
-    }
+  if (sizestring.endswith("B") || sizestring.endswith("b")) {
+    sizestring.erase(sizestring.length() - 1);
+  }
 
-    if (sizestring.endswith("E") || sizestring.endswith("e")) {
-      convfactor = 1000ll * 1000ll * 1000ll * 1000ll * 1000ll * 1000ll;
-    } else if (sizestring.endswith("P") || sizestring.endswith("p")) {
-      convfactor = 1000ll * 1000ll * 1000ll * 1000ll * 1000ll;
-    } else if (sizestring.endswith("T") || sizestring.endswith("t")) {
-      convfactor = 1000ll * 1000ll * 1000ll * 1000ll;
-    } else if (sizestring.endswith("G") || sizestring.endswith("g")) {
-      convfactor = 1000ll * 1000ll * 1000ll;
-    } else if (sizestring.endswith("M") || sizestring.endswith("m")) {
-      convfactor = 1000ll * 1000ll;
-    } else if (sizestring.endswith("K") || sizestring.endswith("k")) {
-      convfactor = 1000ll;
-    }
+  if (sizestring.endswith("E") || sizestring.endswith("e")) {
+    convfactor = 1000ll * 1000ll * 1000ll * 1000ll * 1000ll * 1000ll;
+  } else if (sizestring.endswith("P") || sizestring.endswith("p")) {
+    convfactor = 1000ll * 1000ll * 1000ll * 1000ll * 1000ll;
+  } else if (sizestring.endswith("T") || sizestring.endswith("t")) {
+    convfactor = 1000ll * 1000ll * 1000ll * 1000ll;
+  } else if (sizestring.endswith("G") || sizestring.endswith("g")) {
+    convfactor = 1000ll * 1000ll * 1000ll;
+  } else if (sizestring.endswith("M") || sizestring.endswith("m")) {
+    convfactor = 1000ll * 1000ll;
+  } else if (sizestring.endswith("K") || sizestring.endswith("k")) {
+    convfactor = 1000ll;
   }
 
   if (convfactor > 1ll) {
