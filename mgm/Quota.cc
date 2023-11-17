@@ -1565,6 +1565,8 @@ Quota::SetQuotaTypeForId(const std::string& qpath, long id, Quota::IdT id_type,
     return false;
   }
 
+  std::string svalue = std::to_string(value);
+  oss_config << id << ":" << SpaceQuota::GetTagAsString(quota_tag);
   eos::common::RWMutexReadLock rd_quota_lock(pMapMutex);
   SpaceQuota* squota = GetSpaceQuota(path);
 
@@ -1575,8 +1577,6 @@ Quota::SetQuotaTypeForId(const std::string& qpath, long id, Quota::IdT id_type,
   }
 
   squota->SetQuota(quota_tag, id, value);
-  std::string svalue = std::to_string(value);
-  oss_config << id << ":" << SpaceQuota::GetTagAsString(quota_tag);
   gOFS->ConfEngine->SetConfigValue("quota", oss_config.str().c_str(),
                                    svalue.c_str());
   oss_msg << "success: updated "
