@@ -224,9 +224,19 @@ template<typename ObjectMDPtr, typename LockType>
 class NSObjectMDLocker {
 public:
   //Constructor that defers the locking of the mutex and will delegate the locking logic to the objectMD
-  NSObjectMDLocker(ObjectMDPtr objectMDPtr): mLock(objectMDPtr->getMutex(),std::defer_lock),mObjectMDPtr(objectMDPtr) {
-    mObjectMDPtr->lock(mLock);
+  NSObjectMDLocker(ObjectMDPtr objectMDPtr){
+      if(objectMDPtr) {
+        mLock = LockType(objectMDPtr->getMutex(),std::defer_lock);
+        mObjectMDPtr = objectMDPtr;
+        mObjectMDPtr->lock(mLock);
+      } else {
+        // We should normally never reach that code in production
+        // if the file/container does not exist, a MDException will
+        // be thrown.
+        throw_mdexception(ENOENT,"file/container does not exist");
+      }
   }
+
   ObjectMDPtr operator->() {
     return mObjectMDPtr;
   }
@@ -234,8 +244,9 @@ public:
     return operator->();
   }
   virtual ~NSObjectMDLocker(){
-    mObjectMDPtr->unregisterLock(mLock);
-    //The unlocking of the lock will be done by this destructor
+    if(mObjectMDPtr) {
+      mObjectMDPtr->unregisterLock(mLock);
+    }
   }
 private:
   //! KEEP THIS ORDER, THE SHARED_PTR NEEDS TO BE DESTROYED AFTER THE LOCK...

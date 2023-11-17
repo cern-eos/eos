@@ -394,12 +394,8 @@ private:
   template<typename Locker>
   std::unique_ptr<Locker> getFileLocked(const std::string & uri,
                                         bool follow = true,
-                                        size_t * link_depths = 0){
-    auto fileMD = getFile(uri,follow,link_depths);
-    if(fileMD) {
-      return std::make_unique<Locker>(fileMD);
-    }
-    return nullptr;
+                                        size_t * link_depths = 0) {
+    return std::make_unique<Locker>(getFile(uri,follow,link_depths));
   }
 
   //----------------------------------------------------------------------------
@@ -409,11 +405,7 @@ private:
   std::unique_ptr<Locker> getContainerLocked(const std::string & uri,
                 bool follow = true,
                 size_t * link_depths = 0){
-    auto containerMD = getContainer(uri,follow,link_depths);
-    if(containerMD) {
-      return std::make_unique<Locker>(containerMD);
-    }
-    return nullptr;
+    return std::make_unique<Locker>(getContainer(uri,follow,link_depths));
   }
 
   //----------------------------------------------------------------------------
