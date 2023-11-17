@@ -305,9 +305,7 @@ XrdMgmOfs::_rename(const char* old_name,
       // Check if old path is a quota node - this is forbidden
       try {
         auto rdirLocked = eosView->getContainerReadLocked(oPath.GetPath());
-
-        if (rdirLocked &&
-            (rdirLocked->getUnderlyingPtr()->getFlags() & eos::QUOTA_NODE_FLAG)) {
+        if (rdirLocked->getUnderlyingPtr()->getFlags() & eos::QUOTA_NODE_FLAG) {
           errno = EACCES;
           return Emsg(epname, error, EACCES, "rename - source is a quota node");
         }

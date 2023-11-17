@@ -246,11 +246,8 @@ private:
   //----------------------------------------------------------------------------
   template<typename Locker>
   std::unique_ptr<Locker> getContainerLocked(eos::IContainerMD::id_t id,uint64_t * clock){
-    auto containerMD = getContainerMD(id,clock);
-    if(containerMD) {
-      return std::make_unique<Locker>(containerMD);
-    }
-    return nullptr;
+    // An exception is thrown in the case the container does not exist
+    return std::make_unique<Locker>(getContainerMD(id,clock));
   }
 
   ListenerList pListeners;              ///< List of listeners to be notified

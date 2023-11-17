@@ -153,10 +153,10 @@ XrdMgmOfs::_attr_set(const char* path, XrdOucErrInfo& error,
 
   try {
     dhLock = gOFS->eosView->getContainerWriteLocked(path);
-    dh = dhLock ? dhLock->getUnderlyingPtr() : nullptr;
+    dh = dhLock->getUnderlyingPtr();
 
     // Check permissions in case of user attributes
-    if (dh && !Key.beginswith("sys.") && (vid.uid != dh->getCUid())
+    if (!Key.beginswith("sys.") && (vid.uid != dh->getCUid())
         && (!vid.sudoer && vid.uid)) {
       errno = EPERM;
     } else {
@@ -215,10 +215,10 @@ XrdMgmOfs::_attr_set(const char* path, XrdOucErrInfo& error,
 
     try {
       fmdLock = gOFS->eosView->getFileWriteLocked(path);
-      fmd = fmdLock ? fmdLock->getUnderlyingPtr() : nullptr;
+      fmd = fmdLock->getUnderlyingPtr();
 
       // Check permissions in case of user attributes
-      if (fmd && !Key.beginswith("sys.") && (vid.uid != fmd->getCUid())
+      if (!Key.beginswith("sys.") && (vid.uid != fmd->getCUid())
           && (!vid.sudoer && vid.uid)) {
         errno = EPERM;
       } else {
@@ -337,11 +337,8 @@ XrdMgmOfs::_attr_get(const char* path, XrdOucErrInfo& error,
 
     try {
       dhLock = gOFS->eosView->getContainerReadLocked(path);
-      dh = dhLock ? dhLock->getUnderlyingPtr() : nullptr;
-
-      if (dh) {
-        value = (dh->getAttribute(key)).c_str();
-      }
+      dh = dhLock->getUnderlyingPtr();
+      value = (dh->getAttribute(key)).c_str();
     } catch (eos::MDException& e) {
       errno = e.getErrno();
       eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n", e.getErrno(),
@@ -354,12 +351,8 @@ XrdMgmOfs::_attr_get(const char* path, XrdOucErrInfo& error,
         std::string lkey = "sys.attr.link";
         link = (dh->getAttribute(lkey)).c_str();
         dhLock = gOFS->eosView->getContainerReadLocked(link.c_str());
-        dh = dhLock ? dhLock->getUnderlyingPtr() : nullptr;
-
-        if (dh) {
-          value = (dh->getAttribute(key)).c_str();
-        }
-
+        dh = dhLock->getUnderlyingPtr();
+        value = (dh->getAttribute(key)).c_str();
         errno = 0;
       } catch (eos::MDException& e) {
         dh.reset();
@@ -376,7 +369,7 @@ XrdMgmOfs::_attr_get(const char* path, XrdOucErrInfo& error,
 
     try {
       fmdLock = gOFS->eosView->getFileReadLocked(path);
-      fmd = fmdLock ? fmdLock->getUnderlyingPtr() : nullptr;
+      fmd = fmdLock->getUnderlyingPtr();
 
       if (fmd) {
         value = (fmd->getAttribute(key)).c_str();
@@ -449,11 +442,6 @@ static bool attrGetInternal(T& md, std::string key, std::string& rvalue)
 
   try {
     dhLock = gOFS->eosView->getContainerReadLocked(linkedContainer);
-
-    if (!dhLock) {
-      return false;
-    }
-
     dh = dhLock->getUnderlyingPtr();
   } catch (eos::MDException& e) {
     errno = e.getErrno();
@@ -540,19 +528,18 @@ XrdMgmOfs::_attr_rem(const char* path, XrdOucErrInfo& error,
   eos::Prefetcher::prefetchContainerMDAndWait(gOFS->eosView, path);
 
   try {
-    eos::IContainerMD::IContainerMDWriteLockerPtr dhLock =
-      gOFS->eosView->getContainerWriteLocked(path);
-    dh = dhLock ? dhLock->getUnderlyingPtr() : nullptr;
+    auto dhLock = gOFS->eosView->getContainerWriteLocked(path);
+    dh = dhLock->getUnderlyingPtr();
     XrdOucString Key = key;
 
     if (Key.beginswith("sys.") && ((!vid.sudoer) && (vid.uid))) {
       errno = EPERM;
     } else {
       // TODO: REVIEW: check permissions
-      if (dh && (!dh->access(vid.uid, vid.gid, X_OK | W_OK))) {
+      if (!dh->access(vid.uid, vid.gid, X_OK | W_OK)) {
         errno = EPERM;
       } else {
-        if (dh && dh->hasAttribute(key)) {
+        if (dh->hasAttribute(key)) {
           dh->removeAttribute(key);
           eos::ContainerIdentifier d_id = dh->getIdentifier();
           eos::ContainerIdentifier d_pid = dh->getParentIdentifier();
@@ -574,31 +561,28 @@ XrdMgmOfs::_attr_rem(const char* path, XrdOucErrInfo& error,
 
   if (!dh) {
     try {
-      eos::IFileMD::IFileMDWriteLockerPtr fmdLock = gOFS->eosView->getFileWriteLocked(
-            path);
-      fmd = fmdLock ? fmdLock->getUnderlyingPtr() : nullptr;
+      auto fmdLock = gOFS->eosView->getFileWriteLocked(path);
+      fmd = fmdLock->getUnderlyingPtr();
       XrdOucString Key = key;
 
       if (Key.beginswith("sys.") && ((!vid.sudoer) && (vid.uid))) {
         errno = EPERM;
       } else {
-        if (fmd) {
-          if ((vid.uid != fmd->getCUid())
-              && (!vid.sudoer && vid.uid)) {
-            // TODO: REVIEW: only owner/sudoer can delete file attributes
-            errno = EPERM;
+        if ((vid.uid != fmd->getCUid())
+            && (!vid.sudoer && vid.uid)) {
+          // TODO: REVIEW: only owner/sudoer can delete file attributes
+          errno = EPERM;
+        } else {
+          if (fmd->hasAttribute(key)) {
+            fmd->removeAttribute(key);
+            eosView->updateFileStore(fmd.get());
+            eos::FileIdentifier f_id = fmd->getIdentifier();
+            eos::ContainerIdentifier d_id(fmd->getContainerId());
+            fmdLock.reset(nullptr);
+            gOFS->FuseXCastRefresh(f_id, d_id);
+            errno = 0;
           } else {
-            if (fmd->hasAttribute(key)) {
-              fmd->removeAttribute(key);
-              eosView->updateFileStore(fmd.get());
-              eos::FileIdentifier f_id = fmd->getIdentifier();
-              eos::ContainerIdentifier d_id(fmd->getContainerId());
-              fmdLock.reset(nullptr);
-              gOFS->FuseXCastRefresh(f_id, d_id);
-              errno = 0;
-            } else {
-              errno = ENODATA;
-            }
+            errno = ENODATA;
           }
         }
       }

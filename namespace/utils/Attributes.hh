@@ -73,11 +73,7 @@ populateLinkedAttributes(IView* view, eos::IContainerMD::XAttrMap& out,
     }
 
     IContainerMD::IContainerMDReadLockerPtr dhLock = view->getContainerReadLocked(linkedPath->second);
-    IContainerMDPtr dh = dhLock ? dhLock->getUnderlyingPtr() : nullptr;
-
-    if (!dh) {
-      return;
-    }
+    IContainerMDPtr dh = dhLock->getUnderlyingPtr();
 
     populateLinkedAttributes(dh->getAttributes(), out, prefixLinks);
   } catch (eos::MDException& e) {

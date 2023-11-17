@@ -203,12 +203,8 @@ private:
   //! Convenient method to get a file, lock it and return the unique_ptr of the locker object
   //----------------------------------------------------------------------------
   template<typename Locker>
-  std::unique_ptr<Locker> getFileLocked(eos::IContainerMD::id_t id,uint64_t * clock){
-    auto fileMD = getFileMD(id,clock);
-    if(fileMD) {
-      return std::make_unique<Locker>(fileMD);
-    }
-    return nullptr;
+  std::unique_ptr<Locker> getFileLocked(eos::IFileMD::id_t id,uint64_t * clock){
+    return std::make_unique<Locker>(getFileMD(id,clock));
   }
 
   ListenerList pListeners; ///< List of listeners to notify of changes

@@ -154,10 +154,7 @@ XrdMgmOfs::_exists(const char* path,
 
     try {
       auto dirLock = eosView->getContainerReadLocked(cPath.GetParentPath(), false);
-
-      if (dirLock) {
-        dir = dirLock->getUnderlyingPtr();
-      }
+      dir = dirLock->getUnderlyingPtr();
 
       eos::IContainerMD::XAttrMap::const_iterator it;
       // get attributes
