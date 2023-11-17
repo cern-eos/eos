@@ -218,7 +218,7 @@ Devices::Store()
     std::shared_ptr<eos::IFileMD> fmd;
     try {
       fmdLock = gOFS->eosView->getFileWriteLocked(storagepath.c_str());
-      fmd = fmdLock ? fmdLock->getUnderlyingPtr() : nullptr;
+      fmd = fmdLock->getUnderlyingPtr();
       errno = 0;
     } catch (eos::MDException& e) {
       errno = e.getErrno();
