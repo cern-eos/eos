@@ -1535,6 +1535,13 @@ Quota::SetQuotaTypeForId(const std::string& qpath, long id, Quota::IdT id_type,
     path = "/eos/";
   }
 
+  // Make sure the quota node exist
+  if (!Create(path)) {
+    oss_msg << "error: failed to create quota node: " << path;
+    msg = oss_msg.str();
+    return false;
+  }
+
   // Get type of quota to set and construct config entry
   std::ostringstream oss_config;
   SpaceQuota::eQuotaTag quota_tag;
@@ -1556,13 +1563,6 @@ Quota::SetQuotaTypeForId(const std::string& qpath, long id, Quota::IdT id_type,
     } else {
       quota_tag = SpaceQuota::kGroupFilesTarget;
     }
-  }
-
-  // Make sure the quota node exist
-  if (!Create(path)) {
-    oss_msg << "error: failed to create quota node: " << path;
-    msg = oss_msg.str();
-    return false;
   }
 
   std::string svalue = std::to_string(value);
