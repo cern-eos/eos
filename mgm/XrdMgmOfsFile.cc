@@ -928,7 +928,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
       }
 
       // get the attributes out
-      eos::listAttributes(gOFS->eosView, dmd.get(), attrmap, true);
+      eos::listAttributes(gOFS->eosView, dmd.get(), attrmap, false);
       // extract workflows
       workflow.Init(&attrmap);
 
