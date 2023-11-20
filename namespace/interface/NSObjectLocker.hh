@@ -238,8 +238,10 @@ public:
     //The unlocking of the lock will be done by this destructor
   }
 private:
-  LockType mLock;
+  //! KEEP THIS ORDER, THE SHARED_PTR NEEDS TO BE DESTROYED AFTER THE LOCK...
+  //! Otherwise you will have a deadlock!
   ObjectMDPtr mObjectMDPtr;
+  LockType mLock;
 };
 
 EOSNSNAMESPACE_END

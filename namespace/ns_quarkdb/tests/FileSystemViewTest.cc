@@ -1095,6 +1095,20 @@ TEST_F(FileSystemViewF, getFileOrContainerWriteLockedTwiceInSameThread)
   ASSERT_EQ(file->getUnderlyingPtr().get(), file3->getUnderlyingPtr().get());
 }
 
+TEST_F(FileSystemViewF, NSObjectLockerNoDeadlockIfLockDestroyedAfterOwnedSharedPtr)
+{
+  eos::IContainerMD::IContainerMDWriteLockerPtr contLock;
+  {
+    auto cont = view()->createContainer("/root/", true);
+    contLock = view()->getContainerWriteLocked("/root/");
+    cont->setDeleted();
+    containerSvc()->dropCachedContainerMD(cont->getIdentifier());
+    cont = nullptr;
+    ASSERT_THROW( view()->getContainer("/root/"),eos::MDException);
+  }
+  //If you have a deadlock here in the destructor of the contLock, then something is wrong...
+}
+
 
 TEST(SetChangeList, BasicSanity)
 {
