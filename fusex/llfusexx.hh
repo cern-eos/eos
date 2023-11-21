@@ -42,7 +42,7 @@
 #else
 
 #ifdef USE_FUSE3
-#define FUSE_USE_VERSION 31
+#define FUSE_USE_VERSION 32
 #define FUSE_SUPPORTS_FLOCK
 // Moved to cmake - #pragma message("FUSE_SUPPORTS_FLOCK")
 // Moved to cmake - #pragma message("FUSE 31")
