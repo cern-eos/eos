@@ -1040,7 +1040,9 @@ metad::update(fuse_req_t req, shared_md md, std::string authid,
   }
 
   flushentry fe(id, authid, localstore ? mdx::LSTORE : mdx::UPDATE, req);
-  fe.bind();
+  if (!localstore) {
+    fe.bind();
+  }
   mdqueue[id]++;
   mdflushqueue.push_back(fe);
   eos_static_info("added ino=%#lx flushentry=%s queue-size=%u local-store=%d",
@@ -2955,7 +2957,7 @@ metad::mdcallback(ThreadAssistant& assistant)
     }
 
     if (rsp->type() == rsp->MD) {
-      fuse_req_t req;
+      fuse_req_t req = 0;
       memset(&req, 0, sizeof(fuse_req_t));
       uint64_t md_ino = rsp->md_().md_ino();
       std::string authid = rsp->md_().authid();
