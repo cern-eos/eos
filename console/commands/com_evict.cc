@@ -159,11 +159,15 @@ int com_evict(char* arg)
 void com_evict_help()
 {
   std::ostringstream oss;
-  oss << "Usage: evict [--fsid <fsid>] <path>|fid:<fid-dec>]|fxid:<fid-hex> [<path>|fid:<fid-dec>]|fxid:<fid-hex>] ..."
+  oss << "Usage: evict [--fsid <fsid>] [--ignore-removal-on-fst] [--ignore-evict-counter] <path>|fid:<fid-dec>]|fxid:<fid-hex> [<path>|fid:<fid-dec>]|fxid:<fid-hex>] ...\n"
+      << "    Removes disk replicas of the given files, separated by space\n"
       << std::endl
-      << "       Removes all disk replicas of the given files separated by space"
+      << "  Optional arguments:\n"
+      << "    --ignore-evict-counter  : Force eviction by bypassing evict counter\n"
+      << "    --fsid <fsid>           : Evict disk copy only from a single fsid\n"
+      << "    --ignore-removal-on-fst : Ignore file removal on fst, namespace-only operation\n"
       << std::endl
-      << "       This command requires write and p acl flag permission"
+      << "    This command requires 'write' and 'p' acl flag permission\n"
       << std::endl;
   std::cerr << oss.str() << std::endl;
 }
