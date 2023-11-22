@@ -126,10 +126,12 @@ set(COMMON_UT_SRCS
   common/async/ExecutorMgrTests.cc
   common/CounterTests.cc
   common/ShardedCacheTests.cc
+  common/concurrency/AlignedAtomicArrayTests.cc
   common/concurrency/AtomicUniquePtrTests.cc
   common/concurrency/ThreadEpochCounterTests.cc
   common/concurrency/RCUTests.cc
-  common/RandTests.cc)
+  common/RandTests.cc
+)
 
 set(FUSEX_UT_SRCS
   fusex/StatTests.cc
