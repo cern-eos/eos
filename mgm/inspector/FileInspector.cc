@@ -235,7 +235,7 @@ void FileInspector::performCycleQDB(ThreadAssistant& assistant) noexcept
 
         eos_static_debug("is:%lu target:%lu is_t:%lu target_t:%lu interval:%lu "
                          "- pausing for %lu seconds\n",
-                         nfiles_processed, nfiles, is_time, target_time, interval, p_time);
+                         nfiles_processed, nfiles.load(), is_time, target_time, interval, p_time);
         // pause for the diff ...
         std::this_thread::sleep_for(std::chrono::seconds(p_time));
       }
@@ -326,7 +326,7 @@ void FileInspector::performCycleQDB(ThreadAssistant& assistant) noexcept
     currentUserBytes[n].clear();
     currentGroupBytes[n].clear();
   }
-  timeLastScan = timeCurrentScan;
+  timeLastScan = timeCurrentScan.load();
 }
 
 //------------------------------------------------------------------------------
@@ -481,8 +481,8 @@ FileInspector::Process(std::shared_ptr<eos::IFileMD> fmd)
       }
     }
 
-    double costdisk = disksize*PriceTbPerYearDisk*ageInYears / (1000000000000.0);
-    double costtape = tapesize*PriceTbPerYearTape*ageInYears / (1000000000000.0);
+    double costdisk = disksize*PriceTbPerYearDisk*ageInYears;
+    double costtape = tapesize*PriceTbPerYearTape*ageInYears;
 
     if (costdisk) {
       // create costs disk
@@ -699,7 +699,8 @@ FileInspector::Dump(std::string& out, std::string_view options)
       std::string media= "disk";
       double price=PriceTbPerYearDisk;
       if (n==1) {
-	media="tape";price=PriceTbPerYearTape;
+	media="tape";
+	price=PriceTbPerYearTape;
       }
       
       if (lastUserCosts[n].size()) {
@@ -719,7 +720,7 @@ FileInspector::Dump(std::string& out, std::string_view options)
 	  ucost += " uid=";
 	  ucost += std::to_string(it->first);
 	  ucost += " cost=";
-	  ucost += std::to_string(it->second);
+	  ucost += std::to_string(it->second/1000000000000.0);
 	  ucost += " price=";
 	  ucost += std::to_string(price);
 	  out += ucost;
@@ -744,7 +745,7 @@ FileInspector::Dump(std::string& out, std::string_view options)
 	  gcost += " gid=";
 	  gcost += std::to_string(it->first);
 	  gcost += " cost=";
-	  gcost += std::to_string(it->second);
+	  gcost += std::to_string(it->second/1000000000000.0);
 	  gcost += " price=";
 	  gcost += std::to_string(price);
 	  out += gcost;
@@ -1123,7 +1124,7 @@ FileInspector::Dump(std::string& out, std::string_view options)
 	  out +=  " Storage Costs - User View [ "; out += media; out += " ]\n";
 	  out +=  " -------------------------------------------------------------------------------------\n";
 	  out +=  " Total Costs : ";
-	  out += eos::common::StringConversion::GetReadableSizeString(lastUserTotalCosts[n], currency.c_str()).c_str();
+	  out += eos::common::StringConversion::GetReadableSizeString(lastUserTotalCosts[n]/1000000000000.0, currency.c_str()).c_str();
 	  out += "\n";
 	  out +=  " -------------------------------------------------------------------------------------\n";
 	  size_t cnt=0;
@@ -1146,7 +1147,7 @@ FileInspector::Dump(std::string& out, std::string_view options)
 	    snprintf(line, sizeof(line), " %02ld. %-28s : %s\n",
 		     ++cnt,
 		     username.c_str(),
-		     eos::common::StringConversion::GetReadableSizeString(it->first, currency.c_str()).c_str());
+		     eos::common::StringConversion::GetReadableSizeString(it->first/1000000000000.0, currency.c_str()).c_str());
 	    out += line;
 	    
 	    if (cnt >= top_cnt) {
@@ -1160,7 +1161,7 @@ FileInspector::Dump(std::string& out, std::string_view options)
 	  out +=  " Storage Costs - Group View [ "; out += media; out += " ]\n";
 	  out +=  " -------------------------------------------------------------------------------------\n";
 	  out +=  " Total Costs : ";
-	  out += eos::common::StringConversion::GetReadableSizeString(lastGroupTotalCosts[n], currency.c_str()).c_str();
+	  out += eos::common::StringConversion::GetReadableSizeString(lastGroupTotalCosts[n]/1000000000000.0, currency.c_str()).c_str();
 	  out += "\n";
 	  out +=  " -------------------------------------------------------------------------------------\n";
 	  size_t cnt=0;
@@ -1183,7 +1184,7 @@ FileInspector::Dump(std::string& out, std::string_view options)
 	    snprintf(line, sizeof(line), " %02ld. %-28s : %s\n",
 		     ++cnt,
 		     groupname.c_str(),
-		     eos::common::StringConversion::GetReadableSizeString(it->first, currency.c_str()).c_str());
+		     eos::common::StringConversion::GetReadableSizeString(it->first/1000000000000.0, currency.c_str()).c_str());
 	    out += line;
 	    
 	    if (cnt >= top_cnt) {
