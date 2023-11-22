@@ -2291,8 +2291,8 @@ EosFuse::init(void* userdata, struct fuse_conn_info* conn)
   }
 
 #ifdef USE_FUSE3
-  conn->want |= FUSE_CAP_EXPORT_SUPPORT | FUSE_CAP_POSIX_LOCKS |
-                FUSE_CAP_WRITEBACK_CACHE;
+  conn->want |= FUSE_CAP_EXPORT_SUPPORT | FUSE_CAP_POSIX_LOCKS;
+  // FUSE_CAP_WRITEBACK_CACHE => when we enable write back cache, inode invalidation does not work anymore, so don't enable it
   Instance().Config().options.writebackcache = true;
   //  conn->want |= FUSE_CAP_EXPORT_SUPPORT | FUSE_CAP_POSIX_LOCKS ; // | FUSE_CAP_CACHE_SYMLINKS;
 #else
