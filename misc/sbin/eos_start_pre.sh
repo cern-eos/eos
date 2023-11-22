@@ -64,6 +64,11 @@ if [ "$1" = "eos-start-pre" ]; then
     find /var/log/eos -maxdepth 1 -type d -exec chown daemon {} \;
     find /var/eos/ -maxdepth 1 -mindepth 1 -not -path "/var/eos/fs" -not -path "/var/eos/fusex" -type d -exec chown -R daemon {} \;
     chmod -R 775 /var/spool/eos
+
+    if [ -f /var/log/eos/mgm/error.log ]; then
+      chown daemon:daemon /var/log/eos/mgm/error.log
+    fi
+
     mkdir -p /var/eos/auth /var/eos/stage
     chown daemon /var/eos/auth /var/eos/stage
     setfacl -m default:u:daemon:r /var/eos/auth/
