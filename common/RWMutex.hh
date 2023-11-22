@@ -54,7 +54,7 @@
 
 #include "common/Namespace.hh"
 #include "common/IRWMutex.hh"
-#include "common/concurrency/AlignMacros.hh"
+#include "common/concurrency/AlignedArray.hh"
 #include "XrdSys/XrdSysPthread.hh"
 #include <stdio.h>
 #include <stdint.h>
@@ -84,9 +84,9 @@ EOSCOMMONNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 //! struct TimingArray aligned to a cacheline
 //------------------------------------------------------------------------------
-struct alignas(hardware_destructive_interference_size) TimingArray {
-  std::array<std::atomic<int64_t>, 4> items;
-  TimingArray(): items{0}{};
+struct TimingArray {
+  AlignedAtomicArray<int64_t, 4> items;
+  TimingArray() : items{} {}
 };
 //------------------------------------------------------------------------------
 //! Class RWMutex
