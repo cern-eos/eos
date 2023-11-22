@@ -169,12 +169,12 @@ private:
 
   std::string currency;
   
-  time_t timeCurrentScan;
-  time_t timeLastScan;
+  std::atomic<time_t> timeCurrentScan;
+  std::atomic<time_t> timeLastScan;
 
   std::atomic<double> scanned_percent;
-  uint64_t nfiles;
-  uint64_t ndirs;
+  std::atomic<uint64_t> nfiles;
+  std::atomic<uint64_t> ndirs;
 
   std::mutex mutexScanStats;
   std::string mSpaceName; ///< Corresponding space name
