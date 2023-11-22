@@ -26,7 +26,7 @@ setfacl -m default:u:daemon:r /var/eos/auth/
 SERVER_HOST=${EOSHOST}
 INSTANCE_NAME=eosdev
 GEO_TAG=local
-
+EOS_USE_MQ_ON_QDB=1
 
 EOS_XROOTD=/opt/eos/xrootd/
 LD_LIBRARY_PATH=${EOS_XROOTD}/lib64:/opt/eos/grpc/lib64
