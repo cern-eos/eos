@@ -125,7 +125,7 @@ int ComputeIops(int fd, uint64_t rd_buf_size, std::chrono::seconds timeout)
   int iterations = 10000;
   int actual_iter = 0;
   uint64_t offset = 0ull;
-  microseconds  duration {0};
+  microseconds duration {0};
   time_point<high_resolution_clock> start, end;
 
   for (; actual_iter < iterations; ++actual_iter) {
@@ -142,7 +142,7 @@ int ComputeIops(int fd, uint64_t rd_buf_size, std::chrono::seconds timeout)
     end = high_resolution_clock::now();
     duration += duration_cast<microseconds>(end - start);
 
-    if (actual_iter % 100 == 0) {
+    if (actual_iter % 10 == 0) {
       if (duration.count() > timeout.count() * 1000000) {
         break;
       }
