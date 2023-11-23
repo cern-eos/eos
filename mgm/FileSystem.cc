@@ -296,8 +296,13 @@ FileSystem::IsDrainTransition(const eos::common::ConfigStatus old,
 bool
 FileSystem::ShouldBroadCast()
 {
-  if (mRealm && mRealm->getSom()) {
-    return mRealm->getSom()->ShouldBroadCast();
+  if (mRealm) {
+    if (mRealm->getSom()) {
+      return mRealm->getSom()->ShouldBroadCast();
+    } else {
+      // @note (esindril) to review when active-passive is actually enabled
+      return true;
+    }
   } else {
     return false;
   }
