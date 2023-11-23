@@ -1134,7 +1134,7 @@ std::string FsView::Df(bool monitoring, bool si, bool readable,
 {
   std::string nominal;
   std::string network;
-  double networkmib=0;
+  double networkmib = 0;
   size_t i_nominal = 0;
   size_t i_used = 0;
   double sizefactor = 1.0;
@@ -1164,8 +1164,9 @@ std::string FsView::Df(bool monitoring, bool si, bool readable,
 
     for (auto it = mNodeView.begin(); it != mNodeView.end(); ++it) {
       network = it->second->GetMember("cfg.stat.net.ethratemib");
+
       if (network.length()) {
-	networkmib += std::strtoll(network.c_str(), 0, 10);
+        networkmib += std::strtoll(network.c_str(), 0, 10);
       }
     }
 
@@ -1175,68 +1176,70 @@ std::string FsView::Df(bool monitoring, bool si, bool readable,
       eos::Prefetcher::prefetchItemAndWait(gOFS->eosView, path, false);
       eos::common::RWMutexReadLock viewlock(ViewMutex);
       eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
-      
+
       try {
-	cmd = gOFS->eosView->getContainer(path, false);
+        cmd = gOFS->eosView->getContainer(path, false);
       } catch (eos::MDException& e) {
-	errno = e.getErrno();
-	eos_err("msg=\"exception\" ec=%d emsg=\"%s\"", e.getErrno(),
-		e.getMessage().str().c_str());
+        errno = e.getErrno();
+        eos_err("msg=\"exception\" ec=%d emsg=\"%s\"", e.getErrno(),
+                e.getMessage().str().c_str());
       }
-      
+
       if (!cmd) {
-	// fall back to instance path
-	try {
-	  path = instancepath;
-	  cmd = gOFS->eosView->getContainer(path, false);
-	} catch (eos::MDException& e) {
-	  errno = e.getErrno();
-	  eos_err("msg=\"exception\" ec=%d emsg=\"%s\"", e.getErrno(),
-		  e.getMessage().str().c_str());
-	  return "";
-	}
+        // fall back to instance path
+        try {
+          path = instancepath;
+          cmd = gOFS->eosView->getContainer(path, false);
+        } catch (eos::MDException& e) {
+          errno = e.getErrno();
+          eos_err("msg=\"exception\" ec=%d emsg=\"%s\"", e.getErrno(),
+                  e.getMessage().str().c_str());
+          return "";
+        }
       }
-      
+
       i_used = cmd->getTreeSize();
       sizefactor = Policy::GetDefaultSizeFactor(cmd);
       files = gOFS->eosFileService->getNumFiles();
       directories = gOFS->eosDirectoryService->getNumContainers();
     }
-    
+
     if (sizefactor) {
       i_nominal /= sizefactor;
     }
-    
+
     std::string size = readable ?
-      eos::common::StringConversion::GetReadableSizeString(i_nominal, si ? "iB" : "B",
-							   si ? 1024 : 1000) :
-      std::to_string(i_nominal);
+                       eos::common::StringConversion::GetReadableSizeString(i_nominal, si ? "iB" : "B",
+                           si ? 1024 : 1000) :
+                       std::to_string(i_nominal);
     std::string used = readable ?
-      eos::common::StringConversion::GetReadableSizeString(i_used, si ? "iB" : "B",
-							   si ? 1024 : 1000) :
-      std::to_string(i_used);
+                       eos::common::StringConversion::GetReadableSizeString(i_used, si ? "iB" : "B",
+                           si ? 1024 : 1000) :
+                       std::to_string(i_used);
     use = (int)(100.0 * i_used / i_nominal);
-    
+
     if (use > 100) {
       use = 100;
     }
-    
+
     std::string suse = std::to_string(use) + (monitoring ? std::string("") :
-					      std::string("%"));
+                       std::string("%"));
     std::string sfiles = readable ?
-      eos::common::StringConversion::GetReadableSizeString(files, "", 1000) :
-      std::to_string(files);
+                         eos::common::StringConversion::GetReadableSizeString(files, "", 1000) :
+                         std::to_string(files);
     std::string sdirectories = readable ?
-      eos::common::StringConversion::GetReadableSizeString(directories, "", 1000) :
-      std::to_string(directories);
-    
+                               eos::common::StringConversion::GetReadableSizeString(directories, "", 1000) :
+                               std::to_string(directories);
     char _perfratio[1024];
-    double pcr = networkmib/(si?1024.0:1000.0)/(i_nominal/(si?(1024*1024*1024*1024.0):(1000*1000*1000*1000.0))); // GB/s per TB
+    double pcr = networkmib / (si ? 1024.0 : 1000.0) / (i_nominal / (si ?
+                 (1024 * 1024 * 1024 * 1024.0) : (1000 * 1000 * 1000 * 1000.0))); // GB/s per TB
+
     if (i_nominal) {
       snprintf(_perfratio, sizeof(_perfratio), "%.02f", pcr); // GB/s per TB
     } else {
       snprintf(_perfratio, sizeof(_perfratio), "0.00");
     }
+
     std::string sperf = _perfratio;
     char _sizefactor[1024];
     snprintf(_sizefactor, sizeof(_sizefactor), "%.02f", sizefactor);
@@ -1245,15 +1248,14 @@ std::string FsView::Df(bool monitoring, bool si, bool readable,
     TableData table_data;
     std::string format_s = (!monitoring ? "s" : "os");
     std::string format_ss = (!monitoring ? "-s" : "os");
-    
+
     if (json) {
       Json::Value gjson;
-      
       gjson["df"]["instance"] = instance;
       gjson["df"]["size"] = (Json::Value::UInt64)i_nominal;
       gjson["df"]["used"] = (Json::Value::UInt64)i_used;
       gjson["df"]["files"] = (Json::Value::UInt64) files;
-      gjson["df"]["directories"] = (Json::Value::UInt64) directories;    
+      gjson["df"]["directories"] = (Json::Value::UInt64) directories;
       gjson["df"]["performancecapacityratio-gb-tbs"] = pcr;
       gjson["df"]["sizefactor"] = sizefactor;
       gjson["df"]["path"] = path;
@@ -1261,31 +1263,31 @@ std::string FsView::Df(bool monitoring, bool si, bool readable,
       return out;
     } else {
       if (!monitoring) {
-	table.SetHeader({
-	    std::make_tuple("Instance", 14, format_ss),
-	    std::make_tuple("Size",  8, format_s),
-	    std::make_tuple("Used",  8, format_s),
-	    std::make_tuple("Files", 8, format_s),
-	    std::make_tuple("Directories", 15, format_s),
-	    std::make_tuple("PCR GB/TB*s", 12, format_s),
-	    std::make_tuple("Use%", 6, format_s),
-	    std::make_tuple("Vol-x", 7, format_s),
-	    std::make_tuple("Path",  0, format_s)
-	  });
+        table.SetHeader({
+          std::make_tuple("Instance", 14, format_ss),
+          std::make_tuple("Size",  8, format_s),
+          std::make_tuple("Used",  8, format_s),
+          std::make_tuple("Files", 8, format_s),
+          std::make_tuple("Directories", 15, format_s),
+          std::make_tuple("PCR GB/TB*s", 12, format_s),
+          std::make_tuple("Use%", 6, format_s),
+          std::make_tuple("Vol-x", 7, format_s),
+          std::make_tuple("Path",  0, format_s)
+        });
       } else {
-	table.SetHeader({
-	    std::make_tuple("instance", 14, format_ss),
-	    std::make_tuple("size",  8, format_s),
-	    std::make_tuple("used",  8, format_s),
-	    std::make_tuple("files", 8, format_s),
-	    std::make_tuple("directories", 15, format_s),
-	    std::make_tuple("performancecapacityratio", 12, format_s),
-	    std::make_tuple("usage", 6, format_s),
-	    std::make_tuple("spacefactor", 6, format_s),
-	    std::make_tuple("path",  0, format_s)
-	  });
+        table.SetHeader({
+          std::make_tuple("instance", 14, format_ss),
+          std::make_tuple("size",  8, format_s),
+          std::make_tuple("used",  8, format_s),
+          std::make_tuple("files", 8, format_s),
+          std::make_tuple("directories", 15, format_s),
+          std::make_tuple("performancecapacityratio", 12, format_s),
+          std::make_tuple("usage", 6, format_s),
+          std::make_tuple("spacefactor", 6, format_s),
+          std::make_tuple("path",  0, format_s)
+        });
       }
-      
+
       table_data.emplace_back();
       TableRow& row = table_data.back();
       row.emplace_back(instance, format_ss);
@@ -1989,17 +1991,40 @@ FsView::StoreFsConfig(FileSystem* fs, bool save_config)
 // Move a filesystem in to a target group
 //------------------------------------------------------------------------------
 bool
-FsView::MoveGroup(FileSystem* fs, std::string group)
+FsView::MoveGroup(FileSystem* fs, std::string group_name)
 {
   if (!fs) {
     return false;
   }
 
+  //@todo(esindril) wrap in a nice method as it can be reused
+  uint32_t grp_index = 0;
+  const std::string tgt_group = group_name;
+  std::string tgt_space = group_name;
+
+  if (tgt_space != "spare") {
+    int pos = tgt_space.find('.');
+
+    if (pos == std::string::npos) {
+      eos_static_err("msg=\"unexpected group format\" grp=\"%s",
+                     group_name.c_str());
+      return false;
+    }
+
+    tgt_space = tgt_space.substr(0, pos);
+
+    try {
+      grp_index = std::stoul(tgt_group.substr(pos + 1));
+    } catch (...) {}
+  }
+
+  eos_debug("msg=\"move fs to group\" grp=\"%s\" space=\"%s\" fs_ptr=%x",
+            tgt_group.c_str(), tgt_space.c_str(), fs);
   eos::common::FileSystem::fs_snapshot_t snapshot1;
   eos::common::FileSystem::fs_snapshot_t snapshot;
 
   if (fs->SnapShotFileSystem(snapshot1)) {
-    fs->SetString("schedgroup", group.c_str());
+    fs->SetString("schedgroup", group_name.c_str());
     FsGroup* oldgroup = mGroupView.count(snapshot1.mGroup) ?
                         mGroupView[snapshot1.mGroup] : NULL;
 
@@ -2008,10 +2033,10 @@ FsView::MoveGroup(FileSystem* fs, std::string group)
       if (mSpaceView.count(snapshot1.mSpace)) {
         FsSpace* space = mSpaceView[snapshot1.mSpace];
         space->erase(snapshot1.mId);
-        eos_debug("unregister space %s from space view",
-                  space->GetMember("name").c_str());
 
-        if (!space->size()) {
+        if (!space->size() && (space->mName != "spare")) {
+          eos_debug("msg=\"unregister from space view\" space=\"%s\"",
+                    space->GetMember("name").c_str());
           mSpaceView.erase(snapshot1.mSpace);
           delete space;
         }
@@ -2025,13 +2050,13 @@ FsView::MoveGroup(FileSystem* fs, std::string group)
           // roll-back
           if (mSpaceView.count(snapshot1.mSpace)) {
             mSpaceView[snapshot1.mSpace]->insert(snapshot1.mId);
-            eos_debug("inserting into space view %s<=>%u %x",
+            eos_debug("inserting into space view %s<=>%u fs_ptr=%x",
                       snapshot1.mSpace.c_str(), snapshot1.mId, fs);
           } else {
             FsSpace* space = new FsSpace(snapshot1.mSpace.c_str());
             mSpaceView[snapshot1.mSpace] = space;
             space->insert(snapshot1.mId);
-            eos_debug("creating/inserting into space view %s<=>%u %x",
+            eos_debug("creating/inserting into space view %s<=>%u fs_ptr=%x",
                       snapshot1.mSpace.c_str(), snapshot1.mId, fs);
           }
 
@@ -2042,71 +2067,73 @@ FsView::MoveGroup(FileSystem* fs, std::string group)
         }
 
         group->erase(snapshot1.mId);
-        eos_debug("unregister group %s from group view",
-                  group->GetMember("name").c_str());
 
-        if (!group->size()) {
+        if (!group->size() && (group->mName != "spare")) {
           if (mSpaceGroupView.count(snapshot1.mSpace)) {
             mSpaceGroupView[snapshot1.mSpace].erase(mGroupView[snapshot1.mGroup]);
           }
 
+          eos_debug("msg=\"unregister from group view\" group=\"%s\"",
+                    group->GetMember("name").c_str());
           mGroupView.erase(snapshot1.mGroup);
           delete group;
         }
       }
 
       // Check if we have already a group view
-      if (mGroupView.count(snapshot.mGroup)) {
-        mGroupView[snapshot.mGroup]->insert(snapshot.mId);
-        eos_debug("inserting into group view %s<=>%u",
-                  snapshot.mGroup.c_str(), snapshot.mId, fs);
+      if (mGroupView.count(tgt_group)) {
+        mGroupView[tgt_group]->insert(snapshot.mId);
+        eos_debug("inserting into group view %s<=>%u fs_ptr=%x",
+                  tgt_group.c_str(), snapshot.mId, fs);
       } else {
-        FsGroup* group = new FsGroup(snapshot.mGroup.c_str());
-        mGroupView[snapshot.mGroup] = group;
+        FsGroup* group = new FsGroup(tgt_group.c_str());
+        mGroupView[tgt_group] = group;
         group->insert(snapshot.mId);
-        group->mIndex = snapshot.mGroupIndex;
+        group->mIndex = grp_index;
         group->SetConfigMember("status", "on");
         eos_debug("creating/inserting into group view %s<=>%u",
-                  snapshot.mGroup.c_str(), snapshot.mId, fs);
+                  tgt_group.c_str(), snapshot.mId, fs);
       }
 
-      if (!gOFS->mGeoTreeEngine->insertFsIntoGroup(fs, mGroupView[group],
+      if (!gOFS->mGeoTreeEngine->insertFsIntoGroup(fs, mGroupView[group_name],
           fs->getCoreParams())) {
-        if (fs->SetString("schedgroup", group.c_str()) && UnRegister(fs, false)) {
+        if (fs->SetString("schedgroup", group_name.c_str()) &&
+            UnRegister(fs, false)) {
           if (oldgroup && fs->SetString("schedgroup", oldgroup->mName.c_str()) &&
               Register(fs, fs->getCoreParams())) {
             eos_err("while moving fs, could not insert fs %u in group %s. fs "
                     "was registered back to group %s and consistency is KEPT "
                     "between FsView and GeoTreeEngine",
-                    snapshot.mId, mGroupView[group]->mName.c_str(),
+                    snapshot.mId, mGroupView[group_name]->mName.c_str(),
                     oldgroup->mName.c_str());
           } else {
             eos_err("while moving fs, could not insert fs %u in group %s. fs "
                     "was unregistered and consistency is KEPT between FsView "
-                    "and GeoTreeEngine", snapshot.mId, mGroupView[group]->mName.c_str());
+                    "and GeoTreeEngine", snapshot.mId, mGroupView[group_name]->mName.c_str());
           }
         } else {
           eos_crit("while moving fs, could not insert fs %u in group %s. fs "
                    "could not be unregistered and consistency is BROKEN between "
-                   "FsView and GeoTreeEngine", snapshot.mId, mGroupView[group]->mName.c_str());
+                   "FsView and GeoTreeEngine", snapshot.mId,
+                   mGroupView[group_name]->mName.c_str());
         }
 
         return false;
       }
 
-      mSpaceGroupView[snapshot.mSpace].insert(mGroupView[snapshot.mGroup]);
+      mSpaceGroupView[tgt_space].insert(mGroupView[tgt_group]);
 
       // Check if we have already a space view
-      if (mSpaceView.count(snapshot.mSpace)) {
-        mSpaceView[snapshot.mSpace]->insert(snapshot.mId);
+      if (mSpaceView.count(tgt_space)) {
+        mSpaceView[tgt_space]->insert(snapshot.mId);
         eos_debug("inserting into space view %s<=>%u %x",
-                  snapshot.mSpace.c_str(), snapshot.mId, fs);
+                  tgt_space.c_str(), snapshot.mId, fs);
       } else {
-        FsSpace* space = new FsSpace(snapshot.mSpace.c_str());
-        mSpaceView[snapshot.mSpace] = space;
+        FsSpace* space = new FsSpace(tgt_space.c_str());
+        mSpaceView[tgt_space] = space;
         space->insert(snapshot.mId);
         eos_debug("creating/inserting into space view %s<=>%u %x",
-                  snapshot.mSpace.c_str(), snapshot.mId, fs);
+                  tgt_space.c_str(), snapshot.mId, fs);
       }
 
       return true;
@@ -4032,7 +4059,7 @@ BaseView::Print(TableFormatterBase& table, std::string table_format,
             table_header.push_back(std::make_tuple("sched.capacity", width, format));
           }
         }
-	
+
         // Normal member printout
         if (formattags.count("member")) {
           if ((format.find("+") != std::string::npos) &&
@@ -4071,38 +4098,38 @@ BaseView::Print(TableFormatterBase& table, std::string table_format,
           header = pkey.c_str();
         }
 
-	// Compution
-	if (formattags.count("compute")) {
-	  if (formattags["compute"] == "usage") {
-	    // compute the percentage usage
-	    long long used_bytes = SumLongLong("stat.statfs.usedbytes", false);
-	    long long headroom = SumLongLong("headroom", false);
-	    long long capacity = strtoull(GetMember("cfg.nominalsize").c_str(),0,10);
-	    std::string header = "";
-	    std::string format = formattags["format"];
-	    unsigned int width = (formattags.count("width") ?
-				  atoi(formattags["width"].c_str()) : 0);
-	    std::string unit = (formattags.count("unit") ? formattags["unit"] : "");
+        // Compution
+        if (formattags.count("compute")) {
+          if (formattags["compute"] == "usage") {
+            // compute the percentage usage
+            long long used_bytes = SumLongLong("stat.statfs.usedbytes", false);
+            long long headroom = SumLongLong("headroom", false);
+            long long capacity = strtoull(GetMember("cfg.nominalsize").c_str(), 0, 10);
+            std::string header = "";
+            std::string format = formattags["format"];
+            unsigned int width = (formattags.count("width") ?
+                                  atoi(formattags["width"].c_str()) : 0);
+            std::string unit = (formattags.count("unit") ? formattags["unit"] : "");
+            table_header.push_back(std::make_tuple("usage", width, format));
 
-	    table_header.push_back(std::make_tuple("usage", width, format));
-	    
-	    if (!capacity) {
-	      capacity = SumLongLong("stat.statfs.capacity?configstatus@rw", false);
-	    }
-	    double usage = 0;
-	    
-	    if (capacity) {
-	      usage = 100.0 * (used_bytes + headroom) / (capacity);
-	      
-	      if (usage > 100.0) {
-		usage = 100.0;
-	      }
-	    }
+            if (!capacity) {
+              capacity = SumLongLong("stat.statfs.capacity?configstatus@rw", false);
+            }
 
-	    table_data.back().push_back(TableCell(usage, format));
-	  }
-	}
-	
+            double usage = 0;
+
+            if (capacity) {
+              usage = 100.0 * (used_bytes + headroom) / (capacity);
+
+              if (usage > 100.0) {
+                usage = 100.0;
+              }
+            }
+
+            table_data.back().push_back(TableCell(usage, format));
+          }
+        }
+
         // Sum printout
         if (formattags.count("sum")) {
           if (!outdepth) {
