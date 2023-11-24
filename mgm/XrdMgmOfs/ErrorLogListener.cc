@@ -99,6 +99,8 @@ XrdMgmOfs::ErrorLogListenerThread(ThreadAssistant& assistant) noexcept
   std::string out;
   XrdSysLogger logger(fileno(file), 1);
   int retc = logger.Bind(log_path.c_str(), 1);
+  // Disable XRootD log rotation
+  logger.setRotate(0);
   eos::mq::QdbListener err_listener(mQdbContactDetails, channel);
   eos_static_info("msg=\"starting error report listener\" bind_retc=%d", retc);
 
