@@ -56,6 +56,8 @@ class ContainerMapIterator;
 
 using IContainerMDPtr = std::shared_ptr<IContainerMD>;
 using IFileMDPtr = std::shared_ptr<IFileMD>;
+using IFileMDReadLocker = NSObjectMDLocker<IFileMDPtr,MDReadLock>;
+using IFileMDWriteLocker = NSObjectMDLocker<IFileMDPtr,MDWriteLock>;
 
 //------------------------------------------------------------------------------
 //! Holds either a FileMD or a ContainerMD. Only one of these are ever filled,
@@ -64,6 +66,16 @@ using IFileMDPtr = std::shared_ptr<IFileMD>;
 struct FileOrContainerMD {
   IFileMDPtr file;
   IContainerMDPtr container;
+};
+
+//------------------------------------------------------------------------------
+//! Holds either a FileMD locked or a ContainerMD locked. Only one of these are ever filled,
+//! the other will be nullptr. Both might be nullptr as well.
+//------------------------------------------------------------------------------
+template<typename ContainerMDLocker, typename FileMDLocker>
+struct FileOrContainerMDLocked {
+  std::unique_ptr<ContainerMDLocker> containerLocked = nullptr;
+  std::unique_ptr<FileMDLocker> fileLocked = nullptr;
 };
 
 //------------------------------------------------------------------------------
@@ -138,9 +150,16 @@ public:
   findContainer(const std::string& name) = 0;
 
   //----------------------------------------------------------------------------
-  //! Find sub container and write lock it
+  //! Find sub container and write lock it (returns nullptr in case the container is not found)
   //----------------------------------------------------------------------------
-  virtual IContainerMDWriteLockerPtr findContainerAndWriteLock(const std::string & name) = 0;
+  virtual IContainerMDWriteLockerPtr
+  findContainerWriteLocked(const std::string & name) = 0;
+
+  //----------------------------------------------------------------------------
+  //! Find sub container and read lock it (returns nullptr in case the container is not found)
+  //----------------------------------------------------------------------------
+  virtual IContainerMDReadLockerPtr
+  findContainerReadLocked(const std::string & name) = 0;
 
   //----------------------------------------------------------------------------
   //! Get number of containers
@@ -168,9 +187,29 @@ public:
   virtual std::shared_ptr<IFileMD> findFile(const std::string& name) = 0;
 
   //----------------------------------------------------------------------------
+  //! Find file and read lock it. Returns nullptr in case the file is not found
+  //----------------------------------------------------------------------------
+  virtual std::unique_ptr<IFileMDReadLocker> findFileReadLocked(const std::string & name) = 0;
+
+  //----------------------------------------------------------------------------
+  //! Find file and write lock it. Returns nullptr in case the file is not found
+  //----------------------------------------------------------------------------
+  virtual std::unique_ptr<IFileMDWriteLocker> findFileWriteLocked(const std::string & name) = 0;
+
+  //----------------------------------------------------------------------------
   //! Find item
   //----------------------------------------------------------------------------
   virtual folly::Future<FileOrContainerMD> findItem(const std::string& name) = 0;
+
+  //----------------------------------------------------------------------------
+  //! Find item read locked
+  //----------------------------------------------------------------------------
+  virtual FileOrContainerMDLocked<IContainerMDReadLocker,IFileMDReadLocker> findItemReadLocked(const std::string & name) = 0;
+
+  //----------------------------------------------------------------------------
+  //! Find item write locked
+  //----------------------------------------------------------------------------
+  virtual FileOrContainerMDLocked<IContainerMDWriteLocker,IFileMDWriteLocker> findItemWriteLocked(const std::string & name) = 0;
 
   //----------------------------------------------------------------------------
   //! Get number of files
@@ -508,6 +547,21 @@ protected:
   //! Get a copy of FileMap
   //----------------------------------------------------------------------------
   virtual IContainerMD::FileMap copyFileMap() const = 0;
+
+  //----------------------------------------------------------------------------
+  //! Find an item and lock it
+  //----------------------------------------------------------------------------
+  template<typename ContainerMDLocker, typename FileMDLocker>
+  FileOrContainerMDLocked<ContainerMDLocker,FileMDLocker> findItemLocked(const std::string& name) {
+    FileOrContainerMDLocked<ContainerMDLocker,FileMDLocker> ret;
+    auto fileOrContMD = findItem(name).get();
+    if(fileOrContMD.container) {
+      ret.containerLocked = std::make_unique<ContainerMDLocker>(fileOrContMD.container);
+    } else if(fileOrContMD.file) {
+      ret.fileLocked = std::make_unique<FileMDLocker>(fileOrContMD.file);
+    }
+    return ret;
+  }
 
   mutable std::shared_timed_mutex mMutex;
 };
