@@ -72,7 +72,7 @@ ProcCommand::Space()
     std::string output;
     std::string options = (pOpaque->Get("mgm.options")) ?
                           pOpaque->Get("mgm.options") : "";
-    gOFS->mFileInspector->Dump(output, options);
+    gOFS->mFileInspector->Dump(output, options, FileInspector::LockFsView::On);
     stdOut += output.c_str();
     retc = 0;
   }

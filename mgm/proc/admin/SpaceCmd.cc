@@ -1398,7 +1398,8 @@ void SpaceCmd::InspectorSubcmd(const eos::console::SpaceProto_InspectorProto&
   auto space_it = FsView::gFsView.mSpaceView.find(inspector.mgmspace());
 
   if (space_it != FsView::gFsView.mSpaceView.end()) {
-    space_it->second->mFileInspector->Dump(std_out, options);
+    space_it->second->mFileInspector->Dump(std_out, options,
+                                           FileInspector::LockFsView::Off);
     reply.set_std_out(std_out);
     reply.set_retc(0);
   } else {
