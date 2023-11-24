@@ -218,6 +218,20 @@ QuarkContainerMD::findItem(const std::string& name)
   return FileOrContainerMD {};
 }
 
+//----------------------------------------------------------------------------
+//! Find item read locked
+//----------------------------------------------------------------------------
+FileOrContainerMDLocked<IContainerMD::IContainerMDReadLocker,IFileMDReadLocker> QuarkContainerMD::findItemReadLocked(const std::string& name) {
+  return findItemLocked<IContainerMDReadLocker,IFileMDReadLocker>(name);
+}
+
+//----------------------------------------------------------------------------
+//! Find item write locked
+//----------------------------------------------------------------------------
+FileOrContainerMDLocked<IContainerMD::IContainerMDWriteLocker,IFileMDWriteLocker>  QuarkContainerMD::findItemWriteLocked(const std::string& name) {
+  return findItemLocked<IContainerMDWriteLocker,IFileMDWriteLocker>(name);
+}
+
 //------------------------------------------------------------------------------
 // Remove container
 //------------------------------------------------------------------------------
@@ -299,6 +313,20 @@ QuarkContainerMD::findFile(const std::string& name)
   return this->findItem(name).get().file;
 }
 
+//----------------------------------------------------------------------------
+//! Find file and read lock it. Returns nullptr in case the file is not found
+//----------------------------------------------------------------------------
+std::unique_ptr<IFileMDReadLocker> QuarkContainerMD::findFileReadLocked(const std::string & name) {
+  return findItemReadLocked(name).fileLocked;
+}
+
+//----------------------------------------------------------------------------
+//! Find file and write lock it. Returns nullptr in case the file is not found
+//----------------------------------------------------------------------------
+std::unique_ptr<IFileMDWriteLocker> QuarkContainerMD::findFileWriteLocked(const std::string & name) {
+  return findItemWriteLocked(name).fileLocked;
+}
+
 //------------------------------------------------------------------------------
 // Find subcontainer, asynchronous API
 //------------------------------------------------------------------------------
@@ -318,16 +346,21 @@ QuarkContainerMD::findContainer(const std::string& name)
 }
 
 //----------------------------------------------------------------------------
-//! Find sub container and write lock it
+//! Find sub container and write lock it, returns nullptr if container does not exist
 //----------------------------------------------------------------------------
 IContainerMD::IContainerMDWriteLockerPtr
-QuarkContainerMD::findContainerAndWriteLock(const std::string & name)
+QuarkContainerMD::findContainerWriteLocked(const std::string & name)
 {
-  auto container = this->findItem(name).get().container;
-  if(container) {
-    return std::make_unique<IContainerMD::IContainerMDWriteLocker>(container);
-  }
-  return nullptr;
+  return findItemWriteLocked(name).containerLocked;
+}
+
+//----------------------------------------------------------------------------
+//! Find sub container and read lock it, returns nullptr if container does not exist
+//----------------------------------------------------------------------------
+IContainerMD::IContainerMDReadLockerPtr
+QuarkContainerMD::findContainerReadLocked(const std::string & name)
+{
+  return findItemReadLocked(name).containerLocked;
 }
 
 //------------------------------------------------------------------------------
