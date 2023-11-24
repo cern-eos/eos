@@ -4,7 +4,7 @@
   missingok
   daily
   copytruncate
-  create 755 root root
+  create 644 daemon daemon
   dateext
   rotate 200
   compress
@@ -15,7 +15,7 @@
   missingok
   daily
   copytruncate
-  create 755 root root
+  create 644 daemon daemon
   dateext
   rotate 200
   compress
@@ -26,7 +26,7 @@
   missingok
   daily
   copytruncate
-  create 755 root root
+  create 644 daemon daemon
   dateext
   rotate 200
   compress
