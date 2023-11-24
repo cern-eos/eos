@@ -313,7 +313,8 @@ RainMetaLayout::Open(XrdSfsFileOpenMode flags, mode_t mode, const char* opaque)
 
     if (open_futures[i].valid()) {
       if (open_futures[i].get().IsOK()) {
-        if (!hd->ReadFromFile(mStripe[i].get(), mTimeout)) {
+        if (!hd->ReadFromFile(mStripe[i].get(), mTimeout) &&
+            (flags & SFS_O_CREAT == 0)) {
           eos_warning("msg=\"failed reading header\" url=\"%s\"",
                       stripe_urls[i].c_str());
         }
