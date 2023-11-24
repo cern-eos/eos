@@ -79,9 +79,9 @@ metad::init(backend* _mdbackend)
   mdbackend = _mdbackend;
   std::string mdstream;
   // load the root node
-  fuse_req_t req = 0;
+  fuse_id fuseid;
   XrdSysMutexHelper mLock(mdmap);
-  update(req, mdmap[1], "", true);
+  update(fuseid, mdmap[1], "", true);
   mdmap.init(EosFuse::Instance().getKV());
   dentrymessaging = false;
   writesizeflush = false;
@@ -1029,6 +1029,15 @@ void
 metad::update(fuse_req_t req, shared_md md, std::string authid,
               bool localstore)
 {
+  fuse_id id(req);
+  return update(id, md, authid, localstore);
+}
+
+/* -------------------------------------------------------------------------- */
+void
+metad::update(fuse_id fuseid, shared_md md, std::string authid,
+              bool localstore)
+{
   mdflush.Lock();
   stat.inodes_backlog_store(mdqueue.size());
   const uint64_t id = (*md)()->id();
@@ -1039,7 +1048,7 @@ metad::update(fuse_req_t req, shared_md md, std::string authid,
     wait_backlog(id, 1);
   }
 
-  flushentry fe(id, authid, localstore ? mdx::LSTORE : mdx::UPDATE, req);
+  flushentry fe(id, authid, localstore ? mdx::LSTORE : mdx::UPDATE, fuseid);
   if (!localstore) {
     fe.bind();
   }

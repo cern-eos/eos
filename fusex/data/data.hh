@@ -30,6 +30,7 @@
 #include "data/cache.hh"
 #include "data/io.hh"
 #include "data/cachehandler.hh"
+#include "misc/FuseId.hh"
 #include "md/md.hh"
 #include "cap/cap.hh"
 #include "common/AssistedThread.hh"
@@ -315,6 +316,7 @@ public:
     shared_data data;
     cap::shared_cap cap_;
     metad::shared_md md;
+    fuse_id id;
     bool rw;
     bool flocked;
     std::string _authid;
@@ -324,11 +326,12 @@ public:
     uint64_t _opensize; // size at the moment of opening the file
     eos::common::SymKey::hmac_t hmac; /// obfuscation/encryption cipher
 
-    _data_fh(shared_data _data, metad::shared_md _md, bool _rw)
+    _data_fh(shared_data _data, metad::shared_md _md, bool _rw, fuse_id _id)
     {
       data = _data;
       md = _md;
       rw = _rw;
+      id = _id;
       flocked = false;
       update_mtime_on_flush.store(false, std::memory_order_seq_cst);
       next_size_flush.store(0, std::memory_order_seq_cst);
@@ -338,9 +341,9 @@ public:
 
     ~_data_fh() { }
 
-    static struct _data_fh* Instance(shared_data io, metad::shared_md md, bool rw)
+    static struct _data_fh* Instance(shared_data io, metad::shared_md md, bool rw, fuse_id id)
     {
-      return new struct _data_fh(io, md, rw);
+      return new struct _data_fh(io, md, rw, id);
     }
 
     shared_data ioctx()
@@ -351,6 +354,11 @@ public:
     metad::shared_md mdctx()
     {
       return md;
+    }
+
+    fuse_id fuseid()
+    {
+      return id;
     }
 
     std::string authid() const

@@ -782,7 +782,7 @@ EosFuse::run(int argc, char* argv[], void* userdata)
       }
 
       if (!root["options"].isMember("global-flush")) {
-        root["options"]["global-flush"] = 1;
+        root["options"]["global-flush"] = 0;
       }
 
       if (!root["options"].isMember("global-locking")) {
@@ -4778,8 +4778,8 @@ EosFuse::open(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info* fi)
             std::string obfuscation_key = md->obfuscate_key();
             mLock.UnLock();
             data::data_fh* io = data::data_fh::Instance(Instance().datas.get(req,
-                                (*md)()->id(),
-                                md), md, (mode == U_OK));
+									     (*md)()->id(),
+									     md), md, (mode == U_OK), id);
             capLock.Lock(&pcap->Locker());
             io->set_authid((*pcap)()->authid());
 
@@ -5113,8 +5113,8 @@ The O_NONBLOCK flag was specified, and an incompatible lease was held on the fil
               std::string cookie = md->Cookie();
               mLock.UnLock();
               data::data_fh* io = data::data_fh::Instance(Instance().datas.get(req,
-                                  (*md)()->id(),
-                                  md), md, true);
+									       (*md)()->id(),
+									       md), md, true, id);
               io->set_authid((*pcap)()->authid());
               io->set_maxfilesize((*pcap)()->max_file_size());
               io->cap_ = pcap;
@@ -5229,9 +5229,11 @@ EosFuse::write(fuse_req_t req, fuse_ino_t ino, const char* buf, size_t size,
   eos::common::Timing timing(__func__);
   COMMONTIMING("_start_", &timing);
   Track::Monitor mon("write", "io", Instance().Tracker(), req, ino, true);
-  eos_static_debug("inode=%lld size=%lld off=%lld buf=%lld",
+  eos_static_debug("inode=%lld size=%lld off=%lld buf=%lld uid=%u gid=%u",
                    (long long) ino, (long long) size,
-                   (long long) off, (long long) buf);
+                   (long long) off, (long long) buf,
+		   fuse_req_ctx(req)->uid,
+		   fuse_req_ctx(req)->gid );
   eos_static_debug("");
   fuse_id id(req);
   ADD_FUSE_STAT(__func__, req);
@@ -5290,7 +5292,8 @@ EosFuse::write(fuse_req_t req, fuse_ino_t ino, const char* buf, size_t size,
                   // only start updating the MGM size if the file could be opened on FSTs
                   if (io->next_size_flush.load() && (io->next_size_flush.load() < now)) {
                     // if (io->cap_->valid()) // we want updates also after cap expiration
-                    Instance().mds.update(req, io->md, io->authid());
+		    // use the identity used during the open call !
+                    Instance().mds.update(io->fuseid(), io->md, io->authid());
                     io->next_size_flush.store(now +
                                               Instance().Config().options.write_size_flush_interval,
                                               std::memory_order_seq_cst);
@@ -5572,7 +5575,7 @@ EosFuse::flush(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info* fi)
             invalidate_inode = true;
             (*(io->md))()->set_size(io->opensize());
           } else {
-            Instance().mds.update(req, io->md, io->authid());
+            Instance().mds.update(io->fuseid(), io->md, io->authid());
           }
 
           std::string cookie = io->md->Cookie();
