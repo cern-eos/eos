@@ -602,6 +602,11 @@ public:
               std::string authid,
               bool localstore = false);
 
+  void update(fuse_id id,
+              shared_md md,
+              std::string authid,
+              bool localstore = false);
+
   void add(fuse_req_t req, shared_md pmd, shared_md md, std::string authid,
            bool localstore = false);
   int add_sync(fuse_req_t req, shared_md pmd, shared_md md, std::string authid);
@@ -862,6 +867,12 @@ public:
       if (req) {
         _fuse_id = fuse_id(req);
       }
+    };
+
+    flushentry(const uint64_t id, const std::string& aid, mdx::md_op o,
+               fuse_id fuseid) : _id(id), _authid(aid), _op(o)
+    {
+      _fuse_id = fuseid;
     };
 
     ~flushentry() { }

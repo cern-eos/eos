@@ -28,6 +28,7 @@
 #include "common/SymKeys.hh"
 #include "misc/FuseId.hh"
 #include "auth/Logbook.hh"
+#include "auth/LoginIdentifier.hh"
 #include <algorithm>
 #include <regex>
 #ifdef __APPLE__
@@ -106,30 +107,55 @@ int fusexrdlogin::loginurl(XrdCl::URL& url,
   id.uid = uid;
   id.gid = gid;
   id.pid = pid;
-  ProcessSnapshot snapshot = processCache->retrieve(id.pid, id.uid, id.gid,
-                             false);
-  std::string username = "nobody";
 
+  bool fallback = false;
+  std::string username = "nobody";
+  paramsMap["fuse.ver"] = VERSION;
+  paramsMap["fuse.pid"] = std::to_string(id.pid);
+  paramsMap["fuse.uid"] = std::to_string(id.uid);
+  paramsMap["fuse.gid"] = std::to_string(id.gid);
+
+  ProcessSnapshot snapshot = processCache->retrieve(id.pid, id.uid, id.gid,
+						    false);
   if (snapshot) {
     username = snapshot->getBoundIdentity()->getLogin().getStringID();
     snapshot->getBoundIdentity()->getCreds()->toXrdParams(paramsMap);
     paramsMap["fuse.exe"] = fillExeName(snapshot->getExe());
-    paramsMap["fuse.pid"] = std::to_string(id.pid);
-    paramsMap["fuse.uid"] = std::to_string(id.uid);
-    paramsMap["fuse.gid"] = std::to_string(id.gid);
-    paramsMap["fuse.ver"] = VERSION;
+  } else {
+    if (uid && EosFuse::Instance().Config().auth.use_user_unix) {
+      // fallback to the unix user if we have a problem snapshotting a process
+      LoginIdentifier lIdentifier (id.uid, id.gid, id.pid, 0);
+      username = lIdentifier.describe();
+      paramsMap["xrd.wantprot"] = "unix";
+      paramsMap["xrdcl.secuid"] = std::to_string(uid);
+      paramsMap["xrdcl.secgid"] = std::to_string(gid);
+      fallback = true;
+    }
   }
 
   url.SetUserName(username);
   int rc = 0;
-  eos_static_notice("%s uid=%u gid=%u rc=%d user-name=%s url=%s",
-                    EosFuse::dump(id, ino, 0, rc).c_str(),
-                    id.uid,
-                    id.gid,
-                    rc,
-                    username.c_str(),
-		    url.GetURL().c_str()
-                   );
+
+  if (fallback) {
+    eos_static_warning("[unix-fallback] %s uid=%u gid=%u pid=%u user-name=%s url=%s",
+		       EosFuse::dump(id, ino, 0, rc).c_str(),
+		       id.uid,
+		       id.gid,
+		       id.pid,
+		       username.c_str(),
+		       url.GetURL().c_str()
+		       );
+
+  } else {
+    eos_static_notice("%s uid=%u gid=%u rc=%d user-name=%s url=%s",
+		      EosFuse::dump(id, ino, 0, rc).c_str(),
+		      id.uid,
+		      id.gid,
+		      rc,
+		      username.c_str(),
+		      url.GetURL().c_str()
+		      );
+  }
   return rc;
 }
 
