@@ -54,6 +54,11 @@ public:
     interval; //< Run FileInspector cleanup every this many seconds
   };
 
+  enum LockFsView : bool {
+    Off = false,
+    On  = true
+  };
+
   //----------------------------------------------------------------------------
   //! Constructor
   //!
@@ -71,9 +76,9 @@ public:
   //----------------------------------------------------------------------------
   void performCycleQDB(ThreadAssistant& assistant) noexcept;
 
-  void Dump(std::string& out, std::string_view options);
+  void Dump(std::string& out, std::string_view options, const LockFsView lockfsview);
 
-  Options getOptions();
+  Options getOptions(const LockFsView lockfsview);
 
   inline bool enabled()
   {

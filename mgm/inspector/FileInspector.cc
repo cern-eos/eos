@@ -68,13 +68,16 @@ FileInspector::~FileInspector()
 //------------------------------------------------------------------------------
 // Retrieve current file inspector configuration options
 //------------------------------------------------------------------------------
-FileInspector::Options FileInspector::getOptions()
+FileInspector::Options FileInspector::getOptions(const LockFsView lockfsview)
 {
   FileInspector::Options opts;
   // Default options
   opts.enabled = false;
   opts.interval = std::chrono::minutes(4 * 60);
-  eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
+  eos::common::RWMutexReadLock lock;
+
+  if (lockfsview == LockFsView::On)
+    lock.Grab(FsView::gFsView.ViewMutex);
 
   if (FsView::gFsView.mSpaceView.count(mSpaceName)) {
     if (FsView::gFsView.mSpaceView[mSpaceName]->GetConfigMember("inspector") ==
@@ -147,7 +150,7 @@ FileInspector::backgroundThread(ThreadAssistant& assistant) noexcept
 {
   gOFS->WaitUntilNamespaceIsBooted(assistant);
   // set the initial state after boot
-  Options opts = getOptions();
+  Options opts = getOptions(LockFsView::On);
 
   if (opts.enabled) {
     enable();
@@ -159,7 +162,7 @@ FileInspector::backgroundThread(ThreadAssistant& assistant) noexcept
   eos_static_info("msg=\"async thread started\"");
 
   while (!assistant.terminationRequested()) {
-    Options opts = getOptions();
+    Options opts = getOptions(LockFsView::On);
 
     // Only a master needs to run a FileInspector
     if (opts.enabled) {
@@ -206,7 +209,7 @@ void FileInspector::performCycleQDB(ThreadAssistant& assistant) noexcept
     nfiles = (unsigned long long) gOFS->eosFileService->getNumFiles();
     ndirs = (unsigned long long) gOFS->eosDirectoryService->getNumContainers();
   }
-  Options opts = getOptions();
+  Options opts = getOptions(LockFsView::On);
   uint64_t interval = opts.interval.count();
   FileScanner scanner(*(mQcl.get()));
   time_t c_time = s_time;
@@ -246,7 +249,7 @@ void FileInspector::performCycleQDB(ThreadAssistant& assistant) noexcept
 
       if ((time(NULL) - c_time) > 60) {
         c_time = time(NULL);
-        Options opts = getOptions();
+        Options opts = getOptions(LockFsView::On);
         interval = opts.interval.count();
 
         if (!opts.enabled) {
@@ -514,7 +517,8 @@ FileInspector::Process(std::shared_ptr<eos::IFileMD> fmd)
 // Dump current status
 //------------------------------------------------------------------------------
 void
-FileInspector::Dump(std::string& out, std::string_view options)
+FileInspector::Dump(std::string& out, std::string_view options,
+                    const LockFsView lockfsview)
 {
   char line[4096];
   time_t now = time(NULL);
@@ -803,7 +807,7 @@ FileInspector::Dump(std::string& out, std::string_view options)
     return;
   }
   
-  Options opts = getOptions();
+  Options opts = getOptions(lockfsview);
   out += "# ";
   out += std::to_string((int)(scanned_percent.load()));
   out += " % done - estimate to finish: ";
