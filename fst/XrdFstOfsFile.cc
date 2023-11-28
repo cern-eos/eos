@@ -1431,25 +1431,16 @@ XrdFstOfsFile::close()
   // the current object. This was confusing when logging the error.getErrInfo()
   // value at the end of the close.
   error.setErrCode(0);
-  static bool enabled_async_close = IsAsyncCloseEnabled();
+  static bool async_close_cfg = IsAsyncCloseConfigured();
 
-  if (!enabled_async_close) {
-    return _close();
-  }
-
-  static uint64_t min_size_async_close = GetAsyncCloseMinSize();
-
-  // Even if async close is enabled there are some cases when close happens in
-  // the same XRootD thread
-  if (viaDelete || mWrDelete || mIsDevNull || (mIsRW == false) || mIsHttp ||
-      (mIsRW && (mMaxOffsetWritten <= min_size_async_close))) {
+  if (!async_close_cfg || DoSyncClose()) {
     return _close();
   }
 
   // Delegate close to a different thread while the client is waiting for the
   // callback (SFS_STARTED). This only happens for written files with size
-  // bigger than min size bytes async close
-  eos_info("msg=\"close delegated to async thread \" fxid=%08llx "
+  // bigger than min size bytes.
+  eos_info("msg=\"close delegated to async thread\" fxid=%08llx "
            "ns_path=\"%s\" fs_path=\"%s\"", mFileId, mNsPath.c_str(),
            mFstPath.c_str());
   // Create a close callback and put the client in waiting mode
@@ -4217,10 +4208,10 @@ XrdFstOfsFile::GetHostFromTident(const std::string& tident,
 }
 
 //------------------------------------------------------------------------------
-// Check if async close is enabled
+// Check if async close is configured
 //------------------------------------------------------------------------------
 bool
-XrdFstOfsFile::IsAsyncCloseEnabled()
+XrdFstOfsFile::IsAsyncCloseConfigured()
 {
   const char* ptr = getenv("EOS_FST_ASYNC_CLOSE");
 
@@ -4229,6 +4220,34 @@ XrdFstOfsFile::IsAsyncCloseEnabled()
   }
 
   return true;
+}
+
+
+//------------------------------------------------------------------------------
+// Decide if close should be done synchronously. There are cases when close
+// should happen in the same thread eg. read, http tx, sink writes etc.
+//----------------------------------------------------------------------------
+bool
+XrdFstOfsFile::DoSyncClose()
+{
+  static uint64_t min_size_async_close = GetAsyncCloseMinSize();
+
+  // Even if async close is enabled there are some cases when close happens in
+  // the same XRootD thread
+  if (viaDelete || mWrDelete || mIsDevNull || (mIsRW == false) || mIsHttp ||
+      (mIsRW && (mMaxOffsetWritten <= min_size_async_close))) {
+    return true;
+  }
+
+  // For RAIN layouts especially only the entry server should do an async close.
+  // If all stripes are on the same FST (which is not a good idea) there is a
+  // risk that the thread pool for handling close requests will deadlock as
+  // some close requests will wait forever for queued depended close ops.
+  if (mIsRW && mLayout && !mLayout->IsEntryServer()) {
+    return true;
+  }
+
+  return false;
 }
 
 //------------------------------------------------------------------------------

@@ -469,11 +469,11 @@ public:
   static uint64_t GetAsyncCloseMinSize();
 
   //----------------------------------------------------------------------------
-  //! Check if async close is enabled
+  //! Check if async close is configured
   //!
   //! @return true if enabled, otherwise false
   //----------------------------------------------------------------------------
-  static bool IsAsyncCloseEnabled();
+  static bool IsAsyncCloseConfigured();
 
   //----------------------------------------------------------------------------
   //! Get hostname from tident. This is used when checking the origin match for
@@ -827,6 +827,14 @@ public:
   //----------------------------------------------------------------------------
   int SendArchiveFailedToManager(const uint64_t fid,
                                  const std::string& errmsg);
+
+  //----------------------------------------------------------------------------
+  //! Decide if close should be done synchronously. There are cases when close
+  //! should happen in the same thread eg. read, http tx, sink writes etc.
+  //!
+  //! @return true if close is synchronous, otherwise false
+  //----------------------------------------------------------------------------
+  bool DoSyncClose();
 };
 
 //------------------------------------------------------------------------------
