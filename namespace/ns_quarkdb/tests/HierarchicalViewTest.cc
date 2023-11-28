@@ -1248,7 +1248,7 @@ TEST_F(HierarchicalViewF, getFileAfterBeingRenamed)
     view()->renameFile(file.get(), "file2");
     view()->updateContainerStore(root.get());
     fileRenamed = true;
-    ::sleep(sleepSeconds);
+    std::this_thread::sleep_for(std::chrono::seconds(sleepSeconds));
   });
   std::chrono::time_point<std::chrono::steady_clock> start;
   std::chrono::time_point<std::chrono::steady_clock> stop;
