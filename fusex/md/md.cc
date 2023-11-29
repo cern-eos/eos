@@ -2777,7 +2777,6 @@ metad::mdcallback(ThreadAssistant& assistant)
                 kill(getpid(), SIGTERM);
               }
 
-              pause();
             }
           }
         }
