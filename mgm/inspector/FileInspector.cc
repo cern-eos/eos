@@ -323,6 +323,7 @@ void FileInspector::performCycleQDB(ThreadAssistant& assistant) noexcept
   currentBirthTimeVolume.clear();
   currentBirthVsAccessTimeFiles.clear();
   currentBirthVsAccessTimeVolume.clear();
+  currentNumFaultyFiles = 0;
   for (auto n=0; n<2; n++) {
     currentUserCosts[n].clear();
     currentGroupCosts[n].clear();
@@ -360,8 +361,11 @@ FileInspector::Process(std::shared_ptr<eos::IFileMD> fmd)
   // no location files
   if (!fmd->getNumLocation()) {
     currentScanStats[lid]["nolocation"]++;
-    currentFaultyFiles["nolocation"].insert
-    (std::make_pair(fmd->getId(), fmd->getLayoutId()));
+    if (currentNumFaultyFiles < maxfaulty) {
+      currentFaultyFiles["nolocation"].insert
+      (std::make_pair(fmd->getId(), fmd->getLayoutId()));
+    }
+    currentNumFaultyFiles++;
   }
 
   eos::IFileMD::LocationVector l = fmd->getLocations();
@@ -371,8 +375,11 @@ FileInspector::Process(std::shared_ptr<eos::IFileMD> fmd)
     if (!FsView::gFsView.HasMapping(fs)) {
       // shadow filesystem
       currentScanStats[lid]["shadowlocation"]++;
-      currentFaultyFiles["shadowlocation"].insert
-      (std::make_pair(fmd->getId(), fmd->getLayoutId()));
+      if (currentNumFaultyFiles < maxfaulty) {
+        currentFaultyFiles["shadowlocation"].insert
+        (std::make_pair(fmd->getId(), fmd->getLayoutId()));
+      }
+      currentNumFaultyFiles++;
     }
   }
 
@@ -380,8 +387,11 @@ FileInspector::Process(std::shared_ptr<eos::IFileMD> fmd)
     if (!FsView::gFsView.HasMapping(fs)) {
       // shadow filesystem
       currentScanStats[lid]["shadowdeletion"]++;
-      currentFaultyFiles["shadowdeletion"].insert
-      (std::make_pair(fmd->getId(), fmd->getLayoutId()));
+      if (currentNumFaultyFiles < maxfaulty) {
+        currentFaultyFiles["shadowdeletion"].insert
+        (std::make_pair(fmd->getId(), fmd->getLayoutId()));
+      }
+      currentNumFaultyFiles++;
     }
   }
 
@@ -396,15 +406,16 @@ FileInspector::Process(std::shared_ptr<eos::IFileMD> fmd)
 
   if (sdiff == 0) {
     tag += "0";
-  } else if (sdiff < 0) {
-    tag += std::to_string(sdiff);
-    currentFaultyFiles[tag].insert(std::make_pair(fmd->getId(),
-                                   fmd->getLayoutId()));
   } else {
-    tag += "+";
+    if (sdiff > 0) {
+      tag += "+";
+    }
     tag += std::to_string(sdiff);
-    currentFaultyFiles[tag].insert(std::make_pair(fmd->getId(),
-                                   fmd->getLayoutId()));
+    if (currentNumFaultyFiles < maxfaulty) {
+      currentFaultyFiles[tag].insert(std::make_pair(fmd->getId(),
+                                     fmd->getLayoutId()));
+    }
+    currentNumFaultyFiles++;
   }
 
 #define UNDEFINED_BIN (100 *365 * 86400.0)
