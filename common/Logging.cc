@@ -431,13 +431,18 @@ LogBuffer::log_thread() {
             /* unchain */
             buff = active_head;
             active_head = active_head->h.next;
-            if (active_head == NULL) active_tail = NULL;
+            bool null_active_head = active_head == NULL;
+            if (null_active_head) {
+              active_tail = NULL;
+            }
             log_buffer_in_q--;
 
             guard.unlock();                                 /* drop while buffer is printed */
 
             fprintf(stderr, "%s\n", buff->buffer);
-            if (active_head == NULL) fflush(stderr);        /* only flush if there's no other */
+            if (null_active_head) {
+              fflush(stderr);        /* only flush if there's no other */
+            }
 
             if (eos::common::Logging::GetInstance().gToSysLog) {
               syslog(buff->h.priority, "%s", buff->h.ptr);
