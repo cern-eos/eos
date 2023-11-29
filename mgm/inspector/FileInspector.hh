@@ -154,8 +154,8 @@ private:
   std::map<gid_t, uint64_t> currentGroupCosts[2];
   std::multimap<uint64_t,gid_t> lastCostsGroups[2];
   
-  double lastUserTotalCosts[2];
-  double lastGroupTotalCosts[2];
+  double lastUserTotalCosts[2] = {0};
+  double lastGroupTotalCosts[2] = {0};
 
   //! User Bytes Bins
   std::map<uid_t, uint64_t> lastUserBytes[2];
@@ -167,8 +167,11 @@ private:
   std::map<gid_t, uint64_t> currentGroupBytes[2];
   std::multimap<uint64_t,gid_t> lastBytesGroups[2];
   
-  double lastUserTotalBytes[2];
-  double lastGroupTotalBytes[2];
+  double lastUserTotalBytes[2] = {0};
+  double lastGroupTotalBytes[2] = {0};
+
+  //! Running count of number of faulty files found
+  uint64_t currentNumFaultyFiles = 0;
   
   std::atomic<double> PriceTbPerYearDisk;
   std::atomic<double> PriceTbPerYearTape;
@@ -184,6 +187,9 @@ private:
 
   std::mutex mutexScanStats;
   std::string mSpaceName; ///< Corresponding space name
+
+  //! Maximum number of faulty files to record
+  static constexpr uint64_t maxfaulty = 1'000'000;
 };
 
 
