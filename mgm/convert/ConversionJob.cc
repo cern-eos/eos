@@ -510,9 +510,12 @@ ConversionJob::Merge()
                                           response, timeout);
 
     if (!status.IsOK() || (response->ToString() != "OK")) {
-      eos_static_err("msg=\"failed local rename on file system\" fsid=%u "
-                     "status=%d err_msg=\"%s\"", loc, status.IsOK(),
-                     status.GetErrorMessage().c_str());
+      eos_static_err("msg=\"failed local rename on file system\" "
+                     "orig_fxid=%08llx conv_fxid=%08llx fsid=%u "
+                     "status=%d err_msg=\"%s\" response=\"%s\"",
+                     orig_fid, conv_fid, loc, status.IsOK(),
+                     status.GetErrorMessage().c_str(),
+                     response->ToString().c_str());
       failed_rename = true;
       delete response;
       break;
@@ -531,8 +534,8 @@ ConversionJob::Merge()
     try {
       orig_fmd = gOFS->eosFileService->getFileMD(orig_fid);
     } catch (const eos::MDException& e) {
-      eos_static_err("msg=\"failed to retrieve file metadata\" msg=\"%s\"",
-                     e.what());
+      eos_static_err("msg=\"failed to retrieve file metadata\" msg=\"%s\" "
+                     "orig_fxid=%08llx", e.what(), orig_fid);
       return false;
     }
 
