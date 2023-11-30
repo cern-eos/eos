@@ -864,13 +864,13 @@ XrdFstOfs::Configure(XrdSysError& Eroute, XrdOucEnv* envP)
 
   if (!mMessagingRealm->haveQDB()) {
     RequestBroadcasts();
+    // Start dumper thread
+    XrdOucString dumperfile = gConfig.FstMetaLogDir;
+    dumperfile += "so.fst.dump.";
+    dumperfile += gConfig.FstHostPort;
+    ObjectManager.StartDumper(dumperfile.c_str());
   }
 
-  // Start dumper thread
-  XrdOucString dumperfile = gConfig.FstMetaLogDir;
-  dumperfile += "so.fst.dump.";
-  dumperfile += gConfig.FstHostPort;
-  ObjectManager.StartDumper(dumperfile.c_str());
   // Start the embedded HTTP server
   mHttpdPort = 8001;
 
