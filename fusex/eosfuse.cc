@@ -4072,7 +4072,7 @@ EROFS  pathname refers to a file on a read-only filesystem.
           (*md)()->set_type((*md)()->MD);
 
           if (!rc) {
-            Instance().mds.insert(req, md, (*pcap2)()->authid());
+            Instance().mds.insert(md, (*pcap2)()->authid());
             memset(&e, 0, sizeof(e));
             md->convert(e, pcap2->lifetime());
             md->lookup_inc();
@@ -5069,7 +5069,7 @@ The O_NONBLOCK flag was specified, and an incompatible lease was held on the fil
           (*md)()->set_type((*md)()->MD);
 
           if (!rc) {
-            Instance().mds.insert(req, md, (*pcap)()->authid());
+            Instance().mds.insert(md, (*pcap)()->authid());
             (*md)()->set_nlink(1);
             (*md)()->set_creator(true);
             // avoid lock-order violation
@@ -6812,7 +6812,7 @@ EosFuse::symlink(fuse_req_t req, const char* link, fuse_ino_t parent,
       (*md)()->set_type((*md)()->MD);
 
       if (!rc) {
-        Instance().mds.insert(req, md, (*pcap)()->authid());
+        Instance().mds.insert(md, (*pcap)()->authid());
         XrdSysMutexHelper pLock(pmd->Locker());
         pmd->local_enoent().erase(name);
       }
@@ -6939,7 +6939,7 @@ EosFuse::link(fuse_req_t req, fuse_ino_t ino, fuse_ino_t parent,
         rc = Instance().mds.add_sync(req, pmd, md, (*pcap)()->authid());
 
         if (!rc) {
-          Instance().mds.insert(req, md, (*pcap)()->authid());
+          Instance().mds.insert(md, (*pcap)()->authid());
         }
 
         (*md)()->set_target("");
