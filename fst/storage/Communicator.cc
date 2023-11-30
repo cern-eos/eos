@@ -478,10 +478,15 @@ static std::string ExtractFsPath(const std::string& key)
 void Storage::UpdateRegisteredFs(ThreadAssistant& assistant) noexcept
 {
   while (!assistant.terminationRequested()) {
-    std::unique_lock lock(mMutexRegisterFs);
-    mCvRegisterFs.wait(lock, [&] {return mTriggerRegisterFs;});
-    eos_static_info("%s", "msg=\"update registered file systems\"");
-    mTriggerRegisterFs = false;
+    {
+      // Reduce scope of mutex to avoid coupling the the SignalRegisterThread
+      // which is called from the QClient event loop with other QClient requests
+      // like the QScanner listing below - this will lead to a deadlock!!!
+      std::unique_lock lock(mMutexRegisterFs);
+      mCvRegisterFs.wait(lock, [&] {return mTriggerRegisterFs;});
+      eos_static_info("%s", "msg=\"update registered file systems\"");
+      mTriggerRegisterFs = false;
+    }
     qclient::QScanner scanner(*gOFS.mMessagingRealm->getQSom()->getQClient(),
                               SSTR("eos-hash||fs||" << gConfig.FstHostPort << "||*"));
     std::set<std::string> new_filesystems;
@@ -514,7 +519,10 @@ void Storage::UpdateRegisteredFs(ThreadAssistant& assistant) noexcept
     if (!partial_filesystems.empty()) {
       // Reset register trigger flag and remove partial file systems so
       // that we properly register them in them next loop.
-      mTriggerRegisterFs = true;
+      {
+        std::unique_lock lock(mMutexRegisterFs);
+        mTriggerRegisterFs = true;
+      }
 
       for (const auto& elem : partial_filesystems) {
         UnregisterFileSystem(elem);
