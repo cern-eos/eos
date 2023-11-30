@@ -199,11 +199,13 @@ TEST_F(FileSystemViewF, BasicSanity)
     view()->getFile(std::string("/test/embed/embed1/file1"))};
   ASSERT_EQ(view()->getUri(f.get()), "/test/embed/embed1/file1");
   f->unlinkAllLocations();
+  mdFlusher()->synchronize();
   numReplicas = countReplicas(fsview());
   ASSERT_EQ(numReplicas, 17195);
   numUnlinked = countUnlinked(fsview());
   ASSERT_EQ(numUnlinked, 2805);
   f->removeAllLocations();
+  mdFlusher()->synchronize();
   numUnlinked = countUnlinked(fsview());
   ASSERT_EQ(numUnlinked, 2800);
   view()->updateFileStore(f.get());
