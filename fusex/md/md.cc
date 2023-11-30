@@ -964,7 +964,7 @@ metad::get(fuse_req_t req,
 
 /* -------------------------------------------------------------------------- */
 uint64_t
-metad::insert(fuse_req_t req, metad::shared_md md, std::string authid)
+metad::insert(metad::shared_md md, std::string authid)
 {
   {
     if (EOS_LOGS_DEBUG) {
@@ -1877,7 +1877,7 @@ metad::apply(fuse_req_t req, eos::fusex::container& cont, bool listing)
     if (is_new) {
       // in this case we need to create a new one
       (*md)()->set_id(md_ino);
-      uint64_t new_ino = insert(req, md, (*md)()->authid());
+      uint64_t new_ino = insert(md, (*md)()->authid());
       ino = new_ino;
     }
 
@@ -2148,7 +2148,7 @@ metad::apply(fuse_req_t req, eos::fusex::container& cont, bool listing)
         uint64_t new_ino = 0;
         new_ino = inomap.forward((*md)()->md_ino());
         (*md)()->set_id(new_ino);
-        insert(req, md, (*md)()->authid());
+        insert(md, (*md)()->authid());
 
         if (!listing) {
           p_ino = inomap.forward((*md)()->md_pino());
@@ -2966,8 +2966,7 @@ metad::mdcallback(ThreadAssistant& assistant)
     }
 
     if (rsp->type() == rsp->MD) {
-      fuse_req_t req = 0;
-      memset(&req, 0, sizeof(fuse_req_t));
+      fuse_id fuseid;
       uint64_t md_ino = rsp->md_().md_ino();
       std::string authid = rsp->md_().authid();
       uint64_t ino = inomap.forward(md_ino);
@@ -3026,7 +3025,7 @@ metad::mdcallback(ThreadAssistant& assistant)
         }
 
         // update the local store
-        update(req, md, authid, true);
+        update(fuseid, md, authid, true);
         std::string name = (*md)()->name();
         md->Locker().UnLock();
         // adjust local quota
@@ -3074,7 +3073,7 @@ metad::mdcallback(ThreadAssistant& assistant)
         md = std::make_shared<mdx>();
         *md = rsp->md_();
         (*md)()->set_id(md_ino);
-        insert(req, md, authid);
+        insert(md, authid);
         uint64_t md_pino = (*md)()->md_pino();
         std::string md_clientid = (*md)()->clientid();
         uint64_t md_size = (*md)()->size();

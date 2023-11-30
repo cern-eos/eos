@@ -588,8 +588,7 @@ public:
                 bool readdir = false
                );
 
-  uint64_t insert(fuse_req_t req,
-                  shared_md md,
+  uint64_t insert(shared_md md,
                   std::string authid);
 
   int wait_flush(fuse_req_t req,
