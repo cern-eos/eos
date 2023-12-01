@@ -38,7 +38,6 @@ class FileMapIterator
 public:
   FileMapIterator(IContainerMDPtr cont)
     : container(cont), iResized(false), iValid(false) {
-    IContainerMD::IContainerMDReadLocker locker(container);
     iter = cont->filesBegin();
     iGeneration = generation();
     if (!iterEnd()) {
