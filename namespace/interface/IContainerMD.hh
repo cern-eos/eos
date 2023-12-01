@@ -548,21 +548,6 @@ protected:
   //----------------------------------------------------------------------------
   virtual IContainerMD::FileMap copyFileMap() const = 0;
 
-  //----------------------------------------------------------------------------
-  //! Find an item and lock it
-  //----------------------------------------------------------------------------
-  template<typename ContainerMDLocker, typename FileMDLocker>
-  FileOrContainerMDLocked<ContainerMDLocker,FileMDLocker> findItemLocked(const std::string& name) {
-    FileOrContainerMDLocked<ContainerMDLocker,FileMDLocker> ret;
-    auto fileOrContMD = findItem(name).get();
-    if(fileOrContMD.container) {
-      ret.containerLocked = std::make_unique<ContainerMDLocker>(fileOrContMD.container);
-    } else if(fileOrContMD.file) {
-      ret.fileLocked = std::make_unique<FileMDLocker>(fileOrContMD.file);
-    }
-    return ret;
-  }
-
   mutable std::shared_timed_mutex mMutex;
 };
 

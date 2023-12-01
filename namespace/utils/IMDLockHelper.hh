@@ -20,6 +20,10 @@
 #define EOS_IMDLOCKHELPER_HH
 
 #include <memory>
+#include "namespace/interface/IContainerMD.hh"
+#include "namespace/Namespace.hh"
+
+EOSNSNAMESPACE_BEGIN
 
 class IMDLockHelper {
 public:
@@ -34,6 +38,26 @@ public:
   static std::unique_ptr<Locker> lock(MDPtr objectMDPtr) {
     return std::make_unique<Locker>(objectMDPtr);
   }
+
+  /**
+   * Convenient function to lock a File or a Container MD
+   * @tparam ContainerMDLocker The type of lock for the ContainerMD
+   * @tparam FileMDLocker The type of lock for the FileMD
+   * @param fileOrContMD the object containing either a FileMD or a ContainerMD
+   * @return the structure FileOrContainerMDLocked containing either a File or ContainerMD locked accordingly
+   */
+  template<typename ContainerMDLocker, typename FileMDLocker>
+  static FileOrContainerMDLocked<ContainerMDLocker, FileMDLocker> lock(eos::FileOrContainerMD fileOrContMD) {
+    FileOrContainerMDLocked<ContainerMDLocker,FileMDLocker> ret;
+    if(fileOrContMD.container) {
+      ret.containerLocked = std::make_unique<ContainerMDLocker>(fileOrContMD.container);
+    } else if(fileOrContMD.file) {
+      ret.fileLocked = std::make_unique<FileMDLocker>(fileOrContMD.file);
+    }
+    return ret;
+  };
 };
+
+EOSNSNAMESPACE_END
 
 #endif // EOS_IMDLOCKHELPER_HH
