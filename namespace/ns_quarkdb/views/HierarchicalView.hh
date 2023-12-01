@@ -29,6 +29,7 @@
 #include "namespace/interface/IFileMDSvc.hh"
 #include "namespace/interface/IView.hh"
 #include "namespace/ns_quarkdb/accounting/QuotaStats.hh"
+#include "namespace/utils/IMDLockHelper.hh"
 
 #ifdef __clang__
 #pragma clang diagnostic ignored "-Wunused-private-field"
@@ -386,27 +387,6 @@ private:
   //! @param cont container object
   //----------------------------------------------------------------------------
   void cleanUpContainer(IContainerMD* cont);
-
-
-  //----------------------------------------------------------------------------
-  //! Convenient method to get a file, lock it and return the unique_ptr of the locker object
-  //----------------------------------------------------------------------------
-  template<typename Locker>
-  std::unique_ptr<Locker> getFileLocked(const std::string & uri,
-                                        bool follow = true,
-                                        size_t * link_depths = 0) {
-    return std::make_unique<Locker>(getFile(uri,follow,link_depths));
-  }
-
-  //----------------------------------------------------------------------------
-  //! Convenient method to get a container, lock it and return the unique_ptr of the locker object
-  //----------------------------------------------------------------------------
-  template<typename Locker>
-  std::unique_ptr<Locker> getContainerLocked(const std::string & uri,
-                bool follow = true,
-                size_t * link_depths = 0){
-    return std::make_unique<Locker>(getContainer(uri,follow,link_depths));
-  }
 
   //----------------------------------------------------------------------------
   // Data members

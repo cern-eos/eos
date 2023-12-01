@@ -29,6 +29,7 @@
 #include "namespace/ns_quarkdb/QdbContactDetails.hh"
 #include "namespace/utils/StringConvertion.hh"
 #include "common/StacktraceHere.hh"
+#include "namespace/utils/IMDLockHelper.hh"
 #include <numeric>
 
 EOSNSNAMESPACE_BEGIN
@@ -175,7 +176,7 @@ QuarkFileMDSvc::getFileMD(IFileMD::id_t id, uint64_t* clock)
 //! Get the file metadata information for the given file ID and read lock it
 //------------------------------------------------------------------------
 IFileMD::IFileMDReadLockerPtr QuarkFileMDSvc::getFileMDReadLocked(IFileMD::id_t id) {
-  return getFileLocked<IFileMD::IFileMDReadLocker>(id,0);
+  return IMDLockHelper::lock<IFileMD::IFileMDReadLocker>(getFileMD(id,0));
 }
 
 
@@ -183,7 +184,7 @@ IFileMD::IFileMDReadLockerPtr QuarkFileMDSvc::getFileMDReadLocked(IFileMD::id_t 
 //! Get the file metadata information for the given file ID and write lock it
 //------------------------------------------------------------------------
 IFileMD::IFileMDWriteLockerPtr QuarkFileMDSvc::getFileMDWriteLocked(IFileMD::id_t id) {
-  return getFileLocked<IFileMD::IFileMDWriteLocker>(id,0);
+  return IMDLockHelper::lock<IFileMD::IFileMDWriteLocker>(getFileMD(id,0));
 }
 
 //------------------------------------------------------------------------------
