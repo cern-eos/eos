@@ -222,14 +222,14 @@ QuarkContainerMD::findItem(const std::string& name)
 //! Find item read locked
 //----------------------------------------------------------------------------
 FileOrContainerMDLocked<IContainerMD::IContainerMDReadLocker,IFileMDReadLocker> QuarkContainerMD::findItemReadLocked(const std::string& name) {
-  return findItemLocked<IContainerMDReadLocker,IFileMDReadLocker>(name);
+  return IMDLockHelper::lock<IContainerMD::IContainerMDReadLocker,IFileMDReadLocker>(findItem(name).get());
 }
 
 //----------------------------------------------------------------------------
 //! Find item write locked
 //----------------------------------------------------------------------------
 FileOrContainerMDLocked<IContainerMD::IContainerMDWriteLocker,IFileMDWriteLocker>  QuarkContainerMD::findItemWriteLocked(const std::string& name) {
-  return findItemLocked<IContainerMDWriteLocker,IFileMDWriteLocker>(name);
+  return IMDLockHelper::lock<IContainerMD::IContainerMDWriteLocker, IFileMDWriteLocker>(findItem(name).get());
 }
 
 //------------------------------------------------------------------------------
