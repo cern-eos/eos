@@ -32,6 +32,7 @@
 #include "namespace/ns_quarkdb/accounting/QuotaStats.hh"
 #include "namespace/ns_quarkdb/flusher/MetadataFlusher.hh"
 #include "qclient/structures/QHash.hh"
+#include "namespace/utils/IMDLockHelper.hh"
 #include <list>
 #include <map>
 
@@ -97,14 +98,14 @@ public:
   //! Get the container metadata information for the given container ID and read lock it
   //----------------------------------------------------------------------------
   virtual IContainerMD::IContainerMDReadLockerPtr getContainerMDReadLocked(IContainerMD::id_t id) override {
-    return getContainerLocked<IContainerMD::IContainerMDReadLocker>(id,0);
+    return IMDLockHelper::lock<IContainerMD::IContainerMDReadLocker>(getContainerMD(id,0));
  }
 
  //----------------------------------------------------------------------------
  //! Get the container metadata information for the given container ID and write lock it
  //----------------------------------------------------------------------------
  virtual IContainerMD::IContainerMDWriteLockerPtr getContainerMDWriteLocked(IContainerMD::id_t id) override {
-   return getContainerLocked<IContainerMD::IContainerMDWriteLocker>(id,0);
+   return IMDLockHelper::lock<IContainerMD::IContainerMDWriteLocker>(getContainerMD(id,0));
  }
 
   //------------------------------------------------------------------------
@@ -240,15 +241,6 @@ private:
   //! will throw an eos::MDException.
   //----------------------------------------------------------------------------
   void SafetyCheck();
-
-  //----------------------------------------------------------------------------
-  //! Convenient method to get a container, lock it and return the unique_ptr of the locker object
-  //----------------------------------------------------------------------------
-  template<typename Locker>
-  std::unique_ptr<Locker> getContainerLocked(eos::IContainerMD::id_t id,uint64_t * clock){
-    // An exception is thrown in the case the container does not exist
-    return std::make_unique<Locker>(getContainerMD(id,clock));
-  }
 
   ListenerList pListeners;              ///< List of listeners to be notified
   IQuotaStats* pQuotaStats;             ///< Quota view

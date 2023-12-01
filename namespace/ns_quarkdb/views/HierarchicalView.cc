@@ -411,13 +411,13 @@ QuarkHierarchicalView::getFile(const std::string& uri, bool follow,
 IFileMD::IFileMDReadLockerPtr
 QuarkHierarchicalView::getFileReadLocked(const std::string& uri, bool follow, size_t* link_depths)
 {
-  return getFileLocked<IFileMD::IFileMDReadLocker>(uri,follow,link_depths);
+  return IMDLockHelper::lock<IFileMD::IFileMDReadLocker>(getFile(uri,follow,link_depths));
 }
 
 IFileMD::IFileMDWriteLockerPtr
 QuarkHierarchicalView::getFileWriteLocked(const std::string& uri, bool follow, size_t* link_depths)
 {
-  return getFileLocked<IFileMD::IFileMDWriteLocker>(uri,follow,link_depths);
+  return IMDLockHelper::lock<IFileMD::IFileMDWriteLocker>(getFile(uri,follow,link_depths));
 }
 
 
@@ -592,7 +592,7 @@ QuarkHierarchicalView::getContainer(const std::string& uri, bool follow,
 IContainerMD::IContainerMDReadLockerPtr QuarkHierarchicalView::getContainerReadLocked(const std::string & uri,
                                                                                      bool follow,
                                                                                      size_t * link_depths) {
-  return getContainerLocked<IContainerMD::IContainerMDReadLocker>(uri,follow,link_depths);
+  return IMDLockHelper::lock<IContainerMD::IContainerMDReadLocker>(getContainer(uri,follow,link_depths));
 }
 
 //----------------------------------------------------------------------------
@@ -601,7 +601,7 @@ IContainerMD::IContainerMDReadLockerPtr QuarkHierarchicalView::getContainerReadL
 IContainerMD::IContainerMDWriteLockerPtr QuarkHierarchicalView::getContainerWriteLocked(const std::string & uri,
                                                                                        bool follow,
                                                                                        size_t * link_depths) {
-  return getContainerLocked<IContainerMD::IContainerMDWriteLocker>(uri,follow,link_depths);
+  return IMDLockHelper::lock<IContainerMD::IContainerMDWriteLocker>(getContainer(uri,follow,link_depths));
 }
 
 //------------------------------------------------------------------------------
