@@ -127,6 +127,12 @@ public:
   virtual std::shared_ptr<IContainerMD> createContainer(IContainerMD::id_t id) override;
 
   //----------------------------------------------------------------------------
+  //! Create new container metadata object with an assigned id and write lock it, the user has
+  //! to fill all the remaining fields
+  //----------------------------------------------------------------------------
+  virtual IContainerMD::IContainerMDWriteLockerPtr createContainerWriteLocked(IContainerMD::id_t id) override;
+
+  //----------------------------------------------------------------------------
   //! Update the contaienr metadata in the backing store after the
   //! ContainerMD object has been changed
   //----------------------------------------------------------------------------

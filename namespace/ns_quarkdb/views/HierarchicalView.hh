@@ -223,6 +223,13 @@ public:
   createContainer(const std::string& uri, bool createParents = false, uint64_t cid = 0) override;
 
   //----------------------------------------------------------------------------
+  //! Create a container (directory) and write lock it
+  //----------------------------------------------------------------------------
+  IContainerMD::IContainerMDWriteLockerPtr createContainerWriteLocked(const std::string& uri,
+                                                                                            bool createParents = false,
+                                                                                            uint64_t cid = 0) override;
+
+  //----------------------------------------------------------------------------
   //! Update container store
   //----------------------------------------------------------------------------
   virtual void

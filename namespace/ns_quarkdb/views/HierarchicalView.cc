@@ -615,18 +615,18 @@ public:
   ~UpdateStoreGuard()
   {
     for (auto it = ptrs.begin(); it != ptrs.end(); it++) {
-      view->updateContainerStore((*it).get());
+      view->updateContainerStore((*it)->getUnderlyingPtr().get());
     }
   }
 
-  void add(IContainerMDPtr cont)
+  void add(IContainerMD::IContainerMDWriteLockerPtr && cont)
   {
-    ptrs.insert(cont);
+    ptrs.insert(std::move(cont));
   }
 
 private:
   eos::QuarkHierarchicalView* view;
-  std::set<IContainerMDPtr> ptrs;
+  std::set<IContainerMD::IContainerMDWriteLockerPtr> ptrs;
 };
 
 //------------------------------------------------------------------------------
@@ -667,10 +667,15 @@ QuarkHierarchicalView::createContainer(const std::string& uri, bool createParent
     std::deque<std::string> nextChunkDeque { nextChunk }; // yes, this is stupid
     chunks.pop_front();
 
+    // The container exists, let's write lock it before going on
+    IContainerMD::IContainerMDWriteLockerPtr containerLock = IMDLockHelper::lock<IContainerMD::IContainerMDWriteLocker>(state.container);
+
     // Lookup next chunk ..
     try {
-      state = getPathInternal(state, nextChunkDeque, true, 0).get();
+      state.container = getPathInternal(state, nextChunkDeque, true, 0).get().container;
     } catch (const eos::MDException& e) {
+      // The container does not exist, let's create it and add it to its parent (current state.container that is locked above this try/catch block)
+
       if (e.getErrno() != ENOENT) {
         // Something's wrong, rethrow
         throw;
@@ -683,21 +688,31 @@ QuarkHierarchicalView::createContainer(const std::string& uri, bool createParent
       // Wait.. what if "ENOENT" is actually due to failed symlink lookup?
       // We'd screw up namespace consistency if we attempt to add a container
       // with the same name as the broken symlink.
-      FileOrContainerMD item = state.container->findItem(nextChunk).get();
+      {
+        auto itemLocked = state.container->findItemReadLocked(nextChunk);
 
-      if(item.file || item.container) {
-        throw_mdexception(ENOTDIR, uri << ": Not a directory");
+        if (itemLocked.fileLocked || itemLocked.containerLocked) {
+          throw_mdexception(ENOTDIR, uri << ": Not a directory");
+        }
       }
 
-      IContainerMDPtr newContainer = pContainerSvc->createContainer(chunks.empty()?cid:0);
+      IContainerMD::IContainerMDWriteLockerPtr newContainerLock = pContainerSvc->createContainerWriteLocked(chunks.empty()?cid:0);
+      IContainerMDPtr newContainer = newContainerLock->getUnderlyingPtr();
       newContainer->setName(nextChunk);
       newContainer->setCTimeNow();
       state.container->addContainer(newContainer.get());
-      updateGuard.add(state.container);
-      updateGuard.add(newContainer);
+      updateGuard.add(std::move(containerLock));
+      updateGuard.add(std::move(newContainerLock));
       state.container = newContainer;
     }
   }
+}
+
+IContainerMD::IContainerMDWriteLockerPtr
+QuarkHierarchicalView::createContainerWriteLocked(const std::string& uri, bool createParents, uint64_t cid) {
+  // TODO @ccaffy - duplicate the above code of createContainer(...) so we directly return the container lock
+  // instead of re-locking it. Good enough for now.
+  return IMDLockHelper::lock<IContainerMD::IContainerMDWriteLocker>(createContainer(uri,createParents,cid));
 }
 
 //------------------------------------------------------------------------------

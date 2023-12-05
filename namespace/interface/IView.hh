@@ -212,6 +212,13 @@ public:
 							uint64_t cid = 0) = 0;
 
   //----------------------------------------------------------------------------
+  //! Create a container (directory) and write lock it
+  //----------------------------------------------------------------------------
+  virtual IContainerMD::IContainerMDWriteLockerPtr  createContainerWriteLocked(const std::string& uri,
+                                                        bool createParents = false,
+                                                        uint64_t cid = 0) = 0;
+
+  //----------------------------------------------------------------------------
   //! Update container store
   //----------------------------------------------------------------------------
   virtual void updateContainerStore(IContainerMD* container) = 0;

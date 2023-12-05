@@ -215,6 +215,28 @@ QuarkContainerMDSvc::createContainer(IContainerMD::id_t id)
   return cont;
 }
 
+IContainerMD::IContainerMDWriteLockerPtr QuarkContainerMDSvc::createContainerWriteLocked(IContainerMD::id_t id) {
+  /**
+   * Same algorithm as above, except that we lock the container MD before adding it to the metadataProvider object
+   * TODO @ccaffy - Eventually the above createContainer() function will be removed in favor of this one only!
+   */
+  uint64_t free_id;
+
+  if (id > 0) {
+    mUnifiedInodeProvider->blacklistContainerId(id);
+    free_id = id;
+  } else {
+    free_id = mUnifiedInodeProvider->reserveContainerId();
+  }
+
+  std::shared_ptr<IContainerMD> cont
+      (new QuarkContainerMD(free_id, pFileSvc, static_cast<IContainerMDSvc*>(this)));
+  IContainerMD::IContainerMDWriteLockerPtr ret = IMDLockHelper::lock<IContainerMD::IContainerMDWriteLocker>(cont);
+  ++mNumConts;
+  mMetadataProvider->insertContainerMD(cont->getIdentifier(), cont);
+  return ret;
+}
+
 //----------------------------------------------------------------------------
 // Update backend store and notify listeners
 //----------------------------------------------------------------------------

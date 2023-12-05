@@ -1342,3 +1342,34 @@ TEST_F(HierarchicalViewF, ContainerFindItemReadWriteLocked)
   ASSERT_EQ(nullptr,file1Locked.containerLocked);
   ASSERT_EQ(file,file1Locked.fileLocked->getUnderlyingPtr());
 }
+
+TEST_F(HierarchicalViewF, createContainerLocked)
+{
+  {
+    auto contLock = view()->createContainerWriteLocked("/root/test/", true);
+    auto file = view()->createFile("/root/test/file1");
+    ASSERT_THROW(
+        view()->createContainerWriteLocked("/root/test/file1/directory"),
+        eos::MDException);
+  }
+  std::vector<std::thread> workers;
+  for (auto i = 0; i <= 100; ++i) {
+    workers.emplace_back([this, i]() {
+      std::ostringstream oss;
+      oss << "/root/thread" << i << "/" << i << "/" << i << "/";
+      auto contLock = view()->createContainerWriteLocked(oss.str(), true);
+      oss << i;
+      auto contLock2 = view()->createContainerWriteLocked(oss.str());
+      oss << "/file" << i;
+      view()->createFile(oss.str());
+    });
+  }
+  for (auto& t : workers) {
+    t.join();
+  }
+  for (unsigned int i = 0; i < workers.size(); ++i) {
+    std::ostringstream oss;
+    oss << "/root/thread" << i << "/" << i << "/" << i << "/" << i << "/file" << i;
+    ASSERT_NO_THROW(view()->getFileWriteLocked(oss.str()));
+  }
+}
