@@ -1071,7 +1071,7 @@ ScanDir::IsValidStripeCombination(
     return false;
   }
 
-  uint32_t offsetXrd = 0;
+  off_t offsetXrd = 0;
   const auto open_ts = std::chrono::system_clock::now();
   int scan_rate = mRateBandwidth.load(std::memory_order_relaxed);
   xs_obj->Reset();

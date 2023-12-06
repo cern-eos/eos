@@ -124,7 +124,7 @@ isValidStripeCombination(const std::vector<std::string>& stripes,
     return false;
   }
 
-  uint32_t offsetXrd = 0;
+  off_t offsetXrd = 0;
   xsObj->Reset();
 
   while (true) {
@@ -263,7 +263,7 @@ main(int argc, char* argv[])
     }
 
     stripePaths.emplace_back(dstPath);
-    uint32_t offsetXrd = 0;
+    off_t offsetXrd = 0;
 
     while (true) {
       int64_t nread =
