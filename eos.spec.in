@@ -36,6 +36,7 @@
 %define eos_xrootd_version_min 0:5.6.2
 %define xrootd_version_min 1:5.6.2
 %define eos_grpc_version 1.56.1
+%define eos_rocksdb_version: 8.8.1
 
 %define major_version @CPACK_PACKAGE_VERSION_MAJOR@
 %define release_version @CPACK_PACKAGE_RELEASE@
@@ -126,9 +127,9 @@ BuildRequires: xrootd-private-devel >= %{xrootd_version_min}
 %endif
 
 # Add eos-grpc dependencies
-BuildRequires: eos-grpc == %{eos_grpc_version}
-BuildRequires: eos-grpc-devel == %{eos_grpc_version}
-BuildRequires: eos-grpc-plugins == %{eos_grpc_version}
+BuildRequires: eos-grpc = %{eos_grpc_version}
+BuildRequires: eos-grpc-devel = %{eos_grpc_version}
+BuildRequires: eos-grpc-plugins = %{eos_grpc_version}
 
 # Don't put an explicit dependency on libraries provided by eos-grpc because
 # the package hides shared libraries from the list of provided capabilities.
@@ -157,6 +158,7 @@ BuildRequires: binutils-devel
 BuildRequires: help2man
 BuildRequires: libzstd-devel
 BuildRequires: lz4-devel
+BuildRequires: bzip2-devel
 Requires: libzstd, zstd, lz4
 BuildRequires: libcap-devel
 BuildRequires: gflags gflags-devel
@@ -168,16 +170,16 @@ BuildRequires: openssl-static, ncurses-static
 %endif
 
 %if %{?_with_server:1}%{!?_with_server:0}
-BuildRequires: eos-rocksdb = 6.2.4
+BuildRequires: eos-rocksdb = %{eos_rocksdb_version}
 BuildRequires: openldap-devel
 BuildRequires: e2fsprogs-devel
 BuildRequires: eos-libmicrohttpd, eos-libmicrohttpd-devel >= 0.9.38
 %endif
 
-BuildRequires: eos-grpc == %{eos_grpc_version}
-BuildRequires: eos-grpc-devel == %{eos_grpc_version}
-BuildRequires: eos-grpc-plugins == %{eos_grpc_version}
-Requires: eos-grpc == %{eos_grpc_version}
+BuildRequires: eos-grpc = %{eos_grpc_version}
+BuildRequires: eos-grpc-devel = %{eos_grpc_version}
+BuildRequires: eos-grpc-plugins = %{eos_grpc_version}
+Requires: eos-grpc = %{eos_grpc_version}
 
 BuildRequires: bzip2-devel
 Requires: bzip2-devel
@@ -221,7 +223,7 @@ BuildRequires: binutils-devel
 %endif
 %if 0%{?rhel} >= 7 && 0%{?rhel} <= 9
 # We want swap-support on eosxd - requires rocksdb KV
-BuildRequires: eos-rocksdb = 6.2.4
+BuildRequires: eos-rocksdb == 6.2.4
 %endif
 %endif
 
@@ -325,7 +327,7 @@ ExclusiveArch: x86_64 aarch64
 %if %{?_with_eos_xrootd_rh:1}%{!?_with_eos_xrootd_rh:0}
 # Install eos-xrootd
 %if 0%{?rhel} >= 7 && 0%{?rhel} <= 9
-Requires: eos-xrootd == %{eos_xrootd_version_min}
+Requires: eos-xrootd = %{eos_xrootd_version_min}
 %else
 Requires: xrootd >= %{xrootd_version_min}
 Requires: xrootd-client >= %{xrootd_version_min}
@@ -339,7 +341,7 @@ Requires: xrootd-client >= %{xrootd_version_min}
 Requires: eos-grpc-gateway
 %endif
 
-Requires: eos-client == @CPACK_PACKAGE_VERSION@
+Requires: eos-client = @CPACK_PACKAGE_VERSION@
 Requires: eos-libmicrohttpd >= 0.9.38
 Requires: acl
 Requires: gdb
@@ -349,7 +351,7 @@ Requires: psmisc
 Requires: libcurl
 Requires: logrotate
 Requires: redis
-Requires: eos-grpc == %{eos_grpc_version}
+Requires: eos-grpc = %{eos_grpc_version}
 Requires: systemd
 
 BuildRequires: zeromq, zeromq-devel
@@ -471,7 +473,7 @@ ExclusiveArch: x86_64 aarch64
 %if %{?_with_eos_xrootd_rh:1}%{!?_with_eos_xrootd_rh:0}
 # Install eos-xrootd
 %if 0%{?rhel} >= 7 && 0%{?rhel} <= 9
-Requires: eos-xrootd == %{eos_xrootd_version_min}
+Requires: eos-xrootd = %{eos_xrootd_version_min}
 %else
 Requires: xrootd-client >= %{xrootd_version_min}
 %endif
@@ -479,7 +481,7 @@ Requires: xrootd-client >= %{xrootd_version_min}
 Requires: xrootd-client >= %{xrootd_version_min}
 %endif
 
-Requires: eos-grpc == %{eos_grpc_version}
+Requires: eos-grpc = %{eos_grpc_version}
 BuildRequires: eos-folly = 2019.11.11.00
 Requires: eos-folly = 2019.11.11.00
 
@@ -504,14 +506,14 @@ ExclusiveArch: x86_64 aarch64
 Requires: zeromq
 Requires: squashfs-tools
 Requires: elfutils
-Requires: eos-grpc == %{eos_grpc_version}
+Requires: eos-grpc = %{eos_grpc_version}
 Requires: systemd
 
 # Select xrootd package
 %if %{?_with_eos_xrootd_rh:1}%{!?_with_eos_xrootd_rh:0}
 # Install eos-xrootd
 %if 0%{?rhel} >= 7 && 0%{?rhel} <= 9
-Requires: eos-xrootd == %{eos_xrootd_version_min}
+Requires: eos-xrootd = %{eos_xrootd_version_min}
 %else
 Requires: xrootd-client >= %{xrootd_version_min}
 %endif
@@ -571,7 +573,7 @@ ExclusiveArch: x86_64 aarch64
 %if %{?_with_eos_xrootd_rh:1}%{!?_with_eos_xrootd_rh:0}
 # Install eos-xrootd
 %if 0%{?rhel} >= 7 || 0%{?rhel} <= 9
-Requires: eos-xrootd == %{eos_xrootd_version_min}
+Requires: eos-xrootd = %{eos_xrootd_version_min}
 %else
 Requires: xrootd-client >= %{xrootd_version_min}
 %endif
@@ -661,7 +663,7 @@ Requires: lz4-devel, lz4, elfutils-devel, jemalloc
 %if %{?_with_eos_xrootd_rh:1}%{!?_with_eos_xrootd_rh:0}
 # Install eos-xrootd
 %if 0%{?rhel} >= 7 && 0%{?rhel} <= 9
-Requires: eos-xrootd == %{eos_xrootd_version_min}
+Requires: eos-xrootd = %{eos_xrootd_version_min}
 %else
 Requires: xrootd-server >= %{xrootd_version_min}
 %endif
@@ -733,7 +735,7 @@ Requires: python3 python3-fusepy
 %if %{?_with_eos_xrootd_rh:1}%{!?_with_eos_xrootd_rh:0}
 # Install eos-xrootd
 %if 0%{?rhel} >= 7 && 0%{?rhel} <= 9
-Requires: eos-xrootd == %{eos_xrootd_version_min}
+Requires: eos-xrootd = %{eos_xrootd_version_min}
 %else
 Requires: xrootd-python >= %{xrootd_version_min}
 %endif
