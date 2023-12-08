@@ -49,16 +49,8 @@ if(NOT PACKAGEONLY)
   find_package(bz2 REQUIRED)
   find_package(absl REQUIRED)
   find_package(fmt REQUIRED)
+  find_package(RocksDB REQUIRED)
   find_package(jemalloc)
-  find_package(RocksDB)
-
-  # Add extra requirements that come from RocksDB
-  if (ROCKSDB_FOUND)
-    find_package(zstd REQUIRED)
-    find_package(lz4 REQUIRED)
-    target_link_libraries(ROCKSDB::ROCKSDB INTERFACE ZSTD::ZSTD LZ4::LZ4)
-  endif()
-
   find_package(EosGrpcGateway)
   find_package(libmicrohttpd)
   find_package(Sphinx)
