@@ -476,7 +476,7 @@ Storage::GetFsStatistics(FileSystem* fs)
 
       if (!smartPublishing[fs] ||
           (smartPublishing[fs] < now)) {
-        smartPublishing[fs] = now + 900;
+        smartPublishing[fs] = now + 3600;
         publish = true;
       }
     }
