@@ -730,7 +730,7 @@ RainMetaLayout::Read(XrdSfsFileOffset offset, char* buffer,
 }
 
 //------------------------------------------------------------------------------
-// Read from stripes
+// Read from stripes - used only for the rain check tool
 //------------------------------------------------------------------------------
 int64_t
 RainMetaLayout::ReadStripe(XrdSfsFileOffset offset, char* buffer,

@@ -215,12 +215,12 @@ public:
   //!
   //! @param fid file identifier
   //! @param fsid file system id
-  //! @param invalidStripes list of fsid with invalid stripes
+  //! @param invalid_stripes list of fsid with invalid stripes
   //!
   //----------------------------------------------------------------------------
   void UpdateWithStripeCheckInfo(
-      eos::common::FileId::fileid_t fid, eos::common::FileSystem::fsid_t fsid,
-      const std::set<eos::common::FileSystem::fsid_t>& invalidStripes);
+    eos::common::FileId::fileid_t fid, eos::common::FileSystem::fsid_t fsid,
+    const std::set<eos::common::FileSystem::fsid_t>& invalid_stripes);
 
   //----------------------------------------------------------------------------
   //! Update local fmd with info from the scanner

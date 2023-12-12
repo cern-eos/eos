@@ -135,7 +135,7 @@ public:
   //! @param balance_mode if true force transfer between given source and
   //!        destination file systems
   //! @param vid virtual identity running the job
-  //! @param repair_excluded
+  //! @param repair_excluded if true then try to repair also the excluded srcs
   //----------------------------------------------------------------------------
   DrainTransferJob(eos::common::FileId::fileid_t fid,
                    eos::common::FileSystem::fsid_t fsid_src,

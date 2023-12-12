@@ -26,6 +26,7 @@
 
 EOSCOMMONNAMESPACE_BEGIN
 
+//! Map of fsck errors to map of file system identifiers and file ids
 using FsckErrsPerFsMap = std::map<std::string,
       std::map<eos::common::FileSystem::fsid_t,
       std::set<eos::common::FileId::fileid_t>>>;

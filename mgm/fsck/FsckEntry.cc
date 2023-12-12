@@ -433,8 +433,6 @@ FsckEntry::RepairFstXsSzDiff()
                                      finfo->mFstFmd.mProtoFmd.diskchecksum().c_str(),
                                      SHA256_DIGEST_LENGTH,
                                      LayoutId::GetChecksumLen(finfo->mFstFmd.mProtoFmd.lid()));
-          eos_debug("got xs_val=%s, finfo=%s hex_xs_val=%s", xs_val.c_str(),
-                    xs_val.c_str(), hex_xs_val.c_str());
 
           if (!hex_xs_val.empty()) {
             bad_fsids.insert(finfo->mFstFmd.mProtoFmd.fsid());

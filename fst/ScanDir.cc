@@ -1043,7 +1043,6 @@ ScanDir::ScanRainFile(const std::unique_ptr<eos::fst::FileIo>& io,
   return true;
 }
 
-
 //------------------------------------------------------------------------------
 // Check if a given stripe combination can recreate the original file
 //------------------------------------------------------------------------------
@@ -1114,14 +1113,12 @@ ScanDir::ScanRainFileLoadAware(eos::common::FileId::fileid_t fid,
   }
 
   std::string xs_mgm;
-  uint32_t nLocations;
+  uint32_t num_locations;
   LayoutId::layoutid_t layout;
   {
     // Reduce scope of the FmdHelper object
     auto fmd = gOFS.mFmdHandler->LocalGetFmd(fid, mFsId, true, false);
-    //eos::common::FmdHelper fmd;
 
-    //if (FmdMgmHandler::GetMgmFmd(mgr, fid, fmd)) {
     if (!fmd) {
       eos_static_err("msg=\"could not get fmd from manager\" fxid=%08llx", fid);
       return false;
@@ -1134,13 +1131,13 @@ ScanDir::ScanRainFileLoadAware(eos::common::FileId::fileid_t fid,
       return false;
     }
 
-    nLocations = fmd->GetLocations().size();
+    num_locations = fmd->GetLocations().size();
     xs_mgm = fmd->mProtoFmd.mgmchecksum();
   }
 
-  if (xs_mgm.empty() || (nLocations == 0)) {
-    eos_static_err("msg=\"mgm checksum empty or no locations\" "
-                   "fxid=%08llx", fid);
+  if (xs_mgm.empty() || (num_locations == 0)) {
+    eos_static_err("msg=\"mgm checksum empty or no locations\" fxid=%08llx",
+                   fid);
     return false;
   }
 
@@ -1156,7 +1153,7 @@ ScanDir::ScanRainFileLoadAware(eos::common::FileId::fileid_t fid,
   XrdCl::Buffer arg;
   XrdCl::Buffer* resp_raw = nullptr;
   const std::string opaque = SSTR("/.fxid:" << std::hex << fid << std::dec
-                                  << "?mgm.pcmd=open&eos.ruid=0&"
+                                  << "?mgm.pcmd=open&eos.ruid=0&eos.rgid=0&"
                                   << "xrd.wantprot=sss");
   arg.FromString(opaque);
   XrdCl::FileSystem fs(url);
@@ -1197,12 +1194,12 @@ ScanDir::ScanRainFileLoadAware(eos::common::FileId::fileid_t fid,
     FileSystem::fsid_t fsid;
     std::string url;
     enum { Unknown, Valid, Invalid } state;
-    unsigned int id;
+    unsigned int id; // logical stripe id
   };
   std::vector<stripe_s> stripes;
-  stripes.reserve(nLocations);
+  stripes.reserve(num_locations);
 
-  for (unsigned long i = 0; i < nLocations; ++i) {
+  for (unsigned long i = 0; i < num_locations; ++i) {
     tag = SSTR("pio." << i);
 
     // Skip files with missing replicas, they will be detected elsewhere.
@@ -1227,15 +1224,14 @@ ScanDir::ScanRainFileLoadAware(eos::common::FileId::fileid_t fid,
     return false;
   }
 
-  // Read each header to check if it is valid, store the stripe id and
-  // stripe logical index in mapPL.
+  // Read each header to check if it is valid
   std::map<unsigned int, std::set<unsigned long>> mapPL;
 
   for (unsigned long i = 0; i < stripes.size(); ++i) {
     std::unique_ptr<FileIo> file{FileIoPlugin::GetIoObject(stripes[i].url)};
 
     if (file) {
-      std::string const new_opaque =
+      const std::string new_opaque =
         SSTR(opaqueInfo << "&mgm.replicaindex=" << i);
       file->fileOpen(SFS_O_RDONLY, 0, new_opaque);
       hd->ReadFromFile(file.get(), 0);
@@ -1251,8 +1247,8 @@ ScanDir::ScanRainFileLoadAware(eos::common::FileId::fileid_t fid,
   }
 
   if (mapPL.size() < nDataStripes) {
-    eos_static_err("msg=\"could not find enough valid stripes to reconstruct "
-                   "file\" fxid=%08llx", fid);
+    eos_static_err("msg=\"not enough valid stripes to reconstruct\" "
+                   "fxid=%08llx", fid);
     invalid_fsid.insert(0);
     return true;
   }
@@ -1264,7 +1260,7 @@ ScanDir::ScanRainFileLoadAware(eos::common::FileId::fileid_t fid,
     return false;
   }
 
-  std::vector<bool> combinations(nLocations, false);
+  std::vector<bool> combinations(num_locations, false);
   std::fill(combinations.begin(), combinations.begin() + nDataStripes, true);
   std::vector<std::pair<int, std::string>>
                                         stripeCombination(nParityStripes, std::make_pair(0, "root://__offline_"));

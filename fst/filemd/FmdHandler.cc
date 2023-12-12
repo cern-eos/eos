@@ -223,15 +223,15 @@ FmdHandler::UpdateWithMgmInfo(eos::common::FileSystem::fsid_t fsid,
 void
 FmdHandler::UpdateWithStripeCheckInfo(
   eos::common::FileId::fileid_t fid, eos::common::FileSystem::fsid_t fsid,
-  const std::set<eos::common::FileSystem::fsid_t>& invalidStripes)
+  const std::set<eos::common::FileSystem::fsid_t>& invalid_stripes)
 {
   auto fmd = LocalGetFmd(fid, fsid, true);
 
   if (fmd) {
     fmd->mProtoFmd.clear_stripeerror();
 
-    for (auto invalidFsid : invalidStripes) {
-      fmd->mProtoFmd.add_stripeerror(invalidFsid);
+    for (auto invalid_fsid : invalid_stripes) {
+      fmd->mProtoFmd.add_stripeerror(invalid_fsid);
     }
 
     Commit(fmd.get());
