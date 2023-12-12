@@ -192,9 +192,7 @@ build_el9:
   variables:
     BUILD_NAME: el-9
   extends: .build-template
-  only:
-    - schedules
-    - tags
+
 
 #-------------------------------------------------------------------------------
 # EOS client builds for RHEL
@@ -468,11 +466,10 @@ build_cc7_clang:
     BUILD_NAME: cc7_clang
     CMAKE_OPTIONS: "-DCLANG_BUILD=1"
     RPMBUILD_OPTIONS: "--with clang --with server"
+  extends: .build_exotic-template
   only:
     - schedules
     - triggers
-    - master
-  extends: .build_exotic-template
 
 
 # @note Please contact CTA team / jleduc if you want to change this job
