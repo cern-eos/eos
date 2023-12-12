@@ -350,20 +350,34 @@ EosFstHttpHandler::HandleChunkUpload(XrdHttpExtReq& req,
   while (true) {
     bool has_size = false;
     ssize.clear();
-
+    // Counter of the amount of times we did not receive any data from the client
+    // if it is greater than a certain threshold, we will stop trying to read data from the socket
+    unsigned int noDataReceivedCpt = 0;
+    unsigned int noDataReceivedCptThreshold = max_size * 2;
     // Read in line containing the chunk size
-    while (ssize.length() < max_size) {
+    while (ssize.length() < max_size && noDataReceivedCpt <= noDataReceivedCptThreshold) {
       if (req.BuffgetData(1, &ptr, true) == 1) {
         ssize.append(ptr, 1);
       }
 
       size_t len = ssize.length();
+      if(len == 0) {
+        noDataReceivedCpt++;
+      } else {
+        noDataReceivedCpt = 0;
+      }
 
       if ((len >= 2) && (ssize[len - 2] == '\r') && (ssize[len - 1] == '\n')) {
         ssize.erase(len - 2);
         has_size = true;
         break;
       }
+    }
+
+    if(noDataReceivedCpt > noDataReceivedCptThreshold) {
+      std::stringstream ss;
+      ss << "msg=\"no data received from the client after " << noDataReceivedCptThreshold << " attempts\"";
+      eos_static_err("%s", ss.str().c_str());
     }
 
     if (!has_size) {
