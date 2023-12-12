@@ -223,7 +223,7 @@ BuildRequires: binutils-devel
 %endif
 %if 0%{?rhel} >= 7 && 0%{?rhel} <= 9
 # We want swap-support on eosxd - requires rocksdb KV
-BuildRequires: eos-rocksdb == 6.2.4
+BuildRequires: eos-rocksdb = %{eos_rocksdb_version}
 %endif
 %endif
 
