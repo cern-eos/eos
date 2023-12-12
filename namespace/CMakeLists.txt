@@ -102,6 +102,7 @@ target_link_libraries(EosNsCommon-Objects PUBLIC
   EosCliProto-Objects
   EosCommon
   XROOTD::UTILS
+  ROCKSDB::ROCKSDB
   JSONCPP::JSONCPP)
 
 set_target_properties(EosNsCommon-Objects
