@@ -159,7 +159,8 @@ BuildRequires: help2man
 BuildRequires: libzstd-devel
 BuildRequires: lz4-devel
 BuildRequires: bzip2-devel
-Requires: libzstd, zstd, lz4
+BuildRequires: snappy-devel
+Requires: libzstd, zstd, lz4, snappy
 BuildRequires: libcap-devel
 BuildRequires: gflags gflags-devel
 BuildRequires: systemd
