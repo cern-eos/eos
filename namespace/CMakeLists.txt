@@ -113,14 +113,11 @@ add_library(EosNsCommon SHARED $<TARGET_OBJECTS:EosNsCommon-Objects>)
 target_include_directories(
   EosNsCommon PUBLIC
   $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}>
-  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/utils/fmt>
   $<INSTALL_INTERFACE:include>)
 
 target_link_libraries(EosNsCommon PUBLIC
   EosNsCommon-Objects
-  EosCrc32c-Objects
-  ROCKSDB::ROCKSDB
-  fmt)
+  EosCrc32c-Objects)
 
 set_target_properties(
   EosNsCommon
@@ -141,14 +138,12 @@ if (Linux)
 
   target_include_directories(EosNsCommon-Static PUBLIC
     $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}>
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/utils/fmt>
     $<INSTALL_INTERFACE:include>)
 
   target_link_libraries(EosNsCommon-Static PUBLIC
     EosNsCommon-Objects
     EosCrc32c-Objects
     EosCommon-Static
-    fmt
     qclient
     ROCKSDB::ROCKSDB)
 

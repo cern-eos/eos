@@ -40,7 +40,12 @@ if (ROCKSDB_FOUND AND NOT TARGET ROCKSDB::ROCKSDB)
   set_target_properties(ROCKSDB::ROCKSDB PROPERTIES
     IMPORTED_LOCATION "${ROCKSDB_LIBRARY}"
     INTERFACE_INCLUDE_DIRECTORIES "${ROCKSDB_INCLUDE_DIR}"
-    INTERFACE_LINK_LIBRARIES "ZSTD::ZSTD;LZ4::LZ4;BZip2::BZip2;Snappy::snappy;${ROCKSDB_TOOLS_LIBRARY}"
+    #@note: The ROCKSDB_LIBRARY must be specified again after
+    # the ROCKSDB_TOOLS_LIBRARY since the latter has a symbol
+    # that only the former provides and since these are both
+    # static libraries the linker searches from left to right
+    # and notes unresolved symbols as it goes!!!
+    INTERFACE_LINK_LIBRARIES "ZSTD::ZSTD;LZ4::LZ4;BZip2::BZip2;Snappy::snappy;${ROCKSDB_TOOLS_LIBRARY};${ROCKSDB_LIBRARY}"
     INTERFACE_COMPILE_DEFINITIONS "HAVE_ROCKSDB=1")
 else ()
   message(WARNING "Notice: rocksdb not found, no rocksdb support")
