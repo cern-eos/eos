@@ -117,7 +117,9 @@ target_include_directories(
 
 target_link_libraries(EosNsCommon PUBLIC
   EosNsCommon-Objects
-  EosCrc32c-Objects)
+  EosCrc32c-Objects
+  qclient
+  ROCKSDB::ROCKSDB)
 
 set_target_properties(
   EosNsCommon
