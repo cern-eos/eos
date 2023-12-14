@@ -5241,7 +5241,7 @@ EosFuse::write(fuse_req_t req, fuse_ino_t ino, const char* buf, size_t size,
   data::data_fh* io = (data::data_fh*) fi->fh;
   int rc = 0;
 
-  if (io) {
+  if (io && !io->edquota.load()) {
     if (!io->hmac.key.empty()) {
       eos::common::SymKey::ObfuscateBuffer((char*)buf, (char*)buf, size, off,
                                            io->hmac);
@@ -5257,6 +5257,7 @@ EosFuse::write(fuse_req_t req, fuse_ino_t ino, const char* buf, size_t size,
       if (!EosFuse::instance().getCap().has_quota(io->cap_, size)) {
         eos_static_err("quota-error: inode=%lld size=%lld off=%lld buf=%lld", ino, size,
                        off, buf);
+	io->set_edquota();
         rc = EDQUOT;
       } else {
         if (io->ioctx()->pwrite(req, buf, size, off) == -1) {
@@ -5269,6 +5270,7 @@ EosFuse::write(fuse_req_t req, fuse_ino_t ino, const char* buf, size_t size,
             eos_static_err("quota-error: inode=%lld ran out of quota - setting cap to EDQUOT",
                            ino);
             EosFuse::instance().getCap().set_volume_edquota(io->cap_);
+	    io->set_edquota();
           }
         } else {
           {
@@ -5313,7 +5315,11 @@ EosFuse::write(fuse_req_t req, fuse_ino_t ino, const char* buf, size_t size,
       }
     }
   } else {
-    rc = ENXIO;
+    if (io && io->edquota.load()) {
+      rc = EDQUOT;
+    } else {
+      rc = ENXIO;
+    }
   }
 
   if (rc) {
@@ -5345,7 +5351,7 @@ EosFuse::release(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info* fi)
   if (fi->fh) {
     data::data_fh* io = (data::data_fh*) fi->fh;
 
-    if (io->flocked) {
+    if (io->flocked.load()) {
       // unlock all locks for that owner
       struct flock lock;
       lock.l_type = F_UNLCK;
@@ -5353,6 +5359,9 @@ EosFuse::release(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info* fi)
       lock.l_len = -1;
       lock.l_pid = fuse_req_ctx(req)->pid;
       rc |= Instance().mds.setlk(req, io->mdctx(), &lock, 0);
+      if (!rc) {
+	io->set_flocked(false);
+      }
     }
 
     std::string cookie = "";
@@ -5386,9 +5395,9 @@ EosFuse::fsync(fuse_req_t req, fuse_ino_t ino, int datasync,
   fuse_id id(req);
   data::data_fh* io = (data::data_fh*) fi->fh;
 
-  if (io) {
+  if (io && !io->edquota.load()) {
     {
-      std::string fname = "";
+    std::string fname = "";
       {
         XrdSysMutexHelper mLock(io->md->Locker());
         fname = (*(io->md))()->name();
@@ -5591,13 +5600,13 @@ EosFuse::flush(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info* fi)
       lock.l_len = -1;
       lock.l_pid = fi->lock_owner;
 
-      if (io->flocked) {
+      if (io->flocked.load()) {
         lock.l_pid = fuse_req_ctx(req)->pid;
       }
 
       rc |= Instance().mds.setlk(req, io->mdctx(), &lock, 0);
     } else {
-      if (io->flocked) {
+      if (io->flocked.load()) {
         struct flock lock;
         lock.l_type = F_UNLCK;
         lock.l_start = 0;
@@ -7156,7 +7165,7 @@ EosFuse::flock(fuse_req_t req, fuse_ino_t ino,
               Track::Monitor mon("flock", "fs", Instance().Tracker(), req, ino, true);
               rc = Instance().mds.setlk(req, io->mdctx(), &lock, sleep);
               if (!rc) {
-                io->flocked = true;
+                io->set_flocked(true);
               }
             }
 

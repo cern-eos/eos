@@ -318,7 +318,8 @@ public:
     metad::shared_md md;
     fuse_id id;
     bool rw;
-    bool flocked;
+    std::atomic<bool> flocked;
+    std::atomic<bool> edquota;
     std::string _authid;
     std::atomic<bool> update_mtime_on_flush;
     std::atomic<time_t> next_size_flush;
@@ -332,8 +333,9 @@ public:
       md = _md;
       rw = _rw;
       id = _id;
-      flocked = false;
       update_mtime_on_flush.store(false, std::memory_order_seq_cst);
+      flocked.store(false, std::memory_order_seq_cst);
+      edquota.store(false, std::memory_order_seq_cst);
       next_size_flush.store(0, std::memory_order_seq_cst);
       _maxfilesize = 0;
       _opensize = (*md)()->size();
@@ -386,6 +388,16 @@ public:
       update_mtime_on_flush.store(true, std::memory_order_seq_cst);
     }
 
+    void set_flocked(bool val)
+    {
+      flocked.store(val, std::memory_order_seq_cst);
+    }
+
+    void set_edquota()
+    {
+      edquota.store(true, std::memory_order_seq_cst);
+    }
+
     bool has_update()
     {
       if (update_mtime_on_flush.load()) {
@@ -396,6 +408,7 @@ public:
       return false;
     }
 
+    
     void set_maxfilesize(uint64_t size)
     {
       _maxfilesize = size;
