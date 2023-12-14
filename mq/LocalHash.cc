@@ -48,15 +48,15 @@ LocalHash::set(const qclient::UpdateBatch& batch)
   std::unique_lock<std::mutex> lock(mMutex);
 
   for (auto it = batch.localBegin(); it != batch.localEnd(); ++it) {
-    mMap.emplace(it->first, it->second);
+    mMap[it->first] = it->second;
   }
 
   for (auto it = batch.transientBegin(); it != batch.transientEnd(); ++it) {
-    mMap.emplace(it->first, it->second);
+    mMap[it->first] = it->second;
   }
 
   for (auto it = batch.durableBegin(); it != batch.durableEnd(); ++it) {
-    mMap.emplace(it->first, it->second);
+    mMap[it->first] = it->second;
   }
 
   return future;
