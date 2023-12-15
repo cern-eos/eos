@@ -67,6 +67,7 @@ FsckHelper::ParseCommand(const char* arg)
     config->set_key(key);
     config->set_value(value);
   } else if (cmd == "report") {
+    mIsAdmin = false;
     eos::console::FsckProto::ReportProto* report = fsck->mutable_report();
 
     while (true) {

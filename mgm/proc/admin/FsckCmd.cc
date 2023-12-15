@@ -38,7 +38,7 @@ FsckCmd::ProcessRequest() noexcept
   eos::console::FsckProto fsck = mReqProto.fsck();
   eos::console::FsckProto::SubcmdCase subcmd = fsck.subcmd_case();
 
-  if (mVid.uid != 0) {
+  if ((subcmd != eos::console::FsckProto::kReport) && (mVid.uid != 0)) {
     reply.set_retc(EPERM);
     reply.set_std_err("error: only admin can execute this command");
     return reply;
