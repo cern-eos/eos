@@ -25,6 +25,7 @@
 #include <iostream>
 #include <memory>
 #include <thread>
+#include <optional>
 #include <vector>
 #include <google/protobuf/util/json_util.h>
 #include "cap/cap.hh"
@@ -2453,9 +2454,16 @@ metad::mdstackfree(ThreadAssistant& assistant)
           it++;
           continue;
         }
-
+        // Try if we can acquire a md lock, if yes, then remove them
+        // from the map & LRU if not,we try the next cycle
+        std::optional<uint64_t> pid;
+        if (it->second->Locker().CondLock())
+        {
+          pid = it->second->pid();
+          it->second->Locker().UnLock();
+        }
         // if the parent is gone, we can remove the child
-        if ((!mdmap.count((it->second->pid()))) &&
+        if ((pid && !mdmap.count(*pid)) &&
             (!S_ISDIR((*(it->second))()->mode()) || it->second->deleted())) {
           eos_static_debug("removing orphaned inode from mdmap ino=%#lx path=%s",
                            it->first, (*(it->second))()->fullpath().c_str());
@@ -2479,7 +2487,7 @@ metad::mdstackfree(ThreadAssistant& assistant)
           }
         }
       }
-    }
+    } //end mLock(mdmap)
 
     if (!EosFuse::Instance().Config().mdcachedir.empty()) {
       // level the inodes stored in memory and eventually swap out into kv store
