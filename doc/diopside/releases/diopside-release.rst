@@ -17,6 +17,39 @@ Introduction
 This release is based on XRootD V5.
 
 
+``v5.2.4 Diopside``
+==========================
+
+2023-12-18
+
+Note
+----
+
+* Update eos-xrootd/xrootd dependency to 5.6.4
+* Update eos-rocksdb dependency to 8.8.1
+
+
+Bug
+----
+
+* [EOS-5657] - Overreplication in EC preventing reading files
+* [EOS-5937] - Fix 'EOS command 'evict'/'stagerrm' not deleting files on FST'
+* [EOS-5965] - FUSEX: TSAN data race on setting pid in shared mdx object
+* CONSOLE/MGM: Fix EOS command evict/stagerrm not deleting files on FSTs [CTA]
+
+New Feature
+------------
+
+* [EOS-5511] - suggestion: rate limit on errors
+
+
+Improvement
+------------
+
+* [EOS-5718] - Fsck request to repair overreplicated files in EC
+* [EOS-5919] - Disable fallocate on FSTs when filesystem != XFS by default
+
+
 ``v5.2.3 Diopside``
 ==========================
 
