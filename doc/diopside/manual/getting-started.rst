@@ -11,19 +11,21 @@ Getting Started
 Our recommended way to install a production ready EOS instance is using RPM configuration.
 A Kubernetes-based demonstrator is avilable for testing purposes.
 
-EOS installtion with Kubernetes and Helm for test / demonstration
+EOS installation with Kubernetes and Helm for test / demonstration
 -----------------------------------------------------------------
-The `EOS Charts repository <https://gitlab.cern.ch/eos/eos-charts>`_ provides Helm charts for the deployment of EOS in Kubernetes for test and demostration purposes.
-A working Kubernetes cluster (`v1.20.15` or newer) and Helm (`v3.8.0`) are required.
+The `EOS Charts repository <https://gitlab.cern.ch/eos/eos-charts>`_ provides Helm charts for the deployment of EOS in Kubernetes for test and demonstration purposes.
+A working Kubernetes cluster (`v1.20.15` or newer) and the Helm package manager (`v3.8.0` or newer) are required.
 
-To deployment is fully automated via the `server` chart, which deployes 1 MGM, 3 QDB instances in cluster mode, and 4 FSTs.
+The installation is fully automated via the `server` chart, which deploys 1 MGM, 3 QDB instances in cluster mode, and 4 FSTs.
 
 .. code-block:: bash
+
   helm install eos oci://registry.cern.ch/eos/charts/server
 
 The resulting cluster will consist of 8 pods:
 
-.. code-block::
+.. code-block:: bash
+
   kubectl get pods
   NAME        READY   STATUS    RESTARTS   AGE
   eos-fst-0   1/1     Running   0          4m47s
@@ -35,9 +37,10 @@ The resulting cluster will consist of 8 pods:
   eos-qdb-1   1/1     Running   0          2m21s
   eos-qdb-2   1/1     Running   0          2m6s
 
-... and will be configured out of the box with relevant defaults:
+...and will be configured with relevant defaults to make it a fully-working instance:
 
-.. code-block::
+.. code-block:: bash
+
   eos ns
   # ------------------------------------------------------------------------------------
   # Namespace Statistics
