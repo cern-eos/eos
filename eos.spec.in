@@ -293,6 +293,8 @@ cd build
     CC=clang CXX=clang++ %{cmake} ../ -DRELEASE=@CPACK_PACKAGE_RELEASE@ -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_INSTALL_RPATH_USE_LINK_PATH=true %{build_flags}
   %endif
 %endif
+
+%{__make} GenerateVersionInfo
 %{__make} %{_smp_mflags}
 
 %install
