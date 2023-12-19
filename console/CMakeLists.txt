@@ -139,6 +139,7 @@ add_library(EosConsoleCommands-Objects OBJECT
 target_link_libraries(EosConsoleCommands-Objects PUBLIC
   EosConsoleHelpers-Objects
   READLINE::READLINE
+  JSONCPP::JSONCPP
   XROOTD::UTILS)
 
 set_target_properties(EosConsoleCommands-Objects PROPERTIES
