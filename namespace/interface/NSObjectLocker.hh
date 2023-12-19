@@ -138,7 +138,7 @@ protected:
    * be performed, false otherwise
    */
   bool isLockRegisteredByThisThread(const MDReadLock & mdLock) const {
-    std::shared_lock<std::shared_timed_mutex> lock(mThreadIdLockMapMutex);
+    std::unique_lock<std::mutex> lock(mThreadIdLockMapMutex);
     // In case of a read, if this object is already locked by a write lock we consider it to be read-locked as well
     // otherwise a deadlock will happen if the object is write locked and a getter method that will try to
     // read lock the object is called...
@@ -155,7 +155,7 @@ protected:
    * be performed, false otherwise
    */
   bool isLockRegisteredByThisThread(const MDWriteLock & mdLock) const {
-    std::shared_lock<std::shared_timed_mutex> lock(mThreadIdLockMapMutex);
+    std::unique_lock<std::mutex> lock(mThreadIdLockMapMutex);
     return isThisThreadInLockMap(mThreadIdWriteLockMap);
   }
 
@@ -165,7 +165,7 @@ protected:
    * is actually not used
    */
   virtual void registerLock(MDReadLock & mdLock) {
-    std::unique_lock<std::shared_timed_mutex> lock(mThreadIdLockMapMutex);
+    std::unique_lock<std::mutex> lock(mThreadIdLockMapMutex);
     registerLock(mThreadIdReadLockMap);
   }
 
@@ -175,7 +175,7 @@ protected:
    * is actually not used
    */
   virtual void registerLock(MDWriteLock & mdLock) {
-    std::unique_lock<std::shared_timed_mutex> lock(mThreadIdLockMapMutex);
+    std::unique_lock<std::mutex> lock(mThreadIdLockMapMutex);
     registerLock(mThreadIdWriteLockMap);
     //A Write lock is also a readlock. If one tries to read
     //lock after a write lock on the same thread, a deadlock will happen
@@ -188,7 +188,7 @@ protected:
    * is actually not used
    */
   virtual void unregisterLock(MDReadLock & mdLock) {
-    std::unique_lock<std::shared_timed_mutex> lock(mThreadIdLockMapMutex);
+    std::unique_lock<std::mutex> lock(mThreadIdLockMapMutex);
     unregisterLock(mThreadIdReadLockMap);
   }
 
@@ -198,7 +198,7 @@ protected:
    * is actually not used
    */
   virtual void unregisterLock(MDWriteLock & mdLock) {
-    std::unique_lock<std::shared_timed_mutex> lock(mThreadIdLockMapMutex);
+    std::unique_lock<std::mutex> lock(mThreadIdLockMapMutex);
     unregisterLock(mThreadIdWriteLockMap);
     unregisterLock(mThreadIdReadLockMap);
   }
@@ -211,7 +211,7 @@ protected:
 
 private:
   //Mutex to protect the map that keeps track of the threads that are locking this MD object
-  mutable std::shared_timed_mutex mThreadIdLockMapMutex;
+  mutable std::mutex mThreadIdLockMapMutex;
   //Map that keeps track of the threads that already have a lock
   //on this MD object. This map is only filled when the MDLocker object
   //is used.
