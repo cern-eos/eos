@@ -578,6 +578,18 @@ public:
 
   // ---------------------------------------------------------------------------
   /**
+   * Check if a string is a double
+   *
+   * @param s
+   * @return true if it is
+   */
+  // ---------------------------------------------------------------------------
+
+  static bool
+  IsDouble(const std::string& s);
+
+  // ---------------------------------------------------------------------------
+  /**
    * UnQuote a string if it starts with a " only ...
    *
    * @param string

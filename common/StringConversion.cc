@@ -27,7 +27,7 @@
 #include <XrdOuc/XrdOucTokenizer.hh>
 #include "curl/curl.h"
 #include <pthread.h>
-#include <regex>
+#include <regex.h>
 
 EOSCOMMONNAMESPACE_BEGIN
 
@@ -929,6 +929,26 @@ bool
 StringConversion::IsDecimalNumber(const std::string& str)
 {
   return !str.empty() && std::all_of(str.begin(), str.end(), ::isdigit);
+}
+
+//------------------------------------------------------------------------------
+// Check if a string is a double
+//------------------------------------------------------------------------------
+bool
+StringConversion::IsDouble(const std::string& s) {
+  static std::string sregex ="[-+]?[0-9]*\\.?[0-9]+([eE][-+]?[0-9]+)?";
+  regex_t regex;
+  int regexErrorCode = regcomp(&regex, sregex.c_str(), REG_EXTENDED);
+  if (regexErrorCode) {
+    return false;
+  }
+  int result = regexec(&regex, s.c_str(), 0, NULL, 0);
+  regfree(&regex);
+  if (result == REG_NOMATCH) {
+    return false;
+  } else {
+    return true;
+  }
 }
 
 
