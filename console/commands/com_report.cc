@@ -25,10 +25,13 @@
 #include "console/ConsoleMain.hh"
 #include "common/Statistics.hh"
 #include "common/Path.hh"
+#include "common/Logging.hh"
 #include <fcntl.h>
 #include <unistd.h>
 #include <set>
 #include <regex.h>
+#include <json/json.h>
+#include <sstream>
 
 /* Change working directory &*/
 int
@@ -41,12 +44,17 @@ com_report(char* arg1)
   std::string sregex;
   size_t max_reports = 2000000000;
   bool silent = false;
-  bool ec = false;
   XrdOucString squash;
   time_t start_time = 0;
   time_t stop_time = 0;
   time_t first_ts = 0;
   time_t last_ts = 0;
+  double max_eff = 100.0;
+  bool reading = false;
+  bool writing = false;
+  bool json = false;
+
+  Json::Value gjson;
 
   do {
     arg = subtokenizer.GetToken();
@@ -79,11 +87,30 @@ com_report(char* arg1)
       continue;
     }
 
-    if (arg == "--ec") {
-      ec = true;
+    if (arg == "--read") {
+      reading = true;
       continue;
     }
 
+    if (arg == "--write") {
+      writing = true;
+      continue;
+    }
+
+    if (arg == "--json") {
+      json = true;
+      continue;
+    }
+
+    if (arg == "--max-efficiency") {
+      arg = subtokenizer.GetToken();
+      max_eff = strtod(arg.c_str(),0);
+      if ((max_eff<0) || (max_eff > 100)) {
+	goto com_report_usage;
+      }
+
+      continue;
+    }
     if (arg == "--squash") {
       arg = subtokenizer.GetToken();
 
@@ -131,6 +158,11 @@ com_report(char* arg1)
     path = arg;
   } while (arg.length());
 
+
+  if (!reading && !writing) {
+    reading = writing = true;
+  }
+
   {
     std::string reportfile = path.c_str();
     std::ifstream file(reportfile);
@@ -142,6 +174,12 @@ com_report(char* arg1)
       std::multiset<float> r_t;
       std::multiset<float> w_t;
       uint64_t sum_w, sum_r;
+      size_t n_w = 0;
+      size_t n_r = 0;
+      double reff=0;
+      double srleff=0;
+      double weff=0;
+      double swleff=0;
       sum_w = sum_r = 0;
       std::string sizestring;
       size_t n_reports = 0;
@@ -197,12 +235,12 @@ com_report(char* arg1)
 
           bool found = false;
           time_t start_ots = std::stoul(map["ots"]);
-
+	  time_t start_cts = std::stoul(map["cts"]);
           if (!first_ts) {
             first_ts = start_ots;
           }
 
-          last_ts = start_ots;
+          last_ts = start_cts;
 
           if (start_time) {
             if (start_ots < start_time) {
@@ -216,41 +254,89 @@ com_report(char* arg1)
             }
           }
 
-          ssize_t wsize = ec ? std::stol(map["csize"]) : std::stol(map["wb"]);
-          ssize_t rsize = ec ? std::stol(map["csize"]) : std::stol(map["rb"]);
+          ssize_t wsize = std::stol(map["wb"]);
+          ssize_t rsize = std::stol(map["rb"]);
+
+	  double iot = std::stod(map["iot"]);
+	  double idt = std::stod(map["idt"]);
+	  double lwt = std::stod(map["lwt"]);
+	  double lrt = std::stod(map["lrt"]);
+	  double lrvt = std::stod(map["lrvt"]);
+	  double deff=100.0-(iot?(100.0 * idt / iot):0.0);
+	  double lreff = 100.0*((iot - lrt -lrvt) / iot);
+	  double lweff = 100.0*((iot - lwt ) / iot);
+
+	  int eff = (int)(deff);
+
+	  // filter maximum efficiency
+	  if (deff > max_eff)  {
+	    continue;
+	  }
+
+	  if (json && !silent) {
+	    Json::Value ljson;
+	    for (auto it=map.begin(); it!=map.end(); ++it) {
+	      if (eos::common::StringConversion::IsDecimalNumber(it->second)) {
+		ljson[it->first]=(Json::Value::UInt64)strtoull(it->second.c_str(),0,10);
+	      } else if (eos::common::StringConversion::IsDouble(it->second)) {
+		ljson[it->first]=strtod(it->second.c_str(),0);
+	      } else {
+		ljson[it->first]=it->second;
+	      }
+	    }
+	    ljson["io"]["efficiency"]["total"] = deff;
+	    ljson["io"]["efficiency"]["disk"]["rd"] = lreff;
+	    ljson["io"]["efficiency"]["disk"]["wr"] = lweff;
+
+	    Json::StreamWriterBuilder builder;
+	    builder["indentation"] = "";  // assume default for comments is None
+	    std::string str = Json::writeString(builder, ljson);
+	    fprintf(stdout, str.c_str());
+	    fprintf(stdout, "\n");
+	  }
 
           // classify write or read
-          if (std::stol(map["wb"]) > 0) {
+          if (std::stol(map["wb"]) > 0 && writing) {
             sum_w += wsize;
+	    n_w++;
+	    weff += deff;
+	    swleff += lweff;
             double tt = std::stoul(map["cts"]) - std::stoul(map["ots"]) +
                         (0.001 * std::stoul(map["ctms"])) - (0.001 * std::stoul(map["otms"]));
             float rate = wsize  / tt / 1000000.0;
 
-            if (!silent) {
-              fprintf(stdout, "W %-16s t=%03.02f [s] r=%03.02f [MB/s] path=%64s\n",
+            if (!silent && !json) {
+              fprintf(stdout, "W %-16s t=%06.02f [s] r=%06.02f [MB/s] eff=%02d/%02d [%%] path=%64s\n",
                       eos::common::StringConversion::GetReadableSizeString(sizestring, wsize, ""), tt,
-                      rate, map["path"].c_str());
+                      rate, eff, (int)lweff, map["path"].c_str());
             }
 
             w_t.insert(tt);
             found = true;
-          }
+          } else {
+	    continue;
+	  }
 
-          if (std::stol(map["rb"]) > 0) {
+          if (std::stol(map["rb"]) > 0 && reading) {
             sum_r += rsize;
+	    n_r++;
+	    reff += deff;
+	    srleff += lreff;
             double tt = std::stoul(map["cts"]) - std::stoul(map["ots"]) +
                         (0.001 * std::stoul(map["ctms"])) - (0.001 * std::stoul(map["otms"]));
             float rate = rsize / tt / 1000000.0;
 
-            if (!silent && !squash.length()) {
-              fprintf(stdout, "R %-16s t=%03.02f [s] r=%03.02f [MB/s] path=%64s\n",
+            if (!silent && !json && !squash.length()) {
+              fprintf(stdout, "R %-16s t=%06.02f [s] r=%06.02f [MB/s] eff=%02d/%02d [%%] path=%64s\n",
                       eos::common::StringConversion::GetReadableSizeString(sizestring, rsize, ""), tt,
-                      rate, map["path"].c_str());
+                      rate, eff, (int)lreff, map["path"].c_str());
             }
 
             r_t.insert(tt);
             found = true;
-          }
+          } else {
+	    continue;
+	  }
 
           if (found) {
             n_reports++;
@@ -280,7 +366,7 @@ com_report(char* arg1)
         }
       }
 
-      if (1) {
+      if (!json) {
         std::string sizestring1, sizestring2;
         fprintf(stdout,
                 "---------------------------------------------------------------------\n");
@@ -324,17 +410,45 @@ com_report(char* arg1)
                 last_ts - first_ts,
                 eos::common::StringConversion::GetReadableAgeString(agestring,
                     last_ts - first_ts));
-        fprintf(stdout, "- r:rate avg: %.02f MB/s ",
+        fprintf(stdout, "- r:rate eff: %02d/%02d%% avg: %.02f MB/s\n", n_r?((int)(reff/n_r)):0, n_r?((int)(srleff/n_r)):0,
                 (last_ts - first_ts) ? sum_r / 1000000.0 / (last_ts - first_ts) : 0);
-        fprintf(stdout, "- w:rate avg: %.02f MB/s\n",
+	fprintf(stdout, "- w:rate eff: %02d/%02d%% avg: %.02f MB/s\n", n_w?((int)(weff/n_w)):0, n_w?((int)(swleff/n_w)):0,
                 (last_ts - first_ts) ? sum_w / 1000000.0 / (last_ts - first_ts) : 0);
         fprintf(stdout,
                 "---------------------------------------------------------------------\n");
-        file.close();
+      } else {
+	if (silent) {
+	  gjson["report"]["rd"]["n"] = n_r;
+	  gjson["report"]["timestamp"]["first"] = first_ts;
+	  gjson["report"]["timestamp"]["last"]  = last_ts;
+	  gjson["report"]["wr"]["n"] = n_w;
+	  gjson["report"]["rd"]["bytes"]["sum"] = sum_r;
+	  gjson["report"]["wr"]["bytes"]["sum"] = sum_w;
+	  gjson["report"]["rd"]["bytes"]["avg"] = eos::common::Statistics::avg(r_t);
+	  gjson["report"]["wr"]["bytes"]["avg"] = eos::common::Statistics::avg(w_t);
+	  gjson["report"]["rd"]["bytes"]["sig"] = eos::common::Statistics::sig(r_t);
+	  gjson["report"]["wr"]["bytes"]["sig"] = eos::common::Statistics::sig(w_t);
+	  gjson["report"]["rd"]["bytes"]["max"] = eos::common::Statistics::max(r_t);
+	  gjson["report"]["wr"]["bytes"]["max"] = eos::common::Statistics::max(w_t);
+	  gjson["report"]["rd"]["bytes"]["95"] = eos::common::Statistics::nperc(r_t, 95);
+	  gjson["report"]["wr"]["bytes"]["95"] = eos::common::Statistics::nperc(w_t, 95);
+	  gjson["report"]["rd"]["bytes"]["99"] = eos::common::Statistics::nperc(r_t, 99);
+	  gjson["report"]["wr"]["bytes"]["99"] = eos::common::Statistics::nperc(w_t, 99);
+	  gjson["report"]["rd"]["rate"] = (last_ts-first_ts)? sum_r / 1000000.0 / (last_ts-first_ts) : 0;
+	  gjson["report"]["wr"]["rate"] = (last_ts-first_ts)? sum_w / 1000000.0 / (last_ts-first_ts) : 0;
+	  gjson["report"]["rd"]["efficiency"]["client"] = n_r?(reff/n_r):0;
+	  gjson["report"]["rd"]["efficiency"]["server"] = n_r?(srleff/n_r):0;
+	  gjson["report"]["rd"]["efficiency"]["client"] = n_w?(weff/n_w):0;
+	  gjson["report"]["rd"]["efficiency"]["server"] = n_w?(swleff/n_w):0;
 
-        if (sregex.length()) {
-          regfree(&regex);
-        }
+	  fprintf(stdout, SSTR(gjson).c_str());
+	}
+      }
+
+      file.close();
+
+      if (sregex.length()) {
+	regfree(&regex);
       }
     } else {
       fprintf(stderr, "error: unable to open file!\n");
@@ -345,7 +459,7 @@ com_report(char* arg1)
   return (0);
 com_report_usage:
   fprintf(stdout,
-          "'[eos] report [-n <nrecords>] [--regex <regex>] [-s] [--start <unixtime>] [--stop <unixtime>] [--ec] <reportfile>\n");
+          "'[eos] report [-n <nrecords>] [--regex <regex>] [-s] [--start <unixtime>] [--stop <unixtime>] [--max-efficiency <percent>] [--read] [--write] [--json] <reportfile>\n");
   fprintf(stdout, "Usage: report <file>\n");
   fprintf(stdout, "Options:\n");
   fprintf(stdout,
@@ -355,19 +469,39 @@ com_report_usage:
   fprintf(stdout,
           "          -n <n>     : stop after n records are accepted for the statistics\n");
   fprintf(stdout,
-          "           --ec       : consider records as EC file streaming reads/writes\n");
+          "--max-efficiency <n> : consider records which have an efficienc <=n (in percent)\n");
   fprintf(stdout,
           "     --regex <regex> : apply <regex> for filtering the records\n");
   fprintf(stdout,
           "  --start <unixtime> : only take records starting after <unixtime>\n");
   fprintf(stdout,
-          "  --stop <unixtime>  : only take records starting before <unixtime>\n\n");
+          "  --stop <unixtime>  : only take records starting before <unixtime>\n");
+  fprintf(stdout,
+          "              --read : select all read records\n");
+  fprintf(stdout,
+	  "             --write : select all write records\n");
+  fprintf(stdout,
+	  "              --json : write json output format\n");
   fprintf(stdout,
           "Example:               bash> eos report /var/eos/report/2021/05/20210530.eosreport\n");
   fprintf(stdout,
           "                       bash> zcat /var/eos/report/2021/05/20210530.eosreport.gz | eos report /dev/stdin -s\n");
   fprintf(stdout,
           "                       bash> eos report /var/eos/report/2021/05/20210530.eosreport --regex \"sec.app=fuse\" -s\n");
+  fprintf(stdout,
+	  "                       #select only reads\n"
+	  "                       bash> eos report /var/eos/report/2021/05/20210530.eosreport --read\n");
+  fprintf(stdout,
+	  "                       #select only writes\n"
+	  "                       bash> eos report /var/eos/report/2021/05/20210530.eosreport --write\n");
+
+  fprintf(stdout,
+	  "                       #convert into line-wise json records\n"
+          "                       bash> eos report /var/eos/report/2021/05/20210530.eosreport --json\n");
+  fprintf(stdout,
+	  "                       #get summary as json output\n"
+	  "                       bash> eos report /var/eos/report/2021/05/20210530.eosreport --json -s\n");
+
   global_retc = EINVAL;
   return (0);
 }
