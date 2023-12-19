@@ -55,7 +55,7 @@ public:
     for (auto it : s) {
       sum += it;
     }
-    return sum/s.size();
+    return s.size()?sum/s.size():0;
   }
 
   static double sig(std::multiset<float>& s)
@@ -65,7 +65,7 @@ public:
     for (auto it : s) {
       sum += (it - average) * (it - average);
     }
-    return sqrt( sum / s.size());
+    return s.size()?sqrt( sum / s.size()):0;
   }
 
   static double nperc(std::multiset<float>& s, double perc=99.0)
