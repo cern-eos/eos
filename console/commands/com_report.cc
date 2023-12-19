@@ -418,12 +418,12 @@ com_report(char* arg1)
                 "---------------------------------------------------------------------\n");
       } else {
 	if (silent) {
-	  gjson["report"]["rd"]["n"] = n_r;
-	  gjson["report"]["timestamp"]["first"] = first_ts;
-	  gjson["report"]["timestamp"]["last"]  = last_ts;
-	  gjson["report"]["wr"]["n"] = n_w;
-	  gjson["report"]["rd"]["bytes"]["sum"] = sum_r;
-	  gjson["report"]["wr"]["bytes"]["sum"] = sum_w;
+	  gjson["report"]["rd"]["n"] = (Json::Value::UInt64)n_r;
+	  gjson["report"]["timestamp"]["first"] = (Json::Value::UInt64)first_ts;
+	  gjson["report"]["timestamp"]["last"]  = (Json::Value::UInt64)last_ts;
+	  gjson["report"]["wr"]["n"] = (Json::Value::UInt64)n_w;
+	  gjson["report"]["rd"]["bytes"]["sum"] = (Json::Value::UInt64)sum_r;
+	  gjson["report"]["wr"]["bytes"]["sum"] = (Json::Value::UInt64)sum_w;
 	  gjson["report"]["rd"]["bytes"]["avg"] = eos::common::Statistics::avg(r_t);
 	  gjson["report"]["wr"]["bytes"]["avg"] = eos::common::Statistics::avg(w_t);
 	  gjson["report"]["rd"]["bytes"]["sig"] = eos::common::Statistics::sig(r_t);
