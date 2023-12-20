@@ -391,10 +391,6 @@ XrdMgmOfs::FSctl(const int cmd,
       return XrdMgmOfs::Version(path, ininfo, env, error, vid, client);
     }
 
-    case FsctlCommand::xattr: {
-      return XrdMgmOfs::Xattr(path, ininfo, env, error, vid, client);
-    }
-
     case FsctlCommand::INVALID: {
       eos_thread_err("No implementation for %s", execmd.c_str());
     }
