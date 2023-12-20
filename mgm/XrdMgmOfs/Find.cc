@@ -89,6 +89,7 @@ _cloneResp(XrdOucErrInfo& out_error, XrdOucString& stdErr,
   Json::Value j;
   Json::StreamWriterBuilder jfw;
   jfw["indentation"] = "";
+
   if (! _found.empty()) {                                   /* first element is root of tree */
     p = gOFS->eosView->getUri(gOFS->eosDirectoryService->getContainerMD(
                                 _found.front().id).get());
@@ -201,7 +202,7 @@ _cloneResp(XrdOucErrInfo& out_error, XrdOucString& stdErr,
       }
 
       gOFS->FuseXCastRefresh(fmd->getIdentifier(), eos::ContainerIdentifier(
-									    fmd->getContainerId()));
+                               fmd->getContainerId()));
       fmd->getSyncTime(stime);
 
       if (json_output) {
@@ -268,7 +269,7 @@ _cloneResp(XrdOucErrInfo& out_error, XrdOucString& stdErr,
 
       j["attr"] = attr;
       j["st"] = sts;
-      fprintf(fstdout, "%s\n", Json::writeString(jfw,j).c_str());
+      fprintf(fstdout, "%s\n", Json::writeString(jfw, j).c_str());
     }
   }
 };
@@ -770,8 +771,8 @@ XrdMgmOfs::_find(const char* path, XrdOucErrInfo& out_error,
       // Held only for the current loop
       eos::Prefetcher::prefetchContainerMDWithChildrenAndWait(gOFS->eosView,
           Path.c_str(), false, no_files, limitresult, dir_limit, file_limit);
-
       eos::IContainerMD::IContainerMDReadLockerPtr cmdLock;
+
       try {
         cmdLock = gOFS->eosView->getContainerReadLocked(Path.c_str(), false);
         cmd = cmdLock->getUnderlyingPtr();
@@ -845,7 +846,7 @@ XrdMgmOfs::_find(const char* path, XrdOucErrInfo& out_error,
             } else {
               // This is a search for a full match or a key search
               std::string sval = val;
-              XrdOucString attr = "";
+              std::string attr = "";
 
               if (!gOFS->_attr_get(fpath.c_str(), out_error, vid,
                                    (const char*) 0, key, attr)) {
@@ -882,6 +883,7 @@ XrdMgmOfs::_find(const char* path, XrdOucErrInfo& out_error,
             fname = fit.key();
             std::shared_ptr<eos::IFileMD> fmd;
             eos::IFileMD::IFileMDReadLockerPtr fmdLock;
+
             try {
               fmdLock = cmd->findFileReadLocked(fname);
               fmd = fmdLock->getUnderlyingPtr();

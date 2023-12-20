@@ -861,13 +861,13 @@ public:
                                    const std::string& search,
                                    const std::string& replace)
   {
-    if (subject.empty() || search.empty() || replace.empty()) {
+    if (subject.empty() || search.empty()) {
       return;
     }
 
     size_t pos = 0;
 
-    while ((pos = subject.find(search)) != std::string::npos) {
+    while ((pos = subject.find(search, pos)) != std::string::npos) {
       subject.replace(pos, search.length(), replace);
       pos += replace.length();
     }

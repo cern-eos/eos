@@ -107,11 +107,11 @@ ProcCommand::Attr()
       retc = EINVAL;
     } else {
       retc = 0;
-      XrdOucString key = pOpaque->Get("mgm.attr.key");
-      XrdOucString val = pOpaque->Get("mgm.attr.value");
-
-      while (val.replace("\"", "")) {
-      }
+      const char* ptr = pOpaque->Get("mgm.attr.key");
+      std::string key = (ptr ? ptr : "");
+      ptr = pOpaque->Get("mgm.attr.value");
+      std::string val = (ptr ? ptr : "");
+      eos::common::StringConversion::ReplaceStringInPlace(val, "\"", "");
 
       if (val.length() && !SanitizeXattr(key.c_str(), val.c_str())) {
         stdErr = "error: invalid input";
@@ -165,7 +165,8 @@ ProcCommand::Attr()
 
               XrdOucString partialStdOut = "";
 
-              if (gOFS->_attr_ls(foundit->first.c_str(), *mError, *pVid, (const char*) 0, map, true)) {
+              if (gOFS->_attr_ls(foundit->first.c_str(), *mError, *pVid, (const char*) 0, map,
+                                 true)) {
                 stdErr += "error: unable to list attributes of ";
                 stdErr += foundit->first.c_str();
                 stdErr += "\n";
@@ -181,22 +182,22 @@ ProcCommand::Attr()
                 for (it = map.begin(); it != map.end(); ++it) {
                   partialStdOut += (it->first).c_str();
 
-		  if (option.find("V")== STR_NPOS) {
-		    if (it->first != "sys.file.buffer") {
-		      partialStdOut += "=";
-		      partialStdOut += "\"";
-		      partialStdOut += (it->second).c_str();
-		    } else {
-		      partialStdOut += "=\"[";
-		      partialStdOut += (std::to_string(it->second.size()).c_str());
-		      partialStdOut += "] bytes";
-		    }
-		    
-		    partialStdOut += "\"";
-		    partialStdOut += "\n";
-		  } else {
-		    partialStdOut += "\n";
-		  }
+                  if (option.find("V") == STR_NPOS) {
+                    if (it->first != "sys.file.buffer") {
+                      partialStdOut += "=";
+                      partialStdOut += "\"";
+                      partialStdOut += (it->second).c_str();
+                    } else {
+                      partialStdOut += "=\"[";
+                      partialStdOut += (std::to_string(it->second.size()).c_str());
+                      partialStdOut += "] bytes";
+                    }
+
+                    partialStdOut += "\"";
+                    partialStdOut += "\n";
+                  } else {
+                    partialStdOut += "\n";
+                  }
                 }
 
                 stdOut += partialStdOut;
@@ -211,7 +212,7 @@ ProcCommand::Attr()
               RECURSIVE_STALL("AttrSet", (*pVid));
 
               if (key == "user.acl") {
-                XrdOucString evalacl;
+                std::string evalacl;
 
                 // If someone wants to set a user.acl and the tag sys.eval.useracl
                 // is not there, we return an error ...
@@ -270,20 +271,20 @@ ProcCommand::Attr()
               if (gOFS->_attr_get(foundit->first.c_str(), *mError, *pVid, (const char*) 0,
                                   key.c_str(), val)) {
                 stdErr += "error: unable to get attribute ";
-                stdErr += key;
+                stdErr += key.c_str();
                 stdErr += " in file/directory ";
                 stdErr += foundit->first.c_str();
                 stdErr += "\n";
                 retc = errno;
               } else {
-		if (option.find("V") != STR_NPOS) {
-		  stdOut += val;
-		} else {
-		  stdOut += key;
-		  stdOut += "=\"";
-		  stdOut += val;
-		  stdOut += "\"\n";
-		}
+                if (option.find("V") != STR_NPOS) {
+                  stdOut += val.c_str();
+                } else {
+                  stdOut += key.c_str();
+                  stdOut += "=\"";
+                  stdOut += val.c_str();
+                  stdOut += "\"\n";
+                }
               }
             }
 
@@ -293,14 +294,14 @@ ProcCommand::Attr()
               if (gOFS->_attr_rem(foundit->first.c_str(), *mError, *pVid, (const char*) 0,
                                   key.c_str())) {
                 stdErr += "error: unable to remove attribute '";
-                stdErr += key;
+                stdErr += key.c_str();
                 stdErr += "' in file/directory ";
                 stdErr += foundit->first.c_str();
                 stdErr += "\n";
                 retc = errno;
               } else {
                 stdOut += "success: removed attribute '";
-                stdOut += key;
+                stdOut += key.c_str();
                 stdOut += "' from file/directory ";
                 stdOut += foundit->first.c_str();
                 stdOut += "\n";

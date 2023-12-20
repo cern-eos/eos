@@ -112,8 +112,8 @@ PropFindResponse::BuildResponse(eos::common::HttpRequest* request)
 
   if (mRequestPropertyTypes & PropertyTypes::GET_OCID) {
     XrdOucErrInfo error;
-    XrdOucString val;
     eos::common::VirtualIdentity rootvid = eos::common::VirtualIdentity::Root();
+    std::string val;
 
     if (gOFS->_attr_get(request->GetUrl().c_str(), error, rootvid, "",
                         eos::common::OwnCloud::GetAllowSyncName(), val)) {

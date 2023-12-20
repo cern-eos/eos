@@ -37,15 +37,18 @@ struct XattrLock {
 public:
   XattrLock() : valid(false), expires(0), isshared(false), isfuseopen(false) {}
 
-  XattrLock(eos::IFileMD::XAttrMap& attr) : xattr(attr), valid(false), expires(0), isshared(false), isfuseopen(false) {
+  XattrLock(eos::IFileMD::XAttrMap& attr) : xattr(attr), valid(false), expires(0),
+    isshared(false), isfuseopen(false)
+  {
     auto l = xattr.find(eos::common::EOS_APP_LOCK_ATTR);
 
     if (l != xattr.end()) {
       Parse(l->second.c_str());
     }
-    
+
     // check fuse commit state
     std::string fs = attr["sys.fusex.state"];
+
     if (!fs.empty()) {
       isfuseopen = fs.back() != '|';
     }
@@ -86,6 +89,7 @@ public:
       // file is in open state
       return false;
     }
+
     if (lifetime > 0) {
       // check the lock is still within its lifetime
       if (lifetime > 604800) {
@@ -122,18 +126,16 @@ public:
   {
     errno = 0;
     XrdOucErrInfo error;
-    XrdOucString value;
-
+    std::string value;
     eos::Prefetcher::prefetchFileMDAndWait(gOFS->eosView, path);
-
     eos::IFileMD::IFileMDWriteLockerPtr fdLock;
 
     try {
       fdLock = gOFS->eosView->getFileWriteLocked(path);
-    } catch (eos::MDException &e) {
+    } catch (eos::MDException& e) {
       errno = e.getErrno();
       eos_static_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n", e.getErrno(),
-                e.getMessage().str().c_str());
+                       e.getMessage().str().c_str());
       return false;
     }
 
@@ -182,17 +184,14 @@ public:
   bool Unlock(const char* path, eos::common::VirtualIdentity& vid)
   {
     errno = 0;
-
     XrdOucErrInfo error;
-    XrdOucString value;
-
+    std::string value;
     eos::Prefetcher::prefetchFileMDAndWait(gOFS->eosView, path);
-
     eos::IFileMD::IFileMDWriteLockerPtr fdLock;
 
     try {
       fdLock = gOFS->eosView->getFileWriteLocked(path);
-    } catch (eos::MDException &e) {
+    } catch (eos::MDException& e) {
       errno = e.getErrno();
       eos_static_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n", e.getErrno(),
                        e.getMessage().str().c_str());

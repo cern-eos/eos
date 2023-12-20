@@ -703,42 +703,44 @@ ProcCommand::ArchiveExecuteCmd(const::string& cmd)
     zmq::message_t msg((void*)cmd.c_str(), cmd.length(), NULL);
     zmq::send_flags sf = zmq::send_flags::none;
     zmq::recv_flags rf = zmq::recv_flags::none;
+
     try {
-      if (!socket.send(msg,sf)) {
+      if (!socket.send(msg, sf)) {
         stdErr = "error: send request to archiver";
         retc = EINVAL;
       } else {
-	zmq::recv_result_t rc = socket.recv(msg, rf);
-	if (!rc.has_value()) {
-	  stdErr = "error: no response from archiver";
-	  retc = EINVAL;
-	} else {
-	  // Parse response from the archiver
-	  XrdOucString msg_str((const char*) msg.data(), msg.size());
-	  //eos_info("Msg_str:%s", msg_str.c_str());
-	  std::istringstream iss(msg_str.c_str());
-	  std::string status, line, response;
-	  iss >> status;
-	  
-	  // Discard whitespaces from the beginning
-	  while (getline(iss >> std::ws, line)) {
-	    response += line;
-	    
-	    if (iss.good()) {
-	      response += '\n';
-	    }
-	  }
-	  
-	  if (status == "OK") {
-	    stdOut = response.c_str();
-	  } else if (status == "ERROR") {
-	    stdErr = response.c_str();
-	    retc = EINVAL;
-	  } else {
-	    stdErr = "error: unknown response format from archiver";
-	    retc = EINVAL;
-	  }
-	}
+        zmq::recv_result_t rc = socket.recv(msg, rf);
+
+        if (!rc.has_value()) {
+          stdErr = "error: no response from archiver";
+          retc = EINVAL;
+        } else {
+          // Parse response from the archiver
+          XrdOucString msg_str((const char*) msg.data(), msg.size());
+          //eos_info("Msg_str:%s", msg_str.c_str());
+          std::istringstream iss(msg_str.c_str());
+          std::string status, line, response;
+          iss >> status;
+
+          // Discard whitespaces from the beginning
+          while (getline(iss >> std::ws, line)) {
+            response += line;
+
+            if (iss.good()) {
+              response += '\n';
+            }
+          }
+
+          if (status == "OK") {
+            stdOut = response.c_str();
+          } else if (status == "ERROR") {
+            stdErr = response.c_str();
+            retc = EINVAL;
+          } else {
+            stdErr = "error: unknown response format from archiver";
+            retc = EINVAL;
+          }
+        }
       }
     } catch (zmq::error_t& zmq_err) {
       stdErr = "error: timeout getting response from archiver, msg: ";
@@ -953,7 +955,7 @@ ProcCommand::MakeSubTreeImmutable(const std::string& arch_dir,
   // Make the EOS sub-tree immutable e.g.: add sys.acl=z:i
   eos::common::VirtualIdentity root_ident = eos::common::VirtualIdentity::Root();
   const char* acl_key = "sys.acl";
-  XrdOucString acl_val;
+  std::string acl_val;
 
   for (auto it = found.begin(); it != found.end(); ++it) {
     acl_val = "";
@@ -961,11 +963,11 @@ ProcCommand::MakeSubTreeImmutable(const std::string& arch_dir,
     if (!gOFS->_attr_get(it->first.c_str(), *mError, *pVid,
                          (const char*) 0, acl_key, acl_val)) {
       // Add immutable only if not already present
-      int pos_z = acl_val.find("z:");
+      size_t pos_z = acl_val.find("z:");
 
-      if (pos_z != STR_NPOS) {
-        if (acl_val.find('i', pos_z + 2) == STR_NPOS) {
-          acl_val.insert('i', pos_z + 2);
+      if (pos_z != std::string::npos) {
+        if (acl_val.find('i', pos_z + 2) == std::string::npos) {
+          acl_val.insert(pos_z + 2, "i");
         }
       } else {
         acl_val += ",z:i";
@@ -1008,7 +1010,7 @@ ProcCommand::MakeSubTreeMutable(const std::string& arch_dir)
 
   // Make the EOS sub-tree mutable e.g.: remove sys.acl=z:i
   const char* acl_key = "sys.acl";
-  XrdOucString acl_val;
+  std::string acl_val;
   std::string new_acl;
 
   for (auto it = found.begin(); it != found.end(); ++it) {

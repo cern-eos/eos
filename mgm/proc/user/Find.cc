@@ -857,7 +857,7 @@ ProcCommand::Find()
         }
 
         // print directories
-        XrdOucString attr = "";
+        std::string attr = "";
 
         if (printkey.length()) {
           gOFS->_attr_get(foundit->first.c_str(), *mError, vid, (const char*) 0,

@@ -548,28 +548,32 @@ SpaceQuota::PrintOut(XrdOucString& output, long long int uid_sel,
   if (translate_ids) {
     std::string name;
     std::vector<std::pair<std::string, unsigned>> tuids, tgids;
-    for (auto u:uids) {
+
+    for (auto u : uids) {
       if (gid_sel == Quota::gProjectId) {
-	name = "project";
+        name = "project";
       } else {
-	int errc = 0;
-	name = eos::common::Mapping::UidToUserName(u.second, errc);
+        int errc = 0;
+        name = eos::common::Mapping::UidToUserName(u.second, errc);
       }
-      tuids.push_back(std::make_pair(name,u.second));
+
+      tuids.push_back(std::make_pair(name, u.second));
     }
-    
-    for (auto g:gids) {
+
+    for (auto g : gids) {
       if (gid_sel == Quota::gProjectId) {
-	name = "project";
+        name = "project";
       } else {
-	int errc = 0;
-	name = eos::common::Mapping::GidToGroupName(g.second, errc);
+        int errc = 0;
+        name = eos::common::Mapping::GidToGroupName(g.second, errc);
       }
-      tgids.push_back(std::make_pair(name,g.second));
+
+      tgids.push_back(std::make_pair(name, g.second));
     }
-    uids=tuids;
-    gids=tgids;
-  }	
+
+    uids = tuids;
+    gids = tgids;
+  }
 
   // Sort and erase duplicated uids and gids
   eos_info("uids_size=%i, gids_size=%i", uids.size(), gids.size());
@@ -1418,13 +1422,12 @@ Quota::GetIndividualQuota(eos::common::VirtualIdentity& vid,
 {
   // Check for sys.auth='*'
   eos::common::VirtualIdentity m_vid = vid;
-  XrdOucString xownerauth;
+  std::string ownerauth;
   XrdOucErrInfo error;
   struct stat buf;
 
   if (!gOFS->_stat(path.c_str(), &buf, error, vid, "")) {
-    gOFS->_attr_get(path.c_str(), error, vid, "", "sys.owner.auth", xownerauth);
-    std::string ownerauth = xownerauth.c_str();
+    gOFS->_attr_get(path.c_str(), error, vid, "", "sys.owner.auth", ownerauth);
 
     if (ownerauth.length()) {
       if (ownerauth == "*") {
@@ -1576,14 +1579,12 @@ Quota::SetQuotaTypeForId(const std::string& qpath, long id, Quota::IdT id_type,
   oss_config << id << ":" << SpaceQuota::GetTagAsString(quota_tag);
   gOFS->ConfEngine->SetConfigValue("quota", oss_config.str().c_str(),
                                    svalue.c_str());
-
   oss_msg << "success: updated "
           << ((quota_type == Type::kVolume) ? "volume" : "inode")
           << " quota for "
           << ((id_type == IdT::kUid) ? "uid=" : "gid=") << id
           << " for node " << path << std::endl;
-    msg = oss_msg.str();
-
+  msg = oss_msg.str();
   retc = 0;
   return true;
 }
@@ -2171,16 +2172,14 @@ Quota::GetQuotaInfo(SpaceQuota* squota, uid_t uid, gid_t gid,
                       SpaceQuota::kGroupBytesIs, gid);
   freebytes_project = maxbytes_project - squota->GetQuota(
                         SpaceQuota::kGroupBytesIs, Quota::gProjectId);
-
   // rescale the leftover physical space to the default layout and report the recomputed logical quota
   maxbytes_user /= squota->GetLayoutSizeFactor();
   maxbytes_group /= squota->GetLayoutSizeFactor();
   maxbytes_project /= squota->GetLayoutSizeFactor();
-
   freebytes_user /= squota->GetLayoutSizeFactor();
   freebytes_group /= squota->GetLayoutSizeFactor();
   freebytes_project /= squota->GetLayoutSizeFactor();
-  
+
   if (freebytes_user > freebytes) {
     freebytes = freebytes_user;
   }
