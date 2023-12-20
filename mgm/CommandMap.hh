@@ -55,7 +55,6 @@ enum class FsctlCommand {
   txstate,
   utimes,
   version,
-  xattr
 };
 
 FsctlCommand lookupFsctl(const std::string& cmd);

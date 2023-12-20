@@ -196,7 +196,6 @@ add_library(
   XrdMgmOfs/fsctl/Symlink.cc
   XrdMgmOfs/fsctl/Utimes.cc
   XrdMgmOfs/fsctl/Version.cc
-  XrdMgmOfs/fsctl/Xattr.cc
   balancer/FsBalancer.cc
   balancer/FsBalancerStats.cc
   CommandMap.cc

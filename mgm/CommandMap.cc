@@ -55,7 +55,6 @@ struct fsctlMapInit {
     fsctlCommandMap["txstate"] = FsctlCommand::txstate;
     fsctlCommandMap["utimes"] = FsctlCommand::utimes;
     fsctlCommandMap["version"] = FsctlCommand::version;
-    fsctlCommandMap["xattr"] = FsctlCommand::xattr;
   }
 
 } fsctl_map_init_object;
