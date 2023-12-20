@@ -113,7 +113,8 @@ XrdMgmOfs::Version(eos::common::FileId::fileid_t fid,
     eos_info("msg=\"creating version directory\" version-directory=\"%s\"",
              vpath.c_str());
 
-    if (gOFS->_mkdir(vpath.c_str(), 0, error, fidvid, (const char*) 0, nullptr, true)) {
+    if (gOFS->_mkdir(vpath.c_str(), 0, error, fidvid, (const char*) 0, nullptr,
+                     true)) {
       return Emsg(epname, error, errno, "create version directory", vpath.c_str());
     }
 
@@ -290,7 +291,7 @@ XrdMgmOfs::PurgeVersion(const char* versiondir,
 
     // if we have more versions than defined, clean the ones, which can be cleaned
     if ((int) versions.size() > max_versions) {
-      for (size_t i = 0; i < (versions.size() - max_versions); ++i) {
+      for (size_t i = 0; i <= (versions.size() - max_versions); ++i) {
         if (keep_set.count(versions[i])) {
           continue;
         }
