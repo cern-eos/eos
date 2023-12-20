@@ -1930,38 +1930,52 @@ ProcCommand::File()
     // Purge versions of a file
     if (mSubCmd == "purge") {
       cmdok = true;
-      XrdOucString max_count = pOpaque->Get("mgm.purge.version");
+      int max_versions = 0;
+      const char* ptr = pOpaque->Get("mgm.purge.version");
+      std::string smax_versions = (ptr ? ptr : "");
       ProcCommand Cmd;
       XrdOucString info;
 
-      if (!max_count.length()) {
-        stdErr = "error: illegal version count specified";
-        retc = EINVAL;
-        return SFS_OK;
+      if (smax_versions.empty()) {
+        max_versions = -1; // read the max version from the parent xattr
+      } else {
+        try {
+          max_versions = std::stoi(smax_versions);
+        } catch (...) {
+          stdErr = "error: illegal version count specified";
+          retc = EINVAL;
+          return SFS_OK;
+        }
       }
 
-      // stat this file
+      // Check that the requests file exists
       struct stat buf;
 
       if (gOFS->_stat(spath.c_str(), &buf, *mError, *pVid, "")) {
-        stdErr = "error; unable to stat path=";
+        stdErr = "error: unable to stat path=";
         stdErr += spath.c_str();
         retc = errno;
         return SFS_OK;
       }
 
-      info = "mgm.cmd=find&mgm.find.purge.versions=";
-      info += max_count;
-      info += "&mgm.path=";
+      XrdOucString version_dir;
       eos::common::Path cPath(spath.c_str());
-      info += cPath.GetParentPath();
-      info += "/.sys.v#.";
-      info += cPath.GetName();
-      info += "/";
-      info += "&mgm.option=fMS";
-      retc = Cmd.open("/proc/user", info.c_str(), *pVid, mError);
-      Cmd.AddOutput(stdOut, stdErr);
-      Cmd.close();
+      version_dir += cPath.GetParentPath();
+      version_dir += "/.sys.v#.";
+      version_dir += cPath.GetName();
+      version_dir += "/";
+
+      if (gOFS->PurgeVersion(version_dir.c_str(), *mError, max_versions)) {
+        if (mError->getErrInfo()) {
+          retc = mError->getErrInfo();
+          stdErr += SSTR("error: unable to purge versions for path=" << spath
+                         << "\nerror: " << mError->getErrText()).c_str();
+        } else {
+          stdErr += SSTR("info: no versions to purge for path=" << spath).c_str();
+        }
+
+        return SFS_OK;
+      }
     }
 
     // Create a new version of a file
