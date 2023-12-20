@@ -81,15 +81,12 @@ void
 AclCmd::GetAcls(const std::string& path, std::string& acl, bool is_sys,
                 bool take_lock)
 {
-  XrdOucString value;
   XrdOucErrInfo error;
   std::string acl_key = (is_sys ? "sys.acl" : "user.acl");
 
-  if (gOFS->_attr_get(path.c_str(), error, mVid, 0, acl_key.c_str(), value)) {
-    value = "";
+  if (gOFS->_attr_get(path.c_str(), error, mVid, 0, acl_key.c_str(), acl)) {
+    acl = "";
   }
-
-  acl = value.c_str();
 }
 
 //------------------------------------------------------------------------------
@@ -107,7 +104,6 @@ AclCmd::ModifyAcls(const eos::console::AclProto& acl)
   }
 
   bool fine_grained_write = !acl.sync_write();
-
   std::list<std::string> paths;
   eos::Prefetcher::prefetchContainerMDAndWait(gOFS->eosView, acl.path(), false);
   eos::common::RWMutexWriteLock ns_wr_lock;

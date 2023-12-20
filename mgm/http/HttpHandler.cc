@@ -336,7 +336,7 @@ HttpHandler::Get(eos::common::HttpRequest* request, bool isHEAD)
     errno = 0;
     {
       // Check if there is an index attribute
-      XrdOucString index;
+      std::string index;
       XrdOucErrInfo error(mVirtualIdentity->tident.c_str());
 
       if (!gOFS->_attr_get(url.c_str(), error, *mVirtualIdentity, query.c_str(),
@@ -387,7 +387,8 @@ HttpHandler::Get(eos::common::HttpRequest* request, bool isHEAD)
 
       if (rc != SFS_OK) {
         if (rc == SFS_REDIRECT) {
-	  std::string urlenc = eos::common::StringConversion::curl_path_escaped(request->GetUrl().c_str());
+          std::string urlenc = eos::common::StringConversion::curl_path_escaped(
+                                 request->GetUrl().c_str());
           response = HttpServer::HttpRedirect(urlenc,
                                               file->error.getErrText(),
                                               file->error.getErrInfo(), false);

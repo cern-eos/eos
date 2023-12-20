@@ -158,4 +158,42 @@ TEST(StringConversion, GetReadableSizeString)
                "B").c_str());
 }
 
+TEST(StringConversion, ReplaceStringInPlace)
+{
+  std::string ref = "aabbccdd\"eeffgg\"hhiijj\"";
+  std::string input = ref;
+  StringConversion::ReplaceStringInPlace(input, "", "");
+  ASSERT_STREQ(ref.c_str(), input.c_str());
+  input = ref;
+  StringConversion::ReplaceStringInPlace(input, "x", "");
+  ASSERT_STREQ(ref.c_str(), input.c_str());
+  input = ref;
+  StringConversion::ReplaceStringInPlace(input, "x", "y");
+  ASSERT_STREQ(ref.c_str(), input.c_str());
+  input = ref;
+  StringConversion::ReplaceStringInPlace(input, "xyz", "x");
+  ASSERT_STREQ(ref.c_str(), input.c_str());
+  input = ref;
+  StringConversion::ReplaceStringInPlace(input, "xyz", "zyx");
+  ASSERT_STREQ(ref.c_str(), input.c_str());
+  input = ref;
+  StringConversion::ReplaceStringInPlace(input, "a", "");
+  ASSERT_STREQ("bbccdd\"eeffgg\"hhiijj\"", input.c_str());
+  input = ref;
+  StringConversion::ReplaceStringInPlace(input, "a", "x");
+  ASSERT_STREQ("xxbbccdd\"eeffgg\"hhiijj\"", input.c_str());
+  input = ref;
+  StringConversion::ReplaceStringInPlace(input, "a", "xyz");
+  ASSERT_STREQ("xyzxyzbbccdd\"eeffgg\"hhiijj\"", input.c_str());
+  input = ref;
+  StringConversion::ReplaceStringInPlace(input, "\"", "");
+  ASSERT_STREQ("aabbccddeeffgghhiijj", input.c_str());
+  input = ref;
+  StringConversion::ReplaceStringInPlace(input, "\"", "y");
+  ASSERT_STREQ("aabbccddyeeffggyhhiijjy", input.c_str());
+  input = ref;
+  StringConversion::ReplaceStringInPlace(input, "\"", "xy");
+  ASSERT_STREQ("aabbccddxyeeffggxyhhiijjxy", input.c_str());
+}
+
 EOSCOMMONTESTING_END

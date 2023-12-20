@@ -43,7 +43,7 @@ XrdMgmOfs::attr_ls(const char* inpath,
   eos::common::VirtualIdentity vid;
   EXEC_TIMING_BEGIN("IdMap");
   eos::common::Mapping::IdMap(client, ininfo, tident, vid, gOFS->mTokenAuthz,
-                              AOP_Stat, inpath);
+                              AOP_Read, inpath);
   EXEC_TIMING_END("IdMap");
   NAMESPACEMAP;
   BOUNCE_ILLEGAL_NAMES;
@@ -281,7 +281,7 @@ XrdMgmOfs::_attr_set(const char* path, XrdOucErrInfo& error,
 int
 XrdMgmOfs::attr_get(const char* inpath, XrdOucErrInfo& error,
                     const XrdSecEntity* client, const char* ininfo,
-                    const char* key, XrdOucString& value)
+                    const char* key, std::string& value)
 {
   static const char* epname = "attr_get";
   const char* tident = error.getErrUser();
@@ -289,7 +289,7 @@ XrdMgmOfs::attr_get(const char* inpath, XrdOucErrInfo& error,
   eos::common::VirtualIdentity vid;
   EXEC_TIMING_BEGIN("IdMap");
   eos::common::Mapping::IdMap(client, ininfo, tident, vid, gOFS->mTokenAuthz,
-                              AOP_Stat, inpath);
+                              AOP_Read, inpath);
   EXEC_TIMING_END("IdMap");
   NAMESPACEMAP;
   BOUNCE_ILLEGAL_NAMES;
@@ -306,7 +306,7 @@ XrdMgmOfs::attr_get(const char* inpath, XrdOucErrInfo& error,
 int
 XrdMgmOfs::_attr_get(const char* path, XrdOucErrInfo& error,
                      eos::common::VirtualIdentity& vid,
-                     const char* info, const char* key, XrdOucString& value)
+                     const char* info, const char* key, std::string& value)
 {
   static const char* epname = "attr_get";
   std::shared_ptr<eos::IContainerMD> dh;
@@ -338,7 +338,7 @@ XrdMgmOfs::_attr_get(const char* path, XrdOucErrInfo& error,
     try {
       dhLock = gOFS->eosView->getContainerReadLocked(path);
       dh = dhLock->getUnderlyingPtr();
-      value = (dh->getAttribute(key)).c_str();
+      value = dh->getAttribute(key);
     } catch (eos::MDException& e) {
       errno = e.getErrno();
       eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n", e.getErrno(),
@@ -352,7 +352,7 @@ XrdMgmOfs::_attr_get(const char* path, XrdOucErrInfo& error,
         link = (dh->getAttribute(lkey)).c_str();
         dhLock = gOFS->eosView->getContainerReadLocked(link.c_str());
         dh = dhLock->getUnderlyingPtr();
-        value = (dh->getAttribute(key)).c_str();
+        value = dh->getAttribute(key);
         errno = 0;
       } catch (eos::MDException& e) {
         dh.reset();
@@ -364,15 +364,14 @@ XrdMgmOfs::_attr_get(const char* path, XrdOucErrInfo& error,
   }
 
   if (!dh) {
-    std::shared_ptr<eos::IFileMD> fmd;
     eos::IFileMD::IFileMDReadLockerPtr fmdLock;
 
     try {
       fmdLock = gOFS->eosView->getFileReadLocked(path);
-      fmd = fmdLock->getUnderlyingPtr();
+      std::shared_ptr<eos::IFileMD> fmd = fmdLock->getUnderlyingPtr();
 
       if (fmd) {
-        value = (fmd->getAttribute(key)).c_str();
+        value = fmd->getAttribute(key);
       }
 
       errno = 0;
@@ -389,12 +388,12 @@ XrdMgmOfs::_attr_get(const char* path, XrdOucErrInfo& error,
   }
 
   // we always decode attributes here, even if they are stored as base64:
-  XrdOucString val64 = value;
+  std::string val64 = value;
   eos::common::SymKey::DeBase64(val64, value);
 
   if (b64) {
     // on request do base64 encoding
-    XrdOucString nb64 = value;
+    std::string nb64 = value;
     eos::common::SymKey::Base64(nb64, value);
   }
 
@@ -494,7 +493,7 @@ XrdMgmOfs::attr_rem(const char* inpath, XrdOucErrInfo& error,
   eos::common::VirtualIdentity vid;
   EXEC_TIMING_BEGIN("IdMap");
   eos::common::Mapping::IdMap(client, ininfo, tident, vid, gOFS->mTokenAuthz,
-                              AOP_Delete, inpath);
+                              AOP_Update, inpath);
   EXEC_TIMING_END("IdMap");
   NAMESPACEMAP;
   BOUNCE_ILLEGAL_NAMES;

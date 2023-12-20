@@ -408,12 +408,10 @@ public:
             XrdOucErrInfo& out_error,
             const XrdSecEntity* client = 0) override;
 
-  // ---------------------------------------------------------------------------
-  //! get stats function (fake ok)
-  // ---------------------------------------------------------------------------
-
-  int
-  getStats(char* buff, int blen) override
+  //----------------------------------------------------------------------------
+  //! Get stats function (fake ok)
+  //----------------------------------------------------------------------------
+  int getStats(char* buff, int blen) override
   {
     return 0;
   }
@@ -928,7 +926,23 @@ public:
   //----------------------------------------------------------------------------
   int attr_get(const char* path, XrdOucErrInfo& out_error,
                const XrdSecEntity* client, const char* opaque,
-               const char* key, XrdOucString& value);
+               const char* key, std::string& value);
+
+  //----------------------------------------------------------------------------
+  //! Get an extended attribute for a given entry by key - low-level API.
+  //!
+  //! @param path directory name to get attribute
+  //! @param out_error error object
+  //! @param vid virtual identity of the client
+  //! @param opaque CGI
+  //! @param key key to get
+  //! @param value value returned
+  //!
+  //! @return SFS_OK if success, otherwise SFS_ERROR
+  //----------------------------------------------------------------------------
+  int _attr_get(const char* path, XrdOucErrInfo& out_error,
+                eos::common::VirtualIdentity& vid, const char* opaque,
+                const char* key, std::string& value);
 
   //----------------------------------------------------------------------------
   //! Get an extended attribute for a given ContainerMD - low-level API.
@@ -951,22 +965,6 @@ public:
   //! @return true if attribute was found, false otherwise
   //----------------------------------------------------------------------------
   bool _attr_get(eos::IFileMD& fmd, std::string key, std::string& rvalue);
-
-  //----------------------------------------------------------------------------
-  //! Get an extended attribute for a given entry by key - low-level API.
-  //!
-  //! @param path directory name to get attribute
-  //! @param out_error error object
-  //! @param vid virtual identity of the client
-  //! @param opaque CGI
-  //! @param key key to get
-  //! @param value value returned
-  //!
-  //! @return SFS_OK if success, otherwise SFS_ERROR
-  //----------------------------------------------------------------------------
-  int _attr_get(const char* path, XrdOucErrInfo& out_error,
-                eos::common::VirtualIdentity& vid, const char* opaque,
-                const char* key, XrdOucString& value);
 
   //----------------------------------------------------------------------------
   //! Remove an extended attribute for a given entry - high-level API.

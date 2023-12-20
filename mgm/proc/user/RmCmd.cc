@@ -120,6 +120,7 @@ eos::mgm::RmCmd::ProcessRequest() noexcept
     ret_c = EINVAL;
   } else {
     eos::common::Path objPath(spath.c_str());
+
     if (objPath.Globbing()) {
       spath = objPath.GetParentPath();
       filter = objPath.GetName();
@@ -167,7 +168,7 @@ eos::mgm::RmCmd::ProcessRequest() noexcept
             continue;
           }
 
-	  if (glob.Match(filter.c_str(), entry.c_str())) {
+          if (glob.Match(filter.c_str(), entry.c_str())) {
             rmList.insert(mpath.c_str());
           }
         }
@@ -197,7 +198,7 @@ eos::mgm::RmCmd::ProcessRequest() noexcept
 
         ret_c = errno;
       } else {
-        XrdOucString recyclingAttribute = "";
+        std::string recyclingAttribute = "";
 
         if (!force) {
           // only recycle if there is no '-f' flag
