@@ -2024,9 +2024,9 @@ runtest "### File Vers." unix 0 "EOSROLE='-r 99 99'" eos file version /eos/$EOS_
 runtest "### File Vers." unix 0 "EOSROLE='-r 99 99'" eos file version /eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/passwd 99
 runtest "### Ls        " unix 0 "EOSROLE='-r 99 99'" eos ls "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/.sys.v#.passwd | wc -l | grep -w 5"
 runtest "### File Vers." unix 0 "EOSROLE='-r 99 99'" eos file purge /eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/passwd 4
-runtest "### Ls        " unix 0 "EOSROLE='-r 99 99'" eos ls "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/.sys.v#.passwd | wc -l | grep -w 5"
-runtest "### File Vers." unix 0 "EOSROLE='-r 99 99'" eos file purge /eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/passwd -1
 runtest "### Ls        " unix 0 "EOSROLE='-r 99 99'" eos ls "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/.sys.v#.passwd | wc -l | grep -w 4"
+runtest "### File Vers." unix 0 "EOSROLE='-r 99 99'" eos file purge /eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/passwd -1
+runtest "### Ls        " unix 0 "EOSROLE='-r 99 99'" eos ls "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/.sys.v#.passwd | wc -l | grep -w 3"
 runtest "### File Vers." unix 0 "EOSROLE='-r 99 99'" eos file purge /eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/passwd 0
 runtest "### Stat      " unix 1 "" meta stat "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/.sys.v#.passwd"
 runtest "### Upload    " unix 0 "EOSROLE='-r 99 99'" eos cp "/etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/passwd"
@@ -2039,16 +2039,10 @@ usleep 1100000 # force the first file to fall in a different tv_sec interval
 runtest "### Upload    " unix 0 "EOSROLE='-r 99 99'" eos cp "/etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/passwd"
 runtest "### Upload    " unix 0 "EOSROLE='-r 99 99'" eos cp "/etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/passwd"
 runtest "### Upload    " unix 0 "EOSROLE='-r 99 99'" eos cp "/etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/passwd"
-runtest "### Old find Purge" unix 0 "EOSROLE='-r 99 99'" eos oldfind --purge -1 /eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/
-# @note check whether --purge change(d) the state
 runtest "### Find Purge" unix 0 "EOSROLE='-r 99 99'" eos find --purge -1 /eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/
 runtest "### Ls        " unix 0 "EOSROLE='-r 99 99'" eos ls "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/.sys.v#.passwd | wc -l | grep -w 3"
-runtest "### Old find Purge" unix 0 "EOSROLE='-r 99 99'" eos oldfind --purge 1 /eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/
-# @note check whether --purge change(d) the state
 runtest "### Find Purge" unix 0 "EOSROLE='-r 99 99'" eos find --purge 1 /eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/
-runtest "### Ls        " unix 0 "EOSROLE='-r 99 99'" eos ls "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/.sys.v#.passwd | wc -l | grep -w 2"
-runtest "### Old find Purge" unix 0 "EOSROLE='-r 99 99'" eos oldfind --purge 0 /eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/
-# @note check whether --purge change(d) the state
+runtest "### Ls        " unix 0 "EOSROLE='-r 99 99'" eos ls "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/.sys.v#.passwd | wc -l | grep -w 1"
 runtest "### Find Purge" unix 0 "EOSROLE='-r 99 99'" eos find --purge 0 /eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/
 runtest "### Stat      " unix 1 "" meta stat "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/.sys.v#.passwd"
 # Versioning test when acls control the permission for the user on the folder and
