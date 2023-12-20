@@ -586,8 +586,10 @@ Recycle::Print(std::string& std_out, std::string& std_err,
   std::ostringstream oss_out;
 
   // fix security hole
-  if (date.find("..")!=std::string::npos) {return;}
-  
+  if (date.find("..") != std::string::npos) {
+    return;
+  }
+
   if (global && ((!vid.uid) ||
                  (vid.hasUid(3)) ||
                  (vid.hasGid(4)))) {
@@ -695,8 +697,7 @@ Recycle::Print(std::string& std_out, std::string& std_err,
 
           XrdOucErrInfo error;
           XrdOucString type = "file";
-	  XrdOucString deleter;
-	  
+          std::string deleter;
           struct stat buf;
 
           if (!gOFS->_stat(fullpath.c_str(), &buf, error, vid, "", nullptr, false)) {
@@ -734,14 +735,15 @@ Recycle::Print(std::string& std_out, std::string& std_err,
               originode.insert("pxid:", 0);
             }
 
-	    if (whodeleted) {
-	      if (!gOFS->_attr_get(fullpath.c_str(), error, vid, "", eos::common::EOS_DTRACE_ATTR,
-				   deleter)) {
-	      } else {
-		deleter = "{}";
-	      }
-	    }
-	    
+            if (whodeleted) {
+              if (!gOFS->_attr_get(fullpath.c_str(), error, vid, "",
+                                   eos::common::EOS_DTRACE_ATTR,
+                                   deleter)) {
+              } else {
+                deleter = "{}";
+              }
+            }
+
             if (monitoring) {
               oss_out << "recycle=ls recycle-bin=" << Recycle::gRecyclingPrefix
                       << " uid=" << uids.c_str() << " gid=" << gids.c_str()
@@ -751,7 +753,7 @@ Recycle::Print(std::string& std_out, std::string& std_err,
                       << " keylength.restore-path=" << origpath.length()
                       << " restore-path=" << origpath.c_str()
                       << " restore-key=" << originode.c_str()
-		      << " dtrace=\"" << deleter.c_str() << "\""
+                      << " dtrace=\"" << deleter.c_str() << "\""
                       << std::endl;
 
               if (rvec) {
@@ -765,7 +767,7 @@ Recycle::Print(std::string& std_out, std::string& std_err,
                 rmap["type"] = type.c_str();
                 rmap["path"] = origpath.c_str();
                 rmap["key"] = originode.c_str();
-		rmap["dtrace"] = deleter.c_str();
+                rmap["dtrace"] = deleter.c_str();
                 rvec->push_back(rmap);
               }
             } else {
@@ -774,20 +776,22 @@ Recycle::Print(std::string& std_out, std::string& std_err,
               if (count == 0) {
                 // print a header
                 snprintf(sline, sizeof(sline) - 1,
-                         "# %-24s %-8s %-8s %-12s %-13s %-21s %-64s %-32s\n", "Deletion Time", "UID", "GID",
+                         "# %-24s %-8s %-8s %-12s %-13s %-21s %-64s %-32s\n", "Deletion Time", "UID",
+                         "GID",
                          "SIZE", "TYPE", "RESTORE-KEY", "RESTORE-PATH", "DTRACE");
                 oss_out << sline
                         << "# ================================================"
                         << "=================================================="
                         << "========================================================="
-			<< "============================="
-			<< std::endl;
+                        << "============================="
+                        << std::endl;
               }
 
               char tdeltime[4096];
               std::string deltime = ctime_r(&buf.st_ctime, tdeltime);
               deltime.erase(deltime.length() - 1);
-              snprintf(sline, sizeof(sline) - 1, "%-26s %-8s %-8s %-12s %-13s %-16s %-64s %-32s",
+              snprintf(sline, sizeof(sline) - 1,
+                       "%-26s %-8s %-8s %-12s %-13s %-16s %-64s %-32s",
                        deltime.c_str(), uids.c_str(), gids.c_str(),
                        StringConversion::GetSizeString((unsigned long long) buf.st_size).c_str(),
                        type.c_str(), originode.c_str(), origpath.c_str(), deleter.c_str());
@@ -1295,7 +1299,7 @@ Recycle::Restore(std::string& std_out, std::string& std_err,
     return 0;
   }
 
-  XrdOucString vkey;
+  std::string vkey;
 
   if (gOFS->_attr_get(oPath.GetPath(), lError, rootvid, "",
                       Recycle::gRecyclingVersionKey.c_str(), vkey)) {
@@ -1409,11 +1413,11 @@ Recycle::Purge(std::string& std_out, std::string& std_err,
   std::string rpath;
 
   // fix security hole
-  if (date.find("..")!=std::string::npos) {
+  if (date.find("..") != std::string::npos) {
     std_err = "error: the date contains an illegal character sequence";
     return EINVAL;
   }
-  
+
   // translate key into search pattern
   if (key.length()) {
     if (key.substr(0, 5) == "fxid:") {

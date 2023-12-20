@@ -92,15 +92,16 @@ XrdMgmOfs::Xattr(const char* path,
         }
       } else if (subcmd == "get") {
         // getxattr
-        XrdOucString value;
-        XrdOucString key = env.Get("mgm.xattrname");
-        key.replace("user.admin.", "sys.");
+        const char* ptr = env.Get("mgm.xattrname");
+        std::string key = (ptr ? ptr : "");
+        std::string value;
+        eos::common::StringConversion::ReplaceStringInPlace(key, "user.admin", "sys.");
         rc = gOFS->attr_get(path, error, client, "eos.attr.val.encoding=base64",
                             key.c_str(), value);
 
         if (rc == SFS_OK) {
           response = " value=";
-          response += value;
+          response += value.c_str();
         } else {
           retc = error.getErrInfo();
         }
@@ -147,7 +148,7 @@ XrdMgmOfs::Xattr(const char* path,
       } else if (subcmd == "get") {
         // getxattr
         XrdOucString key = env.Get("mgm.xattrname");
-        XrdOucString value;
+        std::string value;
         std::shared_ptr<eos::IFileMD> fmd;
         {
           eos::common::RWMutexReadLock vlock(gOFS->eosViewRWMutex);
@@ -189,7 +190,7 @@ XrdMgmOfs::Xattr(const char* path,
 
         if (value.length()) {
           response = " value=";
-          response += value;
+          response += value.c_str();
         }
       } else if (subcmd == "set") {
         // setxattr
