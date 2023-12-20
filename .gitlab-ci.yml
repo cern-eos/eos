@@ -154,6 +154,7 @@ clone_docker:
       else
         source gitlab-ci/setup_ccache.sh;
       fi
+    - yum downgrade -y eos-rocksdb-6.2.4
     - rpmbuild --rebuild --with server --with eos_grpc_gateway --define "_rpmdir build/RPMS/" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" build/SRPMS/* | (ts 2> dev/null || true; tee)
     - ccache -s
     - if [[ -n "$CI_COMMIT_TAG" ]]; then gpg2 --import $STCI_REPO_KEY; printf "" | setsid rpmsign --define='%_gpg_name stci@cern.ch' --define='%_signature gpg' --addsign build/RPMS/*.rpm; fi
