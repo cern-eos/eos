@@ -105,25 +105,34 @@ EosFuse* EosFuse::sEosFuse = 0;
  * A   only is locked while the filesystem is being unmounted.
  *
  */
-class ConcurrentMountDetect {
+class ConcurrentMountDetect
+{
 public:
   /**
    * Constructor, opens lock files.
    */
-  ConcurrentMountDetect(const std::string &locknameprefix) {
-    if (locknameprefix.empty()) return;
+  ConcurrentMountDetect(const std::string& locknameprefix)
+  {
+    if (locknameprefix.empty()) {
+      return;
+    }
 
     const std::string fnA = locknameprefix + ".A.lock";
     const std::string fnB = locknameprefix + ".B.lock";
-    lockAfd_ = open(fnA.c_str(), O_RDWR|O_CREAT, 0600);
+    lockAfd_ = open(fnA.c_str(), O_RDWR | O_CREAT, 0600);
 
     if (lockAfd_ >= 0) {
-      lockBfd_ = open(fnB.c_str(), O_RDWR|O_CREAT, 0600);
+      lockBfd_ = open(fnB.c_str(), O_RDWR | O_CREAT, 0600);
     }
-    if (lockAfd_<0 || lockBfd_<0) {
+
+    if (lockAfd_ < 0 || lockBfd_ < 0) {
       fprintf(stderr, "# could not open lockfile %s errno=%d\n",
-              (lockAfd_<0) ? fnA.c_str() : fnB.c_str(), errno);
-      if (lockAfd_ >= 0) close(lockAfd_);
+              (lockAfd_ < 0) ? fnA.c_str() : fnB.c_str(), errno);
+
+      if (lockAfd_ >= 0) {
+        close(lockAfd_);
+      }
+
       lockAfd_ = -1;
     }
   }
@@ -131,11 +140,14 @@ public:
   /**
    * Destrcutor, closes lock file descriptors.
    */
- ~ConcurrentMountDetect() {
+  ~ConcurrentMountDetect()
+  {
     Unlock();
+
     if (lockBfd_ >= 0) {
       close(lockBfd_);
     }
+
     if (lockAfd_ >= 0) {
       close(lockAfd_);
     }
@@ -150,23 +162,34 @@ public:
    * If the lock is held by an existing mount some retries up to 5
    * seconds are made to avoid race on unmount.
    */
-  int Lock() {
+  int Lock()
+  {
     int retry = 2;
+
     do {
       const int rc = llock();
-      if (rc<=0) return rc;
+
+      if (rc <= 0) {
+        return rc;
+      }
+
       if (retry) {
         std::this_thread::sleep_for(std::chrono::milliseconds(2500));
       }
-    } while(retry--);
+    } while (retry--);
+
     return 1;
   }
 
   /**
    * Called after mounting and before entering the fuse session loop.
    */
-  void MountDone() {
-    if (lockAfd_<0) return;
+  void MountDone()
+  {
+    if (lockAfd_ < 0) {
+      return;
+    }
+
     if (lockA_) {
       if (flock(lockAfd_, LOCK_UN) == 0) {
         lockA_ = false;
@@ -177,15 +200,28 @@ public:
   /**
    * Called after leaving the fuse session loop but before unmounting.
    */
-  void Unmounting() {
-    if (lockAfd_<0 || lockBfd_<0) return;
-    if (lockA_ || !lockB_) return;
+  void Unmounting()
+  {
+    if (lockAfd_ < 0 || lockBfd_ < 0) {
+      return;
+    }
+
+    if (lockA_ || !lockB_) {
+      return;
+    }
+
     int ret;
+
     do {
       ret = flock(lockAfd_, LOCK_EX);
-    } while(ret<0 && errno==EINTR);
-    if (ret<0) return;
+    } while (ret < 0 && errno == EINTR);
+
+    if (ret < 0) {
+      return;
+    }
+
     lockA_ = true;
+
     if (flock(lockBfd_, LOCK_UN) == 0) {
       lockB_ = false;
     }
@@ -195,46 +231,67 @@ public:
    * May be called once mount & unmount activity is done. (However the
    * destructor may be called without calling this method).
    */
-  void Unlock() {
+  void Unlock()
+  {
     if (lockBfd_ >= 0) {
       if (lockB_) {
-        if (flock(lockBfd_, LOCK_UN) == 0)
+        if (flock(lockBfd_, LOCK_UN) == 0) {
           lockB_ = false;
+        }
       }
     }
+
     if (lockAfd_ >= 0) {
       if (lockA_) {
-        if (flock(lockAfd_, LOCK_UN) == 0)
+        if (flock(lockAfd_, LOCK_UN) == 0) {
           lockA_ = false;
+        }
       }
     }
   }
 
 private:
-  int llock() {
-    if (lockAfd_<0 || lockBfd_<0) return -1;
-    if (lockA_ || lockB_) return -1;
+  int llock()
+  {
+    if (lockAfd_ < 0 || lockBfd_ < 0) {
+      return -1;
+    }
+
+    if (lockA_ || lockB_) {
+      return -1;
+    }
+
     int ret;
+
     do {
       ret = flock(lockAfd_, LOCK_EX);
-    } while(ret<0 && errno == EINTR);
-    if (ret<0) return -1;
+    } while (ret < 0 && errno == EINTR);
+
+    if (ret < 0) {
+      return -1;
+    }
+
     lockA_ = true;
-    if (flock(lockBfd_, LOCK_EX|LOCK_NB)<0) {
+
+    if (flock(lockBfd_, LOCK_EX | LOCK_NB) < 0) {
       const int err = errno;
+
       if (flock(lockAfd_, LOCK_UN) == 0) {
         lockA_ = false;
+
         if (err == EWOULDBLOCK) {
           return 1;
         }
       }
+
       return -1;
     }
+
     return 0;
   }
 
-  int  lockAfd_{-1};
-  int  lockBfd_{-1};
+  int  lockAfd_{ -1};
+  int  lockBfd_{ -1};
   bool lockA_  {false};
   bool lockB_  {false};
 };
@@ -1486,6 +1543,7 @@ EosFuse::run(int argc, char* argv[], void* userdata)
     }
 
     std::string lockpfx;
+
     if (geteuid()) {
       char ldir[1024];
       snprintf(ldir, sizeof(ldir), "/var/tmp/eos-%d/", geteuid());
@@ -1493,9 +1551,10 @@ EosFuse::run(int argc, char* argv[], void* userdata)
     } else {
       lockpfx = "/var/run/eos/";
     }
+
     if (mountpoint[0] != '/') {
       fprintf(stderr, "# not using concurrent mount detection, mountpoint is "
-                      "relative\n");
+              "relative\n");
       lockpfx.clear();
     } else {
       std::string mk_lockdir = "mkdir -m 0755 -p " + lockpfx;
@@ -1503,19 +1562,25 @@ EosFuse::run(int argc, char* argv[], void* userdata)
       lockpfx += "fusex/";
       mk_lockdir = "mkdir -m 0755 -p " + lockpfx;
       system(mk_lockdir.c_str());
-
       XrdOucString id = mountpoint.c_str();
+
       while (id.replace("//", "/"));
-      if (id.length()>1 && id.endswith("/")) id.erase(id.length()-1);
-      id.replace("-","--");
-      id.replace("/","-");
+
+      if (id.length() > 1 && id.endswith("/")) {
+        id.erase(id.length() - 1);
+      }
+
+      id.replace("-", "--");
+      id.replace("/", "-");
       lockpfx += std::string("mount.") + id.c_str();
     }
+
     ConcurrentMountDetect cmdet(lockpfx);
+
     if (const int rc = cmdet.Lock(); rc > 0) {
       // concurrent mount detected
       fprintf(stderr, "# detected concurrent mount, "
-                      "ending mount process\n");
+              "ending mount process\n");
       exit(0);
     } else if (rc < 0) {
       fprintf(stderr, "# concurrent mount detection not available\n");
@@ -1759,7 +1824,6 @@ EosFuse::run(int argc, char* argv[], void* userdata)
     }
 
 #endif
-
     // notify the locking object that fuse is aware of the mount
     cmdet.MountDone();
 
@@ -2192,7 +2256,6 @@ EosFuse::run(int argc, char* argv[], void* userdata)
 #endif
       // notify the locking object that the fuse mount has finished
       cmdet.Unlock();
-
       mKV.reset();
 
       if (config.mdcachedir_unlink.length()) {
@@ -4778,8 +4841,8 @@ EosFuse::open(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info* fi)
             std::string obfuscation_key = md->obfuscate_key();
             mLock.UnLock();
             data::data_fh* io = data::data_fh::Instance(Instance().datas.get(req,
-									     (*md)()->id(),
-									     md), md, (mode == U_OK), id);
+                                (*md)()->id(),
+                                md), md, (mode == U_OK), id);
             capLock.Lock(&pcap->Locker());
             io->set_authid((*pcap)()->authid());
 
@@ -5113,8 +5176,8 @@ The O_NONBLOCK flag was specified, and an incompatible lease was held on the fil
               std::string cookie = md->Cookie();
               mLock.UnLock();
               data::data_fh* io = data::data_fh::Instance(Instance().datas.get(req,
-									       (*md)()->id(),
-									       md), md, true, id);
+                                  (*md)()->id(),
+                                  md), md, true, id);
               io->set_authid((*pcap)()->authid());
               io->set_maxfilesize((*pcap)()->max_file_size());
               io->cap_ = pcap;
@@ -5140,16 +5203,14 @@ The O_NONBLOCK flag was specified, and an incompatible lease was held on the fil
       }
     }
 
+    const mode_t umask = fuse_req_ctx(req)->umask;
+
     if (rc) {
       fuse_reply_err(req, rc);
     } else {
-      if (fi)
-        // create
-      {
+      if (fi) { // create
         fuse_reply_create(req, &e, fi);
-      } else
-        // mknod
-      {
+      } else {  // mknod
         fuse_reply_entry(req, &e);
       }
     }
@@ -5157,8 +5218,7 @@ The O_NONBLOCK flag was specified, and an incompatible lease was held on the fil
     EXEC_TIMING_END(__func__);
     COMMONTIMING("_stop_", &timing);
     eos_static_notice("t(ms)=%.03f mode=%#lx umask=%x %s", timing.RealTime(), mode,
-                      fuse_req_ctx(req)->umask,
-                      dump(id, parent, 0, rc).c_str());
+                      umask, dump(id, parent, 0, rc).c_str());
   }
 
   // after creating a file we assign a new mtime to our parent directory
@@ -5232,8 +5292,8 @@ EosFuse::write(fuse_req_t req, fuse_ino_t ino, const char* buf, size_t size,
   eos_static_debug("inode=%lld size=%lld off=%lld buf=%lld uid=%u gid=%u",
                    (long long) ino, (long long) size,
                    (long long) off, (long long) buf,
-		   fuse_req_ctx(req)->uid,
-		   fuse_req_ctx(req)->gid );
+                   fuse_req_ctx(req)->uid,
+                   fuse_req_ctx(req)->gid);
   eos_static_debug("");
   fuse_id id(req);
   ADD_FUSE_STAT(__func__, req);
@@ -5257,7 +5317,7 @@ EosFuse::write(fuse_req_t req, fuse_ino_t ino, const char* buf, size_t size,
       if (!EosFuse::instance().getCap().has_quota(io->cap_, size)) {
         eos_static_err("quota-error: inode=%lld size=%lld off=%lld buf=%lld", ino, size,
                        off, buf);
-	io->set_edquota();
+        io->set_edquota();
         rc = EDQUOT;
       } else {
         if (io->ioctx()->pwrite(req, buf, size, off) == -1) {
@@ -5270,7 +5330,7 @@ EosFuse::write(fuse_req_t req, fuse_ino_t ino, const char* buf, size_t size,
             eos_static_err("quota-error: inode=%lld ran out of quota - setting cap to EDQUOT",
                            ino);
             EosFuse::instance().getCap().set_volume_edquota(io->cap_);
-	    io->set_edquota();
+            io->set_edquota();
           }
         } else {
           {
@@ -5294,7 +5354,7 @@ EosFuse::write(fuse_req_t req, fuse_ino_t ino, const char* buf, size_t size,
                   // only start updating the MGM size if the file could be opened on FSTs
                   if (io->next_size_flush.load() && (io->next_size_flush.load() < now)) {
                     // if (io->cap_->valid()) // we want updates also after cap expiration
-		    // use the identity used during the open call !
+                    // use the identity used during the open call !
                     Instance().mds.update(io->fuseid(), io->md, io->authid());
                     io->next_size_flush.store(now +
                                               Instance().Config().options.write_size_flush_interval,
@@ -5359,8 +5419,9 @@ EosFuse::release(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info* fi)
       lock.l_len = -1;
       lock.l_pid = fuse_req_ctx(req)->pid;
       rc |= Instance().mds.setlk(req, io->mdctx(), &lock, 0);
+
       if (!rc) {
-	io->set_flocked(false);
+        io->set_flocked(false);
       }
     }
 
@@ -5397,7 +5458,7 @@ EosFuse::fsync(fuse_req_t req, fuse_ino_t ino, int datasync,
 
   if (io && !io->edquota.load()) {
     {
-    std::string fname = "";
+      std::string fname = "";
       {
         XrdSysMutexHelper mLock(io->md->Locker());
         fname = (*(io->md))()->name();
@@ -7164,6 +7225,7 @@ EosFuse::flock(fuse_req_t req, fuse_ino_t ino,
               // from a user pid already holding an exclusive flock for this ino.
               Track::Monitor mon("flock", "fs", Instance().Tracker(), req, ino, true);
               rc = Instance().mds.setlk(req, io->mdctx(), &lock, sleep);
+
               if (!rc) {
                 io->set_flocked(true);
               }
@@ -7184,7 +7246,6 @@ EosFuse::flock(fuse_req_t req, fuse_ino_t ino,
             break;
           } while (rc);
         }
-
       } else {
         rc = ENXIO;
       }
