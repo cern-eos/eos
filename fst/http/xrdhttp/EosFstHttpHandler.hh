@@ -92,6 +92,17 @@ private:
                           std::map<std::string, std::string>& norm_hdrs,
                           std::map<std::string, std::string>& cookies,
                           std::string& query);
+
+  //----------------------------------------------------------------------------
+  //! Convenient function to get a packet marking handle
+  //!
+  //! @param req http external request object
+  //! @param normalized_headers the normalized headers coming from the client
+  //!
+  //! @return the packet marking handle if the packet marking is enabled and if the normalized_headers contain
+  //! a scitag, nullptr otherwise
+  //----------------------------------------------------------------------------
+  std::unique_ptr<XrdNetPMark::Handle> getPMarkHandle(XrdHttpExtReq& req,const std::map<std::string, std::string> & normalized_headers);
 };
 
 /******************************************************************************/
