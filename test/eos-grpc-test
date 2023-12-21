@@ -93,11 +93,11 @@ eos-grpc-ns --token $authkey --max-version 99 -p $prefix/t_grpc/file create-vers
 eos find $prefix/t_grpc/ || exit -10
 eos-grpc-ns --token $authkey -p $prefix/t_grpc/file list-version | grep ino | wc -l | grep -w 6 || exit -10
 eos-grpc-ns --token $authkey -p $prefix/t_grpc/file purge-version || exit -10
-eos-grpc-ns --token $authkey -p $prefix/t_grpc/file list-version | grep ino | wc -l | grep -w 5 || exit -10
+eos-grpc-ns --token $authkey -p $prefix/t_grpc/file list-version | grep ino | wc -l | grep -w 4 || exit -10
 eos find $prefix/t_grpc/ || exit -10
 eos-grpc-ns --token $authkey --max-version 1 -p $prefix/t_grpc/file purge-version || exit -10
 eos find $prefix/t_grpc/ || exit -10
-eos-grpc-ns --token $authkey -p $prefix/t_grpc/file list-version | grep ino | wc -l | grep -w 3 || exit -10
+eos-grpc-ns --token $authkey -p $prefix/t_grpc/file list-version | grep ino | wc -l | grep -w 2 || exit -10
 eos-grpc-ns --token $authkey --max-version 0 -p $prefix/t_grpc/file purge-version || exit -10
 eos find $prefix/t_grpc/ || exit -10
 eos-grpc-ns --token $authkey -p $prefix/t_grpc/file list-version | grep ino | wc -l | grep -w 1 || exit -10
