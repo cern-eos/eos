@@ -159,6 +159,7 @@ EosFstHttpHandler::ProcessReq(XrdHttpExtReq& req)
   }
 
   if (req.verb == "GET") {
+    auto pmarkHandle = getPMarkHandle(req,normalized_headers);
     if ((response->GetResponseCode() != response->OK) &&
         (response->GetResponseCode() != response->PARTIAL_CONTENT)) {
       return req.SendSimpleResp(response->GetResponseCode(),
@@ -219,6 +220,7 @@ EosFstHttpHandler::ProcessReq(XrdHttpExtReq& req)
   }
 
   if (req.verb == "PUT") {
+    auto pmarkHandle = getPMarkHandle(req,normalized_headers);
     bool is_chunked = (normalized_headers.count("transfer-encoding") &&
                        (normalized_headers["transfer-encoding"] == "chunked"));
 
@@ -658,4 +660,15 @@ EosFstHttpHandler::HandleChunkUpload2(XrdHttpExtReq& req,
   }
 
   return (state == CHUNK_DATA);
+}
+
+std::unique_ptr<XrdNetPMark::Handle> EosFstHttpHandler::getPMarkHandle(XrdHttpExtReq& req,const std::map<std::string, std::string> & normalized_headers) {
+  if(req.pmark && normalized_headers.count("scitag")) {
+    std::string scitagOpaque = "scitag.flow=" + std::to_string(req.mSciTag);
+    return std::unique_ptr<XrdNetPMark::Handle>(req.pmark->Begin(*(const_cast<XrdSecEntity *>(&req.GetSecEntity())),
+                                                                 req.resource.c_str(),
+                                                                 scitagOpaque.c_str(),
+                                                                 "http"));
+  }
+  return nullptr;
 }
