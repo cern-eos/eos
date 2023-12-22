@@ -89,14 +89,25 @@ void
 cap::reset()
 /* -------------------------------------------------------------------------- */
 {
-  XrdSysMutexHelper mLock(capmap);
-  XrdSysMutexHelper rLock(revocationLock);
+  cinodes capdelinodes;
 
-  for (auto it : capmap) {
-    revocationset.insert((*it.second)()->authid());
+  {
+    XrdSysMutexHelper mLock(capmap);
+    XrdSysMutexHelper rLock(revocationLock);
+
+    for (auto it : capmap) {
+      revocationset.insert((*it.second)()->authid());
+      capdec(it.first);
+      capdelinodes.insert((*it.second)()->id());
+    }
+    capmap.clear();
   }
 
-  capmap.clear();
+  for (const auto &it : capdelinodes) {
+    if (EosFuse::Instance().Config().options.md_kernelcache) {
+      kernelcache::inval_inode(it, false);
+    }
+  }
 }
 
 /* -------------------------------------------------------------------------- */
@@ -231,7 +242,7 @@ cap::get(fuse_ino_t ino, std::string clientid)
 /* -------------------------------------------------------------------------- */
 void
 cap::store(fuse_req_t req,
-           eos::fusex::cap icap)
+           eos::fusex::cap icap, const metad::shared_md &md)
 {
   std::string clientid = cap::capx::getclientid(req);
   uint64_t id = mds->vmaps().forward(icap.id());
@@ -242,6 +253,10 @@ cap::store(fuse_req_t req,
   *cap = icap;
   (*cap)()->set_id(id);
   capmap[cid] = cap;
+  if (md) {
+    capmapmd[cid] = md;
+    md->cap_inc();
+  }
   eos_static_debug("store inode=[r:%lx l:%lx] capid=%s cap: %s", icap.id(),
                    id, cid.c_str(), capmap[cid]->dump().c_str());
 }
@@ -261,6 +276,7 @@ cap::forget(const std::string& cid)
       shared_cap cap = capmap[cid];
       inode = (*cap)()->id();
       capmap.erase(cid);
+      capdec(cid);
       XrdSysMutexHelper rLock(revocationLock);
       revocationset.insert((*cap)()->authid());
     } else {
@@ -283,7 +299,8 @@ std::string
 cap::imply(shared_cap cap,
            std::string imply_authid,
            mode_t mode,
-           fuse_ino_t ino)
+           fuse_ino_t ino,
+           const metad::shared_md &md)
 {
   shared_cap implied_cap = std::make_shared<capx>();
   *implied_cap = *cap;
@@ -296,6 +313,10 @@ cap::imply(shared_cap cap,
   XrdSysMutexHelper mLock(capmap);
   // TODO: deal with the influence of mode to the cap itself
   capmap[cid] = implied_cap;
+  if (md) {
+    capmapmd[cid] = md;
+    md->cap_inc();
+  }
   return cid;
 }
 
@@ -364,10 +385,21 @@ cap::refresh(fuse_req_t req, shared_cap cap)
   // retrieve cap from upstream
   std::vector<eos::fusex::container> contv;
   int rc = 0;
-  uint64_t remote_ino = mds->vmaps().backward((*cap)()->id());
+  const uint64_t ino = (*cap)()->id();
+  const uint64_t remote_ino = mds->vmaps().backward(ino);
   // measure the call duration
   struct timespec ts;
   eos::common::Timing::GetTimeSpec(ts, true);
+
+  const std::string cid = cap::capx::capid(req, ino);
+  metad::shared_md md;
+  {
+    XrdSysMutexHelper mLock(capmap);
+    if (capmapmd.count(cid)) {
+      md = capmapmd[cid].lock();
+    }
+    capdec(cid);
+  }
 
   do {
     rc = mdbackend->getCAP(req, remote_ino, contv);
@@ -381,8 +413,8 @@ cap::refresh(fuse_req_t req, shared_cap cap)
 
           //XrdSysMutexHelper mLock(cap->Locker());
           // check if the cap received matches what we think about local mapping
-          if ((*cap)()->id() == id) {
-            store(req, it->cap_());
+          if (ino == id) {
+            store(req, it->cap_(), md);
             eos_static_debug("correct cap received for inode=%#lx", (*cap)()->id());
           } else {
             eos_static_debug("wrong cap received for inode=%#lx", (*cap)()->id());
@@ -530,7 +562,6 @@ cap::capflush(ThreadAssistant& assistant)
             eos_static_debug("expire %s", it->second->dump().c_str());
           }
 
-          mds->decrease_cap((*it->second)()->id());
           capdelinodes.insert((*it->second)()->id());
         }
       }
@@ -541,6 +572,7 @@ cap::capflush(ThreadAssistant& assistant)
         for (auto it = capdelmap.begin(); it != capdelmap.end(); ++it) {
           // remove the expired or invalidated by delete caps
           capmap.erase(it->first);
+          capdec(it->first);
         }
       }
 
@@ -624,4 +656,31 @@ cap::quotax::dump()
   jsonstring += std::to_string(local_inode);
   jsonstring += "\n}\n";
   return jsonstring;
+}
+
+void
+cap::capdec(const std::string &cid)
+{
+  auto it = capmapmd.find(cid);
+  if (it == capmapmd.end()) {
+    return;
+  }
+  if (auto md = it->second.lock()) {
+    md->cap_dec();
+  }
+  capmapmd.erase(it);
+}
+
+void
+cap::resetcapcount(const fuse_ino_t ino, const metad::shared_md &md)
+{
+  if (!md) return;
+  XrdSysMutexHelper mLock(capmap);
+  md->cap_count_reset();
+  for (const auto &it : capmap) {
+    if ( (*it.second)()->id() == ino ) {
+      md->cap_inc();
+      capmapmd[it.first] = md;
+    }
+  }
 }

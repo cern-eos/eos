@@ -814,43 +814,6 @@ public:
     eos_static_err("reset cap counter for ino=%lx", ino);
   }
 
-  void
-  decrease_cap(uint64_t ino)
-  {
-    shared_md md;
-
-    if (!mdmap.retrieveTS(ino, md)) {
-      eos_static_info("no cap counter change for ino=%lx", ino);
-      return;
-    }
-
-    md->cap_dec();
-    eos_static_debug("decrease cap counter for ino=%lx", ino);
-  }
-
-  void
-  increase_cap(uint64_t ino, bool lock = false)
-  {
-    shared_md md;
-
-    if (!mdmap.retrieveTS(ino, md)) {
-      eos_static_err("no cap counter change for ino=%lx", ino);
-      return;
-    }
-
-    if (lock) {
-      md->Locker().Lock();
-    }
-
-    md->cap_inc();
-
-    if (lock) {
-      md->Locker().UnLock();
-    }
-
-    eos_static_err("increase cap counter for ino=%lx", ino);
-  }
-
   std::string get_clientuuid() const
   {
     return zmq_clientuuid;

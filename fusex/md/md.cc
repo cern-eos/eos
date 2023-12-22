@@ -1969,12 +1969,6 @@ metad::apply(fuse_req_t req, eos::fusex::container& cont, bool listing)
               shared_md child_pmd;
 
               if (mdmap.retrieveTS(p_ino, child_pmd)) {
-                if (cap_received.id()) {
-                  // store cap
-                  EosFuse::Instance().getCap().store(req, cap_received);
-                  md->cap_inc();
-                }
-
                 // don't overwrite md to be flushed
                 if (has_flush(ino)) {
                   continue;
@@ -2124,8 +2118,7 @@ metad::apply(fuse_req_t req, eos::fusex::container& cont, bool listing)
 
           if (cap_received.id()) {
             // store cap
-            EosFuse::Instance().getCap().store(req, cap_received);
-            md->cap_inc();
+            EosFuse::Instance().getCap().store(req, cap_received, md);
           }
         }
       } else {
@@ -2183,8 +2176,7 @@ metad::apply(fuse_req_t req, eos::fusex::container& cont, bool listing)
 
         if (cap_received.id()) {
           // store cap
-          EosFuse::Instance().getCap().store(req, cap_received);
-          md->cap_inc();
+          EosFuse::Instance().getCap().store(req, cap_received, md);
         }
 
         if (EOS_LOGS_DEBUG) {
@@ -3878,6 +3870,8 @@ metad::pmap::swap_in(fuse_ino_t ino, shared_md md)
       return EFAULT;
     }
   }
+
+  EosFuse::Instance().getCap().resetcapcount(ino, md);
 
   EosFuse::Instance().mds.stats().inodes_stacked_dec();
   return 0;

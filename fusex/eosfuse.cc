@@ -4128,8 +4128,7 @@ EROFS  pathname refers to a file on a read-only filesystem.
                           (*pcap2)()->authid().c_str(),
                           imply_authid.c_str());
           implied_cid = Instance().caps.imply(pcap2, imply_authid, mode,
-                                              (fuse_ino_t)(*md)()->id());
-          md->cap_inc();
+                                              (fuse_ino_t)(*md)()->id(), md);
           (*md)()->set_implied_authid(imply_authid);
           rc = Instance().mds.add_sync(req, pmd, md, (*pcap2)()->authid());
           (*md)()->set_type((*md)()->MD);

@@ -374,12 +374,12 @@ public:
   }
 
   std::string imply(shared_cap cap, std::string imply_authid, mode_t mode,
-                    fuse_ino_t inode);
+                    fuse_ino_t inode, const metad::shared_md &md);
 
   fuse_ino_t forget(const std::string& capid);
 
   void store(fuse_req_t req,
-             eos::fusex::cap cap);
+             eos::fusex::cap cap, const metad::shared_md &md);
 
   int refresh(fuse_req_t req, shared_cap cap);
 
@@ -416,7 +416,11 @@ public:
     return revocationset;
   }
 
+  void resetcapcount(const fuse_ino_t ino, const metad::shared_md &md);
+
 private:
+
+  void capdec(const std::string &cid);
 
   cmap capmap;
   cmap capextionsmap;
@@ -427,6 +431,8 @@ private:
 
   XrdSysMutex revocationLock;
   revocation_set_t revocationset; // set containing all authids to revoke
+
+  std::map<std::string, std::weak_ptr<metad::mdx>> capmapmd;
 
 };
 #endif /* FUSE_CAP_HH_ */
