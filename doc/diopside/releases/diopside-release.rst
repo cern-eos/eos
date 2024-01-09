@@ -17,6 +17,17 @@ Introduction
 This release is based on XRootD V5.
 
 
+``v5.2.5 Diopside``
+==========================
+
+2024-01-09
+
+Bug
+---
+
+SPEC: Fix missing target when building in client mode only
+
+
 ``v5.2.4 Diopside``
 ==========================
 
