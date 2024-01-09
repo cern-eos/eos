@@ -294,7 +294,6 @@ cd build
   %endif
 %endif
 
-%{__make} GenerateVersionInfo
 %{__make} %{_smp_mflags}
 
 %install
