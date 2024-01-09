@@ -11,26 +11,30 @@
 # then pass the "--with server" flag to the rpmbuild command
 %bcond_without server
 
+# By default we build without clang. To enable it,
+# then pass the "--with clang" flag to the rpmbuild command
+%bcond_with clang
+
 # By default we build without AddressSanitizer. To enable it,
 # pass the "--with asan" flag to the rpmbuild command
-%bcond_without asan
+%bcond_with asan
 
 # By default we build without ThreadSanitizer. To enable it,
 # pass the "--with tsan" flag to the rpmbuild command
-%bcond_without tsan
+%bcond_with tsan
 
 # By default we build without code coverage. To enable it,
 # pass the "--with coverage" flag to the rpmbuild command
-%bcond_without coverage
+%bcond_with coverage
 
 # By default we don't use eosxrootd for EL7
-%bcond_without eos_xrootd_rh
+%bcond_with eos_xrootd_rh
 
 # By default we allow sse instruction set
-%bcond_without no_sse
+%bcond_with no_sse
 
 # By default build without eos-grpc-gateway support
-%bcond_without eos_grpc_gateway
+%bcond_with eos_grpc_gateway
 
 # Define required dependencies
 %define eos_xrootd_version_min 0:5.6.4
