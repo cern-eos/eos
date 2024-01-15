@@ -58,7 +58,7 @@ Source5:    nginx.eos.conf.template
 Source6:    nginx.service
 Source7:    nginx.sysconfig.systemd
 
-Patch0:     nginx-no-put-body.patch
+Patch0:     nginx-allow-put-redirect.patch
 
 %description
 Nginx [engine x] is an HTTP(S) server, HTTP(S) reverse proxy and IMAP/POP3
