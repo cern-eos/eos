@@ -880,13 +880,16 @@ XrdMgmOfs::_find(const char* path, XrdOucErrInfo& out_error,
 
           for (auto fit = eos::FileMapIterator(cmd); fit.valid(); fit.next()) {
             fname = fit.key();
-            std::shared_ptr<eos::IFileMD> fmd;
+            std::shared_ptr<eos::IFileMD> fmd {nullptr};
             eos::IFileMD::IFileMDReadLockerPtr fmdLock;
             try {
               fmdLock = cmd->findFileReadLocked(fname);
-              fmd = fmdLock->getUnderlyingPtr();
+
+              if (fmdLock) {
+                fmd = fmdLock->getUnderlyingPtr();
+              }
             } catch (eos::MDException& e) {
-              fmd = 0;
+              // fmd is null
             }
 
             if (fmd) {

@@ -168,14 +168,16 @@ QuarkContainerMD::findItem(const std::string& name)
   std::optional<ContainerIdentifier> targetContainer;
   std::optional<FileIdentifier> targetFile;
   //Only the search within the files and the sub containers need to be read locked.
-  runReadOp([this,name,&targetContainer, &targetFile](){
+  runReadOp([this, name, &targetContainer, &targetFile]() {
     // We're looking for "name". Look inside subcontainer map to check if there's
     // a container with such name.
     auto iter = mSubcontainers->find(name);
+
     if (iter != mSubcontainers->end()) {
       targetContainer = ContainerIdentifier(iter->second);
       return;
     }
+
     // This is not a ContainerMD.. maybe it's a FileMD?
     auto iter2 = mFiles->find(name);
 
@@ -185,35 +187,36 @@ QuarkContainerMD::findItem(const std::string& name)
     }
   });
 
-  if(targetContainer) {
+  if (targetContainer) {
     folly::Future<FileOrContainerMD> fut =
-        pContSvc->getContainerMDFut(
-                    targetContainer->getUnderlyingUInt64())
-                    .thenValue(wrapContainerMD)
-                    .thenError([this, name](const folly::exception_wrapper & e) {
-                      // Should not happen...
-                      eos_static_crit("Exception occurred while looking up container with "
-                                      "name %s in subcontainer with id %llu: %s", name.c_str(),
-                                      getId(), e.what().c_str());
-                      return FileOrContainerMD {};
-                    });
+      pContSvc->getContainerMDFut(
+        targetContainer->getUnderlyingUInt64())
+      .thenValue(wrapContainerMD)
+    .thenError([this, name](const folly::exception_wrapper & e) {
+      // Should not happen...
+      eos_static_crit("Exception occurred while looking up container with "
+                      "name %s in subcontainer with id %llu: %s", name.c_str(),
+                      getId(), e.what().c_str());
+      return FileOrContainerMD {};
+    });
     return fut;
   }
 
-  if(targetFile){
+  if (targetFile) {
     folly::Future<FileOrContainerMD> fut =
       pFileSvc->getFileMDFut(
         targetFile->getUnderlyingUInt64())
-            .thenValue(wrapFileMD)
-            .thenError([this, name](const folly::exception_wrapper & e) {
-              // Should not happen...
-              eos_static_crit("Exception occurred while looking up file with name %s "
-                              "in subcontainer with id %llu: %s", name.c_str(), getId(),
-                                       e.what().c_str());
-             return FileOrContainerMD {};
-           });
+      .thenValue(wrapFileMD)
+    .thenError([this, name](const folly::exception_wrapper & e) {
+      // Should not happen...
+      eos_static_crit("Exception occurred while looking up file with name %s "
+                      "in subcontainer with id %llu: %s", name.c_str(), getId(),
+                      e.what().c_str());
+      return FileOrContainerMD {};
+    });
     return fut;
   }
+
   // Nope, "name" doesn't exist in this container.
   return FileOrContainerMD {};
 }
@@ -221,15 +224,21 @@ QuarkContainerMD::findItem(const std::string& name)
 //----------------------------------------------------------------------------
 //! Find item read locked
 //----------------------------------------------------------------------------
-FileOrContainerMDLocked<IContainerMD::IContainerMDReadLocker,IFileMDReadLocker> QuarkContainerMD::findItemReadLocked(const std::string& name) {
-  return IMDLockHelper::lock<IContainerMD::IContainerMDReadLocker,IFileMDReadLocker>(findItem(name).get());
+FileOrContainerMDLocked<IContainerMD::IContainerMDReadLocker, IFileMDReadLocker>
+QuarkContainerMD::findItemReadLocked(const std::string& name)
+{
+  return IMDLockHelper::lock<IContainerMD::IContainerMDReadLocker,
+         IFileMDReadLocker>(findItem(name).get());
 }
 
 //----------------------------------------------------------------------------
 //! Find item write locked
 //----------------------------------------------------------------------------
-FileOrContainerMDLocked<IContainerMD::IContainerMDWriteLocker,IFileMDWriteLocker>  QuarkContainerMD::findItemWriteLocked(const std::string& name) {
-  return IMDLockHelper::lock<IContainerMD::IContainerMDWriteLocker, IFileMDWriteLocker>(findItem(name).get());
+FileOrContainerMDLocked<IContainerMD::IContainerMDWriteLocker, IFileMDWriteLocker>
+QuarkContainerMD::findItemWriteLocked(const std::string& name)
+{
+  return IMDLockHelper::lock<IContainerMD::IContainerMDWriteLocker,
+         IFileMDWriteLocker>(findItem(name).get());
 }
 
 //------------------------------------------------------------------------------
@@ -238,7 +247,7 @@ FileOrContainerMDLocked<IContainerMD::IContainerMDWriteLocker,IFileMDWriteLocker
 void
 QuarkContainerMD::removeContainer(const std::string& name)
 {
-  runWriteOp([this,&name](){
+  runWriteOp([this, &name]() {
     auto it = mSubcontainers->find(name);
 
     if (it == mSubcontainers->end()) {
@@ -260,12 +269,12 @@ QuarkContainerMD::removeContainer(const std::string& name)
 void
 QuarkContainerMD::addContainer(IContainerMD* container)
 {
-  runWriteOp([this,container](){
+  runWriteOp([this, container]() {
     if (container->getName().empty()) {
       eos_static_crit(eos::common::getStacktrace().c_str());
       throw_mdexception(EINVAL,
                         "Attempted to add container with empty name! ID: " << container->getId() <<
-                            ", target container ID: " << mCont.id());
+                        ", target container ID: " << mCont.id());
     }
 
     auto containerConflict = mSubcontainers->find(container->getName());
@@ -274,8 +283,8 @@ QuarkContainerMD::addContainer(IContainerMD* container)
         containerConflict->second != container->getId()) {
       eos_static_crit(eos::common::getStacktrace().c_str());
       throw_mdexception(EEXIST, "Attempted to add container with name "
-                                    << container->getName()
-                                    << " while a different subcontainer exists already there.");
+                        << container->getName()
+                        << " while a different subcontainer exists already there.");
     }
 
     auto fileConflict = mFiles->find(container->getName());
@@ -283,13 +292,13 @@ QuarkContainerMD::addContainer(IContainerMD* container)
     if (fileConflict != mFiles->end()) {
       eos_static_crit(eos::common::getStacktrace().c_str());
       throw_mdexception(EEXIST, "Attempted to add container with name "
-                                    << container->getName()
-                                    << " while a file exists already there.");
+                        << container->getName()
+                        << " while a file exists already there.");
     }
 
     container->setParentId(mCont.id());
     (void) mSubcontainers->insert(std::make_pair(container->getName(),
-                                                container->getId()));
+                                  container->getId()));
     // Add to new container to KV backend
     pFlusher->hset(pDirsKey, container->getName(), stringify(container->getId()));
   });
@@ -316,14 +325,18 @@ QuarkContainerMD::findFile(const std::string& name)
 //----------------------------------------------------------------------------
 //! Find file and read lock it. Returns nullptr in case the file is not found
 //----------------------------------------------------------------------------
-std::unique_ptr<IFileMDReadLocker> QuarkContainerMD::findFileReadLocked(const std::string & name) {
+std::unique_ptr<IFileMDReadLocker> QuarkContainerMD::findFileReadLocked(
+  const std::string& name)
+{
   return findItemReadLocked(name).fileLocked;
 }
 
 //----------------------------------------------------------------------------
 //! Find file and write lock it. Returns nullptr in case the file is not found
 //----------------------------------------------------------------------------
-std::unique_ptr<IFileMDWriteLocker> QuarkContainerMD::findFileWriteLocked(const std::string & name) {
+std::unique_ptr<IFileMDWriteLocker> QuarkContainerMD::findFileWriteLocked(
+  const std::string& name)
+{
   return findItemWriteLocked(name).fileLocked;
 }
 
@@ -349,7 +362,7 @@ QuarkContainerMD::findContainer(const std::string& name)
 //! Find sub container and write lock it, returns nullptr if container does not exist
 //----------------------------------------------------------------------------
 IContainerMD::IContainerMDWriteLockerPtr
-QuarkContainerMD::findContainerWriteLocked(const std::string & name)
+QuarkContainerMD::findContainerWriteLocked(const std::string& name)
 {
   return findItemWriteLocked(name).containerLocked;
 }
@@ -358,7 +371,7 @@ QuarkContainerMD::findContainerWriteLocked(const std::string & name)
 //! Find sub container and read lock it, returns nullptr if container does not exist
 //----------------------------------------------------------------------------
 IContainerMD::IContainerMDReadLockerPtr
-QuarkContainerMD::findContainerReadLocked(const std::string & name)
+QuarkContainerMD::findContainerReadLocked(const std::string& name)
 {
   return findItemReadLocked(name).containerLocked;
 }
@@ -369,12 +382,12 @@ QuarkContainerMD::findContainerReadLocked(const std::string & name)
 void
 QuarkContainerMD::addFile(IFileMD* file)
 {
-  runWriteOp([this,file](){
+  runWriteOp([this, file]() {
     if (file->getName().empty()) {
       eos_static_crit(eos::common::getStacktrace().c_str());
       throw_mdexception(EINVAL,
                         "Attempted to add file with empty filename! ID: " << file->getId() <<
-                            ", target container ID: " << mCont.id());
+                        ", target container ID: " << mCont.id());
     }
 
     auto containerConflict = mSubcontainers->find(file->getName());
@@ -383,7 +396,7 @@ QuarkContainerMD::addFile(IFileMD* file)
       eos_static_crit(eos::common::getStacktrace().c_str());
       throw_mdexception(EEXIST,
                         "Attempted to add file with name " << file->getName() <<
-                            " while a subcontainer exists already there.");
+                        " while a subcontainer exists already there.");
     }
 
     auto fileConflict = mFiles->find(file->getName());
@@ -392,7 +405,7 @@ QuarkContainerMD::addFile(IFileMD* file)
       eos_static_crit(eos::common::getStacktrace().c_str());
       throw_mdexception(EEXIST,
                         "Attempted to add file with name " << file->getName() <<
-                            " while a different file exists already there.");
+                        " while a different file exists already there.");
     }
 
     file->setContainerId(mCont.id());
@@ -415,7 +428,7 @@ QuarkContainerMD::removeFile(const std::string& name)
 {
   bool found = false;
   IFileMD::id_t id;
-  runWriteOp([this,&name,&found,&id](){
+  runWriteOp([this, &name, &found, &id]() {
     auto iter = mFiles->find(name);
 
     if (iter != mFiles->end()) {
@@ -427,14 +440,14 @@ QuarkContainerMD::removeFile(const std::string& name)
     }
   });
 
-  if(found){
+  if (found) {
     try {
       std::shared_ptr<IFileMD> file = pFileSvc->getFileMD(id);
       // NOTE: This is an ugly hack. The file object has no reference to the
       // container id, therefore we hijack the "location" member of the Event
       // class to pass in the container id.
       IFileMDChangeListener::Event
-          e(file.get(), IFileMDChangeListener::SizeChange, mCont.id(), -file->getSize());
+      e(file.get(), IFileMDChangeListener::SizeChange, mCont.id(), -file->getSize());
       pFileSvc->notifyListeners(&e);
     } catch (MDException& e) {
       // File already removed
@@ -448,7 +461,7 @@ QuarkContainerMD::removeFile(const std::string& name)
 size_t
 QuarkContainerMD::getNumFiles()
 {
-  return runReadOp([this](){
+  return runReadOp([this]() {
     return mFiles->size();
   });
 }
@@ -459,7 +472,7 @@ QuarkContainerMD::getNumFiles()
 size_t
 QuarkContainerMD::getNumContainers()
 {
-  return runReadOp([this](){
+  return runReadOp([this]() {
     return mSubcontainers->size();
   });
 }
@@ -485,7 +498,7 @@ QuarkContainerMD::access(uid_t uid, gid_t gid, int flags)
                         mCont.mode());
   // Convert the flags
   char convFlags = PermissionHandler::convertRequested(flags);
-  return runReadOp([this,uid,gid,filteredMode,convFlags](){
+  return runReadOp([this, uid, gid, filteredMode, convFlags]() {
     // Check the perms
     if (uid == mCont.uid()) {
       char user = PermissionHandler::convertModetUser(filteredMode);
@@ -508,7 +521,7 @@ QuarkContainerMD::access(uid_t uid, gid_t gid, int flags)
 void
 QuarkContainerMD::setName(const std::string& name)
 {
-  runWriteOp([this,name](){
+  runWriteOp([this, name]() {
     if (mCont.id() != 1 && name.find('/') != std::string::npos) {
       eos_static_crit("msg=\"detected slashes in container name\" cxid=%08llx "
                       "trace=\"%s\"", mCont.id(),
@@ -542,7 +555,7 @@ QuarkContainerMD::setName(const std::string& name)
 void
 QuarkContainerMD::setCTime(ctime_t ctime)
 {
-  runWriteOp([this,ctime](){
+  runWriteOp([this, ctime]() {
     mCont.set_ctime(&ctime, sizeof(ctime));
   });
 }
@@ -571,7 +584,7 @@ QuarkContainerMD::setCTimeNow()
 void
 QuarkContainerMD::getCTime(ctime_t& ctime) const
 {
-  runReadOp([this,&ctime](){
+  runReadOp([this, &ctime]() {
     getCTimeNoLock(ctime);
   });
 }
@@ -591,7 +604,7 @@ QuarkContainerMD::getCTimeNoLock(ctime_t& ctime) const
 void
 QuarkContainerMD::setMTime(mtime_t mtime)
 {
-  runWriteOp([this,mtime](){
+  runWriteOp([this, mtime]() {
     mCont.set_mtime(&mtime, sizeof(mtime));
   });
 }
@@ -620,7 +633,7 @@ QuarkContainerMD::setMTimeNow()
 void
 QuarkContainerMD::getMTime(mtime_t& mtime) const
 {
-  return runReadOp([this,&mtime](){
+  return runReadOp([this, &mtime]() {
     getMTimeNoLock(mtime);
   });
 }
@@ -640,7 +653,7 @@ QuarkContainerMD::getMTimeNoLock(mtime_t& mtime) const
 bool
 QuarkContainerMD::setTMTime(tmtime_t tmtime)
 {
-  return runWriteOp([this,&tmtime](){
+  return runWriteOp([this, &tmtime]() {
     tmtime_t tmt;
     getTMTimeNoLock(tmt);
     tmtime_t now;
@@ -693,7 +706,7 @@ QuarkContainerMD::getTMTimeNoLock(tmtime_t& tmtime)
 void
 QuarkContainerMD::getTMTime(tmtime_t& tmtime)
 {
-  runReadOp([this,&tmtime](){
+  runReadOp([this, &tmtime]() {
     getTMTimeNoLock(tmtime);
   });
 }
@@ -714,7 +727,7 @@ QuarkContainerMD::notifyMTimeChange(IContainerMDSvc* containerMDSvc)
 uint64_t
 QuarkContainerMD::updateTreeSize(int64_t delta)
 {
-  return runWriteOp([this,delta](){
+  return runWriteOp([this, delta]() {
     uint64_t sz = mCont.tree_size();
 
     // Avoid negative tree size
@@ -735,7 +748,7 @@ QuarkContainerMD::updateTreeSize(int64_t delta)
 std::string
 QuarkContainerMD::getAttribute(const std::string& name) const
 {
-  return runReadOp([this,name](){
+  return runReadOp([this, name]() {
     auto it = mCont.xattrs().find(name);
 
     if (it == mCont.xattrs().end()) {
@@ -754,7 +767,7 @@ QuarkContainerMD::getAttribute(const std::string& name) const
 void
 QuarkContainerMD::removeAttribute(const std::string& name)
 {
-  runWriteOp([this,name](){
+  runWriteOp([this, name]() {
     auto it = mCont.xattrs().find(name);
 
     if (it != mCont.xattrs().end()) {
@@ -769,7 +782,7 @@ QuarkContainerMD::removeAttribute(const std::string& name)
 void
 QuarkContainerMD::serialize(Buffer& buffer)
 {
-  runReadOp([this,&buffer](){
+  runReadOp([this, &buffer]() {
     // Align the buffer to 4 bytes to efficiently compute the checksum
     mClock = std::chrono::high_resolution_clock::now().time_since_epoch().count();
 #if GOOGLE_PROTOBUF_VERSION < 3004000
@@ -832,7 +845,7 @@ QuarkContainerMD::loadChildren()
 void
 QuarkContainerMD::deserialize(Buffer& buffer)
 {
-  runWriteOp([this,&buffer](){
+  runWriteOp([this, &buffer]() {
     Serialization::deserializeContainer(buffer, mCont);
     loadChildren();
   });
@@ -845,7 +858,8 @@ void
 QuarkContainerMD::initialize(eos::ns::ContainerMdProto&& proto,
                              IContainerMD::FileMap&& fileMap, IContainerMD::ContainerMap&& containerMap)
 {
-  runWriteOp([this,Proto = std::move(proto),FileMap = std::move(fileMap),ContainerMap = std::move(containerMap)](){
+  runWriteOp([this, Proto = std::move(proto), FileMap = std::move(fileMap),
+  ContainerMap = std::move(containerMap)]() {
     mCont = std::move(Proto);
     mFiles.get() = std::move(FileMap);
     mSubcontainers.get() = std::move(ContainerMap);
@@ -861,7 +875,7 @@ QuarkContainerMD::initialize(eos::ns::ContainerMdProto&& proto,
 void
 QuarkContainerMD::initializeWithoutChildren(eos::ns::ContainerMdProto&& proto)
 {
-  runWriteOp([this,Proto = std::move(proto)](){
+  runWriteOp([this, Proto = std::move(proto)]() {
     mCont = std::move(Proto);
   });
 }
@@ -872,8 +886,9 @@ QuarkContainerMD::initializeWithoutChildren(eos::ns::ContainerMdProto&& proto)
 eos::IFileMD::XAttrMap
 QuarkContainerMD::getAttributes() const
 {
-  return runReadOp([this](){
+  return runReadOp([this]() {
     XAttrMap xattrs;
+
     for (const auto& elem : mCont.xattrs()) {
       xattrs.insert(elem);
     }
@@ -888,7 +903,7 @@ QuarkContainerMD::getAttributes() const
 void
 QuarkContainerMD::getEnv(std::string& env, bool escapeAnd)
 {
-  runReadOp([this,&env,escapeAnd](){
+  runReadOp([this, &env, escapeAnd]() {
     env.clear();
     std::ostringstream oss;
     std::string saveName = mCont.name();
@@ -933,7 +948,7 @@ QuarkContainerMD::copyContainerMap() const
   IContainerMD::ContainerMap retval;
   retval.set_deleted_key("");
   retval.set_empty_key("##_EMPTY_##");
-  return runReadOp([this,&retval](){
+  return runReadOp([this, &retval]() {
     for (auto it = mSubcontainers->begin(); it != mSubcontainers->end(); ++it) {
       retval.insert(std::make_pair(it->first, it->second));
     }
@@ -951,7 +966,7 @@ QuarkContainerMD::copyFileMap() const
   IContainerMD::FileMap retval;
   retval.set_deleted_key("");
   retval.set_empty_key("##_EMPTY_##");
-  return runReadOp([this,&retval](){
+  return runReadOp([this, &retval]() {
     for (auto it = mFiles->begin(); it != mFiles->end(); ++it) {
       retval.insert(std::make_pair(it->first, it->second));
     }

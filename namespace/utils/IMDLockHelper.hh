@@ -25,7 +25,8 @@
 
 EOSNSNAMESPACE_BEGIN
 
-class IMDLockHelper {
+class IMDLockHelper
+{
 public:
   /**
    * Convenient function to lock an File or ContainerMD owned by a shared_ptr
@@ -35,8 +36,13 @@ public:
    * @return the unique_pointer owning the locked ContainerMD/FileMD
    */
   template<typename Locker, typename MDPtr>
-  static std::unique_ptr<Locker> lock(MDPtr objectMDPtr) {
-    return std::make_unique<Locker>(objectMDPtr);
+  static std::unique_ptr<Locker> lock(MDPtr objectMDPtr)
+  {
+    if (objectMDPtr) {
+      return std::make_unique<Locker>(objectMDPtr);
+    }
+
+    return nullptr;
   }
 
   /**
@@ -47,13 +53,18 @@ public:
    * @return the structure FileOrContainerMDLocked containing either a File or ContainerMD locked accordingly
    */
   template<typename ContainerMDLocker, typename FileMDLocker>
-  static FileOrContainerMDLocked<ContainerMDLocker, FileMDLocker> lock(eos::FileOrContainerMD fileOrContMD) {
-    FileOrContainerMDLocked<ContainerMDLocker,FileMDLocker> ret;
-    if(fileOrContMD.container) {
-      ret.containerLocked = std::make_unique<ContainerMDLocker>(fileOrContMD.container);
-    } else if(fileOrContMD.file) {
+  static FileOrContainerMDLocked<ContainerMDLocker, FileMDLocker>
+  lock(eos::FileOrContainerMD fileOrContMD)
+  {
+    FileOrContainerMDLocked<ContainerMDLocker, FileMDLocker> ret {nullptr, nullptr};
+
+    if (fileOrContMD.container) {
+      ret.containerLocked = std::make_unique<ContainerMDLocker>
+                            (fileOrContMD.container);
+    } else if (fileOrContMD.file) {
       ret.fileLocked = std::make_unique<FileMDLocker>(fileOrContMD.file);
     }
+
     return ret;
   };
 };
