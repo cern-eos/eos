@@ -12,7 +12,7 @@
 %define nginx_webroot   %{nginx_datadir}/html
 
 Name:           eos-nginx
-Version:        1.24.0
+Version:        1.25.0
 Release:        0
 Summary:        Robust, small and high performance http and reverse proxy server
 Group:          System Environment/Daemons
