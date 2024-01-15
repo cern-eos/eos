@@ -156,6 +156,8 @@ bool SpaceHelper::ParseCommand(const char* arg)
 	options += "Z";
       } else if (token == "-V" || token == "--vs") {
 	options += "V";
+      } else if (token == "-M" || token == "--money") {
+	options += "M";
       } else {
         return false;
       }

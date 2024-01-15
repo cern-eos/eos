@@ -542,11 +542,16 @@ FileInspector::Dump(std::string& out, std::string_view options,
   bool printaccesstime = true;
   bool printbirthtime = true;
   bool printbirthvsaccesstime = true;
+  bool printmoney = false;
   
   if ( options.find("Z") != std::string::npos ) {
     printall = true;
   }
-  
+
+  if (options.find('M') != std::string::npos) {
+    printmoney=true;
+  }
+
   if ( options.find('L') != std::string::npos  ||
        options.find('C') != std::string::npos ||
        options.find('U') != std::string::npos ||
@@ -738,6 +743,10 @@ FileInspector::Dump(std::string& out, std::string_view options,
 	  ucost += std::to_string(it->second/1000000000000.0);
 	  ucost += " price=";
 	  ucost += std::to_string(price);
+	  ucost += " tbyears=";
+	  if (price) {
+	    ucost += std::to_string(it->second/1000000000000.0/price);
+	  }
 	  out += ucost;
 	  out += "\n";
 	}
@@ -763,6 +772,10 @@ FileInspector::Dump(std::string& out, std::string_view options,
 	  gcost += std::to_string(it->second/1000000000000.0);
 	  gcost += " price=";
 	  gcost += std::to_string(price);
+	  gcost += " tbyears=";
+	  if (price) {
+	    gcost += std::to_string(it->second/1000000000000.0/price);
+	  }
 	  out += gcost;
 	  out += "\n";
 	}
@@ -1134,12 +1147,29 @@ FileInspector::Dump(std::string& out, std::string_view options,
 	  media = "tape";
 	}
 	
+	std::string unit="[tb*years]";
+	double rescale=1.0;
+
+	if (printmoney) {
+	  unit = "[";
+	  unit += currency;
+	  unit += "]";
+	} else {
+	  if (n==1) {
+	    // tape price
+	    rescale=PriceTbPerYearTape;
+	  } else {
+	    // disk price
+	    rescale=PriceTbPerYearDisk;
+	  }
+	}
+
 	if (printcosts && lastCostsUsers[n].size()) {
 	  out +=  "======================================================================================\n";
 	  out +=  " Storage Costs - User View [ "; out += media; out += " ]\n";
 	  out +=  " -------------------------------------------------------------------------------------\n";
 	  out +=  " Total Costs : ";
-	  out += eos::common::StringConversion::GetReadableSizeString(lastUserTotalCosts[n]/1000000000000.0, currency.c_str()).c_str();
+	  out += eos::common::StringConversion::GetReadableSizeString(lastUserTotalCosts[n]/1000000000000.0/rescale, unit.c_str()).c_str();
 	  out += "\n";
 	  out +=  " -------------------------------------------------------------------------------------\n";
 	  size_t cnt=0;
@@ -1147,6 +1177,7 @@ FileInspector::Dump(std::string& out, std::string_view options,
 	  if (printall) {
 	    top_cnt = 1000000;
 	  }
+
 	  for ( auto it = lastCostsUsers[n].rbegin(); it != lastCostsUsers[n].rend();
 		++it) {
 	    int terrc=0;
@@ -1162,7 +1193,7 @@ FileInspector::Dump(std::string& out, std::string_view options,
 	    snprintf(line, sizeof(line), " %02ld. %-28s : %s\n",
 		     ++cnt,
 		     username.c_str(),
-		     eos::common::StringConversion::GetReadableSizeString(it->first/1000000000000.0, currency.c_str()).c_str());
+		     eos::common::StringConversion::GetReadableSizeString(it->first/1000000000000.0/rescale, unit.c_str()).c_str());
 	    out += line;
 	    
 	    if (cnt >= top_cnt) {
@@ -1176,7 +1207,7 @@ FileInspector::Dump(std::string& out, std::string_view options,
 	  out +=  " Storage Costs - Group View [ "; out += media; out += " ]\n";
 	  out +=  " -------------------------------------------------------------------------------------\n";
 	  out +=  " Total Costs : ";
-	  out += eos::common::StringConversion::GetReadableSizeString(lastGroupTotalCosts[n]/1000000000000.0, currency.c_str()).c_str();
+	  out += eos::common::StringConversion::GetReadableSizeString(lastGroupTotalCosts[n]/1000000000000.0/rescale, unit.c_str()).c_str();
 	  out += "\n";
 	  out +=  " -------------------------------------------------------------------------------------\n";
 	  size_t cnt=0;
@@ -1199,7 +1230,7 @@ FileInspector::Dump(std::string& out, std::string_view options,
 	    snprintf(line, sizeof(line), " %02ld. %-28s : %s\n",
 		     ++cnt,
 		     groupname.c_str(),
-		     eos::common::StringConversion::GetReadableSizeString(it->first/1000000000000.0, currency.c_str()).c_str());
+		     eos::common::StringConversion::GetReadableSizeString(it->first/1000000000000.0/rescale, unit.c_str()).c_str());
 	    out += line;
 	    
 	    if (cnt >= top_cnt) {
