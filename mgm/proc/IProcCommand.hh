@@ -84,17 +84,17 @@ public:
   {
     mForceKill.store(true);
 
-    if (ofstdoutStream.is_open()) {
-      ofstdoutStream.close();
+    if (mOfsOutStream.is_open()) {
+      mOfsOutStream.close();
     }
 
-    unlink(ofstdoutStreamFilename.c_str());
+    unlink(mOfsOutStreamFilename.c_str());
 
-    if (ofstderrStream.is_open()) {
-      ofstderrStream.close();
+    if (mOfsErrStream.is_open()) {
+      mOfsErrStream.close();
     }
 
-    unlink(ofstderrStreamFilename.c_str());
+    unlink(mOfsErrStreamFilename.c_str());
 
     if (mHasSlot) {
       std::unique_lock<std::mutex> lock(mMapCmdsMutex);
@@ -207,6 +207,14 @@ public:
   virtual const char* GetResult(size_t& size) const
   {
     return "bla";
+  }
+
+  //----------------------------------------------------------------------------
+  //! Get result file name
+  //----------------------------------------------------------------------------
+  inline const char* GetResultFn() const
+  {
+    return mOfsOutStreamFilename.c_str();
   }
 
   virtual void SetError(XrdOucErrInfo* error) {};
@@ -359,10 +367,10 @@ protected:
   XrdOucString stdJson; ///< JSON output returned by proc command
   int retc; ///< Return code from the proc command
   std::string mTmpResp; ///< String used for streaming the response
-  std::ofstream ofstdoutStream;
-  std::ofstream ofstderrStream;
-  std::string ofstdoutStreamFilename;
-  std::string ofstderrStreamFilename;
+  std::ofstream mOfsOutStream;
+  std::ofstream mOfsErrStream;
+  std::string mOfsOutStreamFilename;
+  std::string mOfsErrStreamFilename;
   std::ifstream ifstdoutStream;
   std::ifstream ifstderrStream;
   std::istringstream iretcStream;

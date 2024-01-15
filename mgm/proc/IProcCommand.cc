@@ -92,9 +92,9 @@ IProcCommand::open(const char* path, const char* info,
     }
 
     // Output is written in file
-    if (!ofstdoutStreamFilename.empty() && !ofstderrStreamFilename.empty()) {
-      ifstdoutStream.open(ofstdoutStreamFilename, std::ifstream::in);
-      ifstderrStream.open(ofstderrStreamFilename, std::ifstream::in);
+    if (!mOfsOutStreamFilename.empty() && !mOfsErrStreamFilename.empty()) {
+      ifstdoutStream.open(mOfsOutStreamFilename, std::ifstream::in);
+      ifstderrStream.open(mOfsErrStreamFilename, std::ifstream::in);
       iretcStream.str(std::string("&mgm.proc.retc=") + std::to_string(reply.retc()));
       readStdOutStream = true;
     } else {
@@ -229,11 +229,11 @@ IProcCommand::OpenTemporaryOutputFiles()
   ostringstream tmpdir;
   tmpdir << "/var/tmp/eos/mgm/";
   tmpdir << uuid++;
-  ofstdoutStreamFilename = tmpdir.str();
-  ofstdoutStreamFilename += ".stdout";
-  ofstderrStreamFilename = tmpdir.str();
-  ofstderrStreamFilename += ".stderr";
-  eos::common::Path cPath(ofstdoutStreamFilename.c_str());
+  mOfsOutStreamFilename = tmpdir.str();
+  mOfsOutStreamFilename += ".stdout";
+  mOfsErrStreamFilename = tmpdir.str();
+  mOfsErrStreamFilename += ".stderr";
+  eos::common::Path cPath(mOfsOutStreamFilename.c_str());
 
   if (!cPath.MakeParentPath(S_IRWXU)) {
     eos_err("Unable to create temporary outputfile directory %s",
@@ -247,23 +247,23 @@ IProcCommand::OpenTemporaryOutputFiles()
             cPath.GetParentPath());
   }
 
-  ofstdoutStream.open(ofstdoutStreamFilename, std::ofstream::out);
-  ofstderrStream.open(ofstderrStreamFilename, std::ofstream::out);
+  mOfsOutStream.open(mOfsOutStreamFilename, std::ofstream::out);
+  mOfsErrStream.open(mOfsErrStreamFilename, std::ofstream::out);
 
-  if ((!ofstdoutStream) || (!ofstderrStream)) {
-    if (ofstdoutStream.is_open()) {
-      ofstdoutStream.close();
+  if ((!mOfsOutStream) || (!mOfsErrStream)) {
+    if (mOfsOutStream.is_open()) {
+      mOfsOutStream.close();
     }
 
-    if (ofstderrStream.is_open()) {
-      ofstderrStream.close();
+    if (mOfsErrStream.is_open()) {
+      mOfsErrStream.close();
     }
 
     return false;
   }
 
-  ofstdoutStream << "mgm.proc.stdout=";
-  ofstderrStream << "&mgm.proc.stderr=";
+  mOfsOutStream << "&mgm.proc.stdout=";
+  mOfsErrStream << "&mgm.proc.stderr=";
   return true;
 }
 
@@ -273,9 +273,9 @@ IProcCommand::OpenTemporaryOutputFiles()
 bool
 IProcCommand::CloseTemporaryOutputFiles()
 {
-  ofstdoutStream.close();
-  ofstderrStream.close();
-  return !(ofstdoutStream.is_open() || ofstderrStream.is_open());
+  mOfsOutStream.close();
+  mOfsErrStream.close();
+  return !(mOfsOutStream.is_open() || mOfsErrStream.is_open());
 }
 
 //------------------------------------------------------------------------------

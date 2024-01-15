@@ -37,6 +37,8 @@ class IFileMD;
 
 EOSMGMNAMESPACE_BEGIN
 
+class FindResult;
+
 class NewfindCmd : public IProcCommand
 {
 public:
@@ -55,7 +57,6 @@ public:
   //----------------------------------------------------------------------------
   ~NewfindCmd() override = default;
 
-
   //----------------------------------------------------------------------------
   //! Method implementing the specific behaviour of the command executed by the
   //! asynchronous thread
@@ -67,19 +68,49 @@ public:
 #endif
 
 private:
-  void PrintFileInfoMinusM(const std::string& path, XrdOucErrInfo& errInfo);
+  //----------------------------------------------------------------------------
+  //! Print fileinfo data in monitoring format to the given output stream
+  //!
+  //! @param ss output stream
+  //! @param find_obj file/container obj
+  //! @param errInfo error info object
+  //----------------------------------------------------------------------------
+  void PrintFileInfoMinusM(std::ostream& ss, const FindResult& find_obj,
+                           XrdOucErrInfo& errInfo);
 
-  void PrintFileInfoMinusM(std::stringstream& ss,
-                           const std::string& path, XrdOucErrInfo& errInfo);
+  //----------------------------------------------------------------------------
+  //! Print fileinfo data in monitoring format to default output stream
+  //! @note uses the above implementation
+  //----------------------------------------------------------------------------
+  void PrintFileInfoMinusM(const FindResult& find_obj, XrdOucErrInfo& errInfo)
+  {
+    PrintFileInfoMinusM(mOfsOutStream, find_obj, errInfo);
+  }
+
+  //----------------------------------------------------------------------------
+  //! Trigger a file layout command to modify the number of stripes
+  //!
+  //! @param ss output stream
+  //! @param req find request object
+  //! @param fspath file identifier
+  //----------------------------------------------------------------------------
+  void ModifyLayoutStripes(std::ostream& ss,
+                           const eos::console::FindProto& req,
+                           const std::string& fspath);
+
+  //----------------------------------------------------------------------------
+  //! Trigger a file layout command to modify the number of stripes
+  //! @note uses the above implementation
+  //----------------------------------------------------------------------------
+  void ModifyLayoutStripes(const eos::console::FindProto& req,
+                           const std::string& fspath)
+  {
+    ModifyLayoutStripes(mOfsOutStream, req, fspath);
+  }
 
   template<typename S>   // std::ofstream or std::stringstream
-  void ProcessAtomicFilePurge(S& ss, const std::string& fspath, eos::IFileMD& fmd);
-
-  void ModifyLayoutStripes(std::ofstream& ss,
-                           const eos::console::FindProto& req, const std::string& fspath);
-
-  void ModifyLayoutStripes(std::stringstream& ss,
-                           const eos::console::FindProto& req, const std::string& fspath);
+  void ProcessAtomicFilePurge(S& ss, const std::string& fspath,
+                              eos::IFileMD& fmd);
 
   template<typename S>   // std::ofstream or std::stringstream
   void PurgeVersions(S& ss, int64_t maxVersion, const std::string& dirpath);

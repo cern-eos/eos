@@ -231,7 +231,6 @@ public:
   int Chmod();
   int DirInfo(const char* path);
   int DirJSON(uint64_t id, Json::Value* json, bool dolock = true);
-  int Find();
   int File();
   int Fileinfo();
   int FileInfo(const char* path);

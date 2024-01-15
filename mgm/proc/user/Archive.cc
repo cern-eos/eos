@@ -22,6 +22,7 @@
  ************************************************************************/
 
 #include "mgm/proc/ProcCommand.hh"
+#include "mgm/proc/user/NewfindCmd.hh"
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/XrdMgmOfsDirectory.hh"
 #include "mgm/Access.hh"
@@ -795,8 +796,9 @@ ProcCommand::ArchiveCreate(const std::string& arch_dir,
   std::fstream arch_ofs(arch_fn.c_str(), std::fstream::out);
 
   if (!arch_ofs.is_open()) {
-    eos_err("failed to open local archive file=%s", arch_fn.c_str());
-    stdErr = "failed to open archive file at MGM ";
+    eos_static_err("msg=\"failed to open local archive file\" path=\"%s\"",
+                   arch_fn.c_str());
+    stdErr = "failed to open archive file at MGM";
     retc = EIO;
     return;
   }
@@ -1099,40 +1101,50 @@ ProcCommand::ArchiveAddEntries(const std::string& arch_dir,
     };
   }
 
-  std::string line;
-  ProcCommand* cmd_find = new ProcCommand();
-  XrdOucString info = "&mgm.cmd=find&mgm.path=";
-  info += arch_dir.c_str();
+  eos::common::VirtualIdentity root_vid = eos::common::VirtualIdentity::Root();
+  eos::console::RequestProto req;
+  auto* find_req = req.mutable_find();
+  find_req->set_path(arch_dir);
+  find_req->set_fileinfo(true);
 
   if (is_file) {
-    info += "&mgm.option=fI";
+    find_req->set_files(true);
   } else {
-    info += "&mgm.option=dI";
+    find_req->set_directories(true);
   }
 
-  eos::common::VirtualIdentity root_vid = eos::common::VirtualIdentity::Root();
-  cmd_find->open("/proc/user", info.c_str(), root_vid, mError);
-  int ret = cmd_find->close();
+  XrdOucErrInfo cmd_error;
+  std::unique_ptr<IProcCommand> cmd_find(new NewfindCmd(std::move(req),
+                                         root_vid));
+  int cmd_retc = cmd_find->open(nullptr, nullptr, root_vid, &cmd_error);
 
-  if (ret) {
-    delete cmd_find;
-    eos_err("find fileinfo on directory=%s failed", arch_dir.c_str());
-    stdErr = "error: find fileinfo failed";
-    retc = ret;
+  while (cmd_retc > 0) {
+    eos_static_info("msg=\"waiting for find reply\" path=\"%s\"",
+                    arch_dir.c_str());
+    std::this_thread::sleep_for(std::chrono::seconds(cmd_retc));
+    cmd_retc = cmd_find->open(nullptr, nullptr, root_vid, &cmd_error);
+  }
+
+  if (cmd_retc < 0) {
+    eos_static_err("msg=\"failed archive find\" path=\"%s\"", arch_dir.c_str());
+    stdErr = "failed archive find operation";
+    retc = EINVAL;
     return retc;
   }
 
+  (void) cmd_find->close();
   size_t spos = 0;
   size_t key_length = 0; // lenght of file/dir name - it could have spaces
   std::string rel_path;
   std::string key, value, pair;
+  std::string line;
   std::istringstream line_iss;
   std::ifstream result_ifs(cmd_find->GetResultFn());
   XrdOucString unseal_str;
 
   if (!result_ifs.good()) {
-    delete cmd_find;
-    eos_err("failed to open find fileinfo result file on MGM");
+    eos_static_err("msg=\"failed to open find fileinfo result file on MGM\" "
+                   "path=\"%s\"", cmd_find->GetResultFn());
     stdErr = "failed to open find fileinfo result file on MGM";
     retc = EIO;
     return retc;
@@ -1192,8 +1204,7 @@ ProcCommand::ArchiveAddEntries(const std::string& arch_dir,
 
         if ((spos == std::string::npos) || (!line_iss.good())) {
           delete[] tmp_buff;
-          delete cmd_find;
-          eos_err("malformed xattr pair format");
+          eos_static_err("%s", "msg=\"malformed xattr pair format\"");
           stdErr = "malformed xattr pair format";
           retc = EINVAL;
           return retc;
@@ -1204,8 +1215,7 @@ ProcCommand::ArchiveAddEntries(const std::string& arch_dir,
 
         if (key != "xattrv") {
           delete[] tmp_buff;
-          delete cmd_find;
-          eos_err("not found expected xattrv");
+          eos_static_err("%s", ",msg=\"not found expected xattrv\"");
           stdErr = "not found expected xattrv";
           retc = EINVAL;
           return retc;
@@ -1252,6 +1262,7 @@ ProcCommand::ArchiveAddEntries(const std::string& arch_dir,
         continue;
       }
 
+      eos_info("msg=\"writing to ofs stream\" path=%s\"", info_map["file"].c_str());
       ofs << "[\"d\", \"" << info_map["file"] << "\", "
           << "\"" << info_map["uid"] << "\", "
           << "\"" << info_map["gid"] << "\", "
@@ -1275,7 +1286,6 @@ ProcCommand::ArchiveAddEntries(const std::string& arch_dir,
   }
 
   delete[] tmp_buff;
-  delete cmd_find;
   return retc;
 }
 
