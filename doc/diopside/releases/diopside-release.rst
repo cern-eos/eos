@@ -17,6 +17,18 @@ Introduction
 This release is based on XRootD V5.
 
 
+``v5.2.6 Diopside``
+==========================
+
+2024-01-15
+
+Bug
+---
+
+* [EOS-5977] - NS: Double check md object is not null before constructing md locked object
+
+
+
 ``v5.2.5 Diopside``
 ==========================
 
