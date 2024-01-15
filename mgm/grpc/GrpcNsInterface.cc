@@ -2105,18 +2105,19 @@ grpc::Status GrpcNsInterface::Recycle(eos::common::VirtualIdentity& vid,
 
     return grpc::Status::OK;
   } else if (request->cmd() == eos::rpc::NSRequest::RecycleRequest::LIST) {
-    fprintf(stderr, "Doing Listing\n");
     std::string std_out, std_err;
     Recycle::RecycleListing rvec;
-    Recycle::Print(std_out,
-                   std_err,
-                   vid,
-                   true,
-                   true,
-                   true,
-                   "", false,
-                   &rvec);
-
+    int rc = Recycle::Print(std_out,
+			    std_err,
+			    vid,
+			    true,
+			    true,
+			    true,
+			    "", false,
+			    &rvec,
+			    true,
+			    request->listflag().maxentries());
+    
     for (auto item : rvec) {
       eos::rpc::NSResponse::RecycleResponse::RecycleInfo info;
 
@@ -2138,7 +2139,10 @@ grpc::Status GrpcNsInterface::Recycle(eos::common::VirtualIdentity& vid,
       fprintf(stderr, "Adding one\n");
       new_info->CopyFrom(info);
     }
-
+    if (rc) {
+      reply->set_code(E2BIG);
+      reply->set_msg("warning: listing was limited to user maxentries setting");
+    }
     return grpc::Status::OK;
   } else {
     reply->set_code(EINVAL);

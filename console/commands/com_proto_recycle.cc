@@ -64,12 +64,14 @@ void com_recycle_help()
       << std::endl
       << "    -m     : display info in monitoring format" << std::endl
       << std::endl
-      << "  recycle ls [-g|<date>] [-m] [-n]" << std::endl
+      << "  recycle ls [-g|<date> [<limit>]] [-m] [-n]" << std::endl
       << "    list files in the recycle bin" << std::endl
       << "    -g     : list files of all users (if done by root or admin)"
       << std::endl
       << "    <date> : can be <year>, <year>/<month> or <year>/<month>/<day> or <year>/<month>/<day>/<index>"
       << std::endl
+      << "   <limit> : maximum number of entries to return when listing"
+      << std::endl 
       << "             e.g.: recycle ls 2018/08/12" << std::endl
       << "    -m     : display info in monitoring format" << std::endl
       << "    -n     : display numeric uid/gid(s) instead of names" << std::endl

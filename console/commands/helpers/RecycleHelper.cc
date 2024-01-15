@@ -102,6 +102,11 @@ RecycleHelper::ParseCommand(const char* arg)
           }
 
           ls->set_date(soption);
+	  // check if a limit is given;
+	  if ((option = tokenizer.GetToken())) {
+	    soption = option;
+	    ls->set_maxentries(atoi(soption.c_str()));
+	  }
         }
       }
 

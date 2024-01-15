@@ -8,6 +8,7 @@ message RecycleProto {
     bool MonitorFmt  = 3;
     bool All         = 4;
     string Date      = 5;
+    int32 Maxentries = 6;
   }
 
   message PurgeProto {

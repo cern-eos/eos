@@ -150,14 +150,18 @@ public:
    * @param global show files of all users as root
    * @param date filter recycle bin for given date <year> or <year>/<month> or <year>/<month>/<day>
    * @param rvec a vector of maps with all recycle informations requested
+   * @param whodeleted - show who exectued a deletion
+   * @param maxentries - maximum number of entries to report
+   * @return 0 if success, E2BIG if return list is limited
    */
-  static void Print(std::string& std_out, std::string& std_err,
+  static int Print(std::string& std_out, std::string& std_err,
                     eos::common::VirtualIdentity& vid, bool monitoring,
                     bool transalteids, bool details,
                     std::string date = "",
                     bool global = false,
                     RecycleListing* rvec = 0,
-		    bool whodeleted = true
+		    bool whodeleted = true,
+		    int32_t maxentries = 0
                    );
 
   /**

@@ -572,11 +572,12 @@ Recycle::ToGarbage(const char* epname, XrdOucErrInfo& error, bool fusexcast)
 }
 
 /*----------------------------------------------------------------------------*/
-void
+
+int
 Recycle::Print(std::string& std_out, std::string& std_err,
                eos::common::VirtualIdentity& vid, bool monitoring,
                bool translateids, bool details, std::string date, bool global,
-               Recycle::RecycleListing* rvec, bool whodeleted)
+               Recycle::RecycleListing* rvec, bool whodeleted, int32_t maxentries)
 {
   using namespace eos::common;
   XrdOucString uids;
@@ -587,7 +588,7 @@ Recycle::Print(std::string& std_out, std::string& std_err,
 
   // fix security hole
   if (date.find("..") != std::string::npos) {
-    return;
+    return EINVAL;
   }
 
   if (global && ((!vid.uid) ||
@@ -669,6 +670,13 @@ Recycle::Print(std::string& std_out, std::string& std_err,
 
         for (auto fileit = dirit->second.begin(); fileit != dirit->second.end();
              ++fileit) {
+
+	  if (maxentries && (count >= (size_t)maxentries)) {
+	    retc = E2BIG;
+	    std_out += oss_out.str();
+	    return E2BIG;;
+	  }
+
           // Symlink files returned by the find command above contain
           // a pointer to the original name which needs to be removed
           // so that we can properly stat the file.
@@ -801,7 +809,7 @@ Recycle::Print(std::string& std_out, std::string& std_err,
                 oss_out << "... (truncated after 1G of output)" << std::endl;
                 std_out += oss_out.str();
                 std_err += "warning: list too long - truncated after 1GB of output!\n";
-                return;
+                return E2BIG;
               }
 
               oss_out << sline << std::endl;
@@ -814,7 +822,7 @@ Recycle::Print(std::string& std_out, std::string& std_err,
               oss_out << "... (truncated)" << std::endl;
               std_out += oss_out.str();
               std_err += "warning: list too long - truncated after 100000 entries!\n";
-              return;
+              return E2BIG;
             }
           }
         }
@@ -875,6 +883,7 @@ Recycle::Print(std::string& std_out, std::string& std_err,
   }
 
   std_out += oss_out.str();
+  return 0;
 }
 
 /*----------------------------------------------------------------------------*/
@@ -1075,7 +1084,7 @@ Recycle::PrintOld(std::string& std_out, std::string& std_err,
                 oss_out << "... (truncated)" << std::endl;
                 std_out += oss_out.str();
                 std_err += "warning: list too long - truncated after 100000 entries!\n";
-                return;
+		return;
               }
             }
           }
