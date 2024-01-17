@@ -621,7 +621,7 @@ FileInspector::Dump(std::string& out, std::string_view options,
     }
 
     if (lastAccessTimeFiles.size()) {
-      std::string afiles = "kay=last tag=accesstime::files ";
+      std::string afiles = "key=last tag=accesstime::files ";
 
       for (auto it = lastAccessTimeFiles.begin(); it != lastAccessTimeFiles.end();
            ++it) {
@@ -651,7 +651,7 @@ FileInspector::Dump(std::string& out, std::string_view options,
     }
 
     if (lastBirthTimeFiles.size()) {
-      std::string bfiles = "kay=last tag=birthtime::files ";
+      std::string bfiles = "key=last tag=birthtime::files ";
 
       for (auto it = lastBirthTimeFiles.begin(); it != lastBirthTimeFiles.end();
            ++it) {
@@ -682,7 +682,7 @@ FileInspector::Dump(std::string& out, std::string_view options,
 
 
     if (lastBirthVsAccessTimeFiles.size()) {
-      std::string bfiles = "kay=last tag=birthvsaccesstime::files ";
+      std::string bfiles = "key=last tag=birthvsaccesstime::files ";
 
       for (auto it = lastBirthVsAccessTimeFiles.begin(); it != lastBirthVsAccessTimeFiles.end();
            ++it) {
