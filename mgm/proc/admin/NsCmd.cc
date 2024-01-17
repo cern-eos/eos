@@ -333,9 +333,9 @@ NsCmd::StatSubcmd(const eos::console::NsProto_StatProto& stat,
   if (monitoring) {
     oss << "uid=all gid=all ns.total.files=" << f << std::endl
         << "uid=all gid=all ns.total.directories=" << d << std::endl
-        << "uid=all gid=all ns.current.fid=" << fid_now
-        << "uid=all gid=all ns.current.cid=" << cid_now
-        << "uid=all gid=all ns.generated.fid=" << (int)(fid_now - gOFS->mBootFileId)
+        << "uid=all gid=all ns.current.fid=" << fid_now << std::endl
+        << "uid=all gid=all ns.current.cid=" << cid_now << std::endl
+        << "uid=all gid=all ns.generated.fid=" << (int)(fid_now - gOFS->mBootFileId) << std::endl
         << "uid=all gid=all ns.generated.cid=" << (int)(cid_now -
             gOFS->mBootContainerId) << std::endl
         << "uid=all gid=all ns.contention.read=" << readcontention << std::endl
