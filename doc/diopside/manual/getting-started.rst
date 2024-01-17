@@ -68,15 +68,15 @@ EOS up in few minutes
 ---------------------
 We will start setting up a complete EOS installation on a single physical machine using the EOS5 configuration method. Later we will demonstrate the steps to add high-availablity to MGMs/QDBs and how to scale-out FST nodes. All commands have to be issued using the `root` account!
 
-Grab a machine with CentOS7,8,8/9 Stream. Only the repository setup differs for these platforms (shown is the CentOS9 Stream installation, just replace 9s with 7,8 or 8s in the URLs in case):
+Grab a machine preferably with Alma9 (or Alma8 or CentOS7). Only the repository setup differs for these platforms (shown is the Alma9 installation, just replace 9 with 7,8 in the URLs :
 
 Installation
 ------------
 
 .. code-block:: bash
   
-  yum-config-manager --add-repo "https://storage-ci.web.cern.ch/storage-ci/eos/diopside/tag/testing/el-9s/x86_64/"
-  yum-config-manager --add-repo "https://storage-ci.web.cern.ch/storage-ci/eos/diopside-depend/el-9s/x86_64/"
+  yum-config-manager --add-repo "https://storage-ci.web.cern.ch/storage-ci/eos/diopside/tag/testing/el-9/x86_64/"
+  yum-config-manager --add-repo "https://storage-ci.web.cern.ch/storage-ci/eos/diopside-depend/el-9/x86_64/"
   yum install -y eos-server eos-quarkdb eos-fusex jemalloc-devel --nogpgcheck
 
 Unique Instance Shared Secret
@@ -94,7 +94,7 @@ The command will create a local file `/etc/eos.keytab` storing the instance-spec
 Start Services
 --------------
 
-We will startup four services in a manual way to get a better understanding about the procedure and the used configuration.
+We will startup thre services in a manual way to get a better understanding about the procedure and the used configuration.
 
 To shorten the setup we disable the firewall for the moment. The ports to open in the firewall are explained later.
 
@@ -109,18 +109,43 @@ To shorten the setup we disable the firewall for the moment. The ports to open i
  
 .. code-block:: bash
 
-  eos daemon run mq 
+  # start QuarkDB on this host		  
   eos daemon run qdb
+  # start MGM on this host
   eos daemon run mgm
+  # all this host to connect as an FST
+  eos node set `hostname -f`:1095 on
+  # start FST on this host
   eos daemon run fst
 
-
+  
 .. note:: 
 
   Each command prints commands executed during the daemon initialization phase and the XRootD configuration file used. In reality each EOS service is an XRootD server process with dedicated plug-in and configuration. The init phases have been designed to be able to startup a service without doing ANY customized configuration bringing good defaults.
 
 You should be able to see the running daemons doing:
 
+The production way to do this is to run
+
+.. code-block:: bash
+
+  # start QuarkDB
+  systemctl start eos5-qdb@qdb
+  # start MGM
+  systemctl start eos5-mgm@mgm
+  # allow this host connect as an FST
+  eos node set `hostname -f`:1095 on
+  # start FST on this host
+  systemctl start eos5-fst@fst
+
+and to enable the services in the boot procedure
+
+.. code-block:: bash
+
+  systemctl enable eos5-qdb@qdb
+  systemctl enable eos5-mgm@mgm
+  systemctl enable eos5-fst@fst
+  
 .. code-block:: bash
 
   ps aux | grep eos
@@ -135,8 +160,8 @@ Your EOS installation is now up and running. We are now starting the CLI to insp
 
   [root@vm root]# eos version
   EOS_INSTANCE=eosdev
-  EOS_SERVER_VERSION=5.1.2 EOS_SERVER_RELEASE=5.1.2
-  EOS_CLIENT_VERSION=5.1.2 EOS_CLIENT_RELEASE=5.1.2
+  EOS_SERVER_VERSION=5.2.5 EOS_SERVER_RELEASE=5.2.5
+  EOS_CLIENT_VERSION=5.2.5 EOS_CLIENT_RELEASE=5.2.5
 
   [root@vm root]# eos whoami
   Virtual Identity: uid=0 (0,3,99) gid=0 (0,4,99) [authz:sss] sudo* host=localhost domain=localdomain
@@ -336,8 +361,6 @@ Here is a list of ports used by the various services:
 +----------------+------+
 | FST (XRootD)   | 1095 |
 +----------------+------+
-| MQ (XRootD)    | 1097 |
-+----------------+------+
 | QDB (REDIS)    | 7777 |
 +----------------+------+
 
@@ -361,17 +384,17 @@ Single Node Quick Setup Code Snippet
   yum install -y eos-server eos-quarkdb eos-fusex jemalloc-devel --nogpgcheck
 
   systemctl start firewalld
-  for port in 1094 1095 1097 1100 7777; do 
+  for port in 1094 1095 1100 7777; do 
     firewall-cmd --zone=public --permanent --add-port=$port/tcp
   done
 
   eos daemon sss recreate
 
-  eos daemon run mq &
-  eos daemon run qdb &
-  eos daemon run mgm &
-  eos daemon run fst &
-
+  systemctl start eos5-qdb@qdb
+  systemctl start eos5-mgm@mgm
+  eos node set `hostname -f`:1095 on 
+  systemctl start eos5-fst@fst
+  
   sleep 30
 
   for name in 01 02 03 04 05 06; do
@@ -398,11 +421,107 @@ Single Node Quick Setup Code Snippet
   eosxd -ofsname=`hostname -f`:/eos/ /eos/
 
 
+Adding FSTs to a single node setup
+----------------------------------
 
+.. code-block:: bash
+  
+  yum-config-manager --add-repo "https://storage-ci.web.cern.ch/storage-ci/eos/diopside/tag/testing/el-9s/x86_64/"
+  yum-config-manager --add-repo "https://storage-ci.web.cern.ch/storage-ci/eos/diopside-depend/el-9s/x86_64/"
+  yum install -y eos-server jemalloc-devel --nogpgcheck
+
+  systemctl start firewalld
+  for port in 1095; do 
+    firewall-cmd --zone=public --permanent --add-port=$port/tcp
+  done
+
+  # On the FST node configure MGM node in /etc/config/eos/generic/all
+  SERVER_HOST=mgmnode.domain
+
+  # Copy /etc/eos.keytab from MGM node to the new FST node to /etc/eos.keytab
+  scp root@mgmnode.domain:/etc/eos.keytab /etc/eos.keytab
+
+  # Allow the new FST on the MGM to connect as an FST
+  @mgm: eos node set fstnode.domain:1095 on
+
+  # Start FST service
+  systemctl start eos5-fst@fst
+  systemctl enable eos5-fst@fst
+
+  # Verify Node online
+  @mgm: eos node ls
+
+  
+Expanding single node MGM/QDB setup to HA cluster
+-------------------------------------------------
+In a production environment we need to have QDB and MGM service high-available. We will show here, how to configure three co-located QDB+MGM nodes.The three nodes are called in the example `node1.domain` `node2.domain` `node3.domain`. We assume you running mgm is node1 and new nodes are node2 and node3.
+
+.. code-block:: bash
+  
+  yum-config-manager --add-repo "https://storage-ci.web.cern.ch/storage-ci/eos/diopside/tag/testing/el-9s/x86_64/"
+  yum-config-manager --add-repo "https://storage-ci.web.cern.ch/storage-ci/eos/diopside-depend/el-9s/x86_64/"
+  yum install -y eos-server eos-quarkdb eos-fusex jemalloc-devel --nogpgcheck
+
+  systemctl start firewalld
+  for port in 1094 1100 7777; do 
+   firewall-cmd --zone=public --permanent --add-port=$port/tcp
+  done
+
+  # Copy /etc/eos.keytab from MGM node to the new MGM nodes to /etc/eos.keytab
+  scp root@node1:/etc/eos.keytab /etc/eos.keytab
+
+  # Create observer QDB nodes on node2 and node3
+  eos daemon config qdb qdb new observer
+
+  # Start QDB on node2 and node3
+  systemctl start eos5-qdb@qdb
+  systemctl enable eos5-qdb@qdb
+
+  # Allow node2 & node3 as follower on node 1
+  @node1: redis-cli -p 7777
+  @node1: 127.0.0.1:7777> raft-add-observer node2.domain:7777
+  @node1: 127.0.0.1:7777> raft-add-observer node3.domain:7777
+
+  ( this is equivalent to 'eos daemon config qdb qdb add node2.domain:7777' but broken in the release version )
+
+  # node2 & node3 get contacted by node1 and start syncing the raft log
+
+  # Promote node2 and node3 as full members
+  @node1: redis-cli -p 7777
+  @node1: 127.0.0.1:7777> raft-promote-observer node2.domain:7777
+  @node1: 127.0.0.1:7777> raft-promote-observer node3.domain:7777
+
+  ( this is equivalent to 'eos daemon config qdb qdb promote node2.domain:7777 )
+  
+  # Verify RAFT status on any QDB node
+  redis-cli -p 777
+  127.0.0.1:7777> raft-info
+  
+  ( this is equivalent to 'eos daemon config qdb qdb info' )
+  
+  # Startup MGM services
+  @node2: systemctl start eos5-mgm@mgm
+  @node3: systemctl start eos5-mgm@mgm
+
+  # You can connect on each node using the eos command to the local MGM
+  @node1:  eos ns | grep master
+  ALL      Replication                      is_master=true master_id=node1.domain:1094
+  @node2:  eos ns | grep master
+  ALL      Replication                      is_master=false master_id=node1.domain:1094
+  @node3:  eos ns | grep master
+  ALL      Replication                      is_master=false master_id=node1.domain:1094
+
+  # You can force the QDB leader to a given node e.g.
+  @node2: eos daemon config qdb qdb coup
+
+  # you can force the active MGM to run on a given node by running on the current active MGM:
+  @node1: eos ns master node2.domain:1094
+  success: current master will step down
+  
 Three Node Quick Setup Code Snippet
 -----------------------------------
 
-In a production environment we need to have QDB and MGM service high-available. We will show here, how to configure three co-located QDB+MGM nodes. The three nodes are called in the example `node1.cern.ch` `node2.cern.ch` `node3.cern.ch`. 
+You can also setup a three node cluster from scratch right from the beginning, which is shown here:
 
 .. code-block:: bash
 
@@ -410,8 +529,8 @@ In a production environment we need to have QDB and MGM service high-available. 
   killall -9 xrootd     # make sure no daemons are running
   rm -rf /var/lib/qdb/  # wipe previous QDB database
 
-  yum-config-manager --add-repo "https://storage-ci.web.cern.ch/storage-ci/eos/diopside/tag/testing/el-9s/x86_64/"
-  yum-config-manager --add-repo "https://storage-ci.web.cern.ch/storage-ci/eos/diopside-depend/el-9s/x86_64/"
+  yum-config-manager --add-repo "https://storage-ci.web.cern.ch/storage-ci/eos/diopside/tag/testing/el-9/x86_64/"
+  yum-config-manager --add-repo "https://storage-ci.web.cern.ch/storage-ci/eos/diopside-depend/el-9/x86_64/"
   yum install -y eos-server eos-quarkdb eos-fusex jemalloc-devel --nogpgcheck
 
   systemctl start firewalld
@@ -457,7 +576,6 @@ Now you can inspect the RAFT state on all QDBs:
 
 .. code-block:: bash
 
-  export REDISCLI_AUTH=`cat /etc/eos.keytab`
   eos daemon config qdb qdb info
 
   1) TERM 1
@@ -470,20 +588,20 @@ Now you can inspect the RAFT state on all QDBs:
   8) BLOCKED-WRITES 0
   9) LAST-STATE-CHANGE 293 (4 minutes, 53 seconds)
   10) ----------
-  11) MYSELF node-2.cern.ch:7777
+  11) MYSELF node2.domain:7777
   12) VERSION 5.1..5.1.3
   13) STATUS LEADER
   14) NODE-HEALTH GREEN
   15) JOURNAL-FSYNC-POLICY sync-important-updates
   16) ----------
   17) MEMBERSHIP-EPOCH 0
-  18) NODES node1.cern.ch:7777,node2.cern.ch:7777,node3.cern.ch:7777
+  18) NODES node1.domain:7777,node2.domaina:7777,node3.domain:7777
   19) OBSERVERS 
   20) QUORUM-SIZE 2
 
 
 
-Here you see that the current LEADER is node2.cern.ch.  If you want to force that node1.cern.ch becomes a leader you can type on node1:
+Here you see that the current LEADER is node2.domain.  If you want to force that node1.cern.ch becomes a leader you can type on node1:
 
 .. code-block:: bash
 
@@ -497,16 +615,13 @@ and verify using
 
 who the new LEADER is.
 
-Now we start `mq` and `mgm` on all three nodes:
+Now we start `mgm` on all three nodes:
 
 .. code-block:: bash
 
-  [root@node-1] systemctl start eos5-mgm@mgm
-  [root@node-2] systemctl start eos5-mgm@mgm
-  [root@node-3] systemctl start eos5-mgm@mgm
-  [root@node-1] systemctl start eos5-mq@mq
-  [root@node-2] systemctl start eos5-mq@mq
-  [root@node-3] systemctl start eos5-mq@mq
+  [root@node1] systemctl start eos5-mgm@mgm
+  [root@node2] systemctl start eos5-mgm@mgm
+  [root@node3] systemctl start eos5-mgm@mgm
 
 You can connect to the MGM on each node. 
 
@@ -516,7 +631,7 @@ You can connect to the MGM on each node.
   ALL      Replication                      is_master=true master_id=node1.cern.ch:1094
   [root@node2] eos ns | grep Replication
   ALL      Replication                      is_master=false master_id=node1.cern.ch:1094
-  [root@node2] eos ns | grep Replication
+  [root@node3] eos ns | grep Replication
   ALL      Replication                      is_master=false master_id=node1.cern.ch:1094
 
 
