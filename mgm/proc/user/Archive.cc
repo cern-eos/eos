@@ -1159,6 +1159,10 @@ ProcCommand::ArchiveAddEntries(const std::string& arch_dir,
 
     if (line.find("&mgm.proc.stdout=") == 0) {
       line.erase(0, 17);
+    } else {
+      if (line.find("mgm.proc.stdout=") == 0) {
+        line.erase(0, 16);
+      }
     }
 
     unseal_str = XrdOucString(line.c_str());

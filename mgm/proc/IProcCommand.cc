@@ -262,7 +262,7 @@ IProcCommand::OpenTemporaryOutputFiles()
     return false;
   }
 
-  mOfsOutStream << "&mgm.proc.stdout=";
+  mOfsOutStream << "mgm.proc.stdout=";
   mOfsErrStream << "&mgm.proc.stderr=";
   return true;
 }
