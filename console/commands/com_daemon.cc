@@ -353,7 +353,7 @@ com_daemon(char* arg)
 	  global_retc = WEXITSTATUS(rc);
 	  if(!global_retc) {
 	    fprintf(stderr,"info: to get this node joining the cluster you do:\n");
-	    fprintf(stderr,"1 [ this node ] : systemctl start eos5-@qdb@%s\n",name.c_str());
+	    fprintf(stderr,"1 [ this node ] : systemctl start eos5-qdb@%s\n",name.c_str());
 	    fprintf(stderr,"2 [ leader    ] : eos daemon config qdb %s add %s\n",name.c_str(),qdbnode.c_str());
 	    fprintf(stderr,"3 [ leader    ] : eos daemon config qdb %s promote %s\n",name.c_str(),qdbnode.c_str());
 	  }
