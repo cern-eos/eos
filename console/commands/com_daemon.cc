@@ -281,7 +281,7 @@ com_daemon(char* arg)
 	  return 0;
 	} else {
 	  std::string kline;
-	  kline = "export REDISCLI_AUTH=`cat /etc/eos.keytab`; redis-cli -p `cat "; kline += cfile; kline += "|grep xrd.port | cut -d ' ' -f 2` \"<<< raft-add-observer ";
+	  kline = "export REDISCLI_AUTH=`cat /etc/eos.keytab`; redis-cli -p `cat "; kline += cfile; kline += "|grep xrd.port | cut -d ' ' -f 2` <<< \"raft-add-observer ";
 	  kline += member.c_str();
 	  kline += "\"";
 	  int rc = system(kline.c_str());
