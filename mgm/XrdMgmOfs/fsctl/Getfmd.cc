@@ -23,6 +23,7 @@
 
 #include "common/Logging.hh"
 #include "common/Path.hh"
+#include "common/BufferManager.hh"
 #include "namespace/interface/IView.hh"
 #include "namespace/interface/IFileMD.hh"
 #include "namespace/interface/IFileMDSvc.hh"
@@ -30,7 +31,6 @@
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/Macros.hh"
 #include "namespace/Prefetcher.hh"
-
 #include <XrdOuc/XrdOucEnv.hh>
 
 //----------------------------------------------------------------------------
@@ -101,6 +101,26 @@ XrdMgmOfs::Getfmd(const char* path,
     response += EINVAL;
   }
 
-  error.setErrInfo(response.length() + 1, response.c_str());
+  if (response.length() + 1 > 2 * eos::common::KB) {
+    const uint32_t aligned_sz = eos::common::GetPowerCeil(response.length() + 1,
+                                2 * eos::common::KB);
+    XrdOucBuffer* buff = mXrdBuffPool.Alloc(aligned_sz);
+
+    if (buff == nullptr) {
+      eos_static_err("msg=\"requested buffer allocation size too big\" "
+                     "req_sz=%llu max_sz=%i", response.length(),
+                     mXrdBuffPool.MaxSize());
+      response = "getfmd: retc=";
+      response += ENOMEM;
+      error.setErrInfo(response.length() + 1, response.c_str());
+    } else {
+      (void) strncpy(buff->Buffer(), response.c_str(), response.length() + 1);
+      buff->SetLen(response.length() + 1);
+      error.setErrInfo(buff->DataLen(), buff);
+    }
+  } else {
+    error.setErrInfo(response.length() + 1, response.c_str());
+  }
+
   return SFS_DATA;
 }
