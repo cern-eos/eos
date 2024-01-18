@@ -1459,6 +1459,10 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
     return 1;
   }
 
+  eosViewRWMutex.SetBlocking(true);
+  // Configure the access mutex to be blocking
+  Access::gAccessMutex.SetBlocking(true);
+
   // Initialize the HA setup
   mMaster.reset(new eos::mgm::QdbMaster(mQdbContactDetails, ManagerId.c_str()));
 
@@ -1589,10 +1593,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   // Initialize user mapping
   eos::common::Mapping::Init();
   // Configure the meta data catalog
-  eosViewRWMutex.SetBlocking(true);
   mViewMutexWatcher.activate(eosViewRWMutex, "eosViewRWMutex");
-  // Configure the access mutex to be blocking
-  Access::gAccessMutex.SetBlocking(true);
 #ifdef EOS_INSTRUMENTED_RWMUTEX
   eos::common::RWMutex* fs_mtx = &FsView::gFsView.ViewMutex;
   eos::common::RWMutex* quota_mtx = &Quota::pMapMutex;
