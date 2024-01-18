@@ -26,10 +26,11 @@ EOSNSNAMESPACE_BEGIN
 // Constructor
 //------------------------------------------------------------------------------
 QuarkSyncTimeAccounting::QuarkSyncTimeAccounting(IContainerMDSvc* svc,
-    uint32_t update_interval):
+                                                 uint32_t update_interval,
+                                                 INamespaceStats* ns_stats):
   mAccumulateIndx(0), mCommitIndx(1), mShutdown(false),
   mUpdateIntervalSec(update_interval), mContainerMDSvc(svc),
-  mNamespaceStats(nullptr)
+  mNamespaceStats(ns_stats)
 {
   mBatch.resize(2);
 

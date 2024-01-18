@@ -50,7 +50,8 @@ public:
   //! @param update_interval interval in seconds when updates are propagated
   //----------------------------------------------------------------------------
   QuarkSyncTimeAccounting(IContainerMDSvc* svc,
-                          uint32_t update_interval = 5);
+                          uint32_t update_interval = 5,
+                          INamespaceStats* ns_stats = nullptr);
 
   //----------------------------------------------------------------------------
   //! Destructor
