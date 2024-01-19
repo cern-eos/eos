@@ -41,6 +41,11 @@ bool RealMgmFileSystemInterface::isTapeEnabled()
   return mMgmOfs->mTapeEnabled;
 }
 
+int RealMgmFileSystemInterface::getReqIdMaxCount()
+{
+  return mMgmOfs->mReqIdMax;
+}
+
 int RealMgmFileSystemInterface::Emsg(const char* pfx, XrdOucErrInfo& einfo,
                                      int ecode, const char* op, const char* target)
 {

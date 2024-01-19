@@ -42,6 +42,7 @@ public:
   MOCK_METHOD4(addStats, void(const char* tag, uid_t uid, gid_t gid,
                               unsigned long val));
   MOCK_METHOD0(isTapeEnabled, bool());
+  MOCK_METHOD0(getReqIdMaxCount, int());
   MOCK_METHOD5(Emsg, int(const char* pfx, XrdOucErrInfo& einfo, int ecode,
                          const char* op, const char* target));
   MOCK_METHOD5(_exists, int(const char* path, XrdSfsFileExistence& file_exists,
