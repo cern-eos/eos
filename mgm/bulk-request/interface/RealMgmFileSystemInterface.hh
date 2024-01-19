@@ -38,6 +38,7 @@ public:
   void addStats(const char* tag, uid_t uid, gid_t gid,
                 unsigned long val) override;
   bool isTapeEnabled() override;
+  int getReqIdMaxCount() override;
   int Emsg(const char* pfx, XrdOucErrInfo& einfo, int ecode, const char* op,
            const char* target = "") override;
   int _exists(const char* path, XrdSfsFileExistence& file_exists,

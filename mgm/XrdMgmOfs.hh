@@ -1765,8 +1765,8 @@ public:
   bool mAuthorize; ///< Determine if the authorization should be applied or not
   std::string mAuthLib; ///< Path to authorization library
   bool mTapeEnabled; ///< True if support for tape is enabled
-  std::string
-  mPrepareDestSpace; ///< Space to be used when retrieving files from tape
+  std::string mPrepareDestSpace; ///< Space to be used when retrieving files from tape
+  unsigned int mReqIdMax; ///< Maximum number of request IDs on a single retrieving file
   //!  Acts only as a redirector, disables many components in the MGM
   bool MgmRedirector;
   //! Writes error log with cluster wide collected errors in

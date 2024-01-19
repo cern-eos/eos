@@ -116,6 +116,7 @@ mgmofs.nslib /usr/lib64/libEosNsQuarkdb.so
 
 #mgmofs.tapeenabled false
 #mgmofs.prepare.dest.space default
+#mgmofs.prepare.reqid.max 64
 
 #-------------------------------------------------------------------------------
 # Configuration for the tape aware garbage collector

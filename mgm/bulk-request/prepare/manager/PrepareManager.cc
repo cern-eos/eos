@@ -36,6 +36,7 @@
 #include "common/Definitions.hh"
 #include "mgm/Macros.hh"
 #include "mgm/XrdMgmOfs.hh"
+#include <mgm/XattrSet.hh>
 #include "mgm/bulk-request/File.hh"
 #include "mgm/bulk-request/exception/PersistencyException.hh"
 #include "mgm/bulk-request/prepare/PrepareUtils.hh"
@@ -350,6 +351,58 @@ int PrepareManager::doPrepare(XrdSfsPrep& pargs, XrdOucErrInfo& error,
       continue;
     }
 
+    eos::IFileMD::XAttrMap xattrs;
+
+    if (isStagePrepare()) {
+      // Check file status in the extended attributes
+      if (mMgmFsInterface->_attr_ls(
+              eos::common::Path(prep_path.c_str()).GetPath(), error, vid,
+              nullptr, xattrs) == 0) {
+        XattrSet prepareReqIds;
+        auto xattr_it = xattrs.find(eos::common::RETRIEVE_REQID_ATTR_NAME);
+        if (xattr_it != xattrs.end() && !xattr_it->second.empty()) {
+          prepareReqIds.deserialize(xattr_it->second);
+        }
+
+        if (prepareReqIds.values.size() >=
+            mMgmFsInterface->getReqIdMaxCount()) {
+          std::ostringstream oss;
+          oss << "prepare - reached maximum number of retrieve requests on file "
+              << " (" << mMgmFsInterface->getReqIdMaxCount() << ")";
+          std::string errorMsg = oss.str();
+          mMgmFsInterface->Emsg(epname, error, EUSERS,
+                                errorMsg.append(":").c_str(),
+                                orig_path.c_str());
+
+          currentFile->setError(errorMsg);
+          pathsToPrepare.pop_back();
+
+          if (error_counter == 0) {
+            first_error = error;
+          }
+          error_counter++;
+
+          eosLog.addParam(EosCtaReportParam::PREP_REQ_SENTTOWFE, false)
+              .addParam(EosCtaReportParam::PREP_REQ_SUCCESSFUL, false)
+              .addParam(EosCtaReportParam::PREP_REQ_ERROR, errorMsg);
+          addFileToBulkRequest(std::move(currentFile));
+          continue;
+        }
+      } else {
+        // failed to read extended attributes
+        std::ostringstream oss;
+        oss << "Unable to check the extended attributes of the file "
+            << prep_path;
+        currentFile->setError(oss.str());
+        pathsToPrepare.pop_back();
+        eosLog.addParam(EosCtaReportParam::PREP_REQ_SENTTOWFE, false)
+            .addParam(EosCtaReportParam::PREP_REQ_SUCCESSFUL, false)
+            .addParam(EosCtaReportParam::PREP_REQ_ERROR, oss.str());
+        addFileToBulkRequest(std::move(currentFile));
+        continue;
+      }
+    }
+
     if (currentFile != nullptr) {
       addFileToBulkRequest(std::move(currentFile));
     }
@@ -652,8 +705,7 @@ int PrepareManager::doQueryPrepare(XrdSfsPrep& pargs, XrdOucErrInfo& error,
         // has file been requested? (not necessarily with this request ID)
         rsp.is_requested = !xattr_it->second.empty();
         // and is this specific request ID present in the request?
-        rsp.is_reqid_present = (xattr_it->second.find(reqid.c_str()) !=
-                                std::string::npos);
+        rsp.is_reqid_present = (xattr_it->second.find(reqid.c_str()) != std::string::npos);
       }
 
       xattr_it = xattrs.find(eos::common::RETRIEVE_REQTIME_ATTR_NAME);

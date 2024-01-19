@@ -1811,12 +1811,12 @@ WFE::Job::IdempotentPrepare(const std::string& fullPath,
     }
 
     bool isFirstPrepare = prepareReqIds.values.empty();
+
     prepareReqIds.values.insert(prepareRequestId.c_str());
     eosLog
     .addParam(EosCtaReportParam::PREP_WFE_FIRSTPREPARE, isFirstPrepare)
     .addParam(EosCtaReportParam::PREP_WFE_REQID, prepareRequestId)
-    .addParam(EosCtaReportParam::PREP_WFE_REQCOUNT, prepareReqIds.values.size())
-    .addParam(EosCtaReportParam::PREP_WFE_REQLIST, prepareReqIds.serialize());
+    .addParam(EosCtaReportParam::PREP_WFE_REQCOUNT, prepareReqIds.values.size());
 
     try {
       fmd->setAttribute(RETRIEVE_REQID_ATTR_NAME, prepareReqIds.serialize());
@@ -1998,9 +1998,7 @@ WFE::Job::HandleProtoMethodAbortPrepareEvent(const std::string& fullPath,
         prepareReqIds.deserialize(fmd->getAttribute(RETRIEVE_REQID_ATTR_NAME));
       }
 
-      eosLog
-      .addParam(EosCtaReportParam::PREP_WFE_REQCOUNT, prepareReqIds.values.size())
-      .addParam(EosCtaReportParam::PREP_WFE_REQLIST, prepareReqIds.serialize());
+      eosLog.addParam(EosCtaReportParam::PREP_WFE_REQCOUNT, prepareReqIds.values.size());
     } catch (...) {
       lock.Release();
       std::stringstream err_message;
