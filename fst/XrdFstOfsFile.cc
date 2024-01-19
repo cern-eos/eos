@@ -3548,7 +3548,7 @@ XrdFstOfsFile::VerifyChecksum()
     // offset were written - however if the file size is diffrent from the max checksum offset, the checksum is dirty
     // because the ending part of a file was not written
     // -------------------------------------------------------------------------------------------------------------------
-    if ((mIsRW) && mCheckSum->GetMaxOffset() &&
+    if ((mIsRW) && mHasWrite && mCheckSum->GetMaxOffset() &&
         (mCheckSum->GetMaxOffset() != (off_t)mMaxOffsetWritten)) {
       // If there was a write which was not extending the file the checksum
       // is dirty!
