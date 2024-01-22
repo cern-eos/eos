@@ -34,15 +34,12 @@ public:
    * @tparam MDPtr the type of the File or ContainerMD shared_ptr
    * @param objectMDPtr the shared_ptr<FileM|ContainerMD>
    * @return the unique_pointer owning the locked ContainerMD/FileMD
+   * @throws MDException in the case the objectMDPtr is nullptr
    */
   template<typename Locker, typename MDPtr>
   static std::unique_ptr<Locker> lock(MDPtr objectMDPtr)
   {
-    if (objectMDPtr) {
-      return std::make_unique<Locker>(objectMDPtr);
-    }
-
-    return nullptr;
+    return std::make_unique<Locker>(objectMDPtr);
   }
 
   /**
@@ -51,6 +48,7 @@ public:
    * @tparam FileMDLocker The type of lock for the FileMD
    * @param fileOrContMD the object containing either a FileMD or a ContainerMD
    * @return the structure FileOrContainerMDLocked containing either a File or ContainerMD locked accordingly
+   * This does not throw any exception. It will return the structure with either both nullptr or a container locked or a file locked.
    */
   template<typename ContainerMDLocker, typename FileMDLocker>
   static FileOrContainerMDLocked<ContainerMDLocker, FileMDLocker>
