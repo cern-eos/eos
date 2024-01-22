@@ -92,7 +92,8 @@ FsckCmd::ProcessRequest() noexcept
                                        repair.error(), repair.async(),
                                        out)) {
       reply.set_std_out(out);
-    } else {
+    }
+    else {
       reply.set_std_err(out);
       reply.set_retc(EINVAL);
     }
@@ -112,6 +113,11 @@ FsckCmd::ProcessRequest() noexcept
                            elem.second->GetMember("hostport").c_str());
           endpoints.insert(elem.second->GetMember("hostport"));
         }
+      }
+
+      // Force clean QDB orphans irrespective of the actual cleanup on disk
+      if (clean.force_qdb_cleanup()) {
+        gOFS->mFsckEngine->ForceCleanQdbOrphans();
       }
     } else {
       // Send command only to the corresponding FST (node)

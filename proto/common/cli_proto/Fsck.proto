@@ -24,6 +24,7 @@ message FsckProto {
 
   message CleanOrphansProto {
     uint64 fsid = 1;
+    bool force_qdb_cleanup = 2;
   }
 
   oneof subcmd {

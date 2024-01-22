@@ -90,11 +90,12 @@ void com_fsck_help()
       << "    --error : error type for given file system id e.g. m_cx_diff unreg_n etc\n"
       << "    --async : job queued and ran by the repair thread if enabled\n"
       << std::endl
-      << "  fsck clean_orphans [--fsid <val>]\n"
+      << "  fsck clean_orphans [--fsid <val>] [--force-qdb-cleanup]\n"
       << "     clean orphans by removing the entries from disk and local\n "
       << "     database for all file systems or only for the given fsid.\n"
       << "     This operation is synchronous but the fsck output will be\n"
       << "     updated once the inconsistencies are refreshed.\n"
+      << "     --force-qdb-cleanup : force remove orphan entries from qdb\n"
       << std::endl;
   std::cerr << oss.str() << std::endl;
 }

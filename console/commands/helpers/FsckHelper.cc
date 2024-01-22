@@ -152,36 +152,42 @@ FsckHelper::ParseCommand(const char* arg)
   } else if (cmd == "clean_orphans") {
     eos::console::FsckProto::CleanOrphansProto* clean =
       fsck->mutable_clean_orphans();
+    // Clean orphans for all file systems i.e. fsid=0 by default
+    clean->set_fsid(0ull);
 
-    if (tokenizer.NextToken(soption)) {
-      if (soption != "--fsid") {
+    while (tokenizer.NextToken(soption)) {
+      if (soption == "--fsid") {
+        if (!tokenizer.NextToken(soption)) {
+          std::cerr << "error: missing file system id value\n\n";
+          return false;
+        }
+
+        eos::common::FileSystem::fsid_t fsid = 0ul;
+
+        try {
+          size_t pos = 0;
+          fsid = std::stoul(soption.c_str(), &pos);
+
+          if (pos != soption.length()) {
+            throw std::invalid_argument("fsid not numeric");
+          }
+        } catch (...) {
+          std::cerr << "error: file system id must be numeric\n\n";
+          return false;
+        }
+
+        clean->set_fsid(fsid);
+      } else if (soption == "--force-qdb-cleanup") {
+        clean->set_force_qdb_cleanup(true);
+      } else {
         std::cerr << "error: unknown option \"" << soption << "\"\n\n";
         return false;
       }
+    }
 
-      if (!tokenizer.NextToken(soption)) {
-        std::cerr << "error: missing file system id value\n\n";
-        return false;
-      }
-
-      eos::common::FileSystem::fsid_t fsid = 0ul;
-
-      try {
-        size_t pos = 0;
-        fsid = std::stoul(soption.c_str(), &pos);
-
-        if (pos != soption.length()) {
-          throw std::invalid_argument("fsid not numeric");
-        }
-      } catch (...) {
-        std::cerr << "error: file system id must be numeric\n\n";
-        return false;
-      }
-
-      clean->set_fsid(fsid);
-    } else {
-      // Clean orphans for all file systems i.e. fsid=0;
-      clean->set_fsid(0ull);
+    if (clean->fsid() && clean->force_qdb_cleanup()) {
+      std::cerr << "error: force qdb cleanup doesn't work on individual fsids\n";
+      return false;
     }
   } else {
     return false;

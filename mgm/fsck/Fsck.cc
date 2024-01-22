@@ -1260,4 +1260,19 @@ Fsck::NotifyFixedErr(eos::IFileMD::id_t fid,
   }
 }
 
+//------------------------------------------------------------------------------
+// Force clean-up the orphans from QuarkDB
+//------------------------------------------------------------------------------
+void
+Fsck::ForceCleanQdbOrphans() const
+{
+  static std::string key_orphans = "fsck:orphans_n";
+
+  try {
+    (void) mQcl->del(key_orphans);
+  } catch (const std::exception& e) {
+    eos_static_err("%s", "msg=\"failed while doing qdb orphan clean-up\"");
+  }
+}
+
 EOSMGMNAMESPACE_END

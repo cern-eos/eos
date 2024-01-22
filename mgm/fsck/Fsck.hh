@@ -205,6 +205,11 @@ public:
     return mThreadPool.GetInfo();
   }
 
+  //----------------------------------------------------------------------------
+  //! Force clean-up the orphans from QuarkDB
+  //----------------------------------------------------------------------------
+  void ForceCleanQdbOrphans() const;
+
 private:
   //! Key used in the configuration engine to store the fsck config
   static const std::string sFsckKey;
