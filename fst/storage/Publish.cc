@@ -87,44 +87,6 @@ static std::string HotFilesToString(
 }
 
 //------------------------------------------------------------------------------
-// Retrieve net speed
-//------------------------------------------------------------------------------
-static uint64_t GetNetSpeed(const std::string& tmpname)
-{
-  if (getenv("EOS_FST_NETWORK_SPEED")) {
-    return strtoull(getenv("EOS_FST_NETWORK_SPEED"), nullptr, 10);
-  }
-
-  std::string getNetspeedCommand = SSTR(
-                                     "ip route list | sed -ne '/^default/s/.*dev //p' | cut -d ' ' -f1 |"
-                                     " xargs -i ethtool {} 2>&1 | grep Speed | cut -d ' ' -f2 | cut -d 'M' -f1 > "
-                                     << tmpname);
-  eos::common::ShellCmd scmd1(getNetspeedCommand.c_str());
-  eos::common::cmd_status rc = scmd1.wait(5);
-  unsigned long long netspeed = 1000000000;
-
-  if (rc.exit_code) {
-    eos_static_err("%s", "msg=\"ip route list call failed to get netspeed\"");
-    return netspeed;
-  }
-
-  FILE* fnetspeed = fopen(tmpname.c_str(), "r");
-
-  if (fnetspeed) {
-    if ((fscanf(fnetspeed, "%llu", &netspeed)) == 1) {
-      // we get MB as a number => convert into bytes
-      netspeed *= 1000000;
-      eos_static_info("ethtool:networkspeed=%.02f GB/s",
-                      1.0 * netspeed / 1000000000.0);
-    }
-
-    fclose(fnetspeed);
-  }
-
-  return netspeed;
-}
-
-//------------------------------------------------------------------------------
 // Retrieve uptime
 //------------------------------------------------------------------------------
 static std::string GetUptime(const std::string& tmpname)
@@ -201,6 +163,12 @@ GetUptimePrettyFormat(const std::string tmpname)
 //------------------------------------------------------------------------------
 static std::string GetXrootdVersion()
 {
+  static std::string s_xrootd_version = "";
+
+  if (s_xrootd_version.empty()) {
+    return s_xrootd_version;
+  }
+
   XrdOucString v = XrdVERSIONINFOVAR(XrdgetProtocol).vStr;
   int pos = v.find(" ");
 
@@ -208,7 +176,8 @@ static std::string GetXrootdVersion()
     v.erasefromstart(pos + 1);
   }
 
-  return v.c_str();
+  s_xrootd_version = v.c_str();
+  return s_xrootd_version;
 }
 
 //------------------------------------------------------------------------------
@@ -216,7 +185,8 @@ static std::string GetXrootdVersion()
 //------------------------------------------------------------------------------
 static std::string GetEosVersion()
 {
-  return SSTR(VERSION << "-" << RELEASE);
+  static std::string s_eos_version = SSTR(VERSION << "-" << RELEASE).c_str();
+  return s_eos_version;
 }
 
 //------------------------------------------------------------------------------
@@ -224,11 +194,117 @@ static std::string GetEosVersion()
 //------------------------------------------------------------------------------
 static std::string GetNetworkInterface()
 {
-  if (getenv("EOS_FST_NETWORK_INTERFACE")) {
-    return getenv("EOS_FST_NETWORK_INTERFACE");
+  static std::string s_net_interface = "";
+
+  if (!s_net_interface.empty()) {
+    return s_net_interface;
   }
 
-  return "eth0";
+  const char* ptr = getenv("EOS_FST_NETWORK_INTERFACE");
+
+  if (ptr) {
+    // Use value set in the environment
+    s_net_interface = ptr;
+  } else {
+    // Use blindly the default
+    s_net_interface = "eth0";
+  }
+
+  return s_net_interface;
+}
+
+//------------------------------------------------------------------------------
+// Get network transfer RX/TX errors and dropped packet counters
+//------------------------------------------------------------------------------
+static void
+GetNetworkCounters(std::map<std::string, std::string>& output)
+{
+  static const std::set<std::string> set_keys {"rx_errors", "rx_dropped",
+    "tx_errors", "tx_dropped"};
+  static std::map<std::string, std::string> map_key_paths;
+
+  // Build set of files to query for the above counters depending on the
+  // network interface name
+  if (map_key_paths.empty()) {
+    struct stat info;
+    const std::string net_interface = GetNetworkInterface();
+
+    for (const auto& key : set_keys) {
+      std::string fn_path = SSTR("/sys/class/net/" << net_interface
+                                 << "/statistics/" << key);
+
+      if (::stat(fn_path.c_str(), &info)) {
+        map_key_paths[key] = "";
+      } else {
+        map_key_paths[key] = fn_path;
+      }
+    }
+  }
+
+  static const int max_read = 32;
+  static char data[32] = "";
+  std::map<std::string, std::string> map_counters;
+
+  for (const auto& pair : map_key_paths) {
+    map_counters[pair.first] = "N/A";
+    FILE* fnetcounters = fopen(pair.second.c_str(), "r");
+
+    if (fnetcounters) {
+      data[0] = '\0';
+      int nbytes = fread((void*)data, max_read, sizeof(char), fnetcounters);
+
+      if (nbytes > 1) {
+        data[nbytes - 1] = '\0';
+        map_counters[pair.first] = data;
+      }
+
+      (void) fclose(fnetcounters);
+    }
+  }
+
+  for (const auto& pair : map_counters) {
+    const std::string key = "stat.net." + pair.first;
+    output[key] = pair.second;
+  }
+}
+
+
+//------------------------------------------------------------------------------
+// Retrieve net speed
+//------------------------------------------------------------------------------
+static uint64_t GetNetSpeed(const std::string& tmpname)
+{
+  if (getenv("EOS_FST_NETWORK_SPEED")) {
+    return strtoull(getenv("EOS_FST_NETWORK_SPEED"), nullptr, 10);
+  }
+
+  std::string getNetspeedCommand = SSTR(
+                                     "ip route list | sed -ne '/^default/s/.*dev //p' | cut -d ' ' -f1 |"
+                                     " xargs -i ethtool {} 2>&1 | grep Speed | cut -d ' ' -f2 | cut -d 'M' -f1 > "
+                                     << tmpname);
+  eos::common::ShellCmd scmd1(getNetspeedCommand.c_str());
+  eos::common::cmd_status rc = scmd1.wait(5);
+  unsigned long long netspeed = 1000000000;
+
+  if (rc.exit_code) {
+    eos_static_err("%s", "msg=\"ip route list call failed to get netspeed\"");
+    return netspeed;
+  }
+
+  FILE* fnetspeed = fopen(tmpname.c_str(), "r");
+
+  if (fnetspeed) {
+    if ((fscanf(fnetspeed, "%llu", &netspeed)) == 1) {
+      // we get MB as a number => convert into bytes
+      netspeed *= 1000000;
+      eos_static_info("ethtool:networkspeed=%.02f GB/s",
+                      1.0 * netspeed / 1000000000.0);
+    }
+
+    fclose(fnetspeed);
+  }
+
+  return netspeed;
 }
 
 //------------------------------------------------------------------------------
@@ -249,6 +325,8 @@ static std::string GetNumOfTcpSockets(const std::string& tmpname)
   eos::common::StringConversion::LoadFileIntoString(tmpname.c_str(), retval);
   return retval;
 }
+
+
 
 //------------------------------------------------------------------------------
 // Get size of subtree by using the system "du -sb" command
@@ -342,6 +420,8 @@ Storage::GetFstStatistics(const std::string& tmpfile,
   output.insert(uptime_info.begin(), uptime_info.end());
   // active TCP sockets
   output["stat.sys.sockets"] = GetNumOfTcpSockets(tmpfile);
+  // Collect network RX/TX errors and dropped packets
+  GetNetworkCounters(output);
   // startup time of the FST daemon
   output["stat.sys.eos.start"] = gConfig.StartDate.c_str();
   // FST geotag
