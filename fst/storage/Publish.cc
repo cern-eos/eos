@@ -321,23 +321,42 @@ static uint64_t GetNetSpeed()
 //------------------------------------------------------------------------------
 // Retrieve number of TCP sockets in the system
 //------------------------------------------------------------------------------
-static std::string GetNumOfTcpSockets(const std::string& tmpname)
+static std::string GetNumOfTcpSockets()
 {
-  std::string command = SSTR("cat /proc/net/tcp | wc -l | tr -d \"\n\" > " <<
-                             tmpname);
-  eos::common::ShellCmd cmd(command.c_str());
-  eos::common::cmd_status rc = cmd.wait(5);
+  static auto ReadTpcSocketsInUse =
+  [](const std::string & fn, const std::string & search_tag) -> uint64_t {
+    uint64_t num_sockets = 0ull;
+    std::ifstream file(fn.c_str());
 
-  if (rc.exit_code) {
-    eos_static_err("%s", "msg=\"retrieve #socket call failed\"");
-  }
+    if (file.is_open())
+    {
+      std::string line;
 
-  std::string retval;
-  eos::common::StringConversion::LoadFileIntoString(tmpname.c_str(), retval);
-  return retval;
+      while (std::getline(file, line)) {
+        if (line.find(search_tag) == 0) {
+          line.erase(0, search_tag.length());
+
+          try {
+            num_sockets = std::stoull(line.substr(0, line.find(' ')));
+          } catch (...) {
+            // if any error we report 0
+          }
+
+          break;
+        }
+      }
+    }
+
+    return num_sockets;
+  };
+  static const std::string tcp4_fn = "/proc/net/sockstat";
+  static const std::string tcp6_fn = "/proc/net/sockstat6";
+  static const std::string tcp4_tag = "TCP: inuse ";
+  static const std::string tcp6_tag = "TCP6: inuse ";
+  uint64_t num_tcp4_sockets = ReadTpcSocketsInUse(tcp4_fn, tcp4_tag);
+  uint64_t num_tcp6_sockets = ReadTpcSocketsInUse(tcp6_fn, tcp6_tag);
+  return std::to_string(num_tcp4_sockets + num_tcp6_sockets);
 }
-
-
 
 //------------------------------------------------------------------------------
 // Get size of subtree by using the system "du -sb" command
@@ -428,7 +447,7 @@ Storage::GetFstStatistics(const std::string& tmpfile,
   // machine uptime
   GetUptime(output);
   // active TCP sockets
-  output["stat.sys.sockets"] = GetNumOfTcpSockets(tmpfile);
+  output["stat.sys.sockets"] = GetNumOfTcpSockets();
   // Collect network RX/TX errors and dropped packets
   GetNetworkCounters(output);
   // startup time of the FST daemon
