@@ -88,7 +88,8 @@ ClusterMgr::getStateStr(std::string_view type)
 
   if (type == "bucket"sv || type == "all"sv) {
     ss << mClusterData->getBucketsAsString();
-  } else if (type == "disk"sv || type == "all"sv) {
+  }
+  if (type == "disk"sv || type == "all"sv) {
     ss << mClusterData->getDisksAsString();
   }
 

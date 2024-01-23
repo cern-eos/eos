@@ -95,8 +95,8 @@ struct Disk {
        << "ActiveStatus: "
        << common::FileSystem::GetActiveStatusAsString(active_status.load(std::memory_order_relaxed))
        << "\n"
-       << "Weight: " << weight.load(std::memory_order_relaxed) << "\n"
-       << "UsedPercent: " << percent_used.load(std::memory_order_relaxed);
+       << "Weight: " << static_cast<uint16_t>(weight.load(std::memory_order_relaxed)) << "\n"
+       << "UsedPercent: " << static_cast<uint16_t>(percent_used.load(std::memory_order_relaxed));
     return ss.str();
   }
 };
@@ -209,6 +209,9 @@ struct ClusterData {
 
   std::string getDisksAsString() const {
     std::string result_str;
+    result_str.append("Total Disks: ");
+    result_str.append(std::to_string(disks.size()));
+    result_str.append("\n");
     for (const auto& d: disks) {
       result_str.append(d.to_string());
       result_str.append("\n");
