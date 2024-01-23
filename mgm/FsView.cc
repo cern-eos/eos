@@ -2587,6 +2587,18 @@ FsView::GetGlobalConfig(const std::string& key)
   return "";
 }
 
+static void setFsStatus(FileSystem* fs, eos::common::ActiveStatus status)
+{
+  if (fs == nullptr) {
+    return;
+  }
+
+  fs->SetActiveStatus(status);
+  gOFS->mFsScheduler->setDiskStatus(fs->GetSpace(),
+                                    fs->GetId(),
+                                    status);
+}
+
 //------------------------------------------------------------------------------
 // Heart beat checker set's filesystem to down if the heart beat is missing
 //------------------------------------------------------------------------------
@@ -2638,16 +2650,16 @@ FsView::HeartBeatCheck(ThreadAssistant& assistant) noexcept
 
             if (!overloaded) {
               if (fs->GetActiveStatus() != eos::common::ActiveStatus::kOnline) {
-                fs->SetActiveStatus(eos::common::ActiveStatus::kOnline);
+                setFsStatus(fs, eos::common::ActiveStatus::kOnline);
               }
             } else {
               if (fs->GetActiveStatus() != eos::common::ActiveStatus::kOverload) {
-                fs->SetActiveStatus(eos::common::ActiveStatus::kOverload);
+                setFsStatus(fs, eos::common::ActiveStatus::kOverload);
               }
             }
           } else {
             if (fs->GetActiveStatus() != eos::common::ActiveStatus::kOffline) {
-              fs->SetActiveStatus(eos::common::ActiveStatus::kOffline);
+              setFsStatus(fs, eos::common::ActiveStatus::kOffline);
             }
           }
         }
@@ -2665,7 +2677,7 @@ FsView::HeartBeatCheck(ThreadAssistant& assistant) noexcept
           }
 
           if (fs->GetActiveStatus() != eos::common::ActiveStatus::kOffline) {
-            fs->SetActiveStatus(eos::common::ActiveStatus::kOffline);
+            setFsStatus(fs, eos::common::ActiveStatus::kOffline);
           }
         }
       }
