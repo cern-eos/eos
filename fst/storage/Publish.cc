@@ -227,10 +227,9 @@ GetNetworkCounters(std::map<std::string, std::string>& output)
   // network interface name
   if (map_key_paths.empty()) {
     struct stat info;
-    const std::string net_interface = GetNetworkInterface();
 
     for (const auto& key : set_keys) {
-      std::string fn_path = SSTR("/sys/class/net/" << net_interface
+      std::string fn_path = SSTR("/sys/class/net/" << GetNetworkInterface()
                                  << "/statistics/" << key);
 
       if (::stat(fn_path.c_str(), &info)) {
@@ -268,43 +267,67 @@ GetNetworkCounters(std::map<std::string, std::string>& output)
   }
 }
 
-
 //------------------------------------------------------------------------------
-// Retrieve net speed
+// Retrieve network interface speed as bytes/second
 //------------------------------------------------------------------------------
-static uint64_t GetNetSpeed(const std::string& tmpname)
+static uint64_t GetNetSpeed()
 {
-  if (getenv("EOS_FST_NETWORK_SPEED")) {
-    return strtoull(getenv("EOS_FST_NETWORK_SPEED"), nullptr, 10);
+  static uint64_t s_net_speed = 0ull;
+
+  if (s_net_speed) {
+    return s_net_speed;
   }
 
-  std::string getNetspeedCommand = SSTR(
-                                     "ip route list | sed -ne '/^default/s/.*dev //p' | cut -d ' ' -f1 |"
-                                     " xargs -i ethtool {} 2>&1 | grep Speed | cut -d ' ' -f2 | cut -d 'M' -f1 > "
-                                     << tmpname);
-  eos::common::ShellCmd scmd1(getNetspeedCommand.c_str());
-  eos::common::cmd_status rc = scmd1.wait(5);
-  unsigned long long netspeed = 1000000000;
+  const char* ptr = getenv("EOS_FST_NETWORK_SPEED");
 
-  if (rc.exit_code) {
-    eos_static_err("%s", "msg=\"ip route list call failed to get netspeed\"");
-    return netspeed;
+  if (ptr) {
+    const std::string sval = ptr;
+
+    try {
+      s_net_speed = std::stoull(sval);
+
+      if (s_net_speed) {
+        return s_net_speed;
+      }
+    } catch (...) {
+      eos_static_err("msg=\"EOS_FST_NETWORK_SPEED not a numeric value\" "
+                     "val=\"%s\"", sval.c_str());
+    }
   }
 
-  FILE* fnetspeed = fopen(tmpname.c_str(), "r");
+  // Default value set to 1Gb/s
+  s_net_speed = 1000000000;
+  // Read network speed from the sys interface
+  const std::string net_interface = GetNetworkInterface();
+  const std::string fn_path = SSTR("/sys/class/net/" << net_interface
+                                   << "/speed");
+  FILE* fnetspeed = fopen(fn_path.c_str(), "r");
 
   if (fnetspeed) {
-    if ((fscanf(fnetspeed, "%llu", &netspeed)) == 1) {
-      // we get MB as a number => convert into bytes
-      netspeed *= 1000000;
-      eos_static_info("ethtool:networkspeed=%.02f GB/s",
-                      1.0 * netspeed / 1000000000.0);
+    const int max_read = 32;
+    char data[32] = "";
+    int nbytes = fread((void*)data, max_read, sizeof(char), fnetspeed);
+
+    if (nbytes > 1) {
+      data[nbytes - 1] = '\0';
+
+      try {
+        const std::string sval = ptr;
+        s_net_speed = std::stoull(sval);
+        // We get Mb/s as number, convert to bytes/s
+        s_net_speed *= 1000000;
+      } catch (...) {
+        eos_static_err("msg=\"network speed not a numeric value\" fn=\"%s\"",
+                       fn_path.c_str());
+      }
     }
 
-    fclose(fnetspeed);
+    (void) fclose(fnetspeed);
   }
 
-  return netspeed;
+  eos_static_info("msg=\"network speed\" interface=\"%s\" speed=%.02f GB/s",
+                  net_interface.c_str(), 1.0 * s_net_speed / 1000000000.0);
+  return s_net_speed;
 }
 
 //------------------------------------------------------------------------------
@@ -648,9 +671,6 @@ Storage::Publish(ThreadAssistant& assistant) noexcept
     return;
   }
 
-  unsigned long long netspeed = GetNetSpeed(tmp_name);
-  eos_static_info("msg=\"publish networkspeed=%.02f GB/s\"",
-                  1.0 * netspeed / 1000000000.0);
   // The following line acts as a barrier that prevents progress
   // until the config queue becomes known
   gConfig.getFstNodeConfigQueue("Publish");
@@ -693,7 +713,7 @@ Storage::Publish(ThreadAssistant& assistant) noexcept
           }
         }
 
-        auto fstStats = GetFstStatistics(tmp_name, netspeed);
+        auto fstStats = GetFstStatistics(tmp_name, GetNetSpeed());
         // Set node status values
         common::SharedHashLocator locator = gConfig.getNodeHashLocator("Publish");
 
