@@ -1250,6 +1250,27 @@ ProcCommand::ArchiveAddEntries(const std::string& arch_dir,
         continue;
       }
 
+      // Return an error if the archive contains 0-size files or symlinks
+      if (info_map["size"] == "0") {
+        eos_static_err("msg=\"failed archive contains 0-size file\" "
+                       "arch_path=\"%s\" file_path=\"%s\"",
+                       arch_dir.c_str(), info_map["file"].c_str());
+        stdErr = "archive contains 0-size file: ";
+        stderr += info_map["file"];
+        retc = EINVAL;
+        break;
+      }
+
+      if (info_map["xstype"] == "none") {
+        eos_static_err("msg=\"failed archive contains symlink file\" "
+                       "arch_path=\"%s\" file_path=\"%s\"",
+                       arch_dir.c_str(), info_map["file"].c_str());
+        stdErr = "archive contains symlink file: ";
+        stderr += info_map["file"];
+        retc = EINVAL;
+        break;
+      }
+
       ofs << "[\"f\", \"" << info_map["file"] << "\", "
           << "\"" << info_map["size"] << "\", "
           << "\"" << info_map["mtime"] << "\", "
