@@ -1592,8 +1592,6 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   instancepath += subpath;
   // Initialize user mapping
   eos::common::Mapping::Init();
-  // Configure the meta data catalog
-  mViewMutexWatcher.activate(eosViewRWMutex, "eosViewRWMutex");
 #ifdef EOS_INSTRUMENTED_RWMUTEX
   eos::common::RWMutex* fs_mtx = &FsView::gFsView.ViewMutex;
   eos::common::RWMutex* quota_mtx = &Quota::pMapMutex;
@@ -1621,6 +1619,8 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   order.push_back(quota_mtx);
   eos::common::RWMutex::AddOrderRule("Eos Mgm Mutexes", order);
 #endif
+  // Configure the meta data catalog
+  mViewMutexWatcher.activate(eosViewRWMutex, "eosViewRWMutex");
 
   if (!mMaster->BootNamespace()) {
     eos_static_crit("%s", "msg=\"namespace boot failed\"");
