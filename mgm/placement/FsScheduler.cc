@@ -30,8 +30,10 @@ EosClusterMgrHandler::make_cluster_mgr()
       }
 
       for (auto group_iter : space_group_kv.second) {
-        item_id_t group_id = kBaseGroupOffset - group_iter->GetIndex();
-        eos_static_info("msg=\"Adding group at \" ID=%d", group_id);
+        auto group_index = group_iter->GetIndex();
+        item_id_t group_id = GroupIDtoBucketID(group_index);
+        eos_static_info("msg=\"Adding group \" Group ID=%d, Internal bucket ID=%d",
+                        group_index, group_id);
         bool status = storage_handler.addBucket(
             get_bucket_type(StdBucketType::GROUP), group_id, 0);
         if (!status) {
@@ -77,9 +79,17 @@ EosClusterMgrHandler::make_cluster_mgr(const std::string& spaceName)
     storage_handler.addBucket(get_bucket_type(StdBucketType::ROOT), 0);
 
     for (auto group_iter : space_group_kv->second) {
-      item_id_t group_id = kBaseGroupOffset - group_iter->GetIndex();
-      storage_handler.addBucket(get_bucket_type(StdBucketType::GROUP),
+      auto group_index = group_iter->GetIndex();
+      item_id_t group_id = GroupIDtoBucketID(group_index);
+      eos_static_info("msg=\"Adding group \" Group ID=%d, Internal bucket ID=%d",
+                      group_index, group_id);
+      bool status = storage_handler.addBucket(get_bucket_type(StdBucketType::GROUP),
                                 group_id);
+      if (!status) {
+        eos_static_crit("msg=\"Failed to add group bucket!\" group_id=%d",
+                        group_id);
+      }
+
       for (auto it_fs = group_iter->begin(); it_fs != group_iter->end();
            ++it_fs) {
         auto fs = FsView::gFsView.mIdView.lookupByID(*it_fs);
@@ -150,6 +160,9 @@ FSScheduler::schedule(const string& spaceName,
     result = scheduler->schedule(cluster_data_ptr(), args);
     if (result.is_valid_placement(args.n_replicas)) {
       return result;
+    } else {
+      eos_static_debug("msg=\"Scheduler failed to place %d replicas\" err=%s",
+                       result.n_replicas, result.error_string());
     }
   }
   return result;

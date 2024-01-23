@@ -147,6 +147,24 @@ using selection_rules_t = std::array<int8_t, MAX_PLACEMENT_HEIGHT>;
 static selection_rules_t kDefault2Replica =
    {-1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1};
 
+// Constant to offset the group id, so group ids would be starting from this offset
+// in memory they'd be stored at -group_id
+constexpr int kBaseGroupOffset = -10;
+
+
+// Return bucket index from group id, guaranteed to be -ve
+// If we have groups > INT_MAX we're in UB land, but this is mostly not possible
+inline constexpr item_id_t
+GroupIDtoBucketID(unsigned int group_index)
+{
+  return kBaseGroupOffset - group_index;
+}
+
+inline constexpr unsigned int
+BucketIDtoGroupID(item_id_t bucket_id)
+{
+  return kBaseGroupOffset - bucket_id;
+}
 
 struct Bucket {
   item_id_t id;
@@ -169,8 +187,15 @@ struct Bucket {
 
   std::string to_string() const
   {
+    std::string group_str;
+    if (bucket_type == get_bucket_type(StdBucketType::GROUP)) {
+      group_str = "Group Index: " +
+        std::to_string(BucketIDtoGroupID(id)) + "\n";
+    }
+
     std::stringstream ss;
     ss << "id: " << id <<"\n"
+       << group_str
        << "Total Weight: " << total_weight << "\n"
        << "Bucket Type: "
        << BucketTypeToStr(static_cast<StdBucketType>(bucket_type))
@@ -182,10 +207,6 @@ struct Bucket {
     return ss.str();
   }
 };
-
-// Constant to offset the group id, so group ids would be starting from this offset
-// in memory they'd be stored at -group_id
-constexpr int kBaseGroupOffset = -10;
 
 struct ClusterData {
   std::vector<Disk> disks;
@@ -237,6 +258,7 @@ struct ClusterData {
 inline bool isValidBucketId(item_id_t id, const ClusterData& data) {
   return id < 0 && (-id < data.buckets.size());
 }
+
 
 } // eos::mgm::placement
 
