@@ -191,6 +191,21 @@ FSScheduler::setDiskStatus(const std::string& spaceName, fsid_t disk_id,
 }
 
 bool
+FSScheduler::setDiskStatus(const std::string& spaceName, fsid_t disk_id,
+                           ActiveStatus status)
+{
+  eos::common::RCUReadLock rlock(cluster_rcu_mutex);
+  auto* cluster_mgr = get_cluster_mgr(spaceName);
+  if (!cluster_mgr) {
+    eos_static_crit("msg=\"Scheduler is not yet initialized for space=%s\"",
+                    spaceName.c_str());
+    return false;
+  }
+
+  return cluster_mgr->setDiskStatus(disk_id, status);
+}
+
+bool
 FSScheduler::setDiskWeight(const std::string& spaceName, fsid_t disk_id,
                            uint8_t weight)
 {

@@ -65,6 +65,8 @@ public:
   void updateClusterData();
   bool setDiskStatus(const std::string& spaceName, fsid_t disk_id,
                      ConfigStatus status);
+  bool setDiskStatus(const std::string& spaceName, fsid_t disk_id,
+                     ActiveStatus status);
 
   bool setDiskWeight(const std::string& spaceName, fsid_t disk_id,
                      uint8_t weight);

@@ -220,6 +220,14 @@ struct ClusterData {
     return true;
   }
 
+  bool setDiskStatus(fsid_t id, ActiveStatus status) {
+    if (id > disks.size()) {
+      return false;
+    }
+    disks[id - 1].active_status.store(status, std::memory_order_release);
+    return true;
+  }
+
   bool setDiskWeight(fsid_t id, uint8_t weight) {
     if (id > disks.size()) {
       return false;

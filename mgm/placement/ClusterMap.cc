@@ -57,6 +57,12 @@ ClusterMgr::setDiskStatus(fsid_t disk_id, ConfigStatus status)
 }
 
 bool
+ClusterMgr::setDiskStatus(fsid_t disk_id, ActiveStatus status)
+{
+  return mClusterData->setDiskStatus(disk_id, status);
+}
+
+bool
 ClusterMgr::setDiskWeight(fsid_t disk_id, uint8_t weight)
 {
   if (mClusterData->setDiskWeight(disk_id, weight)) {
