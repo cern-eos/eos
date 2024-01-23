@@ -34,6 +34,7 @@
 #include "common/IntervalStopwatch.hh"
 #include "common/SymKeys.hh"
 #include "XrdVersion.hh"
+#include <sys/sysinfo.h>
 
 XrdVERSIONINFOREF(XrdgetProtocol);
 
@@ -86,76 +87,63 @@ static std::string HotFilesToString(
   return ss.str();
 }
 
-//------------------------------------------------------------------------------
-// Retrieve uptime
-//------------------------------------------------------------------------------
-static std::string GetUptime(const std::string& tmpname)
-{
-  eos::common::ShellCmd cmd(SSTR("uptime | tr -d \"\n\"| tr -s \" \" > " <<
-                                 tmpname));
-  eos::common::cmd_status rc = cmd.wait(5);
-
-  if (rc.exit_code) {
-    eos_static_err("%s", "msg=\"retrieve uptime call failed\"");
-    return "N/A";
-  }
-
-  std::string retval;
-  eos::common::StringConversion::LoadFileIntoString(tmpname.c_str(), retval);
-  return retval;
-}
-
 
 //------------------------------------------------------------------------------
 // Get uptime information in a more pretty format
 //------------------------------------------------------------------------------
-static
-std::map<std::string, std::string>
-GetUptimePrettyFormat(const std::string tmpname)
+static void
+GetUptime(std::map<std::string, std::string>& output)
 {
-  using eos::common::StringTokenizer;
-  std::map<std::string, std::string> map_info;
-  {
-    // Get uptime information in seconds
-    eos::common::ShellCmd cmd(SSTR("cat /proc/uptime | sed 's/\\..*//' > " <<
-                                   tmpname));
-    eos::common::cmd_status rc = cmd.wait(5);
+  static float f_load = 1.f / (1 << SI_LOAD_SHIFT);
+  static auto GetUptimePretty = [](const struct sysinfo & input) -> std::string {
+    std::stringstream oss;
+    std::time_t now_t = eos::common::Timing::GetNowInSec();
+    struct tm now_tm_parts;
+    (void) localtime_r(&now_t, &now_tm_parts);
+    char str[9];
 
-    if (rc.exit_code) {
-      eos_static_err("%s", "msg=\"failed to retrieve uptime\"");
-      return map_info;
+    if (strftime(str, 9, "%H:%M:%S", &now_tm_parts))
+    {
+      oss << str << " up ";
+      int t_mins = (input.uptime % 3600) / 60;
+      int t_hours = (input.uptime % 86400) / 3600;
+      int t_days = input.uptime / 86400;
+
+      if (t_days) {
+        oss << t_days << " days, ";
+      }
+
+      oss << t_hours << ":" << t_mins << ", load average: ";
+      oss.setf(std::ios::fixed);
+      oss.precision(2);
+      oss << input.loads[0] * f_load << ", "
+          << input.loads[1] * f_load << ", "
+          << input.loads[2] * f_load;
+      return oss.str();
     }
 
-    std::string uptime_sec;
-    eos::common::StringConversion::LoadFileIntoString(tmpname.c_str(), uptime_sec);
-    eos::common::trim(uptime_sec);
-    map_info["sys.stat.uptime_sec"] = uptime_sec;
+    return "N/A";
+  };
+  struct sysinfo info;
+
+  if (sysinfo(&info) == 0) {
+    try {
+      output["stat.sys.uptime_sec"] = std::to_string(info.uptime);
+      output["stat.sys.load_avg_1m"] = std::to_string(info.loads[0] * f_load);
+      output["stat.sys.load_avg_5m"] = std::to_string(info.loads[1] * f_load);
+      output["stat.sys.load_avg_15m"] = std::to_string(info.loads[2] * f_load);
+      output["stat.sys.uptime"] = GetUptimePretty(info);
+      return;
+    } catch (...) {
+      // any error will populate the data with N/A entries
+    }
   }
-  {
-    // Get load information
-    eos::common::ShellCmd cmd(SSTR("cat /proc/loadavg > " << tmpname));
-    eos::common::cmd_status rc = cmd.wait(2);
 
-    if (rc.exit_code) {
-      eos_static_err("%s", "msg=\"failed to retrieve loadavg\"");
-      return map_info;
-    }
-
-    std::string load_info;
-    eos::common::StringConversion::LoadFileIntoString(tmpname.c_str(), load_info);
-    std::list<std::string_view> load_tokens =
-      StringTokenizer::split<std::list<std::string_view>>(load_info, ' ');
-
-    if (load_tokens.size() >= 3) {
-      map_info["sys.stat.load_avg_1m"] = load_tokens.front();
-      load_tokens.pop_front();
-      map_info["sys.stat.load_avg_5m"] = load_tokens.front();
-      load_tokens.pop_front();
-      map_info["sys.stat.load_avg_15m"] = load_tokens.front();
-      load_tokens.pop_front();
-    }
-  }
-  return map_info;
+  output["stat.sys.uptime_sec"] = "N/A";
+  output["stat.sys.load_avg_1m"] = "N/A";
+  output["stat.sys.load_avg_5m"] = "N/A";
+  output["stat.sys.load_avg_15m"] = "N/A";
+  output["stat.sys.uptime"] = "N/A";
 }
 
 //------------------------------------------------------------------------------
@@ -438,9 +426,7 @@ Storage::GetFstStatistics(const std::string& tmpfile,
   // adler32 of keytab
   output["stat.sys.keytab"] = gConfig.KeyTabAdler.c_str();
   // machine uptime
-  output["stat.sys.uptime"] = GetUptime(tmpfile);
-  auto uptime_info = GetUptimePrettyFormat(tmpfile);
-  output.insert(uptime_info.begin(), uptime_info.end());
+  GetUptime(output);
   // active TCP sockets
   output["stat.sys.sockets"] = GetNumOfTcpSockets(tmpfile);
   // Collect network RX/TX errors and dropped packets

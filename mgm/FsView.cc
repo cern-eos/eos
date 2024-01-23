@@ -1456,7 +1456,7 @@ FsView::GetNodeFormat(std::string option)
     format += "member=cfg.stat.sys.xrootd.version:width=12:format=s:tag=xrootd|";
     format += "member=cfg.stat.sys.kernel:width=30:format=s:tag=kernel version|";
     format += "member=cfg.stat.sys.eos.start:width=32:format=s:tag=start|";
-    format += "member=cfg.stat.sys.uptime:width=80:format=s:tag=uptime";
+    format += "member=cfg.stat.sys.uptime:width=64:format=s:tag=uptime";
   } else if (option == "fsck") {
     // filesystem check statistics format
     format = "header=1:member=hostport:width=32:format=-sS|";
