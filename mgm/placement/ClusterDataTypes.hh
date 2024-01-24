@@ -60,6 +60,7 @@ struct Disk {
         weight(_weight), percent_used(_percent_used)
   {}
 
+  // TODO future: these copy constructors must only be used at construction time
   // explicit copy constructor as atomic types are not copyable
   Disk(const Disk& other)
       : Disk(other.id, other.config_status.load(std::memory_order_relaxed),
@@ -73,6 +74,8 @@ struct Disk {
     id = other.id;
     config_status.store(other.config_status.load(std::memory_order_relaxed),
                  std::memory_order_relaxed);
+    active_status.store(other.active_status.load(std::memory_order_relaxed),
+                        std::memory_order_relaxed);
     weight.store(other.weight.load(std::memory_order_relaxed),
                  std::memory_order_relaxed);
     percent_used.store(other.percent_used.load(std::memory_order_relaxed),
