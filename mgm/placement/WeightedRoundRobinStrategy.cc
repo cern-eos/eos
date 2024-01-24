@@ -5,8 +5,6 @@
 
 namespace eos::mgm::placement {
 
-static constexpr int MAX_RR_PLACEMENT_ATTEMPTS=1000;
-
 
 struct WeightedRoundRobinPlacement::Impl {
   PlacementResult placeFiles(const ClusterData& data,
@@ -63,7 +61,7 @@ WeightedRoundRobinPlacement::Impl::placeFiles(const ClusterData& cluster_data,
   const auto& bucket = cluster_data.buckets[bucket_index];
   int items_added = 0;
   for (int i = 0;
-       (items_added < args.n_replicas) && (i < MAX_RR_PLACEMENT_ATTEMPTS); i++) {
+       (items_added < args.n_replicas) && (i < MAX_PLACEMENT_ATTEMPTS); i++) {
     item_id_t item_id = eos::common::pickIndexRR(bucket.items, bucket_index_kv++);
 
     if (result.contains(item_id)) {
@@ -82,6 +80,13 @@ WeightedRoundRobinPlacement::Impl::placeFiles(const ClusterData& cluster_data,
         continue;
       }
 
+      if (std::find(args.excludefs.begin(),
+                    args.excludefs.end(), item_id) != args.excludefs.end()) {
+        --total_wt;
+        --mItemWeights[args.bucket_id];
+        continue;
+      }
+
       if ((size_t)item_id > cluster_data.disks.size()) {
         result.err_msg = "Disk ID unknown!";
         result.ret_code = ERANGE;
@@ -89,17 +94,16 @@ WeightedRoundRobinPlacement::Impl::placeFiles(const ClusterData& cluster_data,
       }
 
       const auto& disk = cluster_data.disks[item_id - 1];
+      if (disk.active_status.load(std::memory_order_acquire) !=
+          eos::common::ActiveStatus::kOnline) {
+        continue;
+      }
+
       auto disk_status = disk.config_status.load(std::memory_order_relaxed);
       if (disk_status < args.status) {
         continue;
       }
 
-      if (std::find(args.excludefs.begin(),
-                    args.excludefs.end(), item_id) != args.excludefs.end()) {
-        --total_wt;
-        --mItemWeights[args.bucket_id];
-        continue;
-      }
 
       item_id = disk.id;
       --total_wt;

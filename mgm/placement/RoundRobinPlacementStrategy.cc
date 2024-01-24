@@ -60,20 +60,9 @@ RoundRobinPlacement::placeFiles(const ClusterData& cluster_data, Args args)
         return result;
       }
 
-      const auto& disk = cluster_data.disks[id - 1];
-      auto disk_status = disk.config_status.load(std::memory_order_relaxed);
-      if (disk_status < args.status) {
-        continue;
-        // TODO: We could potentially reseed the RR index in case of failure, should be fairly simple to do here! Uncommenting should work? rr_seed = GetRRSeed(n_replicas - items_added);
-      }
-
-      // exclude disks that are in the exclusion list
-      if (std::find(args.excludefs.cbegin(), args.excludefs.cend(), id) !=
-          args.excludefs.cend()) {
+      if (!PlacementStrategy::validDiskPlct(item_id, cluster_data, args)) {
         continue;
       }
-
-      item_id = disk.id;
     }
     result.ids[items_added++] = item_id;
   }

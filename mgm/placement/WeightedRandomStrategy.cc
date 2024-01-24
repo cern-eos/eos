@@ -87,13 +87,7 @@ PlacementResult WeightedRandomPlacement::Impl::placeFiles(const ClusterData& dat
         return result;
       }
 
-      const auto& disk = data.disks[item_id - 1];
-      if (disk.config_status.load(std::memory_order_relaxed) < args.status) {
-        continue;
-      }
-
-      if (std::find(args.excludefs.begin(), args.excludefs.end(), item_id)
-          != args.excludefs.end()) {
+      if (!PlacementStrategy::validDiskPlct(item_id, data, args)) {
         continue;
       }
     }
