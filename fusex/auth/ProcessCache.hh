@@ -60,6 +60,11 @@ public:
     return boundIdentity->getCreds()->toXrdParams();
   }
 
+  std::string getUserName() const
+  {
+    return boundIdentity->getCreds()->toUserName();
+  }
+  
   Jiffies getStartTime() const
   {
     return processInfo.getStartTime();

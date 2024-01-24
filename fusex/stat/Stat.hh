@@ -25,8 +25,6 @@
 #define FUSE_STAT_HH_
 
 /*----------------------------------------------------------------------------*/
-#include "XrdOuc/XrdOucString.hh"
-#include "XrdOuc/XrdOucHash.hh"
 #include "XrdSys/XrdSysPthread.hh"
 #include "common/AssistedThread.hh"
 /*----------------------------------------------------------------------------*/
@@ -39,8 +37,6 @@
 #include <math.h>
 #include <thread>
 #include <json/json.h>
-
-
 class StatAvg
 {
 public:
@@ -495,6 +491,20 @@ public:
   EosFuse::Instance().getFuseStat().Add(__ID__,   \
           0,0,__VALUE__);
 
+#define ADD_CFSD_STAT(__ID__, __REQ__)          \
+  fs.getFuseStat().Add(__ID__,				\
+			fuse_req_ctx(__REQ__)->uid,	\
+			fuse_req_ctx(__REQ__)->gid,	\
+			1);					   \
+  fs.getFuseStat().Add(__SUM__TOTAL__,				   \
+		       fuse_req_ctx(__REQ__)->uid,		   \
+		       fuse_req_ctx(__REQ__)->gid,		   \
+                             1);
+
+#define ADD_CFSD_IO_STAT(__ID__, __VALUE__) \
+  fs.getFuseStat().Add(__ID__,		    \
+          0,0,__VALUE__);
+
 
 #define EXEC_TIMING_BEGIN(__ID__)               \
   struct timeval start__ID__;                   \
@@ -506,11 +516,21 @@ public:
   gettimeofday(&stop__ID__, &tz__ID__);                                 \
   EosFuse::Instance().getFuseStat().AddExec(__ID__, ((stop__ID__.tv_sec-start__ID__.tv_sec)*1000.0) + ((stop__ID__.tv_usec-start__ID__.tv_usec)/1000.0) );
 
+#define CFSD_TIMING_BEGIN(__ID__)               \
+  struct timeval start__ID__;                   \
+  struct timeval stop__ID__;                    \
+  struct timezone tz__ID__;                     \
+  gettimeofday(&start__ID__, &tz__ID__);
+
+#define CFSD_TIMING_END(__ID__)                                         \
+  gettimeofday(&stop__ID__, &tz__ID__);                                 \
+  fs.getFuseStat().AddExec(__ID__, ((stop__ID__.tv_sec-start__ID__.tv_sec)*1000.0) + ((stop__ID__.tv_usec-start__ID__.tv_usec)/1000.0) );
+
 class Stat
 {
 public:
 
-  XrdSysMutex Mutex;
+  std::mutex Mutex;
 
   // first is name of value, then the map
   google::sparse_hash_map<std::string, google::sparse_hash_map<uid_t, unsigned long long> >
@@ -538,7 +558,7 @@ public:
 
   size_t GetOpsTS()
   {
-    XrdSysMutexHelper sLock(Mutex);
+    std::lock_guard<std::mutex> g {Mutex};
     return GetOps();
   }
 
