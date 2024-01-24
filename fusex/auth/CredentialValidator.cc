@@ -115,7 +115,8 @@ static inline krb5_boolean ts_after(krb5_timestamp a, krb5_timestamp b)
 // Check if ccache is OK - method exported from klist, with minor changes
 //----------------------------------------------------------------------------
 static int check_ccache(krb5_context& context, krb5_ccache cache,
-                        krb5_timestamp now)
+                        krb5_timestamp now,
+			std::string& principal)
 {
   /* clients/klist/klist.c - List contents of credential cache or keytab */
   /*
@@ -147,6 +148,8 @@ static int check_ccache(krb5_context& context, krb5_ccache cache,
   krb5_principal princ;
   krb5_boolean found_tgt, found_current_tgt, found_current_cred;
 
+  principal = "";
+  
   if (krb5_cc_get_principal(context, cache, &princ) != 0) {
     return 1;
   }
@@ -172,6 +175,16 @@ static int check_ccache(krb5_context& context, krb5_ccache cache,
     krb5_free_cred_contents(context, &creds);
   }
 
+  // extract name@REALM
+  char* princstring=0;
+  if ( krb5_unparse_name(
+			 context,
+			 princ,
+			 &princstring) == 0) {
+    principal = princstring;
+    krb5_free_string(context, princstring);
+  }
+				    
   krb5_free_principal(context, princ);
 
   if (ret != KRB5_CC_END) {
@@ -202,6 +215,8 @@ bool CredentialValidator::validate(const JailInformation& jail,
     THROW("invalid credentials provided to CredentialValidator");
   }
 
+  std::string principal;
+
   //----------------------------------------------------------------------------
   // Take care of the easy cases first
   // TODO: Maybe need to add checks here later? eg check SSS endorsement,
@@ -209,7 +224,7 @@ bool CredentialValidator::validate(const JailInformation& jail,
   //----------------------------------------------------------------------------
   if (uc.type == CredentialType::SSS || uc.type == CredentialType::NOBODY) {
     LOGBOOK_INSERT(scope, "Credential type does not need validation - accepting");
-    out.initialize(uc, {0, 0}, "");
+    out.initialize(uc, {0, 0}, "", "");
     return true;
   }
 
@@ -259,7 +274,7 @@ bool CredentialValidator::validate(const JailInformation& jail,
     //--------------------------------------------------------------------------
     // Go through whatever klist does to check ccache validity.
     //--------------------------------------------------------------------------
-    if (check_ccache(krb_ctx, ccache, time(0)) != 0) {
+    if (check_ccache(krb_ctx, ccache, time(0), principal) != 0) {
       krb5_cc_close(krb_ctx, ccache);
       krb5_free_context(krb_ctx);
       LOGBOOK_INSERT(scope, "provided ccache appears invalid: " << uc.keyring);
@@ -268,7 +283,7 @@ bool CredentialValidator::validate(const JailInformation& jail,
 
     krb5_cc_close(krb_ctx, ccache);
     krb5_free_context(krb_ctx);
-    out.initialize(uc, {0, 0}, "");
+    out.initialize(uc, {0, 0}, "", principal);
     return true;
   }
 
@@ -317,7 +332,7 @@ bool CredentialValidator::validate(const JailInformation& jail,
     //--------------------------------------------------------------------------
     // Go through whatever klist does to check ccache validity.
     //--------------------------------------------------------------------------
-    if (check_ccache(krb_ctx, ccache, time(0)) != 0) {
+    if (check_ccache(krb_ctx, ccache, time(0), principal) != 0) {
       krb5_cc_close(krb_ctx, ccache);
       krb5_free_context(krb_ctx);
       LOGBOOK_INSERT(scope, "provided ccache appears invalid: " << uc.kcm);
@@ -326,8 +341,56 @@ bool CredentialValidator::validate(const JailInformation& jail,
 
     krb5_cc_close(krb_ctx, ccache);
     krb5_free_context(krb_ctx);
-    out.initialize(uc, {0, 0}, "");
+    out.initialize(uc, {0, 0}, "", principal);
     return true;
+  }
+
+
+  //----------------------------------------------------------------------------
+  // KRB5: 
+  //----------------------------------------------------------------------------
+  if (uc.type == CredentialType::KRB5) {
+#ifdef __linux__
+    ScopedFsUidSetter uidSetter(uc.uid, uc.gid);
+
+    if (!uidSetter.IsOk()) {
+      eos_static_crit("Could not set fsuid,fsgid to %d, %d", uc.uid, uc.gid);
+      LOGBOOK_INSERT(scope, "Could not set fsuid, fsgid to " << uc.uid << ", " <<
+                     uc.gid);
+      return false;
+    }
+
+#endif
+    //--------------------------------------------------------------------------
+    krb5_context krb_ctx;
+    krb5_error_code ret = krb5_init_context(&krb_ctx);
+
+    if (ret != 0) {
+      eos_static_crit("Could not allocate krb5_init_context");
+      LOGBOOK_INSERT(scope, "Could not allocate krb5_init_context");
+      return false;
+    }
+
+    krb5_ccache ccache;
+
+    if (krb5_cc_resolve(krb_ctx, uc.fname.c_str(), &ccache) != 0) {
+      LOGBOOK_INSERT(scope, "Could not resolve " << uc.kcm);
+      krb5_free_context(krb_ctx);
+      return false;
+    }
+
+    //--------------------------------------------------------------------------
+    // Go through whatever klist does to check ccache validity.
+    //--------------------------------------------------------------------------
+    if (check_ccache(krb_ctx, ccache, time(0), principal) != 0) {
+      krb5_cc_close(krb_ctx, ccache);
+      krb5_free_context(krb_ctx);
+      LOGBOOK_INSERT(scope, "provided ccache appears invalid: " << uc.kcm);
+      return false;
+    }
+    
+    krb5_cc_close(krb_ctx, ccache);
+    krb5_free_context(krb_ctx);
   }
 
   //----------------------------------------------------------------------------
@@ -360,7 +423,7 @@ bool CredentialValidator::validate(const JailInformation& jail,
     // can be used as-is - no need for copying.
     //------------------------------------------------------------------------
     LOGBOOK_INSERT(scope, "Credential file is OK - using as-is");
-    out.initialize(uc, info.mtime, "");
+    out.initialize(uc, info.mtime, "", principal);
     return true;
   }
 
@@ -372,7 +435,7 @@ bool CredentialValidator::validate(const JailInformation& jail,
     //------------------------------------------------------------------------
     std::string casPath = credentialStore.put(info.contents);
     LOGBOOK_INSERT(scope, "Credential file must be copied - path: " << casPath);
-    out.initialize(uc, info.mtime, casPath);
+    out.initialize(uc, info.mtime, casPath, principal);
     return true;
   }
   }
