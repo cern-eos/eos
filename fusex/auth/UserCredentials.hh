@@ -272,6 +272,7 @@ struct UserCredentials {
   std::string secretkey;   // secret key for encryptions
   uid_t uid;               // uid for krb5, x509, sss, unix
   gid_t gid;               // gid for krb5, x509, sss, unix
+  std::string username;    // username derived from a credential
 
   //----------------------------------------------------------------------------
   // Comparator for storing such objects in maps.

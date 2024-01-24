@@ -25,7 +25,6 @@ install(PROGRAMS
   eos-status
   eos_start.sh
   eos_start_pre.sh
-  mount.eos
   DESTINATION ${CMAKE_INSTALL_FULL_SBINDIR})
 
 if(TARGET eosxd)
@@ -33,5 +32,6 @@ if(TARGET eosxd)
 endif()
 
 if(TARGET eosxd3)
-  install(PROGRAMS mount.eosx3 DESTINATION ${CMAKE_INSTALL_FULL_SBINDIR})
+  install(PROGRAMS umount.fuse mount.eosx3 mount.eoscfs DESTINATION ${CMAKE_INSTALL_FULL_SBINDIR})
+
 endif()

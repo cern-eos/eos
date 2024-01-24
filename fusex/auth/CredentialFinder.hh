@@ -92,9 +92,9 @@ public:
   // Constructor
   //----------------------------------------------------------------------------
   TrustedCredentials(const UserCredentials& uc_, struct timespec mtime_,
-                     const std::string& intercepted)
+                     const std::string& intercepted, const std::string& username)
   {
-    initialize(uc_, mtime_, intercepted);
+    initialize(uc_, mtime_, intercepted, username);
   }
 
   //----------------------------------------------------------------------------
@@ -135,14 +135,15 @@ public:
   // Re-initialize contents.
   //----------------------------------------------------------------------------
   void initialize(const UserCredentials& uc_, struct timespec mtime_,
-                  const std::string& intercepted)
+                  const std::string& intercepted,
+		  const std::string& user)
   {
     uc = uc_;
     initialized = true;
     invalidated = false;
     mtime = mtime_;
     interceptedPath = intercepted;
-
+    username = user;
     if (uc.type == CredentialType::OAUTH2) {
       eos::common::StringConversion::LoadFileIntoString(getFinalPath().c_str(),
           uc.endorsement);
@@ -226,6 +227,41 @@ public:
   }
 
   //----------------------------------------------------------------------------
+  // Generate username for this TrustedCredential 
+  //----------------------------------------------------------------------------
+  std::string toUserName() const
+  {
+    if (uc.hasUnsafeCharacters()) {
+      eos_static_err("rejecting credential for using forbidden characters in the path: %s",
+                     uc.fname.c_str());
+      return "nobody";
+    }
+
+    if (uc.type == CredentialType::NOBODY) {
+      return "nobody";
+    }
+
+    if (uc.type == CredentialType::OAUTH2) {
+      return "nobody";
+    }
+    
+    if (uc.type == CredentialType::KRB5) {
+      return username;
+    } else if (uc.type == CredentialType::KRK5) {
+      return username;
+    } else if (uc.type == CredentialType::KCM) {
+      return username;
+    } else if (uc.type == CredentialType::X509) {
+      return "nobody";
+    } else if (uc.type == CredentialType::OAUTH2) {
+      return "nobody";
+    } else {
+      THROW("should never reach here");
+    }
+  }
+
+  
+  //----------------------------------------------------------------------------
   // Generate parameters for this TrustedCredential as std::string
   //----------------------------------------------------------------------------
   std::string toXrdParams() const
@@ -300,6 +336,7 @@ public:
     ss << uc.describe() << std::endl;
     ss << "mtime: " << mtime.tv_sec << "." << mtime.tv_nsec << std::endl;
     ss << "intercepted path: " << interceptedPath << std::endl;
+    ss << "username: " << username << std::endl;
     return ss.str();
   }
 
@@ -310,6 +347,7 @@ private:
   mutable std::atomic<bool> invalidated;
   struct timespec mtime;
   std::string interceptedPath;
+  std::string username;
 };
 
 // TrustedCredentials bound to a LoginIdentifier. We need this to talk to the MGM.
