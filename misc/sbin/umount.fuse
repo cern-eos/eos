@@ -1,11 +1,12 @@
+#!/bin/bash
 # ----------------------------------------------------------------------
-# File: CMakeLists.txt
+# File: umount.fuse
 # Author: Andreas-Joachim Peters - CERN
 # ----------------------------------------------------------------------
 
 # ************************************************************************
 # * EOS - the CERN Disk Storage System                                   *
-# * Copyright (C) 2011 CERN/Switzerland                                  *
+# * Copyright (C) 2022 CERN/Switzerland                                  *
 # *                                                                      *
 # * This program is free software: you can redistribute it and/or modify *
 # * it under the terms of the GNU General Public License as published by *
@@ -21,19 +22,46 @@
 # * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
 # ************************************************************************
 
-install(DIRECTORY eos USE_SOURCE_PERMISSIONS
-  DESTINATION ${CMAKE_INSTALL_FULL_LOCALSTATEDIR})
+case $1 in
+  -h|--help|-?)
+      echo "mount.eoscfsx is a private umount(8) wrapper for eoscfsd/EOS."
+      echo "Don't use it directly!"
+      exit 1
+      ;;
+esac
 
-# Empty directories are not tracked in git, install them manually
-install(DIRECTORY DESTINATION ${CMAKE_INSTALL_FULL_LOCALSTATEDIR}/cache/eos/fusex)
-install(DIRECTORY DESTINATION ${CMAKE_INSTALL_FULL_LOCALSTATEDIR}/cache/eos/cfsd)
-install(DIRECTORY DESTINATION ${CMAKE_INSTALL_FULL_LOCALSTATEDIR}/eos/archive)
-install(DIRECTORY DESTINATION ${CMAKE_INSTALL_FULL_LOCALSTATEDIR}/eos/ns-queue/default)
-install(DIRECTORY DESTINATION ${CMAKE_INSTALL_FULL_LOCALSTATEDIR}/log/eos/archive)
-install(DIRECTORY DESTINATION ${CMAKE_INSTALL_FULL_LOCALSTATEDIR}/log/eos/fuse)
-install(DIRECTORY DESTINATION ${CMAKE_INSTALL_FULL_LOCALSTATEDIR}/log/eos/fusex)
-install(DIRECTORY DESTINATION ${CMAKE_INSTALL_FULL_LOCALSTATEDIR}/log/eos/httpd)
-install(DIRECTORY DESTINATION ${CMAKE_INSTALL_FULL_LOCALSTATEDIR}/log/eos/tx)
-install(DIRECTORY DESTINATION ${CMAKE_INSTALL_FULL_LOCALSTATEDIR}/run/eos/credentials/store)
-install(DIRECTORY DESTINATION ${CMAKE_INSTALL_FULL_LOCALSTATEDIR}/share/eos)
-install(DIRECTORY DESTINATION ${CMAKE_INSTALL_FULL_LOCALSTATEDIR}/www/eos/cgi-bin)
+if [ -z "$1" ]; then
+    echo "error: please provide the name of your FUSE mount !"
+    exit -1;
+fi
+
+shift
+
+options=()
+eoo=0 
+
+# filter out '-n ' which is passwd by automount if /etc/mtab is a symlink into /proc
+while [[ $1 ]]
+do
+    if ! ((eoo)); then
+	case "$1" in
+	    -n)
+		shift
+		;;
+	    *)
+		options+=("$1")
+		shift
+		;;
+	esac
+    else
+	options+=("$1")
+	
+	# Another (worse) way of doing the same thing:
+	# options=("${options[@]}" "$1")
+	shift
+    fi
+done
+
+echo ${options[@]}
+
+pkill -f "eoscfsd $1"

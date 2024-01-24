@@ -1,11 +1,12 @@
+#!/bin/bash
 # ----------------------------------------------------------------------
-# File: CMakeLists.txt
+# File: mount.eoscfsx
 # Author: Andreas-Joachim Peters - CERN
 # ----------------------------------------------------------------------
 
 # ************************************************************************
 # * EOS - the CERN Disk Storage System                                   *
-# * Copyright (C) 2011 CERN/Switzerland                                  *
+# * Copyright (C) 2022 CERN/Switzerland                                  *
 # *                                                                      *
 # * This program is free software: you can redistribute it and/or modify *
 # * it under the terms of the GNU General Public License as published by *
@@ -21,19 +22,61 @@
 # * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
 # ************************************************************************
 
-install(DIRECTORY eos USE_SOURCE_PERMISSIONS
-  DESTINATION ${CMAKE_INSTALL_FULL_LOCALSTATEDIR})
+case $1 in
+  -h|--help|-?)
+      echo "mount.eoscfsx is a private mount(8) wrapper for eoscfsd/EOS."
+      echo "Don't use it directly!"
+      exit 1
+      ;;
+esac
 
-# Empty directories are not tracked in git, install them manually
-install(DIRECTORY DESTINATION ${CMAKE_INSTALL_FULL_LOCALSTATEDIR}/cache/eos/fusex)
-install(DIRECTORY DESTINATION ${CMAKE_INSTALL_FULL_LOCALSTATEDIR}/cache/eos/cfsd)
-install(DIRECTORY DESTINATION ${CMAKE_INSTALL_FULL_LOCALSTATEDIR}/eos/archive)
-install(DIRECTORY DESTINATION ${CMAKE_INSTALL_FULL_LOCALSTATEDIR}/eos/ns-queue/default)
-install(DIRECTORY DESTINATION ${CMAKE_INSTALL_FULL_LOCALSTATEDIR}/log/eos/archive)
-install(DIRECTORY DESTINATION ${CMAKE_INSTALL_FULL_LOCALSTATEDIR}/log/eos/fuse)
-install(DIRECTORY DESTINATION ${CMAKE_INSTALL_FULL_LOCALSTATEDIR}/log/eos/fusex)
-install(DIRECTORY DESTINATION ${CMAKE_INSTALL_FULL_LOCALSTATEDIR}/log/eos/httpd)
-install(DIRECTORY DESTINATION ${CMAKE_INSTALL_FULL_LOCALSTATEDIR}/log/eos/tx)
-install(DIRECTORY DESTINATION ${CMAKE_INSTALL_FULL_LOCALSTATEDIR}/run/eos/credentials/store)
-install(DIRECTORY DESTINATION ${CMAKE_INSTALL_FULL_LOCALSTATEDIR}/share/eos)
-install(DIRECTORY DESTINATION ${CMAKE_INSTALL_FULL_LOCALSTATEDIR}/www/eos/cgi-bin)
+restricted=1
+
+if [ $UID -eq 0 ] && [ $UID -eq $EUID ]; then
+  restricted=0
+fi
+
+# mount(8) in restricted mode (for non-root users) does not allow to use any
+# mount options,
+# we fail for users
+
+if [ $restricted -eq 1 ]; then
+  echo "error: non-root mount attempted !"
+  exit -1;
+fi
+
+if [ -z "$1" ]; then
+    echo "error: please provide the name of your FUSE mount !"
+    exit -1;
+fi
+
+shift
+
+options=()
+eoo=0 
+
+# filter out '-n ' which is passwd by automount if /etc/mtab is a symlink into /proc
+while [[ $1 ]]
+do
+    if ! ((eoo)); then
+	case "$1" in
+	    -n)
+		shift
+		;;
+	    *)
+		options+=("$1")
+		shift
+		;;
+	esac
+    else
+	options+=("$1")
+	
+	# Another (worse) way of doing the same thing:
+	# options=("${options[@]}" "$1")
+	shift
+    fi
+done
+
+echo ${options[@]}
+
+/usr/bin/eoscfsd ${options[@]} >& /dev/null < /dev/zero

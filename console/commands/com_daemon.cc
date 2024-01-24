@@ -307,25 +307,21 @@ com_daemon(char* arg)
           return (0);
         }
       } else if (subcmd == "add") {
-        XrdOucString member = subtokenizer.GetToken();
-
-        if (!member.length()) {
-          fprintf(stderr,
-                  "error: add misses member argument host:port : 'eos daemon config qdb qdb add host:port'\n");
-          global_retc = EINVAL;
-          return 0;
-        } else {
-          std::string kline;
-          kline = "export REDISCLI_AUTH=`cat /etc/eos.keytab`; redis-cli -p `cat ";
-          kline += cfile;
-          kline += "|grep xrd.port | cut -d ' ' -f 2` <<< \"raft-add-observer ";
-          kline += member.c_str();
-          kline += "\"";
-          int rc = system(kline.c_str());
-          fprintf(stderr, "info: run '%s' retc=%d\n", kline.c_str(), WEXITSTATUS(rc));
-          global_retc = WEXITSTATUS(rc);
-          return (0);
-        }
+	XrdOucString member = subtokenizer.GetToken();
+	if (!member.length()) {
+	  fprintf(stderr,"error: add misses member argument host:port : 'eos daemon config qdb qdb add host:port'\n");
+	  global_retc = EINVAL;
+	  return 0;
+	} else {
+	  std::string kline;
+	  kline = "export REDISCLI_AUTH=`cat /etc/eos.keytab`; redis-cli -p `cat "; kline += cfile; kline += "|grep xrd.port | cut -d ' ' -f 2` \"<<< raft-add-observer ";
+	  kline += member.c_str();
+	  kline += "\"";
+	  int rc = system(kline.c_str());
+	  fprintf(stderr,"info: run '%s' retc=%d\n", kline.c_str(), WEXITSTATUS(rc));
+	  global_retc = WEXITSTATUS(rc);
+	  return (0);
+	}
       } else if (subcmd == "promote") {
         XrdOucString member = subtokenizer.GetToken();
 
@@ -347,73 +343,59 @@ com_daemon(char* arg)
           return (0);
         }
       } else if (subcmd == "new") {
-        XrdOucString member = subtokenizer.GetToken();
-
-        if (member != "observer") {
-          fprintf(stderr,
-                  "error: new misses 'observer' arguement : 'eos daemon config qdb qdb new observer'\n");
-          global_retc = EINVAL;
-          return 0;
-        } else {
-          std::string stopqdb = "systemctl stop qdb ";
-          stopqdb += name.c_str();
-          system(stopqdb.c_str());
-          std::string qdbpath = getenv("QDB_PATH") ? getenv("QDB_PATH") : "";
-          std::string qdbcluster = getenv("QDB_CLUSTER_ID") ? getenv("QDB_CLUSTER_ID") :
-                                   "";
-          std::string qdbnode = getenv("QDB_NODE") ? getenv("QDB_NODE") : "";
-
-          if (qdbpath.empty())    {
-            fprintf(stderr, "error: QDB_PATH is undefined in your configuration\n");
-            global_retc = EINVAL;
-            return 0;
-          }
-
-          if (qdbcluster.empty()) {
-            fprintf(stderr, "error: QDB_CLUSTER_ID is undefined in your configuration\n");
-            global_retc = EINVAL;
-            return 0;
-          }
-
-          if (qdbnode.empty()) {
-            fprintf(stderr, "error: QDB_NODE is undefined in your configuration\n");
-            global_retc = EINVAL;
-            return 0;
-          }
-
-          struct stat buf;
-
-          if (!::stat(qdbpath.c_str(), &buf)) {
-            fprintf(stderr,
-                    "error: path '%s' exists - to create a new observer this path has to be changed or removed\n",
-                    qdbpath.c_str());
-            global_retc = EINVAL;
-            return 0;
-          } else {
-            fprintf(stderr, "info: creating QDB under %s ...\n", qdbpath.c_str());
-          }
-
-          std::string kline;
-          kline = "quarkdb-create --path ";
-          kline += qdbpath;
-          kline += " --clusterID ";
-          kline += qdbcluster;
-          int rc = system(kline.c_str());
-          fprintf(stderr, "info: run '%s' retc=%d\n", kline.c_str(), WEXITSTATUS(rc));
-          global_retc = WEXITSTATUS(rc);
-
-          if (!global_retc) {
-            fprintf(stderr, "info: to get this node joining the cluster you do:\n");
-            fprintf(stderr, "1 [ this node ] : systemctl start eos5-qdb@%s\n",
-                    name.c_str());
-            fprintf(stderr, "2 [ leader    ] : eos daemon config qdb %s add %s\n",
-                    name.c_str(), qdbnode.c_str());
-            fprintf(stderr, "3 [ leader    ] : eos daemon config qdb %s promote %s\n",
-                    name.c_str(), qdbnode.c_str());
-          }
-
-          return (0);
-        }
+	XrdOucString member = subtokenizer.GetToken();
+	if (member != "observer") {
+	  fprintf(stderr,"error: new misses 'observer' arguement : 'eos daemon config qdb qdb new observer'\n");
+	  global_retc = EINVAL;
+	  return 0;
+	} else {
+	  std::string stopqdb = "systemctl stop qdb ";
+	  stopqdb += name.c_str();
+	  system(stopqdb.c_str());
+	  
+	  std::string qdbpath=getenv("QDB_PATH")?getenv("QDB_PATH"):"";
+	  std::string qdbcluster=getenv("QDB_CLUSTER_ID")?getenv("QDB_CLUSTER_ID"):"";
+	  std::string qdbnode=getenv("QDB_NODE")?getenv("QDB_NODE"):"";
+	  if (qdbpath.empty())    {
+	    fprintf(stderr,"error: QDB_PATH is undefined in your configuration\n");
+	    global_retc = EINVAL;
+	    return 0;
+	  }
+	  if (qdbcluster.empty()) {
+	    fprintf(stderr,"error: QDB_CLUSTER_ID is undefined in your configuration\n");
+	    global_retc = EINVAL;
+	    return 0;
+	  }
+	  if (qdbnode.empty()) {
+	    fprintf(stderr,"error: QDB_NODE is undefined in your configuration\n");
+	    global_retc = EINVAL;
+	    return 0;
+	  }
+	  struct stat buf;
+	  if (!::stat(qdbpath.c_str(), &buf)) {
+	    fprintf(stderr,"error: path '%s' exists - to create a new observer this path has to be changed or removed\n",qdbpath.c_str());
+	    global_retc = EINVAL;
+	    return 0;
+	  } else {
+	    fprintf(stderr,"info: creating QDB under %s ...\n", qdbpath.c_str());
+	  }
+	  
+	  std::string kline;
+	  kline = "quarkdb-create --path ";
+	  kline += qdbpath;
+	  kline += " --clusterID ";
+	  kline += qdbcluster;
+	  int rc = system(kline.c_str());
+	  fprintf(stderr,"info: run '%s' retc=%d\n", kline.c_str(), WEXITSTATUS(rc));
+	  global_retc = WEXITSTATUS(rc);
+	  if(!global_retc) {
+	    fprintf(stderr,"info: to get this node joining the cluster you do:\n");
+	    fprintf(stderr,"1 [ this node ] : systemctl start eos5-@qdb@%s\n",name.c_str());
+	    fprintf(stderr,"2 [ leader    ] : eos daemon config qdb %s add %s\n",name.c_str(),qdbnode.c_str());
+	    fprintf(stderr,"3 [ leader    ] : eos daemon config qdb %s promote %s\n",name.c_str(),qdbnode.c_str());
+	  }
+	  return (0);
+	}
       } else if (subcmd == "backup") {
         std::string qdbpath = "/var/lib/qdb1";
 
