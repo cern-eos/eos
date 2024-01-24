@@ -1414,12 +1414,13 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
     close(fd);
   }
 
-  eos_notice("MGM_HOST=%s MGM_PORT=%ld VERSION=%s RELEASE=%s KEYTABADLER=%s "
-             "SYMKEY=%s", HostName, myPort, VERSION, RELEASE, keytabcks.c_str(),
-             symkey.c_str());
+  eos_static_notice("MGM_HOST=%s MGM_PORT=%ld VERSION=%s RELEASE=%s "
+                    "KEYTABADLER=%s", HostName, myPort, VERSION, RELEASE,
+                    keytabcks.c_str());
 
   if (!eos::common::gSymKeyStore.SetKey64(symkey.c_str(), 0)) {
-    eos_crit("unable to store the created symmetric key %s", symkey.c_str());
+    eos_static_crit("msg=\"unable to store the created symmetric key\" "
+                    "key=\"%s\"", symkey.c_str());
     return 1;
   }
 
@@ -1429,12 +1430,13 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
       mTapeGc->setTapeEnabled(mTapeGcSpaces);
     } catch (std::exception& ex) {
       std::ostringstream msg;
-      msg << "msg=\"Failed to start tape-aware garbage collection: " << ex.what() <<
+      msg << "msg=\"failed to start tape-aware garbage collection: " << ex.what() <<
           "\"";
-      eos_crit(msg.str().c_str());
+      eos_static_crit("%s", msg.str().c_str());
       return 1;
     } catch (...) {
-      eos_crit("msg=\"Failed to start tape-aware garbage collection: Caught an unknown exception\"");
+      eos_startic_crit("%s", "msg=\"failed to start tape-aware garbage "
+                       "collection: Caught an unknown exception\"");
       return 1;
     }
   } else if (!mTapeGcSpaces.empty()) {
@@ -1462,7 +1464,6 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   eosViewRWMutex.SetBlocking(true);
   // Configure the access mutex to be blocking
   Access::gAccessMutex.SetBlocking(true);
-
   // Initialize the HA setup
   mMaster.reset(new eos::mgm::QdbMaster(mQdbContactDetails, ManagerId.c_str()));
 
