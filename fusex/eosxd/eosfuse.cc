@@ -540,6 +540,7 @@ EosFuse::run(int argc, char* argv[], void* userdata)
   if (getuid() == 0) {
     // the root mount always adds the 'allow_other' option
     fuse_opt_add_arg(&args, "-oallow_other");
+    fuse_opt_add_arg(&args, "-oclone_fd");
     fprintf(stderr, "# -o allow_other enabled on shared mount\n");
   }
 
@@ -2402,6 +2403,8 @@ EosFuse::DumpStatistic(ThreadAssistant& assistant)
 #endif
     eos_static_debug("dumping statistics");
 
+
+
     if (EosFuse::Instance().config.options.jsonstats) {
       fusestat.PrintOutTotalJson(jsonstats); //creates activity object...
       Json::Value inodes{};
@@ -2513,7 +2516,7 @@ EosFuse::DumpStatistic(ThreadAssistant& assistant)
       int sum = 0;
       unsigned long totalram, freeram, loads0 = 0;
       {
-        XrdSysMutexHelper sLock(getFuseStat().Mutex);
+	std::lock_guard g(getFuseStat().Mutex);
         rbytes = this->getFuseStat().GetTotal("rbytes");
         wbytes = this->getFuseStat().GetTotal("wbytes");
         nops = this->getFuseStat().GetOps();
@@ -7300,7 +7303,7 @@ EosFuse::getHbStat(eos::fusex::statistics& hbs)
     hbs.set_load1(1.0 * meminfo.getref().loads[0] / (1 << SI_LOAD_SHIFT));
   }
   {
-    XrdSysMutexHelper sLock(getFuseStat().Mutex);
+    std::lock_guard g(getFuseStat().Mutex);
     hbs.set_rbytes(getFuseStat().GetTotal("rbytes"));
     hbs.set_wbytes(getFuseStat().GetTotal("wbytes"));
     hbs.set_nio(getFuseStat().GetOps());

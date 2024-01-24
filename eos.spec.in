@@ -600,8 +600,8 @@ The EOS fuse core containing eosxd/eosxd3.
 %files -n eos-fusex-core
 %defattr(-, root, root, -)
 %{_bindir}/eosxd
-%{_bindir}/eosfusebind
 %{_bindir}/eosxd3
+%{_bindir}/eosfusebind
 %{_sbindir}/mount.eosx
 %{_sbindir}/mount.eosx3
 %{_tmpfilesdir}/eos-fusex-core.conf
@@ -655,6 +655,41 @@ if [ "$1" -ge "1" ]; then # Upgrade
 fi
 
 %if %{?_with_server:1}%{!?_with_server:0}
+
+#-------------------------------------------------------------------------------
+# Package eos-cfsd
+#-------------------------------------------------------------------------------
+%package -n eos-cfsd
+Summary: The new EOS client filesystem daemon
+Group: Applications/File
+ExclusiveArch: x86_64 aarch64
+
+# Select xrootd package
+%if %{?_with_eos_xrootd_rh:1}%{!?_with_eos_xrootd_rh:0}
+# Install eos-xrootd
+%if 0%{?rhel} >= 7 || 0%{?rhel} <= 9
+Requires: eos-xrootd == %{eos_xrootd_version_min}
+%else
+Requires: xrootd-client >= %{xrootd_version_min}
+%endif
+%else
+Requires: xrootd-client >= %{xrootd_version_min}
+%endif
+
+Requires: eos-client = @CPACK_PACKAGE_VERSION@
+Requires: fuse3
+Requires: jemalloc
+
+%description -n eos-cfsd
+The new EOS client filesystem daemon
+
+%files -n eos-cfsd
+%defattr(-, root, root, -)
+%{_bindir}/eoscfsd
+%{_sbindir}/mount.eoscfs
+%{_sbindir}/umount.fuse
+%dir %attr(755,daemon,daemon) %{_localstatedir}/cache/eos/
+%dir %attr(755,daemon,daemon) %{_localstatedir}/cache/eos/cfsd/
 
 #-------------------------------------------------------------------------------
 # Package eos-quarkdb
