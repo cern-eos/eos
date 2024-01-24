@@ -252,8 +252,27 @@ struct PlacementStrategy {
     return true;
   }
 
+  static bool validDiskPlct(item_id_t disk_id,
+                     const ClusterData& cluster_data,
+                     Args args) {
+    if (disk_id <= 0) {
+      return false;
+    }
+
+    if (std::find(args.excludefs.begin(),
+                  args.excludefs.end(),
+                  disk_id) != args.excludefs.end()) {
+      return false;
+    }
+
+    auto disk_config_status = cluster_data.disks[disk_id - 1].config_status.load(std::memory_order_acquire);
+    auto disk_active_status = cluster_data.disks[disk_id - 1].active_status.load(std::memory_order_acquire);
+
+    return disk_active_status == eos::common::ActiveStatus::kOnline &&
+      disk_config_status >= args.status;
+  }
+
   virtual ~PlacementStrategy() = default;
 };
-
 
 } // namespace eos::mgm::placement
