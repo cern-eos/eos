@@ -1256,7 +1256,7 @@ ProcCommand::ArchiveAddEntries(const std::string& arch_dir,
                        "arch_path=\"%s\" file_path=\"%s\"",
                        arch_dir.c_str(), info_map["file"].c_str());
         stdErr = "archive contains 0-size file: ";
-        stderr += info_map["file"];
+        stdErr += info_map["file"].c_str();
         retc = EINVAL;
         break;
       }
@@ -1266,7 +1266,7 @@ ProcCommand::ArchiveAddEntries(const std::string& arch_dir,
                        "arch_path=\"%s\" file_path=\"%s\"",
                        arch_dir.c_str(), info_map["file"].c_str());
         stdErr = "archive contains symlink file: ";
-        stderr += info_map["file"];
+        stdErr += info_map["file"].c_str();
         retc = EINVAL;
         break;
       }
