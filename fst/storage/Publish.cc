@@ -26,6 +26,7 @@
 #include "fst/Config.hh"
 #include "fst/storage/FileSystem.hh"
 #include "qclient/Formatting.hh"
+#include "common/Utils.hh"
 #include "common/LinuxStat.hh"
 #include "common/ShellCmd.hh"
 #include "common/Timing.hh"
@@ -41,26 +42,6 @@ XrdVERSIONINFOREF(XrdgetProtocol);
 EOSFSTNAMESPACE_BEGIN
 
 constexpr std::chrono::minutes Storage::sConsistencyTimeout;
-
-
-//------------------------------------------------------------------------------
-// Open random temporary file in /tmp/
-//
-// @return string temporary file path, if open failed return empty string
-//------------------------------------------------------------------------------
-std::string MakeTemporaryFile()
-{
-  char tmp_name[] = "/tmp/fst.publish.XXXXXX";
-  int tmp_fd = mkstemp(tmp_name);
-
-  if (tmp_fd == -1) {
-    eos_static_crit("%s", "msg=\"failed to create temporary file!\"");
-    return "";
-  }
-
-  (void) close(tmp_fd);
-  return tmp_name;
-}
 
 //------------------------------------------------------------------------------
 // Serialize hot files vector into std::string
@@ -363,7 +344,8 @@ static std::string GetNumOfTcpSockets()
 //------------------------------------------------------------------------------
 static std::string GetSubtreeSize(const std::string& path)
 {
-  const std::string tmp_name = MakeTemporaryFile();
+  std::string fn_pattern = "/tmp/fst.subtree.XXXXXX";
+  const std::string tmp_name = eos::common::MakeTemporaryFile(fn_pattern);
   const std::string command = SSTR("du -sb " << path << " | cut -f1 > "
                                    << tmp_name);
   eos::common::ShellCmd cmd(command.c_str());
@@ -670,7 +652,8 @@ void
 Storage::Publish(ThreadAssistant& assistant) noexcept
 {
   eos_static_info("%s", "msg=\"publisher activated\"");
-  std::string tmp_name = MakeTemporaryFile();
+  std::string fn_pattern = "/tmp/fst.publish.XXXXXX";
+  const std::string tmp_name = eos::common::MakeTemporaryFile(fn_pattern);
 
   if (tmp_name.empty()) {
     return;

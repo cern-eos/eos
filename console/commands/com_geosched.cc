@@ -23,7 +23,7 @@
 
 /*----------------------------------------------------------------------------*/
 #include "console/ConsoleMain.hh"
-#include "common/ParseUtils.hh"
+#include "common/Utils.hh"
 #include "common/RWMutex.hh"
 #include "common/StringTokenizer.hh"
 #include<set>
@@ -198,7 +198,7 @@ com_geosched(char* arg1)
     }
 
     std::string sgroup(group.c_str()), soptype(optype.c_str()),
-                       sgeotag(geotag.c_str());
+        sgeotag(geotag.c_str());
     const char fbdChars[] = "&/,;%$#@!*";
     auto fbdMatch =  sgroup.find_first_of(fbdChars);
 
@@ -218,6 +218,7 @@ com_geosched(char* arg1)
 
     if (!(sgeotag == "*" && subcmd != "add")) {
       std::string tmp_geotag = eos::common::SanitizeGeoTag(sgeotag);
+
       if (tmp_geotag != sgeotag) {
         fprintf(stderr, "%s\n", tmp_geotag.c_str());
         return 0;
@@ -242,8 +243,7 @@ com_geosched(char* arg1)
     if ((subcmd != "setdirect") && (subcmd != "showdirect") &&
         (subcmd != "cleardirect") &&
         (subcmd != "setproxygroup") && (subcmd != "showproxygroup") &&
-        (subcmd != "clearproxygroup"))
-    {
+        (subcmd != "clearproxygroup")) {
       goto com_geosched_usage;
     }
 
@@ -266,13 +266,11 @@ com_geosched(char* arg1)
       if (geotag.length()) {
         if (geotag != "-m" || geotag_list.length()) {
           goto com_geosched_usage;
-        }
-        else {
+        } else {
           in += "&mgm.monitoring=1";
         }
       }
-    }
-    else {
+    } else {
       if (subcmd == "setdirect" || subcmd == "setproxygroup") {
         if (!geotag.length() || !geotag_list.length()) {
           goto com_geosched_usage;
@@ -287,6 +285,7 @@ com_geosched(char* arg1)
 
           for (const auto& tag : geotags) {
             std::string tmp_tag = eos::common::SanitizeGeoTag(tag);
+
             if (tmp_tag != tag) {
               fprintf(stderr, "%s\n", tmp_tag.c_str());
               return 0;
@@ -295,14 +294,14 @@ com_geosched(char* arg1)
         }
 
         in += ("&mgm.geotaglist=" + geotag_list);
-      }
-      else { // cleardirect or clearproxygroup
+      } else { // cleardirect or clearproxygroup
         if (!geotag.length() || geotag_list.length()) {
           goto com_geosched_usage;
         }
       }
 
       std::string tmp_geotag = eos::common::SanitizeGeoTag(geotag.c_str());
+
       if (tmp_geotag != geotag.c_str()) {
         fprintf(stderr, "%s\n", tmp_geotag.c_str());
         return 0;

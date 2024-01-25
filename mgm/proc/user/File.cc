@@ -31,7 +31,7 @@
 #include "mgm/Stat.hh"
 #include "mgm/convert/ConverterDriver.hh"
 #include "mgm/XattrLock.hh"
-#include "common/ParseUtils.hh"
+#include "common/Utils.hh"
 #include "common/Path.hh"
 #include "common/LayoutId.hh"
 #include "common/SecEntity.hh"

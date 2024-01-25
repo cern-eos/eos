@@ -126,10 +126,10 @@ SymKey::HmacSha256(const std::string& key,
   std::string result;
   unsigned int data_len = data.length();
   unsigned int key_len = key.length();
-  unsigned char* pKey = (unsigned char*) key.c_str();
-  unsigned char* pData = (unsigned char*) data.c_str();
+  unsigned char* pKey = (unsigned char*)key.c_str();
+  unsigned char* pData = (unsigned char*)data.data();
   result.resize(resultSize);
-  unsigned char* pResult = (unsigned char*) result.c_str();
+  unsigned char* presult = (unsigned char*)result.c_str();
   ENGINE_load_builtin_engines();
   ENGINE_register_all_complete();
   HMAC_Init_ex(ctx, pKey, key_len, EVP_sha256(), NULL);
@@ -144,7 +144,7 @@ SymKey::HmacSha256(const std::string& key,
     HMAC_Update(ctx, pData, data_len);
   }
 
-  HMAC_Final(ctx, pResult, &resultSize);
+  HMAC_Final(ctx, presult, &resultSize);
   HMAC_CTX_free(ctx);
   return result;
 }
@@ -156,17 +156,17 @@ std::string
 SymKey::BinarySha1(const std::string& data)
 {
   unsigned int data_len = data.length();
-  unsigned char* pData = (unsigned char*) data.c_str();
+  unsigned char* pdata = (unsigned char*)data.data();
   std::string result;
   result.resize(EVP_MAX_MD_SIZE);
-  unsigned char* pResult = (unsigned char*) result.c_str();
+  unsigned char* presult = (unsigned char*)result.c_str();
   unsigned int sz_result;
   {
     XrdSysMutexHelper scope_lock(msMutex);
     EVP_MD_CTX* md_ctx = EVP_MD_CTX_new();
     EVP_DigestInit_ex(md_ctx, EVP_sha1(), NULL);
-    EVP_DigestUpdate(md_ctx, pData, data_len);
-    EVP_DigestFinal_ex(md_ctx, pResult, &sz_result);
+    EVP_DigestUpdate(md_ctx, pdata, data_len);
+    EVP_DigestFinal_ex(md_ctx, presult, &sz_result);
     EVP_MD_CTX_free(md_ctx);
   }
   result.resize(sz_result);
@@ -179,15 +179,16 @@ SymKey::BinarySha1(const std::string& data)
 std::string
 SymKey::HexSha1(const std::string& data)
 {
-  const stdd::string binary_sha1 = BinarySha1(data);
+  const std::string binary_sha1 = BinarySha1(data);
+  unsigned char* presult = (unsigned char*)binary_sha1.data();
+  unsigned int sz_result = binary_sha1.size();
   std::ostringstream oss;
   oss.fill('0');
   oss << std::hex;
-  unsigned char* pResult = (unsigned char*) result.data();
 
   for (unsigned int i = 0; i < sz_result; ++i) {
-    oss << std::setw(2) << (unsigned int) *pResult;
-    ++pResult;
+    oss << std::setw(2) << (unsigned int) *presult;
+    ++presult;
   }
 
   return oss.str();
@@ -200,10 +201,10 @@ std::string
 SymKey::HexSha256(const std::string& data, unsigned int blockSize)
 {
   unsigned int data_len = data.length();
-  unsigned char* pData = (unsigned char*) data.c_str();
+  unsigned char* pdata = (unsigned char*)data.data();
   std::string result;
   result.resize(EVP_MAX_MD_SIZE);
-  unsigned char* pResult = (unsigned char*) result.c_str();
+  unsigned char* presult = (unsigned char*)result.data();
   unsigned int sz_result;
   {
     XrdSysMutexHelper scope_lock(msMutex);
@@ -211,27 +212,27 @@ SymKey::HexSha256(const std::string& data, unsigned int blockSize)
     EVP_DigestInit_ex(md_ctx, EVP_sha256(), NULL);
 
     while (data_len > blockSize) {
-      EVP_DigestUpdate(md_ctx, pData, blockSize);
+      EVP_DigestUpdate(md_ctx, pdata, blockSize);
       data_len -= blockSize;
-      pData += blockSize;
+      pdata += blockSize;
     }
 
     if (data_len) {
-      EVP_DigestUpdate(md_ctx, pData, data_len);
+      EVP_DigestUpdate(md_ctx, pdata, data_len);
     }
 
-    EVP_DigestFinal_ex(md_ctx, pResult, &sz_result);
+    EVP_DigestFinal_ex(md_ctx, presult, &sz_result);
     EVP_MD_CTX_free(md_ctx);
   }
   // Return the hexdigest of the SHA256 value
   std::ostringstream oss;
   oss.fill('0');
   oss << std::hex;
-  pResult = (unsigned char*) result.data();
+  presult = (unsigned char*)result.data();
 
   for (unsigned int i = 0; i < sz_result; ++i) {
-    oss << std::setw(2) << (unsigned int) *pResult;
-    ++pResult;
+    oss << std::setw(2) << (unsigned int) *presult;
+    ++presult;
   }
 
   return oss.str();
@@ -253,10 +254,10 @@ SymKey::HmacSha1(std::string& data, const char* key)
   }
 
   unsigned int key_len = strlen(key);
-  unsigned char* pData = (unsigned char*) data.c_str();
-  unsigned char* pResult = (unsigned char*) result.c_str();
-  pResult = HMAC(EVP_sha1(), (void*)key, key_len, pData, data_len,
-                 pResult, &result_size);
+  unsigned char* pdata = (unsigned char*)data.data();
+  unsigned char* presult = (unsigned char*)result.c_str();
+  presult = HMAC(EVP_sha1(), (void*)key, key_len, pdata, data_len,
+                 presult, &result_size);
   result.resize(result_size + 1);
   return result;
 }

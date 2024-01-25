@@ -30,6 +30,7 @@
 #include "common/Namespace.hh"
 #include "common/Logging.hh"
 #include "common/StringTokenizer.hh"
+#include "common/SymKeys.hh"
 #include <string>
 #include <limits>
 
@@ -151,64 +152,6 @@ inline bool ValidHostnameOrIP(const std::string& input)
   }
 
   return true;
-}
-
-
-//-----------------------------------------------------------------------------
-//! Make sure that geotag contains only alphanumeric segments which
-//! are no longer than 8 characters, in <tag1>::<tag2>::...::<tagN> format.
-//!
-//! @param geotag input value
-//!
-//! @return error message if geotag is not valid, otherwise geotag
-//-----------------------------------------------------------------------------
-inline std::string SanitizeGeoTag(const std::string& geotag)
-{
-  if (geotag.empty()) {
-    return std::string("Error: empty geotag");
-  }
-
-  if (geotag == "<none>") {
-    return geotag;
-  }
-
-  std::string tmp_tag(geotag);
-  auto segments = eos::common::StringTokenizer::split<std::vector<std::string>>
-                  (tmp_tag, ':');
-  tmp_tag.clear();
-
-  for (const auto& segment : segments) {
-    if (segment.empty()) {
-      continue;
-    }
-
-    if (segment.length() > 8) {
-      return std::string("Error: geotag segment '" + segment +
-                         "' is longer than 8 chars");
-    }
-
-    for (const auto& c : segment) {
-      if (!std::isalnum(c)) {
-        return std::string("Error: geotag segment '" + segment + "' "
-                           "contains non-alphanumeric char '" + c + "'");
-      }
-    }
-
-    tmp_tag += segment;
-    tmp_tag += "::";
-  }
-
-  if (tmp_tag.length() <= 2) {
-    return std::string("Error: empty geotag");
-  }
-
-  tmp_tag.erase(tmp_tag.length() - 2);
-
-  if (tmp_tag != geotag) {
-    return std::string("Error: invalid geotag format '" + geotag + "'");
-  }
-
-  return tmp_tag;
 }
 
 EOSCOMMONNAMESPACE_END

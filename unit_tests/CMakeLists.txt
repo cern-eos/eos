@@ -95,6 +95,7 @@ set(MGM_UT_SRCS
   mgm/placement/FsSchedulerTests.cc)
 
 set(COMMON_UT_SRCS
+  common/UtilsTests.cc
   common/FileIdTests.cc
   common/FileMapTests.cc
   common/FutureWrapperTests.cc

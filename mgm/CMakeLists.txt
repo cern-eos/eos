@@ -456,7 +456,7 @@ if(Linux)
     XROOTD::POSIX
     EosGrpcGateway::EosGrpcGateway
     EosNsCommon-Static
-    EosCommonServer-Static)
+    EosCommon-Static)
 
   install(TARGETS eos-config-inspect
     LIBRARY DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}

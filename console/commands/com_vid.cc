@@ -21,11 +21,9 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-/*----------------------------------------------------------------------------*/
 #include "console/ConsoleMain.hh"
 #include "common/StringTokenizer.hh"
-#include "common/ParseUtils.hh"
-/*----------------------------------------------------------------------------*/
+#include "common/Utils.hh"
 
 /* VID System listing, configuration, manipulation */
 int
