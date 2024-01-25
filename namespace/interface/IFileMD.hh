@@ -454,9 +454,12 @@ public:
   IFileMD& operator=(const IFileMD& other) = delete;
 
   template<typename ObjectMDPtr, typename LockType> friend class NSObjectMDLocker;
+  template<typename ObjectMDPtr, typename LockType> friend class NSObjectMDTryLocker;
   friend class LockableNSObjMD;
   using IFileMDReadLocker = NSObjectMDLocker<IFileMDPtr,MDReadLock>;
+  using IFileMDReadTryLocker = NSObjectMDTryLocker<IFileMDPtr,MDReadLock>;
   using IFileMDWriteLocker = NSObjectMDLocker<IFileMDPtr,MDWriteLock>;
+  using IFileMDWriteTryLocker = NSObjectMDTryLocker<IFileMDPtr,MDWriteLock>;
   using IFileMDReadLockerPtr = std::unique_ptr<IFileMDReadLocker>;
   using IFileMDWriteLockerPtr = std::unique_ptr<IFileMDWriteLocker>;
 protected:

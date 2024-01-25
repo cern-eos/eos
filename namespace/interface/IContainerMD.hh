@@ -99,9 +99,12 @@ public:
         Murmur3::MurmurHasher<std::string> >;
 
   template<typename ObjectMDPtr, typename LockType> friend class NSObjectMDLocker;
+  template<typename ObjectMDPtr, typename LockType> friend class NSObjectMDTryLocker;
   friend class LockableNSObjMD;
   using IContainerMDReadLocker = NSObjectMDLocker<IContainerMDPtr,MDReadLock>;
+  using IContainerMDReadTryLocker = NSObjectMDTryLocker<IContainerMDPtr,MDReadLock>;
   using IContainerMDWriteLocker = NSObjectMDLocker<IContainerMDPtr,MDWriteLock>;
+  using IContainerMDWriteTryLocker = NSObjectMDTryLocker<IContainerMDPtr,MDWriteLock>;
   using IContainerMDReadLockerPtr = std::unique_ptr<IContainerMDReadLocker>;
   using IContainerMDWriteLockerPtr = std::unique_ptr<IContainerMDWriteLocker>;
 

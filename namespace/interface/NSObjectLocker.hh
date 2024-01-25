@@ -130,6 +130,27 @@ protected:
   }
 
   /**
+   * Lock the lock in parameter with a try-lock logic. If it could not lock it,
+   * it will return false and the caller will have to retry.
+   * @tparam LockType Container/FileMDRead/WriteLocker
+   * @param lock the lock that owns the mutex that will be tried-locked
+   * @return true if the lock could happen, false otherwise
+   */
+  template<typename LockType>
+  bool tryLock(LockType & lock) {
+    //Lock the object only if it is not already read-locked or write-locked
+    if(!isLockRegisteredByThisThread(lock)) {
+      bool wasLocked = lock.try_lock();
+      if(wasLocked) {
+        registerLock(lock);
+      }
+      return wasLocked;
+    }
+    registerLock(lock);
+    return true;
+  }
+
+  /**
    * This method contains the logic that will check
    * wether a lock is already taken by this thread before acquiring
    * a read-lock
@@ -254,6 +275,46 @@ private:
   ObjectMDPtr mObjectMDPtr;
   LockType mLock;
 };
+
+template<typename ObjectMDPtr, typename LockType>
+class NSObjectMDTryLocker {
+public:
+  //Constructor that defers the locking of the mutex and will delegate the locking logic to the objectMD
+  NSObjectMDTryLocker(ObjectMDPtr objectMDPtr){
+    if(objectMDPtr) {
+      mLock = LockType(objectMDPtr->getMutex(),std::defer_lock);
+      mObjectMDPtr = objectMDPtr;
+      mLocked = mObjectMDPtr->tryLock(mLock);
+    } else {
+      // We should normally never reach that code in production
+      // if the file/container does not exist, a MDException will
+      // be thrown.
+      throw_mdexception(ENOENT,"file/container does not exist");
+    }
+  }
+
+  ObjectMDPtr operator->() {
+    return mObjectMDPtr;
+  }
+  ObjectMDPtr getUnderlyingPtr() {
+    return operator->();
+  }
+  bool locked() {
+    return mLocked;
+  }
+  virtual ~NSObjectMDTryLocker(){
+    if(mObjectMDPtr && mLocked) {
+      mObjectMDPtr->unregisterLock(mLock);
+    }
+  }
+private:
+  //! KEEP THIS ORDER, THE SHARED_PTR NEEDS TO BE DESTROYED AFTER THE LOCK...
+  //! Otherwise you will have a deadlock!
+  ObjectMDPtr mObjectMDPtr;
+  LockType mLock;
+  bool mLocked = false;
+};
+
 
 EOSNSNAMESPACE_END
 

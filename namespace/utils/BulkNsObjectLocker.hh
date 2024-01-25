@@ -32,9 +32,9 @@ EOSNSNAMESPACE_BEGIN
  * of the identifier of the objects to lock.
  * The lock is done when the method "lockAll" is called.
  * @tparam ObjectMDPtr the IContainerMD or IFileMD object to lock later
- * @tparam LockerType the type of lock to be applied
+ * @tparam TryLockerType the type of try-locker to be applied
  */
-template<typename ObjectMDPtr,typename LockerType>
+template<typename ObjectMDPtr,typename TryLockerType>
 class BulkNsObjectLocker {
 public:
   /**
@@ -44,7 +44,7 @@ public:
    * will be destructed in the reverse order of their insertion
    */
   class LocksVector {
-    using LockPtr = std::unique_ptr<LockerType>;
+    using LockPtr = std::unique_ptr<TryLockerType>;
     using Vector = std::vector<LockPtr>;
   public:
     LocksVector() = default;
@@ -87,18 +87,19 @@ public:
     const LockPtr & operator[](const size_t address) const {
       return mLocks[address];
     }
-    ~LocksVector() {
-      deleteVector();
-    }
-
-  private:
-    void deleteVector() {
+    void releaseAllLocksAndClear() {
       //Reset every unique_ptr in the reverse order of insertion
       for(auto lockPtr = mLocks.rbegin(); lockPtr != mLocks.rend(); lockPtr++) {
         lockPtr->reset(nullptr);
       }
+      mLocks.clear();
     }
 
+    ~LocksVector() {
+      releaseAllLocksAndClear();
+    }
+
+  private:
     Vector mLocks;
   };
 
@@ -120,8 +121,14 @@ public:
   LocksVector lockAll() {
     // copy-ellision here
     LocksVector locks;
-    for(auto idNsObject: mMapIdNSObject) {
-      locks.push_back(std::make_unique<LockerType>(idNsObject.second));
+    while(locks.size() != mMapIdNSObject.size()) {
+      locks.releaseAllLocksAndClear();
+      for(auto idNsObject: mMapIdNSObject) {
+        std::unique_ptr<TryLockerType> lock = std::make_unique<TryLockerType>(idNsObject.second);
+        if(lock->locked()) {
+          locks.push_back(std::move(lock));
+        }
+      }
     }
     return locks;
   }

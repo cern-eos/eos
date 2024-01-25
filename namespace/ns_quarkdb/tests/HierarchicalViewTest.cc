@@ -772,7 +772,7 @@ TEST_F(HierarchicalViewF, BulkNsObjectLocker)
   {
     auto container = view()->createContainer("/test/", true);
     auto container2 = view()->createContainer("/test/d1", true);
-    eos::BulkNsObjectLocker<eos::IContainerMDPtr, eos::IContainerMD::IContainerMDReadLocker>
+    eos::BulkNsObjectLocker<eos::IContainerMDPtr, eos::IContainerMD::IContainerMDReadTryLocker>
         locker;
     locker.add(container2);
     locker.add(container);
@@ -785,7 +785,7 @@ TEST_F(HierarchicalViewF, BulkNsObjectLocker)
   {
     auto file1 = view()->createFile("/test/f1");
     auto file2 = view()->createFile("/test/d1/f2");
-    eos::BulkNsObjectLocker<eos::IFileMDPtr, eos::IFileMD::IFileMDWriteLocker>
+    eos::BulkNsObjectLocker<eos::IFileMDPtr, eos::IFileMD::IFileMDWriteTryLocker>
         locker;
     locker.add(file2);
     locker.add(file1);
@@ -794,6 +794,39 @@ TEST_F(HierarchicalViewF, BulkNsObjectLocker)
     ASSERT_EQ("f1", locks[0]->getUnderlyingPtr()->getName());
     ASSERT_EQ("f2", locks[1]->getUnderlyingPtr()->getName());
   }
+}
+
+TEST_F(HierarchicalViewF, BulkNsObjectLockerTryLock)
+{
+  // Thread 1 read locks one container while the thread 2 tries to bulk write lock them
+  // the locking done by the Thread 2 should wait that the thread 1 finishes
+  auto container = view()->createContainer("/test/", true);
+  auto container2 = view()->createContainer("/test/d1", true);
+  std::atomic<bool> containerLocked = false;
+  uint8_t sleepSeconds = 10;
+  auto threadReadLockingContainer = std::thread([&container, &containerLocked, sleepSeconds]() {
+    eos::IContainerMD::IContainerMDReadLocker containerLocker(container);
+    containerLocked = true;
+    std::this_thread::sleep_for(std::chrono::duration<double>(sleepSeconds + 0.1));
+  });
+  std::chrono::time_point<std::chrono::steady_clock> start;
+  std::chrono::time_point<std::chrono::steady_clock> stop;
+  auto threadBulkContainerLock = std::thread([&start, &stop, &container, &container2, &containerLocked]() {
+    while (!containerLocked) {
+      std::this_thread::sleep_for(std::chrono::milliseconds(100ms));
+    }
+    eos::BulkNsObjectLocker<eos::IContainerMDPtr,eos::IContainerMD::IContainerMDWriteTryLocker> locker;
+    locker.add(container2);
+    locker.add(container);
+    start = std::chrono::steady_clock::now();
+    auto locks = locker.lockAll();
+    stop = std::chrono::steady_clock::now();
+  });
+  threadBulkContainerLock.join();
+  threadReadLockingContainer.join();
+  auto diff = std::chrono::duration_cast<std::chrono::seconds>
+              (stop - start).count();
+  ASSERT_EQ(sleepSeconds, diff);
 }
 
 TEST_F(HierarchicalViewF, fileMDLockedSetSize)
