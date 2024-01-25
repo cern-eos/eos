@@ -87,7 +87,6 @@ HeaderCRC::ReadFromFile(FileIo* pFile, uint16_t timeout)
   }
 
   memcpy(mTag, buff.get(), sizeof mTag);
-  std::string tag = mTag;
 
   if (strncmp(mTag, msTagName, strlen(msTagName))) {
     return mValid;
@@ -129,8 +128,8 @@ HeaderCRC::WriteToFile(FileIo* pFile, uint16_t timeout)
     return mValid;
   }
 
-  memcpy(buff.get() + offset, msTagName, sizeof msTagName);
-  offset += sizeof mTag;
+  memcpy(buff.get() + offset, msTagName, strlen(msTagName));
+  offset += strlen(msTagName);
   memcpy(buff.get() + offset, &mIdStripe, sizeof mIdStripe);
   offset += sizeof mIdStripe;
   memcpy(buff.get() + offset, &mNumBlocks, sizeof mNumBlocks);
