@@ -5,6 +5,7 @@
 //-----------------------------------------------------------------------------
 #include "common/Fmd.hh"
 #include "common/Utils.hh"
+#include "common/StringTokenizer.hh"
 
 #include "console/commands/HealthCommand.hh"
 #include "console/ConsoleMain.hh"
