@@ -1258,7 +1258,7 @@ eos_nginx_al9:
   variables:
     PKG_MGR: dnf
   script:
-    - ${PKG_MGR} install --nogpg -y gcc-c++ make rpm-build which git sssd-client sudo createrepo
+    - ${PKG_MGR} install --nogpg -y gcc-c++ make rpm-build which git sssd-client sudo createrepo rsync tar gawk
     - cd ApMon; ./maketar.sh
     - rpmbuild --define "_source_filedigest_algorithm md5" --define "_binary_filedigest_algorithm md5" --define "_topdir ./rpmbuild" -ts eos-apmon-*.tar.gz
     - |
