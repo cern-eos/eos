@@ -1388,7 +1388,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   }
 
   // Build the adler & sha1 checksum of the default keytab file
-  XrdOucString keytabcks = "unaccessible";
+  std::string keytabcks = "unaccessible";
   int fd = ::open("/etc/eos.keytab", O_RDONLY);
   XrdOucString symkey = "";
 
@@ -1435,8 +1435,8 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
       eos_static_crit("%s", msg.str().c_str());
       return 1;
     } catch (...) {
-      eos_startic_crit("%s", "msg=\"failed to start tape-aware garbage "
-                       "collection: Caught an unknown exception\"");
+      eos_static_crit("%s", "msg=\"failed to start tape-aware garbage "
+                      "collection: Caught an unknown exception\"");
       return 1;
     }
   } else if (!mTapeGcSpaces.empty()) {

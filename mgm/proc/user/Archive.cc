@@ -179,7 +179,7 @@ ProcCommand::Archive()
 
       // Build the destination dir by using the uid/gid of the user triggering
       // the archive operation e.g root:// ... //some/dir/gid1/uid1/
-      std::string dir_sha256 = eos::common::SymKey::Sha256(spath.c_str());
+      std::string dir_sha256 = eos::common::SymKey::HexSha256(spath.c_str());
       std::ostringstream dst_oss;
       dst_oss << gOFS->MgmArchiveDstUrl.c_str() << dir_sha256 << '/';
       std::string surl = dst_oss.str();

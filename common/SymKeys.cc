@@ -80,10 +80,15 @@ static void openssl3provider()
 {
   static XrdSysMutex initMtx;
   XrdSysMutexHelper iMtx(initMtx);
-  static bool init=0;
+  static bool init = 0;
+
   if (!init) {
-    EVP_MD *mdp = EVP_MD_fetch(NULL, "SHA2-256", NULL);
-    if (mdp) EVP_MD_free(mdp);
+    EVP_MD* mdp = EVP_MD_fetch(NULL, "SHA2-256", NULL);
+
+    if (mdp) {
+      EVP_MD_free(mdp);
+    }
+
     (void) OSSL_PROVIDER_load(NULL, "legacy");
   }
 }
@@ -145,12 +150,54 @@ SymKey::HmacSha256(const std::string& key,
 }
 
 //------------------------------------------------------------------------------
-// Compute the HMAC SHA-256 value
+// Compute binary SHA-1 value
 //------------------------------------------------------------------------------
-
 std::string
-SymKey::Sha256(const std::string& data,
-               unsigned int blockSize)
+SymKey::BinarySha1(const std::string& data)
+{
+  unsigned int data_len = data.length();
+  unsigned char* pData = (unsigned char*) data.c_str();
+  std::string result;
+  result.resize(EVP_MAX_MD_SIZE);
+  unsigned char* pResult = (unsigned char*) result.c_str();
+  unsigned int sz_result;
+  {
+    XrdSysMutexHelper scope_lock(msMutex);
+    EVP_MD_CTX* md_ctx = EVP_MD_CTX_new();
+    EVP_DigestInit_ex(md_ctx, EVP_sha1(), NULL);
+    EVP_DigestUpdate(md_ctx, pData, data_len);
+    EVP_DigestFinal_ex(md_ctx, pResult, &sz_result);
+    EVP_MD_CTX_free(md_ctx);
+  }
+  result.resize(sz_result);
+  return result;
+}
+
+//------------------------------------------------------------------------------
+// Compute hex digest of SHA-1 value
+//------------------------------------------------------------------------------
+std::string
+SymKey::HexSha1(const std::string& data)
+{
+  const stdd::string binary_sha1 = BinarySha1(data);
+  std::ostringstream oss;
+  oss.fill('0');
+  oss << std::hex;
+  unsigned char* pResult = (unsigned char*) result.data();
+
+  for (unsigned int i = 0; i < sz_result; ++i) {
+    oss << std::setw(2) << (unsigned int) *pResult;
+    ++pResult;
+  }
+
+  return oss.str();
+}
+
+//------------------------------------------------------------------------------
+// Compute hexdigest of the SHA-256 value
+//------------------------------------------------------------------------------
+std::string
+SymKey::HexSha256(const std::string& data, unsigned int blockSize)
 {
   unsigned int data_len = data.length();
   unsigned char* pData = (unsigned char*) data.c_str();
@@ -180,15 +227,14 @@ SymKey::Sha256(const std::string& data,
   std::ostringstream oss;
   oss.fill('0');
   oss << std::hex;
-  pResult = (unsigned char*) result.c_str();
+  pResult = (unsigned char*) result.data();
 
   for (unsigned int i = 0; i < sz_result; ++i) {
     oss << std::setw(2) << (unsigned int) *pResult;
-    pResult++;
+    ++pResult;
   }
 
-  result = oss.str();
-  return result;
+  return oss.str();
 }
 
 //------------------------------------------------------------------------------
@@ -817,12 +863,9 @@ SymKey::CipherEncrypt(const char* data, ssize_t data_length,
   uint_fast8_t iv[EVP_MAX_IV_LENGTH];
   sprintf((char*)iv, "$KJh#(}q");
   const EVP_CIPHER* cipher = EVP_des_cbc();
-
 #if OPENSSL_VERSION_NUMBER >= 0x30000000L
   openssl3provider();
 #endif
-
-  
   // This is slow, but we really don't care here for small messages
   int buff_capacity = data_length + EVP_CIPHER_block_size(cipher);
   char* encrypt_buff = (char*) malloc(buff_capacity);
@@ -866,6 +909,7 @@ SymKey::CipherEncrypt(const char* data, ssize_t data_length,
     free(encrypt_buff);
     return false;
   }
+
   encrypted_data = encrypt_buff;
   EVP_CIPHER_CTX_free(ctx);
   return true;
@@ -890,7 +934,6 @@ SymKey::CipherDecrypt(char* encrypted_data, ssize_t encrypted_length,
 #if OPENSSL_VERSION_NUMBER >= 0x30000000L
   openssl3provider();
 #endif
-
   // This is slow, but we really don't care here for small messages. We're
   // going to null terminate the text under the assumption it's non-null
   // terminated ASCII text.

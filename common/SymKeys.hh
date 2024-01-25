@@ -129,6 +129,16 @@ public:
   static int ExtractCapability(XrdOucEnv* inenv, XrdOucEnv*& outenv);
 
   //----------------------------------------------------------------------------
+  //! Compute the HMAC SHA-1 value of the data passed as input
+  //!
+  //! @param data the message to be used as input
+  //! @param key the key to be used in the encryption process
+  //!
+  //! @return hash-based message authentication code
+  //----------------------------------------------------------------------------
+  static std::string HmacSha1(std::string& data, const char* key = NULL);
+
+  //----------------------------------------------------------------------------
   //! Compute the HMAC SHA-256 value of the data passed as input
   //!
   //! @param key the key to be used in the encryption process
@@ -139,7 +149,6 @@ public:
   //!                  OpenSSL library is 256 bits = 32 bytes )
   //!
   //! @return hash-based message authentication code
-  //!
   //----------------------------------------------------------------------------
   static std::string HmacSha256(const std::string& key,
                                 const std::string& data,
@@ -147,28 +156,34 @@ public:
                                 unsigned int resultSize = 32);
 
   //----------------------------------------------------------------------------
-  //! Compute the SHA-256 value of the data passed as input
+  //! Compute hex digest of the SHA-256 value of the data passed as input
   //!
-  //! @param data the message to be used as input
+  //! @param data input data
   //! @param blockSize the size in which the input is divided before the
   //!                  hash function is applied ( 512 bits recommended )
   //!
-  //! @return hash message
-  //!
+  //! @return hex digest fo SHA-256
   //----------------------------------------------------------------------------
-  static std::string Sha256(const std::string& data,
-                            unsigned int blockSize = 32);
+  static std::string HexSha256(const std::string& data,
+                               unsigned int blockSize = 32);
 
   //----------------------------------------------------------------------------
-  //! Compute the HMAC SHA-1 value of the data passed as input
+  //! Compute binary SHA-1 value of the data passed as input
   //!
-  //! @param data the message to be used as input
-  //! @param key the key to be used in the encryption process
+  //! @param data input data
   //!
-  //! @return hash-based message authentication code
-  //!
+  //! @return binary sha1
   //----------------------------------------------------------------------------
-  static std::string HmacSha1(std::string& data, const char* key = NULL);
+  static std::string BinarySha1(const std::string& data);
+
+  //----------------------------------------------------------------------------
+  //! Compute hex digest of SHA-1 value of the data passed as input
+  //!
+  //! @param data input data
+  //!
+  //! @return sha1 hex digest
+  //----------------------------------------------------------------------------
+  static std::string HexSha1(const std::string& data);
 
   //----------------------------------------------------------------------------
   //! Base64 encode a string - base function
