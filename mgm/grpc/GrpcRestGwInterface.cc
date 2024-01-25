@@ -4,7 +4,7 @@
 #include "GrpcRestGwInterface.hh"
 //-----------------------------------------------------------------------------
 #include "common/Fmd.hh"
-#include "common/ParseUtils.hh"
+#include "common/Utils.hh"
 
 #include "console/commands/HealthCommand.hh"
 #include "console/ConsoleMain.hh"
@@ -44,48 +44,41 @@
 EOSMGMNAMESPACE_BEGIN
 
 grpc::Status GrpcRestGwInterface::AclCall(VirtualIdentity& vid,
-                                const AclProto* aclRequest, ReplyProto* reply)
+    const AclProto* aclRequest, ReplyProto* reply)
 {
   // wrap the AclProto object into a RequestProto object
   eos::console::RequestProto req;
   req.mutable_acl()->CopyFrom(*aclRequest);
-
   eos::mgm::AclCmd aclcmd(std::move(req), vid);
   *reply = aclcmd.ProcessRequest();
-
   return grpc::Status::OK;
 }
 
 grpc::Status GrpcRestGwInterface::AccessCall(VirtualIdentity& vid,
-                          const AccessProto* accessRequest, ReplyProto* reply)
+    const AccessProto* accessRequest, ReplyProto* reply)
 {
   // wrap the AccessProto object into a RequestProto object
   eos::console::RequestProto req;
   req.mutable_access()->CopyFrom(*accessRequest);
-
   eos::mgm::AccessCmd accesscmd(std::move(req), vid);
   *reply = accesscmd.ProcessRequest();
-
   return grpc::Status::OK;
 }
 
 grpc::Status GrpcRestGwInterface::ArchiveCall(VirtualIdentity& vid,
-                        const ArchiveProto* archiveRequest, ReplyProto* reply)
+    const ArchiveProto* archiveRequest, ReplyProto* reply)
 {
   // wrap the ArchiveProto object into a RequestProto object
   eos::console::RequestProto req;
   req.mutable_archive()->CopyFrom(*archiveRequest);
-
   std::string subcmd = req.archive().command();
   std::string cmd_in = "mgm.cmd=archive&mgm.subcmd=" + subcmd;
 
   if (subcmd == "kill") {
     cmd_in += "&mgm.archive.option=" + req.archive().job_uuid();
-  }
-  else if (subcmd == "transfers") {
+  } else if (subcmd == "transfers") {
     cmd_in += "&mgm.archive.option=" + req.archive().selection();
-  }
-  else {
+  } else {
     if (req.archive().retry()) {
       cmd_in += "&mgm.archive.option=r";
     }
@@ -94,17 +87,15 @@ grpc::Status GrpcRestGwInterface::ArchiveCall(VirtualIdentity& vid,
   }
 
   ExecProcCmd(vid, reply, cmd_in, false);
-
   return grpc::Status::OK;
 }
 
 grpc::Status GrpcRestGwInterface::AttrCall(VirtualIdentity& vid,
-                              const AttrProto* attrRequest, ReplyProto* reply)
+    const AttrProto* attrRequest, ReplyProto* reply)
 {
   // wrap the AttrProto object into a RequestProto object
   eos::console::RequestProto req;
   req.mutable_attr()->CopyFrom(*attrRequest);
-
   std::string cmd_in;
   std::string path = req.attr().md().path();
   eos::console::AttrCmd subcmd = req.attr().cmd();
@@ -121,8 +112,7 @@ grpc::Status GrpcRestGwInterface::AttrCall(VirtualIdentity& vid,
         path = "";
         errno = e.getErrno();
       }
-    }
-    else {
+    } else {
       try {
         eos::common::RWMutexReadLock vlock(gOFS->eosViewRWMutex);
         path = gOFS->eosView->getUri(
@@ -144,8 +134,7 @@ grpc::Status GrpcRestGwInterface::AttrCall(VirtualIdentity& vid,
 
   if (subcmd == eos::console::AttrCmd::ATTR_LS) {
     cmd_in += "&mgm.subcmd=ls";
-  }
-  else if (subcmd == eos::console::AttrCmd::ATTR_SET) {
+  } else if (subcmd == eos::console::AttrCmd::ATTR_SET) {
     cmd_in += "&mgm.subcmd=set";
     std::string value = req.attr().value();
 
@@ -174,39 +163,34 @@ grpc::Status GrpcRestGwInterface::AttrCall(VirtualIdentity& vid,
       ProcCommand cmd;
       XrdOucErrInfo error;
       std::string set_def;
-
-      set_def = cmd_in + "&mgm.attr.key=sys.forced.blocksize&mgm.attr.value=" + val[0];
+      set_def = cmd_in + "&mgm.attr.key=sys.forced.blocksize&mgm.attr.value=" +
+                val[0];
       cmd.open("/proc/user", set_def.c_str(), vid, &error);
-
       set_def = cmd_in + "&mgm.attr.key=sys.forced.checksum&mgm.attr.value=" + val[1];
       cmd.open("/proc/user", set_def.c_str(), vid, &error);
-
       set_def = cmd_in + "&mgm.attr.key=sys.forced.layout&mgm.attr.value=" + val[2];
       cmd.open("/proc/user", set_def.c_str(), vid, &error);
-
       set_def = cmd_in + "&mgm.attr.key=sys.forced.nstripes&mgm.attr.value=" + val[3];
       cmd.open("/proc/user", set_def.c_str(), vid, &error);
-
       set_def = cmd_in + "&mgm.attr.key=sys.forced.space&mgm.attr.value=" + val[4];
       cmd.open("/proc/user", set_def.c_str(), vid, &error);
 
       if (value != "replica") {
-        set_def = cmd_in + "&mgm.attr.key=sys.forced.blockchecksum&mgm.attr.value=" + val[5];
+        set_def = cmd_in + "&mgm.attr.key=sys.forced.blockchecksum&mgm.attr.value=" +
+                  val[5];
         cmd.open("/proc/user", set_def.c_str(), vid, &error);
       }
     }
 
     if (key == "sys.forced.placementpolicy" ||
-        key == "user.forced.placementpolicy")
-    {
+        key == "user.forced.placementpolicy") {
       std::string policy;
       eos::common::SymKey::DeBase64(value, policy);
 
       // Check placement policy
       if (policy != "scattered" &&
           policy.rfind("hybrid:", 0) != 0 &&
-          policy.rfind("gathered:", 0) != 0)
-      {
+          policy.rfind("gathered:", 0) != 0) {
         reply->set_std_err("Error: placement policy '" + policy + "' is invalid\n");
         reply->set_retc(EINVAL);
         return grpc::Status::OK;
@@ -216,6 +200,7 @@ grpc::Status GrpcRestGwInterface::AttrCall(VirtualIdentity& vid,
       if (policy != "scattered") {
         std::string targetgeotag = policy.substr(policy.find(':') + 1);
         std::string tmp_geotag = eos::common::SanitizeGeoTag(targetgeotag);
+
         if (tmp_geotag != targetgeotag) {
           reply->set_std_err(tmp_geotag);
           reply->set_retc(EINVAL);
@@ -226,25 +211,20 @@ grpc::Status GrpcRestGwInterface::AttrCall(VirtualIdentity& vid,
 
     cmd_in += "&mgm.attr.key=" + key;
     cmd_in += "&mgm.attr.value=" + value;
-  }
-  else if (subcmd == eos::console::AttrCmd::ATTR_GET) {
+  } else if (subcmd == eos::console::AttrCmd::ATTR_GET) {
     cmd_in += "&mgm.subcmd=get";
     cmd_in += "&mgm.attr.key=" + key;
-  }
-  else if (subcmd == eos::console::AttrCmd::ATTR_RM) {
+  } else if (subcmd == eos::console::AttrCmd::ATTR_RM) {
     cmd_in += "&mgm.subcmd=rm";
     cmd_in += "&mgm.attr.key=" + key;
-  }
-  else if (subcmd == eos::console::AttrCmd::ATTR_LINK) {
+  } else if (subcmd == eos::console::AttrCmd::ATTR_LINK) {
     cmd_in += "&mgm.subcmd=set";
     cmd_in += "&mgm.attr.key=sys.attr.link";
     cmd_in += "&mgm.attr.value=" + req.attr().link();
-  }
-  else if (subcmd == eos::console::AttrCmd::ATTR_UNLINK) {
+  } else if (subcmd == eos::console::AttrCmd::ATTR_UNLINK) {
     cmd_in += "&mgm.subcmd=rm";
     cmd_in += "&mgm.attr.key=sys.attr.link";
-  }
-  else if (subcmd == eos::console::AttrCmd::ATTR_FOLD) {
+  } else if (subcmd == eos::console::AttrCmd::ATTR_FOLD) {
     cmd_in += "&mgm.subcmd=fold";
   }
 
@@ -253,17 +233,15 @@ grpc::Status GrpcRestGwInterface::AttrCall(VirtualIdentity& vid,
   }
 
   ExecProcCmd(vid, reply, cmd_in, false);
-
   return grpc::Status::OK;
 }
 
 grpc::Status GrpcRestGwInterface::BackupCall(VirtualIdentity& vid,
-                          const BackupProto* backupRequest, ReplyProto* reply)
+    const BackupProto* backupRequest, ReplyProto* reply)
 {
   // wrap the BackupProto object into a RequestProto object
   eos::console::RequestProto req;
   req.mutable_backup()->CopyFrom(*backupRequest);
-
   std::string src = req.backup().src_url();
   std::string dst = req.backup().dst_url();
   XrdCl::URL src_url(src.c_str()), dst_url(dst.c_str());
@@ -282,7 +260,8 @@ grpc::Status GrpcRestGwInterface::BackupCall(VirtualIdentity& vid,
     return grpc::Status::OK;
   }
 
-  std::string cmd_in = "mgm.cmd=backup&mgm.backup.src=" + src + "&mgm.backup.dst=" + dst;
+  std::string cmd_in = "mgm.cmd=backup&mgm.backup.src=" + src + "&mgm.backup.dst="
+                       + dst;
 
   if (req.backup().ctime()) {
     struct timeval tv;
@@ -293,7 +272,8 @@ grpc::Status GrpcRestGwInterface::BackupCall(VirtualIdentity& vid,
       return grpc::Status::OK;
     }
 
-    cmd_in += "&mgm.backup.ttime=ctime&mgm.backup.vtime=" + std::to_string(tv.tv_sec - req.backup().ctime());
+    cmd_in += "&mgm.backup.ttime=ctime&mgm.backup.vtime=" + std::to_string(
+                tv.tv_sec - req.backup().ctime());
   }
 
   if (req.backup().mtime()) {
@@ -305,7 +285,8 @@ grpc::Status GrpcRestGwInterface::BackupCall(VirtualIdentity& vid,
       return grpc::Status::OK;
     }
 
-    cmd_in += "&mgm.backup.ttime=mtime&mgm.backup.vtime=" + std::to_string(tv.tv_sec - req.backup().mtime());
+    cmd_in += "&mgm.backup.ttime=mtime&mgm.backup.vtime=" + std::to_string(
+                tv.tv_sec - req.backup().mtime());
   }
 
   if (!req.backup().xattr().empty()) {
@@ -313,17 +294,15 @@ grpc::Status GrpcRestGwInterface::BackupCall(VirtualIdentity& vid,
   }
 
   ExecProcCmd(vid, reply, cmd_in);
-
   return grpc::Status::OK;
 }
 
 grpc::Status GrpcRestGwInterface::ChmodCall(VirtualIdentity& vid,
-                            const ChmodProto* chmodRequest, ReplyProto* reply)
+    const ChmodProto* chmodRequest, ReplyProto* reply)
 {
   // wrap the ChmodProto object into a RequestProto object
   eos::console::RequestProto req;
   req.mutable_chmod()->CopyFrom(*chmodRequest);
-
   std::string cmd_in;
   std::string path = req.chmod().md().path();
   errno = 0;
@@ -339,8 +318,7 @@ grpc::Status GrpcRestGwInterface::ChmodCall(VirtualIdentity& vid,
         path = "";
         errno = e.getErrno();
       }
-    }
-    else {
+    } else {
       try {
         eos::common::RWMutexReadLock vlock(gOFS->eosViewRWMutex);
         path = gOFS->eosView->getUri(gOFS->eosDirectoryService->getContainerMD(
@@ -368,17 +346,15 @@ grpc::Status GrpcRestGwInterface::ChmodCall(VirtualIdentity& vid,
   }
 
   ExecProcCmd(vid, reply, cmd_in, false);
-
   return grpc::Status::OK;
 }
 
 grpc::Status GrpcRestGwInterface::ChownCall(VirtualIdentity& vid,
-                            const ChownProto* chownRequest, ReplyProto* reply)
+    const ChownProto* chownRequest, ReplyProto* reply)
 {
   // wrap the ChownProto object into a RequestProto object
   eos::console::RequestProto req;
   req.mutable_chown()->CopyFrom(*chownRequest);
-
   std::string path = req.chown().md().path();
   uid_t uid = req.chown().owner().uid();
   gid_t gid = req.chown().owner().gid();
@@ -398,8 +374,7 @@ grpc::Status GrpcRestGwInterface::ChownCall(VirtualIdentity& vid,
         path = "";
         errno = e.getErrno();
       }
-    }
-    else {
+    } else {
       try {
         eos::common::RWMutexReadLock vlock(gOFS->eosViewRWMutex);
         path = gOFS->eosView->getUri(gOFS->eosDirectoryService->getContainerMD(
@@ -451,38 +426,33 @@ grpc::Status GrpcRestGwInterface::ChownCall(VirtualIdentity& vid,
   }
 
   ExecProcCmd(vid, reply, cmd_in, false);
-
   return grpc::Status::OK;
 }
 
 grpc::Status GrpcRestGwInterface::ConfigCall(VirtualIdentity& vid,
-                          const ConfigProto* configRequest, ReplyProto* reply)
+    const ConfigProto* configRequest, ReplyProto* reply)
 {
   // wrap the ConfigProto object into a RequestProto object
   eos::console::RequestProto req;
   req.mutable_config()->CopyFrom(*configRequest);
-
   eos::mgm::ConfigCmd configcmd(std::move(req), vid);
   *reply = configcmd.ProcessRequest();
-
   return grpc::Status::OK;
 }
 
 grpc::Status GrpcRestGwInterface::ConvertCall(VirtualIdentity& vid,
-                        const ConvertProto* convertRequest, ReplyProto* reply)
+    const ConvertProto* convertRequest, ReplyProto* reply)
 {
   // wrap the ConvertProto object into a RequestProto object
   eos::console::RequestProto req;
   req.mutable_convert()->CopyFrom(*convertRequest);
-
   eos::mgm::ConvertCmd convertcmd(std::move(req), vid);
   *reply = convertcmd.ProcessRequest();
-
   return grpc::Status::OK;
 }
 
 grpc::Status GrpcRestGwInterface::CpCall(VirtualIdentity& vid,
-                                  const CpProto* cpRequest, ReplyProto* reply)
+    const CpProto* cpRequest, ReplyProto* reply)
 {
   // wrap the CpProto object into a RequestProto object
   eos::console::RequestProto req;
@@ -517,8 +487,7 @@ grpc::Status GrpcRestGwInterface::CpCall(VirtualIdentity& vid,
       std::string msg = "checksum=";
       msg += xsum.c_str();
       reply->set_std_out(msg);
-    }
-    else {
+    } else {
       std::string msg = "Warning: failed getting checksum for ";
       msg += path;
       reply->set_std_err(msg);
@@ -566,8 +535,7 @@ grpc::Status GrpcRestGwInterface::CpCall(VirtualIdentity& vid,
         msg += query.c_str();
         reply->set_std_err(msg);
       }
-    }
-    else {
+    } else {
       // Get atime and mtime
       std::string path = req.cp().keeptime().path();
       XrdOucString url = "root://localhost/";
@@ -581,8 +549,7 @@ grpc::Status GrpcRestGwInterface::CpCall(VirtualIdentity& vid,
         msg += "mtime:";
         msg += std::to_string(buf.st_mtime);
         reply->set_std_out(msg);
-      }
-      else {
+      } else {
         std::string msg = "Warning: failed getting stat information for ";
         msg += path;
         reply->set_std_err(msg);
@@ -602,28 +569,24 @@ grpc::Status GrpcRestGwInterface::CpCall(VirtualIdentity& vid,
 }
 
 grpc::Status GrpcRestGwInterface::DebugCall(VirtualIdentity& vid,
-                            const DebugProto* debugRequest, ReplyProto* reply)
+    const DebugProto* debugRequest, ReplyProto* reply)
 {
   // wrap the DebugProto object into a RequestProto object
   eos::console::RequestProto req;
   req.mutable_debug()->CopyFrom(*debugRequest);
-
   eos::mgm::DebugCmd debugcmd(std::move(req), vid);
   *reply = debugcmd.ProcessRequest();
-
   return grpc::Status::OK;
 }
 
 grpc::Status GrpcRestGwInterface::EvictCall(VirtualIdentity& vid,
-                            const EvictProto* evictRequest, ReplyProto* reply)
+    const EvictProto* evictRequest, ReplyProto* reply)
 {
   // wrap the EvictProto object into a RequestProto object
   eos::console::RequestProto req;
   req.mutable_debug()->CopyFrom(*evictRequest);
-
   eos::mgm::EvictCmd evictcmd(std::move(req), vid);
   *reply = evictcmd.ProcessRequest();
-
   return grpc::Status::OK;
 }
 
@@ -632,22 +595,20 @@ FileHelper_EnvFstToFmd(XrdOucEnv& env, eos::common::FmdHelper& fmd);
 
 int
 FileHelper_GetRemoteAttribute(const char* manager, const char* key,
-                        const char* path, XrdOucString& attribute);
+                              const char* path, XrdOucString& attribute);
 
 int
 FileHelper_GetRemoteFmdFromLocalDb(const char* manager, const char* shexfid,
-                             const char* sfsid, eos::common::FmdHelper& fmd);
+                                   const char* sfsid, eos::common::FmdHelper& fmd);
 
 grpc::Status GrpcRestGwInterface::FileCall(VirtualIdentity& vid,
-                              const FileProto* fileRequest, ReplyProto* reply)
+    const FileProto* fileRequest, ReplyProto* reply)
 {
   // wrap the AccessProto object into a RequestProto object
   eos::console::RequestProto req;
   req.mutable_file()->CopyFrom(*fileRequest);
-
   // initialise VirtualIdentity object
   auto rootvid = eos::common::VirtualIdentity::Root();
-
   std::string path = req.file().md().path();
   uint64_t fid = 0;
 
@@ -698,7 +659,7 @@ grpc::Status GrpcRestGwInterface::FileCall(VirtualIdentity& vid,
 
       if (!req.file().adjustreplica().subgroup().empty()) {
         cmd_in += "&mgm.file.desiredsubgroup=" +
-              req.file().adjustreplica().subgroup();
+                  req.file().adjustreplica().subgroup();
       }
     }
 
@@ -817,15 +778,14 @@ grpc::Status GrpcRestGwInterface::FileCall(VirtualIdentity& vid,
               std_err += bs.c_str();
               std_err += " ]\n";
             }
-          }
-          else {
+          } else {
             if ((option.find("%checksumattr") != STR_NPOS)) {
               checksumattribute = "";
 
               if ((retc = FileHelper_GetRemoteAttribute(newresult->Get(repurl.c_str()),
-                                                  "user.eos.checksum",
-                                                  newresult->Get(repfstpath.c_str()),
-                                                  checksumattribute))) {
+                          "user.eos.checksum",
+                          newresult->Get(repfstpath.c_str()),
+                          checksumattribute))) {
                 if (!silent) {
                   std_err += "error: unable to retrieve extended attribute from ";
                   std_err += newresult->Get(repurl.c_str());
@@ -897,8 +857,7 @@ grpc::Status GrpcRestGwInterface::FileCall(VirtualIdentity& vid,
                 if (sss != size) {
                   consistencyerror = true;
                   inconsistencylable = "SIZE";
-                }
-                else {
+                } else {
                   if (fmd.mProtoFmd.size() != (unsigned long long) rsize) {
                     if (!consistencyerror) {
                       consistencyerror = true;
@@ -1014,8 +973,7 @@ grpc::Status GrpcRestGwInterface::FileCall(VirtualIdentity& vid,
 
       if (consistencyerror) {
         reply->set_retc(EFAULT);
-      }
-      else {
+      } else {
         reply->set_retc(0);
       }
     } else {
@@ -1047,7 +1005,7 @@ grpc::Status GrpcRestGwInterface::FileCall(VirtualIdentity& vid,
 
     if (!req.file().convert().placement_policy().empty()) {
       cmd_in += "&mgm.convert.placementpolicy=" +
-            req.file().convert().placement_policy();
+                req.file().convert().placement_policy();
     }
 
     if (req.file().convert().sync()) {
@@ -1126,7 +1084,7 @@ grpc::Status GrpcRestGwInterface::FileCall(VirtualIdentity& vid,
 
     if (req.file().layout().stripes()) {
       cmd_in += "&mgm.file.layout.stripes=" + std::to_string(
-              req.file().layout().stripes());
+                  req.file().layout().stripes());
     }
 
     if (!req.file().layout().checksum().empty()) {
@@ -1162,7 +1120,7 @@ grpc::Status GrpcRestGwInterface::FileCall(VirtualIdentity& vid,
     }
 
     cmd_in += "&mgm.purge.version=" + std::to_string(
-            req.file().purge().purge_version());
+                req.file().purge().purge_version());
     break;
   }
 
@@ -1177,9 +1135,9 @@ grpc::Status GrpcRestGwInterface::FileCall(VirtualIdentity& vid,
     }
 
     cmd_in += "&mgm.file.sourcefsid=" + std::to_string(
-            req.file().replicate().fsid1());
+                req.file().replicate().fsid1());
     cmd_in += "&mgm.file.targetfsid=" + std::to_string(
-            req.file().replicate().fsid2());
+                req.file().replicate().fsid2());
     break;
   }
 
@@ -1232,8 +1190,7 @@ grpc::Status GrpcRestGwInterface::FileCall(VirtualIdentity& vid,
       std_err += "\n";
       reply->set_std_err(std_err);
       reply->set_retc(-1);
-    }
-    else {
+    } else {
       if (!mqc.SendMessage(message, receiver.c_str())) {
         std_err = "unable to send resync message to " + receiver;
         reply->set_std_err(std_err);
@@ -1302,7 +1259,7 @@ grpc::Status GrpcRestGwInterface::FileCall(VirtualIdentity& vid,
     cmd_in += "&mgm.subcmd=verify";
     cmd_in += "&mgm.path=" + path;
     cmd_in += "&mgm.file.verify.filterid=" + std::to_string(
-            req.file().verify().fsid());
+                req.file().verify().fsid());
 
     if (req.file().verify().checksum()) {
       cmd_in += "&mgm.file.compute.checksum=1";
@@ -1322,7 +1279,7 @@ grpc::Status GrpcRestGwInterface::FileCall(VirtualIdentity& vid,
 
     if (req.file().verify().rate()) {
       cmd_in += "&mgm.file.verify.rate=" + std::to_string(
-              req.file().verify().rate());
+                  req.file().verify().rate());
     }
 
     if (req.file().verify().resync()) {
@@ -1343,7 +1300,7 @@ grpc::Status GrpcRestGwInterface::FileCall(VirtualIdentity& vid,
     }
 
     cmd_in += "&mgm.purge.version=" + std::to_string(
-            req.file().version().purge_version());
+                req.file().version().purge_version());
     break;
   }
 
@@ -1389,20 +1346,17 @@ grpc::Status GrpcRestGwInterface::FileCall(VirtualIdentity& vid,
   }
 
   ExecProcCmd(vid, reply, cmd_in, false);
-
   return grpc::Status::OK;
 }
 
 grpc::Status GrpcRestGwInterface::FileinfoCall(VirtualIdentity& vid,
-                      const FileinfoProto* fileinfoRequest, ReplyProto* reply)
+    const FileinfoProto* fileinfoRequest, ReplyProto* reply)
 {
   // wrap the FileinfoProto object into a RequestProto object
   eos::console::RequestProto req;
   req.mutable_fileinfo()->CopyFrom(*fileinfoRequest);
-
   // initialise VirtualIdentity object
   auto rootvid = eos::common::VirtualIdentity::Root();
-
   std::string path = req.fileinfo().md().path();
 
   if (path.empty()) {
@@ -1485,9 +1439,9 @@ grpc::Status GrpcRestGwInterface::FileinfoCall(VirtualIdentity& vid,
     if ((pos = std_out.find("uid=")) != std::string::npos) {
       size_t pos1 = pos + 4;
       size_t pos2 = std_out.find(' ', pos1);
+
       if (pos1 < pos2) {
         uid_t id = std::stoull(std_out.substr(pos1, pos2 - pos1));
-
         std::string name = eos::common::Mapping::UidToUserName(id, errc);
         std_out += "wnc_username=" + name + " ";
       }
@@ -1497,6 +1451,7 @@ grpc::Status GrpcRestGwInterface::FileinfoCall(VirtualIdentity& vid,
     if ((pos = std_out.find("gid=")) != std::string::npos) {
       size_t pos1 = pos + 4;
       size_t pos2 = std_out.find(' ', pos1);
+
       if (pos1 < pos2) {
         uid_t id = std::stoull(std_out.substr(pos1, pos2 - pos1));
         std::string name = eos::common::Mapping::GidToGroupName(id, errc);
@@ -1512,52 +1467,49 @@ grpc::Status GrpcRestGwInterface::FileinfoCall(VirtualIdentity& vid,
     GrpcRestGwInterface exec_acl;
     exec_acl.AclCall(vid, &acl_request, &acl_reply);
 
-    if (!acl_reply.std_out().empty())
+    if (!acl_reply.std_out().empty()) {
       std_out += "wnc_acl_user=" + acl_reply.std_out() + " ";
+    }
 
     // Get sys ACL with usernames/groupnames/egroupnames
     acl_request.set_sys_acl(true);
     exec_acl.AclCall(vid, &acl_request, &acl_reply);
 
-    if (!acl_reply.std_out().empty())
+    if (!acl_reply.std_out().empty()) {
       std_out += "wnc_acl_sys=" + acl_reply.std_out() + " ";
+    }
   }
 
   reply->set_std_out(std_out);
   reply->set_std_err(std_err);
   reply->set_retc(cmd.GetRetc());
-
   return grpc::Status::OK;
 }
 
 grpc::Status GrpcRestGwInterface::FsCall(VirtualIdentity& vid,
-                                  const FsProto* fsRequest, ReplyProto* reply)
+    const FsProto* fsRequest, ReplyProto* reply)
 {
   // wrap the FsProto object into a RequestProto object
   eos::console::RequestProto req;
   req.mutable_fs()->CopyFrom(*fsRequest);
-
   eos::mgm::FsCmd fscmd(std::move(req), vid);
   *reply = fscmd.ProcessRequest();
-
   return grpc::Status::OK;
 }
 
 grpc::Status GrpcRestGwInterface::FsckCall(VirtualIdentity& vid,
-                              const FsckProto* fsckRequest, ReplyProto* reply)
+    const FsckProto* fsckRequest, ReplyProto* reply)
 {
   // wrap the AccessProto object into a RequestProto object
   eos::console::RequestProto req;
   req.mutable_fsck()->CopyFrom(*fsckRequest);
-
   eos::mgm::FsckCmd fsckcmd(std::move(req), vid);
   *reply = fsckcmd.ProcessRequest();
-
   return grpc::Status::OK;
 }
 
 grpc::Status GrpcRestGwInterface::GeoschedCall(VirtualIdentity& vid,
-                      const GeoschedProto* geoschedRequest, ReplyProto* reply)
+    const GeoschedProto* geoschedRequest, ReplyProto* reply)
 {
   // wrap the AccessProto object into a RequestProto object
   eos::console::RequestProto req;
@@ -1579,6 +1531,7 @@ grpc::Status GrpcRestGwInterface::GeoschedCall(VirtualIdentity& vid,
 
       if (!geotag.empty()) {
         std::string tmp_geotag = eos::common::SanitizeGeoTag(geotag);
+
         if (tmp_geotag != geotag) {
           reply->set_std_err(tmp_geotag);
           reply->set_retc(EINVAL);
@@ -1606,6 +1559,7 @@ grpc::Status GrpcRestGwInterface::GeoschedCall(VirtualIdentity& vid,
 
         for (const auto& tag : geotags) {
           std::string tmp_tag = eos::common::SanitizeGeoTag(tag);
+
           if (tmp_tag != tag) {
             reply->set_std_err(tmp_tag);
             reply->set_retc(EINVAL);
@@ -1651,6 +1605,7 @@ grpc::Status GrpcRestGwInterface::GeoschedCall(VirtualIdentity& vid,
 
       if (!(geotag == "*" && subcmd != "add")) {
         std::string tmp_geotag = eos::common::SanitizeGeoTag(geotag);
+
         if (tmp_geotag != geotag) {
           reply->set_std_err(tmp_geotag);
           reply->set_retc(EINVAL);
@@ -1758,33 +1713,32 @@ grpc::Status GrpcRestGwInterface::GeoschedCall(VirtualIdentity& vid,
 }
 
 grpc::Status GrpcRestGwInterface::GroupCall(VirtualIdentity& vid,
-                            const GroupProto* groupRequest, ReplyProto* reply)
+    const GroupProto* groupRequest, ReplyProto* reply)
 {
   // wrap the GroupProto object into a RequestProto object
   eos::console::RequestProto req;
   req.mutable_group()->CopyFrom(*groupRequest);
-
   eos::mgm::GroupCmd groupcmd(std::move(req), vid);
   *reply = groupcmd.ProcessRequest();
-
   return grpc::Status::OK;
 }
 
 grpc::Status GrpcRestGwInterface::HealthCall(VirtualIdentity& vid,
-                          const HealthProto* healthRequest, ReplyProto* reply)
+    const HealthProto* healthRequest, ReplyProto* reply)
 {
   // wrap the HealthProto object into a RequestProto object
   eos::console::RequestProto req;
   req.mutable_health()->CopyFrom(*healthRequest);
-
   std::string output;
   std::string args = req.health().section();
 
-  if (req.health().all_info())
+  if (req.health().all_info()) {
     args += " -a";
+  }
 
-  if (req.health().monitoring())
+  if (req.health().monitoring()) {
     args += " -m";
+  }
 
   HealthCommand health(args.c_str());
 
@@ -1792,8 +1746,7 @@ grpc::Status GrpcRestGwInterface::HealthCall(VirtualIdentity& vid,
     health.Execute(output);
     reply->set_std_out(output.c_str());
     reply->set_retc(0);
-  }
-  catch (std::string& err) {
+  } catch (std::string& err) {
     output = "Error: ";
     output += err;
     reply->set_std_err(output.c_str());
@@ -1804,83 +1757,72 @@ grpc::Status GrpcRestGwInterface::HealthCall(VirtualIdentity& vid,
 }
 
 grpc::Status GrpcRestGwInterface::IoCall(VirtualIdentity& vid,
-                                  const IoProto* ioRequest, ReplyProto* reply)
+    const IoProto* ioRequest, ReplyProto* reply)
 {
   // wrap the IoProto object into a RequestProto object
   eos::console::RequestProto req;
   req.mutable_io()->CopyFrom(*ioRequest);
-
   eos::mgm::IoCmd iocmd(std::move(req), vid);
   *reply = iocmd.ProcessRequest();
-
   return grpc::Status::OK;
 }
 
 grpc::Status GrpcRestGwInterface::MapCall(VirtualIdentity& vid,
-                                const MapProto* mapRequest, ReplyProto* reply)
+    const MapProto* mapRequest, ReplyProto* reply)
 {
   // wrap the MapProto object into a RequestProto object
   eos::console::RequestProto req;
   req.mutable_map()->CopyFrom(*mapRequest);
-
   std::string subcmd = req.map().command();
   std::string cmd_in = "mgm.cmd=map&mgm.subcmd=" + subcmd;
 
   if (subcmd == "link") {
     cmd_in += "&mgm.map.src=" + req.map().src_path();
     cmd_in += "&mgm.map.dest=" + req.map().dst_path();
-  }
-  else if (subcmd == "unlink") {
+  } else if (subcmd == "unlink") {
     cmd_in += "&mgm.map.src=" + req.map().src_path();
   }
 
   ExecProcCmd(vid, reply, cmd_in, false);
-
   return grpc::Status::OK;
 }
 
 grpc::Status GrpcRestGwInterface::MemberCall(VirtualIdentity& vid,
-                          const MemberProto* memberRequest, ReplyProto* reply)
+    const MemberProto* memberRequest, ReplyProto* reply)
 {
   // wrap the MemberProto object into a RequestProto object
   eos::console::RequestProto req;
   req.mutable_member()->CopyFrom(*memberRequest);
-
   std::string egroup = req.member().egroup();
   int errc = 0;
   std::string uid_string = eos::common::Mapping::UidToUserName(vid.uid, errc);
   std::string rs;
 
   if (!egroup.empty()) {
-
     if (req.member().update()) {
       gOFS->EgroupRefresh->refresh(uid_string, egroup);
     }
 
     rs = gOFS->EgroupRefresh->DumpMember(uid_string, egroup);
-  }
-  else if (vid.uid != 0) {
+  } else if (vid.uid != 0) {
     reply->set_std_err("error: you have to take role 'root' to execute this command");
     reply->set_retc(EPERM);
     return grpc::Status::OK;
-  }
-  else {
+  } else {
     rs = gOFS->EgroupRefresh->DumpMembers();
   }
 
   reply->set_std_out(rs);
   reply->set_retc(SFS_OK);
-
   return grpc::Status::OK;
 }
 
 grpc::Status GrpcRestGwInterface::MkdirCall(VirtualIdentity& vid,
-                            const MkdirProto* mkdirRequest, ReplyProto* reply)
+    const MkdirProto* mkdirRequest, ReplyProto* reply)
 {
   // wrap the MkdirProto object into a RequestProto object
   eos::console::RequestProto req;
   req.mutable_mkdir()->CopyFrom(*mkdirRequest);
-
   std::string cmd_in = "mgm.cmd=mkdir";
   std::string path = req.mkdir().md().path();
   cmd_in += "&mgm.path=" + path;
@@ -1909,12 +1851,11 @@ grpc::Status GrpcRestGwInterface::MkdirCall(VirtualIdentity& vid,
 }
 
 grpc::Status GrpcRestGwInterface::MvCall(VirtualIdentity& vid,
-                                const MoveProto* mvRequest, ReplyProto* reply)
+    const MoveProto* mvRequest, ReplyProto* reply)
 {
   // wrap the MoveProto object into a RequestProto object
   eos::console::RequestProto req;
   req.mutable_mv()->CopyFrom(*mvRequest);
-
   std::string path = req.mv().md().path();
   std::string target = req.mv().target();
   errno = 0;
@@ -1929,8 +1870,7 @@ grpc::Status GrpcRestGwInterface::MvCall(VirtualIdentity& vid,
       } catch (eos::MDException& e) {
         errno = e.getErrno();
       }
-    }
-    else {
+    } else {
       try {
         eos::common::RWMutexReadLock vlock(gOFS->eosViewRWMutex);
         path = gOFS->eosView->getUri(gOFS->eosDirectoryService->getContainerMD(
@@ -1948,97 +1888,82 @@ grpc::Status GrpcRestGwInterface::MvCall(VirtualIdentity& vid,
   }
 
   cmd_in += "&mgm.subcmd=rename&mgm.path=" + path + "&mgm.file.target=" + target;
-
   ExecProcCmd(vid, reply, cmd_in, false);
-
   return grpc::Status::OK;
 }
 
 grpc::Status GrpcRestGwInterface::NodeCall(VirtualIdentity& vid,
-                              const NodeProto* nodeRequest, ReplyProto* reply)
+    const NodeProto* nodeRequest, ReplyProto* reply)
 {
   // wrap the NodeProto object into a RequestProto object
   eos::console::RequestProto req;
   req.mutable_node()->CopyFrom(*nodeRequest);
-
   eos::mgm::NodeCmd nodecmd(std::move(req), vid);
   *reply = nodecmd.ProcessRequest();
-
   return grpc::Status::OK;
 }
 
 grpc::Status GrpcRestGwInterface::NsCall(VirtualIdentity& vid,
-                                  const NsProto* nsRequest, ReplyProto* reply)
+    const NsProto* nsRequest, ReplyProto* reply)
 {
   // wrap the NodeProto object into a RequestProto object
   eos::console::RequestProto req;
   req.mutable_ns()->CopyFrom(*nsRequest);
-
   eos::mgm::NsCmd nscmd(std::move(req), vid);
   *reply = nscmd.ProcessRequest();
-
   return grpc::Status::OK;
 }
 
 grpc::Status GrpcRestGwInterface::QoSCall(VirtualIdentity& vid,
-                                const QoSProto* qosRequest, ReplyProto* reply)
+    const QoSProto* qosRequest, ReplyProto* reply)
 {
   // wrap the QoSProto object into a RequestProto object
   eos::console::RequestProto req;
   req.mutable_qos()->CopyFrom(*qosRequest);
-
   eos::mgm::QoSCmd qoscmd(std::move(req), vid);
   *reply = qoscmd.ProcessRequest();
-
   return grpc::Status::OK;
 }
 
 grpc::Status GrpcRestGwInterface::QuotaCall(VirtualIdentity& vid,
-                            const QuotaProto* quotaRequest, ReplyProto* reply)
+    const QuotaProto* quotaRequest, ReplyProto* reply)
 {
   // wrap the QuotaProto object into a RequestProto object
   eos::console::RequestProto req;
   req.mutable_quota()->CopyFrom(*quotaRequest);
-
   eos::mgm::QuotaCmd quotacmd(std::move(req), vid);
   *reply = quotacmd.ProcessRequest();
-
   return grpc::Status::OK;
 }
 
 grpc::Status GrpcRestGwInterface::RecycleCall(VirtualIdentity& vid,
-                        const RecycleProto* recycleRequest, ReplyProto* reply)
+    const RecycleProto* recycleRequest, ReplyProto* reply)
 {
   // wrap the RecycleProto object into a RequestProto object
   eos::console::RequestProto req;
   req.mutable_recycle()->CopyFrom(*recycleRequest);
-
   eos::mgm::RecycleCmd recyclecmd(std::move(req), vid);
   *reply = recyclecmd.ProcessRequest();
-
   return grpc::Status::OK;
 }
 
 grpc::Status GrpcRestGwInterface::RmCall(VirtualIdentity& vid,
-                                  const RmProto* rmRequest, ReplyProto* reply)
+    const RmProto* rmRequest, ReplyProto* reply)
 {
   // wrap the RmProto object into a RequestProto object
   eos::console::RequestProto req;
   req.mutable_rm()->CopyFrom(*rmRequest);
-
   eos::mgm::RmCmd rmcmd(std::move(req), vid);
   *reply = rmcmd.ProcessRequest();
-
   return grpc::Status::OK;
 }
 
 grpc::Status GrpcRestGwInterface::RmdirCall(VirtualIdentity& vid,
-                            const RmdirProto* rmdirRequest, ReplyProto* reply)
+    const RmdirProto* rmdirRequest, ReplyProto* reply)
 {
   // wrap the NodeProto object into a RequestProto object
   eos::console::RequestProto req;
   req.mutable_rmdir()->CopyFrom(*rmdirRequest);
-
   std::string path = req.rmdir().md().path();
   errno = 0;
 
@@ -2059,27 +1984,23 @@ grpc::Status GrpcRestGwInterface::RmdirCall(VirtualIdentity& vid,
   }
 
   std::string cmd_in = "mgm.cmd=rmdir&mgm.path=" + path;
-
   ExecProcCmd(vid, reply, cmd_in, false);
-
   return grpc::Status::OK;
 }
 
 grpc::Status GrpcRestGwInterface::RouteCall(VirtualIdentity& vid,
-                            const RouteProto* routeRequest, ReplyProto* reply)
+    const RouteProto* routeRequest, ReplyProto* reply)
 {
   // wrap the RouteProto object into a RequestProto object
   eos::console::RequestProto req;
   req.mutable_route()->CopyFrom(*routeRequest);
-
   eos::mgm::RouteCmd routecmd(std::move(req), vid);
   *reply = routecmd.ProcessRequest();
-
   return grpc::Status::OK;
 }
 
 grpc::Status GrpcRestGwInterface::SpaceCall(VirtualIdentity& vid,
-                            const SpaceProto* spaceRequest, ReplyProto* reply)
+    const SpaceProto* spaceRequest, ReplyProto* reply)
 {
   // wrap the SpaceProto object into a RequestProto object
   eos::console::RequestProto req;
@@ -2103,17 +2024,15 @@ grpc::Status GrpcRestGwInterface::SpaceCall(VirtualIdentity& vid,
 
   eos::mgm::SpaceCmd spacecmd(std::move(req), vid);
   *reply = spacecmd.ProcessRequest();
-
   return grpc::Status::OK;
 }
 
 grpc::Status GrpcRestGwInterface::StatCall(VirtualIdentity& vid,
-                              const StatProto* statRequest, ReplyProto* reply)
+    const StatProto* statRequest, ReplyProto* reply)
 {
   // wrap the StatProto object into a RequestProto object
   eos::console::RequestProto req;
   req.mutable_stat()->CopyFrom(*statRequest);
-
   struct stat buf;
   std::string path = req.stat().path();
   std::string url = "root://localhost/" + path;
@@ -2125,15 +2044,13 @@ grpc::Status GrpcRestGwInterface::StatCall(VirtualIdentity& vid,
       } else {
         reply->set_retc(1);
       }
-    }
-    else if (req.stat().directory()) {
+    } else if (req.stat().directory()) {
       if (S_ISDIR(buf.st_mode)) {
         reply->set_retc(0);
       } else {
         reply->set_retc(1);
       }
-    }
-    else {
+    } else {
       std::string output = "Path: " + path + "\n";
 
       if (S_ISREG(buf.st_mode)) {
@@ -2143,11 +2060,9 @@ grpc::Status GrpcRestGwInterface::StatCall(VirtualIdentity& vid,
                     sizestring, (unsigned long long)buf.st_size, "B");
         output += ")\n";
         output += "Type: regular file\n";
-      }
-      else if (S_ISDIR(buf.st_mode)) {
+      } else if (S_ISDIR(buf.st_mode)) {
         output += "Type: directory\n";
-      }
-      else {
+      } else {
         output += "Type: symbolic link\n";
       }
 
@@ -2163,12 +2078,11 @@ grpc::Status GrpcRestGwInterface::StatCall(VirtualIdentity& vid,
 }
 
 grpc::Status GrpcRestGwInterface::StatusCall(VirtualIdentity& vid,
-                          const StatusProto* statusRequest, ReplyProto* reply)
+    const StatusProto* statusRequest, ReplyProto* reply)
 {
   // wrap the StatusProto object into a RequestProto object
   eos::console::RequestProto req;
   req.mutable_status()->CopyFrom(*statusRequest);
-
   FILE* pipe = popen("eos-status", "r");
   char line[4096];
   std::string output = "";
@@ -2192,30 +2106,26 @@ grpc::Status GrpcRestGwInterface::StatusCall(VirtualIdentity& vid,
 
   reply->set_std_out(output);
   reply->set_retc(rc);
-
   return grpc::Status::OK;
 }
 
 grpc::Status GrpcRestGwInterface::TokenCall(VirtualIdentity& vid,
-                            const TokenProto* tokenRequest, ReplyProto* reply)
+    const TokenProto* tokenRequest, ReplyProto* reply)
 {
   // wrap the TokenProto object into a RequestProto object
   eos::console::RequestProto req;
   req.mutable_token()->CopyFrom(*tokenRequest);
-
   eos::mgm::TokenCmd tokencmd(std::move(req), vid);
   *reply = tokencmd.ProcessRequest();
-
   return grpc::Status::OK;
 }
 
 grpc::Status GrpcRestGwInterface::TouchCall(VirtualIdentity& vid,
-                            const TouchProto* touchRequest, ReplyProto* reply)
+    const TouchProto* touchRequest, ReplyProto* reply)
 {
   // wrap the TokenProto object into a RequestProto object
   eos::console::RequestProto req;
   req.mutable_touch()->CopyFrom(*touchRequest);
-
   std::string path = req.touch().md().path();
   std::string cmd_in = "mgm.cmd=file&mgm.subcmd=touch&mgm.path=" + path;
 
@@ -2232,9 +2142,9 @@ grpc::Status GrpcRestGwInterface::TouchCall(VirtualIdentity& vid,
   // Create parent directories
   if (req.touch().parents() && reply->retc() == 2) {
     size_t pos = 0;
+
     if (!path.empty() && path[path.size() - 1] != '/' &&
-        (pos = path.rfind('/')) != std::string::npos)
-    {
+        (pos = path.rfind('/')) != std::string::npos) {
       std::string parent_path = path.substr(0, pos);
       eos::console::MkdirProto mkdir_request;
       eos::console::ReplyProto mkdir_reply;
@@ -2244,8 +2154,9 @@ grpc::Status GrpcRestGwInterface::TouchCall(VirtualIdentity& vid,
       exec_mkdir.MkdirCall(vid, &mkdir_request, &mkdir_reply);
 
       // Run touch command again
-      if (mkdir_reply.retc() == 0)
+      if (mkdir_reply.retc() == 0) {
         ExecProcCmd(vid, reply, cmd_in, false);
+      }
     }
   }
 
@@ -2253,12 +2164,11 @@ grpc::Status GrpcRestGwInterface::TouchCall(VirtualIdentity& vid,
 }
 
 grpc::Status GrpcRestGwInterface::VersionCall(VirtualIdentity& vid,
-                        const VersionProto* versionRequest, ReplyProto* reply)
+    const VersionProto* versionRequest, ReplyProto* reply)
 {
   // wrap the VersionProto object into a RequestProto object
   eos::console::RequestProto req;
   req.mutable_version()->CopyFrom(*versionRequest);
-
   std::string cmd_in = "mgm.cmd=version";
 
   if (req.version().monitoring() || req.version().features()) {
@@ -2274,17 +2184,15 @@ grpc::Status GrpcRestGwInterface::VersionCall(VirtualIdentity& vid,
   }
 
   ExecProcCmd(vid, reply, cmd_in, false);
-
   return grpc::Status::OK;
 }
 
 grpc::Status GrpcRestGwInterface::VidCall(VirtualIdentity& vid,
-                                const VidProto* vidRequest, ReplyProto* reply)
+    const VidProto* vidRequest, ReplyProto* reply)
 {
   // wrap the VidProto object into a RequestProto object
   eos::console::RequestProto req;
   req.mutable_vid()->CopyFrom(*vidRequest);
-
   std::string std_out1, std_out2, std_err1, std_err2;
   ProcCommand cmd1, cmd2;
   XrdOucErrInfo error1, error2;
@@ -2294,30 +2202,26 @@ grpc::Status GrpcRestGwInterface::VidCall(VirtualIdentity& vid,
 
   switch (req.vid().subcmd_case()) {
   case eos::console::VidProto::kGateway: {
-    eos::console::VidProto_GatewayProto_Protocol prot = req.vid().gateway().protocol();
+    eos::console::VidProto_GatewayProto_Protocol prot =
+      req.vid().gateway().protocol();
     std::string protocol;
-    eos::console::VidProto_GatewayProto_Option option = req.vid().gateway().option();
+    eos::console::VidProto_GatewayProto_Option option =
+      req.vid().gateway().option();
     std::string host = req.vid().gateway().hostname();
 
     if (prot == eos::console::VidProto_GatewayProto_Protocol_ALL) {
       protocol = "*";
-    }
-    else if (prot == eos::console::VidProto_GatewayProto_Protocol_KRB5) {
+    } else if (prot == eos::console::VidProto_GatewayProto_Protocol_KRB5) {
       protocol = "krb5";
-    }
-    else if (prot == eos::console::VidProto_GatewayProto_Protocol_GSI) {
+    } else if (prot == eos::console::VidProto_GatewayProto_Protocol_GSI) {
       protocol = "gsi";
-    }
-    else if (prot == eos::console::VidProto_GatewayProto_Protocol_SSS) {
+    } else if (prot == eos::console::VidProto_GatewayProto_Protocol_SSS) {
       protocol = "sss";
-    }
-    else if (prot == eos::console::VidProto_GatewayProto_Protocol_UNIX) {
+    } else if (prot == eos::console::VidProto_GatewayProto_Protocol_UNIX) {
       protocol = "unix";
-    }
-    else if (prot == eos::console::VidProto_GatewayProto_Protocol_HTTPS) {
+    } else if (prot == eos::console::VidProto_GatewayProto_Protocol_HTTPS) {
       protocol = "https";
-    }
-    else if (prot == eos::console::VidProto_GatewayProto_Protocol_GRPC) {
+    } else if (prot == eos::console::VidProto_GatewayProto_Protocol_GRPC) {
       protocol = "grpc";
     }
 
@@ -2329,8 +2233,7 @@ grpc::Status GrpcRestGwInterface::VidCall(VirtualIdentity& vid,
       cmd_in1 += "&mgm.vid.key=<key>";
       cmd_in1 += "&mgm.vid.pattern=\"" + protocol + "@" + host + "\"";
       cmd_in1 += "&mgm.vid.uid=0";
-    }
-    else if (option == eos::console::VidProto_GatewayProto_Option_REMOVE) {
+    } else if (option == eos::console::VidProto_GatewayProto_Option_REMOVE) {
       has_cmd2 = true;
       cmd_in1 += "&mgm.subcmd=rm";
       cmd_in1 += "&mgm.vid.cmd=unmap";
@@ -2344,8 +2247,10 @@ grpc::Status GrpcRestGwInterface::VidCall(VirtualIdentity& vid,
   }
 
   case eos::console::VidProto::kDefaultmapping: {
-    eos::console::VidProto_DefaultMappingProto_Option opt = req.vid().defaultmapping().option();
-    eos::console::VidProto_DefaultMappingProto_Type type = req.vid().defaultmapping().type();
+    eos::console::VidProto_DefaultMappingProto_Option opt =
+      req.vid().defaultmapping().option();
+    eos::console::VidProto_DefaultMappingProto_Type type =
+      req.vid().defaultmapping().type();
 
     if (opt == eos::console::VidProto_DefaultMappingProto_Option_ENABLE) {
       cmd_in1 += "&mgm.subcmd=set";
@@ -2357,34 +2262,28 @@ grpc::Status GrpcRestGwInterface::VidCall(VirtualIdentity& vid,
         cmd_in1 += "&mgm.vid.auth=krb5";
         cmd_in1 += "&mgm.vid.uid=0";
         cmd_in1 += "&mgm.vid.gid=0";
-      }
-      else if (type == eos::console::VidProto_DefaultMappingProto_Type_GSI) {
+      } else if (type == eos::console::VidProto_DefaultMappingProto_Type_GSI) {
         cmd_in1 += "&mgm.vid.auth=gsi";
         cmd_in1 += "&mgm.vid.uid=0";
         cmd_in1 += "&mgm.vid.gid=0";
-      }
-      else if (type == eos::console::VidProto_DefaultMappingProto_Type_SSS) {
+      } else if (type == eos::console::VidProto_DefaultMappingProto_Type_SSS) {
         cmd_in1 += "&mgm.vid.auth=sss";
         cmd_in1 += "&mgm.vid.uid=0";
         cmd_in1 += "&mgm.vid.gid=0";
-      }
-      else if (type == eos::console::VidProto_DefaultMappingProto_Type_UNIX) {
+      } else if (type == eos::console::VidProto_DefaultMappingProto_Type_UNIX) {
         cmd_in1 += "&mgm.vid.auth=unix";
         cmd_in1 += "&mgm.vid.uid=99";
         cmd_in1 += "&mgm.vid.gid=99";
-      }
-      else if (type == eos::console::VidProto_DefaultMappingProto_Type_HTTPS) {
+      } else if (type == eos::console::VidProto_DefaultMappingProto_Type_HTTPS) {
         cmd_in1 += "&mgm.vid.auth=https";
         cmd_in1 += "&mgm.vid.uid=0";
         cmd_in1 += "&mgm.vid.gid=0";
-      }
-      else if (type == eos::console::VidProto_DefaultMappingProto_Type_TIDENT) {
+      } else if (type == eos::console::VidProto_DefaultMappingProto_Type_TIDENT) {
         cmd_in1 += "&mgm.vid.auth=tident";
         cmd_in1 += "&mgm.vid.uid=0";
         cmd_in1 += "&mgm.vid.gid=0";
       }
-    }
-    else if (opt == eos::console::VidProto_DefaultMappingProto_Option_DISABLE) {
+    } else if (opt == eos::console::VidProto_DefaultMappingProto_Option_DISABLE) {
       has_cmd2 = true;
       cmd_in1 += "&mgm.subcmd=rm";
       cmd_in1 += "&mgm.vid.cmd=unmap";
@@ -2394,24 +2293,19 @@ grpc::Status GrpcRestGwInterface::VidCall(VirtualIdentity& vid,
       if (type == eos::console::VidProto_DefaultMappingProto_Type_KRB5) {
         cmd_in1 += "&mgm.vid.key=krb5:\"<pwd>\":uid";
         cmd_in2 += "&mgm.vid.key=krb5:\"<pwd>\":gid";
-      }
-      else if (type == eos::console::VidProto_DefaultMappingProto_Type_GSI) {
+      } else if (type == eos::console::VidProto_DefaultMappingProto_Type_GSI) {
         cmd_in1 += "&mgm.vid.key=gsi:\"<pwd>\":uid";
         cmd_in2 += "&mgm.vid.key=gsi:\"<pwd>\":gid";
-      }
-      else if (type == eos::console::VidProto_DefaultMappingProto_Type_SSS) {
+      } else if (type == eos::console::VidProto_DefaultMappingProto_Type_SSS) {
         cmd_in1 += "&mgm.vid.key=sss:\"<pwd>\":uid";
         cmd_in2 += "&mgm.vid.key=sss:\"<pwd>\":gid";
-      }
-      else if (type == eos::console::VidProto_DefaultMappingProto_Type_UNIX) {
+      } else if (type == eos::console::VidProto_DefaultMappingProto_Type_UNIX) {
         cmd_in1 += "&mgm.vid.key=unix:\"<pwd>\":uid";
         cmd_in2 += "&mgm.vid.key=unix:\"<pwd>\":gid";
-      }
-      else if (type == eos::console::VidProto_DefaultMappingProto_Type_HTTPS) {
+      } else if (type == eos::console::VidProto_DefaultMappingProto_Type_HTTPS) {
         cmd_in1 += "&mgm.vid.key=https:\"<pwd>\":uid";
         cmd_in2 += "&mgm.vid.key=https:\"<pwd>\":gid";
-      }
-      else if (type == eos::console::VidProto_DefaultMappingProto_Type_TIDENT) {
+      } else if (type == eos::console::VidProto_DefaultMappingProto_Type_TIDENT) {
         cmd_in1 += "&mgm.vid.key=tident:\"<pwd>\":uid";
         cmd_in2 += "&mgm.vid.key=tident:\"<pwd>\":gid";
       }
@@ -2427,8 +2321,7 @@ grpc::Status GrpcRestGwInterface::VidCall(VirtualIdentity& vid,
         req.vid().ls().sudoers() || req.vid().ls().user_alias() ||
         req.vid().ls().group_alias() || req.vid().ls().gateway() ||
         req.vid().ls().auth() || req.vid().ls().deepness() ||
-        req.vid().ls().geo_location() || req.vid().ls().num_ids())
-    {
+        req.vid().ls().geo_location() || req.vid().ls().num_ids()) {
       cmd_in1 += "&mgm.vid.option=";
     }
 
@@ -2491,8 +2384,7 @@ grpc::Status GrpcRestGwInterface::VidCall(VirtualIdentity& vid,
       cmd_in1 += "&mgm.vid.key=vid:" + req.vid().rm().key() + ":uids";
       cmd_in2 += "&mgm.subcmd=rm";
       cmd_in2 += "&mgm.vid.key=vid:" + req.vid().rm().key() + ":gids";
-    }
-    else {
+    } else {
       cmd_in1 += "&mgm.subcmd=rm";
       cmd_in1 += "&mgm.vid.key=" + req.vid().rm().key();
     }
@@ -2504,6 +2396,7 @@ grpc::Status GrpcRestGwInterface::VidCall(VirtualIdentity& vid,
     // Check if geotag is valid
     std::string targetgeotag = req.vid().setgeotag().geotag();
     std::string geotag = eos::common::SanitizeGeoTag(targetgeotag);
+
     if (geotag != targetgeotag) {
       reply->set_std_err(geotag);
       reply->set_retc(EINVAL);
@@ -2518,7 +2411,8 @@ grpc::Status GrpcRestGwInterface::VidCall(VirtualIdentity& vid,
   }
 
   case eos::console::VidProto::kSetmembership: {
-    eos::console::VidProto_SetMembershipProto_Option opt = req.vid().setmembership().option();
+    eos::console::VidProto_SetMembershipProto_Option opt =
+      req.vid().setmembership().option();
     std::string user = req.vid().setmembership().user();
     std::string members = req.vid().setmembership().members();
     cmd_in1 += "&mgm.subcmd=set";
@@ -2528,16 +2422,14 @@ grpc::Status GrpcRestGwInterface::VidCall(VirtualIdentity& vid,
     if (opt == eos::console::VidProto_SetMembershipProto_Option_USER) {
       cmd_in1 += "&mgm.vid.key=" + user + ":uids";
       cmd_in1 += "&mgm.vid.target.uid=" + members;
-    }
-    else if (opt == eos::console::VidProto_SetMembershipProto_Option_GROUP) {
+    } else if (opt == eos::console::VidProto_SetMembershipProto_Option_GROUP) {
       cmd_in1 += "&mgm.vid.key=" + user + ":gids";
       cmd_in1 += "&mgm.vid.target.gid=" + members;
-    }
-    else if (opt == eos::console::VidProto_SetMembershipProto_Option_ADD_SUDO) {
+    } else if (opt == eos::console::VidProto_SetMembershipProto_Option_ADD_SUDO) {
       cmd_in1 += "&mgm.vid.key=" + user + ":root";
       cmd_in1 += "&mgm.vid.target.sudo=true";
-    }
-    else if (opt == eos::console::VidProto_SetMembershipProto_Option_REMOVE_SUDO) {
+    } else if (opt ==
+               eos::console::VidProto_SetMembershipProto_Option_REMOVE_SUDO) {
       cmd_in1 += "&mgm.vid.key=" + user + ":root";
       cmd_in1 += "&mgm.vid.target.sudo=false";
     }
@@ -2552,26 +2444,19 @@ grpc::Status GrpcRestGwInterface::VidCall(VirtualIdentity& vid,
 
     if (type == eos::console::VidProto_SetMapProto_Type_KRB5) {
       cmd_in1 += "&mgm.vid.auth=krb5";
-    }
-    else if (type == eos::console::VidProto_SetMapProto_Type_GSI) {
+    } else if (type == eos::console::VidProto_SetMapProto_Type_GSI) {
       cmd_in1 += "&mgm.vid.auth=gsi";
-    }
-    else if (type == eos::console::VidProto_SetMapProto_Type_HTTPS) {
+    } else if (type == eos::console::VidProto_SetMapProto_Type_HTTPS) {
       cmd_in1 += "&mgm.vid.auth=https";
-    }
-    else if (type == eos::console::VidProto_SetMapProto_Type_SSS) {
+    } else if (type == eos::console::VidProto_SetMapProto_Type_SSS) {
       cmd_in1 += "&mgm.vid.auth=sss";
-    }
-    else if (type == eos::console::VidProto_SetMapProto_Type_UNIX) {
+    } else if (type == eos::console::VidProto_SetMapProto_Type_UNIX) {
       cmd_in1 += "&mgm.vid.auth=unix";
-    }
-    else if (type == eos::console::VidProto_SetMapProto_Type_TIDENT) {
+    } else if (type == eos::console::VidProto_SetMapProto_Type_TIDENT) {
       cmd_in1 += "&mgm.vid.auth=tident";
-    }
-    else if (type == eos::console::VidProto_SetMapProto_Type_VOMS) {
+    } else if (type == eos::console::VidProto_SetMapProto_Type_VOMS) {
       cmd_in1 += "&mgm.vid.auth=voms";
-    }
-    else if (type == eos::console::VidProto_SetMapProto_Type_GRPC) {
+    } else if (type == eos::console::VidProto_SetMapProto_Type_GRPC) {
       cmd_in1 += "&mgm.vid.auth=grpc";
     }
 
@@ -2625,26 +2510,24 @@ grpc::Status GrpcRestGwInterface::VidCall(VirtualIdentity& vid,
 
   reply->set_std_out(std_out1 + std_out2);
   reply->set_std_err(std_err1 + std_err2);
-  reply->set_retc((cmd1.GetRetc() > cmd2.GetRetc()) ? cmd1.GetRetc() : cmd2.GetRetc());
+  reply->set_retc((cmd1.GetRetc() > cmd2.GetRetc()) ? cmd1.GetRetc() :
+                  cmd2.GetRetc());
   return grpc::Status::OK;
 }
 
 grpc::Status GrpcRestGwInterface::WhoCall(VirtualIdentity& vid,
-                                const WhoProto* whoRequest, ReplyProto* reply)
+    const WhoProto* whoRequest, ReplyProto* reply)
 {
   // wrap the WhoProto object into a RequestProto object
   eos::console::RequestProto req;
   req.mutable_who()->CopyFrom(*whoRequest);
-
   // initialise VirtualIdentity object
   auto rootvid = eos::common::VirtualIdentity::Root();
-
   std::string cmd_in = "mgm.cmd=who";
 
   if (req.who().showclients() || req.who().showauth() ||
       req.who().showall() || req.who().showsummary() ||
-      req.who().monitoring())
-  {
+      req.who().monitoring()) {
     cmd_in += "&mgm.option=";
   }
 
@@ -2669,29 +2552,24 @@ grpc::Status GrpcRestGwInterface::WhoCall(VirtualIdentity& vid,
   }
 
   ExecProcCmd(rootvid, reply, cmd_in, false);
-
   return grpc::Status::OK;
 }
 
 grpc::Status GrpcRestGwInterface::WhoamiCall(VirtualIdentity& vid,
-                          const WhoamiProto* whoamiRequest, ReplyProto* reply)
+    const WhoamiProto* whoamiRequest, ReplyProto* reply)
 {
   // wrap the WhoamiProto object into a RequestProto object
   eos::console::RequestProto req;
   req.mutable_whoami()->CopyFrom(*whoamiRequest);
-
   // initialise VirtualIdentity object
   auto rootvid = eos::common::VirtualIdentity::Root();
-
   std::string cmd_in = "mgm.cmd=whoami";
-
   ExecProcCmd(rootvid, reply, cmd_in, false);
-
   return grpc::Status::OK;
 }
 
-void GrpcRestGwInterface::ExecProcCmd(eos::common::VirtualIdentity &vid,
-                              ReplyProto* reply, std::string input, bool admin)
+void GrpcRestGwInterface::ExecProcCmd(eos::common::VirtualIdentity& vid,
+                                      ReplyProto* reply, std::string input, bool admin)
 {
   ProcCommand cmd;
   XrdOucErrInfo error;
@@ -2699,14 +2577,12 @@ void GrpcRestGwInterface::ExecProcCmd(eos::common::VirtualIdentity &vid,
 
   if (admin) {
     cmd.open("/proc/admin", input.c_str(), vid, &error);
-  }
-  else {
+  } else {
     cmd.open("/proc/user", input.c_str(), vid, &error);
   }
 
   cmd.close();
   cmd.AddOutput(std_out, std_err);
-
   reply->set_std_out(std_out);
   reply->set_std_err(std_err);
   reply->set_retc(cmd.GetRetc());
@@ -2789,7 +2665,7 @@ FileHelper_EnvFstToFmd(XrdOucEnv& env, eos::common::FmdHelper& fmd)
 //-----------------------------------------------------------------------------
 int
 FileHelper_GetRemoteAttribute(const char* manager, const char* key,
-                        const char* path, XrdOucString& attribute)
+                              const char* path, XrdOucString& attribute)
 {
   if ((!key) || (!path)) {
     return EINVAL;
@@ -2862,7 +2738,7 @@ FileHelper_GetRemoteAttribute(const char* manager, const char* key,
 //-----------------------------------------------------------------------------
 int
 FileHelper_GetRemoteFmdFromLocalDb(const char* manager, const char* shexfid,
-                             const char* sfsid, eos::common::FmdHelper& fmd)
+                                   const char* sfsid, eos::common::FmdHelper& fmd)
 {
   if ((!manager) || (!shexfid) || (!sfsid)) {
     return EINVAL;
