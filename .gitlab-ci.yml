@@ -1248,46 +1248,56 @@ eos_nginx_al9:
   variables:
     BUILD_NAME: al-9
 
-eos_apmon_cc7:
+
+#-------------------------------------------------------------------------------
+# ALICE ApMon builds
+#-------------------------------------------------------------------------------
+
+.build-apmon-template: &build-apmon-template-definition
   stage: build:manual
+  variables:
+    PKG_MGR: dnf
+  script:
+    - ${PKG_MGR} install --nogpg -y gcc-c++ make rpm-build which git sssd-client sudo createrepo
+    - cd ApMon; ./maketar.sh
+    - rpmbuild --define "_source_filedigest_algorithm md5" --define "_binary_filedigest_algorithm md5" --define "_topdir ./rpmbuild" -ts eos-apmon-*.tar.gz
+    - |
+      if [[ ${PKG_MGR} == "yum" ]]; then
+        ${PKG_MGR}-builddep -y --nogpgcheck rpmbuild/SRPMS/eos-apmon-*.src.rpm
+      else
+        ${PKG_MGR} install -y dnf-plugins-core
+        ${PKG_MGR} builddep -y --nogpgcheck rpmbuild/SRPMS/eos-apmon-*.src.rpm
+      fi
+    - rpmbuild --rebuild --define "_rpmdir rpmbuild/RPMS/" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" rpmbuild/SRPMS/eos-apmon-*.src.rpm
+    - sudo -u stci -H mkdir -p ${STORAGE_PATH}
+    - sudo -u stci -H cp -f rpmbuild/RPMS/*.rpm ${STORAGE_PATH}
+    - sudo -u stci -H createrepo --update -q ${STORAGE_PATH}
+  tags:
+    - docker_node
+  when: manual
+
+
+eos_apmon_el-7:
   image: gitlab-registry.cern.ch/linuxsupport/cc7-base
-  script:
-    - yum install --nogpg -y gcc-c++ cmake3 make rpm-build which git sssd-client sudo createrepo
-    - cd ApMon
-    - ./maketar.sh
-    - rpmbuild --define "_source_filedigest_algorithm md5" --define "_binary_filedigest_algorithm md5" --define "_topdir ./rpmbuild" -ts eos-apmon-*.tar.gz
-    - yum-builddep --nogpgcheck -y rpmbuild/SRPMS/eos-apmon-*.src.rpm
-    - rpmbuild --rebuild --define "_rpmdir rpmbuild/RPMS/" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" rpmbuild/SRPMS/eos-apmon-*.src.rpm
-    - STORAGE_PATH=/eos/project/s/storage-ci/www/eos/${CODENAME}-depend/el-7/x86_64
-    - sudo -u stci -H mkdir -p $STORAGE_PATH
-    - sudo -u stci -H cp -f rpmbuild/RPMS/*.rpm $STORAGE_PATH
-    - sudo -u stci -H createrepo --update -q $STORAGE_PATH
-  tags:
-    - docker_node
-  when: manual
-  environment:
-    name: apmon-cc7-prod
+  variables:
+    PKG_MGR: yum
+    STORAGE_PATH: /eos/project/s/storage-ci/www/eos/${CODENAME}-depend/el-7/x86_64
+  extends: .build-apmon-template
 
 
-eos_apmon_al8:
-  stage: build:manual
-  image: almalinux:8
-  script:
-    - dnf install --nogpg -y gcc-c++ cmake make rpm-build which git sssd-client sudo createrepo rsync yum-utils
-    - cd ApMon
-    - ./maketar.sh
-    - rpmbuild --define "_source_filedigest_algorithm md5" --define "_binary_filedigest_algorithm md5" --define "_topdir ./rpmbuild" -ts eos-apmon-*.tar.gz
-    - dnf builddep --nogpgcheck -y rpmbuild/SRPMS/eos-apmon-*.src.rpm
-    - rpmbuild --rebuild --define "_rpmdir rpmbuild/RPMS/" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" rpmbuild/SRPMS/eos-apmon-*.src.rpm
-    - STORAGE_PATH=/eos/project/s/storage-ci/www/eos/${CODENAME}-depend/al-8/x86_64
-    - sudo -u stci -H mkdir -p $STORAGE_PATH
-    - sudo -u stci -H cp -f rpmbuild/RPMS/*.rpm $STORAGE_PATH
-    - sudo -u stci -H createrepo --update -q $STORAGE_PATH
-  tags:
-    - docker_node
-  when: manual
-  environment:
-    name: apmon-al8-prod
+eos_apmon_el-8:
+  image: gitlab-registry.cern.ch/linuxsupport/alma8-base
+  variables:
+    STORAGE_PATH: /eos/project/s/storage-ci/www/eos/${CODENAME}-depend/el-8/x86_64
+  extends: .build-apmon-template
+
+
+eos_apmon_el-9:
+  image: gitlab-registry.cern.ch/linuxsupport/alma9-base
+  variables:
+    STORAGE_PATH: /eos/project/s/storage-ci/www/eos/${CODENAME}-depend/el-9/x86_64
+  extends: .build-apmon-template
+
 
 
 eos_microhttpd_cc7:
