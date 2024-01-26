@@ -134,7 +134,7 @@ static std::string GetXrootdVersion()
 {
   static std::string s_xrootd_version = "";
 
-  if (s_xrootd_version.empty()) {
+  if (!s_xrootd_version.empty()) {
     return s_xrootd_version;
   }
 
