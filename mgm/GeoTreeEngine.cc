@@ -409,12 +409,12 @@ bool GeoTreeEngine::insertFsIntoGroup(FileSystem* fs,
 
   // ==== update the entry in the map
   {
+    mapEntry->slowTreeMutex.UnLockWrite();
     pTreeMapMutex.LockWrite();
     pGroup2SchedTME[group] = mapEntry;
     pFs2SchedTME[fsid] = mapEntry;
     pFsId2FsPtr[fsid] = fs;
     pTreeMapMutex.UnLockWrite();
-    mapEntry->slowTreeMutex.UnLockWrite();
   }
   eos::common::Logging& g_logging = eos::common::Logging::GetInstance();
 
@@ -448,8 +448,6 @@ bool GeoTreeEngine::removeFsFromGroup(FileSystem* fs, FsGroup* group,
       return false;
     }
 
-    mapEntry = pFs2SchedTME[fsid];
-
     // ==== get the entry
     if (!pGroup2SchedTME.count(group)) {
       eos_err("error removing fs %lu from group %s : fs is not registered ",
@@ -458,9 +456,9 @@ bool GeoTreeEngine::removeFsFromGroup(FileSystem* fs, FsGroup* group,
       return false;
     }
 
-    pTreeMapMutex.UnLockWrite();
     mapEntry = pGroup2SchedTME[group];
     mapEntry->slowTreeMutex.LockWrite();
+    pTreeMapMutex.UnLockWrite();
   }
   // ==== update the shared object notifications
   {
@@ -509,8 +507,9 @@ bool GeoTreeEngine::removeFsFromGroup(FileSystem* fs, FsGroup* group,
     mapEntry->fs2SlowTreeNode.erase(fsid);
   }
 
+  const bool treeEmpty = mapEntry->fs2SlowTreeNode.empty();
   // if the tree is empty, remove the entry from the map
-  if (!mapEntry->fs2SlowTreeNode.empty()) { // if the tree is getting empty, no need to update it
+  if (!treeEmpty) { // if the tree is getting empty, no need to update it
     mapEntry->slowTreeModified = true;
   }
 
@@ -526,16 +525,16 @@ bool GeoTreeEngine::removeFsFromGroup(FileSystem* fs, FsGroup* group,
 
   // ==== update the entry in the map if needed
   {
+    mapEntry->slowTreeMutex.UnLockWrite();
     pTreeMapMutex.LockWrite();
     pFs2SchedTME.erase(fsid);
     pFsId2FsPtr.erase(fsid);
 
-    if (mapEntry->fs2SlowTreeNode.empty()) {
+    if (treeEmpty) {
       pGroup2SchedTME.erase(group); // prevent from access by other threads
       pPendingDeletionsFs.push_back(mapEntry);
     }
 
-    mapEntry->slowTreeMutex.UnLockWrite();
     pTreeMapMutex.UnLockWrite();
   }
   return true;
@@ -2334,11 +2333,8 @@ bool GeoTreeEngine::updateTreeInfo(SchedTME* entry,
       return false;
     }
 
-    entry->slowTreeMutex.LockWrite();
-
     if (!entry->fs2SlowTreeNode.count(fsid)) {
       eos_err("msg=\"no such slowtree node fsid=%lu\"", fsid);
-      entry->slowTreeMutex.UnLockWrite();
       return false;
     }
 
@@ -2360,7 +2356,6 @@ bool GeoTreeEngine::updateTreeInfo(SchedTME* entry,
         eos_err("error changing geotag in slowtree : move is \"%s\" => \"%s\" "
                 "and slowtree is \n%s\n", oldGeoTag.c_str(), newGeoTag.c_str(),
                 ss.str().c_str());
-        entry->slowTreeMutex.UnLockWrite();
         return false;
       }
 
@@ -2372,7 +2367,6 @@ bool GeoTreeEngine::updateTreeInfo(SchedTME* entry,
       stn = newNode;
     }
 
-    entry->slowTreeMutex.UnLockWrite();
   }
 
   if (keys & sfgId) {
@@ -2810,6 +2804,7 @@ bool GeoTreeEngine::updateTreeInfo(const map<string, int>& updatesFs,
     // Update only the fast structures because even if a fast structure rebuild
     // is needed from the slow tree. Its information and state is updated from
     // the fast structures.
+    entry->slowTreeMutex.LockWrite();
     entry->doubleBufferMutex.LockRead();
     const SchedTreeBase::tFastTreeIdx* idx = NULL;
     SlowTreeNode* node = NULL;
@@ -2821,6 +2816,7 @@ bool GeoTreeEngine::updateTreeInfo(const map<string, int>& updatesFs,
         eos_crit("Inconsistency : cannot locate an fs %lu supposed to be in "
                  "the fast structures", (unsigned long)fsid);
         entry->doubleBufferMutex.UnLockRead();
+        entry->slowTreeMutex.UnLockWrite();
         AtomicDec(entry->fastStructLockWaitersCount);
         return false;
       }
@@ -2844,6 +2840,7 @@ bool GeoTreeEngine::updateTreeInfo(const map<string, int>& updatesFs,
 
     // if we update the slowtree, then a fast tree generation is already pending
     entry->doubleBufferMutex.UnLockRead();
+    entry->slowTreeMutex.UnLockWrite();
     AtomicDec(entry->fastStructLockWaitersCount);
   }
 
