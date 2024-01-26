@@ -28,16 +28,18 @@ EXTRA_DIST =	etc/init.d/eosapmond \
 
 install-exec-local :
 		mkdir -p $(DESTDIR)/$(prefix)/perl/ApMon/ApMon/
-		mkdir -p $(DESTDIR)/etc/logrotate.d/ $(DESTDIR)/etc/init.d $(DESTDIR)/etc/sysconfig/ $(DESTDIR)/var/log/eos  $(DESTDIR)/`perl -V:installsitearch | cut -d "'" -f 2`/ApMon/ApMon;
+		mkdir -p $(DESTDIR)/etc/logrotate.d/ $(DESTDIR)/etc/init.d $(DESTDIR)/etc/rc.d/init.d $(DESTDIR)/etc/sysconfig/ $(DESTDIR)/var/log/eos  $(DESTDIR)/`perl -V:installsitearch | cut -d "'" -f 2`/ApMon/ApMon;
 	        mkdir -p $(DESTDIR)/usr/sbin/
 		for name in ` find etc -type f | grep -v svn`; do $(INSTALL) -m 755 $(srcdir)/$$name $(DESTDIR)/$$name; done
 		cd perl ; for name in ` find . -type f | grep -v svn`; do $(INSTALL) -m 755 $(srcdir)/$$name $(DESTDIR)/`perl -V:installsitearch | cut -d "'" -f 2`/$$name; done
 		$(INSTALL) -m 755 $(srcdir)/eos_apmonpl $(DESTDIR)/usr/sbin/
+		$(INSTALL) -m 755 $(srcdir)/etc/init.d/eosapmond $(DESTDIR)/etc/rc.d/init.d/
 
 uninstall-local :
 		for name in ` find etc -type f | grep -v svn`; do rm $(DESTDIR)/$$name; done
 		cd perl ; for name in ` find . -type f | grep -v svn`; do rm $(DESTDIR)/`perl -V:installsitearch | cut -d "'" -f 2`/$$name; done
 		rm $(DESTDIR)/eos_apmonpl
+		rm $(DESTDIR)/etc/rc.d/init.d/eosapmond
 
 rpm:	dist
 	cp $(DIST_ARCHIVES) /usr/src/redhat/SOURCES/
