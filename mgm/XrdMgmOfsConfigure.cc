@@ -59,6 +59,7 @@
 #include "mgm/qos/QoSClass.hh"
 #include "mgm/qos/QoSConfig.hh"
 #include "common/RWMutex.hh"
+#include "common/Utils.hh"
 #include "common/StacktraceHere.hh"
 #include "common/plugin_manager/PluginManager.hh"
 #include "common/CommentLog.hh"
@@ -1388,35 +1389,29 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   }
 
   // Build the adler & sha1 checksum of the default keytab file
-  std::string keytabcks = "unaccessible";
-  int fd = ::open("/etc/eos.keytab", O_RDONLY);
-  XrdOucString symkey = "";
+  const std::string keytab_fn = "/etc/eos.keytab";
+  std::string keytab_xs = "unaccessible";
 
-  if (fd >= 0) {
-    char buffer[65535];
-    char keydigest[SHA_DIGEST_LENGTH + 1];
-    SHA_CTX sha1;
-    SHA1_Init(&sha1);
-    size_t nread = ::read(fd, buffer, sizeof(buffer));
-
-    if (nread > 0) {
-      unsigned int adler;
-      SHA1_Update(&sha1, (const char*) buffer, nread);
-      adler = adler32(0L, Z_NULL, 0);
-      adler = adler32(adler, (const Bytef*) buffer, nread);
-      char sadler[1024];
-      snprintf(sadler, sizeof(sadler) - 1, "%08x", adler);
-      keytabcks = sadler;
-    }
-
-    SHA1_Final((unsigned char*) keydigest, &sha1);
-    eos::common::SymKey::Base64Encode(keydigest, SHA_DIGEST_LENGTH, symkey);
-    close(fd);
+  if (!eos::common::GetFileAdlerXs(keytab_xs, keytab_fn)) {
+    eos_static_crit("msg=\"failed keytab checksum computation\" fn=\"%s\"",
+                    keytab_fn.c_str());
+    return 1;
   }
 
+  std::string binary_sha1 = "";
+
+  if (!eos::common::GetFileBinarySha1(binary_sha1, keytab_fn)) {
+    eos_static_crit("msg=\"failed keytab sha1 computation\" fn=\"%s\"",
+                    keytab_fn.c_str());
+    return 1;
+  }
+
+  std::string symkey = "";
+  eos::common::SymKey::Base64Encode(binary_sha1.data(), binary_sha1.size(),
+                                    symkey);
   eos_static_notice("MGM_HOST=%s MGM_PORT=%ld VERSION=%s RELEASE=%s "
                     "KEYTABADLER=%s", HostName, myPort, VERSION, RELEASE,
-                    keytabcks.c_str());
+                    keytab_xs.c_str());
 
   if (!eos::common::gSymKeyStore.SetKey64(symkey.c_str(), 0)) {
     eos_static_crit("msg=\"unable to store the created symmetric key\" "

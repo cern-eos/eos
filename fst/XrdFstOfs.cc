@@ -763,8 +763,16 @@ XrdFstOfs::Configure(XrdSysError& Eroute, XrdOucEnv* envP)
 
   Eroute.Say("=====> eoscp-log : ", eoscpTransferLog.c_str());
   // Compute checksum of the keytab file
-  std::string kt_cks = GetKeytabChecksum("/etc/eos.keytab");
-  gConfig.KeyTabAdler = kt_cks.c_str();
+  const std::string keytab_fn = "/etc/eos.keytab";
+  std::string keytab_xs = "unaccessible";
+
+  if (!eos::common::GetFileAdlerXs(keytab_xs, keytab_fn)) {
+    eos_static_crit("msg=\"failed keytab checksum computation\" fn=\"%s\"",
+                    keytab_fn.c_str());
+    return 1;
+  }
+
+  gConfig.KeyTabAdler = keytab_xs.c_str();
   // Create the messaging object(recv thread)
   gConfig.FstDefaultReceiverQueue += "*/mgm";
   int pos1 = gConfig.FstDefaultReceiverQueue.find("//");
@@ -903,7 +911,7 @@ XrdFstOfs::Configure(XrdSysError& Eroute, XrdOucEnv* envP)
 
   eos_notice("FST_HOST=%s FST_PORT=%ld FST_HTTP_PORT=%d VERSION=%s RELEASE=%s "
              "KEYTABADLER=%s", mHostName, myPort, mHttpdPort, VERSION, RELEASE,
-             kt_cks.c_str());
+             keytab_xs.c_str());
   return NoGo;
 }
 
@@ -1807,35 +1815,6 @@ XrdFstOfs::MakeDeletionReport(eos::common::FileSystem::fsid_t fsid,
   }
 
   return report;
-}
-
-//------------------------------------------------------------------------------
-// Compute adler checksum of given keytab file
-//------------------------------------------------------------------------------
-std::string
-XrdFstOfs::GetKeytabChecksum(const std::string& kt_path) const
-{
-  std::string kt_cks = "unaccessible";
-  int fd = ::open(kt_path.c_str(), O_RDONLY);
-
-  if (fd >= 0) {
-    char buffer[65535];
-    size_t nread = ::read(fd, buffer, sizeof(buffer));
-
-    if (nread > 0) {
-      std::unique_ptr<CheckSum> KeyCKS =
-        ChecksumPlugins::GetChecksumObject(eos::common::LayoutId::kAdler);
-
-      if (KeyCKS) {
-        KeyCKS->Add(buffer, nread, 0);
-        kt_cks = KeyCKS->GetHexChecksum();
-      }
-    }
-
-    close(fd);
-  }
-
-  return kt_cks;
 }
 
 //------------------------------------------------------------------------------
