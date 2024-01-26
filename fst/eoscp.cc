@@ -272,9 +272,10 @@ void
 usage()
 {
   fprintf(stderr,
-          "Usage: %s [-5] [-0] [-X <type>] [-t <mb/s>] [-h] [-x] [-v] [-V] [-d] [-l] [-j] [-b <size>] [-T <size>] [-Y] [-n] [-s] [-u <id>] [-g <id>] [-S <#>] [-D <#>] [-O <filename>] [-N <name>]<src1> [src2...] <dst1> [dst2...]\n",
+          "Usage: %s [-5] [-0] [-X <type>] [-t <mb/s>] [-h] [-I] [-x] [-v] [-V] [-d] [-l] [-j] [-b <size>] [-T <size>] [-Y] [-n] [-s] [-u <id>] [-g <id>] [-S <#>] [-D <#>] [-O <filename>] [-N <name>]<src1> [src2...] <dst1> [dst2...]\n",
           PROGRAM);
   fprintf(stderr, "       -h           : help\n");
+  fprintf(stderr, "       -I           : eoscp software information\n");
   fprintf(stderr, "       -d           : debug mode\n");
   fprintf(stderr, "       -v           : verbose mode\n");
   fprintf(stderr, "       -V           : write summary as key value pairs\n");
@@ -336,6 +337,19 @@ usage()
   fprintf(stderr,
           "       -E           : automatically delete the destination file if checksum comparison between source and destination fails (XRootD destination only) \n");
   exit(-1);
+}
+
+/**
+ * Display the eoscp software information.
+ * For now, only displays the EOS_CLIENT_VERSION and the EOS_CLIENT_RELEASE the same
+ * way it is done by eos -v
+ */
+void displayInformation() {
+  std::stringstream infos;
+  infos << "EOS " << VERSION << endl << endl;
+  infos << "Developed by the CERN IT storage group" <<endl;
+  fprintf(stdout,infos.str().c_str());
+  exit(0);
 }
 
 extern "C"
@@ -834,7 +848,7 @@ main(int argc, char* argv[])
                                       8);  // needed for high performance on 100GE
 
   while ((c = getopt(argc, argv,
-                     "CEnshxdvlipfcje:P:X:b:m:u:g:t:S:D:5aA:r:N:L:RT:O:V0q:")) != -1) {
+                     "CEnshIxdvlipfcje:P:X:b:m:u:g:t:S:D:5aA:r:N:L:RT:O:V0q:")) != -1) {
     switch (c) {
     case 'v':
       verbose = 1;
@@ -1101,6 +1115,9 @@ main(int argc, char* argv[])
 
     case 'E':
       cksummismatchdelete = 1;
+      break;
+    case 'I':
+      displayInformation();
       break;
 
     case 'h':
