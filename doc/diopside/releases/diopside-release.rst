@@ -16,6 +16,53 @@ Introduction
 
 This release is based on XRootD V5.
 
+``v5.2.7 Diopside``
+=========================
+
+2024-01-26
+
+Note
+----
+
+* Update eos-xrootd/xrootd dependency to 5.6.6
+
+Bug
+---
+
+* [EOS-5770] - "eos node ls --sys" - messed-up formatting (newline after "sockets"?)
+* [EOS-5877] - MGM crash while registering new FST
+* [EOS-5934] - FST "failed to parse metadata info" for existing filenames prevents EA conversion
+* [EOS-5949] - undrainable "fuse::needsflush" file - outdated "mgmsize" does not match on-disk size
+* [EOS-5986] - Add support for long filename (> 2kB) for Getfmd requests
+* [EOS-5987] - RWMutex: concurrent modification of the Mutex Name map
+* [EOS-5988] - MGM: concurrent modification of sync Time Accounting class
+* [EOS-5989] - concurrent modification of RWMutex at configure stage
+* [EOS-5993] - MGM: do not log SYMKEY on start
+* [EOS-5998] - FST crash under eos::fst::RainMetaLayout::Open()
+* [EOS-5999] - Connection Idle timeouts create broken FUSE replicas
+* [EOS-6006] - EOS MGM lockup/unresponsive on EOSPROJECT-I00
+
+New Feature
+-----------
+
+* [EOS-5970] - Implement scitags in EOS for HTTP transfers
+* [EOS-5971] - Add RX/TX errors and dropped pack errors to FST monitoring
+* [EOS-6010] - CLI: Remove eos oldfind from the console
+
+Task
+----
+
+* [EOS-6003] - eos: sched ls output doesn't list all disks
+* [EOS-6004] - eos: scheduler: active status not taken into consideration
+
+Improvement
+-----------
+
+* [EOS-5744] - Forbid archival of directories that contain symlinks
+* [EOS-5745] - Forbid archival of directories with 0 size files
+* [EOS-5982] - Skip checksumming files with FUSE
+* [EOS-5990] - Add FSCK reset
+
 
 ``v5.2.6 Diopside``
 ==========================
