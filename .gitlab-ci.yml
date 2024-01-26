@@ -1197,56 +1197,50 @@ clean_helm_cluster:
 
 .eos_nginx_build_template:
   stage: build:manual
-  before_script:
-    - dnf install --nogpg -y gcc-c++ cmake make rpm-build which git sudo yum-utils createrepo sssd-client
+  variables:
+    PKG_MGR: dnf
   script:
+    - ${PKG_MGR} install --nogpg -y gcc-c++ cmake make rpm-build which git sudo yum-utils createrepo sssd-client
     - cd nginx
     - ./makesrpm.sh
-    - yum-builddep --nogpgcheck -y *.src.rpm
+    - |
+      if [[ ${PKG_MGR} == "yum" ]]; then
+        ${PKG_MGR}-builddep -y --nogpgcheck *.src.rpm
+      else
+        ${PKG_MGR} install -y dnf-plugins-core
+        ${PKG_MGR} builddep -y --nogpgcheck *.src.rpm
+      fi
     - mkdir RPMS
     - rpmbuild --rebuild --define "_rpmdir RPMS/" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" *.src.rpm
     - STORAGE_PATH=/eos/project/s/storage-ci/www/eos/${CODENAME}-depend/${BUILD_NAME}/x86_64
     - sudo -u stci -H mkdir -p $STORAGE_PATH
     - sudo -u stci -H cp -f RPMS/*.rpm $STORAGE_PATH
     - sudo -u stci -H createrepo --update -q $STORAGE_PATH
-
   tags:
     - docker_node
   when: manual
 
-eos_nginx_cc7:
-   stage: build:manual
-   image: gitlab-registry.cern.ch/linuxsupport/cc7-base
-   script:
-     - yum install --nogpg -y gcc-c++ cmake3 make rpm-build which git sssd-client sudo createrepo
-     - cd nginx
-     - ./makesrpm.sh
-     - yum-builddep --nogpgcheck -y *.src.rpm
-     - mkdir RPMS
-     - rpmbuild --rebuild --define "_rpmdir RPMS/" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" *.src.rpm
-     - STORAGE_PATH=/eos/project/s/storage-ci/www/eos/${CODENAME}-depend/el-7/x86_64
-     - sudo -u stci -H mkdir -p $STORAGE_PATH
-     - sudo -u stci -H cp -f RPMS/*.rpm $STORAGE_PATH
-     - sudo -u stci -H createrepo --update -q $STORAGE_PATH
-   tags:
-     - docker_node
-   when: manual
 
-eos_nginx_al8:
+eos_nginx_el-7:
+  extends: .eos_nginx_build_template
+  image: gitlab-registry.cern.ch/linuxsupport/cc7-base
+  variables:
+    PKG_MGR: yum
+    BUILD_NAME: el-7
+
+
+eos_nginx_el-8:
   extends: .eos_nginx_build_template
   image: gitlab-registry.cern.ch/linuxsupport/alma8-base
-  environment:
-    name: nginx-al8-prod
   variables:
-    BUILD_NAME: al-8
+    BUILD_NAME: el-8
 
-eos_nginx_al9:
+
+eos_nginx_el-9:
   extends: .eos_nginx_build_template
   image: gitlab-registry.cern.ch/linuxsupport/alma9-base
-  environment:
-    name: nginx-al9-prod
   variables:
-    BUILD_NAME: al-9
+    BUILD_NAME: el-9
 
 
 #-------------------------------------------------------------------------------
