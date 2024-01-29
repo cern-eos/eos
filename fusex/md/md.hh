@@ -613,7 +613,7 @@ public:
   int end_flush(fuse_req_t req, shared_md md, std::string authid);
 
   void remove(fuse_req_t req, shared_md pmd, shared_md md, std::string authid,
-              bool upstream = true);
+              bool upstream = true, bool norecycle = false);
   void mv(fuse_req_t req, shared_md p1md, shared_md p2md, shared_md md,
           std::string newname,
           std::string authid1, std::string authid2);
