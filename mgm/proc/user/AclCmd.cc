@@ -331,6 +331,10 @@ bool AclCmd::GetRuleBitmask(const std::string& input, bool set)
         continue;
       }
 
+      if (*temp_iter == '+') {
+        continue;
+      }
+
       lambda_happen = true;
       curr_lambda = add_lambda;
 
