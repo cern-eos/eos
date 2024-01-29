@@ -107,8 +107,8 @@ TEST(RWMutex, MultiRdLockTest)
     mutex.UnLockRead();
   });
   std::this_thread::sleep_for(std::chrono::milliseconds(200));
-  ASSERT_NO_THROW(mutex.LockRead());
   ASSERT_NO_THROW(mutex.UnLockRead());
+  ASSERT_NO_THROW(mutex.LockRead());
   ASSERT_NO_THROW(mutex.UnLockRead());
   t.join();
 }
