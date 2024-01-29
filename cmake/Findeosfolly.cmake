@@ -13,12 +13,14 @@
 
 find_path(EOSFOLLY_INCLUDE_DIR
   NAMES folly/folly-config.h
-  HINTS /opt/eos-folly/ ${EOSFOLLY_ROOT}
+  HINTS ${EOSFOLLY_ROOT}
+  PATHS /opt/eos-folly /usr/local /usr
   PATH_SUFFIXES include)
 
 find_library(EOSFOLLY_LIBRARY
   NAMES libfolly.so
-  HINTS /opt/eos-folly/ ${EOSFOLLY_ROOT}
+  HINTS ${EOSFOLLY_ROOT}
+  PATHS /opt/eos-folly /usr/local /usr
   PATH_SUFFIXES lib lib64)
 
 include(FindPackageHandleStandardArgs)
