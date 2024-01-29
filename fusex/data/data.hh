@@ -468,7 +468,7 @@ public:
   uint64_t commit(fuse_req_t req,
                   shared_data io);
 
-  void unlink(fuse_req_t req, fuse_ino_t ino);
+  bool unlink(fuse_req_t req, fuse_ino_t ino);
 
   void update_cookie(uint64_t ino, std::string& cookie);
 

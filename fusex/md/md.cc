@@ -1272,7 +1272,8 @@ metad::end_flush(fuse_req_t req, shared_md emd, std::string authid)
 void
 metad::remove(fuse_req_t req, metad::shared_md pmd, metad::shared_md md,
               std::string authid,
-              bool upstream)
+              bool upstream,
+	      bool norecycle)
 {
   // this is called with the md object locked
   if (EOS_LOGS_DEBUG)
@@ -1295,9 +1296,19 @@ metad::remove(fuse_req_t req, metad::shared_md pmd, metad::shared_md md,
 
   if (EosFuse::Instance().Config().options.hide_versions &&
       EosFuse::Instance().mds.supports_hideversion()) {
-    // indicate the MGM to remove also all versions
-    (*md)()->set_opflags(eos::fusex::md::DELETEVERSIONS);
+    if (norecycle) {
+      // indicate the MGM to remove also all versions
+      (*md)()->set_opflags(eos::fusex::md::DELETEVERSIONSNORECYCLEBIN);
+    } else {
+      // indicate the MGM to remove also all versions
+      (*md)()->set_opflags(eos::fusex::md::DELETEVERSIONS);
+    }
+  } else {
+    if (norecycle) {
+      (*md)()->set_opflags(eos::fusex::md::NORECYCLEBIN);
+    }
   }
+
 
   std::string name = (*md)()->name();
   const uint64_t id = (*md)()->id();

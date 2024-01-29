@@ -4313,14 +4313,16 @@ EROFS  pathname refers to a file on a read-only filesystem.
                                Instance().mds.dump_md(md, false).c_str());
             }
 
+	    bool is_open;
             // we have to signal the unlink always to 'the' target inode of a hardlink
             if (hardlink_target_ino) {
-              Instance().datas.unlink(req, hardlink_target_ino);
+              is_open = Instance().datas.unlink(req, hardlink_target_ino);
             } else {
-              Instance().datas.unlink(req, (*md)()->id());
+              is_open = Instance().datas.unlink(req, (*md)()->id());
             }
 
-            Instance().mds.remove(req, pmd, md, (*pcap)()->authid());
+	    // we indicate not to put a file in a recycle bin if we delete it while it is open
+            Instance().mds.remove(req, pmd, md, (*pcap)()->authid(), true, is_open);
 
             if (attrMap.count(k_nlink)) {
               // this is a target for hardlinks and we want to invalidate in the kernel cache

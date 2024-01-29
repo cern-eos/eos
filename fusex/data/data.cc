@@ -241,12 +241,13 @@ data::invalidate_cache(fuse_ino_t ino)
 }
 
 /* -------------------------------------------------------------------------- */
-void
+bool
 /* -------------------------------------------------------------------------- */
 data::unlink(fuse_req_t req, fuse_ino_t ino)
 /* -------------------------------------------------------------------------- */
 {
   bool has_data = false;
+  bool is_rw = false;
   shared_data datap;
   {
     XrdSysMutexHelper mLock(datamap);
@@ -268,16 +269,22 @@ data::unlink(fuse_req_t req, fuse_ino_t ino)
     {
       XrdSysMutexHelper mLock(datamap);
 
+      if (datamap[ino]->flags() & (O_RDWR | O_WRONLY)) {
+	is_rw = true;
+      }
+
       if (datamap.count(ino)) {
         datamap[ino + 0xffffffff] = datamap[ino];
         datamap.erase(ino);
         eos_static_info("datacache::unlink size=%lu", datamap.size());
       }
     }
+    return is_rw;
   } else {
     shared_data io = std::make_shared<datax>();
     io->set_id(ino, req);
     io->unlink(req);
+    return false;
   }
 }
 
