@@ -1107,7 +1107,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
              acl.HasEgroup(), isSharedFile, acl.IsMutable(),
              acl.EvalUserAttrFile());
 
-    if (acl.HasAcl()) {
+    if (acl.HasAcl() && (vid.uid != 0)) {
       if ((vid.uid != 0) && (!vid.sudoer) &&
           (isRW ? (acl.CanNotWrite() && acl.CanNotUpdate()) : acl.CanNotRead())) {
         eos_debug("uid %d sudoer %d isRW %d CanNotRead %d CanNotWrite %d CanNotUpdate %d",
@@ -2750,13 +2750,14 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
   capability += static_cast<int>(new_lid);
   // space to be prebooked/allocated
   capability += "&mgm.bookingsize=";
+
   if (isPioReconstruct) {
     // For pio reconstruct the booking size needs to be 0,
     // the recovery will fail on non xfs filesystem otherwise.
     capability += "0";
   } else {
     capability +=
-        eos::common::StringConversion::GetSizeString(sizestring, bookingsize);
+      eos::common::StringConversion::GetSizeString(sizestring, bookingsize);
   }
 
   if (minimumsize) {
