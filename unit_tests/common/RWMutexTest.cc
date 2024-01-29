@@ -175,6 +175,9 @@ TEST(RWMutex, LockOrder)
     ASSERT_NO_THROW(mutex2.UnLockRead());
     ASSERT_NO_THROW(mutex1.UnLockRead());
   };
+  correct_lock_order();
+#ifdef NDEBUG
+  // @note This crashes if run with abseil compiled in debug mode
   auto lock_order_violation = [&]() {
     capture_out cap_err(stderr);
     mutex2.LockRead();
@@ -184,6 +187,8 @@ TEST(RWMutex, LockOrder)
     ASSERT_NO_THROW(mutex2.UnLockRead());
     ASSERT_NO_THROW(mutex1.UnLockRead());
   };
+  lock_order_violation();
+#endif
   /*
   // @note SharedMutex implemetation using absl::Mutex uses simple ReadLock
   // for the TimedRdLock implementation so this check does not apply
@@ -206,7 +211,5 @@ TEST(RWMutex, LockOrder)
 
   failed_timed_no_order_violation();
   */
-  correct_lock_order();
-  lock_order_violation();
 }
 #endif
