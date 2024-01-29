@@ -323,7 +323,7 @@ bool AclCmd::GetRuleBitmask(const std::string& input, bool set)
       continue;
     }
 
-    if (*flag == '+') {
+    if ((*flag == '+') && !lambda_happen) {
       auto temp_iter = flag;
       ++temp_iter;
 
