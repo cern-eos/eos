@@ -16,6 +16,18 @@ Introduction
 
 This release is based on XRootD V5.
 
+
+``v5.2.8 Diopside``
+=========================
+
+2024-01-29
+
+Bug
+----
+
+* MGM: Add legacy find command implementaiton for old clients.
+
+
 ``v5.2.7 Diopside``
 =========================
 
