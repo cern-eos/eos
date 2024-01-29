@@ -95,12 +95,26 @@ AclCmd::GetAcls(const std::string& path, std::string& acl, bool is_sys,
 int
 AclCmd::ModifyAcls(const eos::console::AclProto& acl)
 {
-  XrdOucString m_err = "";
-
   // Parse acl modification command into bitmask rule format
   if (!ParseRule(acl.rule())) {
     mErr = "error: failed to parse input rule or unknown id";
     return EINVAL;
+  }
+
+  XrdOucErrInfo error;
+  XrdOucString m_err = "";
+  const std::string acl_key = (acl.sys_acl() ? "sys.acl" : "user.acl");
+
+  if (acl_key == "user.acl") {
+    // If user.acl to be modified and the tag sys.eval.useracl not set then fail
+    std::string eval_acl;
+
+    if ((mVid.uid != 0) &&
+        gOFS->_attr_get(acl.path().c_str(), error, mVid,
+                        (const char*) 0, "sys.eval.useracl", eval_acl)) {
+      mErr = "error: unable to set user.acl, missing sys.eval.useracl";
+      return EINVAL;
+    }
   }
 
   bool fine_grained_write = !acl.sync_write();
@@ -113,8 +127,6 @@ AclCmd::ModifyAcls(const eos::console::AclProto& acl)
   }
 
   if (acl.recursive()) {
-    // @todo (esindril): get list of all directories recursively
-    XrdOucErrInfo error;
     std::map<std::string, std::set<std::string>> dirs;
     m_err.erase();
     (void) gOFS->_find(acl.path().c_str(), error, m_err, mVid, dirs, nullptr,
@@ -133,10 +145,8 @@ AclCmd::ModifyAcls(const eos::console::AclProto& acl)
     paths.push_back(acl.path());
   }
 
-  std::string acl_key = (acl.sys_acl() ? "sys.acl" : "user.acl");
   RuleMap rule_map;
   std::string dir_acls, new_acl_val;
-  XrdOucErrInfo error;
 
   for (const auto& elem : paths) {
     GetAcls(elem, dir_acls, acl.sys_acl(), false);
