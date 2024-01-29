@@ -319,6 +319,8 @@ ProcCommand::open(const char* inpath, const char* info,
     } else if (mCmd == "whoami") {
       Whoami();
       mDoSort = false;
+    } else if (mCmd == "find") {
+      Find();
     } else if (mCmd == "map") {
       Map();
     } else if (mCmd == "member") {

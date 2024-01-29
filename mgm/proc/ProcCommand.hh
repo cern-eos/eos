@@ -232,6 +232,7 @@ public:
   int DirInfo(const char* path);
   int DirJSON(uint64_t id, Json::Value* json, bool dolock = true);
   int File();
+  int Find();
   int Fileinfo();
   int FileInfo(const char* path);
   int FileJSON(uint64_t id, Json::Value* json, bool dolock = true);

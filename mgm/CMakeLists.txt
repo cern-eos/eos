@@ -144,6 +144,7 @@ add_library(
   proc/user/DfCmd.cc
   proc/user/File.cc
   proc/user/Fileinfo.cc
+  proc/user/Find.cc
   proc/user/NewfindCmd.cc proc/user/NewfindCmd.hh
   proc/user/Fuse.cc
   proc/user/FuseX.cc
