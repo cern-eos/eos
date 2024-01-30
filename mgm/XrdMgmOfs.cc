@@ -419,14 +419,17 @@ XrdMgmOfs::OrderlyShutdown()
   auto stop_fsconfiglistener = std::thread([&]() {
     mFsConfigTid.join();
   });
-  // We now need to signal to the FsConfigListener thread to unblock it
-  XrdMqSharedObjectChangeNotifier::Subscriber*
-  subscriber = ObjectNotifier.GetSubscriberFromCatalog("fsconfiglistener", false);
 
-  if (subscriber) {
-    std::this_thread::sleep_for(std::chrono::milliseconds(500));
-    XrdSysMutexHelper lock(subscriber->mSubjMtx);
-    subscriber->mSubjSem.Post();
+  if (!mMessagingRealm->haveQDB()) {
+    // We now need to signal to the FsConfigListener thread to unblock it
+    XrdMqSharedObjectChangeNotifier::Subscriber*
+    subscriber = ObjectNotifier.GetSubscriberFromCatalog("fsconfiglistener", false);
+
+    if (subscriber) {
+      std::this_thread::sleep_for(std::chrono::milliseconds(500));
+      XrdSysMutexHelper lock(subscriber->mSubjMtx);
+      subscriber->mSubjSem.Post();
+    }
   }
 
   stop_fsconfiglistener.join();
@@ -459,8 +462,8 @@ XrdMgmOfs::OrderlyShutdown()
     delete mZmqContext;
   }
 
-  eos_warning("%s", "msg=\"stopping and deleting the Converter engine\"");
-  mConverterDriver.reset();
+  eos_warning("%s", "msg=\"stopping converter engine\"");
+  mConverterDriver->Stop();
   eos_warning("%s", "msg=\"stopping central drainning\"");
   mDrainEngine.Stop();
   eos_warning("%s", "msg=\"stopping geotree engine updater\"");
