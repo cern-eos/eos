@@ -35,7 +35,7 @@ constexpr unsigned int ConverterDriver::QdbHelper::cBatchSize;
 void
 ConverterDriver::Start()
 {
-  if (!mIsRunning.load()) {
+  if (!mIsRunning) {
     mIsRunning = true;
     mThread.reset(&ConverterDriver::Convert, this);
   }
@@ -251,6 +251,10 @@ bool
 ConverterDriver::ScheduleJob(const eos::IFileMD::id_t& id,
                              const std::string& conversion_info)
 {
+  if (!mIsRunning) {
+    return false;
+  }
+
   if (mPendingJobs.size() > 1000000) {
     eos_static_err("%s", "msg=\"forbid conversion as there are more than 1M "
                    "jobs pending");
