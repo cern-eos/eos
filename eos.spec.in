@@ -688,6 +688,9 @@ The new EOS client filesystem daemon
 %{_bindir}/eoscfsd
 %{_sbindir}/mount.eoscfs
 %{_sbindir}/umount.fuse
+%config(noreplace) %{_sysconfdir}/eos/cfsd/eoscfsd.conf
+%dir %attr(755,daemon,daemon) %{_localstatedir}/log/eos/
+%dir %attr(755,daemon,daemon) %{_localstatedir}/log/eos/cfsd/
 %dir %attr(755,daemon,daemon) %{_localstatedir}/cache/eos/
 %dir %attr(755,daemon,daemon) %{_localstatedir}/cache/eos/cfsd/
 
