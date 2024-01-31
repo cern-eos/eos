@@ -44,7 +44,7 @@ NoKV::~NoKV()
 int
 /* -------------------------------------------------------------------------- */
 NoKV::connect(const std::string& prefix, const std::string& connectionstring,
-                 int port)
+              int port)
 /* -------------------------------------------------------------------------- */
 {
   return EOPNOTSUPP;
@@ -125,7 +125,7 @@ NoKV::put(const std::string& key, uint64_t value)
 int
 /* -------------------------------------------------------------------------- */
 NoKV::put(uint64_t key, const std::string& value,
-             const std::string& name_space)
+          const std::string& name_space)
 /* -------------------------------------------------------------------------- */
 {
   return EOPNOTSUPP;

@@ -1166,10 +1166,10 @@ Stat::PrintOutTotalJson(Json::Value& out)
   size_t ops = 0;
   avg = GetTotalExec(sig, ops);
   sum_ops = ops;
-  out["time"]=Json::Value{};
+  out["time"] = Json::Value{};
   out["time"]["avg(ms)"] = Json::Value(avg);
   out["time"]["sigma(ms)"] = Json::Value(sig);
-  out["time"]["total(s)"] = Json::Value((double) (TotalExec / 1000.0));
+  out["time"]["total(s)"] = Json::Value((double)(TotalExec / 1000.0));
   out["time"]["ops"] = Json::LargestUInt(sum_ops);
   out["activity"] = Json::Value(Json::arrayValue);
 

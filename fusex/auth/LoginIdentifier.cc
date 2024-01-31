@@ -87,8 +87,9 @@ LoginIdentifier::LoginIdentifier(uint64_t connId_) : connId(connId_)
 // Describe object as string - different than getStringID, as we also print
 // the connectionID, if any
 //----------------------------------------------------------------------------
-std::string LoginIdentifier::describe() const {
-  if(connId == 0) {
+std::string LoginIdentifier::describe() const
+{
+  if (connId == 0) {
     return stringId;
   }
 

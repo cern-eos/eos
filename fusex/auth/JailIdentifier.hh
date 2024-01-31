@@ -34,7 +34,8 @@ typedef uint64_t ino_t;
 // Uniquely identifies a jail - also contains room for an error message, in
 // case jail resolution was not successful.
 //------------------------------------------------------------------------------
-class JailIdentifier {
+class JailIdentifier
+{
 public:
   //----------------------------------------------------------------------------
   // Constructor: Empty object.
@@ -44,21 +45,23 @@ public:
   //----------------------------------------------------------------------------
   // Constructor: Indicate an error message - jail resolution failed.
   //----------------------------------------------------------------------------
-  static JailIdentifier MakeError(int errc, const std::string &msg) {
-  	JailIdentifier id;
-  	id.errc = errc;
-  	id.error = msg;
-  	return id;
+  static JailIdentifier MakeError(int errc, const std::string& msg)
+  {
+    JailIdentifier id;
+    id.errc = errc;
+    id.error = msg;
+    return id;
   }
 
   //----------------------------------------------------------------------------
   // Constructor: Identification succeeded.
   //----------------------------------------------------------------------------
-  static JailIdentifier Make(dev_t dev, ino_t ino) {
-  	JailIdentifier id;
-  	id.st_dev = dev;
-  	id.st_ino = ino;
-  	return id;
+  static JailIdentifier Make(dev_t dev, ino_t ino)
+  {
+    JailIdentifier id;
+    id.st_dev = dev;
+    id.st_ino = ino;
+    return id;
   }
 
   //----------------------------------------------------------------------------
@@ -74,7 +77,7 @@ public:
   //----------------------------------------------------------------------------
   // Equality operator
   //----------------------------------------------------------------------------
-  bool operator==(const JailIdentifier &other) const;
+  bool operator==(const JailIdentifier& other) const;
 
 private:
   //----------------------------------------------------------------------------
@@ -111,7 +114,8 @@ struct JailInformation {
 //------------------------------------------------------------------------------
 // Use this class to uniquely resolve jails.
 //------------------------------------------------------------------------------
-class JailResolver {
+class JailResolver
+{
 public:
   //----------------------------------------------------------------------------
   // Constructor

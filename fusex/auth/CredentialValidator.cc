@@ -116,7 +116,7 @@ static inline krb5_boolean ts_after(krb5_timestamp a, krb5_timestamp b)
 //----------------------------------------------------------------------------
 static int check_ccache(krb5_context& context, krb5_ccache cache,
                         krb5_timestamp now,
-			std::string& principal)
+                        std::string& principal)
 {
   /* clients/klist/klist.c - List contents of credential cache or keytab */
   /*
@@ -147,9 +147,8 @@ static int check_ccache(krb5_context& context, krb5_ccache cache,
   krb5_creds creds;
   krb5_principal princ;
   krb5_boolean found_tgt, found_current_tgt, found_current_cred;
-
   principal = "";
-  
+
   if (krb5_cc_get_principal(context, cache, &princ) != 0) {
     return 1;
   }
@@ -176,15 +175,16 @@ static int check_ccache(krb5_context& context, krb5_ccache cache,
   }
 
   // extract name@REALM
-  char* princstring=0;
-  if ( krb5_unparse_name(
-			 context,
-			 princ,
-			 &princstring) == 0) {
+  char* princstring = 0;
+
+  if (krb5_unparse_name(
+        context,
+        princ,
+        &princstring) == 0) {
     principal = princstring;
     krb5_free_string(context, princstring);
   }
-				    
+
   krb5_free_principal(context, princ);
 
   if (ret != KRB5_CC_END) {
@@ -345,9 +345,8 @@ bool CredentialValidator::validate(const JailInformation& jail,
     return true;
   }
 
-
   //----------------------------------------------------------------------------
-  // KRB5: 
+  // KRB5:
   //----------------------------------------------------------------------------
   if (uc.type == CredentialType::KRB5) {
 #ifdef __linux__
@@ -388,7 +387,7 @@ bool CredentialValidator::validate(const JailInformation& jail,
       LOGBOOK_INSERT(scope, "provided ccache appears invalid: " << uc.kcm);
       return false;
     }
-    
+
     krb5_cc_close(krb_ctx, ccache);
     krb5_free_context(krb_ctx);
   }

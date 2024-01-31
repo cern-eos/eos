@@ -54,7 +54,6 @@ journalcache::~journalcache()
     eos_static_debug("closing fd=%d\n", fd);
     detachstat.st_size = 0 ;
     fstat(fd, &detachstat);
-
     int rc = close(fd);
 
     if (rc) {
@@ -116,11 +115,11 @@ int journalcache::read_journal()
 
     do {
       if (entrySize == 0) {
-	if ( (pos + sizeof(header_t)) > (long unsigned int)bytesRead) {
-	  // no complete header is left, we have re-align the next read to get a full header
-	  bytesRead = pos;
-	  break;
-	}
+        if ((pos + sizeof(header_t)) > (long unsigned int)bytesRead) {
+          // no complete header is left, we have re-align the next read to get a full header
+          bytesRead = pos;
+          break;
+        }
 
         header_t* header = reinterpret_cast<header_t*>(buffer + pos);
         journal.insert(header->offset, header->offset + header->size,
@@ -551,7 +550,8 @@ int journalcache::remote_sync_async(XrdCl::shared_proxy proxy)
     off_t cacheoff = itr->value + offshift;
     size_t size = itr->high - itr->low;
     // prepare async buffer
-    XrdCl::Proxy::write_handler handler = proxy->WriteAsyncPrepare(proxy, size, itr->low,
+    XrdCl::Proxy::write_handler handler = proxy->WriteAsyncPrepare(proxy, size,
+                                          itr->low,
                                           0);
     int bytesRead = ::pread(fd, (void*) handler->buffer(), size, cacheoff);
 
@@ -600,7 +600,7 @@ int journalcache::reset()
 {
   write_lock lck(clck);
   journal.clear();
-  int retc = (fd > 0)?::ftruncate(fd, 0):0;
+  int retc = (fd > 0) ?::ftruncate(fd, 0) : 0;
   cachesize = 0;
   max_offset = 0;
   truncatesize = -1;

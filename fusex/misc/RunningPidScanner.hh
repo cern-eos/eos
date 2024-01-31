@@ -30,7 +30,8 @@
 //! Class to scan through all pids in the system, as found in /proc/<pid>.
 //! Only provides readlink(cwd) for now.
 //------------------------------------------------------------------------------
-class RunningPidScanner {
+class RunningPidScanner
+{
 public:
   //----------------------------------------------------------------------------
   //! Entry
@@ -47,7 +48,7 @@ public:
   //----------------------------------------------------------------------------
   //! Fetch next element
   //----------------------------------------------------------------------------
-  bool next(Entry &out);
+  bool next(Entry& out);
 
   //----------------------------------------------------------------------------
   //! Has there been an error? Reaching EOF is not an error.

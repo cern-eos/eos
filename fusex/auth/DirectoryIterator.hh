@@ -27,13 +27,14 @@
 #include <dirent.h>
 #include <string>
 
-class DirectoryIterator {
+class DirectoryIterator
+{
 public:
 
   //----------------------------------------------------------------------------
   // Construct iterator object on the given path - must be a directory.
   //----------------------------------------------------------------------------
-  DirectoryIterator(const std::string &path);
+  DirectoryIterator(const std::string& path);
 
   //----------------------------------------------------------------------------
   // Destructor
@@ -69,8 +70,8 @@ private:
   std::string path;
   bool reachedEnd;
 
-  DIR *dir;
-  struct dirent *nextEntry;
+  DIR* dir;
+  struct dirent* nextEntry;
 };
 
 #endif

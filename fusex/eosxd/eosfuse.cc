@@ -542,7 +542,7 @@ EosFuse::run(int argc, char* argv[], void* userdata)
     fuse_opt_add_arg(&args, "-oallow_other");
 #ifdef USE_FUSE3
     fuse_opt_add_arg(&args, "-oclone_fd");
-#endif 
+#endif
     fprintf(stderr, "# -o allow_other enabled on shared mount\n");
   }
 
@@ -2273,8 +2273,7 @@ EosFuse::run(int argc, char* argv[], void* userdata)
     }
 
     return err ? 1 : 0;
-  }
-  catch (Json::Exception const&) {
+  } catch (Json::Exception const&) {
     fprintf(stderr, "error: catched json config exception");
     exit(-1);
   }
@@ -2405,8 +2404,6 @@ EosFuse::DumpStatistic(ThreadAssistant& assistant)
 #endif
     eos_static_debug("dumping statistics");
 
-
-
     if (EosFuse::Instance().config.options.jsonstats) {
       fusestat.PrintOutTotalJson(jsonstats); //creates activity object...
       Json::Value inodes{};
@@ -2518,7 +2515,7 @@ EosFuse::DumpStatistic(ThreadAssistant& assistant)
       int sum = 0;
       unsigned long totalram, freeram, loads0 = 0;
       {
-	std::lock_guard g(getFuseStat().Mutex);
+        std::lock_guard g(getFuseStat().Mutex);
         rbytes = this->getFuseStat().GetTotal("rbytes");
         wbytes = this->getFuseStat().GetTotal("wbytes");
         nops = this->getFuseStat().GetOps();
@@ -4053,7 +4050,7 @@ EROFS  pathname refers to a file on a read-only filesystem.
   struct fuse_entry_param e;
   // do a parent check
   cap::shared_cap pcap1 = Instance().caps.acquire(req, parent,
-                          S_IFDIR | X_OK , true);
+                          S_IFDIR | X_OK, true);
   cap::shared_cap pcap2 = Instance().caps.acquire(req, parent,
                           S_IFDIR | X_OK | W_OK, true);
 

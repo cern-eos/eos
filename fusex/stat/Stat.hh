@@ -492,17 +492,17 @@ public:
           0,0,__VALUE__);
 
 #define ADD_CFSD_STAT(__ID__, __REQ__)          \
-  fs.getFuseStat().Add(__ID__,				\
-			fuse_req_ctx(__REQ__)->uid,	\
-			fuse_req_ctx(__REQ__)->gid,	\
-			1);					   \
-  fs.getFuseStat().Add(__SUM__TOTAL__,				   \
-		       fuse_req_ctx(__REQ__)->uid,		   \
-		       fuse_req_ctx(__REQ__)->gid,		   \
+  fs.getFuseStat().Add(__ID__,        \
+      fuse_req_ctx(__REQ__)->uid, \
+      fuse_req_ctx(__REQ__)->gid, \
+      1);            \
+  fs.getFuseStat().Add(__SUM__TOTAL__,           \
+           fuse_req_ctx(__REQ__)->uid,       \
+           fuse_req_ctx(__REQ__)->gid,       \
                              1);
 
 #define ADD_CFSD_IO_STAT(__ID__, __VALUE__) \
-  fs.getFuseStat().Add(__ID__,		    \
+  fs.getFuseStat().Add(__ID__,        \
           0,0,__VALUE__);
 
 

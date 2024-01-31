@@ -36,14 +36,15 @@ RunningPidScanner::RunningPidScanner() : iter("/proc") {}
 //------------------------------------------------------------------------------
 // Check if string is purely numeric, only 0-9, no dots or minus
 //------------------------------------------------------------------------------
-bool isPid(const char* str) {
-  if(str == nullptr || *str == '\0') {
+bool isPid(const char* str)
+{
+  if (str == nullptr || *str == '\0') {
     // should not really happen
     return false;
   }
 
-  while(*str != '\0') {
-    if(isdigit(*str) == 0) {
+  while (*str != '\0') {
+    if (isdigit(*str) == 0) {
       // not numeric
       return false;
     }
@@ -57,8 +58,9 @@ bool isPid(const char* str) {
 //------------------------------------------------------------------------------
 // Fetch next element
 //------------------------------------------------------------------------------
-bool RunningPidScanner::next(Entry &out) {
-  if(!iter.ok() || iter.eof()) {
+bool RunningPidScanner::next(Entry& out)
+{
+  if (!iter.ok() || iter.eof()) {
     //--------------------------------------------------------------------------
     // No more elements to process
     //--------------------------------------------------------------------------
@@ -66,39 +68,43 @@ bool RunningPidScanner::next(Entry &out) {
   }
 
   struct dirent* ent = nullptr;
-  while(true) {
+
+  while (true) {
     ent = iter.next();
-    if(ent == nullptr) {
+
+    if (ent == nullptr) {
       return false;
     }
 
     //--------------------------------------------------------------------------
     // Is this a /proc/<pid>?
     //--------------------------------------------------------------------------
-    if(ent->d_type == DT_DIR && isPid(ent->d_name)) {
+    if (ent->d_type == DT_DIR && isPid(ent->d_name)) {
       char buff[2048];
-      ssize_t len = ::readlink(SSTR("/proc/" << ent->d_name << "/cwd").c_str(), buff, 2048);
+      ssize_t len = ::readlink(SSTR("/proc/" << ent->d_name << "/cwd").c_str(), buff,
+                               2048);
 
-      if(len > 0) {
+      if (len > 0) {
         out.cwd = std::string(buff, len);
         return true;
       }
     }
   }
-
 }
 
 //------------------------------------------------------------------------------
 //! Has there been an error? Reaching EOF is not an error.
 //------------------------------------------------------------------------------
-bool RunningPidScanner::ok() const {
+bool RunningPidScanner::ok() const
+{
   return iter.ok();
 }
 
 //------------------------------------------------------------------------------
 //! Return error string. If no error has occurred, return the empty string.
 //------------------------------------------------------------------------------
-std::string RunningPidScanner::err() const {
+std::string RunningPidScanner::err() const
+{
   return iter.err();
 }
 

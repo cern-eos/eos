@@ -294,7 +294,7 @@ public:
 
   // ---------------------------------------------------------------------- //
   XRootDStatus OpenAsync(XrdCl::shared_proxy proxy,
-			 const std::string& url,
+                         const std::string& url,
                          OpenFlags::Flags flags,
                          Access::Mode mode,
                          uint16_t timeout);
@@ -354,7 +354,7 @@ public:
 
   // ---------------------------------------------------------------------- //
   XRootDStatus Read(XrdCl::shared_proxy proxy,
-		    uint64_t offset,
+                    uint64_t offset,
                     uint32_t size,
                     void* buffer,
                     uint32_t& bytesRead,
@@ -368,7 +368,8 @@ public:
 
   XRootDStatus CloseAsync(XrdCl::shared_proxy proxy, uint16_t timeout = 0);
 
-  XRootDStatus ScheduleCloseAsync(XrdCl::shared_proxy proxy, uint16_t timeout = 0);
+  XRootDStatus ScheduleCloseAsync(XrdCl::shared_proxy proxy,
+                                  uint16_t timeout = 0);
 
 
   XRootDStatus WaitClose();
@@ -391,7 +392,8 @@ public:
   {
     XWriteQueue = proxy->WriteQueue();
     proxy->WriteQueue().clear();
-    for ( auto i : XWriteQueue ) {
+
+    for (auto i : XWriteQueue) {
       i->SetProxy(new_proxy);
     }
   }
@@ -784,10 +786,11 @@ public:
     OpenAsyncHandler(shared_proxy file) :
       mProxy(file) { }
 
-    void SetProxy(shared_proxy file) {
+    void SetProxy(shared_proxy file)
+    {
       mProxy = file;
     }
-    
+
     virtual ~OpenAsyncHandler() { }
 
     virtual void HandleResponseWithHosts(XrdCl::XRootDStatus* status,
@@ -815,7 +818,8 @@ public:
     CloseAsyncHandler(shared_proxy file) :
       mProxy(file) { }
 
-    void SetProxy(shared_proxy file) {
+    void SetProxy(shared_proxy file)
+    {
       mProxy = file;
     }
 
@@ -856,6 +860,7 @@ public:
     {
       mBuffer = sWrBufferManager.get_buffer(size);
       mBuffer->resize(size);
+
       if (file) {
         std::lock_guard<std::mutex> lock(gBuffReferenceMutex);
         mId = std::to_string((uint64_t) file.get());
@@ -873,17 +878,18 @@ public:
     virtual ~WriteAsyncHandler()
     {
       {
-	sWrBufferManager.put_buffer(mBuffer);
-	std::lock_guard<std::mutex> lock(gBuffReferenceMutex);
-	gBufferReference.erase(mId);
+        sWrBufferManager.put_buffer(mBuffer);
+        std::lock_guard<std::mutex> lock(gBuffReferenceMutex);
+        gBufferReference.erase(mId);
       }
       mProxy = 0;
     }
 
-    void SetProxy(shared_proxy proxy) {
+    void SetProxy(shared_proxy proxy)
+    {
       mProxy = proxy;
     }
-    
+
     char* buffer()
     {
       return &((*mBuffer)[0]);
@@ -1142,7 +1148,8 @@ public:
   typedef std::vector<read_handler> chunk_rvector;
 
   // ---------------------------------------------------------------------- //
-  write_handler WriteAsyncPrepare(XrdCl::shared_proxy proxy, uint32_t size, uint64_t offset = 0,
+  write_handler WriteAsyncPrepare(XrdCl::shared_proxy proxy, uint32_t size,
+                                  uint64_t offset = 0,
                                   uint16_t timeout = 0);
 
 
@@ -1184,7 +1191,7 @@ public:
   // ---------------------------------------------------------------------- //
 
   read_handler ReadAsyncPrepare(XrdCl::shared_proxy proxy,
-				off_t offset, uint32_t size,
+                                off_t offset, uint32_t size,
                                 bool blocking = true);
 
 
@@ -1208,7 +1215,7 @@ public:
   // ---------------------------------------------------------------------- //
   bool DoneAsync(read_handler handler);
 
-  
+
   std::deque<write_handler>& WriteQueue()
   {
     return XWriteQueue;
@@ -1377,78 +1384,85 @@ public:
     return sProxy;
   }
 
-  class ProxyStat : public XrdSysMutex, public std::map<std::string, uint64_t>  {
+  class ProxyStat : public XrdSysMutex, public std::map<std::string, uint64_t>
+  {
   public:
-    ProxyStat() {
-      (*this)["recover:n"]= 0;
-      (*this)["recover:read:exceeded"]= 0;
-      (*this)["recover:write:disabled"]= 0;
-      (*this)["recover:write:noproxy"]= 0;
-      (*this)["recover:write:unrecoverable"]= 0;
-      (*this)["recover:write:n"]= 0;
-      (*this)["recover:read:disabled"]= 0;
-      (*this)["recover:read:noproxy"]= 0;
-      (*this)["recover:read:unrecoverble"]= 0;
-      (*this)["recover:read:reopen:n"]= 0;
-      (*this)["recover:read:reread:n"]= 0;
-      (*this)["recover:read:reopen:disabled"]= 0;
-      (*this)["recover:read:reopen:noserver:disabled"]= 0;
-      (*this)["recover:read:reopen:failed"]= 0;
-      (*this)["recover:read:reopen:success"]= 0;
-      (*this)["recover:read:reopen:noserver:retry"]= 0;
-      (*this)["recover:read:reopen:noserver:fatal"]= 0;
-      (*this)["recover:write:reopen:n"]= 0;
-      (*this)["recover:write:reopen:success"]= 0;
-      (*this)["recover:write:reopen:disabled"]= 0;
-      (*this)["recover:write:reopen:noserver::retry"]= 0;
-      (*this)["recover:write:reopen:noserver::disabled"]= 0;
-      (*this)["recover:write:reopen:unrecoverable"]= 0;
-      (*this)["recover:write:reopen:overquota"]= 0;
-      (*this)["recover:write:reopen:success"]= 0;
-      (*this)["recover:write:reopen:nosever"]= 0;
-      (*this)["recover:write:reopen:noserver:failed"]= 0;
-      (*this)["recover:read:n"]= 0;
-      (*this)["recover:read:success"]= 0;
-      (*this)["recover:read:failed"]= 0;
-      (*this)["recover:write:n"]= 0;
-      (*this)["recover:write:unrecoverable"]= 0;
-      (*this)["recover:write:fromcache"]= 0;
-      (*this)["recover:write:fromremote"]= 0;
-      (*this)["recover:write:fromcache:failed"]= 0;
-      (*this)["recover:write:fromremote:local:failed"]= 0;
-      (*this)["recover:write:fromcache:read:failed"]= 0;
-      (*this)["recover:write:fromremote:read:failed"]= 0;
-      (*this)["recover:write:fromremote:localwrite:failed"]= 0;
-      (*this)["recover:write:fromremote:beginflush:failed"]= 0;
-      (*this)["recover:write:fromremote:endflush:failed"]= 0;
-      (*this)["recover:write:fromremote:write:failed"]= 0;
-      (*this)["recover:write:journalflush:failed"]= 0;
-      (*this)["recover:write:journalflush:success"]= 0;
-      (*this)["recover:write:nocache:failed"]= 0;
+    ProxyStat()
+    {
+      (*this)["recover:n"] = 0;
+      (*this)["recover:read:exceeded"] = 0;
+      (*this)["recover:write:disabled"] = 0;
+      (*this)["recover:write:noproxy"] = 0;
+      (*this)["recover:write:unrecoverable"] = 0;
+      (*this)["recover:write:n"] = 0;
+      (*this)["recover:read:disabled"] = 0;
+      (*this)["recover:read:noproxy"] = 0;
+      (*this)["recover:read:unrecoverble"] = 0;
+      (*this)["recover:read:reopen:n"] = 0;
+      (*this)["recover:read:reread:n"] = 0;
+      (*this)["recover:read:reopen:disabled"] = 0;
+      (*this)["recover:read:reopen:noserver:disabled"] = 0;
+      (*this)["recover:read:reopen:failed"] = 0;
+      (*this)["recover:read:reopen:success"] = 0;
+      (*this)["recover:read:reopen:noserver:retry"] = 0;
+      (*this)["recover:read:reopen:noserver:fatal"] = 0;
+      (*this)["recover:write:reopen:n"] = 0;
+      (*this)["recover:write:reopen:success"] = 0;
+      (*this)["recover:write:reopen:disabled"] = 0;
+      (*this)["recover:write:reopen:noserver::retry"] = 0;
+      (*this)["recover:write:reopen:noserver::disabled"] = 0;
+      (*this)["recover:write:reopen:unrecoverable"] = 0;
+      (*this)["recover:write:reopen:overquota"] = 0;
+      (*this)["recover:write:reopen:success"] = 0;
+      (*this)["recover:write:reopen:nosever"] = 0;
+      (*this)["recover:write:reopen:noserver:failed"] = 0;
+      (*this)["recover:read:n"] = 0;
+      (*this)["recover:read:success"] = 0;
+      (*this)["recover:read:failed"] = 0;
+      (*this)["recover:write:n"] = 0;
+      (*this)["recover:write:unrecoverable"] = 0;
+      (*this)["recover:write:fromcache"] = 0;
+      (*this)["recover:write:fromremote"] = 0;
+      (*this)["recover:write:fromcache:failed"] = 0;
+      (*this)["recover:write:fromremote:local:failed"] = 0;
+      (*this)["recover:write:fromcache:read:failed"] = 0;
+      (*this)["recover:write:fromremote:read:failed"] = 0;
+      (*this)["recover:write:fromremote:localwrite:failed"] = 0;
+      (*this)["recover:write:fromremote:beginflush:failed"] = 0;
+      (*this)["recover:write:fromremote:endflush:failed"] = 0;
+      (*this)["recover:write:fromremote:write:failed"] = 0;
+      (*this)["recover:write:journalflush:failed"] = 0;
+      (*this)["recover:write:journalflush:success"] = 0;
+      (*this)["recover:write:nocache:failed"] = 0;
     }
   };
 
-  class ProxyStatHandle {
+  class ProxyStatHandle
+  {
   public:
     static std::shared_ptr<ProxyStatHandle> Get();
-    ProxyStatHandle() {
+    ProxyStatHandle()
+    {
       sProxyStats.Lock();
     }
 
-    ~ProxyStatHandle() {
+    ~ProxyStatHandle()
+    {
       sProxyStats.UnLock();
     }
-    ProxyStat& Stats() {
+    ProxyStat& Stats()
+    {
       return sProxyStats;
     }
     static ProxyStat sProxyStats;
   };
 
-  std::string getLastUrl() {
+  std::string getLastUrl()
+  {
     return mLastUrl;
   }
 
-  
+
 private:
   std::atomic<OPEN_STATE> open_state;
   struct timespec open_state_time;

@@ -57,8 +57,8 @@ public:
 
     /* constructor - with ownership of underlying buffer */
     chunk_t(off_t offset, size_t size, std::unique_ptr<char[]> buff) :
-    offset(offset), size(size), buffOwnership(std::move(buff)),
-    buff( (const void*) buffOwnership.get()) {}
+      offset(offset), size(size), buffOwnership(std::move(buff)),
+      buff((const void*) buffOwnership.get()) {}
 
     off_t offset;
     size_t size;
@@ -176,7 +176,7 @@ private:
 
   struct stat attachstat;
   struct stat detachstat;
-  
+
   static shared_ptr<dircleaner> jDirCleaner;
 };
 

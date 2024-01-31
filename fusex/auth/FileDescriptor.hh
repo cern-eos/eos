@@ -26,10 +26,12 @@
 
 #include <unistd.h>
 
-class FileDescriptor {
+class FileDescriptor
+{
 public:
-  FileDescriptor(int fd_) : fd(fd_) {
-    if(fd < 0) {
+  FileDescriptor(int fd_) : fd(fd_)
+  {
+    if (fd < 0) {
       // We assume that EventDescriptor immediatelly wraps a call which
       // returns a file descriptor, so errno still contains the error we're
       // interested in.
@@ -39,7 +41,8 @@ public:
 
   FileDescriptor() {}
 
-  ~FileDescriptor() {
+  ~FileDescriptor()
+  {
     close();
   }
 
@@ -48,43 +51,45 @@ public:
   FileDescriptor(const FileDescriptor&) = delete;
 
   // Moving is acceptable.
-  FileDescriptor(FileDescriptor&& other) {
+  FileDescriptor(FileDescriptor&& other)
+  {
     close();
-
     localerrno = other.localerrno;
     fd = other.fd;
-
     other.localerrno = 0;
     other.fd = -1;
   }
 
-  FileDescriptor& operator=(FileDescriptor&& other) {
+  FileDescriptor& operator=(FileDescriptor&& other)
+  {
     close();
-
     localerrno = other.localerrno;
     fd = other.fd;
-
     other.localerrno = 0;
     other.fd = -1;
     return *this;
   }
 
-  void close() {
-    if(fd >= 0) {
+  void close()
+  {
+    if (fd >= 0) {
       ::close(fd);
       fd = -1;
     }
   }
 
-  bool ok() {
+  bool ok()
+  {
     return fd >= 0 && localerrno == 0;
   }
 
-  std::string err() {
+  std::string err()
+  {
     return strerror(localerrno);
   }
 
-  int getFD() {
+  int getFD()
+  {
     return fd;
   }
 

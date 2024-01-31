@@ -26,7 +26,8 @@
 //------------------------------------------------------------------------------
 //! Constructor - launch a thread pool with the specified number of threads
 //------------------------------------------------------------------------------
-EnvironmentReader::EnvironmentReader(size_t nthreads) {
+EnvironmentReader::EnvironmentReader(size_t nthreads)
+{
   //----------------------------------------------------------------------------
   // Start up our thread pool.
   //----------------------------------------------------------------------------
@@ -106,7 +107,6 @@ void EnvironmentReader::worker()
       QueuedRequest request = std::move(requestQueue.front());
       requestQueue.pop();
       lock.unlock();
-
       //------------------------------------------------------------------------
       // Yes, I have work to do. Start timing how long it takes to receive
       // a response from the kernel.
@@ -141,7 +141,7 @@ void EnvironmentReader::worker()
 
       if (duration.count() > 5) {
         eos_static_notice("Reading /proc/%d/environ took %dms (uid=%d)", request.pid,
-                           duration.count(), request.uid);
+                          duration.count(), request.uid);
       }
 
       //------------------------------------------------------------------------
@@ -158,7 +158,6 @@ void EnvironmentReader::worker()
       }
 
       request.promise.set_value(env);
-
       //------------------------------------------------------------------------
       // Process next item in the queue, no waiting.
       //------------------------------------------------------------------------
@@ -182,8 +181,8 @@ void EnvironmentReader::worker()
 FutureEnvironment EnvironmentReader::stageRequest(pid_t pid, uid_t uid)
 {
   std::unique_lock<std::mutex> lock(mtx);
-  eos_static_debug("Staging request to read environment of pid %d for %d", pid, uid);
-
+  eos_static_debug("Staging request to read environment of pid %d for %d", pid,
+                   uid);
   //----------------------------------------------------------------------------
   //! Check: Is this request already pending? If so, give back the same
   //! response, connected to the same promise object.

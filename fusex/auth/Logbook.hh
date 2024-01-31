@@ -34,7 +34,8 @@ class Logbook;
 // indents any messages that appear inside it and inserts a special header
 // message at the beginning of the scope.
 //------------------------------------------------------------------------------
-class LogbookScope {
+class LogbookScope
+{
 public:
   //----------------------------------------------------------------------------
   // Empty constructor
@@ -44,17 +45,17 @@ public:
   //----------------------------------------------------------------------------
   // Constructor
   //----------------------------------------------------------------------------
-  LogbookScope(Logbook *logbook, const std::string &header, size_t indent);
+  LogbookScope(Logbook* logbook, const std::string& header, size_t indent);
 
   //----------------------------------------------------------------------------
   // Get a new sub-scope
   //----------------------------------------------------------------------------
-  LogbookScope makeScope(const std::string &header);
+  LogbookScope makeScope(const std::string& header);
 
   //----------------------------------------------------------------------------
   // Record message into the log, under the given scope
   //----------------------------------------------------------------------------
-  void insert(const std::string &msg);
+  void insert(const std::string& msg);
 
   //----------------------------------------------------------------------------
   // Check if activated
@@ -69,7 +70,8 @@ private:
 //------------------------------------------------------------------------------
 // Use this class to keep a log for a stream of events.
 //------------------------------------------------------------------------------
-class Logbook {
+class Logbook
+{
 public:
   //----------------------------------------------------------------------------
   // Constructor
@@ -79,12 +81,12 @@ public:
   //----------------------------------------------------------------------------
   // Record message into the log
   //----------------------------------------------------------------------------
-  void insert(const std::string &msg);
+  void insert(const std::string& msg);
 
   //----------------------------------------------------------------------------
   // Get a new scope
   //----------------------------------------------------------------------------
-  LogbookScope makeScope(const std::string &header);
+  LogbookScope makeScope(const std::string& header);
 
   //----------------------------------------------------------------------------
   // Check if activated
