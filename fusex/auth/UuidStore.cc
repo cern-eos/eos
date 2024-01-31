@@ -61,13 +61,17 @@ void UuidStore::initialCleanup()
   struct dirent* current = nullptr;
 
   while ((current = iterator.next())) {
+    std::string f = current->d_name;
+    if ( (f==".") || (f=="..") ) {
+      continue;
+    }
     if (startsWith(current->d_name, "eos-fusex-uuid-store-")) {
       if (unlink(SSTR(repository << "/" << current->d_name).c_str()) != 0) {
         eos_static_crit("UuidStore:: Could not delete %s during initial cleanup, errno %d",
                         current->d_name, errno);
       }
     } else {
-      eos_static_crit("Found file in credential store with suspicious filename, should not be there: %s. Not unlinking.",
+      eos_static_crit("Found file in credential store with suspicious filename, should not be there: '%s' Not unlinking.",
                       current->d_name);
     }
   }
