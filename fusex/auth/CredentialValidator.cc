@@ -116,7 +116,7 @@ static inline krb5_boolean ts_after(krb5_timestamp a, krb5_timestamp b)
 //----------------------------------------------------------------------------
 static int check_ccache(krb5_context& context, krb5_ccache cache,
                         krb5_timestamp now,
-                        std::string& principal)
+			std::string& principal)
 {
   /* clients/klist/klist.c - List contents of credential cache or keytab */
   /*
@@ -147,6 +147,7 @@ static int check_ccache(krb5_context& context, krb5_ccache cache,
   krb5_creds creds;
   krb5_principal princ;
   krb5_boolean found_tgt, found_current_tgt, found_current_cred;
+
   principal = "";
 
   if (krb5_cc_get_principal(context, cache, &princ) != 0) {
@@ -175,12 +176,11 @@ static int check_ccache(krb5_context& context, krb5_ccache cache,
   }
 
   // extract name@REALM
-  char* princstring = 0;
-
-  if (krb5_unparse_name(
-        context,
-        princ,
-        &princstring) == 0) {
+  char* princstring=0;
+  if ( krb5_unparse_name(
+			 context,
+			 princ,
+			 &princstring) == 0) {
     principal = princstring;
     krb5_free_string(context, princstring);
   }
@@ -274,11 +274,13 @@ bool CredentialValidator::validate(const JailInformation& jail,
     //--------------------------------------------------------------------------
     // Go through whatever klist does to check ccache validity.
     //--------------------------------------------------------------------------
-    if (check_ccache(krb_ctx, ccache, time(0), principal) != 0) {
-      krb5_cc_close(krb_ctx, ccache);
-      krb5_free_context(krb_ctx);
-      LOGBOOK_INSERT(scope, "provided ccache appears invalid: " << uc.keyring);
-      return false;
+    if (!checker.useInjected()) {
+      if (check_ccache(krb_ctx, ccache, time(0), principal) != 0) {
+	krb5_cc_close(krb_ctx, ccache);
+	krb5_free_context(krb_ctx);
+	LOGBOOK_INSERT(scope, "provided ccache appears invalid: " << uc.keyring);
+	return false;
+      }
     }
 
     krb5_cc_close(krb_ctx, ccache);
@@ -332,11 +334,13 @@ bool CredentialValidator::validate(const JailInformation& jail,
     //--------------------------------------------------------------------------
     // Go through whatever klist does to check ccache validity.
     //--------------------------------------------------------------------------
-    if (check_ccache(krb_ctx, ccache, time(0), principal) != 0) {
-      krb5_cc_close(krb_ctx, ccache);
-      krb5_free_context(krb_ctx);
-      LOGBOOK_INSERT(scope, "provided ccache appears invalid: " << uc.kcm);
-      return false;
+    if (!checker.useInjected()) {
+      if (check_ccache(krb_ctx, ccache, time(0), principal) != 0) {
+	krb5_cc_close(krb_ctx, ccache);
+	krb5_free_context(krb_ctx);
+	LOGBOOK_INSERT(scope, "provided ccache appears invalid: " << uc.kcm);
+	return false;
+      }
     }
 
     krb5_cc_close(krb_ctx, ccache);
@@ -344,6 +348,7 @@ bool CredentialValidator::validate(const JailInformation& jail,
     out.initialize(uc, {0, 0}, "", principal);
     return true;
   }
+
 
   //----------------------------------------------------------------------------
   // KRB5:
@@ -381,11 +386,13 @@ bool CredentialValidator::validate(const JailInformation& jail,
     //--------------------------------------------------------------------------
     // Go through whatever klist does to check ccache validity.
     //--------------------------------------------------------------------------
-    if (check_ccache(krb_ctx, ccache, time(0), principal) != 0) {
-      krb5_cc_close(krb_ctx, ccache);
-      krb5_free_context(krb_ctx);
-      LOGBOOK_INSERT(scope, "provided ccache appears invalid: " << uc.kcm);
-      return false;
+    if (!checker.useInjected()) {
+      if (check_ccache(krb_ctx, ccache, time(0), principal) != 0) {
+	krb5_cc_close(krb_ctx, ccache);
+	krb5_free_context(krb_ctx);
+	LOGBOOK_INSERT(scope, "provided ccache appears invalid: " << uc.kcm);
+	return false;
+      }
     }
 
     krb5_cc_close(krb_ctx, ccache);
