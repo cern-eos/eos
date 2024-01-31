@@ -1521,7 +1521,6 @@ Fs::DumpStatistic(ThreadAssistant& assistant)
 Fs::Fs() {
   dropcache=false;
   idletime=60;
-  tFdLeveler.reset(&Fs::LevelFDs, &fs);
   
   fusestat.Add("getattr", 0, 0, 0);
   fusestat.Add("setattr", 0, 0, 0);
@@ -1566,6 +1565,7 @@ Fs::Fs() {
 
 void
 Fs::Run() {
+  tFdLeveler.reset(&Fs::LevelFDs, this);
   tDumpStatistic.reset(&Fs::DumpStatistic, this);
   tStatCirculate.reset(&Fs::StatCirculate, this);
 }
@@ -1590,7 +1590,7 @@ int main(int argc, char *argv[]) {
   fs.timeout = 0;
   fs.source = "/@eoscfsd/";
   if (fs.name.empty()) {
-    fs.name = "cernhome";
+    fs.name = "default";
   }
 
   fs.keyresource="cernhome-server.cern.ch/";
@@ -1652,13 +1652,28 @@ int main(int argc, char *argv[]) {
   std::string cmd;
   std::string scmd;
 
+  fs.k5domain="CERN.CH";
+  if (root.isMember("auth") && root["auth"].isMember("k5domain")) {
+    fs.k5domain = root["auth"]["k5domain"].asString();
+  }
+  fs.k5domain.insert(0,"@");
+  fprintf(stderr,"info: kerberos domain is '%s'n", fs.k5domain.c_str());
+
   if (root.isMember(fs.name) && root[fs.name].isMember("server")) {
-    fs.keyresource=root[fs.name]["server"].asString();
-    fs.keyresource += "/";
-    fs.keyresource += fs.name;
-    fs.keyresource += ".key";
-    fs.keyfile = fs.name;
-    fs.keyfile += ".key";
+    if (root[fs.name]["server"].asString().empty()) {
+      // compiled in mount-script
+      fs.keyresource = "";
+      fs.keyfile = fs.name;
+      fs.keyfile += ".key";
+    } else {
+      // fetch mount script
+      fs.keyresource=root[fs.name]["server"].asString();
+      fs.keyresource += "/";
+      fs.keyresource += fs.name;
+      fs.keyresource += ".key";
+      fs.keyfile = fs.name;
+      fs.keyfile += ".key";
+    }
   }
   
   std::string keyfile = "/etc/eos/cfsd/" + fs.keyfile;
@@ -1704,7 +1719,10 @@ int main(int argc, char *argv[]) {
 #include "overlay.hh"
 
   if (!fs.keyresource.empty()) {
+    // fetch mount instruction remote
     cmd = cfskey::get(fs.keyresource);
+  } else {
+    // this will be provided by overlay.hh
   }
   
   fs.logpath = "/var/log/eos/cfsd/";
