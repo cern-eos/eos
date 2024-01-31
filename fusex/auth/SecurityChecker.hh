@@ -134,6 +134,13 @@ public:
   Info lookup(const JailInformation& jail, const std::string& path, uid_t uid,
               gid_t gid);
 
+  //----------------------------------------------------------------------------
+  // Check if data has been injected
+  //----------------------------------------------------------------------------
+  bool useInjected() {
+    return useInjectedData.load();
+  }
+
 private:
   //----------------------------------------------------------------------------
   // We have a file with the given uid and mode, and we're "expectedUid".
@@ -170,8 +177,7 @@ private:
 
     InjectedData() { }
 
-    InjectedData(uid_t u, mode_t md, struct timespec mt) : uid(u), mode(md),
-      mtime(mt) { }
+    InjectedData(uid_t u, mode_t md, struct timespec mt) : uid(u), mode(md), mtime(mt) { }
   };
 
   struct InjectedRequest {
