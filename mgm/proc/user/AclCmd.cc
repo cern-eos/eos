@@ -97,6 +97,7 @@ AclCmd::ModifyAcls(const eos::console::AclProto& acl)
 {
   // Parse acl modification command into bitmask rule format
   if (!ParseRule(acl.rule())) {
+    eos_static_err("msg=\"%s\"", mErr.c_str());
     mErr = "error: failed to parse input rule or unknown id";
     return EINVAL;
   }
@@ -333,7 +334,7 @@ bool AclCmd::GetRuleBitmask(const std::string& input, bool set)
       continue;
     }
 
-    if ((*flag == '+') && !lambda_happen) {
+    if (*flag == '+') {
       auto temp_iter = flag;
       ++temp_iter;
 
