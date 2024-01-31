@@ -68,7 +68,8 @@ public:
 
   virtual int erase(uint64_t key, const std::string& name_space = "i") = 0;
 
-  virtual int clean_stores(const std::string& storedir, const std::string& newdb) = 0 ;
+  virtual int clean_stores(const std::string& storedir,
+                           const std::string& newdb) = 0 ;
   virtual std::string statistics() = 0;
 
 protected:

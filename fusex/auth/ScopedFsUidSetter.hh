@@ -32,69 +32,72 @@
 //------------------------------------------------------------------------------
 //! Scoped fsuid and fsgid setter, restoring original values on destruction
 //------------------------------------------------------------------------------
-class ScopedFsUidSetter {
+class ScopedFsUidSetter
+{
 public:
   //----------------------------------------------------------------------------
   //! Constructor
   //----------------------------------------------------------------------------
-	ScopedFsUidSetter(uid_t fsuid_, gid_t fsgid_)
-	: fsuid(fsuid_), fsgid(fsgid_)
-	{
-		ok = true;
+  ScopedFsUidSetter(uid_t fsuid_, gid_t fsgid_)
+    : fsuid(fsuid_), fsgid(fsgid_)
+  {
+    ok = true;
     prevFsuid = -1;
     prevFsgid = -1;
 
     //--------------------------------------------------------------------------
     //! Set fsuid
     //--------------------------------------------------------------------------
-		if(fsuid >= 0) {
-			prevFsuid = setfsuid(fsuid);
+    if (fsuid >= 0) {
+      prevFsuid = setfsuid(fsuid);
 
-			if(setfsuid(fsuid) != fsuid) {
+      if (setfsuid(fsuid) != fsuid) {
         eos_static_crit("Unable to set fsuid to %d!", fsuid);
-				ok = false;
-				return;
-			}
-		}
+        ok = false;
+        return;
+      }
+    }
 
     //--------------------------------------------------------------------------
     //! Set fsgid
     //--------------------------------------------------------------------------
-		if(fsgid >= 0) {
+    if (fsgid >= 0) {
       prevFsgid = setfsgid(fsgid);
 
-			if(setfsgid(fsgid) != fsgid) {
+      if (setfsgid(fsgid) != fsgid) {
         eos_static_crit("Unable to set fsuid to %d!", fsgid);
         ok = false;
-				return;
-			}
-		}
-	}
+        return;
+      }
+    }
+  }
 
   //----------------------------------------------------------------------------
   //! Destructor
   //----------------------------------------------------------------------------
-	~ScopedFsUidSetter() {
-		if(prevFsuid >= 0) {
-			int retcode = setfsuid(prevFsuid);
+  ~ScopedFsUidSetter()
+  {
+    if (prevFsuid >= 0) {
+      int retcode = setfsuid(prevFsuid);
       eos_static_debug("Restored fsuid from %d to %d", retcode, prevFsuid);
-		}
+    }
 
-		if(prevFsgid >= 0) {
-			int retcode = setfsgid(prevFsgid);
+    if (prevFsgid >= 0) {
+      int retcode = setfsgid(prevFsgid);
       eos_static_debug("Restored fsgid from %d to %d", retcode, prevFsgid);
-		}
-	}
+    }
+  }
 
-	bool IsOk() const {
-		return ok;
-	}
+  bool IsOk() const
+  {
+    return ok;
+  }
 
 private:
-	int fsuid;
-	int fsgid;
+  int fsuid;
+  int fsgid;
 
-	int prevFsuid;
+  int prevFsuid;
   int prevFsgid;
 
   bool ok;

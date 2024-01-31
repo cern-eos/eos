@@ -62,9 +62,11 @@ void UuidStore::initialCleanup()
 
   while ((current = iterator.next())) {
     std::string f = current->d_name;
-    if ( (f==".") || (f=="..") ) {
+
+    if ((f == ".") || (f == "..")) {
       continue;
     }
+
     if (startsWith(current->d_name, "eos-fusex-uuid-store-")) {
       if (unlink(SSTR(repository << "/" << current->d_name).c_str()) != 0) {
         eos_static_crit("UuidStore:: Could not delete %s during initial cleanup, errno %d",
