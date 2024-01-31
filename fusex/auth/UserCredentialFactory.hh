@@ -85,13 +85,13 @@ private:
   //! Append oauth2 UserCredentials built from OAUTH2_TOKEN_FILE-equivalent string.
   //----------------------------------------------------------------------------
   void addOAUTH2(const JailIdentifier& id, std::string path, uid_t uid,
-		 gid_t gid, SearchOrder& out, const std::string& key);
+                 gid_t gid, SearchOrder& out, const std::string& key);
 
   //----------------------------------------------------------------------------
   //! Append ZTN UserCredentials built from bearer token file.
   //----------------------------------------------------------------------------
   void addZTN(const JailIdentifier& id, std::string path, uid_t uid,
-		 gid_t gid, SearchOrder& out, const std::string& key);
+              gid_t gid, SearchOrder& out, const std::string& key);
 
   //----------------------------------------------------------------------------
   //! Append UserCredentials object built from KRB5CCNAME
@@ -99,17 +99,17 @@ private:
   void addKrb5FromEnv(const JailIdentifier& id, const Environment& env,
                       uid_t uid, gid_t gid, SearchOrder& out);
 
-    //----------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   //! Append UserCredentials object built from KRB5CCNAME
   //----------------------------------------------------------------------------
   void addZTNFromEnv(const JailIdentifier& id, const Environment& env,
-		     uid_t uid, gid_t gid, SearchOrder& out);
+                     uid_t uid, gid_t gid, SearchOrder& out);
 
   //----------------------------------------------------------------------------
   //! Append UserCredentials object built from OAUTH2_TOKEN_FILE
   //----------------------------------------------------------------------------
   void addOAUTH2FromEnv(const JailIdentifier& id, const Environment& env,
-			uid_t uid, gid_t gid, SearchOrder& out);
+                        uid_t uid, gid_t gid, SearchOrder& out);
 
   //----------------------------------------------------------------------------
   //! Append UserCredentials object built from X509_USER_PROXY

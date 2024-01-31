@@ -34,7 +34,8 @@
 //! Contents are not meant to persist after process restart, and in fact will
 //! be cleared out explicitly.
 //------------------------------------------------------------------------------
-class UuidStore {
+class UuidStore
+{
 public:
   //----------------------------------------------------------------------------
   //! Constructor. Provide the repository, that is the directory to use
@@ -46,7 +47,7 @@ public:
   //! Store the given contents inside the store. Returns the full filesystem
   //! path on which the contents were stored.
   //----------------------------------------------------------------------------
-  std::string put(const std::string &contents);
+  std::string put(const std::string& contents);
 
   //----------------------------------------------------------------------------
   //! Unlink leftover credential files from previous runs - if eosxd crashes,

@@ -55,35 +55,44 @@ enum class CredentialType : std::uint32_t {
 //------------------------------------------------------------------------------
 // Convert CredentialType to string
 //------------------------------------------------------------------------------
-inline std::string credentialTypeAsString(CredentialType type) {
-  switch(type) {
-    case CredentialType::KRB5: {
-      return "krb5";
-    }
-    case CredentialType::KRK5: {
-      return "krk5";
-    }
-    case CredentialType::KCM: {
-      return "kcm";
-    }
-    case CredentialType::X509: {
-      return "x509";
-    }
-    case CredentialType::SSS: {
-      return "sss";
-    }
-    case CredentialType::OAUTH2: {
-      return "oauth2";
-    }
-    case CredentialType::ZTN: {
-      return "ztn";
-    }
-    case CredentialType::NOBODY: {
-      return "nobody";
-    }
-    case CredentialType::INVALID: {
-      return "invadid";
-    }
+inline std::string credentialTypeAsString(CredentialType type)
+{
+  switch (type) {
+  case CredentialType::KRB5: {
+    return "krb5";
+  }
+
+  case CredentialType::KRK5: {
+    return "krk5";
+  }
+
+  case CredentialType::KCM: {
+    return "kcm";
+  }
+
+  case CredentialType::X509: {
+    return "x509";
+  }
+
+  case CredentialType::SSS: {
+    return "sss";
+  }
+
+  case CredentialType::OAUTH2: {
+    return "oauth2";
+  }
+
+  case CredentialType::ZTN: {
+    return "ztn";
+  }
+
+  case CredentialType::NOBODY: {
+    return "nobody";
+  }
+
+  case CredentialType::INVALID: {
+    return "invadid";
+  }
   }
 
   THROW("should never reach here");
@@ -108,7 +117,8 @@ struct UserCredentials {
   //----------------------------------------------------------------------------
   // Private constructor: Use the methods above to create such an object.
   //----------------------------------------------------------------------------
-  UserCredentials() {
+  UserCredentials()
+  {
     type = CredentialType::INVALID;
     // fname, keyring, endorsement default-initialized to empty
     uid = 0;
@@ -121,8 +131,8 @@ struct UserCredentials {
   // resides in, and the uid to validate file permissions.
   //----------------------------------------------------------------------------
   static UserCredentials MakeKrb5(const JailIdentifier& jail,
-				  const std::string& path, uid_t uid, gid_t gid, const std::string& key) {
-
+                                  const std::string& path, uid_t uid, gid_t gid, const std::string& key)
+  {
     UserCredentials retval;
     retval.type = CredentialType::KRB5;
     retval.jail = jail;
@@ -137,7 +147,9 @@ struct UserCredentials {
   // Constructor: Make a KRK5 object.
   // TODO(gbitzes): Actually test this...
   //----------------------------------------------------------------------------
-  static UserCredentials MakeKrk5(const std::string &keyring, uid_t uid, gid_t gid, const std::string& key) {
+  static UserCredentials MakeKrk5(const std::string& keyring, uid_t uid,
+                                  gid_t gid, const std::string& key)
+  {
     UserCredentials retval;
     retval.type = CredentialType::KRK5;
     retval.keyring = keyring;
@@ -152,7 +164,9 @@ struct UserCredentials {
   // Constructor: Make a KCM object.
   // TODO(gbitzes): Actually test this...
   //----------------------------------------------------------------------------
-  static UserCredentials MakeKcm(const std::string &kcm, uid_t uid, gid_t gid, const std::string& key) {
+  static UserCredentials MakeKcm(const std::string& kcm, uid_t uid, gid_t gid,
+                                 const std::string& key)
+  {
     UserCredentials retval;
     retval.type = CredentialType::KCM;
     retval.kcm = kcm;
@@ -167,14 +181,14 @@ struct UserCredentials {
   // TODO(gbitzes): Actually test this...
   //----------------------------------------------------------------------------
   static UserCredentials MakeOAUTH2(const JailIdentifier& jail,
-				    const std::string& path, uid_t uid, gid_t gid, const std::string& key) {
-
+                                    const std::string& path, uid_t uid, gid_t gid, const std::string& key)
+  {
     UserCredentials retval;
     retval.type = CredentialType::OAUTH2;
     retval.jail = jail;
     retval.fname = path;
     retval.uid = uid;
-    retval.gid = gid;    
+    retval.gid = gid;
     retval.secretkey = key;
     std::string out;
     return retval;
@@ -186,8 +200,8 @@ struct UserCredentials {
   // resides in, and the uid to validate file permissions.
   //----------------------------------------------------------------------------
   static UserCredentials MakeX509(const JailIdentifier& jail,
-				  const std::string &path, uid_t uid, gid_t gid, const std::string& key) {
-
+                                  const std::string& path, uid_t uid, gid_t gid, const std::string& key)
+  {
     UserCredentials retval;
     retval.type = CredentialType::X509;
     retval.jail = jail;
@@ -201,7 +215,8 @@ struct UserCredentials {
   //----------------------------------------------------------------------------
   // Constructor: Make a "nobody" object.
   //----------------------------------------------------------------------------
-  static UserCredentials MakeNobody() {
+  static UserCredentials MakeNobody()
+  {
     UserCredentials retval;
     retval.type = CredentialType::NOBODY;
     return retval;
@@ -215,9 +230,9 @@ struct UserCredentials {
   // TODO: If the global SSS key is not mapped to anyuser / anygroup,
   // persisting uid/gid here is pointless.
   //----------------------------------------------------------------------------
-  static UserCredentials MakeSSS(const std::string &endorsement, uid_t uid,
-				 gid_t gid, const std::string& key) {
-
+  static UserCredentials MakeSSS(const std::string& endorsement, uid_t uid,
+                                 gid_t gid, const std::string& key)
+  {
     UserCredentials retval;
     retval.type = CredentialType::SSS;
     retval.endorsement = endorsement;
@@ -233,8 +248,8 @@ struct UserCredentials {
   // resides in, and the uid to validate file permissions.
   //----------------------------------------------------------------------------
   static UserCredentials MakeZTN(const JailIdentifier& jail,
-				 const std::string& path, uid_t uid, gid_t gid, const std::string& key) {
-
+                                 const std::string& path, uid_t uid, gid_t gid, const std::string& key)
+  {
     UserCredentials retval;
     retval.type = CredentialType::ZTN;
     retval.jail = jail;
@@ -249,9 +264,10 @@ struct UserCredentials {
   //----------------------------------------------------------------------------
   // Check if path contains unsafe characters: '&' or '='
   //----------------------------------------------------------------------------
-  bool hasUnsafeCharacters() const {
-    for(size_t i = 0; i < fname.size(); i++) {
-      if(fname[i] == '&' || fname[i] == '=') {
+  bool hasUnsafeCharacters() const
+  {
+    for (size_t i = 0; i < fname.size(); i++) {
+      if (fname[i] == '&' || fname[i] == '=') {
         return true;
       }
     }
@@ -324,38 +340,46 @@ struct UserCredentials {
   //----------------------------------------------------------------------------
   // Describe contents
   //----------------------------------------------------------------------------
-  std::string describe() const {
+  std::string describe() const
+  {
     std::stringstream ss;
     ss << credentialTypeAsString(type);;
 
-    switch(type) {
-      case CredentialType::KRB5:
-      case CredentialType::OAUTH2:
-      case CredentialType::ZTN:
-      case CredentialType::X509: {
-        ss << ": " << fname << " for uid=" << uid << ", gid=" << gid << ", secret=" << secretkey <<
-          ", under " << jail.describe();
-        break;
-      }
-      case CredentialType::KRK5: {
-        ss << ": " << keyring << " for uid=" << uid << ", gid=" << gid << ", secret=" << secretkey;
-        break;
-      }
-      case CredentialType::KCM: {
-        ss << ": " << kcm << " for uid=" << uid << ", gid=" << gid << ", secret=" << secretkey;
-        break;
-      }
-      case CredentialType::SSS: {
-        ss << " with endorsement of size " << endorsement.size() <<
-          ", for uid=" << uid << ", gid=" << gid << ", secret=" << secretkey;
-        break;
-      }
-      case CredentialType::NOBODY:
-      case CredentialType::INVALID: {
-	ss << ",secret=" << secretkey;
-        break;
-        // null
-      }
+    switch (type) {
+    case CredentialType::KRB5:
+    case CredentialType::OAUTH2:
+    case CredentialType::ZTN:
+    case CredentialType::X509: {
+      ss << ": " << fname << " for uid=" << uid << ", gid=" << gid << ", secret=" <<
+         secretkey <<
+         ", under " << jail.describe();
+      break;
+    }
+
+    case CredentialType::KRK5: {
+      ss << ": " << keyring << " for uid=" << uid << ", gid=" << gid << ", secret=" <<
+         secretkey;
+      break;
+    }
+
+    case CredentialType::KCM: {
+      ss << ": " << kcm << " for uid=" << uid << ", gid=" << gid << ", secret=" <<
+         secretkey;
+      break;
+    }
+
+    case CredentialType::SSS: {
+      ss << " with endorsement of size " << endorsement.size() <<
+         ", for uid=" << uid << ", gid=" << gid << ", secret=" << secretkey;
+      break;
+    }
+
+    case CredentialType::NOBODY:
+    case CredentialType::INVALID: {
+      ss << ",secret=" << secretkey;
+      break;
+      // null
+    }
     }
 
     return ss.str();

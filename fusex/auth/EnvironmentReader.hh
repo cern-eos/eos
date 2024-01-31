@@ -40,7 +40,8 @@ struct FutureEnvironment {
   //! Always call wait first with a timeout! This could block indefinitely
   //! causing a kernel deadlock.
   //----------------------------------------------------------------------------
-  Environment get() {
+  Environment get()
+  {
     return contents.get();
   }
 
@@ -51,10 +52,10 @@ struct FutureEnvironment {
   //! Returns whether the result is available or not. If false, it means the
   //! deadline has certainly passed.
   //----------------------------------------------------------------------------
-  bool waitUntilDeadline(std::chrono::milliseconds t) {
+  bool waitUntilDeadline(std::chrono::milliseconds t)
+  {
     std::chrono::high_resolution_clock::time_point deadline =
       queuedSince + t;
-
     return contents.wait_until(deadline) == std::future_status::ready;
   }
 };

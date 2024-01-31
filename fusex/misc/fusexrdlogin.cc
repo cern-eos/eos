@@ -80,12 +80,14 @@ int fusexrdlogin::loginurl(XrdCl::URL& url,
                   connection_id);
 }
 
-std::string fusexrdlogin::executable(fuse_req_t req) {
+std::string fusexrdlogin::executable(fuse_req_t req)
+{
   fuse_id id(req);
   Logbook logbook(true);
   ProcessSnapshot snapshot =
-    (id.pid)?processCache->retrieve(id.pid, id.uid, id.gid,
-				    false, logbook) : 0;
+    (id.pid) ? processCache->retrieve(id.pid, id.uid, id.gid,
+                                      false, logbook) : 0;
+
   if (snapshot) {
     return fillExeName(snapshot->getExe());
   } else {
@@ -107,16 +109,15 @@ int fusexrdlogin::loginurl(XrdCl::URL& url,
   id.uid = uid;
   id.gid = gid;
   id.pid = pid;
-
   bool fallback = false;
   std::string username = "nobody";
   paramsMap["fuse.ver"] = VERSION;
   paramsMap["fuse.pid"] = std::to_string(id.pid);
   paramsMap["fuse.uid"] = std::to_string(id.uid);
   paramsMap["fuse.gid"] = std::to_string(id.gid);
-
   ProcessSnapshot snapshot = processCache->retrieve(id.pid, id.uid, id.gid,
-						    false);
+                             false);
+
   if (snapshot) {
     username = snapshot->getBoundIdentity()->getLogin().getStringID();
     snapshot->getBoundIdentity()->getCreds()->toXrdParams(paramsMap);
@@ -124,7 +125,7 @@ int fusexrdlogin::loginurl(XrdCl::URL& url,
   } else {
     if (uid && EosFuse::Instance().Config().auth.use_user_unix) {
       // fallback to the unix user if we have a problem snapshotting a process
-      LoginIdentifier lIdentifier (id.uid, id.gid, id.pid, 0);
+      LoginIdentifier lIdentifier(id.uid, id.gid, id.pid, 0);
       username = lIdentifier.describe();
       paramsMap["xrd.wantprot"] = "unix";
       paramsMap["xrdcl.secuid"] = std::to_string(uid);
@@ -138,24 +139,24 @@ int fusexrdlogin::loginurl(XrdCl::URL& url,
 
   if (fallback) {
     eos_static_warning("[unix-fallback] %s uid=%u gid=%u pid=%u user-name=%s url=%s",
-		       EosFuse::dump(id, ino, 0, rc).c_str(),
-		       id.uid,
-		       id.gid,
-		       id.pid,
-		       username.c_str(),
-		       url.GetURL().c_str()
-		       );
-
+                       EosFuse::dump(id, ino, 0, rc).c_str(),
+                       id.uid,
+                       id.gid,
+                       id.pid,
+                       username.c_str(),
+                       url.GetURL().c_str()
+                      );
   } else {
     eos_static_notice("%s uid=%u gid=%u rc=%d user-name=%s url=%s",
-		      EosFuse::dump(id, ino, 0, rc).c_str(),
-		      id.uid,
-		      id.gid,
-		      rc,
-		      username.c_str(),
-		      url.GetURL().c_str()
-		      );
+                      EosFuse::dump(id, ino, 0, rc).c_str(),
+                      id.uid,
+                      id.gid,
+                      rc,
+                      username.c_str(),
+                      url.GetURL().c_str()
+                     );
   }
+
   return rc;
 }
 
@@ -173,10 +174,10 @@ std::string fusexrdlogin::xrd_login(fuse_req_t req)
   }
 
   eos_static_info("uid=%u gid=%u xrd-login=%s",
-                    id.uid,
-                    id.gid,
-                    login.c_str()
-                   );
+                  id.uid,
+                  id.gid,
+                  login.c_str()
+                 );
   return login;
 }
 
@@ -185,9 +186,11 @@ std::string fusexrdlogin::secret(fuse_req_t req)
   fuse_id id(req);
   ProcessSnapshot snapshot = processCache->retrieve(id.pid, id.uid, id.gid,
                              false);
+
   if (snapshot) {
     return snapshot->getBoundIdentity()->getCreds()->getKey();
   }
+
   return "";
 }
 

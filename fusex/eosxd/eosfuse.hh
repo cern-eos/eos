@@ -90,7 +90,8 @@ public:
   static void
   lookup(fuse_req_t req, fuse_ino_t parent, const char* name);
 
-  static int listdir(fuse_req_t req, fuse_ino_t ino, metad::shared_md& md, double& lifetime);
+  static int listdir(fuse_req_t req, fuse_ino_t ino, metad::shared_md& md,
+                     double& lifetime);
 
   static void opendir(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info* fi);
 
@@ -101,7 +102,7 @@ public:
                       struct fuse_file_info* fi, bool plus);
 
   static void readdirplus(fuse_req_t req, fuse_ino_t ino, size_t size, off_t off,
-			  struct fuse_file_info* fi);
+                          struct fuse_file_info* fi);
   static void releasedir(fuse_req_t req, fuse_ino_t ino,
                          struct fuse_file_info* fi);
 
@@ -149,10 +150,10 @@ public:
   static int _forget(fuse_req_t req, fuse_ino_t ino, unsigned long nlookup);
 
 #ifdef USE_FUSE3
-  static void forget_multi(fuse_req_t req, size_t count, 
-			   struct fuse_forget_data *forgets);
+  static void forget_multi(fuse_req_t req, size_t count,
+                           struct fuse_forget_data* forgets);
 #endif
-  
+
   static void flush(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info* fi);
 
 #ifdef __APPLE__
@@ -192,7 +193,7 @@ public:
 
 #if ( FUSE_VERSION > 28 )
   static void flock(fuse_req_t req, fuse_ino_t ino,
-		    struct fuse_file_info *fi, int op);
+                    struct fuse_file_info* fi, int op);
 #endif
 
   metad mds;
@@ -219,8 +220,7 @@ public:
 
   std::string Prefix(std::string path);
 
-  typedef struct cfg
-  {
+  typedef struct cfg {
     std::string name;
     std::string hostport;
     std::string remotemountdir;
@@ -239,8 +239,7 @@ public:
     std::string appname;
     std::string encryptionkey;
 
-    typedef struct options
-    {
+    typedef struct options {
       int debug;
       int debuglevel;
       bool jsonstats;
@@ -259,13 +258,12 @@ public:
 
       int flush_wait_umount;
       int flush_wait_open;
-      enum eFLUSH_WAIT_OPEN
-      {
+      enum eFLUSH_WAIT_OPEN {
         kWAIT_FLUSH_NEVER = 0, // if a file is updated/created - flush will not wait to open it
         kWAIT_FLUSH_ON_UPDATE = 1, // if a file is updated - flush will wait to open it
         kWAIT_FLUSH_ON_CREATE = 2 // if a file is created - flush will wait to open it
       };
-      
+
       size_t flush_wait_open_size;
 
       bool writebackcache;
@@ -293,8 +291,7 @@ public:
       bool protect_directory_symlink_loops;
     } options_t;
 
-    typedef struct recovery
-    {
+    typedef struct recovery {
       int read;
       int write;
       int read_open;
@@ -305,8 +302,7 @@ public:
       size_t write_open_noserver_retrywindow;
     } recovery_t;
 
-    typedef struct fuzzing
-    {
+    typedef struct fuzzing {
       size_t open_async_submit;
       size_t open_async_return;
       size_t read_async_return;
@@ -314,8 +310,7 @@ public:
       bool open_async_return_fatal;
     } fuzzing_t;
 
-    typedef struct inlining
-    {
+    typedef struct inlining {
       uint64_t max_size;
       std::string default_compressor;
     } inlining_t;
@@ -344,7 +339,8 @@ public:
   }
 
 
-  const char* umountcall() {
+  const char* umountcall()
+  {
     return umount_system_line.c_str();
   }
 
@@ -374,8 +370,7 @@ public:
     return s;
   }
 
-  typedef struct opendir_fh
-  {
+  typedef struct opendir_fh {
     typedef std::vector<std::string> ChildSet;
     typedef std::map <std::string, uint64_t> ChildMap;
 
@@ -389,8 +384,7 @@ public:
     ChildSet readdir_items;
     ChildMap pmd_children;
 
-    struct reply_buf
-    {
+    struct reply_buf {
       char blob[65536];
       char* ptr;
       off_t size;
@@ -400,7 +394,8 @@ public:
         reset();
       }
 
-      void reset() {
+      void reset()
+      {
         ptr = blob;
         size = 0;
       }
@@ -421,25 +416,22 @@ public:
   } opendir_t;
 
   static int readdir_filler(fuse_req_t req, opendir_t* md,
-                            mode_t&pmd_mode, uint64_t&pmd_id);
+                            mode_t& pmd_mode, uint64_t& pmd_id);
 
   void getHbStat(eos::fusex::statistics&);
 
   kv* getKV()
   {
-
     return mKV.get();
   }
 
   cap& getCap()
   {
-
     return caps;
   }
 
   void cleanup(fuse_ino_t ino)
   {
-
     return mds.cleanup(ino);
   }
 
@@ -460,6 +452,7 @@ public:
   size_t sizeLogFile()
   {
     struct stat buf;
+
     if (!fstderr) {
       return 0;
     }
@@ -467,7 +460,6 @@ public:
     if (!fstat(fileno(fstderr), &buf)) {
       return buf.st_size;
     } else {
-
       return 0;
     }
   }
@@ -477,15 +469,24 @@ public:
     if (!fstderr) {
       return ;
     }
-    const size_t maxsize = 4*1024ll*1024ll*1024ll; // 4G
-    if ( sizeLogFile() > maxsize) {
-      ftruncate(fileno(fstderr), maxsize/2);
-      eos_static_crit("logfile has been truncated back to %lu bytes - exceeded %lu bytes", maxsize/2, maxsize);
+
+    const size_t maxsize = 4 * 1024ll * 1024ll * 1024ll; // 4G
+
+    if (sizeLogFile() > maxsize) {
+      ftruncate(fileno(fstderr), maxsize / 2);
+      eos_static_crit("logfile has been truncated back to %lu bytes - exceeded %lu bytes",
+                      maxsize / 2, maxsize);
     }
   }
 
-  bool Trace() { return mTrace; }
-  void SetTrace(bool t) { mTrace = t;}
+  bool Trace()
+  {
+    return mTrace;
+  }
+  void SetTrace(bool t)
+  {
+    mTrace = t;
+  }
 
 protected:
 
@@ -494,13 +495,17 @@ private:
   static bool isRecursiveRm(fuse_req_t req, bool forced = false,
                             bool notverbose = false);
 
-  static void Merge(Json::Value& a, Json::Value& b) {
-    if (!a.isObject() || !b.isObject()) return;
+  static void Merge(Json::Value& a, Json::Value& b)
+  {
+    if (!a.isObject() || !b.isObject()) {
+      return;
+    }
+
     for (const auto& key : b.getMemberNames()) {
-      if(a[key].type() == Json::objectValue && b[key].type() == Json::objectValue) {
-	Merge(a[key], b[key]);
+      if (a[key].type() == Json::objectValue && b[key].type() == Json::objectValue) {
+        Merge(a[key], b[key]);
       } else {
-	a[key] = b[key];
+        a[key] = b[key];
       }
     }
   }
@@ -522,7 +527,6 @@ private:
 
   Stat& getFuseStat()
   {
-
     return fusestat;
   }
 
@@ -537,10 +541,10 @@ private:
   static EosFuse* sEosFuse;
 
   struct fuse_session* fusesession;
-  
+
 #ifndef USE_FUSE3
   struct fuse_chan* fusechan;
-#endif  
+#endif
 
   std::atomic<int32_t> aRecoveryOk;
   std::atomic<int32_t> aRecoveryFail;

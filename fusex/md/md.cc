@@ -594,12 +594,13 @@ metad::wait_backlog(uint64_t id, size_t minfree)
   // if the mdcflush thread is currently attempting to process "id", skip the
   // wait as we risk a deadlock with mdcflush.
   // ------------------------------------------------------------------------
-
   while (mdqueue.size() + minfree > mdqueue_max_backlog) {
     if (id) {
-      if (id == mdqueue_current)
+      if (id == mdqueue_current) {
         return;
+      }
     }
+
     mdflush.WaitMS(25);
   }
 }
@@ -1050,9 +1051,11 @@ metad::update(fuse_id fuseid, shared_md md, std::string authid,
   }
 
   flushentry fe(id, authid, localstore ? mdx::LSTORE : mdx::UPDATE, fuseid);
+
   if (!localstore) {
     fe.bind();
   }
+
   mdqueue[id]++;
   mdflushqueue.push_back(fe);
   eos_static_info("added ino=%#lx flushentry=%s queue-size=%u local-store=%d",
@@ -1107,7 +1110,6 @@ metad::add(fuse_req_t req, metad::shared_md pmd, metad::shared_md md,
 
   if (!localstore) {
     wait_backlog(id, 2);
-
     flushentry fe(id, authid, mdx::ADD, req);
     fe.bind();
     mdqueue[id]++;
@@ -1213,7 +1215,6 @@ metad::add_sync(fuse_req_t req, shared_md pmd, shared_md md, std::string authid)
   md->Locker().Lock();
   mdflush.Lock();
   stat.inodes_backlog_store(mdqueue.size());
-
   wait_backlog(id, 1);
   flushentry fep(pid, authid, mdx::LSTORE, req);
   fep.bind();
@@ -1326,7 +1327,6 @@ metad::remove(fuse_req_t req, metad::shared_md pmd, metad::shared_md md,
     (*pmd)()->set_mtime(ts.tv_sec);
     (*pmd)()->set_mtime_ns(ts.tv_nsec);
   }
-
   md->Locker().Lock();
 
   if (!upstream) {
@@ -1443,9 +1443,7 @@ metad::mv(fuse_req_t req, shared_md p1md, shared_md p2md, shared_md md,
   (*md)()->set_ctime_ns(ts.tv_nsec);
   (*md)()->set_mv_authid(authid1); // store also the source authid
   mdflush.Lock();
-
   wait_backlog((*md)()->id(), (p1id != p2id) ?  3 : 2);
-
   flushentry fe1(p1id, authid1, mdx::UPDATE, req);
   fe1.bind();
   mdqueue[p1id]++;
@@ -2465,14 +2463,16 @@ metad::mdstackfree(ThreadAssistant& assistant)
           it++;
           continue;
         }
+
         // Try if we can acquire a md lock, if yes, then remove them
         // from the map & LRU if not,we try the next cycle
         std::optional<uint64_t> pid;
-        if (it->second->Locker().CondLock())
-        {
+
+        if (it->second->Locker().CondLock()) {
           pid = it->second->pid();
           it->second->Locker().UnLock();
         }
+
         // if the parent is gone, we can remove the child
         if ((pid && !mdmap.count(*pid)) &&
             (!S_ISDIR((*(it->second))()->mode()) || it->second->deleted())) {
@@ -3499,15 +3499,17 @@ metad::pmap::retrieve(fuse_ino_t ino, shared_md& ret)
 
   if (!md) {
     md = std::make_shared<mdx>();
-
     // swap-in this inode
     const int rc = swap_in(ino, md);
+
     if (rc) {
       eos_static_crit("failed to swap-in ino=%#llx", ino);
+
       if (!ret) {
         ret = std::make_shared<mdx>();
         (*ret)()->set_err(rc);
       }
+
       return false;
     }
 

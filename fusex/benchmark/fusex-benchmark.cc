@@ -758,15 +758,16 @@ int main(int argc, char* argv[])
     // remove one directory
     rmdir(position[2].c_str());
 
-    for (size_t i = 0; i < LOOP_17-3; i++) {
+    for (size_t i = 0; i < LOOP_17 - 3; i++) {
       seekdir(dir, i + 3);
       rdir = readdir(dir);
 
       if (!rdir) {
-	fprintf(stderr,
-		"[test=%03d] readdir failed - errno %d\n", testno, errno);
-	exit(testno);
+        fprintf(stderr,
+                "[test=%03d] readdir failed - errno %d\n", testno, errno);
+        exit(testno);
       }
+
       if (position[2] == std::string(rdir->d_name)) {
         fprintf(stderr,
                 "[test=%03d] readdir failed to have correct position after deletion\n", testno);

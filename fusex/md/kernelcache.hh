@@ -38,10 +38,10 @@ public:
     eos_static_debug("begin: ino=%08llx", inode);
 #ifdef USE_FUSE3
     int rc = fuse_lowlevel_notify_inval_inode(EosFuse::Instance().Session(),
-					      inode, isfile ? 0 : -1, 0);
+             inode, isfile ? 0 : -1, 0);
 #else
     int rc = fuse_lowlevel_notify_inval_inode(EosFuse::Instance().Channel(),
-					      inode, isfile ? 0 : -1, 0);
+             inode, isfile ? 0 : -1, 0);
 #endif
     eos_static_debug("end: ino=%08llx rc=%d", inode, rc);
   }
@@ -51,10 +51,10 @@ public:
     eos_static_debug("begin: ino=%08llx name=%s", parent_inode, name.c_str());
 #ifdef USE_FUSE3
     int rc = fuse_lowlevel_notify_inval_entry(EosFuse::Instance().Session(),
-					      parent_inode, name.c_str(), name.length());
+             parent_inode, name.c_str(), name.length());
 #else
     int rc = fuse_lowlevel_notify_inval_entry(EosFuse::Instance().Channel(),
-					      parent_inode, name.c_str(), name.length());
+             parent_inode, name.c_str(), name.length());
 #endif
     eos_static_debug("end: ino=%08llx name=%s rc=%d", parent_inode, name.c_str(),
                      rc);

@@ -109,7 +109,8 @@ public:
 
   } tree_info_t;
 
-  dircleaner(const std::string _path = "/tmp/", const std::string _name = "none", int64_t _maxsize = 0,
+  dircleaner(const std::string _path = "/tmp/", const std::string _name = "none",
+             int64_t _maxsize = 0,
              int64_t _maxfiles = 0, float _clean_threshold = 85.0);
   virtual ~dircleaner();
 

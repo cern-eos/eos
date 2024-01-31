@@ -32,8 +32,9 @@ Logbook::Logbook(bool active_) : activated(active_) {}
 //------------------------------------------------------------------------------
 // Record message into the log
 //------------------------------------------------------------------------------
-void Logbook::insert(const std::string &msg) {
-  if(activated) {
+void Logbook::insert(const std::string& msg)
+{
+  if (activated) {
     messages.emplace_back(msg);
   }
 }
@@ -41,23 +42,27 @@ void Logbook::insert(const std::string &msg) {
 //------------------------------------------------------------------------------
 // Get a new scope
 //------------------------------------------------------------------------------
-LogbookScope Logbook::makeScope(const std::string &header) {
+LogbookScope Logbook::makeScope(const std::string& header)
+{
   return LogbookScope(this, header, 0);
 }
 
 //----------------------------------------------------------------------------
 // Check if activated
 //----------------------------------------------------------------------------
-bool Logbook::active() const {
+bool Logbook::active() const
+{
   return activated;
 }
 
 //------------------------------------------------------------------------------
 // Build a string out of all messages
 //------------------------------------------------------------------------------
-std::string Logbook::toString() const {
+std::string Logbook::toString() const
+{
   std::stringstream ss;
-  for(size_t i = 0; i < messages.size(); i++) {
+
+  for (size_t i = 0; i < messages.size(); i++) {
     ss << messages[i] << std::endl;
   }
 
@@ -67,8 +72,8 @@ std::string Logbook::toString() const {
 //------------------------------------------------------------------------------
 // Empty constructor
 //------------------------------------------------------------------------------
-LogbookScope::LogbookScope() : logbook(nullptr), indentationLevel(false) {
-
+LogbookScope::LogbookScope() : logbook(nullptr), indentationLevel(false)
+{
 }
 
 
@@ -76,11 +81,12 @@ LogbookScope::LogbookScope() : logbook(nullptr), indentationLevel(false) {
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
-LogbookScope::LogbookScope(Logbook *lb, const std::string &header,
-  size_t indent) : logbook(lb), indentationLevel(indent) {
-
+LogbookScope::LogbookScope(Logbook* lb, const std::string& header,
+                           size_t indent) : logbook(lb), indentationLevel(indent)
+{
   std::stringstream ss;
-  for(size_t i = 0; i < indentationLevel; i++) {
+
+  for (size_t i = 0; i < indentationLevel; i++) {
     ss << " ";
   }
 
@@ -91,21 +97,24 @@ LogbookScope::LogbookScope(Logbook *lb, const std::string &header,
 //----------------------------------------------------------------------------
 // Get a new sub-scope
 //----------------------------------------------------------------------------
-LogbookScope LogbookScope::makeScope(const std::string &header) {
-  if(!logbook) {
+LogbookScope LogbookScope::makeScope(const std::string& header)
+{
+  if (!logbook) {
     return LogbookScope();
   }
 
-  return LogbookScope(logbook, header, indentationLevel+2);
+  return LogbookScope(logbook, header, indentationLevel + 2);
 }
 
 //----------------------------------------------------------------------------
 // Record message into the log, under the given scope
 //----------------------------------------------------------------------------
-void LogbookScope::insert(const std::string &msg) {
-  if(logbook) {
+void LogbookScope::insert(const std::string& msg)
+{
+  if (logbook) {
     std::stringstream ss;
-    for(size_t i = 0; i < indentationLevel+2; i++) {
+
+    for (size_t i = 0; i < indentationLevel + 2; i++) {
       ss << " ";
     }
 
@@ -117,8 +126,9 @@ void LogbookScope::insert(const std::string &msg) {
 //----------------------------------------------------------------------------
 // Check if activated
 //----------------------------------------------------------------------------
-bool LogbookScope::active() const {
-  if(!logbook) {
+bool LogbookScope::active() const
+{
+  if (!logbook) {
     return false;
   }
 

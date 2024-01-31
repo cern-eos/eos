@@ -276,10 +276,10 @@ public:
 
     const char* Dump(std::string& out);
 
-    std::string url(bool nonblocking=false);
+    std::string url(bool nonblocking = false);
     typedef std::shared_ptr<string> shared_url;
     void set_shared_url();
-    
+
   private:
     XrdSysMutex mLock;
     uint64_t mIno;
@@ -343,7 +343,8 @@ public:
 
     ~_data_fh() { }
 
-    static struct _data_fh* Instance(shared_data io, metad::shared_md md, bool rw, fuse_id id)
+    static struct _data_fh* Instance(shared_data io, metad::shared_md md, bool rw,
+                                     fuse_id id)
     {
       return new struct _data_fh(io, md, rw, id);
     }
@@ -408,7 +409,7 @@ public:
       return false;
     }
 
-    
+
     void set_maxfilesize(uint64_t size)
     {
       _maxfilesize = size;
@@ -461,7 +462,7 @@ public:
 
 
   std::string url(fuse_ino_t ino);
-  
+
   void release(fuse_req_t req,
                fuse_ino_t ino);
 

@@ -37,7 +37,7 @@ class ProcessCacheEntry
 public:
 
   ProcessCacheEntry(const ProcessInfo& pinfo, const JailInformation& jinfo,
-    std::shared_ptr<const BoundIdentity> boundid)
+                    std::shared_ptr<const BoundIdentity> boundid)
     : processInfo(pinfo), jailInfo(jinfo), boundIdentity(boundid) { }
 
   const ProcessInfo& getProcessInfo() const
@@ -64,7 +64,7 @@ public:
   {
     return boundIdentity->getCreds()->toUserName();
   }
-  
+
   Jiffies getStartTime() const
   {
     return processInfo.getStartTime();
@@ -85,7 +85,8 @@ public:
     return boundIdentity->getCreds() && (!boundIdentity->getCreds()->empty());
   }
 
-  std::string getExe() const {
+  std::string getExe() const
+  {
     return processInfo.getExe();
   }
 
@@ -111,15 +112,15 @@ public:
   //----------------------------------------------------------------------------
   // Constructor
   //----------------------------------------------------------------------------
-  ProcessCache(const CredentialConfig &conf, BoundIdentityProvider &bip,
-    ProcessInfoProvider &pip, JailResolver &jr);
+  ProcessCache(const CredentialConfig& conf, BoundIdentityProvider& bip,
+               ProcessInfoProvider& pip, JailResolver& jr);
 
   //----------------------------------------------------------------------------
   // Major retrieve function, called by the rest of eosxd - using
   // custom logbook.
   //----------------------------------------------------------------------------
   ProcessSnapshot retrieve(pid_t pid, uid_t uid, gid_t gid, bool reconnect,
-    Logbook &logbook);
+                           Logbook& logbook);
 
   //----------------------------------------------------------------------------
   // Major retrieve function, called by the rest of eosxd.
@@ -131,8 +132,8 @@ private:
   // Discover some bound identity to use matching the given arguments.
   //----------------------------------------------------------------------------
   std::shared_ptr<const BoundIdentity>
-  discoverBoundIdentity(const JailInformation &jail, const ProcessInfo&
-    processInfo, uid_t uid, gid_t gid, bool reconnect, Logbook &logbook);
+  discoverBoundIdentity(const JailInformation& jail, const ProcessInfo&
+                        processInfo, uid_t uid, gid_t gid, bool reconnect, Logbook& logbook);
 
   CredentialConfig credConfig;
 

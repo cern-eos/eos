@@ -176,27 +176,27 @@ SecurityChecker::Info SecurityChecker::lookupNonLocalJail(
     // User is attempting to open a relative path ?! No.
     //--------------------------------------------------------------------------
     eos_static_alert("Forbidden relative path '%s' ", path.c_str());
-    return Info(CredentialState::kCannotStat, {0, 0} );
+    return Info(CredentialState::kCannotStat, {0, 0});
   }
 
   FileDescriptor current = std::move(jailfd);
   auto splitPath = eos::common::SplitPath(path);
 
-  for (size_t i=0; i< splitPath.size() -1; i++) {
+  for (size_t i = 0; i < splitPath.size() - 1; i++) {
     //--------------------------------------------------------------------------
     // ".." in path? Disallow for now.
     //--------------------------------------------------------------------------
-    if(splitPath[i] == "..") {
+    if (splitPath[i] == "..") {
       eos_static_alert(".. in sub-path");
-      return Info(CredentialState::kCannotStat, {0, 0} );
+      return Info(CredentialState::kCannotStat, {0, 0});
     }
 
     FileDescriptor next(openat(current.getFD(), splitPath[i].c_str(),
-      O_DIRECTORY | O_NOFOLLOW | O_RDONLY));
+                               O_DIRECTORY | O_NOFOLLOW | O_RDONLY));
 
-    if(!next.ok()) {
+    if (!next.ok()) {
       eos_static_alert("Failed to openat next child");
-      return Info(CredentialState::kCannotStat, {0, 0} );
+      return Info(CredentialState::kCannotStat, {0, 0});
     }
 
     current = std::move(next);
@@ -208,9 +208,9 @@ SecurityChecker::Info SecurityChecker::lookupNonLocalJail(
   FileDescriptor fileFd(openat(current.getFD(), splitPath.back().c_str(),
                                O_NOFOLLOW | O_RDONLY));
 
-  if(!fileFd.ok()) {
+  if (!fileFd.ok()) {
     eos_static_alert("Failed to openat file");
-    return Info(CredentialState::kCannotStat, {0, 0} );
+    return Info(CredentialState::kCannotStat, {0, 0});
   }
 
   //----------------------------------------------------------------------------
@@ -220,7 +220,7 @@ SecurityChecker::Info SecurityChecker::lookupNonLocalJail(
 
   if (::fstat(fileFd.getFD(), &filestat) != 0) {
     eos_static_alert("failed to stat by fd");
-    return Info(CredentialState::kCannotStat, {0, 0} );
+    return Info(CredentialState::kCannotStat, {0, 0});
   }
 
   if (!checkPermissions(filestat.st_uid, filestat.st_mode, uid)) {
@@ -232,7 +232,7 @@ SecurityChecker::Info SecurityChecker::lookupNonLocalJail(
   //----------------------------------------------------------------------------
   std::string contents;
 
-  if(!readFile(fileFd.getFD(), contents)) {
+  if (!readFile(fileFd.getFD(), contents)) {
     eos_static_alert("failed to read file");
     return Info::CannotStat();
   }

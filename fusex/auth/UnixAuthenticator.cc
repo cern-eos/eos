@@ -31,11 +31,11 @@
 // originates, as this mechanism can be used to impersonate anyone.
 //------------------------------------------------------------------------------
 std::shared_ptr<const BoundIdentity> UnixAuthenticator::createIdentity(
-								       pid_t pid, uid_t uid, gid_t gid, bool reconnect, std::string key)
+  pid_t pid, uid_t uid, gid_t gid, bool reconnect, std::string key)
 {
   std::shared_ptr<BoundIdentity> bdi(new BoundIdentity());
   bdi->getLogin() = LoginIdentifier(uid, gid, pid,
-    getUnixConnectionCounter(uid, gid, reconnect));
+                                    getUnixConnectionCounter(uid, gid, reconnect));
   bdi->getCreds()->getUC().secretkey = key;
   return bdi;
 }
@@ -49,7 +49,7 @@ uint64_t UnixAuthenticator::getUnixConnectionCounter(uid_t uid, gid_t gid,
   std::lock_guard<std::mutex> lock(mtx);
 
   if (reconnect) {
-  	connectionCounter[std::make_pair(uid, gid)]++;
+    connectionCounter[std::make_pair(uid, gid)]++;
   }
 
   return connectionCounter[std::make_pair(uid, gid)];

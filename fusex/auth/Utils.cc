@@ -32,19 +32,19 @@ bool readFile(int fd, std::string& contents)
   const int BUFFER_SIZE = 1024;
   char buffer[BUFFER_SIZE];
 
-  while(true) {
+  while (true) {
     ssize_t bytesRead = ::read(fd, buffer, BUFFER_SIZE);
 
     if (bytesRead > 0) {
       ss.write(buffer, bytesRead);
     }
 
-    if(bytesRead < 0) {
+    if (bytesRead < 0) {
       retvalue = false;
       break;
     }
 
-    if(bytesRead != BUFFER_SIZE) {
+    if (bytesRead != BUFFER_SIZE) {
       break;
     }
   }
@@ -60,6 +60,7 @@ bool readFile(const std::string& path, std::string& contents)
   const int BUFFER_SIZE = 1024;
   char buffer[BUFFER_SIZE];
   FILE* in = fopen(path.c_str(), "rb");
+
   if (!in) {
     return false;
   }
@@ -73,8 +74,9 @@ bool readFile(const std::string& path, std::string& contents)
 
     if (bytesRead == 0) {
       if (!feof(in)) {
-	retvalue = false;
+        retvalue = false;
       }
+
       break;
     }
 
@@ -90,18 +92,19 @@ bool readFile(const std::string& path, std::string& contents)
 
 bool writeFile600(const std::string& path, const std::string& contents)
 {
-  FILE *out = fopen(path.c_str(), "wb");
+  FILE* out = fopen(path.c_str(), "wb");
 
-  if(!out) {
+  if (!out) {
     return false;
   }
 
-  if(fchmod(fileno(out), S_IRUSR | S_IWUSR) != 0) {
+  if (fchmod(fileno(out), S_IRUSR | S_IWUSR) != 0) {
     fclose(out);
     return false;
   }
 
-  if(fwrite(contents.c_str(), sizeof(char), contents.size(), out) != contents.size()) {
+  if (fwrite(contents.c_str(), sizeof(char), contents.size(),
+             out) != contents.size()) {
     fclose(out);
     return false;
   }
@@ -122,10 +125,11 @@ bool checkCredSecurity(const struct stat& filestat, uid_t uid)
   return false;
 }
 
-std::string chopTrailingSlashes(const std::string &path)
+std::string chopTrailingSlashes(const std::string& path)
 {
   std::string value = path;
-  while(value.size() > 1 && value[value.size()-1] == '/') {
+
+  while (value.size() > 1 && value[value.size() - 1] == '/') {
     value.pop_back();
   }
 

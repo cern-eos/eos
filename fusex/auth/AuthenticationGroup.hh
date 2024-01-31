@@ -41,12 +41,13 @@ class UserCredentialFactory;
 // authentication party. Handles correct construction and deletion, and
 // lazy-initialization of objects, as-requested.
 //------------------------------------------------------------------------------
-class AuthenticationGroup {
+class AuthenticationGroup
+{
 public:
   //----------------------------------------------------------------------------
   // Constructor
   //----------------------------------------------------------------------------
-  AuthenticationGroup(const CredentialConfig &config);
+  AuthenticationGroup(const CredentialConfig& config);
 
   //----------------------------------------------------------------------------
   // Destructor
