@@ -6,7 +6,7 @@
 
 # ************************************************************************
 # * EOS - the CERN Disk Storage System                                   *
-# * Copyright (C) 2022 CERN/Switzerland                                  *
+# * Copyright (C) 2024 CERN/Switzerland                                  *
 # *                                                                      *
 # * This program is free software: you can redistribute it and/or modify *
 # * it under the terms of the GNU General Public License as published by *
@@ -22,46 +22,13 @@
 # * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
 # ************************************************************************
 
-case $1 in
-  -h|--help|-?)
-      echo "mount.eoscfsx is a private umount(8) wrapper for eoscfsd/EOS."
-      echo "Don't use it directly!"
-      exit 1
-      ;;
-esac
-
-if [ -z "$1" ]; then
-    echo "error: please provide the name of your FUSE mount !"
-    exit -1;
+mount=$1
+if [ "$mount" -eq "" ]; then
+    pkill -f -1 "eoscfsd $mount"
+    fusermount -u $mount
 fi
 
-shift
 
-options=()
-eoo=0 
 
-# filter out '-n ' which is passwd by automount if /etc/mtab is a symlink into /proc
-while [[ $1 ]]
-do
-    if ! ((eoo)); then
-	case "$1" in
-	    -n)
-		shift
-		;;
-	    *)
-		options+=("$1")
-		shift
-		;;
-	esac
-    else
-	options+=("$1")
-	
-	# Another (worse) way of doing the same thing:
-	# options=("${options[@]}" "$1")
-	shift
-    fi
-done
 
-echo ${options[@]}
 
-pkill -f "eoscfsd $1"
