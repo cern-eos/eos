@@ -1,0 +1,3 @@
+# -> syntax is '<mountname> -fstype=eoscf :<mountname>'
+# -> e.g.
+# cernhome -fstype=eoscfs :cernhome

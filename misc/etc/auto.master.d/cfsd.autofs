@@ -1,0 +1,2 @@
+# change to the auto mount point for eoscfsd mounts
+/cern /etc/auto.cfsd
