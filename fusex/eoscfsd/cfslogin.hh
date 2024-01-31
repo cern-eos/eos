@@ -50,5 +50,6 @@ public:
   static std::unique_ptr<AuthenticationGroup> authGroup;
   static ProcessCache* processCache; // owned by authGroup
   static std::unique_ptr<cfsmapping> cfsMap;
+  static std::string k5domain;
 private:
 };
