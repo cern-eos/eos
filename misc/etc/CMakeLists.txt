@@ -23,7 +23,7 @@
 
 install(DIRECTORY systemd USE_SOURCE_PERMISSIONS DESTINATION lib)
 
-install(DIRECTORY bash_completion.d cron.d eos logrotate.d sysconfig
+install(DIRECTORY bash_completion.d cron.d eos logrotate.d sysconfig auto.master.d
   USE_SOURCE_PERMISSIONS DESTINATION ${CMAKE_INSTALL_FULL_SYSCONFDIR})
 
 install(FILES
@@ -43,4 +43,5 @@ install(FILES
   xrd.cf.prefix
   xrd.cf.quarkdb
   xrd.cf.sync
+  auto.cfsd
   DESTINATION ${CMAKE_INSTALL_FULL_SYSCONFDIR})

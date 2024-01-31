@@ -22,10 +22,9 @@
 # * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
 # ************************************************************************
 
-mount=$1
-if [ "$mount" -eq "" ]; then
-    pkill -f -1 "eoscfsd $mount"
-    fusermount -u $mount
+if [ "$1" != "" ]; then
+    pkill -f -1 "eoscfsd $1"
+    fusermount -u $1
 fi
 
 
