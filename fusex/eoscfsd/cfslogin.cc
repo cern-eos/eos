@@ -64,11 +64,14 @@ std::string cfslogin::fillExeName(const std::string& execname)
 }
 
 
-std::string cfslogin::executable(fuse_req_t req) {
+std::string cfslogin::executable(fuse_req_t req)
+{
   Logbook logbook(true);
   ProcessSnapshot snapshot =
-    (fuse_req_ctx(req)->pid)?processCache->retrieve(fuse_req_ctx(req)->pid, fuse_req_ctx(req)->uid, fuse_req_ctx(req)->gid,
-				    false, logbook) : 0;
+    (fuse_req_ctx(req)->pid) ? processCache->retrieve(fuse_req_ctx(req)->pid,
+        fuse_req_ctx(req)->uid, fuse_req_ctx(req)->gid,
+        false, logbook) : 0;
+
   if (snapshot) {
     return fillExeName(snapshot->getExe());
   } else {
@@ -78,37 +81,43 @@ std::string cfslogin::executable(fuse_req_t req) {
 
 std::string cfslogin::secret(fuse_req_t req)
 {
-  ProcessSnapshot snapshot = processCache->retrieve(fuse_req_ctx(req)->pid, fuse_req_ctx(req)->uid, fuse_req_ctx(req)->gid,
+  ProcessSnapshot snapshot = processCache->retrieve(fuse_req_ctx(req)->pid,
+                             fuse_req_ctx(req)->uid, fuse_req_ctx(req)->gid,
                              false);
+
   if (snapshot) {
     return snapshot->getBoundIdentity()->getCreds()->getKey();
   }
+
   return "";
 }
 
 std::string cfslogin::name(fuse_req_t req)
 {
-
-  ProcessSnapshot snapshot = processCache->retrieve(fuse_req_ctx(req)->pid, fuse_req_ctx(req)->uid, fuse_req_ctx(req)->gid,
-						    false);
+  ProcessSnapshot snapshot = processCache->retrieve(fuse_req_ctx(req)->pid,
+                             fuse_req_ctx(req)->uid, fuse_req_ctx(req)->gid,
+                             false);
   std::string username = "nobody";
 
   if (snapshot) {
     username = snapshot->getBoundIdentity()->getCreds()->toUserName();;
   }
 
-  size_t adpos=0;
-  if ( (adpos = username.find("@")) != std::string::npos) {
+  size_t adpos = 0;
+
+  if ((adpos = username.find("@")) != std::string::npos) {
     if (username.find(cfslogin::k5domain) == std::string::npos) {
       return "nobody";
     } else {
       username.erase(adpos);
     }
   }
+
   return username;
 }
 
-std::string cfslogin::translate(fuse_req_t req, uid_t& uid, gid_t& gid) {
+std::string cfslogin::translate(fuse_req_t req, uid_t& uid, gid_t& gid)
+{
   std::string name = cfslogin::name(req);
   cfsMap->translate(name, uid, gid);
   return name;

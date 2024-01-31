@@ -66,8 +66,9 @@ public:
 
   // replace by default
 
-  bool store(const UserCredentials& credInfo, std::unique_ptr<BoundIdentity> boundIdentity,
-    std::shared_ptr<const BoundIdentity> &retval)
+  bool store(const UserCredentials& credInfo,
+             std::unique_ptr<BoundIdentity> boundIdentity,
+             std::shared_ptr<const BoundIdentity>& retval)
   {
     return cache.store(credInfo, std::move(boundIdentity), retval, true);
   }
@@ -79,7 +80,8 @@ public:
 
 private:
   // shards: 2^16 = 65536
-  ShardedCache<UserCredentials, BoundIdentity, UserCredentialsHasher, false> cache;
+  ShardedCache<UserCredentials, BoundIdentity, UserCredentialsHasher, false>
+  cache;
 };
 
 #endif

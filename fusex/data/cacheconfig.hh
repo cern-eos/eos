@@ -30,9 +30,13 @@ enum cache_t {
 };
 
 struct cacheconfig {
-  cacheconfig () {
+  cacheconfig()
+  {
     type = INVALID;
-    total_file_cache_size = total_file_cache_inodes = per_file_cache_max_size = total_file_journal_size = total_file_journal_inodes = per_file_journal_max_size = default_read_ahead_size = max_inflight_read_ahead_buffer_size = max_inflight_write_buffer_size = max_read_ahead_size = 0 ;
+    total_file_cache_size = total_file_cache_inodes = per_file_cache_max_size =
+                              total_file_journal_size = total_file_journal_inodes = per_file_journal_max_size
+                                  = default_read_ahead_size = max_inflight_read_ahead_buffer_size =
+                                        max_inflight_write_buffer_size = max_read_ahead_size = 0 ;
     max_read_ahead_blocks = 0;
     read_ahead_sparse_ratio = 0;
     clean_threshold = 0;

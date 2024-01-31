@@ -164,26 +164,26 @@ dircleaner::scanall(std::string matchsuffix)
                            buf.st_size);
         }
       } else if (node->fts_info == FTS_D) {
+        std::string dirpath = node->fts_accpath;
+        struct stat buf;
 
-	std::string dirpath = node->fts_accpath;
-	struct stat buf;
+        if (node->fts_level > 0) {
+          if (EOS_LOGS_DEBUG) {
+            eos_static_debug("checking directory %s", dirpath.c_str());
+          }
 
-	if (node->fts_level > 0) {
-	  if (EOS_LOGS_DEBUG) {
-	    eos_static_debug("checking directory %s", dirpath.c_str());
-	  }
-	  if (!::stat(dirpath.c_str(), &buf)) {
-	    
-	    time_t now = time(NULL);
-	    if ( now > (buf.st_ctime - 60) ) {
-	      // avoid the unforunate race when the diskcache/or journal needs to create a parent directory for a file
-	      // try to delete - will work if it is empty
-	      if (!::rmdir(dirpath.c_str())) {
-		eos_static_notice("[ %s ] rmdir: empty inode directory", dirpath.c_str());
-	      }
-	    }
-	  }
-	}
+          if (!::stat(dirpath.c_str(), &buf)) {
+            time_t now = time(NULL);
+
+            if (now > (buf.st_ctime - 60)) {
+              // avoid the unforunate race when the diskcache/or journal needs to create a parent directory for a file
+              // try to delete - will work if it is empty
+              if (!::rmdir(dirpath.c_str())) {
+                eos_static_notice("[ %s ] rmdir: empty inode directory", dirpath.c_str());
+              }
+            }
+          }
+        }
       }
     }
   }

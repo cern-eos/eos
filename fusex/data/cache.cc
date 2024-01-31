@@ -40,8 +40,8 @@ cachehandler::init(cacheconfig& _config)
 {
   config = _config;
 
-  if ( (config.type != cache_t::DISK) &&
-       (config.type != cache_t::MEMORY) ){
+  if ((config.type != cache_t::DISK) &&
+      (config.type != cache_t::MEMORY)) {
     return EINVAL;
   }
 

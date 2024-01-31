@@ -31,11 +31,12 @@
 //------------------------------------------------------------------------------
 // Construct iterator object on the given path - must be a directory.
 //------------------------------------------------------------------------------
-DirectoryIterator::DirectoryIterator(const std::string &mypath)
-: path(mypath), reachedEnd(false), dir(nullptr), nextEntry(nullptr) {
-
+DirectoryIterator::DirectoryIterator(const std::string& mypath)
+  : path(mypath), reachedEnd(false), dir(nullptr), nextEntry(nullptr)
+{
   dir = opendir(path.c_str());
-  if(!dir) {
+
+  if (!dir) {
     error = SSTR("Unable to opendir: " << path);
     return;
   }
@@ -44,11 +45,13 @@ DirectoryIterator::DirectoryIterator(const std::string &mypath)
 //------------------------------------------------------------------------------
 // Destructor
 //------------------------------------------------------------------------------
-DirectoryIterator::~DirectoryIterator() {
-  if(dir) {
-    if(closedir(dir) != 0) {
+DirectoryIterator::~DirectoryIterator()
+{
+  if (dir) {
+    if (closedir(dir) != 0) {
       eos_static_crit("Unable to close DIR* for %s", path.c_str());
     }
+
     dir = nullptr;
   }
 }
@@ -59,17 +62,22 @@ DirectoryIterator::~DirectoryIterator() {
 //
 // If the iterator is in an error state, next() will only ever return nullptr.
 //------------------------------------------------------------------------------
-struct dirent* DirectoryIterator::next() {
-  if(!ok()) return nullptr;
-  if(reachedEnd) return nullptr;
+struct dirent* DirectoryIterator::next()
+{
+  if (!ok()) {
+    return nullptr;
+  }
+
+  if (reachedEnd) {
+    return nullptr;
+  }
 
   errno = 0;
   nextEntry = readdir(dir);
 
-  if(!nextEntry && errno == 0) {
+  if (!nextEntry && errno == 0) {
     reachedEnd = true;
-  }
-  else if(!nextEntry) {
+  } else if (!nextEntry) {
     error = SSTR("Error when calling readdir: " << strerror(errno));
   }
 
@@ -79,14 +87,16 @@ struct dirent* DirectoryIterator::next() {
 //------------------------------------------------------------------------------
 // Checks if the iterator is in an error state. EOF is not an error state!
 //------------------------------------------------------------------------------
-bool DirectoryIterator::ok() const {
+bool DirectoryIterator::ok() const
+{
   return error.empty();
 }
 
 //------------------------------------------------------------------------------
 // Checks whether we have reached the end.
 //------------------------------------------------------------------------------
-bool DirectoryIterator::eof() const {
+bool DirectoryIterator::eof() const
+{
   return reachedEnd;
 }
 
@@ -94,6 +104,7 @@ bool DirectoryIterator::eof() const {
 // Retrieve the error message if the iterator object is in an error state.
 // If no error state, returns an empty string.
 //------------------------------------------------------------------------------
-std::string DirectoryIterator::err() const {
+std::string DirectoryIterator::err() const
+{
   return error;
 }
