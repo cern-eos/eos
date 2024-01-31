@@ -679,6 +679,7 @@ Requires: xrootd-client >= %{xrootd_version_min}
 Requires: eos-client = @CPACK_PACKAGE_VERSION@
 Requires: fuse3
 Requires: jemalloc
+Requires: autofs
 
 %description -n eos-cfsd
 The new EOS client filesystem daemon
@@ -689,6 +690,8 @@ The new EOS client filesystem daemon
 %{_sbindir}/mount.eoscfs
 %{_sbindir}/umount.fuse
 %config(noreplace) %{_sysconfdir}/eos/cfsd/eoscfsd.conf
+%config(noreplace) %{_sysconfdir}/auto.cfsd
+%config(noreplace) %{_sysconfdir}/auto.master.d/auto.cfsd
 %dir %attr(755,daemon,daemon) %{_localstatedir}/log/eos/
 %dir %attr(755,daemon,daemon) %{_localstatedir}/log/eos/cfsd/
 %dir %attr(755,daemon,daemon) %{_localstatedir}/cache/eos/

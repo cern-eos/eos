@@ -50,6 +50,7 @@ if [ -z "$1" ]; then
     exit -1;
 fi
 
+name=$1
 shift
 
 options=()
@@ -77,6 +78,4 @@ do
     fi
 done
 
-echo ${options[@]}
-
-/usr/bin/eoscfsd ${options[@]} >& /dev/null < /dev/zero
+/usr/bin/eoscfsd ${options[@]} $name >& /dev/null < /dev/zero
