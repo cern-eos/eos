@@ -32,6 +32,7 @@ std::unique_ptr<AuthenticationGroup> cfslogin::authGroup;
 std::unique_ptr<cfsmapping> cfslogin::cfsMap;
 
 ProcessCache* cfslogin::processCache = nullptr;
+std::string cfslogin::k5domain = "@CERN.CH";
 
 void cfslogin::initializeProcessCache(const CredentialConfig& config)
 {
@@ -98,7 +99,7 @@ std::string cfslogin::name(fuse_req_t req)
 
   size_t adpos=0;
   if ( (adpos = username.find("@")) != std::string::npos) {
-    if (username.find("@CERN.CH") == std::string::npos) {
+    if (username.find(cfslogin::k5domain) == std::string::npos) {
       return "nobody";
     } else {
       username.erase(adpos);

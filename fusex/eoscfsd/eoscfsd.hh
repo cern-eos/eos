@@ -191,7 +191,7 @@ public:
   size_t idletime;
   cfsquota quota;
   cfsrecycle recycle;
-
+  std::string k5domain;
   FILE* fstderr;
 
   Stat& getFuseStat()
