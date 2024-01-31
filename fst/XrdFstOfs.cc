@@ -1369,7 +1369,8 @@ XrdFstOfs::fsctl(const int cmd, const char* args, XrdOucErrInfo& error,
     return SFS_DATA;
   }
 
-  return gOFS.Emsg(epname, error, EPERM, "execute fsctl function", "");
+  std::string scmd = SSTR("cmd=" << cmd << " args=\"" << args << "\"").c_str();
+  return gOFS.Emsg(epname, error, EPERM, "execute fsctl function", scmd.c_str());
 }
 
 //------------------------------------------------------------------------------
