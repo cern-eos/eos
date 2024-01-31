@@ -540,7 +540,9 @@ EosFuse::run(int argc, char* argv[], void* userdata)
   if (getuid() == 0) {
     // the root mount always adds the 'allow_other' option
     fuse_opt_add_arg(&args, "-oallow_other");
+#ifdef USE_FUSE3
     fuse_opt_add_arg(&args, "-oclone_fd");
+#endif 
     fprintf(stderr, "# -o allow_other enabled on shared mount\n");
   }
 
