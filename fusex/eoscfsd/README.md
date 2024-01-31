@@ -152,4 +152,14 @@ eoscfsd recycle bin
 
 eoscfsd supports deletion trhough a recycle bin. It is still in beta state and will be documented when the feature has evolved for production.
 
+autofs configuration
+--------------------
+
+By default eoscfsd mounts are mounted unde /cern/. This can be chaned in /etc/auto.master.d/cfsd.autofs
+The mount configration has to be defined in the map file /etc/auto.cfsd
+
+Entries look like e.g. mounting a cfsd filesystem named 'default':
+default -fstype=eoscfs :default
+
+The mount will appear under /cern/default in this case.
 
