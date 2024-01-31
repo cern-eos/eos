@@ -42,7 +42,7 @@ public:
     uint64_t atime;
     const char* caller;
     const char* origin;
-    void *req;
+    void* req;
   };
 
   typedef struct _meta {
@@ -131,11 +131,13 @@ public:
   }
 
   void
-  forget(Monitor *monp, std::shared_ptr<meta_t> me)
+  forget(Monitor* monp, std::shared_ptr<meta_t> me)
   {
     XrdSysMutexHelper l(iMutex);
-    if (me)
+
+    if (me) {
       me->adet.erase(monp);
+    }
   }
 
   size_t
@@ -145,7 +147,8 @@ public:
     return iNodes.size();
   }
 
-  double blocked_ms(std::string& function, uint64_t& inode, std::string& orig, size_t& blocked_ops, bool& on_root)
+  double blocked_ms(std::string& function, uint64_t& inode, std::string& orig,
+                    size_t& blocked_ops, bool& on_root)
   {
     // return's the time of the longest blocked mutex
     double max_blocked = 0;
@@ -158,10 +161,10 @@ public:
     // get current time, after acquiring mutex to ensure positive elapsed time
     auto now = std::chrono::steady_clock::now();
 
-    for (const auto &it : iNodes) {
+    for (const auto& it : iNodes) {
       if (it.second->openr || it.second->openw) {
-        for (const auto &it2 : it.second->adet) {
-          const attachDetail_t &det = it2.second;
+        for (const auto& it2 : it.second->adet) {
+          const attachDetail_t& det = it2.second;
           // get duration since Monitor attached
           double is_blocked = std::chrono::duration_cast<std::chrono::milliseconds>
                               (now.time_since_epoch()).count() - det.atime;
@@ -172,13 +175,14 @@ public:
             orig = det.origin;
             inode = it.first;
           }
-	
-	  if (is_blocked >= 1000) {
-	    blocked_ops++;
-	  }
-	  if ( (it.first == 1) && (is_blocked >= 1000) ) {
-	    on_root=true;
-	  }
+
+          if (is_blocked >= 1000) {
+            blocked_ops++;
+          }
+
+          if ((it.first == 1) && (is_blocked >= 1000)) {
+            on_root = true;
+          }
         }
       }
     }
@@ -194,7 +198,7 @@ public:
   }
 
   std::shared_ptr<meta_t>
-  Attach(Monitor *monp, void *req, unsigned long long ino, bool exclusive = false,
+  Attach(Monitor* monp, void* req, unsigned long long ino, bool exclusive = false,
          const char* caller = 0, const char* origin = 0)
   {
     // get current time. attachtime should give a positive elapsed time, when
@@ -211,7 +215,7 @@ public:
       m = iNodes[ino];
       m->inoLastAttachTime = std::chrono::duration_cast<std::chrono::milliseconds>
                              (now.time_since_epoch()).count();
-      attachDetail_t &det = m->adet[monp];
+      attachDetail_t& det = m->adet[monp];
       det.caller = caller ? caller : "";
       det.origin = origin ? origin : "";
       det.atime = m->inoLastAttachTime;
@@ -229,18 +233,21 @@ public:
     return m;
   }
 
-  void SetOrigin(void *req, unsigned long long ino, const char* origin) {
+  void SetOrigin(void* req, unsigned long long ino, const char* origin)
+  {
     std::shared_ptr<meta_t> m;
     {
       XrdSysMutexHelper l(iMutex);
 
       if (!iNodes.count(ino)) {
-	return ;
+        return ;
       }
 
       m = iNodes[ino];
-      for(auto &it: m->adet) {
-        attachDetail_t &det = it.second;
+
+      for (auto& it : m->adet) {
+        attachDetail_t& det = it.second;
+
         if (det.req == req) {
           det.origin = origin;
         }
@@ -252,7 +259,8 @@ public:
   {
   public:
 
-    Monitor(const char* caller, const char* origin, Track& tracker, void *req, unsigned long long ino,
+    Monitor(const char* caller, const char* origin, Track& tracker, void* req,
+            unsigned long long ino,
             bool exclusive = false, bool disable = false) : tracker(tracker)
     {
       if (!disable) {
@@ -303,7 +311,7 @@ public:
     bool exclusive;
     unsigned long long ino;
     const char* caller;
-    Track &tracker;
+    Track& tracker;
   };
 
 private:

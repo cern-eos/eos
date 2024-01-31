@@ -33,7 +33,7 @@
 namespace XrdCl
 {
 class Proxy;
-  typedef std::shared_ptr<XrdCl::Proxy> shared_proxy;
+typedef std::shared_ptr<XrdCl::Proxy> shared_proxy;
 }
 
 class io

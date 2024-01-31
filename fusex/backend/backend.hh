@@ -49,7 +49,7 @@ public:
   int getMD(fuse_req_t req,
             const std::string& path,
             std::vector<eos::fusex::container>& cont,
-	    bool listing,
+            bool listing,
             std::string authid = ""
            );
 
@@ -76,16 +76,16 @@ public:
 
   int fetchResponse(fuse_req_t req,
                     uint64_t inode,
-		    std::string& url,
+                    std::string& url,
                     std::vector<eos::fusex::container>& cont,
-		    bool cap=false
+                    bool cap = false
                    );
 
 
-  int fetchQueryResponse(uint64_t inode, 
-			 std::string& url,
-			 std::vector<eos::fusex::container>& cont
-			 );
+  int fetchQueryResponse(uint64_t inode,
+                         std::string& url,
+                         std::vector<eos::fusex::container>& cont
+                        );
 
   int rmRf(fuse_req_t req, eos::fusex::md* md);
 
@@ -99,9 +99,9 @@ public:
              std::vector<eos::fusex::container>& cont
             );
 
-  int getChecksum(fuse_req_t req, 
-		  uint64_t inode,
-		  std::string& checksum);
+  int getChecksum(fuse_req_t req,
+                  uint64_t inode,
+                  std::string& checksum);
 
   void set_clientuuid(std::string& s)
   {
@@ -111,15 +111,18 @@ public:
   int statvfs(fuse_req_t req, struct statvfs* stbuf);
 private:
 
-  std::string getURL(fuse_req_t req, const std::string& path, std::string cmd = "fuseX",
-		     std::string pcmd = "getfusex", 
-                     std::string op = "GET", std::string authid = "", bool setinline=false);
-  std::string getURL(fuse_req_t req, uint64_t inode, const std::string& name, std::string cmd = "fuseX",
-		     std::string pcmd = "getfusex",
-                     std::string op = "GET", std::string authid = "", bool setinline=false);
-  std::string getURL(fuse_req_t req, uint64_t inode, uint64_t clock, std::string cmd = "fuseX",
-		     std::string pcmd = "getfusex",
-                     std::string op = "GET", std::string authid = "", bool setinline=false);
+  std::string getURL(fuse_req_t req, const std::string& path,
+                     std::string cmd = "fuseX",
+                     std::string pcmd = "getfusex",
+                     std::string op = "GET", std::string authid = "", bool setinline = false);
+  std::string getURL(fuse_req_t req, uint64_t inode, const std::string& name,
+                     std::string cmd = "fuseX",
+                     std::string pcmd = "getfusex",
+                     std::string op = "GET", std::string authid = "", bool setinline = false);
+  std::string getURL(fuse_req_t req, uint64_t inode, uint64_t clock,
+                     std::string cmd = "fuseX",
+                     std::string pcmd = "getfusex",
+                     std::string op = "GET", std::string authid = "", bool setinline = false);
 
   std::string hostport;
   std::string mount;

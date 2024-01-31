@@ -33,8 +33,9 @@
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
-AuthenticationGroup::AuthenticationGroup(const CredentialConfig &config_)
-: config(config_) {
+AuthenticationGroup::AuthenticationGroup(const CredentialConfig& config_)
+  : config(config_)
+{
   processCache(); // need to call the constructors in the init phase
 }
 
@@ -46,10 +47,11 @@ AuthenticationGroup::~AuthenticationGroup() {}
 //------------------------------------------------------------------------------
 // Retrieve process cache, lazy initialize
 //------------------------------------------------------------------------------
-ProcessCache* AuthenticationGroup::processCache() {
-  if(!processCachePtr) {
+ProcessCache* AuthenticationGroup::processCache()
+{
+  if (!processCachePtr) {
     processCachePtr.reset(new ProcessCache(config, *boundIdentityProvider(),
-      *processInfoProvider(), *jailResolver()));
+                                           *processInfoProvider(), *jailResolver()));
   }
 
   return processCachePtr.get();
@@ -58,10 +60,11 @@ ProcessCache* AuthenticationGroup::processCache() {
 //------------------------------------------------------------------------------
 // Retrieve bound identity provider, lazy initialize
 //------------------------------------------------------------------------------
-BoundIdentityProvider* AuthenticationGroup::boundIdentityProvider() {
-  if(!boundIdentityProviderPtr) {
+BoundIdentityProvider* AuthenticationGroup::boundIdentityProvider()
+{
+  if (!boundIdentityProviderPtr) {
     boundIdentityProviderPtr.reset(new BoundIdentityProvider(
-      *securityChecker(), *environmentReader(), *credentialValidator() ));
+                                     *securityChecker(), *environmentReader(), *credentialValidator()));
     boundIdentityProviderPtr->setCredentialConfig(config);
   }
 
@@ -71,8 +74,9 @@ BoundIdentityProvider* AuthenticationGroup::boundIdentityProvider() {
 //------------------------------------------------------------------------------
 // Retrieve process info provider, lazy initialize
 //------------------------------------------------------------------------------
-ProcessInfoProvider* AuthenticationGroup::processInfoProvider() {
-  if(!processInfoProviderPtr) {
+ProcessInfoProvider* AuthenticationGroup::processInfoProvider()
+{
+  if (!processInfoProviderPtr) {
     processInfoProviderPtr.reset(new ProcessInfoProvider());
   }
 
@@ -82,8 +86,9 @@ ProcessInfoProvider* AuthenticationGroup::processInfoProvider() {
 //------------------------------------------------------------------------------
 // Retrieve jail resolver, lazy initialize
 //------------------------------------------------------------------------------
-JailResolver* AuthenticationGroup::jailResolver() {
-  if(!jailResolverPtr) {
+JailResolver* AuthenticationGroup::jailResolver()
+{
+  if (!jailResolverPtr) {
     jailResolverPtr.reset(new JailResolver());
   }
 
@@ -93,10 +98,11 @@ JailResolver* AuthenticationGroup::jailResolver() {
 //------------------------------------------------------------------------------
 // Retrieve security checker, lazy initialize
 //------------------------------------------------------------------------------
-SecurityChecker* AuthenticationGroup::securityChecker() {
-  if(!securityCheckerPtr) {
+SecurityChecker* AuthenticationGroup::securityChecker()
+{
+  if (!securityCheckerPtr) {
     securityCheckerPtr.reset(new SecurityChecker(
-      config.ignore_containerization));
+                               config.ignore_containerization));
   }
 
   return securityCheckerPtr.get();
@@ -105,8 +111,9 @@ SecurityChecker* AuthenticationGroup::securityChecker() {
 //------------------------------------------------------------------------------
 // Retrieve environment reader, lazy initialize
 //------------------------------------------------------------------------------
-EnvironmentReader* AuthenticationGroup::environmentReader() {
-  if(!environmentReaderPtr) {
+EnvironmentReader* AuthenticationGroup::environmentReader()
+{
+  if (!environmentReaderPtr) {
     environmentReaderPtr.reset(new EnvironmentReader(10));
   }
 
@@ -116,10 +123,11 @@ EnvironmentReader* AuthenticationGroup::environmentReader() {
 //------------------------------------------------------------------------------
 // Retrieve credential validator, lazy initialize
 //------------------------------------------------------------------------------
-CredentialValidator* AuthenticationGroup::credentialValidator() {
-  if(!credentialValidatorPtr) {
+CredentialValidator* AuthenticationGroup::credentialValidator()
+{
+  if (!credentialValidatorPtr) {
     credentialValidatorPtr.reset(new CredentialValidator(*securityChecker(),
-      *uuidStore()));
+                                 *uuidStore()));
   }
 
   return credentialValidatorPtr.get();
@@ -128,8 +136,9 @@ CredentialValidator* AuthenticationGroup::credentialValidator() {
 //------------------------------------------------------------------------------
 // Retrieve uuid store, lazy initialize
 //------------------------------------------------------------------------------
-UuidStore* AuthenticationGroup::uuidStore() {
-  if(!uuidStorePtr) {
+UuidStore* AuthenticationGroup::uuidStore()
+{
+  if (!uuidStorePtr) {
     uuidStorePtr.reset(new UuidStore(config.credentialStore));
   }
 
@@ -139,8 +148,9 @@ UuidStore* AuthenticationGroup::uuidStore() {
 //------------------------------------------------------------------------------
 // Retrieve user credential factory, lazy initialize
 //------------------------------------------------------------------------------
-UserCredentialFactory* AuthenticationGroup::userCredentialFactory() {
-  if(!userCredentialFactoryPtr) {
+UserCredentialFactory* AuthenticationGroup::userCredentialFactory()
+{
+  if (!userCredentialFactoryPtr) {
     userCredentialFactoryPtr.reset(new UserCredentialFactory(config));
   }
 

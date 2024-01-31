@@ -44,12 +44,13 @@ class CredentialConfig
 public:
 
   CredentialConfig() : use_user_krb5cc(false), use_user_gsiproxy(false),
-		       use_user_sss(false), use_user_oauth2(false), use_user_ztn(false), tryKrb5First(false),
-		       use_user_unix(false),
-		       use_root_unix(false),
-		       fuse_shared(false),
-		       environ_deadlock_timeout(500), forknoexec_heuristic(true),
-		       ignore_containerization(false) { }
+    use_user_sss(false), use_user_oauth2(false), use_user_ztn(false),
+    tryKrb5First(false),
+    use_user_unix(false),
+    use_root_unix(false),
+    fuse_shared(false),
+    environ_deadlock_timeout(500), forknoexec_heuristic(true),
+    ignore_containerization(false) { }
 
   //! Indicates if user krb5cc file should be used for authentication
   bool use_user_krb5cc;
@@ -136,7 +137,7 @@ public:
   //----------------------------------------------------------------------------
   void initialize(const UserCredentials& uc_, struct timespec mtime_,
                   const std::string& intercepted,
-		  const std::string& user)
+                  const std::string& user)
   {
     uc = uc_;
     initialized = true;
@@ -144,6 +145,7 @@ public:
     mtime = mtime_;
     interceptedPath = intercepted;
     username = user;
+
     if (uc.type == CredentialType::OAUTH2) {
       eos::common::StringConversion::LoadFileIntoString(getFinalPath().c_str(),
           uc.endorsement);
@@ -227,7 +229,7 @@ public:
   }
 
   //----------------------------------------------------------------------------
-  // Generate username for this TrustedCredential 
+  // Generate username for this TrustedCredential
   //----------------------------------------------------------------------------
   std::string toUserName() const
   {
@@ -244,7 +246,7 @@ public:
     if (uc.type == CredentialType::OAUTH2) {
       return "nobody";
     }
-    
+
     if (uc.type == CredentialType::KRB5) {
       return username;
     } else if (uc.type == CredentialType::KRK5) {
@@ -260,7 +262,7 @@ public:
     }
   }
 
-  
+
   //----------------------------------------------------------------------------
   // Generate parameters for this TrustedCredential as std::string
   //----------------------------------------------------------------------------

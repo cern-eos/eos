@@ -281,16 +281,18 @@ public:
       return _local_enoent;
     }
 
-    void store_fullpath(const std::string &pfp, const std::string &name)
+    void store_fullpath(const std::string& pfp, const std::string& name)
     {
       std::string fullpath = pfp;
+
       if (fullpath.back() != '/') {
         fullpath += "/";
       }
+
       fullpath += name;
       (*this)()->set_fullpath(fullpath.c_str());
     }
-    
+
     const uint64_t inlinesize()
     {
       return inline_size;
@@ -414,15 +416,17 @@ public:
       return &proto;
     }
 
-    uint64_t pidTS() {
+    uint64_t pidTS()
+    {
       XrdSysMutexHelper cLock(mLock);
       return proto.pid();
     }
-    
-    uint64_t pid() {
+
+    uint64_t pid()
+    {
       return proto.pid();
     }
-    
+
   private:
     XrdSysMutex mLock;
     XrdSysCondVar mSync;
@@ -526,16 +530,16 @@ public:
     void insertTS(fuse_ino_t ino, shared_md& md);
     bool eraseTS(fuse_ino_t ino);
     void retrieveWithParentTS(fuse_ino_t ino, shared_md& md, shared_md& pmd,
-                              std::string &md_name);
+                              std::string& md_name);
 
     uint64_t lru_oldest() const;
     uint64_t lru_newest() const;
     void lru_add(fuse_ino_t ino, shared_md md);
     void lru_remove(fuse_ino_t ino);
     void lru_update(fuse_ino_t ino, shared_md md);
-    void lru_dump(bool force=false);
+    void lru_dump(bool force = false);
     void lru_reset();
-    
+
     int swap_out(fuse_ino_t ino, shared_md md);
     int swap_in(fuse_ino_t ino, shared_md md);
     int swap_rm(fuse_ino_t ino);
@@ -578,7 +582,7 @@ public:
                      fuse_ino_t ino);
 
   std::string getpath(fuse_ino_t ino);
-  
+
   shared_md get(fuse_req_t req,
                 fuse_ino_t ino,
                 const std::string authid = "",
@@ -637,7 +641,7 @@ public:
                      assistant); // thread interacting with the MGM for meta data
 
   void mdcallback(ThreadAssistant&
-		  assistant); // thread applying MGM callback responses
+                  assistant); // thread applying MGM callback responses
 
   void mdstackfree(ThreadAssistant&
                    assistant); // thread removing stacked inodes
@@ -714,7 +718,7 @@ public:
     {
       _lru_resets.fetch_add(1, std::memory_order_seq_cst);
     }
-    
+
     void inodes_deleted_dec()
     {
       _inodes_deleted.fetch_sub(1, std::memory_order_seq_cst);
@@ -760,7 +764,7 @@ public:
     {
       return _lru_resets.load();
     }
-    
+
   private:
     std::atomic<ssize_t> _inodes;
     std::atomic<ssize_t> _inodes_stacked;
@@ -794,11 +798,12 @@ public:
     inomap.insert(i_root, 1);
   }
 
-  void lrureset() {
+  void lrureset()
+  {
     stat.lru_resets_inc();
     mdmap.lru_reset();
   }
-  
+
   void
   reset_cap_count(uint64_t ino)
   {
@@ -977,7 +982,7 @@ public:
   }
 
   std::atomic<time_t> last_heartbeat; // timestamp of the last heartbeat sent
-  
+
 private:
 
   // Lock _two_ md objects in the given order.
@@ -1008,7 +1013,7 @@ private:
         md2->Locker().UnLock();
       }
     }
-    
+
   private:
     shared_md md1;
     shared_md md2;
@@ -1030,7 +1035,7 @@ private:
   bool mdquery;
   bool hideversion;
   std::atomic<int>  hb_interval;
-  
+
   std::string serverversion;
 
   XrdSysCondVar mdflush;
@@ -1044,7 +1049,7 @@ private:
   XrdSysCondVar mCb; // condition variable for queue
   std::string mCbTrace; // stack trace response
   std::string mCbLog; // logging response
-  
+
   size_t mdqueue_max_backlog;
 
   // ZMQ objects
@@ -1060,7 +1065,7 @@ private:
   std::atomic<int> fusex_visible;
   backend* mdbackend;
 
-  
+
 };
 
 #endif /* FUSE_MD_HH_ */

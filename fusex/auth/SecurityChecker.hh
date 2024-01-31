@@ -170,7 +170,8 @@ private:
 
     InjectedData() { }
 
-    InjectedData(uid_t u, mode_t md, struct timespec mt) : uid(u), mode(md), mtime(mt) { }
+    InjectedData(uid_t u, mode_t md, struct timespec mt) : uid(u), mode(md),
+      mtime(mt) { }
   };
 
   struct InjectedRequest {
