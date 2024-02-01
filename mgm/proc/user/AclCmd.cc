@@ -316,25 +316,19 @@ bool AclCmd::GetRuleBitmask(const std::string& input, bool set)
 {
   bool lambda_happen = false;
   unsigned short int ret = 0, add_ret = 0, rm_ret = 0;
-  auto add_lambda = [&add_ret, &ret](AclCmd::ACLPos pos) {
+  auto add_lambda = [&](AclCmd::ACLPos pos) {
     add_ret = add_ret | pos;
     ret = ret | pos;
   };
-  auto remove_lambda = [&rm_ret, &ret](AclCmd::ACLPos pos) {
+  auto remove_lambda = [&](AclCmd::ACLPos pos) {
     rm_ret = rm_ret | pos;
     ret = ret & (~pos);
   };
-  std::function<void(AclCmd::ACLPos)>curr_lambda = add_lambda;
+  std::function<void(AclCmd::ACLPos)> curr_lambda = add_lambda;
 
   for (auto flag = input.begin(); flag != input.end(); ++flag) {
     // Check for add/rm rules
-    if (*flag == '-') {
-      curr_lambda = remove_lambda;
-      lambda_happen = true;
-      continue;
-    }
-
-    if (*flag == '+') {
+    if ((*flag == '-') || (*flag == '+')) {
       auto temp_iter = flag;
       ++temp_iter;
 
@@ -342,15 +336,22 @@ bool AclCmd::GetRuleBitmask(const std::string& input, bool set)
         continue;
       }
 
-      if (*temp_iter == '+') {
-        continue;
+      if ((*flag == '-') && (*temp_iter == '-')) {
+        goto error_label;
       }
 
-      lambda_happen = true;
-      curr_lambda = add_lambda;
+      if (*flag == '-') {
+        lambda_happen = true;
+        curr_lambda = remove_lambda;
+      } else if (*flag == '+') {
+        lambda_happen = true;
+        curr_lambda = add_lambda;
+      }
 
-      if (*temp_iter != 'd' && *temp_iter != 'u') {
+      if (*temp_iter != 'd' && *temp_iter != 'u' && *temp_iter != '+') {
         continue;
+      } else {
+        ++flag;
       }
     }
 
