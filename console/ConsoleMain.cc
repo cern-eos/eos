@@ -111,6 +111,7 @@ extern int com_rclone(char*);
 extern int com_rmdir(char*);
 extern int com_role(char*);
 extern int com_rtlog(char*);
+extern int com_scitoken(char*);
 extern int com_status(char*);
 extern int com_silent(char*);
 extern int com_proto_devices(char*);
@@ -212,6 +213,7 @@ COMMAND commands[] = {
   { (char*) "timing", com_timing, (char*) "Toggle timing flag for execution time measurement"},
   { (char*) "touch", com_touch, (char*) "Touch a file"},
   { (char*) "token", com_proto_token, (char*) "Token interface"},
+  { (char*) "scitoken", com_scitoken, (char*) "SciToken interface"},
   { (char*) "tracker", com_tracker, (char*) "Interact with File Tracker"},
   { (char*) "version", com_version, (char*) "Verbose client/server version"},
   { (char*) "vid", com_vid, (char*) "Virtual ID System Configuration"},
