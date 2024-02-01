@@ -343,15 +343,23 @@ bool AclCmd::GetRuleBitmask(const std::string& input, bool set)
       if (*flag == '-') {
         lambda_happen = true;
         curr_lambda = remove_lambda;
+
+        if (*temp_iter == '+') {
+          ++flag;
+        }
       } else if (*flag == '+') {
         lambda_happen = true;
         curr_lambda = add_lambda;
+
+        if (*temp_iter == '+') {
+          ++flag;
+        }
       }
 
-      if (*temp_iter != 'd' && *temp_iter != 'u' && *temp_iter != '+') {
+      if ((*temp_iter != 'd') &&
+          (*temp_iter != 'u') &&
+          (*temp_iter != '+')) {
         continue;
-      } else {
-        ++flag;
       }
     }
 

@@ -180,9 +180,7 @@ TEST(AclCmd, GetRuleBitmask)
   ASSERT_TRUE(test.GetRuleBitmask("wr!u+d-!u", true));
   ASSERT_EQ(test.GetAddRule(), 67u);
   ASSERT_EQ(test.GetRmRule(), 128u);
-  ASSERT_TRUE(test.GetRuleBitmask("+++++++d!urwxxxxxx!u", true));
-  ASSERT_EQ(test.GetAddRule(), 199u);
-  ASSERT_EQ(test.GetRmRule(), 0u);
+  ASSERT_FALSE(test.GetRuleBitmask("+++++++d!urwxxxxxx!u", true));
   ASSERT_TRUE(test.GetRuleBitmask("+rw+d-!u", false));
   ASSERT_EQ(test.GetAddRule(), 67u);
   ASSERT_EQ(test.GetRmRule(), 128u);
