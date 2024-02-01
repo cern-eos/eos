@@ -147,6 +147,9 @@ The Converter is enabled/disabled by space:
    # disable
    eos space config default space.converter=off
 
+.. warning:: Be aware that you have to grant project quota in the converter directory if your instances has quota enabled, otherwise
+	     the converter cannot write files because the same quota restrictions apply
+
 The current status of the Converter can be seen via:
 
 .. code-block:: bash
@@ -2242,7 +2245,7 @@ Replication Tracker
 The Replication Tracker follows the workflow of file creations. For each created file a virtual entry is created in the ``proc/tracker`` directory. Entries are removed once a layout is completely commited. The purpose of this tracker is to find inconsistent files after creation and to remove atomic upload relicts automatically after two days.
 
 
-.. warning:: Please note that ysing the tracker will increase the meta-data operation load on the MGM! 
+.. warning:: Please note that using the tracker will increase the meta-data operation load on the MGM! 
 
 .. index::  
    pair: Tracker; Configuration
