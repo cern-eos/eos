@@ -366,6 +366,12 @@ public:
   static bool IsOAuth2Resource(const std::string& resource);
 
   // ---------------------------------------------------------------------------
+  //! Print JWT token
+  // ---------------------------------------------------------------------------
+
+  static std::string PrintJWT(const std::string token, bool dense=true);
+  
+  // ---------------------------------------------------------------------------
   //! Helper functions to populate vid.uid/gid from the Phyiscal Cache/passwd
   // ---------------------------------------------------------------------------
   static void getPhysicalUids(const char* name, VirtualIdentity& vid);
@@ -375,7 +381,8 @@ public:
 
   static void HandleUidGidMapping(const char* name, VirtualIdentity& vid,
                                   const std::string& uid_key_name,
-                                  const std::string& gid_key_name);
+                                  const std::string& gid_key_name,
+				  bool force=false);
 
   static void cacheUserIds(uid_t uid, const std::string& username);
   static void cacheGroupIds(gid_t gid, const std::string& groupname);

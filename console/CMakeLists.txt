@@ -40,6 +40,7 @@ target_link_libraries(EosConsoleHelpers-Objects PUBLIC
   GOOGLE::SPARSEHASH
   XROOTD::UTILS
   XROOTD::POSIX
+  SCITOKENS::SCITOKENS
   stdc++fs 
   )
 
@@ -92,6 +93,7 @@ add_library(EosConsoleCommands-Objects OBJECT
   commands/com_rmdir.cc
   commands/com_role.cc
   commands/com_rtlog.cc
+  commands/com_scitoken.cc
   commands/com_silent.cc
   commands/com_stat.cc
   commands/com_status.cc
@@ -140,6 +142,7 @@ target_link_libraries(EosConsoleCommands-Objects PUBLIC
   EosConsoleHelpers-Objects
   READLINE::READLINE
   JSONCPP::JSONCPP
+  SCITOKENS::SCITOKENS
   XROOTD::UTILS)
 
 set_target_properties(EosConsoleCommands-Objects PROPERTIES
@@ -160,6 +163,7 @@ target_link_libraries(
   EosConsoleHelpers-Objects
   ZMQ::ZMQ
   XROOTD::POSIX
+  SCITOKENS::SCITOKENS
   EosFstIo-Static
   stdc++fs 
   )
