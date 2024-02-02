@@ -17,6 +17,17 @@ Introduction
 This release is based on XRootD V5.
 
 
+``v5.2.10 Diopside``
+=========================
+
+2024-02-02
+
+Bug
+----
+
+* [EOS-6022] - mkdir -p does not broadcast properly to eosxd clients
+
+
 ``v5.2.9 Diopside``
 =========================
 
