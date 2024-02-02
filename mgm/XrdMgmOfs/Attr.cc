@@ -26,6 +26,8 @@
 // transparent without slowing down the compilation time.
 //------------------------------------------------------------------------------
 
+auto constexpr kAttrObfuscateKey = "user.obfuscate.key";
+
 //------------------------------------------------------------------------------
 // List extended attributes for a given file/directory - high-level API.
 //------------------------------------------------------------------------------
@@ -39,7 +41,6 @@ XrdMgmOfs::attr_ls(const char* inpath,
 {
   static const char* epname = "attr_ls";
   const char* tident = error.getErrUser();
-  // use a thread private vid
   eos::common::VirtualIdentity vid;
   EXEC_TIMING_BEGIN("IdMap");
   eos::common::Mapping::IdMap(client, ininfo, tident, vid, gOFS->mTokenAuthz,
@@ -60,7 +61,8 @@ XrdMgmOfs::attr_ls(const char* inpath,
 int
 XrdMgmOfs::_attr_ls(const char* path, XrdOucErrInfo& error,
                     const eos::common::VirtualIdentity& vid,
-                    const char* info, eos::IContainerMD::XAttrMap& map, bool links)
+                    const char* info, eos::IContainerMD::XAttrMap& map,
+                    bool links)
 {
   static const char* epname = "attr_ls";
   std::shared_ptr<eos::IContainerMD> dh;
@@ -72,8 +74,8 @@ XrdMgmOfs::_attr_ls(const char* path, XrdOucErrInfo& error,
   try {
     eos::FileOrContainerMD item = gOFS->eosView->getItem(path).get();
     listAttributes(gOFS->eosView, item, map, links);
-    // we never show obfuscion keys
-    map.erase("user.obfuscate.key");
+    // we never show obfuscate key
+    map.erase(kAttrObfuscateKey);
   } catch (eos::MDException& e) {
     errno = e.getErrno();
     eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n", e.getErrno(),
@@ -89,6 +91,120 @@ XrdMgmOfs::_attr_ls(const char* path, XrdOucErrInfo& error,
   return SFS_OK;
 }
 
+//------------------------------------------------------------------------------
+// Get an extended attribute for a given entry by key - high-level API.
+//------------------------------------------------------------------------------
+int
+XrdMgmOfs::attr_get(const char* inpath, XrdOucErrInfo& error,
+                    const XrdSecEntity* client, const char* ininfo,
+                    const char* key, std::string& value)
+{
+  static const char* epname = "attr_get";
+  const char* tident = error.getErrUser();
+  eos::common::VirtualIdentity vid;
+  EXEC_TIMING_BEGIN("IdMap");
+  eos::common::Mapping::IdMap(client, ininfo, tident, vid, gOFS->mTokenAuthz,
+                              AOP_Read, inpath);
+  EXEC_TIMING_END("IdMap");
+  NAMESPACEMAP;
+  BOUNCE_ILLEGAL_NAMES;
+  XrdOucEnv access_Env(ininfo);
+  AUTHORIZE(client, &access_Env, AOP_Stat, "access", inpath, error);
+  gOFS->MgmStats.Add("IdMap", vid.uid, vid.gid, 1);
+  BOUNCE_NOT_ALLOWED;
+  return _attr_get(path, error, vid, ininfo, key, value);
+}
+
+//------------------------------------------------------------------------------
+// Get extended attribute for a given cmd - low-level API.
+//------------------------------------------------------------------------------
+bool
+XrdMgmOfs::_attr_get(eos::IContainerMD& cmd, std::string key,
+                     std::string& rvalue)
+{
+  return getAttribute(gOFS->eosView, cmd, key, rvalue);
+}
+
+//------------------------------------------------------------------------------
+// Get extended attribute for a given fmd - low-level API.
+//------------------------------------------------------------------------------
+bool
+XrdMgmOfs::_attr_get(eos::IFileMD& fmd, std::string key, std::string& rvalue)
+{
+  return getAttribute(gOFS->eosView, fmd, key, rvalue);
+}
+
+//------------------------------------------------------------------------------
+// Get an extended attribute for a given entry by key - low-level API.
+//------------------------------------------------------------------------------
+int
+XrdMgmOfs::_attr_get(const char* path, XrdOucErrInfo& error,
+                     eos::common::VirtualIdentity& vid,
+                     const char* info, const char* key, std::string& value)
+{
+  static const char* epname = "attr_get";
+  std::shared_ptr<eos::IContainerMD> dh;
+  EXEC_TIMING_BEGIN("AttrGet");
+  gOFS->MgmStats.Add("AttrGet", vid.uid, vid.gid, 1);
+  errno = 0;
+  value.clear();
+
+  if (!key) {
+    return Emsg(epname, error, EINVAL, "get attribute", path);
+  }
+
+  // Never return the obfuscate key
+  if (key == kAttrObfuscateKey) {
+    return SFS_OK;
+  }
+
+  eos::Prefetcher::prefetchItemAndWait(gOFS->eosView, path);
+
+  try {
+    eos::FileOrContainerMD item = gOFS->eosView->getItem(path).get();
+
+    if (item.file) {
+      eos::IFileMD::IFileMDReadLocker tmp(item.file);
+
+      if (!_attr_get(*item.file.get(), key, value)) {
+        errno = ENODATA;
+      }
+    } else {
+      eos::IContainerMD::IContainerMDReadLocker tmp(item.container);
+
+      if (!_attr_get(*item.container.get(), key, value)) {
+        errno = ENODATA;
+      }
+    }
+  } catch (eos::MDException& e) {
+    errno = e.getErrno();
+    eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n", e.getErrno(),
+              e.getMessage().str().c_str());
+  }
+
+  EXEC_TIMING_END("AttrGet");
+
+  if (errno) {
+    return Emsg(epname, error, errno, "get attributes", path);
+  }
+
+  // Always decode attribute, even if they are not stores as base64
+  std::string val64 = value;
+  eos::common::SymKey::DeBase64(val64, value);
+
+  if (info) {
+    // Check if base64 encoding is requested
+    XrdOucEnv env(info);
+    const char* ptr = env.Get("eos.attr.val.encoding");
+
+    if (ptr && (strncmp(ptr, "base64", 6) == 0)) {
+      std::string nb64 = value;
+      eos::common::SymKey::Base64(nb64, value);
+    }
+  }
+
+  return SFS_OK;
+}
 
 //------------------------------------------------------------------------------
 // Set an extended attribute for a given file/directory - high-level API.
@@ -100,7 +216,6 @@ XrdMgmOfs::attr_set(const char* inpath, XrdOucErrInfo& error,
 {
   static const char* epname = "attr_set";
   const char* tident = error.getErrUser();
-  // use a thread private vid
   eos::common::VirtualIdentity vid;
   EXEC_TIMING_BEGIN("IdMap");
   eos::common::Mapping::IdMap(client, ininfo, tident, vid, gOFS->mTokenAuthz,
@@ -136,7 +251,7 @@ XrdMgmOfs::_attr_set(const char* path, XrdOucErrInfo& error,
 
   XrdOucString Key = key;
 
-  if (Key.beginswith("sys.") && ((!vid.sudoer) && (vid.uid))) {
+  if (Key.beginswith("sys.") && (!vid.sudoer && vid.uid)) {
     errno = EPERM;
     return Emsg(epname, error, errno, "set attribute", path);
   }
@@ -178,7 +293,7 @@ XrdMgmOfs::_attr_set(const char* path, XrdOucErrInfo& error,
         // Convert to numeric representation
         if (Acl::ConvertIds(val)) {
           errno = EINVAL;
-          return Emsg(epname, error, errno, "set attribute (failed id conver)", path);
+          return Emsg(epname, error, errno, "set attribute (failed id convert)", path);
         }
       }
 
@@ -275,209 +390,6 @@ XrdMgmOfs::_attr_set(const char* path, XrdOucErrInfo& error,
   return SFS_OK;
 }
 
-//------------------------------------------------------------------------------
-// Get an extended attribute for a given entry by key - high-level API.
-//------------------------------------------------------------------------------
-int
-XrdMgmOfs::attr_get(const char* inpath, XrdOucErrInfo& error,
-                    const XrdSecEntity* client, const char* ininfo,
-                    const char* key, std::string& value)
-{
-  static const char* epname = "attr_get";
-  const char* tident = error.getErrUser();
-  // use a thread private vid
-  eos::common::VirtualIdentity vid;
-  EXEC_TIMING_BEGIN("IdMap");
-  eos::common::Mapping::IdMap(client, ininfo, tident, vid, gOFS->mTokenAuthz,
-                              AOP_Read, inpath);
-  EXEC_TIMING_END("IdMap");
-  NAMESPACEMAP;
-  BOUNCE_ILLEGAL_NAMES;
-  XrdOucEnv access_Env(ininfo);
-  AUTHORIZE(client, &access_Env, AOP_Stat, "access", inpath, error);
-  gOFS->MgmStats.Add("IdMap", vid.uid, vid.gid, 1);
-  BOUNCE_NOT_ALLOWED;
-  return _attr_get(path, error, vid, ininfo, key, value);
-}
-
-//------------------------------------------------------------------------------
-// Get an extended attribute for a given entry by key - low-level API.
-//------------------------------------------------------------------------------
-int
-XrdMgmOfs::_attr_get(const char* path, XrdOucErrInfo& error,
-                     eos::common::VirtualIdentity& vid,
-                     const char* info, const char* key, std::string& value)
-{
-  static const char* epname = "attr_get";
-  std::shared_ptr<eos::IContainerMD> dh;
-  EXEC_TIMING_BEGIN("AttrGet");
-  gOFS->MgmStats.Add("AttrGet", vid.uid, vid.gid, 1);
-  errno = 0;
-
-  if (!key) {
-    return Emsg(epname, error, EINVAL, "get attribute", path);
-  }
-
-  value = "";
-  XrdOucString link;
-  bool b64 = false;
-
-  if (info) {
-    XrdOucEnv env(info);
-
-    if (env.Get("eos.attr.val.encoding") &&
-        (std::string(env.Get("eos.attr.val.encoding")) == "base64")) {
-      b64 = true;
-    }
-  }
-
-  eos::Prefetcher::prefetchContainerMDAndWait(gOFS->eosView, path);
-  {
-    eos::IContainerMD::IContainerMDReadLockerPtr dhLock;
-
-    try {
-      dhLock = gOFS->eosView->getContainerReadLocked(path);
-      dh = dhLock->getUnderlyingPtr();
-      value = dh->getAttribute(key);
-    } catch (eos::MDException& e) {
-      errno = e.getErrno();
-      eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n", e.getErrno(),
-                e.getMessage().str().c_str());
-    }
-
-    if (dh && errno) {
-      // try linked attributes
-      try {
-        std::string lkey = "sys.attr.link";
-        link = (dh->getAttribute(lkey)).c_str();
-        dhLock = gOFS->eosView->getContainerReadLocked(link.c_str());
-        dh = dhLock->getUnderlyingPtr();
-        value = dh->getAttribute(key);
-        errno = 0;
-      } catch (eos::MDException& e) {
-        dh.reset();
-        errno = e.getErrno();
-        eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n", e.getErrno(),
-                  e.getMessage().str().c_str());
-      }
-    }
-  }
-
-  if (!dh) {
-    eos::IFileMD::IFileMDReadLockerPtr fmdLock;
-
-    try {
-      fmdLock = gOFS->eosView->getFileReadLocked(path);
-      std::shared_ptr<eos::IFileMD> fmd = fmdLock->getUnderlyingPtr();
-
-      if (fmd) {
-        value = fmd->getAttribute(key);
-      }
-
-      errno = 0;
-
-      if (std::string(key) == "user.obfuscate.key") {
-        // we never show this key
-        value = "";
-      }
-    } catch (eos::MDException& e) {
-      errno = e.getErrno();
-      eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n", e.getErrno(),
-                e.getMessage().str().c_str());
-    }
-  }
-
-  // we always decode attributes here, even if they are stored as base64:
-  std::string val64 = value;
-  eos::common::SymKey::DeBase64(val64, value);
-
-  if (b64) {
-    // on request do base64 encoding
-    std::string nb64 = value;
-    eos::common::SymKey::Base64(nb64, value);
-  }
-
-  EXEC_TIMING_END("AttrGet");
-
-  if (errno) {
-    return Emsg(epname, error, errno, "get attributes", path);
-  }
-
-  return SFS_OK;
-}
-
-
-//------------------------------------------------------------------------------
-// Get extended attribute for a given md object - low-level API.
-//------------------------------------------------------------------------------
-template<typename T>
-static bool attrGetInternal(T& md, std::string key, std::string& rvalue)
-{
-  //------------------------------------------------------------------------------
-  // First, check if the cmd itself contains the attribute.
-  //------------------------------------------------------------------------------
-  if (md.hasAttribute(key)) {
-    rvalue = md.getAttribute(key);
-    return true;
-  }
-
-  //----------------------------------------------------------------------------
-  // Nope.. does the fmd have linked attributes?
-  //----------------------------------------------------------------------------
-  const std::string kMagicKey = "sys.attr.link";
-
-  if (!md.hasAttribute(kMagicKey)) {
-    // Nope
-    return false;
-  }
-
-  //----------------------------------------------------------------------------
-  // It does, fetch linked container
-  //----------------------------------------------------------------------------
-  std::string linkedContainer = md.getAttribute(kMagicKey);
-  std::shared_ptr<eos::IContainerMD> dh;
-  eos::IContainerMD::IContainerMDReadLockerPtr dhLock;
-  eos::Prefetcher::prefetchContainerMDAndWait(gOFS->eosView, linkedContainer);
-
-  try {
-    dhLock = gOFS->eosView->getContainerReadLocked(linkedContainer);
-    dh = dhLock->getUnderlyingPtr();
-  } catch (eos::MDException& e) {
-    errno = e.getErrno();
-    eos_static_err("msg=\"exception while following linked container\" ec=%d emsg=\"%s\"\n",
-                   e.getErrno(), e.getMessage().str().c_str());
-    return false;
-  }
-
-  //----------------------------------------------------------------------------
-  // We have the linked container, lookup.
-  //----------------------------------------------------------------------------
-  if (!dh->hasAttribute(key)) {
-    return false;
-  }
-
-  rvalue = dh->getAttribute(key);
-  return true;
-}
-
-//------------------------------------------------------------------------------
-// Get extended attribute for a given cmd - low-level API.
-//------------------------------------------------------------------------------
-bool
-XrdMgmOfs::_attr_get(eos::IContainerMD& cmd, std::string key,
-                     std::string& rvalue)
-{
-  return attrGetInternal(cmd, key, rvalue);
-}
-
-//------------------------------------------------------------------------------
-// Get extended attribute for a given fmd - low-level API.
-//------------------------------------------------------------------------------
-bool
-XrdMgmOfs::_attr_get(eos::IFileMD& fmd, std::string key, std::string& rvalue)
-{
-  return attrGetInternal(fmd, key, rvalue);
-}
 
 //------------------------------------------------------------------------------
 // Remove an extended attribute for a given entry - high-level API.

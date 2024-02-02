@@ -96,14 +96,14 @@ XrdMgmOfs::_access(const char* path,
   eos_debug("path=%s mode=%x uid=%u gid=%u", path, mode, vid.uid, vid.gid);
   gOFS->MgmStats.Add("Access", vid.uid, vid.gid, 1);
   eos::common::Path cPath(path);
-  std::shared_ptr<eos::IContainerMD> dh;
-  std::shared_ptr<eos::IFileMD> fh;
   bool permok = false;
   std::string attr_path = cPath.GetPath();
-  // ---------------------------------------------------------------------------
-  eos::Prefetcher::prefetchItemAndWait(gOFS->eosView, cPath.GetPath());
+  std::shared_ptr<eos::IFileMD> fh;
+  std::shared_ptr<eos::IContainerMD> dh;
   eos::IFileMD::IFileMDReadLockerPtr fhLock;
   eos::IContainerMD::IContainerMDReadLockerPtr dhLock;
+  // ---------------------------------------------------------------------------
+  eos::Prefetcher::prefetchItemAndWait(gOFS->eosView, cPath.GetPath());
 
   // check for existing file
   try {
@@ -373,8 +373,10 @@ int
 XrdMgmOfs::is_squashfs_access(const char* path,
                               eos::common::VirtualIdentity& vid)
 {
-  static int errc=0;
-  static int eosnobody = eos::common::Mapping::UserNameToUid(std::string("eosnobody"),errc);
+  static int errc = 0;
+  static int eosnobody = eos::common::Mapping::UserNameToUid(
+                           std::string("eosnobody"), errc);
+
   if ((vid.prot == "sss") &&
       (eosnobody == vid.uid) && !errc) {
     // eosnobody can access all squash files
@@ -399,6 +401,7 @@ XrdMgmOfs::allow_public_access(const char* path,
                                eos::common::VirtualIdentity& vid)
 {
   int sq = is_squashfs_access(path, vid);
+
   if (sq == 2) {
     // eosnobody squashfs file access is allowed
     return true;

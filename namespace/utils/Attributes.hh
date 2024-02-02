@@ -23,6 +23,7 @@
 
 #pragma once
 #include "namespace/interface/IView.hh"
+#include "namespace/Prefetcher.hh"
 #include "common/StringUtils.hh"
 #include "common/Logging.hh"
 #include <iostream>
@@ -35,14 +36,12 @@ auto constexpr kAttrLinkKey = "sys.attr.link";
 // Populate 'out' map with attributes found in linkedAttrs. Do not override
 // existing values.
 //------------------------------------------------------------------------------
-inline void populateLinkedAttributes(const eos::IContainerMD::XAttrMap&
-                                     linkedAttrs,
-                                     eos::IContainerMD::XAttrMap& out, bool prefixLinks)
+inline void
+populateLinkedAttributes(const eos::IContainerMD::XAttrMap& linkedAttrs,
+                         eos::IContainerMD::XAttrMap& out, bool prefixLinks)
 {
-  for (auto it = linkedAttrs.begin(); it != linkedAttrs.end(); it++) {
-    //------------------------------------------------------------------------
+  for (auto it = linkedAttrs.begin(); it != linkedAttrs.end(); ++it) {
     // Populate any linked extended attributes which don't exist yet
-    //------------------------------------------------------------------------
     if (out.find(it->first) == out.end()) {
       std::string key;
 
@@ -72,15 +71,13 @@ populateLinkedAttributes(IView* view, eos::IContainerMD::XAttrMap& out,
       return;
     }
 
-    IContainerMD::IContainerMDReadLockerPtr dhLock = view->getContainerReadLocked(linkedPath->second);
+    IContainerMD::IContainerMDReadLockerPtr dhLock =
+      view->getContainerReadLocked(linkedPath->second);
     IContainerMDPtr dh = dhLock->getUnderlyingPtr();
-
     populateLinkedAttributes(dh->getAttributes(), out, prefixLinks);
   } catch (eos::MDException& e) {
-    //--------------------------------------------------------------------------
     // Link does not exist, or is not a directory
-    //--------------------------------------------------------------------------
-    out["sys.attr.link"] = SSTR(out["sys.attr.link"] << " - not found");
+    out[kAttrLinkKey] = SSTR(out[kAttrLinkKey] << " - not found");
     eos_static_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n", e.getErrno(),
                      e.getMessage().str().c_str());
   }
@@ -135,12 +132,55 @@ listAttributes(IView* view, FileOrContainerMD target,
   out.clear();
 
   if (target.file) {
-    eos::IFileMD::IFileMDReadLocker (target.file);
+    eos::IFileMD::IFileMDReadLocker(target.file);
     listAttributes(view, target.file.get(), out, prefixLinks);
   } else if (target.container) {
-    eos::IContainerMD::IContainerMDReadLocker (target.container);
+    eos::IContainerMD::IContainerMDReadLocker(target.container);
     listAttributes(view, target.container.get(), out, prefixLinks);
   }
 }
+
+//------------------------------------------------------------------------------
+// Get extended attribute for a given md object - low-level API.
+//------------------------------------------------------------------------------
+template<typename T>
+static bool getAttribute(IView* view, T& md, std::string key,
+                         std::string& rvalue)
+{
+  // First, check if the referenced object itself contains the attribute
+  if (md.hasAttribute(key)) {
+    rvalue = md.getAttribute(key);
+    return true;
+  }
+
+  if (!md.hasAttribute(kAttrLinkKey)) {
+    return false;
+  }
+
+  // It does, fetch linked container
+  std::string linkedContainer = md.getAttribute(kAttrLinkKey);
+  std::shared_ptr<eos::IContainerMD> dh;
+  eos::IContainerMD::IContainerMDReadLockerPtr dhLock;
+  eos::Prefetcher::prefetchContainerMDAndWait(view, linkedContainer);
+
+  try {
+    dhLock = view->getContainerReadLocked(linkedContainer);
+    dh = dhLock->getUnderlyingPtr();
+  } catch (eos::MDException& e) {
+    errno = e.getErrno();
+    eos_static_err("msg=\"exception while following linked container\" ec=%d emsg=\"%s\"\n",
+                   e.getErrno(), e.getMessage().str().c_str());
+    return false;
+  }
+
+  // We have the linked container, lookup.
+  if (!dh->hasAttribute(key)) {
+    return false;
+  }
+
+  rvalue = dh->getAttribute(key);
+  return true;
+}
+
 
 EOSNSNAMESPACE_END

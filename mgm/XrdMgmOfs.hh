@@ -873,8 +873,8 @@ public:
   //----------------------------------------------------------------------------
   int _attr_ls(const char* path, XrdOucErrInfo& out_error,
                const eos::common::VirtualIdentity& vid,
-               const char* opaque, eos::IContainerMD::XAttrMap& map, bool links = false);
-
+               const char* opaque, eos::IContainerMD::XAttrMap& map,
+               bool links = false);
 
   //----------------------------------------------------------------------------
   //! Set an extended attribute for a given file/directory - high-level API.
