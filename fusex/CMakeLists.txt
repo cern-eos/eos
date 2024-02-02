@@ -210,13 +210,11 @@ set(EOSCFSD_COMMON_LINK_LIBRARIES
   LIBBFD::LIBBFD)
 
 add_library(eoscfsd-objects OBJECT
-  eoscfsd/eoscfsd.cc eoscfsd/eoscfsd.hh
   eoscfsd/cfslogin.cc eoscfsd/cfslogin.hh
   eoscfsd/cfsrecycle.cc eoscfsd/cfsrecycle.hh
   stat/Stat.cc stat/Stat.hh
   ../common/ShellCmd.cc ../common/ShellCmd.hh
-  ../common/ShellExecutor.cc ../common/ShellExecutor.hh
-  )
+  ../common/ShellExecutor.cc ../common/ShellExecutor.hh)
 
 set_target_properties(eoscfsd-objects
   PROPERTIES COMPILE_FLAGS ${EOSCFSD_COMPILE_FLAGS})
@@ -226,22 +224,20 @@ target_link_libraries(eoscfsd-objects PUBLIC
   XROOTD::PRIVATE
   XROOTD::UTILS
   JSONCPP::JSONCPP
-  fmt::fmt-header-only
-  )
+  fmt::fmt-header-only )
 
 #-------------------------------------------------------------------------------
 # eoscfsd executables
 #-------------------------------------------------------------------------------
 
 if (FUSE3_FOUND)
-  add_executable(eoscfsd)
+  add_executable(eoscfsd eoscfsd/eoscfsd.cc)
   add_executable(eosxd3 eosxd/main.cc)
   
   target_link_libraries(eoscfsd PUBLIC
     eoscfsd-objects
     JEMALLOC::JEMALLOC
-    ${EOSCFSD_COMMON_LINK_LIBRARIES}
-    )
+    ${EOSCFSD_COMMON_LINK_LIBRARIES})
   
   set_target_properties(eoscfsd
     PROPERTIES COMPILE_FLAGS ${EOSCFSD_COMPILE_FLAGS})

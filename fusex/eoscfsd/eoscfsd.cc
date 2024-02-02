@@ -38,6 +38,149 @@
 using namespace std;
 
 
+static void maximize_fd_limit()
+{
+  struct rlimit lim {};
+  auto res = getrlimit(RLIMIT_NOFILE, &lim);
+
+  if (res != 0) {
+    warn("WARNING: getrlimit() failed with");
+    return;
+  }
+
+  lim.rlim_cur = lim.rlim_max;
+  res = setrlimit(RLIMIT_NOFILE, &lim);
+
+  if (res != 0) {
+    warn("WARNING: setrlimit() failed with");
+  }
+}
+
+static void maximize_priority()
+{
+  if (setpriority(PRIO_PROCESS, getpid(), -PRIO_MAX / 2) < 0) {
+    fprintf(stderr,
+            "error: failed to renice this process '%u', to maximum priority '%d'\n",
+            getpid(), -PRIO_MAX / 2);
+  }
+}
+
+
+static void print_usage(char* prog_name)
+{
+  cout << "Usage: " << prog_name << " --help\n"
+       << "       " << prog_name << " [options] <mountpoint> [<name>]\n";
+  cout << "options:\n";
+  cout << "         -d    --debug       Enable filesystem debug messages\n";
+  cout << "               --debug-fuse  Enable libfuse debug messages\n";
+  cout << "         -h    --help        Print help\n";
+  cout << "               --nosplice    Do not use splice(2) to transfer data\n";
+  cout << "         -s    --single      Run single-threaded\n";
+  cout << "         -f    --foreground  Run in foreground\n";
+  cout << "         -r    --recycle     Run with recycling bin\n";
+  cout << "         -e    --embedded    Use an embedded key\n";
+}
+
+
+static std::set<std::string> parse_options(int argc, char** argv)
+{
+  std::set<std::string> options;
+  std::string mountpath = "";
+  std::string mountname = "";
+
+  for (int i = 1 ; i < argc; ++i) {
+    std::string args = argv[i];
+
+    if (args == std::string("-o")) {
+      i++;
+      continue;
+    } else {
+      if (args.substr(0, 2) == std::string("-o")) {
+        continue;
+      }
+    }
+
+    if (args.substr(0, 1) == "-") {
+      if ((args == "-h") || (args == "--help")) {
+        print_usage(argv[0]);
+        exit(0);
+      }
+
+      if ((args == "--debug") || (args == "-d")) {
+        options.insert("debug");
+      } else if ((args == "--debug-fuse")) {
+        options.insert("debug-fuse");
+      } else if ((args == "--nosplice")) {
+        options.insert("nosplice");
+      } else if ((args == "--single") || (args == "-s")) {
+        options.insert("single");
+      } else if ((args == "-f") || (args == "--foreground")) {
+        options.insert("foreground");
+      } else if ((args == "-r") || (args == "--recycle")) {
+        options.insert("recycle");
+      } else if ((args == "-e") || (args == "--embedded")) {
+        options.insert("embedded");
+      } else {
+        print_usage(argv[0]);
+        exit(0);
+      }
+    } else {
+      if (mountpath.empty()) {
+        mountpath = args;
+      } else {
+        if (mountname.empty()) {
+          mountname = args;
+        } else {
+          print_usage(argv[0]);
+          exit(-1);
+        }
+      }
+    }
+  }
+
+  if (mountpath.empty()) {
+    print_usage(argv[0]);
+    exit(-1);
+  }
+
+  fs.debug = options.count("debug") != 0;
+  fs.nosplice = options.count("nosplice") != 0;
+  fs.recyclebin = options.count("recycle") != 0;
+  fs.mount = mountpath;
+  fs.name = mountname;
+  fs.foreground = options.count("foreground") != 0;
+
+  if (options.count("embedded")) {
+    fs.keyresource = "";
+  }
+
+  return options;
+}
+
+
+static Inode& get_inode(fuse_ino_t ino)
+{
+  if (ino == FUSE_ROOT_ID) {
+    return fs.root;
+  }
+
+  Inode* inode = reinterpret_cast<Inode*>(ino);
+
+  if (inode->fd == -1) {
+    cerr << "INTERNAL ERROR: Unknown inode " << ino << endl;
+    abort();
+  }
+
+  return *inode;
+}
+
+
+static int get_fs_fd(fuse_ino_t ino)
+{
+  int fd = get_inode(ino).fd;
+  return fd;
+}
+
 
 static void
 /* -------------------------------------------------------------------------- */
@@ -532,6 +675,40 @@ static void sfs_rename(fuse_req_t req, fuse_ino_t parent, const char* name,
 }
 
 
+static void forget_one(fuse_ino_t ino, uint64_t n)
+{
+  Inode& inode = get_inode(ino);
+  unique_lock<mutex> l {inode.m};
+
+  if (n > inode.nlookup) {
+    cerr << "INTERNAL ERROR: Negative lookup count for inode "
+         << inode.src_ino << endl;
+    abort();
+  }
+
+  inode.nlookup -= n;
+
+  if (fs.debug)
+    cerr << "DEBUG:" << __func__ << ":" << __LINE__ << " "
+         <<  "inode " << inode.src_ino
+         << " count " << inode.nlookup << endl;
+
+  if (!inode.nlookup) {
+    if (fs.debug) {
+      cerr << "DEBUG: forget: cleaning up inode " << inode.src_ino << endl;
+    }
+
+    {
+      lock_guard<mutex> g_fs {fs.mutex};
+      l.unlock();
+      fs.inodes.erase({inode.src_ino, inode.src_dev});
+    }
+  } else if (fs.debug)
+    cerr << "DEBUG: forget: inode " << inode.src_ino
+         << " lookup count now " << inode.nlookup << endl;
+}
+
+
 static void sfs_unlink(fuse_req_t req, fuse_ino_t parent, const char* name)
 {
   eos::common::Timing timing("unlink");
@@ -586,39 +763,6 @@ static void sfs_unlink(fuse_req_t req, fuse_ino_t parent, const char* name)
   COMMONTIMING("_stop_", &timing);
 }
 
-
-static void forget_one(fuse_ino_t ino, uint64_t n)
-{
-  Inode& inode = get_inode(ino);
-  unique_lock<mutex> l {inode.m};
-
-  if (n > inode.nlookup) {
-    cerr << "INTERNAL ERROR: Negative lookup count for inode "
-         << inode.src_ino << endl;
-    abort();
-  }
-
-  inode.nlookup -= n;
-
-  if (fs.debug)
-    cerr << "DEBUG:" << __func__ << ":" << __LINE__ << " "
-         <<  "inode " << inode.src_ino
-         << " count " << inode.nlookup << endl;
-
-  if (!inode.nlookup) {
-    if (fs.debug) {
-      cerr << "DEBUG: forget: cleaning up inode " << inode.src_ino << endl;
-    }
-
-    {
-      lock_guard<mutex> g_fs {fs.mutex};
-      l.unlock();
-      fs.inodes.erase({inode.src_ino, inode.src_dev});
-    }
-  } else if (fs.debug)
-    cerr << "DEBUG: forget: inode " << inode.src_ino
-         << " lookup count now " << inode.nlookup << endl;
-}
 
 static void sfs_forget(fuse_req_t req, fuse_ino_t ino, uint64_t nlookup)
 {
@@ -693,7 +837,7 @@ static void sfs_opendir(fuse_req_t req, fuse_ino_t ino, fuse_file_info* fi)
   ADD_CFSD_STAT("opendir", req);
   FsID fsid(req);
   Inode& inode = get_inode(ino);
-  auto d = new (nothrow) DirHandle;
+  auto d = new(nothrow) DirHandle;
 
   if (d == nullptr) {
     fuse_reply_err(req, ENOMEM);
@@ -764,7 +908,7 @@ static void do_readdir(fuse_req_t req, fuse_ino_t ino, size_t size,
     cerr << "DEBUG: readdir(): started with offset "
          << offset << endl;
 
-  auto buf = new (nothrow) char[size];
+  auto buf = new(nothrow) char[size];
 
   if (!buf) {
     fuse_reply_err(req, ENOMEM);
@@ -1292,7 +1436,7 @@ static void sfs_getxattr(fuse_req_t req, fuse_ino_t ino, const char* name,
   sprintf(procname, "/proc/self/fd/%i", inode.fd);
 
   if (size) {
-    value = new (nothrow) char[size];
+    value = new(nothrow) char[size];
 
     if (value == nullptr) {
       saverr = ENOMEM;
@@ -1351,7 +1495,7 @@ static void sfs_listxattr(fuse_req_t req, fuse_ino_t ino, size_t size)
   sprintf(procname, "/proc/self/fd/%i", inode.fd);
 
   if (size) {
-    value = new (nothrow) char[size];
+    value = new(nothrow) char[size];
 
     if (value == nullptr) {
       saverr = ENOMEM;
