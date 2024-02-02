@@ -466,7 +466,7 @@ XrdMgmOfs::_touch(const char* path,
       lock.Release();
     }
 
-    gOFS->FuseXCastRefresh(fid, did);
+    gOFS->FuseXCastMD(fid, did, mtime, true);
     gOFS->FuseXCastRefresh(did, pdid);
     errno = 0;
   } catch (eos::MDException& e) {

@@ -332,7 +332,7 @@ XrdMgmOfs::_mkdir(const char* path,
           eos::ContainerIdentifier d_id = dir->getIdentifier();
           eos::ContainerIdentifier d_pid = dir->getParentIdentifier();
           lock.Release();
-          gOFS->FuseXCastRefresh(nd_id, d_id);
+          gOFS->FuseXCastMD(nd_id, d_id,ctime, true);
           gOFS->FuseXCastRefresh(d_id, d_pid);
         } catch (eos::MDException& e) {
           errno = e.getErrno();
@@ -403,7 +403,7 @@ XrdMgmOfs::_mkdir(const char* path,
     eos::ContainerIdentifier d_id = dir->getIdentifier();
     eos::ContainerIdentifier d_pid = dir->getParentIdentifier();
     lock.Release();
-    gOFS->FuseXCastRefresh(nd_id, d_id);
+    gOFS->FuseXCastMD(nd_id, d_id, ctime, true);
     gOFS->FuseXCastRefresh(d_id, d_pid);
   } catch (eos::MDException& e) {
     errno = e.getErrno();
