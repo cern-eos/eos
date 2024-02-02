@@ -17,6 +17,17 @@ Introduction
 This release is based on XRootD V5.
 
 
+``v5.2.9 Diopside``
+=========================
+
+2024-02-02
+
+Bug
+----
+
+* [EOS-6012] - Fix crash in eos::mgm::ConversionJob::Merge() when logging error message
+
+
 ``v5.2.8 Diopside``
 =========================
 
