@@ -998,24 +998,6 @@ public:
                 const char* opaque, const char* key);
 
   //----------------------------------------------------------------------------
-  //! Remove all extended attributes for a given file/directory - low-level API.
-  //! @note Only the owner of a directory can delete extended attributes with
-  //! user prefix. sys prefix attributes can be deleted only by sudo'ers or root.
-  //!
-  //! @param path entry path
-  //! @param out_error error object
-  //! @param vid virtual identity of the client
-  //! @param opaque CGI
-  //! @param keep_acls if true ACLs don't get cleared
-  //!
-  //! @return SFS_OK if success otherwise SFS_ERROR
-  //----------------------------------------------------------------------------
-  int _attr_clear(const char* path, XrdOucErrInfo& out_error,
-                  eos::common::VirtualIdentity& vid,
-                  const char* opaque,
-                  bool keep_acls = false);
-
-  //----------------------------------------------------------------------------
   //! List QoS properties for a given entry - low-level API
   //!
   //! @param path entry path
