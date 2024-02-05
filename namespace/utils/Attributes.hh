@@ -31,6 +31,8 @@
 EOSNSNAMESPACE_BEGIN
 
 auto constexpr kAttrLinkKey = "sys.attr.link";
+auto constexpr kAttrTmpEtagKey = "sys.tmp.etag";
+auto constexpr kAttrObfuscateKey = "user.obfuscate.key";
 
 //------------------------------------------------------------------------------
 // Populate 'out' map with attributes found in linkedAttrs. Do not override
