@@ -2382,13 +2382,18 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
         bool do_remove = false;
 
         try {
+	  eos::Prefetcher::prefetchFileMDAndWait(gOFS->eosView, creation_path.c_str());
           eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
-          auto tmp_fmd = gOFS->eosView->getFile(path);
+          auto tmp_fmd = gOFS->eosView->getFile(creation_path.c_str());
 
           if (isAtomicUpload || (tmp_fmd->getNumLocation() == 0)) {
             do_remove = true;
           }
-        } catch (eos::MDException& e) {}
+        } catch (eos::MDException& e) {
+	  if (isAtomicUpload) {
+	    do_remove = true;
+	  }
+	}
 
         if (do_remove) {
           eos::common::VirtualIdentity vidroot = eos::common::VirtualIdentity::Root();
