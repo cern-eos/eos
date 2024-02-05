@@ -246,8 +246,7 @@ XrdMgmOfs::_attr_set(const char* path, XrdOucErrInfo& error,
   gOFS->MgmStats.Add("AttrSet", vid.uid, vid.gid, 1);
   errno = 0;
 
-  if (!key || (strlen(key) == 0) ||
-      !value || (strlen(value) == 0)) {
+  if (!key || (strlen(key) == 0) || !value) {
     errno = EINVAL;
     return Emsg(epname, error, errno, "set attribute", path);
   }
@@ -278,12 +277,14 @@ XrdMgmOfs::_attr_set(const char* path, XrdOucErrInfo& error,
     if (!Acl::IsValid(raw_val, error, is_sys_acl) &&
         !Acl::IsValid(raw_val, error, is_sys_acl, true)) {
       errno = EINVAL;
+      eos_static_err("msg=\"invalid acl value\" value=\"%s\"", raw_val.c_str());
       return Emsg(epname, error, errno, "set attribute (invalid acl format)", path);
     }
 
     // Convert to numeric representation
     if (Acl::ConvertIds(raw_val)) {
       errno = EINVAL;
+      eos_static_err("msg=\"invalid acl value\" value=\"%s\"", raw_val.c_str());
       return Emsg(epname, error, errno, "set attribute (failed id convert)", path);
     }
   }
