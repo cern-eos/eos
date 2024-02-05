@@ -4,6 +4,8 @@
 
 mkdir -p /var/run/eos/
 chown daemon:root /var/run/eos/
+mkdir -p /var/cache/eos/
+chown daemon:root /var/cache/eos/
 if [ -e /etc/eos.keytab ]; then chown daemon /etc/eos.keytab ; chmod 400 /etc/eos.keytab ; fi
 mkdir -p /var/eos/md /var/eos/report
 chmod 755 /var/eos /var/eos/report

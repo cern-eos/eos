@@ -244,3 +244,9 @@ EOS_MGM_FUSEX_MAX_CHILDREN=262144
 
 # define the log file regex you want to broad cast to all consoles
 # EOS_TTY_BROACAST_EGREP="\"CRIT|ALERT|EMERG|PROGRESS\""
+
+#-------------------------------------------------------------------------------
+# MGM SciToken Cache Directory
+#-------------------------------------------------------------------------------
+
+XDG_CACHE_HOME=/var/cache/eos/
