@@ -643,98 +643,82 @@ FileInspector::Dump(std::string& out, std::string_view options,
     }
 
     if (lastAccessTimeFiles.size()) {
-      std::string afiles = "key=last tag=accesstime::files ";
-
       for (auto it = lastAccessTimeFiles.begin(); it != lastAccessTimeFiles.end();
            ++it) {
+	std::string afiles = "key=last tag=accesstime::files bin=";
         afiles += std::to_string(it->first);
-        afiles += "=";
+        afiles += " value=";
         afiles += std::to_string(it->second);
-        afiles += " ";
+	out += afiles;
+	out += "\n";
       }
-
-      out += afiles;
-      out += "\n";
     }
 
     if (lastAccessTimeVolume.size()) {
-      std::string avolume = "key=last tag=accesstime::volume ";
-
       for (auto it = lastAccessTimeVolume.begin(); it != lastAccessTimeVolume.end();
            ++it) {
+	std::string avolume = "key=last tag=accesstime::volume bin=";
         avolume += std::to_string(it->first);
-        avolume += "=";
+        avolume += " value=";
         avolume += std::to_string(it->second);
-        avolume += " ";
+	out += avolume;
+	out += "\n";
       }
-
-      out += avolume;
-      out += "\n";
     }
 
     if (lastBirthTimeFiles.size()) {
-      std::string bfiles = "key=last tag=birthtime::files ";
-
       for (auto it = lastBirthTimeFiles.begin(); it != lastBirthTimeFiles.end();
            ++it) {
+	std::string bfiles = "key=last tag=birthtime::files bin=";
         bfiles += std::to_string(it->first);
-        bfiles += "=";
+        bfiles += " value=";
         bfiles += std::to_string(it->second);
         bfiles += " ";
+	out += bfiles;
+	out += "\n";
       }
-
-      out += bfiles;
-      out += "\n";
     }
 
     if (lastBirthTimeVolume.size()) {
-      std::string bvolume = "key=last tag=birthtime::volume ";
-
       for (auto it = lastBirthTimeVolume.begin(); it != lastBirthTimeVolume.end();
            ++it) {
-        bvolume += std::to_string(it->first);
-        bvolume += "=";
-        bvolume += std::to_string(it->second);
+	std::string bvolume = "key=last tag=birthtime::volume bin=";
+	bvolume += std::to_string(it->first);
+	bvolume += " value=";
+	bvolume += std::to_string(it->second);
         bvolume += " ";
+	out += bvolume;
+	out += "\n";
       }
-
-      out += bvolume;
-      out += "\n";
     }
 
     if (lastBirthVsAccessTimeFiles.size()) {
-      std::string bfiles = "key=last tag=birthvsaccesstime::files ";
-
       for (auto it = lastBirthVsAccessTimeFiles.begin();
            it != lastBirthVsAccessTimeFiles.end();
            ++it) {
         for (auto iit = it->second.begin(); iit != it->second.end(); ++iit) {
+	  std::string bfiles = "key=last tag=birthvsaccesstime::files xbin=";
           bfiles += std::to_string(it->first);
-          bfiles += ":";
-          bfiles += std::to_string(iit->first);
-          bfiles += "=";
+	  bfiles += " ybin=";
+	  bfiles += std::to_string(iit->first);
+          bfiles += " value=";
           bfiles += std::to_string(iit->second);
-          bfiles += " ";
-        }
+	  out += bfiles;
+	  out += "\n";
+	}
       }
-
-      out += bfiles;
-      out += "\n";
     }
 
     if (lastBirthTimeVolume.size()) {
-      std::string bvolume = "key=last tag=birthtime::volume ";
-
       for (auto it = lastBirthTimeVolume.begin(); it != lastBirthTimeVolume.end();
            ++it) {
+	std::string bvolume = "key=last tag=birthtime::volume bin=";
         bvolume += std::to_string(it->first);
-        bvolume += "=";
+        bvolume += " value=";
         bvolume += std::to_string(it->second);
-        bvolume += " ";
+	out += bvolume;
+	out += "\n";
       }
-
-      out += bvolume;
-      out += "\n";
     }
 
     for (auto n = 0; n < 2; ++n) {
