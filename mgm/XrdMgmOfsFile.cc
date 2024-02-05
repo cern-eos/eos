@@ -2382,18 +2382,17 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
         bool do_remove = false;
 
         try {
-          eos::Prefetcher::prefetchFileMDAndWait(gOFS->eosView, path);
           eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
           auto tmp_fmd = gOFS->eosView->getFile(path);
 
-          if (tmp_fmd->getNumLocation() == 0) {
+          if (isAtomicUpload || (tmp_fmd->getNumLocation() == 0)) {
             do_remove = true;
           }
         } catch (eos::MDException& e) {}
 
         if (do_remove) {
           eos::common::VirtualIdentity vidroot = eos::common::VirtualIdentity::Root();
-          gOFS->_rem(cPath.GetPath(), error, vidroot, 0, false, false, false);
+          gOFS->_rem(creation_path.c_str(), error, vidroot, 0, false, false, false);
         }
       }
 
