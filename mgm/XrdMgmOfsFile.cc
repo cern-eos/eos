@@ -2051,6 +2051,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
         eos_err("msg =\"no valid placement found with FlatScheduler\" ret=%d, err_msg=%s",
                 ret.ret_code, ret.error_string().c_str());
         use_geoscheduler = true;
+        gOFS->MgmStats.Add("FScheduler::Placement::Failed",vid.uid, vid.gid, 1);
       }
     }
 

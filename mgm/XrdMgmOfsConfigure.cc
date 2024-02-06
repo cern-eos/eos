@@ -2326,6 +2326,7 @@ XrdMgmOfs::InitStats()
   MgmStats.Add("FileInfo", 0, 0, 0);
   MgmStats.Add("FindEntries", 0, 0, 0);
   MgmStats.Add("Find", 0, 0, 0);
+  MgmStats.Add("FScheduler::Placement::Failed", 0, 0, 0);
   MgmStats.Add("Fuse", 0, 0, 0);
   MgmStats.Add("Fuse-Statvfs", 0, 0, 0);
   MgmStats.Add("Fuse-Mkdir", 0, 0, 0);
