@@ -22,6 +22,7 @@
  ************************************************************************/
 
 #include "Utils.hh"
+#include "ScopedEUidSetter.hh"
 #include "BoundIdentityProvider.hh"
 #include "EnvironmentReader.hh"
 #include "CredentialValidator.hh"
@@ -494,20 +495,31 @@ BoundIdentityProvider::defaultPathsToBoundIdentity(const JailInformation& jail,
   // and follow the usual code path.
   Environment defaultEnv;
   {
+
+#ifdef __linux__
+    ScopedEUidSetter uidSetter(uid, gid);
+
+    if (!uidSetter.IsOk()) {
+      eos_static_crit("Could not set fsuid,fsgid to %d, %d", uid, gid);
+    }
+
+#endif
+
     // get the default cache from KRB5
     krb5_context krb_ctx;
     krb5_error_code ret = krb5_init_context(&krb_ctx);
 
     if (ret == 0) {
       std::string default_name = krb5_cc_default_name(krb_ctx);
-
       if ((default_name.substr(0, 5) == "FILE:") ||
           (default_name.substr(0, 5) == "/tmp/")) {
         defaultEnv.push_back("KRB5CCNAME=FILE:/tmp/krb5cc_" + std::to_string(uid));
       } else if (default_name.substr(0, 18) == "KEYRING:persistent") {
         defaultEnv.push_back("KRB5CCNAME=KEYRING:persistent:" + std::to_string(uid));
       } else {
+#ifdef __linux__
         defaultEnv.push_back("KRB5CCNAME=" + default_name);
+#endif
       }
 
       krb5_free_context(krb_ctx);
