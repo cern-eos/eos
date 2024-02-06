@@ -17,6 +17,22 @@ Introduction
 This release is based on XRootD V5.
 
 
+``v5.2.11 Diopside``
+=========================
+
+2024-02-06
+
+Note
+----
+
+* Update eos-xrootd/xrootd dependency to 5.6.7
+
+Bug
+----
+
+* [EOS-6028] - EOS: ACL command help displays wrong option
+
+
 ``v5.2.10 Diopside``
 =========================
 
