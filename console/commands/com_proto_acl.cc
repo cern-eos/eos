@@ -101,7 +101,7 @@ void com_acl_help()
       << "    Add change mode permission flag for user id 1001" << std::endl
       << "  acl --user u:1010= /eos/dev" << std::endl
       << "    Remove all ACls for user id 1001" << std::endl
-      << "  acl --front --user u:1001:rwx /eos/dev" << std::endl
+      << "  acl --front --user u:1001=rwx /eos/dev" << std::endl
       << "     Add the user id 1001 rule to the front of ACL rules" << std::endl;
   std::cerr << oss.str() << std::endl;
 }
