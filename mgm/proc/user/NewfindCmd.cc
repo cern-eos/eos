@@ -1855,11 +1855,21 @@ NewfindCmd::PrintFileInfoMinusM(std::ostream& ss, const FindResult& find_obj,
 
   try {
     if (find_obj.isdir) {
-      info += "&mgm.path=pid:";
-      info += std::to_string(find_obj.item.containerMd.id());
+      if (find_obj.item.containerMd.id()) {
+	info += "&mgm.path=pid:";
+	info += std::to_string(find_obj.item.containerMd.id());
+      } else {
+	info += "&mgm.path=";
+	info += find_obj.path;
+      }
     } else {
-      info += "&mgm.path=fid:";
-      info += std::to_string(find_obj.item.fileMd.id());
+      if (find_obj.item.fileMd.id()) {
+	info += "&mgm.path=fid:";
+	info += std::to_string(find_obj.item.fileMd.id());
+      } else {
+	info += "&mgm.path=";
+	info += find_obj.path;
+      }
     }
   } catch (...) {
     eos_static_err("msg=\"failed to convert metadata id\" path=\"%s\"",
