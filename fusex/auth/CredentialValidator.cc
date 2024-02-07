@@ -326,6 +326,7 @@ bool CredentialValidator::validate(const JailInformation& jail,
     krb5_ccache ccache;
 
     if (krb5_cc_resolve(krb_ctx, uc.kcm.c_str(), &ccache) != 0) {
+      eos_static_crit("Could not resolve");
       LOGBOOK_INSERT(scope, "Could not resolve " << uc.kcm);
       krb5_free_context(krb_ctx);
       return false;
@@ -336,6 +337,7 @@ bool CredentialValidator::validate(const JailInformation& jail,
     //--------------------------------------------------------------------------
     if (!checker.useInjected()) {
       if (check_ccache(krb_ctx, ccache, time(0), principal) != 0) {
+	eos_static_crit("Could not check_ccache");
 	krb5_cc_close(krb_ctx, ccache);
 	krb5_free_context(krb_ctx);
 	LOGBOOK_INSERT(scope, "provided ccache appears invalid: " << uc.kcm);
@@ -348,7 +350,6 @@ bool CredentialValidator::validate(const JailInformation& jail,
     out.initialize(uc, {0, 0}, "", principal);
     return true;
   }
-
 
   //----------------------------------------------------------------------------
   // KRB5:
@@ -378,7 +379,8 @@ bool CredentialValidator::validate(const JailInformation& jail,
     krb5_ccache ccache;
 
     if (krb5_cc_resolve(krb_ctx, uc.fname.c_str(), &ccache) != 0) {
-      LOGBOOK_INSERT(scope, "Could not resolve " << uc.kcm);
+      eos_static_crit("Could not resolve %s\n", uc.fname.c_str());
+      LOGBOOK_INSERT(scope, "Could not resolve " << uc.fname);
       krb5_free_context(krb_ctx);
       return false;
     }
@@ -478,6 +480,7 @@ bool CredentialValidator::checkValidity(const JailInformation& jail,
   // KRK5, SSS, and nobody don't expire.
   //----------------------------------------------------------------------------
   if (uc.type == CredentialType::KRK5 || uc.type == CredentialType::SSS ||
+      uc.type == CredentialType::KCM ||
       uc.type == CredentialType::NOBODY) {
     return true;
   }
