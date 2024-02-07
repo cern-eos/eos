@@ -26,6 +26,7 @@ BUILDMAP[cc7_tsan]=el-7-tsan
 BUILDMAP[el-9-asan]=el-9-asan
 BUILDMAP[el-9-tsan]=el-9-tsan
 BUILDMAP[cc7_no_sse]=el-7
+BUILDMAP[el-9-arm64]=el-9
 
 CODENAME=$1
 BUILD_TYPE=$2
@@ -56,13 +57,17 @@ for artifacts_dir in *_artifacts; do
 
   # Upload RPMS
   if [ -d "${build_artifacts}/RPMS" ]; then
-    if [ "$(ls -A ${build_artifacts}/RPMS)" ]; then
-      mkdir -p ${path}/x86_64/
-      cp ${build_artifacts}/RPMS/* ${path}/x86_64/
-      createrepo --update -q ${path}/x86_64/
-    else
-      echo "info: Directory ${build_artifacts}/RPMS is empty!"
-    fi
+      if [[ -n $(find ${build_artifacts}/RPMS -name "*.aarch64.rpm") ]]; then
+          mkdir -p ${path}/aarch64/
+          cp ${build_artifacts}/RPMS/* ${path}/aarch64/
+          createrepo --update -q ${path}/aarch64/
+      elif [ "$(ls -A ${build_artifacts}/RPMS)" ]; then
+          mkdir -p ${path}/x86_64/
+          cp ${build_artifacts}/RPMS/* ${path}/x86_64/
+          createrepo --update -q ${path}/x86_64/
+      else
+          echo "info: Directory ${build_artifacts}/RPMS is empty!"
+      fi
   fi
 
   # Upload SRPMS

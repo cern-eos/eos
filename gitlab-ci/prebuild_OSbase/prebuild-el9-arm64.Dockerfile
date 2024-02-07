@@ -1,5 +1,4 @@
 FROM  gitlab-registry.cern.ch/linuxsupport/alma9-base
-LABEL maintainer="Manuel Reis, manuel.b.reis@cern.ch, CERN 2022"
 ARG EOS_CODENAME
 WORKDIR /builds/dss/eos/
 
@@ -24,5 +23,3 @@ RUN dnf install --nogpg -y ccache cmake3 gcc-c++ git make rpm-build rpm-sign whi
     && dnf clean all
 
 ENTRYPOINT /bin/bash
-
-
