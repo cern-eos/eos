@@ -194,8 +194,8 @@ ProcessCache::discoverBoundIdentity(const JailInformation& jail,
 ProcessSnapshot ProcessCache::retrieve(pid_t pid, uid_t uid, gid_t gid,
                                        bool reconnect)
 {
-  Logbook disabled(false);
-  return retrieve(pid, uid, gid, reconnect, disabled);
+  Logbook enabled(EOS_LOGS_DEBUG); // do logbook tracking only in debug level
+  return retrieve(pid, uid, gid, reconnect, enabled);
 }
 
 //----------------------------------------------------------------------------
@@ -308,6 +308,10 @@ ProcessSnapshot ProcessCache::retrieve(pid_t pid, uid_t uid, gid_t gid,
               std::unique_ptr<ProcessCacheEntry>(new ProcessCacheEntry(processInfo,
                   jailInfo, bdi)),
               result);
+
+  if (EOS_LOGS_NOTICE && logbook.toString().size()) {
+    eos_static_notice("Auth:{\n%s\n}", logbook.toString().c_str());
+  }
   //----------------------------------------------------------------------------
   // All done
   //----------------------------------------------------------------------------
