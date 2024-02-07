@@ -224,6 +224,7 @@ SecurityChecker::Info SecurityChecker::lookupNonLocalJail(
   }
 
   if (!checkPermissions(filestat.st_uid, filestat.st_mode, uid)) {
+    eos_static_alert("bad file permission");
     return Info(CredentialState::kBadPermissions, {0, 0});
   }
 
