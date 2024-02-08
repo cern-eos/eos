@@ -1,9 +1,10 @@
 #include "mgm/placement/WeightedRandomStrategy.hh"
 #include "common/Logging.hh"
 #include <random>
-#include <shared_mutex>
+#include "common/SharedMutexWrapper.hh"
 
-namespace eos::mgm::placement {
+namespace eos::mgm::placement
+{
 
 struct WeightedRandomPlacement::Impl {
   PlacementResult placeFiles(const ClusterData& data,
@@ -23,6 +24,7 @@ void WeightedRandomPlacement::Impl::populateWeights(const ClusterData& data)
   // TODO optimize single element lists! no need to use a random distrib!
   for (const auto& bucket : data.buckets) {
     weights.at(-bucket.id) = bucket.total_weight;
+
     for (const auto& item_id : bucket.items) {
       if (item_id > 0) {
         item_weights.push_back(data.disks.at(item_id - 1).weight);
@@ -31,16 +33,18 @@ void WeightedRandomPlacement::Impl::populateWeights(const ClusterData& data)
       }
     }
 
-    mDiskWeights.emplace(bucket.id, std::discrete_distribution<>(item_weights.begin(),
-                                                                 item_weights.end()));
-
+    mDiskWeights.emplace(bucket.id,
+                         std::discrete_distribution<>(item_weights.begin(),
+                             item_weights.end()));
     item_weights.clear();
   }
+
   mBucketWeights = std::discrete_distribution<>(weights.begin(), weights.end());
 }
 
-PlacementResult WeightedRandomPlacement::Impl::placeFiles(const ClusterData& data,
-                                                          Args args)
+PlacementResult WeightedRandomPlacement::Impl::placeFiles(
+  const ClusterData& data,
+  Args args)
 {
   PlacementResult result(args.n_replicas);
   static thread_local std::random_device rd;
@@ -51,6 +55,7 @@ PlacementResult WeightedRandomPlacement::Impl::placeFiles(const ClusterData& dat
   if (mBucketWeights.max() == 0) {
     rlock.unlock();
     std::unique_lock wlock(mtx);
+
     if (mBucketWeights.max() == 0) {
       try {
         populateWeights(data);
@@ -91,25 +96,29 @@ PlacementResult WeightedRandomPlacement::Impl::placeFiles(const ClusterData& dat
         continue;
       }
     }
+
     result.ids[items_added++] = item_id;
   }
+
   result.ret_code = 0;
   return result;
 }
 
 WeightedRandomPlacement::WeightedRandomPlacement(PlacementStrategyT strategy,
-                                                 size_t max_buckets) :
-    mImpl(std::make_unique<Impl>())
+    size_t max_buckets) :
+  mImpl(std::make_unique<Impl>())
 {
 }
 
 PlacementResult WeightedRandomPlacement::placeFiles(const ClusterData& data,
-                                                    Args args)
+    Args args)
 {
   PlacementResult result(args.n_replicas);
-  if (!validateArgs(data, args, result)){
+
+  if (!validateArgs(data, args, result)) {
     return result;
   }
+
   return mImpl->placeFiles(data, std::move(args));
 }
 

@@ -23,6 +23,7 @@
 
 #pragma once
 #include "common/Namespace.hh"
+#include "common/SharedMutexWrapper.hh"
 #include <folly/futures/Future.h>
 
 EOSCOMMONNAMESPACE_BEGIN
@@ -130,7 +131,8 @@ public:
   //----------------------------------------------------------------------------
   //! Check if future is armed with an exception - will wait to receive result
   //----------------------------------------------------------------------------
-  bool hasException() {
+  bool hasException()
+  {
     wait();
     return mException != nullptr;
   }
