@@ -969,7 +969,9 @@ rpm_commit_artifacts:
     - sudo -u stci -H ./gitlab-ci/store_artifacts.sh ${CODENAME} ${BUILD_TYPE} /eos/project/s/storage-ci/www/eos
   tags:
     - docker_node
-    - publish
+  needs:
+    - job: build_el9
+    - job: build_el9_arm64
   except:
     - tags
   allow_failure: true
