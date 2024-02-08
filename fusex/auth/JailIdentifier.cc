@@ -65,6 +65,13 @@ std::string JailIdentifier::describe() const
   return SSTR("jail identifier: st_dev=" << st_dev << ", ino=" << st_ino);
 }
 
+//------------------------------------------------------------------------------
+// Simple hash for this jail
+//------------------------------------------------------------------------------
+uint64_t JailIdentifier::hash() const
+{
+  return ((st_dev<<32) + st_ino);
+}
 
 //------------------------------------------------------------------------------
 // Describe a JailInformation object

@@ -37,6 +37,7 @@ struct UserCredentialsHasher {
   static uint64_t hash(const UserCredentials& key)
   {
     uint64_t result = std::uint32_t(key.type);
+    result += key.jail.hash();
     result += Murmur3::MurmurHasher<std::string> {} (key.fname);
     result += Murmur3::MurmurHasher<std::string> {} (key.endorsement);
     return result;

@@ -299,6 +299,10 @@ struct UserCredentials {
       return type < src.type;
     }
 
+    if (jail.hash() != src.jail.hash()) {
+      return jail.hash() < src.jail.hash();
+    }
+
     if (fname != src.fname) {
       return fname < src.fname;
     }
