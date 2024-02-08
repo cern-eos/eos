@@ -49,7 +49,12 @@ fi
 
 echo "Running instance tests ..."
 eos space quota default on
+echo "Updating scheduler to be Weighted Round Robin"
+eos space config default space.scheduler.type=weightedrr
 eos-instance-test
+
+echo "Final ns stats"
+eos ns stat
 
 if [[ $? -ne 0 ]]; then
   cat /tmp/eos-instance-test/test-output.log
