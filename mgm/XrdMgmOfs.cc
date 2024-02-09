@@ -108,6 +108,7 @@
 #include "XrdSec/XrdSecInterface.hh"
 #include "XrdSfs/XrdSfsAio.hh"
 #include "XrdSfs/XrdSfsFlags.hh"
+#include "private/XrdSfs/XrdSfsFAttr.hh"
 #include "google/protobuf/io/zero_copy_stream_impl.h"
 #include "mgm/bulk-request/dao/factories/AbstractDAOFactory.hh"
 #include "mgm/bulk-request/dao/factories/ProcDirectoryDAOFactory.hh"
@@ -609,6 +610,7 @@ XrdMgmOfs::Disc(const XrdSecEntity* client)
 //------------------------------------------------------------------------------
 #include "XrdMgmOfs/Access.cc"
 #include "XrdMgmOfs/Attr.cc"
+#include "XrdMgmOfs/FAttr.cc"
 #include "XrdMgmOfs/Auth.cc"
 #include "XrdMgmOfs/Chksum.cc"
 #include "XrdMgmOfs/Chmod.cc"

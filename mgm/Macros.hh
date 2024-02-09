@@ -251,7 +251,7 @@ extern XrdMgmOfs* gOFS; //< global handle to XrdMgmOfs object
 //------------------------------------------------------------------------------
 #define NAMESPACEMAP                                                    \
   const char* path = inpath;                                            \
-  XrdOucString store_path=path;                                         \
+  XrdOucString store_path = path;                                         \
   if(gOFS != nullptr) {                                                  \
     if (inpath && ininfo && strstr(ininfo, "eos.encodepath")) {             \
       store_path = eos::common::StringConversion::curl_unescaped(inpath).c_str(); \
@@ -389,21 +389,21 @@ extern XrdMgmOfs* gOFS; //< global handle to XrdMgmOfs object
   if (((vid.uid > 3) ||                                                       \
        ((vid.prot != "sss") && (vid.host != "localhost") &&                   \
         (vid.host != "localhost.localdomain")))) {                            \
-      eos::common::RWMutexReadLock lock(Access::gAccessMutex);		\
+      eos::common::RWMutexReadLock lock(Access::gAccessMutex);    \
       if (Access::gAllowedTokens.size() && vid.token && !Access::gAllowedTokens.count(vid.token->Voucher()) ) { \
     eos_err("user access restricted - unauthorized token vid.token->Voucher=\"%s\"" \
-	    "path=\"%s\"", vid.token->Voucher().c_str(),		\
-	    inpath);                                                    \  
-      gOFS->MgmStats.Add("EAccess", vid.uid, vid.gid, 1);		\
-      return Emsg(epname, error, EACCES,"give access - user access "	\
-		  "restricted - unauthorized token used");		\
-    }									\
+      "path=\"%s\"", vid.token->Voucher().c_str(),    \
+      inpath);                                                    \
+      gOFS->MgmStats.Add("EAccess", vid.uid, vid.gid, 1);   \
+      return Emsg(epname, error, EACCES,"give access - user access "  \
+      "restricted - unauthorized token used");    \
+    }                 \
     if (Access::gAllowedUsers.size() || Access::gAllowedGroups.size() ||      \
         Access::gAllowedHosts.size() || Access::gAllowedDomains.size())     { \
       if ((!Access::gAllowedGroups.count(vid.gid)) &&                         \
           (!Access::gAllowedUsers.count(vid.uid)) &&                          \
           (!Access::gAllowedHosts.count(vid.host)) &&                         \
-          (!Access::gAllowedDomains.count(vid.getUserAtDomain()))) {	\
+          (!Access::gAllowedDomains.count(vid.getUserAtDomain()))) {  \
         eos_err("user access restricted - unauthorized identity vid.uid="    \
                 "%d, vid.gid=%d, vid.host=\"%s\", vid.tident=\"%s\" for "     \
                 "path=\"%s\" user@domain=\"%s\"", vid.uid, vid.gid, vid.host.c_str(),            \

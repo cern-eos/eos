@@ -111,7 +111,6 @@
 #include "mgm/proc/admin/SpaceCmd.hh"
 #include "mgm/proc/admin/NsCmd.hh"
 #include "mgm/drain/Drainer.hh"
-//#include "mgm/convert/ConverterDriver.hh"
 #include "mgm/IdTrackerWithValidity.hh"
 #include "mgm/qos/QoSConfig.hh"
 #include "mgm/qos/QoSClass.hh"
@@ -453,6 +452,24 @@ public:
              const char* opaque = 0,
              ino_t* outino = 0,
              bool nopermissioncheck = false);
+
+  //----------------------------------------------------------------------------
+  //! Perform a filesystem extended attribute function.
+  //!
+  //! @param  faReq  - pointer to the request object (see XrdSfsFAttr.hh). If
+  //!                  the pointer is null, simply return whether or not
+  //!                  extended attributes are supported.
+  //! @param  eInfo  - The object where error info or results are to be returned.
+  //! @param  client - Client's identify (see common description).
+  //!
+  //! @return SFS_OK   a null response is sent.
+  //! @return SFS_DATA error.code    length of the data to be sent.
+  //!                  error.message contains the data to be sent.
+  //! @return SFS_STARTED Operation started result will be returned via callback.
+  //!         o/w      one of SFS_ERROR, SFS_REDIRECT, or SFS_STALL.
+  //----------------------------------------------------------------------------
+  int FAttr(XrdSfsFACtl* faReq, XrdOucErrInfo& eInfo,
+            const XrdSecEntity* client = 0) override;
 
   //----------------------------------------------------------------------------
   //! Prepare a file or query the status of a previous prepare request
