@@ -1741,13 +1741,10 @@ Server::OpSetDirectory(const std::string& id,
     // broadcast this update around
     switch (op) {
     case CREATE:
-      Cap().BroadcastMD(md, md_ino, md.md_pino(), clock, pmtime);
-      break;
-
     case MOVE:
     case UPDATE:
     case RENAME:
-      Cap().BroadcastRefresh(md.md_ino(), md, md.md_pino());
+      Cap().BroadcastMD(md, md_ino, md.md_pino(), clock, pmtime);
       break;
     }
   } catch (eos::MDException& e) {
