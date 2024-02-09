@@ -278,10 +278,10 @@ static uint64_t GetNetSpeed()
     int nbytes = fread((void*)data, max_read, sizeof(char), fnetspeed);
 
     if (nbytes > 1) {
-      data[nbytes - 1] = '\0';
+      data[nbytes] = '\0';
 
       try {
-        const std::string sval = ptr;
+        const std::string sval = data;
         s_net_speed = std::stoull(sval);
         // We get Mb/s as number, convert to bytes/s
         s_net_speed *= 1000000;
