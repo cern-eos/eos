@@ -455,11 +455,12 @@ XrdMgmOfs::_rename(const char* old_name,
             dir->notifyMTimeChange(gOFS->eosDirectoryService);
             eosView->updateContainerStore(dir.get());
             COMMONTIMING("rename::rename_file_within_same_container_file_rename", &tm);
-
+	    const std::string old_name = oPath.GetName();
             if (fusexcast) {
               const eos::FileIdentifier fid = file->getIdentifier();
               fuse_batch.Register([&, did, pdid, fid]() {
                 gOFS->FuseXCastRefresh(did, pdid);
+		gOFS->FuseXCastDeletion(did, old_name);
                 gOFS->FuseXCastRefresh(fid, did);
               });
             }
@@ -733,6 +734,7 @@ XrdMgmOfs::_rename(const char* old_name,
               rdir->setCTimeNow();
             }
 
+	    const std::string old_name = oPath.GetName();
             dir->setMTimeNow();
             dir->notifyMTimeChange(gOFS->eosDirectoryService);
             eosView->updateContainerStore(rdir.get());
@@ -741,6 +743,7 @@ XrdMgmOfs::_rename(const char* old_name,
             fuse_batch.Register([&, rdid, did, pdid]() {
               gOFS->FuseXCastRefresh(rdid, did);
               gOFS->FuseXCastRefresh(did, pdid);
+	      gOFS->FuseXCastDeletion(did, old_name);
             });
             COMMONTIMING("rename::rename_dir_within_same_container", &tm);
           } else {
@@ -823,10 +826,12 @@ XrdMgmOfs::_rename(const char* old_name,
                 gOFS->eosContainerAccounting->AddTree(newdir.get(), tree_size);
               }
 
+              const eos::ContainerIdentifier rdid = rdir->getIdentifier();
               newdir->notifyMTimeChange(gOFS->eosDirectoryService);
               eosView->updateContainerStore(newdir.get());
               fuse_batch.Register([&, ndid, pndid]() {
                 gOFS->FuseXCastRefresh(ndid, pndid);
+		gOFS->FuseXCastRefresh(rdid, ndid);
               });
               COMMONTIMING("rename::move_dir_update_target_directory_add_old_dir", &tm);
             }
