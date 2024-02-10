@@ -1334,8 +1334,7 @@ bool FsView::UnderNominalQuota(const std::string& space, bool isroot)
         }
       }
     }
-  }
-  {
+
     auto spaceobj = mSpaceView.find(space);
 
     if (spaceobj == mSpaceView.end()) {
@@ -1369,10 +1368,8 @@ bool FsView::UnderNominalQuota(const std::string& space, bool isroot)
       usage_ok = true;
     }
 
-    // store the current values
-    XrdSysMutexHelper scope_lock(mUsageMutex);
     mUsageOk[space].first = usage_ok;
-    mUsageOk[space].second = now + 30; // cache for 30 seconds
+    mUsageOk[space].second = now + 120; // cache for 120 seconds
     return usage_ok;
   }
 }
