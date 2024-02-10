@@ -313,9 +313,7 @@ com_report(char* arg1)
 
             w_t.insert(tt);
             found = true;
-          } else {
-	    continue;
-	  }
+          }
 
           if (std::stol(map["rb"]) > 0 && reading) {
             sum_r += rsize;
@@ -334,10 +332,7 @@ com_report(char* arg1)
 
             r_t.insert(tt);
             found = true;
-          } else {
-	    continue;
-	  }
-
+          }
           if (found) {
             n_reports++;
           }
