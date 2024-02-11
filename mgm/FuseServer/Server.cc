@@ -1478,6 +1478,7 @@ Server::OpSetDirectory(const std::string& id,
   eos::fusex::md mv_md;
   mode_t sgid_mode = 0;
   eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
+  std::string oldname;
 
   try {
     if (md.md_ino() && exclusive) {
@@ -1503,11 +1504,13 @@ Server::OpSetDirectory(const std::string& id,
         throw_mdexception(ENOENT, "No such directory : " << md.md_ino());
       }
 
+      oldname = cmd->getName();
+
       if (cmd->getParentId() != md.md_pino()) {
         // this indicates a directory move
         {
           // we have to check that we have write permission on the source parent
-          eos::fusex::md source_md;
+	  eos::fusex::md source_md;
           source_md.set_md_pino(cmd->getParentId());
           source_md.set_mode(S_IFDIR);
           std::string perm = "W";
@@ -1718,7 +1721,7 @@ Server::OpSetDirectory(const std::string& id,
     resp.mutable_ack_()->set_transactionid(md.reqid());
     resp.mutable_ack_()->set_md_ino(md_ino);
     resp.SerializeToString(response);
-    uint64_t clock = 0;
+    uint64_t clock = cmd->getClock();
 
     switch (op) {
     case MOVE:
@@ -1741,9 +1744,20 @@ Server::OpSetDirectory(const std::string& id,
     // broadcast this update around
     switch (op) {
     case CREATE:
+      Cap().BroadcastMD(md, md_ino, md.md_pino(), clock, pmtime);
+      break;
     case MOVE:
-    case UPDATE:
+      Cap().BroadcastDeletion(cpcmd->getId(), mv_md, oldname, pmtime);
+      Cap().BroadcastRefresh(pcmd->getId(), md, pcmd->getParentId(), true);
+      Cap().BroadcastMD(md, md_ino, md.md_pino(), clock, pmtime);
+      break;
     case RENAME:
+      Cap().BroadcastDeletion(pcmd->getId(), md, oldname, pmtime);
+      Cap().BroadcastRefresh(pcmd->getId(), md, pcmd->getParentId(), true);
+      Cap().BroadcastMD(md, md_ino, md.md_pino(), clock, pmtime);
+      break;
+    case UPDATE:
+      Cap().BroadcastRefresh(pcmd->getId(), md, pcmd->getParentId(), true);
       Cap().BroadcastMD(md, md_ino, md.md_pino(), clock, pmtime);
       break;
     }
@@ -1821,7 +1835,8 @@ Server::OpSetFile(const std::string& id,
   md_ino = md.md_ino();
   uint64_t md_pino = md.md_pino();
   bool recycleOrVersioned = false;
-
+  std::string oldname;
+  eos::fusex::md mv_md;
   try {
     uint64_t clock = 0;
     pcmd = gOFS->eosDirectoryService->getContainerMD(md.md_pino());
@@ -1854,6 +1869,8 @@ Server::OpSetFile(const std::string& id,
         if (fmd->getContainerId() != md.md_pino()) {
           // this indicates a file move
           op = MOVE;
+	  mv_md.set_authid(md.mv_authid());
+	  oldname = fmd->getName();
           bool hasVersion = false;
 
           if (EOS_LOGS_DEBUG) {
@@ -1984,6 +2001,7 @@ Server::OpSetFile(const std::string& id,
           if (fmd->getName() != md.name()) {
             // this indicates a file rename
             op = RENAME;
+	    oldname = fmd->getName();
             bool hasVersion = false;
             ofmd = pcmd->findFile(md.name());
 
@@ -2415,7 +2433,7 @@ Server::OpSetFile(const std::string& id,
           fmd->setSize(md.size());
         }
       } catch (eos::MDException& e) {
-        fmd->setSize(md.size());
+         fmd->setSize(md.size());
       }
     }
     // for the moment we store 9 bits here
@@ -2496,13 +2514,19 @@ Server::OpSetFile(const std::string& id,
 
     // broadcast this update around
     switch (op) {
+    case RENAME:
+      Cap().BroadcastDeletion(pcmd->getId(), md, oldname, pt_mtime);
+      break;
+    case MOVE:
+      Cap().BroadcastDeletion(cpcmd->getId(), mv_md, oldname, pt_mtime);
+      Cap().BroadcastDeletion(pcmd->getId(), md, oldname, pt_mtime);
+      break;
     case UPDATE:
     case CREATE:
-    case RENAME:
-    case MOVE:
-      Cap().BroadcastMD(md, md_ino, md_pino, clock, pt_mtime);
       break;
     }
+
+    Cap().BroadcastMD(md, md_ino, md_pino, clock, pt_mtime);
 
     if (op == CREATE) {
       // trigger default workflow in FuseServer

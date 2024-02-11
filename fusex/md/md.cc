@@ -2871,7 +2871,11 @@ metad::mdcallback(ThreadAssistant& assistant)
                 (*pmd)()->set_ctime(pt_mtime);
                 (*pmd)()->set_ctime_ns(pt_mtime_ns);
               }
-            }
+            } else {
+	      // remove delete entries if we receive an external delete
+	      pmd->get_todelete().erase(eos::common::StringConversion::EncodeInvalidUTF8(
+											 name));
+	    }
 
             kernelcache::inval_inode(ino, false);
           }
@@ -3016,7 +3020,7 @@ metad::mdcallback(ThreadAssistant& assistant)
 
         // check if this implies a rename
         if ((*md)()->name() != rsp->md_().name()) {
-          old_name = rsp->md_().name();
+          old_name = (*md)()->name();
         }
 
         // verify that this record is newer than
