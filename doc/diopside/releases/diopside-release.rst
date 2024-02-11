@@ -16,6 +16,18 @@ Introduction
 
 This release is based on XRootD V5.
 
+``v5.2.12 Diopside``
+=========================
+
+2024-02-11
+
+Bug
+---
+
+FST: Fix overflow when reading file larger than 4GB during rain-check
+FST: Fix reading of the network speed value
+MGM: avoid parallel computation of the currently used physical space and cache for 2 minutes
+REVERT: COMMON: RWMutex: lock the mutex name map before finding items
 
 ``v5.2.11 Diopside``
 =========================
