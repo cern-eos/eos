@@ -1276,13 +1276,14 @@ void
 RWMutex::RecordMutexOp(uint64_t ptr_val, LOCK_T op)
 {
 #ifdef EOS_INSTRUMENTED_RWMUTEX
-  pid_t tid = syscall(SYS_gettid);
-  std::unique_lock lock(sOpMutex);
+
   // Only record info about the named mutexes
   if (sMtxNameMap.find(ptr_val) == sMtxNameMap.end()) {
     return;
   }
 
+  pid_t tid = syscall(SYS_gettid);
+  std::unique_lock lock(sOpMutex);
   auto& mtx_op_map = sTidMtxOpMap[tid];
   mtx_op_map[ptr_val] = op;
 #endif // EOS_INSTRUMENTED_MUTEX
