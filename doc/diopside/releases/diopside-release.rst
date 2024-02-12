@@ -39,6 +39,7 @@ Bug
 New Feature
 ------------
 
+* [EOS-5956] MGM: refactor attr functions and implement XRootD attribute calls
 * [EOS-5879] EOSCP: add version information option ( eoscp --version )
 * [EOS-5614] FUSEX: bypass deletion through recycle bin, if a file is deleted while still open for writing
 * FUSEX: code refactoring allowing to re-use functionality of eosxd authentication in eoscfsd
