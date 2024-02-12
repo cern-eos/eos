@@ -2109,13 +2109,37 @@ grpc::Status GrpcNsInterface::Recycle(eos::common::VirtualIdentity& vid,
   } else if (request->cmd() == eos::rpc::NSRequest::RecycleRequest::LIST) {
     std::string std_out, std_err;
     Recycle::RecycleListing rvec;
+    std::string date;
+
+    if (request->listflag().year()) {
+      date += std::to_string(request->listflag().year());
+
+      if (request->listflag().month()) {
+        char smonth[1024];
+        snprintf(smonth, sizeof(smonth), "/%02u", request->listflag().month());
+        date += smonth;
+
+        if (request->listflag().day()) {
+          char sday[1024];
+          snprintf(sday, sizeof(sday), "/%02u", request->listflag().day());
+          date += sday;
+
+	  if (request->listflag().index()) {
+	    date += "/";
+	    date += std::to_string(request->listflag().index());
+	  }
+        }
+      }
+    }
+
     int rc = Recycle::Print(std_out,
 			    std_err,
 			    vid,
 			    true,
 			    true,
 			    true,
-			    "", false,
+			    date,
+			    false,
 			    &rvec,
 			    true,
 			    request->listflag().maxentries());
