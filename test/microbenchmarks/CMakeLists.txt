@@ -54,6 +54,7 @@ add_executable(eos-flatscheduler-microbenchmark mgm/BM_FlatScheduler.cc
         )
 add_executable(eos-rrseed-microbenchmark mgm/BM_RRSeed.cc
         ${CMAKE_SOURCE_DIR}/mgm/placement/ThreadLocalRRSeed.cc)
+add_executable(eos-threadid-microbenchmark common/BM_ThreadId.cc)
 
 target_link_libraries(eos-microbenchmarks PRIVATE
   benchmark::benchmark
@@ -78,4 +79,7 @@ target_link_libraries(eos-flatscheduler-microbenchmark PRIVATE
   EosCommonServer-Static)
 
 target_link_libraries(eos-random-microbenchmark PRIVATE
+  benchmark::benchmark)
+
+target_link_libraries(eos-threadid-microbenchmark PRIVATE
   benchmark::benchmark)
