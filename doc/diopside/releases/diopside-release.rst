@@ -23,32 +23,44 @@ This release is based on XRootD V5.
 2024-02-12
 
 Bug
----
+----
 
-* [EOS-6040] GRPC: implement reycle bin listing with date/index filter
-* [EOS-6038] MGM: fix broadcasting protocol for 'rename' for files and directores
-* [EOS-6025] MGM: fix cleanup of atomic upload files if user is out of quota
-* [EOS-6016] MGM: avoid deleting converter driver during shutdown
-* [EOS-6013] FUSEX: fix hash function used to cache connections to distinguish container credentials using identical internval paths
-* [EOS-6009] FUSEX: fix retrieval of default kerberos crednetial location if not under FILE:/tmp/
-* [EOS-4763] MGM: fix failing acl test and corner case with multiple additions
+* [EOS-3898] - EOS permissions system incorrectly requires an explicit '+u' privilege for the root user
+* [EOS-4763] - ACL set argument 'foo:foo:+d' does not work
+* [EOS-4796] - Not consistent behaviour when setting user.acl with attr set and acl --user
+* [EOS-6009] - FUSEX: fix retrieval of default kerberos crednetial location if not under FILE:/tmp/
+* [EOS-6013] - FUSEX: fix hash function used to cache connections to distinguish container credentials using identical internval paths
+* [EOS-6016] - MGM crash during shutdown in eos::mgm::ConverterDriver::ScheduleJob()
+* [EOS-6025] - MGM: accumulating "atomic" version files (from sync client) if out of volume quota
+* [EOS-6029] - MGM (subprocess?) crash in qclient::FollyFutureHandler::stage()
+* [EOS-6038] - MGM misses broadcast message to deal with renames
 * MGM: fix 'find --fileinfo --cache'
 * FST: fix publishing of 'xrootd' version in 'node ls --sys'
 * CONSOLE: fix broken 'eos report' for reads
 
+
 New Feature
 ------------
 
-* [EOS-5956] MGM: refactor attr functions and implement XRootD attribute calls
-* [EOS-5879] EOSCP: add version information option ( eoscp --version )
-* [EOS-5614] FUSEX: bypass deletion through recycle bin, if a file is deleted while still open for writing
+* [EOS-5614] - FUSEX: bypass deletion through recycle bin, if a file is deleted while still open for writign
+* [EOS-5879] - [eoscp] Add the possibility to see the version of the command
+* [EOS-5956] - Implement default XRootD Attribute functions for xrootd prefixes
+* [EOS-6040] - GRPC: implement reycle bin listing with date/index filter
 * FUSEX: code refactoring allowing to re-use functionality of eosxd authentication in eoscfsd
 * CFSD: adding POSIX passthrough filesystem implementation packaged in new RPM eos-cfsd
+
+Improvement
+------------
+
+* [EOS-2373] - Inconsistent handling of linked attributes in attr_ls and attr_get
+* [EOS-5614] - Fuse skip recycle bin for known broken files
+* [EOS-5717] - [eos-archive] Review the workflow + files with no checksum on destination make the tool crash
 
 Reverted
 --------
 
 * MGM/CONSOLE: reverted removing 'eos old find' implementation
+
 
 ``v5.2.12 Diopside``
 =========================
@@ -58,11 +70,11 @@ Reverted
 Bug
 ---
 
-
 * FST: Fix overflow when reading file larger than 4GB during rain-check
 * FST: Fix reading of the network speed value
 * MGM: avoid parallel computation of the currently used physical space and cache for 2 minutes
 * REVERT: COMMON: RWMutex: lock the mutex name map before finding items
+
 
 ``v5.2.11 Diopside``
 =========================
