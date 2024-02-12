@@ -38,6 +38,7 @@
 #include <chrono>
 #include <openssl/md5.h>
 #include <optional>
+#include <getopt.h>
 #include "XrdCl/XrdClFile.hh"
 #include "XrdCl/XrdClDefaultEnv.hh"
 #include "XrdOuc/XrdOucString.hh"
@@ -272,10 +273,10 @@ void
 usage()
 {
   fprintf(stderr,
-          "Usage: %s [-5] [-0] [-X <type>] [-t <mb/s>] [-h] [-I] [-x] [-v] [-V] [-d] [-l] [-j] [-b <size>] [-T <size>] [-Y] [-n] [-s] [-u <id>] [-g <id>] [-S <#>] [-D <#>] [-O <filename>] [-N <name>]<src1> [src2...] <dst1> [dst2...]\n",
+          "Usage: %s [--version] [-5] [-0] [-X <type>] [-t <mb/s>] [-h] [-x] [-v] [-V] [-d] [-l] [-j] [-b <size>] [-T <size>] [-Y] [-n] [-s] [-u <id>] [-g <id>] [-S <#>] [-D <#>] [-O <filename>] [-N <name>]<src1> [src2...] <dst1> [dst2...]\n",
           PROGRAM);
   fprintf(stderr, "       -h           : help\n");
-  fprintf(stderr, "       -I           : eoscp software information\n");
+  fprintf(stderr, "       --version    : eoscp software version\n");
   fprintf(stderr, "       -d           : debug mode\n");
   fprintf(stderr, "       -v           : verbose mode\n");
   fprintf(stderr, "       -V           : write summary as key value pairs\n");
@@ -846,9 +847,15 @@ main(int argc, char* argv[])
   XrdCl::DefaultEnv::GetEnv()->PutInt("MetalinkProcessing", 0);
   XrdCl::DefaultEnv::GetEnv()->PutInt("ParallelEvtLoop",
                                       8);  // needed for high performance on 100GE
+                                           // Define long options using struct option
+  struct option long_options[] = {
+      {"version", no_argument, nullptr, 'I'},
+      {nullptr, 0, nullptr, 0} // Required end marker
+  };
 
-  while ((c = getopt(argc, argv,
-                     "CEnshIxdvlipfcje:P:X:b:m:u:g:t:S:D:5aA:r:N:L:RT:O:V0q:")) != -1) {
+
+  while ((c = getopt_long(argc, argv,
+                     "CEnshxdvlipfcje:P:X:b:m:u:g:t:S:D:5aA:r:N:L:RT:O:V0q:",long_options,nullptr)) != -1) {
     switch (c) {
     case 'v':
       verbose = 1;
