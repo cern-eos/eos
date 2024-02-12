@@ -72,6 +72,7 @@ extern int com_du(char*);
 extern int com_protodf(char*);
 extern int com_file(char*);
 extern int com_fileinfo(char*);
+extern int com_old_find(char*);
 extern int com_proto_find(char*);
 extern int com_protofs(char*);
 extern int com_proto_fsck(char*);
@@ -160,6 +161,7 @@ COMMAND commands[] = {
   { (char*) "exit", com_quit, (char*) "Exit from EOS console"},
   { (char*) "file", com_file, (char*) "File Handling"},
   { (char*) "fileinfo", com_fileinfo, (char*) "File Information"},
+  { (char*) "oldfind", com_old_find, (char*) "Find files/directories (old implementation)"},
   { (char*) "find", com_proto_find, (char*) "Find files/directories (new implementation)"},
   { (char*) "newfind", com_proto_find, (char*) "Find files/directories (new implementation)"},
   { (char*) "fs", com_protofs, (char*) "File System configuration"},
