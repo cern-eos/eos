@@ -16,6 +16,39 @@ Introduction
 
 This release is based on XRootD V5.
 
+
+``v5.2.13 Diopside``
+====================
+
+2024-02-12
+
+Bug
+---
+
+* [EOS-6040] GRPC: implement reycle bin listing with date/index filter
+* [EOS-6038] MGM: fix broadcasting protocol for 'rename' for files and directores
+* [EOS-6025] MGM: fix cleanup of atomic upload files if user is out of quota
+* [EOS-6016] MGM: avoid deleting converter driver during shutdown
+* [EOS-6013] FUSEX: fix hash function used to cache connections to distinguish container credentials using identical internval paths
+* [EOS-6009] FUSEX: fix retrieval of default kerberos crednetial location if not under FILE:/tmp/
+* [EOS-4763] MGM: fix failing acl test and corner case with multiple additions
+* MGM: fix 'find --fileinfo --cache'
+* FST: fix publishing of 'xrootd' version in 'node ls --sys'
+* CONSOLE: fix broken 'eos report' for reads
+
+New Feature
+------------
+
+* [EOS-5879] EOSCP: add version information option ( eoscp --version )
+* [EOS-5614] FUSEX: bypass deletion through recycle bin, if a file is deleted while still open for writing
+* FUSEX: code refactoring allowing to re-use functionality of eosxd authentication in eoscfsd
+* CFSD: adding POSIX passthrough filesystem implementation packaged in new RPM eos-cfsd
+
+Reverted
+--------
+
+* MGM/CONSOLE: reverted removing 'eos old find' implementation
+
 ``v5.2.12 Diopside``
 =========================
 
@@ -23,6 +56,7 @@ This release is based on XRootD V5.
 
 Bug
 ---
+
 
 * FST: Fix overflow when reading file larger than 4GB during rain-check
 * FST: Fix reading of the network speed value
