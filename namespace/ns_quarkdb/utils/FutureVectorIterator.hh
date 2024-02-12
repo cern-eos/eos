@@ -31,7 +31,8 @@
 EOSNSNAMESPACE_BEGIN
 
 template<typename T>
-class FutureVectorIterator {
+class FutureVectorIterator
+{
 private:
   using FutureT = folly::Future<T>;
   using VectorT = std::vector<FutureT>;
@@ -42,20 +43,22 @@ public:
   //----------------------------------------------------------------------------
   //! Destructor, wait for all futures to be fulfilled
   //----------------------------------------------------------------------------
-  ~FutureVectorIterator() {
+  ~FutureVectorIterator()
+  {
     waitAll();
   }
 
   //----------------------------------------------------------------------------
   //! Construtor, consumes future vector of futures
   //----------------------------------------------------------------------------
-  FutureVectorIterator(folly::Future<std::vector<folly::Future<T>>> &&vec)
-  : mainFuture(std::move(vec)), futureVectorPopulated(false) { }
+  FutureVectorIterator(folly::Future<std::vector<folly::Future<T>>>&& vec)
+    : mainFuture(std::move(vec)), futureVectorPopulated(false) { }
 
   //----------------------------------------------------------------------------
   //! Move assignment operator
   //----------------------------------------------------------------------------
-  FutureVectorIterator<T> &operator=(FutureVectorT &&vec) {
+  FutureVectorIterator<T>& operator=(FutureVectorT&& vec)
+  {
     waitAll();
     mainFuture = std::move(vec);
     futureVector.clear();
@@ -66,21 +69,22 @@ public:
   //----------------------------------------------------------------------------
   //! Construtor, consumes concrete vector of futures
   //----------------------------------------------------------------------------
-  FutureVectorIterator(std::vector<folly::Future<T>> &&vec)
-  : mainFuture(folly::makeFuture<VectorT>(VectorT())),
-    futureVectorPopulated(true), futureVector(std::move(vec)) {}
+  FutureVectorIterator(std::vector<folly::Future<T>>&& vec)
+    : mainFuture(folly::makeFuture<VectorT>(VectorT())),
+      futureVectorPopulated(true), futureVector(std::move(vec)) {}
 
   //----------------------------------------------------------------------------
   //! Null construtor, everything is ready, and we're already at EOF
   //----------------------------------------------------------------------------
   FutureVectorIterator()
-  : FutureVectorIterator(std::vector<folly::Future<T>>()) {}
+    : FutureVectorIterator(std::vector<folly::Future<T>>()) {}
 
   //----------------------------------------------------------------------------
   //! Is the top-level future ready?
   //----------------------------------------------------------------------------
-  bool isMainFutureReady() const {
-    if(futureVectorPopulated) {
+  bool isMainFutureReady() const
+  {
+    if (futureVectorPopulated) {
       return true;
     }
 
@@ -90,7 +94,8 @@ public:
   //----------------------------------------------------------------------------
   //! Get vector size. The function will block if isMainFutureReady is false!
   //----------------------------------------------------------------------------
-  size_t size() {
+  size_t size()
+  {
     processMainFuture();
     return futureVector.size();
   }
@@ -99,12 +104,13 @@ public:
   //! Is the next element ready to fetch?
   //! If we've reached the end, the answer will always be "yes".
   //----------------------------------------------------------------------------
-  bool isReady() {
-    if(!futureVectorPopulated) {
+  bool isReady()
+  {
+    if (!futureVectorPopulated) {
       //------------------------------------------------------------------------
       //! Still waiting to process the top-level future?
       //------------------------------------------------------------------------
-      if(!mainFuture.isReady()) {
+      if (!mainFuture.isReady()) {
         return false;
       }
 
@@ -114,7 +120,7 @@ public:
     //--------------------------------------------------------------------------
     //! EOF?
     //--------------------------------------------------------------------------
-    if(futureVectorNext >= futureVector.size()) {
+    if (futureVectorNext >= futureVector.size()) {
       return true;
     }
 
@@ -128,14 +134,16 @@ public:
   //!
   //! fetchNext will block if isReady is false!
   //----------------------------------------------------------------------------
-  bool fetchNext(T& out) {
+  bool fetchNext(T& out)
+  {
     processMainFuture();
-    if(futureVectorNext >= futureVector.size()) {
+
+    if (futureVectorNext >= futureVector.size()) {
       return false;
     }
 
     futureVectorNext++;
-    out = std::move(futureVector[futureVectorNext-1]).get();
+    out = std::move(futureVector[futureVectorNext - 1]).get();
     return true;
   }
 
@@ -143,8 +151,9 @@ private:
   //----------------------------------------------------------------------------
   //! Process mainFuture - block if necessary
   //----------------------------------------------------------------------------
-  void processMainFuture() {
-    if(futureVectorPopulated) {
+  void processMainFuture()
+  {
+    if (futureVectorPopulated) {
       return;
     }
 
@@ -155,13 +164,19 @@ private:
   //----------------------------------------------------------------------------
   //! Wait for and discard all results from the future vector
   //----------------------------------------------------------------------------
-  void waitAll() {
-     if(mainFuture.valid()) {
-       processMainFuture();
+  void waitAll()
+  {
+    if (mainFuture.valid()) {
+      processMainFuture();
     }
-    if(futureVectorPopulated) {
-      for(;futureVectorNext<futureVector.size();futureVectorNext++) {
-        T &&x = std::move(futureVector[futureVectorNext]).get();
+
+    if (futureVectorPopulated) {
+      for (; futureVectorNext < futureVector.size(); futureVectorNext++) {
+        try {
+          T&& x = std::move(futureVector[futureVectorNext]).get();
+        } catch (eos::MDException& e) {
+          // ignore not found entry
+        }
       }
     }
   }
