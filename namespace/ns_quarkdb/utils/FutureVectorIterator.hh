@@ -38,11 +38,30 @@ private:
   using FutureVectorT = folly::Future<VectorT>;
 
 public:
+
+  //----------------------------------------------------------------------------
+  //! Destructor, wait for all futures to be fulfilled
+  //----------------------------------------------------------------------------
+  ~FutureVectorIterator() {
+    waitAll();
+  }
+
   //----------------------------------------------------------------------------
   //! Construtor, consumes future vector of futures
   //----------------------------------------------------------------------------
   FutureVectorIterator(folly::Future<std::vector<folly::Future<T>>> &&vec)
   : mainFuture(std::move(vec)), futureVectorPopulated(false) { }
+
+  //----------------------------------------------------------------------------
+  //! Move assignment operator
+  //----------------------------------------------------------------------------
+  FutureVectorIterator<T> &operator=(FutureVectorT &&vec) {
+    waitAll();
+    mainFuture = std::move(vec);
+    futureVector.clear();
+    futureVectorPopulated = false;
+    return *this;
+  }
 
   //----------------------------------------------------------------------------
   //! Construtor, consumes concrete vector of futures
@@ -131,6 +150,20 @@ private:
 
     futureVector = std::move(mainFuture).get();
     futureVectorPopulated = true;
+  }
+
+  //----------------------------------------------------------------------------
+  //! Wait for and discard all results from the future vector
+  //----------------------------------------------------------------------------
+  void waitAll() {
+     if(mainFuture.valid()) {
+       processMainFuture();
+    }
+    if(futureVectorPopulated) {
+      for(;futureVectorNext<futureVector.size();futureVectorNext++) {
+        T &&x = std::move(futureVector[futureVectorNext]).get();
+      }
+    }
   }
 
   folly::Future<std::vector<folly::Future<T>>> mainFuture;
