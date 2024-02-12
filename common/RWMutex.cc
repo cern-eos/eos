@@ -114,9 +114,9 @@ const char* RWMutex::LOCK_STATE[] = {"N", "wLR", "wULR", "LR", "wLW", "wULW", "L
         else needloop = false;                                                 \
       } while(needloop);                                                       \
     }                                                                          \
-  }									       \
-  uint64_t l2stamp = Timing::GetNowInNs();				       \
-  (what##LockLeadTime) += (l2stamp-l1stamp);				       
+  }                        \
+  uint64_t l2stamp = Timing::GetNowInNs();               \
+  (what##LockLeadTime) += (l2stamp-l1stamp);
 
 #else
 #define EOS_RWMUTEX_CHECKORDER_LOCK
@@ -1282,7 +1282,7 @@ RWMutex::RecordMutexOp(uint64_t ptr_val, LOCK_T op)
     return;
   }
 
-  pid_t tid = syscall(SYS_gettid);
+  std::thread::id tid = std::this_thread::get_id();
   std::unique_lock lock(sOpMutex);
   auto& mtx_op_map = sTidMtxOpMap[tid];
   mtx_op_map[ptr_val] = op;
@@ -1297,7 +1297,7 @@ void
 RWMutex::PrintMutexOps(std::ostringstream& oss)
 {
 #ifdef EOS_INSTRUMENTED_RWMUTEX
-  pid_t tid = syscall(SYS_gettid);
+  std::thread::id tid = std::this_thread::get_id();
   std::unique_lock lock(sOpMutex);
   const auto it = sTidMtxOpMap.find(tid);
 
@@ -1377,9 +1377,11 @@ RWMutexWriteLock::Release()
     bool blockedtracing = mWrMutex->BlockedStackTracing();
     mReleasedAt = std::chrono::steady_clock::now();
     mReleasedAtSystem = std::chrono::system_clock::now();
-    mWrMutex->addBlockingTimeInfos(mAcquiredAtSystem,mReleasedAtSystem);
+    mWrMutex->addBlockingTimeInfos(mAcquiredAtSystem, mReleasedAtSystem);
     std::chrono::milliseconds blockedFor =
-      std::chrono::duration_cast<std::chrono::milliseconds> (mReleasedAt - mAcquiredAt);
+      std::chrono::duration_cast<std::chrono::milliseconds> (mReleasedAt -
+          mAcquiredAt);
+
     if (blockedFor.count() > blockedinterval) {
       std::ostringstream ss;
       ss << "write lock [ " << mWrMutex->getName() << " ] held for "
