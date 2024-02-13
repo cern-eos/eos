@@ -511,8 +511,7 @@ BoundIdentityProvider::defaultPathsToBoundIdentity(const JailInformation& jail,
 
     if (ret == 0) {
       std::string default_name = krb5_cc_default_name(krb_ctx);
-      if ((default_name.substr(0, 5) == "FILE:") ||
-          (default_name.substr(0, 5) == "/tmp/")) {
+      if ((default_name.empty())) {
         defaultEnv.push_back("KRB5CCNAME=FILE:/tmp/krb5cc_" + std::to_string(uid));
       } else if (default_name.substr(0, 18) == "KEYRING:persistent") {
         defaultEnv.push_back("KRB5CCNAME=KEYRING:persistent:" + std::to_string(uid));
@@ -521,7 +520,7 @@ BoundIdentityProvider::defaultPathsToBoundIdentity(const JailInformation& jail,
         defaultEnv.push_back("KRB5CCNAME=" + default_name);
 #endif
       }
-
+      
       krb5_free_context(krb_ctx);
     }
   }
