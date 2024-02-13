@@ -16,6 +16,17 @@ Introduction
 
 This release is based on XRootD V5.
 
+``v5.2.14 Diopside``
+====================
+
+2024-02-13
+
+Bug
+----
+
+* [EOS-6009] - FUSEX: don't overwrite FILE:/!tmp locations as KRB5 default location
+* NS: Catch exception in FutureVectorIterator destructor
+
 
 ``v5.2.13 Diopside``
 ====================
