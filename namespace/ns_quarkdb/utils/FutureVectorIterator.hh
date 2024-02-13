@@ -60,9 +60,10 @@ public:
   FutureVectorIterator<T>& operator=(FutureVectorT&& vec)
   {
     waitAll();
-    mainFuture = std::move(vec);
     futureVector.clear();
+    futureVectorNext = 0;
     futureVectorPopulated = false;
+    mainFuture = std::move(vec);
     return *this;
   }
 
@@ -167,7 +168,11 @@ private:
   void waitAll()
   {
     if (mainFuture.valid()) {
-      processMainFuture();
+      try {
+        processMainFuture();
+      } catch (eos::MDException& e) {
+          // ignore not found entry
+      }
     }
 
     if (futureVectorPopulated) {
