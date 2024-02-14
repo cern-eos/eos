@@ -121,6 +121,7 @@ FsCmd::Add(const eos::console::FsProto::AddProto& addProto)
   XrdOucString out, err;
   mRetc = proc_fs_add(gOFS->mMessagingRealm.get(), sfsid, uuid, nodequeue,
                       mountpoint, space, configstatus, sharedfs, out, err, mVid);
+  gOFS->mFsScheduler->updateClusterData();
   mOut = out.c_str() != nullptr ? out.c_str() : "";
   mErr = err.c_str() != nullptr ? err.c_str() : "";
   return mRetc;
@@ -485,8 +486,11 @@ FsCmd::Rm(const eos::console::FsProto::RmProto& rmProto)
   }
 
   XrdOucString out, err;
-  eos::common::RWMutexWriteLock wr_lock(FsView::gFsView.ViewMutex);
-  mRetc = proc_fs_rm(nodequeue, mountpoint, id, out, err, mVid);
+  {
+    eos::common::RWMutexWriteLock wr_lock(FsView::gFsView.ViewMutex);
+    mRetc = proc_fs_rm(nodequeue, mountpoint, id, out, err, mVid);
+  }
+  gOFS->mFsScheduler->updateClusterData();
   mOut = out.c_str() != nullptr ? out.c_str() : "";
   mErr = err.c_str() != nullptr ? err.c_str() : "";
   return mRetc;
