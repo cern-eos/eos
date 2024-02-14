@@ -42,6 +42,17 @@ using ActiveStatus = eos::common::ActiveStatus;
 // is not used, as we use a int32_t for the rest of the placement hierarchy.
 // the struct is packed to 8 bytes, so upto 8192 disks
 // can fit in a single 64kB cache, it is recommended to keep this struct aligned
+inline ActiveStatus getActiveStatus(ActiveStatus status,
+                                    eos::common::BootStatus bstatus)
+{
+  if (status == ActiveStatus::kOnline) {
+    if (bstatus != eos::common::BootStatus::kBooted) {
+      return ActiveStatus::kOffline;
+    }
+  }
+  return status;
+}
+
 struct Disk {
   fsid_t id;
   mutable std::atomic<ConfigStatus> config_status {ConfigStatus::kUnknown};
