@@ -2584,7 +2584,9 @@ FsView::GetGlobalConfig(const std::string& key)
   return "";
 }
 
-static void setFsStatus(FileSystem* fs, eos::common::ActiveStatus status)
+static void setFsStatus(FileSystem* fs,
+                        eos::common::ActiveStatus status,
+                        eos::common::BootStatus bstatus)
 {
   if (fs == nullptr) {
     return;
@@ -2593,7 +2595,8 @@ static void setFsStatus(FileSystem* fs, eos::common::ActiveStatus status)
   fs->SetActiveStatus(status);
   gOFS->mFsScheduler->setDiskStatus(fs->GetSpace(),
                                     fs->GetId(),
-                                    status);
+                                    status,
+                                    bstatus);
 }
 
 //------------------------------------------------------------------------------
@@ -2647,16 +2650,16 @@ FsView::HeartBeatCheck(ThreadAssistant& assistant) noexcept
 
             if (!overloaded) {
               if (fs->GetActiveStatus() != eos::common::ActiveStatus::kOnline) {
-                setFsStatus(fs, eos::common::ActiveStatus::kOnline);
+                setFsStatus(fs, eos::common::ActiveStatus::kOnline, fs->GetStatus());
               }
             } else {
               if (fs->GetActiveStatus() != eos::common::ActiveStatus::kOverload) {
-                setFsStatus(fs, eos::common::ActiveStatus::kOverload);
+                setFsStatus(fs, eos::common::ActiveStatus::kOverload, fs->GetStatus());
               }
             }
           } else {
             if (fs->GetActiveStatus() != eos::common::ActiveStatus::kOffline) {
-              setFsStatus(fs, eos::common::ActiveStatus::kOffline);
+              setFsStatus(fs, eos::common::ActiveStatus::kOffline, fs->GetStatus());
             }
           }
         }
@@ -2674,7 +2677,7 @@ FsView::HeartBeatCheck(ThreadAssistant& assistant) noexcept
           }
 
           if (fs->GetActiveStatus() != eos::common::ActiveStatus::kOffline) {
-            setFsStatus(fs, eos::common::ActiveStatus::kOffline);
+            setFsStatus(fs, eos::common::ActiveStatus::kOffline, fs->GetStatus());
           }
         }
       }

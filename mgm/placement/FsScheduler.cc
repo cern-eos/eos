@@ -50,8 +50,10 @@ EosClusterMgrHandler::make_cluster_mgr()
           if (capacity > (1LL << 40)) {
             weight = capacity / (1LL << 40);
           }
+          auto active_status = getActiveStatus(fs->GetActiveStatus(),
+                                               fs->GetStatus());
           auto add_status = storage_handler.addDisk(Disk(fs->GetId(), fs->GetConfigStatus(),
-                                                     fs->GetActiveStatus(), weight, used),
+                                                         active_status, weight, used),
                                                 group_id);
           eos_static_info("msg=\"Adding disk at \" ID=%d group_id=%d status=%d",
                           fs->GetId(), group_id, add_status);
@@ -100,8 +102,10 @@ EosClusterMgrHandler::make_cluster_mgr(const std::string& spaceName)
         if (capacity > (1LL << 40)) {
           weight = capacity / (1LL << 40);
         }
+        auto active_status = getActiveStatus(fs->GetActiveStatus(),
+                                             fs->GetStatus());
         storage_handler.addDisk(Disk(fs->GetId(), fs->GetConfigStatus(),
-                                     fs->GetActiveStatus(), weight, used),
+                                     active_status, weight, used),
                                 group_id);
       }
     }
@@ -192,7 +196,8 @@ FSScheduler::setDiskStatus(const std::string& spaceName, fsid_t disk_id,
 
 bool
 FSScheduler::setDiskStatus(const std::string& spaceName, fsid_t disk_id,
-                           ActiveStatus status)
+                           ActiveStatus status,
+                           eos::common::BootStatus bstatus)
 {
   eos::common::RCUReadLock rlock(cluster_rcu_mutex);
   auto* cluster_mgr = get_cluster_mgr(spaceName);
@@ -201,8 +206,8 @@ FSScheduler::setDiskStatus(const std::string& spaceName, fsid_t disk_id,
                     spaceName.c_str());
     return false;
   }
-
-  return cluster_mgr->setDiskStatus(disk_id, status);
+  auto _status = getActiveStatus(status, bstatus);
+  return cluster_mgr->setDiskStatus(disk_id, _status);
 }
 
 bool

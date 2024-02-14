@@ -193,7 +193,7 @@ void XrdMgmOfs::FileSystemMonitorThread(ThreadAssistant& assistant) noexcept
 {
   std::shared_ptr<eos::mq::FsChangeListener> fs_listener =
     mMessagingRealm->GetFsChangeListener("filesystem-listener-thread");
-  FsView::gFsView.AddFsChangeListener(fs_listener, {"stat.errc", "stat.geotag", "configstatus"});
+  FsView::gFsView.AddFsChangeListener(fs_listener, {"stat.errc", "stat.geotag", "configstatus", "stat.boot"});
 
   if (!fs_listener->startListening()) {
     eos_static_crit("%s", "msg=\"unspecified problem when attempting to "
@@ -231,7 +231,9 @@ void XrdMgmOfs::FileSystemMonitorThread(ThreadAssistant& assistant) noexcept
             bstatus = eos::common::FileSystem::GetStatusFromString(bootstatus.c_str());
             bool status = gOFS->mFsScheduler->setDiskStatus(fs->getCoreParams().getSpace(),
                                                             fsid, cfgstatus);
-            if (!status) {
+            bool act_status = gOFS->mFsScheduler->setDiskStatus(fs->getCoreParams().getSpace(),
+                                                                fsid, fs->GetActiveStatus(), bstatus);
+            if (!status || !act_status) {
               eos_static_err("msg=\"Failed to set Disk Status in FsScheduler for disk\" %llu", fsid);
             }
           }
@@ -241,6 +243,12 @@ void XrdMgmOfs::FileSystemMonitorThread(ThreadAssistant& assistant) noexcept
               (bstatus == eos::common::BootStatus::kOpsError)) {
             // Case when we take action and explicitly ask to start a drain job
             fs->SetConfigStatus(eos::common::ConfigStatus::kDrain);
+            bool status = gOFS->mFsScheduler->setDiskStatus(fs->getCoreParams().getSpace(),
+                                                            fsid,
+                                                            eos::common::ConfigStatus::kDrain);
+            if (!status) {
+              eos_static_err("msg=\"Failed to set Disk Status in FsScheduler for disk\" %llu", fsid);
+            }
           }
         }
       }
