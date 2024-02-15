@@ -16,7 +16,22 @@ Introduction
 
 This release is based on XRootD V5.
 
-``v5.2.14 Diopside``
+``v5.2.15 Diopside``
+====================
+
+2024-02-15
+
+BUG
+----
+
+* [EOS-6044] - FUSEX: fix 0-pointer access into data object map - fixes EOS-6044
+
+New Feature
+-----------
+
+* MGM - return EBUSY and HTTP::CONFLICT when opening a file locked via the xattr interface (collaborative editing)
+
+  ``v5.2.14 Diopside``
 ====================
 
 2024-02-13
