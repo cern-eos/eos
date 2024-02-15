@@ -16,6 +16,7 @@ Introduction
 
 This release is based on XRootD V5.
 
+
 ``v5.2.15 Diopside``
 ====================
 
@@ -25,8 +26,8 @@ BUG
 ----
 
 * [EOS-6044] - FUSEX: fix 0-pointer access into data object map - fixes EOS-6044
-* [EOS-6046] - MGM: flat scheduler know honours configuration changes on filesystems immediately 
-  
+* [EOS-6046] - MGM: flat scheduler know honours configuration changes on filesystems immediately
+
 New Feature
 -----------
 
