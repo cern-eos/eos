@@ -25,7 +25,8 @@ BUG
 ----
 
 * [EOS-6044] - FUSEX: fix 0-pointer access into data object map - fixes EOS-6044
-
+* [EOS-6046] - MGM: flat scheduler know honours configuration changes on filesystems immediately 
+  
 New Feature
 -----------
 
