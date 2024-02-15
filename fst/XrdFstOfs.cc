@@ -1825,7 +1825,7 @@ void
 XrdFstOfs::RequestBroadcasts()
 {
   using eos::fst::Config;
-  eos_notice("%s", "msg=\"requesting broadcasts\"");
+  eos_static_notice("%s", "msg=\"requesting broadcasts\"");
   // Create a wildcard broadcast
   XrdMqSharedHash* hash = 0;
   // Create a node broadcast
@@ -1856,6 +1856,7 @@ XrdFstOfs::RequestBroadcasts()
       std::this_thread::sleep_for(std::chrono::seconds(1));
     }
   }
+  eos_static_notice("%s", "msg=\"done requesting broadcasts\"");
 }
 
 //----------------------------------------------------------------------------
