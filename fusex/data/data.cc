@@ -270,11 +270,11 @@ data::unlink(fuse_req_t req, fuse_ino_t ino)
     {
       XrdSysMutexHelper mLock(datamap);
 
-      if (datamap[ino]->flags() & (O_RDWR | O_WRONLY)) {
-	is_rw = true;
-      }
-
       if (datamap.count(ino)) {
+	if (datamap[ino]->flags() & (O_RDWR | O_WRONLY)) {
+	  is_rw = true;
+	}
+
         datamap[ino + 0xffffffff] = datamap[ino];
         datamap.erase(ino);
         eos_static_info("datacache::unlink size=%lu", datamap.size());
