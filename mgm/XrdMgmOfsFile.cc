@@ -1223,7 +1223,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
   XattrLock alock(attrmapF);
 
   if (alock.foreignLock(vid, isRW)) {
-    return Emsg(epname, error, EPERM,
+    return Emsg(epname, error, EBUSY,
                 "open file - file has a valid extended attribute lock ", path);
   }
 
