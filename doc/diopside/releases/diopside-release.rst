@@ -16,6 +16,16 @@ Introduction
 
 This release is based on XRootD V5.
 
+``v5.2.16 Diopside``
+====================
+
+2024-02-16
+
+BUG
+----
+
+* [EOS-6051] - MGM: fix crash in FSScheduler caused by edgecases at boot time
+
 
 ``v5.2.15 Diopside``
 ====================
