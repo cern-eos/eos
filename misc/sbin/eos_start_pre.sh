@@ -27,7 +27,7 @@
 # Start All EOS daemons (all required daemons from config file)
 if [ "$1" = "eos-all" ]; then
   if [[ -z "$XRD_ROLES" ]]; then
-    echo "<3>Error: No XRD_ROLES variable declared in \"/etc/sysconf/eos_env\""
+    echo "<3>Error: No XRD_ROLES variable declared in \"/etc/sysconfig/eos_env\""
     exit 1
   fi
 
@@ -78,7 +78,7 @@ if [ "$1" = "eos-start-pre" ]; then
       systemctl start cmsd@clustered
     fi
   else
-    echo "<3>Error: Service $2 not in the XRD_ROLES in \"/etc/sysconf/eos_env\""
+    echo "<3>Error: Service $2 not in the XRD_ROLES in \"/etc/sysconfig/eos_env\""
     exit 1
   fi
 fi
