@@ -53,18 +53,21 @@ ClusterMgr::addClusterData(ClusterData&& data)
 bool
 ClusterMgr::setDiskStatus(fsid_t disk_id, ConfigStatus status)
 {
+  eos::common::RCUReadLock rlock(cluster_mgr_rcu);
   return mClusterData->setDiskStatus(disk_id, status);
 }
 
 bool
 ClusterMgr::setDiskStatus(fsid_t disk_id, ActiveStatus status)
 {
+  eos::common::RCUReadLock rlock(cluster_mgr_rcu);
   return mClusterData->setDiskStatus(disk_id, status);
 }
 
 bool
 ClusterMgr::setDiskWeight(fsid_t disk_id, uint8_t weight)
 {
+  eos::common::RCUReadLock rlock(cluster_mgr_rcu);
   if (mClusterData->setDiskWeight(disk_id, weight)) {
     mCurrentEpoch.fetch_add(1, std::memory_order_release);
     return true;

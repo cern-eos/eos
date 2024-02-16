@@ -44,7 +44,7 @@ struct EosClusterMgrHandler : public ClusterMgrHandler
 
 class FSScheduler {
 public:
-  using RCUMutexT = eos::common::VersionedRCUDomain;
+  using RCUMutexT = eos::common::EpochRCUDomain;
   using ClusterMapPtrT = eos::common::atomic_unique_ptr<ClusterMapT>;
   using SpaceStrategyMapT = std::map<std::string, PlacementStrategyT>;
   using SpaceStrategyMapPtrT = eos::common::atomic_unique_ptr<SpaceStrategyMapT>;
