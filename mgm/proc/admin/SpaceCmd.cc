@@ -774,6 +774,9 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config,
         ret_c = EIO;
       } else {
         applied = true;
+        if (!eos::common::startsWith(value, "geo")) {
+          gOFS->mFsScheduler->updateClusterData();
+        }
         gOFS->mFsScheduler->setPlacementStrategy(space->mName, value);
         std_out.str("success: configured scheduler.type in space='"+
                     space_name + "' as " + value + "\n");

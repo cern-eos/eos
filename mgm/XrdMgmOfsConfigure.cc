@@ -2223,15 +2223,19 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   eos_static_info("%s", "msg=\"starting Converter Engine\"");
   mConverterDriver.reset(new eos::mgm::ConverterDriver(mQdbContactDetails));
   mConverterDriver->Start();
-  mFsScheduler->updateClusterData();
+  bool need_update = false;
   {
     eos::common::RWMutexReadLock vlock(FsView::gFsView.ViewMutex);
-
     for (const auto& space : FsView::gFsView.mSpaceView) {
-      mFsScheduler->setPlacementStrategy(space.first,
-                                         space.second->GetConfigMember("scheduler.type"));
+      std::string strategy = space.second->GetConfigMember("scheduler.type");
+      need_update |= !eos::common::startsWith(strategy, "geo");
+      mFsScheduler->setPlacementStrategy(space.first, strategy);
     }
   }
+  if (need_update) {
+    mFsScheduler->updateClusterData();
+  }
+
   return NoGo;
 }
 /*----------------------------------------------------------------------------*/
