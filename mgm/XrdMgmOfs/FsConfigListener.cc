@@ -229,12 +229,14 @@ void XrdMgmOfs::FileSystemMonitorThread(ThreadAssistant& assistant) noexcept
             cfgstatus = eos::common::FileSystem::GetConfigStatusFromString(
                           configstatus.c_str());
             bstatus = eos::common::FileSystem::GetStatusFromString(bootstatus.c_str());
-            bool status = gOFS->mFsScheduler->setDiskStatus(fs->getCoreParams().getSpace(),
-                                                            fsid, cfgstatus);
-            bool act_status = gOFS->mFsScheduler->setDiskStatus(fs->getCoreParams().getSpace(),
-                                                                fsid, fs->GetActiveStatus(), bstatus);
-            if (!status || !act_status) {
-              eos_static_err("msg=\"Failed to set Disk Status in FsScheduler for disk\" %llu", fsid);
+            if (fsid) {
+              bool status = gOFS->mFsScheduler->setDiskStatus(fs->getCoreParams().getSpace(),
+                                                              fsid, cfgstatus);
+              bool act_status = gOFS->mFsScheduler->setDiskStatus(fs->getCoreParams().getSpace(),
+                                                                  fsid, fs->GetActiveStatus(), bstatus);
+              if (!status || !act_status) {
+                eos_static_err("msg=\"Failed to set Disk Status in FsScheduler for disk\" %llu", fsid);
+              }
             }
           }
 
@@ -243,11 +245,13 @@ void XrdMgmOfs::FileSystemMonitorThread(ThreadAssistant& assistant) noexcept
               (bstatus == eos::common::BootStatus::kOpsError)) {
             // Case when we take action and explicitly ask to start a drain job
             fs->SetConfigStatus(eos::common::ConfigStatus::kDrain);
-            bool status = gOFS->mFsScheduler->setDiskStatus(fs->getCoreParams().getSpace(),
-                                                            fsid,
-                                                            eos::common::ConfigStatus::kDrain);
-            if (!status) {
-              eos_static_err("msg=\"Failed to set Disk Status in FsScheduler for disk\" %llu", fsid);
+            if (gOFS->mFsScheduler != nullptr) {
+              bool status = gOFS->mFsScheduler->setDiskStatus(fs->getCoreParams().getSpace(),
+                                                              fsid,
+                                                              eos::common::ConfigStatus::kDrain);
+              if (!status) {
+                eos_static_err("msg=\"Failed to set Disk Status in FsScheduler for disk\" %llu", fsid);
+              }
             }
           }
         }

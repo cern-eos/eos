@@ -183,6 +183,10 @@ bool
 FSScheduler::setDiskStatus(const std::string& spaceName, fsid_t disk_id,
                            ConfigStatus status)
 {
+  if (spaceName.empty() || disk_id == 0) {
+    return false;
+  }
+
   eos::common::RCUReadLock rlock(cluster_rcu_mutex);
   auto* cluster_mgr = get_cluster_mgr(spaceName);
   if (!cluster_mgr) {
@@ -199,6 +203,10 @@ FSScheduler::setDiskStatus(const std::string& spaceName, fsid_t disk_id,
                            ActiveStatus status,
                            eos::common::BootStatus bstatus)
 {
+  if (spaceName.empty() || disk_id == 0) {
+    return false;
+  }
+
   eos::common::RCUReadLock rlock(cluster_rcu_mutex);
   auto* cluster_mgr = get_cluster_mgr(spaceName);
   if (!cluster_mgr) {
@@ -214,6 +222,10 @@ bool
 FSScheduler::setDiskWeight(const std::string& spaceName, fsid_t disk_id,
                            uint8_t weight)
 {
+  if (spaceName.empty() || disk_id == 0) {
+    return false;
+  }
+
   eos::common::RCUReadLock rlock(cluster_rcu_mutex);
   auto* cluster_mgr = get_cluster_mgr(spaceName);
   if (!cluster_mgr) {
