@@ -74,7 +74,7 @@ XrdMgmOfs::_exists(const char* path,
                    XrdSfsFileExistence& file_exists,
                    XrdOucErrInfo& error,
                    const XrdSecEntity* client,
-                   const char* ininfo)
+                   const char* ininfo, bool files_first)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief check for the existence of a file or directory
@@ -83,6 +83,7 @@ XrdMgmOfs::_exists(const char* path,
  * @param file_exists return the type of the checked path
  * @param client XRootD authentication object
  * @param ininfo CGI
+ * @param files_first check first for files
  * @return SFS_OK if found otherwise SFS_ERROR
  *
  * The values of file_exists are:
@@ -100,39 +101,62 @@ XrdMgmOfs::_exists(const char* path,
     eos_err("%s", "msg=\"null or empty path\"");
     return SFS_ERROR;
   }
-
+  
   // try if that is directory
   EXEC_TIMING_BEGIN("Exists");
   gOFS->MgmStats.Add("Exists", vid.uid, vid.gid, 1);
   std::shared_ptr<eos::IContainerMD> cmd;
-  {
-    // -------------------------------------------------------------------------
-    eos::Prefetcher::prefetchContainerMDAndWait(gOFS->eosView, path, false);
 
-    try {
-      cmd = gOFS->eosView->getContainer(path, false);
-    } catch (eos::MDException& e) {
-      eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
-                e.getErrno(), e.getMessage().str().c_str());
-    };
-
-    // -------------------------------------------------------------------------
-  }
-
-  if (!cmd) {
+  std::shared_ptr<eos::IFileMD> fmd;
+  
+  if (files_first) {
     // -------------------------------------------------------------------------
     // try if that is a file
     // -------------------------------------------------------------------------
     eos::Prefetcher::prefetchFileMDAndWait(gOFS->eosView, path, false);
-    std::shared_ptr<eos::IFileMD> fmd;
-
+    
     try {
       fmd = gOFS->eosView->getFile(path, false);
     } catch (eos::MDException& e) {
       eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n", e.getErrno(),
-                e.getMessage().str().c_str());
+		e.getMessage().str().c_str());
     }
+    if (fmd) {
+      file_exists = XrdSfsFileExistIsFile;
+      return SFS_OK;
+    }
+    // continue with container check
+  }
+  
+  {
+    // -------------------------------------------------------------------------
+    eos::Prefetcher::prefetchContainerMDAndWait(gOFS->eosView, path, false);
+    
+    try {
+      cmd = gOFS->eosView->getContainer(path, false);
+    } catch (eos::MDException& e) {
+      eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
+		e.getErrno(), e.getMessage().str().c_str());
+    };
+    
+    // -------------------------------------------------------------------------
+  }
+  
+  if (!cmd) {
+    // -------------------------------------------------------------------------
+    // try if that is a file
+    // -------------------------------------------------------------------------
 
+    if (!files_first) {
+      eos::Prefetcher::prefetchFileMDAndWait(gOFS->eosView, path, false);
+      try {
+	fmd = gOFS->eosView->getFile(path, false);
+      } catch (eos::MDException& e) {
+	eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n", e.getErrno(),
+		  e.getMessage().str().c_str());
+      }
+    }
+    
     // -------------------------------------------------------------------------
     if (!fmd) {
       file_exists = XrdSfsFileExistNo;
@@ -142,7 +166,7 @@ XrdMgmOfs::_exists(const char* path,
   } else {
     file_exists = XrdSfsFileExistIsDirectory;
   }
-
+  
   if (file_exists == XrdSfsFileExistNo) {
     // get the parent directory
     eos::common::Path cPath(path);
@@ -150,51 +174,51 @@ XrdMgmOfs::_exists(const char* path,
     eos::IContainerMD::XAttrMap attrmap;
     // -------------------------------------------------------------------------
     eos::Prefetcher::prefetchContainerMDAndWait(gOFS->eosView,
-        cPath.GetParentPath(), false);
-
+						cPath.GetParentPath(), false);
+    
     try {
       auto dirLock = eosView->getContainerReadLocked(cPath.GetParentPath(), false);
-      dir = dirLock->getUnderlyingPtr();
-
+      if(dirLock) {
+	dir = dirLock->getUnderlyingPtr();
+      }
       eos::IContainerMD::XAttrMap::const_iterator it;
       // get attributes
       gOFS->_attr_ls(cPath.GetParentPath(), error, vid, 0, attrmap);
     } catch (eos::MDException& e) {
       dir.reset();
     }
-
+    
     // -------------------------------------------------------------------------
-
+    
     if (dir) {
       MAYREDIRECT_ENOENT;
       MAYSTALL_ENOENT;
       XrdOucString redirectionhost = "invalid?";
       int ecode = 0;
       int rcode = SFS_OK;
-
+      
       if (attrmap.count("sys.redirect.enoent")) {
-        // there is a redirection setting here
-        redirectionhost = "";
-        redirectionhost = attrmap["sys.redirect.enoent"].c_str();
-        int portpos = 0;
-
-        if ((portpos = redirectionhost.find(":")) != STR_NPOS) {
-          XrdOucString port = redirectionhost;
-          port.erase(0, portpos + 1);
-          ecode = atoi(port.c_str());
-          redirectionhost.erase(portpos);
-        } else {
-          ecode = 1094;
-        }
-
-        rcode = SFS_REDIRECT;
-        error.setErrInfo(ecode, redirectionhost.c_str());
-        gOFS->MgmStats.Add("RedirectENOENT", vid.uid, vid.gid, 1);
-        return rcode;
+	// there is a redirection setting here
+	redirectionhost = "";
+	redirectionhost = attrmap["sys.redirect.enoent"].c_str();
+	int portpos = 0;
+	
+	if ((portpos = redirectionhost.find(":")) != STR_NPOS) {
+	  XrdOucString port = redirectionhost;
+	  port.erase(0, portpos + 1);
+	  ecode = atoi(port.c_str());
+	  redirectionhost.erase(portpos);
+	} else {
+	  ecode = 1094;
+	}
+	
+	rcode = SFS_REDIRECT;
+	error.setErrInfo(ecode, redirectionhost.c_str());
+	gOFS->MgmStats.Add("RedirectENOENT", vid.uid, vid.gid, 1);
+	return rcode;
       }
     }
   }
-
   EXEC_TIMING_END("Exists");
   return SFS_OK;
 }
@@ -207,7 +231,8 @@ XrdMgmOfs::_exists(const char* path,
                    eos::common::VirtualIdentity& vid,
                    std::shared_ptr<eos::IContainerMD>& cmd,
                    std::shared_ptr<eos::IFileMD>& fmd,
-                   const char* ininfo)
+                   const char* ininfo,
+		   bool first_files)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief check for the existence of a file or directory
@@ -218,6 +243,7 @@ XrdMgmOfs::_exists(const char* path,
  * @param cmd Container MD (out param)
  * @param fmd File MD (out param)
  * @param ininfo CGI
+ * @param files_first check first for files
  * @return SFS_OK if found otherwise SFS_ERROR
  *
  * The values of file_exists are:
@@ -295,9 +321,9 @@ XrdMgmOfs::_exists(const char* fileName,
                    XrdSfsFileExistence& exists_flag,
                    XrdOucErrInfo& out_error,
                    eos::common::VirtualIdentity& vid,
-                   const char* opaque, bool take_lock)
+                   const char* opaque, bool take_lock, bool files_first)
 {
   std::shared_ptr<eos::IContainerMD> cmd;
   std::shared_ptr<eos::IFileMD> fmd;
-  return _exists(fileName, exists_flag, out_error, vid, cmd, fmd, opaque);
+  return _exists(fileName, exists_flag, out_error, vid, cmd, fmd, opaque, files_first);
 }

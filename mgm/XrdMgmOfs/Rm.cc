@@ -119,7 +119,7 @@ XrdMgmOfs::_rem(const char* path,
   XrdSfsFileExistence file_exists;
   vid.scope = path;
 
-  if ((_exists(path, file_exists, error, vid, 0))) {
+  if ((_exists(path, file_exists, error, vid, 0, true))) {
     return SFS_ERROR;
   }
 
