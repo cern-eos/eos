@@ -40,13 +40,6 @@ SearchNode::SearchNode(NamespaceExplorer& expl, ContainerIdentifier expectedP,
     parent(prnt), executor(exec), ignoreFiles(ignoreF), fileCount(0),
     containerMd(MetadataFetcher::getContainerFromId(qcl, id))
 {
-  if (!ignoreFiles) {
-    pendingFileMds = MetadataFetcher::getFileMDsInContainer(qcl, id, exec);
-  } else {
-    auto counts = MetadataFetcher::countContents(qcl, id);
-    fileCount = std::move(counts.first);
-  }
-
   containerMap = MetadataFetcher::getContainerMap(qcl, id);
 }
 
@@ -69,14 +62,33 @@ bool SearchNode::canVisit()
 }
 
 //------------------------------------------------------------------------------
-// Send off more requests if results are ready, otherwise do nothing.
+// This method is concerned with starting queries regarding child containers or
+// files in the current container.
+//   files:      Depending on ignoreFiles and expansionFilteredOut settings,
+//               a count of files or a query for the full list is started.
+//
+//   containers: Query for child containers is only started in case the
+//               containerMap is ready and we are not filtering expansion.
 // If search needs some result, it'll block.
 //------------------------------------------------------------------------------
 void SearchNode::handleAsync()
 {
-  if (!childrenLoaded && containerMap.ready()) {
+  if (!childrenLoaded && !expansionFilteredOut && containerMap.ready()) {
     stageChildren();
   }
+
+  if (!startFileQueryDone) {
+    startFileQueryDone = true;
+    if (ignoreFiles || expansionFilteredOut) {
+      auto counts = MetadataFetcher::countContents(qcl, id);
+      fileCount = std::move(counts.first);
+      haveFileMdsQuery = false;
+    } else {
+      pendingFileMds = MetadataFetcher::getFileMDsInContainer(qcl, id, executor);
+      haveFileMdsQuery = true;
+    }
+  }
+
 }
 
 //------------------------------------------------------------------------------
@@ -193,7 +205,8 @@ eos::ns::ContainerMdProto& SearchNode::getContainerInfo()
 //------------------------------------------------------------------------------
 uint64_t SearchNode::getNumFiles()
 {
-  if (ignoreFiles) {
+  if (!haveFileMdsQuery) {
+    fileCount.wait();
     return fileCount.value();
   } else {
     return pendingFileMds.size();
@@ -415,7 +428,6 @@ bool NamespaceExplorer::fetch(NamespaceItem& item)
   }
 
   while (!dfsPath.empty()) {
-    dfsPath.back()->handleAsync();
 
     // Has top node been visited yet?
     if (dfsPath.back()->canVisit()) {
@@ -423,7 +435,6 @@ bool NamespaceExplorer::fetch(NamespaceItem& item)
       item.isFile = false;
       item.fullPath = buildDfsPath();
       item.containerMd = dfsPath.back()->getContainerInfo();
-      item.numFiles = dfsPath.back()->getNumFiles();
       item.numContainers = dfsPath.back()->getNumContainers();
       handleLinkedAttrs(item);
       item.expansionFilteredOut = false;
@@ -437,6 +448,8 @@ bool NamespaceExplorer::fetch(NamespaceItem& item)
       item.expansionFilteredOut = (item.expansionFilteredOut
                                    || (cpath.GetSubPathSize() >= options.depthLimit));
       dfsPath.back()->expansionFilteredOut = item.expansionFilteredOut;
+      dfsPath.back()->handleAsync();
+      item.numFiles = dfsPath.back()->getNumFiles();
       return true;
     }
 
