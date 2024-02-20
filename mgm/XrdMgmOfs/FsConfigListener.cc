@@ -216,6 +216,7 @@ void XrdMgmOfs::FileSystemMonitorThread(ThreadAssistant& assistant) noexcept
           std::string bootstatus = "";
           eos::common::ConfigStatus cfgstatus = eos::common::ConfigStatus::kOff;
           eos::common::BootStatus bstatus = eos::common::BootStatus::kDown;
+          std::string space = "";
           // read the id from the hash and the current error value
           eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
           FileSystem* fs = FsView::gFsView.mIdView.lookupByQueuePath(
@@ -230,12 +231,16 @@ void XrdMgmOfs::FileSystemMonitorThread(ThreadAssistant& assistant) noexcept
                           configstatus.c_str());
             bstatus = eos::common::FileSystem::GetStatusFromString(bootstatus.c_str());
             if (fsid) {
-              bool status = gOFS->mFsScheduler->setDiskStatus(fs->getCoreParams().getSpace(),
-                                                              fsid, cfgstatus);
-              bool act_status = gOFS->mFsScheduler->setDiskStatus(fs->getCoreParams().getSpace(),
-                                                                  fsid, fs->GetActiveStatus(), bstatus);
-              if (!status || !act_status) {
-                eos_static_err("msg=\"Failed to set Disk Status in FsScheduler for disk\" %llu", fsid);
+              space = fs->getCoreParams().getSpace();
+              if (!space.empty()) {
+                bool status = gOFS->mFsScheduler->setDiskStatus(space,
+                                                                fsid, cfgstatus);
+                bool act_status = gOFS->mFsScheduler->setDiskStatus(space,
+                                                                    fsid, fs->GetActiveStatus(), bstatus);
+                if (!gOFS->mFsScheduler->isGeoScheduler(space) &&
+                    (!status || !act_status)) {
+                  eos_static_err("msg=\"Failed to set Disk Status in FsScheduler for disk\" %llu", fsid);
+                }
               }
             }
           }
@@ -246,7 +251,7 @@ void XrdMgmOfs::FileSystemMonitorThread(ThreadAssistant& assistant) noexcept
             // Case when we take action and explicitly ask to start a drain job
             fs->SetConfigStatus(eos::common::ConfigStatus::kDrain);
             if (gOFS->mFsScheduler != nullptr) {
-              bool status = gOFS->mFsScheduler->setDiskStatus(fs->getCoreParams().getSpace(),
+              bool status = gOFS->mFsScheduler->setDiskStatus(space,
                                                               fsid,
                                                               eos::common::ConfigStatus::kDrain);
               if (!status) {
