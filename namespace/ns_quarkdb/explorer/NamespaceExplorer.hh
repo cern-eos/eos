@@ -164,6 +164,8 @@ private:
   bool ignoreFiles;
   folly::Future<uint64_t> fileCount;
   bool visited = false;
+  bool haveFileMdsQuery = false;
+  bool startFileQueryDone = false;
 
   common::FutureWrapper<eos::ns::ContainerMdProto> containerMd;
   common::FutureWrapper<IContainerMD::ContainerMap> containerMap;
