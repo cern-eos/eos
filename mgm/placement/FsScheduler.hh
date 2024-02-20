@@ -78,6 +78,7 @@ public:
   PlacementStrategyT getPlacementStrategy();
   PlacementStrategyT getPlacementStrategy(const std::string& spacename);
   std::string getStateStr(const std::string& spacename, std::string_view type_sv);
+  bool isGeoScheduler(const std::string& spacename);
 private:
 
   ClusterMgr* get_cluster_mgr(const std::string& spaceName);

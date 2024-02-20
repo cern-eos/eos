@@ -190,8 +190,10 @@ FSScheduler::setDiskStatus(const std::string& spaceName, fsid_t disk_id,
   eos::common::RCUReadLock rlock(cluster_rcu_mutex);
   auto* cluster_mgr = get_cluster_mgr(spaceName);
   if (!cluster_mgr) {
-    eos_static_crit("msg=\"Scheduler is not yet initialized for space=%s\"",
-                    spaceName.c_str());
+    if (!isGeoScheduler(spaceName)) {
+      eos_static_crit("msg=\"Scheduler is not yet initialized for space=%s\"",
+                      spaceName.c_str());
+    }
     return false;
   }
 
@@ -210,8 +212,10 @@ FSScheduler::setDiskStatus(const std::string& spaceName, fsid_t disk_id,
   eos::common::RCUReadLock rlock(cluster_rcu_mutex);
   auto* cluster_mgr = get_cluster_mgr(spaceName);
   if (!cluster_mgr) {
-    eos_static_crit("msg=\"Scheduler is not yet initialized for space=%s\"",
-                    spaceName.c_str());
+    if (!isGeoScheduler(spaceName)) {
+      eos_static_crit("msg=\"Scheduler is not yet initialized for space=%s\"",
+                      spaceName.c_str());
+    }
     return false;
   }
   auto _status = getActiveStatus(status, bstatus);
@@ -229,8 +233,10 @@ FSScheduler::setDiskWeight(const std::string& spaceName, fsid_t disk_id,
   eos::common::RCUReadLock rlock(cluster_rcu_mutex);
   auto* cluster_mgr = get_cluster_mgr(spaceName);
   if (!cluster_mgr) {
-    eos_static_crit("msg=\"Scheduler is not yet initialized for\" space=%s",
-                    spaceName.c_str());
+    if (!isGeoScheduler(spaceName)) {
+      eos_static_crit("msg=\"Scheduler is not yet initialized for\" space=%s",
+                      spaceName.c_str());
+    }
     return false;
   }
   return cluster_mgr->setDiskWeight(disk_id, weight);
@@ -295,5 +301,10 @@ FSScheduler::getStateStr(const std::string& spacename, std::string_view type_sv)
   return cluster_mgr->getStateStr(type_sv);
 }
 
+bool
+FSScheduler::isGeoScheduler(const std::string& spacename)
+{
+  return getPlacementStrategy(spacename) == PlacementStrategyT::kGeoScheduler;
+}
 
 }// eos::mgm::placement
