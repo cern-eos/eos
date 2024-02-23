@@ -740,7 +740,7 @@ XrdMgmOfs::_rename(const char* old_name,
             eosView->updateContainerStore(rdir.get());
             eosView->updateContainerStore(dir.get());
             const eos::ContainerIdentifier rdid = rdir->getIdentifier();
-            fuse_batch.Register([&, rdid, did, pdid]() {
+            fuse_batch.Register([&, rdid, did, pdid, old_name]() {
               gOFS->FuseXCastRefresh(rdid, did);
               gOFS->FuseXCastRefresh(did, pdid);
 	      gOFS->FuseXCastDeletion(did, old_name);
@@ -829,7 +829,7 @@ XrdMgmOfs::_rename(const char* old_name,
               const eos::ContainerIdentifier rdid = rdir->getIdentifier();
               newdir->notifyMTimeChange(gOFS->eosDirectoryService);
               eosView->updateContainerStore(newdir.get());
-              fuse_batch.Register([&, ndid, pndid]() {
+              fuse_batch.Register([&, ndid, pndid, rdid]() {
                 gOFS->FuseXCastRefresh(ndid, pndid);
 		gOFS->FuseXCastRefresh(rdid, ndid);
               });
