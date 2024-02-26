@@ -1105,6 +1105,12 @@ NewfindCmd::ProcessRequest() noexcept
 {
   XrdOucString m_err {""};
   eos::console::ReplyProto reply;
+  const eos::console::FindProto& findRequest = mReqProto.find();
+
+  // Early return if routing should happen
+  if (ShouldRoute(findRequest.path(), reply)) {
+    return reply;
+  }
 
   if (!OpenTemporaryOutputFiles()) {
     reply.set_retc(EIO);
@@ -1113,7 +1119,6 @@ NewfindCmd::ProcessRequest() noexcept
     return reply;
   }
 
-  const eos::console::FindProto& findRequest = mReqProto.find();
   auto& purgeversion = findRequest.purge();
   bool purge = false;
   bool purge_atomic = (purgeversion == "atomic");
@@ -1856,19 +1861,19 @@ NewfindCmd::PrintFileInfoMinusM(std::ostream& ss, const FindResult& find_obj,
   try {
     if (find_obj.isdir) {
       if (find_obj.item.containerMd.id()) {
-	info += "&mgm.path=pid:";
-	info += std::to_string(find_obj.item.containerMd.id());
+        info += "&mgm.path=pid:";
+        info += std::to_string(find_obj.item.containerMd.id());
       } else {
-	info += "&mgm.path=";
-	info += find_obj.path;
+        info += "&mgm.path=";
+        info += find_obj.path;
       }
     } else {
       if (find_obj.item.fileMd.id()) {
-	info += "&mgm.path=fid:";
-	info += std::to_string(find_obj.item.fileMd.id());
+        info += "&mgm.path=fid:";
+        info += std::to_string(find_obj.item.fileMd.id());
       } else {
-	info += "&mgm.path=";
-	info += find_obj.path;
+        info += "&mgm.path=";
+        info += find_obj.path;
       }
     }
   } catch (...) {
