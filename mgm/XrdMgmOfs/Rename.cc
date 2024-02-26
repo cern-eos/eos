@@ -473,14 +473,14 @@ XrdMgmOfs::_rename(const char* old_name,
             // Move to a new directory
             // TODO: deal with conflicts and proper roll-back in case a file
             // with the same name already exists in the destination directory
-            eos::IFileMD::IFileMDWriteLocker fileWriteLocker(file);
-            COMMONTIMING("rename::move_file_to_different_container_file_write_lock", &tm);
             eos::BulkNsObjectLocker<eos::IContainerMDPtr, eos::IContainerMD::IContainerMDWriteTryLocker>
             helper;
             helper.add(dir);
             helper.add(newdir);
             auto dirsLock = helper.lockAll();
             COMMONTIMING("rename::move_file_to_different_container_lock_dirs", &tm);
+            eos::IFileMD::IFileMDWriteLocker fileWriteLocker(file);
+            COMMONTIMING("rename::move_file_to_different_container_file_write_lock", &tm);
             dir->removeFile(oPath.GetName());
             dir->setMTimeNow();
             dir->notifyMTimeChange(gOFS->eosDirectoryService);
