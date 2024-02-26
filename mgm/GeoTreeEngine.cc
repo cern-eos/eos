@@ -508,6 +508,7 @@ bool GeoTreeEngine::removeFsFromGroup(FileSystem* fs, FsGroup* group,
   }
 
   const bool treeEmpty = mapEntry->fs2SlowTreeNode.empty();
+
   // if the tree is empty, remove the entry from the map
   if (!treeEmpty) { // if the tree is getting empty, no need to update it
     mapEntry->slowTreeModified = true;
@@ -570,10 +571,11 @@ void GeoTreeEngine::printInfo(std::string& info, bool dispTree, bool dispSnaps,
                               bool useColors, bool monitoring)
 {
   eos::common::RWMutexWriteLock arlock;
+
   if (dispState) {
     arlock.Grab(pAddRmFsMutex);
   }
-	
+
   RWMutexReadLock lock(pTreeMapMutex);
   stringstream ostr;
   map<string, string> orderByGroupName;
@@ -1827,7 +1829,7 @@ int GeoTreeEngine::accessHeadReplicaMultipleGroup(const size_t& nAccessReplicas,
 
       // If we cannot find the fs in any group, there is an inconsistency somewhere
       if (mentry == pFs2SchedTME.end()) {
-        eos_warning("%s", "msg=\"cannot find the existing replica in any "
+        eos_warning("msg=\"cannot find the existing replica in any "
                     "scheduling group\" fsid=%lu", *exrepIt);
         continue;
       }
@@ -2366,7 +2368,6 @@ bool GeoTreeEngine::updateTreeInfo(SchedTME* entry,
       // !!! change the argument too
       stn = newNode;
     }
-
   }
 
   if (keys & sfgId) {

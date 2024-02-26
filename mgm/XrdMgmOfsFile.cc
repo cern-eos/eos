@@ -2051,7 +2051,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
         eos_err("msg =\"no valid placement found with FlatScheduler\" ret=%d, err_msg=%s",
                 ret.ret_code, ret.error_string().c_str());
         use_geoscheduler = true;
-        gOFS->MgmStats.Add("FScheduler::Placement::Failed",vid.uid, vid.gid, 1);
+        gOFS->MgmStats.Add("FScheduler::Placement::Failed", vid.uid, vid.gid, 1);
       }
     }
 
@@ -2249,7 +2249,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
         isRecreation = true;
         // end scope fs_rd_lock
       } else {
-        // Normal read failed, try to reply with the tiredrc value if this
+        // Normal read failed, try to reply with the triedrc value if this
         // exists in the URL otherwise we'll return ENETUNREACH which is a
         // client recoverable error.
         char* triedrc = openOpaque->Get("triedrc");
@@ -2382,7 +2382,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
         bool do_remove = false;
 
         try {
-	  eos::Prefetcher::prefetchFileMDAndWait(gOFS->eosView, creation_path.c_str());
+          eos::Prefetcher::prefetchFileMDAndWait(gOFS->eosView, creation_path.c_str());
           eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
           auto tmp_fmd = gOFS->eosView->getFile(creation_path.c_str());
 
@@ -2390,10 +2390,10 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
             do_remove = true;
           }
         } catch (eos::MDException& e) {
-	  if (isAtomicUpload) {
-	    do_remove = true;
-	  }
-	}
+          if (isAtomicUpload) {
+            do_remove = true;
+          }
+        }
 
         if (do_remove) {
           eos::common::VirtualIdentity vidroot = eos::common::VirtualIdentity::Root();

@@ -82,10 +82,6 @@ public:
       return NULL;
     }
 
-    if (ioType == LayoutId::kXrdCl) {
-      return static_cast<FileIo*>(new XrdIo(path));
-    }
-
     return 0;
   }
 };

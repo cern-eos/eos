@@ -1169,7 +1169,15 @@ ScanDir::ScanRainFileLoadAware(eos::common::FileId::fileid_t fid,
   const std::string response(resp_raw->GetBuffer(), resp_raw->GetSize());
   delete resp_raw;
   // @note: fragile design as it depends on the location of mgm.logid!
-  const std::string opaqueInfo = strstr(response.c_str(), "&mgm.logid");
+  const char* ptr = strstr(response.c_str(), "&mgm.logid");
+
+  if (ptr == nullptr) {
+    eos_static_err("msg=\"MGM open reply not in the expected format, maybe "
+                   "a redirect\" reply_data=\"%s\"", response.c_str());
+    return false;
+  }
+
+  const std::string opaqueInfo = ptr;
   std::unique_ptr<XrdOucEnv> openOpaque(new XrdOucEnv(response.c_str()));
   XrdOucEnv* raw_cap_opaque = nullptr;
   eos::common::SymKey::ExtractCapability(openOpaque.get(), raw_cap_opaque);

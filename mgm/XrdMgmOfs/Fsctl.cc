@@ -162,7 +162,7 @@ XrdMgmOfs::fsctl(const int cmd,
 
 /*----------------------------------------------------------------------------*/
 /*
- * @brief FS control funcition implementing the locate and plugin call
+ * @brief FS control function implementing the locate and plugin call
  *
  * @cmd operation to run (locate or plugin)
  * @args args for the operation
