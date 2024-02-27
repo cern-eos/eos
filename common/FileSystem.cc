@@ -515,12 +515,12 @@ FileSystem::FileSystem(const FileSystemLocator& locator,
 //------------------------------------------------------------------------------
 // Delete shared hash object corresponding to this file system and also
 // broadcast the message. This should be called only when an explicit removal
-// of the file system is request though "fs rm".
+// of the file system is requested though "fs rm".
 //------------------------------------------------------------------------------
-void FileSystem::DeleteSharedHash()
-{
-  mq::SharedHashWrapper::deleteHash(mRealm, mHashLocator);
-}
+// void FileSystem::DeleteSharedHash()
+// {
+//   mq::SharedHashWrapper::deleteHash(mRealm, mHashLocator);
+// }
 
 //------------------------------------------------------------------------------
 // Get underlying hash locator
@@ -1250,7 +1250,7 @@ FileSystem::SnapShotFileSystem(FileSystem::fs_snapshot_t& fs, bool dolock)
   fs.mScanEntryInterval = (long)hash.getLongLong
                           (eos::common::SCAN_ENTRY_INTERVAL_NAME);
   fs.mScanRainEntryInterval =
-      (long)hash.getLongLong(eos::common::SCAN_RAIN_ENTRY_INTERVAL_NAME);
+    (long)hash.getLongLong(eos::common::SCAN_RAIN_ENTRY_INTERVAL_NAME);
   fs.mScanDiskInterval = (long)hash.getLongLong(
                            eos::common::SCAN_DISK_INTERVAL_NAME);
   fs.mScanNsInterval = (long)hash.getLongLong(eos::common::SCAN_NS_INTERVAL_NAME);

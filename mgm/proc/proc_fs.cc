@@ -691,6 +691,8 @@ proc_fs_add(mq::MessagingRealm* realm, std::string& sfsid, std::string& uuid,
       // Skip if group is already full
       if (group->size() > groupsize) {
         if (target_grps.size() == 1) {
+          eos_static_err("msg=\"scheduling group is full\" group=\"%s.%i\"",
+                         splitspace.c_str(), grp_id);
           stdErr += SSTR("error: scheduling group " << splitspace << "." << grp_id
                          << " is full" << std::endl).c_str();
         }
@@ -703,7 +705,7 @@ proc_fs_add(mq::MessagingRealm* realm, std::string& sfsid, std::string& uuid,
     // Allow disabling this check in development clusters through the envvar
     bool exists = false;
 
-    if (!getenv("EOS_ALLOW_SAME_HOST_IN_GROUP")) {
+    if (!getenv("EOS_ALLOW_SAME_HOST_IN_GROUP") && !force) {
       for (auto it = group->begin(); it != group->end(); ++it) {
         FileSystem* entry = FsView::gFsView.mIdView.lookupByID(*it);
 
@@ -724,7 +726,9 @@ proc_fs_add(mq::MessagingRealm* realm, std::string& sfsid, std::string& uuid,
 
   if ((splitspace != eos::common::EOS_SPARE_GROUP) && splitgroup.empty()) {
     eos_static_err("msg=\"no group available for file system\" fsid=%lu"
-                   " queue=%s", fsid, queuepath.c_str());
+                   " queue=%s space=\"%s\" group=\"%s\"",
+                   fsid, queuepath.c_str(), splitspace.c_str(),
+                   splitgroup.c_str());
     stdErr += "error: no group available for file system";
     return EINVAL;
   }
@@ -1313,7 +1317,8 @@ proc_mv_fs_node(FsView& fs_view, const std::string& src,
         nodename += dst;
         nodename += "/fst";
         int rc = proc_fs_add(realm, id, uuid, nodename, path,
-                             getenv("EOS_ALLOW_SAME_HOST_IN_GROUP") ? group : space,
+                             ((getenv("EOS_ALLOW_SAME_HOST_IN_GROUP") || force) ?
+                              group : space),
                              configstatus, sharedfs, stdOut, stdErr, vid_in, true);
 
         if (rc) {

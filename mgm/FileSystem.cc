@@ -106,8 +106,8 @@ FileSystem::UnregisterFromListeners()
   for (const auto& elem : mMapListeners) {
     for (auto& listener : elem.second) {
       eos_static_info("msg=\"unsubscribe and detach from listener\" "
-                      "listener_name=%s fs_queue_path=%s",
-                      listener->GetName().c_str(),
+                      "interest=\"%s\" listener_name=\"%s\" fs_queue_path=%s ",
+                      elem.first.c_str(), listener->GetName().c_str(),
                       mLocator.getQueuePath().c_str());
       listener->unsubscribe(mLocator.getQueuePath(), {elem.first});
     }

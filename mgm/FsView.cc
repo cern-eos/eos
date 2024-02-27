@@ -1334,7 +1334,6 @@ bool FsView::UnderNominalQuota(const std::string& space, bool isroot)
         }
       }
     }
-
     auto spaceobj = mSpaceView.find(space);
 
     if (spaceobj == mSpaceView.end()) {
@@ -2160,11 +2159,6 @@ FsView::UnRegister(FileSystem* fs, bool unreg_from_geo_tree,
 
   // Delete in the configuration engine
   const std::string key = fs->GetQueuePath();
-
-  if (gOFS->mMaster->IsMaster() && FsView::gFsView.mConfigEngine) {
-    FsView::gFsView.mConfigEngine->DeleteConfigValue("fs", key.c_str());
-  }
-
   eos::common::FileSystem::fs_snapshot_t snapshot;
 
   if (!fs->SnapShotFileSystem(snapshot)) {
@@ -2231,10 +2225,14 @@ FsView::UnRegister(FileSystem* fs, bool unreg_from_geo_tree,
   // Remove mapping
   RemoveMapping(snapshot.mId, snapshot.mUuid);
 
-  // Notify the FST to delete the fs object from local maps
-  if (notify_fst) {
-    fs->DeleteSharedHash();
+  if (gOFS->mMaster->IsMaster() && FsView::gFsView.mConfigEngine) {
+    eos_static_info("msg=\"calling delete config value\" fsid=%lu", fs->GetId());
+    FsView::gFsView.mConfigEngine->DeleteConfigValue("fs", key.c_str());
+  }
 
+  // Notify the FST to delete the fs object from local maps is actually done
+  // above but we also needs to notify about the node hash deletion if needed.
+  if (notify_fst) {
     // Eventually delete the node
     if (mNodeView.count(snapshot.mQueue)) {
       FsNode* node = mNodeView[snapshot.mQueue];
