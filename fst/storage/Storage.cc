@@ -50,7 +50,8 @@ extern eos::fst::XrdFstOss* XrdOfsOss;
 EOSFSTNAMESPACE_BEGIN
 
 //------------------------------------------------------------------------------
-//! Check that the Fmd information was moved to xattrs for the given sub-tree
+//! Check that the given file system has been converted to xattr Fmd. This
+//! method only checks for the existence of the ".eosattrconverted" special file
 //!
 //! @param path file system mount-point
 //!
@@ -59,57 +60,16 @@ EOSFSTNAMESPACE_BEGIN
 bool
 CheckFsXattrConverted(std::string fs_path)
 {
-  // Add some predefined indexes
-  std::set<uint64_t> match_indexes {1, 10, 20, 30, 44, 50, 100, 202, 505,
-                                    1010, 2020, 5050, 10100, 22222, 33333, 44444, 15001, 50001};
-  srand(time(0));
+  const std::string xattr_conv_marker = ".eosattrconverted";
+  const std::string fn_path = fs_path + "/" + xattr_conv_marker;
+  struct stat info;
 
-  // Add some random indexes
-  for (int i = 0; i < 100; ++i) {
-    match_indexes.insert(rand() % 100000);
+  if (stat(fn_path.c_str(), &info)) {
+    return false;
   }
 
-  auto exclude_files = [fs_path](std::string_view filename) -> bool {
-    static const std::string xsmap_ext = ".xsmap";
-    static const std::string scrub_prefix = "scrub.";
-    static const std::string ioping_prefix = "fst.ioping.";
-    bool name_exclude = (eos::common::endsWith(filename, xsmap_ext) ||
-    eos::common::startsWith(std::string(filename), scrub_prefix) ||
-    eos::common::startsWith(std::string(filename), ioping_prefix));
-
-    if (name_exclude)
-    {
-      return true; // exclude based on filename
-    }
-
-    // Exclude also 0-size files
-    struct stat info;
-    const std::string full_path = fs_path + "/" + filename.data();
-    int retc = stat(full_path.c_str(), &info);
-
-    if (retc)
-    {
-      return true; // exclude as we can not access
-    }
-
-    if (info.st_size == 0)
-    {
-      return true; // exclude 0-size files
-    }
-
-    return false;
-  };
-  auto check_fmd_xattr = [](std::string_view abs_path) -> bool {
-    static const std::string xattr_key = "user.eos.fmd";
-    FsIo local_io {abs_path.data()};
-    std::string xattr_val;
-    return (local_io.attrGet(xattr_key, xattr_val) == 0);
-  };
-  eos_static_info("msg=\"checking %i files for xattrs\"", match_indexes.size());
-  return WalkFsTreeCheckCond({fs_path.data(), nullptr}, check_fmd_xattr,
-                             exclude_files, match_indexes);
+  return true;
 }
-
 
 //------------------------------------------------------------------------------
 // Create new Storage object
