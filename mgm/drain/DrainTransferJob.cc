@@ -121,11 +121,8 @@ DrainTransferJob::DoIt() noexcept
     properties.Set("sourceLimit", (uint16_t) 1);
     properties.Set("chunkSize", (uint32_t)(4 * 1024 * 1024));
     properties.Set("parallelChunks", (uint8_t) 1);
-
-    if (getenv("EOS_USE_TPC_TIMEOUT_ESTIMATE")) {
-      properties.Set("tpcTimeout", eos::common::FileId::EstimateTpcTimeout
-                     (fdrain.mProto.size()).count());
-    }
+    properties.Set("tpcTimeout", eos::common::FileId::EstimateTpcTimeout
+                   (fdrain.mProto.size()).count());
 
     // Non-empty files run with TPC only
     if (fdrain.mProto.size()) {
