@@ -81,8 +81,8 @@ CheckFsXattrConverted(std::string fs_path)
 
     while ((dent = readdir(dir))) {
       if ((dent->d_type == DT_DIR) &&
-          ((strncmp(dent->dname, ".", strlen(dent->dname)) != 0) &&
-           (stnrcmp(dent->dname, "..", strlen(dent->dname)) != 0))) {
+          ((strncmp(dent->d_name, ".", strlen(dent->d_name)) != 0) &&
+           (strncmp(dent->d_name, "..", strlen(dent->d_name)) != 0))) {
         // No xattr marker and existing directories means no conversion
         // was previously done.
         return false;
