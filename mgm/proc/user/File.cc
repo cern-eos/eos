@@ -1650,7 +1650,7 @@ ProcCommand::File()
                                     << src_fsid << " => " << selectedfs[i]
                                     << std::endl).c_str();
 
-                      // Add message from previous successful replication jib
+                      // Add message from previous successful replication job
                       if (stdOut.length()) {
                         stdErr = stdOut + stdErr;
                       }
