@@ -61,11 +61,38 @@ bool
 CheckFsXattrConverted(std::string fs_path)
 {
   const std::string xattr_conv_marker = ".eosattrconverted";
-  const std::string fn_path = fs_path + "/" + xattr_conv_marker;
+  const std::string xattr_path = fs_path + "/" + xattr_conv_marker;
   struct stat info;
 
-  if (stat(fn_path.c_str(), &info)) {
-    return false;
+  if (stat(xattr_path.c_str(), &info) != 0) {
+    // Check if this is a new file system and add by default
+    // the converted file marker
+    DIR* dir = opendir(fs_path.c_str());
+
+    if (dir == nullptr) {
+      eos_static_err("msg=\"failed to open file system root directory\" "
+                     "path=\"%s\"",  fs_path.c_str());
+      return false;
+    }
+
+    struct dirent* dent {
+      nullptr
+    };
+
+    while ((dent = readdir(dir))) {
+      if ((dent->d_type == DT_DIR) &&
+          ((strncmp(dent->dname, ".", strlen(dent->dname)) != 0) &&
+           (stnrcmp(dent->dname, "..", strlen(dent->dname)) != 0))) {
+        // No xattr marker and existing directories means no conversion
+        // was previously done.
+        return false;
+      }
+    }
+
+    (void) closedir(dir);
+    // This is a new fs, add the converted marker
+    std::ofstream file;
+    file.open(xattr_path, ios::out);
   }
 
   return true;
