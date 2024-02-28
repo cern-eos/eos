@@ -93,28 +93,13 @@ namespace experimental {
 // https://github.com/cmuparlay/concurrent_deferred_rcu
 // Turning Manual Concurrent Memory Reclamation into Automatic Reference Counting
 // Daniel Anderson, Guy E. Blelloch, Yuanhao Wei (PLDI 2022)
-static constexpr size_t EOS_MAX_THREADS=32768;
-static std::array<std::atomic<bool>, EOS_MAX_THREADS> g_thread_in_use {false};
+static constexpr size_t EOS_MAX_THREADS=65536;
+extern std::array<std::atomic<bool>, EOS_MAX_THREADS> g_thread_in_use;
 
 struct ThreadID {
-  ThreadID() {
-    for (size_t i = 0; i < EOS_MAX_THREADS; ++i) {
-      bool expected = false;
-      if (!g_thread_in_use[i] &&
-          g_thread_in_use[i].compare_exchange_strong(expected, true)) {
-        tid = i;
-        return;
-      }
-    }
-    // COULD NOT FIND A FREE THREAD ID, PANIC!
-    // assert(true); In the rare event we reach here, we can't guarantee EpochCounter
-    // correctness, so we'll just assert.
-    throw std::runtime_error("Could not find a free thread id");
-  }
+  ThreadID();
 
-  ~ThreadID() {
-    g_thread_in_use[tid].store(false, std::memory_order_release);
-  }
+  ~ThreadID();
 
   size_t get() {
     return tid;
@@ -123,8 +108,7 @@ struct ThreadID {
   size_t tid;
 };
 
-static thread_local ThreadID tlocalID;
-
+extern thread_local ThreadID tlocalID;
 
 /**
 * @brief a simple epoch counter per thread that can be used to implement
@@ -165,7 +149,7 @@ public:
     // epoch per thread
 
     auto old = mCounter[tid].get();
-    auto new_val = (epoch << 16) | (old & 0xFFFF) + count;
+    auto new_val = (epoch << 16) | ((old & 0xFFFF) + count);
     mCounter[tid].epoch_counter.store(new_val, std::memory_order_release);
     return tid;
   }
@@ -186,7 +170,7 @@ public:
 
 
   bool epochHasReaders(uint64_t epoch) noexcept {
-    for (int i=0; i < EOS_MAX_THREADS; ++i) {
+    for (size_t i=0; i < EOS_MAX_THREADS; ++i) {
       auto val = mCounter[i].get();
       if ((val >> 16) == epoch && (val & 0xFFFF) > 0) {
         return true;

@@ -82,4 +82,4 @@ target_link_libraries(eos-random-microbenchmark PRIVATE
   benchmark::benchmark)
 
 target_link_libraries(eos-threadid-microbenchmark PRIVATE
-  benchmark::benchmark)
+  benchmark::benchmark EosCommon-Static)
