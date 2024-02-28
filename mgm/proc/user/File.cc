@@ -1649,6 +1649,11 @@ ProcCommand::File()
                       stdErr = SSTR("error: unable to replicate stripe "
                                     << src_fsid << " => " << selectedfs[i]
                                     << std::endl).c_str();
+
+                      // Add message from previous successful replication jib
+                      if (stdOut.length()) {
+                        stdErr = stdOut + stdErr;
+                      }
                     } else {
                       stdOut = SSTR("success: scheduled replication from source fs="
                                     << src_fsid << " => target fs="
