@@ -25,6 +25,7 @@ install(PROGRAMS
   eos-status
   eos_start.sh
   eos_start_pre.sh
+  eosjwker
   DESTINATION ${CMAKE_INSTALL_FULL_SBINDIR})
 
 if(TARGET eosxd)
