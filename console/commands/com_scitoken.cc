@@ -33,6 +33,9 @@
 #include <memory>
 #include <string>
 #include <vector>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
 
 /* SciToken factory */
 int
@@ -51,6 +54,7 @@ com_scitoken(char* arg1)
   std::string keydata;
   std::string keyid;
   std::string issuer;
+  std::string jwk;
   std::string profile="wlcg";
   std::set<std::string> claims;
 
@@ -221,8 +225,62 @@ com_scitoken(char* arg1)
   }
 
   if (subcommand == "create-keys") {
-    std::cerr << "error: not implemented" << std::endl;
-    global_retc = EOPNOTSUPP;
+    struct stat buf;
+    if (::stat("/sbin/eosjwker", &buf)) {
+      std::cerr << "error: couldn't find /sbin/eosjwker" << std::endl;
+      global_retc = EOPNOTSUPP;
+    } else {
+      do {
+	const char* o = subtokenizer.GetTokenUnquoted();
+	const char* v = subtokenizer.GetTokenUnquoted();
+
+	if (o && !v) {
+	  goto com_scitoken_usage;
+	}
+	if (!o && !v) {
+	  break;
+	}
+	option = o;
+	value = v;
+
+	if (option == "--keyid") {
+	  keyid = value;
+	}
+
+	if (option == "--jwk") {
+	  jwk = value;
+	}
+      } while (option.length());
+    }
+
+    system("openssl ecparam -genkey -name prime256v1 > /tmp/.eossci.ec 2>/dev/null" );
+    system("openssl pkcs8 -topk8 -nocrypt -in /tmp/.eossci.ec -out /tmp/.eossci-key.pem 2>/dev/null");
+    system("cat /tmp/.eossci.ec | openssl ec -pubout > /tmp/.eossci-pkey.pem 2>/dev/null");
+    system("/sbin/eosjwker /tmp/.eossci-pkey.pem | json_pp > /tmp/.eossci.jwk ");
+    system("cat /tmp/.eossci.jwk");
+
+    std::string prefix;
+    if (keyid.length()) {
+      prefix = "/etc/xrootd/";
+    } else {
+      keyid = "default";
+    }
+    std::string s;
+    s = "mv /tmp/.eossci-pkey.pem ";
+    s += prefix;
+    s += keyid;
+    s += "-pkey.pem";
+    system(s.c_str());
+      ::unlink("/tmp/.eossci-pkey.pem");
+    s = "mv /tmp/.eossci-key.pem ";
+    s += prefix;
+    s += keyid;
+    s += "-key.pem";
+    system(s.c_str());
+    ::unlink("/tmp/.eossci-key.pem");
+    ::unlink("/tmp/.eossci.ec");
+    std::cerr << "# private key : " << prefix << keyid << "-key.pem" << std::endl;
+    std::cerr << "# public  key : " << prefix << keyid << "-pkey.pem" << std::endl;
     return (0);
     
   }
@@ -243,10 +301,13 @@ com_scitoken_usage:
   std::cerr << std::endl;
   std::cerr << "       scitoken dump <token>" << std::endl;
   std::cerr << std::endl;
-  std::cerr << "       scitoken create-keys                  : create a pem key pair and a JSON public key file - NOT IMPLEMENTED!" << std::endl;
-
+  std::cerr << "       scitoken create-keys [--keyid <keyid>]: create a pem key pair and a JSON public web key " << std::endl;
+  std::cerr << "                                               - if keyid is specified the public and private keys are found under /etc/xrootd/<keyid>-key.pem /etc/xrootd/<keyid>-pkey.pem" << std::endl;
+  std::cerr << "                                                 - otherwise they are stored in the CWD under default-key.pem default-pkey.pem" << std::endl;
+  std::cerr << "                                               - the JSON web key is printed on stdout, the key locations on stderr" << std::endl;
   std::cerr << "       Examples:                               eos scitoken create --issuer=eos.cern.ch --keyid=eos --profile=wlcg --claim scope:storage.read=/eos" << std::endl;
   std::cerr << "                                               eos scitoken dump eyJhb..." << std::endl;
+  std::cerr << "                                               eos scitoken create-keys --keyid=eos > jwk.json" << std::endl;
   global_retc = EINVAL;
   return (0);
 }
