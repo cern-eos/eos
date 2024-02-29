@@ -380,6 +380,7 @@ The EOS server installation containing MGM, FST & MQ service.
 %{_sbindir}/eosfstregister
 %{_sbindir}/eosfstinfo
 %{_sbindir}/eosadmin
+%{_sbindir}/eosjwker
 %{_sbindir}/eos-iam-mapfile
 %{_sbindir}/eos-check-blockxs
 %{_sbindir}/eos-udp-dumper
