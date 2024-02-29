@@ -1,0 +1,5 @@
+eosjwker is a GO application as a binary for ALMA9
+- to update do:
+yum install -y go
+go install github.com/jphastings/jwker/cmd/jwker@latest
+- rename the GO binary jwker to ./misc/sbin/eosjwker

@@ -31,6 +31,7 @@ install(PROGRAMS
   eos-inspectorreport
   eos-inspectorstat
   eos-prom-push
+  eosjwker
   DESTINATION ${CMAKE_INSTALL_FULL_SBINDIR})
 
 if(TARGET eosxd)
