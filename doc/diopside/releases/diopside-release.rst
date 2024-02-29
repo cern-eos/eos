@@ -16,12 +16,41 @@ Introduction
 
 This release is based on XRootD V5.
 
+
+``v5.2.17 Diopside``
+====================
+
+2024-02-29
+
+
+Note
+----
+
+* Update dependency XRootD/eos-xrootd to 5.6.8
+
+
+Bug
+----
+
+* [EOS-6061] - Disk drain failure, replicas are on disk, but adjustreplica fails to replicate
+* [EOS-6062] - MGM: "fs mv" randomly "forgets" filesystems
+* [EOS-6064] - MGM stuck (namespace locking)
+* [EOS-6066] - eos cp -r (recursive copy) uses "find", does not work on redirection (?)
+* [EOS-6070] - FST aborts with "what():  basic_string::_S_construct null not valid" under eos::fst::ScanDir::CheckFile()
+* [EOS-6074] - Crash in FlatScheduler
+
+Improvement
+------------
+
+* [EOS-6048] - RFE: FST should not "check for Fmd xattr conversion" at boot
+
+
 ``v5.2.16 Diopside``
 ====================
 
 2024-02-16
 
-BUG
+Bug
 ----
 
 * [EOS-6051] - MGM: fix crash in FSScheduler caused by edgecases at boot time
@@ -32,7 +61,7 @@ BUG
 
 2024-02-15
 
-BUG
+Bug
 ----
 
 * [EOS-6044] - FUSEX: fix 0-pointer access into data object map - fixes EOS-6044
