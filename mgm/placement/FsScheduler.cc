@@ -166,7 +166,7 @@ FSScheduler::schedule(const string& spaceName,
       return result;
     } else {
       eos_static_debug("msg=\"Scheduler failed to place %d replicas\" err=%s",
-                       result.n_replicas, result.error_string());
+                       result.n_replicas, result.error_string().c_str());
     }
   }
   return result;
