@@ -746,8 +746,7 @@ CompareCksumResult compareChecksum(XrdCl::FileSystem& fs,
 {
   CompareCksumResult result;
   // Get the checksum of the file that got uploaded to the destination
-  std::unique_ptr<XrdCl::Buffer> response_sp;
-  XrdCl::Buffer* response = response_sp.get();
+  XrdCl::Buffer* responseRaw = 0;
 
   if (srcCksumType == "adler") {
     // xrootd adler32 checksum is called "adler32"
@@ -757,8 +756,8 @@ CompareCksumResult compareChecksum(XrdCl::FileSystem& fs,
   XrdCl::Buffer arg;
   arg.FromString(destFilePath + "?cks.type=" + srcCksumType);
   XrdCl::XRootDStatus status = fs.Query(XrdCl::QueryCode::Checksum, arg,
-                                        response);
-
+                                        responseRaw);
+  std::unique_ptr<XrdCl::Buffer> response(responseRaw);
   if (status.IsOK()) {
     // we got the checksum of the destination file
     // compare the checksums between source and destination
@@ -2388,8 +2387,8 @@ main(int argc, char* argv[])
       }
 
       if (startwritebyte < 0) {
-        fprintf(stderr, "error: cannot seek to end of file to %d of %s\n",
-                dest_mode[i], dst_location[i].second.c_str());
+        fprintf(stderr, "error: cannot seek from end to beginning of file %s\n",
+                dst_location[i].second.c_str());
         exit(-EIO);
       }
     }
@@ -2402,18 +2401,17 @@ main(int argc, char* argv[])
     int chmod_failed = 0;
     int chown_failed = 0;
 
-    if (!set_mode) {
-      //........................................................................
-      // If not specified on the command line, take the source mode
-      //........................................................................
-      if (S_ISREG(dstst[i].st_mode)) {
-        // only for files !
-        dest_mode[i] = st[0].st_mode;
-      }
-    }
-
     switch (dst_type[i]) {
     case LOCAL_ACCESS: {
+      if (!set_mode) {
+        //........................................................................
+        // If not specified on the command line, take the source mode
+        //........................................................................
+        if (S_ISREG(dstst[i].st_mode)) {
+          // only for files !
+          dest_mode[i] = st[0].st_mode;
+        }
+      }
       if ((S_ISREG(dstst[i].st_mode) &&
            (dst_location[i].second.substr(0, 5) != "/dev/"))) {
         chmod_failed = chmod(dst_location[i].second.c_str(), dest_mode[i]);
