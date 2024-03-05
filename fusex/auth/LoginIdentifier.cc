@@ -43,8 +43,7 @@ LoginIdentifier::LoginIdentifier(uid_t uid, gid_t gid, pid_t pid,
 
   bool map_only_user = false;
 
-  // Emergency mapping of too high user ids to nobody
-  if (uid > 0xfffff) {
+  if (uid > 0x3ffff) {
     eos_static_info("msg=\"unable to map uid+gid - out of range - mapping only user");
     map_only_user = true;
   }
@@ -52,6 +51,13 @@ LoginIdentifier::LoginIdentifier(uid_t uid, gid_t gid, pid_t pid,
   if (gid > 0xffff) {
     eos_static_info("msg=\"unable to map uid+gid - out of range - mapping only user");
     map_only_user = true;
+  }
+
+  // this mechanism can only transport uid's over UNIX < 1024*1024 !
+  if (uid >= (1024*1024)) {
+    eos_static_info("msg=\"unable to map uid+gid - out of range - requesting 99/99");
+    uid = 99;
+    gid = 99;
   }
 
   uint64_t bituser = 0;
