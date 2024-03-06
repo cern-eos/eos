@@ -519,11 +519,11 @@ public:
   //----------------------------------------------------------------------------
   //! Open a curser to traverse a storage system
   //!
-  //! @param subtree where to start traversing
+  //! @param options options for traversing the hierarchy
   //!
   //! @return returns implementation dependent handle or 0 in case of error
   //----------------------------------------------------------------------------
-  FileIo::FtsHandle* ftsOpen();
+  FileIo::FtsHandle* ftsOpen(int options = 0);
 
   //----------------------------------------------------------------------------
   //! Return the next path related to a traversal cursor obtained with ftsOpen

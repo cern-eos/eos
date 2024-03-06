@@ -1454,7 +1454,7 @@ XrdIo::attrList(std::vector<std::string>& list)
 // Open a cursor to traverse a storage system
 //--------------------------------------------------------------------------
 FileIo::FtsHandle*
-XrdIo::ftsOpen()
+XrdIo::ftsOpen(int options)
 {
   XrdCl::URL url(mFilePath.c_str());
   XrdCl::FileSystem fs(url);

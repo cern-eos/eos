@@ -408,11 +408,11 @@ public:
   //----------------------------------------------------------------------------
   //! Open a cursor to traverse a storage system
   //!
-  //! @param subtree where to start traversing
+  //! @param options options for traversing the hierarchy
   //!
   //! @return returns implementation dependent handle or 0 in case of error
   //----------------------------------------------------------------------------
-  virtual FileIo::FtsHandle* ftsOpen();
+  virtual FileIo::FtsHandle* ftsOpen(int options = 0) override;
 
   //----------------------------------------------------------------------------
   //! Return the next path related to a traversal cursor obtained with ftsOpen
@@ -421,7 +421,7 @@ public:
   //!
   //! @return returns implementation dependent handle or 0 in case of error
   //----------------------------------------------------------------------------
-  virtual std::string ftsRead(FileIo::FtsHandle* fts_handle);
+  virtual std::string ftsRead(FileIo::FtsHandle* fts_handle) override;
 
   //----------------------------------------------------------------------------
   //! Close a traversal cursor
@@ -430,7 +430,7 @@ public:
   //!
   //! @return 0 if fts_handle was an open cursor, otherwise -1
   //----------------------------------------------------------------------------
-  virtual int ftsClose(FileIo::FtsHandle* fts_handle);
+  virtual int ftsClose(FileIo::FtsHandle* fts_handle) override;
 
 private:
   int mFd; //< file descriptor to filesystem file

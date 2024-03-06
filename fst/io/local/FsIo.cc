@@ -331,12 +331,12 @@ FsIo::fileGetAsyncHandler()
 // Open a cursor to traverse a storage system to find files
 //------------------------------------------------------------------------------
 FileIo::FtsHandle*
-FsIo::ftsOpen()
+FsIo::ftsOpen(int options)
 {
   FtsHandle* handle = (new FtsHandle(mFilePath.c_str()));
   handle->paths[0] = (char*) mFilePath.c_str();
   handle->paths[1] = 0;
-  handle->tree = (void*) fts_open(handle->paths, FTS_NOCHDIR, 0);
+  handle->tree = (void*) fts_open(handle->paths, FTS_NOCHDIR | options, 0);
 
   if (!handle->tree) {
     delete handle;

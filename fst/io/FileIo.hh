@@ -389,11 +389,11 @@ public:
   //----------------------------------------------------------------------------
   //! Open a cursor to traverse a storage system
   //!
-  //! @param subtree where to start traversing
+  //! @param options options for traversing the hierarchy
   //!
   //! @return returns implementation dependent handle or 0 in case of error
   //----------------------------------------------------------------------------
-  virtual FileIo::FtsHandle* ftsOpen() = 0;
+  virtual FileIo::FtsHandle* ftsOpen(int options = 0) = 0;
 
   //----------------------------------------------------------------------------
   //! Get pointer to async meta handler object

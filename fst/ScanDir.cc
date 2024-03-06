@@ -42,6 +42,7 @@
 #include "qclient/structures/QSet.hh"
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <fts.h>
 #include <sys/time.h>
 #include <syslog.h>
 #include <unistd.h>
@@ -503,7 +504,7 @@ ScanDir::ScanSubtree(ThreadAssistant& assistant) noexcept
     return;
   }
 
-  std::unique_ptr<FileIo::FtsHandle> handle {io->ftsOpen()};
+  std::unique_ptr<FileIo::FtsHandle> handle {io->ftsOpen(FTS_NOSTAT)};
 
   if (!handle) {
     LogMsg(LOG_ERR, "msg=\"fts_open failed\" dir=%s", mDirPath.c_str());
