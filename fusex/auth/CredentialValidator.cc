@@ -469,8 +469,8 @@ bool CredentialValidator::validate(const JailInformation& jail,
       krb5_ccache ccache;
 
       if (krb5_cc_resolve(krb_ctx, casPath.c_str(), &ccache) != 0) {
-	eos_static_crit("Could not resolve %s\n", uc.fname.c_str());
-	LOGBOOK_INSERT(scope, "Could not resolve " << uc.fname);
+	eos_static_crit("Could not resolve %s\n", casPath.c_str());
+	LOGBOOK_INSERT(scope, "Could not resolve " << casPath.c_str());
 	krb5_free_context(krb_ctx);
 	return false;
       }
