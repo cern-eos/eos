@@ -1413,6 +1413,7 @@ FsView::GetNodeFormat(std::string option)
     format += "member=cfg.stat.sys.rss:format=ol|";
     format += "member=cfg.stat.sys.threads:format=ol|";
     format += "member=cfg.stat.sys.sockets:format=os|";
+    format += "member=cfg.stat.sys.kworkers:format=ol|";
     format += "member=cfg.stat.sys.eos.version:format=os|";
     format += "member=cfg.stat.sys.xrootd.version:format=os|";
     format += "member=cfg.stat.sys.kernel:format=os|";
@@ -1448,7 +1449,8 @@ FsView::GetNodeFormat(std::string option)
     format += "member=cfg.stat.sys.rss:width=12:format=+l:tag=rss|";
     format += "member=cfg.stat.sys.threads:width=12:format=+l:tag=threads|";
     format += "member=cfg.stat.sys.sockets:width=10:format=s:tag=sockets|";
-    format += "member=cfg.stat.sys.eos.version:width=12:format=s:tag=eos|";
+    format += "member=cfg.stat.sys.kworkers:format=l:tag=kworkers|";
+    format += "member=cfg.stat.sys.eos.version:width=14:format=s:tag=eos|";
     format += "member=cfg.stat.sys.xrootd.version:width=12:format=s:tag=xrootd|";
     format += "member=cfg.stat.sys.kernel:width=30:format=s:tag=kernel version|";
     format += "member=cfg.stat.sys.eos.start:width=32:format=s:tag=start|";

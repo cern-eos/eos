@@ -310,6 +310,7 @@ target_link_libraries(XrdEosFst-Objects PUBLIC
   XROOTD::PRIVATE
   XROOTD::SERVER
   XFS::XFS
+  PROCPS::PROCPS
   stdc++fs)
 
 set_target_properties(XrdEosFst-Objects PROPERTIES

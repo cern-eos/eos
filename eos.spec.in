@@ -192,6 +192,9 @@ Requires: bzip2-devel
 BuildRequires: elfutils-devel
 Requires: elfutils-devel
 
+BuildRequires: procps-ng-devel
+Requires: procps-ng
+
 BuildRequires: zlib-static,
 BuildRequires: libcurl, libcurl-devel
 BuildRequires: libuuid-devel, sparsehash-devel

@@ -36,6 +36,7 @@
 #include "common/SymKeys.hh"
 #include "XrdVersion.hh"
 #include <sys/sysinfo.h>
+#include <proc/readproc.h>
 
 XrdVERSIONINFOREF(XrdgetProtocol);
 
@@ -363,6 +364,33 @@ static std::string GetSubtreeSize(const std::string& path)
 }
 
 //------------------------------------------------------------------------------
+// Get number of kworker processes on the machine - a high number might indicate
+// a problem with the machine and might require a reboot.
+//------------------------------------------------------------------------------
+static uint32_t GetNumOfKworkerProcs()
+{
+  static std::string search_tag = "kworker";
+  uint32_t count = 0ul;
+  proc_t** procs = readproctab(PROC_FILLSTAT);
+
+  for (int i = 0; procs[i]; ++i) {
+    if (procs[i]->cmd) {
+      eos_static_debug("msg=\"process cmd line\" cmd=\"%s\"", procs[i]->cmd);
+
+      if (strstr(procs[i]->cmd, search_tag.c_str()) == procs[i]->cmd) {
+        ++count;
+      }
+    }
+
+    freeproc(procs[i]);
+  }
+
+  free(procs);
+  eos_static_debug("msg=\"current number of kworker proceess\" count=%i", count);
+  return count;
+}
+
+//------------------------------------------------------------------------------
 // Overwrite statfs statistics for testing environment
 //------------------------------------------------------------------------------
 static void OverwriteTestingStatfs(const std::string& path,
@@ -430,6 +458,8 @@ Storage::GetFstStatistics(const std::string& tmpfile,
   GetUptime(output);
   // active TCP sockets
   output["stat.sys.sockets"] = GetNumOfTcpSockets();
+  // number of kworker processes
+  output["stat.sys.kworkers"] = std::to_string(GetNumOfKworkerProcs());
   // Collect network RX/TX errors and dropped packets
   GetNetworkCounters(output);
   // startup time of the FST daemon
