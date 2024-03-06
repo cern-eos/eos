@@ -964,7 +964,7 @@ class Transfer(object):
 
             count += 1
             surl, __ = self.archive.get_endpoints(fentry[1])
-            lpaths.append(surl[surl.rfind('//') + 1:].encode())
+            lpaths.append(surl[surl.rfind('//') + 1:])
 
             if len(lpaths) == limit:
                 xrd_st = self.archive.fs_dst.prepare(lpaths, PrepareFlags.STAGE,

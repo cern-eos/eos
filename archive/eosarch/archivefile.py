@@ -253,8 +253,10 @@ class ArchiveFile(object):
         for dentry in self.dirs():
             path = dentry[1]
 
-            if path.startswith(rel_path):
-                lst_dirs.append(path)
+            if rel_path == "./" or path.startswith(rel_path):
+                # Never delete the root path
+                if path != "./":
+                    lst_dirs.append(path)
 
         # Reverse the list so that we start deleting deepest (empty) dirs first
         lst_dirs.reverse()
