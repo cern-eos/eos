@@ -352,56 +352,6 @@ bool CredentialValidator::validate(const JailInformation& jail,
   }
 
   //----------------------------------------------------------------------------
-  // KRB5:
-  //----------------------------------------------------------------------------
-  if (uc.type == CredentialType::KRB5) {
-#ifdef __linux__
-    ScopedFsUidSetter uidSetter(uc.uid, uc.gid);
-
-    if (!uidSetter.IsOk()) {
-      eos_static_crit("Could not set fsuid,fsgid to %d, %d", uc.uid, uc.gid);
-      LOGBOOK_INSERT(scope, "Could not set fsuid, fsgid to " << uc.uid << ", " <<
-                     uc.gid);
-      return false;
-    }
-
-#endif
-    //--------------------------------------------------------------------------
-    krb5_context krb_ctx;
-    krb5_error_code ret = krb5_init_context(&krb_ctx);
-
-    if (ret != 0) {
-      eos_static_crit("Could not allocate krb5_init_context");
-      LOGBOOK_INSERT(scope, "Could not allocate krb5_init_context");
-      return false;
-    }
-
-    krb5_ccache ccache;
-
-    if (krb5_cc_resolve(krb_ctx, uc.fname.c_str(), &ccache) != 0) {
-      eos_static_crit("Could not resolve %s\n", uc.fname.c_str());
-      LOGBOOK_INSERT(scope, "Could not resolve " << uc.fname);
-      krb5_free_context(krb_ctx);
-      return false;
-    }
-
-    //--------------------------------------------------------------------------
-    // Go through whatever klist does to check ccache validity.
-    //--------------------------------------------------------------------------
-    if (!checker.useInjected()) {
-      if (check_ccache(krb_ctx, ccache, time(0), principal) != 0) {
-	krb5_cc_close(krb_ctx, ccache);
-	krb5_free_context(krb_ctx);
-	LOGBOOK_INSERT(scope, "provided ccache appears invalid: " << uc.kcm);
-	return false;
-      }
-    }
-
-    krb5_cc_close(krb_ctx, ccache);
-    krb5_free_context(krb_ctx);
-  }
-
-  //----------------------------------------------------------------------------
   // Only KRB5, X509, OAUTH2 remaining. Test credential file permissions.
   //----------------------------------------------------------------------------
   SecurityChecker::Info info = checker.lookup(jail, uc.fname, uc.uid, uc.gid);
@@ -426,6 +376,55 @@ bool CredentialValidator::validate(const JailInformation& jail,
   }
 
   case CredentialState::kOk: {
+    //----------------------------------------------------------------------------
+    // KRB5:
+    //----------------------------------------------------------------------------
+    if (uc.type == CredentialType::KRB5) {
+#ifdef __linux__
+      ScopedFsUidSetter uidSetter(uc.uid, uc.gid);
+
+      if (!uidSetter.IsOk()) {
+	eos_static_crit("Could not set fsuid,fsgid to %d, %d", uc.uid, uc.gid);
+	LOGBOOK_INSERT(scope, "Could not set fsuid, fsgid to " << uc.uid << ", " <<
+		       uc.gid);
+	return false;
+      }
+#endif
+      //--------------------------------------------------------------------------
+      krb5_context krb_ctx;
+      krb5_error_code ret = krb5_init_context(&krb_ctx);
+
+      if (ret != 0) {
+	eos_static_crit("Could not allocate krb5_init_context");
+	LOGBOOK_INSERT(scope, "Could not allocate krb5_init_context");
+	return false;
+      }
+
+      krb5_ccache ccache;
+
+      if (krb5_cc_resolve(krb_ctx, uc.fname.c_str(), &ccache) != 0) {
+	eos_static_crit("Could not resolve %s\n", uc.fname.c_str());
+	LOGBOOK_INSERT(scope, "Could not resolve " << uc.fname);
+	krb5_free_context(krb_ctx);
+	return false;
+      }
+
+      //--------------------------------------------------------------------------
+      // Go through whatever klist does to check ccache validity.
+      //--------------------------------------------------------------------------
+      if (!checker.useInjected()) {
+	if (check_ccache(krb_ctx, ccache, time(0), principal) != 0) {
+	  krb5_cc_close(krb_ctx, ccache);
+	  krb5_free_context(krb_ctx);
+	  LOGBOOK_INSERT(scope, "provided ccache appears invalid: " << uc.fname);
+	  return false;
+	}
+      }
+
+      krb5_cc_close(krb_ctx, ccache);
+      krb5_free_context(krb_ctx);
+    }
+
     //------------------------------------------------------------------------
     // Credential file is OK, and the SecurityChecker determined the path
     // can be used as-is - no need for copying.
@@ -443,6 +442,55 @@ bool CredentialValidator::validate(const JailInformation& jail,
     //------------------------------------------------------------------------
     std::string casPath = credentialStore.put(info.contents);
     LOGBOOK_INSERT(scope, "Credential file must be copied - path: " << casPath);
+    //----------------------------------------------------------------------------
+    // KRB5:
+    //----------------------------------------------------------------------------
+    if (uc.type == CredentialType::KRB5) {
+#ifdef __linux__
+      ScopedFsUidSetter uidSetter(uc.uid, uc.gid);
+
+      if (!uidSetter.IsOk()) {
+	eos_static_crit("Could not set fsuid,fsgid to %d, %d", uc.uid, uc.gid);
+	LOGBOOK_INSERT(scope, "Could not set fsuid, fsgid to " << uc.uid << ", " <<
+		       uc.gid);
+	return false;
+      }
+#endif
+      //--------------------------------------------------------------------------
+      krb5_context krb_ctx;
+      krb5_error_code ret = krb5_init_context(&krb_ctx);
+
+      if (ret != 0) {
+	eos_static_crit("Could not allocate krb5_init_context");
+	LOGBOOK_INSERT(scope, "Could not allocate krb5_init_context");
+	return false;
+      }
+
+      krb5_ccache ccache;
+
+      if (krb5_cc_resolve(krb_ctx, casPath.c_str(), &ccache) != 0) {
+	eos_static_crit("Could not resolve %s\n", uc.fname.c_str());
+	LOGBOOK_INSERT(scope, "Could not resolve " << uc.fname);
+	krb5_free_context(krb_ctx);
+	return false;
+      }
+
+      //--------------------------------------------------------------------------
+      // Go through whatever klist does to check ccache validity.
+      //--------------------------------------------------------------------------
+      if (!checker.useInjected()) {
+	if (check_ccache(krb_ctx, ccache, time(0), principal) != 0) {
+	  krb5_cc_close(krb_ctx, ccache);
+	  krb5_free_context(krb_ctx);
+	  LOGBOOK_INSERT(scope, "provided ccache appears invalid: " << casPath.c_str());
+	  return false;
+	}
+      }
+      LOGBOOK_INSERT(scope, "provided ccache appears valid: " << casPath.c_str());
+      krb5_cc_close(krb_ctx, ccache);
+      krb5_free_context(krb_ctx);
+    }
+
     out.initialize(uc, info.mtime, casPath, principal);
     return true;
   }
