@@ -1445,11 +1445,14 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
             cid = fmd->getContainerId();
             auto cmd = dmd; // we have this already
             cmd->setMTimeNow();
-	    gOFS->mReplicationTracker->Create(fmd);
+            gOFS->mReplicationTracker->Create(fmd);
+            eos::ContainerIdentifier cmd_id = cmd->getIdentifier();
+            eos::ContainerIdentifier cmd_pid = cmd->getParentIdentifier();
 
             if (ref_fmd) {
-	      gOFS->eosView->updateFileStore(ref_fmd.get());
+              gOFS->eosView->updateFileStore(ref_fmd.get());
             }
+            gOFS->FuseXCastRefresh(cmd_id, cmd_pid);
 
           } catch (eos::MDException& e) {
             fmd.reset();
