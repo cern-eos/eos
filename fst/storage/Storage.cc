@@ -50,6 +50,99 @@ extern eos::fst::XrdFstOss* XrdOfsOss;
 EOSFSTNAMESPACE_BEGIN
 
 //------------------------------------------------------------------------------
+//! Check a few files randomly to make sure they have the FMD xattr converted
+//!
+//! @param fst_path file system mount point
+//!
+//! @return true if conversion was done, otherwise false
+//------------------------------------------------------------------------------
+bool RandomCheckFsXattrConverted(const std::string& fs_path)
+{
+  std::set<uint64_t> dir_hash {0, 1, 100, 1000, 2000, 10000, 20000, 50000, 100000};
+  std::set<std::string> existing_dirs;
+  struct stat info;
+  char full_path[16384];
+  // Lambda function to check for existence of FMD xattr
+  auto check_fmd_xattr = [](std::string_view abs_path) -> bool {
+    static const std::string xattr_key = "user.eos.fmd";
+    FsIo local_io {abs_path.data()};
+    std::string xattr_val;
+    return (local_io.attrGet(xattr_key, xattr_val) == 0);
+  };
+
+  // Check which hash directories actually exist on this mountpoint
+  for (unsigned long long hash : dir_hash) {
+    sprintf(full_path, "%s/%08llx/", fs_path.c_str(), hash);
+
+    if (stat(full_path, &info) == 0) {
+      existing_dirs.insert(full_path);
+    }
+  }
+
+  int checked_files = 0;
+  int correct_files = 0;
+  constexpr int max_index = 100;
+  std::set<int> file_index {1, 10, 50, max_index};
+  char* fts_argv[2];
+  fts_argv[1] = nullptr;
+
+  // Check the above index files in the existing hash directories for the xattr
+  for (const auto& dir : existing_dirs) {
+    fts_argv[0] = (char*)dir.c_str();
+    FTS* tree = fts_open(fts_argv, FTS_NOCHDIR | FTS_NOSTAT, 0);
+
+    if (tree == nullptr) {
+      eos_static_notice("msg=\"fts_open failed\" path=\"%s\"", dir.c_str());
+      continue;
+    }
+
+    int count = 0;
+    FTSENT* node;
+
+    while ((node = fts_read(tree))) {
+      if (node->fts_level > 0 && node->fts_name[0] == '.') {
+        fts_set(tree, node, FTS_SKIP);
+      } else {
+        if (node->fts_info == FTS_F) {
+          ++count;
+
+          if (file_index.find(count) != file_index.end()) {
+            // Skip check for block checksum files
+            if (strstr(node->fts_path, XSMAP_EXT.data()) != nullptr) {
+              continue;
+            }
+
+            ++checked_files;
+
+            if (!check_fmd_xattr(node->fts_path)) {
+              eos_static_err("msg=\"no xattr for file\" path=\"%s\"",
+                             node->fts_path);
+              return false;
+            } else {
+              ++correct_files;
+            }
+          }
+
+          // Don't list more then max index entries
+          if (count > max_index) {
+            break;
+          }
+        }
+      }
+    }
+
+    if (fts_close(tree)) {
+      eos_static_err("msg=\"fts_close failed\" path=\"%s\" errno=%d",
+                     dir.c_str(), errno);
+    }
+  }
+
+  eos_static_notice("msg=\"%i out of %i checked files with converted xattrs\"",
+                    correct_files, checked_files);
+  return true;
+}
+
+//------------------------------------------------------------------------------
 //! Check that the given file system has been converted to xattr Fmd. This
 //! method only checks for the existence of the ".eosattrconverted" special file
 //!
@@ -83,9 +176,13 @@ CheckFsXattrConverted(std::string fs_path)
       if ((dent->d_type == DT_DIR) &&
           ((strncmp(dent->d_name, ".", strlen(dent->d_name)) != 0) &&
            (strncmp(dent->d_name, "..", strlen(dent->d_name)) != 0))) {
-        // No xattr marker and existing directories means no conversion
-        // was previously done.
-        return false;
+        // No xattr marker, check some random files for user.eos.fmd xattr
+        if (!RandomCheckFsXattrConverted(fs_path)) {
+          return false;
+        } else {
+          // Exit loop and mark file system as converted
+          break;
+        }
       }
     }
 
