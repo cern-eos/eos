@@ -373,6 +373,10 @@ static uint32_t GetNumOfKworkerProcs()
   uint32_t count = 0ul;
   proc_t** procs = readproctab(PROC_FILLSTAT);
 
+  if (procs == nullptr) {
+    return count;
+  }
+
   for (int i = 0; procs[i]; ++i) {
     if (procs[i]->cmd) {
       eos_static_debug("msg=\"process cmd line\" cmd=\"%s\"", procs[i]->cmd);
