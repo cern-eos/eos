@@ -170,21 +170,6 @@ HttpHandler::Get(eos::common::HttpRequest* request, bool isHEAD)
   eos::common::HttpResponse* response = 0;
   struct stat buf;
   XrdOucString spath = request->GetUrl().c_str();
-
-  // redirect '/' to '/eos/<instance>/'
-  if (spath == "/") {
-    XrdOucString instance = gOFS->MgmOfsInstanceName;
-
-    if (instance.beginswith("eos")) {
-      instance.replace("eos", "");
-    }
-
-    response = HttpServer::HttpRedirect(url + "eos/" + instance.c_str(),
-                                        gOFS->HostName,
-                                        gOFS->mHttpdPort, false);
-    return response;
-  }
-
   std::string etag = "undef";
   eos::common::OwnCloud::OwnCloudRemapping(spath, request);
   eos::common::OwnCloud::ReplaceRemotePhp(spath);
