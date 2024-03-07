@@ -1340,7 +1340,8 @@ eos_docs:
     - sudo -u stci -H cp -R _build/html/* /eos/project/e/eos/www/docs/diopside
   tags:
     - docker_node
-  when: manual
+  only:
+    - tags
 
 
 eos_repopackage:
