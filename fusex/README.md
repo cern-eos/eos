@@ -541,6 +541,24 @@ examples:
 
 ```
 
+
+FUSE clients interaction with the EOS quota subsystem
+------------------------------------------------------
+
+Users doing transfers via the FUSE client need to be aware of some restrictions that apply when the EOS instances they interact with has quota enabled. Checking if quota is enabled on the MGM is done with the following command:
+
+```
+eos space status default | grep quota
+quota  := on
+```
+
+By default for any new write transfer coming from the FUSE client, EOS will try to pre-book at least 5GB of disk space. Therefore, the minimum logical quota that a user needs, to be able to write to the instance is 5GB. This booking value can be modifed by setting the following environment variable for the MGM in `/etc/sysconfig/eos_env`:
+
+```
+# Default 5GB
+EOS_MGM_FUSE_BOOKING_SIZE=5368709120
+```
+
 Allow traversing of directories without 'x' mode
 -------------------------------------------------
 
