@@ -213,7 +213,7 @@ XrdMgmOfs::_dropstripe(const char* path,
   eos_debug("drop");
   eos::common::Path cPath(path);
   // ---------------------------------------------------------------------------
-  eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
+  eos::common::RWMutexWriteLock ns_wr_lock(gOFS->eosViewRWMutex);
 
   try {
     dh = gOFS->eosView->getContainer(cPath.GetParentPath());
@@ -279,12 +279,15 @@ XrdMgmOfs::_dropstripe(const char* path,
       }
 
       fmd->removeLocation(fsid);
+      gOFS->eosView->updateFileStore(fmd.get());
+      ns_wr_lock.Release();
+      eos_debug("msg=\"removing/unlinking location\" fxid=%08llx fsid=%u",
+                fid, fsid);
       // eraseEntry is only needed if the fsview is inconsistent with the
       // FileMD: It exists on the selected fsview, but not in the fmd locations.
-      // Very rare case.
-      gOFS->eosFsView->eraseEntry(fsid, fmd->getId());
-      gOFS->eosView->updateFileStore(fmd.get());
-      eos_debug("removing/unlinking location %u", fsid);
+      // Very rare case but needs to be done outside the namespace lock as it
+      // might needs to load the FileSystem view in memory.
+      gOFS->eosFsView->eraseEntry(fsid, fid);
     }
   } catch (eos::MDException& e) {
     fmd.reset();

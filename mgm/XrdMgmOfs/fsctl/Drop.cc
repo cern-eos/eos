@@ -76,6 +76,8 @@ XrdMgmOfs::Drop(const char* path,
         fmd = eosFileService->getFileMD(fid);
       } catch (...) {
         eos_thread_warning("msg=\"no meta record exists anymore\" fxid=%s", afid);
+        ns_wr_lock.Release();
+        fmd = nullptr;
         // Nevertheless drop the file identifier from the file system view
         gOFS->eosFsView->eraseEntry(fsid, fid);
       }
