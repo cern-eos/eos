@@ -1,4 +1,4 @@
-# Try to find uuid
+# Try to find procps
 # Once done, this will define
 #
 # PROCPS_FOUND        - system has uuid
