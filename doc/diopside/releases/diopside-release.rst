@@ -17,11 +17,40 @@ Introduction
 This release is based on XRootD V5.
 
 
+``v5.2.18 Diopside``
+====================
+
+2024-03-07
+
+Bug
+----
+
+* [EOS-6075] - [eoscp] memory leaks and context errors
+* [EOS-6078] - eos archive segv in xrootd prepare
+* [EOS-6079] - Credential validation fails in chroot container with non local jail lookup
+* [EOS-6080] - "eos find --purge atomic" can lock up namespace
+* [EOS-6081] - "eos find --purge atomic" can cause slow restarts (FSCK loads one big hash at startup)
+* [EOS-6082] - MGM crash from early "eos ns stat" command (under eos::common::ThreadPool::GetInfo)
+* [EOS-6084] - "Scheduler is not yet initialized" from early setDiskStatus() (possible: drain?)
+
+
+New Feature
+------------
+
+* [EOS-6045] - Monitor number or kworker processes with 'eos node ls --sys'
+
+
+Improvement
+------------
+
+* [EOS-5185] - FUSEX can not write to logical quotas <= 5GB (hardcoded limit)
+* [EOS-5835] - MGM: remove internal redirect for "/" to port 8443
+
+
 ``v5.2.17 Diopside``
 ====================
 
 2024-02-29
-
 
 Note
 ----
