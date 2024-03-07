@@ -315,18 +315,14 @@ QuarkFileSystemView::eraseEntry(IFileMD::location_t location, IFileMD::id_t fid)
     FileSystemHandler* handler = fetchRegularFilelistIfExists(location);
 
     if (handler) {
-      if (handler->hasFileId(fid)) {
-        handler->erase(FileIdentifier(fid));
-      }
+      handler->erase(FileIdentifier(fid));
     }
   }
   {
     FileSystemHandler* handler = fetchUnlinkedFilelistIfExists(location);
 
     if (handler) {
-      if (handler->hasFileId(fid)) {
-        handler->erase(FileIdentifier(fid));
-      }
+      handler->erase(FileIdentifier(fid));
     }
   }
   mNoReplicas->erase(FileIdentifier(fid));
