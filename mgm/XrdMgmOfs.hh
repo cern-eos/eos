@@ -920,6 +920,7 @@ public:
   //! @param opaque CGI
   //! @param key key to set
   //! @param value value to set for key
+  //! @param take_lock if true take namespace lock, otherwise don't
   //! @param exlusive only create attribute if it does not exist
   //!
   //! @return SFS_OK if success otherwise SFS_ERROR
@@ -927,6 +928,7 @@ public:
   int _attr_set(const char* path, XrdOucErrInfo& out_error,
                 eos::common::VirtualIdentity& vid,
                 const char* opaque, const char* key, const char* value,
+                bool take_lock = true,
                 bool exclusive = false);
 
   //----------------------------------------------------------------------------

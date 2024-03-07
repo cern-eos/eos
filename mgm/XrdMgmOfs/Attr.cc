@@ -239,6 +239,7 @@ int
 XrdMgmOfs::_attr_set(const char* path, XrdOucErrInfo& error,
                      eos::common::VirtualIdentity& vid,
                      const char* info, const char* key, const char* value,
+                     bool take_lock,
                      bool exclusive)
 {
   static const char* epname = "attr_set";
@@ -291,12 +292,15 @@ XrdMgmOfs::_attr_set(const char* path, XrdOucErrInfo& error,
 
   eos::Prefetcher::prefetchItemAndWait(gOFS->eosView, path);
 
+  eos::common::RWMutexWriteLock ns_wr_lock;
+  if (take_lock) {
+    ns_wr_lock.Grab(gOFS->eosViewRWMutex);
+  }
   try {
     eos::FileOrContainerMD item = gOFS->eosView->getItem(path).get();
 
     if (item.file) { // file
       std::shared_ptr<eos::IFileMD> fmd = item.file;
-      auto fmd_lock = std::make_unique<eos::IFileMD::IFileMDWriteLocker>(fmd);
 
       if ((vid.uid != fmd->getCUid()) && (!vid.sudoer && vid.uid)) {
         errno = EPERM;
@@ -304,7 +308,7 @@ XrdMgmOfs::_attr_set(const char* path, XrdOucErrInfo& error,
         if (exclusive && fmd->hasAttribute(skey)) {
           errno = EEXIST;
           return Emsg(epname, error, errno, "set attribute (exclusive set "
-                      "for existing attribute)", path);
+                                            "for existing attribute)", path);
         }
 
         // Handle attribute for application locks
@@ -316,7 +320,7 @@ XrdMgmOfs::_attr_set(const char* path, XrdOucErrInfo& error,
           if (app_lock.foreignLock(vid, true)) {
             errno = EBUSY;
             return Emsg(epname, error, errno, "set attribute "
-                        "(foreign attribute lock existing)", path);
+                                              "(foreign attribute lock existing)", path);
           }
         }
 
@@ -330,14 +334,12 @@ XrdMgmOfs::_attr_set(const char* path, XrdOucErrInfo& error,
         const eos::ContainerIdentifier c_id(fmd->getContainerId());
         eosView->updateFileStore(fmd.get());
         // Release the current lock on the object before broadcasting to fuse
-        fmd_lock.reset(nullptr);
+        ns_wr_lock.Release();
         gOFS->FuseXCastRefresh(f_id, c_id);
         errno = 0;
       }
     } else { // container
       std::shared_ptr<eos::IContainerMD> cmd = item.container;
-      auto cmd_lock = std::make_unique<eos::IContainerMD::IContainerMDWriteLocker>
-                      (cmd);
 
       if ((vid.uid != cmd->getCUid()) && (!vid.sudoer && vid.uid)) {
         errno = EPERM;
@@ -345,7 +347,7 @@ XrdMgmOfs::_attr_set(const char* path, XrdOucErrInfo& error,
         if (exclusive && cmd->hasAttribute(skey)) {
           errno = EEXIST;
           return Emsg(epname, error, errno, "set attribute (exclusive set "
-                      "for existing attribute)", path);
+                                            "for existing attribute)", path);
         }
 
         cmd->setAttribute(skey, raw_val);
@@ -358,7 +360,7 @@ XrdMgmOfs::_attr_set(const char* path, XrdOucErrInfo& error,
         const eos::ContainerIdentifier d_pid(cmd->getParentIdentifier());
         eosView->updateContainerStore(cmd.get());
         // Release the current lock on the object before broadcasting to fuse
-        cmd_lock.reset(nullptr);
+        ns_wr_lock.Release();
         gOFS->FuseXCastRefresh(d_id, d_pid);
         errno = 0;
       }
@@ -376,6 +378,7 @@ XrdMgmOfs::_attr_set(const char* path, XrdOucErrInfo& error,
   }
 
   return SFS_OK;
+
 }
 
 
