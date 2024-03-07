@@ -121,6 +121,7 @@ else()
   # Fake targets
   add_library(ZLIB::ZLIB                   UNKNOWN IMPORTED)
   add_library(UUID::UUID                   UNKNOWN IMPORTED)
+  add_library(PROCPS::PROCPS               UNKNOWN IMPORTED)
   add_library(XROOTD::SERVER               UNKNOWN IMPORTED)
   add_library(XROOTD::CL                   UNKNOWN IMPORTED)
   add_library(XROOTD::SSI                  UNKNOWN IMPORTED)
