@@ -400,20 +400,34 @@ static uint32_t GetNumOfKworkerProcs()
 static void OverwriteTestingStatfs(const std::string& path,
                                    std::map<std::string, std::string>& output)
 {
-  const char* ptr = getenv("EOS_FST_TESTING");
+  static std::optional<bool> do_overwrite;
 
-  if (ptr == nullptr) {
+  if (!do_overwrite.has_value()) {
+    const char* ptr = getenv("EOS_FST_TESTING");
+
+    if (ptr == nullptr) {
+      do_overwrite.emplace(false);
+    } else {
+      do_overwrite.emplace(true);
+    }
+  }
+
+  if (!do_overwrite.value()) {
     return;
   }
 
   eos_static_info("msg=\"overwrite statfs values\" path=%s", path.c_str());
-  uint64_t subtree_max_size = 10ull * 1024 * 1024 * 1024; // 10GB
-  ptr = getenv("EOS_FST_SUBTREE_MAX_SIZE");
+  static uint64_t subtree_max_size = 0ull;
 
-  if (ptr) {
-    if (!eos::common::StringToNumeric(std::string(ptr), subtree_max_size,
-                                      subtree_max_size)) {
-      eos_static_err("msg=\"failed convertion\" data=\"%s\"", ptr);
+  if (subtree_max_size == 0ull) {
+    subtree_max_size = 10ull * 1024 * 1024 * 1024; // 10GB
+    const char* ptr = getenv("EOS_FST_SUBTREE_MAX_SIZE");
+
+    if (ptr) {
+      if (!eos::common::StringToNumeric(std::string(ptr), subtree_max_size,
+                                        subtree_max_size)) {
+        eos_static_err("msg=\"failed convertion\" data=\"%s\"", ptr);
+      }
     }
   }
 
