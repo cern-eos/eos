@@ -131,7 +131,7 @@ AclCmd::ModifyAcls(const eos::console::AclProto& acl)
     std::map<std::string, std::set<std::string>> dirs;
     m_err.erase();
     (void) gOFS->_find(acl.path().c_str(), error, m_err, mVid, dirs, nullptr,
-                       nullptr, true, 0, false, 0, nullptr);
+                       nullptr, true, 0, false, 0, nullptr, fine_grained_write);
 
     if (m_err.length()) {
       mErr = m_err.c_str();

@@ -538,6 +538,7 @@ public:
   //! @param nscounter if true update ns counters, otherwise don't
   //! @param maxdepth is the maximum search depth
   //! @param filematch is a pattern match for file names
+  //! @param take_lock if true then take namespace lock, otherwise don't
   //!
   //! @note The find command distinguishes 'power' and 'normal' users. If the
   //! virtual identity indicates the root or admin user queries are unlimited.
@@ -564,7 +565,7 @@ public:
             std::map<std::string, std::set<std::string> >& found,
             const char* key = 0, const char* val = 0, bool no_files = false,
             time_t millisleep = 0, bool nscounter = true, int maxdepth = 0,
-            const char* filematch = 0, bool json_output = false,
+            const char* filematch = 0, bool take_lock = true, bool json_output = false,
             FILE* fstdout = NULL,
             time_t max_ctime_dir = 0,
             time_t max_ctime_file = 0,

@@ -292,7 +292,7 @@ Recycle::Recycler(ThreadAssistant& assistant) noexcept
                 std::map<std::string, time_t> ctime_map;
                 // send a restricted query, which applies ctime constraints from deepness 1
                 (void) gOFS->_find(sdir, lError, err_msg, rootvid, findmap,
-                                   0, 0, false, 0, true, depth, 0, false, NULL,
+                                   0, 0, false, 0, true, depth, 0, true, false, NULL,
                                    max_ctime_dir, max_ctime_file,
                                    &ctime_map,
                                    1, 1);
