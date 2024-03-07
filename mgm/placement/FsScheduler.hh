@@ -71,6 +71,8 @@ public:
   bool setDiskWeight(const std::string& spaceName, fsid_t disk_id,
                      uint8_t weight);
 
+  bool isRunning() const;
+
   void setPlacementStrategy(std::string_view strategy_sv);
   void setPlacementStrategy(const std::string& spacename,
                             std::string_view strategy_sv);
@@ -82,6 +84,7 @@ private:
 
   ClusterMgr* get_cluster_mgr(const std::string& spaceName);
 
+  std::atomic<bool> mIsRunning {false};
   std::unique_ptr<FlatScheduler> scheduler;
   std::unique_ptr<ClusterMgrHandler> cluster_handler;
   ClusterMapPtrT cluster_mgr_map;

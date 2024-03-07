@@ -138,6 +138,7 @@ FSScheduler::updateClusterData()
   auto cluster_map = cluster_handler->make_cluster_mgr();
   eos::common::ScopedRCUWrite(cluster_rcu_mutex, cluster_mgr_map,
                               new ClusterMapT(std::move(cluster_map)));
+  mIsRunning.store(true, std::memory_order_release);
 }
 
 PlacementResult
@@ -295,5 +296,10 @@ FSScheduler::getStateStr(const std::string& spacename, std::string_view type_sv)
   return cluster_mgr->getStateStr(type_sv);
 }
 
+bool
+FSScheduler::isRunning() const
+{
+  return mIsRunning.load(std::memory_order_acquire);
+}
 
 }// eos::mgm::placement
