@@ -94,8 +94,8 @@ void
 NsCmd::MutexSubcmd(const eos::console::NsProto_MutexProto& mutex,
                    eos::console::ReplyProto& reply)
 {
-  
 #ifdef EOS_INSTRUMENTED_RWMUTEX
+
   if (mVid.uid == 0) {
     bool no_option = true;
     std::ostringstream oss;
@@ -221,6 +221,7 @@ NsCmd::MutexSubcmd(const eos::console::NsProto_MutexProto& mutex,
                       " command");
     reply.set_retc(EPERM);
   }
+
 #endif
 }
 
@@ -320,26 +321,32 @@ NsCmd::StatSubcmd(const eos::console::NsProto_StatProto& stat,
     gOFS->eosDirectoryService->getCacheStatistics();
   common::MutexLatencyWatcher::LatencySpikes viewLatency =
     gOFS->mViewMutexWatcher.getLatencySpikes();
-  double eosViewMutexPenultimateSecWriteLockTimePercentage = (gOFS->eosViewRWMutex.getNbMsMutexWriteLockedPenultimateSecond().count() / 1000.0) * 100.0;
-  if(eosViewMutexPenultimateSecWriteLockTimePercentage > 100) {
+  double eosViewMutexPenultimateSecWriteLockTimePercentage =
+    (gOFS->eosViewRWMutex.getNbMsMutexWriteLockedPenultimateSecond().count() /
+     1000.0) * 100.0;
+
+  if (eosViewMutexPenultimateSecWriteLockTimePercentage > 100) {
     eosViewMutexPenultimateSecWriteLockTimePercentage = 100;
   }
 
   double rnorm = gOFS->MgmStats.GetTotalAvg5("NsUsedR");
-  double readcontention = (rnorm)?100.0*gOFS->MgmStats.GetTotalAvg5("NsLeadR")/rnorm:0.0;
+  double readcontention = (rnorm) ? 100.0 * gOFS->MgmStats.GetTotalAvg5("NsLeadR")
+                          / rnorm : 0.0;
   double wnorm = gOFS->MgmStats.GetTotalAvg5("NsUsedW");
-  double writecontention = (wnorm)?100.0*gOFS->MgmStats.GetTotalAvg5("NsLeadW")/wnorm:0.0;
+  double writecontention = (wnorm) ? 100.0 *
+                           gOFS->MgmStats.GetTotalAvg5("NsLeadW") / wnorm : 0.0;
 
   if (monitoring) {
     oss << "uid=all gid=all ns.total.files=" << f << std::endl
         << "uid=all gid=all ns.total.directories=" << d << std::endl
         << "uid=all gid=all ns.current.fid=" << fid_now << std::endl
         << "uid=all gid=all ns.current.cid=" << cid_now << std::endl
-        << "uid=all gid=all ns.generated.fid=" << (int)(fid_now - gOFS->mBootFileId) << std::endl
+        << "uid=all gid=all ns.generated.fid=" << (int)(fid_now - gOFS->mBootFileId) <<
+        std::endl
         << "uid=all gid=all ns.generated.cid=" << (int)(cid_now -
             gOFS->mBootContainerId) << std::endl
         << "uid=all gid=all ns.contention.read=" << readcontention << std::endl
-	<< "uid=all gid=all ns.contention.write=" << writecontention << std::endl
+        << "uid=all gid=all ns.contention.write=" << writecontention << std::endl
         << "uid=all gid=all ns.cache.files.maxsize=" << fileCacheStats.maxNum <<
         std::endl
         << "uid=all gid=all ns.cache.files.occupancy=" << fileCacheStats.occupancy <<
@@ -380,8 +387,10 @@ NsCmd::StatSubcmd(const eos::console::NsProto_StatProto& stat,
         eosxd_active_clients << std::endl
         << "uid=all gid=all ns.fusex.lockedclients=" <<
         eosxd_locked_clients << std::endl
-        << "uid=all gid=all ns.hanging=" << gOFS->mViewMutexWatcher.isLockedUp() << std::endl
-        << "uid=all gid=all ns.hanging.since=" << gOFS->mViewMutexWatcher.hangingSince() << std::endl
+        << "uid=all gid=all ns.hanging=" << gOFS->mViewMutexWatcher.isLockedUp() <<
+        std::endl
+        << "uid=all gid=all ns.hanging.since=" << gOFS->mViewMutexWatcher.hangingSince()
+        << std::endl
         << "uid=all gid=all ns.latencypeak.eosviewmutex.last=" <<
         viewLatency.last.count() << std::endl
         << "uid=all gid=all ns.latencypeak.eosviewmutex.1min=" <<
@@ -431,7 +440,10 @@ NsCmd::StatSubcmd(const eos::console::NsProto_StatProto& stat,
         << "uid=all gid=all "
         << gOFS->mFsckEngine->GetThreadPoolInfo() << std::endl
         << "uid=all gid=all "
-        << gOFS->mConverterDriver->GetThreadPoolInfo() << std::endl;
+        << (gOFS->mConverterDriver ?
+            gOFS->mConverterDriver->GetThreadPoolInfo() :
+            "info=\"converter driver not running\"")
+        << std::endl;
     FsView::gFsView.DumpBalancerPoolInfo(oss, "uid=all gid=all ");
 
     // Only display the tape enabled state if it is set to true in order to
@@ -505,8 +517,9 @@ NsCmd::StatSubcmd(const eos::console::NsProto_StatProto& stat,
         << d <<  std::endl
         << "ALL      Total boot time                  "
         << boot_time << " s" << std::endl
-	<< "ALL      Contention                       write: "
-	<< std::fixed << std::setprecision(2) << writecontention << " % read:" << std::fixed << std::setprecision(2) << readcontention << " %" << std::endl
+        << "ALL      Contention                       write: "
+        << std::fixed << std::setprecision(2) << writecontention << " % read:" <<
+        std::fixed << std::setprecision(2) << readcontention << " %" << std::endl
         << line << std::endl;
 
     if (compact_status.length()) {
@@ -564,16 +577,17 @@ NsCmd::StatSubcmd(const eos::console::NsProto_StatProto& stat,
           << line << std::endl;
     }
 
-    oss << "ALL      eosViewRWMutex status            " << (gOFS->mViewMutexWatcher.isLockedUp()?"locked-up":"available")
-	<< " (" << gOFS->mViewMutexWatcher.hangingSince() << "s) " << std::endl;
-								 
+    oss << "ALL      eosViewRWMutex status            " <<
+        (gOFS->mViewMutexWatcher.isLockedUp() ? "locked-up" : "available")
+        << " (" << gOFS->mViewMutexWatcher.hangingSince() << "s) " << std::endl;
     oss << "ALL      eosViewRWMutex peak-latency      " << viewLatency.last.count()
         << "ms (last) "
         << viewLatency.lastMinute.count() << "ms (1 min) " <<
         viewLatency.last2Minutes.count() << "ms (2 min) " <<
         viewLatency.last5Minutes.count() << "ms (5 min)"
         << std::endl;
-    oss << "ALL      eosViewRWMutex locked for " << eosViewMutexPenultimateSecWriteLockTimePercentage
+    oss << "ALL      eosViewRWMutex locked for " <<
+        eosViewMutexPenultimateSecWriteLockTimePercentage
         << "% of the penultimate second" << std::endl << line << std::endl;
 
     if (!gOFS->namespaceGroup->isInMemory()) {
@@ -636,7 +650,10 @@ NsCmd::StatSubcmd(const eos::console::NsProto_StatProto& stat,
         << "ALL      fsck info                        "
         << gOFS->mFsckEngine->GetThreadPoolInfo() << std::endl
         << "ALL      converter info                   "
-        << gOFS->mConverterDriver->GetThreadPoolInfo() << std::endl;
+        << (gOFS->mConverterDriver ?
+            gOFS->mConverterDriver->GetThreadPoolInfo() :
+            "info=\"converter driver not running\"")
+        << std::endl;
     std::string_view prefix {"ALL      balancer info                    "};
     FsView::gFsView.DumpBalancerPoolInfo(oss, prefix);
     oss << line << std::endl
@@ -1111,284 +1128,293 @@ NsCmd::ReserveIdsSubCmd(const eos::console::NsProto_ReserveIdsProto& reserve,
 //------------------------------------------------------------------------------
 void
 NsCmd::BenchmarkSubCmd(const eos::console::NsProto_BenchmarkProto& benchmark,
-		       eos::console::ReplyProto& reply)
+                       eos::console::ReplyProto& reply)
 {
-  size_t n_threads = (benchmark.threads()<1024)?benchmark.threads():1024;
+  size_t n_threads = (benchmark.threads() < 1024) ? benchmark.threads() : 1024;
   size_t n_subdirs = benchmark.subdirs();
   size_t n_subfiles = benchmark.subfiles();
   std::string bench_prefix = benchmark.prefix();
-  
   eos_static_info("msg=\"runing benchmark\" nthreads=%lu ndirs=%lu nfiles=%lu",
-		  n_threads,
-		  n_subdirs,
-		  n_subfiles);
-
+                  n_threads,
+                  n_subdirs,
+                  n_subfiles);
   eos::common::VirtualIdentity vid = eos::common::VirtualIdentity::Root();
-
   XrdOucErrInfo error;
-  std::string prefix=bench_prefix+"/benchmark/";
+  std::string prefix = bench_prefix + "/benchmark/";
   std::stringstream oss;
-
   {
     eos::common::Timing bench("Benchmark");
     COMMONTIMING("START", &bench);
-    std::vector<std::thread> workers;  
-
+    std::vector<std::thread> workers;
     //pass 1 - create dir structure
     gOFS->_mkdir(prefix.c_str(), 0777,  error, vid, "", 0, false);
-    
+
     for (size_t i = 0; i < n_threads; i++) {
-      workers.push_back(std::thread([i, n_subdirs, n_subfiles, &vid, prefix]() 
-      {
-	eos::common::VirtualIdentity vid = eos::common::VirtualIdentity::Root();
-	XrdOucErrInfo error;
-	std::string wdir = prefix + std::string("worker.") + std::to_string(i);
-	XrdSecEntity client("sss");
-	client.tident="benchmark";
-	gOFS->_mkdir(wdir.c_str(), 0777, error, vid, "", 0, false);
-	for ( size_t d = 0 ; d < n_subdirs ; d++) {
-	  std::string sdir = wdir + std::string("/d.") + std::to_string(d) + std::string("/");
-	  gOFS->_mkdir(sdir.c_str(), 0777,  error, vid, "", 0, false);
-	  for ( size_t f = 0 ; f < n_subfiles ; f++) {
-	    std::string fname = sdir + std::string("f.") + std::to_string(f);	    
-	  }
-      }
+      workers.push_back(std::thread([i, n_subdirs, n_subfiles, &vid, prefix]() {
+        eos::common::VirtualIdentity vid = eos::common::VirtualIdentity::Root();
+        XrdOucErrInfo error;
+        std::string wdir = prefix + std::string("worker.") + std::to_string(i);
+        XrdSecEntity client("sss");
+        client.tident = "benchmark";
+        gOFS->_mkdir(wdir.c_str(), 0777, error, vid, "", 0, false);
+
+        for (size_t d = 0 ; d < n_subdirs ; d++) {
+          std::string sdir = wdir + std::string("/d.") + std::to_string(
+                               d) + std::string("/");
+          gOFS->_mkdir(sdir.c_str(), 0777,  error, vid, "", 0, false);
+
+          for (size_t f = 0 ; f < n_subfiles ; f++) {
+            std::string fname = sdir + std::string("f.") + std::to_string(f);
+          }
+        }
       }));
     }
-    
-    std::for_each(workers.begin(), workers.end(), [](std::thread &t) 
-    {
+
+    std::for_each(workers.begin(), workers.end(), [](std::thread & t) {
       t.join();
     });
-    
-    COMMONTIMING("STOP",&bench);
-    double rt = bench.RealTime()/1000.0;
-    const char* l =  eos_static_log(LOG_SILENT,  "[   mkdir     ] dirs=%lu time=%.02f dir-rate=%.02f", n_threads * n_subdirs, rt, n_threads * n_subdirs / rt);
+    COMMONTIMING("STOP", &bench);
+    double rt = bench.RealTime() / 1000.0;
+    const char* l =  eos_static_log(LOG_SILENT,
+                                    "[   mkdir     ] dirs=%lu time=%.02f dir-rate=%.02f", n_threads * n_subdirs, rt,
+                                    n_threads * n_subdirs / rt);
     oss << l;
     oss << std::endl;
     eos_static_notice(l);
   }
-
-  {
-    eos::common::Timing bench("Benchmark");
-    COMMONTIMING("START", &bench);
-    std::vector<std::thread> workers;    
-
-    //pass 2 - create files
-    for (size_t i = 0; i < n_threads; i++) {
-      workers.push_back(std::thread([i, n_subdirs, n_subfiles, &vid, prefix]() 
-      {
-	eos::common::VirtualIdentity vid = eos::common::VirtualIdentity::Root();
-	XrdOucErrInfo error;
-	std::string wdir = prefix + std::string("worker.") + std::to_string(i);
-	XrdSecEntity client("sss");
-	client.tident="benchmark";
-	for ( size_t d = 0 ; d < n_subdirs ; d++) {
-	  std::string sdir = wdir + std::string("/d.") + std::to_string(d) + std::string("/");
-	  for ( size_t f = 0 ; f < n_subfiles ; f++) {
-	    std::string fname = sdir + std::string("f.") + std::to_string(f);
-	    XrdOucEnv env;
-	      
-	    XrdMgmOfsFile* file = new XrdMgmOfsFile((char*)"bench");
-	    if (file) {
-	      file->open(&vid, fname.c_str(), SFS_O_CREAT| SFS_O_RDWR, 0777, 0, "eos.app=fuse&eos.bookingsize=0");
-	      delete file;
-	    }
-	  }
-      }
-      }));
-    }
-    
-    std::for_each(workers.begin(), workers.end(), [](std::thread &t) 
-    {
-      t.join();
-    });
-    COMMONTIMING("STOP",&bench);
-    double rt = bench.RealTime()/1000.0;
-    const char* l =  eos_static_log(LOG_SILENT,  "[   create    ] files=%lu time=%.02f file-rate=%.02f Hz", n_threads * n_subdirs * n_subfiles, rt, 1.0 * n_threads * n_subdirs * n_subfiles / rt);
-    oss << l;
-    oss << std::endl;
-    eos_static_notice(l);
-  }
-
   {
     eos::common::Timing bench("Benchmark");
     COMMONTIMING("START", &bench);
     std::vector<std::thread> workers;
 
+    //pass 2 - create files
+    for (size_t i = 0; i < n_threads; i++) {
+      workers.push_back(std::thread([i, n_subdirs, n_subfiles, &vid, prefix]() {
+        eos::common::VirtualIdentity vid = eos::common::VirtualIdentity::Root();
+        XrdOucErrInfo error;
+        std::string wdir = prefix + std::string("worker.") + std::to_string(i);
+        XrdSecEntity client("sss");
+        client.tident = "benchmark";
+
+        for (size_t d = 0 ; d < n_subdirs ; d++) {
+          std::string sdir = wdir + std::string("/d.") + std::to_string(
+                               d) + std::string("/");
+
+          for (size_t f = 0 ; f < n_subfiles ; f++) {
+            std::string fname = sdir + std::string("f.") + std::to_string(f);
+            XrdOucEnv env;
+            XrdMgmOfsFile* file = new XrdMgmOfsFile((char*)"bench");
+
+            if (file) {
+              file->open(&vid, fname.c_str(), SFS_O_CREAT | SFS_O_RDWR, 0777, 0,
+                         "eos.app=fuse&eos.bookingsize=0");
+              delete file;
+            }
+          }
+        }
+      }));
+    }
+
+    std::for_each(workers.begin(), workers.end(), [](std::thread & t) {
+      t.join();
+    });
+    COMMONTIMING("STOP", &bench);
+    double rt = bench.RealTime() / 1000.0;
+    const char* l =  eos_static_log(LOG_SILENT,
+                                    "[   create    ] files=%lu time=%.02f file-rate=%.02f Hz",
+                                    n_threads * n_subdirs * n_subfiles, rt,
+                                    1.0 * n_threads * n_subdirs * n_subfiles / rt);
+    oss << l;
+    oss << std::endl;
+    eos_static_notice(l);
+  }
+  {
+    eos::common::Timing bench("Benchmark");
+    COMMONTIMING("START", &bench);
+    std::vector<std::thread> workers;
     //pass 3 - exists structure
     gOFS->_mkdir(prefix.c_str(), 0777,  error, vid, "", 0, false);
-    
+
     for (size_t i = 0; i < n_threads; i++) {
-      workers.push_back(std::thread([i, n_subdirs, n_subfiles, &vid, prefix]() 
-      {
-	eos::common::VirtualIdentity vid = eos::common::VirtualIdentity::Root();
-	XrdOucErrInfo error;
-	std::string wdir = prefix + std::string("worker.") + std::to_string(i);
-	XrdSecEntity client("sss");
-	client.tident="benchmark";
-	gOFS->_mkdir(wdir.c_str(), 0777, error, vid, "", 0, false);
-	for ( size_t d = 0 ; d < n_subdirs ; d++) {
-	  std::string sdir = wdir + std::string("/d.") + std::to_string(d) + std::string("/");
-	  gOFS->_mkdir(sdir.c_str(), 0777,  error, vid, "", 0, false);
-	  for ( size_t f = 0 ; f < n_subfiles ; f++) {
-	    std::string fname = sdir + std::string("f.") + std::to_string(f);
-	    XrdOucEnv env;
-	      
-	    XrdMgmOfsFile* file = new XrdMgmOfsFile((char*)"bench");
-	    if (file) {
-	      file->open(&vid, fname.c_str(), SFS_O_CREAT| SFS_O_RDWR, 0777, 0 , 0);
-	      delete file;
-	    }
-	  }
-      }
+      workers.push_back(std::thread([i, n_subdirs, n_subfiles, &vid, prefix]() {
+        eos::common::VirtualIdentity vid = eos::common::VirtualIdentity::Root();
+        XrdOucErrInfo error;
+        std::string wdir = prefix + std::string("worker.") + std::to_string(i);
+        XrdSecEntity client("sss");
+        client.tident = "benchmark";
+        gOFS->_mkdir(wdir.c_str(), 0777, error, vid, "", 0, false);
+
+        for (size_t d = 0 ; d < n_subdirs ; d++) {
+          std::string sdir = wdir + std::string("/d.") + std::to_string(
+                               d) + std::string("/");
+          gOFS->_mkdir(sdir.c_str(), 0777,  error, vid, "", 0, false);
+
+          for (size_t f = 0 ; f < n_subfiles ; f++) {
+            std::string fname = sdir + std::string("f.") + std::to_string(f);
+            XrdOucEnv env;
+            XrdMgmOfsFile* file = new XrdMgmOfsFile((char*)"bench");
+
+            if (file) {
+              file->open(&vid, fname.c_str(), SFS_O_CREAT | SFS_O_RDWR, 0777, 0 , 0);
+              delete file;
+            }
+          }
+        }
       }));
     }
-    
-    std::for_each(workers.begin(), workers.end(), [](std::thread &t) 
-    {
+
+    std::for_each(workers.begin(), workers.end(), [](std::thread & t) {
       t.join();
     });
-
-    COMMONTIMING("STOP",&bench);
-    double rt = bench.RealTime()/1000.0;
-    const char* l =  eos_static_log(LOG_SILENT,  "[   exists    ] files=%lu dirs=%lu time=%.02f dir-rate=%.02f file-rate=%.02f Hz", n_threads * n_subdirs * n_subfiles, n_threads*n_subdirs, rt, 1.0 * n_threads * n_subdirs / rt, 1.0 * n_threads * n_subdirs * n_subfiles / rt);
+    COMMONTIMING("STOP", &bench);
+    double rt = bench.RealTime() / 1000.0;
+    const char* l =  eos_static_log(LOG_SILENT,
+                                    "[   exists    ] files=%lu dirs=%lu time=%.02f dir-rate=%.02f file-rate=%.02f Hz",
+                                    n_threads * n_subdirs * n_subfiles, n_threads * n_subdirs, rt,
+                                    1.0 * n_threads * n_subdirs / rt,
+                                    1.0 * n_threads * n_subdirs * n_subfiles / rt);
     oss << l;
     oss << std::endl;
     eos_static_notice(l);
   }
-
   {
     eos::common::Timing bench("Benchmark");
     COMMONTIMING("START", &bench);
-    std::vector<std::thread> workers;    
-    
+    std::vector<std::thread> workers;
+
     //pass 4 - open files for reading
     for (size_t i = 0; i < n_threads; i++) {
-      workers.push_back(std::thread([i, n_subdirs, n_subfiles, &vid, prefix]() 
-      {
-	eos::common::VirtualIdentity vid = eos::common::VirtualIdentity::Root();
-	XrdOucErrInfo error;
-	std::string wdir = prefix + std::string("worker.") + std::to_string(i);
-	XrdSecEntity client("sss");
-	client.tident="benchmark";
-	for ( size_t d = 0 ; d < n_subdirs ; d++) {
-	  std::string sdir = wdir + std::string("/d.") + std::to_string(d) + std::string("/");
-	  for ( size_t f = 0 ; f < n_subfiles ; f++) {
-	    std::string fname = sdir + std::string("f.") + std::to_string(f);
-	    XrdOucEnv env;
-	      
-	    XrdMgmOfsFile* file = new XrdMgmOfsFile((char*)"bench");
-	    if (file) {
-	      file->open(&vid, fname.c_str(), 0, 0 , 0, "eos.app=fuse");
-	      delete file;
-	    }
-	  }
-	}
+      workers.push_back(std::thread([i, n_subdirs, n_subfiles, &vid, prefix]() {
+        eos::common::VirtualIdentity vid = eos::common::VirtualIdentity::Root();
+        XrdOucErrInfo error;
+        std::string wdir = prefix + std::string("worker.") + std::to_string(i);
+        XrdSecEntity client("sss");
+        client.tident = "benchmark";
+
+        for (size_t d = 0 ; d < n_subdirs ; d++) {
+          std::string sdir = wdir + std::string("/d.") + std::to_string(
+                               d) + std::string("/");
+
+          for (size_t f = 0 ; f < n_subfiles ; f++) {
+            std::string fname = sdir + std::string("f.") + std::to_string(f);
+            XrdOucEnv env;
+            XrdMgmOfsFile* file = new XrdMgmOfsFile((char*)"bench");
+
+            if (file) {
+              file->open(&vid, fname.c_str(), 0, 0 , 0, "eos.app=fuse");
+              delete file;
+            }
+          }
+        }
       }));
     }
-    std::for_each(workers.begin(), workers.end(), [](std::thread &t) 
-    {
+
+    std::for_each(workers.begin(), workers.end(), [](std::thread & t) {
       t.join();
     });
-
-    COMMONTIMING("STOP",&bench);
-    double rt = bench.RealTime()/1000.0;
-    const char* l =  eos_static_log(LOG_SILENT,  "[   read      ] files=%lu time=%.02f file-rate=%.02f Hz", n_threads * n_subdirs * n_subfiles, rt, 1.0 * n_threads * n_subdirs * n_subfiles / rt);
+    COMMONTIMING("STOP", &bench);
+    double rt = bench.RealTime() / 1000.0;
+    const char* l =  eos_static_log(LOG_SILENT,
+                                    "[   read      ] files=%lu time=%.02f file-rate=%.02f Hz",
+                                    n_threads * n_subdirs * n_subfiles, rt,
+                                    1.0 * n_threads * n_subdirs * n_subfiles / rt);
     oss << l;
     oss << std::endl;
     eos_static_notice(l);
   }
-
   {
     eos::common::Timing bench("Benchmark");
     COMMONTIMING("START", &bench);
-    std::vector<std::thread> workers;    
+    std::vector<std::thread> workers;
 
     //pass 5 - open files for writing
     for (size_t i = 0; i < n_threads; i++) {
-      workers.push_back(std::thread([i, n_subdirs, n_subfiles, &vid, prefix]() 
-      {
-	eos::common::VirtualIdentity vid = eos::common::VirtualIdentity::Root();
-	XrdOucErrInfo error;
-	std::string wdir = prefix + std::string("worker.") + std::to_string(i);
-	XrdSecEntity client("sss");
-	client.tident="benchmark";
-	for ( size_t d = 0 ; d < n_subdirs ; d++) {
-	  std::string sdir = wdir + std::string("/d.") + std::to_string(d) + std::string("/");
-	  for ( size_t f = 0 ; f < n_subfiles ; f++) {
-	    std::string fname = sdir + std::string("f.") + std::to_string(f);
-	    XrdOucEnv env;
-	      
-	    XrdMgmOfsFile* file = new XrdMgmOfsFile((char*)"bench");
-	    if (file) {
-	      file->open(&vid, fname.c_str(), SFS_O_RDWR, 0777, 0, "eos.app=fuse&eos.bookingsize=0");
-	      delete file;
-	    }
-	  }
-	}
+      workers.push_back(std::thread([i, n_subdirs, n_subfiles, &vid, prefix]() {
+        eos::common::VirtualIdentity vid = eos::common::VirtualIdentity::Root();
+        XrdOucErrInfo error;
+        std::string wdir = prefix + std::string("worker.") + std::to_string(i);
+        XrdSecEntity client("sss");
+        client.tident = "benchmark";
+
+        for (size_t d = 0 ; d < n_subdirs ; d++) {
+          std::string sdir = wdir + std::string("/d.") + std::to_string(
+                               d) + std::string("/");
+
+          for (size_t f = 0 ; f < n_subfiles ; f++) {
+            std::string fname = sdir + std::string("f.") + std::to_string(f);
+            XrdOucEnv env;
+            XrdMgmOfsFile* file = new XrdMgmOfsFile((char*)"bench");
+
+            if (file) {
+              file->open(&vid, fname.c_str(), SFS_O_RDWR, 0777, 0,
+                         "eos.app=fuse&eos.bookingsize=0");
+              delete file;
+            }
+          }
+        }
       }));
     }
 
-    std::for_each(workers.begin(), workers.end(), [](std::thread &t) 
-    {
+    std::for_each(workers.begin(), workers.end(), [](std::thread & t) {
       t.join();
     });
-    COMMONTIMING("STOP",&bench);
-    double rt = bench.RealTime()/1000.0;
-    const char* l =  eos_static_log(LOG_SILENT,  "[   write     ] files=%lu time=%.02f file-rate=%.02f Hz", n_threads * n_subdirs * n_subfiles, rt, 1.0 * n_threads * n_subdirs * n_subfiles / rt);
+    COMMONTIMING("STOP", &bench);
+    double rt = bench.RealTime() / 1000.0;
+    const char* l =  eos_static_log(LOG_SILENT,
+                                    "[   write     ] files=%lu time=%.02f file-rate=%.02f Hz",
+                                    n_threads * n_subdirs * n_subfiles, rt,
+                                    1.0 * n_threads * n_subdirs * n_subfiles / rt);
     oss << l;
     oss << std::endl;
     eos_static_notice(l);
   }
-
   {
     eos::common::Timing bench("Benchmark");
     COMMONTIMING("START", &bench);
-    std::vector<std::thread> workers;  
+    std::vector<std::thread> workers;
 
     //pass 6 - delete structure
     for (size_t i = 0; i < n_threads; i++) {
-      workers.push_back(std::thread([i, n_subdirs, n_subfiles, &vid, prefix]() 
-      {
-	eos::common::VirtualIdentity vid = eos::common::VirtualIdentity::Root();
-	XrdOucErrInfo error;
-	std::string wdir = prefix + std::string("worker.") + std::to_string(i);
-	XrdSecEntity client("sss");
-	client.tident="benchmark";
-	for ( size_t d = 0 ; d < n_subdirs ; d++) {
-	  std::string sdir = wdir + std::string("/d.") + std::to_string(d) + std::string("/");
-	  for ( size_t f = 0 ; f < n_subfiles ; f++) {
-	    std::string fname = sdir + std::string("f.") + std::to_string(f);
-	    gOFS->_rem(fname.c_str(), error, vid, "");
-	  }
-	  gOFS->_remdir(sdir.c_str(), error, vid);
-	}
-	gOFS->_remdir(wdir.c_str(), error, vid);
+      workers.push_back(std::thread([i, n_subdirs, n_subfiles, &vid, prefix]() {
+        eos::common::VirtualIdentity vid = eos::common::VirtualIdentity::Root();
+        XrdOucErrInfo error;
+        std::string wdir = prefix + std::string("worker.") + std::to_string(i);
+        XrdSecEntity client("sss");
+        client.tident = "benchmark";
 
+        for (size_t d = 0 ; d < n_subdirs ; d++) {
+          std::string sdir = wdir + std::string("/d.") + std::to_string(
+                               d) + std::string("/");
+
+          for (size_t f = 0 ; f < n_subfiles ; f++) {
+            std::string fname = sdir + std::string("f.") + std::to_string(f);
+            gOFS->_rem(fname.c_str(), error, vid, "");
+          }
+
+          gOFS->_remdir(sdir.c_str(), error, vid);
+        }
+
+        gOFS->_remdir(wdir.c_str(), error, vid);
       }));
     }
-    
-    std::for_each(workers.begin(), workers.end(), [](std::thread &t) 
-    {
+
+    std::for_each(workers.begin(), workers.end(), [](std::thread & t) {
       t.join();
     });
-
     gOFS->_remdir(prefix.c_str(), error, vid);
-    
-    COMMONTIMING("STOP",&bench);
-    double rt = bench.RealTime()/1000.0;
-    const char* l =  eos_static_log(LOG_SILENT,  "[   deletion  ] files=%lu dirs=%lu time=%.02f dir-rate=%.02f file-rate=%.02f Hz", n_threads * n_subdirs * n_subfiles, n_threads * n_subdirs, rt, 1.0 * n_threads * n_subdirs / rt, 1.0 * n_threads * n_subdirs * n_subfiles / rt);
+    COMMONTIMING("STOP", &bench);
+    double rt = bench.RealTime() / 1000.0;
+    const char* l =  eos_static_log(LOG_SILENT,
+                                    "[   deletion  ] files=%lu dirs=%lu time=%.02f dir-rate=%.02f file-rate=%.02f Hz",
+                                    n_threads * n_subdirs * n_subfiles, n_threads * n_subdirs, rt,
+                                    1.0 * n_threads * n_subdirs / rt,
+                                    1.0 * n_threads * n_subdirs * n_subfiles / rt);
     oss << l;
     oss << std::endl;
     eos_static_notice(l);
   }
-
-  
   reply.set_retc(0);
-  
-  reply.set_std_out( oss.str().c_str() );
-
+  reply.set_std_out(oss.str().c_str());
 }
 
 
