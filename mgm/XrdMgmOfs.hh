@@ -2048,6 +2048,7 @@ public:
   std::string mQdbPassword; ///< Quarkdb cluster password
   eos::QdbContactDetails mQdbContactDetails; ///< QuarkDB contact details
   std::string mQClientDir; ///<QClient metadata directory
+  std::string mQClientRocksDBOptions; ///<QClient specific rocksdb options
   int mHttpdPort; ///< port of the http server, default 8000
   int mFusexPort; ///< port of the FUSEX broadcast MQZ, default 1100
   int mGRPCPort; ///< port of the GRPC server, default 50051

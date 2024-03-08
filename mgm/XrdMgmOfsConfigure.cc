@@ -625,6 +625,17 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
           }
         }
 
+        if (!strcmp("qclient_rocksdb_options",var)) {
+          if (!(val = Config.GetWord())) {
+            Eroute.Emsg("Config", "argument for qclient_rocksdb_options is invalid");
+            NoGo = 1;
+          } else {
+            mQClientRocksDBOptions = val;
+
+            Eroute.Say("=====> mgmofs.qclient_rocksdb_options : ", mQClientRocksDBOptions.c_str());
+          }
+        }
+
         if (!strcmp("authlib", var)) {
           if ((!(val = Config.GetWord())) || (::access(val, R_OK))) {
             Eroute.Emsg("Config", "I cannot access the authorization library!");
