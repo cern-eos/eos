@@ -220,7 +220,7 @@ GetNetworkCounters(std::map<std::string, std::string>& output)
 
     if (fnetcounters) {
       data[0] = '\0';
-      int nbytes = fread((void*)data, max_read, sizeof(char), fnetcounters);
+      int nbytes = fread((void*)data, sizeof(char), max_read, fnetcounters);
 
       if (nbytes > 1) {
         data[nbytes - 1] = '\0';
