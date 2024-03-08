@@ -39,11 +39,12 @@ EOSNSNAMESPACE_BEGIN
 // Constructor
 //------------------------------------------------------------------------------
 MetadataFlusher::MetadataFlusher(const std::string& path,
-                                 const QdbContactDetails& contactDetails) :
+                                 const QdbContactDetails& contactDetails,
+                                 std::string rocksdb_options) :
   id(basename(path.c_str())),
   notifier(*this),
   backgroundFlusher(contactDetails.members, contactDetails.constructOptions(),
-                    notifier, new qclient::RocksDBPersistency(path)),
+                    notifier, new qclient::RocksDBPersistency(path, rocksdb_options)),
   sizePrinter(&MetadataFlusher::queueSizeMonitoring, this)
 {
   synchronize();
