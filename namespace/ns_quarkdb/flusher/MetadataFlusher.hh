@@ -61,6 +61,11 @@ public:
   MetadataFlusher(const std::string& path,
                   const QdbContactDetails& contactDetails);
 
+  MetadataFlusher(const std::string& path,
+                  const QdbContactDetails& contactDetails,
+                  const std::string& flusher_type,
+                  const std::string& rocksdb_options);
+
   //----------------------------------------------------------------------------
   //! Destructor
   //----------------------------------------------------------------------------

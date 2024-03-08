@@ -21,8 +21,8 @@
 #include <list>
 #include <sstream>
 #include <memory>
-#include "qclient/BackgroundFlusher.hh"
 #include "qclient/RocksDBPersistency.hh"
+#include "qclient/PersistencyLayerBuilder.hh"
 #include "namespace/ns_quarkdb/flusher/MetadataFlusher.hh"
 #include "namespace/ns_quarkdb/QdbContactDetails.hh"
 #include "common/Logging.hh"
@@ -48,6 +48,24 @@ MetadataFlusher::MetadataFlusher(const std::string& path,
 {
   synchronize();
 }
+
+
+MetadataFlusher::MetadataFlusher(const std::string& path,
+                                 const QdbContactDetails& contactDetails,
+                                 const std::string& flusher_type,
+                                 const std::string& rocksdb_options) :
+    id(basename(path.c_str())),
+    notifier(*this),
+    backgroundFlusher(qclient::BackgroundFlusherBuilder::makeFlusher(contactDetails.members,
+                                                                     contactDetails.constructOptions(),
+                                                                     notifier,
+                                                                     flusher_type,
+                                                                     qclient::RocksDBConfig(path, rocksdb_options))),
+    sizePrinter(&MetadataFlusher::queueSizeMonitoring, this)
+{
+  synchronize();
+}
+//------------
 
 //------------------------------------------------------------------------------
 // Destructor
@@ -170,7 +188,7 @@ void MetadataFlusher::synchronize(ItemIndex targetIndex)
                   backgroundFlusher.getEndingIndex(), targetIndex);
 }
 
-//------------------------------------------------------------------------------
+//------------------------------------------------------------------
 // Class to receive notifications from the BackgroundFlusher
 //------------------------------------------------------------------------------
 FlusherNotifier::FlusherNotifier(MetadataFlusher& flusher):

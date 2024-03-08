@@ -625,6 +625,28 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
           }
         }
 
+        if (!strcmp("qclient_flusher_type",var)) {
+          if (!(val = Config.GetWord())) {
+            Eroute.Emsg("Config", "argument for qclient_flusher_type is invalid");
+            NoGo = 1;
+          } else {
+            mQClientFlusherType = val;
+
+            Eroute.Say("=====> mgmofs.qclient_flusher_type : ", mQClientFlusherType.c_str());
+          }
+        }
+
+        if (!strcmp("qclient_rocksdb_options",var)) {
+          if (!(val = Config.GetWord())) {
+            Eroute.Emsg("Config", "argument for qclient_rocksdb_options is invalid");
+            NoGo = 1;
+          } else {
+            mQClientRocksDBOptions = val;
+
+            Eroute.Say("=====> mgmofs.qclient_rocksdb_options : ", mQClientRocksDBOptions.c_str());
+          }
+        }
+
         if (!strcmp("authlib", var)) {
           if ((!(val = Config.GetWord())) || (::access(val, R_OK))) {
             Eroute.Emsg("Config", "I cannot access the authorization library!");
