@@ -59,7 +59,8 @@ public:
   //! Constructor
   //----------------------------------------------------------------------------
   MetadataFlusher(const std::string& path,
-                  const QdbContactDetails& contactDetails);
+                  const QdbContactDetails& contactDetails,
+                  std::string rocksdb_options="");
 
   //----------------------------------------------------------------------------
   //! Destructor
