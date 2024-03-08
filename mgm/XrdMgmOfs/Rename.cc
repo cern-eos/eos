@@ -305,6 +305,7 @@ XrdMgmOfs::_rename(const char* old_name,
       // Check if old path is a quota node - this is forbidden
       try {
         auto rdirLocked = eosView->getContainerReadLocked(oPath.GetPath());
+
         if (rdirLocked->getUnderlyingPtr()->getFlags() & eos::QUOTA_NODE_FLAG) {
           errno = EACCES;
           return Emsg(epname, error, EACCES, "rename - source is a quota node");
@@ -455,12 +456,13 @@ XrdMgmOfs::_rename(const char* old_name,
             dir->notifyMTimeChange(gOFS->eosDirectoryService);
             eosView->updateContainerStore(dir.get());
             COMMONTIMING("rename::rename_file_within_same_container_file_rename", &tm);
-	    const std::string old_name = oPath.GetName();
+            const std::string old_name = oPath.GetName();
+
             if (fusexcast) {
               const eos::FileIdentifier fid = file->getIdentifier();
-              fuse_batch.Register([&, did, pdid, fid]() {
+              fuse_batch.Register([&, did, pdid, fid, old_name]() {
                 gOFS->FuseXCastRefresh(did, pdid);
-		gOFS->FuseXCastDeletion(did, old_name);
+                gOFS->FuseXCastDeletion(did, old_name);
                 gOFS->FuseXCastRefresh(fid, did);
               });
             }
@@ -734,7 +736,7 @@ XrdMgmOfs::_rename(const char* old_name,
               rdir->setCTimeNow();
             }
 
-	    const std::string old_name = oPath.GetName();
+            const std::string old_name = oPath.GetName();
             dir->setMTimeNow();
             dir->notifyMTimeChange(gOFS->eosDirectoryService);
             eosView->updateContainerStore(rdir.get());
@@ -743,7 +745,7 @@ XrdMgmOfs::_rename(const char* old_name,
             fuse_batch.Register([&, rdid, did, pdid, old_name]() {
               gOFS->FuseXCastRefresh(rdid, did);
               gOFS->FuseXCastRefresh(did, pdid);
-	      gOFS->FuseXCastDeletion(did, old_name);
+              gOFS->FuseXCastDeletion(did, old_name);
             });
             COMMONTIMING("rename::rename_dir_within_same_container", &tm);
           } else {
@@ -795,8 +797,9 @@ XrdMgmOfs::_rename(const char* old_name,
 
               eosView->updateContainerStore(dir.get());
               COMMONTIMING("rename::move_dir_remove_source_tree", &tm);
-              fuse_batch.Register([&, did, pdid]() {
-                gOFS->FuseXCastDeletion(did, oPath.GetName());
+              const std::string dir_name = oPath.GetName();
+              fuse_batch.Register([&, did, pdid, dir_name]() {
+                gOFS->FuseXCastDeletion(did, dir_name);
                 gOFS->FuseXCastRefresh(did, pdid);
               });
             }
@@ -831,7 +834,7 @@ XrdMgmOfs::_rename(const char* old_name,
               eosView->updateContainerStore(newdir.get());
               fuse_batch.Register([&, ndid, pndid, rdid]() {
                 gOFS->FuseXCastRefresh(ndid, pndid);
-		gOFS->FuseXCastRefresh(rdid, ndid);
+                gOFS->FuseXCastRefresh(rdid, ndid);
               });
               COMMONTIMING("rename::move_dir_update_target_directory_add_old_dir", &tm);
             }
