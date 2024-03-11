@@ -32,12 +32,18 @@ elif [[ -r /etc/sysconfig/eos_env ]]; then
  set +a
 fi
 
-NORMAL=$(tput sgr0)
-RED=$(tput setaf 1)
+if [[ -n "$TERM" ]]; then
+  NORMAL=$(tput sgr0)
+  RED=$(tput setaf 1)
 
-function red() {
-    echo -e "$RED$*$NORMAL"
-}
+  function red() {
+      echo -e "${RED}$*${NORMAL}"
+  }
+else
+  function red() {
+    echo -e "$*"
+  }
+fi
 
 # Try to guess the value of EOS_MGM_URL if not exit.
 if [[ -z "${EOS_MGM_URL}" ]]; then
