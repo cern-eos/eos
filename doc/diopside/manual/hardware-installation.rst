@@ -121,9 +121,9 @@ EOS for Client+Server
 
 The following platforms are supported to run EOS client and server:
 * CentOS 7
-* CentOS 8
-* CentOS 8 Stream
-* CentOS 9 Stream
+* Alma 8
+* Alma 9
+* Fedora Core 38
 
 RPM Repository Configuration
 """"""""""""""""""""""""""""
@@ -145,17 +145,11 @@ You have to configure a dependency repository and either the tag or commit repos
 +=================+====================================================================================================================+
 | CentOS7         | yum-config-manager --add-repo "https://storage-ci.web.cern.ch/storage-ci/eos/diopside-depend/el-7/x86_64/"         |
 +-----------------+--------------------------------------------------------------------------------------------------------------------+
-| CentOS8         | yum-config-manager --add-repo "https://storage-ci.web.cern.ch/storage-ci/eos/diopside-depend/el-8/x86_64/"         |
+| Alma 8          | yum-config-manager --add-repo "https://storage-ci.web.cern.ch/storage-ci/eos/diopside-depend/el-8/x86_64/"         |
 +-----------------+--------------------------------------------------------------------------------------------------------------------+
-| CentOS8 Stream  | yum-config-manager --add-repo "https://storage-ci.web.cern.ch/storage-ci/eos/diopside-depend/el-8s/x86_64/"        |
+| Alma 9          | yum-config-manager --add-repo "https://storage-ci.web.cern.ch/storage-ci/eos/diopside-depend/el-9/x86_64/"        |
 +-----------------+--------------------------------------------------------------------------------------------------------------------+
-| CentOS9 Stream  | yum-config-manager --add-repo "https://storage-ci.web.cern.ch/storage-ci/eos/diopside-depend/el-9s/x86_64/"        |
-+-----------------+--------------------------------------------------------------------------------------------------------------------+
-| Fedora 35       | https://storage-ci.web.cern.ch/storage-ci/eos/diopside-depend/fc-35/                                               |
-+-----------------+--------------------------------------------------------------------------------------------------------------------+
-| Fedora 36       | https://storage-ci.web.cern.ch/storage-ci/eos/diopside-depend/fc-36/                                               |
-+-----------------+--------------------------------------------------------------------------------------------------------------------+
-| Fedora 37       | https://storage-ci.web.cern.ch/storage-ci/eos/diopside-depend/fc-37/                                               |
+| Fedora 38       | https://storage-ci.web.cern.ch/storage-ci/eos/diopside-depend/fc-38/                                               |
 +-----------------+--------------------------------------------------------------------------------------------------------------------+
 
 **Tag Releases**
@@ -163,13 +157,13 @@ You have to configure a dependency repository and either the tag or commit repos
 +-----------------+--------------------------------------------------------------------------------------------------------------------+
 | Platform        |  Setup                                                                                                             | 
 +=================+====================================================================================================================+
-| CentOS7         |  yum-config-manager --add-repo "https://storage-ci.web.cern.ch/storage-ci/eos/diopside/tag/testing/el-7/x86_64/"   |
+| CentOS7         | yum-config-manager --add-repo "https://storage-ci.web.cern.ch/storage-ci/eos/diopside/tag/testing/el-7/x86_64/"    |
 +-----------------+--------------------------------------------------------------------------------------------------------------------+
-| CentOS8         |  yum-config-manager --add-repo "https://storage-ci.web.cern.ch/storage-ci/eos/diopside/tag/testing/el-8/x86_64/"   |
+| Alma 8          | yum-config-manager --add-repo "https://storage-ci.web.cern.ch/storage-ci/eos/diopside/tag/testing/el-8/x86_64/"    |
 +-----------------+--------------------------------------------------------------------------------------------------------------------+
-| CentOS8 Stream  | yum-config-manager --add-repo "https://storage-ci.web.cern.ch/storage-ci/eos/diopside/tag/testing/el-8s/x86_64/"   |
+| Alma 9          | yum-config-manager --add-repo "https://storage-ci.web.cern.ch/storage-ci/eos/diopside/tag/testing/el-8s/x86_64/"   |
 +-----------------+--------------------------------------------------------------------------------------------------------------------+
-| CentOS9 Stream  | yum-config-manager --add-repo "https://storage-ci.web.cern.ch/storage-ci/eos/diopside/tag/testing/el-9s/x86_64/"   |
+| CentOS9 Stream  | https://storage-ci.web.cern.ch/storage-ci/eos/diopside/tag/testing/fc-38/x86_64/"                                  |
 +-----------------+--------------------------------------------------------------------------------------------------------------------+
 
 
@@ -180,51 +174,12 @@ You have to configure a dependency repository and either the tag or commit repos
 +=================+====================================================================================================================+
 | CentOS7         |  yum-config-manager --add-repo "https://storage-ci.web.cern.ch/storage-ci/eos/diopside/commit/el-7/x86_64/"        |
 +-----------------+--------------------------------------------------------------------------------------------------------------------+
-| CentOS8         |  yum-config-manager --add-repo "https://storage-ci.web.cern.ch/storage-ci/eos/diopside/commit/el-8/x86_64/"        |
+| Alma 8          |  yum-config-manager --add-repo "https://storage-ci.web.cern.ch/storage-ci/eos/diopside/commit/el-8/x86_64/"        |
 +-----------------+--------------------------------------------------------------------------------------------------------------------+
-| CentOS8 Stream  | yum-config-manager --add-repo "https://storage-ci.web.cern.ch/storage-ci/eos/diopside/commit/el-8s/x86_64/"        |
+| Alma 9          | yum-config-manager --add-repo "https://storage-ci.web.cern.ch/storage-ci/eos/diopside/commit/el-8s/x86_64/"        |
 +-----------------+--------------------------------------------------------------------------------------------------------------------+
-| CentOS9 Stream  | yum-config-manager --add-repo "https://storage-ci.web.cern.ch/storage-ci/eos/diopside/commmit/el-9s/x86_64/"       |
+| Fedora 38       | https://storage-ci.web.cern.ch/storage-ci/eos/diopside/tag/testing/fc-38/x86_64/"                                  |
 +-----------------+--------------------------------------------------------------------------------------------------------------------+
-| Fedora 35       | https://storage-ci.web.cern.ch/storage-ci/eos/diopside/tag/testing/fc-35/                                          |
-+-----------------+--------------------------------------------------------------------------------------------------------------------+
-| Fedora 36       | https://storage-ci.web.cern.ch/storage-ci/eos/diopside/tag/testing/fc-36/                                          |
-+-----------------+--------------------------------------------------------------------------------------------------------------------+
-| Fedora 37       | https://storage-ci.web.cern.ch/storage-ci/eos/diopside/tag/testing/fc-37/                                          |
-+-----------------+--------------------------------------------------------------------------------------------------------------------+
-
-
-.. index::
-   pair: OSX; Packages
-
-EOS for Clients
-~~~~~~~~~~~~~~~
-
-The EOS client only (EOS Shell +FUSE filesystem) is additionally available on:
-
-* Mac OSX
-* Fedora/Ubuntu
-
-**Tag Releases**
-
-+-----------------+--------------------------------------------------------------------------------------------------------------------+
-| Platform        |  Setup                                                                                                             | 
-+=================+====================================================================================================================+
-| OSX             | https://storage-ci.web.cern.ch/storage-ci/eos/diopside/tag/testing/osx/                                            |
-+-----------------+--------------------------------------------------------------------------------------------------------------------+
-| Fedora 35       | https://storage-ci.web.cern.ch/storage-ci/eos/diopside/tag/testing/fc-35/                                          |
-+-----------------+--------------------------------------------------------------------------------------------------------------------+
-
-**Commit Releases**
-
-+-----------------+--------------------------------------------------------------------------------------------------------------------+
-| Platform        |  Setup                                                                                                             | 
-+=================+====================================================================================================================+
-| Fedora 36       | https://storage-ci.web.cern.ch/storage-ci/eos/diopside/tag/testing/fc-36/                                          |
-+-----------------+--------------------------------------------------------------------------------------------------------------------+
-| Fedora 37       | https://storage-ci.web.cern.ch/storage-ci/eos/diopside/tag/testing/fc-37/                                          |
-+-----------------+--------------------------------------------------------------------------------------------------------------------+
-
 
 Client+FUSE RPM Installation
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -239,53 +194,4 @@ Server RPM Installation
 .. code-block::
 
    yum install eos-server
-
-.. index::
-   pair: Ubuntu; Packages
-
-Debian/Ubuntu Installation
---------------------------
-
-The EOS client gets automatically built for recent Ubuntu releases,
-currently **focal** and **jammy**.
-
-.. note:: 
-    You need to add the XRootD and EOS repositories to your `/etc/apt/sources.list`.
-
-   .. code-block:: 
-        
-      echo "deb [arch=$(dpkg --print-architecture)] http://storage-ci.web.cern.ch/storage-ci/debian/xrootd/ $(lsb_release -cs) release" | sudo tee -a /etc/apt/sources.list.d/cerneos-client.list > /dev/null
-    
-      echo "deb [arch=$(dpkg --print-architecture)] http://storage-ci.web.cern.ch/storage-ci/debian/eos/diopside/ $(lsb_release -cs) tag" | sudo tee -a /etc/apt/sources.list.d/cerneos-client.list > /dev/null
-
-
-The above snippet will automatically get "arch" and "release" information for your machine (otherwise, just change arch and distribution name as required).
-
-e.g., for a "amd64" machine with ubuntu "focal" that would be
-
-.. code-block:: 
-
-   deb [arch=amd64] http://storage-ci.web.cern.ch/storage-ci/debian/xrootd/ focal release
-
-   deb [arch=amd64] http://storage-ci.web.cern.ch/storage-ci/debian/eos/diopside/ focal tag
-
-
-.. note:: 
-
-   Also, to avoid possible conflicts with other releases you might need to version-lock xrootd dependency packages (this will we softened in future releases).
-
-Client APT Installation 
-~~~~~~~~~~~~~~~~~~~~~~~
-
-Once the repository are properly configured, you install the Client+FUSE packages using `apt`:
-
-.. code-block:: 
-
-   curl -sL http://storage-ci.web.cern.ch/storage-ci/storageci.key | sudo apt-key add -
-   sudo apt update
-   sudo apt install eos-client eos-fusex
-
-
-
-
 
