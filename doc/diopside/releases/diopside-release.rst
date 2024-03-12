@@ -17,6 +17,24 @@ Introduction
 This release is based on XRootD V5.
 
 
+``v5.2.19 Diopside``
+====================
+
+2024-03-12
+
+
+Note
+----
+
+* Update dependency to xrootd/eos-xrootd 5.6.9
+
+Bug
+----
+
+* [EOS-6085] - EOSPUBLIC mgm crash during BroadcastDeletionFromExternal in rename
+* [EOS-6088] - MGM aborts with "what():  std::bad_alloc" under eos::mgm::FuseServer::Caps::BroadcastDeletionFromExternal
+
+
 ``v5.2.18 Diopside``
 ====================
 
