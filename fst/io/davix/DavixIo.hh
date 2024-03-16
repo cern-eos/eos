@@ -408,7 +408,7 @@ public:
   //! @return returns implementation dependent handle or 0 in case of error
   //--------------------------------------------------------------------------
 
-  FileIo::FtsHandle* ftsOpen()
+  FileIo::FtsHandle* ftsOpen(int options = 0)
   {
     return 0;
   }
