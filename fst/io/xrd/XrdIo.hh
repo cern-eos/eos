@@ -523,7 +523,7 @@ public:
   //!
   //! @return returns implementation dependent handle or 0 in case of error
   //----------------------------------------------------------------------------
-  FileIo::FtsHandle* ftsOpen(int options = 0);
+  FileIo::FtsHandle* ftsOpen(int options = 0) override;
 
   //----------------------------------------------------------------------------
   //! Return the next path related to a traversal cursor obtained with ftsOpen
@@ -532,7 +532,7 @@ public:
   //!
   //! @return returns implementation dependent handle or 0 in case of error
   //----------------------------------------------------------------------------
-  std::string ftsRead(FileIo::FtsHandle* fts_handle);
+  std::string ftsRead(FileIo::FtsHandle* fts_handle) override;
 
   //----------------------------------------------------------------------------
   //! Close a traversal cursor
@@ -541,7 +541,7 @@ public:
   //!
   //! @return 0 if fts_handle was an open cursor, otherwise -1
   //----------------------------------------------------------------------------
-  virtual int ftsClose(FileIo::FtsHandle* fts_handle);
+  virtual int ftsClose(FileIo::FtsHandle* fts_handle) override;
 
 #ifdef IN_TEST_HARNESS
 public:

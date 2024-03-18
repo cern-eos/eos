@@ -405,10 +405,12 @@ public:
 
   //--------------------------------------------------------------------------
   //! Open a cursor to traverse a storage system
+  //!
+  //! @param options options for traversing the hierarchy
+  //
   //! @return returns implementation dependent handle or 0 in case of error
   //--------------------------------------------------------------------------
-
-  FileIo::FtsHandle* ftsOpen()
+  FileIo::FtsHandle* ftsOpen(int options = 0) override
   {
     return 0;
   }
@@ -418,8 +420,7 @@ public:
   //! @param fts_handle cursor obtained by ftsOpen
   //! @return returns implementation dependent handle or 0 in case of error
   //--------------------------------------------------------------------------
-
-  std::string ftsRead(FileIo::FtsHandle* fts_handle)
+  std::string ftsRead(FileIo::FtsHandle* fts_handle) override
   {
     return "";
   }
@@ -429,8 +430,7 @@ public:
   //! @param fts_handle cursor to close
   //! @return 0 if fts_handle was an open cursor, otherwise -1
   //--------------------------------------------------------------------------
-
-  int ftsClose(FileIo::FtsHandle* fts_handle)
+  int ftsClose(FileIo::FtsHandle* fts_handle) override
   {
     return -1;
   }
