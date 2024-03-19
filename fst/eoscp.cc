@@ -345,11 +345,12 @@ usage()
  * For now, only displays the EOS_CLIENT_VERSION and the EOS_CLIENT_RELEASE the same
  * way it is done by eos -v
  */
-void displayInformation() {
+void displayInformation()
+{
   std::stringstream infos;
-  infos << "EOS " << VERSION << endl << endl;
-  infos << "Developed by the CERN IT storage group" <<endl;
-  fprintf(stdout,infos.str().c_str());
+  infos << "EOS " << VERSION << std::endl << std::endl;
+  infos << "Developed by the CERN IT storage group" << std::endl;
+  fprintf(stdout, infos.str().c_str());
   exit(0);
 }
 
@@ -367,7 +368,7 @@ extern "C"
     va_start(args, format);
     vsprintf(cout_buff, format, args);
     va_end(args);
-    cout << cout_buff;
+    std::cout << cout_buff;
   }
 
   void
@@ -378,7 +379,7 @@ extern "C"
     va_start(args, format);
     vsprintf(cerr_buff, format, args);
     va_end(args);
-    cerr << cerr_buff;
+    std::cerr << cerr_buff;
   }
 
 #define COUT(s) do {                            \
@@ -758,6 +759,7 @@ CompareCksumResult compareChecksum(XrdCl::FileSystem& fs,
   XrdCl::XRootDStatus status = fs.Query(XrdCl::QueryCode::Checksum, arg,
                                         responseRaw);
   std::unique_ptr<XrdCl::Buffer> response(responseRaw);
+
   if (status.IsOK()) {
     // we got the checksum of the destination file
     // compare the checksums between source and destination
@@ -846,15 +848,15 @@ main(int argc, char* argv[])
   XrdCl::DefaultEnv::GetEnv()->PutInt("MetalinkProcessing", 0);
   XrdCl::DefaultEnv::GetEnv()->PutInt("ParallelEvtLoop",
                                       8);  // needed for high performance on 100GE
-                                           // Define long options using struct option
+  // Define long options using struct option
   struct option long_options[] = {
-      {"version", no_argument, nullptr, 'I'},
-      {nullptr, 0, nullptr, 0} // Required end marker
+    {"version", no_argument, nullptr, 'I'},
+    {nullptr, 0, nullptr, 0} // Required end marker
   };
 
-
   while ((c = getopt_long(argc, argv,
-                     "CEnshxdvlipfcje:P:X:b:m:u:g:t:S:D:5aA:r:N:L:RT:O:V0q:",long_options,nullptr)) != -1) {
+                          "CEnshxdvlipfcje:P:X:b:m:u:g:t:S:D:5aA:r:N:L:RT:O:V0q:", long_options,
+                          nullptr)) != -1) {
     switch (c) {
     case 'v':
       verbose = 1;
@@ -1122,6 +1124,7 @@ main(int argc, char* argv[])
     case 'E':
       cksummismatchdelete = 1;
       break;
+
     case 'I':
       displayInformation();
       break;
@@ -2412,6 +2415,7 @@ main(int argc, char* argv[])
           dest_mode[i] = st[0].st_mode;
         }
       }
+
       if ((S_ISREG(dstst[i].st_mode) &&
            (dst_location[i].second.substr(0, 5) != "/dev/"))) {
         chmod_failed = chmod(dst_location[i].second.c_str(), dest_mode[i]);
@@ -2497,7 +2501,7 @@ main(int argc, char* argv[])
     }
 
     int nread = -1;
-    auto mReadStart = chrono::steady_clock::now();
+    auto mReadStart = std::chrono::steady_clock::now();
 
     switch (src_type[0]) {
     case LOCAL_ACCESS:
@@ -2562,8 +2566,8 @@ main(int argc, char* argv[])
     break;
     }
 
-    auto mReadStop = chrono::steady_clock::now();
-    ingress_microseconds += chrono::duration_cast<chrono::microseconds>
+    auto mReadStop = std::chrono::steady_clock::now();
+    ingress_microseconds += std::chrono::duration_cast<std::chrono::microseconds>
                             (mReadStop - mReadStart).count();
 
     if (nread < 0) {
@@ -2582,7 +2586,7 @@ main(int argc, char* argv[])
       offsetXS += nread;
     }
 
-    auto mWriteStart = chrono::steady_clock::now();
+    auto mWriteStart = std::chrono::steady_clock::now();
     int64_t nwrite = 0;
 
     for (int i = 0; i < ndst; i++) {
@@ -2649,8 +2653,8 @@ main(int argc, char* argv[])
       }
     }
 
-    auto mWriteStop = chrono::steady_clock::now();
-    egress_microseconds += chrono::duration_cast<chrono::microseconds>
+    auto mWriteStop = std::chrono::steady_clock::now();
+    egress_microseconds += std::chrono::duration_cast<std::chrono::microseconds>
                            (mWriteStop - mWriteStart).count();
     totalbytes += nwrite;
     stopwritebyte += nwrite;
@@ -2699,7 +2703,7 @@ main(int argc, char* argv[])
     }
 
     print_progbar(totalbytes, st[0].st_size);
-    cout << endl;
+    std::cout << std::endl;
   }
 
   auto xferSummary = createXferSummary(src_location, dst_location, totalbytes);

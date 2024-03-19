@@ -365,7 +365,7 @@ EosTok::Match(const std::string& input, const std::string& regexString)
     std::regex re(regexString);
     bool match = std::regex_match(input, re);
     return match;
-  } catch (regex_error& e) {
+  } catch (std::regex_error& e) {
     std::cerr << "error: invalid regex : " << e.what() << " : " << "CODE IS: " <<
               e.code() << std::endl;
     return -1;

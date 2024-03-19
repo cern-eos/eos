@@ -323,7 +323,7 @@ public:
   //!
   //! @return 0 on success, -1 otherwise and error code is set
   //----------------------------------------------------------------------------
-  virtual int attrSet(string name, std::string value);
+  virtual int attrSet(std::string name, std::string value);
 
   //----------------------------------------------------------------------------
   //! Get a binary attribute by name
@@ -344,7 +344,7 @@ public:
   //!
   //! @return 0 on success, -1 otherwise and error code is set
   //----------------------------------------------------------------------------
-  virtual int attrGet(string name, std::string& value);
+  virtual int attrGet(std::string name, std::string& value);
 
   //----------------------------------------------------------------------------
   //! Delete a binary attribute by name

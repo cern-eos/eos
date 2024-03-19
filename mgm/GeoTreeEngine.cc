@@ -2702,8 +2702,8 @@ bool GeoTreeEngine::updateTreeInfo(SchedTME* entry,
 #undef unsetOneStateVarStatusInAllFastTrees
 }
 
-bool GeoTreeEngine::updateTreeInfo(const map<string, int>& updatesFs,
-                                   const map<string, int>& updatesDp)
+bool GeoTreeEngine::updateTreeInfo(const std::map<std::string, int>& updatesFs,
+                                   const std::map<std::string, int>& updatesDp)
 {
   // copy the foreground FastStructures to the BackGround FastStructures
   // so that the penalties applied after the placement/access are kept by defaut

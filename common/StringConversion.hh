@@ -895,17 +895,17 @@ public:
   //----------------------------------------------------------------------------
   //! Check if a string is a valid UTF-8 string
   //----------------------------------------------------------------------------
-  static bool Valid_UTF8(const string& string);
+  static bool Valid_UTF8(const std::string& string);
 
   //----------------------------------------------------------------------------
   //! CGI encode invalid UTF8 strings, valid just pass through
   //----------------------------------------------------------------------------
-  static std::string EncodeInvalidUTF8(const string& string);
+  static std::string EncodeInvalidUTF8(const std::string& string);
 
   //----------------------------------------------------------------------------
   //! CGI decode invalid UTF8 strings, valid just pass through
   //----------------------------------------------------------------------------
-  static std::string DecodeInvalidUTF8(const string& string)
+  static std::string DecodeInvalidUTF8(const std::string& string)
   {
     return curl_unescaped(string);
   }

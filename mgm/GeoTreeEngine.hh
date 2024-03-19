@@ -815,7 +815,7 @@ class GeoTreeEngine : public eos::common::LogId
       applyBranchDisablings(*entry);
 
       if (g_logging.gLogMask & LOG_MASK(LOG_DEBUG)) {
-        stringstream ss;
+        std::stringstream ss;
         ss << (*entry->backgroundFastStruct->placementTree);
         eos_debug("fast structures updated successfully from slowtree : new FASTtree is \n %s",
                   ss.str().c_str());
@@ -829,7 +829,7 @@ class GeoTreeEngine : public eos::common::LogId
       entry->refreshBackGroundFastStructures();
 
       if (g_logging.gLogMask & LOG_MASK(LOG_DEBUG)) {
-        stringstream ss;
+        std::stringstream ss;
         ss << (*entry->backgroundFastStruct->placementTree);
         eos_debug("fast structures updated successfully from fastree : new FASTtree is \n %s",
                   ss.str().c_str());
@@ -868,7 +868,7 @@ class GeoTreeEngine : public eos::common::LogId
       }
 
       if (g_logging.gLogMask & LOG_MASK(LOG_DEBUG)) {
-        stringstream ss;
+        std::stringstream ss;
         ss << (*entry->backgroundFastStruct->proxyAccessTree);
         eos_debug("fast structures updated successfully from slowtree : new FASTtree is \n %s",
                   ss.str().c_str());
@@ -882,7 +882,7 @@ class GeoTreeEngine : public eos::common::LogId
       entry->refreshBackGroundFastStructures();
 
       if (g_logging.gLogMask & LOG_MASK(LOG_DEBUG)) {
-        stringstream ss;
+        std::stringstream ss;
         ss << (*entry->backgroundFastStruct->proxyAccessTree);
         eos_debug("fast structures updated successfully from fastree : new FASTtree is \n %s",
                   ss.str().c_str());
@@ -941,10 +941,10 @@ protected:
   eos::common::RWMutex pAddRmFsMutex;
 
   //! this is the set of all the watched keys to be notified about for FileSystems
-  static set<std::string> gWatchedKeys;
+  static std::set<std::string> gWatchedKeys;
 
   //! this map allow to convert a notification key to an enum for efficient processing
-  static const std::map<string, int> gNotifKey2EnumSched;
+  static const std::map<std::string, int> gNotifKey2EnumSched;
 
   //--------------------------------------------------------------------------------------------------------
   //--------------------------------------------------------------------------------------------------------
@@ -1291,7 +1291,7 @@ protected:
     bool updateNeeded = false;
 
     if (g_logging.gLogMask & LOG_MASK(LOG_DEBUG)) {
-      stringstream ss;
+      std::stringstream ss;
       ss << (*placementTree);
       eos_debug("fast tree used to copy from is: \n %s", ss.str().c_str());
     }
@@ -1395,7 +1395,7 @@ protected:
 
     // do the placement
     if (g_logging.gLogMask & LOG_MASK(LOG_DEBUG)) {
-      stringstream ss;
+      std::stringstream ss;
       ss << (*tree);
       eos_debug("fast tree used for placement is: \n %s", ss.str().c_str());
     }
@@ -1418,7 +1418,7 @@ protected:
                                   true, false)) {
             eos_debug("%s", "msg=\"could not find a new replica slot in the "
                       "fast tree\"");
-            stringstream ss;
+            std::stringstream ss;
             ss << (*tree);
             eos_debug("msg=\"iteration number %lu fast tree used for placement "
                       "is \n %s", k, ss.str().c_str());
@@ -1445,7 +1445,7 @@ protected:
                                 true, false)) {
           eos_debug("%s", "msg=\"could not find a new replica slot in the "
                     "fast tree\"");
-          stringstream ss;
+          std::stringstream ss;
           ss << (*tree);
           eos_debug("msg=\"iteration number %lu fast tree used for placement is"
                     " \n %s", k, ss.str().c_str());
@@ -1470,7 +1470,7 @@ protected:
     eos::common::Logging& g_logging = eos::common::Logging::GetInstance();
 
     if (g_logging.gLogMask & LOG_MASK(LOG_DEBUG)) {
-      stringstream ss;
+      std::stringstream ss;
       ss << (*accessTree);
       eos_debug("fast tree used to copy from is: \n %s", ss.str().c_str());
     }
@@ -1505,7 +1505,7 @@ protected:
 
     // do the access
     if (g_logging.gLogMask & LOG_MASK(LOG_DEBUG)) {
-      stringstream ss;
+      std::stringstream ss;
       ss << (*tree);
       eos_debug("fast tree used for access is: \n %s", ss.str().c_str());
     }
@@ -1539,8 +1539,8 @@ protected:
 
   bool updateTreeInfo(SchedTME* entry, eos::common::FileSystem::fs_snapshot_t* fs,
                       int keys, SchedTreeBase::tFastTreeIdx ftidx = 0 , SlowTreeNode* stn = NULL);
-  bool updateTreeInfo(const map<string, int>& updatesFs,
-                      const map<string, int>& updatesDp);
+  bool updateTreeInfo(const std::map<std::string, int>& updatesFs,
+                      const std::map<std::string, int>& updatesDp);
   //bool updateTreeInfoFs(const map<string,int> &updatesFs);
 
   template<typename T> bool _setInternalParam(T& param, const T& value,

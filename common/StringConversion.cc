@@ -935,15 +935,19 @@ StringConversion::IsDecimalNumber(const std::string& str)
 // Check if a string is a double
 //------------------------------------------------------------------------------
 bool
-StringConversion::IsDouble(const std::string& s) {
-  static std::string sregex ="[-+]?[0-9]*\\.?[0-9]+([eE][-+]?[0-9]+)?";
+StringConversion::IsDouble(const std::string& s)
+{
+  static std::string sregex = "[-+]?[0-9]*\\.?[0-9]+([eE][-+]?[0-9]+)?";
   regex_t regex;
   int regexErrorCode = regcomp(&regex, sregex.c_str(), REG_EXTENDED);
+
   if (regexErrorCode) {
     return false;
   }
+
   int result = regexec(&regex, s.c_str(), 0, NULL, 0);
   regfree(&regex);
+
   if (result == REG_NOMATCH) {
     return false;
   } else {
@@ -1051,12 +1055,14 @@ std::string
 StringConversion::curl_path_escaped(const std::string& str)
 {
   XrdOucString escaped = curl_default_escaped(str).c_str();
-  while(escaped.replace("%2F","/")){}
+
+  while (escaped.replace("%2F", "/")) {}
+
   return std::string(escaped.c_str());
 }
 
 
-  //------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // Unescape string using CURL
 //------------------------------------------------------------------------------
 std::string
@@ -1259,7 +1265,7 @@ StringConversion::SortLines(XrdOucString& data)
 //------------------------------------------------------------------------------
 
 bool
-StringConversion::Valid_UTF8(const string& string)
+StringConversion::Valid_UTF8(const std::string& string)
 {
   int c, i, ix, n, j;
 
@@ -1301,7 +1307,7 @@ StringConversion::Valid_UTF8(const string& string)
 //------------------------------------------------------------------------------
 
 std::string
-StringConversion::EncodeInvalidUTF8(const string& key)
+StringConversion::EncodeInvalidUTF8(const std::string& key)
 {
   if (!Valid_UTF8(key)) {
     return curl_escaped(key);

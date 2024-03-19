@@ -164,7 +164,7 @@ ProcInterface::DropSubmittedCmd(const char* tident)
 //----------------------------------------------------------------------------
 // Handle protobuf request
 //----------------------------------------------------------------------------
-unique_ptr<IProcCommand>
+std::unique_ptr<IProcCommand>
 ProcInterface::HandleProtobufRequest(const char* opaque,
                                      eos::common::VirtualIdentity& vid)
 {

@@ -214,7 +214,7 @@ EosAuthOfs::Configure(XrdSysError& error, XrdOucEnv* envP)
           if ((val = Config.GetWord())) {
             mgm_instance = val;
 
-            if (mgm_instance.find(":") != string::npos) {
+            if (mgm_instance.find(":") != std::string::npos) {
               mBackend1 = std::make_pair(mgm_instance, (zmq::socket_t*)0);
             }
           } else {
@@ -231,7 +231,7 @@ EosAuthOfs::Configure(XrdSysError& error, XrdOucEnv* envP)
           if ((val = Config.GetWord())) {
             mgm_instance = val;
 
-            if (mgm_instance.find(":") != string::npos) {
+            if (mgm_instance.find(":") != std::string::npos) {
               mBackend2 = std::make_pair(mgm_instance, (zmq::socket_t*)0);
             }
           }
@@ -431,7 +431,7 @@ EosAuthOfs::AuthProxyThread()
     // Wait while there are either requests or replies to process
     try {
 #pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wdeprecated-declarations" 
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
       rc = zmq::poll(&items[0], poll_size, -1);
 #pragma GCC diagnostic pop
     } catch (zmq::error_t& e) {
@@ -447,8 +447,9 @@ EosAuthOfs::AuthProxyThread()
     if (items[0].revents & ZMQ_POLLIN) {
       eos_debug("got frontend event");
       zmq::recv_flags rf = zmq::recv_flags::none;
+
       while (true) {
-        if (!mFrontend->recv(msg,rf).has_value()) {
+        if (!mFrontend->recv(msg, rf).has_value()) {
           eos_err("error while recv on frontend");
           return;
         }
@@ -463,10 +464,12 @@ EosAuthOfs::AuthProxyThread()
         // Send request to the current master MGM
         {
           XrdSysMutexHelper scop_lock(mMutexMaster);
-	  zmq::send_flags sf = zmq::send_flags::none;
-	  if (more) {
-	    sf = zmq::send_flags::sndmore;
-	  }
+          zmq::send_flags sf = zmq::send_flags::none;
+
+          if (more) {
+            sf = zmq::send_flags::sndmore;
+          }
+
           if (!mMaster->send(msg, sf)) {
             eos_err("error while sending to master");
             return;
@@ -483,9 +486,9 @@ EosAuthOfs::AuthProxyThread()
     if (items[1].revents & ZMQ_POLLIN) {
       eos_debug("got mBackend1 event");
       zmq::recv_flags rf = zmq::recv_flags::none;
-      
+
       while (true) {
-        if (!mBackend1.second->recv(msg,rf).has_value()) {
+        if (!mBackend1.second->recv(msg, rf).has_value()) {
           eos_err("error while recv on mBackend1");
           return;
         }
@@ -497,11 +500,13 @@ EosAuthOfs::AuthProxyThread()
           return;
         }
 
-	zmq::send_flags sf = zmq::send_flags::none;
-	if (more) {
-	  sf = zmq::send_flags::sndmore;
-	}
-	if (!mFrontend->send(msg, sf)) {
+        zmq::send_flags sf = zmq::send_flags::none;
+
+        if (more) {
+          sf = zmq::send_flags::sndmore;
+        }
+
+        if (!mFrontend->send(msg, sf)) {
           eos_err("error while send to frontend(1)");
           return;
         }
@@ -516,9 +521,9 @@ EosAuthOfs::AuthProxyThread()
     if ((poll_size == 3) && (items[2].revents & ZMQ_POLLIN)) {
       eos_debug("got mBackend2 event");
       zmq::recv_flags rf = zmq::recv_flags::none;
-      
+
       while (true) {
-        if (!mBackend2.second->recv(msg,rf).has_value()) {
+        if (!mBackend2.second->recv(msg, rf).has_value()) {
           eos_err("error while recv on mBackend2");
           return;
         }
@@ -530,10 +535,12 @@ EosAuthOfs::AuthProxyThread()
           return;
         }
 
-	zmq::send_flags sf = zmq::send_flags::none;
-	if (more) {
-	  sf = zmq::send_flags::sndmore;
-	}
+        zmq::send_flags sf = zmq::send_flags::none;
+
+        if (more) {
+          sf = zmq::send_flags::sndmore;
+        }
+
         if (!mFrontend->send(msg, sf)) {
           eos_err("error while send to frontend(2)");
           return;
@@ -1268,8 +1275,11 @@ EosAuthOfs::SendProtoBufRequest(zmq::socket_t* socket,
 
   zmq::send_flags sf = zmq::send_flags::dontwait;
   auto r = socket->send(request, sf);
-  if (r.has_value()) sent = true;
-  
+
+  if (r.has_value()) {
+    sent = true;
+  }
+
   if (!sent) {
     eos_err("unable to send request using zmq");
   }
@@ -1295,6 +1305,7 @@ EosAuthOfs::GetResponse(zmq::socket_t*& socket)
   try {
     zmq::recv_flags rf = zmq::recv_flags::none;
     zmq::recv_result_t rr;
+
     do {
       rr = socket->recv(reply, rf);
       --num_retries;
@@ -1383,10 +1394,10 @@ EosAuthOfs::UpdateMaster(std::string& redirect_host)
   eos_debug("redirect_host:%s", redirect_host.c_str());
 
   // Chech if the new master was also specified in the configuration
-  if (mBackend1.first.find(redirect_host) != string::npos) {
+  if (mBackend1.first.find(redirect_host) != std::string::npos) {
     upd_socket = mBackend1.second;
     found = true;
-  } else if (mBackend2.first.find(redirect_host) != string::npos) {
+  } else if (mBackend2.first.find(redirect_host) != std::string::npos) {
     upd_socket = mBackend2.second;
     found = true;
   }

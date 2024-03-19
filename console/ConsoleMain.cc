@@ -993,7 +993,7 @@ Run(int argc, char* argv[])
           (!access(in1.c_str(), R_OK))) {
         // this is a script file
         char str[16384];
-        fstream file_op(in1.c_str(), ios::in);
+        std::fstream file_op(in1.c_str(), std::ios::in);
 
         while (!file_op.eof()) {
           file_op.getline(str, 16384);
@@ -1025,7 +1025,7 @@ Run(int argc, char* argv[])
           if (i == argindex) {
             cmdline += argv[i];
           } else {
-            stringstream ss;
+            std::stringstream ss;
             ss << std::quoted(argv[i]);
             cmdline += " ";
             cmdline += ss.str().c_str();

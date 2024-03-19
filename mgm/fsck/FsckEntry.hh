@@ -58,7 +58,7 @@ public:
   //------------------------------------------------------------------------------
   //! Constructor
   //------------------------------------------------------------------------------
-  FstFileInfoT(const::string& local_path, FstErr err):
+  FstFileInfoT(const std::string& local_path, FstErr err):
     mLocalPath(local_path), mFstErr(err)
   {}
 };

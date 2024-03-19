@@ -35,7 +35,7 @@ static constexpr std::string_view na = "NA";
 void
 Stat::Add(const char* tag, uid_t uid, gid_t gid, unsigned long val)
 {
-  lock_guard<mutex> g {Mutex};
+  std::lock_guard<std::mutex> g {Mutex};
   StatsUid[tag][uid] += val;
   StatsGid[tag][gid] += val;
   StatAvgUid[tag][uid].Add(val);
@@ -47,7 +47,7 @@ void
 Stat::AddExt(const char* tag, uid_t uid, gid_t gid, unsigned long nsample,
              const double& avgv, const double& minv, const double& maxv)
 {
-  lock_guard<mutex> g {Mutex};
+  std::lock_guard<std::mutex> g {Mutex};
   StatExtUid[tag][uid].Insert(nsample, avgv, minv, maxv);
   StatExtGid[tag][gid].Insert(nsample, avgv, minv, maxv);
 }
@@ -56,7 +56,7 @@ Stat::AddExt(const char* tag, uid_t uid, gid_t gid, unsigned long nsample,
 void
 Stat::AddExec(const char* tag, float exectime)
 {
-  lock_guard<mutex> g {Mutex};
+  std::lock_guard<std::mutex> g {Mutex};
   StatExec[tag].push_back(exectime);
 
   // skip asynchronous calls release / releasedir
@@ -612,7 +612,7 @@ Stat::GetTotalExec(double& deviation, size_t& ops)
 void
 Stat::Clear()
 {
-  lock_guard<mutex> g {Mutex};
+  std::lock_guard<std::mutex> g {Mutex};
 
   for (auto ittag = StatsUid.begin(); ittag != StatsUid.end(); ittag++) {
     StatsUid[ittag->first].clear();
@@ -647,7 +647,7 @@ void
 Stat::PrintOutTotal(std::string& out, bool details, bool monitoring,
                     bool numerical)
 {
-  lock_guard<mutex> g {Mutex};
+  std::lock_guard<std::mutex> g {Mutex};
   std::vector<std::string> tags, tags_ext;
   std::vector<std::string>::iterator it;
   google::sparse_hash_map<std::string, google::sparse_hash_map<uid_t, unsigned long long> >::iterator
@@ -1143,7 +1143,7 @@ Stat::PrintOutTotal(std::string& out, bool details, bool monitoring,
 void
 Stat::PrintOutTotalJson(Json::Value& out)
 {
-  lock_guard<mutex> g {Mutex};
+  std::lock_guard<std::mutex> g {Mutex};
   std::vector<std::string> tags, tags_ext;
   std::vector<std::string>::iterator it;
   google::sparse_hash_map<std::string, google::sparse_hash_map<uid_t, unsigned long long> >::iterator
@@ -1211,7 +1211,7 @@ Stat::Circulate(ThreadAssistant& assistant)
     }
 
     // --------------------------------------------
-    lock_guard<mutex> g {Mutex};
+    std::lock_guard<std::mutex> g {Mutex};
     google::sparse_hash_map<std::string, google::sparse_hash_map<uid_t, StatAvg> >::iterator
     tit;
     google::sparse_hash_map<std::string, google::sparse_hash_map<uid_t, StatExt> >::iterator

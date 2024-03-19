@@ -544,7 +544,7 @@ public:
   //----------------------------------------------------------------------------
   //! Set a member variable in a view
   //----------------------------------------------------------------------------
-  bool SetConfigMember(std::string key, string value,
+  bool SetConfigMember(std::string key, std::string value,
                        bool isstatus = false);
 
 protected:

@@ -45,7 +45,7 @@
 #endif
 
 
-eos::common::LRU::Cache<std::string, shared_ptr<XrdMgmOfsDirectory::listing_t>>
+eos::common::LRU::Cache<std::string, std::shared_ptr<XrdMgmOfsDirectory::listing_t>>
     XrdMgmOfsDirectory::dirCache(1024, 0);
 
 //------------------------------------------------------------------------------

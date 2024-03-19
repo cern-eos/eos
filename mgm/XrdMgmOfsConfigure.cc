@@ -1046,7 +1046,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
           eos::common::StringConversion::Tokenize(val, xrdProtocolValues);
           auto xrdHttpProtocolItor = std::find_if(xrdProtocolValues.begin(),
           xrdProtocolValues.end(), [](const std::string & str) {
-            return str.find("XrdHttp") != string::npos;
+            return str.find("XrdHttp") != std::string::npos;
           });
 
           if (xrdHttpProtocolItor != xrdProtocolValues.end()) {

@@ -1317,7 +1317,7 @@ XrdIo::attrSet(const char* name, const char* value, size_t len)
 // Set a string attribute (name has to start with 'user.' !!!)
 //------------------------------------------------------------------------------
 int
-XrdIo::attrSet(string name, std::string value)
+XrdIo::attrSet(std::string name, std::string value)
 {
   return attrSet(name.c_str(), value.c_str(), value.length());
 }
@@ -1372,7 +1372,7 @@ XrdIo::attrGet(const char* name, char* value, size_t& size)
 // Get a string attribute by name (name has to start with 'user.' !!!)
 //------------------------------------------------------------------------------
 int
-XrdIo::attrGet(string name, std::string& value)
+XrdIo::attrGet(std::string name, std::string& value)
 {
   errno = 0;
 

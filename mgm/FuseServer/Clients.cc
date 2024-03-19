@@ -132,7 +132,7 @@ FuseServer::Clients::MonitorHeartBeat()
     // Delete clients to be evicted
     if (!evictmap.empty()) {
       {
-        std::set<string> uuids;
+        std::set<std::string> uuids;
         {
           eos::common::RWMutexWriteLock lLock(*this);
 
@@ -417,7 +417,7 @@ FuseServer::Clients::Print(std::string& out, std::string options)
                lockup.c_str(),
                idle.c_str(),
                it->second.heartbeat().mount().c_str(),
-	       it->second.heartbeat().protversion(),
+               it->second.heartbeat().protversion(),
                it->second.heartbeat().appname().c_str()
               );
       out += formatline;
@@ -546,7 +546,7 @@ FuseServer::Clients::Print(std::string& out, std::string options)
                it->second.statistics().open_files(),
                it->second.heartbeat().automounted() ? "autofs" : "static",
                it->second.heartbeat().mount().c_str(),
-	       it->second.heartbeat().protversion(),
+               it->second.heartbeat().protversion(),
                it->second.heartbeat().appname().c_str(),
                it->second.statistics().inodes(),
                it->second.statistics().inodes_todelete(),
@@ -793,7 +793,7 @@ FuseServer::Clients::DeleteEntry(uint64_t md_ino,
                                  const std::string& uuid,
                                  const std::string& clientid,
                                  const std::string& name,
-				 struct timespec& pt_mtime
+                                 struct timespec& pt_mtime
                                 )
 {
   gOFS->MgmStats.Add("Eosxd::int::DeleteEntry", 0, 0, 1);
@@ -807,7 +807,6 @@ FuseServer::Clients::DeleteEntry(uint64_t md_ino,
   rsp.mutable_dentry_()->set_clientid(clientid);
   rsp.mutable_dentry_()->set_pt_mtime(pt_mtime.tv_sec);
   rsp.mutable_dentry_()->set_pt_mtime_ns(pt_mtime.tv_nsec);
-  
   std::string rspstream;
   rsp.SerializeToString(&rspstream);
   eos::common::RWMutexReadLock lLock(*this);
@@ -832,7 +831,7 @@ int
 FuseServer::Clients::RefreshEntry(uint64_t md_ino,
                                   const std::string& uuid,
                                   const std::string& clientid,
-				  bool notprot5
+                                  bool notprot5
                                  )
 {
   EXEC_TIMING_BEGIN("Eosxd::int::RefreshEntry");
@@ -851,27 +850,29 @@ FuseServer::Clients::RefreshEntry(uint64_t md_ino,
   std::string id = mUUIDView[uuid];
   eos_static_info("client=%s\n", map()[id].heartbeat().version().c_str());
 
-  if (notprot5 && map()[id].heartbeat().protversion() >= map()[id].heartbeat().PROTOCOLV5) {
+  if (notprot5 &&
+      map()[id].heartbeat().protversion() >= map()[id].heartbeat().PROTOCOLV5) {
     // this protocol version does not need refresh messages
     if (EOS_LOGS_DEBUG) {
       eos_static_debug("suppressing refresh to client '%s' version='%s' protocl='%d'",
-		       clientid.c_str(), map()[id].heartbeat().version().c_str(),
-		       map()[id].heartbeat().protversion());
+                       clientid.c_str(), map()[id].heartbeat().version().c_str(),
+                       map()[id].heartbeat().protversion());
     }
   } else {
     if (DeferClient(map()[id].heartbeat().version(), "4.4.18")) {
       // dont' send refresh to client version < 4.4.18 (4.4.17 deadlocks, others ignore)
       eos_static_info("suppressing refresh to client '%s' version='%s'",
-		      clientid.c_str(), map()[id].heartbeat().version().c_str());
+                      clientid.c_str(), map()[id].heartbeat().version().c_str());
     } else {
       gOFS->MgmStats.Add("Eosxd::int::RefreshEntry", 0, 0, 1);
       std::string id = mUUIDView[uuid];
       lLock.Release();
       eos_static_info("msg=\"asking dentry refresh\" uuid=%s clientid=%s id=%lx",
-		      uuid.c_str(), clientid.c_str(), md_ino);
+                      uuid.c_str(), clientid.c_str(), md_ino);
       gOFS->zMQ->mTask->reply(id, rspstream);
     }
   }
+
   EXEC_TIMING_END("Eosxd::int::RefreshEntry");
   return 0;
 }

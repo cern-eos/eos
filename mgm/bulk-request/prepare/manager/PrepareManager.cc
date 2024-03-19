@@ -70,7 +70,7 @@ void PrepareManager::initializeStagePrepareRequest(XrdOucString& reqid,
   //       Overriding is only possible in the case of PREPARE. In the case of ABORT and QUERY requests,
   //       pargs.reqid should contain the request ID that was returned by the corresponding PREPARE.
   // Request ID = XRootD-generated request ID + timestamp
-  ostringstream ss;
+  std::ostringstream ss;
   ss << ':' << time(0);
   reqid.append(ss.str().c_str());
 }
@@ -652,7 +652,8 @@ int PrepareManager::doQueryPrepare(XrdSfsPrep& pargs, XrdOucErrInfo& error,
         // has file been requested? (not necessarily with this request ID)
         rsp.is_requested = !xattr_it->second.empty();
         // and is this specific request ID present in the request?
-        rsp.is_reqid_present = (xattr_it->second.find(reqid.c_str()) != string::npos);
+        rsp.is_reqid_present = (xattr_it->second.find(reqid.c_str()) !=
+                                std::string::npos);
       }
 
       xattr_it = xattrs.find(eos::common::RETRIEVE_REQTIME_ATTR_NAME);
@@ -678,7 +679,8 @@ int PrepareManager::doQueryPrepare(XrdSfsPrep& pargs, XrdOucErrInfo& error,
     }
 
     if (mMgmFsInterface->_access(prep_path.c_str(), P_OK, error, vid, "")) {
-      currentFile->setError("USER ERROR: you don't have prepare permission"s);
+      currentFile->setError(
+        std::string("USER ERROR: you don't have prepare permission"));
       goto logErrorAndContinue;
     }
 

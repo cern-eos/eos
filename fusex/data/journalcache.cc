@@ -38,7 +38,7 @@ constexpr size_t journalcache::sDefaultMaxSize;
 std::string journalcache::sLocation;
 size_t journalcache::sMaxSize = journalcache::sDefaultMaxSize;
 
-shared_ptr<dircleaner> journalcache::jDirCleaner;
+std::shared_ptr<dircleaner> journalcache::jDirCleaner;
 
 journalcache::journalcache(fuse_ino_t ino) : ino(ino), cachesize(0),
   truncatesize(-1), max_offset(0), fd(-1), nbAttached(0), nbFlushed(0)

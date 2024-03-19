@@ -667,7 +667,7 @@ Policy::GetRWConfigKeys(const RWParams& params)
 
 
 std::vector<std::string>
-Policy::RWParams::getKeys(const string& key) const
+Policy::RWParams::getKeys(const std::string& key) const
 {
   auto key_name = getKey(key);
   return {

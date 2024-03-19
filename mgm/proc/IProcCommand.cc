@@ -226,7 +226,7 @@ IProcCommand::KillJob()
 bool
 IProcCommand::OpenTemporaryOutputFiles()
 {
-  ostringstream tmpdir;
+  std::ostringstream tmpdir;
   tmpdir << "/var/tmp/eos/mgm/";
   tmpdir << uuid++;
   mOfsOutStreamFilename = tmpdir.str();

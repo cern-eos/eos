@@ -15,7 +15,7 @@ namespace eos::mgm::group_balancer
 
 std::string
 getFileProcTransferNameAndSize(eos::common::FileId::fileid_t fid,
-                               const string& target_group, uint64_t* size)
+                               const std::string& target_group, uint64_t* size)
 {
   char fileName[1024];
   std::shared_ptr<eos::IFileMD> fmd;

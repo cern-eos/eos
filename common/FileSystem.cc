@@ -1102,7 +1102,7 @@ static void printOntoTable(mq::SharedHashWrapper& hash,
   //we check for filters
   bool toRemove = false;
 
-  if (filter.find("d") != string::npos) {
+  if (filter.find("d") != std::string::npos) {
     std::string drain = hash.get("local.drain");
 
     // @note there is a bug when initializing local.drain on an fs which is not
@@ -1113,7 +1113,7 @@ static void printOntoTable(mq::SharedHashWrapper& hash,
     }
   }
 
-  if (filter.find("e") != string::npos) {
+  if (filter.find("e") != std::string::npos) {
     int err = (int) hash.getLongLong("stat.errc");
 
     if (err == 0) {

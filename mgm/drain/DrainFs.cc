@@ -540,7 +540,7 @@ DrainFs::PrintJobsTable(TableFormatterBase& table, bool show_errors,
   if (show_errors) {
     for (const auto& job : mJobsFailed) {
       table_data.emplace_back();
-      std::list<string> data = job->GetInfo(itags);
+      std::list<std::string> data = job->GetInfo(itags);
 
       for (const auto& elem : data) {
         table_data.back().push_back(TableCell(elem, "s"));

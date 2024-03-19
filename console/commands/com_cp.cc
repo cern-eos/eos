@@ -387,7 +387,7 @@ com_cp(char* argin)
         }
 
         // Enclose source path in quotes, as the path may contain whitespace
-        stringstream ss;
+        std::stringstream ss;
         ss.clear();
         ss << std::quoted(source.c_str());
         source = ss.str().c_str();

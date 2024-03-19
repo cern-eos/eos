@@ -320,7 +320,7 @@ main()
   std::cout << "#################################################" << std::endl;
   RWMutex::SetTimingGlobal(false);
   RWMutex::SetOrderCheckingGlobal(true);
-  vector<RWMutex*> order;
+  std::vector<RWMutex*> order;
   order.push_back(&gm1);
   gm1.SetDebugName("mutex1");
   order.push_back(&gm2);

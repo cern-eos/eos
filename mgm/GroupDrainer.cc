@@ -67,7 +67,6 @@ GroupDrainer::GroupDrain(ThreadAssistant& assistant) noexcept
     }
 
     if (!gOFS->mConverterDriver || !config_status) {
-
       // wait for a few seconds before trying to see for reconfiguration in order
       // to not simply always check the atomic in an inf loop
       backoff_logger.invoke([this, &config_status]() {
@@ -75,7 +74,6 @@ GroupDrainer::GroupDrain(ThreadAssistant& assistant) noexcept
                  "not enabled, sleeping!\" config_status=%d, space=%s",
                  config_status, mSpaceName.c_str());
       });
-
       assistant.wait_for(std::chrono::seconds(30));
       continue;
     }
@@ -157,8 +155,7 @@ GroupDrainer::isUpdateNeeded(std::chrono::time_point<std::chrono::steady_clock>&
                              tp,
                              bool& force)
 {
-  using namespace std::chrono_literals;
-  auto now = chrono::steady_clock::now();
+  auto now = std::chrono::steady_clock::now();
 
   if (force) {
     tp = now;
@@ -166,7 +163,7 @@ GroupDrainer::isUpdateNeeded(std::chrono::time_point<std::chrono::steady_clock>&
     return true;
   }
 
-  auto elapsed = chrono::duration_cast<chrono::seconds>(now - tp);
+  auto elapsed = std::chrono::duration_cast<std::chrono::seconds>(now - tp);
 
   if (elapsed > mCacheExpiryTime) {
     tp = now;
@@ -245,7 +242,7 @@ GroupDrainer::prepareTransfer(uint64_t index)
                                      fsutils::FsidsinGroup(grp_drain_from));
       mPauseExecution = isDrainFSMapEmpty(mDrainFsMap);
     }
-    mDrainMapLastUpdated = chrono::steady_clock::now();
+    mDrainMapLastUpdated = std::chrono::steady_clock::now();
 
     // We enter the following conditional if the group concerned is having empty FSes
     // check if we reach a drain complete state!
@@ -299,7 +296,8 @@ GroupDrainer::prepareTransfer(uint64_t index)
 
 void
 GroupDrainer::scheduleTransfer(eos::common::FileId::fileid_t fid,
-                               const string& src_grp, const string& tgt_grp,
+                               const std::string& src_grp,
+                               const std::string& tgt_grp,
                                eos::common::FileSystem::fsid_t src_fsid)
 {
   if (src_grp.empty() || tgt_grp.empty()) {
@@ -393,7 +391,7 @@ GroupDrainer::populateFids(eos::common::FileSystem::fsid_t fsid)
 }
 
 bool
-GroupDrainer::Configure(const string& spaceName)
+GroupDrainer::Configure(const std::string& spaceName)
 {
   using eos::common::StringToNumeric;
   eos::common::RWMutexReadLock vlock(FsView::gFsView.ViewMutex);
@@ -526,7 +524,7 @@ GroupDrainer::checkGroupDrainStatus(const fsutils::fs_status_map_t& fs_map)
 
 
 GroupStatus
-GroupDrainer::checkGroupDrainStatus(const string& groupname)
+GroupDrainer::checkGroupDrainStatus(const std::string& groupname)
 {
   auto fs_map = fsutils::GetGroupFsStatus(groupname);
   return checkGroupDrainStatus(fs_map);

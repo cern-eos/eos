@@ -148,7 +148,8 @@ std::chrono::seconds Config::getPublishInterval()
 std::chrono::milliseconds Config::getRandomizedPublishInterval()
 {
   std::chrono::seconds interval = getPublishInterval();
-  std::lock_guard<std::mutex> lock(mutex);
+  //@todo(esindril) review this mutex lock
+  std::lock_guard<std::mutex> lock(std::mutex);
   std::uniform_int_distribution<> dist(interval.count() * 500,
                                        interval.count() * 1500);
   return std::chrono::milliseconds(dist(generator));

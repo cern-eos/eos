@@ -177,7 +177,7 @@ private:
   struct stat attachstat;
   struct stat detachstat;
 
-  static shared_ptr<dircleaner> jDirCleaner;
+  static std::shared_ptr<dircleaner> jDirCleaner;
 };
 
 #endif /* FUSEX_JOURNALCACHE_HH_ */

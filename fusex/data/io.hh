@@ -172,6 +172,6 @@ private:
   bool caching;
 };
 
-typedef shared_ptr<io> shared_io;
+typedef std::shared_ptr<io> shared_io;
 
 #endif

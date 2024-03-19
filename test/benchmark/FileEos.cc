@@ -280,7 +280,7 @@ FileEos::ReadPio(Result*& result)
   XrdCl::URL url(mBmkInstance);
 
   if (!url.IsValid()) {
-    cerr << "URL is invalid." << endl;
+    std::cerr << "URL is invalid." << std::endl;
     return -1;
   }
 
@@ -354,7 +354,7 @@ FileEos::ReadPio(Result*& result)
         delete response;
         delete openOpaque;
         delete file;
-        cout << "Falling back to read gw.(0)" << endl;
+        std::cout << "Falling back to read gw.(0)" << std::endl;
         return ReadGw(result);
       }
     } else {
@@ -362,7 +362,7 @@ FileEos::ReadPio(Result*& result)
       delete response;
       delete openOpaque;
       delete file;
-      cout << "Falling back to read gw.(1)" << endl;
+      std::cout << "Falling back to read gw.(1)" << std::endl;
       return ReadGw(result);
     }
   } else {
@@ -374,7 +374,7 @@ FileEos::ReadPio(Result*& result)
     }
 
     delete response;
-    cout << "Falling back to read gw.(2)" << endl;
+    std::cout << "Falling back to read gw.(2)" << std::endl;
     return ReadGw(result);
   }
 

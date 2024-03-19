@@ -172,7 +172,7 @@ public:
   //! 0: don't allow 1: allow with encryption 2: allow always
   // ---------------------------------------------------------------------------
   enum TOKEN_SUDO { kAlways = 0, kStrong, kEncrypted, kNever };
-  static atomic<int> gTokenSudo;
+  static std::atomic<int> gTokenSudo;
 
   // ---------------------------------------------------------------------------
   //! Max. subdirectory deepness where anonymous access is allowed

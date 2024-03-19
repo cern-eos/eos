@@ -129,9 +129,9 @@ public:
       XrdOucString sizestring4;
       unsigned long long avgsize = (sizedistributionn[itsd.first]
                                     ? itsd.second / sizedistributionn[itsd.first] : 0);
-      ss << "sizeorder=" << std::right << setfill('0') << std::setw(
+      ss << "sizeorder=" << std::right << std::setfill('0') << std::setw(
            2) << itsd.first;
-      ss << " \trange=[ " << setfill(' ') << std::left << std::setw(12);
+      ss << " \trange=[ " << std::setfill(' ') << std::left << std::setw(12);
       ss << eos::common::StringConversion::GetReadableSizeString(
            sizestring1, lowerlimit, "B");
       ss << " ... " << std::left << std::setw(12);

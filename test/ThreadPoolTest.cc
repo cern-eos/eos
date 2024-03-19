@@ -34,7 +34,7 @@ int main(int argc, char* argv[])
     auto future = pool.PushTask<int>(
     [i] {
       std::this_thread::sleep_for(std::chrono::milliseconds(20));
-      cout << i << " from " << std::this_thread::get_id() << endl;
+      std::cout << i << " from " << std::this_thread::get_id() << std::endl;
       return i;
     }
                   );
@@ -42,7 +42,7 @@ int main(int argc, char* argv[])
   }
 
   for (auto && future : futures) {
-    cout << future.get() << endl;
+    std::cout << future.get() << std::endl;
   }
 
   futures.clear();
@@ -52,7 +52,7 @@ int main(int argc, char* argv[])
     auto future = pool.PushTask<int>(
     [i] {
       std::this_thread::sleep_for(std::chrono::seconds(3));
-      cout << i << " from " << std::this_thread::get_id() << endl;
+      std::cout << i << " from " << std::this_thread::get_id() << std::endl;
       return i;
     }
                   );
@@ -60,7 +60,7 @@ int main(int argc, char* argv[])
   }
 
   for (auto && future : futures) {
-    cout << future.get() << endl;
+    std::cout << future.get() << std::endl;
   }
 
   pool.Stop();

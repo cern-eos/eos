@@ -158,7 +158,7 @@ private:
   //!
   //! @return unique pointer to ProcCommand object or null otherwise
   //----------------------------------------------------------------------------
-  static unique_ptr<IProcCommand>
+  static std::unique_ptr<IProcCommand>
   HandleProtobufRequest(const char* opaque, eos::common::VirtualIdentity& vid);
 
   //----------------------------------------------------------------------------
@@ -169,9 +169,9 @@ private:
   //!
   //! @return unique pointer to ProcCommand object or null otherwise
   //----------------------------------------------------------------------------
-  static std::unique_ptr<IProcCommand> 
-  HandleProtobufRequest(eos::console::RequestProto& req, 
-			eos::common::VirtualIdentity& vid);
+  static std::unique_ptr<IProcCommand>
+  HandleProtobufRequest(eos::console::RequestProto& req,
+                        eos::common::VirtualIdentity& vid);
 
   //! Map of command id to async proc commands
   static std::unordered_map<std::string, std::unique_ptr<IProcCommand>> mMapCmds;

@@ -135,15 +135,17 @@ public:
 
   typedef std::set<std::string> listing_t;
 
-  static eos::common::LRU::Cache<std::string, shared_ptr<listing_t>> dirCache;
+  static eos::common::LRU::Cache<std::string, std::shared_ptr<listing_t>>
+      dirCache;
 
 private:
 
-  std::string getCacheName(uint64_t id, uint64_t mtime_sec, uint64_t mtime_nsec, bool nofiles, bool nodirs);
+  std::string getCacheName(uint64_t id, uint64_t mtime_sec, uint64_t mtime_nsec,
+                           bool nofiles, bool nodirs);
 
   std::string dirName;
   eos::common::VirtualIdentity vid;
-  shared_ptr<listing_t> dh_list;
+  std::shared_ptr<listing_t> dh_list;
   listing_t::const_iterator dh_it;
   std::mutex mDirLsMutex; ///< Mutex protecting access to dh_list
 };

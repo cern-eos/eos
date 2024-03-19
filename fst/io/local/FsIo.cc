@@ -420,7 +420,7 @@ int FsIo::attrSet(const char* name, const char* value, size_t len)
 //------------------------------------------------------------------------------
 // Set attr
 //------------------------------------------------------------------------------
-int FsIo::attrSet(string name, std::string value)
+int FsIo::attrSet(std::string name, std::string value)
 {
   return attrSet(name.c_str(), value.c_str(), value.length());
 }
@@ -452,7 +452,7 @@ int FsIo::attrGet(const char* name, char* value, size_t& size)
 //------------------------------------------------------------------------------
 // Get attr
 //------------------------------------------------------------------------------
-int FsIo::attrGet(string name, std::string& value)
+int FsIo::attrGet(std::string name, std::string& value)
 {
   char buffer[1024];
   size_t size = sizeof(buffer);

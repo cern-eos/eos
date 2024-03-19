@@ -494,8 +494,8 @@ IConfigEngine::FilterDeprecated(std::map<std::string, std::string>& map)
     // Filter out deprecated file system attributes
     if (it->first.find("fs:/eos/") == 0) {
       std::map<std::string, std::string> fs_map;
-      std::list<string> fs_attrs = StringTokenizer::split<std::list<std::string>>
-                                   (it->second, ' ');
+      std::list<std::string> fs_attrs =
+        StringTokenizer::split<std::list<std::string>> (it->second, ' ');
 
       for (const auto& elem : fs_attrs) {
         std::string key, val;

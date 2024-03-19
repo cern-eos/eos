@@ -39,7 +39,7 @@ bufferllmanager diskcache::sBufferManager;
 off_t diskcache::sMaxSize = 2 * 1024 * 1024ll;
 float diskcache::sCleanThreshold = 85.0;
 
-shared_ptr<dircleaner> diskcache::sDirCleaner;
+std::shared_ptr<dircleaner> diskcache::sDirCleaner;
 
 /* -------------------------------------------------------------------------- */
 int

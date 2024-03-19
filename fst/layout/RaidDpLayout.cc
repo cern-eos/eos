@@ -81,7 +81,7 @@ RaidDpLayout::ComputeParity(std::shared_ptr<eos::fst::RainGroup>& grp)
 
   // Compute double parity
   unsigned int jump_blocks = mNbTotalFiles + 1;
-  vector<int> used_blocks;
+  std::vector<int> used_blocks;
 
   for (unsigned int i = 0; i < mNbDataFiles; i++) {
     unsigned int index_dpblock = (i + 1) * (mNbDataFiles + 1) + i;
@@ -102,14 +102,14 @@ RaidDpLayout::ComputeParity(std::shared_ptr<eos::fst::RainGroup>& grp)
       unsigned int aux_block = next_block + jump_blocks;
 
       if ((aux_block < mNbTotalBlocks) &&
-          (find(used_blocks.begin(), used_blocks.end(),
-                aux_block) == used_blocks.end())) {
+          (std::find(used_blocks.begin(), used_blocks.end(),
+                     aux_block) == used_blocks.end())) {
         next_block = aux_block;
       } else {
         next_block++;
 
-        while (find(used_blocks.begin(), used_blocks.end(),
-                    next_block) != used_blocks.end()) {
+        while (std::find(used_blocks.begin(), used_blocks.end(),
+                         next_block) != used_blocks.end()) {
           next_block++;
         }
       }
@@ -174,14 +174,14 @@ RaidDpLayout::RecoverPiecesInGroup(XrdCl::ChunkList& grp_errs)
   uint64_t offset_local;
   unsigned int stripe_id;
   unsigned int physical_id;
-  set<int> corrupt_ids;
-  set<int> exclude_ids;
+  std::set<int> corrupt_ids;
+  std::set<int> exclude_ids;
   uint64_t offset = grp_errs.begin()->offset;
   uint64_t offset_group = (offset / mSizeGroup) * mSizeGroup;
   AsyncMetaHandler* phandler = 0;
   XrdCl::ChunkList found_errs;
-  vector<unsigned int> simple_parity = GetSimpleParityIndices();
-  vector<unsigned int> double_parity = GetDoubleParityIndices();
+  std::vector<unsigned int> simple_parity = GetSimpleParityIndices();
+  std::vector<unsigned int> double_parity = GetDoubleParityIndices();
   std::vector<bool> status_blocks(mNbTotalBlocks, false);
   std::shared_ptr<eos::fst::RainGroup> grp = GetGroup(offset_group);
   eos::fst::RainGroup& data_blocks = *grp.get();
@@ -267,8 +267,8 @@ RaidDpLayout::RecoverPiecesInGroup(XrdCl::ChunkList& grp_errs)
   // Recovery algorithm
   int64_t nwrite;
   unsigned int id_corrupted;
-  vector<unsigned int> horizontal_stripe;
-  vector<unsigned int> diagonal_stripe;
+  std::vector<unsigned int> horizontal_stripe;
+  std::vector<unsigned int> diagonal_stripe;
 
   while (!corrupt_ids.empty()) {
     auto iter = corrupt_ids.begin();
@@ -312,10 +312,10 @@ RaidDpLayout::RecoverPiecesInGroup(XrdCl::ChunkList& grp_errs)
         offset = chunk->offset;
 
         // If not SP or DP, maybe we have to return it
-        if (find(simple_parity.begin(), simple_parity.end(),
-                 id_corrupted) == simple_parity.end() &&
-            find(double_parity.begin(), double_parity.end(),
-                 id_corrupted) == double_parity.end()) {
+        if (std::find(simple_parity.begin(), simple_parity.end(),
+                      id_corrupted) == simple_parity.end() &&
+            std::find(double_parity.begin(), double_parity.end(),
+                      id_corrupted) == double_parity.end()) {
           if ((offset >= (offset_group + MapBigToSmall(id_corrupted) * mStripeWidth)) &&
               (offset < (offset_group + (MapBigToSmall(id_corrupted) + 1) * mStripeWidth))) {
             chunk->buffer = static_cast<char*>
@@ -371,10 +371,10 @@ RaidDpLayout::RecoverPiecesInGroup(XrdCl::ChunkList& grp_errs)
           offset = chunk->offset;
 
           // If not SP or DP, maybe we have to return it
-          if (find(simple_parity.begin(), simple_parity.end(),
-                   id_corrupted) == simple_parity.end() &&
-              find(double_parity.begin(), double_parity.end(),
-                   id_corrupted) == double_parity.end()) {
+          if (std::find(simple_parity.begin(), simple_parity.end(),
+                        id_corrupted) == simple_parity.end() &&
+              std::find(double_parity.begin(), double_parity.end(),
+                        id_corrupted) == double_parity.end()) {
             if ((offset >= (offset_group + MapBigToSmall(id_corrupted) * mStripeWidth)) &&
                 (offset < (offset_group + (MapBigToSmall(id_corrupted) + 1) * mStripeWidth))) {
               chunk->buffer = static_cast<char*>
@@ -521,7 +521,8 @@ RaidDpLayout::ValidDiagStripe(std::vector<unsigned int>& rStripes,
   }
 
   // The ommited diagonal contains the block with index mNbDataFilesBlocks
-  if (find(rStripes.begin(), rStripes.end(), mNbDataFiles) != rStripes.end()) {
+  if (std::find(rStripes.begin(), rStripes.end(),
+                mNbDataFiles) != rStripes.end()) {
     return false;
   }
 
@@ -599,8 +600,8 @@ RaidDpLayout::GetDiagonalStripe(unsigned int blockId)
   stripe.push_back(blockId);
 
   // If we start with a dp index, then construct the diagonal in a special way
-  if (find(last_column.begin(), last_column.end(),
-           blockId) != last_column.end()) {
+  if (std::find(last_column.begin(), last_column.end(),
+                blockId) != last_column.end()) {
     blockId = blockId % (mNbDataFiles + 1);
     stripe.push_back(blockId);
     dp_added = true;
@@ -619,8 +620,8 @@ RaidDpLayout::GetDiagonalStripe(unsigned int blockId)
       if (next_block >= mNbDataFiles + 1) {
         next_block = (previous_block + jump_blocks) % jump_blocks;
       }
-    } else if (find(last_column.begin(), last_column.end(),
-                    next_block) != last_column.end()) {
+    } else if (std::find(last_column.begin(), last_column.end(),
+                         next_block) != last_column.end()) {
       next_block = previous_block + 2;
     }
 

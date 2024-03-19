@@ -1151,11 +1151,13 @@ XrdFstOfsFile::write(XrdSfsFileOffset fileOffset, const char* buffer,
 
   if (rc < 0) {
     int envlen = 0;
+
     // Indicate the deletion flag for write errors
     if (!mFusex) {
       // never force delete for FUSE access
       mWrDelete = true;
     }
+
     XrdOucString errdetail;
 
     if (isCreation) {
@@ -3402,7 +3404,7 @@ XrdFstOfsFile::MakeReportEnv(XrdOucString& reportString)
 
   if ((mTpcFlag > kTpcNone) && (mTpcFlag != kTpcSrcCanDo)) {
     XrdSysMutexHelper tpc_lock(gOFS.TpcMapMutex);
-    ostringstream sstpc;
+    std::ostringstream sstpc;
 
     if (mTpcFlag == kTpcDstSetup) {
       sstpc << "&tpc.src=" << mFstTpcInfo.src

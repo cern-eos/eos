@@ -51,11 +51,11 @@ QoSConfig::LoadConfig()
   if (IsValid()) {
     std::string errs;
     Json::CharReaderBuilder reader;
-
     Json::Value root;
     bool ok = parseFromStream(reader, mFile, &root, &errs);
+
     if (ok) {
-      for (auto& it: root) {
+      for (auto& it : root) {
         // Create QoS class
         auto qosclass_ptr = QoSConfig::CreateQoSClass(it);
 
@@ -79,18 +79,17 @@ std::shared_ptr<eos::mgm::QoSClass>
 QoSConfig::CreateQoSClass(const Json::Value& qos_json)
 {
   std::ostringstream info;
-
   std::vector<std::string> transitions;
   std::vector<std::string> locations;
   eos::IFileMD::QoSAttrMap attributes;
   int cdmi_redundancy = -1;
   int cdmi_latency = -1;
   std::string name;
-
   // Lambda function -- Check if member exists,
   // otherwise write it as missing to the to the output stream
-  auto hasMember = [&info](const Json::Value& json, const char* key) -> bool {
-    if (json.isMember(key)) {
+  auto hasMember = [&info](const Json::Value & json, const char* key) -> bool {
+    if (json.isMember(key))
+    {
       return true;
     }
 
@@ -106,7 +105,7 @@ QoSConfig::CreateQoSClass(const Json::Value& qos_json)
 
     // Extract transition list
     if (hasMember(qos_json, "transition")) {
-      for (auto& it: qos_json["transition"]) {
+      for (auto& it : qos_json["transition"]) {
         transitions.emplace_back(it.asString());
       }
     }
@@ -124,7 +123,7 @@ QoSConfig::CreateQoSClass(const Json::Value& qos_json)
       }
 
       if (hasMember(field, CDMI_PLACEMENT_TAG)) {
-        for (auto& it: field[CDMI_PLACEMENT_TAG]) {
+        for (auto& it : field[CDMI_PLACEMENT_TAG]) {
           locations.emplace_back(it.asString());
         }
       }
@@ -162,9 +161,9 @@ QoSConfig::CreateQoSClass(const Json::Value& qos_json)
     return nullptr;
   }
 
-  return shared_ptr<eos::mgm::QoSClass>(
-    new QoSClass(name, cdmi_redundancy, cdmi_latency,
-                 transitions, locations, attributes));
+  return std::shared_ptr<eos::mgm::QoSClass>(
+           new QoSClass(name, cdmi_redundancy, cdmi_latency,
+                        transitions, locations, attributes));
 }
 
 //----------------------------------------------------------------------------
@@ -174,12 +173,12 @@ std::string
 QoSConfig::QoSClassToString(const eos::mgm::QoSClass& qos)
 {
   std::ostringstream out;
-
-  auto arrayToString = [](auto& array) -> std::string {
+  auto arrayToString = [](auto & array) -> std::string {
     std::ostringstream out;
     out << "[";
 
-    for (auto& it: array) {
+    for (auto& it : array)
+    {
       out << " " << it << ",";
     }
 
@@ -187,14 +186,13 @@ QoSConfig::QoSClassToString(const eos::mgm::QoSClass& qos)
     out << " ]";
     return out.str();
   };
-
   out << "name=" << qos.name << std::endl
       << "transition=" << arrayToString(qos.transitions) << std::endl
       << CDMI_REDUNDANCY_TAG << "=" << qos.cdmi_redundancy << std::endl
       << CDMI_PLACEMENT_TAG << "=" << arrayToString(qos.locations) << std::endl
       << CDMI_LATENCY_TAG << "=" << qos.cdmi_latency << std::endl;
 
-  for (auto& it: qos.attributes) {
+  for (auto& it : qos.attributes) {
     out << it.first << "=" << it.second << std::endl;
   }
 
@@ -208,10 +206,10 @@ Json::Value
 QoSConfig::QoSClassToJson(const eos::mgm::QoSClass& qos)
 {
   Json::Value json;
-
   json["name"] = qos.name;
   json["transition"] = Json::arrayValue;
-  for (auto& transition: qos.transitions) {
+
+  for (auto& transition : qos.transitions) {
     json["transition"].append(transition);
   }
 
@@ -219,12 +217,14 @@ QoSConfig::QoSClassToJson(const eos::mgm::QoSClass& qos)
   json["metadata"][CDMI_REDUNDANCY_TAG] = (Json::UInt) qos.cdmi_redundancy;
   json["metadata"][CDMI_LATENCY_TAG] = (Json::UInt) qos.cdmi_latency;
   json["metadata"][CDMI_PLACEMENT_TAG] = Json::arrayValue;
-  for (auto& location: qos.locations) {
+
+  for (auto& location : qos.locations) {
     json["metadata"][CDMI_PLACEMENT_TAG].append(location);
   }
 
   json["attributes"] = Json::objectValue;
-  for (auto& it: qos.attributes) {
+
+  for (auto& it : qos.attributes) {
     json["attributes"][it.first] = it.second;
   }
 

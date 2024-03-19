@@ -107,7 +107,7 @@ Drainer::StartFsDrain(eos::mgm::FileSystem* fs,
   if (it_drainfs != mDrainFs.end()) {
     // Check if the fs is already draining for this node
     auto it = std::find_if(it_drainfs->second.begin(), it_drainfs->second.end(),
-    [src_fsid](const shared_ptr<DrainFs>& elem) -> bool {
+    [src_fsid](const std::shared_ptr<DrainFs>& elem) -> bool {
       return (elem->GetFsId() == src_fsid);
     });
 
@@ -175,7 +175,7 @@ Drainer::StopFsDrain(eos::mgm::FileSystem* fs, std::string& err)
 
   // Check if the fs is draining
   auto it = std::find_if(it_drainfs->second.begin(), it_drainfs->second.end(),
-  [fsid](const shared_ptr<DrainFs>& elem) -> bool {
+  [fsid](const std::shared_ptr<DrainFs>& elem) -> bool {
     return (elem->GetFsId() == fsid);
   });
 

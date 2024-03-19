@@ -59,7 +59,7 @@ public:
     char msg[512];
     XrdMqTiming* p = this->next;
     XrdMqTiming* n;
-    cerr << std::endl;
+    std::cerr << std::endl;
 
     while (p && (n = p->next)) {
       sprintf(msg,
@@ -67,7 +67,7 @@ public:
               maintag.c_str(), p->tag.c_str(), n->tag.c_str(),
               (float)((n->tv.tv_sec - p->tv.tv_sec) * 1000000 +
                       (n->tv.tv_usec - p->tv.tv_usec)) / 1000.0);
-      cerr << msg;
+      std::cerr << msg;
       p = n;
     }
 
@@ -78,7 +78,7 @@ public:
             maintag.c_str(), p->tag.c_str(), n->tag.c_str(),
             (float)((n->tv.tv_sec - p->tv.tv_sec) * 1000000 + (n->tv.tv_usec -
                     p->tv.tv_usec)) / 1000.0);
-    cerr << msg;
+    std::cerr << msg;
   }
 
   virtual ~XrdMqTiming()

@@ -1002,7 +1002,7 @@ public:
   //! Return layout type from string representation
   //--------------------------------------------------------------------------
   static int
-  GetLayoutFromString(const string& layout)
+  GetLayoutFromString(const std::string& layout)
   {
     if (layout == "plain") {
       return kPlain;

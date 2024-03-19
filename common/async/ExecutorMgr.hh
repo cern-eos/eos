@@ -33,7 +33,8 @@
 namespace eos::common
 {
 
-namespace detail {
+namespace detail
+{
 
 // A function that runs a given function via a given folly executor. We wrap the
 // the result type in a type erased OpaqueFuture to allow for interop with std::future
@@ -42,9 +43,8 @@ namespace detail {
 template <typename F>
 auto
 execVia(folly::ThreadPoolExecutor* executor, F&& f)
-  -> std::enable_if_t<!folly::isFuture<invoke_result_t<F>>::value,
-                      OpaqueFuture<std::invoke_result_t<F>>>
-{
+-> std::enable_if_t < !folly::isFuture<std::invoke_result_t<F>>::value,
+OpaqueFuture<std::invoke_result_t<F> >> {
   // Folly's void futures are mapped to a folly::Unit empty type
   // since this is not void, do this mapping where in we return
   // an OpaqueFuture of <void> in case the function returns a
@@ -56,7 +56,7 @@ execVia(folly::ThreadPoolExecutor* executor, F&& f)
   folly::Promise<follyType> promise;
   auto fut = promise.getFuture();
   executor->add([promise = std::move(promise),
-                 f = std::move(f)]() mutable {
+  f = std::move(f)]() mutable {
     promise.setWith(std::move(f));
   });
   return OpaqueFuture<ResultType>(std::move(fut));
@@ -70,15 +70,15 @@ execVia(folly::ThreadPoolExecutor* executor, F&& f)
 template <typename F>
 auto
 execVia(eos::common::ThreadPool* threadpool, F&& f)
-  -> OpaqueFuture<std::invoke_result_t<F>>
-{
+-> OpaqueFuture<std::invoke_result_t<F>> {
   using ResultType = std::invoke_result_t<F>;
   auto task = std::make_shared<std::packaged_task<ResultType()>>(std::move(f));
   auto fut = threadpool->PushTask(std::move(task));
   return OpaqueFuture<ResultType>(std::move(fut));
 }
 
-inline void ShutdownExecutor(folly::ThreadPoolExecutor* executor) {
+inline void ShutdownExecutor(folly::ThreadPoolExecutor* executor)
+{
   executor->stop();
 }
 
@@ -87,7 +87,8 @@ inline void ShutdownExecutor(eos::common::ThreadPool* threadpool)
   threadpool->Stop();
 }
 
-inline size_t GetQueueSize(folly::ThreadPoolExecutor* executor) {
+inline size_t GetQueueSize(folly::ThreadPoolExecutor* executor)
+{
   return executor->getPendingTaskCount();
 }
 
@@ -128,7 +129,7 @@ GetExecutorType(std::string_view exec_type)
  * templating on the function type, so that the various executors can be their
  * own variant of a callable/function/packaged_task etc.
 */
-static constexpr unsigned int MIN_THREADPOOL_SIZE=2;
+static constexpr unsigned int MIN_THREADPOOL_SIZE = 2;
 
 class ExecutorMgr
 {
@@ -153,14 +154,16 @@ public:
 
   }
 
-  void Shutdown() {
-    std::visit([](auto&& executor) {
+  void Shutdown()
+  {
+    std::visit([](auto && executor) {
       detail::ShutdownExecutor(executor.get());
     }, mExecutor);
   }
 
-  size_t GetQueueSize() const {
-    return std::visit([](auto&& executor) {
+  size_t GetQueueSize() const
+  {
+    return std::visit([](auto && executor) {
       return detail::GetQueueSize(executor.get());
     }, mExecutor);
   }
@@ -186,7 +189,7 @@ public:
     switch (type) {
     case ExecutorType::kThreadPool:
       mExecutor = std::make_shared<eos::common::ThreadPool>(MIN_THREADPOOL_SIZE,
-                                                            num_threads);
+                  num_threads);
       break;
 
     case ExecutorType::kFollyExecutor:

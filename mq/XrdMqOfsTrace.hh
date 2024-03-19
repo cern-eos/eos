@@ -32,7 +32,7 @@
 #define GTRACE(act)         gMqOfsTrace.What & TRACE_ ## act
 
 #define TRACES(x)                                                       \
-  {gMqOfsTrace.Beg(epname,tident); cerr <<x; gMqOfsTrace.End();}
+  {gMqOfsTrace.Beg(epname,tident); std::cerr <<x; gMqOfsTrace.End();}
 
 #define FTRACE(act, x)                          \
   if (GTRACE(act))                              \

@@ -2087,7 +2087,7 @@ std::map<std::string, std::tuple<unsigned long long,
     unsigned long long>>
     Quota::GetAllGroupsLogicalQuotaValues()
 {
-  std::map<string, std::tuple<unsigned long long,
+  std::map<std::string, std::tuple<unsigned long long,
       unsigned long long,
       unsigned long long>> allGroupLogicalByteValues;
   // Add this to have all quota nodes visible even if they are not in

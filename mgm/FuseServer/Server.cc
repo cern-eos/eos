@@ -1009,7 +1009,7 @@ Server::ValidatePERM(const eos::fusex::md& md, const std::string& mode,
   // -------------------------------------------------------------------------------------------------------------
   eos_info("mode=%s", mode.c_str());
   std::string path;
-  shared_ptr<eos::IContainerMD> cmd;
+  std::shared_ptr<eos::IContainerMD> cmd;
   uint64_t clock = 0;
   bool r_ok = false;
   bool w_ok = false;
@@ -1510,7 +1510,7 @@ Server::OpSetDirectory(const std::string& id,
         // this indicates a directory move
         {
           // we have to check that we have write permission on the source parent
-	  eos::fusex::md source_md;
+          eos::fusex::md source_md;
           source_md.set_md_pino(cmd->getParentId());
           source_md.set_mode(S_IFDIR);
           std::string perm = "W";
@@ -1746,16 +1746,19 @@ Server::OpSetDirectory(const std::string& id,
     case CREATE:
       Cap().BroadcastMD(md, md_ino, md.md_pino(), clock, pmtime);
       break;
+
     case MOVE:
       Cap().BroadcastDeletion(cpcmd->getId(), mv_md, oldname, pmtime);
       Cap().BroadcastRefresh(pcmd->getId(), md, pcmd->getParentId(), true);
       Cap().BroadcastMD(md, md_ino, md.md_pino(), clock, pmtime);
       break;
+
     case RENAME:
       Cap().BroadcastDeletion(pcmd->getId(), md, oldname, pmtime);
       Cap().BroadcastRefresh(pcmd->getId(), md, pcmd->getParentId(), true);
       Cap().BroadcastMD(md, md_ino, md.md_pino(), clock, pmtime);
       break;
+
     case UPDATE:
       Cap().BroadcastRefresh(pcmd->getId(), md, pcmd->getParentId(), true);
       Cap().BroadcastMD(md, md_ino, md.md_pino(), clock, pmtime);
@@ -1837,6 +1840,7 @@ Server::OpSetFile(const std::string& id,
   bool recycleOrVersioned = false;
   std::string oldname;
   eos::fusex::md mv_md;
+
   try {
     uint64_t clock = 0;
     pcmd = gOFS->eosDirectoryService->getContainerMD(md.md_pino());
@@ -1869,8 +1873,8 @@ Server::OpSetFile(const std::string& id,
         if (fmd->getContainerId() != md.md_pino()) {
           // this indicates a file move
           op = MOVE;
-	  mv_md.set_authid(md.mv_authid());
-	  oldname = fmd->getName();
+          mv_md.set_authid(md.mv_authid());
+          oldname = fmd->getName();
           bool hasVersion = false;
 
           if (EOS_LOGS_DEBUG) {
@@ -2001,7 +2005,7 @@ Server::OpSetFile(const std::string& id,
           if (fmd->getName() != md.name()) {
             // this indicates a file rename
             op = RENAME;
-	    oldname = fmd->getName();
+            oldname = fmd->getName();
             bool hasVersion = false;
             ofmd = pcmd->findFile(md.name());
 
@@ -2042,11 +2046,11 @@ Server::OpSetFile(const std::string& id,
                 }
               }
 
-	      if ((ofmd->hasAttribute(k_mdino) || (ofmd->hasAttribute(k_nlink)))) {
-		// disable versioning when hardlink are involved
-		versioning = 0;
-	      }
-	      
+              if ((ofmd->hasAttribute(k_mdino) || (ofmd->hasAttribute(k_nlink)))) {
+                // disable versioning when hardlink are involved
+                versioning = 0;
+              }
+
               bool try_recycle = true;
               bool created_version = false;
 
@@ -2072,7 +2076,8 @@ Server::OpSetFile(const std::string& id,
 
               // recycle bin - not for hardlinked files or hardlinks !
               if ((try_recycle &&
-                   (attrmap.count(Recycle::gRecyclingAttribute) || hasVersion)) && (!ofmd->hasAttribute(k_mdino) && (!ofmd->hasAttribute(k_nlink)))) {
+                   (attrmap.count(Recycle::gRecyclingAttribute) || hasVersion)) &&
+                  (!ofmd->hasAttribute(k_mdino) && (!ofmd->hasAttribute(k_nlink)))) {
                 // translate to a path name and call the complex deletion function
                 // this is vulnerable to a hard to trigger race conditions
                 std::string fullpath = gOFS->eosView->getUri(ofmd.get());
@@ -2083,91 +2088,92 @@ Server::OpSetFile(const std::string& id,
                                   false, true, false);
                 lock.Grab(gOFS->eosViewRWMutex);
               } else {
-		bool doDelete = true;
-		uint64_t tgt_md_ino;
+                bool doDelete = true;
+                uint64_t tgt_md_ino;
+
                 if (!created_version) {
-		  if (ofmd->hasAttribute(k_mdino)) {
-		    /* this is a hard link, decrease reference count on underlying file */
-		    tgt_md_ino = std::stoull(ofmd->getAttribute(k_mdino));
-		    uint64_t clock;
-		    /* gmd = the file holding the inode */
-		    std::shared_ptr<eos::IFileMD> gmd = gOFS->eosFileService->getFileMD(
-											eos::common::FileId::InodeToFid(tgt_md_ino), &clock);
-		    long nlink = std::stol(gmd->getAttribute(k_nlink)) - 1;
-		    
-		    if (nlink) {
-		      gmd->setAttribute(k_nlink, std::to_string(nlink));
-		    } else {
-		      gmd->removeAttribute(k_nlink);
-		    }
-		    
-		    gOFS->eosFileService->updateStore(gmd.get());
-		    eos_info("hlnk nlink update on %s for %s now %ld",
-			     gmd->getName().c_str(), ofmd->getName().c_str(), nlink);
-		    
-		    if (nlink <= 0) {
-		      if (gmd->getName().substr(0, 13) == "...eos.ino...") {
-			eos_info("hlnk unlink target %s for %s nlink %ld",
-				 gmd->getName().c_str(), ofmd->getName().c_str(), nlink);
-			XrdOucErrInfo error;
-			
-			if (XrdMgmOfsFile::create_cow(XrdMgmOfsFile::cowDelete, pcmd, gmd, vid,
-						      error) == -1) {
-			  pcmd->removeFile(gmd->getName());
-			  gmd->unlinkAllLocations();
-			  gmd->setContainerId(0);
-			}
+                  if (ofmd->hasAttribute(k_mdino)) {
+                    /* this is a hard link, decrease reference count on underlying file */
+                    tgt_md_ino = std::stoull(ofmd->getAttribute(k_mdino));
+                    uint64_t clock;
+                    /* gmd = the file holding the inode */
+                    std::shared_ptr<eos::IFileMD> gmd = gOFS->eosFileService->getFileMD(
+                                                          eos::common::FileId::InodeToFid(tgt_md_ino), &clock);
+                    long nlink = std::stol(gmd->getAttribute(k_nlink)) - 1;
 
-			gOFS->eosFileService->updateStore(gmd.get());
-		      }
-		    }
-		  } else if (ofmd->hasAttribute(k_nlink)) {
-		    /* this is a genuine file, potentially with hard links */
-		    tgt_md_ino = eos::common::FileId::FidToInode(ofmd->getId());
-		    long nlink = std::stol(ofmd->getAttribute(k_nlink));
-		    
-		    if (nlink > 0) {
-		      // hard links exist, just rename the file so the inode does not disappear
-		      char nameBuf[256];
-		      snprintf(nameBuf, sizeof(nameBuf), "...eos.ino...%lx", tgt_md_ino);
-		      std::string tmpName = nameBuf;
-		      ofmd->setAttribute(k_nlink, std::to_string(nlink));
-		      eos_info("hlnk unlink rename %s=>%s new nlink %d",
-			       ofmd->getName().c_str(), tmpName.c_str(), nlink);
-		      pcmd->removeFile(tmpName);            // if the target exists, remove it!
-		      gOFS->eosView->renameFile(ofmd.get(), tmpName);
-		      doDelete = false;
-		    } else {
-		      eos_info("hlnk nlink %ld for %s, will be deleted",
-			       nlink, fmd->getName().c_str());
-		    }
-		  }
+                    if (nlink) {
+                      gmd->setAttribute(k_nlink, std::to_string(nlink));
+                    } else {
+                      gmd->removeAttribute(k_nlink);
+                    }
 
-		  if (doDelete) {
-		    // if the file has not been used to keep a hardlink alive, wipe it
-		    try {
-		      XrdOucErrInfo error;
-		      
-		      if (XrdMgmOfsFile::create_cow(XrdMgmOfsFile::cowDelete, pcmd, ofmd, vid,
-						    error) == -1) {
-			pcmd->removeFile(md.name());
-			// unlink the existing file
-			ofmd->setContainerId(0);
-			ofmd->unlinkAllLocations();
-		      }
-		      
-		      eos::IQuotaNode* quotanode = gOFS->eosView->getQuotaNode(pcmd.get());
-		      
-		      // free previous quota
-		      if (quotanode) {
-			quotanode->removeFile(ofmd.get());
-		      }
-		      
-		      gOFS->eosFileService->updateStore(ofmd.get());
-		    } catch (eos::MDException& e) {
-		    }
-		  }
-		}
+                    gOFS->eosFileService->updateStore(gmd.get());
+                    eos_info("hlnk nlink update on %s for %s now %ld",
+                             gmd->getName().c_str(), ofmd->getName().c_str(), nlink);
+
+                    if (nlink <= 0) {
+                      if (gmd->getName().substr(0, 13) == "...eos.ino...") {
+                        eos_info("hlnk unlink target %s for %s nlink %ld",
+                                 gmd->getName().c_str(), ofmd->getName().c_str(), nlink);
+                        XrdOucErrInfo error;
+
+                        if (XrdMgmOfsFile::create_cow(XrdMgmOfsFile::cowDelete, pcmd, gmd, vid,
+                                                      error) == -1) {
+                          pcmd->removeFile(gmd->getName());
+                          gmd->unlinkAllLocations();
+                          gmd->setContainerId(0);
+                        }
+
+                        gOFS->eosFileService->updateStore(gmd.get());
+                      }
+                    }
+                  } else if (ofmd->hasAttribute(k_nlink)) {
+                    /* this is a genuine file, potentially with hard links */
+                    tgt_md_ino = eos::common::FileId::FidToInode(ofmd->getId());
+                    long nlink = std::stol(ofmd->getAttribute(k_nlink));
+
+                    if (nlink > 0) {
+                      // hard links exist, just rename the file so the inode does not disappear
+                      char nameBuf[256];
+                      snprintf(nameBuf, sizeof(nameBuf), "...eos.ino...%lx", tgt_md_ino);
+                      std::string tmpName = nameBuf;
+                      ofmd->setAttribute(k_nlink, std::to_string(nlink));
+                      eos_info("hlnk unlink rename %s=>%s new nlink %d",
+                               ofmd->getName().c_str(), tmpName.c_str(), nlink);
+                      pcmd->removeFile(tmpName);            // if the target exists, remove it!
+                      gOFS->eosView->renameFile(ofmd.get(), tmpName);
+                      doDelete = false;
+                    } else {
+                      eos_info("hlnk nlink %ld for %s, will be deleted",
+                               nlink, fmd->getName().c_str());
+                    }
+                  }
+
+                  if (doDelete) {
+                    // if the file has not been used to keep a hardlink alive, wipe it
+                    try {
+                      XrdOucErrInfo error;
+
+                      if (XrdMgmOfsFile::create_cow(XrdMgmOfsFile::cowDelete, pcmd, ofmd, vid,
+                                                    error) == -1) {
+                        pcmd->removeFile(md.name());
+                        // unlink the existing file
+                        ofmd->setContainerId(0);
+                        ofmd->unlinkAllLocations();
+                      }
+
+                      eos::IQuotaNode* quotanode = gOFS->eosView->getQuotaNode(pcmd.get());
+
+                      // free previous quota
+                      if (quotanode) {
+                        quotanode->removeFile(ofmd.get());
+                      }
+
+                      gOFS->eosFileService->updateStore(ofmd.get());
+                    } catch (eos::MDException& e) {
+                    }
+                  }
+                }
               }
             }
 
@@ -2433,7 +2439,7 @@ Server::OpSetFile(const std::string& id,
           fmd->setSize(md.size());
         }
       } catch (eos::MDException& e) {
-         fmd->setSize(md.size());
+        fmd->setSize(md.size());
       }
     }
     // for the moment we store 9 bits here
@@ -2517,10 +2523,12 @@ Server::OpSetFile(const std::string& id,
     case RENAME:
       Cap().BroadcastDeletion(pcmd->getId(), md, oldname, pt_mtime);
       break;
+
     case MOVE:
       Cap().BroadcastDeletion(cpcmd->getId(), mv_md, oldname, pt_mtime);
       Cap().BroadcastDeletion(pcmd->getId(), md, oldname, pt_mtime);
       break;
+
     case UPDATE:
     case CREATE:
       break;

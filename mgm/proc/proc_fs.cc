@@ -242,7 +242,7 @@ proc_fs_dumpmd(std::string& sfsid, XrdOucString& option, bool show_path,
             }
           }
 
-          out << endl;
+          out << std::endl;
         }
       } catch (eos::MDException& e) {
         errno = e.getErrno();
@@ -253,11 +253,11 @@ proc_fs_dumpmd(std::string& sfsid, XrdOucString& option, bool show_path,
 
       if (!fmd) {
         warn << "# warning: ghost entry fxid=" << std::setw(8) << std::hex
-             << it_fid->getElement() << std::dec << endl;
+             << it_fid->getElement() << std::dec << std::endl;
         retc = EIDRM;
       } else if (processPath && containerpath.empty()) {
         warn << "# warning: missing container for fxid=" << std::setw(8)
-             << std::hex << fmd->getId() << std::dec << endl;
+             << std::hex << fmd->getId() << std::dec << std::endl;
         retc = EIDRM;
       }
     }
@@ -277,7 +277,7 @@ proc_fs_dumpmd(std::string& sfsid, XrdOucString& option, bool show_path,
             fmd->getEnv(env, true);
             XrdOucString senv = env.c_str();
             senv.replace("checksum=&", "checksum=none&");
-            out << senv.c_str() << "&container=(null)" << endl;
+            out << senv.c_str() << "&container=(null)" << std::endl;
           }
         } catch (eos::MDException& e) {
           errno = e.getErrno();
@@ -291,7 +291,7 @@ proc_fs_dumpmd(std::string& sfsid, XrdOucString& option, bool show_path,
 
   if (retc == EIDRM) {
     out << warn.str().c_str();
-    err << "# error: filesystem contains problematic entries" << endl;
+    err << "# error: filesystem contains problematic entries" << std::endl;
   }
 
   stdOut += out.str().c_str();
@@ -1289,7 +1289,16 @@ proc_mv_fs_node(FsView& fs_view, const std::string& src,
                 mq::MessagingRealm* realm)
 {
   std::ostringstream oss;
-  eos::common::FileSystem::fsid_t fsid = stoi(src.c_str());
+  eos::common::FileSystem::fsid_t fsid = 0;
+  
+  try {
+    fsid = std::stoi(src.c_str());
+  } catch (...) {
+    eos_static_err("msg=\"failed to convert source fsid\" data=\"%s\"",
+                   src.c_str());
+    return EINVAL;
+  }
+
   FileSystem* fs = fs_view.mIdView.lookupByID(fsid);
 
   if (fs) {
@@ -1347,6 +1356,7 @@ proc_mv_fs_node(FsView& fs_view, const std::string& src,
     stdOut.erase();
   }
 
+  //@todo(esindril) return rc rather than 0?!
   return 0;
 }
 

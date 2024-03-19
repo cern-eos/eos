@@ -295,7 +295,7 @@ ConvertHelper::ParseConversion(eos::common::StringTokenizer& tokenizer)
     replica = std::stol(token.substr(pos + 1));
   } catch (...) {
     std::cerr << "error: failed to interpret replica number '"
-              << token.substr(pos + 1) << "'" << endl;
+              << token.substr(pos + 1) << "'" << std::endl;
     return nullptr;
   }
 

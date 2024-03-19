@@ -274,7 +274,7 @@ public:
   //! @return 0 is successful, otherwise errno. The output of the command or
   //!         any possible error messages are saved in stdOut and stdErr.
   //----------------------------------------------------------------------------
-  int ArchiveExecuteCmd(const::string& cmd);
+  int ArchiveExecuteCmd(const std::string& cmd);
 
   //----------------------------------------------------------------------------
   //! Response structure holding information about the status of an archived dir

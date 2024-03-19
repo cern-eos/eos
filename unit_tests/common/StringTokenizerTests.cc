@@ -253,24 +253,26 @@ TEST(StringTokenizer, Split)
 {
   std::string path = "/eos/foo/bar/baz/";
   std::vector<std::string> v{"eos", "foo", "bar", "baz"};
-  ASSERT_EQ(StringTokenizer::split<vector<std::string>>(path, '/'),
+  ASSERT_EQ(StringTokenizer::split<std::vector<std::string>>(path, '/'),
             v);
-  ASSERT_EQ(StringTokenizer::split<vector<std::string>>("eos/foo/bar/baz", '/'),
-            v);
-  ASSERT_EQ(StringTokenizer::split<vector<std::string>>("///eos//foo/bar/baz///",
+  ASSERT_EQ(StringTokenizer::split<std::vector<std::string>>("eos/foo/bar/baz",
             '/'),
             v);
+  ASSERT_EQ(
+    StringTokenizer::split<std::vector<std::string>>("///eos//foo/bar/baz///",
+        '/'),
+    v);
   std::string path_null = "/eos/foo";
   path_null += '\0';
   path_null += "bar";
   path_null += '\0';
   std::vector<std::string> path_null_v = {"/eos/foo", "bar"};
-  ASSERT_EQ(StringTokenizer::split<vector<std::string>>(path_null, '\0'),
+  ASSERT_EQ(StringTokenizer::split<std::vector<std::string>>(path_null, '\0'),
             path_null_v);
   std::string path_null2;
   path_null2 += '\0';
   path_null2 += path_null;
-  ASSERT_EQ(StringTokenizer::split<vector<std::string>>(path_null2, '\0'),
+  ASSERT_EQ(StringTokenizer::split<std::vector<std::string>>(path_null2, '\0'),
             path_null_v);
   // We explicitly want to test that passing an unitialized char variable
   // does not cause any issues - therefore deactivate the warning for
@@ -279,7 +281,7 @@ TEST(StringTokenizer, Split)
 #pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
 #pragma GCC diagnostic ignored "-Wuninitialized"
   char empty;
-  ASSERT_EQ(StringTokenizer::split<vector<std::string>>("abcd", empty),
+  ASSERT_EQ(StringTokenizer::split<std::vector<std::string>>("abcd", empty),
             std::vector<std::string>({"abcd"}));
 #pragma GCC diagnostic pop
 }

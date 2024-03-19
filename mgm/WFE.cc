@@ -1387,7 +1387,7 @@ WFE::Job::DoIt(bool issync, std::string& errorMsg, const char* const ininfo)
                   if (vend > 0) {
                     value.assign(outerr.c_str(), xend + 1, vend - (xend + 1));
                   } else {
-                    value.assign(outerr.c_str(), xend + 1, string::npos);
+                    value.assign(outerr.c_str(), xend + 1, std::string::npos);
                   }
 
                   // remove a possible line feed from the value
@@ -1493,7 +1493,7 @@ WFE::Job::DoIt(bool issync, std::string& errorMsg, const char* const ininfo)
                   if (vend > 0) {
                     value.assign(outerr.c_str(), xend + 1, vend - (xend + 1));
                   } else {
-                    value.assign(outerr.c_str(), xend + 1, string::npos);
+                    value.assign(outerr.c_str(), xend + 1, std::string::npos);
                   }
 
                   eos::Prefetcher::prefetchFileMDAndWait(gOFS->eosView, mWorkflowPath);
@@ -2170,6 +2170,7 @@ WFE::Job::HandleProtoMethodEvictPrepareEvent(const std::string& fullPath,
     return ENODATA;
   } else {
     const auto result = EvictAsRoot(mFid);
+
     if (0 == result.retc()) {
       std::ostringstream msg;
       msg << preamble.str() <<
@@ -2337,17 +2338,19 @@ WFE::Job::HandleProtoMethodDeleteEvent(const std::string& fullPath,
     .addParam(EosCtaReportParam::FILE_DEL_EOS_BTIME,
               xAttrs.count(EOS_BTIME) ? xAttrs[EOS_BTIME] : "")
     .addParam(EosCtaReportParam::FILE_DEL_ARCHIVE_FILE_ID,
-              xAttrs.count(ARCHIVE_FILE_ID_ATTR_NAME) ? xAttrs[ARCHIVE_FILE_ID_ATTR_NAME] : "")
+              xAttrs.count(ARCHIVE_FILE_ID_ATTR_NAME) ? xAttrs[ARCHIVE_FILE_ID_ATTR_NAME] :
+              "")
     .addParam(EosCtaReportParam::FILE_DEL_ARCHIVE_STORAGE_CLASS,
-              xAttrs.count(ARCHIVE_STORAGE_CLASS_ATTR_NAME) ? xAttrs[ARCHIVE_STORAGE_CLASS_ATTR_NAME] : "")
+              xAttrs.count(ARCHIVE_STORAGE_CLASS_ATTR_NAME) ?
+              xAttrs[ARCHIVE_STORAGE_CLASS_ATTR_NAME] : "")
     .addParam(EosCtaReportParam::FILE_DEL_LOCATIONS, locationsOStream.str())
     .addParam(EosCtaReportParam::FILE_DEL_CHECKSUMTYPE,
               eos::common::LayoutId::GetChecksumString(fmd->getLayoutId()))
     .addParam(EosCtaReportParam::FILE_DEL_CHECKSUMVALUE, checksum)
     .addParam(EosCtaReportParam::FILE_DEL_SIZE, fmd->getSize());
-
     // Add checksum to the notification
-    CtaCommon::SetChecksum(notification->mutable_file()->mutable_csb()->add_cs(), fmd->getLayoutId(), checksum);
+    CtaCommon::SetChecksum(notification->mutable_file()->mutable_csb()->add_cs(),
+                           fmd->getLayoutId(), checksum);
   }
   bool tapeLocationWasRemoved = false;
 
@@ -2367,6 +2370,7 @@ WFE::Job::HandleProtoMethodDeleteEvent(const std::string& fullPath,
   if (tapeLocationWasRemoved) {
     if (xAttrs.count(ARCHIVE_FILE_ID_ATTR_NAME)) {
       const int sendRc = SendProtoWFRequest(this, fullPath, request, errorMsg);
+
       if (SFS_OK != sendRc) {
         // The EOS namespace can ignore the failed deletion of the tape file(s) as this only generates dark data tape which will be picked up later
         eos_static_err("msg=\"Failed to notify protocol buffer endpoint about the deletion of file %s: %s\" sendRc=%d",
@@ -2375,11 +2379,11 @@ WFE::Job::HandleProtoMethodDeleteEvent(const std::string& fullPath,
     } else {
       if (file_size == 0) {
         eos_static_warning(
-            "msg=\"File size is zero and attribute sys.archive.file_id not found. Not sending deletion request to CTA.\"");
+          "msg=\"File size is zero and attribute sys.archive.file_id not found. Not sending deletion request to CTA.\"");
       } else {
         eos_static_err(
-            "msg=\"File size is %d but attribute sys.archive.file_id not found. Not sending deletion request to CTA.\"",
-            file_size);
+          "msg=\"File size is %d but attribute sys.archive.file_id not found. Not sending deletion request to CTA.\"",
+          file_size);
       }
     }
   }

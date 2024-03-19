@@ -44,16 +44,14 @@ DirEos::DirEos(const std::string& dirPath, const std::string& eosInstance):
 {
   XrdCl::URL url(eosInstance);
 
-  if (!url.IsValid())
-  {
+  if (!url.IsValid()) {
     eos_err("URL is not valid");
     exit(-1);
   }
 
   mFs = new XrdCl::FileSystem(url);
 
-  if (!mFs)
-  {
+  if (!mFs) {
     eos_err("Error while trying to get XrdCl::FileSystem object");
     exit(-1);
   }
@@ -86,8 +84,7 @@ DirEos::Exist()
   XrdCl::XRootDStatus status = mFs->Query(XrdCl::QueryCode::OpaqueFile, arg,
                                           response);
 
-  if (status.IsOK())
-  {
+  if (status.IsOK()) {
     unsigned long long sval[10];
     unsigned long long ival[6];
     char tag[1024];
@@ -111,13 +108,10 @@ DirEos::Exist()
                        (unsigned long long*) &ival[4],
                        (unsigned long long*) &ival[5]);
 
-    if ((items != 17) || (strcmp(tag, "stat:")))
-    {
+    if ((items != 17) || (strcmp(tag, "stat:"))) {
       ret = false;
     }
-  }
-  else
-  {
+  } else {
     ret = false;
   }
 
@@ -149,21 +143,17 @@ DirEos::SetXattr(const std::string& attrName, const std::string& attrValue)
   XrdCl::XRootDStatus status = mFs->Query(XrdCl::QueryCode::OpaqueFile, arg,
                                           response);
 
-  if (status.IsOK())
-  {
+  if (status.IsOK()) {
     int ret;
     int items = 0;
     char tag[1024];
     // Parse output
     items = sscanf(response->GetBuffer(), "%s retc=%i", tag, &ret);
 
-    if ((items != 2) || (strcmp(tag, "setxattr:")))
-    {
+    if ((items != 2) || (strcmp(tag, "setxattr:"))) {
       retc = false;
     }
-  }
-  else
-  {
+  } else {
     retc = false;
   }
 
@@ -207,8 +197,7 @@ DirEos::CheckXattr(const std::string& attrName, const std::string& refValue)
   XrdCl::XRootDStatus status = mFs->Query(XrdCl::QueryCode::OpaqueFile, arg,
                                           response);
 
-  if (status.IsOK())
-  {
+  if (status.IsOK()) {
     int ret;
     int items = 0;
     char tag[1024];
@@ -216,25 +205,19 @@ DirEos::CheckXattr(const std::string& attrName, const std::string& refValue)
     // Parse output
     items = sscanf(response->GetBuffer(), "%s retc=%i value=%s", tag, &ret, rval);
 
-    if ((items != 3) || (strcmp(tag, "getxattr:")))
-    {
+    if ((items != 3) || (strcmp(tag, "getxattr:"))) {
       fprintf(stderr, "[%s] Directory does not have the required xattr.\n",
               __FUNCTION__);
       retc = false;
-    }
-    else
-    {
+    } else {
       std::string attr_value = rval;
 
-      if (attr_value.compare(refValue))
-      {
+      if (attr_value.compare(refValue)) {
         // Attr value is different from refValue
         retc = false;
       }
     }
-  }
-  else
-  {
+  } else {
     retc = false;
   }
 
@@ -255,17 +238,14 @@ DirEos::GetMatchingFiles(const uint64_t fileSize)
   XrdCl::XRootDStatus status = mFs->DirList(mDirPath, flags, response);
   std::string full_path;
 
-  if (status.IsOK())
-  {
+  if (status.IsOK()) {
     for (XrdCl::DirectoryList::ConstIterator iter = response->Begin();
          iter != response->End();
-         ++iter)
-    {
+         ++iter) {
       XrdCl::DirectoryList::ListEntry* list_entry =
         static_cast<XrdCl::DirectoryList::ListEntry*>(*iter);
 
-      if (list_entry->GetStatInfo()->GetSize() == fileSize)
-      {
+      if (list_entry->GetStatInfo()->GetSize() == fileSize) {
         full_path = mDirPath;
         full_path += list_entry->GetName();
         vect_filenames.push_back(full_path);
@@ -285,18 +265,15 @@ bool
 DirEos::MatchConfig(const ConfigProto& llconfig)
 {
   if (!CheckXattr("user.admin.forced.layout",
-                  Configuration::GetFileLayout(llconfig.filelayout())))
-  {
+                  Configuration::GetFileLayout(llconfig.filelayout()))) {
     eos_warning("Directory attributes do not match with configuration");
     return false;
   }
 
   // If this is a replica file type we check the number of preplicas
-  if (llconfig.filelayout() == ConfigProto_FileLayoutType_REPLICA)
-  {
+  if (llconfig.filelayout() == ConfigProto_FileLayoutType_REPLICA) {
     if (!CheckXattr("user.admin.forced.nstripes",
-                    std::to_string((long long int)llconfig.noreplicas())))
-    {
+                    std::to_string((long long int)llconfig.noreplicas()))) {
       eos_warning("Number of replicas does not match with configuration");
       return false;
     }
@@ -316,46 +293,36 @@ DirEos::SetConfig(const ConfigProto& llconfig)
   //      used in production and therefore we set them like this
   bool ret = true;
 
-  if (llconfig.filelayout() == ConfigProto_FileLayoutType_PLAIN)
-  {
+  if (llconfig.filelayout() == ConfigProto_FileLayoutType_PLAIN) {
     ret  = SetXattr("user.admin.forced.layout", "plain");
     ret |= SetXattr("user.admin.forced.checksum", "adler");
     ret |= SetXattr("user.admin.forced.blockchecksum", "crc32c");
     ret |= SetXattr("user.admin.forced.blocksize", "1MB");
-  }
-  else if (llconfig.filelayout() == ConfigProto_FileLayoutType_REPLICA)
-  {
+  } else if (llconfig.filelayout() == ConfigProto_FileLayoutType_REPLICA) {
     ret  = SetXattr("user.admin.forced.layout", "replica");
     ret |= SetXattr("user.admin.forced.nstripes",
                     std::to_string((long long int)llconfig.noreplicas()));
     ret |= SetXattr("user.admin.forced.checksum", "adler");
     ret |= SetXattr("user.admin.forced.blockchecksum", "crc32c");
     ret |= SetXattr("user.admin.forced.blocksize", "1M");
-  }
-  else if (llconfig.filelayout() == ConfigProto_FileLayoutType_ARCHIVE)
-  {
+  } else if (llconfig.filelayout() == ConfigProto_FileLayoutType_ARCHIVE) {
     ret  = SetXattr("user.admin.forced.layout", "archive");
     ret |= SetXattr("user.admin.forced.blockchecksum", "crc32c");
     ret |= SetXattr("user.admin.forced.blocksize", "1M");
-  }
-  else if (llconfig.filelayout() == ConfigProto_FileLayoutType_RAIDDP)
-  {
+  } else if (llconfig.filelayout() == ConfigProto_FileLayoutType_RAIDDP) {
     ret  = SetXattr("user.admin.forced.layout", "raiddp");
     ret |= SetXattr("user.admin.forced.nstripes", "6");
     ret |= SetXattr("user.admin.forced.blockchecksum", "crc32c");
     ret |= SetXattr("user.admin.forced.blocksize", "1M");
-  }
-  else if (llconfig.filelayout() == ConfigProto_FileLayoutType_RAID6)
-  {
+  } else if (llconfig.filelayout() == ConfigProto_FileLayoutType_RAID6) {
     ret  = SetXattr("user.admin.forced.layout", "raid6");
     ret |= SetXattr("user.admin.forced.nstripes", "6");
     ret |= SetXattr("user.admin.forced.blockchecksum", "crc32c");
     ret |= SetXattr("user.admin.forced.blocksize", "1M");
   }
 
-  if (!ret)
-  {
-    cerr << "Error while trying to set extended attributes." << endl;
+  if (!ret) {
+    std::cerr << "Error while trying to set extended attributes." << std::endl;
     return ret;
   }
 

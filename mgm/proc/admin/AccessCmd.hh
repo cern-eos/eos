@@ -141,7 +141,7 @@ private:
   void StallhostsSubcmd(const eos::console::AccessProto_StallHostsProto& stall,
                         eos::console::ReplyProto& reply);
 
-  void aux(const string& sid,
+  void aux(const std::string& sid,
            std::ostringstream& std_out, std::ostringstream& std_err,
            int& ret_c);
 };

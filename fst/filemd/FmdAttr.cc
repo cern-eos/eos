@@ -255,7 +255,7 @@ FmdAttrHandler::LocalGetFmd(eos::common::FileId::fileid_t fid,
   } // status || force_retrieve
 
   // Creating an fmd
-  auto fmd = make_unique<common::FmdHelper>();
+  auto fmd = std::make_unique<common::FmdHelper>();
   fmd->mProtoFmd.set_uid(uid);
   fmd->mProtoFmd.set_gid(gid);
   fmd->mProtoFmd.set_lid(layoutid);

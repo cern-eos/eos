@@ -231,7 +231,7 @@ DavixIo::RetrieveS3Credentials()
   std::string credentials = "";
 
   if (mIsS3) {
-    pair<Davix::AwsSecretKey, Davix::AwsAccessKey>
+    std::pair<Davix::AwsSecretKey, Davix::AwsAccessKey>
     credPair = mParams.getAwsAutorizationKeys();
     credentials = credPair.second + ":" + credPair.first;
   }

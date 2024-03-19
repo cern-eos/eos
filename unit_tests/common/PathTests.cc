@@ -43,9 +43,9 @@ TEST(Path, BasicFunctionality)
   ASSERT_STREQ(path.GetSubPath(1), "/eos/");
   ASSERT_STREQ(path.GetSubPath(0), "/");
   ASSERT_STREQ(path.GetSubPath(5), 0);
-  path = "/eos/example/otherfile"s;
+  path = std::string("/eos/example/otherfile");
   ASSERT_STREQ(path.GetPath(), "/eos/example/otherfile");
-  path = "/eos/example/"s;
+  path = std::string("/eos/example/");
   ASSERT_STREQ(path.GetName(), "example");
   ASSERT_STREQ(path.GetPath(), "/eos/example");
   ASSERT_STREQ(path.GetParentPath(), "/eos/");
@@ -83,7 +83,7 @@ TEST(Path, RelativePath)
   ASSERT_STREQ(path.GetParentPath(), "/");
   ASSERT_STREQ(path.GetFullPath().c_str(), "eos/example/file");
   ASSERT_EQ(path.GetSubPathSize(), 0);
-  path = "eos/example/file/"s;
+  path = std::string("eos/example/file/");
   ASSERT_STREQ(path.GetName(), "eos/example/file");
   ASSERT_STREQ(path.GetPath(), "eos/example/file");
   ASSERT_STREQ(path.GetParentPath(), "/");

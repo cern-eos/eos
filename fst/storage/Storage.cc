@@ -189,7 +189,7 @@ CheckFsXattrConverted(std::string fs_path)
     (void) closedir(dir);
     // This is a new fs, add the converted marker
     std::ofstream file;
-    file.open(xattr_path, ios::out);
+    file.open(xattr_path, std::ios::out);
   }
 
   return true;

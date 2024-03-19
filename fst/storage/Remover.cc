@@ -46,7 +46,7 @@ Storage::Remover()
 
   if (ptr) {
     try {
-      request_interval = chrono::seconds(std::stoi(std::string(ptr)));
+      request_interval = std::chrono::seconds(std::stoi(std::string(ptr)));
       eos_static_info("msg=\"update deletions request interval\" val=%llu",
                       request_interval.count());
     } catch (...) {}
@@ -101,9 +101,9 @@ Storage::Remover()
       }
     }
 
-    auto now_ts = system_clock::now();
-    bool request_del = (duration_cast<chrono::seconds>(now_ts - last_request_ts) >
-                        request_interval);
+    auto now_ts = std::chrono::system_clock::now();
+    bool request_del = (std::chrono::duration_cast<std::chrono::seconds>
+                        (now_ts - last_request_ts) > request_interval);
 
     // Ask for more deletions if deleted something in last round or request
     // interval expired

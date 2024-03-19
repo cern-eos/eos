@@ -827,7 +827,7 @@ FsCmd::Clone(const eos::console::FsProto::CloneProto& cloneProto)
   }
 
   std::ostringstream oss;
-  oss << "Successfully replicated " << success << " files." << endl;
+  oss << "Successfully replicated " << success << " files." << std::endl;
   mOut = oss.str();
   return SFS_OK;
 }

@@ -218,10 +218,10 @@ void DevicesCmd::LsSubcmd(const eos::console::DevicesProto_LsProto& ls,
                                    && root["interface_speed"]["max"].isMember("string")) ?
                                   root["interface_speed"]["max"]["string"].asString() : "unknown";
           std::replace(ifspeed.begin(), ifspeed.end(), ' ', ':');
-          string read_lookahead = (root.isMember("read_lookahead")) ?
-                                  (root["read_lookahead"]["enabled"].asBool() ? "true" : "false") : "unknown";
-          string write_cache    = (root.isMember("write_cache")) ?
-                                  (root["write_cache"]["enabled"].asBool() ? "true" : "false") : "unknown";
+          std::string read_lookahead = (root.isMember("read_lookahead")) ?
+                                       (root["read_lookahead"]["enabled"].asBool() ? "true" : "false") : "unknown";
+          std::string write_cache    = (root.isMember("write_cache")) ?
+                                       (root["write_cache"]["enabled"].asBool() ? "true" : "false") : "unknown";
 
           if (model.length()) {
             driveModelStats[model]["count"]++;

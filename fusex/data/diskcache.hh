@@ -88,7 +88,7 @@ private:
 
   static bufferllmanager sBufferManager;
 
-  static shared_ptr<dircleaner> sDirCleaner;
+  static std::shared_ptr<dircleaner> sDirCleaner;
 
 };
 

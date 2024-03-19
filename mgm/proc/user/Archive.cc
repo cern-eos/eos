@@ -683,7 +683,7 @@ ProcCommand::ArchiveGetDirs(const std::string& root) const
 // Send command to archive daemon and collect the response
 //------------------------------------------------------------------------------
 int
-ProcCommand::ArchiveExecuteCmd(const::string& cmd)
+ProcCommand::ArchiveExecuteCmd(const std::string& cmd)
 {
   int retc = 0;
   int sock_linger = 0;

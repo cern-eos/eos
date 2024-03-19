@@ -1124,7 +1124,7 @@ protected:
 
     __EOSMGM_TREECOMMON_DBG3__ if (g_logging.gLogMask & LOG_MASK(
                                      LOG_DEBUG)) {
-      stringstream ss;
+      std::stringstream ss;
       ss << "getRandomBranch at " << (*pTreeInfo)[node] << " choose among " <<
          (int) nBranches << std::endl;
       eos_static_debug(ss.str().c_str());
@@ -1135,7 +1135,7 @@ protected:
     for (tFastTreeIdx i = pNodes[node].treeData.firstBranchIdx;
          i < pNodes[node].treeData.firstBranchIdx + nBranches; i++) {
       const FastTreeNode& node = pNodes[pBranches[i].sonIdx];
-      weightSum += max(pRandVar(node.fsData, node.fileData), (unsigned char)0);
+      weightSum += std::max(pRandVar(node.fsData, node.fileData), (unsigned char)0);
     }
 
     if (weightSum) {
@@ -1177,7 +1177,7 @@ protected:
 
     __EOSMGM_TREECOMMON_DBG3__ if (g_logging.gLogMask & LOG_MASK(
                                      LOG_DEBUG)) {
-      stringstream ss;
+      std::stringstream ss;
       ss << "getRandomBranchGeneric from Branch " << (int)brchBegIdx << " to branch "
          << (int)brchEndIdx << std::endl;
       eos_static_debug(ss.str().c_str());
@@ -1553,7 +1553,6 @@ public:
     double _mFillRatio = 0;
     double _mTotalSpace = 0;
     double _mTotalWritableSpace = 0;
-
     int count = 0;
 
     for (tFastTreeIdx bidx = pNodes[node].treeData.firstBranchIdx;
@@ -1575,9 +1574,10 @@ public:
 
         _mTotalSpace += pNodes[childNode].fsData.totalSpace;
 
-	if (writableBranch) {
-	  _mTotalWritableSpace += pNodes[childNode].fsData.totalWritableSpace;
-	}
+        if (writableBranch) {
+          _mTotalWritableSpace += pNodes[childNode].fsData.totalWritableSpace;
+        }
+
         //_mFillRatio += pNodes[childNode].fsData.fillRatio *
         //               pNodes[childNode].fsData.totalSpace;
         _mFillRatio += pNodes[childNode].fsData.fillRatio;
@@ -1602,7 +1602,7 @@ public:
     pNodes[node].fsData.ulScore = (char)(count ? _mUlScore / count : 0);
     pNodes[node].fsData.fillRatio = (char)_mFillRatio;
     pNodes[node].fsData.totalSpace = (float)_mTotalSpace;
-    pNodes[node].fsData.totalWritableSpace =(float)_mTotalWritableSpace;
+    pNodes[node].fsData.totalWritableSpace = (float)_mTotalWritableSpace;
     return true;
   }
 
@@ -2016,7 +2016,7 @@ public:
                                            pNodes[node].fsData.dlScore,
                                            pNodes[node].fsData.fillRatio,
                                            pNodes[node].fsData.totalSpace,
-					   pNodes[node].fsData.totalWritableSpace));
+                                           pNodes[node].fsData.totalWritableSpace));
     } else {
       // Print group (depth=1) and geotag (depth=2)
       unsigned depth = (prefix1 == 0 && prefix2 == 0) ? 1 : 2;
@@ -2032,7 +2032,7 @@ public:
                                            pNodes[node].fsData.dlScore,
                                            pNodes[node].fsData.fillRatio,
                                            pNodes[node].fsData.totalSpace,
-					   pNodes[node].fsData.totalWritableSpace));
+                                           pNodes[node].fsData.totalWritableSpace));
       // How many deep is geotag
       unsigned geo_depth = 1;
       std::string geotag_temp = (*pTreeInfo)[node].fullGeotag;
@@ -2181,7 +2181,7 @@ public:
 
       if (!allowUpRoot) {
         //make the current branch the root
-        swap(fatherIdx, pNodes[startFrom].treeData.fatherIdx);
+        std::swap(fatherIdx, pNodes[startFrom].treeData.fatherIdx);
       }
 
       bool ret = findFreeSlotSkipSaturated(newReplica, startFrom, true, decrFreeSlot,
@@ -2189,7 +2189,7 @@ public:
 
       if (!allowUpRoot) {
         // put back the original father
-        swap(fatherIdx, pNodes[startFrom].treeData.fatherIdx);
+        std::swap(fatherIdx, pNodes[startFrom].treeData.fatherIdx);
       }
 
       return ret;

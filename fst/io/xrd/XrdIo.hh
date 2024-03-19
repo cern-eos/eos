@@ -421,7 +421,7 @@ public:
   //!
   //! @return 0 on success, -1 otherwise and error code is set
   //----------------------------------------------------------------------------
-  int attrSet(string name, std::string value);
+  int attrSet(std::string name, std::string value);
 
   //----------------------------------------------------------------------------
   //! Get a binary attribute by name
@@ -442,7 +442,7 @@ public:
   //!
   //! @return 0 on success, -1 otherwise and error code is set
   //----------------------------------------------------------------------------
-  int attrGet(string name, std::string& value);
+  int attrGet(std::string name, std::string& value);
 
   //----------------------------------------------------------------------------
   //! Delete a binary attribute by name

@@ -189,7 +189,7 @@ ReedSLayout::RecoverPiecesInGroup(XrdCl::ChunkList& grp_errs)
   unsigned int physical_id;
   // Use "set" as we might add the same stripe index twice as a result of an early
   // error detected when sending the request and by the async handler
-  set<unsigned int> invalid_ids;
+  std::set<unsigned int> invalid_ids;
   uint64_t offset = grp_errs.begin()->offset;
   uint64_t offset_local = (offset / mSizeGroup) * mStripeWidth;
   uint64_t offset_group = (offset / mSizeGroup) * mSizeGroup;

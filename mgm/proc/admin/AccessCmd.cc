@@ -822,7 +822,7 @@ void AccessCmd::SetSubcmd(const eos::console::AccessProto_SetProto& set,
 
 // @note (faluchet) all this machinery (and more) should be done with templates and funct programming... Later
 
-void AccessCmd::aux(const string& sid, std::ostringstream& std_out,
+void AccessCmd::aux(const std::string& sid, std::ostringstream& std_out,
                     std::ostringstream& std_err, int& ret_c)
 {
   std::string saction;

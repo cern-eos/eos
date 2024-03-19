@@ -1374,7 +1374,7 @@ XrdMqSharedObjectChangeNotifier::UnsubscribesToSubjectAndKey(
          it != s->WatchSubjectsXKeys[type].end(); ++it) {
       if (it->first == subjects &&
           std::includes(it->second.begin(), it->second.end(), keys.begin(), keys.end())) {
-        set<string> newKeys;
+        std::set<std::string> newKeys;
         set_difference(it->second.begin(), it->second.end(), keys.begin(), keys.end(),
                        inserter(newKeys, newKeys.end()));
         it->second = newKeys;
@@ -1389,7 +1389,7 @@ XrdMqSharedObjectChangeNotifier::UnsubscribesToSubjectAndKey(
       } else if (it->second == keys
                  && std::includes(it->first.begin(), it->first.end(), subjects.begin(),
                                   subjects.end())) {
-        set<string> newSubjects;
+        std::set<std::string> newSubjects;
         set_difference(it->first.begin(), it->first.end(), subjects.begin(),
                        subjects.end(),
                        inserter(newSubjects, newSubjects.end()));

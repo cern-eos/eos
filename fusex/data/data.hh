@@ -277,7 +277,7 @@ public:
     const char* Dump(std::string& out);
 
     std::string url(bool nonblocking = false);
-    typedef std::shared_ptr<string> shared_url;
+    typedef std::shared_ptr<std::string> shared_url;
     void set_shared_url();
 
   private:

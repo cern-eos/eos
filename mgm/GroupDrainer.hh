@@ -96,7 +96,7 @@ public:
   void prepareTransfers();
   void prepareTransfer(uint64_t index);
   void scheduleTransfer(eos::common::FileId::fileid_t fid,
-                        const string& src_grp, const string& tgt_grp,
+                        const std::string& src_grp, const std::string& tgt_grp,
                         eos::common::FileSystem::fsid_t src_fsid);
 
   std::pair<bool, cache_fid_map_t::iterator>
@@ -107,7 +107,7 @@ public:
     mDoConfigUpdate.store(true, std::memory_order_release);
   }
 
-  bool Configure(const string& spaceName);
+  bool Configure(const std::string& spaceName);
 
   void addTransferEntry(eos::common::FileId::fileid_t fid)
   {
