@@ -161,10 +161,9 @@ You have to configure a dependency repository and either the tag or commit repos
 +-----------------+-----------------------------------------------------------------------------------------------------------------------+
 | Alma 8          | ``yum-config-manager --add-repo "https://storage-ci.web.cern.ch/storage-ci/eos/diopside/tag/testing/el-8/x86_64/"``   |
 +-----------------+-----------------------------------------------------------------------------------------------------------------------+
-| Alma 9          | ``yum-config-manager --add-repo "https://storage-ci.web.cern.ch/storage-ci/eos/diopside/tag/testing/el-9/x86_64/"``  |
-|                 |                                                                                                                       |
+| Alma 9          | ``yum-config-manager --add-repo "https://storage-ci.web.cern.ch/storage-ci/eos/diopside/tag/testing/el-9/x86_64/"``   |
 +-----------------+-----------------------------------------------------------------------------------------------------------------------+
-| CentOS9 Stream  | https://storage-ci.web.cern.ch/storage-ci/eos/diopside/tag/testing/fc-38/x86_64/"                                     |
+| CentOS9 Stream  | https://storage-ci.web.cern.ch/storage-ci/eos/diopside/tag/testing/fc-38/x86_64/                                      |
 +-----------------+-----------------------------------------------------------------------------------------------------------------------+
 
 
@@ -175,11 +174,11 @@ You have to configure a dependency repository and either the tag or commit repos
 +=================+====================================================================================================================+
 | CentOS7         | ``yum-config-manager --add-repo "https://storage-ci.web.cern.ch/storage-ci/eos/diopside/commit/el-7/x86_64/"``     |
 +-----------------+--------------------------------------------------------------------------------------------------------------------+
-| Alma 8          | ``yum-config-manager --add-repo "https://storage-ci.web.cern.ch/storage-ci/eos/diopside/commit/el-8/x86_64/"``    |
+| Alma 8          | ``yum-config-manager --add-repo "https://storage-ci.web.cern.ch/storage-ci/eos/diopside/commit/el-8/x86_64/"``     |
 +-----------------+--------------------------------------------------------------------------------------------------------------------+
-| Alma 9          | ``yum-config-manager --add-repo "https://storage-ci.web.cern.ch/storage-ci/eos/diopside/commit/el-9/x86_64/"``    |
+| Alma 9          | ``yum-config-manager --add-repo "https://storage-ci.web.cern.ch/storage-ci/eos/diopside/commit/el-9/x86_64/"``     |
 +-----------------+--------------------------------------------------------------------------------------------------------------------+
-| Fedora 38       | https://storage-ci.web.cern.ch/storage-ci/eos/diopside/tag/testing/fc-38/x86_64/"                                  |
+| Fedora 38       | https://storage-ci.web.cern.ch/storage-ci/eos/diopside/tag/testing/fc-38/x86_64/                                   |
 +-----------------+--------------------------------------------------------------------------------------------------------------------+
 
 Client+FUSE RPM Installation
