@@ -276,7 +276,7 @@ static uint64_t GetNetSpeed()
   if (fnetspeed) {
     const int max_read = 32;
     char data[32] = "";
-    int nbytes = fread((void*)data, max_read, sizeof(char), fnetspeed);
+    int nbytes = fread((void*)data, sizeof(char), max_read, fnetspeed);
 
     if (nbytes > 1) {
       data[nbytes] = '\0';
