@@ -10,7 +10,7 @@ int usage(const char* prog)
   fprintf(stderr, "usage: %s [--key <ssl-key-file> "
           "--cert <ssl-cert-file> "
           "--ca <ca-cert-file>] "
-          "[--endpoint <host:port>] [--token <auth-token>] [--xattr <key:val>] [--mode <mode>] [--username <username>] [ [--groupname <groupname>] [--uid <uid>] [--gid <gid>] [--owner-uid <uid>] [--owner-gid <gid>] [--acl <acl>] [--sysacl] [--norecycle] [-r] [--max-version <max-version>] [--target <target>] [--year <year>] [--month <month>] [--day <day>] [--inodes <#>] [--volume <#>] [--quota volume|inode] [--position <position>] [--front] -p <path> <command>\n",
+          "[--endpoint <host:port>] [--token <auth-token>] [--xattr <key:val>] [--mode <mode>] [--username <username>] [ [--groupname <groupname>] [--uid <uid>] [--gid <gid>] [--app <app>] [--owner-uid <uid>] [--owner-gid <gid>] [--acl <acl>] [--sysacl] [--norecycle] [-r] [--max-version <max-version>] [--target <target>] [--year <year>] [--month <month>] [--day <day>] [--inodes <#>] [--volume <#>] [--quota volume|inode] [--position <position>] [--front] -p <path> <command>\n",
           prog);
   fprintf(stderr,
           "                                     -p <path> mkdir \n"
@@ -60,6 +60,7 @@ int main(int argc, const char* argv[])
   int64_t max_version = -1;
   uid_t uid = 0;
   gid_t gid = 0;
+  std::string app;
   uint32_t day = 0;
   uint32_t month = 0;
   uint32_t year = 0;
@@ -148,7 +149,17 @@ int main(int argc, const char* argv[])
         return usage(argv[0]);
       }
     }
-
+    
+    if (option == "--app") {
+      if (argc > i + 1) {
+        app = argv[i + 1]; 
+        ++i;
+        continue;
+      } else {
+        return usage(argv[0]);
+      }
+    }
+    
     if (option == "--inodes") {
       if (argc > i + 1) {
         inodes = strtoul(argv[i + 1], 0, 10);
@@ -431,6 +442,10 @@ int main(int argc, const char* argv[])
 
   if (gid) {
     request.mutable_role()->set_gid(gid);
+  }
+
+  if (app.length()) {
+    request.mutable_role()->set_app(app);
   }
 
   google::protobuf::util::JsonPrintOptions options;

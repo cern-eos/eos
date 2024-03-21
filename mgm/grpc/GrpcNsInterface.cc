@@ -729,6 +729,7 @@ GrpcNsInterface::Stat(eos::common::VirtualIdentity& ivid,
     } else {
       vid = eos::common::Mapping::Someone(request->role().uid(),
 					  request->role().gid());
+      vid.app = request->role().app();
     }
   }
 
