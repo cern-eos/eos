@@ -790,7 +790,7 @@ public:
   //! broadcast the message. This should be called only when an explicit removal
   //! of the file system is request though "fs rm"
   //----------------------------------------------------------------------------
-  //void DeleteSharedHash();
+  void DeleteSharedHash();
 
   //--------------------------------------------------------------------------
   //! Get used bytes

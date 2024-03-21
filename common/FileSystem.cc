@@ -517,10 +517,10 @@ FileSystem::FileSystem(const FileSystemLocator& locator,
 // broadcast the message. This should be called only when an explicit removal
 // of the file system is requested though "fs rm".
 //------------------------------------------------------------------------------
-// void FileSystem::DeleteSharedHash()
-// {
-//   mq::SharedHashWrapper::deleteHash(mRealm, mHashLocator);
-// }
+void FileSystem::DeleteSharedHash()
+{
+  mq::SharedHashWrapper::deleteHash(mRealm, mHashLocator);
+}
 
 //------------------------------------------------------------------------------
 // Get underlying hash locator

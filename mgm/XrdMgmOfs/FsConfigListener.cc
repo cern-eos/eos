@@ -231,34 +231,40 @@ void XrdMgmOfs::FileSystemMonitorThread(ThreadAssistant& assistant) noexcept
                           configstatus.c_str());
             bstatus = eos::common::FileSystem::GetStatusFromString(bootstatus.c_str());
             space = fs->getCoreParams().getSpace();
+
             if (fsid == 0 || space.empty()) {
               // We are in the initial state where most of the FS params are not populated
               // skip further processing
               continue;
             }
+
             if (gOFS->mFsScheduler != nullptr && gOFS->mFsScheduler->isRunning()) {
-                bool status = gOFS->mFsScheduler->setDiskStatus(space,
-                                                                fsid, cfgstatus);
-                bool act_status = gOFS->mFsScheduler->setDiskStatus(space,
-                                                                    fsid, fs->GetActiveStatus(), bstatus);
-                if (!status || !act_status) {
-                  eos_static_err("msg=\"Failed to set Disk Status in FsScheduler for disk\" %llu", fsid);
-                }
+              bool status = gOFS->mFsScheduler->setDiskStatus(space,
+                            fsid, cfgstatus);
+              bool act_status = gOFS->mFsScheduler->setDiskStatus(space,
+                                fsid, fs->GetActiveStatus(), bstatus);
+
+              if (!status || !act_status) {
+                eos_static_err("msg=\"Failed to set Disk Status in FsScheduler for disk\" %llu",
+                               fsid);
+              }
             }
           }
-
 
           if (fs && fsid && errc &&
               (cfgstatus >= eos::common::ConfigStatus::kRO) &&
               (bstatus == eos::common::BootStatus::kOpsError)) {
             // Case when we take action and explicitly ask to start a drain job
             fs->SetConfigStatus(eos::common::ConfigStatus::kDrain);
+
             if (gOFS->mFsScheduler != nullptr && gOFS->mFsScheduler->isRunning()) {
               bool status = gOFS->mFsScheduler->setDiskStatus(fs->getCoreParams().getSpace(),
-                                                              fsid,
-                                                              eos::common::ConfigStatus::kDrain);
+                            fsid,
+                            eos::common::ConfigStatus::kDrain);
+
               if (!status) {
-                eos_static_err("msg=\"Failed to set Disk Status in FsScheduler for disk\" %llu", fsid);
+                eos_static_err("msg=\"Failed to set Disk Status in FsScheduler for disk\" %llu",
+                               fsid);
               }
             }
           }
@@ -292,13 +298,17 @@ XrdMgmOfs::FsConfigListener(ThreadAssistant& assistant) noexcept
     eos::mq::GlobalConfigChangeListener::Event event;
 
     if (changeListener.fetch(assistant, event)) {
-      if (!event.isDeletion() && !gOFS->mMaster->IsMaster()) {
-        // This is an MGM configuration modification - only an MGM
-        // slave needs to apply this.
-        processIncomingMgmConfigurationChange(event.key);
-      } else if (event.isDeletion()) {
-        gOFS->ConfEngine->DeleteConfigValue(0, event.key.c_str(), false);
-        gOFS->ConfEngine->ApplyKeyDeletion(event.key.c_str());
+      if (!gOFS->mMaster->IsMaster()) {
+        if (!event.isDeletion()) {
+          // This is an MGM configuration modification -
+          // only an MGM slave needs to apply this.
+          processIncomingMgmConfigurationChange(event.key);
+        } else {
+          eos_static_info("msg=\"handle deletion event\" key=\"%s\"",
+                          event.key.c_str());
+          gOFS->ConfEngine->DeleteConfigValue(0, event.key.c_str(), false);
+          gOFS->ConfEngine->ApplyKeyDeletion(event.key.c_str());
+        }
       }
     }
   }

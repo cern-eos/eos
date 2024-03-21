@@ -1290,13 +1290,14 @@ proc_mv_fs_node(FsView& fs_view, const std::string& src,
 {
   std::ostringstream oss;
   eos::common::FileSystem::fsid_t fsid = 0;
+  int rc = EINVAL;
   
   try {
     fsid = std::stoi(src.c_str());
   } catch (...) {
     eos_static_err("msg=\"failed to convert source fsid\" data=\"%s\"",
                    src.c_str());
-    return EINVAL;
+    return rc;
   }
 
   FileSystem* fs = fs_view.mIdView.lookupByID(fsid);
@@ -1318,17 +1319,17 @@ proc_mv_fs_node(FsView& fs_view, const std::string& src,
       std::string sharedfs = snapshot.mSharedFs;
       std::string configstatus = eos::common::FileSystem::GetConfigStatusAsString(
                                    snapshot.mConfigStatus);
-      int rc = proc_fs_rm(a , b, id, stdOut, stdErr, vid_in);
+      rc = proc_fs_rm(a , b, id, stdOut, stdErr, vid_in);
       FsView::gFsView.ViewMutex.UnLockWrite();
 
       if (!rc) {
         std::string nodename = "/eos/";
         nodename += dst;
         nodename += "/fst";
-        int rc = proc_fs_add(realm, id, uuid, nodename, path,
-                             ((getenv("EOS_ALLOW_SAME_HOST_IN_GROUP") || force) ?
-                              group : space),
-                             configstatus, sharedfs, stdOut, stdErr, vid_in, true);
+        rc = proc_fs_add(realm, id, uuid, nodename, path,
+                         ((getenv("EOS_ALLOW_SAME_HOST_IN_GROUP") || force) ?
+                          group : space),
+                         configstatus, sharedfs, stdOut, stdErr, vid_in, true);
 
         if (rc) {
           oss << "error: failed to reinsert filesystem with id='" << fsid <<
@@ -1337,8 +1338,8 @@ proc_mv_fs_node(FsView& fs_view, const std::string& src,
           stdOut.erase();
         }
       } else {
-        oss << "error: failed ot snapshot filesystem with id='" << fsid << "'" <<
-            std::endl;
+        oss << "error: failed to remove file system id='"
+            << fsid << "'" << std::endl;
         stdErr = oss.str().c_str();
         stdOut.erase();
       }
@@ -1349,18 +1350,17 @@ proc_mv_fs_node(FsView& fs_view, const std::string& src,
           std::endl;
       stdErr = oss.str().c_str();
       stdOut.erase();
+      rc = EINVAL;
     }
   } else {
     oss << "error: no such filesystem with id='" << fsid << "'" << std::endl;
     stdErr = oss.str().c_str();
     stdOut.erase();
+    rc = ENOENT;
   }
 
-  //@todo(esindril) return rc rather than 0?!
-  return 0;
+  return rc;
 }
-
-
 
 //------------------------------------------------------------------------------
 // Remove filesystem
@@ -1378,6 +1378,9 @@ proc_fs_rm(std::string& nodename, std::string& mountpoint, std::string& id,
     fsid = stoi(id);
   }
 
+  eos_static_info("msg=\"file system removal\" id=\"%s\", node=\"%s\" "
+                  "mountpoint=\"%s\"", id.c_str(), nodename.c_str(),
+                  mountpoint.c_str());
   FileSystem* fs = 0;
 
   if (id.length()) {
@@ -1432,6 +1435,8 @@ proc_fs_rm(std::string& nodename, std::string& mountpoint, std::string& id,
     // master MGM is never propagated to the slaves.
     if ((cstate != "empty") &&
         !((cstate == "drain") && !gOFS->mMaster->IsMaster())) {
+      eos_static_err("msg=\"only empty file systems can be removed\" "
+                     "cstate=\"%s\"", cstate.c_str());
       stdErr = "error: you can only remove file systems which are in 'empty' status";
       retc = EINVAL;
     } else {
@@ -1451,10 +1456,13 @@ proc_fs_rm(std::string& nodename, std::string& mountpoint, std::string& id,
         stdOut += mountpoint.c_str();
         stdOut += " ";
         stdOut += id.c_str();
-        stdOut += " from the FsView";
+        stdOut += " from the FsView\n";
       }
     }
   } else {
+    eos_static_err("msg=\"no file system found\" node=\"%s\" "
+                   "mountpoint=\"%s\"", nodename.c_str(),
+                   mountpoint.c_str());
     stdErr = "error: there is no filesystem defined by ";
     stdErr += nodename.c_str();
     stdErr += " ";
