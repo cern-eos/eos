@@ -17,6 +17,18 @@ Introduction
 This release is based on XRootD V5.
 
 
+``v5.2.20 Diopside``
+====================
+
+2024-03-21
+
+Bug
+---
+
+* [EOS-6091] - Update PersistentSharedHash before publishing updates
+* [EOS-6101] - fs rm no longer sends a notification to the FST
+
+
 ``v5.2.19 Diopside``
 ====================
 
