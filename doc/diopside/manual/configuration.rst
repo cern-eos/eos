@@ -62,6 +62,7 @@ Classical `Systemd` Services
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 The systemctl services for the four types of daemon are:
+
 .. code-block:: bash
     
   systemctl start|stop|status xrootd@quarkdb
@@ -70,6 +71,7 @@ The systemctl services for the four types of daemon are:
   systemctl start|stop|status eos@fst
 
 The logical startup order justified by their dependencies should be: 
+
 1. QDB
 2. MQ
 3. MGM

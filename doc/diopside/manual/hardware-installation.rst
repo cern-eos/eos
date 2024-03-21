@@ -185,14 +185,14 @@ You have to configure a dependency repository and either the tag or commit repos
 Client+FUSE RPM Installation
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-.. code-block::
+.. code-block:: bash
 
    yum install eos-client eos-fusex
 
 Server RPM Installation
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-.. code-block::
+.. code-block:: bash
 
    yum install eos-server
 
