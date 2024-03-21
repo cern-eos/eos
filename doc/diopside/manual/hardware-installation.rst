@@ -164,7 +164,7 @@ You have to configure a dependency repository and either the tag or commit repos
 | Alma 9          | ``yum-config-manager --add-repo "https://storage-ci.web.cern.ch/storage-ci/eos/diopside/tag/testing/el-9/x86_64/"``   |
 |                 |                                                                                                                       |
 +-----------------+-----------------------------------------------------------------------------------------------------------------------+
-| CentOS9 Stream  | https://storage-ci.web.cern.ch/storage-ci/eos/diopside/tag/testing/fc-38/x86_64/                                      |
+| Fedora 38       | https://storage-ci.web.cern.ch/storage-ci/eos/diopside/tag/testing/fc-38/x86_64/                                      |
 +-----------------+-----------------------------------------------------------------------------------------------------------------------+
 
 
