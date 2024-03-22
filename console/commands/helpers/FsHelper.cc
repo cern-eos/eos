@@ -383,6 +383,8 @@ FsHelper::ParseCommand(const char* arg)
             dumpmd->set_showpath(true);
           } else if (soption == "--size") {
             dumpmd->set_showsize(true);
+          } else if (soption == "--count") {
+            dumpmd->set_showcount(true);
           } else if (soption == "-s") {
             mIsSilent = true;
           } else if (soption == "-m") {
@@ -393,6 +395,8 @@ FsHelper::ParseCommand(const char* arg)
             break;
           }
         }
+      } else {
+        dumpmd->set_showcount(true);
       }
     }
   } else if (cmd == "mv") {
