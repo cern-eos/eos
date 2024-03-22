@@ -60,12 +60,13 @@ message FsProto {
       MONITOR = 1;
     }
 
-    uint64 Fsid = 1;
+    uint64 Fsid    = 1;
     DisplayMode display = 2;
-    bool ShowFid = 3;
-    bool ShowPath = 4;
-    bool ShowSize = 5;
-    bool ShowFxid = 6;
+    bool ShowFid   = 3;
+    bool ShowPath  = 4;
+    bool ShowSize  = 5;
+    bool ShowFxid  = 6;
+    bool ShowCount = 7;
   }
 
   message MvProto {

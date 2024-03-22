@@ -36,6 +36,7 @@
 
 EOSMGMNAMESPACE_BEGIN
 
+static const uint64_t FS_DUMPMD_MAX_NUM_ENTRIES = 100000;
 XrdSysSemaphore eos::mgm::FsCmd::mSemaphore{5};
 
 //------------------------------------------------------------------------------
@@ -312,7 +313,7 @@ FsCmd::DropGhosts(const eos::console::FsProto::DropGhostsProto& drop_ghosts)
 // Dumpmd subcommand
 //------------------------------------------------------------------------------
 int
-FsCmd::DumpMd(const eos::console::FsProto::DumpMdProto& dumpmdProto)
+FsCmd::DumpMd(const eos::console::FsProto::DumpMdProto& dumpmd_proto)
 {
   XrdOucString out, err;
 
@@ -322,21 +323,29 @@ FsCmd::DumpMd(const eos::console::FsProto::DumpMdProto& dumpmdProto)
       std::this_thread::sleep_for(std::chrono::seconds(2));
     }
 
-    std::string sfsid = std::to_string(dumpmdProto.fsid());
-    XrdOucString option = dumpmdProto.display() ==
-                          eos::console::FsProto::DumpMdProto::MONITOR ? "m" : "";
-    XrdOucString dp = dumpmdProto.showpath() ? "1" : "0";
-    XrdOucString df = dumpmdProto.showfid() ? "1" : "0";
-    XrdOucString ds = dumpmdProto.showsize() ? "1" : "0";
-    size_t entries = 0;
-    mRetc = SemaphoreProtectedProcDumpmd(sfsid, option, dumpmdProto.showpath(),
-                                         dumpmdProto.showfid(),
-                                         dumpmdProto.showfxid(),
-                                         dumpmdProto.showsize(),
-                                         out, err, entries);
+    std::string sfsid = std::to_string(dumpmd_proto.fsid());
 
-    if (!mRetc) {
-      gOFS->MgmStats.Add("DumpMd", mVid.uid, mVid.gid, entries);
+    if (dumpmd_proto.showcount()) {
+      unsigned long long num_files =
+        gOFS->eosFsView->getNumFilesOnFs(dumpmd_proto.fsid());
+      out = "num_files=";
+      out += std::to_string(num_files).c_str();
+    } else {
+      XrdOucString option = dumpmd_proto.display() ==
+                            eos::console::FsProto::DumpMdProto::MONITOR ? "m" : "";
+      XrdOucString dp = dumpmd_proto.showpath() ? "1" : "0";
+      XrdOucString df = dumpmd_proto.showfid() ? "1" : "0";
+      XrdOucString ds = dumpmd_proto.showsize() ? "1" : "0";
+      size_t entries = 0;
+      mRetc = SemaphoreProtectedProcDumpmd(sfsid, option, dumpmd_proto.showpath(),
+                                           dumpmd_proto.showfid(),
+                                           dumpmd_proto.showfxid(),
+                                           dumpmd_proto.showsize(),
+                                           out, err, entries);
+
+      if (!mRetc) {
+        gOFS->MgmStats.Add("DumpMd", mVid.uid, mVid.gid, entries);
+      }
     }
   } else {
     mRetc = EPERM;
@@ -864,7 +873,7 @@ eos::mgm::FsCmd::DisplayModeToString(eos::console::FsProto::LsProto::DisplayMode
 }
 
 int
-FsCmd::SemaphoreProtectedProcDumpmd(std::string& fsid, XrdOucString& option,
+FsCmd::SemaphoreProtectedProcDumpmd(std::string& sfsid, XrdOucString& option,
                                     bool show_path, bool show_fid,
                                     bool show_fxid, bool show_size,
                                     XrdOucString& out, XrdOucString& err,
@@ -877,7 +886,28 @@ FsCmd::SemaphoreProtectedProcDumpmd(std::string& fsid, XrdOucString& option,
     return EAGAIN;
   }
 
-  int lretc = proc_fs_dumpmd(fsid, option, show_path, show_fid, show_fxid,
+  eos::IFileMD::location_t fsid = 0ul;
+
+  try {
+    fsid = std::stoul(sfsid);
+  } catch (...) {
+    eos_static_err("msg=\"failed numeric conversion of file system id\" "
+                   "sfsid=\"%s\"", sfsid.c_str());
+    err = "error: non-numeric file system id";
+    return EINVAL;
+  }
+
+  // Get number of file entries on the give file systems
+  unsigned long long num_files = gOFS->eosFsView->getNumFilesOnFs(fsid);
+
+  if (num_files > FS_DUMPMD_MAX_NUM_ENTRIES) {
+    eos_static_err("msg=\"forbid dumpmd on file system with too many files\" "
+                   "fsid=%lu", fsid);
+    err = "error: too many entries (>100k) on file system to dump them all";
+    return EFBIG;
+  }
+
+  int lretc = proc_fs_dumpmd(sfsid, option, show_path, show_fid, show_fxid,
                              show_size, out, err, mVid, entries);
 
   try {

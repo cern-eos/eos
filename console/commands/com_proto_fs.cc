@@ -197,14 +197,15 @@ void com_fs_help()
       << std::endl
       << "         the files from disk)" << std::endl
       << std::endl
-      << "  fs dumpmd <fsid> [--fid] [--fxid] [--path] [--size] [-m|-s]" << std::endl
-      << "    dump all file metadata on this filesystem in query format" << std::endl
-      << "    --fid  : dump only the file ids in decimal" << std::endl
-      << "    --fxid : dump only the file ids in hex" << std::endl
-      << "    --path : dump only the file paths" << std::endl
-      << "    --size : dump only the file sizes" << std::endl
-      << "    -m     : print full metadata record in env format" << std::endl
-      << "    -s     : silent mode (will keep an internal reference)" << std::endl
+      << "  fs dumpmd <fsid> [--count] [--fid|--fxid|--path] [--size] [-m|-s]\n"
+      << "    dump/count file metadata entries on the given filesystem, only if less than 100k\n"
+      << "    --count : print only the number of entries on the file system [default]\n"
+      << "    --fid   : dump only the file ids in decimal\n"
+      << "    --fxid  : dump only the file ids in hexadecimal\n"
+      << "    --path  : dump only the file paths\n"
+      << "    --size  : dump only the file sizes\n"
+      << "    -m      : print full metadata record in env format\n"
+      << "    -s      : silent mode (will keep an internal reference)\n"
       << std::endl
       << "  fs ls [-m|-l|-e|--io|--fsck|[-d|--drain]|-D|-F] [-s] [-b|--brief] [[matchlist]]"
       << std::endl
