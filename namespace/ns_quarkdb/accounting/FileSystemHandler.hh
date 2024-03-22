@@ -201,8 +201,7 @@ public:
   void erase(FileIdentifier identifier);
 
   //----------------------------------------------------------------------------
-  //! Get size. Careful with calling this function, it'll load all contents if
-  //! not already there.
+  //! Get number of file entries stored on this particular file system
   //----------------------------------------------------------------------------
   uint64_t size();
 
