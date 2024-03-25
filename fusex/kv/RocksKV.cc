@@ -77,12 +77,13 @@ RocksKV::connect(const std::string& prefix, const std::string& path)
   //  table_options.cache_index_and_filter_blocks = false;
   options.optimize_filters_for_hits = true;
   options.statistics = rocksdb::CreateDBStatistics();
-  //  options.compression = rocksdb::kZSTD;
-  //  options.bottommost_compression = rocksdb::kZSTD;
+  options.compression = rocksdb::kZSTD;
+  options.bottommost_compression = rocksdb::kZSTD;
   options.table_factory.reset(rocksdb::NewBlockBasedTableFactory(table_options));
   options.create_if_missing = true;
   options.row_cache = rocksdb::NewLRUCache(4 * 1024 * 1024);
   options.level_compaction_dynamic_level_bytes = true;
+  options.periodic_compaction_seconds = 30;
   options.max_subcompactions = 4;
   options.disable_auto_compactions = false;
   options.write_buffer_size = 1 * 1024 * 1024;
