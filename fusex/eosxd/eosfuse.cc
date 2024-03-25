@@ -1487,6 +1487,12 @@ EosFuse::run(int argc, char* argv[], void* userdata)
         root["cache"]["clean-threshold"] = 85.0;
       }
 
+      // default rescue cache files
+      if (!root["cache"]["rescue-cache-files"].asInt()) {
+	root["cache"]["rescue-cache-files"] = 0;
+      }
+
+      // default file cache max kb
       if (!root["cache"]["file-cache-max-kb"].asString().length()) {
         root["cache"]["file-cache-max-kb"] = 256;
       }
@@ -1665,6 +1671,8 @@ EosFuse::run(int argc, char* argv[], void* userdata)
       cconfig.per_file_journal_max_size =
         root["cache"]["file-journal-max-kb"].asUInt64() * 1024;
       cconfig.clean_threshold = root["cache"]["clean-threshold"].asDouble();
+      cconfig.rescuecache = root["cache"]["rescue-cache-files"].asInt();
+
       int rc = 0;
 
       if ((rc = cachehandler::instance().init(cconfig))) {

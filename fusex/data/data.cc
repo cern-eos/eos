@@ -1834,6 +1834,23 @@ data::datax::recover_write(fuse_req_t req)
         // download all into local stagefile, we don't need to do this, if there is a truncate request
         uint32_t bytesRead = 0;
 
+	// get size of the file to download
+	XrdCl::StatInfo *statInfo;
+        status = newproxy->Stat( false, statInfo );
+        if (!status.IsOK() || !statInfo) {
+	  // bail out
+	  return EREMOTEIO;
+	}
+
+	auto sourcesize = statInfo->GetSize();
+	delete statInfo;
+
+	// try to pre-allocate the size locally
+	int rc = posix_fallocate(fd, 0, sourcesize);
+	if (rc) {
+	  return ENOSPC;
+	}
+
         do {
           status = newproxy->Read(newproxy, off, size, buf, bytesRead);
           eos_debug("off=%lu bytesread=%u", off, bytesRead);
@@ -3385,6 +3402,11 @@ data::dmap::ioflush(ThreadAssistant& assistant)
                         rescue = false;
                       }
                     }
+
+		    if (!cachehandler::instance().get_config().rescuecache) {
+		      // forced disablign of rescue files
+		      rescue = false;
+		    }
 
                     // ---------------------------------------------------------
                     // we really have to avoid this to happen, but

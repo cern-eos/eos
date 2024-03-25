@@ -41,6 +41,7 @@ struct cacheconfig {
     read_ahead_sparse_ratio = 0;
     clean_threshold = 0;
     clean_on_startup = false;
+    rescuecache = false;
   }
 
   cache_t type;
@@ -59,7 +60,7 @@ struct cacheconfig {
   float clean_threshold; // filling percentage of the cache disk when we start to delete
   std::string read_ahead_strategy; // string values 'none', 'static', 'dynamic'
   float    read_ahead_sparse_ratio; // ratio of sparseness when to disable permanently read-ahead
-
+  bool  rescuecache; // indicates if journals/cache files are kept with .rescue extension in case of failures
   std::string journal;
   bool clean_on_startup; // indicate that the cache is not reusable after restart
 };
