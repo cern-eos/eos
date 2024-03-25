@@ -17,6 +17,15 @@ Introduction
 This release is based on XRootD V5.
 
 
+``V5.2.21 Diopside``
+====================
+
+2024-03-25
+
+BUG
+
+* [EOS-6105] - fix credential validation in ALMA9 container under chroot environments
+  
 ``v5.2.20 Diopside``
 ====================
 
