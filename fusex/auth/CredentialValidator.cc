@@ -446,17 +446,9 @@ bool CredentialValidator::validate(const JailInformation& jail,
     // KRB5:
     //----------------------------------------------------------------------------
     if (uc.type == CredentialType::KRB5) {
-#ifdef __linux__
-      ScopedFsUidSetter uidSetter(uc.uid, uc.gid);
-
-      if (!uidSetter.IsOk()) {
-	eos_static_crit("Could not set fsuid,fsgid to %d, %d", uc.uid, uc.gid);
-	LOGBOOK_INSERT(scope, "Could not set fsuid, fsgid to " << uc.uid << ", " <<
-		       uc.gid);
-	return false;
-      }
-#endif
       //--------------------------------------------------------------------------
+      // the copied credential is owned by root!
+      //--------------------------------------------------------------------------      
       krb5_context krb_ctx;
       krb5_error_code ret = krb5_init_context(&krb_ctx);
 
