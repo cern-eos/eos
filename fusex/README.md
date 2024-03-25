@@ -109,7 +109,8 @@ You also need to define a local cache directory (location) where small files are
     "read-ahead-blocks-max" : 16,
     "read-ahead-sparse-ratio" : 0.0,
     "max-read-ahead-buffer" : 134217728,
-    "max-write-buffer" : 134217728
+    "max-write-buffer" : 134217728,
+    "rescue-cache-files" : 0,
   }
 
 ```
