@@ -33,6 +33,7 @@
 #define LOOP_19 100
 #define LOOP_20 100
 #define LOOP_21 10000
+#define LOOP_22 5
 
 int main(int argc, char* argv[])
 {
@@ -941,6 +942,65 @@ int main(int argc, char* argv[])
     }
 
     COMMONTIMING("repeat-enoent", &tm);
+  }
+
+  // ------------------------------------------------------------------------ //
+  testno = 22;
+
+  if ((testno >= test_start) && (testno <= test_stop)) {
+    fprintf(stderr, ">>> test %04d\n", testno);
+
+    eos::common::cmd_status rc;
+    eos::common::ShellCmd mktoplev("mkdir test22");
+    rc = mktoplev.wait(5);
+
+    if (rc.exit_code) {
+      fprintf(stderr, "[test=%03d] toplevel mkdir failed\n", testno);
+      exit(testno);
+    }
+
+    for (size_t i1 = 0; i1 < LOOP_22; i1++) {
+      snprintf(name, sizeof(name), "test22/test-level1-%04lu", i1);
+      if (mkdir(name, S_IRWXU)) {
+        fprintf(stderr, "[test=%03d] mkdir level1 failed %s\n", testno, name);
+        exit(testno);
+      }
+      for (size_t i2 = 0; i2 < LOOP_22; i2++) {
+        snprintf(name, sizeof(name), "test22/test-level1-%04lu/test-level2-%04lu", i1,i2);
+        if (mkdir(name, S_IRWXU)) {
+          fprintf(stderr, "[test=%03d] mkdir level2 failed %s\n", testno, name);
+          exit(testno);
+        }
+        for (size_t i3 = 0; i3 < LOOP_22; i3++) {
+          snprintf(name, sizeof(name), "test22/test-level1-%04lu/test-level2-%04lu/test-level3-%04lu", i1,i2,i3);
+          if (mkdir(name, S_IRWXU)) {
+            fprintf(stderr, "[test=%03d] mkdir level3 failed %s\n", testno, name);
+            exit(testno);
+          }
+        }
+      }
+    }
+
+    std::vector<std::unique_ptr<eos::common::ShellCmd>> vcmd;
+    for(size_t i=0;i<5;i++) {
+      vcmd.emplace_back(new eos::common::ShellCmd("ls -alR test22 > /dev/null 2>&1"));
+    }
+    for(auto &c: vcmd) {
+      rc = c->wait(30);
+      if (rc.exit_code) {
+        fprintf(stderr, "[test=%03d] ls -alR failed\n", testno);
+        exit(testno);
+      }
+    }
+
+    eos::common::ShellCmd removedir("rm -r test22");
+    rc = removedir.wait(5);
+    if (rc.exit_code) {
+      fprintf(stderr, "[test=%03d] rm -r test22 dir failed\n", testno);
+      exit(testno);
+    }
+
+    COMMONTIMING("concurrent-list-recursive", &tm);
   }
 
   tm.Print();
