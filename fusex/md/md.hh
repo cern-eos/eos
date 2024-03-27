@@ -90,10 +90,68 @@ public:
       proto.set_id(ino);
     }
 
-    mdx& operator=(const eos::fusex::md& other)
-    {
-      proto = other;
-      return *this;
+    mdx& operator=(const eos::fusex::md& other) = delete;
+
+    void UpdateProtoFrom(const eos::fusex::md &src) {
+      // Typically this method is used to copy a metadata entry received
+      // from the remote to our member protobuf object: However id and pid
+      // are usually 0 (unset) in src since they are only meaningful locally.
+      // The caller will explictly reset them in our protobuf. However they
+      // are accessed in many places without lock. Furthermore, a protobuf
+      // copy (with = operator) or CopyFrom() will zero all current values
+      // before merging the new values, leaving race where 0 may be read.
+      // For now we avoid resettig id and pid to 0 here and explictly copy
+      // all the other elements.
+
+      if (src.id() != 0 && proto.id() != src.id()) {
+        proto.set_id(src.id());
+      }
+      if (src.pid() != 0 && proto.pid() != src.pid()) {
+        proto.set_pid(src.pid());
+      }
+
+      proto.set_ctime(src.ctime());
+      proto.set_ctime_ns(src.ctime_ns());
+      proto.set_mtime(src.mtime());
+      proto.set_mtime_ns(src.mtime_ns());
+      proto.set_atime(src.atime());
+      proto.set_atime_ns(src.atime_ns());
+      proto.set_btime(src.btime());
+      proto.set_btime_ns(src.btime_ns());
+      proto.set_ttime(src.ttime());
+      proto.set_ttime_ns(src.ttime_ns());
+      proto.set_pmtime(src.pmtime());
+      proto.set_pmtime_ns(src.pmtime_ns());
+      proto.set_size(src.size());
+      proto.set_uid(src.uid());
+      proto.set_gid(src.gid());
+      proto.set_mode(src.mode());
+      proto.set_nlink(src.nlink());
+      proto.set_name(src.name());
+      proto.set_target(src.target());
+      proto.set_authid(src.authid());
+      proto.set_clientid(src.clientid());
+      proto.set_clientuuid(src.clientuuid());
+      proto.set_clock(src.clock());
+      proto.set_reqid(src.reqid());
+      proto.set_md_ino(src.md_ino());
+      proto.set_md_pino(src.md_pino());
+      proto.set_operation(src.operation());
+      proto.set_type(src.type());
+      proto.set_err(src.err());
+      *proto.mutable_attr() = src.attr();
+      *proto.mutable_children() = src.children();
+      *proto.mutable_capability() = src.capability();
+      proto.set_implied_authid(src.implied_authid());
+      *proto.mutable_flock() = src.flock();
+      proto.set_nchildren(src.nchildren());
+      proto.set_fullpath(src.fullpath());
+      proto.set_pt_mtime(src.pt_mtime());
+      proto.set_pt_mtime_ns(src.pt_mtime_ns());
+      proto.set_creator(src.creator());
+      proto.set_mv_authid(src.mv_authid());
+      proto.set_bc_time(src.bc_time());
+      proto.set_opflags(src.opflags());
     }
 
     virtual ~mdx() { }
