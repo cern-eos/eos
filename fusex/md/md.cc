@@ -1901,7 +1901,7 @@ metad::apply(fuse_req_t req, eos::fusex::container& cont, bool listing)
     {
       if (!has_flush(ino)) {
         std::string fullpath = (*md)()->fullpath();
-        (*md)()->CopyFrom(cont.md_());
+        md->UpdateProtoFrom(cont.md_());
         (*md)()->set_fullpath(fullpath);
         shared_md d_md = EosFuse::Instance().datas.retrieve_wr_md(ino);
 
@@ -2012,7 +2012,7 @@ metad::apply(fuse_req_t req, eos::fusex::container& cont, bool listing)
             size_t local_size = (*md)()->size();
             uint64_t local_mtime = (*md)()->mtime();
             uint64_t local_mtime_ns = (*md)()->mtime_ns();
-            (*md)()->CopyFrom(map->second);
+            md->UpdateProtoFrom(map->second);
             md->clear_refresh();
             shared_md d_md = EosFuse::Instance().datas.retrieve_wr_md(ino);
 
@@ -2043,7 +2043,7 @@ metad::apply(fuse_req_t req, eos::fusex::container& cont, bool listing)
               mdflush.UnLock();
               todelete = md->get_todelete();
               // overwrite local meta data with remote state
-              (*md)()->CopyFrom(map->second);
+              md->UpdateProtoFrom(map->second);
               md->get_todelete() = todelete;
               (*md)()->set_type((*md)()->MD);
               (*md)()->set_nchildren(md->local_children().size());
@@ -2146,7 +2146,7 @@ metad::apply(fuse_req_t req, eos::fusex::container& cont, bool listing)
           cap_received = map->second.capability();
         }
 
-        *md = map->second;
+        md->UpdateProtoFrom(map->second);
         (*md)()->clear_capability();
         md->clear_refresh();
 
@@ -3028,7 +3028,7 @@ metad::mdcallback(ThreadAssistant& assistant)
           eos_static_info("overwriting clock MD %#lx => %#lx", (*md)()->clock(),
                           rsp->md_().clock());
           std::string fullpath = (*md)()->fullpath(); // keep the fullpath information
-          *md = rsp->md_();
+          md->UpdateProtoFrom(rsp->md_());
           (*md)()->set_creator(false);
           (*md)()->set_bc_time(time(NULL));
           (*md)()->set_fullpath(fullpath);
@@ -3114,7 +3114,7 @@ metad::mdcallback(ThreadAssistant& assistant)
                         md_ino, ino, authid.c_str());
         // new file
         md = std::make_shared<mdx>();
-        *md = rsp->md_();
+        md->UpdateProtoFrom(rsp->md_());
         (*md)()->set_id(md_ino);
         insert(md, authid);
         uint64_t md_pino = (*md)()->md_pino();
