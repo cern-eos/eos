@@ -87,6 +87,8 @@ RocksKV::connect(const std::string& prefix, const std::string& path)
   options.max_subcompactions = 4;
   options.disable_auto_compactions = false;
   options.write_buffer_size = 1 * 1024 * 1024;
+  options.max_log_file_size = 64 * 1024 * 1024;
+  options.info_log_level = rocksdb::HEADER_LEVEL;
   rocksdb::TransactionDBOptions txopts;
   txopts.transaction_lock_timeout = -1;
   txopts.default_lock_timeout = -1;
