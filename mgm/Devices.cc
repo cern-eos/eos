@@ -86,6 +86,7 @@ Devices::Recorder(ThreadAssistant& assistant) noexcept
     });
 
     if (!gOFS->mMaster->IsMaster()) {
+      assistant.wait_for(std::chrono::seconds(snoozetime));
       continue;
     }
 
