@@ -1006,6 +1006,11 @@ XrdFstOfsFile::readv(XrdOucIOVec* readV, int readCount)
     }
   }
 
+  if (rv<0) {
+    eos_crit("readv error=%d cnt=%d file=%s", rv, readCount, FName());
+    hasReadError = true;
+  }
+  
   AddLayoutReadVTime();
   return rv;
 }
