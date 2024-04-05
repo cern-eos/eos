@@ -21,6 +21,7 @@
 
 #include "namespace/Namespace.hh"
 #include <map>
+#include <memory>
 
 EOSNSNAMESPACE_BEGIN
 
@@ -116,6 +117,19 @@ public:
       mMapIdNSObject[object->getIdentifier()] = object;
     }
   }
+
+  bool lockAll(LocksVector & locks) {
+    for(auto idNsObject: mMapIdNSObject) {
+      std::unique_ptr<TryLockerType> lock = std::make_unique<TryLockerType>(idNsObject.second);
+      if(lock->locked()) {
+        locks.push_back(std::move(lock));
+      } else {
+        return false;
+      }
+    }
+    return true;
+  }
+
   /**
    * Locks every objects previously added via the add() method
    * @return the vector of locks
@@ -125,12 +139,7 @@ public:
     LocksVector locks;
     while(locks.size() != mMapIdNSObject.size()) {
       locks.releaseAllLocksAndClear();
-      for(auto idNsObject: mMapIdNSObject) {
-        std::unique_ptr<TryLockerType> lock = std::make_unique<TryLockerType>(idNsObject.second);
-        if(lock->locked()) {
-          locks.push_back(std::move(lock));
-        }
-      }
+      lockAll(locks);
     }
     return locks;
   }
@@ -140,6 +149,109 @@ private:
   // By the lockAll() method
   std::map<Identifier,ObjectMDPtrType> mMapIdNSObject;
 };
+
+using BulkNsContainerReadLocker = BulkNsObjectLocker<eos::IContainerMD::IContainerMDReadTryLocker>;
+using BulkNsContainerWriteLocker = BulkNsObjectLocker<eos::IContainerMD::IContainerMDWriteTryLocker>;
+using BulkNsFileReadLocker = BulkNsObjectLocker<eos::IFileMD::IFileMDReadTryLocker>;
+using BulkNsFileWriteLocker = BulkNsObjectLocker<eos::IFileMD::IFileMDWriteTryLocker>;
+
+template<typename ContainerTryLockerType, typename FileTryLockerType>
+class BulkMultiNsObjectLocker {
+private:
+  using ContainerMDPtrType = typename ContainerTryLockerType::ObjectMDPtrType;
+  using FileMDPtrType = typename FileTryLockerType::ObjectMDPtrType;
+  using ContainerBulkNsObjectLocker = BulkNsObjectLocker<ContainerTryLockerType>;
+  using FileBulkNsObjectLocker = BulkNsObjectLocker<FileTryLockerType>;
+  using ContainerLocksVector = typename ContainerBulkNsObjectLocker::LocksVector;
+  using FileLocksVector = typename FileBulkNsObjectLocker::LocksVector;
+public:
+  class Locks {
+  public:
+    Locks() = default;
+    Locks(const Locks & locks) = delete;
+    Locks & operator=(const Locks & locks) = delete;
+
+    Locks(Locks&& locks) noexcept
+        : mContLocks(std::move(locks.mContLocks)),
+          mFileLocks(std::move(locks.mFileLocks)) {
+      // Clear the moved-from object's pointers to prevent double deletion
+      locks.mContLocks = nullptr;
+      locks.mFileLocks = nullptr;
+    }
+    Locks & operator=(Locks && locks) {
+      mContLocks = std::move(locks.mContLocks);
+      mFileLocks = std::move(locks.mFileLocks);
+      locks.mContLocks = nullptr;
+      locks.mFileLocks = nullptr;
+    }
+    virtual ~Locks() {
+      // Release files first
+      releaseAllFilesAndClear();
+      // Then release containers
+      releaseAllContainersAndClear();
+    }
+    void addContainerLocks(std::unique_ptr<ContainerLocksVector> && contLocks) {
+      mContLocks = std::move(contLocks);
+    }
+
+    void addFileLocks(std::unique_ptr<FileLocksVector> && fileLocks) {
+      mFileLocks = std::move(fileLocks);
+    }
+
+  private:
+    void releaseAllContainersAndClear() {
+      mContLocks.reset(nullptr);
+    }
+    void releaseAllFilesAndClear() {
+      mFileLocks.reset(nullptr);
+    }
+    std::unique_ptr<ContainerLocksVector> mContLocks;
+    std::unique_ptr<FileLocksVector> mFileLocks;
+  };
+
+  BulkMultiNsObjectLocker() = default;
+  virtual ~BulkMultiNsObjectLocker() = default;
+
+  void add(ContainerMDPtrType containerMDPtr) {
+    mContainerTryLocker.add(containerMDPtr);
+  }
+
+  void add(FileMDPtrType fileMDPtr) {
+    mFileTryLocker.add(fileMDPtr);
+  }
+
+  Locks lockAll() {
+    Locks locks;
+    while(true) {
+      std::unique_ptr<ContainerLocksVector> containerLocksVector = std::make_unique<ContainerLocksVector>();
+      std::unique_ptr<FileLocksVector> fileLocksVector = std::make_unique<FileLocksVector>();
+      // We first try to lock all the containers
+      if(mContainerTryLocker.lockAll(*containerLocksVector)){
+        // Then we try to lock all the files
+        if(mFileTryLocker.lockAll(*fileLocksVector)) {
+          locks.addContainerLocks(std::move(containerLocksVector));
+          locks.addFileLocks(std::move(fileLocksVector));
+          break;
+        } else {
+          // We did not manage to lock at least one File/ContainerMD, release all locks and retry...
+          // Release first the files, then the container to prevent deadlocks...
+          fileLocksVector->releaseAllLocksAndClear();
+          containerLocksVector->releaseAllLocksAndClear();
+        }
+      }
+    }
+    return locks;
+  }
+
+private:
+  ContainerBulkNsObjectLocker mContainerTryLocker;
+  FileBulkNsObjectLocker mFileTryLocker;
+};
+
+//Instanciate the templates
+
+using BulkNsObjectReadLocker = BulkMultiNsObjectLocker<eos::IContainerMD::IContainerMDReadTryLocker,eos::IFileMD::IFileMDReadTryLocker>;
+using BulkNsObjectWriteLocker = BulkMultiNsObjectLocker<eos::IContainerMD::IContainerMDWriteTryLocker,eos::IFileMD::IFileMDWriteTryLocker>;
 
 EOSNSNAMESPACE_END
 
