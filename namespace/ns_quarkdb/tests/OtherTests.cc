@@ -226,7 +226,7 @@ TEST(BulkNSObjectLocker, testBulkNSObjectLocker) {
   auto mockContainerMD1 = std::make_shared<eos::MockContainerMD>(1);
   auto mockContainerMD2 = std::make_shared<eos::MockContainerMD>(2);
   auto mockContainerMD3 = std::make_shared<eos::MockContainerMD>(3);
-  eos::BulkNsObjectLocker<eos::IContainerMDPtr,eos::IContainerMD::IContainerMDReadTryLocker> bulkObjectLocker;
+  eos::BulkNsObjectLocker<eos::IContainerMD::IContainerMDReadTryLocker> bulkObjectLocker;
   bulkObjectLocker.add(mockContainerMD1);
   bulkObjectLocker.add(mockContainerMD2);
   bulkObjectLocker.add(mockContainerMD3);

@@ -312,6 +312,7 @@ template<typename ObjectMDPtr, typename LockType>
 class NSObjectMDTryLocker
 {
 public:
+  using ObjectMDPtrType = ObjectMDPtr;
   //Constructor that defers the locking of the mutex and will delegate the locking logic to the objectMD
   NSObjectMDTryLocker(ObjectMDPtr objectMDPtr)
   {
