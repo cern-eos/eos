@@ -833,6 +833,44 @@ TEST_F(HierarchicalViewF, BulkNsObjectLockerTryLock)
   ASSERT_EQ(sleepSeconds, diff);
 }
 
+TEST_F(HierarchicalViewF, BulkMultiNsObjectLockerTryLock)
+{
+  // Thread 1 read locks one file while the thread 2 tries to bulk write lock a container and that particular file
+  // the locking done by the Thread 2 should wait that the thread 1 finishes
+  auto container = view()->createContainer("/test/", true);
+  auto container2 = view()->createContainer("/test/d1", true);
+  auto file = view()->createFile("/test/d1/f1",true);
+  std::atomic<bool> fileLocked = false;
+  uint8_t sleepSeconds = 10;
+  auto threadReadLockingFile = std::thread([&file, &fileLocked,
+                                                 sleepSeconds]() {
+    eos::IFileMD::IFileMDReadLocker fileReadLocker(file);
+    fileLocked = true;
+    std::this_thread::sleep_for(std::chrono::duration<double>(sleepSeconds + 0.1));
+  });
+  std::chrono::time_point<std::chrono::steady_clock> start;
+  std::chrono::time_point<std::chrono::steady_clock> stop;
+  auto threadBulkMultiNSObjLock = std::thread([&start, &stop, &container,
+                                              &container2, &file, &fileLocked]() {
+    while (!fileLocked) {
+      std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    }
+
+    eos::BulkMultiNsObjectLocker<eos::IContainerMD::IContainerMDWriteTryLocker,eos::IFileMD::IFileMDWriteTryLocker>
+        locker;
+    locker.add(container);
+    locker.add(file);
+    start = std::chrono::steady_clock::now();
+    auto locks = locker.lockAll();
+    stop = std::chrono::steady_clock::now();
+  });
+  threadBulkMultiNSObjLock.join();
+  threadReadLockingFile.join();
+  auto diff = std::chrono::duration_cast<std::chrono::seconds>
+              (stop - start).count();
+  ASSERT_EQ(sleepSeconds, diff);
+}
+
 TEST_F(HierarchicalViewF, fileMDLockedSetSize)
 {
   auto container = view()->createContainer("/test/", true);
