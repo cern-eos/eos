@@ -475,7 +475,7 @@ XrdMgmOfs::_rename(const char* old_name,
             // Move to a new directory
             // TODO: deal with conflicts and proper roll-back in case a file
             // with the same name already exists in the destination directory
-            eos::BulkNsObjectLocker<eos::IContainerMDPtr, eos::IContainerMD::IContainerMDWriteTryLocker>
+            eos::BulkNsObjectLocker<eos::IContainerMD::IContainerMDWriteTryLocker>
             helper;
             helper.add(dir);
             helper.add(newdir);
@@ -535,7 +535,7 @@ XrdMgmOfs::_rename(const char* old_name,
 
         if (rdir) {
           {
-            eos::BulkNsObjectLocker<eos::IContainerMDPtr, eos::IContainerMD::IContainerMDReadTryLocker>
+            eos::BulkNsObjectLocker<eos::IContainerMD::IContainerMDReadTryLocker>
             containerBulkLocker;
             containerBulkLocker.add(rdir);
             containerBulkLocker.add(newdir);
@@ -724,7 +724,7 @@ XrdMgmOfs::_rename(const char* old_name,
           if (nP == oP) {
             // Rename within a container
             // Lock the containers
-            eos::BulkNsObjectLocker<eos::IContainerMDPtr, eos::IContainerMD::IContainerMDWriteTryLocker>
+            eos::BulkNsObjectLocker<eos::IContainerMD::IContainerMDWriteTryLocker>
             bulkContainerLocker;
             bulkContainerLocker.add(rdir);
             bulkContainerLocker.add(dir);
@@ -750,7 +750,7 @@ XrdMgmOfs::_rename(const char* old_name,
             COMMONTIMING("rename::rename_dir_within_same_container", &tm);
           } else {
             {
-              eos::BulkNsObjectLocker<eos::IContainerMDPtr, eos::IContainerMD::IContainerMDReadTryLocker>
+              eos::BulkNsObjectLocker<eos::IContainerMD::IContainerMDReadTryLocker>
               bulkDirLocker;
               bulkDirLocker.add(rdir);
               bulkDirLocker.add(newdir);
@@ -777,7 +777,7 @@ XrdMgmOfs::_rename(const char* old_name,
               COMMONTIMING("rename::rename_dir_second_is_safe_to_rename", &tm);
             }
             // Remove from one container to another one
-            eos::BulkNsObjectLocker<eos::IContainerMDPtr, eos::IContainerMD::IContainerMDWriteTryLocker>
+            eos::BulkNsObjectLocker<eos::IContainerMD::IContainerMDWriteTryLocker>
             bulkContainerLocker;
             bulkContainerLocker.add(dir);
             bulkContainerLocker.add(rdir);
