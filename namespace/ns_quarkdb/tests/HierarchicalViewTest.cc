@@ -772,7 +772,7 @@ TEST_F(HierarchicalViewF, BulkNsObjectLocker)
   {
     auto container = view()->createContainer("/test/", true);
     auto container2 = view()->createContainer("/test/d1", true);
-    eos::BulkNsObjectLocker<eos::IContainerMDPtr, eos::IContainerMD::IContainerMDReadTryLocker>
+    eos::BulkNsObjectLocker<eos::IContainerMD::IContainerMDReadTryLocker>
     locker;
     locker.add(container2);
     locker.add(container);
@@ -785,7 +785,7 @@ TEST_F(HierarchicalViewF, BulkNsObjectLocker)
   {
     auto file1 = view()->createFile("/test/f1");
     auto file2 = view()->createFile("/test/d1/f2");
-    eos::BulkNsObjectLocker<eos::IFileMDPtr, eos::IFileMD::IFileMDWriteTryLocker>
+    eos::BulkNsObjectLocker<eos::IFileMD::IFileMDWriteTryLocker>
     locker;
     locker.add(file2);
     locker.add(file1);
@@ -818,7 +818,7 @@ TEST_F(HierarchicalViewF, BulkNsObjectLockerTryLock)
       std::this_thread::sleep_for(std::chrono::milliseconds(100));
     }
 
-    eos::BulkNsObjectLocker<eos::IContainerMDPtr, eos::IContainerMD::IContainerMDWriteTryLocker>
+    eos::BulkNsObjectLocker<eos::IContainerMD::IContainerMDWriteTryLocker>
     locker;
     locker.add(container2);
     locker.add(container);

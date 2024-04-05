@@ -50,7 +50,7 @@ public:
     readUnlockedContainers.clear();
   }
 
-  MockContainerMD(uint64_t id){
+  MockContainerMD(uint64_t id):QuarkContainerMD(),mId(ContainerIdentifier(id)){
     mId = ContainerIdentifier(id);
   }
 
