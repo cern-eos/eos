@@ -34,8 +34,10 @@ EOSNSNAMESPACE_BEGIN
  * @tparam ObjectMDPtr the IContainerMD or IFileMD object to lock later
  * @tparam TryLockerType the type of try-locker to be applied
  */
-template<typename ObjectMDPtr,typename TryLockerType>
+template<typename TryLockerType>
 class BulkNsObjectLocker {
+  using ObjectMDPtrType = typename TryLockerType::ObjectMDPtrType;
+  using Identifier = typename ObjectMDPtrType::element_type::identifier_t;
 public:
   /**
    * Inner class that represent the object returned by the BulkNsObjectLocker::lockAll() method
@@ -109,7 +111,7 @@ public:
    * Adds an object to be locked after lockAll() is called
    * @param object the object to lock
    */
-  void add(ObjectMDPtr object) {
+  void add(ObjectMDPtrType object) {
     if(object != nullptr) {
       mMapIdNSObject[object->getIdentifier()] = object;
     }
@@ -133,11 +135,10 @@ public:
     return locks;
   }
 private:
-  using Identifier = typename ObjectMDPtr::element_type::identifier_t;
   // This will be used to ensure that the locking of the
   // ObjectMDPtr will be done in the ascending order of their Identifier
   // By the lockAll() method
-  std::map<Identifier,ObjectMDPtr> mMapIdNSObject;
+  std::map<Identifier,ObjectMDPtrType> mMapIdNSObject;
 };
 
 EOSNSNAMESPACE_END
