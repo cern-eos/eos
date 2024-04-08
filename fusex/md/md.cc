@@ -3054,18 +3054,27 @@ metad::mdcallback(ThreadAssistant& assistant)
         // adjust local quota
         cap::shared_cap cap = EosFuse::Instance().caps.get(pino, md_clientid);
 
-        if ((*cap)()->id()) {
-          if (bookingsize >= 0) {
-            EosFuse::Instance().caps.book_volume(cap, (uint64_t) bookingsize);
-          } else {
-            EosFuse::Instance().caps.free_volume(cap, (uint64_t) - bookingsize);
-          }
-
-          EosFuse::instance().caps.book_inode(cap);
-        } else {
-          eos_static_debug("missing quota node for pino=%#lx and clientid=%s",
-                           pino, (*md)()->clientid().c_str());
-        }
+	if (S_ISREG(mode)) {
+	  if ((*cap)()->id()) {
+	    if (bookingsize >= 0) {
+	      EosFuse::Instance().caps.book_volume(cap, (uint64_t) bookingsize);
+	    } else {
+	      EosFuse::Instance().caps.free_volume(cap, (uint64_t) - bookingsize);
+	    }
+	    EosFuse::instance().caps.book_inode(cap);
+	  } else {
+	    eos_static_debug("missing quota node for pino=%#lx and clientid=%s",
+			     pino, (*md)()->clientid().c_str());
+	  }
+	} else {
+	  if (old_name.length()) {
+	    // cleanup stale ENOENT entries
+	    shared_md pmd;
+	    if (pino && mdmap.retrieveTS(pino, pmd)) {
+	      pmd->local_enoent().erase(name);
+	    }
+	  }
+	}
 
         // possibly invalidate kernel cache
         if (EosFuse::Instance().Config().options.md_kernelcache ||
@@ -3079,6 +3088,7 @@ metad::mdcallback(ThreadAssistant& assistant)
             eos_static_info("invalidate previous name for ino=%#lx old-name=%s", ino,
                             old_name.c_str());
             kernelcache::inval_entry(pino, old_name.c_str());
+	    kernelcache::inval_entry(pino, name.c_str());
           }
 
           kernelcache::inval_inode(pino, false);
