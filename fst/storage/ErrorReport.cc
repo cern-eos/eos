@@ -25,6 +25,8 @@
 #include "fst/XrdFstOfs.hh"
 #include "fst/Config.hh"
 #include "mq/MessagingRealm.hh"
+#include <deque>
+#include <string>
 
 EOSFSTNAMESPACE_BEGIN
 
@@ -39,6 +41,7 @@ Storage::ErrorReport()
   eos::common::Logging& g_logging = eos::common::Logging::GetInstance();
   eos::common::Logging::LogCircularIndex localCircularIndex;
   localCircularIndex.resize(LOG_DEBUG + 1);
+  std::deque<XrdOucString> ErrorReportQueue;
 
   // initialize with the current positions of the circular index
   for (size_t i = LOG_EMERG; i <= LOG_DEBUG; i++) {
@@ -56,33 +59,35 @@ Storage::ErrorReport()
 
       if (endpos > localCircularIndex[i]) {
         // we have to follow the messages and add them to the queue
-        gOFS.ErrorReportQueueMutex.Lock();
 
         for (unsigned long j = localCircularIndex[i]; j < endpos; j++) {
           // copy the messages to the queue
           g_logging.gMutex.Lock();
-          gOFS.ErrorReportQueue.push(g_logging.gLogMemory[i][j %
-                                     g_logging.gCircularIndexSize]);
+	  ErrorReportQueue.push_back(g_logging.gLogMemory[i][j %
+							     g_logging.gCircularIndexSize]);
           g_logging.gMutex.UnLock();
         }
 
         localCircularIndex[i] = endpos;
-        gOFS.ErrorReportQueueMutex.UnLock();
       }
     }
 
-    gOFS.ErrorReportQueueMutex.Lock();
-
-    while (gOFS.ErrorReportQueue.size() > 0) {
-      gOFS.ErrorReportQueueMutex.UnLock();
-      gOFS.ErrorReportQueueMutex.Lock();
+    while (ErrorReportQueue.size() > 0) {
       // send all reports away and dump them into the log
-      XrdOucString report = gOFS.ErrorReportQueue.front().c_str();
-      gOFS.ErrorReportQueueMutex.UnLock();
+      XrdOucString report = ErrorReportQueue.front().c_str();
+      std::string truncationmessage;
       eos_debug("broadcasting errorreport message: %s", report.c_str());
+
+      if (ErrorReportQueue.size() > 5) {
+	// don't keep long error queues, send a suppression marker and clean the queue, the errors are anyway in the local log files
+	truncationmessage = " ... [ ErrorReport ] suppressing " + std::to_string(ErrorReportQueue.size()-1) + " error messages!";
+	ErrorReportQueue.clear();
+      }
 
       // evt. exclude some messages from upstream reporting if the contain [NB]
       if (report.find("[NB]") == STR_NPOS) {
+	report += truncationmessage.c_str();
+
         mq::MessagingRealm::Response response =
           gOFS.mMessagingRealm->sendMessage("errorreport", report.c_str(),
                                             errorReceiver.c_str(), true);
@@ -91,16 +96,15 @@ Storage::ErrorReport()
           // display communication error
           eos_err("%s", "msg=\"cannot send errorreport broadcast\"");
           failure = true;
-          gOFS.ErrorReportQueueMutex.Lock();
           break;
         }
       }
 
-      gOFS.ErrorReportQueueMutex.Lock();
-      gOFS.ErrorReportQueue.pop();
+      if (ErrorReportQueue.size()) {
+	ErrorReportQueue.pop_front();
+      }
     }
 
-    gOFS.ErrorReportQueueMutex.UnLock();
 
     if (failure) {
       std::this_thread::sleep_for(std::chrono::seconds(10));
