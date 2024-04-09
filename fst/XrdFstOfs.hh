@@ -400,8 +400,6 @@ public:
   XrdSysMutex ReportQueueMutex;
   std::queue<XrdOucString> ReportQueue;
   //! Queue where log error are stored and picked up by a thread running in Storage
-  XrdSysMutex ErrorReportQueueMutex;
-  std::queue<XrdOucString> ErrorReportQueue;
   XrdSysMutex WrittenFilesQueueMutex;
   std::queue<eos::common::FmdHelper> WrittenFilesQueue;
   XrdMqSharedObjectManager ObjectManager; ///< Managing shared objects
