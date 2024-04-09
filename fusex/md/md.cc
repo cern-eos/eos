@@ -1077,7 +1077,7 @@ metad::add(fuse_req_t req, metad::shared_md pmd, metad::shared_md md,
   const uint64_t id = (*md)()->id();
   uint64_t pmd_ino = 0;
   const std::string encname = StringConversion::EncodeInvalidUTF8((
-                                *md)()->name());
+								   *md)()->name());
 
   if (EOS_LOGS_DEBUG)
     eos_static_debug("child=%s parent=%s inode=%016lx authid=%s localstore=%d",
@@ -3050,7 +3050,17 @@ metad::mdcallback(ThreadAssistant& assistant)
         // update the local store
         update(fuseid, md, authid, true);
         std::string name = (*md)()->name();
-        md->Locker().UnLock();
+
+
+	shared_md pmd;
+	if (pino && mdmap.retrieveTS(pino, pmd)) {
+	  // clean-up stale enoent
+	  pmd->local_enoent().erase(name);
+	  // re-add this file with the new inode
+	  add(0, pmd, md, authid, true);
+	}
+	md->Locker().UnLock();
+
         // adjust local quota
         cap::shared_cap cap = EosFuse::Instance().caps.get(pino, md_clientid);
 
