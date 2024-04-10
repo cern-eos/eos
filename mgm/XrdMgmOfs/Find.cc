@@ -771,7 +771,7 @@ XrdMgmOfs::_find(const char* path, XrdOucErrInfo& out_error,
       // Held only for the current loop
       eos::Prefetcher::prefetchContainerMDWithChildrenAndWait(gOFS->eosView,
           Path.c_str(), false, no_files, limitresult, dir_limit, file_limit);
-      eos::IContainerMD::IContainerMDReadLockerPtr cmdLock;
+      eos::MDLocking::ContainerReadLockPtr cmdLock;
 
       try {
         cmdLock = gOFS->eosView->getContainerReadLocked(Path.c_str(), false);
@@ -882,7 +882,7 @@ XrdMgmOfs::_find(const char* path, XrdOucErrInfo& out_error,
           for (auto fit = eos::FileMapIterator(cmd); fit.valid(); fit.next()) {
             fname = fit.key();
             std::shared_ptr<eos::IFileMD> fmd {nullptr};
-            eos::IFileMD::IFileMDReadLockerPtr fmdLock;
+            eos::MDLocking::FileReadLockPtr fmdLock;
 
             try {
               fmdLock = cmd->findFileReadLocked(fname);

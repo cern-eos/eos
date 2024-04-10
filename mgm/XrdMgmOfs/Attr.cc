@@ -165,14 +165,14 @@ XrdMgmOfs::_attr_get(const char* path, XrdOucErrInfo& error,
 
     if (item.file) {
       std::shared_ptr<eos::IFileMD> fmd = item.file;
-      eos::IFileMD::IFileMDReadLocker fmd_lock(fmd);
+      eos::MDLocking::FileReadLock fmd_lock(fmd);
 
       if (!_attr_get(*fmd.get(), skey, value)) {
         errno = ENODATA;
       }
     } else {
       std::shared_ptr<eos::IContainerMD> cmd = item.container;
-      eos::IContainerMD::IContainerMDReadLocker cmd_lock(cmd);
+      eos::MDLocking::ContainerReadLock cmd_lock(cmd);
 
       if (!_attr_get(*cmd.get(), skey, value)) {
         errno = ENODATA;
@@ -296,7 +296,7 @@ XrdMgmOfs::_attr_set(const char* path, XrdOucErrInfo& error,
 
     if (item.file) { // file
       std::shared_ptr<eos::IFileMD> fmd = item.file;
-      auto fmd_lock = std::make_unique<eos::IFileMD::IFileMDWriteLocker>(fmd);
+      auto fmd_lock = std::make_unique<eos::MDLocking::FileWriteLock>(fmd);
 
       if ((vid.uid != fmd->getCUid()) && (!vid.sudoer && vid.uid)) {
         errno = EPERM;
@@ -336,7 +336,7 @@ XrdMgmOfs::_attr_set(const char* path, XrdOucErrInfo& error,
       }
     } else { // container
       std::shared_ptr<eos::IContainerMD> cmd = item.container;
-      auto cmd_lock = std::make_unique<eos::IContainerMD::IContainerMDWriteLocker>
+      auto cmd_lock = std::make_unique<eos::MDLocking::ContainerWriteLock>
                       (cmd);
 
       if ((vid.uid != cmd->getCUid()) && (!vid.sudoer && vid.uid)) {
@@ -436,7 +436,7 @@ XrdMgmOfs::_attr_rem(const char* path, XrdOucErrInfo& error,
 
     if (item.file) { // file
       std::shared_ptr<eos::IFileMD> fmd = item.file;
-      auto fmd_lock = std::make_unique<eos::IFileMD::IFileMDWriteLocker>(fmd);
+      auto fmd_lock = std::make_unique<eos::MDLocking::FileWriteLock>(fmd);
 
       if ((vid.uid != fmd->getCUid()) && (!vid.sudoer && vid.uid)) {
         errno = EPERM;
@@ -456,7 +456,7 @@ XrdMgmOfs::_attr_rem(const char* path, XrdOucErrInfo& error,
       }
     } else { // container
       std::shared_ptr<eos::IContainerMD> cmd = item.container;
-      auto cmd_lock = std::make_unique<eos::IContainerMD::IContainerMDWriteLocker>
+      auto cmd_lock = std::make_unique<eos::MDLocking::ContainerWriteLock>
                       (cmd);
 
       if (!cmd->access(vid.uid, vid.gid, X_OK | W_OK)) {

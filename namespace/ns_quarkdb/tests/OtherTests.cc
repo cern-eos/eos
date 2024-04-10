@@ -21,15 +21,16 @@
 // desc:   Other tests
 //------------------------------------------------------------------------------
 
-#include <vector>
+#include "namespace/locking/BulkNsObjectLocker.hh"
 #include "namespace/ns_quarkdb/ConfigurationParser.hh"
-#include "namespace/ns_quarkdb/QdbContactDetails.hh"
 #include "namespace/ns_quarkdb/LRU.hh"
+#include "namespace/ns_quarkdb/QdbContactDetails.hh"
+#include "namespace/ns_quarkdb/tests/MockContainerMD.hh"
 #include "namespace/utils/PathProcessor.hh"
+#include "namespace/MDLocking.hh"
 #include <gtest/gtest.h>
 #include <sstream>
-#include "namespace/ns_quarkdb/tests/MockContainerMD.hh"
-#include "namespace/utils/BulkNsObjectLocker.hh"
+#include <vector>
 
 //------------------------------------------------------------------------------
 // Check the path
@@ -226,7 +227,7 @@ TEST(BulkNSObjectLocker, testBulkNSObjectLocker) {
   auto mockContainerMD1 = std::make_shared<eos::MockContainerMD>(1);
   auto mockContainerMD2 = std::make_shared<eos::MockContainerMD>(2);
   auto mockContainerMD3 = std::make_shared<eos::MockContainerMD>(3);
-  eos::BulkNsObjectLocker<eos::IContainerMD::IContainerMDReadTryLocker> bulkObjectLocker;
+  eos::MDLocking::BulkContainerReadLock bulkObjectLocker;
   bulkObjectLocker.add(mockContainerMD1);
   bulkObjectLocker.add(mockContainerMD2);
   bulkObjectLocker.add(mockContainerMD3);
@@ -250,10 +251,10 @@ TEST(BulkNSObjectLocker, testBulkNSObjectLocker) {
 TEST(NSObjectLocker, testNoDeadlockNSObjectLocker) {
   auto mockContainerMD1 = std::make_shared<eos::MockContainerMD>(1);
   {
-    eos::IContainerMD::IContainerMDWriteLocker writeLock(mockContainerMD1);
-    eos::IContainerMD::IContainerMDReadLocker readLock(mockContainerMD1);
-    eos::IContainerMD::IContainerMDReadLocker readLock2(mockContainerMD1);
-    eos::IContainerMD::IContainerMDWriteLocker writeLock2(mockContainerMD1);
+    eos::MDLocking::ContainerWriteLock writeLock(mockContainerMD1);
+    eos::MDLocking::ContainerReadLock readLock(mockContainerMD1);
+    eos::MDLocking::ContainerReadLock readLock2(mockContainerMD1);
+    eos::MDLocking::ContainerWriteLock writeLock2(mockContainerMD1);
     ASSERT_EQ(2,eos::MockContainerMD::getReadLockedContainers().size());
     ASSERT_EQ(2,eos::MockContainerMD::getWriteLockedContainers().size());
   }

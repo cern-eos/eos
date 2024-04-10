@@ -27,6 +27,7 @@
 #include "namespace/Namespace.hh"
 #include "namespace/interface/IContainerMD.hh"
 #include "namespace/interface/IFileMD.hh"
+#include "namespace/MDLocking.hh"
 
 EOSNSNAMESPACE_BEGIN
 
@@ -57,7 +58,7 @@ public:
   }
 
   void next() {
-    IContainerMD::IContainerMDReadLocker readLocker(container);
+    eos::MDLocking::ContainerReadLock readLocker(container);
 
     // check for a re-sized map
     if (generation() != iGeneration) {
@@ -169,7 +170,7 @@ public:
   }
 
   void next() {
-    eos::IContainerMD::IContainerMDReadLocker readLocker(container);
+    eos::MDLocking::ContainerReadLock readLocker(container);
 
     // check for a re-sized map
     if (generation() != iGeneration) {

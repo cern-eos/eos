@@ -166,7 +166,7 @@ QuarkContainerAccounting::PropagateUpdates(ThreadAssistant* assistant)
       for (auto const& elem : batch.mMap) {
         try {
           cont = mContainerMDSvc->getContainerMD(elem.first);
-          eos::IContainerMD::IContainerMDWriteLocker locker(cont);
+          eos::MDLocking::ContainerWriteLock locker(cont);
           cont->updateTreeSize(elem.second);
           mContainerMDSvc->updateStore(cont.get());
         } catch (const MDException& e) {
