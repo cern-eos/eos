@@ -17,19 +17,18 @@
  ************************************************************************/
 
 #include "namespace/ns_quarkdb/persistency/FileMDSvc.hh"
+#include "common/StacktraceHere.hh"
+#include "namespace/ns_quarkdb/ConfigurationParser.hh"
 #include "namespace/ns_quarkdb/Constants.hh"
 #include "namespace/ns_quarkdb/FileMD.hh"
+#include "namespace/ns_quarkdb/QdbContactDetails.hh"
 #include "namespace/ns_quarkdb/accounting/QuotaStats.hh"
-#include "namespace/ns_quarkdb/persistency/ContainerMDSvc.hh"
 #include "namespace/ns_quarkdb/flusher/MetadataFlusher.hh"
+#include "namespace/ns_quarkdb/persistency/ContainerMDSvc.hh"
 #include "namespace/ns_quarkdb/persistency/MetadataFetcher.hh"
 #include "namespace/ns_quarkdb/persistency/MetadataProvider.hh"
 #include "namespace/ns_quarkdb/persistency/RequestBuilder.hh"
-#include "namespace/ns_quarkdb/ConfigurationParser.hh"
-#include "namespace/ns_quarkdb/QdbContactDetails.hh"
 #include "namespace/utils/StringConvertion.hh"
-#include "common/StacktraceHere.hh"
-#include "namespace/utils/IMDLockHelper.hh"
 #include <numeric>
 
 EOSNSNAMESPACE_BEGIN
@@ -175,16 +174,18 @@ QuarkFileMDSvc::getFileMD(IFileMD::id_t id, uint64_t* clock)
 //------------------------------------------------------------------------
 //! Get the file metadata information for the given file ID and read lock it
 //------------------------------------------------------------------------
-IFileMD::IFileMDReadLockerPtr QuarkFileMDSvc::getFileMDReadLocked(IFileMD::id_t id) {
-  return IMDLockHelper::lock<IFileMD::IFileMDReadLocker>(getFileMD(id,0));
+MDLocking::FileReadLockPtr
+QuarkFileMDSvc::getFileMDReadLocked(IFileMD::id_t id) {
+  return MDLocking::readLock(getFileMD(id,0));
 }
 
 
 //------------------------------------------------------------------------
 //! Get the file metadata information for the given file ID and write lock it
 //------------------------------------------------------------------------
-IFileMD::IFileMDWriteLockerPtr QuarkFileMDSvc::getFileMDWriteLocked(IFileMD::id_t id) {
-  return IMDLockHelper::lock<IFileMD::IFileMDWriteLocker>(getFileMD(id,0));
+MDLocking::FileWriteLockPtr
+QuarkFileMDSvc::getFileMDWriteLocked(IFileMD::id_t id) {
+  return MDLocking::writeLock(getFileMD(id,0));
 }
 
 //------------------------------------------------------------------------------

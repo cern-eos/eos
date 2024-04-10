@@ -29,6 +29,7 @@
 #include "namespace/MDException.hh"
 #include "namespace/interface/Identifiers.hh"
 #include "namespace/interface/Misc.hh"
+#include "namespace/MDLocking.hh"
 #include <folly/futures/Future.h>
 #include <map>
 #include <string>
@@ -142,12 +143,12 @@ public:
   //------------------------------------------------------------------------
   //! Get the file metadata information for the given file ID and read lock it
   //------------------------------------------------------------------------
-  virtual IFileMD::IFileMDReadLockerPtr getFileMDReadLocked(IFileMD::id_t id) = 0;
+  virtual MDLocking::FileReadLockPtr getFileMDReadLocked(IFileMD::id_t id) = 0;
 
   //------------------------------------------------------------------------
   //! Get the file metadata information for the given file ID and write lock it
   //------------------------------------------------------------------------
-  virtual IFileMD::IFileMDWriteLockerPtr getFileMDWriteLocked(IFileMD::id_t id) = 0;
+  virtual MDLocking::FileWriteLockPtr getFileMDWriteLocked(IFileMD::id_t id) = 0;
 
   //----------------------------------------------------------------------------
   //! Check if a FileMD with a given identifier exists - no caching

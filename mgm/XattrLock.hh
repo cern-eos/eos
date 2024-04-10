@@ -128,7 +128,7 @@ public:
     XrdOucErrInfo error;
     std::string value;
     eos::Prefetcher::prefetchFileMDAndWait(gOFS->eosView, path);
-    eos::IFileMD::IFileMDWriteLockerPtr fdLock;
+    eos::MDLocking::FileWriteLockPtr fdLock;
 
     try {
       fdLock = gOFS->eosView->getFileWriteLocked(path);
@@ -187,7 +187,7 @@ public:
     XrdOucErrInfo error;
     std::string value;
     eos::Prefetcher::prefetchFileMDAndWait(gOFS->eosView, path);
-    eos::IFileMD::IFileMDWriteLockerPtr fdLock;
+    eos::MDLocking::FileWriteLockPtr fdLock;
 
     try {
       fdLock = gOFS->eosView->getFileWriteLocked(path);

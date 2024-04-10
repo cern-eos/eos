@@ -38,6 +38,7 @@ add_library(
   PermissionHandler.cc                PermissionHandler.hh
   Prefetcher.cc                       Prefetcher.hh
   Resolver.cc                         Resolver.hh
+  MDLocking.cc                        MDLocking.hh
   # Namespace interface
   interface/IView.hh
   interface/IFsView.hh

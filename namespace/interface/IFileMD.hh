@@ -25,15 +25,16 @@
 #define EOS_NS_IFILE_MD_HH
 
 #include "namespace/Namespace.hh"
-#include "namespace/utils/Buffer.hh"
-#include "namespace/utils/LocalityHint.hh"
 #include "namespace/interface/IContainerMD.hh"
 #include "namespace/interface/Identifiers.hh"
-#include "namespace/interface/NSObjectLocker.hh"
+#include "namespace/locking/NSObjectLocker.hh"
+#include "namespace/utils/Buffer.hh"
+#include "namespace/utils/LocalityHint.hh"
+#include <memory>
 #include <stdint.h>
 #include <string>
 #include <sys/time.h>
-#include <memory>
+#include "namespace/MDLocking.hh"
 
 EOSNSNAMESPACE_BEGIN
 
@@ -453,15 +454,11 @@ public:
 
   IFileMD& operator=(const IFileMD& other) = delete;
 
-  template<typename ObjectMDPtr, typename LockType> friend class NSObjectMDLocker;
-  template<typename ObjectMDPtr, typename LockType> friend class NSObjectMDTryLocker;
+  template<typename ObjectMDPtr, typename LockType> friend class NSObjectMDBaseLock;
+  template<typename ObjectMDPtr, typename LockType> friend class NSObjectMDLock;
+  template<typename ObjectMDPtr, typename LockType> friend class NSObjectMDTryLock;
   friend class LockableNSObjMD;
-  using IFileMDReadLocker = NSObjectMDLocker<IFileMDPtr,MDReadLock>;
-  using IFileMDReadTryLocker = NSObjectMDTryLocker<IFileMDPtr,MDReadLock>;
-  using IFileMDWriteLocker = NSObjectMDLocker<IFileMDPtr,MDWriteLock>;
-  using IFileMDWriteTryLocker = NSObjectMDTryLocker<IFileMDPtr,MDWriteLock>;
-  using IFileMDReadLockerPtr = std::unique_ptr<IFileMDReadLocker>;
-  using IFileMDWriteLockerPtr = std::unique_ptr<IFileMDWriteLocker>;
+
 protected:
   mutable std::shared_timed_mutex mMutex;
 
@@ -473,8 +470,6 @@ private:
   //----------------------------------------------------------------------------
   std::shared_timed_mutex & getMutex() const override { return mMutex; }
 };
-
-using IFileMDPtr = std::shared_ptr<IFileMD>;
 
 EOSNSNAMESPACE_END
 

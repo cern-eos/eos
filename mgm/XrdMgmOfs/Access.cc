@@ -100,8 +100,8 @@ XrdMgmOfs::_access(const char* path,
   std::string attr_path = cPath.GetPath();
   std::shared_ptr<eos::IFileMD> fh;
   std::shared_ptr<eos::IContainerMD> dh;
-  eos::IFileMD::IFileMDReadLockerPtr fhLock;
-  eos::IContainerMD::IContainerMDReadLockerPtr dhLock;
+  eos::MDLocking::FileReadLockPtr fhLock;
+  eos::MDLocking::ContainerReadLockPtr dhLock;
   // ---------------------------------------------------------------------------
   eos::Prefetcher::prefetchItemAndWait(gOFS->eosView, cPath.GetPath());
 
