@@ -19,9 +19,14 @@
 #ifndef EOS_BULKNSOBJECTLOCKER_HH
 #define EOS_BULKNSOBJECTLOCKER_HH
 
-#include "namespace/Namespace.hh"
 #include <map>
 #include <memory>
+#include <vector>
+
+#include "namespace/Namespace.hh"
+#include "namespace/interface/IContainerMD.hh"
+#include "namespace/interface/IFileMD.hh"
+#include "namespace/MDLocking.hh"
 
 EOSNSNAMESPACE_BEGIN
 
@@ -150,11 +155,6 @@ private:
   std::map<Identifier,ObjectMDPtrType> mMapIdNSObject;
 };
 
-using BulkNsContainerReadLocker = BulkNsObjectLocker<eos::IContainerMD::IContainerMDReadTryLocker>;
-using BulkNsContainerWriteLocker = BulkNsObjectLocker<eos::IContainerMD::IContainerMDWriteTryLocker>;
-using BulkNsFileReadLocker = BulkNsObjectLocker<eos::IFileMD::IFileMDReadTryLocker>;
-using BulkNsFileWriteLocker = BulkNsObjectLocker<eos::IFileMD::IFileMDWriteTryLocker>;
-
 template<typename ContainerTryLockerType, typename FileTryLockerType>
 class BulkMultiNsObjectLocker {
 private:
@@ -190,6 +190,7 @@ public:
       // Then release containers
       releaseAllContainersAndClear();
     }
+
     void addContainerLocks(std::unique_ptr<ContainerLocksVector> && contLocks) {
       mContLocks = std::move(contLocks);
     }
@@ -247,11 +248,6 @@ private:
   ContainerBulkNsObjectLocker mContainerTryLocker;
   FileBulkNsObjectLocker mFileTryLocker;
 };
-
-//Instanciate the templates
-
-using BulkNsObjectReadLocker = BulkMultiNsObjectLocker<eos::IContainerMD::IContainerMDReadTryLocker,eos::IFileMD::IFileMDReadTryLocker>;
-using BulkNsObjectWriteLocker = BulkMultiNsObjectLocker<eos::IContainerMD::IContainerMDWriteTryLocker,eos::IFileMD::IFileMDWriteTryLocker>;
 
 EOSNSNAMESPACE_END
 

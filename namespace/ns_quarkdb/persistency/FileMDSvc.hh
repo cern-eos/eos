@@ -95,12 +95,14 @@ public:
   //------------------------------------------------------------------------
   //! Get the file metadata information for the given file ID and read lock it
   //------------------------------------------------------------------------
-  virtual IFileMD::IFileMDReadLockerPtr getFileMDReadLocked(IFileMD::id_t id) override;
+  virtual MDLocking::FileReadLockPtr
+  getFileMDReadLocked(IFileMD::id_t id) override;
 
   //------------------------------------------------------------------------
   //! Get the file metadata information for the given file ID and write lock it
   //------------------------------------------------------------------------
-  virtual IFileMD::IFileMDWriteLockerPtr getFileMDWriteLocked(IFileMD::id_t id) override;
+  virtual MDLocking::FileWriteLockPtr
+  getFileMDWriteLocked(IFileMD::id_t id) override;
 
   //----------------------------------------------------------------------------
   //! Check if a FileMD with a given identifier exists

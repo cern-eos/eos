@@ -40,7 +40,8 @@
 #include <sys/time.h>
 #include <google/dense_hash_map>
 #include <folly/futures/Future.h>
-#include "namespace/interface/NSObjectLocker.hh"
+#include "namespace/locking/NSObjectLocker.hh"
+#include "namespace/MDLocking.hh"
 
 //#include <folly/concurrency/ConcurrentHashMap.h>
 
@@ -54,10 +55,6 @@ class IContainerMD;
 class FileMapIterator;
 class ContainerMapIterator;
 
-using IContainerMDPtr = std::shared_ptr<IContainerMD>;
-using IFileMDPtr = std::shared_ptr<IFileMD>;
-using IFileMDReadLocker = NSObjectMDLocker<IFileMDPtr,MDReadLock>;
-using IFileMDWriteLocker = NSObjectMDLocker<IFileMDPtr,MDWriteLock>;
 
 //------------------------------------------------------------------------------
 //! Holds either a FileMD or a ContainerMD. Only one of these are ever filled,
@@ -69,20 +66,19 @@ struct FileOrContainerMD {
 };
 
 //------------------------------------------------------------------------------
-//! Holds either a FileMD locked or a ContainerMD locked. Only one of these are ever filled,
-//! the other will be nullptr. Both might be nullptr as well.
-//------------------------------------------------------------------------------
-template<typename ContainerMDLocker, typename FileMDLocker>
-struct FileOrContainerMDLocked {
-  std::unique_ptr<ContainerMDLocker> containerLocked = nullptr;
-  std::unique_ptr<FileMDLocker> fileLocked = nullptr;
-};
-
-//------------------------------------------------------------------------------
 //! Class holding the interface to the metadata information concerning a
 //! single container
 //------------------------------------------------------------------------------
 class IContainerMD : public LockableNSObjMD {
+protected:
+  // Convenient using to avoid having to put MDLocking::
+  using ContainerReadLock = MDLocking::ContainerReadLock;
+  using ContainerWriteLock = MDLocking::ContainerWriteLock;
+  using ContainerReadLockPtr = MDLocking::ContainerReadLockPtr;
+  using ContainerWriteLockPtr = MDLocking::ContainerWriteLockPtr;
+  using FileReadLock = MDLocking::FileReadLock;
+  using FileWriteLock = MDLocking::FileWriteLock;
+
 public:
   //----------------------------------------------------------------------------
   //! Type definitions
@@ -98,15 +94,10 @@ public:
   using FileMap = google::dense_hash_map<std::string, IContainerMD::id_t,
         Murmur3::MurmurHasher<std::string> >;
 
-  template<typename ObjectMDPtr, typename LockType> friend class NSObjectMDLocker;
-  template<typename ObjectMDPtr, typename LockType> friend class NSObjectMDTryLocker;
+  template<typename ObjectMDPtr, typename LockType> friend class NSObjectMDBaseLock;
+  template<typename ObjectMDPtr, typename LockType> friend class NSObjectMDLock;
+  template<typename ObjectMDPtr, typename LockType> friend class NSObjectMDTryLock;
   friend class LockableNSObjMD;
-  using IContainerMDReadLocker = NSObjectMDLocker<IContainerMDPtr,MDReadLock>;
-  using IContainerMDReadTryLocker = NSObjectMDTryLocker<IContainerMDPtr,MDReadLock>;
-  using IContainerMDWriteLocker = NSObjectMDLocker<IContainerMDPtr,MDWriteLock>;
-  using IContainerMDWriteTryLocker = NSObjectMDTryLocker<IContainerMDPtr,MDWriteLock>;
-  using IContainerMDReadLockerPtr = std::unique_ptr<IContainerMDReadLocker>;
-  using IContainerMDWriteLockerPtr = std::unique_ptr<IContainerMDWriteLocker>;
 
   using identifier_t = ContainerIdentifier;
 
@@ -155,13 +146,13 @@ public:
   //----------------------------------------------------------------------------
   //! Find sub container and write lock it (returns nullptr in case the container is not found)
   //----------------------------------------------------------------------------
-  virtual IContainerMDWriteLockerPtr
+  virtual ContainerWriteLockPtr
   findContainerWriteLocked(const std::string & name) = 0;
 
   //----------------------------------------------------------------------------
   //! Find sub container and read lock it (returns nullptr in case the container is not found)
   //----------------------------------------------------------------------------
-  virtual IContainerMDReadLockerPtr
+  virtual ContainerReadLockPtr
   findContainerReadLocked(const std::string & name) = 0;
 
   //----------------------------------------------------------------------------
@@ -192,12 +183,12 @@ public:
   //----------------------------------------------------------------------------
   //! Find file and read lock it. Returns nullptr in case the file is not found
   //----------------------------------------------------------------------------
-  virtual std::unique_ptr<IFileMDReadLocker> findFileReadLocked(const std::string & name) = 0;
+  virtual std::unique_ptr<FileReadLock> findFileReadLocked(const std::string & name) = 0;
 
   //----------------------------------------------------------------------------
   //! Find file and write lock it. Returns nullptr in case the file is not found
   //----------------------------------------------------------------------------
-  virtual std::unique_ptr<IFileMDWriteLocker> findFileWriteLocked(const std::string & name) = 0;
+  virtual std::unique_ptr<FileWriteLock> findFileWriteLocked(const std::string & name) = 0;
 
   //----------------------------------------------------------------------------
   //! Find item
@@ -207,12 +198,12 @@ public:
   //----------------------------------------------------------------------------
   //! Find item read locked
   //----------------------------------------------------------------------------
-  virtual FileOrContainerMDLocked<IContainerMDReadLocker,IFileMDReadLocker> findItemReadLocked(const std::string & name) = 0;
+  virtual FileOrContainerMDLocked<ContainerReadLock, FileReadLock> findItemReadLocked(const std::string & name) = 0;
 
   //----------------------------------------------------------------------------
   //! Find item write locked
   //----------------------------------------------------------------------------
-  virtual FileOrContainerMDLocked<IContainerMDWriteLocker,IFileMDWriteLocker> findItemWriteLocked(const std::string & name) = 0;
+  virtual FileOrContainerMDLocked<ContainerWriteLock, FileWriteLock> findItemWriteLocked(const std::string & name) = 0;
 
   //----------------------------------------------------------------------------
   //! Get number of files

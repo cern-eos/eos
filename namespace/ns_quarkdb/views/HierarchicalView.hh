@@ -29,7 +29,6 @@
 #include "namespace/interface/IFileMDSvc.hh"
 #include "namespace/interface/IView.hh"
 #include "namespace/ns_quarkdb/accounting/QuotaStats.hh"
-#include "namespace/utils/IMDLockHelper.hh"
 
 #ifdef __clang__
 #pragma clang diagnostic ignored "-Wunused-private-field"
@@ -126,14 +125,14 @@ public:
   //----------------------------------------------------------------------------
   //! Retrieve a file for given uri and read-lock it
   //----------------------------------------------------------------------------
-  virtual IFileMD::IFileMDReadLockerPtr getFileReadLocked(const std::string & uri,
+  virtual MDLocking::FileReadLockPtr  getFileReadLocked(const std::string & uri,
                                                                         bool follow = true,
                                                                         size_t * link_depths = 0) override;
 
   //----------------------------------------------------------------------------
   //! Retrieve a file for given uri and read-lock it
   //----------------------------------------------------------------------------
-  virtual IFileMD::IFileMDWriteLockerPtr getFileWriteLocked(const std::string & uri,
+  virtual MDLocking::FileWriteLockPtr  getFileWriteLocked(const std::string & uri,
                                                                         bool follow = true,
                                                                         size_t * link_depths = 0) override;
 
@@ -205,14 +204,16 @@ public:
   //----------------------------------------------------------------------------
   //! Get a container (directory) and read lock it
   //----------------------------------------------------------------------------
-  virtual IContainerMD::IContainerMDReadLockerPtr getContainerReadLocked(const std::string & uri,
+  virtual MDLocking::ContainerReadLockPtr
+  getContainerReadLocked(const std::string & uri,
                                                                         bool follow = true,
                                                                         size_t * link_depths = 0) override;
 
   //----------------------------------------------------------------------------
   //! Get a container (directory) and write lock it
   //----------------------------------------------------------------------------
-  virtual IContainerMD::IContainerMDWriteLockerPtr getContainerWriteLocked(const std::string & uri,
+  virtual MDLocking::ContainerWriteLockPtr
+  getContainerWriteLocked(const std::string & uri,
                                                                            bool follow = true,
                                                                            size_t * link_depths = 0) override;
 

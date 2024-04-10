@@ -27,12 +27,11 @@
 #include "namespace/interface/IContainerMD.hh"
 #include "namespace/interface/IContainerMDSvc.hh"
 #include "namespace/ns_quarkdb/Constants.hh"
-#include "namespace/ns_quarkdb/persistency/NextInodeProvider.hh"
-#include "namespace/ns_quarkdb/persistency/UnifiedInodeProvider.hh"
 #include "namespace/ns_quarkdb/accounting/QuotaStats.hh"
 #include "namespace/ns_quarkdb/flusher/MetadataFlusher.hh"
+#include "namespace/ns_quarkdb/persistency/NextInodeProvider.hh"
+#include "namespace/ns_quarkdb/persistency/UnifiedInodeProvider.hh"
 #include "qclient/structures/QHash.hh"
-#include "namespace/utils/IMDLockHelper.hh"
 #include <list>
 #include <map>
 
@@ -97,15 +96,17 @@ public:
   //----------------------------------------------------------------------------
   //! Get the container metadata information for the given container ID and read lock it
   //----------------------------------------------------------------------------
-  virtual IContainerMD::IContainerMDReadLockerPtr getContainerMDReadLocked(IContainerMD::id_t id) override {
-    return IMDLockHelper::lock<IContainerMD::IContainerMDReadLocker>(getContainerMD(id,0));
+  virtual MDLocking::ContainerReadLockPtr
+  getContainerMDReadLocked(IContainerMD::id_t id) override {
+    return MDLocking::readLock(getContainerMD(id,0));
  }
 
  //----------------------------------------------------------------------------
  //! Get the container metadata information for the given container ID and write lock it
  //----------------------------------------------------------------------------
- virtual IContainerMD::IContainerMDWriteLockerPtr getContainerMDWriteLocked(IContainerMD::id_t id) override {
-   return IMDLockHelper::lock<IContainerMD::IContainerMDWriteLocker>(getContainerMD(id,0));
+ virtual MDLocking::ContainerWriteLockPtr
+ getContainerMDWriteLocked(IContainerMD::id_t id) override {
+   return MDLocking::writeLock(getContainerMD(id,0));
  }
 
   //------------------------------------------------------------------------

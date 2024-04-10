@@ -215,7 +215,7 @@ Devices::Store()
 
     eos::Prefetcher::prefetchFileMDAndWait(gOFS->eosView, storagepath.c_str());
 
-    eos::IFileMD::IFileMDWriteLockerPtr fmdLock;
+    eos::MDLocking::FileWriteLockPtr fmdLock;
     std::shared_ptr<eos::IFileMD> fmd;
     try {
       fmdLock = gOFS->eosView->getFileWriteLocked(storagepath.c_str());
@@ -230,7 +230,7 @@ Devices::Store()
       // if it does not exist, create it
       try {
 	fmd = gOFS->eosView->createFile(storagepath.c_str(), 0, 0);
-	fmdLock = std::make_unique<eos::IFileMD::IFileMDWriteLocker>(fmd);
+	fmdLock = std::make_unique<eos::MDLocking::FileWriteLock>(fmd);
 	fmd->setMTimeNow();
 	fmd->setCTimeNow();
 	eos::IFileMD::ctime_t mtime;

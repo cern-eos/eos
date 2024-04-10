@@ -408,16 +408,14 @@ QuarkHierarchicalView::getFile(const std::string& uri, bool follow,
   return getFileFut(uri, follow).get();
 }
 
-IFileMD::IFileMDReadLockerPtr
-QuarkHierarchicalView::getFileReadLocked(const std::string& uri, bool follow, size_t* link_depths)
+MDLocking::FileReadLockPtr QuarkHierarchicalView::getFileReadLocked(const std::string& uri, bool follow, size_t* link_depths)
 {
-  return IMDLockHelper::lock<IFileMD::IFileMDReadLocker>(getFile(uri,follow,link_depths));
+  return MDLocking::readLock(getFile(uri,follow,link_depths));
 }
 
-IFileMD::IFileMDWriteLockerPtr
-QuarkHierarchicalView::getFileWriteLocked(const std::string& uri, bool follow, size_t* link_depths)
+MDLocking::FileWriteLockPtr QuarkHierarchicalView::getFileWriteLocked(const std::string& uri, bool follow, size_t* link_depths)
 {
-  return IMDLockHelper::lock<IFileMD::IFileMDWriteLocker>(getFile(uri,follow,link_depths));
+  return MDLocking::writeLock(getFile(uri,follow,link_depths));
 }
 
 
@@ -589,19 +587,20 @@ QuarkHierarchicalView::getContainer(const std::string& uri, bool follow,
 //----------------------------------------------------------------------------
 //! Get a container (directory) and read lock it
 //----------------------------------------------------------------------------
-IContainerMD::IContainerMDReadLockerPtr QuarkHierarchicalView::getContainerReadLocked(const std::string & uri,
+MDLocking::ContainerReadLockPtr QuarkHierarchicalView::getContainerReadLocked(const std::string & uri,
                                                                                      bool follow,
                                                                                      size_t * link_depths) {
-  return IMDLockHelper::lock<IContainerMD::IContainerMDReadLocker>(getContainer(uri,follow,link_depths));
+  return MDLocking::readLock(getContainer(uri,follow,link_depths));
 }
 
 //----------------------------------------------------------------------------
 //! Get a container (directory) and write lock it
 //----------------------------------------------------------------------------
-IContainerMD::IContainerMDWriteLockerPtr QuarkHierarchicalView::getContainerWriteLocked(const std::string & uri,
+MDLocking::ContainerWriteLockPtr
+QuarkHierarchicalView::getContainerWriteLocked(const std::string & uri,
                                                                                        bool follow,
                                                                                        size_t * link_depths) {
-  return IMDLockHelper::lock<IContainerMD::IContainerMDWriteLocker>(getContainer(uri,follow,link_depths));
+  return MDLocking::writeLock(getContainer(uri,follow,link_depths));
 }
 
 //------------------------------------------------------------------------------

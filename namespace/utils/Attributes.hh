@@ -26,6 +26,7 @@
 #include "namespace/Prefetcher.hh"
 #include "common/StringUtils.hh"
 #include "common/Logging.hh"
+#include "namespace/MDLocking.hh"
 #include <iostream>
 
 EOSNSNAMESPACE_BEGIN
@@ -73,7 +74,7 @@ populateLinkedAttributes(IView* view, eos::IContainerMD::XAttrMap& out,
       return;
     }
 
-    IContainerMD::IContainerMDReadLockerPtr dhLock =
+    MDLocking::ContainerReadLockPtr dhLock =
       view->getContainerReadLocked(linkedPath->second);
     IContainerMDPtr dh = dhLock->getUnderlyingPtr();
     populateLinkedAttributes(dh->getAttributes(), out, prefixLinks);
@@ -134,10 +135,10 @@ listAttributes(IView* view, FileOrContainerMD target,
   out.clear();
 
   if (target.file) {
-    eos::IFileMD::IFileMDReadLocker(target.file);
+    eos::MDLocking::FileReadLock(target.file);
     listAttributes(view, target.file.get(), out, prefixLinks);
   } else if (target.container) {
-    eos::IContainerMD::IContainerMDReadLocker(target.container);
+    eos::MDLocking::ContainerReadLock(target.container);
     listAttributes(view, target.container.get(), out, prefixLinks);
   }
 }
@@ -162,7 +163,7 @@ static bool getAttribute(IView* view, T& md, std::string key,
   // It does, fetch linked container
   std::string linkedContainer = md.getAttribute(kAttrLinkKey);
   std::shared_ptr<eos::IContainerMD> dh;
-  eos::IContainerMD::IContainerMDReadLockerPtr dhLock;
+  eos::MDLocking::ContainerReadLockPtr dhLock;
   eos::Prefetcher::prefetchContainerMDAndWait(view, linkedContainer);
 
   try {
