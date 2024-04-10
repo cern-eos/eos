@@ -144,18 +144,6 @@ public:
   findContainer(const std::string& name) = 0;
 
   //----------------------------------------------------------------------------
-  //! Find sub container and write lock it (returns nullptr in case the container is not found)
-  //----------------------------------------------------------------------------
-  virtual ContainerWriteLockPtr
-  findContainerWriteLocked(const std::string & name) = 0;
-
-  //----------------------------------------------------------------------------
-  //! Find sub container and read lock it (returns nullptr in case the container is not found)
-  //----------------------------------------------------------------------------
-  virtual ContainerReadLockPtr
-  findContainerReadLocked(const std::string & name) = 0;
-
-  //----------------------------------------------------------------------------
   //! Get number of containers
   //----------------------------------------------------------------------------
   virtual size_t getNumContainers() = 0;
@@ -194,16 +182,6 @@ public:
   //! Find item
   //----------------------------------------------------------------------------
   virtual folly::Future<FileOrContainerMD> findItem(const std::string& name) = 0;
-
-  //----------------------------------------------------------------------------
-  //! Find item read locked
-  //----------------------------------------------------------------------------
-  virtual FileOrContainerMDLocked<ContainerReadLock, FileReadLock> findItemReadLocked(const std::string & name) = 0;
-
-  //----------------------------------------------------------------------------
-  //! Find item write locked
-  //----------------------------------------------------------------------------
-  virtual FileOrContainerMDLocked<ContainerWriteLock, FileWriteLock> findItemWriteLocked(const std::string & name) = 0;
 
   //----------------------------------------------------------------------------
   //! Get number of files
