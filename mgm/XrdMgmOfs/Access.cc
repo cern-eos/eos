@@ -89,6 +89,11 @@ XrdMgmOfs::_access(const char* path,
  * If F_OK is specified we just check for the existence of the path, which can
  * be a file or directory. We don't support X_OK since it cannot be mapped
  * in case of files (we don't have explicit execution permissions).
+ *
+ * Locking: In the case we need to check the access of a file, we will need
+ * to check the container and the file itself. We will lock the
+ * container and the file individually before checking their access with the
+ * AccessChecker.
  */
 /*----------------------------------------------------------------------------*/
 {
@@ -100,23 +105,20 @@ XrdMgmOfs::_access(const char* path,
   std::string attr_path = cPath.GetPath();
   std::shared_ptr<eos::IFileMD> fh;
   std::shared_ptr<eos::IContainerMD> dh;
-  eos::MDLocking::FileReadLockPtr fhLock;
-  eos::MDLocking::ContainerReadLockPtr dhLock;
+  mode_t dhMode;
   // ---------------------------------------------------------------------------
   eos::Prefetcher::prefetchItemAndWait(gOFS->eosView, cPath.GetPath());
 
   // check for existing file
   try {
-    fhLock = gOFS->eosView->getFileReadLocked(cPath.GetPath());
-    fh = fhLock->getUnderlyingPtr();
+    fh = gOFS->eosView->getFile(cPath.GetPath());
   } catch (eos::MDException& e) {
     eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"", e.getErrno(),
               e.getMessage().str().c_str());
   }
 
   try {
-    dhLock = gOFS->eosView->getContainerReadLocked(cPath.GetPath());
-    dh = dhLock->getUnderlyingPtr();
+    dh = gOFS->eosView->getContainer(cPath.GetPath());
   } catch (eos::MDException& e) {
     eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"", e.getErrno(),
               e.getMessage().str().c_str());
@@ -133,6 +135,8 @@ XrdMgmOfs::_access(const char* path,
 
       // if this is a file or a not existing directory we check the access on the parent directory
       if (fh) {
+        // We just lock the file here to get the URI of it and its attributes
+        eos::MDLocking::FileReadLock fhLock(fh);
         uri = gOFS->eosView->getUri(fh.get());
         fattrmap = fh->getAttributes();
       } else {
@@ -140,8 +144,7 @@ XrdMgmOfs::_access(const char* path,
       }
 
       eos::common::Path pPath(uri.c_str());
-      dhLock = gOFS->eosView->getContainerReadLocked(pPath.GetParentPath());
-      dh = dhLock->getUnderlyingPtr();
+      dh = gOFS->eosView->getContainer(pPath.GetParentPath());
       attr_path = pPath.GetParentPath();
     }
 
@@ -157,16 +160,24 @@ XrdMgmOfs::_access(const char* path,
              acl.HasAcl(), acl.CanRead(), acl.CanWrite(), acl.CanWriteOnce(),
              acl.CanBrowse(), acl.HasEgroup(), acl.IsMutable());
 
-    if (!AccessChecker::checkContainer(dh.get(), acl, mode, vid)) {
-      errno = EPERM;
-      return Emsg(epname, error, EPERM, "access", path);
+    {
+      // In any case, we need to check the container access, read lock it to check its access and release its lock
+      // afterwards
+      eos::MDLocking::ContainerReadLock dhLock(dh);
+      dhMode = dh->getMode();
+      if (!AccessChecker::checkContainer(dh.get(), acl, mode, vid)) {
+        errno = EPERM;
+        return Emsg(epname, error, EPERM, "access", path);
+      }
     }
-
-    if (fh && !AccessChecker::checkFile(fh.get(), mode, vid)) {
-      errno = EPERM;
-      return Emsg(epname, error, EPERM, "access", path);
+    if(fh) {
+      // Check the file access, read lock it before and release the lock afterwards
+      eos::MDLocking::FileReadLock fhLock(fh);
+      if(!AccessChecker::checkFile(fh.get(), mode, vid)) {
+        errno = EPERM;
+        return Emsg(epname, error, EPERM, "access", path);
+      }
     }
-
     permok = true;
   } catch (eos::MDException& e) {
     dh.reset();
@@ -189,7 +200,7 @@ XrdMgmOfs::_access(const char* path,
 
   if (dh) {
     eos_debug("msg=\"access\" uid=%d gid=%d retc=%d mode=%o",
-              vid.uid, vid.gid, permok, dh->getMode());
+              vid.uid, vid.gid, permok, dhMode);
   }
 
   if (dh && (mode & F_OK)) {
