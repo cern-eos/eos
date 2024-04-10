@@ -446,19 +446,22 @@ XrdMgmOfs::_rename(const char* old_name,
           COMMONTIMING("rename::rename_file_within_same_container_find_file", &tm);
 
           if (file) {
-            eos::MDLocking::ContainerWriteLock dirWriteLock(dir);
-            COMMONTIMING("rename::rename_file_within_same_container_dir_write_lock", &tm);
-            eos::MDLocking::FileWriteLock fileWriteLock(file);
-            COMMONTIMING("rename::rename_file_within_same_container_file_write_lock", &tm);
-            eosView->renameFile(file.get(), nPath.GetName());
-            dir->setMTimeNow();
-            dir->notifyMTimeChange(gOFS->eosDirectoryService);
-            eosView->updateContainerStore(dir.get());
-            COMMONTIMING("rename::rename_file_within_same_container_file_rename", &tm);
-            const std::string old_name = oPath.GetName();
-
+            eos::FileIdentifier fid;
+            {
+              eos::MDLocking::BulkMDWriteLock dirFileLocker;
+              dirFileLocker.add(dir);
+              dirFileLocker.add(file);
+              auto locks = dirFileLocker.lockAll();
+              COMMONTIMING("rename::rename_file_within_same_container_dir_file_write_lock", &tm);
+              eosView->renameFile(file.get(), nPath.GetName());
+              dir->setMTimeNow();
+              dir->notifyMTimeChange(gOFS->eosDirectoryService);
+              eosView->updateContainerStore(dir.get());
+              COMMONTIMING("rename::rename_file_within_same_container_file_rename", &tm);
+              const std::string old_name = oPath.GetName();
+              fid = file->getIdentifier();
+            }
             if (fusexcast) {
-              const eos::FileIdentifier fid = file->getIdentifier();
               fuse_batch.Register([&, did, pdid, fid, old_name]() {
                 gOFS->FuseXCastRefresh(did, pdid);
                 gOFS->FuseXCastDeletion(did, old_name);
@@ -477,10 +480,9 @@ XrdMgmOfs::_rename(const char* old_name,
             eos::MDLocking::BulkMDWriteLock helper;
             helper.add(dir);
             helper.add(newdir);
-            auto dirsLock = helper.lockAll();
-            COMMONTIMING("rename::move_file_to_different_container_lock_dirs", &tm);
-            eos::MDLocking::FileWriteLock fileWriteLock(file);
-            COMMONTIMING("rename::move_file_to_different_container_file_write_lock", &tm);
+            helper.add(file);
+            auto locks = helper.lockAll();
+            COMMONTIMING("rename::move_file_to_different_container_dirs_file_write_lock", &tm);
             dir->removeFile(oPath.GetName());
             dir->setMTimeNow();
             dir->notifyMTimeChange(gOFS->eosDirectoryService);
