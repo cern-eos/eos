@@ -105,31 +105,9 @@ public:
   std::shared_ptr<IContainerMD> findContainer(const std::string& name) override;
 
   //----------------------------------------------------------------------------
-  //! Find sub container and write lock it (returns nullptr in case the container is not found)
-  //----------------------------------------------------------------------------
-  ContainerWriteLockPtr
-  findContainerWriteLocked(const std::string & name) override;
-
-  //----------------------------------------------------------------------------
-  //! Find sub container and read lock it (returns nullptr in case the container is not found)
-  //----------------------------------------------------------------------------
-  ContainerReadLockPtr
-  findContainerReadLocked(const std::string & name) override;
-
-  //----------------------------------------------------------------------------
   //! Find item
   //----------------------------------------------------------------------------
   folly::Future<FileOrContainerMD> findItem(const std::string& name) override;
-
-  //----------------------------------------------------------------------------
-  //! Find item read locked
-  //----------------------------------------------------------------------------
-  FileOrContainerMDLocked<ContainerReadLock, FileReadLock>  findItemReadLocked(const std::string &name) override;
-
-  //----------------------------------------------------------------------------
-  //! Find item write locked
-  //----------------------------------------------------------------------------
-  FileOrContainerMDLocked<ContainerWriteLock, FileWriteLock>  findItemWriteLocked(const std::string & name) override;
 
   //----------------------------------------------------------------------------
   //! Get number of containers
