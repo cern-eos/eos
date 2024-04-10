@@ -30,6 +30,7 @@
 #include "namespace/interface/IContainerMDSvc.hh"
 #include "namespace/MDException.hh"
 #include "namespace/interface/IContainerMD.hh"
+#include "namespace/MDLocking.hh"
 
 namespace eos
 {
@@ -102,14 +103,16 @@ public:
   //----------------------------------------------------------------------------
   //! Retrieve a file for given uri and read-lock it
   //----------------------------------------------------------------------------
-  virtual IFileMD::IFileMDReadLockerPtr getFileReadLocked(const std::string & uri,
+  virtual MDLocking::FileReadLockPtr
+  getFileReadLocked(const std::string & uri,
                                                                         bool follow = true,
                                                                         size_t * link_depths = 0) = 0;
 
   //----------------------------------------------------------------------------
   //! Retrieve a file for given uri and write-lock it
   //----------------------------------------------------------------------------
-  virtual IFileMD::IFileMDWriteLockerPtr getFileWriteLocked(const std::string & uri,
+  virtual MDLocking::FileWriteLockPtr
+  getFileWriteLocked(const std::string & uri,
                                                                         bool follow = true,
                                                                         size_t * link_depths = 0) = 0;
 
@@ -188,13 +191,15 @@ public:
   //----------------------------------------------------------------------------
   //! Get a container (directory) and read lock it
   //----------------------------------------------------------------------------
-  virtual IContainerMD::IContainerMDReadLockerPtr getContainerReadLocked(const std::string & uri,
+  virtual MDLocking::ContainerReadLockPtr
+  getContainerReadLocked(const std::string & uri,
                                                                          bool follow = true,
                                                                          size_t * link_depths = 0) = 0;
   //----------------------------------------------------------------------------
   //! Get a container (directory) and write lock it
   //----------------------------------------------------------------------------
-  virtual IContainerMD::IContainerMDWriteLockerPtr getContainerWriteLocked(const std::string & uri,
+  virtual MDLocking::ContainerWriteLockPtr
+  getContainerWriteLocked(const std::string & uri,
                                                                            bool follow = true,
                                                                            size_t * link_depths = 0) = 0;
 

@@ -107,13 +107,13 @@ public:
   //----------------------------------------------------------------------------
   //! Find sub container and write lock it (returns nullptr in case the container is not found)
   //----------------------------------------------------------------------------
-  IContainerMDWriteLockerPtr
+  ContainerWriteLockPtr
   findContainerWriteLocked(const std::string & name) override;
 
   //----------------------------------------------------------------------------
   //! Find sub container and read lock it (returns nullptr in case the container is not found)
   //----------------------------------------------------------------------------
-  IContainerMDReadLockerPtr
+  ContainerReadLockPtr
   findContainerReadLocked(const std::string & name) override;
 
   //----------------------------------------------------------------------------
@@ -124,12 +124,12 @@ public:
   //----------------------------------------------------------------------------
   //! Find item read locked
   //----------------------------------------------------------------------------
-  FileOrContainerMDLocked<IContainerMDReadLocker,IFileMDReadLocker>  findItemReadLocked(const std::string &name) override;
+  FileOrContainerMDLocked<ContainerReadLock, FileReadLock>  findItemReadLocked(const std::string &name) override;
 
   //----------------------------------------------------------------------------
   //! Find item write locked
   //----------------------------------------------------------------------------
-  FileOrContainerMDLocked<IContainerMDWriteLocker,IFileMDWriteLocker>  findItemWriteLocked(const std::string & name) override;
+  FileOrContainerMDLocked<ContainerWriteLock, FileWriteLock>  findItemWriteLocked(const std::string & name) override;
 
   //----------------------------------------------------------------------------
   //! Get number of containers
@@ -159,12 +159,12 @@ public:
   //----------------------------------------------------------------------------
   //! Find file and read lock it. Returns nullptr in case the file is not found
   //----------------------------------------------------------------------------
-  std::unique_ptr<IFileMDReadLocker> findFileReadLocked(const std::string & name) override;
+  std::unique_ptr<FileReadLock> findFileReadLocked(const std::string & name) override;
 
   //----------------------------------------------------------------------------
   //! Find file and write lock it. Returns nullptr in case the file is not found
   //----------------------------------------------------------------------------
-  std::unique_ptr<IFileMDWriteLocker> findFileWriteLocked(const std::string & name) override;
+  std::unique_ptr<FileWriteLock> findFileWriteLocked(const std::string & name) override;
 
   //----------------------------------------------------------------------------
   //! Get number of files

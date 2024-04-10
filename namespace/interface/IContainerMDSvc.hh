@@ -27,6 +27,7 @@
 #include "namespace/interface/IContainerMD.hh"
 #include "namespace/interface/IFileMDSvc.hh"
 #include "namespace/MDException.hh"
+#include "namespace/MDLocking.hh"
 #include <map>
 #include <string>
 
@@ -96,12 +97,14 @@ public:
   //----------------------------------------------------------------------------
   //! Get the container metadata information for the given ID and read lock it
   //----------------------------------------------------------------------------
-  virtual IContainerMD::IContainerMDReadLockerPtr getContainerMDReadLocked(IContainerMD::id_t id) = 0;
+  virtual MDLocking::ContainerReadLockPtr
+  getContainerMDReadLocked(IContainerMD::id_t id) = 0;
 
   //----------------------------------------------------------------------------
   //! Get the container metadata information for the given ID and write lock it
   //----------------------------------------------------------------------------
-  virtual IContainerMD::IContainerMDWriteLockerPtr getContainerMDWriteLocked(IContainerMD::id_t id) = 0;
+  virtual MDLocking::ContainerWriteLockPtr
+  getContainerMDWriteLocked(IContainerMD::id_t id) = 0;
 
   //----------------------------------------------------------------------------
   //! Get the container metadata information for the given ID and clock

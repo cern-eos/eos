@@ -16,13 +16,16 @@
 * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
 ************************************************************************/
 
-#ifndef EOS_NSOBJECTLOCKER_HH
-#define EOS_NSOBJECTLOCKER_HH
+#ifndef EOS_LOCKABLENSOBJECT_HH
+#define EOS_LOCKABLENSOBJECT_HH
+
+#include <memory>
+#include <map>
+#include <thread>
 
 #include "namespace/Namespace.hh"
-#include <memory>
+#include "namespace/MDException.hh"
 #include "common/SharedMutexWrapper.hh"
-#include <mutex>
 
 EOSNSNAMESPACE_BEGIN
 
@@ -32,8 +35,9 @@ typedef std::shared_lock<std::shared_timed_mutex> MDReadLock;
 class LockableNSObjMD
 {
 public:
-  template<typename ObjectMDPtr, typename LockType>
-  friend class NSObjectMDLocker;
+  template<typename ObjectMDPtr, typename LockType> friend class NSObjectMDBaseLock;
+  template<typename ObjectMDPtr, typename LockType> friend class NSObjectMDLock;
+  template<typename ObjectMDPtr, typename LockType> friend class NSObjectMDTryLock;
   LockableNSObjMD() {}
   LockableNSObjMD(const LockableNSObjMD& other) = delete;
   LockableNSObjMD& operator=(const LockableNSObjMD&) = delete;
@@ -267,93 +271,6 @@ private:
   mutable std::map<std::thread::id, uint64_t> mThreadIdReadLockMap;
 
 };
-
-template<typename ObjectMDPtr, typename LockType>
-class NSObjectMDLocker
-{
-public:
-  //Constructor that defers the locking of the mutex and will delegate the locking logic to the objectMD
-  NSObjectMDLocker(ObjectMDPtr objectMDPtr)
-  {
-    if (objectMDPtr) {
-      mLock = LockType(objectMDPtr->getMutex(), std::defer_lock);
-      mObjectMDPtr = objectMDPtr;
-      mObjectMDPtr->lock(mLock);
-    } else {
-      // We should normally never reach that code in production
-      // if the file/container does not exist, a MDException will
-      // be thrown.
-      throw_mdexception(ENOENT, "file/container does not exist");
-    }
-  }
-
-  ObjectMDPtr operator->()
-  {
-    return mObjectMDPtr;
-  }
-  ObjectMDPtr getUnderlyingPtr()
-  {
-    return operator->();
-  }
-  virtual ~NSObjectMDLocker()
-  {
-    if (mObjectMDPtr) {
-      mObjectMDPtr->unregisterLock(mLock);
-    }
-  }
-private:
-  //! KEEP THIS ORDER, THE SHARED_PTR NEEDS TO BE DESTROYED AFTER THE LOCK...
-  //! Otherwise you will have a deadlock!
-  ObjectMDPtr mObjectMDPtr;
-  LockType mLock;
-};
-
-template<typename ObjectMDPtr, typename LockType>
-class NSObjectMDTryLocker
-{
-public:
-  using ObjectMDPtrType = ObjectMDPtr;
-  //Constructor that defers the locking of the mutex and will delegate the locking logic to the objectMD
-  NSObjectMDTryLocker(ObjectMDPtr objectMDPtr)
-  {
-    if (objectMDPtr) {
-      mLock = LockType(objectMDPtr->getMutex(), std::defer_lock);
-      mObjectMDPtr = objectMDPtr;
-      mLocked = mObjectMDPtr->tryLock(mLock);
-    } else {
-      // We should normally never reach that code in production
-      // if the file/container does not exist, a MDException will
-      // be thrown.
-      throw_mdexception(ENOENT, "file/container does not exist");
-    }
-  }
-
-  ObjectMDPtr operator->()
-  {
-    return mObjectMDPtr;
-  }
-  ObjectMDPtr getUnderlyingPtr()
-  {
-    return operator->();
-  }
-  bool locked()
-  {
-    return mLocked;
-  }
-  virtual ~NSObjectMDTryLocker()
-  {
-    if (mObjectMDPtr && mLocked) {
-      mObjectMDPtr->unregisterLock(mLock);
-    }
-  }
-private:
-  //! KEEP THIS ORDER, THE SHARED_PTR NEEDS TO BE DESTROYED AFTER THE LOCK...
-  //! Otherwise you will have a deadlock!
-  ObjectMDPtr mObjectMDPtr;
-  LockType mLock;
-  bool mLocked = false;
-};
-
 
 EOSNSNAMESPACE_END
 
