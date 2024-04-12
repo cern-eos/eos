@@ -230,7 +230,7 @@ Devices::Store()
       // if it does not exist, create it
       try {
 	fmd = gOFS->eosView->createFile(storagepath.c_str(), 0, 0);
-	fmdLock = std::make_unique<eos::MDLocking::FileWriteLock>(fmd);
+	fmdLock = eos::MDLocking::writeLock(fmd);
 	fmd->setMTimeNow();
 	fmd->setCTimeNow();
 	eos::IFileMD::ctime_t mtime;
