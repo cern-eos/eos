@@ -296,7 +296,7 @@ XrdMgmOfs::_attr_set(const char* path, XrdOucErrInfo& error,
 
     if (item.file) { // file
       std::shared_ptr<eos::IFileMD> fmd = item.file;
-      auto fmd_lock = std::make_unique<eos::MDLocking::FileWriteLock>(fmd);
+      auto fmd_lock = eos::MDLocking::writeLock(fmd);
 
       if ((vid.uid != fmd->getCUid()) && (!vid.sudoer && vid.uid)) {
         errno = EPERM;
@@ -336,8 +336,7 @@ XrdMgmOfs::_attr_set(const char* path, XrdOucErrInfo& error,
       }
     } else { // container
       std::shared_ptr<eos::IContainerMD> cmd = item.container;
-      auto cmd_lock = std::make_unique<eos::MDLocking::ContainerWriteLock>
-                      (cmd);
+      auto cmd_lock = eos::MDLocking::writeLock(cmd);
 
       if ((vid.uid != cmd->getCUid()) && (!vid.sudoer && vid.uid)) {
         errno = EPERM;
@@ -436,7 +435,7 @@ XrdMgmOfs::_attr_rem(const char* path, XrdOucErrInfo& error,
 
     if (item.file) { // file
       std::shared_ptr<eos::IFileMD> fmd = item.file;
-      auto fmd_lock = std::make_unique<eos::MDLocking::FileWriteLock>(fmd);
+      auto fmd_lock = eos::MDLocking::writeLock(fmd);
 
       if ((vid.uid != fmd->getCUid()) && (!vid.sudoer && vid.uid)) {
         errno = EPERM;
@@ -456,8 +455,7 @@ XrdMgmOfs::_attr_rem(const char* path, XrdOucErrInfo& error,
       }
     } else { // container
       std::shared_ptr<eos::IContainerMD> cmd = item.container;
-      auto cmd_lock = std::make_unique<eos::MDLocking::ContainerWriteLock>
-                      (cmd);
+      auto cmd_lock = eos::MDLocking::writeLock(cmd);
 
       if (!cmd->access(vid.uid, vid.gid, X_OK | W_OK)) {
         errno = EPERM;
