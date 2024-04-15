@@ -25,6 +25,7 @@
 #define EOS_FUSE_JAIL_IDENTIFIER_HH
 
 #include <string>
+#include <cstdint>
 
 #ifdef __APPLE__
 typedef uint64_t ino_t;
