@@ -35,6 +35,7 @@
 #include "common/IntervalStopwatch.hh"
 #include "common/SymKeys.hh"
 #include "XrdVersion.hh"
+#include <optional>
 #include <sys/sysinfo.h>
 #include <proc/readproc.h>
 
