@@ -25,6 +25,7 @@
 #define SHARDED_CACHE__HH__
 
 #include "common/AssistedThread.hh"
+#include <algorithm>
 #include <memory>
 #include <vector>
 #include <mutex>
