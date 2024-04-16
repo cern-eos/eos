@@ -3955,11 +3955,23 @@ void
 metad::pmap::insertTS(fuse_ino_t ino, shared_md& md)
 {
   XrdSysMutexHelper mLock(this);
-  bool exists = this->count(ino);
+  const bool exists = this->count(ino);
+  bool same = false;
+  if (exists) {
+    // test is for equality of md pointer in the shared_ptr
+    same = ((*this)[ino] == md);
+  }
+
+  if (exists && !same) {
+    // remove from lru if an md entry already exists for this ino
+    // but we're replacing it with a different one.
+    lru_remove(ino);
+  }
+
   (*this)[ino] = md;
   // lru list handling
 
-  if (!exists) {
+  if (!same) {
     lru_add(ino, md);
   }
 
