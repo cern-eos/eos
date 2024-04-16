@@ -5090,6 +5090,8 @@ The O_NONBLOCK flag was specified, and an incompatible lease was held on the fil
             Instance().mds.wait_flush(req, md);
           }
 
+          (*md)()->set_id(0);
+          (*md)()->set_md_ino(0);
           (*md)()->set_err(0);
           (*md)()->set_mode(mode | (S_ISFIFO(mode) ? S_IFIFO : S_IFREG));
           (*md)()->set_fullpath(pfullpath + "/" + name);
@@ -6884,6 +6886,9 @@ EosFuse::symlink(fuse_req_t req, const char* link, fuse_ino_t parent,
         Instance().mds.wait_flush(req, md);
       }
 
+      (*md)()->set_id(0);
+      (*md)()->set_md_ino(0);
+      (*md)()->set_nlink(1);
       (*md)()->set_mode(S_IRWXU | S_IRWXG | S_IRWXO | S_IFLNK);
       (*md)()->set_target(link);
       (*md)()->set_err(0);
@@ -7002,6 +7007,8 @@ EosFuse::link(fuse_req_t req, fuse_ino_t ino, fuse_ino_t parent,
                            (*tmd)()->name().c_str());
         }
 
+        (*md)()->set_id(0);
+        (*md)()->set_md_ino(0);
         (*md)()->set_mode((*tmd)()->mode());
         (*md)()->set_err(0);
         struct timespec ts;
