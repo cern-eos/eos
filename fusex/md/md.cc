@@ -2864,6 +2864,14 @@ metad::mdcallback(ThreadAssistant& assistant)
 
             if (pmd->local_children().count(
                   eos::common::StringConversion::EncodeInvalidUTF8(name))) {
+
+              // as well as remote generated delete this case is possible
+              // for after a local create/remove/create cycle, in which case we will
+              // incorrectly remove name from local_children of the parent. So
+              // clear any local creator flag so that lookup will need to confirm
+              // with the backend before returning ENOENT.
+              (*pmd)()->set_creator(false);
+
               pmd->local_children().erase(eos::common::StringConversion::EncodeInvalidUTF8(
                                             name));
               pmd->get_todelete().erase(eos::common::StringConversion::EncodeInvalidUTF8(
