@@ -4096,6 +4096,11 @@ EROFS  pathname refers to a file on a read-only filesystem.
         if ((*pcap2)()->errc()) {
           rc = (*pcap2)()->errc();
         } else {
+          if (md->deleted()) {
+            // we need to wait that this entry is really gone
+            Instance().mds.wait_flush(req, md);
+          }
+
           (*md)()->set_id(0);
           (*md)()->set_md_ino(0);
           (*md)()->set_err(0);
