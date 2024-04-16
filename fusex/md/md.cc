@@ -2276,7 +2276,7 @@ metad::mdcflush(ThreadAssistant& assistant)
 
       // TODO: add an optimzation to merge requests in the queue
       auto it = mdflushqueue.begin();
-      uint64_t ino = it->id();
+      const uint64_t ino = it->id();
       std::string authid = it->authid();
       fuse_id f_id = it->get_fuse_id();
       mdx::md_op op = it->op();
@@ -2284,8 +2284,6 @@ metad::mdcflush(ThreadAssistant& assistant)
       eos_static_info("metacache::flush ino=%#lx flushqueue-size=%u", ino,
                       mdflushqueue.size());
       eos_static_info("metacache::flush %s", flushentry::dump(*it).c_str());
-      mdflushqueue.erase(it);
-      mdqueue[ino]--;
       mdqueue_current = ino;
       mdflush.UnLock();
 
@@ -2298,7 +2296,7 @@ metad::mdcflush(ThreadAssistant& assistant)
                          authid.c_str(), (int) op);
       }
 
-      {
+      do {
         shared_md md;
 
         if (!mdmap.retrieveTS(ino, md)) {
@@ -2432,7 +2430,14 @@ metad::mdcflush(ThreadAssistant& assistant)
         } else {
           md->Locker().UnLock();
         }
-      }
+      } while(0);
+
+      // done with the entry, remove it from the queue
+      mdflush.Lock();
+      it = mdflushqueue.begin();
+      mdflushqueue.erase(it);
+      mdqueue[ino]--;
+      mdflush.UnLock();
     }
   }
 }
