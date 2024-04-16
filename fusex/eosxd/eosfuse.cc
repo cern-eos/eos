@@ -6959,28 +6959,35 @@ EosFuse::link(fuse_req_t req, fuse_ino_t ino, fuse_ino_t parent,
     metad::shared_md tmd; /* the link target */
     md = Instance().mds.lookup(req, parent, newname);
     pmd = Instance().mds.get(req, parent, (*pcap)()->authid());
+
+    {
+      uint64_t del_ino = 0;
+      // logic avoiding a create/unlink/create sync/async race
+      {
+        XrdSysMutexHelper pLock(pmd->Locker());
+        auto it = pmd->get_todelete().find(
+                    eos::common::StringConversion::EncodeInvalidUTF8(newname));
+
+        if ((it != pmd->get_todelete().end()) && it->second) {
+          del_ino = it->second;
+        }
+      }
+
+      if (del_ino) {
+        Instance().mds.wait_upstream(req, del_ino);
+      }
+    }
+
     XrdSysMutexHelper mLock(md->Locker());
 
     if ((*md)()->id() && !md->deleted()) {
       rc = EEXIST;
     } else {
-      {
-        uint64_t del_ino = 0;
-        // logic avoiding a create/unlink/create sync/async race
-        {
-          XrdSysMutexHelper pLock(pmd->Locker());
-          auto it = pmd->get_todelete().find(
-                      eos::common::StringConversion::EncodeInvalidUTF8(newname));
-
-          if ((it != pmd->get_todelete().end()) && it->second) {
-            del_ino = it->second;
-          }
-        }
-
-        if (del_ino) {
-          Instance().mds.wait_upstream(req, del_ino);
-        }
+      if (md->deleted()) {
+        // we need to wait that this entry is really gone
+        Instance().mds.wait_flush(req, md);
       }
+
       tmd = Instance().mds.get(req, ino, (*pcap)()->authid()); /* link target */
 
       if ((*tmd)()->id() == 0 || tmd->deleted()) {
