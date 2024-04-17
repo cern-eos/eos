@@ -118,7 +118,7 @@ DrainTransferJob::DoIt() noexcept
     properties.Set("coerce", false);
     properties.Set("source", url_src);
     properties.Set("target", url_dst);
-    properties.Set("sourceLimit", (uint16_t) 1);
+    properties.Set("sourceLimit", (uint32_t) 1);
     properties.Set("chunkSize", (uint32_t)(4 * 1024 * 1024));
     properties.Set("parallelChunks", (uint8_t) 1);
     properties.Set("tpcTimeout", eos::common::FileId::EstimateTpcTimeout

@@ -63,7 +63,7 @@ public:
   //! @param source         the source url of the current job
   //! @param destination    the destination url of the current job
   //----------------------------------------------------------------------------
-  void BeginJob(uint16_t jobNum, uint16_t jobTotal, const XrdCl::URL* source,
+  void BeginJob(uint32_t jobNum, uint32_t jobTotal, const XrdCl::URL* source,
                 const XrdCl::URL* destination) override
   {
     using namespace std::chrono;
@@ -78,7 +78,7 @@ public:
   //! @param bytesProcessed bytes processed by the current job
   //! @param bytesTotal     total number of bytes to be processed by job
   //----------------------------------------------------------------------------
-  void JobProgress(uint16_t jobNum, uint64_t bytesProcessed,
+  void JobProgress(uint32_t jobNum, uint64_t bytesProcessed,
                    uint64_t bytesTotal) override
   {
     mBytesTransferred = bytesProcessed;
@@ -90,7 +90,7 @@ public:
   //! Determine whether the job should be canceled - this is used internally
   //! by the XrdCl::CopyProcess.
   //----------------------------------------------------------------------------
-  bool ShouldCancel(uint16_t jobNum) override
+  bool ShouldCancel(uint32_t jobNum) override
   {
     return mDoCancel;
   }

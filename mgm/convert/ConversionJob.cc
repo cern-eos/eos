@@ -63,7 +63,7 @@ XrdCl::PropertyList TpcProperties(uint64_t size)
   properties.Set("force", true);
   properties.Set("posc", false);
   properties.Set("coerce", false);
-  properties.Set("sourceLimit", (uint16_t) 1);
+  properties.Set("sourceLimit", (uint32_t) 1);
   properties.Set("chunkSize", (uint32_t)(4 * 1024 * 1024));
   properties.Set("parallelChunks", (uint16_t) 1);
   properties.Set("tpcTimeout", FileId::EstimateTpcTimeout(size).count());
