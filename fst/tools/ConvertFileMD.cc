@@ -65,7 +65,7 @@ main(int argc, char* argv[])
   auto& g_logger = eos::common::Logging::GetInstance();
   g_logger.SetLogPriority(g_logger.GetPriorityByString(log_level.c_str()));
   g_logger.SetUnit("EOSFileMD");
-  std::unique_ptr<FILE, decltype(&fclose)> fptr {fopen(log_file.c_str(), "a+"), &fclose};
+  std::unique_ptr<FILE, int(*)(FILE*)> fptr {fopen(log_file.c_str(), "a+"), &fclose};
 
   if (fptr.get() && !configureLogger(fptr.get())) {
     std::cerr << "error: failed to setup logging using log_file: " << log_file
