@@ -1353,8 +1353,8 @@ com_rclone(char* arg1)
   class RCloneProgressHandler : public XrdCl::CopyProgressHandler
   {
   public:
-    virtual void BeginJob(uint16_t   jobNum,
-                          uint16_t   jobTotal,
+    virtual void BeginJob(uint32_t   jobNum,
+                          uint32_t   jobTotal,
                           const URL* source,
                           const URL* destination)
     {
@@ -1362,7 +1362,7 @@ com_rclone(char* arg1)
       tot = jobTotal;
     }
 
-    virtual void EndJob(uint16_t            jobNum,
+    virtual void EndJob(uint32_t            jobNum,
                         const PropertyList* result)
     {
       (void)jobNum;
@@ -1393,7 +1393,7 @@ com_rclone(char* arg1)
       }
     };
 
-    virtual void JobProgress(uint16_t jobNum,
+    virtual void JobProgress(uint32_t jobNum,
                              uint64_t bytesProcessed,
                              uint64_t bytesTotal)
     {
@@ -1410,7 +1410,7 @@ com_rclone(char* arg1)
       }
     }
 
-    virtual bool ShouldCancel(uint16_t jobNum)
+    virtual bool ShouldCancel(uint32_t jobNum)
     {
       (void)jobNum;
       return false;
@@ -1418,8 +1418,8 @@ com_rclone(char* arg1)
 
     std::atomic<uint64_t> bp;
     std::atomic<uint64_t> bt;
-    std::atomic<uint16_t> n;
-    std::atomic<uint16_t> tot;
+    std::atomic<uint32_t> n;
+    std::atomic<uint32_t> tot;
   };
 
   RCloneProgressHandler copyProgress;
