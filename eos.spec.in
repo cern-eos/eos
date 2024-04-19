@@ -779,8 +779,6 @@ Requires: python3-zmq
 BuildRequires:  python-rpm-macros
 %endif
 %endif
-Requires: python3 python3-fusepy
-
 
 # Select xrootd package
 %if %{?_with_eos_xrootd_rh:1}%{!?_with_eos_xrootd_rh:0}
