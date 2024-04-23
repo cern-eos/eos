@@ -20,7 +20,7 @@ k8s_system:
   extends: .dock8s_system_test_template
   image: alpine/k8s:1.18.2
   needs:
-    - job: cc7_docker_image
+    - job: el9_docker_image
       artifacts: false
   retry: 1
   tags:
@@ -33,7 +33,7 @@ k8s_cnvrt_fsck:
   extends: .dock8s_cnvrt_fsck_template
   image: alpine/k8s:1.18.2
   needs:
-    - job: cc7_docker_image
+    - job: el9_docker_image
       artifacts: false
   retry: 1
   tags:
@@ -45,7 +45,7 @@ k8s_rtb_clone:
   extends: .dock8s_rtb_clone_template
   image: alpine/k8s:1.18.2
   needs:
-    - job: cc7_docker_image
+    - job: el9_docker_image
       artifacts: false
   retry: 1
   allow_failure: true
@@ -58,7 +58,7 @@ k8s_fusex:
   extends: .dock8s_fusex_test_template
   image: alpine/k8s:1.18.2
   needs:
-    - job: cc7_docker_image
+    - job: el9_docker_image
       artifacts: false
   retry: 1
   allow_failure: true
@@ -70,7 +70,7 @@ k8s_flamegraph:
   extends: .dock8s_flamegraph_test_template
   image: alpine/k8s:1.18.2
   needs:
-    - job: cc7_docker_image
+    - job: el9_docker_image
       artifacts: false
   allow_failure: true
   tags:
@@ -82,7 +82,7 @@ k8s_cbox:
   extends: .dock8s_cbox_test_template
   image: alpine/k8s:1.18.2
   needs:
-    - job: cc7_docker_image
+    - job: el9_docker_image
       artifacts: false
   tags:
     - docker_node
@@ -97,7 +97,7 @@ k8s_stress:
 #  <<: *dock8s_before_script_template
   script:
     - TEST_URL="eos-mgm1.eos-mgm1.$K8S_NAMESPACE.svc.cluster.local"
-    - exec_cmd eos-mgm1 "echo -e \"[grid-hammer]\nname=grid-hammer continuous builds for master\nbaseurl=http://storage-ci.web.cern.ch/storage-ci/grid-hammer/xrootd5/master/el7/x86_64/\ngpgcheck=0\nenabled=1\nprotect=1\npriority=20\n\" > /etc/yum.repos.d/grid-hammer.repo"
+    - exec_cmd eos-mgm1 "echo -e \"[grid-hammer]\nname=grid-hammer continuous builds for master\nbaseurl=http://storage-ci.web.cern.ch/storage-ci/grid-hammer/xrootd5/master/el9/x86_64/\ngpgcheck=0\nenabled=1\nprotect=1\npriority=20\n\" > /etc/yum.repos.d/grid-hammer.repo"
     - exec_cmd eos-mgm1 "wget --directory-prefix=/etc/yum.repos.d/ https://cern.ch/xrootd/xrootd.repo"
     - exec_cmd eos-mgm1 "yum install -y strace grid-hammer"
     - exec_cmd eos-mgm1 "hammer-runner.py --strict-exit-code 1 --gitlab --url ${TEST_URL}//eos/dockertest/hammer/ --protocols xroot --threads 1 2 10 100 --operations write stat read delete --runs 3 --nfiles 10000"
@@ -105,7 +105,7 @@ k8s_stress:
     - !reference [.dock8s_after_script_template, after_script]
 #   <<: *dock8s_after_script_template
   needs:
-    - job: cc7_docker_image
+    - job: el9_docker_image
       artifacts: false
   retry: 1
   allow_failure: true
@@ -127,7 +127,7 @@ k8s_stress:
   variables:
     CLI_BASETAG: "ubuntu_focal_client_"
   needs:
-    - job: cc7_docker_image
+    - job: el9_docker_image
       artifacts: false
     - job: ubuntu_focal_docker_image
       artifacts: false
@@ -147,7 +147,7 @@ k8s_stress:
   variables:
     CLI_BASETAG: "ubuntu_jammy_client_"
   needs:
-    - job: cc7_docker_image
+    - job: el9_docker_image
       artifacts: false
     - job: ubuntu_jammy_docker_image
       artifacts: false
