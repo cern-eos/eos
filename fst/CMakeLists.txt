@@ -310,8 +310,16 @@ target_link_libraries(XrdEosFst-Objects PUBLIC
   XROOTD::PRIVATE
   XROOTD::SERVER
   XFS::XFS
-  PROCPS::PROCPS
   stdc++fs)
+
+if(TARGET PROCPS::PROCPS)
+  target_compile_definitions(XrdEosFst-Objects PRIVATE PROCPS3)
+  target_link_libraries(XrdEosFst-Objects PUBLIC PROCPS::PROCPS)
+endif()
+
+if(TARGET procps::libproc2)
+  target_link_libraries(XrdEosFst-Objects PUBLIC procps::libproc2)
+endif()
 
 set_target_properties(XrdEosFst-Objects PROPERTIES
   POSITION_INDEPENDENT_CODE TRUE)
