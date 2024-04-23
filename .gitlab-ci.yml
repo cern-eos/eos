@@ -503,20 +503,6 @@ build_cc7_opt_xrootd:
   when: manual
 
 
-build_cc7_no_sse:
-  image: gitlab-registry.cern.ch/dss/eos/prebuild-cc7-${CODENAME}
-  variables:
-    PKG_MGR: yum
-    BUILD_NAME: cc7_no_sse
-    CMAKE_OPTIONS: "-DNO_SSE=1"
-    RPMBUILD_OPTIONS: "--with server --with no_sse"
-  only:
-    - tags
-    - triggers
-  extends: .build_exotic-template
-  when: manual
-
-
 build_cc7_coverage:
   image: gitlab-registry.cern.ch/dss/eos/prebuild-cc7-${CODENAME}
   variables:
@@ -1077,23 +1063,6 @@ rpm_stable_artifacts:
   only:
     - tags
   dependencies: []
-  when: manual
-
-
-rpm_no_sse_tag_artifacts:
-  stage: publish
-  image: gitlab-registry.cern.ch/linuxsupport/alma9-base
-  script:
-    - yum install --nogpg -y sudo sssd-client createrepo
-    - sudo -u stci -H ./gitlab-ci/store_artifacts.sh "${CODENAME}-no_sse" "tag" /eos/project/s/storage-ci/www/eos
-  tags:
-    - docker_node
-    - publish
-  only:
-    - tags
-  allow_failure: true
-  dependencies:
-    - build_cc7_no_sse
   when: manual
 
 
