@@ -125,9 +125,9 @@ prebuild-el9-arm64:
 
 clone_docker:
   stage: build:rpm
-  image: gitlab-registry.cern.ch/linuxsupport/cc7-base
+  image: gitlab-registry.cern.ch/linuxsupport/alma9-base
   script:
-    - yum install --nogpg -y git --disablerepo=epel
+    - dnf install --nogpg -y git
     - git clone https://gitlab.cern.ch/eos/eos-docker.git
   artifacts:
     expire_in: 1 day
@@ -199,6 +199,7 @@ build_el9:
   variables:
     BUILD_NAME: el-9
   extends: .build-template
+
 
 build_el9_arm64:
   image: gitlab-registry.cern.ch/dss/eos/prebuild-el9-arm64-${CODENAME}
@@ -563,6 +564,41 @@ cc7_docker_image:
     - job: clone_docker
     - job: build_cc7
 
+
+cc7_asan_docker_image:
+  extends: .build_dockerimage-template
+  variables:
+    DOCKERFILE: eos-docker/Dockerfile_cc7_asan
+    BASETAG: "asan_"
+  needs:
+    - job: clone_docker
+    - job: build_cc7_asan
+  when: manual
+  allow_failure: true
+
+
+el9_docker_image:
+  extends: .build_dockerimage-template
+  variables:
+    DOCKERFILE: eos-docker/Dockerfile_el9
+    BASETAG: "el9_"
+  needs:
+    - job: clone_docker
+    - job: build_el9
+
+
+el9_asan_docker_image:
+  extends: .build_dockerimage-template
+  variables:
+    DOCKERFILE: eos-docker/Dockerfile_el9_asan
+    BASETAG: "el9_asan_"
+  needs:
+    - job: clone_docker
+    - job: build_el9_asan
+  when: manual
+  allow_failure: true
+
+
 # @note(esindril) disable ubuntu builds
 .ubuntu_focal_docker_image:
   extends: .build_dockerimage-template
@@ -589,18 +625,6 @@ cc7_docker_image:
   only:
     - schedules
     - tags
-  allow_failure: true
-
-
-cc7_asan_docker_image:
-  extends: .build_dockerimage-template
-  variables:
-    DOCKERFILE: eos-docker/Dockerfile_asan
-    BASETAG: "asan_"
-  needs:
-    - job: clone_docker
-    - job: build_cc7_asan
-  when: manual
   allow_failure: true
 
 
@@ -651,6 +675,8 @@ cc7_asan_docker_image:
         source ./gitlab-ci/before_script_docker_test.sh;
         source ./gitlab-ci/utilities_func_for_tests.sh --type docker; ;;
       esac
+  variables:
+    BASETAG: "el9_"
 
 
 .dock8s_after_script_template: &dock8s_after_script_template
@@ -837,7 +863,7 @@ cc7_asan_docker_image:
     - xrootd -n qdb -c /etc/xrd.cf.quarkdb -l /var/log/eos/xrdlog.qdb -b -Rdaemon
     - eos-ns-quarkdb-tests
   needs:
-    - job: cc7_docker_image
+    - job: el9_docker_image
       artifacts: false
   retry: 1
   tags:
@@ -866,13 +892,13 @@ unit_test:
 unit_test_asan:
   extends: .unit_test_template
   image:
-    name: gitlab-registry.cern.ch/dss/eos/eos-ci:asan_${CI_COMMIT_SHORT_SHA}
+    name: gitlab-registry.cern.ch/dss/eos/eos-ci:el9_asan_${CI_COMMIT_SHORT_SHA}
     entrypoint: ["/bin/bash", "-c"]
   variables:
     LSAN_OPTIONS: "suppressions=/var/eos/test/LeakSanitizer.supp"  # Suppress known memory leaks. For the generic tests
     ASAN_OPTIONS: "fast_unwind_on_malloc=0"  # Avoid indirect leaks from linked dependencies. For the namespace tests
   needs:
-    - job: cc7_asan_docker_image
+    - job: el9_asan_docker_image
       artifacts: false
   when: manual
   allow_failure: true

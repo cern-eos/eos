@@ -149,7 +149,7 @@
 helm_cbox:
   extends: .helm_cbox_test_template
   needs:
-    - job: cc7_docker_image
+    - job: el9_docker_image
       artifacts: false
   when: manual
 
@@ -178,7 +178,7 @@ helm_cnvrt_fsck:
     paths:
       - eos-logs-${CI_JOB_ID}/
   needs:
-    - job: cc7_docker_image
+    - job: el9_docker_image
       artifacts: false
   when: manual
 
@@ -224,7 +224,7 @@ helm_cnvrt_fsck:
 helm_fusex:
   extends: .helm_fusex_test_template
   needs:
-   - job: cc7_docker_image
+   - job: el9_docker_image
      artifacts: false
   when: manual
 
@@ -233,7 +233,7 @@ helm_fusex:
   variables:
     CLI_BASETAG: "ubuntu_focal_client_"
   needs:
-    - job: cc7_docker_image
+    - job: el9_docker_image
       artifacts: false
     - job: ubuntu_focal_docker_image
       artifacts: false
@@ -249,7 +249,7 @@ helm_fusex:
   variables:
     CLI_BASETAG: "ubuntu_jammy_client_"
   needs:
-    - job: cc7_docker_image
+    - job: el9_docker_image
       artifacts: false
     - job: ubuntu_jammy_docker_image
       artifacts: false
@@ -284,7 +284,7 @@ helm_rtb_clone:
     paths:
       - eos-logs-${CI_JOB_ID}/
   needs:
-    - job: cc7_docker_image
+    - job: el9_docker_image
       artifacts: false
   allow_failure: true
   when: manual
@@ -295,7 +295,7 @@ helm_stress:
   <<: *helm_before_script_template
   script:
     - TEST_URL=$(kubectl exec eos-mgm-0 -- hostname -f)
-    - kubectl exec eos-mgm-0 -- echo -e "[grid-hammer]\nname=grid-hammer continuous builds for master\nbaseurl=http://storage-ci.web.cern.ch/storage-ci/grid-hammer/xrootd5/master/el7/x86_64/\ngpgcheck=0\nenabled=1\nprotect=1\npriority=20\n" > /etc/yum.repos.d/grid-hammer.repo
+    - kubectl exec eos-mgm-0 -- echo -e "[grid-hammer]\nname=grid-hammer continuous builds for master\nbaseurl=http://storage-ci.web.cern.ch/storage-ci/grid-hammer/xrootd5/master/el9/x86_64/\ngpgcheck=0\nenabled=1\nprotect=1\npriority=20\n" > /etc/yum.repos.d/grid-hammer.repo
     - kubectl exec eos-mgm-0 -- wget --directory-prefix=/etc/yum.repos.d/ https://cern.ch/xrootd/xrootd.repo
     - kubectl exec eos-mgm-0 -- yum install -y strace grid-hammer
     - kubectl exec eos-mgm-0 -- eos chmod 2777 /eos/dockertest
@@ -307,7 +307,7 @@ helm_stress:
     paths:
       - eos-logs-${CI_JOB_ID}/
   needs:
-    - job: cc7_docker_image
+    - job: el9_docker_image
       artifacts: false
   when: manual
 
@@ -329,7 +329,7 @@ helm_stress:
 helm_system:
   extends: .helm_system_test_template
   needs:
-    - job: cc7_docker_image
+    - job: el9_docker_image
       artifacts: false
   when: manual
 
@@ -348,7 +348,7 @@ helm_groupdrainer:
     paths:
       - eos-logs-${CI_JOB_ID}/
   needs:
-    - job: cc7_docker_image
+    - job: el9_docker_image
       artifacts: false
   # @todo(esindril) remove in eos5 once we have grid-hammer built with XRootD5
   allow_failure: true
