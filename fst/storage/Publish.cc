@@ -37,7 +37,12 @@
 #include "XrdVersion.hh"
 #include <optional>
 #include <sys/sysinfo.h>
-#include <proc/readproc.h>
+
+#ifdef PROCPS3
+  #include <proc/readproc.h>
+#else
+  #include <libproc2/pids.h>
+#endif
 
 XrdVERSIONINFOREF(XrdgetProtocol);
 
@@ -370,28 +375,40 @@ static std::string GetSubtreeSize(const std::string& path)
 //------------------------------------------------------------------------------
 static uint32_t GetNumOfKworkerProcs()
 {
-  static std::string search_tag = "kworker";
-  uint32_t count = 0ul;
-  proc_t** procs = readproctab(PROC_FILLSTAT);
+  uint32_t count = 0u;
 
-  if (procs == nullptr) {
-    return count;
-  }
+#ifdef PROCPS3
+  if (proc_t** procs = readproctab(PROC_FILLSTAT)) {
+    for (int i = 0; procs[i]; ++i) {
+      if (procs[i]->cmd) {
+        eos_static_debug("msg=\"process cmd line\" cmd=\"%s\"", procs[i]->cmd);
 
-  for (int i = 0; procs[i]; ++i) {
-    if (procs[i]->cmd) {
-      eos_static_debug("msg=\"process cmd line\" cmd=\"%s\"", procs[i]->cmd);
-
-      if (strstr(procs[i]->cmd, search_tag.c_str()) == procs[i]->cmd) {
-        ++count;
+        if (strstr(procs[i]->cmd, "kworker") == procs[i]->cmd) {
+          ++count;
+        }
       }
+
+      freeproc(procs[i]);
     }
 
-    freeproc(procs[i]);
+    free(procs);
+  }
+#else
+  struct pids_info *info = nullptr;
+  enum pids_item items[] = { PIDS_CMD };
+
+  procps_pids_new(&info, items, 1);
+
+  while (struct pids_stack *stack = procps_pids_get(info, PIDS_FETCH_TASKS_ONLY)) {
+    char *cmd = PIDS_VAL(0, str, stack, info);
+    if (strstr(cmd, "kworker") == cmd)
+      ++count;
   }
 
-  free(procs);
-  eos_static_debug("msg=\"current number of kworker proceess\" count=%i", count);
+  procps_pids_unref(&info);
+#endif
+
+  eos_static_debug("msg=\"current number of kworker processes\" count=%i", count);
   return count;
 }
 
