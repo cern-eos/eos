@@ -39,7 +39,6 @@ if(NOT PACKAGEONLY)
   find_package(ZLIB REQUIRED)
   find_package(readline REQUIRED)
   find_package(uuid REQUIRED)
-  find_package(procps 3.3.10...4.0.0 REQUIRED)
   find_package(OpenSSL REQUIRED)
   find_package(ncurses REQUIRED)
   find_package(ZMQ REQUIRED)
@@ -61,8 +60,15 @@ if(NOT PACKAGEONLY)
   find_package(xxhash)
   find_package(libbfd)
   find_package(davix)
+  find_package(procps)
+  find_package(libproc2)
   find_package(Scitokens)
   find_package(Protobuf3 REQUIRED)
+
+  if(NOT (PROCPS_FOUND OR LIBPROC2_FOUND))
+    message(FATAL_ERROR "Could not find either procps 3.x or libproc2 (procps 4.x). "
+                        "At least one of them is required.")
+  endif()
 
   if (Linux)
     # Clang Linux build requires libatomic & special flags for charconv
