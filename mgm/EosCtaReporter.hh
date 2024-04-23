@@ -82,6 +82,12 @@ enum class EosCtaReportParam {
   FILE_DEL_CHECKSUMVALUE,
   FILE_DEL_SIZE,
 
+  // File creation params
+  FILE_CREATE_FID,
+  FILE_CREATE_FXID,
+  FILE_CREATE_EOS_BTIME,
+  FILE_CREATE_ARCHIVE_METADATA,
+
   // sec.app - Used to classify EOS report log messages
   // Should be last, by convention
   SEC_APP,
@@ -183,6 +189,15 @@ public:
   EosCtaReporterFileDeletion();
 private:
   static std::vector<EosCtaReportParam> DEFAULT_PARAMS_FILE_DELETION;
+};
+
+// File creation EOS-CTA Reporter
+class EosCtaReporterFileCreation : public EosCtaReporter
+{
+public:
+  EosCtaReporterFileCreation();
+private:
+  static std::vector<EosCtaReportParam> DEFAULT_PARAMS_FILE_CREATION;
 };
 
 EOSMGMNAMESPACE_END

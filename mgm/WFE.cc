@@ -1627,7 +1627,7 @@ int WFE::Job::HandleProtoMethodEvents(std::string& errorMsg,
   } else if (event == "sync::evict_prepare" || event == "evict_prepare") {
     return HandleProtoMethodEvictPrepareEvent(fullPath, ininfo, errorMsg);
   } else if (event == "sync::create" || event == "create") {
-    return HandleProtoMethodCreateEvent(fullPath, errorMsg);
+    return HandleProtoMethodCreateEvent(fullPath, ininfo, errorMsg);
   } else if (event == "sync::delete" || event == "delete") {
     return HandleProtoMethodDeleteEvent(fullPath, errorMsg);
   } else if (event == "sync::closew" || event == "closew") {
@@ -1695,6 +1695,20 @@ WFE::Job::GetPrepareActivityFromOpaqueData(const char* const ininfo)
   }
 
   return prepareActivity;
+}
+
+std::string
+WFE::Job::GetArchiveMetadataFromOpaqueData(const char* const ininfo)
+{
+  // Get the activity from the opaque data and add it to the list
+  XrdOucEnv opaque(ininfo);
+  const char* const archiveMetadata = opaque.Get("archivemetadata");
+
+  if (archiveMetadata == nullptr) {
+    return "";
+  }
+
+  return archiveMetadata;
 }
 
 
@@ -2194,17 +2208,22 @@ WFE::Job::HandleProtoMethodEvictPrepareEvent(const std::string& fullPath,
 
 int
 WFE::Job::HandleProtoMethodCreateEvent(const std::string& fullPath,
+                                       const char* const ininfo,
                                        std::string& errorMsg)
 {
   EXEC_TIMING_BEGIN("Proto::Create");
   gOFS->MgmStats.Add("Proto::Create", 0, 0, 1);
   cta::xrd::Request request;
+  EosCtaReporterFileCreation eosLog;
   auto notification = request.mutable_notification();
   notification->mutable_cli()->mutable_user()->set_username(GetUserName(
         mVid.uid));
   notification->mutable_cli()->mutable_user()->set_groupname(GetGroupName(
         mVid.gid));
   auto xAttrs = CollectAttributes(fullPath);
+
+  const std::string archiveMetadata = GetArchiveMetadataFromOpaqueData(ininfo);
+  eosLog.addParam(EosCtaReportParam::FILE_CREATE_ARCHIVE_METADATA, archiveMetadata);
 
   for (const auto& attribute : xAttrs) {
     google::protobuf::MapPair<std::string, std::string> attr(attribute.first,
@@ -2219,6 +2238,10 @@ WFE::Job::HandleProtoMethodCreateEvent(const std::string& fullPath,
     auto fmd = gOFS->eosFileService->getFileMD(mFid);
     cuid = fmd->getCUid();
     cgid = fmd->getCGid();
+    eosLog
+        .addParam(EosCtaReportParam::FILE_CREATE_FID, fmd->getId())
+        .addParam(EosCtaReportParam::FILE_CREATE_FXID,
+                  eos::common::FileId::Fid2Hex(fmd->getId()).c_str());
   }
   notification->mutable_file()->mutable_owner()->set_uid(cuid);
   notification->mutable_file()->mutable_owner()->set_gid(cgid);
@@ -2244,6 +2267,7 @@ WFE::Job::HandleProtoMethodCreateEvent(const std::string& fullPath,
     Timing::Timespec_from_TimespecStr(xAttrs[EOS_BTIME], btime);
     notification->mutable_file()->mutable_btime()->set_sec(btime.tv_sec);
     notification->mutable_file()->mutable_btime()->set_nsec(btime.tv_nsec);
+    eosLog.addParam(EosCtaReportParam::FILE_CREATE_EOS_BTIME, xAttrs.count(EOS_BTIME));
   }
 
   auto s_ret = SendProtoWFRequest(this, fullPath, request, errorMsg);

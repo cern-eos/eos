@@ -589,6 +589,15 @@ HttpHandler::Put(eos::common::HttpRequest* request)
         }
       }
 
+      // -----------------------------------------------------------
+      // 'ArchiveMetadata' header needs to be passed down to CTA
+      // -----------------------------------------------------------
+      if (request->GetHeaders().count("archivemetadata")) {
+        // there is an x-upload-mtime header to force the mtime for that file
+        query += "&archivemetadata=";
+        query += request->GetHeaders()["archivemetadata"];
+      }
+
       int rc = file->open(url.c_str(), open_mode, create_mode, &client,
                           query.c_str());
 

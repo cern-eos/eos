@@ -77,6 +77,12 @@ static const std::map<EosCtaReportParam, std::string> EosCtaParamMap{
   {EosCtaReportParam::FILE_DEL_CHECKSUMTYPE         , "checksumtype"         },
   {EosCtaReportParam::FILE_DEL_CHECKSUMVALUE        , "checksumvalue"        },
   {EosCtaReportParam::FILE_DEL_SIZE                 , "size"                 },
+
+  // File creation params
+  {EosCtaReportParam::FILE_CREATE_FID               , "fid"                  },
+  {EosCtaReportParam::FILE_CREATE_FXID              , "fxid"                 },
+  {EosCtaReportParam::FILE_CREATE_EOS_BTIME         , "eos.btime"            },
+  {EosCtaReportParam::FILE_CREATE_ARCHIVE_METADATA  , "archivemetadata"      },
 };
 
 // Basic mParams
@@ -139,6 +145,15 @@ EosCtaReporterFileDeletion::DEFAULT_PARAMS_FILE_DELETION{
   EosCtaReportParam::FILE_DEL_SIZE,
 };
 
+// File creation mParams
+std::vector<EosCtaReportParam>
+    EosCtaReporterFileCreation::DEFAULT_PARAMS_FILE_CREATION{
+        EosCtaReportParam::FILE_CREATE_FID,
+        EosCtaReportParam::FILE_CREATE_FXID,
+        EosCtaReportParam::FILE_CREATE_EOS_BTIME,
+        EosCtaReportParam::FILE_CREATE_ARCHIVE_METADATA,
+};
+
 // Default function used to write the EOS-CTA reports
 void ioStatsWrite(const std::string& in)
 {
@@ -197,6 +212,13 @@ EosCtaReporterEvict::EosCtaReporterEvict()
 EosCtaReporterFileDeletion::EosCtaReporterFileDeletion()
 {
   for (auto key : DEFAULT_PARAMS_FILE_DELETION) {
+    mParams[key] = "";
+  }
+}
+
+EosCtaReporterFileCreation::EosCtaReporterFileCreation()
+{
+  for (auto key : DEFAULT_PARAMS_FILE_CREATION) {
     mParams[key] = "";
   }
 }
