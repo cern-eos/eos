@@ -2215,6 +2215,8 @@ WFE::Job::HandleProtoMethodCreateEvent(const std::string& fullPath,
   gOFS->MgmStats.Add("Proto::Create", 0, 0, 1);
   cta::xrd::Request request;
   EosCtaReporterFileCreation eosLog;
+  struct timespec ts_now;
+  eos::common::Timing::GetTimeSpec(ts_now);
   auto notification = request.mutable_notification();
   notification->mutable_cli()->mutable_user()->set_username(GetUserName(
         mVid.uid));
@@ -2223,7 +2225,16 @@ WFE::Job::HandleProtoMethodCreateEvent(const std::string& fullPath,
   auto xAttrs = CollectAttributes(fullPath);
 
   const std::string archiveMetadata = GetArchiveMetadataFromOpaqueData(ininfo);
-  eosLog.addParam(EosCtaReportParam::FILE_CREATE_ARCHIVE_METADATA, archiveMetadata);
+  eosLog
+      .addParam(EosCtaReportParam::SEC_APP, "tape_create")
+      .addParam(EosCtaReportParam::LOG, std::string(gOFS->logId))
+      .addParam(EosCtaReportParam::PATH, fullPath)
+      .addParam(EosCtaReportParam::RUID, mVid.uid)
+      .addParam(EosCtaReportParam::RGID, mVid.gid)
+      .addParam(EosCtaReportParam::TD, mVid.tident.c_str())
+      .addParam(EosCtaReportParam::TS, ts_now.tv_sec)
+      .addParam(EosCtaReportParam::TNS, ts_now.tv_nsec)
+      .addParam(EosCtaReportParam::FILE_CREATE_ARCHIVE_METADATA, archiveMetadata);
 
   for (const auto& attribute : xAttrs) {
     google::protobuf::MapPair<std::string, std::string> attr(attribute.first,
