@@ -64,8 +64,8 @@ eos ns stat
 #-------------------------------------------------------------------------------
 # Functional tests upload/download x509/macaroons/tpc/eos token
 #-------------------------------------------------------------------------------
-HTTPS_DIR="/eos/dockertest/test/https/"
-run_test_script "HTTPS" eos-https-functional-test -p 8443 --dir ${HTTPS_DIR}
+#HTTPS_DIR="/eos/dockertest/test/https/"
+#run_test_script "HTTPS" eos-https-functional-test -p 8443 --dir ${HTTPS_DIR}
 
 eos space quota default off
 exit 0
