@@ -90,20 +90,16 @@ k8s_cbox:
 
 
 k8s_stress:
-  stage: test
+  extends:
+    - .dock8s_before_script_template
+    - .dock8s_after_script_template
   image: alpine/k8s:1.18.2
-  before_script:
-    - !reference [.dock8s_before_script_template, before_script]
-#  <<: *dock8s_before_script_template
   script:
     - TEST_URL="eos-mgm1.eos-mgm1.$K8S_NAMESPACE.svc.cluster.local"
     - exec_cmd eos-mgm1 "echo -e \"[grid-hammer]\nname=grid-hammer continuous builds for master\nbaseurl=http://storage-ci.web.cern.ch/storage-ci/grid-hammer/xrootd5/master/el9/x86_64/\ngpgcheck=0\nenabled=1\nprotect=1\npriority=20\n\" > /etc/yum.repos.d/grid-hammer.repo"
     - exec_cmd eos-mgm1 "wget --directory-prefix=/etc/yum.repos.d/ https://cern.ch/xrootd/xrootd.repo"
     - exec_cmd eos-mgm1 "yum install -y strace grid-hammer"
     - exec_cmd eos-mgm1 "hammer-runner.py --strict-exit-code 1 --gitlab --url ${TEST_URL}//eos/dockertest/hammer/ --protocols xroot --threads 1 2 10 100 --operations write stat read delete --runs 3 --nfiles 10000"
-  after_script:
-    - !reference [.dock8s_after_script_template, after_script]
-#   <<: *dock8s_after_script_template
   needs:
     - job: el9_docker_image
       artifacts: false
