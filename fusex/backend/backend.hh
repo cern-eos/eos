@@ -135,7 +135,7 @@ private:
   XrdCl::XRootDStatus Query(XrdCl::URL& url,
                             XrdCl::QueryCode::Code query_code, XrdCl::Buffer& arg,
                             XrdCl::Buffer*& repsonse,
-                            uint16_t timeout = 0,
+                            time_t timeout = 0,
                             bool noretry = false);
 
   std::string get_appname();

@@ -64,7 +64,7 @@ FsIo::~FsIo()
 //------------------------------------------------------------------------------
 int
 FsIo::fileOpen(XrdSfsFileOpenMode flags, mode_t mode, const std::string& opaque,
-               uint16_t timeout)
+               time_t timeout)
 {
   mFd = ::open(mFilePath.c_str(), flags, mode);
 
@@ -81,7 +81,7 @@ FsIo::fileOpen(XrdSfsFileOpenMode flags, mode_t mode, const std::string& opaque,
 //------------------------------------------------------------------------------
 std::future<XrdCl::XRootDStatus>
 FsIo::fileOpenAsync(XrdSfsFileOpenMode flags, mode_t mode,
-                    const std::string& opaque, uint16_t timeout)
+                    const std::string& opaque, time_t timeout)
 {
   std::promise<XrdCl::XRootDStatus> open_promise;
   std::future<XrdCl::XRootDStatus> open_future = open_promise.get_future();
@@ -102,7 +102,7 @@ FsIo::fileOpenAsync(XrdSfsFileOpenMode flags, mode_t mode,
 //------------------------------------------------------------------------------
 int64_t
 FsIo::fileRead(XrdSfsFileOffset offset, char* buffer, XrdSfsXferSize length,
-               uint16_t timeout)
+               time_t timeout)
 {
   return ::pread(mFd, buffer, length, offset);
 }
@@ -112,7 +112,7 @@ FsIo::fileRead(XrdSfsFileOffset offset, char* buffer, XrdSfsXferSize length,
 //------------------------------------------------------------------------------
 int64_t
 FsIo::fileReadPrefetch(XrdSfsFileOffset offset, char* buffer,
-                       XrdSfsXferSize length, uint16_t timeout)
+                       XrdSfsXferSize length, time_t timeout)
 {
   return fileRead(offset, buffer, length, timeout);
 }
@@ -122,7 +122,7 @@ FsIo::fileReadPrefetch(XrdSfsFileOffset offset, char* buffer,
 //------------------------------------------------------------------------------
 int64_t
 FsIo::fileReadAsync(XrdSfsFileOffset offset, char* buffer,
-                    XrdSfsXferSize length, uint16_t timeout)
+                    XrdSfsXferSize length, time_t timeout)
 {
   return fileRead(offset, buffer, length, timeout);
 }
@@ -132,7 +132,7 @@ FsIo::fileReadAsync(XrdSfsFileOffset offset, char* buffer,
 //------------------------------------------------------------------------------
 int64_t
 FsIo::fileWrite(XrdSfsFileOffset offset, const char* buffer,
-                XrdSfsXferSize length, uint16_t timeout)
+                XrdSfsXferSize length, time_t timeout)
 {
   return ::pwrite(mFd, buffer, length, offset);
 }
@@ -142,7 +142,7 @@ FsIo::fileWrite(XrdSfsFileOffset offset, const char* buffer,
 //------------------------------------------------------------------------------
 int64_t
 FsIo::fileWriteAsync(XrdSfsFileOffset offset, const char* buffer,
-                     XrdSfsXferSize length, uint16_t timeout)
+                     XrdSfsXferSize length, time_t timeout)
 {
   return fileWrite(offset, buffer, length, timeout);
 }
@@ -172,7 +172,7 @@ FsIo::fileWriteAsync(const char* buffer, XrdSfsFileOffset offset,
 // Truncate file
 //------------------------------------------------------------------------------
 int
-FsIo::fileTruncate(XrdSfsFileOffset offset, uint16_t timeout)
+FsIo::fileTruncate(XrdSfsFileOffset offset, time_t timeout)
 {
   return ::ftruncate(mFd, offset);
 }
@@ -181,7 +181,7 @@ FsIo::fileTruncate(XrdSfsFileOffset offset, uint16_t timeout)
 // Truncate asynchronous
 //------------------------------------------------------------------------------
 std::future<XrdCl::XRootDStatus>
-FsIo::fileTruncateAsync(XrdSfsFileOffset offset, uint16_t timeout)
+FsIo::fileTruncateAsync(XrdSfsFileOffset offset, time_t timeout)
 {
   std::promise<XrdCl::XRootDStatus> tr_promise;
   std::future<XrdCl::XRootDStatus> tr_future = tr_promise.get_future();
@@ -264,7 +264,7 @@ FsIo::fileFdeallocate(XrdSfsFileOffset fromOffset,
 // Sync file to disk
 //------------------------------------------------------------------------------
 int
-FsIo::fileSync(uint16_t timeout)
+FsIo::fileSync(time_t timeout)
 {
   return ::fsync(mFd);
 }
@@ -273,7 +273,7 @@ FsIo::fileSync(uint16_t timeout)
 // Get stats about the file
 //------------------------------------------------------------------------------
 int
-FsIo::fileStat(struct stat* buf, uint16_t timeout)
+FsIo::fileStat(struct stat* buf, time_t timeout)
 {
   if (mFd > 0) {
     return ::fstat(mFd, buf);
@@ -286,7 +286,7 @@ FsIo::fileStat(struct stat* buf, uint16_t timeout)
 // Close file
 //------------------------------------------------------------------------------
 int
-FsIo::fileClose(uint16_t timeout)
+FsIo::fileClose(time_t timeout)
 {
   int rc = ::close(mFd);
   mFd = -1;
@@ -297,7 +297,7 @@ FsIo::fileClose(uint16_t timeout)
 // Remove file
 //------------------------------------------------------------------------------
 int
-FsIo::fileRemove(uint16_t timeout)
+FsIo::fileRemove(time_t timeout)
 {
   struct stat buf;
 

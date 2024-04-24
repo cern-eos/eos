@@ -44,7 +44,7 @@ ReedSLayout::ReedSLayout(XrdFstOfsFile* file,
                          const XrdSecEntity* client,
                          XrdOucErrInfo* outError,
                          const char* path,
-                         uint16_t timeout,
+                         time_t timeout,
                          bool storeRecovery,
                          off_t targetSize,
                          std::string bookingOpaque) :

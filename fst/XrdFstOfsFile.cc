@@ -44,7 +44,7 @@ extern XrdOss* XrdOfsOss;
 
 EOSFSTNAMESPACE_BEGIN
 
-constexpr uint16_t XrdFstOfsFile::msDefaultTimeout;
+constexpr time_t XrdFstOfsFile::msDefaultTimeout;
 thread_local int t_iopriority = 0;
 
 //------------------------------------------------------------------------------

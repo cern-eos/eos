@@ -1389,7 +1389,7 @@ XrdMgmOfs::SetRedirectionInfo(XrdOucErrInfo& err_obj,
 int
 XrdMgmOfs::SendQuery(const std::string& hostname, int port,
                      const std::string& request, std::string& response,
-                     uint16_t timeout)
+                     time_t timeout)
 {
   std::ostringstream oss;
   oss << "root://" << hostname << ":" << port << "/?xrd.wantprot=sss";
@@ -1430,7 +1430,7 @@ int
 XrdMgmOfs::BroadcastQuery(const std::string& request,
                           std::set<std::string>& endpoints,
                           std::map<std::string, std::pair<int, std::string>>&
-                          responses, uint16_t timeout)
+                          responses, time_t timeout)
 {
   std::atomic<int> g_retc = 0; // overall return code
   class QueryRespHandler: public XrdCl::ResponseHandler

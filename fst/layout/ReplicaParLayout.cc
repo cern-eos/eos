@@ -34,7 +34,7 @@ ReplicaParLayout::ReplicaParLayout(XrdFstOfsFile* file,
                                    const XrdSecEntity* client,
                                    XrdOucErrInfo* outError,
                                    const char* path,
-                                   uint16_t timeout) :
+                                   time_t timeout) :
   Layout(file, lid, client, outError, path, timeout),
   // this 1=0x0 16=0xf :-)
   mNumReplicas(eos::common::LayoutId::GetStripeNumber(lid) + 1),

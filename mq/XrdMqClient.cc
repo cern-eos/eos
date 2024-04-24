@@ -215,7 +215,7 @@ XrdMqClient::SendMessage(XrdMqMessage& msg, const char* receiverid, bool sign,
   // Only one send message at a time
   static std::mutex s_mutex_send;
   std::unique_lock lock(s_mutex_send);
-  static uint16_t timeout = (getenv("EOS_FST_OP_TIMEOUT") ?
+  static time_t timeout = (getenv("EOS_FST_OP_TIMEOUT") ?
                              atoi(getenv("EOS_FST_OP_TIMEOUT")) : 0);
   // Tag the sender
   msg.kMessageHeader.kSenderId = kClientId;
@@ -338,7 +338,7 @@ XrdMqClient::ReplyMessage(XrdMqMessage& replymsg, XrdMqMessage& inmsg,
 XrdMqMessage*
 XrdMqClient::RecvMessage(ThreadAssistant* assistant)
 {
-  static uint16_t timeout = (getenv("EOS_FST_OP_TIMEOUT") ?
+  static time_t timeout = (getenv("EOS_FST_OP_TIMEOUT") ?
                              atoi(getenv("EOS_FST_OP_TIMEOUT")) : 0);
   std::shared_ptr<XrdCl::File> recv_channel;
   eos::common::RWMutexReadLock rd_lock(mMutexMap);

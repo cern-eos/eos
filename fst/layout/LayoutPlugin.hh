@@ -70,7 +70,7 @@ public:
                                  const XrdSecEntity* client,
                                  XrdOucErrInfo* error,
                                  const char* path,
-                                 uint16_t timeout = 0,
+                                 time_t timeout = 0,
                                  bool storeRecovery = false);
 };
 

@@ -56,7 +56,7 @@ public:
                const XrdSecEntity* client,
                XrdOucErrInfo* outError,
                const char* path,
-               uint16_t timeout = 0,
+               time_t timeout = 0,
                bool storeRecovery = false,
                off_t targetSize = 0,
                std::string bookingOpaque = "oss.size");

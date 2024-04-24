@@ -78,7 +78,7 @@ public:
   virtual int fileOpen(XrdSfsFileOpenMode flags,
                        mode_t mode = 0,
                        const std::string& opaque = "",
-                       uint16_t timeout = 0) = 0;
+                       time_t timeout = 0) = 0;
 
   //----------------------------------------------------------------------------
   //! Open file asynchronously
@@ -92,7 +92,7 @@ public:
   //--------------------------------------------------------------------------
   virtual std::future<XrdCl::XRootDStatus>
   fileOpenAsync(XrdSfsFileOpenMode flags, mode_t mode = 0,
-                const std::string& opaque = "", uint16_t timeout = 0) = 0;
+                const std::string& opaque = "", time_t timeout = 0) = 0;
 
   //--------------------------------------------------------------------------
   //! Read from file - sync
@@ -105,7 +105,7 @@ public:
   //! @return number of bytes read or -1 if error
   //--------------------------------------------------------------------------
   virtual int64_t fileRead(XrdSfsFileOffset offset, char* buffer,
-                           XrdSfsXferSize length, uint16_t timeout = 0) = 0;
+                           XrdSfsXferSize length, time_t timeout = 0) = 0;
 
   //----------------------------------------------------------------------------
   //! Read from file with prefetching
@@ -118,7 +118,7 @@ public:
   //! @return number of bytes read or -1 if error
   //----------------------------------------------------------------------------
   virtual int64_t fileReadPrefetch(XrdSfsFileOffset offset, char* buffer,
-                                   XrdSfsXferSize length, uint16_t timeout = 0) = 0;
+                                   XrdSfsXferSize length, time_t timeout = 0) = 0;
 
   //----------------------------------------------------------------------------
   //! Read from file asynchronously
@@ -134,7 +134,7 @@ public:
   //!       fileWaitAsyncIO to enforce this guarantee.
   //----------------------------------------------------------------------------
   virtual int64_t fileReadAsync(XrdSfsFileOffset offset, char* buffer,
-                                XrdSfsXferSize length, uint16_t timeout = 0) = 0;
+                                XrdSfsXferSize length, time_t timeout = 0) = 0;
 
   //----------------------------------------------------------------------------
   //! Vector read - sync
@@ -145,7 +145,7 @@ public:
   //! @return number of bytes read of -1 if error
   //----------------------------------------------------------------------------
   virtual int64_t fileReadV(XrdCl::ChunkList& chunkList,
-                            uint16_t timeout = 0) = 0;
+                            time_t timeout = 0) = 0;
 
   //------------------------------------------------------------------------------
   //! Vector read - async
@@ -156,7 +156,7 @@ public:
   //! @return 0(SFS_OK) if request successfully sent, otherwise -1(SFS_ERROR)
   //------------------------------------------------------------------------------
   virtual int64_t fileReadVAsync(XrdCl::ChunkList& chunkList,
-                                 uint16_t timeout = 0) = 0;
+                                 time_t timeout = 0) = 0;
 
   //----------------------------------------------------------------------------
   //! Write to file - sync
@@ -169,7 +169,7 @@ public:
   //! @return number of bytes written or -1 if error
   //----------------------------------------------------------------------------
   virtual int64_t fileWrite(XrdSfsFileOffset offset, const char* buffer,
-                            XrdSfsXferSize length, uint16_t timeout = 0) = 0;
+                            XrdSfsXferSize length, time_t timeout = 0) = 0;
 
   //----------------------------------------------------------------------------
   //! Write to file - async
@@ -183,7 +183,7 @@ public:
   //--------------------------------------------------------------------------
   virtual int64_t fileWriteAsync(XrdSfsFileOffset offset, const char* buffer,
                                  XrdSfsXferSize length,
-                                 uint16_t timeout = 0) = 0;
+                                 time_t timeout = 0) = 0;
 
   //----------------------------------------------------------------------------
   //! Write to file - async
@@ -216,7 +216,7 @@ public:
   //!
   //! @return 0 if successful, -1 otherwise and error code is set
   //--------------------------------------------------------------------------
-  virtual int fileTruncate(XrdSfsFileOffset offset, uint16_t timeout = 0) = 0;
+  virtual int fileTruncate(XrdSfsFileOffset offset, time_t timeout = 0) = 0;
 
   //----------------------------------------------------------------------------
   //! Truncate asynchronous
@@ -227,7 +227,7 @@ public:
   //! @return future holding the status response
   //----------------------------------------------------------------------------
   virtual std::future<XrdCl::XRootDStatus>
-  fileTruncateAsync(XrdSfsFileOffset offset, uint16_t timeout = 0) = 0;
+  fileTruncateAsync(XrdSfsFileOffset offset, time_t timeout = 0) = 0;
 
   //----------------------------------------------------------------------------
   //! Allocate file space
@@ -256,7 +256,7 @@ public:
   //!
   //! @return 0 on success, -1 otherwise and error code is set
   //----------------------------------------------------------------------------
-  virtual int fileRemove(uint16_t timeout = 0) = 0;
+  virtual int fileRemove(time_t timeout = 0) = 0;
 
   //----------------------------------------------------------------------------
   //! Sync file to disk
@@ -265,7 +265,7 @@ public:
   //!
   //! @return 0 on success, -1 otherwise and error code is set
   //----------------------------------------------------------------------------
-  virtual int fileSync(uint16_t timeout = 0) = 0;
+  virtual int fileSync(time_t timeout = 0) = 0;
 
   //----------------------------------------------------------------------------
   //! Get pointer to async meta handler object
@@ -290,7 +290,7 @@ public:
   //!
   //! @return 0 on success, -1 otherwise and error code is set
   //----------------------------------------------------------------------------
-  virtual int fileClose(uint16_t timeout = 0) = 0;
+  virtual int fileClose(time_t timeout = 0) = 0;
 
   //----------------------------------------------------------------------------
   //! Get stats about the file
@@ -300,7 +300,7 @@ public:
   //!
   //! @return 0 on success, -1 otherwise and error code is set
   //----------------------------------------------------------------------------
-  virtual int fileStat(struct stat* buf, uint16_t timeout = 0) = 0;
+  virtual int fileStat(struct stat* buf, time_t timeout = 0) = 0;
 
   //----------------------------------------------------------------------------
   //! Execute implementation dependant commands
@@ -310,7 +310,7 @@ public:
   //!
   //! @return 0 on success, -1 otherwise and error code is set
   //----------------------------------------------------------------------------
-  virtual int fileFctl(const std::string& cmd, uint16_t timeout = 0) = 0;
+  virtual int fileFctl(const std::string& cmd, time_t timeout = 0) = 0;
 
   //----------------------------------------------------------------------------
   //! Set a binary attribute (name has to start with 'user.' !!!)

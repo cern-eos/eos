@@ -40,7 +40,7 @@ LayoutPlugin::GetLayoutObject(XrdFstOfsFile* file,
                               const XrdSecEntity* client,
                               XrdOucErrInfo* error,
                               const char* path,
-                              uint16_t timeout,
+                              time_t timeout,
                               bool storeRecovery)
 {
   if (LayoutId::GetLayoutType(layoutId) == LayoutId::kPlain) {

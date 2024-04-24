@@ -59,7 +59,7 @@ public:
   //----------------------------------------------------------------------------
   RainMetaLayout(XrdFstOfsFile* file, unsigned long lid,
                  const XrdSecEntity* client, XrdOucErrInfo* outError,
-                 const char* path, uint16_t timeout, bool force_recovery,
+                 const char* path, time_t timeout, bool force_recovery,
                  off_t targetSize, std::string bookingOpaque);
 
   //----------------------------------------------------------------------------

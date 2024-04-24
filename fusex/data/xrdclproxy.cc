@@ -66,7 +66,7 @@ XrdCl::Proxy::Write(uint64_t offset,
                     uint32_t size,
                     const void* buffer,
                     ResponseHandler* handler,
-                    uint16_t timeout)
+                    time_t timeout)
 /* -------------------------------------------------------------------------- */
 {
   eos_debug("offset=%lu size=%u", offset, size);
@@ -86,7 +86,7 @@ XrdCl::Proxy::Read(XrdCl::shared_proxy proxy,
                    uint32_t size,
                    void* buffer,
                    uint32_t& bytesRead,
-                   uint16_t timeout)
+                   time_t timeout)
 /* -------------------------------------------------------------------------- */
 {
   eos_debug("offset=%lu size=%u", offset, size);
@@ -436,7 +436,7 @@ XrdCl::Proxy::OpenAsync(XrdCl::shared_proxy proxy,
                         const std::string& url,
                         OpenFlags::Flags flags,
                         Access::Mode mode,
-                        uint16_t timeout)
+                        time_t timeout)
 /* -------------------------------------------------------------------------- */
 {
   eos_debug("url=%s flags=%x mode=%x", url.c_str(), (int) flags, (int) mode);
@@ -609,7 +609,7 @@ XrdCl::Proxy::ReOpenAsync(XrdCl::shared_proxy proxy)
 /* -------------------------------------------------------------------------- */
 XRootDStatus
 /* -------------------------------------------------------------------------- */
-XrdCl::Proxy::CloseAsync(XrdCl::shared_proxy proxy, uint16_t timeout)
+XrdCl::Proxy::CloseAsync(XrdCl::shared_proxy proxy, time_t timeout)
 /* -------------------------------------------------------------------------- */
 {
   eos_debug("");
@@ -649,7 +649,7 @@ XrdCl::Proxy::CloseAsync(XrdCl::shared_proxy proxy, uint16_t timeout)
 /* -------------------------------------------------------------------------- */
 XRootDStatus
 /* -------------------------------------------------------------------------- */
-XrdCl::Proxy::ScheduleCloseAsync(XrdCl::shared_proxy proxy, uint16_t timeout)
+XrdCl::Proxy::ScheduleCloseAsync(XrdCl::shared_proxy proxy, time_t timeout)
 /* -------------------------------------------------------------------------- */
 {
   eos_debug("");
@@ -705,7 +705,7 @@ XrdCl::Proxy::ScheduleCloseAsync(XrdCl::shared_proxy proxy, uint16_t timeout)
 /* -------------------------------------------------------------------------- */
 XRootDStatus
 /* -------------------------------------------------------------------------- */
-XrdCl::Proxy::Close(uint16_t timeout)
+XrdCl::Proxy::Close(time_t timeout)
 /* -------------------------------------------------------------------------- */
 {
   eos_debug("");
@@ -967,7 +967,7 @@ XrdCl::Proxy::write_handler
 /* -------------------------------------------------------------------------- */
 XrdCl::Proxy::WriteAsyncPrepare(XrdCl::shared_proxy proxy, uint32_t size,
                                 uint64_t offset,
-                                uint16_t timeout)
+                                time_t timeout)
 /* -------------------------------------------------------------------------- */
 {
   eos_debug("");
@@ -985,7 +985,7 @@ XrdCl::Proxy::WriteAsync(uint64_t offset,
                          uint32_t size,
                          const void* buffer,
                          XrdCl::Proxy::write_handler handler,
-                         uint16_t timeout)
+                         time_t timeout)
 /* -------------------------------------------------------------------------- */
 {
   eos_debug("");
@@ -1267,7 +1267,7 @@ XRootDStatus
 XrdCl::Proxy::PreReadAsync(uint64_t offset,
                            uint32_t size,
                            read_handler handler,
-                           uint16_t timeout)
+                           time_t timeout)
 /* -------------------------------------------------------------------------- */
 {
   eos_debug("");
@@ -1370,7 +1370,7 @@ XrdCl::Proxy::DoneAsync(read_handler handler)
 /* -------------------------------------------------------------------------- */
 XRootDStatus
 /* -------------------------------------------------------------------------- */
-XrdCl::Proxy::Sync(uint16_t timeout)
+XrdCl::Proxy::Sync(time_t timeout)
 {
   eos_debug("");
   return File::Sync(timeout);

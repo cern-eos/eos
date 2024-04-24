@@ -244,7 +244,7 @@ DavixIo::RetrieveS3Credentials()
 //------------------------------------------------------------------------------
 int
 DavixIo::fileOpen(XrdSfsFileOpenMode flags, mode_t mode,
-                  const std::string& opaque, uint16_t timeout)
+                  const std::string& opaque, time_t timeout)
 {
   eos_debug("");
   eos_info("flags=%x", flags);
@@ -306,7 +306,7 @@ DavixIo::fileOpen(XrdSfsFileOpenMode flags, mode_t mode,
 //------------------------------------------------------------------------------
 std::future<XrdCl::XRootDStatus>
 DavixIo::fileOpenAsync(XrdSfsFileOpenMode flags, mode_t mode,
-                       const std::string& opaque, uint16_t timeout)
+                       const std::string& opaque, time_t timeout)
 {
   std::promise<XrdCl::XRootDStatus> open_promise;
   std::future<XrdCl::XRootDStatus> open_future = open_promise.get_future();
@@ -329,7 +329,7 @@ int64_t
 DavixIo::fileRead(XrdSfsFileOffset offset,
                   char* buffer,
                   XrdSfsXferSize length,
-                  uint16_t timeout)
+                  time_t timeout)
 {
   eos_debug("offset = %lld, length = %lld",
             static_cast<int64_t>(offset),
@@ -364,7 +364,7 @@ DavixIo::fileRead(XrdSfsFileOffset offset,
 //------------------------------------------------------------------------------
 int64_t
 DavixIo::fileReadPrefetch(XrdSfsFileOffset offset, char* buffer,
-                          XrdSfsXferSize length, uint16_t timeout)
+                          XrdSfsXferSize length, time_t timeout)
 {
   return fileRead(offset, buffer, length, timeout);
 }
@@ -374,7 +374,7 @@ DavixIo::fileReadPrefetch(XrdSfsFileOffset offset, char* buffer,
 //------------------------------------------------------------------------------
 int64_t
 DavixIo::fileReadAsync(XrdSfsFileOffset offset, char* buffer,
-                       XrdSfsXferSize length, uint16_t timeout)
+                       XrdSfsXferSize length, time_t timeout)
 {
   return fileRead(offset, buffer, length, timeout);
 }
@@ -384,7 +384,7 @@ DavixIo::fileReadAsync(XrdSfsFileOffset offset, char* buffer,
 //------------------------------------------------------------------------------
 int64_t
 DavixIo::fileWrite(XrdSfsFileOffset offset,  const char* buffer,
-                   XrdSfsXferSize length, uint16_t timeout)
+                   XrdSfsXferSize length, time_t timeout)
 {
   eos_debug("offset = %lld, length = %lld",
             static_cast<int64_t>(offset),
@@ -417,7 +417,7 @@ int64_t
 DavixIo::fileWriteAsync(XrdSfsFileOffset offset,
                         const char* buffer,
                         XrdSfsXferSize length,
-                        uint16_t timeout)
+                        time_t timeout)
 {
   return fileWrite(offset, buffer, length, timeout);
 }
@@ -447,7 +447,7 @@ DavixIo::fileWriteAsync(const char* buffer, XrdSfsFileOffset offset,
 //! Close file
 //--------------------------------------------------------------------------
 int
-DavixIo::fileClose(uint16_t timeout)
+DavixIo::fileClose(time_t timeout)
 {
   mCreated = false;
   eos_debug("");
@@ -466,7 +466,7 @@ DavixIo::fileClose(uint16_t timeout)
 // Truncate file
 //------------------------------------------------------------------------------
 int
-DavixIo::fileTruncate(XrdSfsFileOffset offset, uint16_t timeout)
+DavixIo::fileTruncate(XrdSfsFileOffset offset, time_t timeout)
 {
   eos_debug("offset = %lld",
             static_cast<int64_t>(offset));
@@ -479,7 +479,7 @@ DavixIo::fileTruncate(XrdSfsFileOffset offset, uint16_t timeout)
 // Truncate asynchronous
 //------------------------------------------------------------------------------
 std::future<XrdCl::XRootDStatus>
-DavixIo::fileTruncateAsync(XrdSfsFileOffset offset, uint16_t timeout)
+DavixIo::fileTruncateAsync(XrdSfsFileOffset offset, time_t timeout)
 {
   std::promise<XrdCl::XRootDStatus> tr_promise;
   std::future<XrdCl::XRootDStatus> tr_future = tr_promise.get_future();
@@ -500,7 +500,7 @@ DavixIo::fileTruncateAsync(XrdSfsFileOffset offset, uint16_t timeout)
 //------------------------------------------------------------------------------
 
 int
-DavixIo::fileStat(struct stat* buf, uint16_t timeout)
+DavixIo::fileStat(struct stat* buf, time_t timeout)
 {
   eos_debug("url=%s", mFilePath.c_str());
   Davix::DavixError* err = 0;
@@ -527,7 +527,7 @@ DavixIo::fileStat(struct stat* buf, uint16_t timeout)
 //------------------------------------------------------------------------------
 
 int
-DavixIo::fileRemove(uint16_t timeout)
+DavixIo::fileRemove(time_t timeout)
 {
   eos_debug("");
   Davix::DavixError* err1 = 0;
@@ -608,7 +608,7 @@ DavixIo::Rmdir(const char* path)
 // Sync file - meaningless in HTTP PUT
 //------------------------------------------------------------------------------
 int
-DavixIo::fileSync(uint16_t timeout)
+DavixIo::fileSync(time_t timeout)
 {
   eos_debug("");
   return 0;
@@ -960,7 +960,7 @@ DavixIo::Statfs(struct statfs* sfs)
   }
 
   DavixIo io(url);;
-  int fd = io.fileOpen((XrdSfsFileOpenMode) 0, (mode_t) 0, opaque, (uint16_t) 0);
+  int fd = io.fileOpen((XrdSfsFileOpenMode) 0, (mode_t) 0, opaque, (time_t) 0);
 
   if (fd < 0) {
     eos_err("msg=\"failed to get quota file\" path=\"%s\"", url.c_str());

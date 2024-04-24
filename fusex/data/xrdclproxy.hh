@@ -297,7 +297,7 @@ public:
                          const std::string& url,
                          OpenFlags::Flags flags,
                          Access::Mode mode,
-                         uint16_t timeout);
+                         time_t timeout);
 
   // ---------------------------------------------------------------------- //
   XRootDStatus ReOpenAsync(XrdCl::shared_proxy proxy);
@@ -342,12 +342,12 @@ public:
                      uint32_t size,
                      const void* buffer,
                      ResponseHandler* handler,
-                     uint16_t timeout = 0);
+                     time_t timeout = 0);
 
   XRootDStatus Write(uint64_t offset,
                      uint32_t size,
                      const void* buffer,
-                     uint16_t timeout = 0)
+                     time_t timeout = 0)
   {
     return File::Write(offset, size, buffer, timeout);
   }
@@ -358,24 +358,24 @@ public:
                     uint32_t size,
                     void* buffer,
                     uint32_t& bytesRead,
-                    uint16_t timeout = 0);
+                    time_t timeout = 0);
 
   // ---------------------------------------------------------------------- //
-  XRootDStatus Sync(uint16_t timeout = 0);
+  XRootDStatus Sync(time_t timeout = 0);
 
 
   // ---------------------------------------------------------------------- //
 
-  XRootDStatus CloseAsync(XrdCl::shared_proxy proxy, uint16_t timeout = 0);
+  XRootDStatus CloseAsync(XrdCl::shared_proxy proxy, time_t timeout = 0);
 
   XRootDStatus ScheduleCloseAsync(XrdCl::shared_proxy proxy,
-                                  uint16_t timeout = 0);
+                                  time_t timeout = 0);
 
 
   XRootDStatus WaitClose();
 
   // ---------------------------------------------------------------------- //
-  XRootDStatus Close(uint16_t timeout = 0);
+  XRootDStatus Close(time_t timeout = 0);
 
   // ---------------------------------------------------------------------- //
   bool HadFailures();
@@ -856,7 +856,7 @@ public:
     }
 
     WriteAsyncHandler(shared_proxy file, uint32_t size, off_t off = 0,
-                      uint16_t timeout = 0) : mProxy(file), woffset(off), mTimeout(timeout)
+                      time_t timeout = 0) : mProxy(file), woffset(off), mTimeout(timeout)
     {
       mBuffer = sWrBufferManager.get_buffer(size);
       mBuffer->resize(size);
@@ -900,7 +900,7 @@ public:
       return woffset;
     }
 
-    const uint16_t timeout()
+    const time_t timeout()
     {
       return mTimeout;
     }
@@ -938,7 +938,7 @@ public:
     shared_proxy mProxy;
     shared_buffer mBuffer;
     off_t woffset;
-    uint16_t mTimeout;
+    time_t mTimeout;
     std::string mId;
 
   };
@@ -1150,7 +1150,7 @@ public:
   // ---------------------------------------------------------------------- //
   write_handler WriteAsyncPrepare(XrdCl::shared_proxy proxy, uint32_t size,
                                   uint64_t offset = 0,
-                                  uint16_t timeout = 0);
+                                  time_t timeout = 0);
 
 
   // ---------------------------------------------------------------------- //
@@ -1158,7 +1158,7 @@ public:
                           uint32_t size,
                           const void* buffer,
                           write_handler handler,
-                          uint16_t timeout);
+                          time_t timeout);
 
   // ---------------------------------------------------------------------- //
   XRootDStatus ScheduleWriteAsync(
@@ -1199,7 +1199,7 @@ public:
   XRootDStatus PreReadAsync(uint64_t offset,
                             uint32_t size,
                             read_handler handler,
-                            uint16_t timeout);
+                            time_t timeout);
 
   // ---------------------------------------------------------------------- //
   XRootDStatus WaitRead(read_handler handler);
@@ -1255,7 +1255,7 @@ public:
     return XCloseAfterWrite;
   }
 
-  const uint16_t close_after_write_timeout()
+  const time_t close_after_write_timeout()
   {
     return XCloseAfterWriteTimeout;
   }
@@ -1491,7 +1491,7 @@ private:
   size_t XWriteQueueScheduledSubmission;
 
   bool XCloseAfterWrite;
-  uint16_t XCloseAfterWriteTimeout;
+  time_t XCloseAfterWriteTimeout;
 
   READAHEAD_STRATEGY XReadAheadStrategy;
   size_t XReadAheadMin; // minimum ra block size when re-enabling
@@ -1521,7 +1521,7 @@ private:
 
   OpenFlags::Flags mFlags;
   Access::Mode mMode;
-  uint16_t mTimeout;
+  time_t mTimeout;
 
   std::atomic<int> mRChunksInFlight;
 

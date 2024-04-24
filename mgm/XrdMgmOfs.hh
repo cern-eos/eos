@@ -1212,7 +1212,7 @@ public:
   //----------------------------------------------------------------------------
   int SendQuery(const std::string& hostname, int port,
                 const std::string& request, std::string& response,
-                uint16_t timeout = 5);
+                time_t timeout = 5);
 
   //----------------------------------------------------------------------------
   //! Broadcast query (XrdFileSystem::Query) to the given endpoints and collect
@@ -1229,7 +1229,7 @@ public:
                      std::set<std::string>& endpoints,
                      std::map<std::string, std::pair<int, std::string>>&
                      reponses,
-                     uint16_t timeout = 0);
+                     time_t timeout = 0);
 
   //----------------------------------------------------------------------------
   //! @brief Send a resync command for a file identified by id and filesystem.

@@ -44,7 +44,7 @@ Layout::Layout(XrdFstOfsFile* file,
                const XrdSecEntity* client,
                XrdOucErrInfo* outError,
                const char* path,
-               uint16_t timeout) :
+               time_t timeout) :
   eos::common::LogId(), mIsEntryServer(false), mLayoutId(lid),
   mLastErrCode(0), mLastErrNo(0), mOfsFile(file), mError(outError),
   mTimeout(timeout)

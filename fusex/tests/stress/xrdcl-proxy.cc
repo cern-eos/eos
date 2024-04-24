@@ -43,7 +43,7 @@ TEST(XrdClProxy, Write)
 
   for (size_t i = 0; i < 64; ++i) {
     fprintf(stderr, ".");
-    status = file->Write(i, 1, &buffer[i], (uint16_t) 300);
+    status = file->Write(i, 1, &buffer[i], (time_t) 300);
     ASSERT_TRUE(status.IsOK());
   }
 
@@ -57,13 +57,13 @@ TEST(XrdClProxy, Write)
     }
 
     XrdCl::Proxy::write_handler handler = file->WriteAsyncPrepare(file, 1);
-    status = file->WriteAsync(i, 1, &buffer[i], handler, (uint16_t) 300);
+    status = file->WriteAsync(i, 1, &buffer[i], handler, (time_t) 300);
     ASSERT_TRUE(status.IsOK());
   }
 
   status = file->CollectWrites();
   ASSERT_TRUE(status.IsOK());
-  status = file->Close((uint16_t) 0);
+  status = file->Close((time_t) 0);
   ASSERT_TRUE(status.IsOK());
 }
 
@@ -99,7 +99,7 @@ TEST(XrdClProxy, ReadSync)
     fprintf(stderr, ".");
     XrdCl::Proxy::write_handler handler = file->WriteAsyncPrepare(file, 4 * 1024 * 1024);
     status = file->WriteAsync(4 * i * 1024 * 1024, 4 * 1024 * 1024,
-                             &buffer[i * 1024 * 1024], handler, (uint16_t) 300);
+                             &buffer[i * 1024 * 1024], handler, (time_t) 300);
     ASSERT_TRUE(status.IsOK());
   }
 
@@ -118,7 +118,7 @@ TEST(XrdClProxy, ReadSync)
     uint32_t bytesRead = 0;
     fprintf(stderr, ".");
     status = file->Read(file, 4 * i * 200 * 1024, 4 * 200 * 1024, &buffer[i * 200 * 1024],
-                       bytesRead, (uint16_t) 300);
+                       bytesRead, (time_t) 300);
     total_bytes += bytesRead;
     //fprintf(stderr, "----: bytesRead=%u\n", bytesRead);
     ASSERT_TRUE(status.IsOK());
@@ -135,7 +135,7 @@ TEST(XrdClProxy, ReadSync)
 
   fprintf(stderr, "\n[07] ra-efficiency=%f\n", file->get_readahead_efficiency());
   file->Collect();
-  status = file->Close((uint16_t) 0);
+  status = file->Close((time_t) 0);
   ASSERT_TRUE(status.IsOK());
 }
 
@@ -172,7 +172,7 @@ TEST(XrdClProxy, ReadAsync)
     fprintf(stderr, ".");
     XrdCl::Proxy::write_handler handler = file->WriteAsyncPrepare(file, 4 * 1024 * 1024);
     status = file->WriteAsync(4 * i * 1024 * 1024, 4 * 1024 * 1024,
-                             &buffer[i * 1024 * 1024], handler, (uint16_t) 300);
+                             &buffer[i * 1024 * 1024], handler, (time_t) 300);
     ASSERT_TRUE(status.IsOK());
   }
 
@@ -193,7 +193,7 @@ TEST(XrdClProxy, ReadAsync)
     XrdCl::Proxy::read_handler handler = file->ReadAsyncPrepare(file, 4 * i * 200 * 1024,
                                          4 * 200 * 1024);
     status = file->PreReadAsync(4 * i * 200 * 1024, 4 * 200 * 1024, handler,
-                               (uint16_t) 300);
+                               (time_t) 300);
     ASSERT_TRUE(status.IsOK());
     status = file->WaitRead(handler);
     ASSERT_TRUE(status.IsOK());
@@ -217,7 +217,7 @@ TEST(XrdClProxy, ReadAsync)
 
   fprintf(stderr, "\n[07] ra-efficiency=%f\n", file->get_readahead_efficiency());
   file->Collect();
-  status = file->Close((uint16_t) 0);
+  status = file->Close((time_t) 0);
   ASSERT_TRUE(status.IsOK());
 }
 
@@ -253,7 +253,7 @@ TEST(XrdClProxy, ReadAheadStatic)
     fprintf(stderr, ".");
     XrdCl::Proxy::write_handler handler = file->WriteAsyncPrepare(file, 4 * 1024 * 1024);
     status = file->WriteAsync(4 * i * 1024 * 1024, 4 * 1024 * 1024,
-                             &buffer[i * 1024 * 1024], handler, (uint16_t) 300);
+                             &buffer[i * 1024 * 1024], handler, (time_t) 300);
     ASSERT_TRUE(status.IsOK());
   }
 
@@ -276,7 +276,7 @@ TEST(XrdClProxy, ReadAheadStatic)
     uint32_t bytesRead = 0;
     fprintf(stderr, ".");
     status = file->Read(file, 4 * i * 200 * 1024, 4 * 200 * 1024, &buffer[i * 200 * 1024],
-                       bytesRead, (uint16_t) 300);
+                       bytesRead, (time_t) 300);
     total_bytes += bytesRead;
     //fprintf(stderr, "----: bytesRead=%u\n", bytesRead);
     ASSERT_TRUE(status.IsOK());
@@ -294,7 +294,7 @@ TEST(XrdClProxy, ReadAheadStatic)
   fprintf(stderr, "\n[07] ra-efficiency=%f\n", file->get_readahead_efficiency());
   ASSERT_EQ((int)(1000000 * file->get_readahead_efficiency()), 99694824);
   file->Collect();
-  status = file->Close((uint16_t) 0);
+  status = file->Close((time_t) 0);
   ASSERT_TRUE(status.IsOK());
 }
 
@@ -330,7 +330,7 @@ TEST(XrdClProxy, ReadAheadStaticLarge)
     fprintf(stderr, ".");
     XrdCl::Proxy::write_handler handler = file->WriteAsyncPrepare(file, 4 * 1024 * 1024);
     status = file->WriteAsync(4 * i * 1024 * 1024, 4 * 1024 * 1024,
-                             &buffer[i * 1024 * 1024], handler, (uint16_t) 300);
+                             &buffer[i * 1024 * 1024], handler, (time_t) 300);
     ASSERT_TRUE(status.IsOK());
   }
 
@@ -353,7 +353,7 @@ TEST(XrdClProxy, ReadAheadStaticLarge)
     uint32_t bytesRead = 0;
     fprintf(stderr, ".");
     status = file->Read(file, 4 * i * 200 * 1024, 4 * 200 * 1024, &buffer[i * 200 * 1024],
-                       bytesRead, (uint16_t) 300);
+                       bytesRead, (time_t) 300);
     total_bytes += bytesRead;
     //fprintf(stderr, "----: bytesRead=%u\n", bytesRead);
     ASSERT_TRUE(status.IsOK());
@@ -371,7 +371,7 @@ TEST(XrdClProxy, ReadAheadStaticLarge)
   fprintf(stderr, "\n[07] ra-efficiency=%f %d\n", file->get_readahead_efficiency(),
           (int)(1000000 * file->get_readahead_efficiency()));
   ASSERT_EQ((int)(1000000 * file->get_readahead_efficiency()), 99694824);
-  status = file->Close((uint16_t) 0);
+  status = file->Close((time_t) 0);
   ASSERT_TRUE(status.IsOK());
 }
 
@@ -407,7 +407,7 @@ TEST(XrdClProxy, ReadAheadSparse)
     fprintf(stderr, ".");
     XrdCl::Proxy::write_handler handler = file->WriteAsyncPrepare(file, 4 * 1024 * 1024);
     status = file->WriteAsync(4 * i * 1024 * 1024, 4 * 1024 * 1024,
-                             &buffer[i * 1024 * 1024], handler, (uint16_t) 300);
+                             &buffer[i * 1024 * 1024], handler, (time_t) 300);
     ASSERT_TRUE(status.IsOK());
   }
 
@@ -430,7 +430,7 @@ TEST(XrdClProxy, ReadAheadSparse)
     uint32_t bytesRead = 0;
     fprintf(stderr, ".");
     status = file->Read(file, 4 * i * 200 * 1024, 4 * 200 * 1024, &buffer[i * 200 * 1024],
-                       bytesRead, (uint16_t) 300);
+                       bytesRead, (time_t) 300);
     total_bytes += bytesRead;
     //fprintf(stderr, "----: bytesRead=%u\n", bytesRead);
     ASSERT_TRUE(status.IsOK());
@@ -456,7 +456,7 @@ TEST(XrdClProxy, ReadAheadSparse)
   fprintf(stderr, "\n[07] ra-efficiency=%f\n", file->get_readahead_efficiency());
   ASSERT_EQ((int)(1000000 * file->get_readahead_efficiency()), 99121952);
   file->Collect();
-  status = file->Close((uint16_t) 0);
+  status = file->Close((time_t) 0);
   ASSERT_TRUE(status.IsOK());
 }
 
@@ -492,7 +492,7 @@ TEST(XrdClProxy, ReadAheadDisable)
     fprintf(stderr, ".");
     XrdCl::Proxy::write_handler handler = file->WriteAsyncPrepare(file, 4 * 1024 * 1024);
     status = file->WriteAsync(4 * i * 1024 * 1024, 4 * 1024 * 1024,
-                             &buffer[i * 1024 * 1024], handler, (uint16_t) 300);
+                             &buffer[i * 1024 * 1024], handler, (time_t) 300);
     ASSERT_TRUE(status.IsOK());
   }
 
@@ -515,7 +515,7 @@ TEST(XrdClProxy, ReadAheadDisable)
     uint32_t bytesRead = 0;
     fprintf(stderr, ".");
     status = file->Read(file, 4 * i * 200 * 1024, 4 * 200 * 1024, &buffer[i * 200 * 1024],
-                       bytesRead, (uint16_t) 300);
+                       bytesRead, (time_t) 300);
     total_bytes += bytesRead;
     //fprintf(stderr, "----: bytesRead=%u\n", bytesRead);
     ASSERT_TRUE(status.IsOK());
@@ -538,7 +538,7 @@ TEST(XrdClProxy, ReadAheadDisable)
   fprintf(stderr, "\n[07] ra-efficiency=%f\n", file->get_readahead_efficiency());
   ASSERT_EQ((int)(1000000 * file->get_readahead_efficiency()), 29777778);
   file->Collect();
-  status = file->Close((uint16_t) 100);
+  status = file->Close((time_t) 100);
   ASSERT_TRUE(status.IsOK());
 }
 
@@ -574,7 +574,7 @@ TEST(XrdClProxy, ReadAheadBackward)
     fprintf(stderr, ".");
     XrdCl::Proxy::write_handler handler = file->WriteAsyncPrepare(file, 4 * 1024 * 1024);
     status = file->WriteAsync(4 * i * 1024 * 1024, 4 * 1024 * 1024,
-                             &buffer[i * 1024 * 1024], handler, (uint16_t) 300);
+                             &buffer[i * 1024 * 1024], handler, (time_t) 300);
     ASSERT_TRUE(status.IsOK());
   }
 
@@ -597,7 +597,7 @@ TEST(XrdClProxy, ReadAheadBackward)
     uint32_t bytesRead = 0;
     fprintf(stderr, ".");
     status = file->Read(file, 4 * i * 200 * 1024, 4 * 200 * 1024, &buffer[i * 200 * 1024],
-                       bytesRead, (uint16_t) 300);
+                       bytesRead, (time_t) 300);
     total_bytes += bytesRead;
     //fprintf(stderr, "----: bytesRead=%u\n", bytesRead);
     ASSERT_TRUE(status.IsOK());
@@ -615,7 +615,7 @@ TEST(XrdClProxy, ReadAheadBackward)
   fprintf(stderr, "\n[07] ra-efficiency=%f\n", file->get_readahead_efficiency());
   ASSERT_EQ(file->get_readahead_efficiency(), 0);
   file->Collect();
-  status = file->Close((uint16_t) 0);
+  status = file->Close((time_t) 0);
   ASSERT_TRUE(status.IsOK());
 }
 
@@ -651,7 +651,7 @@ TEST(XrdClProxy, ReadAheadDynamic)
     fprintf(stderr, ".");
     XrdCl::Proxy::write_handler handler = file->WriteAsyncPrepare(file, 4 * 1024 * 1024);
     status = file->WriteAsync(4 * i * 1024 * 1024, 4 * 1024 * 1024,
-                             &buffer[i * 1024 * 1024], handler, (uint16_t) 300);
+                             &buffer[i * 1024 * 1024], handler, (time_t) 300);
     ASSERT_TRUE(status.IsOK());
   }
 
@@ -674,7 +674,7 @@ TEST(XrdClProxy, ReadAheadDynamic)
     uint32_t bytesRead = 0;
     fprintf(stderr, ".");
     status = file->Read(file, 4 * i * 200 * 1024, 4 * 200 * 1024, &buffer[i * 200 * 1024],
-                       bytesRead, (uint16_t) 300);
+                       bytesRead, (time_t) 300);
     total_bytes += bytesRead;
     //fprintf(stderr, "----: bytesRead=%u\n", bytesRead);
     ASSERT_TRUE(status.IsOK());
@@ -694,7 +694,7 @@ TEST(XrdClProxy, ReadAheadDynamic)
   fprintf(stderr, "\n[07] ra-efficiency=%f\n", file->get_readahead_efficiency());
   ASSERT_EQ((int)(1000000 * file->get_readahead_efficiency()), 99475096);
   file->Collect();
-  status = file->Close((uint16_t) 0);
+  status = file->Close((time_t) 0);
   ASSERT_TRUE(status.IsOK());
 }
 
@@ -746,7 +746,7 @@ TEST(XrdClProxy, ScheduleWrite)
     uint32_t bytesRead = 0;
     fprintf(stderr, ".");
     status = file->Read(file, 4 * i * 200 * 1024, 4 * 200 * 1024, &buffer[i * 200 * 1024],
-                       bytesRead, (uint16_t) 300);
+                       bytesRead, (time_t) 300);
     total_bytes += bytesRead;
     //fprintf(stderr, "----: bytesRead=%u\n", bytesRead);
     ASSERT_TRUE(status.IsOK());
@@ -764,7 +764,7 @@ TEST(XrdClProxy, ScheduleWrite)
   fprintf(stderr, "\n[07] scheduled-write-fraction=%f\n",
           file->get_scheduled_submission_fraction());
   file->Collect();
-  status = file->Close((uint16_t) 0);
+  status = file->Close((time_t) 0);
   ASSERT_TRUE(status.IsOK());
 }
 

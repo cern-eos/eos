@@ -176,7 +176,7 @@ FsckEntry::CollectFstInfo(eos::common::FileSystem::fsid_t fsid)
   // Check that the file exists on disk
   XrdCl::StatInfo* stat_info_raw {nullptr};
   std::unique_ptr<XrdCl::StatInfo> stat_info;
-  uint16_t timeout = 10;
+  time_t timeout = 10;
   XrdCl::FileSystem fs(url);
   XrdCl::XRootDStatus status = fs.Stat(fpath_local.c_str(), stat_info_raw,
                                        timeout);
@@ -1011,7 +1011,7 @@ FsckEntry::GetFstFmd(std::unique_ptr<FstFileInfoT>& finfo,
       << "&fst.getfmd.fid=" << std::hex << mFid;
   XrdCl::Buffer arg;
   arg.FromString(oss.str().c_str());
-  uint16_t timeout = 10;
+  time_t timeout = 10;
   XrdCl::XRootDStatus status = fs.Query(XrdCl::QueryCode::OpaqueFile, arg,
                                         raw_response, timeout);
   std::unique_ptr<XrdCl::Buffer> response(raw_response);

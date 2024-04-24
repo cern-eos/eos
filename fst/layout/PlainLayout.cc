@@ -37,7 +37,7 @@ PlainLayout::PlainLayout(XrdFstOfsFile* file,
                          const XrdSecEntity* client,
                          XrdOucErrInfo* outError,
                          const char* path,
-                         uint16_t timeout) :
+                         time_t timeout) :
   Layout(file, lid, client, outError, path, timeout),
   mFileSize(0), mDisableRdAhead(false), mFlags(0)
 {
