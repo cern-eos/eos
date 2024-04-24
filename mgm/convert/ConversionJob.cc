@@ -501,7 +501,7 @@ ConversionJob::Merge()
         << "&fst.rename.nfid=" << eos::common::FileId::Fid2Hex(orig_fid)
         << "&fst.rename.fsid=" << loc
         << "&fst.nspath=" << mSourcePath;
-    uint16_t timeout = 10;
+    time_t timeout = 10;
     XrdCl::Buffer arg;
     XrdCl::Buffer* response {nullptr};
     XrdCl::FileSystem fs {url};

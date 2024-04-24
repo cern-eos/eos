@@ -1535,7 +1535,7 @@ bool CheckMgmOnline(const std::string& uri)
     return true;
   }
 
-  uint16_t timeout = 10;
+  time_t timeout = 10;
   XrdCl::URL url(uri);
 
   if (!url.IsValid()) {

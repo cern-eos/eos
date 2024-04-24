@@ -69,7 +69,7 @@ public:
          const XrdSecEntity* client,
          XrdOucErrInfo* outError,
          const char* path,
-         uint16_t timeout = 0);
+         time_t timeout = 0);
 
   //----------------------------------------------------------------------------
   //! Destructor
@@ -323,7 +323,7 @@ protected:
   XrdOucErrInfo* mError; ///< error information
   XrdSecEntity* mSecEntity; ///< security information
   eos::common::LayoutId::eIoType mIoType; ///< type of access ( ofs/xrd )
-  uint16_t mTimeout; ///< timeout value used for all operations on this file
+  time_t mTimeout; ///< timeout value used for all operations on this file
   XrdSysMutex mExclAccess; ///< mutex to ensure exclusive access
   std::unique_ptr<FileIo> mFileIO; //< IO object as entry server
 };

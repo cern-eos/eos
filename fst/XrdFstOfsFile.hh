@@ -85,7 +85,7 @@ class XrdFstOfsFile : public XrdOfsFileBase, public eos::common::LogId
 
 public:
 
-  static constexpr uint16_t msDefaultTimeout {300};
+  static constexpr time_t msDefaultTimeout {300};
   static int LayoutReadCB(eos::fst::CheckSum::ReadCallBack::callback_data_t* cbd);
   static int FileIoReadCB(eos::fst::CheckSum::ReadCallBack::callback_data_t* cbd);
 
@@ -457,7 +457,7 @@ public:
   bool mIsTpcDst; ///< If true this is a TPC destination, otherwise a source
   int mTpcRetc; ///< TPC job return code
   std::atomic<bool> mTpcCancel; ///< Mark TPC cancellation request
-  uint16_t mTimeout; ///< timeout for layout operations
+  time_t mTimeout; ///< timeout for layout operations
   bool mIsHttp; ///< Mark if this is HTTP acceess
 
   //----------------------------------------------------------------------------

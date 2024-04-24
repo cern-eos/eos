@@ -47,7 +47,7 @@ RainMetaLayout::RainMetaLayout(XrdFstOfsFile* file,
                                const XrdSecEntity* client,
                                XrdOucErrInfo* outError,
                                const char* path,
-                               uint16_t timeout,
+                               time_t timeout,
                                bool force_recovery,
                                off_t targetSize,
                                std::string bookingOpaque) :

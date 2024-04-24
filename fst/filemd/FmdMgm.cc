@@ -172,7 +172,7 @@ FmdMgmHandler::GetMgmFmd(const std::string& manager,
     }
 
     arg.FromString(query.c_str());
-    uint16_t timeout = 10;
+    time_t timeout = 10;
     status = fs->Query(XrdCl::QueryCode::OpaqueFile, arg, resp_raw, timeout);
     response.reset(resp_raw);
     resp_raw = nullptr;

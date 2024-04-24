@@ -269,7 +269,7 @@ int
 XrdIo::fileOpen(XrdSfsFileOpenMode flags,
                 mode_t mode,
                 const std::string& opaque,
-                uint16_t timeout)
+                time_t timeout)
 {
   const char* val = nullptr;
   mWriteStatus = XrdCl::XRootDStatus();
@@ -358,7 +358,7 @@ XrdIo::fileOpen(XrdSfsFileOpenMode flags,
 //------------------------------------------------------------------------------
 std::future<XrdCl::XRootDStatus>
 XrdIo::fileOpenAsync(XrdSfsFileOpenMode flags, mode_t mode,
-                     const std::string& opaque, uint16_t timeout)
+                     const std::string& opaque, time_t timeout)
 {
   using eos::common::LayoutId;
   std::promise<XrdCl::XRootDStatus> open_promise;
@@ -427,7 +427,7 @@ XrdIo::fileOpenAsync(XrdSfsFileOpenMode flags, mode_t mode,
 //------------------------------------------------------------------------------
 int64_t
 XrdIo::fileRead(XrdSfsFileOffset offset, char* buffer, XrdSfsXferSize length,
-                uint16_t timeout)
+                time_t timeout)
 {
   eos_debug("offset=%llu length=%llu", static_cast<uint64_t>(offset),
             static_cast<uint64_t>(length));
@@ -458,7 +458,7 @@ XrdIo::fileRead(XrdSfsFileOffset offset, char* buffer, XrdSfsXferSize length,
 //------------------------------------------------------------------------------
 int64_t
 XrdIo::fileReadPrefetch(XrdSfsFileOffset offset, char* buffer,
-                        XrdSfsXferSize length, uint16_t timeout)
+                        XrdSfsXferSize length, time_t timeout)
 {
   eos_debug("offset=%lli length=%i", offset, length);
 
@@ -559,7 +559,7 @@ XrdIo::fileReadPrefetch(XrdSfsFileOffset offset, char* buffer,
 // Vector read - sync
 //------------------------------------------------------------------------------
 int64_t
-XrdIo::fileReadV(XrdCl::ChunkList& chunkList, uint16_t timeout)
+XrdIo::fileReadV(XrdCl::ChunkList& chunkList, time_t timeout)
 {
   eos_debug("read count=%i", chunkList.size());
   int64_t nread = 0;
@@ -590,7 +590,7 @@ XrdIo::fileReadV(XrdCl::ChunkList& chunkList, uint16_t timeout)
 // Vector read - async
 //------------------------------------------------------------------------------
 int64_t
-XrdIo::fileReadVAsync(XrdCl::ChunkList& chunkList, uint16_t timeout)
+XrdIo::fileReadVAsync(XrdCl::ChunkList& chunkList, time_t timeout)
 {
   if (!mXrdFile) {
     errno = EIO;
@@ -632,7 +632,7 @@ XrdIo::fileReadVAsync(XrdCl::ChunkList& chunkList, uint16_t timeout)
 //------------------------------------------------------------------------------
 int64_t
 XrdIo::fileWrite(XrdSfsFileOffset offset, const char* buffer,
-                 XrdSfsXferSize length, uint16_t timeout)
+                 XrdSfsXferSize length, time_t timeout)
 {
   eos_debug("offset=%llu length=%llu", static_cast<uint64_t>(offset),
             static_cast<uint64_t>(length));
@@ -662,7 +662,7 @@ XrdIo::fileWrite(XrdSfsFileOffset offset, const char* buffer,
 //------------------------------------------------------------------------------
 int64_t
 XrdIo::fileWriteAsync(XrdSfsFileOffset offset, const char* buffer,
-                      XrdSfsXferSize length, uint16_t timeout)
+                      XrdSfsXferSize length, time_t timeout)
 {
   eos_static_debug("offset=%llu length=%i", offset, length);
 
@@ -787,7 +787,7 @@ XrdIo::fileWaitAsyncIO()
 // Truncate file
 //------------------------------------------------------------------------------
 int
-XrdIo::fileTruncate(XrdSfsFileOffset offset, uint16_t timeout)
+XrdIo::fileTruncate(XrdSfsFileOffset offset, time_t timeout)
 {
   if (!mXrdFile) {
     errno = EIO;
@@ -812,7 +812,7 @@ XrdIo::fileTruncate(XrdSfsFileOffset offset, uint16_t timeout)
 // Truncate asynchronous
 //------------------------------------------------------------------------------
 std::future<XrdCl::XRootDStatus>
-XrdIo::fileTruncateAsync(XrdSfsFileOffset offset, uint16_t timeout)
+XrdIo::fileTruncateAsync(XrdSfsFileOffset offset, time_t timeout)
 {
   eos_static_debug("offset=%llu", offset);
   std::promise<XrdCl::XRootDStatus> tr_promise;
@@ -842,7 +842,7 @@ XrdIo::fileTruncateAsync(XrdSfsFileOffset offset, uint16_t timeout)
 // Sync file to disk
 //------------------------------------------------------------------------------
 int
-XrdIo::fileSync(uint16_t timeout)
+XrdIo::fileSync(time_t timeout)
 {
   if (!mXrdFile) {
     errno = EIO;
@@ -866,7 +866,7 @@ XrdIo::fileSync(uint16_t timeout)
 // Get stats about the file
 //------------------------------------------------------------------------------
 int
-XrdIo::fileStat(struct stat* buf, uint16_t timeout)
+XrdIo::fileStat(struct stat* buf, time_t timeout)
 {
   if (!mXrdFile) {
     eos_err("%s", "msg=\"underlying XrdClFile object doesn't exist\"");
@@ -904,7 +904,7 @@ XrdIo::fileStat(struct stat* buf, uint16_t timeout)
 // Execute implementation dependant commands
 //------------------------------------------------------------------------------
 int
-XrdIo::fileFctl(const std::string& cmd, uint16_t timeout)
+XrdIo::fileFctl(const std::string& cmd, time_t timeout)
 {
   if (!mXrdFile) {
     eos_info("underlying XrdClFile object doesn't exist");
@@ -924,7 +924,7 @@ XrdIo::fileFctl(const std::string& cmd, uint16_t timeout)
 // Close file
 //------------------------------------------------------------------------------
 int
-XrdIo::fileClose(uint16_t timeout)
+XrdIo::fileClose(time_t timeout)
 {
   if (!mXrdFile) {
     errno = EIO;
@@ -962,7 +962,7 @@ XrdIo::fileClose(uint16_t timeout)
 // Remove file
 //------------------------------------------------------------------------------
 int
-XrdIo::fileRemove(uint16_t timeout)
+XrdIo::fileRemove(time_t timeout)
 {
   if (!mXrdFile) {
     errno = EIO;
@@ -1055,7 +1055,7 @@ XrdIo::fileDelete(const char* url)
 //------------------------------------------------------------------------------
 int64_t
 XrdIo::fileReadAsync(XrdSfsFileOffset offset, char* buffer,
-                     XrdSfsXferSize length, uint16_t timeout)
+                     XrdSfsXferSize length, time_t timeout)
 {
   // @todo(esindril) fall back to sync mode for the time being
   return fileRead(offset, buffer, length, timeout);
@@ -1097,7 +1097,7 @@ XrdIo::FindBlock(uint64_t offset)
 // Prefetch block using the readahead mechanism
 //------------------------------------------------------------------------------
 bool
-XrdIo::PrefetchBlock(int64_t offset, uint16_t timeout)
+XrdIo::PrefetchBlock(int64_t offset, time_t timeout)
 {
   ReadaheadBlock* block {nullptr};
   eos_debug("msg=\"try to prefetch\" offset=%lli length=%i",
@@ -1189,7 +1189,7 @@ XrdIo::Statfs(struct statfs* sfs)
   XrdCl::Buffer arg(xUrl.GetPath().size());
   arg.FromString(xUrl.GetPath());
   XrdCl::XRootDStatus status = fs.Query(XrdCl::QueryCode::Space, arg,
-                                        response, (uint16_t) 15);
+                                        response, (time_t) 15);
   errno = 0;
 
   if (!status.IsOK()) {

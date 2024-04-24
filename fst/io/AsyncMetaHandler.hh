@@ -117,7 +117,7 @@ public:
   void Reset();
 
 private:
-  uint16_t mErrorType; ///< type of error, we are mostly interested in timeouts
+  time_t mErrorType; ///< type of error, we are mostly interested in timeouts
   //! number of async requests in flight (for which no response was received)
   uint32_t mAsyncReq;
   //! number of async VECTOR req. in flight (for which no response was received)

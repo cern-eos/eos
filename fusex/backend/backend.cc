@@ -1169,7 +1169,7 @@ backend::getChecksum(fuse_req_t req,
 XrdCl::XRootDStatus
 /* -------------------------------------------------------------------------- */
 backend::Query(XrdCl::URL& url, XrdCl::QueryCode::Code query_code,
-               XrdCl::Buffer& arg, XrdCl::Buffer*& response, uint16_t rtimeout,
+               XrdCl::Buffer& arg, XrdCl::Buffer*& response, time_t rtimeout,
                bool noretry)
 /* -------------------------------------------------------------------------- */
 {

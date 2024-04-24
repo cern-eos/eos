@@ -69,14 +69,14 @@ public:
                             OpenFlags::Flags flags,
                             Access::Mode mode,
                             ResponseHandler* handler,
-                            uint16_t timeout);
+                            time_t timeout);
 
 
   //----------------------------------------------------------------------------
   //! Close
   //----------------------------------------------------------------------------
   virtual XRootDStatus Close(ResponseHandler* handler,
-                             uint16_t timeout);
+                             time_t timeout);
 
 
   //----------------------------------------------------------------------------
@@ -84,7 +84,7 @@ public:
   //----------------------------------------------------------------------------
   virtual XRootDStatus Stat(bool force,
                             ResponseHandler* handler,
-                            uint16_t timeout);
+                            time_t timeout);
 
 
   //----------------------------------------------------------------------------
@@ -94,7 +94,7 @@ public:
                             uint32_t size,
                             void* buffer,
                             ResponseHandler* handler,
-                            uint16_t timeout);
+                            time_t timeout);
 
 
   //----------------------------------------------------------------------------
@@ -104,14 +104,14 @@ public:
                              uint32_t size,
                              const void* buffer,
                              ResponseHandler* handler,
-                             uint16_t timeout);
+                             time_t timeout);
 
 
   //----------------------------------------------------------------------------
   //! Sync
   //----------------------------------------------------------------------------
   virtual XRootDStatus Sync(ResponseHandler* handler,
-                            uint16_t timeout);
+                            time_t timeout);
 
 
   //----------------------------------------------------------------------------
@@ -119,7 +119,7 @@ public:
   //----------------------------------------------------------------------------
   virtual XRootDStatus Truncate(uint64_t size,
                                 ResponseHandler* handler,
-                                uint16_t timeout);
+                                time_t timeout);
 
 
   //----------------------------------------------------------------------------
@@ -128,7 +128,7 @@ public:
   virtual XRootDStatus VectorRead(const ChunkList& chunks,
                                   void* buffer,
                                   ResponseHandler* handler,
-                                  uint16_t timeout);
+                                  time_t timeout);
 
 
   //------------------------------------------------------------------------
@@ -136,14 +136,14 @@ public:
   //------------------------------------------------------------------------
   virtual XRootDStatus Fcntl(const Buffer& arg,
                              ResponseHandler* handler,
-                             uint16_t timeout);
+                             time_t timeout);
 
 
   //----------------------------------------------------------------------------
   //! Visa
   //----------------------------------------------------------------------------
   virtual XRootDStatus Visa(ResponseHandler* handler,
-                            uint16_t timeout);
+                            time_t timeout);
 
 
   //----------------------------------------------------------------------------

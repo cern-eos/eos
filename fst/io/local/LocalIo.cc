@@ -59,7 +59,7 @@ LocalIo::~LocalIo()
 //------------------------------------------------------------------------------
 int
 LocalIo::fileOpen(XrdSfsFileOpenMode flags, mode_t mode,
-                  const std::string& opaque, uint16_t timeout)
+                  const std::string& opaque, time_t timeout)
 {
   if (!mLogicalFile) {
     eos_err("%s", "msg=\"logical file must exist already\"");
@@ -85,7 +85,7 @@ LocalIo::fileOpen(XrdSfsFileOpenMode flags, mode_t mode,
 //----------------------------------------------------------------------------
 std::future<XrdCl::XRootDStatus>
 LocalIo::fileOpenAsync(XrdSfsFileOpenMode flags, mode_t mode,
-                       const std::string& opaque, uint16_t timeout)
+                       const std::string& opaque, time_t timeout)
 {
   std::promise<XrdCl::XRootDStatus> open_promise;
   std::future<XrdCl::XRootDStatus> open_future = open_promise.get_future();
@@ -106,7 +106,7 @@ LocalIo::fileOpenAsync(XrdSfsFileOpenMode flags, mode_t mode,
 //------------------------------------------------------------------------------
 int64_t
 LocalIo::fileRead(XrdSfsFileOffset offset, char* buffer, XrdSfsXferSize length,
-                  uint16_t timeout)
+                  time_t timeout)
 {
   eos_debug("offset = %lld, length = %lld",
             static_cast<int64_t>(offset),
@@ -119,7 +119,7 @@ LocalIo::fileRead(XrdSfsFileOffset offset, char* buffer, XrdSfsXferSize length,
 //------------------------------------------------------------------------------
 int64_t
 LocalIo::fileReadPrefetch(XrdSfsFileOffset offset, char* buffer,
-                          XrdSfsXferSize length, uint16_t timeout)
+                          XrdSfsXferSize length, time_t timeout)
 {
   return fileRead(offset, buffer, length, timeout);
 }
@@ -129,7 +129,7 @@ LocalIo::fileReadPrefetch(XrdSfsFileOffset offset, char* buffer,
 //------------------------------------------------------------------------------
 int64_t
 LocalIo::fileReadAsync(XrdSfsFileOffset offset, char* buffer,
-                       XrdSfsXferSize length, uint16_t timeout)
+                       XrdSfsXferSize length, time_t timeout)
 {
   return fileRead(offset, buffer, length, timeout);
 }
@@ -138,7 +138,7 @@ LocalIo::fileReadAsync(XrdSfsFileOffset offset, char* buffer,
 // Vector read - sync
 //------------------------------------------------------------------------------
 int64_t
-LocalIo::fileReadV(XrdCl::ChunkList& chunkList, uint16_t timeout)
+LocalIo::fileReadV(XrdCl::ChunkList& chunkList, time_t timeout)
 {
   // Copy ChunkList structure to XrdOucVectIO
   eos_debug("read count=%i", chunkList.size());
@@ -160,7 +160,7 @@ LocalIo::fileReadV(XrdCl::ChunkList& chunkList, uint16_t timeout)
 // Vector read - async - in this case it is the same as the sync one
 //--------------------------------------------------------------------------
 int64_t
-LocalIo::fileReadVAsync(XrdCl::ChunkList& chunkList, uint16_t timeout)
+LocalIo::fileReadVAsync(XrdCl::ChunkList& chunkList, time_t timeout)
 {
   return fileReadV(chunkList, timeout);
 }
@@ -170,7 +170,7 @@ LocalIo::fileReadVAsync(XrdCl::ChunkList& chunkList, uint16_t timeout)
 //------------------------------------------------------------------------------
 int64_t
 LocalIo::fileWrite(XrdSfsFileOffset offset, const char* buffer,
-                   XrdSfsXferSize length, uint16_t timeout)
+                   XrdSfsXferSize length, time_t timeout)
 {
   eos_debug("offset = %lld, length = %lld",
             static_cast<int64_t>(offset),
@@ -183,7 +183,7 @@ LocalIo::fileWrite(XrdSfsFileOffset offset, const char* buffer,
 //------------------------------------------------------------------------------
 int64_t
 LocalIo::fileWriteAsync(XrdSfsFileOffset offset, const char* buffer,
-                        XrdSfsXferSize length, uint16_t timeout)
+                        XrdSfsXferSize length, time_t timeout)
 {
   return fileWrite(offset, buffer, length, timeout);
 }
@@ -213,7 +213,7 @@ LocalIo::fileWriteAsync(const char* buffer, XrdSfsFileOffset offset,
 // Truncate file
 //------------------------------------------------------------------------------
 int
-LocalIo::fileTruncate(XrdSfsFileOffset offset, uint16_t timeout)
+LocalIo::fileTruncate(XrdSfsFileOffset offset, time_t timeout)
 {
   return mLogicalFile->truncateofs(offset);
 }
@@ -222,7 +222,7 @@ LocalIo::fileTruncate(XrdSfsFileOffset offset, uint16_t timeout)
 // Truncate asynchronous
 //------------------------------------------------------------------------------
 std::future<XrdCl::XRootDStatus>
-LocalIo::fileTruncateAsync(XrdSfsFileOffset offset, uint16_t timeout)
+LocalIo::fileTruncateAsync(XrdSfsFileOffset offset, time_t timeout)
 {
   std::promise<XrdCl::XRootDStatus> tr_promise;
   std::future<XrdCl::XRootDStatus> tr_future = tr_promise.get_future();
@@ -321,7 +321,7 @@ LocalIo::fileFdeallocate(XrdSfsFileOffset fromOffset,
 // Sync file to disk
 //------------------------------------------------------------------------------
 int
-LocalIo::fileSync(uint16_t timeout)
+LocalIo::fileSync(time_t timeout)
 {
   return mLogicalFile->syncofs();
 }
@@ -330,7 +330,7 @@ LocalIo::fileSync(uint16_t timeout)
 // Get stats about the file
 //------------------------------------------------------------------------------
 int
-LocalIo::fileStat(struct stat* buf, uint16_t timeout)
+LocalIo::fileStat(struct stat* buf, time_t timeout)
 {
   XrdOfsFile* pOfsFile = mLogicalFile;
 
@@ -355,7 +355,7 @@ LocalIo::fileExists()
 // Close file
 //------------------------------------------------------------------------------
 int
-LocalIo::fileClose(uint16_t timeout)
+LocalIo::fileClose(time_t timeout)
 {
   mIsOpen = false;
   return mLogicalFile->closeofs();
@@ -365,7 +365,7 @@ LocalIo::fileClose(uint16_t timeout)
 // Remove file
 //------------------------------------------------------------------------------
 int
-LocalIo::fileRemove(uint16_t timeout)
+LocalIo::fileRemove(time_t timeout)
 {
   struct stat buf;
 
