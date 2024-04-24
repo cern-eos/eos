@@ -655,7 +655,7 @@ el9_asan_docker_image:
     # if [[ "$CI_PIPELINE_SOURCE" == "schedule" ]];
     # then
     #   exec_cmd eos-mgm1 'eos vid add gateway "eos-cli1.eos-cli1.${K8S_NAMESPACE}.svc.cluster.local" unix';
-    #   exec_cmd eos-cli1 'env EOS_FUSE_NO_ROOT_SQUASH=1 python /eosclient-tests/run.py --workdir="/eos1/dockertest /eos2/dockertest" ci';
+    #   exec_cmd eos-cli1 'env EOS_FUSE_NO_ROOT_SQUASH=1 python3 /eosclient-tests/run.py --workdir="/eos1/dockertest /eos2/dockertest" ci';
     # fi
     # until then just run the "ci" tests
     - exec_cmd eos-cli1 'cd eosclient-tests; for n in prepare/*.sh; do /bin/bash $n prepare; done'
@@ -692,8 +692,8 @@ el9_asan_docker_image:
     - exec_cmd eos-cli1 'su eos-user -c "kinit eos-user@TEST.EOS -k -t /home/eos-user/eos-user.keytab"'
     - exec_cmd eos-cli1 'su eos-user -c "git clone https://gitlab.cern.ch/dss/eosclient-tests.git /eos/user/e/eos-user/eosclient-tests"'
     # launch the tests
-    - exec_cmd eos-cli1 'su eos-user -c "cd /eos/user/e/eos-user && python2 ./eosclient-tests/run.py --workdir=/eos/user/e/eos-user ci-eosfuse_release"'
-    - exec_cmd eos-cli1 'su eos-user -c "cd /eos/user/e/eos-user && python2 ./eosclient-tests/run.py --workdir=/eos/user/e/eos-user regression"'
+    - exec_cmd eos-cli1 'su eos-user -c "cd /eos/user/e/eos-user && python3 ./eosclient-tests/run.py --workdir=/eos/user/e/eos-user ci-eosfuse_release"'
+    - exec_cmd eos-cli1 'su eos-user -c "cd /eos/user/e/eos-user && python3 ./eosclient-tests/run.py --workdir=/eos/user/e/eos-user regression"'
   artifacts:
     when: on_failure
     expire_in: 3 days
