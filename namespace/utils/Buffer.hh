@@ -53,12 +53,7 @@ public:
   //------------------------------------------------------------------------
   //! Copy constructor
   //------------------------------------------------------------------------
-  Buffer(const Buffer& other)
-  {
-    data = 0;
-    len = 0;
-    *this = other;
-  };
+  Buffer(const Buffer& other) : std::vector<char>(other) {}
 
   //------------------------------------------------------------------------
   //! Assignment operator
@@ -90,7 +85,7 @@ public:
   //------------------------------------------------------------------------
   //! Get data pointer
   //------------------------------------------------------------------------
-  const char* getDataPtr() const
+  char const* getDataPtr() const
   {
     if (!data) {
       return &operator[](0);
@@ -111,7 +106,7 @@ public:
   //------------------------------------------------------------------------
   //! Get data padded (if we read over the size we get 0 as response)
   //------------------------------------------------------------------------
-  const char getDataPadded(size_t i) const
+  char getDataPadded(size_t i) const
   {
     if (!data) {
       if (i < size()) {
