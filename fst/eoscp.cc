@@ -2594,8 +2594,7 @@ main(int argc, char* argv[])
       switch (dst_type[i]) {
       case LOCAL_ACCESS:
       case CONSOLE_ACCESS:
-        write(dst_handler[i].first, ptr_buffer, nread);
-        nwrite = nread;
+        nwrite = write(dst_handler[i].first, ptr_buffer, nread);
         break;
 
       case RAID_ACCESS: {
