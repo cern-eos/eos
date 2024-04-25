@@ -85,7 +85,7 @@ public:
   //------------------------------------------------------------------------
   //! Get data pointer
   //------------------------------------------------------------------------
-  const char* getDataPtr() const
+  char const* getDataPtr() const
   {
     if (!data) {
       return &operator[](0);
