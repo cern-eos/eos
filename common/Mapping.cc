@@ -1132,7 +1132,7 @@ Mapping::HandleVOMS(const XrdSecEntity* client, VirtualIdentity& vid)
 // Handle HTTPS authz keys mapping
 //------------------------------------------------------------------------------
 void
-Mapping::HandleKEYS(const XrdSecEntity* client, VirtualIdentity& vid)
+Mapping::HandleKEYS(const XrdSecEntity* /* client */, VirtualIdentity& vid)
 {
   // No VOMS info available
   if (vid.key.empty()) {

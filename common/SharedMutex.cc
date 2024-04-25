@@ -57,7 +57,7 @@ SharedMutex::UnLockRead()
 // Try to read lock the mutex within the timeout
 //------------------------------------------------------------------------------
 int
-SharedMutex::TimedRdLock(uint64_t timeout_ns)
+SharedMutex::TimedRdLock(uint64_t /* timeout_ns */)
 {
   mSharedMutex.ReaderLock();
   return 0;
@@ -95,7 +95,7 @@ SharedMutex::UnLockWrite()
 // Try to write lock the mutex within the timeout
 //------------------------------------------------------------------------------
 int
-SharedMutex::TimedWrLock(uint64_t timeout_ns)
+SharedMutex::TimedWrLock(uint64_t /* timeout_ns */)
 {
   mSharedMutex.Lock();
   return 0;

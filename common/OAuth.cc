@@ -81,7 +81,7 @@ OAuth::PurgeCache(time_t& now)
 
 int
 OAuth::Validate(OAuth::AuthInfo& info, const std::string& accesstoken,
-                std::string resource, const std::string& refreshtoken, time_t& expires)
+                std::string resource, const std::string& /* refreshtoken */, time_t& expires)
 {
   time_t now = time(NULL);
 
