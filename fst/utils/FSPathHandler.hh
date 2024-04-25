@@ -39,9 +39,8 @@ struct FSPathHandler {
 class FixedFSPathHandler : public FSPathHandler
 {
 public:
-  FixedFSPathHandler(std::string_view _fs_path) : fs_path(_fs_path),
-    FSPathHandler()
-  {}
+  FixedFSPathHandler(std::string_view _fs_path)
+    : FSPathHandler(), fs_path(_fs_path) {}
 
   std::string GetFSPath(eos::common::FileSystem::fsid_t fsid) override;
 
