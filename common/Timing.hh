@@ -86,7 +86,7 @@ public:
   //! Constructor - used only internally
   //----------------------------------------------------------------------------
   Timing(const char* name, struct timeval& i_tv):
-    tv{0}, tag(name), next(0)
+    tv{}, tag(name), next(0)
   {
     memcpy(&tv, &i_tv, sizeof(struct timeval));
     ptr = this;
@@ -96,7 +96,7 @@ public:
   //! Constructor - tag is used as the name for the measurement in Print
   //----------------------------------------------------------------------------
   Timing(const char* i_maintag):
-    tv{0}, tag("BEGIN"), maintag(i_maintag), next(0)
+    tv{}, tag("BEGIN"), maintag(i_maintag), next(0)
   {
     ptr = this;
   }
@@ -617,8 +617,8 @@ public:
 //------------------------------------------------------------------------------
 #define COMMONTIMING( __ID__,__LIST__)    \
   do {                                    \
-    struct timeval tp = {0};              \
-    struct timezone tz = {0};             \
+    struct timeval tp = {};               \
+    struct timezone tz = {};              \
     gettimeofday(&tp, &tz);                                   \
     (__LIST__)->ptr->next=new eos::common::Timing(__ID__,tp); \
     (__LIST__)->ptr = (__LIST__)->ptr->next;                  \
