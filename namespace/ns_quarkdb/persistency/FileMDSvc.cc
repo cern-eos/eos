@@ -30,6 +30,7 @@
 #include "namespace/utils/StringConvertion.hh"
 #include "common/StacktraceHere.hh"
 #include "namespace/utils/IMDLockHelper.hh"
+#include "common/Logging.hh"
 #include <numeric>
 
 EOSNSNAMESPACE_BEGIN
@@ -295,8 +296,11 @@ QuarkFileMDSvc::addChangeListener(IFileMDChangeListener* listener)
 void
 QuarkFileMDSvc::notifyListeners(IFileMDChangeListener::Event* event)
 {
+  int i = 0;
   for (const auto& elem : pListeners) {
-    elem->fileMDChanged(event);
+     if(errno) eos_static_crit("[3.a] ERRNO-DEBUG , loop_iter=%d, errno=%d",i,errno);
+     elem->fileMDChanged(event);
+     if(errno) eos_static_crit("[3.b] ERRNO-DEBUG , loop_iter=%d, errno=%d",i,errno);
   }
 }
 
