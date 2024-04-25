@@ -21,7 +21,7 @@
 # * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
 # ************************************************************************
 
-include_directories(${CMAKE_SOURCE_DIR}/common/jwt-cpp/include/)
+include_directories(SYSTEM ${CMAKE_SOURCE_DIR}/common/jwt-cpp/include/)
 
 #-------------------------------------------------------------------------------
 # CTA integration related operations
