@@ -83,8 +83,8 @@ add_library(EosCommon-Objects OBJECT
   exception/Exception.cc
   concurrency/ThreadEpochCounter.cc)
 
-# Avoid warnings related to bfd_get_section* macros being redefined
-target_compile_options(EosCommon-Objects PRIVATE -Wno-macro-redefined)
+# Avoid warnings from usage of deprecated functions from OpenSSL 3.x
+target_compile_options(EosCommon-Objects PRIVATE -Wno-deprecated-declarations)
 set_target_properties(EosCommon-Objects PROPERTIES
   POSITION_INDEPENDENT_CODE TRUE)
 
