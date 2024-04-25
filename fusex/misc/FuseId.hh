@@ -81,15 +81,6 @@ public:
     patch();
   }
 
-  fuse_id(const fuse_id& o)
-  {
-    uid = o.uid;
-    gid = o.gid;
-    pid = o.pid;
-    _id = o.getid();
-  }
-
-
   int bind()
   {
     // when called the current process environment is snapshotted for this request
