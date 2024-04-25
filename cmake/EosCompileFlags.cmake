@@ -48,7 +48,6 @@ add_compile_options(-Wall
   -Wno-ignored-qualifiers
   -Wno-int-in-bool-context
   -Wno-maybe-uninitialized
-  -Wno-missing-field-initializers
   -Wno-overflow
   -Wno-parentheses
   -Wno-pragmas

@@ -94,7 +94,7 @@ int
 PthreadRWMutex::TimedRdLock(uint64_t timeout_ns)
 {
   int retc = 0;
-  struct timespec timeout = {0};
+  struct timespec timeout{};
   _clock_gettime(CLOCK_REALTIME, &timeout);
 
   if (timeout_ns) {
@@ -157,7 +157,7 @@ int
 PthreadRWMutex::TimedWrLock(uint64_t timeout_ns)
 {
   int retc = 0;
-  struct timespec timeout = {0};
+  struct timespec timeout{};
   _clock_gettime(CLOCK_REALTIME, &timeout);
 
   if (timeout_ns) {
