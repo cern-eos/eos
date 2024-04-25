@@ -113,14 +113,15 @@ public:
   void jsonify(const XferSummary* obj, std::stringstream& oss) override
   {
     Json::Value root;
+    Json::Value null_value(Json::nullValue);
     root["unixtime"] = Json::UInt64(obj->rawtime);
     root["date"] = obj->astime;
     root["auth"] = obj->xrdsecprotocol ? Json::Value(*obj->xrdsecprotocol) :
-                   Json::nullValue;
+                   null_value;
     root["krb5"] = obj->krb5ccname ? Json::Value(*obj->krb5ccname) :
-                   Json::nullValue;
+                   null_value;
     root["x509userproxy"] = obj->x509userproxy ? Json::Value(
-                              *obj->x509userproxy) : Json::nullValue;
+                              *obj->x509userproxy) : null_value;
     initializeArray(root["sources"]);
 
     for (size_t i = 0; i < obj->sources.size(); ++i) {
@@ -142,21 +143,21 @@ public:
     root["ingress_rate"] = obj->ingress_rate;
     root["egress_rate"] = obj->egress_rate;
     root["ingress_server_info"] = !obj->src_clientinfo.empty() ? Json::Value(
-                                    obj->src_clientinfo) : Json::nullValue;
+                                    obj->src_clientinfo) : null_value;
     root["egress_server_info"] = !obj->dst_clientinfo.empty() ? Json::Value(
-                                   obj->dst_clientinfo) : Json::nullValue;
+                                   obj->dst_clientinfo) : null_value;
     root["bandwidth"] = obj->bandwidth ? Json::Value(obj->bandwidth) :
-                        Json::nullValue;
+                        null_value;
     root["checksum_type"] = obj->checksum_type ? Json::Value(
-                              *obj->checksum_type) : Json::nullValue;
+                              *obj->checksum_type) : null_value;
     root["checksum_value"] = obj->checksum_value ? Json::Value(
-                               *obj->checksum_value) : Json::nullValue;
+                               *obj->checksum_value) : null_value;
     root["write_start"] = Json::UInt64(obj->write_start);
     root["write_stop"] = Json::UInt64(obj->write_stop);
     root["read_start"] = obj->read_start >= 0 ? Json::UInt64(
-                           obj->read_start) : Json::nullValue;
+                           obj->read_start) : null_value;
     root["read_stop"] = obj->read_start >= 0 ? Json::UInt64(
-                          obj->read_stop) : Json::nullValue;
+                          obj->read_stop) : null_value;
     oss << root;
   }
 };
