@@ -156,7 +156,7 @@ public:
   //----------------------------------------------------------------------------
   //! Test if header is valid
   //----------------------------------------------------------------------------
-  inline const bool IsValid() const
+  inline bool IsValid() const
   {
     return mValid;
   }
