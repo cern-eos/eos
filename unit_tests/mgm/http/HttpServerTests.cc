@@ -22,7 +22,7 @@
  ************************************************************************/
 
 #include "gtest/gtest.h"
-#include "XrdOuc/XrdOucEnv.hh"
+#include <XrdOuc/XrdOucEnv.hh>
 #define IN_TEST_HARNESS
 #include "mgm/http/HttpServer.hh"
 #undef IN_TEST_HARNESS

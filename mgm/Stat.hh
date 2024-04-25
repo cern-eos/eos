@@ -24,8 +24,8 @@
 #pragma once
 #include "mgm/Namespace.hh"
 #include "common/AssistedThread.hh"
-#include "XrdOuc/XrdOucString.hh"
-#include "XrdSys/XrdSysPthread.hh"
+#include <XrdOuc/XrdOucString.hh>
+#include <XrdSys/XrdSysPthread.hh>
 #include <google/sparse_hash_map>
 #include <vector>
 #include <map>

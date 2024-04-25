@@ -24,8 +24,8 @@
 #pragma once
 #include <map>
 #include <string>
-#include "XrdHttp/XrdHttpExtHandler.hh"
-#include "XrdVersion.hh"
+#include <XrdHttp/XrdHttpExtHandler.hh>
+#include <XrdVersion.hh>
 
 XrdVERSIONINFO(XrdHttpGetExtHandler, EOSFSTHTTP);
 

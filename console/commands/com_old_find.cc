@@ -26,8 +26,8 @@
 #include "console/commands/ICmdHelper.hh"
 #include "common/StringTokenizer.hh"
 #include "common/StringConversion.hh"
-#include "XrdPosix/XrdPosixXrootd.hh"
-#include "XrdOuc/XrdOucEnv.hh"
+#include <XrdPosix/XrdPosixXrootd.hh>
+#include <XrdOuc/XrdOucEnv.hh>
 /*----------------------------------------------------------------------------*/
 
 extern int com_file(char*);

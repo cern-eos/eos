@@ -23,7 +23,7 @@
 
 #pragma once
 #include "common/Namespace.hh"
-#include "XrdOuc/XrdOucString.hh"
+#include <XrdOuc/XrdOucString.hh>
 #include <string>
 #include <vector>
 #include <sstream>

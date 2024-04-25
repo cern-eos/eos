@@ -25,9 +25,9 @@
 #define EOS_IMGMFILESYSTEMINTERFACE_HH
 
 #include "mgm/Namespace.hh"
-#include "XrdOuc/XrdOucErrInfo.hh"
-#include "XrdSfs/XrdSfsInterface.hh"
-#include "XrdSec/XrdSecEntity.hh"
+#include <XrdOuc/XrdOucErrInfo.hh>
+#include <XrdSfs/XrdSfsInterface.hh>
+#include <XrdSec/XrdSecEntity.hh>
 #include "common/VirtualIdentity.hh"
 #include "namespace/interface/IContainerMD.hh"
 

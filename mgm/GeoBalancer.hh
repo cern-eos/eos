@@ -36,7 +36,7 @@
 #include "common/FileSystem.hh"
 #include "common/AssistedThread.hh"
 /* -------------------------------------------------------------------------- */
-#include "XrdSys/XrdSysPthread.hh"
+#include <XrdSys/XrdSysPthread.hh>
 /* -------------------------------------------------------------------------- */
 #include <vector>
 #include <string>

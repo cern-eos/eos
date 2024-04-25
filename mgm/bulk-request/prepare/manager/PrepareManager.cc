@@ -21,13 +21,15 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
+#include <XrdVersion.hh>
+#include <XrdOuc/XrdOucTList.hh>
+#include <XrdSfs/XrdSfsFlags.hh>
+
 #include "PrepareManager.hh"
 #include "common/Constants.hh"
 #include "mgm/Stat.hh"
 #include "mgm/EosCtaReporter.hh"
 #include "mgm/bulk-request/response/QueryPrepareResponse.hh"
-#include <XrdOuc/XrdOucTList.hh>
-#include <XrdVersion.hh>
 #include <common/Path.hh>
 #include "common/Timing.hh"
 #include <common/SecEntity.hh>
@@ -38,7 +40,6 @@
 #include <mgm/bulk-request/File.hh>
 #include <mgm/bulk-request/exception/PersistencyException.hh>
 #include <mgm/bulk-request/prepare/PrepareUtils.hh>
-#include "XrdSfs/XrdSfsFlags.hh"
 
 EOSBULKNAMESPACE_BEGIN
 

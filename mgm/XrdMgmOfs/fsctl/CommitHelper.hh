@@ -32,7 +32,7 @@
 #include <string>
 #include <map>
 
-#include "XrdOuc/XrdOucEnv.hh"
+#include <XrdOuc/XrdOucEnv.hh>
 
 EOSMGMNAMESPACE_BEGIN
 

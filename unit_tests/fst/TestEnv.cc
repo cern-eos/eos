@@ -22,7 +22,7 @@
  ************************************************************************/
 
 #include "TestEnv.hh"
-#include "XrdCl/XrdClURL.hh"
+#include <XrdCl/XrdClURL.hh>
 #include <sstream>
 #include <cstdlib>
 #include <libgen.h>

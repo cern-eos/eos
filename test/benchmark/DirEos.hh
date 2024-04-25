@@ -29,7 +29,7 @@
 /*----------------------------------------------------------------------------*/
 #include "Namespace.hh"
 #include "common/Logging.hh"
-#include "XrdCl/XrdClFileSystem.hh"
+#include <XrdCl/XrdClFileSystem.hh>
 /*----------------------------------------------------------------------------*/
 
 EOSBMKNAMESPACE_BEGIN

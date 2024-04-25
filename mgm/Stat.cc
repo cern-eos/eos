@@ -29,7 +29,7 @@
 #include "mgm/XrdMgmOfs.hh"
 #include "mq/XrdMqSharedObject.hh"
 #include "mgm/Quota.hh"
-#include "XrdOuc/XrdOucString.hh"
+#include <XrdOuc/XrdOucString.hh>
 
 EOSMGMNAMESPACE_BEGIN
 

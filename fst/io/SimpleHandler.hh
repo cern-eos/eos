@@ -27,7 +27,7 @@
 
 #include "fst/Namespace.hh"
 #include "common/Logging.hh"
-#include "XrdCl/XrdClXRootDResponses.hh"
+#include <XrdCl/XrdClXRootDResponses.hh>
 
 EOSFSTNAMESPACE_BEGIN
 

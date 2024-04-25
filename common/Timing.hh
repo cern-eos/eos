@@ -25,7 +25,7 @@
 #ifndef __EOSCOMMON__TIMING__HH
 #define __EOSCOMMON__TIMING__HH
 
-#include "XrdOuc/XrdOucString.hh"
+#include <XrdOuc/XrdOucString.hh>
 #include "common/Namespace.hh"
 #include "common/ClockGetTime.hh"
 #include <sys/time.h>

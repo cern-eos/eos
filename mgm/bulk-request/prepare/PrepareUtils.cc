@@ -22,9 +22,9 @@
  ************************************************************************/
 
 #include "PrepareUtils.hh"
-#include "XrdVersion.hh"
+#include <XrdVersion.hh>
 #include <sstream>
-#include "XrdSfs/XrdSfsInterface.hh"
+#include <XrdSfs/XrdSfsInterface.hh>
 
 EOSBULKNAMESPACE_BEGIN
 

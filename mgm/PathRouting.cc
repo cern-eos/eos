@@ -23,7 +23,7 @@
 #include "mgm/PathRouting.hh"
 #include "common/Path.hh"
 #include "common/StringConversion.hh"
-#include "XrdCl/XrdClURL.hh"
+#include <XrdCl/XrdClURL.hh>
 #include <sstream>
 
 EOSMGMNAMESPACE_BEGIN

@@ -29,7 +29,7 @@
 #include <memory>
 #include "llfusexx.hh"
 #include "misc/fusexrdlogin.hh"
-#include "XrdCl/XrdClURL.hh"
+#include <XrdCl/XrdClURL.hh>
 
 //----------------------------------------------------------------------------
 

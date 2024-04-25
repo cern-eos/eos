@@ -24,7 +24,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <fst/RaidDPScan.hh>
-#include "XrdOuc/XrdOucString.hh"
+#include <XrdOuc/XrdOucString.hh>
 
 int
 main(int argc, char* argv[])

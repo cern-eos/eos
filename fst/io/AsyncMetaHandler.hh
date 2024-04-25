@@ -23,7 +23,7 @@
  ************************************************************************/
 
 #include "fst/Namespace.hh"
-#include "XrdCl/XrdClXRootDResponses.hh"
+#include <XrdCl/XrdClXRootDResponses.hh>
 #include "common/ConcurrentQueue.hh"
 #include "common/Logging.hh"
 

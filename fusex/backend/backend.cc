@@ -29,8 +29,8 @@
 #include "common/Logging.hh"
 #include "common/StringConversion.hh"
 #include "common/SymKeys.hh"
-#include "XrdCl/XrdClFile.hh"
-#include "XrdCl/XrdClURL.hh"
+#include <XrdCl/XrdClFile.hh>
+#include <XrdCl/XrdClURL.hh>
 
 /* -------------------------------------------------------------------------- */
 backend::backend()

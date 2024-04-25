@@ -28,8 +28,8 @@
 #include "common/ShardedCache.hh"
 #include "common/OAuth.hh"
 #include "common/VirtualIdentity.hh"
-#include "XrdOuc/XrdOucString.hh"
-#include "XrdAcc/XrdAccAuthorize.hh"
+#include <XrdOuc/XrdOucString.hh>
+#include <XrdAcc/XrdAccAuthorize.hh>
 #include <map>
 #include <set>
 #include <string>

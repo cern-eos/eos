@@ -23,7 +23,7 @@
 #include <thread>
 #include <fstream>
 #include <sstream>
-#include "XrdCl/XrdClFile.hh"
+#include <XrdCl/XrdClFile.hh>
 
 //------------------------------------------------------------------------------
 //! Generate a map of offset and length that represent individual read requests

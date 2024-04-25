@@ -29,7 +29,7 @@
 #include "common/Timing.hh"
 #include "common/Logging.hh"
 
-#include "XrdSys/XrdSysPthread.hh"
+#include <XrdSys/XrdSysPthread.hh>
 
 
 EOSFUSESERVERNAMESPACE_BEGIN

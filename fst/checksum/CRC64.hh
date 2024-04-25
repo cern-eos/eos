@@ -29,9 +29,9 @@
 #include "fst/checksum/CheckSum.hh"
 #include "common/crc32c/crc32c.h"
 /*----------------------------------------------------------------------------*/
-#include "XrdOuc/XrdOucEnv.hh"
-#include "XrdOuc/XrdOucString.hh"
-#include "XrdSys/XrdSysPthread.hh"
+#include <XrdOuc/XrdOucEnv.hh>
+#include <XrdOuc/XrdOucString.hh>
+#include <XrdSys/XrdSysPthread.hh>
 /*----------------------------------------------------------------------------*/
 #include <zlib.h>
 /*----------------------------------------------------------------------------*/

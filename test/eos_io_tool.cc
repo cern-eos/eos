@@ -38,12 +38,12 @@
 #include <memory>
 #include <sys/time.h>
 #include <getopt.h>
-#include "XrdCl/XrdClFile.hh"
-#include "XrdSfs/XrdSfsInterface.hh"
+#include <XrdCl/XrdClFile.hh>
+#include <XrdSfs/XrdSfsInterface.hh>
 #include "fst/io/FileIoPlugin.hh"
 #include "fst/io/FileIo.hh"
 #include "fst/io/AsyncMetaHandler.hh"
-#include "XrdCl/XrdClDefaultEnv.hh"
+#include <XrdCl/XrdClDefaultEnv.hh>
 #include "common/Logging.hh"
 #include "common/Mapping.hh"
 

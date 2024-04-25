@@ -25,7 +25,7 @@
 #define __XRDFSTOFS_VERIFY_HH__
 #include "fst/Namespace.hh"
 #include "common/FileId.hh"
-#include "XrdOuc/XrdOucString.hh"
+#include <XrdOuc/XrdOucString.hh>
 #include <vector>
 
 class XrdOucEnv;

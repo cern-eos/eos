@@ -31,9 +31,9 @@
 #include "common/StringConversion.hh"
 #include "common/FileId.hh"
 #include "common/LayoutId.hh"
-#include "XrdSys/XrdSysError.hh"
-#include "XrdOuc/XrdOucTrace.hh"
-#include "Xrd/XrdScheduler.hh"
+#include <XrdSys/XrdSysError.hh>
+#include <XrdOuc/XrdOucTrace.hh>
+#include <Xrd/XrdScheduler.hh>
 #include <random>
 #include <cmath>
 

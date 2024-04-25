@@ -26,7 +26,7 @@
 #define IN_TEST_HARNESS
 #include "common/Mapping.hh"
 #undef IN_TEST_HARNESS
-#include "XrdSec/XrdSecEntity.hh"
+#include <XrdSec/XrdSecEntity.hh>
 #include <memory>
 
 EOSCOMMONTESTING_BEGIN

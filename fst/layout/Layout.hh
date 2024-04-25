@@ -31,9 +31,9 @@
 #include "fst/Namespace.hh"
 #include "fst/io/FileIoPlugin.hh"
 #include "fst/io/FileIo.hh"
-#include "XrdOuc/XrdOucString.hh"
-#include "XrdSfs/XrdSfsInterface.hh"
-#include "XrdCl/XrdClXRootDResponses.hh"
+#include <XrdOuc/XrdOucString.hh>
+#include <XrdSfs/XrdSfsInterface.hh>
+#include <XrdCl/XrdClXRootDResponses.hh>
 
 EOSFSTNAMESPACE_BEGIN
 

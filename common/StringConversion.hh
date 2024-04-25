@@ -30,8 +30,8 @@
 #define __EOSCOMMON_STRINGCONVERSION__
 
 #include "common/Namespace.hh"
-#include "XrdOuc/XrdOucString.hh"
-#include "XrdOuc/XrdOucEnv.hh"
+#include <XrdOuc/XrdOucString.hh>
+#include <XrdOuc/XrdOucEnv.hh>
 #include "fmt/format.h"
 #include <string>
 #include <vector>

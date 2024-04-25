@@ -37,8 +37,8 @@
 #include "mq/FsChangeListener.hh"
 #include "mq/MessagingRealm.hh"
 /*----------------------------------------------------------------------------*/
-#include "XrdOuc/XrdOucString.hh"
-#include "XrdSys/XrdSysAtomics.hh"
+#include <XrdOuc/XrdOucString.hh>
+#include <XrdSys/XrdSysAtomics.hh>
 /*----------------------------------------------------------------------------*/
 #include <list>
 #include <dirent.h>

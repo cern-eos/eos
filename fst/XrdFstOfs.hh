@@ -34,9 +34,9 @@
 #include "mq/XrdMqMessaging.hh"
 #include "mq/XrdMqSharedObject.hh"
 #include "mq/MessagingRealm.hh"
-#include "XrdOfs/XrdOfs.hh"
-#include "XrdOfs/XrdOfsTrace.hh"
-#include "XrdOuc/XrdOucString.hh"
+#include <XrdOfs/XrdOfs.hh>
+#include <XrdOfs/XrdOfsTrace.hh>
+#include <XrdOuc/XrdOucString.hh>
 #include "namespace/ns_quarkdb/QdbContactDetails.hh"
 #include "qclient/shared/SharedManager.hh"
 #include <google/sparse_hash_map>

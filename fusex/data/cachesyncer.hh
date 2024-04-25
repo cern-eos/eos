@@ -10,7 +10,7 @@
 
 #include "interval_tree.hh"
 
-#include "XrdCl/XrdClFile.hh"
+#include <XrdCl/XrdClFile.hh>
 
 class cachesyncer
 {

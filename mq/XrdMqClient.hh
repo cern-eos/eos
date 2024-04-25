@@ -24,9 +24,9 @@
 #pragma once
 #define ENOTBLK 15
 
-#include "XrdOuc/XrdOucString.hh"
-#include "XrdCl/XrdClFile.hh"
-#include "XrdCl/XrdClFileSystem.hh"
+#include <XrdOuc/XrdOucString.hh>
+#include <XrdCl/XrdClFile.hh>
+#include <XrdCl/XrdClFileSystem.hh>
 #include "common/AssistedThread.hh"
 #include "common/Logging.hh"
 #include "mq/XrdMqMessage.hh"

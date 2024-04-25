@@ -24,9 +24,9 @@
 #pragma once
 #include "fst/Namespace.hh"
 #include "common/FileId.hh"
-#include "XrdOuc/XrdOucString.hh"
-#include "XrdOuc/XrdOucEnv.hh"
-#include "XrdOuc/XrdOucTokenizer.hh"
+#include <XrdOuc/XrdOucString.hh>
+#include <XrdOuc/XrdOucEnv.hh>
+#include <XrdOuc/XrdOucTokenizer.hh>
 #include <vector>
 
 EOSFSTNAMESPACE_BEGIN

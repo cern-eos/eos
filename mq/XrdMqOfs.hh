@@ -24,13 +24,13 @@
 #ifndef __XFTSOFS_NS_H__
 #define __XFTSOFS_NS_H__
 
-#include "XrdSfs/XrdSfsInterface.hh"
-#include "XrdOuc/XrdOucHash.hh"
-#include "XrdOuc/XrdOucString.hh"
-#include "XrdOuc/XrdOucTrace.hh"
-#include "XrdOuc/XrdOucEnv.hh"
-#include "XrdSys/XrdSysPthread.hh"
-#include "XrdSys/XrdSysSemWait.hh"
+#include <XrdSfs/XrdSfsInterface.hh>
+#include <XrdOuc/XrdOucHash.hh>
+#include <XrdOuc/XrdOucString.hh>
+#include <XrdOuc/XrdOucTrace.hh>
+#include <XrdOuc/XrdOucEnv.hh>
+#include <XrdSys/XrdSysPthread.hh>
+#include <XrdSys/XrdSysSemWait.hh>
 #include "common/Logging.hh"
 #include "namespace/ns_quarkdb/QdbContactDetails.hh"
 #include <sys/types.h>

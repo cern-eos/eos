@@ -22,7 +22,7 @@
  ************************************************************************/
 
 #include "common/ShellExecutor.hh"
-#include "XrdSys/XrdSysPthread.hh"
+#include <XrdSys/XrdSysPthread.hh>
 #include <sys/wait.h>
 #include <unistd.h>
 #include <string.h>

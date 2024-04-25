@@ -24,7 +24,7 @@
 #pragma once
 #include "mgm/Namespace.hh"
 #include "IProcCommand.hh"
-#include "XrdOuc/XrdOucEnv.hh"
+#include <XrdOuc/XrdOucEnv.hh>
 #include "namespace/interface/IView.hh"
 #include <iomanip>
 

@@ -25,7 +25,7 @@
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/Features.hh"
 #include "mgm/Stat.hh"
-#include "XrdVersion.hh"
+#include <XrdVersion.hh>
 
 XrdVERSIONINFOREF( XrdgetProtocol );
 

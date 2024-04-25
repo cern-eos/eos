@@ -29,9 +29,9 @@
 #include "common/Mapping.hh"
 #include "Namespace.hh"
 /*----------------------------------------------------------------------------*/
-#include "XrdOuc/XrdOucErrInfo.hh"
-#include "XrdSec/XrdSecEntity.hh"
-#include "XrdSfs/XrdSfsInterface.hh"
+#include <XrdOuc/XrdOucErrInfo.hh>
+#include <XrdSec/XrdSecEntity.hh>
+#include <XrdSfs/XrdSfsInterface.hh>
 /*----------------------------------------------------------------------------*/
 
 EOSAUTHNAMESPACE_BEGIN

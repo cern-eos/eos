@@ -27,10 +27,10 @@
 #include "console/ConsoleMain.hh"
 #include "common/Path.hh"
 #include "common/StringConversion.hh"
-#include "XrdPosix/XrdPosixXrootd.hh"
-#include "XrdOuc/XrdOucEnv.hh"
-#include "XrdCl/XrdClURL.hh"
-#include "XrdCl/XrdClFileSystem.hh"
+#include <XrdPosix/XrdPosixXrootd.hh>
+#include <XrdOuc/XrdOucEnv.hh>
+#include <XrdCl/XrdClURL.hh>
+#include <XrdCl/XrdClFileSystem.hh>
 /*----------------------------------------------------------------------------*/
 
 int

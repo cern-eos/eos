@@ -36,10 +36,10 @@
 #include "common/Namespace.hh"
 #include "common/Path.hh"
 /*----------------------------------------------------------------------------*/
-#include "XrdOuc/XrdOucString.hh"
-#include "XrdSys/XrdSysLogger.hh"
-#include "XrdNet/XrdNetOpts.hh"
-#include "XrdNet/XrdNetSocket.hh"
+#include <XrdOuc/XrdOucString.hh>
+#include <XrdSys/XrdSysLogger.hh>
+#include <XrdNet/XrdNetOpts.hh>
+#include <XrdNet/XrdNetSocket.hh>
 /*----------------------------------------------------------------------------*/
 #include <sys/types.h>
 #include <sys/stat.h>

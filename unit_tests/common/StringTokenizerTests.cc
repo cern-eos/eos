@@ -22,7 +22,7 @@
  ************************************************************************/
 
 #include "gtest/gtest.h"
-#include "XrdOuc/XrdOucString.hh"
+#include <XrdOuc/XrdOucString.hh>
 
 #include "Namespace.hh"
 #include "common/StringTokenizer.hh"

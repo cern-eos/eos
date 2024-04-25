@@ -27,7 +27,7 @@
 #include "mgm/Namespace.hh"
 #include "common/AssistedThread.hh"
 #include "common/Timing.hh"
-#include "XrdOuc/XrdOucString.hh"
+#include <XrdOuc/XrdOucString.hh>
 #include <sys/types.h>
 
 class XrdOucErrInfo;

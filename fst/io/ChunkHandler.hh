@@ -28,7 +28,7 @@
 #ifndef __EOS_FST_CHUNKHANDLER_HH__
 #define __EOS_FST_CHUNKHANDLER_HH__
 
-#include "XrdCl/XrdClFile.hh"
+#include <XrdCl/XrdClFile.hh>
 #include "fst/Namespace.hh"
 
 EOSFSTNAMESPACE_BEGIN

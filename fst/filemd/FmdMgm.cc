@@ -7,7 +7,7 @@
 #include "proto/FileMd.pb.h"
 #include "proto/ConsoleRequest.pb.h"
 #include "namespace/interface/IFileMD.hh"
-#include "XrdCl/XrdClFileSystem.hh"
+#include <XrdCl/XrdClFileSystem.hh>
 
 EOSFSTNAMESPACE_BEGIN
 

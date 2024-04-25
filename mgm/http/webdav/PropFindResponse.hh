@@ -41,7 +41,7 @@
 #include "mgm/http/rapidxml/rapidxml.hpp"
 #include "mgm/http/rapidxml/rapidxml_print.hpp"
 /*----------------------------------------------------------------------------*/
-#include "XrdOuc/XrdOucErrInfo.hh"
+#include <XrdOuc/XrdOucErrInfo.hh>
 /*----------------------------------------------------------------------------*/
 
 EOSMGMNAMESPACE_BEGIN;

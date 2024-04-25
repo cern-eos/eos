@@ -8,7 +8,7 @@
 #include "namespace/Prefetcher.hh"
 #include "mgm/XrdMgmOfs.hh"
 #include "namespace/interface/IView.hh"
-#include "XrdOuc/XrdOucString.hh"
+#include <XrdOuc/XrdOucString.hh>
 
 namespace eos::mgm::group_balancer
 {

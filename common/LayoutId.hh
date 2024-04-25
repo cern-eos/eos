@@ -25,10 +25,10 @@
 #ifndef __EOSCOMMON_LAYOUTID__HH__
 #define __EOSCOMMON_LAYOUTID__HH__
 #include "common/Namespace.hh"
-#include "XrdOuc/XrdOucEnv.hh"
-#include "XrdOuc/XrdOucString.hh"
-#include "XrdSfs/XrdSfsInterface.hh"
-#include "XrdCl/XrdClFileSystem.hh"
+#include <XrdOuc/XrdOucEnv.hh>
+#include <XrdOuc/XrdOucString.hh>
+#include <XrdSfs/XrdSfsInterface.hh>
+#include <XrdCl/XrdClFileSystem.hh>
 #include "StringConversion.hh"
 #include <fcntl.h>
 #include <string>

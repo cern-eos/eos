@@ -28,7 +28,7 @@
 #include "fst/Namespace.hh"
 #include "common/Logging.hh"
 /*----------------------------------------------------------------------------*/
-#include "XrdCl/XrdClPlugInInterface.hh"
+#include <XrdCl/XrdClPlugInInterface.hh>
 /*----------------------------------------------------------------------------*/
 
 EOSFSTNAMESPACE_BEGIN

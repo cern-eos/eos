@@ -30,10 +30,10 @@
 #include "common/Fmd.hh"
 #include "common/FileId.hh"
 #include "common/SymKeys.hh"
-#include "XrdVersion.hh"
-#include "XrdOfs/XrdOfs.hh"
-#include "XrdOfs/XrdOfsTPCInfo.hh"
-#include "XrdOuc/XrdOucString.hh"
+#include <XrdVersion.hh>
+#include <XrdOfs/XrdOfs.hh>
+#include <XrdOfs/XrdOfsTPCInfo.hh>
+#include <XrdOuc/XrdOucString.hh>
 #include <numeric>
 
 namespace eos
