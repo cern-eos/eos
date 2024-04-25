@@ -39,7 +39,7 @@
 #include "namespace/interface/IFileMD.hh"
 #include "namespace/interface/IView.hh"
 //-----------------------------------------------------------------------------
-#include "XrdPosix/XrdPosixXrootd.hh"
+#include <XrdPosix/XrdPosixXrootd.hh>
 //-----------------------------------------------------------------------------
 
 EOSMGMNAMESPACE_BEGIN

@@ -26,7 +26,7 @@
 #include "fusex/misc/fusexrdlogin.hh"
 #include "common/Logging.hh"
 #include "common/Path.hh"
-#include "XrdCl/XrdClXRootDResponses.hh"
+#include <XrdCl/XrdClXRootDResponses.hh>
 
 using namespace XrdCl;
 

@@ -30,8 +30,8 @@
 #include "common/Mapping.hh"
 #include "namespace/interface/IContainerMD.hh"
 /*----------------------------------------------------------------------------*/
-#include "XrdOuc/XrdOucString.hh"
-#include "XrdOuc/XrdOucEnv.hh"
+#include <XrdOuc/XrdOucString.hh>
+#include <XrdOuc/XrdOucEnv.hh>
 /*----------------------------------------------------------------------------*/
 #include <sys/types.h>
 

@@ -16,9 +16,9 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "XrdCl/XrdClFile.hh"
-#include "XrdOuc/XrdOucEnv.hh"
-#include "XrdOuc/XrdOucString.hh"
+#include <XrdCl/XrdClFile.hh>
+#include <XrdOuc/XrdOucEnv.hh>
+#include <XrdOuc/XrdOucString.hh>
 #include "common/StringSplit.hh"
 #include "fst/checksum/ChecksumPlugins.hh"
 #include "fst/layout/HeaderCRC.hh"

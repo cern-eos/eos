@@ -25,7 +25,7 @@
 #define __EOS_FUSE_BUFFERLL_HH__
 
 #include "common/RWMutex.hh"
-#include "XrdSys/XrdSysPthread.hh"
+#include <XrdSys/XrdSysPthread.hh>
 #include <memory>
 #include <vector>
 #include <string.h>

@@ -25,8 +25,8 @@
 #define __XRDMQ_SHAREDHASH_HH__
 
 #include "mq/XrdMqClient.hh"
-#include "XrdSys/XrdSysPthread.hh"
-#include "XrdSys/XrdSysSemWait.hh"
+#include <XrdSys/XrdSysPthread.hh>
+#include <XrdSys/XrdSysSemWait.hh>
 #include "common/AssistedThread.hh"
 #include "common/StringConversion.hh"
 #include "common/RWMutex.hh"

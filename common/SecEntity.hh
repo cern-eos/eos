@@ -26,7 +26,7 @@
 
 #include "common/Namespace.hh"
 #include "common/StringConversion.hh"
-#include "XrdSec/XrdSecEntity.hh"
+#include <XrdSec/XrdSecEntity.hh>
 #include <map>
 #include <string>
 

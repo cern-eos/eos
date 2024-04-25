@@ -29,7 +29,7 @@
 #define __EOS_FST_VECTCHUNKHANDLER_HH__
 
 #include "fst/Namespace.hh"
-#include "XrdCl/XrdClXRootDResponses.hh"
+#include <XrdCl/XrdClXRootDResponses.hh>
 
 EOSFSTNAMESPACE_BEGIN
 

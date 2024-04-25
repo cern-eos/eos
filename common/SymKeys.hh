@@ -29,10 +29,10 @@
 
 #pragma once
 #include "common/Namespace.hh"
-#include "XrdOuc/XrdOucHash.hh"
-#include "XrdOuc/XrdOucString.hh"
-#include "XrdSys/XrdSysPthread.hh"
-#include "XrdOuc/XrdOucEnv.hh"
+#include <XrdOuc/XrdOucHash.hh>
+#include <XrdOuc/XrdOucString.hh>
+#include <XrdSys/XrdSysPthread.hh>
+#include <XrdOuc/XrdOucEnv.hh>
 #include "google/protobuf/message.h"
 #include <openssl/sha.h>
 #include <time.h>

@@ -30,8 +30,8 @@
 #include "common/SecEntity.hh"
 #include "common/StringTokenizer.hh"
 #include "common/ErrnoToString.hh"
-#include "XrdNet/XrdNetAddr.hh"
-#include "XrdAcc/XrdAccAuthorize.hh"
+#include <XrdNet/XrdNetAddr.hh>
+#include <XrdAcc/XrdAccAuthorize.hh>
 #include <netdb.h>
 
 EOSMGMNAMESPACE_BEGIN

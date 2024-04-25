@@ -24,10 +24,10 @@
 /*----------------------------------------------------------------------------*/
 #include <stdlib.h>
 /*----------------------------------------------------------------------------*/
-#include "XrdVersion.hh"
+#include <XrdVersion.hh>
 #include "RainPlugin.hh"
 #include "RainFile.hh"
-#include "XrdNet/XrdNetUtils.hh"
+#include <XrdNet/XrdNetUtils.hh>
 /*----------------------------------------------------------------------------*/
 
 XrdVERSIONINFO(XrdClGetPlugIn, XrdClGetPlugIn)

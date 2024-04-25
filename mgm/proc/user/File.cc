@@ -40,7 +40,7 @@
 #include "namespace/interface/IView.hh"
 #include "namespace/utils/Checksum.hh"
 #include "namespace/Resolver.hh"
-#include "XrdCl/XrdClCopyProcess.hh"
+#include <XrdCl/XrdClCopyProcess.hh>
 #include <math.h>
 #include <memory>
 

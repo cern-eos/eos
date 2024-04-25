@@ -22,7 +22,7 @@
  ************************************************************************/
 
 #include <stdio.h>
-#include "XrdSfs/XrdSfsInterface.hh"
+#include <XrdSfs/XrdSfsInterface.hh>
 #include "common/Logging.hh"
 #include "fst/XrdFstOfs.hh"
 #include "fst/http/HttpServer.hh"

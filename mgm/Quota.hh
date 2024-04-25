@@ -34,7 +34,7 @@
 #include "common/Mapping.hh"
 #include "common/RWMutex.hh"
 #include "namespace/interface/IQuota.hh"
-#include "XrdOuc/XrdOucString.hh"
+#include <XrdOuc/XrdOucString.hh>
 
 EOSMGMNAMESPACE_BEGIN
 

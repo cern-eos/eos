@@ -21,9 +21,9 @@
  ************************************************************************/
 
 #pragma once
-#include "XrdHttp/XrdHttpExtHandler.hh"
+#include <XrdHttp/XrdHttpExtHandler.hh>
 #include "common/Logging.hh"
-#include "XrdVersion.hh"
+#include <XrdVersion.hh>
 #include <optional>
 #include <list>
 #include <curl/curl.h>

@@ -23,8 +23,8 @@
 
 /*----------------------------------------------------------------------------*/
 #include "console/ConsoleMain.hh"
-#include "XrdSys/XrdSysTimer.hh"
-#include "XrdSys/XrdSysLogger.hh"
+#include <XrdSys/XrdSysTimer.hh>
+#include <XrdSys/XrdSysLogger.hh>
 #include "mq/ErrorReportListener.hh"
 /*----------------------------------------------------------------------------*/
 

@@ -24,7 +24,7 @@
 #include <streambuf>
 #include <string>
 #include <cerrno>
-#include "XrdOuc/XrdOucEnv.hh"
+#include <XrdOuc/XrdOucEnv.hh>
 #include "common/StringTokenizer.hh"
 #include "common/StringConversion.hh"
 #include "common/SymKeys.hh"

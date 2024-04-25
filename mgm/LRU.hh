@@ -26,7 +26,7 @@
 #include "common/Mapping.hh"
 #include "common/AssistedThread.hh"
 #include "namespace/interface/IContainerMD.hh"
-#include "XrdOuc/XrdOucErrInfo.hh"
+#include <XrdOuc/XrdOucErrInfo.hh>
 #include <sys/types.h>
 #include <memory>
 

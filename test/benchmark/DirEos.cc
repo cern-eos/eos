@@ -26,8 +26,8 @@
 #include "Configuration.hh"
 /*----------------------------------------------------------------------------*/
 #include "common/LayoutId.hh"
-#include "XrdCl/XrdClFileSystem.hh"
-#include "XrdSfs/XrdSfsInterface.hh"
+#include <XrdCl/XrdClFileSystem.hh>
+#include <XrdSfs/XrdSfsInterface.hh>
 /*----------------------------------------------------------------------------*/
 
 

@@ -26,11 +26,11 @@
 #include "common/Path.hh"
 #include "common/IoPipe.hh"
 /*----------------------------------------------------------------------------*/
-#include "XrdSys/XrdSysLogger.hh"
-#include "XrdSys/XrdSysPthread.hh"
-#include "XrdOuc/XrdOucString.hh"
-#include "XrdNet/XrdNetOpts.hh"
-#include "XrdNet/XrdNetSocket.hh"
+#include <XrdSys/XrdSysLogger.hh>
+#include <XrdSys/XrdSysPthread.hh>
+#include <XrdOuc/XrdOucString.hh>
+#include <XrdNet/XrdNetOpts.hh>
+#include <XrdNet/XrdNetSocket.hh>
 /*----------------------------------------------------------------------------*/
 #include <sys/types.h>
 #include <sys/stat.h>

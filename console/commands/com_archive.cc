@@ -24,7 +24,7 @@
 #include <sstream>
 #include "common/StringTokenizer.hh"
 #include "console/ConsoleMain.hh"
-#include "XrdCl/XrdClURL.hh"
+#include <XrdCl/XrdClURL.hh>
 
 int
 com_archive(char* arg1)

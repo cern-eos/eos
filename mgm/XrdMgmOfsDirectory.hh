@@ -26,9 +26,9 @@
 #include "common/Logging.hh"
 #include "common/Mapping.hh"
 #include "common/LRU.hh"
-#include "XrdOuc/XrdOucErrInfo.hh"
-#include "XrdSec/XrdSecEntity.hh"
-#include "XrdSfs/XrdSfsInterface.hh"
+#include <XrdOuc/XrdOucErrInfo.hh>
+#include <XrdSec/XrdSecEntity.hh>
+#include <XrdSfs/XrdSfsInterface.hh>
 #include <dirent.h>
 #include <string>
 #include <set>

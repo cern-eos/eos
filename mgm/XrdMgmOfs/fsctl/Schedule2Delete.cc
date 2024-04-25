@@ -35,7 +35,7 @@
 #include "proto/Delete.pb.h"
 #include <google/protobuf/io/zero_copy_stream_impl.h>
 #include <google/protobuf/util/json_util.h>
-#include "XrdOuc/XrdOucEnv.hh"
+#include <XrdOuc/XrdOucEnv.hh>
 
 //------------------------------------------------------------------------------
 // Schedule deletion for FSTs

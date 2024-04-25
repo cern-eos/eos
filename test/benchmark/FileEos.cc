@@ -26,7 +26,7 @@
 #include <sys/stat.h>
 #include "FileEos.hh"
 #include "Result.hh"
-#include "XrdSfs/XrdSfsInterface.hh"
+#include <XrdSfs/XrdSfsInterface.hh>
 #include "fst/io/FileIoPlugin.hh"
 #include "fst/io/AsyncMetaHandler.hh"
 #include "fst/layout/RainMetaLayout.hh"

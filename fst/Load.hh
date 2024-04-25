@@ -25,7 +25,7 @@
 #define __EOSFST_LOAD_HH__
 
 #include "fst/Namespace.hh"
-#include "XrdSys/XrdSysPthread.hh"
+#include <XrdSys/XrdSysPthread.hh>
 #include <vector>
 #include <map>
 #include <string>

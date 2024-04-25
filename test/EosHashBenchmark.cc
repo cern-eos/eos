@@ -30,8 +30,8 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
-#include "XrdOuc/XrdOucString.hh"
-#include "XrdSys/XrdSysPthread.hh"
+#include <XrdOuc/XrdOucString.hh>
+#include <XrdSys/XrdSysPthread.hh>
 #include <google/dense_hash_map>
 #include <string>
 #include <map>

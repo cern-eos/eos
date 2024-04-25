@@ -30,11 +30,11 @@
 #include "common/StringUtils.hh"
 #include "common/Timing.hh"
 #include "common/Path.hh"
-#include "XrdSec/XrdSecEntityAttr.hh"
-#include "XrdSfs/XrdSfsInterface.hh"
-#include "XrdSys/XrdSysPlugin.hh"
-#include "XrdAcc/XrdAccAuthorize.hh"
-#include "XrdOuc/XrdOucPinPath.hh"
+#include <XrdSec/XrdSecEntityAttr.hh>
+#include <XrdSfs/XrdSfsInterface.hh>
+#include <XrdSys/XrdSysPlugin.hh>
+#include <XrdAcc/XrdAccAuthorize.hh>
+#include <XrdOuc/XrdOucPinPath.hh>
 #include <stdio.h>
 #include "mgm/http/rest-api/manager/RestApiManager.hh"
 

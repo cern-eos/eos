@@ -24,9 +24,9 @@
 #pragma once
 #include "console/GlobalOptions.hh"
 #include "common/StringConversion.hh"
-#include "XrdOuc/XrdOucString.hh"
-#include "XrdCl/XrdClFileSystem.hh"
-#include "XrdCl/XrdClXRootDResponses.hh"
+#include <XrdOuc/XrdOucString.hh>
+#include <XrdCl/XrdClFileSystem.hh>
+#include <XrdCl/XrdClXRootDResponses.hh>
 #include <vector>
 #include <math.h>
 #include <map>

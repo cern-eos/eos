@@ -30,7 +30,7 @@
 #include "fst/Namespace.hh"
 #include "common/Logging.hh"
 #include "common/Namespace.hh"
-#include "XrdOss/XrdOss.hh"
+#include <XrdOss/XrdOss.hh>
 
 class XrdOucStream;
 

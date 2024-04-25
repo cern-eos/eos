@@ -28,7 +28,7 @@
 #include "common/FileSystem.hh"
 #include "namespace/interface/IFileMD.hh"
 #include "proto/FileMd.pb.h"
-#include "XrdCl/XrdClCopyProcess.hh"
+#include <XrdCl/XrdClCopyProcess.hh>
 
 EOSMGMNAMESPACE_BEGIN
 

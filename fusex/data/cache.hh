@@ -29,8 +29,8 @@
 #include <sys/types.h>
 #include "llfusexx.hh"
 #include "bufferll.hh"
-#include "XrdSys/XrdSysPthread.hh"
-#include "XrdCl/XrdClFile.hh"
+#include <XrdSys/XrdSysPthread.hh>
+#include <XrdCl/XrdClFile.hh>
 #include "xrdclproxy.hh"
 #include <map>
 #include <string>

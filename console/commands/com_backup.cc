@@ -28,8 +28,8 @@
 /*----------------------------------------------------------------------------*/
 #include "common/StringTokenizer.hh"
 #include "console/ConsoleMain.hh"
-#include "XrdCl/XrdClFile.hh"
-#include "XrdCl/XrdClFileSystem.hh"
+#include <XrdCl/XrdClFile.hh>
+#include <XrdCl/XrdClFileSystem.hh>
 /*----------------------------------------------------------------------------*/
 
 int com_backup(char* arg1)

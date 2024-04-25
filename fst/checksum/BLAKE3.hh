@@ -29,9 +29,9 @@
 #include "fst/checksum/CheckSum.hh"
 #include "common/blake3/blake3.h"
 /*----------------------------------------------------------------------------*/
-#include "XrdOuc/XrdOucEnv.hh"
-#include "XrdOuc/XrdOucString.hh"
-#include "XrdSys/XrdSysPthread.hh"
+#include <XrdOuc/XrdOucEnv.hh>
+#include <XrdOuc/XrdOucString.hh>
+#include <XrdSys/XrdSysPthread.hh>
 /*----------------------------------------------------------------------------*/
 #include <zlib.h>
 

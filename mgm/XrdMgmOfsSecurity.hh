@@ -24,7 +24,7 @@
 #ifndef ___EOSMGM_SECURITY_H__
 #define ___EOSMGM_SECURITY_H__
 
-#include "XrdAcc/XrdAccAuthorize.hh"
+#include <XrdAcc/XrdAccAuthorize.hh>
 
 #define AUTHORIZE(usr, env, optype, action, pathp, edata)               \
   if (usr && gOFS->mExtAuthz                                            \

@@ -37,8 +37,8 @@
 #include "common/SymKeys.hh"
 #include "common/StringConversion.hh"
 /*----------------------------------------------------------------------------*/
-#include "XrdOuc/XrdOucString.hh"
-#include "XrdSys/XrdSysPthread.hh"
+#include <XrdOuc/XrdOucString.hh>
+#include <XrdSys/XrdSysPthread.hh>
 /*----------------------------------------------------------------------------*/
 #include <string>
 #include <map>

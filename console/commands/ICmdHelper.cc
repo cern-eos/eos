@@ -24,8 +24,8 @@
 #include "console/commands/ICmdHelper.hh"
 #include "common/Logging.hh"
 #include "common/SymKeys.hh"
-#include "XrdCl/XrdClFile.hh"
-#include "XrdOuc/XrdOucEnv.hh"
+#include <XrdCl/XrdClFile.hh>
+#include <XrdOuc/XrdOucEnv.hh>
 #include <sstream>
 #include <zmq.hpp>
 

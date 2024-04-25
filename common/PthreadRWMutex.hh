@@ -22,7 +22,7 @@
 
 #pragma once
 #include "common/IRWMutex.hh"
-#include "XrdSys/XrdSysPthread.hh"
+#include <XrdSys/XrdSysPthread.hh>
 
 EOSCOMMONNAMESPACE_BEGIN
 

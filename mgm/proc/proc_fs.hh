@@ -30,7 +30,7 @@
 #include "mgm/FileSystem.hh"
 #include "mgm/FsView.hh"
 #include "namespace/interface/IFileMD.hh"
-#include "XrdSec/XrdSecEntity.hh"
+#include <XrdSec/XrdSecEntity.hh>
 #include <set>
 #include <list>
 
