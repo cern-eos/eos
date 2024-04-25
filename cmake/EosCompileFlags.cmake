@@ -47,7 +47,6 @@ add_compile_options(-Wall
   -Wno-format-security
   -Wno-format-truncation
   -Wno-ignored-qualifiers
-  -Wno-implicit-fallthrough
   -Wno-int-in-bool-context
   -Wno-maybe-uninitialized
   -Wno-missing-field-initializers

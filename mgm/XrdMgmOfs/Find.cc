@@ -452,6 +452,8 @@ _clone(std::shared_ptr<eos::IContainerMD>& cmd,
         continue;
       }
 
+      /* fallthrough */
+
     case '+':
       if ((uint64_t) stime.tv_sec < cloneId) {
         break;

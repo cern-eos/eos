@@ -337,6 +337,8 @@ ReplicationTracker::Commit(std::shared_ptr<eos::IFileMD> fmd)
                 do_conversion = false;
               }
 
+              break;
+
             default:
               eos_static_warning(
                 "illegal space conversion policy size: should be "

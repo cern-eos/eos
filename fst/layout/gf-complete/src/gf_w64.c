@@ -2120,6 +2120,7 @@ int gf_w64_scratch_size(int mult_type, int region_type, int divide_type, int arg
       arg1 = 64;
       arg2 = 8;
 #endif
+      /* fallthrough */
 
     case GF_MULT_SPLIT_TABLE:
         if (arg1 == 8 && arg2 == 8) {

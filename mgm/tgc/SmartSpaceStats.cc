@@ -91,6 +91,8 @@ SmartSpaceStats::get()
                   "State of AsyncResult is PENDING_AND_PREVIOUS_VALUE but it does not contain a previous value");
               }
 
+              // fallthrough
+
             case AsyncResult<std::uint64_t>::State::VALUE:
               if (asyncResult.getValue()) {
                 m_mgmStats.stats.availBytes = asyncResult.getValue().value();

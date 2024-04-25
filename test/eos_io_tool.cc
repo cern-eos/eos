@@ -695,6 +695,8 @@ int main(int argc, char* argv[])
       }
     }
 
+    // fallthrough
+
     case 'a': {
       val = optarg;
 

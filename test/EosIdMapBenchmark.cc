@@ -62,10 +62,13 @@ int main(int argc, const char* argv[]) {
   switch (argc) {
   case 4:
     cache_factor = atoi(argv[3]);
+    // fallthrough
   case 3:
     num_threads = atoi(argv[2]);
+    // fallthrough
   case 2:
     n_clients = atoi(argv[1]);
+    // fallthrough
   }
 
   /*
