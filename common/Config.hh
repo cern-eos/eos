@@ -181,8 +181,6 @@ public:
 
     if (doit) {
       std::string r = s;
-
-      size_t p1,p2;
       ReplaceFromChapter(r, substitute_chapter);
       return r;
     }

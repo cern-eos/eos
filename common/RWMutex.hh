@@ -325,8 +325,6 @@ public:
   {
     auto acquiredAtSinceEpoch = acquiredAt.time_since_epoch();
     auto releasedAtSinceEpoch = releasedAt.time_since_epoch();
-    auto acquiredAtSecondsSinceEpoch =
-      std::chrono::duration_cast<std::chrono::seconds>(acquiredAtSinceEpoch).count();
     auto releasedAtSecondsSinceEpoch =
       std::chrono::duration_cast<std::chrono::seconds>(releasedAtSinceEpoch).count();
     auto acquiredAtMsSinceEpoch =
