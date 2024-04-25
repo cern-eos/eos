@@ -75,8 +75,8 @@ public:
   const char* GetHexChecksum()
   {
     Checksum = "";
-    char hexs[16];
-    sprintf(hexs, "%016"PRIx64"", result);
+    char hexs[17];
+    sprintf(hexs, "%016" PRIx64, result);
     Checksum += hexs;
     return Checksum.c_str();
   }
