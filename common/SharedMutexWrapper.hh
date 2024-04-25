@@ -24,15 +24,4 @@
 //! The purpose of this header file is to make sure the std::shared_timed_mutex
 //! uses the condition-variable implementation and not the pthread_rw one.
 //------------------------------------------------------------------------------
-#pragma once
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wmacro-redefined"
-#ifdef __APPLE__
 #include <shared_mutex>
-#else
-#include <bits/c++config.h>
-#define _GLIBCXX_USE_PTHREAD_RWLOCK_T 0
-#include <shared_mutex>
-#define _GLIBCXX_USE_PTHREAD_RWLOCK_T 1
-#endif
-#pragma GCC diagnostic pop
