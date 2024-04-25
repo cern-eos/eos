@@ -107,7 +107,7 @@ public:
   //! @param size size of buffers allocated by the current slot
   //----------------------------------------------------------------------------
   BufferSlot(uint64_t size):
-    mBuffSize(size), mNumBuffers(0)
+    mNumBuffers(0), mBuffSize(size)
   {}
 
   //----------------------------------------------------------------------------
