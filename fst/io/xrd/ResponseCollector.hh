@@ -4,7 +4,7 @@
 //! @brief Object used for handling async responses
 //------------------------------------------------------------------------------
 
-#pragma one
+#pragma once
 #include "fst/Namespace.hh"
 #include <XrdCl/XrdClXRootDResponses.hh>
 #include <future>
