@@ -29,11 +29,11 @@
 #include "common/SymKeys.hh"
 #include "common/StringUtils.hh"
 #include "common/token/EosTok.hh"
-#include "XrdNet/XrdNetUtils.hh"
-#include "XrdNet/XrdNetAddr.hh"
-#include "XrdOuc/XrdOucEnv.hh"
-#include "XrdSec/XrdSecEntityAttr.hh"
-#include "XrdAcc/XrdAccAuthorize.hh"
+#include <XrdNet/XrdNetUtils.hh>
+#include <XrdNet/XrdNetAddr.hh>
+#include <XrdOuc/XrdOucEnv.hh>
+#include <XrdSec/XrdSecEntityAttr.hh>
+#include <XrdAcc/XrdAccAuthorize.hh>
 #include <pwd.h>
 #include <grp.h>
 #include <sys/stat.h>

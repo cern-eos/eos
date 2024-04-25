@@ -22,7 +22,7 @@
  ************************************************************************/
 
 #include "Exception.hh"
-#include "XrdSfs/XrdSfsInterface.hh"
+#include <XrdSfs/XrdSfsInterface.hh>
 
 EOSCOMMONNAMESPACE_BEGIN
 

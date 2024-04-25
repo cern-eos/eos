@@ -16,8 +16,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "XrdOuc/XrdOucString.hh"
-#include "XrdSys/XrdSysPthread.hh"
+#include <XrdOuc/XrdOucString.hh>
+#include <XrdSys/XrdSysPthread.hh>
 #include "common/LinuxStat.hh"
 #include "common/LinuxMemConsumption.hh"
 #include "common/RWMutex.hh"

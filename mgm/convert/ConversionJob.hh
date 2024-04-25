@@ -29,7 +29,7 @@
 #include "common/LayoutId.hh"
 #include "common/FileSystem.hh"
 #include "namespace/interface/IFileMD.hh"
-#include "XrdCl/XrdClCopyProcess.hh"
+#include <XrdCl/XrdClCopyProcess.hh>
 
 EOSMGMNAMESPACE_BEGIN
 

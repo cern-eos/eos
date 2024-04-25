@@ -25,8 +25,8 @@
 #include "common/StringTokenizer.hh"
 #include "common/StringConversion.hh"
 #include "common/Path.hh"
-#include "XrdPosix/XrdPosixXrootd.hh"
-#include "XrdOuc/XrdOucEnv.hh"
+#include <XrdPosix/XrdPosixXrootd.hh>
+#include <XrdOuc/XrdOucEnv.hh>
 #include "pwd.h"
 #include <thread>
 #include <chrono>

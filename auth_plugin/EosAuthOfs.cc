@@ -32,14 +32,14 @@
 #include "EosAuthOfsDirectory.hh"
 #include "EosAuthOfsFile.hh"
 #include "common/SymKeys.hh"
-#include "XrdOuc/XrdOucTrace.hh"
-#include "XrdOuc/XrdOucString.hh"
-#include "XrdOss/XrdOssApi.hh"
-#include "XrdSec/XrdSecEntity.hh"
-#include "XrdNet/XrdNetIF.hh"
-#include "XrdNet/XrdNetUtils.hh"
-#include "XrdNet/XrdNetAddr.hh"
-#include "XrdVersion.hh"
+#include <XrdOuc/XrdOucTrace.hh>
+#include <XrdOuc/XrdOucString.hh>
+#include <XrdOss/XrdOssApi.hh>
+#include <XrdSec/XrdSecEntity.hh>
+#include <XrdNet/XrdNetIF.hh>
+#include <XrdNet/XrdNetUtils.hh>
+#include <XrdNet/XrdNetAddr.hh>
+#include <XrdVersion.hh>
 #include "google/protobuf/io/zero_copy_stream_impl.h"
 
 // The global OFS handle

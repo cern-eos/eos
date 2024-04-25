@@ -44,8 +44,8 @@
 #include "namespace/ns_quarkdb/qclient/include/qclient/ResponseParsing.hh"
 #include "namespace/Prefetcher.hh"
 #include "mq/ReportListener.hh"
-#include "XrdNet/XrdNetUtils.hh"
-#include "XrdNet/XrdNetAddr.hh"
+#include <XrdNet/XrdNetUtils.hh>
+#include <XrdNet/XrdNetAddr.hh>
 #include <curl/curl.h>
 
 EOSMGMNAMESPACE_BEGIN

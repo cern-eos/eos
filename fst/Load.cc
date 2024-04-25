@@ -24,7 +24,7 @@
 #include "fst/Load.hh"
 #include "common/Timing.hh"
 #include "common/StringConversion.hh"
-#include "XrdOuc/XrdOucString.hh"
+#include <XrdOuc/XrdOucString.hh>
 #include <fstream>
 #include <cstdio>
 #include <cstdlib>

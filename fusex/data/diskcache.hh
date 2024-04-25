@@ -32,7 +32,7 @@
 #include "data/cache.hh"
 #include "data/dircleaner.hh"
 #include "data/cacheconfig.hh"
-#include "XrdSys/XrdSysPthread.hh"
+#include <XrdSys/XrdSysPthread.hh>
 #include <map>
 #include <string>
 

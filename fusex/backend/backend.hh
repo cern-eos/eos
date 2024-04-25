@@ -29,9 +29,9 @@
 #include "fusex/fusex.pb.h"
 #include "misc/FuseId.hh"
 #include "llfusexx.hh"
-#include "XrdCl/XrdClStatus.hh"
-#include "XrdCl/XrdClFile.hh"
-#include "XrdCl/XrdClURL.hh"
+#include <XrdCl/XrdClStatus.hh>
+#include <XrdCl/XrdClFile.hh>
+#include <XrdCl/XrdClURL.hh>
 
 #include <sys/statvfs.h>
 

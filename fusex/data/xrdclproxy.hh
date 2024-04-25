@@ -25,10 +25,10 @@
 #ifndef FUSE_XRDCLPROXY_HH_
 #define FUSE_XRDCLPROXY_HH_
 
-#include "XrdSys/XrdSysPthread.hh"
-#include "XrdCl/XrdClFile.hh"
-#include "XrdCl/XrdClFileSystem.hh"
-#include "XrdCl/XrdClDefaultEnv.hh"
+#include <XrdSys/XrdSysPthread.hh>
+#include <XrdCl/XrdClFile.hh>
+#include <XrdCl/XrdClFileSystem.hh>
+#include <XrdCl/XrdClDefaultEnv.hh>
 #include "llfusexx.hh"
 #include "common/Logging.hh"
 #include "common/Timing.hh"

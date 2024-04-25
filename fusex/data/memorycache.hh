@@ -30,7 +30,7 @@
 #include "llfusexx.hh"
 #include "bufferll.hh"
 #include "cache.hh"
-#include "XrdSys/XrdSysPthread.hh"
+#include <XrdSys/XrdSysPthread.hh>
 #include <map>
 #include <string>
 

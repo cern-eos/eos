@@ -23,7 +23,7 @@
 
 #include "gtest/gtest.h"
 #include "TestEnv.hh"
-#include "XrdCl/XrdClURL.hh"
+#include <XrdCl/XrdClURL.hh>
 
 std::unique_ptr<eos::fst::test::TestEnv> gEnv {nullptr};
 eos::fst::test::GTest_Logger gLogger(false);

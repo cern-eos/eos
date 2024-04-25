@@ -26,7 +26,7 @@
 #include "mq/XrdMqTiming.hh"
 #include "mq/XrdMqMessaging.hh"
 #include "mq/XrdMqSharedObject.hh"
-#include "XrdSys/XrdSysLogger.hh"
+#include <XrdSys/XrdSysLogger.hh>
 #include <stdio.h>
 
 int main(int argc, char* argv[])

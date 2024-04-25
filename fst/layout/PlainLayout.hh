@@ -26,7 +26,7 @@
 #define __EOSFST_PLAINLAYOUT_HH__
 
 #include "fst/layout/Layout.hh"
-#include "XrdCl/XrdClXRootDResponses.hh"
+#include <XrdCl/XrdClXRootDResponses.hh>
 #include <pthread.h>
 
 EOSFSTNAMESPACE_BEGIN

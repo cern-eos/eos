@@ -23,8 +23,8 @@
 #include "mgm/RouteEndpoint.hh"
 #include "common/StringConversion.hh"
 #include "common/ParseUtils.hh"
-#include "XrdCl/XrdClURL.hh"
-#include "XrdCl/XrdClFileSystem.hh"
+#include <XrdCl/XrdClURL.hh>
+#include <XrdCl/XrdClFileSystem.hh>
 #include <sstream>
 
 EOSMGMNAMESPACE_BEGIN

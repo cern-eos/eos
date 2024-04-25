@@ -34,7 +34,7 @@
 #include "common/StringUtils.hh"
 #include "common/IntervalStopwatch.hh"
 #include "common/SymKeys.hh"
-#include "XrdVersion.hh"
+#include <XrdVersion.hh>
 #include <optional>
 #include <sys/sysinfo.h>
 

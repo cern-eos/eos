@@ -27,7 +27,7 @@
 
 #include "gtest/gtest.h"
 #include "unit_tests/fst/TestEnv.hh"
-#include "XrdOuc/XrdOucTokenizer.hh"
+#include <XrdOuc/XrdOucTokenizer.hh>
 
 using namespace eos::fst;
 using namespace eos::fst::test;

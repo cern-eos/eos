@@ -21,7 +21,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "XrdOuc/XrdOucEnv.hh"
+#include <XrdOuc/XrdOucEnv.hh>
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/FsView.hh"
 #include "mgm/config/IConfigEngine.hh"

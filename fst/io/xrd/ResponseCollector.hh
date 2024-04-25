@@ -6,7 +6,7 @@
 
 #pragma one
 #include "fst/Namespace.hh"
-#include "XrdCl/XrdClXRootDResponses.hh"
+#include <XrdCl/XrdClXRootDResponses.hh>
 #include <future>
 #include <list>
 #include <mutex>

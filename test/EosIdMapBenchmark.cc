@@ -23,7 +23,7 @@
 
 #include "common/Mapping.hh"
 #include "common/Logging.hh"
-#include "XrdSec/XrdSecEntity.hh"
+#include <XrdSec/XrdSecEntity.hh>
 #include <chrono>
 
 void IdMapClient(int n, int cache_factor=1){

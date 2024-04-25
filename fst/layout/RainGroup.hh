@@ -23,7 +23,7 @@
 
 #pragma once
 #include "fst/layout/RainBlock.hh"
-#include "XrdCl/XrdClXRootDResponses.hh"
+#include <XrdCl/XrdClXRootDResponses.hh>
 #include <future>
 #include <list>
 

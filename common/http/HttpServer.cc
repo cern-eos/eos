@@ -24,10 +24,10 @@
 #include "common/http/HttpServer.hh"
 #include "common/http/PlainHttpResponse.hh"
 #include "common/StringConversion.hh"
-#include "XrdSys/XrdSysPthread.hh"
-#include "XrdSys/XrdSysLogger.hh"
-#include "XrdSys/XrdSysError.hh"
-#include "XrdNet/XrdNet.hh"
+#include <XrdSys/XrdSysPthread.hh>
+#include <XrdSys/XrdSysLogger.hh>
+#include <XrdSys/XrdSysError.hh>
+#include <XrdNet/XrdNet.hh>
 #include <string>
 #include <map>
 #include <sstream>

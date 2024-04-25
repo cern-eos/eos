@@ -27,8 +27,8 @@
 /*----------------------------------------------------------------------------*/
 #include "mgm/Namespace.hh"
 /*----------------------------------------------------------------------------*/
-#include "XrdOuc/XrdOucString.hh"
-#include "XrdOuc/XrdOucEnv.hh"
+#include <XrdOuc/XrdOucString.hh>
+#include <XrdOuc/XrdOucEnv.hh>
 /*----------------------------------------------------------------------------*/
 #include <sys/types.h>
 

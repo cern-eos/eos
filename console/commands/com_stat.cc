@@ -25,7 +25,7 @@
 #include "console/ConsoleMain.hh"
 #include "common/StringTokenizer.hh"
 #include "common/StringConversion.hh"
-#include "XrdPosix/XrdPosixXrootd.hh"
+#include <XrdPosix/XrdPosixXrootd.hh>
 /*----------------------------------------------------------------------------*/
 
 /* Stat a directory or a file */

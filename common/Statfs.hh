@@ -26,9 +26,9 @@
 
 #include "common/Namespace.hh"
 #include "common/Logging.hh"
-#include "XrdOuc/XrdOucHash.hh"
-#include "XrdOuc/XrdOucString.hh"
-#include "XrdSys/XrdSysPthread.hh"
+#include <XrdOuc/XrdOucHash.hh>
+#include <XrdOuc/XrdOucString.hh>
+#include <XrdSys/XrdSysPthread.hh>
 #ifndef __APPLE__
 #include <sys/vfs.h>
 #else

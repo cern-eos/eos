@@ -21,7 +21,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "XrdCl/XrdClFile.hh"
+#include <XrdCl/XrdClFile.hh>
 #include <thread>
 #include <chrono>
 #include <fstream>

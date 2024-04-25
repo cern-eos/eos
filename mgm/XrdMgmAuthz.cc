@@ -24,11 +24,11 @@
 #include "common/token/EosTok.hh"
 #include "common/SecEntity.hh"
 #include "mgm/XrdMgmAuthz.hh"
-#include "XrdSys/XrdSysError.hh"
-#include "XrdOuc/XrdOucString.hh"
-#include "XrdOuc/XrdOucEnv.hh"
-#include "XrdSec/XrdSecEntityAttr.hh"
-#include "XrdVersion.hh"
+#include <XrdSys/XrdSysError.hh>
+#include <XrdOuc/XrdOucString.hh>
+#include <XrdOuc/XrdOucEnv.hh>
+#include <XrdSec/XrdSecEntityAttr.hh>
+#include <XrdVersion.hh>
 
 XrdMgmAuthz* gMgmAuthz {nullptr};
 

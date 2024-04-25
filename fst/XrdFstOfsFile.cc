@@ -36,10 +36,10 @@
 #include "fst/layout/LayoutPlugin.hh"
 #include "fst/checksum/ChecksumPlugins.hh"
 #include "fst/storage/FileSystem.hh"
-#include "XrdOss/XrdOssApi.hh"
+#include <XrdOss/XrdOssApi.hh>
 #include "fst/io/FileIoPluginCommon.hh"
 #include "namespace/utils/Etag.hh"
-#include "XrdOuc/XrdOucPgrwUtils.hh"
+#include <XrdOuc/XrdOucPgrwUtils.hh>
 extern XrdOss* XrdOfsOss;
 
 EOSFSTNAMESPACE_BEGIN

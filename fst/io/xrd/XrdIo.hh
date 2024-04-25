@@ -30,7 +30,7 @@
 #include "common/FileMap.hh"
 #include "common/XrdConnPool.hh"
 #include "common/BufferManager.hh"
-#include "XrdCl/XrdClFile.hh"
+#include <XrdCl/XrdClFile.hh>
 #include <queue>
 
 namespace eos

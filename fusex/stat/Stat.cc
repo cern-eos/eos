@@ -26,7 +26,7 @@
 #include "common/StringConversion.hh"
 #include "fusex/stat/Stat.hh"
 /*----------------------------------------------------------------------------*/
-#include "XrdOuc/XrdOucString.hh"
+#include <XrdOuc/XrdOucString.hh>
 #include "fmt/printf.h"
 /*----------------------------------------------------------------------------*/
 

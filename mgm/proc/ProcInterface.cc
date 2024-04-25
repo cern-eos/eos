@@ -22,7 +22,7 @@
  ************************************************************************/
 
 #include "ProcInterface.hh"
-#include "XrdOuc/XrdOucEnv.hh"
+#include <XrdOuc/XrdOucEnv.hh>
 #include "mgm/proc/admin/AccessCmd.hh"
 #include "mgm/proc/admin/ConfigCmd.hh"
 #include "mgm/proc/admin/ConvertCmd.hh"

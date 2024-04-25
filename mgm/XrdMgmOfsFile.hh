@@ -52,8 +52,8 @@
 #include "common/Logging.hh"
 #include "mgm/Messaging.hh"
 #include "mgm/proc/IProcCommand.hh"
-#include "XrdOuc/XrdOucErrInfo.hh"
-#include "XrdSfs/XrdSfsInterface.hh"
+#include <XrdOuc/XrdOucErrInfo.hh>
+#include <XrdSfs/XrdSfsInterface.hh>
 
 USE_EOSMGMNAMESPACE
 

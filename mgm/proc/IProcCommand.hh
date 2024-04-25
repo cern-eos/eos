@@ -27,7 +27,7 @@
 #include "common/Logging.hh"
 #include "proto/ConsoleReply.pb.h"
 #include "proto/ConsoleRequest.pb.h"
-#include "XrdSfs/XrdSfsInterface.hh"
+#include <XrdSfs/XrdSfsInterface.hh>
 #include <future>
 #include <sstream>
 

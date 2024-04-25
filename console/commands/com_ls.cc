@@ -24,8 +24,8 @@
 #include "console/ConsoleMain.hh"
 #include "common/StringTokenizer.hh"
 #include "common/StringConversion.hh"
-#include "XrdPosix/XrdPosixXrootd.hh"
-#include "XrdOuc/XrdOucEnv.hh"
+#include <XrdPosix/XrdPosixXrootd.hh>
+#include <XrdOuc/XrdOucEnv.hh>
 #include "namespace/utils/Mode.hh"
 #include "stdio.h"
 

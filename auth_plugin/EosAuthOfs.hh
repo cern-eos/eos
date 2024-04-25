@@ -24,7 +24,7 @@
 #ifndef __EOSAUTH_OFS_HH__
 #define __EOSAUTH_OFS_HH__
 
-#include "XrdOfs/XrdOfs.hh"
+#include <XrdOfs/XrdOfs.hh>
 #include "Namespace.hh"
 #include "common/ConcurrentQueue.hh"
 #include <zmq.hpp>

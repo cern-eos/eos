@@ -27,7 +27,7 @@
 #include "common/Logging.hh"
 #include "common/FileSystem.hh"
 #include "proto/FileMd.pb.h"
-#include "XrdCl/XrdClCopyProcess.hh"
+#include <XrdCl/XrdClCopyProcess.hh>
 
 EOSMGMNAMESPACE_BEGIN
 

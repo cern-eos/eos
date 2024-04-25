@@ -21,6 +21,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
+#include "XrdStress.hh"
+
 #include <iostream>
 #include <sstream>
 #include <fstream>
@@ -34,9 +36,8 @@
 #include <sys/wait.h>
 #include <sys/time.h>
 #include <math.h>
-#include "XrdStress.hh"
-#include "XrdPosix/XrdPosixXrootd.hh"
-#include "XrdCl/XrdClFileSystem.hh"
+#include <XrdPosix/XrdPosixXrootd.hh>
+#include <XrdCl/XrdClFileSystem.hh>
 
 //------------------------------------------------------------------------------
 // Constructor

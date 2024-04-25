@@ -25,8 +25,8 @@
 #include "ConsolePipe.hh"
 #include "ConsoleCompletion.hh"
 #include "console/RegexUtil.hh"
-#include "XrdCl/XrdClDefaultEnv.hh"
-#include "XrdCl/XrdClURL.hh"
+#include <XrdCl/XrdClDefaultEnv.hh>
+#include <XrdCl/XrdClURL.hh>
 #include "License"
 #include "common/FileId.hh"
 #include "common/Path.hh"
@@ -37,9 +37,9 @@
 #include "common/StringUtils.hh"
 #include "mq/XrdMqMessage.hh"
 #include "mq/XrdMqTiming.hh"
-#include "XrdOuc/XrdOucTokenizer.hh"
-#include "XrdOuc/XrdOucEnv.hh"
-#include "XrdCl/XrdClFile.hh"
+#include <XrdOuc/XrdOucTokenizer.hh>
+#include <XrdOuc/XrdOucEnv.hh>
+#include <XrdCl/XrdClFile.hh>
 #include <zmq.hpp>
 #include <iomanip>
 #include <setjmp.h>

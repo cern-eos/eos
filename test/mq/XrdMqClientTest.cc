@@ -23,7 +23,7 @@
 
 #include "mq/XrdMqClient.hh"
 #include "mq/XrdMqTiming.hh"
-#include "XrdSys/XrdSysLogger.hh"
+#include <XrdSys/XrdSysLogger.hh>
 #include <stdio.h>
 
 int main(int argc, char* argv[])

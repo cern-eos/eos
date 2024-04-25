@@ -27,7 +27,7 @@
 #include <map>
 #include <memory>
 #include "mgm/fuse-locks/LockTracker.hh"
-#include "XrdSys/XrdSysPthread.hh"
+#include <XrdSys/XrdSysPthread.hh>
 
 EOSFUSESERVERNAMESPACE_BEGIN
 

@@ -31,7 +31,7 @@
 #include "namespace/interface/IFsView.hh"
 #include "namespace/interface/IView.hh"
 #include "namespace/Prefetcher.hh"
-#include "XrdOuc/XrdOucTokenizer.hh"
+#include <XrdOuc/XrdOucTokenizer.hh>
 #include <unordered_set>
 
 EOSMGMNAMESPACE_BEGIN

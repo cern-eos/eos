@@ -32,7 +32,7 @@
 #include "common/Timing.hh"
 #include "common/Path.hh"
 #include "common/http/OwnCloud.hh"
-#include "XrdOuc/XrdOucErrInfo.hh"
+#include <XrdOuc/XrdOucErrInfo.hh>
 
 EOSMGMNAMESPACE_BEGIN
 

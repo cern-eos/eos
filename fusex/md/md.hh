@@ -38,7 +38,7 @@
 #include "common/SymKeys.hh"
 #include "kv/kv.hh"
 #include "misc/FuseId.hh"
-#include "XrdSys/XrdSysPthread.hh"
+#include <XrdSys/XrdSysPthread.hh>
 #include <memory>
 #include <map>
 #include <set>

@@ -28,8 +28,8 @@
 #include "fst/Namespace.hh"
 #include "fst/checksum/CheckSum.hh"
 /*----------------------------------------------------------------------------*/
-#include "XrdOuc/XrdOucEnv.hh"
-#include "XrdOuc/XrdOucString.hh"
+#include <XrdOuc/XrdOucEnv.hh>
+#include <XrdOuc/XrdOucString.hh>
 /*----------------------------------------------------------------------------*/
 #include <openssl/md5.h>
 /*----------------------------------------------------------------------------*/

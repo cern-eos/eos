@@ -28,11 +28,11 @@
 #include "common/Logging.hh"
 #include "common/SymKeys.hh"
 /*----------------------------------------------------------------------------*/
-#include "XrdOuc/XrdOucString.hh"
-#include "XrdOuc/XrdOucTList.hh"
-#include "XrdOuc/XrdOucErrInfo.hh"
-#include "XrdSfs/XrdSfsInterface.hh"
-#include "XrdSec/XrdSecEntity.hh"
+#include <XrdOuc/XrdOucString.hh>
+#include <XrdOuc/XrdOucTList.hh>
+#include <XrdOuc/XrdOucErrInfo.hh>
+#include <XrdSfs/XrdSfsInterface.hh>
+#include <XrdSec/XrdSecEntity.hh>
 /*----------------------------------------------------------------------------*/
 
 EOSAUTHNAMESPACE_BEGIN

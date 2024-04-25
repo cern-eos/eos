@@ -24,8 +24,8 @@
 #pragma once
 #include "mgm/Namespace.hh"
 #include "common/Logging.hh"
-#include "XrdOuc/XrdOucString.hh"
-#include "XrdOuc/XrdOucHash.hh"
+#include <XrdOuc/XrdOucString.hh>
+#include <XrdOuc/XrdOucHash.hh>
 #include <sstream>
 #include <mutex>
 

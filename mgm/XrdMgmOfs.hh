@@ -124,7 +124,7 @@
 #include "namespace/locking/BulkNsObjectLocker.hh"
 #include "mgm/InFlightTracker.hh"
 #include "mgm/namespacestats/NamespaceStats.hh"
-#include "XrdAcc/XrdAccPrivs.hh"
+#include <XrdAcc/XrdAccPrivs.hh>
 #include <google/sparse_hash_map>
 #include <chrono>
 #include <mutex>

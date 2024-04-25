@@ -40,8 +40,8 @@
 #include "llfusexx.hh"
 #include "fusex/fusex.pb.h"
 #include "common/Logging.hh"
-#include "XrdCl/XrdClFile.hh"
-#include "XrdSys/XrdSysPthread.hh"
+#include <XrdCl/XrdClFile.hh>
+#include <XrdSys/XrdSysPthread.hh>
 #include <memory>
 #include <map>
 #include <set>

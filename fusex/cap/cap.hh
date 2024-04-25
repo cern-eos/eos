@@ -32,7 +32,7 @@
 #include "md/md.hh"
 #include "fusex/fusex.pb.h"
 
-#include "XrdSys/XrdSysPthread.hh"
+#include <XrdSys/XrdSysPthread.hh>
 #include <memory>
 #include <map>
 

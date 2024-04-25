@@ -30,7 +30,7 @@
 #include <errno.h>
 #ifdef __APPLE__
 #define EKEYEXPIRED 127
-#include "XrdSys/XrdSysPlatform.hh"
+#include <XrdSys/XrdSysPlatform.hh>
 #endif
 #include "common/XattrCompat.hh"
 

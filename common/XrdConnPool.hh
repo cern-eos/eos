@@ -24,7 +24,7 @@
 #pragma once
 #include "common/Namespace.hh"
 #include "common/Logging.hh"
-#include "XrdCl/XrdClURL.hh"
+#include <XrdCl/XrdClURL.hh>
 #include <mutex>
 
 EOSCOMMONNAMESPACE_BEGIN
