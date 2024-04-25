@@ -25,8 +25,8 @@
 #include "console/commands/helpers/NewfindHelper.hh"
 #include "common/StringTokenizer.hh"
 #include "common/StringConversion.hh"
-#include "XrdPosix/XrdPosixXrootd.hh"
-#include "XrdOuc/XrdOucEnv.hh"
+#include <XrdPosix/XrdPosixXrootd.hh>
+#include <XrdOuc/XrdOucEnv.hh>
 
 //------------------------------------------------------------------------------
 // Parse command line input

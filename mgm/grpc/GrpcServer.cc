@@ -27,7 +27,7 @@
 #include "common/Logging.hh"
 #include "common/StringConversion.hh"
 #include "mgm/Macros.hh"
-#include "XrdSec/XrdSecEntity.hh"
+#include <XrdSec/XrdSecEntity.hh>
 
 #ifdef EOS_GRPC
 #include "proto/Rpc.grpc.pb.h"

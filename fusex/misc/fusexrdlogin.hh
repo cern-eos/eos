@@ -27,7 +27,7 @@
 #define FUSE_XRDLOGIN_HH_
 
 #include <memory>
-#include "XrdCl/XrdClURL.hh"
+#include <XrdCl/XrdClURL.hh>
 #include "llfusexx.hh"
 #include "auth/AuthenticationGroup.hh"
 #include "auth/ProcessCache.hh"

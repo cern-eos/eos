@@ -3,7 +3,7 @@
 #include "common/Logging.hh"
 #include "common/StringConversion.hh"
 #include "mgm/Macros.hh"
-#include "XrdSec/XrdSecEntity.hh"
+#include <XrdSec/XrdSecEntity.hh>
 
 #ifdef EOS_GRPC_GATEWAY
 #include "proto/eos_rest_gateway/eos_rest_gateway_service.grpc.pb.h"

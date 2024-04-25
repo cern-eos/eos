@@ -29,7 +29,7 @@
 #include "fst/Load.hh"
 #include "common/LayoutId.hh"
 /*----------------------------------------------------------------------------*/
-#include "XrdOuc/XrdOucString.hh"
+#include <XrdOuc/XrdOucString.hh>
 /*----------------------------------------------------------------------------*/
 #include <google/sparse_hash_map>
 #include <setjmp.h>

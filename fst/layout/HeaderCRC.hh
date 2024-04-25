@@ -23,7 +23,7 @@
  ************************************************************************/
 
 #pragma once
-#include "XrdCl/XrdClFile.hh"
+#include <XrdCl/XrdClFile.hh>
 #include "common/Logging.hh"
 #include "fst/Namespace.hh"
 

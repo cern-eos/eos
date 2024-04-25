@@ -22,7 +22,7 @@
  ************************************************************************/
 
 #include "common/Mapping.hh"
-#include "XrdSec/XrdSecEntity.hh"
+#include <XrdSec/XrdSecEntity.hh>
 #include "benchmark/benchmark.h"
 #include <sstream>
 #include <thread>

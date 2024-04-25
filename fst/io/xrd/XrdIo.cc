@@ -29,10 +29,10 @@
 #include "fst/io/AsyncMetaHandler.hh"
 #include "common/FileMap.hh"
 #include "common/Logging.hh"
-#include "XrdCl/XrdClDefaultEnv.hh"
-#include "XrdCl/XrdClBuffer.hh"
-#include "XrdCl/XrdClConstants.hh"
-#include "XrdSfs/XrdSfsInterface.hh"
+#include <XrdCl/XrdClDefaultEnv.hh>
+#include <XrdCl/XrdClBuffer.hh>
+#include <XrdCl/XrdClConstants.hh>
+#include <XrdSfs/XrdSfsInterface.hh>
 
 // Linux compat for Apple
 #ifdef __APPLE__

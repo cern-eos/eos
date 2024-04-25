@@ -32,8 +32,8 @@
 #include "common/http/MimeTypes.hh"
 #include "fst/XrdFstOfs.hh"
 #include "fst/XrdFstOfsFile.hh"
-#include "XrdSys/XrdSysPthread.hh"
-#include "XrdSfs/XrdSfsInterface.hh"
+#include <XrdSys/XrdSysPthread.hh>
+#include <XrdSfs/XrdSfsInterface.hh>
 #include <algorithm>
 
 EOSFSTNAMESPACE_BEGIN

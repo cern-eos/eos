@@ -35,7 +35,7 @@
 #include "common/http/ProtocolHandler.hh"
 #include "common/Mapping.hh"
 #include "mgm/http/rest-api/handler/tape/TapeRestHandler.hh"
-#include "XrdHttp/XrdHttpExtHandler.hh"
+#include <XrdHttp/XrdHttpExtHandler.hh>
 #include <map>
 #include <string>
 

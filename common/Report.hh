@@ -35,8 +35,8 @@
 /*----------------------------------------------------------------------------*/
 #include "common/Namespace.hh"
 /*----------------------------------------------------------------------------*/
-#include "XrdOuc/XrdOucEnv.hh"
-#include "XrdOuc/XrdOucString.hh"
+#include <XrdOuc/XrdOucEnv.hh>
+#include <XrdOuc/XrdOucString.hh>
 /*----------------------------------------------------------------------------*/
 #include <vector>
 #include <string>

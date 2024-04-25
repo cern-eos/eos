@@ -25,7 +25,7 @@
 #define FUSE_STAT_HH_
 
 /*----------------------------------------------------------------------------*/
-#include "XrdSys/XrdSysPthread.hh"
+#include <XrdSys/XrdSysPthread.hh>
 #include "common/AssistedThread.hh"
 /*----------------------------------------------------------------------------*/
 #include <google/sparse_hash_map>

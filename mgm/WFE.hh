@@ -32,9 +32,9 @@
 #include "common/AssistedThread.hh"
 #include "common/xrootd-ssi-protobuf-interface/eos_cta/include/CtaFrontendApi.hpp"
 #include "proto/ConsoleReply.pb.h"
-#include "XrdOuc/XrdOucString.hh"
-#include "XrdOuc/XrdOucErrInfo.hh"
-#include "Xrd/XrdJob.hh"
+#include <XrdOuc/XrdOucString.hh>
+#include <XrdOuc/XrdOucErrInfo.hh>
+#include <Xrd/XrdJob.hh>
 #include <sys/types.h>
 
 //! Forward declaration

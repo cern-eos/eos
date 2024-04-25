@@ -22,8 +22,8 @@
  ************************************************************************/
 
 #include "namespace/interface/IFileMD.hh"
-#include "XrdSec/XrdSecEntity.hh"
-#include "XrdSec/XrdSecEntityAttr.hh"
+#include <XrdSec/XrdSecEntity.hh>
+#include <XrdSec/XrdSecEntityAttr.hh>
 #define IN_TEST_HARNESS
 #include "mgm/XrdMgmOfsFile.hh"
 #undef IN_TEST_HARNESS

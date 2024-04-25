@@ -24,7 +24,7 @@
 #ifndef __MQ__TIMING__HH__
 #define __MQ__TIMING__HH__
 
-#include "XrdOuc/XrdOucString.hh"
+#include <XrdOuc/XrdOucString.hh>
 #include <sys/time.h>
 #include <string.h>
 

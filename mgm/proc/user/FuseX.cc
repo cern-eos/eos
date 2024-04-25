@@ -21,7 +21,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "XrdOuc/XrdOucEnv.hh"
+#include <XrdOuc/XrdOucEnv.hh>
 #include "common/SymKeys.hh"
 #include "mgm/ZMQ.hh"
 #include "mgm/FuseServer/Server.hh"

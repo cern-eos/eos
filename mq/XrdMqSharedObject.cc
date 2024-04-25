@@ -26,8 +26,8 @@
 #include "common/Logging.hh"
 #include "common/StringConversion.hh"
 #include "common/ParseUtils.hh"
-#include "XrdSys/XrdSysTimer.hh"
-#include "XrdOuc/XrdOucEnv.hh"
+#include <XrdSys/XrdSysTimer.hh>
+#include <XrdOuc/XrdOucEnv.hh>
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <algorithm>

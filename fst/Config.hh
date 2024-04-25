@@ -24,8 +24,8 @@
 #pragma once
 #include "fst/Namespace.hh"
 #include "common/Locators.hh"
-#include "XrdOuc/XrdOucString.hh"
-#include "XrdSys/XrdSysPthread.hh"
+#include <XrdOuc/XrdOucString.hh>
+#include <XrdSys/XrdSysPthread.hh>
 #include <atomic>
 #include <chrono>
 #include <random>

@@ -27,7 +27,7 @@
 #include "common/Macros.hh"
 #include "common/Logging.hh"
 /*----------------------------------------------------------------------------*/
-#include "XrdOuc/XrdOucString.hh"
+#include <XrdOuc/XrdOucString.hh>
 /*----------------------------------------------------------------------------*/
 #include <arpa/inet.h>
 

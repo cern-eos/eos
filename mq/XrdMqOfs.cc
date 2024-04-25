@@ -21,16 +21,16 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "XrdVersion.hh"
-#include "XrdOss/XrdOss.hh"
-#include "XrdOuc/XrdOucTrace.hh"
-#include "XrdSys/XrdSysError.hh"
-#include "XrdSys/XrdSysLogger.hh"
-#include "XrdSys/XrdSysTimer.hh"
-#include "XrdSec/XrdSecInterface.hh"
-#include "XrdSfs/XrdSfsAio.hh"
-#include "XrdNet/XrdNetUtils.hh"
-#include "XrdNet/XrdNetAddr.hh"
+#include <XrdVersion.hh>
+#include <XrdOss/XrdOss.hh>
+#include <XrdOuc/XrdOucTrace.hh>
+#include <XrdSys/XrdSysError.hh>
+#include <XrdSys/XrdSysLogger.hh>
+#include <XrdSys/XrdSysTimer.hh>
+#include <XrdSec/XrdSecInterface.hh>
+#include <XrdSfs/XrdSfsAio.hh>
+#include <XrdNet/XrdNetUtils.hh>
+#include <XrdNet/XrdNetAddr.hh>
 #include "mq/XrdMqOfs.hh"
 #include "mq/XrdMqMessage.hh"
 #include "mq/XrdMqOfsTrace.hh"

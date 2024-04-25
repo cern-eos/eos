@@ -30,7 +30,7 @@
 #include "llfusexx.hh"
 #include "fusex/fusex.pb.h"
 #include "kv/kv.hh"
-#include "XrdSys/XrdSysPthread.hh"
+#include <XrdSys/XrdSysPthread.hh>
 #include <memory>
 #include <map>
 #include <event.h>

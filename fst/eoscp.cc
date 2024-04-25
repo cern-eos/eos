@@ -39,11 +39,10 @@
 #include <openssl/md5.h>
 #include <optional>
 #include <getopt.h>
-#include "XrdCl/XrdClDefaultEnv.hh"
-#include "XrdCl/XrdClPostMaster.hh"
-#include "XrdCl/XrdClFile.hh"
-#include "XrdCl/XrdClDefaultEnv.hh"
-#include "XrdOuc/XrdOucString.hh"
+#include <XrdCl/XrdClFile.hh>
+#include <XrdCl/XrdClDefaultEnv.hh>
+#include <XrdCl/XrdClPostMaster.hh>
+#include <XrdOuc/XrdOucString.hh>
 #include "common/XrdErrorMap.hh"
 #include "common/Timing.hh"
 #include "common/SymKeys.hh"

@@ -37,7 +37,7 @@
 #include "Configuration.hh"
 #include "common/Path.hh"
 #include "common/StringConversion.hh"
-#include "XrdCl/XrdClDefaultEnv.hh"
+#include <XrdCl/XrdClDefaultEnv.hh>
 #include <getopt.h>
 
 using namespace std;

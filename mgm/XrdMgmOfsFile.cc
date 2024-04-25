@@ -53,12 +53,12 @@
 #include "namespace/utils/Attributes.hh"
 #include "namespace/Prefetcher.hh"
 #include "namespace/Resolver.hh"
-#include "XrdOss/XrdOss.hh"
-#include "XrdSec/XrdSecInterface.hh"
-#include "XrdSec/XrdSecEntityAttr.hh"
-#include "XrdSfs/XrdSfsAio.hh"
+#include <XrdOss/XrdOss.hh>
+#include <XrdSec/XrdSecInterface.hh>
+#include <XrdSec/XrdSecEntityAttr.hh>
+#include <XrdSfs/XrdSfsAio.hh>
 #include "common/Constants.hh"
-#include "XrdOuc/XrdOucPgrwUtils.hh"
+#include <XrdOuc/XrdOucPgrwUtils.hh>
 
 #ifdef __APPLE__
 #define ECOMM 70

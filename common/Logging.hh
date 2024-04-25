@@ -48,10 +48,10 @@
 
 #include "common/Namespace.hh"
 #include "common/Mapping.hh"
-#include "XrdOuc/XrdOucHash.hh"
-#include "XrdOuc/XrdOucString.hh"
-#include "XrdSys/XrdSysPthread.hh"
-#include "XrdSec/XrdSecEntity.hh"
+#include <XrdOuc/XrdOucHash.hh>
+#include <XrdOuc/XrdOucString.hh>
+#include <XrdSys/XrdSysPthread.hh>
+#include <XrdSec/XrdSecEntity.hh>
 #include <string.h>
 #include <sys/syslog.h>
 #include <sys/time.h>

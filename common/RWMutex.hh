@@ -55,7 +55,7 @@
 #include "common/Namespace.hh"
 #include "common/IRWMutex.hh"
 #include "common/concurrency/AlignedArray.hh"
-#include "XrdSys/XrdSysPthread.hh"
+#include <XrdSys/XrdSysPthread.hh>
 #include <stdio.h>
 #include <stdint.h>
 #include <atomic>

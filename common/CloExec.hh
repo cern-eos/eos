@@ -31,8 +31,8 @@
 #ifndef __EOSCOMMON__CLOEXEC__HH
 #define __EOSCOMMON__CLOEXEC__HH
 
-#include "XrdOuc/XrdOucString.hh"
-#include "XrdOuc/XrdOucTrace.hh"
+#include <XrdOuc/XrdOucString.hh>
+#include <XrdOuc/XrdOucTrace.hh>
 #include "common/Namespace.hh"
 #include <fcntl.h>
 #include <sys/time.h>

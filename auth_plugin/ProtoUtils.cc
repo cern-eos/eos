@@ -24,11 +24,11 @@
 #include "ProtoUtils.hh"
 #include "common/Logging.hh"
 #include "common/SymKeys.hh"
-#include "XrdOuc/XrdOucString.hh"
-#include "XrdOuc/XrdOucTList.hh"
-#include "XrdOuc/XrdOucErrInfo.hh"
-#include "XrdSfs/XrdSfsInterface.hh"
-#include "XrdSec/XrdSecEntity.hh"
+#include <XrdOuc/XrdOucString.hh>
+#include <XrdOuc/XrdOucTList.hh>
+#include <XrdOuc/XrdOucErrInfo.hh>
+#include <XrdSfs/XrdSfsInterface.hh>
+#include <XrdSec/XrdSecEntity.hh>
 #include <google/protobuf/util/json_util.h>
 #include <sstream>
 

@@ -41,7 +41,7 @@
 #include "namespace/interface/IView.hh"
 #include "namespace/Prefetcher.hh"
 #include "namespace/utils/Checksum.hh"
-#include "Xrd/XrdScheduler.hh"
+#include <Xrd/XrdScheduler.hh>
 
 #define EOS_WFE_BASH_PREFIX "/var/eos/wfe/bash/"
 

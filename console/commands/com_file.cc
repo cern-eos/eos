@@ -30,7 +30,7 @@
 #include "common/SymKeys.hh"
 #include "common/LayoutId.hh"
 #include "common/Fmd.hh"
-#include "XrdCl/XrdClFileSystem.hh"
+#include <XrdCl/XrdClFileSystem.hh>
 
 #ifdef __APPLE__
 #define ECOMM 70

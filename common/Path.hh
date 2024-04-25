@@ -25,7 +25,7 @@
 #define __EOSCOMMON_PATH__
 
 #include "common/Namespace.hh"
-#include "XrdOuc/XrdOucString.hh"
+#include <XrdOuc/XrdOucString.hh>
 #include <vector>
 #include <string>
 #include <sys/types.h>

@@ -27,8 +27,8 @@
 #include "common/http/ProtocolHandler.hh"
 #include "common/SecEntity.hh"
 #include "fst/XrdFstOfs.hh"
-#include "XrdSys/XrdSysPthread.hh"
-#include "XrdSfs/XrdSfsInterface.hh"
+#include <XrdSys/XrdSysPthread.hh>
+#include <XrdSfs/XrdSfsInterface.hh>
 
 EOSFSTNAMESPACE_BEGIN
 

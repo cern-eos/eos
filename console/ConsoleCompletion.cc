@@ -22,8 +22,8 @@
 
 #include "ConsoleMain.hh"
 #include "ConsoleCompletion.hh"
-#include "XrdOuc/XrdOucString.hh"
-#include "XrdOuc/XrdOucTokenizer.hh"
+#include <XrdOuc/XrdOucString.hh>
+#include <XrdOuc/XrdOucTokenizer.hh>
 #include <string.h>
 #include <readline/readline.h>
 #include <readline/history.h>

@@ -27,7 +27,7 @@
 
 #include "fst/Namespace.hh"
 #include "common/Logging.hh"
-#include "XrdOss/XrdOss.hh"
+#include <XrdOss/XrdOss.hh>
 #include <map>
 #include <string>
 

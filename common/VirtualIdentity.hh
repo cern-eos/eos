@@ -23,7 +23,7 @@
 
 #include "common/Namespace.hh"
 #include "common/token/Token.hh"
-#include "XrdOuc/XrdOucString.hh"
+#include <XrdOuc/XrdOucString.hh>
 #include <vector>
 #include <memory>
 #include <string>

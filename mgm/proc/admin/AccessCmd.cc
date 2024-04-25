@@ -24,7 +24,7 @@
 #include <cctype>
 #include "AccessCmd.hh"
 #include "mgm/proc/ProcInterface.hh"
-#include "XrdOuc/XrdOucEnv.hh"
+#include <XrdOuc/XrdOucEnv.hh>
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/Access.hh"
 #include "mgm/Stat.hh"

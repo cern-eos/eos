@@ -25,10 +25,10 @@
 
 #include "common/VirtualIdentity.hh"
 #include "common/AssistedThread.hh"
-#include "XrdOuc/XrdOucErrInfo.hh"
+#include <XrdOuc/XrdOucErrInfo.hh>
 #include "mgm/Namespace.hh"
 #include "namespace/interface/IFileMD.hh"
-#include "XrdOuc/XrdOucString.hh"
+#include <XrdOuc/XrdOucString.hh>
 #include <atomic>
 #include <memory>
 

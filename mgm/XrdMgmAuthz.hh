@@ -22,7 +22,7 @@
  ************************************************************************/
 
 #pragma once
-#include "XrdAcc/XrdAccAuthorize.hh"
+#include <XrdAcc/XrdAccAuthorize.hh>
 #include "common/Logging.hh"
 
 //------------------------------------------------------------------------------

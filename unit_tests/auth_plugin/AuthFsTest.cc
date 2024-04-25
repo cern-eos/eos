@@ -22,10 +22,10 @@
  ************************************************************************/
 
 #include <gtest/gtest.h>
-#include "XrdCl/XrdClFileSystem.hh"
-#include "XrdCl/XrdClFile.hh"
-#include "XrdOuc/XrdOucErrInfo.hh"
-#include "XrdSec/XrdSecEntity.hh"
+#include <XrdCl/XrdClFileSystem.hh>
+#include <XrdCl/XrdClFile.hh>
+#include <XrdOuc/XrdOucErrInfo.hh>
+#include <XrdSec/XrdSecEntity.hh>
 #include "TestEnv.hh"
 
 //------------------------------------------------------------------------------

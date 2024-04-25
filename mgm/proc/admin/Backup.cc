@@ -24,8 +24,8 @@
 #include "common/Path.hh"
 #include "mgm/proc/admin/Backup.hh"
 #include "mgm/XrdMgmOfs.hh"
-#include "XrdCl/XrdClCopyProcess.hh"
-#include "XrdOuc/XrdOucEnv.hh"
+#include <XrdCl/XrdClCopyProcess.hh>
+#include <XrdOuc/XrdOucEnv.hh>
 #include <string>
 #include <iomanip>
 #include <fstream>

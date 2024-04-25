@@ -31,7 +31,7 @@
 #include "auth_plugin/XrdSecEntity.pb.h"
 #include "auth_plugin/XrdSfsPrep.pb.h"
 #include "auth_plugin/XrdSfsFSctl.pb.h"
-#include "XrdSfs/XrdSfsInterface.hh"
+#include <XrdSfs/XrdSfsInterface.hh>
 
 //! Forward declarations
 class XrdSecEntity;

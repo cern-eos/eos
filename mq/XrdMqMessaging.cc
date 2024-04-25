@@ -22,7 +22,7 @@
  ************************************************************************/
 
 #include "mq/XrdMqMessaging.hh"
-#include "XrdSys/XrdSysPthread.hh"
+#include <XrdSys/XrdSysPthread.hh>
 #include <chrono>
 #include <thread>
 

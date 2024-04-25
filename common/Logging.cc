@@ -23,7 +23,7 @@
 
 #include "common/Namespace.hh"
 #include "common/Logging.hh"
-#include "XrdSys/XrdSysPthread.hh"
+#include <XrdSys/XrdSysPthread.hh>
 #include <new>
 #include <type_traits>
 #include <atomic>

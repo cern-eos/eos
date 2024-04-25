@@ -25,7 +25,7 @@
 #define EOS_BULKREQUESTPROCCLEANER_HH
 
 #include "common/AssistedThread.hh"
-#include "XrdOuc/XrdOucErrInfo.hh"
+#include <XrdOuc/XrdOucErrInfo.hh>
 #include "common/Mapping.hh"
 #include "mgm/Namespace.hh"
 #include "common/VirtualIdentity.hh"
