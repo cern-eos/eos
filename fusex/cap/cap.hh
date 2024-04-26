@@ -206,7 +206,7 @@ public:
       lastusage = time(NULL);
     }
 
-    const time_t used() const
+    time_t used() const
     {
       return lastusage;
     }

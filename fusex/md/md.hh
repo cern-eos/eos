@@ -293,12 +293,12 @@ public:
       (*this)()->set_fullpath(fullpath.c_str());
     }
 
-    const uint64_t inlinesize()
+    uint64_t inlinesize()
     {
       return inline_size;
     }
 
-    const bool obfuscate()
+    bool obfuscate()
     {
       auto xattr = proto.attr();
 
