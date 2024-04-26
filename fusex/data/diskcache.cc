@@ -474,6 +474,6 @@ diskcache::recovery_location(std::string& recovery_location)
   std::string path;
   int rc = location(path);
   recovery_location = path;
-  recovery_location + ".download";
+  recovery_location += ".download";
   return rc;
 }
