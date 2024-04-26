@@ -207,11 +207,6 @@ set(EosCommonLinkLibs
   ABSL::ABSL
   NCURSES::NCURSES)
 
-if (CHARCONV_FOUND)
-  LIST(APPEND EosCommonLinkLibs "CHARCONV::CHARCONV")
-endif()
-
-
 target_link_libraries(EosCommon-Static PUBLIC
   ${EosCommonLinkLibs})
 
