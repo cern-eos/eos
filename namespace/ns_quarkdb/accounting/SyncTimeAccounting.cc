@@ -142,7 +142,7 @@ QuarkSyncTimeAccounting::PropagateUpdates(ThreadAssistant* assistant)
       }
 
       eos_debug("Container_id=%lu sync time", id);
-      IContainerMD::ctime_t mtime {0};
+      IContainerMD::ctime_t mtime {};
 
       while ((id > 1) && (deepness < 255)) {
         std::shared_ptr<IContainerMD> cont;

@@ -589,7 +589,7 @@ QuarkContainerMD::setMTimeNow()
 {
   struct timespec tnow;
 #ifdef __APPLE__
-  struct timeval tv = {0};
+  struct timeval tv{};
   gettimeofday(&tv, 0);
   tnow.tv_sec = tv.tv_sec;
   tnow.tv_nsec = tv.tv_usec * 1000;
@@ -653,7 +653,7 @@ QuarkContainerMD::setTMTime(tmtime_t tmtime)
 void
 QuarkContainerMD::setTMTimeNow()
 {
-  tmtime_t tmtime = {0};
+  tmtime_t tmtime{};
   setTMTime(tmtime);
 }
 
