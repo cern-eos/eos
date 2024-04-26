@@ -63,7 +63,7 @@ int main(int argc, char* argv[])
   uint64_t off {0ull};
   size_t sz {4 * 1024 * 1024};
   uint64_t len = sz;
-  std::unique_ptr<char> buffer {new char[sz]()};
+  std::unique_ptr<char[]> buffer = std::make_unique<char[]>(sz);
   GenerateRandomData(buffer.get(), sz);
   std::string surl = argv[1];
   XrdCl::URL url(surl);
