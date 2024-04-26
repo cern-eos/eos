@@ -24,26 +24,26 @@
 #-------------------------------------------------------------------------------
 # Main section
 #-------------------------------------------------------------------------------
-cmake_minimum_required (VERSION 3.14)
+cmake_minimum_required(VERSION 3.16...3.29)
 
-# Set the default CMAKE_BUILD_TYPE to RelWithDebInfo before the project command
-# as it can set CMAKE_BUILD_TYPE itself.
-if (NOT GENERATOR_IS_MULTI_CONFIG AND NOT CMAKE_BUILD_TYPE)
+project(eos DESCRIPTION "EOS Open Storage" LANGUAGES C CXX)
+
+# Set a default build type if none is set, skip if CFLAGS/CXXFLAGS are set
+if(NOT GENERATOR_IS_MULTI_CONFIG AND NOT CMAKE_BUILD_TYPE)
   if(NOT CMAKE_C_FLAGS AND NOT CMAKE_CXX_FLAGS)
     set(CMAKE_BUILD_TYPE RelWithDebInfo CACHE STRING
       "Build options: None(CMAKE_CXX_FLAGS or CMAKE_C_FLAGS used) Debug Release \
        RelWithDebInfo MinSizeRel.")
   endif()
-endif ()
+endif()
+
+list(INSERT CMAKE_MODULE_PATH 0 ${PROJECT_SOURCE_DIR}/cmake)
 
 find_program(CCACHE_PROGRAM ccache)
 if (CCACHE_PROGRAM)
     set_property(GLOBAL PROPERTY RULE_LAUNCH_COMPILE "${CCACHE_PROGRAM}")
     set_property(GLOBAL PROPERTY RULE_LAUNCH_LINK "${CCACHE_PROGRAM}")
 endif ()
-
-project (eos)
-set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 
 #-------------------------------------------------------------------------------
 # Make gtest / gmock available for all downstream CMakeLists.txt that need it
