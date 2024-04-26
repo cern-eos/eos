@@ -351,7 +351,7 @@ QuarkContainerMDSvc::getNumContainers()
 //------------------------------------------------------------------------------
 void
 QuarkContainerMDSvc::notifyListeners(IContainerMD* obj,
-                                     IContainerMDChangeListener::Action a)
+                                     IContainerMDChangeListener::Action a, bool inspect)
 {
   for (const auto& elem : pListeners) {
     elem->containerMDChanged(obj, a);

@@ -340,9 +340,9 @@ XrdMgmOfs::_dropallstripes(const char* path,
 
     try {
       dh = gOFS->eosView->getContainer(parentPath);
-      if(errno) eos_crit("[1.a] ERRNO-DEBUG , path=%s, errno=%d",path,errno);
+      if(errno) eos_static_crit("[1.a] ERRNO-DEBUG , path=%s, errno=%d",path,errno);
       dh = gOFS->eosView->getContainer(gOFS->eosView->getUri(dh.get()));
-      if(errno) eos_crit("[1.b] ERRNO-DEBUG , path=%s, errno=%d",path,errno);
+      if(errno) eos_static_crit("[1.b] ERRNO-DEBUG , path=%s, errno=%d",path,errno);
     } catch (eos::MDException& e) {
       dh.reset();
       errno = e.getErrno();
@@ -355,14 +355,14 @@ XrdMgmOfs::_dropallstripes(const char* path,
       if (!errno) {
         errno = EPERM;
       }
-    if(errno) eos_crit("[1.c] ERRNO-DEBUG , path=%s, errno=%d",path,errno);
+    if(errno) eos_static_crit("[1.c] ERRNO-DEBUG , path=%s, errno=%d",path,errno);
     if (errno) {
       return Emsg(epname, error, errno, "drop all stripes", path);
     }
 
     try {
       fmd = gOFS->eosView->getFile(path);
-      if(errno) eos_crit("[1.d] ERRNO-DEBUG , path=%s, errno=%d",path,errno);
+      if(errno) eos_static_crit("[1.d] ERRNO-DEBUG , path=%s, errno=%d",path,errno);
       // only on tape, we don't touch this file here
       if (fmd && fmd->getLocations().size() == 1 &&
           fmd->hasLocation(eos::common::TAPE_FS_ID)) {
@@ -377,37 +377,40 @@ XrdMgmOfs::_dropallstripes(const char* path,
     }
   }
 
+  if(errno) eos_static_crit("[1.e] ERRNO-DEBUG , path=%s, errno=%d",path,errno);
+
   try {
     // only write lock at this point
     eos::common::RWMutexWriteLock wlock(gOFS->eosViewRWMutex);
-
+    if(errno) eos_static_crit("[1.f] ERRNO-DEBUG , path=%s, errno=%d",path,errno);
     for (auto location : fmd->getLocations()) {
+      if(errno) eos_static_crit("[1.g] ERRNO-DEBUG , path=%s, errno=%d",path,errno);
       if (location == eos::common::TAPE_FS_ID) {
         continue;
       }
 
       if (!forceRemove) {
         // we only unlink a location
-        fmd->unlinkLocation(location);
+        fmd->unlinkLocation(location, true);
         eos_debug("unlinking location %u", location);
-        if(errno) eos_crit("[1.e] ERRNO-DEBUG , path=%s, errno=%d",path,errno);
+        if(errno) eos_static_crit("[1.h] ERRNO-DEBUG , path=%s, errno=%d",path,errno);
       } else {
         // we unlink and remove a location by force
         if (fmd->hasLocation(location)) {
-          if(errno) eos_crit("[1.f] ERRNO-DEBUG , path=%s, errno=%d",path,errno);
-          fmd->unlinkLocation(location);
-          if(errno) eos_crit("[1.g] ERRNO-DEBUG , path=%s, errno=%d",path,errno);
+          if(errno) eos_static_crit("[1.i] ERRNO-DEBUG , path=%s, errno=%d",path,errno);
+          fmd->unlinkLocation(location, true);
+          if(errno) eos_static_crit("[1.j] ERRNO-DEBUG , path=%s, errno=%d",path,errno);
         }
 
         fmd->removeLocation(location);
         eos_debug("removing/unlinking location %u", location);
-        if(errno) eos_crit("[1.h] ERRNO-DEBUG , path=%s, errno=%d",path,errno);
+        if(errno) eos_static_crit("[1.k] ERRNO-DEBUG , path=%s, errno=%d",path,errno);
       }
     }
 
     // update the file store only once at the end
     gOFS->eosView->updateFileStore(fmd.get());
-    if(errno) eos_crit("[1.i] ERRNO-DEBUG , path=%s, errno=%d",path,errno);
+    if(errno) eos_static_crit("[1.l] ERRNO-DEBUG , path=%s, errno=%d",path,errno);
   } catch (eos::MDException& e) {
     fmd.reset();
     errno = e.getErrno();

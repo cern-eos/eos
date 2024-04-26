@@ -248,7 +248,7 @@ public:
   //----------------------------------------------------------------------------
   //! Unlink location
   //----------------------------------------------------------------------------
-  virtual void unlinkLocation(location_t location) = 0;
+  virtual void unlinkLocation(location_t location, bool inspect=false) = 0;
 
   //----------------------------------------------------------------------------
   //! Unlink all locations

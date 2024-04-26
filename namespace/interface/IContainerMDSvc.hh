@@ -154,7 +154,7 @@ public:
   //! Notify all subscribed listener
   //----------------------------------------------------------------------------
   virtual void notifyListeners(IContainerMD* obj,
-                               IContainerMDChangeListener::Action a) = 0;
+                               IContainerMDChangeListener::Action a, bool inspect=false) = 0;
 
   //----------------------------------------------------------------------------
   //! Get the orphans container

@@ -191,7 +191,7 @@ public:
   //------------------------------------------------------------------------
   //! Notify the listeners about the change
   //------------------------------------------------------------------------
-  virtual void notifyListeners(IFileMDChangeListener::Event* event) = 0;
+  virtual void notifyListeners(IFileMDChangeListener::Event* event, bool inspect=false) = 0;
 
   //----------------------------------------------------------------------------
   //! Set the QuotaStats object for the follower

@@ -294,13 +294,13 @@ QuarkFileMDSvc::addChangeListener(IFileMDChangeListener* listener)
 // Notify the listeners about the change
 //------------------------------------------------------------------------------
 void
-QuarkFileMDSvc::notifyListeners(IFileMDChangeListener::Event* event)
+QuarkFileMDSvc::notifyListeners(IFileMDChangeListener::Event* event, bool inspect)
 {
   int i = 0;
   for (const auto& elem : pListeners) {
-     if(errno) eos_static_crit("[3.a] ERRNO-DEBUG , loop_iter=%d, errno=%d",i,errno);
+     if(errno && inspect) eos_static_crit("[3.a] ERRNO-DEBUG , loop_iter=%d, errno=%d",i,errno);
      elem->fileMDChanged(event);
-     if(errno) eos_static_crit("[3.b] ERRNO-DEBUG , loop_iter=%d, errno=%d",i,errno);
+     if(errno && inspect) eos_static_crit("[3.b] ERRNO-DEBUG , loop_iter=%d, errno=%d",i,errno);
   }
 }
 

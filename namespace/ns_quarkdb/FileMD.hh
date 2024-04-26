@@ -386,7 +386,7 @@ public:
   //----------------------------------------------------------------------------
   //! Unlink location
   //----------------------------------------------------------------------------
-  void unlinkLocation(location_t location) override;
+  void unlinkLocation(location_t location, bool inspect=false) override;
 
   //----------------------------------------------------------------------------
   //! Unlink all locations

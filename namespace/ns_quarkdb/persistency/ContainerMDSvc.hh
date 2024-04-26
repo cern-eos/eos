@@ -232,7 +232,7 @@ private:
   //----------------------------------------------------------------------------
   //! Notify the listeners about the change
   //----------------------------------------------------------------------------
-  void notifyListeners(IContainerMD* obj, IContainerMDChangeListener::Action a)
+  void notifyListeners(IContainerMD* obj, IContainerMDChangeListener::Action a, bool inspect=false)
   override;
 
   //----------------------------------------------------------------------------

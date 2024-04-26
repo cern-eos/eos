@@ -142,7 +142,7 @@ public:
   //----------------------------------------------------------------------------
   //! Notify the listeners about the change
   //----------------------------------------------------------------------------
-  virtual void notifyListeners(IFileMDChangeListener::Event* event) override;
+  virtual void notifyListeners(IFileMDChangeListener::Event* event, bool inspect=false) override;
 
   //----------------------------------------------------------------------------
   //! Set container service
