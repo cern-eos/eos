@@ -839,7 +839,7 @@ QuarkHierarchicalView::getUriInternal(std::deque<std::string> currentChunks,
     // Reached the end?
     //--------------------------------------------------------------------------
     if(nextToLookup->getIdentifier()  == ContainerIdentifier(1)) {
-      return std::move(currentChunks);
+      return currentChunks;
     }
 
     //--------------------------------------------------------------------------
