@@ -58,8 +58,6 @@ else()
   # Add alias libraries to emulate same behavior as external GoogleTest
   add_library(GTest::GTest ALIAS gtest)
   add_library(GTest::Main ALIAS gtest_main)
-  add_library(GTest::gmock ALIAS gmock)
-  add_library(GTest::gmock_main ALIAS gmock_main)
 endif()
 
 #-------------------------------------------------------------------------------
