@@ -25,7 +25,7 @@ foreach( lib ${libraries})
     set(ABSL_${lib}_FOUND 1)
     list(APPEND ABSL_LIBRARIES ${ABSL_${lib}_LIBRARY})
     mark_as_advanced(ABSL_${lib}_LIBRARY)
-    message ("ABSL_${lib}_LIBRARY")
+    message(VERBOSE "ABSL_${lib}_LIBRARY")
   endif()
 endforeach()
 
@@ -36,7 +36,7 @@ find_package_handle_standard_args(absl
   REQUIRED_VARS ABSL_LIBRARY ABSL_INCLUDE_DIR)
 
 mark_as_advanced(ABSL_INCLUDE_DIR ABSL_LIBRARY)
-message(STATUS "Abseil include path: ${ABSL_INCLUDE_DIR}")
+message(VERBOSE "Abseil include path: ${ABSL_INCLUDE_DIR}")
 
 find_library(MAIN_ABSL_LIBRARY NAMES absl_base HINTS 
     HINTS /opt/eos/grpc/lib64 ${ABSL_ROOT}
