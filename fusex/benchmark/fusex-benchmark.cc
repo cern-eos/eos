@@ -249,11 +249,11 @@ int main(int argc, char* argv[])
 
   if ((testno >= test_start) && (testno <= test_stop)) {
     fprintf(stderr, ">>> test %04d\n", testno);
+    char execline[1024];
+    snprintf(execline, sizeof(execline),
+             "cp /etc/passwd pwd1 && mv pwd1 pwd2 && stat pwd1 || stat pwd2 && mv pwd2 pwd1 && stat pwd2 || stat pwd1 && rm -rf pwd1");
 
     for (size_t i = 0; i < LOOP_8; i++) {
-      char execline[1024];
-      snprintf(execline, sizeof(execline),
-               "cp /etc/passwd pwd1 && mv passwd pwd2 && stat pwd1 || stat pwd2 && mv pwd2 pwd1 && stat pwd2 || stat pwd1 &&  rm -rf pwd1");
       eos::common::ShellCmd renames(execline);
       eos::common::cmd_status rc = renames.wait(5);
 
