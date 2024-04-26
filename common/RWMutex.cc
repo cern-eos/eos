@@ -1329,10 +1329,12 @@ RWMutex::PrintMutexOps(std::ostringstream& oss)
 // Constructor
 //------------------------------------------------------------------------------
 RWMutexWriteLock::RWMutexWriteLock(RWMutex& mutex, const char* function,
-                                   const char* file, int line):
+                                   const char* file, int line, bool inspect):
   mWrMutex(nullptr)
 {
+  if(errno && inspect) eos_static_crit("[2.2.a] ERRNO-DEBUG , errno=%d",errno);
   Grab(mutex, function, file, line);
+  if(errno && inspect) eos_static_crit("[2.2.b] ERRNO-DEBUG , errno=%d",errno);
 }
 
 //----------------------------------------------------------------------------
@@ -1340,22 +1342,27 @@ RWMutexWriteLock::RWMutexWriteLock(RWMutex& mutex, const char* function,
 //----------------------------------------------------------------------------
 void
 RWMutexWriteLock::Grab(RWMutex& mutex, const char* function,
-                       const char* file, int line)
+                       const char* file, int line, bool inspect)
 {
   mFunction = function;
   mFile = file;
   mLine = line;
 
+  if(errno && inspect) eos_static_crit("[2.3.a] ERRNO-DEBUG , errno=%d",errno);
   if (mWrMutex) {
     throw std::runtime_error("already holding a mutex");
   }
 
   mWrMutex = &mutex;
+  if(errno && inspect) eos_static_crit("[2.3.b] ERRNO-DEBUG , errno=%d",errno);
   RWMutex::RecordMutexOp((uint64_t)mWrMutex->GetRawPtr(),
                          RWMutex::LOCK_T::eWantLockWrite);
+  if(errno && inspect) eos_static_crit("[2.3.c] ERRNO-DEBUG , errno=%d",errno);
   mWrMutex->LockWrite();
+  if(errno && inspect) eos_static_crit("[2.3.d] ERRNO-DEBUG , errno=%d",errno);
   RWMutex::RecordMutexOp((uint64_t)mWrMutex->GetRawPtr(),
                          RWMutex::LOCK_T::eLockWrite);
+  if(errno && inspect) eos_static_crit("[2.3.e] ERRNO-DEBUG , errno=%d",errno);
   mAcquiredAt = std::chrono::steady_clock::now();
   mAcquiredAtSystem = std::chrono::system_clock::now();
 }

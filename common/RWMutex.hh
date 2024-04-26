@@ -786,7 +786,7 @@ public:
   RWMutexWriteLock(RWMutex& mutex,
                    const char* function = EOS_FUNCTION,
                    const char* file = EOS_FILE,
-                   int line = EOS_LINE);
+                   int line = EOS_LINE, bool inspect = false);
 
   //----------------------------------------------------------------------------
   //! Destructor
@@ -809,7 +809,7 @@ public:
   void Grab(RWMutex& mutex,
             const char* function = EOS_FUNCTION,
             const char* file = EOS_FILE,
-            int line = EOS_LINE);
+            int line = EOS_LINE, bool inspect = false);
 
   //----------------------------------------------------------------------------
   //! Release the write lock after grab

@@ -178,20 +178,20 @@ void
 QuarkFileMD::unlinkLocation(location_t location, bool inspect)
 {
   {
-    if(errno && inspect) eos_static_crit("[2.a] ERRNO-DEBUG , errno=%d",errno);
+    if(errno && inspect) eos_static_crit("[2.1.a] ERRNO-DEBUG , errno=%d",errno);
     this->runWriteOp([this, location, inspect]() {
       for (auto it = mFile.mutable_locations()->cbegin();
            it != mFile.mutable_locations()->cend(); ++it) {
         if (*it == location) {
           // If location is already unlink, skip adding it
-          if(errno && inspect) eos_static_crit("[2.b] ERRNO-DEBUG , errno=%d",errno);
+          if(errno && inspect) eos_static_crit("[2.1.b] ERRNO-DEBUG , errno=%d",errno);
           if (!hasUnlinkedLocationNoLock(location)) {
             mFile.add_unlink_locations(*it);
-            if(errno && inspect) eos_static_crit("[2.c] ERRNO-DEBUG , errno=%d",errno);
+            if(errno && inspect) eos_static_crit("[2.1.c] ERRNO-DEBUG , errno=%d",errno);
          }
 
           it = mFile.mutable_locations()->erase(it);
-          if(errno && inspect) eos_static_crit("[2.d] ERRNO-DEBUG , errno=%d",errno);
+          if(errno && inspect) eos_static_crit("[2.1.d] ERRNO-DEBUG , errno=%d",errno);
           break;
         }
       }
@@ -199,9 +199,9 @@ QuarkFileMD::unlinkLocation(location_t location, bool inspect)
   }
   IFileMDChangeListener::Event
       e(this, IFileMDChangeListener::LocationUnlinked, location);
-  if(errno && inspect) eos_static_crit("[2.e] ERRNO-DEBUG , errno=%d",errno);
+  if(errno && inspect) eos_static_crit("[2.1.e] ERRNO-DEBUG , errno=%d",errno);
   pFileMDSvc->notifyListeners(&e, inspect);
-  if(errno && inspect) eos_static_crit("[2.f] ERRNO-DEBUG , errno=%d",errno);
+  if(errno && inspect) eos_static_crit("[2.1.f] ERRNO-DEBUG , errno=%d",errno);
 }
 
 //------------------------------------------------------------------------------
