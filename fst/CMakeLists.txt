@@ -194,10 +194,6 @@ target_link_libraries(EosFstIo-Static PUBLIC
   ISAL::ISAL_CRYPTO
   XXHASH::XXHASH)
 
-if (CHARCONV_FOUND)
-  target_link_libraries(EosFstIo-Static PUBLIC CHARCONV::CHARCONV)
-endif()
-
 target_compile_definitions(EosFstIo-Static PRIVATE
   -D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64)
 
@@ -348,11 +344,6 @@ target_link_libraries(XrdEosFst-Static PUBLIC
   EosFstIo
   EosNsCommon
   XROOTD::SSI)
-
-if (CHARCONV_FOUND)
-  target_link_libraries(XrdEosFst-Static PUBLIC CHARCONV::CHARCONV)
-endif()
-
 
 install(TARGETS EosFstOss XrdEosFst-${XRDPLUGIN_SOVERSION}
   LIBRARY DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
