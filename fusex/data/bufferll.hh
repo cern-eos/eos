@@ -241,13 +241,13 @@ public:
     }
   }
 
-  const size_t queued()
+  size_t queued()
   {
     XrdSysMutexHelper lLock(this);
     return queued_size;
   }
 
-  const size_t inflight()
+  size_t inflight()
   {
     XrdSysMutexHelper lLock(this);
     return inflight_size;

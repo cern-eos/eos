@@ -241,25 +241,25 @@ public:
     }
   }
 
-  const size_t queued()
+  size_t queued()
   {
     XrdSysMutexHelper lLock(this);
     return queued_size;
   }
 
-  const size_t inflight()
+  size_t inflight()
   {
     XrdSysMutexHelper lLock(this);
     return inflight_size;
   }
 
-  const size_t xoff()
+  size_t xoff()
   {
     XrdSysMutexHelper lLock(this);
     return xoff_cnt;
   }
 
-  const size_t nobuf()
+  size_t nobuf()
   {
     XrdSysMutexHelper lLock(this);
     return nobuf_cnt;
@@ -450,7 +450,7 @@ public:
     CLOSEFAILED = 6,
   };
 
-  const char* state_string()
+  char const* state_string()
   {
     switch (open_state) {
     case CLOSED:
@@ -928,17 +928,17 @@ public:
       return &((*mBuffer)[0]);
     }
 
-    const off_t offset()
+    off_t offset()
     {
       return woffset;
     }
 
-    const uint16_t timeout()
+    uint16_t timeout()
     {
       return mTimeout;
     }
 
-    const std::vector<char>& vbuffer()
+    std::vector<char>& vbuffer()
     {
       return *mBuffer;
     }
@@ -1298,12 +1298,12 @@ public:
                XWriteQueueDirectSubmission) : 0;
   }
 
-  const bool close_after_write()
+  bool close_after_write()
   {
     return XCloseAfterWrite;
   }
 
-  const uint16_t close_after_write_timeout()
+  uint16_t close_after_write_timeout()
   {
     return XCloseAfterWriteTimeout;
   }
@@ -1407,7 +1407,7 @@ public:
   }
 
 
-  const char* Dump(std::string& out);
+  char const* Dump(std::string& out);
 
   class Protocol
   {
