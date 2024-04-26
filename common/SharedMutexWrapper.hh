@@ -24,4 +24,5 @@
 //! The purpose of this header file is to make sure the std::shared_timed_mutex
 //! uses the condition-variable implementation and not the pthread_rw one.
 //------------------------------------------------------------------------------
+#include <mutex>
 #include <shared_mutex>
