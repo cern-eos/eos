@@ -24,10 +24,30 @@
 #-------------------------------------------------------------------------------
 # Code coverage compiler flags and definitions
 #-------------------------------------------------------------------------------
-add_definitions(-DCOVERAGE_BUILD)
 
-set(GCOV_CFLAGS "-fprofile-arcs -ftest-coverage --coverage")
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${GCOV_CFLAGS}")
+include(CheckCXXCompilerFlag)
+
+list(APPEND CMAKE_REQUIRED_FLAGS --coverage)
+list(APPEND CMAKE_REQUIRED_LINK_OPTIONS --coverage)
+check_cxx_compiler_flag(--coverage COVERAGE_SUPPORTED)
+
+if (COVERAGE_SUPPORTED)
+  add_compile_definitions(COVERAGE_BUILD)
+  add_compile_options(--coverage)
+  add_link_options(--coverage)
+else()
+  message(FATAL_ERROR "Could not enable coverage. A compiler with '--coverage' support is required.")
+endif()
+
+# This is needed for correct results in multithreaded applications
+list(APPEND CMAKE_REQUIRED_FLAGS -fprofile-update=atomic)
+check_cxx_compiler_flag(-fprofile-update=atomic COVERAGE_UPDATE_ATOMIC)
+
+if (COVERAGE_UPDATE_ATOMIC)
+  add_compile_options(-fprofile-update=atomic)
+else()
+  message(WARNING "Could not enable atomic coverage updates, expect unreliable results.")
+endif()
 
 #-------------------------------------------------------------------------------
 # Code coverage targets

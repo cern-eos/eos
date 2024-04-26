@@ -22,35 +22,39 @@
 # ************************************************************************
 
 #-------------------------------------------------------------------------------
-# Require c++17
+# Require C++17
 #-------------------------------------------------------------------------------
-include(CheckCXXCompilerFlag)
-set(CMAKE_CXX_STANDARD 17)
+
+set(CMAKE_CXX_STANDARD 17 CACHE STRING "C++ Standard")
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
-set(EOS_CXX_DEFINE "-DEOSCITRINE -DVERSION=\\\"${VERSION}\\\" -DRELEASE=\\\"${RELEASE}\\\"")
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${EOS_CXX_DEFINE} ${CPP_VERSION} -Wall -Wno-error=parentheses")
+set(CMAKE_CXX_EXTENSIONS FALSE)
+
 # Avoid having CMAKE treat include directories on imported libraries as systems
 # includes. In newer gcc versions the systems includes are added using the
 # "-isystem" flag instead of "-I". This currently breaks the build on Fedora 36
 # and 37.
 set(CMAKE_NO_SYSTEM_FROM_IMPORTED TRUE)
-check_cxx_compiler_flag(-std=c++17 HAVE_FLAG_STD_CXX17)
 
-if(NOT HAVE_FLAG_STD_CXX17)
-  message(FATAL_ERROR "A compiler with -std=c++17 support is required.")
-endif()
+add_compile_definitions(EOSCITRINE VERSION="${VERSION}" RELEASE="${RELEASE}")
+
+#-------------------------------------------------------------------------------
+# Compile Options
+#-------------------------------------------------------------------------------
+
+add_compile_options(-Wall)
 
 #-------------------------------------------------------------------------------
 # CPU architecture flags
 #-------------------------------------------------------------------------------
+
 include(CPUArchFlags)
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${CPU_ARCH_FLAGS}")
 
 #-------------------------------------------------------------------------------
 # Client-only flags
 #-------------------------------------------------------------------------------
+
 if (CLIENT)
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DCLIENT_ONLY=1")
+  add_compile_definitions(CLIENT_ONLY=1)
 endif ()
 
 #-------------------------------------------------------------------------------
@@ -60,47 +64,35 @@ endif ()
 if (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   # Clang requires linking with libatomic
   link_libraries(atomic)
-
-  # Add -Wno-unknown-warning-option flag when compiling with Clang to silence
-  # a lot of useless noise
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-unknown-warning-option")
 endif()
 
 #-------------------------------------------------------------------------------
 # Sanitizer flags
 #-------------------------------------------------------------------------------
-if (ASAN)
-  # Copy CMAKE_CXX_FLAGS and unset them to avoid false negatives when checking
-  # for support of the various flags
-  set(SAVE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
-  unset(CMAKE_CXX_FLAGS)
-  set(CMAKE_REQUIRED_FLAGS "-fsanitize=address")
-  check_cxx_compiler_flag(-fsanitize=address HAVE_FLAG_ASAN)
-  unset(CMAKE_REQUIRED_FLAGS)
-  set(CMAKE_CXX_FLAGS "${SAVE_CXX_FLAGS}")
 
-  if (NOT HAVE_FLAG_ASAN)
-    message(FATAL_ERROR "A compiler with '-fsanitize=address' support is required.")
+include(CheckCXXCompilerFlag)
+
+function(eos_enable_sanitizer sanitizer var)
+  set(FLAG -fsanitize=${sanitizer})
+  list(APPEND CMAKE_REQUIRED_FLAGS "${FLAG}")
+  list(APPEND CMAKE_REQUIRED_LINK_OPTIONS "${FLAG}")
+  check_cxx_compiler_flag("${FLAG}" "${var}")
+  if (${${var}})
+    # Set required flags in parent scope, as some sanitizers can't be used together
+    set(CMAKE_REQUIRED_FLAGS ${CMAKE_REQUIRED_FLAGS} PARENT_SCOPE)
+    set(CMAKE_REQUIRED_LINK_OPTIONS ${CMAKE_REQUIRED_LINK_OPTIONS} PARENT_SCOPE)
+    add_compile_options(${FLAG})
+    add_link_options(${FLAG})
+  else()
+    message(FATAL_ERROR "Could not enable flag '${FLAG}'.\n"
+      "Configure with --trace-expand to debug.")
   endif()
+endfunction()
 
-  message(STATUS "Enabling ASAN FLAGS")
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=address")
+if(ASAN)
+  eos_enable_sanitizer(address ASAN_SUPPORTED)
 endif()
 
-if (TSAN)
-  # Copy CMAKE_CXX_FLAGS and unset them to avoid false negatives when checking
-  # for support of the various flags
-  set(SAVE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
-  unset(CMAKE_CXX_FLAGS)
-  set(CMAKE_REQUIRED_FLAGS "-fsanitize=thread")
-  check_cxx_compiler_flag(-fsanitize=thread HAVE_FLAG_TSAN)
-  unset(CMAKE_REQUIRED_FLAGS)
-  set(CMAKE_CXX_FLAGS "${SAVE_CXX_FLAGS}")
-
-  if (NOT HAVE_FLAG_TSAN)
-    message(FATAL_ERROR "A compiler with '-fsanitize=thread' support is required.")
-  endif()
-
-  message(STATUS "Enabling TSAN FLAGS")
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=thread")
+if(TSAN)
+  eos_enable_sanitizer(thread TSAN_SUPPORTED)
 endif()
