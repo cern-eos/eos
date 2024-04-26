@@ -62,3 +62,9 @@ elseif (CMAKE_SYSTEM_PROCESSOR MATCHES "arm64|aarch64")
 else()
   message(WARNING "Could not determine platform. No cpu accel. will be used ")
 endif() # SYSTEM_PROCESSOR
+
+# This is an exception to the rule of not setting CMAKE_CXX_FLAGS directly.
+# We must ensure that all subprojects use the same CPU flags, otherwise
+# they will fail to link due to incompatible ABI.
+
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${CPU_ARCH_FLAGS}")
