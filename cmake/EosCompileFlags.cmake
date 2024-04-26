@@ -56,10 +56,11 @@ endif ()
 #-------------------------------------------------------------------------------
 # Compiler specific flags
 #-------------------------------------------------------------------------------
-# Clang requires linking with libatomic
+
 if (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-  set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${ATOMIC_LIBRARIES}")
-  set(CMAKE_MODULE_LINKER_FLAGS "${CMAKE_MODULE_LINKER_FLAGS} ${ATOMIC_LIBRARIES}")
+  # Clang requires linking with libatomic
+  link_libraries(atomic)
+
   # Add -Wno-unknown-warning-option flag when compiling with Clang to silence
   # a lot of useless noise
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-unknown-warning-option")
