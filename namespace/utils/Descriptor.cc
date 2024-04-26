@@ -139,7 +139,7 @@ void Socket::connect(const char* address, unsigned port)
   //--------------------------------------------------------------------------
   //! Resolve the hostname
   //--------------------------------------------------------------------------
-  sockaddr_in addr = {0};
+  sockaddr_in addr = {};
   resolve(address, addr);
   //--------------------------------------------------------------------------
   // Set up the port
