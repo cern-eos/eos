@@ -28,6 +28,10 @@ option(PACKAGEONLY "Build without dependencies" OFF)
 option(CLIENT "Build only client packages" OFF)
 option(BUILD_XRDCL_RAIN_PLUGIN "Enable XrdCl RAIN plugin" OFF)
 
+# Find default versions of Python with higher priority
+set(Python_FIND_UNVERSIONED_NAMES  "FIRST" CACHE STRING "")
+set(Python3_FIND_UNVERSIONED_NAMES "FIRST" CACHE STRING "")
+
 if(NOT PACKAGEONLY)
   set(THREADS_PREFER_PTHREAD_FLAG TRUE)
   find_package(Threads REQUIRED)
