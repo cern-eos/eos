@@ -39,11 +39,20 @@ endif()
 
 list(INSERT CMAKE_MODULE_PATH 0 ${PROJECT_SOURCE_DIR}/cmake)
 
-find_program(CCACHE_PROGRAM ccache)
-if (CCACHE_PROGRAM)
-    set_property(GLOBAL PROPERTY RULE_LAUNCH_COMPILE "${CCACHE_PROGRAM}")
-    set_property(GLOBAL PROPERTY RULE_LAUNCH_LINK "${CCACHE_PROGRAM}")
-endif ()
+option(CCACHE "Use ccache for compilation" ON)
+
+if(CCACHE)
+  find_program(CCACHE_COMMAND ccache ccache-swig)
+  mark_as_advanced(CCACHE_COMMAND ${CCACHE_COMMAND})
+
+  if(EXISTS ${CCACHE_COMMAND})
+    message(VERBOSE "Found ccache: ${CCACHE_COMMAND}")
+    set_property(GLOBAL PROPERTY RULE_LAUNCH_COMPILE ${CCACHE_COMMAND})
+  else()
+    message(VERBOSE "Could NOT find ccache")
+    set(CCACHE OFF CACHE BOOL "Use ccache for compilation (disabled)" FORCE)
+  endif()
+endif()
 
 #-------------------------------------------------------------------------------
 # Make gtest / gmock available for all downstream CMakeLists.txt that need it
