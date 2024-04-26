@@ -55,21 +55,6 @@ project (eos)
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 
 #-------------------------------------------------------------------------------
-# Make gtest / gmock available for all downstream CMakeLists.txt that need it
-#-------------------------------------------------------------------------------
-option(USE_SYSTEM_GTEST "Use GoogleTest installed in the system if found" OFF)
-
-if(USE_SYSTEM_GTEST)
-  find_package(GTest REQUIRED)
-else()
-  add_subdirectory(unit_tests/googletest EXCLUDE_FROM_ALL)
-
-  # Add alias libraries to emulate same behavior as external GoogleTest
-  add_library(GTest::GTest ALIAS gtest)
-  add_library(GTest::Main ALIAS gtest_main)
-endif()
-
-#-------------------------------------------------------------------------------
 # Activate include-what-you-use
 #-------------------------------------------------------------------------------
 option(ENABLE_IWYU "Enable include-what-you-use tool" OFF)
@@ -112,6 +97,21 @@ endif()
 
 set(CMAKE_INSTALL_SYSCONFDIR /etc)
 include(EosFindLibs)
+
+#-------------------------------------------------------------------------------
+# Make gtest / gmock available for all downstream CMakeLists.txt that need it
+#-------------------------------------------------------------------------------
+option(USE_SYSTEM_GTEST "Use GoogleTest installed in the system if found" OFF)
+
+if(USE_SYSTEM_GTEST)
+  find_package(GTest REQUIRED)
+else()
+  add_subdirectory(unit_tests/googletest EXCLUDE_FROM_ALL)
+
+  # Add alias libraries to emulate same behavior as external GoogleTest
+  add_library(GTest::GTest ALIAS gtest)
+  add_library(GTest::Main ALIAS gtest_main)
+endif()
 
 #-------------------------------------------------------------------------------
 # Generate documentation
