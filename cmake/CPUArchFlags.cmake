@@ -62,3 +62,6 @@ elseif (CMAKE_SYSTEM_PROCESSOR MATCHES "arm64|aarch64")
 else()
   message(WARNING "Could not determine platform. No cpu accel. will be used ")
 endif() # SYSTEM_PROCESSOR
+
+add_compile_options(${CPU_ARCH_FLAGS})
+add_link_options(${CPU_ARCH_FLAGS})
