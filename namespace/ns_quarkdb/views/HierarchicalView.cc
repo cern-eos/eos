@@ -863,7 +863,7 @@ folly::Future<std::deque<std::string>>
     // Reached the end?
     //--------------------------------------------------------------------------
     if (nextToLookup->getIdentifier()  == ContainerIdentifier(1)) {
-      return std::move(currentChunks);
+      return currentChunks;
     }
 
     //--------------------------------------------------------------------------
