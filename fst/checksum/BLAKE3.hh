@@ -27,12 +27,13 @@
 /*----------------------------------------------------------------------------*/
 #include "fst/Namespace.hh"
 #include "fst/checksum/CheckSum.hh"
-#include "common/blake3/blake3.h"
 /*----------------------------------------------------------------------------*/
 #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdOuc/XrdOucString.hh"
 #include "XrdSys/XrdSysPthread.hh"
 /*----------------------------------------------------------------------------*/
+
+#include <blake3.h>
 #include <zlib.h>
 
 #ifdef ISAL_FOUND
