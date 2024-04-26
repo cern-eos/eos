@@ -2948,7 +2948,7 @@ XrdMqSharedObjectManager::ParseEnvMessage(XrdMqMessage* message,
           }
 
           if (sh) {
-            success *= sh->BroadCastEnvString(reply.c_str());
+            success = success && sh->BroadCastEnvString(reply.c_str());
           }
         }
 
