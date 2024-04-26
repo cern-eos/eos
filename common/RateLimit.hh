@@ -137,6 +137,8 @@ public:
   {
     auto wait = GetDelay();
 
+    (void) permits; /* avoid warning about unused parameter */
+
     // When testing skip the actual sleepp
     if (!mClock.IsFake()) {
       std::this_thread::sleep_for(wait);
