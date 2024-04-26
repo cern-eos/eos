@@ -243,9 +243,17 @@ XrdStress::RunTestProcesses()
                 info->avgOpenVal);
       }
 
-      write(pipefd[i][1], writebuffer, strlen(writebuffer));
+      ssize_t buflen = strlen(writebuffer);
+      ssize_t wrtlen = write(pipefd[i][1], writebuffer, strlen(writebuffer));
+
       free(info);
       close(pipefd[i][1]);    //close writing end
+
+      if (wrtlen != buflen) {
+        fprintf(stderr, "error=error in write(): %s\n", strerror(errno));
+        exit(EXIT_FAILURE);
+      }
+
       exit(EXIT_SUCCESS);
     }
   }
