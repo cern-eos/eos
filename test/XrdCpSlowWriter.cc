@@ -65,7 +65,7 @@ int main(int argc, char* argv[])
   // Allocate a random buffer used for writing
   // Fill buffer with random characters
   uint32_t block_size = 1024 * 1024;
-  std::unique_ptr<char> buffer {new char[block_size]};
+  std::unique_ptr<char[]> buffer = std::make_unique<char[]>(block_size);
   std::ifstream urandom("/dev/urandom", std::ios::in | std::ios::binary);
   urandom.read(buffer.get(), block_size);
   urandom.close();
