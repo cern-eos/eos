@@ -84,7 +84,7 @@ public:
     mSSL = onoff;
   }
 
-  const bool ssl()
+  bool ssl() const
   {
     return mSSL;
   }
@@ -94,7 +94,7 @@ public:
     mToken = _token;
   }
 
-  std::string token()
+  std::string token() const
   {
     return mToken;
   }
