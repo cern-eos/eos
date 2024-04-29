@@ -1333,7 +1333,7 @@ RWMutexWriteLock::RWMutexWriteLock(RWMutex& mutex, const char* function,
   mWrMutex(nullptr)
 {
   if(errno && inspect) eos_static_crit("[2.2.a] ERRNO-DEBUG , errno=%d",errno);
-  Grab(mutex, function, file, line);
+  Grab(mutex, function, file, line, inspect);
   if(errno && inspect) eos_static_crit("[2.2.b] ERRNO-DEBUG , errno=%d",errno);
 }
 
