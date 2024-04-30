@@ -343,7 +343,7 @@ public:
     {
       std::string fullpath = pfp;
 
-      if (fullpath.back() != '/') {
+      if (fullpath.length() && fullpath.back() != '/') {
         fullpath += "/";
       }
 
