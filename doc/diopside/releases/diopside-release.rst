@@ -17,25 +17,53 @@ Introduction
 This release is based on XRootD V5.
 
 
-``V5.2.22 Diopside``
+``v5.2.23 Diopside``
+====================
+
+2024-04-30
+
+Note
+----
+
+* Update eos-xrootd dependency to 5.6.10 - this version includes important
+  optimizations for the use of OpenSSL 3.
+
+Bug
+----
+
+* [EOS-5972] - rising "HB is stuck" time, apparent deadlock wait_upstream/mdcflush
+* [EOS-6109] - Rename - Deadlock with concurrent renames
+* [EOS-6120] - deadlock during EosFuse::mkdir
+
+Improvement
+------------
+
+* ALL: Many compilation warning fixes
+
+
+``v5.2.22 Diopside``
 ====================
 
 2024-04-09
 
-BUG
+Bug
+----
 
 * [EOS-6116] - FUSEX: fix eosxd callback handler when a file is moved on top of an existing file
 * [EOS-6115] - FUSEX: fix invisible directories if the name had been put into the ENOENT cache
 * [EOS-6111] - FST: mark readV errors as read IO errors in the report log
 * [EOS-6110] - MGM: fix loop in devices thread in non-master MGMs
 * FST - fix interface speed reading
-  
+
+
 Improvement
+------------
 
 * [EOS-6117] - FST: ErrorReports are suppressed on FSTs when over 4 Hz to 1Hz + marker
 * [EOS-6114] - FUSEX: eosxd and MGM share the same assumption, that as an owner of directory you can delete a file of another person even if !d was specified for the group
 
-``V5.2.21 Diopside``
+
+``v5.2.21 Diopside``
 ====================
 
 2024-03-25
@@ -43,7 +71,7 @@ Improvement
 BUG
 
 * [EOS-6105] - fix credential validation in ALMA9 container under chroot environments
-  
+
 ``v5.2.20 Diopside``
 ====================
 
