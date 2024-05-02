@@ -36,6 +36,8 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#include <json/json.h>
+#include <common/Logging.hh>
 
 /* SciToken factory */
 int
@@ -257,7 +259,24 @@ com_scitoken(char* arg1)
     system("openssl pkcs8 -topk8 -nocrypt -in /tmp/.eossci.ec -out /tmp/.eossci-key.pem 2>/dev/null");
     system("cat /tmp/.eossci.ec | openssl ec -pubout > /tmp/.eossci-pkey.pem 2>/dev/null");
     system("/sbin/eosjwker /tmp/.eossci-pkey.pem | json_pp > /tmp/.eossci.jwk ");
-    system("cat /tmp/.eossci.jwk");
+
+    {
+      Json::Value json;
+      Json::Value root;
+      std::string errs;
+      Json::CharReaderBuilder reader;
+      std::ifstream configfile("/tmp/.eossci.jwk", std::ifstream::binary);
+      bool ok = parseFromStream(reader, configfile, &root, &errs);
+      if (ok) {
+	// store the keyid into the JSON document
+	root["key"] = keyid.length()?keyid:"default";
+      } else {
+	global_retc = EIO;
+	return (0);
+      }
+      json["keys"].append(root);
+      std::cout << SSTR(json) << std::endl;
+    }
 
     std::string prefix;
     if (keyid.length()) {
