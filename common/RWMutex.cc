@@ -1376,7 +1376,7 @@ RWMutexWriteLock::Grab(RWMutex& mutex, const char* function,
   RWMutex::RecordMutexOp((uint64_t)mWrMutex->GetRawPtr(),
                          RWMutex::LOCK_T::eWantLockWrite);
   if(errno && inspect) eos_static_crit("[2.3.c] ERRNO-DEBUG , errno=%d",errno);
-  mWrMutex->LockWrite(true);
+  mWrMutex->LockWrite(inspect);
   if(errno && inspect) eos_static_crit("[2.3.d] ERRNO-DEBUG , errno=%d",errno);
   RWMutex::RecordMutexOp((uint64_t)mWrMutex->GetRawPtr(),
                          RWMutex::LOCK_T::eLockWrite);
