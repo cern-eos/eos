@@ -104,7 +104,8 @@ XrdMgmOfsDirectory::open(const char* inpath,
   XrdOucEnv Open_Env(ininfo);
   AUTHORIZE(client, &Open_Env, AOP_Readdir, "open directory", inpath, error);
   EXEC_TIMING_BEGIN("IdMap");
-  eos::common::Mapping::IdMap(client, ininfo, tident, vid);
+  eos::common::Mapping::IdMap(client, ininfo, tident, vid,
+			      gOFS->mTokenAuthz, AOP_Readdir, inpath);
   EXEC_TIMING_END("IdMap");
   gOFS->MgmStats.Add("IdMap", vid.uid, vid.gid, 1);
   BOUNCE_NOT_ALLOWED;
