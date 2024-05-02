@@ -348,7 +348,6 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
 	eos_static_err("jwt={%s}", PrintJWT(Env.Get("authz")?std::string(Env.Get("authz")):std::string("")).c_str());
         return;
       }
-
       // Check if we have the request.name in the attributes of the XrdSecEntity
       // object which is the client username according to the authz mapping.
       std::string client_username="nobody";
@@ -361,7 +360,6 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
 	// no user from the token, we are 'anonymous'
 	client_username = "nobody";
       }
-
       HandleUidGidMapping(client_username.c_str(), vid,
                           g_unix_uid_key, g_unix_gid_key, true);
     } else {
