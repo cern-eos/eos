@@ -1,11 +1,13 @@
+#!/usr/bin/env python3
+
 # ----------------------------------------------------------------------
-# File: CMakeLists.txt
+# File: eos-jwk-https
 # Author: Andreas-Joachim Peters - CERN
 # ----------------------------------------------------------------------
 
 # ************************************************************************
 # * EOS - the CERN Disk Storage System                                   *
-# * Copyright (C) 2016 CERN/Switzerland                                  *
+# * Copyright (C) 2024 CERN/Switzerland                                  *
 # *                                                                      *
 # * This program is free software: you can redistribute it and/or modify *
 # * it under the terms of the GNU General Public License as published by *
@@ -21,42 +23,33 @@
 # * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
 # ************************************************************************
 
-string (REGEX MATCH "\\.el[1-9]" os_version_suffix ${CMAKE_SYSTEM})
-message("-- os_version_suffix:      ${os_version_suffix}")
+from http.server import HTTPServer, BaseHTTPRequestHandler
+import ssl
+import socket
+import os
 
-add_custom_command(
-    OUTPUT ${CMAKE_CURRENT_SOURCE_DIR}/jwker${os_version_suffix}
-    COMMAND ${CMAKE_COMMAND} -E echo "Creating eosjwker"
-    COMMAND yum install -y go
-    COMMAND go install github.com/jphastings/jwker/cmd/jwker@latest
-    COMMAND cp -vf $ENV{HOME}/go/bin/jwker ${CMAKE_CURRENT_SOURCE_DIR}/jwker${os_version_suffix}
-    COMMAND cp -vf ${CMAKE_CURRENT_SOURCE_DIR}/jwker${os_version_suffix} ${CMAKE_CURRENT_SOURCE_DIR}/eosjwker
-)
+class SimpleHTTPRequestHandler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        wellknown = '{"jwks_uri":"https://';
+        wellknown += socket.getfqdn()
+        wellknown += '/jwk"}'
+        if self.path == "/.well-known/openid-configuration":
+           self.send_response(200)
+           self.end_headers()
+           self.wfile.write(bytes(wellknown,'UTF-8'))
+        else:
+           if self.path == "/jwk":
+              self.send_response(200)
+              self.end_headers()
+              self.wfile.write(bytes(os.environ["EOS_JWK"],'UTF-8'))
+           else:
+              self.send_error(404, "File not found")
+              return
 
-add_custom_target(
-    build-eosjwker ALL
-    DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/jwker${os_version_suffix}
-)
+httpd = HTTPServer(('', 4443), SimpleHTTPRequestHandler)
 
-install(PROGRAMS
-  eos-status
-  eos_start.sh
-  eos_start_pre.sh
-  eos-reportstat
-  eos-mdstat
-  eos-mdreport
-  eos-inspectorreport
-  eos-inspectorstat
-  eos-prom-push
-  eosjwker
-  eos-jwk-https
-  DESTINATION ${CMAKE_INSTALL_FULL_SBINDIR})
+httpd.socket = ssl.wrap_socket (httpd.socket, 
+        keyfile='/etc/grid-security/daemon/hostkey.pem', 
+        certfile='/etc/grid-security/daemon/hostcert.pem', server_side=True)
 
-if(TARGET eosxd)
-  install(PROGRAMS mount.eosx DESTINATION ${CMAKE_INSTALL_FULL_SBINDIR})
-endif()
-
-if(TARGET eosxd3)
-  install(PROGRAMS umount.fuse mount.eosx3 mount.eoscfs DESTINATION ${CMAKE_INSTALL_FULL_SBINDIR})
-
-endif()
+httpd.serve_forever()
