@@ -23,7 +23,6 @@
 #include "common/StacktraceHere.hh"
 #include "common/Logging.hh"
 #include "common/Timing.hh"
-#include "common/Logging.hh"
 #include "common/RWMutex.hh"
 #include "common/PthreadRWMutex.hh"
 #include "common/SharedMutex.hh"
@@ -356,7 +355,7 @@ RWMutex::LockWrite(bool inspect)
 
   if (mBlocking) {
     // A blocking mutex is just a normal lock for write
-    if ((retc = mMutexImpl->LockWrite())) {
+    if ((retc = mMutexImpl->LockWrite(inspect))) {
       if(errno && inspect) eos_static_crit("[3.1.c] ERRNO-DEBUG , errno=%d",errno);
       fprintf(stderr, "%s Failed to write-lock: %s\n", __FUNCTION__,
               strerror(retc));

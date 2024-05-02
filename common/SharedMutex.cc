@@ -21,6 +21,7 @@
  ************************************************************************/
 
 #include "common/SharedMutex.hh"
+#include "common/Logging.hh"
 
 EOSCOMMONNAMESPACE_BEGIN
 
@@ -58,9 +59,11 @@ SharedMutex::TimedRdLock(uint64_t timeout_ns)
 // Lock for write
 //------------------------------------------------------------------------------
 int
-SharedMutex::LockWrite()
+SharedMutex::LockWrite(bool inspect)
 {
+  if(errno && inspect) eos_static_crit("[4.2.a] ERRNO-DEBUG , errno=%d",errno);
   mSharedMutex.Lock();
+  if(errno && inspect) eos_static_crit("[4.2.b] ERRNO-DEBUG , errno=%d",errno);
   return 0;
 }
 

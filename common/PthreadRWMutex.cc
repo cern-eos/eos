@@ -21,6 +21,7 @@
  ************************************************************************/
 
 #include "common/PthreadRWMutex.hh"
+#include "common/Logging.hh"
 #include "common/Timing.hh"
 #include <stdio.h>
 #include <exception>
@@ -118,9 +119,12 @@ PthreadRWMutex::UnLockRead()
 // Lock for write
 //------------------------------------------------------------------------------
 int
-PthreadRWMutex::LockWrite()
+PthreadRWMutex::LockWrite(bool inspect)
 {
-  return pthread_rwlock_wrlock(&mMutex);
+  if(errno && inspect) eos_static_crit("[4.1.a] ERRNO-DEBUG , errno=%d",errno);
+  int ret = pthread_rwlock_wrlock(&mMutex);
+  if(errno && inspect) eos_static_crit("[4.1.b] ERRNO-DEBUG , errno=%d",errno);
+  return ret;
 }
 
 //------------------------------------------------------------------------------
