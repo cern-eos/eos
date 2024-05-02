@@ -21,6 +21,7 @@
  ************************************************************************/
 
 #include "common/StacktraceHere.hh"
+#include "common/Logging.hh"
 #include "common/Timing.hh"
 #include "common/Logging.hh"
 #include "common/RWMutex.hh"
@@ -333,7 +334,7 @@ RWMutex::UnLockRead()
 // Lock for write
 //------------------------------------------------------------------------------
 void
-RWMutex::LockWrite()
+RWMutex::LockWrite(bool inspect)
 {
   EOS_RWMUTEX_CHECKORDER_LOCK;
   EOS_RWMUTEX_TIMER_START;
@@ -343,8 +344,11 @@ RWMutex::LockWrite()
     mTransientDeadlockCheck = true;
   }
 
+  if(errno && inspect) eos_static_crit("[3.1.a] ERRNO-DEBUG , errno=%d",errno);
+
   if (mEnableDeadlockCheck || mTransientDeadlockCheck) {
     EnterCheckDeadlock(false);
+    if(errno && inspect) eos_static_crit("[3.1.b] ERRNO-DEBUG , errno=%d",errno);
   }
 
 #endif
@@ -353,10 +357,12 @@ RWMutex::LockWrite()
   if (mBlocking) {
     // A blocking mutex is just a normal lock for write
     if ((retc = mMutexImpl->LockWrite())) {
+      if(errno && inspect) eos_static_crit("[3.1.c] ERRNO-DEBUG , errno=%d",errno);
       fprintf(stderr, "%s Failed to write-lock: %s\n", __FUNCTION__,
               strerror(retc));
       std::terminate();
     }
+    if(errno && inspect) eos_static_crit("[3.1.d] ERRNO-DEBUG , errno=%d",errno);
   } else {
 #ifdef __APPLE__
 
@@ -372,21 +378,31 @@ RWMutex::LockWrite()
     // A non-blocking mutex tries for few seconds to write lock, then releases.
     // It has the side effect, that it allows dead locked readers to jump ahead
     // the lock queue.
+    if(errno && inspect) eos_static_crit("[3.1.e] ERRNO-DEBUG , errno=%d",errno);
+
     while (true) {
+
+      if(errno && inspect) eos_static_crit("[3.1.f] ERRNO-DEBUG , errno=%d",errno);
+
       uint64_t timeout_ns = wlocktime.tv_nsec + wlocktime.tv_sec * 1e9;
       int rc = mMutexImpl->TimedWrLock(timeout_ns);
 
+      if(errno && inspect) eos_static_crit("[3.1.g] ERRNO-DEBUG , errno=%d",errno);
+
       if (rc) {
         if (rc != ETIMEDOUT) {
+          if(errno && inspect) eos_static_crit("[3.1.h] ERRNO-DEBUG , errno=%d",errno);
           fprintf(stderr, "=== WRITE LOCK EXCEPTION == TID=%llu OBJECT=%llx rc=%d\n",
                   (unsigned long long) XrdSysThread::ID(), (unsigned long long) this, rc);
           std::terminate();
         } else {
+          if(errno && inspect) eos_static_crit("[3.1.i] ERRNO-DEBUG , errno=%d",errno);
           // fprintf(stderr,"==== WRITE LOCK PENDING ==== TID=%llu OBJECT=%llx\n",
           //        (unsigned long long)XrdSysThread::ID(), (unsigned long long)this);
           std::this_thread::sleep_for(std::chrono::milliseconds(500));
         }
       } else {
+        if(errno && inspect) eos_static_crit("[3.1.j] ERRNO-DEBUG , errno=%d",errno);
         // fprintf(stderr,"=== WRITE LOCK ACQUIRED  ==== TID=%llu OBJECT=%llx\n",
         // (unsigned long long)XrdSysThread::ID(), (unsigned long long)this);
         break;
@@ -395,6 +411,8 @@ RWMutex::LockWrite()
 
 #endif
   }
+
+  if(errno && inspect) eos_static_crit("[3.1.k] ERRNO-DEBUG , errno=%d",errno);
 
   EOS_RWMUTEX_TIMER_STOP_AND_UPDATE(mWr);
 }
@@ -1358,7 +1376,7 @@ RWMutexWriteLock::Grab(RWMutex& mutex, const char* function,
   RWMutex::RecordMutexOp((uint64_t)mWrMutex->GetRawPtr(),
                          RWMutex::LOCK_T::eWantLockWrite);
   if(errno && inspect) eos_static_crit("[2.3.c] ERRNO-DEBUG , errno=%d",errno);
-  mWrMutex->LockWrite();
+  mWrMutex->LockWrite(true);
   if(errno && inspect) eos_static_crit("[2.3.d] ERRNO-DEBUG , errno=%d",errno);
   RWMutex::RecordMutexOp((uint64_t)mWrMutex->GetRawPtr(),
                          RWMutex::LOCK_T::eLockWrite);
