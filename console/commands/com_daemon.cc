@@ -179,17 +179,18 @@ com_daemon(char* arg)
       (option != "stack") &&
       (option != "stop") &&
       (option != "kill") &&
+      (option != "jwk") &&
       (option != "module-init")) {
     goto com_daemon_usage;
   }
 
   service = subtokenizer.GetToken();
 
-  if ((!service.length()) ||
+  if ((option != "jwk") && ((!service.length()) ||
       ((service != "mgm") &&
        (service != "mq") &&
        (service != "fst") &&
-       (service != "qdb"))) {
+       (service != "qdb")))) {
     goto com_daemon_usage;
   }
 
@@ -476,6 +477,22 @@ com_daemon(char* arg)
     fprintf(stderr, "info: run '%s' retc=%d\n", kline.c_str(), WEXITSTATUS(rc));
     global_retc = WEXITSTATUS(rc);
     return (0);
+  } else if (option == "jwk") {
+    XrdOucString jwkfile = name.c_str();
+    struct stat buf;
+    if (::stat(jwkfile.c_str(), &buf)) {
+      fprintf(stderr, "error: jwk key file '%s' does not exist!\n", jwkfile.c_str());
+      global_retc = ENOENT;
+      return (0);
+    }
+    std::string kline;
+    kline = "env EOS_JWK=\"$(cat \"";
+    kline += jwkfile.c_str();
+    kline += "\")\" /sbin/eos-jwk-https";
+    int rc = system(kline.c_str());
+    fprintf(stderr, "info: run '%s' retc=%d\n", kline.c_str(), WEXITSTATUS(rc));
+    global_retc = WEXITSTATUS(rc);
+    return (0);
   } else if (option == "kill") {
     std::string kline;
     kline = "test -e ";
@@ -650,7 +667,7 @@ com_daemon(char* arg)
   return (0);
 com_daemon_usage:
   fprintf(stdout,
-          "usage: daemon config|sss|kill|run|stack|stop|module-init <service> [name] [subcmd]                                     :  \n");
+          "usage: daemon config|sss|kill|run|stack|stop|jwk|module-init <service> [name] [subcmd]                                     :  \n");
   fprintf(stdout,
           "                <service> := mq | mgm | fst | qdb\n");
   fprintf(stdout,
@@ -665,6 +682,8 @@ com_daemon_usage:
           "                stack                                                 -  print an 'eu-stack'\n");
   fprintf(stdout,
           "                stop                                                  -  kill -15 a given service\n");
+  fprintf(stdout,
+	  "                jwk                                                   -  run a 'jwk' public key server on port 4443\n");
   fprintf(stdout,
           "                module-init                                           -  run the init procedure for a module\n");
   fprintf(stdout, "\n");
