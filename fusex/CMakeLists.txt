@@ -194,56 +194,51 @@ install(FILES eosfusebind
   PERMISSIONS OWNER_EXECUTE OWNER_WRITE OWNER_READ
   GROUP_EXECUTE GROUP_READ WORLD_EXECUTE WORLD_READ )
 
-
-#-------------------------------------------------------------------------------
-# eoscfsd build configuration
-#-------------------------------------------------------------------------------
-set(EOSCFSD_COMPILE_FLAGS
-  "-DFUSE_MOUNT_VERSION=${FUSE_MOUNT_VERSION}0 -D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64 -DVERSION=\\\"${VERSION}\\\""
-)
-
-set(EOSCFSD_COMMON_LINK_LIBRARIES
-  EosFuseAuth
-  EosCommon
-  XROOTD::CL
-  XROOTD::UTILS
-  PROTOBUF::PROTOBUF
-  JSONCPP::JSONCPP
-  LIBBFD::LIBBFD)
-
-add_library(eoscfsd-objects OBJECT
-  eoscfsd/cfslogin.cc eoscfsd/cfslogin.hh
-  eoscfsd/cfsrecycle.cc eoscfsd/cfsrecycle.hh
-  stat/Stat.cc stat/Stat.hh
-  ../common/ShellCmd.cc ../common/ShellCmd.hh
-  ../common/ShellExecutor.cc ../common/ShellExecutor.hh)
-
-set_target_properties(eoscfsd-objects
-  PROPERTIES COMPILE_FLAGS ${EOSCFSD_COMPILE_FLAGS})
-
-target_link_libraries(eoscfsd-objects PUBLIC
-  FUSE3::FUSE3
-  XROOTD::PRIVATE
-  XROOTD::UTILS
-  JSONCPP::JSONCPP
-  fmt::fmt-header-only )
-
 #-------------------------------------------------------------------------------
 # eoscfsd executables
 #-------------------------------------------------------------------------------
 
 if (FUSE3_FOUND)
+  set(EOSCFSD_COMPILE_FLAGS
+    "-DFUSE_MOUNT_VERSION=${FUSE_MOUNT_VERSION}0 -D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64 -DVERSION=\\\"${VERSION}\\\"")
+
+  set(EOSCFSD_COMMON_LINK_LIBRARIES
+    EosFuseAuth
+    EosCommon
+    XROOTD::CL
+    XROOTD::UTILS
+    PROTOBUF::PROTOBUF
+    JSONCPP::JSONCPP
+    LIBBFD::LIBBFD)
+
+  add_library(eoscfsd-objects OBJECT
+    eoscfsd/cfslogin.cc eoscfsd/cfslogin.hh
+    eoscfsd/cfsrecycle.cc eoscfsd/cfsrecycle.hh
+    stat/Stat.cc stat/Stat.hh
+    ../common/ShellCmd.cc ../common/ShellCmd.hh
+    ../common/ShellExecutor.cc ../common/ShellExecutor.hh)
+
+  set_target_properties(eoscfsd-objects
+    PROPERTIES COMPILE_FLAGS ${EOSCFSD_COMPILE_FLAGS})
+
+  target_link_libraries(eoscfsd-objects PUBLIC
+    FUSE3::FUSE3
+    XROOTD::PRIVATE
+    XROOTD::UTILS
+    JSONCPP::JSONCPP
+    fmt::fmt-header-only )
+
   add_executable(eoscfsd eoscfsd/eoscfsd.cc)
   add_executable(eosxd3 eosxd/main.cc)
-  
+
   target_link_libraries(eoscfsd PUBLIC
     eoscfsd-objects
     JEMALLOC::JEMALLOC
     ${EOSCFSD_COMMON_LINK_LIBRARIES})
-  
+
   set_target_properties(eoscfsd
     PROPERTIES COMPILE_FLAGS ${EOSCFSD_COMPILE_FLAGS})
-  
+
   install(TARGETS eoscfsd
     RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_BINDIR})
 
