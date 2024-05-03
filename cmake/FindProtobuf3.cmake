@@ -24,16 +24,16 @@ message(STATUS "Found protoc: ${PROTOBUF3_PROTOC_EXECUTABLE}")
 find_path(PROTOBUF3_INCLUDE_DIR
   NAMES google/protobuf/message.h
   HINTS ${PROTOBUF_ROOT}
-  PATHS /opt/eos/grpc/include/ /opt/eos/include/protobuf3 /usr/include/protobuf3 /usr/local /usr
+  PATHS /opt/eos/grpc/ /opt/eos/include/protobuf3 /usr/include/protobuf3 /usr/local /usr
   PATH_SUFFIXES include
   NO_DEFAULT_PATH)
 
 find_library(PROTOBUF3_LIBRARY
   NAME protobuf
   HINTS ${PROTOBUF_ROOT}
-  PATHS /opt/eos/grpc/lib64/ /opt/eos/lib64/protobuf3 /usr/lib64/protobuf3 /usr/lib/protobuf3
+  PATHS /opt/eos/grpc/ /usr/lib64/protobuf3 /usr/lib/protobuf3
 	/usr/local /usr /usr/lib/x86_64-linux-gnu
-  PATH_SUFFIXES lib64 lib
+  PATH_SUFFIXES ${CMAKE_INSTALL_LIBDIR} lib64 lib
   NO_DEFAULT_PATH)
 
 include(FindPackageHandleStandardArgs)
