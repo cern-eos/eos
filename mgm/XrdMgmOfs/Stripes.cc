@@ -337,6 +337,7 @@ XrdMgmOfs::_dropallstripes(const char* path,
   // ---------------------------------------------------------------------------
   {
     eos::common::RWMutexReadLock rlock(gOFS->eosViewRWMutex);
+    if(errno == EAGAIN) errno = 0;
 
     try {
       dh = gOFS->eosView->getContainer(parentPath);
@@ -382,6 +383,7 @@ XrdMgmOfs::_dropallstripes(const char* path,
   try {
     // only write lock at this point
     eos::common::RWMutexWriteLock wlock(gOFS->eosViewRWMutex, EOS_FUNCTION, EOS_FILE, EOS_LINE, true);
+    if(errno == EAGAIN) errno = 0;
     if(errno) eos_static_crit("[1.f] ERRNO-DEBUG , path=%s, errno=%d",path,errno);
     for (auto location : fmd->getLocations()) {
       if(errno) eos_static_crit("[1.g] ERRNO-DEBUG , path=%s, errno=%d",path,errno);
