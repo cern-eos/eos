@@ -18,14 +18,14 @@ find_library(ROCKSDB_LIBRARY
   NAMES rocksdb
   HINTS ${ROCKSDB_ROOT}
   PATHS /opt/eos/rocksdb/ /usr/local /usr
-  PATH_SUFFIXES ${CMAKE_INSTALL_LIBDIR}
+  PATH_SUFFIXES ${CMAKE_INSTALL_LIBDIR} lib
   NO_DEFAULT_PATH)
 
 find_library(ROCKSDB_TOOLS_LIBRARY
   NAMES rocksdb_tools
   HINTS ${ROCKSDB_ROOT}
   PATHS /opt/eos/rocksdb /usr/local /usr
-  PATH_SUFFIXES ${CMAKE_INSTALL_LIBDIR}
+  PATH_SUFFIXES ${CMAKE_INSTALL_LIBDIR} lib
   NO_DEFAULT_PATH)
 
 include(FindPackageHandleStandardArgs)
