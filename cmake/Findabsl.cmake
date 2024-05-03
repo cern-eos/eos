@@ -38,14 +38,10 @@ find_package_handle_standard_args(absl
 mark_as_advanced(ABSL_INCLUDE_DIR ABSL_LIBRARY)
 message(STATUS "Abseil include path: ${ABSL_INCLUDE_DIR}")
 
-find_library(MAIN_ABSL_LIBRARY NAMES absl_base HINTS 
-    HINTS /opt/eos/grpc/lib64 ${ABSL_ROOT}
-    PATH_SUFFIXES ${CMAKE_INSTALL_LIBDIR})
-
 if (ABSL_FOUND AND NOT TARGET ABSL::ABSL)
   add_library(ABSL::ABSL UNKNOWN IMPORTED)
   set_target_properties(ABSL::ABSL PROPERTIES
-    IMPORTED_LOCATION "${MAIN_ABSL_LIBRARY}"
+    IMPORTED_LOCATION "${ABSL_absl_base_LIBRARY}"
     INTERFACE_INCLUDE_DIRECTORIES "${ABSL_INCLUDE_DIR}"
     INTERFACE_LINK_LIBRARIES "${ABSL_LIBRARIES}")
 endif ()
