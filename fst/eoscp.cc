@@ -39,6 +39,8 @@
 #include <openssl/md5.h>
 #include <optional>
 #include <getopt.h>
+#include "XrdCl/XrdClDefaultEnv.hh"
+#include "XrdCl/XrdClPostMaster.hh"
 #include "XrdCl/XrdClFile.hh"
 #include "XrdCl/XrdClDefaultEnv.hh"
 #include "XrdOuc/XrdOucString.hh"
@@ -845,6 +847,11 @@ main(int argc, char* argv[])
   int set_mode = 0;
   extern char* optarg;
   extern int optind;
+  // Ugly temporary hack for stopping the XRootD PostMaster environment no matter what happens (https://its.cern.ch/jira/projects/EOS/issues/EOS-6087)
+  auto stopPostMaster = [&](void*) {
+    XrdCl::DefaultEnv::GetPostMaster()->Stop();
+  };
+  std::unique_ptr<void, decltype(stopPostMaster)> stopPostMasterDeleter((void *)1, stopPostMaster);
   XrdCl::DefaultEnv::GetEnv()->PutInt("MetalinkProcessing", 0);
   XrdCl::DefaultEnv::GetEnv()->PutInt("ParallelEvtLoop",
                                       8);  // needed for high performance on 100GE
