@@ -21,6 +21,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
+#include "XrdSfs/XrdSfsFlags.hh"
 #include "mgm/http/HttpServer.hh"
 #include "mgm/http/HttpHandler.hh"
 #include "mgm/XrdMgmOfsDirectory.hh"
@@ -169,6 +170,7 @@ HttpHandler::Get(eos::common::HttpRequest* request, bool isHEAD)
   std::string query = request->GetQuery();
   eos::common::HttpResponse* response = 0;
   struct stat buf;
+  bool statOK = false;
   XrdOucString spath = request->GetUrl().c_str();
   std::string etag = "undef";
   eos::common::OwnCloud::OwnCloudRemapping(spath, request);
@@ -223,6 +225,8 @@ HttpHandler::Get(eos::common::HttpRequest* request, bool isHEAD)
                                        response->NOT_FOUND);
       return response;
     }
+
+    statOK = true;
 
     if (request->GetHeaders().count("if-match") &&
         (etag != request->GetHeaders()["if-match"])) {
@@ -346,6 +350,13 @@ HttpHandler::Get(eos::common::HttpRequest* request, bool isHEAD)
   } else {
     eos_static_info("method=GET file=%s tident=%s query=%s",
                     url.c_str(), client.tident, query.c_str());
+    if(statOK && (buf.st_rdev & XRDSFS_HASBKUP) && (buf.st_rdev & XRDSFS_OFFLINE)) {
+      // File is located on tape, not on disk - EOS-6132
+      response = HttpServer::HttpError("File is stored on tape - no disk replica exists",
+                            response->FAILED_DEPENDENCY);
+      return response;
+    }
+
     XrdSfsFile* file = gOFS->newFile((char*) mVirtualIdentity->tident.c_str());
 
     if (file) {

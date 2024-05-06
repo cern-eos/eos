@@ -77,6 +77,7 @@ public:
     UNSUPPORTED_MEDIA_TYPE          = 415,
     REQUESTED_RANGE_NOT_SATISFIABLE = 416,
     UNPROCESSABLE_ENTITY            = 422,
+    FAILED_DEPENDENCY               = 424,
 
     // Server Error 5xx
     INTERNAL_SERVER_ERROR           = 500,

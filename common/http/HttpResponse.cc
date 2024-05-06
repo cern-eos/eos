@@ -176,6 +176,9 @@ HttpResponse::GetResponseCodeDescription()
   case UNPROCESSABLE_ENTITY:
     return std::string("UNPROCESSABLE_ENTITY");
 
+  case FAILED_DEPENDENCY:
+    return std::string("FAILED_DEPENDENCY");
+
   case INTERNAL_SERVER_ERROR:
     return std::string("INTERNAL_SERVER_ERROR");
 
