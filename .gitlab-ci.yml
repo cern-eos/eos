@@ -1001,9 +1001,9 @@ c7_publish_dockerimage_fusex:
 
 clean_rpm_artifacts:
   stage: clean
-  image: gitlab-registry.cern.ch/linuxsupport/alam9-base
+  image: gitlab-registry.cern.ch/linuxsupport/alma9-base
   script:
-    - yum install --nogpg -y sssd-client sudo createrepo
+    - dnf install --nogpg -y sssd-client sudo createrepo
     - sudo -u stci -H ./gitlab-ci/remove_old_artifacts.sh
   allow_failure: true
   only:
