@@ -224,14 +224,6 @@ HttpHandler::Get(eos::common::HttpRequest* request, bool isHEAD)
       return response;
     }
 
-    if (gOFS->stat(url.c_str(), &buf, error, &etag, &client, query.c_str())) {
-      eos_static_info("method=GET error=ENOENT path=%s",
-                      url.c_str());
-      response = HttpServer::HttpError("No such file or directory",
-                                       response->NOT_FOUND);
-      return response;
-    }
-
     if (request->GetHeaders().count("if-match") &&
         (etag != request->GetHeaders()["if-match"])) {
       // ETag mismatch
