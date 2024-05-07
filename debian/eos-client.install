@@ -1,9 +1,9 @@
 usr/bin/eos
 usr/bin/eoscp
-usr/lib/libEosCommon.so.*
-usr/lib/libEosCommon.so
-usr/lib/libEosFstIo.so.*
-usr/lib/libEosFstIo.so
-usr/lib/libXrdMqClient.so*
-usr/lib/libXrdMqClient.so
-etc/fuse.conf.eos
+usr/lib/x86_64-linux-gnu/libEosCommon.so.*
+usr/lib/x86_64-linux-gnu/libEosCommon.so
+usr/lib/x86_64-linux-gnu/libEosFstIo.so.*
+usr/lib/x86_64-linux-gnu/libEosFstIo.so
+usr/lib/x86_64-linux-gnu/libXrdMqClient.so*
+usr/lib/x86_64-linux-gnu/libXrdMqClient.so
+
