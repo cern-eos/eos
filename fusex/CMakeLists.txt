@@ -89,6 +89,7 @@ add_library(eosxd-objects OBJECT
   misc/longstring.cc misc/longstring.hh
   misc/fusexrdlogin.cc misc/fusexrdlogin.hh
   misc/RunningPidScanner.cc misc/RunningPidScanner.hh
+  misc/ConcurrentMount.cc misc/ConcurrentMount.hh
   data/cache.cc data/cache.hh data/bufferll.hh
   data/diskcache.cc data/diskcache.hh
   data/memorycache.cc data/memorycache.hh
@@ -131,6 +132,7 @@ add_library(eosxd3-objects OBJECT
   misc/longstring.cc misc/longstring.hh
   misc/fusexrdlogin.cc misc/fusexrdlogin.hh
   misc/RunningPidScanner.cc misc/RunningPidScanner.hh
+  misc/ConcurrentMount.cc misc/ConcurrentMount.hh
   data/cache.cc data/cache.hh data/bufferll.hh
   data/diskcache.cc data/diskcache.hh
   data/memorycache.cc data/memorycache.hh
