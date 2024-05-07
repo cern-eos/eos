@@ -973,3 +973,22 @@ Contains an clean-up scripts to remove 'left-overs' of an EOS instance for FST/M
 %{_sbindir}/eos-fst-clean
 %{_sbindir}/eos-mgm-clean
 %endif
+
+#-------------------------------------------------------------------------------
+# Package eos-mgm-monitoring
+#-------------------------------------------------------------------------------
+%package -n eos-mgm-monitoring
+
+Summary: The EOS mgm monitoring package
+Group: Applications/File
+Requires: eos-client
+
+%description -n eos-mgm-monitoring
+The EOS mgm monitoring package creating /var/eos/md/ user specific output
+
+%files -n eos-mgm-monitoring
+%defattr(-, root, root, -)
+%{_sbindir}/eos-mdreport
+%{_sbindir}/eos-mdstat
+%{_sbindir}/eos-reportstat
+%config(noreplace) %{_sysconfdir}/cron.d/eos-mgm-monitoring
