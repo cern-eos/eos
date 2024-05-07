@@ -352,7 +352,7 @@ void displayInformation()
   std::stringstream infos;
   infos << "EOS " << VERSION << std::endl << std::endl;
   infos << "Developed by the CERN IT storage group" << std::endl;
-  fprintf(stdout, infos.str().c_str());
+  fprintf(stdout, "%s", infos.str().c_str());
   exit(0);
 }
 
