@@ -1,0 +1,105 @@
+#!/usr/bin/env python3
+# ----------------------------------------------------------------------
+# File: eos-reportstat
+# Author: Andreas-Joachim Peters - CERN
+# ----------------------------------------------------------------------
+
+# ************************************************************************
+# * EOS - the CERN Disk Storage System                                   *
+# * Copyright (C) 2024 CERN/Switzerland                                  *
+# *                                                                      *
+# * This program is free software: you can redistribute it and/or modify *
+# * it under the terms of the GNU General Public License as published by *
+# * the Free Software Foundation, either version 3 of the License, or    *
+# * (at your option) any later version.                                  *
+# *                                                                      *
+# * This program is distributed in the hope that it will be useful,      *
+# * but WITHOUT ANY WARRANTY; without even the implied warranty of       *
+# * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the        *
+# * GNU General Public License for more details.                         *
+# *                                                                      *
+# * You should have received a copy of the GNU General Public License    *
+# * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
+# ************************************************************************
+
+import sys;
+import time;
+import re;
+import os;
+import json;
+import datetime;
+
+arguments = sys.argv
+
+userstats = {}
+
+def read_file_backwards(file_path):
+    with open(file_path, 'rb') as file:
+        file.seek(0, os.SEEK_END)  # Move the pointer to the end of the file
+        file_size = file.tell()  # Get the current position, which is the size of the file
+
+        lines = []
+        while file.tell() > 2:
+            file.seek(-2, os.SEEK_CUR)  # Move the pointer back by 2 bytes
+            char = file.read(1)
+            if char == b'\n':
+                lines.reverse()
+                yield b''.join(lines).decode()
+                lines = []
+            else:
+                lines.append(char)
+        if lines:
+            lines.reverse()
+            yield b''.join(lines).decode()
+
+now = int(time.time())
+now = 1715067120
+year = datetime.datetime.now().year
+month = datetime.datetime.now().strftime('%m')
+day = datetime.datetime.now().strftime('%d')
+tofile=""
+tofiletmp=""
+if len(arguments) == 1:
+    file_path = "/var/eos/report/" + str(year) + "/" + str(month) + "/" + str(year) + str(month) + str(day) + ".eosreport"
+    tofile="/var/eos/md/data-report.json"
+    tofiletmp=tofile + ".tmp"
+else:
+    file_path = arguments[1]
+if len(arguments) > 2:
+    age = int(arguments[2])
+else:
+    age = 300
+
+if not os.path.isfile(file_path):
+    sys.exit()
+
+keys = ["nrc","nwc","rb","wb","rv_op","rvb_sum"];
+for line in read_file_backwards(file_path):
+    closetime = r'&cts=(\d+)&'
+    cts= re.search(closetime, line);
+    rline=line.replace('&', " ")
+    if cts:
+        if (now-int(cts.group(1))) < age:
+            # get all the things we want here
+            keyval = r'\b(\w+)=(\d+)\b'
+            pairs = dict(re.findall(keyval, rline))
+            for name in keys:
+                if pairs['ruid'] not in userstats:
+                    userstats[pairs['ruid']] = {}
+                if name not in userstats[pairs['ruid']]:
+                    userstats[pairs['ruid']][name] = 0;
+                else:
+                    userstats[pairs['ruid']][name]+=int(pairs[name])
+        else:
+            break
+for user,stats in userstats.items():
+    userstats[user]['unixtime']=now
+
+jsondump = json.dumps(userstats, indent=4)
+
+if len(tofile):
+    with open(tofiletmp, "w") as file:
+        file.write(jsondump)
+        os.rename(tofiletmp,tofile)
+else:
+    print(jsondump)

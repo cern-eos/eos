@@ -1,11 +1,12 @@
+#!/bin/bash
 # ----------------------------------------------------------------------
-# File: CMakeLists.txt
+# File: eos-mdreport
 # Author: Andreas-Joachim Peters - CERN
 # ----------------------------------------------------------------------
 
 # ************************************************************************
 # * EOS - the CERN Disk Storage System                                   *
-# * Copyright (C) 2016 CERN/Switzerland                                  *
+# * Copyright (C) 2024 CERN/Switzerland                                  *
 # *                                                                      *
 # * This program is free software: you can redistribute it and/or modify *
 # * it under the terms of the GNU General Public License as published by *
@@ -21,20 +22,11 @@
 # * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
 # ************************************************************************
 
-install(PROGRAMS
-  eos-status
-  eos_start.sh
-  eos_start_pre.sh
-  eos-reportstat
-  eos-mdstat
-  eos-mdreport
-  DESTINATION ${CMAKE_INSTALL_FULL_SBINDIR})
+#set -e
+eos ns stat -a -m > /var/eos/md/mdstats.tmp
+if [ -e "/var/eos/md/mdstats.0" ]; then
+    cp /var/eos/md/mdstats.0 /var/eos/md/mdstats.1
+fi
+mv /var/eos/md/mdstats.tmp /var/eos/md/mdstats.0
 
-if(TARGET eosxd)
-  install(PROGRAMS mount.eosx DESTINATION ${CMAKE_INSTALL_FULL_SBINDIR})
-endif()
 
-if(TARGET eosxd3)
-  install(PROGRAMS umount.fuse mount.eosx3 mount.eoscfs DESTINATION ${CMAKE_INSTALL_FULL_SBINDIR})
-
-endif()
