@@ -34,13 +34,14 @@
     # @todo once the XRootD deb repos are better structured we can point to a
     # particular stable branch. For the moment, we force install the version we want
     # Priority >= 1000 causes a version to be installed even if this constitutes a downgrade of the package
-    # - export XROOTD_VERSION=$(grep "define xrootd_version_min" eos.spec.in | awk -F ':' '{print $2;}')
-    - export XROOTD_VERSION="5.4.1"
+    # - XROOTD_VERSION=$(grep "define xrootd_version_min" eos.spec.in | awk -F ':' '{print $2;}')
+    - XROOTD_VERSION="5.4.1"
     - echo -e "Package:"" xrootd* libxrd* libxrootd*\nPin:"" version $XROOTD_VERSION\nPin-Priority:"" 1000" > /etc/apt/preferences.d/xrootd.pref
-    - sed -e "s/_XRD_DEB_VER_/$XROOTD_VERSION/g" debian/control.template > debian/control
+    - if [[ "${BUILD_NAME}" == "jammy" ]]; then PROCPS_LIB="libprocps-dev"; else PROCPS_LIB=libproc2-dev; fi
+    - sed -e "s/_XRD_DEB_VER_/$XROOTD_VERSION/g; s/_PROCPS_TAG_/${PROCPS_LIB}/g" debian/control.template > debian/control
     - mk-build-deps --build-dep debian/control
     - gdebi --n eos-build-deps-depends*.deb
-    - export EOS_VERSION="$(./genversion.sh)"; echo "${EOS_VERSION}"
+    - EOS_VERSION="$(./genversion.sh)"; echo "${EOS_VERSION}"
     - dch --create -v "${EOS_VERSION}" --package eos --urgency low --distribution ${BUILD_NAME} -M "eos automated build."
     - if [[ -n "$CI_COMMIT_TAG" ]]; then
         export CCACHE_DISABLE=1;
@@ -50,7 +51,7 @@
       fi
     - dpkg-buildpackage -b -us -uc -tc --buildinfo-option="-udeb_packages" --changes-option="-udeb_packages" --buildinfo-file="deb_packages/eos_${EOS_VERSION}_$(dpkg-architecture -qDEB_BUILD_ARCH).buildinfo" --changes-file="deb_packages/eos_${EOS_VERSION}_$(dpkg-architecture -qDEB_BUILD_ARCH).changes"
     - ccache -s
-    - cp deb_packages/*.deb ../${CI_JOB_NAME}
+    - cp deb_packages/*.deb ${CI_JOB_NAME}
   cache:
     key: "$CI_JOB_NAME-$CI_COMMIT_REF_SLUG"
     paths:
