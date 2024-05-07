@@ -1622,6 +1622,12 @@ std::string prepare(std::string input, std::string keylocation)
 {
   std::string key;
   eos::common::StringConversion::LoadFileIntoString(keylocation.c_str(), key);
+
+  // Make sure, there is no line-feed part of the key!
+  if (!key.empty() && key.back() == '\n') {
+    key.pop_back();
+  }
+
   struct stat buf;
 
   if (::stat(keylocation.c_str(), &buf)) {
