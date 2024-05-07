@@ -19,13 +19,13 @@ BUILDMAP[cc7]=el-7
 BUILDMAP[el-8]=el-8
 BUILDMAP[el-9]=el-9
 BUILDMAP[fc-38]=fc-38
+BUILDMAP[fc-40]=fc-40
 BUILDMAP[fc-rawhide]=fc-rawhide
 BUILDMAP[osx]=osx
 BUILDMAP[cc7_asan]=el-7-asan
 BUILDMAP[cc7_tsan]=el-7-tsan
 BUILDMAP[el-9-asan]=el-9-asan
 BUILDMAP[el-9-tsan]=el-9-tsan
-BUILDMAP[cc7_no_sse]=el-7
 BUILDMAP[el-9-arm64]=el-9
 
 CODENAME=$1
@@ -40,13 +40,8 @@ for artifacts_dir in *_artifacts; do
   # Handle only builds registered in the build map
   [ -z ${repo} ] && continue
 
-  if [ ${build} == "cc7_no_sse" ]; then
-    path="${PATH_PREFIX}/${CODENAME}-no_sse/${BUILD_TYPE}/${repo}"
-    tar_path="${PATH_PREFIX}/${CODENAME}-no_sse/tarball/"
-  else
-    path="${PATH_PREFIX}/${CODENAME}/${BUILD_TYPE}/${repo}"
-    tar_path="${PATH_PREFIX}/${CODENAME}/tarball/"
-  fi
+  path="${PATH_PREFIX}/${CODENAME}/${BUILD_TYPE}/${repo}"
+  tar_path="${PATH_PREFIX}/${CODENAME}/tarball/"
 
   # Treat OSX artifacts separately
   if [ ${build} == "osx" ]; then
