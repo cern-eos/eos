@@ -17,7 +17,7 @@ fi
 BUILD_TYPE="$1"
 
 # Build type needs to be either tag or commit
-if [[ ! $BUILD_TYPE =! ^(tag|commit)$ ]]; then
+if [[ ! $BUILD_TYPE =~ ^(tag|commit)$ ]]; then
   echo "error: unknown <build_type> given"
   exit 2
 fi
@@ -30,7 +30,7 @@ for RELEASE in "jammy" "noble"; do
     EXPORT_REPO="${STCI_ROOT_PATH}/eos/${EOS_CODENAME}"
     mkdir -p ${EXPORT_REPO} || true
     echo "info: Publishing for: ${RELEASE} in location: ${EXPORT_REPO}"
-    reprepro -Vb ${EXPORT_REPO} includedeb ${RELEASE} ./ubuntu-${RELEASE}/*.deb
+    reprepro -C ${RELEASE}/${BUILD_TYPE} -Vb ${EXPORT_REPO} includedeb ${RELEASE} ./ubuntu-${RELEASE}/*.deb
   fi
 done
 
