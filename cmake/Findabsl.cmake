@@ -17,7 +17,8 @@ set(libraries absl_synchronization absl_graphcycles_internal absl_stacktrace abs
   absl_cord absl_cord_functions absl_hash absl_status absl_log_internal_nullguard absl_cordz_functions)
 
 foreach( lib ${libraries})
-  find_library(ABSL_${lib}_LIBRARY NAMES ${lib} HINTS 
+  find_library(ABSL_${lib}_LIBRARY
+    NAMES ${lib}
     HINTS /opt/eos/grpc ${ABSL_ROOT}
     PATH_SUFFIXES ${CMAKE_INSTALL_LIBDIR})
   
