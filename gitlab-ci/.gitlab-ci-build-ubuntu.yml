@@ -22,6 +22,8 @@
 
 .build-ubuntu: &build-ubuntu_definition
   stage: build:rpm
+  variables:
+    DEBIAN_FRONTEND: noninteractive
   script:
     - apt-get update
     - apt-get install -y git cmake g++ debhelper devscripts equivs gdebi-core ccache gawk wget
@@ -37,7 +39,7 @@
     - echo -e "Package:"" xrootd* libxrd* libxrootd*\nPin:"" version $XROOTD_VERSION\nPin-Priority:"" 1000" > /etc/apt/preferences.d/xrootd.pref
     - sed -e "s/_XRD_DEB_VER_/$XROOTD_VERSION/g" debian/control.template > debian/control
     - mk-build-deps --build-dep debian/control
-    - gdebi -n eos-build-deps-depends*.deb
+    - gdebi --n eos-build-deps-depends*.deb
     - export EOS_VERSION="$(./genversion.sh)"; echo "${EOS_VERSION}"
     - dch --create -v "${EOS_VERSION}" --package eos --urgency low --distribution ${BUILD_NAME} -M "eos automated build."
     - if [[ -n "$CI_COMMIT_TAG" ]]; then
