@@ -4,12 +4,12 @@ usr/bin/eoscfsd
 usr/bin/eosfusebind
 usr/sbin/mount.eosx
 usr/sbin/mount.eosx3
-usr/sbin/mount.eoscfsd
+usr/sbin/mount.eoscfs
 var/log/eos/
 var/log/eos/fusex/
 etc/fuse.conf.eos
 etc/logrotate.d/eos-fusex-logs
 etc/eos/
 etc/eos/cfsd
-etc/eos/cfsd/eoscfd.conf
+etc/eos/cfsd/eoscfsd.conf
 
