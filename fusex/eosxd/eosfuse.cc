@@ -61,6 +61,7 @@ extern "C" { /* this 'extern "C"' brace will eventually end up in the .h file, t
 #include <sys/resource.h>
 #include <sys/types.h>
 #include <sys/file.h>
+#include <sys/mount.h>
 
 #include "common/XattrCompat.hh"
 
@@ -85,6 +86,7 @@ extern "C" { /* this 'extern "C"' brace will eventually end up in the .h file, t
 #include "kv/kv.hh"
 #include "data/cache.hh"
 #include "data/cachehandler.hh"
+#include "misc/ConcurrentMount.hh"
 
 #define _FILE_OFFSET_BITS 64
 
@@ -93,208 +95,124 @@ const char* k_nlink = "sys.eos.nlink";
 const char* k_fifo = "sys.eos.fifo";
 EosFuse* EosFuse::sEosFuse = 0;
 
-/**
- * ConcurrentMountDetect is a utility class, used to avoid multiple concurrent
- * mounts or mount attempts from interfering from one another. Mount attempts
- * might be triggered by autofs automountd.
- *
- * Uses exclusive flock advisory locks on two dedicated lock files termed A & B.
- *
- * A+B are locked during mount preparation.
- * B   only is locked while the filesystem is mounted.
- * A   only is locked while the filesystem is being unmounted.
- *
- */
-class ConcurrentMountDetect
+/* -------------------------------------------------------------------------- */
+static int
+/* -------------------------------------------------------------------------- */
+startMount(ConcurrentMount &cmdet,
+              const std::string &mountpoint,
+              const std::string &fsname,
+              int &exitcode)
+/* -------------------------------------------------------------------------- */
 {
-public:
-  /**
-   * Constructor, opens lock files.
-   */
-  ConcurrentMountDetect(const std::string& locknameprefix)
-  {
-    if (locknameprefix.empty()) {
-      return;
-    }
-
-    const std::string fnA = locknameprefix + ".A.lock";
-    const std::string fnB = locknameprefix + ".B.lock";
-    lockAfd_ = open(fnA.c_str(), O_RDWR | O_CREAT, 0600);
-
-    if (lockAfd_ >= 0) {
-      lockBfd_ = open(fnB.c_str(), O_RDWR | O_CREAT, 0600);
-    }
-
-    if (lockAfd_ < 0 || lockBfd_ < 0) {
-      fprintf(stderr, "# could not open lockfile %s errno=%d\n",
-              (lockAfd_ < 0) ? fnA.c_str() : fnB.c_str(), errno);
-
-      if (lockAfd_ >= 0) {
-        close(lockAfd_);
-      }
-
-      lockAfd_ = -1;
+  // use ConcurrentMount cmdet to detect existing eosxd and
+  // reattch by making a new mount if necessary.
+  //
+  // returns 0: continue with mount (enter fuse session loop)
+  // return -1: caller should exit with 'exitcode'.
+  //            a mount may have been reattached or
+  //            there may have been an error.
+  //
+  std::string source = fsname;
+  if (source.empty()) {
+    source = mountpoint;
+    if (size_t pos=source.rfind("/"); pos != std::string::npos) {
+      source.erase(0,pos+1);
     }
   }
 
-  /**
-   * Destrcutor, closes lock file descriptors.
-   */
-  ~ConcurrentMountDetect()
-  {
-    Unlock();
+  int redo, retries=3;
+  exitcode = 0;
 
-    if (lockBfd_ >= 0) {
-      close(lockBfd_);
-    }
+  do {
+    redo = 0;
+    int mntfd, rc;
+    rc = cmdet.StartMount(mntfd);
 
-    if (lockAfd_ >= 0) {
-      close(lockAfd_);
-    }
-  }
+    switch(rc) {
+      case 1:
+        {
+          struct stat sb;
+          const int strc = lstat(mountpoint.c_str(),&sb);
 
-  /**
-   * Lock in preparation of mounting:
-   * Returns -1 on error
-   *          0 for successful lock (A + B locked)
-   *          1 locks consistent with existing ongoing mount (B locked)
-   *
-   * If the lock is held by an existing mount some retries up to 5
-   * seconds are made to avoid race on unmount.
-   */
-  int Lock()
-  {
-    int retry = 2;
+          if (strc<0) {
+            fprintf(stderr, "# detected concurrent eosxd, but error stating "
+                            "mountpoint, exiting\n");
+            exitcode = 1;
+            return -1;
+          }
 
-    do {
-      const int rc = llock();
+          if (sb.st_ino == 1) {
+            fprintf(stderr, "# detected concurrent eosxd, mount appears attached, "
+                            "exiting\n");
+            exitcode = 0;
+            return -1;
+          }
 
-      if (rc <= 0) {
-        return rc;
-      }
+          if (mntfd < 0) {
+            fprintf(stderr, "# detected concurrent eosxd, mount appears "
+                            "not-attached but can not fetch fuse fd, exiting\n");
+            exitcode = 1;
+            return -1;
+          }
 
-      if (retry) {
-        std::this_thread::sleep_for(std::chrono::milliseconds(2500));
-      }
-    } while (retry--);
+          char mntopt[100],opt2[100];
+          *opt2 = '\0';
+          if (getuid() == 0) {
+            strcpy(opt2,",allow_other");
+          }
 
-    return 1;
-  }
+          snprintf(mntopt, sizeof(mntopt),
+               "fd=%i,rootmode=%o,user_id=%d,group_id=%d%s",
+               mntfd, sb.st_mode & S_IFMT, geteuid(), getegid(), opt2);
 
-  /**
-   * Called after mounting and before entering the fuse session loop.
-   */
-  void MountDone()
-  {
-    if (lockAfd_ < 0) {
-      return;
-    }
+          fprintf(stderr, "# detected concurrent eosxd, "
+                  "mounting using existing fuse descriptor\n");
 
-    if (lockA_) {
-      if (flock(lockAfd_, LOCK_UN) == 0) {
-        lockA_ = false;
-      }
-    }
-  }
+          const int retval = ::mount(source.c_str(), mountpoint.c_str(), "fuse",
+                         MS_NODEV | MS_NOSUID, mntopt);
 
-  /**
-   * Called after leaving the fuse session loop but before unmounting.
-   */
-  void Unmounting()
-  {
-    if (lockAfd_ < 0 || lockBfd_ < 0) {
-      return;
-    }
-
-    if (lockA_ || !lockB_) {
-      return;
-    }
-
-    int ret;
-
-    do {
-      ret = flock(lockAfd_, LOCK_EX);
-    } while (ret < 0 && errno == EINTR);
-
-    if (ret < 0) {
-      return;
-    }
-
-    lockA_ = true;
-
-    if (flock(lockBfd_, LOCK_UN) == 0) {
-      lockB_ = false;
-    }
-  }
-
-  /**
-   * May be called once mount & unmount activity is done. (However the
-   * destructor may be called without calling this method).
-   */
-  void Unlock()
-  {
-    if (lockBfd_ >= 0) {
-      if (lockB_) {
-        if (flock(lockBfd_, LOCK_UN) == 0) {
-          lockB_ = false;
+          if (retval) {
+              fprintf(stderr, "# detected concurrent eosxd, but failed mount "
+                              "with existing fuse descriptor%s\n",
+                              retries ? ", retrying" : "");
+            if (retries) {
+              retries--;
+              redo = 1;
+              std::this_thread::sleep_for(std::chrono::milliseconds(5000));
+            } else {
+              exitcode = 1;
+              return -1;
+            }
+          } else {
+            exitcode = 0;
+            return -1;
+          }
         }
-      }
+        break;
+
+      case -1:
+        fprintf(stderr, "# concurrent eosxd detection not available\n");
+        return 0;
+        break;
+
+      case 0:
+        fprintf(stderr, "# concurrent eosxd detect enabled, lock prefix %s\n",
+                cmdet.lockpfx().c_str());
+        return 0;
+        break;
+
+      default:
+        fprintf(stderr, "# unexpected condition during eosxd detection\n");
+        exitcode = 2;
+        return -1;
+        break;
     }
+  } while(redo);
 
-    if (lockAfd_ >= 0) {
-      if (lockA_) {
-        if (flock(lockAfd_, LOCK_UN) == 0) {
-          lockA_ = false;
-        }
-      }
-    }
-  }
+  exitcode = 2;
+  return -1;
+}
 
-private:
-  int llock()
-  {
-    if (lockAfd_ < 0 || lockBfd_ < 0) {
-      return -1;
-    }
-
-    if (lockA_ || lockB_) {
-      return -1;
-    }
-
-    int ret;
-
-    do {
-      ret = flock(lockAfd_, LOCK_EX);
-    } while (ret < 0 && errno == EINTR);
-
-    if (ret < 0) {
-      return -1;
-    }
-
-    lockA_ = true;
-
-    if (flock(lockBfd_, LOCK_EX | LOCK_NB) < 0) {
-      const int err = errno;
-
-      if (flock(lockAfd_, LOCK_UN) == 0) {
-        lockA_ = false;
-
-        if (err == EWOULDBLOCK) {
-          return 1;
-        }
-      }
-
-      return -1;
-    }
-
-    return 0;
-  }
-
-  int  lockAfd_{ -1};
-  int  lockBfd_{ -1};
-  bool lockA_  {false};
-  bool lockB_  {false};
-};
 
 /* -------------------------------------------------------------------------- */
 EosFuse::EosFuse()
@@ -1562,7 +1480,7 @@ EosFuse::run(int argc, char* argv[], void* userdata)
     }
 
     if (mountpoint[0] != '/') {
-      fprintf(stderr, "# not using concurrent mount detection, mountpoint is "
+      fprintf(stderr, "# not using concurrent eosxd detection, mountpoint is "
               "relative\n");
       lockpfx.clear();
     } else {
@@ -1584,18 +1502,10 @@ EosFuse::run(int argc, char* argv[], void* userdata)
       lockpfx += std::string("mount.") + id.c_str();
     }
 
-    ConcurrentMountDetect cmdet(lockpfx);
-
-    if (const int rc = cmdet.Lock(); rc > 0) {
-      // concurrent mount detected
-      fprintf(stderr, "# detected concurrent mount, "
-              "ending mount process\n");
-      exit(0);
-    } else if (rc < 0) {
-      fprintf(stderr, "# concurrent mount detection not available\n");
-    } else {
-      fprintf(stderr, "# concurrent mount detect enabled, lock prefix %s\n",
-              lockpfx.c_str());
+    ConcurrentMount cmdet(lockpfx);
+    // starts the mount + does reattach if necessary
+    if (int exitcode; startMount(cmdet, mountpoint, fsname, exitcode)<0) {
+      exit(exitcode);
     }
 
     config.auth.credentialStore += config.name.length() ? config.name : "default";
@@ -1835,10 +1745,18 @@ EosFuse::run(int argc, char* argv[], void* userdata)
     }
 
 #endif
-    // notify the locking object that fuse is aware of the mount
-    cmdet.MountDone();
 
     if (fuse_daemonize(config.options.foreground) != -1) {
+
+      // notify the locking object that fuse is aware of the mount.
+      // The locking object will start a thread (for fd passing),
+      // so this call has to be done after the daemonize step above.
+#if USE_FUSE3
+      cmdet.MountDone(fuse_session_fd(fusesession));
+#else
+      cmdet.MountDone(fuse_chan_fd(fusechan));
+#endif
+
 #ifndef __APPLE__
       eos::common::ShellCmd cmd("echo eos::common::ShellCmd init 2>&1");
       eos::common::cmd_status st = cmd.wait(5);
