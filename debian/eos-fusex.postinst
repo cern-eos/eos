@@ -1,5 +1,4 @@
 #!/bin/bash
-systemd-tmpfiles --create /usr/lib/tmpfiles.d/eos-fusex-core.conf || true
 
 chown daemon:daemon /var/log/eos/
 chown daemon:daemon /var/log/eos/fusex/
