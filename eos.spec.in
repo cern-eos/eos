@@ -991,4 +991,6 @@ The EOS mgm monitoring package creating /var/eos/md/ user specific output
 %{_sbindir}/eos-mdreport
 %{_sbindir}/eos-mdstat
 %{_sbindir}/eos-reportstat
+%{_sbindir}/eos-inspectorreport
+%{_sbindir}/eos-inspectorstat
 %config(noreplace) %{_sysconfdir}/cron.d/eos-mgm-monitoring
