@@ -657,8 +657,6 @@ if [ "$1" -ge "1" ]; then # Upgrade
   done
 fi
 
-%if %{?_with_server:1}%{!?_with_server:0}
-
 #-------------------------------------------------------------------------------
 # Package eos-cfsd
 #-------------------------------------------------------------------------------
@@ -699,6 +697,8 @@ The new EOS client filesystem daemon
 %dir %attr(755,daemon,daemon) %{_localstatedir}/log/eos/cfsd/
 %dir %attr(755,daemon,daemon) %{_localstatedir}/cache/eos/
 %dir %attr(755,daemon,daemon) %{_localstatedir}/cache/eos/cfsd/
+
+%if %{?_with_server:1}%{!?_with_server:0}
 
 #-------------------------------------------------------------------------------
 # Package eos-quarkdb
