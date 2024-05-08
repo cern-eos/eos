@@ -1,0 +1,110 @@
+#!/usr/bin/env python3
+
+# ----------------------------------------------------------------------
+# File: eos-inspectorstat
+# Author: Andreas-Joachim Peters - CERN
+# ----------------------------------------------------------------------
+
+# ************************************************************************
+# * EOS - the CERN Disk Storage System                                   *
+# * Copyright (C) 2024 CERN/Switzerland                                  *
+# *                                                                      *
+# * This program is free software: you can redistribute it and/or modify *
+# * it under the terms of the GNU General Public License as published by *
+# * the Free Software Foundation, either version 3 of the License, or    *
+# * (at your option) any later version.                                  *
+# *                                                                      *
+# * This program is distributed in the hope that it will be useful,      *
+# * but WITHOUT ANY WARRANTY; without even the implied warranty of       *
+# * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the        *
+# * GNU General Public License for more details.                         *
+# *                                                                      *
+# * You should have received a copy of the GNU General Public License    *
+# * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
+# ************************************************************************
+
+import sys
+import time
+import json
+import os
+
+costinspector = {}
+
+now = int(time.time())
+
+def dict2prom(dict):
+    prom=""
+    prefix="eos"
+    categorie="inspector"
+    subcategorie="user"
+    metric=prefix + "_" + categorie + "_" + subcategorie
+
+    prom = prom + "# HELP " + metric + " User storage costs derived from inspector output\n"
+    prom = prom + "# TYPE " + metric + " gauge\n"
+    for key,value in dict.items():
+        if key == "uid":
+            continue
+        for tag,val in value.items():
+            if tag == "uid":
+                continue
+            prom = prom + prefix + "_" + categorie + "_" + subcategorie +"{uid=\"" + key + "\", measure=\"" + tag + "\"" + "} " + str(val) + "\n"
+    return prom
+
+def read_textfile(file_path, cost):
+    with open(file_path, 'r') as file:
+        for line in file:
+            dict = {}
+            parts = line.strip().split()
+            for item in parts:
+                key, value = item.split('=', 1)
+                key = key.strip()
+                value = value.strip()
+                # Store key-value pair in the dictionary
+                dict[key] = value
+            if 'uid' in dict:
+                if dict['uid'] not in cost:
+                    cost[dict['uid']] = {}
+
+                for key, value in dict.items():
+                    if key == "tag":
+                        continue
+                    if key == "username":
+                        continue
+                    if key == "key":
+                        continue
+                        
+                    cost[dict['uid']][key]=value
+                cost[dict['uid']]["unixtime"] = now
+    return
+
+arguments = sys.argv
+
+f = "/var/eos/md/inspectorstats.0"
+
+tofile=""
+tofiletmp=""
+promfile=""
+promfiletmp=""
+
+if len(arguments) > 1:
+    f = arguments[1]
+else:
+    tofile="/var/eos/md/inspector-report.json"
+    tofiletmp = tofile + ".tmp"
+    promfile="/var/eos/md/inspector-report.prom"
+    promfiletmp = promfile + ".tmp"
+    
+read_textfile(f, costinspector)
+
+jsondump = json.dumps(costinspector, indent=4)
+if len(tofile):
+    with open(tofiletmp, "w") as file:
+        file.write(jsondump)
+        os.rename(tofiletmp,tofile)
+
+if len(promfile):
+    with open(promfiletmp, "w") as file:
+        file.write(dict2prom(costinspector))
+        os.rename(promfiletmp, promfile)
+else:
+    print(jsondump)
