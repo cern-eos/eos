@@ -1969,9 +1969,6 @@ public:
 
   //!  Variable enforcing a globally applied recycle bin policy
   std::atomic<bool> enforceRecycleBin;
-
-  bool UTF8; ///< true if running in less restrictive character set mode
-
   std::string mArchiveEndpoint; ///< archive ZMQ connection endpoint
   std::string mFstGwHost; ///< FST gateway redirect fqdn host
   int mFstGwPort; ///< FST gateway redirect port, default 1094

@@ -201,7 +201,6 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   XrdCl::DefaultEnv::GetEnv()->PutInt("ConnectionRetry", 1);
   // set stream error window
   XrdCl::DefaultEnv::GetEnv()->PutInt("StreamErrorWindow", 0);
-  UTF8 = getenv("EOS_UTF8") != nullptr;
   MgmQoSEnabled = getenv("EOS_ENABLE_QOS") != nullptr;
   Shutdown = false;
   setenv("XrdSecPROTOCOL", "sss", 1);

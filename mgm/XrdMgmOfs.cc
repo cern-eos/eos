@@ -307,7 +307,7 @@ XrdMgmOfs::XrdMgmOfs(XrdSysError* ep):
   mRouting(new eos::mgm::PathRouting()), mConverterDriver(),
   mHttpd(nullptr), GRPCd(nullptr), WNCd(nullptr), mRestGrpcSrv(nullptr),
   mLRUEngine(new eos::mgm::LRU()),
-  WFEPtr(new eos::mgm::WFE()), WFEd(*WFEPtr), UTF8(false), mFstGwHost(""),
+  WFEPtr(new eos::mgm::WFE()), WFEd(*WFEPtr), mFstGwHost(""),
   mFstGwPort(0), mQdbCluster(""), mHttpdPort(8000),
   mFusexPort(1100), mGRPCPort(50051), mWncPort(50052),
   mRestGrpcPort(50054),

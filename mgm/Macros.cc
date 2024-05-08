@@ -57,33 +57,11 @@ void NamespaceMap(std::string& path, const char* ininfo,
 
   ssize_t indx = 0;
 
-  if (gOFS->UTF8) {
-    for (indx = 0; indx < store_path.length(); indx++) {
-      if (((store_path[indx] != 0xa) && (store_path[indx] != 0xd)) /* CR,LF*/) {
-        continue;
-      } else {
-        break;
-      }
-    }
-  } else {
-    for (indx = 0; indx < store_path.length(); indx++) {
-      if (((store_path[indx] >= 97) && (store_path[indx] <= 122)) ||   /* a-z */
-          ((store_path[indx] >= 64) && (store_path[indx] <= 90))  ||  /* @,A-Z */
-          ((store_path[indx] >= 48) && (store_path[indx] <= 57))  ||  /* 0-9   */
-          (store_path[indx] == 47) || /* / */
-          (store_path[indx] == 46) || /* . */
-          (store_path[indx] == 32) || /* SPACE */
-          (store_path[indx] == 45) || /* - */
-          (store_path[indx] == 95) || /* _ */
-          (store_path[indx] == 126) || /* ~ */
-          (store_path[indx] == 35) || /* # */
-          (store_path[indx] == 58) || /* : */
-          (store_path[indx] == 43) || /* + */
-          (store_path[indx] == 94)    /* ^ */) {
-        continue;
-      } else {
-        break;
-      }
+  for (indx = 0; indx < store_path.length(); indx++) {
+    if (((store_path[indx] != 0xa) && (store_path[indx] != 0xd)) /* CR,LF*/) {
+      continue;
+    } else {
+      break;
     }
   }
 
