@@ -269,36 +269,13 @@ extern XrdMgmOfs* gOFS; //< global handle to XrdMgmOfs object
     }                                                                     \
     size_t __i = 0;                                                         \
     size_t __n = store_path.length();                                     \
-    if (gOFS->UTF8) {                                                     \
-      for (__i = 0; __i < __n; __i++) {                                         \
-        if (((store_path[__i] != 0xa) && (store_path[__i] != 0xd)) /* CR,LF*/) { \
-          continue;                                                       \
-        } else {                                                          \
-          break;                                                          \
-        }                                                                 \
-      }                                                                   \
-    } else {                                                                   \
-        for (__i = 0; __i < __n; __i++) {                                       \
-          if (((store_path[__i] >= 97) && (store_path[__i] <= 122)) || /* a-z */ \
-               ((store_path[__i] >= 64) && (store_path[__i] <= 90)) || /* @,A-Z */ \
-               ((store_path[__i] >= 48) && (store_path[__i] <= 57)) || /* 0-9   */ \
-               (store_path[__i] == 47) ||   /* / */                         \
-               (store_path[__i] == 46) ||   /* . */                         \
-               (store_path[__i] == 32) ||   /* SPACE */                     \
-               (store_path[__i] == 45) ||   /* - */                         \
-               (store_path[__i] == 95) ||   /* _ */                         \
-               (store_path[__i] == 126) ||  /* ~ */                         \
-               (store_path[__i] == 35) ||   /* # */                         \
-               (store_path[__i] == 58) ||   /* : */                         \
-               (store_path[__i] == 43) ||   /* + */                         \
-               (store_path[__i] == 94)      /* ^ */                         \
-               ) {                                                        \
-            continue;                                                     \
-          } else {                                                        \
-            break;                                                        \
-          }                                                               \
-        }                                                                 \
-      }                                                                   \
+    for (__i = 0; __i < __n; __i++) {					\
+      if (((store_path[__i] != 0xa) && (store_path[__i] != 0xd)) /* CR,LF*/) { \
+	continue;                                                       \
+      } else {                                                          \
+	break;                                                          \
+      }                                                                 \
+    }                                                                   \
     /* root can use all letters */                                        \
     if ((vid.uid != 0) && (__i != (__n))) {                            \
       path = 0;                                                           \
