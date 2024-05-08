@@ -71,7 +71,7 @@ public:
   static MDStatus deserialize(const char* str, size_t len, T& output)
   {
     eos::Buffer ebuff;
-    ebuff.putData(str, len);
+    ebuff.setDataPtr((char*)str, len);
     // Dispatch to appropriate overload
     return Serialization::deserializeNoThrow(ebuff, output);
   }
