@@ -45,6 +45,32 @@ if(PKG_CONFIG_FOUND)
   set(LIBPROC2_INCLUDE_DIRS ${LIBPROC2_INCLUDE_DIRS})
   set(LIBPROC2_INCLUDE_DIR ${LIBPROC2_INCLUDE_DIRS})
 else ()
+  if (DEFINED LIBPROC2_FIND_VERSION)
+    find_program(PS_BIN ps REQUIRED)
+    message(DEBUG "info: found ps binary in ${PS_BIN}")
+
+    if (PS_BIN)
+      execute_process(COMMAND sh -c "${PS_BIN} -V | cut -d ' ' -f 4"
+        OUTPUT_VARIABLE LIBPROC2_VER
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+        RESULT_VARIABLE RETC)
+
+      if (NOT ("${RETC}" STREQUAL "0"))
+        message(FATAL_ERROR "error: failed while calling ${PS_BIN} to get version")
+      endif()
+
+      message(DEBUG "info: ps version is ${LIBPROC2_VER}")
+
+      if (NOT "${LIBPROC2_VER}" VERSION_GREATER_EQUAL "${LIBPROC2_FIND_VERSION}")
+        message(FATAL_ERROR
+          "error: procps version ${LIBPROC2_VER} less than "
+          "requested ${LIBPROC_FIND_VERSION}")
+      endif()
+    else ()
+      message(FATAL_ERROR "error: could not find ps binary")
+    endif()
+  endif()
+
   find_path(LIBPROC2_INCLUDE_DIR
     NAMES libproc2/pids.h
     HINTS ${LIBPROC2_ROOT}
