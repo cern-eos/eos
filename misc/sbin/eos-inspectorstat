@@ -50,32 +50,20 @@ def dict2prom(dict):
             prom = prom + prefix + "_" + categorie + "_" + subcategorie +"{uid=\"" + key + "\", measure=\"" + tag + "\"" + "} " + str(val) + "\n"
     return prom
 
+IGNORED_KEYS = {"tag", "username", "key"}
+
 def read_textfile(file_path, cost):
     with open(file_path, 'r') as file:
         for line in file:
-            dict = {}
-            parts = line.strip().split()
-            for item in parts:
-                key, value = item.split('=', 1)
-                key = key.strip()
-                value = value.strip()
-                # Store key-value pair in the dictionary
-                dict[key] = value
-            if 'uid' in dict:
-                if dict['uid'] not in cost:
-                    cost[dict['uid']] = {}
-
-                for key, value in dict.items():
-                    if key == "tag":
-                        continue
-                    if key == "username":
-                        continue
-                    if key == "key":
-                        continue
-                        
-                    cost[dict['uid']][key]=value
-                cost[dict['uid']]["unixtime"] = now
-    return
+            data = dict(item.split('=', 1) for item in line.strip().split())
+            uid = data.get('uid')
+            if uid:
+                cost.setdefault(uid, {})
+                for key, value in data.items():
+                    if key not in IGNORED_KEYS:
+                        cost[uid][key] = value
+                cost[uid]["unixtime"] = int(time.time())
+    return cost
 
 arguments = sys.argv
 

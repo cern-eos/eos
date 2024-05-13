@@ -33,25 +33,30 @@ arguments = sys.argv
 
 userstats = {}
 
-def dict2prom(dict):
-    prom=""
-    prefix="eos"
-    categorie="report"
-    subcategorie="user"
-    metric=prefix + "_" + categorie + "_" + subcategorie
+def dict_to_prom(data_dict):
+    """
+    Converts a dictionary to a Prometheus metrics format string.
+    """
+    prefix = "eos"
+    category = "report"
+    subcategory = "user"
+    metric_name = "_".join([prefix, category, subcategory])
+    help_text = "User data service usage derived from eos io reports"
 
-    prom = prom + "# HELP " + metric + " User data service usage dervied from eos io reports\n"
-    prom = prom + "# TYPE " + metric + " gauge\n"
-    for key,value in dict.items():
-        if key == "uid":
+    prom_output = f"# HELP {metric_name} {help_text}\n"
+    prom_output += f"# TYPE {metric_name} gauge\n"
+
+    for uid, metrics in data_dict.items():
+        if uid == "uid":
             continue
-        for tag,val in value.items():
-            if tag == "uid":
+
+        for metric, value in metrics.items():
+            if metric == "uid":
                 continue
-            prom = prom + prefix + "_" + categorie + "_" + subcategorie +"{uid=\"" + key + "\", measure=\"" + tag + "\"" + "} " + str(\
-\
-val) + "\n"
-    return prom
+
+            prom_output += f'{metric_name}{{uid="{uid}", measure="{metric}"}} {value}\n'
+
+    return prom_output
 
 
 def read_file_backwards(file_path):
@@ -74,7 +79,6 @@ def read_file_backwards(file_path):
             yield b''.join(lines).decode()
 
 now = int(time.time())
-now = 1715067120
 year = datetime.datetime.now().year
 month = datetime.datetime.now().strftime('%m')
 day = datetime.datetime.now().strftime('%d')
