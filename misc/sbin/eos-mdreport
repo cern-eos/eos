@@ -23,7 +23,7 @@
 # ************************************************************************
 
 #set -e
-eos ns stat -a -m > /var/eos/md/mdstats.tmp
+eos ns stat -a -n -m > /var/eos/md/mdstats.tmp
 if [ -e "/var/eos/md/mdstats.0" ]; then
     cp /var/eos/md/mdstats.0 /var/eos/md/mdstats.1
 fi
