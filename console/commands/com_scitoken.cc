@@ -324,7 +324,7 @@ com_scitoken_usage:
   std::cerr << "                                               - if keyid is specified the public and private keys are found under /etc/xrootd/<keyid>-key.pem /etc/xrootd/<keyid>-pkey.pem" << std::endl;
   std::cerr << "                                                 - otherwise they are stored in the CWD under default-key.pem default-pkey.pem" << std::endl;
   std::cerr << "                                               - the JSON web key is printed on stdout, the key locations on stderr" << std::endl;
-  std::cerr << "       Examples:                               eos scitoken create --issuer=eos.cern.ch --keyid=eos --profile=wlcg --claim scope:storage.read=/eos" << std::endl;
+  std::cerr << "       Examples:                               eos scitoken create --issuer eos.cern.ch --keyid eos --profile wlcg --claim scope:storage.read=/eos" << std::endl;
   std::cerr << "                                               eos scitoken dump eyJhb..." << std::endl;
   std::cerr << "                                               eos scitoken create-keys --keyid=eos > jwk.json" << std::endl;
   global_retc = EINVAL;
