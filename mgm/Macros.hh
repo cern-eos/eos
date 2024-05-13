@@ -148,7 +148,7 @@ extern XrdMgmOfs* gOFS; //< global handle to XrdMgmOfs object
         int port{0};                                                    \
         std::string host{""};                                           \
         int stall_timeout{0};                                           \
-        bool collapse = false;                                          \
+        bool collapse = true ;                                          \
         std::string stall_msg{"No master MGM available"};               \
         if (gOFS->ShouldRedirect(__FUNCTION__, __AccessMode__, vid, host, port, collapse)) { \
           return gOFS->Redirect(error, host.c_str(), port, path, collapse); \
@@ -161,7 +161,7 @@ extern XrdMgmOfs* gOFS; //< global handle to XrdMgmOfs object
             XrdCl::URL url; url.SetParams(ininfo ? ininfo : "");        \
             if (gOFS->Tried(url, host, "enoent"))                       \
               return gOFS->Emsg("redirect", error, ENOENT, "no such file or directory", path); \
-            return gOFS->Redirect(error, host.c_str(), port);           \
+            return gOFS->Redirect(error, host.c_str(), port, path, collapse); \
           }                                                             \
         }                                                               \
       }                                                                 \
