@@ -22,8 +22,9 @@
 # * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
 # ************************************************************************
 
-#set -e
-eos inspector -a -m > /var/eos/md/inspectorstats.tmp
+# just check if we have an MGM locally, otherwise we don't do anything
+timeout 5 eos root://localhost whoami >& /dev/null || exit 0
+eos root://localhost inspector -a -m > /var/eos/md/inspectorstats.tmp
 if [ -e "/var/eos/md/inspectorstats.0" ]; then
     cp /var/eos/md/inspectorstats.0 /var/eos/md/inspectorstats.1
 fi
