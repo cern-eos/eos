@@ -22,8 +22,9 @@
 # * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
 # ************************************************************************
 
-#set -e
-eos ns stat -a -n -m > /var/eos/md/mdstats.tmp
+# just check if we have an MGM locally, otherwise we don't do anything
+timeout 5 eos root://localhost whoami >& /dev/null || exit 0
+eos root://localhost ns stat -a -n -m > /var/eos/md/mdstats.tmp
 if [ -e "/var/eos/md/mdstats.0" ]; then
     cp /var/eos/md/mdstats.0 /var/eos/md/mdstats.1
 fi
