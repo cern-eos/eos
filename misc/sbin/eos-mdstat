@@ -36,22 +36,25 @@ shortnames = {"OpenRead":"open:r","OpenWrite":"open:w","OpenWriteTruncate":"open
 now = int(time.time())
 
 def dict2prom(dict):
-    prom=""
-    prefix="eos"
-    categorie="md"
-    subcategorie="user"
-    metric=prefix + "_" + categorie + "_" + subcategorie
+    prom = ""
+    prefix = "eos"
+    category = "md"
+    subcategory = "user"
+    metric = f"{prefix}_{category}_{subcategory}"
 
-    prom = prom + "# HELP " + metric + " User meta-data service usage dervied from eos ns stat\n"
-    prom = prom + "# TYPE " + metric + " gauge\n"
-    for key,value in dict.items():
+    prom += f"# HELP {metric} User meta-data service usage derived from eos ns stat\n"
+    prom += f"# TYPE {metric} gauge\n"
+
+    for key, value in data_dict.items():
         if key == "uid":
             continue
-        for tag,val in value.items():
+
+        for tag, val in value.items():
             if tag == "uid":
                 continue
-            prom = prom + prefix + "_" + categorie + "_" + subcategorie +"{uid=\"" + key + "\", measure=\"" + tag + "\"" + "} " + str(\
-val) + "\n"
+
+            prom += f"{prefix}_{category}_{subcategory}{{uid=\"{key}\", measure=\"{tag}\"}} {val}\n"
+
     return prom
 
 def read_textfile(file_path, mdcost):
