@@ -219,7 +219,10 @@ NsHelper::ParseCommand(const char* arg)
       } else if (soption == "--disable") {
         master->set_op(NsProto_MasterProto::DISABLE);
       } else {
-        master->set_host(soption);
+	if ((option = tokenizer.GetToken())) {
+	  master->set_port(atoi(option));
+	}
+	master->set_host(soption);
       }
     }
   } else if (cmd == "recompute_tree_size") {
@@ -594,13 +597,13 @@ void com_ns_help()
       << std::endl
       << "  ns master [<option>]" << std::endl
       << "    master/slave operations. Option can be:" << std::endl
-      << "    <master_hostname> : set hostname of MGM master RW daemon" << std::endl
-      << "    --log             : show master log" << std::endl
-      << "    --log-clear       : clean master log" << std::endl
-      << "    --enable          : enable the slave/master supervisor thread modifying stall/"
+      << "    <master_hostname> [<port>] : set hostname of MGM master RW daemon and optionally a port" << std::endl
+      << "    --log                      : show master log" << std::endl
+      << "    --log-clear                : clean master log" << std::endl
+      << "    --enable                   : enable the slave/master supervisor thread modifying stall/"
       << std::endl
       << "                        redirectorion rules" << std::endl
-      << "    --disable         : disable supervisor thread"
+      << "    --disable                  : disable supervisor thread"
       << std::endl
       << std::endl
       << "  ns recompute_tree_size <path>|cid:<decimal_id>|cxid:<hex_id> [--depth <val>]"

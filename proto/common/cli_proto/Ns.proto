@@ -48,6 +48,7 @@ message NsProto {
 
     OpType op = 1;
     string Host = 2;
+    int32  Port = 3;
   }
 
   message ContainerSpecificationProto {

@@ -774,7 +774,7 @@ NsCmd::MasterSubcmd(const eos::console::NsProto_MasterProto& master,
   } else if (master.host().length()) {
     std::string out, err;
 
-    if (!gOFS->mMaster->SetMasterId(master.host(), 1094, err)) {
+    if (!gOFS->mMaster->SetMasterId(master.host(), master.port()?master.port():1094, err)) {
       reply.set_std_err(err.c_str());
       reply.set_retc(EIO);
     } else {
