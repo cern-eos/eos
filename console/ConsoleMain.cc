@@ -1538,7 +1538,7 @@ bool RequiresMgm(const std::string& name, const std::string& args)
       (name == "exit") || (name == "help") || (name == "json") ||
       (name == "pwd") || (name == "quit") || (name == "role") ||
       (name == "silent") || (name == "timing") || (name == "?") ||
-      (name == ".q") || (name == "daemon")) {
+      (name == ".q") || (name == "daemon") || (name == "scitoken")) {
     return false;
   }
 
