@@ -21,7 +21,7 @@ chown -R daemon:daemon ${QDB_PATH}
 xrd.port ${QDB_PORT}
 xrd.protocol redis:${QDB_PORT} libXrdQuarkDB.so
 
-redis.database /var/lib/qdb
+redis.database ${QDB_PATH}
 redis.mode raft
 redis.myself ${QDB_NODE}
 redis.password_file /etc/eos.keytab
