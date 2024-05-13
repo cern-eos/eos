@@ -663,7 +663,7 @@ EosFuse::run(int argc, char* argv[], void* userdata)
       size_t pos_colon;
       std::string remotemount;
 
-      if ((pos_colon = fsname.find(":")) != std::string::npos) {
+      if ((pos_colon = fsname.rfind(":")) != std::string::npos) {
         remotemount = fsname.substr(pos_colon + 1);
         fsname.erase(pos_colon);
         root["remotemountdir"] = remotemount;
@@ -7333,7 +7333,7 @@ EosFuse::TrackMgm(const std::string& lasturl)
   newmgm += ":";
   newmgm += eos::common::StringConversion::GetSizeString(sport,
             (unsigned long long) lastUrl.GetPort());
-  eos_static_debug("current-mgm:%s last-url:%s", currentmgm.c_str(),
+  eos_static_info("current-mgm:%s last-url:%s", currentmgm.c_str(),
                    newmgm.c_str());
 
   if (currentmgm != newmgm) {
