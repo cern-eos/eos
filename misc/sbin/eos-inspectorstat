@@ -32,23 +32,27 @@ costinspector = {}
 
 now = int(time.time())
 
-def dict2prom(dict):
-    prom=""
-    prefix="eos"
-    categorie="inspector"
-    subcategorie="user"
-    metric=prefix + "_" + categorie + "_" + subcategorie
+def dict2prom(data_dict):
+    prefix = "eos"
+    category = "inspector"
+    subcategory = "user"
+    metric_name = "_".join([prefix, category, subcategory])
+    help_text = "User storage costs derived from inspector output"
 
-    prom = prom + "# HELP " + metric + " User storage costs derived from inspector output\n"
-    prom = prom + "# TYPE " + metric + " gauge\n"
-    for key,value in dict.items():
-        if key == "uid":
+    prom_output = f"# HELP {metric_name} {help_text}\n"
+    prom_output += f"# TYPE {metric_name} gauge\n"
+
+    for uid, metrics in data_dict.items():
+        if uid == "uid":
             continue
-        for tag,val in value.items():
-            if tag == "uid":
+
+        for metric, value in metrics.items():
+            if metric == "uid":
                 continue
-            prom = prom + prefix + "_" + categorie + "_" + subcategorie +"{uid=\"" + key + "\", measure=\"" + tag + "\"" + "} " + str(val) + "\n"
-    return prom
+
+            prom_output += f"{metric_name}{{uid=\"{uid}\", measure=\"{metric}\"}}" f" {value}\n"
+
+    return prom_output
 
 IGNORED_KEYS = {"tag", "username", "key"}
 
