@@ -35,6 +35,25 @@ shortnames = {"OpenRead":"open:r","OpenWrite":"open:w","OpenWriteTruncate":"open
 
 now = int(time.time())
 
+def dict2prom(dict):
+    prom=""
+    prefix="eos"
+    categorie="md"
+    subcategorie="user"
+    metric=prefix + "_" + categorie + "_" + subcategorie
+
+    prom = prom + "# HELP " + metric + " User meta-data service usage dervied from eos ns stat\n"
+    prom = prom + "# TYPE " + metric + " gauge\n"
+    for key,value in dict.items():
+        if key == "uid":
+            continue
+        for tag,val in value.items():
+            if tag == "uid":
+                continue
+            prom = prom + prefix + "_" + categorie + "_" + subcategorie +"{uid=\"" + key + "\", measure=\"" + tag + "\"" + "} " + str(\
+val) + "\n"
+    return prom
+
 def read_textfile(file_path, mdcost):
     with open(file_path, 'r') as file:
         for line in file:
@@ -81,6 +100,8 @@ f2 = "/var/eos/md/mdstats.0"
 
 tofile=""
 tofiletmp=""
+promfile=""
+promfiletmp=""
 
 if len(arguments) > 2:
     f1 = arguments[1]
@@ -88,6 +109,8 @@ if len(arguments) > 2:
 else:
     tofile="/var/eos/md/md-report.json"
     tofiletmp = tofile + ".tmp"
+    promfile="/var/eos/md/md-report.prom"
+    promfiletmp= promfile + ".tmp"
 
     read_textfile(f1, mdcost1)
 read_textfile(f2, mdcost2)
@@ -117,3 +140,8 @@ if len(tofile):
         os.rename(tofiletmp,tofile)
 else:
     print(jsondump)
+
+if len(promfile):
+    with open(promfiletmp, "w") as file:
+        file.write(dict2prom(mddiff))
+        os.rename(promfiletmp, promfile)

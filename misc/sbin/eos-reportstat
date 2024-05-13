@@ -33,6 +33,27 @@ arguments = sys.argv
 
 userstats = {}
 
+def dict2prom(dict):
+    prom=""
+    prefix="eos"
+    categorie="report"
+    subcategorie="user"
+    metric=prefix + "_" + categorie + "_" + subcategorie
+
+    prom = prom + "# HELP " + metric + " User data service usage dervied from eos io reports\n"
+    prom = prom + "# TYPE " + metric + " gauge\n"
+    for key,value in dict.items():
+        if key == "uid":
+            continue
+        for tag,val in value.items():
+            if tag == "uid":
+                continue
+            prom = prom + prefix + "_" + categorie + "_" + subcategorie +"{uid=\"" + key + "\", measure=\"" + tag + "\"" + "} " + str(\
+\
+val) + "\n"
+    return prom
+
+
 def read_file_backwards(file_path):
     with open(file_path, 'rb') as file:
         file.seek(0, os.SEEK_END)  # Move the pointer to the end of the file
@@ -59,10 +80,15 @@ month = datetime.datetime.now().strftime('%m')
 day = datetime.datetime.now().strftime('%d')
 tofile=""
 tofiletmp=""
+promfile=""
+promfiletmp=""
+
 if len(arguments) == 1:
     file_path = "/var/eos/report/" + str(year) + "/" + str(month) + "/" + str(year) + str(month) + str(day) + ".eosreport"
     tofile="/var/eos/md/data-report.json"
     tofiletmp=tofile + ".tmp"
+    promfile="/var/eos/md/data-report.prom"
+    promfiletmp=promfile + ".tmp"
 else:
     file_path = arguments[1]
 if len(arguments) > 2:
@@ -103,3 +129,8 @@ if len(tofile):
         os.rename(tofiletmp,tofile)
 else:
     print(jsondump)
+
+if len(promfile):
+    with open(promfiletmp, "w") as file:
+        file.write(dict2prom(userstats))
+        os.rename(promfiletmp, promfile)
