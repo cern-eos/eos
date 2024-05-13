@@ -1080,11 +1080,6 @@ Server::ValidatePERM(const eos::fusex::md& md, const std::string& mode,
         d_ok = false;
       }
 
-      // deletion might be overwritten/forbidden
-      if (acl.CanNotDelete()) {
-        d_ok = false;
-      }
-
       // the r/x are added to the posix permissions already set
       if (acl.CanRead()) {
         r_ok |= true;
