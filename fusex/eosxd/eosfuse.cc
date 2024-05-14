@@ -2221,6 +2221,10 @@ EosFuse::run(int argc, char* argv[], void* userdata)
       eos_static_warning("eosxd stopped version %s - FUSE protocol version %d",
                          VERSION, FUSE_USE_VERSION);
       eos_static_warning("********************************************************************************");
+
+      // Avoid any chance we block excessively during these finalisations
+      alarm(90);
+
       tDumpStatistic.join();
       tStatCirculate.join();
       tMetaCacheFlush.join();
@@ -2267,6 +2271,8 @@ EosFuse::run(int argc, char* argv[], void* userdata)
 #endif
       // notify the locking object that the fuse mount has finished
       cmdet.Unlock();
+      alarm(0);
+
       mKV.reset();
 
       if (config.mdcachedir_unlink.length()) {
@@ -2318,6 +2324,7 @@ EosFuse::umounthandler(int sig, siginfo_t* si, void* ctx)
   signal(SIGSEGV, SIG_DFL);
   signal(SIGABRT, SIG_DFL);
   signal(SIGTERM, SIG_DFL);
+  signal(SIGALRM, SIG_DFL);
 #ifndef __APPLE__
   pthread_t thread = pthread_self();
   pthread_kill(thread, sig);
@@ -2355,6 +2362,12 @@ EosFuse::init(void* userdata, struct fuse_conn_info* conn)
     if (sigaction(SIGTERM, &sa, NULL) == -1) {
       char msg[1024];
       snprintf(msg, sizeof(msg), "failed to install SEGV handler");
+      throw std::runtime_error(msg);
+    }
+
+    if (sigaction(SIGALRM, &sa, NULL) == -1) {
+      char msg[1024];
+      snprintf(msg, sizeof(msg), "failed to install ALRM handler");
       throw std::runtime_error(msg);
     }
 
