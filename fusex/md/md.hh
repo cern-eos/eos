@@ -90,7 +90,10 @@ public:
       proto.set_id(ino);
     }
 
-    mdx& operator=(const eos::fusex::md& other) = delete;
+    // make sure nobody copies us as we some members that will
+    // likely lead to problems if they are copied, e.g. XrdSysMutex
+    mdx(const mdx& other) = delete;
+    mdx& operator=(const mdx& other) = delete;
 
     void UpdateProtoFrom(const eos::fusex::md &src) {
       // Typically this method is used to copy a metadata entry received
