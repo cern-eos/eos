@@ -54,6 +54,13 @@ public:
   class quotax
   {
   public:
+    quotax() = default;
+
+    // make sure nobody copies us as we some members that will
+    // likely lead to problems if they are copied, e.g. XrdSysMutex
+    quotax(const quotax& other) = delete;
+    quotax& operator=(const quotax& other) = delete;
+
     virtual ~quotax() = default;
 
     eos::fusex::quota* operator()()
@@ -172,6 +179,11 @@ public:
       mCapProto.set_clientid(cid);
       mCapProto.set_authid("");
     }
+
+    // make sure nobody copies us as we some members that will
+    // likely lead to problems if they are copied, e.g. XrdSysMutex
+    capx(const capx& other) = delete;
+    capx& operator=(const capx& other) = delete;
 
     virtual ~capx() = default;
 

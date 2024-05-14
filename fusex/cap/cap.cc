@@ -286,7 +286,8 @@ cap::imply(shared_cap cap,
            fuse_ino_t ino)
 {
   shared_cap implied_cap = std::make_shared<capx>();
-  *implied_cap = *cap;
+  // assignment below copies eos::fusex::cap protobuf, not the whole capx
+  *implied_cap = *(*cap)();
   (*implied_cap)()->set_authid(imply_authid);
   (*implied_cap)()->set_id(ino);
   (*implied_cap)()->set_vtime((*cap)()->vtime() +
