@@ -1,0 +1,110 @@
+# ------------------------------------------------------------ #
+[mgm:xrootd:mgm]
+# ------------------------------------------------------------ #
+
+# ------------------------------------------------------------ #
+[fst:xrootd:fst]
+# ------------------------------------------------------------ #
+
+# ------------------------------------------------------------ #
+[mgm:init]
+# ------------------------------------------------------------ #
+set -x
+yum localinstall https://linuxsoft.cern.ch/wlcg/centos7/x86_64/wlcg-iam-vomses-cms-1.0.0-1.el7.noarch.rpm -y --nogpgcheck
+yum localinstall https://linuxsoft.cern.ch/wlcg/centos7/x86_64/wlcg-iam-lsc-cms-2.0.0-1.el7.noarch.rpm -y --nogpgcheck
+yum localinstall https://linuxsoft.cern.ch/wlcg/centos7/x86_64/wlcg-voms-cms-2.0.0-1.el7.noarch.rpm -y --nogpgcheck
+
+openssl rand -base64 -out /etc/xrootd/macaroon-secret 64
+
+id -G cms >& /dev/null
+if [ $? -ne 0 ]; then
+  groupadd cms
+fi
+
+for name in cmssam cmslock cmsuser cmspilot cmsprod; do
+   id $name >& /dev/null
+   if [ $? -ne 0 ]; then
+     adduser $name
+   fi
+done   
+
+eos mkdir -p /eos/${INSTANCE_NAME:3}/store/
+eos chown cmslock:cms /eos/${INSTANCE_NAME:3}/store/
+eos chmod 755 /eos/${INSTANCE_NAME:3}/store/
+
+eos mkdir -p /eos/${INSTANCE_NAME:3}/store/data/
+eos chown cmsprod:cms /eos/${INSTANCE_NAME:3}/store/data/
+eos chmod 755 /eos/${INSTANCE_NAME:3}/store/data/
+
+eos mkdir -p /eos/${INSTANCE_NAME:3}/store/group/
+eos chown cmslock:cms /eos/${INSTANCE_NAME:3}/store/group/
+eos chmod 755 /eos/${INSTANCE_NAME:3}/store/group
+
+eos mkdir -p /eos/${INSTANCE_NAME:3}/store/user/
+eos chown cmslock:cms /eos/${INSTANCE_NAME:3}/store/user/
+eos chmod 755 /eos/${INSTANCE_NAME:3}/store/user/
+
+eos mkdir -p /eos/${INSTANCE_NAME:3}/store/mc/
+eos chown cmsprod:cms /eos/${INSTANCE_NAME:3}/store/mc
+eos chmod 755 /eos/${INSTANCE_NAME:3}/store/mc
+
+eos mkdir -p /eos/${INSTANCE_NAME:3}/store/temp
+eos chown cmsprod:cms /eos/${INSTANCE_NAME:3}/store/temp
+eos chmod 755 /eos/${INSTANCE_NAME:3}/store/temp
+
+eos mkdir -p /eos/${INSTANCE_NAME:3}/store/test
+eos chown cmsprod:cms /eos/${INSTANCE_NAME:3}/store/test
+eos chmod 755 /eos/${INSTANCE_NAME:3}/store/test
+
+eos mkdir -p /eos/${INSTANCE_NAME:3}/store/unmerged
+eos chown cmsprod:cms /eos/${INSTANCE_NAME:3}/store/umerged
+eos chmod 755 /eos/${INSTANCE_NAME:3}/store/unmerged
+
+eos mkdir -p /eos/cms/store/test/xrootd/
+eos symlink /eos/cms/store/test/xrootd/${CMSSITE} ../../../
+touch /etc/grid-security/grid-mapfile
+
+eos vid set map -voms /cms:production vuid:`id -u cmsprod` vgid:`id -g cmsprod`
+eos vid set map -voms /cms:cmsprod vuid:`id -u cmsprod` vgid:`id -u cmsprod`
+eos vid set map -voms /cms:t1production vuid:`id -u cmsprod` vgid:`id -u cmsprod`
+eos vid set map -voms /cms/muon:production vuid:`id -u cmsprod` vgid:`id -u cmsprod`
+eos vid set map -voms /cms:cmsphedex vuid:`id -u cmsprod` vgid:`id -u cmsprod`
+eos vid set map -voms /cms:lcgadmin vuid:`id -u cmssam` vgid:`id -u cmssam`
+eos vid set map -voms cms/uscms:lcgadmin vuid:`id -u cmssam` vgid:`id -u cmssam`
+eos vid set map -voms cms:pilot vuid:`id -u cmspilot` vgid:`id -u cmspilot`
+eos vid set map -voms cms:uscms:pilot vuid:`id -u cmspilot` vgid:`id -u cmspilot`
+eos vid set map -voms cms:priorityuser vuid:`id -u cmsuser` vgid:`id -u cmsuser`
+eos vid set map -voms cms:hiproduction vuid:`id -u cmsuser` vgid:`id -u cmsuser`
+eos vid set map -voms /cms: vuid:`id -u cmsuser` vgid:`id -u cmsuser`
+
+if [ ! -e "/etc/xrootd/scitokens.cfg" ]; then
+cat <<EOF > /etc/xrootd/scitokens.cfg
+[Global]
+audience = https://wlcg.cern.ch/jwt/v1/any
+
+[Issuer IAM-CMS]
+issuer = https://cms-auth.web.cern.ch/
+base_path = /eos/cms
+map_subject = False
+name_mapfile = /etc/xrootd/scitokens_mapfile.json
+default_user = cmsprod
+
+[New Issuer IAM-CMS]
+issuer = https://cms-auth.cern.ch/
+base_path = /eos/cms
+map_subject = False
+name_mapfile = /etc/xrootd/scitokens_mapfile.json
+EOF
+fi
+
+if [ ! -e "/etc/xrootd/scitokens_mapgfile.json" ]; then
+cat <<EOF > /etc/xrootd/scitokens_mapfile.json
+[{"path": "/eos/cms/store", "result": "cmsprod", "comment": "Owner of the EOSCMS store data"}]
+EOF
+fi
+
+# ------------------------------------------------------------ #
+[fst:init]
+# ------------------------------------------------------------ #
+
+[fst:sysconfig]

@@ -1,0 +1,50 @@
+[mgm:xrootd:cms]
+xrd.tls  /etc/grid-security/daemon/hostcert.pem /etc/grid-security/daemon/hostkey.pem
+xrd.tlsca  certdir /etc/grid-security/certificates/
+http.gridmap  /etc/grid-security/grid-mapfile
+xrd.protocol  XrdHttp:8444 libXrdHttp.so
+http.exthandler EosMgmHttp libEosMgmHttp.so eos::mgm::http::redirect-to-https=0
+mgmofs.macaroonslib  libXrdMacaroons.so libXrdAccSciTokens.so
+macaroons.secretkey  /etc/eos.sci.macaroon.secret
+all.sitename eos
+xrootd.fslib libXrdEosMgm.so
+xrootd.seclib libXrdSec.so
+xrootd.async off nosf
+xrootd.chksum adler32
+xrd.port 1094
+xrd.sched mint 8 maxt 256 idle 64
+all.export / nolock
+all.role manager
+oss.fdlimit 16384 32768
+sec.protocol unix
+sec.protocol sss -c /etc/eos.keytab -s /etc/eos.keytab
+sec.protbind [::ffff:127.0.0.1] unix sss
+sec.protbind localhost.localdomain unix sss
+sec.protbind localhost unix sss
+sec.protbind * only ztn gsi sss unix
+mgmofs.fs /
+mgmofs.targetport 1095
+scitokens.trace all
+mgmofs.broker ${EOS_BROKER_URL}
+mgmofs.instance ${EOS_INSTANCE_NAME}
+mgmofs.metalog /var/eos/md
+mgmofs.txdir /var/eos/tx
+mgmofs.authdir /var/eos/auth
+mgmofs.archivedir /var/eos/archive
+mgmofs.qosdir /var/eos/qos
+mgmofs.reportstorepath /var/eos/report
+mgmofs.autoloadconfig default
+mgmofs.qoscfg /var/eos/qos/qos.conf
+mgmofs.fstgw someproxy.cern.ch:3001
+mgmofs.nslib /usr/lib64/libEosNsQuarkdb.so
+mgmofs.qdbcluster localhost:7777
+mgmofs.qdbpassword_file /etc/eos.keytab
+
+[sysconfig]
+DAEMON_COREFILE_LIMIT=unlimited
+LD_PRELOAD=/usr/lib64/libjemalloc.so
+KRB5RCACHETYPE=none
+EOS_AUTOLOAD_CONFIG=default
+EOS_BROKER_URL=root://localhost:1097//eos/ 
+EOS_MGM_FUSEX_PORT=1100
+XDG_CACHE_HOME=/var/cache/eos/
