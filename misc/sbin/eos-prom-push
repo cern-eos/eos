@@ -1,11 +1,12 @@
+#!/bin/bash
 # ----------------------------------------------------------------------
-# File: CMakeLists.txt
+# File: eos-prom-push
 # Author: Andreas-Joachim Peters - CERN
 # ----------------------------------------------------------------------
 
 # ************************************************************************
 # * EOS - the CERN Disk Storage System                                   *
-# * Copyright (C) 2016 CERN/Switzerland                                  *
+# * Copyright (C) 2024 CERN/Switzerland                                  *
 # *                                                                      *
 # * This program is free software: you can redistribute it and/or modify *
 # * it under the terms of the GNU General Public License as published by *
@@ -21,23 +22,32 @@
 # * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
 # ************************************************************************
 
-install(PROGRAMS
-  eos-status
-  eos_start.sh
-  eos_start_pre.sh
-  eos-reportstat
-  eos-mdstat
-  eos-mdreport
-  eos-inspectorreport
-  eos-inspectorstat
-  eos-prom-push
-  DESTINATION ${CMAKE_INSTALL_FULL_SBINDIR})
+# ************************************************************************
+# the push endpoint can be overwritten in /etc/sysconfig/eos_prom
+# EOS_PROM_URL=...
+# the push can be disabled in /etc/sysconfig/eos_prom
+# EOS_PROM_DISABLE=1
+# ************************************************************************
+# By default the push is enabled!
+# ************************************************************************
 
-if(TARGET eosxd)
-  install(PROGRAMS mount.eosx DESTINATION ${CMAKE_INSTALL_FULL_SBINDIR})
-endif()
+# ************************************************************************
+# just check if we have an MGM locally, otherwise we don't do anything
+config=$(timeout 5 eos root://localhost version 2>/dev/null)
+test $? -ne 0 && exit 0
+export config
+EOS_PROM_URL="http://eos-prom.cern.ch:9091/metrics/job/user_inspector/instance"
+EOS_PROM_CLIENT=`hostname -f`
+test -e "/etc/sysconfig/eos_prom" && . /etc/sysconfig/eos_prom
 
-if(TARGET eosxd3)
-  install(PROGRAMS umount.fuse mount.eosx3 mount.eoscfs DESTINATION ${CMAKE_INSTALL_FULL_SBINDIR})
+if [ "${EOS_PROM_DISABLE}" == "1" ]; then
+    exit 0;
+fi    
 
-endif()
+# ************************************************************************
+# Publish only files created in the last 5 minutes window
+for name in `find /var/eos/md -type f -cmin -5 -name "*.prom"`; do
+    cat $name | timeout 10 curl --data-binary @- ${EOS_PROM_URL}/${EOS_PROM_CLIENT}/cluster/eos${EOS_INSTANCE} 
+done
+
+
