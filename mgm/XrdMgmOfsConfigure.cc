@@ -1529,7 +1529,6 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
       return 1;
     }
 
-    zMQ->ServeFuse();
     ObjectManager.SetAutoReplyQueueDerive(true);
     ObjectManager.CreateSharedHash("/eos/*", "/eos/*/fst");
     XrdOucString dumperfile = MgmMetaLogDir;
@@ -2430,6 +2429,8 @@ XrdMgmOfs::SetupProcFiles()
 {
   XrdOucString procpathwhoami = MgmProcPath;
   procpathwhoami += "/whoami";
+  XrdOucString procpathversion = MgmProcPath;
+  procpathversion += "/version";
   XrdOucString procpathwho = MgmProcPath;
   procpathwho += "/who";
   XrdOucString procpathquota = MgmProcPath;
@@ -2453,6 +2454,19 @@ XrdMgmOfs::SetupProcFiles()
   if (fmd) {
     fmd->setSize(4096);
     fmd->setAttribute("sys.proc", "mgm.cmd=whoami&mgm.format=fuse");
+    eosView->updateFileStore(fmd.get());
+  }
+
+  try {
+    fmd.reset();
+    fmd = eosView->getFile(procpathversion.c_str());
+  } catch (eos::MDException& e) {
+    fmd = eosView->createFile(procpathversion.c_str(), 0, 0);
+  }
+
+  if (fmd) {
+    fmd->setSize(4096);
+    fmd->setAttribute("sys.proc", "mgm.cmd=version&mgm.format=fuse");
     eosView->updateFileStore(fmd.get());
   }
 

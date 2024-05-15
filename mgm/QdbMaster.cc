@@ -26,6 +26,7 @@
 #include "mgm/Quota.hh"
 #include "mgm/Access.hh"
 #include "mgm/WFE.hh"
+#include "mgm/ZMQ.hh"
 #include "mgm/fsck/Fsck.hh"
 #include "mgm/LRU.hh"
 #include "mgm/Recycle.hh"
@@ -395,6 +396,7 @@ QdbMaster::SlaveToMaster()
     }
   }
 
+  gOFS->zMQ->ServeFuse();
   MasterLog(eos_log(LOG_INFO, "%s",
                     "msg=\"finished slave to master transition\""));
 }
@@ -413,7 +415,8 @@ QdbMaster::MasterToSlave()
   gOFS->mDrainEngine.Stop();
   gOFS->mFsckEngine->Stop();
   gOFS->mLRUEngine->Stop();
-
+  gOFS->zMQ->UnserveFuse();
+  
   if (gOFS->mConverterDriver) {
     gOFS->mConverterDriver->Stop();
   }

@@ -40,8 +40,26 @@ void
 ZMQ::ServeFuse()
 {
   mTask.reset(new Task(mBindUrl));
-  std::thread t1(&Task::run, mTask.get());
-  t1.detach();
+  mThread.reset(new std::thread(&Task::run, mTask.get()));
+}
+
+//------------------------------------------------------------------------------
+// Start thread handling fuse server proxying
+//------------------------------------------------------------------------------
+void
+ZMQ::UnserveFuse()
+{
+  fprintf(stderr,"unserver fuse\n");
+  // stop serving thread
+  if (mThread) {
+    fprintf(stderr,"stopping task\n");
+    mTask->stop();
+    fprintf(stderr,"joining thread\n");
+    mThread->join();
+  }
+  // unbind url
+  fprintf(stderr,"deleting task\n");
+  mTask.reset(nullptr);
 }
 
 //------------------------------------------------------------------------------
@@ -49,15 +67,17 @@ ZMQ::ServeFuse()
 //------------------------------------------------------------------------------
 ZMQ::Task::~Task()
 {
+  fprintf(stderr,"destroying task\n");
   // Closing the ZMQ context will cause an execption to be thrown in the worker
   // thread with ETERM as the error number
-  mZmqCtx.close();
-
+  //  mZmqCtx.close();
+  fprintf(stderr,"closed backend\n");
   for (const auto& th : mWorkerThreads) {
     delete th;
   }
-
+  fprintf(stderr,"destroyed worker threads\n");
   mWorkerThreads.clear();
+  fprintf(stderr,"leaving destructor\n");
 }
 
 

@@ -61,6 +61,11 @@ public:
   //----------------------------------------------------------------------------
   void ServeFuse();
 
+  //----------------------------------------------------------------------------
+  //! Stop thread handling fuse server proxying
+  //----------------------------------------------------------------------------
+  void UnserveFuse();
+
   std::unique_ptr<Task> mTask; ///< Task associated to the ZMQ object
 
   //----------------------------------------------------------------------------
@@ -107,6 +112,11 @@ public:
     void run() noexcept;
 
     //----------------------------------------------------------------------------
+    //! Stop proxy service
+    //----------------------------------------------------------------------------
+    void stop() {mFrontend.close();mBackend.close();}
+
+    //----------------------------------------------------------------------------
     //! Reply to a client identifier which a pice of data
     //!
     //! @param id cilent idnetifier
@@ -123,6 +133,7 @@ public:
     std::list<std::thread*> mWorkerThreads; ///< List of worker threads
   };
 
+  std::unique_ptr<std::thread> mThread;
 private:
   std::string mBindUrl; ///< URL
 };
