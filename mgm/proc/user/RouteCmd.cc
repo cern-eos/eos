@@ -84,19 +84,29 @@ RouteCmd::LinkSubcmd(const eos::console::RouteProto_LinkProto& link,
     return;
   }
 
+  std::string str_rep;
+  bool added=false;
   for (const auto& ep_proto : link.endpoints()) {
     RouteEndpoint endpoint(ep_proto.fqdn(), ep_proto.xrd_port(),
                            ep_proto.http_port());
-    std::string str_rep = endpoint.ToString();
-
+    str_rep += endpoint.ToString();
+    str_rep += ",";
     if (gOFS->mRouting->Add(link.path(), std::move(endpoint))) {
-      gOFS->ConfEngine->SetConfigValue("route", link.path().c_str(),
-                                       str_rep.c_str());
-    } else {
-      reply.set_retc(EINVAL);
-      reply.set_std_err(SSTR("error: routing to " << str_rep
-                             << " already exists"));
+      added=true;
     }
+  }
+
+  if (str_rep.back() == ',') {
+    str_rep.pop_back();
+  }
+
+  if (added) {
+    gOFS->ConfEngine->SetConfigValue("route", link.path().c_str(),
+				     str_rep.c_str());
+  } else {
+    reply.set_retc(EINVAL);
+    reply.set_std_err(SSTR("error: routing to " << str_rep
+			   << " already exists"));
   }
 }
 

@@ -109,16 +109,22 @@ IConfigEngine::ApplyEachConfig(const char* key, XrdOucString* val,
   } else if (skey.beginswith("route:")) {
     // Set a routing
     skey.erase(0, 6);
-    RouteEndpoint endpoint;
-
-    if (!endpoint.ParseFromString(sval.c_str())) {
-      eos_static_err("failed to parse route config %s => %s", key, val->c_str());
-      oss_err << "error: failed to parse route config "
-              << key << " => " << val->c_str() << std::endl;
-    } else {
-      if (!gOFS->mRouting->Add(skey.c_str(), std::move(endpoint))) {
-        oss_err << "error: failed to apply config "
-                << key << " => " << val->c_str() << std::endl;
+    
+    std::list<std::string> endpoints =
+      eos::common::StringTokenizer::split<std::list<std::string>> (sval.c_str(), ',');
+    
+    for (const auto& elem : endpoints) {
+      RouteEndpoint endpoint;
+      
+      if (!endpoint.ParseFromString(elem.c_str())) {
+	eos_static_err("failed to parse route config %s => %s", key, elem.c_str());
+	oss_err << "error: failed to parse route config "
+		<< key << " => " << elem.c_str() << std::endl;
+      } else {
+	if (!gOFS->mRouting->Add(skey.c_str(), std::move(endpoint))) {
+	  oss_err << "error: failed to apply config "
+		  << key << " => " << elem.c_str() << std::endl;
+	}
       }
     }
   } else if (skey.beginswith("quota:")) {
