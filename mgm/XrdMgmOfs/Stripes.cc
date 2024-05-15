@@ -75,8 +75,9 @@ XrdMgmOfs::_verifystripe(const char* path,
     }
 
     // Check permissions
+    errno = 0;
     if (dh && (!dh->access(vid.uid, vid.gid, X_OK | W_OK))) {
-      if (!errc) {
+      if (!errno) {
         errc = EPERM;
       }
     } else {
@@ -226,8 +227,9 @@ XrdMgmOfs::_dropstripe(const char* path,
   }
 
   // Check permissions
+  errno = 0;
   if (dh && (!dh->access(vid.uid, vid.gid, X_OK | W_OK))) {
-    if (!errc) {
+    if (!errno) {
       errc = EPERM;
     }
   } else {
@@ -349,8 +351,9 @@ XrdMgmOfs::_dropallstripes(const char* path,
     }
 
     // Check permissions
+    errno = 0;
     if (dh && (!dh->access(vid.uid, vid.gid, X_OK | W_OK)))
-      if (!errc) {
+      if (!errno) {
         errc = EPERM;
       }
 
