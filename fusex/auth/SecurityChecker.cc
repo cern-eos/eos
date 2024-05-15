@@ -250,6 +250,8 @@ SecurityChecker::Info SecurityChecker::lookupNonLocalJail(
 SecurityChecker::Info SecurityChecker::lookup(const JailInformation& jail,
     const std::string& path, uid_t uid, gid_t gid)
 {
+  bool globalBinding = false;
+
   //----------------------------------------------------------------------------
   // Simulation?
   //----------------------------------------------------------------------------
@@ -265,13 +267,20 @@ SecurityChecker::Info SecurityChecker::lookup(const JailInformation& jail,
   }
 
   //----------------------------------------------------------------------------
+  // GLobal binding?
+  //----------------------------------------------------------------------------
+  if (path.substr(0,28) == "/var/run/eos/credentials/uid") {
+    globalBinding = true;
+  }
+
+  //----------------------------------------------------------------------------
   // Is the request towards our local jail? If so, use fast path, no need to
   // go through heavyweight remote-jail lookup.
   //
   // Also, if ignoreJails is set to true we ignore containerization completely,
   // and treat all paths relative to the host.
   //----------------------------------------------------------------------------
-  if (jail.sameJailAsThisPid || ignoreJails) {
+  if (jail.sameJailAsThisPid || ignoreJails || globalBinding) {
     return lookupLocalJail(path, uid);
   }
 
