@@ -11,7 +11,7 @@ xrootd.fslib libXrdEosMgm.so
 xrootd.seclib libXrdSec.so
 xrootd.async off nosf
 xrootd.chksum adler32
-xrd.port 1095
+xrd.port 1090
 xrd.sched mint 8 maxt 256 idle 64
 all.export / nolock
 all.role manager
@@ -23,7 +23,7 @@ sec.protbind localhost.localdomain unix sss
 sec.protbind localhost unix sss
 sec.protbind * only   sss unix
 mgmofs.fs /
-mgmofs.targetport 1090
+mgmofs.targetport 1095
 scitokens.trace all
 mgmofs.broker ${EOS_BROKER_URL}
 mgmofs.instance ${EOS_INSTANCE_NAME}
