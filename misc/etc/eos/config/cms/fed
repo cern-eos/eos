@@ -1,0 +1,48 @@
+# ------------------------------------------------------------ #
+[cms:xrootd:fed]
+# ------------------------------------------------------------ #
+###########################################################
+
+xrd.port 1098
+ofs.osslib  libXrdPss.so
+pss.origin  ${EOS_FED_MGM} ${EOS_FED_PATH}
+xrootd.redirect ${EOS_FED_MGM} ${EOS_FED_PATH} 
+xrootd.trace  emsg redirect
+cms.trace  all
+ofs.trace  most
+all.export ${EOS_FED_PATH}
+all.role  server
+all.manager  ${EOS_FED_MANAGER} 
+all.sitename  ${EOS_FED_SITENAME} 
+
+# ------------------------------------------------------------ #
+[mgm:xrootd:fed]
+# ------------------------------------------------------------ #
+###########################################################
+
+xrd.port 1098
+ofs.osslib  libXrdPss.so
+pss.origin  ${EOS_FED_MGM} ${EOS_FED_PATH}
+xrootd.redirect ${EOS_FED_MGM} ${EOS_FED_PATH} 
+xrootd.trace  emsg redirect
+cms.trace  all
+ofs.trace  most
+all.export ${EOS_FED_PATH}
+all.role  server
+all.manager  ${EOS_FED_MANAGER} 
+all.sitename  ${EOS_FED_SITENAME} 
+
+[sysconfig]
+# Should we run with another limit on the core file size other than the default
+DAEMON_COREFILE_LIMIT=unlimited
+
+# Preload jemalloc
+LD_PRELOAD=/usr/lib64/libjemalloc.so
+
+#-------------------------------------------------------------------------------
+# EOS FED Configuration
+#-------------------------------------------------------------------------------
+EOS_FED_MANAGER=xrootd-cms.infn.it+:1213
+EOS_FED_PATH=/
+EOS_FED_MGM=${SERVER_HOST}:1094
+EOS_FED_SITENAME=T2_DEV_TEST
