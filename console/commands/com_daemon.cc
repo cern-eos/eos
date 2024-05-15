@@ -190,6 +190,7 @@ com_daemon(char* arg)
       ((service != "mgm") &&
        (service != "mq") &&
        (service != "fst") &&
+       (service != "cms") &&
        (service != "qdb")))) {
     goto com_daemon_usage;
   }
@@ -648,6 +649,10 @@ com_daemon(char* arg)
 
       if (service == "qdb") {
         execle("/opt/eos/xrootd/bin/xrootd", executable.c_str(), "-n", name.c_str(),
+               "-c", cfile.c_str(), "-l", logfile.c_str(), "-R", "daemon", "-k", "fifo", "-s",
+               pidfile.c_str(), NULL, envv);
+      } else if (service == "cms") {
+        execle("/opt/eos/xrootd/bin/cmsd", executable.c_str(), "-n", name.c_str(),
                "-c", cfile.c_str(), "-l", logfile.c_str(), "-R", "daemon", "-k", "fifo", "-s",
                pidfile.c_str(), NULL, envv);
       } else {
