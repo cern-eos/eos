@@ -35,7 +35,7 @@
 # just check if we have an MGM locally, otherwise we don't do anything
 config=$(timeout 5 eos root://localhost version 2>/dev/null)
 test $? -ne 0 && exit 0
-export config
+export $config
 EOS_PROM_URL="http://eos-prom.cern.ch:9091/metrics/job/user_inspector/instance"
 EOS_PROM_CLIENT=`hostname -f`
 test -e "/etc/sysconfig/eos_prom" && . /etc/sysconfig/eos_prom
