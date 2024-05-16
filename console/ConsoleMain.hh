@@ -93,10 +93,11 @@ typedef struct {
 //! to determine whether help message should be displayed.
 //!
 //! @param args_line the arguments line which to filter
+//! @param no_h if true don't consider -h as requesting help e.g du -h
 //!
 //! @return true if help messaged should be displayed, false otherwise
 //------------------------------------------------------------------------------
-extern bool wants_help(const char* args_line, bool no_h=false);
+extern bool wants_help(const char* args_line, bool no_h = false);
 
 extern COMMAND commands[];
 extern int done;
