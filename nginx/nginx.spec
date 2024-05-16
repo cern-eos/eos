@@ -13,7 +13,7 @@
 
 Name:           eos-nginx
 Version:        1.25.0
-Release:        0%{dist}
+Release:        1%{dist}
 Summary:        Robust, small and high performance http and reverse proxy server
 Group:          System Environment/Daemons
 Packager:       Justin Salmon <jsalmon@cern.ch>
@@ -108,7 +108,7 @@ export DESTDIR=%{buildroot}
     --http-client-body-temp-path=%{nginx_home_tmp}/client_body \
     --http-proxy-temp-path=%{nginx_home_tmp}/proxy \
     --http-fastcgi-temp-path=%{nginx_home_tmp}/fastcgi \
-    --pid-path=%{_localstatedir}/run/nginx.pid      \
+    --pid-path=/run/nginx.pid      \
     --lock-path=%{_localstatedir}/lock/subsys/nginx \
     --with-http_ssl_module              \
     --with-http_gzip_static_module      \
