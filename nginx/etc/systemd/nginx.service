@@ -5,7 +5,7 @@ After=network.target remote-fs.target nss-lookup.target
  
 [Service]
 Type=forking
-PIDFile=/var/run/nginx.pid
+PIDFile=/run/nginx.pid
 EnvironmentFile=/etc/sysconfig/nginx
 ExecStartPre=/bin/sh /etc/sysconfig/nginx
 ExecStart=/usr/sbin/nginx -c $NGINX_CONF_FILE
