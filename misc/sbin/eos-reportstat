@@ -33,7 +33,7 @@ arguments = sys.argv
 
 userstats = {}
 
-def dict_to_prom(data_dict):
+def dict2prom(data_dict):
     """
     Converts a dictionary to a Prometheus metrics format string.
     """
