@@ -81,6 +81,7 @@ com_stat(char* arg1)
   }
 
   if ((option.length()) && ((option != "f") && (option != "d"))) {
+    fprintf(stderr, "error: unknown option \"%s\"\n", option.c_str());
     goto com_stat_usage;
   }
 

@@ -331,26 +331,43 @@ abspath(const char* in)
 bool
 wants_help(const char* args_line, bool no_h)
 {
-  XrdOucString allargs = " ";
+  std::string allargs = " ";
   allargs += args_line;
   allargs += " ";
 
-  if (no_h) {
-    if ((allargs.find(" help ") != STR_NPOS) ||
-        (allargs.find("\"--help\"") != STR_NPOS) ||
-        (allargs.find(" --help ") != STR_NPOS) ||
-        (allargs.find(" \"--help\" ") != STR_NPOS)) {
-      return true;
+  if ((allargs.find("\"--help\"") != std::string::npos) ||
+      (allargs.find(" --help ") != std::string::npos) ||
+      (allargs.find(" \"--help\" ") != std::string::npos)) {
+    const char* ptr;
+    std::string token;
+    eos::common::StringTokenizer tokenizer(allargs);
+    tokenizer.GetLine();
+
+    while ((ptr = tokenizer.GetToken(false))) {
+      token = ptr;
+
+      if (token == "--help") {
+        return true;
+      }
     }
-  } else {
-    if ((allargs.find(" help ") != STR_NPOS) ||
-        (allargs.find("\"-h\"") != STR_NPOS) ||
-        (allargs.find("\"--help\"") != STR_NPOS) ||
-        (allargs.find(" -h ") != STR_NPOS) ||
-        (allargs.find(" \"-h\" ") != STR_NPOS) ||
-        (allargs.find(" --help ") != STR_NPOS) ||
-        (allargs.find(" \"--help\" ") != STR_NPOS)) {
-      return true;
+  }
+
+  if (!no_h) {
+    if ((allargs.find("\"-h\"") != std::string::npos) ||
+        (allargs.find(" -h ") != std::string::npos) ||
+        (allargs.find(" \"-h\" ") != std::string::npos)) {
+      const char* ptr;
+      std::string token;
+      eos::common::StringTokenizer tokenizer(allargs);
+      tokenizer.GetLine();
+
+      while ((ptr = tokenizer.GetToken(false))) {
+        token = ptr;
+
+        if (token == "-h") {
+          return true;
+        }
+      }
     }
   }
 
