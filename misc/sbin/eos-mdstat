@@ -35,7 +35,7 @@ shortnames = {"OpenRead":"open:r","OpenWrite":"open:w","OpenWriteTruncate":"open
 
 now = int(time.time())
 
-def dict2prom(dict):
+def dict2prom(data_dict):
     prom = ""
     prefix = "eos"
     category = "md"
