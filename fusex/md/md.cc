@@ -1900,7 +1900,10 @@ metad::apply(fuse_req_t req, eos::fusex::container& cont, bool listing)
 
     {
       if (!has_flush(ino)) {
-        std::string fullpath = (*md)()->fullpath();
+        const std::string fullpath = (*md)()->fullpath();
+        const size_t local_size = (*md)()->size();
+        const uint64_t local_mtime = (*md)()->mtime();
+        const uint64_t local_mtime_ns = (*md)()->mtime_ns();
         md->UpdateProtoFrom(cont.md_());
         (*md)()->set_fullpath(fullpath);
         shared_md d_md = EosFuse::Instance().datas.retrieve_wr_md(ino);
@@ -1908,9 +1911,9 @@ metad::apply(fuse_req_t req, eos::fusex::container& cont, bool listing)
         if (d_md) {
           // see if this file is open for write, because in that case
           // we have to keep the local size information and modification times
-          (*md)()->set_size((*d_md)()->size());
-          (*md)()->set_mtime((*d_md)()->mtime());
-          (*md)()->set_mtime_ns((*d_md)()->mtime_ns());
+          (*md)()->set_size(local_size);
+          (*md)()->set_mtime(local_mtime);
+          (*md)()->set_mtime_ns(local_mtime_ns);
         }
       } else {
         eos_static_warning("deferring MD overwrite local-ino=%016lx remote-ino=%016lx ",
@@ -2009,25 +2012,19 @@ metad::apply(fuse_req_t req, eos::fusex::container& cont, bool listing)
           if (child) {
             eos_static_debug("case 1 %s", (*md)()->name().c_str());
             eos::fusex::md::TYPE mdtype = (*md)()->type();
-            size_t local_size = (*md)()->size();
-            uint64_t local_mtime = (*md)()->mtime();
-            uint64_t local_mtime_ns = (*md)()->mtime_ns();
+            const size_t local_size = (*md)()->size();
+            const uint64_t local_mtime = (*md)()->mtime();
+            const uint64_t local_mtime_ns = (*md)()->mtime_ns();
             md->UpdateProtoFrom(map->second);
             md->clear_refresh();
             shared_md d_md = EosFuse::Instance().datas.retrieve_wr_md(ino);
 
-            if (d_md) {
+            if (d_md || has_flush(ino)) {
               // see if this file is open for write, because in that case
               // we have to keep the local size information and modification times
-              (*md)()->set_size((*d_md)()->size());
-              (*md)()->set_mtime((*d_md)()->mtime());
-              (*md)()->set_mtime_ns((*d_md)()->mtime_ns());
-            } else {
-              if (has_flush(ino)) {
-                (*md)()->set_size(local_size);
-                (*md)()->set_mtime(local_mtime);
-                (*md)()->set_mtime_ns(local_mtime_ns);
-              }
+              (*md)()->set_size(local_size);
+              (*md)()->set_mtime(local_mtime);
+              (*md)()->set_mtime_ns(local_mtime_ns);
             }
 
             (*md)()->set_nchildren(md->local_children().size());
