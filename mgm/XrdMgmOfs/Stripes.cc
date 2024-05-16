@@ -484,10 +484,16 @@ XrdMgmOfs::_replicatestripe(const char* path,
     }
 
     // check permissions
-    if (dh && (!dh->access(vid.uid, vid.gid, X_OK | W_OK)))
-      if (!errc) {
+    errno = 0;
+    if (dh && (!dh->access(vid.uid, vid.gid, X_OK | W_OK))) {
+      if (!errno) {
         errc = EPERM;
       }
+    }
+
+    if (errc) {
+      return Emsg(epname, error, errc, "replicate stripe", path);
+    }
 
     // get the file
     try {
