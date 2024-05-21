@@ -84,7 +84,7 @@ public:
 TEST_F(IostatTest, InitConfig)
 {
   EXPECT_STREQ("iostat::collect", iostat.gIostatCollect);
-  EXPECT_STREQ("iostat::report", iostat.gIostatReport);
+  EXPECT_STREQ("iostat::report", iostat.gIostatReportSave);
   EXPECT_STREQ("iostat::reportnamespace", iostat.gIostatReportNamespace);
   EXPECT_STREQ("iostat::popularity", iostat.gIostatPopularity);
   EXPECT_STREQ("iostat::udptargets", iostat.gIostatUdpTargetList);
@@ -106,7 +106,7 @@ TEST_F(IostatTest, StoreApplyIostatConfig)
   MockFsView mock_fsview;
   std::string udplist = mock_fsview.GetGlobalConfig(iostat.gIostatUdpTargetList);
   std::string iocollect = mock_fsview.GetGlobalConfig(iostat.gIostatCollect);
-  std::string ioreport = mock_fsview.GetGlobalConfig(iostat.gIostatReport);
+  std::string ioreport = mock_fsview.GetGlobalConfig(iostat.gIostatReportSave);
   std::string ioreportns = mock_fsview.GetGlobalConfig(
                              iostat.gIostatReportNamespace);
   std::string iopopularity = mock_fsview.GetGlobalConfig(
@@ -120,7 +120,7 @@ TEST_F(IostatTest, StoreApplyIostatConfig)
   // we check that all the remaining global config values were saved as expected
   udplist = mock_fsview.GetGlobalConfig(iostat.gIostatUdpTargetList);
   iocollect = mock_fsview.GetGlobalConfig(iostat.gIostatCollect);
-  ioreport = mock_fsview.GetGlobalConfig(iostat.gIostatReport);
+  ioreport = mock_fsview.GetGlobalConfig(iostat.gIostatReportSave);
   ioreportns = mock_fsview.GetGlobalConfig(
                  iostat.gIostatReportNamespace);
   iopopularity = mock_fsview.GetGlobalConfig(

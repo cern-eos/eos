@@ -216,7 +216,7 @@ class Iostat: public eos::common::LogId
 public:
   //! Configuration keys used in config key-val store
   static const char* gIostatCollect;
-  static const char* gIostatReport;
+  static const char* gIostatReportSave;
   static const char* gIostatReportNamespace;
   static const char* gIostatPopularity;
   static const char* gIostatUdpTargetList;
@@ -456,7 +456,7 @@ public:
   //! Internal QClient object
   std::unique_ptr<qclient::QClient> mQcl;
   //! Flag to store reports in the local report store
-  std::atomic<bool> mReport;
+  std::atomic<bool> mReportSave;
   //! Flag if we should fill the report namespace
   std::atomic<bool> mReportNamespace;
   //! Flag if we fill the popularity maps (protected by this::Mutex)
