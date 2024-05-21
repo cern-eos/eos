@@ -65,17 +65,17 @@ eos symlink /eos/cms/store/test/xrootd/${CMSSITE} ../../../
 touch /etc/grid-security/grid-mapfile
 
 eos vid set map -voms /cms:production vuid:`id -u cmsprod` vgid:`id -g cmsprod`
-eos vid set map -voms /cms:cmsprod vuid:`id -u cmsprod` vgid:`id -u cmsprod`
-eos vid set map -voms /cms:t1production vuid:`id -u cmsprod` vgid:`id -u cmsprod`
-eos vid set map -voms /cms/muon:production vuid:`id -u cmsprod` vgid:`id -u cmsprod`
-eos vid set map -voms /cms:cmsphedex vuid:`id -u cmsprod` vgid:`id -u cmsprod`
-eos vid set map -voms /cms:lcgadmin vuid:`id -u cmssam` vgid:`id -u cmssam`
-eos vid set map -voms cms/uscms:lcgadmin vuid:`id -u cmssam` vgid:`id -u cmssam`
-eos vid set map -voms cms:pilot vuid:`id -u cmspilot` vgid:`id -u cmspilot`
-eos vid set map -voms cms:uscms:pilot vuid:`id -u cmspilot` vgid:`id -u cmspilot`
-eos vid set map -voms cms:priorityuser vuid:`id -u cmsuser` vgid:`id -u cmsuser`
-eos vid set map -voms cms:hiproduction vuid:`id -u cmsuser` vgid:`id -u cmsuser`
-eos vid set map -voms /cms: vuid:`id -u cmsuser` vgid:`id -u cmsuser`
+eos vid set map -voms /cms:cmsprod vuid:`id -u cmsprod` vgid:`id -g cmsprod`
+eos vid set map -voms /cms:t1production vuid:`id -u cmsprod` vgid:`id -g cmsprod`
+eos vid set map -voms /cms/muon:production vuid:`id -u cmsprod` vgid:`id -g cmsprod`
+eos vid set map -voms /cms:cmsphedex vuid:`id -u cmsprod` vgid:`id -g cmsprod`
+eos vid set map -voms /cms:lcgadmin vuid:`id -u cmssam` vgid:`id -g cmssam`
+eos vid set map -voms cms/uscms:lcgadmin vuid:`id -u cmssam` vgid:`id -g cmssam`
+eos vid set map -voms cms:pilot vuid:`id -u cmspilot` vgid:`id -g cmspilot`
+eos vid set map -voms cms:uscms:pilot vuid:`id -u cmspilot` vgid:`id -g cmspilot`
+eos vid set map -voms cms:priorityuser vuid:`id -u cmsuser` vgid:`id -g cmsuser`
+eos vid set map -voms cms:hiproduction vuid:`id -u cmsuser` vgid:`id -g cmsuser`
+eos vid set map -voms /cms: vuid:`id -u cmsuser` vgid:`id -g cmsuser`
 
 if [ ! -e "/etc/xrootd/scitokens.cfg" ]; then
 cat <<EOF > /etc/xrootd/scitokens.cfg
