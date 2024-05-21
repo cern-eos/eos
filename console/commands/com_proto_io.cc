@@ -253,12 +253,14 @@ void com_io_help()
       << "\t           eos io stat -x --sa 120 --si 60\n"
       << std::endl
       << "io enable [-r] [-p] [-n] [--udp <address>] : enable collection of io statistics\n"
+      << "\t         no arg. : start the colleciton thread\n"
       << "\t              -r : enable collection of io reports\n"
       << "\t              -p : enable popularity accounting\n"
       << "\t              -n : enable report namespace\n"
       << "\t --udp <address> : add a UDP message target for io UDP packtes (the configured targets are shown by 'io stat -l)\n"
       << std::endl
       << "io disable [-r] [-p] [-n] [--udp <address>] : disable collection of io statistics\n"
+      << "\t         no arg. : stop the collection thread\n"
       << "\t              -r : disable collection of io reports\n"
       << "\t              -p : disable popularity accounting\n"
       << "\t              -n : disable report namespace\n"
