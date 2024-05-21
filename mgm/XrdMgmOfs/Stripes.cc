@@ -52,7 +52,7 @@ XrdMgmOfs::_verifystripe(const char* path,
   std::shared_ptr<eos::IContainerMD> dh;
   std::shared_ptr<eos::IFileMD> fmd;
   EXEC_TIMING_BEGIN("VerifyStripe");
-  errno = 0;
+  int errc = 0;
   unsigned long long fid = 0;
   unsigned long long cid = 0;
   int lid = 0;
@@ -75,19 +75,20 @@ XrdMgmOfs::_verifystripe(const char* path,
     }
 
     // Check permissions
+    errno = 0;
     if (dh && (!dh->access(vid.uid, vid.gid, X_OK | W_OK))) {
       if (!errno) {
-        errno = EPERM;
+        errc = EPERM;
       }
     } else {
       // only root can delete a detached replica
       if (vid.uid) {
-        errno = EPERM;
+        errc = EPERM;
       }
     }
 
-    if (errno) {
-      return Emsg(epname, error, errno, "verify stripe", path);
+    if (errc) {
+      return Emsg(epname, error, errc, "verify stripe", path);
     }
 
     // Get attributes
@@ -101,10 +102,10 @@ XrdMgmOfs::_verifystripe(const char* path,
       cid = fmd->getContainerId();
     } catch (eos::MDException& e) {
       fmd.reset();
-      errno = e.getErrno();
+      errc = e.getErrno();
       eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
                 e.getErrno(), e.getMessage().str().c_str());
-      return Emsg(epname, error, errno,
+      return Emsg(epname, error, errc,
                   "verify stripe - not file metadata", path);
     }
   }
@@ -115,7 +116,7 @@ XrdMgmOfs::_verifystripe(const char* path,
     auto* verify_fs = FsView::gFsView.mIdView.lookupByID(fsid);
 
     if (!verify_fs) {
-      errno = EINVAL;
+      errc = EINVAL;
       return Emsg(epname, error, ENOENT,
                   "verify stripe - filesystem does not exist", path);
     }
@@ -166,15 +167,15 @@ XrdMgmOfs::_verifystripe(const char* path,
   if (SendQuery(fst_host, fst_port, qreq, qresp)) {
     eos_static_err("msg=\"unable to send verification message\" target=%s",
                    fst_queue.c_str());
-    errno = ECOMM;
+    errc = ECOMM;
   } else {
-    errno = 0;
+    errc = 0;
   }
 
   EXEC_TIMING_END("VerifyStripe");
 
-  if (errno) {
-    return Emsg(epname, error, errno, "verify stripe", path);
+  if (errc) {
+    return Emsg(epname, error, errc, "verify stripe", path);
   } else {
     return SFS_OK;
   }
@@ -226,8 +227,9 @@ XrdMgmOfs::_dropstripe(const char* path,
   }
 
   // Check permissions
+  errno = 0;
   if (dh && (!dh->access(vid.uid, vid.gid, X_OK | W_OK))) {
-    if (!errc) {
+    if (!errno) {
       errc = EPERM;
     }
   } else {
@@ -328,7 +330,7 @@ XrdMgmOfs::_dropallstripes(const char* path,
   static const char* epname = "dropallstripes";
   std::shared_ptr<eos::IContainerMD> dh;
   std::shared_ptr<eos::IFileMD> fmd;
-  errno = 0;
+  int errc = 0;
   EXEC_TIMING_BEGIN("DropAllStripes");
   gOFS->MgmStats.Add("DropAllStripes", vid.uid, vid.gid, 1);
   eos_debug("dropall");
@@ -343,19 +345,20 @@ XrdMgmOfs::_dropallstripes(const char* path,
       dh = gOFS->eosView->getContainer(gOFS->eosView->getUri(dh.get()));
     } catch (eos::MDException& e) {
       dh.reset();
-      errno = e.getErrno();
+      errc = e.getErrno();
       eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n", e.getErrno(),
                 e.getMessage().str().c_str());
     }
 
     // Check permissions
+    errno = 0;
     if (dh && (!dh->access(vid.uid, vid.gid, X_OK | W_OK)))
       if (!errno) {
-        errno = EPERM;
+        errc = EPERM;
       }
 
-    if (errno) {
-      return Emsg(epname, error, errno, "drop all stripes", path);
+    if (errc) {
+      return Emsg(epname, error, errc, "drop all stripes", path);
     }
 
     try {
@@ -367,7 +370,6 @@ XrdMgmOfs::_dropallstripes(const char* path,
         return SFS_OK;
       }
     } catch (eos::MDException& e) {
-      errno = e.getErrno();
       eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
                 e.getErrno(), e.getMessage().str().c_str());
       // return error if we don't have the file metadata
@@ -403,15 +405,15 @@ XrdMgmOfs::_dropallstripes(const char* path,
     gOFS->eosView->updateFileStore(fmd.get());
   } catch (eos::MDException& e) {
     fmd.reset();
-    errno = e.getErrno();
+    errc = e.getErrno();
     eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
               e.getErrno(), e.getMessage().str().c_str());
   }
 
   EXEC_TIMING_END("DropAllStripes");
 
-  if (errno) {
-    return Emsg(epname, error, errno, "drop all stripes", path);
+  if (errc) {
+    return Emsg(epname, error, errc, "drop all stripes", path);
   }
 
   return SFS_OK;
@@ -463,7 +465,7 @@ XrdMgmOfs::_replicatestripe(const char* path,
   static const char* epname = "replicatestripe";
   std::shared_ptr<eos::IContainerMD> dh;
   std::shared_ptr<eos::IFileMD> fmd;
-  errno = 0;
+  int errc = 0;
   EXEC_TIMING_BEGIN("ReplicateStripe");
   eos::common::Path cPath(path);
   eos_debug("msg=\"replicate file\" path=\"%s\" src_fsid=%u dst_fsid=%u drop=%d",
@@ -476,16 +478,22 @@ XrdMgmOfs::_replicatestripe(const char* path,
       dh = gOFS->eosView->getContainer(gOFS->eosView->getUri(dh.get()));
     } catch (eos::MDException& e) {
       dh.reset();
-      errno = e.getErrno();
+      errc = e.getErrno();
       eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n", e.getErrno(),
                 e.getMessage().str().c_str());
     }
 
     // check permissions
-    if (dh && (!dh->access(vid.uid, vid.gid, X_OK | W_OK)))
+    errno = 0;
+    if (dh && (!dh->access(vid.uid, vid.gid, X_OK | W_OK))) {
       if (!errno) {
-        errno = EPERM;
+        errc = EPERM;
       }
+    }
+
+    if (errc) {
+      return Emsg(epname, error, errc, "replicate stripe", path);
+    }
 
     // get the file
     try {
@@ -493,22 +501,22 @@ XrdMgmOfs::_replicatestripe(const char* path,
 
       if (fmd->hasLocation(sourcefsid)) {
         if (fmd->hasLocation(targetfsid)) {
-          errno = EEXIST;
+          errc = EEXIST;
         }
       } else {
         // this replica does not exist!
-        errno = ENODATA;
+        errc = ENODATA;
       }
     } catch (eos::MDException& e) {
       fmd.reset();
-      errno = e.getErrno();
+      errc = e.getErrno();
       eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n", e.getErrno(),
                 e.getMessage().str().c_str());
     }
   }
 
-  if (errno) {
-    return Emsg(epname, error, errno, "replicate stripe", path);
+  if (errc) {
+    return Emsg(epname, error, errc, "replicate stripe", path);
   }
 
   int retc = _replicatestripe(fmd.get(), path, error, vid, sourcefsid,
