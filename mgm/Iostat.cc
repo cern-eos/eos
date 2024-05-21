@@ -51,7 +51,7 @@
 EOSMGMNAMESPACE_BEGIN
 
 const char* Iostat::gIostatCollect = "iostat::collect";
-const char* Iostat::gIostatReport = "iostat::report";
+const char* Iostat::gIostatReportSave = "iostat::report";
 const char* Iostat::gIostatReportNamespace = "iostat::reportnamespace";
 const char* Iostat::gIostatPopularity = "iostat::popularity";
 const char* Iostat::gIostatUdpTargetList = "iostat::udptargets";
@@ -323,8 +323,8 @@ IostatPeriods::GetDataInPeriod(size_t period, unsigned long long time_offset,
 //------------------------------------------------------------------------------
 Iostat::Iostat():
   mDoneInit(false), mFlusher(nullptr), mLegacyMode(false), mRunning(false),
-  mQcl(nullptr), mReport(true), mReportNamespace(false), mReportPopularity(true),
-  mHashKeyBase("")
+  mQcl(nullptr), mReportSave(true), mReportNamespace(false),
+  mReportPopularity(true), mHashKeyBase("")
 {
   for (size_t i = 0; i < IOSTAT_POPULARITY_HISTORY_DAYS; i++) {
     IostatPopularity[i].set_deleted_key("");
@@ -499,7 +499,7 @@ Iostat::ApplyIostatConfig(FsView* fsview)
 
   std::string iopopularity = fsview->GetGlobalConfig(gIostatPopularity);
   mReportPopularity = (iopopularity == "true") || (iopopularity.empty());
-  mReport = fsview->GetBoolGlobalConfig(gIostatReport);
+  mReportSave = fsview->GetBoolGlobalConfig(gIostatReportSave);
   mReportNamespace = fsview->GetBoolGlobalConfig(gIostatReportNamespace);
   std::string udplist = fsview->GetGlobalConfig(gIostatUdpTargetList);
   std::string delimiter = "|";
@@ -520,7 +520,7 @@ bool
 Iostat::StoreIostatConfig(FsView* fsview) const
 {
   bool ok = fsview->SetGlobalConfig(gIostatPopularity, mReportPopularity) &
-            fsview->SetGlobalConfig(gIostatReport, mReport) &
+            fsview->SetGlobalConfig(gIostatReportSave, mReportSave) &
             fsview->SetGlobalConfig(gIostatReportNamespace, mReportNamespace) &
             fsview->SetGlobalConfig(gIostatCollect, mRunning);
   std::string udp_popularity_targets = EncodeUdpPopularityTargets();
@@ -603,15 +603,15 @@ Iostat::StopPopularity()
 }
 
 //------------------------------------------------------------------------------
-// Start daily report thread
+// Start daily report save thread
 //------------------------------------------------------------------------------
 bool
 Iostat::StartReport()
 {
   std::unique_lock<std::mutex> scope_lock(mThreadSyncMutex);
 
-  if (!mReport) {
-    mReport = true;
+  if (!mReportSave) {
+    mReportSave = true;
     StoreIostatConfig(&FsView::gFsView);
     return true;
   }
@@ -620,15 +620,15 @@ Iostat::StartReport()
 }
 
 //------------------------------------------------------------------------------
-// Stop daily report thread
+// Stop daily report save thread
 //------------------------------------------------------------------------------
 bool
 Iostat::StopReport()
 {
   std::unique_lock<std::mutex> scope_lock(mThreadSyncMutex);
 
-  if (mReport) {
-    mReport = false;
+  if (mReportSave) {
+    mReportSave = false;
     StoreIostatConfig(&FsView::gFsView);
     return true;
   }
@@ -944,7 +944,7 @@ Iostat::Receive(ThreadAssistant& assistant) noexcept
         }
       }
 
-      if (mReport && gOFS->mMaster->IsMaster()) {
+      if (mReportSave && gOFS->mMaster->IsMaster()) {
         WriteRecord(body.c_str());
       }
 
