@@ -293,16 +293,6 @@ public:
   bool ResyncMgm(eos::common::FileSystem::fsid_t fsid,
                  eos::common::FileId::fileid_t fid, const char* manager);
 
-  //----------------------------------------------------------------------------
-  //! Resync all meta data from MGM into local database
-  //!
-  //! @param fsid filesystem id
-  //! param manager manger hostname
-  //!
-  //! @return true if successful, otherwise false
-  //----------------------------------------------------------------------------
-  bool ResyncAllMgm(eos::common::FileSystem::fsid_t fsid, const char* manager);
-
   //------------------------------------------------------------------------------
   //! Resync file meta data from QuarkDB into local database
   //!

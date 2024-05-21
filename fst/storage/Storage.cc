@@ -613,12 +613,8 @@ Storage::Boot(FileSystem* fs)
         return;
       }
     } else {
-      // Resync the MGM meta data using dumpmd
-      if (!gOFS.mFmdHandler->ResyncAllMgm(fsid, manager.c_str())) {
-        fs->SetStatus(eos::common::BootStatus::kBootFailure);
-        fs->SetError(EFAULT, "cannot resync the mgm meta data");
-        return;
-      }
+      eos_info("msg=\"only mgm synchronization via QDB supported but missing "
+	       "QDB connection details\" fsid=%u", fsid);
     }
 
     eos_info("msg=\"finished mgm synchronization\" fsid=%u", fsid);

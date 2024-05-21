@@ -54,7 +54,7 @@ public:
   //! @return true if successful otherwise false
   //----------------------------------------------------------------------------
   static bool NsFileProtoToFmd(eos::ns::FileMdProto&& filemd,
-                               eos::common::FmdHelper& fmd);
+			       eos::common::FmdHelper& fmd);
 
   //----------------------------------------------------------------------------
   //! Return Fmd from MGM doing getfmd command
@@ -66,22 +66,8 @@ public:
   //! @return 0 if successful, otherwise errno
   //----------------------------------------------------------------------------
   static int GetMgmFmd(const std::string& manager,
-                       eos::common::FileId::fileid_t fid,
-                       eos::common::FmdHelper& fmd);
-
-  //----------------------------------------------------------------------------
-  //! Execute "fs dumpmd" on the MGM node
-  //!
-  //! @param mgm_host MGM hostname
-  //! @param fsid filesystem id
-  //! @param fn_output file name where output is written
-  //!
-  //! @return true if successful, otherwise false
-  //----------------------------------------------------------------------------
-  static bool ExecuteDumpmd(const std::string& mgm_hosst,
-                            eos::common::FileSystem::fsid_t fsid,
-                            std::string& fn_output);
-
+		       eos::common::FileId::fileid_t fid,
+		       eos::common::FmdHelper& fmd);
 
   //----------------------------------------------------------------------------
   //! Exclude unlinked locations from the given string representation
@@ -92,7 +78,6 @@ public:
   //! @return string with the linked locations excluded
   //----------------------------------------------------------------------------
   static std::string ExcludeUnlinkedLoc(const std::string& slocations);
-
 };
 
 EOSFSTNAMESPACE_END
