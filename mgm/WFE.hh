@@ -215,8 +215,9 @@ public:
 
     //! @brief Handles a "proto" method "create" event
     //! @param fullPath the full path of the file
+    //! @ininfo original opaque information of the URL that triggered the event
     //! @param errorMsg out parameter giving the text of any error response
-    int HandleProtoMethodCreateEvent(const std::string &fullPath, std::string &errorMsg);
+    int HandleProtoMethodCreateEvent(const std::string &fullPath, const char* const ininfo, std::string &errorMsg);
 
     //! @brief Handles a "proto" method "delete" event
     //! @param fullPath the full path of the file
@@ -370,6 +371,11 @@ public:
     //! @param ininfo opaque information
     //! @return prepare request activity, or empty string if no activity is found
     std::string GetPrepareActivityFromOpaqueData(const char* const ininfo);
+
+    //! @brief get archive metadata from specified opaque information
+    //! @param ininfo opaque information
+    //! @return archive metadata, in base64, or empty string if no archive metadata is found
+    std::string GetArchiveMetadataFromOpaqueData(const char* const ininfo);
 
     //! @brief Queues a prepare request if necessary
     //! @param fullPath the full path of the file

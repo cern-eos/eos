@@ -597,6 +597,17 @@ HttpHandler::Put(eos::common::HttpRequest* request)
         }
       }
 
+      // -----------------------------------------------------------
+      // 'ArchiveMetadata' header needs to be passed down to CTA
+      // -----------------------------------------------------------
+      if (request->GetHeaders().count("archivemetadata")) {
+        if (query.length()) {
+          query += "&";
+        }
+        query += "archivemetadata=";
+        query += request->GetHeaders()["archivemetadata"];
+      }
+
       int rc = file->open(url.c_str(), open_mode, create_mode, &client,
                           query.c_str());
 
