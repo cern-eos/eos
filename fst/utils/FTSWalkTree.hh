@@ -33,11 +33,13 @@
 
 EOSFSTNAMESPACE_BEGIN
 
-static constexpr std::string_view XSMAP_EXT = "xsmap";
+static constexpr std::string_view XSMAP_SUFFIX = ".xsmap";
+static constexpr std::string_view SCRUB_PREFIX = "/scrub.";
 
-inline bool exclude_xs_map(std::string_view filename)
+inline bool exclude_xs_and_scrub(std::string_view filename)
 {
-  return common::endsWith(filename, XSMAP_EXT);
+  return (common::endsWith(filename, XSMAP_SUFFIX) ||
+          (filename.find(SCRUB_PREFIX) != std::string::npos));
 }
 
 // A function to walk the dir tree and apply a function with arguments
@@ -81,18 +83,20 @@ WalkDirTree(std::vector<char*>&& paths, ExcludeFn exclude_fn, PathOp path_op,
   return cnt;
 }
 
-// A function useful for walking FST trees, where xsmap files are usually excluded
-// This variant expects a member function to be applied across the tree
+//------------------------------------------------------------------------------
+//! A function useful for walking FST trees, where xsmap and scrub files are
+//! usually excluded. This variant expects a member function to be applied
+//! across the tree.
+//------------------------------------------------------------------------------
 template <typename UnaryOp>
 uint64_t
 WalkFSTree(std::string path, UnaryOp&& op, std::error_code& ec)
 {
   return WalkDirTree({path.data(), nullptr},
-                     exclude_xs_map,
+                     exclude_xs_and_scrub,
                      std::forward<UnaryOp>(op),
                      ec);
 }
-
 
 //------------------------------------------------------------------------------
 //! Method to travers the subtree and check the file if they satisfy a certain
