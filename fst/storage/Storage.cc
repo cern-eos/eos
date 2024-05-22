@@ -108,7 +108,7 @@ bool RandomCheckFsXattrConverted(const std::string& fs_path)
 
           if (file_index.find(count) != file_index.end()) {
             // Skip check for block checksum files
-            if (strstr(node->fts_path, XSMAP_EXT.data()) != nullptr) {
+            if (strstr(node->fts_path, XSMAP_SUFFIX.data()) != nullptr) {
               continue;
             }
 
@@ -578,17 +578,19 @@ Storage::Boot(FileSystem* fs)
   }
 
   bool resyncmgm = (fs->GetLongLong("bootcheck") ==
-                    eos::common::FileSystem::kBootResync);
+                    eos::common::FileSystem::kBootMgm);
   bool resyncdisk = (fs->GetLongLong("bootcheck") >=
-                     eos::common::FileSystem::kBootForced);
-  // If we see the bootcheck resyncflag for the filesystem, we resync with
+                     eos::common::FileSystem::kBootDisk);
+  // If we see the bootcheck kBootMgm for the filesystem, we resync with
   // the mgm. Remove the bootcheck flag.
   fs->SetLongLong("bootcheck", 0);
-  eos_info("msg=\"start disk synchronisation\" fsid=%u resync_mgm=%d "
-           "resync_disk=%d", fsid, resyncmgm, resyncdisk);
+  eos_info("msg=\"booting\" fsid=%u resync_mgm=%d resync_disk=%d", fsid,
+           resyncmgm, resyncdisk);
 
   // Sync only local disks
   if (resyncdisk && (fs->GetPath()[0] == '/')) {
+    eos_info("msg=\"start disk synchronisation\" fsid=%u", fsid);
+
     if (!gOFS.mFmdHandler->ResyncAllDisk(fs->GetPath().c_str(), fsid, resyncmgm)) {
       fs->SetStatus(eos::common::BootStatus::kBootFailure);
       fs->SetError(EFAULT, "cannot resync the DB from local disk");
@@ -605,7 +607,7 @@ Storage::Boot(FileSystem* fs)
 
     if (!gOFS.mQdbContactDetails.empty()) {
       // Resync meta data connecting directly to QuarkDB
-      eos_info("msg=\"synchronizing from QuarkDB backend\"");
+      eos_info("msg=\"synchronizing from QuarkDB backend\" fsid=%u", fsid);
 
       if (!gOFS.mFmdHandler->ResyncAllFromQdb(gOFS.mQdbContactDetails, fsid)) {
         fs->SetStatus(eos::common::BootStatus::kBootFailure);
@@ -614,18 +616,13 @@ Storage::Boot(FileSystem* fs)
       }
     } else {
       eos_info("msg=\"only mgm synchronization via QDB supported but missing "
-	       "QDB connection details\" fsid=%u", fsid);
+               "QDB connection details\" fsid=%u", fsid);
     }
 
     eos_info("msg=\"finished mgm synchronization\" fsid=%u", fsid);
   } else {
     eos_info("msg=\"skip mgm resynchronization\" fsid=%u", fsid);
   }
-
-  // @note the disk and mgm synchronization can end up in a state where files
-  // present on disk but not tracked by the MGM are still accounted in EOS. They
-  // are tracked in the local database and also show up in the "used_files" info
-  // displayed per file system.
 
   // Check if there is a label on the disk and if the configuration shows the
   // same fsid + uuid

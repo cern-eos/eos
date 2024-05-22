@@ -40,7 +40,7 @@ bool TransformAttr(const std::string& path,
   int rc = fsio.attrGet(gFmdAttrName, attrval);
 
   if (rc != 0) {
-    eos_static_err("msg=\"Failed to retrieve filemd attr at\" path=%s",
+    eos_static_err("msg=\"Failed to retrieve filemd attr\" path=%s",
                    path.c_str());
     return false;
   }
@@ -48,7 +48,7 @@ bool TransformAttr(const std::string& path,
   rc = fsio.attrSet(gFmdAttrName, f(attrval));
 
   if (rc != 0) {
-    eos_static_err("msg=\"Failed to set filemd attr at\" path=%s",
+    eos_static_err("msg=\"Failed to set filemd attr\" path=%s",
                    path.c_str());
     return false;
   }

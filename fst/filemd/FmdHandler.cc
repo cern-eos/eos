@@ -304,7 +304,7 @@ FmdHandler::ResyncDisk(const char* path,
     eos::common::FileId::Hex2Fid(cPath.GetName());
 
   if (fid == 0) {
-    eos_err("%s", "msg=\"unable to sync fid=0\"");
+    eos_err("msg=\"unable to sync fid=0\" path=\"%s\"", path);
     return EINVAL;
   }
 
