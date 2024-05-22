@@ -37,7 +37,7 @@
 
 EOSCOMMONNAMESPACE_BEGIN
 
-inline bool startsWith(const std::string& str, const std::string& prefix)
+inline bool startsWith(std::string_view str,  std::string_view prefix)
 {
   if (prefix.size() > str.size()) {
     return false;

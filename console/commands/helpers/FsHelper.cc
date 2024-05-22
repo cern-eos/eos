@@ -158,11 +158,13 @@ FsHelper::ParseCommand(const char* arg)
       if ((option = tokenizer.GetToken())) {
         soption = option;
 
-        if (soption != "--syncmgm") {
+        if (soption == "--syncmgm") {
+          boot->set_syncmgm(true);
+        } else if (soption == "--syncdisk") {
+          boot->set_syncdisk(true);
+        } else {
           std::cerr << "error: unknown option: " << soption << std::endl;
           return false;
-        } else {
-          boot->set_syncmgm(true);
         }
       }
     }

@@ -90,13 +90,12 @@ void com_fs_help()
       << "    <sharedfs>   : set the name of a shared filesystem"
       << std::endl
       << std::endl
-      << "  fs boot <fsid>|<uuid>|<node-queue>|* [--syncmgm]" << std::endl
-      << "    boot - filesystem identified by <fsid> or <uuid>" << std::endl
-      << "         - all filesystems on a node identified by <node-queue>" <<
-      std::endl
-      << "         - all filesystems registered" << std::endl
-      << "    --syncmgm    : for MGM resynchronization during the booting"
-      << std::endl
+      << "  fs boot <fsid>|<uuid>|<node-queue>|* [--syncdisk|--syncmgm]" << std::endl
+      << "    boot - filesystem identified by <fsid> or <uuid>\n"
+      << "         - all filesystems on a node identified by <node-queue>\n"
+      << "         - all filesystems registered\n"
+      << "    --syncdisk   : do disk resynchronization during the booting\n"
+      << "    --syncmgm    : do MGM and disk resynchronization during the booting\n"
       << std::endl
       << "  fs clone <sourceid> <targetid>" << std::endl
       << "    replicate files from the source to the target filesystem"

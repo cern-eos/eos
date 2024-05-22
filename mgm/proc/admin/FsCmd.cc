@@ -146,8 +146,15 @@ FsCmd::Boot(const eos::console::FsProto::BootProto& bootProto)
     std::string fsuuid = (bootProto.id_case() ==
                           eos::console::FsProto::BootProto::kUuid ?
                           bootProto.uuid() : "");
-    bool forcemgmsync = bootProto.syncmgm();
-    // eos::common::FileSystem::fsid_t fsid = std::stoi(sfsid);
+    eos::common::FileSystem::eBootConfig bootConfig =
+      eos::common::FileSystem::kBootOptional;
+
+    if (bootProto.syncmgm()) {
+      bootConfig = eos::common::FileSystem::kBootMgm;
+    } else if (bootProto.syncdisk()) {
+      bootConfig = eos::common::FileSystem::kBootDisk;
+    }
+
     // @note it would be nicer if the method get refactored
     eos::common::FileSystem::fsid_t fsid = 0;
 
@@ -165,9 +172,6 @@ FsCmd::Boot(const eos::console::FsProto::BootProto& bootProto)
 
         for (const auto id : FsView::gFsView.mIdView) {
           if ((id.second->GetConfigStatus() > eos::common::ConfigStatus::kOff)) {
-            eos::common::FileSystem::eBootConfig bootConfig = (forcemgmsync)
-                ? eos::common::FileSystem::kBootResync  // MGM resync
-                : eos::common::FileSystem::kBootForced; // local resync
             auto now = time(nullptr);
             id.second->SetLongLong("bootcheck", bootConfig);
             id.second->SetLongLong("bootsenttime", (unsigned long long) now);
@@ -197,9 +201,6 @@ FsCmd::Boot(const eos::console::FsProto::BootProto& bootProto)
           FileSystem* fs = FsView::gFsView.mIdView.lookupByID(*it);
 
           if (fs != nullptr) {
-            eos::common::FileSystem::eBootConfig bootConfig = (forcemgmsync)
-                ? eos::common::FileSystem::kBootResync  // MGM resync
-                : eos::common::FileSystem::kBootForced; // local resync
             auto now = time(nullptr);
             fs->SetLongLong("bootcheck", bootConfig);
             fs->SetLongLong("bootsenttime", ((now > 0) ? now : 0));
@@ -236,9 +237,6 @@ FsCmd::Boot(const eos::console::FsProto::BootProto& bootProto)
       }
 
       if (fs != nullptr) {
-        eos::common::FileSystem::eBootConfig bootConfig = (forcemgmsync)
-            ? eos::common::FileSystem::kBootResync  // MGM resync
-            : eos::common::FileSystem::kBootForced; // local resync
         fs->SetLongLong("bootcheck", bootConfig);
         fs->SetLongLong("bootsenttime", (unsigned long long) time(nullptr));
         outStream << "success: boot message sent to ";

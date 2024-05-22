@@ -508,8 +508,8 @@ public:
   //! Value indication the way a boot message should be executed on an FST node
   enum eBootConfig {
     kBootOptional = 0,
-    kBootForced = 1,
-    kBootResync = 2
+    kBootDisk = 1,
+    kBootMgm = 2
   };
 
   //----------------------------------------------------------------------------

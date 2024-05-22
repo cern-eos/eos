@@ -22,6 +22,7 @@ message FsProto {
       string Uuid = 3;
       string NodeQueue = 4;
     }
+    bool SyncDisk = 5;
   }
 
   message CloneProto {
