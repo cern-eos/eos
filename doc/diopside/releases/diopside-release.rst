@@ -17,6 +17,29 @@ Introduction
 This release is based on XRootD V5.
 
 
+``v5.2.24 Diopside``
+====================
+
+2024-05-23
+
+Bug
+---
+
+* [EOS-6112] - Remove reliance on 'errno' from _dropallstripes() and other functions MGM(CTA)
+* [EOS-6148] - Too many levels of symbolic links unexpectedly reported on eosxd mounted fs
+
+New Feature
+------------
+
+* [EOS-6150] - Print archive metadata in eoscta report MGM(CTA)
+* Add new eos-mgm-monitoring package containing a series of helper scripts for monitoring.
+
+Improvement
+------------
+
+* [EOS-6139] - MGM - HTTP GET issues 2 consecutive stats instead of only one
+
+
 ``v5.2.23 Diopside``
 ====================
 
