@@ -98,10 +98,10 @@ EosFuse* EosFuse::sEosFuse = 0;
 /* -------------------------------------------------------------------------- */
 static int
 /* -------------------------------------------------------------------------- */
-startMount(ConcurrentMount &cmdet,
-              const std::string &mountpoint,
-              const std::string &fsname,
-              int &exitcode)
+startMount(ConcurrentMount& cmdet,
+           const std::string& mountpoint,
+           const std::string& fsname,
+           int& exitcode)
 /* -------------------------------------------------------------------------- */
 {
   // use ConcurrentMount cmdet to detect existing eosxd and
@@ -113,14 +113,16 @@ startMount(ConcurrentMount &cmdet,
   //            there may have been an error.
   //
   std::string source = fsname;
+
   if (source.empty()) {
     source = mountpoint;
-    if (size_t pos=source.rfind("/"); pos != std::string::npos) {
-      source.erase(0,pos+1);
+
+    if (size_t pos = source.rfind("/"); pos != std::string::npos) {
+      source.erase(0, pos + 1);
     }
   }
 
-  int redo, retries=3;
+  int redo, retries = 3;
   exitcode = 0;
 
   do {
@@ -128,86 +130,85 @@ startMount(ConcurrentMount &cmdet,
     int mntfd, rc;
     rc = cmdet.StartMount(mntfd);
 
-    switch(rc) {
-      case 1:
-        {
-          struct stat sb;
-          const int strc = lstat(mountpoint.c_str(),&sb);
+    switch (rc) {
+    case 1: {
+      struct stat sb;
+      const int strc = lstat(mountpoint.c_str(), &sb);
 
-          if (strc<0) {
-            fprintf(stderr, "# detected concurrent eosxd, but error stating "
-                            "mountpoint, exiting\n");
-            exitcode = 1;
-            return -1;
-          }
+      if (strc < 0) {
+        fprintf(stderr, "# detected concurrent eosxd, but error stating "
+                "mountpoint, exiting\n");
+        exitcode = 1;
+        return -1;
+      }
 
-          if (sb.st_ino == 1) {
-            fprintf(stderr, "# detected concurrent eosxd, mount appears attached, "
-                            "exiting\n");
-            exitcode = 0;
-            return -1;
-          }
+      if (sb.st_ino == 1) {
+        fprintf(stderr, "# detected concurrent eosxd, mount appears attached, "
+                "exiting\n");
+        exitcode = 0;
+        return -1;
+      }
 
-          if (mntfd < 0) {
-            fprintf(stderr, "# detected concurrent eosxd, mount appears "
-                            "not-attached but can not fetch fuse fd, exiting\n");
-            exitcode = 1;
-            return -1;
-          }
+      if (mntfd < 0) {
+        fprintf(stderr, "# detected concurrent eosxd, mount appears "
+                "not-attached but can not fetch fuse fd, exiting\n");
+        exitcode = 1;
+        return -1;
+      }
 
-          char mntopt[100],opt2[100];
-          *opt2 = '\0';
-          if (getuid() == 0) {
-            strcpy(opt2,",allow_other");
-          }
+      char mntopt[200], opt2[100];
+      *opt2 = '\0';
 
-          snprintf(mntopt, sizeof(mntopt),
+      if (getuid() == 0) {
+        strcpy(opt2, ",allow_other");
+      }
+
+      snprintf(mntopt, sizeof(mntopt),
                "fd=%i,rootmode=%o,user_id=%d,group_id=%d%s",
                mntfd, sb.st_mode & S_IFMT, geteuid(), getegid(), opt2);
+      fprintf(stderr, "# detected concurrent eosxd, "
+              "mounting using existing fuse descriptor\n");
+      const int retval = ::mount(source.c_str(), mountpoint.c_str(), "fuse",
+                                 MS_NODEV | MS_NOSUID, mntopt);
 
-          fprintf(stderr, "# detected concurrent eosxd, "
-                  "mounting using existing fuse descriptor\n");
+      if (retval) {
+        fprintf(stderr, "# detected concurrent eosxd, but failed mount "
+                "with existing fuse descriptor%s\n",
+                retries ? ", retrying" : "");
 
-          const int retval = ::mount(source.c_str(), mountpoint.c_str(), "fuse",
-                         MS_NODEV | MS_NOSUID, mntopt);
-
-          if (retval) {
-              fprintf(stderr, "# detected concurrent eosxd, but failed mount "
-                              "with existing fuse descriptor%s\n",
-                              retries ? ", retrying" : "");
-            if (retries) {
-              retries--;
-              redo = 1;
-              std::this_thread::sleep_for(std::chrono::milliseconds(5000));
-            } else {
-              exitcode = 1;
-              return -1;
-            }
-          } else {
-            exitcode = 0;
-            return -1;
-          }
+        if (retries) {
+          retries--;
+          redo = 1;
+          std::this_thread::sleep_for(std::chrono::milliseconds(5000));
+        } else {
+          exitcode = 1;
+          return -1;
         }
-        break;
-
-      case -1:
-        fprintf(stderr, "# concurrent eosxd detection not available\n");
-        return 0;
-        break;
-
-      case 0:
-        fprintf(stderr, "# concurrent eosxd detect enabled, lock prefix %s\n",
-                cmdet.lockpfx().c_str());
-        return 0;
-        break;
-
-      default:
-        fprintf(stderr, "# unexpected condition during eosxd detection\n");
-        exitcode = 2;
+      } else {
+        exitcode = 0;
         return -1;
-        break;
+      }
     }
-  } while(redo);
+    break;
+
+    case -1:
+      fprintf(stderr, "# concurrent eosxd detection not available\n");
+      return 0;
+      break;
+
+    case 0:
+      fprintf(stderr, "# concurrent eosxd detect enabled, lock prefix %s\n",
+              cmdet.lockpfx().c_str());
+      return 0;
+      break;
+
+    default:
+      fprintf(stderr, "# unexpected condition during eosxd detection\n");
+      exitcode = 2;
+      return -1;
+      break;
+    }
+  } while (redo);
 
   exitcode = 2;
   return -1;
@@ -1407,7 +1408,7 @@ EosFuse::run(int argc, char* argv[], void* userdata)
 
       // default rescue cache files
       if (!root["cache"]["rescue-cache-files"].asInt()) {
-	root["cache"]["rescue-cache-files"] = 0;
+        root["cache"]["rescue-cache-files"] = 0;
       }
 
       // default file cache max kb
@@ -1503,8 +1504,9 @@ EosFuse::run(int argc, char* argv[], void* userdata)
     }
 
     ConcurrentMount cmdet(lockpfx);
+
     // starts the mount + does reattach if necessary
-    if (int exitcode; startMount(cmdet, mountpoint, fsname, exitcode)<0) {
+    if (int exitcode; startMount(cmdet, mountpoint, fsname, exitcode) < 0) {
       exit(exitcode);
     }
 
@@ -1582,7 +1584,6 @@ EosFuse::run(int argc, char* argv[], void* userdata)
         root["cache"]["file-journal-max-kb"].asUInt64() * 1024;
       cconfig.clean_threshold = root["cache"]["clean-threshold"].asDouble();
       cconfig.rescuecache = root["cache"]["rescue-cache-files"].asInt();
-
       int rc = 0;
 
       if ((rc = cachehandler::instance().init(cconfig))) {
@@ -1747,7 +1748,6 @@ EosFuse::run(int argc, char* argv[], void* userdata)
 #endif
 
     if (fuse_daemonize(config.options.foreground) != -1) {
-
       // notify the locking object that fuse is aware of the mount.
       // The locking object will start a thread (for fd passing),
       // so this call has to be done after the daemonize step above.
@@ -1756,7 +1756,6 @@ EosFuse::run(int argc, char* argv[], void* userdata)
 #else
       cmdet.MountDone(fuse_chan_fd(fusechan));
 #endif
-
 #ifndef __APPLE__
       eos::common::ShellCmd cmd("echo eos::common::ShellCmd init 2>&1");
       eos::common::cmd_status st = cmd.wait(5);
@@ -2139,10 +2138,8 @@ EosFuse::run(int argc, char* argv[], void* userdata)
       eos_static_warning("eosxd stopped version %s - FUSE protocol version %d",
                          VERSION, FUSE_USE_VERSION);
       eos_static_warning("********************************************************************************");
-
       // Avoid any chance we block excessively during these finalisations
       alarm(90);
-
       tDumpStatistic.join();
       tStatCirculate.join();
       tMetaCacheFlush.join();
@@ -2190,7 +2187,6 @@ EosFuse::run(int argc, char* argv[], void* userdata)
       // notify the locking object that the fuse mount has finished
       cmdet.Unlock();
       alarm(0);
-
       mKV.reset();
 
       if (config.mdcachedir_unlink.length()) {
@@ -2205,7 +2201,8 @@ EosFuse::run(int argc, char* argv[], void* userdata)
     }
 
     return err ? 1 : 0;
-  } catch (Json::Exception const&) {
+  }
+  catch (Json::Exception const&) {
     fprintf(stderr, "error: catched json config exception");
     exit(-1);
   }
@@ -4259,7 +4256,8 @@ EROFS  pathname refers to a file on a read-only filesystem.
                                Instance().mds.dump_md(md, false).c_str());
             }
 
-	    bool is_open;
+            bool is_open;
+
             // we have to signal the unlink always to 'the' target inode of a hardlink
             if (hardlink_target_ino) {
               is_open = Instance().datas.unlink(req, hardlink_target_ino);
@@ -4267,7 +4265,7 @@ EROFS  pathname refers to a file on a read-only filesystem.
               is_open = Instance().datas.unlink(req, (*md)()->id());
             }
 
-	    // we indicate not to put a file in a recycle bin if we delete it while it is open
+            // we indicate not to put a file in a recycle bin if we delete it while it is open
             Instance().mds.remove(req, pmd, md, (*pcap)()->authid(), true, is_open);
 
             if (attrMap.count(k_nlink)) {
@@ -6788,7 +6786,6 @@ EosFuse::symlink(fuse_req_t req, const char* link, fuse_ino_t parent,
     metad::shared_md pmd;
     md = Instance().mds.lookup(req, parent, name);
     pmd = Instance().mds.get(req, parent, (*pcap)()->authid());
-
     {
       uint64_t del_ino = 0;
       // logic avoiding a create/unlink/create sync/async race
@@ -6806,7 +6803,6 @@ EosFuse::symlink(fuse_req_t req, const char* link, fuse_ino_t parent,
         Instance().mds.wait_upstream(req, del_ino);
       }
     }
-
     XrdSysMutexHelper mLock(md->Locker());
 
     if ((*md)()->id() && !md->deleted()) {
@@ -6895,7 +6891,6 @@ EosFuse::link(fuse_req_t req, fuse_ino_t ino, fuse_ino_t parent,
     metad::shared_md tmd; /* the link target */
     md = Instance().mds.lookup(req, parent, newname);
     pmd = Instance().mds.get(req, parent, (*pcap)()->authid());
-
     {
       uint64_t del_ino = 0;
       // logic avoiding a create/unlink/create sync/async race
@@ -6913,7 +6908,6 @@ EosFuse::link(fuse_req_t req, fuse_ino_t ino, fuse_ino_t parent,
         Instance().mds.wait_upstream(req, del_ino);
       }
     }
-
     XrdSysMutexHelper mLock(md->Locker());
 
     if ((*md)()->id() && !md->deleted()) {
