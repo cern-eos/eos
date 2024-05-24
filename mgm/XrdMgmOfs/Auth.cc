@@ -145,8 +145,9 @@ XrdMgmOfs::AuthWorkerThread()
     try {
       zmq::recv_flags rf = zmq::recv_flags::none;
       zmq::recv_result_t rr;
+
       do {
-	rr = responder->recv(request, rf);
+        rr = responder->recv(request, rf);
       } while (!rr.has_value());
     } catch (const zmq::error_t& e) {
       if (e.num() == ETERM) {
@@ -237,7 +238,7 @@ XrdMgmOfs::AuthWorkerThread()
                          req_proto.chksum().path().c_str(),
                          *error.get(), client,
                          req_proto.chksum().opaque().c_str());
-      eos_debug("chksum error msg: %s", error->getErrText());
+      eos_debug("chksum error retc=%i msg: %s", ret, error->getErrText());
     } else if (req_proto.type() == RequestProto_OperationType_EXISTS) {
       // exists request
       XrdSfsFileExistence exists_flag;
@@ -520,7 +521,7 @@ XrdMgmOfs::AuthWorkerThread()
         delete file;
       }
     } else {
-      eos_debug("no such operation supported");
+      eos_debug("%s", "msg=\"no such operation supported\"");
       continue;
     }
 
@@ -551,9 +552,10 @@ XrdMgmOfs::AuthWorkerThread()
 
     try {
       zmq::send_result_t sr;
+
       do {
-	zmq::send_flags sf = zmq::send_flags::dontwait;
-	sr = responder->send(reply, sf);
+        zmq::send_flags sf = zmq::send_flags::dontwait;
+        sr = responder->send(reply, sf);
         num_retries--;
       } while (!sr.has_value() && (num_retries > 0));
     } catch (zmq::error_t& e) {
@@ -564,7 +566,7 @@ XrdMgmOfs::AuthWorkerThread()
         return;
       }
 
-      eos_err("socket error: %s", e.what());
+      eos_err("msg=\"socket error\" err=\"%s\"", e.what());
       reset_socket = true;
     }
 
@@ -611,7 +613,7 @@ XrdMgmOfs::ValidAuthRequest(eos::auth::RequestProto* reqProto)
     return do_encoding;
   }
 
-  eos_debug("comp_hmac=%s comp_size=%i, recv_hmac=%s, recv_size=%i key=%s",
+  eos_debug("comp_hmac=%s comp_size=%i recv_hmac=%s recv_size=%i key=%s",
             base64hmac.c_str(), base64hmac.length(), recv_hmac.c_str(),
             recv_hmac.length(), eos::common::gSymKeyStore.GetCurrentKey()->GetKey64());
 
