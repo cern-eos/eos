@@ -354,9 +354,8 @@ EosAuthOfs::Configure(XrdSysError& error, XrdOucEnv* envP)
     return 1;
   }
 
-  eos_notice("AUTH_HOST=%s AUTH_PORT=%ld VERSION=%s RELEASE=%s KEYTABADLER=%s SYMKEY=%s",
-             mManagerIp.c_str(), myPort, VERSION, RELEASE, keytabcks.c_str(),
-             symkey.c_str());
+  eos_notice("AUTH_HOST=%s AUTH_PORT=%ld VERSION=%s RELEASE=%s KEYTABADLER=%s",
+             mManagerIp.c_str(), myPort, VERSION, RELEASE, keytabcks.c_str());
 
   if (!eos::common::gSymKeyStore.SetKey64(symkey.c_str(), 0)) {
     eos_crit("unable to store the created symmetric key %s", symkey.c_str());
@@ -1266,8 +1265,6 @@ EosAuthOfs::SendProtoBufRequest(zmq::socket_t* socket,
   zmq::message_t request(msg_size);
   google::protobuf::io::ArrayOutputStream aos(request.data(), msg_size);
 
-  // Use google::protobuf::io::ArrayOutputStream which is way faster than
-  // StringOutputStream as it avoids copying data
   if (!message->SerializeToZeroCopyStream(&aos)) {
     eos_err("failed to serialize message");
     return sent;
@@ -1313,6 +1310,8 @@ EosAuthOfs::GetResponse(zmq::socket_t*& socket)
       if (!rr.has_value()) {
         eos_err("ptr_socket=%p, num_retries=%i failed receive", socket,
                 num_retries);
+      } else {
+        done = true;
       }
     } while (!rr.has_value() && (num_retries > 0));
   } catch (zmq::error_t& e) {
