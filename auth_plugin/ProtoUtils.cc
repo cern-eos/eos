@@ -21,19 +21,16 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-/*----------------------------------------------------------------------------*/
 #include "ProtoUtils.hh"
-#include <sstream>
-/*----------------------------------------------------------------------------*/
 #include "common/Logging.hh"
 #include "common/SymKeys.hh"
-/*----------------------------------------------------------------------------*/
 #include "XrdOuc/XrdOucString.hh"
 #include "XrdOuc/XrdOucTList.hh"
 #include "XrdOuc/XrdOucErrInfo.hh"
 #include "XrdSfs/XrdSfsInterface.hh"
 #include "XrdSec/XrdSecEntity.hh"
-/*----------------------------------------------------------------------------*/
+#include <google/protobuf/util/json_util.h>
+#include <sstream>
 
 EOSAUTHNAMESPACE_BEGIN
 
@@ -353,11 +350,18 @@ utils::ComputeHMAC(RequestProto*& req)
   std::string hmac = eos::common::SymKey::HmacSha1(smsg);
   XrdOucString base64hmac;
   bool do_encoding = eos::common::SymKey::Base64Encode((char*)hmac.c_str(),
-                     SHA_DIGEST_LENGTH, base64hmac);
+                     hmac.length(), base64hmac);
 
   if (!do_encoding) {
     eos_static_err("unable to do base64encoding on HMAC");
     return do_encoding;
+  }
+
+  if (EOS_LOGS_DEBUG) {
+    std::string json_out;
+    (void) google::protobuf::util::MessageToJsonString(*req, &json_out);
+    eos_static_debug("request=\"%s\" hmac=\"%s\" hmac_size=%i",
+                     json_out.c_str(), base64hmac.c_str(), base64hmac.length());
   }
 
   // Update the HMAC value
