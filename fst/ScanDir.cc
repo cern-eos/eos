@@ -970,10 +970,11 @@ ScanDir::ScanRainFile(const std::unique_ptr<eos::fst::FileIo>& io,
   if (mBgThread) {
     //  Skip check if file is open for reading, as this can mean we are in the
     //  middle of a recovery operation, and another stripe is open for write
-    if (gOFS.openedForReading.isOpen(mFsId, fid)) {
-      syslog(LOG_ERR, "skipping rain scan r-open file: localpath=%s fsid=%d "
+    if (gOFS.openedForReading.isOpen(mFsId, fid) ||
+        gOFS.openedForWriting.isOpen(mFsId, fid)) {
+      syslog(LOG_ERR, "skipping rain scan rd/wr-open file: localpath=%s fsid=%d "
              "fxid=%08llx\n", fpath.c_str(), mFsId, fid);
-      eos_warning("msg=\"skipping rain scan of r-open file\" localpath=%s "
+      eos_warning("msg=\"skipping rain scan of rd/wr-open file\" localpath=%s "
                   "fsid=%d fxid=%08llx", fpath.c_str(), mFsId, fid);
       return false;
     }
@@ -1037,7 +1038,7 @@ ScanDir::ScanRainFile(const std::unique_ptr<eos::fst::FileIo>& io,
                    fpath.c_str());
   }
 
-  if (mBgThread) {
+  if (mBgThread && !invalid_fsid.empty()) {
     gOFS.mFmdHandler->UpdateWithStripeCheckInfo(fid, mFsId, invalid_fsid);
   }
 
