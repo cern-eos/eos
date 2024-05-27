@@ -34,6 +34,14 @@
 class EosAuthOfsDirectory;
 class EosAuthOfsFile;
 
+namespace eos
+{
+namespace auth
+{
+  class ResponseProto;
+}
+}
+
 namespace google
 {
 namespace protobuf
@@ -48,24 +56,22 @@ EOSAUTHNAMESPACE_BEGIN
 //! Class EosAuthOfs built on top of XrdOfs
 /*! Decription: The libEosAuthOfs.so is inteded to be used as an OFS library
     plugin with a vanilla XRootD server. What it does is to connect using ZMQ
-    sockets to the real MGM nodes (in general it should connect to a master and
-    a slave MGM). It does this by reading out the endpoints it needs to connect
-    to from the configuration file (/etc/xrd.cf.auth). These need to follow the
-    format: "host:port" and the first one should be the endpoint corresponding
-    to the master MGM and the second one to the slave MGM. The EosAuthOfs plugin
+    sockets to onel MGM node.
+    a slave MGM). The endpoint is read from the configuration file, by default
+    it will connect to localhost:1094 !
+    The EosAuthOfs plugin
     then tries to replay all the requests it receives from the clients to the
     master MGM node. It does this by marshalling the request and identity of the
-    client using ProtocolBuffers and sends this request using ZMQ to the master
+    client using ProtocolBuffers and sends this request using ZMQ to the configured
     MGM node.
 
     There are several tunable parameters for this configuration (auth + MGMs):
 
     AUTH - configuration
     ====================
-    - eosauth.mastermgm and eosauth.slavemgm - contain the hostnames and the
-        ports to which ZMQ can connect to the MGM nodes so that it can forward
-        requests and receive responses. Only the mastermgm parameter is mandatory
-        the other one is optional and can be left out.
+    - eosauth.mgm - contain the hostname and the
+        port to which ZMQ will connect so that it can forward
+        requests and receive responses. 
     - eosauth.numsockets - once a clients wants to send a request the thread
         allocated to him in XRootD will require a socket to send the request
         to the MGM node. Therefore, we set up a pool of sockets from the
@@ -81,6 +87,10 @@ EOSAUTHNAMESPACE_BEGIN
     - mgmofs.authport - this is the endpoint where the MGM listens for ZMQ
         requests from any EosAuthOfs plugins. This port needs to be opened also
         in the firewall.
+
+    - mgmofs.localhost true|false - by default the ZMQ endpoint will listen on 
+        all interfaces, but often the front-end will run on the same node and
+        for security we want only to have localhost connections
 
     In case of a master <=> slave switch the EosAuthOfs plugin adapts
     automatically based on the information provided by the slave MGM which
@@ -242,21 +252,26 @@ public:
   //--------------------------------------------------------------------------
   int getStats(char* buff, int blen);
 
+  //--------------------------------------------------------------------------
+  //! Process a proto error response and configure 
+  //! a collpasing redirection if requested/possible
+  //--------------------------------------------------------------------------
+  void ProcessError(eos::auth::ResponseProto* resp_func, XrdOucErrInfo& error, const char* path);
+
 private:
 
   pthread_t proxy_tid; ///< id of the proxy thread
   zmq::context_t* mZmqContext; ///< ZMQ context
   zmq::socket_t* mFrontend; ///< proxy socket facing the clients
-  zmq::socket_t* mMaster; ///< socket pointing to the MGM master
-  XrdSysMutex mMutexMaster; ///< mutex for switching the MGM master
+  XrdSysMutex mMutexMaster;
   int mSizePoolSocket; ///< maximum size of the client socket pool
   eos::common::ConcurrentQueue<zmq::socket_t*>
   mPoolSocket; ///< ZMQ client socket pool
   ///! MGM endpoints to which requests can be dispatched and the corresponding sockets
-  std::pair<std::string, zmq::socket_t*> mBackend1;
-  std::pair<std::string, zmq::socket_t*> mBackend2;
+  std::pair<std::string, zmq::socket_t*> mBackend;
   std::string mManagerIp; ///< auth ip address
   int mPort;   ///< port on which the current auth server runs
+  int mCollapsePort; ///< port to which a redirect gets collapsed on
   int mLogLevel; ///< log level value 0 -7 (LOG_EMERG - LOG_DEBUG)
 
   //--------------------------------------------------------------------------
@@ -294,15 +309,6 @@ private:
   google::protobuf::Message* GetResponse(zmq::socket_t*& socket);
 
   //--------------------------------------------------------------------------
-  //! Update the socket pointing to the master MGM instance
-  //!
-  //! @param new_master new host and port values for the master MGM
-  //!                   the format is: "host:port"
-  //!
-  //! @return true if update was successful, false otherwise
-  //!
-  //--------------------------------------------------------------------------
-  bool UpdateMaster(std::string& new_master);
 };
 
 //------------------------------------------------------------------------------

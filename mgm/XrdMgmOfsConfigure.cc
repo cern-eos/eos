@@ -1019,6 +1019,17 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
           }
         }
 
+	// Check if we should bind only to localhost address
+        if (!strcmp("authlocal", var)) {
+          if (!(val = Config.GetWord())) {
+            Eroute.Emsg("Config", "argument for authlocal invalid.");
+            NoGo = 1;
+          } else {
+            Eroute.Say("=====> mgmofs.authlocal: ", val, "");
+            mFrontendLocalhost = atoi(val);
+          }
+        }
+
         if (!strcmp("protowfendpoint", var)) {
           val = Config.GetWord();
 
