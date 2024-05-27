@@ -1739,6 +1739,7 @@ public:
   //----------------------------------------------------------------------------
   unsigned int mFrontendPort; ///< frontend port number for incoming requests
   unsigned int mNumAuthThreads; ///< max number of auth worker threads
+  bool         mFrontendLocalhost; ///< true if this server binds only on localhost:mFrontendPort not *:mFrontendPort
   zmq::context_t* mZmqContext; ///< ZMQ context for all the sockets
   ZMQ* zMQ; ///< ZMQ processor
 
