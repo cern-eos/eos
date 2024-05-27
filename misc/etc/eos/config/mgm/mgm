@@ -58,10 +58,13 @@ mgmofs.qoscfg /var/eos/qos/qos.conf
 # Configuration for the authentication plugin EosAuth
 #-------------------------------------------------------------------------------
 # Set the number of authentication worker threads running on the MGM
-#mgmofs.auththreads 10
+mgmofs.auththreads 64
 
 # Set the front end port number for incoming authentication requests
-#mgmofs.authport 15555
+mgmofs.authport 15555
+
+# Only listen on localhost connections
+mgmofs.authlocal 1
 
 ###########################################################
 # Set the FST gateway host and port

@@ -46,7 +46,12 @@ XrdMgmOfs::AuthMasterThread(ThreadAssistant& assistant) noexcept
   int enable_ipv6 = 1;
   frontend.set(zmq::sockopt::ipv6, enable_ipv6);
   std::ostringstream sstr;
-  sstr << "tcp://*:" << mFrontendPort;
+
+  if (mFrontendLocalhost) {
+    sstr << "tcp://*:" << mFrontendPort;
+  } else {
+    sstr << "tcp://127.0.0.1:" << mFrontendPort;
+  }
 
   try {
     frontend.bind(sstr.str().c_str());
