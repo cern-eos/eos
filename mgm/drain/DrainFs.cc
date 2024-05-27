@@ -126,13 +126,17 @@ DrainFs::DoIt()
           eos::common::RWMutexWriteLock wr_lock(mJobsMutex);
           mJobsFailed.insert(job);
         } else {
+          {
+            // Add job to the list of running ones
+            eos::common::RWMutexWriteLock wr_lock(mJobsMutex);
+            mJobsRunning[it_fid->getElement()] = job;
+          }
           mThreadPool.PushTask<void>([ = ] {
             job->UpdateMgmStats();
             job->DoIt();
             job->UpdateMgmStats();
+            UpdateFinishedJob(job->GetFileIdentifier());
           });
-          eos::common::RWMutexWriteLock wr_lock(mJobsMutex);
-          mJobsRunning.push_back(job);
         }
 
         // Advance to the next file id to be drained
@@ -142,7 +146,6 @@ DrainFs::DoIt()
         std::this_thread::sleep_for(seconds(1));
       }
 
-      HandleRunningJobs();
       state = UpdateProgress();
 
       if (mDrainStop || (state != State::Running)) {
@@ -155,7 +158,6 @@ DrainFs::DoIt()
     }
 
     while (!mDrainStop && (state == State::Running)) {
-      HandleRunningJobs();
       state = UpdateProgress();
 
       // Ensure we do a refresh of the files to drain if there are no more
@@ -182,28 +184,23 @@ DrainFs::DoIt()
 }
 
 //----------------------------------------------------------------------------
-// Handle running jobs
+// Update internal structures one a job is finished
 //----------------------------------------------------------------------------
 void
-DrainFs::HandleRunningJobs()
+DrainFs::UpdateFinishedJob(const eos::IFileMD::id_t fid)
 {
+  gOFS->mFidTracker.RemoveEntry(fid);
   eos::common::RWMutexWriteLock wr_lock(mJobsMutex);
+  auto it = mJobsRunning.find(fid);
 
-  for (auto it = mJobsRunning.begin();
-       it !=  mJobsRunning.end(); /* no progress */) {
-    std::string sfxid = (*it)->GetInfo({"fxid"}).front();
-    eos::IFileMD::id_t fxid = eos::common::FileId::Hex2Fid(sfxid.c_str());
+  if (it != mJobsRunning.end()) {
+    auto job = it->second;
 
-    if ((*it)->GetStatus() == DrainTransferJob::Status::OK) {
-      gOFS->mFidTracker.RemoveEntry(fxid);
-      it = mJobsRunning.erase(it);
-    } else if ((*it)->GetStatus() == DrainTransferJob::Status::Failed) {
-      gOFS->mFidTracker.RemoveEntry(fxid);
-      mJobsFailed.insert(*it);
-      it = mJobsRunning.erase(it);
-    } else {
-      ++it;
+    if (job->GetStatus() == DrainTransferJob::Status::Failed) {
+      mJobsFailed.insert(job);
     }
+
+    (void) mJobsRunning.erase(it);
   }
 }
 
@@ -270,14 +267,18 @@ DrainFs::StopJobs()
     eos::common::RWMutexReadLock rd_lock(mJobsMutex);
 
     // Signal all drain jobs to stop/cancel
-    for (auto& job : mJobsRunning) {
+    for (auto& pair : mJobsRunning) {
+      auto& job = pair.second;
+
       if (job->GetStatus() == DrainTransferJob::Status::Running) {
         job->Cancel();
       }
     }
 
     // Wait for drain jobs to cancel
-    for (auto& job : mJobsRunning) {
+    for (auto& pair : mJobsRunning) {
+      auto& job = pair.second;
+
       while ((job->GetStatus() == DrainTransferJob::Status::Running) ||
              (job->GetStatus() == DrainTransferJob::Status::Ready)) {
         std::this_thread::sleep_for(milliseconds(10));
@@ -547,8 +548,9 @@ DrainFs::PrintJobsTable(TableFormatterBase& table, bool show_errors,
       }
     }
   } else {
-    for (const auto& job : mJobsRunning) {
+    for (const auto& pair : mJobsRunning) {
       table_data.emplace_back();
+      auto job = pair.second;
 
       for (const auto& elem : job->GetInfo(itags)) {
         table_data.back().push_back(TableCell(elem, "s"));

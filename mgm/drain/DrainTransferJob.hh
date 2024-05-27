@@ -26,6 +26,7 @@
 #include "common/FileId.hh"
 #include "common/Logging.hh"
 #include "common/FileSystem.hh"
+#include "namespace/interface/IFileMD.hh"
 #include "proto/FileMd.pb.h"
 #include "XrdCl/XrdClCopyProcess.hh"
 
@@ -217,6 +218,15 @@ public:
   //----------------------------------------------------------------------------
   void UpdateMgmStats();
 
+  //----------------------------------------------------------------------------
+  //! Get file identifier
+  //----------------------------------------------------------------------------
+  eos::IFileMD::id_t GetFileIdentifier() const
+  {
+    return mFileId.load();
+  }
+
+
 #ifdef IN_TEST_HARNESS
 public:
 #else
@@ -281,7 +291,7 @@ private:
   Status DrainZeroSizeFile(const FileDrainInfo& fdrain);
 
   std::string mAppTag; ///< Application tag for the transfer
-  const eos::common::FileId::fileid_t mFileId; ///< File id to transfer
+  std::atomic<eos::IFileMD::id_t> mFileId; ///< File id to transfer
   //! Source and destination file system
   std::atomic<eos::common::FileSystem::fsid_t> mFsIdSource;
   std::atomic<eos::common::FileSystem::fsid_t> mFsIdTarget;
