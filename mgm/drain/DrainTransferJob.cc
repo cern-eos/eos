@@ -54,7 +54,7 @@ DrainTransferJob::DoIt() noexcept
 {
   using eos::common::LayoutId;
   eos_static_info("msg=\"running job\" fsid_src=%i fsid_dst=%i fxid=%08llx",
-                  mFsIdSource.load(), mFsIdTarget.load(), mFileId);
+                  mFsIdSource.load(), mFsIdTarget.load(), mFileId.load());
 
   if (mProgressHandler.ShouldCancel(0)) {
     ReportError(SSTR("msg=\"job cancelled before starting\" fxid="
@@ -372,7 +372,8 @@ DrainTransferJob::BuildTpcSrc(const FileDrainInfo& fdrain,
             << "&eos.encodepath=curl";
 
     if (mRepairExcluded) {
-      src_cap << "&eos.pio.recfs=" << eos::common::StringTokenizer::merge(mTriedSrcs, ',');
+      src_cap << "&eos.pio.recfs=" << eos::common::StringTokenizer::merge(mTriedSrcs,
+              ',');
     } else {
       src_cap << "&eos.pio.recfs=" << mFsIdSource;
     }
@@ -570,7 +571,7 @@ DrainTransferJob::SelectDstFs(const FileDrainInfo& fdrain)
   if (!gOFS->mGeoTreeEngine->getInfosFromFsIds(existing_repl, &fsid_geotags, 0,
       0)) {
     eos_err("msg=\"failed to retrieve info for existing replicas\" fxid=%08llx",
-            mFileId);
+            mFileId.load());
     return false;
   }
 
@@ -593,7 +594,7 @@ DrainTransferJob::SelectDstFs(const FileDrainInfo& fdrain)
                &fsid_geotags); // excludeGeoTags
 
   if (!res || new_repl.empty())  {
-    eos_err("msg=\"fxid=%08llx could not place new replica\"", mFileId);
+    eos_err("msg=\"fxid=%08llx could not place new replica\"", mFileId.load());
     return false;
   }
 

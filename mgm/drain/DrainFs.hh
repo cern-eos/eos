@@ -135,6 +135,14 @@ public:
   void PrintJobsTable(TableFormatterBase& table, bool show_errors,
                       const std::list<std::string>& itags) const;
 
+  //----------------------------------------------------------------------------
+  //! Method called once a job finishes - responsible for updating the
+  //! internal data structures from the DrainFs object and also tracker info.
+  //!
+  //! @param fid file identifier for which the job has run
+  //----------------------------------------------------------------------------
+  void UpdateFinishedJob(const eos::IFileMD::id_t fid);
+
 private:
   //----------------------------------------------------------------------------
   //! Reset drain counters and status
@@ -178,11 +186,6 @@ private:
   //! @return progress state of the drain job
   //---------------------------------------------------------------------------
   State UpdateProgress();
-
-  //----------------------------------------------------------------------------
-  //! Handle running jobs
-  //----------------------------------------------------------------------------
-  void HandleRunningJobs();
 
   //----------------------------------------------------------------------------
   //! Mark file system drain as failed
@@ -238,7 +241,8 @@ private:
   //! Collection of failed drain jobs
   std::set<std::shared_ptr<DrainTransferJob>> mJobsFailed;
   //! Collection of running drain jobs
-  std::list<std::shared_ptr<DrainTransferJob>> mJobsRunning;
+  std::map<eos::common::FileSystem::fsid_t,
+      std::shared_ptr<DrainTransferJob>> mJobsRunning;
   mutable eos::common::RWMutex mJobsMutex; ///< RW mutex protecting job lists
   eos::common::ThreadPool& mThreadPool;
   std::future<State> mFuture;
