@@ -76,6 +76,10 @@ mgmofs.cfgtype file
 # Set the front end port number for incoming authentication requests
 #mgmofs.authport 15555
 
+# By default we listen only on localhost connections - set to 0 if you want to allow remote access
+#mgmofs.authlocal 1
+
+
 ###########################################################
 # Set the FST gateway host and port
 mgmofs.fstgw someproxy.cern.ch:3001

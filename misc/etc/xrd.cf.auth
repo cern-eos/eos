@@ -3,9 +3,8 @@
 xrd.port 1099
 xrootd.fslib /usr/lib64/libEosAuthOfs.so
 xrootd.seclib libXrdSec.so
-# Set the real hostname, not localhost as ZMQ is picky about this 
-eosauth.mastermgm xyz.xyz.master:15555 
-eosauth.slavemgm abc.abc.slave:15555
+# Set the hostname where to connect
+eosauth.mgm localhost:15555
 eosauth.numsockets 10
 eosauth.loglevel info
 xrootd.chksum adler
