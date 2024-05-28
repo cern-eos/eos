@@ -2014,7 +2014,7 @@ One can overwrite the port used for a collapsing redirection using:
 
 .. code-block:: bash
 		
-		eosauth.collapsport 3094
+		eosauth.collapseport 3094
 
 
 .. NOTE:: This feature is useful if you want to run several front-ends on the same back-end node.
