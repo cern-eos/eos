@@ -23,6 +23,7 @@
 
 #include "eoscfsd.hh"
 #include "obfuscate.hh"
+#include "cfsutil.hh"
 #include "common/Untraceable.hh"
 #include "common/Path.hh"
 #include "common/StacktraceHere.hh"
@@ -1718,7 +1719,8 @@ Fs::DumpStatistic(ThreadAssistant& assistant)
   eos::common::LinuxTotalMem meminfo;
 
   while (!assistant.terminationRequested()) {
-    Json::StyledWriter jsonwriter;
+    Json::StreamWriterBuilder writer;
+    writer["indentation"] = "    "; // You can set custom indentation here if needed
     Json::Value jsonstats{};
     meminfo.update();
     eos::common::LinuxStat::linux_stat_t osstat;
@@ -1796,8 +1798,7 @@ Fs::DumpStatistic(ThreadAssistant& assistant)
     std::ofstream dumpjsonfile(tmpjsonfile);
     {
       // atomic re-write+replace
-      dumpjsonfile << jsonwriter.write(jsonstats);
-
+      dumpjsonfile <<  Json::writeString(writer, jsonstats);
       if (::chmod(tmpjsonfile.c_str(), S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH)) {
         fprintf(stderr, "error: failed to chmod <json> stats file to 644 '%s'\n",
                 tmpjsonfile.c_str());
@@ -1944,6 +1945,10 @@ int main(int argc, char* argv[])
   cconfig.forknoexec_heuristic = true;
   Json::Value root;
 
+  if (!cfsutil::checkAndCreateDirectory(cconfig.credentialStore)) {
+    fuse_opt_free_args(&args);
+    return 1;
+  }
   try {
     std::ifstream file("/etc/eos/cfsd/eoscfsd.conf");
     file >> root;
@@ -1961,7 +1966,7 @@ int main(int argc, char* argv[])
   }
 
   fs.k5domain.insert(0, "@");
-  fprintf(stderr, "info: kerberos domain is '%s'n", fs.k5domain.c_str());
+  fprintf(stderr, "info: kerberos domain is '%s'\n", fs.k5domain.c_str());
 
   if (root.isMember(fs.name) && root[fs.name].isMember("server")) {
     if (root[fs.name]["server"].asString().empty()) {
