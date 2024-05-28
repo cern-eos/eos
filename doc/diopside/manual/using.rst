@@ -1959,19 +1959,20 @@ An authentication front-end allows to configure a subset of authentication metho
 
 To enable a standard MGM to allow connections from an authentication front-end use the following MGM configuration variables:
 
-```
-#-------------------------------------------------------------------------------
-# Configuration for the authentication plugin EosAuth
-#-------------------------------------------------------------------------------
-# Set the number of authentication worker threads running on the MGM
-mgmofs.auththreads 64
+.. code-block:: bash
+		
+		#-------------------------------------------------------------------------------
+		# Configuration for the authentication plugin EosAuth
+		#-------------------------------------------------------------------------------
+		# Set the number of authentication worker threads running on the MGM
+		mgmofs.auththreads 64
+		
+		# Set the front end port number for incoming authentication requests
+		mgmofs.authport 15555
+		
+		# Only listen on localhost connections
+		mgmofs.authlocal 1
 
-# Set the front end port number for incoming authentication requests
-mgmofs.authport 15555
-
-# Only listen on localhost connections
-mgmofs.authlocal 1
-```
 
 If you want to run your authentication front-end on a seperate machine from the MGM service, you can use ```mgm.authlocal 0```. 
 Be aware that you have to protect the given port from 'unwanted' access. There is no authentication involved in the communication from 
@@ -1979,39 +1980,42 @@ front-end to back-end MGM.
 
 An example configuration file for a front-end server on the back-end MGM node looks like this:
 
-```
-# ------------------------------------------------------------ #
-[mgm:xrootd:auth]
-# ------------------------------------------------------------ #
-xrd.port 2094
-all.export /
+.. code-block:: bash
+		
+		# ------------------------------------------------------------ #
+		[mgm:xrootd:auth]
+		# ------------------------------------------------------------ #
+		xrd.port 2094
+		all.export /
+		
+		# the back-end server - localhost in our case
+		eosauth.mgm localhost:15555
+		# number of socket connections - should match thread-pool size if only one front-end exists
+		eosauth.numsockets 64
+		# loglevel 
+		eosauth.loglevel info
 
-# the back-end server - localhost in our case
-eosauth.mgm localhost:15555
-# number of socket connections - should match thread-pool size if only one front-end exists
-eosauth.numsockets 64
-# loglevel 
-eosauth.loglevel info
+		xrootd.fslib /usr/lib64/libEosAuthOfs.so
+		xrootd.seclib libXrdSec.so
+		xrootd.chksum adler
 
-xrootd.fslib /usr/lib64/libEosAuthOfs.so
-xrootd.seclib libXrdSec.so
-xrootd.chksum adler
+		# UNIX authentication + any other type of authentication wanted
+		sec.protocol unix
+		sec.protbind localhost.localdomain unix
+		sec.protbind localhost unix 
+		sec.protbind * only unix
 
-# UNIX authentication + any other type of authentication wanted
-sec.protocol unix
-sec.protbind localhost.localdomain unix
-sec.protbind localhost unix 
-sec.protbind * only unix
-```
 
 If an authentication front-end receives a redirection e.g. from a passive to an active MGM due to HA changes, 
 the front-end server uses redirect-collapse and redirects on the same port as the accessed front-end service - in case of this example this is port 2094!
 
 One can overwrite the port used for a collapsing redirection using:
 
-```
-eosauth.collapsport 3094
-```
+
+.. code-block:: bash
+		
+		eosauth.collapsport 3094
+
 
 .. NOTE:: This feature is useful if you want to run several front-ends on the same back-end node.
 
