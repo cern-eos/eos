@@ -150,8 +150,7 @@ public:
   }
 
   //----------------------------------------------------------------------------
-  //! Convert string to tracker type enum. If string is empty then this get
-  //! mapped to TrackerType::All
+  //! Convert string to tracker type enum
   //!
   //! @param name tracker type string
   //!
