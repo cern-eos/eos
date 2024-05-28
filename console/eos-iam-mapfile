@@ -280,9 +280,22 @@ def configure(credentials, servers, targets):
         logging.error('Configuration problem! Configuration file not loaded (correctly?), environment not set or arguments not passed.\n\tSet EOS_IAM_SERVER, EOS_IAM_CLIENT_ID, EOS_IAM_CLIENT_SECRET.')
         exit(3)
 
+
+def cleanup_files(fname, count):
+    for i in range(count):
+        f = "{}.{}".format(fname,i)
+        try:
+            os.remove(f)
+            logging.debug(f"Cleaned up {f}")
+        except FileNotFoundError:
+            logging.warn(f"Skipping non existent {f}")
+        except Exception as e:
+            logging.error(f"Failed deletion {f}: {e}")
+
+
 def main(server = None, credentials=None, targets = None, account=None, ifile=None,
          ofile=None, lgridmap = None, pattern=None, sensitive=re.IGNORECASE, debug_level=logging.WARNING,
-         prefer_cern=False, type_of_format="GRIDMAP"):
+         prefer_cern=False, type_of_format="GRIDMAP", cleanup=False):
     """
     Configure IAM servers to be queried, update/write gridmap file format
     """
@@ -334,6 +347,9 @@ def main(server = None, credentials=None, targets = None, account=None, ifile=No
         logging.debug(f"Renaming {temp_outfile} to {ofile}")
         os.rename(temp_outfile, ofile)
 
+        if cleanup:
+            cleanup_files(ofile, count-1)
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='GRID Map file generation from IAM Server', epilog='''examples:
 $ export EOS_IAM_SERVER=atlas-auth.web.cern.ch
@@ -355,6 +371,7 @@ $ eos-iam-mapfile -c iam.conf''',formatter_class=argparse.RawDescriptionHelpForm
     parser.add_argument('-C','--case-sensitive', dest='sensitive',action='store_const', const=0, default=re.IGNORECASE, help = 'Makes the regex pattern (-p) to be case sensitive')
     parser.add_argument('-u', '--prefer-cern-certs', dest = 'prefer_cern',action='store_true', help = 'Prefers CERN.CH certificates (if any) to map user (uniquely)')
     parser.add_argument('-f', '--format',  type = str.upper, nargs='?', const="MAPFILE", default="GRIDMAP", choices=("MAPFILE","GRIDMAP"),dest='type_of_format', help = 'Choose file format, using DN or ID (defaults to ID if used, else DN)')
+    parser.add_argument('--cleanup', action='store_true')
 
     args = parser.parse_args()
     logging.basicConfig(level=eval(f"logging.{args.debug}"))
@@ -362,4 +379,4 @@ $ eos-iam-mapfile -c iam.conf''',formatter_class=argparse.RawDescriptionHelpForm
     main(server=args.server, credentials=args.credentials, targets=args.targets,
          ifile=args.ifile, ofile=args.ofile, lgridmap = args.lgridmap,  account=args.account, pattern=args.pattern,
          sensitive=args.sensitive, debug_level=logging.DEBUG, prefer_cern=args.prefer_cern,
-         type_of_format=args.type_of_format)
+         type_of_format=args.type_of_format, cleanup=args.cleanup)
