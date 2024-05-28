@@ -31,7 +31,7 @@ EOSMGMNAMESPACE_BEGIN
 
 //! Type of trackers
 enum class TrackerType {
-  All, Balance, Convert, Drain, Fsck
+  None, All, Balance, Convert, Drain, Fsck
 };
 
 //------------------------------------------------------------------------------
@@ -126,14 +126,67 @@ public:
   }
 
   //----------------------------------------------------------------------------
+  //! Convert tracker type to string
+  //!
+  //! @param tracker_type TrackerType enum
+  //!
+  //! @return string representation of the tracker type
+  //----------------------------------------------------------------------------
+  static std::string TrackerTypeToString(TrackerType tt)
+  {
+    if (tt == TrackerType::Drain) {
+      return "drain";
+    } else if (tt == TrackerType::Balance) {
+      return "balance";
+    } else if (tt == TrackerType::Convert) {
+      return "convert";
+    } else if (tt == TrackerType::Fsck) {
+      return "fsck";
+    } else if (tt == TrackerType::All) {
+      return "all";
+    } else {
+      return "unknown";
+    }
+  }
+
+  //----------------------------------------------------------------------------
+  //! Convert string to tracker type enum. If string is empty then this get
+  //! mapped to TrackerType::All
+  //!
+  //! @param name tracker type string
+  //!
+  //! @return return TrackerType enum
+  //----------------------------------------------------------------------------
+  static TrackerType StringToTrackerType(const std::string& name)
+  {
+    if (name.empty()) {
+      return TrackerType::None;
+    } else if (name == "all") {
+      return TrackerType::All;
+    } else if (name == "drain") {
+      return TrackerType::Drain;
+    } else if (name == "balance") {
+      return TrackerType::Balance;
+    } else if (name == "convert") {
+      return TrackerType::Convert;
+    } else if (name == "fsck") {
+      return TrackerType::Fsck;
+    } else {
+      return TrackerType::None;
+    }
+  }
+
+  //----------------------------------------------------------------------------
   //! Get statistics about the tracked files
   //!
   //! @param full if true print also the ids for each tracker
   //! @param monitor if true print info in monitor format
+  //! @param tt tracker type
   //!
   //! @return string with the required information
   //----------------------------------------------------------------------------
-  std::string PrintStats(bool full = false, bool monitor = false) const;
+  std::string PrintStats(bool full = false, bool monitor = false,
+                         const TrackerType& tt = TrackerType::All) const;
 
 private:
   mutable std::mutex mMutex;
@@ -154,7 +207,7 @@ bool
 IdTrackerWithValidity<EntryT>::AddEntry(EntryT entry, TrackerType tt,
                                         std::chrono::seconds validity)
 {
-  if (tt == TrackerType::All) {
+  if (tt <= TrackerType::All) {
     return false;
   }
 
@@ -254,50 +307,39 @@ IdTrackerWithValidity<EntryT>::HasEntry(EntryT entry) const
 //----------------------------------------------------------------------------
 template<typename EntryT>
 std::string
-IdTrackerWithValidity<EntryT>::PrintStats(bool full, bool monitor) const
+IdTrackerWithValidity<EntryT>::PrintStats(bool full, bool monitor,
+    const TrackerType& tt) const
 {
-  auto get_tracker_name = [](TrackerType tt) -> std::string {
-    if (tt == TrackerType::Drain)
-    {
-      return "drain";
-    } else if (tt == TrackerType::Balance)
-    {
-      return "balance";
-    } else if (tt == TrackerType::Convert)
-    {
-      return "convert";
-    } else if (tt == TrackerType::Fsck)
-    {
-      return "fsck";
-    } else {
-      return "unknown";
-    }
-  };
   std::ostringstream oss;
+
+  if (tt == TrackerType::None) {
+    return oss.str();
+  }
+
   std::unique_lock<std::mutex> lock(mMutex);
 
   for (const auto& pair : mMap) {
+    if ((tt != TrackerType::All) && (tt != pair.first)) {
+      continue;
+    }
+
     if (monitor) {
       oss << "uid=all gid=all ";
     } else {
       oss << "ALL      tracker info                     ";
     }
 
-    oss << "tracker=" << get_tracker_name(pair.first)
+    oss << "tracker=" << TrackerTypeToString(pair.first)
         << " size=" << pair.second.size();
 
     if (full) {
-      oss << " ids=";
+      oss << " fids=";
 
       for (const auto& elem : pair.second) {
         oss << elem.first << " ";
       }
     }
 
-    oss << std::endl;
-  }
-
-  if (mMap.empty()) {
     oss << std::endl;
   }
 
