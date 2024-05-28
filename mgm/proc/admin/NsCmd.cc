@@ -79,6 +79,8 @@ NsCmd::ProcessRequest() noexcept
     ReserveIdsSubCmd(ns.reserve(), reply);
   } else if (subcmd == eos::console::NsProto::kBenchmark) {
     BenchmarkSubCmd(ns.benchmark(), reply);
+  } else if (subcmd == eos::console::NsProto::kTracker) {
+    TrackerSubCmd(ns.tracker(), reply);
   } else {
     reply.set_retc(EINVAL);
     reply.set_std_err("error: not supported");
@@ -657,7 +659,7 @@ NsCmd::StatSubcmd(const eos::console::NsProto_StatProto& stat,
     std::string_view prefix {"ALL      balancer info                    "};
     FsView::gFsView.DumpBalancerPoolInfo(oss, prefix);
     oss << line << std::endl
-        << gOFS->mFidTracker.PrintStats()
+        << gOFS->mFidTracker.PrintStats() << std::endl
         << line << std::endl;
 
     // Only display the tape enabled state if it is set to true in order to
@@ -1417,6 +1419,41 @@ NsCmd::BenchmarkSubCmd(const eos::console::NsProto_BenchmarkProto& benchmark,
   reply.set_std_out(oss.str().c_str());
 }
 
+
+//------------------------------------------------------------------------------
+// Execute tracker command
+//----------------------------------------------------------------------------
+void
+NsCmd::TrackerSubCmd(const eos::console::NsProto_TrackerProto& tracker,
+                     eos::console::ReplyProto& reply)
+{
+  using eos::console::NsProto_TrackerProto;
+
+  if (tracker.op() == NsProto_TrackerProto::NONE) {
+    reply.set_std_err("error: no tracker operation specified");
+    reply.set_retc(EINVAL);
+    return;
+  }
+
+  const eos::mgm::TrackerType tt =
+    gOFS->mFidTracker.StringToTrackerType(tracker.name());
+  std::string output;
+
+  if (tracker.op() == NsProto_TrackerProto::LIST) {
+    output = gOFS->mFidTracker.PrintStats(true, true, tt);
+  } else if (tracker.op() == NsProto_TrackerProto::CLEAR) {
+    gOFS->mFidTracker.Clear(tt);
+    output = "info: tracker successfully cleaned";
+  } else {
+    reply.set_std_err("error: unknown operation type");
+    reply.set_retc(EINVAL);
+    return;
+  }
+
+  reply.set_std_out(output);
+  reply.set_retc(0);
+  return;
+}
 
 //------------------------------------------------------------------------------
 // Apply text highlighting to ns output

@@ -104,17 +104,29 @@ message NsProto {
     uint64 subfiles = 3;
     string prefix =4;
   }
+
+  message TrackerProto {
+    enum OpType {
+      NONE  = 0;
+      LIST  = 1;
+      CLEAR = 2;
+    }
+
+    OpType op   = 1;
+    string name = 2;
+  }
     
   oneof subcmd {
-    StatProto stat          = 1;
-    MutexProto mutex        = 2;
-    CompactProto compact    = 3;
-    MasterProto master      = 4;
-    TreeSizeProto tree      = 5;
-    CacheProto cache        = 6;
-    QuotaSizeProto quota    = 7;
-    DrainSizeProto drain    = 8;
-    ReserveIdsProto reserve = 9;
+    StatProto stat           = 1;
+    MutexProto mutex         = 2;
+    CompactProto compact     = 3;
+    MasterProto master       = 4;
+    TreeSizeProto tree       = 5;
+    CacheProto cache         = 6;
+    QuotaSizeProto quota     = 7;
+    DrainSizeProto drain     = 8;
+    ReserveIdsProto reserve  = 9;
     BenchmarkProto benchmark = 10;
+    TrackerProto tracker     = 11;
   }
 }
