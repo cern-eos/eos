@@ -143,13 +143,23 @@ private:
   //----------------------------------------------------------------------------
   //! Execute benchmark command
   //!
-  //! @param ...
+  //! @param benchmark subcommand proto object
+  //!
   //! @param reply reply proto object
   //----------------------------------------------------------------------------
   void BenchmarkSubCmd(const eos::console::NsProto_BenchmarkProto& benchmark,
-		       eos::console::ReplyProto& reply);
+                       eos::console::ReplyProto& reply);
 
-  
+  //----------------------------------------------------------------------------
+  //! Execute tracker command
+  //!
+  //! @param tracker subcommand proto object
+  //!
+  //! @param reply reply proto object
+  //----------------------------------------------------------------------------
+  void TrackerSubCmd(const eos::console::NsProto_TrackerProto& tracker,
+                     eos::console::ReplyProto& reply);
+
   //----------------------------------------------------------------------------
   //! Do a breadth first search of all the subcontainers under the given
   //! container

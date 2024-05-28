@@ -122,13 +122,14 @@ NsHelper::ParseCommand(const char* arg)
           mutex->set_sample_rate10(true);
         } else if (soption == "--smplrate100") {
           mutex->set_sample_rate100(true);
-	} else if (soption == "--setblockedtime") {
-	  option = tokenizer.GetToken();
-	  if (option) {
-	    mutex->set_blockedtime(std::stoul(option));
-	  } else {
-	    return false;
-	  }
+        } else if (soption == "--setblockedtime") {
+          option = tokenizer.GetToken();
+
+          if (option) {
+            mutex->set_blockedtime(std::stoul(option));
+          } else {
+            return false;
+          }
         } else {
           return false;
         }
@@ -294,33 +295,35 @@ NsHelper::ParseCommand(const char* arg)
       return false;
     } else {
       int npar = 0;
+
       while (true) {
         int pos = 0;
         soption = option;
+
         if ((soption.find("cid:") == 0)) {
           pos = soption.find(':') + 1;
           quota->mutable_container()->set_cid(soption.substr(pos));
         } else if (soption.find("cxid:") == 0) {
           pos = soption.find(':') + 1;
           quota->mutable_container()->set_cxid(soption.substr(pos));
-	} else if (soption.find("uid:") == 0) {
+        } else if (soption.find("uid:") == 0) {
           pos = soption.find(':') + 1;
           quota->set_uid(soption.substr(pos));
-	} else if (soption.find("gid:") == 0) {
+        } else if (soption.find("gid:") == 0) {
           pos = soption.find(':') + 1;
           quota->set_gid(soption.substr(pos));
-	} else if (soption.find("bytes:") == 0) {
+        } else if (soption.find("bytes:") == 0) {
           pos = soption.find(':') + 1;
-	  quota->set_used_bytes(strtoul(soption.substr(pos).c_str(),0,10));
-	  npar++;
-	} else if (soption.find("physicalbytes:") == 0) {
+          quota->set_used_bytes(strtoul(soption.substr(pos).c_str(), 0, 10));
+          npar++;
+        } else if (soption.find("physicalbytes:") == 0) {
           pos = soption.find(':') + 1;
-	  quota->set_physical_bytes(strtoul(soption.substr(pos).c_str(),0,10));
-	  npar++;
-	} else if (soption.find("inodes:") == 0) {
+          quota->set_physical_bytes(strtoul(soption.substr(pos).c_str(), 0, 10));
+          npar++;
+        } else if (soption.find("inodes:") == 0) {
           pos = soption.find(':') + 1;
-	  quota->set_used_inodes(strtoul(soption.substr(pos).c_str(),0,10));
-	  npar++;
+          quota->set_used_inodes(strtoul(soption.substr(pos).c_str(), 0, 10));
+          npar++;
         } else { // this should be a plain path
           quota->mutable_container()->set_path(soption);
         }
@@ -329,8 +332,9 @@ NsHelper::ParseCommand(const char* arg)
           break;
         }
       }
+
       if (npar && (npar != 3)) {
-	return false;
+        return false;
       }
     }
   } else if (cmd == "cache") {
@@ -486,7 +490,7 @@ NsHelper::ParseCommand(const char* arg)
     int64_t n_threads = 0;
     int64_t n_subdirs = 0;
     int64_t n_subfiles = 0;
-    
+
     if (!eos::common::ParseInt64(option, n_threads) || n_threads < 0) {
       return false;
     }
@@ -495,7 +499,6 @@ NsHelper::ParseCommand(const char* arg)
     if (!(option = tokenizer.GetToken())) {
       return false;
     }
-
 
     if (!eos::common::ParseInt64(option, n_subdirs) || n_subdirs < 0) {
       return false;
@@ -510,13 +513,49 @@ NsHelper::ParseCommand(const char* arg)
       return false;
     }
 
-    if ( (option = tokenizer.GetToken()) ) {
+    if ((option = tokenizer.GetToken())) {
       benchmark->set_prefix(option);
     }
-    
+
     benchmark->set_threads(n_threads);
     benchmark->set_subdirs(n_subdirs);
     benchmark->set_subfiles(n_subfiles);
+  } else if (cmd == "tracker") {
+    eos::console::NsProto_TrackerProto* tracker = ns->mutable_tracker();
+    tracker->set_op(eos::console::NsProto_TrackerProto::NONE);
+
+    while ((option = tokenizer.GetToken())) {
+      soption = option;
+
+      if (soption == "list")  {
+        if (tracker->op() != eos::console::NsProto_TrackerProto::NONE) {
+          std::cerr << "error: only one operation per command" << std::endl;
+          return false;
+        } else {
+          tracker->set_op(eos::console::NsProto_TrackerProto::LIST);
+        }
+      } else if (soption == "clear") {
+        if (tracker->op() != eos::console::NsProto_TrackerProto::NONE) {
+          std::cerr << "error: only one operation per command" << std::endl;
+          return false;
+        } else {
+          tracker->set_op(eos::console::NsProto_TrackerProto::CLEAR);
+        }
+      } else if (soption == "--name") {
+        if (!(option = tokenizer.GetToken())) {
+          return false;
+        }
+
+        tracker->set_name(option);
+      } else {
+        return false;
+      }
+    }
+
+    if (tracker->op() == eos::console::NsProto_TrackerProto::NONE) {
+      std::cerr << "error: no operation specified" << std::endl;
+      return false;
+    }
   } else if (cmd == "") {
     eos::console::NsProto_StatProto* stat = ns->mutable_stat();
     stat->set_summary(true);
@@ -547,7 +586,6 @@ int com_ns(char* arg)
   }
 
   global_retc = ns.Execute();
-
   return global_retc;
 }
 
@@ -578,19 +616,16 @@ void com_ns_help()
       << "    --smplrate100    : set timing sample rate at 100% (severe slow-down)"
       << std::endl
       << "    --setblockedtime <ms>" << std::endl
-      << "                     : set minimum time when a mutex lock lasting longer than <ms> is reported in the log file [default=10000" << std::endl
+      << "                     : set minimum time when a mutex lock lasting longer than <ms> \n"
+      << "                       is reported in the log file [default=10000]\n"
       << std::endl
-      << "  ns compact off|on <delay> [<interval>] [<type>]" << std::endl
-      << "    enable online compaction after <delay> seconds" << std::endl
-      << "    <interval> : if >0 then compaction is repeated automatically " <<
-      std::endl
-      << "                 after so many seconds" << std::endl
-      << "    <type>     : can be 'files', 'directories' or 'all'. By default  only the file"
-      << std::endl
-      << "                 changelog is compacted. The repair flag can be indicated by using"
-      << std::endl
-      << "                 'files-repair', 'directories-repair' or 'all-repair'. "
-      << std::endl
+      << "  ns compact off|on <delay> [<interval>] [<type>]\n"
+      << "    enable online compaction after <delay> seconds\n"
+      << "    <interval> : if >0 then compaction is repeated automatically \n"
+      << "                 after so many seconds\n"
+      << "    <type>     : can be 'files', 'directories' or 'all'. By default  only the file\n"
+      << "                 changelog is compacted. The repair flag can be indicated by using:\n"
+      << "                 'files-repair', 'directories-repair' or 'all-repair'\n"
       << std::endl
       << "  ns master [<option>]" << std::endl
       << "    master/slave operations. Option can be:" << std::endl
@@ -641,26 +676,26 @@ void com_ns_help()
       << "    force refresh of the given ContainerMD by dropping it from the cache"
       << std::endl
       << std::endl
-      << "  ns max_drain_threads <num>" << std::endl
-      << "    set the max number of threads in the drain pool, default 400, minimum 4"
+      << "  ns max_drain_threads <num>\n"
+      << "    set the max number of threads in the drain pool, default 400, minimum 4\n"
       << std::endl
+      << "  ns reserve-ids <file id> <container id>\n"
+      << "    blacklist file and container IDs below the given threshold. The namespace\n"
+      << "    will not allocate any file or container with IDs less than, or equal to the\n"
+      << "    given blacklist thresholds.\n"
       << std::endl
-      << "  ns reserve-ids <file id> <container id>" << std::endl
-      << "    blacklist file and container IDs below the given threshold. The namespace"
+      << "  ns benchmark <n-threads> <n-subdirs> <n-subfiles> [prefix=/benchmark]\n"
+      << "     run metadata benchmark inside the MGM - results are printed into the MGM logfile and the shell\n"
+      << "                n-threads  : number of parallel threads running a benchmark in the MGM\n"
+      << "                n-subdirs  : directories created by each threads\n"
+      << "                n-subfiles : number of files created in each sub-directory\n"
+      << "                prefix     : absolute directory where to write the benchmarkf iles - default is /benchmark\n"
       << std::endl
-      << "    will not allocate any file or container with IDs less than, or equal to the"
+      << "     example: eos ns benchmark 100 10 10\n"
       << std::endl
-      << "    given blacklist thresholds." << std::endl
-      << std::endl
-      << "  ns benchmark <n-threads> <n-subdirs> <n-subfiles> [prefix=/benchmark]" << std::endl
-      << "     run's a MD benchmark inside the MGM - results are printed into the MGM logfile and the shell" << std::endl 
-      << "                n-threads  : number of parallel threads running a benchmark in the MGM" << std::endl
-      << "                n-subdirs  : directories created by each threads" << std::endl
-      << "                n-subfiles : number of files created in each sub-directory" << std::endl
-      << "                prefix     : absolute directory where to write the benchmark files - default is /benchmark" << std::endl
-      << std::endl
-      << "     example: eos ns benchmark 100 10 10" << std::endl;
-									       
-  
+      << " ns tracker list|clean --name tracker_type\n"
+      << "     list or clean the different file identifier trackers\n"
+      << "     tracker_type : one of the following: drain, balance, fsck, convert, all\n"
+      << std::endl;
   std::cerr << oss.str() << std::endl;
 }
