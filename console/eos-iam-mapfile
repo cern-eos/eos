@@ -185,7 +185,7 @@ def build_namemap_file(users_id, account, ifile, ofile):
     else:
         print(json.dumps([pickle.loads(rule) for rule in name_map]))
 
-def build_gridmap_file(users_dn, account, ifile, ofile):
+def build_gridmap_file(users_dn, account, ifile, ofile, lgridmap):
     grid_map = {}
 
     if ifile:
@@ -203,6 +203,20 @@ def build_gridmap_file(users_dn, account, ifile, ofile):
         if dn in grid_map:
             logging.debug(f'Overwritting {dn}')
         grid_map[f'"{dn}"'] = account
+
+    # Override with local gridmap entries if any
+    if lgridmap:
+        try:
+            with open(lgridmap, "r", encoding='unicode_escape') as lgridmap_file:
+                for l in lgridmap_file.readlines():
+                    if l.strip() and not l.startswith('#'):
+                        logging.debug(f"Processing {l}")
+                        dn, acc = l.rsplit(' ',1)
+                        grid_map[dn] = acc.strip()
+        except FileNotFoundError as e:
+            logging.error(f"Unable to read {lgridmap}, ignoring it's content...")
+            exit(4)
+
 
     content = '\n'.join(f'{dn} {acc}' for dn, acc in grid_map.items())
 
@@ -261,7 +275,7 @@ def configure(credentials, servers, targets):
         exit(3)
 
 def main(server = None, credentials=None, targets = None, account=None, ifile=None,
-         ofile=None, pattern=None, sensitive=re.IGNORECASE, debug_level=logging.WARNING,
+         ofile=None, lgridmap = None, pattern=None, sensitive=re.IGNORECASE, debug_level=logging.WARNING,
          prefer_cern=False, type_of_format="GRIDMAP"):
     """
     Configure IAM servers to be queried, update/write gridmap file format
@@ -288,7 +302,7 @@ def main(server = None, credentials=None, targets = None, account=None, ifile=No
             users.update(iam.get_users(count=100, filter_function=name_map_filter))
 
     if type_of_format == "GRIDMAP":
-        build_gridmap_file(users, account, ifile, ofile)
+        build_gridmap_file(users, account, ifile, ofile, lgridmap)
     elif type_of_format == "MAPFILE":
         build_namemap_file(users, account, ifile, ofile)
 
@@ -308,6 +322,7 @@ $ eos-iam-mapfile -a account4user2bmapped2 -c iam.conf''',formatter_class=argpar
     parser.add_argument('-t', '--targets', dest = 'targets', help = 'Target specific IAM servers defined in the configuration file (must be used together with -c)')
     parser.add_argument('-i', '--inputfile', dest = 'ifile', default=None, help = "Path to existing gridmapfile to be updated (matching DN's will be overwritten)")
     parser.add_argument('-o', '--outfile', dest = 'ofile', default=None, help = 'Path to dump gridmapfile')
+    parser.add_argument('-l', '--localgridmap', dest = 'lgridmap', default = None, help = 'Path to local gridmap file')
     parser.add_argument('-a', '--account', dest = 'account', required=True, help = 'Account to which the result from the match should be mapped to')
     parser.add_argument('-p', '--pattern', type=str, dest = 'pattern', default=None, help = 'Pattern to search on user certificates `subject DN` field')
     parser.add_argument('-C','--case-sensitive', dest='sensitive',action='store_const', const=0, default=re.IGNORECASE, help = 'Makes the regex pattern (-p) to be case sensitive')
@@ -318,6 +333,6 @@ $ eos-iam-mapfile -a account4user2bmapped2 -c iam.conf''',formatter_class=argpar
     logging.basicConfig(level=eval(f"logging.{args.debug}"))
     logging.debug(args)
     main(server=args.server, credentials=args.credentials, targets=args.targets,
-         ifile=args.ifile, ofile=args.ofile, account=args.account, pattern=args.pattern,
+         ifile=args.ifile, ofile=args.ofile, lgridmap = args.lgridmap,  account=args.account, pattern=args.pattern,
          sensitive=args.sensitive, debug_level=logging.DEBUG, prefer_cern=args.prefer_cern,
          type_of_format=args.type_of_format)
