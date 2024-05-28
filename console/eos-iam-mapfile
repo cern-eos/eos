@@ -22,6 +22,7 @@
 # * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
 # ************************************************************************
 
+import os
 import re
 import json
 import pickle
@@ -38,13 +39,14 @@ class IAM_Server:
     TOKEN_ENDPOINT = '/token'
     USER_ENDPOINT ='/scim/Users'
 
-    def __init__(self, server, client_id, client_secret, token_server = None):
+    def __init__(self, server, client_id, client_secret, token_server = None, account = None):
         self.server = server
         self.client_id = client_id
         self.client_secret = client_secret
         # Assuming token server is the same as IAM's
         self.token_server = token_server or server
         self._token = None
+        self.account = account
 
     def __hash__(self):
         return hash(self.server)
@@ -185,8 +187,7 @@ def build_namemap_file(users_id, account, ifile, ofile):
     else:
         print(json.dumps([pickle.loads(rule) for rule in name_map]))
 
-def build_gridmap_file(users_dn, account, ifile, ofile, lgridmap):
-    grid_map = {}
+def build_gridmap_file(users_dn, account, ifile, ofile, lgridmap, grid_map = {}):
 
     if ifile:
         try:
@@ -229,12 +230,13 @@ def build_gridmap_file(users_dn, account, ifile, ofile, lgridmap):
             exit(4)
     else:
         print(content)
+    return grid_map
 
 
 def configure(credentials, servers, targets):
 
     # First level of configuration - file
-    iam_servers = set()
+    iam_servers = list()
 
     # Second configuration stage is to load environment variable configuration
     envconf = zip(getenv('EOS_IAM_SERVER','').splitlines(),
@@ -242,7 +244,8 @@ def configure(credentials, servers, targets):
                   getenv('EOS_IAM_CLIENT_SECRET','').splitlines())
     # First configuration stage is to use command args
     for server, client_id, client_secret in servers or envconf:
-        iam_servers.add(IAM_Server(server, client_id, client_secret))
+        logging.debug(f'Adding iam_server {server} from env')
+        iam_servers.append(IAM_Server(server, client_id, client_secret))
 
     # Third option is to rely on configuration file
     #[<iam server hostname>]
@@ -264,7 +267,10 @@ def configure(credentials, servers, targets):
                 client_secret = config.get(section,'client-secret')
                 # Assuming IAM server is token server if not defined
                 token_server = config.get(section,'token-server', fallback=server)
-                iam_servers.add(IAM_Server(server, client_id, client_secret, token_server))
+                account = config.get(section,'account',fallback=None)
+
+                logging.debug(f'Adding iam_server {server} mapping to {account} from config')
+                iam_servers.append(IAM_Server(server, client_id, client_secret, token_server, account))
         else:
             logging.warning("Credentials couldn't be loaded from configuration file")
 
@@ -292,8 +298,15 @@ def main(server = None, credentials=None, targets = None, account=None, ifile=No
     iam_servers = configure(credentials, server, targets)
 
     # Query IAM server
-    users = set()
+    count = 0
+    temp_outfile = ""
+    mapped_account = account
+    grid_map = dict()
     for iam in iam_servers:
+        # start with an empty user set for each IAM endpoint, we retain the
+        # grid map which will maintain the correct account mapping
+        users = set()
+
         if type_of_format == "GRIDMAP":
             users.update(iam.get_users(count=100, filter_function=dn_filter,
                                        pattern=pattern,
@@ -301,11 +314,25 @@ def main(server = None, credentials=None, targets = None, account=None, ifile=No
         elif type_of_format == "MAPFILE":
             users.update(iam.get_users(count=100, filter_function=name_map_filter))
 
-    if type_of_format == "GRIDMAP":
-        build_gridmap_file(users, account, ifile, ofile, lgridmap)
-    elif type_of_format == "MAPFILE":
-        build_namemap_file(users, account, ifile, ofile)
+        temp_outfile = "{}.{}".format(ofile,count)
+        if iam.account:
+            mapped_account = iam.account
 
+        if not mapped_account:
+            logging.warn(f"Skipping {iam.server} as no explicit mapping via args or config")
+            continue
+
+        logging.debug(f"Generating temporary {temp_outfile} for {iam.server}:{mapped_account}")
+
+        if type_of_format == "GRIDMAP":
+            grid_map = build_gridmap_file(users, mapped_account, ifile, temp_outfile, lgridmap, grid_map)
+        elif type_of_format == "MAPFILE":
+            build_namemap_file(users, mapped_account, ifile, outfile)
+        count += 1
+
+    if temp_outfile and ofile:
+        logging.debug(f"Renaming {temp_outfile} to {ofile}")
+        os.rename(temp_outfile, ofile)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='GRID Map file generation from IAM Server', epilog='''examples:
@@ -313,9 +340,9 @@ $ export EOS_IAM_SERVER=atlas-auth.web.cern.ch
 $ export EOS_IAM_CLIENT_ID=...
 $ export EOS_IAM_CLIENT_SECRET=...
 $ eos-iam-mapfile -a account4user2bmapped2
-
-$ echo -e '[myiamserver.cern.ch]\\nclient-id = 1234567890\\nclient-secret = *******' > iam.conf
-$ eos-iam-mapfile -a account4user2bmapped2 -c iam.conf''',formatter_class=argparse.RawDescriptionHelpFormatter)
+$
+$ echo -e '[myiamserver.cern.ch]\\nclient-id = 1234567890\\nclient-secret = *******\\naccount=acc4usermap' > iam.conf
+$ eos-iam-mapfile -c iam.conf''',formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument('-v', '--verbose', type = str.upper, nargs='?', const="DEBUG", default="WARNING", choices=("DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"), dest = 'debug', help = 'Control log verbosity')
     parser.add_argument('-s', '--server', dest = 'server', nargs=3,action='append', help = 'IAM server to query with respective client key and secret (space separated)', metavar=('SERVER', 'CLIENT_ID','CLIENT_KEY'))
     parser.add_argument('-c', '--credentidals', dest = 'credentials', help = r'Client credentials file (for API access) in the following format: `[<iam server hostname>]\nclient-id = <id>\nclient-secret = <key>`')
@@ -323,7 +350,7 @@ $ eos-iam-mapfile -a account4user2bmapped2 -c iam.conf''',formatter_class=argpar
     parser.add_argument('-i', '--inputfile', dest = 'ifile', default=None, help = "Path to existing gridmapfile to be updated (matching DN's will be overwritten)")
     parser.add_argument('-o', '--outfile', dest = 'ofile', default=None, help = 'Path to dump gridmapfile')
     parser.add_argument('-l', '--localgridmap', dest = 'lgridmap', default = None, help = 'Path to local gridmap file')
-    parser.add_argument('-a', '--account', dest = 'account', required=True, help = 'Account to which the result from the match should be mapped to')
+    parser.add_argument('-a', '--account', dest = 'account', help = 'Account to which the result from the match should be mapped to')
     parser.add_argument('-p', '--pattern', type=str, dest = 'pattern', default=None, help = 'Pattern to search on user certificates `subject DN` field')
     parser.add_argument('-C','--case-sensitive', dest='sensitive',action='store_const', const=0, default=re.IGNORECASE, help = 'Makes the regex pattern (-p) to be case sensitive')
     parser.add_argument('-u', '--prefer-cern-certs', dest = 'prefer_cern',action='store_true', help = 'Prefers CERN.CH certificates (if any) to map user (uniquely)')
