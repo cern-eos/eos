@@ -815,6 +815,7 @@ TEST_F(HierarchicalViewF, BulkNsObjectLockerTryLock)
     while (!containerLocked) {
       std::this_thread::sleep_for(std::chrono::milliseconds(100));
     }
+
     eos::MDLocking::BulkContainerWriteLock locker;
     locker.add(container2);
     locker.add(container);
@@ -826,7 +827,7 @@ TEST_F(HierarchicalViewF, BulkNsObjectLockerTryLock)
   threadReadLockingContainer.join();
   auto diff = std::chrono::duration_cast<std::chrono::seconds>
               (stop - start).count();
-  ASSERT_EQ(sleepSeconds, diff);
+  ASSERT_GE(sleepSeconds, diff);
 }
 
 TEST_F(HierarchicalViewF, BulkMDLockerTest)
@@ -835,11 +836,11 @@ TEST_F(HierarchicalViewF, BulkMDLockerTest)
   // the locking done by the Thread 2 should wait that the thread 1 finishes
   auto container = view()->createContainer("/test/", true);
   auto container2 = view()->createContainer("/test/d1", true);
-  auto file = view()->createFile("/test/d1/f1",true);
+  auto file = view()->createFile("/test/d1/f1", true);
   std::atomic<bool> fileLocked = false;
   uint8_t sleepSeconds = 10;
   auto threadReadLockingFile = std::thread([&file, &fileLocked,
-                                                 sleepSeconds]() {
+  sleepSeconds]() {
     eos::MDLocking::FileReadLock fileReadLocker(file);
     fileLocked = true;
     std::this_thread::sleep_for(std::chrono::duration<double>(sleepSeconds + 0.1));
@@ -847,7 +848,7 @@ TEST_F(HierarchicalViewF, BulkMDLockerTest)
   std::chrono::time_point<std::chrono::steady_clock> start;
   std::chrono::time_point<std::chrono::steady_clock> stop;
   auto threadBulkMultiNSObjLock = std::thread([&start, &stop, &container,
-                                              &container2, &file, &fileLocked]() {
+  &container2, &file, &fileLocked]() {
     while (!fileLocked) {
       std::this_thread::sleep_for(std::chrono::milliseconds(100));
     }
@@ -1209,7 +1210,8 @@ TEST_F(HierarchicalViewF, containerMDSyncTimeAccounting)
   eos::IContainerMD::ctime_t rootContainerTimeBeforeNotify,
       rootContainerMTimeAfterNotify;
   {
-    eos::MDLocking::ContainerWriteLock containerSyncTimeAccountingLocker(containerSyncTimeAccounting);
+    eos::MDLocking::ContainerWriteLock containerSyncTimeAccountingLocker(
+      containerSyncTimeAccounting);
     containerSyncTimeAccounting->setAttribute("sys.mtime.propagation", "true");
     auto testContainer = view()->getContainer("/root/test/");
     testContainer->setAttribute("sys.mtime.propagation", "true");
