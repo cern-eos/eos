@@ -216,7 +216,7 @@ def build_namemap_file(users_id, account, ifile, ofile):
                 for entry in json.load(f):
                     name_map.add(pickle.dumps(entry))
         except FileNotFoundError as e:
-            logging.error(f"Unable to read {ifile}, ignoring it's content...")
+            logging.error(f"Unable to read {ifile}, ignoring its content...")
             exit(4)
 
     for id in users_id:
@@ -241,7 +241,7 @@ def build_gridmap_file(users_dn, account, ifile, ofile, lgridmap, grid_map = {})
                 for dn,acc in (l.rsplit(' ',1) for l in igridmap_file.readlines()):
                     grid_map[dn] = acc.strip()
         except FileNotFoundError as e:
-            logging.error(f"Unable to read {ifile}, ignoring it's content...")
+            logging.error(f"Unable to read {ifile}, ignoring its content...")
             exit(4)
 
     # Overwrite / append results
