@@ -170,8 +170,9 @@ FmdHandler::UpdateWithMgmInfo(eos::common::FileSystem::fsid_t fsid,
     return false;
   }
 
-  eos_debug("fxid=%08llx fsid=%lu cid=%llu lid=%lx mgmsize=%llu mgmchecksum=%s",
-            fid, fsid, cid, lid, mgmsize, mgmchecksum.c_str());
+  eos_debug("fxid=%08llx fsid=%lu cid=%llu lid=%lx mgmsize=%llu "
+            "mgmchecksum=%s layouterror=%i", fid, fsid, cid, lid,
+            mgmsize, mgmchecksum.c_str(), layouterror);
   auto [status, valfmd] = LocalRetrieveFmd(fid, fsid);
 
   if (!status) {
@@ -282,7 +283,7 @@ FmdHandler::ClearErrors(eos::common::FileId::fileid_t fid,
   auto fmd = LocalGetFmd(fid, fsid, true);
 
   if (fmd) {
-    fmd->mProtoFmd.set_layouterror(LayoutId::kNone);
+    fmd->mProtoFmd.set_layouterror(0);
     fmd->mProtoFmd.set_blockcxerror(0);
     fmd->mProtoFmd.set_filecxerror(0);
     fmd->mProtoFmd.clear_stripeerror();
@@ -434,7 +435,6 @@ FmdHandler::ResyncMgm(eos::common::FileSystem::fsid_t fsid,
       }
     }
 
-    // Define layouterrors
     fMd.mProtoFmd.set_layouterror(fMd.LayoutError(fsid));
     // Get an existing record without creating the record !!!
     std::unique_ptr<eos::common::FmdHelper> fmd {
