@@ -1114,6 +1114,7 @@ ScanDir::ScanRainFileLoadAware(eos::common::FileId::fileid_t fid,
     return false;
   }
 
+  eos_static_debug("msg=\"scan rain file load aware\" fxid=%08llx", fid);
   std::string xs_mgm;
   uint32_t num_locations;
   LayoutId::layoutid_t layout;
