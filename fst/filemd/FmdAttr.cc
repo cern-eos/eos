@@ -243,7 +243,7 @@ FmdAttrHandler::LocalGetFmd(eos::common::FileId::fileid_t fid,
                  fmd->mProtoFmd.filecxerror(),
                  fmd->mProtoFmd.blockcxerror());
       }
-    } else {//Non Rain
+    } else {
       if (fmd->mProtoFmd.blockcxerror() == 1) {
         eos_crit("msg=\"blockxs error detected\" fxid=%08llx fsid=%lu",
                  fid, fsid);
