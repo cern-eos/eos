@@ -450,8 +450,7 @@ XrdMgmOfs::OrderlyShutdown()
 
   if (mZmqContext) {
     eos_warning("%s", "msg=\"closing the ZMQ context\"");
-    // TODO: for now removing this since it breaks Centos8/9 shutdown
-    //    mZmqContext->close();
+    mZmqContext->close();
     eos_warning("%s", "msg=\"joining the master and worker auth threads\"");
     mAuthMasterTid.join();
 
