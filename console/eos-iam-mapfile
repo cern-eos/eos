@@ -24,6 +24,7 @@
 
 import os
 import re
+import sys
 import json
 import pickle
 import logging
@@ -34,6 +35,9 @@ from urllib import request, parse
 from configparser import ConfigParser
 from datetime import datetime, timedelta
 from concurrent.futures import ThreadPoolExecutor, as_completed
+
+LOG_FORMAT = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+DATE_FORMAT = '%Y-%m-%d %H:%M:%S'
 
 class IAM_Server:
     TOKEN_ENDPOINT = '/token'
@@ -350,6 +354,36 @@ def main(server = None, credentials=None, targets = None, account=None, ifile=No
         if cleanup:
             cleanup_files(ofile, count-1)
 
+def setup_filelogging(log_level, logfile):
+    if not logfile:
+        return False
+
+    log_dir = os.path.dirname(logfile)
+
+    if log_dir and not os.path.exists(log_dir):
+        return False
+
+    logging.basicConfig(
+        filename = logfile,
+        filemode = 'a',
+        format = LOG_FORMAT,
+        datefmt = DATE_FORMAT,
+        level = log_level
+    )
+
+    return True
+
+
+def setup_logging(log_level=logging.WARNING, logfile=None):
+    if not setup_filelogging(log_level, logfile):
+        logging.basicConfig(
+            stream = sys.stdout,
+            format = LOG_FORMAT,
+            datefmt = DATE_FORMAT,
+            level = log_level
+        )
+
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='GRID Map file generation from IAM Server', epilog='''examples:
 $ export EOS_IAM_SERVER=atlas-auth.web.cern.ch
@@ -372,10 +406,12 @@ $ eos-iam-mapfile -c iam.conf''',formatter_class=argparse.RawDescriptionHelpForm
     parser.add_argument('-u', '--prefer-cern-certs', dest = 'prefer_cern',action='store_true', help = 'Prefers CERN.CH certificates (if any) to map user (uniquely)')
     parser.add_argument('-f', '--format',  type = str.upper, nargs='?', const="MAPFILE", default="GRIDMAP", choices=("MAPFILE","GRIDMAP"),dest='type_of_format', help = 'Choose file format, using DN or ID (defaults to ID if used, else DN)')
     parser.add_argument('--cleanup', action='store_true')
+    parser.add_argument('--log-file', type=str, help='The log file for logging')
 
     args = parser.parse_args()
-    logging.basicConfig(level=eval(f"logging.{args.debug}"))
-    logging.debug(args)
+
+    setup_logging(eval(f"logging.{args.debug}"), args.log_file)
+
     main(server=args.server, credentials=args.credentials, targets=args.targets,
          ifile=args.ifile, ofile=args.ofile, lgridmap = args.lgridmap,  account=args.account, pattern=args.pattern,
          sensitive=args.sensitive, debug_level=logging.DEBUG, prefer_cern=args.prefer_cern,
