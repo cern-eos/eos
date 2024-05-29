@@ -477,7 +477,6 @@ Fsck::RepairErrs(ThreadAssistant& assistant) noexcept
 
     // Force flush any collected notifications
     NotifyFixedErr(0ull, 0ul, "", true);
-    gOFS->mFidTracker.Clear(TrackerType::Fsck);
     mStartProcessing = false;
     eos_info("%s", "msg=\"loop in fsck repair thread\"");
   }
@@ -487,6 +486,7 @@ Fsck::RepairErrs(ThreadAssistant& assistant) noexcept
     assistant.wait_for(std::chrono::seconds(1));
   }
 
+  gOFS->mFidTracker.Clear(TrackerType::Fsck);
   eos_info("%s", "msg=\"stopped fsck repair thread\"");
   mRepairRunning = false;
 }
