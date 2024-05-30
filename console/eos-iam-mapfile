@@ -331,7 +331,8 @@ def main(server = None, credentials=None, targets = None, account=None, ifile=No
         elif type_of_format == "MAPFILE":
             users.update(iam.get_users(count=100, filter_function=name_map_filter))
 
-        temp_outfile = "{}.{}".format(ofile,count)
+        if ofile:
+            temp_outfile = "{}.{}".format(ofile,count)
         if iam.account:
             mapped_account = iam.account
 
@@ -398,7 +399,7 @@ $ eos-iam-mapfile -c iam.conf''',formatter_class=argparse.RawDescriptionHelpForm
     parser.add_argument('-c', '--credentidals', dest = 'credentials', help = r'Client credentials file (for API access) in the following format: `[<iam server hostname>]\nclient-id = <id>\nclient-secret = <key>`')
     parser.add_argument('-t', '--targets', dest = 'targets', help = 'Target specific IAM servers defined in the configuration file (must be used together with -c)')
     parser.add_argument('-i', '--inputfile', dest = 'ifile', default=None, help = "Path to existing gridmapfile to be updated (matching DN's will be overwritten)")
-    parser.add_argument('-o', '--outfile', dest = 'ofile', default=None, help = 'Path to dump gridmapfile')
+    parser.add_argument('-o', '--outfile', dest = 'ofile', default=None, help = 'Path to dump gridmapfile, will dump to stdout otherwise')
     parser.add_argument('-l', '--localgridmap', dest = 'lgridmap', default = None, help = 'Path to local gridmap file, supports comma separated (no space) list of files (Will override any previous mappings encountered in order)')
     parser.add_argument('-a', '--account', dest = 'account', help = 'Account to which the result from the match should be mapped to')
     parser.add_argument('-p', '--pattern', type=str, dest = 'pattern', default=None, help = 'Pattern to search on user certificates `subject DN` field')
