@@ -552,7 +552,6 @@ Installing VOMS configuration for CMS
 
 .. code-block:: bash
 
-   yum localinstall https://linuxsoft.cern.ch/wlcg/centos7/x86_64/wlcg-iam-vomses-cms-1.0.0-1.el7.noarch.rpm -y --nogpgcheck
    yum localinstall https://linuxsoft.cern.ch/wlcg/centos7/x86_64/wlcg-iam-lsc-cms-2.0.0-1.el7.noarch.rpm -y --nogpgcheck
    yum localinstall https://linuxsoft.cern.ch/wlcg/centos7/x86_64/wlcg-voms-cms-2.0.0-1.el7.noarch.rpm -y --nogpgcheck
 
