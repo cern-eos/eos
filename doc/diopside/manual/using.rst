@@ -561,7 +561,7 @@ Configuring VOMS role extraction
 
 VOMS extraction is configured as a GSI protocol configuration option in the MGM configuration file adding `-vomsat:1 -vomsfun:default` to `sec.protocol gsi`:
 
-. code-block:: bash
+.. code-block:: bash
 
   sec.protocol  gsi -crl:1 -moninfo:1 -cert:/etc/grid-security/daemon/hostcert.pem -key:/etc/grid-security/daemon/hostkey.pem -gridmap:/etc/grid-security/grid-mapfile -d:1 -gmapopt:1 -vomsat:1 -vomsfun:default
 
