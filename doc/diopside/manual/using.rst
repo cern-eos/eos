@@ -542,6 +542,47 @@ Client and server should share an sss key for a user, which is actually not auth
    pair: File; Versioning
    pair: Using; Versioning
 
+VOMS Role Mapping
+-------------------------------
+
+A VOMS proxy uses X509 extensions which are signed by a VOMS server to attach roles to a proxy certificate. The extraction process on EOS verifies the signatures of these extension using the local VOMS configuration. The roles defined by the extensions can be mapped inside EOS using the *vid* interface. In the following we show a VOMS configuration for the CMS experiment as an example.
+
+Installing VOMS configuration for CMS
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. code-block:: bash
+
+   yum localinstall https://linuxsoft.cern.ch/wlcg/centos7/x86_64/wlcg-iam-vomses-cms-1.0.0-1.el7.noarch.rpm -y --nogpgcheck
+   yum localinstall https://linuxsoft.cern.ch/wlcg/centos7/x86_64/wlcg-iam-lsc-cms-2.0.0-1.el7.noarch.rpm -y --nogpgcheck
+   yum localinstall https://linuxsoft.cern.ch/wlcg/centos7/x86_64/wlcg-voms-cms-2.0.0-1.el7.noarch.rpm -y --nogpgcheck
+
+Configuring VOMS role extraction
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+VOMS extraction is configured as a GSI protocol configuration option in the MGM configuration file adding `-vomsat:1 -vomsfun:default` to `sec.protocol gsi`:
+
+. code-block:: bash
+
+  sec.protocol  gsi -crl:1 -moninfo:1 -cert:/etc/grid-security/daemon/hostcert.pem -key:/etc/grid-security/daemon/hostkey.pem -gridmap:/etc/grid-security/grid-mapfile -d:1 -gmapopt:1 -vomsat:1 -vomsfun:default
+
+
+Configuring mappings using the CLI
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.. code-block:: bash
+
+   eos vid set map -voms /cms:production vuid:`id -u cmsprod` vgid:`id -g cmsprod`
+   eos vid set map -voms /cms:cmsprod vuid:`id -u cmsprod` vgid:`id -u cmsprod`
+   eos vid set map -voms /cms:t1production vuid:`id -u cmsprod` vgid:`id -u cmsprod`
+   eos vid set map -voms /cms/muon:production vuid:`id -u cmsprod` vgid:`id -u cmsprod`
+   eos vid set map -voms /cms:cmsphedex vuid:`id -u cmsprod` vgid:`id -u cmsprod`
+   eos vid set map -voms /cms:lcgadmin vuid:`id -u cmssam` vgid:`id -u cmssam`
+   eos vid set map -voms cms/uscms:lcgadmin vuid:`id -u cmssam` vgid:`id -u cmssam`
+   eos vid set map -voms cms:pilot vuid:`id -u cmspilot` vgid:`id -u cmspilot`
+   eos vid set map -voms cms:uscms:pilot vuid:`id -u cmspilot` vgid:`id -u cmspilot`
+   eos vid set map -voms cms:priorityuser vuid:`id -u cmsuser` vgid:`id -u cmsuser`
+   eos vid set map -voms cms:hiproduction vuid:`id -u cmsuser` vgid:`id -u cmsuser`
+   eos vid set map -voms /cms: vuid:`id -u cmsuser` vgid:`id -u cmsuser
+
 File Versioning
 ---------------
 
