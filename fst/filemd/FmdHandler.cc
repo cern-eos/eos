@@ -278,15 +278,20 @@ FmdHandler::UpdateWithScanInfo(eos::common::FileId::fileid_t fid,
 //------------------------------------------------------------------------------
 void
 FmdHandler::ClearErrors(eos::common::FileId::fileid_t fid,
-                        eos::common::FileSystem::fsid_t fsid)
+                        eos::common::FileSystem::fsid_t fsid,
+                        bool clear_stripe_err)
 {
   auto fmd = LocalGetFmd(fid, fsid, true);
 
   if (fmd) {
-    fmd->mProtoFmd.set_layouterror(0);
-    fmd->mProtoFmd.set_blockcxerror(0);
-    fmd->mProtoFmd.set_filecxerror(0);
-    fmd->mProtoFmd.clear_stripeerror();
+    if (clear_stripe_err) {
+      fmd->mProtoFmd.clear_stripeerror();
+    } else {
+      fmd->mProtoFmd.set_layouterror(0);
+      fmd->mProtoFmd.set_blockcxerror(0);
+      fmd->mProtoFmd.set_filecxerror(0);
+    }
+
     Commit(fmd.get());
   }
 }
