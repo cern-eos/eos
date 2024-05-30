@@ -211,16 +211,16 @@ def build_gridmap_file(users_dn, account, ifile, ofile, lgridmap, grid_map = {})
 
     # Override with local gridmap entries if any
     if lgridmap:
-        try:
-            with open(lgridmap, "r", encoding='unicode_escape') as lgridmap_file:
-                for l in lgridmap_file.readlines():
-                    if l.strip() and not l.startswith('#'):
-                        logging.debug(f"Processing {l}")
-                        dn, acc = l.rsplit(' ',1)
-                        grid_map[dn] = acc.strip()
-        except FileNotFoundError as e:
-            logging.error(f"Unable to read {lgridmap}, ignoring it's content...")
-            exit(4)
+        for lfile in lgridmap.split(","):
+            try:
+                with open(lfile.strip(), "r", encoding='unicode_escape') as lgridmap_file:
+                    logging.debug(f"Processing {lfile}")
+                    for l in lgridmap_file.readlines():
+                        if l.strip() and not l.startswith('#'):
+                            dn, acc = l.rsplit(' ',1)
+                            grid_map[dn] = acc.strip()
+            except FileNotFoundError as e:
+                logging.error(f"Unable to read {lfile}, ignoring it's content...")
 
 
     content = '\n'.join(f'{dn} {acc}' for dn, acc in grid_map.items())
@@ -399,7 +399,7 @@ $ eos-iam-mapfile -c iam.conf''',formatter_class=argparse.RawDescriptionHelpForm
     parser.add_argument('-t', '--targets', dest = 'targets', help = 'Target specific IAM servers defined in the configuration file (must be used together with -c)')
     parser.add_argument('-i', '--inputfile', dest = 'ifile', default=None, help = "Path to existing gridmapfile to be updated (matching DN's will be overwritten)")
     parser.add_argument('-o', '--outfile', dest = 'ofile', default=None, help = 'Path to dump gridmapfile')
-    parser.add_argument('-l', '--localgridmap', dest = 'lgridmap', default = None, help = 'Path to local gridmap file')
+    parser.add_argument('-l', '--localgridmap', dest = 'lgridmap', default = None, help = 'Path to local gridmap file, supports comma separated (no space) list of files (Will override any previous mappings encountered in order)')
     parser.add_argument('-a', '--account', dest = 'account', help = 'Account to which the result from the match should be mapped to')
     parser.add_argument('-p', '--pattern', type=str, dest = 'pattern', default=None, help = 'Pattern to search on user certificates `subject DN` field')
     parser.add_argument('-C','--case-sensitive', dest='sensitive',action='store_const', const=0, default=re.IGNORECASE, help = 'Makes the regex pattern (-p) to be case sensitive')
