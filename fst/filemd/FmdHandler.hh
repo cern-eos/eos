@@ -246,10 +246,12 @@ public:
   //!
   //! @param fid file identifier
   //! @param fsid file system id
-  //!
+  //! @param clear_stripe_err if true then clear only stripe errors otherwise,
+  //!        clear all the others
   //----------------------------------------------------------------------------
   void ClearErrors(eos::common::FileId::fileid_t fid,
-                   eos::common::FileSystem::fsid_t fsid);
+                   eos::common::FileSystem::fsid_t fsid,
+                   bool clear_stripe_err);
 
   //----------------------------------------------------------------------------
   //! Resync a single entry from disk
