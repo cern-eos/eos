@@ -181,36 +181,35 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
   std::string in_opaque = (opaque ? opaque : "");
   in_opaque += "&mgm.path=";
   in_opaque += mNsPath.c_str();
-  //----------------------------------------------------------------------------
-  // @todo (esindril): This should be dropped after Sept 2018 since it's
-  // just a temporary fix for an issue on the eos fuse.
-  //----------------------------------------------------------------------------
-  FilterTagsInPlace(in_opaque, {"xrdcl.secuid", "xrdcl.secgid"});
   // Process TPC information - after this mOpenOpaque and mCapOpaque will be
   // properly populated and decrypted.
   int tpc_retc = ProcessTpcOpaque(in_opaque, client);
 
   if (tpc_retc == SFS_ERROR) {
-    eos_err("%s", "msg=\"failed while processing TPC/open opaque\"");
+    eos_err("msg=\"failed while processing TPC/open opaque\" "
+            "path=\"%s\"", path);
     return SFS_ERROR;
   } else if (tpc_retc >= SFS_STALL) {
     return tpc_retc; // this is stall time in seconds
   }
 
   if (ProcessOpenOpaque()) {
-    eos_err("%s", "msg=\"failed while processing open opaque info\"");
+    eos_err("msg=\"failed while processing open opaque info\" "
+            "path=\"%s\"", path);
     return SFS_ERROR;
   }
 
   eos::common::VirtualIdentity vid;
 
   if (ProcessCapOpaque(isRepairRead, vid)) {
-    eos_err("%s", "msg=\"failed while processing cap opaque info\"");
+    eos_err("msg=\"failed while processing cap opaque info\" "
+            "path=\"%s\"", path);
     return SFS_ERROR;
   }
 
   if (ProcessMixedOpaque()) {
-    eos_err("%s", "msg=\"failed while processing mixed opaque info\"");
+    eos_err("msg=\"failed while processing mixed opaque info\" "
+            "path=\"%s\"", path);
     return SFS_ERROR;
   }
 
@@ -219,7 +218,7 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
   // the distinction between an open for write and open for recovery
   if (mCapOpaque && (val = mCapOpaque->Get("mgm.rain.store"))) {
     if (strncmp(val, "1", 1) == 0) {
-      eos_info("%s", "msg=\"enabling RAIN store recovery\"");
+      eos_info("msg=\"enabling RAIN store recovery\" fxid=%08llx", mFileId);
       open_mode = SFS_O_RDWR;
       mRainReconstruct = true;
       mHasWrite = true;
@@ -232,7 +231,8 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
           // ignore
         }
       } else {
-        eos_warning("%s", "msg=\"unknown RAIN file size during reconstruction\"");
+        eos_warning("msg=\"unknown RAIN file size during reconstruction\" "
+                    "fxid=%08llx", mFileId);
       }
     }
   }
@@ -249,7 +249,7 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
       return SFS_OK;
     } else {
       eos_info("%s", "msg=\"sink file i.e. /dev/null can only be opened for RW\"");
-      return gOFS.Emsg(epname, error, EIO, "open - sink file can only be "
+      return gOFS.Emsg(epname, error, EIO, "open -bn sink file can only be "
                        "opened RW mode", mNsPath.c_str());
     }
   }
@@ -259,7 +259,7 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
 
   if (mNsPath.beginswith("/replicate:")) {
     if (gOFS.openedForWriting.isOpen(mFsId, mFileId)) {
-      eos_err("msg=\"forbid replica open, file %s opened in RW mode",
+      eos_err("msg=\"forbid replica open, file %s opened in RW mode\"",
               mNsPath.c_str());
       return gOFS.Emsg(epname, error, ETXTBSY, "open - cannot replicate: file "
                        "is opened in RW mode", mNsPath.c_str());
@@ -271,8 +271,8 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
   // Check if this is an open for HTTP
   if ((!mIsRW) && ((std::string(client->tident) == "http"))) {
     if (gOFS.openedForWriting.isOpen(mFsId, mFileId)) {
-      eos_err("msg=\"forbid replica open for synchronization,file %s opened "
-              "in RW mode", mNsPath.c_str());
+      eos_err("msg=\"forbid replica open for synchronization, file %s "
+              "opened in RW mode\"", mNsPath.c_str());
       return gOFS.Emsg(epname, error, ETXTBSY, "open - cannot synchronize "
                        "file opened in RW mode", mNsPath.c_str());
     }
@@ -295,7 +295,7 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
 
   if ((mRainReconstruct && (mTpcFlag == kTpcSrcCanDo)) ||
       (mTpcFlag == kTpcSrcSetup)) {
-    eos_info("%s", "msg=kTpcSrcSetup return SFS_OK");
+    eos_info("msg=\"kTpcSrcSetup return SFS_OK\" fxid=%08llx", mFileId);
     return SFS_OK;
   }
 
@@ -327,16 +327,19 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
       updateStat.st_mtime = 0;
       open_mode |= SFS_O_CREAT;
       create_mode |= SFS_O_MKPTH;
-      eos_debug("adding creation flag because of %d %d", retc, errno);
+      eos_debug("msg=\"adding creation flag\" retc=%d errno=%d fxid=%08llx",
+                retc, errno, mFileId);
     } else {
       // The open will fail but the client will get a recoverable error,
       // therefore it will try to read again from the other replicas.
-      eos_warning("open for read, local file does not exists");
+      eos_warning("msg=\"open for read, local file does not exists\" "
+                  "fxid=%08llx path=\"%s\"", mFileId, mFstPath.c_str());
       return gOFS.Emsg(epname, error, ENOENT, "open, file does not exist ",
                        mCapOpaque->Env(envlen));
     }
   } else {
-    eos_debug("removing creation flag because of %d %d", retc, errno);
+    eos_debug("msg=\"removing creation flag\" retc=%d errno=%d fxid=%08llx",
+              retc, errno, mFileId);
 
     // Remove the creat flag
     if (open_mode & SFS_O_CREAT) {
@@ -394,7 +397,8 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
 
   if (mCapOpaque->Get("mgm.iobw")) {
     mBandwidth = strtoull(mCapOpaque->Get("mgm.iobw"), 0, 10);
-    eos_info("msg=\"bandwidth limited\" bw=%d", mBandwidth);
+    eos_info("msg=\"bandwidth limited\" bw=%d, fxid=%08llx",
+             mBandwidth, mFileId);
   }
 
   // Bookingsize is only needed for file creation
@@ -424,26 +428,27 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
                          "open - invalid targetsize in capability", mNsPath.c_str());
       }
     }
-  }
 
-  // Check if the booking size violates the min/max-size criteria
-  if (mBookingSize && mMaxSize) {
-    if (mBookingSize > mMaxSize) {
-      eos_err("invalid bookingsize specified - violates maximum file size criteria");
-      return gOFS.Emsg(epname, error, ENOSPC, "open - bookingsize violates "
-                       "maximum allowed filesize", mNsPath.c_str());
+    // Check if the booking size violates the min/max-size criteria
+    if (mBookingSize && mMaxSize) {
+      if (mBookingSize > mMaxSize) {
+        eos_err("invalid bookingsize specified - violates maximum file size criteria");
+        return gOFS.Emsg(epname, error, ENOSPC, "open - bookingsize violates "
+                         "maximum allowed filesize", mNsPath.c_str());
+      }
     }
-  }
 
-  if (mBookingSize && mMinSize) {
-    if (mBookingSize < mMinSize) {
-      eos_err("invalid bookingsize specified - violates minimum file size criteria");
-      return gOFS.Emsg(epname, error, ENOSPC, "open - bookingsize violates "
-                       "minimum allowed filesize", mNsPath.c_str());
+    if (mBookingSize && mMinSize) {
+      if (mBookingSize < mMinSize) {
+        eos_err("invalid bookingsize specified - violates minimum file size criteria");
+        return gOFS.Emsg(epname, error, ENOSPC, "open - bookingsize violates "
+                         "minimum allowed filesize", mNsPath.c_str());
+      }
     }
   }
 
   if (gOFS.mSimFmdOpenErr) {
+    eos_warning("msg=\"simulate FMD open error\" fxid=%08llx", mFileId);
     return gOFS.Emsg(epname, error, ENOENT, "open - no FMD record found, "
                      "simulated error");
   }
@@ -512,7 +517,7 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
   }
 
   // Open layout implementation
-  eos_info("fst_path=%s open-mode=%x create-mode=%x layout-name=%s oss-opaque=%s",
+  eos_info("path=%s open-mode=%x create-mode=%x layout-name=%s oss-opaque=%s",
            mFstPath.c_str(), open_mode, create_mode, mLayout->GetName(),
            oss_opaque.c_str());
   COMMONTIMING("layout::open", &tm);
@@ -550,8 +555,8 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
 
       if ((rc = gOFS.mFmdHandler->ResyncDisk(mFstPath.c_str(), mFsId, false, 0,
                                              dummy_xs))) {
-        eos_err("msg=\"failed to resync from disk\" fsid=%lu fxid=%llx path=%s rc=%d",
-                mFsId, mFileId, mFstPath.c_str(), rc);
+        eos_err("msg=\"failed to resync from disk\" fsid=%lu fxid=%llx "
+                "path=%s rc=%d", mFsId, mFileId, mFstPath.c_str(), rc);
       } else {
         eos_info("msg=\"resync from disk\" path=%s", mFstPath.c_str());
       }
@@ -564,7 +569,9 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
     eos_err("msg=\"no FMD record found\" fsid=%lu fxid=%08llx", mFsId, mFileId);
 
     if ((!mIsRW) || (mLayout->IsEntryServer() && (!isReplication))) {
-      eos_warning("failed to get FMD record return recoverable error ENOENT(kXR_NotFound)");
+      eos_warning("msg=\"failed to get FMD record\" fsid=%lu fxid=%08llx "
+                  "path=\"%s\" rc=ENOENT(kXR_NotFound)", mFsId, mFileId,
+                  mFstPath.c_str());
 
       if (hasCreationMode && !mRainReconstruct && !mIsInjection) {
         // clean-up before re-bouncing
@@ -635,7 +642,8 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
       if (mLayout->IsEntryServer() && (!isReplication)) {
         writeErrorFlag = kOfsDiskFullError;
         mLayout->Remove();
-        eos_warning("not enough space return recoverable error ENODEV(kXR_FSError)");
+        eos_warning("msg=\"not enough space\" fsid=%lu fxid=%08llx "
+                    "rc=ENODEV(kXR_FSError)", mFsId, mFileId);
 
         if (hasCreationMode && !mRainReconstruct && !mIsInjection) {
           // clean-up before re-bouncing
@@ -655,14 +663,13 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
     COMMONTIMING("layout::fallocated", &tm);
 
     if (rc) {
-      eos_crit("msg=\"file allocation failed\" retc=%d errno=%d size=%llu",
-               rc, errno, mBookingSize);
+      eos_crit("msg=\"file allocation failed\" fsid=%lu fxid=%08llx retc=%d "
+               "errno=%d size=%llu", mFsId, mFileId, rc, errno, mBookingSize);
 
       if (mLayout->IsEntryServer() && (!isReplication)) {
         mLayout->Remove();
-        eos_warning("msg=\"not enough space i.e file allocation failed, return "
-                    "recoverable error ENODEV(kXR_FSError)\" fxid=%08llx",
-                    mFileId);
+        eos_warning("msg=\"not enough space, file allocation failed\" fsid=%lu "
+                    "fxid=%08llx rc=ENODEV(kXR_FSError", mFsId, mFileId);
 
         if (hasCreationMode && !mRainReconstruct && !mIsInjection) {
           // clean-up before re-bouncing
@@ -681,9 +688,7 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
 
   if (isCreation) {
     gOFS.mFmdHandler->Commit(mFmd.get());
-  }
-
-  if (!isCreation) {
+  } else {
     COMMONTIMING("layout::stat", &tm);
     // Get the real size of the file, not the local stripe size!
     struct stat statinfo {};
@@ -694,8 +699,8 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
     }
 
     // We feed the layout size, not the physical on disk!
-    eos_info("msg=\"layout size\" disk_size=%zu db_size= %llu",
-             statinfo.st_size, mFmd->mProtoFmd.size());
+    eos_info("msg=\"layout size\" fxid=%08llx disk_size=%zu db_size= %llu",
+             mFileId, statinfo.st_size, mFmd->mProtoFmd.size());
     openSize = mFmd->mProtoFmd.size();
     mWritePosition = openSize;
 
@@ -711,8 +716,8 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
 
     // Preset with the last known checksum
     if (mCheckSum && mIsRW && !IsChunkedUpload()) {
-      eos_info("msg=\"checksum reset init\" file-xs=%s",
-               mFmd->mProtoFmd.checksum().c_str());
+      eos_info("msg=\"checksum reset init\" fxid=%08llx file-xs=%s",
+               mFileId, mFmd->mProtoFmd.checksum().c_str());
       mCheckSum->ResetInit(0, openSize, mFmd->mProtoFmd.checksum().c_str());
     }
   }
@@ -720,8 +725,8 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
   // For RAIN layouts we enable full file checksum only at the entry server for
   // write operations. For the rest of the cases we rely on the block and parity
   // checking.
-  if (eos::common::LayoutId::IsRain(mLid) && !(mIsRW &&
-      mLayout->IsEntryServer())) {
+  if (eos::common::LayoutId::IsRain(mLid) &&
+      !(mIsRW && mLayout->IsEntryServer())) {
     mCheckSum.reset(nullptr);
   }
 
@@ -748,15 +753,12 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
         eos_err("unable to set extended attribute <eos.lfn> errno=%d", errno);
       }
     }
-  }
-
-  // For reading of replica file check for xs errors
-  if (!mIsRW) {
-    if ((eos::common::LayoutId::GetLayoutType(mLid) ==
-         eos::common::LayoutId::kReplica) &&
+  } else {
+    // For reading of replica file check for xs errors
+    if (eos::common::LayoutId::IsReplica(mLid) &&
         gOFS.mFmdHandler->FileHasXsError(mLayout->GetLocalReplicaPath(), mFsId)) {
-      eos_err("msg=\"open failed due to checksum mismatch\" path=%s",
-              mNsPath.c_str());
+      eos_err("msg=\"open failed due to checksum mismatch\" fxid=%08llx "
+              "path=\"%s\"", mFileId, mNsPath.c_str());
       return gOFS.Emsg(epname, error, EIO, "open - replica checksum mismatch",
                        mNsPath.c_str());
     }
@@ -774,14 +776,14 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
   COMMONTIMING("end", &tm);
   timeToOpen = tm.RealTime();
 
-  // report slow open as errors if longer than 1000ms
+  // Report slow open as errors if longer than 1000ms
   if (timeToOpen > 1000) {
-    eos_err("slow open operation: open-duration=%.03fms path='%s' fxid=%08llx %s",
-            timeToOpen,
-            mNsPath.c_str(), mFileId, tm.Dump().c_str());
+    eos_err("msg=\"slow open operation\" open-duration=%.03fms fxid=%08llx "
+            "path=\"%s\" %s", timeToOpen, mFileId, mNsPath.c_str(),
+            tm.Dump().c_str());
   }
 
-  eos_info("open-duration=%.03fms path='%s' fxid=%08llx %s", timeToOpen,
+  eos_info("open-duration=%.03fms path=\"%s\" fxid=%08llx %s", timeToOpen,
            mNsPath.c_str(), mFileId, tm.Dump().c_str());
   return SFS_OK;
 }
@@ -795,16 +797,6 @@ XrdFstOfsFile::read(XrdSfsFileOffset fileOffset, XrdSfsXferSize amount)
   int rc = XrdOfsFile::read(fileOffset, amount);
   eos_debug("rc=%d offset=%lu size=%llu", rc, fileOffset, amount);
   return rc;
-}
-
-//------------------------------------------------------------------------------
-// Read AIO - not supported
-//------------------------------------------------------------------------------
-int
-XrdFstOfsFile::read(XrdSfsAio* aioparm)
-{
-  return gOFS.Emsg("read_aio", error, ENOTSUP, "read aio - operation not "
-                   "supported");
 }
 
 //------------------------------------------------------------------------------
@@ -943,15 +935,6 @@ XrdFstOfsFile::pgRead(XrdSfsFileOffset offset, char* buffer,
   return bytes;
 }
 
-//------------------------------------------------------------------------------
-// Read file pages and checksums using asynchronous I/O - NOT SUPPORTED
-//------------------------------------------------------------------------------
-int
-XrdFstOfsFile::pgRead(XrdSfsAio* aioparm, uint64_t opts)
-{
-  return gOFS.Emsg("pgRead_aio", error, ENOTSUP, "pgRead aio - operation not "
-                   "supported");
-}
 
 //------------------------------------------------------------------------------
 // Vector read
@@ -1006,11 +989,11 @@ XrdFstOfsFile::readv(XrdOucIOVec* readV, int readCount)
     }
   }
 
-  if (rv<0) {
+  if (rv < 0) {
     eos_crit("readv error=%d cnt=%d file=%s", rv, readCount, FName());
     hasReadError = true;
   }
-  
+
   AddLayoutReadVTime();
   return rv;
 }
@@ -1025,7 +1008,8 @@ XrdFstOfsFile::write(XrdSfsFileOffset fileOffset, const char* buffer,
   gettimeofday(&wStart, &tz);
 
   if (gOFS.mSimUnresponsive) {
-    eos_warning("simulating unresponsiveness in write delaying by 120s");
+    eos_warning("msg=\"simulate unresponsive write, delay by 120s\" "
+                "fxid=%08llx", mFileId);
     std::this_thread::sleep_for(std::chrono::seconds(120));
   }
 
@@ -1108,8 +1092,7 @@ XrdFstOfsFile::write(XrdSfsFileOffset fileOffset, const char* buffer,
   // only for replica layouts and not for FuseX clients
   if ((rc < 0) && isCreation && (!mFusex) &&
       (mLayout->GetErrObj()->getErrInfo() == EREMOTEIO) &&
-      (eos::common::LayoutId::GetLayoutType(mLid) ==
-       eos::common::LayoutId::kReplica)) {
+      eos::common::LayoutId::IsReplica(mLid)) {
     repairOnClose = true;
     rc = buffer_size;
   }
@@ -1216,16 +1199,6 @@ XrdFstOfsFile::write(XrdSfsFileOffset fileOffset, const char* buffer,
   return rc;
 }
 
-//------------------------------------------------------------------------------
-// Write AIO - no supported
-//------------------------------------------------------------------------------
-int
-XrdFstOfsFile::write(XrdSfsAio* aioparm)
-{
-  return gOFS.Emsg("write_aio", error, ENOTSUP, "write aio - operation not "
-                   "supported");
-}
-
 //----------------------------------------------------------------------------
 //! Write file pages into a file with corresponding checksums.
 //----------------------------------------------------------------------------
@@ -1251,16 +1224,6 @@ XrdFstOfsFile::pgWrite(XrdSfsFileOffset offset, char* buffer,
   }
 
   return write(offset, buffer, wrlen);
-}
-
-//------------------------------------------------------------------------------
-// Write file pages and checksums using asynchronous I/O - NOT SUPPORTED
-//------------------------------------------------------------------------------
-int
-XrdFstOfsFile::pgWrite(XrdSfsAio* aioparm, uint64_t opts)
-{
-  return gOFS.Emsg("pgWrite_aio", error, ENOTSUP, "pgWrite aio - operation not "
-                   "supported");
 }
 
 //------------------------------------------------------------------------------
@@ -1384,16 +1347,6 @@ XrdFstOfsFile::sync()
 }
 
 //------------------------------------------------------------------------------
-// Sync AIO - no supported
-//------------------------------------------------------------------------------
-int
-XrdFstOfsFile::sync(XrdSfsAio* aiop)
-{
-  return gOFS.Emsg("sync_aio", error, ENOTSUP, "sync aio - operation not "
-                   "supported");
-}
-
-//------------------------------------------------------------------------------
 // Truncate file
 //------------------------------------------------------------------------------
 int
@@ -1435,7 +1388,8 @@ XrdFstOfsFile::close()
   gettimeofday(&closeStart, &tz);
 
   if (gOFS.mSimUnresponsive) {
-    eos_warning("%s", "msg=\"simulating unresponsiveness unsing 120s delay\"");
+    eos_warning("msg=\"simulate unresponsive close, delay by 120s\" "
+                "fxid=%08llx", mFileId);
     std::this_thread::sleep_for(std::chrono::seconds(120));
   }
 
@@ -1454,7 +1408,7 @@ XrdFstOfsFile::close()
   // callback (SFS_STARTED). This only happens for written files with size
   // bigger than min size bytes.
   eos_info("msg=\"close delegated to async thread\" fxid=%08llx "
-           "ns_path=\"%s\" fs_path=\"%s\"", mFileId, mNsPath.c_str(),
+           "path=\"%s\" fst_path=\"%s\"", mFileId, mNsPath.c_str(),
            mFstPath.c_str());
   // Create a close callback and put the client in waiting mode
   auto closeCb = std::make_shared<XrdOucCallBack>();
@@ -1643,13 +1597,13 @@ XrdFstOfsFile::_close()
       // ---- add error simulation for checksum errors on read
       if ((!mIsRW) && gOFS.mSimXsReadErr) {
         checksumerror = true;
-        eos_warning("%s", "msg=\"simulating checksum errors on read\"");
+        eos_warning("msg=\"simulate read xs error\" fxid=%08llx", mFileId);
       }
 
       // ---- add error simulation for checksum errors on write
       if (mIsRW && gOFS.mSimXsWriteErr) {
         checksumerror = true;
-        eos_warning("%s", "msg=\"simulating checksum errors on write\"");
+        eos_warning("msg=\"simulate write xs error\" fxid=%08llx", mFileId);
       }
 
       if (mIsRW && (checksumerror || targetsizeerror || minimumsizeerror)) {
@@ -1940,6 +1894,7 @@ XrdFstOfsFile::_close()
 
     if (gOFS.mSimCloseErr) {
       // simulate an error during the close call
+      eos_warning("msg=\"simulate close error\" fxid=%08llx", mFileId);
       closerc = 1;
     }
 
@@ -2351,6 +2306,7 @@ XrdFstOfsFile::readofs(XrdSfsFileOffset fileOffset, char* buffer,
   if (gOFS.mSimIoReadErr) {
     if ((gOFS.mSimErrIoReadOff == 0) ||
         (gOFS.mSimErrIoReadOff <= (uint64_t)fileOffset)) {
+      eos_warning("msg=\"simulate read IO error\" fxid=%08llx", mFileId);
       return gOFS.Emsg("readofs", error, EIO, "read file - simulated IO error fn=",
                        mNsPath.c_str());
     }
@@ -2430,6 +2386,7 @@ XrdFstOfsFile::writeofs(XrdSfsFileOffset fileOffset, const char* buffer,
     if ((gOFS.mSimErrIoWriteOff == 0) ||
         (gOFS.mSimErrIoWriteOff <= (uint64_t)fileOffset)) {
       writeErrorFlag = kOfsSimulatedIoError;
+      eos_warning("msg=\"simulate write IO error\" fxid=%08llx", mFileId);
       return gOFS.Emsg("writeofs", error, EIO, "write file - simulated IO error fn=",
                        mNsPath.c_str());
     }
@@ -2493,7 +2450,9 @@ XrdFstOfsFile::writeofs(XrdSfsFileOffset fileOffset, const char* buffer,
   }
 
   if (gOFS.mSimDiskWriting) {
-    // don't write to the disks
+    // Simulate disk writing by only truncating
+    eos_warning("msg=\"simulate disk writing - do truncate\" fxid=%08llx",
+                mFileId);
     XrdFstOfsFile::truncateofs(fileOffset);
     rc = buffer_size;
   } else {
@@ -3593,12 +3552,12 @@ XrdFstOfsFile::VerifyChecksum()
                    1.0 * scansize / 1000 / (scantime ? scantime : 99999999999999LL),
                    mCheckSum->GetHexChecksum());
         } else {
-          eos_err("Rescanning of checksum failed");
+          eos_err("msg=\"checksum rescanning failed\" fxid=%08llx", mFileId);
           mCheckSum.reset(nullptr);
           return false;
         }
       } else {
-        eos_err("Couldn't get file descriptor");
+        eos_err("msg=\"failed to get file descriptor\" fxid=%08llx", mFileId);
         mCheckSum.reset(nullptr);
         return false;
       }
@@ -3614,9 +3573,11 @@ XrdFstOfsFile::VerifyChecksum()
     }
 
     if (mIsRW) {
-      eos_info("(write) checksum type: %s checksum hex: %s requested-checksum hex: %s",
-               mCheckSum->GetName(), mCheckSum->GetHexChecksum(),
-               mOpenOpaque->Get("mgm.checksum") ? mOpenOpaque->Get("mgm.checksum") : "-none-");
+      eos_info("(write) checksum type=\"%s\" checksum hex=\"%s\" "
+               "requested-checksum hex=\"%s\"", mCheckSum->GetName(),
+               mCheckSum->GetHexChecksum(),
+               mOpenOpaque->Get("mgm.checksum") ?
+               mOpenOpaque->Get("mgm.checksum") : "-none-");
 
       // Check if the check sum for the file was given at upload time
       if (mOpenOpaque->Get("mgm.checksum")) {
@@ -3641,29 +3602,30 @@ XrdFstOfsFile::VerifyChecksum()
         std::unique_ptr<eos::fst::FileIo> io(eos::fst::FileIoPlugin::GetIoObject(
                                                mFstPath.c_str(), this));
 
-        if (((eos::common::LayoutId::GetLayoutType(mLid) ==
-              eos::common::LayoutId::kPlain) ||
-             (eos::common::LayoutId::GetLayoutType(mLid) ==
-              eos::common::LayoutId::kReplica))) {
+        if (!eos::common::LayoutId::IsRain(mLid)) {
           // Don't put file checksum tags for complex layouts like raid6,readdp, archive
           if (io->attrSet(std::string("user.eos.checksumtype"),
                           std::string(mCheckSum->GetName()))) {
-            eos_err("unable to set extended attribute <eos.checksumtype> errno=%d", errno);
+            eos_err("msg=\"unable to set extended attr <eos.checksumtype>\" "
+                    "fxid=%08llx errno=%d", mFileId, errno);
           }
 
           if (io->attrSet("user.eos.checksum", mCheckSum->GetBinChecksum(checksumlen),
                           checksumlen)) {
-            eos_err("unable to set extended attribute <eos.checksum> errno=%d", errno);
+            eos_err("msg=\"unable to set extended attr <eos.checksum> \" "
+                    "fxid=%08llx errno=%d", mFileId, errno);
           }
         }
 
         // Reset any tagged error
         if (io->attrSet("user.eos.filecxerror", "0")) {
-          eos_err("unable to set extended attribute <eos.filecxerror> errno=%d", errno);
+          eos_err("msg=\"unable to set extended attr <eos.filecxerror>\" "
+                  "fxid=%08llx errno=%d", mFileId, errno);
         }
 
         if (io->attrSet("user.eos.blockcxerror", "0")) {
-          eos_err("unable to set extended attribute <eos.blockcxerror> errno=%d", errno);
+          eos_err("msg=\"unable to set extended attr <eos.blockcxerror>\" "
+                  "fxid=%08llx errno=%d", mFileId, errno);
         }
       }
     } else {
@@ -3671,7 +3633,8 @@ XrdFstOfsFile::VerifyChecksum()
       bool isopenforwrite = gOFS.openedForWriting.isOpen(mFsId, mFileId);
 
       if (isopenforwrite) {
-        eos_info("%s", "msg=\"read disable checksum check, file being written");
+        eos_info("msg=\"read disable checksum check, file being written\" "
+                 "fxid=%08llx", mFileId);
         return false;
       }
 
@@ -4283,5 +4246,57 @@ XrdFstOfsFile::GetAsyncCloseMinSize()
 
   return min_size_async_close;
 }
+
+
+//----------------------------------------------------------------------------
+// Read AIO - not supported
+//----------------------------------------------------------------------------
+int
+XrdFstOfsFile::read(XrdSfsAio* aioparm)
+{
+  return gOFS.Emsg("read_aio", error, ENOTSUP, "read aio - operation not "
+                   "supported");
+}
+
+//----------------------------------------------------------------------------
+// Read file pages and checksums using asynchronous I/O - no supported
+//-----------------------------------------------------------------------------
+int
+XrdFstOfsFile::pgRead(XrdSfsAio* aioparm, uint64_t opts)
+{
+  return gOFS.Emsg("pgRead_aio", error, ENOTSUP, "pgRead aio - operation not "
+                   "supported");
+}
+
+//----------------------------------------------------------------------------
+// Write AIO - no supported
+//----------------------------------------------------------------------------
+int
+XrdFstOfsFile::write(XrdSfsAio* aioparm)
+{
+  return gOFS.Emsg("write_aio", error, ENOTSUP, "write aio - operation not "
+                   "supported");
+}
+
+//----------------------------------------------------------------------------
+// Write file pages and checksums using asynchronous I/O - not supported
+//----------------------------------------------------------------------------
+int
+XrdFstOfsFile::pgWrite(XrdSfsAio* aioparm, uint64_t opts)
+{
+  return gOFS.Emsg("pgWrite_aio", error, ENOTSUP, "pgWrite aio - operation not "
+                   "supported");
+}
+
+//------------------------------------------------------------------------------
+// Sync AIO - not supported
+//------------------------------------------------------------------------------
+int
+XrdFstOfsFile::sync(XrdSfsAio* aiop)
+{
+  return gOFS.Emsg("sync_aio", error, ENOTSUP, "sync aio - operation not "
+                   "supported");
+}
+
 
 EOSFSTNAMESPACE_END

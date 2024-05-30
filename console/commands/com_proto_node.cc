@@ -79,7 +79,7 @@ void com_node_help()
       << "\t            fake_write          : do not really write data to disk\n"
       << "\t            close               : return an error on close\n"
       << "\t            unresponsive        : emulate a write/close request taking 2 minutes\n"
-      << "\t            <none>              : disable error simulation (every value than the previous ones are fine!)\n"
+      << "\t            <none>              : disable error simulation (any value other than the previous ones is fine!)\n"
       << "\t    <key> : publish.interval=<sec> - set the filesystem state publication interval to <sec> seconds\n"
       << "\t    <key> : debug.level=<level> - set the node into debug level <level> [default=notice] -> see debug --help for available levels\n"
       << "\t    <key> : for other keys see help of 'fs config' for details\n"
