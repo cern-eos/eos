@@ -32,7 +32,7 @@ import argparse
 from sys import exit
 from os import getenv
 from urllib import request, parse
-from configparser import ConfigParser
+from configparser import ConfigParser, DEFAULTSECT
 from datetime import datetime, timedelta
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
@@ -237,19 +237,19 @@ def build_gridmap_file(users_dn, account, ifile, ofile, lgridmap, grid_map = {})
     return grid_map
 
 
-def configure(credentials, servers, targets):
+def configure_servers(credentials, servers, targets, account):
 
     # First level of configuration - file
     iam_servers = list()
 
-    # Second configuration stage is to load environment variable configuration
-    envconf = zip(getenv('EOS_IAM_SERVER','').splitlines(),
-                  getenv('EOS_IAM_CLIENT_ID','').splitlines(),
-                  getenv('EOS_IAM_CLIENT_SECRET','').splitlines())
     # First configuration stage is to use command args
-    for server, client_id, client_secret in servers or envconf:
-        logging.debug(f'Adding iam_server {server} from env')
-        iam_servers.append(IAM_Server(server, client_id, client_secret))
+    if servers:
+        if not account:
+            logging.error('servers configured via cli, but no account configured, exiting!')
+            exit(3)
+        for server, client_id, client_secret in servers:
+            logging.debug(f'Adding iam_server {server} from cli')
+            iam_servers.append(IAM_Server(server, client_id, client_secret, server, account))
 
     # Third option is to rely on configuration file
     #[<iam server hostname>]
@@ -266,6 +266,9 @@ def configure(credentials, servers, targets):
                 it = config.sections()
 
             for section in it:
+                if section == DEFAULTSECT:
+                    continue
+
                 server = section
                 client_id = config.get(section,'client-id')
                 client_secret = config.get(section,'client-secret')
@@ -281,7 +284,7 @@ def configure(credentials, servers, targets):
     if len(iam_servers):
         return iam_servers
     else:
-        logging.error('Configuration problem! Configuration file not loaded (correctly?), environment not set or arguments not passed.\n\tSet EOS_IAM_SERVER, EOS_IAM_CLIENT_ID, EOS_IAM_CLIENT_SECRET.')
+        logging.error('Configuration problem! Configuration file not loaded (correctly?) or arguments not passed.')
         exit(3)
 
 
@@ -295,65 +298,6 @@ def cleanup_files(fname, count):
             logging.warn(f"Skipping non existent {f}")
         except Exception as e:
             logging.error(f"Failed deletion {f}: {e}")
-
-
-def main(server = None, credentials=None, targets = None, account=None, ifile=None,
-         ofile=None, lgridmap = None, pattern=None, sensitive=re.IGNORECASE, debug_level=logging.WARNING,
-         prefer_cern=False, type_of_format="GRIDMAP", cleanup=False):
-    """
-    Configure IAM servers to be queried, update/write gridmap file format
-    """
-
-    logging.basicConfig(level=debug_level)
-    try:
-        pattern = re.compile(pattern, flags=sensitive)
-    except:
-        if pattern is not None:
-            logging.critical(f'Pattern provided cannot be compiled: {pattern}')
-            exit(1)
-
-    iam_servers = configure(credentials, server, targets)
-
-    # Query IAM server
-    count = 0
-    temp_outfile = ""
-    mapped_account = account
-    grid_map = dict()
-    for iam in iam_servers:
-        # start with an empty user set for each IAM endpoint, we retain the
-        # grid map which will maintain the correct account mapping
-        users = set()
-
-        if type_of_format == "GRIDMAP":
-            users.update(iam.get_users(count=100, filter_function=dn_filter,
-                                       pattern=pattern,
-                                       prefer_cern=prefer_cern))
-        elif type_of_format == "MAPFILE":
-            users.update(iam.get_users(count=100, filter_function=name_map_filter))
-
-        if ofile:
-            temp_outfile = "{}.{}".format(ofile,count)
-        if iam.account:
-            mapped_account = iam.account
-
-        if not mapped_account:
-            logging.warn(f"Skipping {iam.server} as no explicit mapping via args or config")
-            continue
-
-        logging.debug(f"Generating temporary {temp_outfile} for {iam.server}:{mapped_account}")
-
-        if type_of_format == "GRIDMAP":
-            grid_map = build_gridmap_file(users, mapped_account, ifile, temp_outfile, lgridmap, grid_map)
-        elif type_of_format == "MAPFILE":
-            build_namemap_file(users, mapped_account, ifile, outfile)
-        count += 1
-
-    if temp_outfile and ofile:
-        logging.debug(f"Renaming {temp_outfile} to {ofile}")
-        os.rename(temp_outfile, ofile)
-
-        if cleanup:
-            cleanup_files(ofile, count-1)
 
 def setup_filelogging(log_level, logfile):
     if not logfile:
@@ -384,19 +328,147 @@ def setup_logging(log_level=logging.WARNING, logfile=None):
             level = log_level
         )
 
+class CLIConfig:
+
+    LOG_LEVELS = {
+        'CRITICAL': logging.CRITICAL,
+        'ERROR': logging.ERROR,
+        'WARNING': logging.WARNING,
+        'INFO': logging.INFO,
+        'DEBUG': logging.DEBUG,
+        'NOTSET': logging.NOTSET,
+    }
+
+    def __init__(self, conf_file):
+        self.config = ConfigParser()
+        self.config.read(conf_file)
+
+        self.lgridmap = None
+        self.inputfile = None
+        self.outputfile = None
+        self.type_of_format = "GRIDMAP"
+        self.cleanup = False
+        self.prefer_cern = False
+        self.pattern = None
+
+    def get_option(self, option, value, fallback = None):
+        if value is not None:
+            return value
+
+        return self.config.get(DEFAULTSECT, option, fallback = fallback)
+
+    # Underlying assumption that store-true is used, ie. args.<value> will evaluate to True if set
+    def get_bool(self, option, value, fallback=False):
+        if option:
+            return True
+
+        return self.config.get_bool(DEFAULTSECT, option, fallback=fallback)
+
+    def setup(self, args):
+        """
+        Setup the CLI configuration, overriding any config option from CLI flags
+        """
+        log_file = self.get_option("log_file", args.log_file)
+        log_level = self.get_option("log_level",args.debug, "WARNING")
+        debug_level = self.LOG_LEVELS.get(log_level.upper(), logging.WARNING)
+        setup_logging(debug_level, log_file)
+
+        self.lgridmap = self.get_option("localgridmap", args.lgridmap)
+        self.inputfile = self.get_option("inputfile", args.ifile)
+        self.outputfile = self.get_option("outputfile", args.ofile)
+        self.type_of_format = self.get_option("format", args.type_of_format, "GRIDMAP")
+        self.cleanup = self.get_bool("cleanup", args.cleanup)
+
+
+        pattern = self.get_option("pattern", args.pattern)
+        if pattern:
+            flags = 0
+            if self.get_bool("case_sensitive", args.sensitive):
+                flags = re.IGNORECASE
+
+                try:
+                    self.pattern = re.compile(pattern, flags)
+                except Exception as e:
+                    logging.critical(f'Pattern provided cannot be compiled: {pattern}')
+                    exit(1)
+
+
+
+def main(conf_file = None, args = None):
+    """
+    Configure IAM servers to be queried, update/write gridmap file format
+    """
+
+    conf = CLIConfig(conf_file)
+    conf.setup(args)
+
+    iam_servers = configure_servers(conf_file, args.server, args.targets, args.account)
+
+    # Query IAM server
+    count = 0
+    temp_outfile = None
+    grid_map = dict()
+    ifile = conf.inputfile
+    ofile = conf.outputfile
+    lgridmap = conf.lgridmap
+    type_of_format = conf.type_of_format
+    for iam in iam_servers:
+        # start with an empty user set for each IAM endpoint, we retain the
+        # grid map which will maintain the correct account mapping
+        users = set()
+
+        if type_of_format == "GRIDMAP":
+            users.update(iam.get_users(count=100, filter_function=dn_filter,
+                                       pattern=conf.pattern,
+                                       prefer_cern=conf.prefer_cern))
+        elif type_of_format == "MAPFILE":
+            users.update(iam.get_users(count=100, filter_function=name_map_filter))
+
+        if ofile:
+            temp_outfile = "{}.{}".format(ofile,count)
+
+        if not iam.account:
+            logging.warn(f"Skipping {iam.server} as no explicit mapping via args or config")
+            continue
+
+        logging.debug(f"Generating temporary {temp_outfile} for {iam.server}:{iam.account}")
+
+        if type_of_format == "GRIDMAP":
+            grid_map = build_gridmap_file(users, iam.account, ifile, temp_outfile, lgridmap, grid_map)
+        elif type_of_format == "MAPFILE":
+            build_namemap_file(users, iam.account, ifile, outfile)
+        count += 1
+
+    if temp_outfile and ofile:
+        logging.debug(f"Renaming {temp_outfile} to {ofile}")
+        os.rename(temp_outfile, ofile)
+
+        if conf.cleanup:
+            cleanup_files(ofile, count-1)
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description='GRID Map file generation from IAM Server', epilog='''examples:
-$ export EOS_IAM_SERVER=atlas-auth.web.cern.ch
-$ export EOS_IAM_CLIENT_ID=...
-$ export EOS_IAM_CLIENT_SECRET=...
-$ eos-iam-mapfile -a account4user2bmapped2
-$
+    parser = argparse.ArgumentParser(description='GRID Map file generation from IAM Server', epilog='''
+    Supports a config file via -c option, cli arguments override any configuration
+
+    Takes a config file having the following syntax, cli switches override config settings, DEFAULT section is optional
+    Example config:
+    [DEFAULT]
+    verbose = WARNING
+    cleanup = True
+    localgridmap = /etc/localgridmap.conf,/etc/localgridmap2.conf
+    log-file = /var/log/eos/grid/grid.log
+    # Can be repeated as many times with different servers, we strictly override in the order of config files
+    [myiamserver1]
+    client-id = 1223
+    client-secret = 1234
+    account = acc4usermap
+    [..]
+    examples:
 $ echo -e '[myiamserver.cern.ch]\\nclient-id = 1234567890\\nclient-secret = *******\\naccount=acc4usermap' > iam.conf
 $ eos-iam-mapfile -c iam.conf''',formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument('-v', '--verbose', type = str.upper, nargs='?', const="DEBUG", default="WARNING", choices=("DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"), dest = 'debug', help = 'Control log verbosity')
+    parser.add_argument('-v', '--verbose', type = str.upper, nargs='?', const="DEBUG", default=None, choices=("DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"), dest = 'debug', help = 'Control log verbosity')
     parser.add_argument('-s', '--server', dest = 'server', nargs=3,action='append', help = 'IAM server to query with respective client key and secret (space separated)', metavar=('SERVER', 'CLIENT_ID','CLIENT_KEY'))
-    parser.add_argument('-c', '--credentidals', dest = 'credentials', help = r'Client credentials file (for API access) in the following format: `[<iam server hostname>]\nclient-id = <id>\nclient-secret = <key>`')
+    parser.add_argument('-c', '--config', dest = 'config', help = r'Client credentials file (for API access) in the following format: `[<iam server hostname>]\nclient-id = <id>\nclient-secret = <key>`')
     parser.add_argument('-t', '--targets', dest = 'targets', help = 'Target specific IAM servers defined in the configuration file (must be used together with -c)')
     parser.add_argument('-i', '--inputfile', dest = 'ifile', default=None, help = "Path to existing gridmapfile to be updated (matching DN's will be overwritten)")
     parser.add_argument('-o', '--outfile', dest = 'ofile', default=None, help = 'Path to dump gridmapfile, will dump to stdout otherwise')
@@ -411,9 +483,4 @@ $ eos-iam-mapfile -c iam.conf''',formatter_class=argparse.RawDescriptionHelpForm
 
     args = parser.parse_args()
 
-    setup_logging(eval(f"logging.{args.debug}"), args.log_file)
-
-    main(server=args.server, credentials=args.credentials, targets=args.targets,
-         ifile=args.ifile, ofile=args.ofile, lgridmap = args.lgridmap,  account=args.account, pattern=args.pattern,
-         sensitive=args.sensitive, debug_level=logging.DEBUG, prefer_cern=args.prefer_cern,
-         type_of_format=args.type_of_format, cleanup=args.cleanup)
+    main(args.config, args)
