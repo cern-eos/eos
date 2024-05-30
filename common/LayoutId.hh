@@ -460,6 +460,15 @@ public:
   }
 
   //--------------------------------------------------------------------------
+  //! Test for replica layout
+  //--------------------------------------------------------------------------
+  static bool
+  IsReplica(unsigned long layout)
+  {
+    return (GetLayoutType(layout) == kReplica);
+  }
+
+  //--------------------------------------------------------------------------
   //! Set file layout type in the layout encoding
   //!
   //! @param layout input layout encoding
