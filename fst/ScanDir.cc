@@ -609,8 +609,6 @@ ScanDir::CheckFile(const std::string& fpath)
                   "fxid=%08llx", fpath.c_str(), mFsId, fid);
       return false;
     }
-
-    gOFS.mFmdHandler->ClearErrors(fid, mFsId);
   }
 
 #endif
@@ -625,6 +623,9 @@ ScanDir::CheckFile(const std::string& fpath)
   bool scan_result = false;
 
   if (DoRescan(scan_ts_sec)) {
+#ifndef _NOOFS
+    gOFS.mFmdHandler->ClearErrors(fid, mFsId, false);
+#endif
     scan_result = ScanFile(io, fpath, fid, scan_ts_sec, info.st_mtime);
   } else {
     ++mNumSkippedFiles;
@@ -642,6 +643,7 @@ ScanDir::CheckFile(const std::string& fpath)
     io->attrGet("user.eos.rain_timestamp", scan_ts_sec);
 
     if (DoRescan(scan_ts_sec, true)) {
+      gOFS.mFmdHandler->ClearErrors(fid, mFsId, true);
       scan_result = (ScanRainFile(io, fpath, fid, scan_ts_sec) || scan_result);
     }
   }
