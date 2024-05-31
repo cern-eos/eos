@@ -322,10 +322,11 @@ XrdFstOfs::XrdFstOfs() :
   mHostName(NULL), mMqOnQdb(false), mHttpd(nullptr),
   mGeoTag("nogeotag"), mXrdBuffPool(eos::common::KB, 32 * eos::common::MB),
   mCloseThreadPool(8, 64, 5, 6, 5, "async_close"),
-  mMgmXrdPool(nullptr), mSimIoReadErr(false), mSimIoWriteErr(false),
-  mSimXsReadErr(false), mSimXsWriteErr(false), mSimFmdOpenErr(false),
-  mSimErrIoReadOff(0ull), mSimErrIoWriteOff(0ull), mSimDiskWriting(false),
-  mSimCloseErr(false), mSimUnresponsive(false)
+  mMgmXrdPool(nullptr),
+  mSimOpenTimeout(false), mSimFmdOpenErr(false), mSimIoReadErr(false),
+  mSimIoWriteErr(false), mSimXsReadErr(false), mSimXsWriteErr(false),
+  mSimErrIoReadOff(0ull), mSimErrIoWriteOff(0ull),
+  mSimDiskWriting(false), mSimCloseErr(false), mSimUnresponsive(false)
 {
   Eroute = 0;
   TransferScheduler = 0;
@@ -921,10 +922,15 @@ XrdFstOfs::Configure(XrdSysError& Eroute, XrdOucEnv* envP)
 void
 XrdFstOfs::SetSimulationError(const std::string& input)
 {
-  mSimIoReadErr = mSimIoWriteErr = mSimXsReadErr =
-                                     mSimXsWriteErr = mSimFmdOpenErr = false;
-  mSimErrIoReadOff = mSimErrIoWriteOff = 0ull;
+  mSimFmdOpenErr = mSimOpenTimeout = false;
+  mSimIoReadErr = mSimXsReadErr = false;
+  mSimIoWriteErr =  mSimXsWriteErr = false;
   mSimDiskWriting = mSimCloseErr = mSimUnresponsive = false;
+  mSimErrIoReadOff = mSimErrIoWriteOff = 0ull;
+
+  if (input.find("open_timeout") == 0) {
+    mSimOpenTimeout = true;
+  }
 
   if (input.find("io_read") == 0) {
     mSimIoReadErr = true;
