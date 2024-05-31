@@ -305,11 +305,11 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
   COMMONTIMING("layout::exists", &tm);
 
   if ((retc = mLayout->GetFileIo()->fileExists())) {
-    // We have to distinguish if an Exists call fails or return ENOENT, otherwise
-    // we might trigger an automatic clean-up of a file !!!
+    // We have to distinguish if an Exists call fails or returns ENOENT,
+    // otherwise we might trigger an automatic clean-up of a file!!!
     if (errno != ENOENT) {
-      return gOFS.Emsg(epname, error, EIO, "open - unable to check for existence"
-                       " of file ", mCapOpaque->Env(envlen));
+      return gOFS.Emsg(epname, error, EIO, "open - unable to check for "
+                       "existence of file ", mCapOpaque->Env(envlen));
     }
 
     if (mIsRW || (mCapOpaque->Get("mgm.zerosize"))) {
@@ -318,7 +318,8 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
         noAtomicVersioning = true;
       }
 
-      // File does not exist, keep the create flag for writers and readers with 0-size at MGM
+      // File does not exist, keep the create flag for writers and readers
+      // with 0-size at MGM
       mIsRW = true;
       isCreation = true;
       openSize = 0;
@@ -540,6 +541,12 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
     return gOFS.Emsg(epname, error, EIO, "open - failed open");
   }
 
+  if (gOFS.mSimOpenTimeout) {
+    eos_warning("msg=\"simulate open timeout that becomes a client error\" "
+                "fxid=%08llx", mFileId);
+    std::this_thread::sleep_for(std::chrono::seconds(120));
+  }
+
   COMMONTIMING("get::localfmd", &tm);
   mFmd = gOFS.mFmdHandler->LocalGetFmd(mFileId, mFsId, isRepairRead, mIsRW,
                                        vid.uid, vid.gid, mLid);
@@ -694,8 +701,8 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
     struct stat statinfo {};
 
     if ((retc = mLayout->Stat(&statinfo))) {
-      return gOFS.Emsg(epname, error, EIO,
-                       "open - cannot stat layout to determine file size", mNsPath.c_str());
+      return gOFS.Emsg(epname, error, EIO, "open - cannot stat layout to "
+                       "determine file size", mNsPath.c_str());
     }
 
     // We feed the layout size, not the physical on disk!
@@ -743,14 +750,17 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
 
         if (io->attrSet(std::string("user.eos.lfn"),
                         std::string(unsealedpath.c_str()))) {
-          eos_err("unable to set extended attribute <eos.lfn> errno=%d", errno);
+          eos_err("msg=\"unable to set extended attr <eos.lfn> \" "
+                  "fxid=%08llx errno=%d", mFileId, errno);
         }
       } else {
-        eos_err("msg=\"no lfn in replication capability\"");
+        eos_err("msg=\"no lfn in replication capability\" fxid=%08lls",
+                mFileId);
       }
     } else {
       if (io->attrSet(std::string("user.eos.lfn"), std::string(mNsPath.c_str()))) {
-        eos_err("unable to set extended attribute <eos.lfn> errno=%d", errno);
+        eos_err("msg=\"unable to set extended attr <eos.lfn>\" "
+                "fxid=%08llx errno=%d", mFileId, errno);
       }
     }
   } else {

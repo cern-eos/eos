@@ -435,14 +435,15 @@ public:
   eos::common::ThreadPool mCloseThreadPool;
   //! Xrd connection pool for interaction with the MGM, used from CallManager
   std::unique_ptr<eos::common::XrdConnPool> mMgmXrdPool;
+  std::atomic<bool> mSimOpenTimeout; ///< simulate an open timeout for client
+  std::atomic<bool> mSimFmdOpenErr; ///< simulate a fmd mismatch error on open
   std::atomic<bool> mSimIoReadErr; ///< simulate an IO error on read
   std::atomic<bool> mSimIoWriteErr; ///< simulate an IO error on write
   std::atomic<bool> mSimXsReadErr; ///< simulate a checksum error on read
   std::atomic<bool> mSimXsWriteErr; ///< simulate a checksum error on write
-  std::atomic<bool> mSimFmdOpenErr; ///< simulate a fmd mismatch error on open
   std::atomic<uint64_t> mSimErrIoReadOff; ///< Simulate IO error offset on rd
   std::atomic<uint64_t> mSimErrIoWriteOff;///< Simulate IO error offset on wr
-  std::atomic<uint64_t> mSimDiskWriting;///< Do not really write IO to disk
+  std::atomic<bool> mSimDiskWriting;///< Do not really write IO to disk
   std::atomic<bool> mSimCloseErr; ///< simulate an error during close
   std::atomic<bool> mSimUnresponsive; ///< simulate timeouts in the OFS layer
 
