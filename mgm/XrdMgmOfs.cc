@@ -38,6 +38,7 @@
 #include "common/plugin_manager/PluginManager.hh"
 #include "common/Strerror_r_wrapper.hh"
 #include "common/BufferManager.hh"
+#include "common/BehaviourConfig.hh"
 #include "namespace/Constants.hh"
 #include "namespace/interface/ContainerIterators.hh"
 #include "namespace/utils/Attributes.hh"
@@ -313,6 +314,7 @@ XrdMgmOfs::XrdMgmOfs(XrdSysError* ep):
   mFusexPort(1100), mGRPCPort(50051), mWncPort(50052),
   mRestGrpcPort(50054),
   mFidTracker(std::chrono::seconds(600), std::chrono::seconds(3600)),
+  mBehaviourCfg(new eos::common::BehaviourConfig()),
   mDoneOrderlyShutdown(false),
   mXrdBuffPool(2 * eos::common::KB, 2 * eos::common::MB, 8, 64),
   mJeMallocHandler(new eos::common::JeMallocHandler())

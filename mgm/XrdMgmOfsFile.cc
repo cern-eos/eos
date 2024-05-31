@@ -30,6 +30,7 @@
 #include "common/ParseUtils.hh"
 #include "common/StringTokenizer.hh"
 #include "common/Strerror_r_wrapper.hh"
+#include "common/BehaviourConfig.hh"
 #include "mgm/Access.hh"
 #include "mgm/FileSystem.hh"
 #include "mgm/XrdMgmOfs.hh"
@@ -97,6 +98,30 @@ getFirstDiskLocation(const eos::IFileMD::LocationVector& locations)
   }
 
   return locations.at(1);
+}
+
+//----------------------------------------------------------------------------
+//! Enforce the RainMinFsidEntry behaviour by returning the index in the
+//! given input vector corresponding to the smallest fsid.
+//!
+//! @param input_fsids vector for fsids
+//!
+//! @return index pointing to the smallest fsid
+//----------------------------------------------------------------------------
+size_t
+EnforceRainMinFsidEntry(const std::vector<unsigned int>& input_fsids)
+{
+  unsigned int min_fsid = UINT_MAX;
+  size_t index = 0;
+
+  for (int i = 0; i < input_fsids.size(); ++i) {
+    if (input_fsids[i] < min_fsid) {
+      index = i;
+      min_fsid = input_fsids[i];
+    }
+  }
+
+  return index;
 }
 }
 
@@ -2590,13 +2615,20 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
   // server since it  has the burden of encoding and traffic fan-out
   if (isRW && LayoutId::IsRain(layoutId)) {
     fsIndex = mFid % selectedfs.size();
-    eos_static_info("selecting entry-server fsIndex=%lu fsid=%lu fxid=%lx mod=%lu",
-                    fsIndex, selectedfs[fsIndex], mFid, selectedfs.size());
+    eos_static_info("msg=\"selecting entry-server\" fsIndex=%lu fsid=%lu "
+                    "fxid=%97llx mod=%lu", fsIndex, selectedfs[fsIndex],
+                    mFid, selectedfs.size());
+  }
+
+  // If behaviour enabled then add preference to always select the file system
+  // with the lowest fsid as the entry point for rain read/recover operations
+  if (gOFS->mBehaviourCfg->Exists(eos::common::BehaviourType::RainMinFsidEntry)) {
+    fsIndex = EnforceRainMinFsidEntry(selectedfs);
   }
 
   // Get the redirection host from the selected entry in the vector
   if (!selectedfs[fsIndex]) {
-    eos_err("%s", "msg=\"0 filesystem in selection\"");
+    eos_err("msg=\"0 filesystem in selection\" fxid=%08llx", mFid);
     return Emsg(epname, error, ENETUNREACH, "received filesystem id 0", path);
   }
 
