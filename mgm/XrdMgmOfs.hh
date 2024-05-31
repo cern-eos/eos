@@ -151,6 +151,7 @@ namespace eos::common
 {
 class CommentLog;
 class JeMallocHandler;
+class BehaviourConfig;
 }
 
 namespace eos::mgm
@@ -1739,7 +1740,8 @@ public:
   //----------------------------------------------------------------------------
   unsigned int mFrontendPort; ///< frontend port number for incoming requests
   unsigned int mNumAuthThreads; ///< max number of auth worker threads
-  bool         mFrontendLocalhost; ///< true if this server binds only on localhost:mFrontendPort not *:mFrontendPort
+  bool
+  mFrontendLocalhost; ///< true if this server binds only on localhost:mFrontendPort not *:mFrontendPort
   zmq::context_t* mZmqContext; ///< ZMQ context for all the sockets
   ZMQ* zMQ; ///< ZMQ processor
 
@@ -2010,6 +2012,10 @@ public:
   mHttpTapeRestApiBulkReqProcCleaner;
 
   std::unique_ptr<eos::mgm::placement::FSScheduler> mFsScheduler;
+
+  //! Non-persistent behaviour configuration changes
+  std::unique_ptr<eos::common::BehaviourConfig> mBehaviourCfg;
+
   //----------------------------------------------------------------------------
   //! Return string representation of prepare options
   //----------------------------------------------------------------------------

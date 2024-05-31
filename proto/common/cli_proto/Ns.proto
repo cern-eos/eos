@@ -115,6 +115,20 @@ message NsProto {
     OpType op   = 1;
     string name = 2;
   }
+
+   message BehaviourProto {
+     enum OpType {
+       NONE  = 0;
+       LIST  = 1;
+       SET   = 2;
+       GET   = 3;
+       CLEAR = 4;
+    }
+
+     OpType op    = 1;
+     string name  = 2;
+     string value = 3;
+  }
     
   oneof subcmd {
     StatProto stat           = 1;
@@ -128,5 +142,6 @@ message NsProto {
     ReserveIdsProto reserve  = 9;
     BenchmarkProto benchmark = 10;
     TrackerProto tracker     = 11;
+    BehaviourProto behaviour = 12;
   }
 }
