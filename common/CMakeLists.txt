@@ -145,7 +145,8 @@ add_library(EosCommon-Objects OBJECT
   Config.cc
   utils/XrdUtils.cc
   exception/Exception.cc
-  concurrency/ThreadEpochCounter.cc)
+  concurrency/ThreadEpochCounter.cc
+  BehaviourConfig.cc)
 
 # Avoid warnings related to bfd_get_section* macros being redefined
 target_compile_options(EosCommon-Objects PRIVATE -Wno-macro-redefined)
