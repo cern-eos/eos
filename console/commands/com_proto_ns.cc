@@ -556,6 +556,62 @@ NsHelper::ParseCommand(const char* arg)
       std::cerr << "error: no operation specified" << std::endl;
       return false;
     }
+  } else if (cmd == "behaviour") {
+    eos::console::NsProto_BehaviourProto* behaviour = ns->mutable_behaviour();
+    behaviour->set_op(eos::console::NsProto_BehaviourProto::NONE);
+
+    if (!(option = tokenizer.GetToken())) {
+      return false;
+    }
+
+    soption = option;
+
+    if (soption == "list") {
+      behaviour->set_op(eos::console::NsProto_BehaviourProto::LIST);
+    } else if (soption == "set") {
+      behaviour->set_op(eos::console::NsProto_BehaviourProto::SET);
+
+      while ((option = tokenizer.GetToken())) {
+        soption = option;
+
+        if (behaviour->name().empty()) {
+          if (soption == "all") {
+            std::cerr << "error: \"all\" is a reserved keyword" << std::endl;
+            return false;
+          }
+
+          behaviour->set_name(soption);
+        } else {
+          behaviour->set_value(soption);
+          break;
+        }
+      }
+
+      if (behaviour->name().empty() || behaviour->value().empty()) {
+        return false;
+      }
+    } else if (soption == "get") {
+      behaviour->set_op(eos::console::NsProto_BehaviourProto::GET);
+
+      if (!(option = tokenizer.GetToken())) {
+        return false;
+      }
+
+      soption = option;
+      behaviour->set_name(soption);
+    } else if (soption == "clear") {
+      behaviour->set_op(eos::console::NsProto_BehaviourProto::CLEAR);
+
+      if (!(option = tokenizer.GetToken())) {
+        return false;
+      }
+
+      soption = option;
+      behaviour->set_name(soption);
+    } else {
+      std::cerr << "error: unknown behaviour subcommand" << std::endl;
+      return false;
+    }
   } else if (cmd == "") {
     eos::console::NsProto_StatProto* stat = ns->mutable_stat();
     stat->set_summary(true);
@@ -696,6 +752,18 @@ void com_ns_help()
       << " ns tracker list|clean --name tracker_type\n"
       << "     list or clean the different file identifier trackers\n"
       << "     tracker_type : one of the following: drain, balance, fsck, convert, all\n"
+      << std::endl
+      << " ns behaviour list|set|clear\n"
+      << "     modify the behaviour of internal mechanisms for the manager node\n"
+      << "     list                    : list all the behaviour changes enforced\n"
+      << "     set <behaviour> <value> : enforce given behavior\n"
+      << "     get <behaviour>         : get behaviour configuration\n"
+      << "     clear <behaviour>|all   : remove enforced behavior\n"
+      << std::endl
+      << "     The following behaviours are supported:\n"
+      << "       rain_min_fsid_entry : for RAIN files the entry server will deterministically\n"
+      << "         be the file system with the lowest fsid from the list of stripes\n"
+      << "         Accepted values: \"on\" or \"off\" [default off]\n"
       << std::endl;
   std::cerr << oss.str() << std::endl;
 }

@@ -25,6 +25,7 @@
 #include "common/LinuxMemConsumption.hh"
 #include "common/LinuxStat.hh"
 #include "common/LinuxFds.hh"
+#include "common/BehaviourConfig.hh"
 #include "namespace/interface/IContainerMDSvc.hh"
 #include "namespace/interface/IFileMDSvc.hh"
 #include "namespace/interface/IView.hh"
@@ -81,6 +82,8 @@ NsCmd::ProcessRequest() noexcept
     BenchmarkSubCmd(ns.benchmark(), reply);
   } else if (subcmd == eos::console::NsProto::kTracker) {
     TrackerSubCmd(ns.tracker(), reply);
+  } else if (subcmd == eos::console::NsProto::kBehaviour) {
+    BehaviourSubCmd(ns.behaviour(), reply);
   } else {
     reply.set_retc(EINVAL);
     reply.set_std_err("error: not supported");
@@ -1452,6 +1455,94 @@ NsCmd::TrackerSubCmd(const eos::console::NsProto_TrackerProto& tracker,
 
   reply.set_std_out(output);
   reply.set_retc(0);
+  return;
+}
+
+//------------------------------------------------------------------------------
+// Execute behaviour command
+//------------------------------------------------------------------------------
+void
+NsCmd::BehaviourSubCmd(const eos::console::NsProto_BehaviourProto& behaviour,
+                       eos::console::ReplyProto& reply)
+{
+  using eos::common::BehaviourConfig;
+  using eos::console::NsProto_BehaviourProto;
+
+  switch (behaviour.op()) {
+  case NsProto_BehaviourProto::LIST: {
+    auto map_behaviours = gOFS->mBehaviourCfg->List();
+    std::ostringstream oss;
+
+    for (const auto& elem : map_behaviours) {
+      oss << elem.first << " => " << elem.second;
+    }
+
+    reply.set_std_out(oss.str());
+    break;
+  }
+
+  case NsProto_BehaviourProto::SET: {
+    auto btype = BehaviourConfig::ConvertStringToBehaviour(behaviour.name());
+
+    if ((btype == eos::common::BehaviourType::None) ||
+        (btype == eos::common::BehaviourType::All)) {
+      reply.set_std_err("error: unkown behaviour type");
+      reply.set_retc(EINVAL);
+    } else {
+      if (gOFS->mBehaviourCfg->Set(btype, behaviour.value())) {
+        reply.set_std_out("info: behaviour set successfully");
+      } else {
+        reply.set_std_err("error: operation failed, check accepted "
+                          "config values");
+        reply.set_retc(EINVAL);
+      }
+    }
+
+    break;
+  }
+
+  case NsProto_BehaviourProto::GET: {
+    auto btype = BehaviourConfig::ConvertStringToBehaviour(behaviour.name());
+
+    if ((btype == eos::common::BehaviourType::None) ||
+        (btype == eos::common::BehaviourType::All)) {
+      reply.set_std_err("error: unkown behaviour type");
+      reply.set_retc(EINVAL);
+    } else {
+      if (gOFS->mBehaviourCfg->Exists(btype)) {
+        std::string val = gOFS->mBehaviourCfg->Get(btype);
+        reply.set_std_out(SSTR("behaviour=\"" << behaviour.name() << "\""
+                               << " value=\"" << val << "\""));
+      } else {
+        reply.set_std_err("error: no such behaviour configured");
+        reply.set_retc(EINVAL);
+      }
+    }
+
+    break;
+  }
+
+  case NsProto_BehaviourProto::CLEAR: {
+    auto btype = BehaviourConfig::ConvertStringToBehaviour(behaviour.name());
+
+    if (btype == eos::common::BehaviourType::None) {
+      reply.set_std_err("error: unkown behaviour type");
+      reply.set_retc(EINVAL);
+    } else {
+      gOFS->mBehaviourCfg->Clear(btype);
+      reply.set_std_out("info: behaviour(s) cleared successfully");
+    }
+
+    break;
+  }
+
+  default: {
+    reply.set_std_err("error: unknown behaviour subcommand");
+    reply.set_retc(EINVAL);
+    break;
+  }
+  }
+
   return;
 }
 
