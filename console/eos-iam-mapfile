@@ -453,11 +453,12 @@ if __name__ == '__main__':
     Takes a config file having the following syntax, cli switches override config settings, DEFAULT section is optional
     Example config:
     [DEFAULT]
-    verbose = WARNING
     cleanup = True
     localgridmap = /etc/localgridmap.conf,/etc/localgridmap2.conf
-    log-file = /var/log/eos/grid/grid.log
     # Can be repeated as many times with different servers, we strictly override in the order of config files
+    log_file = /var/log/eos/grid/gridmap.log
+    log_level = WARNING  # Same options as verbose CLI option
+
     [myiamserver1]
     client-id = 1223
     client-secret = 1234
