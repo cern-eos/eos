@@ -14,6 +14,7 @@ message ConfigProto {
 
   message DumpProto {
     string file   = 1;
+    bool json     = 2;
   }
 
   message ExportProto {
