@@ -582,6 +582,63 @@ Configuring mappings using the CLI
    eos vid set map -voms cms:hiproduction vuid:`id -u cmsuser` vgid:`id -u cmsuser`
    eos vid set map -voms /cms: vuid:`id -u cmsuser` vgid:`id -u cmsuser
 
+
+Configuring gridmap from IAM
+----------------------------
+
+In case the deployment needs to rely on ``/etc/grid-security/gridmapfile``,
+these can still be generated from the IAM portal using ``eos-iam-mapfile``
+script, which is shipped as a part of ``eos-server`` packages.
+
+.. code-block:: bash
+
+   eos-iam-mapfile -h
+   usage: eos-iam-mapfile [-h] [-v [{DEBUG,INFO,WARNING,ERROR,CRITICAL}]] [-s SERVER CLIENT_ID CLIENT_KEY] [-c CONFIG] [-t TARGETS] [-i IFILE] [-o OFILE] [-l LGRIDMAP] [-a ACCOUNT] [-p PATTERN] [-C] [-u] [-f [{MAPFILE,GRIDMAP}]] [--cleanup]
+                       [--log-file LOG_FILE]
+
+   GRID Map file generation from IAM Server
+
+
+For testing the script one needs a client-id & a client-key which has ``scim:read`` permissions.
+
+
+.. code-block:: bash
+
+   $ echo -e '[myiamserver.ch]\nclient-id=client-1234-uuid\nclient-secret=client-secret123\naccount=acc4usermapping' > myiam.conf
+   $ eos-iam-mapfile -c iam.conf
+   "/DC=ch/DC=cern/..CN=testuser1" acc4usermapping
+
+
+Configuring eos-iam-mapfile
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+``eos-iam-mapfile`` can be configured via a simple INI file, a ``[DEFAULT]``
+section takes global parameters, multiple IAM server sections can follow, which
+will be evaluated in the order which they appear in the config. A
+``localgridmap`` can be configured which will add & override DNs in the
+localgridmap in case they are already mapped from previous IAM server outputs.
+
+An example configuration is given below, note that these are **NOT** the default config options in case the scrip isn't configured. The only default is ``log_level``  which is set to WARNING level.
+
+.. code-block:: bash
+
+   [DEFAULT]
+   cleanup = True # Cleanup intermediate temporary files
+   localgridmap = /etc/localgridmap.conf,/etc/localgridmap2.conf
+   log_level = WARNING # choose between DEBUG,INFO,WARNING,ERROR,CRITICAL
+   log_file = /var/log/eos/grid/eos-iam-map.log
+
+   [myiamserver1.ch]
+   client-id = client-uuid1
+   client-secret = secret123
+   account = account1
+
+
+   [myiamserver2.ch]
+   client-id = client-uuid2
+   client-secret = secret234
+   account = account2
+
 File Versioning
 ---------------
 
