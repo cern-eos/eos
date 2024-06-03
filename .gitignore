@@ -42,7 +42,9 @@ kineticio-dist.tgz
 /.settings/
 .cproject
 .project
+# vscode specific configs
 .vscode
+.devcontainer
 nbproject
 my_clang_cache.cmake
 # ccache specific configs
