@@ -438,6 +438,8 @@ public:
   std::atomic<bool> mSimOpenTimeout; ///< simulate an open timeout for client
   std::atomic<bool> mSimFmdOpenErr; ///< simulate a fmd mismatch error on open
   std::atomic<bool> mSimIoReadErr; ///< simulate an IO error on read
+  std::atomic<bool> mSimReadDelay; ///< simulate read delay
+  std::atomic<uint32_t> mSimReadDelaySec; ///< read delay in seconds
   std::atomic<bool> mSimIoWriteErr; ///< simulate an IO error on write
   std::atomic<bool> mSimXsReadErr; ///< simulate a checksum error on read
   std::atomic<bool> mSimXsWriteErr; ///< simulate a checksum error on write
@@ -453,6 +455,27 @@ public:
   XrdSysMutex TpcMapMutex; ///< Mutex protecting the Tpc map
 
   //----------------------------------------------------------------------------
+  //! Get simulation error offset. Parse the last characters and return the
+  //! desired offset e.g. io_read_8M should return 8MB
+  //!
+  //! @param input string encoding the error type and optionally the offset
+  //!
+  //! @return return offset from which the error should be reported or 0 if no
+  //!         such offset if provided
+  //----------------------------------------------------------------------------
+  static uint64_t GetSimulationErrorOffset(const std::string& input);
+
+  //------------------------------------------------------------------------------
+  //! Get simulation delay value. If none set then return 10 by default.
+  //!
+  //! @param input string encoding operation delay and optionally a delay value
+  //!              in seconds e.g. read_delay_10
+  //!
+  //! @return delay value in seconds or 10 by default if no delay specified
+  //------------------------------------------------------------------------------
+  static uint32_t GetSimulationDelay(const std::string& input);
+
+  //----------------------------------------------------------------------------
   //! Compute adler checksum of given keytab file
   //!
   //! @param kt_path absolute path to keytab file
@@ -463,17 +486,6 @@ public:
   std::string GetKeytabChecksum(const std::string& kt_path) const;
 
   //----------------------------------------------------------------------------
-  //! Get simulation error offset. Parse the last characters and return the
-  //! desired offset e.g. io_read_8M should return 8MB
-  //!
-  //! @param input string encoding the error type and optionally the offset
-  //!
-  //! @return return offset from which the error should be reported or 0 if no
-  //!         such offset if provided
-  //----------------------------------------------------------------------------
-  uint64_t GetSimulationErrorOffset(const std::string& input) const;
-
-  //----------------------------------------------------------------------------
   //! Update the TPC key min/max validity values. By default these are 2 and 15
   //! minutes by can be overwritten by the environment variables.
   //----------------------------------------------------------------------------
@@ -482,7 +494,7 @@ public:
   //----------------------------------------------------------------------------
   //! Create directory hierarchy
   //!
-  //! @param dir_hierarchy given directory hierarcht
+  //! @param dir_hierarchy given directory hierarchy
   //! @param mode mode bits for the newly created directories
   //!
   //! @return true if successful, otherwise false

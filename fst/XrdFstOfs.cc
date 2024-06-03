@@ -139,6 +139,51 @@ extern "C"
 EOSFSTNAMESPACE_BEGIN
 
 //------------------------------------------------------------------------------
+// Get simulation error offset. Parse the last characters and return the
+// desired offset e.g. io_read_8M should return 8MB
+//------------------------------------------------------------------------------
+uint64_t
+XrdFstOfs::GetSimulationErrorOffset(const std::string& input)
+{
+  uint64_t offset {0ull};
+  size_t num = std::count(input.begin(), input.end(), '_');
+
+  if ((num < 2) || (*input.rbegin() == '_')) {
+    return offset;
+  }
+
+  size_t pos = input.rfind('_');
+  std::string soff = input.substr(pos + 1);
+  offset = eos::common::StringConversion::GetDataSizeFromString(soff.c_str());
+  return offset;
+}
+
+//------------------------------------------------------------------------------
+// Get simulation delay value. If none set then return 10 by default.
+//------------------------------------------------------------------------------
+uint32_t
+XrdFstOfs::GetSimulationDelay(const std::string& input)
+{
+  uint32_t delay = 10;
+  size_t num = std::count(input.begin(), input.end(), '_');
+
+  if ((num < 2) || (*input.rbegin() == '_')) {
+    return delay;
+  }
+
+  size_t pos = input.rfind('_');
+  std::string soff = input.substr(pos + 1);
+
+  try {
+    delay = std::stoul(soff);
+  } catch (...) {
+    // nothing to do
+  }
+
+  return delay;
+}
+
+//------------------------------------------------------------------------------
 // Get stacktrace from crashing process
 //------------------------------------------------------------------------------
 void
@@ -324,6 +369,7 @@ XrdFstOfs::XrdFstOfs() :
   mCloseThreadPool(8, 64, 5, 6, 5, "async_close"),
   mMgmXrdPool(nullptr),
   mSimOpenTimeout(false), mSimFmdOpenErr(false), mSimIoReadErr(false),
+  mSimReadDelay(false), mSimReadDelaySec(10),
   mSimIoWriteErr(false), mSimXsReadErr(false), mSimXsWriteErr(false),
   mSimErrIoReadOff(0ull), mSimErrIoWriteOff(0ull),
   mSimDiskWriting(false), mSimCloseErr(false), mSimUnresponsive(false)
@@ -923,13 +969,19 @@ void
 XrdFstOfs::SetSimulationError(const std::string& input)
 {
   mSimFmdOpenErr = mSimOpenTimeout = false;
-  mSimIoReadErr = mSimXsReadErr = false;
+  mSimIoReadErr = mSimXsReadErr = mSimReadDelay = false;
   mSimIoWriteErr =  mSimXsWriteErr = false;
   mSimDiskWriting = mSimCloseErr = mSimUnresponsive = false;
   mSimErrIoReadOff = mSimErrIoWriteOff = 0ull;
+  mSimReadDelaySec = 10;
 
   if (input.find("open_timeout") == 0) {
     mSimOpenTimeout = true;
+  }
+
+  if (input.find("read_delay") == 0) {
+    mSimReadDelay = true;
+    mSimReadDelaySec = GetSimulationDelay(input);
   }
 
   if (input.find("io_read") == 0) {
@@ -965,26 +1017,6 @@ XrdFstOfs::SetSimulationError(const std::string& input)
   if (input.find("unresponsive") == 0) {
     mSimUnresponsive = true;
   }
-}
-
-//------------------------------------------------------------------------------
-// Get simulation error offset. Parse the last characters and return the
-// desired offset e.g. io_read_8M should return 8MB
-//-----------------------------------------------------------------------------
-uint64_t
-XrdFstOfs::GetSimulationErrorOffset(const std::string& input) const
-{
-  uint64_t offset {0ull};
-  size_t num = std::count(input.begin(), input.end(), '_');
-
-  if ((num < 2) || (*input.rbegin() == '_')) {
-    return offset;
-  }
-
-  size_t pos = input.rfind('_');
-  std::string soff = input.substr(pos + 1);
-  offset = eos::common::StringConversion::GetDataSizeFromString(soff.c_str());
-  return offset;
 }
 
 //------------------------------------------------------------------------------

@@ -73,6 +73,7 @@ void com_node_help()
       << "\t            Accepted format for offset: 8B, 10M, 20G etc.\n"
       << "\t            fmd_open            : simulate a file metadata mismatch when opening a file\n"
       << "\t            open_timeout        : emulate an open request taking 2 minutes\n"
+      << "\t            read_delay[_<sec>]  : add by default 10 sec delay per read operation\n"
       << "\t            io_read[_<offset>]  : simulate read errors\n"
       << "\t            io_write[_<offset>] : simulate write errors\n"
       << "\t            xs_read             : simulate checksum errors when reading a file\n"
