@@ -67,12 +67,15 @@ bool ConfigHelper::ParseCommand(const char* arg)
   eos::common::StringTokenizer tokenizer(arg);
   tokenizer.GetLine();
   std::string token;
+  bool json = false;
 
   if (!tokenizer.NextToken(token)) {
     return false;
   }
 
-  if (token == "ls") {
+  if (token == "-j" || token == "--json") {
+    json = true;
+  } else if (token == "ls") {
     eos::console::ConfigProto_LsProto* ls = config->mutable_ls();
 
     if (tokenizer.NextToken(token)) {
@@ -87,6 +90,9 @@ bool ConfigHelper::ParseCommand(const char* arg)
 
     if (tokenizer.NextToken(token)) {
       dump->set_file(token);
+    }
+    if (json) {
+      dump->set_json(true);
     }
   } else if (token == "reset") {
     if (tokenizer.NextToken(token)) {
