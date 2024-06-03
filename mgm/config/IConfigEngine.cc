@@ -378,19 +378,25 @@ IConfigEngine::DeleteConfigValueByMatch(const char* prefix, const char* match)
 // Dump method for selective configuration printing
 //------------------------------------------------------------------------------
 bool
-IConfigEngine::DumpConfig(XrdOucString& out, const std::string& filename)
+IConfigEngine::DumpConfig(XrdOucString& out, const std::string& filename,
+                          bool json = false)
 {
   if (filename.empty()) {
     std::lock_guard lock(mMutex);
 
-    for (auto& sConfigDefinition : sConfigDefinitions) {
-      eos_static_debug("%s => %s", sConfigDefinition.first.c_str(),
-                       sConfigDefinition.second.c_str());
-      out += (sConfigDefinition.first + " => " + sConfigDefinition.second +
-              "\n").c_str();
-    }
+    if (json) {
+      DumpJson(out);
+      return true;
+    } else {
+      for (auto& sConfigDefinition : sConfigDefinitions) {
+        eos_static_debug("%s => %s", sConfigDefinition.first.c_str(),
+                         sConfigDefinition.second.c_str());
+        out += (sConfigDefinition.first + " => " + sConfigDefinition.second +
+                "\n").c_str();
+      }
 
-    while (out.replace("&", " ")) {}
+      while (out.replace("&", " ")) {}
+    }
   } else {
     std::ostringstream ss;
     FilterConfig(ss, filename.c_str());
@@ -399,6 +405,16 @@ IConfigEngine::DumpConfig(XrdOucString& out, const std::string& filename)
 
   eos::common::StringConversion::SortLines(out);
   return true;
+}
+
+//------------------------------------------------------------------------------
+// Dump config in json
+//------------------------------------------------------------------------------
+void
+IConfigEngine::DumpJson(XrdOucString& out)
+{
+  for (auto& sConfigDefinition : sConfigDefinitions) {
+  }
 }
 
 //------------------------------------------------------------------------------

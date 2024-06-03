@@ -248,7 +248,8 @@ public:
   //!
   //! @return true if successful, otherwise false
   //----------------------------------------------------------------------------
-  bool DumpConfig(XrdOucString& out, const std::string& filename);
+  bool DumpConfig(XrdOucString& out, const std::string& filename,
+                  bool json = false);
 
   //----------------------------------------------------------------------------
   //! Reset the current configuration
@@ -293,6 +294,11 @@ protected:
   //! Filter out entries from the map
   //----------------------------------------------------------------------------
   void FilterDeprecated(std::map<std::string, std::string>& map);
+
+  //----------------------------------------------------------------------------
+  //! Dump config in json
+  //----------------------------------------------------------------------------
+  void DumpJson(XrdOucString& out);
 
   //----------------------------------------------------------------------------
   //! Filter configuration
