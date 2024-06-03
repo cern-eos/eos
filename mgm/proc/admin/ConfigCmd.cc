@@ -111,7 +111,7 @@ void ConfigCmd::DumpSubcmd(const eos::console::ConfigProto_DumpProto& dump,
 {
   XrdOucString sdump = "";
 
-  if (!gOFS->ConfEngine->DumpConfig(sdump, dump.file())) {
+  if (!gOFS->ConfEngine->DumpConfig(sdump, dump.file(), dump.json())) {
     reply.set_std_err("error: failed to dump configuration");
     reply.set_retc(errno);
   } else {
