@@ -830,7 +830,6 @@ XrdFstOfsFile::read(XrdSfsFileOffset fileOffset, char* buffer,
                    std::unique_lock<std::mutex>(*mutex);
   eos_debug("fileOffset=%lli, buffer_size=%i", fileOffset, buffer_size);
 
-  //  EPNAME("read");
   if (mTpcFlag == kTpcSrcRead) {
     if (!(rCalls % 10)) {
       if (!TpcValid()) {
@@ -847,9 +846,7 @@ XrdFstOfsFile::read(XrdSfsFileOffset fileOffset, char* buffer,
     float abs_time = static_cast<float>((currentTime.tv_sec -
                                          openTime.tv_sec) * 1000 +
                                         (currentTime.tv_usec - openTime.tv_usec) / 1000);
-    //........................................................................
     // Regulate the io - sleep as desired
-    //........................................................................
     float exp_time = totalBytes / mBandwidth / 1000.0;
 
     if (abs_time < exp_time) {
@@ -861,6 +858,12 @@ XrdFstOfsFile::read(XrdSfsFileOffset fileOffset, char* buffer,
 
   int rc = mLayout->Read(fileOffset, buffer, buffer_size);
   eos_debug("layout read %d checkSum %d", rc, mCheckSum.get());
+
+  if (gOFS.mSimReadDelay) {
+    eos_warning("msg=\"apply read delay\" delay=%is fxid=%08llx",
+                gOFS.mSimReadDelaySec.load(), mFileId);
+    std::this_thread::sleep_for(std::chrono::seconds(gOFS.mSimReadDelay.load()));
+  }
 
   /* maintaining a checksum is tricky if there have been writes,
    * but the read + append case can be supported in "Add" */
@@ -1065,9 +1068,7 @@ XrdFstOfsFile::write(XrdSfsFileOffset fileOffset, const char* buffer,
     float abs_time = static_cast<float>((currentTime.tv_sec -
                                          openTime.tv_sec) * 1000 +
                                         (currentTime.tv_usec - openTime.tv_usec) / 1000);
-    //........................................................................
     // Regulate the io - sleep as desired
-    //........................................................................
     float exp_time = totalBytes / mBandwidth / 1000.0;
 
     if (abs_time < exp_time) {
@@ -1203,7 +1204,7 @@ XrdFstOfsFile::write(XrdSfsFileOffset fileOffset, const char* buffer,
 }
 
 //----------------------------------------------------------------------------
-//! Write file pages into a file with corresponding checksums.
+// Write file pages into a file with corresponding checksums.
 //----------------------------------------------------------------------------
 XrdSfsXferSize
 XrdFstOfsFile::pgWrite(XrdSfsFileOffset offset, char* buffer,
@@ -1428,7 +1429,7 @@ XrdFstOfsFile::close()
 
     if (reply_rc == 0)
     {
-      eos_err("%s", "msg=\"callback reply failed\" fid=%llu", fileId);
+      eos_err("%s", "msg=\"callback reply failed\" fxid=%08llx", fileId);
     }
   });
   return SFS_STARTED;
