@@ -312,13 +312,23 @@ public:
            const char* opaque = 0);
 
   //----------------------------------------------------------------------------
-  //! Call back to MGM node
+  //! Callback to MGM node - XrdOucString version
   //----------------------------------------------------------------------------
   int CallManager(XrdOucErrInfo* error,
                   const char* path,
                   const char* manager,
                   XrdOucString& capOpaqueFile,
-                  XrdOucString* return_result = 0,
+                  unsigned short timeout = 0,
+                  bool use_xrd_conn_pool = false,
+                  bool retry = true);
+
+  //----------------------------------------------------------------------------
+  //! Callback to MGM node - std::string version
+  //----------------------------------------------------------------------------
+  int CallManager(XrdOucErrInfo* error,
+                  const char* path,
+                  const char* manager,
+                  const std::string& capOpaqueFile,
                   unsigned short timeout = 0,
                   bool use_xrd_conn_pool = false,
                   bool retry = true);
