@@ -661,8 +661,8 @@ int PrepareManager::doQueryPrepare(XrdSfsPrep& pargs, XrdOucErrInfo& error,
             std::ostringstream ostream;
             ostream << "ERROR: Request ID not found; Maximum number of retrieve requests reached (" << gOFS->mReqIdMax << ")";
             currentFile->setError(ostream.str());
+            goto logErrorAndContinue;
           }
-          goto logErrorAndContinue;
         }
       }
 
