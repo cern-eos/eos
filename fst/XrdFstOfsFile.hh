@@ -297,7 +297,7 @@ public:
   std::unique_ptr<XrdOucEnv> mOpenOpaque; ///< Open opaque info (encrypted)
   std::unique_ptr<XrdOucEnv> mCapOpaque; ///< Capability opaque info (decrypted)
   std::string mFstPath; ///< Physical path on the FST
-  off_t mBookingSize;
+  long long mBookingSize;
   off_t mTargetSize;
   off_t mMinSize;
   off_t mMaxSize;
@@ -333,8 +333,8 @@ public:
   //! checksum must match
   bool mIsInjection;
   bool mRainReconstruct; ///< indicator that the opened file is in a RAIN reconstruction process
-  bool deleteOnClose; ///< indicator that the file has to be cleaned on close
-  bool repairOnClose; ///< indicator that the file should get repaired on close
+  bool mDelOnClose; ///< indicator that the file has to be cleaned on close
+  bool mRepairOnClose; ///< indicator that the file should get repaired on close
   bool mIsOCchunk; //! indicator this is an OC chunk upload
   int writeErrorFlag; //! uses kOFSxx enums to specify an error condition
   bool mEventOnClose; ///< Indicator to send a specified event to MGM on close
@@ -372,10 +372,10 @@ public:
   std::string mTident; ///< Client identity using the file object
   // File statistics for monitoring purposes
   //! Largest byte position written of a newly created file
-  unsigned long long mMaxOffsetWritten;
-  unsigned long long mWritePosition;
-  off_t openSize; //! file size when the file was opened
-  off_t closeSize; //! file size when the file was closed
+  long long mMaxOffsetWritten;
+  long long mWritePosition;
+  long long openSize; //! file size when the file was opened
+  long long closeSize; //! file size when the file was closed
   struct timeval openTime; //! time when a file was opened
   struct timeval currentTime; //! time when a write occurs
   unsigned long long totalBytes; //! total bytes IO
