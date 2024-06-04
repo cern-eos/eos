@@ -312,14 +312,14 @@ public:
   std::map<std::string, std::string> mSecMap; ///< map of all sec keys
   std::string mEtag; ///< Current and new ETag (recomputed in close)
   unsigned long long mFileId; //! file id
-  unsigned long mFsId; //! file system id
+  eos::common::FileSystem::fsid_t mFsId; //! file system id
   unsigned long mLid; //! layout id
   unsigned long long mCid; //! container id
   unsigned long long mForcedMtime;
   unsigned long long mForcedMtime_ms;
   bool mFusex; //! indicator that we are committing from a fusex client
   bool mFusexIsUnlinked; //! indicator for an already unlinked file
-  bool closed; //! indicator the file is closed
+  bool mClosed; //! indicator the file is closed
   bool mOpened; //! indicator that file is opened
   bool mHasWrite; //! indicator that file was written/modified
   bool hasWriteError;// indicator for write errors to avoid message flooding
@@ -741,16 +741,18 @@ public:
   std::string ExtractLogId(const char* opaque) const;
 
   //----------------------------------------------------------------------------
-  //! Drop all replicas from the MGM
+  //! Drop stripe/replica(s) from the MGM
   //!
-  //! @param fileid file id
-  //! @param path file logical path @todo(esindril) redundant, should drop
+  //! @param fid file identifier
+  //! @param fsid file system id to drop, if 0 then drop all stripes
+  //! @param path file logical path
   //! @param manager MGM hostname
   //!
   //! @return 0 if successful, otherwise error code
   //----------------------------------------------------------------------------
-  int DropAllFromMgm(eos::common::FileId::fileid_t fileid,
-                     const std::string path, const std::string manager);
+  int DropFromMgm(eos::common::FileId::fileid_t fid,
+                  eos::common::FileSystem::fsid_t fsid,
+                  const std::string& path, const std::string& manager);
 
   //----------------------------------------------------------------------------
   //! Check if file has been modified while in use
