@@ -658,7 +658,8 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
 
         if (!strcmp("prepare.reqid.max", var)) {
           if (!(val = Config.GetWord())) {
-            mReqIdMax = 64; // Default value of 64
+            Eroute.Emsg("Config", "argument for prepare.reqid.max is missing.");
+            NoGo = 1;
           } else {
             mReqIdMax = atoi(val);
             Eroute.Say("=====> mgmofs.prepare.reqid.max : ", val);
