@@ -93,13 +93,13 @@ XrdFstOfsFile::XrdFstOfsFile(const char* user, int MonID) :
   mWrDelete(false), mRainSize(0), mNsPath(""), mLocalPrefix(""),
   mRedirectManager(""), mTapeEnabled(false), mSecString(""), mEtag(""),
   mFileId(0), mFsId(0), mLid(0), mCid(0), mForcedMtime(1), mForcedMtime_ms(0),
-  mFusex(false), mFusexIsUnlinked(false), closed(false), mOpened(false),
+  mFusex(false), mFusexIsUnlinked(false), mClosed(false), mOpened(false),
   mHasWrite(false), hasWriteError(false), hasReadError(false), mIsRW(false),
   mIsDevNull(false), isCreation(false), isReplication(false),
   noAtomicVersioning(false),
   mIsInjection(false), mRainReconstruct(false), deleteOnClose(false),
   repairOnClose(false), mIsOCchunk(false), writeErrorFlag(false),
-  mEventOnClose(false), mSyncOnClose(false), mEventWorkflow(""),
+  mEventOnClose(false), mSyncOnClose(false), mEventWorkflow("default"),
   mSyncEventOnClose(false), mFmd(nullptr), mCheckSum(nullptr),
   mLayout(nullptr), mMaxOffsetWritten(0ull),
   mWritePosition(0ull), openSize(0),
@@ -140,7 +140,7 @@ XrdFstOfsFile::~XrdFstOfsFile()
 {
   viaDelete = true;
 
-  if (!closed) {
+  if (!mClosed) {
     close();
   }
 }
@@ -525,13 +525,13 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
   if (rc) {
     // If we have local errors in open we don't disable the filesystem -
     // this is done by the Scrub thread if necessary!
-    if (mLayout->IsEntryServer() && (!isReplication)) {
+    if (mLayout->IsEntryServer() && !isReplication) {
       eos_warning("msg=\"open error return recoverable error "
                   "EIO(kXR_IOError)\" fid=%08llx", mFileId);
 
       // Clean-up before re-bouncing
       if (hasCreationMode && !mRainReconstruct && !mIsInjection) {
-        DropAllFromMgm(mFileId, path, mRedirectManager.c_str());
+        DropFromMgm(mFileId, 0ul, path, mRedirectManager.c_str());
       }
     }
 
@@ -551,7 +551,7 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
 
   if (mFmd == nullptr) {
     if (gOFS.mFmdHandler->ResyncMgm(mFsId, mFileId, mRedirectManager.c_str())) {
-      eos_info("msg=\"resync ok\" fsid=%lu fxid=%llx", mFsId, mFileId);
+      eos_info("msg=\"resync ok\" fsid=%u fxid=%08llx", mFsId, mFileId);
       mFmd = gOFS.mFmdHandler->LocalGetFmd(mFileId, mFsId, isRepairRead,
                                            mIsRW, vid.uid, vid.gid, mLid);
       std::string dummy_xs;
@@ -565,21 +565,21 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
         eos_info("msg=\"resync from disk\" path=%s", mFstPath.c_str());
       }
     } else {
-      eos_err("msg=\"resync failed\" fsid=%lu fxid=%08llx", mFsId, mFileId);
+      eos_err("msg=\"resync failed\" fsid=%u fxid=%08llx", mFsId, mFileId);
     }
   }
 
   if (mFmd == nullptr) {
-    eos_err("msg=\"no FMD record found\" fsid=%lu fxid=%08llx", mFsId, mFileId);
+    eos_err("msg=\"no FMD record found\" fsid=%u fxid=%08llx", mFsId, mFileId);
 
-    if ((!mIsRW) || (mLayout->IsEntryServer() && (!isReplication))) {
-      eos_warning("msg=\"failed to get FMD record\" fsid=%lu fxid=%08llx "
+    if ((!mIsRW) || (mLayout->IsEntryServer() && !isReplication)) {
+      eos_warning("msg=\"failed to get FMD record\" fsid=%u fxid=%08llx "
                   "path=\"%s\" rc=ENOENT(kXR_NotFound)", mFsId, mFileId,
                   mFstPath.c_str());
 
       if (hasCreationMode && !mRainReconstruct && !mIsInjection) {
         // clean-up before re-bouncing
-        DropAllFromMgm(mFileId, path, mRedirectManager.c_str());
+        DropFromMgm(mFileId, 0ul, path, mRedirectManager.c_str());
       }
     }
 
@@ -643,15 +643,15 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
     XrdSysMutexHelper lock(gOFS.Storage->mFsFullMapMutex);
 
     if (gOFS.Storage->mFsFullMap[mFsId]) {
-      if (mLayout->IsEntryServer() && (!isReplication)) {
+      if (mLayout->IsEntryServer() && !isReplication) {
         writeErrorFlag = kOfsDiskFullError;
         mLayout->Remove();
-        eos_warning("msg=\"not enough space\" fsid=%lu fxid=%08llx "
+        eos_warning("msg=\"not enough space\" fsid=%u fxid=%08llx "
                     "rc=ENODEV(kXR_FSError)", mFsId, mFileId);
 
         if (hasCreationMode && !mRainReconstruct && !mIsInjection) {
           // clean-up before re-bouncing
-          DropAllFromMgm(mFileId, path, mRedirectManager.c_str());
+          DropFromMgm(mFileId, 0ul, path, mRedirectManager.c_str());
         }
 
         // Return an error that can be recovered at the MGM
@@ -667,7 +667,7 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
     COMMONTIMING("layout::fallocated", &tm);
 
     if (rc) {
-      eos_crit("msg=\"file allocation failed\" fsid=%lu fxid=%08llx retc=%d "
+      eos_crit("msg=\"file allocation failed\" fsid=%u fxid=%08llx retc=%d "
                "errno=%d size=%llu", mFsId, mFileId, rc, errno, mBookingSize);
 
       if (mLayout->IsEntryServer() && (!isReplication)) {
@@ -677,7 +677,7 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
 
         if (hasCreationMode && !mRainReconstruct && !mIsInjection) {
           // clean-up before re-bouncing
-          DropAllFromMgm(mFileId, path, mRedirectManager.c_str());
+          DropFromMgm(mFileId, 0ul, path, mRedirectManager.c_str());
         }
 
         // Return an error that can be recovered at the MGM
@@ -1472,751 +1472,755 @@ XrdFstOfsFile::_close()
     if (mTpcFlag == kTpcDstSetup) {
       if (!mTpcThreadStatus) {
         int retc = XrdSysThread::Join(mTpcThread, NULL);
-        eos_debug("TPC job join returned %i", retc);
+        eos_debug("msg=\"TPC job joined\" rc=%i fxid=%08llx", retc, mFileId);
       } else {
-        eos_warning("TPC job was never started successfully");
+        eos_warning("msg=\"TPC job was never started successfully\" "
+                    "fxid=%08llx", mFileId);
       }
     }
   }
 
   if (mIsDevNull) {
-    eos_debug("msg=\"closing sink file i.e. /dev/null\"");
-    closed = true;
+    eos_debug("%s", "msg=\"closing sink file i.e. /dev/null\"");
+    mClosed = true;
     return SFS_OK;
   }
 
-  // Set default workflow if nothing is specified
-  if (mEventWorkflow.length() == 0) {
-    mEventWorkflow = "default";
+  // Enter close logic only once, as we can get an explicit close or a close
+  // via the destructor
+  if (!mOpened || mClosed) {
+    eos_info("msg=\"close already done\" fxid=%08llx", mFileId);
+    mClosed = true;
+    return SFS_OK;
   }
 
-  // We enter the close logic only once since there can be an explicit close or
-  // a close via the destructor
-  if (mOpened && (!closed) && mFmd) {
-    // Check if the file close comes from a client disconnect e.g. the destructor
-    const std::string hex_fid = eos::common::FileId::Fid2Hex(mFmd->mProtoFmd.fid());
-    XrdOucString capOpaqueString = "/?mgm.pcmd=drop";
-    XrdOucString OpaqueString = "";
-    OpaqueString += "&mgm.fsid=";
-    OpaqueString += (int) mFmd->mProtoFmd.fsid();
-    OpaqueString += "&mgm.fid=";
-    OpaqueString += hex_fid.c_str();
-    XrdOucEnv Opaque(OpaqueString.c_str());
-    capOpaqueString += OpaqueString;
-    eos_info("viaDelete=%d writeDelete=%d", viaDelete, mWrDelete);
-    bool issinglewriter = (gOFS.openedForWriting.getUseCount(mFmd->mProtoFmd.fsid(),
-                           mFmd->mProtoFmd.fid()) <= 1);
+  // Check if the file close comes from a client disconnect e.g. the destructor
+  const std::string hex_fid = eos::common::FileId::Fid2Hex(mFmd->mProtoFmd.fid());
+  XrdOucString capOpaqueString = "/?mgm.pcmd=drop";
+  XrdOucString OpaqueString = "";
+  OpaqueString += "&mgm.fsid=";
+  OpaqueString += (int) mFmd->mProtoFmd.fsid();
+  OpaqueString += "&mgm.fid=";
+  OpaqueString += hex_fid.c_str();
+  XrdOucEnv Opaque(OpaqueString.c_str());
+  capOpaqueString += OpaqueString;
+  eos_info("viaDelete=%d writeDelete=%d", viaDelete, mWrDelete);
+  bool issinglewriter = (gOFS.openedForWriting.getUseCount(mFmd->mProtoFmd.fsid(),
+                         mFmd->mProtoFmd.fid()) <= 1);
 
-    if ((viaDelete || mWrDelete) &&
-        ((isCreation || (isReplication && mIsRW) || mIsInjection ||
-          IsChunkedUpload()) && (!mFusex))) {
-      if (issinglewriter) {
-        // It is closed by the destructor e.g. no proper close
-        // or the specified checksum does not match the computed one
-        if (viaDelete) {
-          eos_info("msg=\"(unpersist): deleting file\" reason=\"client disconnect\""
-                   " fsid=%lu fxid=%08llx", mFmd->mProtoFmd.fsid(), mFmd->mProtoFmd.fid());
-        }
+  if ((viaDelete || mWrDelete) &&
+      ((isCreation || (isReplication && mIsRW) || mIsInjection ||
+        IsChunkedUpload()) && (!mFusex))) {
+    if (issinglewriter) {
+      // It is closed by the destructor e.g. no proper close
+      // or the specified checksum does not match the computed one
+      if (viaDelete) {
+        eos_info("msg=\"(unpersist): deleting file\" reason=\"client disconnect\""
+                 " fsid=%u fxid=%08llx", mFmd->mProtoFmd.fsid(), mFmd->mProtoFmd.fid());
+      }
 
-        if (mWrDelete) {
-          eos_info("msg=\"(unpersist): deleting file\" reason=\"write/policy error\""
-                   " fsid=%lu fxid=%08llx", mFmd->mProtoFmd.fsid(), mFmd->mProtoFmd.fid());
-        }
+      if (mWrDelete) {
+        eos_info("msg=\"(unpersist): deleting file\" reason=\"write/policy error\""
+                 " fsid=%u fxid=%08llx", mFmd->mProtoFmd.fsid(), mFmd->mProtoFmd.fid());
+      }
 
-        // Delete the file - set the file to be deleted
-        deleteOnClose = true;
-        mLayout->Remove();
+      // Delete the file - set the file to be deleted
+      deleteOnClose = true;
+      mLayout->Remove();
 
-        if (mLayout->IsEntryServer() && (!isReplication) && (!mIsInjection) &&
-            (!mRainReconstruct)) {
-          capOpaqueString += "&mgm.dropall=1";
-        }
+      if (mLayout->IsEntryServer() && (!isReplication) && (!mIsInjection) &&
+          (!mRainReconstruct)) {
+        capOpaqueString += "&mgm.dropall=1";
+      }
 
-        // Delete the replica in the MGM
-        XrdOucErrInfo lerror;
+      // Delete the replica in the MGM
+      XrdOucErrInfo lerror;
 
-        if (gOFS.CallManager(&lerror, mCapOpaque->Get("mgm.path"),
-                             mCapOpaque->Get("mgm.manager"), capOpaqueString)) {
-          eos_warning("(unpersist): unable to drop file id %s fsid %u at manager %s",
-                      hex_fid.c_str(), mFmd->mProtoFmd.fid(), mCapOpaque->Get("mgm.manager"));
-        }
-      } else {
-        eos_info("msg=\"(unpersist): suppressing delete on close\" reason=\"several writers\""
-                 " fsid=%lu fxid=%08llx", mFmd->mProtoFmd.fsid(), mFmd->mProtoFmd.fid());
+      if (gOFS.CallManager(&lerror, mCapOpaque->Get("mgm.path"),
+                           mCapOpaque->Get("mgm.manager"), capOpaqueString)) {
+        eos_warning("(unpersist): unable to drop file id %s fsid %u at manager %s",
+                    hex_fid.c_str(), mFmd->mProtoFmd.fid(), mCapOpaque->Get("mgm.manager"));
       }
     } else {
-      // Check if this was a newly created file
-      if (isCreation) {
-        // If we had space allocation we have to truncate the allocated space to
-        // the real size of the file
-        if (eos::common::LayoutId::IsRain(mLayout->GetLayoutId())) {
-          // the entry server has to truncate only if this is not a recovery action
-          if (mLayout->IsEntryServer() && !mRainReconstruct) {
-            eos_info("msg=\"truncate RAIN layout\" truncate-offset=%llu",
-                     mMaxOffsetWritten);
+      eos_info("msg=\"(unpersist): suppressing delete on close\" reason=\"several writers\""
+               " fsid=%u fxid=%08llx", mFmd->mProtoFmd.fsid(), mFmd->mProtoFmd.fid());
+    }
+  } else {
+    // Check if this was a newly created file
+    if (isCreation) {
+      // If we had space allocation we have to truncate the allocated space to
+      // the real size of the file
+      if (eos::common::LayoutId::IsRain(mLayout->GetLayoutId())) {
+        // the entry server has to truncate only if this is not a recovery action
+        if (mLayout->IsEntryServer() && !mRainReconstruct) {
+          eos_info("msg=\"truncate RAIN layout\" truncate-offset=%llu",
+                   mMaxOffsetWritten);
+          mLayout->Truncate(mMaxOffsetWritten);
+        }
+
+        //@note: there is a small probability here to have a race condition when
+        // computing the checksum for RAIN file in non-streaming mode. We should
+        // first collect all write replies and then re-read the file for the xs.
+      } else {
+        if ((long long) mMaxOffsetWritten > (long long) openSize) {
+          // Check if we have to deallocate something for this file transaction
+          if ((mBookingSize) && (mBookingSize > (long long) mMaxOffsetWritten)) {
+            eos_info("deallocationg %llu bytes", mBookingSize - mMaxOffsetWritten);
             mLayout->Truncate(mMaxOffsetWritten);
-          }
-
-          //@note: there is a small probability here to have a race condition when
-          // computing the checksum for RAIN file in non-streaming mode. We should
-          // first collect all write replies and then re-read the file for the xs.
-        } else {
-          if ((long long) mMaxOffsetWritten > (long long) openSize) {
-            // Check if we have to deallocate something for this file transaction
-            if ((mBookingSize) && (mBookingSize > (long long) mMaxOffsetWritten)) {
-              eos_info("deallocationg %llu bytes", mBookingSize - mMaxOffsetWritten);
-              mLayout->Truncate(mMaxOffsetWritten);
-              // We have evt. to deallocate blocks which have not been written
-              mLayout->Fdeallocate(mMaxOffsetWritten, mBookingSize);
-            }
-          }
-        }
-      }
-
-      checksumerror = VerifyChecksum();
-      targetsizeerror = (mTargetSize) ? (mTargetSize != (off_t) mMaxOffsetWritten) :
-                        false;
-
-      if (isCreation) {
-        // Check that the minimum file size policy is met!
-        minimumsizeerror = (mMinSize) ? ((off_t) mMaxOffsetWritten < mMinSize) : false;
-
-        if (minimumsizeerror) {
-          eos_warning("written file %s is smaller than required minimum file "
-                      "size=%llu written=%llu", mNsPath.c_str(), mMinSize,
-                      mMaxOffsetWritten);
-        }
-      }
-
-      if (eos::common::LayoutId::IsRain(mLayout->GetLayoutId())) {
-        // For RAID-like layouts don't do this check
-        targetsizeerror = false;
-        minimumsizeerror = false;
-      }
-
-      eos_debug("checksumerror=%i targetsizerror=%i "
-                "mMaxOffsetWritten=%zu targetsize=%lli",
-                checksumerror, targetsizeerror, mMaxOffsetWritten, mTargetSize);
-
-      // ---- add error simulation for checksum errors on read
-      if ((!mIsRW) && gOFS.mSimXsReadErr) {
-        checksumerror = true;
-        eos_warning("msg=\"simulate read xs error\" fxid=%08llx", mFileId);
-      }
-
-      // ---- add error simulation for checksum errors on write
-      if (mIsRW && gOFS.mSimXsWriteErr) {
-        checksumerror = true;
-        eos_warning("msg=\"simulate write xs error\" fxid=%08llx", mFileId);
-      }
-
-      if (mIsRW && (checksumerror || targetsizeerror || minimumsizeerror)) {
-        // Checksum error: checksum was preset and does not match
-        // Target size error: target size was preset and does not match
-        // Minimum size error: target minimum size was preset and does not match
-        // Set the file to be deleted
-        deleteOnClose = true;
-        mLayout->Remove();
-
-        if (mLayout->IsEntryServer() && (!isReplication) && (!mIsInjection) &&
-            (!mRainReconstruct)) {
-          capOpaqueString += "&mgm.dropall=1";
-        }
-
-        // Delete the replica in the MGM
-        XrdOucErrInfo lerror;
-
-        if (gOFS.CallManager(&lerror, mCapOpaque->Get("mgm.path"),
-                             mCapOpaque->Get("mgm.manager"), capOpaqueString)) {
-          eos_warning("(unpersist): unable to drop file id %s fsid %u at manager %s",
-                      hex_fid.c_str(), mFmd->mProtoFmd.fid(), mCapOpaque->Get("mgm.manager"));
-        }
-      }
-
-      // First we assume that, if we have writes, we update it
-      closeSize = openSize;
-
-      if ((!checksumerror) && (!minimumsizeerror) &&
-          (!targetsizeerror) &&
-          (mHasWrite || isCreation) &&
-          (!mRainReconstruct || !hasReadError)) {
-        // Commit meta data
-        struct stat statinfo;
-
-        if ((rc = mLayout->Stat(&statinfo))) {
-          rc = gOFS.Emsg(epname, error, EIO, "close - cannot stat closed layout"
-                         " to determine file size", mNsPath.c_str());
-        }
-
-        if (!rc) {
-          // Attempt archive queueing if tape support enabled
-          if (mTapeEnabled && isCreation && mSyncEventOnClose &&
-              mLayout->IsEntryServer() &&
-              mEventWorkflow != common::RETRIEVE_WRITTEN_WORKFLOW_NAME) {
-            // Queueing error: queueing for archive failed
-            queueingerror = !QueueForArchiving(statinfo, queueing_errmsg, archive_req_id);
-
-            if (queueingerror) {
-              deleteOnClose = true;
-              mLayout->Remove();
-
-              if (mLayout->IsEntryServer()) {
-                capOpaqueString += "&mgm.dropall=1";
-              }
-
-              // Delete the replica in the MGM
-              XrdOucErrInfo lerror;
-
-              if (gOFS.CallManager(&lerror, mCapOpaque->Get("mgm.path"),
-                                   mCapOpaque->Get("mgm.manager"), capOpaqueString)) {
-                eos_warning("(unpersist): unable to drop file id %s fsid %u at manager %s",
-                            hex_fid.c_str(), mFmd->mProtoFmd.fid(), mCapOpaque->Get("mgm.manager"));
-              }
-            }
-          }
-
-          if (!queueingerror && ((statinfo.st_size == 0) || mHasWrite)) {
-            // Update size
-            closeSize = statinfo.st_size;
-            mFmd->mProtoFmd.set_size(statinfo.st_size);
-            mFmd->mProtoFmd.set_disksize
-            (eos::common::LayoutId::ExpectedStripeSize(mLid, statinfo.st_size));
-            // Reset the diskchecksum after an update otherwise we might falsely report
-            // a checksum error. The diskchecksum will be updated by the scanner.
-            mFmd->mProtoFmd.set_diskchecksum("");
-            mFmd->mProtoFmd.set_mgmsize(eos::common::FmdHelper::UNDEF);
-            mFmd->mProtoFmd.set_mgmchecksum(""); // now again empty
-            mFmd->mProtoFmd.set_layouterror(0); // reset layout errors
-            mFmd->mProtoFmd.set_locations(""); // reset locations
-            mFmd->mProtoFmd.set_filecxerror(0);
-            mFmd->mProtoFmd.set_blockcxerror(0);
-            mFmd->mProtoFmd.set_locations(""); // reset locations
-            mFmd->mProtoFmd.set_mtime(statinfo.st_mtime);
-#ifdef __APPLE__
-            mFmd->mProtoFmd.set_mtime_ns(0);
-#else
-            mFmd->mProtoFmd.set_mtime_ns(statinfo.st_mtim.tv_nsec);
-#endif
-            // Set the container id
-            mFmd->mProtoFmd.set_cid(mCid);
-
-            if (mCapOpaque->Get("mgm.source.lid")) {
-              try {
-                std::string data = mCapOpaque->Get("mgm.source.lid");
-                eos::common::LayoutId::layoutid_t src_lid = std::stoul(data);
-                mFmd->mProtoFmd.set_lid(src_lid);
-
-                // For RAIN files size in local db is the size of the logical
-                // file and not the size of the current stripe on disk
-                if (mCapOpaque->Get("mgm.bookingsize") && isReplication &&
-                    eos::common::LayoutId::IsRain(src_lid)) {
-                  data = mCapOpaque->Get("mgm.bookingsize");
-                  mFmd->mProtoFmd.set_size(std::stoull(data));
-                }
-              } catch (...) {
-                eos_err("msg=\"failure to convert layout id or bookingsize\" "
-                        "lid=\"%s\" bookingsize=\"%s\"",
-                        mCapOpaque->Get("mgm.source.lid"),
-                        mCapOpaque->Get("mgm.bookingsize"));
-              }
-            }
-
-            if (mCapOpaque->Get("mgm.source.ruid")) {
-              mFmd->mProtoFmd.set_uid(atoi(mCapOpaque->Get("mgm.source.ruid")));
-            }
-
-            if (mCapOpaque->Get("mgm.source.rgid")) {
-              mFmd->mProtoFmd.set_gid(atoi(mCapOpaque->Get("mgm.source.rgid")));
-            }
-
-            // Commit local
-            try {
-              if (!gOFS.mFmdHandler->Commit(mFmd.get())) {
-                eos_err("msg=\"unable to commit meta data to local database\" "
-                        "fxid=%08llx", mFileId);
-                (void) gOFS.Emsg(epname, error, EIO, "close - unable to "
-                                 "commit meta data", mNsPath.c_str());
-              }
-            } catch (const std::length_error& e) {}
-
-            // Commit to central mgm cache
-            int envlen = 0;
-            XrdOucString capOpaqueFile = "";
-            XrdOucString mTimeString = "";
-            capOpaqueFile += "/?";
-            capOpaqueFile += mCapOpaque->Env(envlen);
-            capOpaqueFile += "&mgm.pcmd=commit";
-            capOpaqueFile += "&mgm.size=";
-            char filesize[1024];
-            sprintf(filesize, "%li", (int64_t)mFmd->mProtoFmd.size());
-            capOpaqueFile += filesize;
-
-            if (mCheckSum) {
-              capOpaqueFile += "&mgm.checksum=";
-              capOpaqueFile += mCheckSum->GetHexChecksum();
-            }
-
-            capOpaqueFile += "&mgm.mtime=";
-            capOpaqueFile += eos::common::StringConversion::GetSizeString(mTimeString,
-                             (mForcedMtime != 1) ? mForcedMtime : (unsigned long long)
-                             mFmd->mProtoFmd.mtime());
-            capOpaqueFile += "&mgm.mtime_ns=";
-            capOpaqueFile += eos::common::StringConversion::GetSizeString(mTimeString,
-                             (mForcedMtime != 1) ? mForcedMtime_ms : (unsigned long long)
-                             mFmd->mProtoFmd.mtime_ns());
-
-            if (mFusex) {
-              capOpaqueFile += "&mgm.fusex=1";
-            }
-
-            if (mHasWrite) {
-              capOpaqueFile += "&mgm.modified=1";
-            }
-
-            if (noAtomicVersioning) {
-              // prevent atomic/versioning on commmit
-              capOpaqueFile += "&mgm.commit.verify=1";
-            }
-
-            capOpaqueFile += "&mgm.add.fsid=";
-            capOpaqueFile += (int) mFmd->mProtoFmd.fsid();
-
-            // If <drainfsid> is set, we can issue a drop replica
-            if (mCapOpaque->Get("mgm.drainfsid")) {
-              capOpaqueFile += "&mgm.drop.fsid=";
-              capOpaqueFile += mCapOpaque->Get("mgm.drainfsid");
-            }
-
-            if (mRainReconstruct) {
-              // Indicate that this is a commit of a RAIN reconstruction
-              if (mLayout->IsEntryServer()) {
-                capOpaqueFile += "&mgm.reconstruction=1";
-
-                if (!hasReadError && mOpenOpaque->Get("eos.pio.recfs")) {
-                  capOpaqueFile += "&mgm.drop.fsid=";
-                  capOpaqueFile += mOpenOpaque->Get("eos.pio.recfs");
-                }
-              }
-            } else {
-              if (mLayout->IsEntryServer() && !isReplication && !mIsInjection) {
-                // The entry server commits size and checksum
-                capOpaqueFile += "&mgm.commit.size=1";
-
-                if (mCheckSum) {
-                  capOpaqueFile += "&mgm.commit.checksum=1";
-                }
-              } else {
-                bool issinglewriter = (gOFS.openedForWriting.getUseCount(mFmd->mProtoFmd.fsid(),
-                                       mFmd->mProtoFmd.fid()) <= 1);
-
-                if (issinglewriter && mCheckSum) {
-                  // if we computed a checksum, we verify it IF there is only a single writer, if there are several writers we have a significant inconsistency window during commit between replicas
-                  capOpaqueFile += "&mgm.replication=1&mgm.verify.checksum=1";
-                } else {
-                  if (issinglewriter) {
-                    // if we didn't compute a checksum, we disable checksum verification and we only indicate replication if there is only one active writer
-                    capOpaqueFile += "&mgm.replication=1&mgm.verify.checksum=0";
-                  }
-                }
-              }
-            }
-
-            // The log ID to the commit
-            capOpaqueFile += "&mgm.logid=";
-            capOpaqueFile += logId;
-
-            // Evt. tag as an OC-Chunk commit
-            if (IsChunkedUpload()) {
-              // Add the chunk information
-              int envlen;
-              capOpaqueFile += eos::common::OwnCloud::FilterOcQuery(mOpenOpaque->Env(envlen));
-            }
-
-            rc = gOFS.CallManager(&error, mCapOpaque->Get("mgm.path"),
-                                  mCapOpaque->Get("mgm.manager"), capOpaqueFile,
-                                  nullptr, 0, true);
-
-            if (rc) {
-              if ((error.getErrInfo() == EIDRM) || (error.getErrInfo() == EBADE) ||
-                  (error.getErrInfo() == EBADR) || (error.getErrInfo() == EREMCHG)) {
-                if (error.getErrInfo() == EIDRM) {
-                  // This file has been deleted in the meanwhile ... we can
-                  // unlink that immediately
-                  eos_info("info=\"unlinking fxid=%08llx path=%s - "
-                           "file has been already unlinked from the namespace\"",
-                           mFmd->mProtoFmd.fid(), mNsPath.c_str());
-                  mFusexIsUnlinked = true;
-                }
-
-                if (error.getErrInfo() == EBADE) {
-                  eos_err("info=\"unlinking fxid=%08llx path=%s - "
-                          "file size of replica does not match reference\"",
-                          mFmd->mProtoFmd.fid(), mNsPath.c_str());
-                  consistencyerror = true;
-                }
-
-                if (error.getErrInfo() == EBADR) {
-                  eos_err("info=\"unlinking fxid=%08llx path=%s - "
-                          "checksum of replica does not match reference\"",
-                          mFmd->mProtoFmd.fid(), mNsPath.c_str());
-                  consistencyerror = true;
-                }
-
-                if (error.getErrInfo() == EREMCHG) {
-                  eos_err("info=\"unlinking fxid=%08llx path=%s - "
-                          "overlapping atomic upload - discarding this one\"",
-                          mFmd->mProtoFmd.fid(), mNsPath.c_str());
-                  atomicoverlap = true;
-                }
-
-                deleteOnClose = true;
-              } else {
-                eos_crit("commit returned an uncatched error msg=%s [probably timeout]"
-                         " - closing transaction to keep the file save - rc=%d",
-                         error.getErrText(), rc);
-              }
-            } else {
-              commited_to_mgm = true;
-            }
+            // We have evt. to deallocate blocks which have not been written
+            mLayout->Fdeallocate(mMaxOffsetWritten, mBookingSize);
           }
         }
       }
     }
 
-    // Recompute our ETag
-    eos::calculateEtag(mCheckSum != nullptr, mFmd->mProtoFmd, mEtag);
-    int closerc = 0; // return of the close
-    brc = rc; // return before the close
-    rc |= ModifiedWhileInUse();
+    checksumerror = VerifyChecksum();
+    targetsizeerror = (mTargetSize) ? (mTargetSize != (off_t) mMaxOffsetWritten) :
+                      false;
 
-    if (mSyncOnClose) {
-      eos_info("syncing layout for iotype=csync");
-      rc |= mLayout->Sync();
-    }
-
-    closerc = mLayout->Close();
-
-    if (gOFS.mSimCloseErr) {
-      // simulate an error during the close call
-      eos_warning("msg=\"simulate close error\" fxid=%08llx", mFileId);
-      closerc = 1;
-    }
-
-    rc |= closerc;
-    closed = true;
-
-    if (closerc || (mRainReconstruct && hasReadError)) {
-      // For RAIN layouts if there is an error on close when writing then we
-      // delete the whole file. If we do RAIN reconstruction we cleanup this
-      // local replica which was not committed.
-      if (eos::common::LayoutId::IsRain(mLayout->GetLayoutId())) {
-        deleteOnClose = true;
-      } else {
-        // Some (remote) replica didn't make it through ... trigger an auto-repair
-        if (!deleteOnClose) {
-          repairOnClose = true;
-        }
-      }
-    }
-
-    {
-      XrdSysMutexHelper scope_lock(gOFS.OpenFidMutex);
-
-      if (mIsRW) {
-        if ((mIsInjection || isCreation || IsChunkedUpload()) && (!rc) &&
-            (gOFS.openedForWriting.getUseCount(mFmd->mProtoFmd.fsid(),
-                                               mFmd->mProtoFmd.fid()) > 1)) {
-          // indicate that this file was closed properly and disable further delete on close
-          gOFS.WNoDeleteOnCloseFid[mFmd->mProtoFmd.fsid()][mFmd->mProtoFmd.fid()] = true;
-        }
-
-        gOFS.openedForWriting.down(mFmd->mProtoFmd.fsid(), mFmd->mProtoFmd.fid());
-      } else {
-        gOFS.openedForReading.down(mFmd->mProtoFmd.fsid(), mFmd->mProtoFmd.fid());
-      }
-
-      if (!gOFS.openedForWriting.isOpen(mFmd->mProtoFmd.fsid(),
-                                        mFmd->mProtoFmd.fid())) {
-        // When the last writer is gone we can remove the prohibiting entry
-        gOFS.WNoDeleteOnCloseFid[mFmd->mProtoFmd.fsid()].erase(mFmd->mProtoFmd.fid());
-        gOFS.WNoDeleteOnCloseFid[mFmd->mProtoFmd.fsid()].resize(0);
-      }
-    }
-
-    gettimeofday(&closeTime, &tz);
-
-    if (!deleteOnClose && mIsRW) {
-      // Store in the WrittenFilesQueue
-      gOFS.WrittenFilesQueueMutex.Lock();
-      gOFS.WrittenFilesQueue.push(*mFmd.get());
-      gOFS.WrittenFilesQueueMutex.UnLock();
-    }
-
-    // Check if the target filesystem has been put into some non-operational mode
-    // in the meanwhile, it makes no sense to try to commit in this case
-    {
-      eos::common::RWMutexReadLock lock(gOFS.Storage->mFsMutex);
-
-      if (gOFS.Storage->mFsMap.count(mFsId) &&
-          gOFS.Storage->mFsMap[mFsId]->GetConfigStatus() <
-          eos::common::ConfigStatus::kDrain) {
-        eos_notice("msg=\"failing transfer because filesystem has non-"
-                   "operational state\" path=%s state=%s", mNsPath.c_str(),
-                   eos::common::FileSystem::GetConfigStatusAsString
-                   (gOFS.Storage->mFsMap[mFsId]->GetConfigStatus()));
-        deleteOnClose = true;
-      }
-    }
-    {
-      // Check if the delete on close has been prohibited for this file id
-      XrdSysMutexHelper scope_lock(gOFS.OpenFidMutex);
-
-      if (gOFS.WNoDeleteOnCloseFid[mFsId].count(mFileId)) {
-        eos_notice("msg=\"prohibiting delete on close since we had a "
-                   "sussessfull put but still an unacknowledged open\" path=%s",
-                   mNsPath.c_str());
-        deleteOnClose = false;
-      }
-    }
-
-    // Prepare a report and add to the report queue
-    if (mTpcFlag != kTpcSrcCanDo) {
-      // We don't want a report for the source tpc setup. The kTpcSrcRead
-      // stage actually uses the opaque info from kTpcSrcSetup and that's
-      // why we also generate a report at this stage.
-      XrdOucString reportString = "";
-      gettimeofday(&closeStop, &tz);
-      CloseTime();
-      MakeReportEnv(reportString);
-      eos_static_info("msg=\"%s\"", reportString.c_str());
-
-      if (eos::common::LayoutId::IsRain(mLid) &&
-          mLayout && !mLayout->IsEntryServer()) {
-        // RAIN non-entry stripes do not report any statistics
-      } else {
-        gOFS.ReportQueueMutex.Lock();
-        gOFS.ReportQueue.push(reportString);
-        gOFS.ReportQueueMutex.UnLock();
-      }
-    }
-
-    if (deleteOnClose && (!mFusex) &&
-        (mIsInjection || isCreation || IsChunkedUpload())) {
-      rc = SFS_ERROR;
-      eos_info("info=\"deleting on close\" fn=%s fstpath=%s", mNsPath.c_str(),
-               mFstPath.c_str());
-      int retc = gOFS._rem(mNsPath.c_str(), error, 0, mCapOpaque.get(),
-                           mFstPath.c_str(), mFileId, mFsId, true);
-
-      if (retc) {
-        eos_debug("<rem> returned retc=%d", retc);
-      }
-
-      if (commited_to_mgm) {
-        // If we committed the replica and an error happened remote, we have
-        // to unlink it again
-        const std::string hex_fid = eos::common::FileId::Fid2Hex(mFileId);
-        XrdOucString capOpaqueString = "/?mgm.pcmd=drop";
-        XrdOucString OpaqueString = "";
-        OpaqueString += "&mgm.fsid=";
-        OpaqueString += (int) mFsId;
-        OpaqueString += "&mgm.fid=";
-        OpaqueString += hex_fid.c_str();
-
-        // If deleteOnClose at the gateway then we drop all replicas
-        if (mLayout->IsEntryServer() && (!isReplication) && (!mIsInjection) &&
-            (!mRainReconstruct)) {
-          OpaqueString += "&mgm.dropall=1";
-        }
-
-        XrdOucEnv Opaque(OpaqueString.c_str());
-        capOpaqueString += OpaqueString;
-        // Delete the replica in the MGM - use local error object are we're not
-        // interested in propagatin the error info to the file object
-        XrdOucErrInfo lerror;
-        int rcode = gOFS.CallManager(&lerror, mCapOpaque->Get("mgm.path"),
-                                     mCapOpaque->Get("mgm.manager"), capOpaqueString);
-
-        if (rcode && (rcode != EIDRM)) {
-          eos_warning("(unpersist): unable to drop file id %s fsid %u at manager %s",
-                      hex_fid.c_str(), mFileId, mCapOpaque->Get("mgm.manager"));
-        }
-
-        eos_info("info=\"removing on manager\" manager=%s fxid=%08llx fsid=%d "
-                 "fn=%s fstpath=%s rc=%d", mCapOpaque->Get("mgm.manager"),
-                 mFileId, (int) mFsId, mCapOpaque->Get("mgm.path"),
-                 mFstPath.c_str(), rcode);
-      }
+   if (isCreation) {
+      // Check that the minimum file size policy is met!
+      minimumsizeerror = (mMinSize) ? ((off_t) mMaxOffsetWritten < mMinSize) : false;
 
       if (minimumsizeerror) {
-        // Minimum size criteria not fullfilled
-        gOFS.Emsg(epname, error, EIO, "store file - file has been cleaned "
-                  "because it is smaller than the required minimum file size"
-                  " in that directory", mNsPath.c_str());
-        eos_warning("info=\"deleting on close\" fn=%s fstpath=%s reason="
-                    "\"minimum file size criteria\"", mCapOpaque->Get("mgm.path"),
-                    mFstPath.c_str());
-      } else if (checksumerror) {
-        // Checksum error
-        gOFS.Emsg(epname, error, EIO, "store file - file has been cleaned "
-                  "because of a checksum error ", mNsPath.c_str());
-        eos_warning("info=\"deleting on close\" fn=%s fstpath=%s reason="
-                    "\"checksum error\"", mCapOpaque->Get("mgm.path"), mFstPath.c_str());
-      } else if (writeErrorFlag == kOfsSimulatedIoError) {
-        // Simulated write error
-        gOFS.Emsg(epname, error, EIO, "store file - file has been cleaned "
-                  "because of a simulated IO error ", mNsPath.c_str());
-        eos_warning("info=\"deleting on close\" fn=%s fstpath=%s reason="
-                    "\"simulated IO error\"", mCapOpaque->Get("mgm.path"), mFstPath.c_str());
-      } else if (writeErrorFlag == kOfsMaxSizeError) {
-        // Maximum size criteria not fullfilled
-        gOFS.Emsg(epname, error, EIO, "store file - file has been cleaned "
-                  "because you exceeded the maximum file size settings for "
-                  "this namespace branch", mNsPath.c_str());
-        eos_warning("info=\"deleting on close\" fn=%s fstpath=%s reason="
-                    "\"maximum file size criteria\"", mCapOpaque->Get("mgm.path"),
-                    mFstPath.c_str());
-      } else if (writeErrorFlag == kOfsDiskFullError) {
-        // Disk full detected during write
-        gOFS.Emsg(epname, error, EIO, "store file - file has been cleaned"
-                  " because the target disk filesystem got full and you "
-                  "didn't use reservation", mNsPath.c_str());
-        eos_warning("info=\"deleting on close\" fn=%s fstpath=%s reason="
-                    "\"filesystem full\"", mCapOpaque->Get("mgm.path"), mFstPath.c_str());
-      } else if (writeErrorFlag == kOfsIoError) {
-        // Generic IO error on the underlying device
-        gOFS.Emsg(epname, error, EIO, "store file - file has been cleaned because"
-                  " of an IO error during a write operation", mNsPath.c_str());
-        eos_crit("info=\"deleting on close\" fn=%s fstpath=%s reason="
-                 "\"write IO error\"", mCapOpaque->Get("mgm.path"), mFstPath.c_str());
-      } else if (writeErrorFlag == kOfsFsRemovedError) {
-        // Filesystem has been unregistered
-        gOFS.Emsg(epname, error, EIO, "store file - file has been cleaned because"
-                  " the target filesystem has been unregistered", mNsPath.c_str());
-        eos_crit("info=\"deleting on close\" fn=%s fstpath=%s reason="
-                 "\"FS removed\"", mCapOpaque->Get("mgm.path"), mFstPath.c_str());
-      } else if (targetsizeerror) {
-        // Target size is different from the uploaded file size
-        gOFS.Emsg(epname, error, EIO, "store file - file has been "
-                  "cleaned because the stored file does not match "
-                  "the provided targetsize", mNsPath.c_str());
-        eos_warning("info=\"deleting on close\" fn=%s fstpath=%s reason="
-                    "\"target size mismatch\"", mCapOpaque->Get("mgm.path"),
-                    mFstPath.c_str());
-      } else if (consistencyerror) {
-        gOFS.Emsg(epname, error, EIO, "store file - file has been "
-                  "cleaned because the stored file does not match "
-                  "the reference meta-data size/checksum", mNsPath.c_str());
-        eos_crit("info=\"deleting on close\" fn=%s fstpath=%s reason="
-                 "\"meta-data size/checksum mismatch\"", mCapOpaque->Get("mgm.path"),
-                 mFstPath.c_str());
-      } else if (atomicoverlap) {
-        gOFS.Emsg(epname, error, EIO, "store file - file has been "
-                  "cleaned because of an overlapping atomic upload "
-                  "and we are not the last uploader", mNsPath.c_str());
-        eos_crit("info=\"deleting on close\" fn=%s fstpath=%s reason="
-                 "\"suppressed atomic uploadh\"", mCapOpaque->Get("mgm.path"),
-                 mFstPath.c_str());
-      } else if (queueingerror) {
-        std::string message =
-          SSTR("store file - file has been cleaned because of a queueing "
-               << "to archive error; reason=\"" << queueing_errmsg << "\"");
-        gOFS.Emsg(epname, error, EIO, message.c_str(), mNsPath.c_str());
-        eos_warning("info=\"deleting on close\" fn=%s fstpath=%s reason=\"%s\"",
-                    mCapOpaque->Get("mgm.path"), mFstPath.c_str(),
-                    queueing_errmsg.c_str());
-      } else {
-        // Client has disconnected and file is cleaned-up
-        gOFS.Emsg(epname, error, EIO, "store file - file has been "
-                  "cleaned because of a client disconnect", mNsPath.c_str());
-        eos_warning("info=\"deleting on close\" fn=%s fstpath=%s "
-                    "reason=\"client disconnect\"", mCapOpaque->Get("mgm.path"),
-                    mFstPath.c_str());
-      }
-    } else {
-      if (checksumerror) {
-        // Checksum error detected
-        rc = gOFS.Emsg(epname, error, EIO, "verify checksum - checksum error fn=",
-                       mNsPath.c_str());
-        int envlen = 0;
-        eos_crit("msg=\"file checksum error detected\" info=\"%s\"",
-                 mCapOpaque->Env(envlen));
+        eos_warning("written file %s is smaller than required minimum file "
+                    "size=%llu written=%llu", mNsPath.c_str(), mMinSize,
+                    mMaxOffsetWritten);
       }
     }
 
-    if ((!IsChunkedUpload()) && repairOnClose) {
-      // Do an upcall to the MGM and ask to adjust the replica of the uploaded file
-      XrdOucString OpaqueString = "/?mgm.pcmd=adjustreplica&mgm.path=";
-      OpaqueString += mCapOpaque->Get("mgm.path");
-      eos_info("msg=\"repair on close\" path=%s", mCapOpaque->Get("mgm.path"));
+    // For RAIN layouts don't check target and minimum size
+    if (eos::common::LayoutId::IsRain(mLayout->GetLayoutId())) {
+      targetsizeerror = false;
+      minimumsizeerror = false;
+    }
 
-      if (gOFS.CallManager(&error, mCapOpaque->Get("mgm.path"),
-                           mCapOpaque->Get("mgm.manager"), OpaqueString)) {
-        eos_err("msg=\"failed adjustreplica\" path=%s", mNsPath.c_str());
-        gOFS.Emsg(epname, error, EIO, "create all replicas - uploaded file is "
-                  "at risk - only one replica has been successfully stored for fn=",
-                  mNsPath.c_str());
-      } else {
-        if (!brc) {
-          // Reset the return code and clean error message
-          error.setErrInfo(0, "");
-          rc = 0;
+    eos_debug("checksumerror=%i targetsizerror=%i "
+              "mMaxOffsetWritten=%zu targetsize=%lli",
+              checksumerror, targetsizeerror, mMaxOffsetWritten, mTargetSize);
+
+    // Error simulation for checksum errors on read
+    if (!mIsRW && gOFS.mSimXsReadErr) {
+      checksumerror = true;
+      eos_warning("msg=\"simulate read xs error\" fxid=%08llx", mFileId);
+    }
+
+    // Error simulation for checksum errors on write
+    if (mIsRW && gOFS.mSimXsWriteErr) {
+      checksumerror = true;
+      eos_warning("msg=\"simulate write xs error\" fxid=%08llx", mFileId);
+    }
+
+    if (mIsRW && (checksumerror || targetsizeerror || minimumsizeerror)) {
+      // Checksum error: checksum was preset and does not match
+      // Target size error: target size was preset and does not match
+      // Minimum size error: target minimum size was preset and does not match
+      // Set the file to be deleted
+      deleteOnClose = true;
+      mLayout->Remove();
+
+      if (mLayout->IsEntryServer() && (!isReplication) && (!mIsInjection) &&
+          (!mRainReconstruct)) {
+        capOpaqueString += "&mgm.dropall=1";
+      }
+
+      // Delete the replica in the MGM
+      XrdOucErrInfo lerror;
+
+      if (gOFS.CallManager(&lerror, mCapOpaque->Get("mgm.path"),
+                           mCapOpaque->Get("mgm.manager"), capOpaqueString)) {
+        eos_warning("(unpersist): unable to drop file id %s fsid %u at manager %s",
+                    hex_fid.c_str(), mFmd->mProtoFmd.fid(), mCapOpaque->Get("mgm.manager"));
+      }
+    }
+
+    // First we assume that, if we have writes, we update it
+    closeSize = openSize;
+
+    if ((!checksumerror) && (!minimumsizeerror) &&
+        (!targetsizeerror) &&
+        (mHasWrite || isCreation) &&
+        (!mRainReconstruct || !hasReadError)) {
+      // Commit meta data
+      struct stat statinfo;
+
+      if ((rc = mLayout->Stat(&statinfo))) {
+        rc = gOFS.Emsg(epname, error, EIO, "close - cannot stat closed layout"
+                       " to determine file size", mNsPath.c_str());
+      }
+
+      if (!rc) {
+        // Attempt archive queueing if tape support enabled
+        if (mTapeEnabled && isCreation && mSyncEventOnClose &&
+            mLayout->IsEntryServer() &&
+            mEventWorkflow != common::RETRIEVE_WRITTEN_WORKFLOW_NAME) {
+          // Queueing error: queueing for archive failed
+          queueingerror = !QueueForArchiving(statinfo, queueing_errmsg, archive_req_id);
+
+          if (queueingerror) {
+            deleteOnClose = true;
+            mLayout->Remove();
+
+            if (mLayout->IsEntryServer()) {
+              capOpaqueString += "&mgm.dropall=1";
+            }
+
+            // Delete the replica in the MGM
+            XrdOucErrInfo lerror;
+
+            if (gOFS.CallManager(&lerror, mCapOpaque->Get("mgm.path"),
+                                 mCapOpaque->Get("mgm.manager"), capOpaqueString)) {
+              eos_warning("(unpersist): unable to drop file id %s fsid %u at manager %s",
+                          hex_fid.c_str(), mFmd->mProtoFmd.fid(), mCapOpaque->Get("mgm.manager"));
+            }
+          }
+        }
+
+        if (!queueingerror && ((statinfo.st_size == 0) || mHasWrite)) {
+          // Update size
+          closeSize = statinfo.st_size;
+          mFmd->mProtoFmd.set_size(statinfo.st_size);
+          mFmd->mProtoFmd.set_disksize
+          (eos::common::LayoutId::ExpectedStripeSize(mLid, statinfo.st_size));
+          // Reset the diskchecksum after an update otherwise we might falsely report
+          // a checksum error. The diskchecksum will be updated by the scanner.
+          mFmd->mProtoFmd.set_diskchecksum("");
+          mFmd->mProtoFmd.set_mgmsize(eos::common::FmdHelper::UNDEF);
+          mFmd->mProtoFmd.set_mgmchecksum(""); // now again empty
+          mFmd->mProtoFmd.set_layouterror(0); // reset layout errors
+          mFmd->mProtoFmd.set_locations(""); // reset locations
+          mFmd->mProtoFmd.set_filecxerror(0);
+          mFmd->mProtoFmd.set_blockcxerror(0);
+          mFmd->mProtoFmd.set_locations(""); // reset locations
+          mFmd->mProtoFmd.set_mtime(statinfo.st_mtime);
+#ifdef __APPLE__
+          mFmd->mProtoFmd.set_mtime_ns(0);
+#else
+          mFmd->mProtoFmd.set_mtime_ns(statinfo.st_mtim.tv_nsec);
+#endif
+          // Set the container id
+          mFmd->mProtoFmd.set_cid(mCid);
+
+          if (mCapOpaque->Get("mgm.source.lid")) {
+            try {
+              std::string data = mCapOpaque->Get("mgm.source.lid");
+              eos::common::LayoutId::layoutid_t src_lid = std::stoul(data);
+              mFmd->mProtoFmd.set_lid(src_lid);
+
+              // For RAIN files size in local db is the size of the logical
+              // file and not the size of the current stripe on disk
+              if (mCapOpaque->Get("mgm.bookingsize") && isReplication &&
+                  eos::common::LayoutId::IsRain(src_lid)) {
+                data = mCapOpaque->Get("mgm.bookingsize");
+                mFmd->mProtoFmd.set_size(std::stoull(data));
+              }
+            } catch (...) {
+              eos_err("msg=\"failure to convert layout id or bookingsize\" "
+                      "lid=\"%s\" bookingsize=\"%s\"",
+                      mCapOpaque->Get("mgm.source.lid"),
+                      mCapOpaque->Get("mgm.bookingsize"));
+            }
+          }
+
+          if (mCapOpaque->Get("mgm.source.ruid")) {
+            mFmd->mProtoFmd.set_uid(atoi(mCapOpaque->Get("mgm.source.ruid")));
+          }
+
+          if (mCapOpaque->Get("mgm.source.rgid")) {
+            mFmd->mProtoFmd.set_gid(atoi(mCapOpaque->Get("mgm.source.rgid")));
+          }
+
+          // Commit local
+          try {
+            if (!gOFS.mFmdHandler->Commit(mFmd.get())) {
+              eos_err("msg=\"unable to commit meta data to local database\" "
+                      "fxid=%08llx", mFileId);
+              (void) gOFS.Emsg(epname, error, EIO, "close - unable to "
+                               "commit meta data", mNsPath.c_str());
+            }
+          } catch (const std::length_error& e) {}
+
+          // Commit to central mgm cache
+          int envlen = 0;
+          XrdOucString capOpaqueFile = "";
+          XrdOucString mTimeString = "";
+          capOpaqueFile += "/?";
+          capOpaqueFile += mCapOpaque->Env(envlen);
+          capOpaqueFile += "&mgm.pcmd=commit";
+          capOpaqueFile += "&mgm.size=";
+          char filesize[1024];
+          sprintf(filesize, "%li", (int64_t)mFmd->mProtoFmd.size());
+          capOpaqueFile += filesize;
+
+          if (mCheckSum) {
+            capOpaqueFile += "&mgm.checksum=";
+            capOpaqueFile += mCheckSum->GetHexChecksum();
+          }
+
+          capOpaqueFile += "&mgm.mtime=";
+          capOpaqueFile += eos::common::StringConversion::GetSizeString(mTimeString,
+                           (mForcedMtime != 1) ? mForcedMtime : (unsigned long long)
+                           mFmd->mProtoFmd.mtime());
+          capOpaqueFile += "&mgm.mtime_ns=";
+          capOpaqueFile += eos::common::StringConversion::GetSizeString(mTimeString,
+                           (mForcedMtime != 1) ? mForcedMtime_ms : (unsigned long long)
+                           mFmd->mProtoFmd.mtime_ns());
+
+          if (mFusex) {
+            capOpaqueFile += "&mgm.fusex=1";
+          }
+
+          if (mHasWrite) {
+            capOpaqueFile += "&mgm.modified=1";
+          }
+
+          if (noAtomicVersioning) {
+            // prevent atomic/versioning on commmit
+            capOpaqueFile += "&mgm.commit.verify=1";
+          }
+
+          capOpaqueFile += "&mgm.add.fsid=";
+          capOpaqueFile += (int) mFmd->mProtoFmd.fsid();
+
+          // If <drainfsid> is set, we can issue a drop replica
+          if (mCapOpaque->Get("mgm.drainfsid")) {
+            capOpaqueFile += "&mgm.drop.fsid=";
+            capOpaqueFile += mCapOpaque->Get("mgm.drainfsid");
+          }
+
+          if (mRainReconstruct) {
+            // Indicate that this is a commit of a RAIN reconstruction
+            if (mLayout->IsEntryServer()) {
+              capOpaqueFile += "&mgm.reconstruction=1";
+
+              if (!hasReadError && mOpenOpaque->Get("eos.pio.recfs")) {
+                capOpaqueFile += "&mgm.drop.fsid=";
+                capOpaqueFile += mOpenOpaque->Get("eos.pio.recfs");
+              }
+            }
+          } else {
+            if (mLayout->IsEntryServer() && !isReplication && !mIsInjection) {
+              // The entry server commits size and checksum
+              capOpaqueFile += "&mgm.commit.size=1";
+
+              if (mCheckSum) {
+                capOpaqueFile += "&mgm.commit.checksum=1";
+              }
+            } else {
+              bool issinglewriter = (gOFS.openedForWriting.getUseCount(mFmd->mProtoFmd.fsid(),
+                                     mFmd->mProtoFmd.fid()) <= 1);
+
+              if (issinglewriter && mCheckSum) {
+                // if we computed a checksum, we verify it IF there is only a
+                // single writer, if there are several writers we have a
+                // significant inconsistency window during commit between replicas
+                capOpaqueFile += "&mgm.replication=1&mgm.verify.checksum=1";
+              } else {
+                if (issinglewriter) {
+                  // if we didn't compute a checksum, we disable checksum
+                  // verification and we only indicate replication if there
+                  // is only one active writer
+                  capOpaqueFile += "&mgm.replication=1&mgm.verify.checksum=0";
+                }
+              }
+            }
+          }
+
+          // The log ID to the commit
+          capOpaqueFile += "&mgm.logid=";
+          capOpaqueFile += logId;
+
+          // Evt. tag as an OC-Chunk commit
+          if (IsChunkedUpload()) {
+            // Add the chunk information
+            int envlen;
+            capOpaqueFile += eos::common::OwnCloud::FilterOcQuery(mOpenOpaque->Env(envlen));
+          }
+
+          rc = gOFS.CallManager(&error, mCapOpaque->Get("mgm.path"),
+                                mCapOpaque->Get("mgm.manager"), capOpaqueFile,
+                                nullptr, 0, true);
+
+          if (rc) {
+            if ((error.getErrInfo() == EIDRM) || (error.getErrInfo() == EBADE) ||
+                (error.getErrInfo() == EBADR) || (error.getErrInfo() == EREMCHG)) {
+              if (error.getErrInfo() == EIDRM) {
+                // This file has been deleted in the meanwhile ... we can
+                // unlink that immediately
+                eos_info("info=\"unlinking fxid=%08llx path=%s - "
+                         "file has been already unlinked from the namespace\"",
+                         mFmd->mProtoFmd.fid(), mNsPath.c_str());
+                mFusexIsUnlinked = true;
+              }
+
+              if (error.getErrInfo() == EBADE) {
+                eos_err("info=\"unlinking fxid=%08llx path=%s - "
+                        "file size of replica does not match reference\"",
+                        mFmd->mProtoFmd.fid(), mNsPath.c_str());
+                consistencyerror = true;
+              }
+
+              if (error.getErrInfo() == EBADR) {
+                eos_err("info=\"unlinking fxid=%08llx path=%s - "
+                        "checksum of replica does not match reference\"",
+                        mFmd->mProtoFmd.fid(), mNsPath.c_str());
+                consistencyerror = true;
+              }
+
+              if (error.getErrInfo() == EREMCHG) {
+                eos_err("info=\"unlinking fxid=%08llx path=%s - "
+                        "overlapping atomic upload - discarding this one\"",
+                        mFmd->mProtoFmd.fid(), mNsPath.c_str());
+                atomicoverlap = true;
+              }
+
+              deleteOnClose = true;
+            } else {
+              eos_crit("commit returned an uncatched error msg=%s [probably timeout]"
+                       " - closing transaction to keep the file save - rc=%d",
+                       error.getErrText(), rc);
+            }
+          } else {
+            commited_to_mgm = true;
+          }
         }
       }
+    }
+  }
 
-      eos_warning("msg=\"executed adjustreplica, file is at low risk due to "
-                  "missing replicas\" path=%s", mNsPath.c_str());
+  // Recompute our ETag
+  eos::calculateEtag(mCheckSum != nullptr, mFmd->mProtoFmd, mEtag);
+  int closerc = 0; // return of the close
+  brc = rc; // return before the close
+  rc |= ModifiedWhileInUse();
+
+  if (mSyncOnClose) {
+    eos_info("syncing layout for iotype=csync");
+    rc |= mLayout->Sync();
+  }
+
+  closerc = mLayout->Close();
+
+  if (gOFS.mSimCloseErr) {
+    // simulate an error during the close call
+    eos_warning("msg=\"simulate close error\" fxid=%08llx", mFileId);
+    closerc = 1;
+  }
+
+  rc |= closerc;
+  mClosed = true;
+
+  if (closerc || (mRainReconstruct && hasReadError)) {
+    // For RAIN layouts if there is an error on close when writing then we
+    // delete the whole file. If we do RAIN reconstruction we cleanup this
+    // local replica which was not committed.
+    if (eos::common::LayoutId::IsRain(mLayout->GetLayoutId())) {
+      deleteOnClose = true;
+    } else {
+      // Some (remote) replica didn't make it through ... trigger an auto-repair
+      if (!deleteOnClose) {
+        repairOnClose = true;
+      }
+    }
+  }
+
+  {
+    XrdSysMutexHelper scope_lock(gOFS.OpenFidMutex);
+
+    if (mIsRW) {
+      if ((mIsInjection || isCreation || IsChunkedUpload()) && (!rc) &&
+          (gOFS.openedForWriting.getUseCount(mFmd->mProtoFmd.fsid(),
+                                             mFmd->mProtoFmd.fid() > 1))) {
+        // indicate that this file was closed properly and disable further delete on close
+        gOFS.WNoDeleteOnCloseFid[mFmd->mProtoFmd.fsid()][mFmd->mProtoFmd.fid()] = true;
+      }
+
+      gOFS.openedForWriting.down(mFmd->mProtoFmd.fsid(), mFmd->mProtoFmd.fid());
+    } else {
+      gOFS.openedForReading.down(mFmd->mProtoFmd.fsid(), mFmd->mProtoFmd.fid());
     }
 
-    // Trigger an MGM event from the entry point
-    if (!rc && (mEventOnClose || mSyncEventOnClose) && mLayout->IsEntryServer()) {
-      XrdOucString capOpaqueFile = "";
-      XrdOucString eventType = "";
-      capOpaqueFile += "/?";
+    if (!gOFS.openedForWriting.isOpen(mFmd->mProtoFmd.fsid(),
+                                      mFmd->mProtoFmd.fid())) {
+      // When the last writer is gone we can remove the prohibiting entry
+      gOFS.WNoDeleteOnCloseFid[mFmd->mProtoFmd.fsid()].erase(mFmd->mProtoFmd.fid());
+      gOFS.WNoDeleteOnCloseFid[mFmd->mProtoFmd.fsid()].resize(0);
+    }
+  }
+
+  gettimeofday(&closeTime, &tz);
+
+  if (!deleteOnClose && mIsRW) {
+    // Store in the WrittenFilesQueue
+    gOFS.WrittenFilesQueueMutex.Lock();
+    gOFS.WrittenFilesQueue.push(*mFmd.get());
+    gOFS.WrittenFilesQueueMutex.UnLock();
+  }
+
+  // Check if the target filesystem has been put into some non-operational mode
+  // in the meanwhile, it makes no sense to try to commit in this case
+  {
+    eos::common::RWMutexReadLock lock(gOFS.Storage->mFsMutex);
+
+    if (gOFS.Storage->mFsMap.count(mFsId) &&
+        gOFS.Storage->mFsMap[mFsId]->GetConfigStatus() <
+        eos::common::ConfigStatus::kDrain) {
+      eos_notice("msg=\"failing transfer because filesystem has non-"
+                 "operational state\" path=%s state=%s", mNsPath.c_str(),
+                 eos::common::FileSystem::GetConfigStatusAsString
+                 (gOFS.Storage->mFsMap[mFsId]->GetConfigStatus()));
+      deleteOnClose = true;
+    }
+  }
+  {
+    // Check if the delete on close has been prohibited for this file id
+    XrdSysMutexHelper scope_lock(gOFS.OpenFidMutex);
+
+    if (gOFS.WNoDeleteOnCloseFid[mFsId].count(mFileId)) {
+      eos_notice("msg=\"prohibiting delete on close since we had a "
+                 "sussessfull put but still an unacknowledged open\" path=%s",
+                 mNsPath.c_str());
+      deleteOnClose = false;
+    }
+  }
+
+  // Prepare a report and add to the report queue
+  if (mTpcFlag != kTpcSrcCanDo) {
+    // We don't want a report for the source tpc setup. The kTpcSrcRead
+    // stage actually uses the opaque info from kTpcSrcSetup and that's
+    // why we also generate a report at this stage.
+    XrdOucString reportString = "";
+    gettimeofday(&closeStop, &tz);
+    CloseTime();
+    MakeReportEnv(reportString);
+    eos_static_info("msg=\"%s\"", reportString.c_str());
+
+    if (eos::common::LayoutId::IsRain(mLid) &&
+        mLayout && !mLayout->IsEntryServer()) {
+      // RAIN non-entry stripes do not report any statistics
+    } else {
+      gOFS.ReportQueueMutex.Lock();
+      gOFS.ReportQueue.push(reportString);
+      gOFS.ReportQueueMutex.UnLock();
+    }
+  }
+
+  if (deleteOnClose && (!mFusex) &&
+      (mIsInjection || isCreation || IsChunkedUpload())) {
+    rc = SFS_ERROR;
+    eos_info("info=\"deleting on close\" fn=%s fstpath=%s", mNsPath.c_str(),
+             mFstPath.c_str());
+    int retc = gOFS._rem(mNsPath.c_str(), error, 0, mCapOpaque.get(),
+                         mFstPath.c_str(), mFileId, mFsId, true);
+
+    if (retc) {
+      eos_debug("<rem> returned retc=%d", retc);
+    }
+
+    if (commited_to_mgm) {
+      // If we committed the replica and an error happened remote, we have
+      // to unlink it again
+      const std::string hex_fid = eos::common::FileId::Fid2Hex(mFileId);
+      XrdOucString capOpaqueString = "/?mgm.pcmd=drop";
+      XrdOucString OpaqueString = "";
+      OpaqueString += "&mgm.fsid=";
+      OpaqueString += (int) mFsId;
+      OpaqueString += "&mgm.fid=";
+      OpaqueString += hex_fid.c_str();
+
+      // If deleteOnClose at the gateway then we drop all replicas
+      if (mLayout->IsEntryServer() && (!isReplication) && (!mIsInjection) &&
+          (!mRainReconstruct)) {
+        OpaqueString += "&mgm.dropall=1";
+      }
+
+      XrdOucEnv Opaque(OpaqueString.c_str());
+      capOpaqueString += OpaqueString;
+      // Delete the replica in the MGM - use local error object are we're not
+      // interested in propagatin the error info to the file object
+      XrdOucErrInfo lerror;
+      int rcode = gOFS.CallManager(&lerror, mCapOpaque->Get("mgm.path"),
+                                   mCapOpaque->Get("mgm.manager"), capOpaqueString);
+
+      if (rcode && (rcode != EIDRM)) {
+        eos_warning("(unpersist): unable to drop file id %s fsid %u at manager %s",
+                    hex_fid.c_str(), mFileId, mCapOpaque->Get("mgm.manager"));
+      }
+
+      eos_info("info=\"removing on manager\" manager=%s fxid=%08llx fsid=%u "
+               "fn=%s fstpath=%s rc=%d", mCapOpaque->Get("mgm.manager"),
+               mFileId, (int) mFsId, mCapOpaque->Get("mgm.path"),
+               mFstPath.c_str(), rcode);
+    }
+
+    if (minimumsizeerror) {
+      // Minimum size criteria not fullfilled
+      gOFS.Emsg(epname, error, EIO, "store file - file has been cleaned "
+                "because it is smaller than the required minimum file size"
+                " in that directory", mNsPath.c_str());
+      eos_warning("info=\"deleting on close\" fn=%s fstpath=%s reason="
+                  "\"minimum file size criteria\"", mCapOpaque->Get("mgm.path"),
+                  mFstPath.c_str());
+    } else if (checksumerror) {
+      // Checksum error
+      gOFS.Emsg(epname, error, EIO, "store file - file has been cleaned "
+                "because of a checksum error ", mNsPath.c_str());
+      eos_warning("info=\"deleting on close\" fn=%s fstpath=%s reason="
+                  "\"checksum error\"", mCapOpaque->Get("mgm.path"), mFstPath.c_str());
+    } else if (writeErrorFlag == kOfsSimulatedIoError) {
+      // Simulated write error
+      gOFS.Emsg(epname, error, EIO, "store file - file has been cleaned "
+                "because of a simulated IO error ", mNsPath.c_str());
+      eos_warning("info=\"deleting on close\" fn=%s fstpath=%s reason="
+                  "\"simulated IO error\"", mCapOpaque->Get("mgm.path"), mFstPath.c_str());
+    } else if (writeErrorFlag == kOfsMaxSizeError) {
+      // Maximum size criteria not fullfilled
+      gOFS.Emsg(epname, error, EIO, "store file - file has been cleaned "
+                "because you exceeded the maximum file size settings for "
+                "this namespace branch", mNsPath.c_str());
+      eos_warning("info=\"deleting on close\" fn=%s fstpath=%s reason="
+                  "\"maximum file size criteria\"", mCapOpaque->Get("mgm.path"),
+                  mFstPath.c_str());
+    } else if (writeErrorFlag == kOfsDiskFullError) {
+      // Disk full detected during write
+      gOFS.Emsg(epname, error, EIO, "store file - file has been cleaned"
+                " because the target disk filesystem got full and you "
+                "didn't use reservation", mNsPath.c_str());
+      eos_warning("info=\"deleting on close\" fn=%s fstpath=%s reason="
+                  "\"filesystem full\"", mCapOpaque->Get("mgm.path"), mFstPath.c_str());
+    } else if (writeErrorFlag == kOfsIoError) {
+      // Generic IO error on the underlying device
+      gOFS.Emsg(epname, error, EIO, "store file - file has been cleaned because"
+                " of an IO error during a write operation", mNsPath.c_str());
+      eos_crit("info=\"deleting on close\" fn=%s fstpath=%s reason="
+               "\"write IO error\"", mCapOpaque->Get("mgm.path"), mFstPath.c_str());
+    } else if (writeErrorFlag == kOfsFsRemovedError) {
+      // Filesystem has been unregistered
+      gOFS.Emsg(epname, error, EIO, "store file - file has been cleaned because"
+                " the target filesystem has been unregistered", mNsPath.c_str());
+      eos_crit("info=\"deleting on close\" fn=%s fstpath=%s reason="
+               "\"FS removed\"", mCapOpaque->Get("mgm.path"), mFstPath.c_str());
+    } else if (targetsizeerror) {
+      // Target size is different from the uploaded file size
+      gOFS.Emsg(epname, error, EIO, "store file - file has been "
+                "cleaned because the stored file does not match "
+                "the provided targetsize", mNsPath.c_str());
+      eos_warning("info=\"deleting on close\" fn=%s fstpath=%s reason="
+                  "\"target size mismatch\"", mCapOpaque->Get("mgm.path"),
+                  mFstPath.c_str());
+    } else if (consistencyerror) {
+      gOFS.Emsg(epname, error, EIO, "store file - file has been "
+                "cleaned because the stored file does not match "
+                "the reference meta-data size/checksum", mNsPath.c_str());
+      eos_crit("info=\"deleting on close\" fn=%s fstpath=%s reason="
+               "\"meta-data size/checksum mismatch\"", mCapOpaque->Get("mgm.path"),
+               mFstPath.c_str());
+    } else if (atomicoverlap) {
+      gOFS.Emsg(epname, error, EIO, "store file - file has been "
+                "cleaned because of an overlapping atomic upload "
+                "and we are not the last uploader", mNsPath.c_str());
+      eos_crit("info=\"deleting on close\" fn=%s fstpath=%s reason="
+               "\"suppressed atomic uploadh\"", mCapOpaque->Get("mgm.path"),
+               mFstPath.c_str());
+    } else if (queueingerror) {
+      std::string message =
+        SSTR("store file - file has been cleaned because of a queueing "
+             << "to archive error; reason=\"" << queueing_errmsg << "\"");
+      gOFS.Emsg(epname, error, EIO, message.c_str(), mNsPath.c_str());
+      eos_warning("info=\"deleting on close\" fn=%s fstpath=%s reason=\"%s\"",
+                  mCapOpaque->Get("mgm.path"), mFstPath.c_str(),
+                  queueing_errmsg.c_str());
+    } else {
+      // Client has disconnected and file is cleaned-up
+      gOFS.Emsg(epname, error, EIO, "store file - file has been "
+                "cleaned because of a client disconnect", mNsPath.c_str());
+      eos_warning("info=\"deleting on close\" fn=%s fstpath=%s "
+                  "reason=\"client disconnect\"", mCapOpaque->Get("mgm.path"),
+                  mFstPath.c_str());
+    }
+  } else {
+    if (checksumerror) {
+      // Checksum error detected
+      rc = gOFS.Emsg(epname, error, EIO, "verify checksum - checksum error fn=",
+                     mNsPath.c_str());
       int envlen = 0;
-      capOpaqueFile += mCapOpaque->Env(envlen);
-      capOpaqueFile += "&mgm.pcmd=event";
+      eos_crit("msg=\"file checksum error detected\" info=\"%s\"",
+               mCapOpaque->Env(envlen));
+    }
+  }
 
-      if (mIsRW) {
-        eventType = mSyncEventOnClose ? "sync::closew" : "closew";
-      } else {
-        eventType = "closer";
+  if ((!IsChunkedUpload()) && repairOnClose) {
+    // Do an upcall to the MGM and ask to adjust the replica of the uploaded file
+    XrdOucString OpaqueString = "/?mgm.pcmd=adjustreplica&mgm.path=";
+    OpaqueString += mCapOpaque->Get("mgm.path");
+    eos_info("msg=\"repair on close\" path=%s", mCapOpaque->Get("mgm.path"));
+
+    if (gOFS.CallManager(&error, mCapOpaque->Get("mgm.path"),
+                         mCapOpaque->Get("mgm.manager"), OpaqueString)) {
+      eos_err("msg=\"failed adjustreplica\" path=%s", mNsPath.c_str());
+      gOFS.Emsg(epname, error, EIO, "create all replicas - uploaded file is "
+                "at risk - only one replica has been successfully stored for fn=",
+                mNsPath.c_str());
+    } else {
+      if (!brc) {
+        // Reset the return code and clean error message
+        error.setErrInfo(0, "");
+        rc = 0;
       }
-
-      capOpaqueFile += "&mgm.event=";
-      capOpaqueFile += eventType;
-      // The log ID to the commit
-      capOpaqueFile += "&mgm.logid=";
-      capOpaqueFile += logId;
-      capOpaqueFile += "&mgm.ruid=";
-      capOpaqueFile += mCapOpaque->Get("mgm.ruid");
-      capOpaqueFile += "&mgm.rgid=";
-      capOpaqueFile += mCapOpaque->Get("mgm.rgid");
-      capOpaqueFile += "&mgm.sec=";
-      capOpaqueFile += mCapOpaque->Get("mgm.sec");
-
-      if (mEventWorkflow.length()) {
-        capOpaqueFile += "&mgm.workflow=";
-        capOpaqueFile += mEventWorkflow.c_str();
-      }
-
-      if (!archive_req_id.empty()) {
-        capOpaqueFile += "&mgm.archive_req_id=";
-        capOpaqueFile += archive_req_id.c_str();
-      }
-
-      eos_info("msg=\"notify\" event=\"%s\" workflow=\"%s\"", eventType.c_str(),
-               mEventWorkflow.c_str());
-      rc = gOFS.CallManager(&error, mCapOpaque->Get("mgm.path"),
-                            mCapOpaque->Get("mgm.manager"), capOpaqueFile,
-                            nullptr, 30, mSyncEventOnClose, false);
     }
 
-    // Mask close error for fusex, if the file had been removed already
-    if (mFusexIsUnlinked && mFusex) {
-      error.setErrCode(0);
-      rc = 0;
+    eos_warning("msg=\"executed adjustreplica, file is at low risk due to "
+                "missing replicas\" path=%s", mNsPath.c_str());
+  }
+
+  // Trigger an MGM event from the entry point
+  if (!rc && (mEventOnClose || mSyncEventOnClose) && mLayout->IsEntryServer()) {
+    XrdOucString capOpaqueFile = "";
+    XrdOucString eventType = "";
+    capOpaqueFile += "/?";
+    int envlen = 0;
+    capOpaqueFile += mCapOpaque->Env(envlen);
+    capOpaqueFile += "&mgm.pcmd=event";
+
+    if (mIsRW) {
+      eventType = mSyncEventOnClose ? "sync::closew" : "closew";
+    } else {
+      eventType = "closer";
     }
+
+    capOpaqueFile += "&mgm.event=";
+    capOpaqueFile += eventType;
+    // The log ID to the commit
+    capOpaqueFile += "&mgm.logid=";
+    capOpaqueFile += logId;
+    capOpaqueFile += "&mgm.ruid=";
+    capOpaqueFile += mCapOpaque->Get("mgm.ruid");
+    capOpaqueFile += "&mgm.rgid=";
+    capOpaqueFile += mCapOpaque->Get("mgm.rgid");
+    capOpaqueFile += "&mgm.sec=";
+    capOpaqueFile += mCapOpaque->Get("mgm.sec");
+
+    if (mEventWorkflow.length()) {
+      capOpaqueFile += "&mgm.workflow=";
+      capOpaqueFile += mEventWorkflow.c_str();
+    }
+
+    if (!archive_req_id.empty()) {
+      capOpaqueFile += "&mgm.archive_req_id=";
+      capOpaqueFile += archive_req_id.c_str();
+    }
+
+    eos_info("msg=\"notify\" event=\"%s\" workflow=\"%s\"", eventType.c_str(),
+             mEventWorkflow.c_str());
+    rc = gOFS.CallManager(&error, mCapOpaque->Get("mgm.path"),
+                          mCapOpaque->Get("mgm.manager"), capOpaqueFile,
+                          nullptr, 30, mSyncEventOnClose, false);
+  }
+
+  // Mask close error for fusex, if the file had been removed already
+  if (mFusexIsUnlinked && mFusex) {
+    error.setErrCode(0);
+    rc = 0;
   }
 
   eos_info("msg=\"done close\" rc=%i errc=%d", rc, error.getErrInfo());
@@ -2630,8 +2634,10 @@ XrdFstOfsFile::ProcessOpenOpaque()
       mSyncEventOnClose = true;
     }
 
-    val = mOpenOpaque->Get("mgm.workflow");
-    mEventWorkflow = (val ? val : "");
+    if ((val = mOpenOpaque->Get("mgm.workflow"))) {
+      mEventWorkflow = val;
+    }
+
     val = mOpenOpaque->Get("mgm.instance");
     mEventInstance = val ? val : "";
     val = mOpenOpaque->Get("mgm.owner_uid");
@@ -3307,7 +3313,7 @@ XrdFstOfsFile::MakeReportEnv(XrdOucString& reportString)
     std::string sanitized_path = eos::common::StringConversion::SealXrdPath(path);
     snprintf(report, sizeof(report) - 1,
              "log=%s&path=%s&fstpath=%s&ruid=%u&rgid=%u&td=%s&"
-             "host=%s&lid=%lu&fid=%llu&fsid=%lu&"
+             "host=%s&lid=%lu&fid=%llu&fsid=%u&"
              "ots=%lu&otms=%lu&"
              "cts=%lu&ctms=%lu&"
              "nrc=%lu&nwc=%lu&"
@@ -3387,35 +3393,34 @@ XrdFstOfsFile::MakeReportEnv(XrdOucString& reportString)
 }
 
 //------------------------------------------------------------------------------
-// Drop all replicas from the MGM
+// Drop stripe/replica(s) from the MGM
 //------------------------------------------------------------------------------
 int
-XrdFstOfsFile::DropAllFromMgm(eos::common::FileId::fileid_t fileid,
-                              const std::string path, const std::string manager)
+XrdFstOfsFile::DropFromMgm(const eos::common::FileId::fileid_t fid,
+                           const eos::common::FileSystem::fsid_t fsid,
+                           const std::string& path, const std::string& manager)
 {
-  // If we committed the replica and an error happened remote, we have
-  // to unlink it again
-  const std::string hex_fid = eos::common::FileId::Fid2Hex(fileid);
+  const std::string hex_fid = eos::common::FileId::Fid2Hex(fid);
   XrdOucErrInfo lerror;
-  XrdOucString capOpaqueString = "/?mgm.pcmd=drop";
-  XrdOucString OpaqueString = "";
-  OpaqueString += "&mgm.fid=";
-  OpaqueString += hex_fid.c_str();
-  OpaqueString += "&mgm.fsid=anyway";
-  OpaqueString += "&mgm.dropall=1";
-  XrdOucEnv Opaque(OpaqueString.c_str());
-  capOpaqueString += OpaqueString;
-  // Delete the replica in the MGM
-  int rcode = gOFS.CallManager(&lerror, path.c_str(), manager.c_str(),
-                               capOpaqueString);
+  XrdOucString opaque = "/?mgm.pcmd=drop&mgm.fid=";
+  opaque += hex_fid.c_str();
+  opaque += "&mgm.fsid=";
+  opaque += std::to_string(fsid).c_str();
 
-  if (rcode && (error.getErrInfo() != EIDRM)) {
-    eos_warning("(unpersist): unable to drop file id %s fsid %u at manager %s",
-                hex_fid.c_str(), fileid, manager.c_str());
+  // Drop all stripes
+  if (fsid == 0ul) {
+    opaque += "&mgm.dropall=1";
   }
 
-  eos_info("info=\"removing on manager\" manager=%s fid=%llu fsid= drop-allrc=%d",
-           manager.c_str(), (unsigned long long) fileid, rcode);
+  int rcode = gOFS.CallManager(&lerror, path.c_str(), manager.c_str(), opaque);
+
+  if (rcode && (error.getErrInfo() != EIDRM)) {
+    eos_warning("msg=\"unpersist, failed to drop at manager\" fxid=%08llx "
+                "fsid=%u manager=%s", fid, fsid, manager.c_str());
+  }
+
+  eos_info("msg=\"drop on manager\" fxid=%08llx fsid=%u drop_all=%d rc=%d "
+           "manager=%s", fid, fsid, (fsid == 0ul), rcode, manager.c_str());
   return rcode;
 }
 
@@ -3644,7 +3649,7 @@ XrdFstOfsFile::VerifyChecksum()
 
       std::string computed_xs = mCheckSum->GetHexChecksum();
       eos_info("msg=\"read checksum info\" xs_type=%s xs_computed=%s "
-               "xs_local=%s fxid=%08llx fsid=%lu", mCheckSum->GetName(),
+               "xs_local=%s fxid=%08llx fsid=%u", mCheckSum->GetName(),
                computed_xs.c_str(), mFmd->mProtoFmd.checksum().c_str(),
                mFileId, mFsId);
 
