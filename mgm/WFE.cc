@@ -1820,8 +1820,8 @@ WFE::Job::IdempotentPrepare(const std::string& fullPath,
       eosLog
       .addParam(EosCtaReportParam::PREP_WFE_SENTTOCTA, false)
       .addParam(EosCtaReportParam::PREP_WFE_ERROR, err_message.str());
-      MoveWithResults(EDQUOT);
-      return EDQUOT;
+      MoveWithResults(EBUSY);
+      return EBUSY;
     }
 
     prepareReqIds.values.insert(prepareRequestId.c_str());

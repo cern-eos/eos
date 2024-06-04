@@ -654,16 +654,6 @@ int PrepareManager::doQueryPrepare(XrdSfsPrep& pargs, XrdOucErrInfo& error,
         rsp.is_requested = !xattr_it->second.empty();
         // and is this specific request ID present in the request?
         rsp.is_reqid_present = (xattr_it->second.find(reqid.c_str()) != std::string::npos);
-        if (rsp.is_requested && !rsp.is_reqid_present) {
-          XattrSet prepareReqIds;
-          prepareReqIds.deserialize(xattr_it->second);
-          if (prepareReqIds.values.size() >= gOFS->mReqIdMax) {
-            std::ostringstream ostream;
-            ostream << "ERROR: Request ID not found; Maximum number of retrieve requests reached (" << gOFS->mReqIdMax << ")";
-            currentFile->setError(ostream.str());
-            goto logErrorAndContinue;
-          }
-        }
       }
 
       xattr_it = xattrs.find(eos::common::RETRIEVE_REQTIME_ATTR_NAME);
