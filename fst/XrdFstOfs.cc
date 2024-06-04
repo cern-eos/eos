@@ -1073,12 +1073,27 @@ XrdFstOfs::stat(const char* path,
 }
 
 //------------------------------------------------------------------------------
-// CallManager function
+// Callback MGM - XrdOucString version
+//------------------------------------------------------------------------------
+int
+XrdFstOfs::CallManager(XrdOucErrInfo* error, const char* path,
+                       const char* manager, const std::string& opaque,
+                       unsigned short timeout,
+                       bool use_xrd_conn_pool, bool retry)
+{
+  XrdOucString ouc_opaque = opaque.c_str();
+  int rc = CallManager(error, path, manager, ouc_opaque, timeout,
+                       use_xrd_conn_pool, retry);
+  return rc;
+}
+
+//------------------------------------------------------------------------------
+// Callback MGM - XrdOucString version
 //------------------------------------------------------------------------------
 int
 XrdFstOfs::CallManager(XrdOucErrInfo* error, const char* path,
                        const char* manager, XrdOucString& capOpaqueFile,
-                       XrdOucString* return_result, unsigned short timeout,
+                       unsigned short timeout,
                        bool use_xrd_conn_pool, bool retry)
 {
   EPNAME("CallManager");
@@ -1091,7 +1106,7 @@ XrdFstOfs::CallManager(XrdOucErrInfo* error, const char* path,
   size_t tried = 0;
 
   if (!manager) {
-    // use the broadcasted manager name
+    // Use broadcast manager name
     XrdSysMutexHelper lock(gConfig.Mutex);
     lManager = gConfig.Manager.c_str();
     address += lManager.c_str();
@@ -1219,10 +1234,6 @@ again:
 
       return gOFS.Emsg(epname, *error, ECOMM, msg.c_str(), path);
     }
-  }
-
-  if (response && return_result) {
-    *return_result = response->GetBuffer();
   }
 
   return rc;
