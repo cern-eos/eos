@@ -42,6 +42,11 @@
 #include "common/StringTokenizer.hh"
 #include "mq/SharedHashWrapper.hh"
 #include <sstream>
+#include "json/json.h"
+#include "common/json/Jsonifiable.hh"
+#include "common/json/JsonCppJsonifier.hh"
+#include "common/config/ConfigParsing.hh"
+#include "common/StringConversion.hh"
 
 EOSMGMNAMESPACE_BEGIN
 
@@ -385,8 +390,7 @@ IConfigEngine::DumpConfig(XrdOucString& out, const std::string& filename,
     std::lock_guard lock(mMutex);
 
     if (json) {
-      DumpJson(out);
-      return true;
+      return DumpConfigJson(out);
     } else {
       for (auto& sConfigDefinition : sConfigDefinitions) {
         eos_static_debug("%s => %s", sConfigDefinition.first.c_str(),
@@ -410,11 +414,135 @@ IConfigEngine::DumpConfig(XrdOucString& out, const std::string& filename,
 //------------------------------------------------------------------------------
 // Dump config in json
 //------------------------------------------------------------------------------
-void
-IConfigEngine::DumpJson(XrdOucString& out)
+bool
+IConfigEngine::DumpConfigJson(XrdOucString& out)
 {
-  for (auto& sConfigDefinition : sConfigDefinitions) {
+  Json::Value root;
+
+  for (auto& config : sConfigDefinitions) {
+    std::string key = config.first;
+    std::string val = config.second;
+
+    if (key.rfind("fs:", 0) == 0) {
+      if (!parseFileSystem(val, root)) {
+        return false;
+      }
+    } else if (key.rfind("global:", 0) == 0) {
+      std::string gkey = key.substr(7);
+
+      if (!parseGlobal(gkey, val, root)) {
+        return false;
+      }
+    } else if (key.rfind("map:", 0) == 0) {
+      std::string mkey = key.substr(4);
+
+      if (!parseMap(mkey, val, root)) {
+        return false;
+      }
+    } else if (key.rfind("route:", 0) == 0) {
+      // TODO
+    } else if (key.rfind("quota:", 0) == 0) {
+      std::string qkey = key.substr(6);
+
+      if (!parseQuota(qkey, val, root)) {
+        return false;
+      }
+    } else if (key.rfind("vid:", 0) == 0) {
+    } else if (key.rfind("geosched:", 0) == 0) {
+    } else if (key.rfind("ns:", 0) == 0) {
+    }
   }
+}
+
+bool parseFileSystem(std::string& val, Json::Value& root)
+{
+  std::map<std::string, std::string> configmap;
+
+  if (!common::ConfigParsing::parseFilesystemConfig(val, configmap)) {
+    return false;
+  }
+
+  Json::Value fsnode;
+
+  for (auto& fs : configmap) {
+    fsnode[fs.first] = Json::String(fs.second);
+  }
+
+  root["fs"].append(fsnode);
+  return true;
+}
+
+bool parseGlobal(std::string& key, std::string& val, Json::Value& root)
+{
+  // the key is of type /config/eosatlas/group/default.0#status
+  // while the val is a
+  //   - string (ex. "on")
+  //   - list, represented as a string ":" separated (ex: "3:2672:36398:")
+  std::vector<std::string> tokens;
+  std::vector<std::string> paths;
+  std::string delimiter = "#";
+  std::string pathdelimiter = "/";
+  eos::common::StringConversion::Tokenize(key, tokens, delimiter);
+
+  if (tokens.size() != 2) {
+    return false;
+  }
+
+  eos::common::StringConversion::Tokenize(tokens[0], paths, pathdelimiter);
+
+  if (paths.size() < 1) {
+    return false;
+  }
+
+  // navigate the json map for every token in paths and set the value
+  Json::Value curr = root["global"];
+
+  for (auto& token : paths) {
+    curr = curr[token];
+  }
+
+  curr[tokens[1]] = Json::String(val);
+  return true;
+}
+
+bool parseMap(std::string& key, std::string& val, Json::Value& root)
+{
+  root["map"][key] = val;
+  return true;
+}
+
+bool parseQuota(std::string& key, std::string& val, Json::Value& root)
+{
+  // the key is of type /eos/atlas/atlas-www/:gid=1307:groupbytes
+  // it's composed by 3 parts:
+  //   - path = "/eos/atlas/atlas-www/"
+  //   - identifier type = "gid"
+  //   - identifier = "1307"
+  //   - tag = "groupbytes"
+  int tag_offset = key.rfind(":");
+  int id_offset = key.rfind(":", tag_offset - 1);
+  int id_sep_offset = key.rfind("=", tag_offset);
+  // TODO: check offsets are not STR_NPOS
+  std::string path = key.substr(0, id_offset);
+  std::string id_type = key.substr(id_offset, id_sep_offset);
+  std::string s_id = key.substr(id_sep_offset + 1, tag_offset);
+  std::string tag = key.substr(tag_offset + 1);
+  long id = strtol(s_id.c_str(), 0, 10);
+  unsigned long long value = strtoll(val.c_str(), 0, 10);
+  Json::Value node;
+
+  if (root["quota"] != Json::nullValue &&
+      root["quota"][path] != Json::nullValue) {
+    // already found a value before
+    // in the list we have to look for a node already having the same <id_type>=<id>
+    for (Json::Value& n : root["quota"][path]) {
+    }
+  }
+
+  node[id_type] = Json::Int(id);
+  node[tag] = Json::Int64(value);
+  root["quota"][path].append(node);
+  return false; // TODO
 }
 
 //------------------------------------------------------------------------------
