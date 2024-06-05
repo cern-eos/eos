@@ -13,7 +13,7 @@ HTTP access
 .. index::
    pair: HTTP; WebDAV
 
-**HTTP** access is provided using the XrdHttp plug-in running on the **MGM** recommended on 
+**HTTP** access is provided using the XrdHttp plug-in running on the **MGM** recommended on
 port **8443** and on **FSTs** on port **8444**.
 Clients are mapped to 'nobody' if the authorization/token are missing.
 
@@ -21,8 +21,8 @@ Clients are mapped to 'nobody' if the authorization/token are missing.
    pair: HTTP; NGINX
    pair: HTTP; Proxy
 
-.. NOTE:: 
-    
+.. NOTE::
+
    The XrdHttp configuration is describe under http-configuration_!
 
 Configuring an NGINX Proxy
@@ -41,7 +41,7 @@ The configuration for the NGINX HTTPS proxy server is ``/etc/sysconfig/nginx``.
 Each field in the configuration file is well documented.
 
 The most important settings you might want to change are described in the following.
- 
+
 
  .. index::
    pair: HTTP; Certificates
@@ -62,7 +62,7 @@ Location of host key and host certificate:
 Port of the HTTPS server with X509 certifcate authentication:
 
 .. code-block:: bash
-  
+
    export EOS_NGINX_CLIENT_SSL_PORT=443
 
 .. index::
@@ -73,13 +73,13 @@ Kerberos Authentication
 Port of the HTTPS server with Kerberos5 authentication:
 
 .. code-block:: bash
-  
+
    export EOS_NGINX_CLIENT_SSL_PORT=443
 
 Kerberos REALM and keytab file:
 
 .. code-block:: bash
- 
+
    export EOS_NGINX_GSS_KEYTAB=/etc/krb5.keytab
    export EOS_NGINX_GSS_REALM=CERN.CH
 
@@ -87,17 +87,17 @@ The kerberos keytab file must be readable by the daemon account!
 
 .. index::
    pair: NGINX; Frontend-Redirecition
-   
+
 
 
 Frontend- or Backend- Redirection
 +++++++++++++++++++++++++++++++++
-NGINX is configured by default to forward redirects to the client.  
+NGINX is configured by default to forward redirects to the client.
 However many WebDAV clients don't follow redirects. You can enable
 internal (backend-) redirection proxying the full traffic like this:
 
 .. code-block:: bash
-  
+
    export EOS_NGINX_REDIRECT_EXTERNALLY=0
 
 .. index::
@@ -111,11 +111,11 @@ Deployment on MGM or Gateway machines
 +++++++++++++++++++++++++++++++++++++
 If you want to run a proxy on a different host than the MGM, you have to modify
 ``/etc/nginx/nginx.eos.conf.template`` and replace **localhost** with the MGM host
-name. 
+name.
 
 .. warning::
    Make sure to configure appropriate firewall rules for *non-MGM* HTTPS proxy
-   deployments! 
+   deployments!
 
 .. code-block:: bash
 
@@ -130,7 +130,7 @@ User Mapping
 The **MGM** HTTP module does the user mapping based on the NGINX added authentication header.
 Kerberos names are trivially mapped from their principal name, X509 users are mapped using
 the default gridmapfile ``/etc/grid-security/grid-mapfile``.
-By default all HTTP(S) traffic is mapped to nobody. To map users according to 
+By default all HTTP(S) traffic is mapped to nobody. To map users according to
 their authentication token enable HTTPS mapping in the virtual identity interface:
 
 .. code-block:: bash
@@ -172,7 +172,7 @@ Proxy Certificates
 
 .. warning::
    NGINX supports proxy certificates ony if they are RFC compliant!
-   
+
 You should create them e.g. with **grid-proxy-init** using the **-rfc** flag:
 
 .. code-block:: bash
@@ -186,9 +186,9 @@ You should create them e.g. with **grid-proxy-init** using the **-rfc** flag:
 File Sharing Links
 """"""""""""""""""
 
-ROOT or HTTP URLs can be obtained with the EOS shell using 
+ROOT or HTTP URLs can be obtained with the EOS shell using
 
-.. code-block:: bash 
+.. code-block:: bash
 
    eos file share myfile
 
@@ -322,10 +322,27 @@ in the context of the TPC process doing the transfer.
 
 .. code-block:: bash
 
-   #!/bin/bash
-   dst='root://'$XRDXROOTD_ORIGIN'/'$2
-   /usr/bin/xrdcp --server -d 3 $1 $dst
+     #! /usr/bin/env bash
+     export XRD_STREAMTIMEOUT=600
 
+     if [[ $(/usr/bin/xrdcp --version 2>&1 | grep -oP "v\K(\d)") -ge 5 ]]; then
+       # XRD_CPTARGET should be set
+       # add protocol prefix to destination if not present
+       ## Run: [ERROR] Server responded with an error: [3000]  [[x]root[s]://<host>[:<port>]/]<path> | -
+       if [[ ! "${a}" =~ x?root* ]]; then
+         set -- "${@:1:$#-1}" "xroot://${XRDXROOTD_ORIGIN}/${@: -1}"
+       fi
+
+       /usr/bin/xrdcp $@
+       EXITCODE=$?;
+
+       if [[ ${EXITCODE} -ne 0 ]];then
+         /usr/bin/logger -t xrootd-third-party-copy.sh "FAILED xrootd-tpc transfer [${EXITCODE}]: env $(env | grep ^XRD | tr '\n' ' ') /usr/bin/xrdcp $@"
+       fi
+     else
+       dst='root://'$XRDXROOTD_ORIGIN'/'$2
+       /usr/bin/xrdcp --server $1 $dst
+     fi
 
 Once the XRootD gateway is setup, the EOS MGM configuration needs to be updated
 so that any incoming TPC transfers with delegated credentials where EOS is the
@@ -437,7 +454,7 @@ HTTP Configuration
 .. :caption: Contents of /etc/xrd.cf.mgm file
 .. :linenos:
 
-.. _http-configuration: 
+.. _http-configuration:
 
 .. code-block:: bash
 
@@ -750,4 +767,4 @@ The same thing now but for a HTTP TPC PUSH transfer.
 .. only:: adminmode
 
    HTTP TPC transfer triggered by FTS
-   """""""""""""""""""""""""""""""""""""""""""""""   
+   """""""""""""""""""""""""""""""""""""""""""""""
