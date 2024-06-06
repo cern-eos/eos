@@ -327,7 +327,7 @@ public:
   bool mIsRW; //! indicator that file is opened for rw
   bool mIsDevNull; ///< If true file act as a sink i.e. /dev/null
   bool isCreation; //! indicator that a new file is created
-  bool isReplication; //! indicator that the opened file is a replica transfer
+  bool mIsReplication; //! indicator that the opened file is a replica transfer
   bool noAtomicVersioning; //! indicate to disable atomic/versioning during commit
   //! Indicate that the opened file is a file injection where the size and
   //! checksum must match
@@ -374,8 +374,8 @@ public:
   //! Largest byte position written of a newly created file
   long long mMaxOffsetWritten;
   long long mWritePosition;
-  long long openSize; //! file size when the file was opened
-  long long closeSize; //! file size when the file was closed
+  long long mOpenSize; //! file size when the file was opened
+  long long mCloseSize; //! file size when the file was closed
   struct timeval openTime; //! time when a file was opened
   struct timeval currentTime; //! time when a write occurs
   unsigned long long totalBytes; //! total bytes IO
@@ -600,7 +600,7 @@ public:
   //----------------------------------------------------------------------------
   inline off_t GetOpenSize() const
   {
-    return openSize;
+    return mOpenSize;
   }
 
   //----------------------------------------------------------------------------
@@ -732,6 +732,12 @@ public:
   //! Do TPC transfer
   //----------------------------------------------------------------------------
   void* DoTpcTransfer();
+
+  //----------------------------------------------------------------------------
+  //! TPC clean up - invalidates the TPC keys at the end of a TPC transfer and
+  //! also joins the TPC helper thread
+  //----------------------------------------------------------------------------
+  void TpcCleanup();
 
   //----------------------------------------------------------------------------
   //! Extract logid from the opaque info i.e. mgm.logid
