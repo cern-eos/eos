@@ -1812,18 +1812,6 @@ WFE::Job::IdempotentPrepare(const std::string& fullPath,
 
     bool isFirstPrepare = prepareReqIds.values.empty();
 
-    if (prepareReqIds.values.size() >= gOFS->mReqIdMax) {
-      std::stringstream err_message;
-      err_message << "Reached maximum number of retrieve requests on file " << fullPath <<
-          " (" << gOFS->mReqIdMax << ").";
-      eos_static_err(err_message.str().c_str());
-      eosLog
-      .addParam(EosCtaReportParam::PREP_WFE_SENTTOCTA, false)
-      .addParam(EosCtaReportParam::PREP_WFE_ERROR, err_message.str());
-      MoveWithResults(EBUSY);
-      return EBUSY;
-    }
-
     prepareReqIds.values.insert(prepareRequestId.c_str());
     eosLog
     .addParam(EosCtaReportParam::PREP_WFE_FIRSTPREPARE, isFirstPrepare)
