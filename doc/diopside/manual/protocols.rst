@@ -326,19 +326,7 @@ in the context of the TPC process doing the transfer.
      export XRD_STREAMTIMEOUT=600
 
      if [[ $(/usr/bin/xrdcp --version 2>&1 | grep -oP "v\K(\d)") -ge 5 ]]; then
-       # XRD_CPTARGET should be set
-       # add protocol prefix to destination if not present
-       ## Run: [ERROR] Server responded with an error: [3000]  [[x]root[s]://<host>[:<port>]/]<path> | -
-       if [[ ! "${a}" =~ x?root* ]]; then
-         set -- "${@:1:$#-1}" "xroot://${XRDXROOTD_ORIGIN}/${@: -1}"
-       fi
-
        /usr/bin/xrdcp $@
-       EXITCODE=$?;
-
-       if [[ ${EXITCODE} -ne 0 ]];then
-         /usr/bin/logger -t xrootd-third-party-copy.sh "FAILED xrootd-tpc transfer [${EXITCODE}]: env $(env | grep ^XRD | tr '\n' ' ') /usr/bin/xrdcp $@"
-       fi
      else
        dst='root://'$XRDXROOTD_ORIGIN'/'$2
        /usr/bin/xrdcp --server $1 $dst
