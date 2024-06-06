@@ -351,6 +351,48 @@ int PrepareManager::doPrepare(XrdSfsPrep& pargs, XrdOucErrInfo& error,
       continue;
     }
 
+    XrdOucErrInfo xrd_error;
+    eos::IFileMD::XAttrMap xattrs;
+
+    // Check file status in the extended attributes
+    if (mMgmFsInterface->_attr_ls(eos::common::Path(prep_path.c_str()).GetPath(),
+                                  xrd_error, vid,
+                                  nullptr, xattrs) == 0) {
+      XattrSet prepareReqIds;
+      auto xattr_it = xattrs.find(eos::common::RETRIEVE_REQID_ATTR_NAME);
+      if (!xattr_it->second.empty()) {
+        prepareReqIds.deserialize(xattr_it->second);
+      }
+
+      if (prepareReqIds.values.size() >= gOFS->mReqIdMax) {
+        std::ostringstream oss;
+        oss << "prepare - reached maximum number of retrieve requests on file " << prep_path << " (" << gOFS->mReqIdMax << ").";
+        currentFile->setError(oss.str());
+        if (error_counter == 0) {
+          first_error = error;
+        }
+        error_counter++;
+        eosLog
+            .addParam(EosCtaReportParam::PREP_REQ_SENTTOWFE, false)
+            .addParam(EosCtaReportParam::PREP_REQ_SUCCESSFUL, false)
+            .addParam(EosCtaReportParam::PREP_REQ_ERROR, oss.str());
+        addFileToBulkRequest(std::move(currentFile));
+        continue;
+      }
+    } else {
+      // failed to read extended attributes
+      std::ostringstream oss;
+      oss << "Unable to check the extended attributes of the file " << prep_path;
+      currentFile->setError(oss.str());
+      pathsToPrepare.pop_back();
+      eosLog
+          .addParam(EosCtaReportParam::PREP_REQ_SENTTOWFE, false)
+          .addParam(EosCtaReportParam::PREP_REQ_SUCCESSFUL, false)
+          .addParam(EosCtaReportParam::PREP_REQ_ERROR, oss.str());
+      addFileToBulkRequest(std::move(currentFile));
+      continue;
+    }
+
     if (currentFile != nullptr) {
       addFileToBulkRequest(std::move(currentFile));
     }
