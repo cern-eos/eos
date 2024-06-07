@@ -93,7 +93,8 @@ public:
   //! Return if file is an atomic filename
   //----------------------------------------------------------------------------
   bool
-  isAtomicFile() {
+  isAtomicFile()
+  {
     return lastPath.beginswith(EOS_COMMON_PATH_ATOMIC_FILE_PREFIX);
   }
 
@@ -101,17 +102,20 @@ public:
   //! Return if path belongs to versioning
   //----------------------------------------------------------------------------
   bool
-  isVersionPath() {
-    return (fullPath.find(EOS_COMMON_PATH_VERSION_FILE_PREFIX)!= STR_NPOS);
+  isVersionPath()
+  {
+    return (fullPath.find(EOS_COMMON_PATH_VERSION_FILE_PREFIX) != STR_NPOS);
   }
 
-  
+
   //----------------------------------------------------------------------------
   //! Return if file is a sqaush package file
   //----------------------------------------------------------------------------
   bool
-  isSquashFile() {
-    return (lastPath.beginswith(".") && lastPath.endswith(EOS_COMMON_PATH_SQUASH_SUFFIX));
+  isSquashFile()
+  {
+    return (lastPath.beginswith(".") &&
+            lastPath.endswith(EOS_COMMON_PATH_SQUASH_SUFFIX));
   }
 
   //----------------------------------------------------------------------------
@@ -392,65 +396,100 @@ public:
 
     return true;
   }
-  
-  bool Globbing() {
-    std::string name=lastPath.c_str();
+
+  bool Globbing()
+  {
+    std::string name = lastPath.c_str();
     size_t index = 0;
+
     while ((index = name.find('*', index)) != std::string::npos) {
-      if ( (index==0) || ((index>0)  && name[index-1] != '\\')) {
-	return true;
+      if ((index == 0) || ((index > 0)  && name[index - 1] != '\\')) {
+        return true;
       }
-      index++;
-    }
-    index = 0;
-    while ((index = name.find('?', index)) != std::string::npos) {
-      if ( (index==0) || ((index>0)  && name[index-1] != '\\')) {
-	return true;
-      }
-      index++;
-    }
-    
-    index = 0;
-    while ((index = name.find('[', index)) != std::string::npos) {
-      if ( (index==0) || ((index>0)  && name[index-1] != '\\')) {
-	return true;
-      }
+
       index++;
     }
 
     index = 0;
-    while ((index = name.find('{', index)) != std::string::npos) {
-      if ( (index==0) || ((index>0)  && name[index-1] != '\\')) {
-	return true;
+
+    while ((index = name.find('?', index)) != std::string::npos) {
+      if ((index == 0) || ((index > 0)  && name[index - 1] != '\\')) {
+        return true;
       }
+
       index++;
     }
+
+    index = 0;
+
+    while ((index = name.find('[', index)) != std::string::npos) {
+      if ((index == 0) || ((index > 0)  && name[index - 1] != '\\')) {
+        return true;
+      }
+
+      index++;
+    }
+
+    index = 0;
+
+    while ((index = name.find('{', index)) != std::string::npos) {
+      if ((index == 0) || ((index > 0)  && name[index - 1] != '\\')) {
+        return true;
+      }
+
+      index++;
+    }
+
     return false;
   }
-  
-  // check if path points to a version
-  static bool IsVersion(std::string& path) {
+
+  //----------------------------------------------------------------------------
+  //! Check if path is refering to a version file/directory
+  //!
+  //! @param path input path
+  //!
+  //! @return true if path refers to a version entry, otherwise false
+  //----------------------------------------------------------------------------
+  static bool IsVersion(const std::string& path)
+  {
     return (path.find(EOS_COMMON_PATH_VERSION_PREFIX) != std::string::npos);
   }
 
+  //----------------------------------------------------------------------------
+  //! Check if path is refering to an atomic file (simple or version atomic)
+  //!
+  //! @param path input path
+  //!
+  //! @return true if path refers to an atomic entry, otherwise false
+  //----------------------------------------------------------------------------
+  static bool IsAtomic(const std::string& path)
+  {
+    return (path.find(EOS_COMMON_PATH_ATOMIC_FILE_PREFIX) != std::string::npos);
+  }
+
   // get the shared prefix for two paths
-  static std::string Overlap(const char* a, const char* b) {
+  static std::string Overlap(const char* a, const char* b)
+  {
     eos::common::Path apath(a);
     eos::common::Path bpath(b);
-    std::string ol="/";
-    for ( size_t i = 0 ; i< apath.GetSubPathSize(); ++i) {
+    std::string ol = "/";
+
+    for (size_t i = 0 ; i < apath.GetSubPathSize(); ++i) {
       std::string ta = apath.GetSubPath(i);
       const char* pb = bpath.GetSubPath(i);
-      std::string tb = pb?pb:"";
+      std::string tb = pb ? pb : "";
+
       if (ta == tb) {
-	ol = ta;
+        ol = ta;
       } else {
-	return ol;
+        return ol;
       }
     }
-    if ( std::string(apath.GetPath()) == std::string(bpath.GetPath()) ) {
+
+    if (std::string(apath.GetPath()) == std::string(bpath.GetPath())) {
       return apath.GetPath();
     }
+
     return ol;
   }
 
