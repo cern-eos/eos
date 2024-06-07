@@ -1244,6 +1244,16 @@ ProcCommand::ArchiveAddEntries(const std::string& arch_dir,
     info_map["file"] = rel_path;
     // TODO(esindril): The file path should be base64 encoded to avoid any surprises
 
+    if (eos::common::Path::IsVersion(info_map["file"])) {
+      eos_static_err("msg=\"failed archive contains a version entry\" "
+                     "arch_path=\"%s\" is_file=%u entry_path=\"%s\"",
+                     arch_dir.c_str(), is_file, info_map["file"].c_str());
+      stdErr = "archive contains version entry: ";
+      stdErr += info_map["file"].c_str();
+      retc = EINVAL;
+      break;
+    }
+
     if (is_file) {
       // Filter out file entries if necessary
       if (filter && filter->FilterOutFile(info_map)) {
@@ -1266,6 +1276,16 @@ ProcCommand::ArchiveAddEntries(const std::string& arch_dir,
                        "arch_path=\"%s\" file_path=\"%s\"",
                        arch_dir.c_str(), info_map["file"].c_str());
         stdErr = "archive contains symlink file: ";
+        stdErr += info_map["file"].c_str();
+        retc = EINVAL;
+        break;
+      }
+
+      if (eos::common::Path::IsAtomic(info_map["file"])) {
+        eos_static_err("msg=\"failed archive contains an atomic file\" "
+                       "arch_path=\"%s\" file_path=\"%s\"",
+                       arch_dir.c_str(), info_map["file"].c_str());
+        stdErr = "archive contains atomic file: ";
         stdErr += info_map["file"].c_str();
         retc = EINVAL;
         break;
