@@ -323,14 +323,23 @@ in the context of the TPC process doing the transfer.
 .. code-block:: bash
 
      #! /usr/bin/env bash
-     export XRD_STREAMTIMEOUT=600
+     OPTS=("${@:1:$#-2}")
+     shift $(($# - 2))
+     SRC=$1
+     DST=$2
 
-     if [[ $(/usr/bin/xrdcp --version 2>&1 | grep -oP "v\K(\d)") -ge 5 ]]; then
-       /usr/bin/xrdcp $@
-     else
-       dst='root://'$XRDXROOTD_ORIGIN'/'$2
-       /usr/bin/xrdcp --server $1 $dst
+     if [[ -n "${XRDXROOTD_ORIGIN}" ]]; then
+       DST="root://${XRDXROOTD_ORIGIN}/${DST}"
      fi
+
+     xrdcp --server "${OPTS[@]}" "${SRC}" "${DST}"
+     STATUS=$?
+
+     if [[ ${STATUS} -ne 0 ]]; then
+       logger -p err  -t xrdcp-tpc "transfer: xrdcp --server ${OPTS[*]} ${SRC} ${DST} FAILED [exit code: ${STATUS}]"
+     fi
+
+     exit ${STATUS}
 
 Once the XRootD gateway is setup, the EOS MGM configuration needs to be updated
 so that any incoming TPC transfers with delegated credentials where EOS is the
