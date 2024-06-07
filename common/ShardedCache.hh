@@ -320,12 +320,22 @@ public:
     return ret;
   }
 
+  // Note this must be called before reset_cleanup_thread
+  void set_force_expiry(bool force_expiry, uint16_t force_expiry_cycles = 2)
+  {
+    mForceExpiryCycles = force_expiry_cycles;
+    mForceExpiry.store(force_expiry, std::memory_order_release);
+  }
+
 private:
   size_t mNumShards;
   Milliseconds mTTL;
   mutable std::vector<std::mutex> mMutexes;
   std::vector<MapT<Key, CacheEntry>> mContents;
   std::string mThreadName;
+  std::atomic<bool> mForceExpiry {false};
+  uint16_t mForceExpiryCycles {2};
+  uint16_t mForceExpiryCounter {0};
   AssistedThread mCleanupThread;
 
   // Sweep through all entries in all shards to either mark them as unused or
@@ -363,6 +373,12 @@ private:
       }
 
       collectorPass();
+      if (mForceExpiry.load(std::memory_order_acquire)) {
+        if (++mForceExpiryCounter == mForceExpiryCycles) {
+          clear();
+          mForceExpiryCounter = 0;
+        }
+      }
     }
   }
 };
