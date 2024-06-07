@@ -263,3 +263,22 @@ TEST(ShardedCache, invalidate)
   auto result = cache.retrieve("hello");
   EXPECT_EQ(result, nullptr);
 }
+
+TEST(ShardedCache, force_expiry)
+{
+  ShardedCache<std::string, int> cache(8,10);
+  ASSERT_TRUE(cache.store("hello", std::make_unique<int>(5)));
+  ASSERT_TRUE(cache.store("delete-me", std::make_unique<int>(5)));
+  // We hold a shared ptr, so ideally the GC shouldn't clear this!
+  auto result = cache.retrieve("hello");
+  ASSERT_NE(result, nullptr);
+  EXPECT_EQ(*result, 5);
+  std::this_thread::sleep_for(std::chrono::milliseconds(50));
+  ASSERT_TRUE(cache.contains("hello"));
+  ASSERT_FALSE(cache.contains("delete-me"));
+  // Now force the reset cycle!
+  cache.set_force_expiry(true, 2);
+
+  std::this_thread::sleep_for(std::chrono::milliseconds(30));
+  ASSERT_FALSE(cache.contains("hello"));
+}
