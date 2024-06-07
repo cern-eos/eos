@@ -125,6 +125,12 @@ Mapping::Init()
 
   try {
     std::call_once(g_cache_map_init, []() {
+      // Force expiry of UID/GID cache every 2 cycles
+      gShardedPhysicalUidCache.set_force_expiry(true, 2);
+      gShardedPhysicalGidCache.set_force_expiry(true, 2);
+      gShardedNegativeGroupNameCache.set_force_expiry(true, 2);
+      gShardedNegativePhysicalUidCache.set_force_expiry(true, 2);
+
       gShardedPhysicalUidCache.reset_cleanup_thread(3600 * 1000,
           "UidCacheGC");
       gShardedPhysicalGidCache.reset_cleanup_thread(3600 * 1000,
@@ -158,6 +164,8 @@ Mapping::Reset()
     gPhysicalUserNameCache.clear();
     gPhysicalGroupIdCache.clear();
     gPhysicalUserIdCache.clear();
+    gShardedNegativeGroupNameCache.clear();
+    gShardedNegativePhysicalUidCache.clear();
   }
   ActiveTidentsSharded.clear();
   ActiveUidsSharded.clear();
