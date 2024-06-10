@@ -1708,49 +1708,38 @@ XrdFstOfsFile::_close()
 
     if (mIsRW) {
       if ((mIsInjection || isCreation || mIsOCchunk) && (!rc) &&
-          (gOFS.openedForWriting.getUseCount(mFmd->mProtoFmd.fsid(),
-                                             mFmd->mProtoFmd.fid() > 1))) {
+          (gOFS.openedForWriting.getUseCount(mFsId, mFileId > 1))) {
         // indicate that this file was closed properly and disable further delete on close
-        gOFS.WNoDeleteOnCloseFid[mFmd->mProtoFmd.fsid()][mFmd->mProtoFmd.fid()] = true;
+        gOFS.WNoDeleteOnCloseFid[mFsId][mFileId] = true;
       }
 
-      gOFS.openedForWriting.down(mFmd->mProtoFmd.fsid(), mFmd->mProtoFmd.fid());
+      gOFS.openedForWriting.down(mFsId, mFileId);
     } else {
-      gOFS.openedForReading.down(mFmd->mProtoFmd.fsid(), mFmd->mProtoFmd.fid());
+      gOFS.openedForReading.down(mFsId, mFileId);
     }
 
-    if (!gOFS.openedForWriting.isOpen(mFmd->mProtoFmd.fsid(),
-                                      mFmd->mProtoFmd.fid())) {
+    if (!gOFS.openedForWriting.isOpen(mFsId, mFileId)) {
       // When the last writer is gone we can remove the prohibiting entry
-      gOFS.WNoDeleteOnCloseFid[mFmd->mProtoFmd.fsid()].erase(mFmd->mProtoFmd.fid());
-      gOFS.WNoDeleteOnCloseFid[mFmd->mProtoFmd.fsid()].resize(0);
+      gOFS.WNoDeleteOnCloseFid[mFsId].erase(mFileId);
+      gOFS.WNoDeleteOnCloseFid[mFsId].resize(0);
     }
   }
 
-  gettimeofday(&closeTime, &tz);
-  // Check if the target filesystem has been put into some non-operational mode
-  // in the meanwhile, it makes no sense to try to commit in this case
-  {
-    eos::common::RWMutexReadLock lock(gOFS.Storage->mFsMutex);
-
-    if (gOFS.Storage->mFsMap.count(mFsId) &&
-        gOFS.Storage->mFsMap[mFsId]->GetConfigStatus() <
-        eos::common::ConfigStatus::kDrain) {
-      eos_notice("msg=\"failing transfer because filesystem has non-"
-                 "operational state\" path=%s state=%s", mNsPath.c_str(),
-                 eos::common::FileSystem::GetConfigStatusAsString
-                 (gOFS.Storage->mFsMap[mFsId]->GetConfigStatus()));
-      mDelOnClose = true;
-    }
+  // If target file system is in some non-operational mode, then abort commit
+  if (!gOFS.Storage->IsFsOperational(mFsId)) {
+    eos_notice("msg=\"fail transfer since filesystem is in non-operational "
+               "state\" fxid=%08llx fsid=%u", mFileId, mFsId);
+    mDelOnClose = true;
   }
+
   {
     // Check if the delete on close has been prohibited for this file id
     XrdSysMutexHelper scope_lock(gOFS.OpenFidMutex);
 
     if (gOFS.WNoDeleteOnCloseFid[mFsId].count(mFileId)) {
       eos_notice("msg=\"prohibiting delete on close since we had a "
-                 "sussessfull put but still an unacknowledged open\" path=%s",
-                 mNsPath.c_str());
+                 "sussessful put but still an unacknowledged open\" "
+                 "fxid=%08llx path=%s", mFileId, mNsPath.c_str());
       mDelOnClose = false;
     }
   }
@@ -1768,6 +1757,7 @@ XrdFstOfsFile::_close()
     XrdOucString reportString = "";
     gettimeofday(&closeStop, &tz);
     CloseTime();
+    gettimeofday(&closeTime, &tz);
     MakeReportEnv(reportString);
     eos_static_info("msg=\"%s\"", reportString.c_str());
 
@@ -1784,13 +1774,14 @@ XrdFstOfsFile::_close()
   if (mDelOnClose && !mFusex &&
       (mIsInjection || isCreation || mIsOCchunk)) {
     rc = SFS_ERROR;
-    eos_info("info=\"deleting on close\" ns_path=\"%s\" fs_path=\"%s\"",
-             mNsPath.c_str(), mFstPath.c_str());
+    eos_err("msg=\"delete on close\" fxid=%08llx ns_path=\"%s\" ", mFileId,
+            mNsPath.c_str());
     int retc = gOFS._rem(mNsPath.c_str(), error, 0, mCapOpaque.get(),
                          mFstPath.c_str(), mFileId, mFsId, true);
 
     if (retc) {
-      eos_debug("msg=\"remove operation\" retc=%d", retc);
+      eos_debug("msg=\"remove operation\" fxid=%08llx retc=%d",
+                mFileId, retc);
     }
 
     if (commited_to_mgm) {
