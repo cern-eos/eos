@@ -959,6 +959,26 @@ Storage::GetFileSystemConfig(eos::common::FileSystem::fsid_t fsid,
 }
 
 //------------------------------------------------------------------------------
+// Check if file system is in operational state i.e. config status < kDrain
+//------------------------------------------------------------------------------
+bool
+Storage::IsFsOperational(eos::common::FileSystem::fsid_t fsid) const
+{
+  eos::common::RWMutexReadLock fs_rd_lock(mFsMutex);
+  FileSystem* fs = GetFileSystemById(fsid);
+
+  if (!fs) {
+    return false;
+  }
+
+  if (fs->GetConfigStatus() < eos::common::ConfigStatus::kDrain) {
+    return false;
+  }
+
+  return true;
+}
+
+//------------------------------------------------------------------------------
 // Writes file system label files .eosfsid .eosuuid according to config (if
 // they didn't exist!)
 //------------------------------------------------------------------------------

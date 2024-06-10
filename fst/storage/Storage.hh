@@ -126,7 +126,6 @@ public:
   //----------------------------------------------------------------------------
   void PushVerification(eos::fst::Verify* entry);
 
-
   //----------------------------------------------------------------------------
   //! Check that file system exists i.e properly registered in the internal
   //! maps with an id and uuid
@@ -152,6 +151,15 @@ public:
     XrdSysMutexHelper lock(mBootingMutex);
     return (mBootingSet.find(fsid) != mBootingSet.end());
   }
+
+  //----------------------------------------------------------------------------
+  //! Check if file system is in operational state i.e. config status < kDrain
+  //!
+  //! @param fsid file system identifier
+  //!
+  //! @return true if operations, otherwise false
+  //----------------------------------------------------------------------------
+  bool IsFsOperational(eos::common::FileSystem::fsid_t fsid) const;
 
   //----------------------------------------------------------------------------
   //! Get storage path for a particular file system id
