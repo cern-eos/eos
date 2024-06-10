@@ -322,8 +322,8 @@ public:
   bool mClosed; //! indicator the file is closed
   bool mOpened; //! indicator that file is opened
   bool mHasWrite; //! indicator that file was written/modified
-  bool hasWriteError;// indicator for write errors to avoid message flooding
-  bool hasReadError; //! indicator if a RAIN file could be reconstructed or not
+  bool mHasWriteErr;// indicator for write errors to avoid message flooding
+  bool mHasReadErr; //! indicator if a RAIN file could be reconstructed or not
   bool mIsRW; //! indicator that file is opened for rw
   bool mIsDevNull; ///< If true file act as a sink i.e. /dev/null
   bool isCreation; //! indicator that a new file is created
