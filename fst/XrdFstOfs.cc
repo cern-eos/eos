@@ -2090,9 +2090,8 @@ XrdFstOfs::HandleResync(XrdOucEnv& env, XrdOucErrInfo& err_obj)
       } else {
         // Resync of meta data from the MGM by storing the FmdHelper in the
         // WrittenFilesQueue to have it done asynchronously
-        gOFS.WrittenFilesQueueMutex.Lock();
+        std::unique_lock<std::mutex> lock(gOFS.WrittenFilesQueueMutex);
         gOFS.WrittenFilesQueue.push(*fmd.get());
-        gOFS.WrittenFilesQueueMutex.UnLock();
       }
     }
   }
@@ -2287,6 +2286,16 @@ XrdFstOfs::HandleCleanOrphans(XrdOucEnv& env, XrdOucErrInfo& err_obj)
   const char* done = "OK";
   err_obj.setErrInfo(strlen(done) + 1, done);
   return SFS_DATA;
+}
+
+//------------------------------------------------------------------------------
+// Queue file for MGM sync operation
+//------------------------------------------------------------------------------
+void
+XrdFstOfs::QueueForMgmSync(eos::common::FmdHelper& fmd)
+{
+  std::unique_lock<std::mutex> lock(WrittenFilesQueueMutex);
+  WrittenFilesQueue.push(fmd);
 }
 
 //------------------------------------------------------------------------------

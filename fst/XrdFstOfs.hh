@@ -410,7 +410,7 @@ public:
   XrdSysMutex ReportQueueMutex;
   std::queue<XrdOucString> ReportQueue;
   //! Queue where log error are stored and picked up by a thread running in Storage
-  XrdSysMutex WrittenFilesQueueMutex;
+  std::mutex WrittenFilesQueueMutex;
   std::queue<eos::common::FmdHelper> WrittenFilesQueue;
   XrdMqSharedObjectManager ObjectManager; ///< Managing shared objects
   //! Notifying any shared object changes
@@ -577,6 +577,13 @@ public:
   //!        populated with the response. "OK" if successful.
   //----------------------------------------------------------------------------
   int HandleCleanOrphans(XrdOucEnv& env, XrdOucErrInfo& err_obj);
+
+  //----------------------------------------------------------------------------
+  //! Queue file for MGM sync operation
+  //!
+  //! @param fmd FmdHelper object to queue
+  //----------------------------------------------------------------------------
+  void QueueForMgmSync(eos::common::FmdHelper& fmd);
 
   //----------------------------------------------------------------------------
   //! Set various XrdCl config options more appropriate for the EOS use-case
