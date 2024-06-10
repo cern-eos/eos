@@ -94,7 +94,7 @@ XrdFstOfsFile::XrdFstOfsFile(const char* user, int MonID) :
   mRedirectManager(""), mTapeEnabled(false), mSecString(""), mEtag(""),
   mFileId(0), mFsId(0), mLid(0), mCid(0), mForcedMtime(1), mForcedMtime_ms(0),
   mFusex(false), mFusexIsUnlinked(false), mClosed(false), mOpened(false),
-  mHasWrite(false), hasWriteError(false), hasReadError(false), mIsRW(false),
+  mHasWrite(false), mHasWriteErr(false), mHasReadErr(false), mIsRW(false),
   mIsDevNull(false), isCreation(false), mIsReplication(false),
   noAtomicVersioning(false),
   mIsInjection(false), mRainReconstruct(false), mDelOnClose(false),
@@ -900,7 +900,7 @@ XrdFstOfsFile::read(XrdSfsFileOffset fileOffset, char* buffer,
              static_cast<unsigned long long>(buffer_size),
              FName(), mCapOpaque ? mCapOpaque->Env(envlen) : FName());
     // Used to understand if a reconstruction of a RAIN file worked
-    hasReadError = true;
+    mHasReadErr = true;
   }
 
   eos_debug("rc=%d offset=%lu size=%llu", rc, fileOffset,
@@ -1003,7 +1003,7 @@ XrdFstOfsFile::readv(XrdOucIOVec* readV, int readCount)
 
   if (rv < 0) {
     eos_crit("readv error=%d cnt=%d file=%s", rv, readCount, FName());
-    hasReadError = true;
+    mHasReadErr = true;
   }
 
   AddLayoutReadVTime();
@@ -1128,7 +1128,7 @@ XrdFstOfsFile::write(XrdSfsFileOffset fileOffset, const char* buffer,
   if (rc < 0) {
     int envlen = 0;
 
-    if (!hasWriteError || EOS_LOGS_DEBUG) {
+    if (!mHasWriteErr || EOS_LOGS_DEBUG) {
       eos_crit("block-write error=%d offset=%llu len=%llu file=%s",
                mLayout->GetErrObj()->getErrInfo(),
                static_cast<unsigned long long>(fileOffset),
@@ -1136,7 +1136,7 @@ XrdFstOfsFile::write(XrdSfsFileOffset fileOffset, const char* buffer,
                FName(), mCapOpaque ? mCapOpaque->Env(envlen) : FName());
     }
 
-    hasWriteError = true;
+    mHasWriteErr = true;
   } else {
     mHasWrite = true;
 
@@ -1584,7 +1584,7 @@ XrdFstOfsFile::_close()
 
     if (!checksum_err && !min_sz_err && !target_sz_err &&
         (mHasWrite || isCreation) &&
-        (!mRainReconstruct || !hasReadError)) {
+        (!mRainReconstruct || !mHasReadErr)) {
       // Commit meta data
       struct stat statinfo;
 
@@ -1628,27 +1628,27 @@ XrdFstOfsFile::_close()
                 (error.getErrInfo() == EBADR) || (error.getErrInfo() == EREMCHG)) {
               if (error.getErrInfo() == EIDRM) {
                 // File has been deleted in the meanwhile ... we can unlink
-                eos_info("info=\"unlink file already removed in the ns\"  "
-                         "fxid=%08llx path=\"%s\"", mFileId, mNsPath.c_str());
+                eos_err("msg=\"unlink file since already removed in the ns\"  "
+                        "fxid=%08llx path=\"%s\"", mFileId, mNsPath.c_str());
                 mFusexIsUnlinked = true;
               }
 
               if (error.getErrInfo() == EBADE) {
-                eos_err("info=\"unlink file since size does not match "
+                eos_err("msg=\"unlink file since size does not match "
                         "reference\" fxid=%08llx path=\"%s\"",
                         mFileId, mNsPath.c_str());
                 consistency_err = true;
               }
 
               if (error.getErrInfo() == EBADR) {
-                eos_err("info=\"unlink file since checksum does not match "
+                eos_err("msg=\"unlink file since checksum does not match "
                         "reference\" fxid=%08llx path=\"%s\"",
                         mFileId, mNsPath.c_str());
                 consistency_err = true;
               }
 
               if (error.getErrInfo() == EREMCHG) {
-                eos_err("info=\"unlinking fxid=%08llx path=%s - "
+                eos_err("msg=\"unlinking fxid=%08llx path=%s - "
                         "overlapping atomic upload - discarding this one\"",
                         mFmd->mProtoFmd.fid(), mNsPath.c_str());
                 atomic_overlap = true;
@@ -1681,7 +1681,6 @@ XrdFstOfsFile::_close()
   closerc = mLayout->Close();
 
   if (gOFS.mSimCloseErr) {
-    // simulate an error during the close call
     eos_warning("msg=\"simulate close error\" fxid=%08llx", mFileId);
     closerc = 1;
   }
@@ -1689,7 +1688,7 @@ XrdFstOfsFile::_close()
   rc |= closerc;
   mClosed = true;
 
-  if (closerc || (mRainReconstruct && hasReadError)) {
+  if (closerc || (mRainReconstruct && mHasReadErr)) {
     // For RAIN layouts if there is an error on close when writing then we
     // delete the whole file. If we do RAIN reconstruction we cleanup this
     // local replica which was not committed.
@@ -1729,14 +1728,6 @@ XrdFstOfsFile::_close()
   }
 
   gettimeofday(&closeTime, &tz);
-
-  if (!mDelOnClose && mIsRW) {
-    // Store in the WrittenFilesQueue
-    gOFS.WrittenFilesQueueMutex.Lock();
-    gOFS.WrittenFilesQueue.push(*mFmd.get());
-    gOFS.WrittenFilesQueueMutex.UnLock();
-  }
-
   // Check if the target filesystem has been put into some non-operational mode
   // in the meanwhile, it makes no sense to try to commit in this case
   {
@@ -1764,6 +1755,11 @@ XrdFstOfsFile::_close()
     }
   }
 
+  // Queue file for later MGM synchronization
+  if (mIsRW && !mDelOnClose) {
+    gOFS.QueueForMgmSync(*mFmd.get());
+  }
+
   // Prepare a report and add to the report queue
   if (mTpcFlag != kTpcSrcCanDo) {
     // We don't want a report for the source tpc setup. The kTpcSrcRead
@@ -1777,7 +1773,7 @@ XrdFstOfsFile::_close()
 
     if (eos::common::LayoutId::IsRain(mLid) &&
         mLayout && !mLayout->IsEntryServer()) {
-      // RAIN non-entry stripes do not report any statistics
+      // Non-entry RAIN stripes do not report any statistics
     } else {
       gOFS.ReportQueueMutex.Lock();
       gOFS.ReportQueue.push(reportString);
@@ -3093,8 +3089,8 @@ XrdFstOfsFile::MakeReportEnv(XrdOucString& reportString)
              , ioprio_default
              , mBandwidth
              , msSleep
-             , hasReadError
-             , hasWriteError
+             , mHasReadErr
+             , mHasWriteErr
              , eos::common::SecEntity::ToEnv(mSecString.c_str(),
                  (sec_tpc ? "tpc" : 0)).c_str());
     reportString = report;
@@ -4137,7 +4133,7 @@ XrdFstOfsFile::CommitToMgm()
       oss << "&mgm.reconstruction=1";
       ptr = mOpenOpaque->Get("eos.pio.recfs");
 
-      if (!hasReadError && ptr) {
+      if ((mHasReadErr == false) && ptr) {
         oss << "&mgm.drop.fsid=" << ptr;
       }
     }
