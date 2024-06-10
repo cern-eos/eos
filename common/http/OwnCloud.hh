@@ -359,25 +359,22 @@ public:
 
   // ---------------------------------------------------------------------------
 
-  static XrdOucString FilterOcQuery(const char* query)
+  static std::string FilterOcQuery(const char* query)
   {
-    XrdOucString filterQuery;
-    XrdOucEnv queryEnv(query);
-    int envlen;
+    std::string output;
     std::map<std::string, std::string> map;
-    eos::common::StringConversion::GetKeyValueMap(
-      queryEnv.Env(envlen), map, "=", "&");
+    eos::common::StringConversion::GetKeyValueMap(query, map, "=", "&");
 
     for (auto it = map.begin(); it != map.end(); ++it) {
       if (it->first.substr(0, 3) == "oc-") {
-        filterQuery += "&";
-        filterQuery += it->first.c_str();
-        filterQuery += "=";
-        filterQuery += it->second.c_str();
+        output += "&";
+        output += it->first.c_str();
+        output += "=";
+        output += it->second.c_str();
       }
     }
 
-    return filterQuery;
+    return output;
   }
 
   // ---------------------------------------------------------------------------

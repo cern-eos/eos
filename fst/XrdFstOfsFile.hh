@@ -524,7 +524,7 @@ public:
   int _close();
 
   //----------------------------------------------------------------------------
-  //! Low-level open calling the default XrdOfs plugin and begin called from
+  //! Low-level open calling the default XrdOfs plugin and being called from
   //! one of the layout implementations.
   //----------------------------------------------------------------------------
   int openofs(const char* fileName, XrdSfsFileOpenMode openMode,
@@ -843,6 +843,31 @@ public:
   //! @return true if close is synchronous, otherwise false
   //----------------------------------------------------------------------------
   bool DoSyncClose();
+
+  //----------------------------------------------------------------------------
+  //! Populate and commit FMD info locally
+  //!
+  //! @param info stat info about the logical file
+  //!
+  //! @return 0 if successful, otherwise -1
+  //----------------------------------------------------------------------------
+  int CommitToLocalFmd(const struct stat& info);
+
+  //----------------------------------------------------------------------------
+  //! Commit file information to MGM
+  //!
+  //! @return 0 if successful, otherwise -1 or errno
+  //----------------------------------------------------------------------------
+  int CommitToMgm();
+
+  //----------------------------------------------------------------------------
+  //! Trigger event on close
+  //!
+  //! @param archive_req_id archive request id
+  //!
+  //! @return 0 if successful, other != 0
+  //----------------------------------------------------------------------------
+  int TriggerEventOnClose(const std::string& archive_req_id);
 };
 
 //------------------------------------------------------------------------------
