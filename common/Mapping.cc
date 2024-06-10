@@ -164,6 +164,8 @@ Mapping::Reset()
     gPhysicalUserNameCache.clear();
     gPhysicalGroupIdCache.clear();
     gPhysicalUserIdCache.clear();
+    gShardedPhysicalUidCache.clear();
+    gShardedPhysicalGidCache.clear();
     gShardedNegativeGroupNameCache.clear();
     gShardedNegativePhysicalUidCache.clear();
   }
