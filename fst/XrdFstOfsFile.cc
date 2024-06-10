@@ -1615,168 +1615,15 @@ XrdFstOfsFile::_close()
 
         if (!queuing_err) {
           // Update size
-          // @todo(esindril) to be moved in a separate function which prepares them
-          // local FMD info to be attached to the file and commits the information
-          // at the MGM
           mCloseSize = statinfo.st_size;
-          mFmd->mProtoFmd.set_size(statinfo.st_size);
-          mFmd->mProtoFmd.set_disksize
-          (eos::common::LayoutId::ExpectedStripeSize(mLid, statinfo.st_size));
-          // Reset the diskchecksum after an update otherwise we might falsely report
-          // a checksum error. The diskchecksum will be updated by the scanner.
-          mFmd->mProtoFmd.set_diskchecksum("");
-          mFmd->mProtoFmd.set_mgmsize(eos::common::FmdHelper::UNDEF);
-          mFmd->mProtoFmd.set_mgmchecksum(""); // now again empty
-          mFmd->mProtoFmd.set_layouterror(0); // reset layout errors
-          mFmd->mProtoFmd.set_locations(""); // reset locations
-          mFmd->mProtoFmd.set_filecxerror(0);
-          mFmd->mProtoFmd.set_blockcxerror(0);
-          mFmd->mProtoFmd.set_locations(""); // reset locations
-          mFmd->mProtoFmd.set_cid(mCid);
-          mFmd->mProtoFmd.set_mtime(statinfo.st_mtime);
-#ifdef __APPLE__
-          mFmd->mProtoFmd.set_mtime_ns(0);
-#else
-          mFmd->mProtoFmd.set_mtime_ns(statinfo.st_mtim.tv_nsec);
-#endif
 
-          if (mCapOpaque->Get("mgm.source.lid")) {
-            try {
-              std::string data = mCapOpaque->Get("mgm.source.lid");
-              eos::common::LayoutId::layoutid_t src_lid = std::stoul(data);
-              mFmd->mProtoFmd.set_lid(src_lid);
-
-              // For RAIN files size is the size of the logical file and not
-              // the size of the current stripe on disk
-              if (eos::common::LayoutId::IsRain(src_lid) &&
-                  mCapOpaque->Get("mgm.bookingsize") && mIsReplication) {
-                data = mCapOpaque->Get("mgm.bookingsize");
-                mFmd->mProtoFmd.set_size(std::stoull(data));
-              }
-            } catch (...) {
-              eos_err("msg=\"failure to convert layout id or bookingsize\" "
-                      "lid=\"%s\" bookingsize=\"%s\"",
-                      mCapOpaque->Get("mgm.source.lid"),
-                      mCapOpaque->Get("mgm.bookingsize"));
-            }
+          if (CommitToLocalFmd(statinfo)) {
+            eos_err("msg=\"failed to commit fmd info\" fxid=%08llx", mFileId);
           }
 
-          if (mCapOpaque->Get("mgm.source.ruid")) {
-            mFmd->mProtoFmd.set_uid(atoi(mCapOpaque->Get("mgm.source.ruid")));
-          }
-
-          if (mCapOpaque->Get("mgm.source.rgid")) {
-            mFmd->mProtoFmd.set_gid(atoi(mCapOpaque->Get("mgm.source.rgid")));
-          }
-
-          // Commit local
-          if (!gOFS.mFmdHandler->Commit(mFmd.get())) {
-            eos_err("msg=\"unable to commit fmd info\" fxid=%08llx", mFileId);
-            (void) gOFS.Emsg(epname, error, EIO, "close - unable to "
-                             "commit meta data", mNsPath.c_str());
-          }
-
-          // Commit to central mgm cache
-          int envlen = 0;
-          XrdOucString capOpaqueFile = "";
-          XrdOucString mTimeString = "";
-          capOpaqueFile += "/?";
-          capOpaqueFile += mCapOpaque->Env(envlen);
-          capOpaqueFile += "&mgm.pcmd=commit";
-          capOpaqueFile += "&mgm.size=";
-          char filesize[1024];
-          sprintf(filesize, "%li", (int64_t)mFmd->mProtoFmd.size());
-          capOpaqueFile += filesize;
-
-          if (mCheckSum) {
-            capOpaqueFile += "&mgm.checksum=";
-            capOpaqueFile += mCheckSum->GetHexChecksum();
-          }
-
-          capOpaqueFile += "&mgm.mtime=";
-          capOpaqueFile += eos::common::StringConversion::GetSizeString(mTimeString,
-                           (mForcedMtime != 1) ? mForcedMtime : (unsigned long long)
-                           mFmd->mProtoFmd.mtime());
-          capOpaqueFile += "&mgm.mtime_ns=";
-          capOpaqueFile += eos::common::StringConversion::GetSizeString(mTimeString,
-                           (mForcedMtime != 1) ? mForcedMtime_ms : (unsigned long long)
-                           mFmd->mProtoFmd.mtime_ns());
-
-          if (mFusex) {
-            capOpaqueFile += "&mgm.fusex=1";
-          }
-
-          if (mHasWrite) {
-            capOpaqueFile += "&mgm.modified=1";
-          }
-
-          if (noAtomicVersioning) {
-            // prevent atomic/versioning on commmit
-            capOpaqueFile += "&mgm.commit.verify=1";
-          }
-
-          capOpaqueFile += "&mgm.add.fsid=";
-          capOpaqueFile += (int) mFmd->mProtoFmd.fsid();
-
-          // If <drainfsid> is set, we can issue a drop replica
-          if (mCapOpaque->Get("mgm.drainfsid")) {
-            capOpaqueFile += "&mgm.drop.fsid=";
-            capOpaqueFile += mCapOpaque->Get("mgm.drainfsid");
-          }
-
-          if (mRainReconstruct) {
-            // Indicate that this is a commit of a RAIN reconstruction
-            if (mLayout->IsEntryServer()) {
-              capOpaqueFile += "&mgm.reconstruction=1";
-
-              if (!hasReadError && mOpenOpaque->Get("eos.pio.recfs")) {
-                capOpaqueFile += "&mgm.drop.fsid=";
-                capOpaqueFile += mOpenOpaque->Get("eos.pio.recfs");
-              }
-            }
+          if (!(rc = CommitToMgm())) {
+            commited_to_mgm = true;
           } else {
-            if (mLayout->IsEntryServer() && !mIsReplication && !mIsInjection) {
-              // The entry server commits size and checksum
-              capOpaqueFile += "&mgm.commit.size=1";
-
-              if (mCheckSum) {
-                capOpaqueFile += "&mgm.commit.checksum=1";
-              }
-            } else {
-              bool last_writer = (gOFS.openedForWriting.getUseCount(mFmd->mProtoFmd.fsid(),
-                                  mFmd->mProtoFmd.fid()) <= 1);
-
-              if (last_writer) {
-                if (mCheckSum) {
-                  // if we computed a checksum, we verify IF there is only a
-                  // single writer, if there are several writers we have a
-                  // significant inconsistency window during commit between replicas
-                  capOpaqueFile += "&mgm.replication=1&mgm.verify.checksum=1";
-                } else {
-                  // if we didn't compute a checksum, we disable checksum
-                  // verification and we only indicate replication if there
-                  // is only one active writer
-                  capOpaqueFile += "&mgm.replication=1&mgm.verify.checksum=0";
-                }
-              }
-            }
-          }
-
-          // The log ID to the commit
-          capOpaqueFile += "&mgm.logid=";
-          capOpaqueFile += logId;
-
-          // Evt. tag as an OC-Chunk commit
-          if (mIsOCchunk) {
-            // Add the chunk information
-            int envlen;
-            capOpaqueFile += eos::common::OwnCloud::FilterOcQuery(mOpenOpaque->Env(envlen));
-          }
-
-          rc = gOFS.CallManager(&error, mNsPath.c_str(), mRedirectManager.c_str(),
-                                capOpaqueFile, 0, true);
-
-          if (rc) {
             if ((error.getErrInfo() == EIDRM) || (error.getErrInfo() == EBADE) ||
                 (error.getErrInfo() == EBADR) || (error.getErrInfo() == EREMCHG)) {
               if (error.getErrInfo() == EIDRM) {
@@ -1807,14 +1654,13 @@ XrdFstOfsFile::_close()
                 atomic_overlap = true;
               }
 
+              // Any of the above error will trigger a delete on close
               mDelOnClose = true;
             } else {
               eos_crit("msg=\"commit returned unknown error (maybe timeout), "
                        "close transaction to keep file safe\" msg=\"%s\" rc=%d",
                        error.getErrText(), rc);
             }
-          } else {
-            commited_to_mgm = true;
           }
         }
       }
@@ -2083,56 +1929,18 @@ XrdFstOfsFile::_close()
     }
 
     eos_warning("msg=\"executed adjustreplica, file is at low risk due to "
-                "missing replicas\" path=%s", mNsPath.c_str());
+                "missing replicas\" fxid=%08llx, path=%s",
+                mFileId, mNsPath.c_str());
   }
 
-  // Trigger an MGM event from the entry point
+  // Trigger an MGM event from the entry server
   if ((rc == 0) && mLayout->IsEntryServer() &&
       (mEventOnClose || mSyncEventOnClose)) {
-    XrdOucString capOpaqueFile = "";
-    XrdOucString eventType = "";
-    capOpaqueFile += "/?";
-    int envlen = 0;
-    capOpaqueFile += mCapOpaque->Env(envlen);
-    capOpaqueFile += "&mgm.pcmd=event";
-
-    if (mIsRW) {
-      eventType = mSyncEventOnClose ? "sync::closew" : "closew";
-    } else {
-      eventType = "closer";
-    }
-
-    capOpaqueFile += "&mgm.event=";
-    capOpaqueFile += eventType;
-    // The log ID to the commit
-    capOpaqueFile += "&mgm.logid=";
-    capOpaqueFile += logId;
-    capOpaqueFile += "&mgm.ruid=";
-    capOpaqueFile += mCapOpaque->Get("mgm.ruid");
-    capOpaqueFile += "&mgm.rgid=";
-    capOpaqueFile += mCapOpaque->Get("mgm.rgid");
-    capOpaqueFile += "&mgm.sec=";
-    capOpaqueFile += mCapOpaque->Get("mgm.sec");
-
-    if (mEventWorkflow.length()) {
-      capOpaqueFile += "&mgm.workflow=";
-      capOpaqueFile += mEventWorkflow.c_str();
-    }
-
-    if (!archive_req_id.empty()) {
-      capOpaqueFile += "&mgm.archive_req_id=";
-      capOpaqueFile += archive_req_id.c_str();
-    }
-
-    eos_info("msg=\"notify\" event=\"%s\" workflow=\"%s\"", eventType.c_str(),
-             mEventWorkflow.c_str());
-    rc = gOFS.CallManager(&error, mCapOpaque->Get("mgm.path"),
-                          mCapOpaque->Get("mgm.manager"), capOpaqueFile,
-                          30, mSyncEventOnClose, false);
+    rc = TriggerEventOnClose(archive_req_id);
   }
 
   // Mask close error for fusex, if the file has been removed already
-  if (mFusexIsUnlinked && mFusex) {
+  if (mFusex && mFusexIsUnlinked) {
     error.setErrCode(0);
     rc = 0;
   }
@@ -4205,6 +4013,204 @@ XrdFstOfsFile::GetAsyncCloseMinSize()
   return min_size_async_close;
 }
 
+//------------------------------------------------------------------------------
+// Populate and commit FMD info locally
+//------------------------------------------------------------------------------
+int
+XrdFstOfsFile::CommitToLocalFmd(const struct stat& info)
+{
+  EPNAME("close");
+  mFmd->mProtoFmd.set_size(info.st_size);
+  mFmd->mProtoFmd.set_disksize
+  (eos::common::LayoutId::ExpectedStripeSize(mLid, info.st_size));
+  // Reset the diskchecksum after an update otherwise we might falsely report
+  // a checksum error. The diskchecksum will be updated by the scanner.
+  mFmd->mProtoFmd.set_diskchecksum("");
+  mFmd->mProtoFmd.set_mgmsize(eos::common::FmdHelper::UNDEF);
+  mFmd->mProtoFmd.set_mgmchecksum(""); // now again empty
+  mFmd->mProtoFmd.set_layouterror(0); // reset layout errors
+  mFmd->mProtoFmd.set_locations(""); // reset locations
+  mFmd->mProtoFmd.set_filecxerror(0);
+  mFmd->mProtoFmd.set_blockcxerror(0);
+  mFmd->mProtoFmd.set_locations(""); // reset locations
+  mFmd->mProtoFmd.set_cid(mCid);
+  mFmd->mProtoFmd.set_mtime(info.st_mtime);
+#ifdef __APPLE__
+  mFmd->mProtoFmd.set_mtime_ns(0);
+#else
+  mFmd->mProtoFmd.set_mtime_ns(info.st_mtim.tv_nsec);
+#endif
+
+  if (mCapOpaque->Get("mgm.source.lid")) {
+    try {
+      std::string data = mCapOpaque->Get("mgm.source.lid");
+      eos::common::LayoutId::layoutid_t src_lid = std::stoul(data);
+      mFmd->mProtoFmd.set_lid(src_lid);
+
+      // For RAIN files size is the size of the logical file and not
+      // the size of the current stripe on disk
+      if (eos::common::LayoutId::IsRain(src_lid) &&
+          mCapOpaque->Get("mgm.bookingsize") && mIsReplication) {
+        data = mCapOpaque->Get("mgm.bookingsize");
+        mFmd->mProtoFmd.set_size(std::stoull(data));
+      }
+    } catch (...) {
+      eos_err("msg=\"failure to convert layout id or bookingsize\" "
+              "lid=\"%s\" bookingsize=\"%s\"",
+              mCapOpaque->Get("mgm.source.lid"),
+              mCapOpaque->Get("mgm.bookingsize"));
+    }
+  }
+
+  if (mCapOpaque->Get("mgm.source.ruid")) {
+    mFmd->mProtoFmd.set_uid(atoi(mCapOpaque->Get("mgm.source.ruid")));
+  }
+
+  if (mCapOpaque->Get("mgm.source.rgid")) {
+    mFmd->mProtoFmd.set_gid(atoi(mCapOpaque->Get("mgm.source.rgid")));
+  }
+
+  // Commit local
+  if (!gOFS.mFmdHandler->Commit(mFmd.get())) {
+    eos_err("msg=\"unable to commit fmd info\" fxid=%08llx", mFileId);
+    return gOFS.Emsg(epname, error, EIO, "close - unable to "
+                     "commit meta data", mNsPath.c_str());
+  }
+
+  return 0;
+}
+
+//------------------------------------------------------------------------------
+// Commit file information to MGM
+//------------------------------------------------------------------------------
+int
+XrdFstOfsFile::CommitToMgm()
+{
+  using eos::common::StringConversion;
+  std::ostringstream oss;
+  const std::string smtime = StringConversion::GetSizeString((unsigned long long)
+                             (mForcedMtime != 1) ?
+                             mForcedMtime :
+                             mFmd->mProtoFmd.mtime());
+  const std::string smtime_ns = StringConversion::GetSizeString((
+                                  unsigned long long)
+                                (mForcedMtime != 1) ?
+                                mForcedMtime_ms :
+                                mFmd->mProtoFmd.mtime_ns());
+  int envlen = 0;
+  char* ptr = nullptr;
+  oss << "/?" << mCapOpaque->Env(envlen)
+      << "&mgm.pcmd=commit"
+      << "&mgm.size=" << mCloseSize
+      << "&mgm.mtime=" << smtime
+      << "&mgm.mtime_ns=" << smtime_ns
+      << "&mgm.add.fsid=" << mFmd->mProtoFmd.fsid()
+      << "&mgm.logid=" << logId;
+
+  if (mCheckSum) {
+    oss << "&mgm.checksum=" << mCheckSum->GetHexChecksum();
+  }
+
+  if (mFusex) {
+    oss << "&mgm.fusex=1";
+  }
+
+  if (mHasWrite) {
+    oss << "&mgm.modified=1";
+  }
+
+  // Prevent atomic/versioning on commmit
+  if (noAtomicVersioning) {
+    oss << "&mgm.commit.verify=1";
+  }
+
+  // If <drainfsid> is set, we can issue a drop replica
+  ptr = mCapOpaque->Get("mgm.drainfsid");
+
+  if (ptr) {
+    oss << "&mgm.drop.fsid=" << ptr;
+  }
+
+  if (mRainReconstruct) {
+    // Indicate that this is a commit of a RAIN reconstruction
+    if (mLayout->IsEntryServer()) {
+      oss << "&mgm.reconstruction=1";
+      ptr = mOpenOpaque->Get("eos.pio.recfs");
+
+      if (!hasReadError && ptr) {
+        oss << "&mgm.drop.fsid=" << ptr;
+      }
+    }
+  } else {
+    if (mLayout->IsEntryServer() && !mIsReplication && !mIsInjection) {
+      // The entry server commits size and checksum
+      oss << "&mgm.commit.size=1";
+
+      if (mCheckSum) {
+        oss << "&mgm.commit.checksum=1";
+      }
+    } else {
+      bool last_writer = (gOFS.openedForWriting.getUseCount(mFmd->mProtoFmd.fsid(),
+                          mFmd->mProtoFmd.fid()) <= 1);
+
+      if (last_writer) {
+        if (mCheckSum) {
+          // If we computed a checksum, we verify ONLY IF there is a single
+          // writer. Otherwise, if there are several writers we have a
+          // significant inconsistency window during commit between replicas.
+          oss << "&mgm.replication=1&mgm.verify.checksum=1";
+        } else {
+          // If no checksum was computed, we disable checksum verification
+          // and we indicate replication only if we are the last active
+          // writer.
+          oss << "&mgm.replication=1&mgm.verify.checksum=0";
+        }
+      }
+    }
+  }
+
+  // Evt. tag as an OC-Chunk commit
+  if (mIsOCchunk) {
+    oss << eos::common::OwnCloud::FilterOcQuery(mOpenOpaque->Env(envlen));
+  }
+
+  return gOFS.CallManager(&error, mNsPath.c_str(), mRedirectManager.c_str(),
+                          oss.str(), 0, true);
+}
+
+//------------------------------------------------------------------------------
+// Trigger event on close
+//------------------------------------------------------------------------------
+int
+XrdFstOfsFile::TriggerEventOnClose(const std::string& archive_req_id)
+{
+  std::string event_t = "closer";
+
+  if (mIsRW) {
+    event_t = (mSyncEventOnClose ? "sync::closew" : "closew");
+  }
+
+  std::ostringstream oss;
+  oss << "/?mgm.pcmd=event"
+      << "&mgm.event=" << event_t
+      << "&mgm.logid=" << logId
+      << "&mgm.ruid=" << mCapOpaque->Get("mgm.ruid")
+      << "&mgm.rgid=" << mCapOpaque->Get("mgm.rgid")
+      << "&mgm.sec=" << mSecString;
+
+  if (mEventWorkflow.length()) {
+    oss << "&mgm.workflow=" << mEventWorkflow;
+  }
+
+  if (!archive_req_id.empty()) {
+    oss << "&mgm.archive_req_id=" << archive_req_id;
+  }
+
+  eos_info("msg=\"notify\" event=\"%s\" workflow=\"%s\" fxid=%08llx",
+           event_t.c_str(), mEventWorkflow.c_str(), mFileId);
+  return gOFS.CallManager(&error, mNsPath.c_str(), mRedirectManager.c_str(),
+                          oss.str(), 30, mSyncEventOnClose, false);
+}
 
 //----------------------------------------------------------------------------
 // Read AIO - not supported
