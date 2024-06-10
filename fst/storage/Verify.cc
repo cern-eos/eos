@@ -97,9 +97,8 @@ Storage::Verify()
       if (fMd) {
         // force a resync of meta data from the MGM
         // e.g. store in the WrittenFilesQueue to have it done asynchronous
-        gOFS.WrittenFilesQueueMutex.Lock();
+        std::unique_lock<std::mutex> lock(gOFS.WrittenFilesQueueMutex);
         gOFS.WrittenFilesQueue.push(*fMd.get());
-        gOFS.WrittenFilesQueueMutex.UnLock();
       }
     }
     FileIo* io = eos::fst::FileIoPluginHelper::GetIoObject(fstPath.c_str());

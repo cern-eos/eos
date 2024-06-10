@@ -67,14 +67,14 @@ Storage::MgmSyncer()
     } while (1);
 
     bool failure = false;
-    gOFS.WrittenFilesQueueMutex.Lock();
+    gOFS.WrittenFilesQueueMutex.lock();
 
     while (gOFS.WrittenFilesQueue.size() > 0) {
       // we enter this loop with the WrittenFilesQueueMutex locked
       time_t now = time(NULL);
       eos::common::FmdHelper fmd = gOFS.WrittenFilesQueue.front();
       gOFS.WrittenFilesQueue.pop();
-      gOFS.WrittenFilesQueueMutex.UnLock();
+      gOFS.WrittenFilesQueueMutex.unlock();
       // Guarantee that we delay the check by atleast 60 seconds to wait
       // for the commit of all recplias
       time_t delay = fmd.mProtoFmd.mtime() + 60 - now;
@@ -84,7 +84,7 @@ Storage::MgmSyncer()
         eos_static_debug("msg=\"postpone mgm sync\" delay=%d",
                          delay);
         std::this_thread::sleep_for(std::chrono::seconds(delay));
-        gOFS.WrittenFilesQueueMutex.Lock();
+        gOFS.WrittenFilesQueueMutex.lock();
         gOFS.WrittenFilesQueue.push(fmd);
         continue;
       }
@@ -101,24 +101,24 @@ Storage::MgmSyncer()
           eos_static_debug("msg=\"resync ok\" fsid=%lu fxid=%08llx",
                            (unsigned long) fmd.mProtoFmd.fsid(),
                            fmd.mProtoFmd.fid());
-          gOFS.WrittenFilesQueueMutex.Lock();
+          gOFS.WrittenFilesQueueMutex.lock();
         } else {
           eos_static_err("msg=\"resync failed\" fsid=%lu fxid=%08llx",
                          (unsigned long) fmd.mProtoFmd.fsid(),
                          fmd.mProtoFmd.fid());
           failure = true;
-          gOFS.WrittenFilesQueueMutex.Lock(); // put back the lock and the entry
+          gOFS.WrittenFilesQueueMutex.lock(); // put back the lock and the entry
           gOFS.WrittenFilesQueue.push(fmd);
           break;
         }
       } else {
         // if there was still a reference, we can just discard this check
         // since the other write open will trigger a new entry in the queue
-        gOFS.WrittenFilesQueueMutex.Lock(); // put back the lock
+        gOFS.WrittenFilesQueueMutex.lock(); // put back the lock
       }
     }
 
-    gOFS.WrittenFilesQueueMutex.UnLock();
+    gOFS.WrittenFilesQueueMutex.unlock();
 
     if (failure) {
       // the last synchronization to the MGM failed, we wait longer
