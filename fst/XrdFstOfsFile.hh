@@ -326,7 +326,7 @@ public:
   bool mHasReadErr; //! indicator if a RAIN file could be reconstructed or not
   bool mIsRW; //! indicator that file is opened for rw
   bool mIsDevNull; ///< If true file act as a sink i.e. /dev/null
-  bool isCreation; //! indicator that a new file is created
+  bool mIsCreation; //! indicator that a new file is created
   bool mIsReplication; //! indicator that the opened file is a replica transfer
   bool noAtomicVersioning; //! indicate to disable atomic/versioning during commit
   //! Indicate that the opened file is a file injection where the size and

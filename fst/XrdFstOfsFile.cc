@@ -95,7 +95,7 @@ XrdFstOfsFile::XrdFstOfsFile(const char* user, int MonID) :
   mFileId(0), mFsId(0), mLid(0), mCid(0), mForcedMtime(1), mForcedMtime_ms(0),
   mFusex(false), mFusexIsUnlinked(false), mClosed(false), mOpened(false),
   mHasWrite(false), mHasWriteErr(false), mHasReadErr(false), mIsRW(false),
-  mIsDevNull(false), isCreation(false), mIsReplication(false),
+  mIsDevNull(false), mIsCreation(false), mIsReplication(false),
   noAtomicVersioning(false),
   mIsInjection(false), mRainReconstruct(false), mDelOnClose(false),
   mRepairOnClose(false), mIsOCchunk(false), writeErrorFlag(false),
@@ -241,23 +241,21 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
     mIsRW = true;
   }
 
-  // File is supposed to act as a sink, used for draining
-  if (mNsPath == "/replicate:0") {
-    if (mIsRW) {
+  if (mNsPath.beginswith("/replicate:")) {
+    if (!mIsRW) {
+      eos_err("msg=\"replicate file can only be opened for RW\" fxid=%08llx "
+              "path=\"%s\"", mFileId, mNsPath.c_str());
+      return gOFS.Emsg(epname, error, EIO, "open - replicate file can only "
+                       "be opened in RW mode", mNsPath.c_str());
+    }
+
+    // File is supposed to act as a sink, used for draining
+    if (mNsPath == "/replicate:0") {
       eos_info("%s", "msg=\"file fxid=0 acting as a sink i.e. /dev/null\"");
       mIsDevNull = true;
       return SFS_OK;
-    } else {
-      eos_info("%s", "msg=\"sink file i.e. /dev/null can only be opened for RW\"");
-      return gOFS.Emsg(epname, error, EIO, "open -bn sink file can only be "
-                       "opened RW mode", mNsPath.c_str());
     }
-  }
 
-  COMMONTIMING("path::print", &tm);
-  eos_info("ns_path=%s fst_path=%s", mNsPath.c_str(), mFstPath.c_str());
-
-  if (mNsPath.beginswith("/replicate:")) {
     if (gOFS.openedForWriting.isOpen(mFsId, mFileId)) {
       eos_err("msg=\"forbid replica open, file %s opened in RW mode\"",
               mNsPath.c_str());
@@ -267,6 +265,9 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
 
     mIsReplication = true;
   }
+
+  COMMONTIMING("path::print", &tm);
+  eos_info("ns_path=%s fst_path=%s", mNsPath.c_str(), mFstPath.c_str());
 
   // Check if this is an open for HTTP
   if (!mIsRW && ((std::string(client->tident) == "http"))) {
@@ -321,7 +322,7 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
       // File does not exist, keep the create flag for writers and readers
       // with 0-size at MGM
       mIsRW = true;
-      isCreation = true;
+      mIsCreation = true;
       mOpenSize = 0;
       mWritePosition = 0;
       // Used to indicate if a file was written in the meanwhile by someone else
@@ -348,13 +349,13 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
     }
   }
 
-  if (!isCreation) {
+  if (!mIsCreation) {
     creationSerialization.Release();
   }
 
   // Capability access distinction
   if (mIsRW) {
-    if (isCreation) {
+    if (mIsCreation) {
       if (mCapOpaque->Get("mgm.zerosize") == nullptr) {
         if (!mCapOpaque->Get("mgm.access")
             || ((strcmp(mCapOpaque->Get("mgm.access"), "create")) &&
@@ -403,7 +404,7 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
   }
 
   // Bookingsize is only needed for file creation
-  if (mIsRW && isCreation) {
+  if (mIsRW && mIsCreation) {
     const char* sbookingsize = 0;
     const char* stargetsize = 0;
 
@@ -629,17 +630,17 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
     }
   }
 
-  if (isCreation) {
+  if (mIsCreation) {
     creationSerialization.Release();
   }
 
   COMMONTIMING("layout::stat", &tm);
 
-  if (mIsReplication && !isCreation) {
+  if (mIsReplication && !mIsCreation) {
     mLayout->Stat(&updateStat);
   }
 
-  if (isCreation && mBookingSize) {
+  if (mIsCreation && mBookingSize) {
     COMMONTIMING("full::mutex", &tm);
     // Check if the file system is full
     XrdSysMutexHelper lock(gOFS.Storage->mFsFullMapMutex);
@@ -692,7 +693,7 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
     }
   }
 
-  if (isCreation) {
+  if (mIsCreation) {
     gOFS.mFmdHandler->Commit(mFmd.get());
   } else {
     COMMONTIMING("layout::stat", &tm);
@@ -1102,7 +1103,7 @@ XrdFstOfsFile::write(XrdSfsFileOffset fileOffset, const char* buffer,
 
   // If we see a remote IO error, we don't fail, we just call repair afterwards,
   // only for replica layouts and not for FuseX clients
-  if ((rc < 0) && isCreation && !mFusex &&
+  if ((rc < 0) && mIsCreation && !mFusex &&
       eos::common::LayoutId::IsReplica(mLid) &&
       (mLayout->GetErrObj()->getErrInfo() == EREMOTEIO)) {
     mRepairOnClose = true;
@@ -1157,7 +1158,7 @@ XrdFstOfsFile::write(XrdSfsFileOffset fileOffset, const char* buffer,
 
     XrdOucString errdetail;
 
-    if (isCreation) {
+    if (mIsCreation) {
       XrdOucString newerr;
       // Add to the error message that this file has been removed after the error,
       // which happens for creations
@@ -1481,11 +1482,10 @@ XrdFstOfsFile::_close()
 
   // Check if the file close comes from a client disconnect e.g. the destructor
   eos_info("viaDelete=%d writeDelete=%d", viaDelete, mWrDelete);
-  bool last_writer = (gOFS.openedForWriting.getUseCount(mFmd->mProtoFmd.fsid(),
-                      mFmd->mProtoFmd.fid()) <= 1);
+  bool last_writer = (gOFS.openedForWriting.getUseCount(mFsId, mFileId) <= 1);
 
   if ((viaDelete || mWrDelete) && !mFusex &&
-      (isCreation || mIsInjection || mIsOCchunk || (mIsReplication && mIsRW))) {
+      (mIsCreation || mIsInjection || mIsOCchunk || mIsReplication)) {
     if (last_writer) {
       // It is closed by the destructor e.g. no proper close
       // or the specified checksum does not match the computed one
@@ -1512,12 +1512,12 @@ XrdFstOfsFile::_close()
       DropFromMgm(mFileId, (drop_all ? 0u : mFsId), mNsPath.c_str(),
                   mRedirectManager.c_str());
     } else {
-      eos_info("msg=\"(unpersist) suppress delete on close\" reason=\"several writers\""
-               " fxid=%08llx fsid=%u ", mFileId, mFsId);
+      eos_info("msg=\"(unpersist) suppress delete on close\" reason=\"several "
+               "writers\" fxid=%08llx fsid=%u", mFileId, mFsId);
     }
   } else {
     // Check if this was a newly created file
-    if (isCreation) {
+    if (mIsCreation) {
       // If we had space allocation we have to truncate the allocated space to
       // the real size of the file
       if (eos::common::LayoutId::IsRain(mLayout->GetLayoutId())) {
@@ -1582,9 +1582,9 @@ XrdFstOfsFile::_close()
     // First we assume that, if we have writes, we update it
     mCloseSize = mOpenSize;
 
-    if (!checksum_err && !min_sz_err && !target_sz_err &&
-        (mHasWrite || isCreation) &&
-        (!mRainReconstruct || !mHasReadErr)) {
+    if ((mIsCreation || mHasWrite) &&
+        !checksum_err && !min_sz_err && !target_sz_err &&
+        !(mRainReconstruct && mHasReadErr)) {
       // Commit meta data
       struct stat statinfo;
 
@@ -1594,7 +1594,7 @@ XrdFstOfsFile::_close()
       } else {
         // Attempt archive queueing if tape support enabled
         if (mTapeEnabled && mSyncEventOnClose &&
-            isCreation && mLayout->IsEntryServer() &&
+            mIsCreation && mLayout->IsEntryServer() &&
             (mEventWorkflow != common::RETRIEVE_WRITTEN_WORKFLOW_NAME)) {
           // Queueing error: queueing for archive failed
           queuing_err = !QueueForArchiving(statinfo, queuing_msg, archive_req_id);
@@ -1703,11 +1703,18 @@ XrdFstOfsFile::_close()
     }
   }
 
+  // If target file system is in some non-operational mode, then abort commit
+  if (mIsRW && !gOFS.Storage->IsFsOperational(mFsId)) {
+    eos_notice("msg=\"fail transfer since filesystem is in non-operational "
+               "state\" fxid=%08llx fsid=%u", mFileId, mFsId);
+    mDelOnClose = true;
+  }
+
   {
     XrdSysMutexHelper scope_lock(gOFS.OpenFidMutex);
 
     if (mIsRW) {
-      if ((mIsInjection || isCreation || mIsOCchunk) && (!rc) &&
+      if ((rc == 0) && (mIsInjection || mIsCreation || mIsOCchunk) &&
           (gOFS.openedForWriting.getUseCount(mFsId, mFileId > 1))) {
         // indicate that this file was closed properly and disable further delete on close
         gOFS.WNoDeleteOnCloseFid[mFsId][mFileId] = true;
@@ -1718,29 +1725,17 @@ XrdFstOfsFile::_close()
       gOFS.openedForReading.down(mFsId, mFileId);
     }
 
-    if (!gOFS.openedForWriting.isOpen(mFsId, mFileId)) {
+    if (gOFS.openedForWriting.isOpen(mFsId, mFileId) == 0) {
       // When the last writer is gone we can remove the prohibiting entry
       gOFS.WNoDeleteOnCloseFid[mFsId].erase(mFileId);
       gOFS.WNoDeleteOnCloseFid[mFsId].resize(0);
-    }
-  }
-
-  // If target file system is in some non-operational mode, then abort commit
-  if (!gOFS.Storage->IsFsOperational(mFsId)) {
-    eos_notice("msg=\"fail transfer since filesystem is in non-operational "
-               "state\" fxid=%08llx fsid=%u", mFileId, mFsId);
-    mDelOnClose = true;
-  }
-
-  {
-    // Check if the delete on close has been prohibited for this file id
-    XrdSysMutexHelper scope_lock(gOFS.OpenFidMutex);
-
-    if (gOFS.WNoDeleteOnCloseFid[mFsId].count(mFileId)) {
-      eos_notice("msg=\"prohibiting delete on close since we had a "
-                 "sussessful put but still an unacknowledged open\" "
-                 "fxid=%08llx path=%s", mFileId, mNsPath.c_str());
-      mDelOnClose = false;
+    } else {
+      if (gOFS.WNoDeleteOnCloseFid[mFsId].count(mFileId)) {
+        eos_notice("msg=\"prohibiting delete on close since we had a "
+                   "sussessful put but still an unacknowledged open\" "
+                   "fxid=%08llx path=%s", mFileId, mNsPath.c_str());
+        mDelOnClose = false;
+      }
     }
   }
 
@@ -1772,7 +1767,7 @@ XrdFstOfsFile::_close()
   }
 
   if (mDelOnClose && !mFusex &&
-      (mIsInjection || isCreation || mIsOCchunk)) {
+      (mIsInjection || mIsCreation || mIsOCchunk)) {
     rc = SFS_ERROR;
     eos_err("msg=\"delete on close\" fxid=%08llx ns_path=\"%s\" ", mFileId,
             mNsPath.c_str());
@@ -1920,7 +1915,7 @@ XrdFstOfsFile::_close()
                 mFileId, mNsPath.c_str());
   }
 
-  // Trigger an MGM event from the entry server
+  // CTA: Trigger an MGM event from the entry server
   if ((rc == 0) && mLayout->IsEntryServer() &&
       (mEventOnClose || mSyncEventOnClose)) {
     rc = TriggerEventOnClose(archive_req_id);
