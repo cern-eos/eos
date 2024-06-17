@@ -21,50 +21,62 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-/*-----------------------------------------------------------------------------*/
-/*-----------------------------------------------------------------------------*/
-/*-----------------------------------------------------------------------------*/
+
 #include <XrdPosix/XrdPosixXrootd.hh>
 #include <XrdOuc/XrdOucString.hh>
-/*-----------------------------------------------------------------------------*/
+#include <fcntl.h>
+
 
 XrdPosixXrootd posixXrootd;
 
-int main (int argc, char* argv[]) {
+int main(int argc, char* argv[])
+{
   // create a 1k file but does not close it!
   XrdOucString urlFile = argv[1];
+
   if (!urlFile.length()) {
-    fprintf(stderr,"usage: xrdcpabort <url>\n");
+    fprintf(stderr, "usage: xrdcpabort <url>\n");
     exit(EINVAL);
   }
 
   struct stat buf;
 
   if (!XrdPosixXrootd::Stat(urlFile.c_str(), &buf)) {
-    int fdRead = XrdPosixXrootd::Open(urlFile.c_str(),0,0);
+    int fdRead = XrdPosixXrootd::Open(urlFile.c_str(), 0, 0);
 
-    if (fdRead>=0) {
-      char buffer[8192];
-      bool first=true;
+    if (fdRead >= 0) {
+      constexpr int bsz = 8192;
+      char buffer[bsz];
+      int nbytes = buf.st_size % bsz;
+      long long offset = 0;
 
-      for (long long offset = (buf.st_size - (buf.st_size%8192)); offset >0; offset -= 8192) {
-	int rbytes = XrdPosixXrootd::Pread(fdRead, buffer, (first && (buf.st_size%8192))? (buf.st_size%8192):8192, offset);
-	if (rbytes <= 0) {
-	  fprintf(stderr,"error: read failed at offset %lld\n", offset);
-	  exit(-1);
-	}
-	first = false;
+      if (buf.st_size > bsz) {
+        offset = buf.st_size - (buf.st_size % bsz);
       }
+
+      do {
+        int rbytes = XrdPosixXrootd::Pread(fdRead, buffer, nbytes, offset);
+
+        if (rbytes != nbytes) {
+          fprintf(stderr, "error: read failed at offset %lld\n", offset);
+          exit(-1);
+        }
+
+        nbytes = bsz;
+        offset -= nbytes;
+      } while (offset >= 0);
+
       int rc = XrdPosixXrootd::Close(fdRead);
+
       if (rc) {
-	fprintf(stderr,"error: close failed\nd with retc=%d", rc);
-	exit(rc);
+        fprintf(stderr, "error: close failed with retc=%d", rc);
+        exit(rc);
       }
     } else {
-      fprintf(stderr,"error: failed to open %s\n", urlFile.c_str());
+      fprintf(stderr, "error: failed to open %s\n", urlFile.c_str());
     }
   } else {
-    fprintf(stderr,"error: file %s does not exist!\n", urlFile.c_str());
+    fprintf(stderr, "error: file %s does not exist!\n", urlFile.c_str());
     exit(-1);
   }
 }
