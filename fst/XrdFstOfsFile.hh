@@ -348,6 +348,7 @@ public:
   std::string mEventRequestor;
   std::string mEventRequestorGroup;
   std::string mEventAttributes;
+  std::string mArchiveReqId;
   int mIoPriorityValue;
   int mIoPriorityClass;
   bool mIoPriorityErrorReported;
@@ -522,6 +523,20 @@ public:
   //! @return SFS_OK if close successful, otherwise SFS_ERROR
   //----------------------------------------------------------------------------
   int _close();
+
+  //----------------------------------------------------------------------------
+  //! Close file opened for reading - internal
+  //!
+  //! @return SFS_OK if close successful, otherwise SFS_ERROR
+  //----------------------------------------------------------------------------
+  int _close_rd();
+
+  //----------------------------------------------------------------------------
+  //! Close file opened for writing - internal
+  //!
+  //! @return SFS_OK if close successful, otherwise SFS_ERROR
+  //----------------------------------------------------------------------------
+  int _close_wr();
 
   //----------------------------------------------------------------------------
   //! Low-level open calling the default XrdOfs plugin and being called from

@@ -125,7 +125,6 @@ EnforceRainMinFsidEntry(const std::vector<unsigned int>& input_fsids)
 }
 }
 
-
 /******************************************************************************/
 /* MGM File Interface                                                         */
 /******************************************************************************/
@@ -2621,7 +2620,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
   }
 
   // If behaviour enabled then add preference to always select the file system
-  // with the lowest fsid as the entry point for rain read/recover operations
+  // with the lowest fsid as the server entry point
   if (gOFS->mBehaviourCfg->Exists(eos::common::BehaviourType::RainMinFsidEntry)) {
     fsIndex = EnforceRainMinFsidEntry(selectedfs);
   }
