@@ -415,6 +415,10 @@ def main(conf_file = None, args = None):
     for iam in iam_servers:
         # start with an empty user set for each IAM endpoint, we retain the
         # grid map which will maintain the correct account mapping
+        if not iam.account:
+            logging.warn(f"Skipping {iam.server} as no explicit mapping via args or config")
+            continue
+
         users = set()
 
         if type_of_format == "GRIDMAP":
@@ -427,9 +431,6 @@ def main(conf_file = None, args = None):
         if ofile:
             temp_outfile = "{}.{}".format(ofile,count)
 
-        if not iam.account:
-            logging.warn(f"Skipping {iam.server} as no explicit mapping via args or config")
-            continue
 
         logging.debug(f"Generating temporary {temp_outfile} for {iam.server}:{iam.account}")
 
