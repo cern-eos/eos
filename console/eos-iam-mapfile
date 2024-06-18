@@ -51,6 +51,7 @@ class IAM_Server:
         self.token_server = token_server or server
         self._token = None
         self.account = account
+        self.group_account_map = dict()
 
     def __hash__(self):
         return hash(self.server)
@@ -176,21 +177,23 @@ def dn_filter(*users, pattern=None, prefer_cern=False, **kwargs):
     logging.info(f"{len(matching_dn)} matching certificates")
     return matching_dn
 
+def role_group_map_filter(*users, pattern=None, prefer_cern=None, group_name=None, **kwargs):
+    matching_dn = set()
+    if not group_name:
+        return matching_dn
+
+    for user in users():
         try:
-            certs = user['urn:indigo-dc:scim:schemas:IndigoUser']['certificates']
-            # Is there a CERN certificate if prefered?
-            if prefer_cern:
-                certs = [*filter(lambda x: x.get('subjectDn',x.get('issuerDn')).endswith('DC=cern,DC=ch'), certs)]
+            groups = user['groups']
+            for group in groups:
+                if group['display'] == group_name:
+                    grid_dn = extract_grid_dn(user, pattern, prefer_cern)
 
-            for cert in certs:
-                # Revert subjectDn and replace , with / (making sure commas on the values aren't replaced)
-                grid_dn = '/'.join(re.split(r',(?=\w+=)', cert["subjectDn"])[::-1]) # re: courtesy of Maarten Litmaath
-                if pattern is None or pattern.search(grid_dn):
-                    matching_dn.add(f'/{grid_dn}')
+                    if grid_dn:
+                        matching_dn.add(f'/{grid_dn}')
         except KeyError:
-            logging.warning(f"User {user['id']} doesn't have certificate to extract info (skipping it)")
+            logging.warning(f"User {user['id']} doesn't have group mapping, skipping")
 
-    logging.info(f"{len(matching_dn)} matching certificates")
     return matching_dn
 
 def build_namemap_file(users_id, account, ifile, ofile):
@@ -301,6 +304,8 @@ def configure_servers(credentials, servers, targets, account):
                 # Assuming IAM server is token server if not defined
                 token_server = config.get(section,'token-server', fallback=server)
                 account = config.get(section,'account',fallback=None)
+
+                group_account_map = config.get(section, 'group_account_map', fallback=None)
 
                 logging.debug(f'Adding iam_server {server} mapping to {account} from config')
                 iam_servers.append(IAM_Server(server, client_id, client_secret, token_server, account))
@@ -465,6 +470,18 @@ def main(conf_file = None, args = None):
         elif type_of_format == "MAPFILE":
             build_namemap_file(users, iam.account, ifile, outfile)
         count += 1
+
+        for group_name, account in iam.group_account_map:
+            if ofile:
+                temp_outfile = "{}.{}".format(ofile,count)
+
+            role_users = role_group_map_filter(*users, pattern=conf.pattern,
+                                               prefer_cern=conf.prefer_cern,
+                                               group_name=group_name)
+            grid_map = build_gridmap_file(role_users, account, ifile, temp_outfile,
+                                          lgridmap, grid_map)
+            count += 1
+
 
     if temp_outfile and ofile:
         logging.debug(f"Renaming {temp_outfile} to {ofile}")
