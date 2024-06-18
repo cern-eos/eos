@@ -367,7 +367,6 @@ DrainTransferJob::BuildTpcSrc(const FileDrainInfo& fdrain,
     url_src.SetHostName(gOFS->MgmOfsAlias.c_str());
     url_src.SetPort(gOFS->ManagerPort);
     src_cap << output_cap->Env(cap_len)
-            << "&mgm.logid=" << log_id
             << "&eos.pio.action=reconstruct"
             << "&eos.encodepath=curl";
 
@@ -383,12 +382,10 @@ DrainTransferJob::BuildTpcSrc(const FileDrainInfo& fdrain,
     url_src.SetPath(oss_path.str());
     url_src.SetHostName(src_snapshot.mHost.c_str());
     url_src.SetPort(src_snapshot.mPort);
-    src_cap << output_cap->Env(cap_len)
-            << "&mgm.logid=" << log_id
-            << "&source.url=root://" << src_snapshot.mHostPort.c_str()
-            << "//replicate:" << eos::common::FileId::Fid2Hex(mFileId);
+    src_cap << output_cap->Env(cap_len);
   }
 
+  src_cap << "&mgm.logid=" << log_id;
   url_src.SetParams(src_cap.str());
   url_src.SetProtocol("root");
   // @todo(esindril) this should use different physical connections
