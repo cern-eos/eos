@@ -91,7 +91,7 @@ XrdFstOfsFile::XrdFstOfsFile(const char* user, int MonID) :
   mOpenOpaque(nullptr), mCapOpaque(nullptr), mFstPath(""), mBookingSize(0),
   mTargetSize(0), mMinSize(0), mMaxSize(0), viaDelete(false),
   mWrDelete(false), mRainSize(0), mNsPath(""), mLocalPrefix(""),
-  mRedirectManager(""), mTapeEnabled(false), mSecString(""), mEtag(""),
+  mRdrManager(""), mTapeEnabled(false), mSecString(""), mEtag(""),
   mFileId(0), mFsId(0), mLid(0), mCid(0), mForcedMtime(1), mForcedMtime_ms(0),
   mFusex(false), mFusexIsUnlinked(false), mClosed(false), mOpened(false),
   mHasWrite(false), mHasWriteErr(false), mHasReadErr(false), mIsRW(false),
@@ -403,20 +403,28 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
   }
 
   // Bookingsize is only needed for file creation
-  if (mIsRW && mIsCreation) {
+  if (mIsRW && mIsCreation && !mFusex) {
     const char* sbookingsize = 0;
     const char* stargetsize = 0;
+    // If fsid=0 then all replicas/stripes are dropped and the logical file
+    // is also removed, otherwise only the current mFsId is dropped.
+    eos::common::FileSystem::fsid_t drop_fsid =
+      ((!mIsReplication && !mIsInjection && !mRainReconstruct) ? 0u : mFsId);
 
     if (!(sbookingsize = mCapOpaque->Get("mgm.bookingsize"))) {
+      DropFromMgm(mFileId, drop_fsid, mNsPath.c_str(), mRdrManager.c_str());
+      eos_err("msg=\"no bookingsize in capability\" fxid=%08llx", mFileId);
       return gOFS.Emsg(epname, error, EINVAL, "open - no booking size in capability",
                        mNsPath.c_str());
     } else {
       mBookingSize = strtoull(mCapOpaque->Get("mgm.bookingsize"), 0, 10);
 
       if (errno == ERANGE) {
-        eos_err("invalid bookingsize in capability bookingsize=%s", sbookingsize);
-        return gOFS.Emsg(epname, error, EINVAL,
-                         "open - invalid bookingsize in capability", mNsPath.c_str());
+        DropFromMgm(mFileId, drop_fsid, mNsPath.c_str(), mRdrManager.c_str());
+        eos_err("msg=\"invalid bookingsize in capability\" fxid=%08llx "
+                "bookingsize=\"%s\"", mFileId, sbookingsize);
+        return gOFS.Emsg(epname, error, EINVAL, "open - invalid bookingsize "
+                         "in capability", mNsPath.c_str());
       }
     }
 
@@ -424,16 +432,20 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
       mTargetSize = strtoull(mCapOpaque->Get("mgm.targetsize"), 0, 10);
 
       if (errno == ERANGE) {
-        eos_err("invalid targetsize in capability targetsize=%s", stargetsize);
-        return gOFS.Emsg(epname, error, EINVAL,
-                         "open - invalid targetsize in capability", mNsPath.c_str());
+        DropFromMgm(mFileId, drop_fsid, mNsPath.c_str(), mRdrManager.c_str());
+        eos_err("msg=\"invalid targetsize in capability\" fxid=%08llx "
+                "targetsize=%s", mFileId, stargetsize);
+        return gOFS.Emsg(epname, error, EINVAL, "open - invalid targetsize "
+                         "in capability", mNsPath.c_str());
       }
     }
 
     // Check if the booking size violates the min/max-size criteria
     if (mBookingSize && mMaxSize) {
       if (mBookingSize > mMaxSize) {
-        eos_err("invalid bookingsize specified - violates maximum file size criteria");
+        DropFromMgm(mFileId, drop_fsid, mNsPath.c_str(), mRdrManager.c_str());
+        eos_err("msg=\"invalid bookingsize specified - violates maximum "
+                "file size criteria\" booking_sz=%llu", mBookingSize);
         return gOFS.Emsg(epname, error, ENOSPC, "open - bookingsize violates "
                          "maximum allowed filesize", mNsPath.c_str());
       }
@@ -441,7 +453,10 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
 
     if (mBookingSize && mMinSize) {
       if (mBookingSize < mMinSize) {
-        eos_err("invalid bookingsize specified - violates minimum file size criteria");
+        DropFromMgm(mFileId, drop_fsid, mNsPath.c_str(), mRdrManager.c_str());
+        eos_err("msg=\"invalid bookingsize specified - violates minimum "
+                "file size criteria\" fxid=%08llx booking_sz=%llu",
+                mFileId, mBookingSize);
         return gOFS.Emsg(epname, error, ENOSPC, "open - bookingsize violates "
                          "minimum allowed filesize", mNsPath.c_str());
       }
@@ -534,7 +549,7 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
 
       // Clean-up before re-bouncing
       if (hasCreationMode && !mRainReconstruct && !mIsInjection) {
-        DropFromMgm(mFileId, 0ul, path, mRedirectManager.c_str());
+        DropFromMgm(mFileId, 0ul, path, mRdrManager.c_str());
       }
     }
 
@@ -553,7 +568,7 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
   COMMONTIMING("resync::localfmd", &tm);
 
   if (mFmd == nullptr) {
-    if (gOFS.mFmdHandler->ResyncMgm(mFsId, mFileId, mRedirectManager.c_str())) {
+    if (gOFS.mFmdHandler->ResyncMgm(mFsId, mFileId, mRdrManager.c_str())) {
       eos_info("msg=\"resync ok\" fsid=%u fxid=%08llx", mFsId, mFileId);
       mFmd = gOFS.mFmdHandler->LocalGetFmd(mFileId, mFsId, isRepairRead,
                                            mIsRW, vid.uid, vid.gid, mLid);
@@ -581,7 +596,7 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
                   mFstPath.c_str());
 
       if (hasCreationMode && !mRainReconstruct && !mIsInjection) {
-        DropFromMgm(mFileId, 0ul, path, mRedirectManager.c_str());
+        DropFromMgm(mFileId, 0ul, path, mRdrManager.c_str());
       }
     }
 
@@ -635,7 +650,7 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
 
   COMMONTIMING("layout::stat", &tm);
 
-  if (mIsReplication && !mIsCreation) {
+  if (!mIsCreation && mIsReplication) {
     mLayout->Stat(&updateStat);
   }
 
@@ -653,7 +668,7 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
 
         if (hasCreationMode && !mRainReconstruct && !mIsInjection) {
           // Clean-up all stripes
-          DropFromMgm(mFileId, 0ul, path, mRedirectManager.c_str());
+          DropFromMgm(mFileId, 0ul, path, mRdrManager.c_str());
         }
 
         // Return an error that can be recovered at the MGM
@@ -679,7 +694,7 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
 
         if (hasCreationMode && !mRainReconstruct && !mIsInjection) {
           // Clean-up all stripes
-          DropFromMgm(mFileId, 0ul, path, mRedirectManager.c_str());
+          DropFromMgm(mFileId, 0ul, path, mRdrManager.c_str());
         }
 
         // Return an error that can be recovered at the MGM
@@ -1573,7 +1588,7 @@ XrdFstOfsFile::_close_wr()
   bool last_writer = (gOFS.openedForWriting.getUseCount(mFsId, mFileId) <= 1);
 
   if ((viaDelete || mWrDelete) && !mFusex &&
-      (mIsCreation || mIsInjection || mIsOCchunk || mIsReplication)) {
+      (mIsCreation || mIsReplication || mIsInjection || mIsOCchunk)) {
     if (last_writer) {
       // It is closed by the destructor e.g. no proper close
       // or the specified checksum does not match the computed one
@@ -1641,8 +1656,16 @@ XrdFstOfsFile::_close_wr()
     }
   }
 
-  if (!mDelOnClose && (mIsCreation || mHasWrite) &&
-      !(mRainReconstruct && mHasReadErr)) {
+  //@todo(esindril) if mRainReconstruct and entry server and not entire
+  // file has been read then set mHasReadErr=true to avoid dropping a
+  // correct stripe and adding the current incomplete one!
+  // if (mRainReconstruct) {
+  //   if (mHasReadErr || (mLayout->IsEntryServer() && (rOffset != mRainSize))) {
+  //     mDelOnClose = true;
+  //   }
+  // }
+
+  if (!mDelOnClose && (mIsCreation || mHasWrite)) {
     // Commit meta data
     struct stat statinfo;
 
@@ -1753,7 +1776,7 @@ XrdFstOfsFile::_close_wr()
   {
     XrdSysMutexHelper scope_lock(gOFS.OpenFidMutex);
 
-    if ((rc == 0) && (mIsInjection || mIsCreation || mIsOCchunk) &&
+    if ((rc == 0) && (mIsCreation || mIsInjection || mIsOCchunk) &&
         (gOFS.openedForWriting.getUseCount(mFsId, mFileId > 1))) {
       // indicate that this file was closed properly and disable further delete on close
       gOFS.WNoDeleteOnCloseFid[mFsId][mFileId] = true;
@@ -1783,7 +1806,7 @@ XrdFstOfsFile::_close_wr()
   }
 
   if (mDelOnClose && !mFusex &&
-      (mIsInjection || mIsCreation || mIsOCchunk || mIsReplication)) {
+      (mIsCreation || mIsReplication || mIsInjection || mIsOCchunk)) {
     rc = SFS_ERROR;
     eos_err("msg=\"delete on close\" fxid=%08llx ns_path=\"%s\" ", mFileId,
             mNsPath.c_str());
@@ -1797,7 +1820,7 @@ XrdFstOfsFile::_close_wr()
 
     //@todo(esindril) drop needs to be called even if !commited_to_mgm
     // since otherwise we are left with a namespace entry without replicas
-    if (commited_to_mgm) {
+    if (commited_to_mgm || mIsCreation) {
       // If we committed the replica and an error happened remote,
       // we have to unlink it again
       bool drop_all = false;
@@ -1810,7 +1833,7 @@ XrdFstOfsFile::_close_wr()
       }
 
       DropFromMgm(mFileId, (drop_all ? 0u : mFsId), mNsPath.c_str(),
-                  mRedirectManager.c_str());
+                  mRdrManager.c_str());
     }
 
     if (min_sz_err) {
@@ -1897,15 +1920,6 @@ XrdFstOfsFile::_close_wr()
                   "reason=\"client disconnect\"", mNsPath.c_str(),
                   mFstPath.c_str());
     }
-  } else {
-    if (checksum_err) {
-      // Checksum error detected
-      rc = gOFS.Emsg(epname, error, EIO, "verify checksum - checksum error fn=",
-                     mNsPath.c_str());
-      int envlen = 0;
-      eos_crit("msg=\"file checksum error detected\" info=\"%s\"",
-               mCapOpaque->Env(envlen));
-    }
   }
 
   if (mRepairOnClose && !mIsOCchunk) {
@@ -1915,7 +1929,7 @@ XrdFstOfsFile::_close_wr()
     eos_info("msg=\"repair on close\" fxid=%08llx path=%s", mFileId,
              mNsPath.c_str());
 
-    if (gOFS.CallManager(&error, mNsPath.c_str(), mRedirectManager.c_str(),
+    if (gOFS.CallManager(&error, mNsPath.c_str(), mRdrManager.c_str(),
                          oss.str())) {
       eos_err("msg=\"failed adjustreplica\" fxid=%08llx path=%s",
               mFileId, mNsPath.c_str());
@@ -2378,7 +2392,7 @@ XrdFstOfsFile::ProcessOpenOpaque()
   }
 
   if ((val = mOpenOpaque->Get("x-upload-range"))) {
-    // for partial range uploads via HTTP we run the same buisness logic like
+    // For partial range uploads via HTTP we run the same business logic as
     // for OC chunk uploads
     mIsOCchunk = true;
   }
@@ -2506,17 +2520,17 @@ XrdFstOfsFile::ProcessCapOpaque(bool& is_repair_read,
                      mNsPath.c_str());
   }
 
-  mRedirectManager = smanager;
+  mRdrManager = smanager;
   {
     // evt. update the shared hash manager entry
     XrdSysMutexHelper lock(gConfig.Mutex);
     XrdOucString ConfigManager = gConfig.Manager;
 
-    if (ConfigManager != mRedirectManager) {
+    if (ConfigManager != mRdrManager) {
       eos_warning("msg=\"MGM master seems to have changed - adjusting global "
                   "config\" old-manager=\"%s\" new-manager=\"%s\"",
-                  ConfigManager.c_str(), mRedirectManager.c_str());
-      gConfig.Manager = mRedirectManager;
+                  ConfigManager.c_str(), mRdrManager.c_str());
+      gConfig.Manager = mRdrManager;
     }
   }
   // Handle virtual identity
@@ -3160,18 +3174,16 @@ XrdFstOfsFile::ModifiedWhileInUse()
     if (gOFS.openedForWriting.isOpen(mFsId, mFileId)) {
       eos_err("file is now open for writing - discarding replication "
               "[wopen=%d]", gOFS.openedForWriting.getUseCount(mFsId, mFileId));
-      gOFS.Emsg("closeofs", error, EIO,
-                "guarantee correctness - "
-                "file has been opened for writing during replication",
-                mNsPath.c_str());
-      rc = SFS_ERROR;
+      rc = gOFS.Emsg("closeofs", error, EIO, "guarantee correctness - "
+                     "file has been opened for writing during replication",
+                     mNsPath.c_str());
     }
 
     if ((statinfo.st_mtime != updateStat.st_mtime)) {
       eos_err("file has been modified during replication");
-      rc = SFS_ERROR;
-      gOFS.Emsg("closeofs", error, EIO, "guarantee correctness -"
-                "file has been modified during replication", mNsPath.c_str());
+      rc = gOFS.Emsg("closeofs", error, EIO, "guarantee correctness -"
+                     "file has been modified during replication",
+                     mNsPath.c_str());
     }
   }
 
@@ -3802,8 +3814,8 @@ XrdFstOfsFile::NotifyProtoWfEndPointClosew(uint64_t file_id,
   errorReportStream << "eosQuery://" << manager_name
                     << "//eos/wfe/passwd?mgm.pcmd=event&mgm.fid=" << fxidString
                     << "&mgm.logid=cta&mgm.event=" << ARCHIVE_FAILED_WORKFLOW_NAME
-                    << "&mgm.workflow=default&mgm.path=/dummy_path&mgm.ruid=0&mgm.rgid=0"
-                    "&cta_archive_file_id=" << ctaArchiveFileId
+                    << "&mgm.workflow=default&mgm.path=/dummy_path&mgm.ruid=0&"
+                    << "mgm.rgid=0&cta_archive_file_id=" << ctaArchiveFileId
                     << "&mgm.errmsg=";
   notification->mutable_transport()->set_error_report_url(
     errorReportStream.str());
@@ -4163,7 +4175,7 @@ XrdFstOfsFile::CommitToMgm()
     oss << eos::common::OwnCloud::FilterOcQuery(mOpenOpaque->Env(envlen));
   }
 
-  return gOFS.CallManager(&error, mNsPath.c_str(), mRedirectManager.c_str(),
+  return gOFS.CallManager(&error, mNsPath.c_str(), mRdrManager.c_str(),
                           oss.str(), 0, true);
 }
 
@@ -4197,7 +4209,7 @@ XrdFstOfsFile::TriggerEventOnClose(const std::string& archive_req_id)
 
   eos_info("msg=\"notify\" event=\"%s\" workflow=\"%s\" fxid=%08llx",
            event_t.c_str(), mEventWorkflow.c_str(), mFileId);
-  return gOFS.CallManager(&error, mNsPath.c_str(), mRedirectManager.c_str(),
+  return gOFS.CallManager(&error, mNsPath.c_str(), mRdrManager.c_str(),
                           oss.str(), 30, mSyncEventOnClose, false);
 }
 
