@@ -242,25 +242,25 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
   }
 
   if (mNsPath.beginswith("/replicate:")) {
-    if (!mIsRW) {
-      eos_err("msg=\"replicate file can only be opened for RW\" fxid=%08llx "
-              "path=\"%s\"", mFileId, mNsPath.c_str());
-      return gOFS.Emsg(epname, error, EIO, "open - replicate file can only "
-                       "be opened in RW mode", mNsPath.c_str());
-    }
-
-    // File is supposed to act as a sink, used for draining
-    if (mNsPath == "/replicate:0") {
-      eos_info("%s", "msg=\"file fxid=0 acting as a sink i.e. /dev/null\"");
-      mIsDevNull = true;
-      return SFS_OK;
-    }
-
     if (gOFS.openedForWriting.isOpen(mFsId, mFileId)) {
       eos_err("msg=\"forbid replica open, file %s opened in RW mode\"",
               mNsPath.c_str());
       return gOFS.Emsg(epname, error, ETXTBSY, "open - cannot replicate: file "
                        "is opened in RW mode", mNsPath.c_str());
+    }
+
+    // File is supposed to act as a sink, used for draining
+    if (mNsPath == "/replicate:0") {
+      if (!mIsRW) {
+        eos_err("msg=\"replicate file can only be opened for RW\" fxid=%08llx "
+                "path=\"%s\"", mFileId, mNsPath.c_str());
+        return gOFS.Emsg(epname, error, EIO, "open - replicate file can only "
+                         "be opened in RW mode", mNsPath.c_str());
+      } else {
+        eos_info("%s", "msg=\"file fxid=0 acting as a sink i.e. /dev/null\"");
+        mIsDevNull = true;
+        return SFS_OK;
+      }
     }
 
     mIsReplication = true;
@@ -1547,7 +1547,8 @@ XrdFstOfsFile::_close_rd()
     checksum_err = true;
   }
 
-  int close_rc = mLayout->Close();
+  int close_rc = ModifiedWhileInUse();
+  close_rc |= mLayout->Close();
 
   if (gOFS.mSimCloseErr) {
     eos_warning("msg=\"simulate close error\" fxid=%08llx", mFileId);
@@ -1742,7 +1743,6 @@ XrdFstOfsFile::_close_wr()
   // Recompute our ETag
   eos::calculateEtag(mCheckSum != nullptr, mFmd->mProtoFmd, mEtag);
   int commit_rc = rc; // return of the commit/stat before the layout close
-  rc |= ModifiedWhileInUse();
 
   if (mSyncOnClose) {
     eos_info("msg=\"syncing layout for iotype=csync\" fxid=%08llx", mFileId);
