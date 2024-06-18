@@ -43,7 +43,7 @@ class IAM_Server:
     TOKEN_ENDPOINT = '/token'
     USER_ENDPOINT ='/scim/Users'
 
-    def __init__(self, server, client_id, client_secret, token_server = None, account = None):
+    def __init__(self, server, client_id, client_secret, token_server = None, account = None, group_account_map = dict()):
         self.server = server
         self.client_id = client_id
         self.client_secret = client_secret
@@ -51,6 +51,7 @@ class IAM_Server:
         self.token_server = token_server or server
         self._token = None
         self.account = account
+        self.group_account_map = group_account_map
 
     def __hash__(self):
         return hash(self.server)
@@ -107,6 +108,7 @@ class IAM_Server:
         response = json.loads(response.read())
 
         users = set()
+        user_lst = []
         # We can use a with statement to ensure threads are cleaned up promptly
         with ThreadPoolExecutor(max_workers=8) as executor:
             # Start the load operations and mark each future with its URL
@@ -128,9 +130,12 @@ class IAM_Server:
                     if filter_function is not None:
                         users.update(filter_function(*response['Resources'], **kwargs))
                     else:
-                        users.update(reponse)
+                        user_lst.extend(response['Resources'])
                 except Exception as e:
                     logging.error(f'{req} generated an exception: {e}')
+
+        if not filter_function:
+            return user_lst
 
         return users
 
@@ -143,6 +148,25 @@ def name_map_filter(*users, kwargs=None):
     ids=set()
     return set((user.get('id') for user in users if user.get('id') is not None))
 
+
+def extract_grid_dn(user, pattern=None, prefer_cern=False):
+    grid_dns = []
+    try:
+        certs = user['urn:indigo-dc:scim:schemas:IndigoUser']['certificates']
+        # Is there a CERN certificate if prefered?
+        if prefer_cern:
+            certs = [*filter(lambda x: x.get('subjectDn',x.get('issuerDn')).endswith('DC=cern,DC=ch'), certs)]
+
+        for cert in certs:
+            # Revert subjectDn and replace , with / (making sure commas on the values aren't replaced)
+            grid_dn = '/'.join(re.split(r',(?=\w+=)', cert["subjectDn"])[::-1]) # re: courtesy of Maarten Litmaath
+            if pattern is None or pattern.search(grid_dn):
+                grid_dns.append(grid_dn)
+    except KeyError:
+        logging.warning(f"User {user['id']} doesn't have certificate to extract info (skipping it)")
+
+    return grid_dns
+
 def dn_filter(*users, pattern=None, prefer_cern=False, **kwargs):
     """
     Collect users with DN certificates matching regex
@@ -150,21 +174,32 @@ def dn_filter(*users, pattern=None, prefer_cern=False, **kwargs):
     logging.debug(f"This request has {len(users)}")
     matching_dn = set()
     for user in users:
-        try:
-            certs = user['urn:indigo-dc:scim:schemas:IndigoUser']['certificates']
-            # Is there a CERN certificate if prefered?
-            if prefer_cern:
-                certs = [*filter(lambda x: x.get('subjectDn',x.get('issuerDn')).endswith('DC=cern,DC=ch'), certs)]
+        grid_dns = extract_grid_dn(user, pattern, prefer_cern)
 
-            for cert in certs:
-                # Revert subjectDn and replace , with / (making sure commas on the values aren't replaced)
-                grid_dn = '/'.join(re.split(r',(?=\w+=)', cert["subjectDn"])[::-1]) # re: courtesy of Maarten Litmaath
-                if pattern is None or pattern.search(grid_dn):
-                    matching_dn.add(f'/{grid_dn}')
-        except KeyError:
-            logging.warning(f"User {user['id']} doesn't have certificate to extract info (skipping it)")
+        for grid_dn in grid_dns:
+            matching_dn.add(f'/{grid_dn}')
 
     logging.info(f"{len(matching_dn)} matching certificates")
+    return matching_dn
+
+def role_group_map_filter(*users, pattern=None, prefer_cern=None, group_name=None, **kwargs):
+    matching_dn = set()
+    if not group_name:
+        return matching_dn
+
+    for user in users:
+        logging.debug(f"Parsing {user}")
+        try:
+            groups = user['groups']
+            for group in groups:
+                if group['display'] == group_name:
+                    grid_dns = extract_grid_dn(user, pattern, prefer_cern)
+
+                    for grid_dn in grid_dns:
+                        matching_dn.add(f'/{grid_dn}')
+        except KeyError:
+            logging.warning(f"User {user['id']} doesn't have group mapping, skipping")
+
     return matching_dn
 
 def build_namemap_file(users_id, account, ifile, ofile):
@@ -236,6 +271,14 @@ def build_gridmap_file(users_dn, account, ifile, ofile, lgridmap, grid_map = {})
         print(content)
     return grid_map
 
+def parse_groupmap(group_map_str):
+    group_map = dict()
+    kvs = group_map_str.split(",")
+    for kv in kvs:
+        k, v = kv.split(":")
+        group_map[k.strip()] = v.strip()
+
+    return group_map
 
 def configure_servers(credentials, servers, targets, account):
 
@@ -276,8 +319,13 @@ def configure_servers(credentials, servers, targets, account):
                 token_server = config.get(section,'token-server', fallback=server)
                 account = config.get(section,'account',fallback=None)
 
+                group_map = dict()
+                group_map_str = config.get(section, 'group_account_map', fallback=None)
+                if group_map_str:
+                    group_map = parse_groupmap(group_map_str)
+
                 logging.debug(f'Adding iam_server {server} mapping to {account} from config')
-                iam_servers.append(IAM_Server(server, client_id, client_secret, token_server, account))
+                iam_servers.append(IAM_Server(server, client_id, client_secret, token_server, account, group_map))
         else:
             logging.warning("Credentials couldn't be loaded from configuration file")
 
@@ -393,6 +441,10 @@ class CLIConfig:
                     exit(1)
 
 
+def gen_temp_file(fname, count):
+    if not fname:
+        return None
+    return "{}.{}".format(fname, count)
 
 def main(conf_file = None, args = None):
     """
@@ -415,29 +467,35 @@ def main(conf_file = None, args = None):
     for iam in iam_servers:
         # start with an empty user set for each IAM endpoint, we retain the
         # grid map which will maintain the correct account mapping
-        users = set()
-
-        if type_of_format == "GRIDMAP":
-            users.update(iam.get_users(count=100, filter_function=dn_filter,
-                                       pattern=conf.pattern,
-                                       prefer_cern=conf.prefer_cern))
-        elif type_of_format == "MAPFILE":
-            users.update(iam.get_users(count=100, filter_function=name_map_filter))
-
-        if ofile:
-            temp_outfile = "{}.{}".format(ofile,count)
-
         if not iam.account:
             logging.warn(f"Skipping {iam.server} as no explicit mapping via args or config")
             continue
 
-        logging.debug(f"Generating temporary {temp_outfile} for {iam.server}:{iam.account}")
+        users = set()
 
         if type_of_format == "GRIDMAP":
+            temp_outfile = gen_temp_file(ofile, count)
+            users.update(iam.get_users(count=100, filter_function=dn_filter,
+                                           pattern=conf.pattern,
+                                           prefer_cern=conf.prefer_cern))
             grid_map = build_gridmap_file(users, iam.account, ifile, temp_outfile, lgridmap, grid_map)
+            count += 1
+            for group_name, account in iam.group_account_map.items():
+                temp_outfile = gen_temp_file(ofile, count)
+                iam_users = iam.get_users(count=100, filter_function=role_group_map_filter,
+                                              pattern=conf.pattern,
+                                              prefer_cern=conf.prefer_cern,
+                                              group_name = group_name)
+                grid_map = build_gridmap_file(iam_users, account, ifile, temp_outfile, lgridmap, grid_map)
+                count += 1
+
         elif type_of_format == "MAPFILE":
+            users.update(iam.get_users(count=100, filter_function=name_map_filter))
             build_namemap_file(users, iam.account, ifile, outfile)
-        count += 1
+
+
+
+
 
     if temp_outfile and ofile:
         logging.debug(f"Renaming {temp_outfile} to {ofile}")
