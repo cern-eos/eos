@@ -306,7 +306,7 @@ public:
   uint64_t mRainSize; ///< Rain file size used during reconstruction
   XrdOucString mNsPath; /// Logical file path (from the namespace)
   XrdOucString mLocalPrefix; ///< Prefix on the local storage
-  XrdOucString mRedirectManager; ///< Manager host where we bounce back
+  XrdOucString mRdrManager; ///< Manager host where we bounce back
   bool mTapeEnabled; ///< True if tape support is enabled
   XrdOucString mSecString; ///< string containing security summary
   std::map<std::string, std::string> mSecMap; ///< map of all sec keys
