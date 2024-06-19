@@ -440,6 +440,10 @@ class CLIConfig:
                     exit(1)
 
 
+def gen_temp_file(fname, count):
+    if not fname:
+        return None
+    return "{}.{}".format(fname, count)
 
 def main(conf_file = None, args = None):
     """
@@ -467,40 +471,29 @@ def main(conf_file = None, args = None):
             continue
 
         users = set()
-        role_users = set()
-        iam_users = []
+
         if type_of_format == "GRIDMAP":
+            temp_outfile = gen_temp_file(ofile, count)
             users.update(iam.get_users(count=100, filter_function=dn_filter,
                                            pattern=conf.pattern,
                                            prefer_cern=conf.prefer_cern))
-            if iam.group_account_map:
-                logging.debug("Getting users again!")
-                iam_users = iam.get_users(count=100)
-                logging.debug(f"Got {iam_users}")
+            grid_map = build_gridmap_file(users, iam.account, ifile, temp_outfile, lgridmap, grid_map)
+            count += 1
+            for group_name, account in iam.group_account_map.items():
+                temp_outfile = gen_temp_file(ofile, count)
+                iam_users = iam.get_users(count=100, filter_function=role_group_map_filter,
+                                              pattern=conf.pattern,
+                                              prefer_cern=conf.prefer_cern,
+                                              group_name = group_name)
+                grid_map = build_gridmap_file(iam_users, account, ifile, temp_outfile, lgridmap, grid_map)
+                count += 1
 
         elif type_of_format == "MAPFILE":
             users.update(iam.get_users(count=100, filter_function=name_map_filter))
-
-        if ofile:
-            temp_outfile = "{}.{}".format(ofile,count)
-
-
-        logging.debug(f"Generating temporary {temp_outfile} for {iam.server}:{iam.account}")
-
-        if type_of_format == "GRIDMAP":
-            grid_map = build_gridmap_file(users, iam.account, ifile, temp_outfile, lgridmap, grid_map)
-        elif type_of_format == "MAPFILE":
             build_namemap_file(users, iam.account, ifile, outfile)
-        count += 1
 
-        for group_name, account in iam.group_account_map.items():
-            if ofile:
-                temp_outfile = "{}.{}".format(ofile,count)
-            role_map_users = role_group_map_filter(*iam_users, group_name=group_name,
-                                                   pattern=conf.pattern, prefer_cern=conf.prefer_cern)
-            grid_map = build_gridmap_file(role_map_users, account, ifile, temp_outfile,
-                                          lgridmap, grid_map)
-            count += 1
+
+
 
 
     if temp_outfile and ofile:
