@@ -368,9 +368,11 @@ XrdFstOfs::XrdFstOfs() :
   mGeoTag("nogeotag"), mXrdBuffPool(eos::common::KB, 32 * eos::common::MB),
   mCloseThreadPool(8, 64, 5, 6, 5, "async_close"),
   mMgmXrdPool(nullptr),
-  mSimOpenTimeout(false), mSimFmdOpenErr(false), mSimIoReadErr(false),
+  mSimOpenDelay(false), mSimOpenDelaySec(120),
+  mSimFmdOpenErr(false), mSimIoReadErr(false),
   mSimReadDelay(false), mSimReadDelaySec(10),
-  mSimIoWriteErr(false), mSimXsReadErr(false), mSimXsWriteErr(false),
+  mSimIoWriteErr(false), mSimXsReadErr(false),
+  mSimXsWriteErr(false), mSimXsWriteErrDelay(0ull),
   mSimErrIoReadOff(0ull), mSimErrIoWriteOff(0ull),
   mSimDiskWriting(false), mSimCloseErr(false), mSimUnresponsive(false)
 {
@@ -968,15 +970,20 @@ XrdFstOfs::Configure(XrdSysError& Eroute, XrdOucEnv* envP)
 void
 XrdFstOfs::SetSimulationError(const std::string& input)
 {
-  mSimFmdOpenErr = mSimOpenTimeout = false;
+  mSimFmdOpenErr = mSimOpenDelay = false;
   mSimIoReadErr = mSimXsReadErr = mSimReadDelay = false;
   mSimIoWriteErr =  mSimXsWriteErr = false;
   mSimDiskWriting = mSimCloseErr = mSimUnresponsive = false;
   mSimErrIoReadOff = mSimErrIoWriteOff = 0ull;
   mSimReadDelaySec = 10;
+  mSimXsWriteErrDelay = 0;
 
-  if (input.find("open_timeout") == 0) {
-    mSimOpenTimeout = true;
+  if (input.find("open_delay") == 0) {
+    mSimOpenDelay = true;
+
+    if (input.length() > std::strlen("open_delay")) {
+      mSimOpenDelaySec = GetSimulationDelay(input);
+    }
   }
 
   if (input.find("read_delay") == 0) {
@@ -1000,6 +1007,10 @@ XrdFstOfs::SetSimulationError(const std::string& input)
 
   if (input.find("xs_write") == 0) {
     mSimXsWriteErr = true;
+
+    if (input.length() > std::strlen("xs_write")) {
+      mSimXsWriteErrDelay = GetSimulationDelay(input);
+    }
   }
 
   if (input.find("fmd_open") == 0) {
