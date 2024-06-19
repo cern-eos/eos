@@ -150,6 +150,7 @@ def name_map_filter(*users, kwargs=None):
 
 
 def extract_grid_dn(user, pattern=None, prefer_cern=False):
+    grid_dns = []
     try:
         certs = user['urn:indigo-dc:scim:schemas:IndigoUser']['certificates']
         # Is there a CERN certificate if prefered?
@@ -160,11 +161,11 @@ def extract_grid_dn(user, pattern=None, prefer_cern=False):
             # Revert subjectDn and replace , with / (making sure commas on the values aren't replaced)
             grid_dn = '/'.join(re.split(r',(?=\w+=)', cert["subjectDn"])[::-1]) # re: courtesy of Maarten Litmaath
             if pattern is None or pattern.search(grid_dn):
-                return grid_dn
+                grid_dns.append(grid_dn)
     except KeyError:
         logging.warning(f"User {user['id']} doesn't have certificate to extract info (skipping it)")
 
-    return ""
+    return grid_dns
 
 def dn_filter(*users, pattern=None, prefer_cern=False, **kwargs):
     """
@@ -173,9 +174,9 @@ def dn_filter(*users, pattern=None, prefer_cern=False, **kwargs):
     logging.debug(f"This request has {len(users)}")
     matching_dn = set()
     for user in users:
-        grid_dn = extract_grid_dn(user, pattern, prefer_cern)
+        grid_dns = extract_grid_dn(user, pattern, prefer_cern)
 
-        if grid_dn:
+        for grid_dn in grid_dns:
             matching_dn.add(f'/{grid_dn}')
 
     logging.info(f"{len(matching_dn)} matching certificates")
@@ -192,9 +193,9 @@ def role_group_map_filter(*users, pattern=None, prefer_cern=None, group_name=Non
             groups = user['groups']
             for group in groups:
                 if group['display'] == group_name:
-                    grid_dn = extract_grid_dn(user, pattern, prefer_cern)
+                    grid_dns = extract_grid_dn(user, pattern, prefer_cern)
 
-                    if grid_dn:
+                    for grid_dn in grid_dns:
                         matching_dn.add(f'/{grid_dn}')
         except KeyError:
             logging.warning(f"User {user['id']} doesn't have group mapping, skipping")
