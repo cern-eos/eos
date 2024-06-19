@@ -378,7 +378,7 @@ class CLIConfig:
         self.outputfile = self.get_option("outputfile", args.ofile)
         self.type_of_format = self.get_option("format", args.type_of_format, "GRIDMAP")
         self.cleanup = self.get_bool("cleanup", args.cleanup)
-
+        self.prefer_cern = self.get_bool("prefer_cern", args.prefer_cern)
 
         pattern = self.get_option("pattern", args.pattern)
         if pattern:
