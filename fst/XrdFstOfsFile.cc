@@ -556,10 +556,10 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
     return gOFS.Emsg(epname, error, EIO, "open - failed open");
   }
 
-  if (gOFS.mSimOpenTimeout) {
+  if (gOFS.mSimOpenDelay) {
     eos_warning("msg=\"simulate open timeout that becomes a client error\" "
                 "fxid=%08llx", mFileId);
-    std::this_thread::sleep_for(std::chrono::seconds(120));
+    std::this_thread::sleep_for(std::chrono::seconds(gOFS.mSimOpenDelaySec.load()));
   }
 
   COMMONTIMING("get::localfmd", &tm);
@@ -1579,7 +1579,6 @@ XrdFstOfsFile::_close_wr()
   bool target_sz_err = false; // final target file size error
   bool min_sz_err = false; // minimum file size policy error
   bool queuing_err = false; // queuing error for archive
-  bool commited_to_mgm = false; // commit message sent to MGM
   bool consistency_err = false; // consistency error at the MGM
   bool atomic_overlap = false;
   std::string queuing_msg;
@@ -1650,6 +1649,11 @@ XrdFstOfsFile::_close_wr()
     if (gOFS.mSimXsWriteErr) {
       eos_warning("msg=\"simulate write xs error\" fxid=%08llx", mFileId);
       checksum_err = true;
+
+      if (gOFS.mSimXsWriteErrDelay) {
+        std::this_thread::sleep_for(std::chrono::seconds(
+                                      gOFS.mSimXsWriteErrDelay.load()));
+      }
     }
 
     if (checksum_err || target_sz_err || min_sz_err) {
@@ -1692,9 +1696,7 @@ XrdFstOfsFile::_close_wr()
           eos_err("msg=\"failed to commit fmd info\" fxid=%08llx", mFileId);
           mDelOnClose = true;
         } else {
-          if (!(rc = CommitToMgm())) {
-            commited_to_mgm = true;
-          } else {
+          if ((rc = CommitToMgm())) {
             if ((error.getErrInfo() == EIDRM) ||
                 (error.getErrInfo() == EBADE) ||
                 (error.getErrInfo() == EBADR) ||
@@ -1806,7 +1808,8 @@ XrdFstOfsFile::_close_wr()
   }
 
   if (mDelOnClose && !mFusex &&
-      (mIsCreation || mIsReplication || mIsInjection || mIsOCchunk)) {
+      (mIsCreation || mIsReplication || mIsInjection ||
+       mIsOCchunk || mRainReconstruct)) {
     rc = SFS_ERROR;
     eos_err("msg=\"delete on close\" fxid=%08llx ns_path=\"%s\" ", mFileId,
             mNsPath.c_str());
@@ -1818,23 +1821,19 @@ XrdFstOfsFile::_close_wr()
                 mFileId, retc);
     }
 
-    //@todo(esindril) drop needs to be called even if !commited_to_mgm
-    // since otherwise we are left with a namespace entry without replicas
-    if (commited_to_mgm || mIsCreation) {
-      // If we committed the replica and an error happened remote,
-      // we have to unlink it again
-      bool drop_all = false;
+    // Unlink file or just current replica from the MGM
+    bool drop_all = false;
 
-      // If mDelOnClose at the gateway then we drop all replicas
-      if (mLayout->IsEntryServer() &&
-          !mIsReplication && !mIsInjection && !mRainReconstruct) {
-        drop_all = true;
-        mLayout->Remove();
-      }
-
-      DropFromMgm(mFileId, (drop_all ? 0u : mFsId), mNsPath.c_str(),
-                  mRdrManager.c_str());
+    // If mDelOnClose at the gateway then we drop all replicas
+    if (mLayout->IsEntryServer() && mIsCreation &&
+        !mIsReplication && !mIsInjection &&
+        !mIsOCchunk && !mRainReconstruct) {
+      drop_all = true;
+      mLayout->Remove();
     }
+
+    DropFromMgm(mFileId, (drop_all ? 0u : mFsId), mNsPath.c_str(),
+                mRdrManager.c_str());
 
     if (min_sz_err) {
       // Minimum size criteria not fullfilled
