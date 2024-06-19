@@ -359,10 +359,10 @@ class CLIConfig:
 
     # Underlying assumption that store-true is used, ie. args.<value> will evaluate to True if set
     def get_bool(self, option, value, fallback=False):
-        if option:
+        if value:
             return True
 
-        return self.config.get_bool(DEFAULTSECT, option, fallback=fallback)
+        return self.config.getboolean(DEFAULTSECT, option, fallback=fallback)
 
     def setup(self, args):
         """
