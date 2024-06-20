@@ -988,7 +988,10 @@ XrdFstOfs::SetSimulationError(const std::string& input)
 
   if (input.find("read_delay") == 0) {
     mSimReadDelay = true;
-    mSimReadDelaySec = GetSimulationDelay(input);
+
+    if (input.length() > std::strlen("read_delay")) {
+      mSimReadDelaySec = GetSimulationDelay(input);
+    }
   }
 
   if (input.find("io_read") == 0) {

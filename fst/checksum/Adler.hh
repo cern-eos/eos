@@ -115,7 +115,7 @@ public:
     adleroffset = offsetInit + lengthInit;
 
     // Theck if this is actually a valid pointer or a filled string
-    if ( (checksumInitHex == NULL) || (!strlen(checksumInitHex))) {
+    if ((checksumInitHex == NULL) || (!strlen(checksumInitHex))) {
       return;
     }
 
@@ -128,7 +128,6 @@ public:
       adler = adler32(0L, Z_NULL, 0);
     }
 
-    fprintf(stderr, "adler is %x\n", adler);
     currChunk.offset = offsetInit;
     currChunk.length = lengthInit;
     currChunk.adler = adler;

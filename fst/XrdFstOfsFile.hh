@@ -320,6 +320,8 @@ public:
   bool mFusex; //! indicator that we are committing from a fusex client
   bool mFusexIsUnlinked; //! indicator for an already unlinked file
   bool mClosed; //! indicator the file is closed
+  //! Close return code that we might need to return twice in case of TPC
+  int mCloseRc;
   bool mOpened; //! indicator that file is opened
   bool mHasWrite; //! indicator that file was written/modified
   bool mHasWriteErr;// indicator for write errors to avoid message flooding

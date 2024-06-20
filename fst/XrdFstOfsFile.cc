@@ -93,9 +93,9 @@ XrdFstOfsFile::XrdFstOfsFile(const char* user, int MonID) :
   mWrDelete(false), mRainSize(0), mNsPath(""), mLocalPrefix(""),
   mRdrManager(""), mTapeEnabled(false), mSecString(""), mEtag(""),
   mFileId(0), mFsId(0), mLid(0), mCid(0), mForcedMtime(1), mForcedMtime_ms(0),
-  mFusex(false), mFusexIsUnlinked(false), mClosed(false), mOpened(false),
-  mHasWrite(false), mHasWriteErr(false), mHasReadErr(false), mIsRW(false),
-  mIsDevNull(false), mIsCreation(false), mIsReplication(false),
+  mFusex(false), mFusexIsUnlinked(false), mClosed(false), mCloseRc(0),
+  mOpened(false), mHasWrite(false), mHasWriteErr(false), mHasReadErr(false),
+  mIsRW(false), mIsDevNull(false), mIsCreation(false), mIsReplication(false),
   noAtomicVersioning(false),
   mIsInjection(false), mRainReconstruct(false), mDelOnClose(false),
   mRepairOnClose(false), mIsOCchunk(false), writeErrorFlag(false),
@@ -879,7 +879,7 @@ XrdFstOfsFile::read(XrdSfsFileOffset fileOffset, char* buffer,
   if (gOFS.mSimReadDelay) {
     eos_warning("msg=\"apply read delay\" delay=%is fxid=%08llx",
                 gOFS.mSimReadDelaySec.load(), mFileId);
-    std::this_thread::sleep_for(std::chrono::seconds(gOFS.mSimReadDelay.load()));
+    std::this_thread::sleep_for(std::chrono::seconds(gOFS.mSimReadDelaySec.load()));
   }
 
   /* maintaining a checksum is tricky if there have been writes,
@@ -1481,7 +1481,7 @@ XrdFstOfsFile::_close()
   if (!mOpened || mClosed) {
     eos_info("msg=\"close already done\" fxid=%08llx", mFileId);
     mClosed = true;
-    return SFS_OK;
+    return mCloseRc;
   }
 
   mCloseSize = mOpenSize;
@@ -1530,6 +1530,7 @@ XrdFstOfsFile::_close()
   }
 
   eos_info("msg=\"done close\" rc=%i errc=%d", rc, error.getErrInfo());
+  mCloseRc = rc;
   return rc;
 }
 
@@ -1584,7 +1585,8 @@ XrdFstOfsFile::_close_wr()
   std::string queuing_msg;
   int rc = 0;
   // Check if the file close comes from a client disconnect e.g. the destructor
-  eos_info("viaDelete=%d writeDelete=%d", viaDelete, mWrDelete);
+  eos_info("viaDelete=%d writeDelete=%d mIsCreation=%d",
+           viaDelete, mWrDelete, mIsCreation);
   bool last_writer = (gOFS.openedForWriting.getUseCount(mFsId, mFileId) <= 1);
 
   if ((viaDelete || mWrDelete) && !mFusex &&
@@ -1627,8 +1629,8 @@ XrdFstOfsFile::_close_wr()
         if (mMaxOffsetWritten > mOpenSize) {
           // Check if we have to deallocate something for this file transaction
           if (mBookingSize && (mBookingSize > mMaxOffsetWritten)) {
-            eos_info("msg=\"deallocationg %llu bytes\" fxid=%08llx",
-                     mBookingSize - mMaxOffsetWritten, mFileId);
+            eos_debug("msg=\"deallocationg %llu bytes\" fxid=%08llx",
+                      mBookingSize - mMaxOffsetWritten, mFileId);
             mLayout->Truncate(mMaxOffsetWritten);
             mLayout->Fdeallocate(mMaxOffsetWritten, mBookingSize);
           }
@@ -1661,14 +1663,17 @@ XrdFstOfsFile::_close_wr()
     }
   }
 
-  //@todo(esindril) if mRainReconstruct and entry server and not entire
-  // file has been read then set mHasReadErr=true to avoid dropping a
-  // correct stripe and adding the current incomplete one!
-  // if (mRainReconstruct) {
-  //   if (mHasReadErr || (mLayout->IsEntryServer() && (rOffset != mRainSize))) {
-  //     mDelOnClose = true;
-  //   }
-  // }
+  // When doing RAIN reconstruction and we are at the entry server we have
+  // any read errors or we read less then the full file size it means then
+  // recovery failed. This can also be a side effect of a timeout.
+  if (mRainReconstruct && mLayout->IsEntryServer()) {
+    if (mHasReadErr || (rOffset != mRainSize)) {
+      eos_warning("msg=\"failed RAIN reconstruct trigger delete on close\" "
+                  "mHasReadErr=%i rd_off=%llu fsize=%llu fxid=%08llx",
+                  mHasReadErr, rOffset, mRainSize, mFileId);
+      mDelOnClose = true;
+    }
+  }
 
   if (!mDelOnClose && (mIsCreation || mHasWrite)) {
     // Commit meta data
@@ -1696,7 +1701,12 @@ XrdFstOfsFile::_close_wr()
           eos_err("msg=\"failed to commit fmd info\" fxid=%08llx", mFileId);
           mDelOnClose = true;
         } else {
-          if ((rc = CommitToMgm())) {
+          // In case we are doing a RAIN reconstruct delay the commit to MGM
+          // until after we have the result of the CLOSE otherwise we risk
+          // dropping a good replica for a failed reconstruction which we
+          // can not get back.
+          if ((mRainReconstruct == false) && (rc = CommitToMgm())) {
+            //if ((rc = CommitToMgm())) {
             if ((error.getErrInfo() == EIDRM) ||
                 (error.getErrInfo() == EBADE) ||
                 (error.getErrInfo() == EBADR) ||
@@ -1755,16 +1765,16 @@ XrdFstOfsFile::_close_wr()
 
   if (gOFS.mSimCloseErr) {
     eos_warning("msg=\"simulate close error\" fxid=%08llx", mFileId);
-    close_rc = 1;
+    close_rc = SFS_ERROR;
   }
 
   rc |= close_rc;
 
-  if (close_rc || (mRainReconstruct && mHasReadErr)) {
+  if (close_rc) {
+    eos_info("msg=\"layout close failed\" rc=%i", close_rc);
+
     // For RAIN layouts if there is an error on close when writing then we
-    // delete the whole file. If we do RAIN reconstruction we cleanup this
-    // local replica which was not committed.
-    // @todo(esindril) this leads to corruptions for RAIN files
+    // delete the whole file. For RAIN reconstruction we clean the local stripe.
     if (eos::common::LayoutId::IsRain(mLayout->GetLayoutId())) {
       mDelOnClose = true;
     } else {
@@ -1807,9 +1817,28 @@ XrdFstOfsFile::_close_wr()
     mDelOnClose = true;
   }
 
+  // Commit to MGM in case of rain reconstruction and not del on close
+  if (mRainReconstruct && mLayout->IsEntryServer() && !mDelOnClose) {
+    if ((rc = CommitToMgm())) {
+      if ((error.getErrInfo() == EIDRM) ||
+          (error.getErrInfo() == EBADE) ||
+          (error.getErrInfo() == EBADR) ||
+          (error.getErrInfo() == EREMCHG)) {
+        eos_err("msg=\"failed commit to MGM for RAIN reconstruct\" "
+                "fxid=%08llx", mFileId);
+        mDelOnClose = true;
+      }
+    }
+  }
+
   if (mDelOnClose && !mFusex &&
-      (mIsCreation || mIsReplication || mIsInjection ||
-       mIsOCchunk || mRainReconstruct)) {
+      ( // Match a newly created simple replica/stripe
+        (mIsCreation && !mRainReconstruct) ||
+        // Match a reconstructed RAIN stripe so that we never delete stripes
+        // that are part of the reconstruction process but are not the target
+        // of the recovery!
+        (mIsCreation && mRainReconstruct) ||
+        mIsReplication || mIsInjection || mIsOCchunk)) {
     rc = SFS_ERROR;
     eos_err("msg=\"delete on close\" fxid=%08llx ns_path=\"%s\" ", mFileId,
             mNsPath.c_str());
@@ -1902,7 +1931,7 @@ XrdFstOfsFile::_close_wr()
                 "cleaned because of an overlapping atomic upload "
                 "and we are not the last uploader", mNsPath.c_str());
       eos_crit("info=\"deleting on close\" fn=%s fstpath=%s reason="
-               "\"suppressed atomic uploadh\"", mNsPath.c_str(),
+               "\"suppressed atomic upload\"", mNsPath.c_str(),
                mFstPath.c_str());
     } else if (queuing_err) {
       std::string message =
@@ -1911,6 +1940,12 @@ XrdFstOfsFile::_close_wr()
       gOFS.Emsg(epname, error, EIO, message.c_str(), mNsPath.c_str());
       eos_warning("info=\"deleting on close\" fn=%s fstpath=%s reason=\"%s\"",
                   mNsPath.c_str(), mFstPath.c_str(), queuing_msg.c_str());
+    } else if (close_rc == SFS_ERROR) {
+      gOFS.Emsg(epname, error, EIO, "store file - file has been "
+                "cleaned or recovery aborted because of an error on close",
+                mNsPath.c_str());
+      eos_crit("info=\"deleting on close\" fn=%s fstpath=%s reason="
+               "\"failed layout close\"", mNsPath.c_str(), mFstPath.c_str());
     } else {
       // Client has disconnected and file is cleaned-up
       gOFS.Emsg(epname, error, EIO, "store file - file has been "
