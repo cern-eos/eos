@@ -1,0 +1,508 @@
+#!/bin/bash -e
+
+# ******************************************************************************
+# EOS - the CERN Disk Storage System
+# Copyright (C) 2024 CERN/Switzerland
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+# ******************************************************************************
+
+# Bring in the utilities for handle docker and k8s deployments
+SCRIPTPATH="$( cd "$(dirname "$0")" >/dev/null 2>&1 ; pwd -P )"
+source ${SCRIPTPATH}/eos-test-utils
+export PATH=/opt/eos/xrootd/bin/:${PATH}
+
+#-------------------------------------------------------------------------------
+# Description: this script tests various failure scenarios that happen during
+# the FST close operation of replica and rain layouts. It tries to check any
+# such failure leaves the original file in a consistent state and does not
+# remove or drop any replicas even during TPC transfers or RAIN recovery ops.
+#-------------------------------------------------------------------------------
+
+usage() {
+    echo ''' Usage $0 --type <local|docker|k8s>
+                      [--mgm <MGM endpoint, default root://localhost>]
+                      [--path <test root path in EOS, default /eos/dockertest]
+                      [--help] - usage and exit
+'''; }
+
+
+# Parser from: https://stackoverflow.com/questions/192249/how-do-i-parse-command-line-arguments-in-bash
+usage_error () { echo >&2 "$(basename "$0"):  $1"; exit 2; }
+assert_argument () { test "$1" != "$EOL" || usage_error "$2 requires an argument"; }
+
+IS_LOCAL=false
+IS_DOCKER=false
+EOS_MGM_URL=root://$(hostname -f)
+EOS_ROOT=/eos/dockertest/
+EOS_RAIN_DIR=${EOS_ROOT}/fst-close-test/rain
+EOS_REPLICA_DIR=${EOS_ROOT}/fst-close-test/replica
+
+# One loop, nothing more.
+if [ "$#" != 0 ]; then
+  EOL=$(printf '\1\3\3\7')
+  set -- "$@" "$EOL"
+  while [ "$1" != "$EOL" ]; do
+    opt="$1"; shift
+    case "$opt" in
+      # Your options go here.
+      --type)     assert_argument "$1" "$opt";
+                  if [[ "${1}" == "local" ]]; then
+                      IS_LOCAL=true;
+                  elif [[ "${1}" == "docker" ]]; then
+                      IS_DOCKER=true;
+                  elif [[ "${1}" == "k8s" ]]; then
+                       IS_LOCAL=false;
+                       IS_DOCKER=false;
+                  else
+                      usage_error "unknown type option: '${1}'";
+                  fi
+                  shift;;
+      --mgm)      assert_argument "$1" "$opt"; EOS_MGM_URL=${1}; shift;;
+      --path)     assert_argument "$1" "$opt"
+                  EOS_ROOT=${1}
+                  EOS_RAIN_DIR=${EOS_ROOT}/fst-close-test/rain
+                  EOS_REPLICA_DIR=${EOS_ROOT}/fst-close-test/replica
+                  shift;;
+      --help) usage $0; exit 0;;
+      # Arguments processing. You may remove any unneeded line after the 1st.
+      -|''|[!-]*) set -- "$@" "$opt";;                                          # positional argument, rotate to the end
+      --*=*)      set -- "${opt%%=*}" "${opt#*=}" "$@";;                        # convert '--name=arg' to '--name' 'arg'
+      -[!-]?*)    set -- "$(echo "${opt#-}" | sed 's    /g')" "$@";;            # convert '-abc' to '-a' '-b' '-c'
+      --)         while [ "$1" != "$EOL" ]; do set -- "$@" "$1"; shift; done;;  # process remaining arguments as positional
+      -*)         usage_error "unknown option: '$opt'";;                        # catch misspelled options
+      *)          usage_error "this should NEVER happen ($opt)";;               # sanity test for previous patterns
+    esac
+  done
+  shift  # $EOL
+fi
+
+#-------------------------------------------------------------------------------
+# Print the configuration used for running the tests
+#-------------------------------------------------------------------------------
+function print_config() {
+  echo "
+info: environment configuration:
+IS_LOCAL=${IS_LOCAL}
+IS_DOCKER=${IS_DOCKER}
+EOS_MGM_URL=${EOS_MGM_URL}
+"
+}
+
+#-------------------------------------------------------------------------------
+# Perform cleanup of the files, directories and configured behaviours
+#-------------------------------------------------------------------------------
+function cleanup() {
+  echo "info: running cleanup step"
+  exec_cmd eos-mgm1 "eos ns behaviour clear all"
+  local FST_ONLINE=$(exec_cmd eos-mgm1 "eos fs ls | grep \"online\" | wc -l")
+
+  for (( i=1; i<=${FST_ONLINE}; i++ )); do
+    exec_cmd eos_mgm1 "eos -r 0 0 fs config ${i} configstatus=rw"
+  done
+
+  exec_cmd eos-cli1 "eos -r 0 0 rm -rF \"${EOS_ROOT}/fst-close-test\" &&
+                     rm -rf /tmp/test_file.dat"
+
+}
+
+#-------------------------------------------------------------------------------
+# Do the necessary MGM preparation before the tests
+#-------------------------------------------------------------------------------
+function prepare_mgm() {
+  echo "info: prepare MGM configuration"
+  exec_cmd eos-mgm1 "eos ns behaviour set rain_min_fsid_entry on"
+  # local FST_ONLINE=$(exec_cmd eos-mgm1 "eos fs ls | grep \"online\" | wc -l")
+
+  # for (( i=3; i<=${FST_ONLINE}; i++ )); do
+  #   exec_cmd eos_cli1 "eos -r 0 0 fs config ${i} configstatus=off"
+  # done
+
+  exec_cmd eos-cli1 "dd status=none if=/dev/urandom of=${TEST_FILE} bs=1M count=22 &&
+                     eos -r 0 0 mkdir -p ${EOS_RAIN_DIR} &&
+                     eos -r 0 0 mkdir -p ${EOS_REPLICA_DIR} &&
+                     eos -r 0 0 attr set default=replica ${EOS_REPLICA_DIR} &&
+                     eos -r 0 0 attr set default=raid6 ${EOS_RAIN_DIR}"
+  # Add a delay for the configstatus change to propagate in the scheduling
+  # data structures otherwise we end up writing to file systems which are off
+  XS_TEST_FILE=$(exec_cmd eos-cli1 "eos-adler32 ${TEST_FILE} | awk -F '[ =]' '{print $NF;}'")
+  sleep 2
+}
+
+#-------------------------------------------------------------------------------
+# Test normal write and read functionality
+#-------------------------------------------------------------------------------
+test_write_read_successful() {
+  local test_fn=${1}
+  local eos_fn="${EOS_REPLICA_DIR}/write_read_success.dat"
+  echo "info: test successful write and read"
+  local xs_local="$(eos-adler32 ${test_fn} | awk -F '[ =]' '{print $NF;}')"
+  exec_cmd eos-cli1 "xrdcp -f --nopbar ${test_fn} ${EOS_MGM_URL}/${eos_fn}"
+  exec_cmd eos-cli1 "eos -j fileinfo ${eos_fn} | jq '.locations | length' | grep 2 > /dev/null"
+  local xs_eos=$(exec_cmd eos-cli1 "eos -j fileinfo ${eos_fn} | jq '.checksumvalue' | tr -d '\"' ")
+  exec_cmd eos-cli1 "xrdcp -f --nopbar ${EOS_MGM_URL}/${eos_fn} /tmp/test_file_copy.dat"
+  local xs_copy="$(eos-adler32 /tmp/test_file_copy.dat | awk -F '[ =]' '{print $NF;}')"
+  exec_cmd eos-cli1 "rm -rf /tmp/test_file_copy.dat"
+  exec_cmd eos-cli1 "eos -r 0 0 rm -rF ${eos_fn}"
+
+  if [[ "${xs_local}" != "${xs_eos}" ]]; then
+    echo "error: eos file checksum does not match the original"
+    return 1
+  fi
+
+  if [[ "${xs_copy}" != "${xs_local}" ]]; then
+    echo "error: copied file checksum does not match the original"
+    return 1
+  fi
+  return 0
+}
+
+#-------------------------------------------------------------------------------
+# Test reading a file with a checksum corruption for the entry replica. This
+# should return an error on close with the following error message:
+# "error: close failed with retc=-5"
+#-------------------------------------------------------------------------------
+test_read_xs_error() {
+  echo "info: test read checksum error"
+  local test_fn=${1}
+  local eos_fn="${EOS_REPLICA_DIR}/read_xs_err.dat"
+  local error_msg="Unable to read file - wrong file checksum"
+  exec_cmd eos-cli1 "xrdcp -f --nopbar ${test_fn} ${EOS_MGM_URL}/${eos_fn}"
+  local min_fsid=$(exec_cmd eos-cli1 "eos -j fileinfo ${eos_fn} | jq '[.locations | .[] | .fsid] | sort | first'")
+  local local_path=$(exec_cmd eos-cli1 "eos -j fileinfo ${eos_fn} | jq '.locations | .[] | select(.fsid==${min_fsid}) | .fstpath' | tr -d '\"' ")
+  # Corrupt the raw file on disk
+  local orig_xs=$(exec_cmd eos-fst${min_fsid} "eos-adler32 ${local_path} | awk -F '[ =]' '{print \$NF;}'")
+  exec_cmd eos-fst${min_fsid} "printf '\xab' | dd status=none of=${local_path} bs=1 seek=$((0xbeef)) conv=notrunc"
+  exec_cmd eos-fst${min_fsid} "printf '\x12' | dd status=none of=${local_path} bs=1 seek=$((0xdead)) conv=notrunc"
+  local corrupt_xs=$(exec_cmd eosfst${min_fsid} "eos-adler32 ${local_path} | awk -F '[ =]' '{print \$NF;}'")
+
+  if [[ "${orig_xs}" == "${corrupt_xs}" ]]; then
+      echo "error: really unlucky, the original and corrupted checksum match"
+      exit 1
+  fi
+
+  local cp_output=$(exec_cmd eos-cli1 "xrdcp -f --nopbar ${EOS_MGM_URL}/${eos_fn} /tmp/test_file_copy.dat 2>&1")
+  # Check if output contains the expected error message
+  [[ ${cp_output} =~ ${error_msg} ]]
+  local rc1=$?
+  # Read the file in reverse so that the checksum check on close gets triggered
+  error_msg="error: close failed with retc=-5"
+  cp_output=$(exec_cmd eos-cli1 "xrdcpbackward ${EOS_MGM_URL}/${eos_fn} 2>&1 || true")
+  # Check if output contains the expected error message
+  [[ ${cp_output} =~ ${error_msg} ]]
+  local rc2=$?
+  exec_cmd eos-cli1 "eos -r 0 0 rm -rF ${eos_fn}"
+  return ${rc1}${rc2}
+}
+
+#-------------------------------------------------------------------------------
+# Test writing a file which is below the minsize policy. With xrdcp this should
+# return an error on open with the following error message:
+# Unable to open - bookingsize violates minimum allowed filesize
+#-------------------------------------------------------------------------------
+test_write_min_filesize() {
+  echo "info: test write with min file size"
+  local test_fn=${1}
+  local eos_fn="${EOS_REPLICA_DIR}/xrdcp_min_filesize.dat"
+  local error_msg="Unable to open - bookingsize violates minimum allowed filesize"
+  exec_cmd eos-clit1 "eos -r 0 0 attr set sys.forced.minsize=$((25*1024*1024)) ${EOS_REPLICA_DIR} >& /dev/null"
+  output=$(exec_cmd eos-cli1 "xrdcp -f --nopbar ${test_fn} ${EOS_MGM_URL}/${eos_fn} 2>&1 || true")
+  [[ ${output} =~ ${error_msg} ]]
+  local rc1=$?
+
+  if [[ ${rc1} -ne 0 ]]; then
+    echo "error: message \"${output}\" different from expected \"${error_msg}\""
+  fi
+
+  error_msg="No such file or directory"
+  output=$(exec_cmd eos-cli1 "eos fileinfo ${eos_fn} 2>&1 || true")
+  [[ ${output} =~ ${error_msg} ]]
+  local rc2=$?
+
+  if [[ ${rc2} -ne 0 ]]; then
+    echo "error: message \"${output}\" different from expected \"${error_msg}\""
+  fi
+
+  exec_cmd eos-clit1 "eos -r 0 0 attr rm sys.forced.minsize ${EOS_REPLICA_DIR} >& /dev/null"
+  return ${rc1}${rc2}
+}
+
+#-------------------------------------------------------------------------------
+# Test writing a file which is above the maxsize policy. With xrdcp this should
+# return an error on open with the following error message:
+# Unable to open - bookingsize violates maximum allowed filesize
+#-------------------------------------------------------------------------------
+test_write_max_filesize() {
+  echo "info: test write with max file size"
+  local test_fn=${1}
+  local eos_fn="${EOS_REPLICA_DIR}/xrdcp_max_filesize.dat"
+  local error_msg="Unable to open - bookingsize violates maximum allowed filesize"
+  exec_cmd eos-clit1 "eos -r 0 0 attr set sys.forced.maxsize=$((1*1024*1024)) ${EOS_REPLICA_DIR} >& /dev/null"
+  output=$(exec_cmd eos-cli1 "xrdcp -f --nopbar ${test_fn} ${EOS_MGM_URL}/${eos_fn} 2>&1 || true")
+  [[ ${output} =~ ${error_msg} ]]
+  local rc1=$?
+  error_msg="No such file or directory"
+  output=$(exec_cmd eos-cli1 "eos fileinfo ${eos_fn} 2>&1 || true")
+  [[ ${output} =~ ${error_msg} ]]
+  local rc2=$?
+  exec_cmd eos-clit1 "eos -r 0 0 attr rm sys.forced.maxsize ${EOS_REPLICA_DIR} >& /dev/null"
+  return ${rc1}${rc2}
+}
+
+#-------------------------------------------------------------------------------
+# Test writing a file with a different target size. With xrdcp this should
+# return an error on close with the following error message:
+# "Unable to store file - file has been cleaned because the stored file does
+#  not match the provided targetsize"
+#-------------------------------------------------------------------------------
+test_write_targetsize() {
+  echo "info: test write with targetsize"
+  local test_fn=${1}
+  local eos_fn="${EOS_REPLICA_DIR}/xrdcp_targetsize.dat"
+  local error_msg="Unable to store file - file has been cleaned because the stored file does not match the provided targetsize"
+  output=$(exec_cmd eos-cli1 "xrdcp -f --nopbar ${test_fn} ${EOS_MGM_URL}/${eos_fn}?eos.targetsize=10000 2>&1 || true")
+  [[ ${output} =~ ${error_msg} ]]
+  local rc1=$?
+  error_msg="No such file or directory"
+  output=$(exec_cmd eos-cli1 "eos fileinfo ${eos_fn} 2>&1 || true")
+  [[ ${output} =~ ${error_msg} ]]
+  local rc2=$?
+  return ${rc1}${rc2}
+}
+
+#-------------------------------------------------------------------------------
+# Test writing a file with a pre-set checksum value. With xrdcp this should
+# return an error on close with the following error message
+# "Unable to store file - file has been cleaned because of a checksum error"
+#-------------------------------------------------------------------------------
+test_write_xs_preset() {
+  echo "info: test file write with checksum pre-set"
+  local test_fn=${1}
+  local eos_fn="${EOS_REPLICA_DIR}/xrdcp_xs_preset.dat"
+  local error_msg="Unable to store file - file has been cleaned because of a checksum error"
+  local output=$(exec_cmd eos-cli1 "xrdcp -f --nopbar ${test_fn} ${EOS_MGM_URL}/${eos_fn}?eos.checksum=deadbeef 2>&1 || true")
+  [[ ${output} =~ ${error_msg} ]]
+  local rc1=$?
+  error_msg="No such file or directory"
+  output=$(exec_cmd eos-cli1 "eos fileinfo ${eos_fn} 2>&1 || true")
+  [[ ${output} =~ ${error_msg} ]]
+  local rc2=$?
+  return ${rc1}${rc2}
+}
+
+#-------------------------------------------------------------------------------
+# Test writing a file where the close on the second replica fails due to a
+# simulated write xs error i.e. the close will fail.
+#-------------------------------------------------------------------------------
+test_write_replica_fail_close_2nd() {
+  echo "info: test file write with fail on second replica close"
+  local test_fn=${1}
+  local eos_fn="${EOS_REPLICA_DIR}/xrdcp_fail_close_2nd.dat"
+  # Set all the FSes > 2 in RO mode before writing the file
+  local FST_ONLINE=$(exec_cmd eos-mgm1 "eos -r 0 0 fs ls | grep \"online\" | wc -l")
+
+  for (( i=3; i<=${FST_ONLINE}; i++ )); do
+    exec_cmd eos_mgm1 "eos -r 0 0 fs config ${i} configstatus=ro"
+  done
+
+  local node=$(exec_cmd eos-mgm1 "eos -r 0 0 fs ls \" 2 \" | grep booted  | awk '{print \$1\":\"\$2;}'")
+  # Set simulated write checksum error so that close fails
+  exec_cmd eos-mgm1 "eos -r 0 0 node config ${node} error.simulation=xs_write > /dev/null"
+  # Wait for the config to propagate to the FST
+  sleep 2
+  exec_cmd eos-cli1 "xrdcp -f --nopbar ${test_fn} ${EOS_MGM_URL}/${eos_fn}"
+  sleep 5
+  # Check that the file as only one replica in the namespace as the result of the
+  # repair on close that files since there are no other available file systems!
+  exec_cmd eos-cli1 "eos -j fileinfo ${eos_fn} | jq '.locations | length' | grep 1 > /dev/null"
+  # Redo the upload but add a delay for write xs error for FST 2 so that we
+  # can clear error during the close for the adjust replica to be successful
+  exec_cmd eos-mgm1 "eos -r 0 0 node config ${node} error.simulation=xs_write_10 > /dev/null"
+  sleep 2
+  exec_cmd eos-cli1 "xrdcp -f --nopbar ${test_fn} ${EOS_MGM_URL}/${eos_fn} &"
+  sleep 5
+  exec_cmd eos-mgm1 "eos -r 0 0 node config ${node} error.simulation=none > /dev/null"
+  sleep 10
+  # Now we should have two replicas attached to the NS entry
+  exec_cmd eos-cli1 "eos -j fileinfo ${eos_fn} | jq '.locations | length' | grep 2 > /dev/null"
+  exec_cmd eos-mgm1 "eos -r 0 0 node config $node error.simulation=none > /dev/null"
+  exec_cmd eos-cli1 "eos -r 0 0 rm -rF ${eos_fn}"
+
+  for (( i=3; i<=${FST_ONLINE}; i++ )); do
+    exec_cmd eos_mgm1 "eos -r 0 0 fs config ${i} configstatus=rw"
+  done
+  sleep 2
+}
+
+#-------------------------------------------------------------------------------
+# Test RAIN file recovery for which the TPC transfer timesout and which should
+# leave the file in a consistent state.
+#-------------------------------------------------------------------------------
+test_rain_recovery_tpc_timeout() {
+  echo "info: test rain file recovery where client TPC times out"
+  local test_fn=${1}
+  local eos_fn="${EOS_RAIN_DIR}/xrdcp_recovery_timeout.dat"
+  # Make sure the file lands on FSes 1-6
+  local FST_ONLINE=$(exec_cmd eos-mgm1 "eos -r 0 0 fs ls | grep \"online\" | wc -l")
+
+  if [[ ${FST_ONLINE} -ge 7 ]]; then
+    for (( i=7; i<=${FST_ONLINE}; i++ )); do
+      exec_cmd eos_mgm1 "eos -r 0 0 fs config ${i} configstatus=ro"
+    done
+  fi
+  # Wait for the file system status to propagate in the scheduling view
+  sleep 3
+  exec_cmd eos-cli1 "xrdcp -f --nopbar ${test_fn} ${EOS_MGM_URL}/${eos_fn}"
+  # Collect list of file systems that hold the file
+  local orig_loc=$(exec_cmd eos-cli1 "eos -j fileinfo ${eos_fn} | jq '.locations | .[] | .fsid' | tr '\n' ' '")
+  local orig_xs=$(exec_cmd eos-cli1 "eos -j fileinfo ${eos_fn} | jq '.checksumvalue' | tr -d '\"' ")
+  # Put back the FSes in rw mode to have available destinations for recovery
+  if [[ ${FST_ONLINE} -ge 7 ]]; then
+    for (( i=7; i<=${FST_ONLINE}; i++ )); do
+      exec_cmd eos_mgm1 "eos -r 0 0 fs config ${i} configstatus=rw"
+    done
+  fi
+  # Wait for the file system status to propagate in the scheduling view
+  sleep 3
+  # Add read delay of 20 seconds to a stripe that will be read (and not recovered!)
+  local node=$(exec_cmd eos-mgm1 "eos -r 0 0 fs ls \" 2 \" | grep booted  | awk '{print \$1\":\"\$2;}'")
+  exec_cmd eos-mgm1 "eos -r 0 0 node config ${node} error.simulation=read_delay_20 > /dev/null"
+  # Trigger TPC recovery but with a small timeout so that transfer fails and for a
+  # file system where we don't have read_delay enabled
+  local output=$(exec_cmd eos-cli1 "XRD_TIMEOUTRESOLUTION=1 XRD_CPTPCTIMEOUT=10 xrdcp -f --tpc only \"${EOS_MGM_URL}/${eos_fn}?eos.pio.action=reconstruct&eos.pio.recfs=1\" ${EOS_MGM_URL}/${eos_fn}_copy 2>&1 || true")
+  local error_msg="Run: [ERROR] Operation expired"
+  local rc1=0
+
+  if [[ ${output} =~ ${error_msg} ]]; then
+    rc1=1
+    echo "error: TPC transfer did not fail with operation expired"
+  fi
+
+  # Remove the simulated read delay
+  exec_cmd eos-mgm1 "eos -r 0 0 node config ${node} error.simulation=none > /dev/null"
+  # Check that the checksum of a download still matches the original one
+  local new_xs="$(exec_cmd eos-cli1 "xrdcp -f --nopbar ${EOS_MGM_URL}/${eos_fn} /var/tmp/temp; xs=\$(eos-adler32 /var/tmp/temp | awk -F '[ =]' '{print \$NF;}'); rm -rf /var/tmp/temp; echo \${xs}")"
+  local rc2=0
+
+  if [[ "${new_xs}" != "${orig_xs}" ]]; then
+    rc2=1
+    echo "error: downloaded copy checksum does not match the original"
+  fi
+  # Check that we still have the same locations for the stripes as nothing
+  # should be touched since there was an error during the transfer
+  local new_loc=$(exec_cmd eos-cli1 "eos -j fileinfo ${eos_fn} | jq '.locations | .[] | .fsid' | tr '\n' ' '")
+  local rc3=0
+
+  if [[ "${orig_loc}" != "${new_loc}" ]]; then
+    rc3=1
+    echo "error: the file has new locations after the failed transfer"
+  fi
+
+  # Do cleanup
+  exec_cmd eos-cli1 "eos -r 0 0 rm -rF ${eos_fn}"
+  return ${rc1}${rc2}${rc3}
+}
+
+#-------------------------------------------------------------------------------
+# Test RAIN file recovery that should be aborted and the original file should
+# be left untouched when there is an error on close hapenning for one of the
+# stripes that is not to be recovered.
+#-------------------------------------------------------------------------------
+test_rain_recovery_close_timeout() {
+  echo "info: test rain file recovery where a stripe close fails"
+  local test_fn=${1}
+  local eos_fn="${EOS_RAIN_DIR}/xrdcp_recovery_close_timeout.dat"
+  exec_cmd eos-cli1 "xrdcp -f --nopbar ${test_fn} ${EOS_MGM_URL}/${eos_fn}"
+  # Collect list of file systems that hold the file
+  local orig_loc=$(exec_cmd eos-cli1 "eos -j fileinfo ${eos_fn} | jq '.locations | .[] | .fsid' | tr '\n' ' '")
+  local orig_xs=$(exec_cmd eos-cli1 "eos -j fileinfo ${eos_fn} | jq '.checksumvalue' | tr -d '\"' ")
+  # File system for which we'll try to recover the stripe
+  local recover_fsid=$(echo ${orig_loc} | cut -d ' ' -f 1)
+  # File system where we will simulate a close error
+  local close_err_fsid=$(echo ${orig_loc} | cut -d ' ' -f 2)
+  local close_err_node=$(exec_cmd eos-mgm1 "eos -r 0 0 fs ls \" ${close_err_fsid} \" | grep booted  | awk '{print \$1\":\"\$2;}'")
+  exec_cmd eos-mgm1 "eos -r 0 0 node config ${close_err_node} error.simulation=close > /dev/null"
+  # Trigger TPC recovery that should fail due to the simulated close error
+  local output=$(exec_cmd eos-cli1 "xrdcp -f --tpc only \"${EOS_MGM_URL}/${eos_fn}?eos.pio.action=reconstruct&eos.pio.recfs=${recover_fsid}\" ${EOS_MGM_URL}/${eos_fn}_copy 2>&1 || true")
+  local error_msg="Unable to store file - file has been cleaned or recovery aborted because of an error on close"
+  local rc1=0
+
+  if [[ ${output} =~ ${error_msg} ]]; then
+    rc1=1
+    echo "error: TPC transfer did not fail with the expected error"
+  fi
+
+  # Remove the simulated close error
+  exec_cmd eos-mgm1 "eos -r 0 0 node config ${close_err_node} error.simulation=none > /dev/null"
+  # Check that the checksum of a download still matches the original one
+  local new_xs="$(exec_cmd eos-cli1 "xrdcp -f --nopbar ${EOS_MGM_URL}/${eos_fn} /var/tmp/temp; xs=\$(eos-adler32 /var/tmp/temp | awk -F '[ =]' '{print \$NF;}'); rm -rf /var/tmp/temp; echo \${xs}")"
+  local rc2=0
+
+  if [[ "${new_xs}" != "${orig_xs}" ]]; then
+    rc2=1
+    echo "error: downloaded copy checksum does not match the original"
+  fi
+  # Check that we still have the same locations for the stripes as nothing
+  # should be touched since there was an error during the transfer
+  local new_loc=$(exec_cmd eos-cli1 "eos -j fileinfo ${eos_fn} | jq '.locations | .[] | .fsid' | tr '\n' ' '")
+  local rc3=0
+
+  if [[ "${orig_loc}" != "${new_loc}" ]]; then
+    rc3=1
+    echo "error: the file has new locations after the failed transfer"
+  fi
+
+  # Do cleanup
+  exec_cmd eos-cli1 "eos -r 0 0 rm -rF ${eos_fn}"
+  return ${rc1}${rc2}${rc3}
+}
+
+
+# Make sure we always clean up on exit
+trap cleanup EXIT
+
+TEST_FILE="/tmp/test_file.dat"
+XS_TEST_FILE=""
+
+true || print_config
+prepare_mgm
+test_write_read_successful ${TEST_FILE}
+write_read_rc=$?
+test_read_xs_error ${TEST_FILE}
+read_xs_error_rc=$?
+test_write_min_filesize ${TEST_FILE}
+min_filesize_rc=$?
+test_write_max_filesize ${TEST_FILE}
+max_filesize_rc=$?
+test_write_targetsize ${TEST_FILE}
+write_targetsize_rc=$?
+test_write_xs_preset ${TEST_FILE}
+write_xs_preset_rc=$?
+test_write_replica_fail_close_2nd ${TEST_FILE}
+write_replica_fail_close_2nd_rc=$?
+test_rain_recovery_tpc_timeout ${TEST_FILE}
+rain_recovery_timeout_rc=$?
+test_rain_recovery_close_timeout ${TEST_FILE}
+rain_recovery_close_timeout_rc=$?
+
+rc=$(( $read_xs_error_rc || $write_read_rc || $min_filesize_rc ||
+       $max_filesize_rc || $write_targetsize_rc || $write_xs_preset_rc ||
+       $write_replica_fail_close_2nd_rc || $rain_recovery_timeout_rc ||
+       $rain_recovery_close_timeout_rc))
+
+if [[ ${rc} -ne 0 ]];then
+  echo "error: failed script with rc=${rc}"
+fi
+
+exit ${rc}
