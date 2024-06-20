@@ -176,11 +176,13 @@ install(TARGETS eos-mq-feeder eos-mq-dumper
 
 install(PROGRAMS xrdstress eos-instance-test eos-instance-test-ci
   fuse/eos-fuse-test eos-rain-test eoscp-rain-test eos-io-test
-  eos-oc-test eos-drain-test eos-groupdrain-test eos-http-upload-test eos-https-functional-test
-  eos-mq-tests eos-rename-test eos-grpc-test eos-fsck-test eos-token-test
+  eos-oc-test eos-drain-test eos-groupdrain-test eos-mq-tests
+  eos-http-upload-test eos-https-functional-test eos-token-test
+  eos-fst-close-test eos-rename-test eos-grpc-test eos-fsck-test
   eos-squash-test eos-backup eos-backup-browser eos-test-utils
   eos-convert-test eos-balance-test eos-qos-test eos-timestamp-test
   eos-squash-test eos-defaultcc-test eos-quota-test
+
   eos-synctime-test eos-rclone-test eos-bash test-eos-iam-mapfile.py
   fusex/eos-test-credential-bindings fusex/eos-fusex-functional-test
   DESTINATION ${CMAKE_INSTALL_FULL_SBINDIR}
