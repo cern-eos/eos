@@ -53,13 +53,13 @@ echo "Updating scheduler to be Weighted Round Robin"
 eos space config default space.scheduler.type=weightedrr
 eos-instance-test
 
-echo "Final ns stats"
-eos ns stat
-
 if [[ $? -ne 0 ]]; then
   cat /tmp/eos-instance-test/test-output.log
   exit 1
 fi
+
+echo "Final ns stats"
+eos ns stat
 
 #-------------------------------------------------------------------------------
 # Functional tests upload/download x509/macaroons/tpc/eos token
