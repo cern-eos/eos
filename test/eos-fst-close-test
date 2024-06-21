@@ -1,4 +1,4 @@
-#!/bin/bash -e
+#!/bin/bash -ex
 
 # ******************************************************************************
 # EOS - the CERN Disk Storage System
@@ -44,10 +44,12 @@ assert_argument () { test "$1" != "$EOL" || usage_error "$2 requires an argument
 
 IS_LOCAL=false
 IS_DOCKER=false
-EOS_MGM_URL=root://$(hostname -f)
+K8S_NAMESPACE=""
+EOS_MGM_URL=""
 EOS_ROOT=/eos/dockertest/
 EOS_RAIN_DIR=${EOS_ROOT}/fst-close-test/rain
 EOS_REPLICA_DIR=${EOS_ROOT}/fst-close-test/replica
+
 
 # One loop, nothing more.
 if [ "$#" != 0 ]; then
@@ -65,6 +67,15 @@ if [ "$#" != 0 ]; then
                   elif [[ "${1}" == "k8s" ]]; then
                        IS_LOCAL=false;
                        IS_DOCKER=false;
+
+                       if [[ $# -lt 3 ]]; then
+                         echo "error: missing Kubernetes namespace argument"
+                         usage
+                         exit 1
+                       fi
+
+                       shift
+                       K8S_NAMESPACE="$1"
                   else
                       usage_error "unknown type option: '${1}'";
                   fi
@@ -97,6 +108,7 @@ info: environment configuration:
 IS_LOCAL=${IS_LOCAL}
 IS_DOCKER=${IS_DOCKER}
 EOS_MGM_URL=${EOS_MGM_URL}
+K8S_NAMESPACE=${K8S_NAMESPACE}
 "
 }
 
@@ -475,7 +487,7 @@ trap cleanup EXIT
 TEST_FILE="/tmp/test_file.dat"
 XS_TEST_FILE=""
 
-true || print_config
+print_config
 prepare_mgm
 test_write_read_successful ${TEST_FILE}
 write_read_rc=$?
