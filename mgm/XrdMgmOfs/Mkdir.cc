@@ -217,8 +217,8 @@ XrdMgmOfs::_mkdir(const char* path,
   if (noParent) {
     if (recurse) {
       int i, j;
-      uid_t d_uid = 99;
-      gid_t d_gid = 99;
+      uid_t d_uid = eos::common::VirtualIdentity::kNobodyUid;
+      gid_t d_gid = eos::common::VirtualIdentity::kNobodyGid;
       std::string existingdir;
 
       // Walk up the paths until one exists

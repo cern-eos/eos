@@ -110,7 +110,7 @@ Vid::Set(const char* value, bool storeConfig)
   }
 
   if (vidcmd == "membership") {
-    uid_t uid = 99;
+    uid_t uid = eos::common::VirtualIdentity::kNobodyUid;
 
     if (env.Get("mgm.vid.source.uid")) {
       // rule for a certain user id
@@ -128,7 +128,7 @@ Vid::Set(const char* value, bool storeConfig)
         try {
           uid = std::stoul(username);
         } catch (const std::exception& e) {
-          uid = 99;
+          uid = eos::common::VirtualIdentity::kNobodyUid;
         }
       }
 
@@ -414,7 +414,7 @@ Vid::Rm(XrdOucEnv& env,
     XrdOucString lkey = skey;
     lkey.replace(":uids", "");
     std::string usrname = lkey.c_str();
-    uid_t uid = 99;
+    uid_t uid = eos::common::VirtualIdentity::kNobodyUid;
 
     if (std::find_if(usrname.begin(), usrname.end(),
     [](unsigned char c) {
@@ -424,14 +424,14 @@ Vid::Rm(XrdOucEnv& env,
       uid = eos::common::Mapping::UserNameToUid(usrname, errc);
 
       if (errc) {
-        uid = 99;
+        uid = eos::common::VirtualIdentity::kNobodyUid;
       }
     }
     else {
       try {
         uid = std::stoul(usrname);
       } catch (const std::exception& e) {
-        uid = 99;
+        uid = eos::common::VirtualIdentity::kNobodyUid;
       }
     }
 
@@ -442,7 +442,7 @@ Vid::Rm(XrdOucEnv& env,
     XrdOucString lkey = skey;
     lkey.replace(":gids", "");
     std::string grpname = lkey.c_str();
-    gid_t gid = 99;
+    gid_t gid = eos::common::VirtualIdentity::kNobodyGid;
 
     if (std::find_if(grpname.begin(), grpname.end(),
     [](unsigned char c) {
@@ -452,14 +452,14 @@ Vid::Rm(XrdOucEnv& env,
       gid = eos::common::Mapping::GroupNameToGid(grpname, errc);
 
       if (errc) {
-        gid = 99;
+        gid = eos::common::VirtualIdentity::kNobodyGid;
       }
     }
     else {
       try {
         gid = std::stoul(grpname);
       } catch (const std::exception& e) {
-        gid = 99;
+        gid = eos::common::VirtualIdentity::kNobodyGid;
       }
     }
 

@@ -38,6 +38,8 @@ EOSCOMMONNAMESPACE_BEGIN
 //! authentication information
 //------------------------------------------------------------------------------
 struct VirtualIdentity {
+  static uid_t kNobodyUid;
+  static gid_t kNobodyGid;
   uid_t uid;
   gid_t gid;
   std::string uid_string;
@@ -66,7 +68,7 @@ struct VirtualIdentity {
   //----------------------------------------------------------------------------
   //! Constructor - assign to "nobody" by default
   //----------------------------------------------------------------------------
-  VirtualIdentity() : uid(99), gid(99), sudoer(false), gateway(false) {}
+  VirtualIdentity();
 
   //----------------------------------------------------------------------------
   //! "Constructor" - return Root identity
@@ -99,7 +101,6 @@ struct VirtualIdentity {
   //----------------------------------------------------------------------------
   bool isLocalhost() const;
 
-
   //----------------------------------------------------------------------------
   //! Check if this client is coming from localhost
   //----------------------------------------------------------------------------
@@ -119,7 +120,6 @@ struct VirtualIdentity {
   //! Return a vid trace string
   //----------------------------------------------------------------------------
   std::string getTrace(bool compact=false) const;
-
 
   //----------------------------------------------------------------------------
   //! Set uid/gid to nobody

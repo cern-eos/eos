@@ -25,8 +25,40 @@
 #include "common/Timing.hh"
 #include <iostream>
 #include <sstream>
+#include <cstring>
+#include <pwd.h>
+
+namespace {
+  //! Method to get the uid/gid values for user 'nobody'
+  std::pair<uid_t, gid_t> GetNobodyUidGid() {
+    struct passwd pw_info;
+    memset(&pw_info, 0, sizeof(pw_info));
+    char buffer[131072];
+    size_t buflen = sizeof(buffer);
+    struct passwd* pw_prt = 0;
+    const std::string name = "nobody";
+
+    if (getpwnam_r(name.c_str(), &pw_info, buffer, buflen, &pw_prt) ||
+        (!pw_prt)) {
+      std::terminate();
+    }
+
+    return std::make_pair(pw_info.pw_uid, pw_info.pw_gid);
+  };
+}
+
 
 EOSCOMMONNAMESPACE_BEGIN
+
+uid_t VirtualIdentity::kNobodyUid = GetNobodyUidGid().first;
+gid_t VirtualIdentity::kNobodyGid = GetNobodyUidGid().second;
+
+//----------------------------------------------------------------------------
+//! Constructor - assign to "nobody" by default
+//----------------------------------------------------------------------------
+VirtualIdentity::VirtualIdentity() :
+  uid(kNobodyUid), gid(kNobodyGid), sudoer(false), gateway(false)
+{}
 
 //------------------------------------------------------------------------------
 // "Constructor" - return Root identity
@@ -53,10 +85,10 @@ VirtualIdentity VirtualIdentity::Root()
 VirtualIdentity VirtualIdentity::Nobody()
 {
   VirtualIdentity vid;
-  vid.uid = 99;
-  vid.gid = 99;
-  vid.allowed_uids = {99};
-  vid.allowed_gids = {99};
+  vid.uid = kNobodyUid;
+  vid.gid = kNobodyGid;
+  vid.allowed_uids = {kNobodyUid};
+  vid.allowed_gids = {kNobodyGid};
   vid.name = "nobody";
   vid.sudoer = false;
   vid.gateway = false;
@@ -126,10 +158,10 @@ VirtualIdentity::getTrace(bool compact) const
 //----------------------------------------------------------------------------
 void VirtualIdentity::toNobody()
 {
-  uid = 99;
-  gid = 99;
-  allowed_uids = {99};
-  allowed_gids = {99};
+  uid = kNobodyUid;
+  gid = kNobodyGid;
+  allowed_uids = {kNobodyUid};
+  allowed_gids = {kNobodyGid};
   name = "nobody";
   sudoer = false;
 }
