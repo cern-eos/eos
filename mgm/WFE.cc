@@ -1759,8 +1759,8 @@ WFE::Job::IdempotentPrepare(const std::string& fullPath,
     return EAGAIN;
   }
 
-  uid_t cuid = 99;
-  gid_t cgid = 99;
+  uid_t cuid = eos::common::VirtualIdentity::kNobodyUid;
+  gid_t cgid = eos::common::VirtualIdentity::kNobodyGid;
 
   if (onDisk) {
     eos_static_info("File %s is already on disk, nothing to prepare. Eviction counter will be incremented.",
@@ -2073,8 +2073,8 @@ WFE::Job::HandleProtoMethodAbortPrepareEvent(const std::string& fullPath,
     notification->mutable_file()->mutable_xattr()->insert(attr);
   }
 
-  uid_t cuid = 99;
-  gid_t cgid = 99;
+  uid_t cuid = eos::common::VirtualIdentity::kNobodyUid;
+  gid_t cgid = eos::common::VirtualIdentity::kNobodyGid;
   {
     eos::common::RWMutexReadLock rlock(gOFS->eosViewRWMutex);
     auto fmd = gOFS->eosFileService->getFileMD(mFid);
@@ -2242,8 +2242,8 @@ WFE::Job::HandleProtoMethodCreateEvent(const std::string& fullPath,
     notification->mutable_file()->mutable_xattr()->insert(attr);
   }
 
-  uid_t cuid = 99;
-  gid_t cgid = 99;
+  uid_t cuid = eos::common::VirtualIdentity::kNobodyUid;
+  gid_t cgid = eos::common::VirtualIdentity::kNobodyGid;
   {
     eos::common::RWMutexReadLock rlock(gOFS->eosViewRWMutex);
     auto fmd = gOFS->eosFileService->getFileMD(mFid);

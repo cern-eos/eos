@@ -77,8 +77,8 @@ ProcCommand::Chown()
     std::string uid = owner.c_str();
     std::string gid = owner.c_str();
     bool failure = false;
-    uid_t uidt = 99;
-    gid_t gidt = 99;
+    uid_t uidt = eos::common::VirtualIdentity::kNobodyUid;
+    gid_t gidt = eos::common::VirtualIdentity::kNobodyGid;;
     int dpos = 0;
 
     if ((dpos = owner.find(":")) != STR_NPOS) {
