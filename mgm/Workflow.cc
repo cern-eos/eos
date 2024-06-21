@@ -121,8 +121,10 @@ Workflow::getCGICloseW(std::string workflow,
   // synchronous closew has priority
   if (mAttr && (*mAttr).count(syncKey)) {
     std::string fullPath;
-    decltype(gOFS->eosFileService->getFileMD(mFid)->getCUid()) cuid = 99;
-    decltype(gOFS->eosFileService->getFileMD(mFid)->getCGid()) cgid = 99;
+    decltype(gOFS->eosFileService->getFileMD(mFid)->getCUid()) cuid =
+      eos::common::VirtualIdentity::kNobodyUid;
+    decltype(gOFS->eosFileService->getFileMD(mFid)->getCGid()) cgid =
+      eos::common::VirtualIdentity::kNobodyGid;
 
     try {
       eos::Prefetcher::prefetchFileMDWithParentsAndWait(gOFS->eosView, mFid);
