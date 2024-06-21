@@ -98,10 +98,6 @@ static std::string g_oauth2_gid_key = "oauth2:" + g_pwd_gid_key; // not used yet
 static std::string g_ztn_uid_key = "ztn:" + g_pwd_uid_key;
 static std::string g_ztn_gid_key = "ztn:" + g_pwd_gid_key;
 
-//Static vars for nobody ids which may change in the future
-static uid_t g_nobody_uid = 99;
-static gid_t g_nobody_gid = 99;
-
 // flag to indicate whether the mapping is initialized
 std::once_flag g_cache_map_init;
 //------------------------------------------------------------------------------
@@ -383,7 +379,7 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
     //    eos_static_debug("tident mapping");
     vid.uid = kv->second;
     vid.allowed_uids.insert(vid.uid);
-    vid.allowed_uids.insert(99);
+    vid.allowed_uids.insert(VirtualIdentity::kNobodyUid);
   }
 
   if (auto kv = gVirtualGidMap.find(sgidtident.c_str());
@@ -391,7 +387,7 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
     //    eos_static_debug("tident mapping");
     vid.gid = kv->second;
     vid.allowed_gids.insert(vid.gid);
-    vid.allowed_gids.insert(99);
+    vid.allowed_gids.insert(VirtualIdentity::kNobodyGid);
   }
 
   // Wildcard tidents/protocol tidents - one can define mapping entries like
@@ -499,9 +495,9 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
       vid.allowed_uids.clear();
       vid.uid = gVirtualUidMap[tuid.c_str()];
       vid.allowed_uids.insert(vid.uid);
-      vid.allowed_uids.insert(99);
+      vid.allowed_uids.insert(VirtualIdentity::kNobodyUid);
       vid.allowed_gids.clear();
-      vid.gid = 99;
+      vid.gid = VirtualIdentity::kNobodyGid;
       vid.allowed_gids.insert(vid.gid);
     }
   }
@@ -530,7 +526,7 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
         vid.uid = uid;
         vid.allowed_uids.clear();
         vid.allowed_uids.insert(uid);
-        vid.allowed_uids.insert(99);
+        vid.allowed_uids.insert(VirtualIdentity::kNobodyUid);
         vid.gateway = true;
       }
     } else {
@@ -584,9 +580,9 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
         uidkey += "key:";
         uidkey += keyname;
         uidkey += "\":uid";
-        vid.uid = 99;
+        vid.uid = VirtualIdentity::kNobodyUid;
         vid.allowed_uids.clear();
-        vid.allowed_uids.insert(99);
+        vid.allowed_uids.insert(VirtualIdentity::kNobodyUid);
         vid.gateway = true;
 
         if (gVirtualUidMap.count(uidkey.c_str())) {
@@ -598,9 +594,9 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
         gidkey += "key:";
         gidkey += keyname;
         gidkey += "\":gid";
-        vid.gid = 99;
+        vid.gid = VirtualIdentity::kNobodyGid;
         vid.allowed_gids.clear();
-        vid.allowed_gids.insert(99);
+        vid.allowed_gids.insert(VirtualIdentity::kNobodyGid);
 
         if (gVirtualGidMap.count(gidkey.c_str())) {
           vid.gid = gVirtualGidMap[gidkey.c_str()];
@@ -663,9 +659,9 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
           uidkey += "key:";
           uidkey += keyname;
           uidkey += "\":uid";
-          vid.uid = 99;
+          vid.uid = VirtualIdentity::kNobodyUid;
           vid.allowed_uids.clear();
-          vid.allowed_uids.insert(99);
+          vid.allowed_uids.insert(VirtualIdentity::kNobodyUid);
 
           if (auto kv = gVirtualUidMap.find(uidkey);
               kv != gVirtualUidMap.end()) {
@@ -677,9 +673,9 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
           gidkey += "key:";
           gidkey += keyname;
           gidkey += "\":gid";
-          vid.gid = 99;
+          vid.gid = VirtualIdentity::kNobodyGid;
           vid.allowed_gids.clear();
-          vid.allowed_gids.insert(99);
+          vid.allowed_gids.insert(VirtualIdentity::kNobodyGid);
 
           if (auto kv = gVirtualGidMap.find(gidkey);
               kv != gVirtualGidMap.end()) {
@@ -850,14 +846,14 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
       // try alias conversion
       std::string luid = ruid.c_str();
       sel_uid = (gVirtualUidMap.count(ruid.c_str())) ? gVirtualUidMap[ruid.c_str() ] :
-                99;
+                VirtualIdentity::kNobodyUid;
 
-      if (sel_uid == 99) {
+      if (sel_uid == VirtualIdentity::kNobodyUid) {
         sel_uid = UserNameToUid(luid, errc);
       }
 
       if (errc) {
-        sel_uid = 99;
+        sel_uid = VirtualIdentity::kNobodyUid;
       }
     }
   }
@@ -868,14 +864,14 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
       // try alias conversion
       std::string lgid = rgid.c_str();
       sel_gid = (gVirtualGidMap.count(rgid.c_str())) ? gVirtualGidMap[rgid.c_str()] :
-                99;
+                VirtualIdentity::kNobodyGid;
 
-      if (sel_gid == 99) {
+      if (sel_gid == VirtualIdentity::kNobodyGid) {
         sel_gid = GroupNameToGid(lgid, errc);
       }
 
       if (errc) {
-        sel_gid = 99;
+        sel_gid = VirtualIdentity::kNobodyGid;
       }
     }
   }
@@ -891,13 +887,13 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
     if (vid.hasUid(sel_uid)) {
       vid.uid = sel_uid;
     } else {
-      vid.uid = 99;
+      vid.uid = VirtualIdentity::kNobodyUid;
     }
 
     if (vid.hasGid(sel_gid)) {
       vid.gid = sel_gid;
     } else {
-      vid.gid = 99;
+      vid.gid = VirtualIdentity::kNobodyGid;
     }
   } else {
     vid.uid = sel_uid;
@@ -1100,9 +1096,9 @@ Mapping::HandleKEYS(const XrdSecEntity* client, VirtualIdentity& vid)
   uidkey += "\":uid";
 
   if (gVirtualUidMap.count(uidkey.c_str())) {
-    vid.uid = 99;
+    vid.uid = VirtualIdentity::kNobodyUid;
     vid.allowed_uids.clear();
-    vid.allowed_uids.insert(99);
+    vid.allowed_uids.insert(VirtualIdentity::kNobodyUid);
     vid.uid = gVirtualUidMap[uidkey.c_str()];
     vid.allowed_uids.insert(vid.uid);
     vid.gateway = true;
@@ -1114,9 +1110,9 @@ Mapping::HandleKEYS(const XrdSecEntity* client, VirtualIdentity& vid)
   gidkey += "\":gid";
 
   if (gVirtualGidMap.count(gidkey.c_str())) {
-    vid.gid = 99;
+    vid.gid = VirtualIdentity::kNobodyGid;
     vid.allowed_gids.clear();
-    vid.allowed_gids.insert(99);
+    vid.allowed_gids.insert(VirtualIdentity::kNobodyGid);
     vid.gid = gVirtualGidMap[gidkey.c_str()];
     vid.allowed_gids.insert(vid.gid);
     vid.gateway = true;
@@ -1533,7 +1529,7 @@ Mapping::UserNameToUid(const std::string& username, int& errc)
   }
   char buffer[131072];
   int buflen = sizeof(buffer);
-  uid_t uid = 99;
+  uid_t uid = VirtualIdentity::kNobodyUid;
   struct passwd pwbuf;
   struct passwd* pwbufp = 0;
   errc = 0;
@@ -1556,7 +1552,7 @@ Mapping::UserNameToUid(const std::string& username, int& errc)
       return uid;
     } else {
       errc = EINVAL;
-      uid = 99;
+      uid = VirtualIdentity::kNobodyUid;
       return uid;
     }
   } else {
@@ -1597,7 +1593,7 @@ Mapping::GroupNameToGid(const std::string& groupname, int& errc)
   int buflen = sizeof(buffer);
   struct group grbuf;
   struct group* grbufp = 0;
-  gid_t gid = 99;
+  gid_t gid = VirtualIdentity::kNobodyGid;
   errc = 0;
   (void) getgrnam_r(groupname.c_str(), &grbuf, buffer, buflen, &grbufp);
 
@@ -1618,7 +1614,7 @@ Mapping::GroupNameToGid(const std::string& groupname, int& errc)
       return gid;
     } else {
       errc = EINVAL;
-      gid = 99;
+      gid = VirtualIdentity::kNobodyGid;
     }
   } else {
     gid = grbuf.gr_gid;
@@ -1725,7 +1721,7 @@ Mapping::CommaListToUidSet(const char* list, std::set<uid_t>& uids_set)
         try {
           uid = std::stoul(username);
         } catch (const std::exception& e) {
-          uid = 99;
+          uid = VirtualIdentity::kNobodyUid;
         }
       }
 
@@ -1942,8 +1938,8 @@ VirtualIdentity Mapping::Someone(uid_t uid, gid_t gid)
   int errc = 0;
   vid.uid = uid;
   vid.gid = gid;
-  vid.allowed_uids = {uid, 99};
-  vid.allowed_gids = {uid, 99};
+  vid.allowed_uids = {uid, VirtualIdentity::kNobodyUid};
+  vid.allowed_gids = {gid, VirtualIdentity::kNobodyGid};
   vid.sudoer = false;
   vid.gateway = false;
   vid.uid_string = UidToUserName(uid, errc);
@@ -2176,8 +2172,8 @@ Mapping::getPhysicalIdShards(const std::string& name, VirtualIdentity& vid)
         vid.gid = idp->gid;
         vid.allowed_uids.insert(vid.uid);
         vid.allowed_gids.insert(vid.gid);
-        vid.allowed_uids.insert(99);
-        vid.allowed_gids.insert(99);
+        vid.allowed_uids.insert(VirtualIdentity::kNobodyUid);
+        vid.allowed_gids.insert(VirtualIdentity::kNobodyGid);
         addSecondaryGroups(vid, vid.uid_string, idp->gid);
         auto gs = std::make_unique<gid_set>(vid.allowed_gids);
         eos_static_debug("adding to cache uid=%u gid=%u", idp->uid, idp->gid);
@@ -2244,7 +2240,7 @@ void
 Mapping::getPhysicalUids(const char* name, VirtualIdentity& vid)
 {
   Mapping::getPhysicalIdShards(name, vid);
-  vid.gid = g_nobody_uid;
+  vid.gid = VirtualIdentity::kNobodyGid;
   vid.allowed_gids.clear();
   vid.allowed_gids.insert(vid.gid);
 }
@@ -2257,7 +2253,7 @@ Mapping::getPhysicalGids(const char* name, VirtualIdentity& vid)
   vid.uid = uid;
   vid.allowed_uids.clear();
   vid.allowed_uids.insert(uid);
-  vid.allowed_uids.insert(g_nobody_uid);
+  vid.allowed_uids.insert(VirtualIdentity::kNobodyUid);
 }
 
 void
@@ -2268,8 +2264,8 @@ Mapping::getPhysicalUidGids(const char* name, VirtualIdentity& vid)
   vid.allowed_gids.clear();
   vid.allowed_uids.insert(vid.uid);
   vid.allowed_gids.insert(vid.gid);
-  vid.allowed_uids.insert(g_nobody_uid);
-  vid.allowed_gids.insert(g_nobody_gid);
+  vid.allowed_uids.insert(VirtualIdentity::kNobodyUid);
+  vid.allowed_gids.insert(VirtualIdentity::kNobodyGid);
 }
 
 void
@@ -2316,8 +2312,8 @@ Mapping::HandleUidGidMapping(const char* name, VirtualIdentity& vid,
       vid.uid = kv_uid->second;
       vid.allowed_uids.clear();
       vid.allowed_uids.insert(vid.uid);
-      vid.allowed_uids.insert(99);
-      vid.gid = 99;
+      vid.allowed_uids.insert(VirtualIdentity::kNobodyUid);
+      vid.gid = VirtualIdentity::kNobodyGid;
       vid.allowed_gids.clear();
       vid.allowed_gids.insert(vid.gid);
     }
