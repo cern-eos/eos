@@ -1,0 +1,93 @@
+#!/usr/bin/env python
+
+"""
+Given an X509 proxy, generate a dCache-style macaroon.
+"""
+
+from __future__ import print_function
+
+import os
+import sys
+import json
+import argparse
+
+import requests
+
+
+def parse_args():
+    """
+    Parse command line arguments to this tool
+    """
+    parser = argparse.ArgumentParser(
+                        description="Generate a macaroon for authorized transfers")
+    parser.add_argument("url", metavar="URL",
+                        help="URL to generate macaroon for.")
+    parser.add_argument("--activity", nargs="+", help="Activity for authorization (LIST,"
+                        "DOWNLOAD,UPLOAD, etc)")
+    parser.add_argument("--validity", type=int, default=10, help="Time,"
+                        "in minutes, the resulting macaroon should be valid.",
+                        required=False)
+    return parser.parse_args()
+
+
+def configure_authenticated_session():
+    """
+    Generate a new session object for use with requests to the issuer.
+
+    Configures TLS appropriately to work with a GSI environment.
+    """
+    euid = os.geteuid()
+    if euid == 0:
+        cert = '/etc/grid-security/hostcert.pem'
+        key = '/etc/grid-security/hostkey.pem'
+    else:
+        cert = '/tmp/x509up_u%d' % euid
+        key = '/tmp/x509up_u%d' % euid
+
+    cert = os.environ.get('X509_USER_PROXY', cert)
+    key = os.environ.get('X509_USER_PROXY', key)
+
+    session = requests.Session()
+
+    if os.path.exists(cert):
+        session.cert = cert
+    if os.path.exists(key):
+        session.cert = (cert, key)
+    session.verify = '/etc/grid-security/certificates'
+
+    return session
+
+
+def generate_token(url, validity, activity):
+    """
+    Call out to the macaroon issuer, using the specified validity and activity,
+    and receive a resulting token.
+    """
+    print("Querying %s for new token." % url, file=sys.stderr)
+    validity = "PT%dM" % validity
+    print("Validity: %s, activities: %s." % (validity, ", ".join(activity)),
+          file=sys.stderr)
+    data_json = {"caveats": ["activity:%s" % ",".join(activity)],
+                 "validity": validity}
+    with configure_authenticated_session() as session:
+        response = session.post(url,
+                                headers={"Content-Type": "application/macaroon-request"},
+                                data=json.dumps(data_json)
+                               )
+
+    if response.status_code == requests.codes.ok:
+        print("Successfully generated a new token:", file=sys.stderr)
+        return response.text
+    else:
+        print("Issuer failed request (status %d): %s" % (response.status_code, response.text[:2048]), file=sys.stderr)
+        sys.exit(1)
+
+
+def main():
+    args = parse_args()
+    token = generate_token(args.url, args.validity, args.activity)
+    print(token)
+
+
+if __name__ == '__main__':
+    main()
