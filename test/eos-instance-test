@@ -866,13 +866,13 @@ if [ $? -eq 0 ]; then
 # if quota is enabled
 # --------------------------
 runtest "### Chmod     " unix 0 "" eos chmod "777" "/eos/$EOS_TEST_INSTANCE/test/instancetest"
-runtest "### Quota     " unix 0 "" eos quota set -u 99 -p /eos/$EOS_TEST_INSTANCE/test -v 1T -i 1
+runtest "### Quota     " unix 0 "" eos quota set -u ${NOBODY_UID} -p /eos/$EOS_TEST_INSTANCE/test -v 1T -i 1
 runtest "### Upload    " unix 0 "" upload "/etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/instancetest/passwd.quota" "-ODeos.ruid=${NOBODY_UID}" "-DITransactionTimeout 30"
-runtest "### Quota     " unix 0 "" eos quota set -u 99 -p /eos/$EOS_TEST_INSTANCE/test -v 1T -i 1M
+runtest "### Quota     " unix 0 "" eos quota set -u ${NOBODY_UID} -p /eos/$EOS_TEST_INSTANCE/test -v 1T -i 1M
 runtest "### Upload    " unix 0 "" upload "/etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/instancetest/passwd.quota" "-ODeos.ruid=${NOBODY_UID}" "-DITransactionTimeout 30"
-runtest "### Rem      " unix 2 "" eos rm    "/eos/$EOS_TEST_INSTANCE/test/instancetest/passwd.quota"
-runtest "### Quota     " unix 0 "" eos quota set -u 99 -p /eos/$EOS_TEST_INSTANCE/test -v 1T -i 1M
-runtest "### Quota     " unix 1 "" eos quota set -u 99 -p /doesnotexist -v 1T -i 1M
+runtest "### Rem       " unix 2 "" eos rm    "/eos/$EOS_TEST_INSTANCE/test/instancetest/passwd.quota"
+runtest "### Quota     " unix 0 "" eos quota set -u ${NOBODY_UID} -p /eos/$EOS_TEST_INSTANCE/test -v 1T -i 1M
+runtest "### Quota     " unix 1 "" eos quota set -u ${NOBODY_UID} -p /doesnotexist -v 1T -i 1M
 runtest "### Quota     " unix 0 "" eos quota set -u 3 -p /eos/$EOS_TEST_INSTANCE/test -v 1T -i 1M
 runtest "### Upload    " unix 0 "" upload "$TESTSYSFILE1K" "/eos/$EOS_TEST_INSTANCE/test/instancetest/1k" "-ODeos.ruid=3" "-DITransactionTimeout 30"
 runtest "### QUpdate   " unix 0 "" eos_quota "/eos/$EOS_TEST_INSTANCE/test/" "uid=adm"
