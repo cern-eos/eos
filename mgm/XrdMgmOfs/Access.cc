@@ -159,25 +159,28 @@ XrdMgmOfs::_access(const char* path,
     eos_info("acl=%d r=%d w=%d wo=%d x=%d egroup=%d mutable=%d",
              acl.HasAcl(), acl.CanRead(), acl.CanWrite(), acl.CanWriteOnce(),
              acl.CanBrowse(), acl.HasEgroup(), acl.IsMutable());
-
     {
       // In any case, we need to check the container access, read lock it to check its access and release its lock
       // afterwards
       eos::MDLocking::ContainerReadLock dhLock(dh);
       dhMode = dh->getMode();
+
       if (!AccessChecker::checkContainer(dh.get(), acl, mode, vid)) {
         errno = EPERM;
         return Emsg(epname, error, EPERM, "access", path);
       }
     }
-    if(fh) {
+
+    if (fh) {
       // Check the file access, read lock it before and release the lock afterwards
       eos::MDLocking::FileReadLock fhLock(fh);
-      if(!AccessChecker::checkFile(fh.get(), mode, vid)) {
+
+      if (!AccessChecker::checkFile(fh.get(), mode, vid)) {
         errno = EPERM;
         return Emsg(epname, error, EPERM, "access", path);
       }
     }
+
     permok = true;
   } catch (eos::MDException& e) {
     dh.reset();
@@ -423,8 +426,10 @@ XrdMgmOfs::allow_public_access(const char* path,
     return false;
   }
 
-  // check only for anonymous access
-  if (vid.uid != 99) {
+  // Check only for anonymous access
+  // uid=99 for CentOS7
+  // uid=65534 for >= Alma 9
+  if ((vid.uid != 99) || (vid.uid = 65534)) {
     return true;
   }
 
