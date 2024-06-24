@@ -281,25 +281,31 @@ com_ls(char* arg1)
   return (0);
 com_ls_usage:
   fprintf(stdout,
-          "usage: ls [-laniyF] <path>                                             :  list directory <path>\n");
-  fprintf(stdout, "                    -l : show long listing\n");
+          "usage: ls [-laniyF] <path>\n");
+  fprintf(stdout,"list directory <path>\n\n");
   fprintf(stdout,
-          "                    -y : show long listing with backend(tape) status\n");
+          "  -l : show long listing\n");
   fprintf(stdout,
-          "                    -lh: show long listing with readable sizes\n");
-  fprintf(stdout, "                    -a : show hidden files\n");
-  fprintf(stdout, "                    -i : add inode information\n");
-  fprintf(stdout, "                    -c : add checksum value\n");
-  fprintf(stdout, "                    -n : show numerical user/group ids\n");
+          "  -y : show long listing with backend(tape) status\n");
   fprintf(stdout,
-          "                    -F : append indicator '/' to directories \n");
+          "  -lh: show long listing with readable sizes\n");
   fprintf(stdout,
-          "                    -s : checks only if the directory exists without listing\n");
-  fprintf(stdout, "         path=file:... : list on a local file system\n");
+          "  -a : show hidden files\n");
   fprintf(stdout,
-          "         path=root:... : list on a plain XRootD server (does not work on native XRootD clusters\n");
+          "  -i : add inode information\n");
   fprintf(stdout,
-          "         path=...      : all other paths are considered to be EOS paths!\n");
+          "  -c : add checksum value\n");
+  fprintf(stdout,
+          "  -n : show numerical user/group ids\n");
+  fprintf(stdout,
+          "  -F : append indicator '/' to directories \n");
+  fprintf(stdout,
+          "  -s : checks only if the directory exists without listing\n");
+  fprintf(stdout, "         path=file:... : list on a local file system\n\n");
+  fprintf(stdout,
+          "path=root:... : list on a plain XRootD server (does not work on native XRootD clusters\n");
+  fprintf(stdout,
+          "path=...      : all other paths are considered to be EOS paths!\n");
   global_retc = EINVAL;
   return (0);
 }
