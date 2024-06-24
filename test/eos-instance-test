@@ -45,7 +45,8 @@ export EOS_TEST_TESTTIMESLICE=900
 export EOS_HTTPS_PORT="$(grep -oP 'XrdHttp:\K(\d+)' /etc/xrd.cf.mgm)"
 firsttest=$1
 lasttest=$2
-
+NOBODY_UID=$(id -u nobody)
+NOBODY_GID=$(id -g nobody)
 
 ################################################################################
 # COLOR FUNCTIONS
@@ -669,7 +670,7 @@ runtest "### Upload    " unix 0 "" upload    "/etc/passwd" "/eos/$EOS_TEST_INSTA
 runtest "### Upload    " unix 0 "XRD_METALINKPROCESSING=0" download  "$EOS_TEST_TESTSYS/dumpit" "/eos/$EOS_TEST_INSTANCE/test/instancetest/file.meta4"
 runtest "### Rem       " unix 0 "" eos rm "/eos/$EOS_TEST_INSTANCE/test/instancetest/file.meta4"
 runtest "### Chmod     " unix 0 "" eos chmod "755" "/eos/$EOS_TEST_INSTANCE/test/instancetest"
-runtest "### Rename    " unix 1 "EOSROLE='-r 99 99'" eos file rename /eos/$EOS_TEST_INSTANCE/test/instancetest/passwd /eos/$EOS_TEST_INSTANCE/test/instancetest/passwd.rename
+runtest "### Rename    " unix 1 "EOSROLE='-r ${NOBODY_UID} ${NOBODY_GID}'" eos file rename /eos/$EOS_TEST_INSTANCE/test/instancetest/passwd /eos/$EOS_TEST_INSTANCE/test/instancetest/passwd.rename
 runtest "### Chmod     " unix 0 "" eos chmod "777" "/eos/$EOS_TEST_INSTANCE/test/instancetest"
 runtest "### Rename    " unix 0 "" eos file rename /eos/$EOS_TEST_INSTANCE/test/instancetest/passwd /eos/$EOS_TEST_INSTANCE/test/instancetest/passwd.rename
 
@@ -820,7 +821,7 @@ runtest "### Access    " unix 1 "" eos "access ls | grep nobody"
 # Access stall
 runtest "### Access    " unix 0 "" eos "access set stall 1 r"
 runtest "### Download  " unix 0 "" download  "$EOS_TEST_TESTSYS/dumpit" "/eos/$EOS_TEST_INSTANCE/test/instancetest/passwd"
-runtest "### Download  " unix 1 "" eosssh-timeout -t 3 download  "$EOS_TEST_TESTSYS/dumpit" "/eos/$EOS_TEST_INSTANCE/test/instancetest/passwd" "-OSeos.ruid=99"
+runtest "### Download  " unix 1 "" eosssh-timeout -t 3 download  "$EOS_TEST_TESTSYS/dumpit" "/eos/$EOS_TEST_INSTANCE/test/instancetest/passwd" "-OSeos.ruid=${NOBODY_UID}"
 runtest "### Access    " unix 0 "" eos "access ls | grep \"r:\* => 1\""
 runtest "### Access    " unix 0 "" eos "access rm stall r"
 runtest "### Access    " unix 1 "" eos "access ls | grep \"r:\* => 1\""
@@ -834,12 +835,12 @@ runtest "### Rm        " unix 0 "" eos "rm /eos/$EOS_TEST_INSTANCE/test/instance
 # Access whitelist domain
 runtest "### Access    " unix 0 "" eos "access allow user bin"
 runtest "### Ls        " unix 0 "EOSROLE='-r 1 1'" eos ls /eos/$EOS_TEST_INSTANCE/
-runtest "### Ls        " unix 1 "EOSROLE='-r 99 99'" eos ls /eos/$EOS_TEST_INSTANCE/
+runtest "### Ls        " unix 1 "EOSROLE='-r ${NOBODY_UID} ${NOBODY_GID}'" eos ls /eos/$EOS_TEST_INSTANCE/
 runtest "### Access    " unix 0 "" eos "access ls | grep bin"
 runtest "### Access    " unix 0 "" eos "access unallow user bin"
 runtest "### Ls        " unix 0 "EOSROLE='-r 1 1'" eos ls /eos/$EOS_TEST_INSTANCE/test
 runtest "### Access    " unix 0 "" eos "access allow user bin"
-runtest "### Ls        " unix 1 "EOSROLE='-r 99 99'" eos ls /eos/$EOS_TEST_INSTANCE/
+runtest "### Ls        " unix 1 "EOSROLE='-r ${NOBODY_UID} ${NOBODY_GID}'" eos ls /eos/$EOS_TEST_INSTANCE/
 runtest "### Access    " unix 0 "" eos "access allow domain nobody@localdomain"
 runtest "### Ls        " unix 1 shell runuser -u nobody eos ls /eos/$EOS_TEST_INSTANCE/
 runtest "### Access    " unix 0 "" eos "access allow domain -"
@@ -866,9 +867,9 @@ if [ $? -eq 0 ]; then
 # --------------------------
 runtest "### Chmod     " unix 0 "" eos chmod "777" "/eos/$EOS_TEST_INSTANCE/test/instancetest"
 runtest "### Quota     " unix 0 "" eos quota set -u 99 -p /eos/$EOS_TEST_INSTANCE/test -v 1T -i 1
-runtest "### Upload    " unix 0 "" upload "/etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/instancetest/passwd.quota" "-ODeos.ruid=99" "-DITransactionTimeout 30"
+runtest "### Upload    " unix 0 "" upload "/etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/instancetest/passwd.quota" "-ODeos.ruid=${NOBODY_UID}" "-DITransactionTimeout 30"
 runtest "### Quota     " unix 0 "" eos quota set -u 99 -p /eos/$EOS_TEST_INSTANCE/test -v 1T -i 1M
-runtest "### Upload    " unix 0 "" upload "/etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/instancetest/passwd.quota" "-ODeos.ruid=99" "-DITransactionTimeout 30"
+runtest "### Upload    " unix 0 "" upload "/etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/instancetest/passwd.quota" "-ODeos.ruid=${NOBODY_UID}" "-DITransactionTimeout 30"
 runtest "### Rem      " unix 2 "" eos rm    "/eos/$EOS_TEST_INSTANCE/test/instancetest/passwd.quota"
 runtest "### Quota     " unix 0 "" eos quota set -u 99 -p /eos/$EOS_TEST_INSTANCE/test -v 1T -i 1M
 runtest "### Quota     " unix 1 "" eos quota set -u 99 -p /doesnotexist -v 1T -i 1M
@@ -1096,20 +1097,20 @@ runtest "### Chmod     " unix 0 "" eos chmod "750" "/eos/$EOS_TEST_INSTANCE/test
 runtest "### Chown     " unix 0 "" eos chown 0:0 "/eos/$EOS_TEST_INSTANCE/test/instancetest/findtest"
 runtest "### Chown     " unix 0 "" eos chown 0:0 "/eos/$EOS_TEST_INSTANCE/test/instancetest/findtest/a"
 runtest "### Chown     " unix 0 "" eos chown 0:0 "/eos/$EOS_TEST_INSTANCE/test/instancetest/findtest/b"
-runtest "### Chown     " unix 0 "" eos chown 99:99 "/eos/$EOS_TEST_INSTANCE/test/instancetest/findtest/c"
+runtest "### Chown     " unix 0 "" eos chown ${NOBODY_UID}:${NOBODY_GID} "/eos/$EOS_TEST_INSTANCE/test/instancetest/findtest/c"
 runtest "### Chown     " unix 0 "" eos chown 0:0 "/eos/$EOS_TEST_INSTANCE/test/instancetest/findtest/a.txt"
 runtest "### Chown     " unix 0 "" eos chown 0:0 "/eos/$EOS_TEST_INSTANCE/test/instancetest/findtest/b.txt"
-runtest "### Chown     " unix 0 "" eos chown 99:99 "/eos/$EOS_TEST_INSTANCE/test/instancetest/findtest/c.txt"
+runtest "### Chown     " unix 0 "" eos chown ${NOBODY_UID}:${NOBODY_GID} "/eos/$EOS_TEST_INSTANCE/test/instancetest/findtest/c.txt"
 runtest "### Find      " unix 0 "" eos find -d -flag 750 "/eos/$EOS_TEST_INSTANCE/test/instancetest/findtest | wc -l | grep -w 1"
 runtest "### Find      " unix 0 "" eos find -d -nflag 750 "/eos/$EOS_TEST_INSTANCE/test/instancetest/findtest | wc -l | grep -w 3"
-runtest "### Find      " unix 0 "" eos find -d -uid 99 "/eos/$EOS_TEST_INSTANCE/test/instancetest/findtest | wc -l | grep -w 1"
-runtest "### Find      " unix 0 "" eos find -d -nuid 99 "/eos/$EOS_TEST_INSTANCE/test/instancetest/findtest | wc -l | grep -w 3"
-runtest "### Find      " unix 0 "" eos find -d -gid 99 "/eos/$EOS_TEST_INSTANCE/test/instancetest/findtest | wc -l | grep -w 1"
-runtest "### Find      " unix 0 "" eos find -d -ngid 99 "/eos/$EOS_TEST_INSTANCE/test/instancetest/findtest | wc -l | grep -w 3"
-runtest "### Find      " unix 0 "" eos find -f -uid 99 "/eos/$EOS_TEST_INSTANCE/test/instancetest/findtest | wc -l | grep -w 1"
-runtest "### Find      " unix 0 "" eos find -f -nuid 99 "/eos/$EOS_TEST_INSTANCE/test/instancetest/findtest | wc -l | grep -w 2"
-runtest "### Find      " unix 0 "" eos find -f -gid 99 "/eos/$EOS_TEST_INSTANCE/test/instancetest/findtest | wc -l | grep -w 1"
-runtest "### Find      " unix 0 "" eos find -f -ngid 99 "/eos/$EOS_TEST_INSTANCE/test/instancetest/findtest | wc -l | grep -w 2"
+runtest "### Find      " unix 0 "" eos find -d -uid ${NOBODY_UID} "/eos/$EOS_TEST_INSTANCE/test/instancetest/findtest | wc -l | grep -w 1"
+runtest "### Find      " unix 0 "" eos find -d -nuid ${NOBODY_UID} "/eos/$EOS_TEST_INSTANCE/test/instancetest/findtest | wc -l | grep -w 3"
+runtest "### Find      " unix 0 "" eos find -d -gid ${NOBODY_GID} "/eos/$EOS_TEST_INSTANCE/test/instancetest/findtest | wc -l | grep -w 1"
+runtest "### Find      " unix 0 "" eos find -d -ngid ${NOBODY_GID} "/eos/$EOS_TEST_INSTANCE/test/instancetest/findtest | wc -l | grep -w 3"
+runtest "### Find      " unix 0 "" eos find -f -uid ${NOBODY_UID} "/eos/$EOS_TEST_INSTANCE/test/instancetest/findtest | wc -l | grep -w 1"
+runtest "### Find      " unix 0 "" eos find -f -nuid ${NOBODY_UID} "/eos/$EOS_TEST_INSTANCE/test/instancetest/findtest | wc -l | grep -w 2"
+runtest "### Find      " unix 0 "" eos find -f -gid ${NOBODY_GID} "/eos/$EOS_TEST_INSTANCE/test/instancetest/findtest | wc -l | grep -w 1"
+runtest "### Find      " unix 0 "" eos find -f -ngid ${NOBODY_GID} "/eos/$EOS_TEST_INSTANCE/test/instancetest/findtest | wc -l | grep -w 2"
 runtest "### Attr Set  " unix 0 "" eos attr set sys.test=abc "/eos/$EOS_TEST_INSTANCE/test/instancetest/findtest/a.txt"
 runtest "### Attr Set  " unix 0 "" eos attr set sys.test=def "/eos/$EOS_TEST_INSTANCE/test/instancetest/findtest/b.txt"
 runtest "### Attr Set  " unix 0 "" eos attr set sys.test=def "/eos/$EOS_TEST_INSTANCE/test/instancetest/findtest/c.txt"
@@ -1131,14 +1132,14 @@ categorie="wfe"
 runtest "### Space     " unix 0 "" eos space config "default space.wfe=on"
 runtest "### Mkdir     " unix 0 "" eos mkdir "/eos/$EOS_TEST_INSTANCE/test/instancetest/wfe"
 runtest "### Touch     " unix 0 "" eos touch "/eos/$EOS_TEST_INSTANCE/test/instancetest/wfe/test1.dat"
-runtest "### Prepare   " unix 0 "" meta prepare "/eos/$EOS_TEST_INSTANCE/test/instancetest/wfe/test1.dat\?eos.ruid=99\&eos.rgid=99 | wc -l | grep -w 0"
+runtest "### Prepare   " unix 0 "" meta prepare "/eos/$EOS_TEST_INSTANCE/test/instancetest/wfe/test1.dat\?eos.ruid=${NOBODY_UID}\&eos.rgid=${NOBODY_GID} | wc -l | grep -w 0"
 runtest "### Chmod     " unix 0 "" eos chmod "755" "/eos/$EOS_TEST_INSTANCE/test/instancetest/wfe"
-runtest "### Attr      " unix 0 "" eos attr set sys.acl=u:99:p "/eos/$EOS_TEST_INSTANCE/test/instancetest/wfe"
+runtest "### Attr      " unix 0 "" eos attr set sys.acl=u:${NOBODY_UID}:p "/eos/$EOS_TEST_INSTANCE/test/instancetest/wfe"
 runtest "### Attr      " unix 0 "" eos attr set sys.workflow.sync::prepare.default=test "/eos/$EOS_TEST_INSTANCE/test/instancetest/wfe"
-runtest "### Prepare   " unix 0 "" meta prepare "/eos/$EOS_TEST_INSTANCE/test/instancetest/wfe/test1.dat\?eos.ruid=99\&eos.rgid=99"
+runtest "### Prepare   " unix 0 "" meta prepare "/eos/$EOS_TEST_INSTANCE/test/instancetest/wfe/test1.dat\?eos.ruid=${NOBODY_UID}\&eos.rgid=${NOBODY_GID}"
 runtest "### Chmod     " unix 0 "" eos chmod "777" "/eos/$EOS_TEST_INSTANCE/test/instancetest/wfe"
-runtest "### Attr      " unix 0 "" eos attr set sys.acl=u:99:p "/eos/$EOS_TEST_INSTANCE/test/instancetest/wfe"
-runtest "### Prepare   " unix 0 "" meta prepare "/eos/$EOS_TEST_INSTANCE/test/instancetest/wfe/test1.dat\?eos.ruid=99\&eos.rgid=99"
+runtest "### Attr      " unix 0 "" eos attr set sys.acl=u:${NOBODY_UID}:p "/eos/$EOS_TEST_INSTANCE/test/instancetest/wfe"
+runtest "### Prepare   " unix 0 "" meta prepare "/eos/$EOS_TEST_INSTANCE/test/instancetest/wfe/test1.dat\?eos.ruid=${NOBODY_UID}\&eos.rgid=${NOBODY_GID}"
 runtest "### Attr      " unix 0 "" eos attr rm sys.acl "/eos/$EOS_TEST_INSTANCE/test/instancetest/wfe"
 runtest "### Prepare   " unix 0 "" meta prepare "/eos/$EOS_TEST_INSTANCE/test/instancetest/wfe/test1.dat\?eos.ruid=0\&eos.rgid=0"
 runtest "### Space     " unix 0 "" eos space config "default space.wfe=off"
@@ -1171,13 +1172,13 @@ runtest "### Chown   " unix 0 "" eos chown 2:2   "/eos/$EOS_TEST_INSTANCE/test/a
 runtest "### Chmod   " unix 0 "" eos chmod "700" "/eos/$EOS_TEST_INSTANCE/test/acl"
 runtest "### Upload  " unix 0 "EOSROLE='-r 2 2'"   eos cp "/etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/acl/file.dat"
 runtest "### Download" unix 0 "EOSROLE='-r 2 2'"   eos cp "/eos/$EOS_TEST_INSTANCE/test/acl/file.dat" -
-runtest "### Download" unix 1 "EOSROLE='-r 99 99'" eos cp "/eos/$EOS_TEST_INSTANCE/test/acl/file.dat" -
-runtest "### Acl set " unix 0 "" eos acl u:99=rw "/eos/$EOS_TEST_INSTANCE/test/acl"
-runtest "### Download" unix 0 "EOSROLE='-r  99  99'" eos cp "/eos/$EOS_TEST_INSTANCE/test/acl/file.dat" -
+runtest "### Download" unix 1 "EOSROLE='-r ${NOBODY_UID} ${NOBODY_GID}'" eos cp "/eos/$EOS_TEST_INSTANCE/test/acl/file.dat" -
+runtest "### Acl set " unix 0 "" eos acl u:${NOBODY_UID}=rw "/eos/$EOS_TEST_INSTANCE/test/acl"
+runtest "### Download" unix 0 "EOSROLE='-r  ${NOBODY_UID}  ${NOBODY_GID}'" eos cp "/eos/$EOS_TEST_INSTANCE/test/acl/file.dat" -
 runtest "### Download" unix 1 "EOSROLE='-r 985 979'" eos cp "/eos/$EOS_TEST_INSTANCE/test/acl/file.dat" -
 runtest "### Acl set " unix 0 "" eos acl u:985=rw "/eos/$EOS_TEST_INSTANCE/test/acl/file.dat"
 runtest "### Download" unix 0 "EOSROLE='-r 985 970'" eos cp "/eos/$EOS_TEST_INSTANCE/test/acl/file.dat" -
-runtest "### Download" unix 0 "EOSROLE='-r  99  99'" eos cp "/eos/$EOS_TEST_INSTANCE/test/acl/file.dat" -
+runtest "### Download" unix 0 "EOSROLE='-r  ${NOBODY_UID}  ${NOBODY_GID}'" eos cp "/eos/$EOS_TEST_INSTANCE/test/acl/file.dat" -
 runtest "### Rmdir   " unix 0 "" eos rm -rf "/eos/$EOS_TEST_INSTANCE/test/acl"
 
 ################################################################################
@@ -1215,15 +1216,15 @@ runtest "### Mkdir    " unix 0 "" eos mkdir -p /eos/$EOS_TEST_INSTANCE/test/inst
 runtest "### Chmod    " unix 0 "" eos chmod "777" "/eos/$EOS_TEST_INSTANCE/test/instancetest/public/"
 runtest "### Upload   " unix 0 "" upload    "/etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/instancetest/public/p1" "-ODeos.space=default"
 runtest "### Vid      " unix 0 "" eos vid publicaccesslevel 2
-runtest "### Rm       " unix 1 "EOSROLE='-r 99 99'" eos rm "/eos/$EOS_TEST_INSTANCE/test/instancetest/public/p1"
+runtest "### Rm       " unix 1 "EOSROLE='-r ${NOBODY_UID} ${NOBODY_GID}'" eos rm "/eos/$EOS_TEST_INSTANCE/test/instancetest/public/p1"
 runtest "### Rm       " unix 0 "" eos rm "/eos/$EOS_TEST_INSTANCE/test/instancetest/public/p1"
-runtest "### Rmdir    " unix 1 "EOSROLE='-r 99 99'" eos rmdir /eos/$EOS_TEST_INSTANCE/test/instancetest/public
-runtest "### Ls       " unix 1 "EOSROLE='-r 99 99'" eos ls "/eos/$EOS_TEST_INSTANCE/test/"
+runtest "### Rmdir    " unix 1 "EOSROLE='-r ${NOBODY_UID} ${NOBODY_GID}'" eos rmdir /eos/$EOS_TEST_INSTANCE/test/instancetest/public
+runtest "### Ls       " unix 1 "EOSROLE='-r ${NOBODY_UID} ${NOBODY_GID}'" eos ls "/eos/$EOS_TEST_INSTANCE/test/"
 runtest "### Ls       " unix 0 "" eos ls -l "/eos/$EOS_TEST_INSTANCE/test/"
-runtest "### Find     " unix 1 "EOSROLE='-r 99 99'" eos find "/eos/$EOS_TEST_INSTANCE/test/"
+runtest "### Find     " unix 1 "EOSROLE='-r ${NOBODY_UID} ${NOBODY_GID}'" eos find "/eos/$EOS_TEST_INSTANCE/test/"
 runtest "### Vid      " unix 0 "" eos vid publicaccesslevel 1024
-runtest "### Ls       " unix 0 "EOSROLE='-r 99 99'" eos ls "/eos/$EOS_TEST_INSTANCE/test/"
-runtest "### Find     " unix 0 "EOSROLE='-r 99 99'" eos find "/eos/$EOS_TEST_INSTANCE/test/"
+runtest "### Ls       " unix 0 "EOSROLE='-r ${NOBODY_UID} ${NOBODY_GID}'" eos ls "/eos/$EOS_TEST_INSTANCE/test/"
+runtest "### Find     " unix 0 "EOSROLE='-r ${NOBODY_UID} ${NOBODY_GID}'" eos find "/eos/$EOS_TEST_INSTANCE/test/"
 runtest "### Rmdir    " unix 0 "" eos rmdir /eos/$EOS_TEST_INSTANCE/test/instancetest/public
 
 ################################################################################
@@ -1301,36 +1302,36 @@ runtest "### Cd        " unix 0 "" eos cd /eos/$EOS_TEST_INSTANCE/test
 runtest "### Ls        " unix 1 "" eos ls /__dont_exist
 
 runtest "### Chmod     " unix 0 "" eos chmod 700 /eos/$EOS_TEST_INSTANCE/test/instancetest/
-runtest "### Ls        " unix 1 "EOSROLE='-r 99 99'" eos ls /eos/$EOS_TEST_INSTANCE/test/instancetest/
+runtest "### Ls        " unix 1 "EOSROLE='-r ${NOBODY_UID} ${NOBODY_GID}'" eos ls /eos/$EOS_TEST_INSTANCE/test/instancetest/
 runtest "### Ls        " unix 0 "" eos ls /eos/$EOS_TEST_INSTANCE/test/instancetest/
 runtest "### Attr      " unix 1 "" eos attr set sys.acl=illegal /eos/$EOS_TEST_INSTANCE/test/instancetest/
 runtest "### Attr      " unix 0 "" eos attr set sys.acl=u:nobody:rx /eos/$EOS_TEST_INSTANCE/test/instancetest/
-runtest "### Ls        " unix 0 "EOSROLE='-r 99 99'" eos ls /eos/$EOS_TEST_INSTANCE/test/instancetest/
-runtest "### Upload    " unix 1 "" upload    "$TESTSYSFILE1K" "/eos/$EOS_TEST_INSTANCE/test/instancetest/file.1k" "-ODeos.ruid=99\&eos.rgid=99"
+runtest "### Ls        " unix 0 "EOSROLE='-r ${NOBODY_UID} ${NOBODY_GID}'" eos ls /eos/$EOS_TEST_INSTANCE/test/instancetest/
+runtest "### Upload    " unix 1 "" upload    "$TESTSYSFILE1K" "/eos/$EOS_TEST_INSTANCE/test/instancetest/file.1k" "-ODeos.ruid=${NOBODY_UID}\&eos.rgid=${NOBODY_GID}"
 runtest "### Attr      " unix 0 "" eos attr set sys.acl=u:nobody:rwox /eos/$EOS_TEST_INSTANCE/test/instancetest/
-runtest "### Upload    " unix 0 "" upload    "$TESTSYSFILE1K" "/eos/$EOS_TEST_INSTANCE/test/instancetest/file.1k" "-ODeos.ruid=99\&eos.rgid=99"
-runtest "### Upload    " unix 1 "" upload    "$TESTSYSFILE1K" "/eos/$EOS_TEST_INSTANCE/test/instancetest/file.1k" "-ODeos.ruid=99\&eos.rgid=99"
-runtest "### Rm        " unix 1 "EOSROLE='-r 99 99'" eos rm /eos/$EOS_TEST_INSTANCE/test/instancetest/file.1k
+runtest "### Upload    " unix 0 "" upload    "$TESTSYSFILE1K" "/eos/$EOS_TEST_INSTANCE/test/instancetest/file.1k" "-ODeos.ruid=${NOBODY_UID}\&eos.rgid=${NOBODY_GID}"
+runtest "### Upload    " unix 1 "" upload    "$TESTSYSFILE1K" "/eos/$EOS_TEST_INSTANCE/test/instancetest/file.1k" "-ODeos.ruid=${NOBODY_UID}\&eos.rgid=${NOBODY_GID}"
+runtest "### Rm        " unix 1 "EOSROLE='-r ${NOBODY_UID} ${NOBODY_GID}'" eos rm /eos/$EOS_TEST_INSTANCE/test/instancetest/file.1k
 runtest "### Attr      " unix 0 "" eos attr set sys.acl=u:nobody:rwx,u:100:rwx /eos/$EOS_TEST_INSTANCE/test/instancetest/
-runtest "### Upload    " unix 0 "" upload    "$TESTSYSFILE1K" "/eos/$EOS_TEST_INSTANCE/test/instancetest/file.1k" "-ODeos.ruid=99\&eos.rgid=99"
+runtest "### Upload    " unix 0 "" upload    "$TESTSYSFILE1K" "/eos/$EOS_TEST_INSTANCE/test/instancetest/file.1k" "-ODeos.ruid=${NOBODY_UID}\&eos.rgid=${NOBODY_GID}"
 runtest "### Upload    " unix 0 "" upload    "$TESTSYSFILE1K" "/eos/$EOS_TEST_INSTANCE/test/instancetest/file.100.1k" "-ODeos.ruid=100\&eos.rgid=100"
 runtest "### Chmod     " unix 0 "" eos chmod 777 /eos/$EOS_TEST_INSTANCE/test/instancetest/
 runtest "### Attr      " unix 0 "" eos attr set sys.acl=u:nobody:rwox /eos/$EOS_TEST_INSTANCE/test/instancetest/
-runtest "### Rm        " unix 1 "EOSROLE='-r 99 99'" eos rm /eos/$EOS_TEST_INSTANCE/test/instancetest/file.1k
+runtest "### Rm        " unix 1 "EOSROLE='-r ${NOBODY_UID} ${NOBODY_GID}'" eos rm /eos/$EOS_TEST_INSTANCE/test/instancetest/file.1k
 runtest "### Attr      " unix 0 "" eos attr set sys.acl=u:nobody:rwx!d /eos/$EOS_TEST_INSTANCE/test/instancetest/
-runtest "### Rm        " unix 1 "EOSROLE='-r 99 99'" eos rm /eos/$EOS_TEST_INSTANCE/test/instancetest/file.100.1k
-runtest "### Rm        " unix 0 "EOSROLE='-r 99 99'" eos rm /eos/$EOS_TEST_INSTANCE/test/instancetest/file.1k
+runtest "### Rm        " unix 1 "EOSROLE='-r ${NOBODY_UID} ${NOBODY_GID}'" eos rm /eos/$EOS_TEST_INSTANCE/test/instancetest/file.100.1k
+runtest "### Rm        " unix 0 "EOSROLE='-r ${NOBODY_UID} ${NOBODY_GID}'" eos rm /eos/$EOS_TEST_INSTANCE/test/instancetest/file.1k
 runtest "### Attr      " unix 0 "" eos attr set sys.acl=u:100:rwx+d,g:nobody:rwx!d /eos/$EOS_TEST_INSTANCE/test/instancetest/
-runtest "### Rm        " unix 0 "EOSROLE='-r 100 99'" eos rm /eos/$EOS_TEST_INSTANCE/test/instancetest/file.100.1k
+runtest "### Rm        " unix 0 "EOSROLE='-r 100 ${NOBODY_GID}'" eos rm /eos/$EOS_TEST_INSTANCE/test/instancetest/file.100.1k
 runtest "### Attr      " unix 0 "" eos attr rm sys.acl /eos/$EOS_TEST_INSTANCE/test/instancetest/
 runtest "### Attr      " unix 0 "" eos attr set sys.acl=u:nobody:rwx!u /eos/$EOS_TEST_INSTANCE/test/instancetest
-runtest "### Upload    " unix 0 "" upload    "$TESTSYSFILE1K" "/eos/$EOS_TEST_INSTANCE/test/instancetest/file.1k" "-ODeos.ruid=99\&eos.rgid=99"
-runtest "### Update    " unix 1 "" append    "$TESTSYSFILE1K" "/eos/$EOS_TEST_INSTANCE/test/instancetest/file.1k\?eos.ruid=99\&eos.rgid=99"
+runtest "### Upload    " unix 0 "" upload    "$TESTSYSFILE1K" "/eos/$EOS_TEST_INSTANCE/test/instancetest/file.1k" "-ODeos.ruid=${NOBODY_UID}\&eos.rgid=${NOBODY_GID}"
+runtest "### Update    " unix 1 "" append    "$TESTSYSFILE1K" "/eos/$EOS_TEST_INSTANCE/test/instancetest/file.1k\?eos.ruid=${NOBODY_UID}\&eos.rgid=${NOBODY_GID}"
 runtest "### Chmod     " unix 0 "" eos chmod 755 /eos/$EOS_TEST_INSTANCE/test/instancetest/
 runtest "### Attr      " unix 0 "" eos attr rm sys.acl /eos/$EOS_TEST_INSTANCE/test/instancetest/
 runtest "### Attr      " unix 0 "" eos attr set sys.eval.useracl=1 /eos/$EOS_TEST_INSTANCE/test/instancetest/
 
-# "runtest H" with sss-auth secures "not sudoer" and group list contains 99 where needed... without H the former fails, with unix-auth the latter (gids=[2] hence hasAcl=0)
+# "runtest H" with sss-auth secures "not sudoer" and group list contains ${NOBODY_UID} where needed... without H the former fails, with unix-auth the latter (gids=[2] hence hasAcl=0)
 # ACL impact: no ACL or user neither granted nor denied -> dir mode bits
 # ACL denials: override except for u/d for file owner
 
@@ -1339,98 +1340,98 @@ runtest   "### Chown     " unix 0 "" eos chown daemon /eos/$EOS_TEST_INSTANCE/te
 runtest   "### Chown     " unix 0 "" eos chown daemon /eos/$EOS_TEST_INSTANCE/test/instancetest/file.1k
 # most frequent case, file/dir without ACL mode bits decide
 runtest   "### Chmod     " unix 0 "" eos chmod 777 /eos/$EOS_TEST_INSTANCE/test/instancetest
-runtest H "### Update    " sss  0 "" append "/eos/$EOS_TEST_INSTANCE/test/instancetest/file.1k\?eos.ruid=99\&eos.rgid=99"   # no ACL, dir mode bits allow (o=rw)
+runtest H "### Update    " sss  0 "" append "/eos/$EOS_TEST_INSTANCE/test/instancetest/file.1k\?eos.ruid=${NOBODY_UID}\&eos.rgid=${NOBODY_GID}"   # no ACL, dir mode bits allow (o=rw)
 runtest   "### Chmod     " unix 0 "" eos chmod 755 /eos/$EOS_TEST_INSTANCE/test/instancetest
-runtest H "### Update    " sss  1 "" append "/eos/$EOS_TEST_INSTANCE/test/instancetest/file.1k\?eos.ruid=99\&eos.rgid=99"   # fail: no ACL, dir mode bits deny
+runtest H "### Update    " sss  1 "" append "/eos/$EOS_TEST_INSTANCE/test/instancetest/file.1k\?eos.ruid=${NOBODY_UID}\&eos.rgid=${NOBODY_GID}"   # fail: no ACL, dir mode bits deny
 runtest   "### Chmod     " unix 0 "" eos chmod 775 /eos/$EOS_TEST_INSTANCE/test/instancetest
-runtest H "### Update    " sss  1 "" append "/eos/$EOS_TEST_INSTANCE/test/instancetest/file.1k\?eos.ruid=99\&eos.rgid=99"   # fail: no ACL, dir mode bits deny (g=rw but not group)
-runtest   "### Chown     " unix 0 "" eos chown 2:99 /eos/$EOS_TEST_INSTANCE/test/instancetest
-runtest H "### Update    " sss  0 "" append "/eos/$EOS_TEST_INSTANCE/test/instancetest/file.1k\?eos.ruid=99\&eos.rgid=99"   # no ACL, dir mode bits allow (g=rw same group)
-runtest   "### Chown     " unix 0 "" eos chown 99:2 /eos/$EOS_TEST_INSTANCE/test/instancetest
-runtest H "### Update    " sss  0 "" append "/eos/$EOS_TEST_INSTANCE/test/instancetest/file.1k\?eos.ruid=99\&eos.rgid=99"   # no ACL, dir mode bits allow (u=rw same user)
+runtest H "### Update    " sss  1 "" append "/eos/$EOS_TEST_INSTANCE/test/instancetest/file.1k\?eos.ruid=${NOBODY_UID}\&eos.rgid=${NOBODY_GID}"   # fail: no ACL, dir mode bits deny (g=rw but not group)
+runtest   "### Chown     " unix 0 "" eos chown 2:${NOBODY_GID} /eos/$EOS_TEST_INSTANCE/test/instancetest
+runtest H "### Update    " sss  0 "" append "/eos/$EOS_TEST_INSTANCE/test/instancetest/file.1k\?eos.ruid=${NOBODY_UID}\&eos.rgid=${NOBODY_GID}"   # no ACL, dir mode bits allow (g=rw same group)
+runtest   "### Chown     " unix 0 "" eos chown ${NOBODY_UID}:2 /eos/$EOS_TEST_INSTANCE/test/instancetest
+runtest H "### Update    " sss  0 "" append "/eos/$EOS_TEST_INSTANCE/test/instancetest/file.1k\?eos.ruid=${NOBODY_UID}\&eos.rgid=${NOBODY_GID}"   # no ACL, dir mode bits allow (u=rw same user)
 
 runtest   "### Chown     " unix 0 "" eos chown 2:2 /eos/$EOS_TEST_INSTANCE/test/instancetest
-runtest H "### Rm        " sss  1 "EOSROLE='-r 99 99'" eos rm /eos/$EOS_TEST_INSTANCE/test/instancetest/file.1k     # fail: dir not owned, no ACL
+runtest H "### Rm        " sss  1 "EOSROLE='-r ${NOBODY_UID} ${NOBODY_GID}'" eos rm /eos/$EOS_TEST_INSTANCE/test/instancetest/file.1k     # fail: dir not owned, no ACL
 runtest   "### Attr      " unix 0 "" eos attr set user.acl=u:nobody:rwx!d /eos/$EOS_TEST_INSTANCE/test/instancetest
-runtest H "### Rm        " sss  1 "EOSROLE='-r 99 99'" eos rm /eos/$EOS_TEST_INSTANCE/test/instancetest/file.1k     # fail: dir not owned, ACL denies delete
+runtest H "### Rm        " sss  1 "EOSROLE='-r ${NOBODY_UID} ${NOBODY_GID}'" eos rm /eos/$EOS_TEST_INSTANCE/test/instancetest/file.1k     # fail: dir not owned, ACL denies delete
 runtest H "### Attr      " unix 0 "" eos whoami         # running as user 2:2
 runtest   "### Mkdir     " unix 0 "" eos mkdir /eos/$EOS_TEST_INSTANCE/test/instancetest/testAcl
 runtest   "### Chown     " unix 0 "" eos chown 1:1 /eos/$EOS_TEST_INSTANCE/test/instancetest/testAcl
 runtest   "### Attr      " unix 0 "" eos attr set user.acl=u:2:rwxc /eos/$EOS_TEST_INSTANCE/test/instancetest/testAcl       # the 'c'-right should be ignored on user.acl
-runtest H "### Chown     " sss  1 "" eos chown 99 /eos/$EOS_TEST_INSTANCE/test/instancetest/testAcl                         # fail: 'c' must only effective in sys.acl
+runtest H "### Chown     " sss  1 "" eos chown ${NOBODY_UID} /eos/$EOS_TEST_INSTANCE/test/instancetest/testAcl                         # fail: 'c' must only effective in sys.acl
 runtest   "### Attr      " unix 0 "" eos attr set sys.acl=u:2:c /eos/$EOS_TEST_INSTANCE/test/instancetest/testAcl
-runtest H "### Chown     " sss  0 "" eos chown 99 /eos/$EOS_TEST_INSTANCE/test/instancetest/testAcl                         # should work with 'c' in sys.acl
+runtest H "### Chown     " sss  0 "" eos chown ${NOBODY_UID} /eos/$EOS_TEST_INSTANCE/test/instancetest/testAcl                         # should work with 'c' in sys.acl
 runtest   "### Chown     " unix 0 "" eos chown root /eos/$EOS_TEST_INSTANCE/test/instancetest/
-runtest   "### Attr      " unix 0 "" eos attr set user.acl=u:99:rwx /eos/$EOS_TEST_INSTANCE/test/instancetest               # the 'c'-right should be ignored on user.acl
+runtest   "### Attr      " unix 0 "" eos attr set user.acl=u:${NOBODY_UID}:rwx /eos/$EOS_TEST_INSTANCE/test/instancetest               # the 'c'-right should be ignored on user.acl
 
 # dir not owned
-runtest H "### Rm        " sss  0 "EOSROLE='-r 99 99'" eos rm /eos/$EOS_TEST_INSTANCE/test/instancetest/file.1k             # dir not owned, but ACL allows write
-runtest H "### Upload    " sss  0 "" upload "$TESTSYSFILE1K" "/eos/$EOS_TEST_INSTANCE/test/instancetest/file.1k" "-ODeos.ruid=99\&eos.rgid=99"  # ACL allows write, new file owned
-runtest H "### Update    " sss  0 "" append "/eos/$EOS_TEST_INSTANCE/test/instancetest/file.1k\?eos.ruid=99\&eos.rgid=99"   # dir not owned, ACL allows write
+runtest H "### Rm        " sss  0 "EOSROLE='-r ${NOBODY_UID} ${NOBODY_GID}'" eos rm /eos/$EOS_TEST_INSTANCE/test/instancetest/file.1k             # dir not owned, but ACL allows write
+runtest H "### Upload    " sss  0 "" upload "$TESTSYSFILE1K" "/eos/$EOS_TEST_INSTANCE/test/instancetest/file.1k" "-ODeos.ruid=${NOBODY_UID}\&eos.rgid=${NOBODY_GID}"  # ACL allows write, new file owned
+runtest H "### Update    " sss  0 "" append "/eos/$EOS_TEST_INSTANCE/test/instancetest/file.1k\?eos.ruid=${NOBODY_UID}\&eos.rgid=${NOBODY_GID}"   # dir not owned, ACL allows write
 runtest   "### Attr      " unix 0 "" eos attr set user.acl=u:nobody:rx /eos/$EOS_TEST_INSTANCE/test/instancetest
-runtest H "### Update    " sss  1 "" append "/eos/$EOS_TEST_INSTANCE/test/instancetest/file.1k\?eos.ruid=99\&eos.rgid=99"   # fail: dir not owned, ACL does not grant write
+runtest H "### Update    " sss  1 "" append "/eos/$EOS_TEST_INSTANCE/test/instancetest/file.1k\?eos.ruid=${NOBODY_UID}\&eos.rgid=${NOBODY_GID}"   # fail: dir not owned, ACL does not grant write
 
 runtest   "### Chown     " unix 0 "" eos chown root /eos/$EOS_TEST_INSTANCE/test/instancetest/file.1k
-runtest H "### Update    " sss  1 "" append "/eos/$EOS_TEST_INSTANCE/test/instancetest/file.1k\?eos.ruid=99\&eos.rgid=99"   # fail: not owner, ACL allows rx only
+runtest H "### Update    " sss  1 "" append "/eos/$EOS_TEST_INSTANCE/test/instancetest/file.1k\?eos.ruid=${NOBODY_UID}\&eos.rgid=${NOBODY_GID}"   # fail: not owner, ACL allows rx only
 runtest   "### Attr      " unix 0 "" eos attr set user.acl=u:nobody:rwx\!u /eos/$EOS_TEST_INSTANCE/test/instancetest
-runtest H "### Update    " sss  1 "" append "/eos/$EOS_TEST_INSTANCE/test/instancetest/file.1k\?eos.ruid=99\&eos.rgid=99"   # fail: not owner, ACL allows RW but denies update
+runtest H "### Update    " sss  1 "" append "/eos/$EOS_TEST_INSTANCE/test/instancetest/file.1k\?eos.ruid=${NOBODY_UID}\&eos.rgid=${NOBODY_GID}"   # fail: not owner, ACL allows RW but denies update
 
 runtest   "### Attr      " unix 0 "" eos attr set user.acl=u:1:rwx /eos/$EOS_TEST_INSTANCE/test/instancetest
-runtest H "### Update    " sss  1 "" append "/eos/$EOS_TEST_INSTANCE/test/instancetest/file.1k\?eos.ruid=99\&eos.rgid=99"   # fail: not owner, not in ACL
+runtest H "### Update    " sss  1 "" append "/eos/$EOS_TEST_INSTANCE/test/instancetest/file.1k\?eos.ruid=${NOBODY_UID}\&eos.rgid=${NOBOCY_GID}"   # fail: not owner, not in ACL
 
-runtest   "### Attr      " unix 0 "" eos attr set user.acl=u:99:rwx\!d /eos/$EOS_TEST_INSTANCE/test/instancetest
-runtest H "### Rm        " sss  1 "EOSROLE='-r 99 99'" eos rm /eos/$EOS_TEST_INSTANCE/test/instancetest/file.1k             # fail: dir not owned, ACL denies delete
-runtest   "### Attr      " unix 0 "" eos attr set user.acl=u:99:rwx\!d,g:99:rwx+d /eos/$EOS_TEST_INSTANCE/test/instancetest # +d for group 99, but should be ignored in user.acl
-runtest H "### Rm        " sss  1 "EOSROLE='-r 99 99'" eos rm /eos/$EOS_TEST_INSTANCE/test/instancetest/file.1k             # fail: dir not owned, ACL denies delete
-runtest   "### Attr      " unix 0 "" eos attr set sys.acl=g:99:rwx+d /eos/$EOS_TEST_INSTANCE/test/instancetest              # +d for nobody, this should work in sys.acl
-runtest H "### Rm        " sss  0 "EOSROLE='-r 99 99'" eos rm /eos/$EOS_TEST_INSTANCE/test/instancetest/file.1k             # ACL allows delete
+runtest   "### Attr      " unix 0 "" eos attr set user.acl=u:${NOBODY_UID}:rwx\!d /eos/$EOS_TEST_INSTANCE/test/instancetest
+runtest H "### Rm        " sss  1 "EOSROLE='-r ${NOBODY_UID} ${NOBODY_GID}'" eos rm /eos/$EOS_TEST_INSTANCE/test/instancetest/file.1k             # fail: dir not owned, ACL denies delete
+runtest   "### Attr      " unix 0 "" eos attr set user.acl=u:${NOBODY_UID}:rwx\!d,g:${NOBODY_GID}:rwx+d /eos/$EOS_TEST_INSTANCE/test/instancetest # +d for group ${NOBODY_GID}, but should be ignored in user.acl
+runtest H "### Rm        " sss  1 "EOSROLE='-r ${NOBODY_UID} ${NOBODY_GID}'" eos rm /eos/$EOS_TEST_INSTANCE/test/instancetest/file.1k             # fail: dir not owned, ACL denies delete
+runtest   "### Attr      " unix 0 "" eos attr set sys.acl=g:${NOBODY_GID}:rwx+d /eos/$EOS_TEST_INSTANCE/test/instancetest              # +d for nobody, this should work in sys.acl
+runtest H "### Rm        " sss  0 "EOSROLE='-r ${NOBODY_UID} ${NOBODY_GID}'" eos rm /eos/$EOS_TEST_INSTANCE/test/instancetest/file.1k             # ACL allows delete
 runtest   "### Attr      " unix 0 "" eos attr rm sys.acl /eos/$EOS_TEST_INSTANCE/test/instancetest
 
 # dir owned
-runtest   "### Chown     " unix 0 "" eos chown 99:99 "/eos/$EOS_TEST_INSTANCE/test/instancetest"
-runtest H "### Upload    " sss  0 "" upload "$TESTSYSFILE1K" "/eos/$EOS_TEST_INSTANCE/test/instancetest/file.1k" "-ODeos.ruid=99\&eos.rgid=99"  # ACL allows write, new file owned
-runtest H "### Update    " sss  0 "" append "/eos/$EOS_TEST_INSTANCE/test/instancetest/file.1k\?eos.ruid=99\&eos.rgid=99"   # dir owned
-runtest H "### Upload    " sss  0 "EOSROLE='-r 99 99'" eos cp -a "$TESTSYSFILE1K" /eos/$EOS_TEST_INSTANCE/test/instancetest/file.1k # dir owned
+runtest   "### Chown     " unix 0 "" eos chown ${NOBODY_UID}:${NOBODY_GID} "/eos/$EOS_TEST_INSTANCE/test/instancetest"
+runtest H "### Upload    " sss  0 "" upload "$TESTSYSFILE1K" "/eos/$EOS_TEST_INSTANCE/test/instancetest/file.1k" "-ODeos.ruid=${NOBODY_UID}\&eos.rgid=${NOBODY_GID}"  # ACL allows write, new file owned
+runtest H "### Update    " sss  0 "" append "/eos/$EOS_TEST_INSTANCE/test/instancetest/file.1k\?eos.ruid=${NOBODY_UID}\&eos.rgid=${NOBODY_GID}"   # dir owned
+runtest H "### Upload    " sss  0 "EOSROLE='-r ${NOBODY_UID} ${NOBODY_GID}'" eos cp -a "$TESTSYSFILE1K" /eos/$EOS_TEST_INSTANCE/test/instancetest/file.1k # dir owned
 runtest   "### Attr      " unix 0 "" eos attr set user.acl=u:nobody:r!wx /eos/$EOS_TEST_INSTANCE/test/instancetest
-runtest H "### Update    " sss  1 "" append "/eos/$EOS_TEST_INSTANCE/test/instancetest/file.1k\?eos.ruid=99\&eos.rgid=99"     # writes are denied, and updates are note allowed explicitly
-runtest H "### Upload    " sss  1 "EOSROLE='-r 99 99'" eos cp -a "$TESTSYSFILE1K" /eos/$EOS_TEST_INSTANCE/test/instancetest/file.1k  # writes are denied, and updates are not allowed explicitly
-runtest   "### Attr      " unix 0 "" eos attr set user.acl=u:99:rwx!d /eos/$EOS_TEST_INSTANCE/test/instancetest
-runtest   "### Chown     " unix 0 "" eos chown 99:99 "/eos/$EOS_TEST_INSTANCE/test/instancetest/file.1k"                    # make sure file owned
-runtest H "### Rm        " sss  0 "EOSROLE='-r 99 99'" eos rm /eos/$EOS_TEST_INSTANCE/test/instancetest/file.1k             # ACL denies delete but file owned
+runtest H "### Update    " sss  1 "" append "/eos/$EOS_TEST_INSTANCE/test/instancetest/file.1k\?eos.ruid=${NOBODY_UID}\&eos.rgid=${NOBODY_GID}"     # writes are denied, and updates are note allowed explicitly
+runtest H "### Upload    " sss  1 "EOSROLE='-r ${NOBODY_UID} ${NOBODY_GID}'" eos cp -a "$TESTSYSFILE1K" /eos/$EOS_TEST_INSTANCE/test/instancetest/file.1k  # writes are denied, and updates are not allowed explicitly
+runtest   "### Attr      " unix 0 "" eos attr set user.acl=u:${NOBODY_UID}:rwx!d /eos/$EOS_TEST_INSTANCE/test/instancetest
+runtest   "### Chown     " unix 0 "" eos chown ${NOBODY_UID}:${NOBODY_GID} "/eos/$EOS_TEST_INSTANCE/test/instancetest/file.1k"                    # make sure file owned
+runtest H "### Rm        " sss  0 "EOSROLE='-r ${NOBODY_UID} ${NOBODY_GID}'" eos rm /eos/$EOS_TEST_INSTANCE/test/instancetest/file.1k             # ACL denies delete but file owned
 
 # chown on file
-runtest H "### Upload    " sss  0 "" upload "$TESTSYSFILE1K" "/eos/$EOS_TEST_INSTANCE/test/instancetest/file.1k" "-ODeos.ruid=99\&eos.rgid=99"  # owned by 99
+runtest H "### Upload    " sss  0 "" upload "$TESTSYSFILE1K" "/eos/$EOS_TEST_INSTANCE/test/instancetest/file.1k" "-ODeos.ruid=${NOBODY_UID}\&eos.rgid=${NOBODY_GID}"  # owned by ${NOBODY_GID}
 runtest   "### Chmod     " unix 0 "" eos chmod 775 /eos/$EOS_TEST_INSTANCE/test/instancetest
-runtest   "### Attr      " unix 0 "" eos attr set user.acl=g:99:rwxc /eos/$EOS_TEST_INSTANCE/test/instancetest              # 'c' (chown) in user.acl
-runtest H "### Chown     " sss  0 "EOSROLE='-r 99 99'" eos chown 98 /eos/$EOS_TEST_INSTANCE/test/instancetest/file.1k       # fail: user.acl cannot grant this chown but 99 is the owner
-runtest   "### Attr      " unix 0 "" eos attr set sys.acl=g:99:c /eos/$EOS_TEST_INSTANCE/test/instancetest                  # 'c' (chown) in sys.ascl
-runtest H "### Chown     " sss  0 "EOSROLE='-r 99 99'" eos chown 98 /eos/$EOS_TEST_INSTANCE/test/instancetest/file.1k
+runtest   "### Attr      " unix 0 "" eos attr set user.acl=g:${NOBODY_GID}:rwxc /eos/$EOS_TEST_INSTANCE/test/instancetest              # 'c' (chown) in user.acl
+runtest H "### Chown     " sss  0 "EOSROLE='-r ${NOBODY_UID} ${NOBODY_GID}'" eos chown 98 /eos/$EOS_TEST_INSTANCE/test/instancetest/file.1k       # fail: user.acl cannot grant this chown but ${NOBODY_UID} is the owner
+runtest   "### Attr      " unix 0 "" eos attr set sys.acl=g:${NOBODY_GID}:c /eos/$EOS_TEST_INSTANCE/test/instancetest                  # 'c' (chown) in sys.ascl
+runtest H "### Chown     " sss  0 "EOSROLE='-r ${NOBODY_UID} ${NOBODY_GID}'" eos chown 98 /eos/$EOS_TEST_INSTANCE/test/instancetest/file.1k
 runtest   "### Attr      " unix 0 "" eos attr rm sys.acl /eos/$EOS_TEST_INSTANCE/test/instancetest
-runtest H "### Chown     " sss  0 "EOSROLE='-r 99 99'" eos chown 99 /eos/$EOS_TEST_INSTANCE/test/instancetest/file.1k       # chown to self should work in user.acl
+runtest H "### Chown     " sss  0 "EOSROLE='-r ${NOBODY_UID} ${NOBODY_GID}'" eos chown ${NOBODY_UID} /eos/$EOS_TEST_INSTANCE/test/instancetest/file.1k       # chown to self should work in user.acl
 
 # chown on directory - the ACL that applies is that of the directory itself
-runtest   "### Chown     " unix 0 "" eos chown 99:99 /eos/$EOS_TEST_INSTANCE/test/instancetest/testAcl                      # same tests with a directory
-runtest   "### Attr      " unix 0 "" eos attr set user.acl=g:99:rwxc /eos/$EOS_TEST_INSTANCE/test/instancetest/testAcl      # 'c' (chown) in user.acl
-runtest H "### Chown     " sss  1 "EOSROLE='-r 99 99'" eos chown 98 /eos/$EOS_TEST_INSTANCE/test/instancetest/testAcl       # fail: user.acl cannot grant this chown
-runtest   "### Attr      " unix 0 "" eos attr set sys.acl=g:99:c /eos/$EOS_TEST_INSTANCE/test/instancetest/testAcl          # 'c' (chown) in sys.ascl
-runtest H "### Chown     " sss  0 "EOSROLE='-r 99 99'" eos chown 98 /eos/$EOS_TEST_INSTANCE/test/instancetest/testAcl
+runtest   "### Chown     " unix 0 "" eos chown ${NOBODY_UID}:${NOBODY_GID} /eos/$EOS_TEST_INSTANCE/test/instancetest/testAcl                      # same tests with a directory
+runtest   "### Attr      " unix 0 "" eos attr set user.acl=g:${NOBODY_GID}:rwxc /eos/$EOS_TEST_INSTANCE/test/instancetest/testAcl      # 'c' (chown) in user.acl
+runtest H "### Chown     " sss  1 "EOSROLE='-r ${NOBODY_UID} ${NOBODY_GID}'" eos chown 98 /eos/$EOS_TEST_INSTANCE/test/instancetest/testAcl       # fail: user.acl cannot grant this chown
+runtest   "### Attr      " unix 0 "" eos attr set sys.acl=g:${NOBODY_GID}:c /eos/$EOS_TEST_INSTANCE/test/instancetest/testAcl          # 'c' (chown) in sys.ascl
+runtest H "### Chown     " sss  0 "EOSROLE='-r ${NOBODY_UID} ${NOBODY_GID}'" eos chown 98 /eos/$EOS_TEST_INSTANCE/test/instancetest/testAcl
 runtest   "### Attr      " unix 0 "" eos attr set sys.acl= /eos/$EOS_TEST_INSTANCE/test/instancetest/testAcl                # rm sys.acl, user.acl remains
-runtest H "### Chown     " sss  0 "EOSROLE='-r 99 99'" eos chown 99 /eos/$EOS_TEST_INSTANCE/test/instancetest/testAcl       # chown to self should work in user.acl
+runtest H "### Chown     " sss  0 "EOSROLE='-r ${NOBODY_UID} ${NOBODY_GID}'" eos chown ${NOBODY_UID} /eos/$EOS_TEST_INSTANCE/test/instancetest/testAcl       # chown to self should work in user.acl
 
 # test inheritance of file acls
 
-runtest H "### Upload    " sss  0 "" upload "$TESTSYSFILE1K" "/eos/$EOS_TEST_INSTANCE/test/instancetest/file.1" "-ODeos.ruid=99\&eos.rgid=99"
-runtest   "### Attr      " unix 0 "" eos attr set sys.acl=g:99:rwx /eos/$EOS_TEST_INSTANCE/test/instancetest/file.1
-runtest H "### Upload    " sss  0 "" upload "$TESTSYSFILE1K" "/eos/$EOS_TEST_INSTANCE/test/instancetest/file.1" "-ODeos.ruid=99\&eos.rgid=99"  # should have now sys.acl
+runtest H "### Upload    " sss  0 "" upload "$TESTSYSFILE1K" "/eos/$EOS_TEST_INSTANCE/test/instancetest/file.1" "-ODeos.ruid=${NOBODY_UID}\&eos.rgid=${NOBODY_GID}"
+runtest   "### Attr      " unix 0 "" eos attr set sys.acl=g:${NOBODY_GID}:rwx /eos/$EOS_TEST_INSTANCE/test/instancetest/file.1
+runtest H "### Upload    " sss  0 "" upload "$TESTSYSFILE1K" "/eos/$EOS_TEST_INSTANCE/test/instancetest/file.1" "-ODeos.ruid=${NOBODY_UID}\&eos.rgid=${NOBODY_GID}"  # should have now sys.acl
 runtest   "### Attr      " unix 0 "" eos attr ls "/eos/$EOS_TEST_INSTANCE/test/instancetest/file.1 | grep sys.acl | wc -l | grep -w 0 "
-runtest H "### Upload    " sss  0 "" upload "$TESTSYSFILE1K" "/eos/$EOS_TEST_INSTANCE/test/instancetest/file.2" "-ODeos.ruid=99\&eos.rgid=99"
-runtest   "### Attr      " unix 0 "" eos attr set user.acl=g:99:rwx /eos/$EOS_TEST_INSTANCE/test/instancetest/file.2
-runtest H "### Upload    " sss  0 "" upload "$TESTSYSFILE1K" "/eos/$EOS_TEST_INSTANCE/test/instancetest/file.2" "-ODeos.ruid=99\&eos.rgid=99"  # should have no user.acl
+runtest H "### Upload    " sss  0 "" upload "$TESTSYSFILE1K" "/eos/$EOS_TEST_INSTANCE/test/instancetest/file.2" "-ODeos.ruid=${NOBODY_UID}\&eos.rgid=${NOBODY_GID}"
+runtest   "### Attr      " unix 0 "" eos attr set user.acl=g:${NOBODY_GID}:rwx /eos/$EOS_TEST_INSTANCE/test/instancetest/file.2
+runtest H "### Upload    " sss  0 "" upload "$TESTSYSFILE1K" "/eos/$EOS_TEST_INSTANCE/test/instancetest/file.2" "-ODeos.ruid=${NOBODY_UID}\&eos.rgid=${NOBODY_GID}"  # should have no user.acl
 runtest   "### Attr      " unix 0 "" eos attr ls "/eos/$EOS_TEST_INSTANCE/test/instancetest/file.2 | grep user.acl | wc -l | grep -w 0 "
-runtest H "### Upload    " sss  0 "" upload "$TESTSYSFILE1K" "/eos/$EOS_TEST_INSTANCE/test/instancetest/file.3" "-ODeos.ruid=99\&eos.rgid=99"
-runtest   "### Attr      " unix 0 "" eos attr set user.acl=g:99:rwx /eos/$EOS_TEST_INSTANCE/test/instancetest/file.3
+runtest H "### Upload    " sss  0 "" upload "$TESTSYSFILE1K" "/eos/$EOS_TEST_INSTANCE/test/instancetest/file.3" "-ODeos.ruid=${NOBODY_UID}\&eos.rgid=${NOBODY_GID}"
+runtest   "### Attr      " unix 0 "" eos attr set user.acl=g:${NOBODY_GID}:rwx /eos/$EOS_TEST_INSTANCE/test/instancetest/file.3
 runtest   "### Attr      " unix 0 "" eos attr set sys.eval.useracl=1 /eos/$EOS_TEST_INSTANCE/test/instancetest/file.3
-runtest H "### Upload    " sss  0 "" upload "$TESTSYSFILE1K" "/eos/$EOS_TEST_INSTANCE/test/instancetest/file.3" "-ODeos.ruid=99\&eos.rgid=99"  # should have user.acl and sys.eval.useracl
+runtest H "### Upload    " sss  0 "" upload "$TESTSYSFILE1K" "/eos/$EOS_TEST_INSTANCE/test/instancetest/file.3" "-ODeos.ruid=${NOBODY_UID}\&eos.rgid=${NOBODY_GID}"  # should have user.acl and sys.eval.useracl
 runtest   "### Attr      " unix 0 "" eos attr ls "/eos/$EOS_TEST_INSTANCE/test/instancetest/file.3 | grep user.acl | wc -l | grep -w 1 "
 runtest   "### Attr      " unix 0 "" eos attr ls "/eos/$EOS_TEST_INSTANCE/test/instancetest/file.3 | grep sys.eval.useracl | wc -l | grep -w 1 "
 
@@ -1443,14 +1444,14 @@ runtest H "### Upload    " sss  0 "" upload "$TESTSYSFILE1K" "/eos/$EOS_TEST_INS
 runtest   "### Chmod     " sss  0 "" eos chmod 700 "/eos/$EOS_TEST_INSTANCE/test/instancetest/"
 runtest   "### Ls        " sss  0 "" eos ls -la "/eos/$EOS_TEST_INSTANCE/test/instancetest/"
 runtest   "### Download  " unix 0 "EOSROLE='-r 0 0'" eos cp "/eos/$EOS_TEST_INSTANCE/test/instancetest/file.4" $EOS_TEST_TESTSYS/null.txt
-runtest   "### Download  " unix 1 "EOSROLE='-r 99 99'" eos cp "/eos/$EOS_TEST_INSTANCE/test/instancetest/file.4" $EOS_TEST_TESTSYS/null.txt
-runtest   "### Attr      " unix 0 "" eos attr set sys.acl=u:99:rx "/eos/$EOS_TEST_INSTANCE/test/instancetest/file.4"
+runtest   "### Download  " unix 1 "EOSROLE='-r ${NOBODY_UID} ${NOBODY_GID}'" eos cp "/eos/$EOS_TEST_INSTANCE/test/instancetest/file.4" $EOS_TEST_TESTSYS/null.txt
+runtest   "### Attr      " unix 0 "" eos attr set sys.acl=u:${NOBODY_UID}:rx "/eos/$EOS_TEST_INSTANCE/test/instancetest/file.4"
 runtest   "### Download  " unix 0 "EOSROLE='-r 0 0'" eos cp "/eos/$EOS_TEST_INSTANCE/test/instancetest/file.4" $EOS_TEST_TESTSYS/null.txt
-runtest   "### Download  " unix 0 "EOSROLE='-r 99 99'" eos cp "/eos/$EOS_TEST_INSTANCE/test/instancetest/file.4" $EOS_TEST_TESTSYS/null.txt
+runtest   "### Download  " unix 0 "EOSROLE='-r ${NOBODY_UID} ${NOBODY_GID}'" eos cp "/eos/$EOS_TEST_INSTANCE/test/instancetest/file.4" $EOS_TEST_TESTSYS/null.txt
 runtest   "### Chmod     " sss  0 "" eos chmod 700 "/eos/$EOS_TEST_INSTANCE/test/instancetest/"
-runtest   "### Attr      " unix 0 "" eos attr set sys.acl=u:99:w "/eos/$EOS_TEST_INSTANCE/test/instancetest/file.4"
+runtest   "### Attr      " unix 0 "" eos attr set sys.acl=u:${NOBODY_UID}:w "/eos/$EOS_TEST_INSTANCE/test/instancetest/file.4"
 runtest   "### Download  " unix 0 "EOSROLE='-r 0 0'" eos cp "/eos/$EOS_TEST_INSTANCE/test/instancetest/file.4" $EOS_TEST_TESTSYS/null.txt
-runtest   "### Download  " unix 1 "EOSROLE='-r 99 99'" eos cp "/eos/$EOS_TEST_INSTANCE/test/instancetest/file.4" $EOS_TEST_TESTSYS/null.txt
+runtest   "### Download  " unix 1 "EOSROLE='-r ${NOBODY_UID} ${NOBODY_GID}'" eos cp "/eos/$EOS_TEST_INSTANCE/test/instancetest/file.4" $EOS_TEST_TESTSYS/null.txt
 runtest   "### Chmod     " sss  0 "" eos chmod 777 "/eos/$EOS_TEST_INSTANCE/test/instancetest/"
 
 # date +%s.%N;exit
@@ -1459,7 +1460,7 @@ runtest   "### Chmod     " sss  0 "" eos chmod 777 "/eos/$EOS_TEST_INSTANCE/test
 runtest "### Attr      " unix 0 "" eos debug info '\*'
 runtest "### Rm        " unix 2 "" eos rm /eos/$EOS_TEST_INSTANCE/test/instancetest/file.1k
 runtest "### Attr      " unix 0 "" eos attr set user.acl=u:nobody:rwx /eos/$EOS_TEST_INSTANCE/test/instancetest
-runtest "### Upload    " unix 0 "EOSROLE='-r 99 99'" upload    "$TESTSYSFILE1K" "/eos/$EOS_TEST_INSTANCE/test/instancetest/file.1k" "-ODeos.ruid=99\&eos.rgid=99"
+runtest "### Upload    " unix 0 "EOSROLE='-r ${NOBODY_UID} ${NOBODY_GID}'" upload    "$TESTSYSFILE1K" "/eos/$EOS_TEST_INSTANCE/test/instancetest/file.1k" "-ODeos.ruid=${NOBODY_UID}\&eos.rgid=${NOBODY_GID}"
 runtest "### Attr      " unix 0 "" eos attr rm user.acl /eos/$EOS_TEST_INSTANCE/test/instancetest/
 runtest "### Chown     " unix 0 "" eos chown 0:0 "/eos/$EOS_TEST_INSTANCE/test/instancetest"
 
@@ -1500,15 +1501,15 @@ runtest "### Symlink-L " unix 1 "" eos ls /eos/$EOS_TEST_INSTANCE/test/instancet
 runtest "### Symlink-L " unix 1 "" eos ls /eos/$EOS_TEST_INSTANCE/test/instancetest/fwd-loop
 runtest "### Mkdir     " unix 0 "" eos mkdir /eos/$EOS_TEST_INSTANCE/test/instancetest/link-source/
 runtest "### Mkdir     " unix 0 "" eos mkdir /eos/$EOS_TEST_INSTANCE/test/instancetest/link-sniffer/
-runtest "### Chown     " unix 0 "" eos chown 99:99 "/eos/$EOS_TEST_INSTANCE/test/instancetest/link-sniffer"
+runtest "### Chown     " unix 0 "" eos chown ${NOBODY_UID}:${NOBODY_GID} "/eos/$EOS_TEST_INSTANCE/test/instancetest/link-sniffer"
 runtest "### Upload    " unix 0 "EOSROLE='-r 0 0'" eos cp /etc/passwd /eos/$EOS_TEST_INSTANCE/test/instancetest/link-source/passwd
 runtest "### Chmod     " unix 0 "" eos chmod 700 /eos/$EOS_TEST_INSTANCE/test/instancetest/link-source/
 runtest "### Symlink-S " unix 0 "" eos ln /eos/$EOS_TEST_INSTANCE/test/instancetest/link-sniffer/passwd /eos/$EOS_TEST_INSTANCE/test/instancetest/link-source/passwd
-runtest "### Chown     " unix 0 "" eos chown -h 99:99 "/eos/$EOS_TEST_INSTANCE/test/instancetest/link-sniffer/passwd"
+runtest "### Chown     " unix 0 "" eos chown -h ${NOBODY_UID}:${NOBODY_GID} "/eos/$EOS_TEST_INSTANCE/test/instancetest/link-sniffer/passwd"
 runtest "### Download  " unix 0 "EOSROLE='-r 0 0'" eos cp "/eos/$EOS_TEST_INSTANCE/test/instancetest/link-sniffer/passwd" -
 runtest "### Download  " unix 0 "EOSROLE='-r 0 0'" eos cp "/eos/$EOS_TEST_INSTANCE/test/instancetest/link-source/passwd" -
-runtest "### Download  " unix 1 "EOSROLE='-r 99 99'" eos cp "/eos/$EOS_TEST_INSTANCE/test/instancetest/link-sniffer/passwd" -
-runtest "### Download  " unix 1 "EOSROLE='-r 99 99'" eos cp "/eos/$EOS_TEST_INSTANCE/test/instancetest/link-source/passwd" -
+runtest "### Download  " unix 1 "EOSROLE='-r ${NOBODY_UID} ${NOBODY_GID}'" eos cp "/eos/$EOS_TEST_INSTANCE/test/instancetest/link-sniffer/passwd" -
+runtest "### Download  " unix 1 "EOSROLE='-r ${NOBODY_UID} ${NOBODY_GID}'" eos cp "/eos/$EOS_TEST_INSTANCE/test/instancetest/link-source/passwd" -
 runtest "### Rm        " unix 0 "" eos rm /eos/$EOS_TEST_INSTANCE/test/instancetest/link-sniffer/passwd
 runtest "### Rm        " unix 0 "" eos rm /eos/$EOS_TEST_INSTANCE/test/instancetest/link-source/passwd
 runtest "### Mkdir     " unix 0 "" eos mkdir /eos/$EOS_TEST_INSTANCE/test/instancetest/link-source/dir
@@ -1731,11 +1732,11 @@ runtest "### Attr Set  " unix 0 "" eos attr set user.fusex.rename.version=1 /eos
 runtest "### Attr Set  " unix 0 "" eos attr set sys.versioning=3 /eos/$EOS_TEST_INSTANCE/test/instancetest/fusex/
 runtest "### Mkdir     " unix 0 "" eos mkdir "-p" "/eos/$EOS_TEST_INSTANCE/test/instancetest/fusex/dir1/"
 runtest "### Mkdir     " unix 0 "" eos mkdir "-p" "/eos/$EOS_TEST_INSTANCE/test/instancetest/fusex/dir2/"
-runtest "### Upload    " unix 0 "EOSROLE='-r 99 99'" eos cp "/etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/instancetest/fusex/f1"
-runtest "### Upload    " unix 0 "EOSROLE='-r 99 99'" eos cp "/etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/instancetest/fusex/f1"
-runtest "### Upload    " unix 0 "EOSROLE='-r 99 99'" eos cp "/etc/group" "/eos/$EOS_TEST_INSTANCE/test/instancetest/fusex/f2"
-runtest "### Upload    " unix 0 "EOSROLE='-r 99 99'" eos cp "/etc/group" "/eos/$EOS_TEST_INSTANCE/test/instancetest/fusex/f2"
-runtest "### Upload    " unix 0 "EOSROLE='-r 99 99'" eos cp "/etc/group" "/eos/$EOS_TEST_INSTANCE/test/instancetest/fusex/f2"
+runtest "### Upload    " unix 0 "EOSROLE='-r ${NOBODY_UID} ${NOBODY_GID}'" eos cp "/etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/instancetest/fusex/f1"
+runtest "### Upload    " unix 0 "EOSROLE='-r ${NOBODY_UID} ${NOBODY_GID}'" eos cp "/etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/instancetest/fusex/f1"
+runtest "### Upload    " unix 0 "EOSROLE='-r ${NOBODY_UID} ${NOBODY_GID}'" eos cp "/etc/group" "/eos/$EOS_TEST_INSTANCE/test/instancetest/fusex/f2"
+runtest "### Upload    " unix 0 "EOSROLE='-r ${NOBODY_UID} ${NOBODY_GID}'" eos cp "/etc/group" "/eos/$EOS_TEST_INSTANCE/test/instancetest/fusex/f2"
+runtest "### Upload    " unix 0 "EOSROLE='-r ${NOBODY_UID} ${NOBODY_GID}'" eos cp "/etc/group" "/eos/$EOS_TEST_INSTANCE/test/instancetest/fusex/f2"
 runtest "### Fusex-Stat" unix 0 "" shell stat "/test-fusex/$EOS_TEST_INSTANCE/test/instancetest/fusex"
 runtest "### Fusex-Stat" unix 0 "" shell stat "/test-fusex/$EOS_TEST_INSTANCE/test/instancetest/fusex/f1"
 runtest "### Fusex-Stat" unix 0 "" shell stat "/test-fusex/$EOS_TEST_INSTANCE/test/instancetest/fusex/f2"
@@ -1744,16 +1745,16 @@ runtest "### Versions  " unix 0 "" eos file versions "/eos/$EOS_TEST_INSTANCE/te
 runtest "### Rename    " unix 0 "" shell mv -f /test-fusex/$EOS_TEST_INSTANCE/test/instancetest/fusex/f1 /test-fusex/$EOS_TEST_INSTANCE/test/instancetest/fusex/f2
 runtest "### Versions  " unix 1 "" eos file versions "/eos/$EOS_TEST_INSTANCE/test/instancetest/fusex/f1 | wc -l | grep -w 1"
 runtest "### Versions  " unix 0 "" eos file versions "/eos/$EOS_TEST_INSTANCE/test/instancetest/fusex/f2 | wc -l | grep -w 1"
-runtest "### Upload    " unix 0 "EOSROLE='-r 99 99'" eos cp "/etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/instancetest/fusex/dir1/f1"
-runtest "### Upload    " unix 0 "EOSROLE='-r 99 99'" eos cp "/etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/instancetest/fusex/dir1/f1"
-runtest "### Upload    " unix 0 "EOSROLE='-r 99 99'" eos cp "/etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/instancetest/fusex/dir1/f1"
-runtest "### Upload    " unix 0 "EOSROLE='-r 99 99'" eos cp "/etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/instancetest/fusex/dir2/f1"
-runtest "### Upload    " unix 0 "EOSROLE='-r 99 99'" eos cp "/etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/instancetest/fusex/dir2/f1"
-runtest "### Upload    " unix 0 "EOSROLE='-r 99 99'" eos cp "/etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/instancetest/fusex/dir1/f2"
-runtest "### Upload    " unix 0 "EOSROLE='-r 99 99'" eos cp "/etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/instancetest/fusex/dir2/f2"
-runtest "### Upload    " unix 0 "EOSROLE='-r 99 99'" eos cp "/etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/instancetest/fusex/dir1/r1"
-runtest "### Upload    " unix 0 "EOSROLE='-r 99 99'" eos cp "/etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/instancetest/fusex/dir1/r1"
-runtest "### Upload    " unix 0 "EOSROLE='-r 99 99'" eos cp "/etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/instancetest/fusex/dir1/r1"
+runtest "### Upload    " unix 0 "EOSROLE='-r ${NOBODY_UID} ${NOBODY_GID}'" eos cp "/etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/instancetest/fusex/dir1/f1"
+runtest "### Upload    " unix 0 "EOSROLE='-r ${NOBODY_UID} ${NOBODY_GID}'" eos cp "/etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/instancetest/fusex/dir1/f1"
+runtest "### Upload    " unix 0 "EOSROLE='-r ${NOBODY_UID} ${NOBODY_GID}'" eos cp "/etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/instancetest/fusex/dir1/f1"
+runtest "### Upload    " unix 0 "EOSROLE='-r ${NOBODY_UID} ${NOBODY_GID}'" eos cp "/etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/instancetest/fusex/dir2/f1"
+runtest "### Upload    " unix 0 "EOSROLE='-r ${NOBODY_UID} ${NOBODY_GID}'" eos cp "/etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/instancetest/fusex/dir2/f1"
+runtest "### Upload    " unix 0 "EOSROLE='-r ${NOBODY_UID} ${NOBODY_GID}'" eos cp "/etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/instancetest/fusex/dir1/f2"
+runtest "### Upload    " unix 0 "EOSROLE='-r ${NOBODY_UID} ${NOBODY_GID}'" eos cp "/etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/instancetest/fusex/dir2/f2"
+runtest "### Upload    " unix 0 "EOSROLE='-r ${NOBODY_UID} ${NOBODY_GID}'" eos cp "/etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/instancetest/fusex/dir1/r1"
+runtest "### Upload    " unix 0 "EOSROLE='-r ${NOBODY_UID} ${NOBODY_GID}'" eos cp "/etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/instancetest/fusex/dir1/r1"
+runtest "### Upload    " unix 0 "EOSROLE='-r ${NOBODY_UID} ${NOBODY_GID}'" eos cp "/etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/instancetest/fusex/dir1/r1"
 # version overwriting
 runtest "### Versions  " unix 0 "" eos file versions "/eos/$EOS_TEST_INSTANCE/test/instancetest/fusex/dir1/f1 | wc -l | grep -w 2"
 runtest "### Versions  " unix 0 "" eos file versions "/eos/$EOS_TEST_INSTANCE/test/instancetest/fusex/dir2/f1 | wc -l | grep -w 1"
@@ -1802,7 +1803,7 @@ runtest "### link      " unix 0 "" shell cd "/test-fusex/$EOS_TEST_INSTANCE/test
 dd of="/test-fusex/$EOS_TEST_INSTANCE/test/instancetest/fusex/hardlink/file.hardlink" oflag=nocache conv=notrunc,fdatasync count=0
 runtest "### cp        " unix 0 "" shell cp /etc/passwd "/test-fusex/$EOS_TEST_INSTANCE/test/instancetest/fusex/hardlink/newfile"
 runtest "### cp        " unix 0 "" shell mv -f "/test-fusex/$EOS_TEST_INSTANCE/test/instancetest/fusex/hardlink/newfile" "/test-fusex/$EOS_TEST_INSTANCE/test/instancetest/fusex/hardlink/file"
-runtest "### Diff      " unix 0 "" shell diff /etc/group "/test-fusex/$EOS_TEST_INSTANCE/test/instancetest/fusex/hardlink/file.hardlink" 
+runtest "### Diff      " unix 0 "" shell diff /etc/group "/test-fusex/$EOS_TEST_INSTANCE/test/instancetest/fusex/hardlink/file.hardlink"
 runtest "### Rm        " unix 0 "" eos rm -r /eos/$EOS_TEST_INSTANCE/test/instancetest/fusex/hardlink
 
 #obfuscation
@@ -1861,7 +1862,7 @@ runtest "### Chown     " unix 0 "" eos chown root:root "/eos/$EOS_TEST_INSTANCE/
 runtest "### Chmod     " unix 0 "" eos chmod 700 "/eos/$EOS_TEST_INSTANCE/test/instancetest/fusex/token"
 runtest "### LsFuse    " unix 1 "" shell ls -la "/eos/$EOS_TEST_INSTANCE/test/instancetest/fusex/token/"
 runtest "### LsRoot    " unix 0 "" eos ls -la "/eos/$EOS_TEST_INSTANCE/test/instancetest/fusex/token/"
-runtest "### LsNobody  " unix 1 "EOSROLE='-r 99 99'" eos ls -la "/eos/$EOS_TEST_INSTANCE/test/instancetest/fusex/token/"
+runtest "### LsNobody  " unix 1 "EOSROLE='-r ${NOBODY_UID} ${NOBODY_GID}'" eos ls -la "/eos/$EOS_TEST_INSTANCE/test/instancetest/fusex/token/"
 runtest "### EosToken  " unix 0 "XrdSecsssENDORSEMENT=$EOSTOKENR" shell eosxd get eos.reconnect "/test-fusex/$EOS_TEST_INSTANCE/test/instancetest/fusex/token"
 runtest "### WhoToken  " unix 0 "XrdSecsssENDORSEMENT=$EOSTOKENR" shell cat "/test-fusex/$EOS_TEST_INSTANCE/proc/whoami"
 runtest "### LsToken   " unix 0 "XrdSecsssENDORSEMENT=$EOSTOKENR" shell ls -la "/test-fusex/$EOS_TEST_INSTANCE/test/instancetest/fusex/token/"
@@ -1968,49 +1969,49 @@ categorie="versioning"
 # ------------------------------------------------------------------------------
 runtest "### Mkdir     " unix 0 "" eos mkdir "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning"
 runtest "### Chmod     " unix 0 "" eos chmod "777" "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning"
-runtest "### Mkdir     " unix 0 "EOSROLE='-r 99 99'" eos mkdir "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/.sys.v#.bla"
-runtest "### Attr Ls   " unix 0 "EOSROLE='-r 99 99'" eos attr ls "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/.sys.v#.bla | wc -l | grep -w 1"
-runtest "### Rmdir     " unix 0 "EOSROLE='-r 99 99'" eos rmdir "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/.sys.v#.bla"
+runtest "### Mkdir     " unix 0 "EOSROLE='-r ${NOBODY_UID} ${NOBODY_GID}'" eos mkdir "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/.sys.v#.bla"
+runtest "### Attr Ls   " unix 0 "EOSROLE='-r ${NOBODY_UID} ${NOBODY_GID}'" eos attr ls "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/.sys.v#.bla | wc -l | grep -w 1"
+runtest "### Rmdir     " unix 0 "EOSROLE='-r ${NOBODY_UID} ${NOBODY_GID}'" eos rmdir "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/.sys.v#.bla"
 runtest "### Attr Set  " unix 0 "" eos attr set sys.versioning=3 /eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/
-runtest "### Upload    " unix 0 "EOSROLE='-r 99 99'" eos cp "/etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/passwd"
+runtest "### Upload    " unix 0 "EOSROLE='-r ${NOBODY_UID} ${NOBODY_GID}'" eos cp "/etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/passwd"
 usleep 1100000 # force the first file to fall in a different tv_sec interval
-runtest "### Upload    " unix 0 "EOSROLE='-r 99 99'" eos cp "/etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/passwd"
-runtest "### Upload    " unix 0 "EOSROLE='-r 99 99'" eos cp "/etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/passwd"
-runtest "### Upload    " unix 0 "EOSROLE='-r 99 99'" eos cp "/etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/passwd"
-runtest "### Ls        " unix 0 "EOSROLE='-r 99 99'" eos ls "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/.sys.v#.passwd | wc -l | grep -w 3"
-runtest "### File Vers." unix 0 "EOSROLE='-r 99 99'" eos file version /eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/passwd 99
-runtest "### File Vers." unix 0 "EOSROLE='-r 99 99'" eos file version /eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/passwd 99
-runtest "### Ls        " unix 0 "EOSROLE='-r 99 99'" eos ls "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/.sys.v#.passwd | wc -l | grep -w 5"
-runtest "### File Vers." unix 0 "EOSROLE='-r 99 99'" eos file purge /eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/passwd 4
-runtest "### Ls        " unix 0 "EOSROLE='-r 99 99'" eos ls "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/.sys.v#.passwd | wc -l | grep -w 4"
-runtest "### File Vers." unix 0 "EOSROLE='-r 99 99'" eos file purge /eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/passwd -1
-runtest "### Ls        " unix 0 "EOSROLE='-r 99 99'" eos ls "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/.sys.v#.passwd | wc -l | grep -w 3"
-runtest "### File Vers." unix 0 "EOSROLE='-r 99 99'" eos file purge /eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/passwd 0
+runtest "### Upload    " unix 0 "EOSROLE='-r ${NOBODY_UID} ${NOBODY_GID}'" eos cp "/etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/passwd"
+runtest "### Upload    " unix 0 "EOSROLE='-r ${NOBODY_UID} ${NOBODY_GID}'" eos cp "/etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/passwd"
+runtest "### Upload    " unix 0 "EOSROLE='-r ${NOBODY_UID} ${NOBODY_GID}'" eos cp "/etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/passwd"
+runtest "### Ls        " unix 0 "EOSROLE='-r ${NOBODY_UID} ${NOBODY_GID}'" eos ls "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/.sys.v#.passwd | wc -l | grep -w 3"
+runtest "### File Vers." unix 0 "EOSROLE='-r ${NOBODY_UID} ${NOBODY_GID}'" eos file version /eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/passwd 99
+runtest "### File Vers." unix 0 "EOSROLE='-r ${NOBODY_UID} ${NOBODY_GID}'" eos file version /eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/passwd 99
+runtest "### Ls        " unix 0 "EOSROLE='-r ${NOBODY_UID} ${NOBODY_GID}'" eos ls "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/.sys.v#.passwd | wc -l | grep -w 5"
+runtest "### File Vers." unix 0 "EOSROLE='-r ${NOBODY_UID} ${NOBODY_GID}'" eos file purge /eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/passwd 4
+runtest "### Ls        " unix 0 "EOSROLE='-r ${NOBODY_UID} ${NOBODY_GID}'" eos ls "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/.sys.v#.passwd | wc -l | grep -w 4"
+runtest "### File Vers." unix 0 "EOSROLE='-r ${NOBODY_UID} ${NOBODY_GID}'" eos file purge /eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/passwd -1
+runtest "### Ls        " unix 0 "EOSROLE='-r ${NOBODY_UID} ${NOBODY_GID}'" eos ls "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/.sys.v#.passwd | wc -l | grep -w 3"
+runtest "### File Vers." unix 0 "EOSROLE='-r ${NOBODY_UID} ${NOBODY_GID}'" eos file purge /eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/passwd 0
 runtest "### Stat      " unix 1 "" meta stat "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/.sys.v#.passwd"
-runtest "### Upload    " unix 0 "EOSROLE='-r 99 99'" eos cp "/etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/passwd"
-runtest "### Upload    " unix 0 "EOSROLE='-r 99 99'" eos cp "/etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/passwd"
+runtest "### Upload    " unix 0 "EOSROLE='-r ${NOBODY_UID} ${NOBODY_GID}'" eos cp "/etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/passwd"
+runtest "### Upload    " unix 0 "EOSROLE='-r ${NOBODY_UID} ${NOBODY_GID}'" eos cp "/etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/passwd"
 runtest "### Stat      " unix 0 "" meta stat "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/.sys.v#.passwd"
-runtest "### Rm        " unix 0 "EOSROLE='-r 99 99'" eos rm "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/passwd"
+runtest "### Rm        " unix 0 "EOSROLE='-r ${NOBODY_UID} ${NOBODY_GID}'" eos rm "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/passwd"
 runtest "### Stat      " unix 1 "" meta stat "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/.sys.v#.passwd"
-runtest "### Upload    " unix 0 "EOSROLE='-r 99 99'" eos cp "/etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/passwd"
+runtest "### Upload    " unix 0 "EOSROLE='-r ${NOBODY_UID} ${NOBODY_GID}'" eos cp "/etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/passwd"
 usleep 1100000 # force the first file to fall in a different tv_sec interval
-runtest "### Upload    " unix 0 "EOSROLE='-r 99 99'" eos cp "/etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/passwd"
-runtest "### Upload    " unix 0 "EOSROLE='-r 99 99'" eos cp "/etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/passwd"
-runtest "### Upload    " unix 0 "EOSROLE='-r 99 99'" eos cp "/etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/passwd"
-runtest "### Find Purge" unix 0 "EOSROLE='-r 99 99'" eos find --purge -1 /eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/
-runtest "### Ls        " unix 0 "EOSROLE='-r 99 99'" eos ls "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/.sys.v#.passwd | wc -l | grep -w 3"
-runtest "### Find Purge" unix 0 "EOSROLE='-r 99 99'" eos find --purge 1 /eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/
-runtest "### Ls        " unix 0 "EOSROLE='-r 99 99'" eos ls "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/.sys.v#.passwd | wc -l | grep -w 1"
-runtest "### Find Purge" unix 0 "EOSROLE='-r 99 99'" eos find --purge 0 /eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/
+runtest "### Upload    " unix 0 "EOSROLE='-r ${NOBODY_UID} ${NOBODY_GID}'" eos cp "/etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/passwd"
+runtest "### Upload    " unix 0 "EOSROLE='-r ${NOBODY_UID} ${NOBODY_GID}'" eos cp "/etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/passwd"
+runtest "### Upload    " unix 0 "EOSROLE='-r ${NOBODY_UID} ${NOBODY_GID}'" eos cp "/etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/passwd"
+runtest "### Find Purge" unix 0 "EOSROLE='-r ${NOBODY_UID} ${NOBODY_GID}'" eos find --purge -1 /eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/
+runtest "### Ls        " unix 0 "EOSROLE='-r ${NOBODY_UID} ${NOBODY_GID}'" eos ls "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/.sys.v#.passwd | wc -l | grep -w 3"
+runtest "### Find Purge" unix 0 "EOSROLE='-r ${NOBODY_UID} ${NOBODY_GID}'" eos find --purge 1 /eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/
+runtest "### Ls        " unix 0 "EOSROLE='-r ${NOBODY_UID} ${NOBODY_GID}'" eos ls "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/.sys.v#.passwd | wc -l | grep -w 1"
+runtest "### Find Purge" unix 0 "EOSROLE='-r ${NOBODY_UID} ${NOBODY_GID}'" eos find --purge 0 /eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/
 runtest "### Stat      " unix 1 "" meta stat "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/.sys.v#.passwd"
 # Versioning test when acls control the permission for the user on the folder and
 # implicitly also for the creation of the versions directory.
-runtest "### Mkdir     " unix 0 "EOSROLE='-r 99 99'" eos mkdir "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/acl_versions/"
+runtest "### Mkdir     " unix 0 "EOSROLE='-r ${NOBODY_UID} ${NOBODY_GID}'" eos mkdir "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/acl_versions/"
 runtest "### Chmod     " unix 0 "" eos chmod "2550" "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/acl_versions/"
-runtest "### Attr Set  " unix 0 "" eos attr set sys.acl="u:99:rwx" "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/acl_versions/"
-runtest "### Upload    " unix 0 "EOSROLE='-r 99 99'" eos cp "/etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/acl_versions/file.dat"
-runtest "### Upload    " unix 0 "EOSROLE='-r 99 99'" eos cp "/etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/acl_versions/file.dat"
-runtest "### Ls        " unix 0 "EOSROLE='-r 99 99'" eos ls "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/acl_versions/.sys.v#.file.dat | wc -l | grep -w 1"
+runtest "### Attr Set  " unix 0 "" eos attr set sys.acl="u:${NOBODY_UID}:rwx" "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/acl_versions/"
+runtest "### Upload    " unix 0 "EOSROLE='-r ${NOBODY_UID} ${NOBODY_GID}'" eos cp "/etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/acl_versions/file.dat"
+runtest "### Upload    " unix 0 "EOSROLE='-r ${NOBODY_UID} ${NOBODY_GID}'" eos cp "/etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/acl_versions/file.dat"
+runtest "### Ls        " unix 0 "EOSROLE='-r ${NOBODY_UID} ${NOBODY_GID}'" eos ls "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/acl_versions/.sys.v#.file.dat | wc -l | grep -w 1"
 runtest "### Cleanup"    unix 2 "" eos rm  "-r /eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/acl_versions/"
 runtest "### Cleanup"    unix 2 "" eos rm  "-r /eos/$EOS_TEST_INSTANCE/test/instancetest/versioning"
 
