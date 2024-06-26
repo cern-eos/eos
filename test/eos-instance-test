@@ -1377,7 +1377,7 @@ runtest   "### Attr      " unix 0 "" eos attr set user.acl=u:nobody:rwx\!u /eos/
 runtest H "### Update    " sss  1 "" append "/eos/$EOS_TEST_INSTANCE/test/instancetest/file.1k\?eos.ruid=${NOBODY_UID}\&eos.rgid=${NOBODY_GID}"   # fail: not owner, ACL allows RW but denies update
 
 runtest   "### Attr      " unix 0 "" eos attr set user.acl=u:1:rwx /eos/$EOS_TEST_INSTANCE/test/instancetest
-runtest H "### Update    " sss  1 "" append "/eos/$EOS_TEST_INSTANCE/test/instancetest/file.1k\?eos.ruid=${NOBODY_UID}\&eos.rgid=${NOBOCY_GID}"   # fail: not owner, not in ACL
+runtest H "### Update    " sss  1 "" append "/eos/$EOS_TEST_INSTANCE/test/instancetest/file.1k\?eos.ruid=${NOBODY_UID}\&eos.rgid=${NOBODY_GID}"   # fail: not owner, not in ACL
 
 runtest   "### Attr      " unix 0 "" eos attr set user.acl=u:${NOBODY_UID}:rwx\!d /eos/$EOS_TEST_INSTANCE/test/instancetest
 runtest H "### Rm        " sss  1 "EOSROLE='-r ${NOBODY_UID} ${NOBODY_GID}'" eos rm /eos/$EOS_TEST_INSTANCE/test/instancetest/file.1k             # fail: dir not owned, ACL denies delete
