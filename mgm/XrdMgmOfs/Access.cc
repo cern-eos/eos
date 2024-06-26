@@ -429,7 +429,7 @@ XrdMgmOfs::allow_public_access(const char* path,
   // Check only for anonymous access
   // uid=99 for CentOS7
   // uid=65534 for >= Alma 9
-  if ((vid.uid != 99) || (vid.uid != 65534)) {
+  if ((vid.uid != 99) && (vid.uid != 65534)) {
     return true;
   }
 
