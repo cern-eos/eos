@@ -1637,9 +1637,11 @@ XrdFstOfsFile::_close_wr()
         }
       }
 
-      // Check target and minimum size policy only for replicas
-      target_sz_err = (mTargetSize) ? (mTargetSize != mMaxOffsetWritten) : false;
-      min_sz_err = (mMinSize) ? ((off_t) mMaxOffsetWritten < mMinSize) : false;
+      if (!eos::common::LayoutId::IsRain(mLayout->GetLayoutId())) {
+        // Check target and minimum size policy only for non RAIN files
+        target_sz_err = (mTargetSize) ? (mTargetSize != mMaxOffsetWritten) : false;
+        min_sz_err = (mMinSize) ? ((off_t) mMaxOffsetWritten < mMinSize) : false;
+      }
     }
 
     checksum_err = VerifyChecksum();
