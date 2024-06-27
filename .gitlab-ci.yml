@@ -573,9 +573,9 @@ el9_asan_docker_image:
     - cp_to_local_cmd eos-cli1:/usr/sbin/eos-fst-close-test ./eos-fst-close-test; chmod +x eos-fst-close-test
     - case $CI_JOB_NAME in
       "k8s"*  )
-        ./eos-fst-close-test --max-delay 600 --type k8s $K8S_NAMESPACE ;;
+        ./eos-fst-close-test --type k8s $K8S_NAMESPACE ;;
       "dock"* )
-        ./eos-fst-close-test --max-delay 600 --type docker ;;
+        ./eos-fst-close-test --type docker ;;
       esac
     - date
   artifacts:
