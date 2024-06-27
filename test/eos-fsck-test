@@ -32,7 +32,7 @@ function usage() {
 # Create and upload test files to the eos instance. We create a random file and
 # upload it multiple times to EOS one file per type of corruption.
 function create_test_files() {
-  EOS_ROOT=/eos/dockertest/
+  EOS_ROOT=/eos/dockertest
   EOS_RAIN_DIR=${EOS_ROOT}/fsck/rain
   EOS_REPLICA_DIR=${EOS_ROOT}/fsck/replica
 
