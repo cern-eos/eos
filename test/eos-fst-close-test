@@ -45,8 +45,7 @@ assert_argument () { test "$1" != "$EOL" || usage_error "$2 requires an argument
 IS_LOCAL=false
 IS_DOCKER=false
 K8S_NAMESPACE=""
-EOS_MGM_URL=""
-EOS_ROOT=/eos/dockertest/
+EOS_ROOT=/eos/dockertest
 EOS_RAIN_DIR=${EOS_ROOT}/fst-close-test/rain
 EOS_REPLICA_DIR=${EOS_ROOT}/fst-close-test/replica
 
@@ -135,12 +134,6 @@ function cleanup() {
 function prepare_mgm() {
   echo "info: prepare MGM configuration"
   exec_cmd eos-mgm1 "eos ns behaviour set rain_min_fsid_entry on"
-  # local FST_ONLINE=$(exec_cmd eos-mgm1 "eos fs ls | grep \"online\" | wc -l")
-
-  # for (( i=3; i<=${FST_ONLINE}; i++ )); do
-  #   exec_cmd eos_cli1 "eos -r 0 0 fs config ${i} configstatus=off"
-  # done
-
   exec_cmd eos-cli1 "dd status=none if=/dev/urandom of=${TEST_FILE} bs=1M count=22 &&
                      eos -r 0 0 mkdir -p ${EOS_RAIN_DIR} &&
                      eos -r 0 0 mkdir -p ${EOS_REPLICA_DIR} &&
@@ -159,12 +152,12 @@ test_write_read_successful() {
   local test_fn=${1}
   local eos_fn="${EOS_REPLICA_DIR}/write_read_success.dat"
   echo "info: test successful write and read"
-  local xs_local="$(eos-adler32 ${test_fn} | awk -F '[ =]' '{print $NF;}')"
-  exec_cmd eos-cli1 "xrdcp -f --nopbar ${test_fn} ${EOS_MGM_URL}/${eos_fn}"
-  exec_cmd eos-cli1 "eos -j fileinfo ${eos_fn} | jq '.locations | length' | grep 2 > /dev/null"
+  local xs_local=$(exec_cmd eos-cli1 "eos-adler32 ${test_fn} | awk -F '[ =]' '{print $NF;}'")
+  exec_cmd eos-cli1 "PATH=/opt/eos/xrootd/bin/:${PATH} && xrdcp -f --nopbar ${test_fn} ${EOS_MGM_URL}/${eos_fn}"
+  exec_cmd eos-cli1 "eos -j fileinfo ${eos_fn} | jq '.locations | length' | grep 2"
   local xs_eos=$(exec_cmd eos-cli1 "eos -j fileinfo ${eos_fn} | jq '.checksumvalue' | tr -d '\"' ")
   exec_cmd eos-cli1 "xrdcp -f --nopbar ${EOS_MGM_URL}/${eos_fn} /tmp/test_file_copy.dat"
-  local xs_copy="$(eos-adler32 /tmp/test_file_copy.dat | awk -F '[ =]' '{print $NF;}')"
+  local xs_copy=$(exec_cmd eos-cli1 "eos-adler32 /tmp/test_file_copy.dat | awk -F '[ =]' '{print $NF;}'")
   exec_cmd eos-cli1 "rm -rf /tmp/test_file_copy.dat"
   exec_cmd eos-cli1 "eos -r 0 0 rm -rF ${eos_fn}"
 
@@ -197,7 +190,7 @@ test_read_xs_error() {
   local orig_xs=$(exec_cmd eos-fst${min_fsid} "eos-adler32 ${local_path} | awk -F '[ =]' '{print \$NF;}'")
   exec_cmd eos-fst${min_fsid} "printf '\xab' | dd status=none of=${local_path} bs=1 seek=$((0xbeef)) conv=notrunc"
   exec_cmd eos-fst${min_fsid} "printf '\x12' | dd status=none of=${local_path} bs=1 seek=$((0xdead)) conv=notrunc"
-  local corrupt_xs=$(exec_cmd eosfst${min_fsid} "eos-adler32 ${local_path} | awk -F '[ =]' '{print \$NF;}'")
+  local corrupt_xs=$(exec_cmd eos-fst${min_fsid} "eos-adler32 ${local_path} | awk -F '[ =]' '{print \$NF;}'")
 
   if [[ "${orig_xs}" == "${corrupt_xs}" ]]; then
       echo "error: really unlucky, the original and corrupted checksum match"
@@ -228,7 +221,7 @@ test_write_min_filesize() {
   local test_fn=${1}
   local eos_fn="${EOS_REPLICA_DIR}/xrdcp_min_filesize.dat"
   local error_msg="Unable to open - bookingsize violates minimum allowed filesize"
-  exec_cmd eos-clit1 "eos -r 0 0 attr set sys.forced.minsize=$((25*1024*1024)) ${EOS_REPLICA_DIR} >& /dev/null"
+  exec_cmd eos-cli1 "eos -r 0 0 attr set sys.forced.minsize=$((25*1024*1024)) ${EOS_REPLICA_DIR} >& /dev/null"
   output=$(exec_cmd eos-cli1 "xrdcp -f --nopbar ${test_fn} ${EOS_MGM_URL}/${eos_fn} 2>&1 || true")
   [[ ${output} =~ ${error_msg} ]]
   local rc1=$?
@@ -246,7 +239,7 @@ test_write_min_filesize() {
     echo "error: message \"${output}\" different from expected \"${error_msg}\""
   fi
 
-  exec_cmd eos-clit1 "eos -r 0 0 attr rm sys.forced.minsize ${EOS_REPLICA_DIR} >& /dev/null"
+  exec_cmd eos-cli1 "eos -r 0 0 attr rm sys.forced.minsize ${EOS_REPLICA_DIR} >& /dev/null"
   return ${rc1}${rc2}
 }
 
@@ -260,7 +253,7 @@ test_write_max_filesize() {
   local test_fn=${1}
   local eos_fn="${EOS_REPLICA_DIR}/xrdcp_max_filesize.dat"
   local error_msg="Unable to open - bookingsize violates maximum allowed filesize"
-  exec_cmd eos-clit1 "eos -r 0 0 attr set sys.forced.maxsize=$((1*1024*1024)) ${EOS_REPLICA_DIR} >& /dev/null"
+  exec_cmd eos-cli1 "eos -r 0 0 attr set sys.forced.maxsize=$((1*1024*1024)) ${EOS_REPLICA_DIR} >& /dev/null"
   output=$(exec_cmd eos-cli1 "xrdcp -f --nopbar ${test_fn} ${EOS_MGM_URL}/${eos_fn} 2>&1 || true")
   [[ ${output} =~ ${error_msg} ]]
   local rc1=$?
@@ -268,7 +261,7 @@ test_write_max_filesize() {
   output=$(exec_cmd eos-cli1 "eos fileinfo ${eos_fn} 2>&1 || true")
   [[ ${output} =~ ${error_msg} ]]
   local rc2=$?
-  exec_cmd eos-clit1 "eos -r 0 0 attr rm sys.forced.maxsize ${EOS_REPLICA_DIR} >& /dev/null"
+  exec_cmd eos-cli1 "eos -r 0 0 attr rm sys.forced.maxsize ${EOS_REPLICA_DIR} >& /dev/null"
   return ${rc1}${rc2}
 }
 
