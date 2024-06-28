@@ -13,7 +13,7 @@
 
 Name:           eos-nginx
 Version:        1.25.0
-Release:        1%{dist}
+Release:        3%{dist}
 Summary:        Robust, small and high performance http and reverse proxy server
 Group:          System Environment/Daemons
 Packager:       Justin Salmon <jsalmon@cern.ch>
@@ -59,6 +59,7 @@ Source6:    nginx.service
 Source7:    nginx.sysconfig.systemd
 
 Patch0:     nginx-allow-put-redirect.patch
+Patch2:     nginx-no-body-before-redirect.patch
 
 %description
 Nginx [engine x] is an HTTP(S) server, HTTP(S) reverse proxy and IMAP/POP3
@@ -71,6 +72,7 @@ A second third party modul, nginx-auth-ldap has been added.
 %setup -q -n nginx-%{version}
 
 %patch0 -p1
+%patch2 -p1
 %build
 
 rm -rf %{_builddir}/spnego-http-auth-nginx-module
