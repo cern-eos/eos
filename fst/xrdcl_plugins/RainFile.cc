@@ -393,7 +393,7 @@ RainFile::VectorRead(const ChunkList& chunks,
       AnyObject* obj = new AnyObject();
       VectorReadInfo* vReadInfo = new VectorReadInfo();
       vReadInfo->SetSize(len);
-      ChunkList vResp = vReadInfo->GetChunks();
+      ChunkList& vResp = vReadInfo->GetChunks();
       vResp = chunks;
       obj->Set(vReadInfo);
       handler->HandleResponse(ret_st, obj);
