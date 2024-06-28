@@ -1,0 +1,12 @@
+--- a/src/http/modules/ngx_http_proxy_module.c	2023-05-23 17:08:20.000000000 +0200
++++ b/src/http/modules/ngx_http_proxy_module.c	2024-07-01 11:15:57.667381571 +0200
+@@ -1570,8 +1570,7 @@
+             u->output.filter_ctx = r;
+         }
+ 
+-    } else if (plcf->body_values == NULL && plcf->upstream.pass_request_body) {
+-
++    } else if (plcf->body_values == NULL && ( plcf->upstream.pass_request_body || (r->method != NGX_HTTP_PUT)) ) {
+         body = u->request_bufs;
+         u->request_bufs = cl;
+ 
