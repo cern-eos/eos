@@ -335,11 +335,9 @@ test_write_replica_fail_close_2nd() {
   # Redo the upload but add a delay for write xs error for FST 2 so that we
   # can clear error during the close for the adjust replica to be successful
   exec_cmd eos-mgm1 "eos -r 0 0 node config ${node} error.simulation=xs_write_10 > /dev/null"
-  sleep 2
-  exec_cmd eos-cli1 "${XRDCP_BIN} -f --nopbar ${test_fn} ${EOS_MGM_URL}/${eos_fn} &"
-  sleep 5
-  exec_cmd eos-mgm1 "eos -r 0 0 node config ${node} error.simulation=none > /dev/null"
-  sleep 10
+  sleep 4
+  exec_cmd eos-cli1 "${XRDCP_BIN} -f --nopbar ${test_fn} ${EOS_MGM_URL}/${eos_fn} & sleep 4; eos -r 0 0 node config ${node} error.simulation=none > /dev/null"
+  sleep 12
   # Now we should have two replicas attached to the NS entry
   exec_cmd eos-cli1 "eos -j fileinfo ${eos_fn} | jq '.locations | length' | grep 2 > /dev/null"
   exec_cmd eos-mgm1 "eos -r 0 0 node config $node error.simulation=none > /dev/null"
@@ -384,7 +382,8 @@ test_rain_recovery_tpc_timeout() {
   # Add read delay of 20 seconds to a stripe that will be read (and not recovered!)
   local node=$(exec_cmd eos-mgm1 "eos -r 0 0 fs ls \" 2 \" | grep booted  | awk '{print \$1\":\"\$2;}'")
   exec_cmd eos-mgm1 "eos -r 0 0 node config ${node} error.simulation=read_delay_20 > /dev/null"
-  # Trigger TPC recovery but with a small timeout so that transfer fails and for a
+  sleep 2
+  # Trigger TPC recovery but with a small timeout so that the transfer fails and for a
   # file system where we don't have read_delay enabled
   local output=$(exec_cmd eos-cli1 "XRD_TIMEOUTRESOLUTION=1 XRD_CPTPCTIMEOUT=10 ${XRDCP_BIN} -f --tpc only \"${EOS_MGM_URL}/${eos_fn}?eos.pio.action=reconstruct&eos.pio.recfs=1\" ${EOS_MGM_URL}/${eos_fn}_copy 2>&1 || true")
   local error_msg="Run: [ERROR] Operation expired"
@@ -412,7 +411,7 @@ test_rain_recovery_tpc_timeout() {
 
   if [[ "${orig_loc}" != "${new_loc}" ]]; then
     rc3=1
-    echo "error: the file has new locations after the failed transfer"
+    echo "error: the file has new locations after the failed transfer, orig=${orig_loc[*]}, new=${new_loc[*]}"
   fi
 
   # Do cleanup
@@ -439,6 +438,7 @@ test_rain_recovery_close_timeout() {
   local close_err_fsid=$(echo ${orig_loc} | cut -d ' ' -f 2)
   local close_err_node=$(exec_cmd eos-mgm1 "eos -r 0 0 fs ls \" ${close_err_fsid} \" | grep booted  | awk '{print \$1\":\"\$2;}'")
   exec_cmd eos-mgm1 "eos -r 0 0 node config ${close_err_node} error.simulation=close > /dev/null"
+  sleep 2
   # Trigger TPC recovery that should fail due to the simulated close error
   local output=$(exec_cmd eos-cli1 "${XRDCP_BIN} -f --tpc only \"${EOS_MGM_URL}/${eos_fn}?eos.pio.action=reconstruct&eos.pio.recfs=${recover_fsid}\" ${EOS_MGM_URL}/${eos_fn}_copy 2>&1 || true")
   local error_msg="Unable to store file - file has been cleaned or recovery aborted because of an error on close"
