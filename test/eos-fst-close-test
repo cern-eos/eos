@@ -48,7 +48,7 @@ K8S_NAMESPACE=""
 EOS_ROOT=/eos/dockertest
 EOS_RAIN_DIR=${EOS_ROOT}/fst-close-test/rain
 EOS_REPLICA_DIR=${EOS_ROOT}/fst-close-test/replica
-
+XRDCP_BIN=/opt/eos/xrootd/bin/xrdcp
 
 # One loop, nothing more.
 if [ "$#" != 0 ]; then
@@ -120,12 +120,13 @@ function cleanup() {
   local FST_ONLINE=$(exec_cmd eos-mgm1 "eos fs ls | grep \"online\" | wc -l")
 
   for (( i=1; i<=${FST_ONLINE}; i++ )); do
-    exec_cmd eos_mgm1 "eos -r 0 0 fs config ${i} configstatus=rw"
+    exec_cmd eos-mgm1 "eos -r 0 0 fs config ${i} configstatus=rw"
   done
 
-  exec_cmd eos-cli1 "eos -r 0 0 rm -rF \"${EOS_ROOT}/fst-close-test\" &&
+  exec_cmd eos-cli1 "eos -r 0 0 rm -rF ${EOS_REPLICA_DIR} &&
+                     eos -r 0 0 rm -rF ${EOS_RAIN_DIR} &&
+                     eos -r 0 0 rmdir \"${EOS_ROOT}/fst-close-test\" &&
                      rm -rf /tmp/test_file.dat"
-
 }
 
 #-------------------------------------------------------------------------------
@@ -141,7 +142,7 @@ function prepare_mgm() {
                      eos -r 0 0 attr set default=raid6 ${EOS_RAIN_DIR}"
   # Add a delay for the configstatus change to propagate in the scheduling
   # data structures otherwise we end up writing to file systems which are off
-  XS_TEST_FILE=$(exec_cmd eos-cli1 "eos-adler32 ${TEST_FILE} | awk -F '[ =]' '{print $NF;}'")
+  XS_TEST_FILE=$(exec_cmd eos-cli1 "eos-adler32 ${TEST_FILE} | awk -F '[ =]' '{print \$NF;}'")
   sleep 2
 }
 
@@ -152,12 +153,12 @@ test_write_read_successful() {
   local test_fn=${1}
   local eos_fn="${EOS_REPLICA_DIR}/write_read_success.dat"
   echo "info: test successful write and read"
-  local xs_local=$(exec_cmd eos-cli1 "eos-adler32 ${test_fn} | awk -F '[ =]' '{print $NF;}'")
-  exec_cmd eos-cli1 "PATH=/opt/eos/xrootd/bin/:${PATH} && xrdcp -f --nopbar ${test_fn} ${EOS_MGM_URL}/${eos_fn}"
-  exec_cmd eos-cli1 "eos -j fileinfo ${eos_fn} | jq '.locations | length' | grep 2"
+  local xs_local=$(exec_cmd eos-cli1 "eos-adler32 ${test_fn} | awk -F '[ =]' '{print \$NF;}'")
+  exec_cmd eos-cli1 "${XRDCP_BIN} -f --nopbar ${test_fn} ${EOS_MGM_URL}/${eos_fn}"
+  exec_cmd eos-cli1 "eos -j fileinfo ${eos_fn} | jq '.locations | length' | grep 2 > /dev/null"
   local xs_eos=$(exec_cmd eos-cli1 "eos -j fileinfo ${eos_fn} | jq '.checksumvalue' | tr -d '\"' ")
-  exec_cmd eos-cli1 "xrdcp -f --nopbar ${EOS_MGM_URL}/${eos_fn} /tmp/test_file_copy.dat"
-  local xs_copy=$(exec_cmd eos-cli1 "eos-adler32 /tmp/test_file_copy.dat | awk -F '[ =]' '{print $NF;}'")
+  exec_cmd eos-cli1 "${XRDCP_BIN} -f --nopbar ${EOS_MGM_URL}/${eos_fn} /tmp/test_file_copy.dat"
+  local xs_copy=$(exec_cmd eos-cli1 "eos-adler32 /tmp/test_file_copy.dat | awk -F '[ =]' '{print \$NF;}'")
   exec_cmd eos-cli1 "rm -rf /tmp/test_file_copy.dat"
   exec_cmd eos-cli1 "eos -r 0 0 rm -rF ${eos_fn}"
 
@@ -183,7 +184,7 @@ test_read_xs_error() {
   local test_fn=${1}
   local eos_fn="${EOS_REPLICA_DIR}/read_xs_err.dat"
   local error_msg="Unable to read file - wrong file checksum"
-  exec_cmd eos-cli1 "xrdcp -f --nopbar ${test_fn} ${EOS_MGM_URL}/${eos_fn}"
+  exec_cmd eos-cli1 "${XRDCP_BIN} -f --nopbar ${test_fn} ${EOS_MGM_URL}/${eos_fn}"
   local min_fsid=$(exec_cmd eos-cli1 "eos -j fileinfo ${eos_fn} | jq '[.locations | .[] | .fsid] | sort | first'")
   local local_path=$(exec_cmd eos-cli1 "eos -j fileinfo ${eos_fn} | jq '.locations | .[] | select(.fsid==${min_fsid}) | .fstpath' | tr -d '\"' ")
   # Corrupt the raw file on disk
@@ -197,7 +198,7 @@ test_read_xs_error() {
       exit 1
   fi
 
-  local cp_output=$(exec_cmd eos-cli1 "xrdcp -f --nopbar ${EOS_MGM_URL}/${eos_fn} /tmp/test_file_copy.dat 2>&1")
+  local cp_output=$(exec_cmd eos-cli1 "${XRDCP_BIN} -f --nopbar ${EOS_MGM_URL}/${eos_fn} /tmp/test_file_copy.dat 2>&1")
   # Check if output contains the expected error message
   [[ ${cp_output} =~ ${error_msg} ]]
   local rc1=$?
@@ -222,7 +223,7 @@ test_write_min_filesize() {
   local eos_fn="${EOS_REPLICA_DIR}/xrdcp_min_filesize.dat"
   local error_msg="Unable to open - bookingsize violates minimum allowed filesize"
   exec_cmd eos-cli1 "eos -r 0 0 attr set sys.forced.minsize=$((25*1024*1024)) ${EOS_REPLICA_DIR} >& /dev/null"
-  output=$(exec_cmd eos-cli1 "xrdcp -f --nopbar ${test_fn} ${EOS_MGM_URL}/${eos_fn} 2>&1 || true")
+  output=$(exec_cmd eos-cli1 "${XRDCP_BIN} -f --nopbar ${test_fn} ${EOS_MGM_URL}/${eos_fn} 2>&1 || true")
   [[ ${output} =~ ${error_msg} ]]
   local rc1=$?
 
@@ -254,7 +255,7 @@ test_write_max_filesize() {
   local eos_fn="${EOS_REPLICA_DIR}/xrdcp_max_filesize.dat"
   local error_msg="Unable to open - bookingsize violates maximum allowed filesize"
   exec_cmd eos-cli1 "eos -r 0 0 attr set sys.forced.maxsize=$((1*1024*1024)) ${EOS_REPLICA_DIR} >& /dev/null"
-  output=$(exec_cmd eos-cli1 "xrdcp -f --nopbar ${test_fn} ${EOS_MGM_URL}/${eos_fn} 2>&1 || true")
+  output=$(exec_cmd eos-cli1 "${XRDCP_BIN} -f --nopbar ${test_fn} ${EOS_MGM_URL}/${eos_fn} 2>&1 || true")
   [[ ${output} =~ ${error_msg} ]]
   local rc1=$?
   error_msg="No such file or directory"
@@ -276,7 +277,7 @@ test_write_targetsize() {
   local test_fn=${1}
   local eos_fn="${EOS_REPLICA_DIR}/xrdcp_targetsize.dat"
   local error_msg="Unable to store file - file has been cleaned because the stored file does not match the provided targetsize"
-  output=$(exec_cmd eos-cli1 "xrdcp -f --nopbar ${test_fn} ${EOS_MGM_URL}/${eos_fn}?eos.targetsize=10000 2>&1 || true")
+  output=$(exec_cmd eos-cli1 "${XRDCP_BIN} -f --nopbar ${test_fn} ${EOS_MGM_URL}/${eos_fn}?eos.targetsize=10000 2>&1 || true")
   [[ ${output} =~ ${error_msg} ]]
   local rc1=$?
   error_msg="No such file or directory"
@@ -296,7 +297,7 @@ test_write_xs_preset() {
   local test_fn=${1}
   local eos_fn="${EOS_REPLICA_DIR}/xrdcp_xs_preset.dat"
   local error_msg="Unable to store file - file has been cleaned because of a checksum error"
-  local output=$(exec_cmd eos-cli1 "xrdcp -f --nopbar ${test_fn} ${EOS_MGM_URL}/${eos_fn}?eos.checksum=deadbeef 2>&1 || true")
+  local output=$(exec_cmd eos-cli1 "${XRDCP_BIN} -f --nopbar ${test_fn} ${EOS_MGM_URL}/${eos_fn}?eos.checksum=deadbeef 2>&1 || true")
   [[ ${output} =~ ${error_msg} ]]
   local rc1=$?
   error_msg="No such file or directory"
@@ -318,7 +319,7 @@ test_write_replica_fail_close_2nd() {
   local FST_ONLINE=$(exec_cmd eos-mgm1 "eos -r 0 0 fs ls | grep \"online\" | wc -l")
 
   for (( i=3; i<=${FST_ONLINE}; i++ )); do
-    exec_cmd eos_mgm1 "eos -r 0 0 fs config ${i} configstatus=ro"
+    exec_cmd eos-mgm1 "eos -r 0 0 fs config ${i} configstatus=ro"
   done
 
   local node=$(exec_cmd eos-mgm1 "eos -r 0 0 fs ls \" 2 \" | grep booted  | awk '{print \$1\":\"\$2;}'")
@@ -326,7 +327,7 @@ test_write_replica_fail_close_2nd() {
   exec_cmd eos-mgm1 "eos -r 0 0 node config ${node} error.simulation=xs_write > /dev/null"
   # Wait for the config to propagate to the FST
   sleep 2
-  exec_cmd eos-cli1 "xrdcp -f --nopbar ${test_fn} ${EOS_MGM_URL}/${eos_fn}"
+  exec_cmd eos-cli1 "${XRDCP_BIN} -f --nopbar ${test_fn} ${EOS_MGM_URL}/${eos_fn}"
   sleep 5
   # Check that the file as only one replica in the namespace as the result of the
   # repair on close that files since there are no other available file systems!
@@ -335,7 +336,7 @@ test_write_replica_fail_close_2nd() {
   # can clear error during the close for the adjust replica to be successful
   exec_cmd eos-mgm1 "eos -r 0 0 node config ${node} error.simulation=xs_write_10 > /dev/null"
   sleep 2
-  exec_cmd eos-cli1 "xrdcp -f --nopbar ${test_fn} ${EOS_MGM_URL}/${eos_fn} &"
+  exec_cmd eos-cli1 "${XRDCP_BIN} -f --nopbar ${test_fn} ${EOS_MGM_URL}/${eos_fn} &"
   sleep 5
   exec_cmd eos-mgm1 "eos -r 0 0 node config ${node} error.simulation=none > /dev/null"
   sleep 10
@@ -345,7 +346,7 @@ test_write_replica_fail_close_2nd() {
   exec_cmd eos-cli1 "eos -r 0 0 rm -rF ${eos_fn}"
 
   for (( i=3; i<=${FST_ONLINE}; i++ )); do
-    exec_cmd eos_mgm1 "eos -r 0 0 fs config ${i} configstatus=rw"
+    exec_cmd eos-mgm1 "eos -r 0 0 fs config ${i} configstatus=rw"
   done
   sleep 2
 }
@@ -363,19 +364,19 @@ test_rain_recovery_tpc_timeout() {
 
   if [[ ${FST_ONLINE} -ge 7 ]]; then
     for (( i=7; i<=${FST_ONLINE}; i++ )); do
-      exec_cmd eos_mgm1 "eos -r 0 0 fs config ${i} configstatus=ro"
+      exec_cmd eos-mgm1 "eos -r 0 0 fs config ${i} configstatus=ro"
     done
   fi
   # Wait for the file system status to propagate in the scheduling view
   sleep 3
-  exec_cmd eos-cli1 "xrdcp -f --nopbar ${test_fn} ${EOS_MGM_URL}/${eos_fn}"
+  exec_cmd eos-cli1 "${XRDCP_BIN} -f --nopbar ${test_fn} ${EOS_MGM_URL}/${eos_fn}"
   # Collect list of file systems that hold the file
   local orig_loc=$(exec_cmd eos-cli1 "eos -j fileinfo ${eos_fn} | jq '.locations | .[] | .fsid' | tr '\n' ' '")
   local orig_xs=$(exec_cmd eos-cli1 "eos -j fileinfo ${eos_fn} | jq '.checksumvalue' | tr -d '\"' ")
   # Put back the FSes in rw mode to have available destinations for recovery
   if [[ ${FST_ONLINE} -ge 7 ]]; then
     for (( i=7; i<=${FST_ONLINE}; i++ )); do
-      exec_cmd eos_mgm1 "eos -r 0 0 fs config ${i} configstatus=rw"
+      exec_cmd eos-mgm1 "eos -r 0 0 fs config ${i} configstatus=rw"
     done
   fi
   # Wait for the file system status to propagate in the scheduling view
@@ -385,7 +386,7 @@ test_rain_recovery_tpc_timeout() {
   exec_cmd eos-mgm1 "eos -r 0 0 node config ${node} error.simulation=read_delay_20 > /dev/null"
   # Trigger TPC recovery but with a small timeout so that transfer fails and for a
   # file system where we don't have read_delay enabled
-  local output=$(exec_cmd eos-cli1 "XRD_TIMEOUTRESOLUTION=1 XRD_CPTPCTIMEOUT=10 xrdcp -f --tpc only \"${EOS_MGM_URL}/${eos_fn}?eos.pio.action=reconstruct&eos.pio.recfs=1\" ${EOS_MGM_URL}/${eos_fn}_copy 2>&1 || true")
+  local output=$(exec_cmd eos-cli1 "XRD_TIMEOUTRESOLUTION=1 XRD_CPTPCTIMEOUT=10 ${XRDCP_BIN} -f --tpc only \"${EOS_MGM_URL}/${eos_fn}?eos.pio.action=reconstruct&eos.pio.recfs=1\" ${EOS_MGM_URL}/${eos_fn}_copy 2>&1 || true")
   local error_msg="Run: [ERROR] Operation expired"
   local rc1=0
 
@@ -397,7 +398,7 @@ test_rain_recovery_tpc_timeout() {
   # Remove the simulated read delay
   exec_cmd eos-mgm1 "eos -r 0 0 node config ${node} error.simulation=none > /dev/null"
   # Check that the checksum of a download still matches the original one
-  local new_xs="$(exec_cmd eos-cli1 "xrdcp -f --nopbar ${EOS_MGM_URL}/${eos_fn} /var/tmp/temp; xs=\$(eos-adler32 /var/tmp/temp | awk -F '[ =]' '{print \$NF;}'); rm -rf /var/tmp/temp; echo \${xs}")"
+  local new_xs="$(exec_cmd eos-cli1 "${XRDCP_BIN} -f --nopbar ${EOS_MGM_URL}/${eos_fn} /var/tmp/temp; xs=\$(eos-adler32 /var/tmp/temp | awk -F '[ =]' '{print \$NF;}'); rm -rf /var/tmp/temp; echo \${xs}")"
   local rc2=0
 
   if [[ "${new_xs}" != "${orig_xs}" ]]; then
@@ -428,7 +429,7 @@ test_rain_recovery_close_timeout() {
   echo "info: test rain file recovery where a stripe close fails"
   local test_fn=${1}
   local eos_fn="${EOS_RAIN_DIR}/xrdcp_recovery_close_timeout.dat"
-  exec_cmd eos-cli1 "xrdcp -f --nopbar ${test_fn} ${EOS_MGM_URL}/${eos_fn}"
+  exec_cmd eos-cli1 "${XRDCP_BIN} -f --nopbar ${test_fn} ${EOS_MGM_URL}/${eos_fn}"
   # Collect list of file systems that hold the file
   local orig_loc=$(exec_cmd eos-cli1 "eos -j fileinfo ${eos_fn} | jq '.locations | .[] | .fsid' | tr '\n' ' '")
   local orig_xs=$(exec_cmd eos-cli1 "eos -j fileinfo ${eos_fn} | jq '.checksumvalue' | tr -d '\"' ")
@@ -439,7 +440,7 @@ test_rain_recovery_close_timeout() {
   local close_err_node=$(exec_cmd eos-mgm1 "eos -r 0 0 fs ls \" ${close_err_fsid} \" | grep booted  | awk '{print \$1\":\"\$2;}'")
   exec_cmd eos-mgm1 "eos -r 0 0 node config ${close_err_node} error.simulation=close > /dev/null"
   # Trigger TPC recovery that should fail due to the simulated close error
-  local output=$(exec_cmd eos-cli1 "xrdcp -f --tpc only \"${EOS_MGM_URL}/${eos_fn}?eos.pio.action=reconstruct&eos.pio.recfs=${recover_fsid}\" ${EOS_MGM_URL}/${eos_fn}_copy 2>&1 || true")
+  local output=$(exec_cmd eos-cli1 "${XRDCP_BIN} -f --tpc only \"${EOS_MGM_URL}/${eos_fn}?eos.pio.action=reconstruct&eos.pio.recfs=${recover_fsid}\" ${EOS_MGM_URL}/${eos_fn}_copy 2>&1 || true")
   local error_msg="Unable to store file - file has been cleaned or recovery aborted because of an error on close"
   local rc1=0
 
@@ -451,7 +452,7 @@ test_rain_recovery_close_timeout() {
   # Remove the simulated close error
   exec_cmd eos-mgm1 "eos -r 0 0 node config ${close_err_node} error.simulation=none > /dev/null"
   # Check that the checksum of a download still matches the original one
-  local new_xs="$(exec_cmd eos-cli1 "xrdcp -f --nopbar ${EOS_MGM_URL}/${eos_fn} /var/tmp/temp; xs=\$(eos-adler32 /var/tmp/temp | awk -F '[ =]' '{print \$NF;}'); rm -rf /var/tmp/temp; echo \${xs}")"
+  local new_xs="$(exec_cmd eos-cli1 "${XRDCP_BIN} -f --nopbar ${EOS_MGM_URL}/${eos_fn} /var/tmp/temp; xs=\$(eos-adler32 /var/tmp/temp | awk -F '[ =]' '{print \$NF;}'); rm -rf /var/tmp/temp; echo \${xs}")"
   local rc2=0
 
   if [[ "${new_xs}" != "${orig_xs}" ]]; then
