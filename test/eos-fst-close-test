@@ -339,7 +339,7 @@ test_write_replica_fail_close_2nd() {
   exec_cmd eos-cli1 "${XRDCP_BIN} -f --nopbar ${test_fn} ${EOS_MGM_URL}/${eos_fn} &"
   sleep 5
   exec_cmd eos-mgm1 "eos -r 0 0 node config ${node} error.simulation=none > /dev/null"
-  sleep 10
+  sleep 15
   # Now we should have two replicas attached to the NS entry
   exec_cmd eos-cli1 "eos -j fileinfo ${eos_fn} | jq '.locations | length' | grep 2 > /dev/null"
   exec_cmd eos-mgm1 "eos -r 0 0 node config $node error.simulation=none > /dev/null"
