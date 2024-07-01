@@ -59,6 +59,7 @@ Source6:    nginx.service
 Source7:    nginx.sysconfig.systemd
 
 Patch0:     nginx-allow-put-redirect.patch
+Patch1:     nginx-allow-proxy-certs.patch
 Patch2:     nginx-no-body-before-redirect.patch
 
 %description
@@ -72,6 +73,7 @@ A second third party modul, nginx-auth-ldap has been added.
 %setup -q -n nginx-%{version}
 
 %patch0 -p1
+%patch1 -p1
 %patch2 -p1
 %build
 

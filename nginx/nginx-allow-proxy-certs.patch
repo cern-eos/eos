@@ -1,0 +1,117 @@
+From 0bd39b781ee6053d53d219358c852bc2d433f581 Mon Sep 17 00:00:00 2001
+From: Guilherme Amadio <amadio@cern.ch>
+Date: Mon, 1 Jul 2024 16:49:28 +0200
+Subject: [PATCH] SSL: add ssl_allow_proxy_certs flag
+
+---
+ src/event/ngx_event_openssl.c          | 21 +++++++++++++++++++++
+ src/event/ngx_event_openssl.h          |  2 ++
+ src/http/modules/ngx_http_ssl_module.c | 13 +++++++++++++
+ src/http/modules/ngx_http_ssl_module.h |  1 +
+ 4 files changed, 37 insertions(+)
+
+diff --git a/src/event/ngx_event_openssl.c b/src/event/ngx_event_openssl.c
+index c38aa27f1..2b785abb6 100644
+--- a/src/event/ngx_event_openssl.c
++++ b/src/event/ngx_event_openssl.c
+@@ -1625,6 +1625,27 @@ ngx_ssl_conf_commands(ngx_conf_t *cf, ngx_ssl_t *ssl, ngx_array_t *commands)
+ #endif
+ }
+ 
++ngx_int_t
++ngx_ssl_allow_proxy_certs(ngx_conf_t *cf, ngx_ssl_t *ssl, ngx_uint_t enable)
++{
++    X509_STORE   *store;
++
++    if (!enable) {
++        return NGX_OK;
++    }
++
++    store = SSL_CTX_get_cert_store(ssl->ctx);
++
++    if (store == NULL) {
++        ngx_ssl_error(NGX_LOG_EMERG, ssl->log, 0,
++                      "SSL_CTX_get_cert_store() failed");
++        return NGX_ERROR;
++    }
++
++    X509_STORE_set_flags(store, X509_V_FLAG_ALLOW_PROXY_CERTS);
++
++    return NGX_OK;
++}
+ 
+ ngx_int_t
+ ngx_ssl_client_session_cache(ngx_conf_t *cf, ngx_ssl_t *ssl, ngx_uint_t enable)
+diff --git a/src/event/ngx_event_openssl.h b/src/event/ngx_event_openssl.h
+index c062f912c..f1bc6f24e 100644
+--- a/src/event/ngx_event_openssl.h
++++ b/src/event/ngx_event_openssl.h
+@@ -209,6 +209,8 @@ ngx_int_t ngx_ssl_stapling(ngx_conf_t *cf, ngx_ssl_t *ssl,
+     ngx_str_t *file, ngx_str_t *responder, ngx_uint_t verify);
+ ngx_int_t ngx_ssl_stapling_resolver(ngx_conf_t *cf, ngx_ssl_t *ssl,
+     ngx_resolver_t *resolver, ngx_msec_t resolver_timeout);
++ngx_int_t ngx_ssl_allow_proxy_certs(ngx_conf_t *cf, ngx_ssl_t *ssl,
++    ngx_uint_t enable);
+ ngx_int_t ngx_ssl_ocsp(ngx_conf_t *cf, ngx_ssl_t *ssl, ngx_str_t *responder,
+     ngx_uint_t depth, ngx_shm_zone_t *shm_zone);
+ ngx_int_t ngx_ssl_ocsp_resolver(ngx_conf_t *cf, ngx_ssl_t *ssl,
+diff --git a/src/http/modules/ngx_http_ssl_module.c b/src/http/modules/ngx_http_ssl_module.c
+index d2ca475d3..c415d8ec8 100644
+--- a/src/http/modules/ngx_http_ssl_module.c
++++ b/src/http/modules/ngx_http_ssl_module.c
+@@ -304,6 +304,13 @@ static ngx_command_t  ngx_http_ssl_commands[] = {
+       offsetof(ngx_http_ssl_srv_conf_t, reject_handshake),
+       NULL },
+ 
++    { ngx_string("ssl_allow_proxy_certs"),
++      NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_CONF_FLAG,
++      ngx_conf_set_flag_slot,
++      NGX_HTTP_SRV_CONF_OFFSET,
++      offsetof(ngx_http_ssl_srv_conf_t, allow_proxy_certs),
++      NULL },
++
+       ngx_null_command
+ };
+ 
+@@ -636,6 +643,7 @@ ngx_http_ssl_create_srv_conf(ngx_conf_t *cf)
+     sscf->ocsp_cache_zone = NGX_CONF_UNSET_PTR;
+     sscf->stapling = NGX_CONF_UNSET;
+     sscf->stapling_verify = NGX_CONF_UNSET;
++    sscf->allow_proxy_certs = NGX_CONF_UNSET;
+ 
+     return sscf;
+ }
+@@ -711,6 +719,7 @@ ngx_http_ssl_merge_srv_conf(ngx_conf_t *cf, void *parent, void *child)
+     ngx_conf_merge_str_value(conf->stapling_file, prev->stapling_file, "");
+     ngx_conf_merge_str_value(conf->stapling_responder,
+                          prev->stapling_responder, "");
++    ngx_conf_merge_value(conf->allow_proxy_certs, prev->allow_proxy_certs, 1);
+ 
+     conf->ssl.log = cf->log;
+ 
+@@ -938,6 +947,10 @@ ngx_http_ssl_merge_srv_conf(ngx_conf_t *cf, void *parent, void *child)
+         return NGX_CONF_ERROR;
+     }
+ 
++    if (ngx_ssl_allow_proxy_certs(cf, &conf->ssl, conf->allow_proxy_certs) != NGX_OK) {
++        return NGX_CONF_ERROR;
++    }
++
+     return NGX_CONF_OK;
+ }
+ 
+diff --git a/src/http/modules/ngx_http_ssl_module.h b/src/http/modules/ngx_http_ssl_module.h
+index 7ab0f7eae..9c2280bec 100644
+--- a/src/http/modules/ngx_http_ssl_module.h
++++ b/src/http/modules/ngx_http_ssl_module.h
+@@ -64,6 +64,7 @@ typedef struct {
+     ngx_flag_t                      stapling_verify;
+     ngx_str_t                       stapling_file;
+     ngx_str_t                       stapling_responder;
++    ngx_flag_t                      allow_proxy_certs;
+ 
+     u_char                         *file;
+     ngx_uint_t                      line;
+-- 
+2.45.2
+
