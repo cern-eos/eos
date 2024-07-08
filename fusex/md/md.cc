@@ -3062,14 +3062,18 @@ metad::mdcallback(ThreadAssistant& assistant)
         std::string name = (*md)()->name();
 
 
+	md->Locker().UnLock();
 	shared_md pmd;
 	if (pino && mdmap.retrieveTS(pino, pmd)) {
 	  // clean-up stale enoent
-	  pmd->local_enoent().erase(name);
+          {
+            XrdSysMutexHelper mLock(pmd->Locker());
+            pmd->local_enoent().erase(name);
+          }
 	  // re-add this file with the new inode
+          XrdSysMutexHelper mLock(md->Locker());
 	  add(0, pmd, md, authid, true);
 	}
-	md->Locker().UnLock();
 
         // adjust local quota
         cap::shared_cap cap = EosFuse::Instance().caps.get(pino, md_clientid);
@@ -3091,6 +3095,7 @@ metad::mdcallback(ThreadAssistant& assistant)
 	    // cleanup stale ENOENT entries
 	    shared_md pmd;
 	    if (pino && mdmap.retrieveTS(pino, pmd)) {
+              XrdSysMutexHelper mLock(pmd->Locker());
 	      pmd->local_enoent().erase(name);
 	    }
 	  }
