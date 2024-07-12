@@ -63,12 +63,9 @@ ProcessCache::discoverBoundIdentity(const JailInformation& jail,
   std::shared_ptr<const BoundIdentity> output;
 
   //----------------------------------------------------------------------------
-  // Shortcut: If all authentication methods are disabled, or unix is enabled and uid!=0 just use Unix
+  // Shortcut: If the situation implies that only unix is available
   //----------------------------------------------------------------------------
-  if ((!credConfig.use_user_krb5cc && !credConfig.use_user_gsiproxy &&
-       !credConfig.use_user_sss && !credConfig.use_user_oauth2 &&
-       !credConfig.use_user_ztn) ||
-      (credConfig.use_user_unix && (uid || credConfig.use_root_unix))) {
+  if (onlyUnix(uid)) {
     LogbookScope scope;
 
     if (credConfig.use_user_unix && (uid || credConfig.use_root_unix)) {
@@ -222,10 +219,19 @@ ProcessSnapshot ProcessCache::retrieve(pid_t pid, uid_t uid, gid_t gid,
   }
 
   //----------------------------------------------------------------------------
-  // Retrieve information about the jail in which this pid lives in. Is it the
-  // same as ours?
+  // Possibly retrieve information about the jail in which this pid lives.
+  // The result is used for reading of credential files. However resolving the
+  // jail can cause deadlock, e.g. if the jail itself is the eos filesystem we
+  // are providing. If we are sure we'll only be needed unix auth skip resolve.
   //----------------------------------------------------------------------------
-  JailInformation jailInfo = jailResolver.resolve(pid);
+  JailInformation jailInfo = myJail;
+  if (onlyUnix(uid)) {
+    LOGBOOK_INSERT(scope, "Not attempting to retrieve jail information for pid="
+                   << pid << ", as we will only need unix auth, subsituting "
+                   "with my jail");
+  } else {
+    jailInfo = jailResolver.resolve(pid);
+  }
 
   if (!jailInfo.id.ok()) {
     //--------------------------------------------------------------------------
