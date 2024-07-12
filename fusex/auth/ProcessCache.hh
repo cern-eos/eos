@@ -135,6 +135,21 @@ private:
   discoverBoundIdentity(const JailInformation& jail, const ProcessInfo&
                         processInfo, uid_t uid, gid_t gid, bool reconnect, Logbook& logbook);
 
+  //----------------------------------------------------------------------------
+  // Return true if we will only use Unix:
+  // If all authentication methods are disabled, or unix is enabled and uid!=0
+  // we can just use Unix and this may enable certain shortcuts.
+  //----------------------------------------------------------------------------
+  bool onlyUnix(uid_t uid) const {
+    if ((!credConfig.use_user_krb5cc && !credConfig.use_user_gsiproxy &&
+         !credConfig.use_user_sss && !credConfig.use_user_oauth2 &&
+         !credConfig.use_user_ztn) ||
+        (credConfig.use_user_unix && (uid || credConfig.use_root_unix))) {
+      return true;
+    }
+    return false;
+  }
+
   CredentialConfig credConfig;
 
   struct ProcessCacheKey {
