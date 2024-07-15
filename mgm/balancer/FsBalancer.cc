@@ -315,15 +315,13 @@ FsBalancer::GetFileToBalance(const FsBalanceInfo& src,
       eos::Prefetcher::prefetchFileMDAndWait(gOFS->eosView, random_fid);
 
       try {
-        eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
-        std::shared_ptr<eos::IFileMD> fmd = gOFS->eosFileService->getFileMD(random_fid);
-
-        if (fmd) {
-          auto loc = fmd->getLocations();
-          avoid_fsids.insert(loc.cbegin(), loc.cend());
-          loc = fmd->getUnlinkedLocations();
-          avoid_fsids.insert(loc.cbegin(), loc.cend());
-        }
+        auto fmdLock = gOFS->eosFileService->getFileMDReadLocked(random_fid);
+        // fmdLock constructor throws an exception if the fmd is nullptr
+        auto fmd = fmdLock->getUnderlyingPtr();
+        auto loc = fmd->getLocations();
+        avoid_fsids.insert(loc.cbegin(), loc.cend());
+        loc = fmd->getUnlinkedLocations();
+        avoid_fsids.insert(loc.cbegin(), loc.cend());
       } catch (eos::MDException& e) {
         eos_static_err("msg=\"failed to find file\" fxid=%08llx", random_fid);
         gOFS->mFidTracker.RemoveEntry(random_fid);
