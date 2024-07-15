@@ -124,9 +124,6 @@ XrdMgmOfs::_utimes(const char* path,
 
     try {
       fmd = gOFS->eosView->getFile(path, false);
-      // Check permissions on the directory
-      eos::common::Path cont_path(path);
-      cmd = gOFS->eosView->getContainer(cont_path.GetParentPath(), false);
 
       // Set the ctime only if different from 0.0
       if (tvp[0].tv_sec != 0 || tvp[0].tv_nsec != 0) {
