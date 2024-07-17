@@ -41,10 +41,15 @@ EOSFSTNAMESPACE_BEGIN
 XrdSysMutex HttpHandler::mOpenMutexMapMutex;
 std::map<unsigned int, XrdSysMutex*> HttpHandler::mOpenMutexMap;
 eos::common::MimeTypes HttpHandler::gMime;
+HttpHandlerFileCache HttpHandler::gFileCache;
 
 /*----------------------------------------------------------------------------*/
 HttpHandler::~HttpHandler()
 {
+  if (mFile) {
+    if (gFileCache.insert(mFileCacheInsertKey, mFile))
+      mFile = nullptr;
+  }
   if (mFile) {
     delete mFile;
     mFile = nullptr;
@@ -77,7 +82,6 @@ HttpHandler::HandleRequest(eos::common::HttpRequest* request)
   }
 
   if (!mFile) {
-    mFile = (XrdFstOfsFile*) gOFS.newFile(mClient.name);
     // default modes are for GET=read
     XrdSfsFileOpenMode open_mode = 0;
     mode_t create_mode = 0;
@@ -133,13 +137,24 @@ HttpHandler::HandleRequest(eos::common::HttpRequest* request)
         }
       }
     }
-    {
-      XrdSysMutexHelper oLock(*hMutex);
-      mRc = mFile->open(openUrl.c_str(),
-                        open_mode,
-                        create_mode,
-                        &mClient,
-                        query.c_str());
+
+    if (open_mode == 0) {
+      HttpHandlerFileCache::Key k(openUrl.c_str(), query.c_str(), open_mode);
+      if ( (mFile = gFileCache.remove(k)) ) {
+        mRc = SFS_OK;
+      }
+    }
+
+    if (!mFile) {
+      mFile = (XrdFstOfsFile*) gOFS.newFile(mClient.name);
+      {
+        XrdSysMutexHelper oLock(*hMutex);
+        mRc = mFile->open(openUrl.c_str(),
+                          open_mode,
+                          create_mode,
+                          &mClient,
+                          query.c_str());
+      }
     }
     mFileSize = mFile->GetOpenSize();
     mFileId = mFile->GetFileId();
@@ -156,6 +171,10 @@ HttpHandler::HandleRequest(eos::common::HttpRequest* request)
       } else {
         mRangeRequest = true;
       }
+    }
+
+    if (open_mode == 0 && mRangeRequest) {
+      mFileCacheInsertKey.set(openUrl.c_str(), query.c_str(), open_mode);
     }
 
     // check for range requests
