@@ -285,7 +285,7 @@ HttpServer::FileWriter(eos::common::ProtocolHandler* handler,
 
 /*----------------------------------------------------------------------------*/
 ssize_t
-HttpServer::FileClose(eos::common::ProtocolHandler* handler, int rc)
+HttpServer::FileClose(eos::common::ProtocolHandler* handler, int rc, bool eskip)
 {
   eos::fst::HttpHandler* httpHandle = dynamic_cast<eos::fst::HttpHandler*>
                                       (handler);
@@ -297,10 +297,14 @@ HttpServer::FileClose(eos::common::ProtocolHandler* handler, int rc)
 
       // we have to disable delete-on-close for chunked uploads since files are stateful
       if (httpHandle->mFile->IsChunkedUpload()) {
-        httpHandle->mFile->close();
+        httpHandle->FileClose(HttpHandler::CanCache::YES);
+      } else if (!eskip) {
+        // under error eskip avoids closing the file before destorying
+        // (closing may cause httpHandler to cache the file handle)
+        httpHandle->FileClose(HttpHandler::CanCache::YES);
       }
     } else {
-      httpHandle->mFile->close();
+      httpHandle->FileClose(HttpHandler::CanCache::YES);
     }
 
     // clean-up file objects

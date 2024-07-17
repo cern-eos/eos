@@ -30,6 +30,7 @@
 #pragma once
 #include "common/http/HttpHandler.hh"
 #include "common/http/MimeTypes.hh"
+#include "fst/http/HttpHandlerFstFileCache.hh"
 #include "fst/Namespace.hh"
 #include "fst/XrdFstOfs.hh"
 #include <string>
@@ -87,10 +88,18 @@ public:
   mLogId;              //< log id used in EOS - determined after Ofs::Open
   int                        mErrCode;            //< first seen error code
   std::string                mErrText;            //< error text
+  HttpHandlerFstFileCache::Entry mFileCacheEntry;
 
   static XrdSysMutex mOpenMutexMapMutex;
   static std::map<unsigned int, XrdSysMutex*> mOpenMutexMap;
   static eos::common::MimeTypes gMime;
+  static HttpHandlerFstFileCache sFileCache;
+
+  enum CanCache {
+    NO,
+    YES
+  };
+
   /**
    * Constructor
    */
@@ -270,6 +279,8 @@ public:
    */
   eos::common::HttpResponse*
   Put(eos::common::HttpRequest* request);
+
+  void FileClose(enum HttpHandler::CanCache cache);
 
 };
 EOSFSTNAMESPACE_END
