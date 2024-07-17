@@ -113,7 +113,7 @@ public:
              std::string& body);
 
   virtual ssize_t
-  FileClose(eos::common::ProtocolHandler* handler, int rc);
+  FileClose(eos::common::ProtocolHandler* handler, int rc, bool eskip);
 
 
   /**

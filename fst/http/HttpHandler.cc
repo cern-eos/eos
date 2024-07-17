@@ -41,6 +41,7 @@ EOSFSTNAMESPACE_BEGIN
 XrdSysMutex HttpHandler::mOpenMutexMapMutex;
 std::map<unsigned int, XrdSysMutex*> HttpHandler::mOpenMutexMap;
 eos::common::MimeTypes HttpHandler::gMime;
+HttpHandlerFstFileCache HttpHandler::sFileCache;
 
 /*----------------------------------------------------------------------------*/
 HttpHandler::~HttpHandler()
@@ -77,7 +78,6 @@ HttpHandler::HandleRequest(eos::common::HttpRequest* request)
   }
 
   if (!mFile) {
-    mFile = (XrdFstOfsFile*) gOFS.newFile(mClient.name);
     // default modes are for GET=read
     XrdSfsFileOpenMode open_mode = 0;
     mode_t create_mode = 0;
@@ -115,31 +115,51 @@ HttpHandler::HandleRequest(eos::common::HttpRequest* request)
       create_mode |= (SFS_O_MKPTH | S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
     }
 
-    XrdSysMutex* hMutex = 0;
-    {
-      // use path dependent locks for opens
-      // we will accumulate up to 64k mutexes for this
-      Adler lHash;
-      lHash.Add(openUrl.c_str(), openUrl.length(), 0);
-      lHash.Finalize();
-      {
-        XrdSysMutexHelper oLock(mOpenMutexMapMutex);
-
-        if (!mOpenMutexMap.count(lHash.GetAdler())) {
-          hMutex = new XrdSysMutex();
-          mOpenMutexMap[lHash.GetAdler()] = hMutex;
-        } else {
-          hMutex = mOpenMutexMap[lHash.GetAdler()];
-        }
+    // if we are opening for reading see if we already have an opened file
+    // in the cache
+    HttpHandlerFstFileCache::Key cachekey(mClient.name, openUrl.c_str(),
+                                       query.c_str(), open_mode);
+    mFileCacheEntry.clear();
+    if (open_mode == 0) {
+      mFileCacheEntry = sFileCache.remove(cachekey);
+      if ( (mFile = mFileCacheEntry.getfp()) ) {
+        eos_static_debug("path=%s found in open-file cache fp=%p",
+                         openUrl.c_str(), mFile);
+        mRc = SFS_OK;
       }
     }
-    {
-      XrdSysMutexHelper oLock(*hMutex);
-      mRc = mFile->open(openUrl.c_str(),
-                        open_mode,
-                        create_mode,
-                        &mClient,
-                        query.c_str());
+
+    // if no cached file open a new one
+    if (!mFile) {
+
+      XrdSysMutex* hMutex = 0;
+      {
+        // use path dependent locks for opens
+        // we will accumulate up to 64k mutexes for this
+        Adler lHash;
+        lHash.Add(openUrl.c_str(), openUrl.length(), 0);
+        lHash.Finalize();
+        {
+          XrdSysMutexHelper oLock(mOpenMutexMapMutex);
+
+          if (!mOpenMutexMap.count(lHash.GetAdler())) {
+            hMutex = new XrdSysMutex();
+            mOpenMutexMap[lHash.GetAdler()] = hMutex;
+          } else {
+            hMutex = mOpenMutexMap[lHash.GetAdler()];
+          }
+        }
+      }
+
+      mFile = (XrdFstOfsFile*) gOFS.newFile(mClient.name);
+      {
+        XrdSysMutexHelper oLock(*hMutex);
+        mRc = mFile->open(openUrl.c_str(),
+                          open_mode,
+                          create_mode,
+                          &mClient,
+                          query.c_str());
+      }
     }
     mFileSize = mFile->GetOpenSize();
     mFileId = mFile->GetFileId();
@@ -156,6 +176,15 @@ HttpHandler::HandleRequest(eos::common::HttpRequest* request)
       } else {
         mRangeRequest = true;
       }
+    }
+
+    // if this file wasn't in opened-file cache and it's for reading
+    // in a range request, save it to the cache once we're finished.
+    // (perhaps we'll soon have another read-range request for the same file)
+    if (open_mode == 0 && mRc == SFS_OK && mFileCacheEntry.getfp() != mFile) {
+      eos_static_debug("path=%s eligible to be saved in open-file cache fp=%p",
+                       openUrl.c_str(), mFile);
+      mFileCacheEntry.set(cachekey, mFile);
     }
 
     // check for range requests
@@ -378,7 +407,7 @@ HttpHandler::Head(eos::common::HttpRequest* request)
   response->mUseFileReaderCallback = false;
 
   if (mFile) {
-    mFile->close();
+    FileClose(CanCache::NO);
     delete mFile;
     mFile = 0;
   }
@@ -681,7 +710,10 @@ HttpHandler::Put(eos::common::HttpRequest* request)
         return response;
       }
 
-      mCloseCode = mFile->close();
+      // currently put would never be eligible for caching: but in case it was,
+      // here we could not cache, as we continue to use mFile and in addition
+      // once cached the file could be used but another thread.
+      FileClose(CanCache::NO);
 
       if (mCloseCode) {
         mErrCode = eos::common::HttpResponse::INTERNAL_SERVER_ERROR;
@@ -861,6 +893,27 @@ HttpHandler::DecodeByteRange(std::string rangeheader,
   }
 
   return true;
+}
+
+/*----------------------------------------------------------------------------*/
+void
+HttpHandler::FileClose(enum HttpHandler::CanCache cache)
+{
+  if (mFile && cache == CanCache::YES && mFileCacheEntry.getfp() == mFile) {
+    if (sFileCache.insert(mFileCacheEntry)) {
+      eos_static_debug("path=%s saved in open-file cache fp=%p",
+                       mFileCacheEntry.key_.url_.c_str(), mFile);
+      // must not refer to mFile again as it could already be
+      // in use by another thread
+      mFile = nullptr;
+      mCloseCode = 0;
+    }
+  }
+  mFileCacheEntry.clear();
+  if (mFile) {
+    mCloseCode = mFile->close();
+  }
+  return;
 }
 
 /*----------------------------------------------------------------------------*/
