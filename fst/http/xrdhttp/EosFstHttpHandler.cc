@@ -200,6 +200,7 @@ EosFstHttpHandler::ProcessReq(XrdHttpExtReq& req)
       std::vector<char> buffer(content_length > (1024 * 1024) ?
                                (1024 * 1024) : content_length);
 
+      bool eskip = false;
       do {
         eos_static_debug("pos=%llu size=%u", pos, buffer.capacity());
         nread = OFS->mHttpd->FileReader(handler.get(), pos, &buffer[0],
@@ -211,10 +212,14 @@ EosFstHttpHandler::ProcessReq(XrdHttpExtReq& req)
           eos_static_debug("retc=%d", retc);
         } else {
           retc = -1;
+          // an error from read; something may be wrong with the file
+          // handle; skip close of file before destroying,
+          // which may stop httpHandler caching file handle.
+          eskip = true;
         }
       } while ((pos != content_length) && (nread > 0) && !retc);
 
-      OFS->mHttpd->FileClose(handler.get(), retc);
+      OFS->mHttpd->FileClose(handler.get(), retc, eskip);
       return retc;
     }
   }

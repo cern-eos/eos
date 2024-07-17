@@ -285,6 +285,7 @@ set(XRDEOSFST_SRCS
   # HTTP interface
   http/HttpServer.cc    http/HttpServer.hh
   http/HttpHandler.cc   http/HttpHandler.hh
+  http/HttpHandlerFstFileCache.cc   http/HttpHandlerFstFileCache.hh
   http/s3/S3Handler.cc  http/s3/S3Handler.hh
   # EosFstIo interface
   io/local/LocalIo.cc  io/local/LocalIo.hh

@@ -151,7 +151,8 @@ set(FST_UT_SRCS
   fst/LoadTests.cc
   fst/MonitorVarPartitionTest.cc
   fst/ResponseCollectorTests.cc
-  fst/WalkDirTreeTests.cc)
+  fst/WalkDirTreeTests.cc
+  fst/HttpHandlerFstFileCacheTests.cc)
 
 #-------------------------------------------------------------------------------
 # unit tests source files
