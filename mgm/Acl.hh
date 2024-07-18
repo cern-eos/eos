@@ -124,11 +124,10 @@ public:         // [+] prevents '+' interpreted as "one or more"
   //! @param error return error object
   //! @param vid virtual id to match ACL
   //! @param attr map returns all the attributes from path
-  //! @param lockNs should we lock the namespace when retrieveng the attribute map
   //----------------------------------------------------------------------------
   Acl(const char* path, XrdOucErrInfo& error,
       const eos::common::VirtualIdentity& vid,
-      eos::IContainerMD::XAttrMap& attrmap, bool lockNs);
+      eos::IContainerMD::XAttrMap& attrmap);
 
   //----------------------------------------------------------------------------
   //! Destructor

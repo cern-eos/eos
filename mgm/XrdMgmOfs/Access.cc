@@ -149,7 +149,7 @@ XrdMgmOfs::_access(const char* path,
     }
 
     // ACL and permission check
-    Acl acl(attr_path.c_str(), error, vid, attrmap, false);
+    Acl acl(attr_path.c_str(), error, vid, attrmap);
 
     if (fattrmap.size()) {
       // take into account file acls
@@ -316,7 +316,7 @@ XrdMgmOfs::acc_access(const char* path,
       }
       //We prevent releasing the directory lock before calling the ACL constructor that will do
       //an _attr_ls on the directory
-      aclPtr = std::make_unique<Acl>(attr_path.c_str(), error, vid, attrmap, false);
+      aclPtr = std::make_unique<Acl>(attr_path.c_str(), error, vid, attrmap);
     }
 
     // ACL and permission check
