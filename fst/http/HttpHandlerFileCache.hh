@@ -23,8 +23,12 @@
 #pragma once
 
 #include "common/AssistedThread.hh"
+#include "common/SymKeys.hh"
 #include "fst/XrdFstOfsFile.hh"
 #include "XrdSfs/XrdSfsInterface.hh"
+#include "XrdSys/XrdSysPthread.hh"
+#include <deque>
+#include <memory>
 #include <string>
 
 EOSFSTNAMESPACE_BEGIN
@@ -32,22 +36,61 @@ EOSFSTNAMESPACE_BEGIN
 class HttpHandlerFileCache {
 public:
 
-  struct Key {
+  struct Key
+  {
     Key() { }
-    Key(const std::string &url, const std::string &query, XrdSfsFileOpenMode &omode) :
-      url_(url), query_(query), omode_(omode) { }
-    set(const std::string &url, const std::string &query, XrdSfsFileOpenMode &omode) {
-      url_ = url;
+
+    Key(const std::string &name, const std::string &url,
+        const std::string &query, XrdSfsFileOpenMode &omode) :
+      name_(name), url_(url), query_(query), omode_(omode) { }
+
+    set(const std::string &name, const std::string &url,
+        const std::string &query, XrdSfsFileOpenMode &omode)
+    {
+      name_  = name;
+      url_   = url;
       query_ = query;
       omode_ = omode;
     }
-    explicit operator bool() const {
+
+    explicit operator bool() const
+    {
       return !url_.empty();
     }
 
+    bool operator==(const Key& other) const
+    {
+      return name_  == other.name_ &&
+             url_   == other.url_  &&
+             query_ == other.query_ &&
+             omode_ == other.omode_;
+    }
+
+    std::string name_;
     std::string url_;
     std::string query_;
     XrdSfsFileOpenMode omode_;
+  };
+
+  struct Entry {
+
+    Entry() : cvalid(0), fp(0) { }
+
+    bool set(const Key &k, XrdFstOfsFile* const v) {
+      if (getCapValid(k.query_, cvalid)) return false;
+      key = k;
+      fp = v;
+      return true;
+    }
+
+    explicit operator bool() const
+    {
+      return key && fp;
+    }
+
+    Key key;
+    time_t cvalid;
+    XrdFstOfsFile *fp;
   };
 
   HttpHandlerFileCache();
@@ -58,11 +101,34 @@ public:
    */
   void Run(ThreadAssistant& assistant) noexcept;
 
-  bool insert(const Key &k, XrdFstOfsFile* const v);
-  XrdFstOfsFile* remove(const Key &k);
+  bool           insert(const Entry &e);
+  Entry          remove(const Key &k);
 
 private:
-  AssistedThread     mThreadId;
+  static int getCapValid(const std::string &q, time_t &valid) {
+
+    XrdOucEnv openOpaque(q.c_str());
+    XrdOucEnv *dp{nullptr};
+    const int caprc = eos::common::SymKey::ExtractCapability(&openOpaque, dp);
+    std::unique_ptr<XrdOucEnv> decCap(dp);
+
+    if (caprc) return EINVAL;
+
+    // Check time validity
+    if (!decCap->Get("cap.valid")) {
+      // validity missing
+      return EINVAL;
+    } else {
+      valid = atoi(decCap->Get("cap.valid"));
+      return 0;
+    }
+  }
+
+  XrdSysMutex    mCacheLock;
+  AssistedThread mThreadId;
+  bool           mThreadActive;
+  size_t         mMaxEntries;
+  std::deque<Entry> mQueue;
 };
 
 EOSFSTNAMESPACE_END

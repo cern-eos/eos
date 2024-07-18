@@ -21,31 +21,66 @@
  ************************************************************************/
 
 #include "fst/http/HttpHandlerFileCache.hh"
+#include <algorithm>
 
 EOSFSTNAMESPACE_BEGIN
 
 HttpHandlerFileCache::HttpHandlerFileCache()
 {
-  mThreadId.reset(&HttpHandlerFileCache::Run, this);
+  mThreadActive = false;
+  mMaxEntries = 50;
 }
 
 HttpHandlerFileCache::~HttpHandlerFileCache()
 {
-  mThreadId.join();
 }
 
-bool HttpHandlerFileCache::insert(const HttpHandlerFileCache::Key &k, XrdFstOfsFile* const v)
+bool HttpHandlerFileCache::insert(const HttpHandlerFileCache::Entry &e)
 {
-  if (!k) return false;
+  if (!e) return false;
 
-  return false;
+  XrdSysMutexHelper cLock(mCacheLock);
+  if (!mThreadActive) {
+    mThreadId.reset(&HttpHandlerFileCache::Run, this);
+    mThreadActive = true;
+  }
+
+  mQueue.push_front(e);
+
+  size_t len = mQueue.size();
+  while(len>mMaxEntries) {
+    {
+      Entry &ed = mQueue.back();
+      if (ed.fp) ed.fp->close();
+      delete ed.fp;
+    }
+    mQueue.pop_back();
+    len--;
+  }
+
+  return true;
 }
 
-XrdFstOfsFile* HttpHandlerFileCache::remove(const HttpHandlerFileCache::Key &k)
+HttpHandlerFileCache::Entry HttpHandlerFileCache::remove(const HttpHandlerFileCache::Key &k)
 {
-  if (!k) return nullptr;
+  Entry e;
+  if (!k) return e;
 
-  return nullptr;
+  XrdSysMutexHelper cLock(mCacheLock);
+  const time_t now = time(0);
+  auto it = std::find_if(mQueue.begin(), mQueue.end(), [&now, &k](const Entry &e) {
+      return e.cvalid >= now && e.key == k;
+    });
+
+  if (it == mQueue.end()) return e;
+
+  e = *it;
+  mQueue.erase(it);
+  if (mQueue.size() == 0) {
+    mThreadId.stop();
+    mThreadActive = false;
+  }
+  return e;
 }
 
 
@@ -54,7 +89,20 @@ void HttpHandlerFileCache::Run(ThreadAssistant& assistant) noexcept
 {
   while (!assistant.terminationRequested())
   {
-    assistant.wait_for(std::chrono::seconds(1));
+    {
+      XrdSysMutexHelper cLock(mCacheLock);
+      const time_t now = time(0);
+      auto it = std::stable_partition(mQueue.begin(), mQueue.end(),
+                   [&now](const Entry &e) {
+          return e.cvalid >= now;
+        });
+      std::for_each(it, mQueue.end(), [](const Entry &e) {
+        if (e.fp) e.fp->close();
+        delete e.fp;
+      });
+      mQueue.erase(it, mQueue.end());
+    }
+    assistant.wait_for(std::chrono::seconds(30));
   }
 }
 

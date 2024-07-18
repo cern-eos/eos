@@ -88,12 +88,12 @@ public:
   mLogId;              //< log id used in EOS - determined after Ofs::Open
   int                        mErrCode;            //< first seen error code
   std::string                mErrText;            //< error text
-  HttpHandlerFileCache::Key  mFileCacheInsertKey;
+  HttpHandlerFileCache::Entry mFileCacheEntry;
 
   static XrdSysMutex mOpenMutexMapMutex;
   static std::map<unsigned int, XrdSysMutex*> mOpenMutexMap;
   static eos::common::MimeTypes gMime;
-  static HttpHandlerFileCache gFileCache;
+  static HttpHandlerFileCache sFileCache;
   /**
    * Constructor
    */

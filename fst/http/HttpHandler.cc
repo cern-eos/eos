@@ -41,13 +41,13 @@ EOSFSTNAMESPACE_BEGIN
 XrdSysMutex HttpHandler::mOpenMutexMapMutex;
 std::map<unsigned int, XrdSysMutex*> HttpHandler::mOpenMutexMap;
 eos::common::MimeTypes HttpHandler::gMime;
-HttpHandlerFileCache HttpHandler::gFileCache;
+HttpHandlerFileCache HttpHandler::sFileCache;
 
 /*----------------------------------------------------------------------------*/
 HttpHandler::~HttpHandler()
 {
-  if (mFile) {
-    if (gFileCache.insert(mFileCacheInsertKey, mFile))
+  if (mFile && mFileCacheEntry.fp == mFile) {
+    if (sFileCache.insert(mFileCacheEntry))
       mFile = nullptr;
   }
   if (mFile) {
@@ -138,9 +138,13 @@ HttpHandler::HandleRequest(eos::common::HttpRequest* request)
       }
     }
 
+    // if we are opening for reading see if we already have an opened file
+    // in the cache
+    HttpHandlerFileCache::Key cachekey(mClient.name, openUrl.c_str(),
+                                       query.c_str(), open_mode);
     if (open_mode == 0) {
-      HttpHandlerFileCache::Key k(openUrl.c_str(), query.c_str(), open_mode);
-      if ( (mFile = gFileCache.remove(k)) ) {
+      mFileCacheEntry = sFileCache.remove(cachekey);
+      if ( (mFile = mFileCacheEntry.fp) ) {
         mRc = SFS_OK;
       }
     }
@@ -173,8 +177,11 @@ HttpHandler::HandleRequest(eos::common::HttpRequest* request)
       }
     }
 
-    if (open_mode == 0 && mRangeRequest) {
-      mFileCacheInsertKey.set(openUrl.c_str(), query.c_str(), open_mode);
+    // if this file wasn't in opened-file cache and its for reading
+    // in a range request, then save it to the cache once we're finished.
+    // (perhaps we'll soon have another read-range request for the same file)
+    if (open_mode == 0 && mRc == SFS_OK && mFileCacheEntry.fp != mFile) {
+      mFileCacheEntry.set(cachekey, mFile);
     }
 
     // check for range requests
