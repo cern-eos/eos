@@ -60,9 +60,9 @@ public:
 
     bool operator==(const Key& other) const
     {
-      return name_  == other.name_ &&
-             url_   == other.url_  &&
+      return url_   == other.url_   &&
              query_ == other.query_ &&
+             name_  == other.name_  &&
              omode_ == other.omode_;
     }
 
@@ -101,7 +101,7 @@ public:
    */
   void Run(ThreadAssistant& assistant) noexcept;
 
-  bool           insert(const Entry &e);
+  bool           insert(Entry &e);
   Entry          remove(const Key &k);
 
 private:
@@ -128,6 +128,7 @@ private:
   AssistedThread mThreadId;
   bool           mThreadActive;
   size_t         mMaxEntries;
+  time_t         mMaxLifetime;
   std::deque<Entry> mQueue;
 };
 

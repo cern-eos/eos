@@ -29,13 +29,19 @@ HttpHandlerFileCache::HttpHandlerFileCache()
 {
   mThreadActive = false;
   mMaxEntries = 50;
+  mMaxLifetime = 120;
 }
 
 HttpHandlerFileCache::~HttpHandlerFileCache()
 {
+  mThreadId.join();
+  for(auto &e: mQueue) {
+    if (e.fp) e.fp->close();
+    delete e.fp;
+  }
 }
 
-bool HttpHandlerFileCache::insert(const HttpHandlerFileCache::Entry &e)
+bool HttpHandlerFileCache::insert(HttpHandlerFileCache::Entry &e)
 {
   if (!e) return false;
 
@@ -44,6 +50,10 @@ bool HttpHandlerFileCache::insert(const HttpHandlerFileCache::Entry &e)
     mThreadId.reset(&HttpHandlerFileCache::Run, this);
     mThreadActive = true;
   }
+
+  const time_t now = time(0);
+  if (now + mMaxLifetime < e.cvalid)
+    e.cvalid = now + mMaxLifetime;
 
   mQueue.push_front(e);
 
@@ -68,7 +78,7 @@ HttpHandlerFileCache::Entry HttpHandlerFileCache::remove(const HttpHandlerFileCa
 
   XrdSysMutexHelper cLock(mCacheLock);
   const time_t now = time(0);
-  auto it = std::find_if(mQueue.begin(), mQueue.end(), [&now, &k](const Entry &e) {
+  auto it = std::find_if(mQueue.begin(), mQueue.end(), [now, &k](const Entry &e) {
       return e.cvalid >= now && e.key == k;
     });
 
@@ -76,10 +86,6 @@ HttpHandlerFileCache::Entry HttpHandlerFileCache::remove(const HttpHandlerFileCa
 
   e = *it;
   mQueue.erase(it);
-  if (mQueue.size() == 0) {
-    mThreadId.stop();
-    mThreadActive = false;
-  }
   return e;
 }
 
@@ -93,7 +99,7 @@ void HttpHandlerFileCache::Run(ThreadAssistant& assistant) noexcept
       XrdSysMutexHelper cLock(mCacheLock);
       const time_t now = time(0);
       auto it = std::stable_partition(mQueue.begin(), mQueue.end(),
-                   [&now](const Entry &e) {
+                   [now](const Entry &e) {
           return e.cvalid >= now;
         });
       std::for_each(it, mQueue.end(), [](const Entry &e) {
@@ -101,7 +107,13 @@ void HttpHandlerFileCache::Run(ThreadAssistant& assistant) noexcept
         delete e.fp;
       });
       mQueue.erase(it, mQueue.end());
+
+      if (mQueue.size() == 0) {
+        mThreadId.stop();
+        mThreadActive = false;
+      }
     }
+
     assistant.wait_for(std::chrono::seconds(30));
   }
 }

@@ -149,6 +149,7 @@ HttpHandler::HandleRequest(eos::common::HttpRequest* request)
       }
     }
 
+    // if no cached file open a new one
     if (!mFile) {
       mFile = (XrdFstOfsFile*) gOFS.newFile(mClient.name);
       {
@@ -177,8 +178,8 @@ HttpHandler::HandleRequest(eos::common::HttpRequest* request)
       }
     }
 
-    // if this file wasn't in opened-file cache and its for reading
-    // in a range request, then save it to the cache once we're finished.
+    // if this file wasn't in opened-file cache and it's for reading
+    // in a range request, save it to the cache once we're finished.
     // (perhaps we'll soon have another read-range request for the same file)
     if (open_mode == 0 && mRc == SFS_OK && mFileCacheEntry.fp != mFile) {
       mFileCacheEntry.set(cachekey, mFile);
