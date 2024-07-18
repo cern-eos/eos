@@ -251,7 +251,6 @@ XrdMgmOfs::acc_access(const char* path,
   bool d_ok = false;
   // ---------------------------------------------------------------------------
   eos::Prefetcher::prefetchItemAndWait(gOFS->eosView, cPath.GetPath());
-  eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
 
   // check for existing file
   try {
@@ -279,6 +278,7 @@ XrdMgmOfs::acc_access(const char* path,
 
       // if this is a file or a not existing directory we check the access on the parent directory
       if (fh) {
+        eos::MDLocking::FileReadLock fhLock(fh);
         uri = gOFS->eosView->getUri(fh.get());
       } else {
         uri = cPath.GetPath();
@@ -297,24 +297,30 @@ XrdMgmOfs::acc_access(const char* path,
       gids.insert(vid.gid);
     }
 
-    for (auto g : gids) {
-      if (dh->access(vid.uid, g, R_OK)) {
-        r_ok = true;
-      }
+    std::unique_ptr<Acl> aclPtr;
+    {
+      eos::MDLocking::ContainerReadLock dhLock(dh);
+      for (auto g : gids) {
+        if (dh->access(vid.uid, g, R_OK)) {
+          r_ok = true;
+        }
 
-      if (dh->access(vid.uid, g, W_OK)) {
-        w_ok = true;
-        d_ok = true;
-      }
+        if (dh->access(vid.uid, g, W_OK)) {
+          w_ok = true;
+          d_ok = true;
+        }
 
-      if (dh->access(vid.uid, g, X_OK)) {
-        x_ok = true;
+        if (dh->access(vid.uid, g, X_OK)) {
+          x_ok = true;
+        }
       }
+      //We prevent releasing the directory lock before calling the ACL constructor that will do
+      //an _attr_ls on the directory
+      aclPtr = std::make_unique<Acl>(attr_path.c_str(), error, vid, attrmap, false);
     }
 
-    lock.Release();
     // ACL and permission check
-    Acl acl(attr_path.c_str(), error, vid, attrmap, false);
+    Acl & acl = *aclPtr;
     eos_info("acl=%d r=%d w=%d wo=%d x=%d egroup=%d mutable=%d",
              acl.HasAcl(), acl.CanRead(), acl.CanWrite(), acl.CanWriteOnce(),
              acl.CanBrowse(), acl.HasEgroup(), acl.IsMutable());
