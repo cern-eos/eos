@@ -130,7 +130,7 @@ ProcCommand::UserQuota()
     }
 
     // ACL and permission check
-    Acl acl(space.c_str(), *mError, *pVid, attrmap, false);
+    Acl acl(space.c_str(), *mError, *pVid, attrmap);
     canQuota = acl.CanSetQuota();
   }
 

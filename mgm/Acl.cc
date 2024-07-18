@@ -61,7 +61,7 @@ Acl::Acl(const eos::IContainerMD::XAttrMap& attrmap,
 //------------------------------------------------------------------------------
 Acl::Acl(const char* path, XrdOucErrInfo& error,
          const eos::common::VirtualIdentity& vid,
-         eos::IContainerMD::XAttrMap& attrmap, bool lockNs)
+         eos::IContainerMD::XAttrMap& attrmap)
 {
   if (path && strlen(path)) {
     int rc = gOFS->_attr_ls(path, error, vid, 0, attrmap);

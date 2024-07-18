@@ -186,7 +186,7 @@ XrdMgmOfsDirectory::_open(const char* dir_path,
     permok = dh->access(vid.uid, vid.gid, R_OK | X_OK);
     eos::common::VirtualIdentity rootvid = eos::common::VirtualIdentity::Root();
     // ACL and permission check
-    Acl acl(cPath.GetPath(), error, vid, attrmap, false);
+    Acl acl(cPath.GetPath(), error, vid, attrmap);
     eos_debug("acl=%d r=%d w=%d wo=%d x=%d egroup=%d", acl.HasAcl(),
               acl.CanRead(), acl.CanWrite(), acl.CanWriteOnce(),
               acl.CanBrowse(), acl.HasEgroup());
