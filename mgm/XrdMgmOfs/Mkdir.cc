@@ -137,7 +137,7 @@ XrdMgmOfs::_mkdir(const char* path,
       uid_t d_uid = dir->getCUid();
       gid_t d_gid = dir->getCGid();
       // ACL and permission check
-      Acl acl(cPath.GetParentPath(), error, vid, attrmap, false);
+      Acl acl(cPath.GetParentPath(), error, vid, attrmap);
       eos_info("path=%s acl=%d r=%d w=%d wo=%d egroup=%d mutable=%d",
                cPath.GetParentPath(),
                acl.HasAcl(), acl.CanRead(), acl.CanWrite(), acl.CanWriteOnce(),
@@ -254,7 +254,7 @@ XrdMgmOfs::_mkdir(const char* path,
       }
 
       // ACL and permission check
-      Acl acl(found_path.c_str(), error, vid, attrmap, true);
+      Acl acl(found_path.c_str(), error, vid, attrmap);
       eos_info("path=\"%s\" acl=%d r=%d w=%d wo=%d egroup=%d mutable=%d",
                found_path.c_str(), acl.HasAcl(), acl.CanRead(), acl.CanWrite(),
                acl.CanWriteOnce(), acl.HasEgroup(), acl.IsMutable());
