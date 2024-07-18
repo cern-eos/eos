@@ -231,7 +231,7 @@ void QuotaCmd::LsSubcmd(const eos::console::QuotaProto_LsProto& ls,
     }
 
     // ACL and permission check
-    Acl acl(space.c_str(), mError, mVid, attrmap, false); // @note no.01
+    Acl acl(space.c_str(), mError, mVid, attrmap); // @note no.01
     canQuota = acl.CanSetQuota();
   }
 
@@ -348,7 +348,7 @@ void QuotaCmd::SetSubcmd(const eos::console::QuotaProto_SetProto& set,
     }
 
     // ACL and permission check
-    Acl acl(space.c_str(), mError, mVid, attrmap, false); // @note no.01
+    Acl acl(space.c_str(), mError, mVid, attrmap); // @note no.01
     canQuota = acl.CanSetQuota();
   }
 
@@ -540,7 +540,7 @@ void QuotaCmd::RmSubcmd(const eos::console::QuotaProto_RmProto& rm,
     }
 
     // ACL and permission check
-    Acl acl(space.c_str(), mError, mVid, attrmap, false); // @note no.01
+    Acl acl(space.c_str(), mError, mVid, attrmap); // @note no.01
     canQuota = acl.CanSetQuota();
   }
 

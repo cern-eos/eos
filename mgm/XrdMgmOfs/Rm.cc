@@ -172,7 +172,7 @@ XrdMgmOfs::_rem(const char* path,
     }
 
     // ACL and permission check
-    Acl acl(aclpath.c_str(), error, vid, attrmap, false);
+    Acl acl(aclpath.c_str(), error, vid, attrmap);
     eos_info("acl=%s mutable=%d", attrmap["sys.acl"].c_str(), acl.IsMutable());
 
     if (vid.uid && !acl.IsMutable()) {
