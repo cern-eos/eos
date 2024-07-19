@@ -65,9 +65,13 @@ XrdMgmOfs::_verifystripe(const char* path,
     eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
 
     try {
-      dh = gOFS->eosView->getContainer(cPath.GetParentPath());
-      attr_path = gOFS->eosView->getUri(dh.get());
-      dh = gOFS->eosView->getContainer(gOFS->eosView->getUri(dh.get()));
+      std::string parentPath = cPath.GetParentPath();
+      dh = gOFS->eosView->getContainer(parentPath);
+      // Even if the path contains a symlink, the next calls to _attr_ls()
+      // will succeed as proven by the HierarchicalViewTestF.getMDFollowsSymlinks
+      // we can therefore get rid of the following line:
+      // attr_path = gOFS->eosView->getUri(dh.get());
+      attr_path = parentPath;
     } catch (eos::MDException& e) {
       dh.reset();
       eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n", e.getErrno(),
