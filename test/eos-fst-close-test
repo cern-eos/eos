@@ -386,12 +386,14 @@ test_rain_recovery_tpc_timeout() {
   # Trigger TPC recovery but with a small timeout so that the transfer fails and for a
   # file system where we don't have read_delay enabled
   local output=$(exec_cmd eos-cli1 "XRD_TIMEOUTRESOLUTION=1 XRD_CPTPCTIMEOUT=10 ${XRDCP_BIN} -f --tpc only \"${EOS_MGM_URL}/${eos_fn}?eos.pio.action=reconstruct&eos.pio.recfs=1\" ${EOS_MGM_URL}/${eos_fn}_copy 2>&1 || true")
-  local error_msg="Run: [ERROR] Operation expired"
+  # Be careful about the contents of this since it's a regex used as pattern
+  local error_msg="Operation expired"
   local rc1=0
 
-  if [[ ${output} =~ ${error_msg} ]]; then
+  if [[ ! ${output} =~ ${error_msg} ]]; then
     rc1=1
     echo "error: TPC transfer did not fail with operation expired"
+    echo "output=${output}"
   fi
 
   # Remove the simulated read delay
@@ -444,9 +446,10 @@ test_rain_recovery_close_timeout() {
   local error_msg="Unable to store file - file has been cleaned or recovery aborted because of an error on close"
   local rc1=0
 
-  if [[ ${output} =~ ${error_msg} ]]; then
+  if [[ ! ${output} =~ ${error_msg} ]]; then
     rc1=1
     echo "error: TPC transfer did not fail with the expected error"
+    echo "output=${output}"
   fi
 
   # Remove the simulated close error

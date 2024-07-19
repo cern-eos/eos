@@ -87,7 +87,7 @@
       git clone https://gitlab.cern.ch/eos/eos-on-k8s.git
     - |
       ######## EOS-CHARTS/SERVER ########
-      helm install --wait --timeout 20m0s \
+      helm install --wait --timeout 30m0s \
         -f ./gitlab-ci/.gitlab-ci-test-helm-server-multigroup-values.yml eos eos/server \
         --version $HELM_EOS_SERVER_VERSION \
         --atomic --create-namespace --namespace $K8S_NAMESPACE \
