@@ -38,14 +38,14 @@ public:
 
   struct Key
   {
-    Key() { }
+    Key() : omode_(0) { }
 
     Key(const std::string &name, const std::string &url,
-        const std::string &query, XrdSfsFileOpenMode &omode) :
+        const std::string &query, XrdSfsFileOpenMode omode) :
       name_(name), url_(url), query_(query), omode_(omode) { }
 
     set(const std::string &name, const std::string &url,
-        const std::string &query, XrdSfsFileOpenMode &omode)
+        const std::string &query, XrdSfsFileOpenMode omode)
     {
       name_  = name;
       url_   = url;
@@ -53,9 +53,17 @@ public:
       omode_ = omode;
     }
 
+    void clear()
+    {
+      name_.clear();
+      url_.clear();
+      query_.clear();
+      omode_ = 0;
+    }
+
     explicit operator bool() const
     {
-      return !url_.empty();
+      return !url_.empty() && !query_.empty();
     }
 
     bool operator==(const Key& other) const
@@ -81,6 +89,12 @@ public:
       key = k;
       fp = v;
       return true;
+    }
+
+    void clear() {
+      key.clear();
+      fp = 0;
+      cvalid = 0;
     }
 
     explicit operator bool() const

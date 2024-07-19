@@ -20,6 +20,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
+#include "common/Logging.hh"
 #include "fst/http/HttpHandlerFileCache.hh"
 #include <algorithm>
 
@@ -95,6 +96,7 @@ void HttpHandlerFileCache::Run(ThreadAssistant& assistant) noexcept
 {
   while (!assistant.terminationRequested())
   {
+    size_t ntot = 0, ndel = 0;
     {
       XrdSysMutexHelper cLock(mCacheLock);
       const time_t now = time(0);
@@ -102,17 +104,21 @@ void HttpHandlerFileCache::Run(ThreadAssistant& assistant) noexcept
                    [now](const Entry &e) {
           return e.cvalid >= now;
         });
-      std::for_each(it, mQueue.end(), [](const Entry &e) {
+      std::for_each(it, mQueue.end(), [&ndel](const Entry &e) {
+        ndel++;
         if (e.fp) e.fp->close();
         delete e.fp;
       });
+      ntot = mQueue.size();
       mQueue.erase(it, mQueue.end());
 
-      if (mQueue.size() == 0) {
+      if (ndel == ntot) {
         mThreadId.stop();
         mThreadActive = false;
       }
     }
+
+    eos_static_debug("HttpHandlerFileCache watcher thread ntot=%ld ndel=%ld", ntot, ndel);
 
     assistant.wait_for(std::chrono::seconds(30));
   }

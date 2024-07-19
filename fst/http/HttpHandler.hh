@@ -94,6 +94,12 @@ public:
   static std::map<unsigned int, XrdSysMutex*> mOpenMutexMap;
   static eos::common::MimeTypes gMime;
   static HttpHandlerFileCache sFileCache;
+
+  enum CanCache {
+    NO,
+    YES
+  };
+
   /**
    * Constructor
    */
@@ -273,6 +279,8 @@ public:
    */
   eos::common::HttpResponse*
   Put(eos::common::HttpRequest* request);
+
+  XrdFstOfsFile* FileClose(enum CanCache cache);
 
 };
 EOSFSTNAMESPACE_END

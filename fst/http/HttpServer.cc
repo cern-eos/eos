@@ -297,10 +297,10 @@ HttpServer::FileClose(eos::common::ProtocolHandler* handler, int rc)
 
       // we have to disable delete-on-close for chunked uploads since files are stateful
       if (httpHandle->mFile->IsChunkedUpload()) {
-        httpHandle->mFile->close();
+        httpHandle->FileClose(HttpHandler::CanCache::NO);
       }
     } else {
-      httpHandle->mFile->close();
+      httpHandle->FileClose(HttpHandler::CanCache::YES);
     }
 
     // clean-up file objects

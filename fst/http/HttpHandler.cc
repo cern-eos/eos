@@ -46,10 +46,6 @@ HttpHandlerFileCache HttpHandler::sFileCache;
 /*----------------------------------------------------------------------------*/
 HttpHandler::~HttpHandler()
 {
-  if (mFile && mFileCacheEntry.fp == mFile) {
-    if (sFileCache.insert(mFileCacheEntry))
-      mFile = nullptr;
-  }
   if (mFile) {
     delete mFile;
     mFile = nullptr;
@@ -145,6 +141,8 @@ HttpHandler::HandleRequest(eos::common::HttpRequest* request)
     if (open_mode == 0) {
       mFileCacheEntry = sFileCache.remove(cachekey);
       if ( (mFile = mFileCacheEntry.fp) ) {
+        eos_static_debug("path=%s found in open-file cache fp=%p",
+                         openUrl.c_str(), mFile);
         mRc = SFS_OK;
       }
     }
@@ -182,6 +180,8 @@ HttpHandler::HandleRequest(eos::common::HttpRequest* request)
     // in a range request, save it to the cache once we're finished.
     // (perhaps we'll soon have another read-range request for the same file)
     if (open_mode == 0 && mRc == SFS_OK && mFileCacheEntry.fp != mFile) {
+      eos_static_debug("path=%s eligible to be saved in open-file cache fp=%p",
+                       openUrl.c_str(), mFile);
       mFileCacheEntry.set(cachekey, mFile);
     }
 
@@ -405,7 +405,7 @@ HttpHandler::Head(eos::common::HttpRequest* request)
   response->mUseFileReaderCallback = false;
 
   if (mFile) {
-    mFile->close();
+    FileClose(CanCache::NO);
     delete mFile;
     mFile = 0;
   }
@@ -708,7 +708,7 @@ HttpHandler::Put(eos::common::HttpRequest* request)
         return response;
       }
 
-      mCloseCode = mFile->close();
+      FileClose(CanCache::NO);
 
       if (mCloseCode) {
         mErrCode = eos::common::HttpResponse::INTERNAL_SERVER_ERROR;
@@ -888,6 +888,28 @@ HttpHandler::DecodeByteRange(std::string rangeheader,
   }
 
   return true;
+}
+
+/*----------------------------------------------------------------------------*/
+XrdFstOfsFile*
+HttpHandler::FileClose(enum HttpHandler::CanCache cache)
+{
+  XrdFstOfsFile *fp=0;
+  if (mFile && mFileCacheEntry.fp == mFile && cache == CanCache::YES) {
+    if (sFileCache.insert(mFileCacheEntry)) {
+      eos_static_debug("path=%s saved in open-file cache fp=%p",
+                       mFileCacheEntry.key.url_.c_str(), mFile);
+      fp = mFile;
+      mFile = nullptr;
+      mCloseCode = 0;
+    }
+  }
+  mFileCacheEntry.clear();
+  if (mFile) {
+    mCloseCode = mFile->close();
+    fp = mFile;
+  }
+  return fp;
 }
 
 /*----------------------------------------------------------------------------*/
