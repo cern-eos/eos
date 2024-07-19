@@ -1375,3 +1375,21 @@ TEST_F(HierarchicalViewF,
   }
   //If you have a deadlock here in the destructor of the contLock, then something is wrong...
 }
+
+TEST_F(HierarchicalViewF, getMDFollowsSymlinks)
+{
+  view()->createContainer("/eos/dest_symlink/dir1/", true);
+  view()->createFile("/eos/dest_symlink/dir1/file.txt",true);
+  view()->createContainer("/eos/dir2/");
+  view()->createLink("/eos/dir2/dest_symlink","/eos/dest_symlink/");
+
+  auto file = view()->getFileReadLocked("/eos/dest_symlink/dir1/file.txt");
+  ASSERT_EQ("file.txt",file->getUnderlyingPtr()->getName());
+
+  auto container = view()->getContainerReadLocked("/eos/dest_symlink/dir1/");
+  auto containerViaSymlink = view()->getContainer("/eos/dir2/dest_symlink/dir1/");
+  ASSERT_EQ(container->getUnderlyingPtr(),containerViaSymlink);
+
+  auto fileGetItem = view()->getItem("/eos/dest_symlink/dir1/file.txt").get();
+  ASSERT_EQ(file->getUnderlyingPtr(),fileGetItem.file);
+}
