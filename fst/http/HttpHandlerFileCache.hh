@@ -27,9 +27,11 @@
 #include "fst/XrdFstOfsFile.hh"
 #include "XrdSfs/XrdSfsInterface.hh"
 #include "XrdSys/XrdSysPthread.hh"
-#include <deque>
+#include <list>
+#include <map>
 #include <memory>
 #include <string>
+#include <cstring>
 
 EOSFSTNAMESPACE_BEGIN
 
@@ -68,10 +70,25 @@ public:
 
     bool operator==(const Key& other) const
     {
-      return url_   == other.url_   &&
+      return omode_ == other.omode_ &&
+             url_   == other.url_   &&
              query_ == other.query_ &&
-             name_  == other.name_  &&
-             omode_ == other.omode_;
+             name_  == other.name_;
+    }
+
+    bool operator<(const Key &rhs) const
+    {
+      if (omode_ < rhs.omode_) return true;
+      if (omode_ > rhs.omode_) return false;
+      int c = ::strcmp(url_.c_str(), rhs.url_.c_str());
+      if (c<0) return true;
+      if (c>0) return false;
+      c = ::strcmp(query_.c_str(), rhs.query_.c_str());
+      if (c<0) return true;
+      if (c>0) return false;
+      c = ::strcmp(name_.c_str(), rhs.name_.c_str());
+      if (c<0) return true;
+      return false;
     }
 
     std::string name_;
@@ -143,7 +160,8 @@ private:
   bool           mThreadActive;
   size_t         mMaxEntries;
   time_t         mMaxLifetime;
-  std::deque<Entry> mQueue;
+  std::list<Entry> mQueue;
+  std::map<Key, std::list<Entry>::iterator> mQmap;
 };
 
 EOSFSTNAMESPACE_END

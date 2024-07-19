@@ -29,7 +29,7 @@ EOSFSTNAMESPACE_BEGIN
 HttpHandlerFileCache::HttpHandlerFileCache()
 {
   mThreadActive = false;
-  mMaxEntries = 50;
+  mMaxEntries = 1000;
   mMaxLifetime = 120;
 }
 
@@ -46,27 +46,38 @@ bool HttpHandlerFileCache::insert(HttpHandlerFileCache::Entry &e)
 {
   if (!e) return false;
 
-  XrdSysMutexHelper cLock(mCacheLock);
-  if (!mThreadActive) {
-    mThreadId.reset(&HttpHandlerFileCache::Run, this);
-    mThreadActive = true;
+  std::list<Entry> todel;
+  {
+    XrdSysMutexHelper cLock(mCacheLock);
+    if (!mThreadActive) {
+      mThreadId.reset(&HttpHandlerFileCache::Run, this);
+      mThreadActive = true;
+    }
+
+    const time_t now = time(0);
+    if (now + mMaxLifetime < e.cvalid)
+      e.cvalid = now + mMaxLifetime;
+
+    mQueue.push_back(e);
+    mQmap[e.key] = --(mQueue.end());
+
+    const size_t len = mQueue.size();
+    if (len>mMaxEntries) {
+      const auto it = mQueue.begin();
+      const auto rng = mQmap.equal_range(it->key);
+      for(auto it2 = rng.first; it2 != rng.second; it2++) {
+        if (it2->second == it) {
+          mQmap.erase(it2);
+          break;
+        }
+      }
+      todel.splice(todel.begin(), mQueue, mQueue.begin());
+    }
   }
 
-  const time_t now = time(0);
-  if (now + mMaxLifetime < e.cvalid)
-    e.cvalid = now + mMaxLifetime;
-
-  mQueue.push_front(e);
-
-  size_t len = mQueue.size();
-  while(len>mMaxEntries) {
-    {
-      Entry &ed = mQueue.back();
-      if (ed.fp) ed.fp->close();
-      delete ed.fp;
-    }
-    mQueue.pop_back();
-    len--;
+  for(auto &ed: todel) {
+    if (ed.fp) ed.fp->close();
+    delete ed.fp;
   }
 
   return true;
@@ -79,14 +90,20 @@ HttpHandlerFileCache::Entry HttpHandlerFileCache::remove(const HttpHandlerFileCa
 
   XrdSysMutexHelper cLock(mCacheLock);
   const time_t now = time(0);
-  auto it = std::find_if(mQueue.begin(), mQueue.end(), [now, &k](const Entry &e) {
-      return e.cvalid >= now && e.key == k;
-    });
+  auto rng = mQmap.equal_range(k);
+  if (rng.first == rng.second) return e;
+  
+  for(auto it = --(rng.second); ; --it) {
+    const auto it2 = it->second;
+    if (it2->cvalid >= now) {
+      e = *it2;
+      mQmap.erase(it);
+      mQueue.erase(it2);
+      break;
+    }
+    if (it == rng.first) break;
+  }
 
-  if (it == mQueue.end()) return e;
-
-  e = *it;
-  mQueue.erase(it);
   return e;
 }
 
@@ -97,26 +114,33 @@ void HttpHandlerFileCache::Run(ThreadAssistant& assistant) noexcept
   while (!assistant.terminationRequested())
   {
     size_t ntot = 0, ndel = 0;
+    std::list<Entry> todel;
     {
       XrdSysMutexHelper cLock(mCacheLock);
       const time_t now = time(0);
-      auto it = std::stable_partition(mQueue.begin(), mQueue.end(),
-                   [now](const Entry &e) {
-          return e.cvalid >= now;
-        });
-      std::for_each(it, mQueue.end(), [&ndel](const Entry &e) {
-        ndel++;
-        if (e.fp) e.fp->close();
-        delete e.fp;
-      });
-      ntot = mQueue.size();
-      mQueue.erase(it, mQueue.end());
 
+      for(auto it=mQmap.begin(); it != mQmap.end(); ) {
+        const auto it2 = it->second;
+        ntot++;
+        if (it2->cvalid < now) {
+          ndel++;
+          todel.splice(todel.begin(), mQueue, it2);
+          it = mQmap.erase(it);
+        } else {
+          ++it;
+        }
+      }
+          
       if (ndel == ntot) {
         mThreadId.stop();
         mThreadActive = false;
       }
     }
+
+    std::for_each(todel.begin(), todel.end(), [](const Entry &e) {
+      if (e.fp) e.fp->close();
+      delete e.fp;
+    });
 
     eos_static_debug("HttpHandlerFileCache watcher thread ntot=%ld ndel=%ld", ntot, ndel);
 
