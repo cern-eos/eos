@@ -1176,14 +1176,15 @@ std::string FsView::Df(bool monitoring, bool si, bool readable,
     }
 
     {
+      eos::MDLocking::ContainerReadLockPtr cmdLock;
       std::shared_ptr<eos::IContainerMD> cmd;
       // Prefetch path
       eos::Prefetcher::prefetchItemAndWait(gOFS->eosView, path, false);
       eos::common::RWMutexReadLock viewlock(ViewMutex);
-      eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
 
       try {
-        cmd = gOFS->eosView->getContainer(path, false);
+        cmdLock = gOFS->eosView->getContainerReadLocked(path, false);
+        cmd = cmdLock->getUnderlyingPtr();
       } catch (eos::MDException& e) {
         errno = e.getErrno();
         eos_err("msg=\"exception\" ec=%d emsg=\"%s\"", e.getErrno(),
@@ -1194,7 +1195,8 @@ std::string FsView::Df(bool monitoring, bool si, bool readable,
         // fall back to instance path
         try {
           path = instancepath;
-          cmd = gOFS->eosView->getContainer(path, false);
+          cmdLock = gOFS->eosView->getContainerReadLocked(path, false);
+          cmd = cmdLock->getUnderlyingPtr();
         } catch (eos::MDException& e) {
           errno = e.getErrno();
           eos_err("msg=\"exception\" ec=%d emsg=\"%s\"", e.getErrno(),
@@ -1207,7 +1209,7 @@ std::string FsView::Df(bool monitoring, bool si, bool readable,
       sizefactor = Policy::GetDefaultSizeFactor(cmd);
       files = gOFS->eosFileService->getNumFiles();
       directories = gOFS->eosDirectoryService->getNumContainers();
-    }
+    } // Release container lock
 
     if (sizefactor) {
       i_nominal /= sizefactor;
