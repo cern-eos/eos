@@ -1393,3 +1393,74 @@ TEST_F(HierarchicalViewF, getMDFollowsSymlinks)
   auto fileGetItem = view()->getItem("/eos/dest_symlink/dir1/file.txt").get();
   ASSERT_EQ(file->getUnderlyingPtr(),fileGetItem.file);
 }
+
+TEST_F(HierarchicalViewF, getMDMultiThreaded) {
+  std::string dirPath = "/eos/dir1/dir2/dir3/";
+  std::string filePath = dirPath + "file.txt";
+
+  uint16_t loops = 100;
+
+  auto dir = view()->createContainer(dirPath,true);
+  auto file = view()->createFile(filePath);
+
+  std::vector<std::thread> workers;
+
+  workers.emplace_back([this,loops](){
+    for(uint16_t i = 0; i < loops; ++i){
+      auto dhLock = view()->getContainerWriteLocked("/eos/");
+      auto dh = dhLock->getUnderlyingPtr();
+      dh->setTreeSize(i);
+      view()->updateContainerStore(dh.get());
+    }
+  });
+  workers.emplace_back([this,loops](){
+    for(uint16_t i = 0; i < loops; ++i){
+      auto dhLock = view()->getContainerWriteLocked("/eos/dir1/");
+      auto dh = dhLock->getUnderlyingPtr();
+      dh->setTreeSize(i);
+      view()->updateContainerStore(dh.get());
+    }
+  });
+  workers.emplace_back([this,loops](){
+    for(uint16_t i = 0; i < loops; ++i){
+      auto dhLock = view()->getContainerWriteLocked("/eos/dir1/dir2");
+      auto dh = dhLock->getUnderlyingPtr();
+      dh->setTreeSize(i);
+      view()->updateContainerStore(dh.get());
+    }
+  });
+  workers.emplace_back([this,loops,filePath](){
+    for(uint16_t i = 0; i < loops; ++i) {
+      auto fhLock = view()->getFileWriteLocked(filePath);
+      auto fh = fhLock->getUnderlyingPtr();
+      fh->setSize(i);
+      view()->updateFileStore(fh.get());
+    }
+  });
+  workers.emplace_back([this,loops,dirPath,filePath](){
+    for(uint16_t i = 0; i < loops; ++i){
+      /** The following code will deadlock due to the call to fh->setSize() above:
+      auto fh = view()->getFile(filePath);
+      auto dh = view()->getContainerMDSvc()->getContainerMD(dirId);
+      fh->setSize(i);
+      dh->addFile(fh.get());
+      view()->updateFileStore(fh.get());
+      view()->updateContainerStore(dh.get());
+      */
+      auto fh = view()->getFile(filePath);
+      auto dh = view()->getContainer(dirPath);
+      eos::MDLocking::BulkMDWriteLock locker;
+      locker.add(dh);
+      locker.add(fh);
+      auto locks = locker.lockAll();
+      fh->setSize(i);
+      dh->addFile(fh.get());
+      view()->updateFileStore(fh.get());
+      view()->updateContainerStore(dh.get());
+    }
+  });
+  for(auto & worker: workers) {
+    worker.join();
+  }
+
+}
