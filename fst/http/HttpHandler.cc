@@ -141,7 +141,7 @@ HttpHandler::HandleRequest(eos::common::HttpRequest* request)
     if (open_mode == 0) {
       mFileCacheEntry = sFileCache.remove(cachekey);
       if ( (mFile = mFileCacheEntry.fp) ) {
-        eos_static_debug("path=%s found in open-file cache fp=%p",
+        eos_static_info("path=%s found in open-file cache fp=%p",
                          openUrl.c_str(), mFile);
         mRc = SFS_OK;
       }
@@ -897,7 +897,7 @@ HttpHandler::FileClose(enum HttpHandler::CanCache cache)
   XrdFstOfsFile *fp=0;
   if (mFile && mFileCacheEntry.fp == mFile && cache == CanCache::YES) {
     if (sFileCache.insert(mFileCacheEntry)) {
-      eos_static_debug("path=%s saved in open-file cache fp=%p",
+      eos_static_info("path=%s saved in open-file cache fp=%p",
                        mFileCacheEntry.key.url_.c_str(), mFile);
       fp = mFile;
       mFile = nullptr;

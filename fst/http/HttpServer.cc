@@ -285,19 +285,22 @@ HttpServer::FileWriter(eos::common::ProtocolHandler* handler,
 
 /*----------------------------------------------------------------------------*/
 ssize_t
-HttpServer::FileClose(eos::common::ProtocolHandler* handler, int rc)
+HttpServer::FileClose(eos::common::ProtocolHandler* handler, int fiorc, int otherrc)
 {
   eos::fst::HttpHandler* httpHandle = dynamic_cast<eos::fst::HttpHandler*>
                                       (handler);
 
   if (httpHandle && httpHandle->mFile) {
-    if (rc) {
+    if (fiorc || otherrc) {
       eos_static_err("msg=\"clean-up interrupted or IO error related PUT/GET request\" path=\"%s\"",
                      httpHandle->mFile->GetPath().c_str());
 
       // we have to disable delete-on-close for chunked uploads since files are stateful
       if (httpHandle->mFile->IsChunkedUpload()) {
         httpHandle->FileClose(HttpHandler::CanCache::NO);
+      } else if (!fiorc) {
+        // if there was no file io error, we can try to cache the file
+        httpHandle->FileClose(HttpHandler::CanCache::YES);
       }
     } else {
       httpHandle->FileClose(HttpHandler::CanCache::YES);

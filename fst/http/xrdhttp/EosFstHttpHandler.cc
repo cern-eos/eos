@@ -200,6 +200,7 @@ EosFstHttpHandler::ProcessReq(XrdHttpExtReq& req)
       std::vector<char> buffer(content_length > (1024 * 1024) ?
                                (1024 * 1024) : content_length);
 
+      int fioretc = 0;
       do {
         eos_static_debug("pos=%llu size=%u", pos, buffer.capacity());
         nread = OFS->mHttpd->FileReader(handler.get(), pos, &buffer[0],
@@ -210,12 +211,12 @@ EosFstHttpHandler::ProcessReq(XrdHttpExtReq& req)
           retc |= req.SendSimpleResp(1, nullptr, nullptr, &buffer[0], nread);
           eos_static_debug("retc=%d", retc);
         } else {
-          retc = -1;
+          fioretc = -1;
         }
-      } while ((pos != content_length) && (nread > 0) && !retc);
+      } while ((pos != content_length) && (nread > 0) && !retc && !fioretc);
 
-      OFS->mHttpd->FileClose(handler.get(), retc);
-      return retc;
+      OFS->mHttpd->FileClose(handler.get(), fioretc, retc);
+      return retc|fioretc;
     }
   }
 

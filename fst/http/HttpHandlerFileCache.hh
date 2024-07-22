@@ -31,7 +31,6 @@
 #include <map>
 #include <memory>
 #include <string>
-#include <cstring>
 
 EOSFSTNAMESPACE_BEGIN
 
@@ -80,13 +79,13 @@ public:
     {
       if (omode_ < rhs.omode_) return true;
       if (omode_ > rhs.omode_) return false;
-      int c = ::strcmp(url_.c_str(), rhs.url_.c_str());
+      int c = url_.compare(rhs.url_);
       if (c<0) return true;
       if (c>0) return false;
-      c = ::strcmp(query_.c_str(), rhs.query_.c_str());
+      c = query_.compare(rhs.query_);
       if (c<0) return true;
       if (c>0) return false;
-      c = ::strcmp(name_.c_str(), rhs.name_.c_str());
+      c = name_.compare(rhs.name_);
       if (c<0) return true;
       return false;
     }
@@ -99,7 +98,7 @@ public:
 
   struct Entry {
 
-    Entry() : cvalid(0), fp(0) { }
+    Entry() : cvalid(0), itime(0), fp(0) { }
 
     bool set(const Key &k, XrdFstOfsFile* const v) {
       if (getCapValid(k.query_, cvalid)) return false;
@@ -110,8 +109,9 @@ public:
 
     void clear() {
       key.clear();
-      fp = 0;
       cvalid = 0;
+      itime = 0;
+      fp = 0;
     }
 
     explicit operator bool() const
@@ -121,6 +121,7 @@ public:
 
     Key key;
     time_t cvalid;
+    time_t itime;
     XrdFstOfsFile *fp;
   };
 
@@ -132,7 +133,7 @@ public:
    */
   void Run(ThreadAssistant& assistant) noexcept;
 
-  bool           insert(Entry &e);
+  bool           insert(const Entry &e);
   Entry          remove(const Key &k);
 
 private:
@@ -161,7 +162,7 @@ private:
   size_t         mMaxEntries;
   time_t         mMaxLifetime;
   std::list<Entry> mQueue;
-  std::map<Key, std::list<Entry>::iterator> mQmap;
+  std::multimap<Key, std::list<Entry>::iterator> mQmap;
 };
 
 EOSFSTNAMESPACE_END

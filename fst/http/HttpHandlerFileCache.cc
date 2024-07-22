@@ -30,7 +30,7 @@ HttpHandlerFileCache::HttpHandlerFileCache()
 {
   mThreadActive = false;
   mMaxEntries = 1000;
-  mMaxLifetime = 120;
+  mMaxLifetime = 300;
 }
 
 HttpHandlerFileCache::~HttpHandlerFileCache()
@@ -42,9 +42,9 @@ HttpHandlerFileCache::~HttpHandlerFileCache()
   }
 }
 
-bool HttpHandlerFileCache::insert(HttpHandlerFileCache::Entry &e)
+bool HttpHandlerFileCache::insert(const HttpHandlerFileCache::Entry &ein)
 {
-  if (!e) return false;
+  if (!ein) return false;
 
   std::list<Entry> todel;
   {
@@ -55,17 +55,17 @@ bool HttpHandlerFileCache::insert(HttpHandlerFileCache::Entry &e)
     }
 
     const time_t now = time(0);
-    if (now + mMaxLifetime < e.cvalid)
-      e.cvalid = now + mMaxLifetime;
+    Entry e = ein;
+    e.itime = now;
 
     mQueue.push_back(e);
-    mQmap[e.key] = --(mQueue.end());
+    mQmap.insert({e.key, --(mQueue.end())});
 
     const size_t len = mQueue.size();
     if (len>mMaxEntries) {
       const auto it = mQueue.begin();
       const auto rng = mQmap.equal_range(it->key);
-      for(auto it2 = rng.first; it2 != rng.second; it2++) {
+      for(auto it2 = rng.first; it2 != rng.second; ++it2) {
         if (it2->second == it) {
           mQmap.erase(it2);
           break;
@@ -75,9 +75,9 @@ bool HttpHandlerFileCache::insert(HttpHandlerFileCache::Entry &e)
     }
   }
 
-  for(auto &ed: todel) {
-    if (ed.fp) ed.fp->close();
-    delete ed.fp;
+  for(auto &e: todel) {
+    if (e.fp) e.fp->close();
+    delete e.fp;
   }
 
   return true;
@@ -122,7 +122,7 @@ void HttpHandlerFileCache::Run(ThreadAssistant& assistant) noexcept
       for(auto it=mQmap.begin(); it != mQmap.end(); ) {
         const auto it2 = it->second;
         ntot++;
-        if (it2->cvalid < now) {
+        if (it2->cvalid < now || it2->itime + mMaxLifetime < now) {
           ndel++;
           todel.splice(todel.begin(), mQueue, it2);
           it = mQmap.erase(it);
