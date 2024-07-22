@@ -62,46 +62,45 @@ XrdMgmOfs::_verifystripe(const char* path,
   eos::common::Path cPath(path);
   std::string attr_path;
   {
-    eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
-
-    try {
-      std::string parentPath = cPath.GetParentPath();
-      dh = gOFS->eosView->getContainer(parentPath);
-      // Even if the path contains a symlink, the next calls to _attr_ls()
-      // will succeed as proven by the HierarchicalViewTestF.getMDFollowsSymlinks
-      // we can therefore get rid of the following line:
-      // attr_path = gOFS->eosView->getUri(dh.get());
-      attr_path = parentPath;
-    } catch (eos::MDException& e) {
-      dh.reset();
-      eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n", e.getErrno(),
-                e.getMessage().str().c_str());
-    }
-
-    // Check permissions
-    errno = 0;
-
-    if (dh && (!dh->access(vid.uid, vid.gid, X_OK | W_OK))) {
-      if (!errno) {
-        errc = EPERM;
+    {
+      eos::MDLocking::ContainerReadLockPtr dhLock;
+      try {
+        std::string parentPath = cPath.GetParentPath();
+        dhLock = gOFS->eosView->getContainerReadLocked(parentPath);
+        dh = dhLock->getUnderlyingPtr();
+        // Even if the path contains a symlink, the next calls to _attr_ls()
+        // will succeed as proven by the HierarchicalViewTestF.getMDFollowsSymlinks we can therefore get rid of the following line: attr_path = gOFS->eosView->getUri(dh.get());
+        attr_path = parentPath;
+      } catch (eos::MDException& e) {
+        dh.reset();
+        eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n", e.getErrno(),
+                  e.getMessage().str().c_str());
       }
-    } else {
-      // only root can delete a detached replica
-      if (vid.uid) {
-        errc = EPERM;
+
+      // Check permissions
+      errno = 0;
+      if (dh && (!dh->access(vid.uid, vid.gid, X_OK | W_OK))) {
+        if (!errno) {
+          errc = EPERM;
+        }
+      } else {
+        // only root can delete a detached replica
+        if (vid.uid) {
+          errc = EPERM;
+        }
       }
-    }
 
-    if (errc) {
-      return Emsg(epname, error, errc, "verify stripe", path);
-    }
+      if (errc) {
+        return Emsg(epname, error, errc, "verify stripe", path);
+      }
 
-    // Get attributes
-    gOFS->_attr_ls(attr_path.c_str(), error, vid, 0, attrmap);
-
+      // Get attributes
+      gOFS->_attr_ls(attr_path.c_str(), error, vid, 0, attrmap);
+    } // Releases dhLock
     // Get the file
     try {
-      fmd = gOFS->eosView->getFile(path);
+      auto fmdLock = gOFS->eosView->getFileReadLocked(path);
+      fmd = fmdLock->getUnderlyingPtr();
       fid = fmd->getId();
       lid = fmd->getLayoutId();
       cid = fmd->getContainerId();
