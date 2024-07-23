@@ -30,6 +30,7 @@
 #include "namespace/ns_quarkdb/tests/TestUtils.hh"
 #include "namespace/ns_quarkdb/utils/QuotaRecomputer.hh"
 #include "namespace/ns_quarkdb/views/HierarchicalView.hh"
+#include "namespace/ns_quarkdb/Constants.hh"
 #include "namespace/utils/RenameSafetyCheck.hh"
 #include "namespace/utils/RmrfHelper.hh"
 #include <algorithm>
@@ -1397,16 +1398,17 @@ TEST_F(HierarchicalViewF, getMDFollowsSymlinks)
 TEST_F(HierarchicalViewF, getMDMultiThreaded) {
   std::string dirPath = "/eos/dir1/dir2/dir3/";
   std::string filePath = dirPath + "file.txt";
-
   uint16_t loops = 100;
 
   auto dir = view()->createContainer(dirPath,true);
   auto file = view()->createFile(filePath);
-
+  auto fileId = file->getId();
+  auto dirId = dir->getId();
   std::vector<std::thread> workers;
 
   workers.emplace_back([this,loops](){
     for(uint16_t i = 0; i < loops; ++i){
+      cleanNSCache();
       auto dhLock = view()->getContainerWriteLocked("/eos/");
       auto dh = dhLock->getUnderlyingPtr();
       dh->setTreeSize(i);
@@ -1415,6 +1417,7 @@ TEST_F(HierarchicalViewF, getMDMultiThreaded) {
   });
   workers.emplace_back([this,loops](){
     for(uint16_t i = 0; i < loops; ++i){
+      cleanNSCache();
       auto dhLock = view()->getContainerWriteLocked("/eos/dir1/");
       auto dh = dhLock->getUnderlyingPtr();
       dh->setTreeSize(i);
@@ -1439,6 +1442,7 @@ TEST_F(HierarchicalViewF, getMDMultiThreaded) {
   });
   workers.emplace_back([this,loops,dirPath,filePath](){
     for(uint16_t i = 0; i < loops; ++i){
+      cleanNSCache();
       /** The following code will deadlock due to the call to fh->setSize() above:
       auto fh = view()->getFile(filePath);
       auto dh = view()->getContainerMDSvc()->getContainerMD(dirId);
@@ -1457,6 +1461,21 @@ TEST_F(HierarchicalViewF, getMDMultiThreaded) {
       dh->addFile(fh.get());
       view()->updateFileStore(fh.get());
       view()->updateContainerStore(dh.get());
+    }
+  });
+  workers.emplace_back([this,loops,fileId,dirId](){
+    for(uint16_t i = 0; i < loops; ++i){
+      cleanNSCache();
+      {
+        auto fhLock = view()->getFileMDSvc()->getFileMDWriteLocked(fileId);
+        auto fh = fhLock->getUnderlyingPtr();
+        std::string uri = view()->getUri(fh.get());
+      }
+      {
+        auto dhLock = view()->getContainerMDSvc()->getContainerMDWriteLocked(dirId);
+        auto dh = dhLock->getUnderlyingPtr();
+        std::string uri = view()->getUri(dh.get());
+      }
     }
   });
   for(auto & worker: workers) {

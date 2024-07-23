@@ -28,6 +28,7 @@
 #include "namespace/ns_quarkdb/views/HierarchicalView.hh"
 #include "namespace/ns_quarkdb/accounting/FileSystemView.hh"
 #include "namespace/ns_quarkdb/flusher/MetadataFlusher.hh"
+#include "namespace/ns_quarkdb/Constants.hh"
 #include <sstream>
 #include <fstream>
 #include <qclient/QClient.hh>
@@ -225,6 +226,16 @@ void NsTestsFixture::populateDummyData1()
   mdFlusher()->synchronize();
 }
 
-
+void NsTestsFixture::cleanNSCache()
+{
+  using namespace eos::constants;
+  std::map<std::string, std::string> map_cfg;
+  map_cfg[sMaxNumCacheFiles] = std::to_string(UINT64_MAX);
+  map_cfg[sMaxSizeCacheFiles] = std::to_string(UINT64_MAX);
+  map_cfg[sMaxNumCacheDirs] = std::to_string(UINT64_MAX);
+  map_cfg[sMaxSizeCacheDirs] = std::to_string(UINT64_MAX);
+  view()->getFileMDSvc()->configure(map_cfg);
+  view()->getContainerMDSvc()->configure(map_cfg);
+}
 
 EOSNSTESTING_END

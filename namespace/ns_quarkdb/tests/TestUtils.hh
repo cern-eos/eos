@@ -161,6 +161,7 @@ public:
   // Populate namespace with dummy test data.
   void populateDummyData1();
 
+  void cleanNSCache();
 private:
   eos::common::RWMutex nsMutex;
   void initServices();
