@@ -37,7 +37,7 @@ First we create an unlock key:
 E.g. if we want to user kerberos identities on a non-kerberized NFS mount, we can create a mount instruction like this:
 
 ```
-eos daemon seal "sudo mount -t nfs -o vers=4 nfsserver.cern.ch:/nfsshare/ /@eoscfsd/" `cat /etc/eos/cfsd/nfs.key` > /tmp/nfs.key
+eos daemon seal "sudo mount -t nfs -o vers=4 nfsserver.cern.ch:/nfsshare/ /@eoscfsd/" `cat /etc/eos/cfsd/nfs.key` >& /tmp/nfs.key
 ```
 
 We upload `/tmp/nfs.key` to our key HTTPS server. 
@@ -96,6 +96,8 @@ dr-xr-xr-x. 37 root       root 4096 Jan 23 15:58 ..
 drwxr-xr-x.  4 root       root    2 Jan 24 18:07 .proc
 
 ```
+
+It is possible to have a single key for all mounts. In this case don't deploy local keys in `/etc/eos/cfsd/name.key` but use the catch all default key `/etc/eos/cfsd/cfsd.key`. When the named key does not exists, it will automatically fall back to the default key.
 
 Configuring Kerberos mapping in the backend filesystem
 ------------------------------------------------------
