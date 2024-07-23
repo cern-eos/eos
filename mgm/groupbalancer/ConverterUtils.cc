@@ -23,10 +23,10 @@ getFileProcTransferNameAndSize(eos::common::FileId::fileid_t fid,
   eos::common::FileId::fileid_t fileid = 0;
   {
     eos::Prefetcher::prefetchFileMDAndWait(gOFS->eosView, fid);
-    eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
 
     try {
-      fmd = gOFS->eosFileService->getFileMD(fid);
+      auto fmdLock = gOFS->eosFileService->getFileMDReadLocked(fid);
+      fmd = fmdLock->getUnderlyingPtr();
       layoutid = fmd->getLayoutId();
       fileid = fmd->getId();
 
