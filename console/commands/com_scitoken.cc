@@ -269,7 +269,7 @@ com_scitoken(char* arg1)
       bool ok = parseFromStream(reader, configfile, &root, &errs);
       if (ok) {
 	// store the keyid into the JSON document
-	root["key"] = keyid.length()?keyid:"default";
+	root["kid"] = keyid.length()?keyid:"default";
       } else {
 	global_retc = EIO;
 	return (0);
