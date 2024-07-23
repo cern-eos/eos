@@ -1648,8 +1648,15 @@ std::string prepare(std::string input, std::string keylocation)
   std::string shakey = eos::common::SymKey::HexSha256(key);
   XrdOucString in = input.c_str();
   XrdOucString out;
+  if (in.beginswith("enc:")) {
+    in.erase(0,4);
+  }
   eos::common::SymKey::SymmetricStringDecrypt(in, out, (char*)shakey.c_str());
-  return out.c_str();
+  if (out.length()) {
+    return out.c_str();
+  } else {
+    return "";
+  }
 }
 
 int execute(std::string& scmd)
@@ -1895,7 +1902,9 @@ int main(int argc, char* argv[])
   fs.keyresource = "cernhome-server.cern.ch/";
   fs.keyresource += fs.name;
   fs.keyresource += ".key";
-  fs.keyfile = "cfsd.key";
+  fs.keyfile = fs.name;
+  fs.keyfile += ".key";
+
   fs.starttime = time(NULL);
   // cernhome mount
   system("mkdir -p /@eoscfsd/");
@@ -1986,6 +1995,12 @@ int main(int argc, char* argv[])
   }
 
   std::string keyfile = "/etc/eos/cfsd/" + fs.keyfile;
+  struct stat buf;
+  if (::stat(keyfile.c_str(), &buf)) {
+    // if there is no dedicated key, fall back to the default key
+    keyfile = "/etc/eos/cfsd/cfsd.key";
+  }
+
   //  fs.dcache.setMaxSize(4096);
   fs.se = fuse_session_new(&args, &sfs_oper, sizeof(sfs_oper), &fs);
 
@@ -2047,6 +2062,10 @@ int main(int argc, char* argv[])
   if (!(child = fork())) {
     eos::common::Untraceable();
     scmd = prepare(cmd, keyfile);
+    if (scmd.empty()) {
+      fprintf(stderr, "error: cannot decrypt the mount instruction - wrong key\n");
+      exit(-1);
+    }
     execute(scmd);
     exit(0);
   } else {
