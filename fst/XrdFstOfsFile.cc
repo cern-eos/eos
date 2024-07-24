@@ -1479,7 +1479,8 @@ XrdFstOfsFile::_close()
   // Enter close logic only once, as we can get an explicit close or a close
   // via the destructor
   if (!mOpened || mClosed) {
-    eos_info("msg=\"close already done\" fxid=%08llx", mFileId);
+    eos_info("msg=\"close already done\" fxid=%08llx close_rc=%i",
+             mFileId, mCloseRc);
     mClosed = true;
     return mCloseRc;
   }
@@ -3657,12 +3658,21 @@ XrdFstOfsFile::DoTpcTransfer()
   }
 
   // Close the remote file
-  eos_info("msg=\"done tpc transfer, close remote file\" src_url=%s",
-           src_url.c_str());
-  XrdCl::XRootDStatus st = tpcIO.fileClose();
+  int close_rc = tpcIO.fileClose();
+  eos_info("msg=\"done tpc transfer, close remote file\" is_ok=%s src_url=%s",
+           (close_rc ? "false" : "true"), src_url.c_str());
   XrdSysMutexHelper scope_lock(mTpcJobMutex);
   mTpcState = kTpcDone;
-  mTpcInfo.Reply(SFS_OK, 0, "");
+
+  if (close_rc != SFS_OK) {
+    mTpcRetc = tpcIO.GetLastErrNo();
+    mTpcInfo.Reply(SFS_ERROR, mTpcRetc,
+                   SSTR("sync - TPC failed source close src_url=" << src_url
+                        << " src_err=" << tpcIO.GetLastErrMsg()).c_str());
+  } else {
+    mTpcInfo.Reply(SFS_OK, 0, "");
+  }
+
   return 0;
 }
 
