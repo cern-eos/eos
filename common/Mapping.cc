@@ -126,7 +126,6 @@ Mapping::Init()
       gShardedPhysicalGidCache.set_force_expiry(true, 2);
       gShardedNegativeGroupNameCache.set_force_expiry(true, 2);
       gShardedNegativePhysicalUidCache.set_force_expiry(true, 2);
-
       gShardedPhysicalUidCache.reset_cleanup_thread(3600 * 1000,
           "UidCacheGC");
       gShardedPhysicalGidCache.reset_cleanup_thread(3600 * 1000,
@@ -1204,10 +1203,10 @@ Mapping::Print(XrdOucString& stdOut, XrdOucString option)
       for (const auto& gid : it->second) {
         if (translateids) {
           int errc = 0;
-          std::string username = GidToGroupName(gid, errc);
+          std::string grpname = GidToGroupName(gid, errc);
 
           if (!errc) {
-            stdOut += username.c_str();
+            stdOut += grpname.c_str();
           } else {
             stdOut += (int)gid;
           }
@@ -1753,7 +1752,7 @@ Mapping::CommaListToGidSet(const char* list, std::set<gid_t>& gids_set)
 
     if (kommapos != STR_NPOS) {
       number.assign(slist, 0, kommapos - 1);
-      int errc;
+      int errc = 0;
       std::string groupname = number.c_str();
       gid_t gid = GroupNameToGid(groupname, errc);
 
