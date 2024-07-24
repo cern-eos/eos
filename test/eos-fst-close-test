@@ -202,13 +202,25 @@ test_read_xs_error() {
   # Check if output contains the expected error message
   [[ ${cp_output} =~ ${error_msg} ]]
   local rc1=$?
+
+  if [[ $rc1 -ne 0 ]]; then
+    echo "error: command output is \"${cp_output}\""
+  fi
+
+
   # Read the file in reverse so that the checksum check on close gets triggered
   error_msg="error: close failed with retc=-5"
   cp_output=$(exec_cmd eos-cli1 "xrdcpbackward ${EOS_MGM_URL}/${eos_fn} 2>&1 || true")
   # Check if output contains the expected error message
   [[ ${cp_output} =~ ${error_msg} ]]
   local rc2=$?
+
+  if [[ $rc2 -ne 0 ]]; then
+    echo "error: command output is \"${cp_output}\""
+  fi
+
   exec_cmd eos-cli1 "eos -r 0 0 rm -rF ${eos_fn}"
+  echo "info: return value is ${rc1}${rc2}"
   return ${rc1}${rc2}
 }
 
