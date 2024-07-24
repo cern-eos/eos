@@ -435,38 +435,42 @@ Vid::Rm(XrdOucEnv& env,
       }
     }
 
+    skey.replace(usrname.c_str(), std::to_string(uid).c_str());
     nerased += eos::common::Mapping::gUserRoleVector.erase(uid);
   }
 
   if (skey.endswith(":gids")) {
     XrdOucString lkey = skey;
     lkey.replace(":gids", "");
-    std::string grpname = lkey.c_str();
-    gid_t gid = eos::common::VirtualIdentity::kNobodyGid;
+    // This is not a mistake, the skey embeds the uid/username for the
+    // current mapping rule!
+    std::string usrname = lkey.c_str();
+    uid_t uid = eos::common::VirtualIdentity::kNobodyUid;
 
-    if (std::find_if(grpname.begin(), grpname.end(),
+    if (std::find_if(usrname.begin(), usrname.end(),
     [](unsigned char c) {
     return std::isalpha(c);
     }) !=
-    grpname.end()) {
-      gid = eos::common::Mapping::GroupNameToGid(grpname, errc);
+    usrname.end()) {
+      uid = eos::common::Mapping::UserNameToUid(usrname, errc);
 
       if (errc) {
-        gid = eos::common::VirtualIdentity::kNobodyGid;
+        uid = eos::common::VirtualIdentity::kNobodyUid;
       }
     }
     else {
       try {
-        gid = std::stoul(grpname);
+        uid = std::stoul(usrname);
       } catch (const std::exception& e) {
-        gid = eos::common::VirtualIdentity::kNobodyGid;
+        uid = eos::common::VirtualIdentity::kNobodyUid;
       }
     }
 
-    nerased += eos::common::Mapping::gGroupRoleVector.erase(gid);
+    skey.replace(usrname.c_str(), std::to_string(uid).c_str());
+    nerased += eos::common::Mapping::gGroupRoleVector.erase(uid);
   }
 
-  if (skey.beginswith("geotag")) {
+  if (skey.beginswith("geotag:")) {
     // remove from geo tag map
     XrdOucString gkey = skey;
     gkey.erase("geotag:");
@@ -476,7 +480,7 @@ Vid::Rm(XrdOucEnv& env,
     nerased += eos::common::Mapping::gVirtualGidMap.erase(skey.c_str());
   }
 
-  if (skey.beginswith("tident")) {
+  if (skey.beginswith("tident:")) {
     XrdOucString saveskey = skey;
     skey.replace("tident:\"", "");
 
@@ -511,7 +515,7 @@ Vid::Rm(XrdOucEnv& env,
   }
 
   if (vidcmd == "map") {
-    while (1) {
+    while (true) {
       XrdOucString auth = env.Get("mgm.vid.auth");
 
       if ((auth != "voms") && (auth != "krb5") && (auth != "sss") &&
