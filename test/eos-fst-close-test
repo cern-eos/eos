@@ -209,7 +209,7 @@ test_read_xs_error() {
 
 
   # Read the file in reverse so that the checksum check on close gets triggered
-  error_msg="error: close failed with retc=-5"
+  error_msg="error: close failed with retc=-1 errno=5"
   cp_output=$(exec_cmd eos-cli1 "xrdcpbackward ${EOS_MGM_URL}/${eos_fn} 2>&1 || true")
   echo "info: cmd output is \"${cp_output}\""
   # Check if output contains the expected error message

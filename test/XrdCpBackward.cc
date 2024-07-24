@@ -69,7 +69,7 @@ int main(int argc, char* argv[])
       int rc = XrdPosixXrootd::Close(fdRead);
 
       if (rc) {
-        fprintf(stderr, "error: close failed with retc=%d", rc);
+        fprintf(stderr, "error: close failed with retc=%d errno=%i", rc, errno);
         exit(rc);
       }
     } else {
