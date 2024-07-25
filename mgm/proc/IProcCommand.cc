@@ -371,11 +371,11 @@ IProcCommand::ConvertOutputToJsonFormat(const std::string& stdOut)
         // non numeric
         (*jep) = value;
       } else {
-        // Check it this is an integer value otherwise use double
+        // Check if this is an integer value otherwise use double
         if (it.second.find('.') == std::string::npos) {
           try {
             std::uint64_t int_val = std::stoull(it.second);
-            (*jep) = int_val;
+            (*jep) = static_cast<Json::Value::UInt64>(int_val);
           } catch (...) {
             eos_static_err("msg=\"failed to convert to integer use double\" "
                            "data=\"%s\"", it.second.c_str());
