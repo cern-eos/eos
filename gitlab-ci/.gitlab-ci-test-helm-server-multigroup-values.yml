@@ -20,3 +20,8 @@ fst:
   selfRegister:
     groupsize: 7
     groupmod: 2
+
+mgm:
+  env:
+    - name: LD_PRELOAD
+      value: "/usr/lib64/libjemalloc.so"

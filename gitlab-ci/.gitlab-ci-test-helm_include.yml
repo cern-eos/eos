@@ -85,8 +85,8 @@
     - |
       echo "Clone eos-on-k8s repository for helper scripts"
       git clone https://gitlab.cern.ch/eos/eos-on-k8s.git
-    - >
-      echo "IMAGE_TAG=${IMAGE_TAG}"
+    - echo "IMAGE_TAG=${IMAGE_TAG}"
+    - |
       ######## EOS-CHARTS/SERVER ########
       helm install --wait --timeout 30m0s \
         -f ./gitlab-ci/.gitlab-ci-test-helm-server-multigroup-values.yml eos eos/server \
@@ -97,7 +97,6 @@
       # allow backward compatibility with our legacy k8s utilities functions
       for i in $(seq 1 15); do kubectl label pod eos-fst-$((i -1)) app=eos-fst${i}; done
       kubectl label pod eos-mgm-0 app=eos-mgm1
-      #kubectl label pod eos-mq-0 app=eos-mq - shared pod for MGM/MQ in newer releases
       kubectl label pod eos-qdb-0 app=eos-qdb
 
 
