@@ -85,7 +85,8 @@
     - |
       echo "Clone eos-on-k8s repository for helper scripts"
       git clone https://gitlab.cern.ch/eos/eos-on-k8s.git
-    - |
+    - >
+      echo "IMAGE_TAG=${IMAGE_TAG}"
       ######## EOS-CHARTS/SERVER ########
       helm install --wait --timeout 30m0s \
         -f ./gitlab-ci/.gitlab-ci-test-helm-server-multigroup-values.yml eos eos/server \
