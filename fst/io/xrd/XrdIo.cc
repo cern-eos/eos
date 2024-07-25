@@ -328,7 +328,7 @@ XrdIo::fileOpen(XrdSfsFileOpenMode flags,
   mXrdFile->GetProperty("LastURL", mLastTriedUrl);
 
   if (!status.IsOK()) {
-    mLastErrMsg = status.ToString().c_str();
+    mLastErrMsg = status.ToStr().c_str();
     mLastErrCode = status.code;
     mLastErrNo = status.errNo;
     eos_err("error= \"open failed url=%s, errno=%i, errc=%i, msg=%s\"",
@@ -444,7 +444,7 @@ XrdIo::fileRead(XrdSfsFileOffset offset, char* buffer, XrdSfsXferSize length,
 
   if (!status.IsOK()) {
     errno = status.errNo;
-    mLastErrMsg = status.ToString().c_str();
+    mLastErrMsg = status.ToStr().c_str();
     mLastErrCode  = status.code;
     mLastErrNo  = status.errNo;
     return SFS_ERROR;
@@ -575,7 +575,7 @@ XrdIo::fileReadV(XrdCl::ChunkList& chunkList, uint16_t timeout)
 
   if (!status.IsOK())  {
     errno = status.errNo;
-    mLastErrMsg = status.ToString().c_str();
+    mLastErrMsg = status.ToStr().c_str();
     mLastErrCode  = status.code;
     mLastErrNo  = status.errNo;
     return SFS_ERROR;
@@ -618,7 +618,7 @@ XrdIo::fileReadVAsync(XrdCl::ChunkList& chunkList, uint16_t timeout)
     // dropped once XrdCl will call the handler for a request as it knows it
     // has already failed
     mMetaHandler->HandleResponse(&status, vhandler);
-    mLastErrMsg = status.ToString().c_str();
+    mLastErrMsg = status.ToStr().c_str();
     mLastErrCode  = status.code;
     mLastErrNo  = status.errNo;
     return SFS_ERROR;
@@ -648,7 +648,7 @@ XrdIo::fileWrite(XrdSfsFileOffset offset, const char* buffer,
 
   if (!status.IsOK()) {
     errno = status.errNo;
-    mLastErrMsg = status.ToString().c_str();
+    mLastErrMsg = status.ToStr().c_str();
     mLastErrCode  = status.code;
     mLastErrNo  = status.errNo;
     return SFS_ERROR;
@@ -799,7 +799,7 @@ XrdIo::fileTruncate(XrdSfsFileOffset offset, uint16_t timeout)
 
   if (!status.IsOK()) {
     errno = status.errNo;
-    mLastErrMsg = status.ToString().c_str();
+    mLastErrMsg = status.ToStr().c_str();
     mLastErrCode  = status.code;
     mLastErrNo  = status.errNo;
     return SFS_ERROR;
@@ -853,7 +853,7 @@ XrdIo::fileSync(uint16_t timeout)
 
   if (!status.IsOK()) {
     errno = status.errNo;
-    mLastErrMsg = status.ToString().c_str();
+    mLastErrMsg = status.ToStr().c_str();
     mLastErrCode  = status.code;
     mLastErrNo  = status.errNo;
     return SFS_ERROR;
@@ -880,7 +880,7 @@ XrdIo::fileStat(struct stat* buf, uint16_t timeout)
 
   if (!status.IsOK()) {
     errno = status.errNo;
-    mLastErrMsg = status.ToString().c_str();
+    mLastErrMsg = status.ToStr().c_str();
     mLastErrCode  = status.code;
     mLastErrNo  = status.errNo;
     eos_info("errcode=%i, errno=%i, errmsg=%s", mLastErrCode, mLastErrNo,
@@ -1464,9 +1464,9 @@ XrdIo::ftsOpen(int options)
     XrdIo::GetDirList(&fs, url, &files, &directories);
 
   if (!status.IsOK()) {
-    eos_err("error=listing remote XrdClFile - %s", status.ToString().c_str());
+    eos_err("error=listing remote XrdClFile - %s", status.ToStr().c_str());
     errno = status.errNo;
-    mLastErrMsg = status.ToString().c_str();
+    mLastErrMsg = status.ToStr().c_str();
     mLastErrCode  = status.code;
     mLastErrNo  = status.errNo;
     return 0;
@@ -1539,9 +1539,9 @@ XrdIo::ftsRead(FileIo::FtsHandle* fts_handle)
       status = XrdIo::GetDirList(&fs, url, &files, &directories);
 
       if (!status.IsOK()) {
-        eos_err("error=listing remote XrdClFile - %s", status.ToString().c_str());
+        eos_err("error=listing remote XrdClFile - %s", status.ToStr().c_str());
         errno = status.errNo;
-        mLastErrMsg = status.ToString().c_str();
+        mLastErrMsg = status.ToStr().c_str();
         mLastErrCode  = status.code;
         mLastErrNo  = status.errNo;
         return "";
