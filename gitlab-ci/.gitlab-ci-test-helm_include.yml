@@ -25,8 +25,8 @@
       export KUBECONFIG=$K8S_CONFIG # get access configs for the cluster
       K8S_NAMESPACE=$(echo ${CI_JOB_NAME}-${CI_JOB_ID}-${CI_PIPELINE_ID} | tr '_' '-' | tr '[:upper:]' '[:lower:]')
       kubectl config set-context --current --namespace=$K8S_NAMESPACE
-      IMAGE_TAG="${BASETAG}${CI_COMMIT_TAG:-$CI_COMMIT_SHORT_SHA}"
-      CLI_IMAGE_TAG="${BASETAG}${CLI_BASETAG}${CI_COMMIT_TAG:-$CI_COMMIT_SHORT_SHA}" # may be different from the server image (eg ubuntu)
+      IMAGE_TAG="${CI_COMMIT_TAG:-$CI_COMMIT_SHORT_SHA}${OS_TAG}"
+      CLI_IMAGE_TAG="${CLI_BASETAG}${CI_COMMIT_TAG:-$CI_COMMIT_SHORT_SHA}${OS_TAG}" # may be different from the server image (eg ubuntu)
       TEST_REALM=EXAMPLE.COM; TEST_ADMINPRINC_NAME=admin1; TEST_ADMINPRINC_PASSWORD=admin1; TEST_USERPRINC_NAME=eos-user; TEST_USERPRINC_PASSWORD=eos-user
     - |
       git clone https://gitlab.cern.ch/eos/kuberos
@@ -77,8 +77,8 @@
       export KUBECONFIG=$K8S_CONFIG # get access configs for the cluster
       K8S_NAMESPACE=$(echo ${CI_JOB_NAME}-${CI_JOB_ID}-${CI_PIPELINE_ID} | tr '_' '-' | tr '[:upper:]' '[:lower:]')
       kubectl config set-context --current --namespace=$K8S_NAMESPACE
-      IMAGE_TAG="${BASETAG}${CI_COMMIT_TAG:-$CI_COMMIT_SHORT_SHA}"
-      CLI_IMAGE_TAG="${BASETAG}${CLI_BASETAG}${CI_COMMIT_TAG:-$CI_COMMIT_SHORT_SHA}" # may be different from the server image (eg ubuntu)
+      IMAGE_TAG="${CI_COMMIT_TAG:-$CI_COMMIT_SHORT_SHA}${OS_TAG}"
+      CLI_IMAGE_TAG="${CLI_BASETAG}${CI_COMMIT_TAG:-$CI_COMMIT_SHORT_SHA}${OS_TAG}" # may be different from the server image (eg ubuntu)
     - |
       helm repo add eos https://registry.cern.ch/chartrepo/eos
       HELM_EOS_SERVER_VERSION=0.1.7
@@ -358,7 +358,7 @@ helm_groupdrainer:
 .helm_system_xt:
   extends: .helm_system_test_template
   variables:
-    BASETAG: "xrd_testing_"
+    # BASETAG: "xrd_testing_" TO BE REVIEWED!
   needs:
     - job: cc7_xrd_testing_docker_image
       artifacts: false
