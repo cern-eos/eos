@@ -435,6 +435,8 @@ build_cc7_coverage:
   image:
     name: gcr.io/kaniko-project/executor:debug
     entrypoint: [""]
+  variables:
+    EXTRA_TAG: ""
   script:
     # @note keep $CACHE orthogonal to $IMAGE_TAG, do not join the "if"s
     - if [[ -n "$CI_COMMIT_TAG" ]] || [[ "x$CI_PIPELINE_SOURCE" == "xschedule" ]];
@@ -442,8 +444,8 @@ build_cc7_coverage:
       else CACHE="true";
       fi
     - if [[ -n "$CI_COMMIT_TAG" ]];
-      then IMAGE_TAG="$BASETAG$CI_COMMIT_TAG";
-      else IMAGE_TAG="$BASETAG$CI_COMMIT_SHORT_SHA";
+      then IMAGE_TAG="$CI_COMMIT_TAG${OS_TAG}{EXTRA_TAG}";
+      else IMAGE_TAG="$CI_COMMIT_SHORT_SHA${OS_TAG}${EXTRA_TAG}";
       fi
     - IMAGE_REPO="gitlab-registry.cern.ch/dss/eos/eos-ci"
     - DESTINATION="${IMAGE_REPO}:${IMAGE_TAG}"
@@ -457,7 +459,7 @@ cc7_docker_image:
   extends: .build_dockerimage-template
   variables:
     DOCKERFILE: eos-docker/Dockerfile
-    BASETAG: ""
+    OS_TAG: ".el7"
   needs:
     - job: clone_docker
     - job: build_cc7
@@ -467,7 +469,8 @@ cc7_asan_docker_image:
   extends: .build_dockerimage-template
   variables:
     DOCKERFILE: eos-docker/Dockerfile_cc7_asan
-    BASETAG: "asan_"
+    EXTRA_TAG: "_asan"
+    OS_TAG: ".el7"
   needs:
     - job: clone_docker
     - job: build_cc7_asan
@@ -479,7 +482,7 @@ el9_docker_image:
   extends: .build_dockerimage-template
   variables:
     DOCKERFILE: eos-docker/Dockerfile_el9
-    BASETAG: "el9_"
+    OS_TAG: ".el9"
   needs:
     - job: clone_docker
     - job: build_el9
@@ -489,7 +492,8 @@ el9_asan_docker_image:
   extends: .build_dockerimage-template
   variables:
     DOCKERFILE: eos-docker/Dockerfile_el9_asan
-    BASETAG: "el9_asan_"
+    EXTRA_TAG: "_asan"
+    OS_TAG: ".el9"
   needs:
     - job: clone_docker
     - job: build_el9_asan
@@ -501,7 +505,8 @@ el9_asan_docker_image:
   extends: .build_dockerimage-template
   variables:
     DOCKERFILE: eos-docker/Dockerfile_coverage
-    BASETAG: "coverage_"
+    EXTRA_TAG: "_coverage"
+    OS_TAG: ".el7"
   needs:
     - job: clone_docker
     - job: build_cc7_coverage
@@ -545,7 +550,7 @@ el9_asan_docker_image:
         source ./gitlab-ci/utilities_func_for_tests.sh --type docker; ;;
       esac
   variables:
-    BASETAG: "el9_"
+    OS_TAG: ".el9"
 
 
 .dock8s_after_script_template: &dock8s_after_script_template
@@ -723,7 +728,7 @@ el9_asan_docker_image:
 .unit_test_template: &unit_test_template_definition
   stage: test
   variables:
-    BASETAG: "el9_"
+    OS_TAG: ".el9"
   script:
     # generic unit tests
     - eos-unit-tests
@@ -748,7 +753,7 @@ el9_asan_docker_image:
 unit_test:tag:
   extends: .unit_test_template
   image:
-    name: gitlab-registry.cern.ch/dss/eos/eos-ci:${BASETAG}${CI_COMMIT_TAG}
+    name: gitlab-registry.cern.ch/dss/eos/eos-ci:${CI_COMMIT_TAG}${OS_TAG}
     entrypoint: ["/bin/bash", "-c"]
   only:
     - tags
@@ -757,7 +762,7 @@ unit_test:tag:
 unit_test:
   extends: .unit_test_template
   image:
-    name: gitlab-registry.cern.ch/dss/eos/eos-ci:${BASETAG}${CI_COMMIT_SHORT_SHA}
+    name: gitlab-registry.cern.ch/dss/eos/eos-ci:${CI_COMMIT_SHORT_SHA}${OS_TAG}
     entrypoint: ["/bin/bash", "-c"]
   except:
     - tags
@@ -766,12 +771,12 @@ unit_test:
 unit_test_asan:
   extends: .unit_test_template
   image:
-    name: gitlab-registry.cern.ch/dss/eos/eos-ci:${BASETAG}${CI_COMMIT_SHORT_SHA}
+    name: gitlab-registry.cern.ch/dss/eos/eos-ci:${CI_COMMIT_SHORT_SHA}${OS_TAG}${EXTRA_TAG}
     entrypoint: ["/bin/bash", "-c"]
   variables:
     LSAN_OPTIONS: "suppressions=/var/eos/test/LeakSanitizer.supp"  # Suppress known memory leaks. For the generic tests
     ASAN_OPTIONS: "fast_unwind_on_malloc=0"  # Avoid indirect leaks from linked dependencies. For the namespace tests
-    BASETAG: "el9_asan_"
+    EXTRA_TAG: "_asan"
   needs:
     - job: el9_asan_docker_image
       artifacts: false
@@ -961,36 +966,38 @@ rpm_stable_artifacts:
   script:
     - if [[ -n "$CI_COMMIT_TAG" ]]; then
         export REPOBRANCH="tag-testing";
-        export DESTINATION="${IMAGE_REPO}:${CI_COMMIT_TAG}";
+        export DESTINATION="${IMAGE_REPO}:${CI_COMMIT_TAG}${OS_TAG}";
       else
         export REPOBRANCH="commit";
-        export DESTINATION="${IMAGE_REPO}:${CI_COMMIT_SHORT_SHA}";
+        export DESTINATION="${IMAGE_REPO}:${CI_COMMIT_SHORT_SHA}${OS_TAG}";
       fi
     - echo "{\"auths\":{\"$CI_REGISTRY\":{\"auth\":\"$(echo -n $CI_REGISTRY_USER:$CI_REGISTRY_PASSWORD | base64)\"}}}" > /kaniko/.docker/config.json
     - /kaniko/executor --cache=false --destination $DESTINATION --dockerfile $DOCKERFILE --context $CI_PROJECT_DIR --build-arg=EOS_CODENAME="${CODENAME}" --build-arg=REPOBRANCH="${REPOBRANCH}" --compressed-caching=false --use-new-run
   retry: 1
 
 
-c7_publish_dockerimage_all:
+el9_publish_dockerimage_all:
   extends: .publish_dockerimage-template
   variables:
-    DOCKERFILE: eos-docker/minimal/c7_minimal.Dockerfile
+    DOCKERFILE: eos-docker/minimal/el9_minimal.Dockerfile
     IMAGE_REPO: "gitlab-registry.cern.ch/dss/eos/eos-all"
+    OS_TAG: ".el9"
   needs:
     - job: clone_docker
-    - job: build_cc7
+    - job: build_el9
   allow_failure: true
   when: manual
 
 
-c7_publish_dockerimage_fusex:
+el9_publish_dockerimage_fusex:
   extends: .publish_dockerimage-template
   variables:
-    DOCKERFILE: eos-docker/minimal/c7_minimal.fusex-only.Dockerfile
+    DOCKERFILE: eos-docker/minimal/el9_minimal.fusex-only.Dockerfile
     IMAGE_REPO: "gitlab-registry.cern.ch/dss/eos/eos-fusex"
+    OS_TAG: ".el9"
   needs:
     - job: clone_docker
-    - job: build_cc7
+    - job: build_el9
   allow_failure: true
   when: manual
 
