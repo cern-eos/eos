@@ -944,7 +944,7 @@ XrdIo::fileClose(uint16_t timeout)
 
   if (!status.IsOK()) {
     errno = status.errNo;
-    mLastErrMsg = status.ToString().c_str();
+    mLastErrMsg = status.ToStr().c_str();
     mLastErrCode  = status.code;
     mLastErrNo  = status.errNo;
     return SFS_ERROR;
