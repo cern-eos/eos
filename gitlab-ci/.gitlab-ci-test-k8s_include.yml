@@ -163,7 +163,7 @@ k8s_stress:
   extends: .dock8s_system_test_template
   image: alpine/k8s:1.18.2
   variables:
-    BASETAG: "xrd_testing_"
+    # BASETAG: "xrd_testing_" TO BE REVIEWED
   needs:
     - job: cc7_xrd_testing_docker_image
       artifacts: false
