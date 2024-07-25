@@ -336,6 +336,8 @@ helm_system:
 helm_groupdrainer:
   stage: test
   image: gitlab-registry.cern.ch/dss/alpine-enhanced:3.13.5
+  variables:
+    OS_TAG: ".el9"
   <<: *helm_groups_before_script_template
   script:
     - TEST_URL=$(kubectl exec eos-mgm-0 -- hostname -f)
@@ -350,8 +352,7 @@ helm_groupdrainer:
   needs:
     - job: el9_docker_image
       artifacts: false
-  # @todo(esindril) remove in eos5 once we have grid-hammer built with XRootD5
-  allow_failure: true
+
 
 # @todo Re-enable xrd_testing jobs once project ugprades to XRootD 5
 # xt stands for xrd_testing. Must shorten to not hit HOST_NAME_MAX
