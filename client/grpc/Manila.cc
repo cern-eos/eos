@@ -238,7 +238,11 @@ int main(int argc, const char* argv[])
 
   google::protobuf::util::JsonPrintOptions options;
   options.add_whitespace = true;
+#if GOOGLE_PROTOBUF_VERSION >= 5027000
+  options.always_print_fields_with_no_presence = true;
+#else
   options.always_print_primitive_fields = true;
+#endif
   std::string jsonstring;
   (void) google::protobuf::util::MessageToJsonString(request,
       &jsonstring, options);
