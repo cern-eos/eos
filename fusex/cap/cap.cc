@@ -606,7 +606,11 @@ cap::quotax::dump()
 {
   google::protobuf::util::JsonPrintOptions options;
   options.add_whitespace = true;
+#if GOOGLE_PROTOBUF_VERSION >= 5027000
+  options.always_print_fields_with_no_presence = true;
+#else
   options.always_print_primitive_fields = true;
+#endif
   std::string jsonstring;
   {
     XrdSysMutexHelper qLock(Locker());
