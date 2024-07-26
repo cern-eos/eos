@@ -130,7 +130,11 @@ Server::dump_message(const google::protobuf::Message& message)
 {
   google::protobuf::util::JsonPrintOptions options;
   options.add_whitespace = true;
+#if GOOGLE_PROTOBUF_VERSION >= 5027000
+  options.always_print_fields_with_no_presence = true;
+#else
   options.always_print_primitive_fields = true;
+#endif
   std::string jsonstring;
   (void) google::protobuf::util::MessageToJsonString(message, &jsonstring,
       options);
@@ -1343,7 +1347,11 @@ Server::OpGetLs(const std::string& id,
       if (EOS_LOGS_DEBUG) {
         google::protobuf::util::JsonPrintOptions options;
         options.add_whitespace = true;
+#if GOOGLE_PROTOBUF_VERSION >= 5027000
+        options.always_print_fields_with_no_presence = true;
+#else
         options.always_print_primitive_fields = true;
+#endif
         std::string jsonstring;
         (void) google::protobuf::util::MessageToJsonString(cont, &jsonstring, options);
         eos_static_debug("MD GET file-cap ino %#x %s", md.md_ino(), jsonstring.c_str());
