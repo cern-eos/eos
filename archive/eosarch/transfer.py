@@ -705,7 +705,7 @@ class Transfer(object):
                 thread.join(self.config.JOIN_TIMEOUT)
 
                 # If thread finished get the status and mark it for removal
-                if not thread.isAlive():
+                if not thread.is_alive():
                     # If failed then attempt a retry
                     if (not thread.xrd_status.ok and
                         thread.retries <= self.config.MAX_RETRIES):
