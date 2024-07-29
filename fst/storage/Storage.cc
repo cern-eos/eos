@@ -47,6 +47,24 @@
 
 extern eos::fst::XrdFstOss* XrdOfsOss;
 
+namespace
+{
+//------------------------------------------------------------------------------
+//! Get minimum free space threshold after which a file system is considered
+//! full
+//------------------------------------------------------------------------------
+static long long
+GetFullFsThresholdBytes()
+{
+  static std::string s_full_env("EOS_FS_FULL_SIZE_IN_GB");
+  static long long s_full_threshold =
+    (std::stoll(getenv(s_full_env.c_str()) ?
+                getenv(s_full_env.c_str()) : "5")
+     * 1024ll * 1024ll * 1024ll);
+  return s_full_threshold;
+}
+}
+
 EOSFSTNAMESPACE_BEGIN
 
 //------------------------------------------------------------------------------
@@ -1131,38 +1149,42 @@ Storage::CheckLabel(std::string path,
 
 //----------------------------------------------------------------------------
 // Check if the selected FST needs to be registered as "full" or "warning"
-// CAUTION: mFsMutex must be at-least-read locked before calling
-// this function.
 //----------------------------------------------------------------------------
 void
-Storage::CheckFilesystemFullness(FileSystem* fs,
-                                 eos::common::FileSystem::fsid_t fsid)
+Storage::CheckFilesystemFullness(eos::common::FileSystem::fsid_t fsid)
 {
-  long long freebytes = fs->GetLongLong("stat.statfs.freebytes");
+  long long headroom = 0ll;
+  long long freebytes = 0ll;
+  {
+    // Collect headroom and free bytes values for the given file system
+    eos::common::RWMutexReadLock fs_rd_lock(mFsMutex);
+    auto it = mFsMap.find(fsid);
 
-  // Watch out for stat.statfs.freebytes not yet set
-  if (freebytes == 0 && fs->GetString("stat.statfs.freebytes").length() == 0) {
-    eos_static_info("%s", "msg=\"stat.statfs.freebytes has not yet been "
-                    "defined, not setting file system fill status\"");
-    return;
+    if (it == mFsMap.end()) {
+      return;
+    }
+
+    FileSystem* fs = it->second;
+    headroom = fs->GetLongLong("headroom");
+    freebytes = fs->GetLongLong("stat.statfs.freebytes");
+
+    // Watch out for stat.statfs.freebytes not yet set
+    if (freebytes == 0 && fs->GetString("stat.statfs.freebytes").length() == 0) {
+      eos_static_info("msg=\"stat.statfs.freebytes has not yet been "
+                      "defined, not setting file system fill status\" "
+                      "fsid=%lu", fsid);
+      return;
+    }
   }
-
   XrdSysMutexHelper lock(mFsFullMapMutex);
-  // stop the writers if it get's critical under 5 GB space
-  int full_gb = 5;
 
-  if (getenv("EOS_FS_FULL_SIZE_IN_GB")) {
-    full_gb = atoi(getenv("EOS_FS_FULL_SIZE_IN_GB"));
-  }
-
-  if ((freebytes < full_gb * 1024ll * 1024ll * 1024ll)) {
+  if (freebytes < GetFullFsThresholdBytes())  {
     mFsFullMap[fsid] = true;
   } else {
     mFsFullMap[fsid] = false;
   }
 
-  if ((freebytes < 1024ll * 1024ll * 1024ll) ||
-      (freebytes <= fs->GetLongLong("headroom"))) {
+  if ((freebytes < 1024ll * 1024ll * 1024ll) || (freebytes <= headroom)) {
     mFsFullWarnMap[fsid] = true;
   } else {
     mFsFullWarnMap[fsid] = false;
@@ -1185,7 +1207,6 @@ Storage::GetStoragePath(eos::common::FileSystem::fsid_t fsid) const
 
   return path;
 }
-
 
 //------------------------------------------------------------------------------
 // Cleanup orphans
