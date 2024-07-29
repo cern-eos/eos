@@ -264,8 +264,6 @@ protected:
   std::map<eos::common::FileSystem::fsid_t, fst::FileSystem*> mFsMap;
 
 private:
-  //! Publish inconsistency statistics once every two hours
-  static constexpr std::chrono::minutes sConsistencyTimeout {120};
   //! Set of key updates to be tracked at the node level
   static std::set<std::string> sNodeUpdateKeys;
   //! Set of key updates to be tracked at the file system level
@@ -348,8 +346,12 @@ private:
 
   //----------------------------------------------------------------------------
   //! Publish statistics about the given file system
+  //!
+  //! @param fsid file system identifier
+  //!
+  //! @return true if successful, otherwise false
   //----------------------------------------------------------------------------
-  bool PublishFsStatistics(fst::FileSystem* fs);
+  bool PublishFsStatistics(eos::common::FileSystem::fsid_t fsid);
 
   //----------------------------------------------------------------------------
   //! Register file system for which we know we have file fsid info available
@@ -492,10 +494,9 @@ private:
   //! Check if the selected file system needs to be registered as "full" or
   //! "warning".
   //!
-  //! @note  Needs to be called with at least a read lock on the mFsMutex.
+  //! @param fsid file system identifier
   //----------------------------------------------------------------------------
-  void CheckFilesystemFullness(fst::FileSystem* fs,
-                               eos::common::FileSystem::fsid_t fsid);
+  void CheckFilesystemFullness(eos::common::FileSystem::fsid_t fsid);
 
   //----------------------------------------------------------------------------
   //! Get the filesystem associated with the given filesystem id

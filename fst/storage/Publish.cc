@@ -39,16 +39,14 @@
 #include <sys/sysinfo.h>
 
 #ifdef PROCPS3
-  #include <proc/readproc.h>
+#include <proc/readproc.h>
 #else
-  #include <libproc2/pids.h>
+#include <libproc2/pids.h>
 #endif
 
 XrdVERSIONINFOREF(XrdgetProtocol);
 
 EOSFSTNAMESPACE_BEGIN
-
-constexpr std::chrono::minutes Storage::sConsistencyTimeout;
 
 //------------------------------------------------------------------------------
 // Serialize hot files vector into std::string
@@ -376,8 +374,8 @@ static std::string GetSubtreeSize(const std::string& path)
 static uint32_t GetNumOfKworkerProcs()
 {
   uint32_t count = 0u;
-
 #ifdef PROCPS3
+
   if (proc_t** procs = readproctab(PROC_FILLSTAT)) {
     for (int i = 0; procs[i]; ++i) {
       if (procs[i]->cmd) {
@@ -393,21 +391,23 @@ static uint32_t GetNumOfKworkerProcs()
 
     free(procs);
   }
-#else
-  struct pids_info *info = nullptr;
-  enum pids_item items[] = { PIDS_CMD };
 
+#else
+  struct pids_info* info = nullptr;
+  enum pids_item items[] = { PIDS_CMD };
   procps_pids_new(&info, items, 1);
 
-  while (struct pids_stack *stack = procps_pids_get(info, PIDS_FETCH_TASKS_ONLY)) {
-    char *cmd = PIDS_VAL(0, str, stack, info);
-    if (strstr(cmd, "kworker") == cmd)
+  while (struct pids_stack* stack = procps_pids_get(info,
+                                    PIDS_FETCH_TASKS_ONLY)) {
+    char* cmd = PIDS_VAL(0, str, stack, info);
+
+    if (strstr(cmd, "kworker") == cmd) {
       ++count;
+    }
   }
 
   procps_pids_unref(&info);
 #endif
-
   eos_static_debug("msg=\"current number of kworker processes\" count=%i", count);
   return count;
 }
@@ -685,29 +685,26 @@ Storage::GetFsStatistics(FileSystem* fs)
 //------------------------------------------------------------------------------
 // Publish statistics about the given filesystem
 //------------------------------------------------------------------------------
-bool Storage::PublishFsStatistics(FileSystem* fs)
+bool Storage::PublishFsStatistics(eos::common::FileSystem::fsid_t fsid)
 {
-  if (!fs) {
-    eos_static_crit("%s", "msg=\"asked to publish statistics for a null fs\"");
-    return false;
-  }
+  CheckFilesystemFullness(fsid);
+  eos::common::RWMutexReadLock fs_rd_lock(mFsMutex);
+  auto it = mFsMap.find(fsid);
 
-  eos::common::FileSystem::fsid_t fsid = fs->GetLocalId();
-
-  if (!fsid) {
-    // during the boot phase we can find a filesystem without ID
-    eos_static_warning("%s", "msg=\"asked to publish statistics for fsid=0\"");
+  if (it == mFsMap.end()) {
+    eos_static_crit("msg=\"asked to publish statistics for unknwon fs\" "
+                    "fsid=%lu", fsid);
     return false;
   }
 
   common::FileSystemUpdateBatch batch;
+  FileSystem* fs = it->second;
   std::map<std::string, std::string> fsStats = GetFsStatistics(fs);
 
   for (auto it = fsStats.begin(); it != fsStats.end(); it++) {
     batch.setStringTransient(it->first, it->second);
   }
 
-  CheckFilesystemFullness(fs, fsid);
   return fs->applyBatch(batch);
 }
 
@@ -735,46 +732,50 @@ Storage::Publish(ThreadAssistant& assistant) noexcept
     common::IntervalStopwatch stopwatch(randomizedReportInterval);
     {
       // Publish with a MuxTransaction all file system changes
-      eos::common::RWMutexReadLock fs_rd_lock(mFsMutex);
-
       if (!gOFS.ObjectManager.OpenMuxTransaction()) {
         eos_static_err("%s", "msg=\"cannot open mux transaction\"");
       } else {
-        std::map<eos::fst::FileSystem*, std::future<bool>> map_futures;
+        std::set<eos::common::FileSystem::fsid_t> set_fsids;
+        {
+          // Reduce lock scope and avoid recursive locks of mFsMutex
+          // which is also taken inside PublishFsStatistics
+          eos::common::RWMutexReadLock fs_rd_lock(mFsMutex);
+
+          for (const auto& elem : mFsMap) {
+            if (elem.first) {
+              set_fsids.insert(elem.first);
+            }
+          }
+        }
+        std::map<eos::common::FileSystem::fsid_t, std::future<bool>> map_futures;
 
         // Copy out statfs info in parallel to speed-up things
-        for (const auto& elem : mFsMap) {
-          auto fs = elem.second;
-
-          if (!fs) {
-            continue;
-          }
-
+        for (const auto& fsid : set_fsids) {
           try {
-            map_futures.emplace(fs, std::async(std::launch::async,
-                                               &Storage::PublishFsStatistics,
-                                               this, fs));
+            map_futures.emplace(fsid, std::async(std::launch::async,
+                                                 &Storage::PublishFsStatistics,
+                                                 this, fsid));
           } catch (const std::system_error& e) {
             eos_static_err("msg=\"exception while collecting fs statistics\" "
-                           "fsid=%lu msg=\"%s\"", elem.first, e.what());
+                           "fsid=%lu msg=\"%s\"", fsid, e.what());
           }
         }
 
         for (auto& elem : map_futures) {
           if (elem.second.get() == false) {
-            eos_static_err("msg=\"failed to publish fs stats\" fspath=%s",
-                           elem.first->GetPath().c_str());
+            eos_static_err("msg=\"failed to publish fs stats\" fsid=%lu",
+                           elem.first);
           }
         }
 
-        auto fstStats = GetFstStatistics(tmp_name, GetNetSpeed());
-        // Set node status values
+        // Collect and publish node status info
+        auto fst_stats = GetFstStatistics(tmp_name, GetNetSpeed());
         common::SharedHashLocator locator = gConfig.getNodeHashLocator("Publish");
 
         if (!locator.empty()) {
           mq::SharedHashWrapper::Batch batch;
 
-          for (auto it = fstStats.begin(); it != fstStats.end(); it++) {
+          for (auto it = fst_stats.begin(); it != fst_stats.end(); ++it) {
             batch.SetTransient(it->first, it->second);
           }
 
