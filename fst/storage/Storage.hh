@@ -30,6 +30,7 @@
 #include "common/RWMutex.hh"
 #include "common/AssistedThread.hh"
 #include "common/Fmd.hh"
+#include "common/ConcurrentQueue.hh"
 #include "fst/filemd/FmdHandler.hh"
 #include "namespace/ns_quarkdb/QdbContactDetails.hh"
 #include <vector>
@@ -248,14 +249,14 @@ public:
   //----------------------------------------------------------------------------
   //! Process file system configuration change
   //!
-  //! @param targetFs target file system object
+  //! @param fs target file system object
   //! @param key configuration key
   //! @param value configuration value
   //!
   //! @note This requires the mFsMutex to be write locked
   //----------------------------------------------------------------------------
-  void ProcessFsConfigChange(fst::FileSystem* targetFs,
-                             const std::string& key, const std::string& value);
+  void ProcessFsConfigChange(fst::FileSystem* fs, const std::string& key,
+                             const std::string& value);
 
 protected:
   mutable eos::common::RWMutex mFsMutex; ///< Mutex protecting the fs map
@@ -296,11 +297,38 @@ private:
   AssistedThread mQdbCommunicatorThread;
   std::set<std::string> mLastRoundFilesystems;
   AssistedThread mPublisherThread; ///< Thread publishing FST/FS info
+  AssistedThread mErrorReportThread; ///< Thread sending error reports
   AssistedThread mRegisterFsThread; ///< Thread updating list of FS registered
   //! CV and mutex used for notifying the register thread
   std::condition_variable mCvRegisterFs;
   std::mutex mMutexRegisterFs;
   bool mTriggerRegisterFs {false};
+  AssistedThread mFsConfigThread; ///< Thread applying FS config updates
+  //----------------------------------------------------------------------------
+  //! Struct modelling a file system configuration update
+  //----------------------------------------------------------------------------
+  struct FsCfgUpdate {
+    eos::common::FileSystem::fsid_t fsid;
+    std::string key;
+    std::string value;
+    //----------------------------------------------------------------------------
+    //! Default constructor
+    //----------------------------------------------------------------------------
+    FsCfgUpdate():
+      fsid(0ul), key(""), value("")
+    {}
+
+    //----------------------------------------------------------------------------
+    //! Constructor with parameters
+    //----------------------------------------------------------------------------
+    FsCfgUpdate(eos::common::FileSystem::fsid_t id, const std::string& k,
+                const std::string& v):
+      fsid(id), key(k), value(v)
+    {}
+  };
+
+  ///< Queue of file system config updates
+  eos::common::ConcurrentQueue<FsCfgUpdate> mFsUpdQueue;
 
   enum class FsRegisterStatus {
     kNoAction,
@@ -323,7 +351,6 @@ private:
   static void* StartFsScrub(void* pp);
   static void* StartFsRemover(void* pp);
   static void* StartFsReport(void* pp);
-  static void* StartFsErrorReport(void* pp);
   static void* StartFsVerify(void* pp);
   static void* StartMgmSyncer(void* pp);
   static void* StartBoot(void* pp);
@@ -390,6 +417,17 @@ private:
   void UpdateRegisteredFs(ThreadAssistant& assistant) noexcept;
 
   //----------------------------------------------------------------------------
+  //! Handle FS configuration updates in a separate thread to avoid deadlocks
+  //! in the QClient callback mechanism.
+  //----------------------------------------------------------------------------
+  void FsConfigUpdate(ThreadAssistant& assistant) noexcept;
+
+  //----------------------------------------------------------------------------
+  //! Method sending error reports
+  //----------------------------------------------------------------------------
+  void ErrorReport(ThreadAssistant& assistant) noexcept;
+
+  //----------------------------------------------------------------------------
   //! Get configuration value from global FST config
   //!
   //! @param key configuration key
@@ -428,7 +466,6 @@ private:
   void Scrub();
   void Remover();
   void Report();
-  void ErrorReport();
   void Verify();
   void Publish(ThreadAssistant& assistant) noexcept;
   void MgmSyncer();
