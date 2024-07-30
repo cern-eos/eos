@@ -34,7 +34,7 @@ EOSFSTNAMESPACE_BEGIN
 // Method sending error reports
 //------------------------------------------------------------------------------
 void
-Storage::ErrorReport(ThreadAssistant& assistant)
+Storage::ErrorReport(ThreadAssistant& assistant) noexcept
 {
   bool failure = false;
   XrdOucString errorReceiver = gConfig.FstDefaultReceiverQueue;
