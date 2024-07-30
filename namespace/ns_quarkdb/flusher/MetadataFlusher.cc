@@ -71,6 +71,7 @@ void MetadataFlusher::queueSizeMonitoring(qclient::ThreadAssistant& assistant)
                       id.c_str(), backgroundFlusher.size(),
                       backgroundFlusher.getEnqueuedAndClear(),
                       backgroundFlusher.getAcknowledgedAndClear());
+      synchronize();
     }
 
     assistant.wait_for(std::chrono::seconds(10));
