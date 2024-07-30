@@ -240,29 +240,13 @@ Storage::ProcessFstConfigChange(const std::string& key,
 // Process incoming filesystem-level configuration change
 //------------------------------------------------------------------------------
 void
-Storage::ProcessFsConfigChange(fst::FileSystem* targetFs,
-                               const std::string& key, const std::string& value)
+Storage::ProcessFsConfigChange(fst::FileSystem* fs, const std::string& key,
+                               const std::string& value)
 {
   if ((key == "id") || (key == "uuid") || (key == "bootsenttime")) {
-    RunBootThread(targetFs, key);
+    RunBootThread(fs, key);
   } else {
-    if ((key == eos::common::SCAN_IO_RATE_NAME) ||
-        (key == eos::common::SCAN_ENTRY_INTERVAL_NAME) ||
-        (key == eos::common::SCAN_RAIN_ENTRY_INTERVAL_NAME) ||
-        (key == eos::common::SCAN_DISK_INTERVAL_NAME) ||
-        (key == eos::common::SCAN_NS_INTERVAL_NAME) ||
-        (key == eos::common::SCAN_NS_RATE_NAME)) {
-      try {
-        long long val = std::stoll(value);
-
-        if (val >= 0) {
-          targetFs->ConfigScanner(&mFstLoad, key.c_str(), val);
-        }
-      } catch (...) {
-        eos_static_err("msg=\"failed to convert value\" key=\"%s\" val=\"%s\"",
-                       key.c_str(), value.c_str());
-      }
-    }
+    mFsUpdQueue.emplace(fs->GetLocalId(), key, value);
   }
 }
 
@@ -471,6 +455,56 @@ static std::string ExtractFsPath(const std::string& key)
   return parts[parts.size() - 1];
 }
 
+
+//------------------------------------------------------------------------------
+// Handle FS configuration updates in a separate thread to avoid deadlocks
+// in the QClient callback mechanism.
+//------------------------------------------------------------------------------
+void
+Storage::FsConfigUpdate(ThreadAssistant& assistant) noexcept
+{
+  eos_static_info("%s", "msg=\"starting fs config update thread\"");
+  FsCfgUpdate upd;
+
+  while (!assistant.terminationRequested()) {
+    mFsUpdQueue.wait_pop(upd);
+
+    // If sentinel object then exit
+    if ((upd.fsid == 0) &&
+        (upd.key == "ACTION") &&
+        (upd.value == "EXIT")) {
+      eos_static_notice("%s", "msg=\"fs config update thread got a "
+                        "sentinel object exiting\"");
+      break;
+    }
+
+    if ((upd.key == eos::common::SCAN_IO_RATE_NAME) ||
+        (upd.key == eos::common::SCAN_ENTRY_INTERVAL_NAME) ||
+        (upd.key == eos::common::SCAN_RAIN_ENTRY_INTERVAL_NAME) ||
+        (upd.key == eos::common::SCAN_DISK_INTERVAL_NAME) ||
+        (upd.key == eos::common::SCAN_NS_INTERVAL_NAME) ||
+        (upd.key == eos::common::SCAN_NS_RATE_NAME)) {
+      try {
+        long long val = std::stoll(upd.value);
+
+        if (val >= 0) {
+          eos::common::RWMutexReadLock fs_rd_lock(mFsMutex);
+          auto it = mFsMap.find(upd.fsid);
+
+          if (it != mFsMap.end()) {
+            it->second->ConfigScanner(&mFstLoad, upd.key.c_str(), val);
+          }
+        }
+      } catch (...) {
+        eos_static_err("msg=\"failed to convert value\" key=\"%s\" val=\"%s\"",
+                       upd.key.c_str(), upd.value.c_str());
+      }
+    }
+  }
+
+  eos_static_info("%s", "msg=\"stopped fs config update thread\"");
+}
+
 //------------------------------------------------------------------------------
 // Update file system list given the QDB shared hash configuration -this
 // update is done in a separate thread handling the trigger event otherwise
@@ -478,6 +512,8 @@ static std::string ExtractFsPath(const std::string& key)
 //------------------------------------------------------------------------------
 void Storage::UpdateRegisteredFs(ThreadAssistant& assistant) noexcept
 {
+  eos_static_info("%s", "msg=\"starting register file system thread\"");
+
   while (!assistant.terminationRequested()) {
     {
       // Reduce scope of mutex to avoid coupling the the SignalRegisterThread
@@ -533,11 +569,13 @@ void Storage::UpdateRegisteredFs(ThreadAssistant& assistant) noexcept
 
       eos_static_info("%s", "msg=\"re-trigger file system registration "
                       "in 5 seconds\"");
-      std::this_thread::sleep_for(std::chrono::seconds(5));
+      assistant.wait_for(std::chrono::seconds(5));
     }
 
     mLastRoundFilesystems = std::move(new_filesystems);
   }
+
+  eos_static_info("%s", "msg=\"stopped register file system thread\"");
 }
 
 //------------------------------------------------------------------------------

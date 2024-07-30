@@ -30,25 +30,27 @@
 
 EOSFSTNAMESPACE_BEGIN
 
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Method sending error reports
+//------------------------------------------------------------------------------
 void
-Storage::ErrorReport()
+Storage::ErrorReport(ThreadAssistant& assistant)
 {
-  // this thread send's error report messages from the error queue
-  bool failure;
+  bool failure = false;
   XrdOucString errorReceiver = gConfig.FstDefaultReceiverQueue;
   errorReceiver.replace("*/mgm", "*/errorreport");
   eos::common::Logging& g_logging = eos::common::Logging::GetInstance();
   eos::common::Logging::LogCircularIndex localCircularIndex;
   localCircularIndex.resize(LOG_DEBUG + 1);
   std::deque<XrdOucString> ErrorReportQueue;
+  eos_static_info("%s", "msg=\"starting error report thread\"");
 
   // initialize with the current positions of the circular index
   for (size_t i = LOG_EMERG; i <= LOG_DEBUG; i++) {
     localCircularIndex[i] = g_logging.gLogCircularIndex[i];
   }
 
-  while (1) {
+  while (!assistant.terminationRequested()) {
     failure = false;
 
     // push messages from the circular buffers to the error queue
@@ -59,12 +61,11 @@ Storage::ErrorReport()
 
       if (endpos > localCircularIndex[i]) {
         // we have to follow the messages and add them to the queue
-
         for (unsigned long j = localCircularIndex[i]; j < endpos; j++) {
           // copy the messages to the queue
           g_logging.gMutex.Lock();
-	  ErrorReportQueue.push_back(g_logging.gLogMemory[i][j %
-							     g_logging.gCircularIndexSize]);
+          ErrorReportQueue.push_back(g_logging.gLogMemory[i][j %
+                                     g_logging.gCircularIndexSize]);
           g_logging.gMutex.UnLock();
         }
 
@@ -79,15 +80,15 @@ Storage::ErrorReport()
       eos_debug("broadcasting errorreport message: %s", report.c_str());
 
       if (ErrorReportQueue.size() > 5) {
-	// don't keep long error queues, send a suppression marker and clean the queue, the errors are anyway in the local log files
-	truncationmessage = " ... [ ErrorReport ] suppressing " + std::to_string(ErrorReportQueue.size()-1) + " error messages!";
-	ErrorReportQueue.clear();
+        // don't keep long error queues, send a suppression marker and clean the queue, the errors are anyway in the local log files
+        truncationmessage = " ... [ ErrorReport ] suppressing " + std::to_string(
+                              ErrorReportQueue.size() - 1) + " error messages!";
+        ErrorReportQueue.clear();
       }
 
       // evt. exclude some messages from upstream reporting if the contain [NB]
       if (report.find("[NB]") == STR_NPOS) {
-	report += truncationmessage.c_str();
-
+        report += truncationmessage.c_str();
         mq::MessagingRealm::Response response =
           gOFS.mMessagingRealm->sendMessage("errorreport", report.c_str(),
                                             errorReceiver.c_str(), true);
@@ -101,17 +102,18 @@ Storage::ErrorReport()
       }
 
       if (ErrorReportQueue.size()) {
-	ErrorReportQueue.pop_front();
+        ErrorReportQueue.pop_front();
       }
     }
 
-
     if (failure) {
-      std::this_thread::sleep_for(std::chrono::seconds(10));
+      assistant.wait_for(std::chrono::seconds(10));
     } else {
-      std::this_thread::sleep_for(std::chrono::seconds(1));
+      assistant.wait_for(std::chrono::seconds(1));
     }
   }
+
+  eos_static_info("%s", "msg=\"stopped error report thread\"");
 }
 
 EOSFSTNAMESPACE_END
