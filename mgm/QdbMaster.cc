@@ -532,8 +532,10 @@ QdbMaster::AcquireLease(uint64_t validity_msec)
   std::future<qclient::redisReplyPtr> f =
     mQcl->exec("lease-acquire", sLeaseKey, mIdentity, timeout);
   qclient::redisReplyPtr reply = f.get();
-  eos_info("msg=\"qclient acquire lease call took %llums\"",
-           stop_watch.timeIntoCycle().count());
+  uint64_t lease_secs = stop_watch.timeIntoCycle().count();
+  if (lease_secs > 0) {
+    eos_info("msg=\"qclient acquire lease call took %llums\"", lease_secs);
+  }
 
   if (reply == nullptr) {
     return false;
