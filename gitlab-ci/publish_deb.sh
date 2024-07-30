@@ -42,7 +42,7 @@ for RELEASE in "jammy" "noble"; do
     EXPORT_REPO="${STCI_ROOT_PATH}/eos/${EOS_CODENAME}"
     mkdir -p ${EXPORT_REPO} || true
     echo "info: Checkinf if packages don't exist already"
-    local found=false
+    found=false
 
     for DEB_PKG in ./ubuntu-${RELEASE}/*.deb; do
       if [ -f ${DEB_PKG} ]; then
