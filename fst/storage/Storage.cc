@@ -309,16 +309,6 @@ Storage::Storage(const char* meta_dir)
   }
 
   mThreadSet.insert(tid);
-  eos_info("starting error report thread");
-
-  if ((rc = XrdSysThread::Run(&tid, Storage::StartFsErrorReport,
-                              static_cast<void*>(this),
-                              0, "Error Report Thread"))) {
-    eos_crit("cannot start error report thread");
-    mZombie = true;
-  }
-
-  mThreadSet.insert(tid);
   eos_info("starting verification thread");
 
   if ((rc = XrdSysThread::Run(&tid, Storage::StartFsVerify,
@@ -331,14 +321,10 @@ Storage::Storage(const char* meta_dir)
   mThreadSet.insert(tid);
 
   if (gOFS.mMessagingRealm->haveQDB()) {
-    eos_info("%s", "msg=\"starting register file system thread\"");
     mRegisterFsThread.reset(&Storage::UpdateRegisteredFs, this);
     mRegisterFsThread.setName("RegisterFS Thread");
-  }
-
-  eos_info("starting filesystem communication thread");
-
-  if (gOFS.mMessagingRealm->haveQDB()) {
+    mFsConfigThread.reset(&Storage::FsConfigUpdate, this);
+    mFsConfigThread.setName("FsConfigUpdate Thread");
     mQdbCommunicatorThread.reset(&Storage::QdbCommunicator, this);
     mQdbCommunicatorThread.setName("QDB Communicator Thread");
   } else {
@@ -346,17 +332,18 @@ Storage::Storage(const char* meta_dir)
     mCommunicatorThread.setName("Communicator Thread");
   }
 
-  eos_info("starting daemon supervisor thread");
+  eos_static_info("%s", "msg=\"starting daemon supervisor thread\"");
 
   if ((rc = XrdSysThread::Run(&tid, Storage::StartDaemonSupervisor,
                               static_cast<void*>(this),
                               0, "Supervisor Thread"))) {
-    eos_crit("cannot start supervisor thread");
+    eos_static_crit("%s", "msg=\"cannot start supervisor thread\"");
     mZombie = true;
   }
 
   mThreadSet.insert(tid);
-  eos_info("starting filesystem publishing thread");
+  mErrorReportThread.reset(&Storage::ErrorReport, this);
+  mErrorReportThread.setName("Error Report Thread");
   mPublisherThread.reset(&Storage::Publish, this);
   mPublisherThread.setName("Publisher Thread");
   eos_info("starting mgm synchronization thread");
@@ -364,25 +351,25 @@ Storage::Storage(const char* meta_dir)
   if ((rc = XrdSysThread::Run(&tid, Storage::StartMgmSyncer,
                               static_cast<void*>(this),
                               0, "MgmSyncer Thread"))) {
-    eos_crit("cannot start mgm syncer thread");
+    eos_static_crit("%s", "msg=\"cannot start mgm syncer thread\"");
     mZombie = true;
   }
 
   mThreadSet.insert(tid);
   // Starting FstPartitionMonitor
-  eos_info("starting /var/ partition monitor thread ...");
+  eos_info("%s", "msg=\"starting /var/ partition monitor thread ...\"");
 
   if ((rc = XrdSysThread::Run(&tid, Storage::StartVarPartitionMonitor,
                               static_cast<void*>(this),
                               0, "Var Partition Monitor"))) {
-    eos_crit("Cannot start Var Partition Monitor thread");
+    eos_crit("%s", "msg=\"annot start /var partition monitor thread\"");
     mZombie = true;
   }
 
   mThreadSet.insert(tid);
-  eos_info("enabling net/io load monitor");
+  eos_info("%s", "msg=\"enabling net/io load monitor\"");
   mFstLoad.Monitor();
-  eos_info("enabling local disk S.M.A.R.T attribute monitor");
+  eos_info("%s", "msg=\"enabling local disk S.M.A.R.T attribute monitor\"");
   mFstHealth.Monitor();
 }
 
@@ -425,6 +412,12 @@ Storage::Shutdown()
 void
 Storage::ShutdownThreads()
 {
+  mCommunicatorThread.join();
+  mQdbCommunicatorThread.join();
+  mPublisherThread.join();
+  mErrorReportThread.join();
+  mFsUpdQueue.emplace(0, "ACTION", "EXIT");
+  mFsConfigThread.join();
   XrdSysMutexHelper scope_lock(mThreadsMutex);
 
   for (auto it = mThreadSet.begin(); it != mThreadSet.end(); it++) {
@@ -757,17 +750,6 @@ Storage::StartFsReport(void* pp)
 {
   Storage* storage = (Storage*) pp;
   storage->Report();
-  return 0;
-}
-
-//------------------------------------------------------------------------------
-// Start error reporter thread
-//------------------------------------------------------------------------------
-void*
-Storage::StartFsErrorReport(void* pp)
-{
-  Storage* storage = (Storage*) pp;
-  storage->ErrorReport();
   return 0;
 }
 

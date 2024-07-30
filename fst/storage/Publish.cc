@@ -714,7 +714,7 @@ bool Storage::PublishFsStatistics(eos::common::FileSystem::fsid_t fsid)
 void
 Storage::Publish(ThreadAssistant& assistant) noexcept
 {
-  eos_static_info("%s", "msg=\"publisher activated\"");
+  eos_static_info("%s", "msg=\"start file system publishing thread\"");
   std::string fn_pattern = "/tmp/fst.publish.XXXXXX";
   const std::string tmp_name = eos::common::MakeTemporaryFile(fn_pattern);
 
