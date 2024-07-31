@@ -18,7 +18,7 @@ quota
     -v/--volume <bytes> : refer to volume limit in <bytes>
     -i/--inodes <inodes> : refer to inode limit in number of <inodes>
     Notes:
-    => you have to specify either the user or the group identified by the unix id or the user/group name
+    => you have to specify either the user or the group identified by the unix id or the user/group name; for quotas listed as 'project' that apply to all users, use --gid 99
     => the space argument is by default assumed as 'default'
     => you have to specify at least a volume or an inode limit to set quota
     => for convenience all commands can just use <path> as last argument omitting the -p|--path e.g. quota ls /eos/ ...
