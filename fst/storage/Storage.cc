@@ -287,6 +287,19 @@ Storage::Storage(const char* meta_dir)
     mZombie = true;
   }
 
+  mFsConfigThread.reset(&Storage::FsConfigUpdate, this);
+  mFsConfigThread.setName("FsConfigUpdate Thread");
+
+  if (gOFS.mMessagingRealm->haveQDB()) {
+    mRegisterFsThread.reset(&Storage::UpdateRegisteredFs, this);
+    mRegisterFsThread.setName("RegisterFS Thread");
+    mQdbCommunicatorThread.reset(&Storage::QdbCommunicator, this);
+    mQdbCommunicatorThread.setName("QDB Communicator Thread");
+  } else {
+    mCommunicatorThread.reset(&Storage::Communicator, this);
+    mCommunicatorThread.setName("Communicator Thread");
+  }
+
   XrdSysMutexHelper tsLock(mThreadsMutex);
   mThreadSet.insert(tid);
   eos_info("starting deletion thread");
@@ -319,19 +332,6 @@ Storage::Storage(const char* meta_dir)
   }
 
   mThreadSet.insert(tid);
-
-  if (gOFS.mMessagingRealm->haveQDB()) {
-    mRegisterFsThread.reset(&Storage::UpdateRegisteredFs, this);
-    mRegisterFsThread.setName("RegisterFS Thread");
-    mFsConfigThread.reset(&Storage::FsConfigUpdate, this);
-    mFsConfigThread.setName("FsConfigUpdate Thread");
-    mQdbCommunicatorThread.reset(&Storage::QdbCommunicator, this);
-    mQdbCommunicatorThread.setName("QDB Communicator Thread");
-  } else {
-    mCommunicatorThread.reset(&Storage::Communicator, this);
-    mCommunicatorThread.setName("Communicator Thread");
-  }
-
   eos_static_info("%s", "msg=\"starting daemon supervisor thread\"");
 
   if ((rc = XrdSysThread::Run(&tid, Storage::StartDaemonSupervisor,
