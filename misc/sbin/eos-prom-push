@@ -36,7 +36,7 @@
 config=$(timeout 5 eos root://localhost version 2>/dev/null)
 test $? -ne 0 && exit 0
 export $config
-EOS_PROM_URL="http://eos-prom.cern.ch:9091/metrics/job/user_inspector/instance"
+EOS_PROM_URL="http://eos-prometheus.cern.ch:9091/metrics/job/user_inspector/instance"
 EOS_PROM_CLIENT=`hostname -f`
 test -e "/etc/sysconfig/eos_prom" && . /etc/sysconfig/eos_prom
 
@@ -47,7 +47,7 @@ fi
 # ************************************************************************
 # Publish only files created in the last 5 minutes window
 for name in `find /var/eos/md -type f -cmin -5 -name "*.prom"`; do
-    cat $name | timeout 10 curl --data-binary @- ${EOS_PROM_URL}/${EOS_PROM_CLIENT}/cluster/eos${EOS_INSTANCE} 
+    cat $name | timeout 10 curl --data-binary @- ${EOS_PROM_URL}/${EOS_PROM_CLIENT}/cluster/${EOS_INSTANCE} 
 done
 
 
