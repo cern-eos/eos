@@ -1,9 +1,12 @@
-FROM gitlab-registry.cern.ch/linuxsupport/cc7-base
+FROM centos:7
 
 LABEL maintainer="Fabio Luchetti, faluchet@cern.ch, CERN 2020"
 
 ARG EOS_CODENAME
 WORKDIR /builds/dss/eos/
+
+# Fix CentOS7 repository after the EOL
+RUN sed -i -e 's/mirrorlist=/#mirrorlist=/g' -e 's/#baseurl=/baseurl=/g' -e 's/mirror.centos.org/vault.centos.org/g' -e 's/$releasever/7.9.2009/g' /etc/yum.repos.d/*.repo
 
 # If the working directory is a not the top-level dir of a git repo OR git remote is not set to the EOS repo url.
 # On Gitlab CI, the test won't (and don't have to) pass.
