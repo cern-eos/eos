@@ -271,9 +271,9 @@ data::unlink(fuse_req_t req, fuse_ino_t ino)
       XrdSysMutexHelper mLock(datamap);
 
       if (datamap.count(ino)) {
-	if (datamap[ino]->flags() & (O_RDWR | O_WRONLY)) {
-	  is_rw = true;
-	}
+        if (datamap[ino]->flags() & (O_RDWR | O_WRONLY)) {
+          is_rw = true;
+        }
 
         datamap[ino + 0xffffffff] = datamap[ino];
         datamap.erase(ino);
@@ -1833,23 +1833,23 @@ data::datax::recover_write(fuse_req_t req)
       if (!recover_truncate) {
         // download all into local stagefile, we don't need to do this, if there is a truncate request
         uint32_t bytesRead = 0;
+        // get size of the file to download
+        XrdCl::StatInfo* statInfo;
+        status = newproxy->Stat(false, statInfo);
 
-	// get size of the file to download
-	XrdCl::StatInfo *statInfo;
-        status = newproxy->Stat( false, statInfo );
         if (!status.IsOK() || !statInfo) {
-	  // bail out
-	  return EREMOTEIO;
-	}
+          // bail out
+          return EREMOTEIO;
+        }
 
-	auto sourcesize = statInfo->GetSize();
-	delete statInfo;
+        auto sourcesize = statInfo->GetSize();
+        delete statInfo;
+        // try to pre-allocate the size locally
+        int rc = posix_fallocate(fd, 0, sourcesize);
 
-	// try to pre-allocate the size locally
-	int rc = posix_fallocate(fd, 0, sourcesize);
-	if (rc) {
-	  return ENOSPC;
-	}
+        if (rc) {
+          return ENOSPC;
+        }
 
         do {
           status = newproxy->Read(newproxy, off, size, buf, bytesRead);
@@ -3359,6 +3359,12 @@ data::dmap::ioflush(ThreadAssistant& assistant)
                       // retry the open
                       eos_static_warning("re-issuing OpenAsync request after timeout - ino:%16lx err-code:%d",
                                          (*it)->id(), status.code);
+                      // Force creation of a new TCP connection to avoid pilling up requests
+                      // on a "blocked" TCP due for example to a slow close operation
+                      const struct fuse_ctx* ctx = fuse_req_ctx(fit->second->req());
+                      ProcessSnapshot snapshot = fusexrdlogin::processCache->retrieve(ctx->pid,
+                                                 ctx->uid,
+                                                 ctx->gid, true);
                       // to recover this errors XRootD requires new XrdCl::File object ... sigh ...
                       XrdCl::shared_proxy newproxy = XrdCl::Proxy::Factory();
                       newproxy->OpenAsync(newproxy, fit->second->url(), fit->second->flags(),
@@ -3403,10 +3409,10 @@ data::dmap::ioflush(ThreadAssistant& assistant)
                       }
                     }
 
-		    if (!cachehandler::instance().get_config().rescuecache) {
-		      // forced disablign of rescue files
-		      rescue = false;
-		    }
+                    if (!cachehandler::instance().get_config().rescuecache) {
+                      // forced disablign of rescue files
+                      rescue = false;
+                    }
 
                     // ---------------------------------------------------------
                     // we really have to avoid this to happen, but
