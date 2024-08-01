@@ -59,7 +59,6 @@ int main(int argc, char* argv[])
 
     if (new_msg) {
       new_msg->Print();
-      ++count;
       std::string expected = "Hello Worker Test " + std::to_string(count);
 
       if (new_msg->kMessageHeader.kDescription != expected.c_str()) {
@@ -67,6 +66,8 @@ int main(int argc, char* argv[])
                   new_msg->kMessageHeader.kDescription << std::endl;
         std::terminate();
       }
+
+      ++count;
     }
 
     do {
@@ -75,7 +76,6 @@ int main(int argc, char* argv[])
       if (new_msg == nullptr) {
         break;
       } else {
-        ++count;
         new_msg->Print();
         std::string expected = "Hello Worker Test " + std::to_string(count);
 
@@ -84,6 +84,8 @@ int main(int argc, char* argv[])
                     new_msg->kMessageHeader.kDescription << std::endl;
           std::terminate();
         }
+
+        ++count;
       }
     } while (true);
   }

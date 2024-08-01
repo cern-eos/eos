@@ -869,6 +869,7 @@ Contains an instance and fuse test script and some test executables and test arc
 %{_bindir}/eos-grpc-md
 %{_bindir}/eos-grpc-ns
 %{_bindir}/eos-grpc-insert
+%{_bindir}/eos-shared-hash-test
 %{_sbindir}/eos-mq-tests
 %{_sbindir}/eos-instance-test
 %{_sbindir}/eos-instance-test-ci
