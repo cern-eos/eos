@@ -145,6 +145,7 @@ target_link_libraries(threadpooltest PRIVATE EosCommon)
 #-------------------------------------------------------------------------------
 # MQ test related executables
 #-------------------------------------------------------------------------------
+add_executable(eos-shared-hash-test mq/SharedHashLoadTest.cc)
 add_executable(xrdmqclienttest mq/XrdMqClientTest.cc)
 add_executable(eos-mq-dumper mq/XrdMqQueueDumper.cc)
 add_executable(eos-mq-feeder mq/XrdMqQueueFeeder.cc)
@@ -154,6 +155,7 @@ add_executable(xrdmqclientworker mq/XrdMqClientWorker.cc)
 add_executable(xrdmqsharedobjectclient mq/XrdMqSharedObjectClient.cc)
 add_executable(xrdmqsharedobjectqueueclient mq/XrdMqSharedObjectQueueClient.cc)
 add_executable(xrdmqsharedobjectbroadcastclient mq/XrdMqSharedObjectBroadCastClient.cc)
+target_link_libraries(eos-shared-hash-test PRIVATE XrdMqClient-Static qclient)
 target_link_libraries(xrdmqclienttest PRIVATE XrdMqClient-Static)
 target_link_libraries(eos-mq-dumper PRIVATE XrdMqClient-Static)
 target_link_libraries(eos-mq-feeder PRIVATE XrdMqClient-Static)
@@ -171,7 +173,7 @@ install(TARGETS xrdstress.exe xrdcpabort xrdcprandom xrdcppgread
   eos-udp-dumper eos-mmap eos-io-tool
   RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_SBINDIR})
 
-install(TARGETS eos-mq-feeder eos-mq-dumper
+install(TARGETS eos-mq-feeder eos-mq-dumper eos-shared-hash-test
   RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_BINDIR})
 
 install(PROGRAMS xrdstress eos-instance-test eos-instance-test-ci
