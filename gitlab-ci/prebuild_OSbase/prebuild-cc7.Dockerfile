@@ -10,7 +10,7 @@ RUN sed -i -e 's/mirrorlist=/#mirrorlist=/g' -e 's/#baseurl=/baseurl=/g' -e 's/m
 
 # If the working directory is a not the top-level dir of a git repo OR git remote is not set to the EOS repo url.
 # On Gitlab CI, the test won't (and don't have to) pass.
-RUN yum install --nogpg -y git && yum clean all \
+RUN yum install --nogpg -y epel-release git && yum clean all \
     && if [[ $(git rev-parse --git-dir) != .git ]] || [[ $(git config --get remote.origin.url) != *gitlab.cern.ch/dss/eos.git ]]; \
         then git clone https://gitlab.cern.ch/dss/eos.git . ; fi
 
