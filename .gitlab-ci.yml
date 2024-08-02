@@ -385,11 +385,11 @@ build_client_el9_tsan:
   when: manual
 
 
-build_cc7_clang:
-  image: gitlab-registry.cern.ch/dss/eos/prebuild-cc7-${CODENAME}
+build_el9_clang:
+  image: gitlab-registry.cern.ch/dss/eos/prebuild-el9-${CODENAME}
   variables:
     PKG_MGR: yum
-    BUILD_NAME: cc7_clang
+    BUILD_NAME: el-9-clang
     CMAKE_OPTIONS: "-DCLANG_BUILD=1"
     RPMBUILD_OPTIONS: "--with clang --with server"
   extends: .build_exotic-template
