@@ -258,7 +258,7 @@ kill_child_processes() {
         for name in $pids; do
             if [ $name -ne $pid ]; then
                 kill -9 $name >& /dev/null
-                usleep 100000
+                sleep 0.1
             fi
         done
     fi
@@ -1974,7 +1974,7 @@ runtest "### Attr Ls   " unix 0 "EOSROLE='-r ${NOBODY_UID} ${NOBODY_GID}'" eos a
 runtest "### Rmdir     " unix 0 "EOSROLE='-r ${NOBODY_UID} ${NOBODY_GID}'" eos rmdir "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/.sys.v#.bla"
 runtest "### Attr Set  " unix 0 "" eos attr set sys.versioning=3 /eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/
 runtest "### Upload    " unix 0 "EOSROLE='-r ${NOBODY_UID} ${NOBODY_GID}'" eos cp "/etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/passwd"
-usleep 1100000 # force the first file to fall in a different tv_sec interval
+sleep 1.1 # force the first file to fall in a different tv_sec interval
 runtest "### Upload    " unix 0 "EOSROLE='-r ${NOBODY_UID} ${NOBODY_GID}'" eos cp "/etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/passwd"
 runtest "### Upload    " unix 0 "EOSROLE='-r ${NOBODY_UID} ${NOBODY_GID}'" eos cp "/etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/passwd"
 runtest "### Upload    " unix 0 "EOSROLE='-r ${NOBODY_UID} ${NOBODY_GID}'" eos cp "/etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/passwd"
@@ -1994,7 +1994,7 @@ runtest "### Stat      " unix 0 "" meta stat "/eos/$EOS_TEST_INSTANCE/test/insta
 runtest "### Rm        " unix 0 "EOSROLE='-r ${NOBODY_UID} ${NOBODY_GID}'" eos rm "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/passwd"
 runtest "### Stat      " unix 1 "" meta stat "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/.sys.v#.passwd"
 runtest "### Upload    " unix 0 "EOSROLE='-r ${NOBODY_UID} ${NOBODY_GID}'" eos cp "/etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/passwd"
-usleep 1100000 # force the first file to fall in a different tv_sec interval
+sleep 1.1 # force the first file to fall in a different tv_sec interval
 runtest "### Upload    " unix 0 "EOSROLE='-r ${NOBODY_UID} ${NOBODY_GID}'" eos cp "/etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/passwd"
 runtest "### Upload    " unix 0 "EOSROLE='-r ${NOBODY_UID} ${NOBODY_GID}'" eos cp "/etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/passwd"
 runtest "### Upload    " unix 0 "EOSROLE='-r ${NOBODY_UID} ${NOBODY_GID}'" eos cp "/etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/passwd"
