@@ -84,10 +84,6 @@ set (MGM_TGC_SRC_FILES
   tgc/TapeGc.cc
   CtaUtils.cc)
 
-foreach(MGM_TGC_SRC_FILE_SRC ${MGM_TGC_SRC_FILES})
-  set_property(SOURCE ${MGM_TGC_SRC_FILE_SRC} APPEND_STRING PROPERTY COMPILE_FLAGS " -Werror")
-endforeach(MGM_TGC_SRC_FILE_SRC)
-
 #-------------------------------------------------------------------------------
 # XrdEosMgm-Objects library
 #-------------------------------------------------------------------------------
