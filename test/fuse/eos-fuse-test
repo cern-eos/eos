@@ -142,7 +142,7 @@ kill_child_processes() {
 	for name in $pids; do 
 	    if [ $name -ne $pid ]; then
 		kill -9 $name >& /dev/null
-		usleep 100000
+		sleep 0.1
 	    fi
 	done
     fi
