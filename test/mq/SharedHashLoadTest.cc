@@ -26,6 +26,7 @@
 #include "qclient/shared/SharedManager.hh"
 #include <random>
 #include <string>
+#include <sstream>
 #include <stdexcept>
 
 #define SSTR(message) static_cast<std::ostringstream&>(std::ostringstream().flush() << message).str()
@@ -65,6 +66,27 @@ struct MemberValidator: public CLI::Validator {
     };
   }
 };
+
+//------------------------------------------------------------------------------
+//! Logging object
+//------------------------------------------------------------------------------
+class Logger
+{
+public:
+  //------------------------------------------------------------------------------
+  // Log method
+  //------------------------------------------------------------------------------
+  void log(std::string_view data)
+  {
+    std::unique_lock<std::mutex> lock(mMutex);
+    fprintf(stderr, "%s\n", data.data());
+  }
+
+private:
+  std::mutex mMutex;
+
+};
+
 
 //------------------------------------------------------------------------------
 //! Generate a random alpha-numeric string of the given length
@@ -115,9 +137,9 @@ unsigned int RandomPick(unsigned int length)
 // Handle producer functionality
 //------------------------------------------------------------------------------
 void HandleProducer(unsigned int num_keys, unsigned int key_length,
-                    unsigned int value_length, unsigned int concurrency,
-                    unsigned int batch_size, unsigned long timeout_sec,
-                    UpdateType upd_type)
+                    unsigned int value_length, unsigned int batch_size,
+                    unsigned long timeout_sec, UpdateType upd_type,
+                    Logger* logger)
 {
   using namespace std::chrono;
   srand(time(NULL));
@@ -167,13 +189,13 @@ void HandleProducer(unsigned int num_keys, unsigned int key_length,
 
   auto finish_ts = system_clock::now();
   auto duration_ms = duration_cast<milliseconds>(finish_ts - start_ts);
-  // Compute some statistics
-  std::cout << "INFO: Producer statistics tid=" << std::this_thread::get_id() <<
-            "\n"
-            << "      Number of updates: " << count << "\n"
-            << "      Update rate:       " << (1000.0 * count) / duration_ms.count() <<
-            " Hz\n"
-            << std::endl;
+  // Compute some statistics and log summary
+  std::ostringstream oss;
+  oss << "INFO: Producer statistics tid=" << std::this_thread::get_id() << "\n"
+      << "      Number of updates: " << count << "\n"
+      << "      Update rate:       "
+      << (1000.0 * count) / duration_ms.count() << " Hz";
+  logger->log(oss.str());
 }
 
 //------------------------------------------------------------------------------
@@ -214,6 +236,7 @@ void AddClusterOptions(CLI::App* subcmd, std::string& membersStr,
 //------------------------------------------------------------------------------
 int main(int argc, char* argv[])
 {
+  Logger logger;
   CLI::App app("Tool to generate load for a SharedHash object stored in QDB");
   app.require_subcommand();
   // Basic parameters
@@ -314,8 +337,18 @@ int main(int argc, char* argv[])
 
   if (producer_subcmd->parsed()) {
     std::cout << "info: handle producer" << std::endl;
-    HandleProducer(num_keys, key_length, value_length, concurrency,
-                   batch_size, timeout_sec, upd_type);
+    std::list<std::thread*> pool_threads;
+
+    for (unsigned int i = 0; i < concurrency; ++i) {
+      pool_threads.push_back(new std::thread(&HandleProducer, num_keys, key_length,
+                                             value_length, batch_size, timeout_sec,
+                                             upd_type, &logger));
+    }
+
+    for (auto* ptr_thread : pool_threads) {
+      ptr_thread->join();
+      delete ptr_thread;
+    }
   } else if (consumer_subcmd->parsed()) {
     std::cout << "info: handle consumer" << std::endl;
     HandleConsumer();

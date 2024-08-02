@@ -187,11 +187,8 @@ bool SharedHashWrapper::set(const Batch& batch)
       updateBatch.setLocal(it->first, it->second);
     }
 
-    if (!updateBatch.getPersistent().empty() ||
-        !updateBatch.getTransient().empty()) {
-      std::future<qclient::redisReplyPtr> reply = mSharedHash->set(updateBatch);
-      reply.wait();
-    }
+    std::future<qclient::redisReplyPtr> reply = mSharedHash->set(updateBatch);
+    reply.wait();
   } else {
     // @note this is a hack to avoid boot failures on the FST side when a new fs
     // is registered. The problem is that the FST expects all config parameters
