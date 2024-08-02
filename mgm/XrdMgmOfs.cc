@@ -181,7 +181,7 @@ extern "C" {
 
 #ifdef COVERAGE_BUILD
 // Forward declaration of gcov flush API
-  extern "C" void __gcov_flush();
+  extern "C" void __gcov_dump(void);
 #endif
 
   //------------------------------------------------------------------------------

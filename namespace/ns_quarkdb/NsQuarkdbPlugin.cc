@@ -23,14 +23,14 @@
 /*----------------------------------------------------------------------------*/
 #ifdef COVERAGE_BUILD
 // Forward declaration of gcov flush API
-extern "C" void __gcov_flush();
+extern "C" void __gcov_dump(void);
 
 //------------------------------------------------------------------------------
 // Profiling function flushing coverage data
 //------------------------------------------------------------------------------
 extern "C" void plugin_coverage()
 {
-  __gcov_flush();
+  __gcov_dump();
 }
 #endif
 /*----------------------------------------------------------------------------*/
