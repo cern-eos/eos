@@ -41,7 +41,34 @@ add_compile_definitions(EOSCITRINE VERSION="${VERSION}" RELEASE="${RELEASE}")
 # Compile Options
 #-------------------------------------------------------------------------------
 
-add_compile_options(-Wall)
+add_compile_options(-Wall
+  -Wno-deprecated-declarations
+  -Wno-format
+  -Wno-format-truncation
+  -Wno-ignored-qualifiers
+  -Wno-implicit-fallthrough
+  -Wno-int-in-bool-context
+  -Wno-maybe-uninitialized
+  -Wno-missing-field-initializers
+  -Wno-overflow
+  -Wno-parentheses
+  -Wno-pragmas
+  -Wno-return-type
+  -Wno-sign-compare
+  -Wno-type-limits
+  -Wno-unused-function
+  -Wno-unused-parameter
+  -Wno-unused-result
+  -Wno-unused-variable
+  -Wno-vla
+  $<$<COMPILE_LANGUAGE:CXX>:-Wno-class-memaccess>
+  $<$<COMPILE_LANGUAGE:CXX>:-Wno-deprecated-copy>
+  $<$<COMPILE_LANGUAGE:CXX>:-Wno-inaccessible-base>
+  $<$<COMPILE_LANGUAGE:CXX>:-Wno-interference-size>
+  $<$<COMPILE_LANGUAGE:CXX>:-Wno-mismatched-new-delete>
+  $<$<COMPILE_LANGUAGE:CXX>:-Wno-redundant-move>
+  $<$<COMPILE_LANGUAGE:CXX>:-Wno-reorder>
+)
 
 #-------------------------------------------------------------------------------
 # CPU architecture flags
@@ -64,6 +91,27 @@ endif ()
 if (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   # Clang requires linking with libatomic
   link_libraries(atomic)
+
+  add_compile_options(
+    -Wno-bitwise-instead-of-logical
+    -Wno-constant-conversion
+    -Wno-dangling-gsl
+    -Wno-deprecated-copy-with-user-provided-copy
+    -Wno-header-guard
+    -Wno-implicit-const-int-float-conversion
+    -Wno-implicit-int-float-conversion
+    -Wno-mismatched-tags
+    -Wno-missing-braces
+    -Wno-pessimizing-move
+    -Wno-uninitialized-const-reference
+    -Wno-unknown-warning-option
+    -Wno-unused-but-set-variable
+    -Wno-unused-lambda-capture
+    -Wno-unused-private-field
+    $<$<COMPILE_LANGUAGE:CXX>:-Wno-delete-non-abstract-non-virtual-dtor>
+    $<$<COMPILE_LANGUAGE:CXX>:-Wno-inconsistent-missing-override>
+    $<$<COMPILE_LANGUAGE:CXX>:-Wno-unqualified-std-cast-call>
+  )
 endif()
 
 #-------------------------------------------------------------------------------
