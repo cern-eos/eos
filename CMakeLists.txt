@@ -21,23 +21,20 @@
 # * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
 # ************************************************************************
 
-#-------------------------------------------------------------------------------
-# Main section
-#-------------------------------------------------------------------------------
-cmake_minimum_required (VERSION 3.14)
+cmake_minimum_required (VERSION 3.16...3.30 FATAL_ERROR)
 
-# Set the default CMAKE_BUILD_TYPE to RelWithDebInfo before the project command
-# as it can set CMAKE_BUILD_TYPE itself.
-if (NOT GENERATOR_IS_MULTI_CONFIG AND NOT CMAKE_BUILD_TYPE)
+# Set default build type if not set. This must be done before calling project()
+if(NOT CMAKE_BUILD_TYPE AND NOT GENERATOR_IS_MULTI_CONFIG)
   if(NOT CMAKE_C_FLAGS AND NOT CMAKE_CXX_FLAGS)
     set(CMAKE_BUILD_TYPE RelWithDebInfo CACHE STRING
-      "Build options: None(CMAKE_CXX_FLAGS or CMAKE_C_FLAGS used) Debug Release \
-       RelWithDebInfo MinSizeRel.")
+      "Build type: Debug Release RelWithDebInfo MinSizeRel None(use CMAKE_CXX_FLAGS)")
   endif()
-endif ()
+endif()
 
-project (eos)
-set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
+project(eos DESCRIPTION "EOS Open Storage" LANGUAGES C CXX ASM)
+
+# Insert cmake/ before everything else in the CMake module path
+list(INSERT CMAKE_MODULE_PATH 0 "${PROJECT_SOURCE_DIR}/cmake")
 
 option(CCACHE "Use ccache for compilation" ON)
 

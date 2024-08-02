@@ -74,7 +74,7 @@ else()
     "${BLAKE3_SSE_SRCS}"
     "${BLAKE3_AVX_SRCS}")
   set_property(SOURCE ${BLAKE3_NATIVE_SRCS}
-    PROPERTY LANGUAGE C)
+    PROPERTY LANGUAGE ASM)
 endif()
 
 add_library(EosBlake3-Objects OBJECT
