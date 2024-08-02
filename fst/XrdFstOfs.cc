@@ -98,7 +98,7 @@ XrdVERSIONINFO(XrdSfsGetFileSystem2, FstOfs);
 
 #ifdef COVERAGE_BUILD
 // Forward declaration of gcov flush API
-extern "C" void __gcov_flush();
+extern "C" void __gcov_dump(void);
 #endif
 
 //------------------------------------------------------------------------------
@@ -220,7 +220,7 @@ XrdFstOfs::xrdfstofs_coverage(int sig)
 {
 #ifdef COVERAGE_BUILD
   eos_static_notice("msg=\"printing coverage data\"");
-  __gcov_flush();
+  __gcov_dump();
   return;
 #endif
   eos_static_notice("msg=\"compiled without coverage support\"");

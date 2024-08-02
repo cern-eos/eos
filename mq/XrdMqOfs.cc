@@ -56,7 +56,7 @@ XrdMqOfs* gMqFS = 0;
 
 #ifdef COVERAGE_BUILD
 // Forward declaration of gcov flush API
-extern "C" void __gcov_flush();
+extern "C" void __gcov_dump(void);
 #endif
 
 //------------------------------------------------------------------------------
@@ -76,7 +76,7 @@ xrdmqofs_coverage(int sig)
 {
 #ifdef COVERAGE_BUILD
   eos_static_notice("printing coverage data");
-  __gcov_flush();
+  __gcov_dump();
   return;
 #endif
   eos_static_notice("compiled without coverage support");

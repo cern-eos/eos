@@ -41,7 +41,7 @@ xrdmgmofs_coverage(int sig)
 {
 #ifdef COVERAGE_BUILD
   eos_static_notice("msg=\"printing coverage data\"");
-  __gcov_flush();
+  __gcov_dump();
 
   // Get a map of all the loaded dynamic libraries
   using eos::common::PluginManager;
