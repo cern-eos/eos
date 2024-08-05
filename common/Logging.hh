@@ -294,8 +294,8 @@ public:
   void
   SetLogId(const char* newlogid)
   {
-    if (newlogid && (strncmp(newlogid, logId, sizeof(newlogid) - 1) != 0)) {
-      snprintf(logId, sizeof(logId), "%s", newlogid);
+    if (newlogid && (strncmp(newlogid, logId, sizeof(logId) - 1) != 0)) {
+      snprintf(logId, sizeof(logId), newlogid);
     }
   }
 
@@ -306,7 +306,7 @@ public:
   SetLogId(const char* newlogid, const char* td)
   {
     if (newlogid && (newlogid != logId)) {
-      snprintf(logId, sizeof(logId) , "%s", newlogid);
+      snprintf(logId, sizeof(logId) , newlogid);
     }
 
     if (td) {
@@ -348,7 +348,7 @@ public:
       snprintf(logId, sizeof(logId), "%s", vid.token->Voucher().c_str());
     } else {
       if (newlogid != logId) {
-        snprintf(logId, sizeof(logId), "%s", newlogid);
+        snprintf(logId, sizeof(logId), newlogid);
       }
     }
   }
