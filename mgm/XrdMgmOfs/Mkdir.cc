@@ -152,8 +152,6 @@ XrdMgmOfs::_mkdir(const char* path,
         }
       }
 
-      bool sticky_owner;
-      attr::checkDirOwner(attrmap, d_uid, d_gid, vid, sticky_owner, path);
       bool stdpermcheck = false;
 
       if (acl.HasAcl()) {
@@ -173,11 +171,15 @@ XrdMgmOfs::_mkdir(const char* path,
                     cPath.GetParentPath());
       }
 
+      // Check for sys.owner.auth entries, which let users operate as
+      // the owner of the directory
+      bool sticky_owner = false;
+      attr::checkDirOwner(attrmap, d_uid, d_gid, vid, sticky_owner, path);
+
       if (sticky_owner) {
-        eos_info("msg=\"client acting as directory owner\" path=\"%s\"uid=\"%u=>%u\" gid=\"%u=>%u\"",
-                 path, vid.uid, vid.gid, d_uid, d_gid);
-        // The client can operate as the owner, we rewrite the virtual identity
-        // to the directory uid/gid pair
+        eos_info("msg=\"client acting as directory owner\" path=\"%s\" "
+                 "uid=\"%u=>%u\" gid=\"%u=>%u\"", path, vid.uid,
+                 vid.gid, d_uid, d_gid);
         vid.uid = d_uid;
         vid.gid = d_gid;
       }
@@ -187,7 +189,7 @@ XrdMgmOfs::_mkdir(const char* path,
   // Check if the path exists anyway
   if (Mode & SFS_O_MKPTH) {
     recurse = true;
-    eos_debug("SFS_O_MKPATH set", path);
+    eos_debug("msg=\"SFS_O_MKPATH set\" path=\"%s\"", path);
 
     if (dir) {
       std::shared_ptr<eos::IContainerMD> fulldir;
@@ -219,11 +221,11 @@ XrdMgmOfs::_mkdir(const char* path,
       int i, j;
       uid_t d_uid = eos::common::VirtualIdentity::kNobodyUid;
       gid_t d_gid = eos::common::VirtualIdentity::kNobodyGid;
-      std::string existingdir;
+      std::string found_path;
 
       // Walk up the paths until one exists
       for (i = cPath.GetSubPathSize() - 1; i >= 0; i--) {
-        eos_debug("testing path %s", cPath.GetSubPath(i));
+        eos_debug("msg=\"check path existence\" path=\"%s\"", cPath.GetSubPath(i));
         errno = 0;
         eos::Prefetcher::prefetchContainerMDAndWait(gOFS->eosView, cPath.GetSubPath(i));
         eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
@@ -231,7 +233,7 @@ XrdMgmOfs::_mkdir(const char* path,
 
         try {
           dir = eosView->getContainer(cPath.GetSubPath(i));
-          existingdir = cPath.GetSubPath(i);
+          found_path = cPath.GetSubPath(i);
           d_uid = dir->getCUid();
           d_gid = dir->getCGid();
         } catch (eos::MDException& e) {
@@ -245,34 +247,24 @@ XrdMgmOfs::_mkdir(const char* path,
 
       // This is really a serious problem!
       if (!dir) {
-        eos_crit("didn't find any parent path traversing the namespace");
+        eos_crit("msg=\"no parent path traversing the namespace\" path=\"%s\"",
+                 path);
         errno = ENODATA;
         return Emsg(epname, error, ENODATA, "create directory", cPath.GetSubPath(i));
       }
 
       // ACL and permission check
-      Acl acl(existingdir.c_str(), error, vid, attrmap, true);
-      eos_info("acl=%d r=%d w=%d wo=%d egroup=%d mutable=%d",
-               acl.HasAcl(), acl.CanRead(), acl.CanWrite(), acl.CanWriteOnce(),
-               acl.HasEgroup(), acl.IsMutable());
-      // Check for sys.owner.auth entries, which let people operate as the owner of the directory
-      bool sticky_owner;
+      Acl acl(found_path.c_str(), error, vid, attrmap, true);
+      eos_info("path=\"%s\" acl=%d r=%d w=%d wo=%d egroup=%d mutable=%d",
+               found_path.c_str(), acl.HasAcl(), acl.CanRead(), acl.CanWrite(),
+               acl.CanWriteOnce(), acl.HasEgroup(), acl.IsMutable());
 
-      if (attr::checkDirOwner(attrmap, d_uid, d_gid, vid, sticky_owner,
-                              path)) {
-        if (sticky_owner) {
-          vid.uid = d_uid;
-          vid.gid = d_gid;
+      if (!nopermissioncheck) {
+        if (vid.uid && !acl.IsMutable()) {
+          errno = EPERM;
+          return Emsg(epname, error, EPERM, "create directory - immutable",
+                      cPath.GetParentPath());
         }
-
-        eos_info("msg=\"client acting as directory owner\" path=\"%s\"uid=\"%u=>%u\" gid=\"%u=>%u\"",
-                 existingdir.c_str(), vid.uid, vid.gid, d_uid, d_gid);
-      }
-
-      if (vid.uid && !acl.IsMutable()) {
-        errno = EPERM;
-        return Emsg(epname, error, EPERM, "create parent directory - immutable",
-                    cPath.GetParentPath());
       }
 
       bool stdpermcheck = false;
@@ -286,10 +278,24 @@ XrdMgmOfs::_mkdir(const char* path,
         stdpermcheck = true;
       }
 
-      if (stdpermcheck && (!dir->access(vid.uid, vid.gid, X_OK | W_OK))) {
+      if (!nopermissioncheck && stdpermcheck &&
+          (!dir->access(vid.uid, vid.gid, X_OK | W_OK))) {
         errno = EPERM;
         return Emsg(epname, error, EPERM, "create parent directory",
                     cPath.GetParentPath());
+      }
+
+      // Check for sys.owner.auth entries, which let users operate as
+      // the owner of the directory
+      bool sticky_owner = false;
+      attr::checkDirOwner(attrmap, d_uid, d_gid, vid, sticky_owner, path);
+
+      if (sticky_owner) {
+        eos_info("msg=\"client acting as directory owner\" path=\"%s\" "
+                 "uid=\"%u=>%u\" gid=\"%u=>%u\"", found_path.c_str(),
+                 vid.uid, vid.gid, d_uid, d_gid);
+        vid.uid = d_uid;
+        vid.gid = d_gid;
       }
 
       eos::common::Path tmp_path("");
