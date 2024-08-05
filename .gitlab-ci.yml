@@ -389,7 +389,6 @@ build_client_el9_tsan:
 build_el9_clang:
   image: gitlab-registry.cern.ch/dss/eos/prebuild-el9-${CODENAME}
   variables:
-    PKG_MGR: yum
     BUILD_NAME: el-9-clang
     CMAKE_OPTIONS: "-DCLANG_BUILD=1"
     RPMBUILD_OPTIONS: "--with clang --with server"
