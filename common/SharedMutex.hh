@@ -21,7 +21,6 @@
  ************************************************************************/
 
 #pragma once
-#include "common/SharedMutexWrapper.hh"
 #include "common/Namespace.hh"
 #include "common/IRWMutex.hh"
 #include "absl/synchronization/mutex.h"

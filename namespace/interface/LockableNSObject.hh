@@ -19,13 +19,13 @@
 #ifndef EOS_LOCKABLENSOBJECT_HH
 #define EOS_LOCKABLENSOBJECT_HH
 
+#include <shared_mutex>
 #include <memory>
 #include <map>
 #include <thread>
 
 #include "namespace/Namespace.hh"
 #include "namespace/MDException.hh"
-#include "common/SharedMutexWrapper.hh"
 
 EOSNSNAMESPACE_BEGIN
 
@@ -35,9 +35,11 @@ typedef std::shared_lock<std::shared_timed_mutex> MDReadLock;
 class LockableNSObjMD
 {
 public:
-  template<typename ObjectMDPtr, typename LockType> friend class NSObjectMDBaseLock;
+  template<typename ObjectMDPtr, typename LockType> friend class
+    NSObjectMDBaseLock;
   template<typename ObjectMDPtr, typename LockType> friend class NSObjectMDLock;
-  template<typename ObjectMDPtr, typename LockType> friend class NSObjectMDTryLock;
+  template<typename ObjectMDPtr, typename LockType> friend class
+    NSObjectMDTryLock;
   LockableNSObjMD() {}
   LockableNSObjMD(const LockableNSObjMD& other) = delete;
   LockableNSObjMD& operator=(const LockableNSObjMD&) = delete;
