@@ -1,7 +1,7 @@
 #include "mgm/placement/WeightedRandomStrategy.hh"
 #include "common/Logging.hh"
 #include <random>
-#include "common/SharedMutexWrapper.hh"
+#include <shared_mutex>
 
 namespace eos::mgm::placement
 {

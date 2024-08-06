@@ -23,7 +23,6 @@
 
 #pragma once
 #include "common/Namespace.hh"
-#include "common/SharedMutexWrapper.hh"
 #include <folly/futures/Future.h>
 
 EOSCOMMONNAMESPACE_BEGIN

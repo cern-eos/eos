@@ -24,7 +24,6 @@
 #ifndef EOS_NS_ICONTAINER_MD_HH
 #define EOS_NS_ICONTAINER_MD_HH
 
-#include "common/SharedMutexWrapper.hh"
 #include "namespace/Namespace.hh"
 #include "namespace/utils/Buffer.hh"
 #include "namespace/utils/LocalityHint.hh"
@@ -69,7 +68,8 @@ struct FileOrContainerMD {
 //! Class holding the interface to the metadata information concerning a
 //! single container
 //------------------------------------------------------------------------------
-class IContainerMD : public LockableNSObjMD {
+class IContainerMD : public LockableNSObjMD
+{
 protected:
   // Convenient using to avoid having to put MDLocking::
   using ContainerReadLock = MDLocking::ContainerReadLock;
@@ -94,9 +94,11 @@ public:
   using FileMap = google::dense_hash_map<std::string, IContainerMD::id_t,
         Murmur3::MurmurHasher<std::string> >;
 
-  template<typename ObjectMDPtr, typename LockType> friend class NSObjectMDBaseLock;
+  template<typename ObjectMDPtr, typename LockType> friend class
+    NSObjectMDBaseLock;
   template<typename ObjectMDPtr, typename LockType> friend class NSObjectMDLock;
-  template<typename ObjectMDPtr, typename LockType> friend class NSObjectMDTryLock;
+  template<typename ObjectMDPtr, typename LockType> friend class
+    NSObjectMDTryLock;
   friend class LockableNSObjMD;
 
   using identifier_t = ContainerIdentifier;
@@ -171,12 +173,14 @@ public:
   //----------------------------------------------------------------------------
   //! Find file and read lock it. Returns nullptr in case the file is not found
   //----------------------------------------------------------------------------
-  virtual std::unique_ptr<FileReadLock> findFileReadLocked(const std::string & name) = 0;
+  virtual std::unique_ptr<FileReadLock> findFileReadLocked(
+    const std::string& name) = 0;
 
   //----------------------------------------------------------------------------
   //! Find file and write lock it. Returns nullptr in case the file is not found
   //----------------------------------------------------------------------------
-  virtual std::unique_ptr<FileWriteLock> findFileWriteLocked(const std::string & name) = 0;
+  virtual std::unique_ptr<FileWriteLock> findFileWriteLocked(
+    const std::string& name) = 0;
 
   //----------------------------------------------------------------------------
   //! Find item
@@ -465,7 +469,8 @@ private:
   IContainerMD(const IContainerMD& other) = delete;
   IContainerMD& operator=(const IContainerMD& other) = delete;
 
-  mutable std::atomic<bool> mIsDeleted; ///< Mark if object is still in cache but it was deleted
+  mutable std::atomic<bool>
+  mIsDeleted; ///< Mark if object is still in cache but it was deleted
 
   std::chrono::steady_clock::time_point mLastPrefetch;
   mutable std::shared_mutex mLastPrefetchMtx;
@@ -473,7 +478,10 @@ private:
   //----------------------------------------------------------------------------
   //! getMutex()
   //----------------------------------------------------------------------------
-  std::shared_timed_mutex & getMutex() const override { return mMutex; }
+  std::shared_timed_mutex& getMutex() const override
+  {
+    return mMutex;
+  }
 
 protected:
   //----------------------------------------------------------------------------

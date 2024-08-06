@@ -22,11 +22,11 @@
 //------------------------------------------------------------------------------
 
 #pragma once
-#include "common/SharedMutexWrapper.hh"
 #include "namespace/Namespace.hh"
 #include "namespace/interface/Identifiers.hh"
 #include <map>
 #include <unordered_set>
+#include <shared_mutex>
 
 EOSNSNAMESPACE_BEGIN
 
@@ -138,7 +138,7 @@ public:
   //----------------------------------------------------------------------------
   //! operator<< (replacing all entries from update in core)
   //----------------------------------------------------------------------------
-  QuotaNodeCore& operator<< (const QuotaNodeCore &update);
+  QuotaNodeCore& operator<< (const QuotaNodeCore& update);
 
   //----------------------------------------------------------------------------
   //! equality operator==
