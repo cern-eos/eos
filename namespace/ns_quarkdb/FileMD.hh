@@ -24,7 +24,6 @@
 #ifndef EOS_NS_FILE_MD_HH
 #define EOS_NS_FILE_MD_HH
 
-#include "common/SharedMutexWrapper.hh"
 #include "namespace/interface/IFileMD.hh"
 #include "namespace/ns_quarkdb/persistency/FileMDSvc.hh"
 #include "proto/FileMd.pb.h"
@@ -144,7 +143,9 @@ public:
   inline IFileMD::id_t
   getId() const override
   {
-    return runReadOp([this]() { return mFile.id(); });
+    return runReadOp([this]() {
+      return mFile.id();
+    });
   }
 
   //----------------------------------------------------------------------------
@@ -153,7 +154,9 @@ public:
   inline identifier_t
   getIdentifier() const override
   {
-    return this->runReadOp([this]() { return identifier_t(mFile.id()); });
+    return this->runReadOp([this]() {
+      return identifier_t(mFile.id());
+    });
   }
 
   //----------------------------------------------------------------------------
@@ -162,7 +165,9 @@ public:
   inline uint64_t
   getSize() const override
   {
-    return this->runReadOp([this]() { return mFile.size(); });
+    return this->runReadOp([this]() {
+      return mFile.size();
+    });
   }
 
   //----------------------------------------------------------------------------
@@ -176,7 +181,9 @@ public:
   inline uint64_t
   getCloneId() const override
   {
-    return runReadOp([this]() { return mFile.cloneid(); });
+    return runReadOp([this]() {
+      return mFile.cloneid();
+    });
   }
 
   //----------------------------------------------------------------------------
@@ -184,7 +191,9 @@ public:
   //----------------------------------------------------------------------------
   void setCloneId(uint64_t id) override
   {
-    return runWriteOp([this, id]() { mFile.set_cloneid(id); });
+    return runWriteOp([this, id]() {
+      mFile.set_cloneid(id);
+    });
   }
 
   //----------------------------------------------------------------------------
@@ -193,7 +202,9 @@ public:
   const std::string
   getCloneFST() const override
   {
-    return runReadOp([this]() { return mFile.clonefst(); });
+    return runReadOp([this]() {
+      return mFile.clonefst();
+    });
   }
 
   //----------------------------------------------------------------------------
@@ -201,7 +212,7 @@ public:
   //----------------------------------------------------------------------------
   void setCloneFST(const std::string& data) override
   {
-    runWriteOp([this,data](){
+    runWriteOp([this, data]() {
       mFile.set_clonefst(data);
     });
   }
@@ -212,7 +223,9 @@ public:
   inline IContainerMD::id_t
   getContainerId() const override
   {
-    return this->runReadOp([this]() { return mFile.cont_id(); });
+    return this->runReadOp([this]() {
+      return mFile.cont_id();
+    });
   }
 
   //----------------------------------------------------------------------------
@@ -221,7 +234,9 @@ public:
   void
   setContainerId(IContainerMD::id_t containerId) override
   {
-    runWriteOp([this, containerId]() { mFile.set_cont_id(containerId); });
+    runWriteOp([this, containerId]() {
+      mFile.set_cont_id(containerId);
+    });
   }
 
   //----------------------------------------------------------------------------
@@ -254,7 +269,9 @@ public:
   void
   clearChecksum(uint8_t size = 20) override
   {
-    runWriteOp([this]() { mFile.clear_checksum(); });
+    runWriteOp([this]() {
+      mFile.clear_checksum();
+    });
   }
 
   //----------------------------------------------------------------------------
@@ -267,7 +284,9 @@ public:
   setChecksum(const void* checksum, uint8_t size) override
   {
     runWriteOp(
-        [this, checksum, size]() { mFile.set_checksum(checksum, size); });
+    [this, checksum, size]() {
+      mFile.set_checksum(checksum, size);
+    });
   }
 
   //----------------------------------------------------------------------------
@@ -276,7 +295,9 @@ public:
   inline const std::string
   getName() const override
   {
-    return runReadOp([this]() { return mFile.name(); });
+    return runReadOp([this]() {
+      return mFile.name();
+    });
   }
 
   //----------------------------------------------------------------------------
@@ -313,6 +334,7 @@ public:
       if (index < (unsigned int)mFile.locations_size()) {
         return mFile.locations(index);
       }
+
       return (location_t)0;
     });
   }
@@ -333,7 +355,9 @@ public:
   void
   clearLocations() override
   {
-    this->runWriteOp([this]() { mFile.clear_locations(); });
+    this->runWriteOp([this]() {
+      mFile.clear_locations();
+    });
   }
 
   //----------------------------------------------------------------------------
@@ -358,7 +382,9 @@ public:
   hasLocation(location_t location) override
   {
     return this->runReadOp(
-        [this, location]() { return hasLocationNoLock(location); });
+    [this, location]() {
+      return hasLocationNoLock(location);
+    });
   }
 
   //----------------------------------------------------------------------------
@@ -367,7 +393,9 @@ public:
   inline size_t
   getNumLocation() const override
   {
-    return runReadOp([this]() { return mFile.locations_size(); });
+    return runReadOp([this]() {
+      return mFile.locations_size();
+    });
   }
 
   //----------------------------------------------------------------------------
@@ -380,7 +408,6 @@ public:
                                         mFile.unlink_locations().end());
       return unlinked_locations;
     });
-
   }
 
   //----------------------------------------------------------------------------
@@ -399,7 +426,9 @@ public:
   inline void
   clearUnlinkedLocations() override
   {
-    this->runWriteOp([this]() { mFile.clear_unlink_locations(); });
+    this->runWriteOp([this]() {
+      mFile.clear_unlink_locations();
+    });
   }
 
   //----------------------------------------------------------------------------
@@ -414,7 +443,9 @@ public:
   inline size_t
   getNumUnlinkedLocation() const override
   {
-    return runReadOp([this]() { return mFile.unlink_locations_size(); });
+    return runReadOp([this]() {
+      return mFile.unlink_locations_size();
+    });
   }
 
   //----------------------------------------------------------------------------
@@ -423,8 +454,9 @@ public:
   inline uid_t
   getCUid() const override
   {
-    return runReadOp([this]() { return mFile.uid(); });
-
+    return runReadOp([this]() {
+      return mFile.uid();
+    });
   }
 
   //----------------------------------------------------------------------------
@@ -433,7 +465,9 @@ public:
   inline void
   setCUid(uid_t uid) override
   {
-    runWriteOp([this, uid]() { mFile.set_uid(uid); });
+    runWriteOp([this, uid]() {
+      mFile.set_uid(uid);
+    });
   }
 
   //----------------------------------------------------------------------------
@@ -442,7 +476,9 @@ public:
   inline gid_t
   getCGid() const override
   {
-    return runReadOp([this]() { return mFile.gid(); });
+    return runReadOp([this]() {
+      return mFile.gid();
+    });
   }
 
   //----------------------------------------------------------------------------
@@ -451,7 +487,9 @@ public:
   inline void
   setCGid(gid_t gid) override
   {
-    runWriteOp([this, gid]() { mFile.set_gid(gid); });
+    runWriteOp([this, gid]() {
+      mFile.set_gid(gid);
+    });
   }
 
   //----------------------------------------------------------------------------
@@ -460,7 +498,9 @@ public:
   inline layoutId_t
   getLayoutId() const override
   {
-    return runReadOp([this]() { return mFile.layout_id(); });
+    return runReadOp([this]() {
+      return mFile.layout_id();
+    });
   }
 
   //----------------------------------------------------------------------------
@@ -469,7 +509,9 @@ public:
   inline void
   setLayoutId(layoutId_t layoutId) override
   {
-    runWriteOp([this, layoutId]() { mFile.set_layout_id(layoutId); });
+    runWriteOp([this, layoutId]() {
+      mFile.set_layout_id(layoutId);
+    });
   }
 
   //----------------------------------------------------------------------------
@@ -478,7 +520,9 @@ public:
   inline uint16_t
   getFlags() const override
   {
-    return runReadOp([this]() { return mFile.flags(); });
+    return runReadOp([this]() {
+      return mFile.flags();
+    });
   }
 
   //----------------------------------------------------------------------------
@@ -488,7 +532,9 @@ public:
   getFlag(uint8_t n) override
   {
     return runReadOp(
-        [this, n]() { return (bool)(mFile.flags() & (0x0001 << n)); });
+    [this, n]() {
+      return (bool)(mFile.flags() & (0x0001 << n));
+    });
   }
 
   //----------------------------------------------------------------------------
@@ -497,7 +543,9 @@ public:
   inline void
   setFlags(uint16_t flags) override
   {
-    return runWriteOp([this, flags]() { mFile.set_flags(flags); });
+    return runWriteOp([this, flags]() {
+      mFile.set_flags(flags);
+    });
   }
 
   //----------------------------------------------------------------------------
@@ -537,7 +585,9 @@ public:
   inline virtual IFileMDSvc*
   getFileMDSvc() override
   {
-    return runReadOp([this]() { return pFileMDSvc; });
+    return runReadOp([this]() {
+      return pFileMDSvc;
+    });
   }
 
   //----------------------------------------------------------------------------
@@ -546,7 +596,9 @@ public:
   inline std::string
   getLink() const override
   {
-    return runReadOp([this]() { return mFile.link_name(); });
+    return runReadOp([this]() {
+      return mFile.link_name();
+    });
   }
 
   //----------------------------------------------------------------------------
@@ -555,7 +607,9 @@ public:
   inline void
   setLink(std::string link_name) override
   {
-    runWriteOp([this, link_name]() { mFile.set_link_name(link_name); });
+    runWriteOp([this, link_name]() {
+      mFile.set_link_name(link_name);
+    });
   }
 
   //----------------------------------------------------------------------------
@@ -564,7 +618,9 @@ public:
   bool
   isLink() const override
   {
-    return runReadOp([this]() { return !mFile.link_name().empty(); });
+    return runReadOp([this]() {
+      return !mFile.link_name().empty();
+    });
   }
 
   //----------------------------------------------------------------------------
@@ -574,7 +630,9 @@ public:
   setAttribute(const std::string& name, const std::string& value) override
   {
     runWriteOp(
-        [this, name, value]() { (*mFile.mutable_xattrs())[name] = value; });
+    [this, name, value]() {
+      (*mFile.mutable_xattrs())[name] = value;
+    });
   }
 
   //----------------------------------------------------------------------------
@@ -597,7 +655,9 @@ public:
   //----------------------------------------------------------------------------
   void clearAttributes() override
   {
-    runWriteOp([this]() { mFile.clear_xattrs(); });
+    runWriteOp([this]() {
+      mFile.clear_xattrs();
+    });
   }
 
   //----------------------------------------------------------------------------
@@ -617,7 +677,9 @@ public:
   inline size_t
   numAttributes() const override
   {
-    return runReadOp([this]() { return mFile.xattrs().size(); });
+    return runReadOp([this]() {
+      return mFile.xattrs().size();
+    });
   }
 
   //----------------------------------------------------------------------------
@@ -629,7 +691,8 @@ public:
     return runReadOp([this, &name] {
       auto it = mFile.xattrs().find(name);
 
-      if (it == mFile.xattrs().end()) {
+      if (it == mFile.xattrs().end())
+      {
         MDException e(ENOENT);
         e.getMessage() << "Attribute: " << name << " not found";
         throw e;
@@ -671,7 +734,7 @@ public:
   //----------------------------------------------------------------------------
   virtual uint64_t getClock() const override
   {
-    return runReadOp([this](){
+    return runReadOp([this]() {
       return mClock;
     });
   };
