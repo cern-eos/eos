@@ -24,10 +24,12 @@
 #include "namespace/ns_quarkdb/QdbContactDetails.hh"
 #include "qclient/QClient.hh"
 #include "qclient/shared/SharedManager.hh"
+#include "qclient/shared/SharedHashSubscription.hh"
 #include <random>
 #include <string>
 #include <sstream>
 #include <stdexcept>
+#include <functional>
 
 #define SSTR(message) static_cast<std::ostringstream&>(std::ostringstream().flush() << message).str()
 
@@ -35,6 +37,9 @@ using eos::common::PasswordHandler;
 using eos::common::SharedHashLocator;
 std::unique_ptr<eos::mq::MessagingRealm> gMsgRealm {nullptr};
 std::unique_ptr<eos::mq::SharedHashWrapper> gSharedHash {nullptr};
+std::mutex gMutexTerminate;
+std::condition_variable gCvTerminate;
+bool gSignalTerminate {false};
 
 //! Structure modelling the type of shared has updates:
 //! kPersistent - this is stored in the raft journal and persisted in QDB
@@ -68,7 +73,7 @@ struct MemberValidator: public CLI::Validator {
 };
 
 //------------------------------------------------------------------------------
-//! Logging object
+// Logging object
 //------------------------------------------------------------------------------
 class Logger
 {
@@ -87,9 +92,8 @@ private:
 
 };
 
-
 //------------------------------------------------------------------------------
-//! Generate a random alpha-numeric string of the given length
+// Generate a random alpha-numeric string of the given length
 //------------------------------------------------------------------------------
 std::string RandomString(std::string::size_type length)
 {
@@ -199,11 +203,140 @@ void HandleProducer(unsigned int num_keys, unsigned int key_length,
 }
 
 //------------------------------------------------------------------------------
+// Class Stats - collecting statistics about requests handled by the consumer
+//------------------------------------------------------------------------------
+class Stats
+{
+public:
+  //------------------------------------------------------------------------------
+  // Callback to be used by the subcription
+  //------------------------------------------------------------------------------
+  void Callback(qclient::SharedHashUpdate&& upd)
+  {
+    Collect();
+  }
+
+  //------------------------------------------------------------------------------
+  // Trigger stats collection
+  //------------------------------------------------------------------------------
+  void Collect()
+  {
+    auto ts = std::chrono::seconds(std::time(nullptr)).count();
+    std::unique_lock<std::mutex> lock(mMutex);
+    mFreqMap[ts]++;
+  }
+
+  //------------------------------------------------------------------------------
+  // Dump summary of the collected statistics
+  //------------------------------------------------------------------------------
+  void DumpSummary(Logger* logger)
+  {
+    uint64_t total = 0ull;
+    double min_freq = 0, avg_freq = 0, max_freq = 0;
+    {
+      std::unique_lock<std::mutex> lock(mMutex);
+
+      for (const auto& elem : mFreqMap) {
+        total += elem.second;
+
+        if (min_freq) {
+          if (min_freq > elem.second) {
+            min_freq = elem.second;
+          }
+        } else {
+          min_freq = elem.second;
+        }
+
+        if (max_freq) {
+          if (max_freq < elem.second) {
+            max_freq = elem.second;
+          }
+        } else {
+          max_freq = elem.second;
+        }
+      }
+
+      if (mFreqMap.size() > 2) {
+        avg_freq = total * 1.0 /
+                   (mFreqMap.rbegin()->first - mFreqMap.begin()->first);
+      }
+    }
+    std::ostringstream oss;
+    oss << "info: consumer statistics\n"
+        << " total upd: " << total << "\n"
+        << " min freq:  " << min_freq << " Hz\n"
+        << " avg freq:  " << avg_freq << " Hz\n"
+        << " max freq:  " << max_freq << " Hz\n";
+    logger->log(oss.str());
+  }
+
+  //------------------------------------------------------------------------------
+  // Get timestamp of the last received request
+  //------------------------------------------------------------------------------
+  uint64_t GetLastTs() const
+  {
+    uint64_t ts = 0ull;
+    std::unique_lock<std::mutex> lock(mMutex);
+
+    if (!mFreqMap.empty()) {
+      ts = mFreqMap.rbegin()->first;
+    }
+
+    return ts;
+  }
+
+private:
+  mutable std::mutex mMutex;
+  //! Map timestamp values to number of requests
+  std::map<uint64_t, uint64_t> mFreqMap;
+};
+
+//------------------------------------------------------------------------------
+// Register signal handler
+//------------------------------------------------------------------------------
+void ConsumerSignalHandler(int sig)
+{
+  (void) signal(SIGINT, SIG_IGN);
+  std::cout << "info: calling signal handler" << std::endl;
+  {
+    std::unique_lock<std::mutex> lock(gMutexTerminate);
+    gSignalTerminate = true;
+  }
+  gCvTerminate.notify_one();
+}
+
+//------------------------------------------------------------------------------
 // Handle consumer functionality
 //------------------------------------------------------------------------------
-void HandleConsumer()
+void HandleConsumer(unsigned long timeout_sec, Logger* logger)
 {
-  // Compute some statistics
+  using std::placeholders::_1;
+  Stats stats;
+  std::unique_ptr<qclient::SharedHashSubscription> sub = gSharedHash->subscribe();
+  sub->attachCallback(std::bind(&Stats::Callback, &stats, _1));
+
+  while (true) {
+    std::unique_lock<std::mutex> lock(gMutexTerminate);
+
+    if (timeout_sec) {
+      if (gCvTerminate.wait_for(lock, std::chrono::seconds(timeout_sec),
+      [&]() {
+      return gSignalTerminate;
+    })) {
+        //std::cout << "info: consumer signalled to terminate" << std::endl;
+      } else {
+        //std::cout << "info: consumer timeout expired" << std::endl;
+      }
+    } else {
+      gCvTerminate.wait(lock, [&]() {
+        return gSignalTerminate;
+      });
+    }
+
+    break;
+  }
+
+  stats.DumpSummary(logger);
 }
 
 //------------------------------------------------------------------------------
@@ -294,7 +427,7 @@ int main(int argc, char* argv[])
   AddClusterOptions(consumer_subcmd, members_input, member_validator,
                     password_data, password_file, connection_retries, timeout_sec);
   consumer_subcmd->add_option("--target-hash", hash_name,
-                              "Target hash name")->required();
+                              "Target hash name")->default_val(hash_name);
 
   // Do the command line parsing
   try {
@@ -350,8 +483,9 @@ int main(int argc, char* argv[])
       delete ptr_thread;
     }
   } else if (consumer_subcmd->parsed()) {
-    std::cout << "info: handle consumer" << std::endl;
-    HandleConsumer();
+    // Add signal handler for Control-C
+    (void) signal(SIGINT, ConsumerSignalHandler);
+    HandleConsumer(timeout_sec, &logger);
   }
 
   gSharedHash.reset();
