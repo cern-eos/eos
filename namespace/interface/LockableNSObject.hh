@@ -19,6 +19,7 @@
 #ifndef EOS_LOCKABLENSOBJECT_HH
 #define EOS_LOCKABLENSOBJECT_HH
 
+#include <mutex>
 #include <shared_mutex>
 #include <memory>
 #include <map>
