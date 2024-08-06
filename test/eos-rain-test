@@ -253,6 +253,7 @@ for file in $ROOT_PATH/*.rain; do
 	    
             # disable one FST in EOS and test read
 	    $SUDO $EOS -b fs config $fst configstatus=off
+            sleep 1
 
 	    read_and_check $ROOT_PATH $EOS_DEST $file
 
@@ -284,6 +285,7 @@ for file in $ROOT_PATH/*.rain; do
                     # disable one FST in EOS and test read
 		    $SUDO $EOS -b fs config $fst1 configstatus=off
 		    $SUDO $EOS -b fs config $fst2 configstatus=off
+                    sleep 1
 		    
 		    read_and_check $ROOT_PATH $EOS_DEST $file
 		    
