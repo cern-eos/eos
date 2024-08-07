@@ -259,8 +259,6 @@ void com_fs_help()
       << "                FST on the same node or failover an FST serving data from\n"
       << "                a shared filesystem backend\n"
       << std::endl
-      << "                is auto-selected" << std::endl
-      << std::endl
       << "  fs rm <fsid>|<mnt>|<node-queue> <mnt>|<hostname> <mnt>" << std::endl
       << "    remove filesystem by various identifiers, where <mnt> is the "
       << std::endl
