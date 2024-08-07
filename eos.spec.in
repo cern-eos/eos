@@ -238,6 +238,7 @@ BuildRequires: eos-rocksdb = %{eos_rocksdb_version}
 %if "%{compiler}" == "clang"
 BuildRequires: clang
 BuildRequires: libatomic
+BuildRequires: gcc-toolset-13-libatomic-devel
 Requires: libatomic
 %if 0%{?rhel} == 7
 BuildRequires: llvm-toolset-7.0
