@@ -647,9 +647,9 @@ proc_fs_add(mq::MessagingRealm* realm, std::string& sfsid, std::string& uuid,
     try {
       int id = std::stoi(splitgroup);
 
-      if (id >= (int)groupmod) {
+      if (!force && (id >= (int)groupmod)) {
         stdErr = SSTR("error: requested group " << id
-                      << " bigger than groupmod").c_str();
+                      << " bigger than groupmod\n").c_str();
         return EINVAL;
       }
 
@@ -1303,6 +1303,10 @@ proc_mv_fs_node(FsView& fs_view, const std::string& src,
   FileSystem* fs = fs_view.mIdView.lookupByID(fsid);
 
   if (fs) {
+    if (!proc_fs_can_mv(fs, dst, stdOut, stdErr, force)) {
+      return EINVAL;
+    }
+
     FileSystem::fs_snapshot_t snapshot;
 
     if (fs->SnapShotFileSystem(snapshot)) {
