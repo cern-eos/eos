@@ -533,10 +533,14 @@ Storage::Boot(FileSystem* fs)
   if (fs->GetPath()[0] == '/') {
     // Test if we have rw access
     struct stat buf;
+    const std::string path = fs->GetPath();
+    int stat_rc = ::stat(path.c_str(), &buf);
 
-    if (::stat(fs->GetPath().c_str(), &buf) ||
-        (buf.st_uid != DAEMONUID) ||
+    if (stat_rc || (buf.st_uid != DAEMONUID) ||
         ((buf.st_mode & S_IRWXU) != S_IRWXU)) {
+      eos_static_err("msg=\"potential failed stat\" errno=%d path=\"%s\"",
+                     errno, path.c_str());
+
       if (buf.st_uid != DAEMONUID) {
         errno = ENOTCONN;
       }
