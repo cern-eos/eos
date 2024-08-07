@@ -44,6 +44,7 @@ add_compile_definitions(EOSCITRINE VERSION="${VERSION}" RELEASE="${RELEASE}")
 add_compile_options(-Wall
   -Wno-deprecated-declarations
   -Wno-format
+  -Wno-format-security
   -Wno-format-truncation
   -Wno-ignored-qualifiers
   -Wno-implicit-fallthrough
