@@ -1140,17 +1140,27 @@ NewfindCmd::ProcessRequest() noexcept
   XrdOucErrInfo errInfo;
   // check what <path> actually is ...
   XrdSfsFileExistence file_exists;
+  std::string real_path = findRequest.path();
 
-  if ((gOFS->_exists(findRequest.path().c_str(), file_exists, errInfo, mVid,
-                     nullptr))) {
-    mOfsErrStream << "error: failed to run exists on '" << findRequest.path() <<
-                  "'" <<
-                  std::endl;
+  if (gOFS->_exists(real_path.c_str(), file_exists, errInfo, mVid, nullptr)) {
+    mOfsErrStream << "error: failed to run exists on '"
+                  << findRequest.path() << "'" << std::endl;
     reply.set_retc(errno);
     return reply;
   } else {
     if (file_exists == XrdSfsFileExistNo) {
       mOfsErrStream << "error: no such file or directory" << std::endl;
+      reply.set_retc(ENOENT);
+      return reply;
+    }
+
+    try {
+      eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
+      real_path = gOFS->eosView->getRealPath(findRequest.path());
+      eos_static_info("msg=\"real path resolved\" rpath=\"%s\"",
+                      real_path.c_str());
+    } catch (eos::MDException& e) {
+      mOfsErrStream << "error: could not resove real path" << std::endl;
       reply.set_retc(ENOENT);
       return reply;
     }
@@ -1200,7 +1210,7 @@ NewfindCmd::ProcessRequest() noexcept
     std::map<std::string, std::set<std::string>>* found =
           findResultProvider->getFoundMap();
 
-    if (gOFS->_find(findRequest.path().c_str(), errInfo, m_err, mVid, (*found),
+    if (gOFS->_find(real_path.c_str(), errInfo, m_err, mVid, (*found),
                     findRequest.attributekey().length() ? findRequest.attributekey().c_str() :
                     nullptr,
                     findRequest.attributevalue().length() ? findRequest.attributevalue().c_str() :
@@ -1221,12 +1231,13 @@ NewfindCmd::ProcessRequest() noexcept
     // read from the QDB backend
     try {
       findResultProvider.reset(new FindResultProvider(qcl.get(),
-                               findRequest.path(), depthlimit,
+                               real_path, depthlimit,
                                onlydirs, mVid));
     } catch (eos::MDException& e) {
-      eos_static_info("caught exception errno=%d what=\"%s\" in newfind "
-                      "findRequest.path()=%s",
-                      e.getErrno(), e.what(), findRequest.path().c_str());
+      eos_static_info("msg=\"caught newfind exception\" orig_path=\"%s\" "
+                      "rpath=\"%s\" errno=%d what=\"%s\"",
+                      findRequest.path().c_str(), real_path.c_str(),
+                      e.getErrno(), e.what());
 
       if (e.getErrno() == ENOENT) {
         mOfsErrStream << "error: no such file or directory" << std::endl;
@@ -1423,11 +1434,6 @@ NewfindCmd::ProcessRequest() noexcept
       }
 
       printFormat(mOfsOutStream, findRequest, fMD);
-
-      if (fMD->isLink()) {
-        printTarget(mOfsOutStream, findRequest, fMD->getLink());
-      }
-
       printUidGid(mOfsOutStream, findRequest, fMD);
       printAttributes(mOfsOutStream, findRequest, fMD);
       printFMD(mOfsOutStream, findRequest, fMD);
@@ -1498,12 +1504,13 @@ NewfindCmd::ProcessRequest(grpc::ServerWriter<eos::console::ReplyProto>* writer)
   XrdOucErrInfo errInfo;
   // check what <path> actually is ...
   XrdSfsFileExistence file_exists;
+  std::string real_path = findRequest.path();
 
-  if ((gOFS->_exists(findRequest.path().c_str(), file_exists, errInfo, mVid,
+  if ((gOFS->_exists(real_path.c_str(), file_exists, errInfo, mVid,
                      nullptr))) {
     StreamReply.set_std_out("");
     StreamReply.set_std_err(
-      "error: failed to run exists on '" + findRequest.path() + "'\n");
+      "error: failed to run exists on '" + real_path + "'\n");
     StreamReply.set_retc(errno);
     writer->Write(StreamReply);
     return;
@@ -1555,7 +1562,7 @@ NewfindCmd::ProcessRequest(grpc::ServerWriter<eos::console::ReplyProto>* writer)
     std::map<std::string, std::set<std::string>>* found =
           findResultProvider->getFoundMap();
 
-    if (gOFS->_find(findRequest.path().c_str(), errInfo, m_err, mVid, (*found),
+    if (gOFS->_find(real_path.c_str(), errInfo, m_err, mVid, (*found),
                     findRequest.attributekey().length() ? findRequest.attributekey().c_str() :
                     nullptr,
                     findRequest.attributevalue().length() ? findRequest.attributevalue().c_str() :
@@ -1576,12 +1583,13 @@ NewfindCmd::ProcessRequest(grpc::ServerWriter<eos::console::ReplyProto>* writer)
     // read from the back-end
     try {
       findResultProvider.reset(new FindResultProvider(qcl.get(),
-                               findRequest.path(), depthlimit,
+                               real_path, depthlimit,
                                onlydirs, mVid));
     } catch (eos::MDException& e) {
-      eos_static_info("caught exception errno=%d what=\"%s\" in newfind "
-                      "findRequest.path()=%s",
-                      e.getErrno(), e.what(), findRequest.path().c_str());
+      eos_static_info("msg=\"caught newfind exception\" orig_path=\"%s\" "
+                      "rpath=\"%s\" errno=%d what=\"%s\"",
+                      findRequest.path().c_str(), real_path.c_str(),
+                      e.getErrno(), e.what());
       StreamReply.set_std_out("");
 
       if (e.getErrno() == ENOENT) {
