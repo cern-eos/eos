@@ -296,11 +296,10 @@ template<typename S>   // std::ofstream or std::stringstream
 static void printTarget(S& ss, const eos::console::FindProto& req,
                         const std::string& path)
 {
-  ss << " target=\"";
-  ss << path;
-  ss << "\"";
+  if (!path.empty()) {
+    ss << " target=\"" << path << "\"";
+  }
 }
-
 
 //------------------------------------------------------------------------------
 // Print uid / gid of a FileMD or ContainerMD, if requested by req.
@@ -516,6 +515,10 @@ static void printFormat(std::ofstream& ss, const eos::console::FindProto& req,
         }
       }
 
+      if (i == "link") {
+        printTarget(ss, req, fmd->getLink());
+      }
+
       if (i == "size") {
         ss << " size=" << std::to_string(fmd->getSize());
       }
@@ -725,15 +728,6 @@ static void printFMD(S& ss, const eos::console::FindProto& req,
     ss << " fid=" << fmd->getId();
   }
 
-  /* Outputs of uid and gid are duplicated. These are also in printUidGid function
-    if (req.printuid()) {
-      ss << " uid=" << fmd->getCUid();
-    }
-
-    if (req.printgid()) {
-      ss << " gid=" << fmd->getCGid();
-    }
-  */
   if (req.fs()) {
     printFs(ss, fmd);
   }
