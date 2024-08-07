@@ -1190,7 +1190,7 @@ com_rclone(char* arg1)
     if (a == kTargetLinkCreate) {
       for (auto i : target_create_links) {
         if (!is_silent && verbose) {
-          std::cout << " link  ] create link " << i.c_str() << " => " <<
+          std::cout << "[ link  ] create link " << i.c_str() << " => " <<
                     srcmap.links[i].target.c_str() << std::endl;
         }
 
