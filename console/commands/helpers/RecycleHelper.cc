@@ -102,11 +102,12 @@ RecycleHelper::ParseCommand(const char* arg)
           }
 
           ls->set_date(soption);
-	  // check if a limit is given;
-	  if ((option = tokenizer.GetToken())) {
-	    soption = option;
-	    ls->set_maxentries(atoi(soption.c_str()));
-	  }
+
+          // check if a limit is given;
+          if ((option = tokenizer.GetToken())) {
+            soption = option;
+            ls->set_maxentries(atoi(soption.c_str()));
+          }
         }
       }
 
@@ -201,14 +202,8 @@ RecycleHelper::ParseCommand(const char* arg)
       }
 
       soption = option;
-      int lifetime = 0;
-
-      try {
-        lifetime = std::stoi(soption);
-      } catch (...) {
-        return false;
-      }
-
+      int lifetime = eos::common::StringConversion::GetSizeFromString(
+                       soption.c_str());
       config->set_lifetimesec(lifetime);
     } else if (soption == "--ratio") {
       config->set_op(eos::console::RecycleProto_ConfigProto::RATIO);
@@ -271,3 +266,4 @@ RecycleHelper::ParseCommand(const char* arg)
 
   return true;
 }
+
