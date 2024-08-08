@@ -137,7 +137,9 @@ XrdMgmOfs::_stat_set_flags(struct stat* buf)
   if (numDiskCopies > 0) {
     buf->st_rdev &= ~XRDSFS_OFFLINE;
   } else {
-    buf->st_rdev |= XRDSFS_OFFLINE;
+    if (buf->st_size != 0) {
+      buf->st_rdev |= XRDSFS_OFFLINE;
+    }
   }
 }
 
