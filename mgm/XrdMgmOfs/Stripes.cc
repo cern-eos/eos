@@ -215,9 +215,9 @@ XrdMgmOfs::_dropstripe(const char* path,
   eos_debug("msg=\"drop stripe\" path=\"%s\" fxid=%08llx fsid=%lu",
             path, fid, fsid);
   gOFS->MgmStats.Add("DropStripe", vid.uid, vid.gid, 1);
-  EXEC_TIMING_BEGIN("DropStripe");
   int errc = 0;
   eos::IContainerMD::id_t cid = 0ull;
+  EXEC_TIMING_BEGIN("DropStripe");
 
   // Retrieve read locked file
   try {
@@ -269,7 +269,7 @@ XrdMgmOfs::_dropstripe(const char* path,
     }
 
     if (!forceRemove) {
-      // We only unlink a location
+      // We only unlink the location
       if ((*fmd_wlock)->hasLocation(fsid)) {
         (*fmd_wlock)->unlinkLocation(fsid);
         locations += "-";
@@ -335,95 +335,65 @@ XrdMgmOfs::_dropallstripes(const char* path,
                            bool forceRemove)
 {
   static const char* epname = "dropallstripes";
-  std::shared_ptr<eos::IContainerMD> dh;
-  std::shared_ptr<eos::IFileMD> fmd;
+  eos_debug("msg=\"drop all stripes\" path=\"%s\" force=%d", path, forceRemove);
+  gOFS->MgmStats.Add("DropAllStripes", vid.uid, vid.gid, 1);
   int errc = 0;
   EXEC_TIMING_BEGIN("DropAllStripes");
-  gOFS->MgmStats.Add("DropAllStripes", vid.uid, vid.gid, 1);
-  eos_debug("dropall");
-  eos::common::Path cPath(path);
-  auto parentPath = cPath.GetParentPath();
-  // ---------------------------------------------------------------------------
-  {
-    eos::common::RWMutexReadLock rlock(gOFS->eosViewRWMutex);
 
-    try {
-      dh = gOFS->eosView->getContainer(parentPath);
-      dh = gOFS->eosView->getContainer(gOFS->eosView->getUri(dh.get()));
-    } catch (eos::MDException& e) {
-      dh.reset();
-      errc = e.getErrno();
-      eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n", e.getErrno(),
-                e.getMessage().str().c_str());
-    }
-
-    // Check permissions
+  // Retrieve parent container and check permissions
+  try {
+    eos::common::Path cpath(path);
+    eos::MDLocking::ContainerReadLockPtr cmd_rlock =
+      gOFS->eosView->getContainerReadLocked(cpath.GetParentPath());
     errno = 0;
 
-    if (dh && (!dh->access(vid.uid, vid.gid, X_OK | W_OK)))
-      if (!errno) {
-        errc = EPERM;
-      }
-
-    if (errc) {
-      return Emsg(epname, error, errc, "drop all stripes", path);
+    if (!(*cmd_rlock)->access(vid.uid, vid.gid, X_OK | W_OK) && !errno) {
+      errc = EPERM;
+      return Emsg(epname, error, errc, "drop stripe", path);
     }
-
-    try {
-      fmd = gOFS->eosView->getFile(path);
-
-      // only on tape, we don't touch this file here
-      if (fmd && fmd->getLocations().size() == 1 &&
-          fmd->hasLocation(eos::common::TAPE_FS_ID)) {
-        return SFS_OK;
-      }
-    } catch (eos::MDException& e) {
-      eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
-                e.getErrno(), e.getMessage().str().c_str());
-      // return error if we don't have the file metadata
-      return e.getErrno();
-    }
+  } catch (eos::MDException& e) {
+    // Missing parent container
+    errc = EPERM;
+    return Emsg(epname, error, errc, "drop detached stripe", path);
   }
 
+  // Retrieve write locked file and modify it
   try {
-    // only write lock at this point
-    eos::common::RWMutexWriteLock wlock(gOFS->eosViewRWMutex);
+    eos::MDLocking::FileWriteLockPtr fmd_wlock =
+      gOFS->eosView->getFileWriteLocked(path);
+    eos::IFileMD::id_t fid = (*fmd_wlock)->getId();
 
-    for (auto location : fmd->getLocations()) {
+    // If file only on tape then don't touch it
+    if (((*fmd_wlock)->getLocations().size() == 1) &&
+        (*fmd_wlock)->hasLocation(eos::common::TAPE_FS_ID)) {
+      return SFS_OK;
+    }
+
+    for (auto location : (*fmd_wlock)->getLocations()) {
       if (location == eos::common::TAPE_FS_ID) {
         continue;
       }
 
       if (!forceRemove) {
-        // we only unlink a location
-        fmd->unlinkLocation(location);
-        eos_debug("unlinking location %u", location);
+        (*fmd_wlock)->unlinkLocation(location);
+        eos_debug("msg=\"unlinking location\" fid=%08llx fsid=%lu",
+                  fid, location);
       } else {
-        // we unlink and remove a location by force
-        if (fmd->hasLocation(location)) {
-          fmd->unlinkLocation(location);
-        }
-
-        fmd->removeLocation(location);
-        eos_debug("removing/unlinking location %u", location);
+        (*fmd_wlock)->unlinkLocation(location);
+        (*fmd_wlock)->removeLocation(location);
+        eos_debug("msg=\"unlinking and removing location\" fxid=%08llx fsid=%lu",
+                  fid, location);
       }
     }
 
-    // update the file store only once at the end
-    gOFS->eosView->updateFileStore(fmd.get());
+    gOFS->eosView->updateFileStore(fmd_wlock->getUnderlyingPtr().get());
   } catch (eos::MDException& e) {
-    fmd.reset();
-    errc = e.getErrno();
     eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
               e.getErrno(), e.getMessage().str().c_str());
-  }
-
-  EXEC_TIMING_END("DropAllStripes");
-
-  if (errc) {
     return Emsg(epname, error, errc, "drop all stripes", path);
   }
 
+  EXEC_TIMING_END("DropAllStripes");
   return SFS_OK;
 }
 
