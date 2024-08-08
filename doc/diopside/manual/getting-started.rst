@@ -77,7 +77,7 @@ Installation
   
   yum-config-manager --add-repo "https://storage-ci.web.cern.ch/storage-ci/eos/diopside/tag/testing/el-9/x86_64/"
   yum-config-manager --add-repo "https://storage-ci.web.cern.ch/storage-ci/eos/diopside-depend/el-9/x86_64/"
-  yum install -y eos-server eos-quarkdb eos-fusex jemalloc-devel --nogpgcheck
+  yum install -y eos-server eos-quarkdb eos-fusex --nogpgcheck
 
 Unique Instance Shared Secret
 -----------------------------
@@ -381,7 +381,7 @@ Single Node Quick Setup Code Snippet
   
   yum-config-manager --add-repo "https://storage-ci.web.cern.ch/storage-ci/eos/diopside/tag/testing/el-9s/x86_64/"
   yum-config-manager --add-repo "https://storage-ci.web.cern.ch/storage-ci/eos/diopside-depend/el-9s/x86_64/"
-  yum install -y eos-server eos-quarkdb eos-fusex jemalloc-devel --nogpgcheck
+  yum install -y eos-server eos-quarkdb eos-fusex --nogpgcheck
 
   systemctl start firewalld
   for port in 1094 1095 1100 7777; do 
@@ -428,7 +428,7 @@ Adding FSTs to a single node setup
   
   yum-config-manager --add-repo "https://storage-ci.web.cern.ch/storage-ci/eos/diopside/tag/testing/el-9s/x86_64/"
   yum-config-manager --add-repo "https://storage-ci.web.cern.ch/storage-ci/eos/diopside-depend/el-9s/x86_64/"
-  yum install -y eos-server jemalloc-devel --nogpgcheck
+  yum install -y eos-server --nogpgcheck
 
   systemctl start firewalld
   for port in 1095; do 
@@ -460,7 +460,7 @@ In a production environment we need to have QDB and MGM service high-available. 
   
   yum-config-manager --add-repo "https://storage-ci.web.cern.ch/storage-ci/eos/diopside/tag/testing/el-9s/x86_64/"
   yum-config-manager --add-repo "https://storage-ci.web.cern.ch/storage-ci/eos/diopside-depend/el-9s/x86_64/"
-  yum install -y eos-server eos-quarkdb eos-fusex jemalloc-devel --nogpgcheck
+  yum install -y eos-server eos-quarkdb eos-fusex --nogpgcheck
 
   systemctl start firewalld
   for port in 1094 1100 7777; do 
@@ -531,7 +531,7 @@ You can also setup a three node cluster from scratch right from the beginning, w
 
   yum-config-manager --add-repo "https://storage-ci.web.cern.ch/storage-ci/eos/diopside/tag/testing/el-9/x86_64/"
   yum-config-manager --add-repo "https://storage-ci.web.cern.ch/storage-ci/eos/diopside-depend/el-9/x86_64/"
-  yum install -y eos-server eos-quarkdb eos-fusex jemalloc-devel --nogpgcheck
+  yum install -y eos-server eos-quarkdb eos-fusex --nogpgcheck
 
   systemctl start firewalld
   for port in 1094 1095 1097 1100 7777; do 
