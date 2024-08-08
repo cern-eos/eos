@@ -90,7 +90,8 @@ public:
   //----------------------------------------------------------------------------
   //! Retrieve a file for given uri, asynchronously
   //----------------------------------------------------------------------------
-  virtual folly::Future<IFileMDPtr> getFileFut(const std::string& uri, bool follow = true) = 0;
+  virtual folly::Future<IFileMDPtr> getFileFut(const std::string& uri,
+      bool follow = true) = 0;
 
   //----------------------------------------------------------------------------
   //! Retrieve a file for given uri
@@ -104,18 +105,17 @@ public:
   //! Retrieve a file for given uri and read-lock it
   //----------------------------------------------------------------------------
   virtual MDLocking::FileReadLockPtr
-  getFileReadLocked(const std::string & uri,
-                                                                        bool follow = true,
-                                                                        size_t * link_depths = 0) = 0;
+  getFileReadLocked(const std::string& uri,
+                    bool follow = true,
+                    size_t* link_depths = 0) = 0;
 
   //----------------------------------------------------------------------------
   //! Retrieve a file for given uri and write-lock it
   //----------------------------------------------------------------------------
   virtual MDLocking::FileWriteLockPtr
-  getFileWriteLocked(const std::string & uri,
-                                                                        bool follow = true,
-                                                                        size_t * link_depths = 0) = 0;
-
+  getFileWriteLocked(const std::string& uri,
+                     bool follow = true,
+                     size_t* link_depths = 0) = 0;
 
   //----------------------------------------------------------------------------
   //! Retrieve an item for given path. Could be either file or container, we
@@ -133,9 +133,9 @@ public:
   //! Create a file for given uri
   //----------------------------------------------------------------------------
   virtual std::shared_ptr<IFileMD> createFile(const std::string& uri,
-					      uid_t uid = 0,
-					      gid_t gid = 0,
-					      uint64_t fid = 0 ) = 0;
+      uid_t uid = 0,
+      gid_t gid = 0,
+      uint64_t fid = 0) = 0;
 
   //----------------------------------------------------------------------------
   //! Create a link for given uri
@@ -192,29 +192,29 @@ public:
   //! Get a container (directory) and read lock it
   //----------------------------------------------------------------------------
   virtual MDLocking::ContainerReadLockPtr
-  getContainerReadLocked(const std::string & uri,
-                                                                         bool follow = true,
-                                                                         size_t * link_depths = 0) = 0;
+  getContainerReadLocked(const std::string& uri,
+                         bool follow = true,
+                         size_t* link_depths = 0) = 0;
   //----------------------------------------------------------------------------
   //! Get a container (directory) and write lock it
   //----------------------------------------------------------------------------
   virtual MDLocking::ContainerWriteLockPtr
-  getContainerWriteLocked(const std::string & uri,
-                                                                           bool follow = true,
-                                                                           size_t * link_depths = 0) = 0;
+  getContainerWriteLocked(const std::string& uri,
+                          bool follow = true,
+                          size_t* link_depths = 0) = 0;
 
   //----------------------------------------------------------------------------
   //! Get parent container of a file
   //----------------------------------------------------------------------------
   virtual folly::Future<IContainerMDPtr> getParentContainer(
-    IFileMD *file) = 0;
+    IFileMD* file) = 0;
 
   //----------------------------------------------------------------------------
   //! Create a container (directory)
   //----------------------------------------------------------------------------
   virtual std::shared_ptr<IContainerMD> createContainer(const std::string& uri,
-							bool createParents = false, 
-							uint64_t cid = 0) = 0;
+      bool createParents = false,
+      uint64_t cid = 0) = 0;
 
   //----------------------------------------------------------------------------
   //! Update container store
