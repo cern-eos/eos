@@ -80,6 +80,7 @@ XrdMgmOfs::_verifystripe(const char* path,
 
     // Check permissions
     errno = 0;
+
     if (dh && (!dh->access(vid.uid, vid.gid, X_OK | W_OK))) {
       if (!errno) {
         errc = EPERM;
@@ -209,105 +210,107 @@ XrdMgmOfs::_dropstripe(const char* path,
                        unsigned long fsid,
                        bool forceRemove)
 {
+  using eos::common::StringConversion;
   static const char* epname = "dropstripe";
-  std::shared_ptr<eos::IContainerMD> dh;
-  std::shared_ptr<eos::IFileMD> fmd;
-  int errc = 0;
-  EXEC_TIMING_BEGIN("DropStripe");
+  eos_debug("msg=\"drop stripe\" path=\"%s\" fxid=%08llx fsid=%lu",
+            path, fid, fsid);
   gOFS->MgmStats.Add("DropStripe", vid.uid, vid.gid, 1);
-  eos_debug("drop");
-  eos::common::Path cPath(path);
-  // ---------------------------------------------------------------------------
-  eos::common::RWMutexWriteLock ns_wr_lock(gOFS->eosViewRWMutex);
+  EXEC_TIMING_BEGIN("DropStripe");
+  int errc = 0;
+  eos::IContainerMD::id_t cid = 0ull;
 
+  // Retrieve read locked file
   try {
-    dh = gOFS->eosView->getContainer(cPath.GetParentPath());
-    dh = gOFS->eosView->getContainer(gOFS->eosView->getUri(dh.get()));
+    eos::MDLocking::FileReadLockPtr fmd_rlock;
+
+    if (fid) {
+      fmd_rlock = gOFS->eosView->getFileMDSvc()->getFileMDReadLocked(fid);
+    } else {
+      fmd_rlock = gOFS->eosView->getFileReadLocked(path);
+      fid = (*fmd_rlock)->getId(); // set in case we were called by path
+    }
+
+    cid = (*fmd_rlock)->getContainerId();
   } catch (eos::MDException& e) {
-    dh.reset();
     errc = e.getErrno();
     eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n", e.getErrno(),
               e.getMessage().str().c_str());
-  }
-
-  // Check permissions
-  errno = 0;
-  if (dh && (!dh->access(vid.uid, vid.gid, X_OK | W_OK))) {
-    if (!errno) {
-      errc = EPERM;
-    }
-  } else {
-    // only root can drop by file id
-    if (vid.uid) {
-      errc = EPERM;
-    }
-  }
-
-  if (errc) {
     return Emsg(epname, error, errc, "drop stripe", path);
   }
 
-  // get the file
+  // Retrieve parent container and check permissions
   try {
-    if (fid) {
-      fmd = gOFS->eosFileService->getFileMD(fid);
-    } else {
-      fmd = gOFS->eosView->getFile(path);
-    }
+    eos::MDLocking::ContainerReadLockPtr cmd_rlock =
+      gOFS->eosView->getContainerMDSvc()->getContainerMDReadLocked(cid);
+    errno = 0;
 
+    if (!(*cmd_rlock)->access(vid.uid, vid.gid, X_OK | W_OK) && !errno) {
+      errc = EPERM;
+      return Emsg(epname, error, errc, "drop stripe", path);
+    }
+  } catch (eos::MDException& e) {
+    // Missing parent container - only root can drop stripes in this case
+    if (vid.uid) {
+      errc = EPERM;
+      return Emsg(epname, error, errc, "drop detached stripe", path);
+    }
+  }
+
+  // Retrieve write locked file and modify it
+  try {
     std::string locations;
+    eos::MDLocking::FileWriteLockPtr fmd_wlock =
+      gOFS->eosView->getFileMDSvc()->getFileMDWriteLocked(fid);
 
     try {
-      locations = fmd->getAttribute("sys.fs.tracking");
-    } catch (...) {}
+      locations = (*fmd_wlock)->getAttribute("sys.fs.tracking");
+    } catch (...) {
+      // ignore missing attribute
+    }
 
     if (!forceRemove) {
-      // we only unlink a location
-      if (fmd->hasLocation(fsid)) {
-        fmd->unlinkLocation(fsid);
+      // We only unlink a location
+      if ((*fmd_wlock)->hasLocation(fsid)) {
+        (*fmd_wlock)->unlinkLocation(fsid);
         locations += "-";
         locations += std::to_string(fsid);
-        fmd->setAttribute("sys.fs.tracking",
-                          eos::common::StringConversion::ReduceString(locations).c_str());
-        gOFS->eosView->updateFileStore(fmd.get());
-        eos_debug("unlinking location %u", fsid);
+        (*fmd_wlock)->setAttribute("sys.fs.tracking",
+                                   StringConversion::ReduceString(locations).c_str());
+        gOFS->eosView->updateFileStore(fmd_wlock->getUnderlyingPtr().get());
+        eos_debug("msg=\"unlinking location\" fid=%08llx fsid=%lu", fid, fsid);
       } else {
         errc = ENOENT;
+        return Emsg(epname, error, errc, "drop stripe", path);
       }
     } else {
-      // we unlink and remove a location by force
-      if (fmd->hasLocation(fsid)) {
-        fmd->unlinkLocation(fsid);
+      // Unlink and remove location by force
+      if ((*fmd_wlock)->hasLocation(fsid)) {
+        (*fmd_wlock)->unlinkLocation(fsid);
         locations += "-";
         locations += std::to_string(fsid);
-        fmd->setAttribute("sys.fs.tracking",
-                          eos::common::StringConversion::ReduceString(locations).c_str());
+        (*fmd_wlock)->setAttribute("sys.fs.tracking",
+                                   StringConversion::ReduceString(locations).c_str());
       }
 
-      fmd->removeLocation(fsid);
-      gOFS->eosView->updateFileStore(fmd.get());
-      ns_wr_lock.Release();
-      eos_debug("msg=\"removing/unlinking location\" fxid=%08llx fsid=%u",
+      (*fmd_wlock)->removeLocation(fsid);
+      gOFS->eosView->updateFileStore(fmd_wlock->getUnderlyingPtr().get());
+      eos_debug("msg=\"unlinking and removing location\" fxid=%08llx fsid=%lu",
                 fid, fsid);
+      fmd_wlock.reset(nullptr);
       // eraseEntry is only needed if the fsview is inconsistent with the
-      // FileMD: It exists on the selected fsview, but not in the fmd locations.
+      // FileMD. It exists on the selected fsview, but not in the fmd locations.
       // Very rare case but needs to be done outside the namespace lock as it
-      // might needs to load the FileSystem view in memory.
+      // might need to load the FileSystem view in memory!
       gOFS->eosFsView->eraseEntry(fsid, fid);
     }
   } catch (eos::MDException& e) {
-    fmd.reset();
     errc = e.getErrno();
-    eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
-              e.getErrno(), e.getMessage().str().c_str());
-  }
-
-  EXEC_TIMING_END("DropStripe");
-
-  if (errc) {
+    eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n", e.getErrno(),
+              e.getMessage().str().c_str());
     return Emsg(epname, error, errc, "drop stripe", path);
   }
 
+  EXEC_TIMING_END("DropStripe");
   return SFS_OK;
 }
 
@@ -356,6 +359,7 @@ XrdMgmOfs::_dropallstripes(const char* path,
 
     // Check permissions
     errno = 0;
+
     if (dh && (!dh->access(vid.uid, vid.gid, X_OK | W_OK)))
       if (!errno) {
         errc = EPERM;
@@ -489,6 +493,7 @@ XrdMgmOfs::_replicatestripe(const char* path,
 
     // check permissions
     errno = 0;
+
     if (dh && (!dh->access(vid.uid, vid.gid, X_OK | W_OK))) {
       if (!errno) {
         errc = EPERM;

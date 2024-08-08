@@ -47,7 +47,7 @@ public:
   //----------------------------------------------------------------------------
   //! Constructor
   //----------------------------------------------------------------------------
-  QuarkHierarchicalView(qclient::QClient *qcl, MetadataFlusher *quotaFlusher);
+  QuarkHierarchicalView(qclient::QClient* qcl, MetadataFlusher* quotaFlusher);
 
   //----------------------------------------------------------------------------
   //! Destructor
@@ -94,7 +94,8 @@ public:
   //----------------------------------------------------------------------------
   //! Configure the view
   //----------------------------------------------------------------------------
-  virtual void configure(const std::map<std::string, std::string>& config) override;
+  virtual void configure(const std::map<std::string, std::string>& config)
+  override;
 
   //----------------------------------------------------------------------------
   //! Initialize the view
@@ -119,22 +120,25 @@ public:
   //! Retrieve a file for given uri
   //----------------------------------------------------------------------------
   virtual std::shared_ptr<IFileMD>
-  getFile(const std::string& uri, bool follow = true, size_t* link_depths = 0) override;
+  getFile(const std::string& uri, bool follow = true,
+          size_t* link_depths = 0) override;
 
 
   //----------------------------------------------------------------------------
   //! Retrieve a file for given uri and read-lock it
   //----------------------------------------------------------------------------
-  virtual MDLocking::FileReadLockPtr  getFileReadLocked(const std::string & uri,
-                                                                        bool follow = true,
-                                                                        size_t * link_depths = 0) override;
+  virtual MDLocking::FileReadLockPtr
+  getFileReadLocked(const std::string& uri,
+                    bool follow = true,
+                    size_t* link_depths = 0) override;
 
   //----------------------------------------------------------------------------
-  //! Retrieve a file for given uri and read-lock it
+  //! Retrieve a file for given uri and write-lock it
   //----------------------------------------------------------------------------
-  virtual MDLocking::FileWriteLockPtr  getFileWriteLocked(const std::string & uri,
-                                                                        bool follow = true,
-                                                                        size_t * link_depths = 0) override;
+  virtual MDLocking::FileWriteLockPtr
+  getFileWriteLocked(const std::string& uri,
+                     bool follow = true,
+                     size_t* link_depths = 0) override;
 
   //----------------------------------------------------------------------------
   //! Retrieve an item for given path. Could be either file or container, we
@@ -147,7 +151,7 @@ public:
   //! Create a file for given uri
   //----------------------------------------------------------------------------
   virtual std::shared_ptr<IFileMD> createFile(const std::string& uri,
-					      uid_t uid = 0, gid_t gid = 0, IFileMD::id_t id = 0) override;
+      uid_t uid = 0, gid_t gid = 0, IFileMD::id_t id = 0) override;
 
   //----------------------------------------------------------------------------
   //! Create a link for given uri
@@ -205,23 +209,24 @@ public:
   //! Get a container (directory) and read lock it
   //----------------------------------------------------------------------------
   virtual MDLocking::ContainerReadLockPtr
-  getContainerReadLocked(const std::string & uri,
-                                                                        bool follow = true,
-                                                                        size_t * link_depths = 0) override;
+  getContainerReadLocked(const std::string& uri,
+                         bool follow = true,
+                         size_t* link_depths = 0) override;
 
   //----------------------------------------------------------------------------
   //! Get a container (directory) and write lock it
   //----------------------------------------------------------------------------
   virtual MDLocking::ContainerWriteLockPtr
-  getContainerWriteLocked(const std::string & uri,
-                                                                           bool follow = true,
-                                                                           size_t * link_depths = 0) override;
+  getContainerWriteLocked(const std::string& uri,
+                          bool follow = true,
+                          size_t* link_depths = 0) override;
 
   //----------------------------------------------------------------------------
   //! Create a container (directory)
   //----------------------------------------------------------------------------
   virtual std::shared_ptr<IContainerMD>
-  createContainer(const std::string& uri, bool createParents = false, uint64_t cid = 0) override;
+  createContainer(const std::string& uri, bool createParents = false,
+                  uint64_t cid = 0) override;
 
   //----------------------------------------------------------------------------
   //! Update container store
@@ -245,7 +250,8 @@ public:
   //----------------------------------------------------------------------------
   //! Get uri for the container - asynchronous version
   //----------------------------------------------------------------------------
-  virtual folly::Future<std::string> getUriFut(ContainerIdentifier id) const override;
+  virtual folly::Future<std::string> getUriFut(ContainerIdentifier id) const
+  override;
 
   //------------------------------------------------------------------------
   //! Get uri for container id
@@ -320,7 +326,8 @@ public:
   //----------------------------------------------------------------------------
   //! Return whether this is an in-memory namespace.
   //----------------------------------------------------------------------------
-  virtual bool inMemory() override {
+  virtual bool inMemory() override
+  {
     return false;
   }
 
@@ -328,7 +335,7 @@ public:
   //! Get parent container of a file
   //----------------------------------------------------------------------------
   virtual folly::Future<IContainerMDPtr> getParentContainer(
-    IFileMD *file) override;
+    IFileMD* file) override;
 
 private:
   //----------------------------------------------------------------------------
@@ -336,51 +343,56 @@ private:
   //----------------------------------------------------------------------------
   folly::Future<FileOrContainerMD>
   getPathInternal(FileOrContainerMD state, std::deque<std::string> pendingChunks,
-    bool follow, size_t expendedEffort);
+                  bool follow, size_t expendedEffort);
 
   //----------------------------------------------------------------------------
   //! Lookup a given path - deferred function.
   //----------------------------------------------------------------------------
   folly::Future<FileOrContainerMD>
-  getPathDeferred(folly::Future<FileOrContainerMD> fut, std::deque<std::string> pendingChunks,
-    bool follow, size_t expendedEffort);
+  getPathDeferred(folly::Future<FileOrContainerMD> fut,
+                  std::deque<std::string> pendingChunks,
+                  bool follow, size_t expendedEffort);
 
   //----------------------------------------------------------------------------
   //! Lookup a given path - deferred function.
   //----------------------------------------------------------------------------
   folly::Future<FileOrContainerMD>
-  getPathDeferred(folly::Future<IContainerMDPtr> fut, std::deque<std::string> pendingChunks,
-    bool follow, size_t expendedEffort);
+  getPathDeferred(folly::Future<IContainerMDPtr> fut,
+                  std::deque<std::string> pendingChunks,
+                  bool follow, size_t expendedEffort);
 
   //----------------------------------------------------------------------------
   //! Lookup a given path, expect a container there.
   //----------------------------------------------------------------------------
   folly::Future<IContainerMDPtr>
-  getPathExpectContainer(const std::deque<std::string> &chunks);
+  getPathExpectContainer(const std::deque<std::string>& chunks);
 
   //----------------------------------------------------------------------------
   //! Build the URL of the given container, as a deque of chunks. Primary
   //! "resumable" function.
   //----------------------------------------------------------------------------
   folly::Future<std::deque<std::string>> getUriInternal(std::deque<std::string>
-    currentChunks, IContainerMDPtr nextToLookup) const;
+                                      currentChunks, IContainerMDPtr nextToLookup) const;
 
   //----------------------------------------------------------------------------
   //! Build the URL of the given file, as a deque of chunks.
   //----------------------------------------------------------------------------
-  folly::Future<std::deque<std::string>> getUriInternalFmdPtr(IFileMDPtr fmd) const;
-  folly::Future<std::deque<std::string>> getUriInternalFmd(const IFileMD *fmd) const;
+  folly::Future<std::deque<std::string>> getUriInternalFmdPtr(
+                                        IFileMDPtr fmd) const;
+  folly::Future<std::deque<std::string>> getUriInternalFmd(
+                                        const IFileMD* fmd) const;
 
   //----------------------------------------------------------------------------
   //! Build the URL of the given container ID.
   //----------------------------------------------------------------------------
   folly::Future<std::deque<std::string>> getUriInternalCid(
-    std::deque<std::string> currentChunks, ContainerIdentifier cid) const;
+                                        std::deque<std::string> currentChunks, ContainerIdentifier cid) const;
 
   //----------------------------------------------------------------------------
   //! Build the URL of the given fid
   //----------------------------------------------------------------------------
-  folly::Future<std::deque<std::string>> getUriInternalFid(FileIdentifier fid) const;
+  folly::Future<std::deque<std::string>> getUriInternalFid(
+                                        FileIdentifier fid) const;
 
   //----------------------------------------------------------------------------
   //! Clean up contents of container
@@ -392,8 +404,8 @@ private:
   //----------------------------------------------------------------------------
   // Data members
   //----------------------------------------------------------------------------
-  qclient::QClient *pQcl;
-  MetadataFlusher *pQuotaFlusher;
+  qclient::QClient* pQcl;
+  MetadataFlusher* pQuotaFlusher;
   IContainerMDSvc* pContainerSvc;
   IFileMDSvc* pFileSvc;
   IQuotaStats* pQuotaStats;
