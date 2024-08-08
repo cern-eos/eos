@@ -116,7 +116,6 @@ ProcCommand::Ls()
     int listrc = 0;
     XrdOucString filter = "";
     eos::common::Glob glob;
-
     eos::common::Path cPath(spath.c_str());
 
     if (cPath.Globbing()) {
@@ -124,6 +123,7 @@ ProcCommand::Ls()
       spath = cPath.GetParentPath();
       filter = cPath.GetName();
     }
+
     XrdOucString ls_file;
     std::string uri;
     std::string cacheentry;
@@ -218,6 +218,7 @@ ProcCommand::Ls()
             if (ls_file.length()) {
               break;
             }
+
             continue;
           }
 
@@ -260,8 +261,8 @@ ProcCommand::Ls()
               eos::modeToBuffer(buf.st_mode, modestr);
 
               if (showbackendstatus) {
-                std::string rsymbol = eos::common::LayoutId::GetRedundancySymbol(
-                                        buf.st_mode & EOS_TAPE_MODE_T, buf.st_nlink);
+                std::string rsymbol = eos::common::LayoutId::GetRedundancySymbol
+                                      (buf.st_mode & EOS_TAPE_MODE_T, buf.st_nlink, buf.st_size);
                 char sbsts[256];
                 snprintf(sbsts, sizeof(sbsts), "%-9s", rsymbol.c_str());
                 backendstatus = sbsts;

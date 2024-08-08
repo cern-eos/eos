@@ -615,12 +615,37 @@ public:
     return redundancy;
   }
 
+  //--------------------------------------------------------------------------
+  //! Return string that is displayed as part of "ls -y" that shows there
+  //! locality of the file. d<n>:t<m> where "d" means file has replicas on
+  //! disk, <n> is the redundancy for the disk part and similat to tape.
+  //!
+  //! @param has_tape true if tape location available
+  //! @param redundancy number of replicas including tape
+  //! @param size file size
+  //!
+  //! @return string to be displayed as part of the "ls -y" output
+  //--------------------------------------------------------------------------
   static std::string
-  GetRedundancySymbol(bool has_tape, int redundancy)
+  GetRedundancySymbol(bool has_tape, int redundancy, uint64_t size)
   {
+    // Default disk redundancy value for 0-size files for CTA
+    static const int zero_size_redundancy = 2;
     char sbst[256];
-    snprintf(sbst, sizeof(sbst), "d%d::t%i ", has_tape ?
-             ((redundancy > 0) ? (redundancy - 1) : 0) : redundancy, (has_tape ? 1 : 0));
+    int disk_redundancy = redundancy;
+
+    if (has_tape) {
+      if (size == 0) {
+        disk_redundancy = zero_size_redundancy;
+      } else {
+        if (disk_redundancy > 0) {
+          --disk_redundancy; // substract the tape replica
+        }
+      }
+    }
+
+    snprintf(sbst, sizeof(sbst), "d%d::t%i ", disk_redundancy,
+             (has_tape ? 1 : 0));
     return std::string(sbst);
   }
 
