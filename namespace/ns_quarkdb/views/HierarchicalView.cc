@@ -413,22 +413,14 @@ QuarkHierarchicalView::getFile(const std::string& uri, bool follow,
   return getFileFut(uri, follow).get();
 }
 
-//------------------------------------------------------------------------------
-// Retrieve a file for given uri and read-lock it
-//------------------------------------------------------------------------------
-MDLocking::FileReadLockPtr
-QuarkHierarchicalView::getFileReadLocked(const std::string& uri, bool follow,
-    size_t* link_depths)
+MDLocking::FileReadLockPtr QuarkHierarchicalView::getFileReadLocked(
+  const std::string& uri, bool follow, size_t* link_depths)
 {
   return MDLocking::readLock(getFile(uri, follow, link_depths));
 }
 
-//------------------------------------------------------------------------------
-// Retrieve a file for given uri and read-lock it
-//------------------------------------------------------------------------------
-MDLocking::FileWriteLockPtr
-QuarkHierarchicalView::getFileWriteLocked(const std::string& uri, bool follow,
-    size_t* link_depths)
+MDLocking::FileWriteLockPtr QuarkHierarchicalView::getFileWriteLocked(
+  const std::string& uri, bool follow, size_t* link_depths)
 {
   return MDLocking::writeLock(getFile(uri, follow, link_depths));
 }
@@ -668,6 +660,7 @@ QuarkHierarchicalView::createContainer(const std::string& uri,
   // Resolve path chunks one by one
   FileOrContainerMD state = {nullptr, pRoot};
   UpdateStoreGuard updateGuard(this);
+  bool created = false;
 
   while (true) {
     if (state.file) {
@@ -679,7 +672,11 @@ QuarkHierarchicalView::createContainer(const std::string& uri,
     }
 
     if (chunks.empty()) {
-      return state.container;
+      if (created) {
+        return state.container;
+      } else {
+        throw_mdexception(EEXIST, uri << ": Container exists");
+      }
     }
 
     std::string nextChunk = chunks.front();
@@ -716,6 +713,7 @@ QuarkHierarchicalView::createContainer(const std::string& uri,
       updateGuard.add(state.container);
       updateGuard.add(newContainer);
       state.container = newContainer;
+      created = true;
     }
   }
 }
