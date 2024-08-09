@@ -1342,6 +1342,8 @@ runtest "### Update    " unix 1 "" append    "$TESTSYSFILE1K" "/eos/$EOS_TEST_IN
 runtest "### Chmod     " unix 0 "" eos chmod 755 /eos/$EOS_TEST_INSTANCE/test/instancetest/
 runtest "### Attr      " unix 0 "" eos attr rm sys.acl /eos/$EOS_TEST_INSTANCE/test/instancetest/
 runtest "### Attr      " unix 0 "" eos attr set sys.eval.useracl=1 /eos/$EOS_TEST_INSTANCE/test/instancetest/
+runtest "### Mkdir     " unix 0 "" eos mkdir /eos/$EOS_TEST_INSTANCE/new
+runtest "### Mkdir     " unix 1 "" eos mkdir /eos/$EOS_TEST_INSTANCE/new
 
 # "runtest H" with sss-auth secures "not sudoer" and group list contains ${NOBODY_UID} where needed... without H the former fails, with unix-auth the latter (gids=[2] hence hasAcl=0)
 # ACL impact: no ACL or user neither granted nor denied -> dir mode bits
