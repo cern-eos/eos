@@ -927,6 +927,8 @@ runtest "### Rem       " unix 0 "" eos rm "/eos/$EOS_TEST_INSTANCE/test/instance
 runtest "### Upload    " unix 0 "" upload "/etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/instancetest/recycle/passwd.recycle"
 runtest "### Restore   " unix 1 "EOSROLE='-r 3 4'" eos recycle restore `command eos -b  root://$EOS_TEST_REDIRECTOR recycle ls -g | grep /eos/$EOS_TEST_INSTANCE/test/instancetest/recycle/passwd.recycle | awk '{print $10}' | tail -1`
 runtest "### Restore   " unix 0 "EOSROLE='-r 3 4'" eos recycle restore -f `command eos -b root://$EOS_TEST_REDIRECTOR recycle ls -g | grep /eos/$EOS_TEST_INSTANCE/test/instancetest/recycle/passwd.recycle | awk '{print $10}' | tail -1`
+runtest "### Recycle   " unix 0 "" eos recycle config --lifetime 2d
+runtest "### Recycle   " unix 0 "" eos recycle -m | grep -q "lifetime=172800 "
 runtest "### Recycle   " unix 0 "" eos recycle config --remove-bin /eos/$EOS_TEST_INSTANCE/test/instancetest/recycle
 runtest "### Rem       " unix 0 "" eos rm -r /eos/$EOS_TEST_INSTANCE/test/instancetest/recycle
 
