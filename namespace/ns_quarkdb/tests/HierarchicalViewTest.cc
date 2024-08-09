@@ -1440,17 +1440,18 @@ TEST_F(HierarchicalViewF, getMDMultiThreaded) {
       view()->updateFileStore(fh.get());
     }
   });
-  workers.emplace_back([this,loops,dirPath,filePath](){
+  workers.emplace_back([this,loops,dirId,dirPath,filePath](){
     for(uint16_t i = 0; i < loops; ++i){
       cleanNSCache();
-      /** The following code will deadlock due to the call to fh->setSize() above:
-      auto fh = view()->getFile(filePath);
+      /** The following code will deadlock due to the call to fh->setSize() in the above thread and the call to dh->addFile here:
       auto dh = view()->getContainerMDSvc()->getContainerMD(dirId);
+      auto fh = view()->getFile(filePath);
       fh->setSize(i);
       dh->addFile(fh.get());
       view()->updateFileStore(fh.get());
       view()->updateContainerStore(dh.get());
-      */
+       */
+
       auto fh = view()->getFile(filePath);
       auto dh = view()->getContainer(dirPath);
       eos::MDLocking::BulkMDWriteLock locker;
@@ -1461,6 +1462,19 @@ TEST_F(HierarchicalViewF, getMDMultiThreaded) {
       dh->addFile(fh.get());
       view()->updateFileStore(fh.get());
       view()->updateContainerStore(dh.get());
+    }
+  });
+  workers.emplace_back([this,loops,dirPath,filePath](){
+    for(uint16_t i = 0; i < loops; ++i){
+      auto fh = view()->getFile(filePath);
+      auto dh = view()->getContainer(dirPath);
+      eos::MDLocking::BulkMDReadLock locker;
+      locker.add(fh);
+      locker.add(dh);
+      auto locks = locker.lockAll();
+
+      auto fileId = fh->getId();
+      auto contId = dh->getId();
     }
   });
   workers.emplace_back([this,loops,fileId,dirId](){
