@@ -68,14 +68,14 @@ using namespace eos;
 //------------------------------------------------------------------------------
 void addClusterOptions(CLI::App* subcmd, std::string& membersStr,
                        MemberValidator& memberValidator, std::string& password,
-                       std::string& passwordFile, unsigned int connectionRetries)
+                       std::string& passwordFile, unsigned int& connectionRetries)
 {
   subcmd->add_option("--members", membersStr,
                      "One or more members of the QDB cluster")
   ->required()
   ->check(memberValidator);
   subcmd->add_option("--connection-retries", connectionRetries,
-                     "Number of connection retries - default infinite");
+                     "Number of connection retries - default 5");
   auto passwordGroup = subcmd->add_option_group("Authentication",
                        "Specify QDB authentication options");
   passwordGroup->add_option("--password", password,
@@ -108,7 +108,7 @@ int main(int argc, char* argv[])
   bool noDryRun = false;
   std::unique_ptr<FileMetadataFilter> metadataFilter;
   std::string filterExpression;
-  unsigned int connectionRetries = 0;
+  unsigned int connectionRetries = 5;
   //----------------------------------------------------------------------------
   // Set-up dump subcommand..
   //----------------------------------------------------------------------------
@@ -191,7 +191,8 @@ int main(int argc, char* argv[])
   addClusterOptions(stripediffSubcommand, membersStr, memberValidator, password,
                     passwordFile, connectionRetries);
   stripediffSubcommand->add_flag("--json", json, "Use json output");
-  stripediffSubcommand->add_flag("-m", minimal, "Minimal format (faster) that can be combined with json switch");
+  stripediffSubcommand->add_flag("-m", minimal,
+                                 "Minimal format (faster) that can be combined with json switch");
   //----------------------------------------------------------------------------
   // Set-up one-replica-layout subcommand..
   //----------------------------------------------------------------------------
@@ -488,13 +489,14 @@ int main(int argc, char* argv[])
   // Set-up Inspector object, ensure sanity
   //----------------------------------------------------------------------------
   std::unique_ptr<OutputSink> outputSink;
-  if (json){
+
+  if (json) {
     if (!minimal) {
       outputSink.reset(new JsonStreamSink(std::cout, std::cerr));
-    }else{
+    } else {
       outputSink.reset(new JsonLinedStreamSink(std::cout, std::cerr));
     }
-  }else{
+  } else {
     outputSink.reset(new StreamSink(std::cout, std::cerr));
   }
 
