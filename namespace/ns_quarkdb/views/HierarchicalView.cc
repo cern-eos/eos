@@ -1004,9 +1004,13 @@ QuarkHierarchicalView::getUriFut(FileIdentifier id) const
          .thenValue(concatenateDeque);
 }
 
-//------------------------------------------------------------------------------
-// Get uri for the file
-//------------------------------------------------------------------------------
+//----------------------------------------------------------------------------
+//! Get uri for the file
+//! CAUTION: DO NOT LOCK THE FILE IN PARAMETER BEFORE CALLING THIS IN THE RISK
+//! OF CREATING DEADLOCKS !
+//! Explanation: if the file is already locked, the underlying logic will also lock the parent container
+//! which is against the locking order that needs to be respected: lock(Container), then lock(File)
+//----------------------------------------------------------------------------
 std::string
 QuarkHierarchicalView::getUri(const IFileMD* file) const
 {

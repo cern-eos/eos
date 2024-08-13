@@ -290,8 +290,11 @@ GeoBalancer::getFileProcTransferNameAndSize(eos::common::FileId::fileid_t fid,
     eos::Prefetcher::prefetchFileMDWithParentsAndWait(gOFS->eosView, fid);
 
     try {
-      auto fmdLock = gOFS->eosFileService->getFileMDReadLocked(fid);
-      fmd = fmdLock->getUnderlyingPtr();
+      fmd = gOFS->eosFileService->getFileMD(fid);
+      // Don't lock the file before getting its URI
+      file_uri = gOFS->eosView->getUri(fmd.get()).c_str();
+      // Now we can lock the file
+      eos::MDLocking::FileReadLock fmdLock(fmd);
       layoutid = fmd->getLayoutId();
 
       if ((fmd->getContainerId() == 0) ||
@@ -309,8 +312,6 @@ GeoBalancer::getFileProcTransferNameAndSize(eos::common::FileId::fileid_t fid,
       if (size) {
         *size = fmd->getSize();
       }
-
-      file_uri = gOFS->eosView->getUri(fmd.get()).c_str();
 
       // Don't touch files in any ../proc/ directory
       if (file_uri.rfind(gOFS->MgmProcPath.c_str(), 0) == 0) {
