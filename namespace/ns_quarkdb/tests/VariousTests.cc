@@ -1430,6 +1430,64 @@ TEST_F(VariousTests, CountContents)
   ASSERT_EQ(std::move(counts.second).get(), 0u);
 }
 
+TEST_F(VariousTests, basicObjectMDLockingOrderTest) {
+  eos::IContainerMDPtr cont1 = view()->createContainer("/dir-1/");
+  eos::IFileMDPtr file1 = view()->createFile("/dir-1/file1.txt");
+  uint16_t loops = 100;
+
+  std::vector<std::thread> workers;
+
+  workers.emplace_back([cont1,file1,loops](){
+    for(uint16_t i = 0; i < loops; ++i) {
+      eos::MDLocking::ContainerReadLock contRLock(cont1);
+      eos::MDLocking::FileReadLock fileRLock(file1);
+      cont1->getName();
+      file1->getName();
+    }
+  });
+
+  workers.emplace_back([cont1,file1,loops](){
+    for(uint16_t i = 0; i < loops; ++i) {
+      eos::MDLocking::ContainerReadLock contRLock(cont1);
+      eos::MDLocking::FileReadLock fileRLock(file1);
+      cont1->getName();
+      file1->getName();
+    }
+  });
+
+  workers.emplace_back([cont1,file1,loops](){
+    for(uint16_t i = 0; i < loops; ++i) {
+      eos::MDLocking::ContainerWriteLock contRLock(cont1);
+      eos::MDLocking::FileWriteLock fileRLock(file1);
+      cont1->getName();
+      file1->getName();
+    }
+  });
+
+  workers.emplace_back([cont1,file1,loops](){
+    for(uint16_t i = 0; i < loops; ++i) {
+      eos::MDLocking::ContainerWriteLock contRLock(cont1);
+      eos::MDLocking::FileWriteLock fileRLock(file1);
+      cont1->getName();
+      file1->getName();
+    }
+  });
+
+  /** DEADLOCKS IF UNCOMMENTED
+  workers.emplace_back([cont1,file1,loops](){
+    for(uint16_t i = 0; i < loops; ++i) {
+      eos::MDLocking::FileWriteLock fileRLock(file1);
+      eos::MDLocking::ContainerWriteLock contRLock(cont1);
+      cont1->getName();
+      file1->getName();
+    }
+  });
+  */
+  for(auto & worker: workers) {
+    worker.join();
+  }
+}
+
 TEST_F(VariousTests, ContainerIterator)
 {
   eos::IContainerMDPtr cont1 = view()->createContainer("/dir-1/");
