@@ -135,9 +135,9 @@ XrdMgmOfs::_access(const char* path,
 
       // if this is a file or a not existing directory we check the access on the parent directory
       if (fh) {
-        // We just lock the file here to get the URI of it and its attributes
-        eos::MDLocking::FileReadLock fhLock(fh);
+        // Do not lock the file when calling getUri() !
         uri = gOFS->eosView->getUri(fh.get());
+        // No need to explicitely lock the file as there is only one operation related to it.
         fattrmap = fh->getAttributes();
       } else {
         uri = cPath.GetPath();
@@ -278,7 +278,7 @@ XrdMgmOfs::acc_access(const char* path,
 
       // if this is a file or a not existing directory we check the access on the parent directory
       if (fh) {
-        eos::MDLocking::FileReadLock fhLock(fh);
+        // Do not lock the file before calling getUri()
         uri = gOFS->eosView->getUri(fh.get());
       } else {
         uri = cPath.GetPath();

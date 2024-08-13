@@ -2195,8 +2195,9 @@ Iostat::PrintNsPopularity(XrdOucString& out, XrdOucString option) const
           eos::Prefetcher::prefetchFileMDWithParentsAndWait(gOFS->eosView, fid);
 
           try {
-            auto fmdLock = gOFS->eosFileService->getFileMDReadLocked(fid);
-            path = gOFS->eosView->getUri(fmdLock->getUnderlyingPtr().get());
+            auto fmd = gOFS->eosFileService->getFileMD(fid);
+            // Do not lock the fmd before getting its URI
+            path = gOFS->eosView->getUri(fmd.get());
           } catch (eos::MDException& e) {
             path = "<undef>";
           }
@@ -2225,8 +2226,9 @@ Iostat::PrintNsPopularity(XrdOucString& out, XrdOucString option) const
           eos::Prefetcher::prefetchFileMDWithParentsAndWait(gOFS->eosView, fid);
 
           try {
-            auto fmdLock = gOFS->eosFileService->getFileMDReadLocked(fid);
-            path = gOFS->eosView->getUri(fmdLock->getUnderlyingPtr().get());
+            auto fmd = gOFS->eosFileService->getFileMD(fid);
+            // Do not lock the fmd before getting its URI
+            path = gOFS->eosView->getUri(fmd.get());
           } catch (eos::MDException& e) {
             path = "<undef>";
           }
