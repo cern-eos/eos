@@ -885,8 +885,9 @@ TEST_F(HierarchicalViewF, fileMDLockedSetSize)
     auto fmd = view()->createFile("/test/file.txt");
     fmd->setSize(10000);
   }
-  /* DEADLOCKS IF UNCOMMENTED before the Accounting refactoring
+
   {
+    // Tests a deadlock situation with the previous implementation of the accounting
     for(int i = 0; i < 100; ++i) {
       workers.emplace_back([this](){
         auto fhLock = view()->getFileWriteLocked("/test/file.txt");
@@ -895,8 +896,6 @@ TEST_F(HierarchicalViewF, fileMDLockedSetSize)
         view()->updateFileStore(fmd.get());
       });
     }
-  }
-  {
     for(int i = 0; i < 100; ++i) {
       workers.emplace_back([this](){
         auto dhLock = view()->getContainerWriteLocked("/test/");
@@ -907,7 +906,7 @@ TEST_F(HierarchicalViewF, fileMDLockedSetSize)
       });
     }
   }
-   */
+
   {
     for(int i = 0; i < 100; ++i) {
       std::string dirName = "/test/d" + std::to_string(i);
@@ -930,8 +929,8 @@ TEST_F(HierarchicalViewF, fileMDLockedSetSize)
       worker.join();
     }
     workers.clear();
-    // Sleep 10 seconds the time for the accounting thread to do its job
-    ::sleep(10);
+    // Sleep 6 seconds the time for the accounting thread to do its job
+    ::sleep(6);
 
     for(int i = 0; i < 100; ++i) {
       std::string dirName = "/test/d" + std::to_string(i);
@@ -965,8 +964,8 @@ TEST_F(HierarchicalViewF, fileMDLockedSetSize)
       worker.join();
     }
     workers.clear();
-    // Sleep 10 seconds the time for the accounting thread to do its job
-    ::sleep(10);
+    // Sleep 6 seconds the time for the accounting thread to do its job
+    ::sleep(6);
     for(int i = 0; i < 100; ++i) {
       std::string dirName = "/test/d" + std::to_string(i);
       for(int j = 0; j < 10; ++j) {

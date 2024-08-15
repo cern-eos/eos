@@ -25,7 +25,6 @@
 #include "namespace/Namespace.hh"
 #include "namespace/interface/IContainerMDSvc.hh"
 #include "namespace/interface/IFileMDSvc.hh"
-#include "common/RWMutex.hh"
 #include "common/AssistedThread.hh"
 #include <mutex>
 #include <thread>
@@ -33,6 +32,7 @@
 #include <utility>
 #include <unordered_map>
 #include <atomic>
+#include "common/ConcurrentQueue.hh"
 
 EOSNSNAMESPACE_BEGIN
 
@@ -46,10 +46,9 @@ public:
   //! Constructor
   //!
   //! @param svc container metadata service
-  //! @param ns_mutex global (MGM) namespace mutex
   //! @param update_interval interval in seconds when updates are propagated
   //----------------------------------------------------------------------------
-  QuarkContainerAccounting(IContainerMDSvc* svc, eos::common::RWMutex* ns_mutex,
+  QuarkContainerAccounting(IContainerMDSvc* svc,
                            int32_t update_interval = 5);
 
   //----------------------------------------------------------------------------
@@ -123,6 +122,14 @@ public:
   //----------------------------------------------------------------------------
   void PropagateUpdates(ThreadAssistant* assistant = nullptr);
 
+  //----------------------------------------------------------------------------
+  //! Queue container ids and size to update the tree size
+  //!
+  //! @param assistant thread doing the queueing or null by default if the
+  //!        update should be done in the calling thread.
+  //----------------------------------------------------------------------------
+  void AsyncQueueForUpdate(ThreadAssistant * assistant = nullptr);
+
 private:
 
   //----------------------------------------------------------------------------
@@ -132,6 +139,14 @@ private:
   //! @param assistant thread doing the propagation
   //----------------------------------------------------------------------------
   void AssistedPropagateUpdates(ThreadAssistant& assistant) noexcept;
+
+  //----------------------------------------------------------------------------
+  //! Queue containerIds and size to update in thein the hierarchical structure. Method ran by the
+  //! asynchronous thread.
+  //!
+  //! @param assistant thread doing the propagation
+  //----------------------------------------------------------------------------
+  void AssistedQueueForUpdate(ThreadAssistant& assistant) noexcept;
 
   //! Update structure containing the nodes that need an update. We try to
   //! optimise the number of updates to the backend by computing the final
@@ -148,10 +163,10 @@ private:
   uint8_t mAccumulateIndx; ///< Index of the batch accumulating updates
   uint8_t mCommitIndx; ///< Index o the batch committing updates
   AssistedThread mThread; ///< Thread updating the namespace
-  std::atomic<bool> mShutdown; ///< Flag to shutdown the async thread
+  AssistedThread mQueueForUpdateThread; ///< Thread update queueing thread
   uint32_t mUpdateIntervalSec; ///< Interval in seconds when updates are pushed
   IContainerMDSvc* mContainerMDSvc; ///< container MD service
-  eos::common::RWMutex* gNsRwMutex; ///< Global (MGM) name RW mutex
+  eos::common::ConcurrentQueue<std::pair<IContainerMD::id_t, int64_t>>  mIdSizeToUpdateQueue; ///< Queue containing containerIds and their corresponding size to update
 };
 
 EOSNSNAMESPACE_END

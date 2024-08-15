@@ -223,8 +223,7 @@ IFileMDChangeListener* QuarkNamespaceGroup::getContainerAccountingView()
   std::lock_guard<std::recursive_mutex> lock(mMutex);
 
   if (!mContainerAccounting) {
-    mContainerAccounting.reset(new QuarkContainerAccounting(getContainerService(),
-                               mNsMutex));
+    mContainerAccounting.reset(new QuarkContainerAccounting(getContainerService()));
     getFileService()->addChangeListener(mContainerAccounting.get());
     getContainerService()->setContainerAccounting(mContainerAccounting.get());
   }
