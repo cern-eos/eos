@@ -870,35 +870,115 @@ TEST_F(HierarchicalViewF, BulkMDLockerTest)
 
 TEST_F(HierarchicalViewF, fileMDLockedSetSize)
 {
-  auto container = view()->createContainer("/test/", true);
-  eos::IFileMDPtr f1 = view()->createFile("/test/f1");
   std::vector<std::thread> workers;
-  f1->setSize(100);
   {
-    //10 threads, each of them running a loop
-    for (int i = 0; i < 10; ++i) {
-      workers.push_back(std::thread([this, i, &f1]() {
-        eos::MDLocking::FileWriteLock lock(f1);
-
-        for (int j = 0; j < 10; ++j) {
-          if (i % 2 == 0) {
-            f1->setSize(f1->getSize() + 1);
-          } else {
-            f1->setSize(f1->getSize() - 1);
-          }
-        }
-
-        view()->updateFileStore(f1.get());
-      }));
+    // Create 100 directories with each 10 files
+    for(int i = 0; i < 100; ++i) {
+      std::string dirName = "/test/d" + std::to_string(i);
+      view()->createContainer(dirName,true);
+      for(int j = 0; j < 10; j++) {
+        auto fmd = view()->createFile(dirName + "/f" + std::to_string(j));
+        fmd->setSize(10000);
+        view()->updateFileStore(fmd.get());
+      }
+    }
+    auto fmd = view()->createFile("/test/file.txt");
+    fmd->setSize(10000);
+  }
+  /* DEADLOCKS IF UNCOMMENTED before the Accounting refactoring
+  {
+    for(int i = 0; i < 100; ++i) {
+      workers.emplace_back([this](){
+        auto fhLock = view()->getFileWriteLocked("/test/file.txt");
+        auto fmd = fhLock->getUnderlyingPtr();
+        fmd->setSize(10000);
+        view()->updateFileStore(fmd.get());
+      });
     }
   }
-  std::for_each(workers.begin(), workers.end(), [](std::thread & t) {
-    t.join();
-  });
-  //We sleep 6 seconds the time for the ContainerAccountingThread to take into account the size change of the file
-  ::sleep(6);
-  ASSERT_EQ(100, f1->getSize());
-  ASSERT_EQ(100, container->getTreeSize());
+  {
+    for(int i = 0; i < 100; ++i) {
+      workers.emplace_back([this](){
+        auto dhLock = view()->getContainerWriteLocked("/test/");
+        auto fhLock = view()->getFileWriteLocked("/test/file.txt");
+        auto fmd = fhLock->getUnderlyingPtr();
+        fmd->setSize(10000);
+        view()->updateFileStore(fmd.get());
+      });
+    }
+  }
+   */
+  {
+    for(int i = 0; i < 100; ++i) {
+      std::string dirName = "/test/d" + std::to_string(i);
+      for(int j = 0; j < 10; ++j) {
+        for(int k = 0; k < 10; ++k) {
+          workers.push_back(std::thread([this,i, j, k, dirName]() {
+            auto fmdLock = view()->getFileWriteLocked(dirName + "/f" + std::to_string(j));
+            auto fmd = fmdLock->getUnderlyingPtr();
+            if(k % 2 == 0) {
+              fmd->setSize(fmd->getSize() + 1);
+            } else {
+              fmd->setSize(fmd->getSize() - 1);
+            }
+            view()->updateFileStore(fmd.get());
+          }));
+        }
+      }
+    }
+    for(auto & worker: workers) {
+      worker.join();
+    }
+    workers.clear();
+    // Sleep 10 seconds the time for the accounting thread to do its job
+    ::sleep(10);
+
+    for(int i = 0; i < 100; ++i) {
+      std::string dirName = "/test/d" + std::to_string(i);
+      for(int j = 0; j < 10; ++j) {
+        auto fmd = view()->getFile(dirName + "/f" + std::to_string(j));
+        ASSERT_EQ(10000,fmd->getSize());
+      }
+      auto dmd = view()->getContainer(dirName);
+      ASSERT_EQ(10 * 10000, dmd->getTreeSize());
+    }
+  }
+  {
+    for(int i = 0; i < 100; ++i) {
+      std::string dirName = "/test/d" + std::to_string(i);
+      for(int j = 0; j < 10; ++j) {
+        for(int k = 0; k < 10; ++k) {
+          workers.push_back(std::thread([this,i, j, k, dirName]() {
+            auto fmdLock = view()->getFileWriteLocked(dirName + "/f" + std::to_string(j));
+            auto fmd = fmdLock->getUnderlyingPtr();
+            if(k % 2 == 0) {
+              fmd->setSize(fmd->getSize() + 1);
+            } else {
+              fmd->setSize(fmd->getSize() - 1);
+            }
+            view()->updateFileStore(fmd.get());
+          }));
+        }
+      }
+    }
+    for(auto & worker: workers) {
+      worker.join();
+    }
+    workers.clear();
+    // Sleep 10 seconds the time for the accounting thread to do its job
+    ::sleep(10);
+    for(int i = 0; i < 100; ++i) {
+      std::string dirName = "/test/d" + std::to_string(i);
+      for(int j = 0; j < 10; ++j) {
+        auto fmd = view()->getFile(dirName + "/f" + std::to_string(j));
+        ASSERT_EQ(10000,fmd->getSize());
+      }
+      auto dmd = view()->getContainer(dirName);
+      ASSERT_EQ(10 * 10000, dmd->getTreeSize());
+    }
+  }
+  // 100 directories * 10 files * 10000 bytes + test.txt (10000)
+  ASSERT_EQ(100 * 10 * 10000 + 10000, view()->getContainer("/test/")->getTreeSize());
 }
 
 TEST_F(HierarchicalViewF, fileMDLockedClone)
