@@ -25,17 +25,16 @@ EOSNSNAMESPACE_BEGIN
 //----------------------------------------------------------------------------
 // Constructor
 //----------------------------------------------------------------------------
-QuarkContainerAccounting::QuarkContainerAccounting(IContainerMDSvc* svc,
-    eos::common::RWMutex* ns_mutex, int32_t update_interval)
-  : mAccumulateIndx(0), mCommitIndx(1), mShutdown(false),
-    mUpdateIntervalSec(update_interval), mContainerMDSvc(svc),
-    gNsRwMutex(ns_mutex)
+QuarkContainerAccounting::QuarkContainerAccounting(IContainerMDSvc* svc, int32_t update_interval)
+  : mAccumulateIndx(0), mCommitIndx(1),
+    mUpdateIntervalSec(update_interval), mContainerMDSvc(svc)
 {
   mBatch.resize(2);
 
   // If update interval is 0 then we disable async updates
   if (mUpdateIntervalSec) {
     mThread.reset(&QuarkContainerAccounting::AssistedPropagateUpdates, this);
+    mQueueForUpdateThread.reset(&QuarkContainerAccounting::AssistedQueueForUpdate,this);
   }
 }
 
@@ -44,10 +43,11 @@ QuarkContainerAccounting::QuarkContainerAccounting(IContainerMDSvc* svc,
 //----------------------------------------------------------------------------
 QuarkContainerAccounting::~QuarkContainerAccounting()
 {
-  mShutdown = true;
-
+  // Stop the AsyncQueueUpdate thread by queuing containerID = 0
+  mIdSizeToUpdateQueue.emplace(0,0);
   if (mUpdateIntervalSec) {
     mThread.join();
+    mQueueForUpdateThread.join();
   }
 }
 
@@ -100,32 +100,11 @@ QuarkContainerAccounting::RemoveTree(IContainerMD* obj, int64_t dsize)
 void
 QuarkContainerAccounting::QueueForUpdate(IContainerMD::id_t id, int64_t dsize)
 {
-  uint16_t deepness = 0;
-  std::shared_ptr<IContainerMD> cont;
-  std::vector<IContainerMD::id_t> idsToUpdate;
-  while ((id > 1) && (deepness < 255)) {
-    try {
-      cont = mContainerMDSvc->getContainerMD(id);
-    } catch (const MDException& e) {
-      // TODO (esindril): error message using default logging
-      break;
-    }
-    idsToUpdate.push_back(id);
-    id = cont->getParentId();
-    ++deepness;
-  }
-
-  std::lock_guard<std::mutex> scope_lock(mMutexBatch);
-  auto& batch = mBatch[mAccumulateIndx];
-
-  for(auto idToUpdate: idsToUpdate) {
-    auto it_map = batch.mMap.find(idToUpdate);
-
-    if (it_map != batch.mMap.end()) {
-      it_map->second += dsize;
-    } else {
-      batch.mMap.emplace(idToUpdate, dsize);
-    }
+  if(id) {
+    // The condition to stop the queueing thread is that the id = 0. The minimum container id is 1 and
+    // corresponds to "/"
+    // We therefore prevent users to queue the container id = 0 for update (which should not happen!)
+    mIdSizeToUpdateQueue.emplace(id,dsize);
   }
 }
 
@@ -141,16 +120,21 @@ noexcept
 }
 
 //------------------------------------------------------------------------------
+// Submits container and size changes in order to propagate them to the hierarchical structure later on.
+// Method ran by an asynchronous thread.
+//------------------------------------------------------------------------------
+void QuarkContainerAccounting::AssistedQueueForUpdate(ThreadAssistant& assistant) noexcept
+{
+  AsyncQueueForUpdate(&assistant);
+}
+
+//------------------------------------------------------------------------------
 // Propagate updates in the hierarchical structure
 //------------------------------------------------------------------------------
 void
 QuarkContainerAccounting::PropagateUpdates(ThreadAssistant* assistant)
 {
   while ((assistant && !assistant->terminationRequested()) || (!assistant)) {
-    if (mShutdown) {
-      break;
-    }
-
     {
       // Update the indexes to have the async thread working on the batch to
       // commit and the incoming updates to go to the batch to update
@@ -161,12 +145,10 @@ QuarkContainerAccounting::PropagateUpdates(ThreadAssistant* assistant)
     auto& batch = mBatch[mCommitIndx];
 
     if(!batch.mMap.empty()){
-      std::shared_ptr<IContainerMD> cont;
-
       for (auto const& elem : batch.mMap) {
         try {
-          cont = mContainerMDSvc->getContainerMD(elem.first);
-          eos::MDLocking::ContainerWriteLock locker(cont);
+          auto contLock = mContainerMDSvc->getContainerMDWriteLocked(elem.first);
+          auto cont = contLock->getUnderlyingPtr();
           cont->updateTreeSize(elem.second);
           mContainerMDSvc->updateStore(cont.get());
         } catch (const MDException& e) {
@@ -187,6 +169,60 @@ QuarkContainerAccounting::PropagateUpdates(ThreadAssistant* assistant)
     } else {
       break;
     }
+  }
+}
+
+//------------------------------------------------------------------------------
+// For each containerId and its associated size modified, this function
+// will go up the tree from container to '/' and submit the entire tree for
+// modification in the PropagateUpdate thread
+//------------------------------------------------------------------------------
+void QuarkContainerAccounting::AsyncQueueForUpdate(ThreadAssistant* assistant)
+{
+  std::pair<eos::IContainerMD::id_t,int64_t> contIdSize;
+  std::vector<IContainerMD::id_t> idsToUpdate;
+
+  while ((assistant && !assistant->terminationRequested()) || (!assistant)) {
+    uint16_t deepness = 0;
+
+    mIdSizeToUpdateQueue.wait_pop(contIdSize);
+    if(!contIdSize.first) {
+      // Container ID = 0 (see ~QuarkContainerAccounting()), we
+      // stop this thread
+      break;
+    }
+
+    IContainerMD::id_t id = contIdSize.first;
+    int64_t dsize = contIdSize.second;
+    // Go up the tree and give the ids to update to the batch that will
+    // be taken by the PropagateUpdate thread
+    while ((id > 1) && (deepness < 255)) {
+      try {
+        idsToUpdate.push_back(id);
+        auto contLock = mContainerMDSvc->getContainerMDReadLocked(id);
+        auto cont = contLock->getUnderlyingPtr();
+        id = cont->getParentId();
+        ++deepness;
+      } catch (const MDException& e) {
+        // TODO (esindril): error message using default logging
+        break;
+      }
+    }
+
+    std::lock_guard<std::mutex> scope_lock(mMutexBatch);
+    auto& batch = mBatch[mAccumulateIndx];
+
+    for (auto idToUpdate : idsToUpdate) {
+      auto it_map = batch.mMap.find(idToUpdate);
+
+      if (it_map != batch.mMap.end()) {
+        it_map->second += dsize;
+      } else {
+        batch.mMap.emplace(idToUpdate, dsize);
+      }
+    }
+
+    idsToUpdate.clear();
   }
 }
 
