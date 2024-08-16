@@ -152,7 +152,8 @@ AclCmd::ModifyAcls(const eos::console::AclProto& acl)
 
   RuleMap rule_map;
   std::string dir_acls, new_acl_val;
-
+  
+  int ret = 0;
   for (const auto& elem : paths) {
     GetAcls(elem, dir_acls, acl.sys_acl(), false);
     GenerateRuleMap(dir_acls, rule_map);
@@ -173,11 +174,17 @@ AclCmd::ModifyAcls(const eos::console::AclProto& acl)
       mErr = "error: failed to set new acl for path=";
       mErr += elem.c_str();
       eos_err("%s", mErr.c_str());
-      return errno;
+      // The returned errno will correspond to the first errno encountered during the application
+      // of the ACL recursively
+      ret = errno;
+      if(acl.recursive() && ret == ENOENT) {
+        continue;
+      }
+      return ret;
     }
   }
 
-  return 0;
+  return ret;
 }
 
 //------------------------------------------------------------------------------
