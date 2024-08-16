@@ -138,6 +138,10 @@ AclCmd::ModifyAcls(const eos::console::AclProto& acl)
       return EINVAL;
     }
 
+    if(!dirs.size()) {
+      paths.push_back(acl.path());
+    }
+
     // Save all the directories in the current subtree
     for (const auto& elem : dirs) {
       paths.push_back(elem.first);
