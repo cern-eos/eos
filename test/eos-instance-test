@@ -1159,6 +1159,8 @@ runtest "### Space     " unix 0 "" eos space config "default space.wfe=off"
 ###################################################A############################
 categorie="acl"
 runtest "### Mkdir   " unix 0 "" eos mkdir "/eos/$EOS_TEST_INSTANCE/test/acl"
+runtest "### Acl set " unix 1 "" eos acl u:daemon=\!x /eos/does_not_exist
+runtest "### Acl set " unix 1 "" eos acl --recursive u:daemon=\!x /eos/does_not_exist
 runtest "### Acl ls  " unix 1 "" eos acl -l "/eos/$EOS_TEST_INSTANCE/test/acl"
 runtest "### Acl set " unix 0 "" eos acl u:daemon=rwx "/eos/$EOS_TEST_INSTANCE/test/acl"
 runtest "### Acl ls  " unix 0 "" eos acl -l "/eos/$EOS_TEST_INSTANCE/test/acl" | grep "u:daemon:rwx"
