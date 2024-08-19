@@ -1807,7 +1807,6 @@ FsView::GetGroupFormat(std::string option)
     format += "maxdev=stat.statfs.filled:format=of|";
     format += "avg=stat.statfs.filled:format=of|";
     format += "sig=stat.statfs.filled:format=of|";
-    format += "member=cfg.stat.balancing:format=os:tag=stat.balancing|";
     format += "sum=local.balancer.running:format=ol:tag=local.balancer.running|";
   } else if (option == "io") {
     // io format
@@ -1844,7 +1843,6 @@ FsView::GetGroupFormat(std::string option)
     format += "maxdev=stat.statfs.filled:width=12:format=f|";
     format += "avg=stat.statfs.filled:width=12:format=f|";
     format += "sig=stat.statfs.filled:width=12:format=f|";
-    format += "member=cfg.stat.balancing:width=10:format=s|";
     format += "sum=local.balancer.running:width=10:format=l:tag=bal-shd|";
   }
 
@@ -2764,11 +2762,6 @@ BaseView::GetMember(const std::string& member) const
 
     if (!value.empty()) {
       val = value;
-    }
-
-    // It's otherwise hard to get the default into place
-    if ((member == "cfg.stat.balancing") && ((val == "") || (val == "???"))) {
-      val = "idle";
     }
 
     if ((member == "cfg.status") && val.empty()) {
