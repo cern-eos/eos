@@ -42,7 +42,7 @@ com_ls(char* arg1)
   XrdOucString in = "mgm.cmd=ls";
 
   do {
-    param = subtokenizer.GetToken();
+    param = subtokenizer.GetToken(false);
 
     if (!param.length()) {
       break;
@@ -263,7 +263,7 @@ com_ls(char* arg1)
   }
 
   path = abspath(path.c_str());
-  
+
   if (strlen(path.c_str()) >= FILENAME_MAX) {
     fprintf(stderr, "error: path length longer than %i bytes", FILENAME_MAX);
     global_retc = EINVAL;
@@ -271,7 +271,6 @@ com_ls(char* arg1)
   }
 
   path = eos::common::StringConversion::curl_escaped(path.c_str()).c_str();
-
   in += "&mgm.path=";
   in += path;
   in += "&eos.encodepath=1";
@@ -282,7 +281,7 @@ com_ls(char* arg1)
 com_ls_usage:
   fprintf(stdout,
           "usage: ls [-laniyF] <path>\n");
-  fprintf(stdout,"list directory <path>\n\n");
+  fprintf(stdout, "list directory <path>\n\n");
   fprintf(stdout,
           "  -l : show long listing\n");
   fprintf(stdout,
