@@ -71,9 +71,7 @@ size_t Egroup::getPendingQueueSize() const
 Egroup::Status Egroup::isMemberUncached(const std::string& username,
                                         const std::string& egroupname)
 {
-  //----------------------------------------------------------------------------
   // Serving real, or simulated data?
-  //----------------------------------------------------------------------------
   if (!injections.empty()) {
     auto it = injections.find(egroupname);
 
@@ -108,7 +106,7 @@ Egroup::Status Egroup::isMemberUncached(const std::string& username,
     if (ldap_set_option(ld, LDAP_OPT_PROTOCOL_VERSION, &version) !=
         LDAP_OPT_SUCCESS) {
       eos_static_crit("%s", "msg=\"failure when calling ldap_set_option "
-                      "(protocol version\"");
+                      "(protocol version)\"");
       ldap_uninitialize(ld);
       return Status::kError;
     }
@@ -280,9 +278,7 @@ Egroup::CachedEntry Egroup::query(const std::string& username,
   CachedEntry entry;
 
   if (fetchCached(username, egroupname, entry)) {
-    //--------------------------------------------------------------------------
     // Cache hit - do we need to schedule an asynchronous refresh?
-    //--------------------------------------------------------------------------
     if (isStale(entry)) {
       scheduleRefresh(username, egroupname);
     }
@@ -290,9 +286,7 @@ Egroup::CachedEntry Egroup::query(const std::string& username,
     return entry;
   }
 
-  //----------------------------------------------------------------------------
   // Cache miss, need to talk to LDAP server
-  //----------------------------------------------------------------------------
   Status status = isMemberUncached(username, egroupname);
   bool isMember = (status == Status::kMember);
   std::chrono::steady_clock::time_point now = common::SteadyClock::now(clock);
