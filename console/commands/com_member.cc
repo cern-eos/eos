@@ -21,62 +21,84 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-/*----------------------------------------------------------------------------*/
 #include "console/ConsoleMain.hh"
 #include "common/StringTokenizer.hh"
-/*----------------------------------------------------------------------------*/
 
-/* Egroup member -  Interface */
-int
-com_member(char* arg1)
+//------------------------------------------------------------------------------
+// Print help message
+//------------------------------------------------------------------------------
+void com_member_help()
 {
-  eos::common::StringTokenizer subtokenizer(arg1);
-  subtokenizer.GetLine();
+  std::ostringstream oss;
+  oss << "Usage: member [--update] <egroup>\n"
+      << "   show the (cached) information about egroup membership for the\n"
+      << "   current user running the command. If the check is required for\n"
+      << "   a different user then please use the \"eos -r <uid> <gid>\"\n"
+      << "   command to switch to a different role.\n"
+      << " Options:\n"
+      << "    --update : Refresh cached egroup information\n";
+  std::cerr << oss.str() << std::endl;
+}
 
-  XrdOucString option = "";
+//------------------------------------------------------------------------------
+// Egroup member
+//------------------------------------------------------------------------------
+int
+com_member(char* arg)
+{
+  if (!arg || wants_help(arg)) {
+    com_member_help();
+    return (global_retc = EINVAL);
+  }
+
   bool update = false;
-  XrdOucString egroup = "";
+  const char* option = nullptr;
+  std::string soption;
+  std::string egroup = "";
   XrdOucString in = "";
+  eos::common::StringTokenizer subtokenizer(arg);
+  subtokenizer.GetLine();
 
   do {
     option = subtokenizer.GetToken();
 
-    if(!option.length()) {
+    if (!option || !strlen(option)) {
       break;
     }
 
-    if(option == "--help" || option == "-h") {
-      goto com_member_usage;
+    soption = option;
+
+    if ((soption == "--help") || (soption == "-h")) {
+      com_member_help();
+      return (global_retc = 0);
     }
 
-    if(option == "--update") {
+    if (soption == "--update") {
       update = true;
       continue;
     }
 
-    egroup = option;
-  } while(option.length());
+    if (egroup.empty()) {
+      egroup = option;
+    } else {
+      std::cerr << "error: command accepts only one egroup argument" << std::endl;
+      return (global_retc = EINVAL);
+    }
+  } while (option && strlen(option));
 
-  std::cout << "egroup: " << egroup << std::endl;
-
-  if(!egroup.length()) {
-    goto com_member_usage;
+  if (egroup.empty()) {
+    std::cerr << "error: no egroup argument given" << std::endl;
+    return (global_retc = EINVAL);
   }
 
+  std::cout << "egroup: " << egroup << std::endl;
   in = "mgm.cmd=member";
   in += "&mgm.egroup=";
-  in += egroup;
+  in += egroup.c_str();
 
-  if(update) {
+  if (update) {
     in += "&mgm.egroupupdate=true";
   }
 
-  global_retc = output_result(client_command(in));
-  return (0);
-com_member_usage:
-  fprintf(stdout,
-          "usage: member [--update] [<egroup>]                                :  show the (cached) information about egroup membership\n"
-          "                      --update : Refresh cached egroup information\n");
-  global_retc = 0;
-  return (0);
+  return (global_retc = output_result(client_command(in)));
 }
