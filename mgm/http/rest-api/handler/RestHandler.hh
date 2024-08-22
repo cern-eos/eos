@@ -24,12 +24,14 @@
 #ifndef EOS_RESTHANDLER_HH
 #define EOS_RESTHANDLER_HH
 
-#include "mgm/Namespace.hh"
+#include <regex>
 #include <memory>
+#include <map>
+
+#include "mgm/Namespace.hh"
 #include "common/http/HttpResponse.hh"
 #include "common/http/HttpRequest.hh"
 #include "common/VirtualIdentity.hh"
-#include <map>
 #include <XrdHttp/XrdHttpExtHandler.hh>
 #include "mgm/http/rest-api/controllers/ControllerManager.hh"
 
@@ -71,7 +73,7 @@ protected:
   ControllerManager mControllerManager;
   std::string mEntryPointURL;
 private:
-  inline static const std::string cEntryPointRegex = "^\\/(\\.?[a-z0-9-]+)+\\/$";
+  static const std::regex cEntryPointRegex;
   void verifyRestApiEntryPoint(const std::string& entryPointURL) const;
 };
 

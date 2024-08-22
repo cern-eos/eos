@@ -27,6 +27,7 @@
 #define FUSE_USE_VERSION 35
 
 #include <memory>
+#include <regex>
 #include <fuse3/fuse_lowlevel.h>
 #include "auth/AuthenticationGroup.hh"
 #include "auth/ProcessCache.hh"
@@ -52,4 +53,5 @@ public:
   static std::unique_ptr<cfsmapping> cfsMap;
   static std::string k5domain;
 private:
+  static const std::regex safeReg;
 };
