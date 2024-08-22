@@ -26,13 +26,14 @@
 #include "cfsmapping.hh"
 #include "auth/Logbook.hh"
 #include <algorithm>
-#include <regex>
 
 std::unique_ptr<AuthenticationGroup> cfslogin::authGroup;
 std::unique_ptr<cfsmapping> cfslogin::cfsMap;
 
 ProcessCache* cfslogin::processCache = nullptr;
 std::string cfslogin::k5domain = "@CERN.CH";
+
+const std::regex cfslogin::safeReg("[/\\w.]+");
 
 void cfslogin::initializeProcessCache(const CredentialConfig& config)
 {
@@ -46,7 +47,6 @@ std::string cfslogin::fillExeName(const std::string& execname)
   auto base_name = [](std::string const & path) {
     return path.substr(path.find_last_of("/\\") + 1);
   };
-  std::regex safeReg("[/\\w.]+");
   std::string exe = execname;
 
   if (execname.length() > 32) {

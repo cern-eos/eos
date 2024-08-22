@@ -30,13 +30,13 @@
 #include "auth/Logbook.hh"
 #include "auth/LoginIdentifier.hh"
 #include <algorithm>
-#include <regex>
 #ifdef __APPLE__
 #define ECHRNG 44
 #endif
 
 std::unique_ptr<AuthenticationGroup> fusexrdlogin::authGroup;
 ProcessCache* fusexrdlogin::processCache = nullptr;
+const std::regex fusexrdlogin::safeReg("[/\\w.]+");
 
 void fusexrdlogin::initializeProcessCache(const CredentialConfig& config)
 {
@@ -49,7 +49,6 @@ std::string fusexrdlogin::fillExeName(const std::string& execname)
   auto base_name = [](std::string const & path) {
     return path.substr(path.find_last_of("/\\") + 1);
   };
-  std::regex safeReg("[/\\w.]+");
   std::string exe = execname;
 
   if (execname.length() > 32) {
