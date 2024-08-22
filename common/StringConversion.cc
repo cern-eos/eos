@@ -1039,6 +1039,33 @@ StringConversion::curl_default_escaped(const std::string& str)
 }
 
 //------------------------------------------------------------------------------
+// Return an escaped URI
+//------------------------------------------------------------------------------
+std::string
+StringConversion::curl_default_escaped(const char* ptr)
+{
+  pthread_once(&sInit, tlInitThreadKey);
+  std::string ret_str;
+
+  if (ptr) {
+    if (!curl) {
+      curl = tlCurlInit();
+    }
+
+    if (curl) {
+      char* output = curl_easy_escape(curl, ptr, strlen(ptr));
+
+      if (output) {
+        ret_str = output;
+        curl_free(output);
+      }
+    }
+  }
+
+  return ret_str;
+}
+
+//------------------------------------------------------------------------------
 // Escape path using CURL
 //------------------------------------------------------------------------------
 std::string
@@ -1072,6 +1099,34 @@ StringConversion::curl_default_unescaped(const std::string& str)
     if (output) {
       ret_str = output;
       curl_free(output);
+    }
+  }
+
+  return ret_str;
+}
+
+//------------------------------------------------------------------------------
+// Return an unescaped URI
+//------------------------------------------------------------------------------
+std::string
+StringConversion::curl_default_unescaped(const char* ptr)
+{
+  pthread_once(&sInit, tlInitThreadKey);
+  std::string ret_str;
+
+  if (ptr) {
+    // encode the key
+    if (!curl) {
+      curl = tlCurlInit();
+    }
+
+    if (curl) {
+      char* output = curl_easy_unescape(curl, ptr, strlen(ptr), 0);
+
+      if (output) {
+        ret_str = output;
+        curl_free(output);
+      }
     }
   }
 
