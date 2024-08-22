@@ -295,6 +295,7 @@ static void DelayNs(int64_t _ns, int* data) {
   int l;
   while (std::chrono::system_clock::now() < end) {
     l = (*data)+1;
+    (void) l; // make compiler happy
     benchmark::DoNotOptimize(*data);
   }
 }
