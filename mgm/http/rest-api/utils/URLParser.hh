@@ -27,6 +27,7 @@
 #include <string>
 #include <vector>
 #include <map>
+#include <regex>
 
 EOSMGMRESTNAMESPACE_BEGIN
 
@@ -81,6 +82,7 @@ public:
 
 private:
   std::vector<std::string> mURLTokens;
+  static const std::regex cParamRegex;
 };
 
 EOSMGMRESTNAMESPACE_END
