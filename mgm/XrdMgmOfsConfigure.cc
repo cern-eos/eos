@@ -66,7 +66,6 @@
 #include "common/Path.hh"
 #include "common/JeMallocHandler.hh"
 #include "common/PasswordHandler.hh"
-#include "common/ShellCmd.hh"
 #include "common/InstanceName.hh"
 #include "common/StringTokenizer.hh"
 #include "common/StringUtils.hh"
