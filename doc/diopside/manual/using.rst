@@ -23,7 +23,7 @@ bearer with s.c. EOS tokens.
    pair: EOS Tokens; JSON Format
 
 
-The JSON representation of an EOS token looks like shown here:
+The JSON representation of an EOS token looks like this:
 
 .. code-block:: bash
 
@@ -48,8 +48,8 @@ The JSON representation of an EOS token looks like shown here:
 
 
 Essentially this token gives the bearer the permission to `rwx` for the
-file /eos/dev/token. The token does not bear an owner and group
-information, which means, that the creations will be accounted on the
+file /eos/dev/token. The token does not bear any owner or group
+information, which means that the creations will be accounted on the
 mapped authenticated user using this token or an enforced
 `sys.owner.auth` entry. If the token should map the authenticated user,
 one can add `owner` and `group` fields. In practical terms the token
@@ -58,7 +58,7 @@ user/group/permission entries as a system ACL.
 
 Tokens are signed, zlib compressed, base64url encoded with a replacement
 of the `+` and `/` characters with `-` and `_` and a URL
-encodign of the `=` character to avoid interferences/confusion with
+encoding of the `=` character to avoid collision with
 directory and file names.
 
 The `voucher` field is tagged on the file when a file has been created
@@ -72,7 +72,7 @@ Enabling Token Issuing
 ^^^^^^^^^^^^^^^^^^^^^^^
 
 To enable issuing of tokens, the space configuration value
-`token.enegeration` has to be set unequal to 0.
+`token.generation` has to be set unequal to 0.
 
 .. code-block:: bash
 
@@ -164,7 +164,7 @@ A file token can be used in two ways:
    xrdcp "root://myeos//eos/myfile?authz=zteos64:MDAwMDAwNzR4nONS4WIuKq8Q-Dlz-ltWI3H91Pxi_cSsAv2S_OzUPP2SeAgtpMAY7f1e31Ts-od+rgcLZ_a2_bhwcZO9cracy" /tmp/
   
 
-If a token contains a subtree permission, the only way to use it for a
+If a token contains a subtree permission, the only way to use it for
 file access is to use the CGI form. The filename form is practical to
 hide the filename for up-/downloads.
 
@@ -184,7 +184,7 @@ where the calling user is the current owner.
 Token lifetime
 ^^^^^^^^^^^^^^^^^^^^^^^^^
 
-The token lifetime is given as a unix timestamp during the token
+The token lifetime is given as a UNIX timestamp during the token
 creation.
 
 .. index::
@@ -196,7 +196,7 @@ Token Revocation
 Tokens are issued with a generation entry. The generation value is a
 globally configured 64-bit unsigned number. In case of emergency all
 tokens can be revoked by increasing the generation value. The generation
-value is configured via the key `token.generation` in the default space
+value is configured via the key `token.generation` in the default space.
   
 .. code-block:: bash
 
@@ -218,13 +218,12 @@ using the `origins` entries.
 
 .. code-block:: bash 
 
+   # general syntax is a regexp for origin like <regexp hostname>:<regexp username>:<regexp auth protocol>
    # all machines at CERN authenticating via kerberos as user nobody        
-   eos token --path /eos/myfile --origin \.*.cern.ch:nobody:krb5"
+   eos token --path /eos/myfile --origin ".*.cern.ch:nobody:krb5"
 
    # all machines at CERN authenticating via unix as user kubernetes from machine k8s.cern.ch
    eos token --path /eos/myfile --origin "k8s.cern.ch:kubernetes:unix"
-
-   # general syntax is a regexp for origin like <regexp hostname>:<regexp username>:<regexp auth protocol>
   
 
 The default origin regexp is `.*:.*:.*` accepting all origins. If the
@@ -240,7 +239,7 @@ Tokens can be requested and verified using GRPC TokenRequest as shown
 here with the GRPC CLI. To request a token at least `path`, `expires`
 and `permission` should be defined.
 
-.. code-block:: 
+.. code-block:: bash
 
     [root@dev mgm]# eos-grpc-ns --acl rwx -p /eos/dev/xrootd token
     request: 
@@ -399,7 +398,7 @@ Using tokens for scoped eosxd access
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 As a user you can create a token e.g. for applications like CIs,
-webservices etc. if the EOS instances it configured to issue tokens.
+webservices etc. if the EOS instance is configured to issue tokens.
 
 To create a token as a user you do:
 
@@ -431,16 +430,21 @@ variable:
     ls /eos/user/f/foo/ci/
     
 
+.. index::
+   pair: EOS Tokens; Token ZTN auth
+
 Using EOS tokens via ZTN authentication
-Since EOS 5.1.15 it is possible to configure ZTN authentication in EOS and use this as a token transport mechanism. This is simpler than using `sss` authentication and distribute shared secrets. However the MGM configuration needs to disable token validation for the default SciToken library setting:
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Since EOS 5.1.15 it is possible to configure ZTN authentication in EOS and use this as a token transport mechanism. This is simpler than using `sss` authentication and distributing shared secrets. However the MGM configuration needs to disable token validation for the default SciToken library setting:
 
 .. code-block:: bash
 
    sec.protocol ztn -tokenlib none
 
-The XRootD client picks up token as documented under Section `2.5.7.1 Default token discovery mechanism and augmentation <https://xrootd.slac.stanford.edu/doc/dev56/sec_config.htm#_Toc119617461>`_
+The XRootD client picks up tokens as documented under Section `2.5.7.1 Default token discovery mechanism and augmentation <https://xrootd.slac.stanford.edu/doc/dev56/sec_config.htm#_Toc119617461>`_
 
-The support for ZTN token transport and eosxd will be added with EOS version 5.2 !
+The support for ZTN token transport and eosxd was added with EOS version 5.2.
 
 
 .. index::
@@ -461,7 +465,7 @@ To enable OAUTH2 token translation, one has to configure the resource endpoint a
    # allow an oauth2 resource in requests (OIDC infrastructure)
    eos vid set map -oauth2 key:auth.cern.ch/auth/realms/cern/protocol/openid-connect/userinfo vuid:0
 
-If you want to check the audience claim in the ticket, you can add the audience to screen to each oauth2 resource:
+If you want to check the audience claim in the ticket, you can add the audience to screen to each OAUTH2 resource:
 
 .. code-block:: bash
 
@@ -476,13 +480,13 @@ If you want to use a local account which is mapped in the instance to a local ui
    eos vid set map -oauth2 sub:7aa5167f-9c28-4336-8a66-af9145ea847d vuid:1000
 
    
-All XRootD based clients can add the oauth2 token in the endorsement environment variable for sss authentication.
+All XRootD based clients can add the OAUTH2 token in the endorsement environment variable for sss authentication.
    
 .. code-block:: bash
 
    XrdSecsssENDORSEMENT=oauth2:<access_token>:<oauth-resource>
  
-OAUTH2 is enabled by default, but can be explicitly en-/or disabled:
+OAUTH2 is enabled by default, but can be explicitly enabled or disabled:
 
 .. code-block:: bash
 
@@ -502,7 +506,7 @@ OAUTH2 is enabled by default, but can be explicitly en-/or disabled:
     # /tmp/oauthtk_1000 contains oauth2:<token>:<oauth-url>
     ls /eos/ 
    
-One has to supply an sss key for this communication, however the sss key user can be banned on the instance:
+One has to supply an sss key for this communication, however the sss key user should be banned on the instance as a security precaution.
 Client and server should share an sss key for a user, which is actually not authorized to use the instance e.g.
 
 .. code-block:: bash
@@ -599,7 +603,7 @@ script, which is shipped as a part of ``eos-server`` packages.
    GRID Map file generation from IAM Server
 
 
-For testing the script one needs a client-id & a client-key which has ``scim:read`` permissions.
+For testing the script one needs a client-id and a client-key which has ``scim:read`` permissions.
 
 
 .. code-block:: bash
@@ -612,13 +616,13 @@ For testing the script one needs a client-id & a client-key which has ``scim:rea
 Configuring eos-iam-mapfile
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-``eos-iam-mapfile`` can be configured via a simple INI file, a ``[DEFAULT]``
+``eos-iam-mapfile`` can be configured via a simple INI file: a ``[DEFAULT]``
 section takes global parameters, multiple IAM server sections can follow, which
 will be evaluated in the order which they appear in the config. A
 ``localgridmap`` can be configured which will add & override DNs in the
 localgridmap in case they are already mapped from previous IAM server outputs.
 
-An example configuration is given below, note that these are **NOT** the default config options in case the scrip isn't configured. The only default is ``log_level``  which is set to WARNING level.
+An example configuration is given below. Note that these are **NOT** the default config options in case the script isn't configured. The only default is ``log_level``  which is set to WARNING level.
 
 .. code-block:: bash
 
@@ -642,11 +646,9 @@ An example configuration is given below, note that these are **NOT** the default
 File Versioning
 ---------------
 
-File versioning can be triggerd as a per directory policy using the extended attribute ``sys.versioning=<n>`` or via the ``eos file version`` command.
+File versioning can be triggered as a per-directory policy using the extended attribute ``sys.versioning=<n>`` or via the ``eos file version`` command.
 
-The paramter ``<n>`` in the extended attribute describes the maximum number of versions which should be kept according to a FIFO policy.
-
-Additionally to the simple FIFO policy where the oldest versions are deleted once ``<n>`` versions are reached there are 11 predefined timebins, for which additional versions exceeding the versioning parameter ``<n>`` are kept.
+The parameter ``<n>`` in the extended attribute describes the maximum number of versions which should be kept according to a FIFO policy. In addition, there are 11 predefined timebins, for which additional versions exceeding the versioning parameter ``<n>`` are kept.
 
 Versions are kept in a hidden directory (visible with ``ls -la``) which is composed by ``.sys.v#.<basename>``
 
@@ -701,8 +703,6 @@ Configure each directory which should apply versioning using the extended attrib
    # versions are created on the fly with each upload - now 2 versions
    eos cp /tmp/file /eos/version-dir/file
 
-   # aso ....
-
 
 .. index::
    pair: Versioning; Creating 
@@ -734,7 +734,7 @@ List existing versions
 
 
 .. index::
-   pair: Versioning; Puring Versions
+   pair: Versioning; Purging Versions
 
 Purging existing versions
 ^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -798,10 +798,10 @@ FUSE - mounting EOS with eosxd
 EOS supports **eosxd** based on `libfuse2` and `libfuse3`. `libfuse3` has some additional bulk interfaces and performance improvements compared to `libfuse`.
 The executable for `libfuse3` is called **eosxd3**.
 
-.. warning:: To have <strong>eosxd</strong> working properly with many writers you have to modify the MGM configuration file <strong>/etc/xrd.cf.mgm</strong> to configure the nolock option: <strong>all.export / nolock</strong>
+.. warning:: To have eosxd working properly with many writers you have to modify the MGM configuration file /etc/xrd.cf.mgm to configure the nolock option: 'all.export / nolock'
 
 
-There a two FUSEx client modes available:
+There are two FUSEx client modes available:
 
 .. epigraph:: 
 
@@ -822,6 +822,7 @@ Mounting an EOS instance
 Mounting by hostname
 """"""""""""""""""""
 The easiest way to mount EOS is to do:
+
 .. code-block:: bash
 
    mkdir -p /eos/
@@ -846,6 +847,7 @@ To mount an unnamed instance you do:
    eosxd /eos/
 
 or using `mount`:
+
 .. code-block:: bash
 
    mount -t fuse eosxd -ofsname=myeos.cern.ch:/eos/ /eos/
@@ -966,7 +968,7 @@ You also need to define a local cache directory (location) where small files are
 
 The available read-ahead strategies are `dynamic`, `static` or `none`. `dynamic` read-ahead doubles the read-ahead window from nominal to max if the strategy provides cache hits. The default is a dynamic read-ahead starting with 512kb and using 2,4,8,16 blocks resizing blocks up to 2M.
 
-The daemon automatically appends a directory to the mdcachedir, location and journal path and automatically creates these directory private to root (mode=700).
+The daemon automatically appends a directory to the mdcachedir, location and journal path and automatically creates these directories with mode=700 owned by root.
 
 You can modify some of the XrdCl variables, however it is recommended not to change these:
 
@@ -997,8 +999,14 @@ The recovery settings are defined in the following section:
     }
   
 
-It is possible to overwrite the settings of any standard config files using a second configuration file: /etc/eos/fuse.local.conf or/etc/eos/fuse.<name>.local.conf. This is useful to ship a standard configuration via a package and give users the opportunity to change individual parameters.
+It is possible to overwrite the settings of any standard config files using a second configuration file: /etc/eos/fuse.local.conf or/etc/eos/fuse.<name>.local.conf. This is useful to ship a standard configuration via a package and gives users the opportunity to change individual parameters.
+
+.. index::
+   pair: FUSE; configuration defaults
+
+
 Configuration default values and avoiding configuration files
+"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
 Every configuration value has a corresponding default value. As explained the configuration file name is taken from the fsname option given on the command line:
 
@@ -1010,7 +1018,7 @@ Every configuration value has a corresponding default value. As explained the co
     user> eosxd -ofsname=foo #loads $HOME/.eos/fuse.foo.conf
 
 
-One can avoid to use configuration files if the defaults are fine providing the remote host and remote mount directory via the fsname:
+One can avoid using configuration files if the defaults are fine providing the remote host and remote mount directory via the fsname:
 
 .. code-block:: bash
 
@@ -1140,9 +1148,9 @@ operations:
    ALL         Execution Time    4.80 +- 15.56     4.87s               (1267 ops)   
    =========== ================= ================= =================== ==============  
 
-The second block contains counts for each filesystem operation the
-average rates in a 5s,1min,5min and 1h window, the average execution
-time and standard deviation for a given filesystem operation and
+The second block contains counts for each filesystem operation, the
+average rates in 5s, 1min, 5min and 1h windows, the average execution
+time and standard deviation for a given filesystem operation, and
 cumulative seconds spent in each operation.
 
 .. epigraph:: 
@@ -1186,7 +1194,7 @@ cumulative seconds spent in each operation.
     ALL    write                      0             0.00      0.00      0.00       0.00       -NA-        +- -NA-         0.00
     ====== ========================== ============= ========= ========= ========== ========== =========== =============== ===============
 
-The third block displays inode related counts, which are explaine
+The third block displays inode related counts, which are explained
 inline.
 
  .. epigraph:: 
@@ -1286,7 +1294,7 @@ The statistics file can be printed by any user on request by running:
    eosxd get eos.stats <mount-point>
 
 
-The statistics file counter can be reset by running as root:
+The statistics file counter can be reset by running this command as root:
 
 .. code-block:: bash
 
@@ -1300,13 +1308,13 @@ The statistics file counter can be reset by running as root:
 Virtual attributes on EOS mounts
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Virtual attributes allow to get information, which is not exposed by POSIX APIs.
+Virtual attributes allow getting information which is not exposed by POSIX APIs.
 
 
 Virtual Attribute Getters
 """"""""""""""""""""""""""
 
-The following shows all the defined attributes and their meaining:
+The following shows all the defined attributes and their meaning:
 
 .. code-block:: bash
 
@@ -1376,7 +1384,7 @@ be shown or modified using **eos fusex conf**
     info: configured FUSEX quota check interval is 10 seconds
     
 
-The default heartbeat interval is 10 seconds. It is the interval each
+The default heartbeat interval is 10 seconds, upon which each
 **eosxd** process sends a heartbeat message to the MGM server. The quota
 check interval is the interval after which the MGM FuseServer checks
 again if a **eosxd** client went out of quota or back to quota. The
@@ -1386,7 +1394,7 @@ When working with thousands of clients within a single directory the
 amount of messages in the FuseServer broadcast network can overwhelm the
 MGM messaging capacity. To reduce the amount of messages sent around
 while files are open and written, a threshold can be defined after which
-a certain audience of clients will not receive anymore meta-data update
+a certain audience of clients will not receive any more meta-data update
 or forced refresh messages. If 1000 clients write 1000 files within a
 single directory the message rate is 100kHz for file-size updates while
 the clients are writing. In the example above if a message hits more
@@ -1425,11 +1433,11 @@ counter types.
 Namespace Configuration
 ^^^^^^^^^^^^^^^^^^^^^^^
 
-By default each client sends his desired leastime for directory
+By default each client sends its desired leasetime for directory
 subscriptions (300s default at time of writing). For certain directories
 in the hierarchy which are essentially read-only it improves the overall
 performance to define a longer leasetime. In a home directory hierarchy
-like **/eos/user/f/foo** the first three directory level could have a
+like **/eos/user/f/foo** the first three directory levels could have a
 longer lease time defined.
 
 .. code-block:: bash
@@ -1500,7 +1508,7 @@ Example:
 
 This examples show the creation \"C\", the file size update \"U±\", a
 commit from filesystem 2 with checksum and size \"+2sc\", a commit from
-filesystem 1 with checksum verification \"+1v\", then subsequent two
+filesystem 1 with checksum verification \"+1v\", then two
 update sequences to the file resulting in filesize change.
 
 Replica/Chunk Tracking
@@ -1509,8 +1517,8 @@ Replica/Chunk Tracking
 The namespace registers all replica/stripe create,unlink and delete
 operation inside the extended attribute *sys.fs.tracking*.
 
-The extended attribute truncates when it exceeds 127 letters to half. A
-truncation is nidicated with a leading *\|\|* in the attribute.
+The extended attribute is truncated by half when it exceeds 127 characters. A
+truncation is indicated with a leading *\|\|* in the attribute.
 
 Possible indicators are:
 
@@ -1543,9 +1551,9 @@ This examples shows the how replicas are attached on filesystems
 SquashFS images for software distribution
 -----------------------------------------
 
-EOS provides support for SquashFS image files, which can be automatically mounted when the image path is traversed. This functioality requires an appropriate automount configuration.
+EOS provides support for SquashFS image files, which can be automatically mounted when the image path is traversed. This functionality requires an appropriate automount configuration.
 
-To create SquashFS images a client needs the EOS shell and a local mount with an identical path prefix as inside the client shell.
+To create SquashFS images a client needs the EOS shell and a local mount with a path prefix identical to that inside the client shell.
 This means e.g. both commands as shown here point to the same directory:
 
 .. code-block:: bash
@@ -1558,7 +1566,7 @@ This means e.g. both commands as shown here point to the same directory:
 
 To really have read-only access to the  contents of SquashFS images, clients have to install the package **cern-eos-autofs-squashfs**.
 
-All functionality of the SqashFS CLI is displays using the help option:
+All functionality of the SquashFS CLI is displayed using the help option:
 
 .. code-block:: bash
 
@@ -1589,7 +1597,7 @@ Create a new package
    info: ready to install your software under '/eos/dev/squash/mypackage'
    info: when done run 'eos squash pack /eos/dev/squash/mypackage' to create an image file and a smart link in EOS!
 
-   # see what happend - we have created a symbolic link in EOS with the package pathname and the link points to a local stage directory in /var/tmp/...
+   # see what happened - we have created a symbolic link in EOS with the package pathname and the link points to a local stage directory in /var/tmp/...
    [root@dev ]# eos ls -la /eos/dev/squash/
    drwxrwxrw+   1 root     root               59 May 27 13:32 .
    drwxrwxrw+   1 root     root       4751231651 May 27 13:32 ..
@@ -1613,7 +1621,7 @@ Pack a new package
    # pack the new package
    [root@dev ]# eos squash pack /eos/dev/squash/mypackage
 
-   # see what happend - the symlink in EOS with the package pathname points to an encoded loction for the hidden package file .mypackage.sqsh
+   # see what happened - the symlink in EOS with the package pathname points to an encoded loction for the hidden package file .mypackage.sqsh
    [root@dev ]# eos ls -la /eos/ajp/squash/
    drwxrwxrw+   1 root     root             4161 May 27 13:38 .
    drwxrwxrw+   1 root     root       4751235753 May 27 13:32 ..
@@ -1621,7 +1629,7 @@ Pack a new package
    lrwxrwxrwx   1 nobody   nobody             65 May 27 13:38 mypackage -> /eos/squashfs/ajp.cern.ch@---eos---ajp---squash---.mypackage.sqsh
 
 
-If you try to use or access a package on a diffrent client machine before you call **eos squash pack** you will get errors on clients, because the symbolic link points to a non-existing local directory as long as a package is not closed.
+If you try to use or access a package on a different client machine before you call **eos squash pack** you will get errors on clients, because the symbolic link points to a non-existing local directory as long as a package is not closed.
 
 In general you have to treat SquashFS packages as write-once archives. There is the possiblity to unpack a packed archive, modify and re-pack, however this is problematic if a package is already accessed on other clients using the automount mechanism. They won't remount an updated package automatically unless the mount is removed by idle timeouts and re-mounted later.
 
@@ -1674,13 +1682,13 @@ To delete a SquashFS package you run:
 Relabeling a package
 """"""""""""""""""""
 
-If a SquashFS package and/or package files has been moved around in the namespace e.g. by doing this ...
+If a SquashFS package and/or package files has been moved around in the namespace e.g. by doing this:
 
 .. code-block:: bash
 
    [root@dev ]# eos mv /eos/dev/squash/ /eos/dev/newsquash/
 
-the package links are broken. In this case one has to relabel the package doing:
+then the package links are broken. In this case one has to relabel the package:
 
 .. code-block:: bash
 
@@ -1771,9 +1779,9 @@ The output shows two versions in the **archive** and the **current** link.
 Trimming Release Packages
 """""""""""""""""""""""""
 
-If you regulary build software releases, you want to limit the number of versions, which are kept.
+If you regularly build software releases, you want to limit the number of versions which are kept.
 
-You can trim your softare releases using:
+You can trim your software releases using:
 
 .. code-block:: bash
 
@@ -1781,18 +1789,18 @@ You can trim your softare releases using:
 
 This commmand will keep only versions not older than 100 days.
 
-Additionally you can specifiy the maximum number of versions to keep:
+Additionally you can specify the maximum number of versions to keep:
 
 .. code-block:: bash
 
    [root@dev ]# eos squash trim-release /eos/dev/release/mypackage 100 10
 
-In this case we don't want to keep more than the 10 most recents versions, not older than 100 days.
+In this case we don't want to keep more than the 10 most recent versions, not older than 100 days.
 
 Deleting Release Packages
 """""""""""""""""""""""""
 
-For completeness, there is a command to cleanup a release packge. Be aware, that this will deleted all your release versions!
+For completeness, there is a command to cleanup a release packge. Be aware that this will delete all your release versions!
 
 .. code-block:: bash
 
@@ -1808,14 +1816,14 @@ For completeness, there is a command to cleanup a release packge. Be aware, that
    info: wiping links current,next ...
    info: wiping archive ...
 
-The main difference between simple and release packages is, that you can create new release while the previous one is in use on any other client.
+The main difference between simple and release packages is that you can create a new release while the previous one is in use on any other client.
 
 Shared filesystems as FST backends
 ----------------------------------
 
-The EOS FST server can be configured to store data on any (shared) filesystem as storage device which supports extended attributes. To avoid that filesystems sharing a device or a shared filesystem are accounted multiple times in the space and node aggregation, one can label each filesystem with a shared filesystem name to indicated that all devices using this name share the same hardware resource.
+The EOS FST server can be configured to store data on any (shared) filesystem as storage device which supports extended attributes. To prevent filesystems sharing a device or a shared filesystem from being accounted multiple times in the space and node aggregation, one can label each filesystem with a shared filesystem name to indicated that all devices using this name share the same hardware resource.
 
-The shared filesystem name can be configured when a filesystem is added e.g. a CephFS filesystem names cephfs1
+The shared filesystem name can be configured when a filesystem is added e.g. a CephFS filesystem named cephfs1:
 
 .. code-block:: bash
 
@@ -1833,15 +1841,17 @@ Extended attribute locks
 ------------------------
 
 An extended attribute lock is a simple mechanism to block file opens on locked files to foreigners. Foreigners are not owners. The owner is defined by the username and the application name. 
-So if any of these differs a client is considered a foreigner. 
+So if any of these differ a client is considered a foreigner. 
 
 We define two types of locks:
-- exclusive : no foreigner can open a file with an exclusive lock for reading or writing
-- shared    : foreigner can open a file with an exclusive lock in case they are reading
+
+-   exclusive : no foreigner can open a file with an exclusive lock for reading or writing
+
+-   shared    : foreigner can open a file with an exclusive lock in case they are reading
 
 Shared attribute locks are currently not exposed in the CLI.
 
-To create an exclusive extended attribute lock you do:
+To create an exclusive extended attribute lock:
 
 .. code-block:: bash
 
@@ -1886,7 +1896,7 @@ The internal representation of an attribute lock is given here:
    # requiring same app
    sys.app.lock="expires:1665042101,type:exclusive,owner:*:myapp"
 
-The high-level functionality for creating/deletion of attribute locks can be circumvented by creating/deleting the *sys.app.locks* attribute using extended attribute interfaces.
+The high-level functionality for creation/deletion of attribute locks can be circumvented by creating/deleting the *sys.app.locks* attribute using extended attribute interfaces.
 
 .. index::
    pair: Using; Archiving
@@ -1937,13 +1947,13 @@ data or the metadata. Transferring the data to tape (CTA) is done using the **ar
 
 At any point during a transfer the user can retrieve the current status of the transfer by issuing an
 **archive transfers** command. Once the transfer finishes there will be two additional files saved at
-the root of the archived subtree: the **.archive.log** file with contains the logs of the last transfer
-(note the 'dot' in the begining of the filename - so to list it use **ls -la** in the *EOS Console*)
+the root of the archived subtree: the **.archive.log** file which contains the logs of the last transfer
+(note the 'dot' in the beginning of the filename, so to list it use **ls -la** in the *EOS Console*)
 and another file called **.archive.<operation>.<outcome>** where operation is one of the following:
 get/put/purge and the outcome can either be **done** or **err**.
 
 While an archive operation is ongoing the file stored in EOS is marked with the **err** tag. For
-example, an ongoig **put** operation, which can take serveral hours depending on the size of the
+example, an ongoing **put** operation, which can take several hours depending on the size of the
 sub-tree being archived to tape, will appear in the **eos ls -la** output as **.archive.put.err**.
 Once the put operation is successful, this file will be renamed to **.archive.put.done**. Therefore,
 it's important to check the output of the **eos archive transfers** command which is listing the
@@ -1959,7 +1969,7 @@ thus freeing the space.
 
     archive purge /eos/dir/archive/test
 
-To get the data back into EOS one should use the archive get command:
+To get the data back into EOS use the archive get command:
 
 .. code-block:: bash
 
@@ -1982,7 +1992,7 @@ Data Obufscation and Encryption
 -------------------------------
 
 We provide a generic EOS mechanism to obfuscate or encrypt data files stored on storage nodes, which does not require encrypted disk partitions. Each file is obfuscated/encrypted individually.
-Encryption uses an obfuscation key (start vector) which is transformed into an encryption key using a client secret to compute an HMAC value of the obfuscation key. Data are then encrypted with a simple block cipher algorithm (ECB). This is the fastest way of encryption for random access without any read-write-amplicification - but does not meet the highest security standards. Obfuscation keys are stored as an extended attribute of each file. It is not possible to view obfuscation keys using the EOS CLI. A low resolution fingerprint of the encryption key is also stored as an invisible extended attribute when encryption is done using a FUSE mount. This allows to identify wrong client side keys and avoids returning unreadable content to clients on FUSE mounts. This mechanism is not used for remote access protocols.
+Encryption uses an obfuscation key (start vector) which is transformed into an encryption key using a client secret to compute an HMAC value of the obfuscation key. Data are then encrypted with a simple block cipher algorithm (ECB). This is the fastest way of encryption for random access without any read-write-amplification - but does not meet the highest security standards. Obfuscation keys are stored as an extended attribute of each file. It is not possible to view obfuscation keys using the EOS CLI. A low resolution fingerprint of the encryption key is also stored as an invisible extended attribute when encryption is done using a FUSE mount. This allows identifying incorrect client side keys and avoids returning unreadable content to clients on FUSE mounts. This mechanism is not used for remote access protocols.
 
 
 .. index::
@@ -1990,7 +2000,7 @@ Encryption uses an obfuscation key (start vector) which is transformed into an e
 
 To enable obfuscation for individual files using remote protocols, one can use the CGI `&eos.obfuscate=1` when creating a new file.
 
-To enable obbfuscation for all new files created in in a directory use:
+To enable obfuscation for all new files created in in a directory use:
 
 .. code-block:: bash
 
@@ -2009,7 +2019,7 @@ Encryption requires obfuscation to be enabled! This is done by defining on the t
 
 		[root@host~] eos attr set sys.file.obfuscate=1 /eos/encryption/
 
-Encryption is additionally enabled client-side defining the environment variable `EOS_FUSE_SECRET`. It is used automatically by the `eoscp` command or the `eosxd` FUSE mounts, but not when using `xrdcp` or `http` access:
+Encryption is additionally enabled client-side by defining the environment variable `EOS_FUSE_SECRET`. It is used automatically by the `eoscp` command or the `eosxd` FUSE mounts, but not when using `xrdcp` or `http` access:
 
 .. code-block:: bash
 
@@ -2051,8 +2061,8 @@ The syntax in the FUSE configuration file is as shown:
 Running Authentication Front-ends
 ---------------------------------
 
-THe MGM supports to service requests from an authentication front-end XRootD. An authentication front-end server is an XRootD server running the EosAuthOfs plug-in. Using this plug-in the front-end server connects to a standard MGM service (back-end) over ZMQ protocol.
-An authentication front-end allows to configure a subset of authentication methods and to partition connections of certain use cases to this daemon shielding direct conections from the standard MGM service.
+The MGM supports servicing requests from a front-end XRootD authentication server. An authentication front-end server is an XRootD server running the EosAuthOfs plug-in. Using this plug-in the front-end server connects to a standard MGM service (back-end) over ZMQ protocol.
+An authentication front-end allows one to configure a subset of authentication methods and to partition connections of certain use cases to this daemon, shielding the standard MGM service from direct conections.
 
 To enable a standard MGM to allow connections from an authentication front-end use the following MGM configuration variables:
 
@@ -2071,7 +2081,7 @@ To enable a standard MGM to allow connections from an authentication front-end u
 		mgmofs.authlocal 1
 
 
-If you want to run your authentication front-end on a seperate machine from the MGM service, you can use ```mgm.authlocal 0```. 
+If you want to run your authentication front-end on a separate machine from the MGM service, you can use ```mgm.authlocal 0```. 
 Be aware that you have to protect the given port from 'unwanted' access. There is no authentication involved in the communication from 
 front-end to back-end MGM. 
 
