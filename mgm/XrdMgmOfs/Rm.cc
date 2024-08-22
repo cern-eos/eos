@@ -236,7 +236,7 @@ XrdMgmOfs::_rem(const char* path,
 
         // if there is a !d policy we cannot delete files which we don't own
         if (((vid.uid) && (vid.uid != 3) && (vid.gid != 4) && (acl.CanNotDelete())) &&
-	    (container_owner_uid != vid.uid) &&
+            (container_owner_uid != vid.uid) &&
             ((fmd->getCUid() != vid.uid))) {
           errno = EPERM;
           // deletion is forbidden for not-owner unless we own the parent!
@@ -339,7 +339,7 @@ XrdMgmOfs::_rem(const char* path,
             gOFS->eosView->removeFile(fmd.get());
           }
 
-          gOFS->WriteRmRecord(fmd);
+          gOFS->WriteRmRecord(fmd, path);
 
           if (container) {
             container->setMTimeNow();

@@ -1142,7 +1142,8 @@ XrdMgmOfs::MacroStringError(int errcode)
 // Write report record for final deletion (to IoStats)
 //------------------------------------------------------------------------------
 void
-XrdMgmOfs::WriteRmRecord(const std::shared_ptr<eos::IFileMD>& fmd)
+XrdMgmOfs::WriteRmRecord(const std::shared_ptr<eos::IFileMD>& fmd,
+                         const char* full_path)
 {
   struct timespec ts_now;
   char report[16384];
@@ -1150,16 +1151,20 @@ XrdMgmOfs::WriteRmRecord(const std::shared_ptr<eos::IFileMD>& fmd)
   eos::IFileMD::ctime_t mtime;
   fmd->getCTime(ctime);
   fmd->getMTime(mtime);
+  const std::string enc_path =
+    eos::common::StringConversion::curl_default_escaped(full_path);
   eos::common::Timing::GetTimeSpec(ts_now);
   snprintf(report, sizeof(report) - 1,
-           "log=%s&"
+           "log=%s&path=%s&"
            "host=%s&fid=%llu&fxid=%08llx&"
            "ruid=%u&rgid=%u&"
            "del_ts=%lu&del_tns=%lu&"
            "dc_ts=%lu&dc_tns=%lu&"
            "dm_ts=%lu&dm_tns=%lu&"
            "dsize=%lu&sec.app=rm",
-           this->logId, gOFS->ManagerId.c_str(), (unsigned long long) fmd->getId(),
+           this->logId,
+           (enc_path.empty() ? "N/A" : enc_path.c_str()),
+           gOFS->ManagerId.c_str(), (unsigned long long) fmd->getId(),
            (unsigned long long) fmd->getId(), fmd->getCUid(), fmd->getCGid(),
            ts_now.tv_sec, ts_now.tv_nsec, ctime.tv_sec, ctime.tv_nsec,
            mtime.tv_sec, mtime.tv_nsec, fmd->getSize());

@@ -1579,8 +1579,10 @@ public:
   //! Write an report log record about final deletion
   //!
   //! @param fmd meta data
+  //! @param full_path full path of deleted file
   //------------------------------------------------------------------------------
-  void WriteRmRecord(const std::shared_ptr<eos::IFileMD>& fmd);
+  void WriteRmRecord(const std::shared_ptr<eos::IFileMD>& fmd,
+                     const char* full_path = nullptr);
 
   //------------------------------------------------------------------------------
   //! Write an report log record about deletion into recycle bin

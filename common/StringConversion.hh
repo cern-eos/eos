@@ -757,16 +757,28 @@ public:
   //----------------------------------------------------------------------------
   //! Return an escaped URI
   //!
-  //! @param str - uri to escape
+  //! @param str URI to escape
+  //!
   //! @return escaped URI string
   //----------------------------------------------------------------------------
   static std::string
   curl_default_escaped(const std::string& str);
 
   //----------------------------------------------------------------------------
+  //! Return an escaped URI
+  //!
+  //! @param ptr - pointer to data that should be null terminated
+  //!
+  //! @return escaped URI string
+  //----------------------------------------------------------------------------
+  static std::string
+  curl_default_escaped(const char* ptr);
+
+  //----------------------------------------------------------------------------
   //! Return an escaped path
   //!
   //! @param path to escape
+  //!
   //! @return escaped path string
   //----------------------------------------------------------------------------
   static std::string
@@ -780,6 +792,16 @@ public:
   //----------------------------------------------------------------------------
   static std::string
   curl_default_unescaped(const std::string& str);
+
+  //----------------------------------------------------------------------------
+  //! Return an unescaped URI
+  //!
+  //! @param ptr pointer to data that should be null terminated
+  //!
+  //! @return unescaped URI string
+  //----------------------------------------------------------------------------
+  static std::string
+  curl_default_unescaped(const char* ptr);
 
   // ---------------------------------------------------------------------------
   /**
