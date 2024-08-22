@@ -24,7 +24,7 @@
 option(USE_SYSTEM_GBENCH "Use Google benchmark installed in the system if found" ON)
 
 if(USE_SYSTEM_GBENCH)
-  find_package(benchmark 1.6.0)
+  find_package(benchmark)
 else()
   if(IS_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/benchmark)
     set(BENCHMARK_FOUND TRUE)
@@ -36,7 +36,7 @@ else()
   endif()
 endif()
 
-if(NOT BENCHMARK_FOUND)
+if(NOT TARGET benchmark::benchmark)
   return()
 endif()
 
