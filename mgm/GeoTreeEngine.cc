@@ -2047,7 +2047,7 @@ int GeoTreeEngine::accessHeadReplicaMultipleGroup(const size_t& nAccessReplicas,
       }
 
       // randomly choose a fs among the highest scored ones
-      selectedFsId = geoScore2Fs.rbegin()->second[rand() %
+      selectedFsId = geoScore2Fs.rbegin()->second[eos::common::getRandom() %
                      geoScore2Fs.rbegin()->second.size()];
 
       // return the corresponding index

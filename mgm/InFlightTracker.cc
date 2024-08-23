@@ -110,7 +110,7 @@ InFlightTracker::getStallTime(uid_t uid, size_t& limit)
     stalltime = 1;
   }
 
-  size_t random_stall = common::getRandom((size_t)1, stalltime);
+  size_t random_stall = common::getRandom(1ul, stalltime);
   stalltime /= 2;
   stalltime += random_stall;
 

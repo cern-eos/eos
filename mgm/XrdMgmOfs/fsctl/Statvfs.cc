@@ -22,6 +22,7 @@
  ************************************************************************/
 
 #include "common/Logging.hh"
+#include "common/utils/RandUtils.hh"
 #include "mgm/Stat.hh"
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/Macros.hh"
@@ -78,7 +79,7 @@ XrdMgmOfs::Statvfs(const char* path,
       time_t now = time(NULL);
 
       // Use caching to avoid often expensive space recomputations
-      if ((now - laststat) > (10 + rand() / RAND_MAX)) {
+      if ((now - laststat) > eos::common::getRandom(5, 15)) {
         // Take the sums from all file systems in 'default' space
         eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
 
