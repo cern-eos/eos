@@ -24,7 +24,7 @@
 #include "mgm/geotree/SchedulingSlowTree.hh"
 #include "common/Logging.hh"
 #include "common/StringUtils.hh"
-
+#include "common/utils/RandUtils.hh"
 #include <iostream>
 #include <iomanip>
 #include <sstream>
@@ -164,7 +164,7 @@ void functionalTestFastTree(FastTree<T1, T2>* fptree, FastTree<T3, T4>* fatree,
   // do verification regarding the placement, the access and the geolocation
   for (size_t loop = 0; loop < 1000; loop++) {
     // select a random number of replicas
-    size_t nreplica = 1 + rand() % (nMaxReplicas);
+    size_t nreplica = eos::common::getRandom(1ul, nMaxReplicas);
     // copy a blank copy of the FastTree
     char buffer[bufferSize];
     assert(fptree->copyToBuffer(buffer, bufferSize) == 0);
@@ -493,7 +493,6 @@ int mainFull()
   eos::common::Logging& g_logging = eos::common::Logging::GetInstance();
   g_logging.SetUnit("SchedulingTreeTest");
   g_logging.SetLogPriority(LOG_INFO);
-  srand(0);
   string geoTagFileNameStr = __FILE__;
   geoTagFileNameStr += ".testfile";
   const char* geoTagFileName = geoTagFileNameStr.c_str();
@@ -539,7 +538,7 @@ int mainFull()
       SchedTreeBase::TreeNodeInfo info;
       info.geotag = it->second;
       info.host = it->first;
-      info.fsId = (eos::common::FileSystem::fsid_t) rand();
+      info.fsId = eos::common::getRandom();
       //std::cout<<info.mGeotag.c_str()<<"\t"<<info.mFsId<<std::endl;
       SchedTreeBase::TreeNodeStateFloat state;
       state.dlScore = 1.0;
@@ -548,7 +547,7 @@ int mainFull()
                       SchedTreeBase::Readable;
       state.fillRatio = 0.5;
       state.totalSpace = 2e12;
-      int r = rand();
+      int r = eos::common::getRandom();
 
       if (r < RAND_MAX / 64) { // make 1/64 th unavailable
         state.mStatus = (SchedTreeBase::tStatus)(state.mStatus &
@@ -583,7 +582,7 @@ int mainFull()
             nAvailableFsDrnPlct++;
           }
 
-          r = rand();
+          r = eos::common::getRandom();
 
           if (r < RAND_MAX / 8) {
             if (state.mStatus & SchedTreeBase::Drainer) {
@@ -1001,7 +1000,7 @@ int mainFull()
     FastROAccessTree* ftree = (FastROAccessTree*) buffer;
     // pick a random geolocation which makes sense in the tree
     const string& clientGeoString =
-      ftinfos[i % schedGroups.size()][rand() % ftinfos[i %
+      ftinfos[i % schedGroups.size()][eos::common::getRandom() % ftinfos[i %
                                       schedGroups.size()].size()].fullGeotag;
     SchedTreeBase::tFastTreeIdx closestNode = geomaps[i %
         schedGroups.size()].getClosestFastTreeNode(
@@ -1084,8 +1083,8 @@ int mainFull()
     FastPlacementTree* ftree = (FastPlacementTree*) buffer;
     // select a random file system
     SchedTreeBase::tFastTreeIdx rfs = fsIdxBegV[i % schedGroups.size()]
-                                      + rand() % (fsIdxEndV[i % schedGroups.size()] - fsIdxBegV[i %
-                                          schedGroups.size()]);
+      + eos::common::getRandom() % (fsIdxEndV[i % schedGroups.size()] -
+                                    fsIdxBegV[i % schedGroups.size()]);
     ftree->updateBranch(rfs);
   }
 

@@ -226,7 +226,7 @@ XrdMgmOfs::ShouldStall(const char* function,
 
       if (stalltime && (saturated || ! limit)) {
         // add random offset between 0 and 5 to stalltime
-        int random_stall = rand() % 6;
+        int random_stall = eos::common::getRandom(0, 5);
         stalltime += random_stall;
         stallmsg = "Attention: you are currently hold in this instance and each"
                    " request is stalled for ";

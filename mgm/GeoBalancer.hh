@@ -162,8 +162,6 @@ private:
   bool scheduleTransfer(eos::common::FileId::fileid_t fid,
                         const std::string& sourceGeotag);
 
-  int getRandom(int max);
-
   bool cacheExpired(void);
 
   void updateTransferList(void);
