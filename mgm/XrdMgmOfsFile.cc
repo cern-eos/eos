@@ -546,6 +546,8 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
   bool isRepair = false;
   // flag indicating a read for repair (meaningfull only on the FST)
   bool isRepairRead = false;
+  // flag indicating a file touch
+  bool isTouch = false;
   // chunk upload ID
   XrdOucString ocUploadUuid = "";
   // Set of filesystem IDs to reconstruct
@@ -631,10 +633,13 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
   const std::string app_name = GetApplicationName(openOpaque, client);
 
   // Decide if this is a FUSE access
-  if (!app_name.empty() &&
-      ((app_name == "fuse") || (app_name == "xrootdfs") ||
-       (app_name.find("fuse::") == 0))) {
-    isFuse = true;
+  if (!app_name.empty()) {
+    if (app_name == "fuse" || app_name == "xrootdfs" || app_name.find("fuse::") == 0) {
+      isFuse = true;
+    } else if (app_name == "touch") {
+      isTouch = true;
+      isFuse = true;
+    }
   }
 
   {
@@ -2015,7 +2020,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
     if (isRepair) {
       plctargs.bookingsize = bookingsize ? bookingsize : gOFS->getFuseBookingSize();
     } else {
-      plctargs.bookingsize = isFuse ? gOFS->getFuseBookingSize() : bookingsize;
+      plctargs.bookingsize = isFuse ? (isTouch ? 0 : gOFS->getFuseBookingSize()) : bookingsize;
     }
 
     plctargs.dataproxys = &proxys;
