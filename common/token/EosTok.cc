@@ -40,6 +40,7 @@
 #include "common/SymKeys.hh"
 #include "common/StringConversion.hh"
 #include "common/Path.hh"
+#include "common/utils/RandUtils.hh"
 #include <errno.h>
 #include <regex>
 #include <iostream>
@@ -71,7 +72,7 @@ std::string
 EosTok::Write(const std::string& key)
 {
   valid = false;
-  share->set_seed(std::rand());
+  share->set_seed(eos::common::getRandom());
   // create a unique id for this token
   share->mutable_token()->set_voucher(
     eos::common::StringConversion::random_uuidstring());

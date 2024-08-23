@@ -31,6 +31,7 @@
 #include "common/StringConversion.hh"
 #include "common/FileId.hh"
 #include "common/LayoutId.hh"
+#include "common/utils/RandUtils.hh"
 #include <XrdSys/XrdSysError.hh>
 #include <XrdOuc/XrdOucTrace.hh>
 #include <Xrd/XrdScheduler.hh>
@@ -99,19 +100,6 @@ GeotagSize::GeotagSize(uint64_t usedBytes, uint64_t capacity)
   assert(capacity > 0);
 }
 
-/*----------------------------------------------------------------------------*/
-int
-GeoBalancer::getRandom(int max)
-/*----------------------------------------------------------------------------*/
-/**
- * @brief Gets a random int between 0 and a given maximum
- * @param max the upper bound of the range within which the int will be
- *        generated
- */
-/*----------------------------------------------------------------------------*/
-{
-  return (int) round(max * random() / (double) RAND_MAX);
-}
 
 /*----------------------------------------------------------------------------*/
 void
@@ -412,7 +400,7 @@ GeoBalancer::chooseFidFromGeotag(const std::string& geotag)
   // TODO(gbitzes): Add prefetching here.
 
   while (validFs.size() > 0) {
-    rndIndex = getRandom(validFs.size() - 1);
+    rndIndex = eos::common::getRandom(0ul, validFs.size() - 1);
     fsid = validFs[rndIndex];
     fsid_size = gOFS->eosFsView->getNumFilesOnFs(fsid);
 
@@ -465,7 +453,7 @@ GeoBalancer::prepareTransfer()
   int attempts = 10;
 
   while (attempts-- > 0) {
-    int rndIndex = getRandom(mGeotagsOverAvg.size() - 1);
+    int rndIndex = eos::common::getRandom(0ul, mGeotagsOverAvg.size() - 1);
     std::vector<std::string>::const_iterator over_it = mGeotagsOverAvg.cbegin();
     std::advance(over_it, rndIndex);
     // TODO: this loop should be improved not to request the file list too

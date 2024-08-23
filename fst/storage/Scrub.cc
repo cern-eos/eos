@@ -23,6 +23,7 @@
 
 #include "fst/storage/Storage.hh"
 #include "fst/storage/FileSystem.hh"
+#include "common/utils/RandUtils.hh"
 #include <fcntl.h>
 
 #ifdef __APPLE__
@@ -197,7 +198,7 @@ Storage::ScrubFs(const char* path, unsigned long long free,
         }
 
         // select the pattern randomly
-        int rshift = (int)((1.0 * rand() / RAND_MAX) + 0.5);
+        int rshift = (int)((1.0 * eos::common::getRandom() / RAND_MAX) + 0.5);
         eos_static_debug("rshift is %d", rshift);
 
         for (int i = 0; i < MB; i++) {

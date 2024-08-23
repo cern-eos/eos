@@ -69,9 +69,9 @@ BalancerEngine::pickGroupsforTransfer()
 
   auto over_it = data.mGroupsOverThreshold.begin();
   auto under_it = data.mGroupsUnderThreshold.begin();
-  int rndIndex = common::getRandom((uint64_t)0, data.mGroupsOverThreshold.size() - 1);
+  int rndIndex = common::getRandom(0ul, data.mGroupsOverThreshold.size() - 1);
   std::advance(over_it, rndIndex);
-  rndIndex = common::getRandom((uint64_t)0, data.mGroupsUnderThreshold.size() - 1);
+  rndIndex = common::getRandom(0ul, data.mGroupsUnderThreshold.size() - 1);
   std::advance(under_it, rndIndex);
   return {*over_it, *under_it};
 }

@@ -23,6 +23,7 @@
 
 #ifndef __EOSMGM_FASTTREE__H__
 #include "mgm/geotree/SchedulingTreeCommon.hh"
+#include "common/utils/RandUtils.hh"
 #include <cstddef>
 #include <ostream>
 #include <string>
@@ -1139,7 +1140,7 @@ protected:
     }
 
     if (weightSum) {
-      int r = rand();
+      int r = eos::common::getRandom();
       r = r % (weightSum);
       tFastTreeIdx i = 0;
 
@@ -1159,8 +1160,8 @@ protected:
       return pBranches[i].sonIdx;
     } else {
       // in this case all weights are 0 -> uniform probability
-      return pBranches[pNodes[node].treeData.firstBranchIdx + rand() %
-                       nBranches].sonIdx;
+      return pBranches[pNodes[node].treeData.firstBranchIdx +
+                       eos::common::getRandom() % nBranches].sonIdx;
     }
   }
 
@@ -1198,7 +1199,7 @@ protected:
       return false;
     }
 
-    int r = rand();
+    int r = eos::common::getRandom();
     r = r % (weightSum);
     tFastTreeIdx i = 0;
 
