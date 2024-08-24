@@ -579,11 +579,11 @@ Configuring mappings using the CLI
    eos vid set map -voms /cms/muon:production vuid:`id -u cmsprod` vgid:`id -u cmsprod`
    eos vid set map -voms /cms:cmsphedex vuid:`id -u cmsprod` vgid:`id -u cmsprod`
    eos vid set map -voms /cms:lcgadmin vuid:`id -u cmssam` vgid:`id -u cmssam`
-   eos vid set map -voms cms/uscms:lcgadmin vuid:`id -u cmssam` vgid:`id -u cmssam`
-   eos vid set map -voms cms:pilot vuid:`id -u cmspilot` vgid:`id -u cmspilot`
-   eos vid set map -voms cms:uscms:pilot vuid:`id -u cmspilot` vgid:`id -u cmspilot`
-   eos vid set map -voms cms:priorityuser vuid:`id -u cmsuser` vgid:`id -u cmsuser`
-   eos vid set map -voms cms:hiproduction vuid:`id -u cmsuser` vgid:`id -u cmsuser`
+   eos vid set map -voms /cms/uscms:lcgadmin vuid:`id -u cmssam` vgid:`id -u cmssam`
+   eos vid set map -voms /cms:pilot vuid:`id -u cmspilot` vgid:`id -u cmspilot`
+   eos vid set map -voms /cms:uscms:pilot vuid:`id -u cmspilot` vgid:`id -u cmspilot`
+   eos vid set map -voms /cms:priorityuser vuid:`id -u cmsuser` vgid:`id -u cmsuser`
+   eos vid set map -voms /cms:hiproduction vuid:`id -u cmsuser` vgid:`id -u cmsuser`
    eos vid set map -voms /cms: vuid:`id -u cmsuser` vgid:`id -u cmsuser
 
 
