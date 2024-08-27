@@ -38,6 +38,34 @@ EOSMGMNAMESPACE_BEGIN
 thread_local eos::common::LogId CommitHelper::tlLogId;
 
 //------------------------------------------------------------------------------
+// Increment the timestamp component of the version file name given as input
+// so as to avoid an existing conflict with an already existing file.
+//------------------------------------------------------------------------------
+std::string
+CommitHelper::IncrementTsForVersionFn(const std::string& ver_fn)
+{
+  size_t pos = ver_fn.find('.');
+  // No . character or at the end of the string
+  if ((pos == std::string::npos) || (pos == ver_fn.length() - 1)) {
+    return ver_fn;
+  }
+
+  std::string sts = ver_fn.substr(0, pos);
+  unsigned long long ts = 0ull;
+
+  try {
+    ts = std::stoull(sts);
+    ++ts;
+  } catch (...) {
+    return ver_fn;
+  }
+
+  std::ostringstream oss;
+  oss << ts << "." << ver_fn.substr(pos + 1);
+  return oss.str();
+}
+
+//------------------------------------------------------------------------------
 // convert hex to binary checksum
 //------------------------------------------------------------------------------
 void
@@ -710,13 +738,28 @@ CommitHelper::handle_versioning(eos::common::VirtualIdentity& vid,
       return;
     }
 
-    if (option["versioning"] && (std::string(paths["version"].GetPath()) != "/")) {
+    if (option["versioning"] && strlen(paths["version"].GetPath()) &&
+        (std::string(paths["version"].GetPath()) != "/")) {
       try {
         versiondir = gOFS->eosView->getContainer(paths["version"].GetParentPath());
         // rename the existing path to the version path
         versionfmd = gOFS->eosView->getFile(std::string(
                                               paths["versiondir"].GetParentPath()) + std::string(paths["atomic"].GetPath()));
         dir->removeFile(paths["atomic"].GetName());
+        // If a file with the same name already exists then we have conflict
+        // and the timestamp of the version file needs to be increased
+        uint16_t attempt = 0;
+        while ((versiondir->findFile(paths["version"].GetName()) != nullptr) &&
+               (attempt++ < 5)) {
+          std::string ver_ppath = paths["version"].GetParentPath();
+          std::string ver_fn = paths["version"].GetName();
+          eos_static_info("msg=\"trigger workaround for file name collision\" "
+                          "fn=\"%s\"", ver_fn.c_str());
+          ver_fn = IncrementTsForVersionFn(ver_fn);
+          std::string full_path = ver_ppath + ver_fn;
+          paths["version"] = eos::common::Path(full_path);
+        }
+
         versionfmd->setName(paths["version"].GetName());
         versionfmd->setContainerId(versiondir->getId());
         attrmapF = versionfmd->getAttributes();
@@ -782,10 +825,10 @@ CommitHelper::handle_versioning(eos::common::VirtualIdentity& vid,
     }
 
     if (!option["abort"]) {
-      gOFS->eosView->renameFile(fmd.get(), paths["atomic"].GetName());
       eos_thread_info("msg=\"de-atomize file\" fxid=%08llx atomic-name=%s "
                       "final-name=%s", fmd->getId(), fmd->getName().c_str(),
                       paths["atomic"].GetName());
+      gOFS->eosView->renameFile(fmd.get(), paths["atomic"].GetName());
     }
   } catch (eos::MDException& e) {
     delete_path = "";
