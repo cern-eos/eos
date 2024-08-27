@@ -120,8 +120,8 @@ public:
                          unsigned long long replica_size,
                          CommitHelper::option_t& option,
                          std::string& errmsg,
-			 eos::ContainerIdentifier& p_ident
-			 );
+                         eos::ContainerIdentifier& p_ident
+                         );
 
   static unsigned long long get_version_fid(
     eos::common::VirtualIdentity& vid,
@@ -135,7 +135,19 @@ public:
                                 CommitHelper::option_t& option,
                                 std::string& delete_path);
 
-
+private:
+#ifdef IN_TEST_HARNESS
+public:
+#endif
+  //----------------------------------------------------------------------------
+  //! Increment the timestamp component of the version file name given as input
+  //! in order to avoid a conflict with an already existing file.
+  //!
+  //! @param ver_fn version file name with format <ctime>.<fxid>
+  //!
+  //! @return new version file name <ctime+1>.<fxid>
+  //----------------------------------------------------------------------------
+  static std::string IncrementTsForVersionFn(const std::string& ver_fn);
 };
 
 EOSMGMNAMESPACE_END
