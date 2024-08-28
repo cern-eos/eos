@@ -28,6 +28,9 @@
 
 using eos::mgm::CommitHelper;
 
+//------------------------------------------------------------------------------
+// Test incrementing the timestamp for versioned files
+//------------------------------------------------------------------------------
 TEST(CommitHelperTest, IncTsVerFn)
 {
   std::string fn = "1724758410.00001111";

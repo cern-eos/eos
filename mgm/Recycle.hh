@@ -53,16 +53,6 @@ EOSMGMNAMESPACE_BEGIN
 
 class Recycle
 {
-private:
-  AssistedThread mThread; ///< Thread doing the recycling
-  std::string mPath;
-  std::string mRecycleDir;
-  std::string mRecyclePath;
-  uid_t mOwnerUid;
-  gid_t mOwnerGid;
-  unsigned long long mId;
-  std::atomic<bool> mWakeUp;
-
 public:
   //----------------------------------------------------------------------------
   //! Default Constructor - use it to run the Recycle thread by callign Start
@@ -248,6 +238,37 @@ public:
   static std::string
   gRecyclingVersionKey; //<  attribute key storing the recycling key of the version directory belonging to a given file
   static int gRecyclingPollTime; //< poll interval inside the garbage bin
+
+private:
+#ifdef IN_TEST_HARNESS
+public:
+#endif
+
+  AssistedThread mThread; ///< Thread doing the recycling
+  std::string mPath;
+  std::string mRecycleDir;
+  std::string mRecyclePath;
+  uid_t mOwnerUid;
+  gid_t mOwnerGid;
+  unsigned long long mId;
+  std::atomic<bool> mWakeUp;
+
+  //----------------------------------------------------------------------------
+  //! Handle symlink or symlink like file names. Three scenarios:
+  //! - file does not contain the ' -> ' string so it's returned as it is
+  //! - file is not a symlink but contains the ' -> ' string in its name then
+  //!   we return it as it is
+  //! - file is a symlink so the name contains the ' -> ' string and we need
+  //!   to remove everything after this occurent so that we can properly
+  //!   target the symlink file and not the target of the symlink
+  //!
+  //! @param ppath full parent directory path
+  //! @param fn file name
+  //!
+  //! @return output file name that we can act on
+  //----------------------------------------------------------------------------
+  static std::string
+  HandlePotentialSymlink(const std::string& ppath, const std::string& fn);
 };
 
 EOSMGMNAMESPACE_END
