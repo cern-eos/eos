@@ -303,7 +303,9 @@ Recycle::Recycler(ThreadAssistant& assistant) noexcept
                   XrdOucString dirname = dirit->first.c_str();
 
                   if (dirname.endswith(".d/")) {
-                    // check again the ctime here, because we had to enalrge the query window by 31 days for the organization of the recycle bin
+                    // Check again the ctime here, because we had to enalrge
+                    // the query window by 31 days for the organization of
+                    // the recycle bin.
                     struct stat buf;
 
                     if (!gOFS->_stat(dirname.c_str(),
@@ -322,35 +324,25 @@ Recycle::Recycler(ThreadAssistant& assistant) noexcept
 
                   eos_static_debug("dir=%s", dirit->first.c_str());
 
-                  for (auto fileit = dirit->second.begin(); fileit != dirit->second.end();
-                       ++fileit) {
-                    // Symlink files returned by the find command above contain
-                    // a pointer to the original name which needs to be removed
-                    // so that we can properly stat the file.
-                    std::string fname = *fileit;
-                    size_t pos = fname.find(" -> ");
+                  for (auto fileit = dirit->second.begin();
+                       fileit != dirit->second.end(); ++fileit) {
+                    const std::string fname = HandlePotentialSymlink(dirname.c_str(), *fileit);
+                    eos_static_debug("orig_fname=\"%s\" new_fname=\"%s\"",
+                                     fileit->c_str(), fname.c_str());
 
-                    if (pos != std::string::npos) {
-                      fname.erase(pos);
-                      eos_static_debug("orig_path=\"%s\" symlink_path=\"%s\"",
-                                       fileit->c_str(), fname.c_str());
-                    }
-
-                    XrdOucString originode;
-                    XrdOucString origpath = fname.c_str();
-                    eos_static_debug("path=%s", origpath.c_str());
-
-                    if ((origpath != "/") && !origpath.beginswith("#")) {
+                    if ((fname != "/") && (fname.find('#') != 0)) {
+                      eos_static_debug("msg=\"skip unexpected entry\" fname=\"%s\"",
+                                       fname.c_str());
                       continue;
                     }
 
                     std::string fullpath = dirname.c_str();
                     fullpath += fname;
                     // Add to the garbage fifo deletion multimap
-                    lDeletionMap.insert(std::pair<time_t, std::string > (ctime_map[*fileit],
-                                        fullpath.c_str()));
-                    eos_static_debug("new-bin: adding to deletionmap : %s ctime: %u",
-                                     fullpath.c_str(), ctime_map[*fileit]);
+                    lDeletionMap.insert(std::pair<time_t, std::string >
+                                        (ctime_map[*fileit], fullpath));
+                    eos_static_debug("msg=\"adding to deletion map\" fpath=\"%s\" "
+                                     "ctime=%u", fullpath.c_str(), ctime_map[*fileit]);
                   }
                 }
               }
@@ -403,20 +395,10 @@ Recycle::Recycler(ThreadAssistant& assistant) noexcept
                     // Delete files starting at the deepest level
                     for (rfoundit = found.rbegin(); rfoundit != found.rend(); rfoundit++) {
                       for (auto fileit = rfoundit->second.begin();
-                           fileit != rfoundit->second.end();
-                           fileit++) {
-                        // Symlink files returned by the find command above contain
-                        // a pointer to the original name which needs to be removed
-                        // so that we can properly stat the file.
-                        std::string fname = *fileit;
-                        size_t pos = fname.find(" -> ");
-
-                        if (pos != std::string::npos) {
-                          fname.erase(pos);
-                          eos_static_debug("orig_path=\"%s\" symlink_path=\"%s\"",
-                                           fileit->c_str(), fname.c_str());
-                        }
-
+                           fileit != rfoundit->second.end(); ++fileit) {
+                        const std::string fname = HandlePotentialSymlink(rfoundit->first, *fileit);
+                        eos_static_debug("orig_fname=\"%s\" new_fname=\"%s\"",
+                                         fileit->c_str(), fname.c_str());
                         std::string fullpath = rfoundit->first;
                         fullpath += fname;
 
@@ -668,38 +650,31 @@ Recycle::Print(std::string& std_out, std::string& std_err,
 
         eos_static_debug("dir=%s", dirit->first.c_str());
 
-        for (auto fileit = dirit->second.begin(); fileit != dirit->second.end();
-             ++fileit) {
+        for (auto fileit = dirit->second.begin();
+             fileit != dirit->second.end(); ++fileit) {
 
-	  if (maxentries && (count >= (size_t)maxentries)) {
-	    retc = E2BIG;
-	    std_out += oss_out.str();
-	    return E2BIG;;
-	  }
+          if (maxentries && (count >= (size_t)maxentries)) {
+            retc = E2BIG;
+            std_out += oss_out.str();
+            return E2BIG;;
+          }
 
-          // Symlink files returned by the find command above contain
-          // a pointer to the original name which needs to be removed
-          // so that we can properly stat the file.
-          std::string fname = *fileit;
-          size_t pos = fname.find(" -> ");
+          const std::string fname = HandlePotentialSymlink(dirname.c_str(), *fileit);
+          eos_static_debug("orig_fname=\"%s\" new_fname=\"%s\"",
+                           fileit->c_str(), fname.c_str());
 
-          if (pos != std::string::npos) {
-            fname.erase(pos);
-            eos_static_debug("orig_path=\"%s\" symlink_path=\"%s\"",
-                             fileit->c_str(), fname.c_str());
+          if ((fname != "/") && (fname.find('#') != 0)) {
+            eos_static_debug("msg=\"skip unexpected entry\" fname=\"%s\"",
+                             fname.c_str());
+            continue;
           }
 
           std::string fullpath = dirname.c_str();
           fullpath += fname;
           XrdOucString originode;
           XrdOucString origpath = fname.c_str();
-          eos_static_debug("file=%s", origpath.c_str());
 
-          if ((origpath != "/") && !origpath.beginswith("#")) {
-            continue;
-          }
-
-          // demangle the original pathname
+          // Demangle the original pathname
           while (origpath.replace("#:#", "/")) {
           }
 
@@ -1084,7 +1059,7 @@ Recycle::PrintOld(std::string& std_out, std::string& std_err,
                 oss_out << "... (truncated)" << std::endl;
                 std_out += oss_out.str();
                 std_err += "warning: list too long - truncated after 100000 entries!\n";
-		return;
+                return;
               }
             }
           }
@@ -1491,30 +1466,21 @@ Recycle::Purge(std::string& std_out, std::string& std_err,
       dirit->second.insert(cpath.GetName());
     }
 
-    for (auto fileit = dirit->second.begin(); fileit != dirit->second.end();
-         ++fileit) {
-      // Symlink files returned by the find command above contain
-      // a pointer to the original name which needs to be removed
-      // so that we can properly stat the file.
-      std::string fname = *fileit;
-      size_t pos = fname.find(" -> ");
-
-      if (pos != std::string::npos) {
-        fname.erase(pos);
-        eos_static_debug("orig_path=\"%s\" symlink_path=\"%s\"",
-                         fileit->c_str(), fname.c_str());
-      }
+    for (auto fileit = dirit->second.begin();
+         fileit != dirit->second.end(); ++fileit) {
+      const std::string fname = HandlePotentialSymlink(dirname.c_str(), *fileit);
+      eos_static_debug("orig_fname=\"%s\" new_fname=\"%s\"",
+                       fileit->c_str(), fname.c_str());
 
       if ((fname != "/") && (fname.find('#') != 0)) {
+        eos_static_debug("msg=\"skip unexpected entry\" fname=\"%s\"",
+                         fname.c_str());
         continue;
       }
 
       struct stat buf;
-
       XrdOucErrInfo lError;
-
       std::string fullpath = dirname.c_str();
-
       fullpath += fname;
 
       if (!gOFS->_stat(fullpath.c_str(), &buf, lError, rootvid, "", nullptr, false)) {
@@ -1793,6 +1759,35 @@ Recycle::GetRecyclePrefix(const char* epname, XrdOucErrInfo& error,
     recyclepath = srecycleuser;
     return SFS_OK;
   } while (1);
+}
+
+//----------------------------------------------------------------------------
+// Handle symlink or symlink like file names during recycle operations
+//----------------------------------------------------------------------------
+std::string
+Recycle::HandlePotentialSymlink(const std::string& ppath,
+                                const std::string& fn)
+{
+  size_t pos = fn.find(" -> ");
+
+  if (pos == std::string::npos) {
+    return fn;
+  }
+
+  // Check if this file name actually exists
+  std::string fpath = ppath + fn;
+  struct stat buf;
+  XrdOucErrInfo lerror;
+  eos::common::VirtualIdentity rootvid = eos::common::VirtualIdentity::Root();
+
+  if (gOFS->_stat(fpath.c_str(), &buf, lerror, rootvid,
+                  "", nullptr, false) == SFS_OK) {
+    return fn;
+  }
+
+  // This means we are dealing with a symlink file so we need to remove the
+  // target from the filename so that we actually work with it
+  return fn.substr(0, pos);
 }
 
 EOSMGMNAMESPACE_END
