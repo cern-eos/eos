@@ -1788,37 +1788,40 @@ XrdFstOfsFile::_close_wr()
     }
   }
 
-  {
-    XrdSysMutexHelper scope_lock(gOFS.OpenFidMutex);
-
-    if ((rc == 0) && (mIsCreation || mIsInjection || mIsOCchunk) &&
-        (gOFS.openedForWriting.getUseCount(mFsId, mFileId) > 1)) {
-      // indicate that this file was closed properly and disable further delete on close
-      gOFS.WNoDeleteOnCloseFid[mFsId][mFileId] = true;
-    }
-
-    gOFS.openedForWriting.down(mFsId, mFileId);
-
-    if (gOFS.openedForWriting.isOpen(mFsId, mFileId) == 0) {
-      // When the last writer is gone we can remove the prohibiting entry
-      gOFS.WNoDeleteOnCloseFid[mFsId].erase(mFileId);
-      gOFS.WNoDeleteOnCloseFid[mFsId].resize(0);
-    } else {
-      if (gOFS.WNoDeleteOnCloseFid[mFsId].count(mFileId)) {
-        eos_notice("msg=\"prohibiting delete on close since we had a "
-                   "successful put but still an unacknowledged open\" "
-                   "fxid=%08llx path=%s", mFileId, mNsPath.c_str());
-        mDelOnClose = false;
-      }
-    }
-  }
-
   // If target file system is in some non-operational mode, then abort commit
   if (!gOFS.Storage->IsFsOperational(mFsId)) {
     eos_notice("msg=\"fail transfer since filesystem is in non-operational "
                "state\" fxid=%08llx fsid=%u", mFileId, mFsId);
     mDelOnClose = true;
   }
+
+  {
+    XrdSysMutexHelper scope_lock(gOFS.OpenFidMutex);
+
+    if ((rc == 0) && (mDelOnClose == false) &&
+        (mIsRW || mIsInjection || mIsOCchunk) &&
+        (gOFS.openedForWriting.getUseCount(mFsId, mFileId) > 1)) {
+      // Indicate that this file was closed properly and disable further
+      // delete on close for concurrent write operations
+      gOFS.WNoDeleteOnCloseFid[mFsId][mFileId] = true;
+    }
+
+    gOFS.openedForWriting.down(mFsId, mFileId);
+
+    if (gOFS.WNoDeleteOnCloseFid[mFsId].count(mFileId)) {
+      eos_notice("msg=\"prohibit delete on close since we had a previous "
+                 "successful close\" fxid=%08llx path=\"%s\"",
+                 mFileId, mNsPath.c_str());
+      mDelOnClose = false;
+    }
+
+    if (gOFS.openedForWriting.isOpen(mFsId, mFileId) == false) {
+      // When the last writer is gone we can remove the prohibiting entry
+      gOFS.WNoDeleteOnCloseFid[mFsId].erase(mFileId);
+      gOFS.WNoDeleteOnCloseFid[mFsId].resize(0);
+    }
+  }
+
 
   // Commit to MGM in case of rain reconstruction and not del on close
   if (mRainReconstruct && mLayout->IsEntryServer() && !mDelOnClose) {
