@@ -1006,11 +1006,11 @@ XrdFstOfsFile::readv(XrdOucIOVec* readV, int readCount)
     }
   }
 
-  if (rv<0) {
+  if (rv < 0) {
     eos_crit("readv error=%d cnt=%d file=%s", rv, readCount, FName());
     hasReadError = true;
   }
-  
+
   AddLayoutReadVTime();
   return rv;
 }
@@ -1966,7 +1966,7 @@ XrdFstOfsFile::_close()
       if (mIsRW) {
         if ((mIsInjection || isCreation || IsChunkedUpload()) && (!rc) &&
             (gOFS.openedForWriting.getUseCount(mFmd->mProtoFmd.fsid(),
-                                               mFmd->mProtoFmd.fid() > 1))) {
+                                               mFmd->mProtoFmd.fid()) > 1)) {
           // indicate that this file was closed properly and disable further delete on close
           gOFS.WNoDeleteOnCloseFid[mFmd->mProtoFmd.fsid()][mFmd->mProtoFmd.fid()] = true;
         }
