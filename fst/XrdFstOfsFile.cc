@@ -1785,7 +1785,7 @@ XrdFstOfsFile::_close_wr()
     XrdSysMutexHelper scope_lock(gOFS.OpenFidMutex);
 
     if ((rc == 0) && (mIsCreation || mIsInjection || mIsOCchunk) &&
-        (gOFS.openedForWriting.getUseCount(mFsId, mFileId > 1))) {
+        (gOFS.openedForWriting.getUseCount(mFsId, mFileId) > 1)) {
       // indicate that this file was closed properly and disable further delete on close
       gOFS.WNoDeleteOnCloseFid[mFsId][mFileId] = true;
     }
