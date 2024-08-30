@@ -150,6 +150,7 @@ clone_docker:
     - echo -e "[eos-depend]\nname=EOS dependencies\nbaseurl=http://storage-ci.web.cern.ch/storage-ci/eos/${CODENAME}-depend/el-$(rpm --eval '%{rhel}')/$(uname -m)/\ngpgcheck=0\nenabled=1\npriority=2\n" >> /etc/yum.repos.d/eos-depend.repo
     - |
       if [[ ${PKG_MGR} == "yum" ]]; then
+        ${PKG_MGR} remove --nogpgcheck -y eos-xrootd;
         ${PKG_MGR}-builddep --nogpgcheck -y --setopt="cern*.exclude=xrootd*" build/SRPMS/*;
       else
         ${PKG_MGR} builddep --nogpgcheck --allowerasing -y --setopt="cern*.exclude=xrootd*" build/SRPMS/*;
