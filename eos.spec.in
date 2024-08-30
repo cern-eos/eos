@@ -110,7 +110,7 @@ Requires: libtsan
 %if %{?_with_eos_xrootd_rh:1}%{!?_with_eos_xrootd_rh:0}
 # Install eos-xrootd
 %if 0%{?rhel} >= 7 && 0%{?rhel} <= 9
-BuildRequires: eos-xrootd == %{eos_xrootd_version_min}
+BuildRequires: eos-xrootd = %{eos_xrootd_version_min}
 # Don't put an explicit dependency on xrootd because eos-xrootd hides the
 # shared libraries from provide. Make sure we don't exclude any EOS specific
 # libraries.
@@ -669,7 +669,7 @@ ExclusiveArch: x86_64 aarch64
 %if %{?_with_eos_xrootd_rh:1}%{!?_with_eos_xrootd_rh:0}
 # Install eos-xrootd
 %if 0%{?rhel} >= 7 || 0%{?rhel} <= 9
-Requires: eos-xrootd == %{eos_xrootd_version_min}
+Requires: eos-xrootd = %{eos_xrootd_version_min}
 %else
 Requires: xrootd-client >= %{xrootd_version_min}
 %endif
