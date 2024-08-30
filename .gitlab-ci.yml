@@ -127,7 +127,7 @@ clone_docker:
   stage: build:rpm
   image: gitlab-registry.cern.ch/linuxsupport/cc7-base
   script:
-    - yum install --nogpg -y git
+    - yum install --nogpg -y git --disablerepo=epel
     - git clone https://gitlab.cern.ch/eos/eos-docker.git
   artifacts:
     expire_in: 1 day
