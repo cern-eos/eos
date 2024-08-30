@@ -1782,7 +1782,7 @@ XrdFstOfsFile::_close_wr()
   }
 
   // If target file system is in some non-operational mode, then abort commit
-  if (!gOFS.Storage->IsFsOperational(mFsId)) {
+  if (mIsCreation && !gOFS.Storage->IsFsOperational(mFsId)) {
     eos_notice("msg=\"fail transfer since filesystem is in non-operational "
                "state\" fxid=%08llx fsid=%u", mFileId, mFsId);
     mDelOnClose = true;
@@ -1801,7 +1801,7 @@ XrdFstOfsFile::_close_wr()
 
     gOFS.openedForWriting.down(mFsId, mFileId);
 
-    if (gOFS.WNoDeleteOnCloseFid[mFsId].count(mFileId)) {
+    if (mDelOnClose && gOFS.WNoDeleteOnCloseFid[mFsId].count(mFileId)) {
       eos_notice("msg=\"prohibit delete on close since we had a previous "
                  "successful close\" fxid=%08llx path=\"%s\"",
                  mFileId, mNsPath.c_str());
