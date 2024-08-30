@@ -75,9 +75,9 @@ Installation
 
 .. code-block:: bash
   
-  yum-config-manager --add-repo "https://storage-ci.web.cern.ch/storage-ci/eos/diopside/tag/testing/el-9/x86_64/"
-  yum-config-manager --add-repo "https://storage-ci.web.cern.ch/storage-ci/eos/diopside-depend/el-9/x86_64/"
-  yum install -y eos-server eos-quarkdb eos-fusex --nogpgcheck
+  dnf config-manager --add-repo "https://storage-ci.web.cern.ch/storage-ci/eos/diopside/tag/testing/el-9/x86_64/"
+  dnf config-manager --add-repo "https://storage-ci.web.cern.ch/storage-ci/eos/diopside-depend/el-9/x86_64/"
+  dnf install -y eos-server eos-quarkdb eos-fusex --nogpgcheck
 
 Unique Instance Shared Secret
 -----------------------------
