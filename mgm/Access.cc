@@ -678,9 +678,8 @@ Access::SetMasterToSlaveRules(const std::string& other_master_id)
     // We're the slave and there is a master - set redirection to him
     eos_static_info("msg=\"add redirection to master %s\"",
                     other_master_id.c_str());
-    std::string host = other_master_id.substr(0, other_master_id.find(':'));
-    Access::gRedirectionRules[std::string("w:*")] = host.c_str();
-    Access::gRedirectionRules[std::string("ENOENT:*")] = host.c_str();
+    Access::gRedirectionRules[std::string("w:*")] = other_master_id.c_str();
+    Access::gRedirectionRules[std::string("ENOENT:*")] = other_master_id.c_str();
     // Remove write stall
     Access::gStallRules.erase(std::string("*"));
     Access::gStallRules.erase(std::string("w:*"));
