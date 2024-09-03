@@ -114,8 +114,7 @@ Report::Report(XrdOucEnv& report)
   sec_domain = report.Get("sec.host") ? report.Get("sec.host") : "";
   dpos = sec_host.find(".");
 
-  if (sec_host.front() == '[' &&
-      sec_host.back() == ']') {
+  if (!sec_host.empty() && sec_host.front() == '[' && sec_host.back() == ']') {
     // ipv6
     sec_domain = "other-ipv6";
   } else {
