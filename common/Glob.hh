@@ -107,11 +107,11 @@ public:
     globbuf.gl_lstat=lstat;
 
     glob(pattern.c_str(), GLOB_ALTDIRFUNC, NULL, &globbuf);
-    if (globbuf.gl_pathc) {
+    if (globbuf.gl_pathc && mIt){ //mIt = 1 if getEntry() was called
       result = true;
     } else {
       result = false;
-      }
+    }
     globfree(&globbuf);
     return result;
   }
