@@ -147,7 +147,7 @@ com_rm(char* arg1)
 
 com_rm_usage:
   fprintf(stdout,
-          "usage: rm [-rf] [-F|--no-recycle-bin] [--no-confirmation] [<path>|fid:<fid-dec>|fxid:<fid-hex>]                    :  remove file <path>\n");
+          "usage: rm [-rf] [-F|--no-recycle-bin] [--no-confirmation] [--no-globbing] [<path>|fid:<fid-dec>|fxid:<fid-hex>]                    :  remove file <path>\n");
   fprintf(stdout,
           "                                                                    -r :  remove recursivly\n");
   fprintf(stdout,
@@ -157,7 +157,8 @@ com_rm_usage:
           "                                                                    -F :  remove bypassing recycling policies (you have to take the root role to use this flag!)\n");
   fprintf(stdout,
 	  "                                                      --no-confirmation:  will not ask an interactive confirmation code if a recursive deletion is running in directory level < 4!\n");
-	                                                                         
+  fprintf(stdout,
+          "                                                      --no-globbing:  disables path globbing feature (e.g: delete a file containing '[]' characters)\n");
   global_retc = EINVAL;
   return (0);
 }
