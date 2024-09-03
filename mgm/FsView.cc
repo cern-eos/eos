@@ -2516,7 +2516,8 @@ FsView::Clear()
   eos::common::RWMutexWriteLock wr_view_lock(ViewMutex);
 
   while (mSpaceView.size()) {
-    UnRegisterSpace(mSpaceView.begin()->first.c_str());
+    std::string name = mSpaceView.begin()->first;
+    UnRegisterSpace(name.c_str());
   }
 
   mFilesystemMapper.clear();
