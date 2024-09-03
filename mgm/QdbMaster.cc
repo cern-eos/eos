@@ -321,6 +321,7 @@ QdbMaster::Supervisor(ThreadAssistant& assistant) noexcept
         if (!new_master_id.empty() && (old_master_id != new_master_id) &&
             (new_master_id != mIdentity)) {
           Access::SetMasterToSlaveRules(new_master_id);
+          gOFS->mTracker.SetAcceptingRequests(true);
         }
       }
     }
@@ -452,7 +453,6 @@ QdbMaster::MasterToSlave()
     }
   }
 
-  gOFS->mTracker.SetAcceptingRequests(true);
   MasterLog(eos_log(LOG_INFO, "%s",
                     "msg=\"finished master to slave transition\""));
 }
