@@ -46,6 +46,7 @@
 EOSMGMNAMESPACE_BEGIN
 
 std::string QdbMaster::sLeaseKey {"master_lease"};
+std::chrono::seconds QdbMaster::sMasterDelaySec = std::chrono::seconds(10);
 
 //------------------------------------------------------------------------------
 // Constructor
@@ -283,6 +284,8 @@ QdbMaster::Supervisor(ThreadAssistant& assistant) noexcept
         }
 
         SlaveToMaster();
+        mDoMasterDelay = false;
+        gOFS->mTracker.SetAcceptingRequests(true);
       } else {
         MasterToSlave();
       }
@@ -318,10 +321,29 @@ QdbMaster::Supervisor(ThreadAssistant& assistant) noexcept
 
         // There was a change in the master identity or the current master
         // could not update the lease
-        if (!new_master_id.empty() && (old_master_id != new_master_id) &&
-            (new_master_id != mIdentity)) {
-          Access::SetMasterToSlaveRules(new_master_id);
-          gOFS->mTracker.SetAcceptingRequests(true);
+        if (!new_master_id.empty()) {
+          if ((new_master_id != old_master_id) &&
+              (new_master_id != mIdentity)) {
+            // Follow up on the master to slave transition
+            eos_static_info("%s", "msg=\"follow up master-to-slave transition\"");
+            Access::SetMasterToSlaveRules(new_master_id);
+            gOFS->mTracker.SetAcceptingRequests(true);
+          }
+          else {
+            if (new_master_id == mIdentity) {
+              if (mDoMasterDelay) {
+                if (mMasterDelayDeadline < std::chrono::system_clock::now()) {
+                  eos_static_info("msg=\"stop delaying new requests\" master=\"%s\"",
+                                  new_master_id.c_str());
+                  mDoMasterDelay = false;
+                  gOFS->mTracker.SetAcceptingRequests(true);
+                } else {
+                  eos_static_info("msg=\"delay accepting requests\" master=\"%s\"",
+                                  new_master_id.c_str());
+                }
+              }
+            }
+          }
         }
       }
     }
@@ -377,7 +399,6 @@ QdbMaster::SlaveToMaster()
   gOFS->Recycler->Start();
   Access::RemoveStallRule("*");
   Access::SetSlaveToMasterRules();
-  gOFS->mTracker.SetAcceptingRequests(true);
   CreateStatusFile(EOSMGMMASTER_SUBSYS_RW_LOCKFILE);
 
   // Start tape garbage collector, only if tape is configured and enabled
@@ -396,6 +417,8 @@ QdbMaster::SlaveToMaster()
     }
   }
 
+  mDoMasterDelay = true;
+  mMasterDelayDeadline = std::chrono::system_clock::now() + sMasterDelaySec;
   MasterLog(eos_log(LOG_INFO, "%s",
                     "msg=\"finished slave to master transition\""));
 }

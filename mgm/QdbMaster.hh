@@ -241,14 +241,22 @@ private:
   std::string mMasterIdentity; ///< Current master host
   std::atomic<bool> mIsMaster; ///< Mark if current instance is master
   std::atomic<bool> mConfigLoaded; ///< Mark if configuration is loaded
-  ///! Timepoint until when to delay the acquiring of the lease - so that we
-  ///! give the chance to other MGMs to become masters
+  //! Timepoint until when to delay the acquiring of the lease - so that we
+  //! give the chance to other MGMs to become masters
   std::atomic<time_t> mAcquireDelay;
   AssistedThread mThread; ///< Supervisor thread updating master/slave state
   std::unique_ptr<qclient::QClient>
   mQcl; ///< qclient for talking to the QDB cluster
   //! Time for which a lease is aquired
   std::chrono::milliseconds mLeaseValidity {10000};
+  //! Flag to mark that the master transition needs to apply a delay before
+  //! accepting new requests
+  std::atomic<bool> mDoMasterDelay = false;
+  //! Point in time until new requests are stalled after a transition to
+  //! master role.
+  std::chrono::time_point<std::chrono::system_clock> mMasterDelayDeadline;
+  //! Delay in seconds before a master accepts new requests
+  static std::chrono::seconds sMasterDelaySec;
 };
 
 EOSMGMNAMESPACE_END
