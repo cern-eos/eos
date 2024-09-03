@@ -84,6 +84,8 @@ RmHelper::ParseCommand(const char* arg)
       noconfirmation = true;
     } else if ( option== "--no-workflow" || option == "-n" ) {
       rm->set_noworkflow(true);
+    } else if ( option == "--no-globbing") {
+      rm->set_noglobbing(true);
     } else {
       return false;
     }
@@ -166,7 +168,7 @@ int com_protorm(char* arg)
 void com_rm_help()
 {
   std::ostringstream oss;
-  oss << "Usage: rm [-r|-rf|-rF|-n] [--no-recycle-bin|-F] [--no-confirmation] [--no-workflow] [<path>|fid:<fid-dec>|fxid:<fid-hex>|cid:<cid-dec>|cxid:<cid-hex>]"
+  oss << "Usage: rm [-r|-rf|-rF|-n] [--no-recycle-bin|-F] [--no-confirmation] [--no-workflow] [--no-globbing] [<path>|fid:<fid-dec>|fxid:<fid-hex>|cid:<cid-dec>|cxid:<cid-hex>]"
       << std::endl
       << "            -r | -rf : remove files/directories recursively" << std::endl
       << "                     - the 'f' option is a convenience option with no additional functionality!"
@@ -184,6 +186,8 @@ void com_rm_help()
       << std::endl
       << " --no-workflow | -n  : don't run a workflow when deleting!"
       << std::endl
-      << "   --no-confirmation : don't ask for confirmation if recursive deletions is running in directory level < 4" << std::endl;
+      << " --no-confirmation : don't ask for confirmation if recursive deletions is running in directory level < 4"
+      << std::endl
+      << " --no-globbing     : disables path globbing feature (e.g: delete a file containing '[]' characters)" << std::endl;
   std::cerr << oss.str() << std::endl;
 }

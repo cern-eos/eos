@@ -1593,6 +1593,79 @@ runtest "### Delay       " unix 0 "" delay 7
 runtest "### Fileinfo    " unix 0 "" eos fileinfo "fxid:${rm_fxid}"
 runtest "### Rm force    " unix 0 "" eos rm -F "fxid:${rm_fxid}"
 runtest "### Fileinfo    " unix 1 "" eos fileinfo "fxid:${rm_fxid}"
+# Create a directory with 10 files in it
+rmTestDir="/eos/$EOS_TEST_INSTANCE/test/instancetest/rm_test"
+eos mkdir -p $rmTestDir
+for ((i=1; i <= 10; i++));
+do
+  eos cp /etc/passwd $rmTestDir/passwd$i
+done
+# Deletion with no globbing should not work
+runtest "### Rm noglob   " unix 1 "" eos rm --no-globbing $rmTestDir/*
+runtest "### Rm r noglob " unix 1 "" eos rm -rF --no-globbing $rmTestDir/*
+
+# The deletion of a path that contains the "*" character in the middle should not work
+runtest "### Rm glob dir " unix 1 "" eos rm "/eos/$EOS_TEST_INSTANCE/test/*/rm_test"
+runtest "### Rm r glob dir" unix 1 "" eos rm -rF "/eos/$EOS_TEST_INSTANCE/test/*/rm_test"
+
+# The deletion of the test directory and the 10 files should work by default
+runtest "### Rm all glob " unix 0 "" eos rm $rmTestDir/*
+runtest "### Empty       " unix 0 "" eos ls $rmTestDir/ | wc -l
+
+# Create the same directory with extra non empty directories in it
+for((i = 1; i <= 10; i++));
+do
+  eos cp /etc/passwd $rmTestDir/passwd$i
+  eos mkdir $rmTestDir/$i
+  eos cp /etc/passwd $rmTestDir/$i/passwd$i
+done
+
+# The deletion with globbing enabled by default should not work as we have non-empty directories
+runtest "### Rm all glob " unix 1 "" eos rm $rmTestDir/*
+runtest "### Cleanup Fail" unix 1 "" eos rm -rF $rmTestDir/*
+
+for((i = 1; i <= 10; i++));
+do
+  eos touch $rmTestDir/$((i+10))
+done
+
+# Put paths with globbing characters in the namespace
+eos touch $rmTestDir/Perso[2ou52]_dgdia.pdf
+command eos touch "$rmTestDir/regexx*p.tt\.ern"
+
+eos touch $rmTestDir/number1pattern
+eos touch $rmTestDir/number2pattern
+# No file matches the globbing, the deletion should not work
+runtest "### Rm file     " unix 1 "" eos rm $rmTestDir/Perso[2ou52]_dgdia.pdf
+runtest "### Stat file" unix 0 "" eos stat $rmTestDir/Perso[2ou52]_dgdia.pdf
+# Explicitely disabling the globbing should delete the Perso[2ou52]_dgdia.pdf file
+runtest "### Rm file glob" unix 0 "" eos rm --no-globbing $rmTestDir/Perso[2ou52]_dgdia.pdf
+runtest "### Stat file glob" unix 1 "" eos stat $rmTestDir/Perso[2ou52]_dgdia.pdf
+# Deleting with wrong globbing pattern (curly braces inside) should not work as it is not a valid
+# globbing character
+runtest "### Bad glob rm " unix 1 "" eos rm "$rmTestDir/number\{1..9\}pattern"
+runtest "### Stat file   " unix 0 "" eos stat $rmTestDir/number1pattern
+runtest "### Stat file   " unix 0 "" eos stat $rmTestDir/number2pattern
+runtest "### Stat file   " unix 0 "" command eos stat "$rmTestDir/regexx*p.tt\.ern"
+# Deleting number[1-10]pattern without globbing should not work
+runtest "### Rm noglob   " unix 1 "" eos rm --no-globbing "$rmTestDir/number[1-9]pattern"
+# Deleting number[1-10]pattern with globbing should work
+runtest "### Rm glob ok  " unix 0 "" eos rm "$rmTestDir/number[1-9]pattern"
+runtest "### Stat file   " unix 1 "" eos stat $rmTestDir/number1pattern
+runtest "### Stat file   " unix 1 "" eos stat $rmTestDir/number2pattern
+runtest "### Stat file   " unix 0 "" command eos stat "$rmTestDir/regexx*p.tt\.ern"
+# Files $rmTestDir/{11..20} should not have been deleted
+runtest "### Stat dir    " unix 0 "" eos stat $rmTestDir/11
+runtest "### Stat dir    " unix 0 "" eos stat $rmTestDir/20
+# The deletion of the regexx* should not work
+runtest "### Rm regexx*  " unix 1 "" command eos rm "$rmTestDir/regexx*p.tt\.ern"
+runtest "### Stat file   " unix 0 "" command eos stat "$rmTestDir/regexx*p.tt\.ern"
+# The deletion of the regexx* should work with disabled globbing
+runtest "### Rm file     " unix 0 "" command eos rm --no-globbing "$rmTestDir/regexx*p.tt\.ern"
+runtest "### Stat file   " unix 1 "" command eos stat "$rmTestDir/regexx*p.tt\.ern"
+
+# Cleanup everything
+runtest "### Cleanup     " unix 0 "" eos rm -rF $rmTestDir/
 
 # ------------------------------------------------------------------------------
 categorie="adjustreplica"
