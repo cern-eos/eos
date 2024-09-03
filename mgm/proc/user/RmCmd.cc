@@ -174,6 +174,15 @@ eos::mgm::RmCmd::ProcessRequest() noexcept
             rmList.insert(mpath.c_str());
           }
         }
+
+        // No file matched the globbing, don't silently fail nor succeed,
+        // return ENOENT instead
+        if(rmList.empty()) {
+          errStream << "error: no such file or directory with path '" << spath << "'";
+          reply.set_std_err(errStream.str());
+          reply.set_retc(ENOENT);
+          return reply;
+        }
       }
 
       // if we have rm * (whatever wildcard) we remove the -r flag

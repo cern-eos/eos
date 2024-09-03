@@ -1618,10 +1618,10 @@ runtest "### Cleanup Fail" unix 1 "" eos rm -rF $rmTestDir/*
 
 # Put a pathological with globbing characters in the namespace
 runtest "### Touch       " unix 0 "" eos touch $rmTestDir/Perso[2ou52]_dgdia.pdf
-# The deletion will return 0 despite no file got deleted (BUG!)
-runtest "### Rm file     " unix 0 "" eos rm $rmTestDir/Perso[2ou52]_dgdia.pdf
+# No file matches the globbing, the deletion should not work
+runtest "### Rm file     " unix 1 "" eos rm $rmTestDir/Perso[2ou52]_dgdia.pdf
 runtest "### Stat file" unix 0 "" eos stat $rmTestDir/Perso[2ou52]_dgdia.pdf
-# Explicitely disabling the globbing should delete the file!
+# Explicitely disabling the globbing should delete the file now!
 runtest "### Rm file glob" unix 0 "" eos rm --no-globbing $rmTestDir/Perso[2ou52]_dgdia.pdf
 runtest "### Stat file glob" unix 1 "" eos stat $rmTestDir/Perso[2ou52]_dgdia.pdf
 
