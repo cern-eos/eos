@@ -30,11 +30,14 @@ TEST(Glob, BasicFunctionality)
 {
   using eos::common::Glob;
   Glob glob;
-  ASSERT_EQ(glob.Match("asdf*.txt", "asdf1.txt"), true);
-  ASSERT_EQ(glob.Match("asdf*.txt", "bsdf1.txt"), false);
-  ASSERT_EQ(glob.Match("*.txt", "asdf1.txt"), true);
-  ASSERT_EQ(glob.Match("a?df1.txt", "asdf1.txt"), true);
-  ASSERT_EQ(glob.Match("asdf?.txt", "bsdf1.txt"), false);
+  ASSERT_TRUE(glob.Match("asdf*.txt", "asdf1.txt"));
+  ASSERT_FALSE(glob.Match("asdf*.txt", "bsdf1.txt"));
+  ASSERT_TRUE(glob.Match("*.txt", "asdf1.txt"));
+  ASSERT_TRUE(glob.Match("a?df1.txt", "asdf1.txt"));
+  ASSERT_FALSE(glob.Match("asdf?.txt", "bsdf1.txt"));
+  ASSERT_FALSE(glob.Match("number{1..9}pattern","10"));
+  ASSERT_FALSE(glob.Match("test",""));
+  ASSERT_FALSE(glob.Match("regexx*p.tt\\.ern","regexx*p.tt\\.ern"));
 }
 
 TEST(Glob, Performance)
@@ -45,8 +48,8 @@ TEST(Glob, Performance)
   a[1]=0;
   for (auto it=0; it < 100000; it++) {
     a[0]=it%256;
-    ASSERT_EQ(glob.Match("asdf*.txt", a), false);
-    ASSERT_EQ(glob.Match("asdf*.txt", "asdf1.txt"), true);
+    ASSERT_FALSE(glob.Match("asdf*.txt", a)) ;
+    ASSERT_TRUE(glob.Match("asdf*.txt", "asdf1.txt"));
   }
 }
 EOSCOMMONNAMESPACE_END

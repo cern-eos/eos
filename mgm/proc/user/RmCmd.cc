@@ -48,6 +48,7 @@ eos::mgm::RmCmd::ProcessRequest() noexcept
   auto recursive = rm.recursive();
   auto noworkflow = rm.noworkflow();
   auto force = rm.bypassrecycle();
+  auto noglobbing = rm.noglobbing();
   std::string spath;
 
   if (rm.path().empty()) {
@@ -119,13 +120,14 @@ eos::mgm::RmCmd::ProcessRequest() noexcept
     errStream << "error: you have to give a path name to call 'rm'";
     ret_c = EINVAL;
   } else {
-    eos::common::Path objPath(spath.c_str());
-
-    if (objPath.Globbing()) {
-      spath = objPath.GetParentPath();
-      filter = objPath.GetName();
+    if(!noglobbing) {
+      // Globbing was not disabled by the user
+      eos::common::Path objPath(spath.c_str());
+      if (objPath.Globbing()) {
+        spath = objPath.GetParentPath();
+        filter = objPath.GetName();
+      }
     }
-
     // Check file existence
     XrdSfsFileExistence file_exists;
     XrdOucErrInfo errInfo;
@@ -171,6 +173,15 @@ eos::mgm::RmCmd::ProcessRequest() noexcept
           if (glob.Match(filter.c_str(), entry.c_str())) {
             rmList.insert(mpath.c_str());
           }
+        }
+
+        // No file matched the globbing, don't silently fail nor succeed,
+        // return ENOENT instead
+        if(rmList.empty()) {
+          errStream << "error: no such file or directory with path '" << spath << filter << "', globbing did not match anything. You may disable the globbing by using --no-globbing";
+          reply.set_std_err(errStream.str());
+          reply.set_retc(ENOENT);
+          return reply;
         }
       }
 

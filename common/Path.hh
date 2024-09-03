@@ -430,16 +430,6 @@ public:
       index++;
     }
 
-    index = 0;
-
-    while ((index = name.find('{', index)) != std::string::npos) {
-      if ((index == 0) || ((index > 0)  && name[index - 1] != '\\')) {
-        return true;
-      }
-
-      index++;
-    }
-
     return false;
   }
 
