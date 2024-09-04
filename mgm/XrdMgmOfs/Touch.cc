@@ -198,7 +198,7 @@ XrdMgmOfs::_touch(const char* path,
 
         if (file) {
           int rc = file->open(&vid, path, SFS_O_RDWR | SFS_O_CREAT, 0755, 0,
-                              "eos.bookingsize=0&eos.app=touch");
+                              "eos.bookingsize=0&eos.app=fuse");
           error.setErrInfo(strlen(file->error.getErrText()) + 1,
                            file->error.getErrText());
 
