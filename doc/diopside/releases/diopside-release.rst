@@ -17,6 +17,28 @@ Introduction
 This release is based on XRootD V5.
 
 
+``v5.2.25 Diopside``
+====================
+
+2024-07-05
+
+Note
+----
+
+* This EOS release is based on eos-xrootd-5.6.11 which itself bring important fixes like
+  - memory leaks in the XRootD python bindings
+  - fixes to crashes seen in production with EOS etc.
+
+Bug
+----
+
+* [EOS-6087] - [eoscp] Intermittent segmentation faults in LHCb datamovers
+* [EOS-6155] - Touch should NOT require 10737418240 bytes as booking size
+* [EOS-6172] - man eos-ls wrong formatting
+* [EOS-6197] - Report: Undefined behavior in constructor if sec.host is an empty string (deletion)
+* [EOS-6126] - Recovery OpenAsync cannot open file anymore in eosxd
+
+
 ``v5.2.24 Diopside``
 ====================
 

@@ -1,5 +1,5 @@
 #-------------------------------------------------------------------------------
-41;2500;0c# Helper macros and variables
+# Helper macros and variables
 #-------------------------------------------------------------------------------
 %define _unpackaged_files_terminate_build 0
 %define devtoolset devtoolset-8
