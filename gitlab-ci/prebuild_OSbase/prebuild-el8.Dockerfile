@@ -1,4 +1,4 @@
-FROM  gitlab-registry.cern.ch/linuxsupport/alma8-base
+FROM  almalinux:8
 LABEL maintainer="Manuel Reis, manuel.b.reis@cern.ch, CERN 2022"
 ARG EOS_CODENAME
 WORKDIR /builds/dss/eos/
