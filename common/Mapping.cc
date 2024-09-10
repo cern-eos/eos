@@ -1132,9 +1132,7 @@ Mapping::Print(XrdOucString& stdOut, XrdOucString option)
   }
 
   if ((!option.length()) || ((option.find("u")) != STR_NPOS)) {
-    UserRoleMap_t::const_iterator it;
-
-    for (it = gUserRoleVector.begin(); it != gUserRoleVector.end(); ++it) {
+    for (auto it = gUserRoleVector.cbegin(); it != gUserRoleVector.cend(); ++it) {
       char iuid[4096];
       sprintf(iuid, "%d", it->first);
       char suid[4096];
@@ -1179,9 +1177,7 @@ Mapping::Print(XrdOucString& stdOut, XrdOucString option)
   }
 
   if ((!option.length()) || ((option.find("g")) != STR_NPOS)) {
-    UserRoleMap_t::const_iterator it;
-
-    for (it = gGroupRoleVector.begin(); it != gGroupRoleVector.end(); ++it) {
+    for (auto it = gGroupRoleVector.cbegin(); it != gGroupRoleVector.cend(); ++it) {
       char iuid[4096];
       sprintf(iuid, "%d", it->first);
       char suid[4096];
@@ -1226,11 +1222,10 @@ Mapping::Print(XrdOucString& stdOut, XrdOucString option)
   }
 
   if ((!option.length()) || ((option.find("s")) != STR_NPOS)) {
-    SudoerMap_t::const_iterator it;
     // print sudoer line
     stdOut += "sudoer                 => uids(";
 
-    for (it = gSudoerMap.begin(); it != gSudoerMap.end(); ++it) {
+    for (auto it = gSudoerMap.cbegin(); it != gSudoerMap.cend(); ++it) {
       if (it->second) {
         int errc = 0;
         std::string username = UidToUserName(it->first, errc);
@@ -1268,9 +1263,7 @@ Mapping::Print(XrdOucString& stdOut, XrdOucString option)
   }
 
   if ((!option.length()) || ((option.find("U")) != STR_NPOS)) {
-    VirtualUserMap_t::const_iterator it;
-
-    for (it = gVirtualUidMap.begin(); it != gVirtualUidMap.end(); ++it) {
+    for (auto it = gVirtualUidMap.cbegin(); it != gVirtualUidMap.cend(); ++it) {
       stdOut += it->first.c_str();
       stdOut += " => ";
       int errc = 0;
@@ -1287,9 +1280,7 @@ Mapping::Print(XrdOucString& stdOut, XrdOucString option)
   }
 
   if ((!option.length()) || ((option.find("G")) != STR_NPOS)) {
-    VirtualGroupMap_t::const_iterator it;
-
-    for (it = gVirtualGidMap.begin(); it != gVirtualGidMap.end(); ++it) {
+    for (auto it = gVirtualGidMap.cbegin(); it != gVirtualGidMap.cend(); ++it) {
       stdOut += it->first.c_str();
       stdOut += " => ";
       int errc = 0;
@@ -1305,11 +1296,35 @@ Mapping::Print(XrdOucString& stdOut, XrdOucString option)
     }
   }
 
-  if (((option.find("y")) != STR_NPOS)) {
-    VirtualUserMap_t::const_iterator it;
+  if ((!option.length()) || ((option.find("N")) != STR_NPOS)) {
+    char sline[1024];
+    snprintf(sline, sizeof(sline), "publicaccesslevel: => %d\n",
+             gNobodyAccessTreeDeepness);
+    stdOut += sline;
+  }
 
-    for (it = gVirtualUidMap.begin(); it != gVirtualUidMap.end(); ++it) {
-      if (!it->second) {
+  if ((!option.length()) || ((option.find("l")) != STR_NPOS)) {
+    for (auto it = gGeoMap.cbegin(); it != gGeoMap.cend(); ++it) {
+      char sline[1024];
+      snprintf(sline, sizeof(sline) - 1, "geotag:\"%s\" => \"%s\"\n",
+               it->first.c_str(), it->second.c_str());
+      stdOut += sline;
+    }
+  }
+
+  if ((!option.length())) {
+    for (auto it = gAllowedTidentMatches.cbegin();
+         it != gAllowedTidentMatches.cend(); ++it) {
+      char sline[1024];
+      snprintf(sline, sizeof(sline) - 1, "hostmatch:\"protocol=%s pattern=%s\n",
+               it->first.c_str(), it->second.c_str());
+      stdOut += sline;
+    }
+  }
+
+  if ((option.find("y") != STR_NPOS)) {
+    for (auto it = gVirtualUidMap.cbegin(); it != gVirtualUidMap.cend(); ++it) {
+      if (it->second == 0) {
         XrdOucString authmethod = it->first.c_str();
 
         if (!authmethod.beginswith("tident:")) {
@@ -1327,11 +1342,9 @@ Mapping::Print(XrdOucString& stdOut, XrdOucString option)
     }
   }
 
-  if (((option.find("a")) != STR_NPOS)) {
-    VirtualUserMap_t::const_iterator it;
-
-    for (it = gVirtualUidMap.begin(); it != gVirtualUidMap.end(); ++it) {
-      if (!it->second) {
+  if ((option.find("a") != STR_NPOS)) {
+    for (auto it = gVirtualUidMap.cbegin(); it != gVirtualUidMap.cend(); ++it) {
+      if (it->second == 0) {
         XrdOucString authmethod = it->first.c_str();
 
         if (authmethod.beginswith("tident:")) {
@@ -1344,32 +1357,6 @@ Mapping::Print(XrdOucString& stdOut, XrdOucString option)
         stdOut += authmethod;
         stdOut += "\n";
       }
-    }
-  }
-
-  if ((!option.length()) || ((option.find("N")) != STR_NPOS)) {
-    char sline[1024];
-    snprintf(sline, sizeof(sline), "publicaccesslevel: => %d\n",
-             gNobodyAccessTreeDeepness);
-    stdOut += sline;
-  }
-
-  if ((!option.length()) || ((option.find("l")) != STR_NPOS)) {
-    for (auto it = gGeoMap.begin(); it != gGeoMap.end(); ++it) {
-      char sline[1024];
-      snprintf(sline, sizeof(sline) - 1, "geotag:\"%s\" => \"%s\"\n",
-               it->first.c_str(), it->second.c_str());
-      stdOut += sline;
-    }
-  }
-
-  if ((!option.length())) {
-    for (auto it = gAllowedTidentMatches.begin(); it != gAllowedTidentMatches.end();
-         ++it) {
-      char sline[1024];
-      snprintf(sline, sizeof(sline) - 1, "hostmatch:\"protocol=%s pattern=%s\n",
-               it->first.c_str(), it->second.c_str());
-      stdOut += sline;
     }
   }
 }
