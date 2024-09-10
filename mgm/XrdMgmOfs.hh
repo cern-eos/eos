@@ -594,36 +594,68 @@ public:
               const char* opaque = 0,
               bool simulate = false);
 
-  // ---------------------------------------------------------------------------
-  // rename file
-  // ---------------------------------------------------------------------------
-  int rename(const char* oldFileName,
-             const char* newFileName,
-             XrdOucErrInfo& out_error,
+  //----------------------------------------------------------------------------
+  //! Rename file or directory - part of the XRootD API
+  //!
+  //! @note There are three flavours of rename function, two external and one
+  //! internal implementation. See the _rename implementation for details.
+  //!
+  //! @param old_name old name
+  //! @param new_name new name
+  //! @param error error object
+  //! @param client XRootD authentication object
+  //! @param infoO CGI of the old name
+  //! @param infoN CGI of the new name
+  //!
+  //! @return SFS_OK on success otherwise SFS_ERROR
+  //----------------------------------------------------------------------------
+  int rename(const char* old_name,
+             const char* new_name,
+             XrdOucErrInfo& error,
              const XrdSecEntity* client = 0,
-             const char* opaqueO = 0,
-             const char* opaqueN = 0) override;
+             const char* infoO = 0,
+             const char* infoN = 0) override;
 
-  // ---------------------------------------------------------------------------
-  // rename file by vid
-  // ---------------------------------------------------------------------------
-  int rename(const char* oldFileName,
-             const char* newFileName,
-             XrdOucErrInfo& out_error,
+  //----------------------------------------------------------------------------
+  //! Rename file or directory - EOS internal API that performs
+  //! permission checks
+  //----------------------------------------------------------------------------
+  int rename(const char* old_name,
+             const char* new_name,
+             XrdOucErrInfo& error,
              eos::common::VirtualIdentity& vid,
-             const char* opaqueO = 0,
-             const char* opaqueN = 0,
+             const char* infoO = 0,
+             const char* infoN = 0,
              bool overwrite = false);
 
-  // ---------------------------------------------------------------------------
-  // rename file by vid
-  // ---------------------------------------------------------------------------
-  int _rename(const char* oldFileName,
-              const char* newFileName,
-              XrdOucErrInfo& out_error,
+  //----------------------------------------------------------------------------
+  //! Rename file or directory - EOS internal low-level API
+  //!
+  //! @note Rename within a directory is simple since the quota accounting has
+  //! not to be modified. Rename of directories between quota nodes need to
+  //! recompute all the quota of the subtree which is moving and in case reject
+  //! the operation if there is not enough quota left. Overall it is a quite
+  //!complex function.
+  //!
+  //! @param old_name old name
+  //! @param new_name new name
+  //! @param error error object
+  //! @param vid virtual identity of the client
+  //! @param infoO CGI of the old name
+  //! @param infoN CGI of the new name
+  //! @param updateCTime indicates to update the change time of a directory
+  //! @param checkQuota indicates to check the quota during a rename operation
+  //! @param overwrite indicates if the target name can be overwritten
+  //! @param fusexcast if true do a FUSEX cast otherwise no
+  //!
+  //! @return SFS_OK on success otherwise SFS_ERROR
+  //----------------------------------------------------------------------------
+  int _rename(const char* old_name,
+              const char* new_name,
+              XrdOucErrInfo& error,
               eos::common::VirtualIdentity& vid,
-              const char* opaqueO = 0,
-              const char* opaqueN = 0,
+              const char* infoO = 0,
+              const char* infoN = 0,
               bool updateCTime = false,
               bool checkQuota = false,
               bool overwrite = false,
@@ -766,17 +798,36 @@ public:
   int truncate(const char*, XrdSfsFileOffset, XrdOucErrInfo&, const XrdSecEntity*,
                const char*) override;
 
-  // ---------------------------------------------------------------------------
-  // check access permissions
-  // ---------------------------------------------------------------------------
-  int access(const char*, int mode, XrdOucErrInfo&, const XrdSecEntity*,
-             const char*);
+  //----------------------------------------------------------------------------
+  //! Check access permissions for file/directories
+  //!
+  //! @note See the internal implementation _access for details.
+  //!
+  //! @param inpath path to access
+  //! @param mode access mode can be R_OK |& W_OK |& X_OK or F_OK
+  //! @param error
+  //! @param client XRootD authentication object
+  //! @param ininfo CGI
+  //!
+  //! @return SFS_OK if possible otherwise SFS_ERROR
+  //----------------------------------------------------------------------------
+  int access(const char* inpath, int mode, XrdOucErrInfo& error,
+             const XrdSecEntity* client, const char* ininfo);
 
-  // ---------------------------------------------------------------------------
-  // check access permissions by vid
-  // ---------------------------------------------------------------------------
-  int _access(const char*, int mode, XrdOucErrInfo&,
-              eos::common::VirtualIdentity& vid, const char*);
+  //----------------------------------------------------------------------------
+  //! Check access permissions for file/directories - EOS low-level API
+  //!
+  //! @note If F_OK is specified we just check for the existence of the path,
+  //! which can be a file or directory. We don't support X_OK since it cannot
+  //! be mapped in case of files (we don't have explicit execution permissions).
+  //!
+  //! @note Locking: In the case we need to check the access of a file, we will
+  //! need to check the container and the file itself. We will lock the
+  //! container and the file individually before checking their access with the
+  //! AccessChecker.
+  //----------------------------------------------------------------------------
+   int _access(const char*, int mode, XrdOucErrInfo&,
+               eos::common::VirtualIdentity& vid, const char*);
 
   //----------------------------------------------------------------------------
   //! @brief define access permissions for files/directories
@@ -789,13 +840,13 @@ public:
   //!
   //! Definition of accperm see here:
   //! Code  Resource         Description
-  //! S       File or Folder       is shared
-  //! R       File or Folder       can share (includes reshare)
-  //! M       File or Folder       is mounted (like on DropBox, Samba, etc.)
-  //! W       File             can write file
-  //! C       Folder           can create file in folder
-  //! K       Folder           can create folder (mkdir)
-  //! D       File or Folder   can delete file or folder
+  //! S     File or Folder   is shared
+  //! R     File or Folder   can share (includes reshare)
+  //! M     File or Folder   is mounted (like on DropBox, Samba, etc.)
+  //! W     File             can write file
+  //! C     Folder           can create file in folder
+  //! K     Folder           can create folder (mkdir)
+  //! D     File or Folder   can delete file or folder
   //! N     File or Folder   can rename file or folder
   //! V     File or Folder   can move file or folder
   //----------------------------------------------------------------------------
