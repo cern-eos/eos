@@ -21,12 +21,14 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-// -----------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // This file is included source code in XrdMgmOfs.cc to make the code more
 // transparent without slowing down the compilation time.
-// -----------------------------------------------------------------------
+//------------------------------------------------------------------------------
 
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Rename file or directory - part of the XRootD API
+//------------------------------------------------------------------------------
 int
 XrdMgmOfs::rename(const char* old_name,
                   const char* new_name,
@@ -34,22 +36,6 @@ XrdMgmOfs::rename(const char* old_name,
                   const XrdSecEntity* client,
                   const char* infoO,
                   const char* infoN)
-/*----------------------------------------------------------------------------*/
-/*
- * @brief rename a file or directory
- *
- * @param old_name old name
- * @param new_name new name
- * @param error error object
- * @param client XRootD authentication object
- * @param infoO CGI of the old name
- * @param infoN CGI of the new name
- * @return SFS_OK on success otherwise SFS_ERROR
- *
- * There are three flavours of rename function, two external and one internal
- * implementation. See the internal implementation _rename for details.
- */
-/*----------------------------------------------------------------------------*/
 {
   static const char* epname = "rename";
   const char* tident = error.getErrUser();
@@ -111,7 +97,10 @@ XrdMgmOfs::rename(const char* old_name,
   return rename(oldn.c_str(), newn.c_str(), error, vid, infoO, infoN, true);
 }
 
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Rename file or directory - EOS internal API that performs
+// permission checks
+//------------------------------------------------------------------------------
 int
 XrdMgmOfs::rename(const char* old_name,
                   const char* new_name,
@@ -120,25 +109,8 @@ XrdMgmOfs::rename(const char* old_name,
                   const char* infoO,
                   const char* infoN,
                   bool overwrite)
-/*----------------------------------------------------------------------------*/
-/*
- * @brief rename a file or directory
- *
- * @param old_name old name
- * @param new_name new name
- * @param error error object
- * @param vid virtual identity of the client
- * @param infoO CGI of the old name
- * @param infoN CGI of the new name
- * @return SFS_OK on success otherwise SFS_ERROR
- *
- * There are three flavours of rename function, two external and one internal
- * implementation. See the internal implementation _rename for details.
- */
-/*----------------------------------------------------------------------------*/
 {
   static const char* epname = "rename";
-  errno = 0;
   XrdOucString source, destination;
   XrdOucEnv renameo_Env(infoO);
   XrdOucEnv renamen_Env(infoN);
@@ -146,6 +118,7 @@ XrdMgmOfs::rename(const char* old_name,
   XrdOucString newn = new_name;
   const char* inpath = 0;
   const char* ininfo = 0;
+  errno = 0;
   {
     inpath = old_name;
     ininfo = infoO;
@@ -168,13 +141,13 @@ XrdMgmOfs::rename(const char* old_name,
     MAYREDIRECT;
   }
 
-  // check access permissions on source
-  if ((_access(oldn.c_str(), W_OK, error, vid, infoO) != SFS_OK)) {
+  // Check access permissions on source
+  if (_access(oldn.c_str(), W_OK, error, vid, infoO) != SFS_OK) {
     return SFS_ERROR;
   }
 
-  // check access permissions on target
-  if ((_access(newn.c_str(), W_OK, error, vid, infoN) != SFS_OK)) {
+  // Check access permissions on target
+  if (_access(newn.c_str(), W_OK, error, vid, infoN) != SFS_OK) {
     return SFS_ERROR;
   }
 
@@ -182,28 +155,9 @@ XrdMgmOfs::rename(const char* old_name,
                  false, overwrite);
 }
 
-/*----------------------------------------------------------------------------*/
-/* Rename a file or directory
- *
- * @param old_name old name
- * @param new_name new name
- * @param error error object
- * @param vid virtual identity of the client
- * @param infoO CGI of the old name
- * @param infoN CGI of the new name
- * @param updateCTime indicates to update the change time of a directory
- * @param checkQuota indicates to check the quota during a rename operation
- * @param overwrite indicates if the target name can be overwritten
- * @return SFS_OK on success otherwise SFS_ERROR
- *
- * There are three flavours of rename function, two external and one internal
- * implementation.
- * Rename within a directory is simple since the quota accounting has not to
- * be modified. Rename of directories between quota nodes need to recompute
- * all the quota of the subtree which is moving and in case reject the operation
- * if there is not enough quota left. Overall it is a quite complex function.
- */
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Rename file or directory - EOS internal low-level API
+//------------------------------------------------------------------------------
 int
 XrdMgmOfs::_rename(const char* old_name,
                    const char* new_name,
@@ -267,8 +221,8 @@ XrdMgmOfs::_rename(const char* old_name,
     }
 
     if (file_exists == XrdSfsFileExistIsFile) {
-      XrdSfsFileExistence version_exists;
       renameFile = true;
+      XrdSfsFileExistence version_exists;
       XrdOucString vpath = nPath.GetPath();
 
       if ((!_exists(oPath.GetVersionDirectory(), version_exists, error, vid,
@@ -281,6 +235,7 @@ XrdMgmOfs::_rename(const char* old_name,
     }
 
     if (file_exists == XrdSfsFileExistIsDirectory) {
+      renameDir = true;
       std::string n_path = nPath.GetPath();
       std::string o_path = oPath.GetPath();
 
@@ -291,8 +246,6 @@ XrdMgmOfs::_rename(const char* old_name,
       if ((o_path.at(o_path.length() - 1) != '/')) {
         o_path += "/";
       }
-
-      renameDir = true;
 
       // Check if old path is a subpath of new path
       if ((n_path.length() > o_path.length()) &&
@@ -560,9 +513,7 @@ XrdMgmOfs::_rename(const char* old_name,
               {
                 std::map<uid_t, unsigned long long> user_del_size;
                 std::map<gid_t, unsigned long long> group_del_size;
-
                 // Compute the total quota we need to rename by uid/gid
-
                 for (rfoundit = found.rbegin(); rfoundit != found.rend();
                      rfoundit++) {
                   // To compute the quota, we don't need to read-lock the entire tree as

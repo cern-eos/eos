@@ -21,32 +21,20 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-
-// -----------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // This file is included source code in XrdMgmOfs.cc to make the code more
 // transparent without slowing down the compilation time.
-// -----------------------------------------------------------------------
+//------------------------------------------------------------------------------
 
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+//! Check access permissions for files/directories - XRootD API
+//------------------------------------------------------------------------------
 int
 XrdMgmOfs::access(const char* inpath,
                   int mode,
                   XrdOucErrInfo& error,
                   const XrdSecEntity* client,
                   const char* ininfo)
-/*----------------------------------------------------------------------------*/
-/*
- * @brief check access permissions for file/directories
- *
- * @param inpath path to access
- * @param mode access mode can be R_OK |& W_OK |& X_OK or F_OK
- * @param client XRootD authentication object
- * @param ininfo CGI
- * @return SFS_OK if possible otherwise SFS_ERROR
- *
- * See the internal implementation _access for details
- */
-/*----------------------------------------------------------------------------*/
 {
   static const char* epname = "access";
   const char* tident = error.getErrUser();
@@ -69,33 +57,12 @@ XrdMgmOfs::access(const char* inpath,
   return _access(path, mode, error, vid, ininfo);
 }
 
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Check access permissions for file/directories - EOS low-level API
+//------------------------------------------------------------------------------
 int
-XrdMgmOfs::_access(const char* path,
-                   int mode,
-                   XrdOucErrInfo& error,
-                   eos::common::VirtualIdentity& vid,
-                   const char* info)
-/*----------------------------------------------------------------------------*/
-/*
- * @brief check access permissions for file/directories
- *
- * @param inpath path to access
- * @param mode access mode can be R_OK |& W_OK |& X_OK |& F_OK or P_OK
- * @param client XRootD authentication object
- * @param ininfo CGI
- * @return SFS_OK if possible otherwise SFS_ERROR
- *
- * If F_OK is specified we just check for the existence of the path, which can
- * be a file or directory. We don't support X_OK since it cannot be mapped
- * in case of files (we don't have explicit execution permissions).
- *
- * Locking: In the case we need to check the access of a file, we will need
- * to check the container and the file itself. We will lock the
- * container and the file individually before checking their access with the
- * AccessChecker.
- */
-/*----------------------------------------------------------------------------*/
+XrdMgmOfs::_access(const char* path, int mode, XrdOucErrInfo& error,
+                   eos::common::VirtualIdentity& vid, const char* info)
 {
   static const char* epname = "_access";
   eos_debug("path=%s mode=%x uid=%u gid=%u", path, mode, vid.uid, vid.gid);
@@ -105,11 +72,9 @@ XrdMgmOfs::_access(const char* path,
   std::string attr_path = cPath.GetPath();
   std::shared_ptr<eos::IFileMD> fh;
   std::shared_ptr<eos::IContainerMD> dh;
-  mode_t dhMode;
-  // ---------------------------------------------------------------------------
+  mode_t dh_mode;
   eos::Prefetcher::prefetchItemAndWait(gOFS->eosView, cPath.GetPath());
-
-  // check for existing file
+  // Check for existing file
   try {
     fh = gOFS->eosView->getFile(cPath.GetPath());
   } catch (eos::MDException& e) {
@@ -135,7 +100,7 @@ XrdMgmOfs::_access(const char* path,
 
       // if this is a file or a not existing directory we check the access on the parent directory
       if (fh) {
-        // Do not lock the file when calling getUri() !
+        // Do not lock the file when calling getUri()!
         uri = gOFS->eosView->getUri(fh.get());
         // No need to explicitely lock the file as there is only one operation related to it.
         fattrmap = fh->getAttributes();
@@ -150,9 +115,8 @@ XrdMgmOfs::_access(const char* path,
 
     // ACL and permission check
     Acl acl(attr_path.c_str(), error, vid, attrmap);
-
+    // Take into account file acls
     if (fattrmap.size()) {
-      // take into account file acls
       acl.SetFromAttrMap(attrmap, vid, &fattrmap);
     }
 
@@ -160,10 +124,10 @@ XrdMgmOfs::_access(const char* path,
              acl.HasAcl(), acl.CanRead(), acl.CanWrite(), acl.CanWriteOnce(),
              acl.CanBrowse(), acl.HasEgroup(), acl.IsMutable());
     {
-      // In any case, we need to check the container access, read lock it to check its access and release its lock
-      // afterwards
+      // In any case, we need to check the container access, read lock it to
+      // check its access and release its lock afterwards
       eos::MDLocking::ContainerReadLock dhLock(dh);
-      dhMode = dh->getMode();
+      dh_mode = dh->getMode();
 
       if (!AccessChecker::checkContainer(dh.get(), acl, mode, vid)) {
         errno = EPERM;
@@ -203,7 +167,7 @@ XrdMgmOfs::_access(const char* path,
 
   if (dh) {
     eos_debug("msg=\"access\" uid=%d gid=%d retc=%d mode=%o",
-              vid.uid, vid.gid, permok, dhMode);
+              vid.uid, vid.gid, permok, dh_mode);
   }
 
   if (dh && (mode & F_OK)) {

@@ -21,9 +21,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifndef EOS_MGM_ACCESS_CHECKER_HH
-#define EOS_MGM_ACCESS_CHECKER_HH
-
+#pragma once
 #include "mgm/Namespace.hh"
 #include "common/Mapping.hh"
 #include "namespace/interface/IContainerMD.hh"
@@ -39,7 +37,6 @@ class Acl;
 
 class AccessChecker {
 public:
-
   //----------------------------------------------------------------------------
   //! Check access to the given container - linked attributes are necessary
   //! to construct the Acl object.
@@ -65,14 +62,12 @@ public:
   static bool checkFile(IFileMD *file, int mode,
     const eos::common::VirtualIdentity &vid);
 
-  //---------------------------------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   //! Test if public access is allowed for a given path
-  //---------------------------------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   static bool
   checkPublicAccess(const std::string &fullpath,
                     const common::VirtualIdentity& vid);
 };
 
 EOSMGMNAMESPACE_END
-
-#endif
