@@ -576,7 +576,7 @@ com_vid_usage:
   fprintf(stdout,
           "                                        -s : show list of sudoers\n");
   fprintf(stdout,
-          "                                        -U : show user  alias mapping\n");
+          "                                        -U : show user alias mapping\n");
   fprintf(stdout,
           "                                        -G : show group alias mapping\n");
   fprintf(stdout,
