@@ -24,29 +24,24 @@
 #include "mgm/auth/AccessChecker.hh"
 #include "mgm/Acl.hh"
 #include "namespace/interface/IFileMD.hh"
-//#include <mgm/XrdMgmOfs.hh>
 #include <common/Path.hh>
 #include <sys/stat.h>
 
 EOSMGMNAMESPACE_BEGIN
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // Check access to the given container - linked attributes are necessary
 // to construct the Acl object.
 //
 // All information required to make a decision are passed to this function.
-//----------------------------------------------------------------------------
-bool AccessChecker::checkContainer(IContainerMD* cont,
-                                   const eos::IContainerMD::XAttrMap& linkedAttrs, int mode,
-                                   const eos::common::VirtualIdentity& vid)
+//------------------------------------------------------------------------------
+bool
+AccessChecker::checkContainer(IContainerMD* cont,
+                              const eos::IContainerMD::XAttrMap& linkedAttrs,
+                              int mode, const eos::common::VirtualIdentity& vid)
 {
-  //----------------------------------------------------------------------------
-  // Construct Acl object
-  //----------------------------------------------------------------------------
   Acl acl(linkedAttrs, vid);
-  //----------------------------------------------------------------------------
   // Delegate to method taking receiving acl object instead of linked xattrs
-  //----------------------------------------------------------------------------
   return checkContainer(cont, acl, mode, vid);
 }
 
@@ -55,95 +50,64 @@ bool AccessChecker::checkContainer(IContainerMD* cont,
 // a decision are passed to this function, no external information should
 // be needed.
 //------------------------------------------------------------------------------
-bool AccessChecker::checkContainer(IContainerMD* cont, const Acl& acl,
-                                   int mode, const eos::common::VirtualIdentity& vid)
+bool
+AccessChecker::checkContainer(IContainerMD* cont, const Acl& acl,
+                              int mode, const eos::common::VirtualIdentity& vid)
 {
-  //----------------------------------------------------------------------------
   // Allow root to do anything
-  //----------------------------------------------------------------------------
   if (vid.uid == 0) {
     return true;
   }
 
-  //----------------------------------------------------------------------------
-  // Always allow daemon to read / browse
-  //----------------------------------------------------------------------------
+  // Always allow daemon to read/browse
   if (vid.uid == DAEMONUID && (!(mode & W_OK))) {
     return true;
   }
 
-  //----------------------------------------------------------------------------
   // A non-root attempting to write an immutable directory?
-  //----------------------------------------------------------------------------
   if (acl.HasAcl() && (!acl.IsMutable() && (mode & W_OK))) {
     return false;
   }
 
-  //----------------------------------------------------------------------------
   // A non-root attempting to prepare, but no explicit Acl allowing prepare?
-  //----------------------------------------------------------------------------
   if ((mode & P_OK) && (!acl.HasAcl() || !acl.CanPrepare())) {
     return false;
   }
 
-  //----------------------------------------------------------------------------
   // Basic permission check
-  //----------------------------------------------------------------------------
   bool basicCheck = cont->access(vid.uid, vid.gid, mode);
 
-  //----------------------------------------------------------------------------
   // Access granted, or we have no Acls? We're done.
-  //----------------------------------------------------------------------------
   if (basicCheck || !acl.HasAcl()) {
     return basicCheck;
   }
 
-  //----------------------------------------------------------------------------
   // Basic check denied us access... let's see if we can recover through Acls
-  //----------------------------------------------------------------------------
-
-  //if ((mode & W_OK) && (!acl.CanWrite() && !cont->access(vid.uid, vid.gid, W_OK) ))
   if ((mode & W_OK) &&
       (acl.CanNotWrite() ||
-       (!acl.CanWrite() && !cont->access(vid.uid, vid.gid, W_OK))
-      )
-     ) {
-    //--------------------------------------------------------------------------
+       (!acl.CanWrite() && !cont->access(vid.uid, vid.gid, W_OK)))) {
     // Asking for write permission, and neither basic check, nor Acls grant us
     // write. Deny.
-    //--------------------------------------------------------------------------
     return false;
   }
 
-  // if ((mode & R_OK) && (!acl.CanRead() && !cont->access(vid.uid, vid.gid, R_OK) ))
   if ((mode & R_OK) &&
       (acl.CanNotRead() ||
-       (!acl.CanRead() && !cont->access(vid.uid, vid.gid, R_OK))
-      )
-     ) {
-    //--------------------------------------------------------------------------
+       (!acl.CanRead() && !cont->access(vid.uid, vid.gid, R_OK)))) {
     // Asking for read permission, and neither basic check, nor Acls grant us
     // read. Deny.
-    //--------------------------------------------------------------------------
     return false;
   }
 
-  // if ((mode & X_OK) && (!acl.CanBrowse() && !cont->access(vid.uid, vid.gid, X_OK) ))
   if ((mode & X_OK) &&
       (acl.CanNotBrowse() ||
-       (!acl.CanBrowse() && !cont->access(vid.uid, vid.gid, X_OK))
-      )
-     ) {
-    //--------------------------------------------------------------------------
+       (!acl.CanBrowse() && !cont->access(vid.uid, vid.gid, X_OK)))) {
     // Asking for browse permission, and neither basic check, nor Acls grant us
     // browse. Deny.
-    //--------------------------------------------------------------------------
     return false;
   }
 
-  //----------------------------------------------------------------------------
   // We survived Acl check, grant.
-  //----------------------------------------------------------------------------
   return true;
 }
 
@@ -154,16 +118,12 @@ bool AccessChecker::checkContainer(IContainerMD* cont, const Acl& acl,
 bool AccessChecker::checkFile(IFileMD* file, int mode,
                               const eos::common::VirtualIdentity& vid)
 {
-  //----------------------------------------------------------------------------
   // We only check browse permissions for files, for now.
-  //----------------------------------------------------------------------------
   if (!(mode & X_OK)) {
     return true;
   }
 
-  //----------------------------------------------------------------------------
   // root can do anything
-  //----------------------------------------------------------------------------
   if (vid.uid == 0) {
     return true;
   }
@@ -193,7 +153,6 @@ bool AccessChecker::checkFile(IFileMD* file, int mode,
 
 //---------------------------------------------------------------------------------------------------
 // Test if public access is allowed for a given path
-//
 //---------------------------------------------------------------------------------------------------
 bool
 AccessChecker::checkPublicAccess(const std::string& fullpath,
@@ -201,8 +160,8 @@ AccessChecker::checkPublicAccess(const std::string& fullpath,
 {
   int errc = 0;
 
-  if ((eos::common::Mapping::UserNameToUid(std::string("eosnobody"),
-       errc) == vid.uid) && !errc && (strcmp(vid.prot.c_str(), "sss") == 0)) {
+  if ((eos::common::Mapping::UserNameToUid(std::string("eosnobody"), errc) == vid.uid) &&
+      !errc && (strcmp(vid.prot.c_str(), "sss") == 0)) {
     // eosnobody can access all squash files
     eos::common::Path cPath(fullpath);
 
@@ -215,8 +174,7 @@ AccessChecker::checkPublicAccess(const std::string& fullpath,
   }
 
   // Check only for anonymous access
-  // uid=99 for CentOS7
-  // uid=65534 for >= Alma 9
+  // uid=99 for CentOS7 and uid=65534 for >= Alma9
   if ((vid.uid != 99) && (vid.uid != 65534)) {
     return true;
   } else {
