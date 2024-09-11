@@ -28,11 +28,17 @@
 #include <sys/types.h>
 #include <string>
 
-#define P_OK  8   /* Test for workflow permission.  */
-
 class XrdOucErrInfo;
 
 EOSMGMNAMESPACE_BEGIN
+
+#define P_OK     8 ///< Flag for workflow/prepare permission
+#define D_OK    16 ///< Flag for delete persmission
+#define M_OK    32 ///< Flag for chmod permission
+#define C_OK    64 ///< Flag for chown permission
+#define SA_OK  128 ///< Flag for set xattr permission
+#define U_OK   256 ///< Flag for update permission
+#define SU_OK  512 ///< Flag for utime permission
 
 //------------------------------------------------------------------------------
 //! Class implementing access control list interpretation.

@@ -60,18 +60,39 @@ AccessChecker::checkContainer(IContainerMD* cont, const Acl& acl,
   }
 
   // Always allow daemon to read/browse
-  if (vid.uid == DAEMONUID && (!(mode & W_OK))) {
+  if ((vid.uid == DAEMONUID) && !(mode & W_OK)) {
     return true;
   }
 
   // A non-root attempting to write an immutable directory?
-  if (acl.HasAcl() && (!acl.IsMutable() && (mode & W_OK))) {
+  if (acl.HasAcl() && !acl.IsMutable() && (mode & W_OK)) {
     return false;
   }
 
-  // A non-root attempting to prepare, but no explicit Acl allowing prepare?
+  // A non-root attempting to prepare, but no explicit ACL allowing prepare?
   if ((mode & P_OK) && (!acl.HasAcl() || !acl.CanPrepare())) {
     return false;
+  }
+
+  // A non-root attempting to delete, we have two cases:
+  // * container has S_ISVTX(sticky bit) then only the file owner can delete
+  //   that file irrespective of the ACLs - this check is split between the
+  //   current method and checkFile
+  // * container does NOT have S_ISVTS set, we need to check that the ACLs
+  //   don't forbid explicitly the deletion
+  if (mode & D_OK) {
+    bool isvtx = cont->getMode() & S_ISVTX;
+
+    if (isvtx) {
+      if (cont->getCUid() != vid.uid) {
+        // The second part of this check is done in checkFile
+        return false;
+      }
+    } else {
+      if (acl.HasAcl() && acl.CanNotDelete()) {
+        return false;
+      }
+    }
   }
 
   // Basic permission check
@@ -115,16 +136,24 @@ AccessChecker::checkContainer(IContainerMD* cont, const Acl& acl,
 // Check access to the given file. The parent directory of the file
 // needs to be checked separately!
 //------------------------------------------------------------------------------
-bool AccessChecker::checkFile(IFileMD* file, int mode,
+bool AccessChecker::checkFile(IFileMD* file, int mode, int dh_mode,
                               const eos::common::VirtualIdentity& vid)
 {
-  // We only check browse permissions for files, for now.
-  if (!(mode & X_OK)) {
+  // root can do anything
+  if (vid.uid == 0) {
     return true;
   }
 
-  // root can do anything
-  if (vid.uid == 0) {
+  // Deletion when parent container has sticky bit is allowed only if
+  // done by the owner of the file
+  if (mode & D_OK) {
+    if ((dh_mode & S_ISVTX) && (file->getCUid() != vid.uid)) {
+      return false;
+    }
+  }
+
+  // We only check browse permissions for files, for now.
+  if (!(mode & X_OK)) {
     return true;
   }
 
