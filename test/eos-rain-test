@@ -27,20 +27,20 @@
 # Description: The script is used to test the RAIN-like layouts from EOS.
 # Usage:
 # eos-rain-test raiddp/raid6/archive/plain dir_test_files root://host//eos_raid_dir tmp_location_dir
-#  - first argument is the type of test made 
+#  - first argument is the type of test made
 #  - second arguments specifies the directory from which all files corresponding
-#     to the pattern *.rain will be used in the test 
-#  - third argument represents the full path to a directory in EOS which has 
-#     the proper extended attributes for the type of test specified in the 
+#     to the pattern *.rain will be used in the test
+#  - third argument represents the full path to a directory in EOS which has
+#     the proper extended attributes for the type of test specified in the
 #     first argument
 #  - fourth argument is a temporary directory in which files read out from EOS
-#     are stored. The files put in this directory  will be deleted at the end 
-#     of the test. 
+#     are stored. The files put in this directory  will be deleted at the end
+#     of the test.
 #
 # The script copies the files in the EOS directories which are using some form
-# of RAIN-layout and then tries to read them back and compares the checksum of 
+# of RAIN-layout and then tries to read them back and compares the checksum of
 # the initial file put in EOS with the one read back. In the second stage, each
-# file system in the EOS configuration is shutdown one by one and the file is 
+# file system in the EOS configuration is shutdown one by one and the file is
 # read again from EOS to verify if the single stripe recovery mechanism is
 # working properly. In the last stage, each two file systems are shutdown and
 # again the file is read out of EOS and the match with the original one is tested.
@@ -60,90 +60,79 @@ EOS=$(command -v eos)
 
 if [ "$(whoami)" != "root" ]; then
    SUDO="sudo"
-else 
+else
   SUDO=""
 fi
 
 #-------------------------------------------------------------------------------
 # Write a file to EOS, read it back and compare the checksum
 #-------------------------------------------------------------------------------
-function write_and_read() 
+function write_and_read()
 {
     local SRC=$1
     local DEST=$2
     local FNAME=$3
-
+    local XS_REF=$4
     echo "Write, read and check test, with file: $FNAME"
-    
-    # write the file in EOS 
-    $XRDCP $SRC/$FNAME $DEST/$FNAME -f 
-    
+    # write the file in EOS
+    $XRDCP $SRC/$FNAME $DEST/$FNAME -f
     # read it back in a tmp folder
-    $XRDCP $DEST/$FNAME $TMP_LOCATION/$FNAME.tmp -f 
-    
-    # compute the checksum of initial file and the one read back
-    local XSINIT=$(sum $SRC/$FNAME)
-    local XSCOPY=$(sum $TMP_LOCATION/$FNAME.tmp)
-
+    $XRDCP $DEST/$FNAME $TMP_LOCATION/$FNAME.tmp -f
+    # compute the checksum transferred file
+    local XS_COPY=$(sum $TMP_LOCATION/$FNAME.tmp)
     # clean up the files in the TMP_LOCATION
     rm -rf $TMP_LOCATION/$FNAME.tmp
-    
-    test "$XSINIT" = "$XSCOPY" 
+    test "$XS_REF" = "$XS_COPY"
+
     if [[ $? -ne 0 ]]; then
-	echo_failure
-	exit 1
-    fi 
+        echo_failure
+        exit 1
+    fi
 }
 
 
 #-------------------------------------------------------------------------------
 # Read a file from EOS it back and compare the checksum
 #-------------------------------------------------------------------------------
-function read_and_check() 
+function read_and_check()
 {
     local SRC=$1
     local EOS_SRC=$2
     local FNAME=$3
-
+    local XS_REF=$4
     #echo "Read and check test, with file: $FNAME"
-   
     # read it back in a tmp folder
     $XRDCP $EOS_SRC/$FNAME $TMP_LOCATION/$FNAME.tmp -f
-    
-    # compute the checksum of initial file and the one read back
-    local XSINIT=$(sum $SRC/$FNAME)
-    local XSCOPY=$(sum $TMP_LOCATION/$FNAME.tmp)
-
+    # compute the checksum of the transferred file
+    local XS_COPY=$(sum $TMP_LOCATION/$FNAME.tmp)
     # clean up the files in the TMP_LOCATION
     rm -rf $TMP_LOCATION/$FNAME.tmp
-    
-    test "$XSINIT" = "$XSCOPY" 
+    test "$XS_REF" = "$XS_COPY"
+
     if [[ $? -ne 0 ]]; then
-	echo_failure
-	exit 1
-    fi 
+        echo_failure
+        exit 1
+    fi
 }
 
 
 #-------------------------------------------------------------------------------
 # Get the file system ids on which the file has stripes
 #-------------------------------------------------------------------------------
-function get_file_fs() 
+function get_file_fs()
 {
     local eos_file=$1
     local rec=$($SUDO $EOS -b file info $eos_file)
-
     VECT_FS=( $(echo "$rec" | awk '{ if (($6 ~ /booted/) || ($7 ~ /booted/)) print $2 }') )
 }
-
 
 
 #-------------------------------------------------------------------------------
 # Main part
 #-------------------------------------------------------------------------------
 
-if [[ $# -eq 0 && $# -gt 5 ]]; 
-then 
+if [[ $# -eq 0 && $# -gt 5 ]];
+then
     echo "Usage: $0 raiddp/raid6/archive/plain dir_test_files root://host//eos_rain_dir tmp_dir"
     exit
 fi
@@ -160,50 +149,50 @@ EOS_DEST=$3
 # Tmp location where files are saved when read from EOS
 TMP_LOCATION=$4
 
-#Extract the EOS directory name 
+#Extract the EOS directory name
 INDX=`awk -v a="$EOS_DEST" -v b="//eos" 'BEGIN{print index(a,b)}'`
 EOS_DIR="${EOS_DEST:$INDX}"
 
 if [ "$ARG" = "raiddp" ]; then
-    $SUDO $EOS -b attr ls "$EOS_DIR" | grep -q 'sys.forced.layout="raiddp"' 
+    $SUDO $EOS -b attr ls "$EOS_DIR" | grep -q 'sys.forced.layout="raiddp"'
     if [ $? -ne 0 ]; then
-	echo "$ERR_MSG1"
-	echo_failure
-	exit 1
+        echo "$ERR_MSG1"
+        echo_failure
+        exit 1
     fi
 elif [ "$ARG" = "raid6" ];
 then
-    $SUDO $EOS -b attr ls "$EOS_DIR" | grep -q 'sys.forced.layout="raid6"' 
+    $SUDO $EOS -b attr ls "$EOS_DIR" | grep -q 'sys.forced.layout="raid6"'
     if [ $? -ne 0 ]; then
-	echo "$ERR_MSG1"
-	echo_failure
-	exit 1
+        echo "$ERR_MSG1"
+        echo_failure
+        exit 1
     fi
 elif [ "$ARG" = "archive" ];
 then
-    $SUDO $EOS -b attr ls "$EOS_DIR" | grep -q 'sys.forced.layout="archive"' 
+    $SUDO $EOS -b attr ls "$EOS_DIR" | grep -q 'sys.forced.layout="archive"'
     if [ $? -ne 0 ]; then
-	echo "$ERR_MSG1"
-	echo_failure
-	exit 1
+        echo "$ERR_MSG1"
+        echo_failure
+        exit 1
     fi
 elif [ "$ARG" = "plain" ];
 then
     $SUDO $EOS -b attr ls "$EOS_DIR" | grep -q 'sys.forced.layout="plain"'
     if [ $? -ne 0 ]; then
-	echo "$ERR_MSG1"
-	echo_failure
-	exit 1
+        echo "$ERR_MSG1"
+        echo_failure
+        exit 1
     fi
 elif [ "$ARG" = "qrain" ];
 then
     $SUDO $EOS -b attr ls "$EOS_DIR" | grep -q 'sys.forced.layout="qrain"'
     if [ $? -ne 0 ]; then
-	echo "$ERR_MSG1"
-	echo_failure
-	exit 1
+        echo "$ERR_MSG1"
+        echo_failure
+        exit 1
     fi
-else 
+else
     echo "Usage: $0 raiddp/raid6/archive/plain dir_test_files eos_rain_dir tmp_dir"
     exit 1
 fi
@@ -219,18 +208,22 @@ if [[ $ret -le 5 ]]; then
     exit 1
 fi
 
+# Create a map between reference test file names and their corresponding
+# checksum to speed-up the execution time of this test
+declare -A MAP_XS
 
 #...............................................................................
 # Do all write-read-check tests in: $EOS_DEST ...
 #...............................................................................
 echo "Do all write-read-check tests in: $EOS_DEST"
-date 
+date
 # loop over all files in the pattern and test them in EOS
 for file in $ROOT_PATH/*.rain; do
     if [[ -f $file ]]; then
         file=$(basename $file)
-	write_and_read $ROOT_PATH $EOS_DEST $file
-    fi	
+        MAP_XS[$file]=$(sum $ROOT_PATH/$file)
+        write_and_read $ROOT_PATH $EOS_DEST $file ${MAP_XS[$file]}
+    fi
 done
 
 
@@ -239,29 +232,29 @@ done
 #...............................................................................
 echo "Disable one FST and redo the read test..."
 date
-date
+
 # loop over all files in the pattern and test them in EOS
 for file in $ROOT_PATH/*.rain; do
-    if [[ -f $file ]]; then 
+    if [[ -f $file ]]; then
         file=$(basename $file)
-    	# get the fs on which this files resides
-	get_file_fs "$EOS_DIR/$file"
-	echo "Process file $file ..."
+        # get the fs on which this files resides
+        get_file_fs "$EOS_DIR/$file"
+        echo "Process file $file ..."
 
-	for fst in "${VECT_FS[@]}"; do
-	    #echo "Disable FST $fst and redo read test..." 
-	    
+        for fst in "${VECT_FS[@]}"; do
+            #echo "Disable FST $fst and redo read test..."
+
             # disable one FST in EOS and test read
-	    $SUDO $EOS -b fs config $fst configstatus=off
+            $SUDO $EOS -b fs config $fst configstatus=off
             sleep 1
 
-	    read_and_check $ROOT_PATH $EOS_DEST $file
+            read_and_check $ROOT_PATH $EOS_DEST $file ${MAP_XS[$file]}
 
-            # restore the configuraton in EOS 
-	    $SUDO $EOS -b fs config $fst configstatus=rw
-	done
+            # restore the configuraton in EOS
+            $SUDO $EOS -b fs config $fst configstatus=rw
+        done
     fi
-done 
+done
 
 
 #...............................................................................
@@ -272,29 +265,36 @@ date
 # loop over all files in the pattern and test them in EOS
 for file in $ROOT_PATH/*.rain; do
     if [[ -f $file ]]; then
-	file=$(basename $file)
-	# get the filesystems on which this files resides
-	get_file_fs "$EOS_DIR/$file"
-	echo "Process file $file ..."
-	
-	for fst1 in "${VECT_FS[@]}"; do
-	    for fst2 in "${VECT_FS[@]}"; do
-		if [ "$fst1" -ne "$fst2" ]; then
-		    #echo "Disable FST $fst1 and $fst2 and redo read test..." 
-		    
+        file=$(basename $file)
+        # get the filesystems on which this files resides
+        get_file_fs "$EOS_DIR/$file"
+        echo "Process file $file ..."
+        idx1=0
+        idx2=0
+
+
+        for fst1 in "${VECT_FS[@]}"; do
+            for fst2 in "${VECT_FS[@]}"; do
+                if [ "$idx2" -gt "$idx1" ]; then
+                    #echo "Disable FST $fst1 and $fst2 and redo read test..."
+
                     # disable one FST in EOS and test read
-		    $SUDO $EOS -b fs config $fst1 configstatus=off
-		    $SUDO $EOS -b fs config $fst2 configstatus=off
+                    $SUDO $EOS -b fs config $fst1 configstatus=off
+                    $SUDO $EOS -b fs config $fst2 configstatus=off
                     sleep 1
-		    
-		    read_and_check $ROOT_PATH $EOS_DEST $file
-		    
-                    # restore the configuraton in EOS 
-		    $SUDO $EOS -b fs config $fst1 configstatus=rw
-		    $SUDO $EOS -b fs config $fst2 configstatus=rw
-		fi
-	    done
-	done
+
+                    read_and_check $ROOT_PATH $EOS_DEST $file ${MAP_XS[$file]}
+
+                    # restore the configuraton in EOS
+                    $SUDO $EOS -b fs config $fst1 configstatus=rw
+                    $SUDO $EOS -b fs config $fst2 configstatus=rw
+                fi
+
+                idx2=$((idx2 + 1))
+            done
+
+            idx1=$((idx1 + 1))
+        done
     fi
 done
 
@@ -307,8 +307,8 @@ date
 for file in $ROOT_PATH/*.rain; do
     if [[ -f $file ]]; then
         file=$(basename $file)
-	$SUDO eos -b rm $EOS_DIR/$file
-    fi	
+        $SUDO eos -b rm $EOS_DIR/$file
+    fi
 done
 
 echo_success
