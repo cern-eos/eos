@@ -39,6 +39,7 @@
 #include "common/Strerror_r_wrapper.hh"
 #include "common/BufferManager.hh"
 #include "common/BehaviourConfig.hh"
+#include "common/Definitions.hh"
 #include "namespace/Constants.hh"
 #include "namespace/interface/ContainerIterators.hh"
 #include "namespace/utils/Attributes.hh"

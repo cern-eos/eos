@@ -24,22 +24,21 @@
 #include <XrdVersion.hh>
 #include <XrdOuc/XrdOucTList.hh>
 #include <XrdSfs/XrdSfsFlags.hh>
-
 #include "PrepareManager.hh"
 #include "common/Constants.hh"
 #include "mgm/Stat.hh"
 #include "mgm/EosCtaReporter.hh"
 #include "mgm/bulk-request/response/QueryPrepareResponse.hh"
-#include <common/Path.hh>
+#include "common/Path.hh"
 #include "common/Timing.hh"
-#include <common/SecEntity.hh>
-#include <common/utils/XrdUtils.hh>
-#include <mgm/Acl.hh>
-#include <mgm/Macros.hh>
-#include <mgm/XrdMgmOfs.hh>
-#include <mgm/bulk-request/File.hh>
-#include <mgm/bulk-request/exception/PersistencyException.hh>
-#include <mgm/bulk-request/prepare/PrepareUtils.hh>
+#include "common/SecEntity.hh"
+#include "common/utils/XrdUtils.hh"
+#include "common/Definitions.hh"
+#include "mgm/Macros.hh"
+#include "mgm/XrdMgmOfs.hh"
+#include "mgm/bulk-request/File.hh"
+#include "mgm/bulk-request/exception/PersistencyException.hh"
+#include "mgm/bulk-request/prepare/PrepareUtils.hh"
 
 EOSBULKNAMESPACE_BEGIN
 

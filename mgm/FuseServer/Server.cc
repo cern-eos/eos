@@ -40,8 +40,9 @@
 #include "namespace/interface/ContainerIterators.hh"
 #include "namespace/Prefetcher.hh"
 #include "namespace/utils/Attributes.hh"
-#include "common/Logging.hh"
 #include "common/Path.hh"
+#include "common/Logging.hh"
+#include "common/Definitions.hh"
 #include <google/protobuf/util/json_util.h>
 #include <string>
 #include <cstdlib>
@@ -2345,7 +2346,7 @@ Server::OpSetFile(const std::string& id,
         std::string nogroup;
         uint64_t phys_space = gOFS->mGeoTreeEngine->placementSpace(space.c_str(),
                               nogroup);
-        eos_info("msg=\"writable-space=%lu\"\n", phys_space);
+        eos_info("msg=\"writable-space=%lu\"", phys_space);
 
         // check physical space
         if (phys_space < gOFS->getFuseBookingSize()) {
