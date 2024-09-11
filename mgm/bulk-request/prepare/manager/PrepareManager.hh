@@ -26,14 +26,14 @@
 #include "common/Logging.hh"
 #include "mgm/Namespace.hh"
 #include "mgm/EosCtaReporter.hh"
-#include <XrdSfs/XrdSfsInterface.hh>
-#include <list>
-#include <string>
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/bulk-request/interface/IMgmFileSystemInterface.hh"
 #include "mgm/bulk-request/prepare/query-prepare/QueryPrepareResult.hh"
 #include <mgm/bulk-request/FileCollection.hh>
 #include "mgm/bulk-request/BulkRequest.hh"
+#include <XrdSfs/XrdSfsInterface.hh>
+#include <list>
+#include <string>
 
 EOSBULKNAMESPACE_BEGIN
 

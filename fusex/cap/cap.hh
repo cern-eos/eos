@@ -25,25 +25,16 @@
 #ifndef FUSE_CAP_HH_
 #define FUSE_CAP_HH_
 
+#include "llfusexx.hh"
+#include "md/md.hh"
+#include "backend/backend.hh"
+#include "fusex/fusex.pb.h"
+#include "common/Definitions.hh"
+#include <XrdSys/XrdSysPthread.hh>
 #include <sys/stat.h>
 #include <sys/types.h>
-#include "llfusexx.hh"
-#include "backend/backend.hh"
-#include "md/md.hh"
-#include "fusex/fusex.pb.h"
-
-#include <XrdSys/XrdSysPthread.hh>
 #include <memory>
 #include <map>
-
-
-// extension to permission capabilities
-#define D_OK 8     // delete
-#define M_OK 16    // chmod
-#define C_OK 32    // chown
-#define SA_OK 64   // set xattr
-#define U_OK 128   // can update
-#define SU_OK 256  // set utimes
 
 class cap
 {
