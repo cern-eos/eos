@@ -369,6 +369,7 @@ XrdMgmOfs::_rem(const char* path,
     lock.Release();
     // -------------------------------------------------------------------------
     std::string recycle_space = attrmap[Recycle::gRecyclingAttribute].c_str();
+    eos::common::VirtualIdentity rootvid = eos::common::VirtualIdentity::Root();
 
     if (Quota::ExistsResponsible(recycle_space)) {
       if (!no_quota_enforcement &&
@@ -381,7 +382,6 @@ XrdMgmOfs::_rem(const char* path,
                     "space is full");
       } else {
         // Move the file to the recycle bin
-        eos::common::VirtualIdentity rootvid = eos::common::VirtualIdentity::Root();
         int rc = 0;
         Recycle lRecycle(path, attrmap[Recycle::gRecyclingAttribute].c_str(),
                          &vid, fmd->getCUid(), fmd->getCGid(),
@@ -410,7 +410,7 @@ XrdMgmOfs::_rem(const char* path,
     }
 
     // track who is deleting
-    if (gOFS->_attr_set(recyclePath.c_str(), error, vid, "",
+    if (gOFS->_attr_set(recyclePath.c_str(), error, rootvid, "",
                         eos::common::EOS_DTRACE_ATTR, vid.getTrace(true).c_str())) {
       eos_err("msg=\"failed to set attribute on recycle path\" path=%s",
               recyclePath.c_str());
@@ -424,14 +424,13 @@ XrdMgmOfs::_rem(const char* path,
 
       // tag the version directory key on the garbage file
       if (recyclePath.length()) {
-        eos::common::VirtualIdentity rootvid = eos::common::VirtualIdentity::Root();
         struct stat buf;
 
         if (!gOFS->_stat(vdir.c_str(), &buf, error, rootvid, 0, 0)) {
           char sp[256];
           snprintf(sp, sizeof(sp) - 1, "%016llx", (unsigned long long) buf.st_ino);
 
-          if (gOFS->_attr_set(recyclePath.c_str(), error, vid, "",
+          if (gOFS->_attr_set(recyclePath.c_str(), error, rootvid, "",
                               Recycle::gRecyclingVersionKey.c_str(), sp)) {
             eos_err("msg=\"failed to set attribute on recycle path\" path=%s",
                     recyclePath.c_str());
