@@ -120,9 +120,11 @@ XrdMgmOfs::_access(const char* path, int mode, XrdOucErrInfo& error,
       acl.SetFromAttrMap(attrmap, vid, &fattrmap);
     }
 
-    eos_info("acl=%d r=%d w=%d wo=%d x=%d egroup=%d mutable=%d",
-             acl.HasAcl(), acl.CanRead(), acl.CanWrite(), acl.CanWriteOnce(),
-             acl.CanBrowse(), acl.HasEgroup(), acl.IsMutable());
+    eos_info("acl=%d r=%d w=%d wo=%d x=%d egroup=%d "
+             "mutable=%d can_not_delete=%d",
+             acl.HasAcl(), acl.CanRead(), acl.CanWrite(),
+             acl.CanWriteOnce(), acl.CanBrowse(), acl.HasEgroup(),
+             acl.IsMutable(), acl.CanNotDelete());
     {
       // In any case, we need to check the container access, read lock it to
       // check its access and release its lock afterwards
@@ -139,7 +141,7 @@ XrdMgmOfs::_access(const char* path, int mode, XrdOucErrInfo& error,
       // Check the file access, read lock it before and release the lock afterwards
       eos::MDLocking::FileReadLock fhLock(fh);
 
-      if (!AccessChecker::checkFile(fh.get(), mode, vid)) {
+      if (!AccessChecker::checkFile(fh.get(), mode, dh_mode, vid)) {
         errno = EPERM;
         return Emsg(epname, error, EPERM, "access", path);
       }

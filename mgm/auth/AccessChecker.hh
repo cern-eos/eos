@@ -58,9 +58,14 @@ public:
   //----------------------------------------------------------------------------
   //! Check access to the given file. The parent directory of the file
   //! needs to be checked separately!
+  //!
+  //! @param mode requested type of access
+  //! @param dh_mode parent directory mode bits
+  //!
+  //! @return true if access allowed, otherwise false
   //----------------------------------------------------------------------------
-  static bool checkFile(IFileMD *file, int mode,
-    const eos::common::VirtualIdentity &vid);
+  static bool checkFile(IFileMD *file, int mode, int dh_mode,
+                        const eos::common::VirtualIdentity &vid);
 
   //----------------------------------------------------------------------------
   //! Test if public access is allowed for a given path
