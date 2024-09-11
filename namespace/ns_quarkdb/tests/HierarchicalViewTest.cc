@@ -1484,7 +1484,7 @@ TEST_F(HierarchicalViewF, getMDMultiThreaded) {
   auto dirId = dir->getId();
   // Make sure the newly created directory and file are actually commited in the
   // QDB backend otherwise the first thread that clears the cache and asks for
-  // the file might get a eos::MDException
+  // the file might get an eos::MDException
   mdFlusher()->synchronize();
   std::vector<std::thread> workers;
 

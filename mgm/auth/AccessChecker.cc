@@ -79,7 +79,7 @@ AccessChecker::checkContainer(IContainerMD* cont, const Acl& acl,
   // * container has S_ISVTX(sticky bit) then only the file owner can delete
   //   that file irrespective of the ACLs - this check is split between the
   //   current method and checkFile
-  // * container does NOT have S_ISVTS set, we need to check that the ACLs
+  // * container does NOT have S_ISVTX set, we need to check that the ACLs
   //   don't forbid explicitly the deletion
   if (mode & D_OK) {
     bool isvtx = cont->getMode() & S_ISVTX;
