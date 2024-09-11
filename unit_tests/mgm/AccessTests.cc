@@ -69,6 +69,15 @@ IContainerMDPtr makeContainer(uid_t uid, gid_t gid, int mode)
   return cont;
 }
 
+IFileMDPtr makeFile(uid_t uid, gid_t gid, int mode)
+{
+  IFileMDPtr file(new eos::QuarkFileMD());
+  file->setCUid(uid);
+  file->setCGid(gid);
+  file->setFlags(mode);
+  return file;
+}
+
 eos::common::VirtualIdentity makeIdentity(uid_t uid, gid_t gid)
 {
   eos::common::VirtualIdentity vid;
@@ -219,78 +228,129 @@ TEST_F(MappingTestF, AccessChecker_WithPrepare)
                  cont.get(), acl, P_OK, vid1));
 }
 
-IFileMDPtr makeFile(uid_t uid, gid_t gid, int mode)
-{
-  IFileMDPtr file(new eos::QuarkFileMD());
-  file->setCUid(uid);
-  file->setCGid(gid);
-  file->setFlags(mode);
-  return file;
-}
-
 TEST_F(MappingTestF, AccessChecker_FileUserRWX)
 {
+  int dh_mode = 0;
   IFileMDPtr file = makeFile(5555, 9999, S_IRWXU);
-  ASSERT_TRUE(mgm::AccessChecker::checkFile(file.get(), X_OK,
+  ASSERT_TRUE(mgm::AccessChecker::checkFile(file.get(), X_OK, dh_mode,
               makeIdentity(5555, 1111)));
-  ASSERT_TRUE(mgm::AccessChecker::checkFile(file.get(), R_OK | X_OK,
+  ASSERT_TRUE(mgm::AccessChecker::checkFile(file.get(), R_OK | X_OK, dh_mode,
               makeIdentity(5555, 1111)));
-  ASSERT_TRUE(mgm::AccessChecker::checkFile(file.get(), W_OK | X_OK,
+  ASSERT_TRUE(mgm::AccessChecker::checkFile(file.get(), W_OK | X_OK, dh_mode,
               makeIdentity(5555, 1111)));
   ASSERT_TRUE(mgm::AccessChecker::checkFile(file.get(), R_OK | W_OK | X_OK,
-              makeIdentity(5555, 1111)));
+                                            dh_mode, makeIdentity(5555, 1111)));
   // different uid than the file in question
-  ASSERT_FALSE(mgm::AccessChecker::checkFile(file.get(), X_OK,
+  ASSERT_FALSE(mgm::AccessChecker::checkFile(file.get(), X_OK, dh_mode,
                makeIdentity(9999, 1111)));
-  ASSERT_FALSE(mgm::AccessChecker::checkFile(file.get(), R_OK | X_OK,
+  ASSERT_FALSE(mgm::AccessChecker::checkFile(file.get(), R_OK | X_OK, dh_mode,
                makeIdentity(9999, 1111)));
-  ASSERT_FALSE(mgm::AccessChecker::checkFile(file.get(), W_OK | X_OK,
+  ASSERT_FALSE(mgm::AccessChecker::checkFile(file.get(), W_OK | X_OK, dh_mode,
                makeIdentity(9999, 1111)));
   ASSERT_FALSE(mgm::AccessChecker::checkFile(file.get(), R_OK | W_OK | X_OK,
-               makeIdentity(9999, 1111)));
+                                             dh_mode, makeIdentity(9999, 1111)));
   // different uid, same gid, still deny
-  ASSERT_FALSE(mgm::AccessChecker::checkFile(file.get(), X_OK,
+  ASSERT_FALSE(mgm::AccessChecker::checkFile(file.get(), X_OK, dh_mode,
                makeIdentity(9999, 9999)));
-  ASSERT_FALSE(mgm::AccessChecker::checkFile(file.get(), R_OK | X_OK,
+  ASSERT_FALSE(mgm::AccessChecker::checkFile(file.get(), R_OK | X_OK, dh_mode,
                makeIdentity(9999, 9999)));
-  ASSERT_FALSE(mgm::AccessChecker::checkFile(file.get(), W_OK | X_OK,
+  ASSERT_FALSE(mgm::AccessChecker::checkFile(file.get(), W_OK | X_OK, dh_mode,
                makeIdentity(9999, 9999)));
   ASSERT_FALSE(mgm::AccessChecker::checkFile(file.get(), R_OK | W_OK | X_OK,
-               makeIdentity(9999, 9999)));
+                                             dh_mode, makeIdentity(9999, 9999)));
 }
 
 TEST_F(MappingTestF, AccessChecker_FileGroupRWX)
 {
   // file only allows group access
+  int dh_mode = 0;
   IFileMDPtr file = makeFile(5555, 9999, S_IRWXG);
   // file has same uid, and group as file - allow
-  ASSERT_TRUE(mgm::AccessChecker::checkFile(file.get(), X_OK,
+  ASSERT_TRUE(mgm::AccessChecker::checkFile(file.get(), X_OK, dh_mode,
               makeIdentity(5555, 9999)));
   // file has same uid - deny
-  ASSERT_FALSE(mgm::AccessChecker::checkFile(file.get(), X_OK,
+  ASSERT_FALSE(mgm::AccessChecker::checkFile(file.get(), X_OK, dh_mode,
                makeIdentity(5555, 8888)));
   // others - deny
-  ASSERT_FALSE(mgm::AccessChecker::checkFile(file.get(), X_OK,
+  ASSERT_FALSE(mgm::AccessChecker::checkFile(file.get(), X_OK, dh_mode,
                makeIdentity(1111, 2222)));
 }
 
-TEST_F(MappingTestF , AccessChecker_FileOtherRWX)
+TEST_F(MappingTestF, AccessChecker_FileOtherRWX)
 {
   // file only allows group access - weird, but possible
+  int dh_mode = 0;
   IFileMDPtr file = makeFile(5555, 9999, S_IRWXO);
   // file has same uid/gid, deny
-  ASSERT_FALSE(mgm::AccessChecker::checkFile(file.get(), X_OK,
+  ASSERT_FALSE(mgm::AccessChecker::checkFile(file.get(), X_OK, dh_mode,
                makeIdentity(5555, 9999)));
   // file has same uid, deny
-  ASSERT_FALSE(mgm::AccessChecker::checkFile(file.get(), X_OK,
+  ASSERT_FALSE(mgm::AccessChecker::checkFile(file.get(), X_OK, dh_mode,
                makeIdentity(5555, 8888)));
   // file has same gid, deny
-  ASSERT_FALSE(mgm::AccessChecker::checkFile(file.get(), X_OK,
+  ASSERT_FALSE(mgm::AccessChecker::checkFile(file.get(), X_OK, dh_mode,
                makeIdentity(6666, 9999)));
   // different uid, different gid, grant
-  ASSERT_TRUE(mgm::AccessChecker::checkFile(file.get(), X_OK,
+  ASSERT_TRUE(mgm::AccessChecker::checkFile(file.get(), X_OK, dh_mode,
               makeIdentity(2222, 3333)));
 }
+
+TEST_F(MappingTestF, AccessChecker_FileRename)
+{
+  uid_t uid = 5555;
+  gid_t gid = 9999;
+  IContainerMDPtr cont = makeContainer(uid, gid, S_IFDIR | S_IRWXU);
+  eos::common::VirtualIdentity vid1 = makeIdentity(uid, gid);
+  eos::common::VirtualIdentity vid2 = makeIdentity(uid + 1, gid + 2);
+  eos::mgm::Acl acl("", "", vid1, true);
+  int req_mode = W_OK | D_OK;
+  ASSERT_TRUE(mgm::AccessChecker::checkContainer(cont.get(), acl, req_mode, vid1));
+  ASSERT_FALSE(mgm::AccessChecker::checkContainer(cont.get(), acl, req_mode, vid2));
+  // Forbid deletions by user vid1 and allow write(del) by vid2
+  acl.Set("u:5555:!d,u:5556:rwx", "", "", vid1, true);
+  ASSERT_FALSE(mgm::AccessChecker::checkContainer(cont.get(), acl, req_mode, vid1));
+  // ACL object is interpreted relative to the vid identity
+  acl.Set("u:5555:!d,u:5556:rwx", "", "", vid2, true);
+  ASSERT_TRUE(mgm::AccessChecker::checkContainer(cont.get(), acl, req_mode, vid2));
+  // Set directory S_ISVTX bit (sticky bit) which means only owner is
+  // allowed to delete irrespective of the ACLs
+  cont->setMode(S_IFDIR | S_IRWXU | S_ISVTX);
+  ASSERT_FALSE(mgm::AccessChecker::checkContainer(cont.get(), acl, req_mode, vid2));
+  acl.Set("u:5555:!d,u:5556:rwx", "", "", vid1, true);
+  ASSERT_TRUE(mgm::AccessChecker::checkContainer(cont.get(), acl, req_mode, vid1));
+  // Reset S_ISVTX bit
+  cont->setMode(S_IFDIR | S_IRWXU);
+  // Throw in the file object into the mix first owned by vid1
+  IFileMDPtr file = makeFile(uid, gid, S_IRWXU);
+  acl.Set("", "", "", vid1, true);
+  ASSERT_TRUE(mgm::AccessChecker::checkContainer(cont.get(), acl, req_mode, vid1) &&
+              mgm::AccessChecker::checkFile(file.get(), req_mode, cont->getMode(), vid1));
+  acl.Set("u:5555:!d", "", "", vid1, true);
+  ASSERT_TRUE(!mgm::AccessChecker::checkContainer(cont.get(), acl, req_mode, vid1) &&
+               mgm::AccessChecker::checkFile(file.get(), req_mode, cont->getMode(), vid1));
+  acl.Set("", "", "", vid2, true);
+  ASSERT_FALSE(mgm::AccessChecker::checkContainer(cont.get(), acl, req_mode, vid2) &&
+               mgm::AccessChecker::checkFile(file.get(), req_mode, cont->getMode(), vid2));
+  acl.Set("u:5555:!d,u:5556:rwx", "", "", vid2, true);
+  ASSERT_TRUE(mgm::AccessChecker::checkContainer(cont.get(), acl, req_mode, vid2) &&
+              mgm::AccessChecker::checkFile(file.get(), req_mode, cont->getMode(), vid2));
+  // Set directory S_ISVTX bit (sticky bit) which means only owner is
+  // allowed to delete irrespective of the ACLs
+  cont->setMode(S_IFDIR | S_IRWXU | S_ISVTX);
+  acl.Set("", "", "", vid1, true);
+  ASSERT_TRUE(mgm::AccessChecker::checkContainer(cont.get(), acl, req_mode, vid1) &&
+              mgm::AccessChecker::checkFile(file.get(), req_mode, cont->getMode(), vid1));
+  acl.Set("u:5555:!d", "", "", vid1, true);
+  ASSERT_TRUE(mgm::AccessChecker::checkContainer(cont.get(), acl, req_mode, vid1) &&
+              mgm::AccessChecker::checkFile(file.get(), req_mode, cont->getMode(), vid1));
+  acl.Set("u:5555:!d,u:5556:rwx", "", "", vid2, true);
+  ASSERT_FALSE(mgm::AccessChecker::checkContainer(cont.get(), acl, req_mode, vid2) &&
+               mgm::AccessChecker::checkFile(file.get(), req_mode, cont->getMode(), vid2));
+  acl.Set("u:5555:!d,u:5556:rwx+d", "", "", vid2, true);
+  ASSERT_FALSE(mgm::AccessChecker::checkContainer(cont.get(), acl, req_mode, vid2) &&
+               mgm::AccessChecker::checkFile(file.get(), req_mode, cont->getMode(), vid2));
+}
+
 
 TEST(Access, ProcessRuleKey)
 {

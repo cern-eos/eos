@@ -142,13 +142,13 @@ XrdMgmOfs::rename(const char* old_name,
   }
 
   // Check access permissions on source
-  if (_access(oldn.c_str(), W_OK, error, vid, infoO) != SFS_OK) {
-    return SFS_ERROR;
+  if (_access(oldn.c_str(), W_OK | D_OK, error, vid, infoO) != SFS_OK) {
+    return Emsg(epname, error, errno, "rename - source access failure");
   }
 
   // Check access permissions on target
   if (_access(newn.c_str(), W_OK, error, vid, infoN) != SFS_OK) {
-    return SFS_ERROR;
+    return Emsg(epname, error, errno, "rename - destination access failure");
   }
 
   return _rename(oldn.c_str(), newn.c_str(), error, vid, infoO, infoN, true,

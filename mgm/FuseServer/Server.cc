@@ -21,15 +21,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include <string>
-#include <cstdlib>
-#include <thread>
-#include <regex>
-
-#include <google/protobuf/util/json_util.h>
-
 #include "mgm/FuseServer/Server.hh"
-
 #include "mgm/Acl.hh"
 #include "mgm/Policy.hh"
 #include "mgm/Quota.hh"
@@ -48,22 +40,20 @@
 #include "namespace/interface/ContainerIterators.hh"
 #include "namespace/Prefetcher.hh"
 #include "namespace/utils/Attributes.hh"
-
 #include "common/Logging.hh"
 #include "common/Path.hh"
+#include <google/protobuf/util/json_util.h>
+#include <string>
+#include <cstdlib>
+#include <thread>
+#include <regex>
+
+USE_EOSMGMNAMESPACE
 
 EOSFUSESERVERNAMESPACE_BEGIN
 
-#define D_OK 8     // delete
-#define M_OK 16    // chmod
-#define C_OK 32    // chown
-#define SA_OK 64   // set xattr
-#define U_OK 128   // can update
-#define SU_OK 256  // set utime
-
 #define k_mdino  XrdMgmOfsFile::k_mdino
 #define k_nlink  XrdMgmOfsFile::k_nlink
-
 
 USE_EOSFUSESERVERNAMESPACE
 
