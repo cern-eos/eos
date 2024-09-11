@@ -29,11 +29,11 @@
 #include "mgm/Stat.hh"
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/Macros.hh"
-#include "mgm/Acl.hh"
 #include "mgm/Workflow.hh"
 #include "mgm/FsView.hh"
-
+#include "common/Definitions.hh"
 #include <XrdOuc/XrdOucEnv.hh>
+
 
 //----------------------------------------------------------------------------
 // Trigger an event

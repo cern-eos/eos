@@ -26,6 +26,7 @@
 #include "mgm/Acl.hh"
 #include "mgm/proc/admin/AccessCmd.hh"
 #include "mgm/auth/AccessChecker.hh"
+#include "common/Definitions.hh"
 #include "namespace/ns_quarkdb/ContainerMD.hh"
 #include "namespace/ns_quarkdb/FileMD.hh"
 #include "unit_tests/common/MappingTestFixture.hh"
