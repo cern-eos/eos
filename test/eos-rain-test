@@ -78,10 +78,11 @@ function write_and_read()
     $XRDCP $SRC/$FNAME $DEST/$FNAME -f
     # read it back in a tmp folder
     $XRDCP $DEST/$FNAME $TMP_LOCATION/$FNAME.tmp -f
-    # compute the checksum transferred file
+    # compute transferred file checksum
     local XS_COPY=$(sum $TMP_LOCATION/$FNAME.tmp)
     # clean up the files in the TMP_LOCATION
     rm -rf $TMP_LOCATION/$FNAME.tmp
+    echo "info: compare xs_ref=$XS_REF with xs_copy=$XS_COPY"
     test "$XS_REF" = "$XS_COPY"
 
     if [[ $? -ne 0 ]]; then
@@ -103,7 +104,7 @@ function read_and_check()
     #echo "Read and check test, with file: $FNAME"
     # read it back in a tmp folder
     $XRDCP $EOS_SRC/$FNAME $TMP_LOCATION/$FNAME.tmp -f
-    # compute the checksum of the transferred file
+    # compute transferred file checksum
     local XS_COPY=$(sum $TMP_LOCATION/$FNAME.tmp)
     # clean up the files in the TMP_LOCATION
     rm -rf $TMP_LOCATION/$FNAME.tmp
