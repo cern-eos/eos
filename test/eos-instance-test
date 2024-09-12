@@ -1084,7 +1084,10 @@ runtest "### Fileinfo   " unix 0 "" eosj fileinfo "/eos/$EOS_TEST_INSTANCE/test/
 #----------------------------------------------------------------------------
 fid=$(command eos -j -b root://$EOS_TEST_REDIRECTOR fileinfo "/eos/$EOS_TEST_INSTANCE/test/instancetest/fileinfo/file1" | jq -r .id)
 runtest "### Rm         " unix 0 "" eos rm "/eos/$EOS_TEST_INSTANCE/test/instancetest/fileinfo/file1"
-runtest "### Fileinfo   " unix 0 "" eos fileinfo "fid:${fid} -m | grep -w detached=1"
+# The complete deletion of the file could happen by the time we issue the next command
+# so the file info command will file with "found deletion tombstone" error. The test is
+# still considered successful in this case.
+runtest "### Fileinfo   " unix 0 "" eos fileinfo "fid:${fid} -m | grep -w 'detached=1\|tombstone'"
 #----------------------------------------------------------------------------
 fid=$(command eos -j -b root://$EOS_TEST_REDIRECTOR fileinfo "/eos/$EOS_TEST_INSTANCE/test/instancetest/fileinfo/file2" | jq -r .id)
 runtest "### Rm         " unix 0 "" eos rm "/eos/$EOS_TEST_INSTANCE/test/instancetest/fileinfo/file2"
