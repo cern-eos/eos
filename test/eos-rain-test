@@ -79,7 +79,7 @@ function write_and_read()
     # read it back in a tmp folder
     $XRDCP $DEST/$FNAME $TMP_LOCATION/$FNAME.tmp -f
     # compute transferred file checksum
-    local XS_COPY=$(sum $TMP_LOCATION/$FNAME.tmp)
+    local XS_COPY=$(sum $TMP_LOCATION/$FNAME.tmp | cut -d' ' -f1)
     # clean up the files in the TMP_LOCATION
     rm -rf $TMP_LOCATION/$FNAME.tmp
     echo "info: compare xs_ref=$XS_REF with xs_copy=$XS_COPY"
@@ -105,7 +105,7 @@ function read_and_check()
     # read it back in a tmp folder
     $XRDCP $EOS_SRC/$FNAME $TMP_LOCATION/$FNAME.tmp -f
     # compute transferred file checksum
-    local XS_COPY=$(sum $TMP_LOCATION/$FNAME.tmp)
+    local XS_COPY=$(sum $TMP_LOCATION/$FNAME.tmp | cut -d' ' -f1)
     # clean up the files in the TMP_LOCATION
     rm -rf $TMP_LOCATION/$FNAME.tmp
     test "$XS_REF" = "$XS_COPY"
@@ -222,7 +222,7 @@ date
 for file in $ROOT_PATH/*.rain; do
     if [[ -f $file ]]; then
         file=$(basename $file)
-        MAP_XS[$file]=$(sum $ROOT_PATH/$file)
+        MAP_XS[$file]=$(sum $ROOT_PATH/$file | cut -d' ' -f1)
         write_and_read $ROOT_PATH $EOS_DEST $file ${MAP_XS[$file]}
     fi
 done
