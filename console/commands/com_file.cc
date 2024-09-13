@@ -644,7 +644,7 @@ com_file(char* arg1)
     }
 
     in += "&mgm.subcmd=tag";
-    in += "&mgm.path=";
+    in += Path2FileDenominator(path) ? "&mgm.file.id=" : "&mgm.path=";
     in += path;
 
     if ((!fsid1.beginswith("+")) &&
@@ -1126,11 +1126,11 @@ com_file_usage:
   fprintf(stdout, "file symlink <name> <link-name> :\n");
   fprintf(stdout,
           "                                                  create a symlink with <name> pointing to <link-name>\n");
-  fprintf(stdout, "file tag <name> +|-|~<fsid> :\n");
+  fprintf(stdout, "file tag <path>|fid:<fid-dec>|fxid:<fid-hex> +|-|~<fsid> :\n");
   fprintf(stdout,
           "                                                  add/remove/unlink a filesystem location to/from a file in the location index - attention this does not move any data!\n");
   fprintf(stdout,
-          "                                                  unlink keeps the location in the list of deleted files e.g. the location get's a deletion request\n");
+          "                                                  unlink keeps the location in the list of deleted files e.g. the location gets a deletion request\n");
   fprintf(stdout,
           "file touch [-a] [-n] [-0] <path>|fid:<fid-dec>|fxid:<fid-hex> [linkpath|size [hexchecksum]] :\n");
   fprintf(stdout,

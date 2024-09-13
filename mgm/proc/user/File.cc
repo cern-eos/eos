@@ -51,10 +51,18 @@ ProcCommand::File()
 {
   XrdOucString spath = "";
   XrdOucString spathid = pOpaque->Get("mgm.file.id");
+  eos::IFileMD::id_t fid = 0ull;
 
   if (spathid.length()) {
-    GetPathFromFid(spath, std::strtoull(spathid.c_str(), nullptr, 10),
-                   "Cannot get fid");
+    try {
+      fid = std::strtoull(spathid.c_str(), nullptr, 10);
+    } catch (...) {
+      stdErr = "error: given file identifier is not numeric";
+      retc = EINVAL;
+      return SFS_OK;
+    }
+
+    GetPathFromFid(spath, fid, "Cannot get fid");
   } else {
     spath = pOpaque->Get("mgm.path");
   }
@@ -71,7 +79,7 @@ ProcCommand::File()
   spath = path;
   bool cmdok = false;
 
-  if (!spath.length() && (mSubCmd != "drop")) {
+  if (!spath.length() && !fid && (mSubCmd != "drop")) {
     stdErr = "error: you have to give a path name to call 'file'";
     retc = EINVAL;
     return SFS_OK;
@@ -732,18 +740,17 @@ ProcCommand::File()
     if (mSubCmd == "tag") {
       cmdok = true;
 
-      if ((!((vid.prot == "sss") &&
-             (vid.hasUid(DAEMONUID)))) &&
-          (vid.uid)) {
-        stdErr = "error: permission denied - you have to be root to run the 'tag' command";
+      if (!((vid.prot == "sss") && vid.hasUid(DAEMONUID)) && (vid.uid != 0)) {
+        stdErr = "error: permission denied - you have to be root to "
+          "run the 'tag' command";
         retc = EPERM;
         return SFS_OK;
       }
 
-      XrdOucString sfsid = pOpaque->Get("mgm.file.tag.fsid");
       bool do_add = false;
       bool do_rm = false;
       bool do_unlink = false;
+      XrdOucString sfsid = pOpaque->Get("mgm.file.tag.fsid");
 
       if (sfsid.beginswith("+")) {
         do_add = true;
@@ -761,74 +768,74 @@ ProcCommand::File()
       errno = 0;
       int fsid = (sfsid.c_str()) ? (int) strtol(sfsid.c_str(), 0, 10) : 0;
 
-      if (errno || fsid == 0 || (!do_add && !do_rm && !do_unlink)) {
-        stdErr = "error: you have to provide a valid filesystem id and a valid operation (+|-) e.g. 'file tag /myfile +1000'\n";
-        retc = EINVAL;
+      if (errno || (fsid == 0) || (!do_add && !do_rm && !do_unlink)) {
+        stdErr = "error: no valid filesystem id and/or operation (+/-/~) "
+          "provided e.g. 'file tag /myfile +1000'\n";
         stdErr += sfsid;
+        retc = EINVAL;
+        return SFS_OK;
       } else {
-        std::shared_ptr<eos::IFileMD> fmd;
-        {
-          eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
+        eos::MDLocking::FileWriteLockPtr fwl;
 
-          try {
-            fmd = gOFS->eosView->getFile(spath.c_str());
+        try {
+          if (fid) {
+            fwl = gOFS->eosFileService->getFileMDWriteLocked(fid);
+          } else {
+            fwl = gOFS->eosView->getFileWriteLocked(spath.c_str());
+          }
 
-            if (do_add && fmd->hasLocation(fsid)) {
-              stdErr += "error: file '";
-              stdErr += spath.c_str();
-              stdErr += "' is already located on fs=";
-              stdErr += (int) fsid;
-              retc = EINVAL;
-            } else if ((do_rm || do_unlink) && (!fmd->hasLocation(fsid) &&
-                                                !fmd->hasUnlinkedLocation(fsid))) {
-              stdErr += "error: file '";
-              stdErr += spath.c_str();
-              stdErr += "' is not located on fs=";
-              stdErr += (int) fsid;
-              retc = EINVAL;
-            } else {
-              if (do_add) {
-                fmd->addLocation(fsid);
-              }
+          std::shared_ptr<eos::IFileMD> fmd = fwl->getUnderlyingPtr();
 
-              if (do_rm || do_unlink) {
-                fmd->unlinkLocation(fsid);
+          if (do_add && fmd->hasLocation(fsid)) {
+            stdErr += "error: file '";
+            stdErr += spath.c_str();
+            stdErr += "' is already located on fs=";
+            stdErr += (int) fsid;
+            retc = EINVAL;
+            return SFS_OK;
+          } else if ((do_rm || do_unlink) &&
+                     (!fmd->hasLocation(fsid) &&
+                      !fmd->hasUnlinkedLocation(fsid))) {
+            stdErr += "error: file '";
+            stdErr += spath.c_str();
+            stdErr += "' is not located on fs=";
+            stdErr += (int) fsid;
+            retc = EINVAL;
+            return SFS_OK;
+          } else {
+            if (do_add) {
+              fmd->addLocation(fsid);
+              stdOut += "success: added location to file '";
+            }
 
-                if (do_rm) {
-                  fmd->removeLocation(fsid);
-                }
-              }
-
-              gOFS->eosView->updateFileStore(fmd.get());
-
-              if (do_add) {
-                stdOut += "success: added location to file '";
-              }
+            if (do_rm || do_unlink) {
+              fmd->unlinkLocation(fsid);
 
               if (do_rm) {
                 stdOut += "success: removed location from file '";
-              }
-
-              if (do_unlink) {
+                fmd->removeLocation(fsid);
+              } else {
                 stdOut += "success: unlinked location from file '";
               }
-
-              stdOut += spath.c_str();
-              stdOut += "' on fs=";
-              stdOut += (int) fsid;
             }
-          } catch (eos::MDException& e) {
-            errno = e.getErrno();
-            eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n", e.getErrno(),
-                      e.getMessage().str().c_str());
-          }
 
-          if (!fmd) {
-            stdErr += "error: unable to get file meta data of file '";
-            stdErr += spath.c_str();
-            stdErr += "'";
-            retc = errno;
+            gOFS->eosView->updateFileStore(fmd.get());
+            stdOut += spath.c_str();
+            stdOut += "' on fs=";
+            stdOut += (int) fsid;
           }
+        } catch (eos::MDException& e) {
+          errno = e.getErrno();
+          eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n", e.getErrno(),
+                    e.getMessage().str().c_str());
+        }
+
+        if (!fwl) {
+          stdErr += "error: unable to get file meta data of file '";
+          stdErr += spath.c_str();
+          stdErr += "'";
+          retc = errno;
+          return SFS_OK;
         }
       }
     }
