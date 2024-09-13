@@ -1556,6 +1556,11 @@ runtest "### Tag       " unix 0 "" eos file tag /eos/$EOS_TEST_INSTANCE/test/ins
 runtest "### Tag       " unix 0 "" eos file tag /eos/$EOS_TEST_INSTANCE/test/instancetest/tag/touch ~1
 runtest "### Tag       " unix 0 "" eos file tag /eos/$EOS_TEST_INSTANCE/test/instancetest/tag/touch -1
 runtest "### Tag       " unix 1 "" eos file tag /eos/$EOS_TEST_INSTANCE/test/instancetest/tag/touch -1
+tag_fxid=$(command eos -j -b root://$EOS_TEST_REDIRECTOR fileinfo /eos/$EOS_TEST_INSTANCE/test/instancetest/tag/touch | jq -r .fxid)
+runtest "### Tag       " unix 0 "" eos file tag fxid:${tag_fxid} +2
+runtest "### Tag       " unix 1 "" eos file tag fxid:${tag_fxid} +2
+runtest "### Tag       " unix 0 "" eos file tag fxid:${tag_fxid} -2
+runtest "### Tag       " unix 1 "" eos file tag fxid:${tag_fxid} -2
 runtest "### Rm        " unix 0 "" eos rm /eos/$EOS_TEST_INSTANCE/test/instancetest/tag/touch
 runtest "### Rmdir     " unix 0 "" eos rmdir /eos/$EOS_TEST_INSTANCE/test/instancetest/tag/
 
