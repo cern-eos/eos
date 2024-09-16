@@ -44,6 +44,8 @@ public:
   inline static const std::string FILES_KEY_NAME = "files";
   inline static const std::string PATH_KEY_NAME = "path";
   inline static const std::string TARGETED_METADATA_KEY_NAME = "targetedMetadata";
+  inline static const std::string TARGETED_METADATA_DEFAULT_ENDPOINT_KEY = "default";
+
 protected:
   TapeJsonCppValidatorFactory mValidatorFactory;
   std::string mRestApiEndpointId;

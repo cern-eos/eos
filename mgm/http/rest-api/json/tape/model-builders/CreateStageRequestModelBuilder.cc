@@ -88,7 +88,8 @@ CreateStageRequestModelBuilder::buildFromJson(const std::string& json)
       }
 
       // let's see if there are metadata targeted to us
-      Json::Value& myTargetedMetadata = targetedMetadata[mRestApiEndpointId];
+      Json::Value& myTargetedMetadata =
+          targetedMetadata[mRestApiEndpointId].empty() ? targetedMetadata[TARGETED_METADATA_DEFAULT_ENDPOINT_KEY] : targetedMetadata[mRestApiEndpointId];
 
       if (!myTargetedMetadata.empty()) {
         //There are metadata for us
