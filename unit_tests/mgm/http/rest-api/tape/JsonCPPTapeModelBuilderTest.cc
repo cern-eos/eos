@@ -27,47 +27,113 @@
 
 using namespace eos::mgm::rest;
 
-TEST_F(JsonCPPTapeModelBuilderTest, createStageRequestModelBuilderTest)
-{
-  std::string restApiEndpointID = "REST_API_ENDPOINT_ID";
+std::string JsonCPPTapeModelBuilderTest::restApiEndpointID = "REST_API_ENDPOINT_ID";
+
+TEST_F(JsonCPPTapeModelBuilderTest, createStageRequestModelBuilderTest_jsonNotValid) {
   CreateStageRequestModelBuilder builder(restApiEndpointID);
   std::string json = "jsonNotValid";
   ASSERT_THROW(builder.buildFromJson(json), JsonValidationException);
-  json = "{}";
+}
+
+TEST_F(JsonCPPTapeModelBuilderTest, createStageRequestModelBuilderTest_emptyJson) {
+  CreateStageRequestModelBuilder builder(restApiEndpointID);
+  std::string json = "{}";
   ASSERT_THROW(builder.buildFromJson(json), JsonValidationException);
-  json = "{\"wrong_field\":[]}";
+}
+
+TEST_F(JsonCPPTapeModelBuilderTest, createStageRequestModelBuilderTest_wrongField)
+{
+  CreateStageRequestModelBuilder builder(restApiEndpointID);
+  std::string json = "{\"wrong_field\":[]}";
   ASSERT_THROW(builder.buildFromJson(json), JsonValidationException);
-  json = "{\"" + CreateStageRequestModelBuilder::FILES_KEY_NAME + "\":12345}";
+}
+
+TEST_F(JsonCPPTapeModelBuilderTest, createStageRequestModelBuilderTest_wrongFormat1)
+{
+  CreateStageRequestModelBuilder builder(restApiEndpointID);
+  std::string json = "{\"" + CreateStageRequestModelBuilder::FILES_KEY_NAME + "\":12345}";
   ASSERT_THROW(builder.buildFromJson(json), JsonValidationException);
-  json = "{\"" + CreateStageRequestModelBuilder::FILES_KEY_NAME + "\":[]}";
+}
+
+TEST_F(JsonCPPTapeModelBuilderTest, createStageRequestModelBuilderTest_wrongFormat2)
+{
+  CreateStageRequestModelBuilder builder(restApiEndpointID);
+  std::string json = "{\"" + CreateStageRequestModelBuilder::FILES_KEY_NAME + "\":[]}";
   ASSERT_THROW(builder.buildFromJson(json), JsonValidationException);
-  json = "{\"" + CreateStageRequestModelBuilder::FILES_KEY_NAME + "\":[1,2,3]}";
+}
+
+TEST_F(JsonCPPTapeModelBuilderTest, createStageRequestModelBuilderTest_wrongFormat3)
+{
+  CreateStageRequestModelBuilder builder(restApiEndpointID);
+  std::string json = "{\"" + CreateStageRequestModelBuilder::FILES_KEY_NAME + "\":[1,2,3]}";
   ASSERT_THROW(builder.buildFromJson(json), JsonValidationException);
-  json = "{\"" + CreateStageRequestModelBuilder::FILES_KEY_NAME + "\":[{\"" +
+}
+
+TEST_F(JsonCPPTapeModelBuilderTest, createStageRequestModelBuilderTest_wrongFormat4)
+{
+  CreateStageRequestModelBuilder builder(restApiEndpointID);
+  std::string json = "{\"" + CreateStageRequestModelBuilder::FILES_KEY_NAME + "\":[{\"" +
          CreateStageRequestModelBuilder::PATH_KEY_NAME + "\":1234}]";
   ASSERT_THROW(builder.buildFromJson(json), JsonValidationException);
-  json = "{\"" + CreateStageRequestModelBuilder::FILES_KEY_NAME + "\":[{\"" +
-         CreateStageRequestModelBuilder::PATH_KEY_NAME + "\":\"/path/to/file.txt\"},{\""
-         + CreateStageRequestModelBuilder::PATH_KEY_NAME +
+}
+
+TEST_F(JsonCPPTapeModelBuilderTest, createStageRequestModelBuilderTest_correctFormat)
+{
+  CreateStageRequestModelBuilder builder(restApiEndpointID);
+  std::string json = "{\"" + CreateStageRequestModelBuilder::FILES_KEY_NAME + "\":[{\"" +
+         CreateStageRequestModelBuilder::PATH_KEY_NAME +
+         "\":\"/path/to/file.txt\"},{\"" +
+         CreateStageRequestModelBuilder::PATH_KEY_NAME +
          "\":\"/path/to/file2.txt\"}]}";
   ASSERT_NO_THROW(builder.buildFromJson(json));
-  std::string activityValue = "activityTest";
+}
+
+TEST_F(JsonCPPTapeModelBuilderTest, createStageRequestModelBuilderTest_activity_defaultEndpoint)
+{
+  CreateStageRequestModelBuilder builder(restApiEndpointID);
+  std::string activityValue_default = "activityTest_default";
   std::ostringstream oss;
-  oss << "{\""
-      <<    CreateStageRequestModelBuilder::FILES_KEY_NAME << "\": ["
-      <<      "{"
-      <<          "\"" << CreateStageRequestModelBuilder::PATH_KEY_NAME <<
-      "\": \"/path/to/file.txt\","
-      <<          "\"" << CreateStageRequestModelBuilder::TARGETED_METADATA_KEY_NAME
-      <<  "\": {"
-      <<             "\"" << restApiEndpointID << "\" : {"
-      <<               "\"activity\":\"" <<  activityValue << "\""
-      <<             "}"
-      <<          "}"
-      <<      "}"
-      <<    "]"
-      << "}";
-  json = oss.str();
+  oss << "{\"" << CreateStageRequestModelBuilder::FILES_KEY_NAME << "\": ["
+      << "{"
+      << "\"" << CreateStageRequestModelBuilder::PATH_KEY_NAME
+      << "\": \"/path/to/file.txt\","
+      << "\"" << CreateStageRequestModelBuilder::TARGETED_METADATA_KEY_NAME
+      << "\": {"
+      << "\"default\" : {"
+      << "\"activity\":\"" << activityValue_default << "\""
+      << "}"
+      << "}"
+      << "}"
+      << "]}";
+  std::string json = oss.str();
+  auto createStageRequestModel = builder.buildFromJson(json);
+  std::string expectedActivityOpaque = "activity=" + activityValue_default;
+  ASSERT_EQ(expectedActivityOpaque,
+            createStageRequestModel->getFiles().getOpaqueInfos().at(0));
+}
+
+TEST_F(JsonCPPTapeModelBuilderTest, createStageRequestModelBuilderTest_activity_normalEndpoint)
+{
+  CreateStageRequestModelBuilder builder(restApiEndpointID);
+  std::string activityValue = "activityTest";
+  std::string activityValue_default = "activityTest_default";
+  std::ostringstream oss;
+  oss << "{\"" << CreateStageRequestModelBuilder::FILES_KEY_NAME << "\": ["
+      << "{"
+      << "\"" << CreateStageRequestModelBuilder::PATH_KEY_NAME
+      << "\": \"/path/to/file.txt\","
+      << "\"" << CreateStageRequestModelBuilder::TARGETED_METADATA_KEY_NAME
+      << "\": {"
+      << "\"default\" : {"
+      << "\"activity\":\"" << activityValue_default << "\""
+      << "},"
+      << "\"" << restApiEndpointID << "\" : {"
+      << "\"activity\":\"" << activityValue << "\""
+      << "}"
+      << "}"
+      << "}"
+      << "]}";
+  std::string json = oss.str();
   auto createStageRequestModel = builder.buildFromJson(json);
   std::string expectedActivityOpaque = "activity=" + activityValue;
   ASSERT_EQ(expectedActivityOpaque,

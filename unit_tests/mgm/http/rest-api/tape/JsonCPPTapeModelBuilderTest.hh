@@ -37,6 +37,8 @@ protected:
   virtual void TearDown()
   {
   }
+
+  static std::string restApiEndpointID;
 };
 
 #endif // EOS_JSONCPPTAPEMODELBUILDERTEST_HH
