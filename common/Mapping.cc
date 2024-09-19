@@ -213,7 +213,7 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
     vid.prot = "https";
   }
 
-  // SSS and GRPC might contain a key embedded in the endorsements field
+  // HTTPS, SSS and GRPC might contain a key embedded in the endorsements field
   if ((vid.prot == "sss") || (vid.prot == "grpc") || (vid.prot == "https")) {
     vid.key = (client->endorsements ? client->endorsements : "");
     eos_static_debug("msg=\"client endorsement\" key=\"%s\"", vid.key.c_str());
@@ -350,7 +350,7 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
 
   myrole = mytident;
   myrole.erase(mytident.find("@"));
-  // FUSE select's now the role via <uid>[:connectionid]
+  // FUSE selects now the role via <uid>[:connectionid]
   // the connection id is already removed by ReduceTident
   myrole.erase(myrole.find("."));
   XrdOucString swctident = "tident:";
@@ -366,16 +366,15 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
   swcgidtident += "\":gid";
   XrdOucString sprotuidtident = swcuidtident;
   XrdOucString sprotgidtident = swcgidtident;
-// there can be a protocol specific rule like sss:@<host>:uid...
+  // there can be a protocol specific rule like sss:@<host>:uid...
   sprotuidtident.replace("*", vid.prot);
-// there can be a protocol specific rule like sss:@<host>:gid...
+  // there can be a protocol specific rule like sss:@<host>:gid...
   sprotgidtident.replace("*", vid.prot);
   eos_static_debug("swcuidtident=%s sprotuidtident=%s myrole=%s",
                    swcuidtident.c_str(), sprotuidtident.c_str(), myrole.c_str());
 
   if (auto kv = gVirtualUidMap.find(suidtident.c_str());
       kv != gVirtualUidMap.end()) {
-    //    eos_static_debug("tident mapping");
     vid.uid = kv->second;
     vid.allowed_uids.insert(vid.uid);
     vid.allowed_uids.insert(VirtualIdentity::kNobodyUid);
@@ -383,7 +382,6 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
 
   if (auto kv = gVirtualGidMap.find(sgidtident.c_str());
       kv != gVirtualGidMap.end()) {
-    //    eos_static_debug("tident mapping");
     vid.gid = kv->second;
     vid.allowed_gids.insert(vid.gid);
     vid.allowed_gids.insert(VirtualIdentity::kNobodyGid);
@@ -436,17 +434,17 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
       if (gAllowedTidentMatches.size()) {
         std::string sprot = vid.prot.c_str();
 
-        for (auto it = gAllowedTidentMatches.begin(); it != gAllowedTidentMatches.end();
-             ++it) {
+        for (auto it = gAllowedTidentMatches.begin();
+             it != gAllowedTidentMatches.end(); ++it) {
           if (sprot != it->first.c_str()) {
             continue;
           }
 
           if (host.matches(it->second.c_str())) {
-            sprotuidtident.replace(host.c_str(), it->second.c_str());
+            sprotgidtident.replace(host.c_str(), it->second.c_str());
 
-            if (gVirtualUidMap.count(sprotuidtident.c_str())) {
-              tuid = sprotuidtident.c_str();
+            if (gVirtualGidMap.count(sprotgidtident.c_str())) {
+              tgid = sprotgidtident.c_str();
               break;
             }
           }
