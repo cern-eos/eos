@@ -1322,20 +1322,37 @@ Mapping::Print(XrdOucString& stdOut, XrdOucString option)
 
   if ((option.find("y") != STR_NPOS)) {
     for (auto it = gVirtualUidMap.cbegin(); it != gVirtualUidMap.cend(); ++it) {
-      if (it->second == 0) {
-        XrdOucString authmethod = it->first.c_str();
+      std::string authmethod = it->first.c_str();
 
-        if (!authmethod.beginswith("tident:")) {
-          continue;
-        }
+      if (authmethod.find("tident:") != 0) {
+        continue;
+      }
 
-        int dpos = authmethod.find("@");
-        authmethod.erase(0, dpos + 1);
-        dpos = authmethod.find("\"");
-        authmethod.erase(dpos);
-        stdOut += "gateway=";
-        stdOut += authmethod;
-        stdOut += "\n";
+      // Get the gid mapping for the current key
+      std::string sgid = "n/a";
+      std::string gid_key = authmethod;
+      gid_key.replace(gid_key.find(":uid"), 4, ":gid");
+      auto it_gid = gVirtualGidMap.find(gid_key);
+
+      if (it_gid != gVirtualGidMap.end()) {
+        sgid = std::to_string(it_gid->second);
+      }
+
+      authmethod.erase(0, 7); // delete "tident:"
+      // delete all the " characters
+      authmethod.erase(std::remove(authmethod.begin(), authmethod.end(), '"'),
+                       authmethod.end());
+      int dpos = authmethod.find("@");
+
+      if ((dpos != std::string::npos) && (authmethod.length() > dpos + 1)) {
+        std::string protocol = authmethod.substr(0, dpos);
+        protocol = ((protocol == "*") ? "all" : protocol);
+        int cpos = authmethod.rfind(':');
+        std::string hostname = authmethod.substr(dpos + 1, cpos - dpos - 1);
+        std::ostringstream oss;
+        oss << "gateway=" << hostname << " auth=" << protocol
+            << " uid=" << it->second << " gid=" << sgid << std::endl;
+        stdOut += oss.str().c_str();
       }
     }
   }
