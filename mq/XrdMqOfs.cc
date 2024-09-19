@@ -333,7 +333,7 @@ XrdMqOfs::XrdMqOfs(XrdSysError* ep):
   myPort(1097), mDeliveredMessages(0ull), mFanOutMessages(0ull),
   mMaxQueueBacklog(MQOFSMAXQUEUEBACKLOG),
   mRejectQueueBacklog(MQOFSREJECTQUEUEBACKLOG), mQdbCluster(), mQdbPassword(),
-  mQdbContactDetails(), mQcl(nullptr), mMgmId()
+  mQdbContactDetails(), mQcl(nullptr)
 {
   ConfigFN  = 0;
   StartupTime = time(0);
@@ -415,14 +415,7 @@ int XrdMqOfs::Configure(XrdSysError& Eroute)
     ManagerId += ":";
     ManagerId += (int)myPort;
     Eroute.Say("=====> mq.managerid: ", ManagerId.c_str(), "");
-    int mgm_port = 1094;
-    char* ptr = getenv("EOS_MGM_DAEMON_PORT_FOR_MQ");
-
-    if (ptr) {
-      (void) eos::common::StringToNumeric(std::string(ptr), mgm_port);
-    }
-
-    mMgmId = SSTR(HostName << ':' << mgm_port).c_str();
+    mHostname = HostName;
   }
   gMqOfsTrace.What = TRACE_getstats | TRACE_close | TRACE_open;
 
@@ -906,23 +899,21 @@ bool XrdMqOfs::ShouldRedirectQdb(XrdOucString& host, int& port)
     master_id = s_master_id;
   }
 
-  eos_static_debug("master_id=\"%s\", current_mq_id=\"%s\"", master_id.c_str(),
-                   mMgmId.c_str());
+  std::string master_host = master_id;
+  int pos = master_host.find(':');
 
+  if (pos != std::string::npos) {
+    master_host.erase(pos);
+  }
+
+  eos_static_debug("master_id=\"%s\" master_host=\"%s\" my_hostname=\"%s\"",
+                   master_id.c_str(), master_host.c_str(), mHostname.c_str());
   // If we are the current master or there is no master then don't redirect
-  if ((master_id == mMgmId) || master_id.empty()) {
+  if ((master_host == mHostname) || master_id.empty()) {
     return false;
   } else {
-    size_t pos = master_id.find(':');
-
-    try {
-      host = master_id.substr(0, pos).c_str();
-      port = myPort; // 1097
-    } catch (const std::exception& e) {
-      eos_static_notice("msg=\"unset or unexpected master identity format\" "
-                        "master_id=\"%s\"", master_id.c_str());
-      return false;
-    }
+    host = master_host.c_str();
+    port = myPort; ///1097
 
     if (now - last_check > 10) {
       eos_static_info("msg=\"redirect to new master mq\" id=%s:%i", host.c_str(),

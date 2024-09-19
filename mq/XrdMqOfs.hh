@@ -412,9 +412,9 @@ private:
   std::string mQdbCluster; ///< Quarkdb cluster info host1:port1 host2:port2 ..
   std::string mQdbPassword; ///< Quarkdb cluster password
   eos::QdbContactDetails mQdbContactDetails; ///< QuarkDB contact details
-  std::unique_ptr<qclient::QClient>
-  mQcl; ///< qclient for talking to the QDB cluster
-  std::string mMgmId; ///< MGM id <host>:1094 format
+  //! Qclient for talking to the QDB cluster
+  std::unique_ptr<qclient::QClient> mQcl;
+  std::string mHostname; ///< Current hostname
 
   //----------------------------------------------------------------------------
   //! Decide if client should be redirected to a different host based on the
