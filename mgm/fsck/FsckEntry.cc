@@ -302,7 +302,7 @@ FsckEntry::RepairMgmXsSzDiff()
     }
 
     for (const auto bad_fsid : bad_fsids) {
-      DropReplica(bad_fsid);
+      gOFS->DropReplica(mFid, bad_fsid);
     }
 
     bool all_repaired = true;
@@ -471,7 +471,7 @@ FsckEntry::RepairFstXsSzDiff()
 
     for (auto bad_fsid : bad_fsids) {
       // If we have enough stripes - just drop it
-      DropReplica(bad_fsid);
+      gOFS->DropReplica(mFid, bad_fsid);
     }
 
     bad_fsids.clear();
@@ -541,7 +541,7 @@ FsckEntry::RepairRainInconsistencies()
       }
 
       if (!found) {
-        DropReplica(*mFsidErr.begin());
+        gOFS->DropReplica(mFid, *mFsidErr.begin());
       }
 
       return true;
@@ -620,7 +620,7 @@ FsckEntry::RepairRainInconsistencies()
       bad_fsids.erase(drop_fsid);
       eos_info("msg=\"drop over-replicated stripe\" fxid=%08llx dfsid=%lu",
                mFid, drop_fsid);
-      (void)DropReplica(drop_fsid);
+      (void)gOFS->DropReplica(mFid, drop_fsid);
       mFstFileInfo.erase(drop_fsid);
       auto* mutable_loc = mMgmFmd.mutable_locations();
 
@@ -749,7 +749,7 @@ FsckEntry::RepairReplicaInconsistencies()
 
   // Then drop any other inconsistent replicas from both the MGM and the FST
   for (auto fsid : to_drop) {
-    (void) DropReplica(fsid);
+    (void) gOFS->DropReplica(mFid, fsid);
     // Drop also from the local map of FST fmd info
     mFstFileInfo.erase(fsid);
     auto mutable_loc = mMgmFmd.mutable_locations();
@@ -852,7 +852,7 @@ FsckEntry::RepairReplicaInconsistencies()
   // Discard unregistered/bad replicas
   for (auto fsid : to_drop) {
     eos_info("msg=\"droping replica\" fxid=%08llx fsid=%lu", mFid, fsid);
-    (void) DropReplica(fsid);
+    (void) gOFS->DropReplica(mFid, fsid);
     // Drop also from the local map of FST fmd info
     mFstFileInfo.erase(fsid);
   }
@@ -881,41 +881,6 @@ FsckEntry::ResyncFstMd(bool refresh_mgm_md)
 }
 
 //------------------------------------------------------------------------------
-// Drop replica form FST and also update the namespace view for the given
-// file system id
-//------------------------------------------------------------------------------
-bool
-FsckEntry::DropReplica(eos::common::FileSystem::fsid_t fsid) const
-{
-  bool retc = true;
-
-  if (fsid == 0ull) {
-    return retc;
-  }
-
-  eos_info("msg=\"drop (unregistered) replica\" fxid=%08llx fsid=%lu",
-           mFid, fsid);
-
-  // Send external deletion to the FST
-  if (gOFS && !gOFS->DeleteExternal(fsid, mFid, true)) {
-    eos_err("msg=\"failed to send unlink to FST\" fxid=%08llx fsid=%lu",
-            mFid, fsid);
-    retc = false;
-  }
-
-  // Drop from the namespace, we don't need the path as root can drop by fid
-  XrdOucErrInfo err;
-  eos::common::VirtualIdentity vid = eos::common::VirtualIdentity::Root();
-
-  if (gOFS && gOFS->_dropstripe("", mFid, err, vid, fsid, true)) {
-    eos_err("msg=\"failed to drop replicas from ns\" fxid=%08llx fsid=%lu",
-            mFid, fsid);
-  }
-
-  return retc;
-}
-
-//------------------------------------------------------------------------------
 // Repair entry
 //------------------------------------------------------------------------------
 bool
@@ -933,7 +898,7 @@ FsckEntry::Repair()
               "err=%s", mFid, *mFsidErr.begin(), FsckErrToString(mReportedErr).c_str());
       success = true;
       NotifyOutcome(success);
-      (void) DropReplica(*mFsidErr.begin());
+      (void) gOFS->DropReplica(mFid, *mFsidErr.begin());
       // This could be a ghost fid entry still present in the file system map
       // and we need to also drop it from there
       std::string out, err;

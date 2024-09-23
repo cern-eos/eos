@@ -183,16 +183,6 @@ public:
                  eos::common::FileSystem::fsid_t fsid);
 
   //----------------------------------------------------------------------------
-  //! Drop replica form FST and also update the namespace view for the given
-  //! file system id
-  //!
-  //! @param fsid file system id from where to drop the replica
-  //!
-  //! @return true if successful, otherwise false
-  //----------------------------------------------------------------------------
-  bool DropReplica(eos::common::FileSystem::fsid_t fsid) const;
-
-  //----------------------------------------------------------------------------
   //! Update MGM stats depending on the final outcome
   //!
   //! @param success true if repair successful, otherwise false
