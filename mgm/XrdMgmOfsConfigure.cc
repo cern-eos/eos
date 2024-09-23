@@ -86,6 +86,7 @@
 #include "mgm/http/rest-api/manager/RestApiManager.hh"
 #include "mgm/http/rest-api/Constants.hh"
 #include "mgm/placement/FsScheduler.hh"
+#include <filesystem>
 
 extern XrdOucTrace gMgmOfsTrace;
 extern void xrdmgmofs_shutdown(int sig);
@@ -97,6 +98,7 @@ USE_EOSMGMNAMESPACE
 
 void xrdmgmofs_stack(int sig)
 {
+  using std::filesystem::perms;
   static time_t stacktime = 0;
   std::ostringstream out;
 
@@ -111,6 +113,8 @@ void xrdmgmofs_stack(int sig)
     outf << out.str() << std::endl;
     std::cerr << out.str() << std::endl;
     outf.close();
+    std::filesystem::permissions(stackdump, perms::owner_read |
+                                 perms::owner_write | perms::group_read);
   }
 
   if (sig == SIGUSR1) {
@@ -122,6 +126,8 @@ void xrdmgmofs_stack(int sig)
     std::set<pthread_t> tosignal = gOFS->mTracker.getInFlightThreads();
     outf << "# " << tosignal.size() << " threads in tracking" << std::endl;
     outf.close();
+    std::filesystem::permissions(stackdump, perms::owner_read |
+                                 perms::owner_write | perms::group_read);
 
     for (auto it = tosignal.begin(); it != tosignal.end(); ++it) {
       pthread_kill(*it, SIGUSR2);
@@ -1018,7 +1024,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
           }
         }
 
-	// Check if we should bind only to localhost address
+        // Check if we should bind only to localhost address
         if (!strcmp("authlocal", var)) {
           if (!(val = Config.GetWord())) {
             Eroute.Emsg("Config", "argument for authlocal invalid.");
