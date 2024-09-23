@@ -1509,6 +1509,18 @@ public:
   void ResetPathMap();  // reset/empty the path map
 
   //----------------------------------------------------------------------------
+  //! Drop replica/stripe for the given file identifier form the FST and also
+  //! update the namespace view for the given file system id.
+  //!
+  //! @param fid file identifier
+  //! @param fsid file system id from where to drop the replica
+  //!
+  //! @return true if successful, otherwise false
+  //----------------------------------------------------------------------------
+  bool DropReplica(eos::IFileMD::id_t fid,
+                   eos::common::FileSystem::fsid_t fsid) const;
+
+  //----------------------------------------------------------------------------
   //! Send an explicit deletion message to any fsid/fid pair. This routine
   //! signs a deletion message for the given file id and sends it to the
   //! referenced file system.
@@ -1553,9 +1565,9 @@ public:
   //----------------------------------------------------------------------------
   bool ConnectToBackend(zmq::socket_t*& socket);
 
-  // ---------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   // Signal handler for signal 40 to start profiling the heap
-  // ---------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   static void StartHeapProfiling(int);
 
   // ---------------------------------------------------------------------------

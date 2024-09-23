@@ -79,6 +79,22 @@ DrainTransferJob::DoIt() noexcept
     return;
   }
 
+  // Detect files detached from their parent in the namespace and delete them
+  if (fdrain.mProto.cont_id() == 0ull) {
+    for (const auto fsid : fdrain.mProto.unlink_locations()) {
+      (void) gOFS->DropReplica(mFileId.load(), fsid);
+    }
+
+    for (const auto fsid : fdrain.mProto.locations()) {
+      (void) gOFS->DropReplica(mFileId.load(), fsid);
+    }
+
+    eos_info("msg=\"drain detached entry successful\" fxid=%s",
+             eos::common::FileId::Fid2Hex(mFileId).c_str());
+    mStatus = Status::OK;
+    return;
+  }
+
   while (true) {
     if ((mFsIdTarget == 0ul) && !SelectDstFs(fdrain)) {
       ReportError(SSTR("msg=\"failed to select destination file system\" fxid="
@@ -201,6 +217,12 @@ DrainTransferJob::GetFileInfo() const
 
     for (const auto loc : vect_locations) {
       fdrain.mProto.add_locations(loc);
+    }
+
+    auto vect_unlinked_loc = fmd->getUnlinkedLocations();
+
+    for (const auto uloc: vect_unlinked_loc) {
+      fdrain.mProto.add_unlink_locations(uloc);
     }
   } catch (eos::MDException& e) {
     eos_err("%s", SSTR("fxid=" << eos::common::FileId::Fid2Hex(mFileId)
