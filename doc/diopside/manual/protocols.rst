@@ -458,11 +458,9 @@ HTTP Configuration
    # Load and enable HTTP(S) access on port 9000 on the current instance
    xrd.protocol XrdHttp:9000 /usr/lib64/libXrdHttp.so
    # Directory containing CA certificates to be used by the server
-   http.cadir /etc/grid-security/certificates/
-   # File containing the x509 server certificate
-   http.cert /etc/grid-security/daemon/hostcert.pem
-   # File containing the x509 server private key
-   http.key /etc/grid-security/daemon/hostkey.pem
+   xrd.tlsca certdir /etc/grid-security/certificates/
+   # The x509 server certificate and key
+   xrd.tls /etc/grid-security/daemon/hostcert.pem /etc/grid-security/daemon/hostkey.pem
    # Path to the "grid map file" to be used for mapping users to specific identities
    http.gridmap /etc/grid-security/grid-mapfile
    # Load security extractor plugin able to deal with proxy certificates and VOMS credentials
