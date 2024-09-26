@@ -63,6 +63,13 @@ public:
     pid = fuse_req_ctx(req)->pid;
   }
 
+  void init(fuse_req_t req)
+  {
+    uid = fuse_req_ctx(req)->uid;
+    gid = fuse_req_ctx(req)->gid;
+    pid = fuse_req_ctx(req)->pid;
+  }
+
   fuse_id(const fuse_id& o)
   {
     uid = o.uid;

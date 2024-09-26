@@ -3361,10 +3361,10 @@ data::dmap::ioflush(ThreadAssistant& assistant)
                                          (*it)->id(), status.code);
                       // Force creation of a new TCP connection to avoid pilling up requests
                       // on a "blocked" TCP due for example to a slow close operation
-                      const struct fuse_ctx* ctx = fuse_req_ctx(fit->second->req());
-                      ProcessSnapshot snapshot = fusexrdlogin::processCache->retrieve(ctx->pid,
-                                                 ctx->uid,
-                                                 ctx->gid, true);
+		      fuse_id id = fit->second->fuseid();
+                      ProcessSnapshot snapshot = fusexrdlogin::processCache->retrieve(id.pid,
+										      id.uid,
+										      id.gid, true);
                       // to recover this errors XRootD requires new XrdCl::File object ... sigh ...
                       XrdCl::shared_proxy newproxy = XrdCl::Proxy::Factory();
                       newproxy->OpenAsync(newproxy, fit->second->url(), fit->second->flags(),
