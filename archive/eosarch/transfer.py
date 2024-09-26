@@ -250,7 +250,11 @@ class Transfer(object):
             if self.do_retry:
                 self.do_retry_transfer()
             else:
-                self.do_transfer()
+                try:
+                    self.do_transfer()
+                except NotOnTapeException as _:
+                    self.logger.notice("Doing transfer re-try due to missing file on tape")
+                    self.do_retry_transfer()
         elif self.oper in [self.config.PURGE_OP, self.config.DELETE_OP]:
             self.archive_prepare()
             self.do_delete((self.oper == self.config.DELETE_OP))
@@ -437,7 +441,7 @@ class Transfer(object):
         self.set_status("verifying")
         check_ok, __ = self.archive.verify(False)
 
-        # For PUT operations what that all the files are on tape
+        # For PUT operations wait that all the files are on tape
         if self.archive.d2t:
            self.set_status("wait_on_tape")
            self.wait_on_tape()
@@ -1068,20 +1072,20 @@ class Transfer(object):
 
     def wait_on_tape(self):
         """ Check and wait that all the files are on tape, which in our case
-        means checking the "m" bit. If file is not on tape then suspend the
-        current thread for a period between 1 and 10 minutes depending on the
-        index of the failed file.
+        means checking the "m" bit. If a file is not on tape then suspend the
+        current thread for a period of 5 to 60 seconds but abort if the file
+        fails to be archived on tape afte 24h
         """
-        min_timeout, max_timeout = 5, 1
+        max_timeout_per_entry = int(self.config.ARCHIVE_MAX_TIMEOUT)
+        min_timeout, max_timeout = 5, 60
 
-        while True:
-            indx = 0 # index of the first file not on tape
-            all_on_tape = True
+        for fentry in self.archive.files():
+            start_ts = time.time()
+            __, dst = self.archive.get_endpoints(fentry[1])
+            url = client.URL(dst)
+            file_on_tape = False
 
-            for fentry in self.archive.files():
-                indx += 1
-                __, dst = self.archive.get_endpoints(fentry[1])
-                url = client.URL(dst)
+            while not file_on_tape:
                 st_stat, resp_stat = self.archive.fs_dst.stat(url.path)
 
                 if not st_stat.ok:
@@ -1092,21 +1096,24 @@ class Transfer(object):
                 # Check file is on tape
                 if resp_stat.size != 0 and not (resp_stat.flags & StatInfoFlags.BACKUP_EXISTS):
                     self.logger.debug("File {0} is not yet on tape".format(dst))
-                    all_on_tape = False
-                    break
+                    timeout = randrange(min_timeout, max_timeou)
+                    self.logger.info("Going to sleep for {0} seconds".format(timeout))
+                    sleep(timeout)
 
-            if all_on_tape:
-                break
-            else:
-                # Set timeout value
-                ratio = indx / int(self.archive.header['num_files'])
-                timeout = int(max_timeout * (1 - ratio))
+                    if time.time() - start_ts > max_timeout_per_entry:
+                        self.logger.notice("Entry not archived within the maximum timeout."
+                                           " entry={0} archive_max_timeout={1}".format(
+                                               fentry[1], max_timeout_per_entry))
+                        break
+                    else:
+                        file_on_tape = True
+                else:
+                    file_on_tape = True
 
-                if timeout < min_timeout:
-                    timeout = min_timeout
+            if not file_on_tape:
+                # Throw exception to re-try the failed transfer
+                raise NotOnTapeException()
 
-                self.logger.info("Going to sleep for {0} seconds".format(timeout))
-                sleep(timeout)
 
     def backup_prepare(self):
         """ Prepare requested backup operation.
