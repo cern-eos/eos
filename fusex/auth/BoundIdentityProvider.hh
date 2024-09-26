@@ -32,7 +32,7 @@
 #include "SecurityChecker.hh"
 #include "EnvironmentReader.hh"
 #include <XrdSec/XrdSecEntity.hh>
-#include <XrdSecsss/XrdSecsssID.hh>
+#include <private/XrdSecsss/XrdSecsssID.hh>
 #include <atomic>
 
 class SecurityChecker;

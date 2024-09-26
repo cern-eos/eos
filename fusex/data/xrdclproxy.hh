@@ -30,6 +30,7 @@
 #include <XrdCl/XrdClFileSystem.hh>
 #include <XrdCl/XrdClDefaultEnv.hh>
 #include "llfusexx.hh"
+#include "misc/FuseId.hh"
 #include "common/Logging.hh"
 #include "common/Timing.hh"
 #include "common/RWMutex.hh"
@@ -629,6 +630,9 @@ public:
   {
     mIno = ino;
     mReq = req;
+    if (req) {
+      mId.init(req);
+    }
     char lid[64];
     snprintf(lid, sizeof(lid), "logid:ino:%016lx", ino);
     SetLogId(lid);
@@ -642,6 +646,11 @@ public:
   fuse_req_t req() const
   {
     return mReq;
+  }
+
+  fuse_id fuseid() const
+  {
+    return mId;
   }
 
   // ---------------------------------------------------------------------- //
@@ -1515,6 +1524,7 @@ private:
   size_t mAttached;
   fuse_req_t mReq;
   uint64_t mIno;
+  fuse_id mId;
 
   std::string mUrl;
   std::string mLastUrl;
