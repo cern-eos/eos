@@ -41,7 +41,7 @@ class Configuration(object):
 
         Args:
             fn_conf (string): Path to the configuration file, which in normal
-            conditions should be/etc/eosarchived.conf
+            conditions should be /etc/eosarchived.conf
         """
         try:
             LOG_DIR = os.environ["LOG_DIR"]
@@ -89,6 +89,7 @@ class Configuration(object):
         self.__dict__['OPT_FORCE'] = 'force'
         self.__dict__['ARCH_FN'] = ".archive"
         self.__dict__['ARCH_INIT'] = ".archive.init"
+        self.__dict__['ARCHIVE_MAX_TIMEOUT'] = '86400'
 
         try:
             with open(archive_conf, 'r') as f:

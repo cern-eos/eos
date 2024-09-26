@@ -33,3 +33,8 @@ class CheckEntryException(Exception):
     """ Exception raised in cache a verify entry operation failes.
     """
     pass
+
+class NotOnTapeException(Exception):
+    """ Exception raised when a file is not on tape after the maximum
+        configured timeout per entry
+    """
