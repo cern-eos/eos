@@ -49,18 +49,31 @@ QuarkNamespaceGroup::QuarkNamespaceGroup()
 //------------------------------------------------------------------------------
 QuarkNamespaceGroup::~QuarkNamespaceGroup()
 {
+  eos_static_info("%s", "msg=\"shutting down cache refresh listener\"");
   mCacheRefreshListener.reset();
+  eos_static_info("%s", "msg=\"shutting down sync accounting\"");
   mSyncAccounting.reset();
+  eos_static_info("%s", "msg=\"shutting down container accounting\"");
   mContainerAccounting.reset();
+  eos_static_info("%s", "msg=\"shutting down file system view\"");
   mFilesystemView.reset();
+  eos_static_info("%s", "msg=\"shutting down hierarchcal view\"");
   mHierarchicalView.reset();
+  eos_static_info("%s", "msg=\"shutting down file service\"");
   mFileService.reset();
+  eos_static_info("%s", "msg=\"shutting down container service\"");
   mContainerService.reset();
+  eos_static_info("%s", "msg=\"shutting down metadata flusher\"");
   mMetadataFlusher.reset();
+  eos_static_info("%s", "msg=\"shutting down quota flusher\"");
   mQuotaFlusher.reset();
+  eos_static_info("%s", "msg=\"shutting down qclient\"");
   mQClient.reset();
+  eos_static_info("%s", "msg=\"shutting down folly executor\"");
   mExecutor.reset();
+  eos_static_info("%s", "msg=\"shutting down qcl performance monitor\"");
   mPerfMonitor.reset();
+  eos_static_info("%s", "msg=\"done shutting down namespace group\"");
 }
 
 //------------------------------------------------------------------------------
@@ -239,9 +252,9 @@ IContainerMDChangeListener* QuarkNamespaceGroup::getSyncTimeAccountingView()
   std::lock_guard<std::recursive_mutex> lock(mMutex);
 
   if (!mSyncAccounting) {
-    std::unique_ptr<QuarkSyncTimeAccounting> syncAccounting = std::make_unique<QuarkSyncTimeAccounting>(getContainerService(),
-                                                                                                        5,
-                                                                                                        mNamespaceStats);
+    std::unique_ptr<QuarkSyncTimeAccounting> syncAccounting =
+      std::make_unique<QuarkSyncTimeAccounting>(getContainerService(), 5,
+                                                mNamespaceStats);
     mSyncAccounting = std::move(syncAccounting);
     getContainerService()->addChangeListener(mSyncAccounting.get());
   }
