@@ -362,8 +362,8 @@ _clone(std::shared_ptr<eos::IContainerMD>& cmd,
       std::string rootDir = cloneMd->getAttribute("sys.clone.root");
 
       try {
-        cmd = gOFS->eosView->getContainer(
-                rootDir);             /* this only happens @ depth 0! */
+        /* this only happens @ depth 0! */
+        cmd = gOFS->eosView->getContainer(rootDir);             
         eos_static_info("clone %ld purge hint %s", cloneId, rootDir.c_str());
       } catch (eos::MDException& e) {
         eos_static_info("clone %ld root hint %s ignored ec=%d emsg='%s'",
@@ -671,11 +671,9 @@ XrdMgmOfs::_find(const char* path, XrdOucErrInfo& out_error,
                  const char* key, const char* val, bool no_files,
                  time_t millisleep, bool nscounter, int maxdepth,
                  const char* filematch, bool json_output, FILE* fstdout,
-                 time_t max_ctime_dir,
-                 time_t max_ctime_file,
+                 time_t max_ctime_dir, time_t max_ctime_file,
                  std::map<std::string, time_t>* found_ctime_sec,
-                 int max_ctime_dir_min_deepness,
-                 int max_ctime_file_min_deepness)
+                 ThreadAssistant* assistant)
 {
   std::vector< std::vector<std::string> > found_dirs;
   std::shared_ptr<eos::IContainerMD> cmd;
@@ -700,8 +698,8 @@ XrdMgmOfs::_find(const char* path, XrdOucErrInfo& out_error,
   static uint64_t dir_limit = 50000;
   static uint64_t file_limit = 100000;
   Access::GetFindLimits(vid, dir_limit, file_limit);
-  uint64_t filesfound = 0;
-  uint64_t dirsfound = 0;
+  uint64_t files_found = 0;
+  uint64_t dirs_found = 0;
   bool limitresult = false;
   bool limited = false;
   bool fail_if_limited = (out_error.getErrInfo() == E2BIG);
@@ -759,41 +757,43 @@ XrdMgmOfs::_find(const char* path, XrdOucErrInfo& out_error,
     found_dirs.resize(deepness + 2);
 
     // Loop over all directories in that deepness
-    for (unsigned int i = 0; i < found_dirs[deepness].size(); i++) {
+    for (unsigned int i = 0; i < found_dirs[deepness].size(); ++i) {
       Path = found_dirs[deepness][i].c_str();
-      eos_static_debug("Listing files in directory %s", Path.c_str());
+      eos_static_debug("msg=\"listing files in directory\" path=\"%s\"",
+                       Path.c_str());
 
       // Slow down the find command without holding locks
       if (millisleep) {
         std::this_thread::sleep_for(std::chrono::milliseconds(millisleep));
       }
 
-      // Held only for the current loop
+      eos::IContainerMD::ctime_t ctime;
       eos::Prefetcher::prefetchContainerMDWithChildrenAndWait(gOFS->eosView,
           Path.c_str(), false, no_files, limitresult, dir_limit, file_limit);
-      eos::MDLocking::ContainerReadLockPtr cmdLock;
 
       try {
-        cmdLock = gOFS->eosView->getContainerReadLocked(Path.c_str(), false);
-        cmd = cmdLock->getUnderlyingPtr();
+        eos::MDLocking::ContainerReadLockPtr cmd_lock =
+          gOFS->eosView->getContainerReadLocked(Path.c_str(), false);
+        cmd = cmd_lock->getUnderlyingPtr();
         permok = cmd->access(vid.uid, vid.gid, R_OK | X_OK);
+        cmd->getCTime(ctime);
       } catch (eos::MDException& e) {
-        errno = e.getErrno();
         cmd.reset();
+        errno = e.getErrno();
         eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
                   e.getErrno(), e.getMessage().str().c_str());
       }
 
-      eos::IContainerMD::ctime_t ctime;
-
-      if (cmd) {
-        cmd->getCTime(ctime);
+      if (!cmd) {
+        continue;
       }
 
-      if (cmd && max_ctime_dir && (deepness >= max_ctime_dir_min_deepness) &&
-          (ctime.tv_sec > max_ctime_dir)) {
-        // skip directory entries which are newer than max_ctime
-        continue;
+      // Skip directory entries which are newer than max_ctime except
+      // for the top recycle bin directory.
+      if (max_ctime_dir && (ctime.tv_sec > max_ctime_dir)) {
+        if (!Recycle::IsTopRecycleBin(Path)) {
+          continue;
+        }
       }
 
       if (!gOFS->allow_public_access(Path.c_str(), vid)) {
@@ -803,11 +803,9 @@ XrdMgmOfs::_find(const char* path, XrdOucErrInfo& out_error,
         continue;
       }
 
-      if (cmd) {
-        if (!permok) {
-          // check-out for ACLs
-          permok = _access(Path.c_str(), R_OK | X_OK, out_error, vid, "") ? false : true;
-        }
+      if (!permok) {
+        // check-out for ACLs
+        permok = _access(Path.c_str(), R_OK | X_OK, out_error, vid, "") ? false : true;
 
         if (!permok) {
           stdErr += "error: no permissions to read directory ";
@@ -815,141 +813,128 @@ XrdMgmOfs::_find(const char* path, XrdOucErrInfo& out_error,
           stdErr += "\n";
           continue;
         }
+      }
 
-        // Add all children into the 2D vectors
-        for (auto dit = eos::ContainerMapIterator(cmd); dit.valid(); dit.next()) {
-          std::string fpath = Path.c_str();
-          fpath += dit.key();
-          fpath += "/";
+      // Add all children into the 2D vectors
+      for (auto dit = eos::ContainerMapIterator(cmd); dit.valid(); dit.next()) {
+        std::string fpath = Path.c_str();
+        fpath += dit.key();
+        fpath += "/";
 
-          // check if we select by tag
-          if (key) {
-            XrdOucString wkey = key;
+        // Check if we select by tag
+        if (key) {
+          XrdOucString wkey = key;
 
-            if (wkey.find("*") != STR_NPOS) {
-              // this is a search for 'beginswith' match
-              eos::IContainerMD::XAttrMap attrmap;
+          if (wkey.find("*") != STR_NPOS) {
+            // This is a search for 'beginswith' match
+            eos::IContainerMD::XAttrMap attrmap;
 
-              if (!gOFS->_attr_ls(fpath.c_str(), out_error, vid,
-                                  (const char*) 0, attrmap)) {
-                for (auto it = attrmap.begin(); it != attrmap.end(); it++) {
-                  XrdOucString akey = it->first.c_str();
+            if (!gOFS->_attr_ls(fpath.c_str(), out_error, vid,
+                                (const char*) 0, attrmap)) {
+              for (auto it = attrmap.begin(); it != attrmap.end(); it++) {
+                XrdOucString akey = it->first.c_str();
 
-                  if (akey.matches(wkey.c_str())) {
-                    // Trick to add element
-                    (void)found[fpath].size();
-                  }
-                }
-              }
-
-              found_dirs[deepness + 1].push_back(fpath.c_str());
-            } else {
-              // This is a search for a full match or a key search
-              std::string sval = val;
-              std::string attr = "";
-
-              if (!gOFS->_attr_get(fpath.c_str(), out_error, vid,
-                                   (const char*) 0, key, attr)) {
-                found_dirs[deepness + 1].push_back(fpath.c_str());
-
-                if ((val == std::string("*")) || (attr == val)) {
+                if (akey.matches(wkey.c_str())) {
+                  // Trick to add element
                   (void)found[fpath].size();
                 }
               }
             }
+
+            found_dirs[deepness + 1].push_back(fpath.c_str());
           } else {
+            // This is a search for a full match or a key search
+            std::string sval = val;
+            std::string attr = "";
+
+            if (!gOFS->_attr_get(fpath.c_str(), out_error, vid,
+                                 nullptr, key, attr)) {
+              found_dirs[deepness + 1].push_back(fpath.c_str());
+              
+              if ((val == std::string("*")) || (attr == val)) {
+                (void)found[fpath].size();
+              }
+            }
+          }
+        } else {
+          if (limitresult) {
+            // Apply  user limits for non root/admin/sudoers
+            if (dirs_found >= dir_limit) {
+              stdErr += "warning: find results are limited for you to ndirs=";
+              stdErr += (int) dir_limit;
+              stdErr += " -  result is truncated!\n";
+              limited = true;
+              break;
+            }
+          }
+
+          found_dirs[deepness + 1].push_back(fpath.c_str());
+          (void)found[fpath].size();
+          ++dirs_found;
+        }
+      }
+
+      if (!no_files) {
+        std::string link;
+        std::string fname;
+
+        for (auto fit = eos::FileMapIterator(cmd); fit.valid(); fit.next()) {
+          fname = fit.key();
+          std::shared_ptr<eos::IFileMD> fmd {nullptr};
+          eos::MDLocking::FileReadLockPtr fmd_lock = cmd->findFileReadLocked(fname);
+
+          if (fmd_lock) {
+            fmd = fmd_lock->getUnderlyingPtr();
+          }
+
+          if (fmd) {
+            eos::IContainerMD::ctime_t ctime;
+            fmd->getCTime(ctime);
+            // Skip file entries which are newer than max ctime
+            if (max_ctime_file && (ctime.tv_sec > max_ctime_file)) {
+              continue;
+            }
+
+            // Skip symbolic links
+            link = (fmd->isLink() ? fmd->getLink() : "");
+
             if (limitresult) {
-              // Apply  user limits for non root/admin/sudoers
-              if (dirsfound >= dir_limit) {
-                stdErr += "warning: find results are limited for you to ndirs=";
-                stdErr += (int) dir_limit;
+              // Apply user limits for non root/admin/sudoers
+              if (files_found >= file_limit) {
+                stdErr += "warning: find results are limited for you to nfiles=";
+                stdErr += (int) file_limit;
                 stdErr += " -  result is truncated!\n";
                 limited = true;
                 break;
               }
             }
 
-            found_dirs[deepness + 1].push_back(fpath.c_str());
-            (void)found[fpath].size();
-            dirsfound++;
-          }
-        }
-
-        if (!no_files) {
-          std::string link;
-          std::string fname;
-
-          for (auto fit = eos::FileMapIterator(cmd); fit.valid(); fit.next()) {
-            fname = fit.key();
-            std::shared_ptr<eos::IFileMD> fmd {nullptr};
-            eos::MDLocking::FileReadLockPtr fmdLock;
-
-            try {
-              fmdLock = cmd->findFileReadLocked(fname);
-
-              if (fmdLock) {
-                fmd = fmdLock->getUnderlyingPtr();
-              }
-            } catch (eos::MDException& e) {
-              // fmd is null
-            }
-
-            if (fmd) {
-              // apply threadshold
-              eos::IContainerMD::ctime_t ctime;
-              fmd->getCTime(ctime);
-
-              if (max_ctime_file && (deepness >= max_ctime_file_min_deepness) &&
-                  (ctime.tv_sec > max_ctime_file)) {
-                // skip file entries which are newer than max ctime
-                continue;
-              }
-
-              // Skip symbolic links
-              if (fmd->isLink()) {
-                link = fmd->getLink();
+            if (!filematch) {
+              if (link.length()) {
+                std::string ip = fname;
+                ip += " -> ";
+                ip += link;
+                found[Path].insert(ip);
               } else {
-                link.clear();
+                found[Path].insert(fname);
               }
 
-              if (limitresult) {
-                // Apply user limits for non root/admin/sudoers
-                if (filesfound >= file_limit) {
-                  stdErr += "warning: find results are limited for you to nfiles=";
-                  stdErr += (int) file_limit;
-                  stdErr += " -  result is truncated!\n";
-                  limited = true;
-                  break;
-                }
+              if (found_ctime_sec) {
+                (*found_ctime_sec)[Path] = ctime.tv_sec;
               }
 
-              if (!filematch) {
-                if (link.length()) {
-                  std::string ip = fname;
-                  ip += " -> ";
-                  ip += link;
-                  found[Path].insert(ip);
-                } else {
-                  found[Path].insert(fname);
-                }
+              ++files_found;
+            } else {
+              XrdOucString name = fname.c_str();
+
+              if (name.matches(filematch)) {
+                found[Path].insert(fname);
 
                 if (found_ctime_sec) {
                   (*found_ctime_sec)[Path] = ctime.tv_sec;
                 }
 
-                filesfound++;
-              } else {
-                XrdOucString name = fname.c_str();
-
-                if (name.matches(filematch)) {
-                  found[Path].insert(fname);
-
-                  if (found_ctime_sec) {
-                    (*found_ctime_sec)[Path] = ctime.tv_sec;
-                  }
-
-                  filesfound++;
-                }
+                ++files_found;
               }
             }
           }
@@ -961,20 +946,20 @@ XrdMgmOfs::_find(const char* path, XrdOucErrInfo& out_error,
       }
     }
 
-    deepness++;
-
-    if (limited) {
+    if (assistant && assistant->terminationRequested()) {
       break;
     }
-  } while (found_dirs[deepness].size() && ((!maxdepth) || (deepness < maxdepth)));
+
+    ++deepness;
+  } while (found_dirs[deepness].size() && !limited &&
+           ((!maxdepth) || (deepness < maxdepth)));
 
   if (!no_files) {
     // If the result is empty, maybe this was a find by file
     if (!found.size()) {
       XrdSfsFileExistence file_exists;
 
-      if (((_exists(Path.c_str(), file_exists, out_error, vid,
-                    0)) == SFS_OK) &&
+      if (((_exists(Path.c_str(), file_exists, out_error, vid, 0)) == SFS_OK) &&
           (file_exists == XrdSfsFileExistIsFile)) {
         eos::common::Path cPath(Path.c_str());
         found[cPath.GetParentPath()].insert(cPath.GetName());
@@ -983,12 +968,11 @@ XrdMgmOfs::_find(const char* path, XrdOucErrInfo& out_error,
   }
 
   // Include also the directory which was specified in the query if it is
-  // accessible and a directory since it can evt. be missing if it is empty
+  // accessible since it can evt. be missing if it is empty
   XrdSfsFileExistence dir_exists;
 
-  if (((_exists(found_dirs[0][0].c_str(), dir_exists, out_error, vid,
-                0)) == SFS_OK)
-      && (dir_exists == XrdSfsFileExistIsDirectory)) {
+  if (((_exists(found_dirs[0][0].c_str(), dir_exists, out_error, vid, 0)) == SFS_OK) &&
+      (dir_exists == XrdSfsFileExistIsDirectory)) {
     eos::common::Path cPath(found_dirs[0][0].c_str());
     (void) found[found_dirs[0][0].c_str()].size();
   }
