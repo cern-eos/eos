@@ -542,6 +542,12 @@ public:
   //! @param nscounter if true update ns counters, otherwise don't
   //! @param maxdepth is the maximum search depth
   //! @param filematch is a pattern match for file names
+  //! @param json_output
+  //! @param fstout
+  //! @param foudn_ctime_sec if set populate with found entries and their ctime
+  //! @param max_ctime_dir if set filter out newer directories
+  //! @param max_ctime_file if set filter out newer files
+  //! @param assistant if set points to the thread doing the call
   //!
   //! @note The find command distinguishes 'power' and 'normal' users. If the
   //! virtual identity indicates the root or admin user queries are unlimited.
@@ -573,9 +579,7 @@ public:
             time_t max_ctime_dir = 0,
             time_t max_ctime_file = 0,
             std::map<std::string, time_t>* found_ctime_sec = 0,
-            int max_ctime_dir_min_deepness = 0,
-            int max_ctime_file_min_deepness = 0
-           );
+            ThreadAssistant* assistant = nullptr);
 
   // ---------------------------------------------------------------------------
   // delete dir
