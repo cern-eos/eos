@@ -220,11 +220,35 @@ public:
     mWakeUp = true;
   }
 
-  static bool InRecycleBin(std::string& path)
+  //----------------------------------------------------------------------------
+  //! Check if given path is inside the recycle bin
+  //!
+  //! @param path searched path
+  //!
+  //! @return true if path inside the recycle bin, otherwise false
+  //----------------------------------------------------------------------------
+  static bool InRecycleBin(const std::string& path)
   {
     return (path.substr(0, Recycle::gRecyclingPrefix.length()) ==
             Recycle::gRecyclingPrefix);
   }
+
+  //----------------------------------------------------------------------------
+  //! Check if given path matches the top recycle bin directory
+  //!
+  //! @param path searched path
+  //!
+  //! @return true if path inside the recycle bin, otherwise false
+  //----------------------------------------------------------------------------
+  static bool IsTopRecycleBin(std::string path)
+  {
+    if (*(path.rbegin()) != '/') {
+      path += '/';
+    }
+
+    return (path == Recycle::gRecyclingPrefix);
+  }
+
 
   static std::string gRecyclingPrefix; //< prefix for all recycle bins
   static std::string
