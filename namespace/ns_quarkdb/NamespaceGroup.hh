@@ -26,6 +26,7 @@
 #include "namespace/interface/INamespaceGroup.hh"
 #include "namespace/ns_quarkdb/QdbContactDetails.hh"
 #include "namespace/ns_quarkdb/QClPerformance.hh"
+#include "common/Logging.hh"
 #include <mutex>
 #include <memory>
 
@@ -54,7 +55,7 @@ class CacheRefreshListener;
 //------------------------------------------------------------------------------
 //! Class to hold ownership of all QuarkDB-namespace objects.
 //------------------------------------------------------------------------------
-class QuarkNamespaceGroup : public INamespaceGroup
+class QuarkNamespaceGroup : public INamespaceGroup, public eos::common::LogId
 {
 public:
   //----------------------------------------------------------------------------
