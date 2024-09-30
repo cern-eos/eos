@@ -3278,7 +3278,7 @@ EosFuse::lookup(fuse_req_t req, fuse_ino_t parent, const char* name)
         }
       }
       md->convert(e, pcap->lifetime());
-    } else {
+    } else if (md->deleted() || (*md)()->err() == ENOENT) {
       // negative cache entry
       e.ino = 0;
 
@@ -3302,7 +3302,7 @@ EosFuse::lookup(fuse_req_t req, fuse_ino_t parent, const char* name)
         rc = 0;
         (*md)()->set_err(0);
       } else {
-        rc = md->deleted() ? ENOENT : (*md)()->err();
+        rc = ENOENT;
       }
     }
 
