@@ -138,10 +138,7 @@ XrdFstOfsFile::XrdFstOfsFile(const char* user, int MonID) :
 //------------------------------------------------------------------------------
 XrdFstOfsFile::~XrdFstOfsFile()
 {
-  // Never cleanup files when FUSE is used
-  if (!mFusex) {
-    viaDelete = true;
-  }
+  viaDelete = true;
 
   if (!mClosed) {
     close();
@@ -1165,11 +1162,7 @@ XrdFstOfsFile::write(XrdSfsFileOffset fileOffset, const char* buffer,
     int envlen = 0;
 
     // Indicate the deletion flag for write errors
-    if (!mFusex) {
-      // never force delete for FUSE access
-      mWrDelete = true;
-    }
-
+    mWrDelete = true;
     XrdOucString errdetail;
 
     if (mIsCreation) {
