@@ -106,6 +106,9 @@ ProcCommand::Ls()
   XrdOucString option = pOpaque->Get("mgm.option");
   bool showbackendstatus = false;
   bool longlisting = false;
+  bool noglobbing = false;
+
+  XrdOucString filter = "";
 
   if (!spath.length()) {
     stdErr = "error: you have to give a path name to call 'ls'";
@@ -114,11 +117,18 @@ ProcCommand::Ls()
     XrdMgmOfsDirectory dir;
     struct stat buf;
     int listrc = 0;
-    XrdOucString filter = "";
+
     eos::common::Glob glob;
     eos::common::Path cPath(spath.c_str());
 
-    if (cPath.Globbing()) {
+    // Allow users to pass `--no-globbing` with ls.
+    option.replace("no-globbing",'N');
+    // Deactivate globbing
+    if(option.find("N") != STR_NPOS) {
+      noglobbing = true;
+    }
+
+    if (!noglobbing && cPath.Globbing()) {
       // always use globbing
       spath = cPath.GetParentPath();
       filter = cPath.GetName();
@@ -400,6 +410,15 @@ ProcCommand::Ls()
         dirCache.insert(cacheentry, cachedresult);
       }
     }
+  }
+
+  if(filter.length() && !stdOut.length() && !stdErr.length()) {
+    // Globbing characters were provided in user request, globbing was NOT disabled,
+    // stdout is empty and stdErr is empty --> no entry will be returned to the user,
+    // return ENOENT instead of silently return OK with no result
+    retc = ENOENT;
+    stdErr = "error: No such file or directory";
+    return SFS_ERROR;
   }
 
   return SFS_OK;

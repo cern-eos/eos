@@ -19,4 +19,5 @@ message LsProto {
   bool append_dir_ind = 8; // -F
   bool silent         = 9; // -s
   bool wnc            = 10; // for EOS-wnc
+  bool noglobbing     = 11; // --no-globbing
 }
