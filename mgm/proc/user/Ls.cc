@@ -106,6 +106,7 @@ ProcCommand::Ls()
   XrdOucString option = pOpaque->Get("mgm.option");
   bool showbackendstatus = false;
   bool longlisting = false;
+  bool noglobbing = false;
 
   if (!spath.length()) {
     stdErr = "error: you have to give a path name to call 'ls'";
@@ -118,7 +119,11 @@ ProcCommand::Ls()
     eos::common::Glob glob;
     eos::common::Path cPath(spath.c_str());
 
-    if (cPath.Globbing()) {
+    if(option.find("N") != STR_NPOS) {
+      noglobbing = true;
+    }
+
+    if (!noglobbing && cPath.Globbing()) {
       // always use globbing
       spath = cPath.GetParentPath();
       filter = cPath.GetName();

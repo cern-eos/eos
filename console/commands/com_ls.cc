@@ -300,6 +300,8 @@ com_ls_usage:
           "  -F : append indicator '/' to directories \n");
   fprintf(stdout,
           "  -s : checks only if the directory exists without listing\n");
+  fprintf(stdout,
+          "  -N : Disables globbing\n");
   fprintf(stdout, "         path=file:... : list on a local file system\n\n");
   fprintf(stdout,
           "path=root:... : list on a plain XRootD server (does not work on native XRootD clusters\n");

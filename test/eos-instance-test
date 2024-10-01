@@ -1668,6 +1668,29 @@ runtest "### Stat file   " unix 1 "" command eos stat "$rmTestDir/regexx*p.tt\.e
 runtest "### Cleanup     " unix 0 "" eos rm -rF $rmTestDir/
 
 # ------------------------------------------------------------------------------
+categorie="ls"
+# ------------------------------------------------------------------------------
+lsTestDir="/eos/$EOS_TEST_INSTANCE/test/instancetest/ls_test"
+runtest "### Mkdir       " unix 0 "" eos mkdir -p "$lsTestDir"
+# General case
+runtest "### Touch       " unix 0 "" eos touch "$lsTestDir/fic1.txt"
+runtest "### Touch       " unix 0 "" eos touch "$lsTestDir/fic2.txt"
+runtest "### Touch       " unix 0 "" eos touch "$lsTestDir/fic3.txt"
+runtest "### Mkdir       " unix 0 "" eos mkdir "$lsTestDir/dir1"
+runtest "### Mkdir       " unix 0 "" eos mkdir "$lsTestDir/dir2"
+runtest "### Mkdir       " unix 0 "" eos mkdir "$lsTestDir/dir3"
+runtest "### Ls          " unix 0 "" eos ls "$lsTestDir/ | wc -l | grep 6"
+# Globbing cases
+runtest "### Touch       " unix 0 "" command eos touch "$lsTestDir/regexx*p.tt\.ern"
+runtest "### Touch       " unix 0 "" command eos touch "$lsTestDir/"'number{1..3}test.txt'
+runtest "### Ls          " unix 0 "" eos ls "$lsTestDir/number\{1..3\}test.txt | wc -l | grep 1"
+runtest "### Ls          " unix 1 "" command eos ls "$lsTestDir/regexx*p.tt\.ern"
+exit 0
+# Cleanup everything
+runtest "### Cleanup     " unix 0 "" eos rm -rF $lsTestDir/
+
+
+# ------------------------------------------------------------------------------
 categorie="adjustreplica"
 # ------------------------------------------------------------------------------
 ADJUST_TEST_DIR="/eos/$EOS_TEST_INSTANCE/test/instancetest/adjustreplica"
