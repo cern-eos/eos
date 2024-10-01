@@ -34,7 +34,29 @@
 #include "namespace/ns_quarkdb/persistency/MetadataFetcher.hh"
 #include "namespace/Prefetcher.hh"
 
+namespace {
+
+  //----------------------------------------------------------------------------
+  // Check if container id exists
+  //----------------------------------------------------------------------------
+  bool ContainerExists(const eos::IContainerMD::id_t cid)
+  {
+    eos::IContainerMDPtr cont = nullptr;
+
+    try {
+      cont = gOFS->eosDirectoryService->getContainerMD(cid, 0);
+    } catch (eos::MDException &e) {
+      cont = nullptr;
+    }
+
+    return (cont != nullptr);
+  }
+}
+
 EOSMGMNAMESPACE_BEGIN
+
+
+
 
 //------------------------------------------------------------------------------
 // Save error message and set the status accordingly
@@ -79,8 +101,10 @@ DrainTransferJob::DoIt() noexcept
     return;
   }
 
-  // Detect files detached from their parent in the namespace and delete them
-  if (fdrain.mProto.cont_id() == 0ull) {
+  // Detect files detached from their parent or with parets containers that
+  // don't exist anymore in the namespace - just delete the file entry
+  if ((fdrain.mProto.cont_id() == 0ull) ||
+      !ContainerExists(fdrain.mProto.cont_id())) {
     for (const auto fsid : fdrain.mProto.unlink_locations()) {
       (void) gOFS->DropReplica(mFileId.load(), fsid);
     }
