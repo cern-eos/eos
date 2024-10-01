@@ -1158,8 +1158,10 @@ ScanDir::ScanRainFileLoadAware(eos::common::FileId::fileid_t fid,
   XrdCl::Buffer arg;
   XrdCl::Buffer* resp_raw = nullptr;
   const std::string opaque = SSTR("/.fxid:" << std::hex << fid << std::dec
-                                  << "?mgm.pcmd=open&eos.ruid=0&eos.rgid=0&"
-                                  << "xrd.wantprot=sss");
+                                  << "?mgm.pcmd=open"
+                                  << "&eos.ruid=" << DAEMONUID
+                                  << "&eos.rgid=" << DAEMONGID
+                                  << "&xrd.wantprot=sss");
   arg.FromString(opaque);
   XrdCl::FileSystem fs(url);
   const XrdCl::XRootDStatus status =

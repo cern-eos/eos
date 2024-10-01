@@ -216,8 +216,11 @@ void ConversionJob::DoIt() noexcept
   dst_cgi << exclude_fsids;
   // Prepare the TPC job
   XrdCl::URL url_src = NewUrl();
-  std::string url_params = "eos.ruid=0&eos.rgid=0&eos.app=" + app_tag;
-  url_src.SetParams(url_params);
+  std::ostringstream url_params;
+  url_params << "eos.ruid=" << DAEMONUID
+             << "&eos.rgid=" << DAEMONGID
+             << "&eos.app=" + app_tag;
+  url_src.SetParams(url_params.str());
   url_src.SetPath(mSourcePath);
   XrdCl::URL url_dst = NewUrl();
   url_dst.SetParams(dst_cgi.str());

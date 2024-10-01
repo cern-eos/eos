@@ -351,7 +351,8 @@ DrainTransferJob::BuildTpcSrc(const FileDrainInfo& fdrain,
                << "&mgm.sec="
                << eos::common::SecEntity::ToKey(0, SSTR("eos/" << mAppTag).c_str())
                << "&eos.app=" << mAppTag
-               << "&eos.ruid=0&eos.rgid=0";
+               << "&eos.ruid=" << DAEMONUID
+               << "&eos.rgid=" << DAEMONGID;
   } else {
     src_params << "mgm.access=read"
                << "&mgm.lid=" << target_lid
@@ -365,7 +366,8 @@ DrainTransferJob::BuildTpcSrc(const FileDrainInfo& fdrain,
                << "&mgm.localprefix=" << src_snapshot.mPath.c_str()
                << "&mgm.fsid=" << src_snapshot.mId
                << "&eos.app=" << mAppTag
-               << "&eos.ruid=0&eos.rgid=0";
+               << "&eos.ruid=" << DAEMONUID
+               << "&eos.rgid=" << DAEMONGID;
   }
 
   // Build the capability
