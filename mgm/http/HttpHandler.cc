@@ -645,8 +645,14 @@ HttpHandler::Put(eos::common::HttpRequest* request)
           response = HttpServer::HttpStall(file->error.getErrText(),
                                            file->error.getErrInfo());
         } else {
-          response = HttpServer::HttpError("Unexpected result from file open",
-                                           EOPNOTSUPP);
+          if(getenv("EOS_MGM_ALLOW_HTTP_STALL") && rc >= SFS_STALL) {
+            // HTTP stall mechanism was enabled and the rc of the open is >= the minimum stalling time
+            // in seconds, return a Service Unavailable error.
+            response = HttpServer::HttpError("Access limit reached",ETXTBSY);
+          } else {
+            response = HttpServer::HttpError("Unexpected result from file open",
+                                             EOPNOTSUPP);
+          }
         }
       } else {
         response = new eos::common::PlainHttpResponse();
