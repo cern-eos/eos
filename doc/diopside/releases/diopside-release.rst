@@ -16,6 +16,18 @@ Introduction
 
 This release is based on XRootD V5.
 
+``v5.2.27 Diopside``
+====================
+
+2024-10-01
+
+Note
+-----
+
+* This release is targeted for the CTA use-case as it's built with eos-xrootd/xrood 5.7.1
+  that contains some HTTP header passing functionality required for CTA.
+* Built with eos-xrootd/xrootd 5.7.1
+
 
 ``v5.2.26 Diopside``
 ====================
