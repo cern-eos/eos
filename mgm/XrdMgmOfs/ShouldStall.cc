@@ -52,7 +52,9 @@ XrdMgmOfs::ShouldStall(const char* function,
   }
 
   // Avoid stalling HTTP requests as these translate into errors on the client
-  if (vid.prot == "https") {
+  // except if the adminstrator has set the environment variable allowing
+  // stalling to take place with HTTP
+  if (vid.prot == "https" && !getenv("EOS_MGM_ALLOW_HTTP_STALL")) {
     stall = false;
   }
 
