@@ -17,6 +17,24 @@ Introduction
 This release is based on XRootD V5.
 
 
+``v5.2.26 Diopside``
+====================
+
+2024-10-01
+
+Bug
+----
+
+* [EOS-6205] - FUSEX: timing-related access issue (initial "No such file or directory" (Kerberos, ACRON)
+* [EOS-6207] - eos fusex crash
+* [EOS-6211] - fst segfault or hang, async close triggered during XrdFstOfsFile destructor
+
+New feature
+------------
+
+* [EOS-6200] - MGM - HTTP Take into account OpenWriteCreate limit
+
+
 ``v5.2.25 Diopside``
 ====================
 
