@@ -2089,7 +2089,7 @@ grpc::Status GrpcWncInterface::Ls()
       mRequest->ls().readable_sizes() || mRequest->ls().show_hidden() ||
       mRequest->ls().inode_info() || mRequest->ls().num_ids() ||
       mRequest->ls().append_dir_ind() || mRequest->ls().silent() ||
-      mRequest->ls().wnc()) {
+      mRequest->ls().wnc() || mRequest->ls().noglobbing()) {
     cmd_in += "&mgm.option=";
 
     if (mRequest->ls().long_list()) {
@@ -2122,6 +2122,10 @@ grpc::Status GrpcWncInterface::Ls()
 
     if (mRequest->ls().silent()) {
       cmd_in += "s";
+    }
+
+    if (mRequest->ls().noglobbing()) {
+      cmd_in += "N";
     }
   }
 

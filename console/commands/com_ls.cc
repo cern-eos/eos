@@ -280,7 +280,7 @@ com_ls(char* arg1)
   return (0);
 com_ls_usage:
   fprintf(stdout,
-          "usage: ls [-laniyF] <path>\n");
+          "usage: ls [-laniyFN] [--no-globbing] <path>\n");
   fprintf(stdout, "list directory <path>\n\n");
   fprintf(stdout,
           "  -l : show long listing\n");
@@ -300,6 +300,8 @@ com_ls_usage:
           "  -F : append indicator '/' to directories \n");
   fprintf(stdout,
           "  -s : checks only if the directory exists without listing\n");
+  fprintf(stdout,
+          "  --no-globbing|-N : disables path globbing feature (e.g: list a file containing '[]' characters)\n");
   fprintf(stdout, "         path=file:... : list on a local file system\n\n");
   fprintf(stdout,
           "path=root:... : list on a plain XRootD server (does not work on native XRootD clusters\n");
