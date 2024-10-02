@@ -932,6 +932,7 @@ Contains an instance and fuse test script and some test executables and test arc
 %{_sbindir}/eos-unit-tests-fst
 %{_sbindir}/eos-unit-tests-with-qdb
 %{_sbindir}/eos-ns-quarkdb-tests
+%{_sbindir}/qclient-tests
 %{_sbindir}/eos-make-flamegraph
 %{_sbindir}/eos-util-flamegraph
 %{_sbindir}/eos-util-stackcollapse
