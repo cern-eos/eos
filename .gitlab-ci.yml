@@ -973,8 +973,7 @@ notify_cta_project:
       TRIGGER_URL="$CTA_PROJECT_API/trigger/pipeline"
 
       # Extract versions from eos.spec.in
-      EOS_XROOTD_VERSION=$(grep '^%define eos_xrootd_version_min' eos.spec.in | awk -F':' '{print $2}')
-      XROOTD_VERSION=$(grep '^%define xrootd_version_min' eos.spec.in | awk -F':' '{print $2}')
+      XROOTD_VERSION=$(grep '^%define xrootd_version_min' eos.spec.in | awk '{print $3}')
 
       # Fetch the latest tag from the CTA project
       LATEST_CTA_TAG=$(curl --silent "$CTA_PROJECT_API/repository/tags?order_by=updated&sort=desc" | jq -r '.[0].name')
@@ -986,7 +985,6 @@ notify_cta_project:
          -F token=$CTA_TRIGGER_TOKEN \
          -F ref=$LATEST_CTA_TAG \
          -F "variables[TAG_NAME]=$EOS_TAG_NAME" \
-         -F "variables[EOS_XROOTD_VERSION]=$EOS_XROOTD_VERSION" \
          -F "variables[XROOTD_VERSION]=$XROOTD_VERSION" \
          $TRIGGER_URL
 
@@ -996,7 +994,6 @@ notify_cta_project:
          -F token=$CTA_TRIGGER_TOKEN \
          -F ref=main \
          -F "variables[TAG_NAME]=$EOS_TAG_NAME" \
-         -F "variables[EOS_XROOTD_VERSION]=$EOS_XROOTD_VERSION" \
          -F "variables[XROOTD_VERSION]=$XROOTD_VERSION" \
          $TRIGGER_URL
       fi
