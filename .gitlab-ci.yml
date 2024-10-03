@@ -740,7 +740,7 @@ el9_asan_docker_image:
     - chown -R daemon:daemon /var/quarkdb/node-0
     - xrootd -n qdb -c /etc/xrd.cf.quarkdb -l /var/log/eos/xrdlog.qdb -b -Rdaemon
     - eos-ns-quarkdb-tests
-    - qclient-tests
+    - cp /usr/sbin/qclient-tests . && GTEST_DEATH_TEST_USE_FORK=1 ./qclient-tests
   needs:
     - job: el9_docker_image
       artifacts: false
