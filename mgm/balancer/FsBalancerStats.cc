@@ -59,7 +59,7 @@ FsBalancerStats::UpdateInfo(eos::mgm::FsView* fs_view, double threshold)
       if (!do_update &&
           (std::chrono::duration_cast<std::chrono::minutes>
            (std::chrono::steady_clock::now() - last_upd_ts).count() >=
-           sGrpDevUpdThreshold)) {
+           sGrpUpdTimeThreshold)) {
         do_update = true;
       }
 
