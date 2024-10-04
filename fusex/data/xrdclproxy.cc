@@ -23,6 +23,7 @@
  ************************************************************************/
 
 #include "xrdclproxy.hh"
+#include "fusex/misc/fusexrdlogin.hh"
 #include "common/Logging.hh"
 #include "common/Path.hh"
 #include "XrdCl/XrdClXRootDResponses.hh"
@@ -45,8 +46,22 @@ std::mutex XrdCl::Proxy::ReadAsyncHandler::gExpiredChunksMutex;
 std::vector<XrdCl::Proxy::read_handler>
 XrdCl::Proxy::ReadAsyncHandler::gExpiredChunks;
 
-XrdCl::shared_proxy XrdCl::Proxy::Factory()
+//------------------------------------------------------------------------------
+// Method to crate a new XrdCl::Proxy object with the option to request the
+// creation of a new TCP connection for the underlying XrdC::File object.
+//------------------------------------------------------------------------------
+XrdCl::shared_proxy
+XrdCl::Proxy::Factory(const fuse_ctx* ctx, const fuse_id* id)
 {
+  // If fusex ctx or fuse_id present then we need to force the creation of a
+  // new TCP connection for the underlying proxy object
+  if (ctx || id) {
+    uid_t uid = (ctx ? ctx->uid : id->uid);
+    gid_t gid = (ctx ? ctx->gid : id->gid);
+    pid_t pid = (ctx ? ctx->pid : id->pid);
+    (void) fusexrdlogin::processCache->retrieve(pid, uid, gid, true);
+  }
+
   shared_proxy sp = std::make_shared<Proxy>();
   return sp;
 }
