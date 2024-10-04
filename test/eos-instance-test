@@ -1133,11 +1133,29 @@ runtest "### Symlink   " unix 0 "" eos file symlink "/eos/$EOS_TEST_INSTANCE/tes
 runtest "### Find      " unix 0 "" eos find "/eos/$EOS_TEST_INSTANCE/test/instancetest/findtest/links/ | grep -w \"/eos/$EOS_TEST_INSTANCE/test/instancetest/findtest/links/a.ln -> /eos/$EOS_TEST_INSTANCE/test/instancetest/findtest/a.txt\""
 runtest "### Rm        " unix 0 "" eos rm "/eos/$EOS_TEST_INSTANCE/test/instancetest/findtest/links/a.ln"
 runtest "### Upload    " unix 0 "" upload   "$TESTSYSFILE1M" "/eos/$EOS_TEST_INSTANCE/test/instancetest/findtest/f1" "-ODeos.ruid=0"
-runtest "### Delay     " unix 0 "" delay 10
+runtest "### Delay     " unix 0 "" delay 7
 runtest "### Du -s     " unix 0 "" eos du -s "/eos/$EOS_TEST_INSTANCE/test/instancetest/findtest/ | grep 1024000"
 runtest "### Du -s     " unix 0 "" eos du -s -h "/eos/$EOS_TEST_INSTANCE/test/instancetest/findtest/ | grep 1.02 | grep MB"
 runtest "### Du -s     " unix 0 "" eos du -s -h --si "/eos/$EOS_TEST_INSTANCE/test/instancetest/findtest/ | grep 1000.00 | grep kiB"
-runtest "### Rm        " unix 0 "" eos rm -r "/eos/$EOS_TEST_INSTANCE/test/instancetest/findtest"
+runtest "### Rm        " unix 0 "" eos rm -rF "/eos/$EOS_TEST_INSTANCE/test/instancetest/findtest"
+runtest "### Mkdir     " unix 0 "" eos mkdir "/eos/$EOS_TEST_INSTANCE/test/instancetest/findtest"
+runtest "### Attr Set  " unix 0 "" eos attr set sys.versioning=3 "/eos/$EOS_TEST_INSTANCE/test/instancetest/findtest"
+runtest "### Upload    " unix 0 "" upload "$TESTSYSFILE1K" "/eos/$EOS_TEST_INSTANCE/test/instancetest/findtest/a.txt"
+runtest "### Upload    " unix 0 "" upload "$TESTSYSFILE1K" "/eos/$EOS_TEST_INSTANCE/test/instancetest/findtest/b.txt"
+runtest "### Upload    " unix 0 "" upload "$TESTSYSFILE1K" "/eos/$EOS_TEST_INSTANCE/test/instancetest/findtest/c.txt"
+runtest "### Upload    " unix 0 "" upload "$TESTSYSFILE1K" "/eos/$EOS_TEST_INSTANCE/test/instancetest/findtest/c.txt"
+runtest "### Upload    " unix 0 "" upload "$TESTSYSFILE1K" "/eos/$EOS_TEST_INSTANCE/test/instancetest/findtest/c.txt"
+runtest "### Upload    " unix 0 "" upload "$TESTSYSFILE1K" "/eos/$EOS_TEST_INSTANCE/test/instancetest/findtest/c.txt"
+runtest "### Find      " unix 0 "" eos find -d "/eos/$EOS_TEST_INSTANCE/test/instancetest/findtest | wc -l | grep -w 2"
+runtest "### Find      " unix 0 "" eos find -d --skip-version-dirs "/eos/$EOS_TEST_INSTANCE/test/instancetest/findtest | wc -l | grep -w 1"
+runtest "### Find      " unix 0 "" eos find -d --cache --skip-version-dirs "/eos/$EOS_TEST_INSTANCE/test/instancetest/findtest | wc -l | grep -w 1"
+runtest "### Find      " unix 0 "" eos find -f "/eos/$EOS_TEST_INSTANCE/test/instancetest/findtest | wc -l | grep -w 6"
+runtest "### Find      " unix 0 "" eos find -f --skip-version-dirs "/eos/$EOS_TEST_INSTANCE/test/instancetest/findtest | wc -l | grep -w 3"
+runtest "### Find      " unix 0 "" eos find -f --cache --skip-version-dirs "/eos/$EOS_TEST_INSTANCE/test/instancetest/findtest | wc -l | grep -w 3"
+runtest "### Find      " unix 0 "" eos find "/eos/$EOS_TEST_INSTANCE/test/instancetest/findtest | wc -l | grep -w 8"
+runtest "### Find      " unix 0 "" eos find --skip-version-dirs "/eos/$EOS_TEST_INSTANCE/test/instancetest/findtest | wc -l | grep -w 4"
+runtest "### Find      " unix 0 "" eos find --cache --skip-version-dirs "/eos/$EOS_TEST_INSTANCE/test/instancetest/findtest | wc -l | grep -w 4"
+runtest "### Rm        " unix 0 "" eos rm -rF "/eos/$EOS_TEST_INSTANCE/test/instancetest/findtest"
 ################################################################################
 # WFE
 ################################################################################

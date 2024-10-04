@@ -363,7 +363,7 @@ _clone(std::shared_ptr<eos::IContainerMD>& cmd,
 
       try {
         /* this only happens @ depth 0! */
-        cmd = gOFS->eosView->getContainer(rootDir);             
+        cmd = gOFS->eosView->getContainer(rootDir);
         eos_static_info("clone %ld purge hint %s", cloneId, rootDir.c_str());
       } catch (eos::MDException& e) {
         eos_static_info("clone %ld root hint %s ignored ec=%d emsg='%s'",
@@ -670,7 +670,8 @@ XrdMgmOfs::_find(const char* path, XrdOucErrInfo& out_error,
                  std::map<std::string, std::set<std::string> >& found,
                  const char* key, const char* val, bool no_files,
                  time_t millisleep, bool nscounter, int maxdepth,
-                 const char* filematch, bool json_output, FILE* fstdout,
+                 const char* filematch, bool skip_version_dirs,
+                 bool json_output, FILE* fstdout,
                  time_t max_ctime_dir, time_t max_ctime_file,
                  std::map<std::string, time_t>* found_ctime_sec,
                  ThreadAssistant* assistant)
@@ -788,6 +789,11 @@ XrdMgmOfs::_find(const char* path, XrdOucErrInfo& out_error,
         continue;
       }
 
+      if (skip_version_dirs &&
+          (cmd->getName().find(EOS_COMMON_PATH_VERSION_FILE_PREFIX) == 0)) {
+        continue;
+      }
+
       // Skip directory entries which are newer than max_ctime except
       // for the top recycle bin directory.
       if (max_ctime_dir && (ctime.tv_sec > max_ctime_dir)) {
@@ -817,6 +823,11 @@ XrdMgmOfs::_find(const char* path, XrdOucErrInfo& out_error,
 
       // Add all children into the 2D vectors
       for (auto dit = eos::ContainerMapIterator(cmd); dit.valid(); dit.next()) {
+        if (skip_version_dirs &&
+            (dit.key().find(EOS_COMMON_PATH_VERSION_FILE_PREFIX) == 0)) {
+          continue;
+        }
+
         std::string fpath = Path.c_str();
         fpath += dit.key();
         fpath += "/";
@@ -850,7 +861,7 @@ XrdMgmOfs::_find(const char* path, XrdOucErrInfo& out_error,
             if (!gOFS->_attr_get(fpath.c_str(), out_error, vid,
                                  nullptr, key, attr)) {
               found_dirs[deepness + 1].push_back(fpath.c_str());
-              
+
               if ((val == std::string("*")) || (attr == val)) {
                 (void)found[fpath].size();
               }
