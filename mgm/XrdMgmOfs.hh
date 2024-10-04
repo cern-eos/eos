@@ -542,6 +542,7 @@ public:
   //! @param nscounter if true update ns counters, otherwise don't
   //! @param maxdepth is the maximum search depth
   //! @param filematch is a pattern match for file names
+  //! @param skip_version_dir if true then skip listing version directories
   //! @param json_output
   //! @param fstout
   //! @param foudn_ctime_sec if set populate with found entries and their ctime
@@ -574,10 +575,9 @@ public:
             std::map<std::string, std::set<std::string> >& found,
             const char* key = 0, const char* val = 0, bool no_files = false,
             time_t millisleep = 0, bool nscounter = true, int maxdepth = 0,
-            const char* filematch = 0, bool json_output = false,
-            FILE* fstdout = NULL,
-            time_t max_ctime_dir = 0,
-            time_t max_ctime_file = 0,
+            const char* filematch = 0, bool skip_version_dirs = false,
+            bool json_output = false, FILE* fstdout = NULL,
+            time_t max_ctime_dir = 0,       time_t max_ctime_file = 0,
             std::map<std::string, time_t>* found_ctime_sec = 0,
             ThreadAssistant* assistant = nullptr);
 

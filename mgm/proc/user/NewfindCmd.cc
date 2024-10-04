@@ -842,19 +842,29 @@ NewfindCmd::PurgeVersions(S& ss, int64_t maxVersion,
 class TraversalFilter : public ExpansionDecider
 {
 public:
-  TraversalFilter(const eos::common::VirtualIdentity& v) : vid(v) {}
+  TraversalFilter(const eos::common::VirtualIdentity& v,
+                  bool skip_version_dirs) :
+    mSkipVersionDirs(skip_version_dirs), mVid(v) {}
 
   virtual bool shouldExpandContainer(const eos::ns::ContainerMdProto& proto,
                                      const eos::IContainerMD::XAttrMap& attrs,
                                      const std::string& fullPath) override
   {
+    // If skip version dirs enabled and container start with the version
+    // prefix then we skip expanding the current directory
+    if (mSkipVersionDirs &&
+        (proto.name().find(EOS_COMMON_PATH_VERSION_FILE_PREFIX) == 0)) {
+      return false;
+    }
+
     eos::QuarkContainerMD cmd;
     cmd.initializeWithoutChildren(eos::ns::ContainerMdProto(proto));
-    return AccessChecker::checkContainer(&cmd, attrs, R_OK | X_OK, vid)
-           && AccessChecker::checkPublicAccess(fullPath, vid);
+    return AccessChecker::checkContainer(&cmd, attrs, R_OK | X_OK, mVid)
+           && AccessChecker::checkPublicAccess(fullPath, mVid);
   }
 private:
-  const eos::common::VirtualIdentity& vid;
+  bool mSkipVersionDirs;
+  const eos::common::VirtualIdentity& mVid;
 };
 
 
@@ -945,9 +955,9 @@ public:
   //----------------------------------------------------------------------------
   FindResultProvider(qclient::QClient* qc, const std::string& target,
                      const uint32_t depthlimit, const bool ignore_files,
-                     const eos::common::VirtualIdentity& v)
+                     bool skip_version_dirs, const eos::common::VirtualIdentity& v)
     : qcl(qc), path(target), depthlimit(depthlimit), ignore_files(ignore_files),
-      vid(v)
+      mSkipVersionDirs(skip_version_dirs), mVid(v)
   {
     restart();
   }
@@ -962,7 +972,7 @@ public:
       options.populateLinkedAttributes = true;
       options.view = gOFS->eosView;
       options.depthLimit = depthlimit;
-      options.expansionDecider.reset(new TraversalFilter(vid));
+      options.expansionDecider.reset(new TraversalFilter(mVid, mSkipVersionDirs));
       options.ignoreFiles = ignore_files;
       explorer.reset(new NamespaceExplorer(path, options, *qcl,
                                            static_cast<QuarkNamespaceGroup*>(gOFS->namespaceGroup.get())->getExecutor()));
@@ -1087,8 +1097,9 @@ private:
   std::string path;
   uint32_t depthlimit;
   bool ignore_files;
+  bool mSkipVersionDirs;
   std::unique_ptr<NamespaceExplorer> explorer;
-  eos::common::VirtualIdentity vid;
+  eos::common::VirtualIdentity mVid;
 };
 
 //------------------------------------------------------------------------------
@@ -1165,9 +1176,10 @@ NewfindCmd::ProcessRequest() noexcept
     std::make_unique<qclient::QClient>(gOFS->mQdbContactDetails.members,
                                        gOFS->mQdbContactDetails.constructOptions());
   std::unique_ptr<FindResultProvider> findResultProvider;
-  int depthlimit = findRequest.Maxdepth__case() ==
-                   eos::console::FindProto::MAXDEPTH__NOT_SET ?
-                   eos::common::Path::MAX_LEVELS : cPath.GetSubPathSize() + findRequest.maxdepth();
+  int depthlimit = ((findRequest.Maxdepth__case() ==
+                     eos::console::FindProto::MAXDEPTH__NOT_SET) ?
+                    eos::common::Path::MAX_LEVELS :
+                    cPath.GetSubPathSize() + findRequest.maxdepth());
 
   // @note Shortcut with bad input --name regex filters. Move to client side?
   // Looks like std::regex suffers from https://gcc.gnu.org/bugzilla/show_bug.cgi?id=86164#c7
@@ -1195,8 +1207,8 @@ NewfindCmd::ProcessRequest() noexcept
   }
 
   bool onlydirs = (findRequest.directories() &&
-                   !findRequest.files()) | findRequest.count() | findRequest.treecount() |
-                  findRequest.childcount();
+                   !findRequest.files()) | findRequest.count() |
+                   findRequest.treecount() | findRequest.childcount();
 
   if (findRequest.cache()) {
     // read via our in-memory cache using _find
@@ -1205,12 +1217,13 @@ NewfindCmd::ProcessRequest() noexcept
           findResultProvider->getFoundMap();
 
     if (gOFS->_find(real_path.c_str(), errInfo, m_err, mVid, (*found),
-                    findRequest.attributekey().length() ? findRequest.attributekey().c_str() :
-                    nullptr,
-                    findRequest.attributevalue().length() ? findRequest.attributevalue().c_str() :
-                    nullptr,
+                    findRequest.attributekey().length() ?
+                    findRequest.attributekey().c_str() : nullptr,
+                    findRequest.attributevalue().length() ?
+                    findRequest.attributevalue().c_str() : nullptr,
                     onlydirs, 0, true, findRequest.maxdepth(),
-                    findRequest.name().empty() ? nullptr : findRequest.name().c_str())) {
+                    findRequest.name().empty() ? nullptr : findRequest.name().c_str(),
+                    findRequest.skipversiondirs())) {
       mOfsErrStream << "error: unable to run find in directory" << std::endl;
       reply.set_retc(errno);
       return reply;
@@ -1224,9 +1237,9 @@ NewfindCmd::ProcessRequest() noexcept
   } else {
     // read from the QDB backend
     try {
-      findResultProvider.reset(new FindResultProvider(qcl.get(),
-                               real_path, depthlimit,
-                               onlydirs, mVid));
+      findResultProvider.reset
+        (new FindResultProvider(qcl.get(), real_path, depthlimit, onlydirs,
+                                findRequest.skipversiondirs(), mVid));
     } catch (eos::MDException& e) {
       eos_static_info("msg=\"caught newfind exception\" orig_path=\"%s\" "
                       "rpath=\"%s\" errno=%d what=\"%s\"",
@@ -1278,8 +1291,8 @@ NewfindCmd::ProcessRequest() noexcept
     }
 
     if (findResult.isdir) {
-      if (!findRequest.directories() && findRequest.files() && !findRequest.count() &&
-          !findRequest.treecount()) {
+      if (!findRequest.directories() && findRequest.files() &&
+          !findRequest.count() && !findRequest.treecount()) {
         continue;
       }
 
@@ -1298,6 +1311,11 @@ NewfindCmd::ProcessRequest() noexcept
           mOfsErrStream << findResult.path << std::endl;
           reply.set_retc(EACCES);
           continue;
+        } else if (findResult.path.find(EOS_COMMON_PATH_VERSION_PREFIX) !=
+                   std::string::npos) {
+          eos_static_debug("msg=\"entry filtered out\" path=\"%s\"",
+                          findResult.path.c_str());
+          continue;
         } else {
           // @note Empty branch, will be cut out from the compiler anyway.
           // Either the findResult container can't be expanded further as it reaches maxdepth
@@ -1312,8 +1330,9 @@ NewfindCmd::ProcessRequest() noexcept
         continue;  // Process next item if we don't have a cMD
       }
 
-      // --treecount nullify the filters, we don't want to bias the count because of intermediate filtered-out result
-      // Alse, take the chance to update the total counter while traversing
+      // --treecount nullify the filters, we don't want to bias the count
+      // because of intermediate filtered-out result, also update the total
+      // counter while traversing
       if (!findRequest.treecount()) {
         if (FilterOut(findRequest, cMD)) {
           continue;
@@ -1576,9 +1595,9 @@ NewfindCmd::ProcessRequest(grpc::ServerWriter<eos::console::ReplyProto>* writer)
   } else {
     // read from the back-end
     try {
-      findResultProvider.reset(new FindResultProvider(qcl.get(),
-                               real_path, depthlimit,
-                               onlydirs, mVid));
+      findResultProvider.reset
+        (new FindResultProvider(qcl.get(), real_path, depthlimit, onlydirs,
+                                findRequest.skipversiondirs(), mVid));
     } catch (eos::MDException& e) {
       eos_static_info("msg=\"caught newfind exception\" orig_path=\"%s\" "
                       "rpath=\"%s\" errno=%d what=\"%s\"",

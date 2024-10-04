@@ -76,6 +76,8 @@ NewfindHelper::ParseCommand(const char* arg)
       find->set_printgid(true);
     } else if (s1 == "--stripediff") {
       find->set_stripediff(true);
+    } else if (s1 == "--skip-version-dirs") {
+      find->set_skipversiondirs(true);
     } else if (s1 == "--faultyacl") {
       find->set_faultyacl(true);
     } else if (s1 == "--count") {
@@ -104,8 +106,6 @@ NewfindHelper::ParseCommand(const char* arg)
       find->set_format(token);
     } else if (s1 == "--xurl") {
       find->set_xurl(true);
-//    } else if (s1 == "-1") {
-//      find->set_onehourold(true);
     } else if (s1 == "-b") {
       find->set_balance(true);
     } else if (s1 == "-g") {
@@ -257,7 +257,9 @@ NewfindHelper::ParseCommand(const char* arg)
       } else {
         return false;
       }
-    } else if ((s1 == "-ctime") || (s1 == "-mtime")) {
+      // @todo(esindril) drop the single dash option at some point
+    } else if ((s1 == "--ctime") || (s1 == "-ctime") ||
+               (s1 == "--mtime") || (s1 == "-mtime")) {
       XrdOucString period = "";
       period = subtokenizer.GetToken();
 
@@ -281,9 +283,9 @@ NewfindHelper::ParseCommand(const char* arg)
         char snow[1024];
         snprintf(snow, sizeof(snow) - 1, "%lu", now);
 
-        if (s1 == "-ctime") {
+        if ((s1 == "--ctime") || (s1 == "-ctime")) {
           find->set_ctime(true);
-        } else if (s1 == "-mtime") {
+        } else if ((s1 == "--mtime") || (s1 == "-mtime")) {
           find->set_mtime(true);
         }
 
