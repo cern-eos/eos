@@ -278,11 +278,11 @@ private:
 };
 
 
-// ---------------------------------------------------------------------- //
-
-
+//------------------------------------------------------------------------------
+//! Class Proxy
+//------------------------------------------------------------------------------
 class Proxy : public XrdCl::File, public eos::common::LogId
-// ---------------------------------------------------------------------- //
+
 {
 public:
 
@@ -291,7 +291,17 @@ public:
   static BufferManager sWrBufferManager; // write buffer manager
   static BufferManager sRaBufferManager; // async read buffer manager
 
-  static XrdCl::shared_proxy Factory();
+  //----------------------------------------------------------------------------
+  //! Method to crate a new XrdCl::Proxy object with the option to request the
+  //! creation of a new TCP connection for the underlying XrdC::File object.
+  //!
+  //! @param ctx current fuse_ctx if available otherwise nullptr
+  //! @param id current fuse_id if available otherwise nullptr
+  //!
+  //! @return new XrdCl::Proxy object
+  //----------------------------------------------------------------------------
+  static XrdCl::shared_proxy Factory(const fuse_ctx* ctx = nullptr,
+                                     const fuse_id* id = nullptr);
 
   // ---------------------------------------------------------------------- //
   XRootDStatus OpenAsync(XrdCl::shared_proxy proxy,

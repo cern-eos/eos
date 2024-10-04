@@ -23,7 +23,7 @@
  ************************************************************************/
 
 #include "fusexrdlogin.hh"
-#include "eosfuse.hh"
+#include "eosxd/eosfuse.hh"
 #include "common/Macros.hh"
 #include "common/SymKeys.hh"
 #include "misc/FuseId.hh"
