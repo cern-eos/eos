@@ -314,41 +314,52 @@ cap::acquire(fuse_req_t req, fuse_ino_t ino, mode_t mode, bool lock)
   eos_static_debug("inode=%08lx cap-id=%s mode=%x", ino, cid.c_str(), mode);
   shared_cap cap = get(req, ino);
   // avoid we create the same cap concurrently
-  {
-    bool valid = false;
-    {
-      XrdSysMutexHelper cLock(cap->Locker());
+  XrdSysMutexHelper cLock(cap->Locker());
+  bool valid = cap->valid();
+
+  int nref = 0;
+  while (!valid && nref<3) {
+    shared_cap cap2 = get(req, ino);
+    if (cap2 != cap) {
+      cLock.UnLock();
+      cap = cap2;
+      cLock.Lock(&cap->Locker());
       valid = cap->valid();
+      continue;
     }
 
-    if (!valid) {
-      if (refresh(req, cap)) {
-        (*cap)()->set_errc(errno ? errno : EIO);
-        return cap;
-      }
-
-      cap = get(req, ino);
+    if (refresh(req, cap)) {
+      (*cap)()->set_errc(errno ? errno : EIO);
+      return cap;
     }
+    nref++;
 
-    {
-      XrdSysMutexHelper cLock(cap->Locker());
-
-      if (!cap->satisfy(mode) || !cap->valid()) {
-        if (!cap->valid()) {
-          eos_static_err("msg=\"unsynchronized clocks between fuse client machine "
-                         "and MGM\" now_time=%lu cap_time=%lu", time(nullptr),
-                         (*cap)()->vtime());
-        }
-
-        (*cap)()->set_errc(EPERM);
-      } else {
-        (*cap)()->set_errc(0);
-      }
-
-      eos_static_debug("%s", cap->dump().c_str());
-    }
+    cLock.UnLock();
+    cap = get(req, ino);
+    cLock.Lock(&cap->Locker());
+    valid = cap->valid();
   }
-  XrdSysMutexHelper mLock2(cap->Locker());
+
+  if (nref > 1) {
+    eos_static_debug("inode=%08lx cap-id=%s cap refresh made %d attempts",
+                     ino, cid.c_str(), nref);
+  }
+
+  if (!cap->satisfy(mode) || !valid) {
+    if (!valid) {
+      eos_static_err("msg=\"did not succeed in refreshing cap with MGM\""
+                     " inode=%08lx cap-id=%s now_time=%lu cap_time=%lu cap_errc=%d",
+                     ino, cid.c_str(), time(nullptr),
+                     (*cap)()->vtime(), (*cap)()->errc());
+    }
+
+    (*cap)()->set_errc(EPERM);
+  } else {
+    (*cap)()->set_errc(0);
+  }
+
+  eos_static_debug("%s", cap->dump().c_str());
+
   // stamp latest time of use
   cap->use();
   return cap;

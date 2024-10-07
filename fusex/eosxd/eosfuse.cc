@@ -2720,8 +2720,10 @@ EosFuse::getattr(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info* fi)
       rc = md->deleted() ? ENOENT : (*md)()->err();
     } else {
       fuse_ino_t cap_ino = S_ISDIR((*md)()->mode()) ? ino : (*md)()->pid();
+
+      // for consistentcy with EosFuse::lookup do not check for x-permission
       cap::shared_cap pcap = Instance().caps.acquire(req, cap_ino ? cap_ino : 1,
-                             S_IFDIR | Instance().Config().options.x_ok);
+                             S_IFDIR);
       double cap_lifetime = 0;
       XrdSysMutexHelper capLock(pcap->Locker());
 
@@ -3261,8 +3263,9 @@ EosFuse::lookup(fuse_req_t req, fuse_ino_t parent, const char* name)
     md = Instance().mds.lookup(req, parent, name);
 
     if ((*md)()->id() && !md->deleted()) {
-      cap::shared_cap pcap = Instance().caps.acquire(req, parent,
-                             Instance().Config().options.x_ok);
+      // lookup has traditionally not checked pcap errc, so
+      // we require no particular mode during acquire
+      cap::shared_cap pcap = Instance().caps.acquire(req, parent, 0);
       XrdSysMutexHelper mLock(md->Locker());
       (*md)()->set_pid(parent);
       eos_static_info("%s", md->dump(e).c_str());
@@ -3286,8 +3289,7 @@ EosFuse::lookup(fuse_req_t req, fuse_ino_t parent, const char* name)
         e.attr_timeout = Instance().Config().options.md_kernelcache_enoent_timeout;
         e.entry_timeout = Instance().Config().options.md_kernelcache_enoent_timeout;
       } else {
-        cap::shared_cap pcap = Instance().caps.acquire(req, parent,
-                               Instance().Config().options.x_ok);
+        cap::shared_cap pcap = Instance().caps.acquire(req, parent, 0);
         e.entry_timeout = pcap->lifetime();
         metad::shared_md pmd = Instance().mds.getlocal(req, parent);
 
@@ -6706,6 +6708,9 @@ EosFuse::readlink(fuse_req_t req, fuse_ino_t ino)
         std::string localpath = Instance().Prefix(Instance().mds.calculateLocalPath(
                                   md));
         rc = Instance().Mounter().mount(target, localpath, env);
+        if (rc<0) {
+          rc = EINVAL;
+        }
       }
 
       if (target.substr(0, 11) == "squashfuse:") {
@@ -6714,6 +6719,9 @@ EosFuse::readlink(fuse_req_t req, fuse_ino_t ino)
         std::string localpath = Instance().Prefix(Instance().mds.calculateLocalPath(
                                   md));
         rc = Instance().Mounter().squashfuse(target, localpath, env);
+        if (rc<0) {
+          rc = EINVAL;
+        }
       }
     }
   }
@@ -6721,7 +6729,7 @@ EosFuse::readlink(fuse_req_t req, fuse_ino_t ino)
   if (!rc) {
     fuse_reply_readlink(req, target.c_str());
   } else {
-    fuse_reply_err(req, errno);
+    fuse_reply_err(req, rc);
   }
 
   EXEC_TIMING_END(__func__);
