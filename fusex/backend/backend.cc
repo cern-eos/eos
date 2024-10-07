@@ -154,12 +154,50 @@ backend::getCAP(fuse_req_t req,
                )
 /* -------------------------------------------------------------------------- */
 {
-  EosFuse::instance().Tracker().SetOrigin(req, inode, "cap::get");
-  uint64_t myclock = (uint64_t) time(NULL) +
-                     5; // allow for drifts of up to 5s (+2 on server side)
-  std::string requestURL = getURL(req, inode, myclock, "fuseX", "getfusex",
-                                  "GETCAP", "", true);
-  return fetchResponse(req, inode, requestURL, contv, true);
+  double total_exec_time_sec = 0;
+
+  do {
+    struct timespec ts;
+    eos::common::Timing::GetTimeSpec(ts, true);
+
+    EosFuse::instance().Tracker().SetOrigin(req, inode, "cap::get");
+    const uint64_t myclock = (uint64_t) time(NULL) +
+                             5; // allow for drifts of up to 5s (+2 on server side)
+    std::string requestURL = getURL(req, inode, myclock, "fuseX", "getfusex",
+                                    "GETCAP", "", true);
+    const int rc = fetchResponse(req, inode, requestURL, contv, true);
+    if (rc != EL2NSYNC) return rc;
+
+    // MGM reported a clock error, but try to determine if it is due to a
+    // time synchronization problem or a long round-trip time.
+    const double exec_time_sec = 1.0 * eos::common::Timing::GetCoarseAgeInNs(&ts,
+                                 0) / 1000000000.0;
+
+    if (exec_time_sec < 5.0) {
+      // this is a time synchronization error
+      eos_static_err("%s", "msg=\"GETCAP finished within 5 seconds "
+                           "round-trip time, the clock seems to be out of sync "
+                           "with the MGM\"");
+      errno = EL2NSYNC;
+      return EL2NSYNC;
+    }
+
+    total_exec_time_sec += exec_time_sec;
+    if (timeout && ((total_exec_time_sec + 5) > timeout)) {
+      eos_static_err("giving up getcap after sum-fetch-exec-s=%.02f backend-timeout-s=%.02f",
+                     total_exec_time_sec, timeout);
+      errno = EL2NSYNC;
+      return EL2NSYNC;
+    }
+
+    eos_static_err("%s", "msg=\"GETCAP took more than 5 seconds and we got a clock sync error"
+                         "with the MGM - retrying\"");
+    std::this_thread::sleep_for(std::chrono::seconds(5));
+    total_exec_time_sec += 5.0;
+  } while(1);
+
+  // unreached
+  return ENXIO;
 }
 
 
@@ -357,28 +395,11 @@ backend::fetchResponse(fuse_req_t req,
 
       // the xrootd mapping of errno to everything unknown to EIO is really unfortunate
       if (xrootderr.find("get-cap-clock-out-of-sync") != std::string::npos) {
-        if (exec_time_sec >= 5) {
-          if (cap) {
-            EosFuse::instance().Tracker().SetOrigin(req, inode, "cap::rtt");
-          } else {
-            EosFuse::instance().Tracker().SetOrigin(req, inode, "fetch::rtt");
-          }
-
-          eos_static_err("%s",
-                         "msg=\"GETCAP took more than 5 seconds and we got a clock sync error"
-                         "with the MGM - retrying\"");
-          std::this_thread::sleep_for(std::chrono::seconds(5));
-          total_exec_time_sec += 5;
-          continue;
-        } else {
-          // this is a time synchronization error
-          eos_static_err("%s", "msg=\"GETCAP finished within 5 seconds "
-                         "round-trip time, the clock seems to be out of sync "
-                         "with the MGM\"");
-          errno = EL2NSYNC;
-          EosFuse::instance().Tracker().SetOrigin(req, inode, "fs");
-          return EL2NSYNC;
-        }
+        // MGM not happy with the consistency of our timestamp: possibly long
+        // round-trip or a clock sync issue. Let getCAP determine which.
+        errno = EL2NSYNC;
+        EosFuse::instance().Tracker().SetOrigin(req, inode, "fs");
+        return EL2NSYNC;
       }
 
       if (
@@ -494,6 +515,7 @@ has_response:
   eos::fusex::container cont;
 
   do {
+    contv.clear();
     cont.Clear();
 
     if ((response.size() - offset) > 10) {
