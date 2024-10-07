@@ -3067,18 +3067,8 @@ WFE::MoveFromRBackToQ()
   eos::common::VirtualIdentity rootvid = eos::common::VirtualIdentity::Root();
 
   for (const auto& query : queries) {
-    gOFS->_find(query.c_str(),
-                errInfo,
-                stdErr,
-                rootvid,
-                wfedirs,
-                nullptr,
-                nullptr,
-                false,
-                0,
-                false,
-                0
-               );
+    gOFS->_find(query.c_str(), errInfo, stdErr, rootvid, wfedirs,
+                nullptr, nullptr, false, 0, false, 0);
   }
 
   for (const auto& wfedir : wfedirs) {
