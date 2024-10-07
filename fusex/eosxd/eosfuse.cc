@@ -2725,10 +2725,13 @@ EosFuse::getattr(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info* fi)
       double cap_lifetime = 0;
       XrdSysMutexHelper capLock(pcap->Locker());
 
-      if ((*pcap)()->errc()) {
-        rc = (*pcap)()->errc();
-        capLock.UnLock();
-      } else {
+      // for consistency with EosFuse::lookup do not check the pcap
+      // for error (e.g. from satisfy() regarding the mode check)
+//      if ((*pcap)()->errc()) {
+//        rc = (*pcap)()->errc();
+//        capLock.UnLock();
+//      } else {
+      {
         cap_lifetime = pcap->lifetime();
 
         if (md->needs_refresh()) {
@@ -6706,6 +6709,9 @@ EosFuse::readlink(fuse_req_t req, fuse_ino_t ino)
         std::string localpath = Instance().Prefix(Instance().mds.calculateLocalPath(
                                   md));
         rc = Instance().Mounter().mount(target, localpath, env);
+        if (rc<0) {
+          rc = EINVAL;
+        }
       }
 
       if (target.substr(0, 11) == "squashfuse:") {
@@ -6714,6 +6720,9 @@ EosFuse::readlink(fuse_req_t req, fuse_ino_t ino)
         std::string localpath = Instance().Prefix(Instance().mds.calculateLocalPath(
                                   md));
         rc = Instance().Mounter().squashfuse(target, localpath, env);
+        if (rc<0) {
+          rc = EINVAL;
+        }
       }
     }
   }
@@ -6721,7 +6730,7 @@ EosFuse::readlink(fuse_req_t req, fuse_ino_t ino)
   if (!rc) {
     fuse_reply_readlink(req, target.c_str());
   } else {
-    fuse_reply_err(req, errno);
+    fuse_reply_err(req, rc);
   }
 
   EXEC_TIMING_END(__func__);
